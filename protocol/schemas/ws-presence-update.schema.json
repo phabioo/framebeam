@@ -1,20 +1,45 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://framebeam.invalid/schemas/ws-presence-update.schema.json",
-  "title": "ws-presence-update",
+  "title": "ws-presence-update (both directions)",
   "type": "object",
-  "required": ["type", "payload"],
+  "required": [
+    "type",
+    "payload"
+  ],
   "properties": {
-    "type": { "const": "presence_update" },
-    "id": { "type": "string" },
+    "type": {
+      "const": "presence_update"
+    },
+    "id": {
+      "type": "string"
+    },
     "payload": {
       "type": "object",
-      "required": ["device_id", "state"],
+      "required": [
+        "state"
+      ],
       "properties": {
-        "device_id": { "type": "string", "format": "uuid" },
-        "state": { "enum": ["online", "offline", "in_game"] },
-        "game_id": { "type": "string", "format": "uuid" }
+        "user_id": {
+          "type": "string"
+        },
+        "device_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "state": {
+          "enum": [
+            "online",
+            "offline",
+            "in_game"
+          ]
+        },
+        "game_id": {
+          "type": "string",
+          "format": "uuid"
+        }
       }
     }
-  }
+  },
+  "description": "Player to Hub: {state: online|in_game, game_id?}. Hub to Players: additionally user_id and device_id (always set), state may be offline."
 }

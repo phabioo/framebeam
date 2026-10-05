@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://framebeam.invalid/schemas/ws-session.schema.json",
+  "title": "Session object (as REST Session, shared by session_update and session_invite)",
+  "type": "object",
+  "required": [
+    "session_id",
+    "game_id",
+    "game_title",
+    "owner",
+    "visibility",
+    "created_at",
+    "viewer_count",
+    "is_owner",
+    "invited"
+  ],
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "game_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "game_title": {
+      "type": "string"
+    },
+    "owner": {
+      "type": "object",
+      "required": [
+        "user_id",
+        "display_name",
+        "device_name"
+      ],
+      "properties": {
+        "user_id": {
+          "type": "string"
+        },
+        "display_name": {
+          "type": "string"
+        },
+        "device_name": {
+          "type": "string"
+        }
+      }
+    },
+    "visibility": {
+      "enum": [
+        "private",
+        "hub_users",
+        "invite_only"
+      ]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "viewer_count": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4
+    },
+    "viewers": {
+      "type": "array",
+      "description": "Only for the owner device",
+      "items": {
+        "type": "object",
+        "required": [
+          "viewer_id",
+          "display_name",
+          "device_name"
+        ],
+        "properties": {
+          "viewer_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "device_name": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "invites": {
+      "type": "array",
+      "description": "Only for the owner device",
+      "items": {
+        "type": "object",
+        "required": [
+          "user_id",
+          "display_name",
+          "state",
+          "online"
+        ],
+        "properties": {
+          "user_id": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "invited",
+              "declined",
+              "joined"
+            ]
+          },
+          "online": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "is_owner": {
+      "type": "boolean"
+    },
+    "invited": {
+      "type": "boolean"
+    }
+  }
+}

@@ -1,16 +1,35 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://framebeam.invalid/schemas/ws-hello.schema.json",
-  "title": "ws-hello (Player an Hub)",
+  "title": "ws-hello (Player to Hub, first message)",
   "type": "object",
-  "required": ["type", "payload"],
+  "required": [
+    "type",
+    "payload"
+  ],
   "properties": {
-    "type": { "const": "hello" },
-    "id": { "type": "string" },
+    "type": {
+      "const": "hello"
+    },
+    "id": {
+      "type": "string"
+    },
     "payload": {
       "type": "object",
-      "required": ["protocol_version"],
-      "properties": { "protocol_version": { "type": "integer", "minimum": 1 } }
+      "required": [
+        "protocol_version",
+        "device_id"
+      ],
+      "properties": {
+        "protocol_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "device_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
     }
   }
 }

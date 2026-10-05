@@ -262,7 +262,7 @@ func TestSavesAPICrossUserAndRevoked(t *testing.T) {
 	wantStatus(t, a.do("GET", a.path("/content"), nil, opt{token: a.tokA}), 401, "")
 }
 
-func TestHandshakeAdvertisesSavesFeature(t *testing.T) {
+func TestHandshakeAdvertisesFeatures(t *testing.T) {
 	e := newEnv(t, nil)
 	tok := e.login(uuid.NewString())
 	rec := e.do("POST", "/api/v1/handshake", handshakeBody(1, 1), opt{token: tok})
@@ -270,7 +270,7 @@ func TestHandshakeAdvertisesSavesFeature(t *testing.T) {
 	f := decode[struct {
 		Features []string `json:"features"`
 	}](t, rec).Features
-	if len(f) != 1 || f[0] != "saves_v1" {
+	if len(f) != 2 || f[0] != "saves_v1" || f[1] != "sessions_v1" {
 		t.Fatalf("%v", f)
 	}
 }

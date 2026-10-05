@@ -20,6 +20,11 @@ const (
 	CodeSaveConflict       Code = "save_conflict"
 	CodeSaveConflictStale  Code = "save_conflict_stale"
 	CodePayloadTooLarge    Code = "payload_too_large"
+	CodeSessionNotFound    Code = "session_not_found"
+	CodeSessionForbidden   Code = "session_forbidden"
+	CodeSessionFull        Code = "session_full"
+	CodeSessionEnded       Code = "session_ended"
+	CodeCapabilityMissing  Code = "capability_missing"
 )
 
 // Error is a domain error with a spec code. errors.Is compares the code only.
@@ -50,7 +55,11 @@ var (
 	// ErrSaveConflictStale: expected_revision is stale or the conflict is already resolved (nothing changed).
 	ErrSaveConflictStale = &Error{CodeSaveConflictStale, "Slot changed since expected_revision; re-read the slot"}
 	// ErrPayloadTooLarge: the upload exceeds MaxSaveBytes.
-	ErrPayloadTooLarge = &Error{CodePayloadTooLarge, "Save exceeds 64 MiB"}
+	ErrPayloadTooLarge  = &Error{CodePayloadTooLarge, "Save exceeds 64 MiB"}
+	ErrSessionNotFound  = &Error{CodeSessionNotFound, "Session not found"}
+	ErrSessionForbidden = &Error{CodeSessionForbidden, "Not allowed for this Session"}
+	ErrSessionFull      = &Error{CodeSessionFull, "Session already has the maximum number of viewers"}
+	ErrSessionEnded     = &Error{CodeSessionEnded, "Session has ended"}
 	// ErrAdminExists: an admin already exists (code conflict).
 	ErrAdminExists = &Error{CodeConflict, "An admin already exists"}
 )

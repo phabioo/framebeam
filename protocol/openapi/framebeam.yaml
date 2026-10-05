@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
   title: FrameBeam Hub API
-  version: 1.1.0
+  version: 1.2.0
   description: |
-    HTTPS/JSON API of the FrameBeam Hub (phase 1; phase 3 adds save sync under `saves`, advertised by the handshake feature `saves_v1`). `protocol_version` is an integer (starting at 1),
+    HTTPS/JSON API of the FrameBeam Hub (phase 1; phase 3 adds save sync under `saves`, advertised by the handshake feature `saves_v1`; phase 4 adds Session sharing under `sessions` and the WSS endpoint, advertised by the handshake feature `sessions_v1`). `protocol_version` is an integer (starting at 1),
     separate from the hub/player product version. All paths carry the `/api/v1` prefix explicitly;
     only the info endpoint lives under `/.well-known/framebeam`.
     Compatibility: Player.protocol_version < Hub.min_protocol_version -> player_too_old;
@@ -19,6 +19,7 @@ tags:
   - name: handshake
   - name: library
   - name: saves
+  - name: sessions
   - name: ws
 paths:
   /.well-known/framebeam:
@@ -201,7 +202,7 @@ paths:
                     min_protocol_version: 1
                     compatible: true
                     problems: []
-                    features: [saves_v1]
+                    features: [saves_v1, sessions_v1]
                 core_missing:
                   value:
                     hub_version: 0.1.0
@@ -606,13 +607,251 @@ paths:
               schema: { $ref: '#/components/schemas/Error' }
               examples:
                 default: { value: { error: { code: save_conflict_stale, message: Slot changed since expected_revision; re-read the slot } } }
+  /api/v1/users:
+    get:
+      operationId: listUsers
+      tags: [sessions]
+      summary: Users of this Hub (for the invite field)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Users with online state (at least one device connected via WSS)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserList' }
+              examples:
+                default:
+                  value:
+                    users:
+                      - { id: u_placeholder_1, display_name: Fabio, online: true }
+                      - { id: u_placeholder_2, display_name: Anna, online: false }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/sessions:
+    get:
+      operationId: listSessions
+      tags: [sessions]
+      summary: Active Sessions the caller may join or owns, plus Sessions inviting the caller
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Sessions, newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionList' }
+              examples:
+                default:
+                  value:
+                    sessions:
+                      - session_id: 4e8d2a60-7b1c-4f3e-8a5d-6c7b8a9d0e1f
+                        game_id: 9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d
+                        game_title: Demo Homebrew
+                        owner: { user_id: u_placeholder_1, display_name: Fabio, device_name: Wohnzimmer-PC }
+                        visibility: hub_users
+                        created_at: '2026-01-01T12:00:00Z'
+                        viewer_count: 0
+                        is_owner: false
+                        invited: false
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      operationId: publishSession
+      tags: [sessions]
+      summary: Publish a Session (ends the device's previous Session)
+      description: |
+        A device has at most one active Session; publishing a new one ends the previous one (`session_ended`
+        reason `replaced`). A device whose handshake reported `video.h264_encode=false` gets 409 `capability_missing`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SessionPublishRequest' }
+            examples:
+              default: { value: { game_id: 9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d, visibility: hub_users } }
+      responses:
+        '201':
+          description: Session published
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+              examples:
+                default: { $ref: '#/components/examples/SessionExample' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/CapabilityMissing' }
+  /api/v1/sessions/{session_id}:
+    parameters:
+      - $ref: '#/components/parameters/SessionId'
+    get:
+      operationId: getSession
+      tags: [sessions]
+      summary: One Session (caller must be allowed to see it)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The Session; `viewers` and `invites` only for the owner device
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+              examples:
+                default: { $ref: '#/components/examples/SessionExample' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/SessionForbidden' }
+        '404': { $ref: '#/components/responses/SessionNotFound' }
+        '410': { $ref: '#/components/responses/SessionEnded' }
+    patch:
+      operationId: updateSession
+      tags: [sessions]
+      summary: Change the visibility (owner device); revokes viewers that are no longer allowed
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SessionUpdateRequest' }
+            examples:
+              default: { value: { visibility: invite_only } }
+      responses:
+        '200':
+          description: The updated Session
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+              examples:
+                default: { $ref: '#/components/examples/SessionExample' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/SessionForbidden' }
+        '404': { $ref: '#/components/responses/SessionNotFound' }
+        '410': { $ref: '#/components/responses/SessionEnded' }
+    delete:
+      operationId: endSession
+      tags: [sessions]
+      summary: End the Session (owner device)
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Session ended }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/SessionForbidden' }
+        '404': { $ref: '#/components/responses/SessionNotFound' }
+        '410': { $ref: '#/components/responses/SessionEnded' }
+  /api/v1/sessions/{session_id}/invites/{user_id}:
+    parameters:
+      - $ref: '#/components/parameters/SessionId'
+      - $ref: '#/components/parameters/UserId'
+    put:
+      operationId: inviteSessionUser
+      tags: [sessions]
+      summary: Invite a user of this Hub (owner device); a declined invite becomes open again
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The Session with the invite
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+              examples:
+                default: { $ref: '#/components/examples/SessionExample' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/SessionForbidden' }
+        '404': { $ref: '#/components/responses/SessionNotFound' }
+        '410': { $ref: '#/components/responses/SessionEnded' }
+    delete:
+      operationId: withdrawSessionInvite
+      tags: [sessions]
+      summary: Withdraw an invite (owner device); removes that user's viewers
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Invite withdrawn }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/SessionForbidden' }
+        '404': { $ref: '#/components/responses/SessionNotFound' }
+        '410': { $ref: '#/components/responses/SessionEnded' }
+  /api/v1/sessions/{session_id}/decline:
+    parameters:
+      - $ref: '#/components/parameters/SessionId'
+    post:
+      operationId: declineSession
+      tags: [sessions]
+      summary: Decline the invite (invited user); the owner is notified via session_update
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Invite declined }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/SessionForbidden' }
+        '404': { $ref: '#/components/responses/SessionNotFound' }
+        '410': { $ref: '#/components/responses/SessionEnded' }
+  /api/v1/sessions/{session_id}/join:
+    parameters:
+      - $ref: '#/components/parameters/SessionId'
+    post:
+      operationId: joinSession
+      tags: [sessions]
+      summary: Join as viewer (ACL checked here)
+      description: |
+        Max 4 viewers (409 `session_full`). A device whose handshake reported `video.h264_decode=false` gets
+        409 `capability_missing`. Joining again with the same device returns the existing viewer.
+        Signaling continues over WSS (`signal`).
+      security:
+        - bearerAuth: []
+      responses:
+        '201':
+          description: Viewer created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionJoinResponse' }
+              examples:
+                default:
+                  value:
+                    viewer_id: 5d1f7c2e-3b4a-4c6d-9e8f-1a2b3c4d5e6f
+                    permissions: { view_video: true, hear_audio: true, send_input: false }
+                    ice_servers: ['stun:stun.example.org:3478']
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/SessionForbidden' }
+        '404': { $ref: '#/components/responses/SessionNotFound' }
+        '409': { $ref: '#/components/responses/SessionFullOrCapability' }
+        '410': { $ref: '#/components/responses/SessionEnded' }
+  /api/v1/sessions/{session_id}/viewers/{viewer_id}:
+    parameters:
+      - $ref: '#/components/parameters/SessionId'
+      - name: viewer_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+        example: 5d1f7c2e-3b4a-4c6d-9e8f-1a2b3c4d5e6f
+    delete:
+      operationId: removeSessionViewer
+      tags: [sessions]
+      summary: Remove a viewer (owner device) or leave (the viewer's own device)
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Viewer removed }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/SessionForbidden' }
+        '404': { $ref: '#/components/responses/SessionNotFound' }
+        '410': { $ref: '#/components/responses/SessionEnded' }
   /api/v1/ws:
     get:
       operationId: connectWebSocket
       tags: [ws]
-      summary: WSS upgrade (documentation only, implementation to follow)
+      summary: WSS upgrade (presence, Session events, signaling; documentation only, the upgrade is not a JSON call)
       description: |
-        Upgrade to WebSocket. Messages use the envelope schema from `protocol/schemas/`.
+        Upgrade to WebSocket with the access token as Bearer header. Messages are JSON text frames in the envelope
+        `{type, id?, payload}`; every message type has a schema (`ws-<type>.schema.json`) and an example in
+        `protocol/schemas/`. The first client message must be `hello`; the Hub answers `hello_ack` (features,
+        `ice_servers`). The Hub sends a WebSocket ping every 20 s. The connection stays valid until the device is revoked.
       security:
         - bearerAuth: []
       responses:
@@ -635,6 +874,18 @@ components:
       required: true
       schema: { type: string, format: uuid }
       example: 9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d
+    SessionId:
+      name: session_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+      example: 4e8d2a60-7b1c-4f3e-8a5d-6c7b8a9d0e1f
+    UserId:
+      name: user_id
+      in: path
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 64 }
+      example: u_placeholder_2
     SaveSlotName:
       name: slot
       in: path
@@ -709,6 +960,21 @@ components:
               device_name: Laptop
               created_at: '2026-01-01T13:00:00Z'
             created_at: '2026-01-01T13:00:00Z'
+    SessionExample:
+      value:
+        session_id: 4e8d2a60-7b1c-4f3e-8a5d-6c7b8a9d0e1f
+        game_id: 9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d
+        game_title: Demo Homebrew
+        owner: { user_id: u_placeholder_1, display_name: Fabio, device_name: Wohnzimmer-PC }
+        visibility: invite_only
+        created_at: '2026-01-01T12:00:00Z'
+        viewer_count: 1
+        viewers:
+          - { viewer_id: 5d1f7c2e-3b4a-4c6d-9e8f-1a2b3c4d5e6f, display_name: Anna, device_name: Anna-Laptop }
+        invites:
+          - { user_id: u_placeholder_2, display_name: Anna, state: joined, online: true }
+        is_owner: true
+        invited: false
     GameExample:
       value:
         id: 9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d
@@ -756,10 +1022,46 @@ components:
           schema: { $ref: '#/components/schemas/Error' }
           examples:
             default: { value: { error: { code: rate_limited, message: Too many open requests } } }
+    SessionNotFound:
+      description: Session does not exist
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            default: { value: { error: { code: session_not_found, message: Session not found } } }
+    SessionForbidden:
+      description: Not allowed (ACL, or the call is reserved for the owner device or the invited user)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            default: { value: { error: { code: session_forbidden, message: Not allowed for this Session } } }
+    SessionEnded:
+      description: Session has ended
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            default: { value: { error: { code: session_ended, message: Session has ended } } }
+    CapabilityMissing:
+      description: Device lacks a required capability (H.264 encode)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            default: { value: { error: { code: capability_missing, message: Device cannot encode H.264 } } }
+    SessionFullOrCapability:
+      description: Session full, or the device lacks H.264 decode
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            session_full: { value: { error: { code: session_full, message: Session already has 4 viewers } } }
+            capability_missing: { value: { error: { code: capability_missing, message: Device cannot decode H.264 } } }
   schemas:
     ErrorCode:
       type: string
-      enum: [bad_request, unauthorized, forbidden, not_found, conflict, rate_limited, internal, device_revoked, invalid_credentials, pairing_pending, pairing_denied, pairing_expired, player_too_old, hub_too_old, core_missing, core_version_mismatch, capability_missing, save_conflict, save_conflict_stale, payload_too_large]
+      enum: [bad_request, unauthorized, forbidden, not_found, conflict, rate_limited, internal, device_revoked, invalid_credentials, pairing_pending, pairing_denied, pairing_expired, player_too_old, hub_too_old, core_missing, core_version_mismatch, capability_missing, save_conflict, save_conflict_stale, payload_too_large, session_not_found, session_forbidden, session_full, session_ended]
     Error:
       type: object
       required: [error]
@@ -881,9 +1183,9 @@ components:
           items: { $ref: '#/components/schemas/HandshakeProblem' }
         features:
           type: array
-          description: Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API.
+          description: Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint.
           items: { type: string }
-          example: [saves_v1]
+          example: [saves_v1, sessions_v1]
     RomInfo:
       type: object
       required: [sha256, size, filename]
@@ -1000,3 +1302,101 @@ components:
       properties:
         resolution: { type: string, enum: [use_hub, use_local] }
         expected_revision: { type: integer, minimum: 1, description: Current checkpoint revision the caller saw }
+    SessionVisibility:
+      type: string
+      enum: [private, hub_users, invite_only]
+      description: |
+        `private`: only devices of the owner user. `hub_users`: every authenticated device of this Hub.
+        `invite_only`: devices of the owner user plus invited users who have not declined.
+    SessionOwner:
+      type: object
+      required: [user_id, display_name, device_name]
+      properties:
+        user_id: { type: string }
+        display_name: { type: string }
+        device_name: { type: string }
+    SessionViewerInfo:
+      type: object
+      required: [viewer_id, display_name, device_name]
+      properties:
+        viewer_id: { type: string, format: uuid }
+        display_name: { type: string, description: Display name of the viewer's user }
+        device_name: { type: string }
+    SessionInviteInfo:
+      type: object
+      required: [user_id, display_name, state, online]
+      properties:
+        user_id: { type: string }
+        display_name: { type: string }
+        state: { type: string, enum: [invited, declined, joined] }
+        online: { type: boolean }
+    Session:
+      type: object
+      required: [session_id, game_id, game_title, owner, visibility, created_at, viewer_count, is_owner, invited]
+      properties:
+        session_id: { type: string, format: uuid }
+        game_id: { type: string, format: uuid }
+        game_title: { type: string }
+        owner: { $ref: '#/components/schemas/SessionOwner' }
+        visibility: { $ref: '#/components/schemas/SessionVisibility' }
+        created_at: { type: string, format: date-time }
+        viewer_count: { type: integer, minimum: 0, maximum: 4 }
+        viewers:
+          type: array
+          description: Only for the owner device
+          items: { $ref: '#/components/schemas/SessionViewerInfo' }
+        invites:
+          type: array
+          description: Only for the owner device
+          items: { $ref: '#/components/schemas/SessionInviteInfo' }
+        is_owner: { type: boolean, description: The caller is the owner device }
+        invited: { type: boolean, description: The caller's user has an open invite }
+    SessionList:
+      type: object
+      required: [sessions]
+      properties:
+        sessions:
+          type: array
+          items: { $ref: '#/components/schemas/Session' }
+    SessionPublishRequest:
+      type: object
+      required: [game_id, visibility]
+      properties:
+        game_id: { type: string, format: uuid }
+        visibility: { $ref: '#/components/schemas/SessionVisibility' }
+    SessionUpdateRequest:
+      type: object
+      required: [visibility]
+      properties:
+        visibility: { $ref: '#/components/schemas/SessionVisibility' }
+    SessionPermissions:
+      type: object
+      required: [view_video, hear_audio, send_input]
+      properties:
+        view_video: { type: boolean }
+        hear_audio: { type: boolean }
+        send_input: { type: boolean }
+    SessionJoinResponse:
+      type: object
+      required: [viewer_id, permissions, ice_servers]
+      properties:
+        viewer_id: { type: string, format: uuid }
+        permissions: { $ref: '#/components/schemas/SessionPermissions' }
+        ice_servers:
+          type: array
+          description: '`stun:` URLs (Hub config, default empty: host candidates suffice on a LAN)'
+          items: { type: string }
+    UserInfo:
+      type: object
+      required: [id, display_name, online]
+      properties:
+        id: { type: string }
+        display_name: { type: string }
+        online: { type: boolean }
+    UserList:
+      type: object
+      required: [users]
+      properties:
+        users:
+          type: array
+          items: { $ref: '#/components/schemas/UserInfo' }
