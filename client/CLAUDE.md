@@ -24,3 +24,7 @@ Details nur bei Bedarf aus `docs/architektur/` (Index: `docs/architektur/README.
 - C++20 als Basis; C++23 nur, wenn MSVC, GCC und AppleClang es unterstützen. vcpkg (Manifest) + CMake Presets.
 - Firmware fehlt: „Firmware required/missing“, Start blockieren.
 - Design: Player-UI `docs/design/README.md`, `docs/design/player.md`, `docs/design/tokens.md`.
+
+## Phase 2 (ADR 0003)
+- Ziele: `framebeam_core` (core/ + network/), `framebeam_emulation`, `framebeam_ui` (statische Lib, QML-Modul `FrameBeam.Player`), Executable `framebeam_player` in `app/`. Qt >= 6.4, nur 6.4-API, nicht über vcpkg.
+- Core-Pfad: CMake-Variable/Umgebung `FRAMEBEAM_MELONDS_DS_CORE`; leer = Tests mit `NEEDS_CORE` werden übersprungen. Nie Core, ROM oder BIOS einchecken.
