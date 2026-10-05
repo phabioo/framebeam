@@ -23,7 +23,12 @@ FrameBeam ist eine selbst gehostete Retro-Gaming-Plattform (Monorepo): zentrale 
 
 ## Status und Befehle
 
-Noch kein Build-System und kein Code; Befehle folgen in Phase 0. Keine Befehle erfinden.
+- `scripts/bootstrap-vcpkg.sh`: vcpkg (gepinnt) nach `$HOME/.cache/framebeam/vcpkg`; Voraussetzung für den Client-Build.
+- `make check`: Hub- und Client-Prüfung, leise; `make check-hub` / `make check-client` einzeln (Preset via `CLIENT_PRESET`, Default `linux-debug`).
+- `make build-hub`: Hub-Binaries `server/dist/framebeam-hub-linux-{amd64,arm64}` (`HUB_VERSION` setzbar).
+- `make generate`: Go-Codegen (oapi-codegen) neu erzeugen.
+
+CI (`.github/workflows/ci.yml`): Linux bei jedem Push, Windows bei PRs gegen `main` und manuell. Der SessionStart-Hook `.claude/hooks/session-start.sh` bereitet nur Cloud-Sessions vor (vcpkg, Go-Module; ohne Qt).
 
 ## Wegweiser
 
