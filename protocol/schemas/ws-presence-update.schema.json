@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://framebeam.invalid/schemas/ws-presence-update.schema.json",
+  "title": "ws-presence-update",
+  "type": "object",
+  "required": ["type", "payload"],
+  "properties": {
+    "type": { "const": "presence_update" },
+    "id": { "type": "string" },
+    "payload": {
+      "type": "object",
+      "required": ["device_id", "state"],
+      "properties": {
+        "device_id": { "type": "string", "format": "uuid" },
+        "state": { "enum": ["online", "offline", "in_game"] },
+        "game_id": { "type": "string", "format": "uuid" }
+      }
+    }
+  }
+}

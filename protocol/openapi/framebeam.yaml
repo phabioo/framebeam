@@ -1,9 +1,517 @@
-# Platzhalter: Endpunkte und Schemas legt Phase 1 fest (siehe docs/arbeitsweise.md).
 openapi: 3.0.3
 info:
   title: FrameBeam Hub API
-  version: 0.0.0
-  description: Platzhalter ohne Endpunkte.
+  version: 1.0.0
+  description: |
+    HTTPS/JSON-API des FrameBeam Hub (Phase 1). `protocol_version` ist eine Ganzzahl (Start 1),
+    getrennt von Hub-/Player-Produktversion. Alle Pfade tragen das Präfix `/api/v1` explizit,
+    nur der Info-Endpunkt liegt unter `/.well-known/framebeam`.
+    Kompatibilität: Player.protocol_version < Hub.min_protocol_version -> player_too_old;
+    Hub.protocol_version < Player.min_protocol_version -> hub_too_old.
+    Alle Werte in Beispielen sind Platzhalter, keine echten Secrets.
 servers:
-  - url: /api/v1
-paths: {}
+  - url: /
+security: []
+tags:
+  - name: info
+  - name: pairing
+  - name: auth
+  - name: handshake
+  - name: library
+  - name: ws
+paths:
+  /.well-known/framebeam:
+    get:
+      operationId: getHubInfo
+      tags: [info]
+      summary: Hub-Info (ohne Auth, verleiht keine Rechte)
+      security: []
+      responses:
+        '200':
+          description: Hub-Informationen
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HubInfo' }
+              examples:
+                default:
+                  value:
+                    hub_id: 3f2b8c1e-5d4a-4b7e-9a10-0c1d2e3f4a5b
+                    name: Wohnzimmer-Hub
+                    hub_version: 0.1.0
+                    protocol_version: 1
+                    min_protocol_version: 1
+                    api_base: /api/v1
+  /api/v1/pairing/requests:
+    post:
+      operationId: createPairingRequest
+      tags: [pairing]
+      summary: Pairing-Anfrage stellen (Admin entscheidet Allow/Deny)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PairingRequestCreate' }
+            examples:
+              default:
+                value:
+                  device_id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                  device_name: Wohnzimmer-PC
+                  platform: linux
+                  arch: x86_64
+                  player_version: 0.1.0
+                  protocol_version: 1
+      responses:
+        '202':
+          description: Anfrage angenommen, wartet auf Admin
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PairingRequestAccepted' }
+              examples:
+                default:
+                  value:
+                    request_id: 0b6f1f0e-8a1c-4a43-8e7e-2a8f6d0c9b11
+                    poll_token: fbp_PLACEHOLDER_POLL_TOKEN
+                    status: pending
+                    expires_in: 600
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/pairing/requests/{request_id}:
+    get:
+      operationId: getPairingRequest
+      tags: [pairing]
+      summary: Status der Pairing-Anfrage abfragen (Bearer = poll_token)
+      security:
+        - pollTokenAuth: []
+      parameters:
+        - name: request_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: |
+            Status. Bei `approved` werden hub_id, user_id und device_credential genau einmal geliefert;
+            danach ist die Anfrage verbraucht (404 not_found).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PairingStatus' }
+              examples:
+                pending:
+                  value: { status: pending }
+                approved:
+                  value:
+                    status: approved
+                    hub_id: 3f2b8c1e-5d4a-4b7e-9a10-0c1d2e3f4a5b
+                    user_id: u_placeholder_1
+                    device_credential: fbd_PLACEHOLDER_DEVICE_CREDENTIAL
+                denied:
+                  value: { status: denied }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/auth/token:
+    post:
+      operationId: createAccessToken
+      tags: [auth]
+      summary: Access Token gegen Device Credential tauschen
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TokenRequest' }
+            examples:
+              default:
+                value:
+                  device_id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                  device_credential: fbd_PLACEHOLDER_DEVICE_CREDENTIAL
+      responses:
+        '200':
+          description: Access Token (15 min)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenResponse' }
+              examples:
+                default:
+                  value:
+                    access_token: fba_PLACEHOLDER_ACCESS_TOKEN
+                    token_type: Bearer
+                    expires_in: 900
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401':
+          description: invalid_credentials oder device_revoked
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                invalid:
+                  value: { error: { code: invalid_credentials, message: Device Credential ungültig } }
+                revoked:
+                  value: { error: { code: device_revoked, message: Gerät wurde widerrufen } }
+  /api/v1/auth/revoke:
+    post:
+      operationId: revokeSelf
+      tags: [auth]
+      summary: Gerät widerruft sich selbst
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Widerrufen }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/handshake:
+    post:
+      operationId: postHandshake
+      tags: [handshake]
+      summary: Handshake mit Capability Negotiation
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HandshakeRequest' }
+            examples:
+              default:
+                value:
+                  platform: linux
+                  arch: x86_64
+                  player_version: 0.1.0
+                  protocol_version: 1
+                  min_protocol_version: 1
+                  cores:
+                    - { id: melonds, version: 1.0.0 }
+                  video:
+                    h264_encode: true
+                    h264_decode: true
+                    encoders: [vaapi, x264]
+                  audio: { opus: true }
+                  input: { gamepad: true, keyboard: true }
+      responses:
+        '200':
+          description: Ergebnis der Kompatibilitätsprüfung
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HandshakeResponse' }
+              examples:
+                compatible:
+                  value:
+                    hub_version: 0.1.0
+                    protocol_version: 1
+                    min_protocol_version: 1
+                    compatible: true
+                    problems: []
+                core_missing:
+                  value:
+                    hub_version: 0.1.0
+                    protocol_version: 1
+                    min_protocol_version: 1
+                    compatible: false
+                    problems:
+                      - { code: core_missing, detail: Core melonds fehlt, core_id: melonds }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/games:
+    get:
+      operationId: listGames
+      tags: [library]
+      summary: Spielebibliothek
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Liste der Spiele
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [games]
+                properties:
+                  games:
+                    type: array
+                    items: { $ref: '#/components/schemas/Game' }
+              examples:
+                default:
+                  value:
+                    games:
+                      - id: 9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d
+                        title: Homebrew Demo
+                        system: nds
+                        rom:
+                          sha256: '0000000000000000000000000000000000000000000000000000000000000000'
+                          size: 4096
+                          filename: demo.nds
+                        uploaded_by: u_placeholder_1
+                        added_at: '2026-01-01T12:00:00Z'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/games/{game_id}:
+    get:
+      operationId: getGame
+      tags: [library]
+      summary: Einzelnes Spiel
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: game_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Spiel
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Game' }
+              examples:
+                default:
+                  $ref: '#/components/examples/GameExample'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/roms/{sha256}:
+    get:
+      operationId: downloadRom
+      tags: [library]
+      summary: ROM-Download (Range-Unterstützung). Upload nur über das Admin-Webinterface.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sha256
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[0-9a-f]{64}$' }
+          example: '0000000000000000000000000000000000000000000000000000000000000000'
+        - name: Range
+          in: header
+          required: false
+          schema: { type: string }
+          example: bytes=0-1023
+      responses:
+        '200':
+          description: Vollständiger Inhalt
+          headers:
+            ETag: { schema: { type: string }, description: Starker ETag, example: '"0000000000000000000000000000000000000000000000000000000000000000"' }
+            Accept-Ranges: { schema: { type: string }, example: bytes }
+            Content-Length: { schema: { type: integer, format: int64 } }
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '206':
+          description: Teilinhalt (Range)
+          headers:
+            ETag: { schema: { type: string } }
+            Content-Range: { schema: { type: string }, example: 'bytes 0-1023/4096' }
+            Content-Length: { schema: { type: integer, format: int64 } }
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '416':
+          description: Range nicht erfüllbar
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: bad_request, message: Range nicht erfüllbar } } }
+  /api/v1/ws:
+    get:
+      operationId: connectWebSocket
+      tags: [ws]
+      summary: WSS-Upgrade (nur Dokumentation, Implementierung folgt)
+      description: |
+        Upgrade auf WebSocket. Nachrichten nutzen das Envelope-Schema aus `protocol/schemas/`.
+      security:
+        - bearerAuth: []
+      responses:
+        '101': { description: Switching Protocols }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Access Token (opak, Präfix fba_, 15 min).
+    pollTokenAuth:
+      type: http
+      scheme: bearer
+      description: Poll Token einer Pairing-Anfrage (opak, Präfix fbp_).
+  examples:
+    GameExample:
+      value:
+        id: 9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d
+        title: Homebrew Demo
+        system: nds
+        rom:
+          sha256: '0000000000000000000000000000000000000000000000000000000000000000'
+          size: 4096
+          filename: demo.nds
+        uploaded_by: u_placeholder_1
+        added_at: '2026-01-01T12:00:00Z'
+  responses:
+    BadRequest:
+      description: Ungültige Anfrage
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            default: { value: { error: { code: bad_request, message: Ungültige Anfrage } } }
+    Unauthorized:
+      description: Nicht authentifiziert
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            default: { value: { error: { code: unauthorized, message: Token fehlt oder ungültig } } }
+    NotFound:
+      description: Nicht gefunden
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            default: { value: { error: { code: not_found, message: Nicht gefunden } } }
+    RateLimited:
+      description: Zu viele Anfragen
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            default: { value: { error: { code: rate_limited, message: Zu viele offene Anfragen } } }
+  schemas:
+    ErrorCode:
+      type: string
+      enum: [bad_request, unauthorized, forbidden, not_found, conflict, rate_limited, internal, device_revoked, invalid_credentials, pairing_pending, pairing_denied, pairing_expired, player_too_old, hub_too_old, core_missing, core_version_mismatch, capability_missing]
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { $ref: '#/components/schemas/ErrorCode' }
+            message: { type: string }
+    HubInfo:
+      type: object
+      required: [hub_id, name, hub_version, protocol_version, min_protocol_version, api_base]
+      properties:
+        hub_id: { type: string, format: uuid }
+        name: { type: string }
+        hub_version: { type: string }
+        protocol_version: { type: integer, minimum: 1 }
+        min_protocol_version: { type: integer, minimum: 1 }
+        api_base: { type: string, example: /api/v1 }
+    PairingRequestCreate:
+      type: object
+      required: [device_id, device_name, platform, arch, player_version, protocol_version]
+      properties:
+        device_id: { type: string, format: uuid }
+        device_name: { type: string }
+        platform: { type: string }
+        arch: { type: string }
+        player_version: { type: string }
+        protocol_version: { type: integer, minimum: 1 }
+    PairingRequestAccepted:
+      type: object
+      required: [request_id, poll_token, status, expires_in]
+      properties:
+        request_id: { type: string, format: uuid }
+        poll_token: { type: string, description: 'Präfix fbp_' }
+        status: { type: string, enum: [pending] }
+        expires_in: { type: integer, description: Sekunden, example: 600 }
+    PairingStatus:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [pending, approved, denied, expired] }
+        hub_id: { type: string, format: uuid, description: Nur bei approved (einmalig) }
+        user_id: { type: string, description: Hub-lokale User-ID; nur bei approved }
+        device_credential: { type: string, description: 'Präfix fbd_; nur bei approved, einmalig' }
+    TokenRequest:
+      type: object
+      required: [device_id, device_credential]
+      properties:
+        device_id: { type: string, format: uuid }
+        device_credential: { type: string }
+    TokenResponse:
+      type: object
+      required: [access_token, token_type, expires_in]
+      properties:
+        access_token: { type: string, description: 'Präfix fba_' }
+        token_type: { type: string, enum: [Bearer] }
+        expires_in: { type: integer, description: Sekunden, example: 900 }
+    CoreInfo:
+      type: object
+      required: [id, version]
+      properties:
+        id: { type: string }
+        version: { type: string }
+    HandshakeRequest:
+      type: object
+      additionalProperties: true
+      required: [platform, arch, player_version, protocol_version, min_protocol_version, cores, video, audio, input]
+      properties:
+        platform: { type: string }
+        arch: { type: string }
+        player_version: { type: string }
+        protocol_version: { type: integer, minimum: 1 }
+        min_protocol_version: { type: integer, minimum: 1 }
+        cores:
+          type: array
+          items: { $ref: '#/components/schemas/CoreInfo' }
+        video:
+          type: object
+          additionalProperties: true
+          required: [h264_encode, h264_decode, encoders]
+          properties:
+            h264_encode: { type: boolean }
+            h264_decode: { type: boolean }
+            encoders: { type: array, items: { type: string } }
+        audio:
+          type: object
+          additionalProperties: true
+          required: [opus]
+          properties:
+            opus: { type: boolean }
+        input:
+          type: object
+          additionalProperties: true
+          required: [gamepad, keyboard]
+          properties:
+            gamepad: { type: boolean }
+            keyboard: { type: boolean }
+    HandshakeProblem:
+      type: object
+      required: [code, detail]
+      properties:
+        code:
+          type: string
+          enum: [player_too_old, hub_too_old, core_missing, core_version_mismatch, capability_missing]
+        detail: { type: string }
+        core_id: { type: string }
+    HandshakeResponse:
+      type: object
+      required: [hub_version, protocol_version, min_protocol_version, compatible, problems]
+      properties:
+        hub_version: { type: string }
+        protocol_version: { type: integer, minimum: 1 }
+        min_protocol_version: { type: integer, minimum: 1 }
+        compatible: { type: boolean }
+        problems:
+          type: array
+          items: { $ref: '#/components/schemas/HandshakeProblem' }
+    RomInfo:
+      type: object
+      required: [sha256, size, filename]
+      properties:
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        size: { type: integer, format: int64 }
+        filename: { type: string }
+    Game:
+      type: object
+      required: [id, title, system, rom, uploaded_by, added_at]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        system: { type: string, example: nds }
+        rom: { $ref: '#/components/schemas/RomInfo' }
+        uploaded_by: { type: string, description: Hub-lokale User-ID }
+        added_at: { type: string, format: date-time }

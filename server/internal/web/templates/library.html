@@ -1,0 +1,48 @@
+{{define "library-sub"}}{{.Count}} {{if eq .Count 1}}ROM{{else}}ROMs{{end}} · {{.Used}} belegt · {{.Free}} frei{{end}}
+{{define "library-results"}}
+<p id="library-sub" class="sub" hx-swap-oob="true">{{template "library-sub" .Body}}</p>
+{{template "library-table" .Body}}
+{{end}}
+{{define "library-table"}}
+{{if .Rows}}
+<div class="card"><table class="list">
+  <thead><tr><th>Titel</th><th>System</th><th>Größe</th><th>SHA-256</th><th>Hochgeladen von</th><th></th></tr></thead>
+  <tbody>
+  {{range .Rows}}
+  <tr>
+    <td><div class="cell-title"><span class="cover" aria-hidden="true">{{.Initial}}</span><span>{{.Title}}</span></div></td>
+    <td class="mono">{{.System}}</td>
+    <td class="mono">{{.Size}}</td>
+    <td class="mono" title="{{.SHA}}">{{.ShortSHA}}</td>
+    <td>{{.Uploader}} · {{.Added}}</td>
+    <td><button class="btn-link" type="button" hx-post="/library/{{.ID}}/delete" hx-include="#filter-form" hx-confirm="„{{.Title}}“ und die ROM-Datei wirklich löschen?" hx-target="#library-results" hx-swap="innerHTML">Löschen</button></td>
+  </tr>
+  {{end}}
+  </tbody>
+</table></div>
+{{else}}
+<div class="card"><p class="empty">{{if .Filtered}}Keine ROMs gefunden.{{else}}Noch keine ROMs in der Library. Lade das erste ROM hoch.{{end}}</p></div>
+{{end}}
+{{end}}
+{{define "content"}}
+<div class="page-head">
+  <div><h1>Library</h1><p id="library-sub" class="sub">{{template "library-sub" .Body}}</p></div>
+</div>
+<div class="upload-wrap"><details class="upload"{{if .Error}} open{{end}}>
+  <summary class="btn primary">ROM hochladen</summary>
+  <form class="upload-form" method="post" action="/library/upload" enctype="multipart/form-data">
+    <input type="hidden" name="_csrf" value="{{.CSRF}}">
+    <label class="field">Titel<input type="text" name="title" maxlength="200" placeholder="Standard: Dateiname"></label>
+    <label class="field">System<select name="system"><option value="">Automatisch aus Dateiendung</option>{{range .Body.Systems}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select></label>
+    <label class="field">ROM-Datei<input type="file" name="file" required></label>
+    <button class="btn primary" type="submit">Hochladen</button>
+  </form>
+</details></div>
+<form id="filter-form" class="filters" hx-get="/library" hx-target="#library-results" hx-swap="innerHTML" hx-trigger="change, input delay:250ms from:#q">
+  <label class="filter-pill"><input type="radio" name="system" value=""{{if not .Body.System}} checked{{end}}><span>Alle Systeme</span></label>
+  {{range .Body.Systems}}<label class="filter-pill"><input type="radio" name="system" value="{{.ID}}"{{if eq $.Body.System .ID}} checked{{end}}><span>{{.Name}} · {{.Count}}</span></label>{{end}}
+  <span class="spacer"></span>
+  <input id="q" class="search" type="search" name="q" value="{{.Body.Query}}" placeholder="Titel oder Hash suchen…" aria-label="Titel oder Hash suchen">
+</form>
+<div id="library-results">{{template "library-table" .Body}}</div>
+{{end}}
