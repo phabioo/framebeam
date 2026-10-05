@@ -4,6 +4,7 @@ get_filename_component(FB_NETTEST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../network
 get_filename_component(FB_ROM_DIR "${CMAKE_BINARY_DIR}/emulation" ABSOLUTE)
 
 framebeam_add_test(ui_input input_test.cpp LIBS framebeam_ui framebeam_core framebeam_emulation)
+framebeam_add_test(ui_audio audio_test.cpp LIBS framebeam_ui framebeam_core framebeam_emulation)
 
 framebeam_add_test(ui_screens screens_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
   LIBS ${FB_UI_TEST_LIBS})
