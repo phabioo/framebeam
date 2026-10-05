@@ -1,6 +1,10 @@
 #include "profilestore.h"
 
+#include <QCoreApplication>
 #include <QDir>
+#include <QDirIterator>
+#include <QFileInfo>
+#include <QTemporaryFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -67,12 +71,133 @@ HubProfile fromJson(const QJsonObject& o) {
 
 }  // namespace
 
+namespace {
+
+bool dirIsWritable(const QString& path) {
+  if (path.isEmpty() || !QDir().mkpath(path)) {
+    return false;
+  }
+  QTemporaryFile probe(QDir(path).filePath(QStringLiteral(".framebeam-write-test-XXXXXX")));
+  return probe.open();  // Datei wird beim Zerstoeren geloescht
+}
+
+}  // namespace
+
+ProfileStore::BaseDirChoice ProfileStore::chooseBaseDir(const QString& appDir, const QString& appDataDir) {
+  if (!appDir.isEmpty()) {
+    const QString portable = QDir(appDir).filePath(QStringLiteral("data"));
+    if (dirIsWritable(portable)) {
+      return {portable, true};
+    }
+  }
+  return {appDataDir, false};
+}
+
+// One-time AppData -> portable migration.
+// Completion is tracked by a marker file in the new folder, written only after every required
+// copy succeeded. The presence of profiles.json etc. says nothing (an interrupted run may have
+// copied only some files); a failed or interrupted run is simply retried on the next start.
+// Never deletes the source, never overwrites existing files, skips cache/.
+// Exception (device.json): if the new folder already has a device.json with a different ID and
+// no marker exists, the legacy ID wins only if no profile in the new folder references
+// credentials (so no pairing is lost); otherwise the existing one is kept and a warning logged.
+// ProfileStore::ProfileStore calls defaultBaseDir() (and thus this function) before load(), so
+// no fresh device.json can be created in the new folder before the migration ran.
+int ProfileStore::migrateLegacyData(const QString& legacyDir, const QString& newDir) {
+  if (legacyDir.isEmpty() || newDir.isEmpty() || QFileInfo(legacyDir).absoluteFilePath() == QFileInfo(newDir).absoluteFilePath() ||
+      !QFileInfo(legacyDir).isDir()) {
+    return 0;
+  }
+  const QString marker = QDir(newDir).filePath(QStringLiteral(".migrated-from-appdata"));
+  if (QFileInfo::exists(marker)) {
+    return 0;
+  }
+  const QDir src(legacyDir);
+  if (!src.exists(QStringLiteral("profiles.json")) && !src.exists(QStringLiteral("device.json")) &&
+      !src.exists(QStringLiteral("hubs"))) {
+    return 0;
+  }
+  if (!QDir().mkpath(newDir)) {
+    qCWarning(lcProfiles) << "Migration: target folder not creatable";
+    return 0;
+  }
+  int copied = 0;
+  bool ok = true;
+  QDirIterator it(legacyDir, QDir::Files | QDir::NoDotAndDotDot | QDir::NoSymLinks, QDirIterator::Subdirectories);
+  while (it.hasNext()) {
+    const QString from = it.next();
+    const QString rel = src.relativeFilePath(from);
+    if (rel.startsWith(QStringLiteral("cache/"))) {
+      continue;  // ROM cache is not migrated (large, re-downloaded)
+    }
+    const QString to = QDir(newDir).filePath(rel);
+    if (QFileInfo::exists(to)) {
+      if (rel != QStringLiteral("device.json")) {
+        continue;  // never overwrite anything existing
+      }
+      const QString legacyId = readJsonFile(from).value(QStringLiteral("device_id")).toString();
+      const QString curId = readJsonFile(to).value(QStringLiteral("device_id")).toString();
+      if (legacyId.isEmpty() || legacyId == curId) {
+        continue;
+      }
+      bool hasCredentials = false;
+      const QJsonArray arr = readJsonFile(QDir(newDir).filePath(QStringLiteral("profiles.json")))
+                                 .value(QStringLiteral("profiles")).toArray();
+      for (const QJsonValue& v : arr) {
+        if (!v.toObject().value(QStringLiteral("credential_ref")).toString().isEmpty()) {
+          hasCredentials = true;
+        }
+      }
+      if (hasCredentials) {
+        qCWarning(lcProfiles) << "Migration: existing device.json differs from legacy one and is in use, kept";
+        continue;
+      }
+      if (!QFile::remove(to)) {  // only the new-folder copy; the source is never touched
+        qCWarning(lcProfiles) << "Migration: device.json not replaced";
+        ok = false;
+        continue;
+      }
+    }
+    if (!QDir().mkpath(QFileInfo(to).absolutePath()) || !QFile::copy(from, to)) {
+      qCWarning(lcProfiles) << "Migration: file not copied:" << rel;
+      ok = false;
+      continue;
+    }
+    ++copied;
+  }
+  if (ok) {
+    QFile m(marker);
+    if (!m.open(QIODevice::WriteOnly)) {
+      qCWarning(lcProfiles) << "Migration: completion marker not written, will retry";
+    }
+  } else {
+    qCWarning(lcProfiles) << "Migration incomplete, will retry on next start";
+  }
+  return copied;
+}
+
 QString ProfileStore::defaultBaseDir() {
   const QByteArray env = qgetenv("FRAMEBEAM_DATA_DIR");
   if (!env.isEmpty()) {
-    return QString::fromLocal8Bit(env);
+    const QString dir = QString::fromLocal8Bit(env);
+    qCInfo(lcProfiles) << "Datenverzeichnis (FRAMEBEAM_DATA_DIR):" << dir;
+    return dir;
   }
-  return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+  const QString appData = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+  const QString appDir = QCoreApplication::instance() ? QCoreApplication::applicationDirPath() : QString();
+  const BaseDirChoice c = chooseBaseDir(appDir, appData);
+  if (!c.portable) {
+    qCInfo(lcProfiles) << "Datenverzeichnis (Rueckfall AppData, Programmverzeichnis nicht beschreibbar oder unbekannt):"
+                       << c.path;
+    return c.path;
+  }
+  qCInfo(lcProfiles) << "Datenverzeichnis (portabel):" << c.path;
+  const int n = migrateLegacyData(appData, c.path);
+  if (n > 0) {
+    qCInfo(lcProfiles) << "Daten aus" << appData << "nach" << c.path << "kopiert (" << n
+                       << "Dateien, Quelle unveraendert, ROM-Cache nicht migriert)";
+  }
+  return c.path;
 }
 
 bool ProfileStore::isValidHubId(const QString& hubId) {
