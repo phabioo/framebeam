@@ -1,8 +1,8 @@
 # ADR 0002: Protokoll und FrameBeam Hub in Phase 1
 
-- Status: vorgeschlagen
+- Status: angenommen
 - Datum: 2026-10-05
-- Entscheider: Orchestrator, zur Bestätigung durch Fabio
+- Entscheider: Fabio (Vorschlag des Orchestrators, bestätigt am 2026-10-05)
 
 ## Kontext
 
@@ -35,5 +35,4 @@
 ## Folgen
 
 - Die Architekturdokumente bleiben unverändert; Abweichungen gelten über diesen ADR.
-- Der ADR wird bei Bestätigung durch Fabio revidiert (Status auf "angenommen") oder bei Änderungswünschen angepasst.
-- OpenAPI und Schemas in `protocol/` sowie der Hub in `server/` folgen diesen Festlegungen, solange der Status "vorgeschlagen" oder "angenommen" ist.
+- OpenAPI und Schemas in `protocol/` sowie der Hub in `server/` folgen diesen Festlegungen; Änderungen nur über einen neuen ADR.
