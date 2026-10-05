@@ -163,6 +163,21 @@ class ScreensTest : public QObject {
     QCOMPARE(screenOf(h), QStringLiteral("connection"));
   }
 
+  // addHub auf eine bereits gekoppelte Adresse (Profil mit Credential): Wiederholen bleibt auf "connection".
+  void retryAfterAddHubOfPairedProfileStaysOnConnection() {
+    Harness h;
+    QVERIFY(h.start());
+    HubProfile p = profile(QStringLiteral("hub-gekoppelt"), QStringLiteral("Gekoppelt"), QStringLiteral("http://127.0.0.1:1"));
+    p.credentialRef = QStringLiteral("framebeam/test-credential");
+    QVERIFY(h.controller->profileStore()->upsertProfile(p));
+    h.controller->addHub(QStringLiteral("http://127.0.0.1:1"));
+    QTRY_COMPARE(h.controller->connection()->state(), HubConnection::State::Unreachable);
+    h.controller->retryConnection();
+    QCOMPARE(screenOf(h), QStringLiteral("connection"));
+    QTRY_COMPARE(h.controller->connection()->state(), HubConnection::State::Unreachable);
+    QCOMPARE(screenOf(h), QStringLiteral("connection"));
+  }
+
   // 3b + 3c: TOFU-Bestaetigung, Freigabe (warten, abgelehnt, genehmigt), Library.
   void pairingAndLibrary() {
     const QByteArray readyRom = "homebrew-dummy-rom-ready";

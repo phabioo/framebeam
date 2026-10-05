@@ -360,7 +360,10 @@ void PlayerController::connectProfile(const QString& hubId) {
 void PlayerController::retryConnection() {
   conn_->retry();
   using S = HubConnection::State;
-  if (lastAttemptPairing_ && conn_->state() == S::Identifying) {
+  // Gekoppeltes Profil (Credential vorhanden): nie den Pairing-Statusbildschirm zeigen.
+  const std::optional<HubProfile> prof = conn_->profile();
+  const bool paired = prof.has_value() && !prof->credentialRef.isEmpty();
+  if (lastAttemptPairing_ && !paired && conn_->state() == S::Identifying) {
     pairingFlow_ = true;  // wie addHub: Statusbildschirm erneut zeigen (retry trennt intern und setzt das Flag zurueck)
     updateScreen();
     emit hubsChanged();
