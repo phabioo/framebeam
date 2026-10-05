@@ -92,11 +92,6 @@ if [ -n "$DATA_DIR" ]; then
   case "$DATA_DIR" in *[[:space:]\"\'\\]*) die "--data-dir must not contain spaces, quotes or backslashes" ;; esac
   DATA_DIR="${DATA_DIR%/}"
   [ -n "$DATA_DIR" ] || die "--data-dir must not be /"
-  if [ "$CMD" = install ]; then
-    case "$DATA_DIR" in /home|/home/*|/root|/root/*)
-      die "--data-dir under /home or /root is not supported (the framebeam user cannot traverse private home directories). Install with the default data dir and copy: sudo cp -a <old dir>/. /var/lib/framebeam/" ;;
-    esac
-  fi
 fi
 if [ -n "$ADMIN" ]; then
   case "$ADMIN" in *[[:space:]]*) die "--admin must not contain spaces" ;; esac
@@ -133,6 +128,22 @@ env_set() { # KEY VALUE: replace the line or append it; keeps file mode/owner
 quote_name() { # NAME -> "NAME" with \ and " escaped (systemd EnvironmentFile syntax)
   local n="${1//\\/\\\\}"
   printf '"%s"' "${n//\"/\\\"}"
+}
+
+# validate_data_dir DIR: refuse shared/system directories (chown -R / rm -rf targets).
+validate_data_dir() {
+  local d
+  d="$(printf '%s' "$1" | tr -s /)"
+  d="${d%/}"
+  case "$d" in /*) ;; *) die "data dir must be an absolute path: '$1'" ;; esac
+  case "$d" in */..|*/../*) die "data dir must not contain '..': '$1'" ;; esac
+  case "$d" in
+    /home|/home/*|/root|/root/*)
+      die "data dir '$1' is under /home or /root, which is not supported (the framebeam user cannot traverse private home directories). Install with the default data dir and copy: sudo cp -a <old dir>/. /var/lib/framebeam/" ;;
+    ""|/bin|/boot|/dev|/etc|/lib|/lib64|/opt|/proc|/run|/sbin|/srv|/sys|/tmp|/usr|/var|/mnt|/media|\
+    /usr/local|/usr/lib|/usr/share|/var/lib|/var/log|/var/cache|/var/tmp|/var/spool)
+      die "data dir '$1' is a shared system directory; use a dedicated directory such as /var/lib/framebeam or /srv/framebeam" ;;
+  esac
 }
 
 effective_listen()   { local v; v="$(env_get FRAMEBEAM_LISTEN)";   echo "${v:-$DEFAULT_LISTEN}"; }
@@ -185,7 +196,12 @@ host_ip() {
 
 print_url() { # [LISTEN]
   local listen="${1:-$(effective_listen)}"
-  info "URL:         https://$(host_ip):${listen##*:}/"
+  local host="${listen%:*}"
+  case "$host" in
+    ""|0.0.0.0|"[::]"|"::") host="$(host_ip)" ;;
+    *:*) case "$host" in "["*) ;; *) host="[$host]" ;; esac ;;
+  esac
+  info "URL:         https://$host:${listen##*:}/"
 }
 
 warn_if_port_busy() { # PORT
@@ -270,6 +286,7 @@ cmd_install() {
   local listen data_dir
   listen="${LISTEN:-$(effective_listen)}"
   data_dir="${DATA_DIR:-$(effective_data_dir)}"
+  validate_data_dir "$data_dir"
   [ -z "$NAME" ] || ! [ -f "$ENV_FILE" ] || [ -z "$(env_get FRAMEBEAM_NAME)" ] || \
     warn "FRAMEBEAM_NAME is only used on the first start; an existing Hub keeps its name"
 
@@ -333,7 +350,9 @@ cmd_install() {
       systemctl is-active --quiet "$SVC" && break
     done
     if systemctl is-active --quiet "$SVC"; then info "Status:      active"
-    else info "Status:      NOT active, see: journalctl -u $SVC -e"
+    else
+      echo "Status:      NOT active, see: journalctl -u $SVC -e" >&2
+      exit 1
     fi
     print_url "$listen"
     print_fingerprint
@@ -364,6 +383,7 @@ cmd_upgrade() {
 cmd_uninstall() {
   local data_dir
   data_dir="$(effective_data_dir)"
+  [ "$PURGE" -ne 1 ] || validate_data_dir "$data_dir"
   if testmode; then
     echo "[dry-run] systemctl disable --now $SVC"
   else
@@ -374,14 +394,13 @@ cmd_uninstall() {
   sys systemctl daemon-reload
   info "Removed:     service unit and /usr/local/bin/framebeam-hub"
   if [ "$PURGE" -eq 1 ]; then
-    if [ -z "$data_dir" ] || [ "$data_dir" = "/" ]; then die "refusing to purge data dir '$data_dir'"; fi
     if [ "$YES" -ne 1 ]; then
       echo "This permanently deletes /etc/framebeam and the data dir $data_dir (database, saves, TLS keys)."
       local ans=""
       read -r -p "Type 'yes' to continue: " ans || true
       [ "$ans" = yes ] || die "aborted, nothing purged"
     fi
-    rm -rf "${P:?}$data_dir" "${ENV_DIR:?}"
+    rm -rf "$P$data_dir" "$ENV_DIR"
     info "Purged:      /etc/framebeam and $data_dir"
     info "Kept:        system user/group '$SVC_USER' (remove with: userdel $SVC_USER)"
   else
@@ -396,7 +415,11 @@ cmd_status() {
   else
     systemctl --no-pager --lines=5 status "$SVC" || true
   fi
-  print_url
+  if [ -f "$ENV_FILE" ] && [ ! -r "$ENV_FILE" ]; then
+    info "URL:         unknown, run with sudo to show the configured URL"
+  else
+    print_url
+  fi
 }
 
 case "$CMD" in

@@ -87,6 +87,13 @@ packaging() {
   local root="$tmp/root"
   FRAMEBEAM_INSTALL_ROOT="$root" "$dir/install-hub.sh" install --binary "$tmp/dummy-hub" \
     --port 8444 --no-start || rc=1
+  local bad
+  for bad in /etc /var/lib; do
+    if FRAMEBEAM_INSTALL_ROOT="$tmp/bad" "$dir/install-hub.sh" install --binary "$tmp/dummy-hub" \
+        --data-dir "$bad" --no-start >/dev/null 2>&1; then
+      echo "install --data-dir $bad should have failed"; rc=1
+    fi
+  done
   grep -qx 'FRAMEBEAM_LISTEN=:8444' "$root/etc/framebeam/hub.env" \
     || { echo "hub.env lacks FRAMEBEAM_LISTEN=:8444"; rc=1; }
   [ -x "$root/usr/local/bin/framebeam-hub" ] || { echo "binary not installed"; rc=1; }
