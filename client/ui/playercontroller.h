@@ -147,6 +147,7 @@ class PlayerController : public QObject {
 
   QString screen_ = QStringLiteral("connection");
   bool pairingFlow_ = false;
+  bool lastAttemptPairing_ = false;  // letzter Versuch aus addHub (true) oder connectProfile (false)
   QString notice_;
   QString lastError_;
   QString libraryState_ = QStringLiteral("loading");

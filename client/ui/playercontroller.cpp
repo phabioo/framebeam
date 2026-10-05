@@ -339,8 +339,10 @@ void PlayerController::addHub(const QString& address) {
     emit hubsChanged();
     return;
   }
-  pairingFlow_ = true;
   conn_->connectToAddress(address, options_.allowHttp);
+  // Nach dem Aufruf setzen: ein Trennen der alten Verbindung (z. B. nach Unreachable) setzt das Flag sonst zurueck.
+  lastAttemptPairing_ = true;
+  pairingFlow_ = conn_->state() == HubConnection::State::Identifying;
   updateScreen();
   emit hubsChanged();
   emit pairingChanged();
@@ -348,6 +350,7 @@ void PlayerController::addHub(const QString& address) {
 
 void PlayerController::connectProfile(const QString& hubId) {
   notice_.clear();
+  lastAttemptPairing_ = false;
   pairingFlow_ = false;
   conn_->connectToProfile(hubId);
   updateScreen();
@@ -356,6 +359,13 @@ void PlayerController::connectProfile(const QString& hubId) {
 
 void PlayerController::retryConnection() {
   conn_->retry();
+  using S = HubConnection::State;
+  if (lastAttemptPairing_ && conn_->state() == S::Identifying) {
+    pairingFlow_ = true;  // wie addHub: Statusbildschirm erneut zeigen (retry trennt intern und setzt das Flag zurueck)
+    updateScreen();
+    emit hubsChanged();
+    emit pairingChanged();
+  }
 }
 
 void PlayerController::removeHub(const QString& hubId) {

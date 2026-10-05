@@ -308,6 +308,18 @@ class HubFlowTest : public QObject {
     WAIT_STATE(*conn_, State::NeedsPairing);  // kein TLS -> keine Trust-Bestaetigung
   }
 
+  void defaultPortIs8443() {
+    conn_->connectToAddress(QStringLiteral("192.0.2.1"));
+    QCOMPARE(conn_->address(), QStringLiteral("https://192.0.2.1:8443"));
+    conn_->connectToAddress(QStringLiteral("https://192.0.2.1:9443"));
+    QCOMPARE(conn_->address(), QStringLiteral("https://192.0.2.1:9443"));
+    conn_->connectToAddress(QStringLiteral("192.0.2.1:443"));
+    QCOMPARE(conn_->address(), QStringLiteral("https://192.0.2.1:443"));
+    conn_->connectToAddress(QStringLiteral("http://localhost"), true);
+    QCOMPARE(conn_->address(), QStringLiteral("http://localhost:8443"));
+    conn_->disconnectFromHub();
+  }
+
   void unreachableHub() {
     FakeHub hub(QStringLiteral("a"));
     QVERIFY(hub.start());
