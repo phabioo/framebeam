@@ -27,6 +27,7 @@ Phase plan: [Workflow](docs/workflow.md#phase-plan).
 - ROM upload in the web interface.
 - ROM download via API with Range and ETag.
 - Info endpoint `/.well-known/framebeam` and handshake with `protocol_version`.
+- Ships with a systemd installer for Linux / Raspberry Pi (`packaging/linux/`).
 
 **Protocol** (`protocol/`)
 
@@ -64,6 +65,15 @@ framebeam-hub -dev -listen 127.0.0.1:8443 -data-dir /tmp/fb   # development: HTT
 ```
 
 The data directory (`-data-dir`, default `/var/lib/framebeam`) contains the database and certificate. Further flags: `-listen`, `-name`, `-tls-cert`, `-tls-key`; each also available via `FRAMEBEAM_*`.
+
+### Run the Hub as a service (Linux / Raspberry Pi)
+
+```sh
+sudo packaging/linux/install-hub.sh install --binary framebeam-hub-linux-arm64 --port 8444 --admin <name>
+sudo packaging/linux/install-hub.sh upgrade --binary framebeam-hub-linux-arm64
+```
+
+Installs a systemd service (`framebeam-hub`); `--port 8444` avoids a clash when 8443 is taken. Details: [packaging/linux/README.md](packaging/linux/README.md).
 
 Player (details: [client/README.md](client/README.md)):
 
