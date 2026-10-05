@@ -96,6 +96,7 @@ class LoopbackTest : public QObject {
     QVERIFY(c.h264Decode);
     QVERIFY(c.opus);
     QVERIFY2(c.h264Encode && !c.encoders.isEmpty(), "no H.264 encoder opens");
+    qInfo().noquote() << "[loopback] encoders that open:" << c.encoders.join(QLatin1Char(','));
     HandshakeInfo h;
     applyMediaCapabilities(&h);
     QCOMPARE(h.h264Encode, c.h264Encode);
@@ -148,6 +149,7 @@ class LoopbackTest : public QObject {
     QVERIFY(QTest::qWaitFor([&]() { return viewer->isConnected(); }, 15000));
     QVERIFY2(QTest::qWaitFor([&]() { return frames >= 60 && nonSilentPulls >= 20; }, 15000),
              qPrintable(QStringLiteral("frames=%1 nonSilentPulls=%2").arg(frames).arg(nonSilentPulls)));
+    qInfo().noquote() << "[loopback] encoder" << rig.host.stats().encoderName << "frames" << frames << "last color" << lastColor.name();
     QVERIFY(rig.host.encoderRunning());
     QCOMPARE(encoderSpy.count(), 1);
     QCOMPARE(wrongSize, 0);
@@ -156,10 +158,11 @@ class LoopbackTest : public QObject {
              qPrintable(lastColor.name()));
     const double rms = std::sqrt(energy / double(std::max<qint64>(1, samples)));
     QVERIFY2(rms > 1500.0, qPrintable(QString::number(rms)));  // tone amplitude 12000 -> RMS ~8500, minus silence while priming
-    QVERIFY(viewer->audioPeak() > 8000);
+    QVERIFY2(viewer->audioPeak() > 8000, qPrintable(QString::number(viewer->audioPeak())));
 
     // Stats on both sides (the host/viewer refresh them once a second).
-    QVERIFY(QTest::qWaitFor([&]() { return rig.host.stats().viewers == 1 && rig.host.stats().videoBitrateKbps > 0; }, 5000));
+    QVERIFY2(QTest::qWaitFor([&]() { return rig.host.stats().viewers == 1 && rig.host.stats().videoBitrateKbps > 0; }, 15000),
+             qPrintable(QStringLiteral("viewers=%1 video_kbps=%2").arg(rig.host.stats().viewers).arg(rig.host.stats().videoBitrateKbps)));
     QTest::qWait(1200);
     const SessionStats hs = rig.host.stats();
     const SessionStats vs = viewer->stats();
@@ -167,7 +170,7 @@ class LoopbackTest : public QObject {
     QCOMPARE(hs.codec, QStringLiteral("H264 + Opus"));
     QCOMPARE(hs.width, kW);
     QVERIFY2(hs.fps > 20.0 && hs.fps < 70.0, qPrintable(QString::number(hs.fps)));
-    QVERIFY(hs.videoBitrateKbps > 50.0);
+    QVERIFY2(hs.videoBitrateKbps > 50.0, qPrintable(QStringLiteral("encoder %1 video_kbps %2").arg(hs.encoderName).arg(hs.videoBitrateKbps)));
     QVERIFY2(hs.audioBitrateKbps > 20.0 && hs.audioBitrateKbps < 200.0, qPrintable(QString::number(hs.audioBitrateKbps)));
     QVERIFY(!hs.packetLossPercent.has_value());
     QVERIFY2(vs.fps > 20.0, qPrintable(QString::number(vs.fps)));

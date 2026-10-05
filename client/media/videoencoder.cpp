@@ -1,10 +1,13 @@
 #include "videoencoder.h"
 
 #include <QLoggingCategory>
+#include <QtCore/qglobal.h>
 
 extern "C" {
 #include <libavcodec/avcodec.h>
+#include <libavutil/frame.h>
 #include <libavutil/log.h>
+#include <libavutil/version.h>
 #include <libavutil/imgutils.h>
 #include <libavutil/opt.h>
 #include <libswscale/swscale.h>
@@ -22,6 +25,11 @@ VideoEncoder::VideoEncoder() = default;
 VideoEncoder::~VideoEncoder() { close(); }
 
 QStringList VideoEncoder::preferredEncoders() {
+  // FRAMEBEAM_H264_ENCODER=<ffmpeg encoder name> forces one encoder (tests/diagnostics, e.g. libopenh264 or libx264).
+  const QString forced = qEnvironmentVariable("FRAMEBEAM_H264_ENCODER").trimmed();
+  if (!forced.isEmpty()) {
+    return {forced};
+  }
   return {QStringLiteral("h264_nvenc"), QStringLiteral("h264_qsv"), QStringLiteral("h264_amf"), QStringLiteral("libopenh264"),
           QStringLiteral("libx264")};
 }
@@ -170,9 +178,19 @@ bool VideoEncoder::encode(const uint8_t* data, int stride, RawPixelFormat format
   frame_->pts = pts;
   if (forceKeyframe_) {
     frame_->pict_type = AV_PICTURE_TYPE_I;
+#if LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(58, 29, 100)
+    frame_->flags |= AV_FRAME_FLAG_KEY;  // encoders that look at the flag instead of pict_type (libopenh264, hw)
+#else
+    frame_->key_frame = 1;
+#endif
     forceKeyframe_ = false;
   } else {
     frame_->pict_type = AV_PICTURE_TYPE_NONE;
+#if LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(58, 29, 100)
+    frame_->flags &= ~AV_FRAME_FLAG_KEY;
+#else
+    frame_->key_frame = 0;
+#endif
   }
   if (avcodec_send_frame(ctx_, frame_) < 0) {
     return false;

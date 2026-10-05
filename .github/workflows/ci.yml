@@ -180,12 +180,24 @@ jobs:
                 Set-Item -Path "env:$k" -Value $v
               }
               Push-Location $exe.DirectoryName
-              $out = & $exe.FullName -v2 -o "$t.txt,txt" 2>&1 | ForEach-Object { "$_" }
+              # Two -o: file (survives a crash) AND stdout. "$t.txt,txt" is one argument "<file>,<format>".
+              $txt = Join-Path $exe.DirectoryName "$t.txt"
+              Remove-Item $txt -ErrorAction SilentlyContinue
+              $out = & $exe.FullName -v2 -o "${txt},txt" -o "-,txt" 2>&1 | ForEach-Object { "$_" }
               $code = $LASTEXITCODE
               Pop-Location
               Write-Host "exit code of ${t}: $code (0x$('{0:X}' -f $code))"
-              # Filtered view: failures with 5 lines of context, warnings, totals, guard messages (no QINFO noise).
-              $out | Select-String -Pattern 'FAIL!|QWARN|QFATAL|Totals|\[fbtest\]|\[uitest\]|Loc:|XPASS' -Context 5,2 | Out-Host
+              # QtTest result file, unfiltered tail, then the interesting lines of it (and of the console output).
+              if (Test-Path $txt) {
+                Write-Host "--- $t.txt (last 80 lines) ---"
+                Get-Content $txt | Select-Object -Last 80 | Out-Host
+                Write-Host "--- FAIL!/QWARN/QFATAL in $t.txt ---"
+                Select-String -Path $txt -Pattern 'FAIL!|QWARN|QFATAL' -Context 3,3 | Out-Host
+              } else {
+                Write-Host "::warning::$txt was not written"
+              }
+              Write-Host "--- console: guard lines, [loopback] and failures ---"
+              $out | Select-String -Pattern 'FAIL!|QFATAL|Totals|\[fbtest\]|\[uitest\]|\[loopback\]' | Out-Host
               Write-Host "::endgroup::"
             }
             throw "ctest failed"
