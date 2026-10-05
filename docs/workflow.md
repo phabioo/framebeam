@@ -84,6 +84,7 @@ Do not return full logs or file contents. Do not commit.
 - **Phase 3 – Saves:** start/auto/final sync, current checkpoint vs. history, `base_version`, conflict model, pending sync; Hub saves page, Player conflict dialog.
 - **Phase 4 – Session sharing and multiview:** presence, signaling, visibility/ACL, WebRTC with software H.264/Opus, PiP/side-by-side, diagnostics; afterwards hardware encoders (testable locally only).
 - **Phase 5 – Remainder and polish:** firmware path, users/invites, systems & cores, emulation and controllers pages, SDL3 gamepads, dark/light, remaining Hub pages, packaging (Windows installer, systemd unit).
+- **After the PoC – Distribution (planned, not PoC scope):** installers for Player and Hub on all target platforms (Windows, Linux, macOS; Hub additionally as Raspberry Pi/ARM64 package) and an integrated updater for Hub and Player, targeted for the first versions after the PoC. See `docs/architecture/08-repo-and-open-points.md`.
 
 The mapping of screens to phases is in `docs/design/README.md`.
 
