@@ -68,7 +68,7 @@ func New(svc *hub.Service, cfg Config, log *slog.Logger) (*Server, error) {
 	}
 	s := &Server{svc: svc, cfg: cfg, log: log, tmpl: map[string]*template.Template{},
 		login: &limiter{max: 5, window: time.Minute, now: svc.Now, hits: map[string][]time.Time{}}}
-	for _, p := range []string{"login", "setup", "library", "clients", "settings"} {
+	for _, p := range []string{"login", "setup", "library", "saves", "clients", "settings"} {
 		t, err := template.New(p).ParseFS(templatesFS, "templates/layout.html", "templates/"+p+".html")
 		if err != nil {
 			return nil, err
@@ -103,6 +103,11 @@ func (s *Server) Register(mux *http.ServeMux) {
 	h("GET /library", s.guard(s.libraryGet))
 	h("POST /library/upload", s.guard(s.libraryUpload))
 	h("POST /library/{id}/delete", s.guard(s.libraryDelete))
+	h("GET /saves", s.guard(s.savesGet))
+	h("GET /saves/{user}/{game}/{slot}", s.guard(s.savesGet))
+	h("GET /saves/{user}/{game}/{slot}/download", s.guard(s.saveDownload))
+	h("GET /saves/{user}/{game}/{slot}/history/{version}/download", s.guard(s.saveHistoryDownload))
+	h("POST /saves/{user}/{game}/{slot}/conflicts/{id}/resolve", s.guard(s.saveResolve))
 	h("GET /clients", s.guard(s.clientsGet))
 	h("POST /clients/requests/{id}/allow", s.guard(s.clientAllow))
 	h("POST /clients/requests/{id}/deny", s.guard(s.clientDeny))
@@ -149,6 +154,7 @@ type pageData struct {
 	User, Role          string
 	HubName, HubVersion string
 	Pending             int
+	Conflicts           int // open save conflicts (nav badge)
 	Flash, Error        string
 	Fragment            bool
 	Body                any
@@ -159,6 +165,11 @@ var flashTexts = map[string]string{
 	"deleted":  "ROM deleted.",
 	"name":     "Hub name saved.",
 	"password": "Password changed.",
+	"resolved": "Conflict resolved.",
+}
+
+var errTexts = map[string]string{
+	"stale": "The slot changed in the meantime or the conflict was already resolved. Please review and decide again.",
 }
 
 type session struct {
@@ -171,13 +182,16 @@ func (s *Server) base(r *http.Request, sess *session, nav, title string) pageDat
 	if ver != "" && ver[0] >= '0' && ver[0] <= '9' {
 		ver = "v" + ver
 	}
-	d := pageData{Title: title, Nav: nav, HubName: info.Name, HubVersion: ver, Flash: flashTexts[r.URL.Query().Get("ok")]}
+	d := pageData{Title: title, Nav: nav, HubName: info.Name, HubVersion: ver, Flash: flashTexts[r.URL.Query().Get("ok")], Error: errTexts[r.URL.Query().Get("err")]}
 	if sess != nil {
 		d.CSRF = sess.CSRFToken
 		d.User = sess.User.DisplayName
 		d.Role = roleLabel(sess.User.Role)
 		if p, err := s.svc.ListPendingRequests(r.Context()); err == nil {
 			d.Pending = len(p)
+		}
+		if n, err := s.svc.OpenConflictCount(r.Context()); err == nil {
+			d.Conflicts = n
 		}
 	}
 	return d

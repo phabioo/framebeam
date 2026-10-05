@@ -14,6 +14,26 @@
 
 class QSslSocket;
 
+// Fake save slot of the Hub (D3 of the phase 3 spec): current checkpoint + conflicts. Test code only.
+struct FakeConflict {
+  QString id;
+  QString status = QStringLiteral("open");  // open | resolved_hub | resolved_local
+  int hubRevision = 0;
+  QString hubSha;
+  QString hubDeviceId, hubDeviceName;
+  QByteArray securedContent;
+  int securedVersion = 0;
+  int securedBase = 0;
+  QString securedDeviceId, securedDeviceName;
+};
+struct FakeSlot {
+  int revision = 0;
+  QByteArray content;
+  QString deviceId, deviceName, reason = QStringLiteral("checkpoint");
+  int nextVersion = 1;
+  QList<FakeConflict> conflicts;
+};
+
 struct FakeRequest {
   QByteArray method;
   QString path;
@@ -48,6 +68,15 @@ class FakeHub : public QTcpServer {
   qint64 truncateFirstRomAt = -1;  // first ROM response aborts after this many body bytes
   bool ignoreRange = false;        // always responds 200 with the full content
 
+  // Saves (saves_v1)
+  QStringList features{QStringLiteral("saves_v1")};  // handshake features
+  QMap<QString, FakeSlot> saves;                     // game_id -> slot "default"
+  int failSaveRequests = 0;                          // next N save requests answer 503
+  QString callerDeviceId;                            // device_id of the last token request
+  // Simulates another device that uploaded a new checkpoint.
+  void setHubSave(const QString& gameId, const QByteArray& content, const QString& deviceId = QStringLiteral("other-device"),
+                  const QString& deviceName = QStringLiteral("Laptop Office"));
+
   // Observation
   QList<FakeRequest> requests;
   int count(const QString& pathPrefix) const;
@@ -65,6 +94,9 @@ class FakeHub : public QTcpServer {
   void respond(QSslSocket* sock, int status, const QByteArray& body, const QByteArray& contentType = "application/json",
                const QList<QPair<QByteArray, QByteArray>>& extra = {}, qint64 truncateAt = -1);
   void respondError(QSslSocket* sock, int status, const QString& code);
+  void handleSaves(QSslSocket* sock, const FakeRequest& req);
+  QJsonObject slotJson(const QString& gameId, const FakeSlot& s) const;
+  QJsonObject conflictJson(const QString& gameId, const FakeSlot& s, const FakeConflict& c) const;
   bool bearerIs(const FakeRequest& req, const QByteArray& prefix) const;
 
   QString certName_;

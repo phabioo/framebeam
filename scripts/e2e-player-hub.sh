@@ -110,3 +110,47 @@ if [ "$rc" != "0" ] && ! grep -q "^\[Connected\]" "$TMP/cli2.err"; then
 else
   die "second run became Connected" "$TMP/cli2.out" "$TMP/cli2.err"
 fi
+
+# 9. Save round trip (D3): push (base 0) -> pull -> stale push from a second device -> CONFLICT (exit 3)
+#    -> resolve use_local -> pull shows the local bytes -> resolve again -> STALE (exit 4). Dummy bytes only.
+GID=$(sed -n "s/^E2E Dummy.*$SHA\t\(.*\)$/\1/p" "$TMP/cli.out" | head -n1)
+[ -n "$GID" ] || die "save: game id not in the games output" "$TMP/cli.out"
+
+# pair_run <name> <out-file> <cli args after pair...>: pairs a new device (own data dir), approves it in the web
+# interface and runs the follow-up commands in the same process (credentials are memory-only on Linux).
+pair_run() {
+  local name="$1" out="$2"; shift 2
+  QT_QPA_PLATFORM=offscreen "$CLI" pair "https://$ADDR" --accept-fingerprint --data-dir "$TMP/dev-$name" "$@" \
+    >"$out" 2>"$out.err" &
+  local pid=$!
+  CLI_PID=$pid
+  wait_for 20 grep -q "AwaitingApproval" "$out.err" || { die "save: device $name did not request pairing" "$out" "$out.err"; }
+  local cl rid u b
+  cl=$("${CURL[@]}" "https://$ADDR/clients")
+  rid=$(printf '%s' "$cl" | sed -n 's#.*/clients/requests/\([^/"]*\)/allow.*#\1#p' | head -n1)
+  u=$(printf '%s' "$cl" | sed -n 's#.*<option value="\([^"]*\)".*#\1#p' | head -n1)
+  [ -n "$rid" ] && [ -n "$u" ] || die "save: pending request of $name not found" "$TMP/hub.log"
+  b=$("${CURL[@]}" -H "X-CSRF-Token: $tok" -H "HX-Request: true" --data-urlencode "user_id=$u" "https://$ADDR/clients/requests/$rid/allow")
+  printf '%s' "$b" | grep -q "Device allowed" || die "save: allow $name" "$TMP/hub.log"
+  wait "$pid"; PAIR_RC=$?
+  CLI_PID=""
+}
+
+printf 'e2e-save-A-dummy-bytes' >"$TMP/saveA.bin"
+printf 'e2e-save-B-dummy-bytes-longer' >"$TMP/saveB.bin"
+pair_run devA "$TMP/save1.out" games save push "$GID" "$TMP/saveA.bin" --base 0 save pull "$GID" "$TMP/pullA.bin"
+[ "$PAIR_RC" = "0" ] && grep -q "^OK revision=1 " "$TMP/save1.out" || die "save: push base 0 (exit $PAIR_RC)" "$TMP/save1.out" "$TMP/save1.out.err"
+cmp -s "$TMP/saveA.bin" "$TMP/pullA.bin" && ok "save: push (base 0) -> revision 1, pull returns identical bytes" || die "save: pulled bytes differ" "$TMP/save1.out"
+
+pair_run devB "$TMP/save2.out" games save push "$GID" "$TMP/saveB.bin" --base 0
+CID=$(sed -n 's/^CONFLICT id=\([^ ]*\) .*/\1/p' "$TMP/save2.out" | head -n1)
+[ "$PAIR_RC" = "3" ] && [ -n "$CID" ] && ok "save: stale push from a second device -> exit 3, CONFLICT id=$CID" || die "save: stale push (exit $PAIR_RC)" "$TMP/save2.out" "$TMP/save2.out.err"
+
+pair_run devC "$TMP/save3.out" games save pull "$GID" "$TMP/pullHub.bin" \
+  save resolve "$GID" "$CID" use_local --expected 1 save pull "$GID" "$TMP/pullLocal.bin" \
+  save resolve "$GID" "$CID" use_local --expected 2
+[ "$PAIR_RC" = "4" ] && grep -q "^STALE" "$TMP/save3.out" || die "save: second resolve should be STALE/exit 4 (exit $PAIR_RC)" "$TMP/save3.out" "$TMP/save3.out.err"
+cmp -s "$TMP/saveA.bin" "$TMP/pullHub.bin" && ok "save: Hub bytes unchanged by the conflicting upload" || die "save: hub bytes changed by conflict"
+grep -q "^OK revision=2 " "$TMP/save3.out" && cmp -s "$TMP/saveB.bin" "$TMP/pullLocal.bin" \
+  && ok "save: resolve use_local (expected 1) -> revision 2, pull shows the local bytes" || die "save: resolve use_local" "$TMP/save3.out" "$TMP/save3.out.err"
+ok "save: second resolve of the same conflict -> STALE (exit 4)"

@@ -1,0 +1,82 @@
+{{define "saves-list"}}
+{{if .Rows}}
+<ul class="save-list">
+  {{range .Rows}}
+  <li><a href="{{.Href}}" class="save-item{{if .Selected}} selected{{end}}"{{if .Selected}} aria-current="page"{{end}}>
+    <span class="cover" aria-hidden="true">{{.Initial}}</span>
+    <span class="save-text"><span class="save-title">{{.Title}}{{if .User}} <span class="save-user">· {{.User}}</span>{{end}}</span>
+    <span class="save-line{{if .Conflict}} warn{{end}}">{{.Line}}</span></span>
+  </a></li>
+  {{end}}
+</ul>
+{{else}}
+<p class="empty">No saves yet.</p>
+{{end}}
+{{end}}
+{{define "saves-detail"}}
+{{with .}}
+<header class="save-head"><h2>{{.Title}}</h2><p class="sub">{{.User}}</p></header>
+<div class="eyebrow">Current checkpoint</div>
+<div class="save-bar">
+  <div><span class="mono">Rev {{.Current.Rev}}</span> · {{.Current.Device}} · {{.Current.When}} · {{.Current.Reason}}
+    <div class="help mono">{{.Current.Size}} · {{.Current.ShortHash}}</div></div>
+  <a class="btn" href="{{.Current.DownloadHref}}">Download</a>
+</div>
+{{range .Conflicts}}
+<section class="conflict" aria-label="Save conflict">
+  <h3>{{.Title}}</h3>
+  <p>Both contents are preserved and secured in the history before resolution.</p>
+  <div class="compare">
+    <div class="side">
+      <div class="eyebrow">{{.Hub.Label}}</div>
+      <div class="side-title">{{.Hub.Heading}}</div>
+      <dl><dt>Device</dt><dd>{{.Hub.Device}}</dd><dt>Time</dt><dd>{{.Hub.When}}</dd><dt>Base revision</dt><dd>{{.Hub.Base}}</dd><dt>Content hash</dt><dd class="mono">{{.Hub.ShortHash}}</dd></dl>
+    </div>
+    <div class="side">
+      <div class="eyebrow">{{.Local.Label}}</div>
+      <div class="side-title">{{.Local.Heading}}</div>
+      <dl><dt>Device</dt><dd>{{.Local.Device}}</dd><dt>Time</dt><dd>{{.Local.When}}</dd><dt>Base revision</dt><dd>{{.Local.Base}}</dd><dt>Content hash</dt><dd class="mono">{{.Local.ShortHash}}</dd></dl>
+    </div>
+  </div>
+  <div class="actions">
+    <form method="post" action="{{.ResolveHref}}" hx-post="{{.ResolveHref}}" hx-confirm="Use the Hub version? The secured upload stays in the history.">
+      <input type="hidden" name="resolution" value="use_hub"><input type="hidden" name="expected_revision" value="{{.ExpectedRev}}">
+      <button class="btn" type="submit">Use Hub version</button>
+    </form>
+    <form method="post" action="{{.ResolveHref}}" hx-post="{{.ResolveHref}}" hx-confirm="Adopt the secured upload as the new current version? The current Hub version stays in the history.">
+      <input type="hidden" name="resolution" value="use_local"><input type="hidden" name="expected_revision" value="{{.ExpectedRev}}">
+      <button class="btn" type="submit">Adopt local save as new current version</button>
+    </form>
+    <a class="btn primary" href="{{.KeepHref}}">Keep both, decide later</a>
+  </div>
+</section>
+{{end}}
+<div class="eyebrow">History · permanent versions</div>
+{{if .History}}
+<ol class="timeline">
+  {{range .History}}
+  <li class="{{if .Current}}current{{end}}">
+    <span class="node" aria-hidden="true"></span>
+    <div class="tl-text"><div><span class="mono">v{{.Version}}</span> <strong>{{.Device}}</strong>{{if .Current}} <span class="badge">CURRENT</span>{{end}}</div><div class="help">{{.Meta}}</div></div>
+    <a class="btn-link plain" href="{{.DownloadHref}}">Download</a>
+  </li>
+  {{end}}
+</ol>
+{{else}}
+<p class="help">No history versions yet.</p>
+{{end}}
+{{end}}
+{{end}}
+{{define "content"}}
+<div id="saves-root" class="saves">
+  <section class="saves-list" aria-label="Saves">
+    <h1>Saves</h1>
+    <form class="save-filter" method="get" action="/saves" hx-get="/saves" hx-trigger="change" hx-target="#saves-root" hx-select="#saves-root" hx-swap="outerHTML" hx-push-url="true">
+      <label>User: <select name="user" aria-label="Filter by user"><option value="">All users</option>{{range .Body.Users}}<option value="{{.ID}}"{{if eq $.Body.UserFilter .ID}} selected{{end}}>{{.DisplayName}}</option>{{end}}</select></label>
+      <noscript><button class="btn small" type="submit">Apply</button></noscript>
+    </form>
+    {{template "saves-list" .Body}}
+  </section>
+  <section class="saves-detail">{{template "saves-detail" .Body.Detail}}</section>
+</div>
+{{end}}

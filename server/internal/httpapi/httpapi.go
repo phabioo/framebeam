@@ -54,7 +54,11 @@ func Register(mux *http.ServeMux, svc *hub.Service, log *slog.Logger) {
 		Middlewares: []api.MiddlewareFunc{func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Cache-Control", "no-store")
-				r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
+				limit := int64(maxBodyBytes)
+				if r.Method == http.MethodPut && strings.Contains(r.URL.Path, "/saves/") {
+					limit = hub.MaxSaveBytes + 1 // the service answers 413 payload_too_large
+				}
+				r.Body = http.MaxBytesReader(w, r.Body, limit)
 				next.ServeHTTP(w, r)
 			})
 		}},
@@ -102,7 +106,8 @@ func (s *Server) authMiddleware(next api.StrictHandlerFunc, op string) api.Stric
 		ctx = context.WithValue(ctx, keyBearer, tok)
 		ctx = context.WithValue(ctx, keyRemoteIP, remoteIP(r))
 		switch op {
-		case "RevokeSelf", "PostHandshake", "ListGames", "GetGame", "ConnectWebSocket":
+		case "RevokeSelf", "PostHandshake", "ListGames", "GetGame", "ConnectWebSocket",
+			"ListSaves", "GetSaveSlot", "PutSave", "DownloadSaveContent", "ListSaveHistory", "DownloadSaveHistoryContent", "ResolveSaveConflict":
 			p, err := s.svc.Authenticate(ctx, tok)
 			if err != nil {
 				return nil, err
@@ -128,8 +133,10 @@ func httpStatus(c hub.Code) int {
 		return http.StatusForbidden
 	case hub.CodeNotFound:
 		return http.StatusNotFound
-	case hub.CodeConflict, hub.CodePairingExpired:
+	case hub.CodeConflict, hub.CodePairingExpired, hub.CodeSaveConflict, hub.CodeSaveConflictStale:
 		return http.StatusConflict
+	case hub.CodePayloadTooLarge:
+		return http.StatusRequestEntityTooLarge
 	case hub.CodeRateLimited:
 		return http.StatusTooManyRequests
 	}
@@ -242,7 +249,8 @@ func (s *Server) PostHandshake(ctx context.Context, req api.PostHandshakeRequest
 		return nil, err
 	}
 	out := api.HandshakeResponse{HubVersion: res.Info.HubVersion, ProtocolVersion: res.Info.ProtocolVersion,
-		MinProtocolVersion: res.Info.MinProtocolVersion, Compatible: res.Compatible, Problems: []api.HandshakeProblem{}}
+		MinProtocolVersion: res.Info.MinProtocolVersion, Compatible: res.Compatible, Problems: []api.HandshakeProblem{},
+		Features: &[]string{hub.FeatureSavesV1}}
 	for _, p := range res.Problems {
 		hp := api.HandshakeProblem{Code: api.HandshakeProblemCode(p.Code), Detail: p.Detail}
 		if p.CoreID != "" {

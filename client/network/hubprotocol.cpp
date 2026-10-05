@@ -75,6 +75,12 @@ std::optional<HandshakeResult> parseHandshakeResult(const QJsonObject& obj) {
     r.problems.append({p.value(QStringLiteral("code")).toString(), p.value(QStringLiteral("detail")).toString(),
                        p.value(QStringLiteral("core_id")).toString()});
   }
+  const QJsonArray feats = obj.value(QStringLiteral("features")).toArray();
+  for (const QJsonValue& v : feats) {
+    if (v.isString()) {
+      r.features.append(v.toString());
+    }
+  }
   return r;
 }
 

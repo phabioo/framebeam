@@ -83,8 +83,8 @@ class GameTest : public QObject {
     QVERIFY(view->frameRect().height() >= view->height() * 0.9);
     uitest::saveShot(h.window, QStringLiteral("game-view"));
 
-    // Saves kept separate per hub: <data>/hubs/<hub_id>/saves
-    QVERIFY(QDir(QDir(h.controller->profileStore()->hubDir(QStringLiteral("hub-game"))).filePath(QStringLiteral("saves"))).exists());
+    // Saves kept separate per hub and user: <data>/hubs/<hub_id>/users/<user_id>/saves/<game_id>
+    QVERIFY(QDir(QDir(h.controller->profileStore()->hubDir(QStringLiteral("hub-game"))).filePath(QStringLiteral("users/u_test_1/saves/t1"))).exists());
 
     // Pause/Resume, Reset
     QVERIFY(h.click("pauseButton"));
@@ -115,6 +115,10 @@ class GameTest : public QObject {
     QVERIFY(h.click("quitButton"));
     QCOMPARE(h.controller->screen(), QStringLiteral("library"));
     QCOMPARE(s->state(), GameSession::Idle);
+    // Diagnostics: which files the core wrote into the save dir (save sync detects <rom basename>.sav)
+    qInfo().noquote() << "Save dir content:"
+                      << QDir(h.controller->profileStore()->hubDir(QStringLiteral("hub-game")) + QStringLiteral("/users/u_test_1/saves/t1"))
+                             .entryList(QDir::Files).join(QLatin1Char(' '));
     QCOMPARE(uitest::warningCount().load(), 0);
   }
 };

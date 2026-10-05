@@ -59,6 +59,7 @@ struct HandshakeResult {
   int minProtocolVersion = 0;
   bool compatible = false;
   QList<HandshakeProblem> problems;
+  QStringList features;  // optional Hub feature flags, e.g. "saves_v1"
 };
 std::optional<HandshakeResult> parseHandshakeResult(const QJsonObject& obj);
 

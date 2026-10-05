@@ -97,6 +97,7 @@ void HubConnection::reset() {
   hubInfo_ = {};
   profile_.reset();
   problems_.clear();
+  features_.clear();
   incompatible_ = IncompatibleReason::None;
   errorCode_.clear();
   errorMessage_.clear();
@@ -497,6 +498,7 @@ void HubConnection::doHandshake() {
       return;
     }
     problems_ = res->problems;
+    features_ = res->features;
     for (const HandshakeProblem& p : res->problems) {
       if (p.code == QLatin1String("player_too_old") || p.code == QLatin1String("hub_too_old")) {
         incompatible_ = p.code == QLatin1String("player_too_old") ? IncompatibleReason::PlayerTooOld : IncompatibleReason::HubTooOld;
@@ -564,6 +566,17 @@ QNetworkReply* HubConnection::authorizedGet(const QString& apiRelPath, const Htt
     return nullptr;
   }
   QNetworkReply* reply = http_->get(apiPath(apiRelPath), accessToken_, headers);
+  inflight_.insert(reply);
+  connect(reply, &QNetworkReply::finished, this, [this, reply]() { inflight_.remove(reply); });
+  return reply;
+}
+
+QNetworkReply* HubConnection::authorizedSend(const QByteArray& method, const QString& apiRelPath, const QByteArray& body,
+                                             const HttpHeaders& headers, const QByteArray& contentType) {
+  if (state_ != State::Connected || http_ == nullptr || accessToken_.isEmpty()) {
+    return nullptr;
+  }
+  QNetworkReply* reply = http_->send(method, apiPath(apiRelPath), body, accessToken_, headers, contentType);
   inflight_.insert(reply);
   connect(reply, &QNetworkReply::finished, this, [this, reply]() { inflight_.remove(reply); });
   return reply;

@@ -286,7 +286,7 @@ class ScreensTest : public QObject {
     QVERIFY(g.value(QStringLiteral("coreHint")).toString().contains(QStringLiteral("FRAMEBEAM_MELONDS_DS_CORE")));
     QCOMPARE(g.value(QStringLiteral("firmwareText")).toString(), QStringLiteral("Not required"));
     QVERIFY(!g.value(QStringLiteral("canPlay")).toBool());
-    QCOMPARE(g.value(QStringLiteral("checklist")).toList().size(), 4);
+    QCOMPARE(g.value(QStringLiteral("checklist")).toList().size(), 5);
     QCOMPARE(g.value(QStringLiteral("sha")).toString(), readySha);
     QVERIFY(g.value(QStringLiteral("cachePath")).toString().endsWith(readySha + QStringLiteral(".nds")));
 

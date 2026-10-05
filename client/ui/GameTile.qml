@@ -12,6 +12,8 @@ Item {
     required property string statusText
     required property string statusTone
     required property real progress
+    required property string syncKind
+    required property string syncText
     property bool selected: false
 
     signal clicked()
@@ -55,6 +57,26 @@ Item {
             font.weight: Font.DemiBold
             font.letterSpacing: -0.7
             color: Theme.monogram
+        }
+        // Save sync badge (synced / pending / conflict)
+        Rectangle {
+            objectName: "syncBadge"
+            visible: tile.syncKind !== "none"
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 8
+            implicitHeight: 20
+            implicitWidth: badgeText.implicitWidth + 14
+            radius: 10
+            color: Theme.toneBg(tile.syncKind === "synced" ? "ok" : "warn")
+            FbLabel {
+                id: badgeText
+                anchors.centerIn: parent
+                text: (tile.syncKind === "conflict" ? "▲ " : "") + tile.syncText
+                font.pixelSize: 11
+                font.weight: Font.Medium
+                color: Theme.toneColor(tile.syncKind === "synced" ? "ok" : "warn")
+            }
         }
         Rectangle {
             visible: tile.stateKind === "downloading"

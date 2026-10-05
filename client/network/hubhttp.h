@@ -53,6 +53,9 @@ class HubHttp : public QObject {
   QNetworkReply* get(const QString& path, const QByteArray& bearer = {}, const HttpHeaders& headers = {},
                      bool allowUnpinned = false);
   QNetworkReply* postJson(const QString& path, const QJsonObject& body, const QByteArray& bearer = {});
+  // Arbitrary method with a raw body (e.g. PUT of a save file).
+  QNetworkReply* send(const QByteArray& method, const QString& path, const QByteArray& body, const QByteArray& bearer,
+                      const HttpHeaders& headers = {}, const QByteArray& contentType = "application/octet-stream");
 
  private:
   QNetworkRequest makeRequest(const QString& path, const QByteArray& bearer, const HttpHeaders& headers) const;

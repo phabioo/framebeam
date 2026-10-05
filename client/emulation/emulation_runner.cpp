@@ -58,7 +58,7 @@ class EmulationRunner::Worker : public QThread {
       {
         QMutexLocker l(&m_mutex);
         while (m_paused && !m_stop) {
-          if (!wasPaused) { wasPaused = true; m_owner->setState(State::Paused); }
+          if (!wasPaused) { wasPaused = true; be.flushSave(); m_owner->setState(State::Paused); }
           m_cond.wait(&m_mutex);
         }
         if (m_stop) break;

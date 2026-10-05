@@ -114,6 +114,15 @@ QNetworkReply* HubHttp::postJson(const QString& path, const QJsonObject& body, c
   return reply;
 }
 
+QNetworkReply* HubHttp::send(const QByteArray& method, const QString& path, const QByteArray& body, const QByteArray& bearer,
+                             const HttpHeaders& headers, const QByteArray& contentType) {
+  QNetworkRequest req = makeRequest(path, bearer, headers);
+  req.setHeader(QNetworkRequest::ContentTypeHeader, QString::fromLatin1(contentType));
+  QNetworkReply* reply = nam_.sendCustomRequest(req, method, body);
+  attach(reply, false);
+  return reply;
+}
+
 HttpResult HubHttp::resultOf(QNetworkReply* reply) {
   HttpResult r;
   r.status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();

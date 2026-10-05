@@ -81,6 +81,9 @@ class EmulatorBackend {
   // Emulate exactly one frame; then videoFrame()/takeAudio(). false = error/core shutdown.
   virtual bool runFrame() = 0;
   virtual void reset() = 0;
+  // Writes the game's battery save (if any) to the save directory when it changed. Called on pause and
+  // before unloading; default: nothing.
+  virtual void flushSave() {}
 
   // Last video frame (XRGB8888). Implicitly shared, cheap to copy.
   virtual QImage videoFrame() const = 0;

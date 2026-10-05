@@ -17,6 +17,9 @@ const (
 	CodeDeviceRevoked      Code = "device_revoked"
 	CodeInvalidCredentials Code = "invalid_credentials"
 	CodePairingExpired     Code = "pairing_expired"
+	CodeSaveConflict       Code = "save_conflict"
+	CodeSaveConflictStale  Code = "save_conflict_stale"
+	CodePayloadTooLarge    Code = "payload_too_large"
 )
 
 // Error is a domain error with a spec code. errors.Is compares the code only.
@@ -44,6 +47,10 @@ var (
 	ErrDeviceRevoked      = &Error{CodeDeviceRevoked, "Device has been revoked"}
 	ErrInvalidCredentials = &Error{CodeInvalidCredentials, "Invalid credentials"}
 	ErrPairingExpired     = &Error{CodePairingExpired, "Pairing request expired"}
+	// ErrSaveConflictStale: expected_revision is stale or the conflict is already resolved (nothing changed).
+	ErrSaveConflictStale = &Error{CodeSaveConflictStale, "Slot changed since expected_revision; re-read the slot"}
+	// ErrPayloadTooLarge: the upload exceeds MaxSaveBytes.
+	ErrPayloadTooLarge = &Error{CodePayloadTooLarge, "Save exceeds 64 MiB"}
 	// ErrAdminExists: an admin already exists (code conflict).
 	ErrAdminExists = &Error{CodeConflict, "An admin already exists"}
 )

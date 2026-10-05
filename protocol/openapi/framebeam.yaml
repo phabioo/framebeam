@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
   title: FrameBeam Hub API
-  version: 1.0.0
+  version: 1.1.0
   description: |
-    HTTPS/JSON API of the FrameBeam Hub (phase 1). `protocol_version` is an integer (starting at 1),
+    HTTPS/JSON API of the FrameBeam Hub (phase 1; phase 3 adds save sync under `saves`, advertised by the handshake feature `saves_v1`). `protocol_version` is an integer (starting at 1),
     separate from the hub/player product version. All paths carry the `/api/v1` prefix explicitly;
     only the info endpoint lives under `/.well-known/framebeam`.
     Compatibility: Player.protocol_version < Hub.min_protocol_version -> player_too_old;
@@ -18,6 +18,7 @@ tags:
   - name: auth
   - name: handshake
   - name: library
+  - name: saves
   - name: ws
 paths:
   /.well-known/framebeam:
@@ -179,7 +180,7 @@ paths:
                   protocol_version: 1
                   min_protocol_version: 1
                   cores:
-                    - { id: melonds, version: 1.0.0 }
+                    - { id: melonds, version: 1.1.0 }
                   video:
                     h264_encode: true
                     h264_decode: true
@@ -200,6 +201,7 @@ paths:
                     min_protocol_version: 1
                     compatible: true
                     problems: []
+                    features: [saves_v1]
                 core_missing:
                   value:
                     hub_version: 0.1.0
@@ -312,6 +314,298 @@ paths:
               schema: { $ref: '#/components/schemas/Error' }
               examples:
                 default: { value: { error: { code: bad_request, message: Range not satisfiable } } }
+  /api/v1/saves:
+    get:
+      operationId: listSaves
+      tags: [saves]
+      summary: Save slots of the authenticated device's user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Slots of the caller (only the owner's own slots)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [saves]
+                properties:
+                  saves:
+                    type: array
+                    items: { $ref: '#/components/schemas/SaveSlotSummary' }
+              examples:
+                default:
+                  value:
+                    saves:
+                      - game_id: 9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d
+                        slot: default
+                        current:
+                          revision: 3
+                          sha256: '1111111111111111111111111111111111111111111111111111111111111111'
+                          size: 524288
+                          device_id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                          device_name: Wohnzimmer-PC
+                          created_at: '2026-01-01T12:00:00Z'
+                          reason: checkpoint
+                        open_conflict_count: 0
+                empty:
+                  value: { saves: [] }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/games/{game_id}/saves/{slot}:
+    parameters:
+      - $ref: '#/components/parameters/GameId'
+      - $ref: '#/components/parameters/SaveSlotName'
+    get:
+      operationId: getSaveSlot
+      tags: [saves]
+      summary: Current checkpoint metadata and open conflicts of a slot
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Slot
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SaveSlot' }
+              examples:
+                default: { $ref: '#/components/examples/SaveSlotExample' }
+                with_conflict: { $ref: '#/components/examples/SaveSlotConflictExample' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: putSave
+      tags: [saves]
+      summary: Upload the save file (raw body) against a base revision
+      description: |
+        Raw `application/octet-stream` body (max 64 MiB, opaque, never interpreted by the Hub).
+        Rules, evaluated in order inside one transaction per slot:
+        1. SHA-256 equals the current checkpoint -> 200 with the current slot, no new revision (idempotent retry).
+        2. `X-FrameBeam-Base-Revision` equals the current revision (0 and no slot yet) -> new revision, 200.
+        3. Otherwise -> 409 `save_conflict`: the upload is secured as history version (`conflict_upload`),
+           an open conflict is created or updated (at most one open conflict per slot and device) and
+           returned in `conflict`. The current checkpoint stays unchanged.
+        A hash mismatch returns 400 `bad_request`; oversize bodies 413 `payload_too_large`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: X-FrameBeam-Base-Revision
+          in: header
+          required: true
+          description: Checkpoint revision the upload is based on; 0 = the Player had no Hub save.
+          schema: { type: integer, minimum: 0 }
+          example: 3
+        - name: X-FrameBeam-Content-SHA256
+          in: header
+          required: true
+          description: Lowercase hex SHA-256 of the body; verified by the Hub.
+          schema: { type: string, pattern: '^[0-9a-f]{64}$' }
+          example: '2222222222222222222222222222222222222222222222222222222222222222'
+        - name: X-FrameBeam-Sync-Reason
+          in: header
+          required: true
+          schema: { $ref: '#/components/schemas/SaveSyncReason' }
+          example: checkpoint
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        '200':
+          description: Accepted (new revision) or identical to the current checkpoint (unchanged)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SaveSlot' }
+              examples:
+                accepted: { $ref: '#/components/examples/SaveSlotExample' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Stale base revision; the upload was secured and a conflict recorded
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SaveConflictError' }
+              examples:
+                default:
+                  value:
+                    error: { code: save_conflict, message: Base revision is stale; upload secured as conflict }
+                    conflict:
+                      id: c_placeholder_1
+                      game_id: 9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d
+                      slot: default
+                      status: open
+                      hub:
+                        revision: 3
+                        sha256: '1111111111111111111111111111111111111111111111111111111111111111'
+                        device_id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                        device_name: Wohnzimmer-PC
+                        created_at: '2026-01-01T12:00:00Z'
+                      secured:
+                        version: 4
+                        sha256: '2222222222222222222222222222222222222222222222222222222222222222'
+                        base_revision: 2
+                        device_id: 5d0f4e2a-1b3c-4d5e-8f60-718293a4b5c6
+                        device_name: Laptop
+                        created_at: '2026-01-01T13:00:00Z'
+                      created_at: '2026-01-01T13:00:00Z'
+                      resolved_at: null
+                      resolved_by: null
+        '413':
+          description: Body exceeds 64 MiB
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: payload_too_large, message: Save exceeds 64 MiB } } }
+  /api/v1/games/{game_id}/saves/{slot}/content:
+    parameters:
+      - $ref: '#/components/parameters/GameId'
+      - $ref: '#/components/parameters/SaveSlotName'
+    get:
+      operationId: downloadSaveContent
+      tags: [saves]
+      summary: Bytes of the current checkpoint
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current checkpoint content
+          headers:
+            ETag: { schema: { type: string }, description: Strong ETag = content SHA-256, example: '"1111111111111111111111111111111111111111111111111111111111111111"' }
+            X-FrameBeam-Save-Revision: { schema: { type: integer, minimum: 1 }, description: Checkpoint revision of the content, example: 3 }
+            Content-Length: { schema: { type: integer, format: int64 } }
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/games/{game_id}/saves/{slot}/history:
+    parameters:
+      - $ref: '#/components/parameters/GameId'
+      - $ref: '#/components/parameters/SaveSlotName'
+    get:
+      operationId: listSaveHistory
+      tags: [saves]
+      summary: Permanent history versions of a slot (newest first)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: History versions
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [versions]
+                properties:
+                  versions:
+                    type: array
+                    items: { $ref: '#/components/schemas/SaveHistoryVersion' }
+              examples:
+                default:
+                  value:
+                    versions:
+                      - version: 2
+                        revision: 3
+                        sha256: '1111111111111111111111111111111111111111111111111111111111111111'
+                        size: 524288
+                        device_id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                        device_name: Wohnzimmer-PC
+                        created_at: '2026-01-01T12:00:00Z'
+                        reason: session_end
+                      - version: 1
+                        revision: 1
+                        sha256: '3333333333333333333333333333333333333333333333333333333333333333'
+                        size: 524288
+                        device_id: 5d0f4e2a-1b3c-4d5e-8f60-718293a4b5c6
+                        device_name: Laptop
+                        created_at: '2025-12-31T20:00:00Z'
+                        reason: device_change
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/games/{game_id}/saves/{slot}/history/{version}/content:
+    parameters:
+      - $ref: '#/components/parameters/GameId'
+      - $ref: '#/components/parameters/SaveSlotName'
+      - name: version
+        in: path
+        required: true
+        description: History version number (vN)
+        schema: { type: integer, minimum: 1 }
+        example: 1
+    get:
+      operationId: downloadSaveHistoryContent
+      tags: [saves]
+      summary: Bytes of a history version
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: History version content
+          headers:
+            ETag: { schema: { type: string }, description: Strong ETag = content SHA-256 }
+            X-FrameBeam-Save-Revision: { schema: { type: integer, minimum: 1 }, description: Checkpoint revision captured by this version, example: 1 }
+            Content-Length: { schema: { type: integer, format: int64 } }
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/games/{game_id}/saves/{slot}/conflicts/{conflict_id}/resolve:
+    parameters:
+      - $ref: '#/components/parameters/GameId'
+      - $ref: '#/components/parameters/SaveSlotName'
+      - name: conflict_id
+        in: path
+        required: true
+        schema: { type: string }
+        example: c_placeholder_1
+    post:
+      operationId: resolveSaveConflict
+      tags: [saves]
+      summary: Resolve an open save conflict
+      description: |
+        `expected_revision` must equal the current checkpoint revision, otherwise 409 `save_conflict_stale`
+        (nothing changed, the caller re-reads the slot). Before applying, the current checkpoint is copied
+        to history (`before_conflict_resolution`). `use_hub`: conflict -> `resolved_hub`, the secured upload
+        stays in history. `use_local`: the secured upload becomes a new checkpoint (revision + 1),
+        conflict -> `resolved_local`. Resolving an already resolved conflict returns 409 `save_conflict_stale`.
+        "Keep both, decide later" is no call; the conflict simply stays `open`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SaveResolveRequest' }
+            examples:
+              use_hub: { value: { resolution: use_hub, expected_revision: 3 } }
+              use_local: { value: { resolution: use_local, expected_revision: 3 } }
+      responses:
+        '200':
+          description: Resolved; the slot after the resolution
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SaveSlot' }
+              examples:
+                default: { $ref: '#/components/examples/SaveSlotExample' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: expected_revision is stale or the conflict is already resolved; nothing changed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: save_conflict_stale, message: Slot changed since expected_revision; re-read the slot } } }
   /api/v1/ws:
     get:
       operationId: connectWebSocket
@@ -334,7 +628,87 @@ components:
       type: http
       scheme: bearer
       description: Poll token of a pairing request (opaque, prefix fbp_).
+  parameters:
+    GameId:
+      name: game_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+      example: 9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d
+    SaveSlotName:
+      name: slot
+      in: path
+      required: true
+      description: Slot name; always `default` in the PoC.
+      schema: { type: string, pattern: '^[a-z0-9_-]{1,32}$' }
+      example: default
   examples:
+    SaveConflictValue:
+      value:
+        id: c_placeholder_1
+        game_id: 9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d
+        slot: default
+        status: open
+        hub:
+          revision: 3
+          sha256: '1111111111111111111111111111111111111111111111111111111111111111'
+          device_id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+          device_name: Wohnzimmer-PC
+          created_at: '2026-01-01T12:00:00Z'
+        secured:
+          version: 4
+          sha256: '2222222222222222222222222222222222222222222222222222222222222222'
+          base_revision: 2
+          device_id: 5d0f4e2a-1b3c-4d5e-8f60-718293a4b5c6
+          device_name: Laptop
+          created_at: '2026-01-01T13:00:00Z'
+        created_at: '2026-01-01T13:00:00Z'
+        resolved_at: null
+        resolved_by: null
+    SaveSlotExample:
+      value:
+        game_id: 9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d
+        slot: default
+        current:
+          revision: 3
+          sha256: '1111111111111111111111111111111111111111111111111111111111111111'
+          size: 524288
+          device_id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+          device_name: Wohnzimmer-PC
+          created_at: '2026-01-01T12:00:00Z'
+          reason: checkpoint
+        open_conflicts: []
+    SaveSlotConflictExample:
+      value:
+        game_id: 9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d
+        slot: default
+        current:
+          revision: 3
+          sha256: '1111111111111111111111111111111111111111111111111111111111111111'
+          size: 524288
+          device_id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+          device_name: Wohnzimmer-PC
+          created_at: '2026-01-01T12:00:00Z'
+          reason: checkpoint
+        open_conflicts:
+          - id: c_placeholder_1
+            game_id: 9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d
+            slot: default
+            status: open
+            hub:
+              revision: 3
+              sha256: '1111111111111111111111111111111111111111111111111111111111111111'
+              device_id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+              device_name: Wohnzimmer-PC
+              created_at: '2026-01-01T12:00:00Z'
+            secured:
+              version: 4
+              sha256: '2222222222222222222222222222222222222222222222222222222222222222'
+              base_revision: 2
+              device_id: 5d0f4e2a-1b3c-4d5e-8f60-718293a4b5c6
+              device_name: Laptop
+              created_at: '2026-01-01T13:00:00Z'
+            created_at: '2026-01-01T13:00:00Z'
     GameExample:
       value:
         id: 9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d
@@ -361,6 +735,13 @@ components:
           schema: { $ref: '#/components/schemas/Error' }
           examples:
             default: { value: { error: { code: unauthorized, message: Token missing or invalid } } }
+    Forbidden:
+      description: Not allowed (slot belongs to another user)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            default: { value: { error: { code: forbidden, message: Not allowed } } }
     NotFound:
       description: Not found
       content:
@@ -378,7 +759,7 @@ components:
   schemas:
     ErrorCode:
       type: string
-      enum: [bad_request, unauthorized, forbidden, not_found, conflict, rate_limited, internal, device_revoked, invalid_credentials, pairing_pending, pairing_denied, pairing_expired, player_too_old, hub_too_old, core_missing, core_version_mismatch, capability_missing]
+      enum: [bad_request, unauthorized, forbidden, not_found, conflict, rate_limited, internal, device_revoked, invalid_credentials, pairing_pending, pairing_denied, pairing_expired, player_too_old, hub_too_old, core_missing, core_version_mismatch, capability_missing, save_conflict, save_conflict_stale, payload_too_large]
     Error:
       type: object
       required: [error]
@@ -498,6 +879,11 @@ components:
         problems:
           type: array
           items: { $ref: '#/components/schemas/HandshakeProblem' }
+        features:
+          type: array
+          description: Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API.
+          items: { type: string }
+          example: [saves_v1]
     RomInfo:
       type: object
       required: [sha256, size, filename]
@@ -515,3 +901,102 @@ components:
         rom: { $ref: '#/components/schemas/RomInfo' }
         uploaded_by: { type: string, description: Hub-local user ID }
         added_at: { type: string, format: date-time }
+    SaveSyncReason:
+      type: string
+      enum: [checkpoint, final, final_session_end]
+    SaveHistoryReason:
+      type: string
+      enum: [session_end, device_change, before_conflict_resolution, conflict_upload, manual_snapshot]
+    SaveCheckpoint:
+      type: object
+      description: Current checkpoint of a slot (one opaque blob).
+      required: [revision, sha256, size, device_id, device_name, created_at, reason]
+      properties:
+        revision: { type: integer, minimum: 1, description: Per-slot checkpoint counter ("Rev N") }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        size: { type: integer, format: int64, maximum: 67108864 }
+        device_id: { type: string, format: uuid }
+        device_name: { type: string }
+        created_at: { type: string, format: date-time }
+        reason: { $ref: '#/components/schemas/SaveSyncReason' }
+    SaveHistoryVersion:
+      type: object
+      description: Permanent history version with its own per-slot counter ("vN").
+      required: [version, revision, sha256, size, device_id, device_name, created_at, reason]
+      properties:
+        version: { type: integer, minimum: 1 }
+        revision: { type: integer, minimum: 1, description: Checkpoint revision captured }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        size: { type: integer, format: int64 }
+        device_id: { type: string, format: uuid }
+        device_name: { type: string }
+        created_at: { type: string, format: date-time }
+        reason: { $ref: '#/components/schemas/SaveHistoryReason' }
+    SaveConflictHubSide:
+      type: object
+      required: [revision, sha256, device_id, device_name, created_at]
+      properties:
+        revision: { type: integer, minimum: 1 }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        device_id: { type: string, format: uuid }
+        device_name: { type: string }
+        created_at: { type: string, format: date-time }
+    SaveConflictSecuredUpload:
+      type: object
+      required: [version, sha256, base_revision, device_id, device_name, created_at]
+      properties:
+        version: { type: integer, minimum: 1, description: History version holding the secured upload }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        base_revision: { type: integer, minimum: 0 }
+        device_id: { type: string, format: uuid }
+        device_name: { type: string }
+        created_at: { type: string, format: date-time }
+    SaveConflict:
+      type: object
+      required: [id, game_id, slot, status, hub, secured, created_at]
+      properties:
+        id: { type: string }
+        game_id: { type: string, format: uuid }
+        slot: { type: string }
+        status: { type: string, enum: [open, resolved_hub, resolved_local] }
+        hub: { $ref: '#/components/schemas/SaveConflictHubSide' }
+        secured: { $ref: '#/components/schemas/SaveConflictSecuredUpload' }
+        created_at: { type: string, format: date-time }
+        resolved_at: { type: string, format: date-time, nullable: true }
+        resolved_by: { type: string, nullable: true, description: Hub-local user ID or device ID of the resolver }
+    SaveConflictError:
+      type: object
+      description: Error body of the upload 409 (`save_conflict`) carrying the conflict.
+      required: [error, conflict]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { $ref: '#/components/schemas/ErrorCode' }
+            message: { type: string }
+        conflict: { $ref: '#/components/schemas/SaveConflict' }
+    SaveSlot:
+      type: object
+      required: [game_id, slot, current, open_conflicts]
+      properties:
+        game_id: { type: string, format: uuid }
+        slot: { type: string, example: default }
+        current: { $ref: '#/components/schemas/SaveCheckpoint' }
+        open_conflicts:
+          type: array
+          items: { $ref: '#/components/schemas/SaveConflict' }
+    SaveSlotSummary:
+      type: object
+      required: [game_id, slot, current, open_conflict_count]
+      properties:
+        game_id: { type: string, format: uuid }
+        slot: { type: string, example: default }
+        current: { $ref: '#/components/schemas/SaveCheckpoint' }
+        open_conflict_count: { type: integer, minimum: 0 }
+    SaveResolveRequest:
+      type: object
+      required: [resolution, expected_revision]
+      properties:
+        resolution: { type: string, enum: [use_hub, use_local] }
+        expected_revision: { type: integer, minimum: 1, description: Current checkpoint revision the caller saw }

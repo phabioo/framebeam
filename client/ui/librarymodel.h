@@ -33,7 +33,9 @@ class LibraryModel : public QAbstractListModel {
     StateKindRole,    // ready | download | validating | downloading | mismatch | failed | unknown
     StatusTextRole,   // e.g. "Download needed · 128 MB"
     StatusToneRole,   // ok | neutral | warn | error
-    ProgressRole      // 0..1, only meaningful for downloading
+    ProgressRole,     // 0..1, only meaningful for downloading
+    SyncKindRole,     // none | synced | pending | conflict (save sync)
+    SyncTextRole      // "Synced" | "Sync pending" | "Conflict" | ""
   };
   Q_ENUM(Roles)
 
@@ -53,6 +55,9 @@ class LibraryModel : public QAbstractListModel {
   void setGames(const QList<GameEntry>& games, const std::function<RomStatus(const GameEntry&)>& statusOf);
   void clear();
   void setStatus(const QString& romSha256, const RomStatus& status);
+  void setSyncKind(const QString& gameId, const QString& kind);
+  QString syncKind(const QString& gameId) const;
+  static QString syncText(const QString& kind);
 
   Q_INVOKABLE int rowOfGame(const QString& gameId) const;
   std::optional<GameEntry> game(const QString& gameId) const;
@@ -70,6 +75,7 @@ class LibraryModel : public QAbstractListModel {
   struct Item {
     GameEntry game;
     RomStatus status;
+    QString sync = QStringLiteral("none");
   };
   bool matches(const Item& it) const;
   void rebuild();

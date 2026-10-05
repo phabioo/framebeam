@@ -36,6 +36,7 @@ qt_add_qml_module(framebeam_ui
     DetailPane.qml
     LibraryScreen.qml
     GameScreen.qml
+    ConflictDialog.qml
 )
 target_include_directories(framebeam_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(framebeam_ui PUBLIC framebeam_core framebeam_emulation Qt6::Quick Qt6::QuickControls2 Qt6::Multimedia)
