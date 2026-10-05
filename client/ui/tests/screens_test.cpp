@@ -289,5 +289,5 @@ class ScreensTest : public QObject {
   }
 };
 
-QTEST_MAIN(ScreensTest)
+UITEST_MAIN(ScreensTest)
 #include "screens_test.moc"

@@ -13,7 +13,15 @@
 #include <QtQml/QQmlExtensionPlugin>
 #include <QtTest>
 #include <atomic>
+#include <cstdio>
+#include <cstdlib>
+#include <csignal>
+#include <QGuiApplication>
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
 #include <memory>
+#include <vector>
 
 #include "playercontroller.h"
 
@@ -30,11 +38,20 @@ inline QtMessageHandler& previousHandler() {
   return h;
 }
 inline void countingHandler(QtMsgType type, const QMessageLogContext& ctx, const QString& msg) {
-  // Nur QML-/Szenengraph-Warnungen zaehlen; erwartete App-Logs (z. B. Hub-Fehler) nicht.
+  // Diagnose: Warnungen/Fehler sofort und ungepuffert auf stderr, damit sie auch bei einem Absturz
+  // (z. B. unter Windows-CI mit gepufferter Pipe) sichtbar bleiben.
+  if (type != QtDebugMsg && type != QtInfoMsg) {
+    const QByteArray line = msg.toLocal8Bit();
+    std::fprintf(stderr, "[uitest] %s: %s\n", type == QtWarningMsg ? "warning" : "error", line.constData());
+    std::fflush(stderr);
+  }
+  // Gezaehlt werden nur QML-/Qt-Quick-Warnungen. Umgebungsbedingte Meldungen anderer Kategorien
+  // (Fonts, Multimedia-/Audio-Backend ohne Geraet, Plattform) fuehren bewusst nicht zum Fehlschlag.
   if (type == QtWarningMsg || type == QtCriticalMsg) {
     const bool qml = msg.contains(QLatin1String(".qml")) || msg.contains(QLatin1String("qrc:/")) ||
-                     msg.contains(QLatin1String("QML")) || msg.contains(QLatin1String("Qt Quick")) ||
-                     (ctx.category != nullptr && QByteArrayView(ctx.category).startsWith("qt."));
+                     msg.contains(QLatin1String("QML")) ||
+                     (ctx.category != nullptr && (QByteArrayView(ctx.category).startsWith("qt.qml") ||
+                                                  QByteArrayView(ctx.category).startsWith("qt.quick")));
     if (qml) {
       ++warningCount();
     }
@@ -43,6 +60,44 @@ inline void countingHandler(QtMsgType type, const QMessageLogContext& ctx, const
     previousHandler()(type, ctx, msg);
   }
 }
+#ifdef Q_OS_WIN
+inline LONG WINAPI crashFilter(EXCEPTION_POINTERS* ep) {
+  std::fprintf(stderr, "[uitest] unbehandelte Ausnahme 0x%08lx an Adresse %p\n", ep->ExceptionRecord->ExceptionCode,
+               ep->ExceptionRecord->ExceptionAddress);
+  std::fflush(stderr);
+  return EXCEPTION_EXECUTE_HANDLER;
+}
+#endif
+inline void crashSignal(int sig) {
+  std::fprintf(stderr, "[uitest] Signal %d (Absturz/Abbruch)\n", sig);
+  std::fflush(stderr);
+  std::_Exit(3);
+}
+// Muss vor QGuiApplication laufen: ungepufferte Ausgabe + Absturzmeldung, damit ein Fehlschlag nie stumm bleibt.
+inline void prepareProcess() {
+  std::setvbuf(stdout, nullptr, _IONBF, 0);
+  std::setvbuf(stderr, nullptr, _IONBF, 0);
+#ifdef Q_OS_WIN
+  SetUnhandledExceptionFilter(crashFilter);
+#endif
+  for (int sig : {SIGSEGV, SIGABRT, SIGILL, SIGFPE}) {
+    std::signal(sig, crashSignal);
+  }
+}
+
+// Eigenes main statt QTEST_MAIN: ungepuffert, Konsolen-Executable, "-v2" (jede Testfunktion wird gemeldet).
+#define UITEST_MAIN(TestClass)                                  \
+  int main(int argc, char** argv) {                             \
+    uitest::prepareProcess();                                   \
+    std::vector<char*> args(argv, argv + argc);                 \
+    char verbose[] = "-v2";                                     \
+    args.push_back(verbose);                                    \
+    int n = static_cast<int>(args.size());                      \
+    QGuiApplication app(n, args.data());                        \
+    TestClass tc;                                               \
+    return QTest::qExec(&tc, n, args.data());                   \
+  }
+
 // Alle Warnungen/Fehler ab hier zaehlen (QML-Ladefehler, Bindungsfehler, Qt-Warnungen).
 inline void installWarningCounter() { previousHandler() = qInstallMessageHandler(countingHandler); }
 

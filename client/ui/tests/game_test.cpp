@@ -119,5 +119,5 @@ class GameTest : public QObject {
   }
 };
 
-QTEST_MAIN(GameTest)
+UITEST_MAIN(GameTest)
 #include "game_test.moc"
