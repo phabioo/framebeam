@@ -1,0 +1,560 @@
+#include "libretro_backend.h"
+
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QLoggingCategory>
+
+#include <algorithm>
+#include <cmath>
+#include <cstdarg>
+#include <cstdio>
+#include <cstring>
+
+#include "third_party/libretro/libretro.h"
+
+namespace framebeam::emu {
+
+namespace {
+Q_LOGGING_CATEGORY(lcCore, "framebeam.emulation.core")
+
+void RETRO_CALLCONV coreLog(enum retro_log_level level, const char* fmt, ...) {
+  char buf[2048];
+  va_list ap;
+  va_start(ap, fmt);
+  std::vsnprintf(buf, sizeof buf, fmt ? fmt : "", ap);
+  va_end(ap);
+  QString msg = QString::fromUtf8(buf).trimmed();
+  if (msg.isEmpty()) return;
+  switch (level) {
+    case RETRO_LOG_ERROR: qCWarning(lcCore).noquote() << "[error]" << msg; break;
+    case RETRO_LOG_WARN: qCWarning(lcCore).noquote() << msg; break;
+    case RETRO_LOG_INFO: qCInfo(lcCore).noquote() << msg; break;
+    default: qCDebug(lcCore).noquote() << msg; break;
+  }
+}
+
+QString fromC(const char* s) { return s ? QString::fromUtf8(s) : QString(); }
+
+CoreOption makeOption(const char* key, const QString& desc, const QString& info, const QString& cat,
+                      const retro_core_option_value* vals, const char* def) {
+  CoreOption o;
+  o.key = fromC(key);
+  o.description = desc;
+  o.info = info;
+  o.categoryKey = cat;
+  for (int i = 0; i < RETRO_NUM_CORE_OPTION_VALUES_MAX && vals[i].value; ++i)
+    o.values.append({fromC(vals[i].value), fromC(vals[i].label)});
+  o.defaultValue = fromC(def);
+  if (o.defaultValue.isEmpty() && !o.values.isEmpty()) o.defaultValue = o.values.first().value;
+  o.currentValue = o.defaultValue;
+  return o;
+}
+
+void applyOverrides(QList<CoreOption>& options, const QMap<QString, QString>& overrides) {
+  for (CoreOption& opt : options) {
+    auto it = overrides.constFind(opt.key);
+    if (it == overrides.constEnd()) continue;
+    for (const auto& v : std::as_const(opt.values))
+      if (v.value == it.value()) opt.currentValue = it.value();
+  }
+}
+
+}  // namespace
+
+struct LibretroBackend::Api {
+  void(RETRO_CALLCONV* set_environment)(retro_environment_t) = nullptr;
+  void(RETRO_CALLCONV* set_video_refresh)(retro_video_refresh_t) = nullptr;
+  void(RETRO_CALLCONV* set_audio_sample)(retro_audio_sample_t) = nullptr;
+  void(RETRO_CALLCONV* set_audio_sample_batch)(retro_audio_sample_batch_t) = nullptr;
+  void(RETRO_CALLCONV* set_input_poll)(retro_input_poll_t) = nullptr;
+  void(RETRO_CALLCONV* set_input_state)(retro_input_state_t) = nullptr;
+  void(RETRO_CALLCONV* init)() = nullptr;
+  void(RETRO_CALLCONV* deinit)() = nullptr;
+  unsigned(RETRO_CALLCONV* api_version)() = nullptr;
+  void(RETRO_CALLCONV* get_system_info)(retro_system_info*) = nullptr;
+  void(RETRO_CALLCONV* get_system_av_info)(retro_system_av_info*) = nullptr;
+  bool(RETRO_CALLCONV* load_game)(const retro_game_info*) = nullptr;
+  void(RETRO_CALLCONV* unload_game)() = nullptr;
+  void(RETRO_CALLCONV* run)() = nullptr;
+  void(RETRO_CALLCONV* reset)() = nullptr;
+};
+
+LibretroBackend* LibretroBackend::s_active = nullptr;
+
+LibretroBackend::LibretroBackend() : m_api(std::make_unique<Api>()) {}
+
+LibretroBackend::~LibretroBackend() { unloadCore(); }
+
+bool LibretroBackend::loadCore(const QString& libraryPath, QString* error) {
+  auto fail = [&](const QString& msg) {
+    if (error) *error = msg;
+    return false;
+  };
+  if (m_coreLoaded) return fail(QStringLiteral("Core bereits geladen"));
+  if (s_active) return fail(QStringLiteral("Es ist bereits ein libretro-Core in diesem Prozess geladen"));
+
+  m_lib.setFileName(libraryPath);
+  if (!m_lib.load()) return fail(m_lib.errorString());
+
+  bool ok = true;
+  auto sym = [&](auto& fn, const char* name) {
+    fn = reinterpret_cast<std::remove_reference_t<decltype(fn)>>(m_lib.resolve(name));
+    if (!fn) ok = false;
+  };
+  Api& a = *m_api;
+  sym(a.set_environment, "retro_set_environment");
+  sym(a.set_video_refresh, "retro_set_video_refresh");
+  sym(a.set_audio_sample, "retro_set_audio_sample");
+  sym(a.set_audio_sample_batch, "retro_set_audio_sample_batch");
+  sym(a.set_input_poll, "retro_set_input_poll");
+  sym(a.set_input_state, "retro_set_input_state");
+  sym(a.init, "retro_init");
+  sym(a.deinit, "retro_deinit");
+  sym(a.api_version, "retro_api_version");
+  sym(a.get_system_info, "retro_get_system_info");
+  sym(a.get_system_av_info, "retro_get_system_av_info");
+  sym(a.load_game, "retro_load_game");
+  sym(a.unload_game, "retro_unload_game");
+  sym(a.run, "retro_run");
+  sym(a.reset, "retro_reset");
+  if (!ok) {
+    m_lib.unload();
+    return fail(QStringLiteral("Keine gueltige libretro-Bibliothek (Symbole fehlen)"));
+  }
+  if (a.api_version() != RETRO_API_VERSION) {
+    m_lib.unload();
+    return fail(QStringLiteral("libretro-API-Version %1 nicht unterstuetzt").arg(a.api_version()));
+  }
+
+  s_active = this;
+  m_corePath = libraryPath;
+  m_corePathUtf8 = QDir::toNativeSeparators(libraryPath).toUtf8();
+  m_shutdownRequested = false;
+  m_pixelFormat = RETRO_PIXEL_FORMAT_0RGB1555;
+  m_frame = QImage();
+  m_frameCount = 0;
+  m_audio.clear();
+  {
+    QMutexLocker l(&m_optMutex);
+    m_options.clear();
+    m_categories.clear();
+  }
+
+  a.set_environment(&LibretroBackend::environmentCb);
+  a.set_video_refresh(&LibretroBackend::videoRefreshCb);
+  a.set_audio_sample(&LibretroBackend::audioSampleCb);
+  a.set_audio_sample_batch(&LibretroBackend::audioBatchCb);
+  a.set_input_poll(&LibretroBackend::inputPollCb);
+  a.set_input_state(&LibretroBackend::inputStateCb);
+  a.init();
+
+  retro_system_info si{};
+  a.get_system_info(&si);
+  m_info = CoreInfo{};
+  m_info.name = fromC(si.library_name);
+  m_info.version = fromC(si.library_version);
+  m_info.needFullpath = si.need_fullpath;
+  for (const QString& e : fromC(si.valid_extensions).split(QLatin1Char('|'), Qt::SkipEmptyParts))
+    m_info.extensions.append(QLatin1Char('.') + e.toLower());
+
+  m_coreLoaded = true;
+  return true;
+}
+
+void LibretroBackend::unloadCore() {
+  if (!m_coreLoaded) return;
+  unloadGame();
+  m_api->deinit();
+  m_lib.unload();
+  m_coreLoaded = false;
+  s_active = nullptr;
+}
+
+bool LibretroBackend::isCoreLoaded() const { return m_coreLoaded; }
+CoreInfo LibretroBackend::coreInfo() const { return m_info; }
+
+void LibretroBackend::setSystemDirectory(const QString& path) {
+  m_systemDir = QDir::toNativeSeparators(path).toUtf8();
+}
+void LibretroBackend::setSaveDirectory(const QString& path) {
+  m_saveDir = QDir::toNativeSeparators(path).toUtf8();
+}
+
+bool LibretroBackend::loadGame(const QString& path, QString* error) {
+  auto fail = [&](const QString& msg) {
+    if (error) *error = msg;
+    return false;
+  };
+  if (!m_coreLoaded) return fail(QStringLiteral("Kein Core geladen"));
+  if (m_gameLoaded) unloadGame();
+
+  QFileInfo fi(path);
+  if (!fi.isFile()) return fail(QStringLiteral("Spieldatei nicht gefunden"));
+  m_gamePathUtf8 = QDir::toNativeSeparators(fi.absoluteFilePath()).toUtf8();
+  m_gameData.clear();
+
+  retro_game_info gi{};
+  gi.path = m_gamePathUtf8.constData();
+  if (!m_info.needFullpath) {
+    QFile f(fi.absoluteFilePath());
+    if (!f.open(QIODevice::ReadOnly)) return fail(f.errorString());
+    m_gameData = f.readAll();
+    gi.data = m_gameData.constData();
+    gi.size = static_cast<size_t>(m_gameData.size());
+  }
+
+  m_shutdownRequested = false;
+  m_frame = QImage();
+  m_frameCount = 0;
+  m_audio.clear();
+  if (!m_api->load_game(&gi)) return fail(QStringLiteral("Core konnte das Spiel nicht laden"));
+
+  retro_system_av_info av{};
+  m_api->get_system_av_info(&av);
+  m_av.width = static_cast<int>(av.geometry.base_width);
+  m_av.height = static_cast<int>(av.geometry.base_height);
+  m_av.aspectRatio = static_cast<double>(av.geometry.aspect_ratio);
+  m_av.fps = av.timing.fps;
+  m_av.sampleRate = av.timing.sample_rate;
+  m_gameLoaded = true;
+  return true;
+}
+
+void LibretroBackend::unloadGame() {
+  if (!m_gameLoaded) return;
+  m_api->unload_game();
+  m_gameLoaded = false;
+  m_gameData.clear();
+}
+
+bool LibretroBackend::isGameLoaded() const { return m_gameLoaded; }
+AvInfo LibretroBackend::avInfo() const { return m_av; }
+
+bool LibretroBackend::runFrame() {
+  if (!m_gameLoaded || m_shutdownRequested) return false;
+  m_api->run();
+  return !m_shutdownRequested;
+}
+
+void LibretroBackend::reset() {
+  if (m_gameLoaded) m_api->reset();
+}
+
+QImage LibretroBackend::videoFrame() const { return m_frame; }
+quint64 LibretroBackend::frameCount() const { return m_frameCount; }
+
+QByteArray LibretroBackend::takeAudio() {
+  QByteArray out;
+  out.swap(m_audio);
+  return out;
+}
+
+void LibretroBackend::setJoypadState(unsigned port, quint32 mask) {
+  if (port > 1) return;
+  QMutexLocker l(&m_inputMutex);
+  m_input.joypad[port] = mask;
+}
+
+void LibretroBackend::setPointer(double x, double y, bool pressed) {
+  QMutexLocker l(&m_inputMutex);
+  m_input.px = std::clamp(x, 0.0, 1.0);
+  m_input.py = std::clamp(y, 0.0, 1.0);
+  m_input.pressed = pressed;
+}
+
+// ---------------------------------------------------------------- Core Options
+
+QList<CoreOption> LibretroBackend::coreOptions() const {
+  QMutexLocker l(&m_optMutex);
+  return m_options;
+}
+
+QList<CoreOptionCategory> LibretroBackend::coreOptionCategories() const {
+  QMutexLocker l(&m_optMutex);
+  return m_categories;
+}
+
+bool LibretroBackend::setCoreOption(const QString& key, const QString& value) {
+  QMutexLocker l(&m_optMutex);
+  for (CoreOption& o : m_options) {
+    if (o.key != key) continue;
+    bool valid = o.values.isEmpty();
+    for (const auto& v : std::as_const(o.values)) valid = valid || v.value == value;
+    if (!valid) return false;
+    o.currentValue = value;
+    m_overrides.insert(key, value);
+    m_optionsDirty = true;
+    return true;
+  }
+  if (!m_options.isEmpty()) return false;  // Optionen bekannt, Schluessel nicht dabei
+  m_overrides.insert(key, value);          // vor Registrierung: merken
+  return true;
+}
+
+void LibretroBackend::setOptionVisible(const QString& key, bool visible) {
+  QMutexLocker l(&m_optMutex);
+  for (CoreOption& o : m_options)
+    if (o.key == key) o.visible = visible;
+}
+
+void LibretroBackend::registerOptionsV2(const void* options) {
+  const auto* o = static_cast<const retro_core_options_v2*>(options);
+  QList<CoreOption> list;
+  QList<CoreOptionCategory> cats;
+  if (o->categories) {
+    for (const auto* c = o->categories; c->key; ++c)
+      cats.append({fromC(c->key), fromC(c->desc), fromC(c->info)});
+  }
+  for (const auto* d = o->definitions; d && d->key; ++d) {
+    const bool cat = d->category_key && d->category_key[0];
+    const QString desc = cat && d->desc_categorized ? fromC(d->desc_categorized) : fromC(d->desc);
+    const QString info = cat && d->info_categorized ? fromC(d->info_categorized) : fromC(d->info);
+    list.append(makeOption(d->key, desc, info, fromC(d->category_key), d->values, d->default_value));
+  }
+  QMutexLocker l(&m_optMutex);
+  m_options = list;
+  m_categories = cats;
+  applyOverrides(m_options, m_overrides);
+}
+
+void LibretroBackend::registerOptionsV1(const void* definitions) {
+  QList<CoreOption> list;
+  for (const auto* d = static_cast<const retro_core_option_definition*>(definitions); d && d->key; ++d)
+    list.append(makeOption(d->key, fromC(d->desc), fromC(d->info), QString(), d->values, d->default_value));
+  QMutexLocker l(&m_optMutex);
+  m_options = list;
+  m_categories.clear();
+  applyOverrides(m_options, m_overrides);
+}
+
+void LibretroBackend::registerOptionsV0(const void* variables) {
+  QList<CoreOption> list;
+  for (const auto* v = static_cast<const retro_variable*>(variables); v && v->key; ++v) {
+    // "Beschreibung; wert1|wert2|..." - erster Wert ist der Default.
+    const QString spec = fromC(v->value);
+    const int sep = spec.indexOf(QLatin1Char(';'));
+    CoreOption o;
+    o.key = fromC(v->key);
+    o.description = sep >= 0 ? spec.left(sep) : spec;
+    const QStringList vals = (sep >= 0 ? spec.mid(sep + 1) : QString()).trimmed().split(QLatin1Char('|'));
+    for (const QString& s : vals) o.values.append({s, QString()});
+    if (!o.values.isEmpty()) o.defaultValue = o.values.first().value;
+    o.currentValue = o.defaultValue;
+    list.append(o);
+  }
+  QMutexLocker l(&m_optMutex);
+  m_options = list;
+  m_categories.clear();
+  applyOverrides(m_options, m_overrides);
+}
+
+// ---------------------------------------------------------------- Callbacks
+
+bool LibretroBackend::environmentCb(unsigned cmd, void* data) {
+  return s_active && s_active->handleEnvironment(cmd, data);
+}
+
+void LibretroBackend::videoRefreshCb(const void* data, unsigned w, unsigned h, size_t pitch) {
+  if (s_active) s_active->handleVideo(data, w, h, pitch);
+}
+
+void LibretroBackend::audioSampleCb(int16_t l, int16_t r) {
+  if (!s_active) return;
+  const int16_t s[2] = {l, r};
+  s_active->m_audio.append(reinterpret_cast<const char*>(s), sizeof s);
+}
+
+size_t LibretroBackend::audioBatchCb(const int16_t* data, size_t frames) {
+  if (s_active && data) s_active->m_audio.append(reinterpret_cast<const char*>(data), static_cast<qsizetype>(frames * 4));
+  return frames;
+}
+
+void LibretroBackend::inputPollCb() {
+  if (!s_active) return;
+  QMutexLocker l(&s_active->m_inputMutex);
+  s_active->m_polled = s_active->m_input;
+}
+
+int16_t LibretroBackend::inputStateCb(unsigned port, unsigned device, unsigned index, unsigned id) {
+  if (!s_active) return 0;
+  const InputState& in = s_active->m_polled;
+  switch (device & RETRO_DEVICE_MASK) {
+    case RETRO_DEVICE_JOYPAD: {
+      if (port > 1) return 0;
+      const quint32 m = in.joypad[port];
+      if (id == RETRO_DEVICE_ID_JOYPAD_MASK) return static_cast<int16_t>(m & 0xFFFFu);
+      return id < 16 ? static_cast<int16_t>((m >> id) & 1u) : 0;
+    }
+    case RETRO_DEVICE_POINTER: {
+      if (port != 0 || index != 0) return 0;
+      auto conv = [](double v) { return static_cast<int16_t>(std::lround((v * 2.0 - 1.0) * 0x7fff)); };
+      switch (id) {
+        case RETRO_DEVICE_ID_POINTER_X: return conv(in.px);
+        case RETRO_DEVICE_ID_POINTER_Y: return conv(in.py);
+        case RETRO_DEVICE_ID_POINTER_PRESSED: return in.pressed ? 1 : 0;
+        case RETRO_DEVICE_ID_POINTER_COUNT: return in.pressed ? 1 : 0;
+        default: return 0;
+      }
+    }
+    default: return 0;
+  }
+}
+
+void LibretroBackend::handleVideo(const void* data, unsigned width, unsigned height, size_t pitch) {
+  if (!data || data == RETRO_HW_FRAME_BUFFER_VALID || width == 0 || height == 0) {
+    ++m_frameCount;  // Duplikat-Frame: letztes Bild bleibt
+    return;
+  }
+  QImage img(static_cast<int>(width), static_cast<int>(height), QImage::Format_RGB32);
+  const auto* src = static_cast<const uchar*>(data);
+  for (unsigned y = 0; y < height; ++y, src += pitch) {
+    auto* dst = reinterpret_cast<quint32*>(img.scanLine(static_cast<int>(y)));
+    if (m_pixelFormat == RETRO_PIXEL_FORMAT_XRGB8888) {
+      const auto* s = reinterpret_cast<const quint32*>(src);
+      for (unsigned x = 0; x < width; ++x) dst[x] = s[x] | 0xFF000000u;
+    } else {
+      const auto* s = reinterpret_cast<const quint16*>(src);
+      for (unsigned x = 0; x < width; ++x) {
+        const quint32 p = s[x];
+        quint32 r, g, b;
+        if (m_pixelFormat == RETRO_PIXEL_FORMAT_RGB565) {
+          r = (p >> 11) & 0x1F; g = (p >> 5) & 0x3F; b = p & 0x1F;
+          r = (r << 3) | (r >> 2); g = (g << 2) | (g >> 4); b = (b << 3) | (b >> 2);
+        } else {  // 0RGB1555
+          r = (p >> 10) & 0x1F; g = (p >> 5) & 0x1F; b = p & 0x1F;
+          r = (r << 3) | (r >> 2); g = (g << 3) | (g >> 2); b = (b << 3) | (b >> 2);
+        }
+        dst[x] = 0xFF000000u | (r << 16) | (g << 8) | b;
+      }
+    }
+  }
+  m_frame = img;
+  ++m_frameCount;
+}
+
+bool LibretroBackend::handleEnvironment(unsigned rawCmd, void* data) {
+  const unsigned cmd = rawCmd & ~(RETRO_ENVIRONMENT_EXPERIMENTAL | RETRO_ENVIRONMENT_PRIVATE);
+  switch (cmd) {
+    case RETRO_ENVIRONMENT_SET_ROTATION: return true;
+    case RETRO_ENVIRONMENT_GET_CAN_DUPE: *static_cast<bool*>(data) = true; return true;
+    case RETRO_ENVIRONMENT_SET_MESSAGE: {
+      if (const auto* m = static_cast<const retro_message*>(data)) qCInfo(lcCore).noquote() << fromC(m->msg);
+      return true;
+    }
+    case RETRO_ENVIRONMENT_SET_MESSAGE_EXT: {
+      if (const auto* m = static_cast<const retro_message_ext*>(data)) qCInfo(lcCore).noquote() << fromC(m->msg);
+      return true;
+    }
+    case RETRO_ENVIRONMENT_GET_MESSAGE_INTERFACE_VERSION: *static_cast<unsigned*>(data) = 1; return true;
+    case RETRO_ENVIRONMENT_SHUTDOWN: m_shutdownRequested = true; return true;
+    case RETRO_ENVIRONMENT_SET_PERFORMANCE_LEVEL: return true;
+    case RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY:
+      if (m_systemDir.isEmpty()) return false;
+      *static_cast<const char**>(data) = m_systemDir.constData();
+      return true;
+    case RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY:
+      if (m_saveDir.isEmpty()) return false;
+      *static_cast<const char**>(data) = m_saveDir.constData();
+      return true;
+    case RETRO_ENVIRONMENT_GET_LIBRETRO_PATH:
+      *static_cast<const char**>(data) = m_corePathUtf8.constData();
+      return true;
+    case RETRO_ENVIRONMENT_SET_PIXEL_FORMAT: {
+      const int fmt = *static_cast<const int*>(data);
+      if (fmt != RETRO_PIXEL_FORMAT_0RGB1555 && fmt != RETRO_PIXEL_FORMAT_XRGB8888 && fmt != RETRO_PIXEL_FORMAT_RGB565)
+        return false;
+      m_pixelFormat = fmt;
+      return true;
+    }
+    case RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS: return true;
+    case RETRO_ENVIRONMENT_GET_INPUT_DEVICE_CAPABILITIES:
+      *static_cast<uint64_t*>(data) = (1ull << RETRO_DEVICE_JOYPAD) | (1ull << RETRO_DEVICE_POINTER);
+      return true;
+    case RETRO_ENVIRONMENT_GET_INPUT_BITMASKS: return true;
+    case RETRO_ENVIRONMENT_GET_LOG_INTERFACE:
+      static_cast<retro_log_callback*>(data)->log = &coreLog;
+      return true;
+    case RETRO_ENVIRONMENT_SET_SUPPORT_NO_GAME: return true;
+    case RETRO_ENVIRONMENT_SET_SERIALIZATION_QUIRKS: return true;
+    case RETRO_ENVIRONMENT_SET_CONTENT_INFO_OVERRIDE: return true;
+    case RETRO_ENVIRONMENT_SET_CONTROLLER_INFO: return true;
+    case RETRO_ENVIRONMENT_SET_SUBSYSTEM_INFO: return true;
+    case RETRO_ENVIRONMENT_SET_MEMORY_MAPS: return true;
+    case RETRO_ENVIRONMENT_SET_FASTFORWARDING_OVERRIDE: return true;
+    case RETRO_ENVIRONMENT_GET_AUDIO_VIDEO_ENABLE: *static_cast<int*>(data) = 3; return true;  // Video + Audio
+    case RETRO_ENVIRONMENT_GET_TARGET_REFRESH_RATE: *static_cast<float*>(data) = static_cast<float>(m_av.fps); return true;
+    case RETRO_ENVIRONMENT_GET_LANGUAGE: *static_cast<unsigned*>(data) = RETRO_LANGUAGE_ENGLISH; return true;
+    case RETRO_ENVIRONMENT_SET_GEOMETRY: {
+      const auto* g = static_cast<const retro_game_geometry*>(data);
+      m_av.width = static_cast<int>(g->base_width);
+      m_av.height = static_cast<int>(g->base_height);
+      m_av.aspectRatio = static_cast<double>(g->aspect_ratio);
+      return true;
+    }
+    case RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO: {
+      const auto* av = static_cast<const retro_system_av_info*>(data);
+      m_av.width = static_cast<int>(av->geometry.base_width);
+      m_av.height = static_cast<int>(av->geometry.base_height);
+      m_av.aspectRatio = static_cast<double>(av->geometry.aspect_ratio);
+      m_av.fps = av->timing.fps;
+      m_av.sampleRate = av->timing.sample_rate;
+      return true;
+    }
+
+    // Core Options
+    case RETRO_ENVIRONMENT_GET_CORE_OPTIONS_VERSION: *static_cast<unsigned*>(data) = 2; return true;
+    case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_V2: registerOptionsV2(data); return true;
+    case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_V2_INTL:
+      registerOptionsV2(static_cast<const retro_core_options_v2_intl*>(data)->us);
+      return true;
+    case RETRO_ENVIRONMENT_SET_CORE_OPTIONS: registerOptionsV1(data); return true;
+    case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_INTL:
+      registerOptionsV1(static_cast<const retro_core_options_intl*>(data)->us);
+      return true;
+    case RETRO_ENVIRONMENT_SET_VARIABLES: registerOptionsV0(data); return true;
+    case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY: {
+      if (const auto* d = static_cast<const retro_core_option_display*>(data)) setOptionVisible(fromC(d->key), d->visible);
+      return true;
+    }
+    case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_UPDATE_DISPLAY_CALLBACK: return true;
+    case RETRO_ENVIRONMENT_GET_VARIABLE: {
+      auto* var = static_cast<retro_variable*>(data);
+      if (!var || !var->key) return false;
+      QMutexLocker l(&m_optMutex);
+      const QString key = fromC(var->key);
+      for (const CoreOption& o : std::as_const(m_options)) {
+        if (o.key != key) continue;
+        std::string& slot = m_varCache[var->key];
+        slot = o.currentValue.toStdString();
+        var->value = slot.c_str();
+        return true;
+      }
+      return false;
+    }
+    case RETRO_ENVIRONMENT_SET_VARIABLE: {
+      const auto* var = static_cast<const retro_variable*>(data);
+      if (!var) return true;  // Abfrage, ob unterstuetzt
+      if (!var->key || !var->value) return false;
+      QMutexLocker l(&m_optMutex);
+      for (CoreOption& o : m_options) {
+        if (o.key != fromC(var->key)) continue;
+        o.currentValue = fromC(var->value);
+        m_overrides.insert(o.key, o.currentValue);
+        return true;
+      }
+      return false;
+    }
+    case RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE: {
+      QMutexLocker l(&m_optMutex);
+      *static_cast<bool*>(data) = m_optionsDirty;
+      m_optionsDirty = false;
+      return true;
+    }
+
+    // Bewusst abgelehnt: HW-Render (Software-Renderer), Rumble, Sensoren, VFS, Mikrofon, Netpaket, ...
+    default: return false;
+  }
+}
+
+}  // namespace framebeam::emu
