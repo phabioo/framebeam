@@ -26,10 +26,10 @@ void GameSession::setState(State s) {
 
 void GameSession::fail(const QString& msg) {
   error_ = msg;
-  emit errorChanged();
   const bool before = !startedEmitted_;
   teardown();
   setState(Failed);
+  emit errorChanged();
   if (before) {
     emit startFailed(msg);
   }
@@ -37,6 +37,7 @@ void GameSession::fail(const QString& msg) {
 
 void GameSession::start(const LaunchConfig& config) {
   teardown();
+  setState(Starting);
   error_.clear();
   emit errorChanged();
   frame_ = QImage();
@@ -47,7 +48,6 @@ void GameSession::start(const LaunchConfig& config) {
   emit titleChanged();
   display_ = config.display;
   keys_.clear();
-  setState(Starting);
 
   runner_ = std::make_unique<EmulationRunner>(std::make_unique<emu::LibretroBackend>());
   EmulationRunner* r = runner_.get();

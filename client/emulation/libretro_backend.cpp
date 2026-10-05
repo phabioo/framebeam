@@ -122,9 +122,10 @@ bool LibretroBackend::loadCore(const QString& libraryPath, QString* error) {
     m_lib.unload();
     return fail(QStringLiteral("Keine gueltige libretro-Bibliothek (Symbole fehlen)"));
   }
-  if (a.api_version() != RETRO_API_VERSION) {
+  const unsigned apiVersion = a.api_version();
+  if (apiVersion != RETRO_API_VERSION) {
     m_lib.unload();
-    return fail(QStringLiteral("libretro-API-Version %1 nicht unterstuetzt").arg(a.api_version()));
+    return fail(QStringLiteral("libretro-API-Version %1 nicht unterstuetzt").arg(apiVersion));
   }
 
   s_active = this;
