@@ -5,7 +5,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $pin = @{}
 Get-Content "$root/scripts/melonds-ds.pin" | Where-Object { $_ -match '^[A-Z_0-9]+=' } | ForEach-Object {
-  $k, $v = $_ -split '=', 2; $pin[$k] = $v.Trim()
+  $k, $v = $_ -split '=', 2; $pin[$k] = $v.Trim().Trim("'")
 }
 $cache = if ($env:FRAMEBEAM_CACHE_DIR) { $env:FRAMEBEAM_CACHE_DIR } else { Join-Path $env:LOCALAPPDATA 'framebeam' }
 $out = Join-Path $cache "cores/melondsds/$($pin.MELONDS_DS_TAG)/windows-x64"
