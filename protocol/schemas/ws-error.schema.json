@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://framebeam.invalid/schemas/ws-error.schema.json",
+  "title": "ws-error",
+  "type": "object",
+  "required": ["type", "payload"],
+  "properties": {
+    "type": { "const": "error" },
+    "id": { "type": "string" },
+    "payload": {
+      "type": "object",
+      "required": ["code", "message"],
+      "properties": {
+        "code": { "enum": ["bad_request","unauthorized","forbidden","not_found","conflict","rate_limited","internal","device_revoked","invalid_credentials","pairing_pending","pairing_denied","pairing_expired","player_too_old","hub_too_old","core_missing","core_version_mismatch","capability_missing"] },
+        "message": { "type": "string" }
+      }
+    }
+  }
+}

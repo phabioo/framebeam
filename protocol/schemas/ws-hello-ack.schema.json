@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://framebeam.invalid/schemas/ws-hello-ack.schema.json",
+  "title": "ws-hello-ack (Hub an Player)",
+  "type": "object",
+  "required": ["type", "payload"],
+  "properties": {
+    "type": { "const": "hello_ack" },
+    "id": { "type": "string" },
+    "payload": {
+      "type": "object",
+      "required": ["protocol_version", "hub_version"],
+      "properties": {
+        "protocol_version": { "type": "integer", "minimum": 1 },
+        "hub_version": { "type": "string" }
+      }
+    }
+  }
+}
