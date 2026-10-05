@@ -173,15 +173,21 @@ jobs:
               $exe = Get-ChildItem -Recurse -Filter "test_$t.exe" | Select-Object -First 1
               if (-not $exe) { Write-Host "::warning::no exe for $t"; continue }
               Write-Host "::group::rerun $t ($($exe.FullName))"
+              # Same environment as under ctest (core path, test ROM, offscreen): read from the test properties.
+              $props = (ctest --preset windows-msvc-release -R "^$t$" --show-only=json-v1 | ConvertFrom-Json).tests[0].properties
+              foreach ($kv in (($props | Where-Object { $_.name -eq 'ENVIRONMENT' }).value)) {
+                $k, $v = $kv -split '=', 2
+                Set-Item -Path "env:$k" -Value $v
+              }
               Push-Location $exe.DirectoryName
-              & $exe.FullName -v2 -o "$t.txt,txt" -o "-,txt" 2>&1 | Out-Host
+              $out = & $exe.FullName -v2 -o "$t.txt,txt" 2>&1 | ForEach-Object { "$_" }
               $code = $LASTEXITCODE
               Pop-Location
               Write-Host "exit code of ${t}: $code (0x$('{0:X}' -f $code))"
-              Get-Content (Join-Path $exe.DirectoryName "$t.txt") -ErrorAction SilentlyContinue | Select-Object -Last 80
+              # Filtered view: failures with 5 lines of context, warnings, totals, guard messages (no QINFO noise).
+              $out | Select-String -Pattern 'FAIL!|QWARN|QFATAL|Totals|\[fbtest\]|\[uitest\]|Loc:|XPASS' -Context 5,2 | Out-Host
               Write-Host "::endgroup::"
             }
-            ctest --preset windows-msvc-release --rerun-failed --output-on-failure -V
             throw "ctest failed"
           }
           if (Select-String -Path ctest.log -Pattern '\(Skipped\)' -Quiet) { throw "Tests were skipped although the core should be present" }

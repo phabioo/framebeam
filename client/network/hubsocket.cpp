@@ -109,7 +109,7 @@ void HubSocket::scheduleReconnect() {
   setState(State::Backoff);
   const int delay = backoffMs_;
   backoffMs_ = std::min(backoffMs_ * 2, backoffMaxMs_);
-  qCInfo(lcSocket) << "Reconnect in" << delay << "ms";
+  qCDebug(lcSocket) << "Reconnect in" << delay << "ms";
   reconnectTimer_.start(delay);
 }
 
@@ -128,6 +128,7 @@ void HubSocket::connectNow() {
   }
   teardown();
   certMismatch_ = false;
+  reachedServer_ = false;
   ws_ = std::make_unique<QWebSocket>(QString(), QWebSocketProtocol::VersionLatest, this);
   if (req.url().scheme() == QLatin1String("wss")) {
     ws_->setSslConfiguration(req.sslConfiguration());
@@ -149,6 +150,7 @@ void HubSocket::connectNow() {
 }
 
 void HubSocket::onSslErrors(const QList<QSslError>& errors) {
+  reachedServer_ = true;  // TLS got as far as the certificate
   QSslCertificate leaf = ws_ ? ws_->sslConfiguration().peerCertificate() : QSslCertificate();
   if (leaf.isNull() && !errors.isEmpty()) {
     leaf = errors.first().certificate();
@@ -170,11 +172,26 @@ void HubSocket::onSocketError() {
     if (certMismatch_) {
       emit connectionError(QStringLiteral("certificate_changed"), msg);
     } else if (msg.contains(QLatin1String("401"))) {
+      upgradeRejects_ = 0;
       emit connectionError(QStringLiteral("unauthorized"), msg);
       if (conn_) {
         conn_->noteUnauthorized();  // renews the token before the next attempt
       }
+    } else if (state_ == State::Connecting && (reachedServer_ || !ws_->peerAddress().isNull())) {
+      // The server was reached but the WebSocket upgrade did not complete. The error text is not reliable across
+      // Qt versions/platforms (a 401 does not always say "401"), so do not match on it: renew the token once; if
+      // the upgrade is rejected again with a fresh token, report it as unauthorized.
+      ++upgradeRejects_;
+      if (upgradeRejects_ >= 2) {
+        emit connectionError(QStringLiteral("unauthorized"), msg);
+      } else {
+        emit connectionError(QStringLiteral("unreachable"), msg);
+      }
+      if (conn_) {
+        conn_->noteUnauthorized();
+      }
     } else {
+      upgradeRejects_ = 0;
       emit connectionError(QStringLiteral("unreachable"), msg);
     }
   }
@@ -245,6 +262,7 @@ void HubSocket::onTextMessage(const QString& text) {
     hello_ = {p.value(QStringLiteral("protocol_version")).toInt(), str(p, "hub_version"), strList(p.value(QStringLiteral("features"))),
               strList(p.value(QStringLiteral("ice_servers")))};
     backoffMs_ = backoffInitialMs_;
+    upgradeRejects_ = 0;
     setState(State::Open);
     pingTimer_.start(pingIntervalMs_);
     emit helloAcked(hello_);

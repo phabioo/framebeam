@@ -83,6 +83,8 @@ class HubSocket : public QObject {
   int backoffInitialMs_ = 1000;
   int backoffMaxMs_ = 30000;
   int backoffMs_ = 1000;
+  bool reachedServer_ = false;  // TLS/TCP reached the Hub during this attempt
+  int upgradeRejects_ = 0;      // consecutive upgrade failures after reaching the Hub
   qint64 lastTrafficMs_ = 0;
   quint64 generation_ = 0;
 };

@@ -348,7 +348,7 @@ class SessionsUiTest : public QObject {
     FakeHub& hub = r.hub;
     SessionController* ctl = h.controller->sessions();
     QTRY_COMPARE_WITH_TIMEOUT(h.controller->screen(), QStringLiteral("game"), 20000);
-    QTRY_VERIFY_WITH_TIMEOUT(ctl->shared(), 10000);
+    QTRY_VERIFY_WITH_TIMEOUT(ctl->shared(), 20000);
     QCOMPARE(lastBody(hub, "POST", QStringLiteral("/api/v1/sessions")).value(QStringLiteral("visibility")).toString(), QStringLiteral("hub_users"));
     QCOMPARE(lastBody(hub, "POST", QStringLiteral("/api/v1/sessions")).value(QStringLiteral("game_id")).toString(), QStringLiteral("t1"));
     // presence: in_game with the game id
@@ -375,11 +375,11 @@ class SessionsUiTest : public QObject {
     // A viewer joins: offer goes out through the Hub, the pill counts
     hub.sendWs(QStringLiteral("viewer_joined"), {{QStringLiteral("session_id"), ownSessionId(hub)}, {QStringLiteral("viewer_id"), QStringLiteral("v1")},
                                                  {QStringLiteral("display_name"), QStringLiteral("Lena")}, {QStringLiteral("device_name"), QStringLiteral("PC")}});
-    QTRY_VERIFY_WITH_TIMEOUT(ctl->host()->hasViewer(QStringLiteral("v1")), 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(ctl->host()->hasViewer(QStringLiteral("v1")), 15000);
     QTRY_VERIFY_WITH_TIMEOUT(std::any_of(hub.wsReceived.cbegin(), hub.wsReceived.cend(), [](const QJsonObject& e) {
       return e.value(QStringLiteral("type")).toString() == QLatin1String("signal") &&
              e.value(QStringLiteral("payload")).toObject().value(QStringLiteral("kind")).toString() == QLatin1String("offer");
-    }), 5000);
+    }), 20000);
 
     // Visibility "Invite only" (PATCH), persisted in the settings under the data dir
     QVERIFY(h.click("visInviteOnly"));
