@@ -16,17 +16,17 @@ func TestPasswordRoundTrip(t *testing.T) {
 		t.Fatalf("verify: %v %v", ok, err)
 	}
 	if ok, _ := VerifyPassword("wrong", h); ok {
-		t.Fatal("falsches Passwort akzeptiert")
+		t.Fatal("wrong password accepted")
 	}
 	h2, _ := HashPassword("correct horse", fast)
 	if h == h2 {
-		t.Fatal("Salt fehlt")
+		t.Fatal("salt missing")
 	}
 	if _, err := VerifyPassword("x", "garbage"); err == nil {
-		t.Fatal("Format nicht geprüft")
+		t.Fatal("format not checked")
 	}
 	if _, err := VerifyPassword("x", "$argon2id$v=19$m=999999999,t=1,p=1$AAAA$AAAA"); err == nil {
-		t.Fatal("absurde Parameter akzeptiert")
+		t.Fatal("absurd parameters accepted")
 	}
 }
 

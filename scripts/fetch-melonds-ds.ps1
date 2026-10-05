@@ -1,6 +1,6 @@
-# Laedt den libretro-Core melonDS DS (gepinnter Tag, offizielles Windows-Release-Asset, SHA-256-geprueft)
-# nach $env:LOCALAPPDATA\framebeam\cores\melondsds\<tag>\windows-x64\ (CI: FRAMEBEAM_CACHE_DIR) und gibt
-# den Pfad der DLL aus. Idempotent. Grund fuer Asset statt Quellbau: deren Build nutzt MSYS2/MinGW, kein MSVC.
+# Downloads the libretro core melonDS DS (pinned tag, official Windows release asset, SHA-256 verified)
+# to $env:LOCALAPPDATA\framebeam\cores\melondsds\<tag>\windows-x64\ (CI: FRAMEBEAM_CACHE_DIR) and prints
+# the DLL path. Idempotent. Why an asset instead of a source build: their build uses MSYS2/MinGW, not MSVC.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $pin = @{}
@@ -23,7 +23,7 @@ if ($hits.Count -gt 1) {
   if ($rel_hits.Count -ge 1) { $hits = $rel_hits }
 }
 if ($hits.Count -ne 1) {
-  throw "Windows-Asset nicht eindeutig ($($hits.Count) Treffer fuer '$($pin.MELONDS_DS_WIN_ASSET)'). Assets von $($pin.MELONDS_DS_TAG): $($names -join ', ')"
+  throw "Windows asset is ambiguous ($($hits.Count) matches for '$($pin.MELONDS_DS_WIN_ASSET)'). Assets of $($pin.MELONDS_DS_TAG): $($names -join ', ')"
 }
 $asset = $hits[0]
 Write-Host "Asset: $($asset.name)"
@@ -32,16 +32,16 @@ Invoke-WebRequest -Headers @{ 'User-Agent' = 'framebeam-ci' } -Uri $asset.browse
 $actual = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
 if (-not $pin.MELONDS_DS_WIN_SHA256) {
   Remove-Item $zip
-  throw "MELONDS_DS_WIN_SHA256 in scripts/melonds-ds.pin ist leer. Asset $($asset.name), berechneter SHA-256: $actual"
+  throw "MELONDS_DS_WIN_SHA256 in scripts/melonds-ds.pin is empty. Asset $($asset.name), computed SHA-256: $actual"
 }
 if ($actual -ne $pin.MELONDS_DS_WIN_SHA256.ToLower()) {
   Remove-Item $zip
-  throw "SHA-256 stimmt nicht: erwartet $($pin.MELONDS_DS_WIN_SHA256), erhalten $actual"
+  throw "SHA-256 mismatch: expected $($pin.MELONDS_DS_WIN_SHA256), got $actual"
 }
 $tmp = Join-Path $out 'unpack'
 Expand-Archive $zip -DestinationPath $tmp -Force
 $found = Get-ChildItem $tmp -Recurse -Filter 'melondsds_libretro.dll' | Select-Object -First 1
-if (-not $found) { throw 'melondsds_libretro.dll nicht im Asset gefunden' }
+if (-not $found) { throw 'melondsds_libretro.dll not found in asset' }
 Copy-Item $found.FullName $dll
 Remove-Item $tmp, $zip -Recurse -Force
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/JesseTG/melonds-ds/$($pin.MELONDS_DS_COMMIT)/LICENSE" `

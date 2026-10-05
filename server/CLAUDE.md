@@ -1,27 +1,27 @@
 # server/ – FrameBeam Hub (Go, SQLite)
 
-Details nur bei Bedarf aus `docs/architektur/` (Index: `docs/architektur/README.md`).
+Details only when needed, from `docs/architecture/` (index: `docs/architecture/README.md`).
 
-## Verantwortung und Grenzen
-- HTTPS-API, Dateiverwaltung, Auth, Registry, interne Session-Metadaten, Presence, Signaling, Webinterface.
-- Emuliert, encodiert, decodiert und rendert nie (auch kein Multiview); führt keine Cores aus, kennt nur System-/Core-Registry. Keine Sessions-Verwaltungsseite, keine Video-Vorschau.
-- Ohne großes Framework. Siehe `01-ueberblick.md`.
+## Responsibility and boundaries
+- HTTPS API, file management, auth, registry, internal session metadata, presence, signaling, web interface.
+- Never emulates, encodes, decodes or renders (not even multiview); does not run cores, knows only the system/core registry. No sessions management page, no video preview.
+- No large framework. See `01-overview.md`.
 
-## Speicherorte
-- ROMs, Saves, Firmware als Dateien unter `/var/lib/framebeam/`; SQLite nur Metadaten, keine Binärdaten.
-- Firmware/BIOS nur vom Admin bereitgestellt (`05-emulation.md`).
+## Storage locations
+- ROMs, saves, firmware as files under `/var/lib/framebeam/`; SQLite holds metadata only, no binary data.
+- Firmware/BIOS is provided by the admin only (`05-emulation.md`).
 
-## Save-Modell (Hub-Sicht)
-- Jeder Upload trägt `base_version`; veraltete Basis erzeugt Konflikt, nie stilles Überschreiben. Zeitstempel entscheiden nie allein.
-- Current Checkpoint (jede Änderung = neue Revision) getrennt von dauerhafter History (Session-Ende, Gerätewechsel, vor Konfliktauflösung, manueller Snapshot).
-- Beide Konfliktinhalte bleiben bis zur bewussten Auswahl; vor Auflösung History sichern. Kein Zusammenführen binärer Saves. Siehe `03-saves.md`.
+## Save model (hub view)
+- Every upload carries `base_version`; a stale base produces a conflict, never a silent overwrite. Timestamps never decide on their own.
+- Current checkpoint (every change = new revision) is kept separate from durable history (session end, device switch, before conflict resolution, manual snapshot).
+- Both conflicting contents are kept until a deliberate choice is made; back up history before resolving. No merging of binary saves. See `03-saves.md`.
 
-## Sicherheit
-- HTTPS/WSS Pflicht; HTTP/WS nur Dev-Modus bzw. localhost. Eigenes Zertifikat, eigenes cert/key oder Reverse Proxy.
-- Admin: Username/Passwort, Argon2id. Normale User passwordless, nur vom Admin angelegt (Invites). User und Device getrennt.
-- Pairing: Player-Anfrage, Admin Allow/Deny (Pflicht). Revoke pro Gerät entzieht auch Access Tokens.
-- Tokens und Device-Credentials nur als Prüfrepräsentation speichern; Secrets nie loggen. Siehe `10-identitaet-pairing-tls.md`.
+## Security
+- HTTPS/WSS required; HTTP/WS only in dev mode or on localhost. Own certificate, own cert/key or reverse proxy.
+- Admin: username/password, Argon2id. Regular users are passwordless and created by the admin only (invites). User and device are separate.
+- Pairing: player request, admin allow/deny (mandatory). Revoking a device also revokes its access tokens.
+- Store tokens and device credentials only as a verification representation; never log secrets. See `10-identity-pairing-tls.md`.
 
-## Webinterface
-- Go `html/template` + htmx per `embed`, kein Node-Build (ADR 0001). Seiten/Begriffe: `09-ui-und-navigation.md`.
-- Webinterface-Design: `docs/design/hub.md`, `docs/design/tokens.md` (Index: `docs/design/README.md`).
+## Web interface
+- Go `html/template` + htmx via `embed`, no Node build (ADR 0001). Pages/terms: `09-ui-and-navigation.md`.
+- Web interface design: `docs/design/hub.md`, `docs/design/tokens.md` (index: `docs/design/README.md`).

@@ -96,7 +96,7 @@ type Game struct {
 	System  string             `json:"system"`
 	Title   string             `json:"title"`
 
-	// UploadedBy Hub-lokale User-ID
+	// UploadedBy Hub-local user ID
 	UploadedBy string `json:"uploaded_by"`
 }
 
@@ -166,10 +166,10 @@ type HubInfo struct {
 
 // PairingRequestAccepted defines model for PairingRequestAccepted.
 type PairingRequestAccepted struct {
-	// ExpiresIn Sekunden
+	// ExpiresIn Seconds
 	ExpiresIn int `json:"expires_in"`
 
-	// PollToken Präfix fbp_
+	// PollToken Prefix fbp_
 	PollToken string                       `json:"poll_token"`
 	RequestId openapi_types.UUID           `json:"request_id"`
 	Status    PairingRequestAcceptedStatus `json:"status"`
@@ -190,14 +190,14 @@ type PairingRequestCreate struct {
 
 // PairingStatus defines model for PairingStatus.
 type PairingStatus struct {
-	// DeviceCredential Präfix fbd_; nur bei approved, einmalig
+	// DeviceCredential Prefix fbd_; only when approved, once
 	DeviceCredential *string `json:"device_credential,omitempty"`
 
-	// HubId Nur bei approved (einmalig)
+	// HubId Only when approved (once)
 	HubId  *openapi_types.UUID `json:"hub_id,omitempty"`
 	Status PairingStatusStatus `json:"status"`
 
-	// UserId Hub-lokale User-ID; nur bei approved
+	// UserId Hub-local user ID; only when approved
 	UserId *string `json:"user_id,omitempty"`
 }
 
@@ -219,10 +219,10 @@ type TokenRequest struct {
 
 // TokenResponse defines model for TokenResponse.
 type TokenResponse struct {
-	// AccessToken Präfix fba_
+	// AccessToken Prefix fba_
 	AccessToken string `json:"access_token"`
 
-	// ExpiresIn Sekunden
+	// ExpiresIn Seconds
 	ExpiresIn int                    `json:"expires_in"`
 	TokenType TokenResponseTokenType `json:"token_type"`
 }
@@ -669,34 +669,34 @@ func (a HandshakeRequest_Video) MarshalJSON() ([]byte, error) {
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Hub-Info (ohne Auth, verleiht keine Rechte)
+	// Hub info (no auth, grants no rights)
 	// (GET /.well-known/framebeam)
 	GetHubInfo(w http.ResponseWriter, r *http.Request)
-	// Gerät widerruft sich selbst
+	// Device revokes itself
 	// (POST /api/v1/auth/revoke)
 	RevokeSelf(w http.ResponseWriter, r *http.Request)
-	// Access Token gegen Device Credential tauschen
+	// Exchange device credential for access token
 	// (POST /api/v1/auth/token)
 	CreateAccessToken(w http.ResponseWriter, r *http.Request)
-	// Spielebibliothek
+	// Game library
 	// (GET /api/v1/games)
 	ListGames(w http.ResponseWriter, r *http.Request)
-	// Einzelnes Spiel
+	// Single game
 	// (GET /api/v1/games/{game_id})
 	GetGame(w http.ResponseWriter, r *http.Request, gameId openapi_types.UUID)
-	// Handshake mit Capability Negotiation
+	// Handshake with capability negotiation
 	// (POST /api/v1/handshake)
 	PostHandshake(w http.ResponseWriter, r *http.Request)
-	// Pairing-Anfrage stellen (Admin entscheidet Allow/Deny)
+	// Submit pairing request (admin decides allow/deny)
 	// (POST /api/v1/pairing/requests)
 	CreatePairingRequest(w http.ResponseWriter, r *http.Request)
-	// Status der Pairing-Anfrage abfragen (Bearer = poll_token)
+	// Poll pairing request status (bearer = poll_token)
 	// (GET /api/v1/pairing/requests/{request_id})
 	GetPairingRequest(w http.ResponseWriter, r *http.Request, requestId openapi_types.UUID)
-	// ROM-Download (Range-Unterstützung). Upload nur über das Admin-Webinterface.
+	// ROM download (range support). Upload only via the admin web interface.
 	// (GET /api/v1/roms/{sha256})
 	DownloadRom(w http.ResponseWriter, r *http.Request, sha256 string, params DownloadRomParams)
-	// WSS-Upgrade (nur Dokumentation, Implementierung folgt)
+	// WSS upgrade (documentation only, implementation to follow)
 	// (GET /api/v1/ws)
 	ConnectWebSocket(w http.ResponseWriter, r *http.Request)
 }
@@ -1453,34 +1453,34 @@ func (response ConnectWebSocket401JSONResponse) VisitConnectWebSocketResponse(w 
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// Hub-Info (ohne Auth, verleiht keine Rechte)
+	// Hub info (no auth, grants no rights)
 	// (GET /.well-known/framebeam)
 	GetHubInfo(ctx context.Context, request GetHubInfoRequestObject) (GetHubInfoResponseObject, error)
-	// Gerät widerruft sich selbst
+	// Device revokes itself
 	// (POST /api/v1/auth/revoke)
 	RevokeSelf(ctx context.Context, request RevokeSelfRequestObject) (RevokeSelfResponseObject, error)
-	// Access Token gegen Device Credential tauschen
+	// Exchange device credential for access token
 	// (POST /api/v1/auth/token)
 	CreateAccessToken(ctx context.Context, request CreateAccessTokenRequestObject) (CreateAccessTokenResponseObject, error)
-	// Spielebibliothek
+	// Game library
 	// (GET /api/v1/games)
 	ListGames(ctx context.Context, request ListGamesRequestObject) (ListGamesResponseObject, error)
-	// Einzelnes Spiel
+	// Single game
 	// (GET /api/v1/games/{game_id})
 	GetGame(ctx context.Context, request GetGameRequestObject) (GetGameResponseObject, error)
-	// Handshake mit Capability Negotiation
+	// Handshake with capability negotiation
 	// (POST /api/v1/handshake)
 	PostHandshake(ctx context.Context, request PostHandshakeRequestObject) (PostHandshakeResponseObject, error)
-	// Pairing-Anfrage stellen (Admin entscheidet Allow/Deny)
+	// Submit pairing request (admin decides allow/deny)
 	// (POST /api/v1/pairing/requests)
 	CreatePairingRequest(ctx context.Context, request CreatePairingRequestRequestObject) (CreatePairingRequestResponseObject, error)
-	// Status der Pairing-Anfrage abfragen (Bearer = poll_token)
+	// Poll pairing request status (bearer = poll_token)
 	// (GET /api/v1/pairing/requests/{request_id})
 	GetPairingRequest(ctx context.Context, request GetPairingRequestRequestObject) (GetPairingRequestResponseObject, error)
-	// ROM-Download (Range-Unterstützung). Upload nur über das Admin-Webinterface.
+	// ROM download (range support). Upload only via the admin web interface.
 	// (GET /api/v1/roms/{sha256})
 	DownloadRom(ctx context.Context, request DownloadRomRequestObject) (DownloadRomResponseObject, error)
-	// WSS-Upgrade (nur Dokumentation, Implementierung folgt)
+	// WSS upgrade (documentation only, implementation to follow)
 	// (GET /api/v1/ws)
 	ConnectWebSocket(ctx context.Context, request ConnectWebSocketRequestObject) (ConnectWebSocketResponseObject, error)
 }

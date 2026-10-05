@@ -2,10 +2,10 @@ package hub
 
 import "fmt"
 
-// Code ist ein Fehlercode im Format der API-Spec (ErrorCode).
+// Code is an error code in the API spec format (ErrorCode).
 type Code string
 
-// Fehlercodes (Teilmenge der Spec, die der Hub erzeugt).
+// Error codes (subset of the spec that the hub produces).
 const (
 	CodeBadRequest         Code = "bad_request"
 	CodeUnauthorized       Code = "unauthorized"
@@ -19,7 +19,7 @@ const (
 	CodePairingExpired     Code = "pairing_expired"
 )
 
-// Error ist ein fachlicher Fehler mit Spec-Code. errors.Is vergleicht nur den Code.
+// Error is a domain error with a spec code. errors.Is compares the code only.
 type Error struct {
 	Code    Code
 	Message string
@@ -27,25 +27,25 @@ type Error struct {
 
 func (e *Error) Error() string { return fmt.Sprintf("%s: %s", e.Code, e.Message) }
 
-// Is vergleicht Fehler über den Code, sodass errors.Is(err, ErrNotFound) auch bei eigener Meldung greift.
+// Is compares errors by code so that errors.Is(err, ErrNotFound) also matches with a custom message.
 func (e *Error) Is(target error) bool {
 	t, ok := target.(*Error)
 	return ok && t.Code == e.Code
 }
 
-// Sentinel-Fehler für errors.Is.
+// Sentinel errors for errors.Is.
 var (
-	ErrBadRequest         = &Error{CodeBadRequest, "Ungültige Anfrage"}
-	ErrUnauthorized       = &Error{CodeUnauthorized, "Token fehlt oder ungültig"}
-	ErrForbidden          = &Error{CodeForbidden, "Nicht erlaubt"}
-	ErrNotFound           = &Error{CodeNotFound, "Nicht gefunden"}
-	ErrConflict           = &Error{CodeConflict, "Konflikt"}
-	ErrRateLimited        = &Error{CodeRateLimited, "Zu viele Anfragen"}
-	ErrDeviceRevoked      = &Error{CodeDeviceRevoked, "Gerät wurde widerrufen"}
-	ErrInvalidCredentials = &Error{CodeInvalidCredentials, "Zugangsdaten ungültig"}
-	ErrPairingExpired     = &Error{CodePairingExpired, "Pairing-Anfrage abgelaufen"}
-	// ErrAdminExists: es gibt bereits einen Admin (Code conflict).
-	ErrAdminExists = &Error{CodeConflict, "Es existiert bereits ein Admin"}
+	ErrBadRequest         = &Error{CodeBadRequest, "Invalid request"}
+	ErrUnauthorized       = &Error{CodeUnauthorized, "Token missing or invalid"}
+	ErrForbidden          = &Error{CodeForbidden, "Not allowed"}
+	ErrNotFound           = &Error{CodeNotFound, "Not found"}
+	ErrConflict           = &Error{CodeConflict, "Conflict"}
+	ErrRateLimited        = &Error{CodeRateLimited, "Too many requests"}
+	ErrDeviceRevoked      = &Error{CodeDeviceRevoked, "Device has been revoked"}
+	ErrInvalidCredentials = &Error{CodeInvalidCredentials, "Invalid credentials"}
+	ErrPairingExpired     = &Error{CodePairingExpired, "Pairing request expired"}
+	// ErrAdminExists: an admin already exists (code conflict).
+	ErrAdminExists = &Error{CodeConflict, "An admin already exists"}
 )
 
 func badRequest(format string, a ...any) *Error {

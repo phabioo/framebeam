@@ -4,7 +4,7 @@
 
 int main() {
   if (framebeam::playerVersion().empty()) {
-    std::fprintf(stderr, "playerVersion() ist leer\n");
+    std::fprintf(stderr, "playerVersion() is empty\n");
     return 1;
   }
   return 0;

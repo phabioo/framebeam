@@ -23,9 +23,9 @@ jobs:
         with:
           go-version-file: server/go.mod
           cache-dependency-path: server/go.sum
-      - name: Hub pruefen
+      - name: Check Hub
         run: make check-hub
-      - name: Hub bauen (linux amd64 + arm64)
+      - name: Build Hub (linux amd64 + arm64)
         run: |
           HUB_VERSION="$(git rev-parse --short=8 HEAD)" make build-hub
       - uses: actions/upload-artifact@v4
@@ -45,23 +45,23 @@ jobs:
       VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.vcpkg-binary-cache
     steps:
       - uses: actions/checkout@v4
-      - name: vcpkg-Checkout cachen
+      - name: Cache vcpkg checkout
         uses: actions/cache@v4
         with:
           path: ${{ env.VCPKG_ROOT }}
           key: vcpkg-root-${{ runner.os }}-${{ hashFiles('scripts/bootstrap-vcpkg.sh', 'client/vcpkg.json') }}
-      - name: vcpkg Binary Cache cachen
+      - name: Cache vcpkg binary cache
         uses: actions/cache@v4
         with:
           path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
           key: vcpkg-bin-${{ runner.os }}-${{ hashFiles('client/vcpkg.json') }}
           restore-keys: vcpkg-bin-${{ runner.os }}-
-      - name: melonDS-DS-Core cachen
+      - name: Cache melonDS DS core
         uses: actions/cache@v4
         with:
           path: ~/.cache/framebeam/cores
           key: melondsds-core-linux-${{ hashFiles('scripts/melonds-ds.pin', 'scripts/fetch-melonds-ds.sh') }}
-      - name: Werkzeuge und Qt 6.4 bereitstellen
+      - name: Provision tools and Qt 6.4
         run: |
           mkdir -p "$VCPKG_DEFAULT_BINARY_CACHE"
           sudo apt-get update -qq
@@ -69,9 +69,9 @@ jobs:
             qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
             qml6-module-qtquick-window qml6-module-qtqml-workerscript qml6-module-qtquick-templates \
             libgl-dev libepoxy-dev xvfb
-      - name: vcpkg bootstrappen
+      - name: Bootstrap vcpkg
         run: scripts/bootstrap-vcpkg.sh
-      - name: Player pruefen
+      - name: Check Player
         run: xvfb-run -a make check-client
 
   client-windows:
@@ -83,22 +83,22 @@ jobs:
       VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\.vcpkg-binary-cache
     steps:
       - uses: actions/checkout@v4
-      - name: vcpkg-Checkout cachen
+      - name: Cache vcpkg checkout
         uses: actions/cache@v4
         with:
           path: ${{ env.VCPKG_ROOT }}
           key: vcpkg-root-${{ runner.os }}-${{ hashFiles('client/vcpkg.json') }}
-      - name: vcpkg Binary Cache cachen
+      - name: Cache vcpkg binary cache
         uses: actions/cache@v4
         with:
           path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
           key: vcpkg-bin-${{ runner.os }}-${{ hashFiles('client/vcpkg.json') }}
           restore-keys: vcpkg-bin-${{ runner.os }}-
-      - name: vcpkg auf Baseline-Commit bootstrappen
+      - name: Bootstrap vcpkg at baseline commit
         shell: pwsh
         run: |
-          # Eigener Checkout statt VCPKG_INSTALLATION_ROOT: Der Runner-Stand ist
-          # nicht auf builtin-baseline gepinnt und dessen Versionsdatenbank kann fehlen.
+          # Own checkout instead of VCPKG_INSTALLATION_ROOT: the runner's copy is
+          # not pinned to builtin-baseline and its version database may be missing.
           $baseline = (Get-Content client/vcpkg.json -Raw | ConvertFrom-Json).'builtin-baseline'
           New-Item -ItemType Directory -Force $env:VCPKG_DEFAULT_BINARY_CACHE | Out-Null
           if (-not (Test-Path "$env:VCPKG_ROOT/vcpkg.exe")) {
@@ -108,14 +108,14 @@ jobs:
             git -C $env:VCPKG_ROOT fetch -q --depth 1 origin $baseline
             git -C $env:VCPKG_ROOT checkout -q --force $baseline
             & "$env:VCPKG_ROOT/bootstrap-vcpkg.bat" -disableMetrics
-            if ($LASTEXITCODE -ne 0) { throw "vcpkg bootstrap fehlgeschlagen" }
+            if ($LASTEXITCODE -ne 0) { throw "vcpkg bootstrap failed" }
           }
-      - name: melonDS-DS-Core cachen
+      - name: Cache melonDS DS core
         uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}\.framebeam-cache\cores
           key: melondsds-core-windows-${{ hashFiles('scripts/melonds-ds.pin', 'scripts/fetch-melonds-ds.ps1') }}
-      - name: Qt 6.8 installieren
+      - name: Install Qt 6.8
         uses: jurplel/install-qt-action@v4
         with:
           version: 6.8.*
@@ -124,7 +124,7 @@ jobs:
           arch: win64_msvc2022_64
           modules: qtmultimedia
           cache: true
-      - name: melonDS-DS-Core bereitstellen
+      - name: Provision melonDS DS core
         id: core
         shell: pwsh
         env:
@@ -136,45 +136,45 @@ jobs:
       - uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
-      - name: Konfigurieren
+      - name: Configure
         working-directory: client
         run: cmake --preset windows-msvc-release "-DFRAMEBEAM_MELONDS_DS_CORE=${{ steps.core.outputs.dll }}"
-      - name: Bauen
+      - name: Build
         working-directory: client
         run: cmake --build --preset windows-msvc-release
-      - name: Testen
+      - name: Test
         working-directory: client
         shell: pwsh
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
-          # Der Core liegt in der CI immer vor: uebersprungene Tests (z. B. emulation_core) gelten als Fehler.
+          # The core is always present in CI: skipped tests (e.g. emulation_core) count as failures.
           ctest --preset windows-msvc-release 2>&1 | Tee-Object -FilePath ctest.log
           if ($LASTEXITCODE -ne 0) {
             ctest --preset windows-msvc-release --rerun-failed --output-on-failure -V
-            throw "ctest fehlgeschlagen"
+            throw "ctest failed"
           }
-          if (Select-String -Path ctest.log -Pattern '\(Skipped\)' -Quiet) { throw "Tests uebersprungen, obwohl der Core vorhanden sein sollte" }
-      - name: Paket schnueren (windeployqt)
+          if (Select-String -Path ctest.log -Pattern '\(Skipped\)' -Quiet) { throw "Tests were skipped although the core should be present" }
+      - name: Assemble package (windeployqt)
         shell: pwsh
         run: |
           $dist = "$env:GITHUB_WORKSPACE\dist\framebeam-player"
           New-Item -ItemType Directory -Force $dist, "$dist\cores" | Out-Null
-          # qt_standard_project_setup legt Executables unter Windows ggf. nicht in app\ ab: suchen.
+          # qt_standard_project_setup may not place executables in app\ on Windows: search for it.
           $exe = @(Get-ChildItem -Recurse -Filter framebeam_player.exe client\build\windows-msvc-release)
-          if ($exe.Count -ne 1) { throw "framebeam_player.exe nicht eindeutig gefunden: $($exe.FullName -join ', ')" }
+          if ($exe.Count -ne 1) { throw "framebeam_player.exe not found unambiguously: $($exe.FullName -join ', ')" }
           Write-Host "Executable: $($exe[0].FullName)"
           Copy-Item $exe[0].FullName $dist
           windeployqt --release --no-translations --qmldir client\ui "$dist\framebeam_player.exe"
-          if ($LASTEXITCODE -ne 0) { throw "windeployqt fehlgeschlagen" }
+          if ($LASTEXITCODE -ne 0) { throw "windeployqt failed" }
           $dll = "${{ steps.core.outputs.dll }}"
           Copy-Item $dll "$dist\cores\"
           Copy-Item (Join-Path (Split-Path $dll) 'LICENSE-melonDS-DS.txt') $dist
           @"
-          Dieses Paket enthaelt den libretro-Core melonDS DS (JesseTG/melonds-ds, GPL-3.0),
-          cores\melondsds_libretro.dll. Lizenztext: LICENSE-melonDS-DS.txt.
-          Quellcode: https://github.com/JesseTG/melonds-ds
-          Keine ROMs, BIOS oder Firmware enthalten.
+          This package contains the libretro core melonDS DS (JesseTG/melonds-ds, GPL-3.0),
+          cores\melondsds_libretro.dll. License text: LICENSE-melonDS-DS.txt.
+          Source code: https://github.com/JesseTG/melonds-ds
+          Contains no ROMs, BIOS or firmware.
           "@ | Set-Content "$dist\THIRD-PARTY-NOTICE.txt"
       - uses: actions/upload-artifact@v4
         with:

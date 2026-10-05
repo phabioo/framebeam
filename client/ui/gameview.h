@@ -1,6 +1,6 @@
 #pragma once
-// GameView: Qt-Quick-Item, das den aktuellen Frame einer GameSession skaliert zeichnet (nearest-neighbour,
-// ganzzahlig wenn moeglich), Tastatur und Maus (Touch auf dem unteren Bildschirm) weiterreicht.
+// GameView: Qt Quick item that draws the current frame of a GameSession scaled (nearest-neighbour,
+// integer scale when possible) and forwards keyboard and mouse (touch on the lower screen).
 
 #include <QImage>
 #include <QPointer>

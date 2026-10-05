@@ -1,30 +1,30 @@
-# Architektur: Saves
+# Architecture: saves
 
-### Save-Sync, Checkpoints und Versionierung [PoC]
+### Save sync, checkpoints and versioning [PoC]
 
 ```text
-Start-Sync:      Hub → Current Checkpoint → Player → Emulator
-Auto-Checkpoint: geänderter Save → Player → Hub → Current Checkpoint
-Final-Sync:      Pause / Stop / sauberes Beenden → Player → Hub
-History:        dauerhafte Version bei relevanten Ereignissen
+Start sync:      Hub → current checkpoint → Player → emulator
+Auto checkpoint: changed save → Player → Hub → current checkpoint
+Final sync:      pause / stop / clean exit → Player → Hub
+History:         permanent version on relevant events
 ```
 
-Spielstände liegen zentral im Dateisystem; SQLite hält Zuordnung, Checkpoint-Revisionen und Versionsmetadaten einschließlich Herkunftsgerät und Zeitstempel. Save-Dateien werden nur bei tatsächlich geändertem Inhalt übertragen (Hash-/Dirty-Erkennung). Nach einer Änderung folgt ein kurzer Debounce, beispielsweise 10–15 Sekunden; periodische Uploads erfolgen frühestens ungefähr alle 60 Sekunden. Bei unverändertem Hash erfolgt kein Upload. Pause, Stop und sauberes App-Beenden lösen unabhängig vom periodischen Intervall einen sofortigen Final-Sync geänderter Saves aus.
+Saves are stored centrally in the file system; SQLite holds the assignment, checkpoint revisions and version metadata including originating device and timestamp. Save files are transferred only when their content has actually changed (hash/dirty detection). After a change, a short debounce follows, for example 10–15 seconds; periodic uploads happen at most roughly every 60 seconds. If the hash is unchanged, no upload takes place. Pause, stop and a clean app exit trigger an immediate final sync of changed saves, independent of the periodic interval.
 
-Auto-Checkpoints aktualisieren den **Current Checkpoint**, ohne bei jedem Upload eine permanente History-Version zu erzeugen. Dauerhafte History-Versionen entstehen bei relevanten Ereignissen wie Session-Ende, Gerätewechsel, vor Konfliktauflösung oder manuellem Snapshot. Konkrete Retention und Ausdünnung bleiben später zu spezifizieren.
+Auto checkpoints update the **current checkpoint** without creating a permanent history version on every upload. Permanent history versions are created on relevant events such as Session end, device change, before conflict resolution or a manual snapshot. Concrete retention and thinning remain to be specified later.
 
-Die bestehende `base_version`-Konfliktlogik gilt auch für Checkpoints: Jede Änderung des Current Checkpoint erhält eine neue Revision für den nächsten Abgleich, selbst wenn keine dauerhafte History-Version entsteht. Ein Upload gegen eine veraltete Basis darf eine konkurrierende Änderung nicht still überschreiben (Abschnitt 13).
+The existing `base_version` conflict logic also applies to checkpoints: every change to the current checkpoint gets a new revision for the next reconciliation, even if no permanent history version is created. An upload against a stale base must not silently overwrite a competing change (section 13).
 
-Bei Hub-Ausfall oder fehlgeschlagenem Upload wird der Save lokal sicher als **pending sync** mit Hub-, User-, Spiel-/Slot-Zuordnung und Basisversion gepuffert. Wiederholung erfolgt ausschließlich zum ursprünglichen Hub; niemals wird ein Save an einen anderen Hub umgeleitet. Checkpoints begrenzen möglichen Fortschrittsverlust bei einem Crash, garantieren jedoch bei Ausfällen oder ausstehenden Änderungen keine feste maximale Verlustdauer. Save States bleiben ein getrennter Mechanismus und liegen außerhalb des PoC; automatisches Zusammenführen binärer Spielstände ist nicht vereinbart.
+If the Hub is down or an upload fails, the save is safely buffered locally as **pending sync** with Hub, user and game/slot assignment and base version. Retries go exclusively to the original Hub; a save is never redirected to another Hub. Checkpoints limit possible progress loss in a crash, but do not guarantee a fixed maximum loss duration during outages or pending changes. Save states remain a separate mechanism and are outside the PoC; automatic merging of binary saves is not agreed.
 
-## 13. Save-Konflikte: Datenmodell und UI
+## 13. Save conflicts: data model and UI
 
-Save-Versionierung wird um einen ausdrücklich modellierten Konfliktzustand ergänzt. Ein neuer Upload verweist auf die beim Abgleich verwendete **Basisversion**. Hat sich die aktuelle Hub-Version inzwischen geändert, darf eine abweichende lokale Änderung sie nicht still überschreiben. Eine Offline-Änderung mit veralteter Basis kann so ebenso erkannt werden wie Änderungen auf zwei Geräten. Zeitstempel dienen der Anzeige, nicht als alleinige Konfliktentscheidung.
+Save versioning is extended with an explicitly modeled conflict state. A new upload refers to the **base version** used during reconciliation. If the current Hub version has changed in the meantime, a diverging local change must not silently overwrite it. An offline change with a stale base can thus be detected just like changes on two devices. Timestamps are used for display, not as the sole conflict decision.
 
-`base_version` bezeichnet auch bei Auto-Checkpoints die beim Abgleich gelesene Current-Checkpoint-Revision. Checkpoint-Revision und permanente History-Version sind getrennt; eine Konfliktauflösung sichert zuvor die konkurrierenden Inhalte in der History.
+`base_version` also denotes, for auto checkpoints, the current-checkpoint revision read during reconciliation. Checkpoint revision and permanent history version are separate; conflict resolution first secures the competing contents in the history.
 
-Vorgesehene Metadaten sind Save-Zuordnung (Spiel/Nutzer beziehungsweise bestehender Save-Slot), Versions-ID, Basisversions-ID, Inhalts-Hash, Herkunftsgerät und Zeitstempel. Ein Konfliktdatensatz referenziert die konkurrierenden Versionen beziehungsweise den gesicherten lokalen Upload, seinen Status und eine spätere Auflösungsentscheidung. Beide Inhalte bleiben erhalten, bis eine bewusste Auswahl erfolgt; Save-Dateien liegen weiterhin im Dateisystem.
+Planned metadata are save assignment (game/user or existing save slot), version ID, base version ID, content hash, originating device and timestamp. A conflict record references the competing versions or the secured local upload, its status and a later resolution decision. Both contents are preserved until a deliberate choice is made; save files continue to live in the file system.
 
-Der Hub zeigt Konflikte auf der **Saves-Seite** neben der Versionshistorie. Der Player zeigt den Sync-/Konfliktzustand beim betroffenen Spiel und beim Start-, Checkpoint- und Final-Abgleich. Die Detailansicht macht Herkunft, Zeitpunkt und Versionen vergleichbar und sieht Aktionen wie „Hub-Version verwenden“, „Lokalen Save als neue aktuelle Version übernehmen“ und „Beide Versionen behalten / später entscheiden“ vor. Auch eine Auflösung darf keinen stillen Datenverlust erzeugen und muss gegen zwischenzeitliche Änderungen geprüft werden.
+The Hub shows conflicts on the **Saves page** next to the version history. The Player shows the sync/conflict state on the affected game and during start, checkpoint and final reconciliation. The detail view makes origin, time and versions comparable and provides actions such as "Use Hub version", "Adopt local save as new current version" and "Keep both versions / decide later". Even a resolution must not cause silent data loss and must be checked against intervening changes.
 
-Die konkrete API, Auflösungslogik und Startentscheidung bei ungelöstem Konflikt bleiben zu spezifizieren. Für den PoC sind Datenmodell und UI-Zustand vorzusehen; automatisches Zusammenführen binärer Spielstände ist nicht vereinbart.
+The concrete API, resolution logic and launch decision on an unresolved conflict remain to be specified. For the PoC, the data model and UI state are to be provided; automatic merging of binary saves is not agreed.

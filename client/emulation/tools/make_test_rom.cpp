@@ -1,15 +1,15 @@
-// Erzeugt eine minimale, selbst geschriebene NDS-Homebrew-Test-ROM (keine Fremd-Inhalte).
-//   framebeam_make_test_rom <ausgabe.nds>
+// Generates a minimal, self-written NDS homebrew test ROM (no third-party content).
+//   framebeam_make_test_rom <output.nds>
 //
-// ARM9 (Direct-Boot, geladen nach 0x02000000): schaltet beide LCDs und Engine A/B ein, mappt VRAM A
-// als LCDC, Engine A im Display-Modus "VRAM direkt" und kopiert ein 256x192-Muster (4 Quadranten:
-// rot, gruen, blau, weiss; unten ein Verlaufsstreifen) ins VRAM. Engine B zeigt nur die Backdrop-
-// Farbe (Palette-Eintrag 0), Magenta. Danach Endlosschleife. ARM7: Endlosschleife.
-// Nur Standard-C++ (keine POSIX-Abhaengigkeit), Ausgabe immer little-endian.
+// ARM9 (direct boot, loaded to 0x02000000): enables both LCDs and engine A/B, maps VRAM A
+// as LCDC, engine A in display mode "VRAM direct" and copies a 256x192 pattern (4 quadrants:
+// red, green, blue, white; a gradient strip at the bottom) into VRAM. Engine B shows only the backdrop
+// color (palette entry 0), magenta. Then an endless loop. ARM7: endless loop.
+// Standard C++ only (no POSIX dependency), output always little-endian.
 //
-// Der Header enthaelt keine Nintendo-Logo-Daten (Bereich 0xC0..0x15B ist Null); Logo- und
-// Header-CRC16 sind ueber die tatsaechlichen Header-Bytes berechnet (melonDS prueft sie nicht,
-// ein echtes Geraet wuerde so nicht booten).
+// The header contains no Nintendo logo data (range 0xC0..0x15B is zero); logo and
+// header CRC16 are computed over the actual header bytes (melonDS does not check them,
+// a real device would not boot this way).
 
 #include <algorithm>
 #include <cstdint>
@@ -32,7 +32,7 @@ void push32(Bytes& b, std::uint32_t v) {
   for (int i = 0; i < 4; ++i) b.push_back(static_cast<std::uint8_t>(v >> (8 * i)));
 }
 
-std::uint16_t crc16(const std::uint8_t* d, std::size_t n) {  // CRC-16/MODBUS wie im NDS-Header
+std::uint16_t crc16(const std::uint8_t* d, std::size_t n) {  // CRC-16/MODBUS as in the NDS header
   std::uint16_t crc = 0xFFFF;
   for (std::size_t i = 0; i < n; ++i) {
     crc ^= d[i];
@@ -45,14 +45,14 @@ constexpr int kW = 256, kH = 192;
 constexpr std::uint32_t kArm9Ram = 0x02000000;
 constexpr std::uint32_t kArm7Ram = 0x02380000;
 
-// Minimaler ARM-Emitter (nur die benoetigten Befehle, Bedingung immer AL ausser bne).
+// Minimal ARM emitter (only the required instructions, condition always AL except bne).
 struct Asm {
   Bytes code;
-  std::vector<std::pair<std::size_t, std::uint32_t>> lits;  // (Position des LDR, Literal)
+  std::vector<std::pair<std::size_t, std::uint32_t>> lits;  // (position of the LDR, literal)
 
   void emit(std::uint32_t w) { push32(code, w); }
   std::size_t here() const { return code.size(); }
-  void ldrLit(unsigned rd, std::uint32_t value) {  // LDR rd, =value (Literal-Pool am Ende)
+  void ldrLit(unsigned rd, std::uint32_t value) {  // LDR rd, =value (literal pool at the end)
     lits.push_back({here(), value});
     emit(0xE59F0000u | (rd << 12));
   }
@@ -66,7 +66,7 @@ struct Asm {
     const std::ptrdiff_t rel = (targetOffset - static_cast<std::ptrdiff_t>(here()) - 8) / 4;
     emit((cond << 28) | 0x0A000000u | (static_cast<std::uint32_t>(rel) & 0x00FFFFFFu));
   }
-  void finish() {  // Literal-Pool anhaengen und LDR-Offsets patchen
+  void finish() {  // append literal pool and patch LDR offsets
     for (auto& [pos, value] : lits) {
       const std::size_t litPos = here();
       push32(code, value);
@@ -77,27 +77,27 @@ struct Asm {
   }
 };
 
-std::uint16_t patternPixel(int x, int y) {  // BGR555, Bit 15 gesetzt
+std::uint16_t patternPixel(int x, int y) {  // BGR555, bit 15 set
   std::uint16_t c;
-  if (y >= 176) c = static_cast<std::uint16_t>((x >> 3) | ((x >> 3) << 5));  // Verlaufsstreifen (gelb)
-  else if (y < kH / 2) c = x < kW / 2 ? 0x001F : 0x03E0;   // rot | gruen
-  else c = x < kW / 2 ? 0x7C00 : 0x7FFF;                   // blau | weiss
+  if (y >= 176) c = static_cast<std::uint16_t>((x >> 3) | ((x >> 3) << 5));  // gradient strip (yellow)
+  else if (y < kH / 2) c = x < kW / 2 ? 0x001F : 0x03E0;   // red | green
+  else c = x < kW / 2 ? 0x7C00 : 0x7FFF;                   // blue | white
   return static_cast<std::uint16_t>(c | 0x8000);
 }
 
 Bytes buildArm9() {
-  // Code zuerst, danach das Muster (24576 Woerter). Datenadresse ist durch die Codelaenge fix.
+  // Code first, then the pattern (24576 words). The data address is fixed by the code length.
   auto make = [](std::uint32_t dataAddr) {
     Asm a;
-    a.ldrLit(0, 0x04000304); a.ldrLit(1, 0x8203); a.strh(1, 0);          // POWCNT1: LCDs + Engine A/B, A oben
+    a.ldrLit(0, 0x04000304); a.ldrLit(1, 0x8203); a.strh(1, 0);          // POWCNT1: LCDs + engine A/B, A on top
     a.ldrLit(0, 0x04000240); a.ldrLit(1, 0x80);   a.strb(1, 0);          // VRAMCNT_A: enable, LCDC
-    a.ldrLit(0, 0x04000000); a.ldrLit(1, 0x00020000); a.str(1, 0);       // DISPCNT A: Modus VRAM direkt, Block A
+    a.ldrLit(0, 0x04000000); a.ldrLit(1, 0x00020000); a.str(1, 0);       // DISPCNT A: VRAM direct mode, block A
     a.ldrLit(2, dataAddr);  a.ldrLit(3, 0x06800000); a.ldrLit(5, (kW * kH * 2) / 4);
-    const std::size_t loop = a.here();                                   // Kopierschleife
+    const std::size_t loop = a.here();                                   // copy loop
     a.ldrPost4(4, 2); a.strPost4(4, 3); a.subsImm(5, 5, 1);
     a.branch(0x1 /*NE*/, static_cast<std::ptrdiff_t>(loop));
-    a.ldrLit(0, 0x05000400); a.ldrLit(1, 0x7C1F); a.strh(1, 0);          // Engine-B-Palette[0] = Magenta (Backdrop)
-    a.ldrLit(0, 0x04001000); a.ldrLit(1, 0x00010000); a.str(1, 0);       // DISPCNT B: Grafikmodus, keine BGs
+    a.ldrLit(0, 0x05000400); a.ldrLit(1, 0x7C1F); a.strh(1, 0);          // engine B palette[0] = magenta (backdrop)
+    a.ldrLit(0, 0x04001000); a.ldrLit(1, 0x00010000); a.str(1, 0);       // DISPCNT B: graphics mode, no BGs
     const std::size_t end = a.here();
     a.branch(0xE, static_cast<std::ptrdiff_t>(end));                     // b .
     a.finish();
@@ -116,7 +116,7 @@ Bytes buildArm9() {
 
 int main(int argc, char** argv) {
   if (argc != 2) {
-    std::fprintf(stderr, "Aufruf: %s <ausgabe.nds>\n", argv[0]);
+    std::fprintf(stderr, "Aufruf: %s <output.nds>\n", argv[0]);
     return 2;
   }
   const Bytes arm9 = buildArm9();
@@ -133,19 +133,19 @@ int main(int argc, char** argv) {
   for (std::size_t i = 0; i < sizeof(title) - 1; ++i) rom[i] = static_cast<std::uint8_t>(title[i]);
   const char code[] = "FBTR";
   for (int i = 0; i < 4; ++i) rom[0x0C + i] = static_cast<std::uint8_t>(code[i]);
-  rom[0x10] = '0'; rom[0x11] = '0';  // Maker-Code
+  rom[0x10] = '0'; rom[0x11] = '0';  // maker code
   put32(rom, 0x20, kArm9Off);  put32(rom, 0x24, kArm9Ram); put32(rom, 0x28, kArm9Ram); put32(rom, 0x2C, static_cast<std::uint32_t>(arm9.size()));
   put32(rom, 0x30, arm7Off);   put32(rom, 0x34, kArm7Ram); put32(rom, 0x38, kArm7Ram); put32(rom, 0x3C, static_cast<std::uint32_t>(arm7.size()));
-  put32(rom, 0x40, arm7Off + 0x200); put32(rom, 0x48, arm7Off + 0x200);  // FNT/FAT leer (Offset hinter Daten)
-  put32(rom, 0x60, 0x00586000); put32(rom, 0x64, 0x001808F8);            // Gamecart-Timing wie ueblich
-  put32(rom, 0x80, static_cast<std::uint32_t>(rom.size()));              // belegte ROM-Groesse
-  put32(rom, 0x84, 0x200);                                               // Header-Groesse (Homebrew-ueblich)
-  put16(rom, 0x15C, crc16(&rom[0xC0], 0x9C));                            // Logo-CRC16 (ueber den Null-Bereich)
-  put16(rom, 0x15E, crc16(&rom[0], 0x15E));                              // Header-CRC16
+  put32(rom, 0x40, arm7Off + 0x200); put32(rom, 0x48, arm7Off + 0x200);  // FNT/FAT empty (offset behind data)
+  put32(rom, 0x60, 0x00586000); put32(rom, 0x64, 0x001808F8);            // gamecart timing as usual
+  put32(rom, 0x80, static_cast<std::uint32_t>(rom.size()));              // used ROM size
+  put32(rom, 0x84, 0x200);                                               // header size (usual for homebrew)
+  put16(rom, 0x15C, crc16(&rom[0xC0], 0x9C));                            // logo CRC16 (over the zero range)
+  put16(rom, 0x15E, crc16(&rom[0], 0x15E));                              // header CRC16
 
   std::FILE* f = std::fopen(argv[1], "wb");
   if (!f) {
-    std::fprintf(stderr, "Kann %s nicht schreiben\n", argv[1]);
+    std::fprintf(stderr, "Cannot write %s\n", argv[1]);
     return 1;
   }
   const bool ok = std::fwrite(rom.data(), 1, rom.size(), f) == rom.size();

@@ -1,4 +1,4 @@
--- Zeiten: Unix-Sekunden (UTC).
+-- Times: Unix seconds (UTC).
 CREATE TABLE hub (
     id   TEXT PRIMARY KEY,
     name TEXT NOT NULL

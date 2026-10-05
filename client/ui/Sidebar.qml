@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import FrameBeam.Player
 
-// Gemeinsame Shell: Navigation und Hub-Switcher.
+// Shared shell: navigation and hub switcher.
 Rectangle {
     id: root
     required property PlayerController player
@@ -59,7 +59,7 @@ Rectangle {
                         }
                         FbMono {
                             visible: !navItem.modelData.active
-                            text: qsTr("folgt")
+                            text: qsTr("soon")
                             font.pixelSize: 11
                             color: Theme.textDisabled
                         }
@@ -70,7 +70,7 @@ Rectangle {
 
         Item { Layout.fillHeight: true }
 
-        // Hub-Switcher-Karte
+        // Hub switcher card
         Rectangle {
             Layout.fillWidth: true
             implicitHeight: hubCol.implicitHeight + 24
@@ -95,7 +95,7 @@ Rectangle {
                     FbButton {
                         objectName: "switchHubButton"
                         kind: "link"
-                        text: qsTr("wechseln")
+                        text: qsTr("switch")
                         onClicked: root.player.switchHub()
                     }
                 }
@@ -106,7 +106,7 @@ Rectangle {
                     elide: Text.ElideMiddle
                 }
                 FbMono {
-                    text: qsTr("aktiver Hub")
+                    text: qsTr("active hub")
                     font.pixelSize: 11
                 }
             }

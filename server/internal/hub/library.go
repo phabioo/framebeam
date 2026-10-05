@@ -17,7 +17,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// System ist ein bekanntes Spielsystem. TODO(Phase 5): ersetzt durch die System-/Core-Registry.
+// System is a known game system. TODO(phase 5): replaced by the system/core registry.
 type System struct {
 	ID         string
 	Name       string
@@ -26,10 +26,10 @@ type System struct {
 
 var knownSystems = []System{{ID: "nds", Name: "Nintendo DS", Extensions: []string{".nds"}}}
 
-// Systems liefert die bekannten Systeme.
+// Systems returns the known systems.
 func Systems() []System { return append([]System(nil), knownSystems...) }
 
-// SystemName liefert den Anzeigenamen zu einer System-ID.
+// SystemName returns the display name for a system ID.
 func SystemName(id string) (string, bool) {
 	for _, s := range knownSystems {
 		if s.ID == id {
@@ -39,7 +39,7 @@ func SystemName(id string) (string, bool) {
 	return "", false
 }
 
-// SystemForFilename leitet das System aus der Dateiendung ab.
+// SystemForFilename derives the system from the file extension.
 func SystemForFilename(filename string) (string, bool) {
 	ext := strings.ToLower(filepath.Ext(filename))
 	for _, s := range knownSystems {
@@ -52,7 +52,7 @@ func SystemForFilename(filename string) (string, bool) {
 	return "", false
 }
 
-// Game ist ein Library-Eintrag; die ROM-Datei liegt unter <data-dir>/roms/<sha[:2]>/<sha>.
+// Game is a library entry; the ROM file lives at <data-dir>/roms/<sha[:2]>/<sha>.
 type Game struct {
 	ID         string
 	Title      string
@@ -66,7 +66,7 @@ type Game struct {
 
 var sha256Re = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
-// ValidSHA256 prüft das Format eines ROM-Hashs (64 Hex-Zeichen, klein).
+// ValidSHA256 checks the format of a ROM hash (64 lowercase hex characters).
 func ValidSHA256(s string) bool { return sha256Re.MatchString(s) }
 
 func (s *Service) romPath(sha string) string {
@@ -99,21 +99,21 @@ func cleanText(v string, max int) string {
 	return v
 }
 
-// AddROM streamt r in eine Temp-Datei im Datenverzeichnis, berechnet SHA-256 und legt die Datei atomar
-// unter roms/<sha[:2]>/<sha> ab. system leer: aus der Dateiendung ableiten. title leer: Dateiname ohne
-// Endung. Ein bereits vorhandenes ROM (gleicher Hash) ergibt einen Konfliktfehler.
+// AddROM streams r into a temp file in the data directory, computes SHA-256 and places the file atomically
+// at roms/<sha[:2]>/<sha>. Empty system: derive from the file extension. Empty title: file name without
+// extension. A ROM that already exists (same hash) results in a conflict error.
 func (s *Service) AddROM(ctx context.Context, r io.Reader, filename, title, system, uploadedBy string) (Game, error) {
 	filename = cleanText(filepath.Base(strings.ReplaceAll(filename, `\`, "/")), 255)
 	if filename == "" || filename == "." || filename == "/" {
-		return Game{}, badRequest("Dateiname fehlt")
+		return Game{}, badRequest("File name missing")
 	}
 	if system == "" {
 		var ok bool
 		if system, ok = SystemForFilename(filename); !ok {
-			return Game{}, badRequest("System nicht aus der Dateiendung ableitbar")
+			return Game{}, badRequest("System cannot be derived from the file extension")
 		}
 	} else if _, ok := SystemName(system); !ok {
-		return Game{}, badRequest("Unbekanntes System")
+		return Game{}, badRequest("Unknown system")
 	}
 	title = cleanText(title, 200)
 	if title == "" {
@@ -121,7 +121,7 @@ func (s *Service) AddROM(ctx context.Context, r io.Reader, filename, title, syst
 	}
 	if _, err := s.GetUser(ctx, uploadedBy); err != nil {
 		if errors.Is(err, ErrNotFound) {
-			return Game{}, badRequest("Uploader existiert nicht")
+			return Game{}, badRequest("Uploader does not exist")
 		}
 		return Game{}, err
 	}
@@ -131,7 +131,7 @@ func (s *Service) AddROM(ctx context.Context, r io.Reader, filename, title, syst
 		return Game{}, internal(err)
 	}
 	tmpName := tmp.Name()
-	defer os.Remove(tmpName) // nach erfolgreichem Rename wirkungslos
+	defer os.Remove(tmpName) // no effect after a successful rename
 	h := sha256.New()
 	size, err := io.Copy(io.MultiWriter(tmp, h), r)
 	if cerr := tmp.Close(); err == nil {
@@ -141,7 +141,7 @@ func (s *Service) AddROM(ctx context.Context, r io.Reader, filename, title, syst
 		return Game{}, internal(err)
 	}
 	if size == 0 {
-		return Game{}, badRequest("ROM-Datei ist leer")
+		return Game{}, badRequest("ROM file is empty")
 	}
 	sha := hex.EncodeToString(h.Sum(nil))
 
@@ -150,7 +150,7 @@ func (s *Service) AddROM(ctx context.Context, r io.Reader, filename, title, syst
 		return Game{}, internal(err)
 	}
 	if exists > 0 {
-		return Game{}, conflict("Dieses ROM ist bereits in der Library")
+		return Game{}, conflict("This ROM is already in the library")
 	}
 	dst := s.romPath(sha)
 	if err := os.MkdirAll(filepath.Dir(dst), 0o750); err != nil {
@@ -166,8 +166,8 @@ func (s *Service) AddROM(ctx context.Context, r io.Reader, filename, title, syst
 		UploadedBy: uploadedBy, AddedAt: s.Now().Truncate(time.Second)}
 	if _, err := s.db.ExecContext(ctx, `INSERT INTO games(`+gameCols+`) VALUES (?,?,?,?,?,?,?,?)`,
 		g.ID, g.Title, g.System, g.ROMSHA256, g.ROMSize, g.Filename, g.UploadedBy, g.AddedAt.Unix()); err != nil {
-		if isUnique(err) { // paralleler Upload desselben ROMs: Datei gehört dem anderen Eintrag
-			return Game{}, conflict("Dieses ROM ist bereits in der Library")
+		if isUnique(err) { // parallel upload of the same ROM: the file belongs to the other entry
+			return Game{}, conflict("This ROM is already in the library")
 		}
 		os.Remove(dst)
 		return Game{}, internal(err)
@@ -175,7 +175,7 @@ func (s *Service) AddROM(ctx context.Context, r io.Reader, filename, title, syst
 	return g, nil
 }
 
-// ListGames liefert die Library nach Titel sortiert.
+// ListGames returns the library sorted by title.
 func (s *Service) ListGames(ctx context.Context) ([]Game, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT `+gameCols+` FROM games ORDER BY title COLLATE NOCASE, added_at`)
 	if err != nil {
@@ -193,12 +193,12 @@ func (s *Service) ListGames(ctx context.Context) ([]Game, error) {
 	return out, rows.Err()
 }
 
-// GetGame liefert ein Spiel per ID.
+// GetGame returns a game by ID.
 func (s *Service) GetGame(ctx context.Context, id string) (Game, error) {
 	return s.oneGame(ctx, `id = ?`, id)
 }
 
-// GetGameByHash liefert ein Spiel per ROM-SHA-256.
+// GetGameByHash returns a game by ROM SHA-256.
 func (s *Service) GetGameByHash(ctx context.Context, sha string) (Game, error) {
 	return s.oneGame(ctx, `rom_sha256 = ?`, sha)
 }
@@ -214,7 +214,7 @@ func (s *Service) oneGame(ctx context.Context, where string, arg string) (Game, 
 	return g, nil
 }
 
-// OpenROM öffnet die ROM-Datei zu einem Hash; der Aufrufer schließt sie.
+// OpenROM opens the ROM file for a hash; the caller closes it.
 func (s *Service) OpenROM(ctx context.Context, sha string) (*os.File, Game, error) {
 	if !ValidSHA256(sha) {
 		return nil, Game{}, ErrNotFound
@@ -233,7 +233,7 @@ func (s *Service) OpenROM(ctx context.Context, sha string) (*os.File, Game, erro
 	return f, g, nil
 }
 
-// DeleteGame entfernt Eintrag und ROM-Datei.
+// DeleteGame removes the entry and the ROM file.
 func (s *Service) DeleteGame(ctx context.Context, id string) error {
 	g, err := s.GetGame(ctx, id)
 	if err != nil {
@@ -248,15 +248,15 @@ func (s *Service) DeleteGame(ctx context.Context, id string) error {
 	return nil
 }
 
-// StorageStats beschreibt die Speicherbelegung für die Library-Seite.
+// StorageStats describes storage usage for the Library page.
 type StorageStats struct {
 	GameCount int
 	ROMBytes  int64
-	// FreeBytes: freier Platz im Datenverzeichnis (0 auf Nicht-Linux).
+	// FreeBytes: free space in the data directory (0 on non-Linux).
 	FreeBytes uint64
 }
 
-// Storage liefert die Speicherbelegung (Summe rom_size, freier Platz).
+// Storage returns storage usage (sum of rom_size, free space).
 func (s *Service) Storage(ctx context.Context) (StorageStats, error) {
 	var st StorageStats
 	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*), COALESCE(SUM(rom_size),0) FROM games`).Scan(&st.GameCount, &st.ROMBytes); err != nil {

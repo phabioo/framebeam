@@ -27,7 +27,7 @@ QByteArray LinearResampler::process(const QByteArray& pcm) {
   }
   const auto* src = reinterpret_cast<const qint16*>(pcm.constData());
 
-  // Arbeitspuffer: optional der letzte Frame des vorigen Chunks, dann der neue Chunk.
+  // Working buffer: optionally the last frame of the previous chunk, then the new chunk.
   const qsizetype offset = hasPrev_ ? 1 : 0;
   const qsizetype n = chunkFrames + offset;
   auto at = [&](qsizetype frame, int ch) -> double {

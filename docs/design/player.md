@@ -1,133 +1,133 @@
-# Design: FrameBeam Player (QML, dunkel)
+# Design: FrameBeam Player (QML, dark)
 
-Quelle: `quelle/framebeam-designs-v3.dc.html`, Zeilenbereiche je Screen = Screen-Container (ohne Caption). Mock-Daten stehen im Script ab Zeile 825 (`renderVals`). Tokens: `tokens.md`. Alle Maße in px bei 1440 x 900.
+Source: `source/framebeam-designs-v3.dc.html`, line ranges per screen = screen container (without caption). Mock data is in the script from line 825 (`renderVals`). Tokens: `tokens.md`. All dimensions in px at 1440 x 900.
 
-## Gemeinsame Shell (3c, 3e, 3f)
+## Common shell (3c, 3e, 3f)
 
-- Grid: Sidebar 232px | Inhalt (je Screen 1-3 weitere Spalten). Sidebar: Hintergrund `#0e0f10`, Rahmen rechts, Padding 24 16, Gap 28.
-- Sidebar oben: Logo (22px Quadrat, Radius 5, Akzent) + "FrameBeam Player" 16/600.
-- Navigation (Reihenfolge): Library, Emulation, Controllers, Settings. Aktiv: Fläche `#1f2024`, Radius 6, 500; inaktiv `#a3a3a8`. Item Padding 9 10, 14px.
-- Unten: Hub-Switcher-Karte (Statuspunkt grün, Hubname, rechts "wechseln", darunter Mono 11 "hub.local · aktiver Hub"). Nur 3c zeigt zusätzlich den Benutzerblock (Avatar 28 "M", "Max", Gerätename "Desktop-Wohnzimmer").
-- Im Spiel (3g-3i) entfällt die Sidebar; stattdessen Header 56px (siehe dort).
+- Grid: sidebar 232px | content (1-3 further columns per screen). Sidebar: background `#0e0f10`, border right, padding 24 16, gap 28.
+- Sidebar top: logo (22px square, radius 5, accent) + "FrameBeam Player" 16/600.
+- Navigation (order): Library, Emulation, Controllers, Settings. Active: surface `#1f2024`, radius 6, 500; inactive `#a3a3a8`. Item padding 9 10, 14px.
+- Bottom: Hub switcher card (status dot green, Hub name, on the right "switch", below it mono 11 "hub.local · active Hub"). Only 3c additionally shows the user block (avatar 28 "M", "Max", device name "Desktop Living Room").
+- In game (3g-3i) the sidebar is dropped; instead a 56px header (see there).
 
 ## 3a Player Connection
-Zeilen 30-52. Start-/Connection-Screen vor der Hauptnavigation.
+Lines 30-52. Start/connection screen before the main navigation.
 
-- Zweck: gespeicherte Hubs, Verbindungsstatus, Hub hinzufügen, Verbinden.
-- Layout: Screen zentriert (`place-items:center`), Spalte 620px, Gap 28; Hintergrund `#121315`, keine Sidebar.
-- Kopf: Logo + "FrameBeam Player", Titel "Mit einem Hub verbinden" (30/600).
-- Hub-Karten (Spalte, Gap 10, Padding 16 18, Radius 10, Fläche `#1a1b1e`); je Karte Name 16/600 + Statuszeichen, Mono 12 Zeile mit Adresse und Details:
-  - Zustand erreichbar (gewählt, Akzentring 1.5): "Zuhause", "● erreichbar" (grün), "hub.local:8443 · als Max · zuletzt heute 18:40", Button "Verbinden" (40 hoch, Akzent).
-  - Zustand Zertifikat geändert: "Studio Lena", "✕ Zertifikat geändert" (error), "lena-hub.fritz.box:8443 · als Max", Link "Fingerprint prüfen"; Fehlerbox (Fläche `#2a1a17`): "Der Fingerprint stimmt nicht mehr mit dem gespeicherten überein. Die Verbindung ist blockiert, bis du den neuen Fingerprint im Hub-Webinterface geprüft und bestätigt hast." Kein Verbinden-Button.
-  - Zustand Hub zu alt: "Büro", "▲ Hub zu alt" (warn), "hub.office.lan · Hub spricht Protokoll v0, Player benötigt v1", Aktion "Entfernen".
-- Hub hinzufügen: Eingabefeld (44 hoch, Platzhalter "Hub-Adresse, z. B. hub.local:8443", Mono) + Button "Hub hinzufügen" (Outline).
-- Fuß (Trennlinie): Toggle (an) "Beim Start automatisch mit dem zuletzt verwendeten Hub verbinden"; Mono 12 "Dieses Gerät: Desktop-Wohnzimmer · Player 0.1.0 · Windows x86-64".
-- Zustände: erreichbar, Zertifikat geändert (blockiert), Hub inkompatibel (Protokoll). Offline/nicht erreichbar: nicht gezeigt (unklar).
-- Entfernen nur beim inkompatiblen Hub gezeigt; ob es bei allen Karten verfügbar ist, ist unklar.
+- Purpose: stored Hubs, connection status, add Hub, connect.
+- Layout: screen centered (`place-items:center`), column 620px, gap 28; background `#121315`, no sidebar.
+- Header: logo + "FrameBeam Player", title "Connect to a Hub" (30/600).
+- Hub cards (column, gap 10, padding 16 18, radius 10, surface `#1a1b1e`); per card name 16/600 + status mark, mono 12 line with address and details:
+  - State reachable (selected, accent ring 1.5): "Home", "● reachable" (green), "hub.local:8443 · as Max · last today 18:40", button "Connect" (40 high, accent).
+  - State certificate changed: "Lena's Studio", "✕ Certificate changed" (error), "lena-hub.fritz.box:8443 · as Max", link "Check fingerprint"; error box (surface `#2a1a17`): "The fingerprint no longer matches the stored one. The connection is blocked until you have checked and confirmed the new fingerprint in the Hub web interface." No Connect button.
+  - State Hub too old: "Office", "▲ Hub too old" (warn), "hub.office.lan · Hub speaks protocol v0, Player requires v1", action "Remove".
+- Add Hub: input field (44 high, placeholder "Hub address, e.g. hub.local:8443", mono) + button "Add Hub" (outline).
+- Footer (divider): toggle (on) "Connect automatically to the last used Hub on startup"; mono 12 "This device: Desktop Living Room · Player 0.1.0 · Windows x86-64".
+- States: reachable, certificate changed (blocked), Hub incompatible (protocol). Offline/unreachable: not shown (unclear).
+- Remove is shown only for the incompatible Hub; whether it is available on all cards is unclear.
 
 ## 3b Player Pairing
-Zeilen 58-72. Hub hinzufügen: Zertifikat (TOFU) und Freigabe durch Admin.
+Lines 58-72. Add Hub: certificate (TOFU) and approval by admin.
 
-- Layout: zentriert, Spalte 640px, Gap 14. Titel "Hub hinzufügen" (30/600) + Mono 13 Adresse "hub.local:8443".
-- Drei Schrittkarten (Raster 18px | Text, Gap 4 12; Statuspunkt 10px; Radius 10, Padding 16-18):
-  1. "Hub erkannt": "Zuhause · FrameBeam Hub 0.1.0 · Protokoll v1 · kompatibel" (Punkt gefüllt, Akzent).
-  2. "Zertifikat vertraut": SHA-256-Fingerprint in Mono 12 (zwei Zeilen, Hex-Paare), Hinweis "Gespeichert. Ändert sich das Zertifikat später, wird die Verbindung blockiert." (Punkt gefüllt).
-  3. "Gerät freigeben" (aktiv, Akzentring; Punkt als Ring):
-     - Segment-Umschalter: "Freigabe anfragen" (aktiv) | "Einladung einlösen".
-     - Status: Spinner + "Warte auf Freigabe durch den Admin" / "Die Anfrage erscheint im Hub unter Clients."
-     - Datenblock (Label-Spalte 130px): Gerätename "Desktop-Wohnzimmer", Plattform "Windows x86-64", Player-Version "0.1.0".
-     - Button "Anfrage abbrechen" (38 hoch, Outline).
-- Nicht gezeigt: Ansicht "Einladung einlösen" (Code-Eingabe, Anzeigename), Zustände abgelehnt/widerrufen/Fehler (unklar).
+- Layout: centered, column 640px, gap 14. Title "Add Hub" (30/600) + mono 13 address "hub.local:8443".
+- Three step cards (grid 18px | text, gap 4 12; status dot 10px; radius 10, padding 16-18):
+  1. "Hub detected": "Home · FrameBeam Hub 0.1.0 · protocol v1 · compatible" (dot filled, accent).
+  2. "Certificate trusted": SHA-256 fingerprint in mono 12 (two lines, hex pairs), note "Stored. If the certificate changes later, the connection is blocked." (dot filled).
+  3. "Authorize device" (active, accent ring; dot as ring):
+     - Segment switch: "Request approval" (active) | "Redeem invite".
+     - Status: spinner + "Waiting for approval by the admin" / "The request appears in the Hub under Clients."
+     - Data block (label column 130px): device name "Desktop Living Room", platform "Windows x86-64", Player version "0.1.0".
+     - Button "Cancel request" (38 high, outline).
+- Not shown: "Redeem invite" view (code entry, display name), states denied/revoked/error (unclear).
 
 ## 3c Player Library
-Zeilen 78-175. Hauptscreen; Bereitschaftszustände, Save-Konflikt, Sessions entdecken.
+Lines 78-175. Main screen; readiness states, save conflict, discovering Sessions.
 
-- Grid: Sidebar 232 | Main (flexibel) | Detailspalte 392 (Fläche `#16171a`, Rahmen links, Padding 28).
-- Main (Padding 28 32, Gap 28):
-  - Header: Titel "Library" (26/600), Meta "42 Spiele · Nintendo DS", rechts Suchfeld 220 x 34 ("Suchen…").
-  - Filter-Chips (Pills): "Alle" (aktiv), "Bereit", "Achtung nötig · 2".
-  - Abschnitt "SESSIONS AUF DIESEM HUB" (Eyebrow grün mit Punkt); 2-spaltiges Raster, Gap 12; Karte: Avatar 30, "{User} · {Spiel}", Meta 12. Beispiele: "Lena · Harbor Rally", Meta "Hub users · seit 24 min", Aktion "Session ansehen"; "Jonas · Clocktower Kids", Meta "lädt dich ein", Aktionen "Ablehnen" / "Beitreten" (Akzent).
-  - Spielraster: 4 Spalten, Gap 20 18. Kachel: quadratisch, Mono 11 "NDS" oben, Monogramm (Initialen, 36/600) unten; Auswahl = Akzentrahmen 2px (Offset -3, Radius 8). Darunter Titel 14/500 (Ellipsis) und Status 12.
-  - Statusvarianten pro Spiel: "● Bereit"; "↓ Download nötig · {Größe}"; "▲ Save-Konflikt" (warn, 500); "✕ Hash mismatch · neu laden" (error, 500); "⟳ Save-Sync ausstehend".
-  - Mock: Lumen Drift (bereit, ausgewählt), Harbor Rally (Konflikt), Paper Wizards (Download 128 MB), Clocktower Kids (bereit), Orbit Gardens (Download 16 MB), Tide & Lantern (Sync ausstehend), Copper Courier (Hash mismatch), Stylus Knights (bereit).
-- Detailspalte (Auswahl):
-  - Kopf: Cover 112 + Titel "Lumen Drift" (22/600) + "Nintendo DS".
-  - Tabelle (Label links gedämpft, Wert rechts, Zeilen 11 Padding): ROM "Lokal gecacht · geprüft"; Core "melonDS DS · bereit"; Firmware "vom Hub · geprüft"; Spielstand "Checkpoint aktuell · 18:42"; "Zuletzt gespeichert von" "Laptop-Büro".
-  - Link "Details anzeigen (Hashes, Größe, Pfade)" (12, gedämpft).
-  - Abschnitt "START" (Eyebrow): Checkliste, Zeile Raster 18 | Label | Meta; Punkt gefüllt = erledigt, Ring = aktiv: "Spieldaten vom Hub" (aktuell), "ROM aus Cache geprüft" (kein Download), "Firmware vorhanden" (geprüft), "Current Checkpoint geladen" (Rev 88), "melonDS DS startet" (aktiv).
-  - Unten: Primärbutton "Spielen" (48, Akzent), Sekundär "Spielen und Session teilen" (44, Outline).
-- Offen/unklar: Zustände der Detailspalte bei Download, Hash mismatch und Konflikt (nur der Erfolgsfall ist gezeichnet); Suche/Filter-Verhalten; "Achtung nötig · 2" zählt laut Mock-Daten nicht eindeutig (Konflikt, Hash mismatch, Sync ausstehend sind drei Kacheln).
+- Grid: sidebar 232 | main (flexible) | detail column 392 (surface `#16171a`, border left, padding 28).
+- Main (padding 28 32, gap 28):
+  - Header: title "Library" (26/600), meta "42 games · Nintendo DS", on the right search field 220 x 34 ("Search…").
+  - Filter chips (pills): "All" (active), "Ready", "Needs attention · 2".
+  - Section "SESSIONS ON THIS HUB" (eyebrow green with dot); 2-column grid, gap 12; card: avatar 30, "{user} · {game}", meta 12. Examples: "Lena · Harbor Rally", meta "Hub users · for 24 min", action "Watch Session"; "Jonas · Clocktower Kids", meta "inviting you", actions "Decline" / "Join" (accent).
+  - Game grid: 4 columns, gap 20 18. Tile: square, mono 11 "NDS" at the top, monogram (initials, 36/600) at the bottom; selection = accent border 2px (offset -3, radius 8). Below it title 14/500 (ellipsis) and status 12.
+  - Status variants per game: "● Ready"; "↓ Download required · {size}"; "▲ Save conflict" (warn, 500); "✕ Hash mismatch · reload" (error, 500); "⟳ Save sync pending".
+  - Mock: Lumen Drift (ready, selected), Harbor Rally (conflict), Paper Wizards (download 128 MB), Clocktower Kids (ready), Orbit Gardens (download 16 MB), Tide & Lantern (sync pending), Copper Courier (hash mismatch), Stylus Knights (ready).
+- Detail column (selection):
+  - Header: cover 112 + title "Lumen Drift" (22/600) + "Nintendo DS".
+  - Table (label left muted, value right, rows padding 11): ROM "Cached locally · verified"; Core "melonDS DS · ready"; Firmware "from Hub · verified"; Save "Checkpoint current · 18:42"; "Last saved by" "Laptop Office".
+  - Link "Show details (hashes, size, paths)" (12, muted).
+  - Section "START" (eyebrow): checklist, row grid 18 | label | meta; dot filled = done, ring = active: "Game data from Hub" (current), "ROM verified from cache" (no download), "Firmware present" (verified), "Current checkpoint loaded" (Rev 88), "melonDS DS starting" (active).
+  - Bottom: primary button "Play" (48, accent), secondary "Play and share Session" (44, outline).
+- Open/unclear: states of the detail column for download, hash mismatch and conflict (only the success case is drawn); search/filter behavior; "Needs attention · 2" does not count unambiguously according to the mock data (conflict, hash mismatch, sync pending are three tiles).
 
-## 3d Player Save-Konflikt
-Zeilen 181-209. Modaler Dialog beim Start-Abgleich.
+## 3d Player Save Conflict
+Lines 181-209. Modal dialog on start reconciliation.
 
-- Layout: Screen `#08090a` mit abgedunkelter Library (Streifenmuster, Beschriftung "Library (abgedunkelt)" oben links, Mono 12); Dialog zentriert, 760 breit, Fläche `#16171a`, Rahmen `#2c2d32`, Radius 12, Padding 32, Gap 24.
-- Kopf: Eyebrow "▲ SAVE-KONFLIKT · HARBOR RALLY" (warn), Titel "Hub und dieses Gerät haben unterschiedliche Stände" (24/600), Text "Dieses Gerät hat offline weitergespielt, während ein anderes Gerät einen neuen Checkpoint gesichert hat. Nichts wird überschrieben, bis du entscheidest. Beide Stände werden vorher in der History gesichert."
-- Zwei Vergleichskarten (2 Spalten, Fläche `#1d1e22`, Radius 9):
-  - "Auf dem Hub": "Current Checkpoint · Laptop-Büro"; "heute, 19:10 · Rev 41"; "Basis: Rev 40".
-  - "Auf diesem Gerät": "Lokal · Desktop-Wohnzimmer"; "heute, 19:24 · Sync ausstehend"; "Basis: Rev 40".
-- Aktionen (Spalte, 46 hoch, Gap 8; rechts jeweils Hinweis 12):
-  - "Hub-Version verwenden" (Outline; "lokaler Save bleibt gesichert").
-  - "Lokalen Save als neue aktuelle Version übernehmen" (Outline; "wird neuer Checkpoint").
-  - "Beide behalten, später entscheiden" (Primär, Akzent; hervorgehoben als Standard).
-- Fußhinweis: "Später entscheiden: Der Konflikt bleibt beim Spiel und auf der Saves-Seite im Hub sichtbar."
-- Offen: Bestätigungsschritt vor überschreibender Aktion, Fehlerfall beim Sichern, Tastaturbedienung nicht gezeichnet.
+- Layout: screen `#08090a` with dimmed library (stripe pattern, caption "Library (dimmed)" top left, mono 12); dialog centered, 760 wide, surface `#16171a`, border `#2c2d32`, radius 12, padding 32, gap 24.
+- Header: eyebrow "▲ SAVE CONFLICT · HARBOR RALLY" (warn), title "The Hub and this device have different saves" (24/600), text "This device kept playing offline while another device secured a new checkpoint. Nothing is overwritten until you decide. Both saves are secured in the history beforehand."
+- Two comparison cards (2 columns, surface `#1d1e22`, radius 9):
+  - "On the Hub": "Current checkpoint · Laptop Office"; "today, 19:10 · Rev 41"; "Base: Rev 40".
+  - "On this device": "Local · Desktop Living Room"; "today, 19:24 · sync pending"; "Base: Rev 40".
+- Actions (column, 46 high, gap 8; on the right a note 12 each):
+  - "Use Hub version" (outline; "local save stays secured").
+  - "Adopt local save as new current version" (outline; "becomes the new checkpoint").
+  - "Keep both, decide later" (primary, accent; highlighted as default).
+- Footnote: "Decide later: the conflict stays visible on the game and on the Saves page in the Hub."
+- Open: confirmation step before an overwriting action, error case while securing, keyboard operation not drawn.
 
 ## 3e Player Emulation
-Zeilen 215-276. Cores, Bereitschaft, Einstellungs-Hierarchie.
+Lines 215-276. Cores, readiness, settings hierarchy.
 
-- Grid: Sidebar (Emulation aktiv, ohne Benutzerblock) 232 | Systemliste 300 (Fläche `#16171a`) | Main.
-- Systemliste: Eyebrow "EMULATION"; Karte (ausgewählt, Fläche `#1f2024`): "Nintendo DS", "melonDS DS · 1.2.0", "● Bereit · im Player enthalten" (grün), "Firmware vom Hub · geprüft"; Platzhalterkarte gestrichelt "Weitere Systeme" / "Kommen später über Core, Manifest und Profile hinzu."
-- Main (Padding 28 36, Gap 22): Titel "Nintendo DS · melonDS DS", Untertitel "Einstellungen gelten lokal für dieses Gerät".
-- Ebenen-Umschalter (Segment): "Global" | "System / Core" (aktiv) | "Game Override · später" (deaktiviert); Hinweis daneben "Global → System/Core → Game Override · nur explizit gesetzte Werte überschreiben".
-- Optionsgruppen (Titel 15/600 + Untertitel 12, Trennlinie); Zeile = Raster `1fr | 220 | 200`, Gap 20:
-  - Spalte 1: Label 14 (+ Badge "Neustart nötig", warn) und Beschreibung 12.
-  - Spalte 2: Select-Feld 34 hoch (Wert + "▾").
-  - Spalte 3: Herkunft: "geerbt · {Quelle}" (gedämpft) oder "● hier gesetzt" (warn-Farbe) + Link "zurücksetzen".
-- Gruppe "FrameBeam" (Untertitel "Darstellung im Player"): "Vollbild beim Start" (Aus, geerbt Global), "DS-Bildschirm-Anordnung" (Übereinander, hier gesetzt), "Standard-Multiview" (Picture-in-Picture, geerbt Global).
-- Gruppe "melonDS DS" (Untertitel "aus Libretro Core Options · nur vom Core gemeldete Optionen"): "Renderer" (OpenGL, hier gesetzt, Neustart nötig), "Interne Auflösung" (3× (768×576), hier gesetzt), "Konsolentyp" (DS, geerbt Core-Default, Neustart nötig), "Audio-Interpolation" (Keine, Core-Default), "Touch-Modus" (Maus, Core-Default).
-- Offen: Ansichten "Global" und "Game Override", Zustand "Firmware fehlt" (Architektur: Start blockieren) nicht gezeichnet.
+- Grid: sidebar (Emulation active, without user block) 232 | system list 300 (surface `#16171a`) | main.
+- System list: eyebrow "EMULATION"; card (selected, surface `#1f2024`): "Nintendo DS", "melonDS DS · 1.2.0", "● Ready · included in the Player" (green), "Firmware from Hub · verified"; dashed placeholder card "More systems" / "Will be added later via core, manifest and profiles."
+- Main (padding 28 36, gap 22): title "Nintendo DS · melonDS DS", subtitle "Settings apply locally to this device".
+- Level switch (segment): "Global" | "System / Core" (active) | "Game Override · later" (disabled); note next to it "Global → System/Core → Game Override · only explicitly set values override".
+- Option groups (title 15/600 + subtitle 12, divider); row = grid `1fr | 220 | 200`, gap 20:
+  - Column 1: label 14 (+ badge "Restart required", warn) and description 12.
+  - Column 2: select field 34 high (value + "▾").
+  - Column 3: origin: "inherited · {source}" (muted) or "● set here" (warn color) + link "reset".
+- Group "FrameBeam" (subtitle "Presentation in the Player"): "Fullscreen on start" (Off, inherited Global), "DS screen layout" (Stacked, set here), "Default multiview" (Picture-in-picture, inherited Global).
+- Group "melonDS DS" (subtitle "from Libretro core options · only options reported by the core"): "Renderer" (OpenGL, set here, restart required), "Internal resolution" (3× (768×576), set here), "Console type" (DS, inherited core default, restart required), "Audio interpolation" (None, core default), "Touch mode" (Mouse, core default).
+- Open: views "Global" and "Game Override", state "Firmware missing" (architecture: block launch) not drawn.
 
 ## 3f Player Controllers
-Zeilen 282-344. Profile, Remapping, Input-Test.
+Lines 282-344. Profiles, remapping, input test.
 
-- Grid: Sidebar (Controllers aktiv) 232 | Geräteliste 300 | Main | Input-Test 340 (Fläche `#16171a`).
-- Geräteliste: Eyebrow "GERÄTE"; Einträge (Radius 8, Padding 12; ausgewählt Fläche `#1f2024`): Name 14/500, rechts Slot (Mono 11), darunter Profil 12. Mock: "Xbox Wireless Controller" P1 "Standard Gamepad" (ausgewählt); "Tastatur" Slot "—" "Tastatur · Standard"; "Maus" Slot "Touch" "DS-Touch". Fuß: "Profile bleiben lokal auf diesem Gerät und werden nicht synchronisiert."
-- Main: Titel "Xbox Wireless Controller", rechts Profil-Select "Profil: Standard Gamepad ▾" (34 hoch).
-- Tabelle Raster `1fr | 180 | 120`: Kopf (Eyebrow Mono 11) "FRAMEBEAM INPUT" | "BELEGUNG" | "NDS". Zeilen (Padding 8): Input | Belegungsfeld (30 hoch) | NDS-Ziel (Mono). Mock: A→"Ⓑ  B"→A; B→"Ⓐ  A"→B; X→"Ⓨ  Y"→X; Y→"Ⓧ  X"→Y; L→"LB"→L (Zustand Lauschen: Rahmen Akzent, Text "Taste drücken…"); R→"RB"→R; Start→"Menu"→START; Select→"View"→SELECT; Steuerkreuz→"D-Pad / linker Stick"→D-PAD; "Lid schließen"→"nicht belegt"→LID.
-- Aktionen unten: "Auf Standard zurücksetzen", "Profil duplizieren" (Outline, 38 hoch).
-- Input-Test: Eyebrow "INPUT-TEST", Text "Drücke Tasten am Controller — aktive Eingaben leuchten auf."; Raster 4 Spalten, Kacheln 44 hoch: A, B, X, Y, L, R, ▲, ▼, ◀, ▶, ST, SE; aktive Kachel = Akzentfläche (Mock: A und ▶). Abschnitt "DS-TOUCH": Fläche 150 hoch mit Text "Maus auf unterem Bildschirm", Cursor-Ring; Hinweis "Linke Maustaste = Stylus".
-- Offen: Analogsticks/Trigger-Darstellung, Slot-Zuweisung und Profil-Verwaltung (Löschen/Umbenennen) nicht gezeichnet; SDL3-Mapping-Details nicht Teil des Designs.
+- Grid: sidebar (Controllers active) 232 | device list 300 | main | input test 340 (surface `#16171a`).
+- Device list: eyebrow "DEVICES"; entries (radius 8, padding 12; selected surface `#1f2024`): name 14/500, on the right slot (mono 11), below it profile 12. Mock: "Xbox Wireless Controller" P1 "Standard Gamepad" (selected); "Keyboard" slot "—" "Keyboard · Standard"; "Mouse" slot "Touch" "DS touch". Footer: "Profiles stay local on this device and are not synchronized."
+- Main: title "Xbox Wireless Controller", on the right profile select "Profile: Standard Gamepad ▾" (34 high).
+- Table grid `1fr | 180 | 120`: header (eyebrow mono 11) "FRAMEBEAM INPUT" | "MAPPING" | "NDS". Rows (padding 8): input | mapping field (30 high) | NDS target (mono). Mock: A→"Ⓑ  B"→A; B→"Ⓐ  A"→B; X→"Ⓨ  Y"→X; Y→"Ⓧ  X"→Y; L→"LB"→L (listening state: border accent, text "Press a button…"); R→"RB"→R; Start→"Menu"→START; Select→"View"→SELECT; D-pad→"D-Pad / left stick"→D-PAD; "Close lid"→"not mapped"→LID.
+- Actions at the bottom: "Reset to default", "Duplicate profile" (outline, 38 high).
+- Input test: eyebrow "INPUT TEST", text "Press buttons on the controller — active inputs light up."; grid 4 columns, tiles 44 high: A, B, X, Y, L, R, ▲, ▼, ◀, ▶, ST, SE; active tile = accent surface (mock: A and ▶). Section "DS TOUCH": surface 150 high with text "Mouse on lower screen", cursor ring; note "Left mouse button = stylus".
+- Open: analog stick/trigger display, slot assignment and profile management (delete/rename) not drawn; SDL3 mapping details are not part of the design.
 
 ## 3g Player Session
-Zeilen 350-391. Im Spiel, Session geteilt, Sichtbarkeit "Invite only" mit Nutzerauswahl.
+Lines 350-391. In game, Session shared, visibility "Invite only" with user selection.
 
-- Grid: Zeilen 56 | 1fr; Spalten 1fr | 340; Hintergrund `#0b0b0c`; keine Sidebar.
-- Header (über beide Spalten, Fläche `#111214`, Padding 0 20): "← Library", Trenner, Spieltitel "Lumen Drift" (15/600), Pill grün "Session geteilt · 1 sieht zu"; rechts Tab-Segment "Session" (aktiv) | "Multiview" | "Diagnostics".
-- Spielfläche: zwei DS-Bildschirme übereinander (je 480 x 360, Platzhalter "oberer DS-Bildschirm" / "unterer Bildschirm · Touch per Maus", unterer gestrichelt umrandet).
-- Seitenleiste 340 (Fläche `#111214`, Padding 24, Gap 20):
-  - "SICHTBARKEIT": Segment "Private" | "Hub users" | "Invite only" (aktiv).
-  - "EINGELADEN · 2" mit Hinweis rechts "nur du kannst ändern"; Liste: "Lena" (grüner Punkt, "sieht zu", Aktion "Entfernen"), "Jonas" (grauer Punkt, "eingeladen · offline", Aktion "Zurückziehen").
-  - Einladungsfeld (Akzentrahmen, Eingabe "Sa", Hinweis rechts "Nutzer dieses Hubs") mit Ergebnisliste: "Sam" ("online"), "Sarah" ("offline · erhält die Einladung, solange die Session läuft"), je Button "Einladen" (Akzent).
-  - Hinweis: "Eingeladene sehen und hören nur. Sie senden keine Eingaben und können nicht weiter einladen."
-  - Unten: "Checkpoint gesichert vor 40 s · Final-Sync bei Pause oder Beenden"; Buttons "Teilen beenden" (Outline), "Spiel beenden und speichern" (Fläche `#1f2024`); einklappbar "▸ Diagnostics einblenden".
-- Offen: Ansichten für Sichtbarkeit "Private" und "Hub users", Verhalten wenn Hub oder Verbindung ausfällt, Kopf-Pill ohne Session unklar.
+- Grid: rows 56 | 1fr; columns 1fr | 340; background `#0b0b0c`; no sidebar.
+- Header (across both columns, surface `#111214`, padding 0 20): "← Library", divider, game title "Lumen Drift" (15/600), green pill "Session shared · 1 watching"; on the right tab segment "Session" (active) | "Multiview" | "Diagnostics".
+- Play area: two DS screens stacked (each 480 x 360, placeholders "upper DS screen" / "lower screen · touch via mouse", lower one with dashed outline).
+- Side panel 340 (surface `#111214`, padding 24, gap 20):
+  - "VISIBILITY": segment "Private" | "Hub users" | "Invite only" (active).
+  - "INVITED · 2" with note on the right "only you can change"; list: "Lena" (green dot, "watching", action "Remove"), "Jonas" (gray dot, "invited · offline", action "Withdraw").
+  - Invite field (accent border, input "Sa", note on the right "users of this Hub") with result list: "Sam" ("online"), "Sarah" ("offline · receives the invite as long as the Session is running"), each with button "Invite" (accent).
+  - Note: "Invitees only watch and listen. They send no input and cannot invite others."
+  - Bottom: "Checkpoint saved 40 s ago · final sync on pause or exit"; buttons "Stop sharing" (outline), "End game and save" (surface `#1f2024`); collapsible "▸ Show diagnostics".
+- Open: views for visibility "Private" and "Hub users", behavior when the Hub or connection fails, header pill without a Session unclear.
 
 ## 3h Player Side-by-Side
-Zeilen 397-438. Multiview, Side-by-Side, Diagnostics ausgeklappt.
+Lines 397-438. Multiview, side-by-side, diagnostics expanded.
 
-- Grid: Zeilen 56 | 1fr | auto; Hintergrund `#0b0b0c`.
-- Header: "← Library", Trenner, Titel "Multiview", Modus-Segment "PiP" | "Side-by-Side" (aktiv); rechts Tab-Segment "Session" | "Multiview" (aktiv) | "Diagnostics" (Akzent-Unterstrich, da ausgeklappt).
-- Mitte: zwei gleich breite Spalten (Gap 2, Hintergrund `#1e1f22` als Trenner); je Spalte: Kopf mit Avatar 28, "{Wer} · {Spiel}", Meta 12 und Ton-Button ("Ton aktiv" Akzent oder "Ton hierher" Outline); darunter zwei Bildschirme (je 360 x 270, Platzhalter "{Label} · oben/unten").
-- Mock (Script, Zeilen 871-878): Surface 1 "Du · Lumen Drift", Meta "lokal", Ton aktiv; Surface 2 "Lena · Harbor Rally", Meta "Session von Lena", Button "Ton hierher".
-- Diagnostics-Mock: "lokal" 60.0 fps · Encoder NVENC · H.264 · 6,0 Mbit/s · Opus 128 kbit/s; "Lena" 59.9 fps · WebRTC direkt · RTT 14 ms · 5,8 Mbit/s · Verlust 0,1 %.
-- Diagnostics-Panel unten (Fläche `#111214`, Rahmen oben): Titel "▾ Diagnostics" + "technische Details · optional"; zwei Spalten, je Teilnehmer Mono-12-Zeile (Name + vier Werte `a` bis `d`).
-- Genau ein Surface hat Ton; Wechsel über "Ton hierher".
+- Grid: rows 56 | 1fr | auto; background `#0b0b0c`.
+- Header: "← Library", divider, title "Multiview", mode segment "PiP" | "Side-by-Side" (active); on the right tab segment "Session" | "Multiview" (active) | "Diagnostics" (accent underline, since expanded).
+- Middle: two equal-width columns (gap 2, background `#1e1f22` as divider); per column: header with avatar 28, "{who} · {game}", meta 12 and audio button ("Audio on" accent or "Audio here" outline); below it two screens (each 360 x 270, placeholders "{label} · top/bottom").
+- Mock (script, lines 871-878): surface 1 "You · Lumen Drift", meta "local", audio on; surface 2 "Lena · Harbor Rally", meta "Session from Lena", button "Audio here".
+- Diagnostics mock: "local" 60.0 fps · encoder NVENC · H.264 · 6.0 Mbit/s · Opus 128 kbit/s; "Lena" 59.9 fps · WebRTC direct · RTT 14 ms · 5.8 Mbit/s · loss 0.1 %.
+- Diagnostics panel at the bottom (surface `#111214`, border top): title "▾ Diagnostics" + "technical details · optional"; two columns, per participant a mono-12 row (name + four values `a` to `d`).
+- Exactly one surface has audio; switching via "Audio here".
 
 ## 3i Player PiP
-Zeilen 444-476. Multiview, Picture-in-Picture.
+Lines 444-476. Multiview, picture-in-picture.
 
-- Layout wie 3h-Header, Modus-Segment mit "PiP" aktiv; Tab "Multiview" aktiv, "Diagnostics" nicht hervorgehoben.
-- Hauptbild: lokale Session, zwei Bildschirme (480 x 360, Platzhalter "lokal · oben/unten") zentriert.
-- PiP-Fenster unten rechts (Abstand 28, Breite 248, Fläche `#16171a`, Radius 10, Padding 8): Kopfzeile grüner Punkt, "Lena · Harbor Rally", rechts "stumm"; zwei Remote-Bildschirme (je 174 hoch, "remote · oben/unten"); Buttons "Tauschen" und "Entfernen" (je 50 %).
-- Offen: Verschieben/Größe des PiP-Fensters, mehrere PiPs, Ton-Steuerung im PiP (nur Status "stumm") nicht gezeichnet.
+- Layout like the 3h header, mode segment with "PiP" active; tab "Multiview" active, "Diagnostics" not highlighted.
+- Main picture: local Session, two screens (480 x 360, placeholders "local · top/bottom") centered.
+- PiP window bottom right (offset 28, width 248, surface `#16171a`, radius 10, padding 8): header row green dot, "Lena · Harbor Rally", on the right "muted"; two remote screens (each 174 high, "remote · top/bottom"); buttons "Swap" and "Remove" (50 % each).
+- Open: moving/resizing the PiP window, multiple PiPs, audio control in the PiP (only status "muted") not drawn.

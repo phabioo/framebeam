@@ -1,7 +1,7 @@
 #pragma once
 
-// In-Process-Fake-FrameBeam-Hub fuer Tests (HTTPS mit Test-Zertifikat aus tests/testdata, oder HTTP).
-// Nur Testcode; Tokens/Credentials sind Dummy-Werte.
+// In-process fake FrameBeam Hub for tests (HTTPS with a test certificate from tests/testdata, or HTTP).
+// Test code only; tokens/credentials are dummy values.
 
 #include <QByteArray>
 #include <QHash>
@@ -17,7 +17,7 @@ class QSslSocket;
 struct FakeRequest {
   QByteArray method;
   QString path;
-  QHash<QString, QByteArray> headers;  // Namen klein
+  QHash<QString, QByteArray> headers;  // names lowercase
   QByteArray body;
 };
 
@@ -26,29 +26,29 @@ class FakeHub : public QTcpServer {
  public:
   enum class Decision { Pending, Approve, Deny, Expire };
 
-  // certName: "a" oder "b" (tests/testdata/test-cert-<x>.pem); leer = HTTP ohne TLS.
+  // certName: "a" or "b" (tests/testdata/test-cert-<x>.pem); empty = HTTP without TLS.
   explicit FakeHub(const QString& certName, QObject* parent = nullptr);
 
   bool start();
-  QString address() const;      // z. B. https://127.0.0.1:PORT
-  QString fingerprint() const;  // Format wie Hub-Settings; leer bei HTTP
+  QString address() const;      // e.g. https://127.0.0.1:PORT
+  QString fingerprint() const;  // same format as hub settings; empty for HTTP
 
-  // Konfiguration
+  // Configuration
   QString hubId = QStringLiteral("hub-test-1");
-  QString name = QStringLiteral("Test-Hub");
+  QString name = QStringLiteral("Test Hub");
   int protocolVersion = 1;
   int minProtocolVersion = 1;
   Decision decision = Decision::Pending;
   bool rateLimitPairing = false;
   bool revoked = false;
   int tokenLifetime = 900;
-  QJsonObject handshakeExtra;      // wird in die Handshake-Antwort gemischt (z. B. problems)
-  QJsonObject games;               // {"games":[...]} (Rohantwort)
-  QMap<QString, QByteArray> roms;  // sha256 -> Inhalt
-  qint64 truncateFirstRomAt = -1;  // erste ROM-Antwort bricht nach so vielen Body-Bytes ab
-  bool ignoreRange = false;        // antwortet immer 200 mit vollem Inhalt
+  QJsonObject handshakeExtra;      // merged into the handshake response (e.g. problems)
+  QJsonObject games;               // {"games":[...]} (raw response)
+  QMap<QString, QByteArray> roms;  // sha256 -> content
+  qint64 truncateFirstRomAt = -1;  // first ROM response aborts after this many body bytes
+  bool ignoreRange = false;        // always responds 200 with the full content
 
-  // Beobachtung
+  // Observation
   QList<FakeRequest> requests;
   int count(const QString& pathPrefix) const;
   int tokenRequests() const { return tokenRequests_; }

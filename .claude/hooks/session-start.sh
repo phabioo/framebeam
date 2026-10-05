@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# SessionStart-Hook (synchron): bereitet Cloud-Sessions vor. Leise, idempotent, blockiert nie.
-# Nur in Remote-Umgebungen aktiv. Installiert Qt 6.4 (apt) fuer den Player; den Core-Build gibt es nur ueber make.
+# SessionStart hook (synchronous): prepares cloud sessions. Quiet, idempotent, never blocks.
+# Only active in remote environments. Installs Qt 6.4 (apt) for the Player; the core build is only available via make.
 [ "${CLAUDE_CODE_REMOTE:-}" = "true" ] || exit 0
 set -uo pipefail
 
@@ -12,18 +12,18 @@ warn() { echo "session-start: $1" >&2; }
 run() {
   local label="$1"; shift
   local log; log="$(mktemp)"
-  "$@" >"$log" 2>&1 || { warn "$label fehlgeschlagen"; tail -n 10 "$log" >&2; }
+  "$@" >"$log" 2>&1 || { warn "$label failed"; tail -n 10 "$log" >&2; }
   rm -f "$log"
 }
 
-run "vcpkg-Bootstrap" "$ROOT/scripts/bootstrap-vcpkg.sh"
+run "vcpkg bootstrap" "$ROOT/scripts/bootstrap-vcpkg.sh"
 if command -v go >/dev/null; then
-  # "go mod download" ohne Argumente laedt alle Module der Build-Liste inkl. Tool-Abhaengigkeiten.
+  # "go mod download" without arguments downloads all modules in the build list, including tool dependencies.
   run "go mod download" bash -c "cd '$ROOT/server' && go mod download"
 else
-  warn "go fehlt"
+  warn "go missing"
 fi
-# Qt-6.4-Pakete (Ubuntu noble) + Xvfb, nur wenn eines fehlt; Core-Build bewusst nicht hier (zu lang).
+# Qt 6.4 packages (Ubuntu noble) + Xvfb, only if one is missing; core build deliberately not here (too long).
 QT_PKGS="qt6-base-dev qt6-declarative-dev qt6-multimedia-dev qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts qml6-module-qtquick-window qml6-module-qtqml-workerscript qml6-module-qtquick-templates libgl-dev libepoxy-dev xvfb"
 missing=0
 for p in $QT_PKGS; do dpkg -s "$p" >/dev/null 2>&1 || missing=1; done
@@ -31,12 +31,12 @@ if [ "$missing" = 1 ]; then
   if command -v apt-get >/dev/null; then
     SUDO=""; [ "$(id -u)" = 0 ] || SUDO="sudo"
     # shellcheck disable=SC2086
-    run "Qt-apt-Pakete" bash -c "$SUDO apt-get update -qq && DEBIAN_FRONTEND=noninteractive $SUDO apt-get install -y -qq $QT_PKGS"
+    run "Qt apt packages" bash -c "$SUDO apt-get update -qq && DEBIAN_FRONTEND=noninteractive $SUDO apt-get install -y -qq $QT_PKGS"
   else
-    warn "apt-get fehlt (Qt nicht installiert)"
+    warn "apt-get missing (Qt not installed)"
   fi
 fi
 for t in cmake ninja; do
-  command -v "$t" >/dev/null || warn "$t fehlt (make check-client nicht lauffaehig)"
+  command -v "$t" >/dev/null || warn "$t missing (make check-client cannot run)"
 done
 exit 0

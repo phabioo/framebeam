@@ -1,40 +1,40 @@
-# ADR 0003: FrameBeam Player in Phase 2
+# ADR 0003: FrameBeam Player in phase 2
 
-- Status: angenommen
-- Datum: 2026-10-05
-- Entscheider: Fabio (Vorschlag des Orchestrators, für den PoC bestätigt am 2026-10-05)
+- Status: accepted
+- Date: 2026-10-05
+- Decided by: Fabio (proposal by the orchestrator, confirmed for the PoC on 2026-10-05)
 
-## Kontext
+## Context
 
-Phase 2 ("Spielbarer Durchstich") baut den FrameBeam Player: Hub-Profil, Pairing, Library, ROM-Cache, `LibretroBackend` mit melonDS DS und minimale Qt-Oberfläche. Die Architektur lässt Toolchain, Core-Beschaffung, Ablage und Credential-Speicher offen oder weicht davon ab. Dieser ADR hält die Festlegungen fest; Fabio hat sie am 2026-10-05 für den PoC angenommen. Die Architekturdokumente bleiben unverändert.
+Phase 2 ("Playable vertical slice") builds the FrameBeam Player: Hub profile, pairing, library, ROM cache, `LibretroBackend` with melonDS DS and a minimal Qt UI. The architecture leaves toolchain, core sourcing, storage and credential store open or deviates from them. This ADR records the decisions; Fabio accepted them for the PoC on 2026-10-05. The architecture documents remain unchanged.
 
-## Entscheidungen
+## Decisions
 
-- **Qt:** Qt >= 6.4, nicht über vcpkg. Linux: apt (6.4.2, Ubuntu noble). Windows: `install-qt-action` (6.8 LTS). Der Code nutzt nur die 6.4-API. Grund: Ein Qt-Build über vcpkg dauert in der CI Stunden, und die Cloud kann vcpkg-Quellen nicht laden. vcpkg bleibt für spätere Pakete.
-- **melonDS DS:** Version v1.4.0, Commit gepinnt (`scripts/melonds-ds.pin`). Linux baut den Core aus Quellen per git (`scripts/fetch-melonds-ds.sh`). Windows nutzt das offizielle Release-Asset `melondsds_libretro-win32-x86_64-Release.zip` mit gepinntem SHA-256 (`scripts/fetch-melonds-ds.ps1`); dessen Build ist MinGW, das Laden per `LoadLibrary` über die C-ABI ist unkritisch. Das Windows-CI-Artefakt `framebeam-player-windows-x64` enthält Player, Qt-Laufzeit, den Core unter `cores/` und den GPL-Hinweis.
-- **Audio:** In Phase 2 über Qt Multimedia. SDL3 kommt mit den Gamepads (Phase 5).
-- **HTTP/TLS:** über QtNetwork. Vertrauen ausschließlich über den Leaf-Fingerprint (SHA-256 über DER, Format wie im Hub), auch bei CA-signierten Zertifikaten. Der Erstkontakt zeigt den Fingerprint und verlangt Bestätigung (Architektur 10; Abweichung zu Mock-up 3b). Eine Abweichung des Fingerprints blockiert die Verbindung. Folge: Ein Zertifikatswechsel (auch Let's Encrypt hinter Reverse Proxy) erfordert, das Profil zu entfernen und neu zu verbinden, bis der bestätigte Pin-Wechsel spezifiziert ist.
-- **Ablage:** `AppDataLocation` (Ersetzt durch ADR 0004.) `profiles.json` und `device.json` enthalten keine Secrets. Die Device-ID wird lokal erzeugt. Hub-spezifische Daten liegen unter `hubs/<hub_id>/`, auch das Save-Verzeichnis des Cores (der Sync folgt in Phase 3). Der ROM-Cache ist inhaltsadressiert und hubübergreifend: `cache/roms/<sha256>.<ext>`. Begründung: Der Inhalt ist per Hash eindeutig, die Dateien enthalten keine hub-zuordenbaren Daten. Der Download läuft in eine `.part`-Datei mit Range-Resume; der Hash wird vor dem atomaren Umbenennen geprüft; ein Sidecar mit Größe und mtime vermeidet erneutes Hashen.
-- **Credentials:** Windows: Credential Manager. Linux/macOS: in Phase 2 nur im Speicher (nicht im PoC-Scope); dort ist nach einem Neustart ein neues Pairing nötig.
-- **Emulation:** `EmulatorBackend` und `LibretroBackend`. Pro Prozess gibt es nur eine Core-Instanz (libretro-Globals). Software-Renderer; Hardware-Rendering ist abgelehnt. Systeme kommen per Manifest (`client/emulation/manifests/nds.json`) inklusive Core-Options-Defaults (`render_mode` software, Layout `top-bottom`, `boot_mode` direct). Für Homebrew ist keine Firmware nötig (FreeBIOS); der Firmware-Pfad folgt in Phase 5. Tests nutzen eine zur Build-Zeit selbst erzeugte Homebrew-Test-ROM, nie eine Datei im Repo.
-- **Pairing-Abbruch:** nur lokal. Die API hat kein Cancel; die Anfrage verfällt nach 10 min (ADR 0002).
+- **Qt:** Qt >= 6.4, not via vcpkg. Linux: apt (6.4.2, Ubuntu noble). Windows: `install-qt-action` (6.8 LTS). The code uses only the 6.4 API. Reason: A Qt build via vcpkg takes hours in CI, and the cloud cannot fetch vcpkg sources. vcpkg remains for later packages.
+- **melonDS DS:** Version v1.4.0, commit pinned (`scripts/melonds-ds.pin`). Linux builds the core from source via git (`scripts/fetch-melonds-ds.sh`). Windows uses the official release asset `melondsds_libretro-win32-x86_64-Release.zip` with a pinned SHA-256 (`scripts/fetch-melonds-ds.ps1`); its build is MinGW, and loading it via `LoadLibrary` over the C ABI is unproblematic. The Windows CI artifact `framebeam-player-windows-x64` contains the Player, the Qt runtime, the core under `cores/` and the GPL notice.
+- **Audio:** In phase 2 via Qt Multimedia. SDL3 arrives with gamepads (phase 5).
+- **HTTP/TLS:** via QtNetwork. Trust exclusively via the leaf fingerprint (SHA-256 over DER, format as in the Hub), also for CA-signed certificates. First contact shows the fingerprint and requires confirmation (architecture 10; deviation from mock-up 3b). A fingerprint mismatch blocks the connection. Consequence: A certificate change (including Let's Encrypt behind a reverse proxy) requires removing the profile and reconnecting until the confirmed pin change is specified.
+- **Storage:** `AppDataLocation` (superseded by ADR 0004). `profiles.json` and `device.json` contain no secrets. The device ID is generated locally. Hub-specific data lives under `hubs/<hub_id>/`, including the core's save directory (sync follows in phase 3). The ROM cache is content-addressed and shared across Hubs: `cache/roms/<sha256>.<ext>`. Rationale: The content is uniquely identified by its hash, and the files contain no data attributable to a Hub. The download goes into a `.part` file with Range resume; the hash is verified before the atomic rename; a sidecar with size and mtime avoids re-hashing.
+- **Credentials:** Windows: Credential Manager. Linux/macOS: in-memory only in phase 2 (not in PoC scope); a new pairing is needed there after a restart.
+- **Emulation:** `EmulatorBackend` and `LibretroBackend`. Only one core instance per process (libretro globals). Software renderer; hardware rendering is rejected. Systems come via manifest (`client/emulation/manifests/nds.json`) including core option defaults (`render_mode` software, layout `top-bottom`, `boot_mode` direct). Homebrew needs no firmware (FreeBIOS); the firmware path follows in phase 5. Tests use a homebrew test ROM generated at build time, never a file in the repository.
+- **Pairing cancel:** local only. The API has no cancel; the request expires after 10 min (ADR 0002).
 
-## Offen
+## Open
 
-- Bestätigter Pin-Wechsel bei Zertifikatserneuerung (wie in ADR 0002).
-- Credential-Store für Linux und macOS (Secret Service bzw. Keychain).
+- Confirmed pin change on certificate renewal (as in ADR 0002).
+- Credential store for Linux and macOS (Secret Service or Keychain, respectively).
 
-## Verworfen
+## Rejected
 
-- **Qt über vcpkg:** Build-Zeit in der CI, Quellen in der Cloud nicht ladbar.
-- **Core für Windows aus Quellen mit MSVC:** Das offizielle MinGW-Release-Asset genügt über die C-ABI.
-- **SDL3-Audio in Phase 2:** kein Gewinn vor den Gamepads; Qt Multimedia reicht.
-- **Hardware-Rendering des Cores:** Software-Renderer ist für den Durchstich ausreichend und einfacher zu testen.
-- **ROM-Cache pro Hub:** Duplikate ohne Nutzen, da der Hash den Inhalt eindeutig bestimmt.
-- **Stilles Übernehmen eines geänderten Zertifikats:** widerspricht den harten Regeln (Abweichung blockiert).
+- **Qt via vcpkg:** CI build time, sources not fetchable in the cloud.
+- **Core for Windows built from source with MSVC:** The official MinGW release asset suffices over the C ABI.
+- **SDL3 audio in phase 2:** no gain before gamepads; Qt Multimedia is enough.
+- **Hardware rendering of the core:** The software renderer is sufficient for the vertical slice and easier to test.
+- **ROM cache per Hub:** Duplicates without benefit, since the hash uniquely determines the content.
+- **Silently accepting a changed certificate:** contradicts the hard rules (a mismatch blocks).
 
-## Folgen
+## Consequences
 
-- Der Player-Code in `client/` folgt diesen Festlegungen; Änderungen nur über einen neuen ADR.
-- Linux/macOS-Player verlieren das Pairing beim Neustart, bis der Credential-Store umgesetzt ist.
-- Zertifikatswechsel am Hub erzwingt Neu-Verbinden.
+- The Player code in `client/` follows these decisions; changes only via a new ADR.
+- Linux/macOS Players lose the pairing on restart until the credential store is implemented.
+- A certificate change at the Hub forces reconnecting.

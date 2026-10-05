@@ -1,18 +1,18 @@
-# Architektur: Überblick und Tech-Stack
+# Architecture: overview and tech stack
 
-Stand: 05.10.2026 · Architekturentwurf 0.1  
-Grundlage: Architekturgespräch „Konzept für Retro Streaming“.
+As of: 2026-10-05 · architecture draft 0.1  
+Basis: architecture discussion "Concept for retro streaming".
 
-## 1. Ziel und Grundprinzip
+## 1. Goal and basic principle
 
-FrameBeam verbindet eine zentrale ROM-Bibliothek und versionierte Spielstände mit lokaler Emulation und dem Teilen laufender Sessions. FrameBeam Player und FrameBeam Hub sollen leicht, leistungsfähig und langfristig unter Windows, Linux und macOS nutzbar sein. Weitere Emulatoren sollen ohne grundlegenden Umbau hinzukommen.
+FrameBeam combines a central ROM library and versioned saves with local emulation and the sharing of running Sessions. FrameBeam Player and FrameBeam Hub are meant to be lightweight, performant and usable long-term on Windows, Linux and macOS. Further emulators should be addable without a fundamental rework.
 
-> **Der Hub verwaltet. Der Player emuliert. Audio und Video laufen möglichst direkt zwischen Playern.**
+> **The Hub manages. The Player emulates. Audio and video flow directly between Players wherever possible.**
 
 ```text
                    FrameBeam Hub
           Library · Saves · Auth · Registry
-          Presence / Session-Metadaten intern
+          Presence / Session metadata internal
                  HTTPS/JSON + WSS
                     /           \
              Player A         Player B
@@ -23,24 +23,24 @@ FrameBeam verbindet eine zentrale ROM-Bibliothek und versionierte Spielstände m
                      Video + Audio
 ```
 
-## 2. Verantwortlichkeiten und Tech-Stack
+## 2. Responsibilities and tech stack
 
-| Bereich | Entscheidung | Aufgabe |
+| Area | Decision | Task |
 |---|---|---|
-| Hub | Go, ohne großes Framework | HTTPS-API, Dateiverwaltung, Authentifizierung, Registry, interne Session-Metadaten und Signaling |
-| Verwaltungsdaten | SQLite | Spiele, ROM-Hashes, Hub-lokale Nutzer, Geräte, Token-Zuordnungen, Save-Versionen, Save-Konflikte und Registry; Session-Metadaten intern |
-| Dateispeicher | Normale Dateien | ROMs, Spielstände und Admin-bereitgestellte Firmware; keine Binärdaten in SQLite |
-| Player | C++23 + CMake | Emulation, Medienverarbeitung, Netzwerk und Anwendungslogik |
-| Oberfläche | Qt 6 + QML | GPU-beschleunigte Library, Settings und mehrere Video-Surfaces |
-| Emulator-Anbindung | `EmulatorBackend` → `LibretroBackend` | Austauschbare Emulator-Cores |
-| Erster Core | melonDS DS über Libretro | Nintendo-DS-Emulation |
-| Input/Audio | SDL3 | Plattformübergreifende Input-/Audio-Schicht, insbesondere Gamepads |
-| Streaming | libdatachannel | WebRTC-Verbindungen zwischen Clients |
-| Medienformate | H.264 + Opus | Video- und Audioübertragung |
-| Windows-Encoding | NVENC / QSV / AMF; Software-H.264 als Fallback | Hardware-Encoding, soweit verfügbar |
+| Hub | Go, without a large framework | HTTPS API, file management, authentication, registry, internal Session metadata and signaling |
+| Management data | SQLite | Games, ROM hashes, Hub-local users, devices, token assignments, save versions, save conflicts and registry; Session metadata internal |
+| File storage | Plain files | ROMs, saves and admin-provided firmware; no binary data in SQLite |
+| Player | C++23 + CMake | Emulation, media processing, networking and application logic |
+| UI | Qt 6 + QML | GPU-accelerated library, settings and multiple video surfaces |
+| Emulator integration | `EmulatorBackend` → `LibretroBackend` | Swappable emulator cores |
+| First core | melonDS DS via Libretro | Nintendo DS emulation |
+| Input/audio | SDL3 | Cross-platform input/audio layer, in particular gamepads |
+| Streaming | libdatachannel | WebRTC connections between clients |
+| Media formats | H.264 + Opus | Video and audio transmission |
+| Windows encoding | NVENC / QSV / AMF; software H.264 as fallback | Hardware encoding where available |
 
-Der Server führt keine Emulation, kein Encoding, kein Decoding und kein Multiview-Rendering aus. Der Client enthält Library-Zugriff, getrennte ROM-/Core-Caches, lokale Emulator-/Controller-Einstellungen, Save-Sync, Session-Manager, Emulator-Backend, Rendering, Audio, Encoder/Decoder und Input.
+The server performs no emulation, no encoding, no decoding and no multiview rendering. The client contains library access, separate ROM/core caches, local emulator/controller settings, save sync, Session manager, emulator backend, rendering, audio, encoder/decoder and input.
 
-Der Hub verwaltet Hub-lokale Benutzer und Geräte-Pairing. Der Player verwaltet lokale Geräteidentität und gespeicherte Hub-Profile; eine verbundene Player-Instanz verwendet genau einen aktiven Hub (siehe Abschnitt 14). Ein zentraler Metadata Service mit Provider-Abstraktion und Artwork-Cache ist ausschließlich als spätere Erweiterung vorgesehen (siehe Abschnitt 15).
+The Hub manages Hub-local users and device pairing. The Player manages the local device identity and stored Hub profiles; a connected Player instance uses exactly one active Hub (see section 14). A central metadata service with a provider abstraction and artwork cache is planned exclusively as a later extension (see section 15).
 
-Der Server wird als einzelner Dienst betrieben, unter Linux beispielsweise über `systemd`, mit SQLite und Daten unter `/var/lib/framebeam/`. Docker ist optional. Node.js, Redis, PostgreSQL und Kubernetes sind für die geplante Basis nicht erforderlich.
+The server runs as a single service, on Linux for example via `systemd`, with SQLite and data under `/var/lib/framebeam/`. Docker is optional. Node.js, Redis, PostgreSQL and Kubernetes are not required for the planned baseline.

@@ -91,8 +91,8 @@ bool LibretroBackend::loadCore(const QString& libraryPath, QString* error) {
     if (error) *error = msg;
     return false;
   };
-  if (m_coreLoaded) return fail(QStringLiteral("Core bereits geladen"));
-  if (s_active) return fail(QStringLiteral("Es ist bereits ein libretro-Core in diesem Prozess geladen"));
+  if (m_coreLoaded) return fail(QStringLiteral("Core already loaded"));
+  if (s_active) return fail(QStringLiteral("A libretro core is already loaded in this process"));
 
   m_lib.setFileName(libraryPath);
   if (!m_lib.load()) return fail(m_lib.errorString());
@@ -120,12 +120,12 @@ bool LibretroBackend::loadCore(const QString& libraryPath, QString* error) {
   sym(a.reset, "retro_reset");
   if (!ok) {
     m_lib.unload();
-    return fail(QStringLiteral("Keine gueltige libretro-Bibliothek (Symbole fehlen)"));
+    return fail(QStringLiteral("Not a valid libretro library (symbols missing)"));
   }
   const unsigned apiVersion = a.api_version();
   if (apiVersion != RETRO_API_VERSION) {
     m_lib.unload();
-    return fail(QStringLiteral("libretro-API-Version %1 nicht unterstuetzt").arg(apiVersion));
+    return fail(QStringLiteral("libretro API version %1 not supported").arg(apiVersion));
   }
 
   s_active = this;
@@ -187,11 +187,11 @@ bool LibretroBackend::loadGame(const QString& path, QString* error) {
     if (error) *error = msg;
     return false;
   };
-  if (!m_coreLoaded) return fail(QStringLiteral("Kein Core geladen"));
+  if (!m_coreLoaded) return fail(QStringLiteral("No core loaded"));
   if (m_gameLoaded) unloadGame();
 
   QFileInfo fi(path);
-  if (!fi.isFile()) return fail(QStringLiteral("Spieldatei nicht gefunden"));
+  if (!fi.isFile()) return fail(QStringLiteral("Game file not found"));
   m_gamePathUtf8 = QDir::toNativeSeparators(fi.absoluteFilePath()).toUtf8();
   m_gameData.clear();
 
@@ -209,7 +209,7 @@ bool LibretroBackend::loadGame(const QString& path, QString* error) {
   m_frame = QImage();
   m_frameCount = 0;
   m_audio.clear();
-  if (!m_api->load_game(&gi)) return fail(QStringLiteral("Core konnte das Spiel nicht laden"));
+  if (!m_api->load_game(&gi)) return fail(QStringLiteral("Core could not load the game"));
 
   retro_system_av_info av{};
   m_api->get_system_av_info(&av);
@@ -288,8 +288,8 @@ bool LibretroBackend::setCoreOption(const QString& key, const QString& value) {
     m_optionsDirty = true;
     return true;
   }
-  if (!m_options.isEmpty()) return false;  // Optionen bekannt, Schluessel nicht dabei
-  m_overrides.insert(key, value);          // vor Registrierung: merken
+  if (!m_options.isEmpty()) return false;  // options known, key not among them
+  m_overrides.insert(key, value);          // before registration: remember
   return true;
 }
 
@@ -332,7 +332,7 @@ void LibretroBackend::registerOptionsV1(const void* definitions) {
 void LibretroBackend::registerOptionsV0(const void* variables) {
   QList<CoreOption> list;
   for (const auto* v = static_cast<const retro_variable*>(variables); v && v->key; ++v) {
-    // "Beschreibung; wert1|wert2|..." - erster Wert ist der Default.
+    // "Description; value1|value2|..." - the first value is the default.
     const QString spec = fromC(v->value);
     const int sep = spec.indexOf(QLatin1Char(';'));
     CoreOption o;
@@ -404,7 +404,7 @@ int16_t LibretroBackend::inputStateCb(unsigned port, unsigned device, unsigned i
 
 void LibretroBackend::handleVideo(const void* data, unsigned width, unsigned height, size_t pitch) {
   if (!data || data == RETRO_HW_FRAME_BUFFER_VALID || width == 0 || height == 0) {
-    ++m_frameCount;  // Duplikat-Frame: letztes Bild bleibt
+    ++m_frameCount;  // duplicate frame: last image stays
     return;
   }
   QImage img(static_cast<int>(width), static_cast<int>(height), QImage::Format_RGB32);
@@ -535,7 +535,7 @@ bool LibretroBackend::handleEnvironment(unsigned rawCmd, void* data) {
     }
     case RETRO_ENVIRONMENT_SET_VARIABLE: {
       const auto* var = static_cast<const retro_variable*>(data);
-      if (!var) return true;  // Abfrage, ob unterstuetzt
+      if (!var) return true;  // query whether supported
       if (!var->key || !var->value) return false;
       QMutexLocker l(&m_optMutex);
       for (CoreOption& o : m_options) {
@@ -553,7 +553,7 @@ bool LibretroBackend::handleEnvironment(unsigned rawCmd, void* data) {
       return true;
     }
 
-    // Bewusst abgelehnt: HW-Render (Software-Renderer), Rumble, Sensoren, VFS, Mikrofon, Netpaket, ...
+    // Deliberately rejected: HW render (software renderer), rumble, sensors, VFS, microphone, netpacket, ...
     default: return false;
   }
 }

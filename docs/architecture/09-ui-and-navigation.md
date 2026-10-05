@@ -1,24 +1,24 @@
-# Architektur: UI und Navigation
+# Architecture: UI and navigation
 
-## 9. Produktbegriffe, Navigation und Darstellung
+## 9. Product terms, navigation and presentation
 
-In der Nutzeroberfläche heißt eine laufende oder geteilte Spielsitzung konsequent **Session**: „Session teilen“, „Session ansehen“ und „Zu Multiview hinzufügen“. **Stream** bezeichnet nur den technischen Übertragungspfad in Diagnostics. Technische Begriffe in Implementierung und Protokoll bleiben zulässig.
+In the user interface, a running or shared game session is consistently called a **Session**: "Share Session", "Watch Session" and "Add to multiview". **Stream** denotes only the technical transmission path in diagnostics. Technical terms in implementation and protocol remain permitted.
 
-Player und Hub unterstützen jeweils eine wählbare **Dark-/Light-Darstellung** mit gemeinsamer Designsprache. Die Auswahl ist in den jeweiligen Settings verfügbar.
+Player and Hub each support a selectable **dark/light presentation** with a common design language. The choice is available in the respective settings.
 
 | FrameBeam Hub | FrameBeam Player |
 |---|---|
 | Library | Library |
-| Saves einschließlich Historie und Konfliktzustand | Emulation |
-| Systeme & Cores | Controllers |
-| Clients (Pending Requests, Trusted/Revoked, Revoke access) | Settings |
-| Benutzer (Admin-kontrollierte User und Onboarding-Invites) | — |
-| Settings | Während des Spiels: laufende Session, Multiview, optional Diagnostics |
+| Saves including history and conflict state | Emulation |
+| Systems & Cores | Controllers |
+| Clients (pending requests, Trusted/Revoked, Revoke access) | Settings |
+| Users (admin-controlled users and onboarding invites) | — |
+| Settings | During play: running Session, multiview, optional diagnostics |
 
-Vor der Hauptnavigation erhält der Player einen **Start-/Connection-Screen** mit gespeicherten Hubs, Verbindungsstatus, „Hub hinzufügen“ und „Verbinden“. Ohne erfolgreiche Verbindung bleibt dieser Screen erreichbar; optionales Auto-Connect zum zuletzt verwendeten Hub führt bei Erfolg direkt zur Library. Ein kompakter Hub-Switcher sowie **Settings → Hubs** bieten Wechsel, Entfernen und Auto-Connect-Einstellung. Es entsteht keine zusätzliche Hauptnavigationsseite. Beim Wechsel werden laufende Sessions zunächst beendet und ausstehende Save-Uploads gesichert beziehungsweise geklärt (siehe Abschnitt 14).
+Before the main navigation, the Player gets a **start/connection screen** with stored Hubs, connection status, "Add Hub" and "Connect". Without a successful connection, this screen remains reachable; optional auto-connect to the last used Hub leads directly to the library on success. A compact Hub switcher as well as **Settings → Hubs** offer switching, removal and the auto-connect setting. No additional main navigation page is created. On switching, running Sessions are ended first and pending save uploads are secured or resolved (see section 14).
 
-Die bestehenden Hub-Seiten bleiben erhalten; Benutzerverwaltung ergänzt sie. Admin verwaltet Library, Benutzer, Clients/Pairings, Systeme/Cores/Firmware und Hub-Einstellungen. Normale User nutzen Library, ihre Saves und Sessions; die sichtbaren Aktionen folgen ihren Berechtigungen. Pending Requests erscheinen auf Clients mit Device Name, Plattform, Player-Version und Allow/Deny. „Allow users to upload games“ liegt in Hub Settings. Firmware required/missing, Pairing-, Zertifikats- und Kompatibilitätsfehler sind handlungsrelevante Zustände und bleiben direkt sichtbar. Spätere Provider-Konfiguration liegt unter **Settings → Metadata**; Metadata-Aktionen liegen direkt im Library-Eintrag (siehe Abschnitt 15).
+The existing Hub pages remain; user management supplements them. The admin manages library, users, clients/pairings, systems/cores/firmware and Hub settings. Normal users use library, their saves and Sessions; the visible actions follow their permissions. Pending requests appear on Clients with device name, platform, Player version and Allow/Deny. "Allow users to upload games" lives in Hub settings. Firmware required/missing, pairing, certificate and compatibility errors are actionable states and remain directly visible. Later provider configuration lives under **Settings → Metadata**; metadata actions live directly in the library entry (see section 15).
 
-Der Hub erhält **keine Sessions-Verwaltungsseite**, kein Live-Sessions-Dashboard und keine Video-Vorschau. Seine Session-Metadaten bleiben intern für Presence, Sichtbarkeit/Berechtigungen und Signaling. Session-Entdeckung, Teilen, Ansehen und Multiview gehören in den Player. Das bestehende Session-Protokoll bleibt dafür erhalten.
+The Hub gets **no Sessions management page**, no live Sessions dashboard and no video preview. Its Session metadata remains internal for presence, visibility/permissions and signaling. Session discovery, sharing, watching and multiview belong in the Player. The existing Session protocol is retained for this.
 
-FPS, Latenz, Encoder, Codec, Bitrate, WebRTC-/Streamingstatistiken und technische Debug-Daten erscheinen ausschließlich in einem optional einblendbaren oder einklappbaren Diagnostics-Bereich. Sie bilden nicht die primäre UX. Handlungsrelevante Zustände wie Downloadbedarf und Save-Konflikte bleiben dagegen unmittelbar sichtbar.
+FPS, latency, encoder, codec, bitrate, WebRTC/streaming statistics and technical debug data appear exclusively in an optionally shown or collapsible diagnostics area. They do not form the primary UX. Actionable states such as download needed and save conflicts, by contrast, remain immediately visible.

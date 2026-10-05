@@ -1,5 +1,5 @@
-// Headless-Test mit echtem melonDS-DS-Core und selbst erzeugter Homebrew-Test-ROM.
-// Ohne FRAMEBEAM_MELONDS_DS_CORE: Rueckgabecode 77 (ctest: SKIP).
+// Headless test with the real melonDS DS core and a self-generated homebrew test ROM.
+// Without FRAMEBEAM_MELONDS_DS_CORE: return code 77 (ctest: SKIP).
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QSignalSpy>
@@ -28,7 +28,7 @@ class CoreTest : public QObject {
   QString m_corePath;
   QTemporaryDir m_dirs;
 
-  // Frame-Hash ueber Pixeldaten (unabhaengig von Zeilenpadding).
+  // Frame hash over pixel data (independent of row padding).
   static QByteArray hashOf(const QImage& img) {
     QCryptographicHash h(QCryptographicHash::Sha256);
     for (int y = 0; y < img.height(); ++y)
@@ -37,13 +37,13 @@ class CoreTest : public QObject {
   }
 
   bool startBackend(LibretroBackend& be, QString* err) {
-    // Verzeichnisse vor loadCore: melonDS DS liest sie schon in retro_set_environment.
+    // Directories before loadCore: melonDS DS already reads them in retro_set_environment.
     be.setSystemDirectory(m_dirs.filePath(QStringLiteral("system")));
     be.setSaveDirectory(m_dirs.filePath(QStringLiteral("save")));
     if (!be.loadCore(m_corePath, err)) return false;
     for (auto it = m_nds.coreOptions.cbegin(); it != m_nds.coreOptions.cend(); ++it)
       if (!be.setCoreOption(it.key(), it.value())) {
-        *err = QStringLiteral("Option abgelehnt: ") + it.key();
+        *err = QStringLiteral("Option rejected: ") + it.key();
         return false;
       }
     return be.loadGame(QStringLiteral(FB_TEST_ROM_PATH), err);
@@ -53,7 +53,7 @@ class CoreTest : public QObject {
     RunResult r;
     for (int i = 0; i < n; ++i) {
       if (!be.runFrame()) {
-        r.error = QStringLiteral("runFrame fehlgeschlagen bei Frame %1").arg(i);
+        r.error = QStringLiteral("runFrame failed at frame %1").arg(i);
         return r;
       }
       r.audioBytes += be.takeAudio().size();
@@ -73,7 +73,7 @@ class CoreTest : public QObject {
     QVERIFY(reg.loadBuiltin());
     m_nds = *reg.find(QStringLiteral("nds"));
     const CoreLocation loc = CoreLocator().locate(m_nds);
-    QVERIFY2(loc.found(), "Core nicht gefunden");
+    QVERIFY2(loc.found(), "Core not found");
     m_corePath = loc.path;
     QCOMPARE(loc.source, QStringLiteral("env"));
   }
@@ -84,7 +84,7 @@ class CoreTest : public QObject {
     be.setSystemDirectory(m_dirs.filePath(QStringLiteral("system")));
     be.setSaveDirectory(m_dirs.filePath(QStringLiteral("save")));
     QVERIFY2(be.loadCore(m_corePath, &err), qPrintable(err));
-    // Zweites Backend im selben Prozess muss sauber scheitern (libretro-Globals).
+    // A second backend in the same process must fail cleanly (libretro globals).
     LibretroBackend other;
     QVERIFY(!other.loadCore(m_corePath, &err));
     QVERIFY(!err.isEmpty());
@@ -94,14 +94,14 @@ class CoreTest : public QObject {
     QVERIFY(!info.version.isEmpty());
     for (const QString& e : m_nds.extensions) QVERIFY(info.extensions.contains(e));
 
-    // melonDS DS registriert seine Core Options erst in retro_load_game.
+    // melonDS DS registers its core options only in retro_load_game.
     QVERIFY(be.coreOptions().isEmpty());
-    QVERIFY(be.setCoreOption(QStringLiteral("melonds_render_mode"), QStringLiteral("software")));  // vorgemerkt
+    QVERIFY(be.setCoreOption(QStringLiteral("melonds_render_mode"), QStringLiteral("software")));  // remembered
     QVERIFY2(be.loadGame(QStringLiteral(FB_TEST_ROM_PATH), &err), qPrintable(err));
     const QList<CoreOption> opts = be.coreOptions();
     QVERIFY(!opts.isEmpty());
     QVERIFY(!be.coreOptionCategories().isEmpty());
-    // Manifest-Defaults muessen echte Core-Optionen mit gueltigem Wert sein (keine erfundenen).
+    // Manifest defaults must be real core options with a valid value (no invented ones).
     for (auto it = m_nds.coreOptions.cbegin(); it != m_nds.coreOptions.cend(); ++it) {
       bool found = false;
       for (const CoreOption& o : opts) {
@@ -112,8 +112,8 @@ class CoreTest : public QObject {
       }
       QVERIFY2(found, qPrintable(it.key()));
     }
-    QVERIFY(!be.setCoreOption(QStringLiteral("melonds_render_mode"), QStringLiteral("gibt-es-nicht")));
-    QVERIFY(!be.setCoreOption(QStringLiteral("erfundene_option"), QStringLiteral("x")));
+    QVERIFY(!be.setCoreOption(QStringLiteral("melonds_render_mode"), QStringLiteral("does-not-exist")));
+    QVERIFY(!be.setCoreOption(QStringLiteral("invented_option"), QStringLiteral("x")));
     be.unloadCore();
   }
 
@@ -132,10 +132,10 @@ class CoreTest : public QObject {
       QVERIFY2(r.error.isEmpty(), qPrintable(r.error));
       QCOMPARE(r.frame.format(), QImage::Format_RGB32);
       QCOMPARE(r.frame.size(), expected);
-      QVERIFY2(r.audioBytes > 0, "keine Audio-Samples");
+      QVERIFY2(r.audioBytes > 0, "no audio samples");
       QCOMPARE(r.audioBytes % 4, 0);
 
-      // Oberer Screen: vier Quadranten; unterer Screen: Backdrop-Farbe Magenta.
+      // Top screen: four quadrants; bottom screen: backdrop color magenta.
       auto near = [&](QPoint p, int rr, int gg, int bb) {
         const QColor c = px(r.frame, p.x(), p.y());
         return qAbs(c.red() - rr) < 24 && qAbs(c.green() - gg) < 24 && qAbs(c.blue() - bb) < 24;
@@ -148,8 +148,8 @@ class CoreTest : public QObject {
 
       if (run == 0) firstHash = r.hash;
       else QCOMPARE(r.hash, firstHash);
-      qInfo() << "frame sha256 (120 Frames):" << r.hash;
-      be.unloadCore();  // zweiter Durchlauf laedt den Core erneut
+      qInfo() << "frame sha256 (120 frames):" << r.hash;
+      be.unloadCore();  // second pass loads the core again
     }
   }
 
@@ -157,7 +157,7 @@ class CoreTest : public QObject {
     LibretroBackend be;
     QString err;
     QVERIFY2(startBackend(be, &err), qPrintable(err));
-    // Touch auf dem unteren Screen (Mitte), Buttons, dann loslassen.
+    // Touch on the bottom screen (center), buttons, then release.
     const QPointF p = m_nds.display.toFrameNormalized(m_nds.display.touchScreenIndex(), {0.5, 0.5});
     be.setPointer(p.x(), p.y(), true);
     be.setJoypadState(0, buttonMask(JoypadButton::A) | buttonMask(JoypadButton::Start));
@@ -210,7 +210,7 @@ class CoreTest : public QObject {
     QCOMPARE(stopped.count(), 1);
     QCOMPARE(runner.state(), EmulationRunner::State::Idle);
 
-    // Fehlerpfad: Spiel existiert nicht.
+    // Error path: game does not exist.
     req.gamePath = m_dirs.filePath(QStringLiteral("nicht_da.nds"));
     runner.start(req);
     QTRY_COMPARE_WITH_TIMEOUT(failed.count(), 1, 20000);
@@ -220,7 +220,7 @@ class CoreTest : public QObject {
 
 int main(int argc, char** argv) {
   if (qEnvironmentVariableIsEmpty("FRAMEBEAM_MELONDS_DS_CORE")) {
-    std::puts("FRAMEBEAM_MELONDS_DS_CORE nicht gesetzt - Test uebersprungen");
+    std::puts("FRAMEBEAM_MELONDS_DS_CORE not set - test skipped");
     return 77;
   }
   QCoreApplication app(argc, argv);

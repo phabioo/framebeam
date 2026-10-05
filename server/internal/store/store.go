@@ -1,4 +1,4 @@
-// Package store öffnet die SQLite-Datenbank (reiner Go-Treiber) und führt eingebettete Migrationen aus.
+// Package store opens the SQLite database (pure Go driver) and runs embedded migrations.
 package store
 
 import (
@@ -10,13 +10,13 @@ import (
 	"strconv"
 	"strings"
 
-	_ "modernc.org/sqlite" // Treiber "sqlite"
+	_ "modernc.org/sqlite" // driver "sqlite"
 )
 
 //go:embed migrations/*.sql
 var migrationsFS embed.FS
 
-// Open öffnet (und erzeugt) die Datenbank unter path mit Foreign Keys und WAL und migriert das Schema.
+// Open opens (and creates) the database at path with foreign keys and WAL and migrates the schema.
 func Open(path string) (*sql.DB, error) {
 	esc := strings.NewReplacer("%", "%25", "?", "%3F", "#", "%23").Replace(path)
 	dsn := "file:" + esc + "?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)"
@@ -24,7 +24,7 @@ func Open(path string) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Eine Verbindung: serialisiert Schreibzugriffe, kein SQLITE_BUSY im Prozess.
+	// Single connection: serializes writes, no SQLITE_BUSY within the process.
 	db.SetMaxOpenConns(1)
 	if err := db.Ping(); err != nil {
 		db.Close()
@@ -37,7 +37,7 @@ func Open(path string) (*sql.DB, error) {
 	return db, nil
 }
 
-// SchemaVersion liefert die aktuell angewendete Schema-Version (0 = leer).
+// SchemaVersion returns the currently applied schema version (0 = empty).
 func SchemaVersion(db *sql.DB) (int, error) {
 	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL)`); err != nil {
 		return 0, err
@@ -49,7 +49,7 @@ func SchemaVersion(db *sql.DB) (int, error) {
 	return int(v.Int64), nil
 }
 
-// Migrate wendet alle noch fehlenden Migrationen (NNNN_name.sql) je in einer Transaktion an.
+// Migrate applies all missing migrations (NNNN_name.sql), each in its own transaction.
 func Migrate(db *sql.DB) error {
 	cur, err := SchemaVersion(db)
 	if err != nil {
@@ -68,7 +68,7 @@ func Migrate(db *sql.DB) error {
 		num, _, ok := strings.Cut(name, "_")
 		v, err := strconv.Atoi(num)
 		if !ok || err != nil {
-			return fmt.Errorf("migration %q: ungültiger Name", name)
+			return fmt.Errorf("migration %q: invalid name", name)
 		}
 		if v <= cur {
 			continue

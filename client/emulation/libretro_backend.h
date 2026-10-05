@@ -1,12 +1,12 @@
 #pragma once
-// LibretroBackend: laedt einen libretro-Core per QLibrary (dlopen/LoadLibrary, kein Link).
+// LibretroBackend: loads a libretro core via QLibrary (dlopen/LoadLibrary, no linking).
 //
-// Einschraenkung: libretro-Cores haben globalen Zustand und ein C-API ohne Instanz-Handle.
-// Pro Prozess darf daher nur EIN LibretroBackend einen Core geladen haben; loadCore() eines
-// zweiten Backends schlaegt mit Fehlermeldung fehl, bis das erste unloadCore() aufgerufen hat.
+// Limitation: libretro cores have global state and a C API without an instance handle.
+// Therefore only ONE LibretroBackend per process may have a core loaded; loadCore() of a
+// second backend fails with an error message until the first has called unloadCore().
 //
-// Hardware-Rendering wird abgelehnt (Cores nutzen den Software-Renderer). Nicht unterstuetzte
-// Environment-Callbacks werden mit false beantwortet.
+// Hardware rendering is rejected (cores use the software renderer). Unsupported
+// environment callbacks are answered with false.
 
 #include <QLibrary>
 #include <QMap>
@@ -53,7 +53,7 @@ class LibretroBackend final : public EmulatorBackend {
   QList<CoreOptionCategory> coreOptionCategories() const override;
   bool setCoreOption(const QString& key, const QString& value) override;
 
-  // Core hat per RETRO_ENVIRONMENT_SHUTDOWN um Beenden gebeten.
+  // The core requested shutdown via RETRO_ENVIRONMENT_SHUTDOWN.
   bool shutdownRequested() const { return m_shutdownRequested; }
 
  private:
@@ -65,7 +65,7 @@ class LibretroBackend final : public EmulatorBackend {
     bool pressed = false;
   };
 
-  // libretro-Callbacks (C-Linkage-kompatibel, ohne Kontext -> statische Instanz).
+  // libretro callbacks (C-linkage compatible, no context -> static instance).
   static bool environmentCb(unsigned cmd, void* data);
   static void videoRefreshCb(const void* data, unsigned width, unsigned height, size_t pitch);
   static void audioSampleCb(int16_t left, int16_t right);
@@ -79,7 +79,7 @@ class LibretroBackend final : public EmulatorBackend {
   void registerOptionsV1(const void* definitions);
   void registerOptionsV0(const void* variables);
   void setOptionVisible(const QString& key, bool visible);
-  QString effectiveValue(const CoreOption& o) const;  // m_optMutex gehalten
+  QString effectiveValue(const CoreOption& o) const;  // m_optMutex held
 
   static LibretroBackend* s_active;
 
@@ -95,7 +95,7 @@ class LibretroBackend final : public EmulatorBackend {
   QByteArray m_systemDir;
   QByteArray m_saveDir;
   QByteArray m_corePathUtf8;
-  QByteArray m_gameData;  // lebt bis unloadGame (Core darf Zeiger halten)
+  QByteArray m_gameData;  // lives until unloadGame (the core may hold pointers)
   QByteArray m_gamePathUtf8;
 
   int m_pixelFormat = 0;  // RETRO_PIXEL_FORMAT_*
@@ -104,14 +104,14 @@ class LibretroBackend final : public EmulatorBackend {
   QByteArray m_audio;
 
   mutable QMutex m_inputMutex;
-  InputState m_input;   // von der UI geschrieben
-  InputState m_polled;  // Kern-Thread, bei input_poll uebernommen
+  InputState m_input;   // written by the UI
+  InputState m_polled;  // core thread, taken over at input_poll
 
   mutable QMutex m_optMutex;
   QList<CoreOption> m_options;
   QList<CoreOptionCategory> m_categories;
-  QMap<QString, QString> m_overrides;  // gewuenschte Werte (auch vor Registrierung)
-  std::map<std::string, std::string> m_varCache;  // stabile Zeiger fuer GET_VARIABLE
+  QMap<QString, QString> m_overrides;  // requested values (also before registration)
+  std::map<std::string, std::string> m_varCache;  // stable pointers for GET_VARIABLE
   bool m_optionsDirty = false;
 };
 

@@ -1,6 +1,6 @@
 #pragma once
-// GameSession: eine lokale Emulationssitzung (EmulationRunner + AudioOutput) fuer die Spielansicht.
-// Haelt den letzten Frame, den Tastaturzustand und das Display-Profil fuer die Touch-Umrechnung.
+// GameSession: a local emulation session (EmulationRunner + AudioOutput) for the game view.
+// Holds the last frame, the keyboard state and the display profile for touch conversion.
 
 #include <QImage>
 #include <QMap>
@@ -20,7 +20,7 @@ namespace framebeam::ui {
 class GameSession : public QObject {
   Q_OBJECT
   QML_ELEMENT
-  QML_UNCREATABLE("Wird vom PlayerController bereitgestellt")
+  QML_UNCREATABLE("Provided by the PlayerController")
   Q_PROPERTY(State state READ state NOTIFY stateChanged)
   Q_PROPERTY(QString title READ title NOTIFY titleChanged)
   Q_PROPERTY(QString errorText READ errorText NOTIFY errorChanged)
@@ -61,9 +61,9 @@ class GameSession : public QObject {
   Q_INVOKABLE void resume();
   Q_INVOKABLE void togglePause();
   Q_INVOKABLE void reset();
-  Q_INVOKABLE void stop();  // blockiert, bis der Core entladen ist
+  Q_INVOKABLE void stop();  // blocks until the core is unloaded
 
-  // Eingabe (UI-Thread). Gibt true zurueck, wenn die Taste belegt ist.
+  // Input (UI thread). Returns true if the key is mapped.
   bool keyEvent(int qtKey, bool pressed);
   void releaseAllKeys();
   void setPointer(const QPointF& frameNormalized, bool pressed);
@@ -73,9 +73,9 @@ class GameSession : public QObject {
   void titleChanged();
   void errorChanged();
   void frameChanged();
-  void started();                       // Core und Spiel laufen
-  void startFailed(const QString& msg);  // vor dem ersten Frame gescheitert
-  void finished();                       // nach stop()
+  void started();                       // core and game are running
+  void startFailed(const QString& msg);  // failed before the first frame
+  void finished();                       // after stop()
 
  private:
   void setState(State s);

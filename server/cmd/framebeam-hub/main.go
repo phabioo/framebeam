@@ -1,7 +1,7 @@
-// Command framebeam-hub ist der FrameBeam Hub.
+// Command framebeam-hub is the FrameBeam Hub.
 //
-//	framebeam-hub [flags]                      Server starten (API + Info-Endpunkt)
-//	framebeam-hub setup-admin -username <name> ersten Admin anlegen (Passwort von stdin)
+//	framebeam-hub [flags]                      start the server (API + info endpoint)
+//	framebeam-hub setup-admin -username <name> create the first admin (password from stdin)
 package main
 
 import (
@@ -41,12 +41,12 @@ func main() {
 		err = runServer(args)
 	}
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Fehler:", err)
+		fmt.Fprintln(os.Stderr, "Error:", err)
 		os.Exit(1)
 	}
 }
 
-// openService öffnet Datenbank und Service im Datenverzeichnis.
+// openService opens the database and service in the data directory.
 func openService(ctx context.Context, cfg *config.Config) (*hub.Service, func(), error) {
 	if err := os.MkdirAll(cfg.DataDir, 0o750); err != nil {
 		return nil, nil, err
@@ -66,19 +66,19 @@ func openService(ctx context.Context, cfg *config.Config) (*hub.Service, func(),
 func runSetupAdmin(args []string, in io.Reader, out io.Writer) error {
 	fs := flag.NewFlagSet("setup-admin", flag.ContinueOnError)
 	cfg := config.Register(fs, os.Getenv)
-	username := fs.String("username", "", "Benutzername des Admins")
+	username := fs.String("username", "", "username of the admin")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if *username == "" {
-		return errors.New("-username fehlt")
+		return errors.New("-username is missing")
 	}
 	if err := cfg.Validate(); err != nil {
 		return err
 	}
 	line, err := bufio.NewReader(in).ReadString('\n')
 	if err != nil && !(errors.Is(err, io.EOF) && line != "") {
-		return errors.New("Passwort von stdin lesen: eine Zeile erwartet")
+		return errors.New("read password from stdin: expected one line")
 	}
 	password := strings.TrimRight(line, "\r\n")
 	ctx := context.Background()
@@ -91,14 +91,14 @@ func runSetupAdmin(args []string, in io.Reader, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(out, "Admin %q angelegt.\n", u.Username)
+	fmt.Fprintf(out, "Admin %q created.\n", u.Username)
 	return nil
 }
 
 func runServer(args []string) error {
 	fs := flag.NewFlagSet("framebeam-hub", flag.ContinueOnError)
 	cfg := config.Register(fs, os.Getenv)
-	showVersion := fs.Bool("version", false, "Version ausgeben und beenden")
+	showVersion := fs.Bool("version", false, "print version and exit")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -119,7 +119,7 @@ func runServer(args []string) error {
 	}
 	defer closeFn()
 	if has, err := svc.HasAdmin(ctx); err == nil && !has {
-		log.Warn("kein Admin vorhanden: 'framebeam-hub setup-admin -username <name>' ausführen oder /setup im Browser auf diesem Rechner öffnen")
+		log.Warn("no admin present: run 'framebeam-hub setup-admin -username <name>' or open /setup in a browser on this machine")
 	}
 
 	webCfg := web.Config{Listen: cfg.Listen, UseTLS: cfg.UseTLS()}
@@ -133,20 +133,20 @@ func runServer(args []string) error {
 			cert, err = tlsutil.EnsureSelfSigned(cfg.DataDir)
 		}
 		if err != nil {
-			return fmt.Errorf("TLS-Zertifikat: %w", err)
+			return fmt.Errorf("TLS certificate: %w", err)
 		}
 		tlsConf = &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}
 		webCfg.CertFingerprint = tlsutil.Fingerprint(cert)
-		webCfg.CertSource = "Selbst erzeugt"
+		webCfg.CertSource = "Self-generated"
 		if cfg.TLSCert != "" {
-			webCfg.CertSource = "Eigenes cert/key"
+			webCfg.CertSource = "Own cert/key"
 		}
 		if leaf, err := x509.ParseCertificate(cert.Certificate[0]); err == nil {
 			webCfg.CertNotAfter = leaf.NotAfter
 		}
-		log.Info("TLS-Zertifikat", "sha256_fingerprint", webCfg.CertFingerprint)
+		log.Info("TLS certificate", "sha256_fingerprint", webCfg.CertFingerprint)
 	} else {
-		log.Warn("Entwicklungsmodus: HTTP ohne TLS", "loopback", cfg.ListenIsLoopback())
+		log.Warn("Development mode: HTTP without TLS", "loopback", cfg.ListenIsLoopback())
 	}
 
 	webSrv, err := web.New(svc, webCfg, log)
@@ -169,7 +169,7 @@ func runServer(args []string) error {
 		return err
 	}
 	info := svc.Info()
-	log.Info("FrameBeam Hub gestartet", "version", version.String(), "hub_id", info.HubID, "name", info.Name,
+	log.Info("FrameBeam Hub started", "version", version.String(), "hub_id", info.HubID, "name", info.Name,
 		"listen", ln.Addr().String(), "tls", cfg.UseTLS(), "protocol_version", info.ProtocolVersion)
 
 	go svc.RunCleanup(ctx, time.Minute, func(err error) { log.Error("cleanup", "err", err) })
@@ -187,7 +187,7 @@ func runServer(args []string) error {
 		return err
 	case <-ctx.Done():
 	}
-	log.Info("Beende FrameBeam Hub")
+	log.Info("Shutting down FrameBeam Hub")
 	shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(shutCtx); err != nil {

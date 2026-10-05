@@ -41,7 +41,7 @@ class RomCacheTest : public QObject {
     QString path;
     QVERIFY(c.lookup(sha, QStringLiteral("nds"), rom.size(), &path));
     QVERIFY(QFile::exists(path + QStringLiteral(".ok")));
-    QVERIFY(!c.lookup(sha, QStringLiteral("nds"), rom.size() + 1));  // falsche Groesse: verworfen
+    QVERIFY(!c.lookup(sha, QStringLiteral("nds"), rom.size() + 1));  // wrong size: discarded
     QVERIFY(!QFile::exists(path));
   }
 
@@ -49,7 +49,7 @@ class RomCacheTest : public QObject {
     QTemporaryDir dir;
     RomCache c(dir.path());
     const QString sha = shaOf(dummyRom());
-    writeFile(c.partPath(sha, QStringLiteral("nds")), QByteArray("falsch"));
+    writeFile(c.partPath(sha, QStringLiteral("nds")), QByteArray("wrong"));
     QVERIFY(c.verifyAndCommit(sha, QStringLiteral("nds")) == RomCache::CommitResult::HashMismatch);
     QVERIFY(!QFile::exists(c.partPath(sha, QStringLiteral("nds"))));
     QVERIFY(!QFile::exists(c.finalPath(sha, QStringLiteral("nds"))));
@@ -60,7 +60,7 @@ class RomCacheTest : public QObject {
     RomCache c(dir.path());
     const QByteArray rom = dummyRom();
     const QString sha = shaOf(rom);
-    writeFile(c.finalPath(sha, QStringLiteral("nds")), QByteArray(rom.size(), 'y'));  // gleiche Groesse, falscher Inhalt
+    writeFile(c.finalPath(sha, QStringLiteral("nds")), QByteArray(rom.size(), 'y'));  // same size, wrong content
     QVERIFY(!c.lookup(sha, QStringLiteral("nds"), rom.size()));
     QVERIFY(!QFile::exists(c.finalPath(sha, QStringLiteral("nds"))));
   }

@@ -1,40 +1,40 @@
-# Architektur: Emulation, Cores, Einstellungen
+# Architecture: emulation, cores, settings
 
-## 6. Erweiterbarkeit für weitere Emulatoren
+## 6. Extensibility for further emulators
 
-FrameBeam wird nicht direkt an melonDS gekoppelt. Die gemeinsame Emulator-Schnittstelle trennt Anwendungslogik und UI vom jeweiligen Backend:
+FrameBeam is not coupled directly to melonDS. The common emulator interface separates application logic and UI from the respective backend:
 
 ```text
 FrameBeam → EmulatorBackend
               ├── LibretroBackend
               │      ├── melonDS DS  [PoC]
-              │      ├── mGBA        [später möglich]
-              │      └── Snes9x      [später möglich]
-              └── StandaloneBackend [spätere Option]
+              │      ├── mGBA        [possible later]
+              │      └── Snes9x      [possible later]
+              └── StandaloneBackend [later option]
 ```
 
-Systeme und Cores werden datengetrieben über Manifeste beschrieben, statt konsolenspezifische Startlogik in der Anwendung zu verteilen. Ein NDS-Manifest enthält beispielsweise System-ID `nds`, Core-Zuordnung `melonds_ds`, Dateiendung `.nds`, BIOS-/Firmware-Angaben, Input-Profil `nds` und Display-Profil `dual_screen`.
+Systems and cores are described data-driven via manifests instead of spreading console-specific launch logic through the application. An NDS manifest contains, for example, system ID `nds`, core assignment `melonds_ds`, file extension `.nds`, BIOS/firmware details, input profile `nds` and display profile `dual_screen`.
 
-Neue Libretro-Systeme sollen im Regelfall durch Core, Manifest und passende Profile hinzukommen. Zusätzliche Backend-Arbeit bleibt möglich, wenn ein Emulator besondere Anforderungen hat. Konkrete BIOS-/Firmware-Anforderungen werden je System/Core im Manifest beschrieben. Für den PoC wird melonDS DS mit dem Windows-Player ausgeliefert; automatische Core-Verteilung über den Hub folgt später.
+New Libretro systems should generally be added through core, manifest and matching profiles. Additional backend work remains possible if an emulator has special requirements. Concrete BIOS/firmware requirements are described per system/core in the manifest. For the PoC, melonDS DS ships with the Windows Player; automatic core distribution via the Hub follows later.
 
-### BIOS/Firmware über den Hub [PoC]
+### BIOS/firmware via the Hub [PoC]
 
-BIOS/Firmware wird zentral durch den **Admin** bereitgestellt und einem System/Core zugeordnet. FrameBeam liefert proprietäre BIOS-/Firmware-Dateien nicht automatisch mit und lädt sie nicht eigenständig aus dem Internet. Normale User verwalten diese Dateien nicht.
+BIOS/firmware is provided centrally by the **admin** and assigned to a system/core. FrameBeam does not automatically ship proprietary BIOS/firmware files and does not download them from the internet on its own. Normal users do not manage these files.
 
-Der Hub validiert erwartete Metadaten und Hashes gemäß System-/Core-Anforderungen und liefert benötigte, bereitgestellte Dateien an autorisierte Player aus. Der Player validiert und cached sie lokal, getrennt von ROMs und Cores. Benötigt ein Core eine nicht verfügbare Datei, zeigt er klar **„Firmware required/missing“** und verhindert den betroffenen Start. Cores ohne BIOS-/Firmware-Bedarf funktionieren ohne diesen Pfad. Die konkreten Anforderungen des PoC-Cores und Manifest-/Dateiformate bleiben zu spezifizieren; der Bereitstellungs- und Fehlerpfad gehört zum PoC.
+The Hub validates expected metadata and hashes according to system/core requirements and delivers required, provided files to authorized Players. The Player validates and caches them locally, separate from ROMs and cores. If a core needs an unavailable file, it clearly shows **"Firmware required/missing"** and prevents the affected launch. Cores without BIOS/firmware needs work without this path. The concrete requirements of the PoC core and manifest/file formats remain to be specified; the provisioning and error path is part of the PoC.
 
 
-## 10. Systeme & Cores: Registry und spätere Paketbereitstellung
+## 10. Systems & Cores: registry and later package provisioning
 
-Die Hub-Seite **„Systeme & Cores“** bleibt erhalten. Sie verwaltet die System Registry und Core Registry: System-ID, zugeordnete beziehungsweise bevorzugte Cores, Core-ID, erwartete Version und unterstützte Plattformen. Der Hub führt Cores niemals aus.
+The Hub page **"Systems & Cores"** is retained. It manages the system registry and core registry: system ID, assigned or preferred cores, core ID, expected version and supported platforms. The Hub never runs cores.
 
-Für FrameBeam 0.1 gilt: `nds → melonds_ds`; melonDS DS ist Bestandteil des Windows-Players. Der Player meldet Plattform und verfügbare Core-Versionen, damit die Kompatibilität geprüft werden kann. Eine fehlende oder unpassende Core-Version wird sichtbar gemeldet; der PoC enthält keinen automatischen Core-Paketmanager.
+For FrameBeam 0.1: `nds → melonds_ds`; melonDS DS is part of the Windows Player. The Player reports platform and available core versions so that compatibility can be checked. A missing or unsuitable core version is reported visibly; the PoC contains no automatic core package manager.
 
-Später kommt ein **Core Package Cache** auf dem Hub hinzu. Registrierte Pakete enthalten Core-ID, Version, Plattform/Architektur, SHA-256 und Herkunft sowie die für die Verteilung erforderlichen Lizenzinformationen. Für die spätere automatische Core-Verteilung sind außerdem Paket-Signaturen beziehungsweise vertrauenswürdige Manifestquellen vorzusehen; SHA-256 allein bestätigt keine vertrauenswürdige Herkunft. Diese Vertrauensprüfung erweitert den PoC nicht. „Auf Hub gecacht“ bezeichnet ein gespeichertes Paket, keine dort installierte oder ausgeführte Emulation.
+Later, a **core package cache** is added on the Hub. Registered packages contain core ID, version, platform/architecture, SHA-256 and origin as well as the licence information required for distribution. For later automatic core distribution, package signatures or trusted manifest sources are also to be provided; SHA-256 alone does not confirm a trustworthy origin. This trust check does not extend the PoC. "Cached on Hub" denotes a stored package, not an emulation installed or run there.
 
-Der spätere Ablauf ist: Player fragt den vorgesehenen Core an → Hub liefert Paketmetadaten → Player prüft lokale Version, Plattform und Hash → Download nur bei Bedarf → Hash-/Versionsprüfung → Aufnahme in den lokalen Core-Cache → lokale Ausführung. Mehrere Versionen können parallel gecacht werden; eine spätere versionsgebundene Spielzuordnung bleibt möglich.
+The later flow is: Player requests the intended core → Hub delivers package metadata → Player checks local version, platform and hash → download only if needed → hash/version check → inclusion in the local core cache → local execution. Multiple versions can be cached in parallel; a later version-bound game assignment remains possible.
 
-ROM-Cache und Core-Cache bleiben getrennt, beispielsweise:
+ROM cache and core cache remain separate, for example:
 
 ```text
 Player Data/cache/
@@ -42,36 +42,36 @@ Player Data/cache/
 └── cores/<core-id>/<version>/<platform>/
 ```
 
-### Sichtbare Cache- und Bereitschaftszustände
+### Visible cache and readiness states
 
-Library und Emulation zeigen verständliche Zustände für die jeweils benötigte ROM beziehungsweise den Core. Verfügbarkeit, Transfer und Validierung werden getrennt erfasst, damit ein Paket zugleich auf dem Hub vorhanden und lokal fehlerhaft sein kann.
+Library and emulation show understandable states for the respective ROM or core needed. Availability, transfer and validation are tracked separately so that a package can be present on the Hub and faulty locally at the same time.
 
-| Zustand | Bedeutung / UI-Aktion |
+| State | Meaning / UI action |
 |---|---|
-| Lokal gecacht / bereit | Lokale Datei ist vorhanden und validiert; im PoC kann der Core auch mitgeliefert sein |
-| Nur auf Hub vorhanden | ROM oder späteres Core-Paket liegt auf dem Hub, lokal fehlt es |
-| Download nötig | Benötigte lokale Datei fehlt; Download anbieten beziehungsweise beim Start auslösen |
-| Download läuft / fehlgeschlagen | Fortschritt beziehungsweise verständlicher Fehler mit Wiederholungsmöglichkeit |
-| Hash mismatch | Lokale Datei stimmt nicht mit dem erwarteten SHA-256 überein; nicht verwenden, erneut beziehen |
-| Version mismatch | Core-Version entspricht nicht der vorgesehenen Version; passende Version erforderlich |
-| Core nicht verfügbar / inkompatibel | Kein passender Core für die Player-Plattform; Start nicht möglich |
+| Cached locally / ready | Local file is present and validated; in the PoC the core may also be bundled |
+| Only on Hub | ROM or later core package is on the Hub, missing locally |
+| Download required | Required local file is missing; offer download or trigger it on launch |
+| Download running / failed | Progress or an understandable error with a retry option |
+| Hash mismatch | Local file does not match the expected SHA-256; do not use, fetch again |
+| Version mismatch | Core version does not match the intended version; matching version required |
+| Core unavailable / incompatible | No matching core for the Player platform; launch not possible |
 
-Der Status ist auf das jeweilige Gerät und Artefakt bezogen. Die Hub-Registry kann gemeldete Client-Kompatibilität anzeigen; sie suggeriert keine Core-Ausführung auf dem Hub. Vollständige Hashes und weitere technische Details können in einer Detailansicht liegen.
+The status refers to the respective device and artifact. The Hub registry can display reported client compatibility; it does not imply core execution on the Hub. Full hashes and further technical details can live in a detail view.
 
-## 11. Emulation und Einstellungs-Hierarchie im Player
+## 11. Emulation and settings hierarchy in the Player
 
-Der Player erhält eine eigene Seite **„Emulation“** mit Systemen, verfügbaren Cores, Version und Bereitschaftszustand sowie deren Konfiguration. Sie umfasst allgemeine, Grafik-, Audio- und core-spezifische Optionen, soweit der jeweilige Core sie unterstützt.
+The Player gets its own **"Emulation"** page with systems, available cores, version and readiness state as well as their configuration. It covers general, graphics, audio and core-specific options, as far as the respective core supports them.
 
-FrameBeam-eigene Optionen wie Vollbild, UI-Skalierung, Präsentation und Multiview-Layout bleiben von Emulator-Optionen wie interner Auflösung, Renderer und core-spezifischer Audioverarbeitung unterscheidbar.
+FrameBeam's own options such as fullscreen, UI scaling, presentation and multiview layout remain distinguishable from emulator options such as internal resolution, renderer and core-specific audio processing.
 
-Core-Einstellungen sollen möglichst **dynamisch aus Libretro Core Options** erzeugt werden. Gemeldete Kategorien, Beschreibungen, zulässige Werte und Defaults dienen als Grundlage. Enumerierte Optionen erscheinen als Auswahlfelder; Toggle, Zahlenfeld, Slider oder Dateiauswahl werden nur verwendet, wenn passende Typ-/Validierungsinformationen vorliegen. Libretro-Optionen liefern nicht automatisch für jede Option ein freies Zahlen- oder Pfadfeld. Zusätzliche FrameBeam-Metadaten oder Backend-Adapter können die Darstellung ergänzen. Nicht unterstützte Optionen werden nicht erfunden; nötige Neustarts beziehungsweise verzögerte Wirksamkeit sind kenntlich zu machen.
+Core settings should be generated **dynamically from Libretro core options** wherever possible. Reported categories, descriptions, permitted values and defaults serve as the basis. Enumerated options appear as selection fields; toggle, number field, slider or file picker are used only when suitable type/validation information is available. Libretro options do not automatically provide a free number or path field for every option. Additional FrameBeam metadata or backend adapters can supplement the presentation. Unsupported options are not invented; necessary restarts or delayed effect must be indicated.
 
-Die Konfiguration sieht folgende Hierarchie vor:
+The configuration provides the following hierarchy:
 
 ```text
-Global → System/Core → Game Override
+Global → system/core → game override
 ```
 
-Eine spezifischere Ebene überschreibt nur explizit gesetzte Werte. Nicht gesetzte Werte werden geerbt; das Entfernen eines Overrides stellt die Vererbung wieder her. Das Datenmodell speichert deshalb partielle Overrides mit System-/Core- beziehungsweise Game-Zuordnung statt vollständiger Konfigurationskopien. Die UI soll Herkunft und wirksamen Wert erkennbar machen. Globale Vorgaben gelten nur, soweit der ausgewählte Core sie unterstützt; core-spezifische Optionsschlüssel bleiben dem Core zugeordnet.
+A more specific level overrides only explicitly set values. Unset values are inherited; removing an override restores inheritance. The data model therefore stores partial overrides with system/core or game assignment instead of complete configuration copies. The UI should make the origin and effective value recognizable. Global defaults apply only as far as the selected core supports them; core-specific option keys remain assigned to the core.
 
-Im PoC bleiben Emulations-Einstellungen lokal. Die Hierarchie wird konzeptionell und im Datenmodell vorbereitet; eine vollständige Game-Override-UI ist keine Voraussetzung für den PoC. Eine optionale spätere Synchronisierung von Emulations-Einstellungen über den Hub ist offen.
+In the PoC, emulation settings remain local. The hierarchy is prepared conceptually and in the data model; a complete game-override UI is not a prerequisite for the PoC. An optional later synchronization of emulation settings via the Hub is open.

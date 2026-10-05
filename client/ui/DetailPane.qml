@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import FrameBeam.Player
 
-// Detailspalte (3c) fuer das ausgewaehlte Spiel.
+// Detail pane (3c) for the selected game.
 Rectangle {
     id: root
     required property PlayerController player
@@ -23,7 +23,7 @@ Rectangle {
     FbLabel {
         visible: !root.hasGame
         anchors.centerIn: parent
-        text: qsTr("Wähle ein Spiel aus der Library.")
+        text: qsTr("Select a game from the Library.")
         color: Theme.textFaint
         font.pixelSize: 13
     }
@@ -84,7 +84,7 @@ Rectangle {
                     }
                 }
 
-                // Zustandstabelle
+                // Status table
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 0
@@ -136,7 +136,7 @@ Rectangle {
                 FbButton {
                     objectName: "detailsToggle"
                     kind: "link"
-                    text: root.showDetails ? qsTr("Details ausblenden") : qsTr("Details anzeigen (Hash, Größe, Pfad)")
+                    text: root.showDetails ? qsTr("Hide details") : qsTr("Show details (hash, size, path)")
                     onClicked: root.showDetails = !root.showDetails
                 }
                 ColumnLayout {
@@ -145,13 +145,13 @@ Rectangle {
                     spacing: 6
                     Eyebrow { text: qsTr("SHA-256") }
                     FbMono { Layout.fillWidth: true; text: root.game.sha || ""; color: Theme.text; wrapMode: Text.WrapAnywhere; font.pixelSize: 11 }
-                    Eyebrow { text: qsTr("Größe"); Layout.topMargin: 4 }
+                    Eyebrow { text: qsTr("Size"); Layout.topMargin: 4 }
                     FbMono { Layout.fillWidth: true; text: root.game.sizeText || ""; color: Theme.text; font.pixelSize: 11 }
-                    Eyebrow { text: qsTr("Cache-Pfad"); Layout.topMargin: 4 }
+                    Eyebrow { text: qsTr("Cache path"); Layout.topMargin: 4 }
                     FbMono { Layout.fillWidth: true; text: root.game.cachePath || ""; color: Theme.text; wrapMode: Text.WrapAnywhere; font.pixelSize: 11 }
                 }
 
-                // Start-Checkliste
+                // Start checklist
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 10
@@ -217,7 +217,7 @@ Rectangle {
             implicitHeight: 48
             kind: "primary"
             font.pixelSize: 15
-            text: root.game.playLabel || qsTr("Spielen")
+            text: root.game.playLabel || qsTr("Play")
             enabled: root.game.canPlay === true
             onClicked: root.player.playSelected()
         }

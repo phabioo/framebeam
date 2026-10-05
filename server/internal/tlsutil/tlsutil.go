@@ -1,4 +1,4 @@
-// Package tlsutil erzeugt und lädt das TLS-Zertifikat des Hub.
+// Package tlsutil creates and loads the hub's TLS certificate.
 package tlsutil
 
 import (
@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-// Fingerprint liefert den SHA-256-Fingerprint des Leaf-Zertifikats (hex, Doppelpunkte, Großbuchstaben).
+// Fingerprint returns the SHA-256 fingerprint of the leaf certificate (hex, colons, uppercase).
 func Fingerprint(cert tls.Certificate) string {
 	if len(cert.Certificate) == 0 {
 		return ""
@@ -35,13 +35,13 @@ func Fingerprint(cert tls.Certificate) string {
 	return strings.Join(parts, ":")
 }
 
-// Load lädt ein Zertifikat/Schlüssel-Paar (PEM).
+// Load loads a certificate/key pair (PEM).
 func Load(certFile, keyFile string) (tls.Certificate, error) {
 	return tls.LoadX509KeyPair(certFile, keyFile)
 }
 
-// EnsureSelfSigned lädt <dataDir>/tls/cert.pem und key.pem oder erzeugt beim ersten Start ein
-// selbstsigniertes ECDSA-P-256-Zertifikat (SANs: Hostname, localhost, 127.0.0.1, ::1, lokale IPs).
+// EnsureSelfSigned loads <dataDir>/tls/cert.pem and key.pem or, on first start, creates a
+// self-signed ECDSA P-256 certificate (SANs: hostname, localhost, 127.0.0.1, ::1, local IPs).
 func EnsureSelfSigned(dataDir string) (tls.Certificate, error) {
 	dir := filepath.Join(dataDir, "tls")
 	certFile, keyFile := filepath.Join(dir, "cert.pem"), filepath.Join(dir, "key.pem")
@@ -88,10 +88,10 @@ func EnsureSelfSigned(dataDir string) (tls.Certificate, error) {
 		return tls.Certificate{}, err
 	}
 	if err := os.WriteFile(keyFile, pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER}), 0o600); err != nil {
-		return tls.Certificate{}, fmt.Errorf("tls key schreiben: %w", err)
+		return tls.Certificate{}, fmt.Errorf("write tls key: %w", err)
 	}
 	if err := os.WriteFile(certFile, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), 0o644); err != nil {
-		return tls.Certificate{}, fmt.Errorf("tls cert schreiben: %w", err)
+		return tls.Certificate{}, fmt.Errorf("write tls cert: %w", err)
 	}
 	return Load(certFile, keyFile)
 }

@@ -1,33 +1,33 @@
-# Architektur: Protokolle, Handshake, ROM-Cache
+# Architecture: protocols, handshake, ROM cache
 
-## 3. Protokolle und Datenflüsse
+## 3. Protocols and data flows
 
-Die API wird unter `/api/v1/...` versioniert. Zusätzlich existiert eine eigenständige `protocol_version`, getrennt von Player- und Hub-Produktversion. Kompatibilität richtet sich primär nach der unterstützten Protokollversion, nicht nach exakt gleichen Produktversionen. Eine komplexe RPC-Schicht oder gRPC ist nicht vorgesehen.
+The API is versioned under `/api/v1/...`. In addition there is a standalone `protocol_version`, separate from the Player and Hub product versions. Compatibility is determined primarily by the supported protocol version, not by identical product versions. A complex RPC layer or gRPC is not planned.
 
-| Verbindung | Inhalt |
+| Connection | Content |
 |---|---|
-| Client ↔ Server: HTTPS/JSON | Library und Metadaten, ROM-Download, Save-Download/-Upload, Geräte und Sessions |
-| Client ↔ Server: WSS | Presence, Session-Updates und WebRTC-Signaling |
-| Client ↔ Client: WebRTC | H.264-Video und Opus-Audio; DataChannel gegebenenfalls später |
+| Client ↔ server: HTTPS/JSON | Library and metadata, ROM download, save download/upload, devices and Sessions |
+| Client ↔ server: WSS | Presence, Session updates and WebRTC signaling |
+| Client ↔ client: WebRTC | H.264 video and Opus audio; DataChannel possibly later |
 
-Vorgesehene API-Bereiche: `/games`, `/roms`, `/saves`, `/devices` und `/sessions` unter dem versionierten Präfix. Hinzu kommen ein öffentlicher FrameBeam-Info-Endpunkt zur Hub-Identifikation sowie API-Bereiche für Pairing und Token-Widerruf (siehe Abschnitt 14). Exakte Endpunkte und Nachrichtenformate sind noch zu spezifizieren.
+Planned API areas: `/games`, `/roms`, `/saves`, `/devices` and `/sessions` under the versioned prefix. In addition there is a public FrameBeam info endpoint for Hub identification as well as API areas for pairing and token revocation (see section 14). Exact endpoints and message formats are still to be specified.
 
-### Protocol Handshake und Capability Negotiation [PoC]
+### Protocol handshake and capability negotiation [PoC]
 
-Beim Connect meldet der Player mindestens `platform`, `arch`, Player-Version, `protocol_version`, verfügbare Core-IDs und Core-Versionen, H.264-Encode-/Decode-Fähigkeit und verfügbare Encoder, Opus-Fähigkeit sowie Input-Capabilities. Der Hub antwortet mit Hub-Version, `protocol_version` und Kompatibilitätsstatus. Der Handshake ersetzt keine Authentifizierung oder Gerätefreigabe.
+On connect, the Player reports at least `platform`, `arch`, Player version, `protocol_version`, available core IDs and core versions, H.264 encode/decode capability and available encoders, Opus capability and input capabilities. The Hub replies with Hub version, `protocol_version` and compatibility status. The handshake does not replace authentication or device approval.
 
-Unterschiedliche Produktversionen dürfen bei kompatiblem Protokoll zusammenarbeiten. Klare Fehlerzustände unterscheiden „Player zu alt“, „Hub zu alt“, „Core fehlt“, „Core-Version mismatch“ und „Codec/Capability fehlt“. Fehlende Fähigkeiten sperren den betroffenen Start- oder Streamingpfad; genaue Kompatibilitätsregeln und Nachrichtenformate bleiben zu spezifizieren.
+Different product versions may work together given a compatible protocol. Clear error states distinguish "Player too old", "Hub too old", "core missing", "core version mismatch" and "codec/capability missing". Missing capabilities block the affected launch or streaming path; exact compatibility rules and message formats remain to be specified.
 
-### Spielstart und ROM-Cache
+### Game launch and ROM cache
 
-1. Der Player verbindet sich mit dem ausgewählten Hub und authentifiziert sich mit einem kurzlebigen Access Token seines autorisierten Geräts und führt den Handshake aus. Er lädt die Library-Daten einschließlich Spielbezeichnung, ROM-Größe und SHA-256. Externe Spielmetadaten und Boxart sind im PoC nicht erforderlich.
-2. Er prüft, ob die ROM mit diesem Hash bereits im lokalen Cache liegt.
-3. Bei einem validierten Treffer verwendet er die lokale Datei; andernfalls lädt er die ROM herunter, prüft SHA-256 und legt sie erst nach erfolgreicher Prüfung im Cache ab.
-4. Er prüft Core-Kompatibilität und benötigte Firmware, lädt und validiert bei Bedarf vom Admin bereitgestellte Firmware (siehe Abschnitt 6). Er lädt den aktuellen Spielstand und startet den Emulator mit lokalen Dateien.
+1. The Player connects to the selected Hub, authenticates with a short-lived access token of its authorized device and performs the handshake. It loads the library data including game title, ROM size and SHA-256. External game metadata and box art are not required in the PoC.
+2. It checks whether the ROM with this hash is already in the local cache.
+3. On a validated hit it uses the local file; otherwise it downloads the ROM, verifies SHA-256 and places it in the cache only after successful verification.
+4. It checks core compatibility and required firmware, and if necessary downloads and validates admin-provided firmware (see section 6). It loads the current save and starts the emulator with local files.
 
 ```text
-Server-Metadaten → Cache-Prüfung → ggf. ROM-Download → lokale Emulation
-Server-Spielstand ────────────────────────────────────┘
+Server metadata → cache check → ROM download if needed → local emulation
+Server save ──────────────────────────────────────────┘
 ```
 
-ROMs werden nicht während der Emulation über ein Netzwerk-Dateisystem gelesen. Wiederholte Starts einer gecachten ROM benötigen keinen erneuten ROM-Transfer. Cache-Limit, Bereinigung und Download-Fehlerbehandlung sind noch festzulegen.
+ROMs are not read over a network file system during emulation. Repeated launches of a cached ROM need no further ROM transfer. Cache limit, cleanup and download error handling are still to be defined.

@@ -1,5 +1,5 @@
-// Package hubtest stellt Test-Hilfen bereit: temporäres Datenverzeichnis, schnelle Argon2-Parameter,
-// injizierbare Uhr. Nur für Tests.
+// Package hubtest provides test helpers: temporary data directory, fast Argon2 parameters,
+// injectable clock. For tests only.
 package hubtest
 
 import (
@@ -14,19 +14,19 @@ import (
 	"github.com/phabioo/framebeam/server/internal/store"
 )
 
-// Clock ist eine steuerbare Uhr.
+// Clock is a controllable clock.
 type Clock struct {
 	mu sync.Mutex
 	t  time.Time
 }
 
-// Now liefert die aktuelle Testzeit.
+// Now returns the current test time.
 func (c *Clock) Now() time.Time { c.mu.Lock(); defer c.mu.Unlock(); return c.t }
 
-// Advance verschiebt die Uhr.
+// Advance advances the clock.
 func (c *Clock) Advance(d time.Duration) { c.mu.Lock(); c.t = c.t.Add(d); c.mu.Unlock() }
 
-// New erzeugt einen Service auf einem temporären Datenverzeichnis. mod darf die Optionen anpassen.
+// New creates a service on a temporary data directory. mod may adjust the options.
 func New(t *testing.T, mod func(*hub.Options)) (*hub.Service, *Clock) {
 	t.Helper()
 	dir := t.TempDir()

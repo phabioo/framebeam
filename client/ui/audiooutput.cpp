@@ -33,7 +33,7 @@ QByteArray AudioOutput::convertSamples(const QByteArray& pcm16, QAudioFormat::Sa
   if (target == QAudioFormat::Int16) {
     return pcm16;
   }
-  const qsizetype n = pcm16.size() / 2;  // Samples (beide Kanaele)
+  const qsizetype n = pcm16.size() / 2;  // samples (both channels)
   const auto* in = reinterpret_cast<const unsigned char*>(pcm16.constData());
   auto s16 = [in](qsizetype i) {
     return static_cast<qint16>(static_cast<quint16>(in[2 * i] | (in[2 * i + 1] << 8)));
@@ -75,13 +75,13 @@ bool AudioOutput::start(int coreSampleRate) {
   }
   const QAudioDevice device = QMediaDevices::defaultAudioOutput();
   if (device.isNull()) {
-    qCWarning(lcAudio) << "kein Standard-Audioausgabegeraet; Session laeuft ohne Ton";
+    qCWarning(lcAudio) << "no default audio output device; session runs without sound";
     return false;
   }
   const QAudioFormat pref = device.preferredFormat();
-  qCInfo(lcAudio) << "Geraet:" << device.description() << "bevorzugt:" << pref.sampleRate() << "Hz,"
+  qCInfo(lcAudio) << "Device:" << device.description() << "preferred:" << pref.sampleRate() << "Hz,"
                   << pref.channelCount() << "ch, Format" << static_cast<int>(pref.sampleFormat())
-                  << "Core-Rate:" << coreSampleRate;
+                  << "core rate:" << coreSampleRate;
 
   QAudioFormat fmt;
   fmt.setChannelCount(2);
@@ -91,24 +91,24 @@ bool AudioOutput::start(int coreSampleRate) {
     fmt.setSampleFormat(pref.sampleFormat());
     chosen = device.isFormatSupported(fmt);
     if (!chosen) {
-      qCWarning(lcAudio) << "bevorzugtes Format als Stereo nicht unterstuetzt";
+      qCWarning(lcAudio) << "preferred format not supported as stereo";
     }
   }
-  if (!chosen) {  // Rueckfall: bisherige Logik (Int16, Core-Rate, dann 48 kHz)
+  if (!chosen) {  // Fallback: previous logic (Int16, core rate, then 48 kHz)
     fmt.setSampleFormat(QAudioFormat::Int16);
     fmt.setSampleRate(coreSampleRate);
     if (!device.isFormatSupported(fmt)) {
       fmt.setSampleRate(kFallbackRate);
       if (!device.isFormatSupported(fmt)) {
-        qCWarning(lcAudio) << "kein unterstuetztes Ausgabeformat; Session laeuft ohne Ton";
+        qCWarning(lcAudio) << "no supported output format; session runs without sound";
         return false;
       }
     }
   }
   const int rate = fmt.sampleRate();
   fmt_ = fmt;
-  qCInfo(lcAudio) << "Ausgabeformat:" << rate << "Hz, 2 ch, Format" << static_cast<int>(fmt.sampleFormat())
-                  << "(" << fmt.bytesPerFrame() << "Byte/Frame )";
+  qCInfo(lcAudio) << "Output format:" << rate << "Hz, 2 ch, Format" << static_cast<int>(fmt.sampleFormat())
+                  << "(" << fmt.bytesPerFrame() << "bytes/frame )";
 
   resampler_.reset();
   resampler_.setRates(coreSampleRate, rate);
@@ -120,14 +120,14 @@ bool AudioOutput::start(int coreSampleRate) {
   auto sink = std::make_unique<QAudioSink>(device, fmt);
   sink->setBufferSize(bufBytes);
   connect(sink.get(), &QAudioSink::stateChanged, this, [s = sink.get()](QAudio::State st) {
-    qCInfo(lcAudio) << "Sink-Status:" << static_cast<int>(st) << "Fehler:" << static_cast<int>(s->error());
+    qCInfo(lcAudio) << "Sink state:" << static_cast<int>(st) << "error:" << static_cast<int>(s->error());
   });
   io_ = sink->start();
-  qCInfo(lcAudio) << "start():" << (io_ ? "ok" : "fehlgeschlagen") << "Fehler:" << static_cast<int>(sink->error())
-                  << "Status:" << static_cast<int>(sink->state()) << "Puffer:" << sink->bufferSize()
-                  << "Byte, frei:" << sink->bytesFree();
+  qCInfo(lcAudio) << "start():" << (io_ ? "ok" : "failed") << "error:" << static_cast<int>(sink->error())
+                  << "Status:" << static_cast<int>(sink->state()) << "buffer:" << sink->bufferSize()
+                  << "bytes, free:" << sink->bytesFree();
   if (io_ == nullptr || sink->error() != QAudio::NoError) {
-    qCWarning(lcAudio) << "QAudioSink konnte nicht starten, Fehler" << static_cast<int>(sink->error());
+    qCWarning(lcAudio) << "QAudioSink could not start, error" << static_cast<int>(sink->error());
     if (io_ == nullptr) {
       io_ = nullptr;
       return false;
@@ -139,7 +139,7 @@ bool AudioOutput::start(int coreSampleRate) {
 
 void AudioOutput::stop() {
   if (sink_) {
-    qCInfo(lcAudio) << "stop(): verworfene Bytes" << dropped_ << "Fehler:" << static_cast<int>(sink_->error());
+    qCInfo(lcAudio) << "stop(): dropped bytes" << dropped_ << "error:" << static_cast<int>(sink_->error());
     sink_->stop();
     sink_.reset();
   }
@@ -154,19 +154,19 @@ void AudioOutput::push(const QByteArray& pcm) {
   const QByteArray resampled = resampler_.isPassthrough() ? pcm : resampler_.process(pcm);
   pending_.append(convertSamples(resampled, fmt_.sampleFormat()));
   const int bpf = fmt_.bytesPerFrame();
-  // Schreiben, was in den Puffer passt (bytesFree kann direkt nach start() noch 0 sein).
+  // Write what fits into the buffer (bytesFree may still be 0 right after start()).
   const qint64 free = sink_->bytesFree();
   const qint64 n = std::min<qint64>(free - (free % bpf), pending_.size());
   if (n > 0) {
     const qint64 w = io_->write(pending_.constData(), n);
     pending_.remove(0, static_cast<qsizetype>(std::max<qint64>(w, 0)));
   }
-  // Rest begrenzt halten, damit die Latenz nicht waechst; aelteste Daten verwerfen.
+  // Keep the remainder bounded so latency does not grow; drop the oldest data.
   if (pending_.size() > pendingCap_) {
     qsizetype drop = pending_.size() - pendingCap_;
     drop -= drop % bpf;
     if (dropped_ == 0 && drop > 0) {
-      qCWarning(lcAudio) << "Audio-Ueberlauf: erste verworfene Bytes (Puffer voll)";
+      qCWarning(lcAudio) << "Audio overflow: first dropped bytes (buffer full)";
     }
     pending_.remove(0, drop);
     dropped_ += drop;

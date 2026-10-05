@@ -1,3 +1,3 @@
 # packaging
 
-Release-Artefakte: `windows/` (Player-Installer), `linux/` (Hub, systemd-Unit), `macos/` (später). PoC-Plattformen: `docs/architektur/07-poc-scope.md`, `08-repo-und-offene-punkte.md`.
+Release artifacts: `windows/` (Player installer), `linux/` (Hub, systemd unit), `macos/` (later). PoC platforms: `docs/architecture/07-poc-scope.md`, `08-repo-and-open-points.md`.

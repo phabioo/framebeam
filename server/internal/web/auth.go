@@ -21,7 +21,7 @@ func (s *Server) setupGet(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
-	d := s.base(r, nil, "", "Einrichtung")
+	d := s.base(r, nil, "", "Setup")
 	d.CSRF = s.preCSRF(w, r)
 	d.Body = setupBody{Local: isLoopback(r), MinPassword: hub.MinPasswordLen}
 	s.render(w, http.StatusOK, "setup", "bare", d)
@@ -36,20 +36,20 @@ func (s *Server) setupPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !isLoopback(r) {
-		http.Error(w, "Einrichtung nur von dem Rechner aus möglich, auf dem der FrameBeam Hub läuft", http.StatusForbidden)
+		http.Error(w, "Setup is possible only from the machine the FrameBeam Hub runs on", http.StatusForbidden)
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, maxFormBytes)
 	if r.ParseForm() != nil || !s.checkPreCSRF(r) {
-		http.Error(w, "CSRF-Prüfung fehlgeschlagen", http.StatusForbidden)
+		http.Error(w, "CSRF check failed", http.StatusForbidden)
 		return
 	}
-	d := s.base(r, nil, "", "Einrichtung")
+	d := s.base(r, nil, "", "Setup")
 	d.CSRF = s.preCSRF(w, r)
 	d.Body = setupBody{Local: true, MinPassword: hub.MinPasswordLen}
 	pw := r.PostFormValue("password")
 	if pw != r.PostFormValue("password2") {
-		d.Error = "Die Passwörter stimmen nicht überein."
+		d.Error = "The passwords do not match."
 		s.render(w, http.StatusBadRequest, "setup", "bare", d)
 		return
 	}
@@ -79,7 +79,7 @@ func (s *Server) loginGet(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/setup", http.StatusSeeOther)
 		return
 	}
-	d := s.base(r, nil, "", "Anmelden")
+	d := s.base(r, nil, "", "Sign in")
 	d.CSRF = s.preCSRF(w, r)
 	s.render(w, http.StatusOK, "login", "bare", d)
 }
@@ -94,15 +94,15 @@ func (s *Server) loginPost(w http.ResponseWriter, r *http.Request) {
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, maxFormBytes)
 	if r.ParseForm() != nil || !s.checkPreCSRF(r) {
-		http.Error(w, "CSRF-Prüfung fehlgeschlagen", http.StatusForbidden)
+		http.Error(w, "CSRF check failed", http.StatusForbidden)
 		return
 	}
 	ip := remoteIP(r)
-	d := s.base(r, nil, "", "Anmelden")
+	d := s.base(r, nil, "", "Sign in")
 	d.CSRF = s.preCSRF(w, r)
 	if s.login.blocked(ip) {
 		w.Header().Set("Retry-After", "60")
-		d.Error = "Zu viele Fehlversuche. Bitte in einer Minute erneut versuchen."
+		d.Error = "Too many failed attempts. Please try again in a minute."
 		s.render(w, http.StatusTooManyRequests, "login", "bare", d)
 		return
 	}
@@ -120,7 +120,7 @@ func (s *Server) loginPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.login.fail(ip)
-	d.Error = "Benutzername oder Passwort falsch."
+	d.Error = "Username or password is incorrect."
 	s.render(w, http.StatusUnauthorized, "login", "bare", d)
 }
 

@@ -1,5 +1,5 @@
-// Package hub ist die Service-Schicht des FrameBeam Hub (Hub-Identität, Users, Devices, Pairing,
-// Tokens, Library). Webinterface und HTTP-API nutzen dieselben Funktionen.
+// Package hub is the service layer of the FrameBeam Hub (hub identity, users, devices, pairing,
+// tokens, library). The web interface and HTTP API use the same functions.
 package hub
 
 import (
@@ -17,13 +17,13 @@ import (
 	"github.com/phabioo/framebeam/server/internal/auth"
 )
 
-// Protokollkonstanten an einer Stelle (ADR 0002); Info-Endpunkt und Handshake lesen sie hier.
+// Protocol constants in one place (ADR 0002); the info endpoint and handshake read them here.
 const (
 	ProtocolVersion    = 1
 	MinProtocolVersion = 1
 )
 
-// Laufzeiten und Limits (ADR 0002 / Orchestrator-Vorgaben).
+// Lifetimes and limits (ADR 0002 / orchestrator requirements).
 const (
 	AccessTokenTTL           = 15 * time.Minute
 	PairingTTL               = 10 * time.Minute
@@ -33,22 +33,22 @@ const (
 	MinPasswordLen           = 8
 )
 
-// Options konfigurieren den Service.
+// Options configure the service.
 type Options struct {
 	DataDir string
-	// Name ist der Hub-Name beim ersten Start (leer: Hostname bzw. "FrameBeam Hub").
+	// Name is the hub name on first start (empty: hostname, or "FrameBeam Hub").
 	Name       string
 	HubVersion string
-	// Now ist die Uhr (injizierbar für Tests); Default time.Now.
+	// Now is the clock (injectable for tests); default time.Now.
 	Now func() time.Time
-	// PasswordParams: Argon2id-Parameter; Default auth.DefaultParams.
+	// PasswordParams: Argon2id parameters; default auth.DefaultParams.
 	PasswordParams *auth.Params
-	// ProtocolVersion/MinProtocolVersion überschreiben die Konstanten (nur Tests); 0 = Default.
+	// ProtocolVersion/MinProtocolVersion override the constants (tests only); 0 = default.
 	ProtocolVersion    int
 	MinProtocolVersion int
 }
 
-// Service ist die Service-Schicht. Zeiten liegen als Unix-Sekunden (UTC) in SQLite.
+// Service is the service layer. Times are stored in SQLite as Unix seconds (UTC).
 type Service struct {
 	db       *sql.DB
 	dataDir  string
@@ -65,8 +65,8 @@ type Service struct {
 	dummy  string
 }
 
-// Open initialisiert den Service auf einer migrierten Datenbank und legt Hub-Identität und
-// Datenverzeichnisse an.
+// Open initializes the service on a migrated database and creates the hub identity and
+// data directories.
 func Open(ctx context.Context, db *sql.DB, o Options) (*Service, error) {
 	s := &Service{db: db, dataDir: o.DataDir, hubVer: o.HubVersion, now: o.Now, params: auth.DefaultParams,
 		protoVer: ProtocolVersion, minProto: MinProtocolVersion}
@@ -105,13 +105,13 @@ func Open(ctx context.Context, db *sql.DB, o Options) (*Service, error) {
 	return s, nil
 }
 
-// DataDir liefert das Datenverzeichnis.
+// DataDir returns the data directory.
 func (s *Service) DataDir() string { return s.dataDir }
 
-// Now liefert die aktuelle Zeit des Service (Uhr injizierbar).
+// Now returns the service's current time (clock injectable).
 func (s *Service) Now() time.Time { return s.now().UTC() }
 
-// Info beschreibt den Hub für den Info-Endpunkt.
+// Info describes the hub for the info endpoint.
 type Info struct {
 	HubID              string
 	Name               string
@@ -120,7 +120,7 @@ type Info struct {
 	MinProtocolVersion int
 }
 
-// Info liefert Hub-Identität und Protokollversionen.
+// Info returns the hub identity and protocol versions.
 func (s *Service) Info() Info {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -128,11 +128,11 @@ func (s *Service) Info() Info {
 		ProtocolVersion: s.protoVer, MinProtocolVersion: s.minProto}
 }
 
-// SetHubName ändert den Hub-Namen.
+// SetHubName changes the hub name.
 func (s *Service) SetHubName(ctx context.Context, name string) error {
 	name = strings.TrimSpace(name)
 	if name == "" || len(name) > 100 {
-		return badRequest("Name muss 1 bis 100 Zeichen lang sein")
+		return badRequest("Name must be 1 to 100 characters long")
 	}
 	if _, err := s.db.ExecContext(ctx, `UPDATE hub SET name = ?`, name); err != nil {
 		return internal(err)
@@ -143,7 +143,7 @@ func (s *Service) SetHubName(ctx context.Context, name string) error {
 	return nil
 }
 
-// Cleanup entfernt abgelaufene Access Tokens, Web-Sessions und alte Pairing-Anfragen.
+// Cleanup removes expired access tokens, web sessions and old pairing requests.
 func (s *Service) Cleanup(ctx context.Context) error {
 	now := s.now().Unix()
 	for _, q := range []struct {
@@ -152,7 +152,7 @@ func (s *Service) Cleanup(ctx context.Context) error {
 	}{
 		{`DELETE FROM access_tokens WHERE expires_at <= ?`, now},
 		{`DELETE FROM web_sessions WHERE expires_at <= ?`, now},
-		// Abgelaufene Anfragen bleiben 1 h sichtbar, damit der Player "expired" noch abfragen kann.
+		// Expired requests stay visible for 1 h so the player can still poll "expired".
 		{`DELETE FROM pairing_requests WHERE expires_at <= ?`, now - 3600},
 	} {
 		if _, err := s.db.ExecContext(ctx, q.sql, q.arg); err != nil {
@@ -162,7 +162,7 @@ func (s *Service) Cleanup(ctx context.Context) error {
 	return nil
 }
 
-// RunCleanup ruft Cleanup periodisch auf, bis ctx endet. Fehler gehen an onErr (darf nil sein).
+// RunCleanup calls Cleanup periodically until ctx ends. Errors go to onErr (may be nil).
 func (s *Service) RunCleanup(ctx context.Context, every time.Duration, onErr func(error)) {
 	t := time.NewTicker(every)
 	defer t.Stop()

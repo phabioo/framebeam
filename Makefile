@@ -1,5 +1,5 @@
-# Leise Prüfziele (Details: scripts/check.sh). Voraussetzung für check-client:
-# scripts/bootstrap-vcpkg.sh einmal ausgeführt.
+# Quiet check targets (details: scripts/check.sh). Prerequisite for check-client:
+# scripts/bootstrap-vcpkg.sh has been run once.
 .PHONY: check check-hub check-client build-hub generate fetch-core
 
 check:

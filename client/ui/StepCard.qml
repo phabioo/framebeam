@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 
-// Schrittkarte in 3b; stage: "pending" | "active" | "done"
+// Step card in 3b; stage: "pending" | "active" | "done"
 Rectangle {
     id: card
     property string title

@@ -19,7 +19,7 @@ func TestEnsureSelfSigned(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, ok := leaf.PublicKey.(*ecdsa.PublicKey); !ok || leaf.PublicKeyAlgorithm != x509.ECDSA {
-		t.Fatal("kein ECDSA")
+		t.Fatal("not ECDSA")
 	}
 	if err := leaf.VerifyHostname("localhost"); err != nil {
 		t.Fatal(err)
@@ -34,7 +34,7 @@ func TestEnsureSelfSigned(t *testing.T) {
 	if st.Mode().Perm() != 0o600 {
 		t.Fatalf("key mode %v", st.Mode())
 	}
-	c2, err := EnsureSelfSigned(dir) // zweiter Start lädt dasselbe Zertifikat
+	c2, err := EnsureSelfSigned(dir) // second start loads the same certificate
 	if err != nil || Fingerprint(c1) != Fingerprint(c2) || len(Fingerprint(c1)) != 95 {
 		t.Fatalf("fingerprint %q %v", Fingerprint(c2), err)
 	}

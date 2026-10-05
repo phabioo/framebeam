@@ -157,7 +157,7 @@ void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
         if (approvedDelivered_) {
           respondError(sock, 404, QStringLiteral("not_found"));
         } else {
-          approvedDelivered_ = true;  // Credential genau einmal
+          approvedDelivered_ = true;  // credential exactly once
           respond(sock, 200, json({{QStringLiteral("status"), QStringLiteral("approved")},
                                    {QStringLiteral("hub_id"), hubId},
                                    {QStringLiteral("user_id"), QStringLiteral("u_test_1")},

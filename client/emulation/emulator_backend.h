@@ -1,10 +1,10 @@
 #pragma once
-// EmulatorBackend: core-agnostische Schnittstelle zwischen FrameBeam Player und Emulator.
-// Nach aussen gilt ein einheitliches Format: Video = QImage::Format_RGB32 (XRGB8888),
-// Audio = interleaved Stereo int16 (L,R,L,R,... in nativer Byte-Reihenfolge).
+// EmulatorBackend: core-agnostic interface between FrameBeam Player and the emulator.
+// Externally a uniform format applies: video = QImage::Format_RGB32 (XRGB8888),
+// audio = interleaved stereo int16 (L,R,L,R,... in native byte order).
 //
-// Threading: Alle Methoden ausser den mit "thread-sicher" markierten muessen vom selben Thread
-// aufgerufen werden (im Player der Emulationsthread, siehe EmulationRunner).
+// Threading: all methods except those marked "thread-safe" must be called from the same thread
+// (in the player, the emulation thread; see EmulationRunner).
 
 #include <QByteArray>
 #include <QImage>
@@ -18,19 +18,19 @@ namespace framebeam::emu {
 struct CoreInfo {
   QString name;
   QString version;
-  QStringList extensions;  // normalisiert: klein, mit Punkt (".nds")
+  QStringList extensions;  // normalized: lowercase, with dot (".nds")
   bool needFullpath = false;
 };
 
 struct AvInfo {
-  int width = 0;  // Basis-Geometrie des Cores; tatsaechliche Frame-Groesse steht im QImage
+  int width = 0;  // base geometry of the core; actual frame size is in the QImage
   int height = 0;
   double aspectRatio = 0.0;
   double fps = 0.0;
-  double sampleRate = 0.0;  // Hz, vom Core vorgegeben
+  double sampleRate = 0.0;  // Hz, as specified by the core
 };
 
-// Werte entsprechen RETRO_DEVICE_ID_JOYPAD_*; Bitmaske = 1u << Wert.
+// Values correspond to RETRO_DEVICE_ID_JOYPAD_*; bitmask = 1u << value.
 enum class JoypadButton : unsigned {
   B = 0, Y, Select, Start, Up, Down, Left, Right, A, X, L, R, L2, R2, L3, R3
 };
@@ -38,7 +38,7 @@ constexpr quint32 buttonMask(JoypadButton b) { return 1u << static_cast<unsigned
 
 struct CoreOptionValue {
   QString value;
-  QString label;  // leer = value anzeigen
+  QString label;  // empty = show value
 };
 
 struct CoreOptionCategory {
@@ -51,7 +51,7 @@ struct CoreOption {
   QString key;
   QString description;
   QString info;
-  QString categoryKey;  // leer = ohne Kategorie
+  QString categoryKey;  // empty = no category
   QList<CoreOptionValue> values;
   QString defaultValue;
   QString currentValue;
@@ -62,42 +62,42 @@ class EmulatorBackend {
  public:
   virtual ~EmulatorBackend() = default;
 
-  // Core laden/entladen. Fehlertext (fuer Diagnostics) in *error.
+  // Load/unload core. Error text (for diagnostics) in *error.
   virtual bool loadCore(const QString& libraryPath, QString* error = nullptr) = 0;
   virtual void unloadCore() = 0;
   virtual bool isCoreLoaded() const = 0;
-  virtual CoreInfo coreInfo() const = 0;  // gueltig nach loadCore
+  virtual CoreInfo coreInfo() const = 0;  // valid after loadCore
 
-  // Verzeichnisse VOR loadCore setzen (System = BIOS/Firmware, Save = Spielstaende); Cores wie
-  // melonDS DS lesen sie bereits in retro_set_environment.
+  // Set directories BEFORE loadCore (system = BIOS/firmware, save = save games); cores like
+  // melonDS DS already read them in retro_set_environment.
   virtual void setSystemDirectory(const QString& path) = 0;
   virtual void setSaveDirectory(const QString& path) = 0;
 
   virtual bool loadGame(const QString& path, QString* error = nullptr) = 0;
   virtual void unloadGame() = 0;
   virtual bool isGameLoaded() const = 0;
-  virtual AvInfo avInfo() const = 0;  // gueltig nach loadGame
+  virtual AvInfo avInfo() const = 0;  // valid after loadGame
 
-  // Genau einen Frame emulieren; danach videoFrame()/takeAudio(). false = Fehler/Core-Shutdown.
+  // Emulate exactly one frame; then videoFrame()/takeAudio(). false = error/core shutdown.
   virtual bool runFrame() = 0;
   virtual void reset() = 0;
 
-  // Letzter Video-Frame (XRGB8888). Implizit geteilt, billig zu kopieren.
+  // Last video frame (XRGB8888). Implicitly shared, cheap to copy.
   virtual QImage videoFrame() const = 0;
   virtual quint64 frameCount() const = 0;
-  // Seit dem letzten Aufruf erzeugte Audio-Samples (interleaved Stereo int16).
+  // Audio samples produced since the last call (interleaved stereo int16).
   virtual QByteArray takeAudio() = 0;
 
-  // thread-sicher: Eingabe-Zustand, wird beim naechsten runFrame uebernommen.
+  // thread-safe: input state, picked up on the next runFrame.
   virtual void setJoypadState(unsigned port, quint32 buttonMask) = 0;
-  // Zeiger/Touch in normierten Koordinaten (0..1) relativ zum gesamten Video-Frame.
+  // Pointer/touch in normalized coordinates (0..1) relative to the whole video frame.
   virtual void setPointer(double x, double y, bool pressed) = 0;
 
-  // Core Options: dynamisch vom Core gemeldet (Libretro Core Options v0/v1/v2).
-  virtual QList<CoreOption> coreOptions() const = 0;                 // thread-sicher
-  virtual QList<CoreOptionCategory> coreOptionCategories() const = 0;  // thread-sicher
-  // thread-sicher. Vor loadGame gesetzte Werte werden gemerkt und beim Start angewandt.
-  // false: Option bekannt, Wert ungueltig, oder Option nach der Registrierung unbekannt.
+  // Core options: reported dynamically by the core (libretro core options v0/v1/v2).
+  virtual QList<CoreOption> coreOptions() const = 0;                 // thread-safe
+  virtual QList<CoreOptionCategory> coreOptionCategories() const = 0;  // thread-safe
+  // thread-safe. Values set before loadGame are remembered and applied at start.
+  // false: option known but value invalid, or option unknown after registration.
   virtual bool setCoreOption(const QString& key, const QString& value) = 0;
 };
 

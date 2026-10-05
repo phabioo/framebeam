@@ -1,19 +1,19 @@
-# Architektur: Controllers
+# Architecture: controllers
 
-## 12. Controllers und lokale Input-Profile
+## 12. Controllers and local input profiles
 
-Der Player erhält eine eigene Seite **„Controllers“**, getrennt von Emulation/Core Settings. Sie bietet lokale Controllerprofile, Geräte-/Spielerzuordnung, Remapping, Zurücksetzen und einen Input-Test. Gamepads und Tastatur können eigene Profile haben; DS-Touch über Maus bleibt Teil des PoC.
+The Player gets its own **"Controllers"** page, separate from emulation/core settings. It offers local controller profiles, device/player assignment, remapping, reset and an input test. Gamepads and keyboard can have their own profiles; DS touch via mouse remains part of the PoC.
 
 ```text
-Physischer Controller / Tastatur
+Physical controller / keyboard
               ↓
-Lokales Controllerprofil / Remapping
+Local controller profile / remapping
               ↓
-FrameBeam Input
+FrameBeam input
               ↓
-Systemprofil-Mapping, z. B. nds
+System profile mapping, e.g. nds
               ↓
-Libretro Input
+Libretro input
 ```
 
-Das Systemprofil übersetzt die einheitlichen FrameBeam-Eingaben in die Eingaben des emulierten Systems. Controllerprofile und gerätespezifische Zuordnungen bleiben **lokal im Player und werden nicht zentral synchronisiert**. Sie sind keine Hub-Verwaltungsfunktion.
+The system profile translates the uniform FrameBeam inputs into the inputs of the emulated system. Controller profiles and device-specific assignments remain **local in the Player and are not synchronized centrally**. They are not a Hub management function.

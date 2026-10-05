@@ -42,7 +42,7 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
 
   QString err;
   if (!manifests_.loadBuiltin(&err)) {
-    qWarning().noquote() << "Manifeste nicht geladen:" << err;
+    qWarning().noquote() << "Manifests not loaded:" << err;
   }
   if (options.probeCoreVersions) {
     probeCores();
@@ -88,15 +88,15 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   connect(&session_, &GameSession::startFailed, this, [this](const QString& msg) {
     phase_ = PlayPhase::None;
     gameActive_ = false;
-    startError_ = tr("Der Emulator konnte nicht starten: %1").arg(msg);
+    startError_ = tr("The emulator could not start: %1").arg(msg);
     updateScreen();
     emit selectedGameChanged();
   });
   connect(&session_, &GameSession::errorChanged, this, [this]() {
-    // Laufzeitfehler im Spiel: zurueck zur Library, Fehler in der Detailspalte.
+    // Runtime error in the game: back to the Library, error shown in the detail pane.
     if (gameActive_ && session_.state() == GameSession::Failed) {
       gameActive_ = false;
-      startError_ = tr("Der Emulator wurde beendet: %1").arg(session_.errorText());
+      startError_ = tr("The emulator was terminated: %1").arg(session_.errorText());
       updateScreen();
       emit selectedGameChanged();
     }
@@ -110,9 +110,9 @@ PlayerController::~PlayerController() {
 // ---------------------------------------------------------------- Cores / Handshake
 
 void PlayerController::probeCores() {
-  // Pragmatisch: Die Core-Version steht nur in der Core-Info nach loadCore(). Wir laden den Core einmal
-  // ohne Spiel, lesen Name/Version und entladen ihn wieder. Scheitert das, melden wir nur die core_id
-  // (leere Version) statt zu raten.
+  // Pragmatic: the core version is only available in the core info after loadCore(). We load the core once
+  // without a game, read name/version and unload it again. If that fails, we report only the core_id
+  // (empty version) instead of guessing.
   for (const emu::SystemManifest& m : manifests_.all()) {
     const emu::CoreLocation loc = locator_.locate(m);
     if (!loc.found()) {
@@ -242,7 +242,7 @@ QString PlayerController::platformLabel(const QString& platform, const QString& 
 
 QString PlayerController::deviceFooter() const {
   const HandshakeInfo h = HandshakeInfo::detect();
-  return tr("Dieses Gerät: %1 · Player %2 · %3")
+  return tr("This device: %1 · Player %2 · %3")
       .arg(profiles_->deviceName(), h.playerVersion, platformLabel(h.platform, h.arch));
 }
 
@@ -253,14 +253,14 @@ QVariantMap PlayerController::hubCard(const HubProfile& p) const {
   m.insert(QStringLiteral("name"), p.name.isEmpty() ? trimmedScheme(p.address) : p.name);
   m.insert(QStringLiteral("saved"), true);
   m.insert(QStringLiteral("isLast"), p.hubId == profiles_->lastHubId());
-  const QString last = p.lastConnected.isValid() ? tr("zuletzt %1").arg(p.lastConnected.toLocalTime().toString(QStringLiteral("dd.MM.yyyy HH:mm")))
-                                                 : tr("noch nie verbunden");
+  const QString last = p.lastConnected.isValid() ? tr("last %1").arg(p.lastConnected.toLocalTime().toString(QStringLiteral("yyyy-MM-dd HH:mm")))
+                                                 : tr("never connected");
   m.insert(QStringLiteral("detail"), trimmedScheme(p.address) + QStringLiteral(" · ") + last);
 
   const bool current = conn_->state() != S::Disconnected &&
                        (conn_->address() == p.address || (conn_->profile() && conn_->profile()->hubId == p.hubId));
   QString status = QStringLiteral("idle");
-  QString text = tr("Bereit zum Verbinden");
+  QString text = tr("Ready");
   QString tone = QStringLiteral("neutral");
   QString message;
   if (current) {
@@ -268,31 +268,31 @@ QVariantMap PlayerController::hubCard(const HubProfile& p) const {
       case S::Identifying:
       case S::Authenticating:
         status = QStringLiteral("connecting");
-        text = tr("Verbinde…");
+        text = tr("Connecting…");
         break;
       case S::CertificateChanged:
         status = QStringLiteral("certChanged");
-        text = tr("Zertifikat geändert");
+        text = tr("Certificate changed");
         tone = QStringLiteral("error");
-        message = tr("Der Fingerprint stimmt nicht mehr mit dem gespeicherten überein. Die Verbindung ist blockiert. "
-                     "Ein neuer Fingerprint wird nie automatisch übernommen: Prüfe ihn außerhalb des Players (z. B. im "
-                     "Hub-Webinterface) und füge den Hub nach dem Entfernen neu hinzu.");
+        message = tr("The fingerprint no longer matches the saved one. The connection is blocked. "
+                     "A new fingerprint is never accepted automatically: verify it outside the Player (e.g. in the "
+                     "hub web interface) and add the hub again after removing it.");
         m.insert(QStringLiteral("expectedFingerprint"), formatFingerprint(conn_->expectedFingerprint().isEmpty() ? p.pinnedFingerprint : conn_->expectedFingerprint()));
         m.insert(QStringLiteral("observedFingerprint"), formatFingerprint(conn_->observedFingerprint()));
         break;
       case S::Incompatible: {
         status = QStringLiteral("incompatible");
         const bool hubOld = conn_->incompatibleReason() == HubConnection::IncompatibleReason::HubTooOld;
-        text = hubOld ? tr("Hub zu alt") : tr("Player zu alt");
+        text = hubOld ? tr("Hub too old") : tr("Player too old");
         tone = QStringLiteral("warn");
         const HubInfo& hi = conn_->hubInfo();
-        message = hubOld ? tr("Hub spricht Protokoll v%1, Player benötigt mindestens v%2").arg(hi.protocolVersion).arg(kMinProtocolVersion)
-                         : tr("Hub verlangt mindestens Protokoll v%1, Player spricht v%2").arg(hi.minProtocolVersion).arg(kProtocolVersion);
+        message = hubOld ? tr("Hub speaks protocol v%1, Player requires at least v%2").arg(hi.protocolVersion).arg(kMinProtocolVersion)
+                         : tr("Hub requires at least protocol v%1, Player speaks v%2").arg(hi.minProtocolVersion).arg(kProtocolVersion);
         break;
       }
       case S::Unreachable:
         status = QStringLiteral("unreachable");
-        text = tr("Nicht erreichbar");
+        text = tr("Not reachable");
         tone = QStringLiteral("error");
         message = conn_->errorMessage();
         break;
@@ -319,7 +319,7 @@ QVariantList PlayerController::hubs() const {
   }
   const S s = conn_->state();
   if (!matched && (s == S::Unreachable || s == S::Incompatible || s == S::CertificateChanged)) {
-    // Versuch mit einer noch nicht gespeicherten Adresse: als Karte mit dem Ergebnis zeigen.
+    // Attempt with an address not saved yet: show as a card with the result.
     HubProfile p;
     p.address = conn_->address();
     p.name = conn_->hubInfo().name;
@@ -335,12 +335,12 @@ QVariantList PlayerController::hubs() const {
 void PlayerController::addHub(const QString& address) {
   notice_.clear();
   if (address.trimmed().isEmpty()) {
-    notice_ = tr("Bitte eine Hub-Adresse eingeben, z. B. hub.local:8443.");
+    notice_ = tr("Please enter a hub address, e.g. hub.local:8443.");
     emit hubsChanged();
     return;
   }
   conn_->connectToAddress(address, options_.allowHttp);
-  // Nach dem Aufruf setzen: ein Trennen der alten Verbindung (z. B. nach Unreachable) setzt das Flag sonst zurueck.
+  // Set after the call: disconnecting the old connection (e.g. after Unreachable) would otherwise reset the flag.
   lastAttemptPairing_ = true;
   pairingFlow_ = conn_->state() == HubConnection::State::Identifying;
   updateScreen();
@@ -360,11 +360,11 @@ void PlayerController::connectProfile(const QString& hubId) {
 void PlayerController::retryConnection() {
   conn_->retry();
   using S = HubConnection::State;
-  // Gekoppeltes Profil (Credential vorhanden): nie den Pairing-Statusbildschirm zeigen.
+  // Paired profile (credential present): never show the pairing status screen.
   const std::optional<HubProfile> prof = conn_->profile();
   const bool paired = prof.has_value() && !prof->credentialRef.isEmpty();
   if (lastAttemptPairing_ && !paired && conn_->state() == S::Identifying) {
-    pairingFlow_ = true;  // wie addHub: Statusbildschirm erneut zeigen (retry trennt intern und setzt das Flag zurueck)
+    pairingFlow_ = true;  // like addHub: show the status screen again (retry disconnects internally and resets the flag)
     updateScreen();
     emit hubsChanged();
     emit pairingChanged();
@@ -492,8 +492,8 @@ void PlayerController::onRomStatus(const QString& sha, const RomStatus& st) {
     pendingSha_.clear();
     phase_ = PlayPhase::None;
     startError_ = st.state == RomState::HashMismatch
-                      ? tr("Der Download passt nicht zum erwarteten SHA-256 und wurde verworfen. Bitte erneut laden.")
-                      : tr("Download fehlgeschlagen: %1").arg(st.errorMessage.isEmpty() ? st.errorCode : st.errorMessage);
+                      ? tr("The download does not match the expected SHA-256 and was discarded. Please download again.")
+                      : tr("Download failed: %1").arg(st.errorMessage.isEmpty() ? st.errorCode : st.errorMessage);
   }
   const auto g = model_.game(selectedId_);
   if (g && g->romSha256 == sha) {
@@ -526,49 +526,49 @@ QVariantMap PlayerController::selectedGame() const {
   m.insert(QStringLiteral("systemName"), man ? man->displayName : game->system.toUpper());
   m.insert(QStringLiteral("stateKind"), kind);
   m.insert(QStringLiteral("sha"), game->romSha256);
-  m.insert(QStringLiteral("sizeText"), tr("%1 (%2 Bytes)").arg(LibraryModel::formatSize(game->romSize)).arg(game->romSize));
+  m.insert(QStringLiteral("sizeText"), tr("%1 (%2 bytes)").arg(LibraryModel::formatSize(game->romSize)).arg(game->romSize));
   m.insert(QStringLiteral("cachePath"), cache_->finalPath(game->romSha256, ext));
   const qint64 total = st.totalBytes > 0 ? st.totalBytes : game->romSize;
   m.insert(QStringLiteral("progress"), total > 0 ? static_cast<double>(st.receivedBytes) / static_cast<double>(total) : 0.0);
 
-  // ROM-Zeile
+  // ROM row
   QString romText;
   QString romTone = QStringLiteral("neutral");
   if (kind == QLatin1String("ready")) {
-    romText = tr("Lokal gecacht · geprüft");
+    romText = tr("Cached locally · verified");
     romTone = QStringLiteral("ok");
   } else if (kind == QLatin1String("download")) {
-    romText = tr("Download nötig · %1").arg(LibraryModel::formatSize(game->romSize));
+    romText = tr("Download needed · %1").arg(LibraryModel::formatSize(game->romSize));
   } else if (kind == QLatin1String("downloading")) {
-    romText = tr("Lädt %1 %").arg(static_cast<int>(m.value(QStringLiteral("progress")).toDouble() * 100));
+    romText = tr("Downloading %1 %").arg(static_cast<int>(m.value(QStringLiteral("progress")).toDouble() * 100));
   } else if (kind == QLatin1String("mismatch")) {
-    romText = tr("Hash mismatch · neu laden");
+    romText = tr("Hash mismatch · reload");
     romTone = QStringLiteral("error");
   } else if (kind == QLatin1String("failed")) {
-    romText = tr("Download fehlgeschlagen");
+    romText = tr("Download failed");
     romTone = QStringLiteral("error");
   } else {
-    romText = tr("Prüfe…");
+    romText = tr("Verifying…");
   }
   m.insert(QStringLiteral("romText"), romText);
   m.insert(QStringLiteral("romTone"), romTone);
 
-  // Core / Firmware
+  // Core / firmware
   bool coreOk = false;
   bool fwOk = true;
   QString coreText;
   QString coreHint;
-  QString fwText = tr("nicht benötigt");
+  QString fwText = tr("Not required");
   QString fwHint;
   if (man == nullptr) {
-    coreText = tr("kein System-Manifest für .%1").arg(ext);
+    coreText = tr("no system manifest for .%1").arg(ext);
   } else {
     const emu::CoreLocation loc = locator_.locate(*man);
     const QString label = coreLabel(*man, loc);
     coreOk = loc.found();
-    coreText = coreOk ? tr("%1 · bereit").arg(label) : tr("%1 · fehlt").arg(label);
+    coreText = coreOk ? tr("%1 · ready").arg(label) : tr("%1 · missing").arg(label);
     if (!coreOk) {
-      coreHint = tr("Nicht gefunden. Setze %1 oder lege die Bibliothek nach %2.")
+      coreHint = tr("Not found. Set %1 or place the library in %2.")
                      .arg(emu::CoreLocator::environmentVariableFor(man->coreId),
                           loc.tried.isEmpty() ? QString() : QDir::toNativeSeparators(loc.tried.last()));
     }
@@ -580,9 +580,9 @@ QVariantMap PlayerController::selectedGame() const {
         }
       }
       fwOk = missing.isEmpty();
-      fwText = fwOk ? tr("vorhanden") : tr("fehlt");
+      fwText = fwOk ? tr("present") : tr("missing");
       if (!fwOk) {
-        fwHint = tr("Firmware fehlt: %1 in %2").arg(missing.join(QStringLiteral(", ")), QDir::toNativeSeparators(systemDir()));
+        fwHint = tr("Firmware missing: %1 in %2").arg(missing.join(QStringLiteral(", ")), QDir::toNativeSeparators(systemDir()));
       }
     }
   }
@@ -593,17 +593,17 @@ QVariantMap PlayerController::selectedGame() const {
   m.insert(QStringLiteral("firmwareTone"), fwOk ? QStringLiteral("neutral") : QStringLiteral("error"));
   m.insert(QStringLiteral("firmwareHint"), fwHint);
 
-  // Start-Checkliste
+  // Start checklist
   const bool busy = phase_ != PlayPhase::None;
   const bool romReady = kind == QLatin1String("ready");
   QVariantList list;
-  list.append(checkItem(tr("Spieldaten vom Hub"), QStringLiteral("done")));
-  list.append(checkItem(romReady ? tr("ROM aus Cache geprüft") : tr("ROM laden und prüfen"),
+  list.append(checkItem(tr("Game data from hub"), QStringLiteral("done")));
+  list.append(checkItem(romReady ? tr("ROM verified from cache") : tr("Download and verify ROM"),
                         romReady ? QStringLiteral("done") : (phase_ == PlayPhase::Rom ? QStringLiteral("active") : QStringLiteral("pending")),
                         romReady ? QString() : romText));
-  list.append(checkItem(tr("Core bereit"), coreOk ? QStringLiteral("done") : QStringLiteral("error"),
+  list.append(checkItem(tr("Core ready"), coreOk ? QStringLiteral("done") : QStringLiteral("error"),
                         coreOk ? QString() : coreText));
-  list.append(checkItem(tr("Emulator startet"), phase_ == PlayPhase::Launching ? QStringLiteral("active") : QStringLiteral("pending")));
+  list.append(checkItem(tr("Emulator starting"), phase_ == PlayPhase::Launching ? QStringLiteral("active") : QStringLiteral("pending")));
   m.insert(QStringLiteral("checklist"), list);
 
   QString error = startError_;
@@ -611,13 +611,13 @@ QVariantMap PlayerController::selectedGame() const {
   m.insert(QStringLiteral("busy"), busy);
   m.insert(QStringLiteral("canPlay"), !busy && man != nullptr && coreOk && fwOk && kind != QLatin1String("validating") &&
                                           kind != QLatin1String("downloading") && kind != QLatin1String("unknown"));
-  QString label = tr("Spielen");
+  QString label = tr("Play");
   if (busy) {
-    label = phase_ == PlayPhase::Launching ? tr("Starte…") : tr("Lädt…");
+    label = phase_ == PlayPhase::Launching ? tr("Starting…") : tr("Downloading…");
   } else if (kind == QLatin1String("download")) {
-    label = tr("Herunterladen und spielen");
+    label = tr("Download and play");
   } else if (kind == QLatin1String("mismatch") || kind == QLatin1String("failed")) {
-    label = tr("Neu laden und spielen");
+    label = tr("Reload and play");
   }
   m.insert(QStringLiteral("playLabel"), label);
   return m;
@@ -631,13 +631,13 @@ void PlayerController::playSelected() {
   startError_.clear();
   const emu::SystemManifest* man = manifestFor(*game);
   if (man == nullptr) {
-    startError_ = tr("Für dieses Spiel gibt es kein System-Manifest.");
+    startError_ = tr("There is no system manifest for this game.");
     emit selectedGameChanged();
     return;
   }
   const emu::CoreLocation loc = locator_.locate(*man);
   if (!loc.found()) {
-    emit selectedGameChanged();  // Detailspalte zeigt den Pfadhinweis
+    emit selectedGameChanged();  // detail pane shows the path hint
     return;
   }
   pendingSha_ = game->romSha256;
@@ -670,7 +670,7 @@ void PlayerController::launch(const GameEntry& game, const QString& romPath) {
   const QString saveDir = saveDirForCurrentHub();
   if (man == nullptr || saveDir.isEmpty()) {
     phase_ = PlayPhase::None;
-    startError_ = tr("Spielstart nicht möglich (System oder Hub-Verzeichnis unbekannt).");
+    startError_ = tr("Cannot start the game (system or hub directory unknown).");
     emit selectedGameChanged();
     return;
   }

@@ -30,7 +30,7 @@ std::optional<GameEntry> HubLibrary::gameByRomSha(const QString& sha256) const {
 void HubLibrary::reload() {
   QNetworkReply* reply = conn_ ? conn_->authorizedGet(QStringLiteral("/games")) : nullptr;
   if (reply == nullptr) {
-    emit loadFailed(QStringLiteral("not_connected"), QStringLiteral("Nicht mit einem Hub verbunden"));
+    emit loadFailed(QStringLiteral("not_connected"), QStringLiteral("Not connected to a hub"));
     return;
   }
   loading_ = true;

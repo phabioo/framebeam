@@ -46,8 +46,8 @@ QRectF fitFrame(const QSizeF& frame, const QSizeF& area, bool integerScale) {
   }
   qreal scale = std::min(area.width() / frame.width(), area.height() / frame.height());
   if (integerScale && scale >= 1.0) {
-    // Ganzzahlig, solange das Bild damit den Platz noch gut nutzt (>= 75 % des moeglichen Faktors);
-    // sonst waere z. B. 1x in einem fast 2x grossen Fenster eine grosse leere Flaeche.
+    // Integer scale as long as the image still uses the space well (>= 75 % of the possible factor);
+    // otherwise, e.g., 1x in a window almost 2x the size would leave a large empty area.
     const qreal whole = std::floor(scale);
     if (whole / scale >= 0.75) {
       scale = whole;
@@ -66,7 +66,7 @@ std::optional<QPointF> touchToFrame(const emu::DisplayProfile& profile, const QR
     return std::nullopt;
   }
   const QRect sr = profile.screenRect(idx);
-  // Screen-Rechteck in Item-Koordinaten.
+  // Screen rectangle in item coordinates.
   const qreal sx = frameRect.width() / fs.width();
   const qreal sy = frameRect.height() / fs.height();
   const QRectF screen(frameRect.x() + sr.x() * sx, frameRect.y() + sr.y() * sy, sr.width() * sx, sr.height() * sy);

@@ -3,7 +3,7 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import FrameBeam.Player
 
-// 3b: Hub hinzufuegen (Hub erkannt, Zertifikat bestaetigen, Geraet freigeben).
+// 3b: Add hub (hub found, confirm certificate, approve device).
 Rectangle {
     id: root
     required property PlayerController player
@@ -31,7 +31,7 @@ Rectangle {
                 spacing: 6
                 Layout.bottomMargin: 8
                 FbLabel {
-                    text: qsTr("Hub hinzufügen")
+                    text: qsTr("Add hub")
                     font.pixelSize: 30
                     font.weight: Font.DemiBold
                     font.letterSpacing: -0.6
@@ -39,29 +39,29 @@ Rectangle {
                 FbMono { text: root.info.address; color: Theme.textMuted; font.pixelSize: 13 }
             }
 
-            // Schritt 1: Hub erkannt
+            // Step 1: hub found
             StepCard {
                 Layout.fillWidth: true
                 objectName: "stepHub"
-                title: root.info.hubKnown ? qsTr("Hub erkannt") : qsTr("Hub wird gesucht…")
+                title: root.info.hubKnown ? qsTr("Hub found") : qsTr("Searching for hub…")
                 stage: root.info.hubKnown ? "done" : "active"
                 FbMono {
                     visible: root.info.hubKnown
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     color: Theme.textSecondary
-                    text: qsTr("%1 · FrameBeam Hub %2 · Protokoll v%3 · kompatibel")
+                    text: qsTr("%1 · FrameBeam Hub %2 · Protocol v%3 · compatible")
                               .arg(root.info.hubName).arg(root.info.hubVersion).arg(root.info.protocol)
                 }
             }
 
-            // Schritt 2: Zertifikat (TOFU, explizite Bestaetigung)
+            // Step 2: certificate (TOFU, explicit confirmation)
             StepCard {
                 id: certStep
                 Layout.fillWidth: true
                 objectName: "stepCertificate"
-                title: root.phase === "trust" ? qsTr("Zertifikat prüfen")
-                       : (certStep.stage === "done" ? (root.info.tls ? qsTr("Zertifikat vertraut") : qsTr("Unverschlüsselte Verbindung")) : qsTr("Zertifikat"))
+                title: root.phase === "trust" ? qsTr("Check certificate")
+                       : (certStep.stage === "done" ? (root.info.tls ? qsTr("Certificate trusted") : qsTr("Unencrypted connection")) : qsTr("Certificate"))
                 stage: !root.info.hubKnown ? "pending" : (root.phase === "trust" ? "active" : "done")
 
                 FbMono {
@@ -76,7 +76,7 @@ Rectangle {
                 FbLabel {
                     visible: root.phase === "trust"
                     Layout.fillWidth: true
-                    text: qsTr("SHA-256-Fingerprint des Hub-Zertifikats. Vergleiche ihn mit der Anzeige im Hub und vertraue ihm nur, wenn beide übereinstimmen. Ändert sich das Zertifikat später, wird die Verbindung blockiert.")
+                    text: qsTr("SHA-256 fingerprint of the hub certificate. Compare it with the one shown in the hub and trust it only if both match. If the certificate changes later, the connection is blocked.")
                     color: Theme.textMuted
                     font.pixelSize: 12
                     wrapMode: Text.WordWrap
@@ -88,32 +88,32 @@ Rectangle {
                     FbButton {
                         objectName: "trustButton"
                         kind: "primary"
-                        text: qsTr("Fingerprint vertrauen")
+                        text: qsTr("Trust fingerprint")
                         onClicked: root.player.confirmTrust()
                     }
                     FbButton {
                         objectName: "rejectButton"
-                        text: qsTr("Abbrechen")
+                        text: qsTr("Cancel")
                         onClicked: root.player.rejectTrust()
                     }
                 }
                 FbLabel {
                     visible: root.phase !== "trust" && root.info.hubKnown
                     Layout.fillWidth: true
-                    text: root.info.tls ? qsTr("Gespeichert. Ändert sich das Zertifikat später, wird die Verbindung blockiert.")
-                                        : qsTr("Nur für die Entwicklung: Dieser Hub wird ohne TLS angesprochen, es gibt keinen Fingerprint.")
+                    text: root.info.tls ? qsTr("Saved. If the certificate changes later, the connection is blocked.")
+                                        : qsTr("Development only: this hub is contacted without TLS, so there is no fingerprint.")
                     color: Theme.textMuted
                     font.pixelSize: 12
                     wrapMode: Text.WordWrap
                 }
             }
 
-            // Schritt 3: Geraet freigeben
+            // Step 3: approve device
             StepCard {
                 id: approvalStep
                 Layout.fillWidth: true
                 objectName: "stepApproval"
-                title: qsTr("Gerät freigeben")
+                title: qsTr("Approve device")
                 stage: (root.phase === "trust" || !root.info.hubKnown) ? "pending" : "active"
 
                 RowLayout {
@@ -126,7 +126,7 @@ Rectangle {
                         color: Theme.surfaceRaised
                         border.width: 1
                         border.color: Theme.borderInput
-                        FbLabel { id: requestSeg; anchors.centerIn: parent; text: qsTr("Freigabe anfragen"); font.pixelSize: 13; font.weight: Font.Medium }
+                        FbLabel { id: requestSeg; anchors.centerIn: parent; text: qsTr("Request approval"); font.pixelSize: 13; font.weight: Font.Medium }
                     }
                     Rectangle {
                         objectName: "inviteSegment"
@@ -136,7 +136,7 @@ Rectangle {
                         FbLabel {
                             id: inviteSeg
                             anchors.centerIn: parent
-                            text: qsTr("Einladung einlösen · folgt")
+                            text: qsTr("Redeem invitation · coming soon")
                             font.pixelSize: 13
                             color: Theme.textDisabled
                         }
@@ -155,13 +155,13 @@ Rectangle {
                     ColumnLayout {
                         spacing: 2
                         FbLabel {
-                            text: root.phase === "authenticating" ? qsTr("Anmelden…") : qsTr("Warte auf Freigabe durch den Admin")
+                            text: root.phase === "authenticating" ? qsTr("Signing in…") : qsTr("Waiting for admin approval")
                             font.pixelSize: 14
                             font.weight: Font.Medium
                         }
                         FbLabel {
                             visible: root.phase === "awaiting"
-                            text: qsTr("Die Anfrage erscheint im Hub unter Clients.")
+                            text: qsTr("The request appears in the hub under Clients.")
                             color: Theme.textMuted
                             font.pixelSize: 12
                         }
@@ -171,7 +171,7 @@ Rectangle {
                 FbLabel {
                     visible: root.phase === "needsPairing"
                     Layout.fillWidth: true
-                    text: qsTr("Dieses Gerät ist am Hub noch nicht freigegeben. Der Admin des Hubs muss die Anfrage bestätigen.")
+                    text: qsTr("This device is not yet approved on the hub. The hub admin must confirm the request.")
                     color: Theme.textMuted
                     font.pixelSize: 12
                     wrapMode: Text.WordWrap
@@ -190,8 +190,8 @@ Rectangle {
                         wrapMode: Text.WordWrap
                         font.pixelSize: 13
                         color: root.phase === "denied" ? Theme.errorText : Theme.text
-                        text: root.phase === "denied" ? qsTr("Die Anfrage wurde vom Admin abgelehnt.")
-                                                      : qsTr("Die Anfrage ist abgelaufen. Bitte erneut anfragen.")
+                        text: root.phase === "denied" ? qsTr("The request was denied by the admin.")
+                                                      : qsTr("The request has expired. Please request again.")
                     }
                 }
                 FbLabel {
@@ -209,11 +209,11 @@ Rectangle {
                     columnSpacing: 12
                     rowSpacing: 6
                     Layout.topMargin: 4
-                    Eyebrow { text: qsTr("Gerätename"); Layout.preferredWidth: 130 }
+                    Eyebrow { text: qsTr("Device name"); Layout.preferredWidth: 130 }
                     FbMono { text: root.info.deviceName; color: Theme.text; Layout.fillWidth: true; elide: Text.ElideRight }
-                    Eyebrow { text: qsTr("Plattform"); Layout.preferredWidth: 130 }
+                    Eyebrow { text: qsTr("Platform"); Layout.preferredWidth: 130 }
                     FbMono { text: root.info.platform; color: Theme.text; Layout.fillWidth: true }
-                    Eyebrow { text: qsTr("Player-Version"); Layout.preferredWidth: 130 }
+                    Eyebrow { text: qsTr("Player version"); Layout.preferredWidth: 130 }
                     FbMono { text: root.info.playerVersion; color: Theme.text; Layout.fillWidth: true }
                 }
 
@@ -225,19 +225,19 @@ Rectangle {
                         objectName: "requestButton"
                         visible: root.phase === "needsPairing" || root.phase === "denied" || root.phase === "expired"
                         kind: "primary"
-                        text: root.phase === "needsPairing" ? qsTr("Freigabe anfragen") : qsTr("Neu anfragen")
+                        text: root.phase === "needsPairing" ? qsTr("Request approval") : qsTr("Request again")
                         onClicked: root.player.requestPairing()
                     }
                     FbButton {
                         objectName: "cancelRequestButton"
                         visible: root.phase === "awaiting"
-                        text: qsTr("Anfrage abbrechen")
+                        text: qsTr("Cancel request")
                         onClicked: root.player.cancelPairing()
                     }
                     FbButton {
                         objectName: "backButton"
                         visible: root.phase !== "awaiting"
-                        text: qsTr("Zurück")
+                        text: qsTr("Back")
                         onClicked: root.player.leavePairing()
                     }
                 }

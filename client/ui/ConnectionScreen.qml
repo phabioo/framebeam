@@ -3,7 +3,7 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import FrameBeam.Player
 
-// 3a: Mit einem Hub verbinden.
+// 3a: Connect to a hub.
 Rectangle {
     id: root
     required property PlayerController player
@@ -33,7 +33,7 @@ Rectangle {
                     FbLabel { text: qsTr("FrameBeam Player"); font.pixelSize: 16; font.weight: Font.DemiBold }
                 }
                 FbLabel {
-                    text: qsTr("Mit einem Hub verbinden")
+                    text: qsTr("Connect to a hub")
                     font.pixelSize: 30
                     font.weight: Font.DemiBold
                     font.letterSpacing: -0.6
@@ -56,7 +56,7 @@ Rectangle {
                 }
                 FbLabel {
                     visible: root.player.hubs.length === 0
-                    text: qsTr("Noch kein Hub gespeichert. Gib unten die Adresse deines FrameBeam Hubs ein.")
+                    text: qsTr("No hub saved yet. Enter the address of your FrameBeam Hub below.")
                     color: Theme.textMuted
                     font.pixelSize: 13
                     wrapMode: Text.WordWrap
@@ -74,7 +74,7 @@ Rectangle {
                         id: addressField
                         objectName: "addressField"
                         Layout.fillWidth: true
-                        placeholderText: qsTr("Hub-Adresse, z. B. hub.local:8443")
+                        placeholderText: qsTr("Hub address, e.g. hub.local:8443")
                         inputMethodHints: Qt.ImhUrlCharactersOnly | Qt.ImhNoPredictiveText
                         onAccepted: addButton.clicked()
                     }
@@ -82,7 +82,7 @@ Rectangle {
                         id: addButton
                         objectName: "addButton"
                         implicitHeight: 44
-                        text: qsTr("Hub hinzufügen")
+                        text: qsTr("Add hub")
                         onClicked: root.player.addHub(addressField.text)
                     }
                 }
@@ -104,7 +104,7 @@ Rectangle {
                     id: autoToggle
                     objectName: "autoConnectToggle"
                     Layout.fillWidth: true
-                    text: qsTr("Beim Start automatisch mit dem zuletzt verwendeten Hub verbinden")
+                    text: qsTr("Connect automatically to the last used hub on startup")
                     checked: root.player.autoConnect
                     onToggled: root.player.autoConnect = checked
                 }

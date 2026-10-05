@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 
-// kind: "primary" (Akzent) | "outline" | "link"
+// kind: "primary" (accent) | "outline" | "link"
 Button {
     id: control
     property string kind: "outline"

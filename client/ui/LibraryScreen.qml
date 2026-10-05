@@ -3,7 +3,7 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import FrameBeam.Player
 
-// 3c: Library (reduziert): Shell, Spielraster, Detailspalte.
+// 3c: Library (reduced): shell, game grid, detail pane.
 Rectangle {
     id: root
     required property PlayerController player
@@ -38,8 +38,8 @@ Rectangle {
                         color: Theme.textMuted
                         font.pixelSize: 13
                         text: root.player.library.count === root.player.library.totalCount
-                              ? qsTr("%1 Spiele").arg(root.player.library.totalCount)
-                              : qsTr("%1 von %2 Spielen").arg(root.player.library.count).arg(root.player.library.totalCount)
+                              ? qsTr("%1 games").arg(root.player.library.totalCount)
+                              : qsTr("%1 of %2 games").arg(root.player.library.count).arg(root.player.library.totalCount)
                     }
                 }
                 Item { Layout.fillWidth: true }
@@ -50,7 +50,7 @@ Rectangle {
                     implicitHeight: 34
                     font.family: Qt.application.font.family
                     font.pixelSize: 13
-                    placeholderText: qsTr("Suchen…")
+                    placeholderText: qsTr("Search…")
                     onTextChanged: root.player.library.filterText = text
                 }
             }
@@ -59,8 +59,8 @@ Rectangle {
                 spacing: 8
                 Repeater {
                     model: [
-                        { label: qsTr("Alle · %1").arg(root.player.library.totalCount), ready: false },
-                        { label: qsTr("Bereit · %1").arg(root.player.library.readyCount), ready: true }
+                        { label: qsTr("All · %1").arg(root.player.library.totalCount), ready: false },
+                        { label: qsTr("Ready · %1").arg(root.player.library.readyCount), ready: true }
                     ]
                     delegate: Rectangle {
                         id: chip
@@ -118,15 +118,15 @@ Rectangle {
                         Layout.alignment: Qt.AlignHCenter
                         color: root.player.libraryState === "error" ? Theme.error : Theme.textMuted
                         font.pixelSize: 14
-                        text: root.player.libraryState === "loading" ? qsTr("Library wird geladen…")
-                              : root.player.libraryState === "error" ? qsTr("Library konnte nicht geladen werden: %1").arg(root.player.libraryError)
-                              : root.player.library.totalCount === 0 ? qsTr("Auf diesem Hub liegen noch keine Spiele.")
-                              : qsTr("Keine Treffer.")
+                        text: root.player.libraryState === "loading" ? qsTr("Loading Library…")
+                              : root.player.libraryState === "error" ? qsTr("Could not load Library: %1").arg(root.player.libraryError)
+                              : root.player.library.totalCount === 0 ? qsTr("This hub has no games yet.")
+                              : qsTr("No results.")
                     }
                     FbButton {
                         Layout.alignment: Qt.AlignHCenter
                         visible: root.player.libraryState === "error"
-                        text: qsTr("Erneut laden")
+                        text: qsTr("Reload")
                         onClicked: root.player.reloadLibrary()
                     }
                 }

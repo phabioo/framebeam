@@ -32,7 +32,7 @@ class EmulationRunner::Worker : public QThread {
   void run() override {
     QString err;
     EmulatorBackend& be = *m_backend;
-    // Verzeichnisse vor loadCore (Cores lesen sie schon in retro_set_environment).
+    // Directories before loadCore (cores already read them in retro_set_environment).
     be.setSystemDirectory(m_req.systemDir);
     be.setSaveDirectory(m_req.saveDir);
     bool ok = be.loadCore(m_req.corePath, &err);
@@ -66,7 +66,7 @@ class EmulationRunner::Worker : public QThread {
         if (m_reset) { m_reset = false; be.reset(); }
       }
       if (!be.runFrame()) {
-        emit m_owner->errorOccurred(QStringLiteral("Core hat die Ausfuehrung beendet"));
+        emit m_owner->errorOccurred(QStringLiteral("Core stopped execution"));
         break;
       }
       emit m_owner->frameReady(be.videoFrame(), be.frameCount());
@@ -75,7 +75,7 @@ class EmulationRunner::Worker : public QThread {
 
       next += period;
       const auto now = std::chrono::steady_clock::now();
-      if (next < now - 5 * period) next = now;  // zu weit zurueck: neu synchronisieren
+      if (next < now - 5 * period) next = now;  // too far behind: resynchronize
       QMutexLocker l(&m_mutex);
       while (!m_stop && !m_paused && !m_reset) {
         const auto wait = std::chrono::duration_cast<std::chrono::milliseconds>(next - std::chrono::steady_clock::now());
@@ -112,14 +112,14 @@ void EmulationRunner::setState(State s) {
 }
 
 void EmulationRunner::start(const StartRequest& request) {
-  if (m_worker && m_worker->isFinished()) m_worker.reset();  // selbst beendet (Fehler/Core-Ende)
+  if (m_worker && m_worker->isFinished()) m_worker.reset();  // finished by itself (error/core exit)
   if (m_worker) {
-    emit startFailed(QStringLiteral("Emulation laeuft bereits"));
+    emit startFailed(QStringLiteral("Emulation is already running"));
     return;
   }
   m_worker = std::make_unique<Worker>(this, m_backend.get(), request);
   setState(State::Starting);
-  // Beendet sich der Thread von selbst (Startfehler/Core-Ende), Zustand zuruecksetzen.
+  // If the thread finishes by itself (start failure/core exit), reset the state.
   QObject::connect(m_worker.get(), &QThread::finished, this, [this] {
     if (m_worker && m_worker->isFinished()) setState(State::Idle);
   });

@@ -30,7 +30,7 @@ compile_commands.json
 *.swp
 .DS_Store
 
-# Keine ROMs, Firmware-Dumps, Saves oder lokale Daten
+# No ROMs, firmware dumps, saves or local data
 *.nds
 *.bin
 *.sav

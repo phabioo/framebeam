@@ -1,4 +1,4 @@
-# UI-Tests (QtTest, offscreen). Quelle der Fake-Hub-Hilfe: network/tests (nur Testcode).
+# UI tests (QtTest, offscreen). Source of the fake hub helper: network/tests (test code only).
 set(FB_UI_TEST_LIBS framebeam_ui framebeam_uiplugin framebeam_core framebeam_emulation Qt6::Quick Qt6::QuickControls2)
 get_filename_component(FB_NETTEST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../network/tests" ABSOLUTE)
 get_filename_component(FB_ROM_DIR "${CMAKE_BINARY_DIR}/emulation" ABSOLUTE)
@@ -11,7 +11,7 @@ framebeam_add_test(ui_screens screens_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${F
 target_include_directories(test_ui_screens PRIVATE ${FB_NETTEST_DIR})
 target_compile_definitions(test_ui_screens PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
 
-# Spielansicht mit echtem Core und der Homebrew-Test-ROM (SKIP/77 ohne FRAMEBEAM_MELONDS_DS_CORE).
+# Game view with a real core and the homebrew test ROM (SKIP/77 without FRAMEBEAM_MELONDS_DS_CORE).
 framebeam_add_test(ui_game game_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
   LIBS ${FB_UI_TEST_LIBS} NEEDS_CORE)
 target_include_directories(test_ui_game PRIVATE ${FB_NETTEST_DIR})

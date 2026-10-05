@@ -1,38 +1,38 @@
-# ADR 0002: Protokoll und FrameBeam Hub in Phase 1
+# ADR 0002: Protocol and FrameBeam Hub in phase 1
 
-- Status: angenommen
-- Datum: 2026-10-05
-- Entscheider: Fabio (Vorschlag des Orchestrators, bestätigt am 2026-10-05)
+- Status: accepted
+- Date: 2026-10-05
+- Decided by: Fabio (proposal by the orchestrator, confirmed on 2026-10-05)
 
-## Kontext
+## Context
 
-`docs/architektur/08-repo-und-offene-punkte.md` lässt API-Endpunkte, Nachrichtenformate, Kompatibilitätsregeln, Token-Format und -Laufzeiten, Widerrufsdetails sowie die TLS-Zertifikatsverwaltung offen. Phase 1 braucht dafür Defaults. Dieser ADR hält sie fest, bis Fabio sie bestätigt oder ändert.
+`docs/architecture/08-repo-and-open-points.md` leaves API endpoints, message formats, compatibility rules, token format and lifetimes, revocation details and TLS certificate management open. Phase 1 needs defaults for these. This ADR records them until Fabio confirms or changes them.
 
-## Entscheidungen
+## Decisions
 
-- **Protokollversion:** `protocol_version` ist eine Ganzzahl ab 1, unabhängig von Produktversionen. FrameBeam Hub und FrameBeam Player melden je `protocol_version` und `min_protocol_version`. Player unter dem Minimum des Hub: `player_too_old`. Hub unter dem Minimum des Player: `hub_too_old`.
-- **Info-Endpunkt:** `GET /.well-known/framebeam` liefert `hub_id`, `name`, `hub_version`, `protocol_version`, `min_protocol_version`, `api_base`. Ohne Auth, verleiht keine Rechte. Alle anderen Endpunkte liegen unter `/api/v1`.
-- **Fehlerformat:** `{"error":{"code","message"}}` mit festen Codes, u. a. `player_too_old`, `hub_too_old`, `core_missing`, `core_version_mismatch`, `capability_missing`, `device_revoked`, `pairing_*`.
-- **Tokens:** opak (Zufallsbytes, base64url) mit Präfix `fba_` (Access Token), `fbd_` (Device Credential), `fbp_` (Poll-Token). Der Hub speichert nur den SHA-256-Hash; wegen hoher Entropie ist Argon2 nicht nötig. Access Token: 15 min. Device Credential: gültig bis Widerruf. Der Widerruf eines Geräts invalidiert sofort alle seine Access Tokens. Das Admin-Passwort wird mit Argon2id gehasht.
-- **Pairing:** Eine Anfrage per POST ohne Auth liefert `request_id` und `poll_token`. Der Admin erlaubt oder verweigert im Webinterface und ordnet die Anfrage einem bestehenden User zu (Phase 1: nur Admin vorhanden). Der Player pollt; das Credential wird genau einmal ausgeliefert. Offene Anfragen verfallen nach 10 min. Die Zahl offener Anfragen ist begrenzt (HTTP 429).
-- **Handshake:** `POST /api/v1/handshake` nach Auth. Phase 1 prüft nur die Protokollversionen. Core- und Codec-Prüfungen folgen mit der Core-Registry (Phase 5) bzw. den Sessions (Phase 4).
-- **ROMs:** Upload in Phase 1 nur über das Admin-Webinterface. Download per API mit Range und ETag. Dateien liegen im Datenverzeichnis nach SHA-256 abgelegt, SQLite hält nur Metadaten.
-- **WSS:** In `protocol/schemas` entstehen nur die Nachrichtenschemas (Envelope, `hello`, `hello-ack`, `error`, `presence-update`). Die Implementierung folgt ab Phase 4.
-- **TLS:** Der Hub erzeugt beim ersten Start ein selbstsigniertes Zertifikat (ECDSA P-256) im Datenverzeichnis. Alternativ eigenes cert/key per Konfiguration oder Betrieb hinter einem Reverse Proxy. HTTP nur mit explizitem Dev-Flag oder auf localhost.
-- **SQLite:** Reiner Go-Treiber `modernc.org/sqlite`; der Hub baut mit `CGO_ENABLED=0`.
+- **Protocol version:** `protocol_version` is an integer starting at 1, independent of product versions. FrameBeam Hub and FrameBeam Player each report `protocol_version` and `min_protocol_version`. Player below the Hub's minimum: `player_too_old`. Hub below the Player's minimum: `hub_too_old`.
+- **Info endpoint:** `GET /.well-known/framebeam` returns `hub_id`, `name`, `hub_version`, `protocol_version`, `min_protocol_version`, `api_base`. No auth, grants no rights. All other endpoints live under `/api/v1`.
+- **Error format:** `{"error":{"code","message"}}` with fixed codes, including `player_too_old`, `hub_too_old`, `core_missing`, `core_version_mismatch`, `capability_missing`, `device_revoked`, `pairing_*`.
+- **Tokens:** opaque (random bytes, base64url) with prefix `fba_` (access token), `fbd_` (device credential), `fbp_` (poll token). The Hub stores only the SHA-256 hash; because of the high entropy, Argon2 is not needed. Access token: 15 min. Device credential: valid until revoked. Revoking a device immediately invalidates all of its access tokens. The admin password is hashed with Argon2id.
+- **Pairing:** A request via POST without auth returns `request_id` and `poll_token`. The admin allows or denies it in the web interface and assigns the request to an existing user (phase 1: only the admin exists). The Player polls; the credential is delivered exactly once. Open requests expire after 10 min. The number of open requests is limited (HTTP 429).
+- **Handshake:** `POST /api/v1/handshake` after auth. Phase 1 checks only the protocol versions. Core and codec checks follow with the core registry (phase 5) and Sessions (phase 4), respectively.
+- **ROMs:** Upload in phase 1 only via the admin web interface. Download via API with Range and ETag. Files are stored in the data directory by SHA-256; SQLite holds only metadata.
+- **WSS:** Only the message schemas are created in `protocol/schemas` (envelope, `hello`, `hello-ack`, `error`, `presence-update`). Implementation follows from phase 4.
+- **TLS:** On first start the Hub generates a self-signed certificate (ECDSA P-256) in the data directory. Alternatively your own cert/key via configuration, or operation behind a reverse proxy. HTTP only with an explicit dev flag or on localhost.
+- **SQLite:** Pure Go driver `modernc.org/sqlite`; the Hub builds with `CGO_ENABLED=0`.
 
-## Offen
+## Open
 
-- Zertifikatserneuerung und bestätigter Pin-Wechsel.
-- Weitere Punkte aus Abschnitt 8 (Save-Retention, Cache-Limits, ICE/STUN/TURN, Medienparameter, Core-/Firmware-Manifeste) sind von diesem ADR nicht berührt.
+- Certificate renewal and confirmed pin change.
+- Other points from section 8 (save retention, cache limits, ICE/STUN/TURN, media parameters, core/firmware manifests) are not affected by this ADR.
 
-## Verworfen
+## Rejected
 
-- **Refresh Tokens in Phase 1:** Das Device Credential übernimmt diese Rolle; ein zweiter Token-Typ ist unnötig.
-- **Argon2 für Tokens:** Bei Zufallsbytes mit hoher Entropie bringt es keinen Gewinn.
-- **SQLite über cgo (`mattn/go-sqlite3`):** erschwert Cross-Builds (`CGO_ENABLED=0`, amd64/arm64).
+- **Refresh tokens in phase 1:** The device credential takes over this role; a second token type is unnecessary.
+- **Argon2 for tokens:** Gives no benefit for high-entropy random bytes.
+- **SQLite via cgo (`mattn/go-sqlite3`):** complicates cross-builds (`CGO_ENABLED=0`, amd64/arm64).
 
-## Folgen
+## Consequences
 
-- Die Architekturdokumente bleiben unverändert; Abweichungen gelten über diesen ADR.
-- OpenAPI und Schemas in `protocol/` sowie der Hub in `server/` folgen diesen Festlegungen; Änderungen nur über einen neuen ADR.
+- The architecture documents remain unchanged; deviations apply via this ADR.
+- OpenAPI and schemas in `protocol/` as well as the Hub in `server/` follow these decisions; changes only via a new ADR.

@@ -3,12 +3,12 @@ info:
   title: FrameBeam Hub API
   version: 1.0.0
   description: |
-    HTTPS/JSON-API des FrameBeam Hub (Phase 1). `protocol_version` ist eine Ganzzahl (Start 1),
-    getrennt von Hub-/Player-Produktversion. Alle Pfade tragen das Präfix `/api/v1` explizit,
-    nur der Info-Endpunkt liegt unter `/.well-known/framebeam`.
-    Kompatibilität: Player.protocol_version < Hub.min_protocol_version -> player_too_old;
+    HTTPS/JSON API of the FrameBeam Hub (phase 1). `protocol_version` is an integer (starting at 1),
+    separate from the hub/player product version. All paths carry the `/api/v1` prefix explicitly;
+    only the info endpoint lives under `/.well-known/framebeam`.
+    Compatibility: Player.protocol_version < Hub.min_protocol_version -> player_too_old;
     Hub.protocol_version < Player.min_protocol_version -> hub_too_old.
-    Alle Werte in Beispielen sind Platzhalter, keine echten Secrets.
+    All values in examples are placeholders, not real secrets.
 servers:
   - url: /
 security: []
@@ -24,11 +24,11 @@ paths:
     get:
       operationId: getHubInfo
       tags: [info]
-      summary: Hub-Info (ohne Auth, verleiht keine Rechte)
+      summary: Hub info (no auth, grants no rights)
       security: []
       responses:
         '200':
-          description: Hub-Informationen
+          description: Hub information
           content:
             application/json:
               schema: { $ref: '#/components/schemas/HubInfo' }
@@ -45,7 +45,7 @@ paths:
     post:
       operationId: createPairingRequest
       tags: [pairing]
-      summary: Pairing-Anfrage stellen (Admin entscheidet Allow/Deny)
+      summary: Submit pairing request (admin decides allow/deny)
       security: []
       requestBody:
         required: true
@@ -63,7 +63,7 @@ paths:
                   protocol_version: 1
       responses:
         '202':
-          description: Anfrage angenommen, wartet auf Admin
+          description: Request accepted, waiting for admin
           content:
             application/json:
               schema: { $ref: '#/components/schemas/PairingRequestAccepted' }
@@ -80,7 +80,7 @@ paths:
     get:
       operationId: getPairingRequest
       tags: [pairing]
-      summary: Status der Pairing-Anfrage abfragen (Bearer = poll_token)
+      summary: Poll pairing request status (bearer = poll_token)
       security:
         - pollTokenAuth: []
       parameters:
@@ -91,8 +91,8 @@ paths:
       responses:
         '200':
           description: |
-            Status. Bei `approved` werden hub_id, user_id und device_credential genau einmal geliefert;
-            danach ist die Anfrage verbraucht (404 not_found).
+            Status. When `approved`, hub_id, user_id and device_credential are delivered exactly once;
+            afterwards the request is consumed (404 not_found).
           content:
             application/json:
               schema: { $ref: '#/components/schemas/PairingStatus' }
@@ -113,7 +113,7 @@ paths:
     post:
       operationId: createAccessToken
       tags: [auth]
-      summary: Access Token gegen Device Credential tauschen
+      summary: Exchange device credential for access token
       security: []
       requestBody:
         required: true
@@ -139,30 +139,30 @@ paths:
                     expires_in: 900
         '400': { $ref: '#/components/responses/BadRequest' }
         '401':
-          description: invalid_credentials oder device_revoked
+          description: invalid_credentials or device_revoked
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
               examples:
                 invalid:
-                  value: { error: { code: invalid_credentials, message: Device Credential ungültig } }
+                  value: { error: { code: invalid_credentials, message: Invalid credentials } }
                 revoked:
-                  value: { error: { code: device_revoked, message: Gerät wurde widerrufen } }
+                  value: { error: { code: device_revoked, message: Device has been revoked } }
   /api/v1/auth/revoke:
     post:
       operationId: revokeSelf
       tags: [auth]
-      summary: Gerät widerruft sich selbst
+      summary: Device revokes itself
       security:
         - bearerAuth: []
       responses:
-        '204': { description: Widerrufen }
+        '204': { description: Revoked }
         '401': { $ref: '#/components/responses/Unauthorized' }
   /api/v1/handshake:
     post:
       operationId: postHandshake
       tags: [handshake]
-      summary: Handshake mit Capability Negotiation
+      summary: Handshake with capability negotiation
       security:
         - bearerAuth: []
       requestBody:
@@ -188,7 +188,7 @@ paths:
                   input: { gamepad: true, keyboard: true }
       responses:
         '200':
-          description: Ergebnis der Kompatibilitätsprüfung
+          description: Result of the compatibility check
           content:
             application/json:
               schema: { $ref: '#/components/schemas/HandshakeResponse' }
@@ -207,19 +207,19 @@ paths:
                     min_protocol_version: 1
                     compatible: false
                     problems:
-                      - { code: core_missing, detail: Core melonds fehlt, core_id: melonds }
+                      - { code: core_missing, detail: Core melonds missing, core_id: melonds }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
   /api/v1/games:
     get:
       operationId: listGames
       tags: [library]
-      summary: Spielebibliothek
+      summary: Game library
       security:
         - bearerAuth: []
       responses:
         '200':
-          description: Liste der Spiele
+          description: List of games
           content:
             application/json:
               schema:
@@ -247,7 +247,7 @@ paths:
     get:
       operationId: getGame
       tags: [library]
-      summary: Einzelnes Spiel
+      summary: Single game
       security:
         - bearerAuth: []
       parameters:
@@ -257,7 +257,7 @@ paths:
           schema: { type: string, format: uuid }
       responses:
         '200':
-          description: Spiel
+          description: Game
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Game' }
@@ -270,7 +270,7 @@ paths:
     get:
       operationId: downloadRom
       tags: [library]
-      summary: ROM-Download (Range-Unterstützung). Upload nur über das Admin-Webinterface.
+      summary: ROM download (range support). Upload only via the admin web interface.
       security:
         - bearerAuth: []
       parameters:
@@ -286,16 +286,16 @@ paths:
           example: bytes=0-1023
       responses:
         '200':
-          description: Vollständiger Inhalt
+          description: Full content
           headers:
-            ETag: { schema: { type: string }, description: Starker ETag, example: '"0000000000000000000000000000000000000000000000000000000000000000"' }
+            ETag: { schema: { type: string }, description: Strong ETag, example: '"0000000000000000000000000000000000000000000000000000000000000000"' }
             Accept-Ranges: { schema: { type: string }, example: bytes }
             Content-Length: { schema: { type: integer, format: int64 } }
           content:
             application/octet-stream:
               schema: { type: string, format: binary }
         '206':
-          description: Teilinhalt (Range)
+          description: Partial content (range)
           headers:
             ETag: { schema: { type: string } }
             Content-Range: { schema: { type: string }, example: 'bytes 0-1023/4096' }
@@ -306,19 +306,19 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
         '416':
-          description: Range nicht erfüllbar
+          description: Range not satisfiable
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
               examples:
-                default: { value: { error: { code: bad_request, message: Range nicht erfüllbar } } }
+                default: { value: { error: { code: bad_request, message: Range not satisfiable } } }
   /api/v1/ws:
     get:
       operationId: connectWebSocket
       tags: [ws]
-      summary: WSS-Upgrade (nur Dokumentation, Implementierung folgt)
+      summary: WSS upgrade (documentation only, implementation to follow)
       description: |
-        Upgrade auf WebSocket. Nachrichten nutzen das Envelope-Schema aus `protocol/schemas/`.
+        Upgrade to WebSocket. Messages use the envelope schema from `protocol/schemas/`.
       security:
         - bearerAuth: []
       responses:
@@ -329,11 +329,11 @@ components:
     bearerAuth:
       type: http
       scheme: bearer
-      description: Access Token (opak, Präfix fba_, 15 min).
+      description: Access token (opaque, prefix fba_, 15 min).
     pollTokenAuth:
       type: http
       scheme: bearer
-      description: Poll Token einer Pairing-Anfrage (opak, Präfix fbp_).
+      description: Poll token of a pairing request (opaque, prefix fbp_).
   examples:
     GameExample:
       value:
@@ -348,33 +348,33 @@ components:
         added_at: '2026-01-01T12:00:00Z'
   responses:
     BadRequest:
-      description: Ungültige Anfrage
+      description: Invalid request
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
           examples:
-            default: { value: { error: { code: bad_request, message: Ungültige Anfrage } } }
+            default: { value: { error: { code: bad_request, message: Invalid request } } }
     Unauthorized:
-      description: Nicht authentifiziert
+      description: Not authenticated
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
           examples:
-            default: { value: { error: { code: unauthorized, message: Token fehlt oder ungültig } } }
+            default: { value: { error: { code: unauthorized, message: Token missing or invalid } } }
     NotFound:
-      description: Nicht gefunden
+      description: Not found
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
           examples:
-            default: { value: { error: { code: not_found, message: Nicht gefunden } } }
+            default: { value: { error: { code: not_found, message: Not found } } }
     RateLimited:
-      description: Zu viele Anfragen
+      description: Too many requests
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
           examples:
-            default: { value: { error: { code: rate_limited, message: Zu viele offene Anfragen } } }
+            default: { value: { error: { code: rate_limited, message: Too many open requests } } }
   schemas:
     ErrorCode:
       type: string
@@ -414,17 +414,17 @@ components:
       required: [request_id, poll_token, status, expires_in]
       properties:
         request_id: { type: string, format: uuid }
-        poll_token: { type: string, description: 'Präfix fbp_' }
+        poll_token: { type: string, description: 'Prefix fbp_' }
         status: { type: string, enum: [pending] }
-        expires_in: { type: integer, description: Sekunden, example: 600 }
+        expires_in: { type: integer, description: Seconds, example: 600 }
     PairingStatus:
       type: object
       required: [status]
       properties:
         status: { type: string, enum: [pending, approved, denied, expired] }
-        hub_id: { type: string, format: uuid, description: Nur bei approved (einmalig) }
-        user_id: { type: string, description: Hub-lokale User-ID; nur bei approved }
-        device_credential: { type: string, description: 'Präfix fbd_; nur bei approved, einmalig' }
+        hub_id: { type: string, format: uuid, description: Only when approved (once) }
+        user_id: { type: string, description: Hub-local user ID; only when approved }
+        device_credential: { type: string, description: 'Prefix fbd_; only when approved, once' }
     TokenRequest:
       type: object
       required: [device_id, device_credential]
@@ -435,9 +435,9 @@ components:
       type: object
       required: [access_token, token_type, expires_in]
       properties:
-        access_token: { type: string, description: 'Präfix fba_' }
+        access_token: { type: string, description: 'Prefix fba_' }
         token_type: { type: string, enum: [Bearer] }
-        expires_in: { type: integer, description: Sekunden, example: 900 }
+        expires_in: { type: integer, description: Seconds, example: 900 }
     CoreInfo:
       type: object
       required: [id, version]
@@ -513,5 +513,5 @@ components:
         title: { type: string }
         system: { type: string, example: nds }
         rom: { $ref: '#/components/schemas/RomInfo' }
-        uploaded_by: { type: string, description: Hub-lokale User-ID }
+        uploaded_by: { type: string, description: Hub-local user ID }
         added_at: { type: string, format: date-time }

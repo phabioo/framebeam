@@ -51,7 +51,7 @@ func newEnv(t *testing.T, mod func(*hub.Options)) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	admin, err := svc.CreateAdmin(context.Background(), "admin", "geheim-1234")
+	admin, err := svc.CreateAdmin(context.Background(), "admin", "secret-1234")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,10 +61,10 @@ func newEnv(t *testing.T, mod func(*hub.Options)) *env {
 type opt struct {
 	token  string
 	header map[string]string
-	raw    bool // Anfrage nicht gegen die Spec prüfen (absichtlich ungültige Anfragen)
+	raw    bool // do not validate the request against the spec (intentionally invalid requests)
 }
 
-// do führt eine Anfrage aus und validiert Anfrage und Antwort gegen die OpenAPI-Spec (Contract-Test).
+// do performs a request and validates request and response against the OpenAPI spec (contract test).
 func (e *env) do(method, path string, body any, o opt) *httptest.ResponseRecorder {
 	e.t.Helper()
 	var data []byte
@@ -98,19 +98,19 @@ func (e *env) do(method, path string, body any, o opt) *httptest.ResponseRecorde
 	vr := mk()
 	route, params, err := e.router.FindRoute(vr)
 	if err != nil {
-		e.t.Fatalf("Route %s %s nicht in der Spec: %v", method, path, err)
+		e.t.Fatalf("route %s %s not in the spec: %v", method, path, err)
 	}
 	opts := &openapi3filter.Options{AuthenticationFunc: openapi3filter.NoopAuthenticationFunc, IncludeResponseStatus: true}
 	in := &openapi3filter.RequestValidationInput{Request: vr, PathParams: params, Route: route, Options: opts}
 	if err := openapi3filter.ValidateRequest(context.Background(), in); err != nil {
-		e.t.Fatalf("Anfrage %s %s verletzt die Spec: %v", method, path, err)
+		e.t.Fatalf("request %s %s violates the spec: %v", method, path, err)
 	}
 	res := rec.Result()
 	rb, _ := io.ReadAll(res.Body)
 	out := &openapi3filter.ResponseValidationInput{RequestValidationInput: in, Status: rec.Code, Header: rec.Header(),
 		Body: io.NopCloser(bytes.NewReader(rb)), Options: opts}
 	if err := openapi3filter.ValidateResponse(context.Background(), out); err != nil {
-		e.t.Fatalf("Antwort auf %s %s (%d) verletzt die Spec: %v\nBody: %.200s", method, path, rec.Code, err, rec.Body.String())
+		e.t.Fatalf("response to %s %s (%d) violates the spec: %v\nBody: %.200s", method, path, rec.Code, err, rec.Body.String())
 	}
 	return rec
 }
@@ -134,10 +134,10 @@ func errCode(t *testing.T, rec *httptest.ResponseRecorder) string {
 func wantStatus(t *testing.T, rec *httptest.ResponseRecorder, status int, code string) {
 	t.Helper()
 	if rec.Code != status {
-		t.Fatalf("Status %d, erwartet %d: %s", rec.Code, status, rec.Body.String())
+		t.Fatalf("status %d, want %d: %s", rec.Code, status, rec.Body.String())
 	}
 	if code != "" && errCode(t, rec) != code {
-		t.Fatalf("Fehlercode %q, erwartet %q", errCode(t, rec), code)
+		t.Fatalf("error code %q, want %q", errCode(t, rec), code)
 	}
 }
 
@@ -156,7 +156,7 @@ type pollResp struct {
 }
 
 func pairBody(deviceID string) map[string]any {
-	return map[string]any{"device_id": deviceID, "device_name": "Wohnzimmer-PC", "platform": "linux", "arch": "x86_64",
+	return map[string]any{"device_id": deviceID, "device_name": "Living-Room-PC", "platform": "linux", "arch": "x86_64",
 		"player_version": "0.1.0", "protocol_version": 1}
 }
 
@@ -171,7 +171,7 @@ func (e *env) poll(p pairResp) *httptest.ResponseRecorder {
 	return e.do("GET", "/api/v1/pairing/requests/"+p.RequestID, nil, opt{token: p.PollToken})
 }
 
-// pairDevice führt den kompletten Flow bis zum Device Credential aus.
+// pairDevice runs the complete flow up to the device credential.
 func (e *env) pairDevice(deviceID string) string {
 	e.t.Helper()
 	p := e.request(deviceID)
@@ -226,24 +226,24 @@ func TestPairingFlowTokenLibraryDownloadRevoke(t *testing.T) {
 		t.Fatalf("pending: %+v", pr)
 	}
 	pending, _ := e.svc.ListPendingRequests(context.Background())
-	if len(pending) != 1 || pending[0].DeviceName != "Wohnzimmer-PC" {
-		t.Fatalf("pending-Liste: %+v", pending)
+	if len(pending) != 1 || pending[0].DeviceName != "Living-Room-PC" {
+		t.Fatalf("pending list: %+v", pending)
 	}
 	if err := e.svc.ApprovePairing(context.Background(), p.RequestID, e.admin.ID); err != nil {
 		t.Fatal(err)
 	}
 	if d, _ := e.svc.ListDevices(context.Background()); len(d) != 0 {
-		t.Fatal("Gerät darf erst beim Poll registriert werden")
+		t.Fatal("device must be registered only on poll")
 	}
 	ok := decode[pollResp](t, e.poll(p))
 	if ok.Status != "approved" || !strings.HasPrefix(ok.DeviceCredential, "fbd_") || ok.UserID != e.admin.ID ||
 		ok.HubID != e.svc.Info().HubID {
 		t.Fatalf("approved: %+v", ok)
 	}
-	wantStatus(t, e.poll(p), 404, "not_found") // genau einmal
+	wantStatus(t, e.poll(p), 404, "not_found") // exactly once
 
-	// kein Klartext-Credential in der Datenbank
-	// (Hash ist 64 Hex-Zeichen, Credential beginnt mit fbd_)
+	// no plaintext credential in the database
+	// (hash is 64 hex characters, credential starts with fbd_)
 	devs, _ := e.svc.ListDevices(context.Background())
 	if len(devs) != 1 || devs[0].ID != dev || devs[0].Status != hub.DeviceTrusted || devs[0].UserID != e.admin.ID {
 		t.Fatalf("%+v", devs)
@@ -261,7 +261,7 @@ func TestPairingFlowTokenLibraryDownloadRevoke(t *testing.T) {
 	}
 	at := tr.AccessToken
 
-	// Handshake aktualisiert Geräteinfos
+	// Handshake updates device info
 	hs := e.do("POST", "/api/v1/handshake", handshakeBody(1, 1), opt{token: at})
 	wantStatus(t, hs, 200, "")
 	if h := decode[map[string]any](t, hs); h["compatible"] != true || len(h["problems"].([]any)) != 0 {
@@ -285,13 +285,13 @@ func TestPairingFlowTokenLibraryDownloadRevoke(t *testing.T) {
 	wantStatus(t, e.do("GET", "/api/v1/games/"+uuid.NewString(), nil, opt{token: at}), 404, "not_found")
 	wantStatus(t, e.do("GET", "/api/v1/games", nil, opt{}), 401, "unauthorized")
 
-	// ROM-Download: voll, Range, If-None-Match, ungültige Range, ohne Auth, unbekannt
+	// ROM download: full, range, If-None-Match, invalid range, no auth, unknown
 	url := "/api/v1/roms/" + g.ROMSHA256
 	wantStatus(t, e.do("GET", url, nil, opt{}), 401, "unauthorized")
 	full := e.do("GET", url, nil, opt{token: at})
 	if full.Code != 200 || !bytes.Equal(full.Body.Bytes(), rom) || full.Header().Get("ETag") != `"`+g.ROMSHA256+`"` ||
 		full.Header().Get("Accept-Ranges") != "bytes" {
-		t.Fatalf("voll: %d %v", full.Code, full.Header())
+		t.Fatalf("full: %d %v", full.Code, full.Header())
 	}
 	part := e.do("GET", url, nil, opt{token: at, header: map[string]string{"Range": "bytes=100-199"}})
 	if part.Code != 206 || !bytes.Equal(part.Body.Bytes(), rom[100:200]) || part.Header().Get("Content-Range") != "bytes 100-199/4096" {
@@ -299,14 +299,14 @@ func TestPairingFlowTokenLibraryDownloadRevoke(t *testing.T) {
 	}
 	nm := e.do("GET", url, nil, opt{token: at, header: map[string]string{"If-None-Match": full.Header().Get("ETag")}})
 	if nm.Code != 304 || nm.Body.Len() != 0 {
-		t.Fatalf("304 erwartet, war %d", nm.Code)
+		t.Fatalf("want 304, got %d", nm.Code)
 	}
 	bad := e.do("GET", url, nil, opt{token: at, header: map[string]string{"Range": "bytes=9999-"}})
 	wantStatus(t, bad, 416, "bad_request")
 	wantStatus(t, e.do("GET", "/api/v1/roms/"+strings.Repeat("0", 64), nil, opt{token: at}), 404, "not_found")
 	wantStatus(t, e.do("GET", "/api/v1/roms/xyz", nil, opt{token: at, raw: true}), 404, "not_found")
 
-	// Revoke durch den Hub wirkt sofort auf das bestehende Access Token
+	// Revoke by the hub takes effect immediately on the existing access token
 	if err := e.svc.RevokeDevice(context.Background(), dev); err != nil {
 		t.Fatal(err)
 	}
@@ -339,10 +339,10 @@ func TestDeny(t *testing.T) {
 		t.Fatalf("%+v", r)
 	}
 	if err := e.svc.ApprovePairing(context.Background(), p.RequestID, e.admin.ID); err == nil {
-		t.Fatal("Approve nach Deny muss scheitern")
+		t.Fatal("approve after deny must fail")
 	}
 	if d, _ := e.svc.ListDevices(context.Background()); len(d) != 0 {
-		t.Fatal("Gerät nach Deny registriert")
+		t.Fatal("device registered after deny")
 	}
 }
 
@@ -354,12 +354,12 @@ func TestPairingExpiry(t *testing.T) {
 		t.Fatalf("%+v", r)
 	}
 	if err := e.svc.ApprovePairing(context.Background(), p.RequestID, e.admin.ID); err == nil {
-		t.Fatal("Approve nach Ablauf muss scheitern")
+		t.Fatal("approve after expiry must fail")
 	}
 	if l, _ := e.svc.ListPendingRequests(context.Background()); len(l) != 0 {
-		t.Fatal("abgelaufene Anfrage in Pending-Liste")
+		t.Fatal("expired request in pending list")
 	}
-	// approved, aber nie abgeholt: verfällt ebenfalls
+	// approved but never collected: expires as well
 	q := e.request(uuid.NewString())
 	e.svc.ApprovePairing(context.Background(), q.RequestID, e.admin.ID)
 	e.clk.Advance(hub.PairingTTL + time.Second)
@@ -379,7 +379,7 @@ func TestPairingRateLimit(t *testing.T) {
 		e.request(uuid.NewString())
 	}
 	wantStatus(t, e.do("POST", "/api/v1/pairing/requests", pairBody(uuid.NewString()), opt{}), 429, "rate_limited")
-	e.remote = "192.0.2.11:1" // andere IP ist nicht betroffen
+	e.remote = "192.0.2.11:1" // a different IP is not affected
 	e.request(uuid.NewString())
 	e.remote = "192.0.2.10:1"
 	e.clk.Advance(61 * time.Second)
@@ -394,7 +394,7 @@ func TestPairingOpenLimit(t *testing.T) {
 	}
 	e.remote = "198.51.100.200:1"
 	wantStatus(t, e.do("POST", "/api/v1/pairing/requests", pairBody(uuid.NewString()), opt{}), 429, "rate_limited")
-	e.clk.Advance(hub.PairingTTL + time.Second) // alte Anfragen verfallen, wieder Platz
+	e.clk.Advance(hub.PairingTTL + time.Second) // old requests expire, room again
 	e.request(uuid.NewString())
 }
 
@@ -402,21 +402,21 @@ func TestInvalidCredentialsAndTokens(t *testing.T) {
 	e := newEnv(t, nil)
 	dev := uuid.NewString()
 	cred := e.pairDevice(dev)
-	wantStatus(t, e.accessToken(dev, "fbd_falsch"), 401, "invalid_credentials")
-	wantStatus(t, e.accessToken(dev, "unsinn"), 401, "invalid_credentials")
+	wantStatus(t, e.accessToken(dev, "fbd_wrong"), 401, "invalid_credentials")
+	wantStatus(t, e.accessToken(dev, "nonsense"), 401, "invalid_credentials")
 	wantStatus(t, e.accessToken(uuid.NewString(), cred), 401, "invalid_credentials")
-	wantStatus(t, e.do("POST", "/api/v1/auth/token", map[string]any{"device_id": "kein-uuid", "device_credential": "x"}, opt{raw: true}), 400, "bad_request")
+	wantStatus(t, e.do("POST", "/api/v1/auth/token", map[string]any{"device_id": "not-a-uuid", "device_credential": "x"}, opt{raw: true}), 400, "bad_request")
 	wantStatus(t, e.do("POST", "/api/v1/auth/token", nil, opt{raw: true}), 400, "bad_request")
 
-	// falscher/fehlender Poll-Token
+	// wrong/missing poll token
 	p := e.request(uuid.NewString())
-	wantStatus(t, e.do("GET", "/api/v1/pairing/requests/"+p.RequestID, nil, opt{token: "fbp_falsch"}), 401, "unauthorized")
+	wantStatus(t, e.do("GET", "/api/v1/pairing/requests/"+p.RequestID, nil, opt{token: "fbp_wrong"}), 401, "unauthorized")
 	wantStatus(t, e.do("GET", "/api/v1/pairing/requests/"+p.RequestID, nil, opt{}), 401, "unauthorized")
 	wantStatus(t, e.do("GET", "/api/v1/pairing/requests/"+uuid.NewString(), nil, opt{token: p.PollToken}), 404, "not_found")
-	// Access Token mit falschem Typ/Unsinn
-	wantStatus(t, e.do("GET", "/api/v1/games", nil, opt{token: "fba_unsinn"}), 401, "unauthorized")
+	// access token with wrong type/nonsense
+	wantStatus(t, e.do("GET", "/api/v1/games", nil, opt{token: "fba_nonsense"}), 401, "unauthorized")
 	wantStatus(t, e.do("GET", "/api/v1/games", nil, opt{token: p.PollToken}), 401, "unauthorized")
-	// ungültiger Pairing-Body
+	// invalid pairing body
 	wantStatus(t, e.do("POST", "/api/v1/pairing/requests", map[string]any{"device_id": uuid.NewString()}, opt{raw: true}), 400, "bad_request")
 }
 
@@ -438,12 +438,12 @@ func TestLastSeenUpdated(t *testing.T) {
 	e.do("GET", "/api/v1/games", nil, opt{token: at})
 	d, _ := e.svc.GetDevice(context.Background(), dev)
 	if d.LastSeenAt == nil || !d.LastSeenAt.Equal(e.clk.Now().Truncate(time.Second)) {
-		t.Fatalf("last_seen_at %v, Uhr %v", d.LastSeenAt, e.clk.Now())
+		t.Fatalf("last_seen_at %v, clock %v", d.LastSeenAt, e.clk.Now())
 	}
 }
 
 func TestHandshakeVersions(t *testing.T) {
-	// Hub verlangt Protokoll >= 2: Player mit 1 ist zu alt.
+	// Hub requires protocol >= 2: player with 1 is too old.
 	e := newEnv(t, func(o *hub.Options) { o.ProtocolVersion, o.MinProtocolVersion = 2, 2 })
 	at := e.login(uuid.NewString())
 	h := decode[struct {
@@ -453,7 +453,7 @@ func TestHandshakeVersions(t *testing.T) {
 	if h.Compatible || len(h.Problems) != 1 || h.Problems[0].Code != "player_too_old" {
 		t.Fatalf("%+v", h)
 	}
-	// Player verlangt Protokoll >= 3: Hub (2) ist zu alt.
+	// Player requires protocol >= 3: hub (2) is too old.
 	h = decode[struct {
 		Compatible bool
 		Problems   []struct{ Code, Detail string }
@@ -463,7 +463,7 @@ func TestHandshakeVersions(t *testing.T) {
 	}
 	ok := decode[struct{ Compatible bool }](t, e.do("POST", "/api/v1/handshake", handshakeBody(2, 1), opt{token: at}))
 	if !ok.Compatible {
-		t.Fatal("kompatibel erwartet")
+		t.Fatal("want compatible")
 	}
 	wantStatus(t, e.do("POST", "/api/v1/handshake", handshakeBody(0, 0), opt{token: at, raw: true}), 400, "bad_request")
 	wantStatus(t, e.do("POST", "/api/v1/handshake", handshakeBody(1, 1), opt{}), 401, "unauthorized")
@@ -473,16 +473,16 @@ func TestRepairingDoesNotOverwriteWithoutApprove(t *testing.T) {
 	e := newEnv(t, nil)
 	dev := uuid.NewString()
 	oldCred := e.pairDevice(dev)
-	p := e.request(dev) // neue Anfrage für ein vertrautes Gerät
+	p := e.request(dev) // new request for a trusted device
 	wantStatus(t, e.accessToken(dev, oldCred), 200, "")
 	if r := decode[pollResp](t, e.poll(p)); r.Status != "pending" {
 		t.Fatalf("%+v", r)
 	}
-	wantStatus(t, e.accessToken(dev, oldCred), 200, "") // altes Credential gilt bis zum Approve
+	wantStatus(t, e.accessToken(dev, oldCred), 200, "") // old credential stays valid until approve
 	e.svc.ApprovePairing(context.Background(), p.RequestID, e.admin.ID)
 	newCred := decode[pollResp](t, e.poll(p)).DeviceCredential
 	if newCred == "" || newCred == oldCred {
-		t.Fatal("neues Credential erwartet")
+		t.Fatal("want new credential")
 	}
 	wantStatus(t, e.accessToken(dev, oldCred), 401, "invalid_credentials")
 	wantStatus(t, e.accessToken(dev, newCred), 200, "")
@@ -493,7 +493,7 @@ func TestRevokedDeviceCanBeRepaired(t *testing.T) {
 	dev := uuid.NewString()
 	e.pairDevice(dev)
 	e.svc.RevokeDevice(context.Background(), dev)
-	cred := e.pairDevice(dev) // erneuter Approve hebt die Sperre auf
+	cred := e.pairDevice(dev) // approving again lifts the revocation
 	wantStatus(t, e.accessToken(dev, cred), 200, "")
 }
 

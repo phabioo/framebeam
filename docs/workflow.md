@@ -1,93 +1,94 @@
-# Arbeitsweise mit Claude Code
+# Working with Claude Code
 
-## Hybrider Modus
+## Hybrid mode
 
-- Entwicklung in Claude-Code-Cloud-Sessions.
-- Windows-Build und -Tests laufen über GitHub Actions.
-- Fabio testet Meilensteine lokal (echtes Windows, GPU, Ton, Gamepads, P2P zwischen zwei Rechnern, Raspberry Pi 5 als Hub) oder per Remote-Control-Session auf seinem Rechner.
+- Development happens in Claude Code cloud sessions.
+- Windows build and tests run via GitHub Actions.
+- Fabio tests milestones locally (real Windows, GPU, audio, gamepads, P2P between two machines, Raspberry Pi 5 as Hub) or via a Remote Control session on his machine.
 
-## Was in der Cloud prüfbar ist
+## What can be verified in the cloud
 
-Prüfbar:
-- Hub komplett: Go-Server, SQLite, API, WSS-Signaling, Pairing, Tokens, TLS, Save-Konflikte, Firmware-Pfad, Webinterface; Linux-Builds x86-64 und ARM64 (Cross-Compile).
-- Protokoll: OpenAPI, JSON-Schemas, Handshake, Contract-Tests.
-- Player-Kern ohne GUI unter Linux (Hub-Client, Caches, Save-Sync, Hub-Profile, Einstellungs-Hierarchie, Manifeste).
-- Libretro-Backend headless mit melonDS DS und Homebrew-ROM (Frame-Hashes).
-- WebRTC zwischen zwei Prozessen auf einem Rechner (Loopback).
-- QML unter Xvfb mit Software-Rendering (Qt 6.4 aus apt).
-- Windows-Build und -Tests über GitHub Actions.
+Verifiable:
+- Hub in full: Go server, SQLite, API, WSS signaling, pairing, tokens, TLS, save conflicts, firmware path, web interface; Linux builds x86-64 and ARM64 (cross-compile).
+- Protocol: OpenAPI, JSON schemas, handshake, contract tests.
+- Player core without GUI on Linux (Hub client, caches, save sync, Hub profiles, settings hierarchy, manifests).
+- Libretro backend headless with melonDS DS and a homebrew ROM (frame hashes).
+- WebRTC between two processes on one machine (loopback).
+- QML under Xvfb with software rendering (Qt 6.4 from apt).
+- Windows build and tests via GitHub Actions.
 
-Nicht prüfbar (nur lokal bei Fabio):
-- Windows Credential Manager, NVENC/QSV/AMF, Installer, interaktive Bedienung.
-- GPU, Ton, Gamepads, Spielgefühl, Latenz.
-- Echtes P2P (NAT, Firewall, zwei Geräte im LAN).
-- Lauf auf Raspberry Pi 5 (Cloud: nur ARM64-Build bzw. QEMU-Smoke-Test).
-- Echte ROMs/BIOS: dürfen nicht in Repo oder Cloud.
-- Container sind kurzlebig: Abhängigkeiten brauchen Setup-Skript bzw. Caching.
+Not verifiable (only locally by Fabio):
+- Windows Credential Manager, NVENC/QSV/AMF, installer, interactive use.
+- GPU, audio, gamepads, game feel, latency.
+- Real P2P (NAT, firewall, two devices on the LAN).
+- Running on Raspberry Pi 5 (cloud: ARM64 build or QEMU smoke test only).
+- Real ROMs/BIOS: must not enter the repository or the cloud.
+- Containers are short-lived: dependencies need a setup script or caching.
 
-## Rollen
+## Roles
 
-**Opus ist ausschließlich Orchestrator** und schreibt keinen Produktcode. Er bündelt Aufgaben zu sinnvollen Paketen, delegiert per Brief (Vorlage unten) an Sonnet-5.5-Agents in `.claude/agents/`, prüft das Ergebnis und nimmt ab oder gibt es mit konkreten Korrekturen an denselben Agent zurück.
+**Opus is exclusively the orchestrator** and writes no product code. It bundles tasks into sensible packages, delegates via brief (template below) to the Sonnet 5.5 agents in `.claude/agents/`, reviews the result and either accepts it or sends it back to the same agent with concrete corrections.
 
-Ablauf:
+Flow:
 
-1. Aufgabe in 2–3 sinnvolle Pakete zerlegen.
-2. Brief schreiben (Vorlage unten).
-3. Subagent setzt um und meldet im Rückmeldeformat; er committet nicht.
-4. Opus prüft über `git diff --stat`, gezielten Diff und Testergebnis.
-5. Abnahme, oder Korrektur per `SendMessage` an denselben Agent.
-6. Commit/PR durch Opus.
+1. Break the task into 2-3 sensible packages.
+2. Write the brief (template below).
+3. The subagent implements and reports in the report format; it does not commit.
+4. Opus reviews via `git diff --stat`, a targeted diff and the test result.
+5. Acceptance, or correction via `SendMessage` to the same agent.
+6. Commit/PR by Opus.
 
-| Agent | Modell | Zuständigkeit |
+| Agent | Model | Responsibility |
 |---|---|---|
-| `hub-implementer` | Sonnet | Go-Hub (`server/`) |
-| `player-implementer` | Sonnet | C++/Qt-Player (`client/`) |
+| `hub-implementer` | Sonnet | Go Hub (`server/`) |
+| `player-implementer` | Sonnet | C++/Qt Player (`client/`) |
 | `protocol-implementer` | Sonnet | `protocol/` |
-| `build-ci-implementer` | Sonnet | CMake/vcpkg, Go-Build, GitHub Actions, `packaging/` |
+| `build-ci-implementer` | Sonnet | CMake/vcpkg, Go build, GitHub Actions, `packaging/` |
 | `docs-writer` | Sonnet | `docs/`, ADRs |
-| `scout` | Haiku | read-only: suchen, Logs/CI-Ausgaben lesen, zusammenfassen |
+| `scout` | Haiku | read-only: search, read logs/CI output, summarize |
 
-## Brief-Vorlage
+## Brief template
 
 ```text
-Ziel: <ein Satz>
-Kontext: <docs/architektur/NN-datei.md, Abschnitt X; ggf. kurzes Zitat>
-Dateien/Pfade: anlegen/ändern: <...>; sonst nichts anfassen
-Akzeptanzkriterien:
+Goal: <one sentence>
+Context: <docs/architecture/NN-file.md, section X; optionally a short quote>
+Files/paths: create/modify: <...>; touch nothing else
+Acceptance criteria:
 - <...>
-Prüfbefehl: <Befehl, Ausgabe gekürzt>
-Rückmeldung: geänderte Dateien; Befehle + Ergebnis je 1 Zeile; offene Punkte.
-Keine Volltext-Logs, keine Dateiinhalte zurückgeben. Nicht committen.
+Check command: <command, output trimmed>
+Report: changed files; commands + result, one line each; open points.
+Do not return full logs or file contents. Do not commit.
 ```
 
-## Token-Sparregeln
+## Token-saving rules
 
-- Aufgaben nicht zu fein zerlegen: lieber 2–3 sinnvolle Pakete als viele Mini-Aufträge, da jeder Agent kalt startet.
-- Agents erkunden nicht frei; sie bekommen Pfade und die Spec-Stelle.
-- Nur die relevante Architekturdatei lesen (Index: `docs/architektur/README.md`), nie alle.
-- Opus prüft über `git diff --stat`, gezielten Diff und Testergebnis, nicht durch erneutes Lesen ganzer Dateien.
-- Befehlsausgaben immer filtern/kürzen (`| tail -n 30`, nur Fehler). Lange Logs liest `scout` und fasst zusammen.
-- Bei Korrekturen den Agent per `SendMessage` fortsetzen statt neu starten; der Kontext bleibt erhalten.
-- Ein Arbeitspaket pro Thread; neue Threads statt langer Verläufe.
-- Geplant in Phase 0: leise Prüfskripte (`make check` o. ä., nur Fehler + Zusammenfassung), Dependency-Cache im SessionStart-Hook, Codegen aus OpenAPI.
+- Do not split tasks too finely: prefer 2-3 sensible packages over many mini-assignments, since every agent starts cold.
+- Agents do not explore freely; they get paths and the spec location.
+- Read only the relevant architecture file (index: `docs/architecture/README.md`), never all of them.
+- Opus reviews via `git diff --stat`, a targeted diff and the test result, not by re-reading whole files.
+- Always filter/trim command output (`| tail -n 30`, errors only). Long logs are read and summarized by `scout`.
+- For corrections, continue the agent via `SendMessage` instead of starting a new one; the context is preserved.
+- One work package per thread; new threads instead of long histories.
+- Planned in phase 0: quiet check scripts (`make check` or similar, errors + summary only), dependency cache in the SessionStart hook, codegen from OpenAPI.
 
-## Pakete und PRs
+## Packages and PRs
 
-- Je Paket ein PR mit grüner CI, ein Thema pro PR.
-- Bei jedem Meilenstein (Abschluss einer Phase) aktualisiert und erweitert der Phasen-PR `README.md`: Stand, Features, Bauen/Starten.
+- One PR per package with green CI, one topic per PR.
+- At every milestone (end of a phase), the phase PR updates and extends `README.md`: status, features, build/run.
 
-## Phasenplan
+## Phase plan
 
-- **Phase 0 – Fundament:** Monorepo-Struktur, CLAUDE.md, Architektur nach `docs/`; CI (Linux, Windows, ARM64-Cross-Build Hub); SessionStart-Hook für Abhängigkeiten.
-- **Phase 1 – Protokoll und Hub-Grundlagen:** OpenAPI `/api/v1`, WSS-Nachrichten, `protocol_version`, Handshake, Fehlercodes; Hub mit SQLite-Schema, Admin-Setup, TLS, Info-Endpunkt, Pairing, Tokens, Revoke, Library, ROM-Up-/Download.
-- **Phase 2 – Spielbarer Durchstich:** Player-Kern (Hub-Profil, TOFU, Pairing, Library, ROM-Cache); `LibretroBackend` mit melonDS DS; minimale Qt-Oberfläche. Erster lokaler Windows-Test durch Fabio.
-- **Phase 3 – Saves:** Start-/Auto-/Final-Sync, Current Checkpoint vs. History, `base_version`, Konfliktmodell, pending sync; Hub-Saves-Seite, Player-Konfliktdialog.
-- **Phase 4 – Session-Sharing und Multiview:** Presence, Signaling, Sichtbarkeit/ACL, WebRTC mit Software-H.264/Opus, PiP/Side-by-Side, Diagnostics; danach Hardware-Encoder (nur lokal testbar).
-- **Phase 5 – Rest und Politur:** Firmware-Pfad, Benutzer/Invites, Systeme & Cores, Emulation- und Controllers-Seiten, SDL3-Gamepads, Dark/Light, restliche Hub-Seiten, Paketierung (Windows-Installer, systemd-Unit).
+- **Phase 0 – Foundation:** monorepo structure, CLAUDE.md, architecture under `docs/`; CI (Linux, Windows, ARM64 cross-build of the Hub); SessionStart hook for dependencies.
+- **Phase 1 – Protocol and Hub basics:** OpenAPI `/api/v1`, WSS messages, `protocol_version`, handshake, error codes; Hub with SQLite schema, admin setup, TLS, info endpoint, pairing, tokens, revoke, library, ROM upload/download.
+- **Phase 2 – Playable vertical slice:** Player core (Hub profile, TOFU, pairing, library, ROM cache); `LibretroBackend` with melonDS DS; minimal Qt UI. First local Windows test by Fabio.
+- **Phase 3 – Saves:** start/auto/final sync, current checkpoint vs. history, `base_version`, conflict model, pending sync; Hub saves page, Player conflict dialog.
+- **Phase 4 – Session sharing and multiview:** presence, signaling, visibility/ACL, WebRTC with software H.264/Opus, PiP/side-by-side, diagnostics; afterwards hardware encoders (testable locally only).
+- **Phase 5 – Remainder and polish:** firmware path, users/invites, systems & cores, emulation and controllers pages, SDL3 gamepads, dark/light, remaining Hub pages, packaging (Windows installer, systemd unit).
 
-Die Screen-Zuordnung zu den Phasen steht in `docs/design/README.md`.
+The mapping of screens to phases is in `docs/design/README.md`.
 
-## Regeln
+## Rules
 
-- Keine echten ROMs, BIOS oder Firmware im Repo oder in Tests; nur Homebrew-ROMs bzw. Dummy-Dateien.
-- melonDS DS ist GPL-3.0; das betrifft die spätere Verteilung des Players.
+- The repository language is English (code, UI, docs, commits, PRs).
+- No real ROMs, BIOS or firmware in the repository or in tests; only homebrew ROMs or dummy files.
+- melonDS DS is GPL-3.0; this affects the later distribution of the Player.

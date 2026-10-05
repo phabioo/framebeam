@@ -1,5 +1,5 @@
 #pragma once
-// LibraryModel: Spiele des aktiven Hubs mit ROM-Status, filterbar nach Titel und "Bereit".
+// LibraryModel: games of the active hub with ROM status, filterable by title and "Ready".
 
 #include <QAbstractListModel>
 #include <QList>
@@ -16,7 +16,7 @@ namespace framebeam::ui {
 class LibraryModel : public QAbstractListModel {
   Q_OBJECT
   QML_ELEMENT
-  QML_UNCREATABLE("Wird vom PlayerController bereitgestellt")
+  QML_UNCREATABLE("Provided by the PlayerController")
   Q_PROPERTY(QString filterText READ filterText WRITE setFilterText NOTIFY filterChanged)
   Q_PROPERTY(bool readyOnly READ readyOnly WRITE setReadyOnly NOTIFY filterChanged)
   Q_PROPERTY(int count READ rowCount NOTIFY countChanged)
@@ -26,14 +26,14 @@ class LibraryModel : public QAbstractListModel {
   enum Roles {
     GameIdRole = Qt::UserRole + 1,
     TitleRole,
-    SystemRole,       // z. B. "NDS"
-    MonogramRole,     // bis zu zwei Initialen
+    SystemRole,       // e.g. "NDS"
+    MonogramRole,     // up to two initials
     RomShaRole,
     RomSizeRole,
     StateKindRole,    // ready | download | validating | downloading | mismatch | failed | unknown
-    StatusTextRole,   // z. B. "Download nötig · 128 MB"
+    StatusTextRole,   // e.g. "Download needed · 128 MB"
     StatusToneRole,   // ok | neutral | warn | error
-    ProgressRole      // 0..1, nur bei downloading sinnvoll
+    ProgressRole      // 0..1, only meaningful for downloading
   };
   Q_ENUM(Roles)
 
@@ -75,7 +75,7 @@ class LibraryModel : public QAbstractListModel {
   void rebuild();
 
   QList<Item> items_;
-  QList<int> visible_;  // Indizes in items_
+  QList<int> visible_;  // indices into items_
   QString filterText_;
   bool readyOnly_ = false;
 };

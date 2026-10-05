@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 
-// Karte eines gespeicherten (oder gerade versuchten) Hubs in 3a.
+// Card for a saved (or currently attempted) hub in 3a.
 Rectangle {
     id: card
     required property var hub
@@ -52,7 +52,7 @@ Rectangle {
             elide: Text.ElideRight
         }
 
-        // Hinweis bei Fehler/Warnung (Zertifikat geaendert, Hub/Player zu alt, nicht erreichbar)
+        // Notice on error/warning (certificate changed, hub/player too old, not reachable)
         Rectangle {
             Layout.fillWidth: true
             visible: card.hub.message !== ""
@@ -74,9 +74,9 @@ Rectangle {
             Layout.fillWidth: true
             visible: card.status === "certChanged" && card.showFingerprints
             spacing: 6
-            Eyebrow { text: qsTr("Gespeichert (SHA-256)") }
+            Eyebrow { text: qsTr("Saved (SHA-256)") }
             FbMono { text: card.hub.expectedFingerprint || ""; color: Theme.text }
-            Eyebrow { text: qsTr("Jetzt vom Hub gemeldet (SHA-256)"); Layout.topMargin: 4 }
+            Eyebrow { text: qsTr("Reported by hub now (SHA-256)"); Layout.topMargin: 4 }
             FbMono { text: card.hub.observedFingerprint || ""; color: Theme.error }
         }
 
@@ -86,25 +86,25 @@ Rectangle {
             FbButton {
                 visible: card.status === "idle"
                 kind: "primary"
-                text: qsTr("Verbinden")
+                text: qsTr("Connect")
                 onClicked: card.connectRequested(card.hub.hubId)
             }
             FbButton {
                 visible: card.status === "unreachable"
-                text: qsTr("Wiederholen")
+                text: qsTr("Retry")
                 onClicked: card.retryRequested()
             }
             FbButton {
                 visible: card.status === "certChanged"
                 kind: "link"
-                text: card.showFingerprints ? qsTr("Fingerprints ausblenden") : qsTr("Fingerprint prüfen")
+                text: card.showFingerprints ? qsTr("Hide fingerprints") : qsTr("Check fingerprint")
                 onClicked: card.showFingerprints = !card.showFingerprints
             }
             Item { Layout.fillWidth: true }
             FbButton {
                 visible: card.status !== "connecting"
                 kind: "link"
-                text: card.hub.saved ? qsTr("Entfernen") : qsTr("Verwerfen")
+                text: card.hub.saved ? qsTr("Remove") : qsTr("Discard")
                 onClicked: card.removeRequested(card.hub.hubId)
             }
         }

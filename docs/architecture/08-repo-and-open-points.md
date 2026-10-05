@@ -1,12 +1,12 @@
-# Architektur: Repository und offene Punkte
+# Architecture: repository and open points
 
-## 8. Repository und offene Implementierungsentscheidungen
+## 8. Repository and open implementation decisions
 
-Client und Server sind zwei Build-Targets desselben FrameBeam-Monorepos und keine getrennten Projekte oder Repositories. Die zugehörigen Client- und Server-Artefakte werden im gemeinsamen FrameBeam-Release bereitgestellt.
+Client and server are two build targets of the same FrameBeam monorepo and not separate projects or repositories. The corresponding client and server artifacts are provided in the common FrameBeam release.
 
-Die verbindlichen Produktbegriffe in UI und Dokumentation sind **FrameBeam Player** für den Client und **FrameBeam Hub** für den Server. Intern bleiben die Bezeichnungen `client` und `server` bestehen.
+The binding product terms in UI and documentation are **FrameBeam Player** for the client and **FrameBeam Hub** for the server. Internally the names `client` and `server` remain.
 
-Ein gemeinsames Monorepo hält Client, Server und Protokolländerungen zusammen:
+A common monorepo keeps client, server and protocol changes together:
 
 ```text
 framebeam/
@@ -17,4 +17,4 @@ framebeam/
 └── docs/
 ```
 
-Noch zu spezifizieren sind konkrete Encoder-/Decoder-Anbindung, API-Endpunkte und Nachrichtenformate, Protokoll-Kompatibilitätsregeln, Token-Format und exakte Access-/Refresh-Laufzeiten sowie technische Widerrufs-/Erneuerungsdetails innerhalb des festgelegten Modells. Offen bleiben außerdem konkrete TLS-Zertifikatsverwaltung einschließlich Erneuerung/Pin-Wechsel, Save-Retention und Details der Konfliktauflösung, Cache-Limits/Bereinigung, ICE-/STUN-Konfiguration und späterer TURN-Einsatz, Medienparameter sowie Core-/Firmware-Manifest- und Paketformate. Approval-Pairing, Rollen, passwordless User und TLS-Pflicht sind bereits entschieden. Diese offenen Details führen keine zusätzlichen PoC-Features ein.
+Still to be specified are the concrete encoder/decoder integration, API endpoints and message formats, protocol compatibility rules, token format and exact access/refresh lifetimes as well as technical revocation/renewal details within the defined model. Also open are concrete TLS certificate management including renewal/pin change, save retention and details of conflict resolution, cache limits/cleanup, ICE/STUN configuration and later TURN use, media parameters as well as core/firmware manifest and package formats. Approval pairing, roles, passwordless users and the TLS requirement are already decided. These open details introduce no additional PoC features.

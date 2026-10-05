@@ -13,7 +13,7 @@ import (
 	"github.com/phabioo/framebeam/server/internal/auth"
 )
 
-// Role ist die Rolle eines Users.
+// Role is the role of a user.
 type Role string
 
 const (
@@ -21,7 +21,7 @@ const (
 	RoleUser  Role = "user"
 )
 
-// User ist ein Hub-Benutzer. Normale User haben kein Passwort.
+// User is a hub user. Regular users have no password.
 type User struct {
 	ID          string
 	Username    string
@@ -48,7 +48,7 @@ func scanUser(r scanner) (User, error) {
 	return u, nil
 }
 
-// HasAdmin meldet, ob bereits ein Admin existiert.
+// HasAdmin reports whether an admin already exists.
 func (s *Service) HasAdmin(ctx context.Context) (bool, error) {
 	var n int
 	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE role = 'admin'`).Scan(&n); err != nil {
@@ -57,13 +57,13 @@ func (s *Service) HasAdmin(ctx context.Context) (bool, error) {
 	return n > 0, nil
 }
 
-// CreateAdmin legt den ersten Admin an; existiert schon einer, schlägt es mit ErrAdminExists fehl.
+// CreateAdmin creates the first admin; if one already exists, it fails with ErrAdminExists.
 func (s *Service) CreateAdmin(ctx context.Context, username, password string) (User, error) {
 	if !usernameRe.MatchString(username) {
-		return User{}, badRequest("Benutzername: 1 bis 64 Zeichen aus A-Z, a-z, 0-9, '.', '_', '-'")
+		return User{}, badRequest("Username: 1 to 64 characters from A-Z, a-z, 0-9, '.', '_', '-'")
 	}
 	if len(password) < MinPasswordLen {
-		return User{}, badRequest("Passwort muss mindestens %d Zeichen lang sein", MinPasswordLen)
+		return User{}, badRequest("Password must be at least %d characters long", MinPasswordLen)
 	}
 	hash, err := auth.HashPassword(password, s.params)
 	if err != nil {
@@ -85,7 +85,7 @@ func (s *Service) CreateAdmin(ctx context.Context, username, password string) (U
 	if _, err := tx.ExecContext(ctx, `INSERT INTO users(id, username, display_name, role, password_hash, created_at) VALUES (?,?,?,?,?,?)`,
 		u.ID, u.Username, u.DisplayName, u.Role, hash, u.CreatedAt.Unix()); err != nil {
 		if isUnique(err) {
-			return User{}, conflict("Benutzername bereits vergeben")
+			return User{}, conflict("Username already taken")
 		}
 		return User{}, internal(err)
 	}
@@ -95,30 +95,30 @@ func (s *Service) CreateAdmin(ctx context.Context, username, password string) (U
 	return u, nil
 }
 
-// CreateUser legt einen normalen User ohne Passwort an (nur durch den Admin).
+// CreateUser creates a regular user without a password (by the admin only).
 func (s *Service) CreateUser(ctx context.Context, username, displayName string) (User, error) {
 	if !usernameRe.MatchString(username) {
-		return User{}, badRequest("Benutzername: 1 bis 64 Zeichen aus A-Z, a-z, 0-9, '.', '_', '-'")
+		return User{}, badRequest("Username: 1 to 64 characters from A-Z, a-z, 0-9, '.', '_', '-'")
 	}
 	displayName = strings.TrimSpace(displayName)
 	if displayName == "" {
 		displayName = username
 	}
 	if len(displayName) > 100 {
-		return User{}, badRequest("Anzeigename zu lang")
+		return User{}, badRequest("Display name too long")
 	}
 	u := User{ID: newUserID(), Username: username, DisplayName: displayName, Role: RoleUser, CreatedAt: s.Now().Truncate(time.Second)}
 	if _, err := s.db.ExecContext(ctx, `INSERT INTO users(id, username, display_name, role, password_hash, created_at) VALUES (?,?,?,?,NULL,?)`,
 		u.ID, u.Username, u.DisplayName, u.Role, u.CreatedAt.Unix()); err != nil {
 		if isUnique(err) {
-			return User{}, conflict("Benutzername bereits vergeben")
+			return User{}, conflict("Username already taken")
 		}
 		return User{}, internal(err)
 	}
 	return u, nil
 }
 
-// GetUser liefert einen User per ID.
+// GetUser returns a user by ID.
 func (s *Service) GetUser(ctx context.Context, id string) (User, error) {
 	u, err := scanUser(s.db.QueryRowContext(ctx, `SELECT `+userCols+` FROM users WHERE id = ?`, id))
 	if errors.Is(err, sql.ErrNoRows) {
@@ -130,7 +130,7 @@ func (s *Service) GetUser(ctx context.Context, id string) (User, error) {
 	return u, nil
 }
 
-// ListUsers liefert alle User nach Anlegedatum.
+// ListUsers returns all users by creation date.
 func (s *Service) ListUsers(ctx context.Context) ([]User, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT `+userCols+` FROM users ORDER BY created_at, username`)
 	if err != nil {
@@ -153,8 +153,8 @@ func (s *Service) dummyHash() string {
 	return s.dummy
 }
 
-// VerifyPassword prüft Benutzername und Passwort (nur Admins haben ein Passwort).
-// Fehler: ErrInvalidCredentials. Bei unbekanntem User läuft ein Dummy-Hash für gleiche Laufzeit.
+// VerifyPassword checks username and password (only admins have a password).
+// Error: ErrInvalidCredentials. For an unknown user a dummy hash runs to keep the run time the same.
 func (s *Service) VerifyPassword(ctx context.Context, username, password string) (User, error) {
 	var hash sql.NullString
 	var u User
@@ -177,11 +177,11 @@ func (s *Service) VerifyPassword(ctx context.Context, username, password string)
 	return u, nil
 }
 
-// ChangePassword setzt das Passwort eines Users mit Passwort (Admin). Das alte Passwort prüft der
-// Aufrufer (VerifyPassword). Bestehende Web-Sessions des Users werden beendet.
+// ChangePassword sets the password of a user who has one (admin). The caller checks the old password
+// (VerifyPassword). The user's existing web sessions are ended.
 func (s *Service) ChangePassword(ctx context.Context, userID, newPassword string) error {
 	if len(newPassword) < MinPasswordLen {
-		return badRequest("Passwort muss mindestens %d Zeichen lang sein", MinPasswordLen)
+		return badRequest("Password must be at least %d characters long", MinPasswordLen)
 	}
 	hash, err := auth.HashPassword(newPassword, s.params)
 	if err != nil {
@@ -212,15 +212,15 @@ func internal2(err error) error {
 	return internal(err)
 }
 
-// WebSession ist eine angemeldete Web-Sitzung (Webinterface).
+// WebSession is a signed-in web session (web interface).
 type WebSession struct {
 	User      User
 	CSRFToken string
 	ExpiresAt time.Time
 }
 
-// CreateWebSession legt eine Web-Sitzung an und liefert das Session-Token (nur Klartext hier; gespeichert
-// wird der Hash) samt Sitzung mit CSRF-Token.
+// CreateWebSession creates a web session and returns the session token (plaintext only here; the hash
+// is stored) together with the session including its CSRF token.
 func (s *Service) CreateWebSession(ctx context.Context, userID string) (token string, ws WebSession, err error) {
 	u, err := s.GetUser(ctx, userID)
 	if err != nil {
@@ -243,7 +243,7 @@ func (s *Service) CreateWebSession(ctx context.Context, userID string) (token st
 	return token, WebSession{User: u, CSRFToken: csrf, ExpiresAt: exp.Truncate(time.Second)}, nil
 }
 
-// LookupWebSession liefert die Sitzung zum Token (ErrUnauthorized, wenn unbekannt oder abgelaufen).
+// LookupWebSession returns the session for the token (ErrUnauthorized if unknown or expired).
 func (s *Service) LookupWebSession(ctx context.Context, token string) (WebSession, error) {
 	var ws WebSession
 	var created, exp int64
@@ -264,7 +264,7 @@ func (s *Service) LookupWebSession(ctx context.Context, token string) (WebSessio
 	return ws, nil
 }
 
-// DeleteWebSession beendet eine Web-Sitzung (Logout).
+// DeleteWebSession ends a web session (logout).
 func (s *Service) DeleteWebSession(ctx context.Context, token string) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM web_sessions WHERE token_hash = ?`, auth.HashToken(token))
 	return internal2(err)

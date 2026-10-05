@@ -13,15 +13,15 @@
 
 namespace framebeam {
 
-// Ergebnis einer beendeten Anfrage (nur im finished-Slot mit resultOf() lesen).
+// Result of a finished request (read only in the finished slot with resultOf()).
 struct HttpResult {
-  int status = 0;  // 0 = keine HTTP-Antwort
+  int status = 0;  // 0 = no HTTP response
   QByteArray body;
-  bool networkError = false;  // keine HTTP-Antwort erhalten
+  bool networkError = false;  // no HTTP response received
   QString errorString;
-  bool certMismatch = false;  // Zertifikat entspricht nicht dem Pin (Anfrage wurde nie gesendet)
+  bool certMismatch = false;  // certificate does not match the pin (request was never sent)
   QString observedFingerprint;
-  QString apiErrorCode;  // aus {"error":{"code","message"}}
+  QString apiErrorCode;  // from {"error":{"code","message"}}
   QString apiErrorMessage;
 
   QJsonObject json() const;
@@ -30,19 +30,19 @@ struct HttpResult {
 
 using HttpHeaders = QList<QPair<QByteArray, QByteArray>>;
 
-// HTTP(S)-Client mit Certificate Pinning. Die System-CAs werden bewusst NICHT verwendet: jedes
-// Zertifikat (auch ein vom System vertrautes, z. B. Reverse Proxy) wird nur ueber den Leaf-Fingerprint
-// akzeptiert. Ohne Pin wird nur akzeptiert, wenn allowUnpinned gesetzt ist (Erstkontakt, nur Info-Endpunkt).
+// HTTP(S) client with certificate pinning. System CAs are deliberately NOT used: every
+// certificate (even one trusted by the system, e.g. a reverse proxy) is accepted only via the leaf fingerprint.
+// Without a pin, a certificate is accepted only if allowUnpinned is set (first contact, info endpoint only).
 class HubHttp : public QObject {
   Q_OBJECT
  public:
   HubHttp(const QUrl& baseUrl, const QString& pinnedFingerprint, QObject* parent = nullptr);
 
-  // SHA-256 ueber Leaf-DER, Hex gross mit Doppelpunkten (wie server/internal/tlsutil Fingerprint).
+  // SHA-256 over leaf DER, uppercase hex with colons (like server/internal/tlsutil Fingerprint).
   static QString fingerprint(const QSslCertificate& cert);
   static bool fingerprintsEqual(const QString& a, const QString& b);
   static bool isLoopbackHost(const QString& host);
-  // https immer; http nur bei localhost/127.0.0.1/::1 oder allowHttp (Dev-Flag).
+  // https always; http only for localhost/127.0.0.1/::1 or allowHttp (dev flag).
   static bool isSchemeAllowed(const QUrl& url, bool allowHttp);
   static HttpResult resultOf(QNetworkReply* reply);
 

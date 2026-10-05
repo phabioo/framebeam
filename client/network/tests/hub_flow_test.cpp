@@ -70,8 +70,8 @@ class HubFlowTest : public QObject {
     WAIT_STATE(*conn_, State::NeedsTrustConfirmation);
     QCOMPARE(conn_->observedFingerprint(), hub.fingerprint());
     QCOMPARE(conn_->hubInfo().hubId, hub.hubId);
-    QVERIFY(profiles_->profiles().isEmpty());  // noch nichts uebernommen
-    QCOMPARE(hub.requests.size(), 1);          // nur der Info-Endpunkt
+    QVERIFY(profiles_->profiles().isEmpty());  // nothing adopted yet
+    QCOMPARE(hub.requests.size(), 1);          // only the info endpoint
     conn_->confirmTrust();
     WAIT_STATE(*conn_, State::NeedsPairing);
     QCOMPARE(profiles_->profile(hub.hubId)->pinnedFingerprint, hub.fingerprint());
@@ -97,7 +97,7 @@ class HubFlowTest : public QObject {
       return h;
     }());
     conn_->disconnectFromHub();
-    // zweiter Lauf ueber das gespeicherte Profil: Pin + Credential vorhanden -> direkt verbunden
+    // second run via the stored profile: pin + credential present -> connected directly
     conn_->connectToProfile(hub.hubId);
     WAIT_STATE(*conn_, State::Connected);
     QVERIFY(profiles_->profile(hub.hubId)->lastConnected.isValid());
@@ -132,7 +132,7 @@ class HubFlowTest : public QObject {
     creds_->write(p.credentialRef, QString::fromLatin1(FakeHub::kDeviceCredential));
     hubA.close();
 
-    // Gleiche Adresse, anderes Zertifikat
+    // Same address, different certificate
     FakeHub hubB(QStringLiteral("b"));
     QVERIFY(hubB.start());
     p.address = hubB.address();
@@ -142,7 +142,7 @@ class HubFlowTest : public QObject {
     QCOMPARE(hubB.requests.size(), 0);
     QCOMPARE(conn_->observedFingerprint(), hubB.fingerprint());
     QCOMPARE(conn_->expectedFingerprint(), hubA.fingerprint());
-    QCOMPARE(profiles_->profile(p.hubId)->pinnedFingerprint, hubA.fingerprint());  // nicht uebernommen
+    QCOMPARE(profiles_->profile(p.hubId)->pinnedFingerprint, hubA.fingerprint());  // not adopted
     QCOMPARE(hubB.tokenRequests(), 0);
   }
 
@@ -157,7 +157,7 @@ class HubFlowTest : public QObject {
     QCOMPARE(conn_->errorCode(), QStringLiteral("player_too_old"));
 
     HandshakeInfo h = HandshakeInfo::detect();
-    h.minProtocolVersion = 3;  // Player verlangt mehr, als der Hub kann
+    h.minProtocolVersion = 3;  // player requires more than the hub supports
     conn_->setHandshakeInfo(h);
     hub.minProtocolVersion = 1;
     hub.protocolVersion = 2;
@@ -175,7 +175,7 @@ class HubFlowTest : public QObject {
     WAIT_STATE(*conn_, State::NeedsPairing);
     conn_->requestPairing();
     WAIT_STATE(*conn_, State::AwaitingApproval);
-    QTest::qWait(150);  // mehrere Polls mit pending
+    QTest::qWait(150);  // several polls with pending
     QVERIFY(conn_->state() == State::AwaitingApproval);
     hub.decision = FakeHub::Decision::Approve;
     WAIT_STATE(*conn_, State::Connected);
@@ -187,7 +187,7 @@ class HubFlowTest : public QObject {
     QCOMPARE(p->credentialRef, credentialTarget(hub.hubId, profiles_->deviceId()));
     QCOMPARE(creds_->read(p->credentialRef).value(), QString::fromLatin1(FakeHub::kDeviceCredential));
 
-    // Pairing-Anfrage enthaelt Geraeteangaben
+    // Pairing request contains device details
     QJsonObject req;
     for (const FakeRequest& r : hub.requests) {
       if (r.path == QLatin1String("/api/v1/pairing/requests")) {
@@ -198,7 +198,7 @@ class HubFlowTest : public QObject {
     QCOMPARE(req.value(QStringLiteral("device_name")).toString(), profiles_->deviceName());
     QVERIFY(!req.value(QStringLiteral("player_version")).toString().isEmpty());
 
-    // Keine Secrets in Profil-/Device-Datei
+    // No secrets in profile/device file
     const QByteArray files = readAll(profiles_->profilesFilePath()) + readAll(dir_->filePath(QStringLiteral("device.json")));
     QVERIFY(!files.isEmpty());
     for (const QByteArray& secret : QList<QByteArray>{FakeHub::kDeviceCredential, FakeHub::kPollToken, "fba_", "fbd_", "fbp_"}) {
@@ -220,7 +220,7 @@ class HubFlowTest : public QObject {
     QVERIFY(profiles_->profile(hub.hubId)->credentialRef.isEmpty());
 
     hub.decision = FakeHub::Decision::Expire;
-    conn_->requestPairing();  // aus Denied heraus erneut moeglich
+    conn_->requestPairing();  // possible again from Denied
     WAIT_STATE(*conn_, State::Expired);
 
     hub.decision = FakeHub::Decision::Pending;
@@ -230,7 +230,7 @@ class HubFlowTest : public QObject {
     QVERIFY(conn_->state() == State::NeedsPairing);
     const int polls = hub.count(QStringLiteral("/api/v1/pairing/requests/"));
     QTest::qWait(200);
-    QCOMPARE(hub.count(QStringLiteral("/api/v1/pairing/requests/")), polls);  // Poll gestoppt
+    QCOMPARE(hub.count(QStringLiteral("/api/v1/pairing/requests/")), polls);  // poll stopped
   }
 
   void pairingRateLimitKeepsState() {
@@ -250,13 +250,13 @@ class HubFlowTest : public QObject {
 
   void accessTokenIsRenewedBeforeExpiry() {
     FakeHub hub(QStringLiteral("a"));
-    hub.tokenLifetime = 1;  // Erneuerung nach ~0,8 s
+    hub.tokenLifetime = 1;  // renewal after ~0.8 s
     QVERIFY(hub.start());
     pairViaApproval(hub);
     QTRY_VERIFY_WITH_TIMEOUT(hub.tokenRequests() >= 3, 6000);
     QVERIFY(conn_->state() == State::Connected);
     QVERIFY(hub.issuedAccessTokens.at(0) != hub.issuedAccessTokens.at(1));
-    // Erneuerung ohne weiteren Handshake
+    // renewal without another handshake
     QCOMPARE(hub.count(QStringLiteral("/api/v1/handshake")), 1);
   }
 
@@ -265,7 +265,7 @@ class HubFlowTest : public QObject {
     hub.tokenLifetime = 1;
     QVERIFY(hub.start());
     pairViaApproval(hub);
-    hub.revoked = true;  // Admin widerruft im Hub
+    hub.revoked = true;  // admin revokes in the hub
     WAIT_STATE(*conn_, State::NeedsPairing);
     QCOMPARE(conn_->errorCode(), QStringLiteral("device_revoked"));
     QVERIFY(!creds_->read(credentialTarget(hub.hubId, profiles_->deviceId())).has_value());
@@ -302,10 +302,10 @@ class HubFlowTest : public QObject {
     QVERIFY(!HubHttp::isSchemeAllowed(QUrl(QStringLiteral("http://192.0.2.1")), false));
     QVERIFY(HubHttp::isSchemeAllowed(QUrl(QStringLiteral("http://192.0.2.1")), true));
 
-    FakeHub hub{QString()};  // HTTP auf 127.0.0.1
+    FakeHub hub{QString()};  // HTTP on 127.0.0.1
     QVERIFY(hub.start());
     conn_->connectToAddress(hub.address());
-    WAIT_STATE(*conn_, State::NeedsPairing);  // kein TLS -> keine Trust-Bestaetigung
+    WAIT_STATE(*conn_, State::NeedsPairing);  // no TLS -> no trust confirmation
   }
 
   void defaultPortIs8443() {

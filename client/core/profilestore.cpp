@@ -78,7 +78,7 @@ bool dirIsWritable(const QString& path) {
     return false;
   }
   QTemporaryFile probe(QDir(path).filePath(QStringLiteral(".framebeam-write-test-XXXXXX")));
-  return probe.open();  // Datei wird beim Zerstoeren geloescht
+  return probe.open();  // file is deleted on destruction
 }
 
 }  // namespace
@@ -180,22 +180,22 @@ QString ProfileStore::defaultBaseDir() {
   const QByteArray env = qgetenv("FRAMEBEAM_DATA_DIR");
   if (!env.isEmpty()) {
     const QString dir = QString::fromLocal8Bit(env);
-    qCInfo(lcProfiles) << "Datenverzeichnis (FRAMEBEAM_DATA_DIR):" << dir;
+    qCInfo(lcProfiles) << "Data directory (FRAMEBEAM_DATA_DIR):" << dir;
     return dir;
   }
   const QString appData = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
   const QString appDir = QCoreApplication::instance() ? QCoreApplication::applicationDirPath() : QString();
   const BaseDirChoice c = chooseBaseDir(appDir, appData);
   if (!c.portable) {
-    qCInfo(lcProfiles) << "Datenverzeichnis (Rueckfall AppData, Programmverzeichnis nicht beschreibbar oder unbekannt):"
+    qCInfo(lcProfiles) << "Data directory (fallback AppData, program directory not writable or unknown):"
                        << c.path;
     return c.path;
   }
-  qCInfo(lcProfiles) << "Datenverzeichnis (portabel):" << c.path;
+  qCInfo(lcProfiles) << "Data directory (portable):" << c.path;
   const int n = migrateLegacyData(appData, c.path);
   if (n > 0) {
-    qCInfo(lcProfiles) << "Daten aus" << appData << "nach" << c.path << "kopiert (" << n
-                       << "Dateien, Quelle unveraendert, ROM-Cache nicht migriert)";
+    qCInfo(lcProfiles) << "Data from" << appData << "to" << c.path << "copied (" << n
+                       << "files, source unchanged, ROM cache not migrated)";
   }
   return c.path;
 }
@@ -244,7 +244,7 @@ void ProfileStore::load() {
     devDirty = true;
   }
   if (devDirty && !saveDevice()) {
-    qCWarning(lcProfiles) << "device.json konnte nicht geschrieben werden";
+    qCWarning(lcProfiles) << "device.json could not be written";
   }
 
   const QJsonObject root = readJsonFile(profilesFilePath());

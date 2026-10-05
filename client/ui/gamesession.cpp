@@ -53,7 +53,7 @@ void GameSession::start(const LaunchConfig& config) {
   EmulationRunner* r = runner_.get();
   connect(r, &EmulationRunner::started, this, [this](const emu::AvInfo& av, const emu::CoreInfo&) {
     if (!audio_.start(static_cast<int>(av.sampleRate + 0.5))) {
-      qCWarning(lcAudio) << "Audioausgabe nicht verfuegbar; Session laeuft ohne Ton";
+      qCWarning(lcAudio) << "Audio output not available; session runs without sound";
     }
     startedEmitted_ = true;
     setState(Running);

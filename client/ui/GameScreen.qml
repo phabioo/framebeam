@@ -3,7 +3,7 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import FrameBeam.Player
 
-// Spielansicht: Header (56 px) und skalierter Frame auf schwarzem Hintergrund.
+// Game view: header (56 px) and scaled frame on a black background.
 Rectangle {
     id: root
     required property PlayerController player
@@ -44,7 +44,7 @@ Rectangle {
             }
             FbMono {
                 visible: root.width > 1100
-                text: qsTr("Pfeile · X=A Z=B S=X A=Y · Q=L W=R · Enter=Start · Rücktaste=Select · Esc=Pause")
+                text: qsTr("Arrows · X=A Z=B S=X A=Y · Q=L W=R · Enter=Start · Backspace=Select · Esc=Pause")
                 font.pixelSize: 11
                 color: Theme.gameTextMuted
             }
@@ -52,7 +52,7 @@ Rectangle {
                 objectName: "pauseButton"
                 implicitHeight: 36
                 focusPolicy: Qt.NoFocus
-                text: root.session.paused ? qsTr("Fortsetzen") : qsTr("Pause")
+                text: root.session.paused ? qsTr("Resume") : qsTr("Pause")
                 enabled: root.session.state === GameSession.Running || root.session.state === GameSession.Paused
                 onClicked: root.session.togglePause()
             }
@@ -68,7 +68,7 @@ Rectangle {
                 objectName: "quitButton"
                 implicitHeight: 36
                 focusPolicy: Qt.NoFocus
-                text: qsTr("Beenden")
+                text: qsTr("Quit")
                 onClicked: root.player.quitGame()
             }
         }
@@ -88,7 +88,7 @@ Rectangle {
         FbLabel {
             anchors.centerIn: parent
             visible: !root.session.hasFrame && root.session.state !== GameSession.Failed
-            text: qsTr("Emulator startet…")
+            text: qsTr("Starting emulator…")
             color: Theme.gameTextMuted
         }
         Rectangle {
@@ -97,7 +97,7 @@ Rectangle {
             color: "#99000000"
             FbLabel {
                 anchors.centerIn: parent
-                text: qsTr("Pausiert · Esc oder Fortsetzen")
+                text: qsTr("Paused · Esc or Resume")
                 color: Theme.gameText
                 font.pixelSize: 18
                 font.weight: Font.Medium

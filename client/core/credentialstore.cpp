@@ -25,7 +25,7 @@ QString credentialTarget(const QString& hubId, const QString& deviceId) {
 MemoryCredentialStore::MemoryCredentialStore() {
   static std::once_flag warned;
   std::call_once(warned, [] {
-    qCWarning(lcCred) << "Kein OS-Credential-Store auf dieser Plattform: Credentials nur im Speicher, nicht persistent.";
+    qCWarning(lcCred) << "No OS credential store on this platform: credentials are kept in memory only, not persisted.";
   });
 }
 

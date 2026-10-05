@@ -57,7 +57,7 @@ func (s *Server) clientsData(r *http.Request) (clientsBody, error) {
 	return b, nil
 }
 
-// renderClients rendert die Seite oder (htmx) nur #clients-body; flash/errMsg erscheinen im Fragment.
+// renderClients renders the page or (htmx) only #clients-body; flash/errMsg appear in the fragment.
 func (s *Server) renderClients(w http.ResponseWriter, r *http.Request, sess *session, flash, errMsg string) {
 	body, err := s.clientsData(r)
 	if err != nil {
@@ -85,9 +85,9 @@ func (s *Server) clientsGet(w http.ResponseWriter, r *http.Request, sess *sessio
 func decideMsg(err error) string {
 	switch {
 	case errors.Is(err, hub.ErrNotFound), errors.Is(err, hub.ErrPairingExpired), errors.Is(err, hub.ErrConflict):
-		return "Die Anfrage ist nicht mehr offen (abgelaufen oder bereits bearbeitet)."
+		return "The request is no longer open (expired or already handled)."
 	case errors.Is(err, hub.ErrBadRequest):
-		return "Bitte einen gültigen Benutzer auswählen."
+		return "Please select a valid user."
 	}
 	return ""
 }
@@ -102,7 +102,7 @@ func (s *Server) clientAllow(w http.ResponseWriter, r *http.Request, sess *sessi
 		s.fail(w, r, err)
 		return
 	}
-	s.renderClients(w, r, sess, "Gerät erlaubt. Der Player erhält seine Zugangsdaten beim nächsten Abruf.", "")
+	s.renderClients(w, r, sess, "Device allowed. The player receives its credentials on its next poll.", "")
 }
 
 func (s *Server) clientDeny(w http.ResponseWriter, r *http.Request, sess *session) {
@@ -114,17 +114,17 @@ func (s *Server) clientDeny(w http.ResponseWriter, r *http.Request, sess *sessio
 		s.fail(w, r, err)
 		return
 	}
-	s.renderClients(w, r, sess, "Anfrage abgelehnt.", "")
+	s.renderClients(w, r, sess, "Request denied.", "")
 }
 
 func (s *Server) clientRevoke(w http.ResponseWriter, r *http.Request, sess *session) {
 	if err := s.svc.RevokeDevice(r.Context(), r.PathValue("id")); err != nil {
 		if errors.Is(err, hub.ErrNotFound) {
-			s.renderClients(w, r, sess, "", "Gerät nicht gefunden.")
+			s.renderClients(w, r, sess, "", "Device not found.")
 			return
 		}
 		s.fail(w, r, err)
 		return
 	}
-	s.renderClients(w, r, sess, "Zugriff widerrufen.", "")
+	s.renderClients(w, r, sess, "Access revoked.", "")
 }

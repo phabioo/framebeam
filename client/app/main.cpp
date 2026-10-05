@@ -15,7 +15,7 @@ namespace {
 std::atomic<int> g_qmlWarnings{0};
 QtMessageHandler g_previousHandler = nullptr;
 
-// Smoke-Test: QML-Warnungen beim Laden zaehlen (Fehlschlag), alles andere unveraendert ausgeben.
+// Smoke test: count QML warnings while loading (failure), print everything else unchanged.
 void messageHandler(QtMsgType type, const QMessageLogContext& ctx, const QString& msg) {
   if (type == QtWarningMsg || type == QtCriticalMsg) {
     const bool qml = msg.contains(QLatin1String(".qml")) || msg.contains(QLatin1String("qrc:/")) ||
@@ -40,19 +40,19 @@ int main(int argc, char* argv[]) {
   QCommandLineParser parser;
   parser.addHelpOption();
   const QCommandLineOption smoke(QStringLiteral("smoke-test"),
-                                 QStringLiteral("QML laden und mit Code 0 beenden (Code 1 bei QML-Warnungen)."));
+                                 QStringLiteral("Load QML and exit with code 0 (code 1 on QML warnings)."));
   const QCommandLineOption dataDir(QStringLiteral("data-dir"),
-                                   QStringLiteral("Datenverzeichnis (Profile, Cache, Saves) statt AppData."),
-                                   QStringLiteral("pfad"));
+                                   QStringLiteral("Data directory (profiles, cache, saves) instead of AppData."),
+                                   QStringLiteral("path"));
   const QCommandLineOption devHttp(QStringLiteral("dev-allow-http"),
-                                   QStringLiteral("Nur Entwicklung: HTTP-Hubs auch ausserhalb von localhost erlauben."));
+                                   QStringLiteral("Development only: also allow HTTP hubs outside localhost."));
   parser.addOption(smoke);
   parser.addOption(dataDir);
   parser.addOption(devHttp);
   parser.process(app);
   const bool smokeMode = parser.isSet(smoke);
 
-  QTemporaryDir smokeDir;  // Smoke-Test ohne --data-dir beruehrt keine echten Nutzerdaten
+  QTemporaryDir smokeDir;  // smoke test without --data-dir does not touch real user data
   framebeam::ui::PlayerController::Options opts;
   opts.dataDir = parser.value(dataDir);
   opts.allowHttp = parser.isSet(devHttp);
@@ -76,7 +76,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
   if (smokeMode) {
-    QTimer::singleShot(400, &app, &QCoreApplication::quit);  // kurz warten: Polish/Bindings laufen erst in der Eventloop
+    QTimer::singleShot(400, &app, &QCoreApplication::quit);  // wait briefly: polish/bindings only run in the event loop
     const int rc = app.exec();
     return g_qmlWarnings.load() > 0 ? 1 : rc;
   }

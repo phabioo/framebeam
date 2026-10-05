@@ -19,20 +19,20 @@
 
 namespace framebeam {
 
-// Verbindungs-Zustandsmaschine zu genau einem Hub (Identifikation, TOFU/Pinning, Approval-Pairing,
-// Token, Handshake). Die UI bindet sich an stateChanged()/errorOccurred(); Aktionen sind Slots.
+// Connection state machine for exactly one hub (identification, TOFU/pinning, approval pairing,
+// token, handshake). The UI binds to stateChanged()/errorOccurred(); actions are slots.
 class HubConnection : public QObject {
   Q_OBJECT
  public:
   enum class State {
     Disconnected,
     Identifying,
-    NeedsTrustConfirmation,  // Erstkontakt: observedFingerprint() anzeigen, confirmTrust()/rejectTrust()
-    CertificateChanged,      // Zertifikat weicht vom Pin ab: blockiert, nie still uebernommen
+    NeedsTrustConfirmation,  // first contact: show observedFingerprint(), confirmTrust()/rejectTrust()
+    CertificateChanged,      // certificate differs from the pin: blocked, never silently accepted
     Incompatible,            // incompatibleReason()
     Unreachable,             // errorCode()/errorMessage()
     NeedsPairing,            // requestPairing()
-    AwaitingApproval,        // Poll laeuft, cancelPairing()
+    AwaitingApproval,        // polling in progress, cancelPairing()
     Denied,
     Expired,
     Authenticating,
@@ -48,7 +48,7 @@ class HubConnection : public QObject {
 
   static QString stateName(State s);
 
-  // Handshake-Daten (u. a. cores); vor dem Verbinden setzen.
+  // Handshake data (including cores); set before connecting.
   void setHandshakeInfo(const HandshakeInfo& info) { handshake_ = info; }
   void setPollIntervalMs(int ms) { pollIntervalMs_ = ms; }
 
@@ -59,28 +59,28 @@ class HubConnection : public QObject {
   QString address() const { return address_; }
   const HubInfo& hubInfo() const { return hubInfo_; }
   std::optional<HubProfile> profile() const { return profile_; }
-  QString observedFingerprint() const { return observedFp_; }  // bei NeedsTrustConfirmation/CertificateChanged
-  QString expectedFingerprint() const { return pin_; }         // gepinnter Wert (CertificateChanged)
+  QString observedFingerprint() const { return observedFp_; }  // for NeedsTrustConfirmation/CertificateChanged
+  QString expectedFingerprint() const { return pin_; }         // pinned value (CertificateChanged)
   QList<HandshakeProblem> handshakeProblems() const { return problems_; }
 
-  // Genau ein aktiver Hub: Aufrufe trennen zuerst die alte Verbindung.
+  // Exactly one active hub: calls first disconnect the old connection.
   void connectToAddress(const QString& address, bool allowHttp = false);
   void connectToProfile(const QString& hubId);
   void disconnectFromHub();
 
-  void confirmTrust();  // NeedsTrustConfirmation: Fingerprint pinnen und fortfahren
+  void confirmTrust();  // NeedsTrustConfirmation: pin the fingerprint and continue
   void rejectTrust();   // -> Disconnected
   void requestPairing();  // NeedsPairing/Denied/Expired -> AwaitingApproval
-  void cancelPairing();   // AwaitingApproval -> NeedsPairing (lokal; der Hub-Request verfaellt von selbst)
-  void retry();           // Unreachable: erneut identifizieren
-  void revokeSelf();      // Connected: Gerät widerruft sich, Credential wird geloescht -> NeedsPairing
-  // Entfernt Profil und dessen Credential (nicht den serverseitigen Widerruf).
+  void cancelPairing();   // AwaitingApproval -> NeedsPairing (local; the hub request expires on its own)
+  void retry();           // Unreachable: identify again
+  void revokeSelf();      // Connected: the device revokes itself, credential is deleted -> NeedsPairing
+  // Removes the profile and its credential (not the server-side revocation).
   void removeProfile(const QString& hubId);
 
-  // Authentifizierte Anfragen relativ zu api_base (z. B. "/games"); nullptr, wenn nicht Connected.
-  // Antworten werden beim Trennen abgebrochen. Der Token verlaesst diese Klasse nicht.
+  // Authenticated requests relative to api_base (e.g. "/games"); nullptr if not Connected.
+  // Replies are aborted on disconnect. The token never leaves this class.
   QNetworkReply* authorizedGet(const QString& apiPath, const HttpHeaders& headers = {});
-  // Aufrufer meldet 401: Token wird sofort erneuert bzw. bei ungueltigem Credential -> NeedsPairing.
+  // Caller reports 401: the token is renewed immediately, or -> NeedsPairing if the credential is invalid.
   void noteUnauthorized();
 
  signals:
