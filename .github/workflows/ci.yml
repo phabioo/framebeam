@@ -1,0 +1,115 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  hub:
+    name: Hub (Go, Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      - name: Hub pruefen
+        run: make check-hub
+      - name: Hub bauen (linux amd64 + arm64)
+        run: |
+          HUB_VERSION="$(git rev-parse --short=8 HEAD)" make build-hub
+      - uses: actions/upload-artifact@v4
+        with:
+          name: framebeam-hub-linux
+          path: |
+            server/dist/framebeam-hub-linux-amd64
+            server/dist/framebeam-hub-linux-arm64
+          if-no-files-found: error
+          retention-days: 3
+
+  client-linux:
+    name: Player (C++, Linux)
+    runs-on: ubuntu-latest
+    env:
+      VCPKG_ROOT: ${{ github.workspace }}/.vcpkg
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.vcpkg-binary-cache
+    steps:
+      - uses: actions/checkout@v4
+      - name: vcpkg-Checkout cachen
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.VCPKG_ROOT }}
+          key: vcpkg-root-${{ runner.os }}-${{ hashFiles('scripts/bootstrap-vcpkg.sh', 'client/vcpkg.json') }}
+      - name: vcpkg Binary Cache cachen
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+          key: vcpkg-bin-${{ runner.os }}-${{ hashFiles('client/vcpkg.json') }}
+          restore-keys: vcpkg-bin-${{ runner.os }}-
+      - name: Werkzeuge bereitstellen
+        run: |
+          mkdir -p "$VCPKG_DEFAULT_BINARY_CACHE"
+          command -v ninja >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq ninja-build; }
+      - name: vcpkg bootstrappen
+        run: scripts/bootstrap-vcpkg.sh
+      - name: Player pruefen
+        run: make check-client
+
+  client-windows:
+    name: Player (C++, Windows MSVC)
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    env:
+      VCPKG_ROOT: ${{ github.workspace }}\.vcpkg
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\.vcpkg-binary-cache
+    steps:
+      - uses: actions/checkout@v4
+      - name: vcpkg-Checkout cachen
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.VCPKG_ROOT }}
+          key: vcpkg-root-${{ runner.os }}-${{ hashFiles('client/vcpkg.json') }}
+      - name: vcpkg Binary Cache cachen
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+          key: vcpkg-bin-${{ runner.os }}-${{ hashFiles('client/vcpkg.json') }}
+          restore-keys: vcpkg-bin-${{ runner.os }}-
+      - name: vcpkg auf Baseline-Commit bootstrappen
+        shell: pwsh
+        run: |
+          # Eigener Checkout statt VCPKG_INSTALLATION_ROOT: Der Runner-Stand ist
+          # nicht auf builtin-baseline gepinnt und dessen Versionsdatenbank kann fehlen.
+          $baseline = (Get-Content client/vcpkg.json -Raw | ConvertFrom-Json).'builtin-baseline'
+          New-Item -ItemType Directory -Force $env:VCPKG_DEFAULT_BINARY_CACHE | Out-Null
+          if (-not (Test-Path "$env:VCPKG_ROOT/vcpkg.exe")) {
+            New-Item -ItemType Directory -Force $env:VCPKG_ROOT | Out-Null
+            git -C $env:VCPKG_ROOT init -q
+            git -C $env:VCPKG_ROOT remote add origin https://github.com/microsoft/vcpkg
+            git -C $env:VCPKG_ROOT fetch -q --depth 1 origin $baseline
+            git -C $env:VCPKG_ROOT checkout -q --force $baseline
+            & "$env:VCPKG_ROOT/bootstrap-vcpkg.bat" -disableMetrics
+            if ($LASTEXITCODE -ne 0) { throw "vcpkg bootstrap fehlgeschlagen" }
+          }
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Konfigurieren
+        working-directory: client
+        run: cmake --preset windows-msvc-debug
+      - name: Bauen
+        working-directory: client
+        run: cmake --build --preset windows-msvc-debug
+      - name: Testen
+        working-directory: client
+        run: ctest --preset windows-msvc-debug
