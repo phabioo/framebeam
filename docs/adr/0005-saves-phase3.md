@@ -1,8 +1,8 @@
 # ADR 0005: Save sync and conflicts in phase 3
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-10-05
-- Decided by: pending Fabio (proposal by the orchestrator)
+- Decided by: Fabio (proposal by the orchestrator, accepted on 2026-10-05)
 
 ## Context
 

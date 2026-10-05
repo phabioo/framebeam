@@ -121,6 +121,6 @@ Keyboard: Arrows, X=A, Z=B, S=X, A=Y, Q=L, W=R, Enter=Start, Backspace=Select, E
 - [ADR 0001: Stack additions](docs/adr/0001-stack-additions.md)
 - [ADR 0002: Protocol and Hub in phase 1](docs/adr/0002-protocol-and-hub-phase1.md)
 - [ADR 0003: Player in phase 2](docs/adr/0003-player-phase2.md) (accepted)
-- [ADR 0005: Saves in phase 3](docs/adr/0005-saves-phase3.md) (proposed)
+- [ADR 0005: Saves in phase 3](docs/adr/0005-saves-phase3.md) (accepted)
 - [Design](docs/design/README.md)
 - [Working with Claude Code](docs/workflow.md)
