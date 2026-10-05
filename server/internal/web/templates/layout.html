@@ -1,0 +1,45 @@
+{{define "head"}}<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="htmx-config" content='{"includeIndicatorStyles":false,"allowEval":false,"allowScriptTags":false}'>
+<title>{{.Title}} · FrameBeam Hub</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/htmx.min.js" defer></script>
+</head>
+{{end}}
+{{define "flash"}}{{if .Flash}}<div class="alert ok" role="status">{{.Flash}}</div>{{end}}{{if .Error}}<div class="alert error" role="alert">{{.Error}}</div>{{end}}{{end}}
+{{define "layout"}}{{template "head" .}}
+<body hx-headers='{"X-CSRF-Token": "{{.CSRF}}"}'>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="logo"><span class="logo-mark"></span>FrameBeam Hub</div>
+    <nav class="nav" aria-label="Hauptnavigation">
+      <a href="/library"{{if eq .Nav "library"}} class="active" aria-current="page"{{end}}>Library</a>
+      <a href="/clients"{{if eq .Nav "clients"}} class="active" aria-current="page"{{end}}>Clients{{if .Pending}}<span class="badge">{{.Pending}} {{if eq .Pending 1}}Anfrage{{else}}Anfragen{{end}}</span>{{end}}</a>
+      <a href="/settings"{{if eq .Nav "settings"}} class="active" aria-current="page"{{end}}>Settings</a>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="who">{{.User}} · {{.Role}}</div>
+      <div class="meta">{{.HubName}} · {{.HubVersion}}</div>
+      <form class="logout" method="post" action="/logout"><input type="hidden" name="_csrf" value="{{.CSRF}}"><button class="btn small" type="submit">Abmelden</button></form>
+    </div>
+  </aside>
+  <main class="main">
+    {{template "flash" .}}
+    {{template "content" .}}
+  </main>
+</div>
+</body>
+</html>{{end}}
+{{define "bare"}}{{template "head" .}}
+<body>
+<div class="bare"><div class="card">
+  <div class="logo"><span class="logo-mark"></span>FrameBeam Hub</div>
+  {{template "flash" .}}
+  {{template "content" .}}
+</div></div>
+</body>
+</html>{{end}}

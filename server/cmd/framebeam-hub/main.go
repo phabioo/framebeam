@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"flag"
 	"fmt"
@@ -28,6 +29,7 @@ import (
 	"github.com/phabioo/framebeam/server/internal/store"
 	"github.com/phabioo/framebeam/server/internal/tlsutil"
 	"github.com/phabioo/framebeam/server/internal/version"
+	"github.com/phabioo/framebeam/server/internal/web"
 )
 
 func main() {
@@ -117,19 +119,12 @@ func runServer(args []string) error {
 	}
 	defer closeFn()
 	if has, err := svc.HasAdmin(ctx); err == nil && !has {
-		log.Warn("kein Admin vorhanden: 'framebeam-hub setup-admin -username <name>' ausführen (Web-Setup folgt)")
+		log.Warn("kein Admin vorhanden: 'framebeam-hub setup-admin -username <name>' ausführen oder /setup im Browser auf diesem Rechner öffnen")
 	}
 
-	mux := http.NewServeMux()
-	httpapi.Register(mux, svc, log)
-	// Platz für das Webinterface auf "/" (Paket 3).
+	webCfg := web.Config{Listen: cfg.Listen, UseTLS: cfg.UseTLS()}
 
-	srv := &http.Server{
-		Handler:           httpapi.LogRequests(log, mux),
-		ReadHeaderTimeout: 10 * time.Second,
-		IdleTimeout:       120 * time.Second,
-		ErrorLog:          slog.NewLogLogger(log.Handler(), slog.LevelWarn),
-	}
+	var tlsConf *tls.Config
 	if cfg.UseTLS() {
 		var cert tls.Certificate
 		if cfg.TLSCert != "" {
@@ -140,12 +135,35 @@ func runServer(args []string) error {
 		if err != nil {
 			return fmt.Errorf("TLS-Zertifikat: %w", err)
 		}
-		srv.TLSConfig = &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}
-		log.Info("TLS-Zertifikat", "sha256_fingerprint", tlsutil.Fingerprint(cert))
+		tlsConf = &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}
+		webCfg.CertFingerprint = tlsutil.Fingerprint(cert)
+		webCfg.CertSource = "Selbst erzeugt"
+		if cfg.TLSCert != "" {
+			webCfg.CertSource = "Eigenes cert/key"
+		}
+		if leaf, err := x509.ParseCertificate(cert.Certificate[0]); err == nil {
+			webCfg.CertNotAfter = leaf.NotAfter
+		}
+		log.Info("TLS-Zertifikat", "sha256_fingerprint", webCfg.CertFingerprint)
 	} else {
 		log.Warn("Entwicklungsmodus: HTTP ohne TLS", "loopback", cfg.ListenIsLoopback())
 	}
 
+	webSrv, err := web.New(svc, webCfg, log)
+	if err != nil {
+		return err
+	}
+	mux := http.NewServeMux()
+	httpapi.Register(mux, svc, log)
+	webSrv.Register(mux)
+
+	srv := &http.Server{
+		Handler:           httpapi.LogRequests(log, mux),
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		ErrorLog:          slog.NewLogLogger(log.Handler(), slog.LevelWarn),
+		TLSConfig:         tlsConf,
+	}
 	ln, err := net.Listen("tcp", cfg.Listen)
 	if err != nil {
 		return err
