@@ -1,5 +1,5 @@
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 
 // kind: "primary" (Akzent) | "outline" | "link"
 Button {
