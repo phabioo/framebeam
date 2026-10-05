@@ -165,6 +165,22 @@ jobs:
           # The core is always present in CI: skipped tests (e.g. emulation_core) count as failures.
           ctest --preset windows-msvc-release 2>&1 | Tee-Object -FilePath ctest.log
           if ($LASTEXITCODE -ne 0) {
+            # Re-run every failed test exe directly: QtTest output goes to a file (survives a crash) and to the
+            # console, followed by the files and the exit code (0xC0000005 = access violation, 3/4 = abort/terminate).
+            $failed = Select-String -Path ctest.log -Pattern '^\s*\d+/\d+ Test\s+#\d+: (\S+) \.+\*{3}(Failed|Exception|Timeout)' |
+              ForEach-Object { $_.Matches[0].Groups[1].Value } | Sort-Object -Unique
+            foreach ($t in $failed) {
+              $exe = Get-ChildItem -Recurse -Filter "test_$t.exe" | Select-Object -First 1
+              if (-not $exe) { Write-Host "::warning::no exe for $t"; continue }
+              Write-Host "::group::rerun $t ($($exe.FullName))"
+              Push-Location $exe.DirectoryName
+              & $exe.FullName -v2 -o "$t.txt,txt" -o "-,txt" 2>&1 | Out-Host
+              $code = $LASTEXITCODE
+              Pop-Location
+              Write-Host "exit code of ${t}: $code (0x$('{0:X}' -f $code))"
+              Get-Content (Join-Path $exe.DirectoryName "$t.txt") -ErrorAction SilentlyContinue | Select-Object -Last 80
+              Write-Host "::endgroup::"
+            }
             ctest --preset windows-msvc-release --rerun-failed --output-on-failure -V
             throw "ctest failed"
           }

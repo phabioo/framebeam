@@ -99,14 +99,14 @@ void SessionHost::addViewer(const QString& viewerId) {
       packetizer->addToChain(std::make_shared<rtc::RtcpSrReporter>(cfg));
       packetizer->addToChain(std::make_shared<rtc::RtcpNackResponder>());
       if (isVideo) {
-        packetizer->addToChain(std::make_shared<rtc::PliHandler>([this, bridge]() {
+        packetizer->addToChain(std::make_shared<rtc::PliHandler>(guarded("pli", [this, bridge]() {
           bridge->post([this]() {
             ++keyframeRequests_;
             encoder_.requestKeyframe();
           });
-        }));
+        })));
         // First frame must be an IDR even if the track opens in the middle of a GOP.
-        track->onOpen([this, bridge]() { bridge->post([this]() { encoder_.requestKeyframe(); }); });
+        track->onOpen(guarded("onOpen", [this, bridge]() { bridge->post([this]() { encoder_.requestKeyframe(); }); }));
       }
       track->setMediaHandler(packetizer);
       return track;
@@ -114,7 +114,7 @@ void SessionHost::addViewer(const QString& viewerId) {
     v.video = addTrack(true);
     v.audio = addTrack(false);
 
-    v.pc->onLocalDescription([this, bridge, id](rtc::Description d) {
+    v.pc->onLocalDescription(guarded("onLocalDescription", [this, bridge, id](rtc::Description d) {
       SessionSignal s;
       s.viewerId = id;
       s.kind = QString::fromStdString(d.typeString());
@@ -123,8 +123,8 @@ void SessionHost::addViewer(const QString& viewerId) {
         s.sessionId = sessionId_;
         emit signalOut(s);
       });
-    });
-    v.pc->onLocalCandidate([this, bridge, id](rtc::Candidate c) {
+    }));
+    v.pc->onLocalCandidate(guarded("onLocalCandidate", [this, bridge, id](rtc::Candidate c) {
       SessionSignal s;
       s.viewerId = id;
       s.kind = QStringLiteral("candidate");
@@ -134,10 +134,10 @@ void SessionHost::addViewer(const QString& viewerId) {
         s.sessionId = sessionId_;
         emit signalOut(s);
       });
-    });
-    v.pc->onStateChange([this, bridge, id](rtc::PeerConnection::State st) {
+    }));
+    v.pc->onStateChange(guarded("onStateChange", [this, bridge, id](rtc::PeerConnection::State st) {
       bridge->post([this, id, st]() { onPcState(id, static_cast<int>(st)); });
-    });
+    }));
   } catch (const std::exception& e) {
     emit errorOccurred(QStringLiteral("PeerConnection: ") + QString::fromUtf8(e.what()));
     return;

@@ -1,6 +1,8 @@
 // Unit test for the own Opus RTP depacketizer (synthetic RTP packets, no network).
 #include <QtTest>
 
+#include "processguard.h"
+
 #include "opusdepacketizer.h"
 
 using namespace framebeam;
@@ -70,5 +72,5 @@ private slots:
   }
 };
 
-QTEST_GUILESS_MAIN(OpusDepacketizerTest)
+FB_TEST_MAIN(OpusDepacketizerTest)
 #include "opusdepacketizer_test.moc"

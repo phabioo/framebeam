@@ -4,6 +4,8 @@
 #include <QPainter>
 #include <QSignalSpy>
 #include <QtTest>
+
+#include "processguard.h"
 #include <cmath>
 #include <memory>
 
@@ -237,5 +239,5 @@ class LoopbackTest : public QObject {
   }
 };
 
-QTEST_GUILESS_MAIN(LoopbackTest)
+FB_TEST_MAIN(LoopbackTest)
 #include "loopback_test.moc"

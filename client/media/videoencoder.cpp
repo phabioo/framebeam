@@ -91,7 +91,10 @@ bool VideoEncoder::openWith(const QString& name, int width, int height, int fps,
     av_dict_set(&opts, "profile", "baseline", 0);
     av_dict_set(&opts, "x264-params", "repeat-headers=1:nal-hrd=cbr:force-cfr=1", 0);
   } else if (name == QLatin1String("libopenh264")) {
-    av_dict_set(&opts, "profile", "constrained_baseline", 0);
+    // Profile via the codec context (66 = Baseline, which OpenH264 supports): the "profile" option would pass
+    // FF_PROFILE_H264_CONSTRAINED_BASELINE (578), which OpenH264 rejects ("doesn't support profile(578)").
+    ctx->profile = 66;
+    ctx->thread_count = 1;  // single slice per frame: one access unit, no multi-slice surprises
     av_dict_set(&opts, "rc_mode", "bitrate", 0);
     av_dict_set(&opts, "allow_skip_frames", "0", 0);
   } else if (name == QLatin1String("h264_nvenc")) {

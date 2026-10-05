@@ -3,6 +3,8 @@
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QtTest>
+
+#include "processguard.h"
 #include <memory>
 
 #include "credentialstore.h"
@@ -242,5 +244,5 @@ class SessionsTest : public QObject {
   }
 };
 
-QTEST_GUILESS_MAIN(SessionsTest)
+FB_TEST_MAIN(SessionsTest)
 #include "sessions_test.moc"

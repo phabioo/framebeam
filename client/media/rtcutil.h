@@ -2,9 +2,11 @@
 
 // Helpers shared by SessionHost and SessionViewer (libdatachannel callbacks run on its own threads).
 
+#include <QDebug>
 #include <QMetaObject>
 #include <QObject>
 #include <QString>
+#include <exception>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -35,6 +37,21 @@ class ThreadBridge {
   std::mutex mutex_;
   QObject* target_;
 };
+
+// Wraps a libdatachannel callback: an exception escaping into a library thread would terminate the process
+// (seen as a silent abort on Windows CI), so it is logged instead.
+template <typename F>
+auto guarded(const char* what, F fn) {
+  return [what, fn = std::move(fn)](auto&&... args) mutable {
+    try {
+      fn(std::forward<decltype(args)>(args)...);
+    } catch (const std::exception& e) {
+      qWarning("[media] exception in %s callback: %s", what, e.what());
+    } catch (...) {
+      qWarning("[media] unknown exception in %s callback", what);
+    }
+  };
+}
 
 inline rtc::binary toBinary(const uint8_t* data, size_t size) {
   rtc::binary b(size);

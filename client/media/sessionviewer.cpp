@@ -140,17 +140,17 @@ void SessionViewer::handleSignal(const SessionSignal& s) {
       }
       pc_ = std::make_shared<rtc::PeerConnection>(makeRtcConfig(iceServers_));
       const auto bridge = bridge_;
-      pc_->onTrack([this, bridge](std::shared_ptr<rtc::Track> track) {
+      pc_->onTrack(guarded("onTrack", [this, bridge](std::shared_ptr<rtc::Track> track) {
         const std::string type = track->description().type();
         if (type == "video") {
           auto depack = std::make_shared<rtc::H264RtpDepacketizer>(rtc::NalUnit::Separator::LongStartSequence);
           auto session = std::make_shared<LossReceivingSession>();
           depack->addToChain(session);
           track->setMediaHandler(depack);
-          track->onFrame([this, bridge](rtc::binary data, rtc::FrameInfo) {
+          track->onFrame(guarded("onFrame", [this, bridge](rtc::binary data, rtc::FrameInfo) {
             QByteArray ba(reinterpret_cast<const char*>(data.data()), static_cast<qsizetype>(data.size()));
             bridge->post([this, ba = std::move(ba)]() mutable { onVideoFrame(std::move(ba)); });
-          });
+          }));
           bridge->post([this, track, session]() {
             if (open_ && pc_) {
               video_ = track;
@@ -161,18 +161,18 @@ void SessionViewer::handleSignal(const SessionSignal& s) {
           auto depack = std::make_shared<OpusRtpDepacketizer>();
           depack->addToChain(std::make_shared<rtc::RtcpReceivingSession>());
           track->setMediaHandler(depack);
-          track->onFrame([this, bridge](rtc::binary data, rtc::FrameInfo) {
+          track->onFrame(guarded("onFrame", [this, bridge](rtc::binary data, rtc::FrameInfo) {
             QByteArray ba(reinterpret_cast<const char*>(data.data()), static_cast<qsizetype>(data.size()));
             bridge->post([this, ba = std::move(ba)]() mutable { onAudioFrame(std::move(ba)); });
-          });
+          }));
           bridge->post([this, track]() {
             if (open_ && pc_) {
               audio_ = track;
             }
           });
         }
-      });
-      pc_->onLocalDescription([this, bridge](rtc::Description d) {
+      }));
+      pc_->onLocalDescription(guarded("onLocalDescription", [this, bridge](rtc::Description d) {
         SessionSignal out;
         out.kind = QString::fromStdString(d.typeString());
         out.sdp = QString::fromStdString(std::string(d));
@@ -181,8 +181,8 @@ void SessionViewer::handleSignal(const SessionSignal& s) {
           out.viewerId = viewerId_;
           emit signalOut(out);
         });
-      });
-      pc_->onLocalCandidate([this, bridge](rtc::Candidate c) {
+      }));
+      pc_->onLocalCandidate(guarded("onLocalCandidate", [this, bridge](rtc::Candidate c) {
         SessionSignal out;
         out.kind = QStringLiteral("candidate");
         out.candidate = QString::fromStdString(c.candidate());
@@ -192,10 +192,10 @@ void SessionViewer::handleSignal(const SessionSignal& s) {
           out.viewerId = viewerId_;
           emit signalOut(out);
         });
-      });
-      pc_->onStateChange([this, bridge](rtc::PeerConnection::State st) {
+      }));
+      pc_->onStateChange(guarded("onStateChange", [this, bridge](rtc::PeerConnection::State st) {
         bridge->post([this, st]() { onPcState(static_cast<int>(st)); });
-      });
+      }));
       // The answer is produced automatically (onLocalDescription) once the offer is applied.
       pc_->setRemoteDescription(rtc::Description(s.sdp.toStdString(), rtc::Description::Type::Offer));
       remoteSet_ = true;
