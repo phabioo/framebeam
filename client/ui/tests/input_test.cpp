@@ -1,0 +1,269 @@
+// Tests ohne QML: Tastatur-Mapping, Touch-Umrechnung, Skalierung, Resampler, LibraryModel.
+#include <QSignalSpy>
+#include <QtTest>
+#include <cmath>
+
+#include "audioresampler.h"
+#include "emulator_backend.h"
+#include "inputmapping.h"
+#include "librarymodel.h"
+#include "system_manifest.h"
+
+using namespace framebeam;
+using namespace framebeam::ui;
+using emu::JoypadButton;
+using emu::buttonMask;
+
+namespace {
+
+emu::DisplayProfile ndsProfile() {
+  emu::DisplayProfile p;
+  p.layout = QStringLiteral("vertical");
+  p.gap = 0;
+  p.screens = {{QStringLiteral("top"), 256, 192, false}, {QStringLiteral("bottom"), 256, 192, true}};
+  return p;
+}
+
+QByteArray stereo(const QList<qint16>& v) {
+  return QByteArray(reinterpret_cast<const char*>(v.constData()), v.size() * 2);
+}
+
+GameEntry game(const QString& id, const QString& title, const QString& sha, qint64 size) {
+  GameEntry g;
+  g.id = id;
+  g.title = title;
+  g.system = QStringLiteral("nds");
+  g.romSha256 = sha;
+  g.romSize = size;
+  g.romFilename = id + QStringLiteral(".nds");
+  return g;
+}
+
+RomStatus st(RomState s, qint64 got = 0, qint64 total = 0) {
+  RomStatus r;
+  r.state = s;
+  r.receivedBytes = got;
+  r.totalBytes = total;
+  return r;
+}
+
+}  // namespace
+
+class InputTest : public QObject {
+  Q_OBJECT
+ private slots:
+  void keyMapping() {
+    QCOMPARE(joypadMaskForKey(Qt::Key_Up), buttonMask(JoypadButton::Up));
+    QCOMPARE(joypadMaskForKey(Qt::Key_Down), buttonMask(JoypadButton::Down));
+    QCOMPARE(joypadMaskForKey(Qt::Key_Left), buttonMask(JoypadButton::Left));
+    QCOMPARE(joypadMaskForKey(Qt::Key_Right), buttonMask(JoypadButton::Right));
+    QCOMPARE(joypadMaskForKey(Qt::Key_X), buttonMask(JoypadButton::A));
+    QCOMPARE(joypadMaskForKey(Qt::Key_Z), buttonMask(JoypadButton::B));
+    QCOMPARE(joypadMaskForKey(Qt::Key_S), buttonMask(JoypadButton::X));
+    QCOMPARE(joypadMaskForKey(Qt::Key_A), buttonMask(JoypadButton::Y));
+    QCOMPARE(joypadMaskForKey(Qt::Key_Q), buttonMask(JoypadButton::L));
+    QCOMPARE(joypadMaskForKey(Qt::Key_W), buttonMask(JoypadButton::R));
+    QCOMPARE(joypadMaskForKey(Qt::Key_Return), buttonMask(JoypadButton::Start));
+    QCOMPARE(joypadMaskForKey(Qt::Key_Enter), buttonMask(JoypadButton::Start));
+    QCOMPARE(joypadMaskForKey(Qt::Key_Backspace), buttonMask(JoypadButton::Select));
+    QCOMPARE(joypadMaskForKey(Qt::Key_Escape), 0u);  // Esc = Pause, kein Joypad-Button
+    QCOMPARE(joypadMaskForKey(Qt::Key_F1), 0u);
+  }
+
+  void keyboardState() {
+    KeyboardJoypad kb;
+    QVERIFY(kb.press(Qt::Key_Up));
+    QVERIFY(kb.press(Qt::Key_X));
+    QCOMPARE(kb.mask(), buttonMask(JoypadButton::Up) | buttonMask(JoypadButton::A));
+    QVERIFY(kb.release(Qt::Key_Up));
+    QCOMPARE(kb.mask(), buttonMask(JoypadButton::A));
+    QVERIFY(!kb.press(Qt::Key_F5));
+    QCOMPARE(kb.mask(), buttonMask(JoypadButton::A));
+    kb.clear();
+    QCOMPARE(kb.mask(), 0u);
+  }
+
+  void fitFrameScaling() {
+    // 256x384 passt 2x in 600x800 (nicht 3x: 768 > 600).
+    QRectF r = fitFrame(QSizeF(256, 384), QSizeF(600, 800), true);
+    QCOMPARE(r.size(), QSizeF(512, 768));
+    QCOMPARE(r.x(), 44.0);
+    QCOMPARE(r.y(), 16.0);
+    // Ohne ganzzahlige Skalierung: Faktor 800/384.
+    r = fitFrame(QSizeF(256, 384), QSizeF(600, 800), false);
+    QCOMPARE(r.height(), 800.0);
+    QVERIFY(std::abs(r.width() - 533.0) <= 1.0);
+    // 1x wuerde den Platz schlecht nutzen (Faktor 1.94 moeglich): bruchteilig.
+    r = fitFrame(QSizeF(256, 384), QSizeF(1280, 744), true);
+    QCOMPARE(r.height(), 744.0);
+    QVERIFY(std::abs(r.width() / r.height() - 256.0 / 384.0) < 0.005);
+    // Zu klein fuer 1x: bruchteilig (Seitenverhaeltnis bleibt).
+    r = fitFrame(QSizeF(256, 384), QSizeF(128, 400), true);
+    QCOMPARE(r.width(), 128.0);
+    QCOMPARE(r.height(), 192.0);
+    QVERIFY(fitFrame(QSizeF(), QSizeF(10, 10), true).isEmpty());
+  }
+
+  void touchMapping() {
+    const auto p = ndsProfile();
+    // Frame 256x384 bei 2x, links oben bei (10, 20).
+    const QRectF frame(10, 20, 512, 768);
+    // Oberer Bildschirm: kein Touch.
+    QVERIFY(!touchToFrame(p, frame, QPointF(100, 100), false).has_value());
+    // Mitte des unteren Bildschirms (y = 20 + 384 + 192 = 596).
+    auto pt = touchToFrame(p, frame, QPointF(10 + 256, 596), false);
+    QVERIFY(pt.has_value());
+    QVERIFY(std::abs(pt->x() - 0.5) < 1e-9);
+    QVERIFY(std::abs(pt->y() - 0.75) < 1e-9);  // untere Haelfte: (192 + 96) / 384
+    // Ecken des Touch-Screens.
+    pt = touchToFrame(p, frame, QPointF(10, 20 + 384), false);
+    QVERIFY(pt.has_value());
+    QVERIFY(std::abs(pt->x() - 0.0) < 1e-9 && std::abs(pt->y() - 0.5) < 1e-9);
+    pt = touchToFrame(p, frame, QPointF(10 + 512, 20 + 768), false);
+    QVERIFY(pt.has_value());
+    QVERIFY(std::abs(pt->x() - 1.0) < 1e-9 && std::abs(pt->y() - 1.0) < 1e-9);
+    // Ausserhalb: ohne Clamp nullopt, mit Clamp auf den Rand.
+    QVERIFY(!touchToFrame(p, frame, QPointF(5, 596), false).has_value());
+    pt = touchToFrame(p, frame, QPointF(5, 900), true);
+    QVERIFY(pt.has_value());
+    QVERIFY(std::abs(pt->x() - 0.0) < 1e-9 && std::abs(pt->y() - 1.0) < 1e-9);
+    // Ohne Touch-Screen.
+    emu::DisplayProfile single;
+    single.layout = QStringLiteral("single");
+    single.screens = {{QStringLiteral("main"), 256, 192, false}};
+    QVERIFY(!touchToFrame(single, QRectF(0, 0, 256, 192), QPointF(1, 1), true).has_value());
+  }
+
+  void resamplerPassthrough() {
+    LinearResampler r(48000, 48000);
+    const QByteArray in = stereo({1, 2, 3, 4, 5, 6});
+    QVERIFY(r.isPassthrough());
+    QCOMPARE(r.process(in), in);
+  }
+
+  void resamplerLength() {
+    LinearResampler r(32768, 48000);  // typische DS-Rate
+    qint64 inFrames = 0;
+    qint64 outFrames = 0;
+    for (int i = 0; i < 100; ++i) {
+      QList<qint16> chunk;
+      for (int f = 0; f < 546; ++f) {  // ~1/60 s
+        chunk << qint16(1000) << qint16(-1000);
+      }
+      inFrames += 546;
+      outFrames += r.process(stereo(chunk)).size() / 4;
+    }
+    const double expected = static_cast<double>(inFrames) * 48000.0 / 32768.0;
+    QVERIFY2(std::abs(static_cast<double>(outFrames) - expected) <= 3.0, qPrintable(QString::number(outFrames)));
+  }
+
+  void resamplerSeamlessAcrossChunks() {
+    // Rampe: linear interpoliert und ueber Chunk-Grenzen hinweg monoton, ohne Sprung.
+    LinearResampler r(24000, 48000);
+    QList<qint16> all;
+    for (int c = 0; c < 4; ++c) {
+      QList<qint16> chunk;
+      for (int f = 0; f < 50; ++f) {
+        const qint16 v = qint16((c * 50 + f) * 100);
+        chunk << v << v;
+      }
+      const QByteArray out = r.process(stereo(chunk));
+      const auto* s = reinterpret_cast<const qint16*>(out.constData());
+      for (int i = 0; i < out.size() / 2; ++i) all << s[i];
+    }
+    QVERIFY(all.size() >= 2 * 195);
+    for (int i = 2; i < all.size(); i += 2) {
+      const int d = all.at(i) - all.at(i - 2);
+      QVERIFY2(d >= 0 && d <= 100, qPrintable(QStringLiteral("Sprung bei %1: %2").arg(i / 2).arg(d)));
+      QCOMPARE(all.at(i), all.at(i + 1));  // L == R
+    }
+  }
+
+  void resamplerHandlesTinyChunks() {
+    LinearResampler r(32000, 48000);
+    QCOMPARE(r.process(QByteArray()).size(), 0);
+    QCOMPARE(r.process(QByteArray(3, 0)).size(), 0);  // unvollstaendiger Frame
+    const QByteArray out = r.process(stereo({100, 100}));
+    QVERIFY(out.size() % 4 == 0);
+  }
+
+  void modelRolesAndFilter() {
+    LibraryModel m;
+    QSignalSpy counts(&m, &LibraryModel::countChanged);
+    const QString shaA(64, QLatin1Char('a')), shaB(64, QLatin1Char('b')), shaC(64, QLatin1Char('c')), shaD(64, QLatin1Char('d'));
+    const QList<GameEntry> games{game(QStringLiteral("g1"), QStringLiteral("Lumen Drift"), shaA, 8 * 1024 * 1024),
+                                 game(QStringLiteral("g2"), QStringLiteral("Paper Wizards"), shaB, 128LL * 1024 * 1024),
+                                 game(QStringLiteral("g3"), QStringLiteral("Copper Courier"), shaC, 16 * 1024 * 1024),
+                                 game(QStringLiteral("g4"), QStringLiteral("Orbit Gardens"), shaD, 16 * 1024 * 1024)};
+    m.setGames(games, [&](const GameEntry& g) {
+      if (g.id == QLatin1String("g1")) return st(RomState::Ready, g.romSize, g.romSize);
+      if (g.id == QLatin1String("g3")) return st(RomState::HashMismatch);
+      if (g.id == QLatin1String("g4")) return st(RomState::Validating);
+      return st(RomState::DownloadNeeded, 0, g.romSize);
+    });
+    QCOMPARE(m.rowCount(), 4);
+    QCOMPARE(m.totalCount(), 4);
+    QCOMPARE(m.readyCount(), 1);
+    auto role = [&](int row, int r) { return m.data(m.index(row), r); };
+    QCOMPARE(role(0, LibraryModel::TitleRole).toString(), QStringLiteral("Lumen Drift"));
+    QCOMPARE(role(0, LibraryModel::MonogramRole).toString(), QStringLiteral("LD"));
+    QCOMPARE(role(0, LibraryModel::SystemRole).toString(), QStringLiteral("NDS"));
+    QCOMPARE(role(0, LibraryModel::StatusTextRole).toString(), QStringLiteral("Bereit"));
+    QCOMPARE(role(0, LibraryModel::StatusToneRole).toString(), QStringLiteral("ok"));
+    QCOMPARE(role(1, LibraryModel::StatusTextRole).toString(), QStringLiteral("Download nötig · 128 MB"));
+    QCOMPARE(role(2, LibraryModel::StatusTextRole).toString(), QStringLiteral("Hash mismatch · neu laden"));
+    QCOMPARE(role(2, LibraryModel::StatusToneRole).toString(), QStringLiteral("error"));
+    QCOMPARE(role(3, LibraryModel::StatusTextRole).toString(), QStringLiteral("Prüfe…"));
+    QCOMPARE(role(0, LibraryModel::GameIdRole).toString(), QStringLiteral("g1"));
+    QCOMPARE(m.roleNames().value(LibraryModel::StateKindRole), QByteArray("stateKind"));
+
+    // Download-Fortschritt
+    m.setStatus(shaB, st(RomState::Downloading, 32LL * 1024 * 1024, 128LL * 1024 * 1024));
+    QCOMPARE(role(1, LibraryModel::StatusTextRole).toString(), QStringLiteral("Lädt 25 %"));
+    QVERIFY(std::abs(role(1, LibraryModel::ProgressRole).toDouble() - 0.25) < 1e-9);
+
+    // Unbekannter Zustand (z. B. kuenftiger Enum-Wert): robust, neutral
+    m.setStatus(shaD, st(static_cast<RomState>(99)));
+    QCOMPARE(role(3, LibraryModel::StatusTextRole).toString(), QStringLiteral("Prüfe…"));
+    QCOMPARE(role(3, LibraryModel::StatusToneRole).toString(), QStringLiteral("neutral"));
+
+    // Textfilter (Titel, ohne Gross-/Kleinschreibung)
+    m.setFilterText(QStringLiteral("ar"));
+    QCOMPARE(m.rowCount(), 2);  // Paper Wizards, Orbit Gardens
+    QCOMPARE(m.totalCount(), 4);
+    m.setFilterText(QStringLiteral("  WIZ "));
+    QCOMPARE(m.rowCount(), 1);
+    QCOMPARE(role(0, LibraryModel::GameIdRole).toString(), QStringLiteral("g2"));
+    m.setFilterText(QStringLiteral("zzz"));
+    QCOMPARE(m.rowCount(), 0);
+    m.setFilterText(QString());
+    QCOMPARE(m.rowCount(), 4);
+
+    // Bereit-Filter, und Statuswechsel aendert die Sichtbarkeit
+    m.setReadyOnly(true);
+    QCOMPARE(m.rowCount(), 1);
+    m.setStatus(shaB, st(RomState::Ready, 1, 1));
+    QCOMPARE(m.rowCount(), 2);
+    QCOMPARE(m.readyCount(), 2);
+    QCOMPARE(m.rowOfGame(QStringLiteral("g2")), 1);
+    QCOMPARE(m.rowOfGame(QStringLiteral("g3")), -1);
+    m.setReadyOnly(false);
+    QCOMPARE(m.rowCount(), 4);
+    QVERIFY(counts.count() > 0);
+    QVERIFY(m.game(QStringLiteral("g3")).has_value());
+    m.clear();
+    QCOMPARE(m.rowCount(), 0);
+  }
+
+  void modelHelpers() {
+    QCOMPARE(LibraryModel::formatSize(16 * 1024 * 1024), QStringLiteral("16 MB"));
+    QCOMPARE(LibraryModel::formatSize(128LL * 1024 * 1024), QStringLiteral("128 MB"));
+    QCOMPARE(LibraryModel::formatSize(512 * 1024), QStringLiteral("512 KB"));
+    QCOMPARE(LibraryModel::monogram(QStringLiteral("Tide & Lantern")), QStringLiteral("TL"));
+    QCOMPARE(LibraryModel::monogram(QStringLiteral("solo")), QStringLiteral("S"));
+    QCOMPARE(LibraryModel::monogram(QString()), QStringLiteral("?"));
+  }
+};
+
+QTEST_GUILESS_MAIN(InputTest)
+#include "input_test.moc"
