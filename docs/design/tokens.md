@@ -1,124 +1,124 @@
-# Design-Tokens
+# Design tokens
 
-Extrahiert aus `quelle/framebeam-designs-v3.dc.html` (nur tatsächlich vorkommende Werte; Rollen sind aus der Verwendung abgeleitet, die Quelle benennt keine Tokens). Gemeinsam: Fonts, Akzent, Layoutraster. Canvas-Chrome der Prototypseite (Hintergrund `#d9d8d4`, Überschriften `#3a3936`/`#5b5a56`, Links `#9a6a12`) ist kein UI und nicht aufgeführt.
+Extracted from `source/framebeam-designs-v3.dc.html` (only values that actually occur; roles are derived from usage, the source does not name tokens). Shared: fonts, accent, layout grid. The canvas chrome of the prototype page (background `#d9d8d4`, headings `#3a3936`/`#5b5a56`, links `#9a6a12`) is not UI and not listed.
 
-## Gemeinsam
+## Shared
 
-| Token | Wert | Hinweis |
+| Token | Value | Note |
 |---|---|---|
-| Font Sans | IBM Plex Sans, Fallback `system-ui, sans-serif` | Gewichte 400, 500, 600; Antialiasing `-webkit-font-smoothing: antialiased` |
-| Font Mono | IBM Plex Mono, Fallback `monospace` | Gewichte 400, 500; Hashes, Adressen, Versionen, Eyebrow-Labels |
-| Akzent | `#e9b44c` | Primärbutton und Fokus im Player; im Hub nur Logo-Marke und History-Marker |
-| Text auf Akzent | `#161512` | |
-| Screen-Größe | 1440 x 900 | Prototyp-Canvas, kein Responsive-Vorgabe (unklar) |
-| Sidebar-Breite | 232px | Player-Hauptnavigation und Hub-Navigation |
+| Font Sans | IBM Plex Sans, fallback `system-ui, sans-serif` | Weights 400, 500, 600; antialiasing `-webkit-font-smoothing: antialiased` |
+| Font Mono | IBM Plex Mono, fallback `monospace` | Weights 400, 500; hashes, addresses, versions, eyebrow labels |
+| Accent | `#e9b44c` | Primary button and focus in the Player; in the Hub only logo mark and history marker |
+| Text on accent | `#161512` | |
+| Screen size | 1440 x 900 | Prototype canvas, no responsive specification (unclear) |
+| Sidebar width | 232px | Player main navigation and Hub navigation |
 
-Hinweis: Die Fonts werden in der Quelle über Google Fonts geladen. Für Hub (kein Node-Build, selbst gehostet) und Player ist die Einbettung der Fonts offen (Lizenz/Offline-Betrieb nicht entschieden).
+Note: In the source, the fonts are loaded via Google Fonts. For the Hub (no Node build, self-hosted) and the Player, embedding the fonts is open (licence/offline operation not decided).
 
-## Typografie (beide Themes)
+## Typography (both themes)
 
-| Rolle | Wert |
+| Role | Value |
 |---|---|
-| Seitentitel | Sans 26px/600, letter-spacing -.015em (Hub 3k Spaltentitel 22px) |
-| Start-/Pairing-Titel (Player) | Sans 30px/600, letter-spacing -.02em |
-| Dialogtitel (3d) | Sans 24px/600, -.01em |
-| Kartentitel / Abschnitt | 15-17px/600 (Hub Karten 16px/600, Überschrift Systemkarte 20px/600) |
-| Fließtext, Zeilen | 13-14px/400-500 |
-| Meta, Hilfetext | 12px/400, Zeilenhöhe 1.5-1.55 |
-| Eyebrow / Spaltenkopf | Mono 11px/500, UPPERCASE, letter-spacing .08em (Tabellenköpfe .06em) |
-| Zahlen-/Hash-/Adresswerte | Mono 12-13px/400 |
-| Invite-Code (Hub 3n) | Mono 24px/500, letter-spacing .04em |
-| Monogramm auf Cover-Platzhalter | Sans 34-36px/600, -.02em |
+| Page title | Sans 26px/600, letter-spacing -.015em (Hub 3k column title 22px) |
+| Start/pairing title (Player) | Sans 30px/600, letter-spacing -.02em |
+| Dialog title (3d) | Sans 24px/600, -.01em |
+| Card title / section | 15-17px/600 (Hub cards 16px/600, system card heading 20px/600) |
+| Body text, rows | 13-14px/400-500 |
+| Meta, help text | 12px/400, line height 1.5-1.55 |
+| Eyebrow / column header | Mono 11px/500, UPPERCASE, letter-spacing .08em (table headers .06em) |
+| Number/hash/address values | Mono 12-13px/400 |
+| Invite code (Hub 3n) | Mono 24px/500, letter-spacing .04em |
+| Monogram on cover placeholder | Sans 34-36px/600, -.02em |
 
-## Player (dunkel)
+## Player (dark)
 
-Farben
+Colors
 
-| Rolle | Wert |
+| Role | Value |
 |---|---|
-| Hintergrund App | `#121315` |
-| Hintergrund Sidebar | `#0e0f10` |
-| Hintergrund Seitenpanel (Mittel-/Detailspalte, Dialog) | `#16171a` |
-| Fläche Karte / Input | `#1a1b1e` |
-| Fläche erhöht / ausgewählt / Hub-Karte | `#1f2024` / Hub-Karte in Sidebar `#17181b` |
-| Fläche Menü/Dialog-Kachel | `#1d1e22` |
-| Hintergrund im Spiel (3g-3i) | `#0b0b0c`, Header und Seitenleiste `#111214` |
-| Backdrop Dialog (3d) | `#08090a`, Muster `#0d0e0f`/`#101113` |
-| Video-Platzhalter | Streifen `#17181a`/`#1b1c1f`; PiP `#1c1d20`/`#222327` |
-| Rahmen Sidebar/Trenner | `#232428` (im Spiel `#1e1f22`, Tabellenzeile `#1f2024`) |
-| Rahmen Karte | `#26272b` |
-| Rahmen Input/Chip, Segment aktiv, Avatar | `#2c2d32` |
-| Rahmen Auswahlring, Popup | `#2f3035` |
-| Rahmen Button (Outline) | `#3a3b40` |
-| Text primär | `#ecebe7` |
-| Text sekundär | `#c9c8c4` |
-| Text gedämpft | `#a3a3a8`, `#8e8e94` (Meta) |
-| Text Platzhalter/Eyebrow | `#7d7d83`; auf Kacheln `#6f6f75` |
-| Text deaktiviert / Offline-Punkt | `#5e5e63`; Monogramm `#45464c` |
-| Status ok | `#6fd39a` (Fläche `#17291f`) |
-| Status warn | `#e9b44c` (Fläche `#2a2418`) |
-| Status error | `#ef8a78` (Fläche `#2a1a17`, Text darauf `#e6d6d2`) |
+| Background app | `#121315` |
+| Background sidebar | `#0e0f10` |
+| Background side panel (middle/detail column, dialog) | `#16171a` |
+| Surface card / input | `#1a1b1e` |
+| Surface raised / selected / Hub card | `#1f2024` / Hub card in sidebar `#17181b` |
+| Surface menu/dialog tile | `#1d1e22` |
+| Background in game (3g-3i) | `#0b0b0c`, header and side panel `#111214` |
+| Backdrop dialog (3d) | `#08090a`, pattern `#0d0e0f`/`#101113` |
+| Video placeholder | Stripes `#17181a`/`#1b1c1f`; PiP `#1c1d20`/`#222327` |
+| Border sidebar/divider | `#232428` (in game `#1e1f22`, table row `#1f2024`) |
+| Border card | `#26272b` |
+| Border input/chip, active segment, avatar | `#2c2d32` |
+| Border selection ring, popup | `#2f3035` |
+| Border button (outline) | `#3a3b40` |
+| Text primary | `#ecebe7` |
+| Text secondary | `#c9c8c4` |
+| Text muted | `#a3a3a8`, `#8e8e94` (meta) |
+| Text placeholder/eyebrow | `#7d7d83`; on tiles `#6f6f75` |
+| Text disabled / offline dot | `#5e5e63`; monogram `#45464c` |
+| Status ok | `#6fd39a` (surface `#17291f`) |
+| Status warn | `#e9b44c` (surface `#2a2418`) |
+| Status error | `#ef8a78` (surface `#2a1a17`, text on it `#e6d6d2`) |
 
-Radien: 4, 5 (Segment, Logo), 6, 7 (Input, Button), 8 (Karte, Primärbutton), 9, 10 (Hub-Karte), 12 (Dialog), 999 (Chip, Pill, Toggle), 50% (Avatar, Statuspunkt).
+Radii: 4, 5 (segment, logo), 6, 7 (input, button), 8 (card, primary button), 9, 10 (Hub card), 12 (dialog), 999 (chip, pill, toggle), 50% (avatar, status dot).
 
-Schatten: Screen `0 30px 60px rgba(0,0,0,.25)` (nur Prototyp-Rahmen); Auswahlring `0 0 0 1px #2f3035`; Fokus/aktive Karte `0 0 0 1.5px #e9b44c`; Tab-Unterstrich `inset 0 -2px 0 #e9b44c`; Dialog `0 40px 80px rgba(0,0,0,.6)`; PiP `0 16px 40px rgba(0,0,0,.5)`; Popup `0 12px 28px rgba(0,0,0,.45)`.
+Shadows: screen `0 30px 60px rgba(0,0,0,.25)` (prototype frame only); selection ring `0 0 0 1px #2f3035`; focus/active card `0 0 0 1.5px #e9b44c`; tab underline `inset 0 -2px 0 #e9b44c`; dialog `0 40px 80px rgba(0,0,0,.6)`; PiP `0 16px 40px rgba(0,0,0,.5)`; popup `0 12px 28px rgba(0,0,0,.45)`.
 
-Maße (wiederkehrend)
+Dimensions (recurring)
 
-| Maß | Wert |
+| Dimension | Value |
 |---|---|
-| Sidebar-Padding / Gap | 24px 16px / 28px; Nav-Item 9px 10px, Radius 6 |
-| Main-Padding | 28px 32px (3e: 28px 36px) |
-| Spalten | Library-Detail 392px; Mittelspalte 300px (3e/3f); Input-Test 340px; Session-Seitenleiste 340px |
-| Header im Spiel | 56px hoch, Padding 0 20px |
-| Buttonhöhen | 48 (Primär), 46 (Dialogoption), 44, 42, 40, 38; Input/Select 34 |
-| Abstände (Gap) | 4, 6, 8, 10, 12, 14, 16, 20, 28 (häufigste: 10, 4, 8) |
-| Library-Raster | 4 Spalten, Gap 20px 18px; Cover quadratisch |
+| Sidebar padding / gap | 24px 16px / 28px; nav item 9px 10px, radius 6 |
+| Main padding | 28px 32px (3e: 28px 36px) |
+| Columns | Library detail 392px; middle column 300px (3e/3f); input test 340px; Session side panel 340px |
+| Header in game | 56px high, padding 0 20px |
+| Button heights | 48 (primary), 46 (dialog option), 44, 42, 40, 38; input/select 34 |
+| Spacing (gap) | 4, 6, 8, 10, 12, 14, 16, 20, 28 (most frequent: 10, 4, 8) |
+| Library grid | 4 columns, gap 20px 18px; cover square |
 
-## Hub (hell)
+## Hub (light)
 
-Farben
+Colors
 
-| Rolle | Wert |
+| Role | Value |
 |---|---|
-| Hintergrund App | `#f6f5f2` |
-| Hintergrund Sidebar | `#efeee9` |
-| Fläche Karte, Tabelle, aktives Nav-Item | `#fff` |
-| Fläche leicht (Tabellenkopf, Listenspalte, Inputs) | `#faf9f7` |
-| Cover-/Avatar-Platzhalter | `#ebeae5`; Streifen `#ebeae5`/`#e2e0da` |
-| Rahmen Karte/Sidebar | `#e3e1dc` |
-| Rahmen Input/Button | `#d9d7d1` |
-| Zeilentrenner | `#efeee9` (auch `#e9e7e2`) |
-| Rahmen gestrichelt (Platzhalter "SPÄTER") | `#cfccc5` |
-| Neutraler Marker (History alt) | `#b9b7b0` |
-| Text primär | `#1b1b1d` |
-| Text sekundär | `#55544f` |
-| Text gedämpft | `#6b6a66` |
-| Text Platzhalter / deaktiviert | `#8a8984` |
-| Primärbutton | Fläche `#1b1b1d`, Text `#f6f5f2` |
-| Status ok | Text `#1f6a3f` auf `#e2f1e7`; Text "kompatibel" `#2a7a4c` |
-| Status warn | Text `#9a6a12`, dunkel `#6e4a08`, Rahmen `#e8d3a6`, Badge-Fläche `#f6e6c4` |
-| Status error | Text/Fläche `#b5402f`; Zeilenhintergrund `#fbf1ef`, leichter `#fdf8f6` |
-| Neutral-Badge (Revoked/Disabled/Inaktiv) | Fläche `#ebeae5`, Text `#55544f` |
+| Background app | `#f6f5f2` |
+| Background sidebar | `#efeee9` |
+| Surface card, table, active nav item | `#fff` |
+| Surface light (table header, list column, inputs) | `#faf9f7` |
+| Cover/avatar placeholder | `#ebeae5`; stripes `#ebeae5`/`#e2e0da` |
+| Border card/sidebar | `#e3e1dc` |
+| Border input/button | `#d9d7d1` |
+| Row divider | `#efeee9` (also `#e9e7e2`) |
+| Border dashed (placeholder "LATER") | `#cfccc5` |
+| Neutral marker (history old) | `#b9b7b0` |
+| Text primary | `#1b1b1d` |
+| Text secondary | `#55544f` |
+| Text muted | `#6b6a66` |
+| Text placeholder / disabled | `#8a8984` |
+| Primary button | Surface `#1b1b1d`, text `#f6f5f2` |
+| Status ok | Text `#1f6a3f` on `#e2f1e7`; text "compatible" `#2a7a4c` |
+| Status warn | Text `#9a6a12`, dark `#6e4a08`, border `#e8d3a6`, badge surface `#f6e6c4` |
+| Status error | Text/surface `#b5402f`; row background `#fbf1ef`, lighter `#fdf8f6` |
+| Neutral badge (Revoked/Disabled/Inactive) | Surface `#ebeae5`, text `#55544f` |
 
-Radien: 2 (Logo-Marke), 4 (Cover), 5, 6 (Nav-Item), 7 (Input, Button), 8, 10 (Karte, Tabelle), 999 (Pill, Toggle), 50% (Avatar).
+Radii: 2 (logo mark), 4 (cover), 5, 6 (nav item), 7 (input, button), 8, 10 (card, table), 999 (pill, toggle), 50% (avatar).
 
-Schatten: Screen `0 30px 60px rgba(0,0,0,.15)` (nur Prototyp-Rahmen); aktives Nav-Item/Segment `0 0 0 1px #e3e1dc`; aktueller History-Marker `0 0 0 4px #f6f5f2, 0 0 0 5px #e9b44c`.
+Shadows: screen `0 30px 60px rgba(0,0,0,.15)` (prototype frame only); active nav item/segment `0 0 0 1px #e3e1dc`; current history marker `0 0 0 4px #f6f5f2, 0 0 0 5px #e9b44c`.
 
-Maße (wiederkehrend)
+Dimensions (recurring)
 
-| Maß | Wert |
+| Dimension | Value |
 |---|---|
-| Sidebar | 232px, Padding 24px 16px, Gap 28px; Fußzeile Mono 12px (`#6b6a66`) |
-| Main-Padding | 32px 40px (3l: 28px 40px) |
-| Spalten | Saves-Liste 320px; Benutzer-Seitenleiste 420px |
-| Tabellenzeile | Padding 12-13px 20px, Spaltengap 16px, Kopf Padding 10-12px 20px |
-| Buttonhöhen | 38 (Standard), 36 (Karte/Formular), 34 (Input), 32 (klein) |
-| Abstände (Gap) | 2, 3, 4, 8, 10, 12, 16, 20, 24, 28 (häufigste: 10, 16, 4) |
-| Karten | Radius 10, Rahmen `#e3e1dc`, Padding 18-24px |
+| Sidebar | 232px, padding 24px 16px, gap 28px; footer mono 12px (`#6b6a66`) |
+| Main padding | 32px 40px (3l: 28px 40px) |
+| Columns | Saves list 320px; Users side panel 420px |
+| Table row | Padding 12-13px 20px, column gap 16px, header padding 10-12px 20px |
+| Button heights | 38 (standard), 36 (card/form), 34 (input), 32 (small) |
+| Spacing (gap) | 2, 3, 4, 8, 10, 12, 16, 20, 24, 28 (most frequent: 10, 16, 4) |
+| Cards | Radius 10, border `#e3e1dc`, padding 18-24px |
 
-## Abbildung (Hinweis, kein Code)
+## Mapping (note, not code)
 
-- Player (QML): ein Theme-Singleton mit den obigen Rollen als Properties; Dark/Light-Umschaltung (Architektur 09) über zwei Paletten mit gleichen Rollennamen. Eine helle Player-Palette ist in der Quelle nicht entworfen (offen).
-- Hub (CSS): Rollen als CSS-Variablen auf `:root`; dunkle Variante per `[data-theme]`/`prefers-color-scheme` (Settings kennt Hell/Dunkel/System). Eine dunkle Hub-Palette ist in der Quelle nicht entworfen (offen); der Player-Satz kann nicht ohne Weiteres übernommen werden.
-- Rollennamen vorschlagsweise gleich in beiden Themes (bg, bg-sidebar, surface, border, text, text-muted, accent, ok, warn, error), damit die Designsprache gemeinsam bleibt.
+- Player (QML): one theme singleton with the roles above as properties; dark/light switching (architecture 09) via two palettes with the same role names. A light Player palette is not designed in the source (open).
+- Hub (CSS): roles as CSS variables on `:root`; dark variant via `[data-theme]`/`prefers-color-scheme` (settings offer Light/Dark/System). A dark Hub palette is not designed in the source (open); the Player set cannot simply be adopted.
+- Role names proposed to be the same in both themes (bg, bg-sidebar, surface, border, text, text-muted, accent, ok, warn, error), so that the design language stays common.

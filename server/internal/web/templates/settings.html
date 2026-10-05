@@ -1,51 +1,51 @@
 {{define "content"}}
-<div class="page-head"><div><h1>Settings</h1><p class="sub">Nur für Admins</p></div></div>
+<div class="page-head"><div><h1>Settings</h1><p class="sub">Admins only</p></div></div>
 <div class="cols">
   <div class="stack">
     <section class="panel">
-      <h2>Allgemein</h2>
+      <h2>General</h2>
       <div class="row">
-        <div><div class="label">Hub-Name</div><div class="help">Wird Playern bei der Identifikation angezeigt</div></div>
+        <div><div class="label">Hub name</div><div class="help">Shown to players when they identify the hub</div></div>
         <form method="post" action="/settings/name">
           <input type="hidden" name="_csrf" value="{{.CSRF}}">
-          <input type="text" name="name" value="{{.Body.HubName}}" maxlength="100" required aria-label="Hub-Name">
-          <button class="btn small" type="submit">Speichern</button>
+          <input type="text" name="name" value="{{.Body.HubName}}" maxlength="100" required aria-label="Hub name">
+          <button class="btn small" type="submit">Save</button>
         </form>
       </div>
       <div class="row">
-        <div><div class="label">Adresse für Player</div><div class="help">So erreichst du diesen Hub; Listen-Adresse: {{.Body.Listen}}</div></div>
+        <div><div class="label">Address for players</div><div class="help">How you reach this hub; listen address: {{.Body.Listen}}</div></div>
         <div class="value">{{.Body.Host}}</div>
       </div>
     </section>
   </div>
   <div class="stack">
     <section class="panel">
-      <h2>Transport &amp; Zertifikat</h2>
+      <h2>Transport &amp; certificate</h2>
       <div class="row">
-        <div><div class="label">Transport</div><div class="help">HTTPS/WSS ist Standard. HTTP gibt es nur im Dev-Modus.</div></div>
-        <span class="pill{{if .Body.TLS}} ok{{end}}">{{if .Body.TLS}}HTTPS{{else}}HTTP (Dev-Modus){{end}}</span>
+        <div><div class="label">Transport</div><div class="help">HTTPS/WSS is the default. HTTP is available in dev mode only.</div></div>
+        <span class="pill{{if .Body.TLS}} ok{{end}}">{{if .Body.TLS}}HTTPS{{else}}HTTP (dev mode){{end}}</span>
       </div>
       {{if .Body.TLS}}
       <div class="row">
-        <div><div class="label">Zertifikat</div><div class="help">{{.Body.CertSource}}{{if .Body.CertNotAfter}} · gültig bis {{.Body.CertNotAfter}}{{end}}</div></div>
+        <div><div class="label">Certificate</div><div class="help">{{.Body.CertSource}}{{if .Body.CertNotAfter}} · valid until {{.Body.CertNotAfter}}{{end}}</div></div>
       </div>
       <div class="row">
-        <div><div class="label">Fingerprint</div><div class="help">SHA-256. Player vergleichen diesen Wert beim ersten Verbinden.</div></div>
+        <div><div class="label">Fingerprint</div><div class="help">SHA-256. Players compare this value on first connect.</div></div>
         <div class="value">{{.Body.Fingerprint}}</div>
       </div>
       {{end}}
     </section>
     <section class="panel">
-      <h2>Admin-Konto</h2>
+      <h2>Admin account</h2>
       <div class="row">
-        <div><div class="label">{{.User}}</div><div class="help">Web-Login mit Benutzername und Passwort</div></div>
+        <div><div class="label">{{.User}}</div><div class="help">Web login with username and password</div></div>
       </div>
       <form class="pw-form" method="post" action="/settings/password">
         <input type="hidden" name="_csrf" value="{{.CSRF}}">
-        <label class="field">Aktuelles Passwort<input type="password" name="current" autocomplete="current-password" required></label>
-        <label class="field">Neues Passwort (mindestens {{.Body.MinPassword}} Zeichen)<input type="password" name="new" autocomplete="new-password" required></label>
-        <label class="field">Neues Passwort wiederholen<input type="password" name="new2" autocomplete="new-password" required></label>
-        <div><button class="btn small" type="submit">Passwort ändern</button></div>
+        <label class="field">Current password<input type="password" name="current" autocomplete="current-password" required></label>
+        <label class="field">New password (at least {{.Body.MinPassword}} characters)<input type="password" name="new" autocomplete="new-password" required></label>
+        <label class="field">Repeat new password<input type="password" name="new2" autocomplete="new-password" required></label>
+        <div><button class="btn small" type="submit">Change password</button></div>
       </form>
     </section>
   </div>

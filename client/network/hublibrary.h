@@ -10,7 +10,7 @@
 
 namespace framebeam {
 
-// Library des aktiven Hubs (GET /games). Wird beim Trennen geleert; nie hubuebergreifend zusammengefuehrt.
+// Library of the active hub (GET /games). Cleared on disconnect; never merged across hubs.
 class HubLibrary : public QObject {
   Q_OBJECT
  public:
@@ -20,7 +20,7 @@ class HubLibrary : public QObject {
   bool isLoading() const { return loading_; }
   const QList<GameEntry>& games() const { return games_; }
   std::optional<GameEntry> gameByRomSha(const QString& sha256) const;
-  int skippedEntries() const { return skipped_; }  // ungueltige Hub-Eintraege
+  int skippedEntries() const { return skipped_; }  // invalid hub entries
 
  signals:
   void loaded();

@@ -32,10 +32,10 @@ func TestDefaultsEnvAndFlags(t *testing.T) {
 
 func TestValidate(t *testing.T) {
 	if err := parse(t, nil, "-tls-cert", "a").Validate(); err == nil {
-		t.Fatal("cert ohne key muss scheitern")
+		t.Fatal("cert without key must fail")
 	}
 	if err := parse(t, nil, "-dev", "-tls-cert", "a", "-tls-key", "b").Validate(); err == nil {
-		t.Fatal("dev + tls muss scheitern")
+		t.Fatal("dev + tls must fail")
 	}
 	if err := parse(t, nil).Validate(); err != nil {
 		t.Fatal(err)

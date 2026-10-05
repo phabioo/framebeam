@@ -1,5 +1,5 @@
-// Package httpapi implementiert die HTTP-API des FrameBeam Hub (OpenAPI-Spec in protocol/openapi)
-// auf Basis der Service-Schicht internal/hub.
+// Package httpapi implements the HTTP API of the FrameBeam Hub (OpenAPI spec in protocol/openapi)
+// on top of the service layer internal/hub.
 package httpapi
 
 import (
@@ -28,16 +28,16 @@ const (
 	keyRemoteIP
 )
 
-var errNotImplemented = errors.New("httpapi: nicht implementiert")
+var errNotImplemented = errors.New("httpapi: not implemented")
 
-// Server implementiert api.StrictServerInterface.
+// Server implements api.StrictServerInterface.
 type Server struct {
 	svc *hub.Service
 	log *slog.Logger
 }
 
-// Register hängt die API-Routen (inkl. Info-Endpunkt und ROM-Download) an mux. Das Webinterface
-// registriert seine Routen separat (z. B. "/").
+// Register attaches the API routes (including the info endpoint and ROM download) to mux. The web interface
+// registers its routes separately (e.g. "/").
 func Register(mux *http.ServeMux, svc *hub.Service, log *slog.Logger) {
 	if log == nil {
 		log = slog.Default()
@@ -45,7 +45,7 @@ func Register(mux *http.ServeMux, svc *hub.Service, log *slog.Logger) {
 	s := &Server{svc: svc, log: log}
 	strict := api.NewStrictHandlerWithOptions(s, []api.StrictMiddlewareFunc{s.authMiddleware}, api.StrictHTTPServerOptions{
 		RequestErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, _ error) {
-			writeError(w, http.StatusBadRequest, hub.CodeBadRequest, "Ungültige Anfrage")
+			writeError(w, http.StatusBadRequest, hub.CodeBadRequest, "Invalid request")
 		},
 		ResponseErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) { s.writeErr(w, r, err) },
 	})
@@ -60,17 +60,17 @@ func Register(mux *http.ServeMux, svc *hub.Service, log *slog.Logger) {
 		}},
 		ErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
 			var ip *api.InvalidParamFormatError
-			if errors.As(err, &ip) { // z. B. keine UUID im Pfad: gibt es nicht
-				writeError(w, http.StatusNotFound, hub.CodeNotFound, "Nicht gefunden")
+			if errors.As(err, &ip) { // e.g. no UUID in the path: does not exist
+				writeError(w, http.StatusNotFound, hub.CodeNotFound, "Not found")
 				return
 			}
-			writeError(w, http.StatusBadRequest, hub.CodeBadRequest, "Ungültige Anfrage")
+			writeError(w, http.StatusBadRequest, hub.CodeBadRequest, "Invalid request")
 		},
 	})
 	mux.HandleFunc("GET /api/v1/roms/{sha256}", s.downloadROM)
 }
 
-// skipRomMux lässt die generierte Route für den ROM-Download aus; sie liegt direkt auf dem Mux.
+// skipRomMux skips the generated route for the ROM download; it is registered directly on the mux.
 type skipRomMux struct{ *http.ServeMux }
 
 func (m skipRomMux) HandleFunc(pattern string, h func(http.ResponseWriter, *http.Request)) {
@@ -153,15 +153,15 @@ func (s *Server) writeErr(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.As(err, &he):
 		writeError(w, httpStatus(he.Code), he.Code, he.Message)
 	case errors.Is(err, errNotImplemented):
-		writeError(w, http.StatusNotImplemented, hub.CodeInternal, "Noch nicht implementiert")
+		writeError(w, http.StatusNotImplemented, hub.CodeInternal, "Not implemented yet")
 	default:
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {
-			writeError(w, http.StatusBadRequest, hub.CodeBadRequest, "Anfrage zu groß")
+			writeError(w, http.StatusBadRequest, hub.CodeBadRequest, "Request too large")
 			return
 		}
-		s.log.Error("interner Fehler", "method", r.Method, "path", r.URL.Path, "err", err)
-		writeError(w, http.StatusInternalServerError, hub.CodeInternal, "Interner Fehler")
+		s.log.Error("internal error", "method", r.Method, "path", r.URL.Path, "err", err)
+		writeError(w, http.StatusInternalServerError, hub.CodeInternal, "Internal error")
 	}
 }
 
@@ -291,17 +291,17 @@ func (s *Server) GetGame(ctx context.Context, req api.GetGameRequestObject) (api
 	return api.GetGame200JSONResponse(ag), nil
 }
 
-// DownloadRom wird vom Strict-Handler nicht genutzt (Route liegt auf dem Mux, siehe downloadROM).
+// DownloadRom is not used by the strict handler (the route lives on the mux, see downloadROM).
 func (s *Server) DownloadRom(context.Context, api.DownloadRomRequestObject) (api.DownloadRomResponseObject, error) {
 	return nil, errNotImplemented
 }
 
-// ConnectWebSocket: nur dokumentiert, Implementierung folgt ab Phase 4.
+// ConnectWebSocket: documented only, implementation follows from phase 4.
 func (s *Server) ConnectWebSocket(context.Context, api.ConnectWebSocketRequestObject) (api.ConnectWebSocketResponseObject, error) {
 	return nil, errNotImplemented
 }
 
-// ---- ROM-Download (direkt auf dem Mux: Range, ETag, If-None-Match via http.ServeContent) ----
+// ---- ROM download (directly on the mux: Range, ETag, If-None-Match via http.ServeContent) ----
 
 func (s *Server) downloadROM(w http.ResponseWriter, r *http.Request) {
 	if _, err := s.svc.Authenticate(r.Context(), bearer(r)); err != nil {
@@ -321,7 +321,7 @@ func (s *Server) downloadROM(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(&jsonRangeErrWriter{ResponseWriter: w}, r, g.Filename, g.AddedAt, f)
 }
 
-// jsonRangeErrWriter ersetzt den Text-Fehlerkörper von http.ServeContent bei 416 durch das Fehlerformat der Spec.
+// jsonRangeErrWriter replaces the plain-text error body of http.ServeContent on 416 with the spec's error format.
 type jsonRangeErrWriter struct {
 	http.ResponseWriter
 	errBody bool
@@ -340,7 +340,7 @@ func (w *jsonRangeErrWriter) Write(p []byte) (int, error) {
 	if w.errBody {
 		w.errBody = false
 		var e api.Error
-		e.Error.Code, e.Error.Message = api.ErrorCode(hub.CodeBadRequest), "Range nicht erfüllbar"
+		e.Error.Code, e.Error.Message = api.ErrorCode(hub.CodeBadRequest), "Range not satisfiable"
 		if err := json.NewEncoder(w.ResponseWriter).Encode(e); err != nil {
 			return 0, err
 		}
@@ -349,7 +349,7 @@ func (w *jsonRangeErrWriter) Write(p []byte) (int, error) {
 	return w.ResponseWriter.Write(p)
 }
 
-// LogRequests protokolliert Methode, Pfad, Status und Dauer (nie Header, Query oder Bodies).
+// LogRequests logs method, path, status and duration (never headers, query or bodies).
 func LogRequests(log *slog.Logger, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()

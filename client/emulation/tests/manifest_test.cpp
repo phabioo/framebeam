@@ -1,4 +1,4 @@
-// Manifest-Parsing und CoreLocator (ohne Core).
+// Manifest parsing and CoreLocator (without core).
 #include <QCoreApplication>
 #include <QFile>
 #include <QTemporaryDir>
@@ -40,7 +40,7 @@ class ManifestTest : public QObject {
     QString err;
     QVERIFY2(reg.loadDirectory(QStringLiteral(FB_MANIFEST_SRC_DIR), &err), qPrintable(err));
     QVERIFY(reg.find(QStringLiteral("nds")));
-    // Doppelte system_id wird abgelehnt.
+    // Duplicate system_id is rejected.
     QVERIFY(!reg.loadDirectory(QStringLiteral(FB_MANIFEST_SRC_DIR), &err));
   }
 
@@ -95,7 +95,7 @@ class ManifestTest : public QObject {
     r = loc.locate(nds);
     QCOMPARE(r.source, QStringLiteral("explicit"));
 
-    // Explizit gesetzter, aber fehlender Pfad faellt auf Env zurueck.
+    // An explicitly set but missing path falls back to env.
     loc.setExplicitPath(nds.coreId, dir.filePath(QStringLiteral("missing.bin")));
     QCOMPARE(loc.locate(nds).source, QStringLiteral("env"));
 

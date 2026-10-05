@@ -72,7 +72,7 @@ QNetworkRequest HubHttp::makeRequest(const QString& path, const QByteArray& bear
   }
   if (url.scheme().toLower() == QLatin1String("https")) {
     QSslConfiguration cfg = QSslConfiguration::defaultConfiguration();
-    cfg.setCaCertificates({});  // keine System-CAs: nur Pin entscheidet
+    cfg.setCaCertificates({});  // no system CAs: only the pin decides
     cfg.setPeerVerifyMode(QSslSocket::VerifyPeer);
     cfg.setProtocol(QSsl::TlsV1_2OrLater);
     req.setSslConfiguration(cfg);
@@ -93,7 +93,7 @@ void HubHttp::attach(QNetworkReply* reply, bool allowUnpinned) {
     if (pinMatches || firstContact) {
       reply->ignoreSslErrors();
     } else {
-      // Fehler nicht ignorieren: der Handshake scheitert, bevor Request-Daten gesendet werden.
+      // Do not ignore errors: the handshake fails before any request data is sent.
       reply->setProperty(kMismatchProp, true);
     }
   });

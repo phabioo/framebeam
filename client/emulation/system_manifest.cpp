@@ -8,7 +8,7 @@
 
 #include <algorithm>
 
-// Qt-Ressource aus einer statischen Bibliothek explizit initialisieren.
+// Explicitly initialize the Qt resource from a static library.
 static void initManifestResources() { Q_INIT_RESOURCE(framebeam_manifests); }
 
 namespace framebeam::emu {
@@ -73,7 +73,7 @@ std::optional<SystemManifest> ManifestRegistry::parse(const QByteArray& json, QS
   };
   QJsonParseError pe;
   const QJsonDocument doc = QJsonDocument::fromJson(json, &pe);
-  if (pe.error != QJsonParseError::NoError || !doc.isObject()) return fail(QStringLiteral("Ungueltiges JSON: ") + pe.errorString());
+  if (pe.error != QJsonParseError::NoError || !doc.isObject()) return fail(QStringLiteral("Invalid JSON: ") + pe.errorString());
   const QJsonObject o = doc.object();
 
   SystemManifest m;
@@ -81,19 +81,19 @@ std::optional<SystemManifest> ManifestRegistry::parse(const QByteArray& json, QS
   for (const Req& r : {Req{"system_id", &m.systemId}, Req{"display_name", &m.displayName},
                        Req{"core_id", &m.coreId}, Req{"core_library_basename", &m.coreLibraryBasename}}) {
     *r.dst = o.value(QLatin1String(r.key)).toString().trimmed();
-    if (r.dst->isEmpty()) return fail(QStringLiteral("Pflichtfeld fehlt: ") + QLatin1String(r.key));
+    if (r.dst->isEmpty()) return fail(QStringLiteral("Missing required field: ") + QLatin1String(r.key));
   }
   for (const QJsonValue& v : o.value(QLatin1String("extensions")).toArray()) {
     const QString e = normExt(v.toString());
     if (!e.isEmpty() && e != QLatin1String(".")) m.extensions.append(e);
   }
-  if (m.extensions.isEmpty()) return fail(QStringLiteral("Pflichtfeld fehlt: extensions"));
+  if (m.extensions.isEmpty()) return fail(QStringLiteral("Missing required field: extensions"));
 
   const QJsonObject fw = o.value(QLatin1String("firmware")).toObject();
   m.firmware.required = fw.value(QLatin1String("required")).toBool(false);
   for (const QJsonValue& v : fw.value(QLatin1String("files")).toArray()) {
     const QJsonObject f = v.toObject();
-    if (f.value(QLatin1String("name")).toString().isEmpty()) return fail(QStringLiteral("firmware.files: name fehlt"));
+    if (f.value(QLatin1String("name")).toString().isEmpty()) return fail(QStringLiteral("firmware.files: name missing"));
     m.firmware.files.append({f.value(QLatin1String("name")).toString(), f.value(QLatin1String("required")).toBool(false)});
   }
 
@@ -107,13 +107,13 @@ std::optional<SystemManifest> ManifestRegistry::parse(const QByteArray& json, QS
     const QJsonObject s = v.toObject();
     ScreenSpec sp{s.value(QLatin1String("id")).toString(), s.value(QLatin1String("width")).toInt(),
                   s.value(QLatin1String("height")).toInt(), s.value(QLatin1String("touch")).toBool(false)};
-    if (sp.width <= 0 || sp.height <= 0) return fail(QStringLiteral("display.screens: ungueltige Groesse"));
+    if (sp.width <= 0 || sp.height <= 0) return fail(QStringLiteral("display.screens: invalid size"));
     m.display.screens.append(sp);
   }
-  if (m.display.screens.isEmpty()) return fail(QStringLiteral("Pflichtfeld fehlt: display.screens"));
+  if (m.display.screens.isEmpty()) return fail(QStringLiteral("Missing required field: display.screens"));
   if (m.display.layout != QLatin1String("single") && m.display.layout != QLatin1String("vertical") &&
       m.display.layout != QLatin1String("horizontal"))
-    return fail(QStringLiteral("display.layout unbekannt: ") + m.display.layout);
+    return fail(QStringLiteral("display.layout unknown: ") + m.display.layout);
 
   const QJsonObject co = o.value(QLatin1String("core_options")).toObject();
   for (auto it = co.begin(); it != co.end(); ++it) m.coreOptions.insert(it.key(), it.value().toString());
@@ -122,7 +122,7 @@ std::optional<SystemManifest> ManifestRegistry::parse(const QByteArray& json, QS
 
 bool ManifestRegistry::add(const SystemManifest& manifest, QString* error) {
   if (find(manifest.systemId)) {
-    if (error) *error = QStringLiteral("system_id doppelt: ") + manifest.systemId;
+    if (error) *error = QStringLiteral("Duplicate system_id: ") + manifest.systemId;
     return false;
   }
   m_manifests.append(manifest);

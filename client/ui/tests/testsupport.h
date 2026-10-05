@@ -1,6 +1,6 @@
 #pragma once
-// Gemeinsame Hilfen der UI-Tests: Harness (Controller + Main.qml offscreen), QML-Warnungszaehler,
-// Screenshots (nur wenn FRAMEBEAM_SHOT_DIR gesetzt ist; nie im Repo).
+// Shared helpers of the UI tests: harness (controller + Main.qml offscreen), QML warning counter,
+// screenshots (only if FRAMEBEAM_SHOT_DIR is set; never in the repo).
 
 #include <QCryptographicHash>
 #include <QDir>
@@ -10,6 +10,7 @@
 #include <QQuickItem>
 #include <QQuickWindow>
 #include <QTemporaryDir>
+#include <QtQuickTest/quicktest.h>
 #include <QtQml/QQmlExtensionPlugin>
 #include <QtTest>
 #include <atomic>
@@ -38,15 +39,15 @@ inline QtMessageHandler& previousHandler() {
   return h;
 }
 inline void countingHandler(QtMsgType type, const QMessageLogContext& ctx, const QString& msg) {
-  // Diagnose: Warnungen/Fehler sofort und ungepuffert auf stderr, damit sie auch bei einem Absturz
-  // (z. B. unter Windows-CI mit gepufferter Pipe) sichtbar bleiben.
+  // Diagnostics: warnings/errors immediately and unbuffered on stderr so they stay visible even after a crash
+  // (e.g. on Windows CI with a buffered pipe).
   if (type != QtDebugMsg && type != QtInfoMsg) {
     const QByteArray line = msg.toLocal8Bit();
     std::fprintf(stderr, "[uitest] %s: %s\n", type == QtWarningMsg ? "warning" : "error", line.constData());
     std::fflush(stderr);
   }
-  // Gezaehlt werden nur QML-/Qt-Quick-Warnungen. Umgebungsbedingte Meldungen anderer Kategorien
-  // (Fonts, Multimedia-/Audio-Backend ohne Geraet, Plattform) fuehren bewusst nicht zum Fehlschlag.
+  // Only QML/Qt Quick warnings are counted. Environment-related messages of other categories
+  // (fonts, multimedia/audio backend without a device, platform) deliberately do not cause a failure.
   if (type == QtWarningMsg || type == QtCriticalMsg) {
     const bool qml = msg.contains(QLatin1String(".qml")) || msg.contains(QLatin1String("qrc:/")) ||
                      msg.contains(QLatin1String("QML")) ||
@@ -62,18 +63,18 @@ inline void countingHandler(QtMsgType type, const QMessageLogContext& ctx, const
 }
 #ifdef Q_OS_WIN
 inline LONG WINAPI crashFilter(EXCEPTION_POINTERS* ep) {
-  std::fprintf(stderr, "[uitest] unbehandelte Ausnahme 0x%08lx an Adresse %p\n", ep->ExceptionRecord->ExceptionCode,
+  std::fprintf(stderr, "[uitest] unhandled exception 0x%08lx at address %p\n", ep->ExceptionRecord->ExceptionCode,
                ep->ExceptionRecord->ExceptionAddress);
   std::fflush(stderr);
   return EXCEPTION_EXECUTE_HANDLER;
 }
 #endif
 inline void crashSignal(int sig) {
-  std::fprintf(stderr, "[uitest] Signal %d (Absturz/Abbruch)\n", sig);
+  std::fprintf(stderr, "[uitest] signal %d (crash/abort)\n", sig);
   std::fflush(stderr);
   std::_Exit(3);
 }
-// Muss vor QGuiApplication laufen: ungepufferte Ausgabe + Absturzmeldung, damit ein Fehlschlag nie stumm bleibt.
+// Must run before QGuiApplication: unbuffered output + crash message so a failure is never silent.
 inline void prepareProcess() {
   std::setvbuf(stdout, nullptr, _IONBF, 0);
   std::setvbuf(stderr, nullptr, _IONBF, 0);
@@ -85,7 +86,7 @@ inline void prepareProcess() {
   }
 }
 
-// Eigenes main statt QTEST_MAIN: ungepuffert, Konsolen-Executable, "-v2" (jede Testfunktion wird gemeldet).
+// Custom main instead of QTEST_MAIN: unbuffered, console executable, "-v2" (every test function is reported).
 #define UITEST_MAIN(TestClass)                                  \
   int main(int argc, char** argv) {                             \
     uitest::prepareProcess();                                   \
@@ -98,7 +99,7 @@ inline void prepareProcess() {
     return QTest::qExec(&tc, n, args.data());                   \
   }
 
-// Alle Warnungen/Fehler ab hier zaehlen (QML-Ladefehler, Bindungsfehler, Qt-Warnungen).
+// All warnings/errors from here on count (QML load errors, binding errors, Qt warnings).
 inline void installWarningCounter() { previousHandler() = qInstallMessageHandler(countingHandler); }
 
 inline QString sha256Hex(const QByteArray& d) {
@@ -123,7 +124,7 @@ inline void saveShot(QQuickWindow* w, const QString& name) {
     return;
   }
   QDir().mkpath(dir);
-  QTest::qWait(150);  // Layout/Animationen setzen lassen
+  QTest::qWait(150);  // let layout/animations settle
   const QImage img = w->grabWindow();
   img.save(QDir(dir).filePath(name + QStringLiteral(".png")));
 }
@@ -140,7 +141,7 @@ inline bool isAllBlack(const QImage& img) {
   return true;
 }
 
-// Controller + Main.qml in einem Offscreen-Fenster.
+// Controller + Main.qml in an offscreen window.
 struct Harness {
   QTemporaryDir dir;
   std::unique_ptr<framebeam::ui::PlayerController> controller;
@@ -174,6 +175,9 @@ struct Harness {
     return window ? window->findChild<QQuickItem*>(QString::fromLatin1(objectName)) : nullptr;
   }
   bool click(const char* objectName) const {
+    // Let pending layout polish finish first: right after a state change a freshly shown item can still carry
+    // stale geometry, and the click would land on its neighbor (e.g. Back instead of Request approval).
+    QQuickTest::qWaitForPolish(window);
     QQuickItem* it = item(objectName);
     if (it == nullptr || !it->isVisible() || !it->isEnabled()) {
       return false;

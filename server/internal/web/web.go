@@ -1,5 +1,5 @@
-// Package web ist das Webinterface des FrameBeam Hub (html/template + htmx, per embed, kein Node-Build).
-// Es nutzt ausschließlich die Service-Schicht internal/hub.
+// Package web is the web interface of the FrameBeam Hub (html/template + htmx via embed, no Node build).
+// It uses only the service layer internal/hub.
 package web
 
 import (
@@ -24,32 +24,32 @@ var templatesFS embed.FS
 //go:embed static/*
 var staticFS embed.FS
 
-// DefaultMaxUploadBytes ist das Upload-Limit für ROMs (4 GiB).
+// DefaultMaxUploadBytes is the upload limit for ROMs (4 GiB).
 const DefaultMaxUploadBytes int64 = 4 << 30
 
 const (
 	sessionCookie = "fb_session"
-	csrfCookie    = "fb_csrf" // Double-Submit-Cookie für Formulare vor der Anmeldung (Setup, Login)
+	csrfCookie    = "fb_csrf" // double-submit cookie for forms before sign-in (setup, login)
 	maxFormBytes  = 1 << 20
-	// multipartSlack ist der Spielraum für Multipart-Rahmen und Felder über dem Datei-Limit.
+	// multipartSlack is the headroom for multipart framing and fields above the file limit.
 	multipartSlack = 16 << 10
 )
 
-// Config beschreibt Betriebsdaten, die der Service nicht kennt.
+// Config describes operational data the service does not know.
 type Config struct {
-	// Listen ist die konfigurierte Listen-Adresse (Anzeige in Settings).
+	// Listen is the configured listen address (shown in Settings).
 	Listen string
-	// UseTLS: HTTPS aktiv (Cookie "Secure", Transport-Anzeige).
+	// UseTLS: HTTPS is active (cookie "Secure", transport display).
 	UseTLS bool
-	// CertFingerprint (SHA-256), CertSource ("Selbst erzeugt"/"Eigenes cert/key"), CertNotAfter für Settings.
+	// CertFingerprint (SHA-256), CertSource ("Self-generated"/"Own cert/key"), CertNotAfter for Settings.
 	CertFingerprint string
 	CertSource      string
 	CertNotAfter    time.Time
-	// MaxUploadBytes: Limit für ROM-Uploads (0 = DefaultMaxUploadBytes).
+	// MaxUploadBytes: limit for ROM uploads (0 = DefaultMaxUploadBytes).
 	MaxUploadBytes int64
 }
 
-// Server ist das Webinterface.
+// Server is the web interface.
 type Server struct {
 	svc   *hub.Service
 	cfg   Config
@@ -58,7 +58,7 @@ type Server struct {
 	login *limiter
 }
 
-// New erzeugt das Webinterface.
+// New creates the web interface.
 func New(svc *hub.Service, cfg Config, log *slog.Logger) (*Server, error) {
 	if log == nil {
 		log = slog.Default()
@@ -78,7 +78,7 @@ func New(svc *hub.Service, cfg Config, log *slog.Logger) (*Server, error) {
 	return s, nil
 }
 
-// Register hängt die Web-Routen an mux. "/" ist der Catch-all (Redirect auf /setup ohne Admin, sonst 404).
+// Register attaches the web routes to mux. "/" is the catch-all (redirects to /setup without an admin, otherwise 404).
 func (s *Server) Register(mux *http.ServeMux) {
 	sub, _ := fs.Sub(staticFS, "static")
 	static := http.StripPrefix("/static/", http.FileServerFS(sub))
@@ -112,7 +112,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	h("POST /settings/password", s.guard(s.settingsPassword))
 }
 
-// secure setzt Sicherheits-Header (kein Inline-Skript/-Style) und verhindert Caching der Seiten.
+// secure sets security headers (no inline script/style) and prevents caching of pages.
 func secure(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
@@ -141,7 +141,7 @@ func (s *Server) catchAll(w http.ResponseWriter, r *http.Request) {
 	http.NotFound(w, r)
 }
 
-// ---- Seitenmodell ----
+// ---- Page model ----
 
 type pageData struct {
 	Title, Nav          string
@@ -155,10 +155,10 @@ type pageData struct {
 }
 
 var flashTexts = map[string]string{
-	"uploaded": "ROM wurde zur Library hinzugefügt.",
-	"deleted":  "ROM wurde gelöscht.",
-	"name":     "Hub-Name gespeichert.",
-	"password": "Passwort geändert.",
+	"uploaded": "ROM added to the library.",
+	"deleted":  "ROM deleted.",
+	"name":     "Hub name saved.",
+	"password": "Password changed.",
 }
 
 type session struct {
@@ -187,15 +187,15 @@ func roleLabel(r hub.Role) string {
 	if r == hub.RoleAdmin {
 		return "Admin"
 	}
-	return "Benutzer"
+	return "User"
 }
 
-// render schreibt Template name ("layout", "bare" oder ein Fragment) der Seite page.
+// render renders template name ("layout", "bare" or a fragment) of page.
 func (s *Server) render(w http.ResponseWriter, status int, page, name string, d pageData) {
 	var buf bytes.Buffer
 	if err := s.tmpl[page].ExecuteTemplate(&buf, name, d); err != nil {
-		s.log.Error("Template", "page", page, "err", err)
-		http.Error(w, "Interner Fehler", http.StatusInternalServerError)
+		s.log.Error("template", "page", page, "err", err)
+		http.Error(w, "Internal error", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -207,7 +207,7 @@ func isHX(r *http.Request, target string) bool {
 	return r.Header.Get("HX-Request") == "true" && r.Header.Get("HX-Target") == target
 }
 
-// ---- Guard: Setup-Redirect, Session, CSRF ----
+// ---- Guard: setup redirect, session, CSRF ----
 
 type handlerFunc func(w http.ResponseWriter, r *http.Request, sess *session)
 
@@ -230,7 +230,7 @@ func (s *Server) guard(f handlerFunc) http.HandlerFunc {
 			return
 		}
 		ws, err := s.svc.LookupWebSession(r.Context(), c.Value)
-		if err != nil || ws.User.Role != hub.RoleAdmin { // Phase 1: nur Admins im Web
+		if err != nil || ws.User.Role != hub.RoleAdmin { // phase 1: admins only on the web
 			s.clearSession(w)
 			s.redirect(w, r, "/login")
 			return
@@ -238,10 +238,10 @@ func (s *Server) guard(f handlerFunc) http.HandlerFunc {
 		sess := &session{ws}
 		if r.Method == http.MethodPost {
 			if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
-				// Streaming-Upload: der Handler prüft _csrf (vor der Datei) oder den Header.
+				// Streaming upload: the handler checks _csrf (before the file) or the header.
 				if tok := r.Header.Get("X-CSRF-Token"); tok != "" {
 					if !hub.TokenEqual(tok, ws.CSRFToken) {
-						http.Error(w, "CSRF-Prüfung fehlgeschlagen", http.StatusForbidden)
+						http.Error(w, "CSRF check failed", http.StatusForbidden)
 						return
 					}
 					r = r.WithContext(context.WithValue(r.Context(), keyCSRFChecked, true))
@@ -250,14 +250,14 @@ func (s *Server) guard(f handlerFunc) http.HandlerFunc {
 				r.Body = http.MaxBytesReader(w, r.Body, maxFormBytes)
 				tok := r.Header.Get("X-CSRF-Token")
 				if err := r.ParseForm(); err != nil {
-					http.Error(w, "Ungültige Anfrage", http.StatusBadRequest)
+					http.Error(w, "Invalid request", http.StatusBadRequest)
 					return
 				}
 				if tok == "" {
 					tok = r.PostFormValue("_csrf")
 				}
 				if !hub.TokenEqual(tok, ws.CSRFToken) {
-					http.Error(w, "CSRF-Prüfung fehlgeschlagen", http.StatusForbidden)
+					http.Error(w, "CSRF check failed", http.StatusForbidden)
 					return
 				}
 			}
@@ -276,11 +276,11 @@ func (s *Server) redirect(w http.ResponseWriter, r *http.Request, to string) {
 }
 
 func (s *Server) fail(w http.ResponseWriter, r *http.Request, err error) {
-	s.log.Error("Fehler", "method", r.Method, "path", r.URL.Path, "err", err)
-	http.Error(w, "Interner Fehler", http.StatusInternalServerError)
+	s.log.Error("error", "method", r.Method, "path", r.URL.Path, "err", err)
+	http.Error(w, "Internal error", http.StatusInternalServerError)
 }
 
-// ---- Cookies, CSRF vor der Anmeldung, Login-Begrenzung ----
+// ---- Cookies, CSRF before sign-in, login rate limiting ----
 
 func (s *Server) setCookie(w http.ResponseWriter, name, value string, maxAge int) {
 	http.SetCookie(w, &http.Cookie{Name: name, Value: value, Path: "/", MaxAge: maxAge, HttpOnly: true,
@@ -298,7 +298,7 @@ func (s *Server) startSession(w http.ResponseWriter, r *http.Request, userID str
 	return nil
 }
 
-// preCSRF liefert das Double-Submit-Token für Formulare ohne Session und setzt bei Bedarf das Cookie.
+// preCSRF returns the double-submit token for forms without a session and sets the cookie if needed.
 func (s *Server) preCSRF(w http.ResponseWriter, r *http.Request) string {
 	if c, err := r.Cookie(csrfCookie); err == nil && len(c.Value) >= 20 {
 		return c.Value
@@ -343,7 +343,7 @@ func (l *limiter) prune(key string) []time.Time {
 	return h
 }
 
-// blocked meldet, ob key das Limit erreicht hat.
+// blocked reports whether key has reached the limit.
 func (l *limiter) blocked(key string) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()

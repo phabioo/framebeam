@@ -18,7 +18,7 @@ using namespace framebeam;
 using State = HubConnection::State;
 
 namespace {
-// Dummy-ROM (keine echte ROM).
+// Dummy ROM (not a real ROM).
 QByteArray dummyRom(char fill) { return QByteArray(20000, fill) + "FRAMEBEAM-DUMMY-ROM"; }
 QString shaOf(const QByteArray& d) { return QString::fromLatin1(QCryptographicHash::hash(d, QCryptographicHash::Sha256).toHex()); }
 }  // namespace
@@ -70,7 +70,7 @@ class LibraryRomTest : public QObject {
     hub_->games = QJsonObject{{QStringLiteral("games"),
                                QJsonArray{gameJson(QStringLiteral("g1"), sha_, rom_.size(), QStringLiteral("demo.nds")),
                                           gameJson(QStringLiteral("g2"), QString(64, QLatin1Char('1')), 10, QStringLiteral("other.gba")),
-                                          QJsonObject{{QStringLiteral("id"), QStringLiteral("kaputt")}}}}};
+                                          QJsonObject{{QStringLiteral("id"), QStringLiteral("broken")}}}}};
     conn_ = std::make_unique<HubConnection>(profiles_.get(), creds_.get());
     conn_->setPollIntervalMs(50);
     library_ = std::make_unique<HubLibrary>(conn_.get());
@@ -107,7 +107,7 @@ class LibraryRomTest : public QObject {
     QCOMPARE(g.system, QStringLiteral("nds"));
     QCOMPARE(g.romSize, qint64(rom_.size()));
     QCOMPARE(g.romSha256, sha_);
-    // Trennen leert die Library (nie hubuebergreifend)
+    // Disconnecting clears the library (never across hubs)
     QSignalSpy cleared(library_.get(), &HubLibrary::cleared);
     conn_->disconnectFromHub();
     QCOMPARE(cleared.count(), 1);
@@ -134,7 +134,7 @@ class LibraryRomTest : public QObject {
     QCOMPARE(f.readAll(), rom_);
     QVERIFY(!QFile::exists(cache_->partPath(sha_, QStringLiteral("nds"))));
 
-    // Wiederholter Start: kein neuer ROM-Transfer
+    // Repeated start: no new ROM transfer
     const int before = hub_->count(QStringLiteral("/api/v1/roms/"));
     dl_->ensureRom(g);
     QCOMPARE(ready.count(), 2);
@@ -179,7 +179,7 @@ class LibraryRomTest : public QObject {
 
   void hashMismatchIsReportedAndPartRemoved() {
     QByteArray bad = rom_;
-    bad[10] = 'Z';  // gleiche Laenge, anderer Inhalt
+    bad[10] = 'Z';  // same length, different content
     hub_->roms.insert(sha_, bad);
     const GameEntry g = loadGame();
     QSignalSpy changed(dl_.get(), &RomDownloader::statusChanged);
@@ -189,7 +189,7 @@ class LibraryRomTest : public QObject {
     QVERIFY(!QFile::exists(cache_->finalPath(sha_, QStringLiteral("nds"))));
     QCOMPARE(dl_->status(g).errorCode, QStringLiteral("hash_mismatch"));
 
-    // Hub repariert: erneuter Versuch klappt
+    // Hub repaired: retry succeeds
     hub_->roms.insert(sha_, rom_);
     QSignalSpy ready(dl_.get(), &RomDownloader::romReady);
     dl_->ensureRom(g);
@@ -210,10 +210,10 @@ class LibraryRomTest : public QObject {
       QFile f(path);
       QVERIFY(f.open(QIODevice::ReadWrite));
       f.seek(100);
-      f.write("X");  // gleiche Groesse, anderer Inhalt
+      f.write("X");  // same size, different content
       f.setFileTime(QDateTime::currentDateTime().addSecs(30), QFileDevice::FileModificationTime);
     }
-    QVERIFY(dl_->status(g).state == RomState::Validating);  // Hashing laeuft off-thread
+    QVERIFY(dl_->status(g).state == RomState::Validating);  // hashing runs off-thread
     QVERIFY(waitNotValidating(g));
     QVERIFY(dl_->status(g).state == RomState::DownloadNeeded);
     QVERIFY(!QFile::exists(path));
@@ -226,7 +226,7 @@ class LibraryRomTest : public QObject {
     QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 8000);
     QVERIFY(QFile::remove(cache_->finalPath(sha_, QStringLiteral("nds")) + QStringLiteral(".ok")));
     const int before = hub_->count(QStringLiteral("/api/v1/roms/"));
-    dl_->ensureRom(g);  // gueltige Datei, Sidecar fehlt
+    dl_->ensureRom(g);  // valid file, sidecar missing
     QVERIFY(dl_->status(g).state == RomState::Validating);
     QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 2, 8000);
     QCOMPARE(hub_->count(QStringLiteral("/api/v1/roms/")), before);
@@ -259,7 +259,7 @@ class LibraryRomTest : public QObject {
     dl_->ensureRom(g);
     QVERIFY(waitFinal(sha_, RomState::Failed));
     QByteArray bad = rom_;
-    bad[15000] = 'Z';  // Rest nach dem .part-Anteil ist veraendert
+    bad[15000] = 'Z';  // rest after the .part portion is changed
     hub_->roms.insert(sha_, bad);
     dl_->ensureRom(g);
     QVERIFY(waitFinal(sha_, RomState::HashMismatch));

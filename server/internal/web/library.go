@@ -67,7 +67,7 @@ func (s *Server) libraryBody(ctx context.Context, system, q string) (libBody, er
 		}
 		b.Rows = append(b.Rows, libRow{ID: g.ID, Title: g.Title, Initial: initial(g.Title), System: g.System,
 			Size: humanBytes(g.ROMSize), SHA: g.ROMSHA256, ShortSHA: shortHash(g.ROMSHA256), Uploader: up,
-			Added: g.AddedAt.Local().Format("02.01.")})
+			Added: g.AddedAt.Local().Format("01-02")})
 	}
 	for _, sys := range hub.Systems() {
 		b.Systems = append(b.Systems, sysOpt{ID: sys.ID, Name: sys.Name, Count: counts[sys.ID]})
@@ -104,7 +104,7 @@ func (s *Server) libraryUpload(w http.ResponseWriter, r *http.Request, sess *ses
 	r.Body = http.MaxBytesReader(w, r.Body, s.cfg.MaxUploadBytes+multipartSlack)
 	mr, err := r.MultipartReader()
 	if err != nil {
-		http.Error(w, "Ungültige Anfrage", http.StatusBadRequest)
+		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
 	csrfOK := r.Context().Value(keyCSRFChecked) == true
@@ -130,7 +130,7 @@ func (s *Server) libraryUpload(w http.ResponseWriter, r *http.Request, sess *ses
 			system = readField(part)
 		case "file":
 			if !csrfOK {
-				http.Error(w, "CSRF-Prüfung fehlgeschlagen", http.StatusForbidden)
+				http.Error(w, "CSRF check failed", http.StatusForbidden)
 				return
 			}
 			if part.FileName() == "" {
@@ -145,11 +145,11 @@ func (s *Server) libraryUpload(w http.ResponseWriter, r *http.Request, sess *ses
 		part.Close()
 	}
 	if !csrfOK {
-		http.Error(w, "CSRF-Prüfung fehlgeschlagen", http.StatusForbidden)
+		http.Error(w, "CSRF check failed", http.StatusForbidden)
 		return
 	}
 	if !added {
-		s.renderLibrary(w, r, sess, http.StatusBadRequest, "", "", "Bitte eine ROM-Datei auswählen.")
+		s.renderLibrary(w, r, sess, http.StatusBadRequest, "", "", "Please select a ROM file.")
 		return
 	}
 	http.Redirect(w, r, "/library?ok=uploaded", http.StatusSeeOther)
@@ -161,9 +161,9 @@ func (s *Server) uploadError(w http.ResponseWriter, r *http.Request, sess *sessi
 	switch {
 	case errors.As(err, &mbe):
 		s.renderLibrary(w, r, sess, http.StatusRequestEntityTooLarge, "", "",
-			"Die Datei ist zu groß (maximal "+humanBytes(s.cfg.MaxUploadBytes)+").")
+			"The file is too large (maximum "+humanBytes(s.cfg.MaxUploadBytes)+").")
 	case errors.Is(err, hub.ErrConflict):
-		s.renderLibrary(w, r, sess, http.StatusConflict, "", "", "Dieses ROM ist bereits in der Library.")
+		s.renderLibrary(w, r, sess, http.StatusConflict, "", "", "This ROM is already in the library.")
 	case errors.As(err, &he) && he.Code == hub.CodeBadRequest:
 		s.renderLibrary(w, r, sess, http.StatusBadRequest, "", "", he.Message+".")
 	default:

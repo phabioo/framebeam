@@ -51,7 +51,7 @@ QString LibraryModel::stateKind(RomState s) {
     case RomState::Failed: return QStringLiteral("failed");
     default: break;
   }
-  // Validating und kuenftige Zustaende: neutral behandeln ("Prüfe…").
+  // Validating and future states: treat as neutral ("Verifying…").
   return s == RomState::Validating ? QStringLiteral("validating") : QStringLiteral("unknown");
 }
 
@@ -78,19 +78,19 @@ QVariant LibraryModel::data(const QModelIndex& index, int role) const {
       if (kind == QLatin1String("mismatch") || kind == QLatin1String("failed")) return QStringLiteral("error");
       return QStringLiteral("neutral");
     case StatusTextRole: {
-      if (kind == QLatin1String("ready")) return tr("Bereit");
+      if (kind == QLatin1String("ready")) return tr("Ready");
       if (kind == QLatin1String("download")) {
         const qint64 total = it.status.totalBytes > 0 ? it.status.totalBytes : it.game.romSize;
-        return tr("Download nötig · %1").arg(formatSize(total));
+        return tr("Download needed · %1").arg(formatSize(total));
       }
       if (kind == QLatin1String("downloading")) {
         const qint64 total = it.status.totalBytes > 0 ? it.status.totalBytes : it.game.romSize;
         const int pct = total > 0 ? static_cast<int>(it.status.receivedBytes * 100 / total) : 0;
-        return tr("Lädt %1 %").arg(qBound(0, pct, 100));
+        return tr("Downloading %1 %").arg(qBound(0, pct, 100));
       }
-      if (kind == QLatin1String("mismatch")) return tr("Hash mismatch · neu laden");
-      if (kind == QLatin1String("failed")) return tr("Download fehlgeschlagen · erneut versuchen");
-      return tr("Prüfe…");
+      if (kind == QLatin1String("mismatch")) return tr("Hash mismatch · reload");
+      if (kind == QLatin1String("failed")) return tr("Download failed · retry");
+      return tr("Verifying…");
     }
     default: return {};
   }

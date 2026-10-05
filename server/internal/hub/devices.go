@@ -11,7 +11,7 @@ import (
 	"github.com/phabioo/framebeam/server/internal/auth"
 )
 
-// DeviceStatus ist der Vertrauensstatus eines Geräts.
+// DeviceStatus is the trust status of a device.
 type DeviceStatus string
 
 const (
@@ -19,7 +19,7 @@ const (
 	DeviceRevoked DeviceStatus = "revoked"
 )
 
-// Device ist ein gekoppelter FrameBeam Player. Die ID meldet der Player selbst.
+// Device is a paired FrameBeam Player. The player reports the ID itself.
 type Device struct {
 	ID            string
 	UserID        string
@@ -47,7 +47,7 @@ func scanDevice(r scanner) (Device, error) {
 	return d, nil
 }
 
-// GetDevice liefert ein Gerät per ID.
+// GetDevice returns a device by ID.
 func (s *Service) GetDevice(ctx context.Context, id string) (Device, error) {
 	d, err := scanDevice(s.db.QueryRowContext(ctx, `SELECT `+deviceCols+` FROM devices WHERE id = ?`, id))
 	if errors.Is(err, sql.ErrNoRows) {
@@ -59,7 +59,7 @@ func (s *Service) GetDevice(ctx context.Context, id string) (Device, error) {
 	return d, nil
 }
 
-// ListDevices liefert alle Geräte (Clients-Seite), neueste zuerst.
+// ListDevices returns all devices (Clients page), newest first.
 func (s *Service) ListDevices(ctx context.Context) ([]Device, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT `+deviceCols+` FROM devices ORDER BY created_at DESC, name`)
 	if err != nil {
@@ -77,7 +77,7 @@ func (s *Service) ListDevices(ctx context.Context) ([]Device, error) {
 	return out, rows.Err()
 }
 
-// RevokeDevice sperrt ein Gerät und löscht sofort alle seine Access Tokens (idempotent).
+// RevokeDevice revokes a device and immediately deletes all its access tokens (idempotent).
 func (s *Service) RevokeDevice(ctx context.Context, deviceID string) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -101,14 +101,14 @@ func (s *Service) RevokeDevice(ctx context.Context, deviceID string) error {
 	return internal2(tx.Commit())
 }
 
-// AccessToken ist ein ausgestelltes Access Token (Klartext nur hier, gespeichert wird der Hash).
+// AccessToken is an issued access token (plaintext only here; the hash is stored).
 type AccessToken struct {
 	Token     string
 	ExpiresIn time.Duration
 }
 
-// IssueAccessToken tauscht ein Device Credential gegen ein Access Token (15 min).
-// Fehler: ErrInvalidCredentials (unbekannt/falsch), ErrDeviceRevoked (gültiges Credential, Gerät gesperrt).
+// IssueAccessToken exchanges a device credential for an access token (15 min).
+// Errors: ErrInvalidCredentials (unknown/wrong), ErrDeviceRevoked (valid credential, device revoked).
 func (s *Service) IssueAccessToken(ctx context.Context, deviceID, credential string) (AccessToken, error) {
 	var hash, status string
 	err := s.db.QueryRowContext(ctx, `SELECT credential_hash, status FROM devices WHERE id = ?`, deviceID).Scan(&hash, &status)
@@ -117,7 +117,7 @@ func (s *Service) IssueAccessToken(ctx context.Context, deviceID, credential str
 	}
 	known := err == nil
 	if !known {
-		hash = auth.HashToken("fbd_dummy") // gleiche Laufzeit wie bei bekanntem Gerät
+		hash = auth.HashToken("fbd_dummy") // same run time as for a known device
 	}
 	match := strings.HasPrefix(credential, auth.PrefixDevice) &&
 		subtle.ConstantTimeCompare([]byte(auth.HashToken(credential)), []byte(hash)) == 1
@@ -137,7 +137,7 @@ func (s *Service) IssueAccessToken(ctx context.Context, deviceID, credential str
 		return AccessToken{}, internal(err)
 	}
 	defer tx.Rollback()
-	// Gerät in derselben Transaktion erneut auf trusted prüfen (Revoke-Race).
+	// Re-check in the same transaction that the device is trusted (revoke race).
 	res, err := tx.ExecContext(ctx, `UPDATE devices SET last_seen_at = ? WHERE id = ? AND status = 'trusted'`, now.Unix(), deviceID)
 	if err != nil {
 		return AccessToken{}, internal(err)
@@ -155,14 +155,14 @@ func (s *Service) IssueAccessToken(ctx context.Context, deviceID, credential str
 	return AccessToken{Token: tok, ExpiresIn: AccessTokenTTL}, nil
 }
 
-// Principal ist die authentifizierte Identität hinter einem Access Token.
+// Principal is the authenticated identity behind an access token.
 type Principal struct {
 	Device Device
 	User   User
 }
 
-// Authenticate prüft ein Access Token bei jeder Nutzung: gültig, nicht abgelaufen, Gerät trusted.
-// Aktualisiert last_seen_at. Fehler: ErrUnauthorized, ErrDeviceRevoked.
+// Authenticate checks an access token on every use: valid, not expired, device trusted.
+// Updates last_seen_at. Errors: ErrUnauthorized, ErrDeviceRevoked.
 func (s *Service) Authenticate(ctx context.Context, token string) (Principal, error) {
 	if !strings.HasPrefix(token, auth.PrefixAccess) || len(token) > 256 {
 		return Principal{}, ErrUnauthorized
@@ -201,55 +201,55 @@ func (s *Service) Authenticate(ctx context.Context, token string) (Principal, er
 	return p, nil
 }
 
-// HandshakeInput enthält die für Phase 1 relevanten Handshake-Felder.
+// HandshakeInput contains the handshake fields relevant for phase 1.
 type HandshakeInput struct {
 	Platform           string
 	Arch               string
 	PlayerVersion      string
 	ProtocolVersion    int
 	MinProtocolVersion int
-	// Cores, Video, Audio, Input: noch nicht ausgewertet (siehe TODO in Handshake).
+	// Cores, Video, Audio, Input: not evaluated yet (see TODO in Handshake).
 }
 
-// Problem beschreibt eine Inkompatibilität (HandshakeProblem der Spec).
+// Problem describes an incompatibility (HandshakeProblem in the spec).
 type Problem struct {
 	Code   Code
 	Detail string
 	CoreID string
 }
 
-// HandshakeResult ist das Ergebnis der Kompatibilitätsprüfung.
+// HandshakeResult is the result of the compatibility check.
 type HandshakeResult struct {
 	Info       Info
 	Compatible bool
 	Problems   []Problem
 }
 
-// Problem-Codes des Handshakes.
+// Problem codes of the handshake.
 const (
 	ProblemPlayerTooOld Code = "player_too_old"
 	ProblemHubTooOld    Code = "hub_too_old"
 )
 
-// Handshake prüft die Protokollversionen und speichert die gemeldeten Geräteinfos.
-// TODO(Phase 5): Core-Prüfung (core_missing, core_version_mismatch) gegen die Core-Registry.
-// TODO(Phase 4): Codec-/Capability-Prüfung (capability_missing) für Sessions.
+// Handshake checks the protocol versions and stores the reported device info.
+// TODO(phase 5): core check (core_missing, core_version_mismatch) against the core registry.
+// TODO(phase 4): codec/capability check (capability_missing) for sessions.
 func (s *Service) Handshake(ctx context.Context, deviceID string, in HandshakeInput) (HandshakeResult, error) {
 	if in.ProtocolVersion < 1 || in.MinProtocolVersion < 1 || in.MinProtocolVersion > in.ProtocolVersion {
-		return HandshakeResult{}, badRequest("protocol_version und min_protocol_version müssen ab 1 und konsistent sein")
+		return HandshakeResult{}, badRequest("protocol_version and min_protocol_version must be at least 1 and consistent")
 	}
 	if len(in.Platform) > 100 || len(in.Arch) > 100 || len(in.PlayerVersion) > 100 {
-		return HandshakeResult{}, badRequest("Feld zu lang")
+		return HandshakeResult{}, badRequest("Field too long")
 	}
 	info := s.Info()
 	res := HandshakeResult{Info: info, Compatible: true, Problems: []Problem{}}
 	if in.ProtocolVersion < info.MinProtocolVersion {
 		res.Problems = append(res.Problems, Problem{Code: ProblemPlayerTooOld,
-			Detail: "Player-Protokollversion unter dem Minimum des Hub"})
+			Detail: "Player protocol version below the hub's minimum"})
 	}
 	if info.ProtocolVersion < in.MinProtocolVersion {
 		res.Problems = append(res.Problems, Problem{Code: ProblemHubTooOld,
-			Detail: "Hub-Protokollversion unter dem Minimum des Players"})
+			Detail: "Hub protocol version below the player's minimum"})
 	}
 	res.Compatible = len(res.Problems) == 0
 	if _, err := s.db.ExecContext(ctx, `UPDATE devices SET platform = ?, arch = ?, player_version = ? WHERE id = ?`,

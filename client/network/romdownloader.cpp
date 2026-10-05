@@ -93,7 +93,7 @@ void RomDownloader::startValidation(const GameEntry& game, bool thenDownload) {
       return;
     }
     if (res.first) {
-      cache_->dropFinal(sha, v->ext);  // beschaedigte Cache-Datei
+      cache_->dropFinal(sha, v->ext);  // corrupted cache file
     }
     if (v->thenDownload) {
       beginDownload(v->game);
@@ -172,7 +172,7 @@ void RomDownloader::cancel(const QString& sha256) {
   const std::shared_ptr<Job> job = it.value();
   job->aborted = true;
   if (job->reply) {
-    job->reply->abort();  // onFinished raeumt auf
+    job->reply->abort();  // onFinished cleans up
   }
 }
 
@@ -192,7 +192,7 @@ void RomDownloader::startRequest(Job* job) {
     sendRequest(job);
     return;
   }
-  // Vorhandenen .part-Anteil off-thread in den inkrementellen Hash einlesen.
+  // Read the existing .part portion off-thread into the incremental hash.
   job->priming = true;
   emit statusChanged(sha, makeStatus(RomState::Validating, total, job->received));
   const QString path = cache_->partPath(sha, job->ext);
@@ -206,7 +206,7 @@ void RomDownloader::startRequest(Job* job) {
       finishJob(sha, makeStatus(RomState::DownloadNeeded, job->game.romSize, cache_->partSize(sha, job->ext)));
       return;
     }
-    if (!ok) {  // .part nicht lesbar: von vorn
+    if (!ok) {  // .part not readable: start over
       cache_->discardPart(sha, job->ext);
       job->received = 0;
       job->hash->reset();
@@ -245,7 +245,7 @@ void RomDownloader::sendRequest(Job* job) {
   QNetworkReply* reply = conn_ ? conn_->authorizedGet(QStringLiteral("/roms/") + sha, headers) : nullptr;
   if (reply == nullptr) {
     finishJob(sha, makeStatus(RomState::Failed, total, job->received, QStringLiteral("not_connected"),
-                              QStringLiteral("Nicht mit einem Hub verbunden")));
+                              QStringLiteral("Not connected to a hub")));
     return;
   }
   job->reply = reply;
@@ -266,7 +266,7 @@ void RomDownloader::onReadyRead(Job* job) {
   QNetworkReply* reply = job->reply;
   const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
   if (status != 200 && status != 206) {
-    return;  // Fehlerbody bleibt fuer onFinished
+    return;  // error body is left for onFinished
   }
   if (!job->opened) {
     const QString partPath = cache_->partPath(job->game.romSha256, job->ext);
@@ -282,7 +282,7 @@ void RomDownloader::onReadyRead(Job* job) {
       }
       mode |= QIODevice::Append;
     } else {
-      mode |= QIODevice::Truncate;  // Server ignoriert Range: von vorn
+      mode |= QIODevice::Truncate;  // server ignores Range: start over
       job->received = 0;
       job->hash->reset();
     }
@@ -303,7 +303,7 @@ void RomDownloader::onReadyRead(Job* job) {
 }
 
 void RomDownloader::onFinished(Job* job) {
-  const std::shared_ptr<Job> keep = jobs_.value(job->game.romSha256);  // Job bleibt bis Ende dieser Funktion
+  const std::shared_ptr<Job> keep = jobs_.value(job->game.romSha256);  // job stays alive until the end of this function
   QNetworkReply* reply = job->reply;
   job->reply.clear();
   reply->deleteLater();
@@ -340,7 +340,7 @@ void RomDownloader::onFinished(Job* job) {
     }
     if (cache_->partSize(sha, job->ext) != total) {
       finishJob(sha, makeStatus(RomState::Failed, total, cache_->partSize(sha, job->ext), QStringLiteral("incomplete"),
-                                QStringLiteral("Download unvollständig")));
+                                QStringLiteral("Download incomplete")));
       return;
     }
     finishDownload(job);
@@ -372,12 +372,12 @@ void RomDownloader::finishDownload(Job* job) {
   if (QString::fromLatin1(job->hash->result().toHex()) != sha) {
     cache_->discardPart(sha, job->ext);
     finishJob(sha, makeStatus(RomState::HashMismatch, total, 0, QStringLiteral("hash_mismatch"),
-                              QStringLiteral("SHA-256 der heruntergeladenen ROM stimmt nicht überein")));
+                              QStringLiteral("SHA-256 of the downloaded ROM does not match")));
     return;
   }
   if (!cache_->commitVerified(sha, job->ext)) {
     finishJob(sha, makeStatus(RomState::Failed, total, cache_->partSize(sha, job->ext), QStringLiteral("io_error"),
-                              QStringLiteral("Cache-Datei konnte nicht geschrieben werden")));
+                              QStringLiteral("Cache file could not be written")));
     return;
   }
   RomStatus s = makeStatus(RomState::Ready, total, total);

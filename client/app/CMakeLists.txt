@@ -1,4 +1,4 @@
-# framebeam_player: Executable. QML-Modul und UI-Quellen kommen aus ../ui (framebeam_ui).
+# framebeam_player: Executable. The QML module and UI sources come from ../ui (framebeam_ui).
 qt_add_executable(framebeam_player main.cpp)
 target_link_libraries(framebeam_player PRIVATE
   framebeam_core framebeam_emulation framebeam_ui framebeam_uiplugin

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Klont und bootstrapt vcpkg (gepinnt, shallow). Idempotent und leise.
-# Ziel: ${VCPKG_ROOT:-$HOME/.cache/framebeam/vcpkg}
+# Clones and bootstraps vcpkg (pinned, shallow). Idempotent and quiet.
+# Target: ${VCPKG_ROOT:-$HOME/.cache/framebeam/vcpkg}
 set -euo pipefail
 
-# Muss zu "builtin-baseline" in client/vcpkg.json passen (vcpkg Tag 2026.07.29).
+# Must match "builtin-baseline" in client/vcpkg.json (vcpkg tag 2026.07.29).
 VCPKG_COMMIT="9e593bb18ea69cc5095e012465dcd675a822ed0d"
 VCPKG_REPO="https://github.com/microsoft/vcpkg"
 root="${VCPKG_ROOT:-$HOME/.cache/framebeam/vcpkg}"
@@ -14,7 +14,7 @@ fi
 
 log="$(mktemp)"
 trap 'rm -f "$log"' EXIT
-fail() { echo "FEHLER bootstrap-vcpkg: $1" >&2; tail -n 40 "$log" >&2; exit 1; }
+fail() { echo "ERROR bootstrap-vcpkg: $1" >&2; tail -n 40 "$log" >&2; exit 1; }
 
 if [ ! -d "$root/.git" ]; then
   mkdir -p "$root"

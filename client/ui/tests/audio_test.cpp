@@ -1,4 +1,4 @@
-// Tests ohne Audiogeraet: Formatkonvertierung und Resampling-Pfad von AudioOutput.
+// Tests without an audio device: format conversion and resampling path of AudioOutput.
 #include <QtTest>
 #include <cstring>
 
@@ -48,7 +48,7 @@ class AudioTest : public QObject {
     QVERIFY(AudioOutput::convertSamples(in, QAudioFormat::Unknown).isEmpty());
   }
   void resampleThenFloat() {
-    // 32768 -> 48000 Hz, 1 s Konstantsignal: ~48000 Frames Float-Stereo (8 Byte je Frame).
+    // 32768 -> 48000 Hz, 1 s constant signal: ~48000 frames of float stereo (8 bytes per frame).
     LinearResampler r(32768, 48000);
     QByteArray in(32768 * 4, 0);
     auto* s = reinterpret_cast<qint16*>(in.data());

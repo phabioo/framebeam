@@ -1,5 +1,5 @@
 {{define "head"}}<!doctype html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -16,15 +16,15 @@
 <div class="shell">
   <aside class="sidebar">
     <div class="logo"><span class="logo-mark"></span>FrameBeam Hub</div>
-    <nav class="nav" aria-label="Hauptnavigation">
+    <nav class="nav" aria-label="Main navigation">
       <a href="/library"{{if eq .Nav "library"}} class="active" aria-current="page"{{end}}>Library</a>
-      <a href="/clients"{{if eq .Nav "clients"}} class="active" aria-current="page"{{end}}>Clients{{if .Pending}}<span class="badge">{{.Pending}} {{if eq .Pending 1}}Anfrage{{else}}Anfragen{{end}}</span>{{end}}</a>
+      <a href="/clients"{{if eq .Nav "clients"}} class="active" aria-current="page"{{end}}>Clients{{if .Pending}}<span class="badge">{{.Pending}} {{if eq .Pending 1}}request{{else}}requests{{end}}</span>{{end}}</a>
       <a href="/settings"{{if eq .Nav "settings"}} class="active" aria-current="page"{{end}}>Settings</a>
     </nav>
     <div class="sidebar-foot">
       <div class="who">{{.User}} · {{.Role}}</div>
       <div class="meta">{{.HubName}} · {{.HubVersion}}</div>
-      <form class="logout" method="post" action="/logout"><input type="hidden" name="_csrf" value="{{.CSRF}}"><button class="btn small" type="submit">Abmelden</button></form>
+      <form class="logout" method="post" action="/logout"><input type="hidden" name="_csrf" value="{{.CSRF}}"><button class="btn small" type="submit">Sign out</button></form>
     </div>
   </aside>
   <main class="main">

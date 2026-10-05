@@ -1,9 +1,9 @@
 {{define "content"}}
-<h1>Anmelden</h1>
+<h1>Sign in</h1>
 <form method="post" action="/login">
   <input type="hidden" name="_csrf" value="{{.CSRF}}">
-  <label class="field">Benutzername<input type="text" name="username" autocomplete="username" required autofocus></label>
-  <label class="field">Passwort<input type="password" name="password" autocomplete="current-password" required></label>
-  <button class="btn primary" type="submit">Anmelden</button>
+  <label class="field">Username<input type="text" name="username" autocomplete="username" required autofocus></label>
+  <label class="field">Password<input type="password" name="password" autocomplete="current-password" required></label>
+  <button class="btn primary" type="submit">Sign in</button>
 </form>
 {{end}}

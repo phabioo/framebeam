@@ -1,5 +1,5 @@
-# framebeam_ui: QML-Modul FrameBeam.Player (statisch, wird in framebeam_player gelinkt).
-# C++-Glue (Controller, Modelle, GameView, Audio) und QML-Screens der Oberflaeche.
+# framebeam_ui: QML module FrameBeam.Player (static, linked into framebeam_player).
+# C++ glue (controller, models, GameView, audio) and QML screens of the UI.
 set_source_files_properties(Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
 qt_add_library(framebeam_ui STATIC)

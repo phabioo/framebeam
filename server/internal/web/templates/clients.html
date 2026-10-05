@@ -5,13 +5,13 @@
   {{range .Body.Pending}}
   <div class="pending">
     <div>
-      <div class="eyebrow">Gerätename</div>
+      <div class="eyebrow">Device name</div>
       <h3>{{.Name}}</h3>
-      <div class="mono">{{.Platform}} {{.Arch}} · Player {{.PlayerVersion}} · Protokoll v{{.Protocol}}</div>
-      <div class="help">angefragt {{.Ago}}</div>
+      <div class="mono">{{.Platform}} {{.Arch}} · Player {{.PlayerVersion}} · Protocol v{{.Protocol}}</div>
+      <div class="help">requested {{.Ago}}</div>
     </div>
     <form hx-post="/clients/requests/{{.ID}}/allow" hx-target="#clients-body" hx-swap="innerHTML" id="req-{{.ID}}">
-      <label class="field">Benutzer zuordnen<select name="user_id">{{range $.Body.Users}}<option value="{{.ID}}">{{.DisplayName}}</option>{{end}}</select></label>
+      <label class="field">Assign user<select name="user_id">{{range $.Body.Users}}<option value="{{.ID}}">{{.DisplayName}}</option>{{end}}</select></label>
     </form>
     <div class="actions">
       <button class="btn" type="button" hx-post="/clients/requests/{{.ID}}/deny" hx-target="#clients-body" hx-swap="innerHTML">Deny</button>
@@ -19,14 +19,14 @@
     </div>
   </div>
   {{else}}
-  <p class="help">Keine offenen Anfragen.</p>
+  <p class="help">No pending requests.</p>
   {{end}}
 </section>
 <section class="stack">
-  <div class="eyebrow">Geräte</div>
+  <div class="eyebrow">Devices</div>
   {{if .Body.Devices}}
   <div class="card"><table class="list">
-    <thead><tr><th>Gerät</th><th>Benutzer</th><th>Plattform</th><th>Player</th><th>Zuletzt aktiv</th><th>Status</th><th></th></tr></thead>
+    <thead><tr><th>Device</th><th>User</th><th>Platform</th><th>Player</th><th>Last active</th><th>Status</th><th></th></tr></thead>
     <tbody>
     {{range .Body.Devices}}
     <tr{{if .Revoked}} class="muted"{{end}}>
@@ -36,18 +36,18 @@
       <td class="mono">{{.PlayerVersion}}</td>
       <td>{{.LastSeen}}</td>
       <td>{{if .Revoked}}<span class="pill">Revoked</span>{{else}}<span class="pill ok">Trusted</span>{{end}}</td>
-      <td>{{if .Revoked}}—{{else}}<button class="btn-link" type="button" hx-post="/clients/devices/{{.ID}}/revoke" hx-confirm="Zugriff für „{{.Name}}“ wirklich widerrufen?" hx-target="#clients-body" hx-swap="innerHTML">Revoke access</button>{{end}}</td>
+      <td>{{if .Revoked}}—{{else}}<button class="btn-link" type="button" hx-post="/clients/devices/{{.ID}}/revoke" hx-confirm="Really revoke access for “{{.Name}}”?" hx-target="#clients-body" hx-swap="innerHTML">Revoke access</button>{{end}}</td>
     </tr>
     {{end}}
     </tbody>
   </table></div>
   {{else}}
-  <div class="card"><p class="empty">Noch keine Geräte gekoppelt.</p></div>
+  <div class="card"><p class="empty">No devices paired yet.</p></div>
   {{end}}
-  <p class="foot-note">Widerrufen entzieht dem Gerät sofort den Zugriff, auch mit noch gültigen Access Tokens.</p>
+  <p class="foot-note">Revoking removes the device's access immediately, even with access tokens that are still valid.</p>
 </section>
 {{end}}
 {{define "content"}}
-<div class="page-head"><div><h1>Clients</h1><p class="sub">Geräte, die auf diesen Hub zugreifen dürfen</p></div></div>
+<div class="page-head"><div><h1>Clients</h1><p class="sub">Devices allowed to access this hub</p></div></div>
 <div id="clients-body" class="stack" hx-get="/clients" hx-trigger="every 15s" hx-swap="innerHTML">{{template "clients-body" .}}</div>
 {{end}}

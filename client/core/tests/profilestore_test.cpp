@@ -30,7 +30,7 @@ class ProfileStoreTest : public QObject {
     QTemporaryDir dir;
     HubProfile p;
     p.hubId = QStringLiteral("hub-1");
-    p.name = QStringLiteral("Wohnzimmer");
+    p.name = QStringLiteral("Living room");
     p.address = QStringLiteral("https://192.0.2.10:8443");
     p.hubUserId = QStringLiteral("u_1");
     p.deviceId = QStringLiteral("dev");
@@ -74,8 +74,8 @@ class ProfileStoreTest : public QObject {
     const auto c = ProfileStore::chooseBaseDir(app.path(), QStringLiteral("/appdata"));
     QVERIFY(c.portable);
     QCOMPARE(c.path, QDir(app.path()).filePath(QStringLiteral("data")));
-    QVERIFY(QDir(c.path).entryList(QDir::Files | QDir::Hidden).isEmpty());  // Schreibtest raeumt auf
-    // nicht beschreibbar: "data" ist eine Datei
+    QVERIFY(QDir(c.path).entryList(QDir::Files | QDir::Hidden).isEmpty());  // write test cleans up
+    // not writable: "data" is a file
     QTemporaryDir bad;
     QFile f(QDir(bad.path()).filePath(QStringLiteral("data")));
     QVERIFY(f.open(QIODevice::WriteOnly));

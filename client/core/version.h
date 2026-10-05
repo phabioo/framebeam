@@ -4,7 +4,7 @@
 
 namespace framebeam {
 
-// Version des FrameBeam Players (Phase 0: Platzhalter).
+// Version of the FrameBeam Player (phase 0: placeholder).
 std::string_view playerVersion() noexcept;
 
 }  // namespace framebeam

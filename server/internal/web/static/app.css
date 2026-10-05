@@ -1,4 +1,4 @@
-/* FrameBeam Hub Webinterface (hell). Tokens: docs/design/tokens.md. Keine externen Ressourcen. */
+/* FrameBeam Hub web interface (light). Tokens: docs/design/tokens.md. No external resources. */
 :root {
   --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -54,7 +54,7 @@ a { color: inherit; }
 .page-head h1 { font-size: 26px; font-weight: 600; letter-spacing: -.015em; }
 .sub { font-size: 14px; color: var(--text-muted); margin-top: 4px; }
 
-/* Buttons und Formulare */
+/* Buttons and forms */
 .btn { display: inline-flex; align-items: center; justify-content: center; height: 38px; padding: 0 16px; border-radius: 7px; border: 1px solid var(--border-input); background: var(--surface); color: var(--text); font: 500 14px var(--font-sans); cursor: pointer; text-decoration: none; }
 .btn.primary { background: var(--btn-bg); border-color: var(--btn-bg); color: var(--btn-text); }
 .btn.small { height: 32px; padding: 0 12px; }

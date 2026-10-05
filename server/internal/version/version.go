@@ -1,10 +1,10 @@
-// Package version stellt die per -ldflags setzbare Hub-Version bereit.
+// Package version provides the hub version, settable via -ldflags.
 package version
 
-// Version wird beim Build gesetzt:
+// Version is set at build time:
 //
 //	-ldflags "-X github.com/phabioo/framebeam/server/internal/version.Version=1.2.3"
 var Version = "dev"
 
-// String liefert die aktuelle Hub-Version.
+// String returns the current hub version.
 func String() string { return Version }

@@ -1,7 +1,7 @@
 #pragma once
-// Datengetriebene System-Manifeste (z. B. manifests/nds.json). Keine konsolenspezifische
-// Startlogik ausserhalb dieser Daten: Core-Zuordnung, Endungen, Firmware, Input-/Display-Profil
-// und Core-Option-Defaults kommen aus dem Manifest.
+// Data-driven system manifests (e.g. manifests/nds.json). No console-specific
+// launch logic outside this data: core mapping, extensions, firmware, input/display profile
+// and core option defaults come from the manifest.
 
 #include <QList>
 #include <QMap>
@@ -16,23 +16,23 @@
 namespace framebeam::emu {
 
 struct ScreenSpec {
-  QString id;  // z. B. "top", "bottom"
+  QString id;  // e.g. "top", "bottom"
   int width = 0;
   int height = 0;
-  bool touch = false;  // Touch-/Zeigereingabe landet auf diesem Screen
+  bool touch = false;  // touch/pointer input goes to this screen
 };
 
-// Anordnung der Screens im vom Core gelieferten Gesamtframe.
+// Arrangement of the screens in the full frame delivered by the core.
 struct DisplayProfile {
-  QString layout;  // "single" | "vertical" (untereinander) | "horizontal" (nebeneinander)
-  int gap = 0;     // Pixel zwischen den Screens
+  QString layout;  // "single" | "vertical" (stacked) | "horizontal" (side by side)
+  int gap = 0;     // pixels between the screens
   QList<ScreenSpec> screens;
 
   QSize frameSize() const;
-  QRect screenRect(int index) const;  // Pixelrechteck des Screens im Gesamtframe
-  int touchScreenIndex() const;       // -1 = kein Touch-Screen
-  // Normierte Position (0..1) auf dem Screen -> normierte Position im Gesamtframe
-  // (Eingabe fuer EmulatorBackend::setPointer).
+  QRect screenRect(int index) const;  // pixel rectangle of the screen in the full frame
+  int touchScreenIndex() const;       // -1 = no touch screen
+  // Normalized position (0..1) on the screen -> normalized position in the full frame
+  // (input for EmulatorBackend::setPointer).
   QPointF toFrameNormalized(int screenIndex, QPointF screenNormalized) const;
 };
 
@@ -42,7 +42,7 @@ struct FirmwareFile {
 };
 
 struct FirmwareSpec {
-  bool required = false;  // true: ohne Firmware kein Start ("Firmware required/missing")
+  bool required = false;  // true: no start without firmware ("Firmware required/missing")
   QList<FirmwareFile> files;
 };
 
@@ -51,23 +51,23 @@ struct SystemManifest {
   QString displayName;
   QString coreId;
   QString coreLibraryBasename;
-  QStringList extensions;  // klein, mit Punkt
+  QStringList extensions;  // lowercase, with dot
   FirmwareSpec firmware;
   QString inputProfile;
   QString displayProfile;
   DisplayProfile display;
-  QMap<QString, QString> coreOptions;  // Defaults fuer Core Options (Schluessel -> Wert)
+  QMap<QString, QString> coreOptions;  // defaults for core options (key -> value)
 
-  bool supportsExtension(const QString& ext) const;  // ".nds" oder "nds", Gross-/Kleinschreibung egal
+  bool supportsExtension(const QString& ext) const;  // ".nds" or "nds", case-insensitive
 };
 
 class ManifestRegistry {
  public:
   static std::optional<SystemManifest> parse(const QByteArray& json, QString* error = nullptr);
 
-  // Eingebaute Manifeste (Qt-Ressource :/framebeam/emulation/manifests/*.json).
+  // Built-in manifests (Qt resource :/framebeam/emulation/manifests/*.json).
   bool loadBuiltin(QString* error = nullptr);
-  // Zusaetzliche Manifeste aus einem Verzeichnis (*.json).
+  // Additional manifests from a directory (*.json).
   bool loadDirectory(const QString& dir, QString* error = nullptr);
   bool add(const SystemManifest& manifest, QString* error = nullptr);
 

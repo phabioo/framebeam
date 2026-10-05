@@ -20,7 +20,7 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, sess *se
 	b := settingsBody{HubName: s.svc.Info().Name, Host: r.Host, Listen: s.cfg.Listen, TLS: s.cfg.UseTLS,
 		Fingerprint: s.cfg.CertFingerprint, CertSource: s.cfg.CertSource, MinPassword: hub.MinPasswordLen}
 	if !s.cfg.CertNotAfter.IsZero() {
-		b.CertNotAfter = s.cfg.CertNotAfter.Local().Format("02.01.2006")
+		b.CertNotAfter = s.cfg.CertNotAfter.Local().Format("2006-01-02")
 	}
 	d.Body, d.Error = b, errMsg
 	s.render(w, status, "settings", "layout", d)
@@ -45,12 +45,12 @@ func (s *Server) settingsName(w http.ResponseWriter, r *http.Request, sess *sess
 
 func (s *Server) settingsPassword(w http.ResponseWriter, r *http.Request, sess *session) {
 	if r.PostFormValue("new") != r.PostFormValue("new2") {
-		s.renderSettings(w, r, sess, http.StatusBadRequest, "Die neuen Passwörter stimmen nicht überein.")
+		s.renderSettings(w, r, sess, http.StatusBadRequest, "The new passwords do not match.")
 		return
 	}
 	if _, err := s.svc.VerifyPassword(r.Context(), sess.User.Username, r.PostFormValue("current")); err != nil {
 		if errors.Is(err, hub.ErrInvalidCredentials) {
-			s.renderSettings(w, r, sess, http.StatusBadRequest, "Das aktuelle Passwort ist falsch.")
+			s.renderSettings(w, r, sess, http.StatusBadRequest, "The current password is incorrect.")
 			return
 		}
 		s.fail(w, r, err)
@@ -65,7 +65,7 @@ func (s *Server) settingsPassword(w http.ResponseWriter, r *http.Request, sess *
 		s.fail(w, r, err)
 		return
 	}
-	// ChangePassword beendet alle Web-Sessions; neue Sitzung für den aktuellen Admin.
+	// ChangePassword ends all web sessions; start a new session for the current admin.
 	if err := s.startSession(w, r, sess.User.ID); err != nil {
 		s.fail(w, r, err)
 		return

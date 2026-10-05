@@ -1,4 +1,4 @@
-{{define "library-sub"}}{{.Count}} {{if eq .Count 1}}ROM{{else}}ROMs{{end}} · {{.Used}} belegt · {{.Free}} frei{{end}}
+{{define "library-sub"}}{{.Count}} {{if eq .Count 1}}ROM{{else}}ROMs{{end}} · {{.Used}} used · {{.Free}} free{{end}}
 {{define "library-results"}}
 <p id="library-sub" class="sub" hx-swap-oob="true">{{template "library-sub" .Body}}</p>
 {{template "library-table" .Body}}
@@ -6,7 +6,7 @@
 {{define "library-table"}}
 {{if .Rows}}
 <div class="card"><table class="list">
-  <thead><tr><th>Titel</th><th>System</th><th>Größe</th><th>SHA-256</th><th>Hochgeladen von</th><th></th></tr></thead>
+  <thead><tr><th>Title</th><th>System</th><th>Size</th><th>SHA-256</th><th>Uploaded by</th><th></th></tr></thead>
   <tbody>
   {{range .Rows}}
   <tr>
@@ -15,13 +15,13 @@
     <td class="mono">{{.Size}}</td>
     <td class="mono" title="{{.SHA}}">{{.ShortSHA}}</td>
     <td>{{.Uploader}} · {{.Added}}</td>
-    <td><button class="btn-link" type="button" hx-post="/library/{{.ID}}/delete" hx-include="#filter-form" hx-confirm="„{{.Title}}“ und die ROM-Datei wirklich löschen?" hx-target="#library-results" hx-swap="innerHTML">Löschen</button></td>
+    <td><button class="btn-link" type="button" hx-post="/library/{{.ID}}/delete" hx-include="#filter-form" hx-confirm="Really delete “{{.Title}}” and its ROM file?" hx-target="#library-results" hx-swap="innerHTML">Delete</button></td>
   </tr>
   {{end}}
   </tbody>
 </table></div>
 {{else}}
-<div class="card"><p class="empty">{{if .Filtered}}Keine ROMs gefunden.{{else}}Noch keine ROMs in der Library. Lade das erste ROM hoch.{{end}}</p></div>
+<div class="card"><p class="empty">{{if .Filtered}}No ROMs found.{{else}}No ROMs in the library yet. Upload the first ROM.{{end}}</p></div>
 {{end}}
 {{end}}
 {{define "content"}}
@@ -29,20 +29,20 @@
   <div><h1>Library</h1><p id="library-sub" class="sub">{{template "library-sub" .Body}}</p></div>
 </div>
 <div class="upload-wrap"><details class="upload"{{if .Error}} open{{end}}>
-  <summary class="btn primary">ROM hochladen</summary>
+  <summary class="btn primary">Upload ROM</summary>
   <form class="upload-form" method="post" action="/library/upload" enctype="multipart/form-data">
     <input type="hidden" name="_csrf" value="{{.CSRF}}">
-    <label class="field">Titel<input type="text" name="title" maxlength="200" placeholder="Standard: Dateiname"></label>
-    <label class="field">System<select name="system"><option value="">Automatisch aus Dateiendung</option>{{range .Body.Systems}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select></label>
-    <label class="field">ROM-Datei<input type="file" name="file" required></label>
-    <button class="btn primary" type="submit">Hochladen</button>
+    <label class="field">Title<input type="text" name="title" maxlength="200" placeholder="Default: file name"></label>
+    <label class="field">System<select name="system"><option value="">Detect from file extension</option>{{range .Body.Systems}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select></label>
+    <label class="field">ROM file<input type="file" name="file" required></label>
+    <button class="btn primary" type="submit">Upload</button>
   </form>
 </details></div>
 <form id="filter-form" class="filters" hx-get="/library" hx-target="#library-results" hx-swap="innerHTML" hx-trigger="change, input delay:250ms from:#q">
-  <label class="filter-pill"><input type="radio" name="system" value=""{{if not .Body.System}} checked{{end}}><span>Alle Systeme</span></label>
+  <label class="filter-pill"><input type="radio" name="system" value=""{{if not .Body.System}} checked{{end}}><span>All systems</span></label>
   {{range .Body.Systems}}<label class="filter-pill"><input type="radio" name="system" value="{{.ID}}"{{if eq $.Body.System .ID}} checked{{end}}><span>{{.Name}} · {{.Count}}</span></label>{{end}}
   <span class="spacer"></span>
-  <input id="q" class="search" type="search" name="q" value="{{.Body.Query}}" placeholder="Titel oder Hash suchen…" aria-label="Titel oder Hash suchen">
+  <input id="q" class="search" type="search" name="q" value="{{.Body.Query}}" placeholder="Search title or hash…" aria-label="Search title or hash">
 </form>
 <div id="library-results">{{template "library-table" .Body}}</div>
 {{end}}

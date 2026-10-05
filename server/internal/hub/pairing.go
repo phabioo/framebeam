@@ -11,7 +11,7 @@ import (
 	"github.com/phabioo/framebeam/server/internal/auth"
 )
 
-// PairingStatus ist der Status einer Pairing-Anfrage.
+// PairingStatus is the status of a pairing request.
 type PairingStatus string
 
 const (
@@ -22,7 +22,7 @@ const (
 	PairingConsumed PairingStatus = "consumed"
 )
 
-// PairingInput ist eine Pairing-Anfrage eines Players. RemoteAddr ist die IP (ohne Port).
+// PairingInput is a pairing request from a player. RemoteAddr is the IP (without port).
 type PairingInput struct {
 	DeviceID        string
 	DeviceName      string
@@ -33,14 +33,14 @@ type PairingInput struct {
 	RemoteAddr      string
 }
 
-// PairingCreated ist die Antwort auf eine neue Anfrage; PollToken wird nur hier im Klartext geliefert.
+// PairingCreated is the response to a new request; PollToken is delivered in plaintext only here.
 type PairingCreated struct {
 	RequestID string
 	PollToken string
 	ExpiresIn time.Duration
 }
 
-// PairingRequest ist eine Anfrage für die Pending-Liste im Webinterface.
+// PairingRequest is a request for the pending list in the web interface.
 type PairingRequest struct {
 	ID              string
 	DeviceID        string
@@ -56,8 +56,8 @@ type PairingRequest struct {
 	ExpiresAt       time.Time
 }
 
-// PairingResult ist das Poll-Ergebnis. HubID, UserID und DeviceCredential sind nur bei Approved gesetzt
-// und werden genau einmal ausgeliefert.
+// PairingResult is the poll result. HubID, UserID and DeviceCredential are set only when approved
+// and are delivered exactly once.
 type PairingResult struct {
 	Status           PairingStatus
 	HubID            string
@@ -67,16 +67,16 @@ type PairingResult struct {
 
 func validPairingField(v string, max int) bool { return v != "" && len(v) <= max }
 
-// CreatePairingRequest nimmt eine Anfrage an (ohne Auth). Limits: 20 offene Anfragen insgesamt und
-// 5 Anfragen pro Remote-IP und Minute, sonst ErrRateLimited.
-// Ein bereits vertrautes Gerät bleibt unberührt, bis ein Admin die neue Anfrage erlaubt.
+// CreatePairingRequest accepts a request (no auth). Limits: 20 open requests in total and
+// 5 requests per remote IP per minute, otherwise ErrRateLimited.
+// An already trusted device stays untouched until an admin allows the new request.
 func (s *Service) CreatePairingRequest(ctx context.Context, in PairingInput) (PairingCreated, error) {
 	if _, err := uuid.Parse(in.DeviceID); err != nil {
-		return PairingCreated{}, badRequest("device_id muss eine UUID sein")
+		return PairingCreated{}, badRequest("device_id must be a UUID")
 	}
 	if !validPairingField(in.DeviceName, 100) || !validPairingField(in.Platform, 50) ||
 		!validPairingField(in.Arch, 50) || !validPairingField(in.PlayerVersion, 50) || in.ProtocolVersion < 1 {
-		return PairingCreated{}, badRequest("Pflichtfeld fehlt oder ist zu lang")
+		return PairingCreated{}, badRequest("Required field missing or too long")
 	}
 	poll, err := auth.NewToken(auth.PrefixPoll)
 	if err != nil {
@@ -98,7 +98,7 @@ func (s *Service) CreatePairingRequest(ctx context.Context, in PairingInput) (Pa
 		return PairingCreated{}, internal(err)
 	}
 	if open >= MaxOpenPairingRequests || perIP >= MaxPairingPerIPPerMinute {
-		return PairingCreated{}, &Error{CodeRateLimited, "Zu viele offene Anfragen"}
+		return PairingCreated{}, &Error{CodeRateLimited, "Too many open requests"}
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO pairing_requests(id, poll_token_hash, device_id, device_name, platform, arch,
 		player_version, protocol_version, remote_addr, status, created_at, expires_at) VALUES (?,?,?,?,?,?,?,?,?,'pending',?,?)`,
@@ -119,7 +119,7 @@ func (s *Service) effectiveStatus(status string, expires int64) PairingStatus {
 	return PairingStatus(status)
 }
 
-// ListPendingRequests liefert offene (nicht abgelaufene) Anfragen, älteste zuerst.
+// ListPendingRequests returns open (non-expired) requests, oldest first.
 func (s *Service) ListPendingRequests(ctx context.Context) ([]PairingRequest, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT id, device_id, device_name, platform, arch, player_version, protocol_version,
 		remote_addr, status, COALESCE(user_id,''), created_at, expires_at
@@ -142,12 +142,12 @@ func (s *Service) ListPendingRequests(ctx context.Context) ([]PairingRequest, er
 	return out, rows.Err()
 }
 
-// ApprovePairing erlaubt eine offene Anfrage und ordnet sie dem User userID zu (Phase 1: Admin).
-// Das Gerät wird erst beim ersten Poll registriert; die Frist verlängert sich ab jetzt um 10 min.
+// ApprovePairing allows an open request and assigns it to the user userID (phase 1: admin).
+// The device is registered only on the first poll; the deadline is extended to 10 min from now.
 func (s *Service) ApprovePairing(ctx context.Context, requestID, userID string) error {
 	if _, err := s.GetUser(ctx, userID); err != nil {
 		if errors.Is(err, ErrNotFound) {
-			return badRequest("User existiert nicht")
+			return badRequest("User does not exist")
 		}
 		return err
 	}
@@ -158,7 +158,7 @@ func (s *Service) ApprovePairing(ctx context.Context, requestID, userID string) 
 	})
 }
 
-// DenyPairing verweigert eine offene Anfrage.
+// DenyPairing denies an open request.
 func (s *Service) DenyPairing(ctx context.Context, requestID string) error {
 	return s.decide(ctx, requestID, func(tx *sql.Tx, _ time.Time) error {
 		_, err := tx.ExecContext(ctx, `UPDATE pairing_requests SET status = 'denied' WHERE id = ?`, requestID)
@@ -186,7 +186,7 @@ func (s *Service) decide(ctx context.Context, requestID string, apply func(*sql.
 	case PairingExpired:
 		return ErrPairingExpired
 	default:
-		return conflict("Anfrage wurde bereits bearbeitet")
+		return conflict("Request has already been handled")
 	}
 	if err := apply(tx, s.now()); err != nil {
 		return internal(err)
@@ -194,10 +194,10 @@ func (s *Service) decide(ctx context.Context, requestID string, apply func(*sql.
 	return internal2(tx.Commit())
 }
 
-// PollPairing liefert den Status einer Anfrage (Poll-Token erforderlich: ErrUnauthorized).
-// Bei Approved wird das Device Credential jetzt erzeugt, nur als Hash gespeichert, das Gerät registriert
-// bzw. neu freigegeben, die Anfrage verbraucht und das Credential genau dieses eine Mal geliefert.
-// Danach: ErrNotFound.
+// PollPairing returns the status of a request (poll token required: ErrUnauthorized).
+// When approved, the device credential is created now and stored only as a hash, the device is registered
+// or re-enabled, the request is consumed and the credential is delivered exactly this once.
+// Afterwards: ErrNotFound.
 func (s *Service) PollPairing(ctx context.Context, requestID, pollToken string) (PairingResult, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -243,7 +243,7 @@ func (s *Service) PollPairing(ctx context.Context, requestID, pollToken string) 
 		r.DeviceID, r.UserID, r.DeviceName, r.Platform, r.Arch, r.PlayerVersion, auth.HashToken(cred), now.Unix()); err != nil {
 		return PairingResult{}, internal(err)
 	}
-	// Neues Credential: alte Access Tokens dieses Geräts gelten nicht weiter.
+	// New credential: this device's old access tokens are no longer valid.
 	if _, err := tx.ExecContext(ctx, `DELETE FROM access_tokens WHERE device_id = ?`, r.DeviceID); err != nil {
 		return PairingResult{}, internal(err)
 	}

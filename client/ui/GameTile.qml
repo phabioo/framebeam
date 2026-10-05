@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 
-// Kachel im Spielraster (3c): quadratisches Monogramm, Titel, Status.
+// Tile in the game grid (3c): square monogram, title, status.
 Item {
     id: tile
     required property string gameId

@@ -15,12 +15,12 @@
 namespace framebeam {
 
 enum class RomState {
-  Ready,           // validiert im Cache (localPath)
-  DownloadNeeded,  // totalBytes; receivedBytes > 0 = .part vorhanden (Fortsetzung)
-  Validating,      // SHA-256-Pruefung laeuft (off-thread): Cache-Datei ohne gueltiges Sidecar bzw. .part-Fortsetzung
-  Downloading,     // Fortschritt received/total
-  HashMismatch,    // Download passt nicht zum erwarteten SHA-256; .part geloescht
-  Failed           // Netzwerk-/Hub-Fehler; .part bleibt fuer die Fortsetzung
+  Ready,           // validated in the cache (localPath)
+  DownloadNeeded,  // totalBytes; receivedBytes > 0 = .part present (resume)
+  Validating,      // SHA-256 check in progress (off-thread): cache file without a valid sidecar or .part resume
+  Downloading,     // progress received/total
+  HashMismatch,    // download does not match the expected SHA-256; .part deleted
+  Failed           // network/hub error; .part is kept for resuming
 };
 
 struct RomStatus {
@@ -32,18 +32,18 @@ struct RomStatus {
   QString errorMessage;
 };
 
-// ROM-Beschaffung fuer den Spielstart: Cache-Treffer nur nach Validierung, sonst Download in .part
-// (Range-Fortsetzung), SHA-256-Pruefung, dann atomares Umbenennen.
+// ROM acquisition for game start: cache hit only after validation, otherwise download into .part
+// (range resume), SHA-256 check, then atomic rename.
 class RomDownloader : public QObject {
   Q_OBJECT
  public:
   RomDownloader(HubConnection* connection, RomCache* cache, QObject* parent = nullptr);
   ~RomDownloader() override;
 
-  // Blockiert nie auf Hashing: ohne gueltiges Sidecar Zustand Validating, das Ergebnis kommt per statusChanged.
+  // Never blocks on hashing: without a valid sidecar the state is Validating, the result arrives via statusChanged.
   RomStatus status(const GameEntry& game);
-  void ensureRom(const GameEntry& game);    // Treffer -> romReady, sonst Download (setzt .part fort)
-  void cancel(const QString& sha256);       // bricht ab, .part bleibt
+  void ensureRom(const GameEntry& game);    // hit -> romReady, otherwise download (resumes .part)
+  void cancel(const QString& sha256);       // aborts, .part is kept
 
  signals:
   void statusChanged(const QString& sha256, const framebeam::RomStatus& status);
@@ -61,7 +61,7 @@ class RomDownloader : public QObject {
     bool aborted = false;
     bool retriedFull = false;
     bool priming = false;
-    std::shared_ptr<QCryptographicHash> hash;  // inkrementell ueber den gesamten Inhalt
+    std::shared_ptr<QCryptographicHash> hash;  // incrementally over the entire content
     std::unique_ptr<QFutureWatcher<bool>> primeWatcher;
   };
   struct Validation {
@@ -85,7 +85,7 @@ class RomDownloader : public QObject {
   RomCache* cache_;
   QHash<QString, std::shared_ptr<Job>> jobs_;
   QHash<QString, std::shared_ptr<Validation>> validations_;
-  QHash<QString, RomStatus> sticky_;  // HashMismatch/Failed bis zum naechsten ensureRom
+  QHash<QString, RomStatus> sticky_;  // HashMismatch/Failed until the next ensureRom
 };
 
 }  // namespace framebeam

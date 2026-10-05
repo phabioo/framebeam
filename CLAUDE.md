@@ -2,37 +2,38 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-FrameBeam ist eine selbst gehostete Retro-Gaming-Plattform (Monorepo): zentrale ROM-Library und versionierte Saves, Emulation lokal, Sessions per WebRTC zwischen Playern. Leitsatz: **„Der Hub verwaltet. Der Player emuliert. Audio und Video laufen möglichst direkt zwischen Playern.“**
+FrameBeam is a self-hosted retro gaming platform (monorepo): a central ROM library and versioned saves, local emulation, and sessions between Players over WebRTC. Motto: **"The Hub manages. The Player emulates. Audio and video flow directly between Players wherever possible."**
 
-## Begriffe
+## Terminology
 
-- **FrameBeam Hub** (`server/`, Go) und **FrameBeam Player** (`client/`, C++/Qt).
-- **Session** = laufende/geteilte Spielsitzung; „Stream“ nur in Diagnostics.
+- **FrameBeam Hub** (`server/`, Go) and **FrameBeam Player** (`client/`, C++/Qt).
+- **Session** = a running/shared game session; "Stream" only in diagnostics.
 
-## Arbeitsweise
+## Working rules
 
-- Opus orchestriert nur und schreibt keinen Produktcode; Implementierung durch die Sonnet-Agents in `.claude/agents/`, Suchen und Log-Lesen durch Haiku-Agent `scout`.
-- Briefs nach Vorlage in `docs/arbeitsweise.md` (dort auch Token-Sparregeln, Phasenplan, Cloud-Grenzen).
-- Opus prüft per `git diff --stat`, gezieltem Diff und Testergebnis; Commit/PR durch Opus. Ein Arbeitspaket pro Thread, ein Thema pro PR.
+- Repository language is English: code, comments, UI, docs, commit messages and PRs.
+- Opus only orchestrates and writes no product code; implementation is done by the Sonnet agents in `.claude/agents/`, searching and log reading by the Haiku agent `scout`.
+- Briefs follow the template in `docs/workflow.md` (which also holds the token-saving rules, phase plan and cloud limits).
+- Opus verifies via `git diff --stat`, a targeted diff and the test result; commit/PR by Opus. One work package per thread, one topic per PR.
 
-## Harte Regeln
+## Hard rules
 
-- Keine ROMs, BIOS oder Firmware im Repo oder in Tests; nur Homebrew-ROMs bzw. Dummy-Dateien.
-- Saves nie still überschreiben, nie an einen anderen Hub senden.
-- Secrets nie in Dateien, Profilen oder Logs.
+- No ROMs, BIOS or firmware in the repo or in tests; only homebrew ROMs or dummy files.
+- Never overwrite saves silently, never send them to another Hub.
+- Never put secrets in files, profiles or logs.
 
-## Status und Befehle
+## Status and commands
 
-- `scripts/bootstrap-vcpkg.sh`: vcpkg (gepinnt) nach `$HOME/.cache/framebeam/vcpkg`; Voraussetzung für den Client-Build.
-- Client-Voraussetzung Qt >= 6.4 (nicht vcpkg): Linux apt (Pakete siehe `.claude/hooks/session-start.sh`, `QT_PKGS`), Windows CI per install-qt-action (6.8 LTS).
-- `scripts/fetch-melonds-ds.sh` (`make fetch-core`): baut melonDS DS (Pin in `scripts/melonds-ds.pin`) nach `$HOME/.cache/framebeam/cores/`, idempotent, gibt den .so-Pfad aus; `make check-client` übergibt ihn als `-DFRAMEBEAM_MELONDS_DS_CORE=...` (fehlt er, werden Core-Tests übersprungen). Windows: `scripts/fetch-melonds-ds.ps1`.
-- `make check`: Hub- und Client-Prüfung, leise; `make check-hub` / `make check-client` einzeln (Preset via `CLIENT_PRESET`, Default `linux-debug`).
-- `make build-hub`: Hub-Binaries `server/dist/framebeam-hub-linux-{amd64,arm64}` (`HUB_VERSION` setzbar).
-- `make generate`: Go-Codegen (oapi-codegen) neu erzeugen.
+- `scripts/bootstrap-vcpkg.sh`: vcpkg (pinned) into `$HOME/.cache/framebeam/vcpkg`; prerequisite for the client build.
+- Client prerequisite Qt >= 6.4 (not vcpkg): Linux via apt (packages see `.claude/hooks/session-start.sh`, `QT_PKGS`), Windows CI via install-qt-action (6.8 LTS).
+- `scripts/fetch-melonds-ds.sh` (`make fetch-core`): builds melonDS DS (pin in `scripts/melonds-ds.pin`) into `$HOME/.cache/framebeam/cores/`, idempotent, prints the .so path; `make check-client` passes it as `-DFRAMEBEAM_MELONDS_DS_CORE=...` (if it is missing, core tests are skipped). Windows: `scripts/fetch-melonds-ds.ps1`.
+- `make check`: Hub and client checks, quiet; `make check-hub` / `make check-client` individually (preset via `CLIENT_PRESET`, default `linux-debug`).
+- `make build-hub`: Hub binaries `server/dist/framebeam-hub-linux-{amd64,arm64}` (`HUB_VERSION` can be set).
+- `make generate`: regenerate Go code (oapi-codegen).
 
-CI (`.github/workflows/ci.yml`): Linux bei jedem Push, Windows bei PRs gegen `main` und manuell. Der SessionStart-Hook `.claude/hooks/session-start.sh` bereitet nur Cloud-Sessions vor (vcpkg, Go-Module, Qt-apt-Pakete; der Core-Build läuft nur über `make fetch-core`).
+CI (`.github/workflows/ci.yml`): Linux on every push, Windows on PRs against `main` and manually. The SessionStart hook `.claude/hooks/session-start.sh` only prepares cloud sessions (vcpkg, Go modules, Qt apt packages; the core build runs only via `make fetch-core`).
 
-## Wegweiser
+## Pointers
 
-- Architektur: `docs/architektur/README.md` (Index, nur die nötige Datei lesen); Abweichungen: `docs/adr/`. Bereichsregeln: `server/`, `client/`, `protocol/` je `CLAUDE.md`.
-- Design (Screens, Tokens): `docs/design/README.md`.
+- Architecture: `docs/architecture/README.md` (index, read only the file you need); deviations: `docs/adr/`. Area rules: `server/`, `client/`, `protocol/` each have a `CLAUDE.md`.
+- Design (screens, tokens): `docs/design/README.md`.

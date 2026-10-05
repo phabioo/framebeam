@@ -1,5 +1,5 @@
-// Package auth enthält Passwort-Hashing (Argon2id) und Token-Hilfen.
-// Tokens werden nur als SHA-256-Hash gespeichert; Vergleiche laufen in konstanter Zeit.
+// Package auth provides password hashing (Argon2id) and token helpers.
+// Tokens are stored only as a SHA-256 hash; comparisons run in constant time.
 package auth
 
 import (
@@ -15,7 +15,7 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
-// Token-Präfixe (ADR 0002).
+// Token prefixes (ADR 0002).
 const (
 	PrefixAccess     = "fba_"
 	PrefixDevice     = "fbd_"
@@ -23,7 +23,7 @@ const (
 	tokenRandomBytes = 32
 )
 
-// Params sind die Argon2id-Parameter.
+// Params are the Argon2id parameters.
 type Params struct {
 	Time      uint32
 	MemoryKiB uint32
@@ -32,10 +32,10 @@ type Params struct {
 	SaltLen   uint32
 }
 
-// DefaultParams: 64 MiB, 3 Durchläufe.
+// DefaultParams: 64 MiB, 3 iterations.
 var DefaultParams = Params{Time: 3, MemoryKiB: 64 * 1024, Threads: 2, KeyLen: 32, SaltLen: 16}
 
-// HashPassword liefert einen PHC-String ($argon2id$v=19$m=..,t=..,p=..$salt$hash).
+// HashPassword returns a PHC string ($argon2id$v=19$m=..,t=..,p=..$salt$hash).
 func HashPassword(password string, p Params) (string, error) {
 	salt := make([]byte, p.SaltLen)
 	if _, err := rand.Read(salt); err != nil {
@@ -46,10 +46,10 @@ func HashPassword(password string, p Params) (string, error) {
 		base64.RawStdEncoding.EncodeToString(salt), base64.RawStdEncoding.EncodeToString(key)), nil
 }
 
-// ErrInvalidHash meldet ein nicht lesbares Hash-Format.
-var ErrInvalidHash = errors.New("auth: ungültiges Passwort-Hash-Format")
+// ErrInvalidHash reports an unreadable hash format.
+var ErrInvalidHash = errors.New("auth: invalid password hash format")
 
-// VerifyPassword prüft password gegen einen PHC-String (konstante Zeit beim Schlüsselvergleich).
+// VerifyPassword checks password against a PHC string (constant-time key comparison).
 func VerifyPassword(password, encoded string) (bool, error) {
 	parts := strings.Split(encoded, "$")
 	if len(parts) != 6 || parts[1] != "argon2id" {
@@ -64,7 +64,7 @@ func VerifyPassword(password, encoded string) (bool, error) {
 	if _, err := fmt.Sscanf(parts[3], "m=%d,t=%d,p=%d", &m, &t, &p); err != nil {
 		return false, ErrInvalidHash
 	}
-	if m == 0 || m > 1<<20 || t == 0 || t > 20 || p == 0 { // Schutz vor absurden Parametern
+	if m == 0 || m > 1<<20 || t == 0 || t > 20 || p == 0 { // guard against absurd parameters
 		return false, ErrInvalidHash
 	}
 	salt, err := base64.RawStdEncoding.DecodeString(parts[4])
@@ -79,7 +79,7 @@ func VerifyPassword(password, encoded string) (bool, error) {
 	return subtle.ConstantTimeCompare(got, want) == 1, nil
 }
 
-// NewToken erzeugt prefix + base64url(32 Zufallsbytes).
+// NewToken creates prefix + base64url(32 random bytes).
 func NewToken(prefix string) (string, error) {
 	b := make([]byte, tokenRandomBytes)
 	if _, err := rand.Read(b); err != nil {
@@ -88,13 +88,13 @@ func NewToken(prefix string) (string, error) {
 	return prefix + base64.RawURLEncoding.EncodeToString(b), nil
 }
 
-// HashToken liefert den hex-kodierten SHA-256 eines Tokens (Speicherform).
+// HashToken returns the hex-encoded SHA-256 of a token (storage form).
 func HashToken(token string) string {
 	sum := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(sum[:])
 }
 
-// EqualHash vergleicht zwei Hash-Strings in konstanter Zeit.
+// EqualHash compares two hash strings in constant time.
 func EqualHash(a, b string) bool {
 	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
 }

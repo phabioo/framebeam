@@ -7,7 +7,7 @@ import (
 	"unicode"
 )
 
-// humanBytes formatiert Bytes mit deutschem Dezimalkomma (1024er-Schritte).
+// humanBytes formats bytes with a decimal point (steps of 1024).
 func humanBytes[T ~int64 | ~uint64](n T) string {
 	const unit = 1024.0
 	v := float64(n)
@@ -20,7 +20,7 @@ func humanBytes[T ~int64 | ~uint64](n T) string {
 	if i == 0 {
 		return fmt.Sprintf("%d B", int64(v))
 	}
-	return strings.Replace(fmt.Sprintf("%.1f", v), ".", ",", 1) + " " + suffix[i]
+	return fmt.Sprintf("%.1f", v) + " " + suffix[i]
 }
 
 func shortHash(h string) string {
@@ -39,38 +39,38 @@ func initial(title string) string {
 	return "?"
 }
 
-// ago formatiert "vor 2 min" relativ zu now.
+// ago formats "2 min ago" relative to now.
 func ago(t, now time.Time) string {
 	d := now.Sub(t)
 	switch {
 	case d < time.Minute:
-		return "gerade eben"
+		return "just now"
 	case d < time.Hour:
-		return fmt.Sprintf("vor %d min", int(d.Minutes()))
+		return fmt.Sprintf("%d min ago", int(d.Minutes()))
 	case d < 48*time.Hour:
-		return fmt.Sprintf("vor %d h", int(d.Hours()))
+		return fmt.Sprintf("%d h ago", int(d.Hours()))
 	}
-	return t.Format("02.01.2006")
+	return t.Format("2006-01-02")
 }
 
-// lastSeen formatiert "zuletzt aktiv": gerade eben / heute HH:MM / gestern / TT.MM. / TT.MM.JJJJ.
+// lastSeen formats "last active": just now / today HH:MM / yesterday / MM-DD / YYYY-MM-DD.
 func lastSeen(t *time.Time, now time.Time) string {
 	if t == nil {
-		return "nie"
+		return "never"
 	}
 	lt, ln := t.Local(), now.Local()
 	if ln.Sub(lt) < time.Minute {
-		return "gerade eben"
+		return "just now"
 	}
 	y, m, d := ln.Date()
 	ty, tm, td := lt.Date()
 	switch {
 	case ty == y && tm == m && td == d:
-		return "heute " + lt.Format("15:04")
+		return "today " + lt.Format("15:04")
 	case lt.AddDate(0, 0, 1).Format("2006-01-02") == ln.Format("2006-01-02"):
-		return "gestern"
+		return "yesterday"
 	case ty == y:
-		return lt.Format("02.01.")
+		return lt.Format("01-02")
 	}
-	return lt.Format("02.01.2006")
+	return lt.Format("2006-01-02")
 }

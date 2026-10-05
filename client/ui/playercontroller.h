@@ -1,7 +1,7 @@
 #pragma once
-// PlayerController: verbindet HubConnection, HubLibrary, RomDownloader, Emulation und GameSession mit der
-// QML-Oberflaeche. Die QML-Screens lesen nur Properties (screen, hubs, pairing, selectedGame, ...) und
-// rufen Aktionen auf; Hub-Logik bleibt in network/ und core/.
+// PlayerController: connects HubConnection, HubLibrary, RomDownloader, emulation and GameSession to the
+// QML UI. The QML screens only read properties (screen, hubs, pairing, selectedGame, ...) and
+// call actions; hub logic stays in network/ and core/.
 
 #include <QList>
 #include <QObject>
@@ -25,7 +25,7 @@ namespace framebeam::ui {
 class PlayerController : public QObject {
   Q_OBJECT
   QML_ELEMENT
-  QML_UNCREATABLE("Wird in main.cpp erzeugt")
+  QML_UNCREATABLE("Created in main.cpp")
 
   // Navigation: "connection" | "pairing" | "library" | "game"
   Q_PROPERTY(QString screen READ screen NOTIFY screenChanged)
@@ -45,21 +45,21 @@ class PlayerController : public QObject {
   Q_PROPERTY(QString libraryError READ libraryError NOTIFY libraryStateChanged)
   Q_PROPERTY(QString selectedGameId READ selectedGameId NOTIFY selectedGameChanged)
   Q_PROPERTY(QVariantMap selectedGame READ selectedGame NOTIFY selectedGameChanged)
-  // Spielansicht
+  // Game view
   Q_PROPERTY(framebeam::ui::GameSession* gameSession READ gameSession CONSTANT)
 
  public:
   struct Options {
-    QString dataDir;                // leer: ProfileStore::defaultBaseDir()
+    QString dataDir;                // empty: ProfileStore::defaultBaseDir()
     bool allowHttp = false;         // --dev-allow-http
-    bool memoryCredentials = false; // Tests: kein OS-Credential-Store
-    bool probeCoreVersions = true;  // Core-Version fuer den Handshake ermitteln (laedt den Core kurz)
+    bool memoryCredentials = false; // tests: no OS credential store
+    bool probeCoreVersions = true;  // determine core version for the handshake (briefly loads the core)
   };
 
   explicit PlayerController(const Options& options, QObject* parent = nullptr);
   ~PlayerController() override;
 
-  // Auto-Connect zum zuletzt verwendeten Hub, falls aktiviert.
+  // Auto-connect to the last used hub, if enabled.
   void startup();
 
   QString screen() const;
@@ -78,7 +78,7 @@ class PlayerController : public QObject {
   QVariantMap selectedGame() const;
   GameSession* gameSession() { return &session_; }
 
-  // Zugriff fuer Tests.
+  // Access for tests.
   HubConnection* connection() { return conn_.get(); }
   HubLibrary* hubLibrary() { return library_.get(); }
   RomDownloader* downloader() { return downloader_.get(); }
@@ -92,7 +92,7 @@ class PlayerController : public QObject {
   Q_INVOKABLE void addHub(const QString& address);
   Q_INVOKABLE void connectProfile(const QString& hubId);
   Q_INVOKABLE void retryConnection();
-  Q_INVOKABLE void removeHub(const QString& hubId);  // leer: laufenden Versuch verwerfen
+  Q_INVOKABLE void removeHub(const QString& hubId);  // empty: discard the running attempt
   Q_INVOKABLE void confirmTrust();
   Q_INVOKABLE void rejectTrust();
   Q_INVOKABLE void requestPairing();
@@ -103,7 +103,7 @@ class PlayerController : public QObject {
   Q_INVOKABLE void reloadLibrary();
   Q_INVOKABLE void selectGame(const QString& gameId);
   Q_INVOKABLE void playSelected();
-  // Spielansicht
+  // Game view
   Q_INVOKABLE void quitGame();
 
  signals:
@@ -141,13 +141,13 @@ class PlayerController : public QObject {
   emu::ManifestRegistry manifests_;
   emu::CoreLocator locator_;
   QList<CoreInfo> coreList_;
-  QMap<QString, QString> coreNames_;  // core_id -> Name aus der Core-Info (nur wenn geprobt)
+  QMap<QString, QString> coreNames_;  // core_id -> name from the core info (only if probed)
   LibraryModel model_;
   GameSession session_;
 
   QString screen_ = QStringLiteral("connection");
   bool pairingFlow_ = false;
-  bool lastAttemptPairing_ = false;  // letzter Versuch aus addHub (true) oder connectProfile (false)
+  bool lastAttemptPairing_ = false;  // last attempt came from addHub (true) or connectProfile (false)
   QString notice_;
   QString lastError_;
   QString libraryState_ = QStringLiteral("loading");

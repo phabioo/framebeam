@@ -1,8 +1,8 @@
 pragma Singleton
 import QtQuick
 
-// Design-Tokens des FrameBeam Player (docs/design/tokens.md). Dunkel ist die entworfene Palette; die
-// helle Palette ist aus den Hub-Tokens abgeleitet (fuer den Player nicht entworfen) und gleich benannt.
+// Design tokens of the FrameBeam Player (docs/design/tokens.md). Dark is the designed palette; the
+// light palette is derived from the hub tokens (not designed for the Player) and named the same.
 QtObject {
     id: root
 
@@ -20,7 +20,7 @@ QtObject {
     readonly property color tile: dark ? "#1b1c1f" : "#ebeae5"
     readonly property color tileStripe: dark ? "#17181a" : "#e2e0da"
 
-    // Spielansicht ist immer dunkel.
+    // Game view is always dark.
     readonly property color gameBg: "#0b0b0c"
     readonly property color gameHeader: "#111214"
     readonly property color gameBorder: "#1e1f22"
@@ -48,7 +48,7 @@ QtObject {
     readonly property color errorBg: dark ? "#2a1a17" : "#fbf1ef"
     readonly property color errorText: dark ? "#e6d6d2" : "#6b2a20"
 
-    // Systemschriften (Inter/Plex werden nicht mitgeliefert).
+    // System fonts (Inter/Plex are not bundled).
     readonly property string mono: Qt.platform.os === "windows" ? "Consolas" : (Qt.platform.os === "osx" ? "Menlo" : "monospace")
 
     function toneColor(tone: string): color {

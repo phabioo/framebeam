@@ -1,8 +1,8 @@
 #pragma once
-// CoreLocator: findet die Core-Bibliothek zu einem Manifest.
-// Reihenfolge: 1. explizit gesetzter Pfad (setExplicitPath), 2. Umgebungsvariable
-// FRAMEBEAM_<CORE_ID>_CORE (z. B. FRAMEBEAM_MELONDS_DS_CORE), 3. <app-dir>/cores/<basename>.<so|dll|dylib>.
-// Einzige Stelle mit Plattform-Endungen.
+// CoreLocator: finds the core library for a manifest.
+// Order: 1. explicitly set path (setExplicitPath), 2. environment variable
+// FRAMEBEAM_<CORE_ID>_CORE (e.g. FRAMEBEAM_MELONDS_DS_CORE), 3. <app-dir>/cores/<basename>.<so|dll|dylib>.
+// The only place with platform-specific extensions.
 
 #include <QMap>
 #include <QString>
@@ -13,22 +13,22 @@
 namespace framebeam::emu {
 
 struct CoreLocation {
-  QString path;    // leer = nicht gefunden
+  QString path;    // empty = not found
   QString source;  // "explicit" | "env" | "app-dir"
-  QStringList tried;  // geprueft, aber nicht vorhanden (fuer Diagnostics)
+  QStringList tried;  // checked but not present (for diagnostics)
   bool found() const { return !path.isEmpty(); }
 };
 
 class CoreLocator {
  public:
-  // appDir leer = QCoreApplication::applicationDirPath().
+  // empty appDir = QCoreApplication::applicationDirPath().
   explicit CoreLocator(QString appDir = QString());
 
   void setExplicitPath(const QString& coreId, const QString& path);
   CoreLocation locate(const SystemManifest& manifest) const;
 
   static QString environmentVariableFor(const QString& coreId);
-  static QString libraryFileName(const QString& basename);  // basename + plattformspezifische Endung
+  static QString libraryFileName(const QString& basename);  // basename + platform-specific extension
 
  private:
   QString m_appDir;

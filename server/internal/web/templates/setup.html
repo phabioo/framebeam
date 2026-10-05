@@ -1,17 +1,17 @@
 {{define "content"}}
-<h1>FrameBeam Hub einrichten</h1>
+<h1>Set up FrameBeam Hub</h1>
 {{if .Body.Local}}
-<p class="help">Lege den ersten Admin an. Dieses Formular ist nur von diesem Rechner aus verfügbar.</p>
+<p class="help">Create the first admin. This form is available from this machine only.</p>
 <form method="post" action="/setup">
   <input type="hidden" name="_csrf" value="{{.CSRF}}">
-  <label class="field">Benutzername<input type="text" name="username" autocomplete="username" required autofocus></label>
-  <label class="field">Passwort (mindestens {{.Body.MinPassword}} Zeichen)<input type="password" name="password" autocomplete="new-password" required></label>
-  <label class="field">Passwort wiederholen<input type="password" name="password2" autocomplete="new-password" required></label>
-  <button class="btn primary" type="submit">Admin anlegen</button>
+  <label class="field">Username<input type="text" name="username" autocomplete="username" required autofocus></label>
+  <label class="field">Password (at least {{.Body.MinPassword}} characters)<input type="password" name="password" autocomplete="new-password" required></label>
+  <label class="field">Repeat password<input type="password" name="password2" autocomplete="new-password" required></label>
+  <button class="btn primary" type="submit">Create admin</button>
 </form>
 {{else}}
-<p>Die Einrichtung ist nur von dem Rechner aus möglich, auf dem der FrameBeam Hub läuft. Lege den Admin dort in der Konsole an:</p>
+<p>Setup is possible only from the machine the FrameBeam Hub runs on. Create the admin there in the console:</p>
 <p><code>framebeam-hub setup-admin -username &lt;name&gt;</code></p>
-<p class="help">Das Passwort wird als eine Zeile von stdin gelesen. Danach kannst du dich hier anmelden.</p>
+<p class="help">The password is read as a single line from stdin. Afterwards you can sign in here.</p>
 {{end}}
 {{end}}

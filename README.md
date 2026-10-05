@@ -1,100 +1,100 @@
 # FrameBeam
 
-FrameBeam ist eine selbst gehostete Retro-Gaming-Plattform. Der **FrameBeam Hub** verwaltet zentrale ROM-Library, versionierte Spielstände, Benutzer und Geräte. Der **FrameBeam Player** emuliert lokal und teilt laufende Sessions per WebRTC direkt mit anderen Playern. Der Hub emuliert, encodiert und rendert nie.
+FrameBeam is a self-hosted retro gaming platform. The **FrameBeam Hub** manages the central ROM library, versioned saves, users and devices. The **FrameBeam Player** emulates locally and shares running Sessions directly with other Players via WebRTC. The Hub never emulates, encodes or renders.
 
-## Stand
+## Status
 
-Phasenplan: [Arbeitsweise](docs/arbeitsweise.md#phasenplan).
+Phase plan: [Workflow](docs/workflow.md#phase-plan).
 
-| Phase | Status | Inhalt |
+| Phase | Status | Scope |
 |---|---|---|
-| 0 Fundament | erledigt | Monorepo, CLAUDE.md, Architektur, CI (Linux/Windows), Build-Gerüst, Prüfskripte |
-| 1 Protokoll und Hub-Grundlagen | erledigt | OpenAPI `/api/v1`, WSS-Schemas, Hub mit SQLite, Admin-Setup, TLS, Pairing, Tokens, Library, ROM-Download, Webinterface |
-| 2 Spielbarer Durchstich | erledigt | Player-Kern (Profil, Pairing, Library, ROM-Cache), melonDS DS per Libretro, minimale Qt-Oberfläche |
-| 3 Saves | geplant | Sync, Versionen, Konfliktmodell |
-| 4 Session-Sharing und Multiview | geplant | Presence, Signaling, WebRTC, Multiview |
-| 5 Rest und Politur | geplant | Firmware-Pfad, Benutzer, restliche Seiten, Paketierung |
+| 0 Foundation | done | Monorepo, CLAUDE.md, architecture, CI (Linux/Windows), build scaffolding, check scripts |
+| 1 Protocol and Hub basics | done | OpenAPI `/api/v1`, WSS schemas, Hub with SQLite, admin setup, TLS, pairing, tokens, library, ROM download, web interface |
+| 2 Playable vertical slice | done | Player core (profile, pairing, library, ROM cache), melonDS DS via Libretro, minimal Qt UI |
+| 3 Saves | planned | Sync, versions, conflict model |
+| 4 Session sharing and multiview | planned | Presence, signaling, WebRTC, multiview |
+| 5 Remainder and polish | planned | Firmware path, users, remaining pages, packaging |
 
-## Was funktioniert
+## What works
 
 **FrameBeam Hub** (`server/`)
 
-- Admin-Setup per `setup-admin` und über `/setup` im Webinterface (nur Loopback).
-- HTTPS mit selbstsigniertem Zertifikat (oder eigenes Zertifikat); Fingerprint steht beim Start im Log.
-- Webinterface mit Login: Library, Clients, Settings.
-- Pairing neuer Geräte mit Allow/Deny; Tokens ausstellen und widerrufen (Revoke).
-- ROM-Upload im Webinterface.
-- ROM-Download per API mit Range und ETag.
-- Info-Endpunkt `/.well-known/framebeam` und Handshake mit `protocol_version`.
+- Admin setup via `setup-admin` and via `/setup` in the web interface (loopback only).
+- HTTPS with a self-signed certificate (or your own certificate); the fingerprint is logged at startup.
+- Web interface with login: Library, Clients, Settings.
+- Pairing of new devices with Allow/Deny; issue and revoke tokens (Revoke).
+- ROM upload in the web interface.
+- ROM download via API with Range and ETag.
+- Info endpoint `/.well-known/framebeam` and handshake with `protocol_version`.
 
-**Protokoll** (`protocol/`)
+**Protocol** (`protocol/`)
 
-- OpenAPI 3.0.3 für `/api/v1` und WSS-Nachrichtenschemas; `protocol_version` ist 1.
+- OpenAPI 3.0.3 for `/api/v1` and WSS message schemas; `protocol_version` is 1.
 
 **FrameBeam Player** (`client/`, [ADR 0003](docs/adr/0003-player-phase2.md))
 
-- Connection-Screen mit Hub-Profilen und Auto-Connect.
-- Hub-Identifikation mit Fingerprint-Bestätigung beim Erstkontakt (TOFU); bei Abweichung blockiert die Verbindung.
-- Pairing per Freigabe-Anfrage, Token-Erneuerung und Revoke.
-- Library mit Suche und Filter.
-- Hashgeprüfter ROM-Cache mit fortsetzbarem Download.
-- NDS-Spiele lokal starten mit melonDS DS: Bild, Ton über Qt Multimedia, Tastatur, Touch per Maus.
-- Credentials unter Windows im Credential Manager, unter Linux nur im Speicher (nach Neustart neues Pairing).
+- Connection screen with Hub profiles and auto-connect.
+- Hub identification with fingerprint confirmation on first contact (TOFU); on mismatch the connection is blocked.
+- Pairing via approval request, token renewal and Revoke.
+- Library with search and filter.
+- Hash-verified ROM cache with resumable download.
+- Launch NDS games locally with melonDS DS: video, audio via Qt Multimedia, keyboard, touch via mouse.
+- Credentials in the Credential Manager on Windows, in memory only on Linux (new pairing after restart).
 
-Es fehlen noch: Saves/Sync (Phase 3), Sessions (Phase 4), Gamepads, Firmware-Pfad und Einstellungsseiten (Phase 5).
+Still missing: saves/sync (phase 3), Sessions (phase 4), gamepads, firmware path and settings pages (phase 5).
 
-## Bauen und Starten
+## Build and run
 
-Voraussetzungen: Go 1.24 (laut `server/go.mod`); für den Client CMake, ein C++-Compiler und Qt >= 6.4 (nicht über vcpkg): Linux per apt (Paketliste `QT_PKGS` in `.claude/hooks/session-start.sh`), Windows Qt 6.8.
+Prerequisites: Go 1.24 (per `server/go.mod`); for the client CMake, a C++ compiler and Qt >= 6.4 (not via vcpkg): on Linux via apt (package list `QT_PKGS` in `.claude/hooks/session-start.sh`), on Windows Qt 6.8.
 
 ```sh
-make check          # Hub- und Client-Prüfung, leise
-make check-hub      # nur Hub
+make check          # Hub and client check, quiet
+make check-hub      # Hub only
 make build-hub      # server/dist/framebeam-hub-linux-{amd64,arm64}
-make generate       # Go-Codegen aus OpenAPI
+make generate       # Go codegen from OpenAPI
 ```
 
-Hub starten (Details: [server/README.md](server/README.md)):
+Start the Hub (details: [server/README.md](server/README.md)):
 
 ```sh
-framebeam-hub setup-admin -username <name>   # Passwort als eine Zeile von stdin
-framebeam-hub -data-dir <verzeichnis>        # HTTPS, Default-Listen :8443
-framebeam-hub -dev -listen 127.0.0.1:8443 -data-dir /tmp/fb   # Entwicklung: HTTP statt HTTPS
+framebeam-hub setup-admin -username <name>   # password as a single line from stdin
+framebeam-hub -data-dir <directory>        # HTTPS, default listen :8443
+framebeam-hub -dev -listen 127.0.0.1:8443 -data-dir /tmp/fb   # development: HTTP instead of HTTPS
 ```
 
-Das Datenverzeichnis (`-data-dir`, Default `/var/lib/framebeam`) enthält Datenbank und Zertifikat. Weitere Flags: `-listen`, `-name`, `-tls-cert`, `-tls-key`; jeweils auch per `FRAMEBEAM_*`.
+The data directory (`-data-dir`, default `/var/lib/framebeam`) contains the database and certificate. Further flags: `-listen`, `-name`, `-tls-cert`, `-tls-key`; each also available via `FRAMEBEAM_*`.
 
-Player (Details: [client/README.md](client/README.md)):
+Player (details: [client/README.md](client/README.md)):
 
 ```sh
-scripts/bootstrap-vcpkg.sh                 # einmalig
-make fetch-core                            # melonDS DS (gepinnt) bauen, gibt den .so-Pfad aus
-make check-client                          # Preset über CLIENT_PRESET, Default linux-debug; ohne Core werden Core-Tests übersprungen
-client/build/linux-debug/app/framebeam_player [--data-dir <pfad>] [--dev-allow-http]
+scripts/bootstrap-vcpkg.sh                 # once
+make fetch-core                            # build melonDS DS (pinned), prints the .so path
+make check-client                          # preset via CLIENT_PRESET, default linux-debug; without a core, core tests are skipped
+client/build/linux-debug/app/framebeam_player [--data-dir <path>] [--dev-allow-http]
 ```
 
-Datenablage des Players (ROM-Cache, `profiles.json`, `device.json`, `hubs/<id>/` mit Saves, `system/`): Default portabel in `<Verzeichnis der Programmdatei>/data`. Ist das nicht beschreibbar (z. B. Program Files), Rückfall auf AppData (`QStandardPaths::AppDataLocation`). Beim ersten portablen Start werden vorhandene AppData-Daten einmalig kopiert (nichts wird verschoben, gelöscht oder überschrieben; ROM-Cache wird neu geladen). Credentials bleiben im OS-Credential-Store. `--data-dir` bzw. `FRAMEBEAM_DATA_DIR` haben Vorrang.
+Player data storage (ROM cache, `profiles.json`, `device.json`, `hubs/<id>/` with saves, `system/`): portable by default in `<directory of the executable>/data`. If that is not writable (e.g. Program Files), it falls back to AppData (`QStandardPaths::AppDataLocation`). On the first portable start, existing AppData data is copied once (nothing is moved, deleted or overwritten; the ROM cache is re-downloaded). Credentials stay in the OS credential store. `--data-dir` or `FRAMEBEAM_DATA_DIR` take precedence.
 
-`--data-dir` ersetzt den Default; `--dev-allow-http` erlaubt HTTP-Hubs außerhalb von localhost (nur Entwicklung). `scripts/e2e-player-hub.sh` prüft den Player-CLI gegen einen lokal gebauten Hub.
+`--data-dir` replaces the default; `--dev-allow-http` allows HTTP Hubs outside localhost (development only). `scripts/e2e-player-hub.sh` checks the Player CLI against a locally built Hub.
 
-Windows-Testpaket: CI-Artefakt `framebeam-player-windows-x64` aus dem Windows-Job entpacken und `framebeam_player.exe` starten (Core unter `cores/`).
+Windows test package: unpack the CI artifact `framebeam-player-windows-x64` from the Windows job and start `framebeam_player.exe` (core under `cores/`).
 
-Tastatur: Pfeile, X=A, Z=B, S=X, A=Y, Q=L, W=R, Enter=Start, Rücktaste=Select, Esc=Pause.
+Keyboard: Arrows, X=A, Z=B, S=X, A=Y, Q=L, W=R, Enter=Start, Backspace=Select, Esc=Pause.
 
-## Repo-Struktur
+## Repository structure
 
 - `server/`: FrameBeam Hub (Go)
 - `client/`: FrameBeam Player (C++/Qt)
-- `protocol/`: OpenAPI und WSS-Schemas, gemeinsam für Hub und Player
-- `docs/`: Architektur, ADRs, Design, Arbeitsweise
-- `scripts/`: Prüf- und Bootstrap-Skripte
-- `packaging/`: Paketierung
+- `protocol/`: OpenAPI and WSS schemas, shared by Hub and Player
+- `docs/`: architecture, ADRs, design, workflow
+- `scripts/`: check and bootstrap scripts
+- `packaging/`: packaging
 
-## Dokumentation
+## Documentation
 
-- [Architektur (Index)](docs/architektur/README.md)
-- [ADR 0001: Stack-Ergänzungen](docs/adr/0001-stack-ergaenzungen.md)
-- [ADR 0002: Protokoll und Hub in Phase 1](docs/adr/0002-protokoll-und-hub-phase1.md)
-- [ADR 0003: Player in Phase 2](docs/adr/0003-player-phase2.md) (angenommen)
+- [Architecture (index)](docs/architecture/README.md)
+- [ADR 0001: Stack additions](docs/adr/0001-stack-additions.md)
+- [ADR 0002: Protocol and Hub in phase 1](docs/adr/0002-protocol-and-hub-phase1.md)
+- [ADR 0003: Player in phase 2](docs/adr/0003-player-phase2.md) (accepted)
 - [Design](docs/design/README.md)
-- [Arbeitsweise mit Claude Code](docs/arbeitsweise.md)
+- [Working with Claude Code](docs/workflow.md)

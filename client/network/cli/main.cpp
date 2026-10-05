@@ -1,12 +1,12 @@
-// framebeam_player_cli: Entwicklerwerkzeug gegen einen echten FrameBeam Hub (nur QtCore/QtNetwork).
-//   identify <adresse> [--dev]
-//   pair <adresse> [--dev] [--accept-fingerprint] [games] [fetch-rom <sha256>] [wait-revoked]...
-//     wait-revoked: meldet READY-FOR-REVOKE, erneuert das Token jede Sekunde und endet (Exit 0), sobald der
-//     Hub das Geraet widerrufen hat (Zustand NeedsPairing); nach 60 s ohne Widerruf Exit 1 (E2E-Skript).
-//   games | fetch-rom <sha256>      (nutzt das zuletzt verbundene Profil; Linux: Credential nur im Speicher,
-//                                    daher dort als Folgebefehle von "pair" verwenden)
-// Optionen: --data-dir <pfad> (sonst FRAMEBEAM_DATA_DIR / AppDataLocation).
-// Exit-Codes: 0 ok, 1 Fehler, 2 Nutzeraktion noetig (Fingerprint bestaetigen, Freigabe).
+// framebeam_player_cli: developer tool against a real FrameBeam Hub (QtCore/QtNetwork only).
+//   identify <address> [--dev]
+//   pair <address> [--dev] [--accept-fingerprint] [games] [fetch-rom <sha256>] [wait-revoked]...
+//     wait-revoked: reports READY-FOR-REVOKE, renews the token every second and ends (exit 0) as soon as the
+//     hub has revoked the device (state NeedsPairing); exit 1 after 60 s without revocation (E2E script).
+//   games | fetch-rom <sha256>      (uses the last connected profile; Linux: credential in memory only,
+//                                    so use them there as follow-up commands of "pair")
+// Options: --data-dir <path> (otherwise FRAMEBEAM_DATA_DIR / AppDataLocation).
+// Exit codes: 0 ok, 1 error, 2 user action required (confirm fingerprint, approval).
 #include <QCoreApplication>
 #include <QTextStream>
 #include <QTimer>
@@ -78,12 +78,12 @@ class Runner : public QObject {
     if (command_ == QLatin1String("standalone")) {
       const QString last = profiles_->lastHubId();
       if (last.isEmpty()) {
-        err() << "Kein zuletzt verbundener Hub. Zuerst: pair <adresse>\n";
+        err() << "No last connected hub. First run: pair <address>\n";
         return 2;
       }
       conn_->connectToProfile(last);
       if (conn_->state() == HubConnection::State::Disconnected) {
-        err() << "Fehler: " << conn_->errorCode() << "\n";
+        err() << "Error: " << conn_->errorCode() << "\n";
         return 1;
       }
     } else {
@@ -94,9 +94,9 @@ class Runner : public QObject {
 
  private:
   int usage() {
-    err() << "Aufruf: framebeam_player_cli identify <adresse> [--dev]\n"
-             "        framebeam_player_cli pair <adresse> [--dev] [--accept-fingerprint] [games] [fetch-rom <sha256>]\n"
-             "        framebeam_player_cli games | fetch-rom <sha256>   [--data-dir <pfad>]\n";
+    err() << "Usage: framebeam_player_cli identify <address> [--dev]\n"
+             "        framebeam_player_cli pair <address> [--dev] [--accept-fingerprint] [games] [fetch-rom <sha256>]\n"
+             "        framebeam_player_cli games | fetch-rom <sha256>   [--data-dir <path>]\n";
     return 1;
   }
 
@@ -106,10 +106,10 @@ class Runner : public QObject {
 
   void printHub() {
     const HubInfo& i = conn_->hubInfo();
-    out() << "Hub: " << i.name << " (" << i.hubId << ") Version " << i.hubVersion << " Protokoll " << i.protocolVersion
+    out() << "Hub: " << i.name << " (" << i.hubId << ") Version " << i.hubVersion << " Protocol " << i.protocolVersion
           << " (min " << i.minProtocolVersion << ")\n";
     if (!conn_->observedFingerprint().isEmpty()) {
-      out() << "Zertifikat-Fingerprint (SHA-256): " << conn_->observedFingerprint() << "\n";
+      out() << "Certificate fingerprint (SHA-256): " << conn_->observedFingerprint() << "\n";
     }
     out().flush();
   }
@@ -125,14 +125,14 @@ class Runner : public QObject {
         if (!identify && accept_) {
           conn_->confirmTrust();
         } else {
-          out() << (identify ? "Erstkontakt: Fingerprint mit der Hub-Settings-Seite vergleichen.\n"
-                             : "Fingerprint mit der Hub-Settings-Seite vergleichen und mit --accept-fingerprint bestaetigen.\n");
+          out() << (identify ? "First contact: compare the fingerprint with the hub settings page.\n"
+                             : "Compare the fingerprint with the hub settings page and confirm with --accept-fingerprint.\n");
           out().flush();
           finish(identify ? 0 : 2);
         }
         break;
       case S::CertificateChanged:
-        out() << "ZERTIFIKAT GEAENDERT. Erwartet: " << conn_->expectedFingerprint() << "\nGesehen:   "
+        out() << "CERTIFICATE CHANGED. Expected: " << conn_->expectedFingerprint() << "\nSeen:      "
               << conn_->observedFingerprint() << "\n";
         out().flush();
         finish(1);
@@ -140,35 +140,35 @@ class Runner : public QObject {
       case S::Incompatible:
       case S::Unreachable:
       case S::Disconnected:
-        out() << "Fehler: " << conn_->errorCode() << " " << conn_->errorMessage() << "\n";
+        out() << "Error: " << conn_->errorCode() << " " << conn_->errorMessage() << "\n";
         out().flush();
         finish(s == S::Disconnected ? 2 : 1);
         break;
       case S::NeedsPairing:
         if (revokeWatch_ != nullptr) {
-          out() << "Widerrufen: " << conn_->errorCode() << " -> NeedsPairing\n";
+          out() << "Revoked: " << conn_->errorCode() << " -> NeedsPairing\n";
           out().flush();
           finish(0);
         } else if (identify) {
           printHub();
-          out() << "Hub erreichbar, Pairing noetig.\n";
+          out() << "Hub reachable, pairing required.\n";
           out().flush();
           finish(0);
         } else if (command_ == QLatin1String("pair")) {
           conn_->requestPairing();
         } else {
-          out() << "Kein Credential vorhanden. 'pair <adresse> " << followUps_.join(QLatin1Char(' ')) << "' verwenden.\n";
+          out() << "No credential available. Use 'pair <address> " << followUps_.join(QLatin1Char(' ')) << "'.\n";
           out().flush();
           finish(2);
         }
         break;
       case S::AwaitingApproval:
-        out() << "Warte auf Freigabe im Hub-Webinterface (Allow/Deny) ...\n";
+        out() << "Waiting for approval in the hub web interface (Allow/Deny) ...\n";
         out().flush();
         break;
       case S::Denied:
       case S::Expired:
-        out() << (s == S::Denied ? "Pairing abgelehnt.\n" : "Pairing-Anfrage abgelaufen.\n");
+        out() << (s == S::Denied ? "Pairing denied.\n" : "Pairing request expired.\n");
         out().flush();
         finish(2);
         break;
@@ -188,7 +188,7 @@ class Runner : public QObject {
 
   void runFollowUps() {
     if (followUps_.isEmpty()) {
-      out() << "Verbunden.\n";
+      out() << "Connected.\n";
       out().flush();
       finish(0);
       return;
@@ -219,12 +219,12 @@ class Runner : public QObject {
       int ticks = 0;
       QObject::connect(revokeWatch_, &QTimer::timeout, this, [this, ticks]() mutable {
         if (++ticks > 60) {
-          err() << "Kein Widerruf innerhalb von 60 s\n";
+          err() << "No revocation within 60 s\n";
           finish(1);
           revokeWatch_->stop();
           return;
         }
-        conn_->noteUnauthorized();  // erneuert das Token; nach Widerruf -> NeedsPairing
+        conn_->noteUnauthorized();  // renews the token; after revocation -> NeedsPairing
       });
       revokeWatch_->start();
       out() << "READY-FOR-REVOKE\n";
@@ -233,7 +233,7 @@ class Runner : public QObject {
       const QString sha = followUps_.takeFirst().toLower();
       const auto game = library_->gameByRomSha(sha);
       if (!game) {
-        err() << "ROM " << sha << " nicht in der Library\n";
+        err() << "ROM " << sha << " not in the library\n";
         finish(1);
         return;
       }
@@ -249,17 +249,17 @@ class Runner : public QObject {
       });
       QObject::connect(downloader_.get(), &RomDownloader::statusChanged, this, [this](const QString&, const RomStatus& st) {
         if (st.state == RomState::Ready) {
-          out() << "ROM bereit: " << st.localPath << "\n";
+          out() << "ROM ready: " << st.localPath << "\n";
           out().flush();
           nextFollowUp();
         } else if (st.state == RomState::HashMismatch || st.state == RomState::Failed) {
-          err() << "ROM-Download fehlgeschlagen: " << st.errorCode << " " << st.errorMessage << "\n";
+          err() << "ROM download failed: " << st.errorCode << " " << st.errorMessage << "\n";
           finish(1);
         }
       });
       downloader_->ensureRom(*game);
     } else {
-      err() << "Unbekannter Befehl: " << cmd << "\n";
+      err() << "Unknown command: " << cmd << "\n";
       finish(1);
     }
   }

@@ -1,6 +1,6 @@
 #pragma once
-// Reine Eingabe-Helfer der Spielansicht (ohne Qt Quick): Tastatur -> Joypad-Maske und
-// Item-Koordinaten -> normierte Frame-Position fuer den Touch-Screen.
+// Pure input helpers of the game view (no Qt Quick): keyboard -> joypad mask and
+// item coordinates -> normalized frame position for the touch screen.
 
 #include <QPointF>
 #include <QRectF>
@@ -12,14 +12,14 @@
 
 namespace framebeam::ui {
 
-// Qt::Key -> RETRO_DEVICE_ID_JOYPAD-Maske; 0 = nicht belegt.
-// Pfeile = Steuerkreuz, X=A, Z=B, S=X, A=Y, Q=L, W=R, Enter/Return=Start, Rücktaste=Select.
+// Qt::Key -> RETRO_DEVICE_ID_JOYPAD-Maske; 0 = not mapped.
+// Arrows = D-pad, X=A, Z=B, S=X, A=Y, Q=L, W=R, Enter/Return=Start, Backspace=Select.
 quint32 joypadMaskForKey(int qtKey);
 
-// Haelt den Tastaturzustand (mehrere Tasten gleichzeitig). Auto-Repeat wird vom Aufrufer gefiltert.
+// Holds the keyboard state (several keys at once). Auto-repeat is filtered by the caller.
 class KeyboardJoypad {
  public:
-  // true, wenn die Taste belegt ist (Ereignis wurde verbraucht).
+  // true if the key is mapped (event was consumed).
   bool press(int qtKey);
   bool release(int qtKey);
   void clear() { mask_ = 0; }
@@ -29,14 +29,14 @@ class KeyboardJoypad {
   quint32 mask_ = 0;
 };
 
-// Rechteck, in das ein Frame der Groesse `frame` in `area` passt (zentriert, Seitenverhaeltnis erhalten).
-// integerScale: ganzzahliger Faktor, wenn mindestens 1x passt und der Platz damit gut genutzt wird
-// (>= 75 % des moeglichen Faktors); sonst bruchteiliger Faktor (immer nearest-neighbour gezeichnet).
+// Rectangle into which a frame of size `frame` fits within `area` (centered, aspect ratio preserved).
+// integerScale: integer factor if at least 1x fits and the space is used well
+// (>= 75 % of the possible factor); otherwise a fractional factor (always drawn nearest-neighbour).
 QRectF fitFrame(const QSizeF& frame, const QSizeF& area, bool integerScale);
 
-// Item-Position -> normierte Position im Gesamtframe (EmulatorBackend::setPointer).
-// frameRect: wo der Frame im Item liegt. clampToScreen=false: Positionen ausserhalb des Touch-Screens
-// ergeben nullopt (Druckbeginn); true: auf den Screen begrenzt (gedrueckt halten und ziehen).
+// Item position -> normalized position in the whole frame (EmulatorBackend::setPointer).
+// frameRect: where the frame lies in the item. clampToScreen=false: positions outside the touch screen
+// yield nullopt (press start); true: clamped to the screen (hold and drag).
 std::optional<QPointF> touchToFrame(const emu::DisplayProfile& profile, const QRectF& frameRect, const QPointF& itemPos,
                                     bool clampToScreen);
 

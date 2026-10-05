@@ -9,7 +9,7 @@
 
 namespace framebeam {
 
-// Protokoll laut ADR 0002 / protocol/openapi/framebeam.yaml.
+// Protocol per ADR 0002 / protocol/openapi/framebeam.yaml.
 inline constexpr int kProtocolVersion = 1;
 inline constexpr int kMinProtocolVersion = 1;
 
@@ -28,7 +28,7 @@ struct CoreInfo {
   QString version;
 };
 
-// Handshake-Daten des Players (cores werden von aussen befuellt).
+// Handshake data of the player (cores are filled in from outside).
 struct HandshakeInfo {
   QString platform;
   QString arch;
@@ -43,7 +43,7 @@ struct HandshakeInfo {
   bool gamepad = true;
   bool keyboard = true;
 
-  static HandshakeInfo detect();  // platform/arch/player_version vorbelegt
+  static HandshakeInfo detect();  // platform/arch/player_version prefilled
   QJsonObject toJson() const;
 };
 

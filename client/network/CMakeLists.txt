@@ -1,4 +1,4 @@
-# Netzwerk-Quellen des Kerns (Hub-Client, spaeter Signaling). Gehoert zum Ziel framebeam_core.
+# Network sources of the core (hub client, signaling later). Belongs to the framebeam_core target.
 target_sources(framebeam_core PRIVATE
   hubprotocol.cpp
   hubhttp.cpp
@@ -8,7 +8,7 @@ target_sources(framebeam_core PRIVATE
 )
 target_include_directories(framebeam_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-# Entwicklerwerkzeug gegen einen echten Hub (nur QtCore/QtNetwork ueber framebeam_core).
+# Developer tool against a real hub (only QtCore/QtNetwork via framebeam_core).
 add_executable(framebeam_player_cli cli/main.cpp)
 target_link_libraries(framebeam_player_cli PRIVATE framebeam_core)
 framebeam_warnings(framebeam_player_cli)

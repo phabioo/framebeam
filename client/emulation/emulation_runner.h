@@ -1,10 +1,10 @@
 #pragma once
-// EmulationRunner: fuehrt ein EmulatorBackend in einem eigenen Thread aus und taktet runFrame()
-// mit der vom Core gemeldeten FPS. Keine Audioausgabe und kein Rendering (macht die UI).
+// EmulationRunner: runs an EmulatorBackend in its own thread and paces runFrame()
+// at the FPS reported by the core. No audio output and no rendering (the UI does that).
 //
-// Der Runner lebt im Thread des Aufrufers (UI); alle Backend-Aufrufe (Core laden, Frames, Entladen)
-// laufen im Emulationsthread. Signale werden aus dem Emulationsthread gesendet; Empfaenger in
-// anderen Threads erhalten sie ueber Queued Connections (Auto-Connection).
+// The runner lives in the caller's thread (UI); all backend calls (load core, frames, unload)
+// run in the emulation thread. Signals are emitted from the emulation thread; receivers in
+// other threads get them via queued connections (auto connection).
 
 #include <QImage>
 #include <QMap>
@@ -30,7 +30,7 @@ class EmulationRunner : public QObject {
     QString gamePath;
     QString systemDir;
     QString saveDir;
-    QMap<QString, QString> coreOptions;  // z. B. Manifest-Defaults, vor dem Spielstart gesetzt
+    QMap<QString, QString> coreOptions;  // e.g. manifest defaults, set before the game starts
   };
 
   explicit EmulationRunner(std::unique_ptr<EmulatorBackend> backend, QObject* parent = nullptr);
@@ -38,15 +38,15 @@ class EmulationRunner : public QObject {
 
   State state() const { return m_state; }
 
-  // Asynchron: Core laden, Spiel laden, Takt starten. Ergebnis: started() oder startFailed().
+  // Asynchronous: load core, load game, start the clock. Result: started() or startFailed().
   void start(const StartRequest& request);
   void pause();
   void resume();
   void reset();
-  // Blockiert, bis der Emulationsthread beendet und der Core entladen ist; dann stopped().
+  // Blocks until the emulation thread has finished and the core is unloaded; then stopped().
   void stop();
 
-  // thread-sicher, wirken beim naechsten Frame
+  // thread-safe, take effect on the next frame
   void setJoypadState(unsigned port, quint32 buttonMask);
   void setPointer(double x, double y, bool pressed);
   bool setCoreOption(const QString& key, const QString& value);
@@ -56,12 +56,12 @@ class EmulationRunner : public QObject {
  signals:
   void started(const framebeam::emu::AvInfo& av, const framebeam::emu::CoreInfo& core);
   void startFailed(const QString& error);
-  // Frame im Format QImage::Format_RGB32 (XRGB8888); implizit geteilt, nicht veraendern.
+  // Frame in QImage::Format_RGB32 (XRGB8888); implicitly shared, do not modify.
   void frameReady(const QImage& frame, quint64 frameNumber);
-  // Interleaved Stereo int16, nativ; sampleRate in Hz (vom Core).
+  // Interleaved stereo int16, native endian; sampleRate in Hz (from the core).
   void audioReady(const QByteArray& pcm, int sampleRate);
   void stateChanged(framebeam::emu::EmulationRunner::State state);
-  // Core beendete sich selbst bzw. runFrame schlug fehl; der Thread laeuft aus (danach stop()).
+  // The core shut itself down or runFrame failed; the thread winds down (then stop()).
   void errorOccurred(const QString& message);
   void stopped();
 

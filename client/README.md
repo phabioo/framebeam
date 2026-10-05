@@ -1,31 +1,31 @@
 # client – FrameBeam Player
 
-C++/Qt-Player: emuliert lokal, synchronisiert Saves, teilt Sessions. Stand Phase 2: Hub-Profil, Pairing, Library, ROM-Cache, Emulation (melonDS DS) und minimale Oberfläche. Festlegungen: [ADR 0003](../docs/adr/0003-player-phase2.md) (angenommen). Regeln für Agents: `CLAUDE.md`.
+C++/Qt Player: emulates locally, synchronizes saves, shares Sessions. Status of phase 2: Hub profile, pairing, library, ROM cache, emulation (melonDS DS) and minimal UI. Decisions: [ADR 0003](../docs/adr/0003-player-phase2.md) (accepted). Rules for agents: `CLAUDE.md`.
 
-## Struktur
+## Structure
 
-- `core/`: Profile, ROM-Cache, Credential-Store, Version (`framebeam_core`)
-- `network/`: Hub-Verbindung (HTTP/TLS mit Fingerprint-Pinning), Library, ROM-Download
-- `emulation/`: `EmulatorBackend`/`LibretroBackend`, Systemmanifeste (`manifests/`), Core-Locator
-- `ui/`: QML-Modul `FrameBeam.Player` als statische Lib `framebeam_ui`
-- `app/`: Executable `framebeam_player`
-- `media/`: noch leer (ab Phase 4)
+- `core/`: profiles, ROM cache, credential store, version (`framebeam_core`)
+- `network/`: Hub connection (HTTP/TLS with fingerprint pinning), library, ROM download
+- `emulation/`: `EmulatorBackend`/`LibretroBackend`, system manifests (`manifests/`), core locator
+- `ui/`: QML module `FrameBeam.Player` as static lib `framebeam_ui`
+- `app/`: executable `framebeam_player`
+- `media/`: still empty (from phase 4)
 
-## Abhängigkeiten
+## Dependencies
 
-- Qt >= 6.4 (Core, Network, Gui, Quick, QuickControls2, Multimedia, Test); nicht über vcpkg. Linux: apt, Windows: install-qt-action (siehe `.github/workflows/ci.yml`).
-- CMake >= 3.25, Ninja; vcpkg (`scripts/bootstrap-vcpkg.sh`) für weitere Pakete.
-- melonDS-DS-Core (gepinnt, `scripts/melonds-ds.pin`): `scripts/fetch-melonds-ds.sh` (Linux) bzw. `.ps1` (Windows). Kein Core im Repo.
+- Qt >= 6.4 (Core, Network, Gui, Quick, QuickControls2, Multimedia, Test); not via vcpkg. Linux: apt, Windows: install-qt-action (see `.github/workflows/ci.yml`).
+- CMake >= 3.25, Ninja; vcpkg (`scripts/bootstrap-vcpkg.sh`) for further packages.
+- melonDS DS core (pinned, `scripts/melonds-ds.pin`): `scripts/fetch-melonds-ds.sh` (Linux) or `.ps1` (Windows). No core in the repository.
 
-## Bauen und Testen
+## Build and test
 
 ```sh
-make check-client                      # Preset via CLIENT_PRESET, Default linux-debug
-cmake -DFRAMEBEAM_MELONDS_DS_CORE=<pfad-zum-core> ...   # aktiviert die Core-Tests
+make check-client                      # preset via CLIENT_PRESET, default linux-debug
+cmake -DFRAMEBEAM_MELONDS_DS_CORE=<path-to-core> ...   # enables the core tests
 ```
 
-Ohne `FRAMEBEAM_MELONDS_DS_CORE` bauen alle Ziele; Tests mit `NEEDS_CORE` werden von ctest übersprungen. Tests laufen headless (`QT_QPA_PLATFORM=offscreen`) gegen einen Fake-Hub und eine zur Build-Zeit erzeugte Homebrew-Test-ROM.
+Without `FRAMEBEAM_MELONDS_DS_CORE` all targets build; tests with `NEEDS_CORE` are skipped by ctest. Tests run headless (`QT_QPA_PLATFORM=offscreen`) against a fake Hub and a homebrew test ROM generated at build time.
 
-## Datenablage
+## Data storage
 
-Default portabel: `<Verzeichnis der Programmdatei>/data` (ROM-Cache, `profiles.json`, `device.json`, `hubs/<id>/` inkl. Saves, `system/`, `probe/`), sofern dort ein echter Schreibtest gelingt. Sonst Rückfall auf AppData (`QStandardPaths::AppDataLocation`) mit Log-Hinweis (`framebeam.profiles`). Gibt es im portablen Ordner noch keine `profiles.json`, wird vorhandener AppData-Inhalt einmalig kopiert (Quelle bleibt unverändert, nichts wird überschrieben, `device_id` bleibt erhalten, ROM-Cache wird neu geladen). Credentials bleiben im OS-Credential-Store. `--data-dir` und `FRAMEBEAM_DATA_DIR` haben Vorrang.
+Portable by default: `<directory of the executable>/data` (ROM cache, `profiles.json`, `device.json`, `hubs/<id>/` incl. saves, `system/`, `probe/`), provided a real write test succeeds there. Otherwise it falls back to AppData (`QStandardPaths::AppDataLocation`) with a log note (`framebeam.profiles`). If the portable folder has no `profiles.json` yet, existing AppData content is copied once (the source remains unchanged, nothing is overwritten, `device_id` is preserved, the ROM cache is re-downloaded). Credentials stay in the OS credential store. `--data-dir` and `FRAMEBEAM_DATA_DIR` take precedence.

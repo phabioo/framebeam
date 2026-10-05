@@ -126,7 +126,7 @@ QString HubConnection::apiPath(const QString& rel) const {
   return validApiBase(hubInfo_.apiBase) + rel;
 }
 
-// ---------------------------------------------------------------- Identifikation
+// ---------------------------------------------------------------- Identification
 
 namespace {
 constexpr int kDefaultHubPort = 8443;
@@ -140,7 +140,7 @@ void HubConnection::connectToProfile(const QString& hubId) {
   const auto p = profiles_->profile(hubId);
   if (!p) {
     disconnectFromHub();
-    fail(State::Disconnected, QStringLiteral("unknown_profile"), QStringLiteral("Unbekanntes Hub-Profil"));
+    fail(State::Disconnected, QStringLiteral("unknown_profile"), QStringLiteral("Unknown hub profile"));
     return;
   }
   startIdentify(p->address, p->allowHttp, p);
@@ -148,7 +148,7 @@ void HubConnection::connectToProfile(const QString& hubId) {
 
 void HubConnection::startIdentify(const QString& addressInput, bool allowHttp, std::optional<HubProfile> existing) {
   if (state_ != State::Disconnected) {
-    disconnectFromHub();  // alte Verbindung zuerst trennen
+    disconnectFromHub();  // disconnect the old connection first
   } else {
     reset();
   }
@@ -159,17 +159,17 @@ void HubConnection::startIdentify(const QString& addressInput, bool allowHttp, s
   const QUrl parsed(text, QUrl::StrictMode);
   if (!parsed.isValid() || parsed.host().isEmpty() ||
       (parsed.scheme() != QLatin1String("https") && parsed.scheme() != QLatin1String("http"))) {
-    fail(State::Unreachable, QStringLiteral("invalid_address"), QStringLiteral("Ungültige Hub-Adresse"));
+    fail(State::Unreachable, QStringLiteral("invalid_address"), QStringLiteral("Invalid hub address"));
     return;
   }
   QUrl base;
   base.setScheme(parsed.scheme());
   base.setHost(parsed.host());
-  // Ohne Port: Hub-Default :8443 (server/README.md), auch fuer http (Dev-Flag). Explizite Ports bleiben.
+  // Without a port: hub default :8443 (server/README.md), also for http (dev flag). Explicit ports are kept.
   base.setPort(parsed.port() > 0 ? parsed.port() : kDefaultHubPort);
   if (!HubHttp::isSchemeAllowed(base, allowHttp)) {
     fail(State::Unreachable, QStringLiteral("insecure_http"),
-         QStringLiteral("HTTP ist nur für localhost oder mit Dev-Flag erlaubt"));
+         QStringLiteral("HTTP is only allowed for localhost or with the dev flag"));
     return;
   }
   address_ = base.toString(QUrl::RemoveUserInfo | QUrl::RemovePath | QUrl::RemoveQuery | QUrl::RemoveFragment);
@@ -196,7 +196,7 @@ bool HubConnection::handleCommonFailure(const HttpResult& r) {
   if (r.certMismatch) {
     observedFp_ = r.observedFingerprint;
     fail(State::CertificateChanged, QStringLiteral("certificate_changed"),
-         QStringLiteral("Das Zertifikat des Hubs weicht vom gespeicherten Fingerprint ab"));
+         QStringLiteral("The hub's certificate differs from the stored fingerprint"));
     return true;
   }
   if (r.networkError) {
@@ -213,45 +213,45 @@ void HubConnection::onIdentified(const HttpResult& r) {
   const auto info = r.status == 200 ? parseHubInfo(r.json()) : std::nullopt;
   if (!info || !ProfileStore::isValidHubId(info->hubId)) {
     fail(State::Unreachable, QStringLiteral("invalid_hub_info"),
-         QStringLiteral("Die Adresse antwortet nicht wie ein FrameBeam Hub"));
+         QStringLiteral("The address does not respond like a FrameBeam Hub"));
     return;
   }
   hubInfo_ = *info;
   observedFp_ = r.observedFingerprint;
   const bool tls = http_->baseUrl().scheme() == QLatin1String("https");
 
-  // Profil zu dieser Hub-ID (z. B. geaenderte Adresse): dessen Pin gilt.
+  // Profile for this hub ID (e.g. changed address): its pin applies.
   if (pin_.isEmpty()) {
     if (const auto byId = profiles_->profile(info->hubId)) {
       profile_ = byId;
       pin_ = byId->pinnedFingerprint;
       if (tls && !pin_.isEmpty() && !HubHttp::fingerprintsEqual(observedFp_, pin_)) {
         fail(State::CertificateChanged, QStringLiteral("certificate_changed"),
-             QStringLiteral("Das Zertifikat des Hubs weicht vom gespeicherten Fingerprint ab"));
+             QStringLiteral("The hub's certificate differs from the stored fingerprint"));
         return;
       }
       http_->setPinnedFingerprint(pin_);
     }
   } else if (profile_ && profile_->hubId != info->hubId) {
     fail(State::Unreachable, QStringLiteral("hub_id_mismatch"),
-         QStringLiteral("Unter dieser Adresse meldet sich ein anderer Hub als im Profil"));
+         QStringLiteral("A different hub responds at this address than the one in the profile"));
     return;
   }
 
   if (info->minProtocolVersion > handshake_.protocolVersion) {
     incompatible_ = IncompatibleReason::PlayerTooOld;
-    fail(State::Incompatible, QStringLiteral("player_too_old"), QStringLiteral("Der FrameBeam Player ist zu alt für diesen Hub"));
+    fail(State::Incompatible, QStringLiteral("player_too_old"), QStringLiteral("The FrameBeam Player is too old for this hub"));
     return;
   }
   if (info->protocolVersion < handshake_.minProtocolVersion) {
     incompatible_ = IncompatibleReason::HubTooOld;
-    fail(State::Incompatible, QStringLiteral("hub_too_old"), QStringLiteral("Der FrameBeam Hub ist zu alt für diesen Player"));
+    fail(State::Incompatible, QStringLiteral("hub_too_old"), QStringLiteral("The FrameBeam Hub is too old for this player"));
     return;
   }
 
   if (tls && pin_.isEmpty()) {
     if (observedFp_.isEmpty()) {
-      fail(State::Unreachable, QStringLiteral("no_certificate"), QStringLiteral("Der Hub lieferte kein Zertifikat"));
+      fail(State::Unreachable, QStringLiteral("no_certificate"), QStringLiteral("The hub did not provide a certificate"));
       return;
     }
     setState(State::NeedsTrustConfirmation);
@@ -284,7 +284,7 @@ void HubConnection::trusted() {
   p.allowHttp = allowHttp_;
   p.deviceId = profiles_->deviceId();
   if (!profiles_->upsertProfile(p)) {
-    qCWarning(lcHub) << "profiles.json konnte nicht geschrieben werden";
+    qCWarning(lcHub) << "profiles.json could not be written";
   }
   profile_ = p;
   if (!p.credentialRef.isEmpty() && credentials_->read(p.credentialRef).has_value()) {
@@ -317,7 +317,7 @@ void HubConnection::requestPairing() {
       const QString code = r.apiErrorCode.isEmpty() ? QStringLiteral("pairing_failed") : r.apiErrorCode;
       errorCode_ = code;
       errorMessage_ = r.apiErrorMessage;
-      emit errorOccurred(code, r.apiErrorMessage);  // Zustand bleibt (z. B. rate_limited)
+      emit errorOccurred(code, r.apiErrorMessage);  // state is kept (e.g. rate_limited)
       return;
     }
     pairingRequestId_ = o.value(QStringLiteral("request_id")).toString();
@@ -334,7 +334,7 @@ void HubConnection::cancelPairing() {
   pollTimer_.stop();
   pollToken_.clear();
   pairingRequestId_.clear();
-  ++gen_;  // laufende Poll-Antwort verwerfen
+  ++gen_;  // discard the in-flight poll response
   pollInFlight_ = false;
   setState(State::NeedsPairing);
 }
@@ -356,7 +356,7 @@ void HubConnection::pollPairing() {
       return;
     }
     if (r.networkError) {
-      return;  // naechster Poll versucht es erneut
+      return;  // the next poll tries again
     }
     if (r.status == 401 || r.status == 404) {
       pollTimer_.stop();
@@ -387,14 +387,14 @@ void HubConnection::onPairingApproved(const QJsonObject& obj) {
   const QString userId = obj.value(QStringLiteral("user_id")).toString();
   const QString credential = obj.value(QStringLiteral("device_credential")).toString();
   if (hubId != hubInfo_.hubId || credential.isEmpty()) {
-    fail(State::NeedsPairing, QStringLiteral("pairing_invalid_response"), QStringLiteral("Ungültige Freigabe-Antwort des Hubs"));
+    fail(State::NeedsPairing, QStringLiteral("pairing_invalid_response"), QStringLiteral("Invalid approval response from the hub"));
     return;
   }
   const QString target = credentialTarget(hubInfo_.hubId, profiles_->deviceId());
   if (!credentials_->write(target, credential)) {
-    // Das Credential wird vom Hub nur einmal geliefert; Pairing muss wiederholt werden.
+    // The hub delivers the credential only once; pairing must be repeated.
     fail(State::NeedsPairing, QStringLiteral("credential_store_failed"),
-         QStringLiteral("Das Geräte-Credential konnte nicht im Credential-Store gespeichert werden"));
+         QStringLiteral("The device credential could not be saved to the credential store"));
     return;
   }
   HubProfile p = profile_.value_or(HubProfile());
@@ -428,7 +428,7 @@ void HubConnection::refreshToken() {
   }
   const auto secret = credentials_->read(profile_->credentialRef);
   if (!secret) {
-    onCredentialInvalid(QStringLiteral("invalid_credentials"), QStringLiteral("Credential nicht mehr vorhanden"));
+    onCredentialInvalid(QStringLiteral("invalid_credentials"), QStringLiteral("Credential no longer available"));
     return;
   }
   refreshInFlight_ = true;
@@ -446,7 +446,7 @@ void HubConnection::onTokenResult(const HttpResult& r, bool initial) {
       accessToken_.clear();
       handleCommonFailure(r);
     } else {
-      qCWarning(lcHub) << "Token-Erneuerung fehlgeschlagen, neuer Versuch in 5 s";
+      qCWarning(lcHub) << "Token renewal failed, retrying in 5 s";
       refreshTimer_.start(5000);
     }
     return;
@@ -506,7 +506,7 @@ void HubConnection::doHandshake() {
         return;
       }
     }
-    // Core-/Capability-Probleme (Phase 5) blockieren die Verbindung nicht; handshakeProblems() fuer die UI.
+    // Core/capability problems (phase 5) do not block the connection; handshakeProblems() is for the UI.
     HubProfile p = profile_.value_or(HubProfile());
     p.lastConnected = QDateTime::currentDateTimeUtc();
     profiles_->upsertProfile(p);
@@ -517,7 +517,7 @@ void HubConnection::doHandshake() {
 }
 
 void HubConnection::onCredentialInvalid(const QString& code, const QString& message) {
-  qCWarning(lcHub) << "Credential ungueltig/widerrufen:" << code;
+  qCWarning(lcHub) << "Credential invalid/revoked:" << code;
   refreshTimer_.stop();
   accessToken_.clear();
   if (profile_ && !profile_->credentialRef.isEmpty()) {
@@ -538,7 +538,7 @@ void HubConnection::revokeSelf() {
   QNetworkReply* reply = http_->postJson(apiPath(QStringLiteral("/auth/revoke")), {}, accessToken_);
   track(reply, [this](const HttpResult& r) {
     if (r.status == 204 || r.status == 401) {
-      onCredentialInvalid(QStringLiteral("device_revoked"), QStringLiteral("Gerät wurde widerrufen"));
+      onCredentialInvalid(QStringLiteral("device_revoked"), QStringLiteral("Device was revoked"));
       return;
     }
     if (!handleCommonFailure(r)) {

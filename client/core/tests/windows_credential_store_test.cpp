@@ -1,4 +1,4 @@
-// Nur unter Windows gebaut/registriert (siehe core/CMakeLists.txt). Nutzt einen Dummy-Wert.
+// Built/registered on Windows only (see core/CMakeLists.txt). Uses a dummy value.
 #include <QtTest>
 
 #include "credentialstore.h"
@@ -18,9 +18,9 @@ class WindowsCredentialStoreTest : public QObject {
     QCOMPARE(store.read(target).value_or(QString()), QStringLiteral("fbd_DUMMY_TEST_VALUE_2"));
     QVERIFY(store.remove(target));
     QVERIFY(!store.read(target).has_value());
-    QVERIFY(store.remove(target));  // nicht vorhanden ist kein Fehler
+    QVERIFY(store.remove(target));  // not present is not an error
 #else
-    QSKIP("Nur Windows");
+    QSKIP("Windows only");
 #endif
   }
 };

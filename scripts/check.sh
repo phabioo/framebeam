@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Leise Prüfschritte: Ausgabe gepuffert, bei Fehler nur die letzten 40 Zeilen.
-# Aufruf: scripts/check.sh hub-fmt|hub-vet|hub-test|hub-codegen|hub-build|generate|client|hub|all
+# Quiet check steps: output buffered, on failure only the last 40 lines.
+# Usage: scripts/check.sh hub-fmt|hub-vet|hub-test|hub-codegen|hub-build|generate|client|hub|all
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -8,7 +8,7 @@ export CGO_ENABLED=0 GOTOOLCHAIN=local
 export VCPKG_ROOT="${VCPKG_ROOT:-$HOME/.cache/framebeam/vcpkg}"
 status=0
 
-# step <Label> <Befehl...>: führt aus, meldet "ok  label" oder "FAIL label" + Log-Ende.
+# step <label> <command...>: runs it, reports "ok  label" or "FAIL label" + log tail.
 step() {
   local label="$1"; shift
   local log; log="$(mktemp)"
@@ -24,7 +24,7 @@ step() {
 
 hub_fmt() {
   local out; out="$(cd "$ROOT/server" && gofmt -l .)" || return 1
-  [ -z "$out" ] || { echo "nicht gofmt-formatiert:"; echo "$out"; return 1; }
+  [ -z "$out" ] || { echo "not gofmt-formatted:"; echo "$out"; return 1; }
 }
 hub_vet()  { (cd "$ROOT/server" && go vet ./...); }
 hub_test() { (cd "$ROOT/server" && go test ./...); }
@@ -34,8 +34,8 @@ hub_codegen() {
   before="$(cd "$ROOT/server/internal/api" && cat ./*.gen.go | sha256sum)"
   generate || return 1
   after="$(cd "$ROOT/server/internal/api" && cat ./*.gen.go | sha256sum)"
-  [ "$before" = "$after" ] || { echo "Generierter Code veraltet: 'make generate' ausfuehren und einchecken"; return 1; }
-  (cd "$ROOT/server" && go mod tidy -diff) || { echo "go.mod/go.sum nicht tidy: 'go mod tidy' ausfuehren"; return 1; }
+  [ "$before" = "$after" ] || { echo "Generated code is stale: run 'make generate' and commit"; return 1; }
+  (cd "$ROOT/server" && go mod tidy -diff) || { echo "go.mod/go.sum not tidy: run 'go mod tidy'"; return 1; }
 }
 hub_build() {
   local arch
@@ -51,7 +51,7 @@ client_core() { CORE_PATH="$("$ROOT/scripts/fetch-melonds-ds.sh")" && [ -f "$COR
 client() {
   local p="${CLIENT_PRESET:-linux-debug}"
   local -a core_arg=()
-  # Core zuerst (idempotent, gecacht); schlaegt er fehl, laufen Tests mit NEEDS_CORE als SKIP.
+  # Core first (idempotent, cached); if it fails, tests with NEEDS_CORE run as SKIP.
   step "client: core" client_core
   [ -n "$CORE_PATH" ] && [ -f "$CORE_PATH" ] && core_arg=("-DFRAMEBEAM_MELONDS_DS_CORE=$CORE_PATH")
   step "client: configure" bash -c "cd '$ROOT/client' && cmake --preset $p ${core_arg[*]:-}"
@@ -69,6 +69,6 @@ case "${1:-all}" in
   generate)  step "hub: generate" generate ;;
   client)    client ;;
   all)       "$0" hub || status=1; "$0" client || status=1 ;;
-  *) echo "unbekannter Schritt: $1" >&2; exit 2 ;;
+  *) echo "unknown step: $1" >&2; exit 2 ;;
 esac
 exit "$status"
