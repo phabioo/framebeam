@@ -4,5 +4,5 @@ MELONDS_DS_COMMIT=f394adbacb5722ee97c1b37c8064da9a25818310
 # Windows: offizielles Release-Asset (deren Build nutzt MSYS2/MinGW, kein MSVC). Das .ps1 sucht das Asset
 # per GitHub-API; MELONDS_DS_WIN_ASSET ist ein Regex fuer den Namen oder, nach dem ersten Lauf, der exakte Name.
 # SHA-256 des Zips beim ersten CI-Lauf aus der Fehlermeldung von fetch-melonds-ds.ps1 uebernehmen.
-MELONDS_DS_WIN_ASSET='(?i)(windows|win64).*(x86_64|x64|amd64).*\.zip$'
+MELONDS_DS_WIN_ASSET=melondsds_libretro-win32-x86_64-Release.zip
 MELONDS_DS_WIN_SHA256=
