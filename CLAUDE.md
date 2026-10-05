@@ -24,6 +24,8 @@ FrameBeam ist eine selbst gehostete Retro-Gaming-Plattform (Monorepo): zentrale 
 ## Status und Befehle
 
 - `scripts/bootstrap-vcpkg.sh`: vcpkg (gepinnt) nach `$HOME/.cache/framebeam/vcpkg`; Voraussetzung für den Client-Build.
+- Client-Voraussetzung Qt >= 6.4 (nicht vcpkg): Linux apt (Pakete siehe `.claude/hooks/session-start.sh`, `QT_PKGS`), Windows CI per install-qt-action (6.8 LTS).
+- `scripts/fetch-melonds-ds.sh` (`make fetch-core`): baut melonDS DS (Pin in `scripts/melonds-ds.pin`) nach `$HOME/.cache/framebeam/cores/`, idempotent, gibt den .so-Pfad aus; `make check-client` übergibt ihn als `-DFRAMEBEAM_MELONDS_DS_CORE=...` (fehlt er, werden Core-Tests übersprungen). Windows: `scripts/fetch-melonds-ds.ps1`.
 - `make check`: Hub- und Client-Prüfung, leise; `make check-hub` / `make check-client` einzeln (Preset via `CLIENT_PRESET`, Default `linux-debug`).
 - `make build-hub`: Hub-Binaries `server/dist/framebeam-hub-linux-{amd64,arm64}` (`HUB_VERSION` setzbar).
 - `make generate`: Go-Codegen (oapi-codegen) neu erzeugen.

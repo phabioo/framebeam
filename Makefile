@@ -1,6 +1,6 @@
 # Leise Prüfziele (Details: scripts/check.sh). Voraussetzung für check-client:
 # scripts/bootstrap-vcpkg.sh einmal ausgeführt.
-.PHONY: check check-hub check-client build-hub generate
+.PHONY: check check-hub check-client build-hub generate fetch-core
 
 check:
 	@scripts/check.sh all
@@ -16,3 +16,6 @@ build-hub:
 
 generate:
 	@scripts/check.sh generate
+
+fetch-core:
+	@scripts/fetch-melonds-ds.sh

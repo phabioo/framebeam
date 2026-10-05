@@ -56,14 +56,23 @@ jobs:
           path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
           key: vcpkg-bin-${{ runner.os }}-${{ hashFiles('client/vcpkg.json') }}
           restore-keys: vcpkg-bin-${{ runner.os }}-
-      - name: Werkzeuge bereitstellen
+      - name: melonDS-DS-Core cachen
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/framebeam/cores
+          key: melondsds-core-linux-${{ hashFiles('scripts/melonds-ds.pin', 'scripts/fetch-melonds-ds.sh') }}
+      - name: Werkzeuge und Qt 6.4 bereitstellen
         run: |
           mkdir -p "$VCPKG_DEFAULT_BINARY_CACHE"
-          command -v ninja >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq ninja-build; }
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ninja-build qt6-base-dev qt6-declarative-dev qt6-multimedia-dev \
+            qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
+            qml6-module-qtquick-window qml6-module-qtqml-workerscript qml6-module-qtquick-templates \
+            libgl-dev libepoxy-dev xvfb
       - name: vcpkg bootstrappen
         run: scripts/bootstrap-vcpkg.sh
       - name: Player pruefen
-        run: make check-client
+        run: xvfb-run -a make check-client
 
   client-windows:
     name: Player (C++, Windows MSVC)
@@ -101,15 +110,62 @@ jobs:
             & "$env:VCPKG_ROOT/bootstrap-vcpkg.bat" -disableMetrics
             if ($LASTEXITCODE -ne 0) { throw "vcpkg bootstrap fehlgeschlagen" }
           }
+      - name: melonDS-DS-Core cachen
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}\.framebeam-cache\cores
+          key: melondsds-core-windows-${{ hashFiles('scripts/melonds-ds.pin', 'scripts/fetch-melonds-ds.ps1') }}
+      - name: Qt 6.8 installieren
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: 6.8.*
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          modules: qtmultimedia
+          cache: true
+      - name: melonDS-DS-Core bereitstellen
+        id: core
+        shell: pwsh
+        env:
+          FRAMEBEAM_CACHE_DIR: ${{ github.workspace }}\.framebeam-cache
+        run: |
+          $dll = scripts/fetch-melonds-ds.ps1 | Select-Object -Last 1
+          "dll=$dll" >> $env:GITHUB_OUTPUT
       - uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
       - name: Konfigurieren
         working-directory: client
-        run: cmake --preset windows-msvc-debug
+        run: cmake --preset windows-msvc-release "-DFRAMEBEAM_MELONDS_DS_CORE=${{ steps.core.outputs.dll }}"
       - name: Bauen
         working-directory: client
-        run: cmake --build --preset windows-msvc-debug
+        run: cmake --build --preset windows-msvc-release
       - name: Testen
         working-directory: client
-        run: ctest --preset windows-msvc-debug
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: ctest --preset windows-msvc-release
+      - name: Paket schnueren (windeployqt)
+        shell: pwsh
+        run: |
+          $dist = "$env:GITHUB_WORKSPACE\dist\framebeam-player"
+          New-Item -ItemType Directory -Force $dist, "$dist\cores" | Out-Null
+          Copy-Item client\build\windows-msvc-release\app\framebeam_player.exe $dist
+          windeployqt --release --no-translations --qmldir client\ui "$dist\framebeam_player.exe"
+          if ($LASTEXITCODE -ne 0) { throw "windeployqt fehlgeschlagen" }
+          $dll = "${{ steps.core.outputs.dll }}"
+          Copy-Item $dll "$dist\cores\"
+          Copy-Item (Join-Path (Split-Path $dll) 'LICENSE-melonDS-DS.txt') $dist
+          @"
+          Dieses Paket enthaelt den libretro-Core melonDS DS (JesseTG/melonds-ds, GPL-3.0),
+          cores\melondsds_libretro.dll. Lizenztext: LICENSE-melonDS-DS.txt.
+          Quellcode: https://github.com/JesseTG/melonds-ds
+          Keine ROMs, BIOS oder Firmware enthalten.
+          "@ | Set-Content "$dist\THIRD-PARTY-NOTICE.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: framebeam-player-windows-x64
+          path: dist/framebeam-player
+          if-no-files-found: error
+          retention-days: 7

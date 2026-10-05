@@ -46,9 +46,15 @@ hub_build() {
       -o "dist/framebeam-hub-linux-$arch" ./cmd/framebeam-hub) || return 1
   done
 }
+CORE_PATH=""
+client_core() { CORE_PATH="$("$ROOT/scripts/fetch-melonds-ds.sh")" && [ -f "$CORE_PATH" ]; }
 client() {
   local p="${CLIENT_PRESET:-linux-debug}"
-  step "client: configure" bash -c "cd '$ROOT/client' && cmake --preset $p"
+  local -a core_arg=()
+  # Core zuerst (idempotent, gecacht); schlaegt er fehl, laufen Tests mit NEEDS_CORE als SKIP.
+  step "client: core" client_core
+  [ -n "$CORE_PATH" ] && [ -f "$CORE_PATH" ] && core_arg=("-DFRAMEBEAM_MELONDS_DS_CORE=$CORE_PATH")
+  step "client: configure" bash -c "cd '$ROOT/client' && cmake --preset $p ${core_arg[*]:-}"
   step "client: build"     bash -c "cd '$ROOT/client' && cmake --build --preset $p"
   step "client: test"      bash -c "cd '$ROOT/client' && ctest --preset $p"
 }
