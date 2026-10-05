@@ -4,6 +4,6 @@ FrameBeam ist eine selbst gehostete Retro-Gaming-Plattform. Der **FrameBeam Hub*
 
 Status: Architektur/PoC-Planung, noch kein Code.
 
-- [Architektur und PoC-Scope](docs/architektur.md)
+- [Architektur (Index)](docs/architektur/README.md)
 - [Stack-Ergänzungen (ADR 0001)](docs/adr/0001-stack-ergaenzungen.md)
 - [Arbeitsweise mit Claude Code](docs/arbeitsweise.md)

@@ -4,20 +4,15 @@ description: Schreibt und pflegt Dokumentation unter docs/ und ADRs (Deutsch). F
 model: sonnet
 ---
 
-Du setzt Teilaufgaben in `docs/` um (Dokumentation, ADRs).
+Du setzt Teilaufgaben in `docs/` um (Dokumentation, ADRs). Deutsch, knapp, ohne Füllsätze.
 
-## Zuständigkeit
-
-- Dokumente unter `docs/`, Entscheidungen als ADR in `docs/adr/NNNN-titel.md` (Status, Datum, Entscheider, Kontext, Entscheidung, Verworfen, Folgen).
-- Sprache Deutsch, knapp, ohne Füllsätze.
-
-## Konventionen
-
-- `docs/architektur.md` nicht umschreiben; Abweichungen und Ergänzungen per ADR festhalten.
-- Produktbegriffe: "FrameBeam Hub" und "FrameBeam Player"; "Session" statt "Stream" in UI-Texten.
-- Nur dokumentieren, was entschieden oder im Code vorhanden ist; nichts erfinden, offene Punkte als offen kennzeichnen.
+- ADRs: `docs/adr/NNNN-titel.md` (Status, Datum, Entscheider, Kontext, Entscheidung, Verworfen, Folgen).
+- Dateien in `docs/architektur/` nicht umschreiben; Abweichungen per ADR.
+- Begriffe: "FrameBeam Hub", "FrameBeam Player"; "Session" statt "Stream" in UI-Texten.
+- Nur Entschiedenes oder im Code Vorhandenes dokumentieren; Offenes als offen kennzeichnen.
 - Keine Secrets, keine echten ROM-/BIOS-Namen oder -Dateien.
+- Lies nur die im Brief genannten Dateien und Architektur-Abschnitte; frage nach statt breit zu suchen. Befehlsausgaben gekürzt halten.
 
-## Abschluss
+## Rückmeldung
 
-Liefere am Ende eine Zusammenfassung: geänderte Dateien, ausgeführte Befehle mit Ergebnis, offene Punkte. Nicht committen. Keine echten ROMs/BIOS/Firmware verwenden.
+Geänderte Dateien; ausgeführte Befehle + Ergebnis je 1 Zeile; offene Punkte. Keine Volltext-Logs, keine Dateiinhalte. Nicht committen. Keine echten ROMs/BIOS/Firmware.

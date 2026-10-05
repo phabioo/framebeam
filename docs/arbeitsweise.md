@@ -27,30 +27,53 @@ Nicht prüfbar (nur lokal bei Fabio):
 
 ## Rollen
 
-**Opus ist ausschließlich Orchestrator.** Opus zerlegt größere Aufgaben in kleine, klar abgegrenzte Teilaufgaben und gibt sie an Subagents mit Sonnet 5.5 (Agents in `.claude/agents/`). Opus prüft jedes Ergebnis selbst (Diff lesen, Build und Tests selbst ausführen) und nimmt ab oder gibt es mit konkreten Korrekturen an denselben Agent zurück. Opus schreibt keinen Produktcode selbst.
+**Opus ist ausschließlich Orchestrator** und schreibt keinen Produktcode. Er bündelt Aufgaben zu sinnvollen Paketen, delegiert per Brief (Vorlage unten) an Sonnet-5.5-Agents in `.claude/agents/`, prüft das Ergebnis und nimmt ab oder gibt es mit konkreten Korrekturen an denselben Agent zurück.
 
 Ablauf:
 
-1. Aufgabe zerlegen.
-2. Brief schreiben: Ziel, betroffene Pfade, Akzeptanzkriterien, Testbefehl.
-3. Subagent setzt um und liefert Zusammenfassung (geänderte Dateien, Befehle mit Ergebnis, offene Punkte); er committet nicht.
-4. Opus prüft: Diff lesen, Build/Tests selbst ausführen.
-5. Abnahme, oder Rückgabe mit konkreten Korrekturen an denselben Agent.
+1. Aufgabe in 2–3 sinnvolle Pakete zerlegen.
+2. Brief schreiben (Vorlage unten).
+3. Subagent setzt um und meldet im Rückmeldeformat; er committet nicht.
+4. Opus prüft über `git diff --stat`, gezielten Diff und Testergebnis.
+5. Abnahme, oder Korrektur per `SendMessage` an denselben Agent.
 6. Commit/PR durch Opus.
 
-| Agent | Zuständigkeit |
-|---|---|
-| `hub-implementer` | Go-Hub (`server/`) |
-| `player-implementer` | C++/Qt-Player (`client/`) |
-| `protocol-implementer` | `protocol/` |
-| `build-ci-implementer` | CMake/vcpkg, Go-Build, GitHub Actions, `packaging/` |
-| `docs-writer` | `docs/`, ADRs |
+| Agent | Modell | Zuständigkeit |
+|---|---|---|
+| `hub-implementer` | Sonnet | Go-Hub (`server/`) |
+| `player-implementer` | Sonnet | C++/Qt-Player (`client/`) |
+| `protocol-implementer` | Sonnet | `protocol/` |
+| `build-ci-implementer` | Sonnet | CMake/vcpkg, Go-Build, GitHub Actions, `packaging/` |
+| `docs-writer` | Sonnet | `docs/`, ADRs |
+| `scout` | Haiku | read-only: suchen, Logs/CI-Ausgaben lesen, zusammenfassen |
+
+## Brief-Vorlage
+
+```text
+Ziel: <ein Satz>
+Kontext: <docs/architektur/NN-datei.md, Abschnitt X; ggf. kurzes Zitat>
+Dateien/Pfade: anlegen/ändern: <...>; sonst nichts anfassen
+Akzeptanzkriterien:
+- <...>
+Prüfbefehl: <Befehl, Ausgabe gekürzt>
+Rückmeldung: geänderte Dateien; Befehle + Ergebnis je 1 Zeile; offene Punkte.
+Keine Volltext-Logs, keine Dateiinhalte zurückgeben. Nicht committen.
+```
+
+## Token-Sparregeln
+
+- Aufgaben nicht zu fein zerlegen: lieber 2–3 sinnvolle Pakete als viele Mini-Aufträge, da jeder Agent kalt startet.
+- Agents erkunden nicht frei; sie bekommen Pfade und die Spec-Stelle.
+- Nur die relevante Architekturdatei lesen (Index: `docs/architektur/README.md`), nie alle.
+- Opus prüft über `git diff --stat`, gezielten Diff und Testergebnis, nicht durch erneutes Lesen ganzer Dateien.
+- Befehlsausgaben immer filtern/kürzen (`| tail -n 30`, nur Fehler). Lange Logs liest `scout` und fasst zusammen.
+- Bei Korrekturen den Agent per `SendMessage` fortsetzen statt neu starten; der Kontext bleibt erhalten.
+- Ein Arbeitspaket pro Thread; neue Threads statt langer Verläufe.
+- Geplant in Phase 0: leise Prüfskripte (`make check` o. ä., nur Fehler + Zusammenfassung), Dependency-Cache im SessionStart-Hook, Codegen aus OpenAPI.
 
 ## Pakete und PRs
 
-- Ein Arbeitspaket pro Projekt-Thread.
-- Je Paket ein PR mit grüner CI.
-- Ein Thema pro PR.
+- Je Paket ein PR mit grüner CI, ein Thema pro PR.
 
 ## Phasenplan
 
