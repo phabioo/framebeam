@@ -183,7 +183,7 @@ jobs:
               # Two -o: file (survives a crash) AND stdout. "$t.txt,txt" is one argument "<file>,<format>".
               $txt = Join-Path $exe.DirectoryName "$t.txt"
               Remove-Item $txt -ErrorAction SilentlyContinue
-              $out = & $exe.FullName -v2 -o "${txt},txt" -o "-,txt" 2>&1 | ForEach-Object { "$_" }
+              $out = & $exe.FullName -v2 -maxwarnings 0 -o "${txt},txt" -o "-,txt" 2>&1 | ForEach-Object { "$_" }
               $code = $LASTEXITCODE
               Pop-Location
               Write-Host "exit code of ${t}: $code (0x$('{0:X}' -f $code))"

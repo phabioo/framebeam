@@ -345,7 +345,9 @@ void SessionHost::sendVideo(const EncodedVideoPacket& p) {
     try {
       it->video->sendFrame(toBinary(p.data.data(), p.data.size()), rtc::FrameInfo(std::chrono::duration<double>(seconds)));
     } catch (const std::exception& e) {
-      qCWarning(lcHost) << "sendFrame:" << e.what();
+      if (sendErrors_++ % 500 == 0) {  // per-frame failures must not flood the log
+        qCWarning(lcHost) << "sendFrame:" << e.what() << "(failures so far:" << sendErrors_ << ")";
+      }
     }
   }
 }
@@ -371,7 +373,9 @@ void SessionHost::sendAudio(const std::vector<uint8_t>& packet) {
     try {
       it->audio->sendFrame(toBinary(packet.data(), packet.size()), rtc::FrameInfo(std::chrono::duration<double>(seconds)));
     } catch (const std::exception& e) {
-      qCWarning(lcHost) << "sendFrame(audio):" << e.what();
+      if (sendErrors_++ % 500 == 0) {
+        qCWarning(lcHost) << "sendFrame(audio):" << e.what() << "(failures so far:" << sendErrors_ << ")";
+      }
     }
   }
 }

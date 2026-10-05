@@ -111,6 +111,7 @@ class SessionHost : public QObject {
   bool encoderFailed_ = false;
   QElapsedTimer clock_;
   int64_t lastPts_ = -1;
+  int sendErrors_ = 0;  // sendFrame exceptions (log rate limit)
   qint64 lastEncodeNs_ = 0;
   qint64 audioFramesSent_ = 0;
   int width_ = 0;

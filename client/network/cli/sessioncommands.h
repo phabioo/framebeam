@@ -61,6 +61,7 @@ class SessionCommands : public QObject {
   bool joining_ = false;
   int seconds_ = 0;
   int elapsed_ = 0;
+  bool ending_ = false;  // share: the end was initiated locally
   int frameNo_ = 0;
   double phase_ = 0.0;
   int findAttempts_ = 0;

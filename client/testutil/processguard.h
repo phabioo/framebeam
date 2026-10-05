@@ -57,7 +57,11 @@ inline void prepareProcess() {
     fbtest::prepareProcess();                                    \
     std::vector<char*> args(argv, argv + argc);                  \
     char verbose[] = "-v2";                                      \
+    char maxw[] = "-maxwarnings";                                \
+    char maxwN[] = "0";                                          \
     args.push_back(verbose);                                     \
+    args.push_back(maxw);                                        \
+    args.push_back(maxwN);                                       \
     int n = static_cast<int>(args.size());                       \
     QCoreApplication app(n, args.data());                        \
     TestClass tc;                                                \

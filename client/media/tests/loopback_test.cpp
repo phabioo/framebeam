@@ -170,7 +170,8 @@ class LoopbackTest : public QObject {
     QCOMPARE(hs.codec, QStringLiteral("H264 + Opus"));
     QCOMPARE(hs.width, kW);
     QVERIFY2(hs.fps > 20.0 && hs.fps < 70.0, qPrintable(QString::number(hs.fps)));
-    QVERIFY2(hs.videoBitrateKbps > 50.0, qPrintable(QStringLiteral("encoder %1 video_kbps %2").arg(hs.encoderName).arg(hs.videoBitrateKbps)));
+    QVERIFY2(hs.videoBitrateKbps > 5.0,  // encoders differ a lot (libopenh264 ~30 kbit/s here, x264 ~2000)
+              qPrintable(QStringLiteral("encoder %1 video_kbps %2").arg(hs.encoderName).arg(hs.videoBitrateKbps)));
     QVERIFY2(hs.audioBitrateKbps > 20.0 && hs.audioBitrateKbps < 200.0, qPrintable(QString::number(hs.audioBitrateKbps)));
     QVERIFY(!hs.packetLossPercent.has_value());
     QVERIFY2(vs.fps > 20.0, qPrintable(QString::number(vs.fps)));

@@ -13,6 +13,7 @@
 #include <QtQuickTest/quicktest.h>
 #include <QtQml/QQmlExtensionPlugin>
 #include <QtTest>
+#include <algorithm>
 #include <atomic>
 #include <cstdio>
 #include <cstdlib>
@@ -92,7 +93,11 @@ inline void prepareProcess() {
     uitest::prepareProcess();                                   \
     std::vector<char*> args(argv, argv + argc);                 \
     char verbose[] = "-v2";                                     \
+    char maxw[] = "-maxwarnings";                               \
+    char maxwN[] = "0";                                         \
     args.push_back(verbose);                                    \
+    args.push_back(maxw);                                       \
+    args.push_back(maxwN);                                      \
     int n = static_cast<int>(args.size());                      \
     QGuiApplication app(n, args.data());                        \
     TestClass tc;                                               \
@@ -224,6 +229,26 @@ struct Harness {
     if (it == nullptr) {
       return false;
     }
+    // Scroll every Flickable ancestor so that the item is inside its viewport (a panel whose content grew, or
+    // whose text metrics differ per platform, may have the button below the fold).
+    for (QQuickItem* a = it->parentItem(); a != nullptr; a = a->parentItem()) {
+      const QVariant ch = a->property("contentHeight"), cy = a->property("contentY");
+      if (!ch.isValid() || !cy.isValid() || a->property("contentItem").value<QQuickItem*>() == nullptr) {
+        continue;
+      }
+      QQuickItem* content = a->property("contentItem").value<QQuickItem*>();
+      const QPointF inContent = it->mapToItem(content, QPointF(0, 0));
+      const qreal viewH = a->height();
+      qreal y = cy.toReal();
+      if (inContent.y() < y) {
+        y = inContent.y() - 8;
+      } else if (inContent.y() + it->height() > y + viewH) {
+        y = inContent.y() + it->height() - viewH + 8;
+      }
+      const qreal maxY = std::max<qreal>(0, ch.toReal() - viewH);
+      a->setProperty("contentY", std::clamp<qreal>(y, 0, maxY));
+    }
+    QQuickTest::qWaitForPolish(window);
     const QPointF p = it->mapToScene(QPointF(it->width() / 2, it->height() / 2));
     QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier, p.toPoint());
     return true;

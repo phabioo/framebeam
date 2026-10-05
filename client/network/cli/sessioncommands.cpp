@@ -109,7 +109,7 @@ void SessionCommands::publish() {
     });
     connect(socket_.get(), &HubSocket::signalReceived, host_.get(), [this](const SessionSignal& s) { host_->handleSignal(s); });
     connect(socket_.get(), &HubSocket::sessionEnded, this, [this](const SessionEnded& e) {
-      if (e.sessionId == sessionId_ && e.reason != QLatin1String("no_longer_visible")) {
+      if (!ending_ && e.sessionId == sessionId_ && e.reason != QLatin1String("no_longer_visible")) {
         host_->close();
         out() << "SHARE-ENDED " << e.reason << "\n";
         out().flush();
@@ -159,6 +159,7 @@ void SessionCommands::shareTick() {
     source_.stop();
     ticker_.stop();
     host_->close();
+    ending_ = true;  // our own DELETE: its session_ended event must not race the SHARE-DONE line
     api_->end(sessionId_, [this](const SessionApiResult& r) {
       out() << "SHARE-DONE " << (r.ok() ? "ended" : r.errorCode) << "\n";
       out().flush();
