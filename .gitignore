@@ -1,0 +1,37 @@
+# Go
+*.exe
+*.test
+*.out
+*.prof
+/server/bin/
+/server/dist/
+go.work.sum
+
+# CMake / C++
+build/
+out/
+cmake-build-*/
+CMakeUserPresets.json
+CMakeLists.txt.user
+vcpkg_installed/
+compile_commands.json
+
+# Qt Creator
+*.user
+*.autosave
+*.pro.user*
+.qtcreator/
+*.qmlproject.user*
+
+# IDEs
+.idea/
+.vscode/
+.vs/
+*.swp
+.DS_Store
+
+# Keine ROMs, Firmware-Dumps, Saves oder lokale Daten
+*.nds
+*.bin
+*.sav
+/data/
