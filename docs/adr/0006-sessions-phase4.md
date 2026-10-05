@@ -85,3 +85,31 @@ New error codes: `session_not_found` (404), `session_forbidden` (403, ACL), `ses
 
 - New Linux build prerequisite (libdatachannel script) and larger Windows vcpkg build (FFmpeg); both cached in CI.
 - Users and real foreign-user tests arrive with phase 5; the Hub tests cover foreign users already via `CreateUser`.
+
+## Implementation notes (phase 4 PR)
+
+Choices made where this ADR was silent.
+
+### Hub
+
+- `capability_missing` is HTTP 409. Devices that never reported capabilities are not blocked, only an explicit `false`.
+- In `invite_only`, a declined invite removes access (`session_ended` with reason `no_longer_visible` to that user's devices); a new invite reopens it. Withdraw always removes that user's viewers (they may rejoin if still allowed).
+- `session_ended` reasons: `ended|replaced|owner_disconnected|device_revoked|no_longer_visible`. A Session end sends `session_ended`, not per-viewer `viewer_left`.
+- `is_owner` and owner-only fields are per owner device.
+- A viewer or owner without WSS gets the 30 s grace, then removal. Active Sessions survive a Hub restart if the owner reconnects within the grace.
+- Rejoin by the same device returns the same `viewer_id`; joining your own Session is 400.
+- `presence_update` goes to all connected devices, plus a snapshot after `hello_ack`.
+- A newer WSS of the same device replaces the older one (close 1008). Hello timeout 10 s, read limit 64 KiB.
+- `signal` to an offline peer returns `not_found`.
+- `ice_servers` only via flag/env; `stun:` is enforced.
+- `GET /users` lists all users including admin.
+
+### Player
+
+- The encoder starts with the first frame after a viewer's PeerConnection is connected and stops with the last viewer.
+- Packet loss on the viewer is derived from RTP sequence numbers, n/a on the host. RTT is n/a (libdatachannel reports RTT only with an SCTP channel); follow-up.
+- Viewers close their PeerConnection on the Hub's `viewer_left`/`session_ended`. Early offers are buffered until the join response.
+- Encoding runs on the UI thread (cheap at 256 x 384; to verify locally with the real core).
+- Each surface draws the combined DS frame.
+- No automatic rejoin after a failed PeerConnection.
+- Linux CI/cloud uses libx264, Windows libopenh264; hardware encoders untested.
