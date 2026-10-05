@@ -13,13 +13,26 @@ $dll = Join-Path $out 'melondsds_libretro.dll'
 if (Test-Path $dll) { Write-Output $dll; exit 0 }
 
 New-Item -ItemType Directory -Force $out | Out-Null
-$zip = Join-Path $out $pin.MELONDS_DS_WIN_ASSET
-$url = "https://github.com/JesseTG/melonds-ds/releases/download/$($pin.MELONDS_DS_TAG)/$($pin.MELONDS_DS_WIN_ASSET)"
-Invoke-WebRequest -Uri $url -OutFile $zip
+$headers = @{ 'User-Agent' = 'framebeam-ci'; 'Accept' = 'application/vnd.github+json' }
+if ($env:GITHUB_TOKEN) { $headers['Authorization'] = "Bearer $($env:GITHUB_TOKEN)" }
+$rel = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/JesseTG/melonds-ds/releases/tags/$($pin.MELONDS_DS_TAG)"
+$names = @($rel.assets | ForEach-Object { $_.name })
+$hits = @($rel.assets | Where-Object { $_.name -match $pin.MELONDS_DS_WIN_ASSET -or $_.name -eq $pin.MELONDS_DS_WIN_ASSET })
+if ($hits.Count -gt 1) {
+  $rel_hits = @($hits | Where-Object { $_.name -match 'Release' -and $_.name -notmatch 'RelWithDebInfo|Debug' })
+  if ($rel_hits.Count -ge 1) { $hits = $rel_hits }
+}
+if ($hits.Count -ne 1) {
+  throw "Windows-Asset nicht eindeutig ($($hits.Count) Treffer fuer '$($pin.MELONDS_DS_WIN_ASSET)'). Assets von $($pin.MELONDS_DS_TAG): $($names -join ', ')"
+}
+$asset = $hits[0]
+Write-Host "Asset: $($asset.name)"
+$zip = Join-Path $out $asset.name
+Invoke-WebRequest -Headers @{ 'User-Agent' = 'framebeam-ci' } -Uri $asset.browser_download_url -OutFile $zip
 $actual = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
 if (-not $pin.MELONDS_DS_WIN_SHA256) {
   Remove-Item $zip
-  throw "MELONDS_DS_WIN_SHA256 in scripts/melonds-ds.pin ist leer. Berechneter Hash von $($pin.MELONDS_DS_WIN_ASSET): $actual"
+  throw "MELONDS_DS_WIN_SHA256 in scripts/melonds-ds.pin ist leer. Asset $($asset.name), berechneter SHA-256: $actual"
 }
 if ($actual -ne $pin.MELONDS_DS_WIN_SHA256.ToLower()) {
   Remove-Item $zip

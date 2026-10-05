@@ -129,6 +129,7 @@ jobs:
         shell: pwsh
         env:
           FRAMEBEAM_CACHE_DIR: ${{ github.workspace }}\.framebeam-cache
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           $dll = scripts/fetch-melonds-ds.ps1 | Select-Object -Last 1
           "dll=$dll" >> $env:GITHUB_OUTPUT
