@@ -1,6 +1,10 @@
 #include "profilestore.h"
 
+#include <QCoreApplication>
 #include <QDir>
+#include <QDirIterator>
+#include <QFileInfo>
+#include <QTemporaryFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -67,12 +71,82 @@ HubProfile fromJson(const QJsonObject& o) {
 
 }  // namespace
 
+namespace {
+
+bool dirIsWritable(const QString& path) {
+  if (path.isEmpty() || !QDir().mkpath(path)) {
+    return false;
+  }
+  QTemporaryFile probe(QDir(path).filePath(QStringLiteral(".framebeam-write-test-XXXXXX")));
+  return probe.open();  // Datei wird beim Zerstoeren geloescht
+}
+
+}  // namespace
+
+ProfileStore::BaseDirChoice ProfileStore::chooseBaseDir(const QString& appDir, const QString& appDataDir) {
+  if (!appDir.isEmpty()) {
+    const QString portable = QDir(appDir).filePath(QStringLiteral("data"));
+    if (dirIsWritable(portable)) {
+      return {portable, true};
+    }
+  }
+  return {appDataDir, false};
+}
+
+int ProfileStore::migrateLegacyData(const QString& legacyDir, const QString& newDir) {
+  if (legacyDir.isEmpty() || newDir.isEmpty() || QFileInfo(legacyDir).absoluteFilePath() == QFileInfo(newDir).absoluteFilePath() ||
+      !QFileInfo(legacyDir).isDir() || QFileInfo::exists(QDir(newDir).filePath(QStringLiteral("profiles.json")))) {
+    return 0;
+  }
+  const QDir src(legacyDir);
+  if (!src.exists(QStringLiteral("profiles.json")) && !src.exists(QStringLiteral("device.json")) &&
+      !src.exists(QStringLiteral("hubs"))) {
+    return 0;
+  }
+  int copied = 0;
+  QDirIterator it(legacyDir, QDir::Files | QDir::NoDotAndDotDot | QDir::NoSymLinks, QDirIterator::Subdirectories);
+  while (it.hasNext()) {
+    const QString from = it.next();
+    const QString rel = src.relativeFilePath(from);
+    if (rel.startsWith(QStringLiteral("cache/"))) {
+      continue;  // ROM-Cache wird nicht migriert (gross, wird neu geladen)
+    }
+    const QString to = QDir(newDir).filePath(rel);
+    if (QFileInfo::exists(to)) {
+      continue;  // nie etwas Bestehendes ueberschreiben
+    }
+    QDir().mkpath(QFileInfo(to).absolutePath());
+    if (QFile::copy(from, to)) {
+      ++copied;
+    } else {
+      qCWarning(lcProfiles) << "Migration: Datei nicht kopiert:" << rel;
+    }
+  }
+  return copied;
+}
+
 QString ProfileStore::defaultBaseDir() {
   const QByteArray env = qgetenv("FRAMEBEAM_DATA_DIR");
   if (!env.isEmpty()) {
-    return QString::fromLocal8Bit(env);
+    const QString dir = QString::fromLocal8Bit(env);
+    qCInfo(lcProfiles) << "Datenverzeichnis (FRAMEBEAM_DATA_DIR):" << dir;
+    return dir;
   }
-  return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+  const QString appData = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+  const QString appDir = QCoreApplication::instance() ? QCoreApplication::applicationDirPath() : QString();
+  const BaseDirChoice c = chooseBaseDir(appDir, appData);
+  if (!c.portable) {
+    qCInfo(lcProfiles) << "Datenverzeichnis (Rueckfall AppData, Programmverzeichnis nicht beschreibbar oder unbekannt):"
+                       << c.path;
+    return c.path;
+  }
+  qCInfo(lcProfiles) << "Datenverzeichnis (portabel):" << c.path;
+  const int n = migrateLegacyData(appData, c.path);
+  if (n > 0) {
+    qCInfo(lcProfiles) << "Daten aus" << appData << "nach" << c.path << "kopiert (" << n
+                       << "Dateien, Quelle unveraendert, ROM-Cache nicht migriert)";
+  }
+  return c.path;
 }
 
 bool ProfileStore::isValidHubId(const QString& hubId) {

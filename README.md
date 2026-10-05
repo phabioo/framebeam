@@ -73,7 +73,9 @@ make check-client                          # Preset über CLIENT_PRESET, Default
 client/build/linux-debug/app/framebeam_player [--data-dir <pfad>] [--dev-allow-http]
 ```
 
-`--data-dir` ersetzt AppData; `--dev-allow-http` erlaubt HTTP-Hubs außerhalb von localhost (nur Entwicklung). `scripts/e2e-player-hub.sh` prüft den Player-CLI gegen einen lokal gebauten Hub.
+Datenablage des Players (ROM-Cache, `profiles.json`, `device.json`, `hubs/<id>/` mit Saves, `system/`): Default portabel in `<Verzeichnis der Programmdatei>/data`. Ist das nicht beschreibbar (z. B. Program Files), Rückfall auf AppData (`QStandardPaths::AppDataLocation`). Beim ersten portablen Start werden vorhandene AppData-Daten einmalig kopiert (nichts wird verschoben, gelöscht oder überschrieben; ROM-Cache wird neu geladen). Credentials bleiben im OS-Credential-Store. `--data-dir` bzw. `FRAMEBEAM_DATA_DIR` haben Vorrang.
+
+`--data-dir` ersetzt den Default; `--dev-allow-http` erlaubt HTTP-Hubs außerhalb von localhost (nur Entwicklung). `scripts/e2e-player-hub.sh` prüft den Player-CLI gegen einen lokal gebauten Hub.
 
 Windows-Testpaket: CI-Artefakt `framebeam-player-windows-x64` aus dem Windows-Job entpacken und `framebeam_player.exe` starten (Core unter `cores/`).
 

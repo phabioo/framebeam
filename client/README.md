@@ -25,3 +25,7 @@ cmake -DFRAMEBEAM_MELONDS_DS_CORE=<pfad-zum-core> ...   # aktiviert die Core-Tes
 ```
 
 Ohne `FRAMEBEAM_MELONDS_DS_CORE` bauen alle Ziele; Tests mit `NEEDS_CORE` werden von ctest übersprungen. Tests laufen headless (`QT_QPA_PLATFORM=offscreen`) gegen einen Fake-Hub und eine zur Build-Zeit erzeugte Homebrew-Test-ROM.
+
+## Datenablage
+
+Default portabel: `<Verzeichnis der Programmdatei>/data` (ROM-Cache, `profiles.json`, `device.json`, `hubs/<id>/` inkl. Saves, `system/`, `probe/`), sofern dort ein echter Schreibtest gelingt. Sonst Rückfall auf AppData (`QStandardPaths::AppDataLocation`) mit Log-Hinweis (`framebeam.profiles`). Gibt es im portablen Ordner noch keine `profiles.json`, wird vorhandener AppData-Inhalt einmalig kopiert (Quelle bleibt unverändert, nichts wird überschrieben, `device_id` bleibt erhalten, ROM-Cache wird neu geladen). Credentials bleiben im OS-Credential-Store. `--data-dir` und `FRAMEBEAM_DATA_DIR` haben Vorrang.

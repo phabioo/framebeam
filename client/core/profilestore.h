@@ -24,10 +24,21 @@ struct HubProfile {
 // Lokale Datenablage: <base>/profiles.json, <base>/device.json, <base>/hubs/<hub_id>/, <base>/cache/roms/.
 class ProfileStore {
  public:
-  // baseDir leer: defaultBaseDir() (Env FRAMEBEAM_DATA_DIR, sonst QStandardPaths::AppDataLocation).
+  // baseDir leer: defaultBaseDir() (siehe unten).
   explicit ProfileStore(const QString& baseDir = QString());
 
+  // Reihenfolge: Env FRAMEBEAM_DATA_DIR, portabel <Programmverzeichnis>/data (nur wenn beschreibbar;
+  // einmalige Kopie aus AppData), sonst AppDataLocation.
   static QString defaultBaseDir();
+  struct BaseDirChoice {
+    QString path;
+    bool portable = false;
+  };
+  // Testbar: appDir leer = unbekannt -> Rueckfall appDataDir.
+  static BaseDirChoice chooseBaseDir(const QString& appDir, const QString& appDataDir);
+  // Kopiert (ohne ROM-Cache, ohne Ueberschreiben, ohne die Quelle anzufassen), wenn newDir noch keine
+  // profiles.json hat. Liefert die Anzahl kopierter Dateien.
+  static int migrateLegacyData(const QString& legacyDir, const QString& newDir);
   static bool isValidHubId(const QString& hubId);
 
   const QString& baseDir() const { return baseDir_; }
