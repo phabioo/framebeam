@@ -422,7 +422,12 @@ class SessionsUiTest : public QObject {
     QQuickTest::qWaitForPolish(h.window);
     QTRY_VERIFY(h.item("invite_u_sam") != nullptr && h.item("invite_u_sam")->isVisible());
     QVERIFY(h.click("invite_u_sam"));
-    QTRY_VERIFY_WITH_TIMEOUT(countContaining(hub, QStringLiteral("/invites/u_sam"), "PUT") == 1, 15000);
+    QTRY_VERIFY2_WITH_TIMEOUT(countContaining(hub, QStringLiteral("/invites/u_sam"), "PUT") == 1, [&]() {
+      QStringList l;
+      for (const FakeRequest& rq : hub.requests) l << QString::fromLatin1(rq.method) + QLatin1Char(' ') + rq.path;
+      return qPrintable(QStringLiteral("requests: ") + l.mid(l.size() - 8).join(QStringLiteral(" | ")) +
+                        QStringLiteral(" ; results=") + QString::number(ctl->userResults().size()) + QStringLiteral(" msg=") + ctl->message());
+    }(), 15000);
 
     // (the fake PUT answers with a bare Session: the Hub's next update restores viewers and invites)
     hub.sendWs(QStringLiteral("session_update"), {{QStringLiteral("session"), own}});

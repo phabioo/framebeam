@@ -177,14 +177,30 @@ struct Harness {
   }
 
   // By objectName; falls back to the visual tree (Repeater/Loader delegates are not QObject children of the window).
+  // Several items may share a name (Repeater delegates that are not yet deleted, per-layout copies): prefer one
+  // that is visible, enabled and in a window; fall back to the first of any kind.
   QQuickItem* item(const char* objectName) const {
     if (window == nullptr) {
       return nullptr;
     }
-    if (auto* it = window->findChild<QQuickItem*>(QString::fromLatin1(objectName))) {
-      return it;
+    const QString name = QString::fromLatin1(objectName);
+    QList<QQuickItem*> all = window->findChildren<QQuickItem*>(name);
+    for (QQuickItem* c : items(objectName)) {
+      if (!all.contains(c)) {
+        all.append(c);
+      }
     }
-    return findVisual(window->contentItem(), QString::fromLatin1(objectName));
+    for (QQuickItem* c : std::as_const(all)) {
+      if (c->isVisible() && c->isEnabled() && c->window() == window) {
+        return c;
+      }
+    }
+    for (QQuickItem* c : std::as_const(all)) {
+      if (c->isVisible() && c->window() == window) {
+        return c;
+      }
+    }
+    return all.isEmpty() ? nullptr : all.first();
   }
   static QQuickItem* findVisual(QQuickItem* root, const QString& name) {
     for (QQuickItem* c : root->childItems()) {
@@ -250,6 +266,26 @@ struct Harness {
     }
     QQuickTest::qWaitForPolish(window);
     const QPointF p = it->mapToScene(QPointF(it->width() / 2, it->height() / 2));
+    {  // hit test: report what is really under the click point (diagnostics for platform layout differences)
+      QQuickItem* hit = window->contentItem();
+      QPointF local = p;
+      while (QQuickItem* c = hit->childAt(local.x(), local.y())) {
+        local = hit->mapToItem(c, local);
+        hit = c;
+      }
+      bool inside = false;
+      for (QQuickItem* a = hit; a != nullptr; a = a->parentItem()) {
+        inside = inside || a == it;
+      }
+      for (QQuickItem* a = it; a != nullptr && !inside; a = a->parentItem()) {
+        inside = a == hit;  // clicked item is a child of the hit item (e.g. a hit-transparent label layer)
+      }
+      if (!inside) {
+        qWarning("[uitest] click on '%s' at (%.0f,%.0f) hits '%s' instead (item visible=%d size=%.0fx%.0f, window %dx%d)", objectName,
+                 p.x(), p.y(), qPrintable(hit->objectName()), it->isVisible() ? 1 : 0, it->width(), it->height(), window->width(),
+                 window->height());
+      }
+    }
     QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier, p.toPoint());
     return true;
   }

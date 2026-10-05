@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdarg>
+#include <QHash>
 #include <mutex>
 #include <cstdio>
 #include <cstring>
@@ -29,19 +30,17 @@ void RETRO_CALLCONV coreLog(enum retro_log_level level, const char* fmt, ...) {
   va_end(ap);
   QString msg = QString::fromUtf8(buf).trimmed();
   if (msg.isEmpty()) return;
-  // A core that logs the same warning every frame (seen on Windows CI) must not flood the log or QtTest's
-  // warning budget: repeats of the last message are counted and only every 1000th is reported.
-  if (level == RETRO_LOG_ERROR || level == RETRO_LOG_WARN) {
+  // The core (melonDS: "Layout 1/1", "retro_get_memory_data(...)") logs the same lines every frame, alternating,
+  // so only the first occurrence of each distinct message is reported, then every 1000th (with the count).
+  {
     static std::mutex m;
-    static QString last;
-    static int repeats = 0;
+    static QHash<QString, int> seen;
     std::lock_guard<std::mutex> lock(m);
-    if (msg == last) {
-      if (++repeats % 1000 != 0) return;
-      msg += QStringLiteral(" (repeated %1 times)").arg(repeats);
-    } else {
-      last = msg;
-      repeats = 0;
+    if (seen.size() > 256) seen.clear();
+    const int n = seen[msg]++;
+    if (n > 0) {
+      if (n % 1000 != 0) return;
+      msg += QStringLiteral(" (repeated %1 times)").arg(n);
     }
   }
   switch (level) {
