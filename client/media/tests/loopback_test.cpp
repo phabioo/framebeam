@@ -1,0 +1,241 @@
+// Loopback of the Session media path: SessionHost and SessionViewer(s) in one process with in-memory signaling.
+// Synthetic moving frames and a 440 Hz tone go through encoder, libdatachannel, decoder. No network, no Hub.
+#include <QImage>
+#include <QPainter>
+#include <QSignalSpy>
+#include <QtTest>
+#include <cmath>
+#include <memory>
+
+#include "mediacaps.h"
+#include "sessionhost.h"
+#include "sessionviewer.h"
+
+using namespace framebeam;
+
+namespace {
+constexpr int kW = 256;
+constexpr int kH = 384;
+constexpr int kCoreRate = 32768;  // typical DS rate: exercises the 48 kHz resampler
+const QColor kBackground(200, 60, 40);
+
+// Solid colour with a moving white bar: average colour is stable, content changes every frame.
+QImage syntheticFrame(int n, QImage::Format format = QImage::Format_RGB32) {
+  QImage img(kW, kH, QImage::Format_RGB32);
+  img.fill(kBackground);
+  QPainter p(&img);
+  p.fillRect((n * 4) % (kW - 16), (n * 3) % (kH - 16), 16, 16, Qt::white);
+  p.end();
+  return format == QImage::Format_RGB32 ? img : img.convertToFormat(format);
+}
+
+QColor averageColor(const QImage& img) {
+  qint64 r = 0, g = 0, b = 0;
+  for (int y = 0; y < img.height(); y += 4) {
+    for (int x = 0; x < img.width(); x += 4) {
+      const QRgb c = img.pixel(x, y);
+      r += qRed(c);
+      g += qGreen(c);
+      b += qBlue(c);
+    }
+  }
+  const qint64 n = (img.width() / 4) * (img.height() / 4);
+  return QColor(static_cast<int>(r / n), static_cast<int>(g / n), static_cast<int>(b / n));
+}
+
+// One Session with a host and N viewers, wired in memory the way the Hub would relay.
+struct Rig {
+  SessionHost host;
+  std::vector<std::unique_ptr<SessionViewer>> viewers;
+  QStringList ids;
+  QTimer source;
+  int frameNo = 0;
+  double phase = 0.0;
+  QImage::Format format = QImage::Format_RGB32;
+  const QString sessionId = QStringLiteral("00000000-0000-4000-8000-000000000001");
+
+  Rig() {
+    host.open(sessionId, {});
+    source.setInterval(16);
+    QObject::connect(&source, &QTimer::timeout, &host, [this]() {
+      host.pushFrame(syntheticFrame(frameNo++, format));
+      const int frames = kCoreRate / 60;
+      QByteArray pcm(frames * 4, 0);
+      auto* s = reinterpret_cast<qint16*>(pcm.data());
+      for (int i = 0; i < frames; ++i) {
+        const auto v = static_cast<qint16>(12000.0 * std::sin(phase));
+        phase += 2.0 * M_PI * 440.0 / kCoreRate;
+        s[2 * i] = s[2 * i + 1] = v;
+      }
+      host.pushAudio(pcm, kCoreRate);
+    });
+  }
+  ~Rig() { source.stop(); }
+
+  SessionViewer* addViewer() {
+    const QString id = QStringLiteral("viewer-%1").arg(viewers.size() + 1);
+    auto v = std::make_unique<SessionViewer>();
+    QObject::connect(v.get(), &SessionViewer::signalOut, &host, &SessionHost::handleSignal);
+    QObject::connect(&host, &SessionHost::signalOut, v.get(), [vp = v.get()](const SessionSignal& s) { vp->handleSignal(s); });
+    v->open(sessionId, id, {});
+    host.addViewer(id);  // = viewer_joined from the Hub
+    ids << id;
+    viewers.push_back(std::move(v));
+    return viewers.back().get();
+  }
+};
+}  // namespace
+
+class LoopbackTest : public QObject {
+  Q_OBJECT
+ private slots:
+  void capabilitiesAreTruthful() {
+    const MediaCapabilities c = detectMediaCapabilities();
+    QVERIFY(c.h264Decode);
+    QVERIFY(c.opus);
+    QVERIFY2(c.h264Encode && !c.encoders.isEmpty(), "no H.264 encoder opens");
+    HandshakeInfo h;
+    applyMediaCapabilities(&h);
+    QCOMPARE(h.h264Encode, c.h264Encode);
+    QCOMPARE(h.encoders, c.encoders);
+  }
+
+  void noEncodingWithoutViewers() {
+    Rig rig;
+    for (int i = 0; i < 20; ++i) {
+      rig.host.pushFrame(syntheticFrame(i));
+    }
+    QVERIFY(!rig.host.encoderRunning());
+    QCOMPARE(rig.host.viewerCount(), 0);
+  }
+
+  void videoAndAudioArriveAndViewerRemovalStopsEverything() {
+    Rig rig;
+    QSignalSpy encoderSpy(&rig.host, &SessionHost::encoderRunningChanged);
+    QSignalSpy closedSpy(&rig.host, &SessionHost::viewerClosed);
+    SessionViewer* viewer = rig.addViewer();
+
+    int frames = 0, wrongSize = 0, nonSilentPulls = 0;
+    QColor lastColor;
+    QObject::connect(viewer, &SessionViewer::frameReady, this, [&](const QImage& f) {
+      ++frames;
+      if (f.width() != kW || f.height() != kH) {
+        ++wrongSize;
+      }
+      lastColor = averageColor(f);
+    });
+    // Audio output stand-in: pulls 10 ms every 10 ms.
+    double energy = 0;
+    qint64 samples = 0;
+    QTimer sink;
+    sink.setInterval(10);
+    QObject::connect(&sink, &QTimer::timeout, this, [&]() {
+      const QByteArray pcm = viewer->pullAudio(480);
+      const auto* s = reinterpret_cast<const qint16*>(pcm.constData());
+      bool nonSilent = false;
+      for (int i = 0; i < 960; ++i) {
+        energy += double(s[i]) * s[i];
+        ++samples;
+        nonSilent = nonSilent || s[i] != 0;
+      }
+      nonSilentPulls += nonSilent ? 1 : 0;
+    });
+    sink.start();
+    rig.source.start();
+
+    QVERIFY(QTest::qWaitFor([&]() { return viewer->isConnected(); }, 15000));
+    QVERIFY2(QTest::qWaitFor([&]() { return frames >= 60 && nonSilentPulls >= 20; }, 15000),
+             qPrintable(QStringLiteral("frames=%1 nonSilentPulls=%2").arg(frames).arg(nonSilentPulls)));
+    QVERIFY(rig.host.encoderRunning());
+    QCOMPARE(encoderSpy.count(), 1);
+    QCOMPARE(wrongSize, 0);
+    QVERIFY2(std::abs(lastColor.red() - kBackground.red()) < 30 && std::abs(lastColor.green() - kBackground.green()) < 30 &&
+                 std::abs(lastColor.blue() - kBackground.blue()) < 30,
+             qPrintable(lastColor.name()));
+    const double rms = std::sqrt(energy / double(std::max<qint64>(1, samples)));
+    QVERIFY2(rms > 1500.0, qPrintable(QString::number(rms)));  // tone amplitude 12000 -> RMS ~8500, minus silence while priming
+    QVERIFY(viewer->audioPeak() > 8000);
+
+    // Stats on both sides (the host/viewer refresh them once a second).
+    QVERIFY(QTest::qWaitFor([&]() { return rig.host.stats().viewers == 1 && rig.host.stats().videoBitrateKbps > 0; }, 5000));
+    QTest::qWait(1200);
+    const SessionStats hs = rig.host.stats();
+    const SessionStats vs = viewer->stats();
+    QVERIFY(!hs.encoderName.isEmpty());
+    QCOMPARE(hs.codec, QStringLiteral("H264 + Opus"));
+    QCOMPARE(hs.width, kW);
+    QVERIFY2(hs.fps > 20.0 && hs.fps < 70.0, qPrintable(QString::number(hs.fps)));
+    QVERIFY(hs.videoBitrateKbps > 50.0);
+    QVERIFY2(hs.audioBitrateKbps > 20.0 && hs.audioBitrateKbps < 200.0, qPrintable(QString::number(hs.audioBitrateKbps)));
+    QVERIFY(!hs.packetLossPercent.has_value());
+    QVERIFY2(vs.fps > 20.0, qPrintable(QString::number(vs.fps)));
+    QCOMPARE(vs.width, kW);
+    QVERIFY2(vs.connectionType == QLatin1String("host") || vs.connectionType == QLatin1String("srflx"), qPrintable(vs.connectionType));
+    QVERIFY(vs.audioFrames > 0);
+    QVERIFY(rig.host.viewerLinks().size() == 1);
+
+    // Viewer removal (viewer_left): the PeerConnection closes immediately, the encoder stops.
+    rig.host.removeViewer(rig.ids.first());
+    QCOMPARE(rig.host.viewerCount(), 0);
+    QVERIFY(!rig.host.encoderRunning());
+    QCOMPARE(encoderSpy.count(), 2);
+    QCOMPARE(closedSpy.count(), 1);
+    QVERIFY2(closedSpy.first().at(1).toString().endsWith(QStringLiteral(":closed")), qPrintable(closedSpy.first().at(1).toString()));
+    // The Hub sends viewer_left to the viewer side as well; it closes its PeerConnection immediately.
+    viewer->close();
+    QVERIFY(!viewer->isConnected());
+    QVERIFY(!viewer->isOpen());
+    // Frames pushed with nobody watching are dropped without restarting the encoder.
+    rig.host.pushFrame(syntheticFrame(1));
+    QVERIFY(!rig.host.encoderRunning());
+  }
+
+  void oneEncoderForSeveralViewersRgb565() {
+    Rig rig;
+    rig.format = QImage::Format_RGB16;  // raw RGB565 path
+    SessionViewer* v1 = rig.addViewer();
+    SessionViewer* v2 = rig.addViewer();
+    int f1 = 0, f2 = 0;
+    QColor c2;
+    QObject::connect(v1, &SessionViewer::frameReady, this, [&](const QImage&) { ++f1; });
+    QObject::connect(v2, &SessionViewer::frameReady, this, [&](const QImage& f) {
+      ++f2;
+      c2 = averageColor(f);
+    });
+    QSignalSpy encoderSpy(&rig.host, &SessionHost::encoderRunningChanged);
+    rig.source.start();
+    QVERIFY2(QTest::qWaitFor([&]() { return f1 >= 40 && f2 >= 40; }, 20000), qPrintable(QStringLiteral("%1/%2").arg(f1).arg(f2)));
+    QCOMPARE(encoderSpy.count(), 1);  // one encoder start for both viewers
+    QVERIFY(std::abs(c2.red() - kBackground.red()) < 30 && std::abs(c2.green() - kBackground.green()) < 30 &&
+            std::abs(c2.blue() - kBackground.blue()) < 30);
+
+    rig.host.removeViewer(rig.ids.at(0));
+    QCOMPARE(rig.host.viewerCount(), 1);
+    QVERIFY(rig.host.encoderRunning());  // the second viewer keeps it alive
+    const int before = f2;
+    QVERIFY(QTest::qWaitFor([&]() { return f2 >= before + 20; }, 10000));
+
+    // Session end: everything closes at once.
+    rig.host.close();
+    QCOMPARE(rig.host.viewerCount(), 0);
+    QVERIFY(!rig.host.encoderRunning());
+    v2->close();  // session_ended reaches the viewer side
+    QVERIFY(!v2->isConnected());
+  }
+
+  void lateJoinerGetsKeyframe() {
+    Rig rig;
+    SessionViewer* v1 = rig.addViewer();
+    int f1 = 0;
+    QObject::connect(v1, &SessionViewer::frameReady, this, [&](const QImage&) { ++f1; });
+    rig.source.start();
+    QVERIFY(QTest::qWaitFor([&]() { return f1 >= 30; }, 15000));
+    SessionViewer* v2 = rig.addViewer();  // joins mid-GOP: must start decoding quickly (keyframe on join / PLI)
+    int f2 = 0;
+    QObject::connect(v2, &SessionViewer::frameReady, this, [&](const QImage&) { ++f2; });
+    QVERIFY(QTest::qWaitFor([&]() { return f2 >= 20; }, 15000));
+  }
+};
+
+QTEST_GUILESS_MAIN(LoopbackTest)
+#include "loopback_test.moc"

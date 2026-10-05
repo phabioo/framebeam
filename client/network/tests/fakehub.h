@@ -77,6 +77,18 @@ class FakeHub : public QTcpServer {
   void setHubSave(const QString& gameId, const QByteArray& content, const QString& deviceId = QStringLiteral("other-device"),
                   const QString& deviceName = QStringLiteral("Laptop Office"));
 
+  // Sessions (sessions_v1): minimal in-memory REST + WSS (own WebSocket implementation on the same TLS port)
+  QMap<QString, QJsonObject> sessions;  // session_id -> Session JSON (as REST)
+  bool publishCapabilityMissing = false;
+  bool joinFull = false;
+  bool refuseWs = false;                  // WSS upgrade answered with 401
+  QList<QJsonObject> wsReceived;          // envelopes received from the Player (all connections)
+  QByteArray lastWsAuthorization;
+  int wsConnections = 0;                  // upgrades accepted so far
+  int wsOpen() const { return static_cast<int>(wsClients_.size()); }
+  void sendWs(const QString& type, const QJsonObject& payload);  // to every open WSS connection
+  void closeWsClients();                                         // drops the connections (reconnect tests)
+
   // Observation
   QList<FakeRequest> requests;
   int count(const QString& pathPrefix) const;
@@ -95,6 +107,12 @@ class FakeHub : public QTcpServer {
                const QList<QPair<QByteArray, QByteArray>>& extra = {}, qint64 truncateAt = -1);
   void respondError(QSslSocket* sock, int status, const QString& code);
   void handleSaves(QSslSocket* sock, const FakeRequest& req);
+  void handleSessions(QSslSocket* sock, const FakeRequest& req);
+  void upgradeWs(QSslSocket* sock, const FakeRequest& req);
+  void onWsData(QSslSocket* sock);
+  void wsWrite(QSslSocket* sock, quint8 opcode, const QByteArray& payload);
+  QList<QSslSocket*> wsClients_;
+  QHash<QSslSocket*, QByteArray> wsBuffers_;
   QJsonObject slotJson(const QString& gameId, const FakeSlot& s) const;
   QJsonObject conflictJson(const QString& gameId, const FakeSlot& s, const FakeConflict& c) const;
   bool bearerIs(const FakeRequest& req, const QByteArray& prefix) const;

@@ -1,5 +1,5 @@
 # framebeam_media_deps: INTERFACE target with the Phase 4 media dependencies on both platforms
-# (LibDataChannel, FFmpeg avcodec/swscale/avutil, Opus). Sources of the media path are added here later.
+# (LibDataChannel, FFmpeg avcodec/swscale/avutil, Opus).
 #  Linux:   libdatachannel from scripts/fetch-libdatachannel.sh (CMAKE_PREFIX_PATH / LibDataChannel_ROOT),
 #           FFmpeg and Opus from apt via pkg-config.
 #  Windows: everything from vcpkg (client/vcpkg.json).
@@ -22,3 +22,25 @@ else()
 endif()
 
 framebeam_add_test(media_deps tests/media_deps_test.cpp LIBS framebeam_media_deps)
+
+# Audio helper without media dependencies (also used by framebeam_ui for the output resampler).
+add_library(framebeam_audioutil STATIC audioresampler.cpp)
+target_include_directories(framebeam_audioutil PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(framebeam_audioutil PUBLIC Qt6::Core)
+framebeam_warnings(framebeam_audioutil)
+
+# framebeam_media: Session media path (ADR 0006 D5): H.264/Opus encode and decode, SessionHost (owner) and
+# SessionViewer. Signaling is decoupled (Qt signals/slots), the Hub clients live in framebeam_core (network/).
+add_library(framebeam_media STATIC
+  videoencoder.cpp
+  videodecoder.cpp
+  opuscodec.cpp
+  mediacaps.cpp
+  sessionhost.cpp
+  sessionviewer.cpp
+)
+target_include_directories(framebeam_media PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(framebeam_media PUBLIC framebeam_core framebeam_audioutil framebeam_media_deps Qt6::Gui)
+framebeam_warnings(framebeam_media)
+
+framebeam_add_test(media_loopback tests/loopback_test.cpp LIBS framebeam_media)

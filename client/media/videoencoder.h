@@ -1,0 +1,64 @@
+#pragma once
+
+#include <QString>
+#include <QStringList>
+#include <cstdint>
+#include <memory>
+#include <vector>
+
+struct AVCodecContext;
+struct AVFrame;
+struct AVPacket;
+struct SwsContext;
+
+namespace framebeam {
+
+struct EncodedVideoPacket {
+  std::vector<uint8_t> data;  // Annex B (start codes), SPS/PPS in-band before keyframes
+  bool keyframe = false;
+  int64_t pts = 0;            // in 1/fps ticks as passed to encode()
+};
+
+enum class RawPixelFormat { Xrgb8888, Rgb565 };  // libretro formats, native endian
+
+// H.264 encoder over libavcodec: low latency, no B-frames, constant bitrate, GOP 2 s (ADR 0006 D5).
+class VideoEncoder {
+ public:
+  VideoEncoder();
+  ~VideoEncoder();
+  VideoEncoder(const VideoEncoder&) = delete;
+  VideoEncoder& operator=(const VideoEncoder&) = delete;
+
+  // Preference per ADR 0006 D5.
+  static QStringList preferredEncoders();
+
+  // Opens the first encoder of `order` (empty: preferredEncoders()) that works. False if none opens.
+  bool open(int width, int height, int fps = 60, int bitrate = 2'000'000, const QStringList& order = {});
+  void close();
+  bool isOpen() const { return ctx_ != nullptr; }
+  QString name() const { return name_; }
+  int width() const { return width_; }
+  int height() const { return height_; }
+
+  // The next frame becomes an IDR frame (viewer joined, PLI).
+  void requestKeyframe() { forceKeyframe_ = true; }
+
+  // Encodes one frame (size must match open()) and appends the finished packets to `out` (no B-frames: normally one).
+  bool encode(const uint8_t* data, int stride, RawPixelFormat format, int64_t pts, std::vector<EncodedVideoPacket>& out);
+
+ private:
+  bool openWith(const QString& name, int width, int height, int fps, int bitrate);
+
+  AVCodecContext* ctx_ = nullptr;
+  AVFrame* frame_ = nullptr;
+  AVPacket* pkt_ = nullptr;
+  SwsContext* sws_ = nullptr;
+  int swsFormat_ = -1;
+  QString name_;
+  int width_ = 0;
+  int height_ = 0;
+  int swsSrcFormat_ = -1;
+  bool forceKeyframe_ = true;
+};
+
+}  // namespace framebeam

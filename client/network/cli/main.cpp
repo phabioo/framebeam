@@ -6,6 +6,9 @@
 //   saves list | save push <game_id> <file> [--base N] [--reason checkpoint|final|final_session_end]
 //   save pull <game_id> <out> | save resolve <game_id> <conflict_id> use_hub|use_local --expected N
 //     (slot "default"; output lines OK/CONFLICT/STALE/ERROR; exit 0 ok, 1 error, 3 upload conflict, 4 stale resolve)
+//   session-share [--game <id>] [--visibility private|hub_users|invite_only] [--synthetic] [--seconds N]
+//   session-watch (--session <id> | --first) [--seconds N]      (Sessions: ADR 0006; follow-up commands of "pair" like
+//     the others; share publishes a Session with synthetic frames/tone, watch exits 0 with >= 30 frames and audio)
 //   games | fetch-rom <sha256>      (uses the last connected profile; Linux: credential in memory only,
 //                                    so use them there as follow-up commands of "pair")
 // Options: --data-dir <path> (otherwise FRAMEBEAM_DATA_DIR / AppDataLocation).
@@ -23,6 +26,8 @@
 #include "romcache.h"
 #include "romdownloader.h"
 #include "saveapi.h"
+#include "mediacaps.h"
+#include "sessioncommands.h"
 
 using namespace framebeam;
 
@@ -66,7 +71,8 @@ class Runner : public QObject {
       }
       address_ = rest.takeFirst();
     } else if (command_ != QLatin1String("games") && command_ != QLatin1String("fetch-rom") &&
-               command_ != QLatin1String("saves") && command_ != QLatin1String("save")) {
+               command_ != QLatin1String("saves") && command_ != QLatin1String("save") &&
+               command_ != QLatin1String("session-share") && command_ != QLatin1String("session-watch")) {
       return usage();
     } else {
       rest.prepend(command_);
@@ -77,6 +83,9 @@ class Runner : public QObject {
     profiles_ = std::make_unique<ProfileStore>(dataDir);
     credentials_ = createDefaultCredentialStore();
     conn_ = std::make_unique<HubConnection>(profiles_.get(), credentials_.get());
+    HandshakeInfo hs = HandshakeInfo::detect();
+    applyMediaCapabilities(&hs);  // h264_encode/h264_decode/encoders from what libavcodec can really open
+    conn_->setHandshakeInfo(hs);
     library_ = std::make_unique<HubLibrary>(conn_.get());
     cache_ = std::make_unique<RomCache>(profiles_->romCacheDir());
     downloader_ = std::make_unique<RomDownloader>(conn_.get(), cache_.get());
@@ -105,6 +114,8 @@ class Runner : public QObject {
              "        framebeam_player_cli pair <address> [--dev] [--accept-fingerprint] [games] [fetch-rom <sha256>]\n"
              "        framebeam_player_cli games | fetch-rom <sha256>   [--data-dir <path>]\n"
              "        framebeam_player_cli saves list | save push <game_id> <file> [--base N] | save pull <game_id> <out>\n"
+             "        framebeam_player_cli session-share [--game <id>] [--visibility V] --synthetic [--seconds N]\n"
+             "        framebeam_player_cli session-watch (--session <id> | --first) [--seconds N]\n"
              "                             | save resolve <game_id> <conflict_id> use_hub|use_local --expected N\n";
     return 1;
   }
@@ -224,6 +235,20 @@ class Runner : public QObject {
       nextFollowUp();
     } else if (cmd == QLatin1String("saves") || cmd == QLatin1String("save")) {
       runSaveCommand(cmd);
+    } else if (cmd == QLatin1String("session-share") || cmd == QLatin1String("session-watch")) {
+      // Options up to the next known command belong to this one; the command runs until its end (exit code).
+      QStringList opts;
+      while (!followUps_.isEmpty() && followUps_.first().startsWith(QLatin1String("--"))) {
+        opts << followUps_.takeFirst();
+        if (!followUps_.isEmpty() && !followUps_.first().startsWith(QLatin1String("--")) && opts.last() != QLatin1String("--synthetic") &&
+            opts.last() != QLatin1String("--first")) {
+          opts << followUps_.takeFirst();
+        }
+      }
+      sessions_ = std::make_unique<SessionCommands>(conn_.get(), library_.get(), [this](int code) { finish(code); });
+      if (!(cmd == QLatin1String("session-share") ? sessions_->share(opts) : sessions_->watch(opts))) {
+        finish(1);
+      }
     } else if (cmd == QLatin1String("wait-revoked")) {
       revokeWatch_ = new QTimer(this);
       revokeWatch_->setInterval(1000);
@@ -387,6 +412,7 @@ class Runner : public QObject {
   std::unique_ptr<RomCache> cache_;
   std::unique_ptr<RomDownloader> downloader_;
   std::unique_ptr<SaveApi> saves_;
+  std::unique_ptr<SessionCommands> sessions_;
 };
 
 }  // namespace
