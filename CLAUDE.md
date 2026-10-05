@@ -30,7 +30,7 @@ FrameBeam ist eine selbst gehostete Retro-Gaming-Plattform (Monorepo): zentrale 
 - `make build-hub`: Hub-Binaries `server/dist/framebeam-hub-linux-{amd64,arm64}` (`HUB_VERSION` setzbar).
 - `make generate`: Go-Codegen (oapi-codegen) neu erzeugen.
 
-CI (`.github/workflows/ci.yml`): Linux bei jedem Push, Windows bei PRs gegen `main` und manuell. Der SessionStart-Hook `.claude/hooks/session-start.sh` bereitet nur Cloud-Sessions vor (vcpkg, Go-Module; ohne Qt).
+CI (`.github/workflows/ci.yml`): Linux bei jedem Push, Windows bei PRs gegen `main` und manuell. Der SessionStart-Hook `.claude/hooks/session-start.sh` bereitet nur Cloud-Sessions vor (vcpkg, Go-Module, Qt-apt-Pakete; der Core-Build läuft nur über `make fetch-core`).
 
 ## Wegweiser
 
