@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# Leise Prüfschritte: Ausgabe gepuffert, bei Fehler nur die letzten 40 Zeilen.
+# Aufruf: scripts/check.sh hub-fmt|hub-vet|hub-test|hub-codegen|hub-build|generate|client|hub|all
+set -uo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export CGO_ENABLED=0 GOTOOLCHAIN=local
+export VCPKG_ROOT="${VCPKG_ROOT:-$HOME/.cache/framebeam/vcpkg}"
+status=0
+
+# step <Label> <Befehl...>: führt aus, meldet "ok  label" oder "FAIL label" + Log-Ende.
+step() {
+  local label="$1"; shift
+  local log; log="$(mktemp)"
+  if "$@" >"$log" 2>&1; then
+    echo "ok  $label"
+  else
+    echo "FAIL $label"
+    tail -n 40 "$log"
+    status=1
+  fi
+  rm -f "$log"
+}
+
+hub_fmt() {
+  local out; out="$(cd "$ROOT/server" && gofmt -l .)" || return 1
+  [ -z "$out" ] || { echo "nicht gofmt-formatiert:"; echo "$out"; return 1; }
+}
+hub_vet()  { (cd "$ROOT/server" && go vet ./...); }
+hub_test() { (cd "$ROOT/server" && go test ./...); }
+generate() { (cd "$ROOT/server" && go generate ./...); }
+hub_codegen() {
+  local before after
+  before="$(cd "$ROOT/server/internal/api" && cat ./*.gen.go | sha256sum)"
+  generate || return 1
+  after="$(cd "$ROOT/server/internal/api" && cat ./*.gen.go | sha256sum)"
+  [ "$before" = "$after" ] || { echo "Generierter Code veraltet: 'make generate' ausfuehren und einchecken"; return 1; }
+  (cd "$ROOT/server" && go mod tidy -diff) || { echo "go.mod/go.sum nicht tidy: 'go mod tidy' ausfuehren"; return 1; }
+}
+hub_build() {
+  local arch
+  mkdir -p "$ROOT/server/dist"
+  for arch in amd64 arm64; do
+    (cd "$ROOT/server" && GOOS=linux GOARCH="$arch" go build -trimpath \
+      -ldflags "-s -w -X github.com/phabioo/framebeam/server/internal/version.Version=${HUB_VERSION:-dev}" \
+      -o "dist/framebeam-hub-linux-$arch" ./cmd/framebeam-hub) || return 1
+  done
+}
+client() {
+  local p="${CLIENT_PRESET:-linux-debug}"
+  step "client: configure" bash -c "cd '$ROOT/client' && cmake --preset $p"
+  step "client: build"     bash -c "cd '$ROOT/client' && cmake --build --preset $p"
+  step "client: test"      bash -c "cd '$ROOT/client' && ctest --preset $p"
+}
+
+case "${1:-all}" in
+  hub-fmt)     step "hub: fmt" hub_fmt ;;
+  hub-vet)     step "hub: vet" hub_vet ;;
+  hub-test)    step "hub: test" hub_test ;;
+  hub-codegen) step "hub: codegen" hub_codegen ;;
+  hub)   step "hub: fmt" hub_fmt; step "hub: vet" hub_vet; step "hub: test" hub_test; step "hub: codegen" hub_codegen ;;
+  hub-build) step "hub: build linux/amd64+arm64" hub_build ;;
+  generate)  step "hub: generate" generate ;;
+  client)    client ;;
+  all)       "$0" hub || status=1; "$0" client || status=1 ;;
+  *) echo "unbekannter Schritt: $1" >&2; exit 2 ;;
+esac
+exit "$status"

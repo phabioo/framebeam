@@ -1,0 +1,9 @@
+# Platzhalter: Endpunkte und Schemas legt Phase 1 fest (siehe docs/arbeitsweise.md).
+openapi: 3.0.3
+info:
+  title: FrameBeam Hub API
+  version: 0.0.0
+  description: Platzhalter ohne Endpunkte.
+servers:
+  - url: /api/v1
+paths: {}
