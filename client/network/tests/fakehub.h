@@ -5,6 +5,7 @@
 
 #include <QByteArray>
 #include <QHash>
+#include <QJsonArray>
 #include <QJsonObject>
 #include <QList>
 #include <QMap>
@@ -79,6 +80,7 @@ class FakeHub : public QTcpServer {
 
   // Sessions (sessions_v1): minimal in-memory REST + WSS (own WebSocket implementation on the same TLS port)
   QMap<QString, QJsonObject> sessions;  // session_id -> Session JSON (as REST)
+  QJsonArray fakeUsers;                 // GET /users (empty: only the test user)
   bool publishCapabilityMissing = false;
   bool joinFull = false;
   bool refuseWs = false;                  // WSS upgrade answered with 401

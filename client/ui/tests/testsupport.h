@@ -171,8 +171,41 @@ struct Harness {
     controller.reset();
   }
 
+  // By objectName; falls back to the visual tree (Repeater/Loader delegates are not QObject children of the window).
   QQuickItem* item(const char* objectName) const {
-    return window ? window->findChild<QQuickItem*>(QString::fromLatin1(objectName)) : nullptr;
+    if (window == nullptr) {
+      return nullptr;
+    }
+    if (auto* it = window->findChild<QQuickItem*>(QString::fromLatin1(objectName))) {
+      return it;
+    }
+    return findVisual(window->contentItem(), QString::fromLatin1(objectName));
+  }
+  static QQuickItem* findVisual(QQuickItem* root, const QString& name) {
+    for (QQuickItem* c : root->childItems()) {
+      if (c->objectName() == name) {
+        return c;
+      }
+      if (auto* r = findVisual(c, name)) {
+        return r;
+      }
+    }
+    return nullptr;
+  }
+  static void collectVisual(QQuickItem* root, const QString& name, QList<QQuickItem*>& out) {
+    for (QQuickItem* c : root->childItems()) {
+      if (c->objectName() == name) {
+        out.append(c);
+      }
+      collectVisual(c, name, out);
+    }
+  }
+  QList<QQuickItem*> items(const char* objectName) const {
+    QList<QQuickItem*> out;
+    if (window != nullptr) {
+      collectVisual(window->contentItem(), QString::fromLatin1(objectName), out);
+    }
+    return out;
   }
   bool click(const char* objectName) const {
     // Let pending layout polish finish first: right after a state change a freshly shown item can still carry
@@ -180,6 +213,15 @@ struct Harness {
     QQuickTest::qWaitForPolish(window);
     QQuickItem* it = item(objectName);
     if (it == nullptr || !it->isVisible() || !it->isEnabled()) {
+      it = nullptr;  // several items may share a name (e.g. per layout): take the first visible, enabled one
+      for (QQuickItem* c : items(objectName)) {
+        if (c->isVisible() && c->isEnabled()) {
+          it = c;
+          break;
+        }
+      }
+    }
+    if (it == nullptr) {
       return false;
     }
     const QPointF p = it->mapToScene(QPointF(it->width() / 2, it->height() / 2));

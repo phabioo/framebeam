@@ -55,6 +55,51 @@ Rectangle {
                 }
             }
 
+            Rectangle {
+                objectName: "hubLinkBanner"
+                Layout.fillWidth: true
+                visible: root.player.sessions.available && root.player.sessions.hubLink !== "online"
+                implicitHeight: 34
+                radius: 8
+                color: Theme.warnBg
+                FbLabel {
+                    anchors.fill: parent
+                    anchors.leftMargin: 12
+                    verticalAlignment: Text.AlignVCenter
+                    text: root.player.sessions.hubLink === "connecting" ? qsTr("Connecting to the Hub for Sessions…")
+                          : qsTr("Hub connection for Sessions lost · reconnecting…")
+                    color: Theme.warn
+                    font.pixelSize: 13
+                }
+            }
+
+            Rectangle {
+                objectName: "sessionMessage"
+                Layout.fillWidth: true
+                visible: root.player.sessions.message !== ""
+                implicitHeight: 34
+                radius: 8
+                color: root.player.sessions.messageIsError ? Theme.errorBg : Theme.surfaceRaised
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: 12
+                    anchors.rightMargin: 8
+                    FbLabel {
+                        Layout.fillWidth: true
+                        text: root.player.sessions.message
+                        color: root.player.sessions.messageIsError ? Theme.errorText : Theme.text
+                        font.pixelSize: 13
+                        elide: Text.ElideRight
+                    }
+                    FbButton { kind: "link"; text: qsTr("Dismiss"); onClicked: root.player.sessions.dismissMessage() }
+                }
+            }
+
+            SessionsSection {
+                Layout.fillWidth: true
+                player: root.player
+            }
+
             RowLayout {
                 spacing: 8
                 Repeater {

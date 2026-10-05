@@ -419,6 +419,10 @@ void FakeHub::handleSessions(QSslSocket* sock, const FakeRequest& req) {
   const auto json = [](const QJsonObject& o) { return QJsonDocument(o).toJson(QJsonDocument::Compact); };
   const QJsonObject body = QJsonDocument::fromJson(req.body).object();
   const QString path = req.path.mid(QStringLiteral("/api/v1").size());
+  if (path == QLatin1String("/users") && req.method == "GET" && !fakeUsers.isEmpty()) {
+    respond(sock, 200, json({{QStringLiteral("users"), fakeUsers}}));
+    return;
+  }
   if (path == QLatin1String("/users") && req.method == "GET") {
     respond(sock, 200, json({{QStringLiteral("users"), QJsonArray{QJsonObject{{QStringLiteral("id"), QStringLiteral("u_test_1")},
                                                                                {QStringLiteral("display_name"), QStringLiteral("Tester")},

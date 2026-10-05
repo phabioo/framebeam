@@ -8,6 +8,7 @@
 #include <algorithm>
 
 #include "libretro_backend.h"
+#include "mediacaps.h"
 #include "version.h"
 
 namespace framebeam::ui {
@@ -69,8 +70,11 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   }
   HandshakeInfo info = HandshakeInfo::detect();
   info.cores = coreList_;
+  applyMediaCapabilities(&info);  // h264_encode/h264_decode/encoders as libavcodec can really open them
   conn_->setHandshakeInfo(info);
 
+  sessions_ = std::make_unique<SessionController>(conn_.get(), profiles_.get(), &session_);
+  connect(sessions_.get(), &SessionController::watchChanged, this, &PlayerController::updateScreen);
   connect(conn_.get(), &HubConnection::stateChanged, this, &PlayerController::onConnectionState);
   connect(conn_.get(), &HubConnection::errorOccurred, this, [this](const QString&, const QString& message) {
     lastError_ = message;
@@ -103,6 +107,11 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     saves_->beginSession();
     phase_ = PlayPhase::None;
     gameActive_ = true;
+    sessions_->gameStarted(launchGame_.id, launchGame_.title);
+    if (shareOnStart_) {
+      shareOnStart_ = false;
+      sessions_->shareSession();
+    }
     updateScreen();
     emit selectedGameChanged();
   });
@@ -114,7 +123,8 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   connect(&session_, &GameSession::startFailed, this, [this](const QString& msg) {
     saves_->finalSync(true);
     phase_ = PlayPhase::None;
-    gameActive_ = false;
+    shareOnStart_ = false;
+    endGameContext();
     startError_ = tr("The emulator could not start: %1").arg(msg);
     updateScreen();
     emit selectedGameChanged();
@@ -123,7 +133,7 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     // Runtime error in the game: back to the Library, error shown in the detail pane.
     if (gameActive_ && session_.state() == GameSession::Failed) {
       saves_->finalSync(true);
-      gameActive_ = false;
+      endGameContext();
       startError_ = tr("The emulator was terminated: %1").arg(session_.errorText());
       updateScreen();
       emit selectedGameChanged();
@@ -133,7 +143,17 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
 
 PlayerController::~PlayerController() { shutdown(); }
 
+void PlayerController::endGameContext() {
+  gameActive_ = false;
+  if (sessions_) {
+    sessions_->gameEnded();  // ends a shared Session
+  }
+}
+
 void PlayerController::shutdown() {
+  if (sessions_) {
+    sessions_->gameEnded();
+  }
   session_.stop();  // unloads the core first so it flushes its save
   if (saves_) {
     saves_->finalSyncBlocking(true);
@@ -200,7 +220,7 @@ void PlayerController::updateScreen() {
   using S = HubConnection::State;
   QString next;
   const S s = conn_->state();
-  if (gameActive_) {
+  if (gameActive_ || (sessions_ && sessions_->watching())) {
     next = QStringLiteral("game");
   } else if (s == S::Connected) {
     next = QStringLiteral("library");
@@ -691,7 +711,10 @@ QVariantMap PlayerController::selectedGame() const {
   return m;
 }
 
-void PlayerController::playSelected() {
+void PlayerController::playSelected() { startSelected(false); }
+
+void PlayerController::startSelected(bool share) {
+  shareOnStart_ = false;
   const auto game = model_.game(selectedId_);
   if (!game || phase_ != PlayPhase::None || session_.isActive()) {
     return;
@@ -709,6 +732,7 @@ void PlayerController::playSelected() {
     return;
   }
   pendingSha_ = game->romSha256;
+  shareOnStart_ = share;
   phase_ = PlayPhase::Rom;
   emit selectedGameChanged();
   downloader_->ensureRom(*game);
@@ -823,7 +847,24 @@ void PlayerController::resolveSaveConflict(const QString& action) {
                                                                  : SaveSync::Resolution::DecideLater);
 }
 
+void PlayerController::playAndShareSelected() {
+  if (phase_ != PlayPhase::None || session_.isActive()) {
+    return;
+  }
+  startSelected(true);
+}
+
+void PlayerController::leaveGameView() {
+  if (gameActive_) {
+    quitGame();
+  } else {
+    sessions_->leaveWatch();
+    updateScreen();
+  }
+}
+
 void PlayerController::quitGame() {
+  sessions_->gameEnded();
   session_.stop();  // core unloaded (save flushed), then the final upload
   saves_->finalSync(true);
   gameActive_ = false;

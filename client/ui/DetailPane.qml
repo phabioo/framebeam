@@ -222,5 +222,25 @@ Rectangle {
             enabled: root.game.canPlay === true
             onClicked: root.player.playSelected()
         }
+        FbButton {
+            objectName: "playShareButton"
+            visible: root.player.sessions.available
+            Layout.fillWidth: true
+            implicitHeight: 40
+            text: qsTr("Play and share Session")
+            enabled: root.game.canPlay === true
+            onClicked: root.player.playAndShareSelected()
+        }
+        FbLabel {
+            objectName: "shareVisibilityHint"
+            visible: root.player.sessions.available
+            Layout.fillWidth: true
+            horizontalAlignment: Text.AlignHCenter
+            color: Theme.textFaint
+            font.pixelSize: 12
+            text: qsTr("Visibility: %1 · change it in the Session panel")
+                  .arg(root.player.sessions.visibility === "private" ? qsTr("Private")
+                       : root.player.sessions.visibility === "invite_only" ? qsTr("Invite only") : qsTr("Hub users"))
+        }
     }
 }
