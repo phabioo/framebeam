@@ -117,10 +117,13 @@ Rectangle {
                             spacing: 10
                             StatusDot { tone: prow.modelData.online ? "ok" : "neutral" }
                             ColumnLayout {
+                                // The text column may shrink below its content so the action button always stays inside the panel.
                                 Layout.fillWidth: true
+                                Layout.minimumWidth: 0
+                                Layout.preferredWidth: 0
                                 spacing: 0
-                                FbLabel { text: prow.modelData.name; font.pixelSize: 14; color: Theme.gameText }
-                                FbLabel { objectName: "participantStatus"; text: prow.modelData.status; font.pixelSize: 12; color: Theme.gameTextMuted }
+                                FbLabel { Layout.fillWidth: true; elide: Text.ElideRight; text: prow.modelData.name; font.pixelSize: 14; color: Theme.gameText }
+                                FbLabel { Layout.fillWidth: true; elide: Text.ElideRight; objectName: "participantStatus"; text: prow.modelData.status; font.pixelSize: 12; color: Theme.gameTextMuted }
                             }
                             FbButton {
                                 objectName: (prow.modelData.kind === "viewer" ? "remove_" : "withdraw_") + prow.modelData.id
@@ -168,8 +171,10 @@ Rectangle {
                             StatusDot { tone: urow.modelData.online ? "ok" : "neutral" }
                             ColumnLayout {
                                 Layout.fillWidth: true
+                                Layout.minimumWidth: 0
+                                Layout.preferredWidth: 0
                                 spacing: 0
-                                FbLabel { text: urow.modelData.name; font.pixelSize: 14; color: Theme.gameText }
+                                FbLabel { Layout.fillWidth: true; elide: Text.ElideRight; text: urow.modelData.name; font.pixelSize: 14; color: Theme.gameText }
                                 FbLabel {
                                     Layout.fillWidth: true
                                     text: urow.modelData.hint

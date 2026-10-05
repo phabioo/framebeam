@@ -266,25 +266,27 @@ struct Harness {
     }
     QQuickTest::qWaitForPolish(window);
     const QPointF p = it->mapToScene(QPointF(it->width() / 2, it->height() / 2));
-    {  // hit test: report what is really under the click point (diagnostics for platform layout differences)
-      QQuickItem* hit = window->contentItem();
+    // Strict hit test: the point must be inside the window and the topmost item there must be the target or one of
+    // its descendants; otherwise the click would be lost, so fail explicitly with the geometry.
+    const QRectF sceneRect = it->mapRectToScene(QRectF(0, 0, it->width(), it->height()));
+    QQuickItem* hit = window->contentItem();
+    const bool inWindow = p.x() >= 0 && p.y() >= 0 && p.x() < window->width() && p.y() < window->height();
+    if (inWindow) {
       QPointF local = p;
       while (QQuickItem* c = hit->childAt(local.x(), local.y())) {
         local = hit->mapToItem(c, local);
         hit = c;
       }
-      bool inside = false;
-      for (QQuickItem* a = hit; a != nullptr; a = a->parentItem()) {
-        inside = inside || a == it;
-      }
-      for (QQuickItem* a = it; a != nullptr && !inside; a = a->parentItem()) {
-        inside = a == hit;  // clicked item is a child of the hit item (e.g. a hit-transparent label layer)
-      }
-      if (!inside) {
-        qWarning("[uitest] click on '%s' at (%.0f,%.0f) hits '%s' instead (item visible=%d size=%.0fx%.0f, window %dx%d)", objectName,
-                 p.x(), p.y(), qPrintable(hit->objectName()), it->isVisible() ? 1 : 0, it->width(), it->height(), window->width(),
-                 window->height());
-      }
+    }
+    bool inside = false;
+    for (QQuickItem* a = hit; inWindow && a != nullptr; a = a->parentItem()) {
+      inside = inside || a == it;
+    }
+    if (!inside) {
+      qWarning("[uitest] click on '%s' lost: point (%.0f,%.0f), target scene rect (%.0f,%.0f %.0fx%.0f), window %dx%d, hit '%s'",
+               objectName, p.x(), p.y(), sceneRect.x(), sceneRect.y(), sceneRect.width(), sceneRect.height(), window->width(),
+               window->height(), inWindow ? qPrintable(hit->objectName()) : "(outside window)");
+      return false;
     }
     QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier, p.toPoint());
     return true;
