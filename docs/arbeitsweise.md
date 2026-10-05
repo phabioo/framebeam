@@ -84,6 +84,8 @@ Keine Volltext-Logs, keine Dateiinhalte zurückgeben. Nicht committen.
 - **Phase 4 – Session-Sharing und Multiview:** Presence, Signaling, Sichtbarkeit/ACL, WebRTC mit Software-H.264/Opus, PiP/Side-by-Side, Diagnostics; danach Hardware-Encoder (nur lokal testbar).
 - **Phase 5 – Rest und Politur:** Firmware-Pfad, Benutzer/Invites, Systeme & Cores, Emulation- und Controllers-Seiten, SDL3-Gamepads, Dark/Light, restliche Hub-Seiten, Paketierung (Windows-Installer, systemd-Unit).
 
+Die Screen-Zuordnung zu den Phasen steht in `docs/design/README.md`.
+
 ## Regeln
 
 - Keine echten ROMs, BIOS oder Firmware im Repo oder in Tests; nur Homebrew-ROMs bzw. Dummy-Dateien.

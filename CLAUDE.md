@@ -33,3 +33,4 @@ CI (`.github/workflows/ci.yml`): Linux bei jedem Push, Windows bei PRs gegen `ma
 ## Wegweiser
 
 - Architektur: `docs/architektur/README.md` (Index, nur die nötige Datei lesen); Abweichungen: `docs/adr/`. Bereichsregeln: `server/`, `client/`, `protocol/` je `CLAUDE.md`.
+- Design (Screens, Tokens): `docs/design/README.md`.

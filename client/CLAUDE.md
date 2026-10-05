@@ -23,3 +23,4 @@ Details nur bei Bedarf aus `docs/architektur/` (Index: `docs/architektur/README.
 - FFmpeg (libavcodec) mit NVENC/QSV/AMF, OpenH264 als Software-Fallback; WebRTC mit libdatachannel (ADR 0001, `04-sessions-und-multiview.md`).
 - C++20 als Basis; C++23 nur, wenn MSVC, GCC und AppleClang es unterstützen. vcpkg (Manifest) + CMake Presets.
 - Firmware fehlt: „Firmware required/missing“, Start blockieren.
+- Design: Player-UI `docs/design/README.md`, `docs/design/player.md`, `docs/design/tokens.md`.

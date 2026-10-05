@@ -13,3 +13,5 @@ Entwurf 0.1. Nur die benötigte Datei lesen.
 - `09-ui-und-navigation.md` – Produktbegriffe, Navigation, Darstellung – Abschn. 9
 - `10-identitaet-pairing-tls.md` – Rollen, Hub-Profile, Pairing, TLS, Hub wechseln – Abschn. 14
 - `11-metadata-future.md` – Zentrale Spielmetadaten und Artwork (Future) – Abschn. 15
+
+Design-Spezifikation der UI-Screens: `../design/README.md`.
