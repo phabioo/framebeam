@@ -6,6 +6,7 @@
 #include <cstring>
 #include <rtc/rtc.hpp>
 
+#include "opusdepacketizer.h"
 #include "rtcutil.h"
 
 namespace framebeam {
@@ -157,7 +158,7 @@ void SessionViewer::handleSignal(const SessionSignal& s) {
             }
           });
         } else if (type == "audio") {
-          auto depack = std::make_shared<rtc::OpusRtpDepacketizer>();
+          auto depack = std::make_shared<OpusRtpDepacketizer>();
           depack->addToChain(std::make_shared<rtc::RtcpReceivingSession>());
           track->setMediaHandler(depack);
           track->onFrame([this, bridge](rtc::binary data, rtc::FrameInfo) {

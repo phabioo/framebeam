@@ -16,6 +16,7 @@ Q_LOGGING_CATEGORY(lcHost, "framebeam.sessionhost")
 constexpr int kVideoPayloadType = 96;
 constexpr int kAudioPayloadType = 111;
 constexpr int kMaxFragment = 1200;
+constexpr uint32_t kOpusClockRate = 48000;
 
 QString stateName(rtc::PeerConnection::State s) {
   using S = rtc::PeerConnection::State;
@@ -88,12 +89,12 @@ void SessionHost::addViewer(const QString& viewerId) {
       }
       auto cfg = std::make_shared<rtc::RtpPacketizationConfig>(
           ssrc, cname, isVideo ? kVideoPayloadType : kAudioPayloadType,
-          isVideo ? rtc::H264RtpPacketizer::ClockRate : rtc::OpusRtpPacketizer::DefaultClockRate);
+          isVideo ? rtc::H264RtpPacketizer::ClockRate : kOpusClockRate);
       std::shared_ptr<rtc::RtpPacketizer> packetizer;
       if (isVideo) {
         packetizer = std::make_shared<rtc::H264RtpPacketizer>(rtc::NalUnit::Separator::StartSequence, cfg, kMaxFragment);
       } else {
-        packetizer = std::make_shared<rtc::OpusRtpPacketizer>(cfg);
+        packetizer = std::make_shared<rtc::RtpPacketizer>(cfg)  /* non-template base: one Opus frame per packet */;
       }
       packetizer->addToChain(std::make_shared<rtc::RtcpSrReporter>(cfg));
       packetizer->addToChain(std::make_shared<rtc::RtcpNackResponder>());

@@ -9,11 +9,22 @@ find_package(LibDataChannel CONFIG REQUIRED)
 target_link_libraries(framebeam_media_deps INTERFACE LibDataChannel::LibDataChannel)
 
 if(WIN32)
-  find_package(FFMPEG REQUIRED)  # vcpkg: FFMPEG_INCLUDE_DIRS / FFMPEG_LIBRARIES (avcodec, swscale, avutil)
+  # vcpkg's FFMPEG_LIBRARIES does not reliably contain swscale: find every library explicitly.
+  find_package(FFMPEG REQUIRED)
+  set(FB_FFMPEG_WIN_LIBS "")
+  foreach(_comp avcodec avutil swscale)
+    find_library(FB_FFMPEG_${_comp}_LIB NAMES ${_comp}
+      HINTS ${FFMPEG_LIBRARY_DIRS} ${FFMPEG_ROOT_DIR}/lib
+      PATH_SUFFIXES lib)
+    if(NOT FB_FFMPEG_${_comp}_LIB)
+      message(FATAL_ERROR "FFmpeg library '${_comp}' not found (vcpkg ffmpeg)")
+    endif()
+    list(APPEND FB_FFMPEG_WIN_LIBS ${FB_FFMPEG_${_comp}_LIB})
+  endforeach()
   find_package(Opus CONFIG REQUIRED)
   target_include_directories(framebeam_media_deps INTERFACE ${FFMPEG_INCLUDE_DIRS})
   target_link_directories(framebeam_media_deps INTERFACE ${FFMPEG_LIBRARY_DIRS})
-  target_link_libraries(framebeam_media_deps INTERFACE ${FFMPEG_LIBRARIES} Opus::opus)
+  target_link_libraries(framebeam_media_deps INTERFACE ${FB_FFMPEG_WIN_LIBS} Opus::opus)
 else()
   find_package(PkgConfig REQUIRED)
   pkg_check_modules(FB_FFMPEG REQUIRED IMPORTED_TARGET libavcodec libswscale libavutil)
@@ -35,6 +46,7 @@ add_library(framebeam_media STATIC
   videoencoder.cpp
   videodecoder.cpp
   opuscodec.cpp
+  opusdepacketizer.cpp
   mediacaps.cpp
   sessionhost.cpp
   sessionviewer.cpp
@@ -43,4 +55,5 @@ target_include_directories(framebeam_media PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(framebeam_media PUBLIC framebeam_core framebeam_audioutil framebeam_media_deps Qt6::Gui)
 framebeam_warnings(framebeam_media)
 
+framebeam_add_test(media_opus_depacketizer tests/opusdepacketizer_test.cpp LIBS framebeam_media)
 framebeam_add_test(media_loopback tests/loopback_test.cpp LIBS framebeam_media)
