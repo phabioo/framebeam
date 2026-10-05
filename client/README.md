@@ -9,12 +9,13 @@ C++/Qt Player: emulates locally, synchronizes saves, shares Sessions. Status of 
 - `emulation/`: `EmulatorBackend`/`LibretroBackend`, system manifests (`manifests/`), core locator
 - `ui/`: QML module `FrameBeam.Player` as static lib `framebeam_ui`
 - `app/`: executable `framebeam_player`
-- `media/`: still empty (from phase 4)
+- `media/`: `framebeam_media_deps` (libdatachannel, FFmpeg, Opus) and the `media_deps` smoke test; media path follows in phase 4
 
 ## Dependencies
 
-- Qt >= 6.4 (Core, Network, Gui, Quick, QuickControls2, Multimedia, Test); not via vcpkg. Linux: apt, Windows: install-qt-action (see `.github/workflows/ci.yml`).
+- Qt >= 6.4 (Core, Network, Gui, Quick, QuickControls2, Multimedia, WebSockets, Test); not via vcpkg. Linux: apt, Windows: install-qt-action (see `.github/workflows/ci.yml`).
 - CMake >= 3.25, Ninja; vcpkg (`scripts/bootstrap-vcpkg.sh`) for further packages.
+- Media (phase 4, [ADR 0006](../docs/adr/0006-sessions-phase4.md)): Linux apt `libavcodec-dev libswscale-dev libopus-dev qt6-websockets-dev libssl-dev` plus libdatachannel from `scripts/fetch-libdatachannel.sh` (pinned, `scripts/libdatachannel.pin`); Windows vcpkg (`client/vcpkg.json`, platform windows).
 - melonDS DS core (pinned, `scripts/melonds-ds.pin`): `scripts/fetch-melonds-ds.sh` (Linux) or `.ps1` (Windows). No core in the repository.
 
 ## Build and test

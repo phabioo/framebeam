@@ -27,6 +27,7 @@ FrameBeam is a self-hosted retro gaming platform (monorepo): a central ROM libra
 - `scripts/bootstrap-vcpkg.sh`: vcpkg (pinned) into `$HOME/.cache/framebeam/vcpkg`; prerequisite for the client build.
 - Client prerequisite Qt >= 6.4 (not vcpkg): Linux via apt (packages see `.claude/hooks/session-start.sh`, `QT_PKGS`), Windows CI via install-qt-action (6.8 LTS).
 - `scripts/fetch-melonds-ds.sh` (`make fetch-core`): builds melonDS DS (pin in `scripts/melonds-ds.pin`) into `$HOME/.cache/framebeam/cores/`, idempotent, prints the .so path; `make check-client` passes it as `-DFRAMEBEAM_MELONDS_DS_CORE=...` (if it is missing, core tests are skipped). Windows: `scripts/fetch-melonds-ds.ps1`.
+- `scripts/fetch-libdatachannel.sh` (`make fetch-deps`): builds libdatachannel (pin in `scripts/libdatachannel.pin`, media on, no own WebSocket) into `$HOME/.cache/framebeam/deps/libdatachannel/`, idempotent, prints the prefix; `make check-client` runs it and passes `-DCMAKE_PREFIX_PATH=...` (mandatory; `CMAKE_BUILD_PARALLEL_LEVEL`, default 3). FFmpeg/Opus/Qt WebSockets via apt on Linux, vcpkg on Windows (`client/vcpkg.json`).
 - `make check`: Hub and client checks, quiet; `make check-hub` / `make check-client` individually (preset via `CLIENT_PRESET`, default `linux-debug`).
 - `make build-hub`: Hub binaries `server/dist/framebeam-hub-linux-{amd64,arm64}` (`HUB_VERSION` can be set).
 - `make generate`: regenerate Go code (oapi-codegen).

@@ -48,12 +48,18 @@ hub_build() {
 }
 CORE_PATH=""
 client_core() { CORE_PATH="$("$ROOT/scripts/fetch-melonds-ds.sh")" && [ -f "$CORE_PATH" ]; }
+DDC_PATH=""
+client_libdatachannel() { DDC_PATH="$("$ROOT/scripts/fetch-libdatachannel.sh")" && [ -d "$DDC_PATH" ]; }
 client() {
   local p="${CLIENT_PRESET:-linux-debug}"
   local -a core_arg=()
+  # libdatachannel (pinned, cached under ~/.cache/framebeam/deps): mandatory, built on first use.
+  step "client: libdatachannel" client_libdatachannel
+  [ -n "$DDC_PATH" ] && [ -d "$DDC_PATH" ] || return 1
+  core_arg=("-DCMAKE_PREFIX_PATH=$DDC_PATH")
   # Core first (idempotent, cached); if it fails, tests with NEEDS_CORE run as SKIP.
   step "client: core" client_core
-  [ -n "$CORE_PATH" ] && [ -f "$CORE_PATH" ] && core_arg=("-DFRAMEBEAM_MELONDS_DS_CORE=$CORE_PATH")
+  [ -n "$CORE_PATH" ] && [ -f "$CORE_PATH" ] && core_arg+=("-DFRAMEBEAM_MELONDS_DS_CORE=$CORE_PATH")
   step "client: configure" bash -c "cd '$ROOT/client' && cmake --preset $p ${core_arg[*]:-}"
   step "client: build"     bash -c "cd '$ROOT/client' && cmake --build --preset $p"
   step "client: test"      bash -c "cd '$ROOT/client' && ctest --preset $p"
