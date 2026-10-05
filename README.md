@@ -93,6 +93,6 @@ Tastatur: Pfeile, X=A, Z=B, S=X, A=Y, Q=L, W=R, Enter=Start, Rücktaste=Select, 
 - [Architektur (Index)](docs/architektur/README.md)
 - [ADR 0001: Stack-Ergänzungen](docs/adr/0001-stack-ergaenzungen.md)
 - [ADR 0002: Protokoll und Hub in Phase 1](docs/adr/0002-protokoll-und-hub-phase1.md)
-- [ADR 0003: Player in Phase 2](docs/adr/0003-player-phase2.md) (vorgeschlagen)
+- [ADR 0003: Player in Phase 2](docs/adr/0003-player-phase2.md) (angenommen)
 - [Design](docs/design/README.md)
 - [Arbeitsweise mit Claude Code](docs/arbeitsweise.md)

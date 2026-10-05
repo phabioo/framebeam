@@ -1,12 +1,12 @@
 # ADR 0003: FrameBeam Player in Phase 2
 
-- Status: vorgeschlagen
+- Status: angenommen
 - Datum: 2026-10-05
-- Entscheider: Fabio (Vorschlag des Orchestrators)
+- Entscheider: Fabio (Vorschlag des Orchestrators, für den PoC bestätigt am 2026-10-05)
 
 ## Kontext
 
-Phase 2 ("Spielbarer Durchstich") baut den FrameBeam Player: Hub-Profil, Pairing, Library, ROM-Cache, `LibretroBackend` mit melonDS DS und minimale Qt-Oberfläche. Die Architektur lässt Toolchain, Core-Beschaffung, Ablage und Credential-Speicher offen oder weicht davon ab. Dieser ADR hält die Festlegungen fest, bis Fabio sie bestätigt oder ändert. Die Architekturdokumente bleiben unverändert.
+Phase 2 ("Spielbarer Durchstich") baut den FrameBeam Player: Hub-Profil, Pairing, Library, ROM-Cache, `LibretroBackend` mit melonDS DS und minimale Qt-Oberfläche. Die Architektur lässt Toolchain, Core-Beschaffung, Ablage und Credential-Speicher offen oder weicht davon ab. Dieser ADR hält die Festlegungen fest; Fabio hat sie am 2026-10-05 für den PoC angenommen. Die Architekturdokumente bleiben unverändert.
 
 ## Entscheidungen
 

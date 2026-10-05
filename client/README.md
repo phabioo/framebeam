@@ -1,6 +1,6 @@
 # client – FrameBeam Player
 
-C++/Qt-Player: emuliert lokal, synchronisiert Saves, teilt Sessions. Stand Phase 2: Hub-Profil, Pairing, Library, ROM-Cache, Emulation (melonDS DS) und minimale Oberfläche. Festlegungen: [ADR 0003](../docs/adr/0003-player-phase2.md) (vorgeschlagen). Regeln für Agents: `CLAUDE.md`.
+C++/Qt-Player: emuliert lokal, synchronisiert Saves, teilt Sessions. Stand Phase 2: Hub-Profil, Pairing, Library, ROM-Cache, Emulation (melonDS DS) und minimale Oberfläche. Festlegungen: [ADR 0003](../docs/adr/0003-player-phase2.md) (angenommen). Regeln für Agents: `CLAUDE.md`.
 
 ## Struktur
 
