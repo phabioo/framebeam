@@ -24,3 +24,4 @@ Details nur bei Bedarf aus `docs/architektur/` (Index: `docs/architektur/README.
 
 ## Webinterface
 - Go `html/template` + htmx per `embed`, kein Node-Build (ADR 0001). Seiten/Begriffe: `09-ui-und-navigation.md`.
+- Webinterface-Design: `docs/design/hub.md`, `docs/design/tokens.md` (Index: `docs/design/README.md`).
