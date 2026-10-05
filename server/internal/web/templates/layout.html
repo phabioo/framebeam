@@ -18,6 +18,7 @@
     <div class="logo"><span class="logo-mark"></span>FrameBeam Hub</div>
     <nav class="nav" aria-label="Main navigation">
       <a href="/library"{{if eq .Nav "library"}} class="active" aria-current="page"{{end}}>Library</a>
+      <a href="/saves"{{if eq .Nav "saves"}} class="active" aria-current="page"{{end}}>Saves{{if .Conflicts}}<span class="badge">{{.Conflicts}} {{if eq .Conflicts 1}}conflict{{else}}conflicts{{end}}</span>{{end}}</a>
       <a href="/clients"{{if eq .Nav "clients"}} class="active" aria-current="page"{{end}}>Clients{{if .Pending}}<span class="badge">{{.Pending}} {{if eq .Pending 1}}request{{else}}requests{{end}}</span>{{end}}</a>
       <a href="/settings"{{if eq .Nav "settings"}} class="active" aria-current="page"{{end}}>Settings</a>
     </nav>

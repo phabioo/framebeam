@@ -58,6 +58,7 @@ type Service struct {
 	protoVer int
 	minProto int
 
+	saveMu sync.Mutex // serializes save uploads/resolutions (and content cleanup)
 	mu     sync.RWMutex
 	hubID  string
 	name   string

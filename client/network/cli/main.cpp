@@ -3,11 +3,15 @@
 //   pair <address> [--dev] [--accept-fingerprint] [games] [fetch-rom <sha256>] [wait-revoked]...
 //     wait-revoked: reports READY-FOR-REVOKE, renews the token every second and ends (exit 0) as soon as the
 //     hub has revoked the device (state NeedsPairing); exit 1 after 60 s without revocation (E2E script).
+//   saves list | save push <game_id> <file> [--base N] [--reason checkpoint|final|final_session_end]
+//   save pull <game_id> <out> | save resolve <game_id> <conflict_id> use_hub|use_local --expected N
+//     (slot "default"; output lines OK/CONFLICT/STALE/ERROR; exit 0 ok, 1 error, 3 upload conflict, 4 stale resolve)
 //   games | fetch-rom <sha256>      (uses the last connected profile; Linux: credential in memory only,
 //                                    so use them there as follow-up commands of "pair")
 // Options: --data-dir <path> (otherwise FRAMEBEAM_DATA_DIR / AppDataLocation).
 // Exit codes: 0 ok, 1 error, 2 user action required (confirm fingerprint, approval).
 #include <QCoreApplication>
+#include <QFile>
 #include <QTextStream>
 #include <QTimer>
 #include <memory>
@@ -18,6 +22,7 @@
 #include "profilestore.h"
 #include "romcache.h"
 #include "romdownloader.h"
+#include "saveapi.h"
 
 using namespace framebeam;
 
@@ -60,7 +65,8 @@ class Runner : public QObject {
         return usage();
       }
       address_ = rest.takeFirst();
-    } else if (command_ != QLatin1String("games") && command_ != QLatin1String("fetch-rom")) {
+    } else if (command_ != QLatin1String("games") && command_ != QLatin1String("fetch-rom") &&
+               command_ != QLatin1String("saves") && command_ != QLatin1String("save")) {
       return usage();
     } else {
       rest.prepend(command_);
@@ -74,6 +80,7 @@ class Runner : public QObject {
     library_ = std::make_unique<HubLibrary>(conn_.get());
     cache_ = std::make_unique<RomCache>(profiles_->romCacheDir());
     downloader_ = std::make_unique<RomDownloader>(conn_.get(), cache_.get());
+    saves_ = std::make_unique<SaveApi>(conn_.get());
     QObject::connect(conn_.get(), &HubConnection::stateChanged, this, [this](HubConnection::State s) { onState(s); });
     if (command_ == QLatin1String("standalone")) {
       const QString last = profiles_->lastHubId();
@@ -96,7 +103,9 @@ class Runner : public QObject {
   int usage() {
     err() << "Usage: framebeam_player_cli identify <address> [--dev]\n"
              "        framebeam_player_cli pair <address> [--dev] [--accept-fingerprint] [games] [fetch-rom <sha256>]\n"
-             "        framebeam_player_cli games | fetch-rom <sha256>   [--data-dir <path>]\n";
+             "        framebeam_player_cli games | fetch-rom <sha256>   [--data-dir <path>]\n"
+             "        framebeam_player_cli saves list | save push <game_id> <file> [--base N] | save pull <game_id> <out>\n"
+             "                             | save resolve <game_id> <conflict_id> use_hub|use_local --expected N\n";
     return 1;
   }
 
@@ -209,10 +218,12 @@ class Runner : public QObject {
     const QString cmd = followUps_.takeFirst();
     if (cmd == QLatin1String("games")) {
       for (const GameEntry& g : library_->games()) {
-        out() << g.title << "\t" << g.system << "\t" << g.romSize << " B\t" << g.romSha256 << "\n";
+        out() << g.title << "\t" << g.system << "\t" << g.romSize << " B\t" << g.romSha256 << "\t" << g.id << "\n";
       }
       out().flush();
       nextFollowUp();
+    } else if (cmd == QLatin1String("saves") || cmd == QLatin1String("save")) {
+      runSaveCommand(cmd);
     } else if (cmd == QLatin1String("wait-revoked")) {
       revokeWatch_ = new QTimer(this);
       revokeWatch_->setInterval(1000);
@@ -264,6 +275,103 @@ class Runner : public QObject {
     }
   }
 
+  void runSaveCommand(const QString& cmd) {
+    const QString sub = followUps_.isEmpty() ? QString() : followUps_.takeFirst();
+    // Options belong to the command that precedes them (several save commands can follow each other).
+    int base_ = 0, expected_ = 0;
+    QString reason_ = QStringLiteral("checkpoint");
+    const qsizetype npos = sub == QLatin1String("resolve") ? 3 : (sub == QLatin1String("list") ? 0 : 2);
+    while (followUps_.size() >= npos + 2) {
+      const QString o = followUps_.at(npos);
+      if (o == QLatin1String("--base")) base_ = followUps_.at(npos + 1).toInt();
+      else if (o == QLatin1String("--expected")) expected_ = followUps_.at(npos + 1).toInt();
+      else if (o == QLatin1String("--reason")) reason_ = followUps_.at(npos + 1);
+      else break;
+      followUps_.remove(npos, 2);
+    }
+    using K = SaveApiResult::Kind;
+    const auto report = [this](const SaveApiResult& r, const QString& what) {
+      if (r.kind == K::Ok) {
+        return true;
+      }
+      if (r.kind == K::Conflict && r.conflict) {
+        out() << "CONFLICT id=" << r.conflict->id << " hub_revision=" << r.conflict->hubRevision
+              << " secured_version=" << r.conflict->securedVersion << " base=" << r.conflict->securedBaseRevision << "\n";
+        out().flush();
+        finish(3);
+      } else if (r.kind == K::Stale) {
+        out() << "STALE " << r.errorCode << "\n";
+        out().flush();
+        finish(4);
+      } else {
+        err() << "ERROR " << what << ": " << r.errorCode << " (HTTP " << r.status << ") " << r.errorMessage << "\n";
+        finish(1);
+      }
+      return false;
+    };
+    if (cmd == QLatin1String("saves") && sub == QLatin1String("list")) {
+      saves_->listSlots([this, report](const SaveApiResult& r) {
+        if (!report(r, QStringLiteral("list"))) {
+          return;
+        }
+        for (const SaveSlotInfo& s : r.slotList) {
+          out() << s.gameId << "\t" << s.slot << "\trev=" << s.current.revision << "\t" << s.current.sha256 << "\t"
+                << s.current.deviceName << "\topen_conflicts=" << s.openConflictCount << "\n";
+        }
+        out().flush();
+        nextFollowUp();
+      });
+    } else if (cmd == QLatin1String("save") && sub == QLatin1String("push") && followUps_.size() >= 2) {
+      const QString gameId = followUps_.takeFirst();
+      QFile f(followUps_.takeFirst());
+      if (!f.open(QIODevice::ReadOnly)) {
+        err() << "ERROR cannot read file\n";
+        finish(1);
+        return;
+      }
+      saves_->putSave(gameId, QStringLiteral("default"), f.readAll(), base_, reason_, [this, report](const SaveApiResult& r) {
+        if (!report(r, QStringLiteral("push"))) {
+          return;
+        }
+        out() << "OK revision=" << r.slot->current.revision << " sha256=" << r.slot->current.sha256 << "\n";
+        out().flush();
+        nextFollowUp();
+      });
+    } else if (cmd == QLatin1String("save") && sub == QLatin1String("pull") && followUps_.size() >= 2) {
+      const QString gameId = followUps_.takeFirst();
+      const QString path = followUps_.takeFirst();
+      saves_->getContent(gameId, QStringLiteral("default"), [this, report, path](const SaveApiResult& r) {
+        if (!report(r, QStringLiteral("pull"))) {
+          return;
+        }
+        QFile f(path);
+        if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate) || f.write(r.content) != r.content.size()) {
+          err() << "ERROR cannot write file\n";
+          finish(1);
+          return;
+        }
+        out() << "OK revision=" << r.contentRevision << " bytes=" << r.content.size() << "\n";
+        out().flush();
+        nextFollowUp();
+      });
+    } else if (cmd == QLatin1String("save") && sub == QLatin1String("resolve") && followUps_.size() >= 3 && expected_ > 0) {
+      const QString gameId = followUps_.takeFirst();
+      const QString conflictId = followUps_.takeFirst();
+      const QString resolution = followUps_.takeFirst();
+      saves_->resolve(gameId, QStringLiteral("default"), conflictId, resolution, expected_, [this, report](const SaveApiResult& r) {
+        if (!report(r, QStringLiteral("resolve"))) {
+          return;
+        }
+        out() << "OK revision=" << r.slot->current.revision << " sha256=" << r.slot->current.sha256 << "\n";
+        out().flush();
+        nextFollowUp();
+      });
+    } else {
+      usage();
+      finish(1);
+    }
+  }
+
   QStringList args_;
   QString command_;
   QString address_;
@@ -278,6 +386,7 @@ class Runner : public QObject {
   std::unique_ptr<HubLibrary> library_;
   std::unique_ptr<RomCache> cache_;
   std::unique_ptr<RomDownloader> downloader_;
+  std::unique_ptr<SaveApi> saves_;
 };
 
 }  // namespace

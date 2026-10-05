@@ -18,6 +18,7 @@
 #include "librarymodel.h"
 #include "romcache.h"
 #include "romdownloader.h"
+#include "savesync.h"
 #include "system_manifest.h"
 
 namespace framebeam::ui {
@@ -45,6 +46,9 @@ class PlayerController : public QObject {
   Q_PROPERTY(QString libraryError READ libraryError NOTIFY libraryStateChanged)
   Q_PROPERTY(QString selectedGameId READ selectedGameId NOTIFY selectedGameChanged)
   Q_PROPERTY(QVariantMap selectedGame READ selectedGame NOTIFY selectedGameChanged)
+  // Save sync (3d): conflict dialog data; empty map = no dialog
+  Q_PROPERTY(QVariantMap saveConflict READ saveConflict NOTIFY saveConflictChanged)
+  Q_PROPERTY(QString saveNote READ saveNote NOTIFY hubChanged)
   // Game view
   Q_PROPERTY(framebeam::ui::GameSession* gameSession READ gameSession CONSTANT)
 
@@ -77,6 +81,11 @@ class PlayerController : public QObject {
   QString selectedGameId() const { return selectedId_; }
   QVariantMap selectedGame() const;
   GameSession* gameSession() { return &session_; }
+  QVariantMap saveConflict() const { return conflict_; }
+  QString saveNote() const { return saves_ ? saves_->note() : QString(); }
+  SaveSync* saveSync() { return saves_.get(); }
+  // Ends a running game and waits (max. about 10 s) for the final save upload; also called on destruction.
+  void shutdown();
 
   // Access for tests.
   HubConnection* connection() { return conn_.get(); }
@@ -105,6 +114,8 @@ class PlayerController : public QObject {
   Q_INVOKABLE void playSelected();
   // Game view
   Q_INVOKABLE void quitGame();
+  // Conflict dialog: "use_hub" | "use_local" | "later" (Keep both, decide later)
+  Q_INVOKABLE void resolveSaveConflict(const QString& action);
 
  signals:
   void screenChanged();
@@ -114,6 +125,7 @@ class PlayerController : public QObject {
   void hubChanged();
   void libraryStateChanged();
   void selectedGameChanged();
+  void saveConflictChanged();
 
  private:
   enum class PlayPhase { None, Rom, Launching };
@@ -128,7 +140,9 @@ class PlayerController : public QObject {
   const emu::SystemManifest* manifestFor(const GameEntry& game) const;
   QString coreLabel(const emu::SystemManifest& m, const emu::CoreLocation& loc) const;
   QString systemDir() const;
-  QString saveDirForCurrentHub() const;
+  void onSaveReady(const QString& gameId, const QString& saveDir, const QString& note);
+  void onSaveConflict(const SaveSync::ConflictView& view);
+  static QString formatWhen(const QDateTime& when);
   QVariantMap hubCard(const HubProfile& p) const;
 
   Options options_;
@@ -138,6 +152,7 @@ class PlayerController : public QObject {
   std::unique_ptr<HubLibrary> library_;
   std::unique_ptr<RomCache> cache_;
   std::unique_ptr<RomDownloader> downloader_;
+  std::unique_ptr<SaveSync> saves_;
   emu::ManifestRegistry manifests_;
   emu::CoreLocator locator_;
   QList<CoreInfo> coreList_;
@@ -157,6 +172,12 @@ class PlayerController : public QObject {
   QString pendingSha_;
   PlayPhase phase_ = PlayPhase::None;
   bool gameActive_ = false;
+  // Start of a game: after the ROM and the save sync
+  GameEntry launchGame_;
+  QString launchRom_;
+  bool saveReady_ = false;
+  QString saveNoteStart_;  // note of the last start sync (e.g. Hub not reachable)
+  QVariantMap conflict_;
 };
 
 }  // namespace framebeam::ui

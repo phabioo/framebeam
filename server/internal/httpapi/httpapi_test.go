@@ -61,7 +61,9 @@ func newEnv(t *testing.T, mod func(*hub.Options)) *env {
 type opt struct {
 	token  string
 	header map[string]string
-	raw    bool // do not validate the request against the spec (intentionally invalid requests)
+	raw    bool   // do not validate the request against the spec (intentionally invalid requests)
+	data   []byte // raw request body (instead of the JSON body)
+	ctype  string // Content-Type for data
 }
 
 // do performs a request and validates request and response against the OpenAPI spec (contract test).
@@ -70,6 +72,9 @@ func (e *env) do(method, path string, body any, o opt) *httptest.ResponseRecorde
 	var data []byte
 	if body != nil {
 		data, _ = json.Marshal(body)
+	}
+	if o.data != nil {
+		data = o.data
 	}
 	mk := func() *http.Request {
 		var rd io.Reader
@@ -80,6 +85,9 @@ func (e *env) do(method, path string, body any, o opt) *httptest.ResponseRecorde
 		r.RemoteAddr = e.remote
 		if data != nil {
 			r.Header.Set("Content-Type", "application/json")
+			if o.ctype != "" {
+				r.Header.Set("Content-Type", o.ctype)
+			}
 		}
 		if o.token != "" {
 			r.Header.Set("Authorization", "Bearer "+o.token)

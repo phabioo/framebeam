@@ -41,6 +41,9 @@ class LibretroBackend final : public EmulatorBackend {
 
   bool runFrame() override;
   void reset() override;
+  // Battery save (RETRO_MEMORY_SAVE_RAM) <-> <save dir>/<game basename>.sav: loaded after the game loads,
+  // written when changed (about every 3 s while running, on pause and before unloading), atomically.
+  void flushSave() override;
 
   QImage videoFrame() const override;
   quint64 frameCount() const override;
@@ -73,6 +76,8 @@ class LibretroBackend final : public EmulatorBackend {
   static void inputPollCb();
   static int16_t inputStateCb(unsigned port, unsigned device, unsigned index, unsigned id);
 
+  bool tryLoadSave();
+  static QString backupStamp();
   bool handleEnvironment(unsigned cmd, void* data);
   void handleVideo(const void* data, unsigned width, unsigned height, size_t pitch);
   void registerOptionsV2(const void* options);
@@ -94,6 +99,11 @@ class LibretroBackend final : public EmulatorBackend {
 
   QByteArray m_systemDir;
   QByteArray m_saveDir;
+  QString m_saveFilePath;
+  QByteArray m_sramSnapshot;  // content last loaded/written
+  unsigned m_framesSinceFlush = 0;
+  bool m_savePendingLoad = false;  // save memory not yet exposed / file not yet applied
+  bool m_saveBlocked = false;      // existing file unreadable: never written
   QByteArray m_corePathUtf8;
   QByteArray m_gameData;  // lives until unloadGame (the core may hold pointers)
   QByteArray m_gamePathUtf8;

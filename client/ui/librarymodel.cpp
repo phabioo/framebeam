@@ -14,7 +14,7 @@ QHash<int, QByteArray> LibraryModel::roleNames() const {
   return {{GameIdRole, "gameId"},       {TitleRole, "title"},         {SystemRole, "system"},
           {MonogramRole, "monogram"},   {RomShaRole, "romSha256"},    {RomSizeRole, "romSize"},
           {StateKindRole, "stateKind"}, {StatusTextRole, "statusText"}, {StatusToneRole, "statusTone"},
-          {ProgressRole, "progress"}};
+          {ProgressRole, "progress"}, {SyncKindRole, "syncKind"}, {SyncTextRole, "syncText"}};
 }
 
 QString LibraryModel::formatSize(qint64 bytes) {
@@ -69,6 +69,8 @@ QVariant LibraryModel::data(const QModelIndex& index, int role) const {
     case RomShaRole: return it.game.romSha256;
     case RomSizeRole: return it.game.romSize;
     case StateKindRole: return kind;
+    case SyncKindRole: return it.sync;
+    case SyncTextRole: return syncText(it.sync);
     case ProgressRole: {
       const qint64 total = it.status.totalBytes > 0 ? it.status.totalBytes : it.game.romSize;
       return total > 0 ? static_cast<double>(it.status.receivedBytes) / static_cast<double>(total) : 0.0;
@@ -183,6 +185,35 @@ void LibraryModel::setStatus(const QString& romSha256, const RomStatus& status) 
     rebuild();
   }
   emit countChanged();
+}
+
+QString LibraryModel::syncText(const QString& kind) {
+  if (kind == QLatin1String("synced")) return tr("Synced");
+  if (kind == QLatin1String("pending")) return tr("Sync pending");
+  if (kind == QLatin1String("conflict")) return tr("Conflict");
+  return {};
+}
+
+QString LibraryModel::syncKind(const QString& gameId) const {
+  for (const Item& it : items_) {
+    if (it.game.id == gameId) {
+      return it.sync;
+    }
+  }
+  return QStringLiteral("none");
+}
+
+void LibraryModel::setSyncKind(const QString& gameId, const QString& kind) {
+  for (int i = 0; i < items_.size(); ++i) {
+    if (items_.at(i).game.id != gameId || items_.at(i).sync == kind) {
+      continue;
+    }
+    items_[i].sync = kind;
+    const qsizetype row = visible_.indexOf(i);
+    if (row >= 0) {
+      emit dataChanged(index(static_cast<int>(row)), index(static_cast<int>(row)), {SyncKindRole, SyncTextRole});
+    }
+  }
 }
 
 int LibraryModel::rowOfGame(const QString& gameId) const {

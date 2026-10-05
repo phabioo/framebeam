@@ -167,6 +167,7 @@ void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
     }
   } else if (req.method == "POST" && req.path == QLatin1String("/api/v1/auth/token")) {
     ++tokenRequests_;
+    callerDeviceId = body.value(QStringLiteral("device_id")).toString();
     if (revoked) {
       respondError(sock, 401, QStringLiteral("device_revoked"));
     } else if (body.value(QStringLiteral("device_credential")).toString().toUtf8() != kDeviceCredential) {
@@ -193,10 +194,17 @@ void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
                     {QStringLiteral("min_protocol_version"), minProtocolVersion},
                     {QStringLiteral("compatible"), true},
                     {QStringLiteral("problems"), QJsonArray()}};
+    QJsonArray feats;
+    for (const QString& f : features) {
+      feats.append(f);
+    }
+    res.insert(QStringLiteral("features"), feats);
     for (auto it = handshakeExtra.begin(); it != handshakeExtra.end(); ++it) {
       res.insert(it.key(), it.value());
     }
     respond(sock, 200, json(res));
+  } else if (req.path == QLatin1String("/api/v1/saves") || req.path.startsWith(QLatin1String("/api/v1/games/"))) {
+    handleSaves(sock, req);
   } else if (req.method == "GET" && req.path == QLatin1String("/api/v1/games")) {
     respond(sock, 200, json(games));
   } else if (req.method == "GET" && req.path.startsWith(QLatin1String("/api/v1/roms/"))) {
@@ -223,6 +231,168 @@ void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
       cut = truncateFirstRomAt;
     }
     respond(sock, 200, data, "application/octet-stream", {}, cut);
+  } else {
+    respondError(sock, 404, QStringLiteral("not_found"));
+  }
+}
+
+// ---------------------------------------------------------------- saves
+
+void FakeHub::setHubSave(const QString& gameId, const QByteArray& content, const QString& deviceId, const QString& deviceName) {
+  FakeSlot& s = saves[gameId];
+  s.revision += 1;
+  s.content = content;
+  s.deviceId = deviceId;
+  s.deviceName = deviceName;
+  s.reason = QStringLiteral("checkpoint");
+}
+
+QJsonObject FakeHub::slotJson(const QString& gameId, const FakeSlot& s) const {
+  QJsonArray conflicts;
+  for (const FakeConflict& c : s.conflicts) {
+    if (c.status == QLatin1String("open")) {
+      conflicts.append(conflictJson(gameId, s, c));
+    }
+  }
+  return {{QStringLiteral("game_id"), gameId},
+          {QStringLiteral("slot"), QStringLiteral("default")},
+          {QStringLiteral("current"),
+           QJsonObject{{QStringLiteral("revision"), s.revision},
+                       {QStringLiteral("sha256"), QString::fromLatin1(QCryptographicHash::hash(s.content, QCryptographicHash::Sha256).toHex())},
+                       {QStringLiteral("size"), s.content.size()},
+                       {QStringLiteral("device_id"), s.deviceId},
+                       {QStringLiteral("device_name"), s.deviceName},
+                       {QStringLiteral("created_at"), QStringLiteral("2026-01-01T12:00:00Z")},
+                       {QStringLiteral("reason"), s.reason}}},
+          {QStringLiteral("open_conflicts"), conflicts}};
+}
+
+QJsonObject FakeHub::conflictJson(const QString& gameId, const FakeSlot&, const FakeConflict& c) const {
+  return {{QStringLiteral("id"), c.id},
+          {QStringLiteral("game_id"), gameId},
+          {QStringLiteral("slot"), QStringLiteral("default")},
+          {QStringLiteral("status"), c.status},
+          {QStringLiteral("hub"), QJsonObject{{QStringLiteral("revision"), c.hubRevision},
+                                              {QStringLiteral("sha256"), c.hubSha},
+                                              {QStringLiteral("device_id"), c.hubDeviceId},
+                                              {QStringLiteral("device_name"), c.hubDeviceName},
+                                              {QStringLiteral("created_at"), QStringLiteral("2026-01-01T12:00:00Z")}}},
+          {QStringLiteral("secured"),
+           QJsonObject{{QStringLiteral("version"), c.securedVersion},
+                       {QStringLiteral("sha256"), QString::fromLatin1(QCryptographicHash::hash(c.securedContent, QCryptographicHash::Sha256).toHex())},
+                       {QStringLiteral("base_revision"), c.securedBase},
+                       {QStringLiteral("device_id"), c.securedDeviceId},
+                       {QStringLiteral("device_name"), c.securedDeviceName},
+                       {QStringLiteral("created_at"), QStringLiteral("2026-01-01T12:05:00Z")}}},
+          {QStringLiteral("created_at"), QStringLiteral("2026-01-01T12:05:00Z")}};
+}
+
+void FakeHub::handleSaves(QSslSocket* sock, const FakeRequest& req) {
+  const auto json = [](const QJsonObject& o) { return QJsonDocument(o).toJson(QJsonDocument::Compact); };
+  if (failSaveRequests > 0) {
+    --failSaveRequests;
+    respondError(sock, 503, QStringLiteral("internal"));
+    return;
+  }
+  const QString sha256Hdr = QString::fromLatin1(req.headers.value(QStringLiteral("x-framebeam-content-sha256")));
+  if (req.path == QLatin1String("/api/v1/saves") && req.method == "GET") {
+    QJsonArray arr;
+    for (auto it = saves.cbegin(); it != saves.cend(); ++it) {
+      QJsonObject o = slotJson(it.key(), it.value());
+      o.insert(QStringLiteral("open_conflict_count"), o.value(QStringLiteral("open_conflicts")).toArray().size());
+      o.remove(QStringLiteral("open_conflicts"));
+      arr.append(o);
+    }
+    respond(sock, 200, json({{QStringLiteral("saves"), arr}}));
+    return;
+  }
+  // /api/v1/games/{id}/saves/{slot}[/content|/conflicts/{cid}/resolve]
+  const QStringList parts = req.path.split(QLatin1Char('/'), Qt::SkipEmptyParts);
+  if (parts.size() < 6 || parts.at(4) != QLatin1String("saves")) {
+    respondError(sock, 404, QStringLiteral("not_found"));
+    return;
+  }
+  const QString gameId = parts.at(3);
+  const bool exists = saves.contains(gameId) && saves.value(gameId).revision > 0;
+  if (parts.size() == 6 && req.method == "GET") {
+    exists ? respond(sock, 200, json(slotJson(gameId, saves.value(gameId)))) : respondError(sock, 404, QStringLiteral("not_found"));
+  } else if (parts.size() == 7 && parts.at(6) == QLatin1String("content") && req.method == "GET") {
+    if (!exists) {
+      respondError(sock, 404, QStringLiteral("not_found"));
+      return;
+    }
+    const FakeSlot& s = saves.value(gameId);
+    const QByteArray sha = QCryptographicHash::hash(s.content, QCryptographicHash::Sha256).toHex();
+    respond(sock, 200, s.content, "application/octet-stream",
+            {{"ETag", "\"" + sha + "\""}, {"X-FrameBeam-Save-Revision", QByteArray::number(s.revision)}});
+  } else if (parts.size() == 6 && req.method == "PUT") {
+    const QString actual = QString::fromLatin1(QCryptographicHash::hash(req.body, QCryptographicHash::Sha256).toHex());
+    if (actual != sha256Hdr) {
+      respondError(sock, 400, QStringLiteral("bad_request"));
+      return;
+    }
+    const int base = req.headers.value(QStringLiteral("x-framebeam-base-revision")).toInt();
+    FakeSlot& s = saves[gameId];
+    const QString curSha = QString::fromLatin1(QCryptographicHash::hash(s.content, QCryptographicHash::Sha256).toHex());
+    if (s.revision > 0 && curSha == actual) {
+      respond(sock, 200, json(slotJson(gameId, s)));
+    } else if (base == s.revision) {
+      s.revision += 1;
+      s.content = req.body;
+      s.deviceId = callerDeviceId;
+      s.deviceName = QStringLiteral("Test Device");
+      s.reason = QString::fromLatin1(req.headers.value(QStringLiteral("x-framebeam-sync-reason")));
+      respond(sock, 200, json(slotJson(gameId, s)));
+    } else {
+      FakeConflict* c = nullptr;
+      for (FakeConflict& x : s.conflicts) {
+        if (x.status == QLatin1String("open") && x.securedDeviceId == callerDeviceId) {
+          c = &x;
+        }
+      }
+      if (c == nullptr) {
+        s.conflicts.append(FakeConflict{});
+        c = &s.conflicts.last();
+        c->id = QStringLiteral("c%1").arg(s.conflicts.size());
+      }
+      c->hubRevision = s.revision;
+      c->hubSha = curSha;
+      c->hubDeviceId = s.deviceId;
+      c->hubDeviceName = s.deviceName;
+      c->securedContent = req.body;
+      c->securedVersion = s.nextVersion++;
+      c->securedBase = base;
+      c->securedDeviceId = callerDeviceId;
+      c->securedDeviceName = QStringLiteral("Test Device");
+      respond(sock, 409,
+              json({{QStringLiteral("error"), QJsonObject{{QStringLiteral("code"), QStringLiteral("save_conflict")},
+                                                          {QStringLiteral("message"), QStringLiteral("stale")}}},
+                    {QStringLiteral("conflict"), conflictJson(gameId, s, *c)}}));
+    }
+  } else if (parts.size() == 9 && parts.at(6) == QLatin1String("conflicts") && parts.at(8) == QLatin1String("resolve") &&
+             req.method == "POST") {
+    const QJsonObject body = QJsonDocument::fromJson(req.body).object();
+    FakeSlot& s = saves[gameId];
+    FakeConflict* c = nullptr;
+    for (FakeConflict& x : s.conflicts) {
+      if (x.id == parts.at(7) && x.status == QLatin1String("open")) {
+        c = &x;
+      }
+    }
+    if (c == nullptr || body.value(QStringLiteral("expected_revision")).toInt() != s.revision) {
+      respondError(sock, 409, QStringLiteral("save_conflict_stale"));
+      return;
+    }
+    if (body.value(QStringLiteral("resolution")).toString() == QLatin1String("use_local")) {
+      s.revision += 1;
+      s.content = c->securedContent;
+      s.deviceId = c->securedDeviceId;
+      s.deviceName = c->securedDeviceName;
+      c->status = QStringLiteral("resolved_local");
+    } else {
+      c->status = QStringLiteral("resolved_hub");
+    }
+    respond(sock, 200, json(slotJson(gameId, s)));
   } else {
     respondError(sock, 404, QStringLiteral("not_found"));
   }

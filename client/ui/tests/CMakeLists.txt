@@ -18,3 +18,11 @@ target_include_directories(test_ui_game PRIVATE ${FB_NETTEST_DIR})
 target_compile_definitions(test_ui_game PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata"
   FB_TEST_ROM_PATH="${FB_ROM_DIR}/framebeam_test.nds")
 add_dependencies(test_ui_game framebeam_test_rom)
+
+# Save sync with a real core: conflict dialog (3d), decide later / use Hub version.
+framebeam_add_test(ui_save save_ui_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
+  LIBS ${FB_UI_TEST_LIBS} NEEDS_CORE)
+target_include_directories(test_ui_save PRIVATE ${FB_NETTEST_DIR})
+target_compile_definitions(test_ui_save PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata"
+  FB_TEST_ROM_PATH="${FB_ROM_DIR}/framebeam_test.nds")
+add_dependencies(test_ui_save framebeam_test_rom)

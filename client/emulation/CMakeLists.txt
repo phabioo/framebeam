@@ -32,6 +32,14 @@ if(BUILD_TESTING)
   framebeam_add_test(emulation_manifest tests/manifest_test.cpp LIBS framebeam_emulation)
   target_compile_definitions(test_emulation_manifest PRIVATE FB_MANIFEST_SRC_DIR="${CMAKE_CURRENT_SOURCE_DIR}/manifests")
 
+  # Fake libretro core (SAVE_RAM only) for the save persistence tests.
+  add_library(framebeam_fake_core MODULE tests/fake_core.cpp)
+  target_include_directories(framebeam_fake_core PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+  set_target_properties(framebeam_fake_core PROPERTIES PREFIX "" OUTPUT_NAME framebeam_fake_core)
+  framebeam_add_test(emulation_save_ram tests/save_ram_test.cpp LIBS framebeam_emulation)
+  target_compile_definitions(test_emulation_save_ram PRIVATE FB_FAKE_CORE_PATH="$<TARGET_FILE:framebeam_fake_core>")
+  add_dependencies(test_emulation_save_ram framebeam_fake_core)
+
   # With core (SKIP/77 without FRAMEBEAM_MELONDS_DS_CORE).
   framebeam_add_test(emulation_core tests/core_test.cpp LIBS framebeam_emulation NEEDS_CORE)
   target_compile_definitions(test_emulation_core PRIVATE FB_TEST_ROM_PATH="${FB_TEST_ROM}")

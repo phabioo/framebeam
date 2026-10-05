@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"mime/multipart"
@@ -11,6 +13,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -558,11 +561,11 @@ func TestAllPagesRenderWithHeaders(t *testing.T) {
 	pending(t, e, uuid.NewString())
 	admin, _ := e.svc.VerifyPassword(bg, "admin", "secret-1234")
 	e.svc.AddROM(bg, bytes.NewReader(randomBytes(300)), "a.nds", "Trouble <b>Title</b>", "", admin.ID)
-	for _, p := range []string{"/library", "/clients", "/settings"} {
+	for _, p := range []string{"/library", "/saves", "/clients", "/settings"} {
 		rec := c.get(p, nil)
 		status(t, rec, 200)
-		contains(t, rec, "FrameBeam Hub", "Library", "Clients", "Settings", "admin · Admin", "Test-Hub", "/static/htmx.min.js")
-		notContains(t, rec, "Saves", "Stream", "&lt;no value&gt;", "<no value>")
+		contains(t, rec, "FrameBeam Hub", "Library", "Saves", "Clients", "Settings", "admin · Admin", "Test-Hub", "/static/htmx.min.js")
+		notContains(t, rec, "Stream", "&lt;no value&gt;", "<no value>")
 		if inlineRe.MatchString(rec.Body.String()) {
 			t.Fatalf("%s: inline script/style: %s", p, inlineRe.FindString(rec.Body.String()))
 		}
@@ -586,5 +589,140 @@ func TestAllPagesRenderWithHeaders(t *testing.T) {
 	contains(t, rec, "--bg-app")
 	if strings.Contains(rec.Body.String(), "http://") || strings.Contains(rec.Body.String(), "https://") || strings.Contains(rec.Body.String(), "@import") {
 		t.Fatal("external resource in CSS")
+	}
+}
+
+// ---- Saves page (3k) ----
+
+func pairTestDevice(t *testing.T, e *env, userID, name string) string {
+	t.Helper()
+	id := uuid.NewString()
+	c, err := e.svc.CreatePairingRequest(bg, hub.PairingInput{DeviceID: id, DeviceName: name, Platform: "linux", Arch: "x86_64",
+		PlayerVersion: "0.1.0", ProtocolVersion: 1, RemoteAddr: "192.0.2.1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.ApprovePairing(bg, c.RequestID, userID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.PollPairing(bg, c.RequestID, c.PollToken); err != nil {
+		t.Fatal(err)
+	}
+	return id
+}
+
+func sha(b []byte) string { h := sha256.Sum256(b); return hex.EncodeToString(h[:]) }
+
+func putSave(t *testing.T, e *env, userID, devID, gameID string, base int, data []byte, reason string) hub.PutSaveResult {
+	t.Helper()
+	r, err := e.svc.PutSave(bg, hub.PutSaveInput{UserID: userID, DeviceID: devID, GameID: gameID, Slot: "default", BaseRevision: base,
+		SHA256: sha(data), Reason: reason, Body: bytes.NewReader(data)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return r
+}
+
+func TestSavesPage(t *testing.T) {
+	e := newEnv(t, true, nil)
+	c := e.client()
+	// Not signed in: redirect to login.
+	status(t, c.get("/saves", nil), http.StatusSeeOther)
+	tok := c.login()
+
+	// Empty state, no badge.
+	rec := c.get("/saves", nil)
+	status(t, rec, http.StatusOK)
+	contains(t, rec, "No saves yet.", `href="/saves"`)
+	notContains(t, rec, "conflict</span>", "Restore")
+
+	users, _ := e.svc.ListUsers(bg)
+	adminID := users[0].ID
+	other, err := e.svc.CreateUser(bg, "anna", "Anna")
+	if err != nil {
+		t.Fatal(err)
+	}
+	g, err := e.svc.AddROM(bg, bytes.NewReader([]byte("homebrew-dummy-rom")), "harbor.nds", "Harbor Rally", "", adminID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	devA, devB := pairTestDevice(t, e, adminID, "Laptop Office"), pairTestDevice(t, e, adminID, "Desktop Living Room")
+	hubSave, localSave := []byte("hub-save-content"), []byte("local-save-content")
+	putSave(t, e, adminID, devA, g.ID, 0, []byte("old"), hub.SyncCheckpoint)
+	putSave(t, e, adminID, devA, g.ID, 1, hubSave, hub.SyncFinalSessionEnd) // Rev 2 + session end
+	r := putSave(t, e, adminID, devB, g.ID, 1, localSave, hub.SyncCheckpoint)
+	if r.Conflict == nil {
+		t.Fatal("expected a conflict")
+	}
+	base := "/saves/" + adminID + "/" + g.ID + "/default"
+
+	// List: conflict first, badge, detail with both sides and the actions; no Restore.
+	rec = c.get("/saves", nil)
+	status(t, rec, http.StatusOK)
+	contains(t, rec, "Harbor Rally", "▲ Conflict · unresolved", "1 conflict</span>", "Current checkpoint", "Rev 2", "Laptop Office",
+		"▲ Conflict: upload is based on Rev 1, current is Rev 2", "Current checkpoint on the Hub", "Secured upload · sync pending",
+		"Desktop Living Room", shortHash(sha(hubSave)), shortHash(sha(localSave)),
+		"Use Hub version", "Adopt local save as new current version", "Keep both, decide later", "Download",
+		`name="expected_revision" value="2"`, `hx-confirm=`, base+"/conflicts/"+r.Conflict.ID+"/resolve", "CURRENT", "Session end", "Conflict upload")
+	notContains(t, rec, "Restore")
+	// Detail by path, unknown slot is 404.
+	status(t, c.get(base, nil), http.StatusOK)
+	status(t, c.get("/saves/"+adminID+"/"+g.ID+"/nope", nil), http.StatusNotFound)
+	// User filter.
+	rec = c.get("/saves?user="+other.ID, nil)
+	status(t, rec, http.StatusOK)
+	contains(t, rec, "No saves yet.")
+	notContains(t, rec, "Harbor Rally")
+	contains(t, c.get("/saves?user="+adminID, nil), "Harbor Rally")
+
+	// Downloads (current + history).
+	rec = c.get(base+"/download", nil)
+	status(t, rec, http.StatusOK)
+	if !bytes.Equal(rec.Body.Bytes(), hubSave) || !strings.Contains(rec.Header().Get("Content-Disposition"), "attachment") {
+		t.Fatalf("download: %q %v", rec.Body.String(), rec.Header())
+	}
+	rec = c.get(base+"/history/"+strconv.Itoa(r.Conflict.Secured.Version)+"/download", nil)
+	status(t, rec, http.StatusOK)
+	if !bytes.Equal(rec.Body.Bytes(), localSave) {
+		t.Fatal("history download differs")
+	}
+	status(t, c.get(base+"/history/99/download", nil), http.StatusNotFound)
+
+	resolve := base + "/conflicts/" + r.Conflict.ID + "/resolve"
+	// CSRF: without token or with a wrong one, nothing happens.
+	status(t, c.postForm(resolve, url.Values{"resolution": {"use_local"}, "expected_revision": {"2"}}, nil), http.StatusForbidden)
+	status(t, c.postForm(resolve, url.Values{"resolution": {"use_local"}, "expected_revision": {"2"}, "_csrf": {"wrong"}}, nil), http.StatusForbidden)
+	if n, _ := e.svc.OpenConflictCount(bg); n != 1 {
+		t.Fatalf("conflict resolved without CSRF: %d", n)
+	}
+	// Stale expected_revision: redirect with an error message, nothing changed.
+	rec = c.postForm(resolve, url.Values{"resolution": {"use_local"}, "expected_revision": {"1"}, "_csrf": {tok}}, nil)
+	status(t, rec, http.StatusSeeOther)
+	if !strings.Contains(location(rec), "err=stale") {
+		t.Fatalf("location %q", location(rec))
+	}
+	contains(t, c.get(location(rec), nil), "The slot changed in the meantime")
+	if s, _ := e.svc.GetSaveSlot(bg, adminID, g.ID, "default"); s.Current.Revision != 2 || len(s.OpenConflicts) != 1 {
+		t.Fatalf("%+v", s)
+	}
+	// Resolve via web (htmx: HX-Redirect).
+	rec = c.postForm(resolve, url.Values{"resolution": {"use_local"}, "expected_revision": {"2"}, "_csrf": {tok}}, map[string]string{"HX-Request": "true"})
+	status(t, rec, http.StatusOK)
+	if rec.Header().Get("HX-Redirect") != base+"?ok=resolved" {
+		t.Fatalf("HX-Redirect %q", rec.Header().Get("HX-Redirect"))
+	}
+	cf, err := e.svc.GetSaveConflict(bg, adminID, g.ID, "default", r.Conflict.ID)
+	if err != nil || cf.Status != hub.ConflictResolvedLocal || cf.ResolvedBy != "user:"+adminID {
+		t.Fatalf("%+v %v", cf, err)
+	}
+	rec = c.get(base+"?ok=resolved", nil)
+	status(t, rec, http.StatusOK)
+	contains(t, rec, "Conflict resolved.", "Rev 3", "Desktop Living Room", "Checkpoint · today", "Session end", "Conflict upload")
+	notContains(t, rec, "Use Hub version", "conflict</span>", "Restore")
+	// Resolving again: stale.
+	rec = c.postForm(resolve, url.Values{"resolution": {"use_hub"}, "expected_revision": {"3"}, "_csrf": {tok}}, nil)
+	status(t, rec, http.StatusSeeOther)
+	if !strings.Contains(location(rec), "err=stale") {
+		t.Fatalf("location %q", location(rec))
 	}
 }

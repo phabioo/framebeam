@@ -1,5 +1,6 @@
 #include "playercontroller.h"
 
+#include <QDate>
 #include <QDir>
 #include <QFileInfo>
 #include <QRegularExpression>
@@ -39,6 +40,25 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   library_ = std::make_unique<HubLibrary>(conn_.get());
   cache_ = std::make_unique<RomCache>(profiles_->romCacheDir());
   downloader_ = std::make_unique<RomDownloader>(conn_.get(), cache_.get());
+  saves_ = std::make_unique<SaveSync>(conn_.get(), profiles_.get());
+  connect(saves_.get(), &SaveSync::startReady, this, &PlayerController::onSaveReady);
+  connect(saves_.get(), &SaveSync::startConflict, this, &PlayerController::onSaveConflict);
+  connect(saves_.get(), &SaveSync::resolveFailed, this, [this](const QString& msg) {
+    conflict_.insert(QStringLiteral("busy"), false);
+    conflict_.insert(QStringLiteral("error"), msg);
+    emit saveConflictChanged();
+  });
+  connect(saves_.get(), &SaveSync::startFailed, this, [this](const QString&, const QString& msg) {
+    phase_ = PlayPhase::None;
+    startError_ = msg;
+    emit selectedGameChanged();
+  });
+  connect(saves_.get(), &SaveSync::kindChanged, this, [this](const QString& gameId, SaveSync::Kind k) {
+    model_.setSyncKind(gameId, SaveSync::kindName(k));
+    if (gameId == selectedId_) {
+      emit selectedGameChanged();
+    }
+  });
 
   QString err;
   if (!manifests_.loadBuiltin(&err)) {
@@ -80,12 +100,19 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
           [this](const QString& sha, const QString& path) { onRomReady(sha, path); });
 
   connect(&session_, &GameSession::started, this, [this]() {
+    saves_->beginSession();
     phase_ = PlayPhase::None;
     gameActive_ = true;
     updateScreen();
     emit selectedGameChanged();
   });
+  connect(&session_, &GameSession::stateChanged, this, [this]() {
+    if (gameActive_ && session_.state() == GameSession::Paused) {
+      saves_->finalSync(false);  // pause = immediate sync of a changed save
+    }
+  });
   connect(&session_, &GameSession::startFailed, this, [this](const QString& msg) {
+    saves_->finalSync(true);
     phase_ = PlayPhase::None;
     gameActive_ = false;
     startError_ = tr("The emulator could not start: %1").arg(msg);
@@ -95,6 +122,7 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   connect(&session_, &GameSession::errorChanged, this, [this]() {
     // Runtime error in the game: back to the Library, error shown in the detail pane.
     if (gameActive_ && session_.state() == GameSession::Failed) {
+      saves_->finalSync(true);
       gameActive_ = false;
       startError_ = tr("The emulator was terminated: %1").arg(session_.errorText());
       updateScreen();
@@ -103,8 +131,13 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   });
 }
 
-PlayerController::~PlayerController() {
-  session_.stop();
+PlayerController::~PlayerController() { shutdown(); }
+
+void PlayerController::shutdown() {
+  session_.stop();  // unloads the core first so it flushes its save
+  if (saves_) {
+    saves_->finalSyncBlocking(true);
+  }
 }
 
 // ---------------------------------------------------------------- Cores / Handshake
@@ -148,11 +181,6 @@ QString PlayerController::coreLabel(const emu::SystemManifest& m, const emu::Cor
 
 QString PlayerController::systemDir() const {
   return QDir(profiles_->baseDir()).filePath(QStringLiteral("system"));
-}
-
-QString PlayerController::saveDirForCurrentHub() const {
-  const QString hubDir = profiles_->hubDir(conn_->hubInfo().hubId);
-  return hubDir.isEmpty() ? QString() : QDir(hubDir).filePath(QStringLiteral("saves"));
 }
 
 // ---------------------------------------------------------------- Navigation
@@ -454,6 +482,7 @@ QString PlayerController::hubAddress() const { return trimmedScheme(conn_->addre
 void PlayerController::switchHub() {
   if (gameActive_) {
     session_.stop();
+    saves_->finalSyncBlocking(true);  // needs the connection: before disconnecting
     gameActive_ = false;
   }
   conn_->disconnectFromHub();
@@ -468,6 +497,14 @@ void PlayerController::reloadLibrary() {
 
 void PlayerController::onLibraryLoaded() {
   model_.setGames(library_->games(), [this](const GameEntry& g) { return downloader_->status(g); });
+  QStringList ids;
+  for (const GameEntry& g : library_->games()) {
+    ids.append(g.id);
+  }
+  saves_->refreshKinds(ids);
+  for (const QString& id : ids) {
+    model_.setSyncKind(id, SaveSync::kindName(saves_->kind(id)));
+  }
   libraryState_ = QStringLiteral("ready");
   libraryError_.clear();
   emit libraryStateChanged();
@@ -593,6 +630,34 @@ QVariantMap PlayerController::selectedGame() const {
   m.insert(QStringLiteral("firmwareTone"), fwOk ? QStringLiteral("neutral") : QStringLiteral("error"));
   m.insert(QStringLiteral("firmwareHint"), fwHint);
 
+  // Save row (sync state)
+  {
+    const QString sk = model_.syncKind(selectedId_);
+    QString saveText;
+    QString saveTone = QStringLiteral("neutral");
+    QString saveHint;
+    if (conn_->state() == HubConnection::State::Connected && !saves_->hubSupportsSaves()) {
+      saveText = SaveSync::unsupportedNote();
+    } else if (sk == QLatin1String("synced")) {
+      saveText = tr("Synced");
+      saveTone = QStringLiteral("ok");
+    } else if (sk == QLatin1String("pending")) {
+      saveText = tr("Sync pending");
+      saveTone = QStringLiteral("warn");
+      saveHint = tr("Local changes are uploaded to this Hub as soon as it is reachable.");
+    } else if (sk == QLatin1String("conflict")) {
+      saveText = tr("Conflict");
+      saveTone = QStringLiteral("warn");
+      saveHint = tr("Decide when starting the game or on the Saves page in the Hub.");
+    } else {
+      saveText = tr("No save yet");
+    }
+    m.insert(QStringLiteral("saveText"), saveText);
+    m.insert(QStringLiteral("saveTone"), saveTone);
+    m.insert(QStringLiteral("saveHint"), saveHint);
+    m.insert(QStringLiteral("syncKind"), sk);
+  }
+
   // Start checklist
   const bool busy = phase_ != PlayPhase::None;
   const bool romReady = kind == QLatin1String("ready");
@@ -601,9 +666,12 @@ QVariantMap PlayerController::selectedGame() const {
   list.append(checkItem(romReady ? tr("ROM verified from cache") : tr("Download and verify ROM"),
                         romReady ? QStringLiteral("done") : (phase_ == PlayPhase::Rom ? QStringLiteral("active") : QStringLiteral("pending")),
                         romReady ? QString() : romText));
+  list.append(checkItem(tr("Save checked with Hub"),
+                        phase_ == PlayPhase::Launching ? (saveReady_ ? QStringLiteral("done") : QStringLiteral("active")) : QStringLiteral("pending"),
+                        saveNoteStart_));
   list.append(checkItem(tr("Core ready"), coreOk ? QStringLiteral("done") : QStringLiteral("error"),
                         coreOk ? QString() : coreText));
-  list.append(checkItem(tr("Emulator starting"), phase_ == PlayPhase::Launching ? QStringLiteral("active") : QStringLiteral("pending")));
+  list.append(checkItem(tr("Emulator starting"), (phase_ == PlayPhase::Launching && saveReady_) ? QStringLiteral("active") : QStringLiteral("pending")));
   m.insert(QStringLiteral("checklist"), list);
 
   QString error = startError_;
@@ -667,29 +735,97 @@ void PlayerController::onRomReady(const QString& sha, const QString& path) {
 
 void PlayerController::launch(const GameEntry& game, const QString& romPath) {
   const emu::SystemManifest* man = manifestFor(game);
-  const QString saveDir = saveDirForCurrentHub();
-  if (man == nullptr || saveDir.isEmpty()) {
+  if (man == nullptr || profiles_->hubDir(conn_->hubInfo().hubId).isEmpty()) {
     phase_ = PlayPhase::None;
     startError_ = tr("Cannot start the game (system or hub directory unknown).");
     emit selectedGameChanged();
     return;
   }
+  phase_ = PlayPhase::Launching;
+  launchGame_ = game;
+  launchRom_ = romPath;
+  saveReady_ = false;
+  saveNoteStart_.clear();
+  emit selectedGameChanged();
+  // Start sync with the Hub first (before the core loads); the game starts in onSaveReady().
+  saves_->prepareStart(game.id, romPath, {game.romSha256, QFileInfo(game.romFilename).completeBaseName()});
+}
+
+void PlayerController::onSaveReady(const QString& gameId, const QString& saveDir, const QString& note) {
+  if (phase_ != PlayPhase::Launching || launchGame_.id != gameId) {
+    return;
+  }
+  saveNoteStart_ = note;
+  saveReady_ = true;
+  if (!conflict_.isEmpty()) {
+    conflict_.clear();
+    emit saveConflictChanged();
+  }
+  const emu::SystemManifest* man = manifestFor(launchGame_);
+  if (man == nullptr) {
+    phase_ = PlayPhase::None;
+    emit selectedGameChanged();
+    return;
+  }
   const emu::CoreLocation loc = locator_.locate(*man);
   GameSession::LaunchConfig cfg;
-  cfg.title = game.title;
+  cfg.title = launchGame_.title;
   cfg.corePath = loc.path;
-  cfg.gamePath = romPath;
+  cfg.gamePath = launchRom_;
   cfg.systemDir = systemDir();
   cfg.saveDir = saveDir;
   cfg.coreOptions = man->coreOptions;
   cfg.display = man->display;
-  phase_ = PlayPhase::Launching;
   emit selectedGameChanged();
   session_.start(cfg);
 }
 
+QString PlayerController::formatWhen(const QDateTime& when) {
+  if (!when.isValid()) {
+    return tr("unknown time");
+  }
+  const QDateTime local = when.toLocalTime();
+  return local.date() == QDate::currentDate() ? tr("today, %1").arg(local.toString(QStringLiteral("HH:mm")))
+                                              : local.toString(QStringLiteral("yyyy-MM-dd HH:mm"));
+}
+
+void PlayerController::onSaveConflict(const SaveSync::ConflictView& v) {
+  const SaveConflictInfo& c = v.conflict;
+  const auto side = [](const QString& title, const QString& when, const QString& base) {
+    return QVariantMap{{QStringLiteral("title"), title}, {QStringLiteral("when"), when}, {QStringLiteral("base"), base}};
+  };
+  QVariantMap m;
+  m.insert(QStringLiteral("active"), true);
+  m.insert(QStringLiteral("busy"), false);
+  m.insert(QStringLiteral("error"), QString());
+  m.insert(QStringLiteral("id"), c.id);
+  m.insert(QStringLiteral("gameTitle"), launchGame_.title);
+  m.insert(QStringLiteral("hub"),
+           side(tr("Current checkpoint · %1").arg(c.hubDeviceName),
+                tr("%1 · Rev %2").arg(formatWhen(QDateTime::fromString(c.hubCreatedAt, Qt::ISODate)), QString::number(c.hubRevision)),
+                tr("Hash %1").arg(c.hubSha256.left(8))));
+  m.insert(QStringLiteral("local"),
+           side(tr("Local · %1").arg(v.localDeviceName), tr("%1 · sync pending").arg(formatWhen(v.localModified)),
+                tr("Base: Rev %1 · hash %2").arg(v.localBaseRevision).arg(v.localSha256.left(8))));
+  conflict_ = m;
+  emit saveConflictChanged();
+}
+
+void PlayerController::resolveSaveConflict(const QString& action) {
+  if (conflict_.isEmpty() || conflict_.value(QStringLiteral("busy")).toBool()) {
+    return;
+  }
+  conflict_.insert(QStringLiteral("busy"), true);
+  conflict_.insert(QStringLiteral("error"), QString());
+  emit saveConflictChanged();
+  saves_->resolveConflict(action == QLatin1String("use_hub")     ? SaveSync::Resolution::UseHub
+                          : action == QLatin1String("use_local") ? SaveSync::Resolution::UseLocal
+                                                                 : SaveSync::Resolution::DecideLater);
+}
+
 void PlayerController::quitGame() {
-  session_.stop();
+  session_.stop();  // core unloaded (save flushed), then the final upload
+  saves_->finalSync(true);
   gameActive_ = false;
   phase_ = PlayPhase::None;
   updateScreen();

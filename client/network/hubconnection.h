@@ -62,6 +62,11 @@ class HubConnection : public QObject {
   QString observedFingerprint() const { return observedFp_; }  // for NeedsTrustConfirmation/CertificateChanged
   QString expectedFingerprint() const { return pin_; }         // pinned value (CertificateChanged)
   QList<HandshakeProblem> handshakeProblems() const { return problems_; }
+  // Feature flags advertised by the hub in the handshake (e.g. "saves_v1"); empty until Connected.
+  bool hubHasFeature(const QString& feature) const { return features_.contains(feature); }
+  QString hubId() const { return hubInfo_.hubId; }
+  QString hubUserId() const { return profile_ ? profile_->hubUserId : QString(); }
+  QString deviceId() const { return profile_ ? profile_->deviceId : QString(); }
 
   // Exactly one active hub: calls first disconnect the old connection.
   void connectToAddress(const QString& address, bool allowHttp = false);
@@ -80,6 +85,9 @@ class HubConnection : public QObject {
   // Authenticated requests relative to api_base (e.g. "/games"); nullptr if not Connected.
   // Replies are aborted on disconnect. The token never leaves this class.
   QNetworkReply* authorizedGet(const QString& apiPath, const HttpHeaders& headers = {});
+  // Same for other methods with a raw body (PUT/POST); nullptr if not Connected.
+  QNetworkReply* authorizedSend(const QByteArray& method, const QString& apiPath, const QByteArray& body,
+                                const HttpHeaders& headers = {}, const QByteArray& contentType = "application/octet-stream");
   // Caller reports 401: the token is renewed immediately, or -> NeedsPairing if the credential is invalid.
   void noteUnauthorized();
 
@@ -125,6 +133,7 @@ class HubConnection : public QObject {
   HubInfo hubInfo_;
   std::optional<HubProfile> profile_;
   QList<HandshakeProblem> problems_;
+  QStringList features_;
 
   quint64 gen_ = 0;
   HubHttp* http_ = nullptr;

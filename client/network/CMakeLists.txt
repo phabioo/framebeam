@@ -5,6 +5,8 @@ target_sources(framebeam_core PRIVATE
   hubconnection.cpp
   hublibrary.cpp
   romdownloader.cpp
+  saveapi.cpp
+  savesync.cpp
 )
 target_include_directories(framebeam_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -18,8 +20,9 @@ set(FB_FAKEHUB tests/fakehub.cpp tests/fakehub.h)
 
 framebeam_add_test(network_hub_flow tests/hub_flow_test.cpp ${FB_FAKEHUB} LIBS framebeam_core)
 framebeam_add_test(network_library_rom tests/library_rom_test.cpp ${FB_FAKEHUB} LIBS framebeam_core)
+framebeam_add_test(network_savesync tests/savesync_test.cpp ${FB_FAKEHUB} LIBS framebeam_core)
 if(BUILD_TESTING)
-  foreach(t network_hub_flow network_library_rom)
+  foreach(t network_hub_flow network_library_rom network_savesync)
     target_compile_definitions(test_${t} PRIVATE FB_TEST_DATA_DIR="${FB_TESTDATA_DIR}")
   endforeach()
 endif()

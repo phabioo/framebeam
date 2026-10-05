@@ -25,4 +25,6 @@ ApplicationWindow {
         LibraryScreen { player: window.player }
         GameScreen { player: window.player }
     }
+
+    ConflictDialog { player: window.player }
 }

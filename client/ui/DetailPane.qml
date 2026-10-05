@@ -92,7 +92,8 @@ Rectangle {
                         model: [
                             { label: qsTr("ROM"), text: root.game.romText, tone: root.game.romTone, hint: "" },
                             { label: qsTr("Core"), text: root.game.coreText, tone: root.game.coreTone, hint: root.game.coreHint },
-                            { label: qsTr("Firmware"), text: root.game.firmwareText, tone: root.game.firmwareTone, hint: root.game.firmwareHint }
+                            { label: qsTr("Firmware"), text: root.game.firmwareText, tone: root.game.firmwareTone, hint: root.game.firmwareHint },
+                            { label: qsTr("Save"), text: root.game.saveText, tone: root.game.saveTone, hint: root.game.saveHint }
                         ]
                         delegate: Item {
                             id: row

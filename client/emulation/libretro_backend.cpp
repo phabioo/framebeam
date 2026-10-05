@@ -1,7 +1,9 @@
 #include "libretro_backend.h"
 
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
+#include <QSaveFile>
 #include <QFileInfo>
 #include <QLoggingCategory>
 
@@ -78,6 +80,8 @@ struct LibretroBackend::Api {
   void(RETRO_CALLCONV* unload_game)() = nullptr;
   void(RETRO_CALLCONV* run)() = nullptr;
   void(RETRO_CALLCONV* reset)() = nullptr;
+  void*(RETRO_CALLCONV* get_memory_data)(unsigned) = nullptr;  // optional
+  size_t(RETRO_CALLCONV* get_memory_size)(unsigned) = nullptr;  // optional
 };
 
 LibretroBackend* LibretroBackend::s_active = nullptr;
@@ -118,6 +122,8 @@ bool LibretroBackend::loadCore(const QString& libraryPath, QString* error) {
   sym(a.unload_game, "retro_unload_game");
   sym(a.run, "retro_run");
   sym(a.reset, "retro_reset");
+  a.get_memory_data = reinterpret_cast<void*(RETRO_CALLCONV*)(unsigned)>(m_lib.resolve("retro_get_memory_data"));
+  a.get_memory_size = reinterpret_cast<size_t(RETRO_CALLCONV*)(unsigned)>(m_lib.resolve("retro_get_memory_size"));
   if (!ok) {
     m_lib.unload();
     return fail(QStringLiteral("Not a valid libretro library (symbols missing)"));
@@ -219,11 +225,70 @@ bool LibretroBackend::loadGame(const QString& path, QString* error) {
   m_av.fps = av.timing.fps;
   m_av.sampleRate = av.timing.sample_rate;
   m_gameLoaded = true;
+
+  // Battery save: the core exposes it as memory, the frontend persists it (like RetroArch's .srm).
+  m_saveFilePath.clear();
+  m_sramSnapshot.clear();
+  m_framesSinceFlush = 0;
+  m_savePendingLoad = false;
+  m_saveBlocked = false;
+  if (!m_saveDir.isEmpty() && m_api->get_memory_data && m_api->get_memory_size) {
+    m_saveFilePath = QDir(QString::fromUtf8(m_saveDir)).filePath(fi.completeBaseName() + QStringLiteral(".sav"));
+    m_savePendingLoad = true;  // applied as soon as the core reports save memory (possibly only after a few frames)
+    tryLoadSave();
+  }
   return true;
+}
+
+// Loads the save file into SAVE_RAM once the core exposes it. Never overwrites a file that could not be
+// read or whose size differs: such a file is backed up first (never deleted) and left alone.
+bool LibretroBackend::tryLoadSave() {
+  if (!m_savePendingLoad) return true;
+  void* mem = m_api->get_memory_data(RETRO_MEMORY_SAVE_RAM);
+  const size_t size = m_api->get_memory_size(RETRO_MEMORY_SAVE_RAM);
+  if (mem == nullptr || size == 0) return false;
+  m_savePendingLoad = false;
+  const QFileInfo fi(m_saveFilePath);
+  if (fi.exists()) {
+    QFile sf(m_saveFilePath);
+    if (!sf.open(QIODevice::ReadOnly)) {
+      qCWarning(lcCore) << "Save file exists but cannot be read; it will not be overwritten:" << m_saveFilePath;
+      QFile::copy(m_saveFilePath, m_saveFilePath + QStringLiteral(".unreadable-") + backupStamp() + QStringLiteral(".bak"));
+      m_saveBlocked = true;
+    } else {
+      const QByteArray data = sf.readAll();
+      if (static_cast<size_t>(data.size()) != size) {
+        qCWarning(lcCore) << "Save file size" << data.size() << "differs from the core's save memory" << size
+                          << "; keeping a backup before the first write";
+        QFile::copy(m_saveFilePath, m_saveFilePath + QStringLiteral(".size-mismatch-") + backupStamp() + QStringLiteral(".bak"));
+      }
+      std::memcpy(mem, data.constData(), std::min(static_cast<size_t>(data.size()), size));
+    }
+  }
+  m_sramSnapshot = QByteArray(static_cast<const char*>(mem), static_cast<qsizetype>(size));
+  return true;
+}
+
+QString LibretroBackend::backupStamp() { return QDateTime::currentDateTimeUtc().toString(QStringLiteral("yyyyMMdd-HHmmss-zzz")); }
+
+void LibretroBackend::flushSave() {
+  if (!m_gameLoaded || m_saveFilePath.isEmpty() || !m_api->get_memory_data || !m_api->get_memory_size) return;
+  if (m_savePendingLoad && !tryLoadSave()) return;  // never flush before an existing file was applied
+  if (m_saveBlocked) return;
+  const void* mem = m_api->get_memory_data(RETRO_MEMORY_SAVE_RAM);
+  const size_t size = m_api->get_memory_size(RETRO_MEMORY_SAVE_RAM);
+  if (mem == nullptr || size == 0) return;
+  const QByteArray now(static_cast<const char*>(mem), static_cast<qsizetype>(size));
+  if (now == m_sramSnapshot) return;
+  QSaveFile f(m_saveFilePath);
+  if (f.open(QIODevice::WriteOnly) && f.write(now) == now.size() && f.commit()) {
+    m_sramSnapshot = now;
+  }
 }
 
 void LibretroBackend::unloadGame() {
   if (!m_gameLoaded) return;
+  flushSave();
   m_api->unload_game();
   m_gameLoaded = false;
   m_gameData.clear();
@@ -235,6 +300,11 @@ AvInfo LibretroBackend::avInfo() const { return m_av; }
 bool LibretroBackend::runFrame() {
   if (!m_gameLoaded || m_shutdownRequested) return false;
   m_api->run();
+  if (m_savePendingLoad) tryLoadSave();  // as soon as the core exposes save memory, before any flush
+  if (++m_framesSinceFlush >= 180) {
+    m_framesSinceFlush = 0;
+    flushSave();
+  }
   return !m_shutdownRequested;
 }
 

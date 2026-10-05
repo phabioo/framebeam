@@ -39,8 +39,11 @@ const (
 	ErrorCodePairingDenied       ErrorCode = "pairing_denied"
 	ErrorCodePairingExpired      ErrorCode = "pairing_expired"
 	ErrorCodePairingPending      ErrorCode = "pairing_pending"
+	ErrorCodePayloadTooLarge     ErrorCode = "payload_too_large"
 	ErrorCodePlayerTooOld        ErrorCode = "player_too_old"
 	ErrorCodeRateLimited         ErrorCode = "rate_limited"
+	ErrorCodeSaveConflict        ErrorCode = "save_conflict"
+	ErrorCodeSaveConflictStale   ErrorCode = "save_conflict_stale"
 	ErrorCodeUnauthorized        ErrorCode = "unauthorized"
 )
 
@@ -64,6 +67,35 @@ const (
 	PairingStatusStatusDenied   PairingStatusStatus = "denied"
 	PairingStatusStatusExpired  PairingStatusStatus = "expired"
 	PairingStatusStatusPending  PairingStatusStatus = "pending"
+)
+
+// Defines values for SaveConflictStatus.
+const (
+	Open          SaveConflictStatus = "open"
+	ResolvedHub   SaveConflictStatus = "resolved_hub"
+	ResolvedLocal SaveConflictStatus = "resolved_local"
+)
+
+// Defines values for SaveHistoryReason.
+const (
+	BeforeConflictResolution SaveHistoryReason = "before_conflict_resolution"
+	ConflictUpload           SaveHistoryReason = "conflict_upload"
+	DeviceChange             SaveHistoryReason = "device_change"
+	ManualSnapshot           SaveHistoryReason = "manual_snapshot"
+	SessionEnd               SaveHistoryReason = "session_end"
+)
+
+// Defines values for SaveResolveRequestResolution.
+const (
+	UseHub   SaveResolveRequestResolution = "use_hub"
+	UseLocal SaveResolveRequestResolution = "use_local"
+)
+
+// Defines values for SaveSyncReason.
+const (
+	Checkpoint      SaveSyncReason = "checkpoint"
+	Final           SaveSyncReason = "final"
+	FinalSessionEnd SaveSyncReason = "final_session_end"
 )
 
 // Defines values for TokenResponseTokenType.
@@ -147,7 +179,10 @@ type HandshakeRequest_Video struct {
 
 // HandshakeResponse defines model for HandshakeResponse.
 type HandshakeResponse struct {
-	Compatible         bool               `json:"compatible"`
+	Compatible bool `json:"compatible"`
+
+	// Features Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API.
+	Features           *[]string          `json:"features,omitempty"`
 	HubVersion         string             `json:"hub_version"`
 	MinProtocolVersion int                `json:"min_protocol_version"`
 	Problems           []HandshakeProblem `json:"problems"`
@@ -211,6 +246,115 @@ type RomInfo struct {
 	Size     int64  `json:"size"`
 }
 
+// SaveCheckpoint Current checkpoint of a slot (one opaque blob).
+type SaveCheckpoint struct {
+	CreatedAt  time.Time          `json:"created_at"`
+	DeviceId   openapi_types.UUID `json:"device_id"`
+	DeviceName string             `json:"device_name"`
+	Reason     SaveSyncReason     `json:"reason"`
+
+	// Revision Per-slot checkpoint counter ("Rev N")
+	Revision int    `json:"revision"`
+	Sha256   string `json:"sha256"`
+	Size     int64  `json:"size"`
+}
+
+// SaveConflict defines model for SaveConflict.
+type SaveConflict struct {
+	CreatedAt  time.Time           `json:"created_at"`
+	GameId     openapi_types.UUID  `json:"game_id"`
+	Hub        SaveConflictHubSide `json:"hub"`
+	Id         string              `json:"id"`
+	ResolvedAt *time.Time          `json:"resolved_at"`
+
+	// ResolvedBy Hub-local user ID or device ID of the resolver
+	ResolvedBy *string                   `json:"resolved_by"`
+	Secured    SaveConflictSecuredUpload `json:"secured"`
+	Slot       string                    `json:"slot"`
+	Status     SaveConflictStatus        `json:"status"`
+}
+
+// SaveConflictStatus defines model for SaveConflict.Status.
+type SaveConflictStatus string
+
+// SaveConflictError Error body of the upload 409 (`save_conflict`) carrying the conflict.
+type SaveConflictError struct {
+	Conflict SaveConflict `json:"conflict"`
+	Error    struct {
+		Code    ErrorCode `json:"code"`
+		Message string    `json:"message"`
+	} `json:"error"`
+}
+
+// SaveConflictHubSide defines model for SaveConflictHubSide.
+type SaveConflictHubSide struct {
+	CreatedAt  time.Time          `json:"created_at"`
+	DeviceId   openapi_types.UUID `json:"device_id"`
+	DeviceName string             `json:"device_name"`
+	Revision   int                `json:"revision"`
+	Sha256     string             `json:"sha256"`
+}
+
+// SaveConflictSecuredUpload defines model for SaveConflictSecuredUpload.
+type SaveConflictSecuredUpload struct {
+	BaseRevision int                `json:"base_revision"`
+	CreatedAt    time.Time          `json:"created_at"`
+	DeviceId     openapi_types.UUID `json:"device_id"`
+	DeviceName   string             `json:"device_name"`
+	Sha256       string             `json:"sha256"`
+
+	// Version History version holding the secured upload
+	Version int `json:"version"`
+}
+
+// SaveHistoryReason defines model for SaveHistoryReason.
+type SaveHistoryReason string
+
+// SaveHistoryVersion Permanent history version with its own per-slot counter ("vN").
+type SaveHistoryVersion struct {
+	CreatedAt  time.Time          `json:"created_at"`
+	DeviceId   openapi_types.UUID `json:"device_id"`
+	DeviceName string             `json:"device_name"`
+	Reason     SaveHistoryReason  `json:"reason"`
+
+	// Revision Checkpoint revision captured
+	Revision int    `json:"revision"`
+	Sha256   string `json:"sha256"`
+	Size     int64  `json:"size"`
+	Version  int    `json:"version"`
+}
+
+// SaveResolveRequest defines model for SaveResolveRequest.
+type SaveResolveRequest struct {
+	// ExpectedRevision Current checkpoint revision the caller saw
+	ExpectedRevision int                          `json:"expected_revision"`
+	Resolution       SaveResolveRequestResolution `json:"resolution"`
+}
+
+// SaveResolveRequestResolution defines model for SaveResolveRequest.Resolution.
+type SaveResolveRequestResolution string
+
+// SaveSlot defines model for SaveSlot.
+type SaveSlot struct {
+	// Current Current checkpoint of a slot (one opaque blob).
+	Current       SaveCheckpoint     `json:"current"`
+	GameId        openapi_types.UUID `json:"game_id"`
+	OpenConflicts []SaveConflict     `json:"open_conflicts"`
+	Slot          string             `json:"slot"`
+}
+
+// SaveSlotSummary defines model for SaveSlotSummary.
+type SaveSlotSummary struct {
+	// Current Current checkpoint of a slot (one opaque blob).
+	Current           SaveCheckpoint     `json:"current"`
+	GameId            openapi_types.UUID `json:"game_id"`
+	OpenConflictCount int                `json:"open_conflict_count"`
+	Slot              string             `json:"slot"`
+}
+
+// SaveSyncReason defines model for SaveSyncReason.
+type SaveSyncReason string
+
 // TokenRequest defines model for TokenRequest.
 type TokenRequest struct {
 	DeviceCredential string             `json:"device_credential"`
@@ -230,8 +374,17 @@ type TokenResponse struct {
 // TokenResponseTokenType defines model for TokenResponse.TokenType.
 type TokenResponseTokenType string
 
+// GameId defines model for GameId.
+type GameId = openapi_types.UUID
+
+// SaveSlotName defines model for SaveSlotName.
+type SaveSlotName = string
+
 // BadRequest defines model for BadRequest.
 type BadRequest = Error
+
+// Forbidden defines model for Forbidden.
+type Forbidden = Error
 
 // NotFound defines model for NotFound.
 type NotFound = Error
@@ -242,6 +395,16 @@ type RateLimited = Error
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = Error
 
+// PutSaveParams defines parameters for PutSave.
+type PutSaveParams struct {
+	// XFrameBeamBaseRevision Checkpoint revision the upload is based on; 0 = the Player had no Hub save.
+	XFrameBeamBaseRevision int `json:"X-FrameBeam-Base-Revision"`
+
+	// XFrameBeamContentSHA256 Lowercase hex SHA-256 of the body; verified by the Hub.
+	XFrameBeamContentSHA256 string         `json:"X-FrameBeam-Content-SHA256"`
+	XFrameBeamSyncReason    SaveSyncReason `json:"X-FrameBeam-Sync-Reason"`
+}
+
 // DownloadRomParams defines parameters for DownloadRom.
 type DownloadRomParams struct {
 	Range *string `json:"Range,omitempty"`
@@ -249,6 +412,9 @@ type DownloadRomParams struct {
 
 // CreateAccessTokenJSONRequestBody defines body for CreateAccessToken for application/json ContentType.
 type CreateAccessTokenJSONRequestBody = TokenRequest
+
+// ResolveSaveConflictJSONRequestBody defines body for ResolveSaveConflict for application/json ContentType.
+type ResolveSaveConflictJSONRequestBody = SaveResolveRequest
 
 // PostHandshakeJSONRequestBody defines body for PostHandshake for application/json ContentType.
 type PostHandshakeJSONRequestBody = HandshakeRequest
@@ -684,6 +850,24 @@ type ServerInterface interface {
 	// Single game
 	// (GET /api/v1/games/{game_id})
 	GetGame(w http.ResponseWriter, r *http.Request, gameId openapi_types.UUID)
+	// Current checkpoint metadata and open conflicts of a slot
+	// (GET /api/v1/games/{game_id}/saves/{slot})
+	GetSaveSlot(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName)
+	// Upload the save file (raw body) against a base revision
+	// (PUT /api/v1/games/{game_id}/saves/{slot})
+	PutSave(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName, params PutSaveParams)
+	// Resolve an open save conflict
+	// (POST /api/v1/games/{game_id}/saves/{slot}/conflicts/{conflict_id}/resolve)
+	ResolveSaveConflict(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName, conflictId string)
+	// Bytes of the current checkpoint
+	// (GET /api/v1/games/{game_id}/saves/{slot}/content)
+	DownloadSaveContent(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName)
+	// Permanent history versions of a slot (newest first)
+	// (GET /api/v1/games/{game_id}/saves/{slot}/history)
+	ListSaveHistory(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName)
+	// Bytes of a history version
+	// (GET /api/v1/games/{game_id}/saves/{slot}/history/{version}/content)
+	DownloadSaveHistoryContent(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName, version int)
 	// Handshake with capability negotiation
 	// (POST /api/v1/handshake)
 	PostHandshake(w http.ResponseWriter, r *http.Request)
@@ -696,6 +880,9 @@ type ServerInterface interface {
 	// ROM download (range support). Upload only via the admin web interface.
 	// (GET /api/v1/roms/{sha256})
 	DownloadRom(w http.ResponseWriter, r *http.Request, sha256 string, params DownloadRomParams)
+	// Save slots of the authenticated device's user
+	// (GET /api/v1/saves)
+	ListSaves(w http.ResponseWriter, r *http.Request)
 	// WSS upgrade (documentation only, implementation to follow)
 	// (GET /api/v1/ws)
 	ConnectWebSocket(w http.ResponseWriter, r *http.Request)
@@ -800,6 +987,338 @@ func (siw *ServerInterfaceWrapper) GetGame(w http.ResponseWriter, r *http.Reques
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetGame(w, r, gameId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSaveSlot operation middleware
+func (siw *ServerInterfaceWrapper) GetSaveSlot(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "game_id" -------------
+	var gameId GameId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "game_id", r.PathValue("game_id"), &gameId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "game_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "slot" -------------
+	var slot SaveSlotName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slot", r.PathValue("slot"), &slot, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slot", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSaveSlot(w, r, gameId, slot)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutSave operation middleware
+func (siw *ServerInterfaceWrapper) PutSave(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "game_id" -------------
+	var gameId GameId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "game_id", r.PathValue("game_id"), &gameId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "game_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "slot" -------------
+	var slot SaveSlotName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slot", r.PathValue("slot"), &slot, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slot", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PutSaveParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-FrameBeam-Base-Revision" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-FrameBeam-Base-Revision")]; found {
+		var XFrameBeamBaseRevision int
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-FrameBeam-Base-Revision", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-FrameBeam-Base-Revision", valueList[0], &XFrameBeamBaseRevision, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-FrameBeam-Base-Revision", Err: err})
+			return
+		}
+
+		params.XFrameBeamBaseRevision = XFrameBeamBaseRevision
+
+	} else {
+		err := fmt.Errorf("Header parameter X-FrameBeam-Base-Revision is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-FrameBeam-Base-Revision", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-FrameBeam-Content-SHA256" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-FrameBeam-Content-SHA256")]; found {
+		var XFrameBeamContentSHA256 string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-FrameBeam-Content-SHA256", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-FrameBeam-Content-SHA256", valueList[0], &XFrameBeamContentSHA256, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-FrameBeam-Content-SHA256", Err: err})
+			return
+		}
+
+		params.XFrameBeamContentSHA256 = XFrameBeamContentSHA256
+
+	} else {
+		err := fmt.Errorf("Header parameter X-FrameBeam-Content-SHA256 is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-FrameBeam-Content-SHA256", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-FrameBeam-Sync-Reason" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-FrameBeam-Sync-Reason")]; found {
+		var XFrameBeamSyncReason SaveSyncReason
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-FrameBeam-Sync-Reason", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-FrameBeam-Sync-Reason", valueList[0], &XFrameBeamSyncReason, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-FrameBeam-Sync-Reason", Err: err})
+			return
+		}
+
+		params.XFrameBeamSyncReason = XFrameBeamSyncReason
+
+	} else {
+		err := fmt.Errorf("Header parameter X-FrameBeam-Sync-Reason is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-FrameBeam-Sync-Reason", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutSave(w, r, gameId, slot, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ResolveSaveConflict operation middleware
+func (siw *ServerInterfaceWrapper) ResolveSaveConflict(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "game_id" -------------
+	var gameId GameId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "game_id", r.PathValue("game_id"), &gameId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "game_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "slot" -------------
+	var slot SaveSlotName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slot", r.PathValue("slot"), &slot, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slot", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "conflict_id" -------------
+	var conflictId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "conflict_id", r.PathValue("conflict_id"), &conflictId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "conflict_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ResolveSaveConflict(w, r, gameId, slot, conflictId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DownloadSaveContent operation middleware
+func (siw *ServerInterfaceWrapper) DownloadSaveContent(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "game_id" -------------
+	var gameId GameId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "game_id", r.PathValue("game_id"), &gameId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "game_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "slot" -------------
+	var slot SaveSlotName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slot", r.PathValue("slot"), &slot, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slot", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DownloadSaveContent(w, r, gameId, slot)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListSaveHistory operation middleware
+func (siw *ServerInterfaceWrapper) ListSaveHistory(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "game_id" -------------
+	var gameId GameId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "game_id", r.PathValue("game_id"), &gameId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "game_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "slot" -------------
+	var slot SaveSlotName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slot", r.PathValue("slot"), &slot, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slot", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSaveHistory(w, r, gameId, slot)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DownloadSaveHistoryContent operation middleware
+func (siw *ServerInterfaceWrapper) DownloadSaveHistoryContent(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "game_id" -------------
+	var gameId GameId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "game_id", r.PathValue("game_id"), &gameId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "game_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "slot" -------------
+	var slot SaveSlotName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slot", r.PathValue("slot"), &slot, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slot", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "version" -------------
+	var version int
+
+	err = runtime.BindStyledParameterWithOptions("simple", "version", r.PathValue("version"), &version, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "version", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DownloadSaveHistoryContent(w, r, gameId, slot, version)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -920,6 +1439,26 @@ func (siw *ServerInterfaceWrapper) DownloadRom(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.DownloadRom(w, r, sha256, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListSaves operation middleware
+func (siw *ServerInterfaceWrapper) ListSaves(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSaves(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1074,16 +1613,25 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/auth/token", wrapper.CreateAccessToken)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/games", wrapper.ListGames)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/games/{game_id}", wrapper.GetGame)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}", wrapper.GetSaveSlot)
+	m.HandleFunc("PUT "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}", wrapper.PutSave)
+	m.HandleFunc("POST "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/conflicts/{conflict_id}/resolve", wrapper.ResolveSaveConflict)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/content", wrapper.DownloadSaveContent)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/history", wrapper.ListSaveHistory)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/history/{version}/content", wrapper.DownloadSaveHistoryContent)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/handshake", wrapper.PostHandshake)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/pairing/requests", wrapper.CreatePairingRequest)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/pairing/requests/{request_id}", wrapper.GetPairingRequest)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/roms/{sha256}", wrapper.DownloadRom)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/saves", wrapper.ListSaves)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/ws", wrapper.ConnectWebSocket)
 
 	return m
 }
 
 type BadRequestJSONResponse Error
+
+type ForbiddenJSONResponse Error
 
 type NotFoundJSONResponse Error
 
@@ -1222,6 +1770,368 @@ func (response GetGame401JSONResponse) VisitGetGameResponse(w http.ResponseWrite
 type GetGame404JSONResponse struct{ NotFoundJSONResponse }
 
 func (response GetGame404JSONResponse) VisitGetGameResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetSaveSlotRequestObject struct {
+	GameId GameId       `json:"game_id"`
+	Slot   SaveSlotName `json:"slot"`
+}
+
+type GetSaveSlotResponseObject interface {
+	VisitGetSaveSlotResponse(w http.ResponseWriter) error
+}
+
+type GetSaveSlot200JSONResponse SaveSlot
+
+func (response GetSaveSlot200JSONResponse) VisitGetSaveSlotResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetSaveSlot401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetSaveSlot401JSONResponse) VisitGetSaveSlotResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetSaveSlot403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetSaveSlot403JSONResponse) VisitGetSaveSlotResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetSaveSlot404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetSaveSlot404JSONResponse) VisitGetSaveSlotResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutSaveRequestObject struct {
+	GameId GameId       `json:"game_id"`
+	Slot   SaveSlotName `json:"slot"`
+	Params PutSaveParams
+	Body   io.Reader
+}
+
+type PutSaveResponseObject interface {
+	VisitPutSaveResponse(w http.ResponseWriter) error
+}
+
+type PutSave200JSONResponse SaveSlot
+
+func (response PutSave200JSONResponse) VisitPutSaveResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutSave400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response PutSave400JSONResponse) VisitPutSaveResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutSave401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response PutSave401JSONResponse) VisitPutSaveResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutSave403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response PutSave403JSONResponse) VisitPutSaveResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutSave404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response PutSave404JSONResponse) VisitPutSaveResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutSave409JSONResponse SaveConflictError
+
+func (response PutSave409JSONResponse) VisitPutSaveResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutSave413JSONResponse Error
+
+func (response PutSave413JSONResponse) VisitPutSaveResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(413)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ResolveSaveConflictRequestObject struct {
+	GameId     GameId       `json:"game_id"`
+	Slot       SaveSlotName `json:"slot"`
+	ConflictId string       `json:"conflict_id"`
+	Body       *ResolveSaveConflictJSONRequestBody
+}
+
+type ResolveSaveConflictResponseObject interface {
+	VisitResolveSaveConflictResponse(w http.ResponseWriter) error
+}
+
+type ResolveSaveConflict200JSONResponse SaveSlot
+
+func (response ResolveSaveConflict200JSONResponse) VisitResolveSaveConflictResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ResolveSaveConflict400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response ResolveSaveConflict400JSONResponse) VisitResolveSaveConflictResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ResolveSaveConflict401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ResolveSaveConflict401JSONResponse) VisitResolveSaveConflictResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ResolveSaveConflict403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ResolveSaveConflict403JSONResponse) VisitResolveSaveConflictResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ResolveSaveConflict404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ResolveSaveConflict404JSONResponse) VisitResolveSaveConflictResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ResolveSaveConflict409JSONResponse Error
+
+func (response ResolveSaveConflict409JSONResponse) VisitResolveSaveConflictResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DownloadSaveContentRequestObject struct {
+	GameId GameId       `json:"game_id"`
+	Slot   SaveSlotName `json:"slot"`
+}
+
+type DownloadSaveContentResponseObject interface {
+	VisitDownloadSaveContentResponse(w http.ResponseWriter) error
+}
+
+type DownloadSaveContent200ResponseHeaders struct {
+	ContentLength          int64
+	ETag                   string
+	XFrameBeamSaveRevision int
+}
+
+type DownloadSaveContent200ApplicationoctetStreamResponse struct {
+	Body          io.Reader
+	Headers       DownloadSaveContent200ResponseHeaders
+	ContentLength int64
+}
+
+func (response DownloadSaveContent200ApplicationoctetStreamResponse) VisitDownloadSaveContentResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/octet-stream")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.Header().Set("Content-Length", fmt.Sprint(response.Headers.ContentLength))
+	w.Header().Set("ETag", fmt.Sprint(response.Headers.ETag))
+	w.Header().Set("X-FrameBeam-Save-Revision", fmt.Sprint(response.Headers.XFrameBeamSaveRevision))
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type DownloadSaveContent401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DownloadSaveContent401JSONResponse) VisitDownloadSaveContentResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DownloadSaveContent403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response DownloadSaveContent403JSONResponse) VisitDownloadSaveContentResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DownloadSaveContent404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DownloadSaveContent404JSONResponse) VisitDownloadSaveContentResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListSaveHistoryRequestObject struct {
+	GameId GameId       `json:"game_id"`
+	Slot   SaveSlotName `json:"slot"`
+}
+
+type ListSaveHistoryResponseObject interface {
+	VisitListSaveHistoryResponse(w http.ResponseWriter) error
+}
+
+type ListSaveHistory200JSONResponse struct {
+	Versions []SaveHistoryVersion `json:"versions"`
+}
+
+func (response ListSaveHistory200JSONResponse) VisitListSaveHistoryResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListSaveHistory401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListSaveHistory401JSONResponse) VisitListSaveHistoryResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListSaveHistory403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ListSaveHistory403JSONResponse) VisitListSaveHistoryResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListSaveHistory404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ListSaveHistory404JSONResponse) VisitListSaveHistoryResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DownloadSaveHistoryContentRequestObject struct {
+	GameId  GameId       `json:"game_id"`
+	Slot    SaveSlotName `json:"slot"`
+	Version int          `json:"version"`
+}
+
+type DownloadSaveHistoryContentResponseObject interface {
+	VisitDownloadSaveHistoryContentResponse(w http.ResponseWriter) error
+}
+
+type DownloadSaveHistoryContent200ResponseHeaders struct {
+	ContentLength          int64
+	ETag                   string
+	XFrameBeamSaveRevision int
+}
+
+type DownloadSaveHistoryContent200ApplicationoctetStreamResponse struct {
+	Body          io.Reader
+	Headers       DownloadSaveHistoryContent200ResponseHeaders
+	ContentLength int64
+}
+
+func (response DownloadSaveHistoryContent200ApplicationoctetStreamResponse) VisitDownloadSaveHistoryContentResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/octet-stream")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.Header().Set("Content-Length", fmt.Sprint(response.Headers.ContentLength))
+	w.Header().Set("ETag", fmt.Sprint(response.Headers.ETag))
+	w.Header().Set("X-FrameBeam-Save-Revision", fmt.Sprint(response.Headers.XFrameBeamSaveRevision))
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type DownloadSaveHistoryContent401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DownloadSaveHistoryContent401JSONResponse) VisitDownloadSaveHistoryContentResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DownloadSaveHistoryContent403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response DownloadSaveHistoryContent403JSONResponse) VisitDownloadSaveHistoryContentResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DownloadSaveHistoryContent404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DownloadSaveHistoryContent404JSONResponse) VisitDownloadSaveHistoryContentResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
 
@@ -1427,6 +2337,33 @@ func (response DownloadRom416JSONResponse) VisitDownloadRomResponse(w http.Respo
 	return json.NewEncoder(w).Encode(response)
 }
 
+type ListSavesRequestObject struct {
+}
+
+type ListSavesResponseObject interface {
+	VisitListSavesResponse(w http.ResponseWriter) error
+}
+
+type ListSaves200JSONResponse struct {
+	Saves []SaveSlotSummary `json:"saves"`
+}
+
+func (response ListSaves200JSONResponse) VisitListSavesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListSaves401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListSaves401JSONResponse) VisitListSavesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type ConnectWebSocketRequestObject struct {
 }
 
@@ -1468,6 +2405,24 @@ type StrictServerInterface interface {
 	// Single game
 	// (GET /api/v1/games/{game_id})
 	GetGame(ctx context.Context, request GetGameRequestObject) (GetGameResponseObject, error)
+	// Current checkpoint metadata and open conflicts of a slot
+	// (GET /api/v1/games/{game_id}/saves/{slot})
+	GetSaveSlot(ctx context.Context, request GetSaveSlotRequestObject) (GetSaveSlotResponseObject, error)
+	// Upload the save file (raw body) against a base revision
+	// (PUT /api/v1/games/{game_id}/saves/{slot})
+	PutSave(ctx context.Context, request PutSaveRequestObject) (PutSaveResponseObject, error)
+	// Resolve an open save conflict
+	// (POST /api/v1/games/{game_id}/saves/{slot}/conflicts/{conflict_id}/resolve)
+	ResolveSaveConflict(ctx context.Context, request ResolveSaveConflictRequestObject) (ResolveSaveConflictResponseObject, error)
+	// Bytes of the current checkpoint
+	// (GET /api/v1/games/{game_id}/saves/{slot}/content)
+	DownloadSaveContent(ctx context.Context, request DownloadSaveContentRequestObject) (DownloadSaveContentResponseObject, error)
+	// Permanent history versions of a slot (newest first)
+	// (GET /api/v1/games/{game_id}/saves/{slot}/history)
+	ListSaveHistory(ctx context.Context, request ListSaveHistoryRequestObject) (ListSaveHistoryResponseObject, error)
+	// Bytes of a history version
+	// (GET /api/v1/games/{game_id}/saves/{slot}/history/{version}/content)
+	DownloadSaveHistoryContent(ctx context.Context, request DownloadSaveHistoryContentRequestObject) (DownloadSaveHistoryContentResponseObject, error)
 	// Handshake with capability negotiation
 	// (POST /api/v1/handshake)
 	PostHandshake(ctx context.Context, request PostHandshakeRequestObject) (PostHandshakeResponseObject, error)
@@ -1480,6 +2435,9 @@ type StrictServerInterface interface {
 	// ROM download (range support). Upload only via the admin web interface.
 	// (GET /api/v1/roms/{sha256})
 	DownloadRom(ctx context.Context, request DownloadRomRequestObject) (DownloadRomResponseObject, error)
+	// Save slots of the authenticated device's user
+	// (GET /api/v1/saves)
+	ListSaves(ctx context.Context, request ListSavesRequestObject) (ListSavesResponseObject, error)
 	// WSS upgrade (documentation only, implementation to follow)
 	// (GET /api/v1/ws)
 	ConnectWebSocket(ctx context.Context, request ConnectWebSocketRequestObject) (ConnectWebSocketResponseObject, error)
@@ -1643,6 +2601,180 @@ func (sh *strictHandler) GetGame(w http.ResponseWriter, r *http.Request, gameId 
 	}
 }
 
+// GetSaveSlot operation middleware
+func (sh *strictHandler) GetSaveSlot(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName) {
+	var request GetSaveSlotRequestObject
+
+	request.GameId = gameId
+	request.Slot = slot
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetSaveSlot(ctx, request.(GetSaveSlotRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetSaveSlot")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetSaveSlotResponseObject); ok {
+		if err := validResponse.VisitGetSaveSlotResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutSave operation middleware
+func (sh *strictHandler) PutSave(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName, params PutSaveParams) {
+	var request PutSaveRequestObject
+
+	request.GameId = gameId
+	request.Slot = slot
+	request.Params = params
+
+	request.Body = r.Body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutSave(ctx, request.(PutSaveRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutSave")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutSaveResponseObject); ok {
+		if err := validResponse.VisitPutSaveResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ResolveSaveConflict operation middleware
+func (sh *strictHandler) ResolveSaveConflict(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName, conflictId string) {
+	var request ResolveSaveConflictRequestObject
+
+	request.GameId = gameId
+	request.Slot = slot
+	request.ConflictId = conflictId
+
+	var body ResolveSaveConflictJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ResolveSaveConflict(ctx, request.(ResolveSaveConflictRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ResolveSaveConflict")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ResolveSaveConflictResponseObject); ok {
+		if err := validResponse.VisitResolveSaveConflictResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DownloadSaveContent operation middleware
+func (sh *strictHandler) DownloadSaveContent(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName) {
+	var request DownloadSaveContentRequestObject
+
+	request.GameId = gameId
+	request.Slot = slot
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DownloadSaveContent(ctx, request.(DownloadSaveContentRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DownloadSaveContent")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DownloadSaveContentResponseObject); ok {
+		if err := validResponse.VisitDownloadSaveContentResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListSaveHistory operation middleware
+func (sh *strictHandler) ListSaveHistory(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName) {
+	var request ListSaveHistoryRequestObject
+
+	request.GameId = gameId
+	request.Slot = slot
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListSaveHistory(ctx, request.(ListSaveHistoryRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListSaveHistory")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListSaveHistoryResponseObject); ok {
+		if err := validResponse.VisitListSaveHistoryResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DownloadSaveHistoryContent operation middleware
+func (sh *strictHandler) DownloadSaveHistoryContent(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName, version int) {
+	var request DownloadSaveHistoryContentRequestObject
+
+	request.GameId = gameId
+	request.Slot = slot
+	request.Version = version
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DownloadSaveHistoryContent(ctx, request.(DownloadSaveHistoryContentRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DownloadSaveHistoryContent")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DownloadSaveHistoryContentResponseObject); ok {
+		if err := validResponse.VisitDownloadSaveHistoryContentResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // PostHandshake operation middleware
 func (sh *strictHandler) PostHandshake(w http.ResponseWriter, r *http.Request) {
 	var request PostHandshakeRequestObject
@@ -1751,6 +2883,30 @@ func (sh *strictHandler) DownloadRom(w http.ResponseWriter, r *http.Request, sha
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(DownloadRomResponseObject); ok {
 		if err := validResponse.VisitDownloadRomResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListSaves operation middleware
+func (sh *strictHandler) ListSaves(w http.ResponseWriter, r *http.Request) {
+	var request ListSavesRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListSaves(ctx, request.(ListSavesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListSaves")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListSavesResponseObject); ok {
+		if err := validResponse.VisitListSavesResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

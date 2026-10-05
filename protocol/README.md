@@ -18,4 +18,11 @@ Shared protocol definition for Hub and Player (`openapi/`, `schemas/`). Rules: `
 | GET | `/api/v1/games` | Bearer | listGames |
 | GET | `/api/v1/games/{game_id}` | Bearer | getGame |
 | GET | `/api/v1/roms/{sha256}` | Bearer | downloadRom (Range, ETag) |
+| GET | `/api/v1/saves` | Bearer | listSaves |
+| GET | `/api/v1/games/{game_id}/saves/{slot}` | Bearer | getSaveSlot |
+| PUT | `/api/v1/games/{game_id}/saves/{slot}` | Bearer | putSave (raw body, `X-FrameBeam-Base-Revision`/`-Content-SHA256`/`-Sync-Reason`, 409 `save_conflict`) |
+| GET | `/api/v1/games/{game_id}/saves/{slot}/content` | Bearer | downloadSaveContent (ETag, `X-FrameBeam-Save-Revision`) |
+| GET | `/api/v1/games/{game_id}/saves/{slot}/history` | Bearer | listSaveHistory |
+| GET | `/api/v1/games/{game_id}/saves/{slot}/history/{version}/content` | Bearer | downloadSaveHistoryContent |
+| POST | `/api/v1/games/{game_id}/saves/{slot}/conflicts/{conflict_id}/resolve` | Bearer | resolveSaveConflict (409 `save_conflict_stale`) |
 | GET | `/api/v1/ws` | Bearer | connectWebSocket (documentation only) |
