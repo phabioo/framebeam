@@ -1,5 +1,5 @@
 # UI tests (QtTest, offscreen). Source of the fake hub helper: network/tests (test code only).
-set(FB_UI_TEST_LIBS framebeam_ui framebeam_uiplugin framebeam_core framebeam_emulation Qt6::Quick Qt6::QuickControls2)
+set(FB_UI_TEST_LIBS framebeam_ui framebeam_uiplugin framebeam_core framebeam_emulation Qt6::Quick Qt6::QuickControls2 Qt6::QuickTest)
 get_filename_component(FB_NETTEST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../network/tests" ABSOLUTE)
 get_filename_component(FB_ROM_DIR "${CMAKE_BINARY_DIR}/emulation" ABSOLUTE)
 

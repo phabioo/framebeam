@@ -10,6 +10,7 @@
 #include <QQuickItem>
 #include <QQuickWindow>
 #include <QTemporaryDir>
+#include <QtQuickTest/quicktest.h>
 #include <QtQml/QQmlExtensionPlugin>
 #include <QtTest>
 #include <atomic>
@@ -174,6 +175,9 @@ struct Harness {
     return window ? window->findChild<QQuickItem*>(QString::fromLatin1(objectName)) : nullptr;
   }
   bool click(const char* objectName) const {
+    // Let pending layout polish finish first: right after a state change a freshly shown item can still carry
+    // stale geometry, and the click would land on its neighbor (e.g. Back instead of Request approval).
+    QQuickTest::qWaitForPolish(window);
     QQuickItem* it = item(objectName);
     if (it == nullptr || !it->isVisible() || !it->isEnabled()) {
       return false;

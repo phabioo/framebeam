@@ -71,7 +71,7 @@ class ScreensTest : public QObject {
     QVERIFY(h.start());
     ProfileStore* ps = h.controller->profileStore();
     HubProfile home = profile(QStringLiteral("hub-home"), QStringLiteral("Home"), QStringLiteral("https://hub.local:8443"));
-    QVERIFY(ps->upsertProfile(zuhause));
+    QVERIFY(ps->upsertProfile(home));
     QVERIFY(ps->upsertProfile(profile(QStringLiteral("hub-lena"), QStringLiteral("Studio Lena"), lena.address(), other.fingerprint())));
     QVERIFY(ps->upsertProfile(profile(QStringLiteral("hub-office"), QStringLiteral("Office"), old.address(), old.fingerprint())));
     ps->setLastHubId(QStringLiteral("hub-home"));
