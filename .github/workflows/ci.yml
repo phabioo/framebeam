@@ -94,8 +94,8 @@ jobs:
         with:
           path: ${{ env.VCPKG_ROOT }}
           key: vcpkg-root-${{ runner.os }}-${{ hashFiles('client/vcpkg.json') }}
-      - name: Cache vcpkg binary cache
-        uses: actions/cache@v4
+      - name: Restore vcpkg binary cache
+        uses: actions/cache/restore@v4
         with:
           path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
           key: vcpkg-bin-${{ runner.os }}-${{ hashFiles('client/vcpkg.json') }}
@@ -145,6 +145,14 @@ jobs:
       - name: Configure
         working-directory: client
         run: cmake --preset windows-msvc-release "-DFRAMEBEAM_MELONDS_DS_CORE=${{ steps.core.outputs.dll }}"
+      # Save the binary cache right after vcpkg install (part of configure), even if
+      # later steps fail, so a long FFmpeg build is never repeated.
+      - name: Save vcpkg binary cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+          key: vcpkg-bin-${{ runner.os }}-${{ hashFiles('client/vcpkg.json') }}
       - name: Build
         working-directory: client
         run: cmake --build --preset windows-msvc-release
