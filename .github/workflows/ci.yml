@@ -144,9 +144,14 @@ jobs:
         run: cmake --build --preset windows-msvc-release
       - name: Testen
         working-directory: client
+        shell: pwsh
         env:
           QT_QPA_PLATFORM: offscreen
-        run: ctest --preset windows-msvc-release
+        run: |
+          # Der Core liegt in der CI immer vor: uebersprungene Tests (z. B. emulation_core) gelten als Fehler.
+          ctest --preset windows-msvc-release 2>&1 | Tee-Object -FilePath ctest.log
+          if ($LASTEXITCODE -ne 0) { throw "ctest fehlgeschlagen" }
+          if (Select-String -Path ctest.log -Pattern '\(Skipped\)' -Quiet) { throw "Tests uebersprungen, obwohl der Core vorhanden sein sollte" }
       - name: Paket schnueren (windeployqt)
         shell: pwsh
         run: |
