@@ -74,6 +74,7 @@ Keine Volltext-Logs, keine Dateiinhalte zurückgeben. Nicht committen.
 ## Pakete und PRs
 
 - Je Paket ein PR mit grüner CI, ein Thema pro PR.
+- Bei jedem Meilenstein (Abschluss einer Phase) aktualisiert und erweitert der Phasen-PR `README.md`: Stand, Features, Bauen/Starten.
 
 ## Phasenplan
 
