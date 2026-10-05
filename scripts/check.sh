@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Quiet check steps: output buffered, on failure only the last 40 lines.
-# Usage: scripts/check.sh hub-fmt|hub-vet|hub-test|hub-codegen|hub-build|generate|client|hub|all
+# Usage: scripts/check.sh hub-fmt|hub-vet|hub-test|hub-codegen|hub-build|generate|client|packaging|hub|all
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -59,12 +59,52 @@ client() {
   step "client: test"      bash -c "cd '$ROOT/client' && ctest --preset $p"
 }
 
+# packaging: syntax, shellcheck, unit verification and an install/uninstall smoke test.
+packaging() {
+  local dir="$ROOT/packaging/linux" tmp rc=0
+  tmp="$(mktemp -d)"
+  bash -n "$dir/install-hub.sh" || rc=1
+  if command -v shellcheck >/dev/null 2>&1; then
+    shellcheck "$dir/install-hub.sh" || rc=1
+  else
+    echo "skip shellcheck (not installed)"
+  fi
+  if command -v systemd-analyze >/dev/null 2>&1; then
+    sed 's#^ExecStart=.*#ExecStart=/bin/true#; s#^User=.*#User=root#; s#^Group=.*#Group=root#' \
+      "$dir/framebeam-hub.service" >"$tmp/framebeam-hub.service"
+    # Complaints naming the temp unit are real and fail; anything else (e.g. no
+    # systemd manager in a container) is tolerated.
+    if ! systemd-analyze verify "$tmp/framebeam-hub.service" >"$tmp/verify.log" 2>&1 \
+       && grep -q "$tmp/framebeam-hub.service" "$tmp/verify.log"; then
+      grep "$tmp/framebeam-hub.service" "$tmp/verify.log" | head -n 5
+      rc=1
+    fi
+  else
+    echo "skip systemd-analyze (not installed)"
+  fi
+  printf '#!/bin/sh\necho "framebeam-hub 0.0.0-smoke"\n' >"$tmp/dummy-hub"
+  chmod +x "$tmp/dummy-hub"
+  local root="$tmp/root"
+  FRAMEBEAM_INSTALL_ROOT="$root" "$dir/install-hub.sh" install --binary "$tmp/dummy-hub" \
+    --port 8444 --no-start || rc=1
+  grep -qx 'FRAMEBEAM_LISTEN=:8444' "$root/etc/framebeam/hub.env" \
+    || { echo "hub.env lacks FRAMEBEAM_LISTEN=:8444"; rc=1; }
+  [ -x "$root/usr/local/bin/framebeam-hub" ] || { echo "binary not installed"; rc=1; }
+  [ -f "$root/etc/systemd/system/framebeam-hub.service" ] || { echo "unit not installed"; rc=1; }
+  FRAMEBEAM_INSTALL_ROOT="$root" "$dir/install-hub.sh" uninstall --purge --yes || rc=1
+  [ ! -e "$root/usr/local/bin/framebeam-hub" ] && [ ! -e "$root/etc/framebeam" ] \
+    || { echo "uninstall --purge left files behind"; rc=1; }
+  rm -rf "$tmp"
+  return "$rc"
+}
+
 case "${1:-all}" in
   hub-fmt)     step "hub: fmt" hub_fmt ;;
   hub-vet)     step "hub: vet" hub_vet ;;
   hub-test)    step "hub: test" hub_test ;;
   hub-codegen) step "hub: codegen" hub_codegen ;;
-  hub)   step "hub: fmt" hub_fmt; step "hub: vet" hub_vet; step "hub: test" hub_test; step "hub: codegen" hub_codegen ;;
+  packaging) step "packaging" packaging ;;
+  hub)   step "hub: fmt" hub_fmt; step "hub: vet" hub_vet; step "hub: test" hub_test; step "hub: codegen" hub_codegen; step "packaging" packaging ;;
   hub-build) step "hub: build linux/amd64+arm64" hub_build ;;
   generate)  step "hub: generate" generate ;;
   client)    client ;;

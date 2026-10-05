@@ -30,6 +30,7 @@ FrameBeam is a self-hosted retro gaming platform (monorepo): a central ROM libra
 - `make check`: Hub and client checks, quiet; `make check-hub` / `make check-client` individually (preset via `CLIENT_PRESET`, default `linux-debug`).
 - `make build-hub`: Hub binaries `server/dist/framebeam-hub-linux-{amd64,arm64}` (`HUB_VERSION` can be set).
 - `make generate`: regenerate Go code (oapi-codegen).
+- `packaging/linux/install-hub.sh` (+ `framebeam-hub.service`, README there): installs/upgrades/uninstalls the Hub as a systemd service from a local binary (`--port 8444` if 8443 is taken); `scripts/check.sh packaging` (bash -n, shellcheck, unit verify, install smoke test with `FRAMEBEAM_INSTALL_ROOT`) is part of `make check-hub`.
 
 CI (`.github/workflows/ci.yml`): Linux on every push, Windows on PRs against `main` and manually. The SessionStart hook `.claude/hooks/session-start.sh` only prepares cloud sessions (vcpkg, Go modules, Qt apt packages; the core build runs only via `make fetch-core`).
 
