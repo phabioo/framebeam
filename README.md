@@ -14,6 +14,7 @@ Phase plan: [Workflow](docs/workflow.md#phase-plan).
 | 3 Saves | planned | Sync, versions, conflict model |
 | 4 Session sharing and multiview | planned | Presence, signaling, WebRTC, multiview |
 | 5 Remainder and polish | planned | Firmware path, users, remaining pages, packaging |
+| Post-PoC | planned | Installers for all platforms, integrated updater |
 
 ## What works
 
