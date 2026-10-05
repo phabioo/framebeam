@@ -152,7 +152,11 @@ jobs:
         run: |
           $dist = "$env:GITHUB_WORKSPACE\dist\framebeam-player"
           New-Item -ItemType Directory -Force $dist, "$dist\cores" | Out-Null
-          Copy-Item client\build\windows-msvc-release\app\framebeam_player.exe $dist
+          # qt_standard_project_setup legt Executables unter Windows ggf. nicht in app\ ab: suchen.
+          $exe = @(Get-ChildItem -Recurse -Filter framebeam_player.exe client\build\windows-msvc-release)
+          if ($exe.Count -ne 1) { throw "framebeam_player.exe nicht eindeutig gefunden: $($exe.FullName -join ', ')" }
+          Write-Host "Executable: $($exe[0].FullName)"
+          Copy-Item $exe[0].FullName $dist
           windeployqt --release --no-translations --qmldir client\ui "$dist\framebeam_player.exe"
           if ($LASTEXITCODE -ne 0) { throw "windeployqt fehlgeschlagen" }
           $dll = "${{ steps.core.outputs.dll }}"
