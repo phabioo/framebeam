@@ -51,6 +51,8 @@ class SaveSync : public QObject {
   static QString unsupportedNote() { return QObject::tr("Hub does not support save sync"); }
   static QString kindName(Kind k);
 
+  // Test hook: replaces the local backup before overwriting (returns the backup path, empty = failed).
+  void setBackupHook(std::function<QString(const QString&, const QString&)> hook) { backupHook_ = std::move(hook); }
   void setTiming(const Timing& t);
   const Timing& timing() const { return timing_; }
 
@@ -131,6 +133,7 @@ class SaveSync : public QObject {
   ProfileStore* profiles_;
   SaveApi api_;
   Timing timing_;
+  std::function<QString(const QString&, const QString&)> backupHook_;
   QHash<QString, Kind> kinds_;
   Active a_;
   quint64 gen_ = 0;

@@ -259,6 +259,41 @@ class SaveSyncTest : public QObject {
     QCOMPARE(sync_->kind(kGame), SaveSync::Kind::Synced);
   }
 
+  void useLocalWithMissingLocalFileDownloadsPromotedCheckpoint() {
+    hub_->setHubSave(kGame, "hub-1");
+    QCOMPARE(start(), QStringLiteral("ready"));
+    writeFile(saveFile(), "local-offline");
+    hub_->setHubSave(kGame, "hub-2");
+    QCOMPARE(start(), QStringLiteral("conflict"));
+    QVERIFY(QFile::remove(saveFile()));  // local file vanished while the dialog was open
+    QCOMPARE(resolve(SaveSync::Resolution::UseLocal), QStringLiteral("ready"));
+    QCOMPARE(hub_->saves.value(kGame).revision, 3);
+    QCOMPARE(readFile(saveFile()), QByteArray("local-offline"));  // the secured upload, now the Hub current
+    const SyncState st = SaveStore::loadState(gdir());
+    QVERIFY(!st.pending && st.conflictId.isEmpty());
+    QCOMPARE(st.baseRevision, 3);
+    QCOMPARE(st.lastSyncedSha256, SaveStore::sha256Of("local-offline"));
+  }
+
+  void useHubAbortsWhenBackupFails() {
+    hub_->setHubSave(kGame, "hub-1");
+    QCOMPARE(start(), QStringLiteral("ready"));
+    writeFile(saveFile(), "local-offline");
+    hub_->setHubSave(kGame, "hub-2");
+    QCOMPARE(start(), QStringLiteral("conflict"));
+    sync_->setBackupHook([](const QString&, const QString&) { return QString(); });  // backup fails
+    QCOMPARE(resolve(SaveSync::Resolution::UseHub), QStringLiteral("failed"));
+    QCOMPARE(readFile(saveFile()), QByteArray("local-offline"));  // not replaced
+    QCOMPARE(hub_->saves.value(kGame).conflicts.first().status, QStringLiteral("open"));  // resolve never called
+    QCOMPARE(hub_->saves.value(kGame).revision, 2);
+    QVERIFY(!SaveStore::loadState(gdir()).conflictId.isEmpty());
+    QVERIFY(sync_->hasPendingConflictDialog());
+    // After the problem is gone the same dialog can be resolved
+    sync_->setBackupHook({});
+    QCOMPARE(resolve(SaveSync::Resolution::UseHub), QStringLiteral("ready"));
+    QCOMPARE(readFile(saveFile()), QByteArray("hub-2"));
+  }
+
   void conflictUseLocalAdoptsLocal() {
     hub_->setHubSave(kGame, "hub-1");
     QCOMPARE(start(), QStringLiteral("ready"));

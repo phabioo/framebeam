@@ -390,10 +390,37 @@ void SaveSync::resolveConflict(Resolution res) {
         fail(r);
         return;
       }
+      const SaveCheckpoint cur = r.slot->current;
+      if (!QFileInfo(a_.file).isFile()) {
+        // The local file is gone: the promoted checkpoint is now the Hub's current. Fetch it as the local save
+        // instead of starting with an empty directory.
+        a_.st.conflictId.clear();
+        a_.st.baseRevision = cur.revision;
+        a_.st.lastSyncedSha256.clear();
+        a_.st.pending = false;
+        persist();
+        api_.getContent(a_.gameId, a_.st.slot, [this, gen, cur](const SaveApiResult& cr) {
+          if (gen != gen_) {
+            return;
+          }
+          if (cr.ok() && SaveStore::sha256Of(cr.content) == cur.sha256 && SaveStore::atomicWrite(a_.file, cr.content)) {
+            a_.st.baseRevision = cr.contentRevision;
+            a_.st.lastSyncedSha256 = cur.sha256;
+            a_.st.pending = false;
+            a_.st.lastError.clear();
+            persist();
+            readyToPlay(QString());
+          } else {
+            dialogOpen_ = false;
+            startSync();  // reconcile again: Hub slot without a local file -> download (or offline note)
+          }
+        });
+        return;
+      }
       const QString l = SaveStore::sha256OfFile(a_.file);
-      a_.st.baseRevision = r.slot->current.revision;
-      a_.st.lastSyncedSha256 = r.slot->current.sha256;
-      a_.st.pending = l != r.slot->current.sha256;  // the local file kept changing: still unsynced
+      a_.st.baseRevision = cur.revision;
+      a_.st.lastSyncedSha256 = cur.sha256;
+      a_.st.pending = l != cur.sha256;  // the local file kept changing: still unsynced
       a_.st.conflictId.clear();
       a_.st.lastError.clear();
       persist();
@@ -410,6 +437,16 @@ void SaveSync::resolveConflict(Resolution res) {
       fail(cr);
       return;
     }
+    // The local file must be backed up BEFORE anything changes; if that fails nothing is changed.
+    if (QFileInfo(a_.file).isFile()) {
+      const QString bak = backupHook_ ? backupHook_(a_.file, QStringLiteral("local")) : SaveStore::backupFile(a_.file, QStringLiteral("local"));
+      if (bak.isEmpty()) {
+        a_.st.lastError = QStringLiteral("backup_failed");
+        persist();
+        emit resolveFailed(tr("Could not back up the local save; nothing was changed."));
+        return;
+      }
+    }
     const quint64 gen2 = ++gen_;
     api_.resolve(a_.gameId, a_.st.slot, c.id, QStringLiteral("use_hub"), cr.contentRevision,
                  [this, gen2, fail, cr](const SaveApiResult& r) {
@@ -420,7 +457,6 @@ void SaveSync::resolveConflict(Resolution res) {
                      fail(r);
                      return;
                    }
-                   SaveStore::backupFile(a_.file, QStringLiteral("local"));
                    if (!SaveStore::atomicWrite(a_.file, cr.content)) {
                      a_.st.lastError = QStringLiteral("write_failed");
                      persist();
