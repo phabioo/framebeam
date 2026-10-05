@@ -128,6 +128,10 @@ QString HubConnection::apiPath(const QString& rel) const {
 
 // ---------------------------------------------------------------- Identifikation
 
+namespace {
+constexpr int kDefaultHubPort = 8443;
+}  // namespace
+
 void HubConnection::connectToAddress(const QString& address, bool allowHttp) {
   startIdentify(address, allowHttp, std::nullopt);
 }
@@ -161,9 +165,8 @@ void HubConnection::startIdentify(const QString& addressInput, bool allowHttp, s
   QUrl base;
   base.setScheme(parsed.scheme());
   base.setHost(parsed.host());
-  if (parsed.port() > 0) {
-    base.setPort(parsed.port());
-  }
+  // Ohne Port: Hub-Default :8443 (server/README.md), auch fuer http (Dev-Flag). Explizite Ports bleiben.
+  base.setPort(parsed.port() > 0 ? parsed.port() : kDefaultHubPort);
   if (!HubHttp::isSchemeAllowed(base, allowHttp)) {
     fail(State::Unreachable, QStringLiteral("insecure_http"),
          QStringLiteral("HTTP ist nur für localhost oder mit Dev-Flag erlaubt"));
