@@ -36,7 +36,16 @@
     { "name": "linux-debug", "inherits": "linux-base", "displayName": "Linux GCC Debug", "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" } },
     { "name": "linux-release", "inherits": "linux-base", "displayName": "Linux GCC Release", "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" } },
     { "name": "windows-msvc-debug", "inherits": "windows-base", "displayName": "Windows MSVC Debug", "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" } },
-    { "name": "windows-msvc-release", "inherits": "windows-base", "displayName": "Windows MSVC Release", "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" } }
+    {
+      "name": "windows-msvc-release",
+      "inherits": "windows-base",
+      "displayName": "Windows MSVC Release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "VCPKG_TARGET_TRIPLET": "x64-windows-release",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/triplets"
+      }
+    }
   ],
   "buildPresets": [
     { "name": "linux-debug", "configurePreset": "linux-debug" },

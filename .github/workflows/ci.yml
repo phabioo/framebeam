@@ -87,7 +87,7 @@ jobs:
 
   client-windows:
     name: Player (C++, Windows MSVC)
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: windows-latest
     env:
       VCPKG_ROOT: ${{ github.workspace }}\.vcpkg
@@ -99,12 +99,6 @@ jobs:
         with:
           path: ${{ env.VCPKG_ROOT }}
           key: vcpkg-root-${{ runner.os }}-${{ hashFiles('client/vcpkg.json') }}
-      - name: Restore vcpkg binary cache
-        uses: actions/cache/restore@v4
-        with:
-          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
-          key: vcpkg-bin-${{ runner.os }}-${{ hashFiles('client/vcpkg.json') }}
-          restore-keys: vcpkg-bin-${{ runner.os }}-
       - name: Bootstrap vcpkg at baseline commit
         shell: pwsh
         run: |
@@ -147,17 +141,34 @@ jobs:
       - uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
+      - name: Identify vcpkg cache toolchain
+        id: vcpkg-toolchain
+        shell: pwsh
+        run: |
+          $version = (Get-Item (Get-Command cl.exe).Source).VersionInfo.ProductVersion
+          if (-not $version) { throw "MSVC compiler version is missing" }
+          "version=$version" >> $env:GITHUB_OUTPUT
+      - name: Restore vcpkg binary cache
+        id: vcpkg-binary-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+          # A unique key lets each configure save additional ABI entries after a partial restore.
+          key: vcpkg-bin-${{ runner.os }}-x64-windows-release-msvc-${{ steps.vcpkg-toolchain.outputs.version }}-${{ hashFiles('client/vcpkg.json', 'client/CMakePresets.json', 'client/triplets/*.cmake') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            vcpkg-bin-${{ runner.os }}-x64-windows-release-msvc-${{ steps.vcpkg-toolchain.outputs.version }}-${{ hashFiles('client/vcpkg.json', 'client/CMakePresets.json', 'client/triplets/*.cmake') }}-
+            vcpkg-bin-${{ runner.os }}-x64-windows-release-msvc-${{ steps.vcpkg-toolchain.outputs.version }}-
       - name: Configure
         working-directory: client
         run: cmake --preset windows-msvc-release "-DFRAMEBEAM_MELONDS_DS_CORE=${{ steps.core.outputs.dll }}"
       # Save the binary cache right after vcpkg install (part of configure), even if
       # later steps fail, so a long FFmpeg build is never repeated.
       - name: Save vcpkg binary cache
-        if: always()
+        if: always() && steps.vcpkg-binary-cache.outputs.cache-primary-key != ''
         uses: actions/cache/save@v4
         with:
           path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
-          key: vcpkg-bin-${{ runner.os }}-${{ hashFiles('client/vcpkg.json') }}
+          key: ${{ steps.vcpkg-binary-cache.outputs.cache-primary-key }}
       - name: Build
         working-directory: client
         run: cmake --build --preset windows-msvc-release
@@ -232,7 +243,7 @@ jobs:
           # the manifest install (never debug\bin). Qt DLLs are left to windeployqt.
           $sources = @($exe[0].DirectoryName)
           $installed = @(Get-ChildItem -Recurse -Directory -Filter 'vcpkg_installed' client\build\windows-msvc-release -ErrorAction SilentlyContinue |
-            ForEach-Object { Join-Path $_.FullName 'x64-windows\bin' } | Where-Object { Test-Path $_ })
+            ForEach-Object { Join-Path $_.FullName 'x64-windows-release\bin' } | Where-Object { Test-Path $_ })
           $sources += $installed
           foreach ($src in ($sources | Select-Object -Unique)) {
             foreach ($f in (Get-ChildItem -Path $src -Filter *.dll -File)) {
