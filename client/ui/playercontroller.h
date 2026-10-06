@@ -143,6 +143,10 @@ class PlayerController : public QObject {
   Q_INVOKABLE void removeHub(const QString& hubId);  // empty: discard the running attempt
   Q_INVOKABLE void confirmTrust();
   Q_INVOKABLE void rejectTrust();
+  // Certificate changed (blocked): re-pins exactly `observedFingerprint` (raw value from the hub card) and reconnects;
+  // cancel drops the blocked attempt without touching the profile.
+  Q_INVOKABLE void trustChangedCertificate(const QString& observedFingerprint);
+  Q_INVOKABLE void cancelCertificateChange();
   Q_INVOKABLE void requestPairing();
   Q_INVOKABLE void cancelPairing();
   // Onboarding invite (3b "Redeem invite"): code + display name.

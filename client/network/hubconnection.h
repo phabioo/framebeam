@@ -77,6 +77,10 @@ class HubConnection : public QObject {
 
   void confirmTrust();  // NeedsTrustConfirmation: pin the fingerprint and continue
   void rejectTrust();   // -> Disconnected
+  // CertificateChanged: replaces the stored pin by exactly `confirmedFingerprint` (must equal observedFingerprint(),
+  // otherwise nothing happens and false is returned), keeps the credential and identifies again. No token has been
+  // sent to the new certificate; if the hub presents yet another certificate on the reconnect it is a mismatch again.
+  bool confirmCertificateChange(const QString& confirmedFingerprint);
   void requestPairing();  // NeedsPairing/Denied/Expired -> AwaitingApproval
   // Onboarding invite (POST /invites/redeem) from NeedsPairing/Denied/Expired: 200 -> credential stored, signs in
   // directly; 202 -> AwaitingApproval (same polling as requestPairing). Errors (invite_invalid, display_name_taken,

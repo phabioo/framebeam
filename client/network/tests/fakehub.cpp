@@ -30,6 +30,19 @@ FakeHub::FakeHub(const QString& certName, QObject* parent) : QTcpServer(parent),
   }
 }
 
+bool FakeHub::setCertificate(const QString& certName) {
+  const QString dir = QStringLiteral(FB_TEST_DATA_DIR);
+  QFile c(dir + QStringLiteral("/test-cert-") + certName + QStringLiteral(".pem"));
+  QFile k(dir + QStringLiteral("/test-key-") + certName + QStringLiteral(".pem"));
+  if (!c.open(QIODevice::ReadOnly) || !k.open(QIODevice::ReadOnly)) {
+    return false;
+  }
+  cert_ = QSslCertificate(&c, QSsl::Pem);
+  key_ = QSslKey(&k, QSsl::Ec, QSsl::Pem);
+  certName_ = certName;
+  return !cert_.isNull() && !key_.isNull();
+}
+
 bool FakeHub::start() {
   if (!certName_.isEmpty() && (cert_.isNull() || key_.isNull())) {
     return false;

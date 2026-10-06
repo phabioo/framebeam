@@ -53,6 +53,7 @@ class FakeHub : public QTcpServer {
   bool start();
   QString address() const;      // e.g. https://127.0.0.1:PORT
   QString fingerprint() const;  // same format as hub settings; empty for HTTP
+  bool setCertificate(const QString& certName);  // "a"|"b"|"c": new connections use this certificate (renewal)
 
   // Configuration
   QString hubId = QStringLiteral("hub-test-1");

@@ -53,6 +53,58 @@ class ScreensTest : public QObject {
     uitest::saveShot(h.window, QStringLiteral("3a-connection-empty"));
   }
 
+  // Certificate changed: warning with both fingerprints, two-step confirm, Cancel; pin only updated after the confirm.
+  void certificateChangeTwoStepConfirm() {
+    FakeHub hub(QStringLiteral("b"));
+    hub.hubId = QStringLiteral("hub-lena");
+    hub.name = QStringLiteral("Studio Lena");
+    QVERIFY(hub.start());
+    FakeHub former(QStringLiteral("a"));
+    Harness h;
+    QVERIFY(h.start());
+    ProfileStore* ps = h.controller->profileStore();
+    QVERIFY(ps->upsertProfile(profile(QStringLiteral("hub-lena"), QStringLiteral("Studio Lena"), hub.address(), former.fingerprint())));
+
+    h.controller->connectProfile(QStringLiteral("hub-lena"));
+    QTRY_COMPARE(h.controller->connection()->state(), HubConnection::State::CertificateChanged);
+    QTRY_VERIFY(h.item("certFingerprints") != nullptr && h.item("certFingerprints")->isVisible());
+    QVERIFY(h.item("certExpectedFingerprint") != nullptr);
+    QVERIFY(h.item("certObservedFingerprint") != nullptr);
+    QVERIFY(h.item("certHint") != nullptr);
+    QVERIFY(h.item("certTrustNew") != nullptr);
+    QVERIFY(h.item("certCancel") != nullptr);
+    QVERIFY(!h.item("certConfirmBox")->isVisible());
+    QVERIFY(!h.item("certConfirmTrust")->isVisible());
+    uitest::saveShot(h.window, QStringLiteral("3a-connection-cert-changed-warning"));
+
+    // Step 1 alone changes nothing.
+    QVERIFY(h.click("certTrustNew"));
+    QTRY_VERIFY(h.item("certConfirmBox")->isVisible());
+    QCOMPARE(ps->profile(QStringLiteral("hub-lena"))->pinnedFingerprint, former.fingerprint());
+    QCOMPARE(hub.requests.size(), 0);
+    uitest::saveShot(h.window, QStringLiteral("3a-connection-cert-changed-confirm"));
+    // Back returns to the first step.
+    QVERIFY(h.click("certConfirmBack"));
+    QTRY_VERIFY(!h.item("certConfirmBox")->isVisible());
+    QCOMPARE(h.controller->connection()->state(), HubConnection::State::CertificateChanged);
+
+    // Cancel: no change to the profile, the attempt is dropped.
+    QVERIFY(h.click("certCancel"));
+    QTRY_COMPARE(h.controller->connection()->state(), HubConnection::State::Disconnected);
+    QCOMPARE(ps->profile(QStringLiteral("hub-lena"))->pinnedFingerprint, former.fingerprint());
+    QCOMPARE(hub.requests.size(), 0);
+
+    // Second step: confirm re-pins exactly the presented fingerprint.
+    h.controller->connectProfile(QStringLiteral("hub-lena"));
+    QTRY_COMPARE(h.controller->connection()->state(), HubConnection::State::CertificateChanged);
+    QVERIFY(h.click("certTrustNew"));
+    QTRY_VERIFY(h.item("certConfirmTrust")->isVisible());
+    QVERIFY(h.click("certConfirmTrust"));
+    QTRY_VERIFY(h.controller->connection()->state() != HubConnection::State::CertificateChanged);
+    QTRY_COMPARE(h.controller->connection()->state(), HubConnection::State::NeedsPairing);  // profile has no credential here
+    QCOMPARE(ps->profile(QStringLiteral("hub-lena"))->pinnedFingerprint, hub.fingerprint());
+  }
+
   // 3a with cards: saved/ready, certificate changed (blocked), hub too old.
   void connectionScreenCards() {
     FakeHub lena(QStringLiteral("a"));

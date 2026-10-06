@@ -446,11 +446,11 @@ QVariantMap PlayerController::hubCard(const HubProfile& p) const {
         status = QStringLiteral("certChanged");
         text = tr("Certificate changed");
         tone = QStringLiteral("error");
-        message = tr("The fingerprint no longer matches the saved one. The connection is blocked. "
-                     "A new fingerprint is never accepted automatically: verify it outside the Player (e.g. in the "
-                     "hub web interface) and add the hub again after removing it.");
+        message = tr("The Hub's certificate changed. The connection is blocked and nothing was sent to the Hub. "
+                     "Compare the new fingerprint with the one on the Hub's web Settings page. Trust it only if they match.");
         m.insert(QStringLiteral("expectedFingerprint"), formatFingerprint(conn_->expectedFingerprint().isEmpty() ? p.pinnedFingerprint : conn_->expectedFingerprint()));
         m.insert(QStringLiteral("observedFingerprint"), formatFingerprint(conn_->observedFingerprint()));
+        m.insert(QStringLiteral("observedFingerprintRaw"), conn_->observedFingerprint());
         break;
       case S::Incompatible: {
         status = QStringLiteral("incompatible");
@@ -662,6 +662,14 @@ QString PlayerController::friendlyError(const QString& code, const QString& mess
 
 void PlayerController::confirmTrust() { conn_->confirmTrust(); }
 void PlayerController::rejectTrust() { conn_->rejectTrust(); }
+void PlayerController::trustChangedCertificate(const QString& observedFingerprint) {
+  conn_->confirmCertificateChange(observedFingerprint);
+}
+void PlayerController::cancelCertificateChange() {
+  if (conn_->state() == HubConnection::State::CertificateChanged) {
+    conn_->disconnectFromHub();
+  }
+}
 void PlayerController::requestPairing() { conn_->requestPairing(); }
 void PlayerController::cancelPairing() { conn_->cancelPairing(); }
 void PlayerController::leavePairing() { conn_->disconnectFromHub(); }
