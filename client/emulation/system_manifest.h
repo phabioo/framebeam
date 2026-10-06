@@ -59,11 +59,15 @@ struct SystemManifest {
   QString systemId;
   QString displayName;
   QString coreId;
+  QString coreDisplayName;  // optional ("core_display_name"), shown when the core was not probed; defaults to coreId
   QString coreLibraryBasename;
   QStringList extensions;  // lowercase, with dot
   FirmwareSpec firmware;
   QString inputProfile;
   QString displayProfile;
+  // Short UI labels from the manifest ("labels" object): input column header and the pointer/touch input.
+  QString inputLabel;  // e.g. "NDS"; defaults to displayName
+  QString touchLabel;  // e.g. "DS touch"; defaults to "Touch"
   DisplayProfile display;
   QMap<QString, QString> coreOptions;  // defaults for core options (key -> value)
   QStringList lockedCoreOptions;       // keys of coreOptions that FrameBeam controls: not editable by the user

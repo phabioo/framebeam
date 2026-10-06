@@ -101,6 +101,17 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   emulation_ = std::make_unique<EmulationController>(profiles_->baseDir(), &manifests_);
   controllers_ = std::make_unique<ControllersController>(profiles_->baseDir());
   controllers_->start(options.enableGamepads, options.gamepadPollMs);
+  {
+    // System-specific labels of the Controllers page come from the first manifest with a touch screen.
+    const QList<emu::SystemManifest> all = manifests_.all();
+    for (const emu::SystemManifest& m : all) {
+      const bool touch = std::any_of(m.display.screens.cbegin(), m.display.screens.cend(), [](const emu::ScreenSpec& s) { return s.touch; });
+      if (touch || &m == &all.last()) {
+        controllers_->setSystemLabels(m.inputLabel, m.touchLabel);
+        break;
+      }
+    }
+  }
   if (options.probeCoreVersions) {
     probeCores();
   }
@@ -313,8 +324,7 @@ QString PlayerController::coreLabel(const emu::SystemManifest& m, const emu::Cor
   if (!probed.isEmpty()) {
     return probed;
   }
-  static const QMap<QString, QString> kNames{{QStringLiteral("melonds_ds"), QStringLiteral("melonDS DS")}};
-  return kNames.value(m.coreId, m.coreId);
+  return m.coreDisplayName.isEmpty() ? m.coreId : m.coreDisplayName;
 }
 
 QString PlayerController::systemDir() const {
@@ -484,6 +494,7 @@ QVariantMap PlayerController::hubCard(const HubProfile& p) const {
   m.insert(QStringLiteral("tone"), tone);
   m.insert(QStringLiteral("message"), message);
   m.insert(QStringLiteral("current"), current);
+  m.insert(QStringLiteral("connected"), current && conn_->state() == S::Connected);
   return m;
 }
 
@@ -554,6 +565,9 @@ void PlayerController::removeHub(const QString& hubId) {
   if (hubId.isEmpty()) {
     conn_->disconnectFromHub();
   } else {
+    if (conn_->profile() && conn_->profile()->hubId == hubId) {
+      endRunningWork();  // the current Hub: end Sessions and secure pending saves before the connection goes
+    }
     conn_->removeProfile(hubId);
   }
   notice_.clear();
@@ -674,7 +688,7 @@ void PlayerController::requestPairing() { conn_->requestPairing(); }
 void PlayerController::cancelPairing() { conn_->cancelPairing(); }
 void PlayerController::leavePairing() { conn_->disconnectFromHub(); }
 
-// ---------------------------------------------------------------- Phase 5: Settings, upload, warnings
+// ---------------------------------------------------------------- Settings, upload, warnings
 
 QString PlayerController::appearance() const { return PlayerSettings::appearanceName(settings_->appearance()); }
 
@@ -733,8 +747,20 @@ void PlayerController::showControllers() {
   updateScreen();
 }
 
+// System of the game being launched, else of the selected game, else of the first known system.
+QString PlayerController::currentSystemId() const {
+  if (!launchGame_.system.isEmpty()) {
+    return launchGame_.system;
+  }
+  if (const auto g = model_.game(selectedId_); g && !g->system.isEmpty()) {
+    return g->system;
+  }
+  const QList<emu::SystemManifest> all = manifests_.all();
+  return all.isEmpty() ? QString() : all.first().systemId;
+}
+
 bool PlayerController::fullscreenOnStart() const {
-  const QString sys = launchGame_.system.isEmpty() ? QStringLiteral("nds") : launchGame_.system;
+  const QString sys = currentSystemId();
   return emulation_->frameBeamValue(QString::fromLatin1(EmulationController::kFullscreenKey), sys, launchGame_.id) ==
          QLatin1String("on");
 }
@@ -742,7 +768,7 @@ bool PlayerController::fullscreenOnStart() const {
 void PlayerController::applyFrameBeamOptions() {
   // Default multiview: applied immediately (not while the user changes it in a running Session view).
   if (sessions_ && !gameActive_) {
-    const QString sys = QStringLiteral("nds");
+    const QString sys = currentSystemId();
     sessions_->setMultiviewMode(emulation_->frameBeamValue(QString::fromLatin1(EmulationController::kMultiviewKey), sys));
   }
   emit emulationSettingsChanged();
@@ -777,7 +803,7 @@ QVariantList PlayerController::coreWarnings() const {
     QString label = p.coreId;
     for (const emu::SystemManifest& m : manifests_.all()) {
       if (m.coreId == p.coreId) {
-        label = coreNames_.value(m.coreId, m.coreId == QLatin1String("melonds_ds") ? QStringLiteral("melonDS DS") : m.coreId);
+        label = coreLabel(m, emu::CoreLocation{});
       }
     }
     if (label.isEmpty()) {
@@ -881,14 +907,28 @@ void PlayerController::recheckFirmware() {
 QString PlayerController::hubName() const { return conn_->hubInfo().name; }
 QString PlayerController::hubAddress() const { return trimmedScheme(conn_->address()); }
 
-void PlayerController::switchHub() {
+// Ends the running game/Session and secures pending save uploads; needs the connection, so call before disconnecting.
+void PlayerController::endRunningWork() {
   if (gameActive_) {
     session_.stop();
-    saves_->finalSyncBlocking(true);  // needs the connection: before disconnecting
+    saves_->finalSyncBlocking(true);
     gameActive_ = false;
   }
+}
+
+void PlayerController::switchHub() {
+  endRunningWork();
   conn_->disconnectFromHub();
   updateScreen();
+}
+
+// Settings -> Hubs: same path as the connection screen (disconnect, then connect to the stored profile).
+void PlayerController::switchToHub(const QString& hubId) {
+  if (hubId.isEmpty() || (conn_->state() == HubConnection::State::Connected && conn_->profile() && conn_->profile()->hubId == hubId)) {
+    return;
+  }
+  switchHub();
+  connectProfile(hubId);
 }
 
 void PlayerController::reloadLibrary() {

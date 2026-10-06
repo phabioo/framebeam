@@ -86,7 +86,6 @@ Item {
             id: pick
             objectName: "multiviewSessionList"
             readonly property var list: root.ctl.sessions
-            readonly property int shown: Math.min(4, list.length)
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: parent.bottom
             anchors.bottomMargin: 14
@@ -120,15 +119,25 @@ Item {
                     font.pixelSize: 12
                     color: Theme.gameTextMuted
                 }
-                Repeater {
-                    model: pick.list.slice(0, pick.shown)
+                ListView {
+                    id: pickView
+                    objectName: "multiviewSessionView"
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    visible: pick.list.length > 0
+                    // All Sessions, scrollable once the list outgrows half of the game area.
+                    Layout.preferredHeight: Math.min(contentHeight, Math.max(120, root.height * 0.5))
+                    clip: true
+                    spacing: 8
+                    boundsBehavior: Flickable.StopAtBounds
+                    model: pick.list
+                    ScrollBar.vertical: ScrollBar { policy: pickView.contentHeight > pickView.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff }
                     delegate: RowLayout {
                         id: prow
                         required property var modelData
                         required property int index
                         objectName: "multiviewSession_" + modelData.sessionId
-                        Layout.fillWidth: true
-                        Layout.minimumWidth: 0
+                        width: ListView.view.width - (pickView.contentHeight > pickView.height ? 12 : 0)
                         spacing: 10
                         ColumnLayout {
                             Layout.fillWidth: true
@@ -149,15 +158,6 @@ Item {
                             onClicked: root.ctl.watch(prow.modelData.sessionId)
                         }
                     }
-                }
-                FbLabel {
-                    Layout.fillWidth: true
-                    Layout.minimumWidth: 0
-                    visible: pick.list.length > pick.shown
-                    elide: Text.ElideRight
-                    text: qsTr("+%1 more in the Library").arg(pick.list.length - pick.shown)
-                    font.pixelSize: 11
-                    color: Theme.gameTextMuted
                 }
             }
         }

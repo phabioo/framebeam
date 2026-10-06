@@ -1,4 +1,4 @@
-// Smoke test for the Phase 4 media dependencies: libdatachannel (SDP with H264 + opus),
+// Smoke test for the media dependencies: libdatachannel (SDP with H264 + opus),
 // libavcodec H.264 encode/decode and libopus encode/decode. Plain QtTest, no network.
 #include <QtTest>
 

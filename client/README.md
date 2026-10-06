@@ -1,6 +1,6 @@
 # client – FrameBeam Player
 
-C++/Qt Player: emulates locally, synchronizes saves, shares Sessions. The Player covers phases 2-5: Hub profiles, pairing and invites, library, ROM cache, emulation with melonDS DS, save sync, Sessions and multiview, Emulation and Controllers pages, appearance. Decisions: [ADR 0003](../docs/adr/0003-player-phase2.md), [ADR 0004](../docs/adr/0004-player-portable-data.md), [ADR 0005](../docs/adr/0005-saves-phase3.md), [ADR 0006](../docs/adr/0006-sessions-phase4.md), [ADR 0007](../docs/adr/0007-phase5.md). Rules for agents: `CLAUDE.md`.
+C++/Qt Player: emulates locally, synchronizes saves, shares Sessions. The Player covers: Hub profiles, pairing and invites, library, ROM cache, emulation with melonDS DS, save sync, Sessions and multiview, Emulation and Controllers pages, appearance. Decisions: [ADR 0003](../docs/adr/0003-player-phase2.md), [ADR 0004](../docs/adr/0004-player-portable-data.md), [ADR 0005](../docs/adr/0005-saves-phase3.md), [ADR 0006](../docs/adr/0006-sessions-phase4.md), [ADR 0007](../docs/adr/0007-phase5.md). Rules for agents: `CLAUDE.md`.
 
 ## Structure
 
@@ -35,7 +35,7 @@ Without `FRAMEBEAM_MELONDS_DS_CORE` all targets build; tests with `NEEDS_CORE` a
 
 Portable by default: `<directory of the executable>/data` (ROM cache, `profiles.json`, `device.json`, `hubs/<id>/` incl. saves, `system/`, `probe/`), provided a real write test succeeds there. Otherwise it falls back to AppData (`QStandardPaths::AppDataLocation`) with a log note (`framebeam.profiles`). If the portable folder has no `profiles.json` yet, existing AppData content is copied once (the source remains unchanged, nothing is overwritten, `device_id` is preserved, the ROM cache is re-downloaded). Credentials stay in the OS credential store. `--data-dir` and `FRAMEBEAM_DATA_DIR` take precedence.
 
-## Phase 5 features (users, uploads, firmware, appearance; [ADR 0007](../docs/adr/0007-phase5.md))
+## Users, uploads, firmware, appearance ([ADR 0007](../docs/adr/0007-phase5.md))
 
 - **Invite codes:** on the pairing step choose "I have an invite code", enter code and display name. 200: paired immediately (credential stored like a normal pairing); 202: the usual "Waiting for admin approval". Errors (`invite_invalid`, `display_name_taken`, rate limit) are shown in place. CLI: `framebeam_player_cli redeem-invite <address> --code FB-XXXX-XXXX --name <name> [--accept-fingerprint]`. A user disabled on the Hub (`user_disabled`) gets "This user is disabled on the Hub" on the connection screen; the credential is kept, there is no retry loop (Retry is a manual action).
 - **ROM upload:** "Upload ROM" in the Library header, only if the handshake has `uploads_v1`. The file is streamed (not read into memory) with progress; "Already in the library" selects the existing game (409). The file dialog is `QtQuick.Dialogs`; if that QML module is missing (Linux: apt `qml6-module-qtquick-dialogs`), a path field is shown instead. CLI: `game upload <file> [--title T]`.

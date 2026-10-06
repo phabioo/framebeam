@@ -35,7 +35,7 @@ class SessionHost : public QObject {
  public:
   struct Options {
     int fps = 60;
-    int videoBitrate = 2'000'000;  // fixed in phase 4
+    int videoBitrate = 2'000'000;  // fixed default
     int audioBitrate = 96'000;
     QStringList encoderOrder;      // empty: ADR 0006 D5 preference
   };

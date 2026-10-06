@@ -186,12 +186,12 @@ Rectangle {
                         Item { Layout.fillWidth: true }
                     }
 
-                    // Mouse: DS touch (fixed)
+                    // Mouse: touch input (fixed)
                     FbLabel {
                         visible: root.isMouse
                         objectName: "mouseNote"
                         Layout.fillWidth: true
-                        text: qsTr("The mouse is the DS touch screen: move it over the lower screen, left mouse button = stylus. This mapping is fixed and has no profile.")
+                        text: qsTr("The mouse is the %1 input: move it over the touch screen, left mouse button = touch. This mapping is fixed and has no profile.").arg(root.ctl.touchLabel)
                         color: Theme.textMuted
                         wrapMode: Text.WordWrap
                     }
@@ -218,7 +218,7 @@ Rectangle {
                             spacing: 12
                             Eyebrow { Layout.fillWidth: true; text: qsTr("FrameBeam input") }
                             Eyebrow { Layout.preferredWidth: 190; text: qsTr("Mapping") }
-                            Eyebrow { Layout.preferredWidth: 90; text: qsTr("NDS") }
+                            Eyebrow { Layout.preferredWidth: 90; text: root.ctl.systemLabel }
                         }
                         Rectangle { Layout.fillWidth: true; height: 1; color: Theme.borderRow }
 
@@ -367,7 +367,7 @@ Rectangle {
                     FbLabel {
                         Layout.fillWidth: true
                         text: root.ctl.device.kind === "keyboard" ? qsTr("Press keys — active inputs light up.")
-                              : root.isMouse ? qsTr("The mouse drives the DS touch screen.")
+                              : root.isMouse ? qsTr("The mouse drives the %1 input.").arg(root.ctl.touchLabel)
                               : qsTr("Press buttons on the controller — active inputs light up.")
                         color: Theme.textMuted
                         font.pixelSize: 13
@@ -406,7 +406,7 @@ Rectangle {
                         }
                     }
 
-                    Eyebrow { text: qsTr("DS touch"); Layout.topMargin: 10 }
+                    Eyebrow { text: root.ctl.touchLabel; Layout.topMargin: 10 }
                     Rectangle {
                         Layout.fillWidth: true
                         implicitHeight: 150

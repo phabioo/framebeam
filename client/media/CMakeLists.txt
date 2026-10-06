@@ -1,4 +1,4 @@
-# framebeam_media_deps: INTERFACE target with the Phase 4 media dependencies on both platforms
+# framebeam_media_deps: INTERFACE target with the media dependencies on both platforms
 # (LibDataChannel, FFmpeg avcodec/swscale/avutil, Opus).
 #  Linux:   libdatachannel from scripts/fetch-libdatachannel.sh (CMAKE_PREFIX_PATH / LibDataChannel_ROOT),
 #           FFmpeg and Opus from apt via pkg-config.
