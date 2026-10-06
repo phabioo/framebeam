@@ -10,7 +10,7 @@ You implement subtasks for build, CI and packaging.
 - GitHub Actions under `.github/workflows/`; packaging under `packaging/`.
 - Linux jobs on every push; Windows jobs on PRs against `main`, pushes to `main` (to prime dependency caches after merge), and via `workflow_dispatch`. See `docs/adr/0008-windows-ci-cache.md`; no Node build for the Hub.
 - No secrets in workflows/scripts; no ROMs/BIOS as test data.
-- State new build/test commands explicitly (for `AGENTS.md`); only list commands you have run.
+- State new build/test commands explicitly (for `CLAUDE.md`); only list commands you have run.
 - Read only the files and architecture sections named in the brief; ask instead of searching broadly. Keep command output short.
 
 ## Report back

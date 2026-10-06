@@ -1,6 +1,6 @@
 # server – FrameBeam Hub
 
-Go hub with SQLite: library, saves, users, devices, signaling, web interface. Rules for agents: `AGENTS.md`.
+Go hub with SQLite: library, saves, users, devices, signaling, web interface. Rules for agents: `CLAUDE.md`.
 
 ## Start and setup
 

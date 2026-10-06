@@ -1,4 +1,4 @@
-# Working with Claude Code and Codex
+# Working with Claude Code
 
 ## Hybrid mode
 
@@ -27,8 +27,6 @@ Not verifiable (only locally by Fabio):
 
 ## Roles
 
-This section applies to Claude Code. For Codex see "Working with Codex" below.
-
 **Opus is exclusively the orchestrator** and writes no product code. It bundles tasks into sensible packages, delegates via brief (template below) to the Sonnet 5.5 agents in `.claude/agents/`, reviews the result and either accepts it or sends it back to the same agent with concrete corrections.
 
 Flow:
@@ -48,21 +46,6 @@ Flow:
 | `build-ci-implementer` | Sonnet | CMake/vcpkg, Go build, GitHub Actions, `packaging/` |
 | `docs-writer` | Sonnet | `docs/`, ADRs |
 | `scout` | Haiku | read-only: search, read logs/CI output, summarize |
-
-## Working with Codex
-
-Same discipline as above (briefs, token-saving rules, one work package per thread, one topic per PR, no commits by subagents). Claude rules are unchanged. Codex reads `AGENTS.md` (root, refined by `client/`, `server/`, `protocol/`); roles are defined in `.codex/agents/`.
-
-The orchestrator is the main Codex session (gpt-6-astra, high), configured in Codex itself, not in the repo. It may make small, coherent changes itself; subagents are for bounded or parallel packages. The orchestrator commits and opens the PR.
-
-| Agent | Model | Effort | Responsibility |
-|---|---|---|---|
-| `hub-implementer` | gpt-6.1-sol | high | Go Hub (`server/`) |
-| `player-implementer` | gpt-6.1-sol | high | C++/Qt Player (`client/`) |
-| `protocol-implementer` | gpt-6.1-sol | high | `protocol/` |
-| `build-ci-implementer` | gpt-6.1-sol | medium | CMake/vcpkg, Go build, GitHub Actions, `packaging/` |
-| `docs-writer` | gpt-6-luna | medium | `docs/`, ADRs |
-| `scout` | gpt-6-luna | low | read-only: search, read logs/CI output, summarize |
 
 ## Brief template
 
