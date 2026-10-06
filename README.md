@@ -12,7 +12,7 @@ Phase plan: [Workflow](docs/workflow.md#phase-plan).
 | 1 Protocol and Hub basics | done | OpenAPI `/api/v1`, WSS schemas, Hub with SQLite, admin setup, TLS, pairing, tokens, library, ROM download, web interface |
 | 2 Playable vertical slice | done | Player core (profile, pairing, library, ROM cache), melonDS DS via Libretro, minimal Qt UI |
 | 3 Saves | done | Save storage, sync, versions, conflict model ([ADR 0005](docs/adr/0005-saves-phase3.md)) |
-| 4 Session sharing and multiview | done in the cloud, pending local test on two devices | Presence, signaling, WebRTC, multiview ([ADR 0006](docs/adr/0006-sessions-phase4.md), proposed) |
+| 4 Session sharing and multiview | done in the cloud, pending local test on two devices | Presence, signaling, WebRTC, multiview ([ADR 0006](docs/adr/0006-sessions-phase4.md), accepted) |
 | 5 Remainder and polish | planned | Firmware path, users, remaining pages, packaging |
 | Post-PoC | planned | Installers for all platforms, integrated updater |
 
@@ -131,6 +131,6 @@ Keyboard: Arrows, X=A, Z=B, S=X, A=Y, Q=L, W=R, Enter=Start, Backspace=Select, E
 - [ADR 0002: Protocol and Hub in phase 1](docs/adr/0002-protocol-and-hub-phase1.md)
 - [ADR 0003: Player in phase 2](docs/adr/0003-player-phase2.md) (accepted)
 - [ADR 0005: Saves in phase 3](docs/adr/0005-saves-phase3.md) (accepted)
-- [ADR 0006: Sessions in phase 4](docs/adr/0006-sessions-phase4.md) (proposed)
+- [ADR 0006: Sessions in phase 4](docs/adr/0006-sessions-phase4.md) (accepted)
 - [Design](docs/design/README.md)
 - [Working with Claude Code](docs/workflow.md)

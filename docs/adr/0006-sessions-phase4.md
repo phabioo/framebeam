@@ -1,8 +1,8 @@
 # ADR 0006: Sessions, signaling and multiview in phase 4
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-10-05
-- Decided by: pending (proposal by the orchestrator for Fabio)
+- Decided by: Fabio (proposal by the orchestrator, accepted on 2026-10-06)
 
 ## Context
 
