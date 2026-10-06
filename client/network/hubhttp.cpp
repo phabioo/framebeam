@@ -4,6 +4,7 @@
 #include <QHostAddress>
 #include <QJsonDocument>
 #include <QNetworkRequest>
+#include <QRegularExpression>
 #include <QSslConfiguration>
 #include <QSslError>
 
@@ -33,7 +34,14 @@ QString HubHttp::fingerprint(const QSslCertificate& cert) {
 }
 
 bool HubHttp::fingerprintsEqual(const QString& a, const QString& b) {
-  return !a.isEmpty() && a.trimmed().compare(b.trimmed(), Qt::CaseInsensitive) == 0;
+  // Colon-separated (as shown) and plain hex digits compare equal; case and whitespace are ignored.
+  const auto normalize = [](QString s) {
+    s.remove(QLatin1Char(':'));
+    s.remove(QRegularExpression(QStringLiteral("\\s")));
+    return s.toUpper();
+  };
+  const QString na = normalize(a);
+  return !na.isEmpty() && na == normalize(b);
 }
 
 bool HubHttp::isLoopbackHost(const QString& host) {

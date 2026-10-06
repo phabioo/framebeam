@@ -62,6 +62,18 @@ class HubFlowTest : public QObject {
              QStringLiteral("2F:E5:AD:C0:A7:7D:0E:CE:5E:05:AC:C5:CA:A2:C7:6C:E2:8E:63:A9:CB:22:A5:D8:3D:F2:09:85:79:E8:B2:D2"));
   }
 
+  void fingerprintsEqualIgnoresColonsCaseAndSpace() {
+    const QString colon = QStringLiteral("2F:E5:AD:C0:A7:7D:0E:CE:5E:05:AC:C5:CA:A2:C7:6C:E2:8E:63:A9:CB:22:A5:D8:3D:F2:09:85:79:E8:B2:D2");
+    const QString plain = QStringLiteral("2fe5adc0a77d0ece5e05acc5caa2c76ce28e63a9cb22a5d83df20985"
+                                         "79e8b2d2");
+    QVERIFY(HubHttp::fingerprintsEqual(plain, colon));
+    QVERIFY(HubHttp::fingerprintsEqual(colon, plain));
+    QVERIFY(HubHttp::fingerprintsEqual(QStringLiteral(" ") + colon.toLower() + QStringLiteral("\n"), colon));
+    QVERIFY(!HubHttp::fingerprintsEqual(plain.left(63) + QLatin1Char('0'), colon));
+    QVERIFY(!HubHttp::fingerprintsEqual(QString(), QString()));
+    QVERIFY(!HubHttp::fingerprintsEqual(QStringLiteral(" : "), QStringLiteral(" : ")));
+  }
+
   void firstContactReportsFingerprintThenPins() {
     FakeHub hub(QStringLiteral("a"));
     QVERIFY(hub.start());

@@ -137,6 +137,8 @@ class EncodeWorker {
       for (auto it = queue_.begin(); pendingAudio_ > kMaxPendingAudioBytes && it != queue_.end();) {
         if (!it->video) {
           pendingAudio_ -= it->pcm.size();
+          // Keep the audio RTP clock in step with wall time: account the dropped PCM (S16 stereo) as elapsed time.
+          if (it->rate > 0) droppedAudioSeconds_ += static_cast<double>(it->pcm.size()) / (kOpusChannels * sizeof(int16_t)) / it->rate;
           it = queue_.erase(it);
         } else {
           ++it;
@@ -167,7 +169,11 @@ class EncodeWorker {
         if (stop_) break;
         j = std::move(queue_.front());
         queue_.pop_front();
-        if (!j.video) pendingAudio_ -= j.pcm.size();
+        if (!j.video) {
+          pendingAudio_ -= j.pcm.size();
+          audioClockOffset_ += droppedAudioSeconds_;
+          droppedAudioSeconds_ = 0;
+        }
       }
       try {
         if (j.video) {
@@ -229,7 +235,7 @@ class EncodeWorker {
     if (packets.empty()) return;
     const std::vector<Sink> sinks = sinks_->get();
     for (const auto& pk : packets) {
-      const double seconds = static_cast<double>(audioFramesSent_++) * 0.02;
+      const double seconds = static_cast<double>(audioFramesSent_++) * 0.02 + audioClockOffset_;
       ++stats_->audioFrames;
       stats_->audioBytes += static_cast<qint64>(pk.size());
       for (const Sink& sink : sinks) {
@@ -259,6 +265,7 @@ class EncodeWorker {
   std::condition_variable cv_;
   std::deque<Job> queue_;
   qint64 pendingAudio_ = 0;
+  double droppedAudioSeconds_ = 0;  // PCM dropped by pushAudio, not yet added to audioClockOffset_
   bool stop_ = false;
   std::atomic<bool> keyframe_{false};
 
@@ -269,6 +276,7 @@ class EncodeWorker {
   bool encodeErrorReported_ = false;
   int64_t lastPts_ = -1;
   qint64 audioFramesSent_ = 0;
+  double audioClockOffset_ = 0;  // seconds of audio dropped under overload; keeps audio timestamps aligned with video
   int sendErrors_ = 0;
 
   std::thread thread_;  // last member: starts after everything else is constructed
