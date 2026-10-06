@@ -596,7 +596,7 @@ void HubConnection::doHandshake() {
         return;
       }
     }
-    // Core/capability problems (phase 5) do not block the connection; handshakeProblems() is for the UI.
+    // Core/capability problems do not block the connection; handshakeProblems() is for the UI.
     HubProfile p = profile_.value_or(HubProfile());
     p.lastConnected = QDateTime::currentDateTimeUtc();
     profiles_->upsertProfile(p);
