@@ -4,7 +4,7 @@ FrameBeam is a self-hosted retro gaming platform. The **FrameBeam Hub** manages 
 
 ## Status
 
-Phase plan: [Workflow](docs/workflow.md#phase-plan). The PoC (phases 0-5) is complete; post-PoC planning follows.
+Phase plan: [Workflow](docs/workflow.md#phase-plan). The PoC (phases 0-5) is complete; post-PoC work follows the [Roadmap](docs/roadmap.md).
 
 | Phase | Status | Scope |
 |---|---|---|
@@ -14,7 +14,7 @@ Phase plan: [Workflow](docs/workflow.md#phase-plan). The PoC (phases 0-5) is com
 | 3 Saves | done | Save storage, sync, versions, conflict model ([ADR 0005](docs/adr/0005-saves-phase3.md)) |
 | 4 Session sharing and multiview | done (tested locally on two Windows PCs) | Presence, signaling, WebRTC, multiview ([ADR 0006](docs/adr/0006-sessions-phase4.md), accepted) |
 | 5 Remainder and polish | done (tested locally) | Users and invites, user uploads, systems and firmware, Emulation and Controllers pages, appearance, Windows installer ([ADR 0007](docs/adr/0007-phase5.md), accepted) |
-| Post-PoC | planned | Installers for all platforms, integrated updater |
+| Post-PoC | planned | See [Roadmap](docs/roadmap.md) (versions 0.1.1 to 0.10) |
 
 ## What works
 
@@ -154,5 +154,6 @@ Keyboard: Arrows, X=A, Z=B, S=X, A=Y, Q=L, W=R, Enter=Start, Backspace=Select, E
 - [ADR 0005: Saves in phase 3](docs/adr/0005-saves-phase3.md) (accepted)
 - [ADR 0006: Sessions in phase 4](docs/adr/0006-sessions-phase4.md) (accepted)
 - [ADR 0007: Phase 5, users, firmware, settings pages, gamepads, installer](docs/adr/0007-phase5.md) (accepted)
+- [Roadmap after the PoC](docs/roadmap.md)
 - [Design](docs/design/README.md)
 - [Working with Claude Code](docs/workflow.md)
