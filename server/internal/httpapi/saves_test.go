@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -270,7 +271,8 @@ func TestHandshakeAdvertisesFeatures(t *testing.T) {
 	f := decode[struct {
 		Features []string `json:"features"`
 	}](t, rec).Features
-	if len(f) != 2 || f[0] != "saves_v1" || f[1] != "sessions_v1" {
+	// The test device belongs to the admin, who may always upload.
+	if strings.Join(f, ",") != "saves_v1,sessions_v1,users_v1,firmware_v1,uploads_v1" {
 		t.Fatalf("%v", f)
 	}
 }

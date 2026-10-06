@@ -17,32 +17,37 @@ import (
 	"github.com/google/uuid"
 )
 
-// System is a known game system. TODO(phase 5): replaced by the system/core registry.
+// System is a known game system (library view of the registry, see systems.go).
 type System struct {
 	ID         string
 	Name       string
 	Extensions []string
 }
 
-var knownSystems = []System{{ID: "nds", Name: "Nintendo DS", Extensions: []string{".nds"}}}
-
-// Systems returns the known systems.
-func Systems() []System { return append([]System(nil), knownSystems...) }
-
-// SystemName returns the display name for a system ID.
-func SystemName(id string) (string, bool) {
-	for _, s := range knownSystems {
-		if s.ID == id {
-			return s.Name, true
-		}
+// Systems returns the known systems (registry order by ID).
+func (s *Service) Systems(ctx context.Context) ([]System, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id, display_name, extensions FROM systems ORDER BY id`)
+	if err != nil {
+		return nil, internal(err)
 	}
-	return "", false
+	defer rows.Close()
+	var out []System
+	for rows.Next() {
+		var sys System
+		var ext string
+		if err := rows.Scan(&sys.ID, &sys.Name, &ext); err != nil {
+			return nil, internal(err)
+		}
+		sys.Extensions = splitList(ext)
+		out = append(out, sys)
+	}
+	return out, rows.Err()
 }
 
-// SystemForFilename derives the system from the file extension.
-func SystemForFilename(filename string) (string, bool) {
+// systemForFilename derives the system from the file extension.
+func systemForFilename(systems []System, filename string) (string, bool) {
 	ext := strings.ToLower(filepath.Ext(filename))
-	for _, s := range knownSystems {
+	for _, s := range systems {
 		for _, e := range s.Extensions {
 			if e == ext {
 				return s.ID, true
@@ -63,6 +68,9 @@ type Game struct {
 	UploadedBy string
 	AddedAt    time.Time
 }
+
+// MaxROMBytes is the upload limit for ROMs (4 GiB), shared by the web interface and the API.
+const MaxROMBytes int64 = 4 << 30
 
 var sha256Re = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
@@ -107,13 +115,23 @@ func (s *Service) AddROM(ctx context.Context, r io.Reader, filename, title, syst
 	if filename == "" || filename == "." || filename == "/" {
 		return Game{}, badRequest("File name missing")
 	}
+	systems, err := s.Systems(ctx)
+	if err != nil {
+		return Game{}, err
+	}
 	if system == "" {
 		var ok bool
-		if system, ok = SystemForFilename(filename); !ok {
+		if system, ok = systemForFilename(systems, filename); !ok {
 			return Game{}, badRequest("System cannot be derived from the file extension")
 		}
-	} else if _, ok := SystemName(system); !ok {
-		return Game{}, badRequest("Unknown system")
+	} else {
+		known := false
+		for _, sys := range systems {
+			known = known || sys.ID == system
+		}
+		if !known {
+			return Game{}, badRequest("Unknown system")
+		}
 	}
 	title = cleanText(title, 200)
 	if title == "" {
@@ -150,7 +168,7 @@ func (s *Service) AddROM(ctx context.Context, r io.Reader, filename, title, syst
 		return Game{}, internal(err)
 	}
 	if exists > 0 {
-		return Game{}, conflict("This ROM is already in the library")
+		return Game{}, s.duplicateROM(ctx, sha)
 	}
 	dst := s.romPath(sha)
 	if err := os.MkdirAll(filepath.Dir(dst), 0o750); err != nil {
@@ -167,12 +185,21 @@ func (s *Service) AddROM(ctx context.Context, r io.Reader, filename, title, syst
 	if _, err := s.db.ExecContext(ctx, `INSERT INTO games(`+gameCols+`) VALUES (?,?,?,?,?,?,?,?)`,
 		g.ID, g.Title, g.System, g.ROMSHA256, g.ROMSize, g.Filename, g.UploadedBy, g.AddedAt.Unix()); err != nil {
 		if isUnique(err) { // parallel upload of the same ROM: the file belongs to the other entry
-			return Game{}, conflict("This ROM is already in the library")
+			return Game{}, s.duplicateROM(ctx, sha)
 		}
 		os.Remove(dst)
 		return Game{}, internal(err)
 	}
 	return g, nil
+}
+
+// duplicateROM builds the conflict error for a ROM that is already in the library (with the existing game ID).
+func (s *Service) duplicateROM(ctx context.Context, sha string) error {
+	e := conflict("This ROM is already in the library")
+	if g, err := s.GetGameByHash(ctx, sha); err == nil {
+		e.ExistingGameID = g.ID
+	}
+	return e
 }
 
 // ListGames returns the library sorted by title.

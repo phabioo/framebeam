@@ -69,6 +69,10 @@ type Service struct {
 	name   string
 	dummyO sync.Once
 	dummy  string
+
+	redeemMu    sync.Mutex // invite redemption rate limits
+	redeemHits  map[string][]time.Time
+	redeemFails []time.Time
 }
 
 // Open initializes the service on a migrated database and creates the hub identity and
@@ -162,6 +166,8 @@ func (s *Service) Cleanup(ctx context.Context) error {
 		{`DELETE FROM web_sessions WHERE expires_at <= ?`, now},
 		// Expired requests stay visible for 1 h so the player can still poll "expired".
 		{`DELETE FROM pairing_requests WHERE expires_at <= ?`, now - 3600},
+		// Invite history is kept for 90 days (users created by a redemption stay).
+		{`DELETE FROM invites WHERE created_at <= ?`, now - int64(inviteHistoryKeep.Seconds())},
 	} {
 		if _, err := s.db.ExecContext(ctx, q.sql, q.arg); err != nil {
 			return internal(err)

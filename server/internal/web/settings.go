@@ -13,6 +13,8 @@ type settingsBody struct {
 	Fingerprint, CertSource string
 	CertNotAfter            string
 	MinPassword             int
+	Appearance              string
+	AllowUploads            bool
 }
 
 func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, sess *session, status int, errMsg string) {
@@ -22,6 +24,8 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, sess *se
 	if !s.cfg.CertNotAfter.IsZero() {
 		b.CertNotAfter = s.cfg.CertNotAfter.Local().Format("2006-01-02")
 	}
+	b.Appearance, _ = s.svc.Appearance(r.Context())
+	b.AllowUploads, _ = s.svc.AllowUserUploads(r.Context())
 	d.Body, d.Error = b, errMsg
 	s.render(w, status, "settings", "layout", d)
 }
@@ -71,4 +75,25 @@ func (s *Server) settingsPassword(w http.ResponseWriter, r *http.Request, sess *
 		return
 	}
 	http.Redirect(w, r, "/settings?ok=password", http.StatusSeeOther)
+}
+
+func (s *Server) settingsAppearance(w http.ResponseWriter, r *http.Request, sess *session) {
+	if err := s.svc.SetAppearance(r.Context(), r.PostFormValue("mode")); err != nil {
+		var he *hub.Error
+		if errors.As(err, &he) {
+			s.renderSettings(w, r, sess, http.StatusBadRequest, he.Message+".")
+			return
+		}
+		s.fail(w, r, err)
+		return
+	}
+	http.Redirect(w, r, "/settings?ok=appearance", http.StatusSeeOther)
+}
+
+func (s *Server) settingsUploads(w http.ResponseWriter, r *http.Request, sess *session) {
+	if err := s.svc.SetAllowUserUploads(r.Context(), r.PostFormValue("enabled") == "1"); err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	http.Redirect(w, r, "/settings?ok=uploads", http.StatusSeeOther)
 }

@@ -1,0 +1,93 @@
+{{define "content"}}
+<div class="page-head"><div><h1>Systems &amp; Cores</h1><p class="sub">Registry: which system expects which core in which version. The Hub does not run cores.</p></div></div>
+{{range $sys := .Body.Systems}}
+<section class="card sys-card">
+  <div class="sys-left">
+    <div><h2>{{.Name}}</h2><div class="mono">{{.ID}}</div></div>
+    <dl class="kv">
+      <dt>Preferred core</dt><dd>{{.CoreName}} <span class="mono">{{.CoreID}}</span></dd>
+      <dt>Expected version</dt><dd>
+        <form class="inline" method="post" action="/systems/{{.ID}}/expected-version">
+          <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+          <input type="text" name="version" value="{{.Expected}}" maxlength="64" placeholder="any version" aria-label="Expected core version">
+          <button class="btn small" type="submit">Save</button>
+        </form>
+        <div class="help">Empty = any version.</div></dd>
+      <dt>Platforms</dt><dd class="mono">{{.Platforms}}</dd>
+      <dt>Provisioning</dt><dd>{{.Provisioning}}</dd>
+    </dl>
+  </div>
+  <div class="sys-right">
+    <div class="eyebrow">Manifest</div>
+    <dl class="kv">
+      <dt>File extension</dt><dd class="mono">{{.Extensions}}</dd>
+      <dt>Input profile</dt><dd class="mono">{{.InputProfile}}</dd>
+      <dt>Display profile</dt><dd class="mono">{{.DisplayProfile}}</dd>
+      <dt>BIOS / Firmware</dt><dd>
+        <form class="segment" method="post" action="/systems/{{.ID}}/firmware-mode" role="group" aria-label="Firmware mode">
+          <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+          <button type="submit" name="mode" value="builtin"{{if not .Native}} class="on" aria-pressed="true"{{else}} aria-pressed="false"{{end}}>Built-in</button>
+          <button type="submit" name="mode" value="native"{{if .Native}} class="on" aria-pressed="true"{{else}} aria-pressed="false"{{end}}>Native files</button>
+        </form>
+        <div class="help">{{if .Native}}Players use the files below; launch is blocked while required files are missing.{{else}}The core uses its built-in firmware; files are optional.{{end}}</div></dd>
+    </dl>
+  </div>
+</section>
+
+<div class="eyebrow">Reported by clients</div>
+<div class="card">
+{{if .Clients}}
+<table class="list">
+  <thead><tr><th>Device</th><th>Platform</th><th>Versions</th><th>Status</th></tr></thead>
+  <tbody>
+  {{range .Clients}}
+  <tr>
+    <td>{{.Device}}</td>
+    <td class="mono">{{.Platform}}</td>
+    <td class="mono">{{.Versions}}</td>
+    <td>{{if .OK}}<span class="status-ok">● {{.StatusText}}</span>{{else}}<span class="status-err">{{.StatusText}}</span>{{end}}</td>
+  </tr>
+  {{end}}
+  </tbody>
+</table>
+{{else}}<p class="empty">No client has reported yet. Players report their cores when they connect.</p>{{end}}
+</div>
+
+<div class="fw-head">
+  <div><div class="eyebrow">BIOS / Firmware · {{.ID}}</div><p class="help">Provided by the admin, not shipped with FrameBeam.</p></div>
+</div>
+<div class="card">
+<table class="list fw">
+  <thead><tr><th>File</th><th>Requirement</th><th>SHA-256 expected / present</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+  {{range .Firmware}}
+  <tr class="{{if eq .State "mismatch"}}row-error{{else if eq .State "missing"}}row-error-soft{{end}}">
+    <td><div>{{.Name}}</div><div class="mono">{{.ID}} · {{.Sizes}}</div></td>
+    <td>{{.Requirement}}</td>
+    <td class="mono"><div>{{.Expected}}</div><div{{if eq .State "mismatch"}} class="err-text"{{end}}>{{.Present}}</div>
+      <form class="inline pin" method="post" action="/systems/{{$sys.ID}}/firmware/{{.ID}}/pin">
+        <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+        <input type="text" name="sha256" value="{{.PinFull}}" placeholder="Pin expected SHA-256" maxlength="64" aria-label="Expected SHA-256 for {{.Name}}" class="mono">
+        <button class="btn small" type="submit">{{if .Pinned}}Set / clear{{else}}Pin{{end}}</button>
+      </form></td>
+    <td><span class="pill {{.Class}}">{{.StateLabel}}</span></td>
+    <td>
+      <form class="inline" method="post" action="/systems/{{$sys.ID}}/firmware/{{.ID}}/upload" enctype="multipart/form-data">
+        <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+        <input type="file" name="file" required aria-label="{{if .HasFile}}Replace{{else}}Provide{{end}} {{.Name}}">
+        <button class="btn small primary" type="submit">{{if .HasFile}}Replace{{else}}Provide{{end}}</button>
+      </form>
+      {{if .HasFile}}<form method="post" action="/systems/{{$sys.ID}}/firmware/{{.ID}}/remove"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn-link" type="submit">Remove</button></form>{{end}}
+    </td>
+  </tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+{{end}}
+
+<section class="later" aria-label="Core package cache">
+  <div class="eyebrow">Core package cache <span class="pill">LATER</span></div>
+  <p class="help">Core packages with version, platform, SHA-256, origin and licence will be stored here later and distributed to Players. Not active in 0.1.</p>
+</section>
+{{end}}

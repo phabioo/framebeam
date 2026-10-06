@@ -17,6 +17,32 @@
         <div class="value">{{.Body.Host}}</div>
       </div>
     </section>
+    <section class="panel">
+      <h2>Appearance</h2>
+      <div class="row">
+        <div><div class="label">Mode</div><div class="help">Applies to this web interface</div></div>
+        <form class="segment" method="post" action="/settings/appearance" role="group" aria-label="Mode">
+          <input type="hidden" name="_csrf" value="{{.CSRF}}">
+          <button type="submit" name="mode" value="light"{{if eq .Body.Appearance "light"}} class="on" aria-pressed="true"{{else}} aria-pressed="false"{{end}}>Light</button>
+          <button type="submit" name="mode" value="dark"{{if eq .Body.Appearance "dark"}} class="on" aria-pressed="true"{{else}} aria-pressed="false"{{end}}>Dark</button>
+          <button type="submit" name="mode" value="system"{{if eq .Body.Appearance "system"}} class="on" aria-pressed="true"{{else}} aria-pressed="false"{{end}}>System</button>
+        </form>
+      </div>
+    </section>
+    <section class="panel">
+      <h2>Library</h2>
+      <div class="row">
+        <div>
+          <div class="label">Allow users to upload games <span class="pill{{if .Body.AllowUploads}} ok{{end}}">{{if .Body.AllowUploads}}Active{{else}}Inactive{{end}}</span></div>
+          <div class="help">{{if .Body.AllowUploads}}Users can upload ROMs from the Player.{{else}}Currently only admins can upload ROMs.{{end}}</div>
+          <div class="help">Own uploads land in the same library and are marked with uploaded_by. Managing or deleting others' entries remains reserved for admins.</div>
+        </div>
+        <form method="post" action="/settings/uploads">
+          <input type="hidden" name="_csrf" value="{{.CSRF}}">
+          <button class="switch{{if .Body.AllowUploads}} on{{end}}" type="submit" name="enabled" value="{{if .Body.AllowUploads}}0{{else}}1{{end}}" role="switch" aria-checked="{{if .Body.AllowUploads}}true{{else}}false{{end}}" aria-label="Allow users to upload games"><span></span></button>
+        </form>
+      </div>
+    </section>
   </div>
   <div class="stack">
     <section class="panel">

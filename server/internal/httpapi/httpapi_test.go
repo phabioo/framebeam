@@ -207,7 +207,7 @@ func (e *env) login(deviceID string) string {
 func handshakeBody(proto, minProto int) map[string]any {
 	return map[string]any{"platform": "linux", "arch": "x86_64", "player_version": "0.1.0",
 		"protocol_version": proto, "min_protocol_version": minProto,
-		"cores": []map[string]string{{"id": "melonds", "version": "1.0.0"}},
+		"cores": []map[string]string{{"id": "melonds_ds", "version": "1.4.0"}},
 		"video": map[string]any{"h264_encode": true, "h264_decode": true, "encoders": []string{"x264"}},
 		"audio": map[string]any{"opus": true}, "input": map[string]any{"gamepad": true, "keyboard": true}}
 }

@@ -98,7 +98,7 @@ func (s *Service) CreatePairingRequest(ctx context.Context, in PairingInput) (Pa
 		return PairingCreated{}, internal(err)
 	}
 	if open >= MaxOpenPairingRequests || perIP >= MaxPairingPerIPPerMinute {
-		return PairingCreated{}, &Error{CodeRateLimited, "Too many open requests"}
+		return PairingCreated{}, &Error{Code: CodeRateLimited, Message: "Too many open requests"}
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO pairing_requests(id, poll_token_hash, device_id, device_name, platform, arch,
 		player_version, protocol_version, remote_addr, status, created_at, expires_at) VALUES (?,?,?,?,?,?,?,?,?,'pending',?,?)`,

@@ -58,6 +58,9 @@ func Register(mux *http.ServeMux, svc *hub.Service, log *slog.Logger) {
 				if r.Method == http.MethodPut && strings.Contains(r.URL.Path, "/saves/") {
 					limit = hub.MaxSaveBytes + 1 // the service answers 413 payload_too_large
 				}
+				if r.Method == http.MethodPost && r.URL.Path == "/api/v1/games" {
+					limit = hub.MaxROMBytes // streamed to disk, never buffered
+				}
 				r.Body = http.MaxBytesReader(w, r.Body, limit)
 				next.ServeHTTP(w, r)
 			})
@@ -72,6 +75,7 @@ func Register(mux *http.ServeMux, svc *hub.Service, log *slog.Logger) {
 		},
 	})
 	mux.HandleFunc("GET /api/v1/roms/{sha256}", s.downloadROM)
+	mux.HandleFunc("GET /api/v1/systems/{system_id}/firmware/{file_id}", s.downloadFirmware)
 	mux.HandleFunc("GET /api/v1/ws", s.serveWS)
 }
 
@@ -80,7 +84,7 @@ func Register(mux *http.ServeMux, svc *hub.Service, log *slog.Logger) {
 type skipRomMux struct{ *http.ServeMux }
 
 func (m skipRomMux) HandleFunc(pattern string, h func(http.ResponseWriter, *http.Request)) {
-	if strings.Contains(pattern, "/api/v1/roms/") || strings.HasSuffix(pattern, " /api/v1/ws") {
+	if strings.Contains(pattern, "/api/v1/roms/") || strings.Contains(pattern, "/firmware/") || strings.HasSuffix(pattern, " /api/v1/ws") {
 		return
 	}
 	m.ServeMux.HandleFunc(pattern, h)
@@ -108,7 +112,7 @@ func (s *Server) authMiddleware(next api.StrictHandlerFunc, op string) api.Stric
 		ctx = context.WithValue(ctx, keyBearer, tok)
 		ctx = context.WithValue(ctx, keyRemoteIP, remoteIP(r))
 		switch op {
-		case "RevokeSelf", "PostHandshake", "ListGames", "GetGame", "ConnectWebSocket",
+		case "UploadGame", "ListSystems", "RevokeSelf", "PostHandshake", "ListGames", "GetGame", "ConnectWebSocket",
 			"ListSaves", "GetSaveSlot", "PutSave", "DownloadSaveContent", "ListSaveHistory", "DownloadSaveHistoryContent", "ResolveSaveConflict",
 			"ListUsers", "ListSessions", "PublishSession", "GetSession", "UpdateSession", "EndSession", "InviteSessionUser",
 			"WithdrawSessionInvite", "DeclineSession", "JoinSession", "RemoveSessionViewer":
@@ -131,11 +135,11 @@ func httpStatus(c hub.Code) int {
 	switch c {
 	case hub.CodeBadRequest:
 		return http.StatusBadRequest
-	case hub.CodeUnauthorized, hub.CodeDeviceRevoked, hub.CodeInvalidCredentials:
+	case hub.CodeUnauthorized, hub.CodeDeviceRevoked, hub.CodeInvalidCredentials, hub.CodeUserDisabled:
 		return http.StatusUnauthorized
-	case hub.CodeForbidden:
+	case hub.CodeForbidden, hub.CodeUploadsDisabled:
 		return http.StatusForbidden
-	case hub.CodeNotFound:
+	case hub.CodeNotFound, hub.CodeInviteInvalid:
 		return http.StatusNotFound
 	case hub.CodeSessionForbidden:
 		return http.StatusForbidden
@@ -144,7 +148,7 @@ func httpStatus(c hub.Code) int {
 	case hub.CodeSessionEnded:
 		return http.StatusGone
 	case hub.CodeConflict, hub.CodePairingExpired, hub.CodeSaveConflict, hub.CodeSaveConflictStale,
-		hub.CodeSessionFull, hub.CodeCapabilityMissing:
+		hub.CodeSessionFull, hub.CodeCapabilityMissing, hub.CodeDisplayNameTaken:
 		return http.StatusConflict
 	case hub.CodePayloadTooLarge:
 		return http.StatusRequestEntityTooLarge
@@ -254,15 +258,25 @@ func (s *Server) PostHandshake(ctx context.Context, req api.PostHandshakeRequest
 		return nil, hub.ErrBadRequest
 	}
 	b := req.Body
+	cores := make([]hub.CoreReport, 0, len(b.Cores))
+	for _, c := range b.Cores {
+		cores = append(cores, hub.CoreReport{ID: c.Id, Version: c.Version})
+	}
 	res, err := s.svc.Handshake(ctx, principal(ctx).Device.ID, hub.HandshakeInput{Platform: b.Platform, Arch: b.Arch,
 		PlayerVersion: b.PlayerVersion, ProtocolVersion: b.ProtocolVersion, MinProtocolVersion: b.MinProtocolVersion,
-		H264Encode: &b.Video.H264Encode, H264Decode: &b.Video.H264Decode})
+		H264Encode: &b.Video.H264Encode, H264Decode: &b.Video.H264Decode, Cores: &cores})
 	if err != nil {
 		return nil, err
 	}
+	features := []string{hub.FeatureSavesV1, hub.FeatureSessionsV1, hub.FeatureUsersV1, hub.FeatureFirmwareV1}
+	if can, err := s.svc.CanUpload(ctx, principal(ctx).User); err != nil {
+		return nil, err
+	} else if can {
+		features = append(features, hub.FeatureUploadsV1)
+	}
 	out := api.HandshakeResponse{HubVersion: res.Info.HubVersion, ProtocolVersion: res.Info.ProtocolVersion,
 		MinProtocolVersion: res.Info.MinProtocolVersion, Compatible: res.Compatible, Problems: []api.HandshakeProblem{},
-		Features: &[]string{hub.FeatureSavesV1, hub.FeatureSessionsV1}}
+		Features: &features}
 	for _, p := range res.Problems {
 		hp := api.HandshakeProblem{Code: api.HandshakeProblemCode(p.Code), Detail: p.Detail}
 		if p.CoreID != "" {
@@ -318,6 +332,31 @@ func (s *Server) DownloadRom(context.Context, api.DownloadRomRequestObject) (api
 
 // ConnectWebSocket: documented only; the upgrade is served by serveWS (ws.go) directly on the mux.
 func (s *Server) ConnectWebSocket(context.Context, api.ConnectWebSocketRequestObject) (api.ConnectWebSocketResponseObject, error) {
+	return nil, errNotImplemented
+}
+
+// ---- Firmware download (directly on the mux: ETag = sha256, If-None-Match; never logged) ----
+
+func (s *Server) downloadFirmware(w http.ResponseWriter, r *http.Request) {
+	if _, err := s.svc.Authenticate(r.Context(), bearer(r)); err != nil {
+		s.writeErr(w, r, err)
+		return
+	}
+	f, def, err := s.svc.OpenFirmware(r.Context(), r.PathValue("system_id"), r.PathValue("file_id"))
+	if err != nil {
+		s.writeErr(w, r, err)
+		return
+	}
+	defer f.Close()
+	h := w.Header()
+	h.Set("Cache-Control", "private, no-cache")
+	h.Set("Content-Type", "application/octet-stream")
+	h.Set("ETag", `"`+def.SHA256+`"`)
+	http.ServeContent(&jsonRangeErrWriter{ResponseWriter: w}, r, "", time.Time{}, f)
+}
+
+// GetFirmwareFile is not used by the strict handler (the route lives on the mux, see downloadFirmware).
+func (s *Server) GetFirmwareFile(context.Context, api.GetFirmwareFileRequestObject) (api.GetFirmwareFileResponseObject, error) {
 	return nil, errNotImplemented
 }
 

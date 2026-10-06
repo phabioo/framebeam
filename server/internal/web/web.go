@@ -25,7 +25,7 @@ var templatesFS embed.FS
 var staticFS embed.FS
 
 // DefaultMaxUploadBytes is the upload limit for ROMs (4 GiB).
-const DefaultMaxUploadBytes int64 = 4 << 30
+const DefaultMaxUploadBytes = hub.MaxROMBytes
 
 const (
 	sessionCookie = "fb_session"
@@ -68,7 +68,7 @@ func New(svc *hub.Service, cfg Config, log *slog.Logger) (*Server, error) {
 	}
 	s := &Server{svc: svc, cfg: cfg, log: log, tmpl: map[string]*template.Template{},
 		login: &limiter{max: 5, window: time.Minute, now: svc.Now, hits: map[string][]time.Time{}}}
-	for _, p := range []string{"login", "setup", "library", "saves", "clients", "settings"} {
+	for _, p := range []string{"login", "setup", "library", "saves", "clients", "settings", "users", "systems"} {
 		t, err := template.New(p).ParseFS(templatesFS, "templates/layout.html", "templates/"+p+".html")
 		if err != nil {
 			return nil, err
@@ -112,7 +112,20 @@ func (s *Server) Register(mux *http.ServeMux) {
 	h("POST /clients/requests/{id}/allow", s.guard(s.clientAllow))
 	h("POST /clients/requests/{id}/deny", s.guard(s.clientDeny))
 	h("POST /clients/devices/{id}/revoke", s.guard(s.clientRevoke))
+	h("GET /users", s.guard(s.usersGet))
+	h("POST /users/invites", s.guard(s.inviteCreate))
+	h("POST /users/invites/{id}/revoke", s.guard(s.inviteRevoke))
+	h("POST /users/{id}/disable", s.guard(s.userDisable))
+	h("POST /users/{id}/enable", s.guard(s.userEnable))
+	h("GET /systems", s.guard(s.systemsGet))
+	h("POST /systems/{id}/expected-version", s.guard(s.systemVersion))
+	h("POST /systems/{id}/firmware-mode", s.guard(s.systemFirmwareMode))
+	h("POST /systems/{id}/firmware/{file}/upload", s.guard(s.firmwareUpload))
+	h("POST /systems/{id}/firmware/{file}/pin", s.guard(s.firmwarePin))
+	h("POST /systems/{id}/firmware/{file}/remove", s.guard(s.firmwareRemove))
 	h("GET /settings", s.guard(s.settingsGet))
+	h("POST /settings/appearance", s.guard(s.settingsAppearance))
+	h("POST /settings/uploads", s.guard(s.settingsUploads))
 	h("POST /settings/name", s.guard(s.settingsName))
 	h("POST /settings/password", s.guard(s.settingsPassword))
 }
@@ -154,22 +167,39 @@ type pageData struct {
 	User, Role          string
 	HubName, HubVersion string
 	Pending             int
-	Conflicts           int // open save conflicts (nav badge)
+	Conflicts           int    // open save conflicts (nav badge)
+	Firmware            int    // required firmware files missing or mismatching (nav badge, mode native)
+	Theme               string // light, dark or system (Hub setting)
 	Flash, Error        string
 	Fragment            bool
 	Body                any
 }
 
 var flashTexts = map[string]string{
-	"uploaded": "ROM added to the library.",
-	"deleted":  "ROM deleted.",
-	"name":     "Hub name saved.",
-	"password": "Password changed.",
-	"resolved": "Conflict resolved.",
+	"uploaded":   "ROM added to the library.",
+	"deleted":    "ROM deleted.",
+	"name":       "Hub name saved.",
+	"password":   "Password changed.",
+	"resolved":   "Conflict resolved.",
+	"disabled":   "User disabled. Their devices are signed out and their Sessions ended.",
+	"enabled":    "User enabled.",
+	"revoked":    "Invite revoked.",
+	"appearance": "Appearance saved.",
+	"uploads":    "Upload setting saved.",
+	"version":    "Expected core version saved.",
+	"fwmode":     "Firmware mode saved.",
+	"fwfile":     "Firmware file saved.",
+	"fwremoved":  "Firmware file removed.",
+	"fwpin":      "Expected SHA-256 saved.",
 }
 
 var errTexts = map[string]string{
-	"stale": "The slot changed in the meantime or the conflict was already resolved. Please review and decide again.",
+	"stale":    "The slot changed in the meantime or the conflict was already resolved. Please review and decide again.",
+	"admin":    "Admins cannot be disabled.",
+	"nouser":   "User not found.",
+	"noinvite": "The invite is no longer active.",
+	"nosystem": "System or file not found.",
+	"nofile":   "Firmware file not found.",
 }
 
 type session struct {
@@ -193,6 +223,9 @@ func (s *Server) base(r *http.Request, sess *session, nav, title string) pageDat
 		if n, err := s.svc.OpenConflictCount(r.Context()); err == nil {
 			d.Conflicts = n
 		}
+		if n, err := s.svc.FirmwareProblems(r.Context()); err == nil {
+			d.Firmware = n
+		}
 	}
 	return d
 }
@@ -206,6 +239,9 @@ func roleLabel(r hub.Role) string {
 
 // render renders template name ("layout", "bare" or a fragment) of page.
 func (s *Server) render(w http.ResponseWriter, status int, page, name string, d pageData) {
+	if d.Theme == "" {
+		d.Theme, _ = s.svc.Appearance(context.Background())
+	}
 	var buf bytes.Buffer
 	if err := s.tmpl[page].ExecuteTemplate(&buf, name, d); err != nil {
 		s.log.Error("template", "page", page, "err", err)

@@ -25,12 +25,18 @@ const (
 	CodeSessionFull        Code = "session_full"
 	CodeSessionEnded       Code = "session_ended"
 	CodeCapabilityMissing  Code = "capability_missing"
+	CodeInviteInvalid      Code = "invite_invalid"
+	CodeDisplayNameTaken   Code = "display_name_taken"
+	CodeUserDisabled       Code = "user_disabled"
+	CodeUploadsDisabled    Code = "uploads_disabled"
 )
 
 // Error is a domain error with a spec code. errors.Is compares the code only.
 type Error struct {
 	Code    Code
 	Message string
+	// ExistingGameID is set on a duplicate ROM upload (conflict) and names the library entry that holds it.
+	ExistingGameID string
 }
 
 func (e *Error) Error() string { return fmt.Sprintf("%s: %s", e.Code, e.Message) }
@@ -43,31 +49,36 @@ func (e *Error) Is(target error) bool {
 
 // Sentinel errors for errors.Is.
 var (
-	ErrBadRequest         = &Error{CodeBadRequest, "Invalid request"}
-	ErrUnauthorized       = &Error{CodeUnauthorized, "Token missing or invalid"}
-	ErrForbidden          = &Error{CodeForbidden, "Not allowed"}
-	ErrNotFound           = &Error{CodeNotFound, "Not found"}
-	ErrConflict           = &Error{CodeConflict, "Conflict"}
-	ErrRateLimited        = &Error{CodeRateLimited, "Too many requests"}
-	ErrDeviceRevoked      = &Error{CodeDeviceRevoked, "Device has been revoked"}
-	ErrInvalidCredentials = &Error{CodeInvalidCredentials, "Invalid credentials"}
-	ErrPairingExpired     = &Error{CodePairingExpired, "Pairing request expired"}
+	ErrBadRequest         = &Error{Code: CodeBadRequest, Message: "Invalid request"}
+	ErrUnauthorized       = &Error{Code: CodeUnauthorized, Message: "Token missing or invalid"}
+	ErrForbidden          = &Error{Code: CodeForbidden, Message: "Not allowed"}
+	ErrNotFound           = &Error{Code: CodeNotFound, Message: "Not found"}
+	ErrConflict           = &Error{Code: CodeConflict, Message: "Conflict"}
+	ErrRateLimited        = &Error{Code: CodeRateLimited, Message: "Too many requests"}
+	ErrDeviceRevoked      = &Error{Code: CodeDeviceRevoked, Message: "Device has been revoked"}
+	ErrInvalidCredentials = &Error{Code: CodeInvalidCredentials, Message: "Invalid credentials"}
+	ErrPairingExpired     = &Error{Code: CodePairingExpired, Message: "Pairing request expired"}
 	// ErrSaveConflictStale: expected_revision is stale or the conflict is already resolved (nothing changed).
-	ErrSaveConflictStale = &Error{CodeSaveConflictStale, "Slot changed since expected_revision; re-read the slot"}
+	ErrSaveConflictStale = &Error{Code: CodeSaveConflictStale, Message: "Slot changed since expected_revision; re-read the slot"}
 	// ErrPayloadTooLarge: the upload exceeds MaxSaveBytes.
-	ErrPayloadTooLarge  = &Error{CodePayloadTooLarge, "Save exceeds 64 MiB"}
-	ErrSessionNotFound  = &Error{CodeSessionNotFound, "Session not found"}
-	ErrSessionForbidden = &Error{CodeSessionForbidden, "Not allowed for this Session"}
-	ErrSessionFull      = &Error{CodeSessionFull, "Session already has the maximum number of viewers"}
-	ErrSessionEnded     = &Error{CodeSessionEnded, "Session has ended"}
+	ErrPayloadTooLarge  = &Error{Code: CodePayloadTooLarge, Message: "Save exceeds 64 MiB"}
+	ErrSessionNotFound  = &Error{Code: CodeSessionNotFound, Message: "Session not found"}
+	ErrSessionForbidden = &Error{Code: CodeSessionForbidden, Message: "Not allowed for this Session"}
+	ErrSessionFull      = &Error{Code: CodeSessionFull, Message: "Session already has the maximum number of viewers"}
+	ErrSessionEnded     = &Error{Code: CodeSessionEnded, Message: "Session has ended"}
 	// ErrAdminExists: an admin already exists (code conflict).
-	ErrAdminExists = &Error{CodeConflict, "An admin already exists"}
+	ErrAdminExists = &Error{Code: CodeConflict, Message: "An admin already exists"}
+	// Phase 5.
+	ErrInviteInvalid    = &Error{Code: CodeInviteInvalid, Message: "Invite code is invalid, expired, used or revoked"}
+	ErrDisplayNameTaken = &Error{Code: CodeDisplayNameTaken, Message: "Display name is already taken"}
+	ErrUserDisabled     = &Error{Code: CodeUserDisabled, Message: "User has been disabled"}
+	ErrUploadsDisabled  = &Error{Code: CodeUploadsDisabled, Message: "Uploads by users are disabled on this Hub"}
 )
 
 func badRequest(format string, a ...any) *Error {
-	return &Error{CodeBadRequest, fmt.Sprintf(format, a...)}
+	return &Error{Code: CodeBadRequest, Message: fmt.Sprintf(format, a...)}
 }
 
-func conflict(msg string) *Error { return &Error{CodeConflict, msg} }
+func conflict(msg string) *Error { return &Error{Code: CodeConflict, Message: msg} }
 
 func internal(err error) error { return fmt.Errorf("hub: %w", err) }
