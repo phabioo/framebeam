@@ -4,7 +4,17 @@
   "core_id": "melonds_ds",
   "core_library_basename": "melondsds_libretro",
   "extensions": [".nds"],
-  "firmware": { "required": false, "files": [] },
+  "firmware": {
+    "required": false,
+    "sysfile_option": "melonds_sysfile_mode",
+    "sysfile_native": "native",
+    "sysfile_builtin": "builtin",
+    "files": [
+      { "id": "bios7", "name": "bios7.bin" },
+      { "id": "bios9", "name": "bios9.bin" },
+      { "id": "firmware", "name": "firmware.bin", "core_option": "melonds_firmware_nds_path" }
+    ]
+  },
   "input_profile": "nds",
   "display_profile": "dual_screen",
   "display": {

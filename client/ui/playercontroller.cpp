@@ -3,10 +3,14 @@
 #include <QDate>
 #include <QDir>
 #include <QFileInfo>
+#include <QGuiApplication>
 #include <QRegularExpression>
+#include <QStyleHints>
 #include <QSysInfo>
+#include <QUrl>
 #include <algorithm>
 
+#include "firmware_materializer.h"
 #include "libretro_backend.h"
 #include "mediacaps.h"
 #include "version.h"
@@ -42,6 +46,34 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   cache_ = std::make_unique<RomCache>(profiles_->romCacheDir());
   downloader_ = std::make_unique<RomDownloader>(conn_.get(), cache_.get());
   saves_ = std::make_unique<SaveSync>(conn_.get(), profiles_.get());
+  settings_ = std::make_unique<PlayerSettings>(profiles_->baseDir());
+  fwCache_ = std::make_unique<FirmwareCache>(QDir(systemDir()).filePath(QStringLiteral("firmware")));
+  systems_ = std::make_unique<HubSystems>(conn_.get());
+  provisioner_ = std::make_unique<FirmwareProvisioner>(conn_.get(), fwCache_.get());
+  uploader_ = std::make_unique<GameUploader>(conn_.get());
+  upload_ = {{QStringLiteral("active"), false}, {QStringLiteral("fileName"), QString()}, {QStringLiteral("progress"), 0.0},
+             {QStringLiteral("message"), QString()}, {QStringLiteral("isError"), false}};
+  connect(systems_.get(), &HubSystems::stateChanged, this, [this]() {
+    if (systems_->state() == HubSystems::State::Ready) {
+      fwProblems_.clear();  // fresh registry from the Hub: validation problems are re-evaluated
+    }
+    emit selectedGameChanged();
+  });
+  connect(provisioner_.get(), &FirmwareProvisioner::finished, this, &PlayerController::onFirmwareFinished);
+  connect(uploader_.get(), &GameUploader::progress, this, [this](qint64 sent, qint64 total) {
+    upload_.insert(QStringLiteral("progress"), total > 0 ? static_cast<double>(sent) / static_cast<double>(total) : 0.0);
+    emit uploadChanged();
+  });
+  connect(uploader_.get(), &GameUploader::finished, this, &PlayerController::onUploadFinished);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+  if (QGuiApplication::styleHints() != nullptr) {
+    connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, this, [this]() {
+      if (settings_->appearance() == PlayerSettings::Appearance::System) {
+        emit appearanceChanged();
+      }
+    });
+  }
+#endif
   connect(saves_.get(), &SaveSync::startReady, this, &PlayerController::onSaveReady);
   connect(saves_.get(), &SaveSync::startConflict, this, &PlayerController::onSaveConflict);
   connect(saves_.get(), &SaveSync::resolveFailed, this, [this](const QString& msg) {
@@ -76,8 +108,9 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   sessions_ = std::make_unique<SessionController>(conn_.get(), profiles_.get(), &session_);
   connect(sessions_.get(), &SessionController::watchChanged, this, &PlayerController::updateScreen);
   connect(conn_.get(), &HubConnection::stateChanged, this, &PlayerController::onConnectionState);
-  connect(conn_.get(), &HubConnection::errorOccurred, this, [this](const QString&, const QString& message) {
-    lastError_ = message;
+  connect(conn_.get(), &HubConnection::errorOccurred, this, [this](const QString& code, const QString& message) {
+    lastError_ = friendlyError(code, message);
+    inviteBusy_ = false;
     emit hubsChanged();
     emit pairingChanged();
   });
@@ -223,7 +256,7 @@ void PlayerController::updateScreen() {
   if (gameActive_ || (sessions_ && sessions_->watching())) {
     next = QStringLiteral("game");
   } else if (s == S::Connected) {
-    next = QStringLiteral("library");
+    next = settingsOpen_ ? QStringLiteral("settings") : QStringLiteral("library");
   } else if (s == S::NeedsTrustConfirmation || s == S::NeedsPairing || s == S::AwaitingApproval || s == S::Denied ||
              s == S::Expired) {
     next = QStringLiteral("pairing");
@@ -241,11 +274,16 @@ void PlayerController::updateScreen() {
 void PlayerController::onConnectionState(HubConnection::State s) {
   using S = HubConnection::State;
   lastError_.clear();
+  inviteBusy_ = false;
+  if (s != S::Connected) {
+    settingsOpen_ = false;
+    fwProblems_.clear();
+  }
   if (s == S::NeedsTrustConfirmation || s == S::NeedsPairing || s == S::AwaitingApproval || s == S::Denied ||
       s == S::Expired) {
     pairingFlow_ = true;
   } else if (s == S::Disconnected || s == S::Connected || s == S::Unreachable || s == S::Incompatible ||
-             s == S::CertificateChanged) {
+             s == S::CertificateChanged || s == S::UserDisabled) {
     pairingFlow_ = false;
   }
   if (s == S::Connected) {
@@ -254,6 +292,7 @@ void PlayerController::onConnectionState(HubConnection::State s) {
     emit libraryStateChanged();
     emit hubChanged();
     library_->reload();
+    systems_->reload();  // only with firmware_v1
   } else if (s == S::Disconnected) {
     selectedId_.clear();
     startError_.clear();
@@ -338,6 +377,13 @@ QVariantMap PlayerController::hubCard(const HubProfile& p) const {
                          : tr("Hub requires at least protocol v%1, Player speaks v%2").arg(hi.minProtocolVersion).arg(kProtocolVersion);
         break;
       }
+      case S::UserDisabled:
+        status = QStringLiteral("userDisabled");
+        text = tr("User disabled");
+        tone = QStringLiteral("error");
+        message = tr("This user is disabled on the Hub. Ask the Hub admin to enable it again. "
+                     "The Player does not retry on its own; use Retry once it is enabled.");
+        break;
       case S::Unreachable:
         status = QStringLiteral("unreachable");
         text = tr("Not reachable");
@@ -366,7 +412,7 @@ QVariantList PlayerController::hubs() const {
     list.append(card);
   }
   const S s = conn_->state();
-  if (!matched && (s == S::Unreachable || s == S::Incompatible || s == S::CertificateChanged)) {
+  if (!matched && (s == S::Unreachable || s == S::Incompatible || s == S::CertificateChanged || s == S::UserDisabled)) {
     // Attempt with an address not saved yet: show as a card with the result.
     HubProfile p;
     p.address = conn_->address();
@@ -485,7 +531,48 @@ QVariantMap PlayerController::pairing() const {
   m.insert(QStringLiteral("platform"), platformLabel(h.platform, h.arch));
   m.insert(QStringLiteral("playerVersion"), h.playerVersion);
   m.insert(QStringLiteral("error"), lastError_);
+  m.insert(QStringLiteral("inviteBusy"), inviteBusy_);
   return m;
+}
+
+void PlayerController::redeemInvite(const QString& code, const QString& displayName) {
+  const QString name = displayName.trimmed();
+  QString problem;
+  if (code.trimmed().isEmpty()) {
+    problem = tr("Please enter the invite code.");
+  } else if (name.isEmpty()) {
+    problem = tr("Please enter a display name.");
+  } else if (name.size() > 32) {
+    problem = tr("The display name can have at most 32 characters.");
+  }
+  if (!problem.isEmpty()) {
+    lastError_ = problem;
+    emit pairingChanged();
+    return;
+  }
+  lastError_.clear();
+  inviteBusy_ = true;
+  emit pairingChanged();
+  conn_->redeemInvite(code, name);
+}
+
+QString PlayerController::friendlyError(const QString& code, const QString& message) const {
+  if (code == QLatin1String("invite_invalid")) {
+    return tr("This invite code is not valid. It may have expired, been used already or been revoked.");
+  }
+  if (code == QLatin1String("display_name_taken")) {
+    return tr("This display name is already taken on the Hub. Please choose another one.");
+  }
+  if (code == QLatin1String("rate_limited")) {
+    return tr("Too many attempts. Please wait a moment and try again.");
+  }
+  if (code == QLatin1String("not_found") && inviteBusy_) {
+    return tr("This Hub does not support invite codes.");
+  }
+  if (code == QLatin1String("invalid_input")) {
+    return tr("Please enter the invite code and a display name of 1 to 32 characters.");
+  }
+  return message;
 }
 
 void PlayerController::confirmTrust() { conn_->confirmTrust(); }
@@ -493,6 +580,176 @@ void PlayerController::rejectTrust() { conn_->rejectTrust(); }
 void PlayerController::requestPairing() { conn_->requestPairing(); }
 void PlayerController::cancelPairing() { conn_->cancelPairing(); }
 void PlayerController::leavePairing() { conn_->disconnectFromHub(); }
+
+// ---------------------------------------------------------------- Phase 5: Settings, upload, warnings
+
+QString PlayerController::appearance() const { return PlayerSettings::appearanceName(settings_->appearance()); }
+
+void PlayerController::setAppearance(const QString& name) {
+  const PlayerSettings::Appearance a = PlayerSettings::parseAppearance(name, settings_->appearance());
+  if (a == settings_->appearance()) {
+    return;
+  }
+  if (!settings_->setAppearance(a)) {
+    qWarning() << "Player settings could not be written";
+  }
+  emit appearanceChanged();
+}
+
+bool PlayerController::darkMode() const {
+  switch (settings_->appearance()) {
+    case PlayerSettings::Appearance::Dark: return true;
+    case PlayerSettings::Appearance::Light: return false;
+    case PlayerSettings::Appearance::System: break;
+  }
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+  if (const QStyleHints* hints = QGuiApplication::styleHints()) {
+    return hints->colorScheme() != Qt::ColorScheme::Light;  // Unknown -> dark
+  }
+#endif
+  return true;  // Qt 6.4: no color scheme API
+}
+
+void PlayerController::showLibrary() {
+  settingsOpen_ = false;
+  updateScreen();
+}
+
+void PlayerController::showSettings() {
+  if (conn_->state() != HubConnection::State::Connected || gameActive_) {
+    return;
+  }
+  settingsOpen_ = true;
+  updateScreen();
+}
+
+bool PlayerController::canUpload() const {
+  return conn_->state() == HubConnection::State::Connected && conn_->hubHasFeature(QStringLiteral("uploads_v1"));
+}
+
+QStringList PlayerController::uploadFilters() const {
+  QStringList exts;
+  for (const emu::SystemManifest& m : manifests_.all()) {
+    for (const QString& e : m.extensions) {
+      exts.append(QStringLiteral("*") + e);
+    }
+  }
+  QStringList filters;
+  if (!exts.isEmpty()) {
+    filters.append(tr("Game ROMs (%1)").arg(exts.join(QLatin1Char(' '))));
+  }
+  filters.append(tr("All files (*)"));
+  return filters;
+}
+
+QVariantList PlayerController::coreWarnings() const {
+  QVariantList list;
+  for (const HandshakeProblem& p : conn_->handshakeProblems()) {
+    const bool missing = p.code == QLatin1String("core_missing");
+    if (!missing && p.code != QLatin1String("core_version_mismatch")) {
+      continue;
+    }
+    QString label = p.coreId;
+    for (const emu::SystemManifest& m : manifests_.all()) {
+      if (m.coreId == p.coreId) {
+        label = coreNames_.value(m.coreId, m.coreId == QLatin1String("melonds_ds") ? QStringLiteral("melonDS DS") : m.coreId);
+      }
+    }
+    if (label.isEmpty()) {
+      label = tr("Core");
+    }
+    const QString text = missing ? tr("%1 was not found on this device. Games for its system cannot start here.").arg(label)
+                                 : tr("%1 has a different version than this Hub expects. Games can still start, "
+                                      "but may behave differently.").arg(label);
+    list.append(QVariantMap{{QStringLiteral("code"), p.code},
+                            {QStringLiteral("coreId"), p.coreId},
+                            {QStringLiteral("text"), text},
+                            {QStringLiteral("detail"), p.detail}});
+  }
+  return list;
+}
+
+void PlayerController::uploadRom(const QString& source) {
+  if (!canUpload() || uploader_->busy()) {
+    return;
+  }
+  const QString path = source.startsWith(QLatin1String("file:")) ? QUrl(source).toLocalFile() : source;
+  upload_ = {{QStringLiteral("active"), true},
+             {QStringLiteral("fileName"), QFileInfo(path).fileName()},
+             {QStringLiteral("progress"), 0.0},
+             {QStringLiteral("message"), QString()},
+             {QStringLiteral("isError"), false}};
+  emit uploadChanged();
+  uploader_->upload(path);
+}
+
+void PlayerController::dismissUploadMessage() {
+  if (upload_.value(QStringLiteral("active")).toBool() || upload_.value(QStringLiteral("message")).toString().isEmpty()) {
+    return;
+  }
+  upload_.insert(QStringLiteral("message"), QString());
+  emit uploadChanged();
+}
+
+void PlayerController::onUploadFinished(const UploadResult& r) {
+  using K = UploadResult::Kind;
+  QString message;
+  bool isError = true;
+  switch (r.kind) {
+    case K::Created:
+      message = tr("Uploaded “%1” to the Hub.").arg(r.game.title);
+      isError = false;
+      pendingSelectId_ = r.game.id;
+      reloadLibrary();
+      break;
+    case K::Duplicate:
+      message = tr("Already in the library.");
+      isError = false;
+      if (!r.existingGameId.isEmpty()) {
+        if (model_.rowOfGame(r.existingGameId) >= 0) {
+          selectGame(r.existingGameId);
+        } else {
+          pendingSelectId_ = r.existingGameId;
+          reloadLibrary();
+        }
+      }
+      break;
+    case K::Forbidden:
+      message = tr("Uploads are not allowed for your user on this Hub.");
+      break;
+    case K::TooLarge:
+      message = tr("The file is too large for this Hub.");
+      break;
+    case K::Rejected:
+      message = r.errorMessage.isEmpty() ? tr("The Hub rejected this file (unsupported type?).")
+                                         : tr("The Hub rejected this file: %1").arg(r.errorMessage);
+      break;
+    case K::Failed:
+      if (r.errorCode == QLatin1String("file_unreadable")) {
+        message = tr("The file cannot be read.");
+      } else if (r.errorCode == QLatin1String("cancelled")) {
+        message = tr("Upload cancelled.");
+      } else if (r.errorCode == QLatin1String("not_connected")) {
+        message = tr("Not connected to a Hub.");
+      } else {
+        message = tr("Upload failed: %1").arg(r.errorMessage.isEmpty() ? r.errorCode : r.errorMessage);
+      }
+      break;
+  }
+  upload_ = {{QStringLiteral("active"), false},
+             {QStringLiteral("fileName"), r.fileName},
+             {QStringLiteral("progress"), r.kind == K::Created ? 1.0 : 0.0},
+             {QStringLiteral("message"), message},
+             {QStringLiteral("isError"), isError}};
+  emit uploadChanged();
+}
+
+void PlayerController::recheckFirmware() {
+  fwProblems_.clear();
+  startError_.clear();
+  systems_->reload();
+  emit selectedGameChanged();
+}
 
 // ---------------------------------------------------------------- 3c Library
 
@@ -528,6 +785,13 @@ void PlayerController::onLibraryLoaded() {
   libraryState_ = QStringLiteral("ready");
   libraryError_.clear();
   emit libraryStateChanged();
+  if (!pendingSelectId_.isEmpty()) {
+    if (model_.rowOfGame(pendingSelectId_) >= 0) {
+      selectedId_ = pendingSelectId_;
+      startError_.clear();
+    }
+    pendingSelectId_.clear();
+  }
   if (selectedId_.isEmpty() || model_.rowOfGame(selectedId_) < 0) {
     selectedId_ = model_.rowCount() > 0 ? model_.data(model_.index(0), LibraryModel::GameIdRole).toString() : QString();
   }
@@ -564,6 +828,29 @@ const emu::SystemManifest* PlayerController::manifestFor(const GameEntry& game) 
     return m;
   }
   return manifests_.find(game.system);
+}
+
+QStringList PlayerController::wantedFirmwareIds(const emu::SystemManifest& man) const {
+  QStringList ids;
+  for (const emu::FirmwareFile& f : man.firmware.files) {
+    ids.append(f.id);
+  }
+  return ids;
+}
+
+bool PlayerController::nativeFirmware(const emu::SystemManifest& man, SystemInfo* system) const {
+  // Without firmware_v1 (older hub) or without registry data the core runs on its built-in firmware.
+  if (!systems_->supported() || man.firmware.sysfileOption.isEmpty()) {
+    return false;
+  }
+  const auto info = systems_->system(man.systemId);
+  if (!info || !info->nativeFirmware()) {
+    return false;
+  }
+  if (system != nullptr) {
+    *system = *info;
+  }
+  return true;
 }
 
 QVariantMap PlayerController::selectedGame() const {
@@ -613,6 +900,9 @@ QVariantMap PlayerController::selectedGame() const {
   // Core / firmware
   bool coreOk = false;
   bool fwOk = true;
+  bool fwChecking = false;
+  bool fwBlocked = false;
+  QString fwTone = QStringLiteral("neutral");
   QString coreText;
   QString coreHint;
   QString fwText = tr("Not required");
@@ -629,26 +919,56 @@ QVariantMap PlayerController::selectedGame() const {
                      .arg(emu::CoreLocator::environmentVariableFor(man->coreId),
                           loc.tried.isEmpty() ? QString() : QDir::toNativeSeparators(loc.tried.last()));
     }
-    if (man->firmware.required) {
-      QStringList missing;
-      for (const emu::FirmwareFile& f : man->firmware.files) {
-        if (f.required && !QFileInfo::exists(QDir(systemDir()).filePath(f.name))) {
-          missing.append(f.name);
+    SystemInfo sys;
+    if (systems_->supported() && systems_->state() == HubSystems::State::Loading && !systems_->system(man->systemId)) {
+      fwText = tr("Checking…");
+      fwChecking = true;
+    } else if (systems_->supported() && systems_->state() == HubSystems::State::Failed) {
+      fwText = tr("Status unavailable");
+      fwTone = QStringLiteral("warn");
+      fwHint = tr("The firmware status could not be read from the Hub; the built-in firmware is used.");
+    } else if (nativeFirmware(*man, &sys)) {
+      const QStringList wanted = wantedFirmwareIds(*man);
+      QList<FirmwareProblem> problems = FirmwareProvisioner::missingOnHub(sys, wanted);
+      for (const FirmwareProblem& p : fwProblems_) {
+        if (p.reason == QLatin1String("invalid_hash") || p.reason == QLatin1String("invalid_size")) {
+          problems.append(p);
         }
       }
-      fwOk = missing.isEmpty();
-      fwText = fwOk ? tr("present") : tr("missing");
-      if (!fwOk) {
-        fwHint = tr("Firmware missing: %1 in %2").arg(missing.join(QStringLiteral(", ")), QDir::toNativeSeparators(systemDir()));
+      if (!problems.isEmpty()) {
+        fwOk = false;
+        fwBlocked = true;
+        fwText = tr("Firmware required/missing");
+        QStringList parts;
+        for (const FirmwareProblem& p : problems) {
+          const QString name = p.displayName.isEmpty() ? p.fileId : p.displayName;
+          const QString why = p.reason == QLatin1String("missing_on_hub") ? tr("missing on the Hub")
+                              : p.reason == QLatin1String("invalid_hash") ? tr("does not match the Hub's SHA-256")
+                                                                          : tr("has the wrong size");
+          parts.append(QStringLiteral("%1 (%2)").arg(name, why));
+        }
+        fwHint = tr("%1. The Hub admin can provide the files on the Systems page; then check again.").arg(parts.join(QStringLiteral(", ")));
+      } else {
+        bool allCached = true;
+        for (const FirmwareFileInfo& f : sys.firmware) {
+          if (f.present && wanted.contains(f.id) && !fwCache_->probe(sys.id, f.sha256, f.size)) {
+            allCached = false;
+          }
+        }
+        fwText = allCached ? tr("From Hub · cached") : tr("From Hub · download at start");
+        fwTone = allCached ? QStringLiteral("ok") : QStringLiteral("neutral");
       }
+    } else if (systems_->supported()) {
+      fwText = tr("Not required");
     }
   }
   m.insert(QStringLiteral("coreText"), coreText);
   m.insert(QStringLiteral("coreTone"), coreOk ? QStringLiteral("ok") : QStringLiteral("error"));
   m.insert(QStringLiteral("coreHint"), coreHint);
   m.insert(QStringLiteral("firmwareText"), fwText);
-  m.insert(QStringLiteral("firmwareTone"), fwOk ? QStringLiteral("neutral") : QStringLiteral("error"));
+  m.insert(QStringLiteral("firmwareTone"), fwOk ? fwTone : QStringLiteral("error"));
   m.insert(QStringLiteral("firmwareHint"), fwHint);
+  m.insert(QStringLiteral("firmwareBlocked"), fwBlocked);
 
   // Save row (sync state)
   {
@@ -683,6 +1003,13 @@ QVariantMap PlayerController::selectedGame() const {
   const bool romReady = kind == QLatin1String("ready");
   QVariantList list;
   list.append(checkItem(tr("Game data from hub"), QStringLiteral("done")));
+  if (man != nullptr && nativeFirmware(*man)) {
+    const bool fwDone = phase_ == PlayPhase::Rom || phase_ == PlayPhase::Launching;
+    list.append(checkItem(tr("Firmware from Hub verified"),
+                          fwDone ? QStringLiteral("done") : (phase_ == PlayPhase::Firmware ? QStringLiteral("active")
+                                                             : (fwOk ? QStringLiteral("pending") : QStringLiteral("error"))),
+                          QString()));
+  }
   list.append(checkItem(romReady ? tr("ROM verified from cache") : tr("Download and verify ROM"),
                         romReady ? QStringLiteral("done") : (phase_ == PlayPhase::Rom ? QStringLiteral("active") : QStringLiteral("pending")),
                         romReady ? QString() : romText));
@@ -698,10 +1025,10 @@ QVariantMap PlayerController::selectedGame() const {
   m.insert(QStringLiteral("error"), error);
   m.insert(QStringLiteral("busy"), busy);
   m.insert(QStringLiteral("canPlay"), !busy && man != nullptr && coreOk && fwOk && kind != QLatin1String("validating") &&
-                                          kind != QLatin1String("downloading") && kind != QLatin1String("unknown"));
+                                          kind != QLatin1String("downloading") && kind != QLatin1String("unknown") && !fwChecking);
   QString label = tr("Play");
   if (busy) {
-    label = phase_ == PlayPhase::Launching ? tr("Starting…") : tr("Downloading…");
+    label = phase_ == PlayPhase::Launching ? tr("Starting…") : (phase_ == PlayPhase::Firmware ? tr("Checking firmware…") : tr("Downloading…"));
   } else if (kind == QLatin1String("download")) {
     label = tr("Download and play");
   } else if (kind == QLatin1String("mismatch") || kind == QLatin1String("failed")) {
@@ -731,11 +1058,72 @@ void PlayerController::startSelected(bool share) {
     emit selectedGameChanged();  // detail pane shows the path hint
     return;
   }
-  pendingSha_ = game->romSha256;
   shareOnStart_ = share;
+  fwOptions_.clear();
+  SystemInfo sys;
+  if (nativeFirmware(*man, &sys)) {
+    // Mode native: the files must be available and valid before anything else happens (also blocks the launch).
+    const QStringList wanted = wantedFirmwareIds(*man);
+    const QList<FirmwareProblem> missing = FirmwareProvisioner::missingOnHub(sys, wanted);
+    if (!missing.isEmpty()) {
+      emit selectedGameChanged();  // the detail pane shows "Firmware required/missing"
+      return;
+    }
+    launchGame_ = *game;
+    phase_ = PlayPhase::Firmware;
+    emit selectedGameChanged();
+    provisioner_->prepare(sys, wanted);
+    return;
+  }
+  // Built-in firmware (default, old hubs): nothing is downloaded, the core is told explicitly.
+  fwOptions_ = emu::firmwareCoreOptions(man->firmware, false, {});
+  beginRomPhase(*game);
+}
+
+void PlayerController::beginRomPhase(const GameEntry& game) {
+  pendingSha_ = game.romSha256;
   phase_ = PlayPhase::Rom;
   emit selectedGameChanged();
-  downloader_->ensureRom(*game);
+  downloader_->ensureRom(game);
+}
+
+void PlayerController::onFirmwareFinished(const FirmwareResult& result) {
+  if (phase_ != PlayPhase::Firmware) {
+    return;
+  }
+  const auto game = model_.game(selectedId_);
+  const emu::SystemManifest* man = game ? manifestFor(*game) : nullptr;
+  if (!game || man == nullptr || game->id != launchGame_.id) {
+    phase_ = PlayPhase::None;
+    emit selectedGameChanged();
+    return;
+  }
+  if (!result.ok) {
+    phase_ = PlayPhase::None;
+    shareOnStart_ = false;
+    QStringList names;
+    for (const FirmwareProblem& p : result.problems) {
+      names.append(p.displayName.isEmpty() ? p.fileId : p.displayName);
+      if (p.reason == QLatin1String("invalid_hash") || p.reason == QLatin1String("invalid_size") || p.reason == QLatin1String("missing_on_hub")) {
+        fwProblems_.append(p);  // blocks until the Hub reports other data (Check again)
+      }
+    }
+    startError_ = tr("Firmware required/missing: %1. The game was not started.").arg(names.join(QStringLiteral(", ")));
+    emit selectedGameChanged();
+    return;
+  }
+  QStringList written;
+  QString err;
+  if (!emu::materializeFirmware(man->firmware, result.pathsById, systemDir(), &written, &err)) {
+    phase_ = PlayPhase::None;
+    shareOnStart_ = false;
+    startError_ = tr("Firmware could not be prepared: %1").arg(err);
+    emit selectedGameChanged();
+    return;
+  }
+  fwOptions_ = emu::firmwareCoreOptions(man->firmware, true, written);
+  fwProblems_.clear();
+  beginRomPhase(*game);
 }
 
 void PlayerController::onRomReady(const QString& sha, const QString& path) {
@@ -799,6 +1187,9 @@ void PlayerController::onSaveReady(const QString& gameId, const QString& saveDir
   cfg.systemDir = systemDir();
   cfg.saveDir = saveDir;
   cfg.coreOptions = man->coreOptions;
+  for (auto it = fwOptions_.cbegin(); it != fwOptions_.cend(); ++it) {
+    cfg.coreOptions.insert(it.key(), it.value());  // firmware mode of the Hub (builtin | native + files)
+  }
   cfg.display = man->display;
   emit selectedGameChanged();
   session_.start(cfg);

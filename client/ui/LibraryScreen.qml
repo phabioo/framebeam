@@ -9,6 +9,28 @@ Rectangle {
     required property PlayerController player
     color: Theme.bg
 
+    // "Upload ROM": native file dialog (QtQuick.Dialogs) when the module is installed, otherwise a path field.
+    property var fileDialog: null
+    property bool pathPromptOpen: false
+    function openUploadDialog() {
+        if (root.fileDialog === null) {
+            try {
+                root.fileDialog = Qt.createQmlObject(
+                    'import QtQuick.Dialogs\nFileDialog { title: qsTr("Upload ROM"); fileMode: FileDialog.OpenFile }',
+                    root, "UploadFileDialog")
+                root.fileDialog.nameFilters = root.player.uploadFilters
+                root.fileDialog.accepted.connect(function () { root.player.uploadRom(root.fileDialog.selectedFile.toString()) })
+            } catch (e) {
+                root.fileDialog = null
+            }
+        }
+        if (root.fileDialog !== null) {
+            root.fileDialog.open()
+        } else {
+            root.pathPromptOpen = !root.pathPromptOpen
+        }
+    }
+
     RowLayout {
         anchors.fill: parent
         spacing: 0
@@ -43,6 +65,14 @@ Rectangle {
                     }
                 }
                 Item { Layout.fillWidth: true }
+                FbButton {
+                    objectName: "uploadButton"
+                    visible: root.player.canUpload
+                    enabled: !root.player.upload.active
+                    implicitHeight: 34
+                    text: qsTr("Upload ROM")
+                    onClicked: root.openUploadDialog()
+                }
                 FbField {
                     id: search
                     objectName: "searchField"
@@ -52,6 +82,97 @@ Rectangle {
                     font.pixelSize: 13
                     placeholderText: qsTr("Search…")
                     onTextChanged: root.player.library.filterText = text
+                }
+            }
+
+            // Core warnings from the handshake (non-blocking)
+            Repeater {
+                model: root.player.coreWarnings
+                delegate: Rectangle {
+                    id: warn
+                    required property var modelData
+                    objectName: "coreWarning"
+                    Layout.fillWidth: true
+                    implicitHeight: warnText.implicitHeight + 20
+                    radius: 8
+                    color: Theme.warnBg
+                    FbLabel {
+                        id: warnText
+                        anchors.fill: parent
+                        anchors.margins: 10
+                        anchors.leftMargin: 12
+                        wrapMode: Text.WordWrap
+                        verticalAlignment: Text.AlignVCenter
+                        text: warn.modelData.text
+                        color: Theme.warn
+                        font.pixelSize: 13
+                    }
+                }
+            }
+
+            RowLayout {
+                objectName: "uploadPathPrompt"
+                Layout.fillWidth: true
+                visible: root.pathPromptOpen && root.player.canUpload
+                spacing: 10
+                FbField {
+                    id: uploadPath
+                    objectName: "uploadPathField"
+                    Layout.fillWidth: true
+                    implicitHeight: 34
+                    placeholderText: qsTr("Path of the ROM file to upload")
+                    onAccepted: uploadPathButton.clicked()
+                }
+                FbButton {
+                    id: uploadPathButton
+                    objectName: "uploadPathButton"
+                    implicitHeight: 34
+                    text: qsTr("Upload")
+                    enabled: uploadPath.text.trim() !== "" && !root.player.upload.active
+                    onClicked: { root.player.uploadRom(uploadPath.text.trim()); root.pathPromptOpen = false }
+                }
+            }
+
+            Rectangle {
+                objectName: "uploadStatus"
+                Layout.fillWidth: true
+                visible: root.player.upload.active || root.player.upload.message !== ""
+                implicitHeight: 34
+                radius: 8
+                color: root.player.upload.isError ? Theme.errorBg : Theme.surfaceRaised
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: 12
+                    anchors.rightMargin: 8
+                    spacing: 10
+                    FbLabel {
+                        Layout.fillWidth: true
+                        text: root.player.upload.active
+                              ? qsTr("Uploading %1 · %2 %").arg(root.player.upload.fileName).arg(Math.round(root.player.upload.progress * 100))
+                              : root.player.upload.message
+                        color: root.player.upload.isError ? Theme.errorText : Theme.text
+                        font.pixelSize: 13
+                        elide: Text.ElideRight
+                    }
+                    Rectangle {
+                        visible: root.player.upload.active
+                        Layout.preferredWidth: 120
+                        Layout.preferredHeight: 4
+                        radius: 2
+                        color: Theme.borderInput
+                        Rectangle {
+                            width: parent.width * root.player.upload.progress
+                            height: parent.height
+                            radius: 2
+                            color: Theme.accent
+                        }
+                    }
+                    FbButton {
+                        visible: !root.player.upload.active
+                        kind: "link"
+                        text: qsTr("Dismiss")
+                        onClicked: root.player.dismissUploadMessage()
+                    }
                 }
             }
 

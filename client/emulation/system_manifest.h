@@ -37,13 +37,22 @@ struct DisplayProfile {
 };
 
 struct FirmwareFile {
-  QString name;
+  QString id;          // id of the file in the Hub registry (e.g. "bios7"); defaults to the file name without extension
+  QString name;        // file name in the core's system directory (the Player materializes it there)
   bool required = false;
+  QString coreOption;  // core option that receives `name` (e.g. melonds_firmware_nds_path); empty = none
 };
 
+// Whether firmware is needed is decided by the Hub per system (mode builtin|native); the manifest only says
+// which files the core reads, under which names, and which core option switches between built-in and native files.
 struct FirmwareSpec {
-  bool required = false;  // true: no start without firmware ("Firmware required/missing")
+  bool required = false;  // static override: true = no start without the files (the Hub mode normally decides)
   QList<FirmwareFile> files;
+  QString sysfileOption;                       // e.g. melonds_sysfile_mode; empty = the core has no such switch
+  QString sysfileNative = QStringLiteral("native");
+  QString sysfileBuiltin = QStringLiteral("builtin");
+
+  const FirmwareFile* fileById(const QString& id) const;
 };
 
 struct SystemManifest {

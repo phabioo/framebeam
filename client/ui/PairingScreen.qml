@@ -9,6 +9,9 @@ Rectangle {
     required property PlayerController player
     readonly property var info: player.pairing
     readonly property string phase: info.phase
+    property bool inviteMode: false
+    // Approval step is ready for input (request approval or redeem an invite)
+    readonly property bool canChoose: root.phase === "needsPairing" || root.phase === "denied" || root.phase === "expired"
     color: Theme.bg
 
     Flickable {
@@ -116,30 +119,50 @@ Rectangle {
                 title: qsTr("Approve device")
                 stage: (root.phase === "trust" || !root.info.hubKnown) ? "pending" : "active"
 
-                RowLayout {
-                    visible: approvalStep.stage === "active"
-                    spacing: 0
-                    Rectangle {
-                        implicitWidth: requestSeg.implicitWidth + 24
-                        implicitHeight: 32
-                        radius: 5
-                        color: Theme.surfaceRaised
-                        border.width: 1
-                        border.color: Theme.borderInput
-                        FbLabel { id: requestSeg; anchors.centerIn: parent; text: qsTr("Request approval"); font.pixelSize: 13; font.weight: Font.Medium }
+                FbSegment {
+                    objectName: "pairingModeSegment"
+                    visible: root.canChoose
+                    options: [
+                        { value: "request", label: qsTr("Request approval"), name: "requestSegment" },
+                        { value: "invite", label: qsTr("I have an invite code"), name: "inviteSegment" }
+                    ]
+                    current: root.inviteMode ? "invite" : "request"
+                    onPicked: value => root.inviteMode = (value === "invite")
+                }
+
+                ColumnLayout {
+                    objectName: "inviteForm"
+                    visible: root.canChoose && root.inviteMode
+                    Layout.fillWidth: true
+                    spacing: 6
+                    Eyebrow { text: qsTr("Invite code") }
+                    FbField {
+                        id: inviteCodeField
+                        objectName: "inviteCodeField"
+                        Layout.fillWidth: true
+                        placeholderText: qsTr("FB-XXXX-XXXX")
+                        font.capitalization: Font.AllUppercase
+                        inputMethodHints: Qt.ImhNoPredictiveText | Qt.ImhUppercaseOnly
+                        enabled: !root.info.inviteBusy
+                        onAccepted: inviteNameField.forceActiveFocus()
                     }
-                    Rectangle {
-                        objectName: "inviteSegment"
-                        implicitWidth: inviteSeg.implicitWidth + 24
-                        implicitHeight: 32
-                        color: "transparent"
-                        FbLabel {
-                            id: inviteSeg
-                            anchors.centerIn: parent
-                            text: qsTr("Redeem invitation · coming soon")
-                            font.pixelSize: 13
-                            color: Theme.textDisabled
-                        }
+                    Eyebrow { text: qsTr("Display name"); Layout.topMargin: 4 }
+                    FbField {
+                        id: inviteNameField
+                        objectName: "inviteNameField"
+                        Layout.fillWidth: true
+                        maximumLength: 32
+                        font.family: Qt.application.font.family
+                        placeholderText: qsTr("How others see you on this Hub")
+                        enabled: !root.info.inviteBusy
+                        onAccepted: redeemButton.clicked()
+                    }
+                    FbLabel {
+                        Layout.fillWidth: true
+                        text: qsTr("The invite code comes from the Hub admin and works once. Your user is created on this Hub with the name above.")
+                        color: Theme.textMuted
+                        font.pixelSize: 12
+                        wrapMode: Text.WordWrap
                     }
                 }
 
@@ -169,7 +192,7 @@ Rectangle {
                 }
 
                 FbLabel {
-                    visible: root.phase === "needsPairing"
+                    visible: root.phase === "needsPairing" && !root.inviteMode
                     Layout.fillWidth: true
                     text: qsTr("This device is not yet approved on the hub. The hub admin must confirm the request.")
                     color: Theme.textMuted
@@ -223,10 +246,19 @@ Rectangle {
                     spacing: 10
                     FbButton {
                         objectName: "requestButton"
-                        visible: root.phase === "needsPairing" || root.phase === "denied" || root.phase === "expired"
+                        visible: root.canChoose && !root.inviteMode
                         kind: "primary"
                         text: root.phase === "needsPairing" ? qsTr("Request approval") : qsTr("Request again")
                         onClicked: root.player.requestPairing()
+                    }
+                    FbButton {
+                        id: redeemButton
+                        objectName: "redeemButton"
+                        visible: root.canChoose && root.inviteMode
+                        kind: "primary"
+                        enabled: !root.info.inviteBusy
+                        text: root.info.inviteBusy ? qsTr("Redeeming…") : qsTr("Redeem invite")
+                        onClicked: root.player.redeemInvite(inviteCodeField.text, inviteNameField.text)
                     }
                     FbButton {
                         objectName: "cancelRequestButton"

@@ -135,6 +135,13 @@ Rectangle {
                 }
 
                 FbButton {
+                    objectName: "firmwareRecheck"
+                    visible: root.game.firmwareBlocked === true
+                    kind: "link"
+                    text: qsTr("Check firmware again")
+                    onClicked: root.player.recheckFirmware()
+                }
+                FbButton {
                     objectName: "detailsToggle"
                     kind: "link"
                     text: root.showDetails ? qsTr("Hide details") : qsTr("Show details (hash, size, path)")

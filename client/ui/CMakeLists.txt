@@ -37,6 +37,7 @@ qt_add_qml_module(framebeam_ui
     DetailPane.qml
     LibraryScreen.qml
     GameScreen.qml
+    SettingsScreen.qml
     ConflictDialog.qml
     FbSegment.qml
     SessionsSection.qml

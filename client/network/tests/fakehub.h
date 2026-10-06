@@ -69,6 +69,24 @@ class FakeHub : public QTcpServer {
   qint64 truncateFirstRomAt = -1;  // first ROM response aborts after this many body bytes
   bool ignoreRange = false;        // always responds 200 with the full content
 
+  // Phase 5: invites (users_v1), uploads (uploads_v1), systems/firmware (firmware_v1)
+  QString inviteCode = QStringLiteral("FB-TEST-CODE");  // the only valid code (normalized to upper case)
+  bool inviteDirect = true;                              // true: 200 approved; false: 202 pending (poll like pairing)
+  QStringList takenNames;                                // display names -> 409 display_name_taken (case-insensitive)
+  bool rateLimitInvites = false;
+  QJsonObject lastInviteBody;
+  bool userDisabled = false;                             // token endpoint answers 401 user_disabled
+  bool uploadsAllowed = true;                            // false: POST /games -> 403 uploads_disabled
+  struct Upload {
+    QString filename, title, sha256;
+    qint64 size = 0;
+  };
+  QList<Upload> uploads;
+  QJsonObject systems;                                   // {"systems":[...]} (raw response of GET /systems)
+  QMap<QString, QByteArray> firmwareFiles;               // "<system>/<file_id>" -> bytes
+  int firmwareDownloads = 0;
+  int count(const QString& pathPrefix, const QByteArray& method) const;
+
   // Saves (saves_v1)
   QStringList features{QStringLiteral("saves_v1")};  // handshake features
   QMap<QString, FakeSlot> saves;                     // game_id -> slot "default"

@@ -3,6 +3,12 @@
 //   pair <address> [--dev] [--accept-fingerprint] [games] [fetch-rom <sha256>] [wait-revoked]...
 //     wait-revoked: reports READY-FOR-REVOKE, renews the token every second and ends (exit 0) as soon as the
 //     hub has revoked the device (state NeedsPairing); exit 1 after 60 s without revocation (E2E script).
+//   redeem-invite <address> --code FB-XXXX-XXXX --name <display name> [--dev] [--accept-fingerprint] [follow-ups...]
+//     (onboarding invite instead of pair: 200 -> paired and connected, 202 -> waits for admin approval like pair;
+//      errors invite_invalid / display_name_taken / rate_limited exit 1)
+//   game upload <file> [--title T]     (needs handshake feature uploads_v1; streamed; output lines
+//     OK game_id=... sha256=... | DUPLICATE existing_game_id=... (exit 0) | ERROR upload: <code> (exit 1))
+//   systems     (needs firmware_v1; lines: "<system>\tmode=builtin|native\tcore=..." and "  <file>\trequired=..\tpresent=..")
 //   saves list | save push <game_id> <file> [--base N] [--reason checkpoint|final|final_session_end]
 //   save pull <game_id> <out> | save resolve <game_id> <conflict_id> use_hub|use_local --expected N
 //     (slot "default"; output lines OK/CONFLICT/STALE/ERROR; exit 0 ok, 1 error, 3 upload conflict, 4 stale resolve)
@@ -21,7 +27,9 @@
 
 #include "credentialstore.h"
 #include "hubconnection.h"
+#include "gameuploader.h"
 #include "hublibrary.h"
+#include "hubsystems.h"
 #include "profilestore.h"
 #include "romcache.h"
 #include "romdownloader.h"
@@ -57,6 +65,10 @@ class Runner : public QObject {
         accept_ = true;
       } else if (a == QLatin1String("--data-dir") && i + 1 < args_.size()) {
         dataDir = args_.at(++i);
+      } else if (a == QLatin1String("--code") && i + 1 < args_.size()) {
+        inviteCode_ = args_.at(++i);
+      } else if (a == QLatin1String("--name") && i + 1 < args_.size()) {
+        inviteName_ = args_.at(++i);
       } else {
         rest << a;
       }
@@ -65,14 +77,15 @@ class Runner : public QObject {
       return usage();
     }
     command_ = rest.takeFirst();
-    if (command_ == QLatin1String("identify") || command_ == QLatin1String("pair")) {
-      if (rest.isEmpty()) {
+    if (command_ == QLatin1String("identify") || command_ == QLatin1String("pair") || command_ == QLatin1String("redeem-invite")) {
+      if (rest.isEmpty() || (command_ == QLatin1String("redeem-invite") && (inviteCode_.isEmpty() || inviteName_.trimmed().isEmpty()))) {
         return usage();
       }
       address_ = rest.takeFirst();
     } else if (command_ != QLatin1String("games") && command_ != QLatin1String("fetch-rom") &&
                command_ != QLatin1String("saves") && command_ != QLatin1String("save") &&
-               command_ != QLatin1String("session-share") && command_ != QLatin1String("session-watch")) {
+               command_ != QLatin1String("session-share") && command_ != QLatin1String("session-watch") &&
+               command_ != QLatin1String("game") && command_ != QLatin1String("systems")) {
       return usage();
     } else {
       rest.prepend(command_);
@@ -90,6 +103,15 @@ class Runner : public QObject {
     cache_ = std::make_unique<RomCache>(profiles_->romCacheDir());
     downloader_ = std::make_unique<RomDownloader>(conn_.get(), cache_.get());
     saves_ = std::make_unique<SaveApi>(conn_.get());
+    uploader_ = std::make_unique<GameUploader>(conn_.get());
+    QObject::connect(conn_.get(), &HubConnection::errorOccurred, this, [this](const QString& code, const QString& message) {
+      if ((command_ == QLatin1String("redeem-invite") || command_ == QLatin1String("pair")) &&
+          conn_->state() == HubConnection::State::NeedsPairing && revokeWatch_ == nullptr) {
+        err() << "Error: " << code << " " << message << "\n";
+        err().flush();
+        finish(1);
+      }
+    });
     QObject::connect(conn_.get(), &HubConnection::stateChanged, this, [this](HubConnection::State s) { onState(s); });
     if (command_ == QLatin1String("standalone")) {
       const QString last = profiles_->lastHubId();
@@ -112,7 +134,9 @@ class Runner : public QObject {
   int usage() {
     err() << "Usage: framebeam_player_cli identify <address> [--dev]\n"
              "        framebeam_player_cli pair <address> [--dev] [--accept-fingerprint] [games] [fetch-rom <sha256>]\n"
+             "        framebeam_player_cli redeem-invite <address> --code FB-XXXX-XXXX --name <name> [--dev] [--accept-fingerprint]\n"
              "        framebeam_player_cli games | fetch-rom <sha256>   [--data-dir <path>]\n"
+             "        framebeam_player_cli game upload <file> [--title T] | systems\n"
              "        framebeam_player_cli saves list | save push <game_id> <file> [--base N] | save pull <game_id> <out>\n"
              "        framebeam_player_cli session-share [--game <id>] [--visibility V] --synthetic [--seconds N]\n"
              "        framebeam_player_cli session-watch (--session <id> | --first) [--seconds N]\n"
@@ -159,6 +183,7 @@ class Runner : public QObject {
         break;
       case S::Incompatible:
       case S::Unreachable:
+      case S::UserDisabled:
       case S::Disconnected:
         out() << "Error: " << conn_->errorCode() << " " << conn_->errorMessage() << "\n";
         out().flush();
@@ -176,6 +201,8 @@ class Runner : public QObject {
           finish(0);
         } else if (command_ == QLatin1String("pair")) {
           conn_->requestPairing();
+        } else if (command_ == QLatin1String("redeem-invite")) {
+          conn_->redeemInvite(inviteCode_, inviteName_);
         } else {
           out() << "No credential available. Use 'pair <address> " << followUps_.join(QLatin1Char(' ')) << "'.\n";
           out().flush();
@@ -235,6 +262,10 @@ class Runner : public QObject {
       nextFollowUp();
     } else if (cmd == QLatin1String("saves") || cmd == QLatin1String("save")) {
       runSaveCommand(cmd);
+    } else if (cmd == QLatin1String("game")) {
+      runGameCommand();
+    } else if (cmd == QLatin1String("systems")) {
+      runSystemsCommand();
     } else if (cmd == QLatin1String("session-share") || cmd == QLatin1String("session-watch")) {
       // Options up to the next known command belong to this one; the command runs until its end (exit code).
       QStringList opts;
@@ -298,6 +329,84 @@ class Runner : public QObject {
       err() << "Unknown command: " << cmd << "\n";
       finish(1);
     }
+  }
+
+  void runSystemsCommand() {
+    if (!conn_->hubHasFeature(QStringLiteral("firmware_v1"))) {
+      out() << "No firmware_v1 on this Hub (built-in firmware)\n";
+      out().flush();
+      nextFollowUp();
+      return;
+    }
+    systems_ = std::make_unique<HubSystems>(conn_.get());
+    QObject::connect(systems_.get(), &HubSystems::stateChanged, this, [this]() {
+      if (systems_->state() == HubSystems::State::Failed) {
+        err() << "ERROR systems: " << systems_->errorMessage() << "\n";
+        finish(1);
+      } else if (systems_->state() == HubSystems::State::Ready) {
+        for (const SystemInfo& sys : systems_->systems()) {
+          out() << sys.id << "\tmode=" << sys.firmwareMode << "\tcore=" << sys.preferredCoreId << "\texpected="
+                << (sys.expectedCoreVersion.isEmpty() ? QStringLiteral("any") : sys.expectedCoreVersion) << "\n";
+          for (const FirmwareFileInfo& f : sys.firmware) {
+            out() << "  " << f.id << "\trequired=" << (f.required ? "true" : "false") << "\tpresent=" << (f.present ? "true" : "false")
+                  << "\n";
+          }
+        }
+        out().flush();
+        systems_->disconnect(this);
+        nextFollowUp();
+      }
+    });
+    systems_->reload();
+  }
+
+  void runGameCommand() {
+    const QString sub = followUps_.isEmpty() ? QString() : followUps_.takeFirst();
+    if (sub != QLatin1String("upload") || followUps_.isEmpty()) {
+      usage();
+      finish(1);
+      return;
+    }
+    const QString file = followUps_.takeFirst();
+    QString title;
+    if (followUps_.size() >= 2 && followUps_.first() == QLatin1String("--title")) {
+      followUps_.removeFirst();
+      title = followUps_.takeFirst();
+    }
+    if (!conn_->hubHasFeature(QStringLiteral("uploads_v1"))) {
+      err() << "ERROR upload: uploads_disabled (the Hub does not offer uploads to this user)\n";
+      finish(1);
+      return;
+    }
+    lastPct_ = -1;
+    QObject::connect(uploader_.get(), &GameUploader::progress, this, [this](qint64 sent, qint64 total) {
+      const int pct = total > 0 ? static_cast<int>(sent * 100 / total) : 100;
+      if (pct / 10 != lastPct_ / 10) {
+        err() << "  " << pct << " %\n";
+        err().flush();
+      }
+      lastPct_ = pct;
+    });
+    QObject::connect(
+        uploader_.get(), &GameUploader::finished, this,
+        [this](const UploadResult& r) {
+          using K = UploadResult::Kind;
+          if (r.kind == K::Created) {
+            out() << "OK game_id=" << r.game.id << " sha256=" << r.game.romSha256 << "\n";
+            out().flush();
+            nextFollowUp();
+          } else if (r.kind == K::Duplicate) {
+            out() << "DUPLICATE existing_game_id=" << r.existingGameId << "\n";
+            out().flush();
+            nextFollowUp();
+          } else {
+            err() << "ERROR upload: " << (r.errorCode.isEmpty() ? QStringLiteral("failed") : r.errorCode) << " (HTTP " << r.status
+                  << ") " << r.errorMessage << "\n";
+            finish(1);
+          }
+        },
+        Qt::SingleShotConnection);
+    uploader_->upload(file, title);
   }
 
   void runSaveCommand(const QString& cmd) {
@@ -405,6 +514,8 @@ class Runner : public QObject {
   int lastPct_ = -1;
   bool dev_ = false;
   bool accept_ = false;
+  QString inviteCode_;
+  QString inviteName_;
   std::unique_ptr<ProfileStore> profiles_;
   std::unique_ptr<CredentialStore> credentials_;
   std::unique_ptr<HubConnection> conn_;
@@ -412,6 +523,8 @@ class Runner : public QObject {
   std::unique_ptr<RomCache> cache_;
   std::unique_ptr<RomDownloader> downloader_;
   std::unique_ptr<SaveApi> saves_;
+  std::unique_ptr<GameUploader> uploader_;
+  std::unique_ptr<HubSystems> systems_;
   std::unique_ptr<SessionCommands> sessions_;
 };
 

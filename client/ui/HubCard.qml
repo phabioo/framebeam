@@ -90,7 +90,7 @@ Rectangle {
                 onClicked: card.connectRequested(card.hub.hubId)
             }
             FbButton {
-                visible: card.status === "unreachable"
+                visible: card.status === "unreachable" || card.status === "userDisabled"
                 text: qsTr("Retry")
                 onClicked: card.retryRequested()
             }

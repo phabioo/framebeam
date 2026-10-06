@@ -84,6 +84,45 @@ std::optional<HandshakeResult> parseHandshakeResult(const QJsonObject& obj) {
   return r;
 }
 
+const FirmwareFileInfo* SystemInfo::file(const QString& fileId) const {
+  for (const FirmwareFileInfo& f : firmware) {
+    if (f.id == fileId) {
+      return &f;
+    }
+  }
+  return nullptr;
+}
+
+std::optional<SystemInfo> parseSystemInfo(const QJsonObject& obj) {
+  SystemInfo s;
+  s.id = obj.value(QStringLiteral("id")).toString();
+  s.displayName = obj.value(QStringLiteral("display_name")).toString();
+  s.preferredCoreId = obj.value(QStringLiteral("preferred_core_id")).toString();
+  s.expectedCoreVersion = obj.value(QStringLiteral("expected_core_version")).toString();
+  // Unknown mode: the safe reading is "builtin" (nothing is required or downloaded).
+  s.firmwareMode = obj.value(QStringLiteral("firmware_mode")).toString() == QLatin1String("native") ? QStringLiteral("native")
+                                                                                                  : QStringLiteral("builtin");
+  if (s.id.isEmpty()) {
+    return std::nullopt;
+  }
+  for (const QJsonValue& v : obj.value(QStringLiteral("firmware")).toArray()) {
+    const QJsonObject o = v.toObject();
+    FirmwareFileInfo f;
+    f.id = o.value(QStringLiteral("id")).toString();
+    if (f.id.isEmpty()) {
+      continue;
+    }
+    f.displayName = o.value(QStringLiteral("display_name")).toString(f.id);
+    f.required = o.value(QStringLiteral("required")).toBool(false);
+    f.size = o.value(QStringLiteral("size")).toVariant().toLongLong();
+    f.sha256 = o.value(QStringLiteral("sha256")).toString();
+    // "present" only counts with a usable size and hash (otherwise the Player could not validate it).
+    f.present = o.value(QStringLiteral("present")).toBool(false) && f.size > 0 && RomCache::isValidSha256(f.sha256);
+    s.firmware.append(f);
+  }
+  return s;
+}
+
 std::optional<GameEntry> parseGame(const QJsonObject& obj) {
   GameEntry g;
   g.id = obj.value(QStringLiteral("id")).toString();

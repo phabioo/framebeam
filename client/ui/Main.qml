@@ -15,15 +15,23 @@ ApplicationWindow {
     title: qsTr("FrameBeam Player")
     color: Theme.bg
 
+    // Appearance (Settings): Dark | Light | System; the game view is always dark.
+    Binding {
+        target: Theme
+        property: "dark"
+        value: window.player.darkMode || window.player.screen === "game"
+    }
+
     StackLayout {
         id: stack
         anchors.fill: parent
-        currentIndex: ["connection", "pairing", "library", "game"].indexOf(window.player.screen)
+        currentIndex: ["connection", "pairing", "library", "game", "settings"].indexOf(window.player.screen)
 
         ConnectionScreen { player: window.player }
         PairingScreen { player: window.player }
         LibraryScreen { player: window.player }
         GameScreen { player: window.player }
+        SettingsScreen { player: window.player }
     }
 
     ConflictDialog { player: window.player }
