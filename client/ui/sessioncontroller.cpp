@@ -97,6 +97,7 @@ SessionController::SessionController(HubConnection* conn, ProfileStore* profiles
   messageTimer_.setInterval(10000);
   connect(&messageTimer_, &QTimer::timeout, this, &SessionController::dismissMessage);
   usersAge_.invalidate();
+  usersLoaded_ = false;
 }
 
 SessionController::~SessionController() {
@@ -214,7 +215,13 @@ void SessionController::refreshSessions() {
 void SessionController::onSessionUpdated(const SessionInfo& s) {
   ++sessionEventGen_;
   if (shared_ && s.sessionId == own_.sessionId) {
-    applyOwnSession(s);
+    if (visInFlight_ > 0) {  // a newer local visibility choice is still being PATCHed: the update may carry the older one
+      SessionInfo copy = s;
+      copy.visibility = visibility_;
+      applyOwnSession(copy);
+    } else {
+      applyOwnSession(s);
+    }
     return;
   }
   if (s.isOwner) {
@@ -363,6 +370,7 @@ void SessionController::closeShare(const QString& note) {
   shared_ = false;
   shareBusy_ = false;
   own_ = SessionInfo();
+  visInFlight_ = 0;
   pendingViewers_.clear();
   pendingHostSignals_.clear();
   userResults_.clear();
@@ -401,7 +409,11 @@ void SessionController::setVisibility(const QString& v) {
   saveSettings();
   emit shareChanged();
   if (shared_) {
+    ++visInFlight_;
     api_.setVisibility(own_.sessionId, v, [this, before, gen](const SessionApiResult& r) {
+      if (visInFlight_ > 0) {
+        --visInFlight_;
+      }
       if (r.ok() && r.session) {
         applyOwnSession(*r.session, gen);
       } else if (shared_ && gen == visGen_) {
@@ -418,12 +430,17 @@ void SessionController::searchUsers(const QString& text) {
   userQuery_ = text.trimmed();
   const auto filter = [this]() {
     userResults_.clear();
+    userHint_.clear();
     if (!userQuery_.isEmpty()) {
+      bool others = false;
       QStringList taken;
       for (const SessionInviteEntry& i : own_.invites) {
         taken << i.userId;
       }
       for (const HubUser& u : users_) {
+        if (u.id != conn_->hubUserId()) {
+          others = true;
+        }
         if (u.id == conn_->hubUserId() || taken.contains(u.id) || !u.displayName.contains(userQuery_, Qt::CaseInsensitive)) {
           continue;
         }
@@ -436,16 +453,25 @@ void SessionController::searchUsers(const QString& text) {
           break;
         }
       }
+      if (userResults_.isEmpty() && usersLoaded_) {
+        userHint_ = others ? tr("No matching users") : tr("No other users on this Hub yet");
+      }
     }
     emit userResultsChanged();
   };
-  if (userQuery_.isEmpty() || (usersAge_.isValid() && usersAge_.elapsed() < 10000)) {
+  if (userQuery_.isEmpty()) {
+    usersAge_.invalidate();  // a new search starts with a fresh user list
+    filter();
+    return;
+  }
+  if ((usersAge_.isValid() && usersAge_.elapsed() < 10000)) {
     filter();
     return;
   }
   api_.listUsers([this, filter](const SessionApiResult& r) {
     if (r.ok()) {
       users_ = r.users;
+      usersLoaded_ = true;
       usersAge_.restart();
     }
     filter();

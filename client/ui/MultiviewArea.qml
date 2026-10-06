@@ -81,14 +81,85 @@ Item {
             anchors.fill: parent
             sourceComponent: (root.hasLocal && !root.hasRemote) ? localComp : undefined
         }
-        FbLabel {
-            objectName: "notWatchingHint"
+        // No remote Session yet: list the Sessions of this Hub, watching one adds it next to the local game.
+        Rectangle {
+            id: pick
+            objectName: "multiviewSessionList"
+            readonly property var list: root.ctl.sessions
+            readonly property int shown: Math.min(4, list.length)
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: parent.bottom
             anchors.bottomMargin: 14
-            text: qsTr("Not watching a Session · choose \"Watch Session\" in the Library")
-            font.pixelSize: 12
-            color: Theme.gameTextMuted
+            width: Math.min(440, parent.width - 24)
+            height: pickCol.implicitHeight + 24
+            radius: 10
+            color: Theme.bgPanel
+            border.width: 1
+            border.color: Theme.gameBorder
+            ColumnLayout {
+                id: pickCol
+                anchors.fill: parent
+                anchors.margins: 12
+                spacing: 8
+                FbLabel {
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    elide: Text.ElideRight
+                    text: qsTr("Watch a Session next to your game")
+                    font.pixelSize: 12
+                    font.weight: Font.DemiBold
+                    color: Theme.gameText
+                }
+                FbLabel {
+                    objectName: "multiviewNoSessions"
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    visible: pick.list.length === 0
+                    wrapMode: Text.WordWrap
+                    text: qsTr("No other Sessions on this Hub right now")
+                    font.pixelSize: 12
+                    color: Theme.gameTextMuted
+                }
+                Repeater {
+                    model: pick.list.slice(0, pick.shown)
+                    delegate: RowLayout {
+                        id: prow
+                        required property var modelData
+                        required property int index
+                        objectName: "multiviewSession_" + modelData.sessionId
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        spacing: 10
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            Layout.preferredWidth: 0
+                            spacing: 0
+                            FbLabel { Layout.fillWidth: true; elide: Text.ElideRight; text: prow.modelData.title; font.pixelSize: 13; color: Theme.gameText }
+                            FbLabel { Layout.fillWidth: true; elide: Text.ElideRight; text: prow.modelData.meta; font.pixelSize: 11; color: prow.modelData.invited ? Theme.accent : Theme.gameTextMuted }
+                        }
+                        FbButton {
+                            objectName: "multiviewWatchButton_" + prow.index
+                            implicitHeight: 30
+                            kind: "primary"
+                            focusPolicy: Qt.NoFocus
+                            font.pixelSize: 12
+                            text: prow.modelData.invited ? qsTr("Join") : qsTr("Watch Session")
+                            enabled: root.ctl.hubLink === "online" && !root.ctl.joining
+                            onClicked: root.ctl.watch(prow.modelData.sessionId)
+                        }
+                    }
+                }
+                FbLabel {
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    visible: pick.list.length > pick.shown
+                    elide: Text.ElideRight
+                    text: qsTr("+%1 more in the Library").arg(pick.list.length - pick.shown)
+                    font.pixelSize: 11
+                    color: Theme.gameTextMuted
+                }
+            }
         }
     }
 

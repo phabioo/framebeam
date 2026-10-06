@@ -445,6 +445,29 @@ class SessionsUiTest : public QObject {
     QVERIFY(settings.readAll().contains("invite_only"));
     QQuickTest::qWaitForPolish(h.window);
     QVERIFY(h.item("inviteBlock")->isVisible());
+    QVERIFY(h.item("visibilityHint")->isVisible());
+    QCOMPARE(textOf(h.item("visibilityHint")), QStringLiteral("Your own devices can always watch."));
+
+    // A session_update still carrying the old visibility, arriving while a newer choice is being PATCHed, must not
+    // revert the segment (the signal is emitted right after the click, before the PATCH answer can be read).
+    {
+      QJsonObject stale = hub.sessions.value(ownSessionId(hub));
+      stale.insert(QStringLiteral("visibility"), QStringLiteral("invite_only"));
+      const auto info = parseSession(stale);
+      QVERIFY(info.has_value());
+      QVERIFY(h.click("visHubUsers"));
+      QCOMPARE(ctl->visibility(), QStringLiteral("hub_users"));
+      emit ctl->socket()->sessionUpdated(*info);
+      QCOMPARE(ctl->visibility(), QStringLiteral("hub_users"));
+      QTRY_COMPARE(lastBody(hub, "PATCH", QStringLiteral("/api/v1/sessions/")).value(QStringLiteral("visibility")).toString(), QStringLiteral("hub_users"));
+      QTest::qWait(200);
+      QCOMPARE(ctl->visibility(), QStringLiteral("hub_users"));
+      QVERIFY(h.click("visInviteOnly"));
+      QTRY_COMPARE(lastBody(hub, "PATCH", QStringLiteral("/api/v1/sessions/")).value(QStringLiteral("visibility")).toString(), QStringLiteral("invite_only"));
+      QTest::qWait(200);
+      QCOMPARE(ctl->visibility(), QStringLiteral("invite_only"));
+      QQuickTest::qWaitForPolish(h.window);
+    }
 
     // Hub sends the Session with viewers and invites
     QJsonObject own = hub.sessions.value(ownSessionId(hub));
@@ -486,6 +509,22 @@ class SessionsUiTest : public QObject {
       return qPrintable(QStringLiteral("requests: ") + l.mid(l.size() - 8).join(QStringLiteral(" | ")) +
                         QStringLiteral(" ; results=") + QString::number(ctl->userResults().size()) + QStringLiteral(" msg=") + ctl->message());
     }(), 15000);
+
+    // Empty states of the search: users exist but none match / no user besides the caller
+    h.item("inviteField")->setProperty("text", QStringLiteral("zz"));
+    QTRY_COMPARE(ctl->userSearchHint(), QStringLiteral("No matching users"));
+    QQuickTest::qWaitForPolish(h.window);
+    QVERIFY(h.item("userSearchHint")->isVisible());
+    QCOMPARE(textOf(h.item("userSearchHint")), QStringLiteral("No matching users"));
+    h.item("inviteField")->setProperty("text", QString());
+    QTRY_VERIFY(ctl->userSearchHint().isEmpty());
+    hub.fakeUsers = QJsonArray{QJsonObject{{QStringLiteral("id"), QStringLiteral("u_test_1")}, {QStringLiteral("display_name"), QStringLiteral("Tester")}, {QStringLiteral("online"), true}}};
+    h.item("inviteField")->setProperty("text", QStringLiteral("sa"));
+    QTRY_COMPARE(ctl->userSearchHint(), QStringLiteral("No other users on this Hub yet"));
+    QQuickTest::qWaitForPolish(h.window);
+    QCOMPARE(textOf(h.item("userSearchHint")), QStringLiteral("No other users on this Hub yet"));
+    QVERIFY2(panelButtonsOutside(h).isEmpty(), qPrintable(panelButtonsOutside(h)));
+    h.item("inviteField")->setProperty("text", QString());
 
     // (the fake PUT answers with a bare Session: the Hub's next update restores viewers and invites)
     hub.sendWs(QStringLiteral("session_update"), {{QStringLiteral("session"), own}});
@@ -563,8 +602,32 @@ class SessionsUiTest : public QObject {
 
     // Watch from the Library list while playing: Multiview, PiP, local audible
     QTRY_COMPARE(ctl->sessions().size(), 1);
-    ctl->watch(QStringLiteral("s1"));
+    QVERIFY(h.click("tabMultiview"));
+    QQuickTest::qWaitForPolish(h.window);
+    QVERIFY(h.item("multiviewSessionList")->isVisible());
+    QVERIFY(!h.item("multiviewNoSessions")->isVisible());
+    QVERIFY(visibleItem(h, "gameViewMulti") != nullptr);
+    {
+      const QQuickItem* box = h.item("multiviewSessionList");
+      const QRectF br = box->mapRectToScene(QRectF(0, 0, box->width(), box->height()));
+      const QQuickItem* b0 = h.item("multiviewWatchButton_0");
+      QVERIFY(b0 != nullptr && b0->isVisible());
+      const QRectF r0 = b0->mapRectToScene(QRectF(0, 0, b0->width(), b0->height()));
+      QVERIFY2(r0.left() >= br.left() && r0.right() <= br.right() + 1 && br.right() <= h.window->width() + 1, "watch button outside the list");
+    }
+    // Live: the list follows the Hub (WSS), here a second Session appears and ends again
+    r.hub.sendWs(QStringLiteral("session_update"), {{QStringLiteral("session"), sessionObj(QStringLiteral("s2"), QStringLiteral("Mo"), QStringLiteral("Other"), QStringLiteral("hub_users"), false, 1)}});
+    QTRY_COMPARE(ctl->sessions().size(), 2);
+    QQuickTest::qWaitForPolish(h.window);
+    QVERIFY(h.item("multiviewWatchButton_1") != nullptr && h.item("multiviewWatchButton_1")->isVisible());
+    r.hub.sendWs(QStringLiteral("session_ended"), {{QStringLiteral("session_id"), QStringLiteral("s2")}, {QStringLiteral("reason"), QStringLiteral("ended")}});
+    QTRY_COMPARE(ctl->sessions().size(), 1);
+    QQuickTest::qWaitForPolish(h.window);
+    QVERIFY(h.click("multiviewWatchButton_0"));  // the game keeps running, local keeps the audio
     QTRY_VERIFY(ctl->watching());
+    QVERIFY(h.controller->gameSession()->isActive());
+    QCOMPARE(ctl->audioFocus(), QStringLiteral("local"));
+    QVERIFY(!h.controller->gameSession()->audioMuted());
     QCOMPARE(ctl->tab(), QStringLiteral("multiview"));
     QCOMPARE(ctl->multiviewMode(), QStringLiteral("pip"));
     QCOMPARE(h.controller->screen(), QStringLiteral("game"));

@@ -91,6 +91,15 @@ Rectangle {
                         ]
                         onPicked: (v) => root.ctl.setVisibility(v)
                     }
+                    FbLabel {
+                        objectName: "visibilityHint"
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        wrapMode: Text.WordWrap
+                        text: qsTr("Your own devices can always watch.")
+                        font.pixelSize: 11
+                        color: Theme.gameTextMuted
+                    }
                 }
 
                 // Watchers / invites (only while shared)
@@ -185,6 +194,16 @@ Rectangle {
                         font.family: Qt.application.font.family
                         placeholderText: root.ctl.shared ? qsTr("Search users…") : qsTr("Share the Session to invite users")
                         onTextChanged: root.ctl.searchUsers(text)
+                    }
+                    FbLabel {
+                        objectName: "userSearchHint"
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        visible: root.ctl.userSearchHint.length > 0
+                        wrapMode: Text.WordWrap
+                        text: root.ctl.userSearchHint
+                        font.pixelSize: 12
+                        color: Theme.gameTextMuted
                     }
                     Repeater {
                         model: root.ctl.userResults

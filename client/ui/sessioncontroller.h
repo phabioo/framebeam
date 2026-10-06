@@ -44,6 +44,7 @@ class SessionController : public QObject {
   Q_PROPERTY(QVariantList participants READ participants NOTIFY shareChanged)
   Q_PROPERTY(QString participantsTitle READ participantsTitle NOTIFY shareChanged)
   Q_PROPERTY(QVariantList userResults READ userResults NOTIFY userResultsChanged)
+  Q_PROPERTY(QString userSearchHint READ userSearchHint NOTIFY userResultsChanged)  // empty-state text of the invite search
   Q_PROPERTY(QString message READ message NOTIFY messageChanged)
   Q_PROPERTY(bool messageIsError READ messageIsError NOTIFY messageChanged)
   // Watching
@@ -75,6 +76,7 @@ class SessionController : public QObject {
   QVariantList participants() const;
   QString participantsTitle() const;
   QVariantList userResults() const { return userResults_; }
+  QString userSearchHint() const { return userHint_; }
   QString message() const { return message_; }
   bool messageIsError() const { return messageIsError_; }
   bool watching() const { return watching_; }
@@ -166,6 +168,7 @@ class SessionController : public QObject {
   AudioOutput remoteAudio_;
 
   QHash<QString, SessionInfo> sessions_;  // visible Sessions (not own)
+  int visInFlight_ = 0;          // visibility PATCHes not answered yet (a session_update meanwhile must not revert the choice)
   quint64 visGen_ = 0;           // bumped by every local visibility change (stale REST answers keep the newer one)
   quint64 sessionEventGen_ = 0;  // bumped by every live session event; stale GET /sessions results are dropped
   QTimer minuteTimer_;
@@ -190,6 +193,8 @@ class SessionController : public QObject {
   QElapsedTimer usersAge_;
   QString userQuery_;
   QVariantList userResults_;
+  QString userHint_;
+  bool usersLoaded_ = false;
 
   bool watching_ = false;
   bool joining_ = false;
