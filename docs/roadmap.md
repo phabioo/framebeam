@@ -1,0 +1,116 @@
+# Roadmap after the PoC
+
+The PoC (phases 0-5) is complete. From here on, work is planned as versions 0.1.1 to 0.10, each cut into one work package per thread/PR (see `docs/workflow.md`). The order was decided by Fabio on 2026-10-06. Items marked open are not decided yet; decisions are recorded as ADRs in `docs/adr/`.
+
+## Overview
+
+| Version | Theme | Goal |
+|---|---|---|
+| 0.1.1 | Finish the PoC | Close the PoC leftovers and clean up the codebase. |
+| 0.2 | Cores from the Hub | Installers no longer ship emulator cores; the Hub distributes signed core packages. |
+| 0.3 | Automatic updates | A change on `main` reaches the test devices without manual work. |
+| 0.4 | Player UI pass | FrameBeam Player is clearer, more responsive and consistent with the design tokens. |
+| 0.5 | Hub UI pass | FrameBeam Hub web UI swaps fragments instead of full pages and updates live. |
+| 0.6 | Sessions over the internet and save comfort | Sessions work beyond the LAN; saves get retention, restore and slots. |
+| 0.7 | Second system | A second libretro core ships as a plain core package. |
+| 0.8 | Metadata and artwork | Central game metadata and boxart in Hub and Player. |
+| 0.9 | Hub for Windows / Windows Server | FrameBeam Hub runs as a Windows service with an installer. |
+| 0.10 | Linux and macOS Player | FrameBeam Player on Linux and macOS. |
+
+## 0.1.1 Finish the PoC
+
+PoC leftovers (open in the PoC scope or ADRs):
+
+- Hardware encoders NVENC/QSV/AMF are not built into the Windows FFmpeg (`client/vcpkg.json` lists only `avcodec`, `swscale`, `openh264`), so encoder selection always falls back to software H.264. Build them in, then verify. ADR 0006 wrongly says "compiled in" and needs correcting (ADR 0006, `docs/architecture/01-overview.md`).
+- Multiview bug: with more than 4 Sessions, "← Library" ends the running game (ADR 0006/0007).
+- Settings → Hubs (switch, remove, auto-connect) exists only on the connection screen (`docs/architecture/09-ui-and-navigation.md`).
+- Certificate renewal and confirmed pin change are open; a new Hub certificate currently blocks the connection permanently (ADR 0002/0003, `docs/architecture/10-identity-pairing-tls.md`).
+- Encoding runs on the UI thread and RTT shows "n/a" (ADR 0006): works, but is a performance risk.
+- A core version mismatch only warns (ADR 0007); re-evaluate once several cores exist (see 0.7).
+- Codebase cleanup.
+
+## 0.2 Cores from the Hub
+
+Goal: installers ship no emulator cores. melonDS DS leaves the Windows installer and comes from the Hub.
+
+Decision: the Hub obtains signed core packages from a fixed trusted source and caches them. There is no admin upload.
+
+- Hub: Core Package Cache (storage per core ID, version, platform/architecture, SHA-256, origin, license text). The Hub downloads signed packages from the trusted source, verifies the signature and caches them. On "Systems & Cores" (replaces the "LATER" placeholder) the admin only selects the version. Download endpoint for Players with ETag.
+- Protocol: endpoints for package metadata and download, a handshake feature (for example `cores_v1`); `protocol_version` stays 1.
+- Player: core cache `cache/cores/<core-id>/<version>/<platform>/`, download on demand with hash, version and platform checks, `CoreLocator` searches there. Library and Emulation page show "core loading / missing / incompatible".
+- Trust: package signature with a FrameBeam key, not only SHA-256 (`docs/architecture/05-emulation.md`). The signing infrastructure is created here and reused by the updater in 0.3.
+- Package format and manifest are to be defined (`docs/architecture/08-repo-and-open-points.md`, open).
+- Source proposal (not decided, open for the ADR): FrameBeam's own GitHub Releases. CI builds melonDS DS from the pinned source (`scripts/melonds-ds.pin`) for Windows x64 (and Linux for dev/tests), signs it and publishes it with a signed index. The Hub then needs internet access; a manual import as fallback is to be clarified.
+- Template: the firmware path from phase 5.
+
+## 0.3 Automatic updates
+
+Goal: a change on `main` lands on the test devices (Windows Player, Hub on the Pi) without manual work.
+
+- Release pipeline: one shared GitHub release with Hub and Player artifacts, version numbers from tags; plus a test channel built automatically from `main`.
+- Windows installer completed: install layout with a DLL subfolder, upgrade over an existing installation, data is preserved (`docs/architecture/08-repo-and-open-points.md`).
+- Hub as a Linux package (.deb amd64/arm64) instead of a script; systemd stays.
+- Integrated updater for Hub and Player: release feed, signature check with the FrameBeam key from 0.2, apply after confirmation (optionally automatic on test devices), compatibility via `protocol_version`.
+- Hub: database backup before schema migration, service restart after the update.
+- Windows Player and Linux Hub only; other platforms follow later.
+- To decide: rollback. Channels are decided (see Open decisions).
+
+## 0.4 Player UI pass
+
+- Clarity: rework information density and grouping per screen (Library, Detail, game view, Emulation, Controllers, Settings).
+- Spacing, sizes and alignment consistently from the design tokens (`docs/design/tokens.md`) instead of single values.
+- Responsiveness: nothing blocking on the UI thread (network, hashing, encoding), loading and progress states instead of freezing, immediate click feedback.
+- Dynamics: transitions and animations (page change, hover, lists); live updates of Library, Sessions and sync status without manual reload.
+- One pass with before/after screenshots per screen to allow targeted feedback.
+
+## 0.5 Hub UI pass
+
+- Same approach for the web UI: clarity, spacing from tokens.
+- No full page loads: navigation and actions swap only the content area (htmx fragments instead of whole pages; today only `hx-boost` is active).
+- Live updates without reload: sidebar badges (new pending clients, save conflicts, firmware) and affected tables update themselves, for example via Server-Sent Events.
+
+## 0.6 Sessions over the internet and save comfort
+
+- TURN fallback, STUN configuration in the Hub, bitrate adaptation, RTT over a DataChannel (`docs/architecture/04-sessions-and-multiview.md`).
+- Multiview with more than one remote Session, audio focus.
+- Saves: retention/thinning, restore from history, manual snapshot, WebSocket push, multiple slots (`docs/architecture/03-saves.md`).
+
+## 0.7 Second system
+
+- Second libretro core; proposal GBA with mGBA (see Open decisions).
+- It arrives only as another package through the core distribution from 0.2, without installer changes.
+- Re-evaluate the core version check (warning vs. block, ADR 0007).
+- Game override UI on the Emulation page.
+- ROM cache limit and cleanup.
+
+## 0.8 Metadata and artwork
+
+- Hub Metadata Service with provider abstraction, hash matching, overrides, artwork cache (`docs/architecture/11-metadata-future.md`).
+- Hub: Settings → Metadata, actions in the library entry. Player: boxart and basic data in Library and game view.
+
+## 0.9 Hub for Windows / Windows Server
+
+- Windows amd64 Hub build in CI and release; runs as a Windows service (start/stop, automatic start).
+- Hub installer (data directory, port, firewall rule, admin setup); updates via the updater from 0.3.
+- Review paths, file permissions (instead of 0600) and certificate storage on Windows.
+
+## 0.10 Linux and macOS Player
+
+- Linux: Secret Service instead of in-memory credentials, package (AppImage or .deb/Flatpak), check gamepads and audio.
+- macOS: Keychain, app bundle/dmg, signing and notarization, VideoToolbox encoder, CI on a macOS runner.
+- Updater and core distribution for both platforms.
+
+## Later, only on demand
+
+- Save States, remote control/input for viewers, netplay, emulation settings sync, StandaloneBackend, Hub as a macOS service.
+- Further library features: row actions (delete, edit title), paging.
+
+## Out of scope
+
+Hosted emulation, friends list, public Session links, guest access, email/password recovery, own ACME client, simultaneous multi-Hub use, federation, cross-Hub Sessions, OAuth/central accounts, web client. They stay out until actively wanted.
+
+## Open decisions
+
+- **Second system:** proposal GBA with mGBA (no BIOS required, small core, exercises manifest and input/display profile without the dual-screen special case). Alternatives: SNES (Snes9x), GB/GBC. Open.
+- **Update channels:** decided on 2026-10-06: the test channel updates automatically, the stable channel only after confirmation. Rollback is open.
+- **0.2 ADR open points:** exact source and index format; signing tooling and key management; Hub without internet access; license and source offer when the Hub redistributes the GPL core; behavior without a Hub connection (the last cached core stays usable).

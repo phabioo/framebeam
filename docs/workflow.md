@@ -85,7 +85,7 @@ Do not return full logs or file contents. Do not commit.
 - **Phase 4 – Session sharing and multiview:** presence, signaling, visibility/ACL, WebRTC with software H.264/Opus, PiP/side-by-side, diagnostics; afterwards hardware encoders (testable locally only).
 - **Phase 5 – Remainder and polish:** firmware path, users/invites, systems & cores, emulation and controllers pages, SDL3 gamepads, dark/light, remaining Hub pages, packaging (Windows installer, systemd unit).
 - Status (2026-10-06): phases 0-5 are done and merged; the PoC is complete. Hardware encoders (NVENC/QSV/AMF) are not in the shipped Windows FFmpeg build (`client/vcpkg.json` enables only `avcodec`, `swscale`, `openh264`); the Player probes them at runtime but always falls back to software H.264.
-- **After the PoC – Distribution (planned, not PoC scope):** installers for Player and Hub on all target platforms (Windows, Linux, macOS; Hub additionally as Raspberry Pi/ARM64 package) and an integrated updater for Hub and Player, targeted for the first versions after the PoC. See `docs/architecture/08-repo-and-open-points.md`.
+- **After the PoC:** work follows `docs/roadmap.md`.
 
 The mapping of screens to phases is in `docs/design/README.md`.
 

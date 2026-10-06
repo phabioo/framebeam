@@ -21,7 +21,7 @@ Still to be specified are the concrete encoder/decoder integration, API endpoint
 
 ### Packaging and updates (after the PoC)
 
-Planned, not part of the PoC (the PoC packaging stays Windows installer and systemd unit, see `docs/workflow.md`). Target: the first versions after the PoC.
+Planned, not part of the PoC (the PoC packaging stays Windows installer and systemd unit, see `docs/workflow.md`). Target: see `docs/roadmap.md` (updates are version 0.3, cores from the Hub 0.2).
 
 - **Installers:** per platform for both products. Player: Windows installer, Linux package, macOS app bundle/dmg. Hub: Linux packages including ARM64 (Raspberry Pi) with systemd unit; Windows/macOS service later.
 - **Install layout:** the Player no longer ships as a loose folder of DLLs; runtime libraries live in a subfolder, not the top level. Player data stays in the portable data directory (ADR 0004).

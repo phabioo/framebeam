@@ -18,6 +18,8 @@ Design specification of the UI screens: `../design/README.md`.
 
 ## Status after the PoC
 
+Planned work after the PoC: `../roadmap.md`.
+
 | File | Refined by | Deviations and notes as built |
 |---|---|---|
 | `01-overview.md` | ADR 0001, 0003, 0006, 0007 | C++20 baseline, not C++23 (ADR 0001). Audio output via Qt Multimedia; SDL3 only for gamepads (ADR 0007). Software H.264 via libopenh264 (Windows) / libx264 (Linux); NVENC/QSV/AMF are probed at runtime (ADR 0006 D5) but not built into the Windows FFmpeg (`client/vcpkg.json`), so hardware encoding is not available yet. |
