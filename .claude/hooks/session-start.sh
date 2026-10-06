@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
 # SessionStart hook (synchronous): prepares cloud sessions. Quiet, idempotent, never blocks.
 # Only active in remote environments. Installs Qt 6.4 (apt) for the Player; the core build is only available via make.
-[ "${CLAUDE_CODE_REMOTE:-}" = "true" ] || [ "${FRAMEBEAM_CLOUD_SETUP:-}" = "1" ] || exit 0
+[ "${CLAUDE_CODE_REMOTE:-}" = "true" ] || exit 0
 set -uo pipefail
 
 ROOT="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 export VCPKG_ROOT="${VCPKG_ROOT:-$HOME/.cache/framebeam/vcpkg}"
 export GOTOOLCHAIN=local
 
-FAILED=0
-warn() { echo "session-start: $1" >&2; FAILED=1; }
+warn() { echo "session-start: $1" >&2; }
 run() {
   local label="$1"; shift
   local log; log="$(mktemp)"
@@ -41,6 +40,4 @@ fi
 for t in cmake ninja; do
   command -v "$t" >/dev/null || warn "$t missing (make check-client cannot run)"
 done
-# Only the generic cloud setup (scripts/setup-cloud.sh) treats failures as fatal; Claude sessions never block.
-[ "$FAILED" = 0 ] || [ "${FRAMEBEAM_CLOUD_SETUP:-}" != "1" ] || exit 1
 exit 0

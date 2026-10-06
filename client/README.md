@@ -1,6 +1,6 @@
 # client – FrameBeam Player
 
-C++/Qt Player: emulates locally, synchronizes saves, shares Sessions. The Player covers phases 2-5: Hub profiles, pairing and invites, library, ROM cache, emulation with melonDS DS, save sync, Sessions and multiview, Emulation and Controllers pages, appearance. Decisions: [ADR 0003](../docs/adr/0003-player-phase2.md), [ADR 0004](../docs/adr/0004-player-portable-data.md), [ADR 0005](../docs/adr/0005-saves-phase3.md), [ADR 0006](../docs/adr/0006-sessions-phase4.md), [ADR 0007](../docs/adr/0007-phase5.md). Rules for agents: `AGENTS.md`.
+C++/Qt Player: emulates locally, synchronizes saves, shares Sessions. The Player covers phases 2-5: Hub profiles, pairing and invites, library, ROM cache, emulation with melonDS DS, save sync, Sessions and multiview, Emulation and Controllers pages, appearance. Decisions: [ADR 0003](../docs/adr/0003-player-phase2.md), [ADR 0004](../docs/adr/0004-player-portable-data.md), [ADR 0005](../docs/adr/0005-saves-phase3.md), [ADR 0006](../docs/adr/0006-sessions-phase4.md), [ADR 0007](../docs/adr/0007-phase5.md). Rules for agents: `CLAUDE.md`.
 
 ## Structure
 
