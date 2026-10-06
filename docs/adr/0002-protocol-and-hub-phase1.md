@@ -6,7 +6,7 @@
 
 ## Context
 
-`docs/architecture/08-repo-and-open-points.md` leaves API endpoints, message formats, compatibility rules, token format and lifetimes, revocation details and TLS certificate management open. Phase 1 needs defaults for these. This ADR records them until Fabio confirms or changes them.
+`docs/architecture/08-repo-and-open-points.md` leaves API endpoints, message formats, compatibility rules, token format and lifetimes, revocation details and TLS certificate management open. Phase 1 needs defaults for these. Fabio confirmed them on 2026-10-05.
 
 ## Decisions
 

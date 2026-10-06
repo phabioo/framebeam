@@ -19,12 +19,14 @@ Details only as needed from `docs/architecture/` (index: `docs/architecture/READ
 - Upload only when the hash changed; debounce approx. 10-15 s, periodic at most every approx. 60 s; pause/stop/clean exit = immediate final sync.
 - Failed uploads are kept as pending sync (Hub, user, game/slot, base version) and retried only to the originating Hub. Save states are separate, not in the PoC. See `03-saves.md`.
 
+- Data: all Player data under `ProfileStore::baseDir()` (portable `<exe-dir>/data`, ADR 0004); never invent own paths.
+
 ## Media and language
-- FFmpeg (libavcodec) with NVENC/QSV/AMF, OpenH264 as software fallback; WebRTC with libdatachannel (ADR 0001, `04-sessions-and-multiview.md`).
+- FFmpeg (libavcodec) with NVENC/QSV/AMF, OpenH264 as software fallback; encoder order h264_nvenc, h264_qsv, h264_amf, libopenh264, libx264 (ADR 0006 D5); audio output via Qt Multimedia, SDL3 only for gamepads (ADR 0007); WebRTC with libdatachannel (ADR 0001, `04-sessions-and-multiview.md`).
 - C++20 as baseline; C++23 only if MSVC, GCC and AppleClang support it. vcpkg (manifest) + CMake presets.
 - Firmware missing: "Firmware required/missing", block launch.
 - Design: Player UI `docs/design/README.md`, `docs/design/player.md`, `docs/design/tokens.md`.
 
-## Phase 2 (ADR 0003)
-- Targets: `framebeam_core` (core/ + network/), `framebeam_emulation`, `framebeam_ui` (static lib, QML module `FrameBeam.Player`), executable `framebeam_player` in `app/`. Qt >= 6.4, 6.4 API only, not via vcpkg.
+## Build targets (ADR 0003, 0006, 0007)
+- Targets: `framebeam_core` (core/ + network/ sources), `framebeam_emulation`, `framebeam_input` + `framebeam_sdl3` (input/), `framebeam_media` + `framebeam_audioutil` + `framebeam_media_deps` (media/), `framebeam_ui` (static lib, QML module `FrameBeam.Player`), executables `framebeam_player` (app/) and `framebeam_player_cli` (network/cli/). Qt >= 6.4, 6.4 API only, not via vcpkg.
 - Core path: CMake variable/environment `FRAMEBEAM_MELONDS_DS_CORE`; empty = tests with `NEEDS_CORE` are skipped. Never check in a core, ROM or BIOS.

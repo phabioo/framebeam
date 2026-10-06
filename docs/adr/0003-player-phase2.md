@@ -1,6 +1,6 @@
 # ADR 0003: FrameBeam Player in phase 2
 
-- Status: accepted
+- Status: accepted (storage location superseded by ADR 0004, audio plan by ADR 0007)
 - Date: 2026-10-05
 - Decided by: Fabio (proposal by the orchestrator, confirmed for the PoC on 2026-10-05)
 
@@ -12,7 +12,7 @@ Phase 2 ("Playable vertical slice") builds the FrameBeam Player: Hub profile, pa
 
 - **Qt:** Qt >= 6.4, not via vcpkg. Linux: apt (6.4.2, Ubuntu noble). Windows: `install-qt-action` (6.8 LTS). The code uses only the 6.4 API. Reason: A Qt build via vcpkg takes hours in CI, and the cloud cannot fetch vcpkg sources. vcpkg remains for later packages.
 - **melonDS DS:** Version v1.4.0, commit pinned (`scripts/melonds-ds.pin`). Linux builds the core from source via git (`scripts/fetch-melonds-ds.sh`). Windows uses the official release asset `melondsds_libretro-win32-x86_64-Release.zip` with a pinned SHA-256 (`scripts/fetch-melonds-ds.ps1`); its build is MinGW, and loading it via `LoadLibrary` over the C ABI is unproblematic. The Windows CI artifact `framebeam-player-windows-x64` contains the Player, the Qt runtime, the core under `cores/` and the GPL notice.
-- **Audio:** In phase 2 via Qt Multimedia. SDL3 arrives with gamepads (phase 5).
+- **Audio:** In phase 2 via Qt Multimedia. SDL3 arrives with gamepads (phase 5). (Superseded in part by ADR 0007: SDL3 is used for gamepads only; audio stays on Qt Multimedia.)
 - **HTTP/TLS:** via QtNetwork. Trust exclusively via the leaf fingerprint (SHA-256 over DER, format as in the Hub), also for CA-signed certificates. First contact shows the fingerprint and requires confirmation (architecture 10; deviation from mock-up 3b). A fingerprint mismatch blocks the connection. Consequence: A certificate change (including Let's Encrypt behind a reverse proxy) requires removing the profile and reconnecting until the confirmed pin change is specified.
 - **Storage:** `AppDataLocation` (superseded by ADR 0004). `profiles.json` and `device.json` contain no secrets. The device ID is generated locally. Hub-specific data lives under `hubs/<hub_id>/`, including the core's save directory (sync follows in phase 3). The ROM cache is content-addressed and shared across Hubs: `cache/roms/<sha256>.<ext>`. Rationale: The content is uniquely identified by its hash, and the files contain no data attributable to a Hub. The download goes into a `.part` file with Range resume; the hash is verified before the atomic rename; a sidecar with size and mtime avoids re-hashing.
 - **Credentials:** Windows: Credential Manager. Linux/macOS: in-memory only in phase 2 (not in PoC scope); a new pairing is needed there after a restart.

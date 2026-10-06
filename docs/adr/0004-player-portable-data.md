@@ -2,7 +2,7 @@
 
 - Status: accepted
 - Date: 2026-10-05
-- Deciders: Fabio (requested after the first Windows test)
+- Decided by: Fabio (requested after the first Windows test)
 
 ## Context
 

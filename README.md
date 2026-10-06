@@ -4,7 +4,7 @@ FrameBeam is a self-hosted retro gaming platform. The **FrameBeam Hub** manages 
 
 ## Status
 
-Phase plan: [Workflow](docs/workflow.md#phase-plan).
+Phase plan: [Workflow](docs/workflow.md#phase-plan). The PoC (phases 0-5) is complete; post-PoC planning follows.
 
 | Phase | Status | Scope |
 |---|---|---|
@@ -13,7 +13,7 @@ Phase plan: [Workflow](docs/workflow.md#phase-plan).
 | 2 Playable vertical slice | done | Player core (profile, pairing, library, ROM cache), melonDS DS via Libretro, minimal Qt UI |
 | 3 Saves | done | Save storage, sync, versions, conflict model ([ADR 0005](docs/adr/0005-saves-phase3.md)) |
 | 4 Session sharing and multiview | done (tested locally on two Windows PCs) | Presence, signaling, WebRTC, multiview ([ADR 0006](docs/adr/0006-sessions-phase4.md), accepted) |
-| 5 Remainder and polish | done in the cloud, pending local test | Users and invites, user uploads, systems and firmware, Emulation and Controllers pages, appearance, Windows installer ([ADR 0007](docs/adr/0007-phase5.md), accepted) |
+| 5 Remainder and polish | done (tested locally) | Users and invites, user uploads, systems and firmware, Emulation and Controllers pages, appearance, Windows installer ([ADR 0007](docs/adr/0007-phase5.md), accepted) |
 | Post-PoC | planned | Installers for all platforms, integrated updater |
 
 ## What works
@@ -22,11 +22,11 @@ Phase plan: [Workflow](docs/workflow.md#phase-plan).
 
 - Admin setup via `setup-admin` and via `/setup` in the web interface (loopback only).
 - HTTPS with a self-signed certificate (or your own certificate); the fingerprint is logged at startup.
-- Web interface with login: Library, Clients, Saves, Settings.
+- Web interface with login (admins only): Library, Saves, Systems & Cores, Clients, Users, Settings.
 - Pairing of new devices with Allow/Deny; issue and revoke tokens (Revoke).
 - ROM upload in the web interface.
 - ROM download via API with Range and ETag.
-- Versioned saves per user and game (API tag `saves`, API spec 1.1.0, `protocol_version` stays 1, handshake feature `saves_v1`); the Hub stores the save as an opaque blob and never merges it.
+- Versioned saves per user and game (API tag `saves`, added in API 1.1.0, `protocol_version` stays 1, handshake feature `saves_v1`); the Hub stores the save as an opaque blob and never merges it.
 - Web page "Saves" (admin): slots, conflicts ("Use Hub version" / "Adopt local save"), history with Download, badge in the navigation.
 - Info endpoint `/.well-known/framebeam` and handshake with `protocol_version`.
 - Sessions: session API (visibility Private / Hub users / Invite only, invites, viewers), WSS presence and signaling relay, revoke on visibility change; optional STUN servers via `-ice-servers` / `FRAMEBEAM_ICE_SERVERS`.
@@ -37,7 +37,7 @@ Phase plan: [Workflow](docs/workflow.md#phase-plan).
 
 **Protocol** (`protocol/`)
 
-- OpenAPI 3.0.3 for `/api/v1` and WSS message schemas; `protocol_version` is 1.
+- OpenAPI 3.0.3 for `/api/v1` and WSS message schemas; OpenAPI spec version 1.3.0, `protocol_version` is 1; handshake features `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1`, `firmware_v1`.
 
 **FrameBeam Player** (`client/`, [ADR 0003](docs/adr/0003-player-phase2.md))
 
@@ -93,7 +93,7 @@ framebeam-hub -data-dir <directory>        # HTTPS, default listen :8443
 framebeam-hub -dev -listen 127.0.0.1:8443 -data-dir /tmp/fb   # development: HTTP instead of HTTPS
 ```
 
-The data directory (`-data-dir`, default `/var/lib/framebeam`) contains the database and certificate. Further flags: `-listen`, `-name`, `-tls-cert`, `-tls-key`; each also available via `FRAMEBEAM_*`.
+The data directory (`-data-dir`, default `/var/lib/framebeam`) contains the database and certificate. Further flags: `-listen`, `-name`, `-tls-cert`, `-tls-key`, `-ice-servers` (comma-separated `stun:` URLs, default none); each also available via `FRAMEBEAM_*`.
 
 ### Run the Hub as a service (Linux / Raspberry Pi)
 
@@ -123,7 +123,7 @@ Windows test package: unpack the CI artifact `framebeam-player-windows-x64` from
 
 Two Players on the LAN, both paired to the same Hub. With only the admin, both devices belong to the admin: Private (own devices only), Hub users and Invite only can be tested. With a second Hub user (see below) Private rejects the foreign user and Hub users lets them in. STUN (`-ice-servers`) is not needed on a LAN. `scripts/e2e-session.sh` runs the same flow headless with two CLI processes against a local Hub.
 
-### Try phase 5
+### Try the phase 5 features
 
 1. Hub, page Users: create an invite (the code is shown only once). In a second Player choose to redeem an invite code and enter it.
 2. Start a Session on the first Player with Private and with Hub users; check that the second user is rejected, then let in.
@@ -147,9 +147,10 @@ Keyboard: Arrows, X=A, Z=B, S=X, A=Y, Q=L, W=R, Enter=Start, Backspace=Select, E
 ## Documentation
 
 - [Architecture (index)](docs/architecture/README.md)
-- [ADR 0001: Stack additions](docs/adr/0001-stack-additions.md)
-- [ADR 0002: Protocol and Hub in phase 1](docs/adr/0002-protocol-and-hub-phase1.md)
+- [ADR 0001: Stack additions](docs/adr/0001-stack-additions.md) (accepted)
+- [ADR 0002: Protocol and Hub in phase 1](docs/adr/0002-protocol-and-hub-phase1.md) (accepted)
 - [ADR 0003: Player in phase 2](docs/adr/0003-player-phase2.md) (accepted)
+- [ADR 0004: Portable data directory of the Player](docs/adr/0004-player-portable-data.md) (accepted)
 - [ADR 0005: Saves in phase 3](docs/adr/0005-saves-phase3.md) (accepted)
 - [ADR 0006: Sessions in phase 4](docs/adr/0006-sessions-phase4.md) (accepted)
 - [ADR 0007: Phase 5, users, firmware, settings pages, gamepads, installer](docs/adr/0007-phase5.md) (accepted)
