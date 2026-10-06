@@ -161,6 +161,8 @@ jobs:
         shell: pwsh
         env:
           QT_QPA_PLATFORM: offscreen
+          # Tests also write their QtTest log here, so an intermittent failure shows its assertion from the first run.
+          FRAMEBEAM_TEST_LOG_DIR: ${{ github.workspace }}\testlogs
         run: |
           # The core is always present in CI: skipped tests (e.g. emulation_core) count as failures.
           ctest --preset windows-msvc-release 2>&1 | Tee-Object -FilePath ctest.log
@@ -170,6 +172,13 @@ jobs:
             $failed = Select-String -Path ctest.log -Pattern '^\s*\d+/\d+ Test\s+#\d+: (\S+) \.+\*{3}(Failed|Exception|Timeout)' |
               ForEach-Object { $_.Matches[0].Groups[1].Value } | Sort-Object -Unique
             foreach ($t in $failed) {
+              $first = Join-Path $env:FRAMEBEAM_TEST_LOG_DIR "test_$t.txt"
+              if (Test-Path $first) {
+                Write-Host "::group::first run of $t ($first)"
+                Select-String -Path $first -Pattern 'FAIL!|QFATAL' -Context 3,3 | Out-Host
+                Get-Content $first | Select-Object -Last 60 | Out-Host
+                Write-Host "::endgroup::"
+              }
               $exe = Get-ChildItem -Recurse -Filter "test_$t.exe" | Select-Object -First 1
               if (-not $exe) { Write-Host "::warning::no exe for $t"; continue }
               Write-Host "::group::rerun $t ($($exe.FullName))"

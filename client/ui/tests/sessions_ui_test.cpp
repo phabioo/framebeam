@@ -7,6 +7,15 @@
 #include "fakehub.h"
 #include "testsupport.h"
 
+// Waits on real I/O, WebRTC, the encoder or the core must survive a loaded CI runner: every QTRY_* of this file
+// waits up to 15 s (it still returns as soon as the condition holds, so passing runs are not slower).
+#undef QTRY_VERIFY
+#undef QTRY_VERIFY2
+#undef QTRY_COMPARE
+#define QTRY_VERIFY(expr) QTRY_VERIFY_WITH_TIMEOUT(expr, 15000)
+#define QTRY_VERIFY2(expr, msg) QTRY_VERIFY2_WITH_TIMEOUT(expr, msg, 15000)
+#define QTRY_COMPARE(actual, expected) QTRY_COMPARE_WITH_TIMEOUT(actual, expected, 15000)
+
 using namespace framebeam;
 using namespace framebeam::ui;
 using uitest::Harness;
@@ -147,7 +156,7 @@ class SessionsUiTest : public QObject {
     }
     pair(r.h, r.hub);
     if (QTest::currentTestFailed()) return false;
-    if (!QTest::qWaitFor([&]() { return r.h.controller->libraryState() == QLatin1String("ready") && r.h.controller->selectedGameId() == QLatin1String("t1"); }, 8000)) {
+    if (!QTest::qWaitFor([&]() { return r.h.controller->libraryState() == QLatin1String("ready") && r.h.controller->selectedGameId() == QLatin1String("t1"); }, 20000)) {
       return false;
     }
     if (share) {
@@ -228,10 +237,12 @@ class SessionsUiTest : public QObject {
     // session_ended(s4) arrives, then the (stale) list that still contains s4 is answered.
     hub.sessions.remove(QStringLiteral("s1"));  // keep the fake Hub consistent with the events so far
     QCOMPARE(ctl->sessions().size(), 2);
+    const int listRequests = countContaining(hub, QStringLiteral("/api/v1/sessions"), "GET");
     ctl->refreshSessions();
     emit ctl->socket()->sessionEnded(SessionEnded{QStringLiteral("s4"), QStringLiteral("ended")});
     QCOMPARE(ctl->sessions().size(), 1);
-    QTest::qWait(600);  // the list response (with s4) arrives in this time
+    QTRY_VERIFY(countContaining(hub, QStringLiteral("/api/v1/sessions"), "GET") > listRequests);  // request reached the Hub
+    QTest::qWait(600);  // ... and its response (with s4) is delivered in this time
     QCOMPARE(ctl->sessions().size(), 1);
     // restore s4 for the steps below
     hub.sendWs(QStringLiteral("session_invite"), {{QStringLiteral("session"), hub.sessions.value(QStringLiteral("s4"))}});

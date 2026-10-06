@@ -142,6 +142,7 @@ class SessionController : public QObject {
   void onViewerLeft(const ViewerLeft& v);
   void onSignal(const SessionSignal& s);
   void applyOwnSession(const SessionInfo& s);
+  void applyOwnSession(const SessionInfo& s, quint64 requestVisGen);
   void closeShare(const QString& note);
   void closeWatch(const QString& note, bool callHub);
   void say(const QString& text, bool error);
@@ -165,6 +166,7 @@ class SessionController : public QObject {
   AudioOutput remoteAudio_;
 
   QHash<QString, SessionInfo> sessions_;  // visible Sessions (not own)
+  quint64 visGen_ = 0;           // bumped by every local visibility change (stale REST answers keep the newer one)
   quint64 sessionEventGen_ = 0;  // bumped by every live session event; stale GET /sessions results are dropped
   QTimer minuteTimer_;
   QTimer statsTimer_;

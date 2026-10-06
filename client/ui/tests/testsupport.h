@@ -4,6 +4,7 @@
 
 #include <QCryptographicHash>
 #include <QDir>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QQmlApplicationEngine>
@@ -23,6 +24,7 @@
 #include <windows.h>
 #endif
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "playercontroller.h"
@@ -75,6 +77,17 @@ inline void crashSignal(int sig) {
   std::fflush(stderr);
   std::_Exit(3);
 }
+// FRAMEBEAM_TEST_LOG_DIR=<dir>: also write the QtTest log to <dir>/<test exe name>.txt (see testutil/processguard.h).
+inline std::vector<std::string> logArgs(const char* argv0) {
+  const QByteArray dir = qgetenv("FRAMEBEAM_TEST_LOG_DIR");
+  if (dir.isEmpty()) {
+    return {};
+  }
+  const QString name = QFileInfo(QString::fromLocal8Bit(argv0)).completeBaseName();
+  QDir().mkpath(QString::fromLocal8Bit(dir));
+  const QString file = QDir(QString::fromLocal8Bit(dir)).filePath(name + QStringLiteral(".txt"));
+  return {"-o", (file + QStringLiteral(",txt")).toLocal8Bit().toStdString(), "-o", "-,txt"};
+}
 // Must run before QGuiApplication: unbuffered output + crash message so a failure is never silent.
 inline void prepareProcess() {
   std::setvbuf(stdout, nullptr, _IONBF, 0);
@@ -117,6 +130,8 @@ inline void prepareProcess() {
     args.push_back(verbose);                                    \
     args.push_back(maxw);                                       \
     args.push_back(maxwN);                                      \
+    const std::vector<std::string> logExtra = uitest::logArgs(argv[0]); \
+    for (const std::string& a : logExtra) args.push_back(const_cast<char*>(a.c_str())); \
     int n = static_cast<int>(args.size());                      \
     QGuiApplication app(n, args.data());                        \
     TestClass tc;                                               \
