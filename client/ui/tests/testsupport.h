@@ -82,6 +82,25 @@ inline void prepareProcess() {
 #ifdef Q_OS_WIN
   SetUnhandledExceptionFilter(crashFilter);
 #endif
+  std::set_terminate([]() {
+    std::fprintf(stderr, "[uitest] std::terminate (uncaught exception)\n");
+    std::fflush(stderr);
+    std::_Exit(4);
+  });
+#ifdef Q_OS_WIN
+  // CRT fatal paths that bypass the SEH filter and signal(): purecall, invalid parameter, abort message box.
+  _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
+  _set_purecall_handler([]() {
+    std::fprintf(stderr, "[uitest] pure virtual function call\n");
+    std::fflush(stderr);
+    std::_Exit(5);
+  });
+  _set_invalid_parameter_handler([](const wchar_t*, const wchar_t*, const wchar_t*, unsigned, uintptr_t) {
+    std::fprintf(stderr, "[uitest] CRT invalid parameter\n");
+    std::fflush(stderr);
+    std::_Exit(6);
+  });
+#endif
   for (int sig : {SIGSEGV, SIGABRT, SIGILL, SIGFPE}) {
     std::signal(sig, crashSignal);
   }
@@ -101,7 +120,9 @@ inline void prepareProcess() {
     int n = static_cast<int>(args.size());                      \
     QGuiApplication app(n, args.data());                        \
     TestClass tc;                                               \
-    return QTest::qExec(&tc, n, args.data());                   \
+    const int rc = QTest::qExec(&tc, n, args.data());           \
+    std::fprintf(stderr, "[uitest] exit code %d\n", rc);       \
+    return rc;                                                  \
   }
 
 // All warnings/errors from here on count (QML load errors, binding errors, Qt warnings).

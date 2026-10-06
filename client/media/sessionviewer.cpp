@@ -96,6 +96,7 @@ void SessionViewer::open(const QString& sessionId, const QString& viewerId, cons
 }
 
 void SessionViewer::teardown() {
+  ++pcGen_;  // invalidates queued frames of this connection before the codecs are closed
   statsTimer_.stop();
   if (pc_) {
     try {
@@ -141,16 +142,19 @@ void SessionViewer::handleSignal(const SessionSignal& s) {
       }
       pc_ = std::make_shared<rtc::PeerConnection>(makeRtcConfig(iceServers_));
       const auto bridge = bridge_;
-      pc_->onTrack(guarded("onTrack", [this, bridge](std::shared_ptr<rtc::Track> track) {
+      const unsigned gen = pcGen_;  // frames of an older connection that are still queued must not reach the codecs
+      pc_->onTrack(guarded("onTrack", [this, bridge, gen](std::shared_ptr<rtc::Track> track) {
         const std::string type = track->description().type();
         if (type == "video") {
           auto depack = std::make_shared<rtc::H264RtpDepacketizer>(rtc::NalUnit::Separator::LongStartSequence);
           auto session = std::make_shared<LossReceivingSession>();
           depack->addToChain(session);
           track->setMediaHandler(depack);
-          track->onFrame(guarded("onFrame", [this, bridge](rtc::binary data, rtc::FrameInfo) {
+          track->onFrame(guarded("onFrame", [this, bridge, gen](rtc::binary data, rtc::FrameInfo) {
             QByteArray ba(reinterpret_cast<const char*>(data.data()), static_cast<qsizetype>(data.size()));
-            bridge->post([this, ba = std::move(ba)]() mutable { onVideoFrame(std::move(ba)); });
+            bridge->post([this, gen, ba = std::move(ba)]() mutable {
+              if (gen == pcGen_) onVideoFrame(std::move(ba));
+            });
           }));
           bridge->post([this, track, session]() {
             if (open_ && pc_) {
@@ -162,9 +166,11 @@ void SessionViewer::handleSignal(const SessionSignal& s) {
           auto depack = std::make_shared<OpusRtpDepacketizer>();
           depack->addToChain(std::make_shared<rtc::RtcpReceivingSession>());
           track->setMediaHandler(depack);
-          track->onFrame(guarded("onFrame", [this, bridge](rtc::binary data, rtc::FrameInfo) {
+          track->onFrame(guarded("onFrame", [this, bridge, gen](rtc::binary data, rtc::FrameInfo) {
             QByteArray ba(reinterpret_cast<const char*>(data.data()), static_cast<qsizetype>(data.size()));
-            bridge->post([this, ba = std::move(ba)]() mutable { onAudioFrame(std::move(ba)); });
+            bridge->post([this, gen, ba = std::move(ba)]() mutable {
+              if (gen == pcGen_) onAudioFrame(std::move(ba));
+            });
           }));
           bridge->post([this, track]() {
             if (open_ && pc_) {

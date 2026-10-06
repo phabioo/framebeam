@@ -77,6 +77,7 @@ class SessionViewer : public QObject {
   QString viewerId_;
   QStringList iceServers_;
   bool open_ = false;
+  unsigned pcGen_ = 0;  // UI thread only; bumped by teardown()
   bool connected_ = false;
   bool remoteSet_ = false;
   QString pcState_ = QStringLiteral("new");
