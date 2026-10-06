@@ -66,6 +66,11 @@ jobs:
         with:
           path: ~/.cache/framebeam/deps
           key: libdatachannel-linux-${{ hashFiles('scripts/libdatachannel.pin', 'scripts/fetch-libdatachannel.sh') }}
+      - name: Cache SDL3
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/framebeam/deps/sdl3
+          key: sdl3-linux-${{ hashFiles('scripts/sdl3.pin', 'scripts/fetch-sdl3.sh') }}
       - name: Provision tools and Qt 6.4
         run: |
           mkdir -p "$VCPKG_DEFAULT_BINARY_CACHE"
@@ -222,7 +227,7 @@ jobs:
           if ($exe.Count -ne 1) { throw "framebeam_player.exe not found unambiguously: $($exe.FullName -join ', ')" }
           Write-Host "Executable: $($exe[0].FullName)"
           Copy-Item $exe[0].FullName $dist
-          # vcpkg runtime DLLs (libdatachannel, FFmpeg, OpenH264, Opus and their transitive DLLs): windeployqt only
+          # vcpkg runtime DLLs (libdatachannel, FFmpeg, OpenH264, Opus, SDL3 and their transitive DLLs): windeployqt only
           # deploys Qt. vcpkg's applocal step puts them next to the exe; fall back to the release bin directory of
           # the manifest install (never debug\bin). Qt DLLs are left to windeployqt.
           $sources = @($exe[0].DirectoryName)
@@ -236,7 +241,7 @@ jobs:
             }
           }
           Write-Host "Bundled non-Qt DLLs: $((Get-ChildItem $dist -Filter *.dll | ForEach-Object Name) -join ', ')"
-          foreach ($need in 'datachannel', 'avutil', 'avcodec', 'swscale', 'opus') {
+          foreach ($need in 'datachannel', 'avutil', 'avcodec', 'swscale', 'opus', 'SDL3') {
             if (-not (Get-ChildItem $dist -Filter "*$need*.dll")) { throw "Runtime DLL matching *$need*.dll is missing from the package" }
           }
           windeployqt --release --no-translations --qmldir client\ui "$dist\framebeam_player.exe"
@@ -258,6 +263,7 @@ jobs:
           - libsrtp, BSD-3-Clause, https://github.com/cisco/libsrtp
           - usrsctp, BSD-3-Clause, https://github.com/sctplab/usrsctp
           - Opus, BSD-3-Clause, https://opus-codec.org/ (source: https://gitlab.xiph.org/xiph/opus)
+          - SDL3 (gamepad input only), zlib, https://libsdl.org/ (source: https://github.com/libsdl-org/SDL)
           - OpenSSL, Apache-2.0, https://www.openssl.org/
           - Qt 6 (LGPL-3.0, dynamically linked), https://www.qt.io/
           The FFmpeg and Qt DLLs are shared libraries and can be replaced by compatible builds.
@@ -305,5 +311,29 @@ jobs:
         with:
           name: framebeam-player-windows-x64
           path: dist/framebeam-player
+          if-no-files-found: error
+          retention-days: 7
+      - name: Build installer (Inno Setup)
+        shell: pwsh
+        run: |
+          $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup -y --no-progress
+            if ($LASTEXITCODE -ne 0) { throw "choco install innosetup failed" }
+          }
+          if (-not (Test-Path $iscc)) { throw "ISCC.exe not found at $iscc" }
+          # AppVersion = project version + short commit; VersionInfoVersion must be numeric (x.y.z.build).
+          $base = [regex]::Match((Get-Content client\CMakeLists.txt -Raw), 'project\(FrameBeamPlayer VERSION (\d+\.\d+\.\d+)').Groups[1].Value
+          if (-not $base) { throw "project VERSION not found in client\CMakeLists.txt" }
+          $sha = "${{ github.sha }}".Substring(0, 7)
+          & $iscc "/DAppVersion=$base+$sha" "/DVersionInfoVersion=$base.${{ github.run_number }}" `
+            "/DPackageDir=$env:GITHUB_WORKSPACE\dist\framebeam-player" "/DOutputDir=$env:GITHUB_WORKSPACE\dist\installer" `
+            packaging\windows\framebeam-player.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
+          if (-not (Test-Path dist\installer\framebeam-player-setup.exe)) { throw "installer was not produced" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: framebeam-player-windows-x64-setup
+          path: dist/installer/framebeam-player-setup.exe
           if-no-files-found: error
           retention-days: 7

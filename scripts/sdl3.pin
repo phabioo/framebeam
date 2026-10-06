@@ -1,0 +1,4 @@
+# Pinned SDL3 version (libsdl-org/SDL, zlib licence). Read by scripts (KEY=VALUE).
+# Linux only (cloud + CI): built from git by scripts/fetch-sdl3.sh (gamepad/joystick only). Windows uses vcpkg (client/vcpkg.json).
+SDL3_TAG=release-3.2.30
+SDL3_COMMIT=f5e5f6588921eed3d7d048ce43d9eb1ff0da0ffc

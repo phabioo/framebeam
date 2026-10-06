@@ -16,6 +16,7 @@ C++/Qt Player: emulates locally, synchronizes saves, shares Sessions. Status of 
 - Qt >= 6.4 (Core, Network, Gui, Quick, QuickControls2, Multimedia, WebSockets, Test); not via vcpkg. Linux: apt, Windows: install-qt-action (see `.github/workflows/ci.yml`).
 - CMake >= 3.25, Ninja; vcpkg (`scripts/bootstrap-vcpkg.sh`) for further packages.
 - Media (phase 4, [ADR 0006](../docs/adr/0006-sessions-phase4.md)): Linux apt `libavcodec-dev libswscale-dev libopus-dev qt6-websockets-dev libssl-dev` plus libdatachannel from `scripts/fetch-libdatachannel.sh` (pinned, `scripts/libdatachannel.pin`); Windows vcpkg (`client/vcpkg.json`, platform windows).
+- SDL3 >= 3.2, gamepad/joystick subsystem only (audio stays on Qt Multimedia; CMake target `framebeam_sdl3` in `input/`). Linux: pinned source build via `scripts/fetch-sdl3.sh` (`scripts/sdl3.pin`, no video/audio, no extra apt packages; Ubuntu 24.04 has no SDL3 package), found through `SDL3_ROOT`; Windows: vcpkg port `sdl3` without features (`client/vcpkg.json`). The `input_sdl3` test proves it links and runs headless with a virtual joystick.
 - melonDS DS core (pinned, `scripts/melonds-ds.pin`): `scripts/fetch-melonds-ds.sh` (Linux) or `.ps1` (Windows). No core in the repository.
 
 ## Build and test

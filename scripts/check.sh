@@ -50,13 +50,18 @@ CORE_PATH=""
 client_core() { CORE_PATH="$("$ROOT/scripts/fetch-melonds-ds.sh")" && [ -f "$CORE_PATH" ]; }
 DDC_PATH=""
 client_libdatachannel() { DDC_PATH="$("$ROOT/scripts/fetch-libdatachannel.sh")" && [ -d "$DDC_PATH" ]; }
+SDL3_PATH=""
+client_sdl3() { SDL3_PATH="$("$ROOT/scripts/fetch-sdl3.sh")" && [ -d "$SDL3_PATH" ]; }
 client() {
   local p="${CLIENT_PRESET:-linux-debug}"
   local -a core_arg=()
   # libdatachannel (pinned, cached under ~/.cache/framebeam/deps): mandatory, built on first use.
   step "client: libdatachannel" client_libdatachannel
   [ -n "$DDC_PATH" ] && [ -d "$DDC_PATH" ] || return 1
-  core_arg=("-DCMAKE_PREFIX_PATH=$DDC_PATH")
+  # SDL3 (pinned, gamepad only, cached under ~/.cache/framebeam/deps): mandatory, built on first use.
+  step "client: sdl3" client_sdl3
+  [ -n "$SDL3_PATH" ] && [ -d "$SDL3_PATH" ] || return 1
+  core_arg=("-DCMAKE_PREFIX_PATH=$DDC_PATH" "-DSDL3_ROOT=$SDL3_PATH")
   # Core first (idempotent, cached); if it fails, tests with NEEDS_CORE run as SKIP.
   step "client: core" client_core
   [ -n "$CORE_PATH" ] && [ -f "$CORE_PATH" ] && core_arg+=("-DFRAMEBEAM_MELONDS_DS_CORE=$CORE_PATH")

@@ -6,6 +6,7 @@
   "dependencies": [
     { "name": "libdatachannel", "default-features": false, "features": ["srtp"], "platform": "windows" },
     { "name": "ffmpeg", "default-features": false, "features": ["avcodec", "swscale", "openh264"], "platform": "windows" },
-    { "name": "opus", "platform": "windows" }
+    { "name": "opus", "platform": "windows" },
+    { "name": "sdl3", "default-features": false, "platform": "windows" }
   ]
 }
