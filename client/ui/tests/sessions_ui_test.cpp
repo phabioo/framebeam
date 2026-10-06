@@ -59,6 +59,36 @@ QQuickItem* visibleItem(Harness& h, const char* name) {
   return nullptr;
 }
 QString textOf(QQuickItem* i) { return i ? i->property("text").toString() : QString(); }
+// Every visible action button of the panel (Invite / Remove / Withdraw) must lie inside the panel's scene rect:
+// a row wider than the panel (seen on Windows CI without fonts) would clip the button and make it unclickable.
+void collectByPrefix(QQuickItem* root, const QString& prefix, QList<QQuickItem*>& out) {
+  for (QQuickItem* c : root->childItems()) {
+    if (c->objectName().startsWith(prefix) && c->isVisible()) out.append(c);
+    collectByPrefix(c, prefix, out);
+  }
+}
+QString panelButtonsOutside(Harness& h) {
+  QQuickItem* panel = h.item("sessionPanel");
+  if (panel == nullptr) return QStringLiteral("no sessionPanel");
+  const QRectF pr = panel->mapRectToScene(QRectF(0, 0, panel->width(), panel->height()));
+  QString bad;
+  for (const char* prefix : {"invite_", "remove_", "withdraw_"}) {
+    QList<QQuickItem*> found;
+    collectByPrefix(h.window->contentItem(), QString::fromLatin1(prefix), found);
+    for (QQuickItem* b : std::as_const(found)) {
+      if (b->objectName() == QLatin1String("inviteBlock") || b->objectName() == QLatin1String("inviteField")) continue;
+      const QRectF r = b->mapRectToScene(QRectF(0, 0, b->width(), b->height()));
+      if (r.right() > pr.right() - 1 || r.left() < pr.left()) {
+        for (QQuickItem* a = b->parentItem(); a != nullptr && a != panel; a = a->parentItem()) {
+          qInfo().noquote() << "[layout]" << b->objectName() << "ancestor" << a->metaObject()->className() << a->objectName() << "w" << a->width() << "implicitW" << a->implicitWidth();
+        }
+        bad += QStringLiteral("%1 [%2..%3] outside panel [%4..%5]; ").arg(b->objectName()).arg(r.left()).arg(r.right()).arg(pr.left()).arg(pr.right());
+      }
+    }
+  }
+  return bad;
+}
+
 int countContaining(const FakeHub& hub, const QString& part, const QByteArray& method = {}) {
   int n = 0;
   for (const FakeRequest& r : hub.requests) {
@@ -405,6 +435,7 @@ class SessionsUiTest : public QObject {
     QCOMPARE(ctl->participantsTitle(), QStringLiteral("INVITED · 3"));
     QCOMPARE(ctl->viewerCount(), 1);
     QQuickTest::qWaitForPolish(h.window);
+    QVERIFY2(panelButtonsOutside(h).isEmpty(), qPrintable(panelButtonsOutside(h)));
     QVERIFY(h.item("remove_v1")->isVisible());
     QVERIFY(h.item("withdraw_u_jonas")->isVisible());
     QVERIFY(h.item("withdraw_u_mia")->isVisible());
@@ -421,6 +452,8 @@ class SessionsUiTest : public QObject {
              QStringLiteral("offline · receives the invite as long as the Session is running"));
     QQuickTest::qWaitForPolish(h.window);
     QTRY_VERIFY(h.item("invite_u_sam") != nullptr && h.item("invite_u_sam")->isVisible());
+    QQuickTest::qWaitForPolish(h.window);
+    QVERIFY2(panelButtonsOutside(h).isEmpty(), qPrintable(panelButtonsOutside(h)));
     QVERIFY(h.click("invite_u_sam"));
     QTRY_VERIFY2_WITH_TIMEOUT(countContaining(hub, QStringLiteral("/invites/u_sam"), "PUT") == 1, [&]() {
       QStringList l;

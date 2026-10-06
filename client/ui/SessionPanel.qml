@@ -73,6 +73,10 @@ Rectangle {
 
                 ColumnLayout {
                     Layout.fillWidth: true
+                    // Never wider than the panel: a header row whose labels need more room (no fonts, long
+                    // translations) must elide instead of pushing the action buttons out of the viewport.
+                    Layout.minimumWidth: 0
+                    Layout.maximumWidth: col.width
                     spacing: 8
                     Eyebrow { text: qsTr("Visibility") }
                     FbSegment {
@@ -93,13 +97,24 @@ Rectangle {
                 ColumnLayout {
                     objectName: "participantsBlock"
                     Layout.fillWidth: true
+                    // Never wider than the panel: a header row whose labels need more room (no fonts, long
+                    // translations) must elide instead of pushing the action buttons out of the viewport.
+                    Layout.minimumWidth: 0
+                    Layout.maximumWidth: col.width
                     visible: root.ctl.shared
                     spacing: 8
                     RowLayout {
                         Layout.fillWidth: true
                         Eyebrow { objectName: "participantsTitle"; text: root.ctl.participantsTitle }
-                        Item { Layout.fillWidth: true }
-                        FbLabel { text: qsTr("only you can change"); font.pixelSize: 11; color: Theme.gameTextMuted }
+                        FbLabel {
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            horizontalAlignment: Text.AlignRight
+                            elide: Text.ElideRight
+                            text: qsTr("only you can change")
+                            font.pixelSize: 11
+                            color: Theme.gameTextMuted
+                        }
                     }
                     FbLabel {
                         visible: root.ctl.participants.length === 0
@@ -142,13 +157,24 @@ Rectangle {
                 ColumnLayout {
                     objectName: "inviteBlock"
                     Layout.fillWidth: true
+                    // Never wider than the panel: a header row whose labels need more room (no fonts, long
+                    // translations) must elide instead of pushing the action buttons out of the viewport.
+                    Layout.minimumWidth: 0
+                    Layout.maximumWidth: col.width
                     visible: root.ctl.visibility === "invite_only"
                     spacing: 8
                     RowLayout {
                         Layout.fillWidth: true
                         FbLabel { text: qsTr("Invite"); font.pixelSize: 12; color: Theme.gameTextMuted }
-                        Item { Layout.fillWidth: true }
-                        FbLabel { text: qsTr("users of this Hub"); font.pixelSize: 11; color: Theme.gameTextMuted }
+                        FbLabel {
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            horizontalAlignment: Text.AlignRight
+                            elide: Text.ElideRight
+                            text: qsTr("users of this Hub")
+                            font.pixelSize: 11
+                            color: Theme.gameTextMuted
+                        }
                     }
                     FbField {
                         id: inviteField

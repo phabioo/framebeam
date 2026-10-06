@@ -266,27 +266,28 @@ struct Harness {
     }
     QQuickTest::qWaitForPolish(window);
     const QPointF p = it->mapToScene(QPointF(it->width() / 2, it->height() / 2));
-    // Strict hit test: the point must be inside the window and the topmost item there must be the target or one of
-    // its descendants; otherwise the click would be lost, so fail explicitly with the geometry.
+    // Clip-aware visibility check: the point must be inside the window and inside the scene rect of every clipping
+    // ancestor (e.g. a Flickable); otherwise the click would be lost, so fail explicitly with the geometry.
+    // (childAt() is not usable as a "will it land" test: it also returns overlay items that ignore the mouse.)
     const QRectF sceneRect = it->mapRectToScene(QRectF(0, 0, it->width(), it->height()));
-    QQuickItem* hit = window->contentItem();
-    const bool inWindow = p.x() >= 0 && p.y() >= 0 && p.x() < window->width() && p.y() < window->height();
-    if (inWindow) {
-      QPointF local = p;
-      while (QQuickItem* c = hit->childAt(local.x(), local.y())) {
-        local = hit->mapToItem(c, local);
-        hit = c;
-      }
-    }
-    bool inside = false;
-    for (QQuickItem* a = hit; inWindow && a != nullptr; a = a->parentItem()) {
-      inside = inside || a == it;
-    }
-    if (!inside) {
-      qWarning("[uitest] click on '%s' lost: point (%.0f,%.0f), target scene rect (%.0f,%.0f %.0fx%.0f), window %dx%d, hit '%s'",
-               objectName, p.x(), p.y(), sceneRect.x(), sceneRect.y(), sceneRect.width(), sceneRect.height(), window->width(),
-               window->height(), inWindow ? qPrintable(hit->objectName()) : "(outside window)");
+    if (p.x() < 0 || p.y() < 0 || p.x() >= window->width() || p.y() >= window->height()) {
+      qWarning("[uitest] click on '%s' lost: point (%.0f,%.0f) outside the window %dx%d (target scene rect %.0f,%.0f %.0fx%.0f)",
+               objectName, p.x(), p.y(), window->width(), window->height(), sceneRect.x(), sceneRect.y(), sceneRect.width(),
+               sceneRect.height());
       return false;
+    }
+    for (QQuickItem* a = it->parentItem(); a != nullptr; a = a->parentItem()) {
+      if (!a->clip()) {
+        continue;
+      }
+      const QRectF cr = a->mapRectToScene(QRectF(0, 0, a->width(), a->height()));
+      if (!cr.contains(p)) {
+        qWarning("[uitest] click on '%s' lost: point (%.0f,%.0f) outside clipping ancestor '%s' (%s, scene rect %.0f,%.0f %.0fx%.0f); "
+                 "target scene rect %.0f,%.0f %.0fx%.0f",
+                 objectName, p.x(), p.y(), qPrintable(a->objectName()), a->metaObject()->className(), cr.x(), cr.y(), cr.width(),
+                 cr.height(), sceneRect.x(), sceneRect.y(), sceneRect.width(), sceneRect.height());
+        return false;
+      }
     }
     QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier, p.toPoint());
     return true;
