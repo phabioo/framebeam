@@ -13,7 +13,7 @@ Phase plan: [Workflow](docs/workflow.md#phase-plan).
 | 2 Playable vertical slice | done | Player core (profile, pairing, library, ROM cache), melonDS DS via Libretro, minimal Qt UI |
 | 3 Saves | done | Save storage, sync, versions, conflict model ([ADR 0005](docs/adr/0005-saves-phase3.md)) |
 | 4 Session sharing and multiview | done (tested locally on two Windows PCs) | Presence, signaling, WebRTC, multiview ([ADR 0006](docs/adr/0006-sessions-phase4.md), accepted) |
-| 5 Remainder and polish | done in the cloud, pending local test | Users and invites, user uploads, systems and firmware, Emulation and Controllers pages, appearance, Windows installer ([ADR 0007](docs/adr/0007-phase5.md), proposed) |
+| 5 Remainder and polish | done in the cloud, pending local test | Users and invites, user uploads, systems and firmware, Emulation and Controllers pages, appearance, Windows installer ([ADR 0007](docs/adr/0007-phase5.md), accepted) |
 | Post-PoC | planned | Installers for all platforms, integrated updater |
 
 ## What works
@@ -152,6 +152,6 @@ Keyboard: Arrows, X=A, Z=B, S=X, A=Y, Q=L, W=R, Enter=Start, Backspace=Select, E
 - [ADR 0003: Player in phase 2](docs/adr/0003-player-phase2.md) (accepted)
 - [ADR 0005: Saves in phase 3](docs/adr/0005-saves-phase3.md) (accepted)
 - [ADR 0006: Sessions in phase 4](docs/adr/0006-sessions-phase4.md) (accepted)
-- [ADR 0007: Phase 5, users, firmware, settings pages, gamepads, installer](docs/adr/0007-phase5.md) (proposed)
+- [ADR 0007: Phase 5, users, firmware, settings pages, gamepads, installer](docs/adr/0007-phase5.md) (accepted)
 - [Design](docs/design/README.md)
 - [Working with Claude Code](docs/workflow.md)
