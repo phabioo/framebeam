@@ -70,7 +70,7 @@ Lines 748-785. Phase 5. Hub-local accounts and onboarding invites.
 - Side panel "Onboarding invites" (18/600): text "The invited person redeems the code in the Player and chooses a display name. This is not a Session invite."; button "Create invite" (dark, 36).
   - Active invite (card): "Active", "expires in 42 min" (warn); code mono 24 "FB-7KQ2-M9XD"; toggle (on) "Authorize first device directly"; "Single use"; buttons "Copy link" (outline), "Revoke" (red).
   - History (muted): "FB-2HC9-…" "redeemed by Jonas · 02.09."; "FB-Q81M-…" "expired · 30.09.".
-- Open: "Create user" dialog (no button drawn), role change, deletion, selectable expiry duration (unclear); example codes are mock.
+- Open: "Create user" dialog (no button drawn), role change, deletion, selectable expiry duration (unclear); example codes are mock. Implemented without 'Copy link': the code is shown once at creation and only its hash is stored (ADR 0007).
 
 ## 3o Hub Settings
 Lines 791-819. Phase 1 (Hub name, address, certificate/TLS, admin account); phase 5 (appearance, upload option; "Allow users to upload games" requires users).

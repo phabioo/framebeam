@@ -1,16 +1,17 @@
 # client – FrameBeam Player
 
-C++/Qt Player: emulates locally, synchronizes saves, shares Sessions. Status of phase 2: Hub profile, pairing, library, ROM cache, emulation (melonDS DS) and minimal UI. Decisions: [ADR 0003](../docs/adr/0003-player-phase2.md) (accepted). Rules for agents: `CLAUDE.md`.
+C++/Qt Player: emulates locally, synchronizes saves, shares Sessions. The Player covers phases 2-5: Hub profiles, pairing and invites, library, ROM cache, emulation with melonDS DS, save sync, Sessions and multiview, Emulation and Controllers pages, appearance. Decisions: [ADR 0003](../docs/adr/0003-player-phase2.md), [ADR 0004](../docs/adr/0004-player-portable-data.md), [ADR 0005](../docs/adr/0005-saves-phase3.md), [ADR 0006](../docs/adr/0006-sessions-phase4.md), [ADR 0007](../docs/adr/0007-phase5.md). Rules for agents: `CLAUDE.md`.
 
 ## Structure
 
 - `core/`: profiles, ROM cache, credential store, version, local settings stores (`player.json`, `emulation.json`, `controllers.json`) (`framebeam_core`)
-- `network/`: Hub connection (HTTP/TLS with fingerprint pinning), library, ROM download
-- `emulation/`: `EmulatorBackend`/`LibretroBackend`, system manifests (`manifests/`), core locator
+- `network/`: Hub connection (HTTP/TLS with fingerprint pinning), library, ROM download, WSS client (`hubsocket`), save API and sync (`saveapi`, `savesync`), Session API, firmware provisioning, game upload, systems registry; CLI `framebeam_player_cli` in `network/cli/`
+- `emulation/`: `EmulatorBackend`/`LibretroBackend`, system manifests (`manifests/`), core locator, `core_options`, `firmware_materializer`, `emulation_runner`, test-ROM generator in `emulation/tools/`
 - `input/`: `framebeam_input`: SDL3 gamepad service (hotplug, state, capture) and the mapping chain; `framebeam_sdl3` (SDL3 target)
-- `ui/`: QML module `FrameBeam.Player` as static lib `framebeam_ui`
+- `ui/`: QML module `FrameBeam.Player` as static lib `framebeam_ui`; screens: connection, pairing, library, game/Session/multiview, Emulation, Controllers, Settings
 - `app/`: executable `framebeam_player`
-- `media/`: `framebeam_media_deps` (libdatachannel, FFmpeg, Opus) and the `media_deps` smoke test; media path follows in phase 4
+- `media/`: `framebeam_media`: H.264 encoder/decoder (libavcodec), Opus, audio resampler, `SessionHost`/`SessionViewer` (WebRTC via libdatachannel), plus `framebeam_media_deps` smoke test
+- `testutil/`: test helpers
 
 ## Dependencies
 

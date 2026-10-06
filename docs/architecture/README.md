@@ -1,6 +1,6 @@
 # Architecture – index
 
-Draft 0.1. Read only the file you need.
+Draft 0.1, the design basis of the PoC. The PoC (phases 0-5) is implemented; where the implementation refines or deviates, the ADRs apply (see below). Read only the file you need.
 
 - `01-overview.md` – goal, basic principle, responsibilities, tech stack – sections 1, 2
 - `02-protocols-and-rom-cache.md` – protocols, data flows, handshake, game launch, ROM cache – section 3 (without save sync)
@@ -15,3 +15,19 @@ Draft 0.1. Read only the file you need.
 - `11-metadata-future.md` – central game metadata and artwork (future) – section 15
 
 Design specification of the UI screens: `../design/README.md`.
+
+## Status after the PoC
+
+| File | Refined by | Deviations and notes as built |
+|---|---|---|
+| `01-overview.md` | ADR 0001, 0003, 0006, 0007 | C++20 baseline, not C++23 (ADR 0001). Audio output via Qt Multimedia; SDL3 only for gamepads (ADR 0007). Software H.264 via libopenh264 (Windows) / libx264 (Linux); NVENC/QSV/AMF are probed at runtime (ADR 0006 D5) but not built into the Windows FFmpeg (`client/vcpkg.json`), so hardware encoding is not available yet. |
+| `02-protocols-and-rom-cache.md` | ADR 0002, 0005, 0006, 0007 | Endpoints and messages are specified in `protocol/` (OpenAPI 1.3.0, `protocol_version` 1); info endpoint `/.well-known/framebeam`; compatibility rules `player_too_old`/`hub_too_old` (ADR 0002). `core_missing`/`core_version_mismatch` are warnings, launch allowed (ADR 0007). Still open: ROM cache limit and cleanup. |
+| `03-saves.md` | ADR 0005 | Two counters: checkpoint "Rev N", history "vN"; 64 MiB per slot; "Keep both, decide later" starts with the local save and pauses uploads. Still open: retention, Restore from history, multiple slots in the UI, WS push of save changes, manual snapshot in the Player. |
+| `04-sessions-and-multiview.md` | ADR 0006 | Private = devices of the owner user. Invite only is fully implemented (beyond the data-model minimum). Max 4 viewers. No TURN; optional STUN via Hub flag `-ice-servers`. Exactly one audible surface. Still open: bitrate adaptation, RTT in diagnostics, TURN. |
+| `05-emulation.md` | ADR 0003, 0007 | Firmware: the Hub ships no expected hashes; it validates size and an optional admin-pinned SHA-256 (ADR 0007 D4). Core version mismatch only warns (accepted deviation, ADR 0007). Game Override level is shown but disabled. Core package cache and Player core cache not implemented (later). |
+| `06-controllers.md` | ADR 0007 | As specified; first gamepad is P1; profiles local in `controllers.json`. |
+| `07-poc-scope.md` | ADR 0003-0007 | All PoC rows delivered. Linux Player builds and runs for development, but keeps credentials in memory only (not a PoC target). |
+| `08-repo-and-open-points.md` | ADR 0002, 0005, 0006, 0007 | Decided since: token format and lifetimes (ADR 0002), endpoints/messages (`protocol/`), ICE/STUN (ADR 0006 D4), media parameters (ADR 0006 D5), firmware manifest `client/emulation/manifests/nds.json` (ADR 0007). Still open: TLS renewal and confirmed pin change, save retention, cache limits, TURN, core package format, installer/updater details. The tree's `client/` additionally has `input/` and `testutil/`. |
+| `09-ui-and-navigation.md` | ADR 0006, 0007 | Diagnostics is a tab in game and collapsible (ADR 0006 D6). The Player has no "Settings → Hubs"; Hubs are switched and removed on the connection screen. |
+| `10-identity-pairing-tls.md` | ADR 0002, 0003, 0007 | Pairing requests expire after 10 min; invite redemption `POST /api/v1/invites/redeem`, invite expiry 15 min / 1 h / 24 h (ADR 0007 D1). Credential store: Windows Credential Manager; Linux/macOS in memory only (open). A pairing-code alternative is not implemented. Confirmed pin change still open. |
+| `11-metadata-future.md` | none | Future, unchanged. |

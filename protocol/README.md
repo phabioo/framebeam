@@ -5,6 +5,7 @@ Shared protocol definition for Hub and Player (`openapi/`, `schemas/`). Rules: `
 - Current `protocol_version`: **1** (integer, separate from product versions). Hub and Player each report `protocol_version` and `min_protocol_version`.
 - Compatibility: `Player.protocol_version < Hub.min_protocol_version` -> `player_too_old`; `Hub.protocol_version < Player.min_protocol_version` -> `hub_too_old`.
 - Error format: `{"error": {"code": <enum>, "message": string}}`. Auth: Bearer (`fba_` access token, 15 min, `fbd_` device credential, `fbp_` poll token).
+- Current OpenAPI spec version: 1.3.0.
 - Source: `openapi/framebeam.yaml` (OpenAPI 3.0.3); WSS schemas (draft 2020-12) and examples in `schemas/`.
 
 | Method | Path | Auth | operationId |
@@ -36,7 +37,13 @@ Shared protocol definition for Hub and Player (`openapi/`, `schemas/`). Rules: `
 | POST | `/api/v1/sessions/{session_id}/decline` | Bearer (invited user) | declineSession |
 | POST | `/api/v1/sessions/{session_id}/join` | Bearer | joinSession (`{viewer_id, permissions, ice_servers}`; 409 `session_full` / `capability_missing` without H.264 decode) |
 | DELETE | `/api/v1/sessions/{session_id}/viewers/{viewer_id}` | Bearer (owner device or that viewer) | removeSessionViewer |
+| POST | `/api/v1/invites/redeem` | none | redeemInvite |
+| POST | `/api/v1/games` | Bearer | uploadGame (raw body, 403 `uploads_disabled`) |
+| GET | `/api/v1/systems` | Bearer | listSystems |
+| GET | `/api/v1/systems/{system_id}/firmware/{file_id}` | Bearer | getFirmwareFile (ETag) |
 | GET | `/api/v1/ws` | Bearer | connectWebSocket (WSS upgrade, documentation only) |
+
+Phase 3 (OpenAPI 1.1.0, handshake feature `saves_v1`, `protocol_version` stays 1). Error codes added: `save_conflict` (409), `save_conflict_stale` (409), `payload_too_large` (413). Rules: ADR 0005.
 
 Phase 4 (OpenAPI 1.2.0, handshake feature `sessions_v1`, `protocol_version` stays 1). Error codes added: `session_not_found` (404), `session_forbidden` (403), `session_full` (409), `session_ended` (410); `capability_missing` is returned as 409. Rules: ADR 0006.
 
