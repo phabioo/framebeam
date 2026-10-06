@@ -132,5 +132,6 @@ Keyboard: Arrows, X=A, Z=B, S=X, A=Y, Q=L, W=R, Enter=Start, Backspace=Select, E
 - [ADR 0003: Player in phase 2](docs/adr/0003-player-phase2.md) (accepted)
 - [ADR 0005: Saves in phase 3](docs/adr/0005-saves-phase3.md) (accepted)
 - [ADR 0006: Sessions in phase 4](docs/adr/0006-sessions-phase4.md) (accepted)
+- [ADR 0007: Phase 5, users, firmware, settings pages, gamepads, installer](docs/adr/0007-phase5.md) (proposed)
 - [Design](docs/design/README.md)
 - [Working with Claude Code](docs/workflow.md)
