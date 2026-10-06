@@ -1,5 +1,5 @@
 {{define "head"}}<!doctype html>
-<html lang="en">
+<html lang="en" data-theme="{{.Theme}}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -19,7 +19,9 @@
     <nav class="nav" aria-label="Main navigation">
       <a href="/library"{{if eq .Nav "library"}} class="active" aria-current="page"{{end}}>Library</a>
       <a href="/saves"{{if eq .Nav "saves"}} class="active" aria-current="page"{{end}}>Saves{{if .Conflicts}}<span class="badge">{{.Conflicts}} {{if eq .Conflicts 1}}conflict{{else}}conflicts{{end}}</span>{{end}}</a>
+      <a href="/systems"{{if eq .Nav "systems"}} class="active" aria-current="page"{{end}}>Systems &amp; Cores{{if .Firmware}}<span class="badge error">{{.Firmware}} firmware</span>{{end}}</a>
       <a href="/clients"{{if eq .Nav "clients"}} class="active" aria-current="page"{{end}}>Clients{{if .Pending}}<span class="badge">{{.Pending}} {{if eq .Pending 1}}request{{else}}requests{{end}}</span>{{end}}</a>
+      <a href="/users"{{if eq .Nav "users"}} class="active" aria-current="page"{{end}}>Users</a>
       <a href="/settings"{{if eq .Nav "settings"}} class="active" aria-current="page"{{end}}>Settings</a>
     </nav>
     <div class="sidebar-foot">

@@ -333,7 +333,7 @@ func (s *Service) PublishSession(ctx context.Context, p Principal, gameID string
 		return Session{}, err
 	}
 	if enc != nil && !*enc {
-		return Session{}, &Error{CodeCapabilityMissing, "Device cannot encode H.264"}
+		return Session{}, &Error{Code: CodeCapabilityMissing, Message: "Device cannot encode H.264"}
 	}
 	s.sess.mu.Lock()
 	defer s.sess.mu.Unlock()
@@ -467,7 +467,7 @@ func (s *Service) WithdrawInvite(ctx context.Context, p Principal, id, userID st
 		return internal(err)
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
-		return &Error{CodeNotFound, "Invite not found"}
+		return &Error{Code: CodeNotFound, Message: "Invite not found"}
 	}
 	_, err = s.reconcile(ctx, before, map[string]bool{userID: true}, "")
 	return err
@@ -510,7 +510,7 @@ func (s *Service) JoinSession(ctx context.Context, p Principal, id string) (Join
 		return JoinResult{}, badRequest("A device cannot join its own Session")
 	}
 	if dec != nil && !*dec {
-		return JoinResult{}, &Error{CodeCapabilityMissing, "Device cannot decode H.264"}
+		return JoinResult{}, &Error{Code: CodeCapabilityMissing, Message: "Device cannot decode H.264"}
 	}
 	res := JoinResult{Permissions: ViewerPermissions{ViewVideo: true, HearAudio: true}, ICEServers: s.ICEServers()}
 	if v := before.viewerByDevice(p.Device.ID); v != nil {
@@ -548,7 +548,7 @@ func (s *Service) RemoveViewer(ctx context.Context, p Principal, id, viewerID st
 	v := before.viewerByID(viewerID)
 	switch {
 	case v == nil && owner:
-		return &Error{CodeNotFound, "Viewer not found"}
+		return &Error{Code: CodeNotFound, Message: "Viewer not found"}
 	case v == nil || (!owner && v.deviceID != p.Device.ID):
 		return ErrSessionForbidden
 	}

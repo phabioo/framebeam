@@ -2,6 +2,7 @@
 
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -64,6 +65,12 @@ QPointF DisplayProfile::toFrameNormalized(int screenIndex, QPointF n) const {
   return {(r.x() + n.x() * r.width()) / fs.width(), (r.y() + n.y() * r.height()) / fs.height()};
 }
 
+const FirmwareFile* FirmwareSpec::fileById(const QString& id) const {
+  for (const FirmwareFile& f : files)
+    if (f.id == id) return &f;
+  return nullptr;
+}
+
 bool SystemManifest::supportsExtension(const QString& ext) const { return extensions.contains(normExt(ext)); }
 
 std::optional<SystemManifest> ManifestRegistry::parse(const QByteArray& json, QString* error) {
@@ -91,10 +98,22 @@ std::optional<SystemManifest> ManifestRegistry::parse(const QByteArray& json, QS
 
   const QJsonObject fw = o.value(QLatin1String("firmware")).toObject();
   m.firmware.required = fw.value(QLatin1String("required")).toBool(false);
+  m.firmware.sysfileOption = fw.value(QLatin1String("sysfile_option")).toString();
+  m.firmware.sysfileNative = fw.value(QLatin1String("sysfile_native")).toString(m.firmware.sysfileNative);
+  m.firmware.sysfileBuiltin = fw.value(QLatin1String("sysfile_builtin")).toString(m.firmware.sysfileBuiltin);
   for (const QJsonValue& v : fw.value(QLatin1String("files")).toArray()) {
     const QJsonObject f = v.toObject();
-    if (f.value(QLatin1String("name")).toString().isEmpty()) return fail(QStringLiteral("firmware.files: name missing"));
-    m.firmware.files.append({f.value(QLatin1String("name")).toString(), f.value(QLatin1String("required")).toBool(false)});
+    FirmwareFile ff;
+    ff.name = f.value(QLatin1String("name")).toString();
+    // The name ends up in the system directory: plain file name only.
+    if (ff.name.isEmpty() || ff.name.contains(QLatin1Char('/')) || ff.name.contains(QLatin1Char('\\')) ||
+        ff.name.startsWith(QLatin1Char('.'))) {
+      return fail(QStringLiteral("firmware.files: invalid name"));
+    }
+    ff.id = f.value(QLatin1String("id")).toString(QFileInfo(ff.name).completeBaseName());
+    ff.required = f.value(QLatin1String("required")).toBool(false);
+    ff.coreOption = f.value(QLatin1String("core_option")).toString();
+    m.firmware.files.append(ff);
   }
 
   m.inputProfile = o.value(QLatin1String("input_profile")).toString();
@@ -117,6 +136,9 @@ std::optional<SystemManifest> ManifestRegistry::parse(const QByteArray& json, QS
 
   const QJsonObject co = o.value(QLatin1String("core_options")).toObject();
   for (auto it = co.begin(); it != co.end(); ++it) m.coreOptions.insert(it.key(), it.value().toString());
+  for (const QJsonValue& v : o.value(QLatin1String("locked_core_options")).toArray()) {
+    if (v.isString()) m.lockedCoreOptions.append(v.toString());
+  }
   return m;
 }
 

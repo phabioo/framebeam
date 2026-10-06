@@ -6,16 +6,24 @@
 #include <QList>
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <QVariantList>
 #include <QVariantMap>
 #include <QtQml/qqmlregistration.h>
 #include <memory>
 
+#include "controllerscontroller.h"
 #include "core_locator.h"
+#include "emulationcontroller.h"
+#include "firmwarecache.h"
+#include "firmwareprovisioner.h"
 #include "gamesession.h"
+#include "gameuploader.h"
 #include "hubconnection.h"
 #include "hublibrary.h"
+#include "hubsystems.h"
 #include "librarymodel.h"
+#include "playersettings.h"
 #include "romcache.h"
 #include "romdownloader.h"
 #include "savesync.h"
@@ -29,7 +37,7 @@ class PlayerController : public QObject {
   QML_ELEMENT
   QML_UNCREATABLE("Created in main.cpp")
 
-  // Navigation: "connection" | "pairing" | "library" | "game"
+  // Navigation: "connection" | "pairing" | "library" | "game" | "settings"
   Q_PROPERTY(QString screen READ screen NOTIFY screenChanged)
 
   // 3a
@@ -52,6 +60,17 @@ class PlayerController : public QObject {
   Q_PROPERTY(QString saveNote READ saveNote NOTIFY hubChanged)
   // Game view
   Q_PROPERTY(framebeam::ui::GameSession* gameSession READ gameSession CONSTANT)
+  // Phase 5: appearance (Settings page), upload, core warnings
+  Q_PROPERTY(QString appearance READ appearance WRITE setAppearance NOTIFY appearanceChanged)  // dark | light | system
+  Q_PROPERTY(bool darkMode READ darkMode NOTIFY appearanceChanged)  // effective palette (System resolved)
+  Q_PROPERTY(bool canUpload READ canUpload NOTIFY hubChanged)       // handshake feature uploads_v1
+  Q_PROPERTY(QVariantMap upload READ upload NOTIFY uploadChanged)   // active, fileName, progress, message, isError
+  Q_PROPERTY(QStringList uploadFilters READ uploadFilters CONSTANT)
+  Q_PROPERTY(QVariantList coreWarnings READ coreWarnings NOTIFY hubChanged)  // core_missing / core_version_mismatch
+  // Phase 5: Emulation page (3e), Controllers page (3f), applied settings
+  Q_PROPERTY(framebeam::ui::EmulationController* emulation READ emulation CONSTANT)
+  Q_PROPERTY(framebeam::ui::ControllersController* controllers READ controllers CONSTANT)
+  Q_PROPERTY(bool fullscreenOnStart READ fullscreenOnStart NOTIFY emulationSettingsChanged)  // effective FrameBeam option
   // Phase 4: Sessions (3c list, 3g panel, multiview, diagnostics)
   Q_PROPERTY(framebeam::ui::SessionController* sessions READ sessions CONSTANT)
 
@@ -61,6 +80,8 @@ class PlayerController : public QObject {
     bool allowHttp = false;         // --dev-allow-http
     bool memoryCredentials = false; // tests: no OS credential store
     bool probeCoreVersions = true;  // determine core version for the handshake (briefly loads the core)
+    bool enableGamepads = true;     // SDL3 gamepads (tests without hardware use SDL virtual joysticks)
+    int gamepadPollMs = 8;          // <= 0: no poll timer (tests call controllers()->gamepads()->poll())
   };
 
   explicit PlayerController(const Options& options, QObject* parent = nullptr);
@@ -85,6 +106,16 @@ class PlayerController : public QObject {
   QVariantMap selectedGame() const;
   GameSession* gameSession() { return &session_; }
   SessionController* sessions() { return sessions_.get(); }
+  EmulationController* emulation() { return emulation_.get(); }
+  ControllersController* controllers() { return controllers_.get(); }
+  bool fullscreenOnStart() const;
+  QString appearance() const;
+  void setAppearance(const QString& name);
+  bool darkMode() const;
+  bool canUpload() const;
+  QVariantMap upload() const { return upload_; }
+  QStringList uploadFilters() const;
+  QVariantList coreWarnings() const;
   QVariantMap saveConflict() const { return conflict_; }
   QString saveNote() const { return saves_ ? saves_->note() : QString(); }
   SaveSync* saveSync() { return saves_.get(); }
@@ -97,6 +128,10 @@ class PlayerController : public QObject {
   RomDownloader* downloader() { return downloader_.get(); }
   ProfileStore* profileStore() { return profiles_.get(); }
   const QList<CoreInfo>& handshakeCores() const { return coreList_; }
+  PlayerSettings* playerSettings() { return settings_.get(); }
+  HubSystems* hubSystems() { return systems_.get(); }
+  GameUploader* gameUploader() { return uploader_.get(); }
+  FirmwareCache* firmwareCache() { return fwCache_.get(); }
 
   static QString formatFingerprint(const QString& fp);
   static QString platformLabel(const QString& platform, const QString& arch);
@@ -110,6 +145,8 @@ class PlayerController : public QObject {
   Q_INVOKABLE void rejectTrust();
   Q_INVOKABLE void requestPairing();
   Q_INVOKABLE void cancelPairing();
+  // Onboarding invite (3b "Redeem invite"): code + display name.
+  Q_INVOKABLE void redeemInvite(const QString& code, const QString& displayName);
   Q_INVOKABLE void leavePairing();
   // 3c
   Q_INVOKABLE void switchHub();
@@ -120,6 +157,16 @@ class PlayerController : public QObject {
   Q_INVOKABLE void playAndShareSelected();
   // "← Library" in the game view: ends the running game (with save) or leaves the watched Session.
   Q_INVOKABLE void leaveGameView();
+  // Library header / Sidebar
+  Q_INVOKABLE void showLibrary();
+  Q_INVOKABLE void showSettings();
+  Q_INVOKABLE void showEmulation();
+  Q_INVOKABLE void showControllers();
+  // "Upload ROM": source = local path or file:// URL (from the file dialog). Streamed; progress in upload.
+  Q_INVOKABLE void uploadRom(const QString& source);
+  Q_INVOKABLE void dismissUploadMessage();
+  // Detail pane "Check again": reloads the systems registry (firmware status) after the admin changed something.
+  Q_INVOKABLE void recheckFirmware();
   // Game view
   Q_INVOKABLE void quitGame();
   // Conflict dialog: "use_hub" | "use_local" | "later" (Keep both, decide later)
@@ -134,9 +181,12 @@ class PlayerController : public QObject {
   void libraryStateChanged();
   void selectedGameChanged();
   void saveConflictChanged();
+  void appearanceChanged();
+  void uploadChanged();
+  void emulationSettingsChanged();
 
  private:
-  enum class PlayPhase { None, Rom, Launching };
+  enum class PlayPhase { None, Firmware, Rom, Launching };
 
   void onConnectionState(HubConnection::State s);
   void onLibraryLoaded();
@@ -145,6 +195,16 @@ class PlayerController : public QObject {
   void launch(const GameEntry& game, const QString& romPath);
   void updateScreen();
   void probeCores();
+  void refreshEmulationPage();
+  QVariantList systemCards();
+  void applyFrameBeamOptions();
+  void onFirmwareFinished(const FirmwareResult& result);
+  void onUploadFinished(const UploadResult& result);
+  void beginRomPhase(const GameEntry& game);
+  // Firmware mode of the Hub for the system of this manifest: true = native (files required).
+  bool nativeFirmware(const emu::SystemManifest& man, SystemInfo* system = nullptr) const;
+  QStringList wantedFirmwareIds(const emu::SystemManifest& man) const;
+  QString friendlyError(const QString& code, const QString& message) const;
   const emu::SystemManifest* manifestFor(const GameEntry& game) const;
   QString coreLabel(const emu::SystemManifest& m, const emu::CoreLocation& loc) const;
   QString systemDir() const;
@@ -161,18 +221,32 @@ class PlayerController : public QObject {
   std::unique_ptr<RomCache> cache_;
   std::unique_ptr<RomDownloader> downloader_;
   std::unique_ptr<SaveSync> saves_;
+  std::unique_ptr<PlayerSettings> settings_;
+  std::unique_ptr<FirmwareCache> fwCache_;
+  std::unique_ptr<HubSystems> systems_;
+  std::unique_ptr<FirmwareProvisioner> provisioner_;
+  std::unique_ptr<GameUploader> uploader_;
   emu::ManifestRegistry manifests_;
   emu::CoreLocator locator_;
   QList<CoreInfo> coreList_;
+  QMap<QString, QString> coreVersions_;  // core_id -> version from the core info
   QMap<QString, QString> coreNames_;  // core_id -> name from the core info (only if probed)
   LibraryModel model_;
   GameSession session_;
   std::unique_ptr<SessionController> sessions_;
+  std::unique_ptr<EmulationController> emulation_;
+  std::unique_ptr<ControllersController> controllers_;
   bool shareOnStart_ = false;
   void endGameContext();
   void startSelected(bool share);
 
   QString screen_ = QStringLiteral("connection");
+  QString page_ = QStringLiteral("library");  // page shown while connected: library | settings | emulation | controllers
+  bool inviteBusy_ = false;
+  QVariantMap upload_;
+  QString pendingSelectId_;             // select this game once the library reloaded (after an upload)
+  QList<FirmwareProblem> fwProblems_;   // last validation problems (cleared by recheckFirmware/new registry)
+  QMap<QString, QString> fwOptions_;    // firmware core options of the launch in progress
   bool pairingFlow_ = false;
   bool lastAttemptPairing_ = false;  // last attempt came from addHub (true) or connectProfile (false)
   QString notice_;

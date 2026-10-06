@@ -10,6 +10,8 @@ import (
 type pendingView struct {
 	ID, Name, Platform, Arch, PlayerVersion, Ago string
 	Protocol                                     int
+	// AssignTo is the preselected user: the pre-assigned (invite) user, else the admin.
+	AssignTo string
 }
 
 type deviceView struct {
@@ -42,13 +44,23 @@ func (s *Server) clientsData(r *http.Request) (clientsBody, error) {
 	now := s.svc.Now()
 	var b clientsBody
 	names := map[string]string{}
+	adminID := ""
 	for _, u := range users {
 		names[u.ID] = u.DisplayName
-		b.Users = append(b.Users, userOpt{u.ID, u.DisplayName})
+		if u.Role == hub.RoleAdmin && adminID == "" {
+			adminID = u.ID
+		}
+		if !u.Disabled() {
+			b.Users = append(b.Users, userOpt{u.ID, u.DisplayName})
+		}
 	}
 	for _, q := range reqs {
+		assign := adminID
+		if q.UserID != "" {
+			assign = q.UserID
+		}
 		b.Pending = append(b.Pending, pendingView{ID: q.ID, Name: q.DeviceName, Platform: q.Platform, Arch: q.Arch,
-			PlayerVersion: q.PlayerVersion, Protocol: q.ProtocolVersion, Ago: ago(q.CreatedAt, now)})
+			PlayerVersion: q.PlayerVersion, Protocol: q.ProtocolVersion, Ago: ago(q.CreatedAt, now), AssignTo: assign})
 	}
 	for _, d := range devs {
 		b.Devices = append(b.Devices, deviceView{ID: d.ID, Name: d.Name, User: names[d.UserID], Platform: d.Platform, Arch: d.Arch,

@@ -3,16 +3,47 @@
   "display_name": "Nintendo DS",
   "core_id": "melonds_ds",
   "core_library_basename": "melondsds_libretro",
-  "extensions": [".nds"],
-  "firmware": { "required": false, "files": [] },
+  "extensions": [
+    ".nds"
+  ],
+  "firmware": {
+    "required": false,
+    "sysfile_option": "melonds_sysfile_mode",
+    "sysfile_native": "native",
+    "sysfile_builtin": "builtin",
+    "files": [
+      {
+        "id": "bios7",
+        "name": "bios7.bin"
+      },
+      {
+        "id": "bios9",
+        "name": "bios9.bin"
+      },
+      {
+        "id": "firmware",
+        "name": "firmware.bin",
+        "core_option": "melonds_firmware_nds_path"
+      }
+    ]
+  },
   "input_profile": "nds",
   "display_profile": "dual_screen",
   "display": {
     "layout": "vertical",
     "gap": 0,
     "screens": [
-      { "id": "top", "width": 256, "height": 192 },
-      { "id": "bottom", "width": 256, "height": 192, "touch": true }
+      {
+        "id": "top",
+        "width": 256,
+        "height": 192
+      },
+      {
+        "id": "bottom",
+        "width": 256,
+        "height": 192,
+        "touch": true
+      }
     ]
   },
   "core_options": {
@@ -25,6 +56,35 @@
     "melonds_show_mic_state": "disabled",
     "melonds_show_lid_state": "disabled",
     "melonds_show_camera_state": "disabled",
-    "melonds_show_sensor_reading": "disabled"
-  }
+    "melonds_show_sensor_reading": "disabled",
+    "melonds_touch_mode": "auto",
+    "melonds_show_unsupported_features": "disabled",
+    "melonds_show_bios_warnings": "disabled"
+  },
+  "locked_core_options": [
+    "melonds_render_mode",
+    "melonds_screen_layout1",
+    "melonds_number_of_screen_layouts",
+    "melonds_screen_gap",
+    "melonds_show_current_layout",
+    "melonds_show_mic_state",
+    "melonds_show_lid_state",
+    "melonds_show_camera_state",
+    "melonds_show_sensor_reading",
+    "melonds_touch_mode",
+    "melonds_show_unsupported_features",
+    "melonds_show_bios_warnings",
+    "melonds_screen_layout2",
+    "melonds_screen_layout3",
+    "melonds_screen_layout4",
+    "melonds_screen_layout5",
+    "melonds_screen_layout6",
+    "melonds_screen_layout7",
+    "melonds_screen_layout8",
+    "melonds_hybrid_ratio",
+    "melonds_hybrid_small_screen",
+    "melonds_opengl_filtering",
+    "melonds_secondary_screen_scale",
+    "melonds_secondary_screen_filtering"
+  ]
 }

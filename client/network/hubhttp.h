@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QByteArray>
+#include <QIODevice>
 #include <QJsonObject>
 #include <QList>
 #include <QNetworkAccessManager>
@@ -56,6 +57,12 @@ class HubHttp : public QObject {
   // Arbitrary method with a raw body (e.g. PUT of a save file).
   QNetworkReply* send(const QByteArray& method, const QString& path, const QByteArray& body, const QByteArray& bearer,
                       const HttpHeaders& headers = {}, const QByteArray& contentType = "application/octet-stream");
+  // Streamed body from a device (large uploads, not buffered in memory). The device must stay valid until the reply
+  // finishes (the caller parents it to the reply). transferTimeoutMs: inactivity timeout (the hub may need a while
+  // to hash a large body after the last byte).
+  QNetworkReply* sendStream(const QByteArray& method, const QString& path, QIODevice* body, const QByteArray& bearer,
+                            const HttpHeaders& headers = {}, const QByteArray& contentType = "application/octet-stream",
+                            int transferTimeoutMs = 600000);
 
  private:
   QNetworkRequest makeRequest(const QString& path, const QByteArray& bearer, const HttpHeaders& headers) const;

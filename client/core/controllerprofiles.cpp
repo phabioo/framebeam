@@ -1,0 +1,313 @@
+#include "controllerprofiles.h"
+
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QMetaEnum>
+#include <QSaveFile>
+#include <QUuid>
+#include <Qt>
+
+namespace framebeam {
+
+const QList<InputDef>& frameBeamInputs() {
+  static const QList<InputDef> inputs = {
+      {QStringLiteral("a"), QStringLiteral("A"), QStringLiteral("A")},
+      {QStringLiteral("b"), QStringLiteral("B"), QStringLiteral("B")},
+      {QStringLiteral("x"), QStringLiteral("X"), QStringLiteral("X")},
+      {QStringLiteral("y"), QStringLiteral("Y"), QStringLiteral("Y")},
+      {QStringLiteral("l"), QStringLiteral("L"), QStringLiteral("L")},
+      {QStringLiteral("r"), QStringLiteral("R"), QStringLiteral("R")},
+      {QStringLiteral("start"), QStringLiteral("Start"), QStringLiteral("START")},
+      {QStringLiteral("select"), QStringLiteral("Select"), QStringLiteral("SELECT")},
+      {QStringLiteral("up"), QStringLiteral("D-pad up"), QStringLiteral("D-PAD ▲")},
+      {QStringLiteral("down"), QStringLiteral("D-pad down"), QStringLiteral("D-PAD ▼")},
+      {QStringLiteral("left"), QStringLiteral("D-pad left"), QStringLiteral("D-PAD ◀")},
+      {QStringLiteral("right"), QStringLiteral("D-pad right"), QStringLiteral("D-PAD ▶")},
+  };
+  return inputs;
+}
+
+int inputIndex(const QString& id) {
+  const auto& in = frameBeamInputs();
+  for (int i = 0; i < in.size(); ++i) {
+    if (in.at(i).id == id) return i;
+  }
+  return -1;
+}
+
+QString padToken(const QString& sdlName) { return QStringLiteral("pad:") + sdlName; }
+bool isPadToken(const QString& token) { return token.startsWith(QLatin1String("pad:")); }
+QString keyToken(int qtKey) { return QStringLiteral("key:") + QString::number(qtKey); }
+std::optional<int> keyFromToken(const QString& token) {
+  if (!token.startsWith(QLatin1String("key:"))) return std::nullopt;
+  bool ok = false;
+  const int k = token.mid(4).toInt(&ok);
+  return ok ? std::optional<int>(k) : std::nullopt;
+}
+
+QString tokenLabel(const QString& token) {
+  if (const auto k = keyFromToken(token)) {
+    // Qt::Key has a meta enum in QtCore (no QtGui needed): "Key_Return" -> "Return".
+    if (const char* name = QMetaEnum::fromType<Qt::Key>().valueToKey(*k)) {
+      QString n = QString::fromLatin1(name);
+      if (n.startsWith(QLatin1String("Key_"))) n = n.mid(4);
+      return n;
+    }
+    const char32_t ucs = static_cast<char32_t>(*k);
+    return *k > 0x20 && *k < 0x110000 ? QString::fromUcs4(reinterpret_cast<const char32_t*>(&ucs), 1) : QStringLiteral("Key %1").arg(*k);
+  }
+  static const QMap<QString, QString> kNames = {
+      {QStringLiteral("a"), QStringLiteral("A")},
+      {QStringLiteral("b"), QStringLiteral("B")},
+      {QStringLiteral("x"), QStringLiteral("X")},
+      {QStringLiteral("y"), QStringLiteral("Y")},
+      {QStringLiteral("back"), QStringLiteral("View / Back")},
+      {QStringLiteral("guide"), QStringLiteral("Guide")},
+      {QStringLiteral("start"), QStringLiteral("Menu / Start")},
+      {QStringLiteral("leftstick"), QStringLiteral("Left stick (press)")},
+      {QStringLiteral("rightstick"), QStringLiteral("Right stick (press)")},
+      {QStringLiteral("leftshoulder"), QStringLiteral("LB")},
+      {QStringLiteral("rightshoulder"), QStringLiteral("RB")},
+      {QStringLiteral("lefttrigger"), QStringLiteral("LT")},
+      {QStringLiteral("righttrigger"), QStringLiteral("RT")},
+      {QStringLiteral("dpup"), QStringLiteral("D-Pad ▲")},
+      {QStringLiteral("dpdown"), QStringLiteral("D-Pad ▼")},
+      {QStringLiteral("dpleft"), QStringLiteral("D-Pad ◀")},
+      {QStringLiteral("dpright"), QStringLiteral("D-Pad ▶")},
+      {QStringLiteral("leftx-"), QStringLiteral("Left stick ◀")},
+      {QStringLiteral("leftx+"), QStringLiteral("Left stick ▶")},
+      {QStringLiteral("lefty-"), QStringLiteral("Left stick ▲")},
+      {QStringLiteral("lefty+"), QStringLiteral("Left stick ▼")},
+  };
+  if (isPadToken(token)) {
+    const QString n = token.mid(4);
+    return kNames.value(n, n);
+  }
+  return token;
+}
+
+ControllerProfile ControllerProfiles::builtinProfile(const QString& kind) {
+  ControllerProfile p;
+  p.builtin = true;
+  p.kind = kind;
+  if (kind == QLatin1String("keyboard")) {
+    p.id = QString::fromLatin1(kBuiltinKeyboardId);
+    p.name = QStringLiteral("Keyboard · Standard");
+    // Same map as the former fixed keyboard mapping: arrows, X=A, Z=B, S=X, A=Y, Q=L, W=R, Enter=Start, Backspace=Select.
+    p.bindings = {
+        {QStringLiteral("a"), {keyToken(Qt::Key_X)}},
+        {QStringLiteral("b"), {keyToken(Qt::Key_Z)}},
+        {QStringLiteral("x"), {keyToken(Qt::Key_S)}},
+        {QStringLiteral("y"), {keyToken(Qt::Key_A)}},
+        {QStringLiteral("l"), {keyToken(Qt::Key_Q)}},
+        {QStringLiteral("r"), {keyToken(Qt::Key_W)}},
+        {QStringLiteral("start"), {keyToken(Qt::Key_Return), keyToken(Qt::Key_Enter)}},
+        {QStringLiteral("select"), {keyToken(Qt::Key_Backspace)}},
+        {QStringLiteral("up"), {keyToken(Qt::Key_Up)}},
+        {QStringLiteral("down"), {keyToken(Qt::Key_Down)}},
+        {QStringLiteral("left"), {keyToken(Qt::Key_Left)}},
+        {QStringLiteral("right"), {keyToken(Qt::Key_Right)}},
+    };
+  } else {
+    p.id = QString::fromLatin1(kBuiltinGamepadId);
+    p.name = QStringLiteral("Standard Gamepad");
+    p.kind = QStringLiteral("gamepad");
+    // The DS layout follows the positions of the buttons: NDS A = east button, B = south, X = north, Y = west.
+    p.bindings = {
+        {QStringLiteral("a"), {padToken(QStringLiteral("b"))}},
+        {QStringLiteral("b"), {padToken(QStringLiteral("a"))}},
+        {QStringLiteral("x"), {padToken(QStringLiteral("y"))}},
+        {QStringLiteral("y"), {padToken(QStringLiteral("x"))}},
+        {QStringLiteral("l"), {padToken(QStringLiteral("leftshoulder")), padToken(QStringLiteral("lefttrigger"))}},
+        {QStringLiteral("r"), {padToken(QStringLiteral("rightshoulder")), padToken(QStringLiteral("righttrigger"))}},
+        {QStringLiteral("start"), {padToken(QStringLiteral("start"))}},
+        {QStringLiteral("select"), {padToken(QStringLiteral("back"))}},
+        {QStringLiteral("up"), {padToken(QStringLiteral("dpup")), padToken(QStringLiteral("lefty-"))}},
+        {QStringLiteral("down"), {padToken(QStringLiteral("dpdown")), padToken(QStringLiteral("lefty+"))}},
+        {QStringLiteral("left"), {padToken(QStringLiteral("dpleft")), padToken(QStringLiteral("leftx-"))}},
+        {QStringLiteral("right"), {padToken(QStringLiteral("dpright")), padToken(QStringLiteral("leftx+"))}},
+    };
+  }
+  return p;
+}
+
+ControllerProfiles::ControllerProfiles(const QString& baseDir)
+    : path_(QDir(baseDir).filePath(QStringLiteral("settings/controllers.json"))) {
+  QFile f(path_);
+  if (!f.open(QIODevice::ReadOnly)) {
+    return;
+  }
+  QJsonParseError err;
+  const QJsonDocument doc = QJsonDocument::fromJson(f.readAll(), &err);
+  if (err.error != QJsonParseError::NoError || !doc.isObject()) {
+    return;
+  }
+  raw_ = doc.object();
+  for (const QJsonValue& v : raw_.value(QStringLiteral("profiles")).toArray()) {
+    const QJsonObject o = v.toObject();
+    ControllerProfile p;
+    p.id = o.value(QStringLiteral("id")).toString();
+    p.name = o.value(QStringLiteral("name")).toString();
+    p.kind = o.value(QStringLiteral("kind")).toString();
+    if (p.id.isEmpty() || p.name.isEmpty() || (p.kind != QLatin1String("gamepad") && p.kind != QLatin1String("keyboard"))) {
+      continue;
+    }
+    const QJsonObject b = o.value(QStringLiteral("bindings")).toObject();
+    for (auto it = b.begin(); it != b.end(); ++it) {
+      if (inputIndex(it.key()) < 0) continue;
+      QStringList tokens;
+      for (const QJsonValue& t : it.value().toArray()) {
+        if (t.isString() && !t.toString().isEmpty()) tokens.append(t.toString());
+      }
+      p.bindings.insert(it.key(), tokens);
+    }
+    user_.append(p);
+  }
+  const QJsonObject a = raw_.value(QStringLiteral("assignments")).toObject();
+  for (auto it = a.begin(); it != a.end(); ++it) {
+    if (it.value().isString()) assignments_.insert(it.key(), it.value().toString());
+  }
+}
+
+QList<ControllerProfile> ControllerProfiles::all() const {
+  QList<ControllerProfile> l{builtinProfile(QStringLiteral("gamepad")), builtinProfile(QStringLiteral("keyboard"))};
+  l.append(user_);
+  return l;
+}
+
+QList<ControllerProfile> ControllerProfiles::ofKind(const QString& kind) const {
+  QList<ControllerProfile> l;
+  for (const ControllerProfile& p : all()) {
+    if (p.kind == kind) l.append(p);
+  }
+  return l;
+}
+
+std::optional<ControllerProfile> ControllerProfiles::find(const QString& id) const {
+  for (const ControllerProfile& p : all()) {
+    if (p.id == id) return p;
+  }
+  return std::nullopt;
+}
+
+QString ControllerProfiles::uniqueName(const QString& base) const {
+  const auto exists = [this](const QString& n) {
+    for (const ControllerProfile& p : all()) {
+      if (p.name.compare(n, Qt::CaseInsensitive) == 0) return true;
+    }
+    return false;
+  };
+  if (!exists(base)) return base;
+  for (int i = 2;; ++i) {
+    const QString n = QStringLiteral("%1 %2").arg(base).arg(i);
+    if (!exists(n)) return n;
+  }
+}
+
+QString ControllerProfiles::duplicate(const QString& id, const QString& newName) {
+  const auto src = find(id);
+  if (!src) return {};
+  ControllerProfile p = *src;
+  p.builtin = false;
+  p.id = QStringLiteral("p-") + QUuid::createUuid().toString(QUuid::Id128).left(12);
+  p.name = uniqueName(newName.trimmed().isEmpty() ? src->name + QStringLiteral(" copy") : newName.trimmed());
+  user_.append(p);
+  save();
+  return p.id;
+}
+
+bool ControllerProfiles::rename(const QString& id, const QString& name) {
+  const QString n = name.trimmed();
+  if (n.isEmpty()) return false;
+  for (ControllerProfile& p : user_) {
+    if (p.id == id) {
+      p.name = n;
+      return save();
+    }
+  }
+  return false;
+}
+
+bool ControllerProfiles::remove(const QString& id) {
+  for (qsizetype i = 0; i < user_.size(); ++i) {
+    if (user_.at(i).id == id) {
+      user_.removeAt(i);
+      for (auto it = assignments_.begin(); it != assignments_.end();) {
+        it = it.value() == id ? assignments_.erase(it) : std::next(it);
+      }
+      return save();
+    }
+  }
+  return false;
+}
+
+bool ControllerProfiles::setBinding(const QString& id, const QString& inputId, const QStringList& tokens) {
+  if (inputIndex(inputId) < 0) return false;
+  for (ControllerProfile& p : user_) {
+    if (p.id == id) {
+      p.bindings.insert(inputId, tokens);
+      return save();
+    }
+  }
+  return false;
+}
+
+bool ControllerProfiles::resetToDefault(const QString& id) {
+  for (ControllerProfile& p : user_) {
+    if (p.id == id) {
+      p.bindings = builtinProfile(p.kind).bindings;
+      return save();
+    }
+  }
+  return false;
+}
+
+QString ControllerProfiles::assignedProfileId(const QString& deviceKey, const QString& kind) const {
+  const QString id = assignments_.value(deviceKey);
+  if (!id.isEmpty()) {
+    const auto p = find(id);
+    if (p && p->kind == kind) return id;
+  }
+  return QString::fromLatin1(kind == QLatin1String("keyboard") ? kBuiltinKeyboardId : kBuiltinGamepadId);
+}
+
+bool ControllerProfiles::assign(const QString& deviceKey, const QString& profileId) {
+  if (deviceKey.isEmpty() || !find(profileId)) return false;
+  assignments_.insert(deviceKey, profileId);
+  return save();
+}
+
+bool ControllerProfiles::save() const {
+  if (!QDir().mkpath(QFileInfo(path_).absolutePath())) {
+    return false;
+  }
+  QJsonObject root = raw_;
+  QJsonArray profiles;
+  for (const ControllerProfile& p : user_) {
+    QJsonObject b;
+    for (auto it = p.bindings.cbegin(); it != p.bindings.cend(); ++it) {
+      b.insert(it.key(), QJsonArray::fromStringList(it.value()));
+    }
+    profiles.append(QJsonObject{{QStringLiteral("id"), p.id},
+                                {QStringLiteral("name"), p.name},
+                                {QStringLiteral("kind"), p.kind},
+                                {QStringLiteral("bindings"), b}});
+  }
+  root.insert(QStringLiteral("profiles"), profiles);
+  QJsonObject a;
+  for (auto it = assignments_.cbegin(); it != assignments_.cend(); ++it) {
+    a.insert(it.key(), it.value());
+  }
+  root.insert(QStringLiteral("assignments"), a);
+  QSaveFile f(path_);
+  if (!f.open(QIODevice::WriteOnly)) {
+    return false;
+  }
+  f.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
+  return f.commit();
+}
+
+}  // namespace framebeam

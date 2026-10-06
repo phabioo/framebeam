@@ -35,3 +35,16 @@ target_include_directories(test_ui_sessions PRIVATE ${FB_NETTEST_DIR})
 target_compile_definitions(test_ui_sessions PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata"
   FB_TEST_ROM_PATH="${FB_ROM_DIR}/framebeam_test.nds")
 add_dependencies(test_ui_sessions framebeam_test_rom)
+
+# Phase 5: invite redemption, user_disabled, upload, firmware state/materialization, core warnings, Settings (no core needed).
+framebeam_add_test(ui_phase5 phase5_ui_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
+  LIBS ${FB_UI_TEST_LIBS})
+target_include_directories(test_ui_phase5 PRIVATE ${FB_NETTEST_DIR})
+target_compile_definitions(test_ui_phase5 PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
+
+# Phase 5: Emulation page (3e, settings hierarchy, core options) and Controllers page (3f) with SDL virtual joysticks.
+# The test with the real core QSKIPs without FRAMEBEAM_MELONDS_DS_CORE.
+framebeam_add_test(ui_emulation_controllers emulation_controllers_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
+  LIBS ${FB_UI_TEST_LIBS} framebeam_input framebeam_sdl3 NEEDS_CORE)
+target_include_directories(test_ui_emulation_controllers PRIVATE ${FB_NETTEST_DIR})
+target_compile_definitions(test_ui_emulation_controllers PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")

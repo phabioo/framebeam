@@ -37,6 +37,7 @@ class HubConnection : public QObject {
     Denied,
     Expired,
     Authenticating,
+    UserDisabled,            // the Hub reports user_disabled (401): credential kept, no retry loop; retry() tries once more
     Connected
   };
   Q_ENUM(State)
@@ -77,8 +78,12 @@ class HubConnection : public QObject {
   void confirmTrust();  // NeedsTrustConfirmation: pin the fingerprint and continue
   void rejectTrust();   // -> Disconnected
   void requestPairing();  // NeedsPairing/Denied/Expired -> AwaitingApproval
+  // Onboarding invite (POST /invites/redeem) from NeedsPairing/Denied/Expired: 200 -> credential stored, signs in
+  // directly; 202 -> AwaitingApproval (same polling as requestPairing). Errors (invite_invalid, display_name_taken,
+  // rate_limited, ...) keep the state and are reported via errorOccurred(code, message).
+  void redeemInvite(const QString& code, const QString& displayName);
   void cancelPairing();   // AwaitingApproval -> NeedsPairing (local; the hub request expires on its own)
-  void retry();           // Unreachable: identify again
+  void retry();           // Unreachable/UserDisabled: identify again
   void revokeSelf();      // Connected: the device revokes itself, credential is deleted -> NeedsPairing
   // Removes the profile and its credential (not the server-side revocation).
   void removeProfile(const QString& hubId);
@@ -89,6 +94,9 @@ class HubConnection : public QObject {
   // Same for other methods with a raw body (PUT/POST); nullptr if not Connected.
   QNetworkReply* authorizedSend(const QByteArray& method, const QString& apiPath, const QByteArray& body,
                                 const HttpHeaders& headers = {}, const QByteArray& contentType = "application/octet-stream");
+  // Same with a streamed body (device stays open until the reply finishes; the caller parents it to the reply).
+  QNetworkReply* authorizedSendStream(const QByteArray& method, const QString& apiPath, QIODevice* body,
+                                      const HttpHeaders& headers = {}, const QByteArray& contentType = "application/octet-stream");
   // Caller reports 401: the token is renewed immediately, or -> NeedsPairing if the credential is invalid.
   void noteUnauthorized();
 
@@ -123,6 +131,8 @@ class HubConnection : public QObject {
   void pollPairing();
   void onPairingApproved(const QJsonObject& obj);
   bool handleCommonFailure(const HttpResult& r);
+  bool handleUserDisabled(const HttpResult& r);
+  void onPairingAccepted(const QJsonObject& o);
 
   ProfileStore* profiles_;
   CredentialStore* credentials_;

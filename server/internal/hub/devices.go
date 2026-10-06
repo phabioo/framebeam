@@ -125,7 +125,9 @@ type AccessToken struct {
 // Errors: ErrInvalidCredentials (unknown/wrong), ErrDeviceRevoked (valid credential, device revoked).
 func (s *Service) IssueAccessToken(ctx context.Context, deviceID, credential string) (AccessToken, error) {
 	var hash, status string
-	err := s.db.QueryRowContext(ctx, `SELECT credential_hash, status FROM devices WHERE id = ?`, deviceID).Scan(&hash, &status)
+	var disabled sql.NullInt64
+	err := s.db.QueryRowContext(ctx, `SELECT d.credential_hash, d.status, u.disabled_at FROM devices d JOIN users u ON u.id = d.user_id
+		WHERE d.id = ?`, deviceID).Scan(&hash, &status, &disabled)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return AccessToken{}, internal(err)
 	}
@@ -140,6 +142,9 @@ func (s *Service) IssueAccessToken(ctx context.Context, deviceID, credential str
 	}
 	if status != string(DeviceTrusted) {
 		return AccessToken{}, ErrDeviceRevoked
+	}
+	if disabled.Valid {
+		return AccessToken{}, ErrUserDisabled
 	}
 	tok, err := auth.NewToken(auth.PrefixAccess)
 	if err != nil {
@@ -183,14 +188,14 @@ func (s *Service) Authenticate(ctx context.Context, token string) (Principal, er
 	}
 	var p Principal
 	var exp, dCreated, uCreated int64
-	var seen, rev sql.NullInt64
+	var seen, rev, disabled sql.NullInt64
 	err := s.db.QueryRowContext(ctx, `SELECT t.expires_at,
 		d.id, d.user_id, d.name, d.platform, d.arch, d.player_version, d.status, d.created_at, d.last_seen_at, d.revoked_at,
-		u.id, u.username, u.display_name, u.role, u.created_at
+		u.id, u.username, u.display_name, u.role, u.created_at, u.disabled_at
 		FROM access_tokens t JOIN devices d ON d.id = t.device_id JOIN users u ON u.id = d.user_id
 		WHERE t.token_hash = ?`, auth.HashToken(token)).
 		Scan(&exp, &p.Device.ID, &p.Device.UserID, &p.Device.Name, &p.Device.Platform, &p.Device.Arch, &p.Device.PlayerVersion,
-			&p.Device.Status, &dCreated, &seen, &rev, &p.User.ID, &p.User.Username, &p.User.DisplayName, &p.User.Role, &uCreated)
+			&p.Device.Status, &dCreated, &seen, &rev, &p.User.ID, &p.User.Username, &p.User.DisplayName, &p.User.Role, &uCreated, &disabled)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Principal{}, ErrUnauthorized
 	}
@@ -203,6 +208,9 @@ func (s *Service) Authenticate(ctx context.Context, token string) (Principal, er
 	}
 	if p.Device.Status != DeviceTrusted {
 		return Principal{}, ErrDeviceRevoked
+	}
+	if disabled.Valid {
+		return Principal{}, ErrUserDisabled
 	}
 	p.Device.CreatedAt = time.Unix(dCreated, 0).UTC()
 	p.Device.LastSeenAt, p.Device.RevokedAt = ts(seen), ts(rev)
@@ -225,7 +233,9 @@ type HandshakeInput struct {
 	// H264Encode/H264Decode are the reported codec capabilities (nil = not reported); sessions check them.
 	H264Encode *bool
 	H264Decode *bool
-	// Cores, Audio, Input: not evaluated yet (see TODO in Handshake).
+	// Cores are the reported cores; nil = not reported (no core check, no cores stored).
+	Cores *[]CoreReport
+	// Audio, Input: not evaluated.
 }
 
 // Problem describes an incompatibility (HandshakeProblem in the spec).
@@ -249,7 +259,8 @@ const (
 )
 
 // Handshake checks the protocol versions and stores the reported device info.
-// TODO(phase 5): core check (core_missing, core_version_mismatch) against the core registry.
+// The reported cores are compared with the registry (core_missing, core_version_mismatch: warnings, compatible stays
+// true) and the last report is stored per device.
 // The codec capabilities are stored; the capability_missing check happens when publishing/joining a Session.
 func (s *Service) Handshake(ctx context.Context, deviceID string, in HandshakeInput) (HandshakeResult, error) {
 	if in.ProtocolVersion < 1 || in.MinProtocolVersion < 1 || in.MinProtocolVersion > in.ProtocolVersion {
@@ -268,11 +279,23 @@ func (s *Service) Handshake(ctx context.Context, deviceID string, in HandshakeIn
 		res.Problems = append(res.Problems, Problem{Code: ProblemHubTooOld,
 			Detail: "Hub protocol version below the player's minimum"})
 	}
-	res.Compatible = len(res.Problems) == 0
+	res.Compatible = len(res.Problems) == 0 // only protocol problems so far
+	if in.Cores != nil {
+		reg, err := s.ListRegistry(ctx)
+		if err != nil {
+			return HandshakeResult{}, err
+		}
+		res.Problems = append(res.Problems, checkCores(reg, *in.Cores)...)
+	}
 	if _, err := s.db.ExecContext(ctx, `UPDATE devices SET platform = ?, arch = ?, player_version = ?,
 		h264_encode = COALESCE(?, h264_encode), h264_decode = COALESCE(?, h264_decode) WHERE id = ?`,
 		in.Platform, in.Arch, in.PlayerVersion, boolInt(in.H264Encode), boolInt(in.H264Decode), deviceID); err != nil {
 		return HandshakeResult{}, internal(err)
+	}
+	if in.Cores != nil {
+		if err := s.storeReport(ctx, deviceID, in, *in.Cores); err != nil {
+			return HandshakeResult{}, err
+		}
 	}
 	return res, nil
 }

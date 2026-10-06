@@ -92,6 +92,7 @@ void GameSession::start(const LaunchConfig& config) {
   req.saveDir = config.saveDir;
   req.coreOptions = config.coreOptions;
   r->start(req);
+  applyJoypad();  // a gamepad button that is already held counts from the first frame
 }
 
 void GameSession::teardown() {
@@ -139,10 +140,16 @@ void GameSession::stop() {
   }
 }
 
+void GameSession::applyJoypad() {
+  if (runner_) {
+    runner_->setJoypadState(0, keys_.mask() | pad_);
+  }
+}
+
 bool GameSession::keyEvent(int qtKey, bool pressed) {
   const bool mapped = pressed ? keys_.press(qtKey) : keys_.release(qtKey);
-  if (mapped && runner_) {
-    runner_->setJoypadState(0, keys_.mask());
+  if (mapped) {
+    applyJoypad();
   }
   return mapped;
 }
@@ -150,9 +157,20 @@ bool GameSession::keyEvent(int qtKey, bool pressed) {
 void GameSession::releaseAllKeys() {
   keys_.clear();
   if (runner_) {
-    runner_->setJoypadState(0, 0);
+    applyJoypad();  // a held gamepad button stays pressed
     runner_->setPointer(0.0, 0.0, false);
   }
+}
+
+void GameSession::setKeyboardMap(const QHash<int, quint32>& map) {
+  keys_.setMap(map);
+  applyJoypad();
+}
+
+void GameSession::setGamepadMask(quint32 mask) {
+  if (mask == pad_) return;
+  pad_ = mask;
+  applyJoypad();
 }
 
 void GameSession::setPointer(const QPointF& p, bool pressed) {

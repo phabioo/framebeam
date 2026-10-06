@@ -188,12 +188,18 @@ struct Harness {
   std::unique_ptr<framebeam::ui::PlayerController> controller;
   std::unique_ptr<QQmlApplicationEngine> engine;
   QQuickWindow* window = nullptr;
+  // SDL gamepads are off by default (most tests need no input devices). The Controllers tests turn them on and
+  // drive the service from the test (gamepadPollMs = 0: no timer, poll() is called explicitly).
+  bool gamepads = false;
+  int gamepadPollMs = 0;
 
   bool start(bool probeCores = false) {
     framebeam::ui::PlayerController::Options o;
     o.dataDir = dir.path();
     o.memoryCredentials = true;
     o.probeCoreVersions = probeCores;
+    o.enableGamepads = gamepads;
+    o.gamepadPollMs = gamepadPollMs;
     o.allowHttp = true;
     controller = std::make_unique<framebeam::ui::PlayerController>(o);
     controller->connection()->setPollIntervalMs(80);

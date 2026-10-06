@@ -28,23 +28,30 @@ type User struct {
 	DisplayName string
 	Role        Role
 	CreatedAt   time.Time
+	// DisabledAt is set while an admin has disabled the user (never for admins).
+	DisabledAt *time.Time
 }
+
+// Disabled reports whether the user is disabled.
+func (u User) Disabled() bool { return u.DisabledAt != nil }
 
 var usernameRe = regexp.MustCompile(`^[A-Za-z0-9._-]{1,64}$`)
 
 func newUserID() string { return "u_" + strings.ReplaceAll(uuid.NewString(), "-", "")[:16] }
 
-const userCols = `id, username, display_name, role, created_at`
+const userCols = `id, username, display_name, role, created_at, disabled_at`
 
 type scanner interface{ Scan(...any) error }
 
 func scanUser(r scanner) (User, error) {
 	var u User
 	var created int64
-	if err := r.Scan(&u.ID, &u.Username, &u.DisplayName, &u.Role, &created); err != nil {
+	var dis sql.NullInt64
+	if err := r.Scan(&u.ID, &u.Username, &u.DisplayName, &u.Role, &created, &dis); err != nil {
 		return User{}, err
 	}
 	u.CreatedAt = time.Unix(created, 0).UTC()
+	u.DisabledAt = ts(dis)
 	return u, nil
 }
 
@@ -85,7 +92,7 @@ func (s *Service) CreateAdmin(ctx context.Context, username, password string) (U
 	if _, err := tx.ExecContext(ctx, `INSERT INTO users(id, username, display_name, role, password_hash, created_at) VALUES (?,?,?,?,?,?)`,
 		u.ID, u.Username, u.DisplayName, u.Role, hash, u.CreatedAt.Unix()); err != nil {
 		if isUnique(err) {
-			return User{}, conflict("Username already taken")
+			return User{}, conflict("Username or display name already taken")
 		}
 		return User{}, internal(err)
 	}
@@ -111,7 +118,7 @@ func (s *Service) CreateUser(ctx context.Context, username, displayName string) 
 	if _, err := s.db.ExecContext(ctx, `INSERT INTO users(id, username, display_name, role, password_hash, created_at) VALUES (?,?,?,?,NULL,?)`,
 		u.ID, u.Username, u.DisplayName, u.Role, u.CreatedAt.Unix()); err != nil {
 		if isUnique(err) {
-			return User{}, conflict("Username already taken")
+			return User{}, conflict("Username or display name already taken")
 		}
 		return User{}, internal(err)
 	}
@@ -159,8 +166,9 @@ func (s *Service) VerifyPassword(ctx context.Context, username, password string)
 	var hash sql.NullString
 	var u User
 	var created int64
+	var dis sql.NullInt64
 	err := s.db.QueryRowContext(ctx, `SELECT `+userCols+`, password_hash FROM users WHERE username = ?`, username).
-		Scan(&u.ID, &u.Username, &u.DisplayName, &u.Role, &created, &hash)
+		Scan(&u.ID, &u.Username, &u.DisplayName, &u.Role, &created, &dis, &hash)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return User{}, internal(err)
 	}

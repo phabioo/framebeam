@@ -2,8 +2,10 @@
 // Pure input helpers of the game view (no Qt Quick): keyboard -> joypad mask and
 // item coordinates -> normalized frame position for the touch screen.
 
+#include <QHash>
 #include <QPointF>
 #include <QRectF>
+#include <QSet>
 #include <QSizeF>
 #include <QtGlobal>
 #include <optional>
@@ -17,15 +19,28 @@ namespace framebeam::ui {
 quint32 joypadMaskForKey(int qtKey);
 
 // Holds the keyboard state (several keys at once). Auto-repeat is filtered by the caller.
+// The key map comes from the keyboard controller profile (setMap); without one the standard map above applies.
 class KeyboardJoypad {
  public:
   // true if the key is mapped (event was consumed).
   bool press(int qtKey);
   bool release(int qtKey);
-  void clear() { mask_ = 0; }
+  void clear() {
+    held_.clear();
+    mask_ = 0;
+  }
   quint32 mask() const { return mask_; }
+  // Qt::Key -> joypad mask; replaces the standard map. Keys that are held stay held and are re-evaluated.
+  void setMap(const QHash<int, quint32>& map);
+  void useStandardMap();
 
  private:
+  quint32 maskFor(int qtKey) const;
+  void recompute();
+
+  QHash<int, quint32> map_;
+  bool custom_ = false;
+  QSet<int> held_;
   quint32 mask_ = 0;
 };
 

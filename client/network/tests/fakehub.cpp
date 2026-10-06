@@ -3,6 +3,9 @@
 #include <QCryptographicHash>
 
 #include <QFile>
+#include <QFileInfo>
+#include <QUrl>
+#include <QUrlQuery>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QSslConfiguration>
@@ -39,6 +42,16 @@ QString FakeHub::address() const {
 }
 
 QString FakeHub::fingerprint() const { return framebeam::HubHttp::fingerprint(cert_); }
+
+int FakeHub::count(const QString& pathPrefix, const QByteArray& method) const {
+  int n = 0;
+  for (const FakeRequest& r : requests) {
+    if (r.method == method && r.path.startsWith(pathPrefix)) {
+      ++n;
+    }
+  }
+  return n;
+}
 
 int FakeHub::count(const QString& pathPrefix) const {
   int n = 0;
@@ -175,10 +188,41 @@ void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
         }
         break;
     }
+  } else if (req.method == "POST" && req.path == QLatin1String("/api/v1/invites/redeem")) {
+    lastInviteBody = body;
+    if (rateLimitInvites) {
+      respondError(sock, 429, QStringLiteral("rate_limited"));
+      return;
+    }
+    if (body.value(QStringLiteral("code")).toString() != inviteCode) {
+      respondError(sock, 404, QStringLiteral("invite_invalid"));
+      return;
+    }
+    const QString dn = body.value(QStringLiteral("display_name")).toString();
+    for (const QString& t : std::as_const(takenNames)) {
+      if (t.compare(dn, Qt::CaseInsensitive) == 0) {
+        respondError(sock, 409, QStringLiteral("display_name_taken"));
+        return;
+      }
+    }
+    approvedDelivered_ = false;
+    if (inviteDirect) {
+      respond(sock, 200, json({{QStringLiteral("status"), QStringLiteral("approved")},
+                               {QStringLiteral("hub_id"), hubId},
+                               {QStringLiteral("user_id"), QStringLiteral("u_invited_1")},
+                               {QStringLiteral("device_credential"), QString::fromLatin1(kDeviceCredential)}}));
+    } else {
+      respond(sock, 202, json({{QStringLiteral("request_id"), QStringLiteral("req-1")},
+                               {QStringLiteral("poll_token"), QString::fromLatin1(kPollToken)},
+                               {QStringLiteral("status"), QStringLiteral("pending")},
+                               {QStringLiteral("expires_in"), 600}}));
+    }
   } else if (req.method == "POST" && req.path == QLatin1String("/api/v1/auth/token")) {
     ++tokenRequests_;
     callerDeviceId = body.value(QStringLiteral("device_id")).toString();
-    if (revoked) {
+    if (userDisabled) {
+      respondError(sock, 401, QStringLiteral("user_disabled"));
+    } else if (revoked) {
       respondError(sock, 401, QStringLiteral("device_revoked"));
     } else if (body.value(QStringLiteral("device_credential")).toString().toUtf8() != kDeviceCredential) {
       respondError(sock, 401, QStringLiteral("invalid_credentials"));
@@ -199,6 +243,7 @@ void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
   } else if (!bearerIs(req, "fba_")) {
     respondError(sock, 401, QStringLiteral("unauthorized"));
   } else if (req.method == "POST" && req.path == QLatin1String("/api/v1/handshake")) {
+    lastHandshakeBody = body;
     QJsonObject res{{QStringLiteral("hub_version"), QStringLiteral("0.1.0")},
                     {QStringLiteral("protocol_version"), protocolVersion},
                     {QStringLiteral("min_protocol_version"), minProtocolVersion},
@@ -222,6 +267,48 @@ void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
     handleSaves(sock, req);
   } else if (req.method == "GET" && req.path == QLatin1String("/api/v1/games")) {
     respond(sock, 200, json(games));
+  } else if (req.method == "POST" && req.path.startsWith(QLatin1String("/api/v1/games?"))) {
+    const QUrlQuery q(req.path.mid(req.path.indexOf(QLatin1Char('?')) + 1));
+    if (!uploadsAllowed) {
+      respondError(sock, 403, QStringLiteral("uploads_disabled"));
+      return;
+    }
+    const QString sha = QString::fromLatin1(QCryptographicHash::hash(req.body, QCryptographicHash::Sha256).toHex());
+    const QString filename = q.queryItemValue(QStringLiteral("filename"), QUrl::FullyDecoded);
+    const QString title = q.queryItemValue(QStringLiteral("title"), QUrl::FullyDecoded);
+    QJsonArray list = games.value(QStringLiteral("games")).toArray();
+    for (const QJsonValue& v : std::as_const(list)) {
+      if (v.toObject().value(QStringLiteral("rom")).toObject().value(QStringLiteral("sha256")).toString() == sha) {
+        QJsonObject e{{QStringLiteral("error"), QJsonObject{{QStringLiteral("code"), QStringLiteral("conflict")},
+                                                            {QStringLiteral("message"), QStringLiteral("This ROM is already in the library")}}},
+                      {QStringLiteral("existing_game_id"), v.toObject().value(QStringLiteral("id")).toString()}};
+        respond(sock, 409, json(e));
+        return;
+      }
+    }
+    uploads.append({filename, title, sha, req.body.size()});
+    const QJsonObject game{{QStringLiteral("id"), QStringLiteral("up-%1").arg(uploads.size())},
+                           {QStringLiteral("title"), title.isEmpty() ? QFileInfo(filename).completeBaseName() : title},
+                           {QStringLiteral("system"), QStringLiteral("nds")},
+                           {QStringLiteral("rom"), QJsonObject{{QStringLiteral("sha256"), sha},
+                                                               {QStringLiteral("size"), req.body.size()},
+                                                               {QStringLiteral("filename"), filename}}},
+                           {QStringLiteral("uploaded_by"), QStringLiteral("u_test_1")},
+                           {QStringLiteral("added_at"), QStringLiteral("2026-01-01T12:00:00Z")}};
+    list.append(game);
+    games.insert(QStringLiteral("games"), list);
+    respond(sock, 201, json(game));
+  } else if (req.method == "GET" && req.path == QLatin1String("/api/v1/systems")) {
+    respond(sock, 200, json(systems));
+  } else if (req.method == "GET" && req.path.startsWith(QLatin1String("/api/v1/systems/"))) {
+    // /api/v1/systems/<system>/firmware/<file>
+    const QStringList parts = req.path.mid(16).split(QLatin1Char('/'));
+    if (parts.size() != 3 || parts.at(1) != QLatin1String("firmware") || !firmwareFiles.contains(parts.at(0) + QLatin1Char('/') + parts.at(2))) {
+      respondError(sock, 404, QStringLiteral("not_found"));
+      return;
+    }
+    ++firmwareDownloads;
+    respond(sock, 200, firmwareFiles.value(parts.at(0) + QLatin1Char('/') + parts.at(2)), "application/octet-stream");
   } else if (req.method == "GET" && req.path.startsWith(QLatin1String("/api/v1/roms/"))) {
     const QByteArray data = roms.value(req.path.mid(13));
     if (data.isEmpty()) {

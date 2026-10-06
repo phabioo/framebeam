@@ -1,0 +1,52 @@
+{{define "content"}}
+<div class="users">
+<div class="users-main stack">
+  <div class="page-head"><div><h1>Users</h1><p class="sub">Accounts apply only on this Hub. Normal users have no password.</p></div></div>
+  <div class="card"><table class="list">
+    <thead><tr><th>Name</th><th>Role</th><th>Devices</th><th>Created</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {{range .Body.Users}}
+    <tr{{if .Disabled}} class="muted"{{end}}>
+      <td><div class="cell-title"><span class="avatar" aria-hidden="true">{{.Initial}}</span><span>{{.Name}}</span></div></td>
+      <td>{{.Role}}</td>
+      <td class="mono">{{.Devices}}</td>
+      <td>{{.Created}}</td>
+      <td>{{if .Disabled}}<span class="pill">Disabled</span>{{else}}<span class="pill ok">Active</span>{{end}}</td>
+      <td>{{if .Admin}}—{{else if .Disabled}}<form method="post" action="/users/{{.ID}}/enable"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn-link plain" type="submit">Enable</button></form>{{else}}<form method="post" action="/users/{{.ID}}/disable"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn-link" type="submit">Disable</button></form>{{end}}</td>
+    </tr>
+    {{end}}
+    </tbody>
+  </table></div>
+  <p class="foot-note">Disabled users cannot sign in on any device. Saves and uploads are preserved.</p>
+</div>
+<aside class="users-side">
+  <h2>Onboarding invites</h2>
+  <p class="help">The invited person redeems the code in the Player and chooses a display name. This is not a Session invite.</p>
+  <form class="invite-form" method="post" action="/users/invites">
+    <input type="hidden" name="_csrf" value="{{.CSRF}}">
+    <label class="field">Expires after<select name="expiry">{{range .Body.TTLs}}<option value="{{.Value}}"{{if .Default}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
+    <label class="check"><input type="checkbox" name="authorize" value="1" checked> Authorize first device directly</label>
+    <button class="btn primary" type="submit">Create invite</button>
+  </form>
+  {{if .Body.NewCode}}
+  <div class="invite new" role="status">
+    <div class="invite-head"><span class="pill ok">New invite</span><span class="help warn">{{.Body.NewMeta}}</span></div>
+    <div class="invite-code">{{.Body.NewCode}}</div>
+    <div class="help">Shown once. Only a hash of the code is stored, so it cannot be displayed again.</div>
+  </div>{{end}}
+  {{range .Body.Active}}
+  <div class="invite">
+    <div class="invite-head"><span class="pill ok">{{.Label}}</span><span class="help warn">{{.Meta}}</span></div>
+    <div class="help">{{if .Authorize}}Authorizes the first device directly{{else}}First device needs admin approval{{end}} · Single use</div>
+    <form method="post" action="/users/invites/{{.ID}}/revoke"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn-link" type="submit">Revoke</button></form>
+  </div>
+  {{end}}
+  {{if .Body.History}}
+  <div class="eyebrow">History</div>
+  <ul class="history">
+    {{range .Body.History}}<li><span class="mono">Invite</span> <span class="help">{{.Meta}}</span></li>{{end}}
+  </ul>
+  {{end}}
+</aside>
+</div>
+{{end}}

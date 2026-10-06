@@ -55,6 +55,7 @@ QString HubConnection::stateName(State s) {
     case State::Denied: return QStringLiteral("Denied");
     case State::Expired: return QStringLiteral("Expired");
     case State::Authenticating: return QStringLiteral("Authenticating");
+    case State::UserDisabled: return QStringLiteral("UserDisabled");
     case State::Connected: return QStringLiteral("Connected");
   }
   return {};
@@ -189,7 +190,7 @@ void HubConnection::startIdentify(const QString& addressInput, bool allowHttp, s
 }
 
 void HubConnection::retry() {
-  if (state_ == State::Unreachable && !address_.isEmpty()) {
+  if ((state_ == State::Unreachable || state_ == State::UserDisabled) && !address_.isEmpty()) {
     startIdentify(address_, allowHttp_, profile_);
   }
 }
@@ -313,19 +314,69 @@ void HubConnection::requestPairing() {
     if (handleCommonFailure(r)) {
       return;
     }
-    const QJsonObject o = r.json();
-    if (r.status != 202 || o.value(QStringLiteral("request_id")).toString().isEmpty() ||
-        o.value(QStringLiteral("poll_token")).toString().isEmpty()) {
+    if (r.status != 202) {
       const QString code = r.apiErrorCode.isEmpty() ? QStringLiteral("pairing_failed") : r.apiErrorCode;
       errorCode_ = code;
       errorMessage_ = r.apiErrorMessage;
       emit errorOccurred(code, r.apiErrorMessage);  // state is kept (e.g. rate_limited)
       return;
     }
-    pairingRequestId_ = o.value(QStringLiteral("request_id")).toString();
-    pollToken_ = o.value(QStringLiteral("poll_token")).toString().toUtf8();
-    setState(State::AwaitingApproval);
-    pollTimer_.start(pollIntervalMs_);
+    onPairingAccepted(r.json());
+  });
+}
+
+void HubConnection::onPairingAccepted(const QJsonObject& o) {
+  if (o.value(QStringLiteral("request_id")).toString().isEmpty() || o.value(QStringLiteral("poll_token")).toString().isEmpty()) {
+    errorCode_ = QStringLiteral("pairing_failed");
+    errorMessage_.clear();
+    emit errorOccurred(errorCode_, errorMessage_);
+    return;
+  }
+  pairingRequestId_ = o.value(QStringLiteral("request_id")).toString();
+  pollToken_ = o.value(QStringLiteral("poll_token")).toString().toUtf8();
+  setState(State::AwaitingApproval);
+  pollTimer_.start(pollIntervalMs_);
+}
+
+void HubConnection::redeemInvite(const QString& code, const QString& displayName) {
+  if (state_ != State::NeedsPairing && state_ != State::Denied && state_ != State::Expired) {
+    return;
+  }
+  const QString name = displayName.trimmed();
+  const QString normalized = code.trimmed().toUpper();
+  if (normalized.isEmpty() || name.isEmpty() || name.size() > 32) {
+    errorCode_ = QStringLiteral("invalid_input");
+    errorMessage_.clear();
+    emit errorOccurred(errorCode_, errorMessage_);
+    return;
+  }
+  const QJsonObject body{{QStringLiteral("code"), normalized},
+                         {QStringLiteral("display_name"), name},
+                         {QStringLiteral("device_id"), profiles_->deviceId()},
+                         {QStringLiteral("device_name"), profiles_->deviceName()},
+                         {QStringLiteral("platform"), handshake_.platform},
+                         {QStringLiteral("arch"), handshake_.arch},
+                         {QStringLiteral("player_version"), handshake_.playerVersion},
+                         {QStringLiteral("protocol_version"), handshake_.protocolVersion}};
+  // The code is a secret until redeemed: it is never logged.
+  QNetworkReply* reply = http_->postJson(apiPath(QStringLiteral("/invites/redeem")), body);
+  track(reply, [this](const HttpResult& r) {
+    if (handleCommonFailure(r)) {
+      return;
+    }
+    const QJsonObject o = r.json();
+    if (r.status == 200 && o.value(QStringLiteral("status")).toString() == QLatin1String("approved")) {
+      onPairingApproved(o);  // credential delivered once; stored like a normal pairing, then token + handshake
+      return;
+    }
+    if (r.status == 202) {
+      onPairingAccepted(o);
+      return;
+    }
+    const QString code = r.apiErrorCode.isEmpty() ? QStringLiteral("invite_failed") : r.apiErrorCode;
+    errorCode_ = code;
+    errorMessage_ = r.apiErrorMessage;
+    emit errorOccurred(code, r.apiErrorMessage);  // state is kept
   });
 }
 
@@ -439,6 +490,19 @@ void HubConnection::refreshToken() {
   track(reply, [this](const HttpResult& r) { onTokenResult(r, false); });
 }
 
+bool HubConnection::handleUserDisabled(const HttpResult& r) {
+  if (r.status != 401 || r.apiErrorCode != QLatin1String("user_disabled")) {
+    return false;
+  }
+  qCWarning(lcHub) << "User is disabled on the hub";
+  refreshTimer_.stop();
+  accessToken_.clear();
+  // The credential stays: an admin can enable the user again. No automatic retry; retry() is a user action.
+  fail(State::UserDisabled, QStringLiteral("user_disabled"),
+       r.apiErrorMessage.isEmpty() ? QStringLiteral("This user is disabled on the Hub") : r.apiErrorMessage);
+  return true;
+}
+
 void HubConnection::onTokenResult(const HttpResult& r, bool initial) {
   refreshInFlight_ = false;
   if (r.certMismatch || r.networkError) {
@@ -451,6 +515,9 @@ void HubConnection::onTokenResult(const HttpResult& r, bool initial) {
       qCWarning(lcHub) << "Token renewal failed, retrying in 5 s";
       refreshTimer_.start(5000);
     }
+    return;
+  }
+  if (handleUserDisabled(r)) {
     return;
   }
   if (r.status == 401) {
@@ -486,6 +553,9 @@ void HubConnection::doHandshake() {
   QNetworkReply* reply = http_->postJson(apiPath(QStringLiteral("/handshake")), handshake_.toJson(), accessToken_);
   track(reply, [this](const HttpResult& r) {
     if (handleCommonFailure(r)) {
+      return;
+    }
+    if (handleUserDisabled(r)) {
       return;
     }
     if (r.status == 401) {
@@ -578,6 +648,17 @@ QNetworkReply* HubConnection::authorizedSend(const QByteArray& method, const QSt
     return nullptr;
   }
   QNetworkReply* reply = http_->send(method, apiPath(apiRelPath), body, accessToken_, headers, contentType);
+  inflight_.insert(reply);
+  connect(reply, &QNetworkReply::finished, this, [this, reply]() { inflight_.remove(reply); });
+  return reply;
+}
+
+QNetworkReply* HubConnection::authorizedSendStream(const QByteArray& method, const QString& apiRelPath, QIODevice* body,
+                                                   const HttpHeaders& headers, const QByteArray& contentType) {
+  if (state_ != State::Connected || http_ == nullptr || accessToken_.isEmpty()) {
+    return nullptr;
+  }
+  QNetworkReply* reply = http_->sendStream(method, apiPath(apiRelPath), body, accessToken_, headers, contentType);
   inflight_.insert(reply);
   connect(reply, &QNetworkReply::finished, this, [this, reply]() { inflight_.remove(reply); });
   return reply;

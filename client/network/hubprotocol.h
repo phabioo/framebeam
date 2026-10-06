@@ -63,6 +63,28 @@ struct HandshakeResult {
 };
 std::optional<HandshakeResult> parseHandshakeResult(const QJsonObject& obj);
 
+// Systems registry (GET /systems, feature firmware_v1).
+struct FirmwareFileInfo {
+  QString id;
+  QString displayName;
+  bool required = false;  // true only in firmware mode "native"
+  bool present = false;   // on the Hub with valid size/sha256
+  qint64 size = 0;
+  QString sha256;
+};
+struct SystemInfo {
+  QString id;
+  QString displayName;
+  QString preferredCoreId;
+  QString expectedCoreVersion;  // empty = any
+  QString firmwareMode = QStringLiteral("builtin");  // "builtin" | "native"
+  QList<FirmwareFileInfo> firmware;
+
+  bool nativeFirmware() const { return firmwareMode == QLatin1String("native"); }
+  const FirmwareFileInfo* file(const QString& fileId) const;
+};
+std::optional<SystemInfo> parseSystemInfo(const QJsonObject& obj);
+
 struct GameEntry {
   QString id;
   QString title;

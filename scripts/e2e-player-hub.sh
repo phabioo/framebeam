@@ -128,7 +128,9 @@ pair_run() {
   local cl rid u b
   cl=$("${CURL[@]}" "https://$ADDR/clients")
   rid=$(printf '%s' "$cl" | sed -n 's#.*/clients/requests/\([^/"]*\)/allow.*#\1#p' | head -n1)
-  u=$(printf '%s' "$cl" | sed -n 's#.*<option value="\([^"]*\)".*#\1#p' | head -n1)
+  # The Hub preselects the request's user (admin for plain pairing); fall back to the first option.
+  u=$(printf '%s' "$cl" | sed -n 's#.*<option value="\([^"]*\)" selected.*#\1#p' | head -n1)
+  [ -n "$u" ] || u=$(printf '%s' "$cl" | sed -n 's#.*<option value="\([^"]*\)".*#\1#p' | head -n1)
   [ -n "$rid" ] && [ -n "$u" ] || die "save: pending request of $name not found" "$TMP/hub.log"
   b=$("${CURL[@]}" -H "X-CSRF-Token: $tok" -H "HX-Request: true" --data-urlencode "user_id=$u" "https://$ADDR/clients/requests/$rid/allow")
   printf '%s' "$b" | grep -q "Device allowed" || die "save: allow $name" "$TMP/hub.log"
@@ -154,3 +156,45 @@ cmp -s "$TMP/saveA.bin" "$TMP/pullHub.bin" && ok "save: Hub bytes unchanged by t
 grep -q "^OK revision=2 " "$TMP/save3.out" && cmp -s "$TMP/saveB.bin" "$TMP/pullLocal.bin" \
   && ok "save: resolve use_local (expected 1) -> revision 2, pull shows the local bytes" || die "save: resolve use_local" "$TMP/save3.out" "$TMP/save3.out.err"
 ok "save: second resolve of the same conflict -> STALE (exit 4)"
+
+# 10. Phase 5: onboarding invite (redeem), ROM upload (CLI), firmware state "required but missing". Dummy data only.
+mkinvite() { # mkinvite -> prints the invite code (shown once in the Users page response)
+  local b
+  b=$("${CURL[@]}" -H "X-CSRF-Token: $tok" -H "HX-Request: true" --data-urlencode "expiry=1h" --data-urlencode "authorize=1" "https://$ADDR/users/invites")
+  printf '%s' "$b" | grep -o 'FB-[0-9A-Z]\{4\}-[0-9A-Z]\{4\}' | head -n1
+}
+INV="$(mkinvite)"
+[ -n "$INV" ] || die "invite: no code in the Users page response" "$TMP/hub.log"
+head -c 2048 /dev/urandom >"$TMP/up-user.nds"
+QT_QPA_PLATFORM=offscreen "$CLI" redeem-invite "https://$ADDR" --accept-fingerprint --data-dir "$TMP/dev-inv" \
+  --code "$INV" --name "E2E Anna" games game upload "$TMP/up-user.nds" >"$TMP/inv1.out" 2>"$TMP/inv1.err"; rc=$?
+grep -q "^\[Connected\]" "$TMP/inv1.err" && ! grep -q "AwaitingApproval" "$TMP/inv1.err" \
+  && ok "invite: redeemed, device authorized directly (no approval step)" || die "invite: redeem (exit $rc)" "$TMP/inv1.out" "$TMP/inv1.err"
+[ "$rc" = "1" ] && grep -q "uploads_disabled" "$TMP/inv1.err" \
+  && ok "upload: a plain user without upload permission gets uploads_disabled (exit 1)" || die "upload: user without permission (exit $rc)" "$TMP/inv1.out" "$TMP/inv1.err"
+QT_QPA_PLATFORM=offscreen "$CLI" redeem-invite "https://$ADDR" --accept-fingerprint --data-dir "$TMP/dev-inv2" \
+  --code "$INV" --name "E2E Bert" >"$TMP/inv2.out" 2>"$TMP/inv2.err"; rc=$?
+[ "$rc" = "1" ] && grep -q "invite_invalid" "$TMP/inv2.err" && ok "invite: reused code -> invite_invalid (exit 1)" \
+  || die "invite: reused code (exit $rc)" "$TMP/inv2.out" "$TMP/inv2.err"
+INV2="$(mkinvite)"
+QT_QPA_PLATFORM=offscreen "$CLI" redeem-invite "https://$ADDR" --accept-fingerprint --data-dir "$TMP/dev-inv3" \
+  --code "$INV2" --name "e2e anna" >"$TMP/inv3.out" 2>"$TMP/inv3.err"; rc=$?
+[ "$rc" = "1" ] && grep -q "display_name_taken" "$TMP/inv3.err" && ok "invite: display name taken (case-insensitive) -> display_name_taken" \
+  || die "invite: taken name (exit $rc)" "$TMP/inv3.out" "$TMP/inv3.err"
+
+head -c 4096 /dev/urandom >"$TMP/cli-up.nds"
+UPSHA="$(sha256sum "$TMP/cli-up.nds" | cut -d' ' -f1)"
+# Firmware mode native for nds: no firmware files were provided, so the required files are missing on the Hub.
+body=$("${CURL[@]}" -o /dev/null -w '%{http_code}' -H "X-CSRF-Token: $tok" -H "HX-Request: true" --data-urlencode "mode=native" \
+  "https://$ADDR/systems/nds/firmware-mode")
+case "$body" in 200|303) ;; *) die "firmware: set mode native (HTTP $body)" "$TMP/hub.log";; esac
+# One admin device for upload + systems (the Hub allows only 5 pairing requests per IP and minute).
+pair_run devU "$TMP/up1.out" games game upload "$TMP/cli-up.nds" --title "CLI Upload" game upload "$TMP/cli-up.nds" systems
+UPID=$(sed -n 's/^OK game_id=\([^ ]*\) sha256=.*/\1/p' "$TMP/up1.out" | head -n1)
+[ "$PAIR_RC" = "0" ] && [ -n "$UPID" ] && grep -q "^OK game_id=$UPID sha256=$UPSHA" "$TMP/up1.out" \
+  && ok "upload: admin CLI upload -> game created (streamed, sha256 matches)" || die "upload: CLI upload (exit $PAIR_RC)" "$TMP/up1.out" "$TMP/up1.out.err"
+grep -q "^DUPLICATE existing_game_id=$UPID" "$TMP/up1.out" && ok "upload: same ROM again -> DUPLICATE with the existing game id" \
+  || die "upload: duplicate" "$TMP/up1.out" "$TMP/up1.out.err"
+grep -Pq '^nds\tmode=native\t' "$TMP/up1.out" && grep -Pq '^  bios7\trequired=true\tpresent=false' "$TMP/up1.out" \
+  && ok "firmware: mode native, required files missing on the Hub (Player: Firmware required/missing, launch blocked)" \
+  || die "firmware: systems output" "$TMP/up1.out" "$TMP/up1.out.err"

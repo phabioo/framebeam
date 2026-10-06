@@ -31,10 +31,12 @@ const (
 	ErrorCodeCoreMissing         ErrorCode = "core_missing"
 	ErrorCodeCoreVersionMismatch ErrorCode = "core_version_mismatch"
 	ErrorCodeDeviceRevoked       ErrorCode = "device_revoked"
+	ErrorCodeDisplayNameTaken    ErrorCode = "display_name_taken"
 	ErrorCodeForbidden           ErrorCode = "forbidden"
 	ErrorCodeHubTooOld           ErrorCode = "hub_too_old"
 	ErrorCodeInternal            ErrorCode = "internal"
 	ErrorCodeInvalidCredentials  ErrorCode = "invalid_credentials"
+	ErrorCodeInviteInvalid       ErrorCode = "invite_invalid"
 	ErrorCodeNotFound            ErrorCode = "not_found"
 	ErrorCodePairingDenied       ErrorCode = "pairing_denied"
 	ErrorCodePairingExpired      ErrorCode = "pairing_expired"
@@ -49,6 +51,14 @@ const (
 	ErrorCodeSessionFull         ErrorCode = "session_full"
 	ErrorCodeSessionNotFound     ErrorCode = "session_not_found"
 	ErrorCodeUnauthorized        ErrorCode = "unauthorized"
+	ErrorCodeUploadsDisabled     ErrorCode = "uploads_disabled"
+	ErrorCodeUserDisabled        ErrorCode = "user_disabled"
+)
+
+// Defines values for FirmwareMode.
+const (
+	Builtin FirmwareMode = "builtin"
+	Native  FirmwareMode = "native"
 )
 
 // Defines values for HandshakeProblemCode.
@@ -60,9 +70,14 @@ const (
 	HandshakeProblemCodePlayerTooOld        HandshakeProblemCode = "player_too_old"
 )
 
+// Defines values for InviteRedeemApprovedStatus.
+const (
+	InviteRedeemApprovedStatusApproved InviteRedeemApprovedStatus = "approved"
+)
+
 // Defines values for PairingRequestAcceptedStatus.
 const (
-	PairingRequestAcceptedStatusPending PairingRequestAcceptedStatus = "pending"
+	Pending PairingRequestAcceptedStatus = "pending"
 )
 
 // Defines values for PairingStatusStatus.
@@ -127,6 +142,15 @@ type CoreInfo struct {
 	Version string `json:"version"`
 }
 
+// DuplicateGameError defines model for DuplicateGameError.
+type DuplicateGameError struct {
+	Error struct {
+		Code    ErrorCode `json:"code"`
+		Message string    `json:"message"`
+	} `json:"error"`
+	ExistingGameId openapi_types.UUID `json:"existing_game_id"`
+}
+
 // Error defines model for Error.
 type Error struct {
 	Error struct {
@@ -137,6 +161,25 @@ type Error struct {
 
 // ErrorCode defines model for ErrorCode.
 type ErrorCode string
+
+// FirmwareFile defines model for FirmwareFile.
+type FirmwareFile struct {
+	DisplayName string `json:"display_name"`
+	Id          string `json:"id"`
+	Present     bool   `json:"present"`
+
+	// Required True only in mode `native`
+	Required bool `json:"required"`
+
+	// Sha256 Null when not present
+	Sha256 *string `json:"sha256"`
+
+	// Size Null when not present
+	Size *int64 `json:"size"`
+}
+
+// FirmwareMode `builtin` = the core uses its built-in firmware (files optional); `native` = files required.
+type FirmwareMode string
 
 // Game defines model for Game.
 type Game struct {
@@ -199,7 +242,7 @@ type HandshakeRequest_Video struct {
 type HandshakeResponse struct {
 	Compatible bool `json:"compatible"`
 
-	// Features Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint.
+	// Features Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download.
 	Features           *[]string          `json:"features,omitempty"`
 	HubVersion         string             `json:"hub_version"`
 	MinProtocolVersion int                `json:"min_protocol_version"`
@@ -215,6 +258,36 @@ type HubInfo struct {
 	MinProtocolVersion int                `json:"min_protocol_version"`
 	Name               string             `json:"name"`
 	ProtocolVersion    int                `json:"protocol_version"`
+}
+
+// InviteRedeemApproved defines model for InviteRedeemApproved.
+type InviteRedeemApproved struct {
+	// DeviceCredential Prefix fbd_; delivered once
+	DeviceCredential string                     `json:"device_credential"`
+	HubId            openapi_types.UUID         `json:"hub_id"`
+	Status           InviteRedeemApprovedStatus `json:"status"`
+
+	// UserId Hub-local user ID of the new user
+	UserId string `json:"user_id"`
+}
+
+// InviteRedeemApprovedStatus defines model for InviteRedeemApproved.Status.
+type InviteRedeemApprovedStatus string
+
+// InviteRedeemRequest defines model for InviteRedeemRequest.
+type InviteRedeemRequest struct {
+	Arch string `json:"arch"`
+
+	// Code Invite code, format FB-XXXX-XXXX
+	Code       string             `json:"code"`
+	DeviceId   openapi_types.UUID `json:"device_id"`
+	DeviceName string             `json:"device_name"`
+
+	// DisplayName Trimmed; unique per Hub (case-insensitive)
+	DisplayName     string `json:"display_name"`
+	Platform        string `json:"platform"`
+	PlayerVersion   string `json:"player_version"`
+	ProtocolVersion int    `json:"protocol_version"`
 }
 
 // PairingRequestAccepted defines model for PairingRequestAccepted.
@@ -466,6 +539,20 @@ type SessionViewerInfo struct {
 // `invite_only`: devices of the owner user plus invited users who have not declined.
 type SessionVisibility string
 
+// SystemInfo defines model for SystemInfo.
+type SystemInfo struct {
+	DisplayName string `json:"display_name"`
+
+	// ExpectedCoreVersion Null = any version
+	ExpectedCoreVersion *string        `json:"expected_core_version"`
+	Firmware            []FirmwareFile `json:"firmware"`
+
+	// FirmwareMode `builtin` = the core uses its built-in firmware (files optional); `native` = files required.
+	FirmwareMode    FirmwareMode `json:"firmware_mode"`
+	Id              string       `json:"id"`
+	PreferredCoreId string       `json:"preferred_core_id"`
+}
+
 // TokenRequest defines model for TokenRequest.
 type TokenRequest struct {
 	DeviceCredential string             `json:"device_credential"`
@@ -539,6 +626,15 @@ type SessionNotFound = Error
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = Error
 
+// UploadGameParams defines parameters for UploadGame.
+type UploadGameParams struct {
+	// Filename Original file name (used for type detection and stored as `rom.filename`)
+	Filename string `form:"filename" json:"filename"`
+
+	// Title Display title; defaults to the file name without extension
+	Title *string `form:"title,omitempty" json:"title,omitempty"`
+}
+
 // PutSaveParams defines parameters for PutSave.
 type PutSaveParams struct {
 	// XFrameBeamBaseRevision Checkpoint revision the upload is based on; 0 = the Player had no Hub save.
@@ -562,6 +658,9 @@ type ResolveSaveConflictJSONRequestBody = SaveResolveRequest
 
 // PostHandshakeJSONRequestBody defines body for PostHandshake for application/json ContentType.
 type PostHandshakeJSONRequestBody = HandshakeRequest
+
+// RedeemInviteJSONRequestBody defines body for RedeemInvite for application/json ContentType.
+type RedeemInviteJSONRequestBody = InviteRedeemRequest
 
 // CreatePairingRequestJSONRequestBody defines body for CreatePairingRequest for application/json ContentType.
 type CreatePairingRequestJSONRequestBody = PairingRequestCreate
@@ -997,6 +1096,9 @@ type ServerInterface interface {
 	// Game library
 	// (GET /api/v1/games)
 	ListGames(w http.ResponseWriter, r *http.Request)
+	// Upload a ROM (admin, or users when the Hub allows user uploads)
+	// (POST /api/v1/games)
+	UploadGame(w http.ResponseWriter, r *http.Request, params UploadGameParams)
 	// Single game
 	// (GET /api/v1/games/{game_id})
 	GetGame(w http.ResponseWriter, r *http.Request, gameId openapi_types.UUID)
@@ -1021,6 +1123,9 @@ type ServerInterface interface {
 	// Handshake with capability negotiation
 	// (POST /api/v1/handshake)
 	PostHandshake(w http.ResponseWriter, r *http.Request)
+	// Redeem an onboarding invite code (no auth)
+	// (POST /api/v1/invites/redeem)
+	RedeemInvite(w http.ResponseWriter, r *http.Request)
 	// Submit pairing request (admin decides allow/deny)
 	// (POST /api/v1/pairing/requests)
 	CreatePairingRequest(w http.ResponseWriter, r *http.Request)
@@ -1063,6 +1168,12 @@ type ServerInterface interface {
 	// Remove a viewer (owner device) or leave (the viewer's own device)
 	// (DELETE /api/v1/sessions/{session_id}/viewers/{viewer_id})
 	RemoveSessionViewer(w http.ResponseWriter, r *http.Request, sessionId SessionId, viewerId openapi_types.UUID)
+	// Systems registry with firmware status
+	// (GET /api/v1/systems)
+	ListSystems(w http.ResponseWriter, r *http.Request)
+	// Download a firmware file (any trusted device; never logged)
+	// (GET /api/v1/systems/{system_id}/firmware/{file_id})
+	GetFirmwareFile(w http.ResponseWriter, r *http.Request, systemId string, fileId string)
 	// Users of this Hub (for the invite field)
 	// (GET /api/v1/users)
 	ListUsers(w http.ResponseWriter, r *http.Request)
@@ -1139,6 +1250,54 @@ func (siw *ServerInterfaceWrapper) ListGames(w http.ResponseWriter, r *http.Requ
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListGames(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UploadGame operation middleware
+func (siw *ServerInterfaceWrapper) UploadGame(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UploadGameParams
+
+	// ------------- Required query parameter "filename" -------------
+
+	if paramValue := r.URL.Query().Get("filename"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "filename"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "filename", r.URL.Query(), &params.Filename)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "filename", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "title" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "title", r.URL.Query(), &params.Title)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "title", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UploadGame(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1522,6 +1681,20 @@ func (siw *ServerInterfaceWrapper) PostHandshake(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PostHandshake(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RedeemInvite operation middleware
+func (siw *ServerInterfaceWrapper) RedeemInvite(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RedeemInvite(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1966,6 +2139,66 @@ func (siw *ServerInterfaceWrapper) RemoveSessionViewer(w http.ResponseWriter, r 
 	handler.ServeHTTP(w, r)
 }
 
+// ListSystems operation middleware
+func (siw *ServerInterfaceWrapper) ListSystems(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSystems(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetFirmwareFile operation middleware
+func (siw *ServerInterfaceWrapper) GetFirmwareFile(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "system_id" -------------
+	var systemId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "system_id", r.PathValue("system_id"), &systemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "system_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "file_id" -------------
+	var fileId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "file_id", r.PathValue("file_id"), &fileId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "file_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetFirmwareFile(w, r, systemId, fileId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListUsers operation middleware
 func (siw *ServerInterfaceWrapper) ListUsers(w http.ResponseWriter, r *http.Request) {
 
@@ -2130,6 +2363,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/auth/revoke", wrapper.RevokeSelf)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/auth/token", wrapper.CreateAccessToken)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/games", wrapper.ListGames)
+	m.HandleFunc("POST "+options.BaseURL+"/api/v1/games", wrapper.UploadGame)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/games/{game_id}", wrapper.GetGame)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}", wrapper.GetSaveSlot)
 	m.HandleFunc("PUT "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}", wrapper.PutSave)
@@ -2138,6 +2372,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/history", wrapper.ListSaveHistory)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/history/{version}/content", wrapper.DownloadSaveHistoryContent)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/handshake", wrapper.PostHandshake)
+	m.HandleFunc("POST "+options.BaseURL+"/api/v1/invites/redeem", wrapper.RedeemInvite)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/pairing/requests", wrapper.CreatePairingRequest)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/pairing/requests/{request_id}", wrapper.GetPairingRequest)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/roms/{sha256}", wrapper.DownloadRom)
@@ -2152,6 +2387,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("PUT "+options.BaseURL+"/api/v1/sessions/{session_id}/invites/{user_id}", wrapper.InviteSessionUser)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/sessions/{session_id}/join", wrapper.JoinSession)
 	m.HandleFunc("DELETE "+options.BaseURL+"/api/v1/sessions/{session_id}/viewers/{viewer_id}", wrapper.RemoveSessionViewer)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/systems", wrapper.ListSystems)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/systems/{system_id}/firmware/{file_id}", wrapper.GetFirmwareFile)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/users", wrapper.ListUsers)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/ws", wrapper.ConnectWebSocket)
 
@@ -2276,6 +2513,69 @@ type ListGames401JSONResponse struct{ UnauthorizedJSONResponse }
 func (response ListGames401JSONResponse) VisitListGamesResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UploadGameRequestObject struct {
+	Params UploadGameParams
+	Body   io.Reader
+}
+
+type UploadGameResponseObject interface {
+	VisitUploadGameResponse(w http.ResponseWriter) error
+}
+
+type UploadGame201JSONResponse Game
+
+func (response UploadGame201JSONResponse) VisitUploadGameResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UploadGame400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UploadGame400JSONResponse) VisitUploadGameResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UploadGame401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response UploadGame401JSONResponse) VisitUploadGameResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UploadGame403JSONResponse Error
+
+func (response UploadGame403JSONResponse) VisitUploadGameResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UploadGame409JSONResponse DuplicateGameError
+
+func (response UploadGame409JSONResponse) VisitUploadGameResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UploadGame413JSONResponse Error
+
+func (response UploadGame413JSONResponse) VisitUploadGameResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(413)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -2708,6 +3008,68 @@ type PostHandshake401JSONResponse struct{ UnauthorizedJSONResponse }
 func (response PostHandshake401JSONResponse) VisitPostHandshakeResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RedeemInviteRequestObject struct {
+	Body *RedeemInviteJSONRequestBody
+}
+
+type RedeemInviteResponseObject interface {
+	VisitRedeemInviteResponse(w http.ResponseWriter) error
+}
+
+type RedeemInvite200JSONResponse InviteRedeemApproved
+
+func (response RedeemInvite200JSONResponse) VisitRedeemInviteResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RedeemInvite202JSONResponse PairingRequestAccepted
+
+func (response RedeemInvite202JSONResponse) VisitRedeemInviteResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RedeemInvite400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response RedeemInvite400JSONResponse) VisitRedeemInviteResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RedeemInvite404JSONResponse Error
+
+func (response RedeemInvite404JSONResponse) VisitRedeemInviteResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RedeemInvite409JSONResponse Error
+
+func (response RedeemInvite409JSONResponse) VisitRedeemInviteResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RedeemInvite429JSONResponse struct{ RateLimitedJSONResponse }
+
+func (response RedeemInvite429JSONResponse) VisitRedeemInviteResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -3443,6 +3805,79 @@ func (response RemoveSessionViewer410JSONResponse) VisitRemoveSessionViewerRespo
 	return json.NewEncoder(w).Encode(response)
 }
 
+type ListSystemsRequestObject struct {
+}
+
+type ListSystemsResponseObject interface {
+	VisitListSystemsResponse(w http.ResponseWriter) error
+}
+
+type ListSystems200JSONResponse struct {
+	Systems []SystemInfo `json:"systems"`
+}
+
+func (response ListSystems200JSONResponse) VisitListSystemsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListSystems401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListSystems401JSONResponse) VisitListSystemsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetFirmwareFileRequestObject struct {
+	SystemId string `json:"system_id"`
+	FileId   string `json:"file_id"`
+}
+
+type GetFirmwareFileResponseObject interface {
+	VisitGetFirmwareFileResponse(w http.ResponseWriter) error
+}
+
+type GetFirmwareFile200ApplicationoctetStreamResponse struct {
+	Body          io.Reader
+	ContentLength int64
+}
+
+func (response GetFirmwareFile200ApplicationoctetStreamResponse) VisitGetFirmwareFileResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/octet-stream")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type GetFirmwareFile401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetFirmwareFile401JSONResponse) VisitGetFirmwareFileResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetFirmwareFile404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetFirmwareFile404JSONResponse) VisitGetFirmwareFileResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type ListUsersRequestObject struct {
 }
 
@@ -3506,6 +3941,9 @@ type StrictServerInterface interface {
 	// Game library
 	// (GET /api/v1/games)
 	ListGames(ctx context.Context, request ListGamesRequestObject) (ListGamesResponseObject, error)
+	// Upload a ROM (admin, or users when the Hub allows user uploads)
+	// (POST /api/v1/games)
+	UploadGame(ctx context.Context, request UploadGameRequestObject) (UploadGameResponseObject, error)
 	// Single game
 	// (GET /api/v1/games/{game_id})
 	GetGame(ctx context.Context, request GetGameRequestObject) (GetGameResponseObject, error)
@@ -3530,6 +3968,9 @@ type StrictServerInterface interface {
 	// Handshake with capability negotiation
 	// (POST /api/v1/handshake)
 	PostHandshake(ctx context.Context, request PostHandshakeRequestObject) (PostHandshakeResponseObject, error)
+	// Redeem an onboarding invite code (no auth)
+	// (POST /api/v1/invites/redeem)
+	RedeemInvite(ctx context.Context, request RedeemInviteRequestObject) (RedeemInviteResponseObject, error)
 	// Submit pairing request (admin decides allow/deny)
 	// (POST /api/v1/pairing/requests)
 	CreatePairingRequest(ctx context.Context, request CreatePairingRequestRequestObject) (CreatePairingRequestResponseObject, error)
@@ -3572,6 +4013,12 @@ type StrictServerInterface interface {
 	// Remove a viewer (owner device) or leave (the viewer's own device)
 	// (DELETE /api/v1/sessions/{session_id}/viewers/{viewer_id})
 	RemoveSessionViewer(ctx context.Context, request RemoveSessionViewerRequestObject) (RemoveSessionViewerResponseObject, error)
+	// Systems registry with firmware status
+	// (GET /api/v1/systems)
+	ListSystems(ctx context.Context, request ListSystemsRequestObject) (ListSystemsResponseObject, error)
+	// Download a firmware file (any trusted device; never logged)
+	// (GET /api/v1/systems/{system_id}/firmware/{file_id})
+	GetFirmwareFile(ctx context.Context, request GetFirmwareFileRequestObject) (GetFirmwareFileResponseObject, error)
 	// Users of this Hub (for the invite field)
 	// (GET /api/v1/users)
 	ListUsers(ctx context.Context, request ListUsersRequestObject) (ListUsersResponseObject, error)
@@ -3705,6 +4152,34 @@ func (sh *strictHandler) ListGames(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ListGamesResponseObject); ok {
 		if err := validResponse.VisitListGamesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UploadGame operation middleware
+func (sh *strictHandler) UploadGame(w http.ResponseWriter, r *http.Request, params UploadGameParams) {
+	var request UploadGameRequestObject
+
+	request.Params = params
+
+	request.Body = r.Body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UploadGame(ctx, request.(UploadGameRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UploadGame")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UploadGameResponseObject); ok {
+		if err := validResponse.VisitUploadGameResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -3936,6 +4411,37 @@ func (sh *strictHandler) PostHandshake(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(PostHandshakeResponseObject); ok {
 		if err := validResponse.VisitPostHandshakeResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RedeemInvite operation middleware
+func (sh *strictHandler) RedeemInvite(w http.ResponseWriter, r *http.Request) {
+	var request RedeemInviteRequestObject
+
+	var body RedeemInviteJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RedeemInvite(ctx, request.(RedeemInviteRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RedeemInvite")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RedeemInviteResponseObject); ok {
+		if err := validResponse.VisitRedeemInviteResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -4317,6 +4823,57 @@ func (sh *strictHandler) RemoveSessionViewer(w http.ResponseWriter, r *http.Requ
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(RemoveSessionViewerResponseObject); ok {
 		if err := validResponse.VisitRemoveSessionViewerResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListSystems operation middleware
+func (sh *strictHandler) ListSystems(w http.ResponseWriter, r *http.Request) {
+	var request ListSystemsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListSystems(ctx, request.(ListSystemsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListSystems")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListSystemsResponseObject); ok {
+		if err := validResponse.VisitListSystemsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetFirmwareFile operation middleware
+func (sh *strictHandler) GetFirmwareFile(w http.ResponseWriter, r *http.Request, systemId string, fileId string) {
+	var request GetFirmwareFileRequestObject
+
+	request.SystemId = systemId
+	request.FileId = fileId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetFirmwareFile(ctx, request.(GetFirmwareFileRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetFirmwareFile")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetFirmwareFileResponseObject); ok {
+		if err := validResponse.VisitGetFirmwareFileResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

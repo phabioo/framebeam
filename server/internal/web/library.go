@@ -69,7 +69,11 @@ func (s *Server) libraryBody(ctx context.Context, system, q string) (libBody, er
 			Size: humanBytes(g.ROMSize), SHA: g.ROMSHA256, ShortSHA: shortHash(g.ROMSHA256), Uploader: up,
 			Added: g.AddedAt.Local().Format("01-02")})
 	}
-	for _, sys := range hub.Systems() {
+	systems, err := s.svc.Systems(ctx)
+	if err != nil {
+		return libBody{}, err
+	}
+	for _, sys := range systems {
 		b.Systems = append(b.Systems, sysOpt{ID: sys.ID, Name: sys.Name, Count: counts[sys.ID]})
 	}
 	return b, nil

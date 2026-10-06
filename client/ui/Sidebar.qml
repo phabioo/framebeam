@@ -35,18 +35,21 @@ Rectangle {
             spacing: 2
             Repeater {
                 model: [
-                    { label: qsTr("Library"), active: true },
-                    { label: qsTr("Emulation"), active: false },
-                    { label: qsTr("Controllers"), active: false },
-                    { label: qsTr("Settings"), active: false }
+                    { label: qsTr("Library"), enabled: true, name: "navLibrary", target: "library" },
+                    { label: qsTr("Emulation"), enabled: true, name: "navEmulation", target: "emulation" },
+                    { label: qsTr("Controllers"), enabled: true, name: "navControllers", target: "controllers" },
+                    { label: qsTr("Settings"), enabled: true, name: "navSettings", target: "settings" }
                 ]
                 delegate: Rectangle {
                     id: navItem
                     required property var modelData
+                    objectName: modelData.name
+                    // The model is constant (no binding on the screen), so delegates are never recreated.
+                    readonly property bool active: modelData.target !== "" && modelData.target === root.player.screen
                     Layout.fillWidth: true
                     implicitHeight: 38
                     radius: 6
-                    color: modelData.active ? Theme.surfaceRaised : "transparent"
+                    color: navItem.active ? Theme.surfaceRaised : "transparent"
                     RowLayout {
                         anchors.fill: parent
                         anchors.leftMargin: 10
@@ -54,14 +57,25 @@ Rectangle {
                         FbLabel {
                             Layout.fillWidth: true
                             text: navItem.modelData.label
-                            font.weight: navItem.modelData.active ? Font.Medium : Font.Normal
-                            color: navItem.modelData.active ? Theme.text : Theme.textDisabled
+                            font.weight: navItem.active ? Font.Medium : Font.Normal
+                            color: navItem.active ? Theme.text : (navItem.modelData.enabled ? Theme.textMuted : Theme.textDisabled)
                         }
                         FbMono {
-                            visible: !navItem.modelData.active
+                            visible: !navItem.modelData.enabled
                             text: qsTr("soon")
                             font.pixelSize: 11
                             color: Theme.textDisabled
+                        }
+                    }
+                    TapHandler {
+                        enabled: navItem.modelData.enabled
+                        onTapped: {
+                            switch (navItem.modelData.target) {
+                            case "settings": root.player.showSettings(); break
+                            case "emulation": root.player.showEmulation(); break
+                            case "controllers": root.player.showControllers(); break
+                            default: root.player.showLibrary()
+                            }
                         }
                     }
                 }

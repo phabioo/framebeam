@@ -2,20 +2,20 @@
 {{if .Fragment}}{{template "flash" .}}{{end}}
 <section class="stack">
   <div class="eyebrow">Pending Requests · {{len .Body.Pending}}</div>
-  {{range .Body.Pending}}
+  {{range $p := .Body.Pending}}
   <div class="pending">
     <div>
       <div class="eyebrow">Device name</div>
-      <h3>{{.Name}}</h3>
-      <div class="mono">{{.Platform}} {{.Arch}} · Player {{.PlayerVersion}} · Protocol v{{.Protocol}}</div>
-      <div class="help">requested {{.Ago}}</div>
+      <h3>{{$p.Name}}</h3>
+      <div class="mono">{{$p.Platform}} {{$p.Arch}} · Player {{$p.PlayerVersion}} · Protocol v{{$p.Protocol}}</div>
+      <div class="help">requested {{$p.Ago}}</div>
     </div>
-    <form hx-post="/clients/requests/{{.ID}}/allow" hx-target="#clients-body" hx-swap="innerHTML" id="req-{{.ID}}">
-      <label class="field">Assign user<select name="user_id">{{range $.Body.Users}}<option value="{{.ID}}">{{.DisplayName}}</option>{{end}}</select></label>
+    <form hx-post="/clients/requests/{{$p.ID}}/allow" hx-target="#clients-body" hx-swap="innerHTML" id="req-{{$p.ID}}">
+      <label class="field">Assign user<select name="user_id">{{range $.Body.Users}}<option value="{{.ID}}"{{if eq .ID $p.AssignTo}} selected{{end}}>{{.DisplayName}}</option>{{end}}</select></label>
     </form>
     <div class="actions">
-      <button class="btn" type="button" hx-post="/clients/requests/{{.ID}}/deny" hx-target="#clients-body" hx-swap="innerHTML">Deny</button>
-      <button class="btn primary" type="submit" form="req-{{.ID}}">Allow</button>
+      <button class="btn" type="button" hx-post="/clients/requests/{{$p.ID}}/deny" hx-target="#clients-body" hx-swap="innerHTML">Deny</button>
+      <button class="btn primary" type="submit" form="req-{{$p.ID}}">Allow</button>
     </div>
   </div>
   {{else}}

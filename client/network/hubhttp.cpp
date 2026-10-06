@@ -59,7 +59,12 @@ void HubHttp::setPinnedFingerprint(const QString& fp) {
 
 QNetworkRequest HubHttp::makeRequest(const QString& path, const QByteArray& bearer, const HttpHeaders& headers) const {
   QUrl url = base_;
-  url.setPath(path);
+  // A query (already percent-encoded by the caller, e.g. via QUrlQuery) may follow the path after '?'.
+  const qsizetype q = path.indexOf(QLatin1Char('?'));
+  url.setPath(q < 0 ? path : path.left(q));
+  if (q >= 0) {
+    url.setQuery(path.mid(q + 1), QUrl::StrictMode);
+  }
   QNetworkRequest req(url);
   req.setTransferTimeout(kTransferTimeoutMs);
   req.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy);
@@ -118,6 +123,19 @@ QNetworkReply* HubHttp::send(const QByteArray& method, const QString& path, cons
                              const HttpHeaders& headers, const QByteArray& contentType) {
   QNetworkRequest req = makeRequest(path, bearer, headers);
   req.setHeader(QNetworkRequest::ContentTypeHeader, QString::fromLatin1(contentType));
+  QNetworkReply* reply = nam_.sendCustomRequest(req, method, body);
+  attach(reply, false);
+  return reply;
+}
+
+QNetworkReply* HubHttp::sendStream(const QByteArray& method, const QString& path, QIODevice* body, const QByteArray& bearer,
+                                   const HttpHeaders& headers, const QByteArray& contentType, int transferTimeoutMs) {
+  QNetworkRequest req = makeRequest(path, bearer, headers);
+  req.setTransferTimeout(transferTimeoutMs);
+  req.setHeader(QNetworkRequest::ContentTypeHeader, QString::fromLatin1(contentType));
+  if (!body->isSequential()) {
+    req.setHeader(QNetworkRequest::ContentLengthHeader, body->size());
+  }
   QNetworkReply* reply = nam_.sendCustomRequest(req, method, body);
   attach(reply, false);
   return reply;

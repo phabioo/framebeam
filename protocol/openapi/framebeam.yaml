@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
   title: FrameBeam Hub API
-  version: 1.2.0
+  version: 1.3.0
   description: |
-    HTTPS/JSON API of the FrameBeam Hub (phase 1; phase 3 adds save sync under `saves`, advertised by the handshake feature `saves_v1`; phase 4 adds Session sharing under `sessions` and the WSS endpoint, advertised by the handshake feature `sessions_v1`). `protocol_version` is an integer (starting at 1),
+    HTTPS/JSON API of the FrameBeam Hub (phase 1; phase 3 adds save sync under `saves`, advertised by the handshake feature `saves_v1`; phase 4 adds Session sharing under `sessions` and the WSS endpoint, advertised by the handshake feature `sessions_v1`; phase 5 adds invite redemption under `users` (`users_v1`), user ROM uploads (`uploads_v1`, only advertised when the caller may upload) and the systems registry with firmware download under `systems` (`firmware_v1`)). `protocol_version` is an integer (starting at 1),
     separate from the hub/player product version. All paths carry the `/api/v1` prefix explicitly;
     only the info endpoint lives under `/.well-known/framebeam`.
     Compatibility: Player.protocol_version < Hub.min_protocol_version -> player_too_old;
@@ -17,7 +17,9 @@ tags:
   - name: pairing
   - name: auth
   - name: handshake
+  - name: users
   - name: library
+  - name: systems
   - name: saves
   - name: sessions
   - name: ws
@@ -111,6 +113,76 @@ paths:
                   value: { status: denied }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/invites/redeem:
+    post:
+      operationId: redeemInvite
+      tags: [users]
+      summary: Redeem an onboarding invite code (no auth)
+      description: |
+        Creates a Hub-local user (role `user`) and a device. If the invite authorizes the first device
+        directly, the response is 200 with the device credential; otherwise 202 with a pending pairing
+        request (poll via `getPairingRequest`; the request is pre-assigned to the new user).
+        Invalid, expired, used and revoked codes all return 404 `invite_invalid` (no enumeration).
+        Display names are unique per Hub (case-insensitive). Rate limited like pairing requests.
+        These are onboarding invites, not Session invites.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InviteRedeemRequest' }
+            examples:
+              default:
+                value:
+                  code: FB-PLACEHOLDER-CODE
+                  display_name: Anna
+                  device_id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                  device_name: Anna-Laptop
+                  platform: linux
+                  arch: x86_64
+                  player_version: 0.1.0
+                  protocol_version: 1
+      responses:
+        '200':
+          description: Redeemed, first device authorized directly (credential delivered once)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InviteRedeemApproved' }
+              examples:
+                default:
+                  value:
+                    status: approved
+                    hub_id: 3f2b8c1e-5d4a-4b7e-9a10-0c1d2e3f4a5b
+                    user_id: u_placeholder_2
+                    device_credential: fbd_PLACEHOLDER_DEVICE_CREDENTIAL
+        '202':
+          description: Redeemed, device waits for admin approval
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PairingRequestAccepted' }
+              examples:
+                default:
+                  value:
+                    request_id: 0b6f1f0e-8a1c-4a43-8e7e-2a8f6d0c9b11
+                    poll_token: fbp_PLACEHOLDER_POLL_TOKEN
+                    status: pending
+                    expires_in: 600
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404':
+          description: Invite code invalid, expired, already used or revoked
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: invite_invalid, message: Invite code is not valid } } }
+        '409':
+          description: Display name already taken (case-insensitive)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: display_name_taken, message: Display name is already taken } } }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/v1/auth/token:
     post:
       operationId: createAccessToken
@@ -141,7 +213,7 @@ paths:
                     expires_in: 900
         '400': { $ref: '#/components/responses/BadRequest' }
         '401':
-          description: invalid_credentials or device_revoked
+          description: invalid_credentials, device_revoked or user_disabled
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
@@ -150,6 +222,8 @@ paths:
                   value: { error: { code: invalid_credentials, message: Invalid credentials } }
                 revoked:
                   value: { error: { code: device_revoked, message: Device has been revoked } }
+                user_disabled:
+                  value: { error: { code: user_disabled, message: User has been disabled } }
   /api/v1/auth/revoke:
     post:
       operationId: revokeSelf
@@ -165,6 +239,10 @@ paths:
       operationId: postHandshake
       tags: [handshake]
       summary: Handshake with capability negotiation
+      description: |
+        The Hub compares the reported `cores` with its systems registry. `core_missing` and
+        `core_version_mismatch` are warnings: they are listed in `problems` but `compatible` stays true.
+        `player_too_old`, `hub_too_old` and `capability_missing` set `compatible` to false.
       security:
         - bearerAuth: []
       requestBody:
@@ -202,13 +280,14 @@ paths:
                     min_protocol_version: 1
                     compatible: true
                     problems: []
-                    features: [saves_v1, sessions_v1]
+                    features: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1]
                 core_missing:
+                  description: Warning only, `compatible` stays true (launch allowed; the Player shows the problem)
                   value:
                     hub_version: 0.1.0
                     protocol_version: 1
                     min_protocol_version: 1
-                    compatible: false
+                    compatible: true
                     problems:
                       - { code: core_missing, detail: Core melonds missing, core_id: melonds }
         '400': { $ref: '#/components/responses/BadRequest' }
@@ -246,6 +325,69 @@ paths:
                         uploaded_by: u_placeholder_1
                         added_at: '2026-01-01T12:00:00Z'
         '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      operationId: uploadGame
+      tags: [library]
+      summary: Upload a ROM (admin, or users when the Hub allows user uploads)
+      description: |
+        Raw body upload (`application/octet-stream`, at most 4 GiB, the same limit as the web upload).
+        Same validation and de-duplication (by SHA-256) as the web upload. `uploaded_by` is the caller.
+        Admins may always upload; users only when the Hub setting `allow_user_uploads` is on
+        (otherwise 403 `uploads_disabled`; the handshake feature `uploads_v1` is advertised only when allowed).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: filename
+          in: query
+          required: true
+          description: Original file name (used for type detection and stored as `rom.filename`)
+          schema: { type: string, minLength: 1, maxLength: 255 }
+          example: demo.nds
+        - name: title
+          in: query
+          required: false
+          description: Display title; defaults to the file name without extension
+          schema: { type: string, minLength: 1, maxLength: 200 }
+          example: Homebrew Demo
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        '201':
+          description: Game created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Game' }
+              examples:
+                default: { $ref: '#/components/examples/GameExample' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: Uploads are not allowed for this user
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: uploads_disabled, message: Uploads are disabled for users } } }
+        '409':
+          description: This ROM is already in the library; `existing_game_id` names the existing game
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DuplicateGameError' }
+              examples:
+                default:
+                  value:
+                    error: { code: conflict, message: This ROM is already in the library }
+                    existing_game_id: 9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d
+        '413':
+          description: Body exceeds the upload limit (4 GiB)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: payload_too_large, message: The file is too large } } }
   /api/v1/games/{game_id}:
     get:
       operationId: getGame
@@ -315,6 +457,65 @@ paths:
               schema: { $ref: '#/components/schemas/Error' }
               examples:
                 default: { value: { error: { code: bad_request, message: Range not satisfiable } } }
+  /api/v1/systems:
+    get:
+      operationId: listSystems
+      tags: [systems]
+      summary: Systems registry with firmware status
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Registered systems
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [systems]
+                properties:
+                  systems:
+                    type: array
+                    items: { $ref: '#/components/schemas/SystemInfo' }
+              examples:
+                default:
+                  value:
+                    systems:
+                      - id: nds
+                        display_name: Nintendo DS
+                        preferred_core_id: melonds_ds
+                        expected_core_version: PLACEHOLDER_CORE_VERSION
+                        firmware_mode: builtin
+                        firmware:
+                          - { id: bios7, display_name: ARM7 BIOS, required: false, present: true, size: 16384, sha256: '0000000000000000000000000000000000000000000000000000000000000000' }
+                          - { id: bios9, display_name: ARM9 BIOS, required: false, present: false, size: null, sha256: null }
+                          - { id: firmware, display_name: DS Firmware, required: false, present: false, size: null, sha256: null }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/systems/{system_id}/firmware/{file_id}:
+    parameters:
+      - name: system_id
+        in: path
+        required: true
+        schema: { type: string, pattern: '^[a-z0-9_-]{1,32}$' }
+        example: nds
+      - name: file_id
+        in: path
+        required: true
+        schema: { type: string, pattern: '^[a-z0-9_-]{1,32}$' }
+        example: bios7
+    get:
+      operationId: getFirmwareFile
+      tags: [systems]
+      summary: Download a firmware file (any trusted device; never logged)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Firmware bytes
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/v1/saves:
     get:
       operationId: listSaves
@@ -995,12 +1196,13 @@ components:
           examples:
             default: { value: { error: { code: bad_request, message: Invalid request } } }
     Unauthorized:
-      description: Not authenticated
+      description: Not authenticated (`unauthorized`), or the owning user was disabled by an admin (`user_disabled`, any authenticated call)
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
           examples:
             default: { value: { error: { code: unauthorized, message: Token missing or invalid } } }
+            user_disabled: { value: { error: { code: user_disabled, message: User has been disabled } } }
     Forbidden:
       description: Not allowed (slot belongs to another user)
       content:
@@ -1061,7 +1263,7 @@ components:
   schemas:
     ErrorCode:
       type: string
-      enum: [bad_request, unauthorized, forbidden, not_found, conflict, rate_limited, internal, device_revoked, invalid_credentials, pairing_pending, pairing_denied, pairing_expired, player_too_old, hub_too_old, core_missing, core_version_mismatch, capability_missing, save_conflict, save_conflict_stale, payload_too_large, session_not_found, session_forbidden, session_full, session_ended]
+      enum: [bad_request, unauthorized, forbidden, not_found, conflict, rate_limited, internal, device_revoked, invalid_credentials, pairing_pending, pairing_denied, pairing_expired, player_too_old, hub_too_old, core_missing, core_version_mismatch, capability_missing, save_conflict, save_conflict_stale, payload_too_large, session_not_found, session_forbidden, session_full, session_ended, invite_invalid, display_name_taken, user_disabled, uploads_disabled]
     Error:
       type: object
       required: [error]
@@ -1121,6 +1323,59 @@ components:
         access_token: { type: string, description: 'Prefix fba_' }
         token_type: { type: string, enum: [Bearer] }
         expires_in: { type: integer, description: Seconds, example: 900 }
+    InviteRedeemRequest:
+      type: object
+      required: [code, display_name, device_id, device_name, platform, arch, player_version, protocol_version]
+      properties:
+        code: { type: string, description: 'Invite code, format FB-XXXX-XXXX', example: FB-PLACEHOLDER-CODE }
+        display_name: { type: string, minLength: 1, maxLength: 32, description: Trimmed; unique per Hub (case-insensitive) }
+        device_id: { type: string, format: uuid }
+        device_name: { type: string }
+        platform: { type: string }
+        arch: { type: string }
+        player_version: { type: string }
+        protocol_version: { type: integer, minimum: 1 }
+    InviteRedeemApproved:
+      type: object
+      required: [status, hub_id, user_id, device_credential]
+      properties:
+        status: { type: string, enum: [approved] }
+        hub_id: { type: string, format: uuid }
+        user_id: { type: string, description: Hub-local user ID of the new user }
+        device_credential: { type: string, description: 'Prefix fbd_; delivered once' }
+    DuplicateGameError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          required: [existing_game_id]
+          properties:
+            existing_game_id: { type: string, format: uuid }
+    FirmwareMode:
+      type: string
+      enum: [builtin, native]
+      description: '`builtin` = the core uses its built-in firmware (files optional); `native` = files required.'
+    FirmwareFile:
+      type: object
+      required: [id, display_name, required, present, size, sha256]
+      properties:
+        id: { type: string, example: bios7 }
+        display_name: { type: string, example: ARM7 BIOS }
+        required: { type: boolean, description: True only in mode `native` }
+        present: { type: boolean }
+        size: { type: integer, format: int64, nullable: true, description: Null when not present }
+        sha256: { type: string, nullable: true, pattern: '^[0-9a-f]{64}$', description: Null when not present }
+    SystemInfo:
+      type: object
+      required: [id, display_name, preferred_core_id, expected_core_version, firmware_mode, firmware]
+      properties:
+        id: { type: string, example: nds }
+        display_name: { type: string, example: Nintendo DS }
+        preferred_core_id: { type: string, example: melonds_ds }
+        expected_core_version: { type: string, nullable: true, description: Null = any version }
+        firmware_mode: { $ref: '#/components/schemas/FirmwareMode' }
+        firmware:
+          type: array
+          items: { $ref: '#/components/schemas/FirmwareFile' }
     CoreInfo:
       type: object
       required: [id, version]
@@ -1183,9 +1438,9 @@ components:
           items: { $ref: '#/components/schemas/HandshakeProblem' }
         features:
           type: array
-          description: Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint.
+          description: Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download.
           items: { type: string }
-          example: [saves_v1, sessions_v1]
+          example: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1]
     RomInfo:
       type: object
       required: [sha256, size, filename]

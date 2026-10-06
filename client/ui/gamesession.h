@@ -66,6 +66,10 @@ class GameSession : public QObject {
   // Input (UI thread). Returns true if the key is mapped.
   bool keyEvent(int qtKey, bool pressed);
   void releaseAllKeys();
+  // Keyboard map of the keyboard profile (Qt::Key -> joypad mask); gamepad = joypad mask of P1. Both are merged.
+  void setKeyboardMap(const QHash<int, quint32>& map);
+  void setGamepadMask(quint32 mask);
+  quint32 joypadMask() const { return keys_.mask() | pad_; }
   void setPointer(const QPointF& frameNormalized, bool pressed);
   // Multiview: exactly one surface is audible. A muted session keeps running, its audio is dropped.
   void setAudioMuted(bool muted) { audioMuted_ = muted; }
@@ -85,10 +89,12 @@ class GameSession : public QObject {
   void setState(State s);
   void fail(const QString& msg);
   void teardown();
+  void applyJoypad();
 
   std::unique_ptr<emu::EmulationRunner> runner_;
   AudioOutput audio_;
   KeyboardJoypad keys_;
+  quint32 pad_ = 0;
   emu::DisplayProfile display_;
   QImage frame_;
   quint64 frameNr_ = 0;
