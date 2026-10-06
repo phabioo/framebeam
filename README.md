@@ -14,14 +14,15 @@ Phase plan: [Workflow](docs/workflow.md#phase-plan). The PoC (phases 0-5) is com
 | 3 Saves | done | Save storage, sync, versions, conflict model ([ADR 0005](docs/adr/0005-saves-phase3.md)) |
 | 4 Session sharing and multiview | done (tested locally on two Windows PCs) | Presence, signaling, WebRTC, multiview ([ADR 0006](docs/adr/0006-sessions-phase4.md), accepted) |
 | 5 Remainder and polish | done (tested locally) | Users and invites, user uploads, systems and firmware, Emulation and Controllers pages, appearance, Windows installer ([ADR 0007](docs/adr/0007-phase5.md), accepted) |
-| Post-PoC | planned | See [Roadmap](docs/roadmap.md) (versions 0.1.1 to 0.10) |
+| 0.1.1 Finish the PoC | done in code; hardware encoders and real certificates verified only locally | Hardware encoder features on Windows, Settings → Hubs, certificate renewal and change confirmation, RTT in diagnostics ([ADR 0009](docs/adr/0009-finish-poc.md), proposed) |
+| Post-PoC | planned | See [Roadmap](docs/roadmap.md) (versions 0.2 to 0.10) |
 
 ## What works
 
 **FrameBeam Hub** (`server/`)
 
 - Admin setup via `setup-admin` and via `/setup` in the web interface (loopback only).
-- HTTPS with a self-signed certificate (or your own certificate); the fingerprint is logged at startup.
+- HTTPS with a self-signed certificate (or your own certificate); the fingerprint is logged at startup. The Hub renews its own certificate at startup when it is expired or expires within 30 days (`framebeam-hub renew-cert` does it on demand); the Settings page shows "Expires within 30 days". Own certificates are never modified.
 - Web interface with login (admins only): Library, Saves, Systems & Cores, Clients, Users, Settings.
 - Pairing of new devices with Allow/Deny; issue and revoke tokens (Revoke).
 - ROM upload in the web interface.
@@ -42,7 +43,8 @@ Phase plan: [Workflow](docs/workflow.md#phase-plan). The PoC (phases 0-5) is com
 **FrameBeam Player** (`client/`, [ADR 0003](docs/adr/0003-player-phase2.md))
 
 - Connection screen with Hub profiles and auto-connect.
-- Hub identification with fingerprint confirmation on first contact (TOFU); on mismatch the connection is blocked.
+- Hub identification with fingerprint confirmation on first contact (TOFU); on mismatch the connection is blocked and no credential is sent. After a Hub certificate change the Hub card shows the stored and the presented fingerprint; "Trust new certificate" and then "Yes, trust this certificate" re-pin it and keep the credential (CLI: `--accept-fingerprint <sha256>`).
+- Settings → Hubs: switch, remove (with confirmation), auto-connect; the current Hub is marked.
 - Pairing via approval request, token renewal and Revoke.
 - Library with search and filter.
 - Hash-verified ROM cache with resumable download.
@@ -52,7 +54,8 @@ Phase plan: [Workflow](docs/workflow.md#phase-plan). The PoC (phases 0-5) is com
 - CLI: `saves list`, `save push`, `save pull`, `save resolve`.
 - Share a running game as a Session (Private / Hub users / Invite only with invites, Join/Decline); "Sessions on this Hub" in the library.
 - Watch a Session over direct WebRTC (H.264 + Opus); watch-only mode without a running game.
-- Multiview: side-by-side and PiP, one audible surface; diagnostics tab.
+- Multiview: side-by-side and PiP, one audible surface; the picker lists all Sessions; diagnostics tab with RTT (negotiated DataChannel `fb-diag`). Encoding runs on a worker thread; under load the oldest pending video frame is dropped.
+- Windows: the FFmpeg build enables the NVENC, QSV and AMF H.264 encoders (selected at runtime, software H.264 as fallback). A Windows test checks they are compiled in; opening them needs a GPU and is verified only locally.
 - CLI: `session-share --synthetic`, `session-watch`.
 - Credentials in the Credential Manager on Windows, in memory only on Linux (new pairing after restart).
 - Redeem an invite code to join a Hub as a new user (no password).
@@ -91,6 +94,7 @@ Start the Hub (details: [server/README.md](server/README.md)):
 framebeam-hub setup-admin -username <name>   # password as a single line from stdin
 framebeam-hub -data-dir <directory>        # HTTPS, default listen :8443
 framebeam-hub -dev -listen 127.0.0.1:8443 -data-dir /tmp/fb   # development: HTTP instead of HTTPS
+framebeam-hub renew-cert -data-dir <directory>   # renew the self-generated certificate now (refused with your own cert/key)
 ```
 
 The data directory (`-data-dir`, default `/var/lib/framebeam`) contains the database and certificate. Further flags: `-listen`, `-name`, `-tls-cert`, `-tls-key`, `-ice-servers` (comma-separated `stun:` URLs, default none); each also available via `FRAMEBEAM_*`.
@@ -154,6 +158,7 @@ Keyboard: Arrows, X=A, Z=B, S=X, A=Y, Q=L, W=R, Enter=Start, Backspace=Select, E
 - [ADR 0005: Saves in phase 3](docs/adr/0005-saves-phase3.md) (accepted)
 - [ADR 0006: Sessions in phase 4](docs/adr/0006-sessions-phase4.md) (accepted)
 - [ADR 0007: Phase 5, users, firmware, settings pages, gamepads, installer](docs/adr/0007-phase5.md) (accepted)
+- [ADR 0009: Finish the PoC (0.1.1)](docs/adr/0009-finish-poc.md) (proposed)
 - [Roadmap after the PoC](docs/roadmap.md)
 - [Design](docs/design/README.md)
 - [Working with Claude Code](docs/workflow.md)

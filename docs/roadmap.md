@@ -19,15 +19,15 @@ The PoC (phases 0-5) is complete. From here on, work is planned as versions 0.1.
 
 ## 0.1.1 Finish the PoC
 
-PoC leftovers (open in the PoC scope or ADRs):
+PoC leftovers. Decisions: [ADR 0009](adr/0009-finish-poc.md) (proposed).
 
-- Hardware encoders NVENC/QSV/AMF are not built into the Windows FFmpeg (`client/vcpkg.json` lists only `avcodec`, `swscale`, `openh264`), so encoder selection always falls back to software H.264. Build them in, then verify. ADR 0006 wrongly says "compiled in" and needs correcting (ADR 0006, `docs/architecture/01-overview.md`).
-- Multiview bug: with more than 4 Sessions, "← Library" ends the running game (ADR 0006/0007).
-- Settings → Hubs (switch, remove, auto-connect) exists only on the connection screen (`docs/architecture/09-ui-and-navigation.md`).
-- Certificate renewal and confirmed pin change are open; a new Hub certificate currently blocks the connection permanently (ADR 0002/0003, `docs/architecture/10-identity-pairing-tls.md`).
-- Encoding runs on the UI thread and RTT shows "n/a" (ADR 0006): works, but is a performance risk.
-- A core version mismatch only warns (ADR 0007); re-evaluate once several cores exist (see 0.7).
-- Codebase cleanup.
+- [x] Done: Hardware encoders NVENC/QSV/AMF: the Windows FFmpeg in `client/vcpkg.json` enables `nvcodec`, `qsv` and `amf`; a Windows-only test checks that `h264_nvenc`, `h264_qsv` and `h264_amf` are compiled in. ADR 0006 is corrected. Opening the encoders needs a GPU and is verified only locally by Fabio.
+- [x] Done: Multiview picker lists all Sessions in a scrollable list; the "+N more in the Library" pointer is gone.
+- [x] Done: Settings → Hubs (switch, remove with confirmation, auto-connect, current Hub marked); switching ends running work and secures saves like the connection screen.
+- [x] Done: Certificate renewal and confirmed pin change. The Hub renews its self-generated certificate at startup when expired or expiring within 30 days (`framebeam-hub renew-cert`, Settings badge); the Player shows both fingerprints and re-pins after a two-step confirmation, keeping the credential (`--accept-fingerprint` in the CLI). Own certificate and key are never modified. Verified only locally by Fabio against a real Hub certificate.
+- [x] Done: Session encoding and RTP send run on a worker thread (bounded queue, oldest video frame dropped); RTT is reported in diagnostics via the negotiated DataChannel `fb-diag`.
+- [ ] Open: A core version mismatch only warns (ADR 0007). Intentionally unchanged; moves to 0.7, when several cores exist.
+- [x] Done: Codebase cleanup: system display name and controller labels from the system manifest, phase-named files and tests renamed (migration `0004_phase5.sql` kept), MSVC C4804 fixed, E2E scripts run in the Linux CI job, staticcheck in `make check-hub`, narrower libdatachannel CI cache path. The `PlayerController` split stays in 0.4.
 
 Completed 2026-10-06: Windows CI runs on `main` pushes to prime its vcpkg binary cache after merges. The release preset uses a release-only dependency triplet. Cache keys distinguish the triplet and MSVC version and cover the manifest, presets and overlay triplets. The first main run with the new triplet is expected to build cold; later runtimes depend on cache hits and runner performance. See [ADR 0008](adr/0008-windows-ci-cache.md).
 
@@ -73,7 +73,7 @@ Goal: a change on `main` lands on the test devices (Windows Player, Hub on the P
 
 ## 0.6 Sessions over the internet and save comfort
 
-- TURN fallback including credentials (STUN URLs are already configurable via `-ice-servers` / `FRAMEBEAM_ICE_SERVERS`), bitrate adaptation, RTT over a DataChannel (`docs/architecture/04-sessions-and-multiview.md`).
+- TURN fallback including credentials (STUN URLs are already configurable via `-ice-servers` / `FRAMEBEAM_ICE_SERVERS`), bitrate adaptation (`docs/architecture/04-sessions-and-multiview.md`).
 - Multiview with more than one remote Session, audio focus.
 - Saves: retention/thinning, restore from history, manual snapshot, WebSocket push, multiple slots (`docs/architecture/03-saves.md`).
 

@@ -1,6 +1,6 @@
 # client – FrameBeam Player
 
-C++/Qt Player: emulates locally, synchronizes saves, shares Sessions. The Player covers: Hub profiles, pairing and invites, library, ROM cache, emulation with melonDS DS, save sync, Sessions and multiview, Emulation and Controllers pages, appearance. Decisions: [ADR 0003](../docs/adr/0003-player-phase2.md), [ADR 0004](../docs/adr/0004-player-portable-data.md), [ADR 0005](../docs/adr/0005-saves-phase3.md), [ADR 0006](../docs/adr/0006-sessions-phase4.md), [ADR 0007](../docs/adr/0007-phase5.md). Rules for agents: `CLAUDE.md`.
+C++/Qt Player: emulates locally, synchronizes saves, shares Sessions. The Player covers: Hub profiles, pairing and invites, library, ROM cache, emulation with melonDS DS, save sync, Sessions and multiview, Emulation and Controllers pages, appearance. Decisions: [ADR 0003](../docs/adr/0003-player-phase2.md), [ADR 0004](../docs/adr/0004-player-portable-data.md), [ADR 0005](../docs/adr/0005-saves-phase3.md), [ADR 0006](../docs/adr/0006-sessions-phase4.md), [ADR 0007](../docs/adr/0007-phase5.md), [ADR 0009](../docs/adr/0009-finish-poc.md). Rules for agents: `CLAUDE.md`.
 
 ## Structure
 
@@ -17,7 +17,7 @@ C++/Qt Player: emulates locally, synchronizes saves, shares Sessions. The Player
 
 - Qt >= 6.4 (Core, Network, Gui, Quick, QuickControls2, Multimedia, WebSockets, Test); not via vcpkg. Linux: apt, Windows: install-qt-action (see `.github/workflows/ci.yml`).
 - CMake >= 3.25, Ninja; vcpkg (`scripts/bootstrap-vcpkg.sh`) for further packages.
-- Media (phase 4, [ADR 0006](../docs/adr/0006-sessions-phase4.md)): Linux apt `libavcodec-dev libswscale-dev libopus-dev qt6-websockets-dev libssl-dev` plus libdatachannel from `scripts/fetch-libdatachannel.sh` (pinned, `scripts/libdatachannel.pin`); Windows vcpkg (`client/vcpkg.json`, platform windows).
+- Media ([ADR 0006](../docs/adr/0006-sessions-phase4.md)): Linux apt `libavcodec-dev libswscale-dev libopus-dev qt6-websockets-dev libssl-dev` plus libdatachannel from `scripts/fetch-libdatachannel.sh` (pinned, `scripts/libdatachannel.pin`); Windows vcpkg (`client/vcpkg.json`, platform windows; FFmpeg with `nvcodec`, `qsv`, `amf` since 0.1.1, [ADR 0009](../docs/adr/0009-finish-poc.md)).
 - SDL3 >= 3.2, gamepad/joystick subsystem only (audio stays on Qt Multimedia; CMake target `framebeam_sdl3` in `input/`). Linux: pinned source build via `scripts/fetch-sdl3.sh` (`scripts/sdl3.pin`, no video/audio, no extra apt packages; Ubuntu 24.04 has no SDL3 package), found through `SDL3_ROOT`; Windows: vcpkg port `sdl3` without features (`client/vcpkg.json`). The `input_sdl3` test proves it links and runs headless with a virtual joystick.
 - melonDS DS core (pinned, `scripts/melonds-ds.pin`): `scripts/fetch-melonds-ds.sh` (Linux) or `.ps1` (Windows). No core in the repository.
 - Windows release builds use the `x64-windows-release` overlay triplet (x64, dynamic CRT and libraries, Release-only dependency builds); the debug preset continues to use the standard `x64-windows` triplet.

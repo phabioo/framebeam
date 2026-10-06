@@ -84,7 +84,7 @@ Do not return full logs or file contents. Do not commit.
 - **Phase 3 – Saves:** start/auto/final sync, current checkpoint vs. history, `base_version`, conflict model, pending sync; Hub saves page, Player conflict dialog.
 - **Phase 4 – Session sharing and multiview:** presence, signaling, visibility/ACL, WebRTC with software H.264/Opus, PiP/side-by-side, diagnostics; afterwards hardware encoders (testable locally only).
 - **Phase 5 – Remainder and polish:** firmware path, users/invites, systems & cores, emulation and controllers pages, SDL3 gamepads, dark/light, remaining Hub pages, packaging (Windows installer, systemd unit).
-- Status (2026-10-06): phases 0-5 are done and merged; the PoC is complete. Hardware encoders (NVENC/QSV/AMF) are not in the shipped Windows FFmpeg build (`client/vcpkg.json` enables only `avcodec`, `swscale`, `openh264`); the Player probes them at runtime but always falls back to software H.264.
+- Status (2026-10-06): phases 0-5 are done and merged; the PoC is complete. Milestone 0.1.1 (see [ADR 0009](adr/0009-finish-poc.md)) enables the NVENC/QSV/AMF features in the Windows FFmpeg build (`client/vcpkg.json`); opening them needs a GPU and is verified only locally by Fabio.
 - **After the PoC:** work follows `docs/roadmap.md`.
 
 The mapping of screens to phases is in `docs/design/README.md`.
