@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Quiet check steps: output buffered, on failure only the last 40 lines.
-# Usage: scripts/check.sh hub-fmt|hub-vet|hub-test|hub-codegen|hub-build|generate|client|packaging|hub|all
+# Usage: scripts/check.sh hub-fmt|hub-vet|hub-staticcheck|hub-test|hub-codegen|hub-build|generate|client|packaging|hub|all
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -27,6 +27,20 @@ hub_fmt() {
   [ -z "$out" ] || { echo "not gofmt-formatted:"; echo "$out"; return 1; }
 }
 hub_vet()  { (cd "$ROOT/server" && go vet ./...); }
+STATICCHECK_VERSION="2025.1.1"
+# Pinned staticcheck (installed into GOBIN/GOPATH on demand); findings in server/internal/api/api.gen.go are excluded.
+hub_staticcheck() {
+  local bin
+  bin="$(go env GOBIN)"; [ -n "$bin" ] || bin="$(go env GOPATH)/bin"
+  if ! "$bin/staticcheck" -version 2>/dev/null | grep -q "$STATICCHECK_VERSION"; then
+    go install "honnef.co/go/tools/cmd/staticcheck@$STATICCHECK_VERSION" || return 1
+  fi
+  local out rc=0
+  out="$(cd "$ROOT/server" && "$bin/staticcheck" ./... 2>&1)" || rc=$?
+  # rc 1 = findings; drop those in the generated api.gen.go (no "Code generated" header). Other output (rc >= 2, build errors) stays.
+  out="$(printf '%s\n' "$out" | grep -v 'api\.gen\.go:' || true)"
+  if [ "$rc" -ge 2 ] || [ -n "$(printf '%s' "$out" | tr -d '[:space:]')" ]; then printf '%s\n' "$out"; return 1; fi
+}
 hub_test() { (cd "$ROOT/server" && go test ./...); }
 generate() { (cd "$ROOT/server" && go generate ./...); }
 hub_codegen() {
@@ -132,10 +146,11 @@ packaging() {
 case "${1:-all}" in
   hub-fmt)     step "hub: fmt" hub_fmt ;;
   hub-vet)     step "hub: vet" hub_vet ;;
+  hub-staticcheck) step "hub: staticcheck" hub_staticcheck ;;
   hub-test)    step "hub: test" hub_test ;;
   hub-codegen) step "hub: codegen" hub_codegen ;;
   packaging) step "packaging" packaging ;;
-  hub)   step "hub: fmt" hub_fmt; step "hub: vet" hub_vet; step "hub: test" hub_test; step "hub: codegen" hub_codegen; step "packaging" packaging ;;
+  hub)   step "hub: fmt" hub_fmt; step "hub: vet" hub_vet; step "hub: staticcheck" hub_staticcheck; step "hub: test" hub_test; step "hub: codegen" hub_codegen; step "packaging" packaging ;;
   hub-build) step "hub: build linux/amd64+arm64" hub_build ;;
   generate)  step "hub: generate" generate ;;
   client)    client ;;
