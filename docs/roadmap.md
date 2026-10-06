@@ -66,12 +66,12 @@ Goal: a change on `main` lands on the test devices (Windows Player, Hub on the P
 ## 0.5 Hub UI pass
 
 - Same approach for the web UI: clarity, spacing from tokens.
-- No full page loads: navigation and actions swap only the content area (htmx fragments instead of whole pages; today only `hx-boost` is active).
+- No full page loads on navigation: switching pages swaps only the content area. Some actions already swap htmx fragments (Library filter/delete, Clients actions and 15 s polling, Saves filter); sidebar navigation still loads whole pages.
 - Live updates without reload: sidebar badges (new pending clients, save conflicts, firmware) and affected tables update themselves, for example via Server-Sent Events.
 
 ## 0.6 Sessions over the internet and save comfort
 
-- TURN fallback, STUN configuration in the Hub, bitrate adaptation, RTT over a DataChannel (`docs/architecture/04-sessions-and-multiview.md`).
+- TURN fallback including credentials (STUN URLs are already configurable via `-ice-servers` / `FRAMEBEAM_ICE_SERVERS`), bitrate adaptation, RTT over a DataChannel (`docs/architecture/04-sessions-and-multiview.md`).
 - Multiview with more than one remote Session, audio focus.
 - Saves: retention/thinning, restore from history, manual snapshot, WebSocket push, multiple slots (`docs/architecture/03-saves.md`).
 
