@@ -222,6 +222,23 @@ jobs:
           if ($exe.Count -ne 1) { throw "framebeam_player.exe not found unambiguously: $($exe.FullName -join ', ')" }
           Write-Host "Executable: $($exe[0].FullName)"
           Copy-Item $exe[0].FullName $dist
+          # vcpkg runtime DLLs (libdatachannel, FFmpeg, OpenH264, Opus and their transitive DLLs): windeployqt only
+          # deploys Qt. vcpkg's applocal step puts them next to the exe; fall back to the release bin directory of
+          # the manifest install (never debug\bin). Qt DLLs are left to windeployqt.
+          $sources = @($exe[0].DirectoryName)
+          $installed = @(Get-ChildItem -Recurse -Directory -Filter 'vcpkg_installed' client\build\windows-msvc-release -ErrorAction SilentlyContinue |
+            ForEach-Object { Join-Path $_.FullName 'x64-windows\bin' } | Where-Object { Test-Path $_ })
+          $sources += $installed
+          foreach ($src in ($sources | Select-Object -Unique)) {
+            foreach ($f in (Get-ChildItem -Path $src -Filter *.dll -File)) {
+              if ($f.Name -like 'Qt6*.dll') { continue }
+              if (-not (Test-Path "$dist\$($f.Name)")) { Copy-Item $f.FullName $dist }
+            }
+          }
+          Write-Host "Bundled non-Qt DLLs: $((Get-ChildItem $dist -Filter *.dll | ForEach-Object Name) -join ', ')"
+          foreach ($need in 'datachannel', 'avutil', 'avcodec', 'swscale', 'opus') {
+            if (-not (Get-ChildItem $dist -Filter "*$need*.dll")) { throw "Runtime DLL matching *$need*.dll is missing from the package" }
+          }
           windeployqt --release --no-translations --qmldir client\ui "$dist\framebeam_player.exe"
           if ($LASTEXITCODE -ne 0) { throw "windeployqt failed" }
           $dll = "${{ steps.core.outputs.dll }}"
@@ -232,7 +249,58 @@ jobs:
           cores\melondsds_libretro.dll. License text: LICENSE-melonDS-DS.txt.
           Source code: https://github.com/JesseTG/melonds-ds
           Contains no ROMs, BIOS or firmware.
+
+          Further bundled libraries (built via vcpkg, see client/vcpkg.json):
+          - FFmpeg (avcodec, avutil, swscale), LGPL-2.1-or-later, https://ffmpeg.org/ (source: https://git.ffmpeg.org/ffmpeg.git)
+          - OpenH264, BSD-2-Clause, https://github.com/cisco/openh264
+          - libdatachannel, MPL-2.0, https://github.com/paullouisageneau/libdatachannel
+          - libjuice, MPL-2.0, https://github.com/paullouisageneau/libjuice
+          - libsrtp, BSD-3-Clause, https://github.com/cisco/libsrtp
+          - usrsctp, BSD-3-Clause, https://github.com/sctplab/usrsctp
+          - Opus, BSD-3-Clause, https://opus-codec.org/ (source: https://gitlab.xiph.org/xiph/opus)
+          - OpenSSL, Apache-2.0, https://www.openssl.org/
+          - Qt 6 (LGPL-3.0, dynamically linked), https://www.qt.io/
+          The FFmpeg and Qt DLLs are shared libraries and can be replaced by compatible builds.
           "@ | Set-Content "$dist\THIRD-PARTY-NOTICE.txt"
+      - name: Package smoke check
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          $dist = "$env:GITHUB_WORKSPACE\dist\framebeam-player"
+          $exe = "$dist\framebeam_player.exe"
+          # 1) Static: every non-system import of the exe and of the bundled DLLs must be in the package.
+          $dumpbin = Get-Command dumpbin.exe -ErrorAction SilentlyContinue
+          if ($dumpbin) {
+            $missing = @()
+            foreach ($bin in (@($exe) + (Get-ChildItem $dist -Filter *.dll | ForEach-Object FullName))) {
+              foreach ($line in (& $dumpbin.Source /dependents $bin)) {
+                if ($line -match '^\s+(\S+\.dll)\s*$') {
+                  $d = $Matches[1]
+                  if ($d -match '^(api-ms-win-|ext-ms-win-)' -or (Test-Path "$dist\$d") -or (Test-Path "$env:SystemRoot\System32\$d")) { continue }
+                  $missing += "$([IO.Path]::GetFileName($bin)) -> $d"
+                }
+              }
+            }
+            $missing = $missing | Sort-Object -Unique
+            if ($missing) { $missing | ForEach-Object { Write-Host "::error::missing dependency: $_" }; throw "Package is missing DLLs" }
+            Write-Host "dumpbin: all non-system dependencies are in the package"
+          } else {
+            Write-Host "::warning::dumpbin not available, skipping static dependency check"
+          }
+          # 2) Dynamic: --version needs no window and no Hub; the loader fails before main() when a DLL is missing.
+          # --smoke-test additionally loads the QML UI (offscreen) and exits 0.
+          foreach ($argSet in @(@('--version'), @('--smoke-test'))) {
+            $p = Start-Process -FilePath $exe -ArgumentList $argSet -WorkingDirectory $dist -PassThru -NoNewWindow
+            $null = $p.Handle  # cache the handle, otherwise ExitCode can be empty
+            if (-not $p.WaitForExit(60000)) { $p.Kill(); throw "$argSet did not exit within 60 s" }
+            $code = $p.ExitCode
+            Write-Host "framebeam_player.exe $argSet exit code: $code (0x$('{0:X8}' -f $code))"
+            if ($code -eq -1073741515 -or $code -eq 3221225781) {
+              throw "STATUS_DLL_NOT_FOUND (0xC0000135): a runtime DLL is missing from the package"
+            }
+            if ($code -ne 0) { throw "framebeam_player.exe $argSet failed with exit code $code" }
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: framebeam-player-windows-x64
