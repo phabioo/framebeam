@@ -36,8 +36,8 @@ Rectangle {
             Repeater {
                 model: [
                     { label: qsTr("Library"), enabled: true, name: "navLibrary", target: "library" },
-                    { label: qsTr("Emulation"), enabled: false, name: "navEmulation", target: "" },
-                    { label: qsTr("Controllers"), enabled: false, name: "navControllers", target: "" },
+                    { label: qsTr("Emulation"), enabled: true, name: "navEmulation", target: "emulation" },
+                    { label: qsTr("Controllers"), enabled: true, name: "navControllers", target: "controllers" },
                     { label: qsTr("Settings"), enabled: true, name: "navSettings", target: "settings" }
                 ]
                 delegate: Rectangle {
@@ -69,7 +69,14 @@ Rectangle {
                     }
                     TapHandler {
                         enabled: navItem.modelData.enabled
-                        onTapped: navItem.modelData.target === "settings" ? root.player.showSettings() : root.player.showLibrary()
+                        onTapped: {
+                            switch (navItem.modelData.target) {
+                            case "settings": root.player.showSettings(); break
+                            case "emulation": root.player.showEmulation(); break
+                            case "controllers": root.player.showControllers(); break
+                            default: root.player.showLibrary()
+                            }
+                        }
                     }
                 }
             }

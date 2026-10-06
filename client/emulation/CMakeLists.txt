@@ -5,7 +5,8 @@ add_library(framebeam_emulation STATIC
   core_locator.cpp
   libretro_backend.cpp
   system_manifest.cpp
-  firmware_materializer.cpp)
+  firmware_materializer.cpp
+  core_options.cpp)
 qt_add_resources(framebeam_emulation framebeam_manifests
   PREFIX "/framebeam/emulation"
   FILES manifests/nds.json)
@@ -34,6 +35,8 @@ if(BUILD_TESTING)
   target_compile_definitions(test_emulation_manifest PRIVATE FB_MANIFEST_SRC_DIR="${CMAKE_CURRENT_SOURCE_DIR}/manifests")
 
   framebeam_add_test(emulation_firmware tests/firmware_test.cpp LIBS framebeam_emulation)
+  framebeam_add_test(emulation_launch_options tests/launch_options_test.cpp LIBS framebeam_emulation)
+  framebeam_add_test(emulation_core_options tests/core_options_test.cpp LIBS framebeam_emulation NEEDS_CORE)
 
   # Fake libretro core (SAVE_RAM only) for the save persistence tests.
   add_library(framebeam_fake_core MODULE tests/fake_core.cpp)

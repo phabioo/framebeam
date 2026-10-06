@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import FrameBeam.Player
 
-// Segment control. options: [{ value, label, name }] (name = objectName of the segment); dark: game header style.
+// Segment control. options: [{ value, label, name, disabled }] (name = objectName of the segment).
 Rectangle {
     id: root
     property var options: []
@@ -43,7 +43,7 @@ Rectangle {
                     text: seg.modelData.label
                     font.pixelSize: 13
                     font.weight: seg.active ? Font.DemiBold : Font.Medium
-                    color: seg.active ? Theme.text : Theme.textMuted
+                    color: seg.modelData.disabled === true ? Theme.textDisabled : (seg.active ? Theme.text : Theme.textMuted)
                 }
                 Rectangle {
                     visible: seg.modelData.underline === true
@@ -53,7 +53,7 @@ Rectangle {
                     height: 2
                     color: Theme.accent
                 }
-                TapHandler { onTapped: root.picked(seg.modelData.value) }
+                TapHandler { enabled: seg.modelData.disabled !== true; onTapped: root.picked(seg.modelData.value) }
             }
         }
     }

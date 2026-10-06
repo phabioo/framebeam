@@ -136,6 +136,9 @@ std::optional<SystemManifest> ManifestRegistry::parse(const QByteArray& json, QS
 
   const QJsonObject co = o.value(QLatin1String("core_options")).toObject();
   for (auto it = co.begin(); it != co.end(); ++it) m.coreOptions.insert(it.key(), it.value().toString());
+  for (const QJsonValue& v : o.value(QLatin1String("locked_core_options")).toArray()) {
+    if (v.isString()) m.lockedCoreOptions.append(v.toString());
+  }
   return m;
 }
 

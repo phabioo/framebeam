@@ -66,6 +66,7 @@ struct SystemManifest {
   QString displayProfile;
   DisplayProfile display;
   QMap<QString, QString> coreOptions;  // defaults for core options (key -> value)
+  QStringList lockedCoreOptions;       // keys of coreOptions that FrameBeam controls: not editable by the user
 
   bool supportsExtension(const QString& ext) const;  // ".nds" or "nds", case-insensitive
 };

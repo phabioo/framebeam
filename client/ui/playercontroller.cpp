@@ -10,6 +10,7 @@
 #include <QUrl>
 #include <algorithm>
 
+#include "core_options.h"
 #include "firmware_materializer.h"
 #include "libretro_backend.h"
 #include "mediacaps.h"
@@ -97,11 +98,15 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   if (!manifests_.loadBuiltin(&err)) {
     qWarning().noquote() << "Manifests not loaded:" << err;
   }
+  emulation_ = std::make_unique<EmulationController>(profiles_->baseDir(), &manifests_);
+  controllers_ = std::make_unique<ControllersController>(profiles_->baseDir());
+  controllers_->start(options.enableGamepads, options.gamepadPollMs);
   if (options.probeCoreVersions) {
     probeCores();
   }
   HandshakeInfo info = HandshakeInfo::detect();
   info.cores = coreList_;
+  info.gamepad = controllers_->gamepadAvailable();  // input.gamepad: SDL gamepads usable on this Player
   applyMediaCapabilities(&info);  // h264_encode/h264_decode/encoders as libavcodec can really open them
   conn_->setHandshakeInfo(info);
 
@@ -136,7 +141,19 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   connect(downloader_.get(), &RomDownloader::romReady, this,
           [this](const QString& sha, const QString& path) { onRomReady(sha, path); });
 
+  // Input: gamepad P1 and the keyboard profile are merged into the joypad mask of the game.
+  session_.setKeyboardMap(controllers_->keyboardMap());
+  connect(controllers_.get(), &ControllersController::keyboardMapChanged, this,
+          [this]() { session_.setKeyboardMap(controllers_->keyboardMap()); });
+  connect(controllers_.get(), &ControllersController::libretroMaskChanged, this,
+          [this](quint32 mask) { session_.setGamepadMask(mask); });
+  session_.setGamepadMask(controllers_->gamepads()->libretroMask());
+  connect(emulation_.get(), &EmulationController::frameBeamOptionsChanged, this, &PlayerController::applyFrameBeamOptions);
+  applyFrameBeamOptions();
+  connect(&session_, &GameSession::stateChanged, this, [this]() { emulation_->setGameRunning(session_.isActive()); });
+
   connect(&session_, &GameSession::started, this, [this]() {
+    applyFrameBeamOptions();
     saves_->beginSession();
     phase_ = PlayPhase::None;
     gameActive_ = true;
@@ -197,8 +214,8 @@ void PlayerController::shutdown() {
 
 void PlayerController::probeCores() {
   // Pragmatic: the core version is only available in the core info after loadCore(). We load the core once
-  // without a game, read name/version and unload it again. If that fails, we report only the core_id
-  // (empty version) instead of guessing.
+  // without a game (that also yields its options for the Emulation page), read name/version and unload it again.
+  // If that fails, we report only the core_id (empty version) instead of guessing.
   for (const emu::SystemManifest& m : manifests_.all()) {
     const emu::CoreLocation loc = locator_.locate(m);
     if (!loc.found()) {
@@ -210,17 +227,85 @@ void PlayerController::probeCores() {
     }
     CoreInfo ci;
     ci.id = m.coreId;
-    emu::LibretroBackend be;
-    be.setSystemDirectory(systemDir());
-    be.setSaveDirectory(QDir(profiles_->baseDir()).filePath(QStringLiteral("probe")));
-    QString err;
-    if (be.loadCore(loc.path, &err)) {
-      ci.version = be.coreInfo().version;
-      coreNames_.insert(m.coreId, be.coreInfo().name);
-      be.unloadCore();
+    const emu::CoreProbe probe = emu::probeCore(loc.path, systemDir(), QDir(profiles_->baseDir()).filePath(QStringLiteral("probe")));
+    if (probe.ok) {
+      ci.version = probe.info.version;
+      coreNames_.insert(m.coreId, probe.info.name);
+      coreVersions_.insert(m.coreId, probe.info.version);
+      emulation_->setCoreProbe(m.coreId, probe, true);
     }
     coreList_.append(ci);
   }
+}
+
+// Emulation page: system cards (core, readiness, firmware) and the core options (loaded once without a game or from
+// the cache of the last capture; not possible while a game runs because only one core can be loaded per process).
+void PlayerController::refreshEmulationPage() {
+  for (const emu::SystemManifest& m : manifests_.all()) {
+    if (emulation_->hasCoreProbe(m.coreId)) {
+      continue;
+    }
+    const emu::CoreLocation loc = locator_.locate(m);
+    if (loc.found() && !session_.isActive()) {
+      const emu::CoreProbe probe = emu::probeCore(loc.path, systemDir(), QDir(profiles_->baseDir()).filePath(QStringLiteral("probe")));
+      if (probe.ok) {
+        coreNames_.insert(m.coreId, probe.info.name);
+        coreVersions_.insert(m.coreId, probe.info.version);
+        emulation_->setCoreProbe(m.coreId, probe, true);
+        continue;
+      }
+    }
+    emulation_->loadCoreCache(m.coreId);
+  }
+  emulation_->setSystems(systemCards());
+  emulation_->setGameRunning(session_.isActive());
+}
+
+QVariantList PlayerController::systemCards() {
+  QVariantList cards;
+  for (const emu::SystemManifest& m : manifests_.all()) {
+    const emu::CoreLocation loc = locator_.locate(m);
+    QString version = coreVersions_.value(m.coreId);
+    if (version.isEmpty()) {
+      if (const emu::CoreProbe* p = emulation_->coreProbe(m.coreId)) version = p->info.version;
+    }
+    QString readyText;
+    QString readyTone;
+    if (!loc.found()) {
+      readyText = tr("Core missing");
+      readyTone = QStringLiteral("error");
+    } else {
+      readyText = tr("Ready · included in the Player");
+      readyTone = QStringLiteral("ok");
+    }
+    // Firmware (firmware path from the Hub registry, architecture 05): built-in BIOS, from the Hub, or required/missing.
+    QString fwText = tr("Built-in BIOS");
+    QString fwTone = QStringLiteral("neutral");
+    SystemInfo sys;
+    if (nativeFirmware(m, &sys)) {
+      const QStringList wanted = wantedFirmwareIds(m);
+      QList<FirmwareProblem> problems = FirmwareProvisioner::missingOnHub(sys, wanted);
+      for (const FirmwareProblem& p : fwProblems_) {
+        if (p.reason == QLatin1String("invalid_hash") || p.reason == QLatin1String("invalid_size")) problems.append(p);
+      }
+      if (!problems.isEmpty()) {
+        fwText = tr("Firmware required/missing");
+        fwTone = QStringLiteral("error");
+      } else {
+        fwText = tr("Firmware from Hub · verified");
+        fwTone = QStringLiteral("ok");
+      }
+    }
+    cards.append(QVariantMap{{QStringLiteral("id"), m.systemId},
+                             {QStringLiteral("name"), m.displayName},
+                             {QStringLiteral("coreName"), coreLabel(m, loc)},
+                             {QStringLiteral("coreVersion"), version},
+                             {QStringLiteral("readyText"), readyText},
+                             {QStringLiteral("readyTone"), readyTone},
+                             {QStringLiteral("firmwareText"), fwText},
+                             {QStringLiteral("firmwareTone"), fwTone}});
+  }
+  return cards;
 }
 
 QString PlayerController::coreLabel(const emu::SystemManifest& m, const emu::CoreLocation&) const {
@@ -256,7 +341,7 @@ void PlayerController::updateScreen() {
   if (gameActive_ || (sessions_ && sessions_->watching())) {
     next = QStringLiteral("game");
   } else if (s == S::Connected) {
-    next = settingsOpen_ ? QStringLiteral("settings") : QStringLiteral("library");
+    next = page_;
   } else if (s == S::NeedsTrustConfirmation || s == S::NeedsPairing || s == S::AwaitingApproval || s == S::Denied ||
              s == S::Expired) {
     next = QStringLiteral("pairing");
@@ -276,7 +361,7 @@ void PlayerController::onConnectionState(HubConnection::State s) {
   lastError_.clear();
   inviteBusy_ = false;
   if (s != S::Connected) {
-    settingsOpen_ = false;
+    page_ = QStringLiteral("library");
     fwProblems_.clear();
   }
   if (s == S::NeedsTrustConfirmation || s == S::NeedsPairing || s == S::AwaitingApproval || s == S::Denied ||
@@ -611,7 +696,7 @@ bool PlayerController::darkMode() const {
 }
 
 void PlayerController::showLibrary() {
-  settingsOpen_ = false;
+  page_ = QStringLiteral("library");
   updateScreen();
 }
 
@@ -619,8 +704,40 @@ void PlayerController::showSettings() {
   if (conn_->state() != HubConnection::State::Connected || gameActive_) {
     return;
   }
-  settingsOpen_ = true;
+  page_ = QStringLiteral("settings");
   updateScreen();
+}
+
+void PlayerController::showEmulation() {
+  if (conn_->state() != HubConnection::State::Connected || gameActive_) {
+    return;
+  }
+  refreshEmulationPage();
+  page_ = QStringLiteral("emulation");
+  updateScreen();
+}
+
+void PlayerController::showControllers() {
+  if (conn_->state() != HubConnection::State::Connected || gameActive_) {
+    return;
+  }
+  page_ = QStringLiteral("controllers");
+  updateScreen();
+}
+
+bool PlayerController::fullscreenOnStart() const {
+  const QString sys = launchGame_.system.isEmpty() ? QStringLiteral("nds") : launchGame_.system;
+  return emulation_->frameBeamValue(QString::fromLatin1(EmulationController::kFullscreenKey), sys, launchGame_.id) ==
+         QLatin1String("on");
+}
+
+void PlayerController::applyFrameBeamOptions() {
+  // Default multiview: applied immediately (not while the user changes it in a running Session view).
+  if (sessions_ && !gameActive_) {
+    const QString sys = QStringLiteral("nds");
+    sessions_->setMultiviewMode(emulation_->frameBeamValue(QString::fromLatin1(EmulationController::kMultiviewKey), sys));
+  }
+  emit emulationSettingsChanged();
 }
 
 bool PlayerController::canUpload() const {
@@ -1186,10 +1303,9 @@ void PlayerController::onSaveReady(const QString& gameId, const QString& saveDir
   cfg.gamePath = launchRom_;
   cfg.systemDir = systemDir();
   cfg.saveDir = saveDir;
-  cfg.coreOptions = man->coreOptions;
-  for (auto it = fwOptions_.cbegin(); it != fwOptions_.cend(); ++it) {
-    cfg.coreOptions.insert(it.key(), it.value());  // firmware mode of the Hub (builtin | native + files)
-  }
+  // Manifest defaults < user overrides (game > system/core > global) < firmware mode of the Hub (builtin | native +
+  // files) < manifest-locked options (render mode software, screen layout, OSD off): FrameBeam stays in control of those.
+  cfg.coreOptions = emu::launchCoreOptions(*man, emulation_->launchOverrides(man->systemId, launchGame_.id), fwOptions_);
   cfg.display = man->display;
   emit selectedGameChanged();
   session_.start(cfg);

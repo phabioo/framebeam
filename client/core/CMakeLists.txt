@@ -1,5 +1,5 @@
 # framebeam_core: Player core without GUI (core/ + network/). Add sources here and in ../network.
-add_library(framebeam_core STATIC version.cpp credentialstore.cpp profilestore.cpp romcache.cpp savestore.cpp playersettings.cpp firmwarecache.cpp)
+add_library(framebeam_core STATIC version.cpp credentialstore.cpp profilestore.cpp romcache.cpp savestore.cpp playersettings.cpp firmwarecache.cpp emulationsettings.cpp controllerprofiles.cpp)
 target_include_directories(framebeam_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_features(framebeam_core PUBLIC cxx_std_20)
 target_link_libraries(framebeam_core PUBLIC Qt6::Core Qt6::Concurrent Qt6::Network)
@@ -13,6 +13,8 @@ framebeam_add_test(core_profilestore tests/profilestore_test.cpp LIBS framebeam_
 framebeam_add_test(core_romcache tests/romcache_test.cpp LIBS framebeam_core)
 framebeam_add_test(core_savestore tests/savestore_test.cpp LIBS framebeam_core)
 framebeam_add_test(core_playersettings tests/playersettings_test.cpp LIBS framebeam_core)
+framebeam_add_test(core_emulationsettings tests/emulationsettings_test.cpp LIBS framebeam_core)
+framebeam_add_test(core_controllerprofiles tests/controllerprofiles_test.cpp LIBS framebeam_core)
 framebeam_add_test(core_firmwarecache tests/firmwarecache_test.cpp LIBS framebeam_core)
 if(WIN32)
   # Writes/reads/deletes a dummy value in the Windows Credential Manager (Windows CI only).

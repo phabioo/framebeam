@@ -75,6 +75,7 @@ class FakeHub : public QTcpServer {
   QStringList takenNames;                                // display names -> 409 display_name_taken (case-insensitive)
   bool rateLimitInvites = false;
   QJsonObject lastInviteBody;
+  QJsonObject lastHandshakeBody;  // request body of the last POST /handshake
   bool userDisabled = false;                             // token endpoint answers 401 user_disabled
   bool uploadsAllowed = true;                            // false: POST /games -> 403 uploads_disabled
   struct Upload {

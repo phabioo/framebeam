@@ -9,23 +9,19 @@ Rectangle {
     required property PlayerController player
     color: Theme.bg
 
-    // "Upload ROM": native file dialog (QtQuick.Dialogs) when the module is installed, otherwise a path field.
-    property var fileDialog: null
+    // "Upload ROM": native file dialog (UploadFileDialog.qml, QtQuick.Dialogs) when the module is installed,
+    // otherwise a path field. The dialog is its own file so that windeployqt sees the import.
     property bool pathPromptOpen: false
+    Loader {
+        id: fileDialogLoader
+        active: false
+        source: "UploadFileDialog.qml"
+        onLoaded: item.player = root.player
+    }
     function openUploadDialog() {
-        if (root.fileDialog === null) {
-            try {
-                root.fileDialog = Qt.createQmlObject(
-                    'import QtQuick.Dialogs\nFileDialog { title: qsTr("Upload ROM"); fileMode: FileDialog.OpenFile }',
-                    root, "UploadFileDialog")
-                root.fileDialog.nameFilters = root.player.uploadFilters
-                root.fileDialog.accepted.connect(function () { root.player.uploadRom(root.fileDialog.selectedFile.toString()) })
-            } catch (e) {
-                root.fileDialog = null
-            }
-        }
-        if (root.fileDialog !== null) {
-            root.fileDialog.open()
+        fileDialogLoader.active = true
+        if (fileDialogLoader.status === Loader.Ready && fileDialogLoader.item !== null) {
+            fileDialogLoader.item.open()
         } else {
             root.pathPromptOpen = !root.pathPromptOpen
         }

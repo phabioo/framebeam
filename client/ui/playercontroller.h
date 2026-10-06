@@ -12,7 +12,9 @@
 #include <QtQml/qqmlregistration.h>
 #include <memory>
 
+#include "controllerscontroller.h"
 #include "core_locator.h"
+#include "emulationcontroller.h"
 #include "firmwarecache.h"
 #include "firmwareprovisioner.h"
 #include "gamesession.h"
@@ -65,6 +67,10 @@ class PlayerController : public QObject {
   Q_PROPERTY(QVariantMap upload READ upload NOTIFY uploadChanged)   // active, fileName, progress, message, isError
   Q_PROPERTY(QStringList uploadFilters READ uploadFilters CONSTANT)
   Q_PROPERTY(QVariantList coreWarnings READ coreWarnings NOTIFY hubChanged)  // core_missing / core_version_mismatch
+  // Phase 5: Emulation page (3e), Controllers page (3f), applied settings
+  Q_PROPERTY(framebeam::ui::EmulationController* emulation READ emulation CONSTANT)
+  Q_PROPERTY(framebeam::ui::ControllersController* controllers READ controllers CONSTANT)
+  Q_PROPERTY(bool fullscreenOnStart READ fullscreenOnStart NOTIFY emulationSettingsChanged)  // effective FrameBeam option
   // Phase 4: Sessions (3c list, 3g panel, multiview, diagnostics)
   Q_PROPERTY(framebeam::ui::SessionController* sessions READ sessions CONSTANT)
 
@@ -74,6 +80,8 @@ class PlayerController : public QObject {
     bool allowHttp = false;         // --dev-allow-http
     bool memoryCredentials = false; // tests: no OS credential store
     bool probeCoreVersions = true;  // determine core version for the handshake (briefly loads the core)
+    bool enableGamepads = true;     // SDL3 gamepads (tests without hardware use SDL virtual joysticks)
+    int gamepadPollMs = 8;          // <= 0: no poll timer (tests call controllers()->gamepads()->poll())
   };
 
   explicit PlayerController(const Options& options, QObject* parent = nullptr);
@@ -98,6 +106,9 @@ class PlayerController : public QObject {
   QVariantMap selectedGame() const;
   GameSession* gameSession() { return &session_; }
   SessionController* sessions() { return sessions_.get(); }
+  EmulationController* emulation() { return emulation_.get(); }
+  ControllersController* controllers() { return controllers_.get(); }
+  bool fullscreenOnStart() const;
   QString appearance() const;
   void setAppearance(const QString& name);
   bool darkMode() const;
@@ -149,6 +160,8 @@ class PlayerController : public QObject {
   // Library header / Sidebar
   Q_INVOKABLE void showLibrary();
   Q_INVOKABLE void showSettings();
+  Q_INVOKABLE void showEmulation();
+  Q_INVOKABLE void showControllers();
   // "Upload ROM": source = local path or file:// URL (from the file dialog). Streamed; progress in upload.
   Q_INVOKABLE void uploadRom(const QString& source);
   Q_INVOKABLE void dismissUploadMessage();
@@ -170,6 +183,7 @@ class PlayerController : public QObject {
   void saveConflictChanged();
   void appearanceChanged();
   void uploadChanged();
+  void emulationSettingsChanged();
 
  private:
   enum class PlayPhase { None, Firmware, Rom, Launching };
@@ -181,6 +195,9 @@ class PlayerController : public QObject {
   void launch(const GameEntry& game, const QString& romPath);
   void updateScreen();
   void probeCores();
+  void refreshEmulationPage();
+  QVariantList systemCards();
+  void applyFrameBeamOptions();
   void onFirmwareFinished(const FirmwareResult& result);
   void onUploadFinished(const UploadResult& result);
   void beginRomPhase(const GameEntry& game);
@@ -212,16 +229,19 @@ class PlayerController : public QObject {
   emu::ManifestRegistry manifests_;
   emu::CoreLocator locator_;
   QList<CoreInfo> coreList_;
+  QMap<QString, QString> coreVersions_;  // core_id -> version from the core info
   QMap<QString, QString> coreNames_;  // core_id -> name from the core info (only if probed)
   LibraryModel model_;
   GameSession session_;
   std::unique_ptr<SessionController> sessions_;
+  std::unique_ptr<EmulationController> emulation_;
+  std::unique_ptr<ControllersController> controllers_;
   bool shareOnStart_ = false;
   void endGameContext();
   void startSelected(bool share);
 
   QString screen_ = QStringLiteral("connection");
-  bool settingsOpen_ = false;
+  QString page_ = QStringLiteral("library");  // page shown while connected: library | settings | emulation | controllers
   bool inviteBusy_ = false;
   QVariantMap upload_;
   QString pendingSelectId_;             // select this game once the library reloaded (after an upload)

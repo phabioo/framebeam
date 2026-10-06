@@ -28,16 +28,38 @@ quint32 joypadMaskForKey(int qtKey) {
   }
 }
 
+quint32 KeyboardJoypad::maskFor(int qtKey) const { return custom_ ? map_.value(qtKey, 0u) : joypadMaskForKey(qtKey); }
+
+void KeyboardJoypad::recompute() {
+  mask_ = 0;
+  for (int k : std::as_const(held_)) mask_ |= maskFor(k);
+}
+
 bool KeyboardJoypad::press(int qtKey) {
-  const quint32 m = joypadMaskForKey(qtKey);
+  const quint32 m = maskFor(qtKey);
+  if (m == 0) return false;
+  held_.insert(qtKey);
   mask_ |= m;
-  return m != 0;
+  return true;
 }
 
 bool KeyboardJoypad::release(int qtKey) {
-  const quint32 m = joypadMaskForKey(qtKey);
-  mask_ &= ~m;
+  const quint32 m = maskFor(qtKey);
+  held_.remove(qtKey);
+  recompute();  // another held key may still carry the same button
   return m != 0;
+}
+
+void KeyboardJoypad::setMap(const QHash<int, quint32>& map) {
+  map_ = map;
+  custom_ = true;
+  recompute();
+}
+
+void KeyboardJoypad::useStandardMap() {
+  custom_ = false;
+  map_.clear();
+  recompute();
 }
 
 QRectF fitFrame(const QSizeF& frame, const QSizeF& area, bool integerScale) {

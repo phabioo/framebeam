@@ -243,6 +243,7 @@ void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
   } else if (!bearerIs(req, "fba_")) {
     respondError(sock, 401, QStringLiteral("unauthorized"));
   } else if (req.method == "POST" && req.path == QLatin1String("/api/v1/handshake")) {
+    lastHandshakeBody = body;
     QJsonObject res{{QStringLiteral("hub_version"), QStringLiteral("0.1.0")},
                     {QStringLiteral("protocol_version"), protocolVersion},
                     {QStringLiteral("min_protocol_version"), minProtocolVersion},

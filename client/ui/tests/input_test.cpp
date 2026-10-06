@@ -52,6 +52,28 @@ RomStatus st(RomState s, qint64 got = 0, qint64 total = 0) {
 class InputTest : public QObject {
   Q_OBJECT
  private slots:
+  // Keyboard profile map: replaces the standard map; two keys on one button keep it pressed until both are up.
+  void customKeyboardMap() {
+    KeyboardJoypad k;
+    QVERIFY(k.press(Qt::Key_X));
+    QCOMPARE(k.mask(), buttonMask(JoypadButton::A));
+    k.setMap({{Qt::Key_J, buttonMask(JoypadButton::A)}, {Qt::Key_K, buttonMask(JoypadButton::A)}, {Qt::Key_L, buttonMask(JoypadButton::B)}});
+    QCOMPARE(k.mask(), 0u);  // X is not mapped any more (it was held: re-evaluated)
+    QVERIFY(!k.press(Qt::Key_X));
+    QVERIFY(k.press(Qt::Key_J));
+    QVERIFY(k.press(Qt::Key_K));
+    QVERIFY(k.release(Qt::Key_J));
+    QCOMPARE(k.mask(), buttonMask(JoypadButton::A));
+    QVERIFY(k.press(Qt::Key_L));
+    QCOMPARE(k.mask(), buttonMask(JoypadButton::A) | buttonMask(JoypadButton::B));
+    k.release(Qt::Key_K);
+    k.release(Qt::Key_L);
+    QCOMPARE(k.mask(), 0u);
+    k.useStandardMap();
+    QVERIFY(k.press(Qt::Key_X));
+    QCOMPARE(k.mask(), buttonMask(JoypadButton::A));
+  }
+
   void keyMapping() {
     QCOMPARE(joypadMaskForKey(Qt::Key_Up), buttonMask(JoypadButton::Up));
     QCOMPARE(joypadMaskForKey(Qt::Key_Down), buttonMask(JoypadButton::Down));

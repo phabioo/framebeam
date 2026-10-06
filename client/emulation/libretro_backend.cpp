@@ -213,13 +213,25 @@ bool LibretroBackend::loadGame(const QString& path, QString* error) {
   if (!m_coreLoaded) return fail(QStringLiteral("No core loaded"));
   if (m_gameLoaded) unloadGame();
 
+  // Empty path: no-game mode (retro_load_game(NULL)); only used to let a core register its options.
+  const bool noGame = path.isEmpty();
   QFileInfo fi(path);
-  if (!fi.isFile()) return fail(QStringLiteral("Game file not found"));
-  m_gamePathUtf8 = QDir::toNativeSeparators(fi.absoluteFilePath()).toUtf8();
+  if (!noGame && !fi.isFile()) return fail(QStringLiteral("Game file not found"));
+  m_gamePathUtf8 = noGame ? QByteArray() : QDir::toNativeSeparators(fi.absoluteFilePath()).toUtf8();
   m_gameData.clear();
 
   retro_game_info gi{};
   gi.path = m_gamePathUtf8.constData();
+  if (noGame) {
+    m_shutdownRequested = false;
+    m_frame = QImage();
+    m_frameCount = 0;
+    m_audio.clear();
+    if (!m_api->load_game(nullptr)) return fail(QStringLiteral("Core could not start without a game"));
+    m_gameLoaded = true;
+    m_saveFilePath.clear();
+    return true;
+  }
   if (!m_info.needFullpath) {
     QFile f(fi.absoluteFilePath());
     if (!f.open(QIODevice::ReadOnly)) return fail(f.errorString());
