@@ -15,7 +15,7 @@ import (
 	"github.com/phabioo/framebeam/server/internal/hub"
 )
 
-// Phase 5 web pages: Users (3n), Systems & Cores (3l), Settings (3o) and Clients (3m).
+// Admin web pages: Users, Systems & Cores, Settings and Clients.
 
 var codeRe = regexp.MustCompile(`FB-[2-9A-HJKMNP-Z]{4}-[2-9A-HJKMNP-Z]{4}`)
 
@@ -32,7 +32,7 @@ func (c *client) multipartPost(path string, fields map[string]string, filename s
 	return c.do("POST", path, body, map[string]string{"Content-Type": ct})
 }
 
-func TestPhase5PagesAreAdminOnlyAndRender(t *testing.T) {
+func TestAdminPagesAreAdminOnlyAndRender(t *testing.T) {
 	e := newEnv(t, true, nil)
 	anon := e.client()
 	for _, p := range []string{"/users", "/systems"} {
@@ -65,7 +65,7 @@ func TestPhase5PagesAreAdminOnlyAndRender(t *testing.T) {
 		"windows-x86_64", "ARM7 BIOS", "ARM9 BIOS", "DS Firmware", "Core package cache", "LATER", "Reported by clients")
 }
 
-func TestPhase5CSRF(t *testing.T) {
+func TestAdminPagesCSRF(t *testing.T) {
 	e := newEnv(t, true, nil)
 	c := e.client()
 	tok := c.login()
@@ -340,4 +340,35 @@ func TestSystemsPageFirmwareFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 	contains(t, c.get("/systems", nil), "Core missing", "not installed")
+}
+
+func TestSettingsCertificateExpiryWarning(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		in     time.Duration
+		source string
+		badge  bool
+		hint   bool
+	}{
+		{"self-generated fine", 90 * 24 * time.Hour, "Self-generated", false, true},
+		{"self-generated soon", 10 * 24 * time.Hour, "Self-generated", true, true},
+		{"self-generated expired", -time.Hour, "Self-generated", true, true},
+		{"own soon", 10 * 24 * time.Hour, "Own cert/key", true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			e := newEnv(t, true, func(c *Config) {
+				c.UseTLS, c.CertFingerprint, c.CertSource = true, "AA:BB", tc.source
+				c.CertNotAfter = time.Now().Add(tc.in)
+			})
+			c := e.client()
+			c.login()
+			body := c.get("/settings", nil).Body.String()
+			if got := strings.Contains(body, "Expires within 30 days"); got != tc.badge {
+				t.Fatalf("badge=%v, want %v", got, tc.badge)
+			}
+			if got := strings.Contains(body, "must confirm the new fingerprint"); got != tc.hint {
+				t.Fatalf("hint=%v, want %v", got, tc.hint)
+			}
+		})
+	}
 }

@@ -68,7 +68,7 @@ var (
 	ErrSessionEnded     = &Error{Code: CodeSessionEnded, Message: "Session has ended"}
 	// ErrAdminExists: an admin already exists (code conflict).
 	ErrAdminExists = &Error{Code: CodeConflict, Message: "An admin already exists"}
-	// Phase 5.
+	// Invites, user state and uploads.
 	ErrInviteInvalid    = &Error{Code: CodeInviteInvalid, Message: "Invite code is invalid, expired, used or revoked"}
 	ErrDisplayNameTaken = &Error{Code: CodeDisplayNameTaken, Message: "Display name is already taken"}
 	ErrUserDisabled     = &Error{Code: CodeUserDisabled, Message: "User has been disabled"}

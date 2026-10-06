@@ -3,8 +3,10 @@ package web
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/framebeam/server/internal/tlsutil"
 )
 
 type settingsBody struct {
@@ -12,6 +14,8 @@ type settingsBody struct {
 	TLS                     bool
 	Fingerprint, CertSource string
 	CertNotAfter            string
+	CertExpiresSoon         bool // expired or expires within tlsutil.RenewBefore
+	CertSelfGenerated       bool
 	MinPassword             int
 	Appearance              string
 	AllowUploads            bool
@@ -23,7 +27,9 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, sess *se
 		Fingerprint: s.cfg.CertFingerprint, CertSource: s.cfg.CertSource, MinPassword: hub.MinPasswordLen}
 	if !s.cfg.CertNotAfter.IsZero() {
 		b.CertNotAfter = s.cfg.CertNotAfter.Local().Format("2006-01-02")
+		b.CertExpiresSoon = tlsutil.ExpiresSoon(s.cfg.CertNotAfter, time.Now())
 	}
+	b.CertSelfGenerated = s.cfg.CertSource == "Self-generated"
 	b.Appearance, _ = s.svc.Appearance(r.Context())
 	b.AllowUploads, _ = s.svc.AllowUserUploads(r.Context())
 	d.Body, d.Error = b, errMsg

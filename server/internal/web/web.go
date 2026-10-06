@@ -280,7 +280,7 @@ func (s *Server) guard(f handlerFunc) http.HandlerFunc {
 			return
 		}
 		ws, err := s.svc.LookupWebSession(r.Context(), c.Value)
-		if err != nil || ws.User.Role != hub.RoleAdmin { // phase 1: admins only on the web
+		if err != nil || ws.User.Role != hub.RoleAdmin { // the web interface is admin-only
 			s.clearSession(w)
 			s.redirect(w, r, "/login")
 			return

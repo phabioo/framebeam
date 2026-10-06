@@ -257,7 +257,7 @@ table.list tr.muted td { color: var(--text-faint); }
   .saves-detail { padding: 20px 16px; }
 }
 
-/* Phase 5: badges, pills, segments, switch */
+/* Badges, pills, segments, switch */
 .badge.error { background: var(--error-bg); color: var(--error); }
 .pill.error { background: var(--error-bg); color: var(--error); box-shadow: inset 0 0 0 1px var(--error); }
 .pill.dashed { box-shadow: none; border: 1px dashed var(--error); }

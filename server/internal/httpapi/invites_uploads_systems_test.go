@@ -18,7 +18,7 @@ import (
 	"github.com/phabioo/framebeam/server/internal/hub"
 )
 
-// Phase 5 over HTTP: invites, user disable, uploads, systems and firmware, handshake core warnings.
+// Invites over HTTP: invites, user disable, uploads, systems and firmware, handshake core warnings.
 // All requests go through env.do and are validated against protocol/openapi/framebeam.yaml.
 
 func redeemBody(code, name, deviceID string) map[string]any {

@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// Sessions (phase 4, ADR 0006): metadata, visibility, invites and viewers. Media never touches the Hub.
+// Sessions (ADR 0006): metadata, visibility, invites and viewers. Media never touches the Hub.
 // All Session mutations run under sessionState.mu; events are queued non-blocking to the WSS clients.
 
 // FeatureSessionsV1 is the handshake feature flag for the Sessions API and the WSS endpoint.
