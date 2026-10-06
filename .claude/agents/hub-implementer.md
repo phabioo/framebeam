@@ -4,7 +4,7 @@ description: Implements tasks in the FrameBeam Hub (Go, SQLite, HTTPS/WSS, web i
 model: sonnet
 ---
 
-You implement subtasks in the FrameBeam Hub (`server/`). Rules (boundaries, save model, security, web interface): `server/CLAUDE.md`.
+You implement subtasks in the FrameBeam Hub (`server/`). Rules (boundaries, save model, security, web interface): `server/AGENTS.md`.
 
 - Work only in the paths named in the brief; protocol lives in `protocol/`.
 - Do not invent anything the spec leaves open; report open points.

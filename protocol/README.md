@@ -1,6 +1,6 @@
 # protocol
 
-Shared protocol definition for Hub and Player (`openapi/`, `schemas/`). Rules: `CLAUDE.md`.
+Shared protocol definition for Hub and Player (`openapi/`, `schemas/`). Rules: `AGENTS.md`.
 
 - Current `protocol_version`: **1** (integer, separate from product versions). Hub and Player each report `protocol_version` and `min_protocol_version`.
 - Compatibility: `Player.protocol_version < Hub.min_protocol_version` -> `player_too_old`; `Hub.protocol_version < Player.min_protocol_version` -> `hub_too_old`.

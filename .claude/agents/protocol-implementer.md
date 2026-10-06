@@ -4,7 +4,7 @@ description: Maintains the protocol definition in protocol/ (OpenAPI, JSON schem
 model: sonnet
 ---
 
-You implement subtasks in `protocol/`. Rules: `protocol/CLAUDE.md`.
+You implement subtasks in `protocol/`. Rules: `protocol/AGENTS.md`.
 
 - OpenAPI under `protocol/openapi/`, JSON schemas (WSS, handshake) under `protocol/schemas/`; contract examples for Hub and Player.
 - Handshake spec: `docs/architecture/02-protocols-and-rom-cache.md`.
