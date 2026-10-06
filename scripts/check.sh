@@ -16,7 +16,7 @@ step() {
     echo "ok  $label"
   else
     echo "FAIL $label"
-    tail -n 40 "$log"
+    tail -n "${STEP_TAIL:-40}" "$log"
     status=1
   fi
   rm -f "$log"
@@ -52,6 +52,19 @@ DDC_PATH=""
 client_libdatachannel() { DDC_PATH="$("$ROOT/scripts/fetch-libdatachannel.sh")" && [ -d "$DDC_PATH" ]; }
 SDL3_PATH=""
 client_sdl3() { SDL3_PATH="$("$ROOT/scripts/fetch-sdl3.sh")" && [ -d "$SDL3_PATH" ]; }
+# ctest with the output of failed tests (QtTest FAIL!/QWARN/QFATAL with context) so the assertion is not lost.
+client_test() {
+  local p="$1" out rc=0
+  out="$(mktemp)"
+  (cd "$ROOT/client" && ctest --preset "$p" --output-on-failure >"$out" 2>&1) || rc=$?
+  if [ "$rc" -ne 0 ]; then
+    grep -E '^\s*[0-9]+/[0-9]+ Test\s+#[0-9]+: .*\*\*\*|tests failed|The following tests FAILED|^\s+[0-9]+ - ' "$out" | head -n 20
+    echo "--- failed test output (FAIL!/QWARN/QFATAL, context) ---"
+    grep -E -B2 -A4 'FAIL!|QFATAL|QWARN|Exception|Segmentation' "$out" | head -n 110
+  fi
+  rm -f "$out"
+  return "$rc"
+}
 client() {
   local p="${CLIENT_PRESET:-linux-debug}"
   local -a core_arg=()
@@ -67,7 +80,7 @@ client() {
   [ -n "$CORE_PATH" ] && [ -f "$CORE_PATH" ] && core_arg+=("-DFRAMEBEAM_MELONDS_DS_CORE=$CORE_PATH")
   step "client: configure" bash -c "cd '$ROOT/client' && cmake --preset $p ${core_arg[*]:-}"
   step "client: build"     bash -c "cd '$ROOT/client' && cmake --build --preset $p"
-  step "client: test"      bash -c "cd '$ROOT/client' && ctest --preset $p"
+  STEP_TAIL=150 step "client: test" client_test "$p"
 }
 
 # packaging: syntax, shellcheck, unit verification and an install/uninstall smoke test.
