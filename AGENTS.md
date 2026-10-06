@@ -36,7 +36,7 @@ FrameBeam is a self-hosted retro gaming platform (monorepo): a central ROM libra
 - `scripts/e2e-player-hub.sh` (Player CLI against a locally built Hub incl. save round trip) and `scripts/e2e-session.sh` (two CLI processes share/watch a Session against a local Hub).
 - `packaging/linux/install-hub.sh` (+ `framebeam-hub.service`, README there): installs/upgrades/uninstalls the Hub as a systemd service from a local binary (`--port 8444` if 8443 is taken); `scripts/check.sh packaging` (bash -n, shellcheck, unit verify, install smoke test with `FRAMEBEAM_INSTALL_ROOT`) is part of `make check-hub`.
 
-CI (`.github/workflows/ci.yml`): Linux on every push, Windows on PRs against `main` and manually. The SessionStart hook `.claude/hooks/session-start.sh` (also the base of `scripts/setup-cloud.sh`) only prepares cloud sessions (vcpkg, Go modules, Qt apt packages; the core build runs only via `make fetch-core`).
+CI (`.github/workflows/ci.yml`): Linux on every push; Windows on PRs against `main`, manually, and on pushes to `main` to prime the Windows vcpkg binary cache after merges (see ADR 0008). Cache misses still require a cold dependency build. The SessionStart hook `.claude/hooks/session-start.sh` (also the base of `scripts/setup-cloud.sh`) only prepares cloud sessions (vcpkg, Go modules, Qt apt packages; the core build runs only via `make fetch-core`).
 
 ## Pointers
 

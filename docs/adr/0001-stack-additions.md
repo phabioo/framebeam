@@ -15,7 +15,7 @@
 - **Player language:** C++20 as baseline. C++23 features only if MSVC, GCC and AppleClang support them. This deliberately deviates from "C++23" in `docs/architecture/01-overview.md`.
 - **Hub web interface:** Go `html/template` + htmx, embedded in the Hub binary via `embed`. No Node build.
 - **C++ dependencies:** vcpkg in manifest mode, build via CMake presets.
-- **CI:** GitHub Actions. Linux jobs on every push, Windows jobs on pull requests against `main` and manually (`workflow_dispatch`). The repository is public.
+- **CI:** GitHub Actions. Linux jobs on every push, Windows jobs on pull requests against `main` and manually (`workflow_dispatch`). The repository is public. The Windows trigger and cache policy is superseded by [ADR 0008](0008-windows-ci-cache.md).
 
 ## Rejected
 

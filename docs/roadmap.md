@@ -29,6 +29,8 @@ PoC leftovers (open in the PoC scope or ADRs):
 - A core version mismatch only warns (ADR 0007); re-evaluate once several cores exist (see 0.7).
 - Codebase cleanup.
 
+Completed 2026-10-06: Windows CI runs on `main` pushes to prime its vcpkg binary cache after merges. The release preset uses a release-only dependency triplet. Cache keys distinguish the triplet and MSVC version and cover the manifest, presets and overlay triplets. The first main run with the new triplet is expected to build cold; later runtimes depend on cache hits and runner performance. See [ADR 0008](adr/0008-windows-ci-cache.md).
+
 ## 0.2 Cores from the Hub
 
 Goal: installers ship no emulator cores. melonDS DS leaves the Windows installer and comes from the Hub.
