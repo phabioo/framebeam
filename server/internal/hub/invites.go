@@ -148,7 +148,7 @@ func (s *Service) RevokeInvite(ctx context.Context, id string) error {
 // ListInvites returns the invites, newest first (at most limit; 0 = all).
 func (s *Service) ListInvites(ctx context.Context, limit int) ([]Invite, error) {
 	q := `SELECT i.id, i.authorize_device, i.status, i.created_at, i.expires_at, i.redeemed_at, i.revoked_at, COALESCE(u.display_name,'')
-		FROM invites i LEFT JOIN users u ON u.id = i.redeemed_by ORDER BY i.created_at DESC, i.id`
+		FROM invites i LEFT JOIN users u ON u.id = i.redeemed_by ORDER BY i.created_at DESC, i.rowid DESC`
 	var args []any
 	if limit > 0 {
 		q += ` LIMIT ?`
