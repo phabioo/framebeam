@@ -1,0 +1,4 @@
+# Pinned libdatachannel version (paullouisageneau/libdatachannel, MPL-2.0). Read by scripts and CI (KEY=VALUE).
+# Linux only (cloud + CI): built from git by scripts/fetch-libdatachannel.sh. Windows uses vcpkg (client/vcpkg.json).
+LIBDATACHANNEL_TAG=v0.24.5
+LIBDATACHANNEL_COMMIT=443f6934d9007eb7076ab7825ba330f355fcbead

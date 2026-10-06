@@ -10,12 +10,13 @@ qt_add_qml_module(framebeam_ui
   OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/FrameBeam/Player
   SOURCES
     inputmapping.h inputmapping.cpp
-    audioresampler.h audioresampler.cpp
     audiooutput.h audiooutput.cpp
     gamesession.h gamesession.cpp
     gameview.h gameview.cpp
     librarymodel.h librarymodel.cpp
     playercontroller.h playercontroller.cpp
+    sessioncontroller.h sessioncontroller.cpp
+    remoteview.h remoteview.cpp
   QML_FILES
     Main.qml
     Theme.qml
@@ -37,9 +38,14 @@ qt_add_qml_module(framebeam_ui
     LibraryScreen.qml
     GameScreen.qml
     ConflictDialog.qml
+    FbSegment.qml
+    SessionsSection.qml
+    SessionPanel.qml
+    MultiviewArea.qml
+    DiagnosticsPanel.qml
 )
 target_include_directories(framebeam_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(framebeam_ui PUBLIC framebeam_core framebeam_emulation Qt6::Quick Qt6::QuickControls2 Qt6::Multimedia)
+target_link_libraries(framebeam_ui PUBLIC framebeam_core framebeam_audioutil framebeam_media framebeam_emulation Qt6::Quick Qt6::QuickControls2 Qt6::Multimedia)
 framebeam_warnings(framebeam_ui)
 
 if(BUILD_TESTING)

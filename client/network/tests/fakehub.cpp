@@ -1,6 +1,7 @@
 #include "fakehub.h"
 
 #include <QCryptographicHash>
+
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -57,7 +58,16 @@ void FakeHub::incomingConnection(qintptr descriptor) {
   }
   connect(sock, &QSslSocket::disconnected, sock, &QObject::deleteLater);
   auto buffer = std::make_shared<QByteArray>();
+  connect(sock, &QSslSocket::disconnected, this, [this, sock]() {
+    wsClients_.removeAll(sock);
+    wsBuffers_.remove(sock);
+  });
   connect(sock, &QSslSocket::readyRead, this, [this, sock, buffer]() {
+    if (wsBuffers_.contains(sock)) {
+      wsBuffers_[sock].append(sock->readAll());
+      onWsData(sock);
+      return;
+    }
     buffer->append(sock->readAll());
     const int headEnd = buffer->indexOf("\r\n\r\n");
     if (headEnd < 0) {
@@ -203,6 +213,11 @@ void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
       res.insert(it.key(), it.value());
     }
     respond(sock, 200, json(res));
+  } else if (req.path == QLatin1String("/api/v1/ws")) {
+    upgradeWs(sock, req);
+  } else if (req.path == QLatin1String("/api/v1/sessions") || req.path.startsWith(QLatin1String("/api/v1/sessions/")) ||
+             req.path == QLatin1String("/api/v1/users")) {
+    handleSessions(sock, req);
   } else if (req.path == QLatin1String("/api/v1/saves") || req.path.startsWith(QLatin1String("/api/v1/games/"))) {
     handleSaves(sock, req);
   } else if (req.method == "GET" && req.path == QLatin1String("/api/v1/games")) {
@@ -395,5 +410,183 @@ void FakeHub::handleSaves(QSslSocket* sock, const FakeRequest& req) {
     respond(sock, 200, json(slotJson(gameId, s)));
   } else {
     respondError(sock, 404, QStringLiteral("not_found"));
+  }
+}
+
+// ---------------------------------------------------------------- sessions (REST)
+
+void FakeHub::handleSessions(QSslSocket* sock, const FakeRequest& req) {
+  const auto json = [](const QJsonObject& o) { return QJsonDocument(o).toJson(QJsonDocument::Compact); };
+  const QJsonObject body = QJsonDocument::fromJson(req.body).object();
+  const QString path = req.path.mid(QStringLiteral("/api/v1").size());
+  if (path == QLatin1String("/users") && req.method == "GET" && !fakeUsers.isEmpty()) {
+    respond(sock, 200, json({{QStringLiteral("users"), fakeUsers}}));
+    return;
+  }
+  if (path == QLatin1String("/users") && req.method == "GET") {
+    respond(sock, 200, json({{QStringLiteral("users"), QJsonArray{QJsonObject{{QStringLiteral("id"), QStringLiteral("u_test_1")},
+                                                                               {QStringLiteral("display_name"), QStringLiteral("Tester")},
+                                                                               {QStringLiteral("online"), true}}}}}));
+    return;
+  }
+  if (path == QLatin1String("/sessions")) {
+    if (req.method == "GET") {
+      QJsonArray arr;
+      for (const QJsonObject& s : std::as_const(sessions)) {
+        arr.append(s);
+      }
+      respond(sock, 200, json({{QStringLiteral("sessions"), arr}}));
+    } else if (req.method == "POST") {
+      if (publishCapabilityMissing) {
+        respondError(sock, 409, QStringLiteral("capability_missing"));
+        return;
+      }
+      const QString id = QStringLiteral("00000000-0000-4000-8000-%1").arg(sessions.size() + 1, 12, 10, QLatin1Char('0'));
+      QJsonObject s{{QStringLiteral("session_id"), id},
+                    {QStringLiteral("game_id"), body.value(QStringLiteral("game_id"))},
+                    {QStringLiteral("game_title"), QStringLiteral("Demo Homebrew")},
+                    {QStringLiteral("owner"), QJsonObject{{QStringLiteral("user_id"), QStringLiteral("u_test_1")},
+                                                          {QStringLiteral("display_name"), QStringLiteral("Tester")},
+                                                          {QStringLiteral("device_name"), QStringLiteral("Test Device")}}},
+                    {QStringLiteral("visibility"), body.value(QStringLiteral("visibility"))},
+                    {QStringLiteral("created_at"), QStringLiteral("2026-01-01T12:00:00Z")},
+                    {QStringLiteral("viewer_count"), 0},
+                    {QStringLiteral("is_owner"), true},
+                    {QStringLiteral("invited"), false}};
+      sessions.insert(id, s);
+      respond(sock, 201, json(s));
+    } else {
+      respondError(sock, 404, QStringLiteral("not_found"));
+    }
+    return;
+  }
+  const QStringList parts = path.split(QLatin1Char('/'), Qt::SkipEmptyParts);  // sessions, id, [sub, arg]
+  if (parts.size() < 2 || parts.at(0) != QLatin1String("sessions")) {
+    respondError(sock, 404, QStringLiteral("not_found"));
+    return;
+  }
+  const QString id = parts.at(1);
+  if (!sessions.contains(id)) {
+    respondError(sock, 404, QStringLiteral("session_not_found"));
+    return;
+  }
+  QJsonObject& s = sessions[id];
+  if (parts.size() == 2) {
+    if (req.method == "GET") {
+      respond(sock, 200, json(s));
+    } else if (req.method == "PATCH") {
+      s.insert(QStringLiteral("visibility"), body.value(QStringLiteral("visibility")));
+      respond(sock, 200, json(s));
+    } else if (req.method == "DELETE") {
+      sessions.remove(id);
+      respond(sock, 204, {});
+    }
+  } else if (parts.at(2) == QLatin1String("join") && req.method == "POST") {
+    if (joinFull) {
+      respondError(sock, 409, QStringLiteral("session_full"));
+      return;
+    }
+    respond(sock, 201, json({{QStringLiteral("viewer_id"), QStringLiteral("11111111-1111-4111-8111-111111111111")},
+                             {QStringLiteral("permissions"), QJsonObject{{QStringLiteral("view_video"), true},
+                                                                         {QStringLiteral("hear_audio"), true},
+                                                                         {QStringLiteral("send_input"), false}}},
+                             {QStringLiteral("ice_servers"), QJsonArray{QStringLiteral("stun:stun.example.org:3478")}}}));
+  } else if (parts.at(2) == QLatin1String("viewers") && req.method == "DELETE") {
+    respond(sock, 204, {});
+  } else if (parts.at(2) == QLatin1String("invites") && req.method == "PUT") {
+    respond(sock, 200, json(s));
+  } else if ((parts.at(2) == QLatin1String("invites") && req.method == "DELETE") ||
+             (parts.at(2) == QLatin1String("decline") && req.method == "POST")) {
+    respond(sock, 204, {});
+  } else {
+    respondError(sock, 404, QStringLiteral("not_found"));
+  }
+}
+
+// ---------------------------------------------------------------- WSS (minimal RFC 6455 server side)
+
+void FakeHub::upgradeWs(QSslSocket* sock, const FakeRequest& req) {
+  lastWsAuthorization = req.headers.value(QStringLiteral("authorization"));
+  const QByteArray key = req.headers.value(QStringLiteral("sec-websocket-key"));
+  if (refuseWs || key.isEmpty()) {
+    respondError(sock, 401, QStringLiteral("unauthorized"));
+    return;
+  }
+  const QByteArray accept =
+      QCryptographicHash::hash(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11", QCryptographicHash::Sha1).toBase64();
+  sock->write("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: " + accept +
+              "\r\n\r\n");
+  ++wsConnections;
+  wsClients_.append(sock);
+  wsBuffers_.insert(sock, {});
+}
+
+void FakeHub::wsWrite(QSslSocket* sock, quint8 opcode, const QByteArray& payload) {
+  QByteArray f;
+  f.append(static_cast<char>(0x80 | opcode));
+  if (payload.size() < 126) {
+    f.append(static_cast<char>(payload.size()));
+  } else {
+    f.append(static_cast<char>(126));
+    f.append(static_cast<char>((payload.size() >> 8) & 0xFF));
+    f.append(static_cast<char>(payload.size() & 0xFF));
+  }
+  sock->write(f + payload);
+}
+
+void FakeHub::onWsData(QSslSocket* sock) {
+  QByteArray& buf = wsBuffers_[sock];
+  while (buf.size() >= 2) {
+    const quint8 b0 = static_cast<quint8>(buf[0]), b1 = static_cast<quint8>(buf[1]);
+    qsizetype len = b1 & 0x7F, off = 2;
+    if (len == 126) {
+      if (buf.size() < 4) return;
+      len = (static_cast<quint8>(buf[2]) << 8) | static_cast<quint8>(buf[3]);
+      off = 4;
+    }
+    const bool masked = (b1 & 0x80) != 0;
+    if (buf.size() < off + (masked ? 4 : 0) + len) return;
+    QByteArray payload = buf.mid(off + (masked ? 4 : 0), len);
+    if (masked) {
+      for (qsizetype i = 0; i < payload.size(); ++i) {
+        payload[i] = static_cast<char>(payload[i] ^ buf[off + (i % 4)]);
+      }
+    }
+    buf.remove(0, off + (masked ? 4 : 0) + len);
+    const quint8 op = b0 & 0x0F;
+    if (op == 0x9) {
+      wsWrite(sock, 0xA, payload);
+    } else if (op == 0x8) {
+      wsWrite(sock, 0x8, {});
+      sock->disconnectFromHost();
+      return;
+    } else if (op == 0x1) {
+      const QJsonObject env = QJsonDocument::fromJson(payload).object();
+      wsReceived.append(env);
+      if (env.value(QStringLiteral("type")).toString() == QLatin1String("hello")) {
+        const QJsonObject ack{{QStringLiteral("type"), QStringLiteral("hello_ack")},
+                              {QStringLiteral("payload"),
+                               QJsonObject{{QStringLiteral("protocol_version"), protocolVersion},
+                                           {QStringLiteral("hub_version"), QStringLiteral("0.1.0")},
+                                           {QStringLiteral("features"), QJsonArray{QStringLiteral("saves_v1"), QStringLiteral("sessions_v1")}},
+                                           {QStringLiteral("ice_servers"), QJsonArray()}}}};
+        wsWrite(sock, 0x1, QJsonDocument(ack).toJson(QJsonDocument::Compact));
+      }
+    }
+  }
+}
+
+void FakeHub::sendWs(const QString& type, const QJsonObject& payload) {
+  const QByteArray msg =
+      QJsonDocument(QJsonObject{{QStringLiteral("type"), type}, {QStringLiteral("payload"), payload}}).toJson(QJsonDocument::Compact);
+  for (QSslSocket* c : std::as_const(wsClients_)) {
+    wsWrite(c, 0x1, msg);
+  }
+}
+
+void FakeHub::closeWsClients() {
+  const QList<QSslSocket*> list = wsClients_;
+  for (QSslSocket* c : list) {
+    c->abort();
   }
 }

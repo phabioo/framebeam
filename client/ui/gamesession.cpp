@@ -66,7 +66,12 @@ void GameSession::start(const LaunchConfig& config) {
     frameNr_ = nr;
     emit frameChanged();
   });
-  connect(r, &EmulationRunner::audioReady, this, [this](const QByteArray& pcm, int) { audio_.push(pcm); });
+  connect(r, &EmulationRunner::audioReady, this, [this](const QByteArray& pcm, int rate) {
+    if (!audioMuted_) {
+      audio_.push(pcm);
+    }
+    emit audioChunk(pcm, rate);
+  });
   connect(r, &EmulationRunner::stateChanged, this, [this](EmulationRunner::State s) {
     if (state_ == Failed || state_ == Idle) {
       return;

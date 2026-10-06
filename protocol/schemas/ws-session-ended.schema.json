@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://framebeam.invalid/schemas/ws-session-ended.schema.json",
+  "title": "ws-session-ended (Hub to Player)",
+  "type": "object",
+  "required": [
+    "type",
+    "payload"
+  ],
+  "properties": {
+    "type": {
+      "const": "session_ended"
+    },
+    "id": {
+      "type": "string"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "session_id",
+        "reason"
+      ],
+      "properties": {
+        "session_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "reason": {
+          "enum": [
+            "ended",
+            "replaced",
+            "owner_disconnected",
+            "device_revoked",
+            "no_longer_visible"
+          ]
+        }
+      }
+    }
+  }
+}

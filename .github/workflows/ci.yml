@@ -61,6 +61,11 @@ jobs:
         with:
           path: ~/.cache/framebeam/cores
           key: melondsds-core-linux-${{ hashFiles('scripts/melonds-ds.pin', 'scripts/fetch-melonds-ds.sh') }}
+      - name: Cache libdatachannel
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/framebeam/deps
+          key: libdatachannel-linux-${{ hashFiles('scripts/libdatachannel.pin', 'scripts/fetch-libdatachannel.sh') }}
       - name: Provision tools and Qt 6.4
         run: |
           mkdir -p "$VCPKG_DEFAULT_BINARY_CACHE"
@@ -68,7 +73,8 @@ jobs:
           sudo apt-get install -y -qq ninja-build qt6-base-dev qt6-declarative-dev qt6-multimedia-dev \
             qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
             qml6-module-qtquick-window qml6-module-qtqml-workerscript qml6-module-qtquick-templates \
-            libgl-dev libepoxy-dev xvfb
+            libgl-dev libepoxy-dev xvfb libavcodec-dev libswscale-dev libopus-dev \
+            qt6-websockets-dev libssl-dev pkg-config
       - name: Bootstrap vcpkg
         run: scripts/bootstrap-vcpkg.sh
       - name: Check Player
@@ -88,8 +94,8 @@ jobs:
         with:
           path: ${{ env.VCPKG_ROOT }}
           key: vcpkg-root-${{ runner.os }}-${{ hashFiles('client/vcpkg.json') }}
-      - name: Cache vcpkg binary cache
-        uses: actions/cache@v4
+      - name: Restore vcpkg binary cache
+        uses: actions/cache/restore@v4
         with:
           path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
           key: vcpkg-bin-${{ runner.os }}-${{ hashFiles('client/vcpkg.json') }}
@@ -122,7 +128,7 @@ jobs:
           host: windows
           target: desktop
           arch: win64_msvc2022_64
-          modules: qtmultimedia
+          modules: qtmultimedia qtwebsockets
           cache: true
       - name: Provision melonDS DS core
         id: core
@@ -139,6 +145,14 @@ jobs:
       - name: Configure
         working-directory: client
         run: cmake --preset windows-msvc-release "-DFRAMEBEAM_MELONDS_DS_CORE=${{ steps.core.outputs.dll }}"
+      # Save the binary cache right after vcpkg install (part of configure), even if
+      # later steps fail, so a long FFmpeg build is never repeated.
+      - name: Save vcpkg binary cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+          key: vcpkg-bin-${{ runner.os }}-${{ hashFiles('client/vcpkg.json') }}
       - name: Build
         working-directory: client
         run: cmake --build --preset windows-msvc-release
@@ -147,11 +161,54 @@ jobs:
         shell: pwsh
         env:
           QT_QPA_PLATFORM: offscreen
+          # Tests also write their QtTest log here, so an intermittent failure shows its assertion from the first run.
+          FRAMEBEAM_TEST_LOG_DIR: ${{ github.workspace }}\testlogs
         run: |
           # The core is always present in CI: skipped tests (e.g. emulation_core) count as failures.
           ctest --preset windows-msvc-release 2>&1 | Tee-Object -FilePath ctest.log
           if ($LASTEXITCODE -ne 0) {
-            ctest --preset windows-msvc-release --rerun-failed --output-on-failure -V
+            # Re-run every failed test exe directly: QtTest output goes to a file (survives a crash) and to the
+            # console, followed by the files and the exit code (0xC0000005 = access violation, 3/4 = abort/terminate).
+            $failed = Select-String -Path ctest.log -Pattern '^\s*\d+/\d+ Test\s+#\d+: (\S+) \.+\*{3}(Failed|Exception|Timeout)' |
+              ForEach-Object { $_.Matches[0].Groups[1].Value } | Sort-Object -Unique
+            foreach ($t in $failed) {
+              $first = Join-Path $env:FRAMEBEAM_TEST_LOG_DIR "test_$t.txt"
+              if (Test-Path $first) {
+                Write-Host "::group::first run of $t ($first)"
+                Select-String -Path $first -Pattern 'FAIL!|QFATAL' -Context 3,3 | Out-Host
+                Get-Content $first | Select-Object -Last 60 | Out-Host
+                Write-Host "::endgroup::"
+              }
+              $exe = Get-ChildItem -Recurse -Filter "test_$t.exe" | Select-Object -First 1
+              if (-not $exe) { Write-Host "::warning::no exe for $t"; continue }
+              Write-Host "::group::rerun $t ($($exe.FullName))"
+              # Same environment as under ctest (core path, test ROM, offscreen): read from the test properties.
+              $props = (ctest --preset windows-msvc-release -R "^$t$" --show-only=json-v1 | ConvertFrom-Json).tests[0].properties
+              foreach ($kv in (($props | Where-Object { $_.name -eq 'ENVIRONMENT' }).value)) {
+                $k, $v = $kv -split '=', 2
+                Set-Item -Path "env:$k" -Value $v
+              }
+              Push-Location $exe.DirectoryName
+              # Two -o: file (survives a crash) AND stdout. "$t.txt,txt" is one argument "<file>,<format>".
+              $txt = Join-Path $exe.DirectoryName "$t.txt"
+              Remove-Item $txt -ErrorAction SilentlyContinue
+              $out = & $exe.FullName -v2 -maxwarnings 0 -o "${txt},txt" -o "-,txt" 2>&1 | ForEach-Object { "$_" }
+              $code = $LASTEXITCODE
+              Pop-Location
+              Write-Host "exit code of ${t}: $code (0x$('{0:X}' -f $code))"
+              # QtTest result file, unfiltered tail, then the interesting lines of it (and of the console output).
+              if (Test-Path $txt) {
+                Write-Host "--- $t.txt (last 80 lines) ---"
+                Get-Content $txt | Select-Object -Last 80 | Out-Host
+                Write-Host "--- FAIL!/QWARN/QFATAL in $t.txt ---"
+                Select-String -Path $txt -Pattern 'FAIL!|QWARN|QFATAL' -Context 3,3 | Out-Host
+              } else {
+                Write-Host "::warning::$txt was not written"
+              }
+              Write-Host "--- console: guard lines, [loopback] and failures ---"
+              $out | Select-String -Pattern 'FAIL!|QFATAL|Totals|\[fbtest\]|\[uitest\]|\[loopback\]' | Out-Host
+              Write-Host "::endgroup::"
+            }
             throw "ctest failed"
           }
           if (Select-String -Path ctest.log -Pattern '\(Skipped\)' -Quiet) { throw "Tests were skipped although the core should be present" }
@@ -165,6 +222,23 @@ jobs:
           if ($exe.Count -ne 1) { throw "framebeam_player.exe not found unambiguously: $($exe.FullName -join ', ')" }
           Write-Host "Executable: $($exe[0].FullName)"
           Copy-Item $exe[0].FullName $dist
+          # vcpkg runtime DLLs (libdatachannel, FFmpeg, OpenH264, Opus and their transitive DLLs): windeployqt only
+          # deploys Qt. vcpkg's applocal step puts them next to the exe; fall back to the release bin directory of
+          # the manifest install (never debug\bin). Qt DLLs are left to windeployqt.
+          $sources = @($exe[0].DirectoryName)
+          $installed = @(Get-ChildItem -Recurse -Directory -Filter 'vcpkg_installed' client\build\windows-msvc-release -ErrorAction SilentlyContinue |
+            ForEach-Object { Join-Path $_.FullName 'x64-windows\bin' } | Where-Object { Test-Path $_ })
+          $sources += $installed
+          foreach ($src in ($sources | Select-Object -Unique)) {
+            foreach ($f in (Get-ChildItem -Path $src -Filter *.dll -File)) {
+              if ($f.Name -like 'Qt6*.dll') { continue }
+              if (-not (Test-Path "$dist\$($f.Name)")) { Copy-Item $f.FullName $dist }
+            }
+          }
+          Write-Host "Bundled non-Qt DLLs: $((Get-ChildItem $dist -Filter *.dll | ForEach-Object Name) -join ', ')"
+          foreach ($need in 'datachannel', 'avutil', 'avcodec', 'swscale', 'opus') {
+            if (-not (Get-ChildItem $dist -Filter "*$need*.dll")) { throw "Runtime DLL matching *$need*.dll is missing from the package" }
+          }
           windeployqt --release --no-translations --qmldir client\ui "$dist\framebeam_player.exe"
           if ($LASTEXITCODE -ne 0) { throw "windeployqt failed" }
           $dll = "${{ steps.core.outputs.dll }}"
@@ -175,7 +249,58 @@ jobs:
           cores\melondsds_libretro.dll. License text: LICENSE-melonDS-DS.txt.
           Source code: https://github.com/JesseTG/melonds-ds
           Contains no ROMs, BIOS or firmware.
+
+          Further bundled libraries (built via vcpkg, see client/vcpkg.json):
+          - FFmpeg (avcodec, avutil, swscale), LGPL-2.1-or-later, https://ffmpeg.org/ (source: https://git.ffmpeg.org/ffmpeg.git)
+          - OpenH264, BSD-2-Clause, https://github.com/cisco/openh264
+          - libdatachannel, MPL-2.0, https://github.com/paullouisageneau/libdatachannel
+          - libjuice, MPL-2.0, https://github.com/paullouisageneau/libjuice
+          - libsrtp, BSD-3-Clause, https://github.com/cisco/libsrtp
+          - usrsctp, BSD-3-Clause, https://github.com/sctplab/usrsctp
+          - Opus, BSD-3-Clause, https://opus-codec.org/ (source: https://gitlab.xiph.org/xiph/opus)
+          - OpenSSL, Apache-2.0, https://www.openssl.org/
+          - Qt 6 (LGPL-3.0, dynamically linked), https://www.qt.io/
+          The FFmpeg and Qt DLLs are shared libraries and can be replaced by compatible builds.
           "@ | Set-Content "$dist\THIRD-PARTY-NOTICE.txt"
+      - name: Package smoke check
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          $dist = "$env:GITHUB_WORKSPACE\dist\framebeam-player"
+          $exe = "$dist\framebeam_player.exe"
+          # 1) Static: every non-system import of the exe and of the bundled DLLs must be in the package.
+          $dumpbin = Get-Command dumpbin.exe -ErrorAction SilentlyContinue
+          if ($dumpbin) {
+            $missing = @()
+            foreach ($bin in (@($exe) + (Get-ChildItem $dist -Filter *.dll | ForEach-Object FullName))) {
+              foreach ($line in (& $dumpbin.Source /dependents $bin)) {
+                if ($line -match '^\s+(\S+\.dll)\s*$') {
+                  $d = $Matches[1]
+                  if ($d -match '^(api-ms-win-|ext-ms-win-)' -or (Test-Path "$dist\$d") -or (Test-Path "$env:SystemRoot\System32\$d")) { continue }
+                  $missing += "$([IO.Path]::GetFileName($bin)) -> $d"
+                }
+              }
+            }
+            $missing = $missing | Sort-Object -Unique
+            if ($missing) { $missing | ForEach-Object { Write-Host "::error::missing dependency: $_" }; throw "Package is missing DLLs" }
+            Write-Host "dumpbin: all non-system dependencies are in the package"
+          } else {
+            Write-Host "::warning::dumpbin not available, skipping static dependency check"
+          }
+          # 2) Dynamic: --version needs no window and no Hub; the loader fails before main() when a DLL is missing.
+          # --smoke-test additionally loads the QML UI (offscreen) and exits 0.
+          foreach ($argSet in @(@('--version'), @('--smoke-test'))) {
+            $p = Start-Process -FilePath $exe -ArgumentList $argSet -WorkingDirectory $dist -PassThru -NoNewWindow
+            $null = $p.Handle  # cache the handle, otherwise ExitCode can be empty
+            if (-not $p.WaitForExit(60000)) { $p.Kill(); throw "$argSet did not exit within 60 s" }
+            $code = $p.ExitCode
+            Write-Host "framebeam_player.exe $argSet exit code: $code (0x$('{0:X8}' -f $code))"
+            if ($code -eq -1073741515 -or $code -eq 3221225781) {
+              throw "STATUS_DLL_NOT_FOUND (0xC0000135): a runtime DLL is missing from the package"
+            }
+            if ($code -ne 0) { throw "framebeam_player.exe $argSet failed with exit code $code" }
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: framebeam-player-windows-x64

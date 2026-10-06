@@ -20,6 +20,11 @@
     "melonds_screen_layout1": "top-bottom",
     "melonds_number_of_screen_layouts": "1",
     "melonds_screen_gap": "0",
-    "melonds_boot_mode": "direct"
+    "melonds_boot_mode": "direct",
+    "melonds_show_current_layout": "disabled",
+    "melonds_show_mic_state": "disabled",
+    "melonds_show_lid_state": "disabled",
+    "melonds_show_camera_state": "disabled",
+    "melonds_show_sensor_reading": "disabled"
   }
 }

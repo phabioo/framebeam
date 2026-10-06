@@ -3,6 +3,7 @@
 #include <QByteArray>
 #include <QList>
 #include <QObject>
+#include <QNetworkRequest>
 #include <QPointer>
 #include <QSet>
 #include <QString>
@@ -90,6 +91,12 @@ class HubConnection : public QObject {
                                 const HttpHeaders& headers = {}, const QByteArray& contentType = "application/octet-stream");
   // Caller reports 401: the token is renewed immediately, or -> NeedsPairing if the credential is invalid.
   void noteUnauthorized();
+
+  // Upgrade request for the WSS endpoint (apiPath relative to api_base, e.g. "/ws"): wss/ws URL of the hub, Bearer
+  // header and the pinned TLS configuration (no system CAs). Default-constructed (empty URL) if not Connected.
+  // The token stays inside the request. HubSocket additionally verifies the leaf against pinnedFingerprint().
+  QNetworkRequest webSocketRequest(const QString& apiRelPath) const;
+  QString pinnedFingerprint() const { return pin_; }
 
  signals:
   void stateChanged(framebeam::HubConnection::State state);

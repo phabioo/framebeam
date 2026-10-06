@@ -39,6 +39,7 @@ int main(int argc, char* argv[]) {
 
   QCommandLineParser parser;
   parser.addHelpOption();
+  parser.addVersionOption();
   const QCommandLineOption smoke(QStringLiteral("smoke-test"),
                                  QStringLiteral("Load QML and exit with code 0 (code 1 on QML warnings)."));
   const QCommandLineOption dataDir(QStringLiteral("data-dir"),

@@ -1,6 +1,7 @@
 #include "hubconnection.h"
 
 #include <QLoggingCategory>
+#include <QSslConfiguration>
 #include <algorithm>
 #include <utility>
 
@@ -580,6 +581,26 @@ QNetworkReply* HubConnection::authorizedSend(const QByteArray& method, const QSt
   inflight_.insert(reply);
   connect(reply, &QNetworkReply::finished, this, [this, reply]() { inflight_.remove(reply); });
   return reply;
+}
+
+QNetworkRequest HubConnection::webSocketRequest(const QString& apiRelPath) const {
+  if (state_ != State::Connected || http_ == nullptr || accessToken_.isEmpty()) {
+    return QNetworkRequest();
+  }
+  QUrl url = http_->baseUrl();
+  const bool tls = url.scheme().toLower() == QLatin1String("https");
+  url.setScheme(tls ? QStringLiteral("wss") : QStringLiteral("ws"));
+  url.setPath(apiPath(apiRelPath));
+  QNetworkRequest req(url);
+  req.setRawHeader("Authorization", "Bearer " + accessToken_);
+  if (tls) {
+    QSslConfiguration cfg = QSslConfiguration::defaultConfiguration();
+    cfg.setCaCertificates({});  // only the pin decides
+    cfg.setPeerVerifyMode(QSslSocket::VerifyPeer);
+    cfg.setProtocol(QSsl::TlsV1_2OrLater);
+    req.setSslConfiguration(cfg);
+  }
+  return req;
 }
 
 void HubConnection::noteUnauthorized() {

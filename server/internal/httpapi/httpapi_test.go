@@ -505,9 +505,10 @@ func TestRevokedDeviceCanBeRepaired(t *testing.T) {
 	wantStatus(t, e.accessToken(dev, cred), 200, "")
 }
 
-func TestWebSocketNotImplemented(t *testing.T) {
+func TestWebSocketNeedsAuthAndUpgrade(t *testing.T) {
 	e := newEnv(t, nil)
 	at := e.login(uuid.NewString())
-	wantStatus(t, e.do("GET", "/api/v1/ws", nil, opt{token: at, raw: true}), 501, "internal")
+	// Authenticated but no upgrade handshake: refused by the WebSocket layer (the real flow is in sessions_test.go).
+	wantStatus(t, e.do("GET", "/api/v1/ws", nil, opt{token: at, raw: true}), 426, "")
 	wantStatus(t, e.do("GET", "/api/v1/ws", nil, opt{raw: true}), 401, "unauthorized")
 }

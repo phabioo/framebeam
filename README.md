@@ -11,8 +11,8 @@ Phase plan: [Workflow](docs/workflow.md#phase-plan).
 | 0 Foundation | done | Monorepo, CLAUDE.md, architecture, CI (Linux/Windows), build scaffolding, check scripts |
 | 1 Protocol and Hub basics | done | OpenAPI `/api/v1`, WSS schemas, Hub with SQLite, admin setup, TLS, pairing, tokens, library, ROM download, web interface |
 | 2 Playable vertical slice | done | Player core (profile, pairing, library, ROM cache), melonDS DS via Libretro, minimal Qt UI |
-| 3 Saves | done (pending local test) | Save storage, sync, versions, conflict model ([ADR 0005](docs/adr/0005-saves-phase3.md)) |
-| 4 Session sharing and multiview | planned | Presence, signaling, WebRTC, multiview |
+| 3 Saves | done | Save storage, sync, versions, conflict model ([ADR 0005](docs/adr/0005-saves-phase3.md)) |
+| 4 Session sharing and multiview | done in the cloud, pending local test on two devices | Presence, signaling, WebRTC, multiview ([ADR 0006](docs/adr/0006-sessions-phase4.md), accepted) |
 | 5 Remainder and polish | planned | Firmware path, users, remaining pages, packaging |
 | Post-PoC | planned | Installers for all platforms, integrated updater |
 
@@ -29,6 +29,7 @@ Phase plan: [Workflow](docs/workflow.md#phase-plan).
 - Versioned saves per user and game (API tag `saves`, API spec 1.1.0, `protocol_version` stays 1, handshake feature `saves_v1`); the Hub stores the save as an opaque blob and never merges it.
 - Web page "Saves" (admin): slots, conflicts ("Use Hub version" / "Adopt local save"), history with Download, badge in the navigation.
 - Info endpoint `/.well-known/framebeam` and handshake with `protocol_version`.
+- Sessions: session API (visibility Private / Hub users / Invite only, invites, viewers), WSS presence and signaling relay, revoke on visibility change; optional STUN servers via `-ice-servers` / `FRAMEBEAM_ICE_SERVERS`.
 - Ships with a systemd installer for Linux / Raspberry Pi (`packaging/linux/`).
 
 **Protocol** (`protocol/`)
@@ -46,9 +47,13 @@ Phase plan: [Workflow](docs/workflow.md#phase-plan).
 - Save sync with the Hub: sync before launch, auto checkpoint while playing (12 s after the last change, at most every 60 s), final sync on pause, stop and exit; pending uploads are kept per Hub and user.
 - Conflict dialog with "Keep both, decide later" as default; per-game badge Synced / Sync pending / Conflict.
 - CLI: `saves list`, `save push`, `save pull`, `save resolve`.
+- Share a running game as a Session (Private / Hub users / Invite only with invites, Join/Decline); "Sessions on this Hub" in the library.
+- Watch a Session over direct WebRTC (H.264 + Opus); watch-only mode without a running game.
+- Multiview: side-by-side and PiP, one audible surface; diagnostics tab.
+- CLI: `session-share --synthetic`, `session-watch`.
 - Credentials in the Credential Manager on Windows, in memory only on Linux (new pairing after restart).
 
-Still missing: Sessions (phase 4), gamepads, firmware path and settings pages (phase 5).
+Still missing: gamepads, firmware path and settings pages (phase 5).
 
 ## How saves work
 
@@ -61,7 +66,7 @@ Still missing: Sessions (phase 4), gamepads, firmware path and settings pages (p
 
 ## Build and run
 
-Prerequisites: Go 1.24 (per `server/go.mod`); for the client CMake, a C++ compiler and Qt >= 6.4 (not via vcpkg): on Linux via apt (package list `QT_PKGS` in `.claude/hooks/session-start.sh`), on Windows Qt 6.8.
+Prerequisites: Go 1.24 (per `server/go.mod`); for the client CMake, a C++ compiler and Qt >= 6.4 (not via vcpkg): on Linux via apt (package list `QT_PKGS` in `.claude/hooks/session-start.sh`), on Windows Qt 6.8 with the modules `qtmultimedia` and `qtwebsockets`. Sessions additionally need libdatachannel, FFmpeg and Opus: on Linux the media apt packages from the same list plus `make fetch-deps` (builds pinned libdatachannel via `scripts/fetch-libdatachannel.sh`); on Windows via vcpkg (`client/vcpkg.json`).
 
 ```sh
 make check          # Hub and client check, quiet
@@ -104,6 +109,10 @@ Player data storage (ROM cache, `profiles.json`, `device.json`, `hubs/<id>/users
 
 Windows test package: unpack the CI artifact `framebeam-player-windows-x64` from the Windows job and start `framebeam_player.exe` (core under `cores/`).
 
+### Test Sessions locally
+
+Two Players on the LAN, both paired to the same Hub. Only the admin user exists until phase 5, so both devices belong to the admin: Private (own devices only), Hub users and Invite only can be tested; rejecting a foreign user cannot. STUN (`-ice-servers`) is not needed on a LAN. `scripts/e2e-session.sh` runs the same flow headless with two CLI processes against a local Hub.
+
 Keyboard: Arrows, X=A, Z=B, S=X, A=Y, Q=L, W=R, Enter=Start, Backspace=Select, Esc=Pause.
 
 ## Repository structure
@@ -122,5 +131,6 @@ Keyboard: Arrows, X=A, Z=B, S=X, A=Y, Q=L, W=R, Enter=Start, Backspace=Select, E
 - [ADR 0002: Protocol and Hub in phase 1](docs/adr/0002-protocol-and-hub-phase1.md)
 - [ADR 0003: Player in phase 2](docs/adr/0003-player-phase2.md) (accepted)
 - [ADR 0005: Saves in phase 3](docs/adr/0005-saves-phase3.md) (accepted)
+- [ADR 0006: Sessions in phase 4](docs/adr/0006-sessions-phase4.md) (accepted)
 - [Design](docs/design/README.md)
 - [Working with Claude Code](docs/workflow.md)

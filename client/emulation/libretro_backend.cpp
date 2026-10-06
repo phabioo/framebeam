@@ -10,6 +10,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdarg>
+#include <QHash>
+#include <mutex>
 #include <cstdio>
 #include <cstring>
 
@@ -20,6 +22,20 @@ namespace framebeam::emu {
 namespace {
 Q_LOGGING_CATEGORY(lcCore, "framebeam.emulation.core")
 
+// The core repeats the same lines for every frame (OSD texts via SET_MESSAGE, debug lines): only the first
+// occurrence of each distinct message is reported, then every 1000th (with the count). false = suppress.
+bool dedupeLog(QString& msg) {
+  static std::mutex m;
+  static QHash<QString, int> seen;
+  std::lock_guard<std::mutex> lock(m);
+  if (seen.size() > 256) seen.clear();
+  const int n = seen[msg]++;
+  if (n == 0) return true;
+  if (n % 1000 != 0) return false;
+  msg += QStringLiteral(" (repeated %1 times)").arg(n);
+  return true;
+}
+
 void RETRO_CALLCONV coreLog(enum retro_log_level level, const char* fmt, ...) {
   char buf[2048];
   va_list ap;
@@ -28,6 +44,7 @@ void RETRO_CALLCONV coreLog(enum retro_log_level level, const char* fmt, ...) {
   va_end(ap);
   QString msg = QString::fromUtf8(buf).trimmed();
   if (msg.isEmpty()) return;
+  if (!dedupeLog(msg)) return;
   switch (level) {
     case RETRO_LOG_ERROR: qCWarning(lcCore).noquote() << "[error]" << msg; break;
     case RETRO_LOG_WARN: qCWarning(lcCore).noquote() << msg; break;
@@ -510,11 +527,17 @@ bool LibretroBackend::handleEnvironment(unsigned rawCmd, void* data) {
     case RETRO_ENVIRONMENT_SET_ROTATION: return true;
     case RETRO_ENVIRONMENT_GET_CAN_DUPE: *static_cast<bool*>(data) = true; return true;
     case RETRO_ENVIRONMENT_SET_MESSAGE: {
-      if (const auto* m = static_cast<const retro_message*>(data)) qCInfo(lcCore).noquote() << fromC(m->msg);
+      if (const auto* m = static_cast<const retro_message*>(data)) {
+        QString t = fromC(m->msg);
+        if (dedupeLog(t)) qCInfo(lcCore).noquote() << t;
+      }
       return true;
     }
     case RETRO_ENVIRONMENT_SET_MESSAGE_EXT: {
-      if (const auto* m = static_cast<const retro_message_ext*>(data)) qCInfo(lcCore).noquote() << fromC(m->msg);
+      if (const auto* m = static_cast<const retro_message_ext*>(data)) {
+        QString t = fromC(m->msg);
+        if (dedupeLog(t)) qCInfo(lcCore).noquote() << t;
+      }
       return true;
     }
     case RETRO_ENVIRONMENT_GET_MESSAGE_INTERFACE_VERSION: *static_cast<unsigned*>(data) = 1; return true;

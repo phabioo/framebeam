@@ -1,1 +1,1 @@
-{"type":"hello_ack","id":"1","payload":{"protocol_version":1,"hub_version":"0.1.0"}}
+{"type":"hello_ack","id":"1","payload":{"protocol_version":1,"hub_version":"0.1.0","features":["saves_v1","sessions_v1"],"ice_servers":["stun:stun.example.org:3478"]}}

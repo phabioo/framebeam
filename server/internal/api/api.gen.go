@@ -44,6 +44,10 @@ const (
 	ErrorCodeRateLimited         ErrorCode = "rate_limited"
 	ErrorCodeSaveConflict        ErrorCode = "save_conflict"
 	ErrorCodeSaveConflictStale   ErrorCode = "save_conflict_stale"
+	ErrorCodeSessionEnded        ErrorCode = "session_ended"
+	ErrorCodeSessionForbidden    ErrorCode = "session_forbidden"
+	ErrorCodeSessionFull         ErrorCode = "session_full"
+	ErrorCodeSessionNotFound     ErrorCode = "session_not_found"
 	ErrorCodeUnauthorized        ErrorCode = "unauthorized"
 )
 
@@ -96,6 +100,20 @@ const (
 	Checkpoint      SaveSyncReason = "checkpoint"
 	Final           SaveSyncReason = "final"
 	FinalSessionEnd SaveSyncReason = "final_session_end"
+)
+
+// Defines values for SessionInviteInfoState.
+const (
+	Declined SessionInviteInfoState = "declined"
+	Invited  SessionInviteInfoState = "invited"
+	Joined   SessionInviteInfoState = "joined"
+)
+
+// Defines values for SessionVisibility.
+const (
+	HubUsers   SessionVisibility = "hub_users"
+	InviteOnly SessionVisibility = "invite_only"
+	Private    SessionVisibility = "private"
 )
 
 // Defines values for TokenResponseTokenType.
@@ -181,7 +199,7 @@ type HandshakeRequest_Video struct {
 type HandshakeResponse struct {
 	Compatible bool `json:"compatible"`
 
-	// Features Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API.
+	// Features Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint.
 	Features           *[]string          `json:"features,omitempty"`
 	HubVersion         string             `json:"hub_version"`
 	MinProtocolVersion int                `json:"min_protocol_version"`
@@ -355,6 +373,99 @@ type SaveSlotSummary struct {
 // SaveSyncReason defines model for SaveSyncReason.
 type SaveSyncReason string
 
+// Session defines model for Session.
+type Session struct {
+	CreatedAt time.Time          `json:"created_at"`
+	GameId    openapi_types.UUID `json:"game_id"`
+	GameTitle string             `json:"game_title"`
+
+	// Invited The caller's user has an open invite
+	Invited bool `json:"invited"`
+
+	// Invites Only for the owner device
+	Invites *[]SessionInviteInfo `json:"invites,omitempty"`
+
+	// IsOwner The caller is the owner device
+	IsOwner     bool               `json:"is_owner"`
+	Owner       SessionOwner       `json:"owner"`
+	SessionId   openapi_types.UUID `json:"session_id"`
+	ViewerCount int                `json:"viewer_count"`
+
+	// Viewers Only for the owner device
+	Viewers *[]SessionViewerInfo `json:"viewers,omitempty"`
+
+	// Visibility `private`: only devices of the owner user. `hub_users`: every authenticated device of this Hub.
+	// `invite_only`: devices of the owner user plus invited users who have not declined.
+	Visibility SessionVisibility `json:"visibility"`
+}
+
+// SessionInviteInfo defines model for SessionInviteInfo.
+type SessionInviteInfo struct {
+	DisplayName string                 `json:"display_name"`
+	Online      bool                   `json:"online"`
+	State       SessionInviteInfoState `json:"state"`
+	UserId      string                 `json:"user_id"`
+}
+
+// SessionInviteInfoState defines model for SessionInviteInfo.State.
+type SessionInviteInfoState string
+
+// SessionJoinResponse defines model for SessionJoinResponse.
+type SessionJoinResponse struct {
+	// IceServers `stun:` URLs (Hub config, default empty: host candidates suffice on a LAN)
+	IceServers  []string           `json:"ice_servers"`
+	Permissions SessionPermissions `json:"permissions"`
+	ViewerId    openapi_types.UUID `json:"viewer_id"`
+}
+
+// SessionList defines model for SessionList.
+type SessionList struct {
+	Sessions []Session `json:"sessions"`
+}
+
+// SessionOwner defines model for SessionOwner.
+type SessionOwner struct {
+	DeviceName  string `json:"device_name"`
+	DisplayName string `json:"display_name"`
+	UserId      string `json:"user_id"`
+}
+
+// SessionPermissions defines model for SessionPermissions.
+type SessionPermissions struct {
+	HearAudio bool `json:"hear_audio"`
+	SendInput bool `json:"send_input"`
+	ViewVideo bool `json:"view_video"`
+}
+
+// SessionPublishRequest defines model for SessionPublishRequest.
+type SessionPublishRequest struct {
+	GameId openapi_types.UUID `json:"game_id"`
+
+	// Visibility `private`: only devices of the owner user. `hub_users`: every authenticated device of this Hub.
+	// `invite_only`: devices of the owner user plus invited users who have not declined.
+	Visibility SessionVisibility `json:"visibility"`
+}
+
+// SessionUpdateRequest defines model for SessionUpdateRequest.
+type SessionUpdateRequest struct {
+	// Visibility `private`: only devices of the owner user. `hub_users`: every authenticated device of this Hub.
+	// `invite_only`: devices of the owner user plus invited users who have not declined.
+	Visibility SessionVisibility `json:"visibility"`
+}
+
+// SessionViewerInfo defines model for SessionViewerInfo.
+type SessionViewerInfo struct {
+	DeviceName string `json:"device_name"`
+
+	// DisplayName Display name of the viewer's user
+	DisplayName string             `json:"display_name"`
+	ViewerId    openapi_types.UUID `json:"viewer_id"`
+}
+
+// SessionVisibility `private`: only devices of the owner user. `hub_users`: every authenticated device of this Hub.
+// `invite_only`: devices of the owner user plus invited users who have not declined.
+type SessionVisibility string
+
 // TokenRequest defines model for TokenRequest.
 type TokenRequest struct {
 	DeviceCredential string             `json:"device_credential"`
@@ -374,14 +485,35 @@ type TokenResponse struct {
 // TokenResponseTokenType defines model for TokenResponse.TokenType.
 type TokenResponseTokenType string
 
+// UserInfo defines model for UserInfo.
+type UserInfo struct {
+	DisplayName string `json:"display_name"`
+	Id          string `json:"id"`
+	Online      bool   `json:"online"`
+}
+
+// UserList defines model for UserList.
+type UserList struct {
+	Users []UserInfo `json:"users"`
+}
+
 // GameId defines model for GameId.
 type GameId = openapi_types.UUID
 
 // SaveSlotName defines model for SaveSlotName.
 type SaveSlotName = string
 
+// SessionId defines model for SessionId.
+type SessionId = openapi_types.UUID
+
+// UserId defines model for UserId.
+type UserId = string
+
 // BadRequest defines model for BadRequest.
 type BadRequest = Error
+
+// CapabilityMissing defines model for CapabilityMissing.
+type CapabilityMissing = Error
 
 // Forbidden defines model for Forbidden.
 type Forbidden = Error
@@ -391,6 +523,18 @@ type NotFound = Error
 
 // RateLimited defines model for RateLimited.
 type RateLimited = Error
+
+// SessionEnded defines model for SessionEnded.
+type SessionEnded = Error
+
+// SessionForbidden defines model for SessionForbidden.
+type SessionForbidden = Error
+
+// SessionFullOrCapability defines model for SessionFullOrCapability.
+type SessionFullOrCapability = Error
+
+// SessionNotFound defines model for SessionNotFound.
+type SessionNotFound = Error
 
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = Error
@@ -421,6 +565,12 @@ type PostHandshakeJSONRequestBody = HandshakeRequest
 
 // CreatePairingRequestJSONRequestBody defines body for CreatePairingRequest for application/json ContentType.
 type CreatePairingRequestJSONRequestBody = PairingRequestCreate
+
+// PublishSessionJSONRequestBody defines body for PublishSession for application/json ContentType.
+type PublishSessionJSONRequestBody = SessionPublishRequest
+
+// UpdateSessionJSONRequestBody defines body for UpdateSession for application/json ContentType.
+type UpdateSessionJSONRequestBody = SessionUpdateRequest
 
 // Getter for additional properties for HandshakeRequest. Returns the specified
 // element and whether it was found
@@ -883,7 +1033,40 @@ type ServerInterface interface {
 	// Save slots of the authenticated device's user
 	// (GET /api/v1/saves)
 	ListSaves(w http.ResponseWriter, r *http.Request)
-	// WSS upgrade (documentation only, implementation to follow)
+	// Active Sessions the caller may join or owns, plus Sessions inviting the caller
+	// (GET /api/v1/sessions)
+	ListSessions(w http.ResponseWriter, r *http.Request)
+	// Publish a Session (ends the device's previous Session)
+	// (POST /api/v1/sessions)
+	PublishSession(w http.ResponseWriter, r *http.Request)
+	// End the Session (owner device)
+	// (DELETE /api/v1/sessions/{session_id})
+	EndSession(w http.ResponseWriter, r *http.Request, sessionId SessionId)
+	// One Session (caller must be allowed to see it)
+	// (GET /api/v1/sessions/{session_id})
+	GetSession(w http.ResponseWriter, r *http.Request, sessionId SessionId)
+	// Change the visibility (owner device); revokes viewers that are no longer allowed
+	// (PATCH /api/v1/sessions/{session_id})
+	UpdateSession(w http.ResponseWriter, r *http.Request, sessionId SessionId)
+	// Decline the invite (invited user); the owner is notified via session_update
+	// (POST /api/v1/sessions/{session_id}/decline)
+	DeclineSession(w http.ResponseWriter, r *http.Request, sessionId SessionId)
+	// Withdraw an invite (owner device); removes that user's viewers
+	// (DELETE /api/v1/sessions/{session_id}/invites/{user_id})
+	WithdrawSessionInvite(w http.ResponseWriter, r *http.Request, sessionId SessionId, userId UserId)
+	// Invite a user of this Hub (owner device); a declined invite becomes open again
+	// (PUT /api/v1/sessions/{session_id}/invites/{user_id})
+	InviteSessionUser(w http.ResponseWriter, r *http.Request, sessionId SessionId, userId UserId)
+	// Join as viewer (ACL checked here)
+	// (POST /api/v1/sessions/{session_id}/join)
+	JoinSession(w http.ResponseWriter, r *http.Request, sessionId SessionId)
+	// Remove a viewer (owner device) or leave (the viewer's own device)
+	// (DELETE /api/v1/sessions/{session_id}/viewers/{viewer_id})
+	RemoveSessionViewer(w http.ResponseWriter, r *http.Request, sessionId SessionId, viewerId openapi_types.UUID)
+	// Users of this Hub (for the invite field)
+	// (GET /api/v1/users)
+	ListUsers(w http.ResponseWriter, r *http.Request)
+	// WSS upgrade (presence, Session events, signaling; documentation only, the upgrade is not a JSON call)
 	// (GET /api/v1/ws)
 	ConnectWebSocket(w http.ResponseWriter, r *http.Request)
 }
@@ -1468,6 +1651,341 @@ func (siw *ServerInterfaceWrapper) ListSaves(w http.ResponseWriter, r *http.Requ
 	handler.ServeHTTP(w, r)
 }
 
+// ListSessions operation middleware
+func (siw *ServerInterfaceWrapper) ListSessions(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSessions(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PublishSession operation middleware
+func (siw *ServerInterfaceWrapper) PublishSession(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PublishSession(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// EndSession operation middleware
+func (siw *ServerInterfaceWrapper) EndSession(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "session_id" -------------
+	var sessionId SessionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "session_id", r.PathValue("session_id"), &sessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "session_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.EndSession(w, r, sessionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSession operation middleware
+func (siw *ServerInterfaceWrapper) GetSession(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "session_id" -------------
+	var sessionId SessionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "session_id", r.PathValue("session_id"), &sessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "session_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSession(w, r, sessionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateSession operation middleware
+func (siw *ServerInterfaceWrapper) UpdateSession(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "session_id" -------------
+	var sessionId SessionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "session_id", r.PathValue("session_id"), &sessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "session_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateSession(w, r, sessionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeclineSession operation middleware
+func (siw *ServerInterfaceWrapper) DeclineSession(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "session_id" -------------
+	var sessionId SessionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "session_id", r.PathValue("session_id"), &sessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "session_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeclineSession(w, r, sessionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// WithdrawSessionInvite operation middleware
+func (siw *ServerInterfaceWrapper) WithdrawSessionInvite(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "session_id" -------------
+	var sessionId SessionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "session_id", r.PathValue("session_id"), &sessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "session_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "user_id" -------------
+	var userId UserId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "user_id", r.PathValue("user_id"), &userId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "user_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.WithdrawSessionInvite(w, r, sessionId, userId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// InviteSessionUser operation middleware
+func (siw *ServerInterfaceWrapper) InviteSessionUser(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "session_id" -------------
+	var sessionId SessionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "session_id", r.PathValue("session_id"), &sessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "session_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "user_id" -------------
+	var userId UserId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "user_id", r.PathValue("user_id"), &userId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "user_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.InviteSessionUser(w, r, sessionId, userId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// JoinSession operation middleware
+func (siw *ServerInterfaceWrapper) JoinSession(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "session_id" -------------
+	var sessionId SessionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "session_id", r.PathValue("session_id"), &sessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "session_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.JoinSession(w, r, sessionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveSessionViewer operation middleware
+func (siw *ServerInterfaceWrapper) RemoveSessionViewer(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "session_id" -------------
+	var sessionId SessionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "session_id", r.PathValue("session_id"), &sessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "session_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "viewer_id" -------------
+	var viewerId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "viewer_id", r.PathValue("viewer_id"), &viewerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "viewer_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveSessionViewer(w, r, sessionId, viewerId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListUsers operation middleware
+func (siw *ServerInterfaceWrapper) ListUsers(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListUsers(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ConnectWebSocket operation middleware
 func (siw *ServerInterfaceWrapper) ConnectWebSocket(w http.ResponseWriter, r *http.Request) {
 
@@ -1624,6 +2142,17 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/pairing/requests/{request_id}", wrapper.GetPairingRequest)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/roms/{sha256}", wrapper.DownloadRom)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/saves", wrapper.ListSaves)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/sessions", wrapper.ListSessions)
+	m.HandleFunc("POST "+options.BaseURL+"/api/v1/sessions", wrapper.PublishSession)
+	m.HandleFunc("DELETE "+options.BaseURL+"/api/v1/sessions/{session_id}", wrapper.EndSession)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/sessions/{session_id}", wrapper.GetSession)
+	m.HandleFunc("PATCH "+options.BaseURL+"/api/v1/sessions/{session_id}", wrapper.UpdateSession)
+	m.HandleFunc("POST "+options.BaseURL+"/api/v1/sessions/{session_id}/decline", wrapper.DeclineSession)
+	m.HandleFunc("DELETE "+options.BaseURL+"/api/v1/sessions/{session_id}/invites/{user_id}", wrapper.WithdrawSessionInvite)
+	m.HandleFunc("PUT "+options.BaseURL+"/api/v1/sessions/{session_id}/invites/{user_id}", wrapper.InviteSessionUser)
+	m.HandleFunc("POST "+options.BaseURL+"/api/v1/sessions/{session_id}/join", wrapper.JoinSession)
+	m.HandleFunc("DELETE "+options.BaseURL+"/api/v1/sessions/{session_id}/viewers/{viewer_id}", wrapper.RemoveSessionViewer)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/users", wrapper.ListUsers)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/ws", wrapper.ConnectWebSocket)
 
 	return m
@@ -1631,11 +2160,21 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 
 type BadRequestJSONResponse Error
 
+type CapabilityMissingJSONResponse Error
+
 type ForbiddenJSONResponse Error
 
 type NotFoundJSONResponse Error
 
 type RateLimitedJSONResponse Error
+
+type SessionEndedJSONResponse Error
+
+type SessionForbiddenJSONResponse Error
+
+type SessionFullOrCapabilityJSONResponse Error
+
+type SessionNotFoundJSONResponse Error
 
 type UnauthorizedJSONResponse Error
 
@@ -2364,6 +2903,571 @@ func (response ListSaves401JSONResponse) VisitListSavesResponse(w http.ResponseW
 	return json.NewEncoder(w).Encode(response)
 }
 
+type ListSessionsRequestObject struct {
+}
+
+type ListSessionsResponseObject interface {
+	VisitListSessionsResponse(w http.ResponseWriter) error
+}
+
+type ListSessions200JSONResponse SessionList
+
+func (response ListSessions200JSONResponse) VisitListSessionsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListSessions401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListSessions401JSONResponse) VisitListSessionsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PublishSessionRequestObject struct {
+	Body *PublishSessionJSONRequestBody
+}
+
+type PublishSessionResponseObject interface {
+	VisitPublishSessionResponse(w http.ResponseWriter) error
+}
+
+type PublishSession201JSONResponse Session
+
+func (response PublishSession201JSONResponse) VisitPublishSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PublishSession400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response PublishSession400JSONResponse) VisitPublishSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PublishSession401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response PublishSession401JSONResponse) VisitPublishSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PublishSession404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response PublishSession404JSONResponse) VisitPublishSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PublishSession409JSONResponse struct{ CapabilityMissingJSONResponse }
+
+func (response PublishSession409JSONResponse) VisitPublishSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type EndSessionRequestObject struct {
+	SessionId SessionId `json:"session_id"`
+}
+
+type EndSessionResponseObject interface {
+	VisitEndSessionResponse(w http.ResponseWriter) error
+}
+
+type EndSession204Response struct {
+}
+
+func (response EndSession204Response) VisitEndSessionResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type EndSession401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response EndSession401JSONResponse) VisitEndSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type EndSession403JSONResponse struct{ SessionForbiddenJSONResponse }
+
+func (response EndSession403JSONResponse) VisitEndSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type EndSession404JSONResponse struct{ SessionNotFoundJSONResponse }
+
+func (response EndSession404JSONResponse) VisitEndSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type EndSession410JSONResponse struct{ SessionEndedJSONResponse }
+
+func (response EndSession410JSONResponse) VisitEndSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(410)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetSessionRequestObject struct {
+	SessionId SessionId `json:"session_id"`
+}
+
+type GetSessionResponseObject interface {
+	VisitGetSessionResponse(w http.ResponseWriter) error
+}
+
+type GetSession200JSONResponse Session
+
+func (response GetSession200JSONResponse) VisitGetSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetSession401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetSession401JSONResponse) VisitGetSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetSession403JSONResponse struct{ SessionForbiddenJSONResponse }
+
+func (response GetSession403JSONResponse) VisitGetSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetSession404JSONResponse struct{ SessionNotFoundJSONResponse }
+
+func (response GetSession404JSONResponse) VisitGetSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetSession410JSONResponse struct{ SessionEndedJSONResponse }
+
+func (response GetSession410JSONResponse) VisitGetSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(410)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateSessionRequestObject struct {
+	SessionId SessionId `json:"session_id"`
+	Body      *UpdateSessionJSONRequestBody
+}
+
+type UpdateSessionResponseObject interface {
+	VisitUpdateSessionResponse(w http.ResponseWriter) error
+}
+
+type UpdateSession200JSONResponse Session
+
+func (response UpdateSession200JSONResponse) VisitUpdateSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateSession400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UpdateSession400JSONResponse) VisitUpdateSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateSession401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response UpdateSession401JSONResponse) VisitUpdateSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateSession403JSONResponse struct{ SessionForbiddenJSONResponse }
+
+func (response UpdateSession403JSONResponse) VisitUpdateSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateSession404JSONResponse struct{ SessionNotFoundJSONResponse }
+
+func (response UpdateSession404JSONResponse) VisitUpdateSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateSession410JSONResponse struct{ SessionEndedJSONResponse }
+
+func (response UpdateSession410JSONResponse) VisitUpdateSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(410)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeclineSessionRequestObject struct {
+	SessionId SessionId `json:"session_id"`
+}
+
+type DeclineSessionResponseObject interface {
+	VisitDeclineSessionResponse(w http.ResponseWriter) error
+}
+
+type DeclineSession204Response struct {
+}
+
+func (response DeclineSession204Response) VisitDeclineSessionResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeclineSession401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DeclineSession401JSONResponse) VisitDeclineSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeclineSession403JSONResponse struct{ SessionForbiddenJSONResponse }
+
+func (response DeclineSession403JSONResponse) VisitDeclineSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeclineSession404JSONResponse struct{ SessionNotFoundJSONResponse }
+
+func (response DeclineSession404JSONResponse) VisitDeclineSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeclineSession410JSONResponse struct{ SessionEndedJSONResponse }
+
+func (response DeclineSession410JSONResponse) VisitDeclineSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(410)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type WithdrawSessionInviteRequestObject struct {
+	SessionId SessionId `json:"session_id"`
+	UserId    UserId    `json:"user_id"`
+}
+
+type WithdrawSessionInviteResponseObject interface {
+	VisitWithdrawSessionInviteResponse(w http.ResponseWriter) error
+}
+
+type WithdrawSessionInvite204Response struct {
+}
+
+func (response WithdrawSessionInvite204Response) VisitWithdrawSessionInviteResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type WithdrawSessionInvite401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response WithdrawSessionInvite401JSONResponse) VisitWithdrawSessionInviteResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type WithdrawSessionInvite403JSONResponse struct{ SessionForbiddenJSONResponse }
+
+func (response WithdrawSessionInvite403JSONResponse) VisitWithdrawSessionInviteResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type WithdrawSessionInvite404JSONResponse struct{ SessionNotFoundJSONResponse }
+
+func (response WithdrawSessionInvite404JSONResponse) VisitWithdrawSessionInviteResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type WithdrawSessionInvite410JSONResponse struct{ SessionEndedJSONResponse }
+
+func (response WithdrawSessionInvite410JSONResponse) VisitWithdrawSessionInviteResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(410)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type InviteSessionUserRequestObject struct {
+	SessionId SessionId `json:"session_id"`
+	UserId    UserId    `json:"user_id"`
+}
+
+type InviteSessionUserResponseObject interface {
+	VisitInviteSessionUserResponse(w http.ResponseWriter) error
+}
+
+type InviteSessionUser200JSONResponse Session
+
+func (response InviteSessionUser200JSONResponse) VisitInviteSessionUserResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type InviteSessionUser400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response InviteSessionUser400JSONResponse) VisitInviteSessionUserResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type InviteSessionUser401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response InviteSessionUser401JSONResponse) VisitInviteSessionUserResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type InviteSessionUser403JSONResponse struct{ SessionForbiddenJSONResponse }
+
+func (response InviteSessionUser403JSONResponse) VisitInviteSessionUserResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type InviteSessionUser404JSONResponse struct{ SessionNotFoundJSONResponse }
+
+func (response InviteSessionUser404JSONResponse) VisitInviteSessionUserResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type InviteSessionUser410JSONResponse struct{ SessionEndedJSONResponse }
+
+func (response InviteSessionUser410JSONResponse) VisitInviteSessionUserResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(410)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type JoinSessionRequestObject struct {
+	SessionId SessionId `json:"session_id"`
+}
+
+type JoinSessionResponseObject interface {
+	VisitJoinSessionResponse(w http.ResponseWriter) error
+}
+
+type JoinSession201JSONResponse SessionJoinResponse
+
+func (response JoinSession201JSONResponse) VisitJoinSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type JoinSession400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response JoinSession400JSONResponse) VisitJoinSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type JoinSession401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response JoinSession401JSONResponse) VisitJoinSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type JoinSession403JSONResponse struct{ SessionForbiddenJSONResponse }
+
+func (response JoinSession403JSONResponse) VisitJoinSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type JoinSession404JSONResponse struct{ SessionNotFoundJSONResponse }
+
+func (response JoinSession404JSONResponse) VisitJoinSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type JoinSession409JSONResponse struct {
+	SessionFullOrCapabilityJSONResponse
+}
+
+func (response JoinSession409JSONResponse) VisitJoinSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type JoinSession410JSONResponse struct{ SessionEndedJSONResponse }
+
+func (response JoinSession410JSONResponse) VisitJoinSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(410)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RemoveSessionViewerRequestObject struct {
+	SessionId SessionId          `json:"session_id"`
+	ViewerId  openapi_types.UUID `json:"viewer_id"`
+}
+
+type RemoveSessionViewerResponseObject interface {
+	VisitRemoveSessionViewerResponse(w http.ResponseWriter) error
+}
+
+type RemoveSessionViewer204Response struct {
+}
+
+func (response RemoveSessionViewer204Response) VisitRemoveSessionViewerResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RemoveSessionViewer401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response RemoveSessionViewer401JSONResponse) VisitRemoveSessionViewerResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RemoveSessionViewer403JSONResponse struct{ SessionForbiddenJSONResponse }
+
+func (response RemoveSessionViewer403JSONResponse) VisitRemoveSessionViewerResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RemoveSessionViewer404JSONResponse struct{ SessionNotFoundJSONResponse }
+
+func (response RemoveSessionViewer404JSONResponse) VisitRemoveSessionViewerResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RemoveSessionViewer410JSONResponse struct{ SessionEndedJSONResponse }
+
+func (response RemoveSessionViewer410JSONResponse) VisitRemoveSessionViewerResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(410)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListUsersRequestObject struct {
+}
+
+type ListUsersResponseObject interface {
+	VisitListUsersResponse(w http.ResponseWriter) error
+}
+
+type ListUsers200JSONResponse UserList
+
+func (response ListUsers200JSONResponse) VisitListUsersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListUsers401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListUsers401JSONResponse) VisitListUsersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type ConnectWebSocketRequestObject struct {
 }
 
@@ -2438,7 +3542,40 @@ type StrictServerInterface interface {
 	// Save slots of the authenticated device's user
 	// (GET /api/v1/saves)
 	ListSaves(ctx context.Context, request ListSavesRequestObject) (ListSavesResponseObject, error)
-	// WSS upgrade (documentation only, implementation to follow)
+	// Active Sessions the caller may join or owns, plus Sessions inviting the caller
+	// (GET /api/v1/sessions)
+	ListSessions(ctx context.Context, request ListSessionsRequestObject) (ListSessionsResponseObject, error)
+	// Publish a Session (ends the device's previous Session)
+	// (POST /api/v1/sessions)
+	PublishSession(ctx context.Context, request PublishSessionRequestObject) (PublishSessionResponseObject, error)
+	// End the Session (owner device)
+	// (DELETE /api/v1/sessions/{session_id})
+	EndSession(ctx context.Context, request EndSessionRequestObject) (EndSessionResponseObject, error)
+	// One Session (caller must be allowed to see it)
+	// (GET /api/v1/sessions/{session_id})
+	GetSession(ctx context.Context, request GetSessionRequestObject) (GetSessionResponseObject, error)
+	// Change the visibility (owner device); revokes viewers that are no longer allowed
+	// (PATCH /api/v1/sessions/{session_id})
+	UpdateSession(ctx context.Context, request UpdateSessionRequestObject) (UpdateSessionResponseObject, error)
+	// Decline the invite (invited user); the owner is notified via session_update
+	// (POST /api/v1/sessions/{session_id}/decline)
+	DeclineSession(ctx context.Context, request DeclineSessionRequestObject) (DeclineSessionResponseObject, error)
+	// Withdraw an invite (owner device); removes that user's viewers
+	// (DELETE /api/v1/sessions/{session_id}/invites/{user_id})
+	WithdrawSessionInvite(ctx context.Context, request WithdrawSessionInviteRequestObject) (WithdrawSessionInviteResponseObject, error)
+	// Invite a user of this Hub (owner device); a declined invite becomes open again
+	// (PUT /api/v1/sessions/{session_id}/invites/{user_id})
+	InviteSessionUser(ctx context.Context, request InviteSessionUserRequestObject) (InviteSessionUserResponseObject, error)
+	// Join as viewer (ACL checked here)
+	// (POST /api/v1/sessions/{session_id}/join)
+	JoinSession(ctx context.Context, request JoinSessionRequestObject) (JoinSessionResponseObject, error)
+	// Remove a viewer (owner device) or leave (the viewer's own device)
+	// (DELETE /api/v1/sessions/{session_id}/viewers/{viewer_id})
+	RemoveSessionViewer(ctx context.Context, request RemoveSessionViewerRequestObject) (RemoveSessionViewerResponseObject, error)
+	// Users of this Hub (for the invite field)
+	// (GET /api/v1/users)
+	ListUsers(ctx context.Context, request ListUsersRequestObject) (ListUsersResponseObject, error)
+	// WSS upgrade (presence, Session events, signaling; documentation only, the upgrade is not a JSON call)
 	// (GET /api/v1/ws)
 	ConnectWebSocket(ctx context.Context, request ConnectWebSocketRequestObject) (ConnectWebSocketResponseObject, error)
 }
@@ -2907,6 +4044,303 @@ func (sh *strictHandler) ListSaves(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ListSavesResponseObject); ok {
 		if err := validResponse.VisitListSavesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListSessions operation middleware
+func (sh *strictHandler) ListSessions(w http.ResponseWriter, r *http.Request) {
+	var request ListSessionsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListSessions(ctx, request.(ListSessionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListSessions")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListSessionsResponseObject); ok {
+		if err := validResponse.VisitListSessionsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PublishSession operation middleware
+func (sh *strictHandler) PublishSession(w http.ResponseWriter, r *http.Request) {
+	var request PublishSessionRequestObject
+
+	var body PublishSessionJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PublishSession(ctx, request.(PublishSessionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PublishSession")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PublishSessionResponseObject); ok {
+		if err := validResponse.VisitPublishSessionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// EndSession operation middleware
+func (sh *strictHandler) EndSession(w http.ResponseWriter, r *http.Request, sessionId SessionId) {
+	var request EndSessionRequestObject
+
+	request.SessionId = sessionId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.EndSession(ctx, request.(EndSessionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "EndSession")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(EndSessionResponseObject); ok {
+		if err := validResponse.VisitEndSessionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetSession operation middleware
+func (sh *strictHandler) GetSession(w http.ResponseWriter, r *http.Request, sessionId SessionId) {
+	var request GetSessionRequestObject
+
+	request.SessionId = sessionId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetSession(ctx, request.(GetSessionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetSession")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetSessionResponseObject); ok {
+		if err := validResponse.VisitGetSessionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateSession operation middleware
+func (sh *strictHandler) UpdateSession(w http.ResponseWriter, r *http.Request, sessionId SessionId) {
+	var request UpdateSessionRequestObject
+
+	request.SessionId = sessionId
+
+	var body UpdateSessionJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateSession(ctx, request.(UpdateSessionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateSession")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateSessionResponseObject); ok {
+		if err := validResponse.VisitUpdateSessionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeclineSession operation middleware
+func (sh *strictHandler) DeclineSession(w http.ResponseWriter, r *http.Request, sessionId SessionId) {
+	var request DeclineSessionRequestObject
+
+	request.SessionId = sessionId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeclineSession(ctx, request.(DeclineSessionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeclineSession")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeclineSessionResponseObject); ok {
+		if err := validResponse.VisitDeclineSessionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// WithdrawSessionInvite operation middleware
+func (sh *strictHandler) WithdrawSessionInvite(w http.ResponseWriter, r *http.Request, sessionId SessionId, userId UserId) {
+	var request WithdrawSessionInviteRequestObject
+
+	request.SessionId = sessionId
+	request.UserId = userId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.WithdrawSessionInvite(ctx, request.(WithdrawSessionInviteRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "WithdrawSessionInvite")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(WithdrawSessionInviteResponseObject); ok {
+		if err := validResponse.VisitWithdrawSessionInviteResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// InviteSessionUser operation middleware
+func (sh *strictHandler) InviteSessionUser(w http.ResponseWriter, r *http.Request, sessionId SessionId, userId UserId) {
+	var request InviteSessionUserRequestObject
+
+	request.SessionId = sessionId
+	request.UserId = userId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.InviteSessionUser(ctx, request.(InviteSessionUserRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "InviteSessionUser")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(InviteSessionUserResponseObject); ok {
+		if err := validResponse.VisitInviteSessionUserResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// JoinSession operation middleware
+func (sh *strictHandler) JoinSession(w http.ResponseWriter, r *http.Request, sessionId SessionId) {
+	var request JoinSessionRequestObject
+
+	request.SessionId = sessionId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.JoinSession(ctx, request.(JoinSessionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "JoinSession")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(JoinSessionResponseObject); ok {
+		if err := validResponse.VisitJoinSessionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RemoveSessionViewer operation middleware
+func (sh *strictHandler) RemoveSessionViewer(w http.ResponseWriter, r *http.Request, sessionId SessionId, viewerId openapi_types.UUID) {
+	var request RemoveSessionViewerRequestObject
+
+	request.SessionId = sessionId
+	request.ViewerId = viewerId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RemoveSessionViewer(ctx, request.(RemoveSessionViewerRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RemoveSessionViewer")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RemoveSessionViewerResponseObject); ok {
+		if err := validResponse.VisitRemoveSessionViewerResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListUsers operation middleware
+func (sh *strictHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
+	var request ListUsersRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListUsers(ctx, request.(ListUsersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListUsers")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListUsersResponseObject); ok {
+		if err := validResponse.VisitListUsersResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

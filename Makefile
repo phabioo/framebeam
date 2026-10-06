@@ -1,6 +1,6 @@
 # Quiet check targets (details: scripts/check.sh). Prerequisite for check-client:
 # scripts/bootstrap-vcpkg.sh has been run once.
-.PHONY: check check-hub check-client build-hub generate fetch-core
+.PHONY: check check-hub check-client build-hub generate fetch-core fetch-deps
 
 check:
 	@scripts/check.sh all
@@ -19,3 +19,6 @@ generate:
 
 fetch-core:
 	@scripts/fetch-melonds-ds.sh
+
+fetch-deps:
+	@scripts/fetch-libdatachannel.sh

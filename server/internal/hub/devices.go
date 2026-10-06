@@ -98,7 +98,21 @@ func (s *Service) RevokeDevice(ctx context.Context, deviceID string) error {
 	if _, err := tx.ExecContext(ctx, `DELETE FROM access_tokens WHERE device_id = ?`, deviceID); err != nil {
 		return internal(err)
 	}
-	return internal2(tx.Commit())
+	if err := tx.Commit(); err != nil {
+		return internal(err)
+	}
+	s.onDeviceRevoked(deviceID)
+	return nil
+}
+
+func boolInt(b *bool) any {
+	if b == nil {
+		return nil
+	}
+	if *b {
+		return 1
+	}
+	return 0
 }
 
 // AccessToken is an issued access token (plaintext only here; the hash is stored).
@@ -208,7 +222,10 @@ type HandshakeInput struct {
 	PlayerVersion      string
 	ProtocolVersion    int
 	MinProtocolVersion int
-	// Cores, Video, Audio, Input: not evaluated yet (see TODO in Handshake).
+	// H264Encode/H264Decode are the reported codec capabilities (nil = not reported); sessions check them.
+	H264Encode *bool
+	H264Decode *bool
+	// Cores, Audio, Input: not evaluated yet (see TODO in Handshake).
 }
 
 // Problem describes an incompatibility (HandshakeProblem in the spec).
@@ -233,7 +250,7 @@ const (
 
 // Handshake checks the protocol versions and stores the reported device info.
 // TODO(phase 5): core check (core_missing, core_version_mismatch) against the core registry.
-// TODO(phase 4): codec/capability check (capability_missing) for sessions.
+// The codec capabilities are stored; the capability_missing check happens when publishing/joining a Session.
 func (s *Service) Handshake(ctx context.Context, deviceID string, in HandshakeInput) (HandshakeResult, error) {
 	if in.ProtocolVersion < 1 || in.MinProtocolVersion < 1 || in.MinProtocolVersion > in.ProtocolVersion {
 		return HandshakeResult{}, badRequest("protocol_version and min_protocol_version must be at least 1 and consistent")
@@ -252,8 +269,9 @@ func (s *Service) Handshake(ctx context.Context, deviceID string, in HandshakeIn
 			Detail: "Hub protocol version below the player's minimum"})
 	}
 	res.Compatible = len(res.Problems) == 0
-	if _, err := s.db.ExecContext(ctx, `UPDATE devices SET platform = ?, arch = ?, player_version = ? WHERE id = ?`,
-		in.Platform, in.Arch, in.PlayerVersion, deviceID); err != nil {
+	if _, err := s.db.ExecContext(ctx, `UPDATE devices SET platform = ?, arch = ?, player_version = ?,
+		h264_encode = COALESCE(?, h264_encode), h264_decode = COALESCE(?, h264_decode) WHERE id = ?`,
+		in.Platform, in.Arch, in.PlayerVersion, boolInt(in.H264Encode), boolInt(in.H264Decode), deviceID); err != nil {
 		return HandshakeResult{}, internal(err)
 	}
 	return res, nil

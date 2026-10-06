@@ -46,6 +46,10 @@ type Options struct {
 	// ProtocolVersion/MinProtocolVersion override the constants (tests only); 0 = default.
 	ProtocolVersion    int
 	MinProtocolVersion int
+	// ICEServers are the stun: URLs delivered in hello_ack and the join response (default empty, ADR 0006 D4).
+	ICEServers []string
+	// OwnerGrace is how long a Session survives the owner's dropped WSS connection (default 30 s; injectable for tests).
+	OwnerGrace time.Duration
 }
 
 // Service is the service layer. Times are stored in SQLite as Unix seconds (UTC).
@@ -59,6 +63,7 @@ type Service struct {
 	minProto int
 
 	saveMu sync.Mutex // serializes save uploads/resolutions (and content cleanup)
+	sess   sessionState
 	mu     sync.RWMutex
 	hubID  string
 	name   string
@@ -83,6 +88,7 @@ func Open(ctx context.Context, db *sql.DB, o Options) (*Service, error) {
 	if o.MinProtocolVersion != 0 {
 		s.minProto = o.MinProtocolVersion
 	}
+	s.sess.init(o)
 	for _, d := range []string{"roms", "tmp"} {
 		if err := os.MkdirAll(filepath.Join(s.dataDir, d), 0o750); err != nil {
 			return nil, internal(err)
@@ -103,6 +109,7 @@ func Open(ctx context.Context, db *sql.DB, o Options) (*Service, error) {
 	if err != nil {
 		return nil, internal(err)
 	}
+	s.recoverSessions(ctx)
 	return s, nil
 }
 

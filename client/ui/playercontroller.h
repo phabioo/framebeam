@@ -19,6 +19,7 @@
 #include "romcache.h"
 #include "romdownloader.h"
 #include "savesync.h"
+#include "sessioncontroller.h"
 #include "system_manifest.h"
 
 namespace framebeam::ui {
@@ -51,6 +52,8 @@ class PlayerController : public QObject {
   Q_PROPERTY(QString saveNote READ saveNote NOTIFY hubChanged)
   // Game view
   Q_PROPERTY(framebeam::ui::GameSession* gameSession READ gameSession CONSTANT)
+  // Phase 4: Sessions (3c list, 3g panel, multiview, diagnostics)
+  Q_PROPERTY(framebeam::ui::SessionController* sessions READ sessions CONSTANT)
 
  public:
   struct Options {
@@ -81,6 +84,7 @@ class PlayerController : public QObject {
   QString selectedGameId() const { return selectedId_; }
   QVariantMap selectedGame() const;
   GameSession* gameSession() { return &session_; }
+  SessionController* sessions() { return sessions_.get(); }
   QVariantMap saveConflict() const { return conflict_; }
   QString saveNote() const { return saves_ ? saves_->note() : QString(); }
   SaveSync* saveSync() { return saves_.get(); }
@@ -112,6 +116,10 @@ class PlayerController : public QObject {
   Q_INVOKABLE void reloadLibrary();
   Q_INVOKABLE void selectGame(const QString& gameId);
   Q_INVOKABLE void playSelected();
+  // "Play and share Session": starts the game and publishes it with the last chosen visibility.
+  Q_INVOKABLE void playAndShareSelected();
+  // "← Library" in the game view: ends the running game (with save) or leaves the watched Session.
+  Q_INVOKABLE void leaveGameView();
   // Game view
   Q_INVOKABLE void quitGame();
   // Conflict dialog: "use_hub" | "use_local" | "later" (Keep both, decide later)
@@ -159,6 +167,10 @@ class PlayerController : public QObject {
   QMap<QString, QString> coreNames_;  // core_id -> name from the core info (only if probed)
   LibraryModel model_;
   GameSession session_;
+  std::unique_ptr<SessionController> sessions_;
+  bool shareOnStart_ = false;
+  void endGameContext();
+  void startSelected(bool share);
 
   QString screen_ = QStringLiteral("connection");
   bool pairingFlow_ = false;

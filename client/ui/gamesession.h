@@ -67,6 +67,9 @@ class GameSession : public QObject {
   bool keyEvent(int qtKey, bool pressed);
   void releaseAllKeys();
   void setPointer(const QPointF& frameNormalized, bool pressed);
+  // Multiview: exactly one surface is audible. A muted session keeps running, its audio is dropped.
+  void setAudioMuted(bool muted) { audioMuted_ = muted; }
+  bool audioMuted() const { return audioMuted_; }
 
  signals:
   void stateChanged();
@@ -76,6 +79,7 @@ class GameSession : public QObject {
   void started();                       // core and game are running
   void startFailed(const QString& msg);  // failed before the first frame
   void finished();                       // after stop()
+  void audioChunk(const QByteArray& pcm, int sampleRate);  // core audio (int16 stereo), also while muted (Session share)
 
  private:
   void setState(State s);
@@ -92,6 +96,7 @@ class GameSession : public QObject {
   QString error_;
   State state_ = Idle;
   bool startedEmitted_ = false;
+  bool audioMuted_ = false;
 };
 
 }  // namespace framebeam::ui

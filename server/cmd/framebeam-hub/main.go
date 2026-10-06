@@ -55,7 +55,7 @@ func openService(ctx context.Context, cfg *config.Config) (*hub.Service, func(),
 	if err != nil {
 		return nil, nil, err
 	}
-	svc, err := hub.Open(ctx, db, hub.Options{DataDir: cfg.DataDir, Name: cfg.Name, HubVersion: version.String()})
+	svc, err := hub.Open(ctx, db, hub.Options{DataDir: cfg.DataDir, Name: cfg.Name, HubVersion: version.String(), ICEServers: cfg.ICEServers})
 	if err != nil {
 		db.Close()
 		return nil, nil, err

@@ -72,13 +72,15 @@ func Register(mux *http.ServeMux, svc *hub.Service, log *slog.Logger) {
 		},
 	})
 	mux.HandleFunc("GET /api/v1/roms/{sha256}", s.downloadROM)
+	mux.HandleFunc("GET /api/v1/ws", s.serveWS)
 }
 
-// skipRomMux skips the generated route for the ROM download; it is registered directly on the mux.
+// skipRomMux skips the generated routes for the ROM download and the WSS upgrade; both are registered
+// directly on the mux.
 type skipRomMux struct{ *http.ServeMux }
 
 func (m skipRomMux) HandleFunc(pattern string, h func(http.ResponseWriter, *http.Request)) {
-	if strings.Contains(pattern, "/api/v1/roms/") {
+	if strings.Contains(pattern, "/api/v1/roms/") || strings.HasSuffix(pattern, " /api/v1/ws") {
 		return
 	}
 	m.ServeMux.HandleFunc(pattern, h)
@@ -107,7 +109,9 @@ func (s *Server) authMiddleware(next api.StrictHandlerFunc, op string) api.Stric
 		ctx = context.WithValue(ctx, keyRemoteIP, remoteIP(r))
 		switch op {
 		case "RevokeSelf", "PostHandshake", "ListGames", "GetGame", "ConnectWebSocket",
-			"ListSaves", "GetSaveSlot", "PutSave", "DownloadSaveContent", "ListSaveHistory", "DownloadSaveHistoryContent", "ResolveSaveConflict":
+			"ListSaves", "GetSaveSlot", "PutSave", "DownloadSaveContent", "ListSaveHistory", "DownloadSaveHistoryContent", "ResolveSaveConflict",
+			"ListUsers", "ListSessions", "PublishSession", "GetSession", "UpdateSession", "EndSession", "InviteSessionUser",
+			"WithdrawSessionInvite", "DeclineSession", "JoinSession", "RemoveSessionViewer":
 			p, err := s.svc.Authenticate(ctx, tok)
 			if err != nil {
 				return nil, err
@@ -133,7 +137,14 @@ func httpStatus(c hub.Code) int {
 		return http.StatusForbidden
 	case hub.CodeNotFound:
 		return http.StatusNotFound
-	case hub.CodeConflict, hub.CodePairingExpired, hub.CodeSaveConflict, hub.CodeSaveConflictStale:
+	case hub.CodeSessionForbidden:
+		return http.StatusForbidden
+	case hub.CodeSessionNotFound:
+		return http.StatusNotFound
+	case hub.CodeSessionEnded:
+		return http.StatusGone
+	case hub.CodeConflict, hub.CodePairingExpired, hub.CodeSaveConflict, hub.CodeSaveConflictStale,
+		hub.CodeSessionFull, hub.CodeCapabilityMissing:
 		return http.StatusConflict
 	case hub.CodePayloadTooLarge:
 		return http.StatusRequestEntityTooLarge
@@ -244,13 +255,14 @@ func (s *Server) PostHandshake(ctx context.Context, req api.PostHandshakeRequest
 	}
 	b := req.Body
 	res, err := s.svc.Handshake(ctx, principal(ctx).Device.ID, hub.HandshakeInput{Platform: b.Platform, Arch: b.Arch,
-		PlayerVersion: b.PlayerVersion, ProtocolVersion: b.ProtocolVersion, MinProtocolVersion: b.MinProtocolVersion})
+		PlayerVersion: b.PlayerVersion, ProtocolVersion: b.ProtocolVersion, MinProtocolVersion: b.MinProtocolVersion,
+		H264Encode: &b.Video.H264Encode, H264Decode: &b.Video.H264Decode})
 	if err != nil {
 		return nil, err
 	}
 	out := api.HandshakeResponse{HubVersion: res.Info.HubVersion, ProtocolVersion: res.Info.ProtocolVersion,
 		MinProtocolVersion: res.Info.MinProtocolVersion, Compatible: res.Compatible, Problems: []api.HandshakeProblem{},
-		Features: &[]string{hub.FeatureSavesV1}}
+		Features: &[]string{hub.FeatureSavesV1, hub.FeatureSessionsV1}}
 	for _, p := range res.Problems {
 		hp := api.HandshakeProblem{Code: api.HandshakeProblemCode(p.Code), Detail: p.Detail}
 		if p.CoreID != "" {
@@ -304,7 +316,7 @@ func (s *Server) DownloadRom(context.Context, api.DownloadRomRequestObject) (api
 	return nil, errNotImplemented
 }
 
-// ConnectWebSocket: documented only, implementation follows from phase 4.
+// ConnectWebSocket: documented only; the upgrade is served by serveWS (ws.go) directly on the mux.
 func (s *Server) ConnectWebSocket(context.Context, api.ConnectWebSocketRequestObject) (api.ConnectWebSocketResponseObject, error) {
 	return nil, errNotImplemented
 }

@@ -41,3 +41,20 @@ func TestValidate(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestICEServers(t *testing.T) {
+	if c := parse(t, nil); len(c.ICEServers) != 0 || c.Validate() != nil {
+		t.Fatalf("default must be empty: %+v", c.ICEServers)
+	}
+	c := parse(t, map[string]string{"FRAMEBEAM_ICE_SERVERS": "stun:a.example:3478"})
+	if len(c.ICEServers) != 1 || c.ICEServers[0] != "stun:a.example:3478" || c.Validate() != nil {
+		t.Fatalf("env: %v", c.ICEServers)
+	}
+	c = parse(t, map[string]string{"FRAMEBEAM_ICE_SERVERS": "stun:env.example"}, "-ice-servers", "stun:a.example:1, stun:b.example:2")
+	if len(c.ICEServers) != 2 || c.ICEServers[1] != "stun:b.example:2" || c.Validate() != nil {
+		t.Fatalf("flag overrides env: %v", c.ICEServers)
+	}
+	if parse(t, nil, "-ice-servers", "turn:x.example").Validate() == nil {
+		t.Fatal("non-stun URL must fail")
+	}
+}
