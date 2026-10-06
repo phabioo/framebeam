@@ -30,6 +30,7 @@ type sessionState struct {
 type timerEntry struct {
 	t        *time.Timer
 	deviceID string
+	gen      uint64 // identifies the arming; a callback of a superseded timer must not act
 }
 
 type rtState struct {
@@ -37,6 +38,7 @@ type rtState struct {
 	conns        map[string]*Client    // device ID -> connection
 	ownerTimers  map[string]timerEntry // session ID -> owner grace timer
 	viewerTimers map[string]timerEntry // viewer ID -> "never connected" timer
+	timerGen     uint64                // last timerEntry generation handed out
 }
 
 func (ss *sessionState) init(o Options) {
@@ -116,8 +118,10 @@ func (s *Service) armOwnerGrace(sessionID, deviceID string) {
 	if old, ok := rt.ownerTimers[sessionID]; ok {
 		old.t.Stop()
 	}
-	rt.ownerTimers[sessionID] = timerEntry{deviceID: deviceID,
-		t: time.AfterFunc(s.sess.grace, func() { s.ownerGraceExpired(sessionID, deviceID) })}
+	rt.timerGen++
+	gen := rt.timerGen
+	rt.ownerTimers[sessionID] = timerEntry{deviceID: deviceID, gen: gen,
+		t: time.AfterFunc(s.sess.grace, func() { s.ownerGraceExpired(sessionID, deviceID, gen) })}
 }
 
 func (s *Service) cancelSessionGrace(sessionID string) {
@@ -130,12 +134,18 @@ func (s *Service) cancelSessionGrace(sessionID string) {
 	}
 }
 
-func (s *Service) ownerGraceExpired(sessionID, deviceID string) {
+// ownerGraceExpired acts only if the timer of generation gen still owns the map entry: a timer stopped too late
+// by a reconnect (callback already running) must not remove or pre-empt a newer grace period.
+func (s *Service) ownerGraceExpired(sessionID, deviceID string, gen uint64) {
 	ctx := context.Background()
 	s.sess.mu.Lock()
 	defer s.sess.mu.Unlock()
 	rt := &s.sess.rt
 	rt.mu.Lock()
+	if e, ok := rt.ownerTimers[sessionID]; !ok || e.gen != gen {
+		rt.mu.Unlock()
+		return
+	}
 	delete(rt.ownerTimers, sessionID)
 	rt.mu.Unlock()
 	if s.deviceConnected(deviceID) {
@@ -155,8 +165,10 @@ func (s *Service) armViewerGrace(viewerID, deviceID string) {
 	if old, ok := rt.viewerTimers[viewerID]; ok {
 		old.t.Stop()
 	}
-	rt.viewerTimers[viewerID] = timerEntry{deviceID: deviceID,
-		t: time.AfterFunc(s.sess.grace, func() { s.viewerGraceExpired(viewerID, deviceID) })}
+	rt.timerGen++
+	gen := rt.timerGen
+	rt.viewerTimers[viewerID] = timerEntry{deviceID: deviceID, gen: gen,
+		t: time.AfterFunc(s.sess.grace, func() { s.viewerGraceExpired(viewerID, deviceID, gen) })}
 }
 
 func (s *Service) cancelViewerGrace(viewerID string) {
@@ -169,11 +181,15 @@ func (s *Service) cancelViewerGrace(viewerID string) {
 	}
 }
 
-func (s *Service) viewerGraceExpired(viewerID, deviceID string) {
+func (s *Service) viewerGraceExpired(viewerID, deviceID string, gen uint64) {
 	s.sess.mu.Lock()
 	defer s.sess.mu.Unlock()
 	rt := &s.sess.rt
 	rt.mu.Lock()
+	if e, ok := rt.viewerTimers[viewerID]; !ok || e.gen != gen {
+		rt.mu.Unlock()
+		return
+	}
 	delete(rt.viewerTimers, viewerID)
 	rt.mu.Unlock()
 	if s.deviceConnected(deviceID) {

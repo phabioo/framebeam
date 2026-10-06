@@ -118,3 +118,34 @@ func TestRecoveredSessionEndsAfterGraceWithoutOwner(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 	}
 }
+
+func TestStaleOwnerGraceCallbackIsIgnored(t *testing.T) {
+	svc, _ := hubtest.New(t, func(o *hub.Options) { o.OwnerGrace = time.Hour })
+	admin, _ := svc.CreateAdmin(ctx, "fabio", "secret-1234")
+	g, _ := svc.AddROM(ctx, bytes.NewReader(randomROM(2000)), "demo.nds", "", "", admin.ID)
+	owner := principal(t, svc, admin.ID, "Desktop")
+	s, err := svc.PublishSession(ctx, owner, g.ID, hub.VisibilityHubUsers)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The owner is offline (no WSS). Timer 1 fires too late to be stopped; timer 2 is the current grace period.
+	stale := svc.ArmOwnerGraceForTest(s.SessionID, owner.Device.ID)
+	svc.ArmOwnerGraceForTest(s.SessionID, owner.Device.ID)
+	svc.OwnerGraceExpiredForTest(s.SessionID, owner.Device.ID, stale)
+	if _, err := svc.GetSession(ctx, owner, s.SessionID); err != nil {
+		t.Fatalf("stale callback ended the Session: %v", err)
+	}
+	if !svc.OwnerGraceArmedForTest(s.SessionID) {
+		t.Fatal("stale callback removed the newer timer")
+	}
+}
+
+func TestStaleViewerGraceCallbackKeepsNewerTimer(t *testing.T) {
+	svc, _ := hubtest.New(t, func(o *hub.Options) { o.OwnerGrace = time.Hour })
+	stale := svc.ArmViewerGraceForTest("v1", "dev1")
+	svc.ArmViewerGraceForTest("v1", "dev1")
+	svc.ViewerGraceExpiredForTest("v1", "dev1", stale)
+	if !svc.ViewerGraceArmedForTest("v1") {
+		t.Fatal("stale callback removed the newer timer")
+	}
+}
