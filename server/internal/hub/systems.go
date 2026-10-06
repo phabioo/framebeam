@@ -289,13 +289,28 @@ func (s *Service) ProvideFirmware(ctx context.Context, systemID, fileID string, 
 	if err := os.Chmod(tmpName, 0o600); err != nil {
 		return FirmwareFile{}, internal(err)
 	}
-	if err := os.Rename(tmpName, s.firmwarePath(systemID, fileID)); err != nil {
+	// Keep the old file as a backup until the metadata is updated, so file and DB never diverge.
+	dst := s.firmwarePath(systemID, fileID)
+	bak := dst + ".bak"
+	hadOld := os.Rename(dst, bak) == nil
+	if err := os.Rename(tmpName, dst); err != nil {
+		if hadOld {
+			os.Rename(bak, dst)
+		}
 		return FirmwareFile{}, internal(err)
 	}
 	if _, err := s.db.ExecContext(ctx, `INSERT INTO firmware_files(system_id, file_id, sha256, size, uploaded_at) VALUES (?,?,?,?,?)
 		ON CONFLICT(system_id, file_id) DO UPDATE SET sha256 = excluded.sha256, size = excluded.size, uploaded_at = excluded.uploaded_at`,
 		systemID, fileID, sha, size, s.now().Unix()); err != nil {
+		if hadOld {
+			os.Rename(bak, dst)
+		} else {
+			os.Remove(dst)
+		}
 		return FirmwareFile{}, internal(err)
+	}
+	if hadOld {
+		os.Remove(bak)
 	}
 	return s.firmwareDef(ctx, systemID, fileID)
 }
@@ -352,7 +367,8 @@ func (s *Service) OpenFirmware(ctx context.Context, systemID, fileID string) (*o
 	if err != nil {
 		return nil, FirmwareFile{}, err
 	}
-	if !def.Present {
+	// A file that does not match the admin-pinned hash is not offered to Players.
+	if !def.Present || def.State == FirmwareMismatch {
 		return nil, FirmwareFile{}, ErrNotFound
 	}
 	f, err := os.Open(s.firmwarePath(systemID, fileID))

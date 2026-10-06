@@ -95,8 +95,10 @@ func (s *Server) ListSystems(ctx context.Context, _ api.ListSystemsRequestObject
 			si.ExpectedCoreVersion = &v
 		}
 		for _, f := range e.Firmware {
-			af := api.FirmwareFile{Id: f.ID, DisplayName: f.DisplayName, Required: f.Required, Present: f.Present}
-			if f.Present {
+			af := api.FirmwareFile{Id: f.ID, DisplayName: f.DisplayName, Required: f.Required}
+			// A file with a hash mismatch (pinned hash differs) counts as not present for Players.
+			if f.Present && f.State != hub.FirmwareMismatch {
+				af.Present = true
 				sz, sha := f.Size, f.SHA256
 				af.Size, af.Sha256 = &sz, &sha
 			}

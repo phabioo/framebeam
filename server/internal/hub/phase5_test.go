@@ -428,6 +428,15 @@ func TestFirmwareValidationStatusAndBadge(t *testing.T) {
 		t.Fatalf("badge %d", n)
 	}
 
+	// A pinned-hash mismatch is not downloadable.
+	if err := svc.SetFirmwarePin(ctx, "nds", "bios7", strings.Repeat("c", 64)); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := svc.OpenFirmware(ctx, "nds", "bios7"); !errors.Is(err, hub.ErrNotFound) {
+		t.Fatalf("mismatching file downloadable: %v", err)
+	}
+	svc.SetFirmwarePin(ctx, "nds", "bios7", "")
+
 	// Download and remove.
 	fh, def, err := svc.OpenFirmware(ctx, "nds", "bios7")
 	if err != nil {
@@ -576,5 +585,50 @@ func TestSettingsAndUploadPermission(t *testing.T) {
 	}
 	if err := svc.SetAppearance(ctx, "neon"); !errors.Is(err, hub.ErrBadRequest) {
 		t.Fatal(err)
+	}
+}
+
+func TestProvideFirmwareKeepsOldFileWhenMetadataUpdateFails(t *testing.T) {
+	svc, _, _ := newAdmin(t)
+	v1, v2 := dummy(16384), bytes.Repeat([]byte{0x33}, 16384)
+	if _, err := svc.ProvideFirmware(ctx, "nds", "bios7", bytes.NewReader(v1)); err != nil {
+		t.Fatal(err)
+	}
+	db, err := store.Open(filepath.Join(svc.DataDir(), "framebeam.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(`CREATE TRIGGER fw_fail BEFORE INSERT ON firmware_files BEGIN SELECT RAISE(ABORT, 'boom'); END`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.ProvideFirmware(ctx, "nds", "bios7", bytes.NewReader(v2)); err == nil {
+		t.Fatal("expected failure")
+	}
+	got, err := os.ReadFile(filepath.Join(svc.DataDir(), "firmware", "nds", "bios7"))
+	if err != nil || !bytes.Equal(got, v1) {
+		t.Fatalf("old file not restored: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(svc.DataDir(), "firmware", "nds", "bios7.bak")); !os.IsNotExist(err) {
+		t.Fatalf("backup left behind: %v", err)
+	}
+	e, _ := svc.GetRegistryEntry(ctx, "nds")
+	if e.Firmware[0].SHA256 != sum(v1) {
+		t.Fatal("metadata changed")
+	}
+	// First-time provide failing leaves no file.
+	if _, err := svc.ProvideFirmware(ctx, "nds", "bios9", bytes.NewReader(dummy(4096))); err == nil {
+		t.Fatal("expected failure")
+	}
+	if _, err := os.Stat(filepath.Join(svc.DataDir(), "firmware", "nds", "bios9")); !os.IsNotExist(err) {
+		t.Fatalf("orphan file: %v", err)
+	}
+	// Success path removes the backup.
+	db.Exec(`DROP TRIGGER fw_fail`)
+	if _, err := svc.ProvideFirmware(ctx, "nds", "bios7", bytes.NewReader(v2)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(svc.DataDir(), "firmware", "nds", "bios7.bak")); !os.IsNotExist(err) {
+		t.Fatalf("backup left behind: %v", err)
 	}
 }

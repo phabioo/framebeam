@@ -330,6 +330,14 @@ func TestSystemsAndFirmwareAPI(t *testing.T) {
 	if rec.Code != http.StatusNotModified {
 		t.Fatalf("status %d", rec.Code)
 	}
+	// A pinned hash that differs: reported as not present and not downloadable (Player shows firmware missing).
+	s.svc.SetFirmwarePin(ctx, "nds", "bios7", strings.Repeat("d", 64))
+	nds = list()
+	if nds.Firmware[0].Present || nds.Firmware[0].Size != nil || nds.Firmware[0].SHA256 != nil || !nds.Firmware[0].Required {
+		t.Fatalf("%+v", nds.Firmware[0])
+	}
+	wantStatus(t, s.do("GET", "/api/v1/systems/nds/firmware/bios7", nil, opt{token: d.tok}), 404, "not_found")
+	s.svc.SetFirmwarePin(ctx, "nds", "bios7", "")
 	// A disabled user gets 401 user_disabled here as well.
 	s.svc.DisableUser(ctx, s.anna.ID)
 	wantStatus(t, s.do("GET", "/api/v1/systems/nds/firmware/bios7", nil, opt{token: d.tok}), 401, "user_disabled")
