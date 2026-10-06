@@ -180,6 +180,15 @@ class LoopbackTest : public QObject {
     QVERIFY(vs.audioFrames > 0);
     QVERIFY(rig.host.viewerLinks().size() == 1);
 
+    // RTT needs an SCTP association: the negotiated "fb-diag" data channel provides it, on both sides.
+    QVERIFY2(QTest::qWaitFor([&]() { return rig.host.stats().rttMs.has_value() && viewer->stats().rttMs.has_value(); }, 20000),
+             qPrintable(QStringLiteral("host rtt %1, viewer rtt %2")
+                            .arg(rig.host.stats().rttMs ? QString::number(*rig.host.stats().rttMs) : QStringLiteral("n/a"))
+                            .arg(viewer->stats().rttMs ? QString::number(*viewer->stats().rttMs) : QStringLiteral("n/a"))));
+    QVERIFY(rig.host.viewerLinks().first().rttMs.has_value());
+    QVERIFY(viewer->link().rttMs.has_value());
+    QVERIFY2(*rig.host.stats().rttMs >= 0.0 && *rig.host.stats().rttMs < 1000.0, qPrintable(QString::number(*rig.host.stats().rttMs)));
+
     // Viewer removal (viewer_left): the PeerConnection closes immediately, the encoder stops.
     rig.host.removeViewer(rig.ids.first());
     QCOMPARE(rig.host.viewerCount(), 0);
@@ -193,6 +202,41 @@ class LoopbackTest : public QObject {
     QVERIFY(!viewer->isOpen());
     // Frames pushed with nobody watching are dropped without restarting the encoder.
     rig.host.pushFrame(syntheticFrame(1));
+    QVERIFY(!rig.host.encoderRunning());
+  }
+
+  void encodingRunsOffTheCallingThread() {
+    Rig rig;
+    SessionViewer* viewer = rig.addViewer();
+    int frames = 0;
+    QObject::connect(viewer, &SessionViewer::frameReady, this, [&](const QImage&) { ++frames; });
+    QVERIFY(QTest::qWaitFor([&]() { return viewer->isConnected(); }, 15000));
+    // Feed from the test (UI) thread without ever yielding to the event loop: the pushes must return immediately
+    // (copy into the bounded queue), whatever the encoder does.
+    QElapsedTimer t;
+    t.start();
+    qint64 worst = 0;
+    for (int i = 0; i < 300; ++i) {
+      QElapsedTimer one;
+      one.start();
+      rig.host.pushFrame(syntheticFrame(i));
+      worst = std::max<qint64>(worst, one.nsecsElapsed());
+      QTest::qSleep(2);
+    }
+    qInfo().noquote() << "[loopback] 300 pushes in" << t.elapsed() << "ms, worst push" << worst / 1000 << "us, dropped"
+                      << rig.host.stats().droppedFrames;
+    QVERIFY(rig.host.encoderRunning());
+    QVERIFY2(QTest::qWaitFor([&]() { return frames >= 10; }, 15000), qPrintable(QString::number(frames)));
+    QVERIFY(!rig.host.stats().encoderName.isEmpty());
+    QCOMPARE(rig.host.encoderName(), rig.host.stats().encoderName);
+    // Stopping while frames are queued joins the worker cleanly; a second start works again.
+    for (int i = 0; i < 5; ++i) {
+      rig.host.pushFrame(syntheticFrame(i));
+    }
+    rig.host.close();
+    QVERIFY(!rig.host.encoderRunning());
+    QCOMPARE(rig.host.stats().videoFrames, 0);
+    rig.host.pushFrame(syntheticFrame(1));  // closed: ignored
     QVERIFY(!rig.host.encoderRunning());
   }
 

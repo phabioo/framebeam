@@ -103,6 +103,7 @@ void SessionViewer::teardown() {
       pc_->resetCallbacks();
       if (video_) video_->resetCallbacks();
       if (audio_) audio_->resetCallbacks();
+      if (diag_) diag_->resetCallbacks();
       pc_->close();
     } catch (const std::exception& e) {
       qCWarning(lcViewer) << "Closing PeerConnection:" << e.what();
@@ -110,6 +111,7 @@ void SessionViewer::teardown() {
   }
   video_.reset();
   audio_.reset();
+  diag_.reset();
   videoSession_.reset();
   pc_.reset();
   decoder_.close();
@@ -206,6 +208,12 @@ void SessionViewer::handleSignal(const SessionSignal& s) {
       // The answer is produced automatically (onLocalDescription) once the offer is applied.
       pc_->setRemoteDescription(rtc::Description(s.sdp.toStdString(), rtc::Description::Type::Offer));
       remoteSet_ = true;
+      // Negotiated data channel matching the host's (same id, no protocol change): brings up SCTP so rtt() works.
+      // Created after the remote offer: before it, libdatachannel would start an offer of its own.
+      rtc::DataChannelInit diagInit;
+      diagInit.negotiated = true;
+      diagInit.id = 0;
+      diag_ = pc_->createDataChannel("fb-diag", diagInit);
       const QList<SessionSignal> pending = std::exchange(pendingCandidates_, {});
       for (const SessionSignal& c : pending) {
         handleSignal(c);

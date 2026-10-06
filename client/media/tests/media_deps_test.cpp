@@ -161,6 +161,17 @@ private slots:
         opus_encoder_destroy(enc);
         opus_decoder_destroy(dec);
     }
+
+#ifdef _WIN32
+    // Windows only: the vcpkg FFmpeg must have the hardware H.264 encoders compiled in (ffmpeg features
+    // nvcodec/qsv/amf, see client/vcpkg.json). Opening them needs a GPU and is not tested here.
+    void hardwareH264EncodersAreCompiledIn()
+    {
+        for (const char *n : {"h264_nvenc", "h264_qsv", "h264_amf"}) {
+            QVERIFY2(avcodec_find_encoder_by_name(n) != nullptr, n);
+        }
+    }
+#endif
 };
 
 QTEST_GUILESS_MAIN(MediaDepsTest)

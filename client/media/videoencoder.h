@@ -2,6 +2,7 @@
 
 #include <QString>
 #include <QStringList>
+#include <atomic>
 #include <cstdint>
 #include <memory>
 #include <vector>
@@ -40,7 +41,7 @@ class VideoEncoder {
   int width() const { return width_; }
   int height() const { return height_; }
 
-  // The next frame becomes an IDR frame (viewer joined, PLI).
+  // The next frame becomes an IDR frame (viewer joined, PLI). Thread-safe.
   void requestKeyframe() { forceKeyframe_ = true; }
 
   // Encodes one frame (size must match open()) and appends the finished packets to `out` (no B-frames: normally one).
@@ -58,7 +59,7 @@ class VideoEncoder {
   int width_ = 0;
   int height_ = 0;
   int swsSrcFormat_ = -1;
-  bool forceKeyframe_ = true;
+  std::atomic<bool> forceKeyframe_{true};  // may be set from other threads
 };
 
 }  // namespace framebeam
