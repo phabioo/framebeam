@@ -156,4 +156,4 @@ Keyboard: Arrows, X=A, Z=B, S=X, A=Y, Q=L, W=R, Enter=Start, Backspace=Select, E
 - [ADR 0007: Phase 5, users, firmware, settings pages, gamepads, installer](docs/adr/0007-phase5.md) (accepted)
 - [Roadmap after the PoC](docs/roadmap.md)
 - [Design](docs/design/README.md)
-- [Working with Claude Code](docs/workflow.md)
+- [Working with Claude Code and Codex](docs/workflow.md)

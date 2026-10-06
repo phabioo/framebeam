@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SessionStart hook (synchronous): prepares cloud sessions. Quiet, idempotent, never blocks.
 # Only active in remote environments. Installs Qt 6.4 (apt) for the Player; the core build is only available via make.
-[ "${CLAUDE_CODE_REMOTE:-}" = "true" ] || exit 0
+[ "${CLAUDE_CODE_REMOTE:-}" = "true" ] || [ "${FRAMEBEAM_CLOUD_SETUP:-}" = "1" ] || exit 0
 set -uo pipefail
 
 ROOT="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"

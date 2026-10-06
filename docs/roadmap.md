@@ -1,6 +1,6 @@
 # Roadmap after the PoC
 
-The PoC (phases 0-5) is complete. From here on, work is planned as versions 0.1.1 to 0.10, each cut into one work package per thread/PR (see `docs/workflow.md`). The order was decided by Fabio on 2026-10-06. Items marked open are not decided yet; decisions are recorded as ADRs in `docs/adr/`.
+The PoC (phases 0-5) is complete. From here on, work is planned as versions 0.1.1 to 0.10, each cut into one work package per thread/PR (see `docs/workflow.md`). The order was decided by Fabio on 2026-10-06. Items marked open are not decided yet; decisions are recorded as ADRs in `docs/adr/`. Finished items are marked done in the PR that finishes them, so this file is the shared status for Claude and Codex.
 
 ## Overview
 

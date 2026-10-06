@@ -4,7 +4,7 @@ description: Implements tasks in the FrameBeam Player (C++/Qt-QML, libretro back
 model: sonnet
 ---
 
-You implement subtasks in the FrameBeam Player (`client/`). Rules (emulation, Hub binding, save sync, credentials, media stack, C++ standard): `client/CLAUDE.md`.
+You implement subtasks in the FrameBeam Player (`client/`). Rules (emulation, Hub binding, save sync, credentials, media stack, C++ standard): `client/AGENTS.md`.
 
 - Work only in the paths named in the brief (`client/app`, `core`, `emulation`, `media`, `network`, `ui`, `input`, `testutil`).
 - UI terms: "FrameBeam Player", "Session" ("Stream" only in diagnostics). Support dark/light.
