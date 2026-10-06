@@ -8,7 +8,8 @@ ROOT="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
 export VCPKG_ROOT="${VCPKG_ROOT:-$HOME/.cache/framebeam/vcpkg}"
 export GOTOOLCHAIN=local
 
-warn() { echo "session-start: $1" >&2; }
+FAILED=0
+warn() { echo "session-start: $1" >&2; FAILED=1; }
 run() {
   local label="$1"; shift
   local log; log="$(mktemp)"
@@ -40,4 +41,6 @@ fi
 for t in cmake ninja; do
   command -v "$t" >/dev/null || warn "$t missing (make check-client cannot run)"
 done
+# Only the generic cloud setup (scripts/setup-cloud.sh) treats failures as fatal; Claude sessions never block.
+[ "$FAILED" = 0 ] || [ "${FRAMEBEAM_CLOUD_SETUP:-}" != "1" ] || exit 1
 exit 0

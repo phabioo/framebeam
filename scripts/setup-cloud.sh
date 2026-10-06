@@ -7,7 +7,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-FRAMEBEAM_CLOUD_SETUP=1 bash "$ROOT/.claude/hooks/session-start.sh"
+if ! FRAMEBEAM_CLOUD_SETUP=1 bash "$ROOT/.claude/hooks/session-start.sh"; then
+  echo "setup-cloud: prerequisites failed (see warnings above)" >&2
+  exit 1
+fi
 
 for target in fetch-deps fetch-sdl3 fetch-core; do
   log="$(mktemp)"
