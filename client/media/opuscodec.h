@@ -47,6 +47,7 @@ class OpusDepacker {
   OpusDepacker& operator=(const OpusDepacker&) = delete;
 
   bool open();
+  void close();
   // Decodes one packet to 48 kHz stereo int16; empty on error.
   QByteArray decode(const uint8_t* data, size_t size);
 

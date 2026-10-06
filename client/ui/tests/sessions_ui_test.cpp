@@ -220,7 +220,21 @@ class SessionsUiTest : public QObject {
     QTRY_COMPARE(ctl->sessions().size(), 2);
     hub.sendWs(QStringLiteral("session_ended"), {{QStringLiteral("session_id"), QStringLiteral("s1")}, {QStringLiteral("reason"), QStringLiteral("no_longer_visible")}});
     QTRY_COMPARE(ctl->sessions().size(), 1);
-    hub.sendWs(QStringLiteral("session_invite"), {{QStringLiteral("session"), sessionObj(QStringLiteral("s4"), QStringLiteral("Sam"), QStringLiteral("Stylus Knights"), QStringLiteral("invite_only"), true)}});
+    hub.sessions.insert(QStringLiteral("s4"), sessionObj(QStringLiteral("s4"), QStringLiteral("Sam"), QStringLiteral("Stylus Knights"), QStringLiteral("invite_only"), true));
+    hub.sendWs(QStringLiteral("session_invite"), {{QStringLiteral("session"), hub.sessions.value(QStringLiteral("s4"))}});
+    QTRY_COMPARE(ctl->sessions().size(), 2);
+
+    // A GET /sessions answer that is older than a live event must not undo the event: the request goes out, then
+    // session_ended(s4) arrives, then the (stale) list that still contains s4 is answered.
+    hub.sessions.remove(QStringLiteral("s1"));  // keep the fake Hub consistent with the events so far
+    QCOMPARE(ctl->sessions().size(), 2);
+    ctl->refreshSessions();
+    emit ctl->socket()->sessionEnded(SessionEnded{QStringLiteral("s4"), QStringLiteral("ended")});
+    QCOMPARE(ctl->sessions().size(), 1);
+    QTest::qWait(600);  // the list response (with s4) arrives in this time
+    QCOMPARE(ctl->sessions().size(), 1);
+    // restore s4 for the steps below
+    hub.sendWs(QStringLiteral("session_invite"), {{QStringLiteral("session"), hub.sessions.value(QStringLiteral("s4"))}});
     QTRY_COMPARE(ctl->sessions().size(), 2);
 
     // Decline

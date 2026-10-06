@@ -5,6 +5,9 @@ extern "C" {
 #include <libswscale/swscale.h>
 }
 
+#include <climits>
+#include <cstring>
+
 namespace framebeam {
 
 VideoDecoder::VideoDecoder() = default;
@@ -57,11 +60,14 @@ bool VideoDecoder::decode(const uint8_t* data, size_t size, std::vector<QImage>&
   if (!ctx_ || size == 0) {
     return false;
   }
-  pkt_->data = const_cast<uint8_t*>(data);  // avcodec does not modify the data
-  pkt_->size = static_cast<int>(size);
+  // The bitstream reader may read past the end: the payload goes into an FFmpeg-owned buffer with the zeroed
+  // AV_INPUT_BUFFER_PADDING_SIZE bytes (av_new_packet), not straight from the caller's QByteArray.
+  if (size > static_cast<size_t>(INT_MAX - AV_INPUT_BUFFER_PADDING_SIZE) || av_new_packet(pkt_, static_cast<int>(size)) < 0) {
+    return false;
+  }
+  std::memcpy(pkt_->data, data, size);
   const int sent = avcodec_send_packet(ctx_, pkt_);
-  pkt_->data = nullptr;
-  pkt_->size = 0;
+  av_packet_unref(pkt_);
   if (sent < 0) {
     return false;
   }

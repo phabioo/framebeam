@@ -196,9 +196,10 @@ void SessionController::refreshSessions() {
   if (!available()) {
     return;
   }
-  api_.list([this](const SessionApiResult& r) {
-    if (!r.ok()) {
-      return;
+  const quint64 gen = sessionEventGen_;
+  api_.list([this, gen](const SessionApiResult& r) {
+    if (!r.ok() || gen != sessionEventGen_) {
+      return;  // a live event arrived after the request was sent: the list may be older than it, drop the result
     }
     sessions_.clear();
     for (const SessionInfo& s : r.sessions) {
@@ -211,6 +212,7 @@ void SessionController::refreshSessions() {
 }
 
 void SessionController::onSessionUpdated(const SessionInfo& s) {
+  ++sessionEventGen_;
   if (shared_ && s.sessionId == own_.sessionId) {
     applyOwnSession(s);
     return;
@@ -226,6 +228,7 @@ void SessionController::onSessionUpdated(const SessionInfo& s) {
 }
 
 void SessionController::onSessionEnded(const SessionEnded& e) {
+  ++sessionEventGen_;
   if (shared_ && e.sessionId == own_.sessionId) {
     QString note = tr("The Session ended.");
     if (e.reason == QLatin1String("replaced")) note = tr("The Session was replaced by a newer one.");

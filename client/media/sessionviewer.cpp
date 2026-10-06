@@ -112,6 +112,7 @@ void SessionViewer::teardown() {
   videoSession_.reset();
   pc_.reset();
   decoder_.close();
+  opus_.close();
 }
 
 void SessionViewer::close() {

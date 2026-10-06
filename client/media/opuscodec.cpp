@@ -55,13 +55,17 @@ void OpusFramer::push(const QByteArray& pcm, int sampleRate, std::vector<std::ve
 }
 
 OpusDepacker::OpusDepacker() = default;
-OpusDepacker::~OpusDepacker() {
+OpusDepacker::~OpusDepacker() { close(); }
+
+void OpusDepacker::close() {
   if (dec_) {
     opus_decoder_destroy(dec_);
+    dec_ = nullptr;
   }
 }
 
 bool OpusDepacker::open() {
+  close();  // reopening must not leak the previous decoder
   int err = 0;
   dec_ = opus_decoder_create(kOpusRate, kOpusChannels, &err);
   if (err != OPUS_OK) {

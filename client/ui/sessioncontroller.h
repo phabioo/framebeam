@@ -165,6 +165,7 @@ class SessionController : public QObject {
   AudioOutput remoteAudio_;
 
   QHash<QString, SessionInfo> sessions_;  // visible Sessions (not own)
+  quint64 sessionEventGen_ = 0;  // bumped by every live session event; stale GET /sessions results are dropped
   QTimer minuteTimer_;
   QTimer statsTimer_;
   QTimer audioTimer_;
