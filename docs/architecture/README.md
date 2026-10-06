@@ -20,7 +20,7 @@ Design specification of the UI screens: `../design/README.md`.
 
 | File | Refined by | Deviations and notes as built |
 |---|---|---|
-| `01-overview.md` | ADR 0001, 0003, 0006, 0007 | C++20 baseline, not C++23 (ADR 0001). Audio output via Qt Multimedia; SDL3 only for gamepads (ADR 0007). Software H.264 via libopenh264 (Windows) / libx264 (Linux); NVENC/QSV/AMF are compiled in but not yet verified (ADR 0006 D5). |
+| `01-overview.md` | ADR 0001, 0003, 0006, 0007 | C++20 baseline, not C++23 (ADR 0001). Audio output via Qt Multimedia; SDL3 only for gamepads (ADR 0007). Software H.264 via libopenh264 (Windows) / libx264 (Linux); NVENC/QSV/AMF are probed at runtime (ADR 0006 D5) but not built into the Windows FFmpeg (`client/vcpkg.json`), so hardware encoding is not available yet. |
 | `02-protocols-and-rom-cache.md` | ADR 0002, 0005, 0006, 0007 | Endpoints and messages are specified in `protocol/` (OpenAPI 1.3.0, `protocol_version` 1); info endpoint `/.well-known/framebeam`; compatibility rules `player_too_old`/`hub_too_old` (ADR 0002). `core_missing`/`core_version_mismatch` are warnings, launch allowed (ADR 0007). Still open: ROM cache limit and cleanup. |
 | `03-saves.md` | ADR 0005 | Two counters: checkpoint "Rev N", history "vN"; 64 MiB per slot; "Keep both, decide later" starts with the local save and pauses uploads. Still open: retention, Restore from history, multiple slots in the UI, WS push of save changes, manual snapshot in the Player. |
 | `04-sessions-and-multiview.md` | ADR 0006 | Private = devices of the owner user. Invite only is fully implemented (beyond the data-model minimum). Max 4 viewers. No TURN; optional STUN via Hub flag `-ice-servers`. Exactly one audible surface. Still open: bitrate adaptation, RTT in diagnostics, TURN. |
