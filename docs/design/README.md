@@ -39,7 +39,7 @@ Phases per `../workflow.md` (phase plan). Borderline cases: 3o phase 1 only Hub 
 Only noted, not resolved; the architecture applies. Checked against `09-ui-and-navigation.md`, `03-saves.md` and `10-identity-pairing-tls.md`; other files not read (points there: unclear).
 
 1. Diagnostics appears in 3g-3i as an equal-ranking tab next to Session and Multiview. Architecture: only optionally shown/collapsible, not primary UX. In 3g additionally "▸ Show diagnostics".
-2. Hub Settings (3o): appearance "Light | Dark | System"; architecture: "dark/light presentation selectable". The "System" option is additional. Only Player dark and Hub light are drawn; the respective other palette is missing.
+2. Hub Settings (3o): appearance "Light | Dark | System"; architecture: "dark/light presentation selectable". The "System" option is additional. Only Player dark and Hub light are drawn; since phase 5 the other two palettes (Player light, Hub dark) exist in code but are derived from the drawn ones, not designed ([tokens.md](tokens.md), ADR 0007 D7).
 3. Fingerprint confirmation "in the Hub web interface" on a changed certificate (3a): architecture 10 (line 40) leaves the confirmed pin change to be specified; open.
 4. 3b shows "Certificate trusted" without confirmation. Architecture 10 (line 40) requires showing and confirming the fingerprint on first pairing. A real deviation, the architecture applies.
 5. Not drawn, but named by the architecture: Player Settings and Settings → Hubs, Hub switcher dialog (only a "switch" card), admin setup and login in the Hub, metadata actions in the library entry (later), firmware block in the library detail (3c shows only the success case), multiview action "Add to multiview".

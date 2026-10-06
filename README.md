@@ -12,8 +12,8 @@ Phase plan: [Workflow](docs/workflow.md#phase-plan).
 | 1 Protocol and Hub basics | done | OpenAPI `/api/v1`, WSS schemas, Hub with SQLite, admin setup, TLS, pairing, tokens, library, ROM download, web interface |
 | 2 Playable vertical slice | done | Player core (profile, pairing, library, ROM cache), melonDS DS via Libretro, minimal Qt UI |
 | 3 Saves | done | Save storage, sync, versions, conflict model ([ADR 0005](docs/adr/0005-saves-phase3.md)) |
-| 4 Session sharing and multiview | done in the cloud, pending local test on two devices | Presence, signaling, WebRTC, multiview ([ADR 0006](docs/adr/0006-sessions-phase4.md), accepted) |
-| 5 Remainder and polish | planned | Firmware path, users, remaining pages, packaging |
+| 4 Session sharing and multiview | done (tested locally on two Windows PCs) | Presence, signaling, WebRTC, multiview ([ADR 0006](docs/adr/0006-sessions-phase4.md), accepted) |
+| 5 Remainder and polish | done in the cloud, pending local test | Users and invites, user uploads, systems and firmware, Emulation and Controllers pages, appearance, Windows installer ([ADR 0007](docs/adr/0007-phase5.md), proposed) |
 | Post-PoC | planned | Installers for all platforms, integrated updater |
 
 ## What works
@@ -30,6 +30,9 @@ Phase plan: [Workflow](docs/workflow.md#phase-plan).
 - Web page "Saves" (admin): slots, conflicts ("Use Hub version" / "Adopt local save"), history with Download, badge in the navigation.
 - Info endpoint `/.well-known/framebeam` and handshake with `protocol_version`.
 - Sessions: session API (visibility Private / Hub users / Invite only, invites, viewers), WSS presence and signaling relay, revoke on visibility change; optional STUN servers via `-ice-servers` / `FRAMEBEAM_ICE_SERVERS`.
+- Users and invites: Users page creates single-use invite codes (shown once), disable/enable users, display names unique; Clients page assigns a pending device to a user.
+- Settings: "Allow users to upload games" and Appearance (Light / Dark / System).
+- Systems & Cores page: expected core version, reports from clients, firmware mode and firmware files per system (user-supplied, never shipped).
 - Ships with a systemd installer for Linux / Raspberry Pi (`packaging/linux/`).
 
 **Protocol** (`protocol/`)
@@ -52,8 +55,15 @@ Phase plan: [Workflow](docs/workflow.md#phase-plan).
 - Multiview: side-by-side and PiP, one audible surface; diagnostics tab.
 - CLI: `session-share --synthetic`, `session-watch`.
 - Credentials in the Credential Manager on Windows, in memory only on Linux (new pairing after restart).
+- Redeem an invite code to join a Hub as a new user (no password).
+- Upload ROMs to the Hub from the Player when the Hub allows user uploads.
+- Firmware path for NDS: in native mode the Player fetches your firmware files from the Hub and shows "Firmware required" / "Firmware missing" instead of launching without them.
+- Emulation page: core options per global/system level (locked options are hidden).
+- Controllers page: SDL3 gamepads, built-in and user profiles, remapping, input test.
+- Settings page: Appearance (Dark / Light / System).
+- Windows installer (Inno Setup), CI artifact `framebeam-player-windows-x64-setup`.
 
-Still missing: gamepads, firmware path and settings pages (phase 5).
+Details: [server/README.md](server/README.md), [client/README.md](client/README.md).
 
 ## How saves work
 
@@ -66,7 +76,7 @@ Still missing: gamepads, firmware path and settings pages (phase 5).
 
 ## Build and run
 
-Prerequisites: Go 1.24 (per `server/go.mod`); for the client CMake, a C++ compiler and Qt >= 6.4 (not via vcpkg): on Linux via apt (package list `QT_PKGS` in `.claude/hooks/session-start.sh`), on Windows Qt 6.8 with the modules `qtmultimedia` and `qtwebsockets`. Sessions additionally need libdatachannel, FFmpeg and Opus: on Linux the media apt packages from the same list plus `make fetch-deps` (builds pinned libdatachannel via `scripts/fetch-libdatachannel.sh`); on Windows via vcpkg (`client/vcpkg.json`).
+Prerequisites: Go 1.24 (per `server/go.mod`); for the client CMake, a C++ compiler and Qt >= 6.4 (not via vcpkg): on Linux via apt (package list `QT_PKGS` in `.claude/hooks/session-start.sh`), on Windows Qt 6.8 with the modules `qtmultimedia` and `qtwebsockets`. Sessions additionally need libdatachannel, FFmpeg and Opus: on Linux the media apt packages from the same list plus `make fetch-deps` (builds pinned libdatachannel via `scripts/fetch-libdatachannel.sh`); on Windows via vcpkg (`client/vcpkg.json`). Gamepads need SDL3 (>= 3.2): on Linux `make fetch-sdl3` (pinned 3.2.30 source build, also run by `make check-client`), on Windows via vcpkg.
 
 ```sh
 make check          # Hub and client check, quiet
@@ -111,7 +121,17 @@ Windows test package: unpack the CI artifact `framebeam-player-windows-x64` from
 
 ### Test Sessions locally
 
-Two Players on the LAN, both paired to the same Hub. Only the admin user exists until phase 5, so both devices belong to the admin: Private (own devices only), Hub users and Invite only can be tested; rejecting a foreign user cannot. STUN (`-ice-servers`) is not needed on a LAN. `scripts/e2e-session.sh` runs the same flow headless with two CLI processes against a local Hub.
+Two Players on the LAN, both paired to the same Hub. With only the admin, both devices belong to the admin: Private (own devices only), Hub users and Invite only can be tested. With a second Hub user (see below) Private rejects the foreign user and Hub users lets them in. STUN (`-ice-servers`) is not needed on a LAN. `scripts/e2e-session.sh` runs the same flow headless with two CLI processes against a local Hub.
+
+### Try phase 5
+
+1. Hub, page Users: create an invite (the code is shown only once). In a second Player choose to redeem an invite code and enter it.
+2. Start a Session on the first Player with Private and with Hub users; check that the second user is rejected, then let in.
+3. Hub, Settings: enable "Allow users to upload games"; upload a homebrew ROM from the second Player.
+4. Hub, Systems & Cores: switch NDS to native firmware mode without files; the Player shows "Firmware required" / "Firmware missing".
+5. Upload your own BIOS/firmware dumps (`bios7.bin`, `bios9.bin`, `firmware.bin`; never in the repo) and launch.
+6. Connect a gamepad and remap it on Controllers.
+7. Install the Player via the `framebeam-player-windows-x64-setup` artifact.
 
 Keyboard: Arrows, X=A, Z=B, S=X, A=Y, Q=L, W=R, Enter=Start, Backspace=Select, Esc=Pause.
 

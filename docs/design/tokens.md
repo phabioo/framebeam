@@ -119,6 +119,6 @@ Dimensions (recurring)
 
 ## Mapping (note, not code)
 
-- Player (QML): one theme singleton with the roles above as properties; dark/light switching (architecture 09) via two palettes with the same role names. A light Player palette is not designed in the source (open).
-- Hub (CSS): roles as CSS variables on `:root`; dark variant via `[data-theme]`/`prefers-color-scheme` (settings offer Light/Dark/System). A dark Hub palette is not designed in the source (open); the Player set cannot simply be adopted.
+- Player (QML): one theme singleton with the roles above as properties; dark/light switching (architecture 09) via two palettes with the same role names. A light Player palette is not designed in the source; `Theme.qml` carries one derived from the Hub tokens (ADR 0007 D7).
+- Hub (CSS): roles as CSS variables on `:root`; dark variant via `[data-theme]`/`prefers-color-scheme` (settings offer Light/Dark/System). A dark Hub palette is not designed in the source; phase 5 derives it from the Player tokens as CSS variables under `[data-theme="dark"]` (and `prefers-color-scheme` for System) in `server/internal/web/static/app.css`. It is a derivation, not a designed palette; the Player set is not adopted 1:1 (ADR 0007 D7).
 - Role names proposed to be the same in both themes (bg, bg-sidebar, surface, border, text, text-muted, accent, ok, warn, error), so that the design language stays common.
