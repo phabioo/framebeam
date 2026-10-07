@@ -17,7 +17,7 @@ framebeam/
 └── docs/
 ```
 
-Still to be specified are the concrete encoder/decoder integration, API endpoints and message formats, protocol compatibility rules, token format and exact access/refresh lifetimes as well as technical revocation/renewal details within the defined model. Also open are concrete TLS certificate management including renewal/pin change, save retention and details of conflict resolution, cache limits/cleanup, ICE/STUN configuration and later TURN use, media parameters as well as core/firmware manifest and package formats. Approval pairing, roles, passwordless users and the TLS requirement are already decided. These open details introduce no additional PoC features.
+Still to be specified are the concrete encoder/decoder integration, API endpoints and message formats, protocol compatibility rules, token format and exact access/refresh lifetimes as well as technical revocation/renewal details within the defined model. Also open are concrete TLS certificate management including renewal/pin change, save retention and details of conflict resolution, cache limits/cleanup, ICE/STUN configuration and later TURN use, media parameters as well as the firmware manifest format (the core package format is decided, ADR 0010). Approval pairing, roles, passwordless users and the TLS requirement are already decided. These open details introduce no additional PoC features.
 
 ### Packaging and updates (after the PoC)
 

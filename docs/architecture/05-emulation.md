@@ -24,15 +24,15 @@ BIOS/firmware is provided centrally by the **admin** and assigned to a system/co
 The Hub validates expected metadata and hashes according to system/core requirements and delivers required, provided files to authorized Players. The Player validates and caches them locally, separate from ROMs and cores. If a core needs an unavailable file, it clearly shows **"Firmware required/missing"** and prevents the affected launch. Cores without BIOS/firmware needs work without this path. The concrete requirements of the PoC core and manifest/file formats remain to be specified; the provisioning and error path is part of the PoC.
 
 
-## 10. Systems & Cores: registry and later package provisioning
+## 10. Systems & Cores: registry and package provisioning
 
 The Hub page **"Systems & Cores"** is retained. It manages the system registry and core registry: system ID, assigned or preferred cores, core ID, expected version and supported platforms. The Hub never runs cores.
 
-For FrameBeam 0.1: `nds → melonds_ds`; melonDS DS is part of the Windows Player. The Player reports platform and available core versions so that compatibility can be checked. A missing or unsuitable core version is reported visibly; the PoC contains no automatic core package manager.
+For FrameBeam 0.1: `nds → melonds_ds`; the Player reports platform and available core versions so that compatibility can be checked. A missing or unsuitable core version is reported visibly. Since 0.2 installers ship no cores; they come from the Hub (ADR 0010).
 
-Later, a **core package cache** is added on the Hub. Registered packages contain core ID, version, platform/architecture, SHA-256 and origin as well as the licence information required for distribution. For later automatic core distribution, package signatures or trusted manifest sources are also to be provided; SHA-256 alone does not confirm a trustworthy origin. This trust check does not extend the PoC. "Cached on Hub" denotes a stored package, not an emulation installed or run there.
+Since 0.2 the Hub has a **core package cache**. Packages carry core ID, version, platform, SHA-256 per file, origin and licence information. The Hub fetches them from FrameBeam's GitHub Releases through an Ed25519-signed index and verifies the signature; the Player checks size and SHA-256 (ADR 0010). "Cached on Hub" denotes a stored package, not an emulation installed or run there.
 
-The later flow is: Player requests the intended core → Hub delivers package metadata → Player checks local version, platform and hash → download only if needed → hash/version check → inclusion in the local core cache → local execution. Multiple versions can be cached in parallel; a later version-bound game assignment remains possible.
+The flow (built in 0.2) is: Player requests the intended core → Hub delivers package metadata → Player checks local version, platform and hash → download only if needed → hash/version check → inclusion in the local core cache → local execution. Multiple versions can be cached in parallel; a later version-bound game assignment remains possible.
 
 ROM cache and core cache remain separate, for example:
 
@@ -48,8 +48,8 @@ Library and emulation show understandable states for the respective ROM or core 
 
 | State | Meaning / UI action |
 |---|---|
-| Cached locally / ready | Local file is present and validated; in the PoC the core may also be bundled |
-| Only on Hub | ROM or later core package is on the Hub, missing locally |
+| Cached locally / ready | Local file is present and validated; a legacy `<app-dir>/cores` core is still found |
+| Only on Hub | ROM or core package is on the Hub, missing locally |
 | Download required | Required local file is missing; offer download or trigger it on launch |
 | Download running / failed | Progress or an understandable error with a retry option |
 | Hash mismatch | Local file does not match the expected SHA-256; do not use, fetch again |
