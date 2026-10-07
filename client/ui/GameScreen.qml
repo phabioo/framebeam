@@ -263,6 +263,7 @@ Rectangle {
                 focusPolicy: Qt.NoFocus
                 text: qsTr("Fullscreen")
                 hint: "F11"
+                compact: root.width < 1360  // same threshold as the layout switch: drop the key hint when narrow
                 onClicked: root.toggleFullscreen()
             }
         }

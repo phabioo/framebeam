@@ -38,7 +38,11 @@ Rectangle {
         }
 
         ColumnLayout {
+            // The list area takes what the sidebar and the detail pane leave and shrinks first (wide fonts): its
+            // content minimum must not push the detail pane past the window edge.
             Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            Layout.preferredWidth: 1
             Layout.fillHeight: true
             Layout.margins: 28
             Layout.leftMargin: 32
