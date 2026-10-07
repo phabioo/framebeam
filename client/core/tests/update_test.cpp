@@ -325,9 +325,13 @@ class UpdateTest : public QObject {
     framebeam::PlayerSettings s(t.path());
     QCOMPARE(s.updateChannel(), QString("beta"));
     QVERIFY(s.setUpdateAutoInstall(true));  // any save rewrites the old value
-    QFile f(t.filePath("settings/player.json"));
-    QVERIFY(f.open(QIODevice::ReadOnly));
-    const QJsonObject o = QJsonDocument::fromJson(f.readAll()).object();
+    QJsonObject o;
+    {
+      // Closed before the next save: on Windows QSaveFile cannot replace an open file.
+      QFile f(t.filePath("settings/player.json"));
+      QVERIFY(f.open(QIODevice::ReadOnly));
+      o = QJsonDocument::fromJson(f.readAll()).object();
+    }
     QCOMPARE(o["update_channel"].toString(), QString("beta"));
     QCOMPARE(o["other"].toInt(), 1);
     QVERIFY(s.setUpdateChannel("test"));
