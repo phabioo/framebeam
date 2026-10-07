@@ -5,6 +5,9 @@ target_link_libraries(framebeam_player PRIVATE
   Qt6::Quick Qt6::QuickControls2 Qt6::Multimedia)
 framebeam_warnings(framebeam_player)
 if(WIN32)
+  # GUI subsystem: no console window on start. Qt::EntryPoint maps main() to WinMain. Console output of
+  # --version/--help/--version-json goes through printToStdout() in main.cpp (inherited handle or parent console).
+  set_target_properties(framebeam_player PROPERTIES WIN32_EXECUTABLE ON)
   target_link_libraries(framebeam_player PRIVATE shell32)
 endif()
 

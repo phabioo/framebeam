@@ -212,7 +212,7 @@ Channel UpdateManager::effectiveChannel() const {
 
 bool UpdateManager::autoInstallSetting() const {
   if (settings_->updateAutoInstall()) return *settings_->updateAutoInstall();
-  return effectiveChannel() == Channel::Test;
+  return effectiveChannel() == Channel::Beta;
 }
 
 bool UpdateManager::applySupported() const {
@@ -246,8 +246,8 @@ void UpdateManager::setState(State s, const QString& text) {
 void UpdateManager::start(int firstDelayMs) { timer_.start(firstDelayMs); }
 
 void UpdateManager::scheduleNext() {
-  const bool test = effectiveChannel() == Channel::Test;
-  timer_.start(test ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000);
+  const bool beta = effectiveChannel() == Channel::Beta;
+  timer_.start(beta ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000);
 }
 
 void UpdateManager::settingsChanged() {
@@ -432,7 +432,7 @@ void UpdateManager::installNow() {
 }
 
 bool UpdateManager::applyStagedAtStart() {
-  if (!applySupported() || effectiveChannel() != Channel::Test || !autoInstallSetting() || busy()) return false;
+  if (!applySupported() || effectiveChannel() != Channel::Beta || !autoInstallSetting() || busy()) return false;
   const auto staged = loadVerifiedStaged(config_.baseDir, config_.currentVersion, config_.trustedKeys, allowFileUrls());
   if (!staged) return false;
   apply(*staged);

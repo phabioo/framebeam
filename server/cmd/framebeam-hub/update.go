@@ -105,12 +105,12 @@ func runUpdateCheck(args []string, out io.Writer, stage bool) error {
 	}
 	fs := flag.NewFlagSet("update "+name, flag.ContinueOnError)
 	cfg := config.Register(fs, os.Getenv)
-	channel := fs.String("channel", "", "channel stable or test (default: the Hub setting, else the build channel)")
+	channel := fs.String("channel", "", "channel stable or beta (default: the Hub setting, else the build channel)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if fs.NArg() > 0 {
-		return errors.New("usage: framebeam-hub update " + name + " [-channel stable|test] [flags]")
+		return errors.New("usage: framebeam-hub update " + name + " [-channel stable|beta] [flags]")
 	}
 	if err := cfg.Validate(); err != nil {
 		return err
@@ -121,7 +121,7 @@ func runUpdateCheck(args []string, out io.Writer, stage bool) error {
 	}
 	ch := *channel
 	if ch == "" {
-		ch = version.Channel // without a Hub database the build channel applies
+		ch = updates.NormalizeChannel(version.Channel) // without a Hub database the build channel applies
 	}
 	if _, serr := os.Stat(filepath.Join(cfg.DataDir, "framebeam.db")); *channel == "" && serr == nil {
 		ctx := context.Background()
@@ -137,7 +137,7 @@ func runUpdateCheck(args []string, out io.Writer, stage bool) error {
 		ch = set.Channel
 	}
 	if !updates.ValidSelectableChannel(ch) {
-		return errors.New("updates are off for this build; pass -channel stable|test")
+		return errors.New("updates are off for this build; pass -channel stable|beta")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Minute)
 	defer cancel()

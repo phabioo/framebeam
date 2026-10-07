@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds the FrameBeam Hub .deb with dpkg-deb only (no debhelper): packaging/linux/README.md.
 # Usage: build-deb.sh --binary PATH --arch amd64|arm64 --version X.Y.Z[-pre] --out DIR
-# Control Version: SemVer with - replaced by ~ (0.3.0-test.57 -> 0.3.0~test.57); the file name keeps the SemVer. Prints the .deb path.
+# Control Version: SemVer with - replaced by ~ (0.3.0-beta.57 -> 0.3.0~beta.57); the file name keeps the SemVer. Prints the .deb path.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

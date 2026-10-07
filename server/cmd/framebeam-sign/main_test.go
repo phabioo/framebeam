@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -117,13 +118,13 @@ func TestReleaseAddKeepPruneAndDeterminism(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	versions := []string{"0.3.0-test.2", "0.3.0-test.10", "0.3.0-test.1", "0.3.0-test.9", "0.3.0-test.3", "0.3.0-test.4", "0.3.0-test.11", "0.3.0-test.5"}
+	versions := []string{"0.3.0-beta.2", "0.3.0-beta.10", "0.3.0-beta.1", "0.3.0-beta.9", "0.3.0-beta.3", "0.3.0-beta.4", "0.3.0-beta.11", "0.3.0-beta.5"}
 	idxA := filepath.Join(dir, "a.json")
 	for _, v := range versions {
-		add(idxA, "hub", "test", v)
+		add(idxA, "hub", "beta", v)
 	}
 	add(idxA, "hub", "stable", "0.2.0")
-	add(idxA, "player", "test", "0.3.0-test.10")
+	add(idxA, "player", "beta", "0.3.0-beta.10")
 
 	data, _ := os.ReadFile(idxA)
 	idx, errs := updates.ParseIndex(data)
@@ -134,7 +135,7 @@ func TestReleaseAddKeepPruneAndDeterminism(t *testing.T) {
 	for _, r := range idx.Releases {
 		got = append(got, r.Product+"/"+r.Channel+"/"+r.Version)
 	}
-	want := "hub/stable/0.2.0 hub/test/0.3.0-test.4 hub/test/0.3.0-test.5 hub/test/0.3.0-test.9 hub/test/0.3.0-test.10 hub/test/0.3.0-test.11 player/test/0.3.0-test.10"
+	want := "hub/beta/0.3.0-beta.4 hub/beta/0.3.0-beta.5 hub/beta/0.3.0-beta.9 hub/beta/0.3.0-beta.10 hub/beta/0.3.0-beta.11 hub/stable/0.2.0 player/beta/0.3.0-beta.10"
 	if strings.Join(got, " ") != want {
 		t.Fatalf("keep 5 per product+channel by SemVer:\n got %v\nwant %s", got, want)
 	}
@@ -145,22 +146,22 @@ func TestReleaseAddKeepPruneAndDeterminism(t *testing.T) {
 	// Deterministic: another order gives identical bytes; replacing an existing release is idempotent.
 	idxB := filepath.Join(dir, "b.json")
 	for i := len(versions) - 1; i >= 0; i-- {
-		add(idxB, "hub", "test", versions[i])
+		add(idxB, "hub", "beta", versions[i])
 	}
-	add(idxB, "player", "test", "0.3.0-test.10")
+	add(idxB, "player", "beta", "0.3.0-beta.10")
 	add(idxB, "hub", "stable", "0.2.0")
-	add(idxB, "hub", "test", "0.3.0-test.11")
+	add(idxB, "hub", "beta", "0.3.0-beta.11")
 	dataB, _ := os.ReadFile(idxB)
 	if !bytes.Equal(data, dataB) {
 		t.Fatalf("not deterministic:\n%s\n---\n%s", data, dataB)
 	}
 	// -keep applies to every call.
-	add(idxA, "hub", "test", "0.3.0-test.12", "-keep", "2")
+	add(idxA, "hub", "beta", "0.3.0-beta.12", "-keep", "2")
 	data, _ = os.ReadFile(idxA)
 	idx, _ = updates.ParseIndex(data)
 	n := 0
 	for _, r := range idx.Releases {
-		if r.Product == "hub" && r.Channel == "test" {
+		if r.Product == "hub" && r.Channel == "beta" {
 			n++
 		}
 	}
@@ -173,7 +174,7 @@ func TestReleaseAddKeepPruneAndDeterminism(t *testing.T) {
 	if err := runE(nil, "release-add", "-index", idxA, "-release", relFile); err == nil {
 		t.Fatal("invalid release accepted")
 	}
-	mk("hub", "test", "0.9.0")
+	mk("hub", "beta", "0.9.0")
 	if err := runE(nil, "release-add", "-index", idxA, "-release", relFile, "-keep", "0"); err == nil {
 		t.Fatal("keep 0 accepted")
 	}
@@ -242,7 +243,7 @@ func TestAllowFileURLs(t *testing.T) {
 	}
 	seedB, _ := os.ReadFile(seedFile)
 	env := map[string]string{signingKeyEnv: strings.TrimSpace(string(seedB))}
-	b, _ := json.Marshal(updates.Release{Product: "hub", Channel: "test", Version: "0.3.0-test.1", PublishedAt: now(), ProtocolVersion: 1, MinProtocolVersion: 1,
+	b, _ := json.Marshal(updates.Release{Product: "hub", Channel: "beta", Version: "0.3.0-beta.1", PublishedAt: now(), ProtocolVersion: 1, MinProtocolVersion: 1,
 		Artifacts: []updates.Artifact{{Platform: "linux-amd64", Kind: "deb", Name: "x.deb", Size: 1, SHA256: strings.Repeat("0", 64), URL: "file:///tmp/x.deb"}}})
 	rel, idx := filepath.Join(dir, "r.json"), filepath.Join(dir, "updates-index.json")
 	os.WriteFile(rel, b, 0o644)
@@ -260,5 +261,46 @@ func TestAllowFileURLs(t *testing.T) {
 	}
 	if err := runE(nil, "release-add", "-index", idx, "-release", rel); err == nil {
 		t.Fatal("existing file:// index accepted without the flag")
+	}
+}
+
+func TestReleaseAddDropsInvalidExistingReleases(t *testing.T) {
+	dir := t.TempDir()
+	idxPath := filepath.Join(dir, "updates-index.json")
+	mkRel := func(channel, version string) updates.Release {
+		name := "framebeam-hub_" + version + "_amd64.deb"
+		return updates.Release{Product: "hub", Channel: channel, Version: version, Commit: strings.Repeat("a", 40),
+			PublishedAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), ProtocolVersion: 1, MinProtocolVersion: 1,
+			Artifacts: []updates.Artifact{{Platform: "linux-amd64", Kind: "deb", Name: name, Size: 5, SHA256: strings.Repeat("ab", 32), URL: "https://example.org/" + name}}}
+	}
+	old, _ := updates.Marshal(updates.Index{Schema: updates.Schema, GeneratedAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		Releases: []updates.Release{mkRel("test", "0.3.0-test.196"), mkRel("stable", "0.2.0")}})
+	os.WriteFile(idxPath, old, 0o644)
+	nb, _ := json.Marshal(mkRel("beta", "0.3.0-beta.1"))
+	relFile := filepath.Join(dir, "release.json")
+	os.WriteFile(relFile, nb, 0o644)
+	now := func() time.Time { return time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC) }
+	runE := func(env map[string]string, args ...string) error {
+		return run(args, func(k string) string { return env[k] }, io.Discard, now)
+	}
+	var warn bytes.Buffer
+	prev := warnOut
+	warnOut = &warn
+	defer func() { warnOut = prev }()
+	if err := runE(nil, "release-add", "-index", idxPath, "-release", relFile); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(warn.String(), "0.3.0-test.196") {
+		t.Fatalf("dropped entry not reported: %q", warn.String())
+	}
+	data, _ := os.ReadFile(idxPath)
+	idx, errs := updates.ParseIndex(data)
+	if len(errs) != 0 || len(idx.Releases) != 2 || idx.Releases[0].Channel != "beta" || idx.Releases[1].Channel != "stable" {
+		t.Fatalf("%v %+v", errs, idx.Releases)
+	}
+	// Unknown schema stays fatal.
+	os.WriteFile(idxPath, []byte(`{"schema":99,"releases":[]}`), 0o644)
+	if err := runE(nil, "release-add", "-index", idxPath, "-release", relFile); err == nil {
+		t.Fatal("unknown schema must fail")
 	}
 }

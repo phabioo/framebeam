@@ -53,7 +53,7 @@ func indexJSON(t *testing.T, schema int, rs ...Release) []byte {
 }
 
 func TestParseIndex(t *testing.T) {
-	idx, errs := ParseIndex(indexJSON(t, 1, rel("hub", "test", "0.3.0-test.1")))
+	idx, errs := ParseIndex(indexJSON(t, 1, rel("hub", "beta", "0.3.0-beta.1")))
 	if len(errs) != 0 || len(idx.Releases) != 1 {
 		t.Fatalf("%+v %v", idx, errs)
 	}
@@ -63,7 +63,7 @@ func TestParseIndex(t *testing.T) {
 	if _, errs := ParseIndex(indexJSON(t, 2)); !Fatal(errs) {
 		t.Fatal("unknown schema must be fatal")
 	}
-	dup := indexJSON(t, 1, rel("hub", "test", "0.3.0-test.1"), rel("hub", "test", "0.3.0-test.1"))
+	dup := indexJSON(t, 1, rel("hub", "beta", "0.3.0-beta.1"), rel("hub", "beta", "0.3.0-beta.1"))
 	if _, errs := ParseIndex(dup); !Fatal(errs) {
 		t.Fatal("duplicate must reject the whole index")
 	}
@@ -71,7 +71,7 @@ func TestParseIndex(t *testing.T) {
 		t.Fatal("bad JSON")
 	}
 	// Same version in another channel is not a duplicate.
-	if _, errs := ParseIndex(indexJSON(t, 1, rel("hub", "test", "0.3.0"), rel("hub", "stable", "0.3.0"))); len(errs) != 0 {
+	if _, errs := ParseIndex(indexJSON(t, 1, rel("hub", "beta", "0.3.0"), rel("hub", "stable", "0.3.0"))); len(errs) != 0 {
 		t.Fatal(errs)
 	}
 }
@@ -102,8 +102,8 @@ func TestParseIndexSkipsInvalidReleases(t *testing.T) {
 
 func TestSemVerPrecedence(t *testing.T) {
 	// Ascending order per the SemVer 2.0 spec section 11 plus FrameBeam's own forms.
-	asc := []string{"0.3.0-dev", "0.3.0-test.2", "0.3.0-test.10", "0.3.0-test.10.1", "0.3.0-test.a", "0.3.0-test.b", "0.3.0-test.b.1",
-		"0.3.0-test.b.2", "0.3.0", "0.3.1", "0.10.0", "1.0.0-alpha", "1.0.0-alpha.1", "1.0.0-alpha.beta", "1.0.0-beta", "1.0.0-beta.2",
+	asc := []string{"0.3.0-beta.2", "0.3.0-beta.10", "0.3.0-beta.10.1", "0.3.0-beta.a", "0.3.0-beta.b", "0.3.0-beta.b.1",
+		"0.3.0-beta.b.2", "0.3.0-dev", "0.3.0", "0.3.1", "0.10.0", "1.0.0-alpha", "1.0.0-alpha.1", "1.0.0-alpha.beta", "1.0.0-beta", "1.0.0-beta.2",
 		"1.0.0-beta.11", "1.0.0-rc.1", "1.0.0", "2.0.0"}
 	for i := range asc {
 		for j := range asc {
@@ -122,7 +122,7 @@ func TestSemVerPrecedence(t *testing.T) {
 	if c, _ := CompareVersions("1.0.0+abc", "1.0.0+xyz"); c != 0 {
 		t.Fatal("build metadata must be ignored")
 	}
-	if c, _ := CompareVersions("0.3.0-test.9", "0.3.0-test.57"); c != -1 {
+	if c, _ := CompareVersions("0.3.0-beta.9", "0.3.0-beta.57"); c != -1 {
 		t.Fatal("numeric prerelease identifiers compare numerically")
 	}
 	for _, bad := range []string{"dev", "1.0", "01.0.0", "1.0.0-01", "1.0.0-", "v1.0.0", "", "1.0.0-a..b"} {
@@ -135,8 +135,8 @@ func TestSemVerPrecedence(t *testing.T) {
 func TestSelectChannels(t *testing.T) {
 	idx, _ := ParseIndex(indexJSON(t, 1,
 		rel("hub", "stable", "0.3.0"),
-		rel("hub", "test", "0.4.0-test.5"),
-		rel("hub", "test", "0.3.1-test.9"),
+		rel("hub", "beta", "0.4.0-beta.5"),
+		rel("hub", "beta", "0.3.1-beta.9"),
 		rel("hub", "stable", "0.2.0"),
 		rel("player", "stable", "9.9.9", art("windows-x64", KindInstaller, "setup.exe")),
 	))
@@ -147,11 +147,11 @@ func TestSelectChannels(t *testing.T) {
 	if err != nil || s.Release == nil || s.Release.Version != "0.3.0" || s.Artifact.Kind != KindDeb {
 		t.Fatalf("stable: %+v %v", s, err)
 	}
-	q.Channel = ChannelTest // test sees stable too; the highest wins
-	if s, _ = Select(idx, q); s.Release == nil || s.Release.Version != "0.4.0-test.5" {
+	q.Channel = ChannelBeta // test sees stable too; the highest wins
+	if s, _ = Select(idx, q); s.Release == nil || s.Release.Version != "0.4.0-beta.5" {
 		t.Fatalf("test: %+v", s)
 	}
-	q.Current = "0.4.0-test.5" // equal: up to date
+	q.Current = "0.4.0-beta.5" // equal: up to date
 	if s, _ = Select(idx, q); s.Release != nil || !s.UpToDate {
 		t.Fatalf("equal: %+v", s)
 	}
@@ -163,17 +163,17 @@ func TestSelectChannels(t *testing.T) {
 	if _, err = Select(idx, q); !errors.Is(err, ErrOff) {
 		t.Fatalf("dev: %v", err)
 	}
-	q.Channel, q.Current = ChannelTest, "dev"
+	q.Channel, q.Current = ChannelBeta, "dev"
 	if _, err = Select(idx, q); !errors.Is(err, ErrCurrentNotSemVer) {
 		t.Fatalf("non-semver current: %v", err)
 	}
 	// Platform/kind without an artifact: not selected.
-	q = Query{Product: ProductHub, Channel: ChannelTest, Platform: "linux-arm64", Kind: KindDeb, Current: "0.1.0"}
+	q = Query{Product: ProductHub, Channel: ChannelBeta, Platform: "linux-arm64", Kind: KindDeb, Current: "0.1.0"}
 	if s, _ = Select(idx, q); s.Release != nil {
 		t.Fatalf("arm64: %+v", s)
 	}
-	// The test build 0.3.0-test.x is older than the 0.3.0 release.
-	q = Query{Product: ProductHub, Channel: ChannelStable, Platform: "linux-amd64", Kind: KindDeb, Current: "0.3.0-test.99"}
+	// The test build 0.3.0-beta.x is older than the 0.3.0 release.
+	q = Query{Product: ProductHub, Channel: ChannelStable, Platform: "linux-amd64", Kind: KindDeb, Current: "0.3.0-beta.99"}
 	if s, _ = Select(idx, q); s.Release == nil || s.Release.Version != "0.3.0" {
 		t.Fatalf("prerelease to release: %+v", s)
 	}
@@ -202,8 +202,8 @@ func TestProtocolCompatibility(t *testing.T) {
 
 func TestPruneAndMarshalDeterministic(t *testing.T) {
 	var rs []Release
-	for _, v := range []string{"0.3.0-test.2", "0.3.0-test.10", "0.3.0-test.1", "0.3.0-test.9", "0.3.0-test.3", "0.3.0-test.4", "0.3.0-test.11"} {
-		rs = append(rs, rel("hub", "test", v))
+	for _, v := range []string{"0.3.0-beta.2", "0.3.0-beta.10", "0.3.0-beta.1", "0.3.0-beta.9", "0.3.0-beta.3", "0.3.0-beta.4", "0.3.0-beta.11"} {
+		rs = append(rs, rel("hub", "beta", v))
 	}
 	rs = append(rs, rel("hub", "stable", "0.2.0"))
 	got := Prune(rs, 5)
@@ -211,7 +211,7 @@ func TestPruneAndMarshalDeterministic(t *testing.T) {
 	for _, r := range got {
 		vs = append(vs, r.Channel+":"+r.Version)
 	}
-	want := "stable:0.2.0 test:0.3.0-test.3 test:0.3.0-test.4 test:0.3.0-test.9 test:0.3.0-test.10 test:0.3.0-test.11"
+	want := "beta:0.3.0-beta.3 beta:0.3.0-beta.4 beta:0.3.0-beta.9 beta:0.3.0-beta.10 beta:0.3.0-beta.11 stable:0.2.0"
 	if strings.Join(vs, " ") != want {
 		t.Fatalf("got %v", vs)
 	}
@@ -244,7 +244,7 @@ func newFixture(t *testing.T, version string) *fixture {
 	sum := sha256.Sum256(f.debData)
 	a := Artifact{Platform: "linux-amd64", Kind: KindDeb, Name: f.debName, Size: int64(len(f.debData)),
 		SHA256: hex.EncodeToString(sum[:]), URL: "file://" + filepath.Join(f.feed, f.debName)}
-	f.writeIndex(t, Release{Product: "hub", Channel: "test", Version: version, PublishedAt: t0, ProtocolVersion: 1, MinProtocolVersion: 1,
+	f.writeIndex(t, Release{Product: "hub", Channel: "beta", Version: version, PublishedAt: t0, ProtocolVersion: 1, MinProtocolVersion: 1,
 		Artifacts: []Artifact{a}})
 	return f
 }
@@ -269,7 +269,7 @@ func (f *fixture) stage(t *testing.T, current string) Staged {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sel, err := Select(fe.Index, Query{Product: ProductHub, Channel: ChannelTest, Platform: "linux-amd64", Kind: KindDeb, Current: current})
+	sel, err := Select(fe.Index, Query{Product: ProductHub, Channel: ChannelBeta, Platform: "linux-amd64", Kind: KindDeb, Current: current})
 	if err != nil || sel.Release == nil {
 		t.Fatalf("select: %+v %v", sel, err)
 	}
@@ -281,8 +281,8 @@ func (f *fixture) stage(t *testing.T, current string) Staged {
 }
 
 func TestStageWritesVerifiedFiles(t *testing.T) {
-	f := newFixture(t, "0.3.0-test.5")
-	st := f.stage(t, "0.3.0-test.4")
+	f := newFixture(t, "0.3.0-beta.5")
+	st := f.stage(t, "0.3.0-beta.4")
 	d := StagedDir(f.dir)
 	for _, n := range []string{st.Artifact, IndexFileName, SigFileName, StagedFileName} {
 		if _, err := os.Stat(filepath.Join(d, n)); err != nil {
@@ -290,7 +290,7 @@ func TestStageWritesVerifiedFiles(t *testing.T) {
 		}
 	}
 	got, _ := ReadStaged(f.dir)
-	if got == nil || got.Version != "0.3.0-test.5" || got.Artifact != f.debName {
+	if got == nil || got.Version != "0.3.0-beta.5" || got.Artifact != f.debName {
 		t.Fatalf("%+v", got)
 	}
 	// The staged index is the exact byte sequence that was verified.
@@ -302,7 +302,7 @@ func TestStageWritesVerifiedFiles(t *testing.T) {
 }
 
 func TestStageRejectsBadDownload(t *testing.T) {
-	f := newFixture(t, "0.3.0-test.5")
+	f := newFixture(t, "0.3.0-beta.5")
 	ctx := context.Background()
 	fe, err := f.src.LoadIndex(ctx, f.keys)
 	if err != nil {
@@ -379,10 +379,10 @@ func (f *fixture) apply(t *testing.T, run Runner, current string, mod func(*Appl
 }
 
 func TestApplyStagedGoodPath(t *testing.T) {
-	f := newFixture(t, "0.3.0-test.5")
-	f.stage(t, "0.3.0-test.4")
+	f := newFixture(t, "0.3.0-beta.5")
+	f.stage(t, "0.3.0-beta.4")
 	fr := &fakeRunner{}
-	res, err := f.apply(t, fr.run, "0.3.0-test.4", nil)
+	res, err := f.apply(t, fr.run, "0.3.0-beta.4", nil)
 	if err != nil || !res.OK {
 		t.Fatal(res, err)
 	}
@@ -396,16 +396,16 @@ func TestApplyStagedGoodPath(t *testing.T) {
 		t.Fatal("temp copy must be removed afterwards")
 	}
 	last, err := ReadResult(f.dir)
-	if err != nil || last == nil || !last.OK || last.Version != "0.3.0-test.5" {
+	if err != nil || last == nil || !last.OK || last.Version != "0.3.0-beta.5" {
 		t.Fatalf("%+v %v", last, err)
 	}
 }
 
 func TestApplyStagedRejects(t *testing.T) {
 	t.Run("replay of an older or equal version", func(t *testing.T) {
-		f := newFixture(t, "0.3.0-test.5")
-		f.stage(t, "0.3.0-test.4")
-		for _, cur := range []string{"0.3.0-test.5", "0.3.0-test.6", "0.3.0", "1.0.0"} {
+		f := newFixture(t, "0.3.0-beta.5")
+		f.stage(t, "0.3.0-beta.4")
+		for _, cur := range []string{"0.3.0-beta.5", "0.3.0-beta.6", "0.3.0", "1.0.0"} {
 			fr := &fakeRunner{}
 			res, err := f.apply(t, fr.run, cur, nil)
 			if err == nil || res.OK || len(fr.calls) != 0 || !strings.Contains(err.Error(), "not newer") {
@@ -536,5 +536,18 @@ func TestRequestFile(t *testing.T) {
 	}
 	if err := WriteRequest(filepath.Join(d, "missing"), "0.3.0"); err == nil {
 		t.Fatal("missing dir")
+	}
+}
+
+func TestLegacyTestChannel(t *testing.T) {
+	if NormalizeChannel("test") != "beta" || NormalizeChannel("beta") != "beta" || NormalizeChannel("stable") != "stable" || NormalizeChannel("dev") != "dev" {
+		t.Fatal("NormalizeChannel")
+	}
+	if ValidSelectableChannel("test") {
+		t.Fatal("test is no selectable channel")
+	}
+	idx, errs := ParseIndex(indexJSON(t, 1, rel("hub", "test", "0.3.0-test.1"), rel("hub", "beta", "0.3.0-beta.1")))
+	if len(errs) != 1 || len(idx.Releases) != 1 || idx.Releases[0].Channel != "beta" {
+		t.Fatalf("test release skipped: %v %v", errs, idx.Releases)
 	}
 }

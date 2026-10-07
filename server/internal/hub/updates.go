@@ -16,7 +16,7 @@ import (
 
 // Update settings and state keys in the settings table.
 const (
-	settingUpdateChannel   = "update_channel" // "", stable or test
+	settingUpdateChannel   = "update_channel" // "", stable or beta
 	settingUpdateAuto      = "update_auto"    // "", "1" or "0"
 	settingUpdateLastCheck = "update_last_check"
 	settingUpdateLastError = "update_last_error"
@@ -34,7 +34,7 @@ const (
 // Update channel setting values shown to admins. UpdateChannelOff is only an effective value.
 const (
 	UpdateChannelStable = updates.ChannelStable
-	UpdateChannelTest   = updates.ChannelTest
+	UpdateChannelBeta   = updates.ChannelBeta
 	UpdateChannelOff    = "off"
 )
 
@@ -65,7 +65,7 @@ type updateConfig struct {
 
 func (s *Service) initUpdates(o Options) {
 	s.upd.init(o)
-	s.updCfg = updateConfig{indexURL: o.UpdateIndexURL, requestDir: o.UpdateRequestDir, compiledChannel: o.UpdateChannel,
+	s.updCfg = updateConfig{indexURL: o.UpdateIndexURL, requestDir: o.UpdateRequestDir, compiledChannel: updates.NormalizeChannel(o.UpdateChannel),
 		executable: o.Executable, platform: o.UpdatePlatform}
 	if s.updCfg.indexURL == "" {
 		s.updCfg.indexURL = updates.DefaultIndexURL
@@ -85,14 +85,14 @@ func (s *Service) initUpdates(o Options) {
 
 // UpdateSettings are the admin-visible update settings.
 type UpdateSettings struct {
-	CompiledChannel string // stable, test or dev
-	Channel         string // effective: stable, test or off
+	CompiledChannel string // stable, beta or dev
+	Channel         string // effective: stable, beta or off
 	ChannelIsSet    bool   // an admin selected the channel (otherwise the compiled default applies)
 	Auto            bool   // effective automatic install
 }
 
 // UpdateSettings returns the effective settings: channel = setting, else the compiled channel (dev = off);
-// automatic install = setting, else on for test and off otherwise.
+// automatic install = setting, else on for beta and off otherwise.
 func (s *Service) UpdateSettings(ctx context.Context) (UpdateSettings, error) {
 	st := UpdateSettings{CompiledChannel: s.updCfg.compiledChannel, Channel: UpdateChannelOff}
 	if st.CompiledChannel == "" {
@@ -105,25 +105,25 @@ func (s *Service) UpdateSettings(ctx context.Context) (UpdateSettings, error) {
 	if err != nil {
 		return st, err
 	}
-	if updates.ValidSelectableChannel(v) {
+	if v = updates.NormalizeChannel(v); updates.ValidSelectableChannel(v) {
 		st.Channel, st.ChannelIsSet = v, true
 	}
 	a, set, err := s.getSetting(ctx, settingUpdateAuto)
 	if err != nil {
 		return st, err
 	}
-	st.Auto = st.Channel == UpdateChannelTest
+	st.Auto = st.Channel == UpdateChannelBeta
 	if set && (a == "1" || a == "0") {
 		st.Auto = a == "1"
 	}
 	return st, nil
 }
 
-// SetUpdateSettings stores the channel ("" = use the compiled default, else stable or test) and the automatic
+// SetUpdateSettings stores the channel ("" = use the compiled default, else stable or beta) and the automatic
 // install switch. A new check is started in the background.
 func (s *Service) SetUpdateSettings(ctx context.Context, channel string, auto bool) error {
 	if channel != "" && !updates.ValidSelectableChannel(channel) {
-		return badRequest("Update channel must be stable or test")
+		return badRequest("Update channel must be stable or beta")
 	}
 	if err := s.setSetting(ctx, settingUpdateChannel, channel); err != nil {
 		return err
@@ -401,7 +401,7 @@ func (s *Service) TriggerUpdateCheck() {
 
 // updateInterval is the check interval of the effective channel.
 func (s *Service) updateInterval(ctx context.Context) time.Duration {
-	if set, err := s.UpdateSettings(ctx); err == nil && set.Channel == UpdateChannelTest {
+	if set, err := s.UpdateSettings(ctx); err == nil && set.Channel == UpdateChannelBeta {
 		return updateIntervalTest
 	}
 	return updateIntervalStable

@@ -34,7 +34,7 @@ const (
 	ProductPlayer = "player"
 
 	ChannelStable = "stable"
-	ChannelTest   = "test"
+	ChannelBeta   = "beta"
 	ChannelDev    = "dev" // compiled-in default only; never part of an index
 
 	KindDeb       = "deb"
@@ -168,8 +168,8 @@ func validateRelease(r Release, allowFile bool) error {
 	if !ok {
 		return errors.New("unknown product")
 	}
-	if r.Channel != ChannelStable && r.Channel != ChannelTest {
-		return errors.New("channel must be stable or test")
+	if r.Channel != ChannelStable && r.Channel != ChannelBeta {
+		return errors.New("channel must be stable or beta")
 	}
 	if !ValidSemVer(r.Version) {
 		return errors.New("version is not SemVer 2.0")

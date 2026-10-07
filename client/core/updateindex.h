@@ -30,7 +30,7 @@ struct Artifact {
 
 struct Release {
   QString product;  // hub | player
-  QString channel;  // test | stable
+  QString channel;  // beta | stable
   QString version;
   SemVer semver;
   QString commit;
@@ -60,9 +60,9 @@ struct ParseResult {
 ParseResult parseIndex(const QByteArray& json, bool allowFileUrls = false);
 
 // Update channel as the user sees it.
-enum class Channel { Off, Stable, Test };
-QString channelName(Channel c);  // "off" | "stable" | "test"
-std::optional<Channel> parseChannel(const QString& name);  // accepts "off", "stable", "test"
+enum class Channel { Off, Stable, Beta };
+QString channelName(Channel c);  // "off" | "stable" | "beta"
+std::optional<Channel> parseChannel(const QString& name);  // accepts "off", "stable", "beta" ("test" = alias of beta)
 // Compiled default: "dev" (or anything unknown) = Off.
 Channel channelFromCompiled(const QString& compiled);
 
@@ -97,7 +97,7 @@ struct Selection {
   static QString statusName(Status s);  // disabled | up_to_date | available | incompatible
 };
 
-// Own product, channel per S1 (test sees test + stable; stable only stable), an artifact for platform/kind,
+// Own product, channel per S1 (beta sees beta + stable; stable only stable), an artifact for platform/kind,
 // SemVer strictly greater than the running version, protocol-compatible; highest wins. Never a downgrade.
 Selection selectRelease(const Index& index, const SelectionInput& in);
 

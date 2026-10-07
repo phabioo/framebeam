@@ -117,7 +117,7 @@ class UpdateTest : public QObject {
 
   // ---------------------------------------------------------------- index
   void indexValid() {
-    const ParseResult r = parseIndex(indexJson({release("player", "test", "0.3.0-test.5", oneArt()),
+    const ParseResult r = parseIndex(indexJson({release("player", "beta", "0.3.0-test.5", oneArt()),
                                                 release("hub", "stable", "0.3.0", oneArt())}));
     QVERIFY(r.ok);
     QCOMPARE(r.index.releases.size(), 2);
@@ -131,52 +131,53 @@ class UpdateTest : public QObject {
     QVERIFY(!parseIndex(R"({"schema":1})").ok);
   }
   void indexDuplicateRejectsAll() {
-    const ParseResult r = parseIndex(indexJson({release("player", "test", "0.3.0-test.5", oneArt()),
-                                                release("player", "test", "0.3.0-test.5+x", oneArt())}));
+    const ParseResult r = parseIndex(indexJson({release("player", "beta", "0.3.0-test.5", oneArt()),
+                                                release("player", "beta", "0.3.0-test.5+x", oneArt())}));
     QVERIFY(!r.ok);
     QVERIFY(r.index.releases.isEmpty());
     // same version in different channel/product is fine
-    QVERIFY(parseIndex(indexJson({release("player", "test", "0.3.0", oneArt()), release("player", "stable", "0.3.0", oneArt()),
+    QVERIFY(parseIndex(indexJson({release("player", "beta", "0.3.0", oneArt()), release("player", "stable", "0.3.0", oneArt()),
                                   release("hub", "stable", "0.3.0", oneArt())})).ok);
   }
   void indexInvalidEntriesSkipped() {
-    QJsonObject badSha = release("player", "test", "0.3.0-test.1", oneArt());
+    QJsonObject badSha = release("player", "beta", "0.3.0-test.1", oneArt());
     QJsonArray arts{artifact("a.exe", "x", "https://e.invalid/a.exe")};
     QJsonObject a0 = arts[0].toObject();
     a0["sha256"] = "ABC";
     badSha["artifacts"] = QJsonArray{a0};
-    QJsonObject httpUrl = release("player", "test", "0.3.0-test.2", QJsonArray{artifact("a.exe", "x", "http://e.invalid/a.exe")});
-    QJsonObject badVer = release("player", "test", "latest", oneArt());
+    QJsonObject httpUrl = release("player", "beta", "0.3.0-test.2", QJsonArray{artifact("a.exe", "x", "http://e.invalid/a.exe")});
+    QJsonObject badVer = release("player", "beta", "latest", oneArt());
     QJsonObject badProduct = release("tool", "test", "0.3.0-test.3", oneArt());
+    QJsonObject testChannel = release("player", "test", "0.3.0-test.10", oneArt());
     QJsonObject badChannel = release("player", "dev", "0.3.0-test.4", oneArt());
-    QJsonObject badProto = release("player", "test", "0.3.0-test.6", oneArt(), 1, 2);
-    QJsonObject noArt = release("player", "test", "0.3.0-test.7", {});
-    QJsonObject badPath = release("player", "test", "0.3.0-test.8", QJsonArray{artifact("../evil.exe", "x", "https://e.invalid/a.exe")});
-    QJsonObject good = release("player", "test", "0.3.0-test.9", oneArt());
-    const ParseResult r = parseIndex(indexJson({badSha, httpUrl, badVer, badProduct, badChannel, badProto, noArt, badPath, good}));
+    QJsonObject badProto = release("player", "beta", "0.3.0-test.6", oneArt(), 1, 2);
+    QJsonObject noArt = release("player", "beta", "0.3.0-test.7", {});
+    QJsonObject badPath = release("player", "beta", "0.3.0-test.8", QJsonArray{artifact("../evil.exe", "x", "https://e.invalid/a.exe")});
+    QJsonObject good = release("player", "beta", "0.3.0-test.9", oneArt());
+    const ParseResult r = parseIndex(indexJson({badSha, httpUrl, badVer, badProduct, badChannel, badProto, noArt, badPath, testChannel, good}));
     QVERIFY(r.ok);
     QCOMPARE(r.index.releases.size(), 1);
-    QCOMPARE(r.index.skipped.size(), 8);
+    QCOMPARE(r.index.skipped.size(), 9);  // "test" is no valid channel any more
     QCOMPARE(r.index.releases[0].version, QString("0.3.0-test.9"));
   }
   void indexFileUrlOnlyWhenAllowed() {
-    const QByteArray j = indexJson({release("player", "test", "0.3.0-test.1", QJsonArray{artifact("a.exe", "x", "file:///tmp/a.exe")})});
+    const QByteArray j = indexJson({release("player", "beta", "0.3.0-test.1", QJsonArray{artifact("a.exe", "x", "file:///tmp/a.exe")})});
     QCOMPARE(parseIndex(j, false).index.releases.size(), 0);
     QCOMPARE(parseIndex(j, true).index.releases.size(), 1);
   }
 
   // ---------------------------------------------------------------- selection
   void selectionChannels() {
-    const Index idx = parseOk(indexJson({release("player", "test", "0.3.0-test.7", oneArt("t7")),
+    const Index idx = parseOk(indexJson({release("player", "beta", "0.3.0-test.7", oneArt("t7")),
                                          release("player", "stable", "0.3.0", oneArt("s")),
-                                         release("player", "test", "0.4.0-test.1", oneArt("t41"))}));
+                                         release("player", "beta", "0.4.0-test.1", oneArt("t41"))}));
     SelectionInput in;
     in.currentVersion = "0.3.0-dev";
     in.channel = Channel::Stable;
     Selection s = selectRelease(idx, in);
     QCOMPARE(s.status, Selection::Status::Available);
     QCOMPARE(s.release.version, QString("0.3.0"));  // stable never sees test
-    in.channel = Channel::Test;
+    in.channel = Channel::Beta;
     s = selectRelease(idx, in);
     QCOMPARE(s.release.version, QString("0.4.0-test.1"));  // highest of test + stable
     QCOMPARE(s.artifact.name, QString("setup-t41.exe"));
@@ -193,9 +194,9 @@ class UpdateTest : public QObject {
     QCOMPARE(selectRelease(idx, in).status, Selection::Status::Disabled);
   }
   void selectionNoDowngradeAndEqual() {
-    const Index idx = parseOk(indexJson({release("player", "stable", "0.3.0", oneArt()), release("player", "test", "0.3.1-test.2", oneArt("b"))}));
+    const Index idx = parseOk(indexJson({release("player", "stable", "0.3.0", oneArt()), release("player", "beta", "0.3.1-test.2", oneArt("b"))}));
     SelectionInput in;
-    in.channel = Channel::Test;
+    in.channel = Channel::Beta;
     in.currentVersion = "0.3.0";
     QCOMPARE(selectRelease(idx, in).release.version, QString("0.3.1-test.2"));
     in.currentVersion = "0.3.1-test.2";
@@ -313,6 +314,29 @@ class UpdateTest : public QObject {
   }
 
   // ---------------------------------------------------------------- settings
+  void channelAliasAndOldSettings() {
+    QCOMPARE(parseChannel("test"), std::optional<Channel>(Channel::Beta));
+    QCOMPARE(parseChannel("beta"), std::optional<Channel>(Channel::Beta));
+    QCOMPARE(channelName(Channel::Beta), QString("beta"));
+    QCOMPARE(channelFromCompiled("test"), Channel::Beta);
+    QTemporaryDir t;
+    QVERIFY(QDir().mkpath(t.filePath("settings")));
+    QVERIFY(writeBytes(t.filePath("settings/player.json"), R"({"update_channel":"test","other":1})"));
+    framebeam::PlayerSettings s(t.path());
+    QCOMPARE(s.updateChannel(), QString("beta"));
+    QVERIFY(s.setUpdateAutoInstall(true));  // any save rewrites the old value
+    QJsonObject o;
+    {
+      // Closed before the next save: on Windows QSaveFile cannot replace an open file.
+      QFile f(t.filePath("settings/player.json"));
+      QVERIFY(f.open(QIODevice::ReadOnly));
+      o = QJsonDocument::fromJson(f.readAll()).object();
+    }
+    QCOMPARE(o["update_channel"].toString(), QString("beta"));
+    QCOMPARE(o["other"].toInt(), 1);
+    QVERIFY(s.setUpdateChannel("test"));
+    QCOMPARE(s.updateChannel(), QString("beta"));
+  }
   void settingsRoundTrip() {
     QTemporaryDir t;
     {
@@ -320,11 +344,11 @@ class UpdateTest : public QObject {
       QCOMPARE(s.updateChannel(), QString());
       QVERIFY(!s.updateAutoInstall());
       QVERIFY(!s.setUpdateChannel("dev"));
-      QVERIFY(s.setUpdateChannel("test"));
+      QVERIFY(s.setUpdateChannel("beta"));
       QVERIFY(s.setUpdateAutoInstall(false));
     }
     framebeam::PlayerSettings s(t.path());
-    QCOMPARE(s.updateChannel(), QString("test"));
+    QCOMPARE(s.updateChannel(), QString("beta"));
     QCOMPARE(s.updateAutoInstall(), std::optional<bool>(false));
     QVERIFY(s.setUpdateChannel(""));
     QCOMPARE(framebeam::PlayerSettings(t.path()).updateChannel(), QString());
@@ -336,7 +360,7 @@ class UpdateTest : public QObject {
     const QByteArray data = "installer-bytes-0.3.1";
     env.publish(data, "0.3.1-test.3", /*sizeOverride*/ -1, /*shaOverride*/ QString());
     framebeam::PlayerSettings settings(env.dir.filePath("data"));
-    settings.setUpdateChannel("test");
+    settings.setUpdateChannel("beta");
     QStringList launched;
     auto mp = env.manager(settings);
     UpdateManager& m = *mp;
@@ -364,7 +388,7 @@ class UpdateTest : public QObject {
     Env env;
     env.publish("installer-bytes", "0.3.1-test.3");
     framebeam::PlayerSettings settings(env.dir.filePath("data"));
-    settings.setUpdateChannel("test");
+    settings.setUpdateChannel("beta");
     int launches = 0;
     bool busy = true;
     auto mp = env.manager(settings);
@@ -415,7 +439,7 @@ class UpdateTest : public QObject {
       Env env;
       env.publish("installer-bytes", "0.3.1-test.3", mode == 0 ? 5 : -1, mode == 1 ? QString(64, 'a') : QString());
       framebeam::PlayerSettings settings(env.dir.filePath("data"));
-      settings.setUpdateChannel("test");
+      settings.setUpdateChannel("beta");
       int launches = 0;
       auto mp = env.manager(settings);
     UpdateManager& m = *mp;
@@ -434,7 +458,7 @@ class UpdateTest : public QObject {
     idx.replace("0.3.1-test.3", "0.3.9-test.3");  // tampered after signing
     QVERIFY(writeBytes(env.dir.filePath("updates-index.json"), idx));
     framebeam::PlayerSettings settings(env.dir.filePath("data"));
-    settings.setUpdateChannel("test");
+    settings.setUpdateChannel("beta");
     auto mp = env.manager(settings);
     UpdateManager& m = *mp;
     m.checkNow();
@@ -456,7 +480,7 @@ class UpdateTest : public QObject {
     Env env;
     env.publish("installer-bytes", "0.3.1-test.3");
     framebeam::PlayerSettings settings(env.dir.filePath("data"));
-    settings.setUpdateChannel("test");
+    settings.setUpdateChannel("beta");
     auto mp = env.manager(settings);
     UpdateManager& m = *mp;
     m.checkNow();
@@ -472,7 +496,7 @@ class UpdateTest : public QObject {
     Env env;
     env.publish("installer-bytes", "0.3.1-test.3");
     framebeam::PlayerSettings settings(env.dir.filePath("data"));
-    settings.setUpdateChannel("test");
+    settings.setUpdateChannel("beta");
     auto mp = env.manager(settings);
     mp->checkNow();
     QTRY_COMPARE_WITH_TIMEOUT(mp->state(), UpdateManager::State::Ready, 5000);
@@ -502,7 +526,7 @@ class UpdateTest : public QObject {
     QString channel;
 
     void publish(const QByteArray& installer, const QString& version, qint64 sizeOverride = -1,
-                 const QString& shaOverride = QString(), const QString& chan = QStringLiteral("test")) {
+                 const QString& shaOverride = QString(), const QString& chan = QStringLiteral("beta")) {
       channel = chan;
       installerName = "framebeam-player-" + version + "-windows-x64-setup.exe";
       const QString path = dir.filePath(installerName);
@@ -511,11 +535,11 @@ class UpdateTest : public QObject {
       if (sizeOverride >= 0) art["size"] = static_cast<double>(sizeOverride);
       if (!shaOverride.isEmpty()) art["sha256"] = shaOverride;
       const QByteArray idx = indexJson({release("player", chan, version, QJsonArray{art}),
-                                        release("hub", "test", "9.9.9-test.1", oneArt("hub"))});
+                                        release("hub", "beta", "9.9.9-test.1", oneArt("hub"))});
       QVERIFY(writeBytes(dir.filePath("updates-index.json"), idx));
       QVERIFY(writeBytes(dir.filePath("updates-index.json.sig"), signLine(key, idx)));
     }
-    std::unique_ptr<UpdateManager> manager(framebeam::PlayerSettings& s, const QString& compiled = QStringLiteral("test")) {
+    std::unique_ptr<UpdateManager> manager(framebeam::PlayerSettings& s, const QString& compiled = QStringLiteral("beta")) {
       UpdateManager::Config c;
       c.baseDir = dir.filePath("data");
       c.indexUrl = QUrl::fromLocalFile(dir.filePath("updates-index.json")).toString();

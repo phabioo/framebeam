@@ -52,10 +52,10 @@ Decision: the Hub obtains signed core packages from a fixed trusted source and c
 
 Goal: a change on `main` lands on the test devices (Windows Player, Hub on the Pi) without manual work.
 
-- [x] Done: Release pipeline: `VERSION` file, version and channel computed by CI; `.github/workflows/release.yml` publishes a stable release per `vX.Y.Z` tag and a test prerelease per `main` build (newest 5 kept) with Hub and Player artifacts (ADR 0011 D1, D3).
+- [x] Done: Release pipeline: `VERSION` file, version and channel computed by CI; `.github/workflows/release.yml` publishes a stable release per `vX.Y.Z` tag and a beta prerelease per `main` build (newest 5 kept) with Hub and Player artifacts (ADR 0011 D1, D3).
 - [x] Done: Windows installer completed: launcher plus `bin\` layout instead of a DLL subfolder, upgrade over an existing flat installation, data is preserved (ADR 0011 D7).
 - [x] Done: Hub as a Linux package (.deb amd64/arm64) with systemd units; migration from `install-hub.sh` installs; the script stays for non-Debian systems (ADR 0011 D5).
-- [x] Done: Integrated updater for Hub and Player: Ed25519-signed update index (`updates-index`, same key as 0.2), channel setting, automatic install on test and confirmation on stable, compatibility via `protocol_version` (ADR 0011 D2, D4, D5, D7). The Hub applies updates through a root helper started by a systemd path unit.
+- [x] Done: Integrated updater for Hub and Player: Ed25519-signed update index (`updates-index`, same key as 0.2), channel setting, automatic install on beta and confirmation on stable, compatibility via `protocol_version` (ADR 0011 D2, D4, D5, D7). The Hub applies updates through a root helper started by a systemd path unit.
 - [x] Done: Hub: database backup before schema migration, service restart by the package after the update (ADR 0011 D6).
 - [x] Done: Windows Player and Linux Hub only; other platforms follow later.
 - Rollback: proposed in ADR 0011 (D8), decided with the merge. No automatic or one-click rollback in 0.3; manual downgrade plus DB backup restore.
@@ -126,6 +126,6 @@ Hosted emulation, friends list, public Session links, guest access, email/passwo
 ## Open decisions
 
 - **Second system:** proposal GBA with mGBA (no BIOS required, small core, exercises manifest and input/display profile without the dual-screen special case). Alternatives: SNES (Snes9x), GB/GBC. Open.
-- **Update channels:** decided on 2026-10-06: the test channel updates automatically, the stable channel only after confirmation. Details and rollback proposal: [ADR 0011](adr/0011-automatic-updates.md).
+- **Update channels:** decided on 2026-10-06: the pre-release channel (renamed from test to beta on 2026-10-07) updates automatically, the stable channel only after confirmation. Details and rollback proposal: [ADR 0011](adr/0011-automatic-updates.md).
 - **0.2:** decided in ADR 0010 (source, index, signing tooling, offline import, license file per package, cached cores stay usable without a Hub connection to GitHub). The FrameBeam release key exists since 2026-10-07.
 - **Core sourcing:** decided on 2026-10-07: libretro buildbot cores, mirrored and signed by FrameBeam (see 0.7).

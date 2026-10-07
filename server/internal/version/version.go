@@ -8,7 +8,7 @@ package version
 //	          -X github.com/phabioo/framebeam/server/internal/version.Commit=<sha>"
 var (
 	Version = "dev"
-	// Channel is the compiled-in default update channel: stable, test or dev.
+	// Channel is the compiled-in default update channel: stable, beta or dev.
 	Channel = "dev"
 	// Commit is the source commit (may be empty).
 	Commit = ""

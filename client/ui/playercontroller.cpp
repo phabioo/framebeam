@@ -2,6 +2,7 @@
 
 #include <QCoreApplication>
 #include <QDate>
+#include <QDesktopServices>
 #include <QDir>
 #include <QFileInfo>
 #include <QGuiApplication>
@@ -12,6 +13,7 @@
 #include <algorithm>
 
 #include "core_options.h"
+#include "filelog.h"
 #include "firmware_materializer.h"
 #include "installroot.h"
 #include "libretro_backend.h"
@@ -439,6 +441,13 @@ QString PlayerController::systemDir() const {
 }
 
 // ---------------------------------------------------------------- Navigation
+
+QString PlayerController::logFile() const { return QDir::toNativeSeparators(filelog::path()); }
+
+void PlayerController::openLogFolder() {
+  const QString p = filelog::path();
+  if (!p.isEmpty()) QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(p).absolutePath()));
+}
 
 bool PlayerController::sessionBusy() const {
   return gameActive_ || session_.isActive() || (sessions_ && sessions_->watching());

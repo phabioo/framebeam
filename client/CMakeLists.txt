@@ -9,18 +9,21 @@ endif()
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_LIST_DIR}/../VERSION)
 project(FrameBeamPlayer VERSION ${_fb_version_core} LANGUAGES CXX)
 
-# Build identity (CI sets it, see S1): full SemVer version, update channel (stable|test|dev), commit.
+# Build identity (CI sets it, see S1): full SemVer version, update channel (stable|beta|dev; "test" is an alias of beta), commit.
 # Empty FRAMEBEAM_VERSION = "<VERSION>-dev".
 set(FRAMEBEAM_VERSION "" CACHE STRING "Full Player version (SemVer); empty: <VERSION file>-dev")
-set(FRAMEBEAM_CHANNEL "dev" CACHE STRING "Compiled default update channel: stable | test | dev")
+set(FRAMEBEAM_CHANNEL "dev" CACHE STRING "Compiled default update channel: stable | beta | dev (test = alias of beta)")
 set(FRAMEBEAM_COMMIT "" CACHE STRING "Commit SHA of the build")
 if(FRAMEBEAM_VERSION STREQUAL "")
   set(FRAMEBEAM_EFFECTIVE_VERSION "${PROJECT_VERSION}-dev")
 else()
   set(FRAMEBEAM_EFFECTIVE_VERSION "${FRAMEBEAM_VERSION}")
 endif()
-if(NOT FRAMEBEAM_CHANNEL MATCHES "^(stable|test|dev)$")
-  message(FATAL_ERROR "FRAMEBEAM_CHANNEL must be stable, test or dev")
+if(FRAMEBEAM_CHANNEL STREQUAL "test")
+  set(FRAMEBEAM_CHANNEL "beta")
+endif()
+if(NOT FRAMEBEAM_CHANNEL MATCHES "^(stable|beta|dev)$")
+  message(FATAL_ERROR "FRAMEBEAM_CHANNEL must be stable, beta or dev")
 endif()
 
 set(CMAKE_CXX_STANDARD 20)

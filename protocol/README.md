@@ -83,23 +83,23 @@ Schema 1:
   "releases": [
     {
       "product": "hub",
-      "channel": "test",
-      "version": "0.3.0-test.57",
+      "channel": "beta",
+      "version": "0.3.0-beta.57",
       "commit": "<40 hex>",
       "published_at": "2026-10-07T10:00:00Z",
-      "notes_url": "https://github.com/phabioo/framebeam/releases/tag/v0.3.0-test.57",
+      "notes_url": "https://github.com/phabioo/framebeam/releases/tag/v0.3.0-beta.57",
       "protocol_version": 1,
       "min_protocol_version": 1,
       "artifacts": [
-        {"platform": "linux-arm64", "kind": "deb", "name": "framebeam-hub_0.3.0~test.57_arm64.deb",
-         "size": 123, "sha256": "<64 lowercase hex>", "url": "https://github.com/.../framebeam-hub_0.3.0~test.57_arm64.deb"}
+        {"platform": "linux-arm64", "kind": "deb", "name": "framebeam-hub_0.3.0~beta.57_arm64.deb",
+         "size": 123, "sha256": "<64 lowercase hex>", "url": "https://github.com/.../framebeam-hub_0.3.0~beta.57_arm64.deb"}
       ]
     }
   ]
 }
 ```
 
-- `product`: `hub` or `player`. `channel`: `test` or `stable`. `notes_url` is optional.
+- `product`: `hub` or `player`. `channel`: `stable` or `beta`. `notes_url` is optional.
 - Platforms and kinds: hub `linux-amd64`, `linux-arm64` with `deb` and `binary`; player `windows-x64` with `installer` and `zip`.
 - Artifact URLs must be https (`file://` only when the index itself was loaded from `file://`, for tests). Integrity comes from size and SHA-256 in the signed index.
 - Unknown fields are ignored, an unknown schema is an error, invalid releases are skipped and reported, a duplicate (product, channel, version) rejects the whole index.

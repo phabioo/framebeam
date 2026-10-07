@@ -60,7 +60,7 @@ QString parseRelease(const QJsonObject& o, bool allowFile, Release* r) {
     return QStringLiteral("unknown product");
   }
   r->channel = o.value(QLatin1String("channel")).toString();
-  if (r->channel != QLatin1String("test") && r->channel != QLatin1String("stable")) {
+  if (r->channel != QLatin1String("beta") && r->channel != QLatin1String("stable")) {
     return QStringLiteral("unknown channel");
   }
   r->version = o.value(QLatin1String("version")).toString();
@@ -160,7 +160,7 @@ ParseResult parseIndex(const QByteArray& json, bool allowFileUrls) {
 QString channelName(Channel c) {
   switch (c) {
     case Channel::Stable: return QStringLiteral("stable");
-    case Channel::Test: return QStringLiteral("test");
+    case Channel::Beta: return QStringLiteral("beta");
     case Channel::Off: break;
   }
   return QStringLiteral("off");
@@ -169,7 +169,7 @@ QString channelName(Channel c) {
 std::optional<Channel> parseChannel(const QString& name) {
   const QString n = name.trimmed().toLower();
   if (n == QLatin1String("stable")) return Channel::Stable;
-  if (n == QLatin1String("test")) return Channel::Test;
+  if (n == QLatin1String("beta") || n == QLatin1String("test")) return Channel::Beta;  // "test": old alias
   if (n == QLatin1String("off")) return Channel::Off;
   return std::nullopt;
 }
@@ -213,7 +213,7 @@ Selection selectRelease(const Index& index, const SelectionInput& in) {
   for (const Release& r : index.releases) {
     if (r.product != in.product) continue;
     const bool channelOk = r.channel == QLatin1String("stable") ||
-                           (in.channel == Channel::Test && r.channel == QLatin1String("test"));
+                           (in.channel == Channel::Beta && r.channel == QLatin1String("beta"));
     if (!channelOk) continue;
     const auto art = r.artifact(in.platform, in.kind);
     if (!art) continue;

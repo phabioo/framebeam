@@ -27,7 +27,7 @@ func setVersion(t *testing.T, v, ch, commit string) {
 }
 
 func TestVersionJSON(t *testing.T) {
-	setVersion(t, "0.3.0-test.57", "test", "abc123")
+	setVersion(t, "0.3.0-beta.57", "beta", "abc123")
 	var out bytes.Buffer
 	if err := runVersion([]string{"--json"}, &out); err != nil {
 		t.Fatal(err)
@@ -39,7 +39,7 @@ func TestVersionJSON(t *testing.T) {
 	if err := json.Unmarshal(out.Bytes(), &m); err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]any{"product": "hub", "version": "0.3.0-test.57", "channel": "test", "commit": "abc123", "protocol_version": 1.0, "min_protocol_version": 1.0}
+	want := map[string]any{"product": "hub", "version": "0.3.0-beta.57", "channel": "beta", "commit": "abc123", "protocol_version": 1.0, "min_protocol_version": 1.0}
 	if len(m) != len(want) {
 		t.Fatalf("%v", m)
 	}
@@ -49,7 +49,7 @@ func TestVersionJSON(t *testing.T) {
 		}
 	}
 	out.Reset()
-	if err := runVersion(nil, &out); err != nil || out.String() != "0.3.0-test.57\n" {
+	if err := runVersion(nil, &out); err != nil || out.String() != "0.3.0-beta.57\n" {
 		t.Fatalf("%q %v", out.String(), err)
 	}
 	// Defaults.
@@ -77,7 +77,7 @@ func newCLIFeed(t *testing.T, ver string) *cliFeed {
 	os.WriteFile(filepath.Join(f.dir, f.name), f.data, 0o644)
 	sum := sha256.Sum256(f.data)
 	idx, err := updates.Marshal(updates.Index{Schema: 1, GeneratedAt: time.Now().UTC(), Releases: []updates.Release{{
-		Product: "hub", Channel: "test", Version: ver, PublishedAt: time.Now().UTC(), ProtocolVersion: 1, MinProtocolVersion: 1,
+		Product: "hub", Channel: "beta", Version: ver, PublishedAt: time.Now().UTC(), ProtocolVersion: 1, MinProtocolVersion: 1,
 		Artifacts: []updates.Artifact{{Platform: updates.LinuxPlatform(), Kind: "deb", Name: f.name, Size: int64(len(f.data)),
 			SHA256: hex.EncodeToString(sum[:]), URL: "file://" + filepath.Join(f.dir, f.name)}}}}})
 	if err != nil {
@@ -96,19 +96,19 @@ func (f *cliFeed) flags(data, req string) []string {
 }
 
 func TestUpdateCheckAndStage(t *testing.T) {
-	setVersion(t, "0.3.0-test.5", "test", "")
-	f := newCLIFeed(t, "0.3.0-test.6")
+	setVersion(t, "0.3.0-beta.5", "beta", "")
+	f := newCLIFeed(t, "0.3.0-beta.6")
 	data, req := t.TempDir(), t.TempDir()
 
 	var out bytes.Buffer
-	if err := runUpdate(append([]string{"check", "-channel", "test"}, f.flags(data, req)...), &out); err != nil {
+	if err := runUpdate(append([]string{"check", "-channel", "beta"}, f.flags(data, req)...), &out); err != nil {
 		t.Fatal(err)
 	}
 	var res updateCheckJSON
 	if err := json.Unmarshal(out.Bytes(), &res); err != nil {
 		t.Fatalf("%v: %s", err, out.String())
 	}
-	if res.UpToDate || res.Available == nil || res.Available.Version != "0.3.0-test.6" || res.Available.Artifact.Name != f.name || res.Staged != nil {
+	if res.UpToDate || res.Available == nil || res.Available.Version != "0.3.0-beta.6" || res.Available.Artifact.Name != f.name || res.Staged != nil {
 		t.Fatalf("%+v", res)
 	}
 	if updates.RequestPending(req) {
@@ -120,13 +120,13 @@ func TestUpdateCheckAndStage(t *testing.T) {
 	if err := runUpdate(append([]string{"check"}, f.flags(data, req)...), &out); err == nil {
 		t.Fatal("dev build without a channel must refuse")
 	}
-	setVersion(t, "0.3.0-test.5", "test", "")
+	setVersion(t, "0.3.0-beta.5", "beta", "")
 
 	out.Reset()
-	if err := runUpdate(append([]string{"stage", "-channel", "test"}, f.flags(data, req)...), &out); err != nil {
+	if err := runUpdate(append([]string{"stage", "-channel", "beta"}, f.flags(data, req)...), &out); err != nil {
 		t.Fatal(err)
 	}
-	if err := json.Unmarshal(out.Bytes(), &res); err != nil || res.Staged == nil || res.Staged.Version != "0.3.0-test.6" {
+	if err := json.Unmarshal(out.Bytes(), &res); err != nil || res.Staged == nil || res.Staged.Version != "0.3.0-beta.6" {
 		t.Fatalf("%v %s", err, out.String())
 	}
 	if !updates.RequestPending(req) {
@@ -137,17 +137,17 @@ func TestUpdateCheckAndStage(t *testing.T) {
 	}
 
 	// Up to date: nothing staged.
-	setVersion(t, "0.3.0-test.6", "test", "")
+	setVersion(t, "0.3.0-beta.6", "beta", "")
 	out.Reset()
-	if err := runUpdate(append([]string{"check", "-channel", "test"}, f.flags(data, req)...), &out); err != nil {
+	if err := runUpdate(append([]string{"check", "-channel", "beta"}, f.flags(data, req)...), &out); err != nil {
 		t.Fatal(err)
 	}
 	if err := json.Unmarshal(out.Bytes(), &res); err != nil || !res.UpToDate || res.Available != nil {
 		t.Fatalf("%v %+v", err, res)
 	}
 	// Untrusted key.
-	setVersion(t, "0.3.0-test.5", "test", "")
-	bad := append([]string{"check", "-channel", "test"}, f.flags(data, req)...)
+	setVersion(t, "0.3.0-beta.5", "beta", "")
+	bad := append([]string{"check", "-channel", "beta"}, f.flags(data, req)...)
 	for i, a := range bad {
 		if a == f.pubB64 {
 			bad[i] = base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{1}, 32))
@@ -159,11 +159,11 @@ func TestUpdateCheckAndStage(t *testing.T) {
 }
 
 func TestApplyStagedCommand(t *testing.T) {
-	setVersion(t, "0.3.0-test.5", "test", "")
-	f := newCLIFeed(t, "0.3.0-test.6")
+	setVersion(t, "0.3.0-beta.5", "beta", "")
+	f := newCLIFeed(t, "0.3.0-beta.6")
 	data, req := t.TempDir(), t.TempDir()
 	var out bytes.Buffer
-	if err := runUpdate(append([]string{"stage", "-channel", "test"}, f.flags(data, req)...), &out); err != nil {
+	if err := runUpdate(append([]string{"stage", "-channel", "beta"}, f.flags(data, req)...), &out); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("FRAMEBEAM_DATA_DIR", data)
@@ -176,7 +176,7 @@ func TestApplyStagedCommand(t *testing.T) {
 		return nil, nil
 	}
 	// Replay: the running version is not older.
-	setVersion(t, "0.3.0-test.6", "test", "")
+	setVersion(t, "0.3.0-beta.6", "beta", "")
 	out.Reset()
 	if err := runApplyStaged(nil, &out, run); err == nil || len(calls) != 0 {
 		t.Fatalf("replay accepted: %v %v", err, calls)
@@ -190,8 +190,8 @@ func TestApplyStagedCommand(t *testing.T) {
 	}
 
 	// Good path (stage again: the request file is gone).
-	setVersion(t, "0.3.0-test.5", "test", "")
-	updates.WriteRequest(req, "0.3.0-test.6")
+	setVersion(t, "0.3.0-beta.5", "beta", "")
+	updates.WriteRequest(req, "0.3.0-beta.6")
 	out.Reset()
 	if err := runApplyStaged(nil, &out, run); err != nil {
 		t.Fatal(err)
@@ -199,7 +199,7 @@ func TestApplyStagedCommand(t *testing.T) {
 	if len(calls) != 1 || calls[0][0] != "dpkg" || calls[0][1] != "-i" || !strings.HasSuffix(calls[0][2], f.name) {
 		t.Fatalf("%v", calls)
 	}
-	if !strings.Contains(out.String(), "0.3.0-test.6") {
+	if !strings.Contains(out.String(), "0.3.0-beta.6") {
 		t.Fatal(out.String())
 	}
 	// A failing dpkg is an error.

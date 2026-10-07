@@ -16,7 +16,8 @@ permissions:
   contents: read
 
 jobs:
-  # Build version and channel, computed once (spec 0.3 S1): tag vX.Y.Z -> stable, push to main -> test, else dev.
+  # Build version and channel, computed once (spec 0.3 S1): tag vX.Y.Z -> stable, push to main -> beta, else dev.
+  # A workflow_dispatch on a v* tag (started by promote.yml, tags created with GITHUB_TOKEN trigger no push) counts like a tag push.
   version:
     name: Version and channel
     runs-on: ubuntu-latest
@@ -39,11 +40,11 @@ jobs:
           set -euo pipefail
           core="$(tr -d '[:space:]' < VERSION)"
           [[ "$core" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::VERSION must be X.Y.Z, found '$core'"; exit 1; }
-          if [ "$EVENT" = push ] && [[ "$REF" == refs/tags/v* ]]; then
+          if { [ "$EVENT" = push ] || [ "$EVENT" = workflow_dispatch ]; } && [[ "$REF" == refs/tags/v* ]]; then
             [ "${REF_NAME#v}" = "$core" ] || { echo "::error title=Tag does not match VERSION::tag $REF_NAME but VERSION is $core"; exit 1; }
             version="$core"; channel="stable"
           elif [ "$EVENT" = push ] && [ "$REF" = refs/heads/main ]; then
-            version="$core-test.$RUN_NUMBER"; channel="test"
+            version="$core-beta.$RUN_NUMBER"; channel="beta"
           else
             version="$core-dev.$RUN_NUMBER"; channel="dev"
           fi

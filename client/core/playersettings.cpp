@@ -26,8 +26,11 @@ PlayerSettings::PlayerSettings(const QString& baseDir)
   }
   appearance_ = parseAppearance(raw_.value(QLatin1String(kAppearanceKey)).toString());
   const QString ch = raw_.value(QLatin1String(kUpdateChannelKey)).toString();
-  if (ch == QLatin1String("stable") || ch == QLatin1String("test")) {
+  if (ch == QLatin1String("stable") || ch == QLatin1String("beta")) {
     updateChannel_ = ch;
+  } else if (ch == QLatin1String("test")) {
+    updateChannel_ = QStringLiteral("beta");  // old name; rewritten as "beta" on the next save
+    raw_.insert(QLatin1String(kUpdateChannelKey), updateChannel_);
   }
   if (raw_.value(QLatin1String(kUpdateAutoKey)).isBool()) {
     updateAutoInstall_ = raw_.value(QLatin1String(kUpdateAutoKey)).toBool();
@@ -57,8 +60,9 @@ bool PlayerSettings::setAppearance(Appearance a) {
   return save();
 }
 
-bool PlayerSettings::setUpdateChannel(const QString& channel) {
-  if (!channel.isEmpty() && channel != QLatin1String("stable") && channel != QLatin1String("test")) {
+bool PlayerSettings::setUpdateChannel(const QString& channelIn) {
+  const QString channel = channelIn == QLatin1String("test") ? QStringLiteral("beta") : channelIn;
+  if (!channel.isEmpty() && channel != QLatin1String("stable") && channel != QLatin1String("beta")) {
     return false;
   }
   updateChannel_ = channel;

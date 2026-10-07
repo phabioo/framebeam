@@ -1,6 +1,6 @@
 // framebeam_player_cli: developer tool against a real FrameBeam Hub (QtCore/QtNetwork only).
 //   identify <address> [--dev]
-//   update-check [--channel test|stable] [--index-url URL] [--current-version X.Y.Z[-pre]] [--hub-protocol P[:MIN]]
+//   update-check [--channel beta|stable] [--index-url URL] [--current-version X.Y.Z[-pre]] [--hub-protocol P[:MIN]]
 //     (no Hub, no data dir: fetches the signed update index (env FRAMEBEAM_PLAYER_UPDATE_INDEX_URL, trust keys
 //      compiled in + env FRAMEBEAM_PLAYER_TRUST_KEYS), verifies it and prints the selection as one JSON object:
 //      {"status":"available|up_to_date|incompatible|disabled","current_version","channel","release":{...},
@@ -163,7 +163,7 @@ class Runner : public QObject {
     err() << "Usage: framebeam_player_cli identify <address> [--dev]\n"
              "        framebeam_player_cli pair <address> [--dev] [--accept-fingerprint] [games] [fetch-rom <sha256>]\n"
              "        framebeam_player_cli redeem-invite <address> --code FB-XXXX-XXXX --name <name> [--dev] [--accept-fingerprint]\n"
-             "        framebeam_player_cli update-check [--channel test|stable] [--index-url URL] [--current-version V] [--hub-protocol P[:MIN]]\n"
+             "        framebeam_player_cli update-check [--channel beta|stable] [--index-url URL] [--current-version V] [--hub-protocol P[:MIN]]\n"
              "        framebeam_player_cli games | fetch-rom <sha256>   [--data-dir <path>]\n"
              "        framebeam_player_cli game upload <file> [--title T] | systems | fetch-core <system-id>\n"
              "        framebeam_player_cli saves list | save push <game_id> <file> [--base N] | save pull <game_id> <out>\n"
