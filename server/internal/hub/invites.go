@@ -104,7 +104,8 @@ func normalizeInviteCode(in string) string {
 func hashInviteCode(code string) string { return auth.HashToken("invite:" + code) }
 
 // CreateInvite creates an invite (admin). ttl must be one of InviteTTLs. The plaintext code is returned only here.
-func (s *Service) CreateInvite(ctx context.Context, createdBy string, ttl time.Duration, authorizeDevice bool) (Invite, string, error) {
+func (s *Service) CreateInvite(ctx context.Context, createdBy string, ttl time.Duration, authorizeDevice bool) (_ Invite, _ string, err error) {
+	defer s.publishOK(&err, TopicUsers)
 	valid := false
 	for _, t := range InviteTTLs {
 		valid = valid || t == ttl
@@ -133,7 +134,8 @@ func boolToInt(b bool) int {
 }
 
 // RevokeInvite revokes an active invite (ErrNotFound if unknown or no longer active).
-func (s *Service) RevokeInvite(ctx context.Context, id string) error {
+func (s *Service) RevokeInvite(ctx context.Context, id string) (err error) {
+	defer s.publishOK(&err, TopicUsers)
 	res, err := s.db.ExecContext(ctx, `UPDATE invites SET status = 'revoked', revoked_at = ?
 		WHERE id = ? AND status = 'active' AND expires_at > ?`, s.now().Unix(), id, s.now().Unix())
 	if err != nil {
@@ -285,7 +287,8 @@ func slugUsername(name string) string {
 // pre-assigned to the new user. Everything happens in one transaction: the invite is consumed exactly once;
 // a taken display name or any other failure leaves it usable. Invalid, expired, used and revoked codes are not
 // distinguishable (ErrInviteInvalid).
-func (s *Service) RedeemInvite(ctx context.Context, in RedeemInput) (RedeemResult, error) {
+func (s *Service) RedeemInvite(ctx context.Context, in RedeemInput) (_ RedeemResult, err error) {
+	defer s.publishOK(&err, TopicUsers, TopicClients)
 	if _, err := uuid.Parse(in.DeviceID); err != nil {
 		return RedeemResult{}, badRequest("device_id must be a UUID")
 	}

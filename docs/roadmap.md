@@ -12,7 +12,7 @@ The PoC (phases 0-5) is complete. From here on, work is planned as versions 0.1.
 | 0.4 | Sessions over the internet and save comfort | Sessions work beyond the LAN; saves get retention, restore and slots. |
 | 0.5 | OpenGL hardware rendering | The Player offers an OpenGL context to libretro cores, so hardware-rendered cores run; frames are read back to the CPU, zero-copy deferred ([ADR 0013](adr/0013-opengl-hardware-rendering.md)). |
 | 0.6 | Player UI pass | FrameBeam Player is clearer, more responsive and consistent with the design tokens. |
-| 0.7 | Hub UI pass | FrameBeam Hub web UI swaps fragments instead of full pages and updates live. |
+| 0.7 | Hub UI pass | FrameBeam Hub web UI swaps fragments instead of full pages, updates live and has network settings in the browser ([ADR 0014](adr/0014-hub-ui-pass.md)). |
 | 0.8 | Second system: 3DS (Azahar) | The Azahar libretro core ships as a plain core package and runs on the OpenGL rendering from 0.5. |
 | 0.9 | Metadata and artwork | Central game metadata and boxart in Hub and Player. |
 | 0.10 | Hub for Windows / Windows Server | FrameBeam Hub runs as a Windows service with an installer. |
@@ -97,10 +97,14 @@ Decided by Fabio on 2026-10-07: OpenGL hardware rendering for the Player, for al
 
 ## 0.7 Hub UI pass
 
-- Same approach for the web UI: clarity, spacing from tokens.
-- No full page loads on navigation: switching pages swaps only the content area. Some actions already swap htmx fragments (Library filter/delete, Clients actions and 15 s polling, Saves filter); sidebar navigation still loads whole pages.
-- Live updates without reload: sidebar badges (new pending clients, save conflicts, firmware) and affected tables update themselves, for example via Server-Sent Events.
-- From 0.4 (requested by Fabio on 2026-10-07): a network settings form instead of editing `hub.env`: Hub port, embedded TURN on/off, public host, TURN port and relay range, and the save retention values. Decided by Fabio on 2026-10-07: web settings win; `hub.env` and flags only provide the initial value; changes that need it (for example the port) are applied by a service restart the Hub triggers itself, like the updater. Open: ports below 1024. The TURN status panel and the router port forward list from 0.4 move into this form.
+Implemented, see [ADR 0014](adr/0014-hub-ui-pass.md) (proposed).
+
+- [x] Done: pages restyled to the v4 design (Library with saves column and conflict marker, Saves with slot tabs, history timeline, snapshot filter, inline restore confirmation and retention box from the real rules, Systems list and detail tabs, Clients, Users); nav badge "firmware" is now "{n} issues".
+- [x] Done: no full page loads on navigation; sidebar swaps only the content area (ADR 0014 D1).
+- [x] Done: live updates without reload via an in-process event bus and Server-Sent Events; badges and affected tables refresh themselves, Clients polling removed (D2).
+- [x] Done: Settings sub-pages Updates, General, Network, Security with per-field autosave (D3).
+- [x] Done: network settings form (Hub port, embedded TURN, public host, TURN port, relay range and IP, STUN servers, save retention). Decided by Fabio on 2026-10-07: web settings win; `hub.env` and flags only give the initial value (D4). Changes that need it are applied by a restart the Hub triggers itself, without root (D5). Ports below 1024 are refused on the web, use `install-hub.sh --port` (D6). Startup fallbacks keep the Hub reachable after a bad setting (D7). The TURN status and port forward list moved into Network; reachability is derived from the configuration (D8).
+- Open (left out of 0.7): Rescan folder, "+ New slot", deleting a snapshot, thinned-out history marker, invite "Copy link", metadata actions, "Player too old" marker in the Clients table, Library "of total" disk capacity, external TURN servers with login (only a STUN list), certificate "Renew now", reachability probe from outside, core packages not filtered per system, transport options "Custom cert/key" and "Reverse proxy".
 
 ## 0.8 Second system: Nintendo 3DS with Azahar
 

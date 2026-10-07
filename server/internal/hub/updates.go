@@ -121,7 +121,8 @@ func (s *Service) UpdateSettings(ctx context.Context) (UpdateSettings, error) {
 
 // SetUpdateSettings stores the channel ("" = use the compiled default, else stable or beta) and the automatic
 // install switch. A new check is started in the background.
-func (s *Service) SetUpdateSettings(ctx context.Context, channel string, auto bool) error {
+func (s *Service) SetUpdateSettings(ctx context.Context, channel string, auto bool) (err error) {
+	defer s.publishOK(&err, TopicUpdates)
 	if channel != "" && !updates.ValidSelectableChannel(channel) {
 		return badRequest("Update channel must be stable or beta")
 	}
@@ -296,7 +297,8 @@ type UpdateCheckReport struct {
 // CheckUpdates fetches the signed updates index, selects the newest release and, with automatic install on, stages
 // it and creates the request file (not during an active Session, not when it breaks recent Players, not when a
 // previous attempt for the same version failed). The result is recorded for the Settings page.
-func (s *Service) CheckUpdates(ctx context.Context) (UpdateCheckReport, error) {
+func (s *Service) CheckUpdates(ctx context.Context) (_ UpdateCheckReport, err error) {
+	defer s.publishOK(&err, TopicUpdates)
 	s.upd.mu.Lock()
 	defer s.upd.mu.Unlock()
 	var rep UpdateCheckReport
@@ -372,7 +374,8 @@ func (s *Service) stageAndRequest(ctx context.Context, f *updates.Fetched, sel u
 
 // InstallUpdate stages the newest update and requests the root helper (the Settings page "Install update").
 // It needs a packaged install. An update that breaks recent Players needs confirmBreaking.
-func (s *Service) InstallUpdate(ctx context.Context, confirmBreaking bool) (updates.Staged, error) {
+func (s *Service) InstallUpdate(ctx context.Context, confirmBreaking bool) (_ updates.Staged, err error) {
+	defer s.publishOK(&err, TopicUpdates)
 	s.upd.mu.Lock()
 	defer s.upd.mu.Unlock()
 	if !s.packaged() {

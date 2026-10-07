@@ -1,115 +1,158 @@
-{{define "content"}}
-<div class="page-head"><div><h1>Systems &amp; Cores</h1><p class="sub">Registry: which system expects which core in which version. The Hub does not run cores.</p></div></div>
-{{range $sys := .Body.Systems}}
-<section class="card sys-card">
-  <div class="sys-left">
-    <div><h2>{{.Name}}</h2><div class="mono">{{.ID}}</div></div>
-    <dl class="kv">
-      <dt>Preferred core</dt><dd>{{.CoreName}} <span class="mono">{{.CoreID}}</span></dd>
-      <dt>Expected version</dt><dd>
-        <form class="inline" method="post" action="/systems/{{.ID}}/expected-version">
-          <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-          <select name="version" aria-label="Expected core version">{{range .Versions}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</select>
-          <button class="btn small" type="submit">Save</button>
-        </form>
-        <div class="help">Versions come from the core package source. "Any version" serves the newest cached one.</div></dd>
-      <dt>Platforms</dt><dd class="mono">{{.Platforms}}</dd>
-      <dt>Provisioning</dt><dd>{{.Provisioning}}</dd>
-    </dl>
-  </div>
-  <div class="sys-right">
-    <div class="eyebrow">Manifest</div>
-    <dl class="kv">
-      <dt>File extension</dt><dd class="mono">{{.Extensions}}</dd>
-      <dt>Input profile</dt><dd class="mono">{{.InputProfile}}</dd>
-      <dt>Display profile</dt><dd class="mono">{{.DisplayProfile}}</dd>
-      <dt>BIOS / Firmware</dt><dd>
-        <form class="segment" method="post" action="/systems/{{.ID}}/firmware-mode" role="group" aria-label="Firmware mode">
-          <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-          <button type="submit" name="mode" value="builtin"{{if not .Native}} class="on" aria-pressed="true"{{else}} aria-pressed="false"{{end}}>Built-in</button>
-          <button type="submit" name="mode" value="native"{{if .Native}} class="on" aria-pressed="true"{{else}} aria-pressed="false"{{end}}>Native files</button>
-        </form>
-        <div class="help">{{if .Native}}Players use the files below; launch is blocked while required files are missing.{{else}}The core uses its built-in firmware; files are optional.{{end}}</div></dd>
-    </dl>
-  </div>
-</section>
-
-<div class="eyebrow">Reported by clients</div>
-<div class="card">
-{{if .Clients}}
-<table class="list">
-  <thead><tr><th>Device</th><th>Platform</th><th>Versions</th><th>Status</th></tr></thead>
-  <tbody>
-  {{range .Clients}}
-  <tr>
-    <td>{{.Device}}</td>
-    <td class="mono">{{.Platform}}</td>
-    <td class="mono">{{.Versions}}</td>
-    <td>{{if .OK}}<span class="status-ok">● {{.StatusText}}</span>{{else}}<span class="status-err">{{.StatusText}}</span>{{end}}</td>
-  </tr>
+{{define "systems-list"}}<div id="systems-list" class="sys-listbox" hx-get="{{.Body.ListURL}}" hx-trigger="fb:systems from:body" hx-swap="outerHTML"{{if .Body.OOB}} hx-swap-oob="true"{{end}}>
+  <div class="card sys-list">
+  {{range .Body.Systems}}
+    <a class="sys-item{{if .Selected}} selected{{end}}" href="{{.Href}}" hx-get="{{.Href}}" hx-target="#systems-detail" hx-swap="outerHTML" hx-push-url="true"{{if .Selected}} aria-current="true"{{end}}>
+      <span class="sys-item-text"><span class="sys-item-name">{{.Name}} <span class="mono">{{.ID}}</span></span>
+      <span class="sys-item-core">{{.CoreName}} {{if .Expected}}{{.Expected}}{{else}}any version{{end}}</span></span>
+      <span class="pill {{.ChipClass}} sm">{{.ChipText}}</span>
+    </a>
+  {{else}}
+    <p class="empty">{{if .Body.Query}}No systems found.{{else}}No systems in the registry.{{end}}</p>
   {{end}}
-  </tbody>
-</table>
-{{else}}<p class="empty">No client has reported yet. Players report their cores when they connect.</p>{{end}}
-</div>
-
-<div class="fw-head">
-  <div><div class="eyebrow">BIOS / Firmware · {{.ID}}</div><p class="help">Provided by the admin, not shipped with FrameBeam.</p></div>
-</div>
-<div class="card">
-<table class="list fw">
-  <thead><tr><th>File</th><th>Requirement</th><th>SHA-256 expected / present</th><th>Status</th><th></th></tr></thead>
-  <tbody>
-  {{range .Firmware}}
-  <tr class="{{if eq .State "mismatch"}}row-error{{else if eq .State "missing"}}row-error-soft{{end}}">
-    <td><div>{{.Name}}</div><div class="mono">{{.ID}} · {{.Sizes}}</div></td>
-    <td>{{.Requirement}}</td>
-    <td class="mono"><div>{{.Expected}}</div><div{{if eq .State "mismatch"}} class="err-text"{{end}}>{{.Present}}</div>
-      <form class="inline pin" method="post" action="/systems/{{$sys.ID}}/firmware/{{.ID}}/pin">
+  </div>
+  <p class="help">New systems appear here when a core and manifest are added to the registry.</p>
+</div>{{end}}
+{{define "systems-detail-fragment"}}{{template "systems-detail" .}}{{template "systems-list" .}}{{end}}
+{{define "systems-detail"}}<div id="systems-detail" class="card sys-detail" hx-get="{{.Body.DetailURL}}" hx-trigger="fb:systems from:body" hx-swap="outerHTML">
+{{with .Body.Sel}}
+  <header class="sys-head">
+    <div><h2>{{.Name}} <span class="mono">{{.ID}}</span></h2>
+      <p class="sys-line">{{.CoreName}} {{if .Expected}}{{.Expected}}{{else}}any version{{end}} · {{.Provisioning}}</p></div>
+    <span class="pill {{.SummaryClass}} lg">{{.SummaryText}}</span>
+  </header>
+  <div class="tabs flush" role="tablist" aria-label="{{.Name}}">
+    <a role="tab" class="tab{{if eq $.Body.Tab "firmware"}} selected{{end}}" aria-selected="{{if eq $.Body.Tab "firmware"}}true{{else}}false{{end}}" href="{{index $.Body.TabHrefs "firmware"}}" hx-get="{{index $.Body.TabHrefs "firmware"}}" hx-target="#systems-detail" hx-swap="outerHTML" hx-push-url="true">Firmware{{if .FwBad}} <span class="count error">{{.FwBad}}</span>{{end}}</a>
+    <a role="tab" class="tab{{if eq $.Body.Tab "clients"}} selected{{end}}" aria-selected="{{if eq $.Body.Tab "clients"}}true{{else}}false{{end}}" href="{{index $.Body.TabHrefs "clients"}}" hx-get="{{index $.Body.TabHrefs "clients"}}" hx-target="#systems-detail" hx-swap="outerHTML" hx-push-url="true">Clients{{if .ClientsBad}} <span class="count{{if .ClientsBlocking}} error{{else}} warn{{end}}">{{.ClientsBad}}</span>{{end}}</a>
+    <a role="tab" class="tab{{if eq $.Body.Tab "core"}} selected{{end}}" aria-selected="{{if eq $.Body.Tab "core"}}true{{else}}false{{end}}" href="{{index $.Body.TabHrefs "core"}}" hx-get="{{index $.Body.TabHrefs "core"}}" hx-target="#systems-detail" hx-swap="outerHTML" hx-push-url="true">Core &amp; manifest</a>
+  </div>
+  <div class="tabpanel" role="tabpanel">
+  {{if eq $.Body.Tab "firmware"}}
+    <div class="fw-head">
+      <p class="help">Provided by the admin, not shipped with FrameBeam. Checked against the SHA-256 in the manifest.</p>
+      <form class="segment" method="post" action="/systems/{{.ID}}/firmware-mode" role="group" aria-label="Firmware mode">
         <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-        <input type="text" name="sha256" value="{{.PinFull}}" placeholder="Pin expected SHA-256" maxlength="64" aria-label="Expected SHA-256 for {{.Name}}" class="mono">
-        <button class="btn small" type="submit">{{if .Pinned}}Set / clear{{else}}Pin{{end}}</button>
-      </form></td>
-    <td><span class="pill {{.Class}}">{{.StateLabel}}</span></td>
-    <td>
-      <form class="inline" method="post" action="/systems/{{$sys.ID}}/firmware/{{.ID}}/upload" enctype="multipart/form-data">
-        <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-        <input type="file" name="file" required aria-label="{{if .HasFile}}Replace{{else}}Provide{{end}} {{.Name}}">
-        <button class="btn small primary" type="submit">{{if .HasFile}}Replace{{else}}Provide{{end}}</button>
+        <button type="submit" name="mode" value="builtin"{{if not .Native}} class="on" aria-pressed="true"{{else}} aria-pressed="false"{{end}}>Built-in</button>
+        <button type="submit" name="mode" value="native"{{if .Native}} class="on" aria-pressed="true"{{else}} aria-pressed="false"{{end}}>Native files</button>
       </form>
-      {{if .HasFile}}<form method="post" action="/systems/{{$sys.ID}}/firmware/{{.ID}}/remove"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn-link" type="submit">Remove</button></form>{{end}}
-    </td>
-  </tr>
+    </div>
+    <p class="help">{{if .Native}}Players use the files below; launch is blocked while required files are missing.{{else}}The core uses its built-in firmware; files are optional.{{end}}</p>
+    {{if .Firmware}}
+    {{$sys := .}}
+    <div class="fw-list">
+      {{range .Firmware}}
+      <div class="fw-row {{if eq .State "mismatch"}}row-error{{else if eq .State "missing"}}{{if eq .Requirement "required"}}row-error-soft{{end}}{{end}}">
+        <div class="fw-main">
+          <div>
+            <div class="fw-title"><span class="strong">{{.Name}}</span><span class="mono">{{.ID}} · {{.Sizes}}</span><span class="help">{{.Requirement}}</span></div>
+            {{if .Note}}<div class="help">{{.Note}}</div>{{end}}
+            <div class="fw-hashes mono"><span>expected {{.Expected}}</span><span{{if eq .State "mismatch"}} class="err-text"{{end}}>present {{.Present}}</span></div>
+          </div>
+          <span class="pill {{.Class}}">{{.StateLabel}}</span>
+        </div>
+        <div class="fw-actions">
+          <form class="inline pin" method="post" action="/systems/{{$sys.ID}}/firmware/{{.ID}}/pin">
+            <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+            <input type="text" name="sha256" value="{{.PinFull}}" placeholder="Pin expected SHA-256" maxlength="64" aria-label="Expected SHA-256 for {{.Name}}" class="mono">
+            <button class="btn small" type="submit">{{if .Pinned}}Set / clear{{else}}Pin{{end}}</button>
+          </form>
+          <form class="inline" method="post" action="/systems/{{$sys.ID}}/firmware/{{.ID}}/upload" enctype="multipart/form-data">
+            <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+            <input type="file" name="file" required aria-label="{{if .HasFile}}Replace{{else}}Provide{{end}} {{.Name}}">
+            <button class="btn small primary" type="submit">{{if .HasFile}}Replace{{else}}Provide{{end}}</button>
+          </form>
+          {{if .HasFile}}<form method="post" action="/systems/{{$sys.ID}}/firmware/{{.ID}}/remove"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn-link" type="submit">Remove</button></form>{{end}}
+        </div>
+      </div>
+      {{end}}
+    </div>
+    {{else}}
+    <p class="empty">This core needs no BIOS or firmware files.</p>
+    {{end}}
+  {{else if eq $.Body.Tab "clients"}}
+    <p class="help">Reported by Players when they connect. A different or missing core is a warning and launching stays allowed; only an incompatible protocol blocks.</p>
+    {{if .Clients}}
+    <table class="list">
+      <thead><tr><th>Device</th><th>Versions</th><th>Platform</th><th>Status</th></tr></thead>
+      <tbody>
+      {{range .Clients}}
+      <tr>
+        <td class="strong">{{.Device}}</td>
+        <td class="mono">{{.Versions}}</td>
+        <td class="mono">{{.Platform}}</td>
+        <td>{{if .OK}}<span class="status-ok">● {{.StatusText}}</span>{{else if .Blocking}}<span class="status-err">✕ {{.StatusText}}</span>{{else}}<span class="status-warn">▲ {{.StatusText}}</span>{{end}}</td>
+      </tr>
+      {{end}}
+      </tbody>
+    </table>
+    {{else}}<p class="empty">No client has reported yet. Players report their cores when they connect.</p>{{end}}
+  {{else}}
+    <div class="sys-cols">
+      <div>
+        <div class="eyebrow">Core</div>
+        <dl class="kv">
+          <dt>Preferred core</dt><dd>{{.CoreName}} <span class="mono">{{.CoreID}}</span></dd>
+          <dt>Expected version</dt><dd>
+            <form class="inline" method="post" action="/systems/{{.ID}}/expected-version">
+              <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+              <select name="version" aria-label="Expected core version">{{range .Versions}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</select>
+              <button class="btn small" type="submit">Save</button>
+            </form>
+            <div class="help">Versions come from the core package source. "Any version" serves the newest cached one.</div></dd>
+          <dt>Platforms</dt><dd class="mono">{{.Platforms}}</dd>
+          <dt>Provisioning</dt><dd>{{.Provisioning}}</dd>
+        </dl>
+      </div>
+      <div>
+        <div class="eyebrow">Manifest</div>
+        <dl class="kv">
+          <dt>File extensions</dt><dd class="mono">{{.Extensions}}</dd>
+          <dt>Input profile</dt><dd class="mono">{{.InputProfile}}</dd>
+          <dt>Display profile</dt><dd class="mono">{{.DisplayProfile}}</dd>
+          <dt>BIOS / Firmware</dt><dd>{{.FirmwareHint}}</dd>
+        </dl>
+      </div>
+    </div>
+    <section class="cache" aria-label="Core package cache">
+      <div class="eyebrow">Core package cache</div>
+      <p class="help">Signed core packages from the trusted source, cached on this Hub and downloaded by Players on demand. The Hub never runs cores.</p>
+      <dl class="kv">
+        <dt>Source</dt><dd class="mono">{{$.Body.Cores.URL}}</dd>
+        <dt>Last check</dt><dd>{{$.Body.Cores.LastCheck}}{{if ne $.Body.Cores.LastSuccess "never"}} · last success {{$.Body.Cores.LastSuccess}}{{end}}</dd>
+        <dt>Last error</dt><dd>{{if $.Body.Cores.LastError}}<span class="status-err">{{$.Body.Cores.LastError}}</span>{{else}}none{{end}}</dd>
+        {{if $.Body.Cores.Skipped}}<dt>Skipped</dt><dd>{{$.Body.Cores.Skipped}} invalid package(s) in the source were ignored.</dd>{{end}}
+      </dl>
+      <form class="inline" method="post" action="/cores/sync">
+        <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+        <input type="hidden" name="sys" value="{{.ID}}">
+        <button class="btn small" type="submit">Check source now</button>
+      </form>
+      {{if $.Body.Cores.Rows}}
+      <table class="list">
+        <thead><tr><th>Core</th><th>Version</th><th>Platform</th><th>Size</th><th>License</th><th>Cached</th></tr></thead>
+        <tbody>
+        {{range $.Body.Cores.Rows}}
+        <tr><td class="mono">{{.CoreID}}</td><td class="mono">{{.Version}}</td><td class="mono">{{.Platform}}</td><td>{{.Size}}</td><td>{{.License}}</td>
+          <td><span class="pill {{.Class}}">{{.Cached}}</span></td></tr>
+        {{end}}
+        </tbody>
+      </table>
+      {{else}}<p class="empty">No core packages known yet. Players download cores from this Hub once the source has been checked.</p>{{end}}
+    </section>
   {{end}}
-  </tbody>
-</table>
-</div>
+  </div>
+{{else}}
+  <p class="empty">No systems in the registry.</p>
 {{end}}
-
-<div class="fw-head">
-  <div><div class="eyebrow">Core package cache</div><p class="help">Signed core packages from the trusted source, cached on this Hub and downloaded by Players on demand. The Hub never runs cores.</p></div>
+</div>{{end}}
+{{define "content"}}
+<div class="page-head"><div><h1>Systems &amp; Cores</h1><p class="sub">Which core each system uses and which files it needs. The Hub does not run cores.</p></div></div>
+<div class="sys-grid">
+  <div class="sys-side">
+    <form class="sys-search" role="search" action="/systems" method="get" hx-get="/systems" hx-trigger="input delay:250ms from:#sys-q, search from:#sys-q" hx-target="#systems-list" hx-swap="outerHTML">
+      <input id="sys-q" type="search" name="q" value="{{.Body.Query}}" placeholder="Search systems…" aria-label="Search systems" autocomplete="off">
+    </form>
+    {{template "systems-list" .}}
+  </div>
+  {{template "systems-detail" .}}
 </div>
-<section class="card" aria-label="Core package cache">
-  <dl class="kv">
-    <dt>Source</dt><dd class="mono">{{.Body.Cores.URL}}</dd>
-    <dt>Last check</dt><dd>{{.Body.Cores.LastCheck}}{{if ne .Body.Cores.LastSuccess "never"}} · last success {{.Body.Cores.LastSuccess}}{{end}}</dd>
-    <dt>Last error</dt><dd>{{if .Body.Cores.LastError}}<span class="status-err">{{.Body.Cores.LastError}}</span>{{else}}none{{end}}</dd>
-    {{if .Body.Cores.Skipped}}<dt>Skipped</dt><dd>{{.Body.Cores.Skipped}} invalid package(s) in the source were ignored.</dd>{{end}}
-  </dl>
-  <form class="inline" method="post" action="/cores/sync">
-    <input type="hidden" name="_csrf" value="{{.CSRF}}">
-    <button class="btn small" type="submit">Check source now</button>
-  </form>
-{{if .Body.Cores.Rows}}
-<table class="list">
-  <thead><tr><th>Core</th><th>Version</th><th>Platform</th><th>Size</th><th>License</th><th>Cached</th></tr></thead>
-  <tbody>
-  {{range .Body.Cores.Rows}}
-  <tr><td class="mono">{{.CoreID}}</td><td class="mono">{{.Version}}</td><td class="mono">{{.Platform}}</td><td>{{.Size}}</td><td>{{.License}}</td>
-    <td><span class="pill {{.Class}}">{{.Cached}}</span></td></tr>
-  {{end}}
-  </tbody>
-</table>
-{{else}}<p class="empty">No core packages known yet. Players download cores from this Hub once the source has been checked.</p>{{end}}
-</section>
 {{end}}

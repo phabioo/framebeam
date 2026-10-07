@@ -21,7 +21,8 @@ const outBuffer = 64
 
 type sessionState struct {
 	mu    sync.Mutex // serializes Session mutations; lock order: mu, then rt.mu
-	ice   []string
+	iceMu sync.RWMutex
+	ice   []string // stun: URLs; guarded by iceMu (changed live from the web settings)
 	grace time.Duration
 
 	rt rtState

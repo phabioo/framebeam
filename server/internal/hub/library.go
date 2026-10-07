@@ -110,7 +110,8 @@ func cleanText(v string, max int) string {
 // AddROM streams r into a temp file in the data directory, computes SHA-256 and places the file atomically
 // at roms/<sha[:2]>/<sha>. Empty system: derive from the file extension. Empty title: file name without
 // extension. A ROM that already exists (same hash) results in a conflict error.
-func (s *Service) AddROM(ctx context.Context, r io.Reader, filename, title, system, uploadedBy string) (Game, error) {
+func (s *Service) AddROM(ctx context.Context, r io.Reader, filename, title, system, uploadedBy string) (_ Game, err error) {
+	defer s.publishOK(&err, TopicLibrary)
 	filename = cleanText(filepath.Base(strings.ReplaceAll(filename, `\`, "/")), 255)
 	if filename == "" || filename == "." || filename == "/" {
 		return Game{}, badRequest("File name missing")
@@ -261,7 +262,8 @@ func (s *Service) OpenROM(ctx context.Context, sha string) (*os.File, Game, erro
 }
 
 // DeleteGame removes the entry and the ROM file.
-func (s *Service) DeleteGame(ctx context.Context, id string) error {
+func (s *Service) DeleteGame(ctx context.Context, id string) (err error) {
+	defer s.publishOK(&err, TopicLibrary)
 	g, err := s.GetGame(ctx, id)
 	if err != nil {
 		return err

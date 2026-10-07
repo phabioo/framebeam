@@ -511,9 +511,10 @@ func TestSettingsNameAndPassword(t *testing.T) {
 	})
 	c := e.client()
 	tok := c.login()
-	rec := c.get("/settings", nil)
+	rec := c.get("/settings/security", nil)
 	status(t, rec, 200)
-	contains(t, rec, "Test-Hub", "HTTPS", "AA:BB:CC", "Self-generated", ":8443", "Admins only")
+	contains(t, rec, "Test-Hub", "HTTPS", "AA:BB:CC", "Self-generated", "Admins only", "Sign out", "Change password", "2036-10-0")
+	contains(t, c.get("/settings/general", nil), "Test-Hub", "Address for Players")
 
 	rec = c.postForm("/settings/name", url.Values{"name": {"Living-Room-Hub"}, "_csrf": {tok}}, nil)
 	if rec.Code != 303 {
@@ -522,7 +523,7 @@ func TestSettingsNameAndPassword(t *testing.T) {
 	if e.svc.Info().Name != "Living-Room-Hub" {
 		t.Fatal("name not changed")
 	}
-	contains(t, c.get("/settings?ok=name", nil), "Hub name saved.", "Living-Room-Hub")
+	contains(t, c.get("/settings/general?ok=name", nil), "Hub name saved.", "Living-Room-Hub")
 	status(t, c.postForm("/settings/name", url.Values{"name": {"  "}, "_csrf": {tok}}, nil), 400)
 
 	pw := func(cur, n, n2 string) *httptest.ResponseRecorder {
@@ -547,7 +548,7 @@ func TestSettingsDevMode(t *testing.T) {
 	e := newEnv(t, true, nil)
 	c := e.client()
 	c.login()
-	rec := c.get("/settings", nil)
+	rec := c.get("/settings/security", nil)
 	contains(t, rec, "HTTP (dev mode)")
 	notContains(t, rec, "Fingerprint")
 }
@@ -668,8 +669,8 @@ func TestSavesPage(t *testing.T) {
 		"▲ Conflict: upload is based on Rev 1, current is Rev 2", "Current checkpoint on the Hub", "Secured upload · sync pending",
 		"Desktop Living Room", shortHash(sha(hubSave)), shortHash(sha(localSave)),
 		"Use Hub version", "Adopt local save as new current version", "Keep both, decide later", "Download",
-		`name="expected_revision" value="2"`, `hx-confirm=`, base+"/conflicts/"+r.Conflict.ID+"/resolve", "CURRENT", "Session end", "Conflict upload",
-		"Restore", base+"/history/"+strconv.Itoa(r.Conflict.Secured.Version)+"/restore", "Create snapshot", base+"/snapshots")
+		`name="expected_revision" value="2"`, `hx-confirm=`, base+"/conflicts/"+r.Conflict.ID+"/resolve", "✓ Current", "Session end", "Conflict upload",
+		"Restore", base+"?confirm="+strconv.Itoa(r.Conflict.Secured.Version), "Create snapshot", base+"/snapshots")
 	// Detail by path, unknown slot is 404.
 	status(t, c.get(base, nil), http.StatusOK)
 	status(t, c.get("/saves/"+adminID+"/"+g.ID+"/nope", nil), http.StatusNotFound)
@@ -722,7 +723,7 @@ func TestSavesPage(t *testing.T) {
 	}
 	rec = c.get(base+"?ok=resolved", nil)
 	status(t, rec, http.StatusOK)
-	contains(t, rec, "Conflict resolved.", "Rev 3", "Desktop Living Room", "Checkpoint · today", "Session end", "Conflict upload")
+	contains(t, rec, "Conflict resolved.", "Rev 3", "Desktop Living Room", "Synced · today", "Session end", "Conflict upload")
 	notContains(t, rec, "Use Hub version", "conflict</span>")
 	// Resolving again: stale.
 	rec = c.postForm(resolve, url.Values{"resolution": {"use_hub"}, "expected_revision": {"3"}, "_csrf": {tok}}, nil)

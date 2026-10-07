@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -50,6 +51,8 @@ type Config struct {
 	MaxUploadBytes int64
 	// TURN is the embedded TURN server (nil: off), shown on the Settings page.
 	TURN *turnsrv.Server
+	// Net describes the network settings and the restart hook (Settings > Network).
+	Net NetConfig
 }
 
 // Server is the web interface.
@@ -59,6 +62,8 @@ type Server struct {
 	log   *slog.Logger
 	tmpl  map[string]*template.Template
 	login *limiter
+	done  chan struct{} // closed by Shutdown: long-lived streams (SSE) end
+	once  sync.Once
 }
 
 // New creates the web interface.
@@ -69,7 +74,7 @@ func New(svc *hub.Service, cfg Config, log *slog.Logger) (*Server, error) {
 	if cfg.MaxUploadBytes <= 0 {
 		cfg.MaxUploadBytes = DefaultMaxUploadBytes
 	}
-	s := &Server{svc: svc, cfg: cfg, log: log, tmpl: map[string]*template.Template{},
+	s := &Server{svc: svc, cfg: cfg, log: log, tmpl: map[string]*template.Template{}, done: make(chan struct{}),
 		login: &limiter{max: 5, window: time.Minute, now: svc.Now, hits: map[string][]time.Time{}}}
 	for _, p := range []string{"login", "setup", "library", "saves", "clients", "settings", "users", "systems"} {
 		t, err := template.New(p).ParseFS(templatesFS, "templates/layout.html", "templates/"+p+".html")
@@ -80,6 +85,10 @@ func New(svc *hub.Service, cfg Config, log *slog.Logger) (*Server, error) {
 	}
 	return s, nil
 }
+
+// Shutdown ends long-lived responses (the /events streams) so a graceful http.Server.Shutdown does not
+// wait for them. Idempotent; wire it with http.Server.RegisterOnShutdown.
+func (s *Server) Shutdown() { s.once.Do(func() { close(s.done) }) }
 
 // Register attaches the web routes to mux. "/" is the catch-all (redirects to /setup without an admin, otherwise 404).
 func (s *Server) Register(mux *http.ServeMux) {
@@ -103,6 +112,8 @@ func (s *Server) Register(mux *http.ServeMux) {
 	h("GET /login", s.loginGet)
 	h("POST /login", s.loginPost)
 	h("POST /logout", s.guard(s.logout))
+	h("GET /nav-fragment", s.guard(s.navFragment))
+	mux.Handle("GET /events", secure(s.guard(s.events)))
 	h("GET /library", s.guard(s.libraryGet))
 	h("POST /library/upload", s.guard(s.libraryUpload))
 	h("POST /library/{id}/delete", s.guard(s.libraryDelete))
@@ -130,6 +141,10 @@ func (s *Server) Register(mux *http.ServeMux) {
 	h("POST /systems/{id}/firmware/{file}/remove", s.guard(s.firmwareRemove))
 	h("POST /cores/sync", s.guard(s.coresSync))
 	h("GET /settings", s.guard(s.settingsGet))
+	h("GET /settings/{section}", s.guard(s.settingsGet))
+	h("POST /settings/network/restart", s.guard(s.settingsNetRestart))
+	h("POST /settings/network/{key}", s.guard(s.settingsNetSave))
+	h("POST /settings/network/{key}/reset", s.guard(s.settingsNetReset))
 	h("POST /settings/appearance", s.guard(s.settingsAppearance))
 	h("POST /settings/uploads", s.guard(s.settingsUploads))
 	h("POST /settings/updates", s.guard(s.settingsUpdates))
@@ -182,6 +197,7 @@ type pageData struct {
 	Theme               string // light, dark or system (Hub setting)
 	Flash, Error        string
 	Fragment            bool
+	MainSwap            bool // HX main swap: render only the main content plus out-of-band nav and title
 	Body                any
 }
 
@@ -234,6 +250,7 @@ func (s *Server) base(r *http.Request, sess *session, nav, title string) pageDat
 		ver = "v" + ver
 	}
 	d := pageData{Title: title, Nav: nav, HubName: info.Name, HubVersion: ver, Flash: flashTexts[r.URL.Query().Get("ok")], Error: errTexts[r.URL.Query().Get("err")]}
+	d.MainSwap = isMainSwap(r)
 	if sess != nil {
 		d.CSRF = sess.CSRFToken
 		d.User = sess.User.DisplayName
@@ -252,6 +269,21 @@ func (s *Server) base(r *http.Request, sess *session, nav, title string) pageDat
 	return d
 }
 
+// navFragment renders the sidebar nav (badges and active item); the active item comes from HX-Current-URL.
+func (s *Server) navFragment(w http.ResponseWriter, r *http.Request, sess *session) {
+	nav := ""
+	if u, err := url.Parse(r.Header.Get("HX-Current-URL")); err == nil {
+		for _, n := range []string{"library", "saves", "systems", "clients", "users", "settings"} {
+			if u.Path == "/"+n || strings.HasPrefix(u.Path, "/"+n+"/") {
+				nav = n
+			}
+		}
+	}
+	d := s.base(r, sess, nav, "")
+	d.MainSwap = false
+	s.render(w, http.StatusOK, "library", "nav-fragment", d)
+}
+
 func roleLabel(r hub.Role) string {
 	if r == hub.RoleAdmin {
 		return "Admin"
@@ -264,6 +296,10 @@ func (s *Server) render(w http.ResponseWriter, status int, page, name string, d 
 	if d.Theme == "" {
 		d.Theme, _ = s.svc.Appearance(context.Background())
 	}
+	if name == "layout" && d.MainSwap {
+		name = "main-swap"
+	}
+	w.Header().Add("Vary", "HX-Request, HX-Target, HX-History-Restore-Request")
 	var buf bytes.Buffer
 	if err := s.tmpl[page].ExecuteTemplate(&buf, name, d); err != nil {
 		s.log.Error("template", "page", page, "err", err)
@@ -273,6 +309,11 @@ func (s *Server) render(w http.ResponseWriter, status int, page, name string, d 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
 	w.Write(buf.Bytes())
+}
+
+// isMainSwap reports a sidebar navigation request: htmx GET targeting #main, not a history restore.
+func isMainSwap(r *http.Request) bool {
+	return r.Method == http.MethodGet && isHX(r, "main") && r.Header.Get("HX-History-Restore-Request") != "true"
 }
 
 func isHX(r *http.Request, target string) bool {

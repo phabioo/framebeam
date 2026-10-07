@@ -98,6 +98,7 @@ type Service struct {
 	upd    updateState
 	updCfg updateConfig
 	turn   turnState
+	bus    eventBus
 
 	redeemMu    sync.Mutex // invite redemption rate limits
 	redeemHits  map[string][]time.Time

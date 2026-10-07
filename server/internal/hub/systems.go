@@ -194,7 +194,8 @@ func (s *Service) FirmwareProblems(ctx context.Context) (int, error) {
 }
 
 // SetExpectedCoreVersion sets the expected core version of a system (empty = any version).
-func (s *Service) SetExpectedCoreVersion(ctx context.Context, systemID, version string) error {
+func (s *Service) SetExpectedCoreVersion(ctx context.Context, systemID, version string) (err error) {
+	defer s.publishOK(&err, TopicSystems)
 	version = cleanText(version, 64)
 	var v any
 	if version != "" {
@@ -214,7 +215,8 @@ func (s *Service) SetExpectedCoreVersion(ctx context.Context, systemID, version 
 }
 
 // SetFirmwareMode switches a system between builtin and native firmware.
-func (s *Service) SetFirmwareMode(ctx context.Context, systemID string, mode FirmwareMode) error {
+func (s *Service) SetFirmwareMode(ctx context.Context, systemID string, mode FirmwareMode) (err error) {
+	defer s.publishOK(&err, TopicSystems)
 	if mode != FirmwareBuiltin && mode != FirmwareNative {
 		return badRequest("Firmware mode must be builtin or native")
 	}
@@ -244,7 +246,8 @@ func (s *Service) firmwareDef(ctx context.Context, systemID, fileID string) (Fir
 // ProvideFirmware stores (or replaces) a firmware file from r. The size must match the file definition and, if
 // the admin pinned an expected SHA-256, the content must match it. Nothing is stored on failure. The file is
 // kept at <data dir>/firmware/<system>/<file_id> (0600); the bytes are never logged.
-func (s *Service) ProvideFirmware(ctx context.Context, systemID, fileID string, r io.Reader) (FirmwareFile, error) {
+func (s *Service) ProvideFirmware(ctx context.Context, systemID, fileID string, r io.Reader) (_ FirmwareFile, err error) {
+	defer s.publishOK(&err, TopicSystems)
 	def, err := s.firmwareDef(ctx, systemID, fileID)
 	if err != nil {
 		return FirmwareFile{}, err
@@ -327,7 +330,8 @@ func sizeList(sizes []int64) string {
 }
 
 // RemoveFirmware deletes a provided file (a pinned hash stays). ErrNotFound if it was not provided.
-func (s *Service) RemoveFirmware(ctx context.Context, systemID, fileID string) error {
+func (s *Service) RemoveFirmware(ctx context.Context, systemID, fileID string) (err error) {
+	defer s.publishOK(&err, TopicSystems)
 	res, err := s.db.ExecContext(ctx, `DELETE FROM firmware_files WHERE system_id = ? AND file_id = ?`, systemID, fileID)
 	if err != nil {
 		return internal(err)
@@ -342,7 +346,8 @@ func (s *Service) RemoveFirmware(ctx context.Context, systemID, fileID string) e
 }
 
 // SetFirmwarePin sets (64 lowercase hex characters) or clears (empty) the expected SHA-256 of a file.
-func (s *Service) SetFirmwarePin(ctx context.Context, systemID, fileID, sha string) error {
+func (s *Service) SetFirmwarePin(ctx context.Context, systemID, fileID, sha string) (err error) {
+	defer s.publishOK(&err, TopicSystems)
 	sha = strings.ToLower(strings.TrimSpace(sha))
 	if _, err := s.firmwareDef(ctx, systemID, fileID); err != nil {
 		return err
@@ -354,7 +359,7 @@ func (s *Service) SetFirmwarePin(ctx context.Context, systemID, fileID, sha stri
 	if !ValidSHA256(sha) {
 		return badRequest("SHA-256 must be 64 hexadecimal characters")
 	}
-	_, err := s.db.ExecContext(ctx, `INSERT INTO firmware_pins(system_id, file_id, sha256) VALUES (?,?,?)
+	_, err = s.db.ExecContext(ctx, `INSERT INTO firmware_pins(system_id, file_id, sha256) VALUES (?,?,?)
 		ON CONFLICT(system_id, file_id) DO UPDATE SET sha256 = excluded.sha256`, systemID, fileID, sha)
 	return internal2(err)
 }

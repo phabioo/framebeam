@@ -30,7 +30,8 @@ type RestoreInput struct {
 // RestoreSaveVersion makes the content of a history version the new checkpoint (revision + 1, reason restore,
 // device = caller). The current checkpoint goes to history first (before_restore) unless a version of it exists.
 // A different expected revision returns ErrSaveConflictStale and changes nothing.
-func (s *Service) RestoreSaveVersion(ctx context.Context, in RestoreInput) (SaveSlot, error) {
+func (s *Service) RestoreSaveVersion(ctx context.Context, in RestoreInput) (_ SaveSlot, err error) {
+	defer s.publishOK(&err, TopicSaves)
 	if !ValidSlotName(in.Slot) || in.Version < 1 {
 		return SaveSlot{}, ErrNotFound
 	}
@@ -86,7 +87,8 @@ func (s *Service) RestoreSaveVersion(ctx context.Context, in RestoreInput) (Save
 
 // CreateSaveSnapshot creates a history version (manual_snapshot) from the current checkpoint. The label is
 // optional (trimmed, up to MaxSnapshotLabel characters); ErrNotFound without a checkpoint.
-func (s *Service) CreateSaveSnapshot(ctx context.Context, userID, gameID, slot string, label *string) (SaveVersion, error) {
+func (s *Service) CreateSaveSnapshot(ctx context.Context, userID, gameID, slot string, label *string) (_ SaveVersion, err error) {
+	defer s.publishOK(&err, TopicSaves)
 	if !ValidSlotName(slot) {
 		return SaveVersion{}, ErrNotFound
 	}

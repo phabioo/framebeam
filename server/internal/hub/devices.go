@@ -78,7 +78,8 @@ func (s *Service) ListDevices(ctx context.Context) ([]Device, error) {
 }
 
 // RevokeDevice revokes a device and immediately deletes all its access tokens (idempotent).
-func (s *Service) RevokeDevice(ctx context.Context, deviceID string) error {
+func (s *Service) RevokeDevice(ctx context.Context, deviceID string) (err error) {
+	defer s.publishOK(&err, TopicClients)
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return internal(err)
@@ -262,7 +263,8 @@ const (
 // The reported cores are compared with the registry (core_missing, core_version_mismatch: warnings, compatible stays
 // true) and the last report is stored per device.
 // The codec capabilities are stored; the capability_missing check happens when publishing/joining a Session.
-func (s *Service) Handshake(ctx context.Context, deviceID string, in HandshakeInput) (HandshakeResult, error) {
+func (s *Service) Handshake(ctx context.Context, deviceID string, in HandshakeInput) (_ HandshakeResult, err error) {
+	defer s.publishOK(&err, TopicClients, TopicSystems)
 	if in.ProtocolVersion < 1 || in.MinProtocolVersion < 1 || in.MinProtocolVersion > in.ProtocolVersion {
 		return HandshakeResult{}, badRequest("protocol_version and min_protocol_version must be at least 1 and consistent")
 	}

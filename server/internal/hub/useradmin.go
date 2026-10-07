@@ -39,7 +39,8 @@ func (s *Service) ListUserRows(ctx context.Context) ([]UserRow, error) {
 // DisableUser disables a regular user. Admins cannot be disabled (ErrForbidden). The user's tokens stay in
 // place but every authenticated call and the token exchange answer user_disabled; WSS connections are closed
 // and the user's Sessions end (reason owner_disconnected). Saves, uploads and pending invites are untouched.
-func (s *Service) DisableUser(ctx context.Context, userID string) error {
+func (s *Service) DisableUser(ctx context.Context, userID string) (err error) {
+	defer s.publishOK(&err, TopicUsers, TopicClients)
 	u, err := s.GetUser(ctx, userID)
 	if err != nil {
 		return err
@@ -58,7 +59,8 @@ func (s *Service) DisableUser(ctx context.Context, userID string) error {
 }
 
 // EnableUser enables a disabled user again (idempotent).
-func (s *Service) EnableUser(ctx context.Context, userID string) error {
+func (s *Service) EnableUser(ctx context.Context, userID string) (err error) {
+	defer s.publishOK(&err, TopicUsers)
 	res, err := s.db.ExecContext(ctx, `UPDATE users SET disabled_at = NULL WHERE id = ?`, userID)
 	if err != nil {
 		return internal(err)

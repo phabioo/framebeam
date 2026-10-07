@@ -1,21 +1,39 @@
-{{define "saves-list"}}
-{{if .Rows}}
+{{define "saves-list"}}<div id="saves-list" class="saves-listbox" hx-get="{{.Body.ListURL}}" hx-trigger="fb:saves from:body" hx-swap="outerHTML"{{if .Body.OOB}} hx-swap-oob="true"{{end}}>
+{{if .Body.Rows}}
 <ul class="save-list">
-  {{range .Rows}}
-  <li><a href="{{.Href}}" class="save-item{{if .Selected}} selected{{end}}"{{if .Selected}} aria-current="page"{{end}}>
+  {{range .Body.Rows}}
+  <li><a href="{{.Href}}" hx-get="{{.Href}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true" class="save-item{{if .Selected}} selected{{end}}"{{if .Selected}} aria-current="page"{{end}}>
     <span class="cover" aria-hidden="true">{{.Initial}}</span>
     <span class="save-text"><span class="save-title">{{.Title}}{{if .User}} <span class="save-user">· {{.User}}</span>{{end}}</span>
-    <span class="save-line{{if .Conflict}} warn{{end}}">{{.Line}}</span></span>
+    <span class="save-line{{if .Conflict}} warn{{else}} ok{{end}}">{{.Line}}</span></span>
   </a></li>
   {{end}}
 </ul>
 {{else}}
 <p class="empty">No saves yet.</p>
 {{end}}
-{{end}}
+</div>{{end}}
+{{define "restore-card"}}<div class="confirm" role="group" aria-label="Confirm restore of v{{.Version}}">
+  <div class="confirm-title">Restore v{{.Version}} as the current version of “{{.Slot}}”?</div>
+  <p class="help">The current checkpoint (Rev {{.ExpectedRev}}) stays in the history. Restoring creates a new checkpoint; nothing is overwritten.</p>
+  <form class="inline" method="post" action="{{.RestoreHref}}" hx-post="{{.RestoreHref}}">
+    <input type="hidden" name="expected_revision" value="{{.ExpectedRev}}">
+    <a class="btn small" href="{{.CancelHref}}" hx-get="{{.CancelXHR}}" hx-target="#confirm-v{{.Version}}" hx-swap="innerHTML">Cancel</a>
+    <button class="btn small primary" type="submit">Restore v{{.Version}}</button>
+  </form>
+</div>{{end}}
+{{define "restore-confirm"}}{{range .Body.Detail.History}}{{if .Open}}{{template "restore-card" .}}{{end}}{{end}}{{end}}
+{{define "saves-detail-fragment"}}{{template "saves-detail" .Body.Detail}}{{template "saves-list" .}}{{end}}
 {{define "saves-detail"}}
 {{with .}}
-<header class="save-head"><h2>{{.Title}}</h2><p class="sub">{{.User}}</p></header>
+<div id="save-detail" class="save-detail" hx-get="{{.RefreshURL}}" hx-trigger="fb:saves from:body" hx-swap="outerHTML">
+<header class="save-head">
+  <div><h2>{{.Title}}</h2><p class="sub">{{.User}}{{if .System}} · {{.System}}{{end}}</p></div>
+  {{if .Conflict}}<span class="pill warn lg">▲ Conflict · unresolved</span>{{else}}<span class="pill ok lg">✓ Synced</span>{{end}}
+</header>
+<div class="tabs" role="tablist" aria-label="Slots">
+  {{range .Tabs}}<a role="tab" class="tab{{if .Selected}} selected{{end}}" aria-selected="{{if .Selected}}true{{else}}false{{end}}" href="{{.Href}}" hx-get="{{.Href}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true">{{.Name}} <span class="tab-meta{{if .Conflict}} warn{{end}}">{{.Meta}}</span></a>{{end}}
+</div>
 <div class="eyebrow">Current checkpoint</div>
 <div class="save-bar">
   <div><span class="mono">Rev {{.Current.Rev}}</span> · {{.Current.Device}} · {{.Current.When}} · {{.Current.Reason}}
@@ -55,24 +73,30 @@
   </div>
 </section>
 {{end}}
-<div class="eyebrow">History · permanent versions</div>
+<div class="hist-head">
+  <div class="eyebrow">History · permanent versions</div>
+  <div class="segment filter" role="group" aria-label="History filter">
+    <a class="seg{{if not .Snapshots}} on{{end}}" href="{{.AllHref}}" hx-get="{{.AllHref}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true"{{if not .Snapshots}} aria-current="true"{{end}}>All</a>
+    <a class="seg{{if .Snapshots}} on{{end}}" href="{{.SnapHref}}" hx-get="{{.SnapHref}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true"{{if .Snapshots}} aria-current="true"{{end}}>Snapshots</a>
+  </div>
+</div>
 {{if .History}}
 <ol class="timeline">
   {{range .History}}
-  <li class="{{if .Current}}current{{end}}">
+  <li class="{{.Kind}}">
     <span class="node" aria-hidden="true"></span>
-    <div class="tl-text"><div><span class="mono">v{{.Version}}</span> <strong>{{.Device}}</strong>{{if .Label}} <span class="snap-label">“{{.Label}}”</span>{{end}}{{if .Current}} <span class="badge">CURRENT</span>{{end}}</div><div class="help">{{.Meta}}</div></div>
+    <div class="tl-text"><div><span class="mono">v{{.Version}}</span> <strong>{{.Device}}</strong>{{if .Snapshot}} <span class="chip">◆ Snapshot</span>{{end}}{{if .Current}} <span class="pill ok sm">✓ Current</span>{{end}}{{if .Label}} <span class="snap-label">“{{.Label}}”</span>{{end}}</div><div class="help">{{.Meta}}</div></div>
     <div class="tl-actions"><a class="btn-link plain" href="{{.DownloadHref}}">Download</a>
-    {{if not .Current}}<form class="inline" method="post" action="{{.RestoreHref}}" hx-post="{{.RestoreHref}}" hx-confirm="Restore v{{.Version}} as the new current checkpoint? The current checkpoint stays in the history.">
-      <input type="hidden" name="expected_revision" value="{{$.ExpectedRev}}">
-      <button class="btn small" type="submit">Restore</button>
-    </form>{{end}}</div>
+    {{if not .Current}}<a class="btn small" href="{{.ConfirmHref}}" hx-get="{{.ConfirmHref}}" hx-target="#confirm-v{{.Version}}" hx-swap="innerHTML">Restore</a>{{end}}</div>
+    <div id="confirm-v{{.Version}}" class="tl-confirm">{{if .Open}}{{template "restore-card" .}}{{end}}</div>
   </li>
   {{end}}
 </ol>
 {{else}}
-<p class="help">No history versions yet.</p>
+<p class="help">{{$.HistoryEmpty}}</p>
 {{end}}
+<div class="retention"><div class="eyebrow">Retention</div><p>{{.Retention}}</p></div>
+</div>
 {{end}}
 {{end}}
 {{define "content"}}
@@ -83,7 +107,7 @@
       <label>User: <select name="user" aria-label="Filter by user"><option value="">All users</option>{{range .Body.Users}}<option value="{{.ID}}"{{if eq $.Body.UserFilter .ID}} selected{{end}}>{{.DisplayName}}</option>{{end}}</select></label>
       <noscript><button class="btn small" type="submit">Apply</button></noscript>
     </form>
-    {{template "saves-list" .Body}}
+    {{template "saves-list" .}}
   </section>
   <section class="saves-detail">{{template "saves-detail" .Body.Detail}}</section>
 </div>

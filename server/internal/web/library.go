@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/phabioo/framebeam/server/internal/hub"
@@ -12,6 +13,8 @@ import (
 
 type libRow struct {
 	ID, Title, Initial, System, Size, SHA, ShortSHA, Uploader, Added string
+	Saves                                                            int
+	Conflict                                                         bool
 }
 
 type sysOpt struct {
@@ -27,6 +30,8 @@ type libBody struct {
 	System     string
 	Query      string
 	Filtered   bool
+	// RefreshURL is the URL the live region reloads itself from (keeps the current filter).
+	RefreshURL string
 }
 
 func (s *Server) libraryBody(ctx context.Context, system, q string) (libBody, error) {
@@ -46,8 +51,29 @@ func (s *Server) libraryBody(ctx context.Context, system, q string) (libBody, er
 	if err != nil {
 		return libBody{}, err
 	}
+	slots, err := s.svc.ListSaveSlots(ctx, "")
+	if err != nil {
+		return libBody{}, err
+	}
+	saves, conflicts := map[string]int{}, map[string]bool{}
+	for _, sl := range slots {
+		saves[sl.GameID]++
+		if sl.OpenConflictCount > 0 {
+			conflicts[sl.GameID] = true
+		}
+	}
 	b := libBody{Count: len(games), Used: humanBytes(st.ROMBytes), Free: humanBytes(st.FreeBytes),
-		System: system, Query: q, Filtered: system != "" || q != ""}
+		System: system, Query: q, Filtered: system != "" || q != "", RefreshURL: "/library"}
+	f := url.Values{}
+	if system != "" {
+		f.Set("system", system)
+	}
+	if q != "" {
+		f.Set("q", q)
+	}
+	if len(f) > 0 {
+		b.RefreshURL += "?" + f.Encode()
+	}
 	if st.FreeBytes == 0 {
 		b.Free = "– "
 	}
@@ -67,7 +93,7 @@ func (s *Server) libraryBody(ctx context.Context, system, q string) (libBody, er
 		}
 		b.Rows = append(b.Rows, libRow{ID: g.ID, Title: g.Title, Initial: initial(g.Title), System: g.System,
 			Size: humanBytes(g.ROMSize), SHA: g.ROMSHA256, ShortSHA: shortHash(g.ROMSHA256), Uploader: up,
-			Added: g.AddedAt.Local().Format("01-02")})
+			Added: g.AddedAt.Local().Format("02.01."), Saves: saves[g.ID], Conflict: conflicts[g.ID]})
 	}
 	systems, err := s.svc.Systems(ctx)
 	if err != nil {

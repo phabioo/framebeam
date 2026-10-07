@@ -35,13 +35,13 @@ Reading note: read only the necessary file or section. Open the source HTML only
 | 3x Player Multiview Diagnostics (new) | [player.md](player.md#3x-player-multiview-diagnostics) | `#3x`, 772-780 | 0.6 Player UI pass |
 | 3y Player Fullscreen Diagnostics (new) | [player.md](player.md#3y-player-fullscreen-diagnostics) | `#3y`, 784-810 | 0.6 Player UI pass |
 | 3j Hub Library | [hub.md](hub.md#3j-hub-library) | `#3j`, 816-864 | 1 |
-| 3k Hub Saves | [hub.md](hub.md#3k-hub-saves) | `#3k`, 870-954 | 3; slots, snapshot markers: 0.4 features, UI in 0.7 |
-| 3s Hub Saves Slots (new) | [hub.md](hub.md#3s-hub-saves-slots) | `#3s`, 960-1018 | 0.4 feature (slots, snapshots, restore, retention), UI in 0.7 |
-| 3l Hub Systems and Cores | [hub.md](hub.md#3l-hub-systems-and-cores) | `#3l`, 1024-1132 | 5; rebuilt: 0.7 Hub UI pass |
+| 3k Hub Saves | [hub.md](hub.md#3k-hub-saves) | `#3k`, 870-954 | 3; slots, snapshot markers: 0.4 features, UI implemented in 0.7 |
+| 3s Hub Saves Slots (new) | [hub.md](hub.md#3s-hub-saves-slots) | `#3s`, 960-1018 | 0.4 feature (slots, snapshots, restore, retention), UI implemented in 0.7 |
+| 3l Hub Systems and Cores | [hub.md](hub.md#3l-hub-systems-and-cores) | `#3l`, 1024-1132 | 5; rebuilt: 0.7 Hub UI pass (implemented) |
 | 3m Hub Clients | [hub.md](hub.md#3m-hub-clients) | `#3m`, 1138-1174 | 1 |
 | 3n Hub Users | [hub.md](hub.md#3n-hub-users) | `#3n`, 1180-1217 | 5 |
 | 3o Hub Settings (superseded by 3q) | [hub.md](hub.md#3o-hub-settings-superseded-by-3q) | `#3o`, 1223-1251 | 1 (parts), 5; reference only |
-| 3q Hub Settings revised (new) | [hub.md](hub.md#3q-hub-settings-revised) | `#3q`, 1257-1356 | 0.7 Hub UI pass; Network section (relay, public address): 0.4 feature, UI in 0.7 |
+| 3q Hub Settings revised (new) | [hub.md](hub.md#3q-hub-settings-revised) | `#3q`, 1257-1356 | 0.7 Hub UI pass (implemented); Network section (relay, public address): 0.4 feature, UI implemented in 0.7 |
 
 Phases per `../workflow.md` (phase plan); 0.4-0.8 are the versions of the roadmap (`../roadmap.md`). Borderline cases: 3o (reference only) phase 1 covered only Hub name, address, transport and certificate, admin account; appearance (dark/light) and "Allow users to upload games" phase 5 (requires users); these now live in 3q. 3m is phase 1 (Allow/Decline, Revoke); the assignment to an existing user (architecture 10) belongs to it as well, but requires created users (until phase 5 only admin). 3k and 3d both belong to phase 3, although 3k is a Hub page. 3l phase 5 (firmware path); nav badges of the Hub shell ("1 conflict", "2 issues", "1 request", Settings "1 update") follow the respective phases. The Hub shell (sidebar, page header, tables) is created with the first Hub page in phase 1. "UI in the 0.6/0.7 pass" means: the feature (protocol, storage, diagnostics) arrives in 0.4, the screen in the named UI pass.
 
@@ -78,7 +78,7 @@ f. Mock values to ignore: melonDS DS "1.2.0" (the registry expects 1.4.0); "Bund
 g. Emulation (3e) no longer shows where an inherited value comes from (ADR 0007 inheritance chain Global → System/Core → Game). Only "changed vs default" (dot, "Reset", "Reset N changed") is shown. Decide whether that is enough; per-game overrides are "coming later".
 h. 3p: the second column (Updates, Hubs, Appearance, Diagnostics) and the main area show all sections below each other. Open whether the column is only jump anchors or real sub-pages (in 3q they are real sub-pages); should be uniform.
 i. Logo light accent is `#1a8aa3`, the Hub UI accent is `#1a7f96`: small inconsistency, one of them should win (open).
-j. Descriptive texts in 3q and 3s state behavior that is not verified against ADRs or code: certificate "renews automatically 30 days before expiry", retention (all of the last 48 hours, then last per day for 30 days, then one per month; snapshots kept until deleted), "Players load the restored save on their next start", "not possible while a session of this game is running". Deleting a snapshot is mentioned but not drawn.
+j. (partly resolved in 0.7, ADR 0014) The Hub retention text is now built from the real rules and the restore text states only what the service does. Remaining unverified mock texts in 3q and 3s: certificate "renews automatically 30 days before expiry", retention (all of the last 48 hours, then last per day for 30 days, then one per month; snapshots kept until deleted), "Players load the restored save on their next start", "not possible while a session of this game is running". Deleting a snapshot is mentioned but not drawn.
 k. The logo sheet shows a favicon "FrameBeam Player · Web"; there is no web player. The Hotkeys tab (3f) and the "+" for a new save slot (3g, 3k, 3s) are drawn but have no screens.
 l. "Default Multiview" in 3e offers only "Picture-in-Picture" and "Side-by-Side", while 3r adds the mode "Grid 2×2" (up to four tiles); whether the default can be the grid is open.
 
