@@ -64,6 +64,7 @@ Colors
 | Status warn | `#3cbfd8` (surface `#15262b`); same value as the accent, intentionally |
 | Status error | `#ef8a78` (surface `#2a1a17`, text on it `#e6d6d2`) |
 | Status neutral (e.g. "Local") | Text `#a3a3a8` on `#232428` |
+| Diagnostics overlay (3t-3y) | Surface `rgba(17,18,20,.94)`, border `#26272b`, section divider `#1e1f22`, section title mono 11/500 `#7d7d83` letter-spacing .08em, summary mono 11 `#8e8e94`; sparkline total `#3cbfd8` 1.25, emu `#6f6f75` 1, area `rgba(60,191,216,.14)`, 16.7 ms line dashed `#3a3b40`; "Fallback" pill and info box as above |
 
 Radii: 4, 5 (segment), 6, 7 (input, button), 8 (card, primary button), 9, 10 (Hub card), 11 (toggle), 12 (dialog), 16 (filter chip, 32 high), 999 (pill), 50% (avatar, status dot).
 
