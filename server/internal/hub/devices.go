@@ -79,7 +79,7 @@ func (s *Service) ListDevices(ctx context.Context) ([]Device, error) {
 
 // RevokeDevice revokes a device and immediately deletes all its access tokens (idempotent).
 func (s *Service) RevokeDevice(ctx context.Context, deviceID string) (err error) {
-	defer s.publishOK(&err, TopicClients)
+	defer s.publishOK(&err, TopicClients, TopicUsers)
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return internal(err)

@@ -714,6 +714,33 @@ func (s *Server) settingsNetReset(w http.ResponseWriter, r *http.Request, sess *
 		http.NotFound(w, r)
 		return
 	}
+	_, stored, err := s.netDesired(r.Context())
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	// Validate the configuration that results from the reset, like a save would.
+	rest := make(map[string]string, len(stored))
+	for k, v := range stored {
+		if k != key {
+			rest[k] = v
+		}
+	}
+	cand := s.cfg.Net.Base
+	cand.ICEServers = append([]string(nil), s.cfg.Net.Base.ICEServers...)
+	cand.ApplyNet(rest)
+	if err := cand.ValidateNet(key); err != nil {
+		s.settingsDone(w, r, sess, "network", settingsRes{FieldKey: key, Msg: upper1(err.Error()), Form: r.PostForm}, true)
+		return
+	}
+	if key == config.NetListenPort && cand.ListenPort() != s.cfg.Net.Running.ListenPort() {
+		addr := config.ListenWithPort(s.cfg.Net.Running.Listen, cand.ListenPort())
+		if err := s.testBind(addr); err != nil {
+			s.log.Info("listen port test bind failed", "addr", addr, "err", err)
+			s.settingsDone(w, r, sess, "network", settingsRes{FieldKey: key, Msg: fmt.Sprintf("Port %d is in use", cand.ListenPort()), Form: r.PostForm}, true)
+			return
+		}
+	}
 	if err := s.svc.ResetNetOverride(r.Context(), key); err != nil {
 		s.fail(w, r, err)
 		return

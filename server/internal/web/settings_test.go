@@ -335,3 +335,42 @@ func TestSettingsGeneralAutosaveFragments(t *testing.T) {
 		t.Fatalf("%q", rec.Header().Get("HX-Redirect"))
 	}
 }
+
+func TestNetworkResetValidatesResult(t *testing.T) {
+	e, _ := netEnv(t, nil)
+	c := e.client()
+	tok := c.login()
+	status(t, postTok(c, tok, "/settings/network/public_host", url.Values{"value": {"hub.example.com"}}), 303)
+	status(t, postTok(c, tok, "/settings/network/turn", url.Values{"value": {"1"}}), 303)
+	// Base public host is empty: resetting it would leave TURN on without a host.
+	rec := postTok(c, tok, "/settings/network/public_host/reset", nil)
+	status(t, rec, 400)
+	contains(t, rec, "needs a public host", "\u2715 Not saved")
+	if ov, _ := e.svc.NetOverrides(bg); ov[config.NetPublicHost] != "hub.example.com" {
+		t.Fatalf("override removed despite the error: %v", ov)
+	}
+	// Resetting the TURN switch first makes the host reset valid.
+	status(t, postTok(c, tok, "/settings/network/turn/reset", nil), 303)
+	status(t, postTok(c, tok, "/settings/network/public_host/reset", nil), 303)
+
+	// A base listen port that is occupied now cannot be restored.
+	busy, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer busy.Close()
+	bp := busy.Addr().(*net.TCPAddr).Port
+	e2, _ := netEnv(t, func(n *NetConfig) {
+		n.Base.Listen = "127.0.0.1:" + strconv.Itoa(bp)
+	})
+	c2 := e2.client()
+	tok2 := c2.login()
+	free := freePort(t)
+	status(t, postTok(c2, tok2, "/settings/network/listen_port", url.Values{"value": {strconv.Itoa(free)}}), 303)
+	rec = postTok(c2, tok2, "/settings/network/listen_port/reset", nil)
+	status(t, rec, 400)
+	contains(t, rec, "Port "+strconv.Itoa(bp)+" is in use")
+	if ov, _ := e2.svc.NetOverrides(bg); ov[config.NetListenPort] == "" {
+		t.Fatalf("override removed: %v", ov)
+	}
+}

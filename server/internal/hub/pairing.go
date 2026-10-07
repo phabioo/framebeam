@@ -256,5 +256,6 @@ func (s *Service) PollPairing(ctx context.Context, requestID, pollToken string) 
 	if err := tx.Commit(); err != nil {
 		return PairingResult{}, internal(err)
 	}
+	s.Publish(TopicClients, TopicUsers)
 	return PairingResult{Status: PairingApproved, HubID: s.Info().HubID, UserID: r.UserID, DeviceCredential: cred}, nil
 }
