@@ -23,7 +23,7 @@ Lines 681-729. Phase 1 (library, ROM upload/download).
 - Open: row actions (delete, metadata; architecture 09 names metadata actions in the library entry, later), upload dialog, scan progress, error states (hash/duplicate), paging not drawn.
 
 ## 3k Hub Saves
-Lines 735-819. Phase 3; slots and snapshot markers: 0.4 features, UI in the 0.6 Hub UI pass. Conflict next to the version history, per slot.
+Lines 735-819. Phase 3; slots and snapshot markers: 0.4 features, UI in the 0.7 Hub UI pass. Conflict next to the version history, per slot.
 
 - Grid: sidebar | list 320 (surface `#faf9f7`, right border, padding 32 20) | detail (padding 32 40, gap 22).
 - List: title "Saves" (22/600); filter "User: Max ▾"; games (cover 36 with initials, title 14/500, status line 12): selected surface `#eef8fa` + left bar; status "1 conflict" (warn) or "Synced · {time}" (ok green `#2a7a4c`; with slots: "Synced · today 18:42 · 2 slots"). Mock: Harbor Rally (conflict, selected), Lumen Drift (today 18:42 · 2 slots), Tide & Lantern (28.09.), Clocktower Kids (02.10.), Stylus Knights (21.09.).
@@ -38,7 +38,7 @@ Lines 735-819. Phase 3; slots and snapshot markers: 0.4 features, UI in the 0.6 
 - Open: empty state without conflict (3s shows the synced state), revision numbering "Rev 41" (checkpoint) vs "v6" (history) is separate by ADR 0005.
 
 ## 3s Hub Saves Slots
-Lines 825-883. New. Slots per game, snapshots in the history, restore with confirmation, retention. Phase: slots, snapshots, restore, retention are 0.4 features, UI in the 0.6 Hub UI pass.
+Lines 825-883. New. Slots per game, snapshots in the history, restore with confirmation, retention. Phase: slots, snapshots, restore, retention are 0.4 features, UI in the 0.7 Hub UI pass.
 
 - Grid and list as 3k (Saves active); selected game Lumen Drift ("Synced · today 18:42 · 2 slots").
 - Header: "Lumen Drift" 26/600, "Max · Nintendo DS", pill "✓ Synced" (ok).
@@ -52,7 +52,7 @@ Lines 825-883. New. Slots per game, snapshots in the history, restore with confi
 - Open: deleting a snapshot, creating/renaming/deleting a slot, restore error states (session running), the Player-side counterpart (3g "Save snapshot", slot selector).
 
 ## 3l Hub Systems and Cores
-Lines 889-996. Rebuilt: system list with detail and tabs. Phase 5; rebuilt in the 0.6 Hub UI pass. Registry, compatibility, firmware.
+Lines 889-996. Rebuilt: system list with detail and tabs. Phase 5; rebuilt in the 0.7 Hub UI pass. Registry, compatibility, firmware.
 
 - Layout: sidebar | main (padding 28 40, gap 24). Title "Systems & Cores", subtitle "Which core each system uses and which files it needs. The hub does not run cores." Content grid `300 | 1fr`, gap 20.
 - System list (left): search field 36 "Search systems…"; card list (surface `#fff`, radius 10), item 68 high: name 14 + id (mono, e.g. "nds"), line "{core} {version}" and a status chip on the right: "● Ready" (ok), "{n} firmware" (error), "{n} client" (warn). Selected: surface `#eef8fa` + left bar. Footer note: "New systems appear here when a core and manifest are added to the registry." Example systems "Game Boy Advance" and "Super Nintendo" appear in the mock only (README).
@@ -61,7 +61,7 @@ Lines 889-996. Rebuilt: system list with detail and tabs. Phase 5; rebuilt in th
   - Clients tab: text "Reported by Players when they connect. Mismatched clients cannot start games for this system." Rows: device, "Player {version} · {core} {version}" (mono), platform (mono), "● Compatible" (ok) or error text (mock: "Core version mismatch · 1.2.0 expected", "Player too old · protocol v1 required").
   - Core & manifest tab: two columns. CORE: "Preferred core" ("melonDS DS" + mono id "melonds_ds"), "Expected version", "Platforms" ("windows-x86_64"), "Provisioning". MANIFEST: "File extensions" (".nds"), "Input profile" ("nds"), "Display profile" ("dual_screen"), "BIOS / Firmware" ("3 files · see Firmware tab" or "none").
 - The earlier "Core package cache" placeholder (badge "LATER") is no longer drawn.
-- Open: file upload dialog, removing a firmware file, the nav badge count ("2 issues" in the mock equals the two firmware rows; clients are not included in the mock count), further systems, how the 0.6 pass shows core packages (ADR 0010).
+- Open: file upload dialog, removing a firmware file, the nav badge count ("2 issues" in the mock equals the two firmware rows; clients are not included in the mock count), further systems, how the 0.7 pass shows core packages (ADR 0010).
 
 ## 3m Hub Clients
 Lines 1003-1039. Phase 1 (pairing Allow/Decline, Revoke).
@@ -96,7 +96,7 @@ Lines 1088-1116. Superseded by 3q (decision 2026-10-07); kept in the source as r
 - What 3q does differently: sub-pages instead of two columns, autosave, update section, network section. Not carried into 3q: the segment "Custom cert/key" / "Reverse Proxy" (open, README), the "Metadata" placeholder.
 
 ## 3q Hub Settings revised
-Lines 1122-1221. New; supersedes 3o. Sections Updates, General, Network, Security as sub-pages, autosave. Phase: 0.6 Hub UI pass; the Network section (public address, built-in relay) is a 0.4 feature, UI in the 0.6 pass. Updates exist since 0.3.
+Lines 1122-1221. New; supersedes 3o. Sections Updates, General, Network, Security as sub-pages, autosave. Phase: 0.7 Hub UI pass; the Network section (public address, built-in relay) is a 0.4 feature, UI in the 0.7 pass. Updates exist since 0.3.
 
 - Grid: sidebar (Settings active, badge "1 update") 232 | section column 280 | content. Section column (surface `#faf9f7`, border right, padding 28 20): title "Settings" (13/500); items with name and a status line with a colored dot: "Updates" "Update available · 0.4.0" (warn), "General" "Name, address, theme, uploads" (muted), "Network" "Only in local network" (warn) or "Reachable from the internet" (ok), "Security" "HTTPS active · admin" (ok). Selected: surface `#eef8fa` + left bar `#3cbfd8`, others `#fff`. Footer text: "Changes save automatically. Admins only." In the mock, "Network" is selected by default.
 - Content (padding 28 40, gap 24): header with section title (26/600) and subtitle (14), on the right the saved indicator "✓ All changes saved" (13, `#2a7a4c`). Autosave: every field saves on its own; no Save buttons (except "Save password" and "Save"-like actions drawn explicitly). Section cards: surface `#fff`, radius 10, border `#e3e1dc`, mono eyebrow title, rows with label block left (14/500 + 12 help) and control right.
@@ -108,7 +108,7 @@ Lines 1122-1221. New; supersedes 3o. Sections Updates, General, Network, Securit
 - Network (subtitle "Ports, public address and relay for Players outside your network"):
   - Reachability card: chip "▲ Only in local network" (warn: `#ddf1f6`, text `#1a7f96`, border `#a6d9e6`) or "✓ Reachable from the internet" (ok), "Reachability check · today 16:40", text "hub.example.com:8443 did not answer from outside. Players on your network connect normally; remote Players cannot reach the hub until TCP 8443 is forwarded to it." / "hub.example.com:8443 answered from outside, and the relay on UDP 3478 is reachable. Remote Players can connect."; button "Check again" ("Checking…" state).
   - LISTENING & PUBLIC ADDRESS: "Listen port" (help "TCP port for Players and this web interface · changing it restarts the hub", value 8443); "Public address for Players" (help "Handed to Players outside your network. Forward this TCP port on your router to the hub.", fields host "hub.example.com" ":" port "8443").
-  - RELAY · TURN: "Built-in TURN relay" toggle (mock on): text on "Relays the stream for Players that cannot connect directly (strict NAT, mobile networks). Uses this hub’s upload." / off "Players that cannot connect directly will fail to join unless an external TURN server is set."; when on, row "Relay ports · UDP" (help "Forward the port and the whole range as UDP to the hub") with "port" 3478 and "range" 49160 – 49200 (README: implementation uses 49160–49199).
+  - RELAY · TURN: "Built-in TURN relay" toggle (mock on): text on "Relays the stream for Players that cannot connect directly (strict NAT, mobile networks). Uses this hub’s upload." / off "Players that cannot connect directly will fail to join unless an external TURN server is set."; when on, row "Relay ports · UDP" (help "Forward the port and the whole range as UDP to the hub") with "port" 3478 and "range" 49160 – 49200 (decided by Fabio on 2026-10-07: the range follows the code, 49160–49199; the mock value is a deviation, see README).
   - EXTERNAL STUN / TURN SERVERS · OPTIONAL with "+ Add server": rows URL (mono) + type ("STUN", "TURN · with login") + "Remove" (mock "stun:stun.example.com:3478", "turn:turn.example.com:3478"); note "Offered to Players in addition to the built-in relay. Leave empty if the hub is reachable from the internet."
 - Security (subtitle "Transport, certificate and the admin account"): TRANSPORT & CERTIFICATE: "Transport" ("HTTPS / WSS. Plain HTTP is only available in dev mode.", pill "✓ HTTPS"); "Certificate" ("Self-generated · valid until 07.10.2036 · renews automatically 30 days before expiry", button "Renew now"); "Fingerprint · SHA-256" (mono, two lines, placeholder value "AA:BB:CC:…"; "Players compare this on first connect. After a renewal they must confirm the new value.", button "Copy"). ADMIN ACCOUNT: "admin" ("Web login with username and password · signed in since today 14:02"), buttons "Change password" (opens an inline form) and "Sign out"; form fields "Current password", "New password · min. 8 characters", "Repeat new password", button "Save password".
 - Open: "Custom cert/key" and "Reverse Proxy" transport options (in 3o, not in 3q); how autosave reports errors (e.g. invalid port, port in use); whether the relay port range is configurable; texts about certificate renewal are not checked against the implementation (README).

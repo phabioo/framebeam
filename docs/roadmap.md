@@ -1,6 +1,6 @@
 # Roadmap after the PoC
 
-The PoC (phases 0-5) is complete. From here on, work is planned as versions 0.1.1 to 0.10, each cut into one work package per thread/PR (see `docs/workflow.md`). The order was decided by Fabio on 2026-10-06; on 2026-10-07 he moved Sessions over the internet ahead of the UI passes (renumbered 0.4 to 0.6). Items marked open are not decided yet; decisions are recorded as ADRs in `docs/adr/`.
+The PoC (phases 0-5) is complete. From here on, work is planned as versions 0.1.1 to 0.11, each cut into one work package per thread/PR (see `docs/workflow.md`). The order was decided by Fabio on 2026-10-06; on 2026-10-07 he moved Sessions over the internet ahead of the UI passes (renumbered 0.4 to 0.6). On 2026-10-07 Fabio also moved OpenGL hardware rendering for the Player (all emulators/cores, not only 3DS) ahead of the UI passes as the new 0.5; the UI passes, 3DS and everything after shifted by one. ADRs written before 2026-10-07 use the old numbering: old 0.5/0.6/0.7/0.8/0.9/0.10 = new 0.6/0.7/0.8/0.9/0.10/0.11. Items marked open are not decided yet; decisions are recorded as ADRs in `docs/adr/`.
 
 ## Overview
 
@@ -10,12 +10,13 @@ The PoC (phases 0-5) is complete. From here on, work is planned as versions 0.1.
 | 0.2 | Cores from the Hub | Installers no longer ship emulator cores; the Hub distributes signed core packages. |
 | 0.3 | Automatic updates | A change on `main` reaches the test devices without manual work. |
 | 0.4 | Sessions over the internet and save comfort | Sessions work beyond the LAN; saves get retention, restore and slots. |
-| 0.5 | Player UI pass | FrameBeam Player is clearer, more responsive and consistent with the design tokens. |
-| 0.6 | Hub UI pass | FrameBeam Hub web UI swaps fragments instead of full pages and updates live. |
-| 0.7 | Second system: 3DS (Azahar) | The Azahar libretro core ships as a plain core package; the Player gains OpenGL hardware rendering. |
-| 0.8 | Metadata and artwork | Central game metadata and boxart in Hub and Player. |
-| 0.9 | Hub for Windows / Windows Server | FrameBeam Hub runs as a Windows service with an installer. |
-| 0.10 | Linux and macOS Player | FrameBeam Player on Linux and macOS. |
+| 0.5 | OpenGL hardware rendering | The Player offers an OpenGL context to libretro cores, so hardware-rendered cores run and present without a CPU copy. |
+| 0.6 | Player UI pass | FrameBeam Player is clearer, more responsive and consistent with the design tokens. |
+| 0.7 | Hub UI pass | FrameBeam Hub web UI swaps fragments instead of full pages and updates live. |
+| 0.8 | Second system: 3DS (Azahar) | The Azahar libretro core ships as a plain core package and runs on the OpenGL rendering from 0.5. |
+| 0.9 | Metadata and artwork | Central game metadata and boxart in Hub and Player. |
+| 0.10 | Hub for Windows / Windows Server | FrameBeam Hub runs as a Windows service with an installer. |
+| 0.11 | Linux and macOS Player | FrameBeam Player on Linux and macOS. |
 
 ## 0.1.1 Finish the PoC
 
@@ -26,8 +27,8 @@ PoC leftovers. Decisions: [ADR 0009](adr/0009-finish-poc.md) (proposed).
 - [x] Done: Settings → Hubs (switch, remove with confirmation, auto-connect, current Hub marked); switching ends running work and secures saves like the connection screen.
 - [x] Done: Certificate renewal and confirmed pin change. The Hub renews its self-generated certificate at startup when expired or expiring within 30 days (`framebeam-hub renew-cert`, Settings badge); the Player shows both fingerprints and re-pins after a two-step confirmation, keeping the credential (`--accept-fingerprint` in the CLI). Own certificate and key are never modified. Verified only locally by Fabio against a real Hub certificate.
 - [x] Done: Session encoding and RTP send run on a worker thread (bounded queue, oldest video frame dropped); RTT is reported in diagnostics via the negotiated DataChannel `fb-diag`.
-- [ ] Open: A core version mismatch only warns (ADR 0007). Intentionally unchanged; moves to 0.7, when several cores exist.
-- [x] Done: Codebase cleanup: system display name and controller labels from the system manifest, phase-named files and tests renamed (migration `0004_phase5.sql` kept), MSVC C4804 fixed, E2E scripts run in the Linux CI job, staticcheck in `make check-hub`, narrower libdatachannel CI cache path. The `PlayerController` split moves to the Player UI pass (0.5).
+- [ ] Open: A core version mismatch only warns (ADR 0007). Intentionally unchanged; moves to 0.8, when several cores exist.
+- [x] Done: Codebase cleanup: system display name and controller labels from the system manifest, phase-named files and tests renamed (migration `0004_phase5.sql` kept), MSVC C4804 fixed, E2E scripts run in the Linux CI job, staticcheck in `make check-hub`, narrower libdatachannel CI cache path. The `PlayerController` split moves to the Player UI pass (0.6).
 
 Completed 2026-10-06: Windows CI runs on `main` pushes to prime its vcpkg binary cache after merges. The release preset uses a release-only dependency triplet. Cache keys distinguish the triplet and MSVC version and cover the manifest, presets and overlay triplets. The first main run with the new triplet is expected to build cold; later runtimes depend on cache hits and runner performance. See [ADR 0008](adr/0008-windows-ci-cache.md).
 
@@ -73,7 +74,16 @@ Moved ahead of the UI passes by Fabio on 2026-10-07: testing with friends outsid
 - [x] Done: Saves: retention/thinning, restore from history, manual snapshot, WebSocket push `save_updated`, multiple slots (ADR 0012 D7; `docs/architecture/03-saves.md`).
 - Open: verification across real networks (two Players behind different routers, forced relay, more than one remote Session) is done locally by Fabio.
 
-## 0.5 Player UI pass
+## 0.5 OpenGL hardware rendering
+
+Decided by Fabio on 2026-10-07: OpenGL hardware rendering for the Player, for all emulators/cores and not only 3DS, comes before the UI passes.
+
+- Libretro hardware rendering (new for the Player, largest work item): the Player's libretro backend handles only software framebuffers today (no `RETRO_ENVIRONMENT_SET_HW_RENDER`). Needed: an OpenGL 3.3 core context (shared with the Qt Quick scene or offscreen), FBO handed to the core via `get_current_framebuffer`, `context_reset`/`context_destroy` handling, presenting the FBO without a CPU copy, and a GPU readback (or zero-copy path to the encoder) when the Session is shared.
+- CI: headless CI cannot run hardware-rendered cores end to end; core tests need a GL context (for example Mesa llvmpipe) or stay local.
+- melonDS DS then gets its OpenGL renderer and the internal resolution option; both are hidden today because the Player offers no GL context (see the Emulation page in `docs/design/player.md`).
+- Later Nintendo systems rely on it: the 3DS (0.8) and, among the later systems, N64 and GameCube/Wii.
+
+## 0.6 Player UI pass
 
 - Clarity: rework information density and grouping per screen (Library, Detail, game view, Emulation, Controllers, Settings).
 - Spacing, sizes and alignment consistently from the design tokens (`docs/design/tokens.md`) instead of single values.
@@ -83,19 +93,19 @@ Moved ahead of the UI passes by Fabio on 2026-10-07: testing with friends outsid
 - Core state refresh: after a core download the "core missing" notice on NDS games stays until the Player restarts (found by Fabio on 2026-10-07); Library and Detail must re-evaluate the core state live.
 - From 0.4 (requested by Fabio on 2026-10-07): Settings → Hubs lets the user edit a Hub's address and port (for example after the Hub port changed or when switching between LAN address and public name), keeping the pinned fingerprint and credential; diagnostics present the connection type (direct / relay) and target bitrate clearly; multiview layouts and the save history, restore, snapshot and slot picker get their final design.
 
-## 0.6 Hub UI pass
+## 0.7 Hub UI pass
 
 - Same approach for the web UI: clarity, spacing from tokens.
 - No full page loads on navigation: switching pages swaps only the content area. Some actions already swap htmx fragments (Library filter/delete, Clients actions and 15 s polling, Saves filter); sidebar navigation still loads whole pages.
 - Live updates without reload: sidebar badges (new pending clients, save conflicts, firmware) and affected tables update themselves, for example via Server-Sent Events.
 - From 0.4 (requested by Fabio on 2026-10-07): a network settings form instead of editing `hub.env`: Hub port, embedded TURN on/off, public host, TURN port and relay range, and the save retention values. Decided by Fabio on 2026-10-07: web settings win; `hub.env` and flags only provide the initial value; changes that need it (for example the port) are applied by a service restart the Hub triggers itself, like the updater. Open: ports below 1024. The TURN status panel and the router port forward list from 0.4 move into this form.
 
-## 0.7 Second system: Nintendo 3DS with Azahar
+## 0.8 Second system: Nintendo 3DS with Azahar
 
 Decided by Fabio on 2026-10-07: the second system is the Nintendo 3DS with the Azahar libretro core (replaces the mGBA proposal).
 
 - Core: `azahar_libretro` (GPLv2+), available prebuilt on the libretro buildbot (checked 2026-10-07: `nightly/windows/x86_64/latest/azahar_libretro.dll.zip`) and described by `azahar_libretro.info` in libretro-core-info. GPLv2+ allows mirroring only with the complete corresponding source: the workflow archives the exact source revision (including build scripts and submodules) as a release asset next to every mirrored binary and keeps it as long as that binary is published (GPLv2 §3(a)); the package carries the license text and names that archive. The same applies to every GPL core in the core list.
-- Hardware rendering (new for the Player, largest work item): the core info sets `hw_render = true`, `required_hw_api = OpenGL Core >= 3.3`. The Player's libretro backend handles only software framebuffers today (no `RETRO_ENVIRONMENT_SET_HW_RENDER`). Needed: an OpenGL 3.3 core context (shared with the Qt Quick scene or offscreen), FBO handed to the core via `get_current_framebuffer`, `context_reset`/`context_destroy` handling, presenting the FBO without a CPU copy, and a GPU readback (or zero-copy path to the encoder) when the Session is shared. Headless CI cannot run the core end to end; core tests need a GL context (for example Mesa llvmpipe) or stay local.
+- Hardware rendering: the core info sets `hw_render = true`, `required_hw_api = OpenGL Core >= 3.3`. The Player's OpenGL hardware rendering is a prerequisite and arrives in 0.5; this version only uses it.
 - Display: two screens of different sizes (top 400 x 240, bottom 320 x 240 touch); the system manifest describes layout and touch mapping, and the Session encoder sends the composed frame.
 - Games: decrypted dumps only (`.3ds`/`.cci`/`.cxi`/`.3dsx`, plus the compressed `z*` variants); FrameBeam never decrypts. Some games need system files such as Mii data dumped from the user's own console; these follow the firmware path from phase 5 and are never shipped.
 - Performance: 3DS emulation needs a considerably faster CPU/GPU than DS; check on Fabio's devices whether play plus encoding fits.
@@ -110,18 +120,18 @@ Decided by Fabio on 2026-10-07: the second system is the Nintendo 3DS with the A
   - Updates: a scheduled workflow checks upstream for new versions weekly and opens a PR that bumps the pin; merging publishes the package.
   - Licenses: keep each core's exact license terms with the package and show them. Some cores are non-commercial only; that restricts use as well as redistribution, so the core list marks such cores and FrameBeam does not mirror them without checking their terms.
 
-## 0.8 Metadata and artwork
+## 0.9 Metadata and artwork
 
 - Hub Metadata Service with provider abstraction, hash matching, overrides, artwork cache (`docs/architecture/11-metadata-future.md`).
 - Hub: Settings → Metadata, actions in the library entry. Player: boxart and basic data in Library and game view.
 
-## 0.9 Hub for Windows / Windows Server
+## 0.10 Hub for Windows / Windows Server
 
 - Windows amd64 Hub build in CI and release; runs as a Windows service (start/stop, automatic start).
 - Hub installer (data directory, port, firewall rule, admin setup); updates via the updater from 0.3.
 - Review paths, file permissions (instead of 0600) and certificate storage on Windows.
 
-## 0.10 Linux and macOS Player
+## 0.11 Linux and macOS Player
 
 - Linux: Secret Service instead of in-memory credentials, package (AppImage or .deb/Flatpak), check gamepads and audio.
 - macOS: Keychain, app bundle/dmg, signing and notarization, VideoToolbox encoder, CI on a macOS runner.
@@ -131,7 +141,7 @@ Decided by Fabio on 2026-10-07: the second system is the Nintendo 3DS with the A
 
 - Save States, remote control/input for viewers, netplay, emulation settings sync, StandaloneBackend, Hub as a macOS service.
 - Further library features: row actions (delete, edit title), paging.
-- Remaining Nintendo systems from NES to GameCube/Wii (Fabio, 2026-10-07), as plain core packages after 0.7, rendered with OpenGL first: NES, SNES, N64, GB/GBC, GBA, Virtual Boy and GameCube/Wii (Dolphin; the libretro port lags upstream). N64 and GameCube/Wii build on the hardware rendering from 0.7.
+- Remaining Nintendo systems from NES to GameCube/Wii (Fabio, 2026-10-07), as plain core packages after 0.8, rendered with OpenGL first: NES, SNES, N64, GB/GBC, GBA, Virtual Boy and GameCube/Wii (Dolphin; the libretro port lags upstream). N64 and GameCube/Wii build on the hardware rendering from 0.5.
 - Afterwards Vulkan hardware rendering next to OpenGL (Fabio, 2026-10-07), so cores that offer both can be switched per core option in the Emulation settings.
 - Wii U deferred (Fabio, 2026-10-07): Cemu has no libretro core and would need the StandaloneBackend.
 
@@ -141,8 +151,8 @@ Hosted emulation, friends list, public Session links, guest access, email/passwo
 
 ## Open decisions
 
-- **Second system:** decided on 2026-10-07: Nintendo 3DS with Azahar (see 0.7). The earlier proposal GBA with mGBA is dropped.
+- **Second system:** decided on 2026-10-07: Nintendo 3DS with Azahar (see 0.8). The earlier proposal GBA with mGBA is dropped.
 - **Internet reachability:** decided in 0.4 (ADR 0012); the text below is the original proposal. Which setups FrameBeam supports and documents (Hub port forward, VPN, own TURN server on the Hub host or elsewhere). Proposal (2026-10-07): the Hub embeds an optional STUN/TURN server (for example `pion/turn`, pure Go, same binary) on UDP/TCP 3478 plus a small UDP relay port range, hands out short-lived TURN credentials in `hello_ack`/join instead of static secrets, and learns its public address from a configured hostname (DynDNS). A typical setup: a DynDNS name pointing at the Hub's router, port forwards for the Hub port, 3478 and the relay range; check first that the connection has a public IPv4 (no CGNAT/DS-Lite).
 - **Update channels:** decided on 2026-10-06: the pre-release channel (renamed from test to beta on 2026-10-07) updates automatically, the stable channel only after confirmation. Details and rollback proposal: [ADR 0011](adr/0011-automatic-updates.md).
 - **0.2:** decided in ADR 0010 (source, index, signing tooling, offline import, license file per package, cached cores stay usable without a Hub connection to GitHub). The FrameBeam release key exists since 2026-10-07.
-- **Core sourcing:** decided on 2026-10-07: libretro buildbot cores, mirrored and signed by FrameBeam (see 0.7).
+- **Core sourcing:** decided on 2026-10-07: libretro buildbot cores, mirrored and signed by FrameBeam (see 0.8).

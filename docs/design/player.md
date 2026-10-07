@@ -94,7 +94,7 @@ Lines 217-293. Rebuilt: defaults and per-system settings. Replaces the earlier l
   - Nintendo DS: Display: "DS screen layout" (Stacked | Side by side | Top only; default Stacked). Video: "Renderer" (Software | OpenGL; default Software; applies on next start), "Internal resolution" (1× (256×192) | 2× (512×384) | 3× (768×576) | 4× (1024×768); default 1×; "OpenGL renderer only"). Audio: "Audio interpolation" (None | Linear | Cosine | Cubic; default None). Input: "Touch mode" (Mouse | Touch | Joystick; default Mouse). System: "Console type" (DS | DSi; default DS; applies on next start).
   - Mock state: Renderer "OpenGL" and Internal resolution "3× (768×576)" changed, the rest default.
   - Game Boy Advance (example): "Color correction" (toggle), "Solar sensor level" (0 | 5 | 10). Super Nintendo (example): "Region" (Auto | NTSC | PAL), "Hi-res blending" (toggle).
-- Open: "Renderer" and "Internal resolution" need OpenGL hardware rendering that the Player lacks until 0.7; "Default Multiview" has no "Grid 2×2" option although 3r adds that mode; "DS screen layout" vs the in-game layout switch (3g); where an inherited value comes from is no longer shown (README); views for "Firmware missing" (architecture: block launch) not drawn.
+- Open: "Renderer" and "Internal resolution" need OpenGL hardware rendering that the Player lacks until the OpenGL hardware rendering of 0.5; "Default Multiview" has no "Grid 2×2" option although 3r adds that mode; "DS screen layout" is the global default and the in-game layout switch (3g) applies only to the running game (decided by Fabio, 2026-10-07); where an inherited value comes from is no longer shown (README); views for "Firmware missing" (architecture: block launch) not drawn.
 
 ## 3f Player Controllers
 Lines 299-373. Profiles, remapping, input test.
@@ -121,7 +121,7 @@ Lines 379-440. New. Updates, Hubs (with edit), Appearance, Diagnostics.
     - Toggle "Connect automatically on startup" (on), "Uses the last active hub".
   - APPEARANCE: "Theme" with segment "Dark" | "Light" | "System", text "The game view always stays dark".
   - DIAGNOSTICS: "Log file" with mono path (mock "…\FrameBeam Player\data\logs\player.log") and buttons "Copy path", "Open folder".
-- Phase note: editing address and port is a 0.4 feature (see README); the screen is built in the 0.5 UI pass.
+- Phase note: editing address and port is a 0.4 feature (see README); the screen is built in the 0.6 UI pass.
 - Open: add-hub flow from here (reuses 3a/3b), confirmation on Remove, what "Switch" shows while connecting, error state of "Check now".
 
 ## 3g Player Session
@@ -141,7 +141,7 @@ Lines 446-512. In game, Session shared, visibility "Invite only" with user selec
   - Note: "Invitees can only watch and listen. They send no input and cannot invite others."
   - Bottom: block "SAVE SLOT" with note "synced to hub": slot selector (segment, mock "Main" | "100% run", plus a "+" button for a new slot), button "Save snapshot" with mono "F5", status line: "Checkpoint 40 s ago to “Main” · final sync on pause or exit"; after a snapshot "Snapshot v15 saved to “Main” · kept until you delete it". Then buttons "Stop sharing" (outline, 42), "Quit game and save" (surface `#1f2024`, 42) and the diagnostics toggle.
 - Fullscreen toolbar (3g, 3h, 3i): floating bar at the top center (top 18, padding 6 6 6 14, radius 10, surface `rgba(22,23,26,.92)`, border `#2c2d32`, shadow `0 12px 30px rgba(0,0,0,.5)`): title (13/600; 3h/3i "Multiview · Side-by-Side" / "Multiview · Picture-in-Picture"), divider, layout switch, button "Exit fullscreen" with mono "F11 · Esc". Hint at the bottom center (12, `#5e5e63`): "Toolbar appears when you move the mouse to the top". The mock draws the bar permanently; the intended behavior is the hint text (appears on mouse at the top).
-- Phase note: layout switch and fullscreen: 0.5 UI pass; save slot, snapshot and Direct/Relayed: 0.4 features (README).
+- Phase note: layout switch and fullscreen: 0.6 UI pass; save slot, snapshot and Direct/Relayed: 0.4 features (README).
 - Open: views for visibility "Private" and "Hub users", behavior when the Hub or connection fails, header pill without a Session; Esc vs game hotkeys, layout vs Emulation default, 3DS layouts (README); slot creation and deletion not drawn; the diagnostics overlay stays visible in the mock's fullscreen state.
 
 ## 3h Player Side-by-Side
@@ -153,7 +153,7 @@ Lines 518-571. Multiview, side-by-side, diagnostics expanded.
 - Mock (script): surface 1 "You · Lumen Drift", meta "local", audio active; surface 2 "Lena · Harbor Rally", meta "Lena's session", button "Audio here".
 - Diagnostics panel at the bottom (surface `#111214`, border top): title "▾ Diagnostics" + "technical details · optional"; per participant a mono-12 row: name, connection pill, four values. Mock: "local" [Local] 60.0 fps · Encoder NVENC · H.264 · 6.0 Mbit/s · Opus 128 kbit/s; "Lena" [Direct] 59.9 fps · WebRTC · RTT 14 ms · 5.8 Mbit/s · Loss 0.1 %. A "Relayed (TURN)" row looks the same with the cyan pill (shown in 3g, 3r).
 - Fullscreen: header and diagnostics panel disappear; toolbar see 3g.
-- Exactly one surface has audio; switching via "Audio here". Phase: per-tile connection type 0.4 feature, UI in 0.5.
+- Exactly one surface has audio; switching via "Audio here". Phase: per-tile connection type 0.4 feature, UI in 0.6.
 
 ## 3r Player Multiview Grid
 Lines 577-615. New. Up to four tiles, picker "Add to multiview", audio focus on one tile.
@@ -167,7 +167,7 @@ Lines 577-615. New. Up to four tiles, picker "Add to multiview", audio focus on 
   - Audio focus: the tile with sound gets ring `inset 0 0 0 2px #3cbfd8`; keys 1–4 or "Audio here" move it.
   - Empty tile: "+" / "Add a session" / "Tile {n} is free" (click opens the picker).
 - Mock states: 3 of 4 (You · Lumen Drift local; Lena · Harbor Rally, Hub users · 24 min, Direct; Jonas · Clocktower Kids, Invite only · 8 min, Relayed), tile 4 empty, picker open. Further picker sessions: Sam · Orbit Gardens (Hub users · 3 min, Direct), Sarah · Paper Wizards (Invite only · you are invited · 41 min, Relayed). Full state: 4 of 4, all picker "Add" buttons disabled.
-- Phase: 0.4 feature (up to 4 tiles, audio focus), UI in 0.5. Open: layout switch/fullscreen in the grid, behavior when a Session ends (tile becomes empty?), diagnostics per tile.
+- Phase: 0.4 feature (up to 4 tiles, audio focus), UI in 0.6. Open: layout switch/fullscreen in the grid, behavior when a Session ends (tile becomes empty?), diagnostics per tile.
 
 ## 3i Player PiP
 Lines 621-665. Multiview, picture-in-picture.
