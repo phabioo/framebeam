@@ -279,7 +279,8 @@ void HubSocket::onTextMessage(const QString& text) {
   } else if (type == QLatin1String("session_ended")) {
     emit sessionEnded({str(p, "session_id"), str(p, "reason")});
   } else if (type == QLatin1String("viewer_joined")) {
-    emit viewerJoined({str(p, "session_id"), str(p, "viewer_id"), str(p, "display_name"), str(p, "device_name")});
+    emit viewerJoined({str(p, "session_id"), str(p, "viewer_id"), str(p, "display_name"), str(p, "device_name"),
+                       parseTurnServers(p.value(QStringLiteral("turn_servers")))});
   } else if (type == QLatin1String("viewer_left")) {
     emit viewerLeft({str(p, "session_id"), str(p, "viewer_id"), str(p, "reason")});
   } else if (type == QLatin1String("signal")) {

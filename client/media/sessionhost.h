@@ -81,7 +81,7 @@ class SessionHost : public QObject {
   void pushAudio(const QByteArray& pcm, int sampleRate);
 
  public slots:
-  void addViewer(const QString& viewerId);     // `viewer_joined`: creates the PeerConnection and sends the offer
+  void addViewer(const QString& viewerId, const QList<TurnServer>& turnServers = {});     // `viewer_joined`: creates the PeerConnection and sends the offer
   void removeViewer(const QString& viewerId);  // `viewer_left`: closes the PeerConnection immediately
   void handleSignal(const framebeam::SessionSignal& signal);  // answer / candidate from a viewer
 

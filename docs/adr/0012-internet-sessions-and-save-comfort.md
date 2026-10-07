@@ -40,12 +40,12 @@ An external TURN server (for example coturn) is not supported in 0.4; `-ice-serv
 - Short-lived credentials in the TURN REST API scheme: username `<expiry-unix-seconds>:<device_id>`, password `base64(HMAC-SHA1(secret, username))`. Lifetime 12 hours.
 - The secret is 32 random bytes generated on first start with TURN on and stored in the SQLite `settings` table. It is never logged, shown or written to a file.
 - The auth handler rejects expired usernames and devices that are unknown or revoked.
-- Credentials are delivered in `hello_ack` and in the Session join response, so a Player gets fresh ones on every WSS (re)connect and every join.
+- Credentials are delivered in `hello_ack` and in the Session join response, so a Player gets fresh ones on every WSS (re)connect and every join. They are also in `viewer_joined` for the owner, so each viewer PeerConnection of the host uses fresh credentials; a single relayed viewer connection longer than 12 h still drops and needs a rejoin.
 - TURN URLs use the host name the Player used to reach the Hub (the `Host` of the WSS upgrade or the join request, without port), falling back to `-public-host`. Reason: a Player in the Hub's LAN reaches TURN via the LAN address without NAT loopback; a remote Player uses the public name it paired with. The relayed address is always the public IPv4 (D2).
 
 ### D4 Protocol (additive, `protocol_version` stays 1)
 
-- `hello_ack` and `SessionJoinResponse` gain optional `turn_servers: [{urls: [string], username, credential, expires_at}]`. With TURN on, the Hub returns one entry with `turn:<host>:<port>?transport=udp` and `turn:<host>:<port>?transport=tcp`, and adds `stun:<host>:<port>` to `ice_servers` (0.3 Players benefit from STUN without understanding `turn_servers`). Handshake feature `turn_v1` while TURN is on.
+- `hello_ack` and `SessionJoinResponse` gain optional `turn_servers: [{urls: [string], username, credential, expires_at}]`. With TURN on, the Hub returns one entry with `turn:<host>:<port>?transport=udp` and `turn:<host>:<port>?transport=tcp`, and adds `stun:<host>:<port>` to `ice_servers` (0.3 Players benefit from STUN without understanding `turn_servers`). `viewer_joined` gains the same optional `turn_servers` (fresh, for the owner device). Handshake feature `turn_v1` while TURN is on.
 - Save comfort endpoints and the `save_updated` WSS message (D7) are advertised by feature `saves_v2`; the core index endpoints (D6) by `cores_index_v1`.
 - OpenAPI version 1.5.0.
 

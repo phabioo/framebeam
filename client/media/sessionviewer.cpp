@@ -63,7 +63,7 @@ class LossReceivingSession : public rtc::RtcpReceivingSession {
   int64_t received_ = 0;
 };
 
-SessionViewer::SessionViewer(QObject* parent) : QObject(parent), bridge_(std::make_shared<ThreadBridge>(this)) {
+SessionViewer::SessionViewer(QObject* parent) : QObject(parent), forceRelay_(forceRelayFromEnv()), bridge_(std::make_shared<ThreadBridge>(this)) {
   statsTimer_.setInterval(1000);
   connect(&statsTimer_, &QTimer::timeout, this, &SessionViewer::updateStats);
 }

@@ -358,8 +358,8 @@ void SessionController::shareSession() {
     shared_ = true;
     saveSettings();
     host_.open(own_.sessionId, socket_.helloAck().iceServers, socket_.helloAck().turnServers);
-    for (const QString& v : std::exchange(pendingViewers_, {})) {
-      host_.addViewer(v);
+    for (const ViewerJoined& v : std::exchange(pendingViewers_, {})) {
+      host_.addViewer(v.viewerId, v.turnServers);
     }
     for (const SessionSignal& s : std::exchange(pendingHostSignals_, {})) {
       host_.handleSignal(s);
@@ -531,9 +531,9 @@ void SessionController::removeViewer(const QString& viewerId) {
 
 void SessionController::onViewerJoined(const ViewerJoined& v) {
   if (shared_ && v.sessionId == own_.sessionId) {
-    host_.addViewer(v.viewerId);
+    host_.addViewer(v.viewerId, v.turnServers);  // fresh credentials of this viewer_joined win over hello_ack
   } else if (shareBusy_) {
-    pendingViewers_.append(v.viewerId);
+    pendingViewers_.append(v);
   }
 }
 

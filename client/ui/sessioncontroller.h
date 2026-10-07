@@ -221,7 +221,7 @@ class SessionController : public QObject {
   bool shareBusy_ = false;
   QString visibility_ = QStringLiteral("hub_users");
   SessionInfo own_;
-  QStringList pendingViewers_;
+  QList<ViewerJoined> pendingViewers_;
   QList<SessionSignal> pendingHostSignals_;
   QList<HubUser> users_;
   QElapsedTimer usersAge_;

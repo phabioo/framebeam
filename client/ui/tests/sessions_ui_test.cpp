@@ -122,7 +122,7 @@ QRectF areaRect(Harness& h) {
   QQuickItem* a = h.item("multiviewArea");
   return a ? a->mapRectToScene(QRectF(0, 0, a->width(), a->height())) : QRectF();
 }
-bool near(qreal a, qreal b) { return std::abs(a - b) < 1.5; }
+bool approxEqual(qreal a, qreal b) { return std::abs(a - b) < 1.5; }
 QString audibleTile(Harness& h, const QStringList& ids) {  // the surfaces whose audio button reads "Audio on"
   QStringList on;
   for (const QString& id : ids) {
@@ -648,7 +648,7 @@ class SessionsUiTest : public QObject {
     QVERIFY(ctl->availableLayouts().isEmpty());
     QCOMPARE(ctl->multiviewMode(), QStringLiteral("pip"));  // default choice, nothing to choose with one surface
     QVERIFY(!h.item("modeSegment")->isVisible());
-    QVERIFY(near(tileRect(h, QStringLiteral("s1")).width(), areaRect(h).width()) && near(tileRect(h, QStringLiteral("s1")).height(), areaRect(h).height()));
+    QVERIFY(approxEqual(tileRect(h, QStringLiteral("s1")).width(), areaRect(h).width()) && approxEqual(tileRect(h, QStringLiteral("s1")).height(), areaRect(h).height()));
     QCOMPARE(ctl->audioFocus(), QStringLiteral("s1"));
     QVERIFY(visibleItem(h, "multiviewSessionList") != nullptr);  // open while only one surface exists
     QVERIFY(!h.item("multiviewAddButton_s1")->isEnabled());      // already shown
@@ -667,8 +667,8 @@ class SessionsUiTest : public QObject {
     QQuickTest::qWaitForPolish(h.window);
     {
       const QRectF a = areaRect(h), t1 = tileRect(h, QStringLiteral("s1")), t2 = tileRect(h, QStringLiteral("s2"));
-      QVERIFY(near(t1.left(), a.left()) && near(t1.top(), a.top()) && near(t1.height(), a.height()));
-      QVERIFY(near(t1.width() * 2 + 2, a.width()) && near(t2.width(), t1.width()) && near(t2.top(), t1.top()) && near(t2.left(), t1.right() + 2));
+      QVERIFY(approxEqual(t1.left(), a.left()) && approxEqual(t1.top(), a.top()) && approxEqual(t1.height(), a.height()));
+      QVERIFY(approxEqual(t1.width() * 2 + 2, a.width()) && approxEqual(t2.width(), t1.width()) && approxEqual(t2.top(), t1.top()) && approxEqual(t2.left(), t1.right() + 2));
     }
 
     // Three surfaces: a chosen tile layout becomes the 2 x 2 grid, the list is reopened with "Add Session"
@@ -699,11 +699,11 @@ class SessionsUiTest : public QObject {
     {
       const QRectF a = areaRect(h);
       const QRectF t1 = tileRect(h, QStringLiteral("s1")), t2 = tileRect(h, QStringLiteral("s2")), t3 = tileRect(h, QStringLiteral("s3")), t4 = tileRect(h, QStringLiteral("s4"));
-      QVERIFY(near(t1.left(), a.left()) && near(t1.top(), a.top()));
-      QVERIFY(near(t2.top(), t1.top()) && near(t2.left(), t1.right() + 2));
-      QVERIFY(near(t3.left(), t1.left()) && near(t3.top(), t1.bottom() + 2));
-      QVERIFY(near(t4.left(), t2.left()) && near(t4.top(), t3.top()));
-      QVERIFY(near(t4.right(), a.right()) && near(t4.bottom(), a.bottom()) && near(t1.width(), t4.width()) && near(t1.height(), t4.height()));
+      QVERIFY(approxEqual(t1.left(), a.left()) && approxEqual(t1.top(), a.top()));
+      QVERIFY(approxEqual(t2.top(), t1.top()) && approxEqual(t2.left(), t1.right() + 2));
+      QVERIFY(approxEqual(t3.left(), t1.left()) && approxEqual(t3.top(), t1.bottom() + 2));
+      QVERIFY(approxEqual(t4.left(), t2.left()) && approxEqual(t4.top(), t3.top()));
+      QVERIFY(approxEqual(t4.right(), a.right()) && approxEqual(t4.bottom(), a.bottom()) && approxEqual(t1.width(), t4.width()) && approxEqual(t1.height(), t4.height()));
     }
     uitest::saveShot(h.window, QStringLiteral("p4-d8-grid"));
 
@@ -713,13 +713,13 @@ class SessionsUiTest : public QObject {
     QQuickTest::qWaitForPolish(h.window);
     {
       const QRectF a = areaRect(h);
-      QVERIFY(near(tileRect(h, QStringLiteral("s1")).width(), a.width()) && near(tileRect(h, QStringLiteral("s1")).height(), a.height()));
+      QVERIFY(approxEqual(tileRect(h, QStringLiteral("s1")).width(), a.width()) && approxEqual(tileRect(h, QStringLiteral("s1")).height(), a.height()));
       QRectF above;
       for (const QString& id : {QStringLiteral("s2"), QStringLiteral("s3"), QStringLiteral("s4")}) {
         const QRectF t = tileRect(h, id);
-        QVERIFY2(near(t.right(), a.right() - 28) && t.width() > 100 && t.left() >= a.left() && t.top() >= a.top(), qPrintable(id));
+        QVERIFY2(approxEqual(t.right(), a.right() - 28) && t.width() > 100 && t.left() >= a.left() && t.top() >= a.top(), qPrintable(id));
         if (id == QLatin1String("s2")) {
-          QVERIFY(near(t.bottom(), a.bottom() - 28));
+          QVERIFY(approxEqual(t.bottom(), a.bottom() - 28));
         } else {
           QVERIFY2(t.bottom() <= above.top() + 0.5, qPrintable(id));  // stacked upwards without overlap
         }
@@ -733,8 +733,8 @@ class SessionsUiTest : public QObject {
     QCOMPARE(ctl->mainSurface(), QStringLiteral("s3"));
     QCOMPARE(ctl->surfaceOrder(), (QStringList{QStringLiteral("s3"), QStringLiteral("s2"), QStringLiteral("s1"), QStringLiteral("s4")}));
     QQuickTest::qWaitForPolish(h.window);
-    QVERIFY(near(tileRect(h, QStringLiteral("s3")).width(), areaRect(h).width()));
-    QVERIFY(near(tileRect(h, QStringLiteral("s1")).right(), areaRect(h).right() - 28));
+    QVERIFY(approxEqual(tileRect(h, QStringLiteral("s3")).width(), areaRect(h).width()));
+    QVERIFY(approxEqual(tileRect(h, QStringLiteral("s1")).right(), areaRect(h).right() - 28));
     QVERIFY(h.click("swapButton_s1"));
     QCOMPARE(ctl->surfaceOrder(), (QStringList{QStringLiteral("s1"), QStringLiteral("s2"), QStringLiteral("s3"), QStringLiteral("s4")}));
 
@@ -879,7 +879,7 @@ class SessionsUiTest : public QObject {
     QQuickItem* localView = visibleItem(h, "gameViewMulti");
     {  // PiP tile bottom right (offset 28)
       const QRectF a = areaRect(h), t = tileRect(h, QStringLiteral("s1"));
-      QVERIFY(near(t.right(), a.right() - 28) && near(t.bottom(), a.bottom() - 28));
+      QVERIFY(approxEqual(t.right(), a.right() - 28) && approxEqual(t.bottom(), a.bottom() - 28));
     }
     uitest::saveShot(h.window, QStringLiteral("p4-3i-pip"));
 
@@ -910,7 +910,7 @@ class SessionsUiTest : public QObject {
     QVERIFY(h.click("modeSide"));
     QCOMPARE(ctl->multiviewMode(), QStringLiteral("side"));
     QQuickTest::qWaitForPolish(h.window);
-    QVERIFY(near(tileRect(h, QStringLiteral("local")).width() * 2 + 2, areaRect(h).width()));
+    QVERIFY(approxEqual(tileRect(h, QStringLiteral("local")).width() * 2 + 2, areaRect(h).width()));
     QVERIFY(!h.item("audioButton_local")->isEnabled() && textOf(visibleItem(h, "audioButton_local")) == QLatin1String("Audio on"));
     QVERIFY(visibleItem(h, "audioButton_s1")->isEnabled() && textOf(visibleItem(h, "audioButton_s1")) == QLatin1String("Audio here"));
     QVERIFY(visibleItem(h, "gameViewMulti") == localView);
@@ -960,7 +960,7 @@ class SessionsUiTest : public QObject {
     QVERIFY(visibleItem(h, "gameViewMulti") == localView);
     {
       const QRectF a = areaRect(h), t1 = tileRect(h, QStringLiteral("local")), t4 = tileRect(h, QStringLiteral("s3"));
-      QVERIFY(near(t1.left(), a.left()) && near(t4.right(), a.right()) && near(t4.bottom(), a.bottom()) && near(t1.width(), t4.width()));
+      QVERIFY(approxEqual(t1.left(), a.left()) && approxEqual(t4.right(), a.right()) && approxEqual(t4.bottom(), a.bottom()) && approxEqual(t1.width(), t4.width()));
     }
     uitest::saveShot(h.window, QStringLiteral("p4-d8-grid4"));
     ctl->audioHere(QStringLiteral("s3"));

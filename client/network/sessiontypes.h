@@ -105,6 +105,7 @@ struct ViewerJoined {
   QString viewerId;
   QString displayName;
   QString deviceName;
+  QList<TurnServer> turnServers;  // fresh relay credentials for the owner device (optional)
 };
 
 struct ViewerLeft {

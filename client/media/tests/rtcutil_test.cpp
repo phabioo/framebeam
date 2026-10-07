@@ -5,6 +5,8 @@
 #include "processguard.h"
 
 #include "rtcutil.h"
+#include "sessionhost.h"
+#include "sessionviewer.h"
 #include "videoencoder.h"
 
 using namespace framebeam;
@@ -75,6 +77,23 @@ class RtcUtilTest : public QObject {
     QVERIFY(forceRelayFromEnv());
     qputenv("FRAMEBEAM_FORCE_RELAY", "0");
     QVERIFY(!forceRelayFromEnv());
+    qunsetenv("FRAMEBEAM_FORCE_RELAY");
+  }
+
+  void hostAndViewerTakeForceRelayFromEnvironment() {
+    qunsetenv("FRAMEBEAM_FORCE_RELAY");
+    {
+      SessionHost h;
+      SessionViewer v;
+      QVERIFY(!h.forceRelay() && !v.forceRelay());
+    }
+    qputenv("FRAMEBEAM_FORCE_RELAY", "1");
+    SessionHost h;
+    SessionViewer v;
+    QVERIFY(h.forceRelay());
+    QVERIFY(v.forceRelay());
+    h.setForceRelay(false);
+    QVERIFY(!h.forceRelay());  // explicit setting still overrides
     qunsetenv("FRAMEBEAM_FORCE_RELAY");
   }
 

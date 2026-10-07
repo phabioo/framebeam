@@ -309,7 +309,7 @@ class EncodeWorker {
   std::thread thread_;  // last member: starts after everything else is constructed
 };
 
-SessionHost::SessionHost(QObject* parent) : QObject(parent), bridge_(std::make_shared<ThreadBridge>(this)) {
+SessionHost::SessionHost(QObject* parent) : QObject(parent), forceRelay_(forceRelayFromEnv()), bridge_(std::make_shared<ThreadBridge>(this)) {
   sinks_ = std::make_shared<SinkList>();
   workerStats_ = std::make_shared<WorkerStats>();
   statsTimer_.setInterval(1000);
@@ -346,13 +346,13 @@ void SessionHost::close() {
 
 // ---------------------------------------------------------------- viewers / signaling
 
-void SessionHost::addViewer(const QString& viewerId) {
+void SessionHost::addViewer(const QString& viewerId, const QList<TurnServer>& turnServers) {
   if (!open_ || viewers_.contains(viewerId)) {
     return;
   }
   Viewer v;
   try {
-    rtc::Configuration cfg = makeRtcConfig(iceServers_, turnServers_, forceRelay_);
+    rtc::Configuration cfg = makeRtcConfig(iceServers_, turnServers.isEmpty() ? turnServers_ : turnServers, forceRelay_);
     cfg.disableAutoNegotiation = true;  // creating the data channel must not trigger an offer of its own; we offer explicitly below
     v.pc = std::make_shared<rtc::PeerConnection>(cfg);
     const auto bridge = bridge_;

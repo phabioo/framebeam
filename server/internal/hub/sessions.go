@@ -530,8 +530,16 @@ func (s *Service) JoinSession(ctx context.Context, p Principal, id string) (Join
 		res.ViewerID, id, p.User.ID, p.Device.ID, s.now().Unix()); err != nil {
 		return JoinResult{}, internal(err)
 	}
-	s.sendTo(before.ownerDeviceID, "viewer_joined", map[string]string{"session_id": id, "viewer_id": res.ViewerID,
-		"display_name": p.User.DisplayName, "device_name": p.Device.Name})
+	joined := map[string]any{"session_id": id, "viewer_id": res.ViewerID,
+		"display_name": p.User.DisplayName, "device_name": p.Device.Name}
+	if oc := s.clientOf(before.ownerDeviceID); oc != nil {
+		// Fresh relay credentials for the owner (its hello_ack ones may have expired); host = the owner's WSS request host.
+		if _, creds := s.turnFor(oc.reqHost, before.ownerDeviceID); creds != nil {
+			joined["turn_servers"] = []map[string]any{{"urls": creds.URLs, "username": creds.Username, "credential": creds.Credential,
+				"expires_at": creds.ExpiresAt.UTC().Format(time.RFC3339)}}
+		}
+	}
+	s.sendTo(before.ownerDeviceID, "viewer_joined", joined)
 	if !s.deviceConnected(p.Device.ID) {
 		s.armViewerGrace(res.ViewerID, p.Device.ID)
 	}

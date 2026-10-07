@@ -179,7 +179,12 @@ class SessionsTest : public QObject {
     hub.sendWs(QStringLiteral("session_ended"), {{QStringLiteral("session_id"), kSession}, {QStringLiteral("reason"), QStringLiteral("replaced")}});
     hub.sendWs(QStringLiteral("viewer_joined"), {{QStringLiteral("session_id"), kSession}, {QStringLiteral("viewer_id"), kViewer},
                                                  {QStringLiteral("display_name"), QStringLiteral("Anna")},
-                                                 {QStringLiteral("device_name"), QStringLiteral("Laptop")}});
+                                                 {QStringLiteral("device_name"), QStringLiteral("Laptop")},
+                                                 {QStringLiteral("turn_servers"),
+                                                  QJsonArray{QJsonObject{{QStringLiteral("urls"), QJsonArray{QStringLiteral("turn:hub.example.org:3478?transport=udp")}},
+                                                                         {QStringLiteral("username"), QStringLiteral("300:dev")},
+                                                                         {QStringLiteral("credential"), QStringLiteral("fresh")},
+                                                                         {QStringLiteral("expires_at"), QStringLiteral("2026-10-08T12:00:00Z")}}}}});
     hub.sendWs(QStringLiteral("viewer_left"), {{QStringLiteral("session_id"), kSession}, {QStringLiteral("viewer_id"), kViewer},
                                                {QStringLiteral("reason"), QStringLiteral("removed")}});
     hub.sendWs(QStringLiteral("signal"), {{QStringLiteral("session_id"), kSession}, {QStringLiteral("viewer_id"), kViewer},
@@ -199,6 +204,9 @@ class SessionsTest : public QObject {
     QCOMPARE(invited.count(), 1);
     QCOMPARE(ended.first().first().value<SessionEnded>().reason, QStringLiteral("replaced"));
     QCOMPARE(joined.first().first().value<ViewerJoined>().viewerId, kViewer);
+    // Fresh owner credentials ride on viewer_joined (turn_v1).
+    QCOMPARE(joined.first().first().value<ViewerJoined>().turnServers.size(), 1);
+    QCOMPARE(joined.first().first().value<ViewerJoined>().turnServers.first().credential, QStringLiteral("fresh"));
     QCOMPARE(left.first().first().value<ViewerLeft>().reason, QStringLiteral("removed"));
     const auto sig = signals_.first().first().value<SessionSignal>();
     QCOMPARE(sig.kind, QStringLiteral("candidate"));

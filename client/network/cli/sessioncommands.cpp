@@ -103,7 +103,7 @@ void SessionCommands::publish() {
       if (v.sessionId == sessionId_) {
         out() << "VIEWER-JOINED " << v.viewerId << " " << v.displayName << "\n";
         out().flush();
-        host_->addViewer(v.viewerId);
+        host_->addViewer(v.viewerId, v.turnServers);
       }
     });
     connect(socket_.get(), &HubSocket::viewerLeft, host_.get(), [this](const ViewerLeft& v) {

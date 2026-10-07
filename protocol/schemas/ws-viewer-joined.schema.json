@@ -36,6 +36,38 @@
         },
         "device_name": {
           "type": "string"
+        },
+        "turn_servers": {
+          "type": "array",
+          "description": "Optional fresh relay credentials for the owner device; present only while the Hub's TURN server is on (feature turn_v1)",
+          "items": {
+            "type": "object",
+            "required": [
+              "urls",
+              "username",
+              "credential",
+              "expires_at"
+            ],
+            "properties": {
+              "urls": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^turns?:"
+                }
+              },
+              "username": {
+                "type": "string"
+              },
+              "credential": {
+                "type": "string"
+              },
+              "expires_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
         }
       }
     }

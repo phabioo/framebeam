@@ -72,3 +72,35 @@ func TestTURNSecretStable(t *testing.T) {
 		t.Fatal(err, err2)
 	}
 }
+
+func TestTURNInViewerJoined(t *testing.T) {
+	s := newSessEnv(t, nil)
+	owner := s.device(s.admin.ID, "Desktop")
+	w := s.dialRaw(owner)
+	w.send("hello", map[string]any{"protocol_version": 1, "device_id": owner.id})
+	w.await("hello_ack")
+	sess := s.publish(owner, "hub_users")
+
+	vb := s.mustJoin(s.device(s.anna.ID, "Anna-Laptop"), sess.SessionID)
+	m := w.awaitWhere("viewer_joined", func(m wsMsg) bool { return m.field("viewer_id") == vb })
+	if strings.Contains(string(m.Payload), "turn_servers") {
+		t.Fatalf("turn_servers while off: %s", m.Payload)
+	}
+
+	s.svc.SetTURN(fakeTURN{})
+	vc := s.mustJoin(s.device(s.bob.ID, "Bob-Laptop"), sess.SessionID)
+	m = w.awaitWhere("viewer_joined", func(m wsMsg) bool { return m.field("viewer_id") == vc })
+	var p struct {
+		TurnServers []struct {
+			Urls      []string `json:"urls"`
+			Username  string   `json:"username"`
+			ExpiresAt string   `json:"expires_at"`
+		} `json:"turn_servers"`
+	}
+	json.Unmarshal(m.Payload, &p)
+	// For the owner device, host = the owner's WSS request host.
+	if len(p.TurnServers) != 1 || p.TurnServers[0].Username != "1:"+owner.id || p.TurnServers[0].ExpiresAt == "" ||
+		p.TurnServers[0].Urls[0] != "turn:127.0.0.1:3478?transport=udp" {
+		t.Fatalf("%s", m.Payload)
+	}
+}

@@ -68,7 +68,7 @@ Envelope `{type, id?, payload}` (JSON text frames); schema `schemas/ws-<type>.sc
 | `save_updated` | Hub -> Player | `{game_id, slot, revision, sha256, device_id, device_name, reason}` a slot's checkpoint changed; to the user's other connected devices (feature `saves_v2`); `reason` is `checkpoint`, `final`, `final_session_end`, `restore` or `conflict_resolution`; `device_id` is the nil UUID for changes made in the Hub web interface |
 | `session_ended` | Hub -> Player | `{session_id, reason}` |
 | `session_invite` | Hub -> Player | `{session}` for the invited user's devices |
-| `viewer_joined` | Hub -> owner device | `{session_id, viewer_id, display_name, device_name}` |
+| `viewer_joined` | Hub -> owner device | `{session_id, viewer_id, display_name, device_name, turn_servers?}` (`turn_servers`: fresh relay credentials for the owner while TURN is on) |
 | `viewer_left` | Hub -> owner and viewer device | `{session_id, viewer_id, reason: left\|removed\|revoked\|disconnected}` |
 | `signal` | both | `{session_id, viewer_id, kind: offer\|answer\|candidate, sdp?, candidate?, mid?}` relayed unchanged between owner device and the authorized viewer's device |
 | `error` | Hub -> Player | `{code, message}`, `id` echoes the request |
