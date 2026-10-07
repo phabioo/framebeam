@@ -127,9 +127,11 @@ $SUDO runuser -u framebeam -- bash -c 'set -a; . /etc/framebeam/hub.env; exec /u
   || fail "framebeam-hub update stage failed"
 
 ok=0
+# The helper writes last-result.json after dpkg has restarted the Hub, so wait for it as well.
 for _ in $(seq 1 120); do
   if [ "$(installed_version)" = "$V2" ] && $SUDO systemctl is-active --quiet framebeam-hub \
-     && curl -fsk "https://127.0.0.1:$PORT/.well-known/framebeam" >/dev/null 2>&1; then ok=1; break; fi
+     && curl -fsk "https://127.0.0.1:$PORT/.well-known/framebeam" >/dev/null 2>&1 \
+     && $SUDO test -e "$DATA/updates/last-result.json"; then ok=1; break; fi
   sleep 1
 done
 [ "$ok" -eq 1 ] || fail "update was not applied within 120 s (installed: $(installed_version))"
