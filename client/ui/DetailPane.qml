@@ -136,6 +136,9 @@ Rectangle {
 
                 SaveHistorySection {
                     Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    Layout.preferredWidth: 1
+                    Layout.maximumWidth: content.width
                     player: root.player
                 }
 

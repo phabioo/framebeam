@@ -67,6 +67,13 @@ class SaveHistoryUiTest : public QObject {
     QTRY_VERIFY(h.item("historyRow") != nullptr && h.item("historyRow")->isVisible());
     QVERIFY(h.item("slotPicker") != nullptr && h.item("snapshotButton") != nullptr);
     uitest::saveShot(h.window, QStringLiteral("save-history"));
+    for (const char* name : {"slotPicker", "newSlotButton", "historyRow", "restoreButton", "snapshotLabel", "snapshotButton", "historyRefresh"}) {
+      QQuickItem* it = h.item(name);
+      QVERIFY2(it != nullptr, name);
+      const QPointF right = it->mapToItem(h.window->contentItem(), QPointF(it->width(), 0));
+      QVERIFY2(right.x() <= h.window->width(), name);
+      QVERIFY2(it->width() <= 392, name);  // never wider than the detail pane
+    }
 
     // Restore needs a confirmation; cancel changes nothing
     QVERIFY(h.click("restoreButton"));

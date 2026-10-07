@@ -26,10 +26,14 @@ ColumnLayout {
     Eyebrow { text: qsTr("Save slot") }
     RowLayout {
         Layout.fillWidth: true
+        Layout.minimumWidth: 0
+        Layout.preferredWidth: 1
         spacing: 8
         FbSelect {
             objectName: "slotPicker"
             Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            Layout.preferredWidth: 1
             enabled: !root.hist.gameRunning && !root.hist.busy
             model: root.hist.slotOptions
             current: root.hist.slot
@@ -52,11 +56,15 @@ ColumnLayout {
         objectName: "newSlotRow"
         visible: false
         Layout.fillWidth: true
+        Layout.minimumWidth: 0
+        Layout.preferredWidth: 1
         spacing: 8
         FbField {
             id: newSlotField
             objectName: "newSlotField"
             Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            Layout.preferredWidth: 1
             implicitHeight: 34
             placeholderText: qsTr("slot-name")
             maximumLength: 64
@@ -75,6 +83,8 @@ ColumnLayout {
         objectName: "newSlotError"
         visible: root.newSlotError !== ""
         Layout.fillWidth: true
+        Layout.minimumWidth: 0
+        Layout.preferredWidth: 1
         text: root.newSlotError
         color: Theme.error
         font.pixelSize: 12
@@ -83,6 +93,8 @@ ColumnLayout {
     FbLabel {
         visible: root.hist.gameRunning
         Layout.fillWidth: true
+        Layout.minimumWidth: 0
+        Layout.preferredWidth: 1
         text: qsTr("The slot cannot be changed while this game runs.")
         color: Theme.textFaint
         font.pixelSize: 12
@@ -94,11 +106,15 @@ ColumnLayout {
         objectName: "historyBlock"
         visible: root.hist.available
         Layout.fillWidth: true
+        Layout.minimumWidth: 0
+        Layout.preferredWidth: 1
         Layout.topMargin: 8
         spacing: 8
 
         RowLayout {
             Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            Layout.preferredWidth: 1
             Eyebrow { text: qsTr("Save history") }
             Item { Layout.fillWidth: true }
             FbButton {
@@ -114,6 +130,8 @@ ColumnLayout {
             objectName: "historyMessage"
             visible: root.hist.message !== ""
             Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            Layout.preferredWidth: 1
             implicitHeight: msgRow.implicitHeight + 16
             radius: 8
             color: root.hist.messageIsError ? Theme.errorBg : Theme.okBg
@@ -123,6 +141,8 @@ ColumnLayout {
                 anchors.margins: 8
                 FbLabel {
                     Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    Layout.preferredWidth: 1
                     text: root.hist.message
                     wrapMode: Text.WordWrap
                     font.pixelSize: 12
@@ -136,6 +156,8 @@ ColumnLayout {
             objectName: "historyEmpty"
             visible: !root.hist.loading && root.hist.history.length === 0
             Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            Layout.preferredWidth: 1
             text: qsTr("No saved versions yet.")
             color: Theme.textFaint
             font.pixelSize: 12
@@ -145,9 +167,12 @@ ColumnLayout {
             model: root.hist.history
             delegate: Rectangle {
                 id: row
+                clip: true
                 required property var modelData
                 objectName: "historyRow"
                 Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                Layout.preferredWidth: 1
                 implicitHeight: rowLayout.implicitHeight + 20
                 radius: 8
                 color: Theme.surface
@@ -161,10 +186,13 @@ ColumnLayout {
                     ColumnLayout {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
+                        Layout.preferredWidth: 1
                         spacing: 2
                         FbLabel {
                             objectName: "historyTitle"
                             Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            Layout.preferredWidth: 1
                             text: row.modelData.label !== "" ? qsTr("%1 · %2").arg(row.modelData.versionText).arg(row.modelData.label)
                                                              : row.modelData.versionText
                             font.pixelSize: 13
@@ -173,6 +201,8 @@ ColumnLayout {
                         }
                         FbLabel {
                             Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            Layout.preferredWidth: 1
                             text: row.modelData.reasonText
                             color: Theme.textSecondary
                             font.pixelSize: 12
@@ -180,6 +210,8 @@ ColumnLayout {
                         }
                         FbMono {
                             Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            Layout.preferredWidth: 1
                             text: qsTr("%1 · %2").arg(row.modelData.device).arg(row.modelData.when)
                             font.pixelSize: 11
                             elide: Text.ElideRight
@@ -200,6 +232,8 @@ ColumnLayout {
             objectName: "restoreBlockReason"
             visible: root.hist.restoreBlockReason !== "" && root.hist.history.length > 0
             Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            Layout.preferredWidth: 1
             text: qsTr("Restore is off: %1").arg(root.hist.restoreBlockReason)
             color: Theme.textFaint
             font.pixelSize: 12
@@ -209,12 +243,16 @@ ColumnLayout {
         // Snapshot
         RowLayout {
             Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            Layout.preferredWidth: 1
             Layout.topMargin: 4
             spacing: 8
             FbField {
                 id: snapshotLabel
                 objectName: "snapshotLabel"
                 Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                Layout.preferredWidth: 1
                 implicitHeight: 34
                 placeholderText: qsTr("Label (optional)")
                 maximumLength: 64
