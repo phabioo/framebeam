@@ -137,10 +137,36 @@ Rectangle {
         }
     }
 
+    // Non-blocking notice: the save of the running game changed on another device
+    Rectangle {
+        id: noticeBar
+        objectName: "saveNotice"
+        anchors.top: header.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        visible: root.player.saveHistory.notice !== ""
+        height: visible ? Math.max(36, noticeText.implicitHeight + 16) : 0
+        color: Theme.warnBg
+        RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: 20
+            anchors.rightMargin: 12
+            FbLabel {
+                id: noticeText
+                Layout.fillWidth: true
+                text: root.player.saveHistory.notice
+                wrapMode: Text.WordWrap
+                font.pixelSize: 13
+                color: Theme.warn
+            }
+            FbButton { kind: "link"; focusPolicy: Qt.NoFocus; text: qsTr("Dismiss"); onClicked: root.player.saveHistory.dismissNotice() }
+        }
+    }
+
     // Session tab: game + side panel
     RowLayout {
         objectName: "sessionTab"
-        anchors.top: header.bottom
+        anchors.top: noticeBar.bottom
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
@@ -185,7 +211,7 @@ Rectangle {
     // Multiview / Diagnostics
     ColumnLayout {
         objectName: "multiviewTab"
-        anchors.top: header.bottom
+        anchors.top: noticeBar.bottom
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom

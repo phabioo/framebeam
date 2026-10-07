@@ -286,6 +286,10 @@ void HubSocket::onTextMessage(const QString& text) {
     if (const auto s = parseSignal(p)) {
       emit signalReceived(*s);
     }
+  } else if (type == QLatin1String("save_updated")) {
+    if (const auto u = parseSaveUpdate(p)) {
+      emit saveUpdated(*u);
+    }
   } else if (type == QLatin1String("error")) {
     emit hubError(str(p, "code"), str(p, "message"));
   } else {

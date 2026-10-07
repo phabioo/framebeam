@@ -13,6 +13,7 @@ target_sources(framebeam_core PRIVATE
   hubsystems.cpp
   firmwareprovisioner.cpp
   coreprovisioner.cpp
+  coreindex.cpp
   gameuploader.cpp
 )
 target_link_libraries(framebeam_core PUBLIC Qt6::WebSockets)

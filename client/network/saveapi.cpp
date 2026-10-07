@@ -73,6 +73,38 @@ std::optional<SaveSlotInfo> parseSaveSlot(const QJsonObject& o) {
   return s;
 }
 
+std::optional<SaveHistoryVersion> parseSaveHistoryVersion(const QJsonObject& o) {
+  SaveHistoryVersion v;
+  v.version = o.value(QStringLiteral("version")).toInt(0);
+  v.revision = o.value(QStringLiteral("revision")).toInt(0);
+  v.sha256 = str(o, "sha256");
+  v.size = o.value(QStringLiteral("size")).toVariant().toLongLong();
+  v.deviceId = str(o, "device_id");
+  v.deviceName = str(o, "device_name");
+  v.createdAt = str(o, "created_at");
+  v.reason = str(o, "reason");
+  v.label = str(o, "label");  // null -> empty
+  if (v.version < 1 || v.sha256.size() != 64) {
+    return std::nullopt;
+  }
+  return v;
+}
+
+std::optional<SaveUpdate> parseSaveUpdate(const QJsonObject& p) {
+  SaveUpdate u;
+  u.gameId = str(p, "game_id");
+  u.slot = str(p, "slot");
+  u.revision = p.value(QStringLiteral("revision")).toInt(0);
+  u.sha256 = str(p, "sha256");
+  u.deviceId = str(p, "device_id");
+  u.deviceName = str(p, "device_name");
+  u.reason = str(p, "reason");
+  if (u.gameId.isEmpty() || u.slot.isEmpty() || u.revision < 1) {
+    return std::nullopt;
+  }
+  return u;
+}
+
 SaveApi::SaveApi(HubConnection* connection, QObject* parent) : QObject(parent), conn_(connection) {}
 
 QString SaveApi::slotPath(const QString& gameId, const QString& slot) {
@@ -142,6 +174,21 @@ void SaveApi::run(QNetworkReply* reply, Expect expect, Callback cb) {
           }
           break;
         }
+        case Expect::History: {
+          const QJsonArray arr = r.json().value(QStringLiteral("versions")).toArray();
+          for (const QJsonValue& v : arr) {
+            if (const auto h = parseSaveHistoryVersion(v.toObject())) {
+              res.history.append(*h);
+            }
+          }
+          break;
+        }
+        case Expect::Snapshot:
+          res.snapshot = parseSaveHistoryVersion(r.json());
+          if (!res.snapshot) {
+            res.kind = K::BadResponse;
+          }
+          break;
         case Expect::Content: {
           QByteArray tag = etag.trimmed();
           if (tag.startsWith('"') && tag.endsWith('"') && tag.size() >= 2) {
@@ -225,6 +272,44 @@ void SaveApi::resolve(const QString& gameId, const QString& slot, const QString&
     return;
   }
   run(reply, Expect::Resolve, std::move(cb));
+}
+
+void SaveApi::listHistory(const QString& gameId, const QString& slot, Callback cb) {
+  QNetworkReply* reply = conn_ ? conn_->authorizedGet(slotPath(gameId, slot) + QStringLiteral("/history")) : nullptr;
+  if (reply == nullptr) {
+    immediate(SaveApiResult::Kind::Offline, QStringLiteral("not_connected"), std::move(cb));
+    return;
+  }
+  run(reply, Expect::History, std::move(cb));
+}
+
+void SaveApi::restore(const QString& gameId, const QString& slot, int version, int expectedRevision, Callback cb) {
+  const QByteArray body =
+      QJsonDocument(QJsonObject{{QStringLiteral("expected_revision"), expectedRevision}}).toJson(QJsonDocument::Compact);
+  QNetworkReply* reply =
+      conn_ ? conn_->authorizedSend("POST", slotPath(gameId, slot) + QStringLiteral("/history/%1/restore").arg(version), body, {},
+                                    "application/json")
+            : nullptr;
+  if (reply == nullptr) {
+    immediate(SaveApiResult::Kind::Offline, QStringLiteral("not_connected"), std::move(cb));
+    return;
+  }
+  run(reply, Expect::Resolve, std::move(cb));  // answer: the SaveSlot after the restore
+}
+
+void SaveApi::createSnapshot(const QString& gameId, const QString& slot, const QString& label, Callback cb) {
+  QJsonObject o;
+  if (!label.trimmed().isEmpty()) {
+    o.insert(QStringLiteral("label"), label.trimmed());
+  }
+  QNetworkReply* reply = conn_ ? conn_->authorizedSend("POST", slotPath(gameId, slot) + QStringLiteral("/snapshots"),
+                                                       QJsonDocument(o).toJson(QJsonDocument::Compact), {}, "application/json")
+                               : nullptr;
+  if (reply == nullptr) {
+    immediate(SaveApiResult::Kind::Offline, QStringLiteral("not_connected"), std::move(cb));
+    return;
+  }
+  run(reply, Expect::Snapshot, std::move(cb));
 }
 
 }  // namespace framebeam

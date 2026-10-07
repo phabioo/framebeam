@@ -99,6 +99,34 @@ class SaveStoreTest : public QObject {
     QCOMPARE(readFile(f), QByteArray("two"));
     QCOMPARE(SaveStore::sha256OfFile(f), SaveStore::sha256Of("two"));
   }
+
+  void slotNamesAndDirs() {
+    QTemporaryDir tmp;
+    ProfileStore ps(tmp.path());
+    for (const char* ok : {"default", "a", "slot-2", "my_slot", "0123456789012345678901234567890"}) {
+      QVERIFY2(SaveStore::isValidSlotName(QString::fromLatin1(ok)), ok);
+    }
+    for (const QString& bad : {QString(), QStringLiteral("Upper"), QStringLiteral("a b"), QStringLiteral("a/b"), QStringLiteral(".."),
+                               QStringLiteral("a\n"), QString(33, QLatin1Char('a'))}) {
+      QVERIFY2(!SaveStore::isValidSlotName(bad), qPrintable(bad));
+    }
+    const QString game = SaveStore::gameDir(ps, QStringLiteral("hub-a"), QStringLiteral("u1"), QStringLiteral("g1"));
+    // Migration: existing (pre-0.4) files stay in the game dir and belong to slot "default"
+    QCOMPARE(SaveStore::slotDir(ps, QStringLiteral("hub-a"), QStringLiteral("u1"), QStringLiteral("g1"), QStringLiteral("default")), game);
+    writeFile(game + QStringLiteral("/rom.sav"), "legacy");
+    writeFile(game + QStringLiteral("/sync.json"), "{\"base_revision\":2,\"last_synced_sha256\":\"x\"}");  // no slot key
+    QCOMPARE(SaveStore::loadState(game).slot, QStringLiteral("default"));
+    QCOMPARE(SaveStore::loadState(game).baseRevision, 2);
+    const QString other = SaveStore::slotDir(ps, QStringLiteral("hub-a"), QStringLiteral("u1"), QStringLiteral("g1"), QStringLiteral("boss"));
+    QVERIFY(other != game && other.startsWith(game + QStringLiteral("/slots/")));
+    QVERIFY(SaveStore::slotDir(ps, QStringLiteral("hub-a"), QStringLiteral("u1"), QStringLiteral("g1"), QStringLiteral("../x")).isEmpty());
+    writeFile(other + QStringLiteral("/rom.sav"), "boss-save");
+    QCOMPARE(SaveStore::localSlots(game), (QStringList{QStringLiteral("default"), QStringLiteral("boss")}));
+    // The default slot's save lookup never picks up files of other slots
+    QCOMPARE(SaveStore::findSaveFile(game, QStringLiteral("rom.sav")), game + QStringLiteral("/rom.sav"));
+    QCOMPARE(readFile(SaveStore::findSaveFile(other, QStringLiteral("rom.sav"))), QByteArray("boss-save"));
+    QCOMPARE(readFile(game + QStringLiteral("/rom.sav")), QByteArray("legacy"));
+  }
 };
 
 QTEST_GUILESS_MAIN(SaveStoreTest)

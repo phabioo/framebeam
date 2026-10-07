@@ -71,6 +71,46 @@ Rectangle {
                     }
                 }
 
+                // Manual save snapshot (saves_v2): a changed save is uploaded first
+                ColumnLayout {
+                    objectName: "gameSnapshotBlock"
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    Layout.maximumWidth: col.width
+                    visible: root.player.gameSession.active && root.player.saveHistory.available
+                    spacing: 8
+                    Eyebrow { text: qsTr("Save") }
+                    FbField {
+                        id: gameSnapshotLabel
+                        objectName: "gameSnapshotLabel"
+                        Layout.fillWidth: true
+                        implicitHeight: 34
+                        placeholderText: qsTr("Snapshot label (optional)")
+                        maximumLength: 64
+                    }
+                    FbButton {
+                        objectName: "gameSnapshotButton"
+                        Layout.fillWidth: true
+                        implicitHeight: 34
+                        focusPolicy: Qt.NoFocus
+                        text: root.player.saveHistory.busy ? qsTr("Creating snapshot…") : qsTr("Create snapshot")
+                        enabled: !root.player.saveHistory.busy
+                        onClicked: {
+                            root.player.saveHistory.createSnapshotInGame(gameSnapshotLabel.text)
+                            gameSnapshotLabel.text = ""
+                        }
+                    }
+                    FbLabel {
+                        objectName: "gameSnapshotMessage"
+                        visible: root.player.saveHistory.message !== ""
+                        Layout.fillWidth: true
+                        text: root.player.saveHistory.message
+                        wrapMode: Text.WordWrap
+                        font.pixelSize: 12
+                        color: root.player.saveHistory.messageIsError ? Theme.error : Theme.ok
+                    }
+                }
+
                 ColumnLayout {
                     Layout.fillWidth: true
                     // Never wider than the panel: a header row whose labels need more room (no fonts, long

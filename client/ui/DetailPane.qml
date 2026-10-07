@@ -134,6 +134,11 @@ Rectangle {
                     }
                 }
 
+                SaveHistorySection {
+                    Layout.fillWidth: true
+                    player: root.player
+                }
+
                 FbButton {
                     objectName: "firmwareRecheck"
                     visible: root.game.firmwareBlocked === true
