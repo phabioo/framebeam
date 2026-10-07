@@ -54,7 +54,7 @@ Installers shipped the melonDS DS core. Milestone 0.2 ([Roadmap](../roadmap.md))
 
 - **Admin upload of cores:** rejected by Fabio; the admin would carry trust and provenance.
 - **Bundling cores in installers:** keeps the installers large and ties core updates to Player releases.
-- **libretro buildbot as source:** unsigned and not pinned to a source revision.
+- **libretro buildbot as direct source for Hubs:** unsigned and not pinned to a source revision. Revised on 2026-10-07 for 0.7 (Fabio): the buildbot may serve as the upstream for FrameBeam CI, which pins the SHA-256, signs and mirrors the files into FrameBeam's releases; Hubs still trust only FrameBeam's signed index (see `docs/roadmap.md`, 0.7).
 
 ## Consequences
 
