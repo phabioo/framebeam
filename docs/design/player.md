@@ -128,7 +128,7 @@ Lines 380-441. New. Updates, Hubs (with edit), Appearance, Diagnostics.
 ## 3g Player Session
 Lines 447-518. In game, Session shared, visibility "Invite only" with user selection; layout switch, fullscreen, save slot, diagnostics overlay (Emulation and Streaming, see 3t-3y).
 
-- Grid: rows 56 | 1fr; columns 1fr | 340; background `#0b0b0c`; no sidebar. Fullscreen: header and side panel are dropped, the play area fills the screen.
+- Grid: rows 56 | 1fr; columns 1fr | 340; background `#0b0b0c`; no sidebar. Fullscreen: header and side panel are dropped, the play area fills the screen. The diagnostics overlay then follows 3y (Emulation only); the interactive 3g mock keeps Streaming visible in fullscreen, which is a mock gap, not the rule.
 - Header (across both columns, surface `#111214`, padding 0 20): "← Library", divider, game title "Lumen Drift" (15/600), pill "● Session shared · 1 watching" (ok); tab segment "Session" (active) | "Multiview" | "Diagnostics"; on the right (after a spacer):
   - Layout switch (segment, 13): "Stacked" | "Side by side" | "Top only", each with a mini icon (two 9 x 7 boxes with 1.5 border, laid out in a column or row; "Top only": second box at 25 % opacity). Default "Stacked". Open: does it change the default (README).
   - Fullscreen button (34 high, padding 0 12, radius 7, border `#3a3b40`, 13/500): square icon (12, dashed border) + "Fullscreen" + mono 11 "F11".
@@ -180,7 +180,7 @@ Lines 622-666. Multiview, picture-in-picture.
 - Open: moving/resizing the PiP window, multiple PiPs, audio control in the PiP (only status "muted"), connection type of the remote not shown not drawn.
 
 ## Diagnostics overlay (3t-3y, common)
-Lines 669-677 (intro). New; the older single "DIAGNOSTICS · CONNECTIONS" panel is gone. Proposal from the handoff after Fabio's request of 2026-10-07 to split emulator and streaming diagnostics; not accepted yet (README, Decisions item 5). All values are illustrative; open points README m-s.
+Lines 669-677 (intro). New; the older single "DIAGNOSTICS · CONNECTIONS" panel is gone. Proposal from the handoff after Fabio's request of 2026-10-07 to split emulator and streaming diagnostics; not accepted yet (README, Decisions item 5). All values are illustrative; open points README m-t.
 
 Three rules of the intro block:
 - One overlay with two sections, each collapsing to one summary line; same look in the window, multiview and fullscreen.
@@ -192,6 +192,7 @@ Overlay (windowed single game; position top left of the play area, offset 16, wi
 - Emulation rows (label column 76, 11/`#7d7d83`; value mono 12 `#ecebe7`; optional subline mono 11 `#8e8e94`): Core ("melonDS DS 1.4.0"); Renderer ("OpenGL 4.6 Core", subline "Example GPU · Driver 1.2.3"; Software: "Software", subline "CPU · 4 threads"); Resolution (scale and pixels, subline per-screen size, e.g. "3× · 768×1152", "2 screens of 768×576"); FPS ("59.8 / 59.83 fps" = actual / core target); Frame ("9.4 ms · emu 7.1 · readback 2.3"; Software "6.2 ms · emu 6.2 · no readback"); then the frame-time sparkline (236 x 34, indent 86; last 5 s; total line accent 1.25, emu line `#6f6f75` 1, area under total `rgba(60,191,216,.14)`, dashed 16.7 ms line `#3a3b40`; legend mono 10 `#6f6f75`); then Audio ("Buffer 42 ms · 0 underruns", with underruns a subline such as "raise the buffer in Emulation settings").
 - Fallback hint (only when OpenGL was requested but software runs): info box (surface `#14222a`, border `#1a3238`, text `#a9cdd6` 12, radius 8, padding 9 10, icon `ⓘ` accent) "OpenGL requested · fell back to software (GL 4.3 not available)" above the rows; the Renderer row gets the pill "Fallback" (warn, cyan) and subline "requested: OpenGL"; the Resolution subline says "3× requested · needs OpenGL".
 - Streaming per participant: line 1 name 13/500, role 11 (`#7d7d83`, "host" / "viewer"), connection pill right (small variant: Local neutral, Direct ok, Relayed (TURN) warn); line 2 mono 11 `#a3a3a8` encoder or decoder, codec, bitrate, fps (e.g. "Encoder NVENC · H.264 · 6.0 Mbit/s · 60.0 fps", "Decoder D3D11VA · H.264 · 5.8 Mbit/s · 59.9 fps"); line 3 mono 11 `#8e8e94` RTT, loss and, when relayed, "via hub.example.com:3478", or "Sending to 1 viewer · adaptive bitrate". Without a session: text 12 `#6f6f75` "No active session · appears when you share or watch one".
+- Target bitrate (not drawn, required by the roadmap): the host line also shows the current target bitrate next to the measured one while adaptive bitrate is active (README open point t).
 - Footer (padding-top 10, top line `#1e1f22`): key badge "F3" (mono 10, border `#3a3b40`, radius 3) + "show / hide", right "Hide" (12 `#a3a3a8`).
 - Closed: overlay gone; Diagnostics tab and side-panel toggle show the state (tab underline accent while open).
 
@@ -233,4 +234,4 @@ Lines 784-810. New. Fullscreen, Emulation diagnostics shown, F3 toggles.
 
 - No header and no panels; the common overlay floats top left (350) over the game; Streaming is omitted. Hint at the bottom center: "Toolbar appears when you move the mouse to the top · F3 diagnostics".
 - Closed: a small chip top left (surface `rgba(17,18,20,.8)`, radius 7, padding 6 10, 12 `#8e8e94`) with the badge "F3" and "Diagnostics" opens it.
-- Phase of 3t-3y: 0.6 Player UI pass; the values need new measurements. Open: README m-s.
+- Phase of 3t-3y: 0.6 Player UI pass; the values need new measurements. Open: README m-t.
