@@ -21,14 +21,19 @@ QVariantMap row(const QString& surface, const QString& name, bool available, con
 
 QString mbit(double kbps) { return QStringLiteral("%1 Mbit/s").arg(kbps / 1000.0, 0, 'f', 1); }
 
+// connectionType is either a bare candidate type (host | srflx | prflx | relay | unknown) or an already
+// formatted text such as "direct (host)" / "relay (udp)"; empty = not known yet.
 QString linkLabel(const QString& type) {
-  if (type == QLatin1String("host") || type == QLatin1String("srflx")) {
+  if (type == QLatin1String("host") || type == QLatin1String("srflx") || type == QLatin1String("prflx")) {
     return QStringLiteral("WebRTC direct (%1)").arg(type);
   }
   if (type == QLatin1String("relay")) {
     return QStringLiteral("WebRTC relay");
   }
-  return QStringLiteral("WebRTC connecting");
+  if (type.isEmpty() || type == QLatin1String("unknown")) {
+    return QStringLiteral("WebRTC connecting");
+  }
+  return QStringLiteral("WebRTC %1").arg(type);
 }
 
 }  // namespace
@@ -51,18 +56,8 @@ SessionController::SessionController(HubConnection* conn, ProfileStore* profiles
   connect(&socket_, &HubSocket::hubError, this, [](const QString&, const QString&) {});
 
   connect(&host_, &SessionHost::signalOut, &socket_, &HubSocket::sendSignal);
-  connect(&viewer_, &SessionViewer::signalOut, &socket_, &HubSocket::sendSignal);
   connect(&host_, &SessionHost::errorOccurred, this, [this](const QString& m) { say(m, true); });
   connect(&host_, &SessionHost::viewerConnected, this, [this]() { emit shareChanged(); });
-  connect(&viewer_, &SessionViewer::frameReady, this, [this](const QImage& img) {
-    remoteFrame_ = img;
-    ++remoteFrameNr_;
-    emit remoteFrameChanged();
-  });
-  connect(&viewer_, &SessionViewer::closed, this, [this]() {
-    closeWatch(tr("The connection to the Session was lost."), true);
-  });
-  connect(&viewer_, &SessionViewer::errorOccurred, this, [this](const QString& m) { say(m, true); });
 
   // Local game: frames and audio feed the host only while shared (SessionHost drops them otherwise).
   connect(game_, &GameSession::frameChanged, this, [this]() {
@@ -103,7 +98,9 @@ SessionController::SessionController(HubConnection* conn, ProfileStore* profiles
 SessionController::~SessionController() {
   socket_.stop();
   host_.close();
-  viewer_.close();
+  for (const auto& r : remotes_) {
+    r->viewer->close();
+  }
 }
 
 // ---------------------------------------------------------------- settings
@@ -151,7 +148,10 @@ void SessionController::onConnectionState(HubConnection::State s) {
   } else if (s != S::Identifying && s != S::Authenticating) {
     socket_.stop();
     closeShare(QString());
-    closeWatch(QString(), false);
+    cancelJoin();
+    while (!remotes_.empty()) {
+      closeRemote(remotes_.back()->info.sessionId, QString(), false);
+    }
     sessions_.clear();
     users_.clear();
     emit sessionsChanged();
@@ -228,8 +228,9 @@ void SessionController::onSessionUpdated(const SessionInfo& s) {
     return;
   }
   sessions_.insert(s.sessionId, s);
-  if (watching_ && watched_.sessionId == s.sessionId) {
-    watched_ = s;
+  if (Remote* r = remote(s.sessionId)) {
+    r->info = s;
+    emit surfacesChanged();
   }
   emit sessionsChanged();
 }
@@ -247,10 +248,14 @@ void SessionController::onSessionEnded(const SessionEnded& e) {
   if (sessions_.remove(e.sessionId)) {
     emit sessionsChanged();
   }
-  if ((watching_ || joining_) && watched_.sessionId == e.sessionId) {
-    closeWatch(e.reason == QLatin1String("no_longer_visible") ? tr("You can no longer watch this Session.")
-                                                              : tr("The Session ended."),
-               false);
+  // Only the surface of that Session goes away; the others keep running.
+  const QString note = e.reason == QLatin1String("no_longer_visible") ? tr("You can no longer watch this Session.")
+                                                                      : tr("The Session ended.");
+  if (remote(e.sessionId) != nullptr) {
+    closeRemote(e.sessionId, note, false);
+  } else if (joining_ && joinInfo_.sessionId == e.sessionId) {
+    cancelJoin();
+    say(note, false);
   }
 }
 
@@ -352,7 +357,7 @@ void SessionController::shareSession() {
     own_ = *r.session;
     shared_ = true;
     saveSettings();
-    host_.open(own_.sessionId, socket_.helloAck().iceServers);
+    host_.open(own_.sessionId, socket_.helloAck().iceServers, socket_.helloAck().turnServers);
     for (const QString& v : std::exchange(pendingViewers_, {})) {
       host_.addViewer(v);
     }
@@ -538,21 +543,28 @@ void SessionController::onViewerLeft(const ViewerLeft& v) {
     emit shareChanged();
     return;
   }
-  if ((watching_ || joining_) && v.sessionId == watched_.sessionId && (v.viewerId == viewerId_ || joining_)) {
+  const Remote* r = remote(v.sessionId);
+  const bool joinHit = joining_ && joinInfo_.sessionId == v.sessionId;
+  if ((r != nullptr && v.viewerId == r->viewerId) || joinHit) {
     QString note = tr("You left the Session.");
     if (v.reason == QLatin1String("removed")) note = tr("You were removed from the Session.");
     else if (v.reason == QLatin1String("revoked")) note = tr("You can no longer watch this Session.");
     else if (v.reason == QLatin1String("disconnected")) note = tr("The Session connection was lost.");
-    closeWatch(note, false);
+    if (r != nullptr && !joinHit) {
+      closeRemote(v.sessionId, note, false);
+    } else {
+      cancelJoin();
+      say(note, false);
+    }
   }
 }
 
 void SessionController::onSignal(const SessionSignal& s) {
   if (shared_ && host_.hasViewer(s.viewerId)) {
     host_.handleSignal(s);
-  } else if (viewer_.isOpen() && s.viewerId == viewerId_) {
-    viewer_.handleSignal(s);
-  } else if (joining_ && s.sessionId == watched_.sessionId) {
+  } else if (Remote* r = remote(s.sessionId); r != nullptr && s.viewerId == r->viewerId) {
+    r->viewer->handleSignal(s);
+  } else if (joining_ && s.sessionId == joinInfo_.sessionId) {
     earlySignals_.append(s);  // the owner may offer before the join response arrives
   } else if (shareBusy_) {
     pendingHostSignals_.append(s);
@@ -561,23 +573,49 @@ void SessionController::onSignal(const SessionSignal& s) {
 
 // ---------------------------------------------------------------- watching
 
+SessionController::Remote* SessionController::remote(const QString& sessionId) const {
+  for (const auto& r : remotes_) {
+    if (r->info.sessionId == sessionId) {
+      return r.get();
+    }
+  }
+  return nullptr;
+}
+
+SessionViewer* SessionController::viewer(const QString& sessionId) {
+  Remote* r = remote(sessionId);
+  return r ? r->viewer : nullptr;
+}
+
+QImage SessionController::remoteFrame(const QString& sessionId) const {
+  const Remote* r = remote(sessionId);
+  return r ? r->frame : QImage();
+}
+
+quint64 SessionController::remoteFrameNumber(const QString& sessionId) const {
+  const Remote* r = remote(sessionId);
+  return r ? r->frameNr : 0;
+}
+
+// "Watch Session" / "Join" / "Add": every remote Session is its own viewer join and SessionViewer, up to four surfaces.
 void SessionController::watch(const QString& sessionId) {
-  if (joining_ || !sessions_.contains(sessionId)) {
+  if (joining_ || !sessions_.contains(sessionId) || remote(sessionId) != nullptr) {
+    return;
+  }
+  if (surfaceCount() >= kMaxSurfaces) {
+    say(tr("A multiview shows up to %1 Sessions at once. Remove one first.").arg(kMaxSurfaces), true);
     return;
   }
   if (!socket_.isOpen()) {
     say(tr("The Hub is not reachable, so the Session cannot be joined yet."), true);
     return;
   }
-  if (watching_) {
-    closeWatch(QString(), true);
-  }
-  watched_ = sessions_.value(sessionId);
+  joinInfo_ = sessions_.value(sessionId);
   joining_ = true;
   earlySignals_.clear();
   emit watchChanged();
   api_.join(sessionId, [this, sessionId](const SessionApiResult& r) {
-    if (!joining_ || watched_.sessionId != sessionId) {
+    if (!joining_ || joinInfo_.sessionId != sessionId) {
       if (r.ok() && r.join) {  // ended while joining: leave again
         api_.removeViewer(sessionId, r.join->viewerId, [](const SessionApiResult&) {});
       }
@@ -590,20 +628,41 @@ void SessionController::watch(const QString& sessionId) {
       emit watchChanged();
       return;
     }
-    viewerId_ = r.join->viewerId;
-    viewer_.open(sessionId, viewerId_, r.join->iceServers.isEmpty() ? socket_.helloAck().iceServers : r.join->iceServers);
-    watching_ = true;
-    swapped_ = false;
+    auto rem = std::make_unique<Remote>();
+    rem->info = joinInfo_;
+    rem->viewerId = r.join->viewerId;
+    rem->viewer = new SessionViewer(this);
+    SessionViewer* v = rem->viewer;
+    connect(v, &SessionViewer::signalOut, &socket_, &HubSocket::sendSignal);
+    connect(v, &SessionViewer::frameReady, this, [this, sessionId](const QImage& img) {
+      if (Remote* cur = remote(sessionId)) {
+        cur->frame = img;
+        ++cur->frameNr;
+        emit remoteFrameChanged(sessionId);
+      }
+    });
+    connect(v, &SessionViewer::closed, this, [this, sessionId]() {
+      closeRemote(sessionId, tr("The connection to the Session was lost."), true);
+    });
+    connect(v, &SessionViewer::errorOccurred, this, [this](const QString& m) { say(m, true); });
+    const bool first = remotes_.empty();
+    remotes_.push_back(std::move(rem));
+    order_.append(sessionId);
+    v->open(sessionId, r.join->viewerId, r.join->iceServers.isEmpty() ? socket_.helloAck().iceServers : r.join->iceServers,
+            r.join->turnServers.isEmpty() ? socket_.helloAck().turnServers : r.join->turnServers);
     tab_ = QStringLiteral("multiview");
-    remoteAudio_.start(48000);
-    audioClock_.restart();
-    audioDueFrames_ = 0;
-    audioTimer_.start();
+    if (first) {
+      remoteAudio_.start(48000);
+      audioClock_.restart();
+      audioDueFrames_ = 0;
+      audioTimer_.start();
+    }
     for (const SessionSignal& s : std::exchange(earlySignals_, {})) {
-      viewer_.handleSignal(s);
+      v->handleSignal(s);
     }
     applyAudioRouting();
     emit watchChanged();
+    emit surfacesChanged();
     emit viewChanged();
   });
 }
@@ -620,28 +679,51 @@ void SessionController::decline(const QString& sessionId) {
   });
 }
 
-void SessionController::leaveWatch() { closeWatch(QString(), true); }
+void SessionController::leaveWatch() {
+  cancelJoin();
+  while (!remotes_.empty()) {
+    closeRemote(remotes_.back()->info.sessionId, QString(), true);
+  }
+}
 
-void SessionController::closeWatch(const QString& note, bool callHub) {
-  const bool was = watching_ || joining_;
-  if (callHub && !viewerId_.isEmpty()) {
-    api_.removeViewer(watched_.sessionId, viewerId_, [](const SessionApiResult&) {});
-  }
-  viewer_.close();
-  audioTimer_.stop();
-  remoteAudio_.stop();
-  watching_ = false;
-  joining_ = false;
-  viewerId_.clear();
-  earlySignals_.clear();
-  remoteFrame_ = QImage();
-  swapped_ = false;
-  if (was) {
-    emit remoteFrameChanged();
-    applyAudioRouting();
+void SessionController::removeSurface(const QString& sessionId) { closeRemote(sessionId, QString(), true); }
+
+void SessionController::cancelJoin() {
+  if (joining_) {
+    joining_ = false;
+    earlySignals_.clear();
     emit watchChanged();
-    emit viewChanged();
   }
+}
+
+// Leaves one remote Session (and only that one): closes its PeerConnection and, with callHub, leaves via the Hub.
+void SessionController::closeRemote(const QString& sessionId, const QString& note, bool callHub) {
+  auto it = std::find_if(remotes_.begin(), remotes_.end(), [&](const auto& r) { return r->info.sessionId == sessionId; });
+  if (it == remotes_.end()) {
+    return;
+  }
+  std::unique_ptr<Remote> r = std::move(*it);
+  remotes_.erase(it);
+  if (callHub && !r->viewerId.isEmpty()) {
+    api_.removeViewer(sessionId, r->viewerId, [](const SessionApiResult&) {});
+  }
+  r->viewer->disconnect(this);
+  r->viewer->close();
+  r->viewer->deleteLater();
+  order_.removeAll(sessionId);
+  fedFrames_.remove(sessionId);
+  if (focusPref_ == sessionId) {  // the focused surface goes away: local game, else the first remaining surface
+    focusPref_ = hasLocalGame() || order_.isEmpty() ? QStringLiteral("local") : order_.first();
+  }
+  if (remotes_.empty()) {
+    audioTimer_.stop();
+    remoteAudio_.stop();
+  }
+  emit remoteFrameChanged(sessionId);
+  applyAudioRouting();
+  emit watchChanged();
+  emit surfacesChanged();
+  emit viewChanged();
   if (!note.isEmpty()) {
     say(note, false);
   }
@@ -666,31 +748,89 @@ void SessionController::setTab(const QString& t) {
   emit viewChanged();
 }
 
+// Layouts by surface count: 2 -> PiP or side-by-side, 3 and 4 -> PiP or grid 2 x 2, 1 -> single surface (none to choose).
+QStringList SessionController::availableLayouts() const {
+  const int n = surfaceCount();
+  if (n < 2) {
+    return {};
+  }
+  return {QStringLiteral("pip"), n == 2 ? QStringLiteral("side") : QStringLiteral("grid")};
+}
+
+QString SessionController::multiviewMode() const {
+  const int n = surfaceCount();
+  if (n < 2 || mode_ == QLatin1String("pip")) {
+    return mode_;  // a single surface has no layout to choose; the choice is kept for the next surface
+  }
+  return n == 2 ? QStringLiteral("side") : QStringLiteral("grid");  // a chosen tile layout follows the count
+}
+
 void SessionController::setMultiviewMode(const QString& m) {
-  if ((m != QLatin1String("pip") && m != QLatin1String("side")) || m == mode_) {
+  // The choice is kept as a preference (also from the default-multiview setting before any Session is shown);
+  // multiviewMode() maps it to what the current surface count offers.
+  if ((m != QLatin1String("pip") && m != QLatin1String("side") && m != QLatin1String("grid")) || m == mode_) {
     return;
   }
   mode_ = m;
   emit viewChanged();
 }
 
-void SessionController::swapSurfaces() {
-  swapped_ = !swapped_;
+QStringList SessionController::surfaceIds() const {
+  QStringList ids;
+  if (hasLocalGame()) {
+    ids << QStringLiteral("local");
+  }
+  ids << shownSessionIds();
+  return ids;
+}
+
+QStringList SessionController::shownSessionIds() const {
+  QStringList ids;
+  for (const auto& r : remotes_) {
+    ids << r->info.sessionId;
+  }
+  return ids;
+}
+
+QVariantMap SessionController::surfaceInfo() const {
+  QVariantMap out;
+  if (hasLocalGame()) {
+    out.insert(QStringLiteral("local"), QVariantMap{{QStringLiteral("kind"), QStringLiteral("local")},
+                                                    {QStringLiteral("name"), tr("You · %1").arg(gameTitle_)},
+                                                    {QStringLiteral("meta"), tr("local")}});
+  }
+  for (const auto& r : remotes_) {
+    out.insert(r->info.sessionId, QVariantMap{{QStringLiteral("kind"), QStringLiteral("remote")},
+                                              {QStringLiteral("name"), tr("%1 · %2").arg(r->info.owner.displayName, r->info.gameTitle)},
+                                              {QStringLiteral("meta"), tr("Session from %1").arg(r->info.owner.displayName)}});
+  }
+  return out;
+}
+
+// "Swap": the surface and the main surface exchange their positions.
+void SessionController::makeMain(const QString& surface) {
+  const qsizetype i = order_.indexOf(surface);
+  if (i <= 0) {
+    return;
+  }
+  order_.swapItemsAt(0, i);
+  emit surfacesChanged();
   emit viewChanged();
 }
 
+// Exactly one audible surface: the chosen one while it exists, else the local game, else the first remaining one.
 QString SessionController::audioFocus() const {
-  if (!hasLocalGame()) {
-    return QStringLiteral("remote");
+  if (focusPref_ == QLatin1String("local") ? hasLocalGame() : remote(focusPref_) != nullptr) {
+    return focusPref_;
   }
-  if (!watching_) {
+  if (hasLocalGame() || order_.isEmpty()) {
     return QStringLiteral("local");
   }
-  return focusPref_;
+  return order_.first();
 }
 
 void SessionController::audioHere(const QString& surface) {
-  if (surface != QLatin1String("local") && surface != QLatin1String("remote")) {
+  if (!order_.contains(surface)) {
     return;
   }
   focusPref_ = surface;
@@ -709,9 +849,13 @@ void SessionController::pumpAudio() {
     return;
   }
   audioDueFrames_ += n;
-  const QByteArray pcm = viewer_.pullAudio(static_cast<int>(n));  // always drained, only played if focused
-  if (audioFocus() == QLatin1String("remote")) {
-    remoteAudio_.push(pcm);
+  const QString focus = audioFocus();
+  for (const auto& r : remotes_) {
+    const QByteArray pcm = r->viewer->pullAudio(static_cast<int>(n));  // always drained, only the focused one is played
+    if (r->info.sessionId == focus) {
+      remoteAudio_.push(pcm);
+      fedFrames_[focus] += n;
+    }
   }
 }
 
@@ -719,12 +863,16 @@ void SessionController::gameStarted(const QString& gameId, const QString& title)
   gameId_ = gameId;
   gameTitle_ = title;
   focusPref_ = QStringLiteral("local");
-  tab_ = watching_ ? QStringLiteral("multiview") : QStringLiteral("session");
+  if (!order_.contains(QStringLiteral("local"))) {
+    order_.prepend(QStringLiteral("local"));
+  }
+  tab_ = watching() ? QStringLiteral("multiview") : QStringLiteral("session");
   lastLocalFrameNr_ = 0;
   localFps_ = 0;
   applyAudioRouting();
   presence();
   emit gameChanged();
+  emit surfacesChanged();
   emit viewChanged();
 }
 
@@ -735,10 +883,16 @@ void SessionController::gameEnded() {
   stopSharing();
   gameId_.clear();
   gameTitle_.clear();
+  order_.removeAll(QStringLiteral("local"));
+  if (focusPref_ == QLatin1String("local")) {
+    focusPref_ = order_.isEmpty() ? QStringLiteral("local") : order_.first();
+  }
+  fedFrames_.remove(QStringLiteral("local"));
   game_->setAudioMuted(false);
   applyAudioRouting();
   presence();
   emit gameChanged();
+  emit surfacesChanged();
   emit viewChanged();
 }
 
@@ -758,18 +912,16 @@ void SessionController::dismissMessage() {
   }
 }
 
-void SessionController::setStatsOverride(const SessionStats* local, const SessionStats* remote) {
-  override_ = local != nullptr || remote != nullptr;
+void SessionController::setStatsOverride(const SessionStats* local, const QHash<QString, SessionStats>& remotes) {
+  override_ = local != nullptr || !remotes.isEmpty();
   overrideLocalSet_ = local != nullptr;
-  overrideRemoteSet_ = remote != nullptr;
+  overrideRemotes_ = remotes;
   if (local) overrideLocal_ = *local;
-  if (remote) overrideRemote_ = *remote;
   refreshDiagnostics();
 }
 
 QVariantList SessionController::formatDiagnostics(const QString& localName, bool hasLocal, bool shared, double localFps,
-                                                  const SessionStats& l, const QString& remoteName, bool hasRemote,
-                                                  const SessionStats& r) {
+                                                  const SessionStats& l, const QList<RemoteDiag>& remotes) {
   QVariantList out;
   if (hasLocal) {
     const bool enc = shared && l.active && !l.encoderName.isEmpty();
@@ -781,27 +933,38 @@ QVariantList SessionController::formatDiagnostics(const QString& localName, bool
     v << (enc ? QStringLiteral("Opus %1 kbit/s").arg(l.audioBitrateKbps, 0, 'f', 0) : QStringLiteral("Opus n/a"));
     out.append(row(QStringLiteral("local"), localName, true, v));
   }
-  if (hasRemote) {
+  for (const RemoteDiag& d : remotes) {  // one row per remote surface (the surface id is the Session id)
+    const SessionStats& r = d.stats;
     QStringList v;
     v << QStringLiteral("%1 fps").arg(r.fps, 0, 'f', 1);
     v << linkLabel(r.connectionType);
     v << (r.rttMs ? QStringLiteral("RTT %1 ms").arg(*r.rttMs, 0, 'f', 0) : QStringLiteral("RTT n/a"));
     v << mbit(r.videoBitrateKbps);
     v << (r.packetLossPercent ? QStringLiteral("loss %1 %").arg(*r.packetLossPercent, 0, 'f', 1) : QStringLiteral("loss n/a"));
-    out.append(row(QStringLiteral("remote"), remoteName, true, v));
+    out.append(row(d.surface, d.name, true, v));
   }
   return out;
 }
 
 void SessionController::refreshDiagnostics() {
-  const bool hasRemote = watching_ || (override_ && overrideRemoteSet_);
   const bool hasLocal = hasLocalGame() || (override_ && overrideLocalSet_);
   const SessionStats local = override_ && overrideLocalSet_ ? overrideLocal_ : host_.stats();
-  const SessionStats remote = override_ && overrideRemoteSet_ ? overrideRemote_ : viewer_.stats();
   const bool shared = shared_ || (override_ && overrideLocalSet_ && local.active);
   const QString localName = tr("You · %1").arg(gameTitle_.isEmpty() ? tr("local game") : gameTitle_);
-  const QString remoteName = watched_.owner.displayName.isEmpty() ? tr("Session") : watched_.owner.displayName;
-  const QVariantList rows = formatDiagnostics(localName, hasLocal, shared, localFps_, local, remoteName, hasRemote, remote);
+  QList<RemoteDiag> remotes;
+  for (const auto& r : remotes_) {
+    const QString id = r->info.sessionId;
+    const QString who = r->info.owner.displayName.isEmpty() ? tr("Session") : r->info.owner.displayName;
+    remotes.append({id, who, override_ && overrideRemotes_.contains(id) ? overrideRemotes_.value(id) : r->viewer->stats()});
+  }
+  if (override_) {  // fake statistics of Sessions that are not (yet) on a surface
+    for (auto it = overrideRemotes_.cbegin(); it != overrideRemotes_.cend(); ++it) {
+      if (remote(it.key()) == nullptr) {
+        remotes.append({it.key(), tr("Session"), it.value()});
+      }
+    }
+  }
+  const QVariantList rows = formatDiagnostics(localName, hasLocal, shared, localFps_, local, remotes);
   if (rows != rows_) {
     rows_ = rows;
     emit diagnosticsChanged();

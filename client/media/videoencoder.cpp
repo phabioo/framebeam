@@ -43,6 +43,7 @@ void VideoEncoder::close() {
   av_packet_free(&pkt_);
   avcodec_free_context(&ctx_);
   name_.clear();
+  bitrate_ = 0;
   forceKeyframe_ = true;
   swsSrcFormat_ = -1;
 }
@@ -146,9 +147,23 @@ bool VideoEncoder::openWith(const QString& name, int width, int height, int fps,
   name_ = name;
   width_ = width;
   height_ = height;
+  bitrate_ = bitrate;
   swsFormat_ = pix;
   forceKeyframe_ = true;
   qCInfo(lcEnc) << "H.264 encoder" << name << width << "x" << height << "@" << fps << bitrate / 1000 << "kbit/s";
+  return true;
+}
+
+bool VideoEncoder::setBitrate(int bitrate) {
+  if (!ctx_ || !supportsRuntimeBitrate() || bitrate < 50'000) {
+    return false;
+  }
+  ctx_->bit_rate = bitrate;
+  ctx_->rc_max_rate = bitrate;
+  ctx_->rc_min_rate = bitrate;
+  ctx_->rc_buffer_size = bitrate / 8;
+  bitrate_ = bitrate;
+  qCInfo(lcEnc) << "Bitrate now" << bitrate / 1000 << "kbit/s";
   return true;
 }
 

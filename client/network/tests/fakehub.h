@@ -129,6 +129,8 @@ class FakeHub : public QTcpServer {
   QJsonArray fakeUsers;                 // GET /users (empty: only the test user)
   bool publishCapabilityMissing = false;
   bool joinFull = false;
+  QJsonArray helloTurnServers;            // `turn_servers` of hello_ack (omitted when empty)
+  QJsonArray joinTurnServers;             // `turn_servers` of the join response (omitted when empty)
   bool refuseWs = false;                  // WSS upgrade answered with 401
   QList<QJsonObject> wsReceived;          // envelopes received from the Player (all connections)
   QByteArray lastWsAuthorization;

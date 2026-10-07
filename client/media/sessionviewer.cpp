@@ -41,6 +41,12 @@ class LossReceivingSession : public rtc::RtcpReceivingSession {
       received_ = mReceived;
     }
   }
+  // Cumulative counters (0/0 until the first packet).
+  void counters(int64_t& expected, int64_t& received) {
+    std::lock_guard<std::mutex> lock(statMutex_);
+    expected = expected_;
+    received = received_;
+  }
   // nullopt until enough packets were seen.
   std::optional<double> lossPercent() {
     std::lock_guard<std::mutex> lock(statMutex_);
@@ -67,21 +73,25 @@ SessionViewer::~SessionViewer() {
   teardown();
 }
 
-void SessionViewer::open(const QString& sessionId, const QString& viewerId, const QStringList& iceServers) {
+void SessionViewer::open(const QString& sessionId, const QString& viewerId, const QStringList& iceServers,
+                         const QList<TurnServer>& turnServers) {
   close();
   sessionId_ = sessionId;
   viewerId_ = viewerId;
   iceServers_ = iceServers;
+  turnServers_ = turnServers;
+  relayTcpOnly_ = turnServersTcpOnly(turnServers);
   open_ = true;
   remoteSet_ = false;
   pendingCandidates_.clear();
   totalFrames_ = totalAudioFrames_ = totalVideoBytes_ = totalAudioBytes_ = 0;
   lastFrames_ = lastVideoBytes_ = lastAudioBytes_ = 0;
   decodeErrors_ = pliCount_ = 0;
+  lastExpected_ = lastReceived_ = 0;
   audioPeak_ = 0;
   pliSent_ = false;
   stats_ = SessionStats();
-  link_ = ViewerLinkStats{viewerId, QStringLiteral("new"), std::nullopt, QStringLiteral("unknown")};
+  link_ = ViewerLinkStats{viewerId, QStringLiteral("new"), std::nullopt, QString()};
   {
     QMutexLocker lock(&audioMutex_);
     audioBuf_.clear();
@@ -142,7 +152,7 @@ void SessionViewer::handleSignal(const SessionSignal& s) {
       if (pc_) {
         return;  // renegotiation is not part of the PoC
       }
-      pc_ = std::make_shared<rtc::PeerConnection>(makeRtcConfig(iceServers_));
+      pc_ = std::make_shared<rtc::PeerConnection>(makeRtcConfig(iceServers_, turnServers_, forceRelay_));
       const auto bridge = bridge_;
       const unsigned gen = pcGen_;  // frames of an older connection that are still queued must not reach the codecs
       pc_->onTrack(guarded("onTrack", [this, bridge, gen](std::shared_ptr<rtc::Track> track) {
@@ -354,10 +364,9 @@ void SessionViewer::updateStats() {
   s.width = width_;
   s.height = height_;
   s.codec = QStringLiteral("H264 + Opus");
-  s.connectionType = QStringLiteral("unknown");
   if (connected_ && pc_) {
     s.rttMs = rttOf(*pc_);
-    s.connectionType = connectionTypeOf(*pc_);
+    s.connectionType = connectionTypeOf(*pc_, relayTcpOnly_, forceRelay_);
   }
   if (videoSession_) {
     s.packetLossPercent = videoSession_->lossPercent();
@@ -366,6 +375,28 @@ void SessionViewer::updateStats() {
   link_.rttMs = s.rttMs;
   link_.connectionType = s.connectionType;
   stats_ = s;
+  sendRxReport(s.videoBitrateKbps);
+}
+
+// ADR 0012 D5: once per second, loss (RTP sequence numbers) and received video rate go to the host over fb-diag.
+void SessionViewer::sendRxReport(double videoKbps) {
+  if (!connected_ || !diag_ || !videoSession_) {
+    return;
+  }
+  int64_t expected = 0, received = 0;
+  videoSession_->counters(expected, received);
+  const int64_t dExpected = expected - lastExpected_, dReceived = received - lastReceived_;
+  lastExpected_ = expected;
+  lastReceived_ = received;
+  const double loss = dExpected > 0 ? std::clamp(static_cast<double>(dExpected - dReceived) / static_cast<double>(dExpected), 0.0, 1.0) : 0.0;
+  try {
+    if (diag_->isOpen()) {
+      const QByteArray msg = makeRxReport(loss, videoKbps);
+      diag_->send(std::string(msg.constData(), static_cast<size_t>(msg.size())));
+    }
+  } catch (const std::exception& e) {
+    qCWarning(lcViewer) << "rx report:" << e.what();
+  }
 }
 
 SessionStats SessionViewer::stats() const {

@@ -260,7 +260,7 @@ void HubSocket::onTextMessage(const QString& text) {
   if (type == QLatin1String("hello_ack")) {
     helloTimer_.stop();
     hello_ = {p.value(QStringLiteral("protocol_version")).toInt(), str(p, "hub_version"), strList(p.value(QStringLiteral("features"))),
-              strList(p.value(QStringLiteral("ice_servers")))};
+              strList(p.value(QStringLiteral("ice_servers"))), parseTurnServers(p.value(QStringLiteral("turn_servers")))};
     backoffMs_ = backoffInitialMs_;
     upgradeRejects_ = 0;
     setState(State::Open);

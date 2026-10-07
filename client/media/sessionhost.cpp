@@ -9,6 +9,7 @@
 #include <functional>
 #include <rtc/rtc.hpp>
 #include <thread>
+#include <variant>
 
 #include "opuscodec.h"
 #include "rtcutil.h"
@@ -78,7 +79,7 @@ class EncodeWorker {
 
   EncodeWorker(const SessionHost::Options& options, std::shared_ptr<SinkList> sinks, std::shared_ptr<WorkerStats> stats,
                std::function<void(QString)> onError, std::function<void()> onOpenFailed)
-      : options_(options), sinks_(std::move(sinks)), stats_(std::move(stats)), onError_(std::move(onError)),
+      : options_(options), targetKbps_(options.videoBitrate / 1000), sinks_(std::move(sinks)), stats_(std::move(stats)), onError_(std::move(onError)),
         onOpenFailed_(std::move(onOpenFailed)), thread_([this]() { run(); }) {}
   ~EncodeWorker() {
     {
@@ -93,6 +94,8 @@ class EncodeWorker {
   EncodeWorker& operator=(const EncodeWorker&) = delete;
 
   void requestKeyframe() { keyframe_ = true; }
+  // Bitrate adaptation: picked up before the next frame (runtime change or reopen, see applyTargetBitrate()).
+  void setTargetBitrate(int kbps) { targetKbps_ = kbps; }
 
   void pushVideo(const uint8_t* data, int width, int height, int stride, RawPixelFormat format, qint64 ns) {
     Job j;
@@ -193,16 +196,19 @@ class EncodeWorker {
     if (failed_) return;
     if (!encoder_.isOpen() || encoder_.width() != j.width || encoder_.height() != j.height) {
       encoder_.close();  // first frame or resolution change (the first frame is a keyframe again)
-      if (!encoder_.open(j.width, j.height, options_.fps, options_.videoBitrate, options_.encoderOrder)) {
+      if (!encoder_.open(j.width, j.height, options_.fps, targetKbps_.load() * 1000, options_.encoderOrder)) {
         failed_ = true;
         onOpenFailed_();
         return;
       }
+      lastReopen_ = std::chrono::steady_clock::now();
       std::lock_guard<std::mutex> lock(stats_->mutex);
       stats_->encoderName = encoder_.name();
       stats_->width = j.width;
       stats_->height = j.height;
     }
+    applyTargetBitrate(j);
+    if (failed_) return;
     if (keyframe_.exchange(false)) {
       encoder_.requestKeyframe();
     }
@@ -226,6 +232,25 @@ class EncodeWorker {
         send(sink.video, p.data.data(), p.data.size(), seconds, "video");
       }
     }
+  }
+
+  // ADR 0012 D5: libx264 changes its bitrate at runtime; any other encoder is reopened (with a keyframe) at most every 5 s.
+  void applyTargetBitrate(const Job& j) {
+    const int want = targetKbps_.load() * 1000;
+    if (!encoder_.isOpen() || want == encoder_.bitrate()) return;
+    if (encoder_.setBitrate(want)) return;
+    const auto now = std::chrono::steady_clock::now();
+    if (now - lastReopen_ < std::chrono::seconds(5)) return;  // the target stays pending
+    const QString name = encoder_.name();
+    if (!encoder_.open(j.width, j.height, options_.fps, want, {name}) &&
+        !encoder_.open(j.width, j.height, options_.fps, want, options_.encoderOrder)) {
+      failed_ = true;
+      onOpenFailed_();
+      return;
+    }
+    lastReopen_ = now;
+    std::lock_guard<std::mutex> lock(stats_->mutex);
+    stats_->encoderName = encoder_.name();
   }
 
   void encodeAudio(const Job& j) {
@@ -256,6 +281,7 @@ class EncodeWorker {
   }
 
   const SessionHost::Options options_;
+  std::atomic<int> targetKbps_;
   std::shared_ptr<SinkList> sinks_;
   std::shared_ptr<WorkerStats> stats_;
   std::function<void(QString)> onError_;
@@ -270,6 +296,7 @@ class EncodeWorker {
   std::atomic<bool> keyframe_{false};
 
   // Worker-thread only:
+  std::chrono::steady_clock::time_point lastReopen_{};
   VideoEncoder encoder_;
   OpusFramer opus_;
   bool failed_ = false;
@@ -288,6 +315,7 @@ SessionHost::SessionHost(QObject* parent) : QObject(parent), bridge_(std::make_s
   statsTimer_.setInterval(1000);
   connect(&statsTimer_, &QTimer::timeout, this, &SessionHost::updateStats);
   clock_.start();
+  adaptClock_.start();
 }
 
 SessionHost::~SessionHost() {
@@ -295,10 +323,14 @@ SessionHost::~SessionHost() {
   close();  // joins the worker thread
 }
 
-void SessionHost::open(const QString& sessionId, const QStringList& iceServers) {
+void SessionHost::open(const QString& sessionId, const QStringList& iceServers, const QList<TurnServer>& turnServers) {
   close();
   sessionId_ = sessionId;
   iceServers_ = iceServers;
+  turnServers_ = turnServers;
+  relayTcpOnly_ = turnServersTcpOnly(turnServers);
+  bitrate_.reset(options_.videoBitrate / 1000);
+  targetKbps_ = bitrate_.targetKbps();
   encoderFailed_ = false;
   open_ = true;
 }
@@ -320,7 +352,7 @@ void SessionHost::addViewer(const QString& viewerId) {
   }
   Viewer v;
   try {
-    rtc::Configuration cfg = makeRtcConfig(iceServers_);
+    rtc::Configuration cfg = makeRtcConfig(iceServers_, turnServers_, forceRelay_);
     cfg.disableAutoNegotiation = true;  // creating the data channel must not trigger an offer of its own; we offer explicitly below
     v.pc = std::make_shared<rtc::PeerConnection>(cfg);
     const auto bridge = bridge_;
@@ -373,6 +405,14 @@ void SessionHost::addViewer(const QString& viewerId) {
     diagInit.negotiated = true;
     diagInit.id = kDiagChannelId;
     v.diag = v.pc->createDataChannel("fb-diag", diagInit);
+    // Viewer reports {"t":"rx","loss":..,"kbps":..} drive the bitrate adaptation; everything else is ignored.
+    v.diag->onMessage(guarded("diag onMessage", [this, bridge, id](rtc::message_variant m) {
+      const auto* text = std::get_if<rtc::string>(&m);
+      if (text == nullptr) return;
+      const auto report = parseRxReport(QByteArray(text->data(), static_cast<qsizetype>(text->size())));
+      if (!report) return;
+      bridge->post([this, id, r = *report]() { onRxReport(id, r); });
+    }));
 
     v.pc->onLocalDescription(guarded("onLocalDescription", [this, bridge, id](rtc::Description d) {
       SessionSignal s;
@@ -425,6 +465,7 @@ void SessionHost::dropViewer(const QString& viewerId, const QString& reason) {
   Viewer v = std::move(it.value());
   viewers_.erase(it);
   viewerCountAtomic_ = static_cast<int>(viewers_.size());
+  bitrate_.removeViewer(viewerId);
   publishSinks();  // the worker stops sending to this viewer before its PeerConnection closes
   QString finalState = QStringLiteral("closed");
   try {
@@ -468,6 +509,20 @@ void SessionHost::onPcState(const QString& viewerId, int state) {
     emit viewerConnected(viewerId);
   } else if (st == rtc::PeerConnection::State::Failed || st == rtc::PeerConnection::State::Closed) {
     dropViewer(viewerId, QStringLiteral("connection_") + it->state);
+  }
+}
+
+void SessionHost::onRxReport(const QString& viewerId, const RxReport& report) {
+  if (!open_ || !viewers_.contains(viewerId)) {
+    return;
+  }
+  emit rxReportReceived(viewerId, report.loss, report.kbps);
+  if (const auto target = bitrate_.report(viewerId, report, adaptClock_.elapsed())) {
+    qCInfo(lcHost) << "Target bitrate" << *target << "kbit/s (viewer" << viewerId << "loss" << report.loss << ")";
+    targetKbps_ = *target;
+    if (worker_) {
+      worker_->setTargetBitrate(*target);
+    }
   }
 }
 
@@ -532,8 +587,10 @@ void SessionHost::startEncoder() {
   }
   const unsigned gen = ++workerGen_;
   const auto bridge = bridge_;
+  Options workerOptions = options_;
+  workerOptions.videoBitrate = bitrate_.targetKbps() * 1000;  // a restarted encoder keeps the adapted rate
   worker_ = std::make_unique<EncodeWorker>(
-      options_, sinks_, stats,
+      workerOptions, sinks_, stats,
       [this, bridge](QString msg) { bridge->post([this, msg]() { emit errorOccurred(msg); }); },
       [this, bridge, gen]() {
         bridge->post([this, gen]() {
@@ -648,16 +705,14 @@ void SessionHost::updateStats() {
     ViewerLinkStats l;
     l.viewerId = it.key();
     l.state = it->state;
-    l.connectionType = QStringLiteral("unknown");
     if (it->connected && it->pc) {
       l.rttMs = rttOf(*it->pc);
-      l.connectionType = connectionTypeOf(*it->pc);
+      l.connectionType = connectionTypeOf(*it->pc, relayTcpOnly_, forceRelay_);
     }
     if (l.rttMs && (!s.rttMs || *l.rttMs > *s.rttMs)) {
       s.rttMs = l.rttMs;
     }
-    const int r = l.connectionType == QLatin1String("relay") ? 3 : l.connectionType == QLatin1String("srflx") ? 2
-                  : l.connectionType == QLatin1String("host") ? 1 : 0;
+    const int r = connectionTypeRank(l.connectionType);
     if (r > rank) {
       rank = r;
       s.connectionType = l.connectionType;
@@ -679,6 +734,7 @@ SessionStats SessionHost::stats() const {
     s.audioFrames = workerStats_->audioFrames;
     s.droppedFrames = workerStats_->dropped;
     s.codec = QStringLiteral("H264 + Opus");
+    s.targetBitrateKbps = targetKbps_;
     std::lock_guard<std::mutex> wl(workerStats_->mutex);
     s.encoderName = workerStats_->encoderName;
     s.width = workerStats_->width;

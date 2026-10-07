@@ -15,10 +15,23 @@ void RemoteView::setController(SessionController* c) {
   }
   controller_ = c;
   if (controller_) {
-    connect(controller_, &SessionController::remoteFrameChanged, this, [this]() { update(); });
+    connect(controller_, &SessionController::remoteFrameChanged, this, [this](const QString& id) {
+      if (id == surfaceId_) {
+        update();
+      }
+    });
   }
   update();
   emit controllerChanged();
+}
+
+void RemoteView::setSurfaceId(const QString& id) {
+  if (surfaceId_ == id) {
+    return;
+  }
+  surfaceId_ = id;
+  update();
+  emit surfaceIdChanged();
 }
 
 void RemoteView::paint(QPainter* p) {
@@ -26,7 +39,7 @@ void RemoteView::paint(QPainter* p) {
   if (!controller_) {
     return;
   }
-  const QImage img = controller_->remoteFrame();
+  const QImage img = controller_->remoteFrame(surfaceId_);
   if (img.isNull() || width() <= 0 || height() <= 0) {
     return;
   }

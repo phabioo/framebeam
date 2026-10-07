@@ -56,7 +56,9 @@ Rectangle {
                 objectName: "gameTitle"
                 Layout.fillWidth: true
                 Layout.maximumWidth: 360
-                text: root.session.active ? root.session.title : qsTr("Session from %1").arg(root.ctl.watchedWho)
+                text: root.session.active ? root.session.title
+                     : root.ctl.surfaceCount > 1 ? qsTr("%1 Sessions").arg(root.ctl.surfaceCount)
+                     : qsTr("Session from %1").arg(root.ctl.watchedWho)
                 color: Theme.gameText
                 font.pixelSize: 15
                 font.weight: Font.DemiBold
@@ -80,12 +82,14 @@ Rectangle {
             }
             FbSegment {
                 objectName: "modeSegment"
-                visible: root.tab !== "session" && root.session.active && root.ctl.watching
+                // Layouts offered by the surface count: two -> PiP | Side-by-Side, three or four -> PiP | Grid
+                visible: root.tab !== "session" && root.ctl.availableLayouts.length > 0
                 current: root.ctl.multiviewMode
-                options: [
-                    { value: "pip", label: qsTr("PiP"), name: "modePip" },
-                    { value: "side", label: qsTr("Side-by-Side"), name: "modeSide" }
-                ]
+                options: root.ctl.availableLayouts.map(function (m) {
+                    return m === "pip" ? { value: "pip", label: qsTr("PiP"), name: "modePip" }
+                         : m === "side" ? { value: "side", label: qsTr("Side-by-Side"), name: "modeSide" }
+                         : { value: "grid", label: qsTr("Grid"), name: "modeGrid" }
+                })
                 onPicked: (v) => root.ctl.multiviewMode = v
             }
             Item { Layout.fillWidth: true }

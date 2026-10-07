@@ -34,6 +34,26 @@ std::optional<SessionInfo> parseSession(const QJsonObject& o) {
   return s;
 }
 
+QList<TurnServer> parseTurnServers(const QJsonValue& v) {
+  QList<TurnServer> out;
+  for (const QJsonValue& e : v.toArray()) {
+    const QJsonObject o = e.toObject();
+    TurnServer t;
+    for (const QJsonValue& u : o.value(QStringLiteral("urls")).toArray()) {
+      if (u.isString() && u.toString().startsWith(QLatin1String("turn"))) {
+        t.urls.append(u.toString());
+      }
+    }
+    t.username = str(o, "username");
+    t.credential = str(o, "credential");
+    t.expiresAt = str(o, "expires_at");
+    if (!t.urls.isEmpty() && !t.username.isEmpty() && !t.credential.isEmpty()) {
+      out.append(t);
+    }
+  }
+  return out;
+}
+
 std::optional<SessionJoinInfo> parseJoinInfo(const QJsonObject& o) {
   SessionJoinInfo j;
   j.viewerId = str(o, "viewer_id");
@@ -46,6 +66,7 @@ std::optional<SessionJoinInfo> parseJoinInfo(const QJsonObject& o) {
       j.iceServers.append(v.toString());
     }
   }
+  j.turnServers = parseTurnServers(o.value(QStringLiteral("turn_servers")));
   if (j.viewerId.isEmpty()) {
     return std::nullopt;
   }

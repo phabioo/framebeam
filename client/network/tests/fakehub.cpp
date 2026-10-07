@@ -717,11 +717,15 @@ void FakeHub::handleSessions(QSslSocket* sock, const FakeRequest& req) {
       respondError(sock, 409, QStringLiteral("session_full"));
       return;
     }
-    respond(sock, 201, json({{QStringLiteral("viewer_id"), QStringLiteral("11111111-1111-4111-8111-111111111111")},
+    QJsonObject joinResponse{{QStringLiteral("viewer_id"), QStringLiteral("11111111-1111-4111-8111-111111111111")},
                              {QStringLiteral("permissions"), QJsonObject{{QStringLiteral("view_video"), true},
                                                                          {QStringLiteral("hear_audio"), true},
                                                                          {QStringLiteral("send_input"), false}}},
-                             {QStringLiteral("ice_servers"), QJsonArray{QStringLiteral("stun:stun.example.org:3478")}}}));
+                             {QStringLiteral("ice_servers"), QJsonArray{QStringLiteral("stun:stun.example.org:3478")}}};
+    if (!joinTurnServers.isEmpty()) {
+      joinResponse.insert(QStringLiteral("turn_servers"), joinTurnServers);
+    }
+    respond(sock, 201, json(joinResponse));
   } else if (parts.at(2) == QLatin1String("viewers") && req.method == "DELETE") {
     respond(sock, 204, {});
   } else if (parts.at(2) == QLatin1String("invites") && req.method == "PUT") {
@@ -795,12 +799,14 @@ void FakeHub::onWsData(QSslSocket* sock) {
       const QJsonObject env = QJsonDocument::fromJson(payload).object();
       wsReceived.append(env);
       if (env.value(QStringLiteral("type")).toString() == QLatin1String("hello")) {
-        const QJsonObject ack{{QStringLiteral("type"), QStringLiteral("hello_ack")},
-                              {QStringLiteral("payload"),
-                               QJsonObject{{QStringLiteral("protocol_version"), protocolVersion},
-                                           {QStringLiteral("hub_version"), QStringLiteral("0.1.0")},
-                                           {QStringLiteral("features"), wsFeatures()},
-                                           {QStringLiteral("ice_servers"), QJsonArray()}}}};
+        QJsonObject ackPayload{{QStringLiteral("protocol_version"), protocolVersion},
+                               {QStringLiteral("hub_version"), QStringLiteral("0.1.0")},
+                               {QStringLiteral("features"), wsFeatures()},
+                               {QStringLiteral("ice_servers"), QJsonArray()}};
+        if (!helloTurnServers.isEmpty()) {
+          ackPayload.insert(QStringLiteral("turn_servers"), helloTurnServers);
+        }
+        const QJsonObject ack{{QStringLiteral("type"), QStringLiteral("hello_ack")}, {QStringLiteral("payload"), ackPayload}};
         wsWrite(sock, 0x1, QJsonDocument(ack).toJson(QJsonDocument::Compact));
       }
     }

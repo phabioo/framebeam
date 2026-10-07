@@ -11,7 +11,11 @@ Emulator ──→ local video/audio output
 
 The server manages Session metadata, visibility and presence and mediates connection setup via signaling. It does not transport or process any video or audio itself.
 
-Direct P2P connections form the basis. TURN can be added later as a separate relay service if NAT or firewalls prevent direct connections. A TURN relay would be an additional media path; the FrameBeam application server remains responsible for management and signaling. The PoC demonstration therefore needs an environment in which direct connections work. The concrete ICE/STUN configuration is still to be defined.
+Direct P2P connections form the basis. Since 0.4 ([ADR 0012](../adr/0012-internet-sessions-and-save-comfort.md)) the Hub can embed an optional STUN/TURN relay (off by default, `-turn` / `-public-host`) for connections that NAT or firewalls prevent. A relay is an additional media path; the Hub still only manages and signals. Supported setups: LAN (host candidates), internet with port forwarding and the embedded relay, and VPN; no external TURN server.
+
+- ICE: the Hub hands out `ice_servers` (`stun:` URLs from `-ice-servers`, plus its own STUN with TURN on) and `turn_servers` with short-lived credentials (12 h, TURN REST scheme) in `hello_ack` and the join response. Players prefer the join response and fall back to `hello_ack`.
+- Diagnostics show the connection type per PeerConnection (direct host/srflx/prflx or relay udp/tcp).
+- Bitrate adaptation: the viewer reports loss and received kbit/s over `fb-diag`; the host adapts the single encoder to the worst viewer (AIMD, 300-4000 kbit/s, start 2000).
 
 Session sharing initially means the transmission of video and audio. Remote control, synchronized multiplayer emulation or NDS link/WLAN emulation are thus not promised.
 
@@ -31,6 +35,6 @@ No friends list, public share links, guest access, guest codes, cross-Hub invite
 
 ## 5. Multiview
 
-The client combines the local Session with a received remote Session in multiple video surfaces. The PoC provides a second Session, **picture-in-picture (PiP)** and **side-by-side**.
+The client combines the local Session with received remote Sessions in multiple video surfaces: up to 4 (local game plus up to 3 remote Sessions, or 4 remote Sessions without a local game; each remote surface is its own viewer join). Layouts: **side-by-side** (2), **grid 2 x 2** (3 or 4), **picture-in-picture (PiP)** (one main surface, others as small tiles). Details: ADR 0012 D8.
 
-Layout, scaling, decoding and rendering take place entirely on the client. The server produces no composited image. Audio focus or mixing and the exact DS screen arrangement are still to be defined.
+Layout, scaling, decoding and rendering take place entirely on the client. The server produces no composited image. Audio focus: exactly one surface is audible ("Audio here" moves it); default is the local game, and when the focused surface is removed the focus goes to the local game, else the first remaining surface. No mixing. The exact DS screen arrangement is still to be defined.

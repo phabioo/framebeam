@@ -113,6 +113,23 @@ QJsonObject lastBody(const FakeHub& hub, const QByteArray& method, const QString
   }
   return {};
 }
+// Scene rect of the visible surface tile of a surface ("local" or a Session id) and of the multiview area.
+QRectF tileRect(Harness& h, const QString& id) {
+  QQuickItem* t = visibleItem(h, qPrintable(QStringLiteral("surfaceTile_") + id));
+  return t ? t->mapRectToScene(QRectF(0, 0, t->width(), t->height())) : QRectF();
+}
+QRectF areaRect(Harness& h) {
+  QQuickItem* a = h.item("multiviewArea");
+  return a ? a->mapRectToScene(QRectF(0, 0, a->width(), a->height())) : QRectF();
+}
+bool near(qreal a, qreal b) { return std::abs(a - b) < 1.5; }
+QString audibleTile(Harness& h, const QStringList& ids) {  // the surfaces whose audio button reads "Audio on"
+  QStringList on;
+  for (const QString& id : ids) {
+    if (textOf(visibleItem(h, qPrintable(QStringLiteral("audioButton_") + id))) == QLatin1String("Audio on")) on << id;
+  }
+  return on.join(QLatin1Char(','));
+}
 }  // namespace
 
 class SessionsUiTest : public QObject {
@@ -295,36 +312,37 @@ class SessionsUiTest : public QObject {
     QCOMPARE(hub.count(QStringLiteral("/api/v1/sessions/s1/join")), 1);
     QCOMPARE(h.controller->screen(), QStringLiteral("game"));
     QCOMPARE(ctl->tab(), QStringLiteral("multiview"));
-    QCOMPARE(ctl->audioFocus(), QStringLiteral("remote"));  // only audible surface
+    QCOMPARE(ctl->audioFocus(), QStringLiteral("s1"));  // only audible surface
     QCOMPARE(ctl->watchedWho(), QStringLiteral("Lena"));
     QQuickTest::qWaitForPolish(h.window);
     QVERIFY(h.item("tabSession") == nullptr);  // no local game: no Session tab
     QVERIFY(h.item("tabMultiview") != nullptr);
     QVERIFY(visibleItem(h, "remoteView") != nullptr);
-    QVERIFY(visibleItem(h, "audioRemoteButton") != nullptr);
-    QCOMPARE(textOf(visibleItem(h, "audioRemoteButton")), QStringLiteral("Audio on"));
+    QVERIFY(visibleItem(h, "audioButton_s1") != nullptr);
+    QCOMPARE(textOf(visibleItem(h, "audioButton_s1")), QStringLiteral("Audio on"));
     QCOMPARE(textOf(h.item("gameTitle")), QStringLiteral("Session from Lena"));
     uitest::saveShot(h.window, QStringLiteral("p4-remote-alone"));
 
     // Remote frame arrives -> RemoteView redraws
-    const quint64 nr = ctl->remoteFrameNumber();
+    const quint64 nr = ctl->remoteFrameNumber(QStringLiteral("s1"));
     QImage img(256, 384, QImage::Format_RGB32);
     img.fill(QColor(10, 200, 30));
-    QMetaObject::invokeMethod(ctl->viewer(), "frameReady", Qt::DirectConnection, Q_ARG(QImage, img));
-    QCOMPARE(ctl->remoteFrameNumber(), nr + 1);
+    QMetaObject::invokeMethod(ctl->viewer(QStringLiteral("s1")), "frameReady", Qt::DirectConnection, Q_ARG(QImage, img));
+    QCOMPARE(ctl->remoteFrameNumber(QStringLiteral("s1")), nr + 1);
+    QVERIFY(!ctl->remoteFrame(QStringLiteral("s1")).isNull());
 
     // Diagnostics tab with statistics (fake): n/a where unavailable
     SessionStats remote;
     remote.active = true;
     remote.fps = 59.9;
-    remote.connectionType = QStringLiteral("host");
+    remote.connectionType = QStringLiteral("direct (host)");
     remote.rttMs = 14.0;
     remote.videoBitrateKbps = 5800;
     remote.packetLossPercent = 0.1;
-    ctl->setStatsOverride(nullptr, &remote);
+    ctl->setStatsOverride(nullptr, {{QStringLiteral("s1"), remote}});
     ctl->setTab(QStringLiteral("diagnostics"));
     QQuickTest::qWaitForPolish(h.window);
-    QQuickItem* row = visibleItem(h, "diagRow_remote");
+    QQuickItem* row = visibleItem(h, "diagRow_s1");
     QVERIFY(row != nullptr);
     const QString t = textOf(row);
     QVERIFY2(t.contains(QStringLiteral("59.9 fps")) && t.contains(QStringLiteral("WebRTC direct (host)")) && t.contains(QStringLiteral("RTT 14 ms")) &&
@@ -333,12 +351,16 @@ class SessionsUiTest : public QObject {
     QVERIFY(visibleItem(h, "diagRow_local") == nullptr);  // no local game
     remote.rttMs.reset();
     remote.packetLossPercent.reset();
-    ctl->setStatsOverride(nullptr, &remote);
-    QVERIFY2(textOf(visibleItem(h, "diagRow_remote")).contains(QStringLiteral("RTT n/a")) &&
-                 textOf(visibleItem(h, "diagRow_remote")).contains(QStringLiteral("loss n/a")),
-             qPrintable(textOf(visibleItem(h, "diagRow_remote"))));
+    ctl->setStatsOverride(nullptr, {{QStringLiteral("s1"), remote}});
+    QVERIFY2(textOf(visibleItem(h, "diagRow_s1")).contains(QStringLiteral("RTT n/a")) &&
+                 textOf(visibleItem(h, "diagRow_s1")).contains(QStringLiteral("loss n/a")),
+             qPrintable(textOf(visibleItem(h, "diagRow_s1"))));
+    // connectionType is shown as filled by the media layer (bare candidate type or formatted text)
+    remote.connectionType = QStringLiteral("relay (udp)");
+    ctl->setStatsOverride(nullptr, {{QStringLiteral("s1"), remote}});
+    QVERIFY2(textOf(visibleItem(h, "diagRow_s1")).contains(QStringLiteral("WebRTC relay (udp)")), qPrintable(textOf(visibleItem(h, "diagRow_s1"))));
     uitest::saveShot(h.window, QStringLiteral("p4-diagnostics-remote"));
-    ctl->setStatsOverride(nullptr, nullptr);
+    ctl->setStatsOverride(nullptr, {});
 
     // Hub removes the viewer: closed with a short notice, back to the Library
     hub.sendWs(QStringLiteral("viewer_left"), {{QStringLiteral("session_id"), QStringLiteral("s1")}, {QStringLiteral("viewer_id"), kViewerId},
@@ -381,17 +403,30 @@ class SessionsUiTest : public QObject {
     local.fps = 60.0;
     local.videoBitrateKbps = 6000;
     local.audioBitrateKbps = 128;
-    const QVariantList rows = SessionController::formatDiagnostics(QStringLiteral("You · Game"), true, true, 59.0, local, QString(), false, SessionStats());
+    const QVariantList rows = SessionController::formatDiagnostics(QStringLiteral("You · Game"), true, true, 59.0, local, {});
     QCOMPARE(rows.size(), 1);
     QCOMPARE(rows.at(0).toMap().value(QStringLiteral("values")).toStringList(),
              (QStringList{QStringLiteral("60.0 fps"), QStringLiteral("encoder h264_nvenc"), QStringLiteral("H.264"), QStringLiteral("6.0 Mbit/s"),
                           QStringLiteral("Opus 128 kbit/s")}));
     // Not shared: encoder off, local fps from the game, other values n/a
-    const QVariantList off = SessionController::formatDiagnostics(QStringLiteral("You · Game"), true, false, 59.0, SessionStats(), QString(), false, SessionStats());
+    const QVariantList off = SessionController::formatDiagnostics(QStringLiteral("You · Game"), true, false, 59.0, SessionStats(), {});
     const QStringList v = off.at(0).toMap().value(QStringLiteral("values")).toStringList();
     QCOMPARE(v.at(0), QStringLiteral("59.0 fps"));
     QVERIFY(v.at(1).contains(QStringLiteral("off")));
     QCOMPARE(v.at(4), QStringLiteral("Opus n/a"));
+    // One row per remote surface, keyed by the Session id
+    SessionStats a, b;
+    a.fps = 30.0;
+    a.connectionType = QStringLiteral("direct (host)");
+    b.fps = 25.0;
+    b.connectionType = QStringLiteral("relay (udp)");
+    const QVariantList n = SessionController::formatDiagnostics(QStringLiteral("You · Game"), true, false, 59.0, SessionStats(),
+                                                                {{QStringLiteral("sa"), QStringLiteral("Lena"), a}, {QStringLiteral("sb"), QStringLiteral("Mo"), b}, {QStringLiteral("sc"), QStringLiteral("Jo"), SessionStats()}});
+    QCOMPARE(n.size(), 4);
+    QCOMPARE(n.at(1).toMap().value(QStringLiteral("surface")).toString(), QStringLiteral("sa"));
+    QVERIFY(n.at(1).toMap().value(QStringLiteral("text")).toString().contains(QStringLiteral("WebRTC direct (host)")));
+    QVERIFY(n.at(2).toMap().value(QStringLiteral("text")).toString().contains(QStringLiteral("WebRTC relay (udp)")));
+    QVERIFY(n.at(3).toMap().value(QStringLiteral("text")).toString().contains(QStringLiteral("WebRTC connecting")));  // not known yet
   }
 
   // ---- with a running game (real core) ----
@@ -555,12 +590,12 @@ class SessionsUiTest : public QObject {
     local.fps = 60.0;
     local.videoBitrateKbps = 2000;
     local.audioBitrateKbps = 96;
-    ctl->setStatsOverride(&local, nullptr);
+    ctl->setStatsOverride(&local, {});
     const QString lt = textOf(visibleItem(h, "diagRow_local"));
     QVERIFY2(lt.contains(QStringLiteral("encoder libx264")) && lt.contains(QStringLiteral("H.264")) && lt.contains(QStringLiteral("2.0 Mbit/s")) &&
                  lt.contains(QStringLiteral("Opus 96 kbit/s")),
              qPrintable(lt));
-    ctl->setStatsOverride(nullptr, nullptr);
+    ctl->setStatsOverride(nullptr, {});
 
     // Stop sharing -> DELETE session, pill gone, button back to "Share Session"
     QVERIFY(h.click("shareButton"));
@@ -586,7 +621,188 @@ class SessionsUiTest : public QObject {
     QTRY_VERIFY(countContaining(hub, QStringLiteral("/api/v1/sessions/"), "DELETE") >= 2);  // stopped + ended with the game
   }
 
-  void multiviewModesAndAudioFocus() {
+  // Up to four remote Sessions without a local game (ADR 0012 D8): adding from the list, the surface limit, layouts by
+  // count, Swap, audio focus, Remove and per-Session end handling. Needs no core.
+  void multipleRemoteSurfacesWithoutLocalGame() {
+    FakeHub hub(QStringLiteral("a"));
+    prepareHub(hub);
+    const QStringList ids{QStringLiteral("s1"), QStringLiteral("s2"), QStringLiteral("s3"), QStringLiteral("s4"), QStringLiteral("s5")};
+    const QStringList who{QStringLiteral("Lena"), QStringLiteral("Mo"), QStringLiteral("Jo"), QStringLiteral("Ann"), QStringLiteral("Bob")};
+    for (int i = 0; i < ids.size(); ++i) {
+      hub.sessions.insert(ids.at(i), sessionObj(ids.at(i), who.at(i), QStringLiteral("Game %1").arg(who.at(i)), QStringLiteral("hub_users")));
+    }
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    SessionController* ctl = h.controller->sessions();
+    QTRY_COMPARE(ctl->sessions().size(), 5);
+    QQuickTest::qWaitForPolish(h.window);
+
+    // First Session from the Library: a single surface fills the area, no layout to choose
+    QVERIFY(h.click("watch_s1"));
+    QTRY_VERIFY(ctl->watching());
+    QQuickTest::qWaitForPolish(h.window);
+    QCOMPARE(ctl->surfaceCount(), 1);
+    QCOMPARE(ctl->maxSurfaces(), 4);
+    QVERIFY(ctl->availableLayouts().isEmpty());
+    QCOMPARE(ctl->multiviewMode(), QStringLiteral("pip"));  // default choice, nothing to choose with one surface
+    QVERIFY(!h.item("modeSegment")->isVisible());
+    QVERIFY(near(tileRect(h, QStringLiteral("s1")).width(), areaRect(h).width()) && near(tileRect(h, QStringLiteral("s1")).height(), areaRect(h).height()));
+    QCOMPARE(ctl->audioFocus(), QStringLiteral("s1"));
+    QVERIFY(visibleItem(h, "multiviewSessionList") != nullptr);  // open while only one surface exists
+    QVERIFY(!h.item("multiviewAddButton_s1")->isEnabled());      // already shown
+    QVERIFY(h.item("multiviewAddButton_s2")->isEnabled());
+
+    // Two surfaces: PiP or Side-by-Side
+    QVERIFY(h.click("multiviewAddButton_s2"));
+    QTRY_COMPARE(ctl->surfaceCount(), 2);
+    QCOMPARE(ctl->availableLayouts(), (QStringList{QStringLiteral("pip"), QStringLiteral("side")}));
+    QCOMPARE(ctl->multiviewMode(), QStringLiteral("pip"));
+    QQuickTest::qWaitForPolish(h.window);
+    QVERIFY(h.item("modeSegment")->isVisible() && h.item("modePip") != nullptr && h.item("modeSide") != nullptr && h.item("modeGrid") == nullptr);
+    QVERIFY(!h.item("multiviewSessionList")->isVisible());  // behind "Add Session" once there is more than one surface
+    QCOMPARE(hub.count(QStringLiteral("/api/v1/sessions/s2/join")), 1);
+    QVERIFY(h.click("modeSide"));
+    QQuickTest::qWaitForPolish(h.window);
+    {
+      const QRectF a = areaRect(h), t1 = tileRect(h, QStringLiteral("s1")), t2 = tileRect(h, QStringLiteral("s2"));
+      QVERIFY(near(t1.left(), a.left()) && near(t1.top(), a.top()) && near(t1.height(), a.height()));
+      QVERIFY(near(t1.width() * 2 + 2, a.width()) && near(t2.width(), t1.width()) && near(t2.top(), t1.top()) && near(t2.left(), t1.right() + 2));
+    }
+
+    // Three surfaces: a chosen tile layout becomes the 2 x 2 grid, the list is reopened with "Add Session"
+    QVERIFY(h.click("addSessionToggle"));
+    QVERIFY(h.item("multiviewSessionList")->isVisible());
+    QVERIFY(h.click("multiviewAddButton_s3"));
+    QTRY_COMPARE(ctl->surfaceCount(), 3);
+    QCOMPARE(ctl->availableLayouts(), (QStringList{QStringLiteral("pip"), QStringLiteral("grid")}));
+    QCOMPARE(ctl->multiviewMode(), QStringLiteral("grid"));
+    ctl->setMultiviewMode(QStringLiteral("side"));  // not offered for three surfaces
+    QCOMPARE(ctl->multiviewMode(), QStringLiteral("grid"));
+    QQuickTest::qWaitForPolish(h.window);
+    QVERIFY(h.item("modeGrid") != nullptr && h.item("modeSide") == nullptr);
+
+    // Four surfaces: the limit; "Add" is disabled for every other Session, further adds are refused
+    QVERIFY(h.click("multiviewAddButton_s4"));
+    QTRY_COMPARE(ctl->surfaceCount(), 4);
+    QQuickTest::qWaitForPolish(h.window);
+    QVERIFY(!ctl->canAddSurface());
+    for (const QString& id : ids) {
+      QVERIFY2(!h.item(qPrintable(QStringLiteral("multiviewAddButton_") + id))->isEnabled(), qPrintable(id));
+    }
+    ctl->watch(QStringLiteral("s5"));
+    QCOMPARE(ctl->surfaceCount(), 4);
+    QVERIFY(ctl->messageIsError());
+    QCOMPARE(hub.count(QStringLiteral("/api/v1/sessions/s5/join")), 0);
+    ctl->dismissMessage();
+    {
+      const QRectF a = areaRect(h);
+      const QRectF t1 = tileRect(h, QStringLiteral("s1")), t2 = tileRect(h, QStringLiteral("s2")), t3 = tileRect(h, QStringLiteral("s3")), t4 = tileRect(h, QStringLiteral("s4"));
+      QVERIFY(near(t1.left(), a.left()) && near(t1.top(), a.top()));
+      QVERIFY(near(t2.top(), t1.top()) && near(t2.left(), t1.right() + 2));
+      QVERIFY(near(t3.left(), t1.left()) && near(t3.top(), t1.bottom() + 2));
+      QVERIFY(near(t4.left(), t2.left()) && near(t4.top(), t3.top()));
+      QVERIFY(near(t4.right(), a.right()) && near(t4.bottom(), a.bottom()) && near(t1.width(), t4.width()) && near(t1.height(), t4.height()));
+    }
+    uitest::saveShot(h.window, QStringLiteral("p4-d8-grid"));
+
+    // PiP: main surface fills the area, three tiles stacked bottom right
+    QVERIFY(h.click("modePip"));
+    QCOMPARE(ctl->multiviewMode(), QStringLiteral("pip"));
+    QQuickTest::qWaitForPolish(h.window);
+    {
+      const QRectF a = areaRect(h);
+      QVERIFY(near(tileRect(h, QStringLiteral("s1")).width(), a.width()) && near(tileRect(h, QStringLiteral("s1")).height(), a.height()));
+      QRectF above;
+      for (const QString& id : {QStringLiteral("s2"), QStringLiteral("s3"), QStringLiteral("s4")}) {
+        const QRectF t = tileRect(h, id);
+        QVERIFY2(near(t.right(), a.right() - 28) && t.width() > 100 && t.left() >= a.left() && t.top() >= a.top(), qPrintable(id));
+        if (id == QLatin1String("s2")) {
+          QVERIFY(near(t.bottom(), a.bottom() - 28));
+        } else {
+          QVERIFY2(t.bottom() <= above.top() + 0.5, qPrintable(id));  // stacked upwards without overlap
+        }
+        above = t;
+      }
+    }
+    uitest::saveShot(h.window, QStringLiteral("p4-d8-pip4"));
+
+    // Swap: the tile becomes the main surface (it takes the main position, the old main takes its place)
+    QVERIFY(h.click("swapButton_s3"));
+    QCOMPARE(ctl->mainSurface(), QStringLiteral("s3"));
+    QCOMPARE(ctl->surfaceOrder(), (QStringList{QStringLiteral("s3"), QStringLiteral("s2"), QStringLiteral("s1"), QStringLiteral("s4")}));
+    QQuickTest::qWaitForPolish(h.window);
+    QVERIFY(near(tileRect(h, QStringLiteral("s3")).width(), areaRect(h).width()));
+    QVERIFY(near(tileRect(h, QStringLiteral("s1")).right(), areaRect(h).right() - 28));
+    QVERIFY(h.click("swapButton_s1"));
+    QCOMPARE(ctl->surfaceOrder(), (QStringList{QStringLiteral("s1"), QStringLiteral("s2"), QStringLiteral("s3"), QStringLiteral("s4")}));
+
+    // Audio focus: exactly one audible surface (the first one without a local game); muted surfaces feed no audio
+    QCOMPARE(ctl->audioFocus(), QStringLiteral("s1"));
+    QCOMPARE(audibleTile(h, ids.mid(0, 4)), QStringLiteral("s1"));
+    QVERIFY(h.click("audioButton_s3"));
+    QCOMPARE(ctl->audioFocus(), QStringLiteral("s3"));
+    QQuickTest::qWaitForPolish(h.window);
+    QCOMPARE(audibleTile(h, ids.mid(0, 4)), QStringLiteral("s3"));
+    QTRY_VERIFY(ctl->audioFedFrames(QStringLiteral("s3")) > 0);
+    const qint64 fed1 = ctl->audioFedFrames(QStringLiteral("s1"));
+    QTest::qWait(150);
+    QCOMPARE(ctl->audioFedFrames(QStringLiteral("s1")), fed1);  // s1 is muted now
+    QCOMPARE(ctl->audioFedFrames(QStringLiteral("s2")), qint64(0));
+    QCOMPARE(ctl->audioFedFrames(QStringLiteral("s4")), qint64(0));
+
+    // Remove the focused surface (leaves via the Hub): focus moves to the first remaining surface
+    QVERIFY(h.click("removeButton_s3"));
+    QTRY_COMPARE(ctl->surfaceCount(), 3);
+    QCOMPARE(ctl->shownSessionIds(), (QStringList{QStringLiteral("s1"), QStringLiteral("s2"), QStringLiteral("s4")}));
+    QCOMPARE(ctl->audioFocus(), QStringLiteral("s1"));
+    QVERIFY(ctl->viewer(QStringLiteral("s3")) == nullptr && ctl->viewer(QStringLiteral("s1")) != nullptr);
+    QTRY_VERIFY(hub.count(QStringLiteral("/api/v1/sessions/s3/viewers/")) >= 1);
+    QCOMPARE(hub.count(QStringLiteral("/api/v1/sessions/s1/viewers/")), 0);
+    QQuickTest::qWaitForPolish(h.window);
+    QCOMPARE(audibleTile(h, {QStringLiteral("s1"), QStringLiteral("s2"), QStringLiteral("s4")}), QStringLiteral("s1"));
+    QVERIFY(ctl->canAddSurface());
+    QVERIFY(h.item("multiviewAddButton_s3")->isEnabled());  // joinable again
+
+    // A Session that ends removes only its own surface
+    QVERIFY(h.click("audioButton_s2"));
+    QCOMPARE(ctl->audioFocus(), QStringLiteral("s2"));
+    hub.sendWs(QStringLiteral("session_ended"), {{QStringLiteral("session_id"), QStringLiteral("s2")}, {QStringLiteral("reason"), QStringLiteral("ended")}});
+    QTRY_COMPARE(ctl->surfaceCount(), 2);
+    QCOMPARE(ctl->shownSessionIds(), (QStringList{QStringLiteral("s1"), QStringLiteral("s4")}));
+    QVERIFY(ctl->watching());
+    QCOMPARE(ctl->message(), QStringLiteral("The Session ended."));
+    QCOMPARE(ctl->audioFocus(), QStringLiteral("s1"));  // focused surface ended: first remaining
+    QCOMPARE(h.controller->screen(), QStringLiteral("game"));
+    // ... and so does viewer_left (removed by the owner) for one Session
+    hub.sendWs(QStringLiteral("viewer_left"), {{QStringLiteral("session_id"), QStringLiteral("s4")}, {QStringLiteral("viewer_id"), kViewerId},
+                                               {QStringLiteral("reason"), QStringLiteral("removed")}});
+    QTRY_COMPARE(ctl->surfaceCount(), 1);
+    QCOMPARE(ctl->shownSessionIds(), QStringList{QStringLiteral("s1")});
+    QCOMPARE(ctl->message(), QStringLiteral("You were removed from the Session."));
+    QVERIFY(ctl->availableLayouts().isEmpty());
+    QCOMPARE(h.controller->screen(), QStringLiteral("game"));
+
+    // Focus on a later surface, then remove it: back to the first remaining
+    QQuickTest::qWaitForPolish(h.window);
+    QVERIFY(h.click("multiviewAddButton_s5"));
+    QTRY_COMPARE(ctl->surfaceCount(), 2);
+    QVERIFY(h.click("audioButton_s5"));
+    QCOMPARE(ctl->audioFocus(), QStringLiteral("s5"));
+    QVERIFY(h.click("removeButton_s5"));
+    QTRY_COMPARE(ctl->surfaceCount(), 1);
+    QCOMPARE(ctl->audioFocus(), QStringLiteral("s1"));
+
+    // "← Library" leaves the remaining Sessions
+    QVERIFY(h.click("backToLibraryButton"));
+    QTRY_VERIFY(!ctl->watching());
+    QTRY_VERIFY(hub.count(QStringLiteral("/api/v1/sessions/s1/viewers/")) >= 1);
+    QCOMPARE(h.controller->screen(), QStringLiteral("library"));
+  }
+
+  // Local game plus up to three remote Sessions (needs the core).
+  void multiviewWithLocalGameAndAudioFocus() {
     GameRig r;
     if (!startGame(r, false)) QSKIP("core or test ROM not available");
     Harness& h = r.h;
@@ -600,103 +816,115 @@ class SessionsUiTest : public QObject {
     QVERIFY(!h.item("sharedPill")->isVisible());  // pill only while shared
     QVERIFY(!gs->audioMuted());
 
-    // Watch from the Library list while playing: Multiview, PiP, local audible
+    // The local game alone: the Session list of the Multiview tab offers every Session of the Hub
     QTRY_COMPARE(ctl->sessions().size(), 1);
     QVERIFY(h.click("tabMultiview"));
     QQuickTest::qWaitForPolish(h.window);
+    QCOMPARE(ctl->surfaceCount(), 1);
     QVERIFY(h.item("multiviewSessionList")->isVisible());
     QVERIFY(!h.item("multiviewNoSessions")->isVisible());
     QVERIFY(visibleItem(h, "gameViewMulti") != nullptr);
+    QVERIFY(!h.item("modeSegment")->isVisible());
     {
       const QQuickItem* box = h.item("multiviewSessionList");
       const QRectF br = box->mapRectToScene(QRectF(0, 0, box->width(), box->height()));
-      const QQuickItem* b0 = h.item("multiviewWatchButton_0");
-      QVERIFY(b0 != nullptr && b0->isVisible());
+      const QQuickItem* b0 = h.item("multiviewAddButton_s1");
+      QVERIFY(b0 != nullptr && b0->isVisible() && b0->isEnabled());
+      QCOMPARE(textOf(const_cast<QQuickItem*>(b0)), QStringLiteral("Add"));
       const QRectF r0 = b0->mapRectToScene(QRectF(0, 0, b0->width(), b0->height()));
-      QVERIFY2(r0.left() >= br.left() && r0.right() <= br.right() + 1 && br.right() <= h.window->width() + 1, "watch button outside the list");
+      QVERIFY2(r0.left() >= br.left() && r0.right() <= br.right() + 1 && br.right() <= h.window->width() + 1, "add button outside the list");
     }
-    // Live: the list follows the Hub (WSS), here a second Session appears and ends again
-    r.hub.sendWs(QStringLiteral("session_update"), {{QStringLiteral("session"), sessionObj(QStringLiteral("s2"), QStringLiteral("Mo"), QStringLiteral("Other"), QStringLiteral("hub_users"), false, 1)}});
+    // Live: the list follows the Hub (WSS), here more Sessions appear and end again
+    r.hub.sessions.insert(QStringLiteral("s2"), sessionObj(QStringLiteral("s2"), QStringLiteral("Mo"), QStringLiteral("Other"), QStringLiteral("hub_users"), false, 1));
+    r.hub.sendWs(QStringLiteral("session_update"), {{QStringLiteral("session"), r.hub.sessions.value(QStringLiteral("s2"))}});
     QTRY_COMPARE(ctl->sessions().size(), 2);
     QQuickTest::qWaitForPolish(h.window);
-    QVERIFY(h.item("multiviewWatchButton_1") != nullptr && h.item("multiviewWatchButton_1")->isVisible());
-    // More than four Sessions: all of them are listed (scrollable), no pointer to the Library
+    QVERIFY(h.item("multiviewAddButton_s2") != nullptr && h.item("multiviewAddButton_s2")->isVisible());
     for (const QString id : {QStringLiteral("s3"), QStringLiteral("s4"), QStringLiteral("s5"), QStringLiteral("s6")}) {
-      r.hub.sendWs(QStringLiteral("session_update"), {{QStringLiteral("session"), sessionObj(id, QStringLiteral("Mo"), QStringLiteral("Other"), QStringLiteral("hub_users"), false, 1)}});
+      r.hub.sessions.insert(id, sessionObj(id, QStringLiteral("Mo"), QStringLiteral("Other"), QStringLiteral("hub_users"), false, 1));
+      r.hub.sendWs(QStringLiteral("session_update"), {{QStringLiteral("session"), r.hub.sessions.value(id)}});
     }
     QTRY_COMPARE(ctl->sessions().size(), 6);
     QQuickTest::qWaitForPolish(h.window);
-    QVERIFY(h.item("multiviewWatchButton_5") != nullptr);
-    QVERIFY(h.item("multiviewSessionView") != nullptr);
-    {
+    QVERIFY(h.item("multiviewAddButton_s6") != nullptr);
+    {  // all Sessions are listed (scrollable), no pointer to the Library
       QQuickItem* view = h.item("multiviewSessionView");
+      QVERIFY(view != nullptr);
       QVERIFY(view->property("contentHeight").toReal() >= view->height());
       QVERIFY(view->property("count").toInt() == 6);
     }
-    for (const QString id : {QStringLiteral("s3"), QStringLiteral("s4"), QStringLiteral("s5"), QStringLiteral("s6")}) {
+    for (const QString id : {QStringLiteral("s5"), QStringLiteral("s6")}) {
       r.hub.sendWs(QStringLiteral("session_ended"), {{QStringLiteral("session_id"), id}, {QStringLiteral("reason"), QStringLiteral("ended")}});
     }
-    QTRY_COMPARE(ctl->sessions().size(), 2);
-    r.hub.sendWs(QStringLiteral("session_ended"), {{QStringLiteral("session_id"), QStringLiteral("s2")}, {QStringLiteral("reason"), QStringLiteral("ended")}});
-    QTRY_COMPARE(ctl->sessions().size(), 1);
+    QTRY_COMPARE(ctl->sessions().size(), 4);
+
+    // Add the first remote Session: the game keeps running and keeps the audio, PiP with the local game as main
     QQuickTest::qWaitForPolish(h.window);
-    QVERIFY(h.click("multiviewWatchButton_0"));  // the game keeps running, local keeps the audio
+    QVERIFY(h.click("multiviewAddButton_s1"));
     QTRY_VERIFY(ctl->watching());
-    QVERIFY(h.controller->gameSession()->isActive());
+    QVERIFY(gs->isActive());
+    QCOMPARE(ctl->surfaceCount(), 2);
+    QCOMPARE(ctl->surfaceOrder(), (QStringList{QStringLiteral("local"), QStringLiteral("s1")}));
     QCOMPARE(ctl->audioFocus(), QStringLiteral("local"));
-    QVERIFY(!h.controller->gameSession()->audioMuted());
+    QVERIFY(!gs->audioMuted());
     QCOMPARE(ctl->tab(), QStringLiteral("multiview"));
     QCOMPARE(ctl->multiviewMode(), QStringLiteral("pip"));
     QCOMPARE(h.controller->screen(), QStringLiteral("game"));
-    QCOMPARE(ctl->audioFocus(), QStringLiteral("local"));
     QQuickTest::qWaitForPolish(h.window);
-    QVERIFY(h.item("pipWindow")->isVisible());
-    QVERIFY(!h.item("sideBySide")->isVisible());
     QVERIFY(visibleItem(h, "gameViewMulti") != nullptr);
     QVERIFY(visibleItem(h, "remoteView") != nullptr);
-    QVERIFY(!h.item("mainAudioButton")->isVisible());   // main surface (local) already has the audio
-    QVERIFY(h.item("pipAudioButton")->isVisible());     // PiP is muted
-    QVERIFY(h.item("swapButton")->isVisible() && h.item("removeRemoteButton")->isVisible());
-    // PiP bottom right
-    const QPointF pipPos = h.item("pipWindow")->mapToItem(h.item("pipMode"), QPointF(h.item("pipWindow")->width(), h.item("pipWindow")->height()));
-    QVERIFY(std::abs(pipPos.x() - (h.item("pipMode")->width() - 28)) < 1.5 && std::abs(pipPos.y() - (h.item("pipMode")->height() - 28)) < 1.5);
+    QCOMPARE(audibleTile(h, {QStringLiteral("local"), QStringLiteral("s1")}), QStringLiteral("local"));
+    QVERIFY(visibleItem(h, "swapButton_s1") != nullptr && visibleItem(h, "removeButton_s1") != nullptr);
+    QVERIFY(visibleItem(h, "removeButton_local") == nullptr);  // the local game is not a Session to leave
+    QQuickItem* localView = visibleItem(h, "gameViewMulti");
+    {  // PiP tile bottom right (offset 28)
+      const QRectF a = areaRect(h), t = tileRect(h, QStringLiteral("s1"));
+      QVERIFY(near(t.right(), a.right() - 28) && near(t.bottom(), a.bottom() - 28));
+    }
     uitest::saveShot(h.window, QStringLiteral("p4-3i-pip"));
 
-    // Audio here (remote): exactly one audible surface
-    QVERIFY(h.click("pipAudioButton"));
-    QCOMPARE(ctl->audioFocus(), QStringLiteral("remote"));
+    // Audio here (remote): exactly one audible surface, the game is muted
+    QVERIFY(h.click("audioButton_s1"));
+    QCOMPARE(ctl->audioFocus(), QStringLiteral("s1"));
     QVERIFY(gs->audioMuted());
     QQuickTest::qWaitForPolish(h.window);
-    QVERIFY(h.item("mainAudioButton")->isVisible());
-    QVERIFY(h.click("mainAudioButton"));
+    QCOMPARE(audibleTile(h, {QStringLiteral("local"), QStringLiteral("s1")}), QStringLiteral("s1"));
+    QTRY_VERIFY(ctl->audioFedFrames(QStringLiteral("s1")) > 0);
+    QVERIFY(h.click("audioButton_local"));
     QCOMPARE(ctl->audioFocus(), QStringLiteral("local"));
     QVERIFY(!gs->audioMuted());
+    {  // muted remote feeds nothing while the local game is audible
+      const qint64 fed = ctl->audioFedFrames(QStringLiteral("s1"));
+      QTest::qWait(150);
+      QCOMPARE(ctl->audioFedFrames(QStringLiteral("s1")), fed);
+    }
 
-    // Swap
-    QVERIFY(h.click("swapButton"));
-    QVERIFY(ctl->swapped());
-    QVERIFY(h.click("swapButton"));
-    QVERIFY(!ctl->swapped());
+    // Swap: the remote Session becomes the main surface; the local view survives layout changes
+    QVERIFY(h.click("swapButton_s1"));
+    QCOMPARE(ctl->mainSurface(), QStringLiteral("s1"));
+    QVERIFY(h.click("swapButton_local"));
+    QCOMPARE(ctl->mainSurface(), QStringLiteral("local"));
+    QVERIFY(visibleItem(h, "gameViewMulti") == localView);
 
     // Side-by-side (3h)
     QVERIFY(h.click("modeSide"));
     QCOMPARE(ctl->multiviewMode(), QStringLiteral("side"));
     QQuickTest::qWaitForPolish(h.window);
-    QVERIFY(h.item("sideBySide")->isVisible());
-    QVERIFY(!h.item("pipWindow")->isVisible());
-    QVERIFY(!h.item("audioLocalButton")->isEnabled() && h.item("audioLocalButton")->property("text").toString() == QLatin1String("Audio on"));
-    QVERIFY(visibleItem(h, "audioRemoteButton")->isEnabled() && textOf(visibleItem(h, "audioRemoteButton")) == QLatin1String("Audio here"));
+    QVERIFY(near(tileRect(h, QStringLiteral("local")).width() * 2 + 2, areaRect(h).width()));
+    QVERIFY(!h.item("audioButton_local")->isEnabled() && textOf(visibleItem(h, "audioButton_local")) == QLatin1String("Audio on"));
+    QVERIFY(visibleItem(h, "audioButton_s1")->isEnabled() && textOf(visibleItem(h, "audioButton_s1")) == QLatin1String("Audio here"));
+    QVERIFY(visibleItem(h, "gameViewMulti") == localView);
     uitest::saveShot(h.window, QStringLiteral("p4-3h-side"));
-    QVERIFY(h.click("audioRemoteButton"));
-    QCOMPARE(ctl->audioFocus(), QStringLiteral("remote"));
+    QVERIFY(h.click("audioButton_s1"));
+    QCOMPARE(ctl->audioFocus(), QStringLiteral("s1"));
     QVERIFY(gs->audioMuted());
     QQuickTest::qWaitForPolish(h.window);
-    QVERIFY(h.item("audioLocalButton")->isEnabled() && !visibleItem(h, "audioRemoteButton")->isEnabled());
-    QVERIFY(h.click("audioLocalButton"));
+    QVERIFY(h.item("audioButton_local")->isEnabled() && !visibleItem(h, "audioButton_s1")->isEnabled());
+    QVERIFY(h.click("audioButton_local"));
     QCOMPARE(ctl->audioFocus(), QStringLiteral("local"));
     QVERIFY(!gs->audioMuted());
 
-    // Diagnostics tab expanded under the multiview: local and remote rows
+    // Diagnostics tab expanded under the multiview: local row and one row per remote surface
     SessionStats local, remote;
     local.active = true;
     local.encoderName = QStringLiteral("h264_nvenc");
@@ -705,26 +933,58 @@ class SessionsUiTest : public QObject {
     local.audioBitrateKbps = 128;
     remote.active = true;
     remote.fps = 59.9;
-    remote.connectionType = QStringLiteral("srflx");
+    remote.connectionType = QStringLiteral("direct (srflx)");
     remote.rttMs = 14;
     remote.videoBitrateKbps = 5800;
     remote.packetLossPercent = 0.1;
-    ctl->setStatsOverride(&local, &remote);
+    ctl->setStatsOverride(&local, {{QStringLiteral("s1"), remote}});
     QVERIFY(h.click("tabDiagnostics"));
     QQuickTest::qWaitForPolish(h.window);
     QVERIFY(visibleItem(h, "diagnosticsPanel") != nullptr);
     QVERIFY(textOf(visibleItem(h, "diagRow_local")).contains(QStringLiteral("encoder h264_nvenc")));
-    QVERIFY(textOf(visibleItem(h, "diagRow_remote")).contains(QStringLiteral("WebRTC direct (srflx)")));
+    QVERIFY(textOf(visibleItem(h, "diagRow_s1")).contains(QStringLiteral("WebRTC direct (srflx)")));
     uitest::saveShot(h.window, QStringLiteral("p4-3h-diagnostics"));
-    ctl->setStatsOverride(nullptr, nullptr);
+    ctl->setStatsOverride(nullptr, {});
     QVERIFY(h.click("tabMultiview"));
-    QVERIFY(h.click("modePip"));
+
+    // Local game plus three remote Sessions = four surfaces: grid 2 x 2, limit, audio focus without losing the game
+    QVERIFY(h.click("addSessionToggle"));
+    QVERIFY(h.click("multiviewAddButton_s2"));
+    QTRY_COMPARE(ctl->surfaceCount(), 3);
+    QCOMPARE(ctl->multiviewMode(), QStringLiteral("grid"));  // tile layout adapts to the count
+    QVERIFY(h.click("multiviewAddButton_s3"));
+    QTRY_COMPARE(ctl->surfaceCount(), 4);
+    QVERIFY(!ctl->canAddSurface());
+    QQuickTest::qWaitForPolish(h.window);
+    QVERIFY(!h.item("multiviewAddButton_s4")->isEnabled());
+    QVERIFY(visibleItem(h, "gameViewMulti") == localView);
+    {
+      const QRectF a = areaRect(h), t1 = tileRect(h, QStringLiteral("local")), t4 = tileRect(h, QStringLiteral("s3"));
+      QVERIFY(near(t1.left(), a.left()) && near(t4.right(), a.right()) && near(t4.bottom(), a.bottom()) && near(t1.width(), t4.width()));
+    }
+    uitest::saveShot(h.window, QStringLiteral("p4-d8-grid4"));
+    ctl->audioHere(QStringLiteral("s3"));
+    QVERIFY(gs->audioMuted());
+    QVERIFY(h.click("removeButton_s3"));  // removing the focused surface: the local game takes the focus back
+    QTRY_COMPARE(ctl->surfaceCount(), 3);
+    QCOMPARE(ctl->audioFocus(), QStringLiteral("local"));
+    QVERIFY(!gs->audioMuted());
+    ctl->audioHere(QStringLiteral("s2"));
+    QVERIFY(gs->audioMuted());
+    r.hub.sendWs(QStringLiteral("session_ended"), {{QStringLiteral("session_id"), QStringLiteral("s2")}, {QStringLiteral("reason"), QStringLiteral("ended")}});
+    QTRY_COMPARE(ctl->surfaceCount(), 2);  // only that surface is gone; s1 and the game keep running
+    QCOMPARE(ctl->shownSessionIds(), QStringList{QStringLiteral("s1")});
+    QCOMPARE(ctl->audioFocus(), QStringLiteral("local"));
+    QVERIFY(!gs->audioMuted());
+    QVERIFY(gs->isActive());
 
     // Remove (PiP): leaves the Session (DELETE viewer), local game alone again
+    QVERIFY(h.click("modePip"));
     QQuickTest::qWaitForPolish(h.window);
-    QVERIFY(h.click("removeRemoteButton"));
+    QVERIFY(h.click("removeButton_s1"));
     QVERIFY(!ctl->watching());
     QTRY_VERIFY(r.hub.count(QStringLiteral("/api/v1/sessions/s1/viewers/")) >= 1);
+    QCOMPARE(ctl->surfaceCount(), 1);
     QCOMPARE(ctl->audioFocus(), QStringLiteral("local"));
     QVERIFY(!gs->audioMuted());
     QCOMPARE(h.controller->screen(), QStringLiteral("game"));

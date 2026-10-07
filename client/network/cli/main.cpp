@@ -22,8 +22,8 @@
 //   saves list | save push <game_id> <file> [--base N] [--reason checkpoint|final|final_session_end]
 //   save pull <game_id> <out> | save resolve <game_id> <conflict_id> use_hub|use_local --expected N
 //     (slot "default"; output lines OK/CONFLICT/STALE/ERROR; exit 0 ok, 1 error, 3 upload conflict, 4 stale resolve)
-//   session-share [--game <id>] [--visibility private|hub_users|invite_only] [--synthetic] [--seconds N]
-//   session-watch (--session <id> | --first) [--seconds N]      (Sessions: ADR 0006; follow-up commands of "pair" like
+//   session-share [--game <id>] [--visibility private|hub_users|invite_only] [--synthetic] [--seconds N] [--force-relay]
+//   session-watch (--session <id> | --first) [--seconds N] [--force-relay]     (Sessions: ADR 0006; follow-up commands of "pair" like
 //     the others; share publishes a Session with synthetic frames/tone, watch exits 0 with >= 30 frames and audio)
 //   games | fetch-rom <sha256>      (uses the last connected profile; Linux: credential in memory only,
 //                                    so use them there as follow-up commands of "pair")
@@ -167,8 +167,8 @@ class Runner : public QObject {
              "        framebeam_player_cli games | fetch-rom <sha256>   [--data-dir <path>]\n"
              "        framebeam_player_cli game upload <file> [--title T] | systems | fetch-core <system-id>\n"
              "        framebeam_player_cli saves list | save push <game_id> <file> [--base N] | save pull <game_id> <out>\n"
-             "        framebeam_player_cli session-share [--game <id>] [--visibility V] --synthetic [--seconds N]\n"
-             "        framebeam_player_cli session-watch (--session <id> | --first) [--seconds N]\n"
+             "        framebeam_player_cli session-share [--game <id>] [--visibility V] --synthetic [--seconds N] [--force-relay]\n"
+             "        framebeam_player_cli session-watch (--session <id> | --first) [--seconds N] [--force-relay]\n"
              "                             | save resolve <game_id> <conflict_id> use_hub|use_local --expected N\n";
     return 1;
   }
