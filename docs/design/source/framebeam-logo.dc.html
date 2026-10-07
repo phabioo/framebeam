@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#d9d8d4;font-family:'IBM Plex Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#9a6a12;text-decoration:none}a:hover{color:#6e4a08;text-decoration:underline}
+</style>
+</helmet>
+<section style="padding:80px;display:flex;flex-direction:column;gap:40px">
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <div style="font:500 13px 'IBM Plex Mono',monospace;color:#5b5a56;letter-spacing:.04em">TURN 4 · LOGO · FRAMEBEAM HUB + PLAYER</div>
+    <div style="font-size:32px;font-weight:600;color:#1b1b1d">Three mark concepts · one shared family, product told apart by tile color and inner glyph</div>
+    <div style="font-size:15px;color:#5b5a56;max-width:900px;line-height:1.5;text-wrap:pretty">Black tile matches the Player window; a light tile variant covers light themes. Hub: beam leaves the frame. Player: beam arrives as a play arrow. Pick a concept in Tweaks to update the system sheet <a href="#4d">4d</a>.</div>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:40px">
+    <div id="4a" style="width:520px;display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;gap:10px"><span style="font:500 13px 'IBM Plex Mono',monospace;background:#1b1b1d;color:#f6f5f2;padding:4px 8px;border-radius:4px">4a</span><span style="font-size:15px;font-weight:600;color:#1b1b1d">Frame &amp; Beam</span><span style="font:400 12px 'IBM Plex Mono',monospace;color:#5b5a56">selected</span></div>
+      <div style="background:#f6f5f2;border-radius:10px;padding:36px;display:flex;flex-direction:column;gap:28px">
+        <div style="display:flex;gap:28px;justify-content:center">
+          <dc-import name="FrameBeamMark" palette="{{ palette }}" concept="a" product="hub" size="{{ s160 }}" hint-size="160px,160px"></dc-import>
+          <dc-import name="FrameBeamMark" palette="{{ palette }}" concept="a" product="player" size="{{ s160 }}" hint-size="160px,160px"></dc-import>
+        </div>
+        <div style="display:flex;gap:14px;align-items:center;justify-content:center;padding:14px;border-radius:8px;background:#e7e6e1">
+          <dc-import name="FrameBeamMark" palette="{{ palette }}" concept="a" product="hub" size="{{ s32 }}" hint-size="32px,32px"></dc-import>
+          <dc-import name="FrameBeamMark" palette="{{ palette }}" concept="a" product="hub" size="{{ s16 }}" hint-size="16px,16px"></dc-import>
+          <div style="width:1px;height:24px;background:#cfcdc7"></div>
+          <dc-import name="FrameBeamMark" palette="{{ palette }}" concept="a" product="player" size="{{ s32 }}" hint-size="32px,32px"></dc-import>
+          <dc-import name="FrameBeamMark" palette="{{ palette }}" concept="a" product="player" size="{{ s16 }}" hint-size="16px,16px"></dc-import>
+        </div>
+        <div style="font-size:14px;color:#55544f;line-height:1.5;text-wrap:pretty">A frame with a beam crossing its edge. Hub: the beam leaves the frame. Player: the beam arrives and becomes a play arrow. Most literal to the name.</div>
+      </div>
+    </div>
+    <div id="4b" style="width:520px;display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;gap:10px"><span style="font:500 13px 'IBM Plex Mono',monospace;background:#1b1b1d;color:#f6f5f2;padding:4px 8px;border-radius:4px">4b</span><span style="font-size:15px;font-weight:600;color:#1b1b1d">Viewfinder</span></div>
+      <div style="background:#f6f5f2;border-radius:10px;padding:36px;display:flex;flex-direction:column;gap:28px">
+        <div style="display:flex;gap:28px;justify-content:center">
+          <dc-import name="FrameBeamMark" palette="{{ palette }}" concept="b" product="hub" size="{{ s160 }}" hint-size="160px,160px"></dc-import>
+          <dc-import name="FrameBeamMark" palette="{{ palette }}" concept="b" product="player" size="{{ s160 }}" hint-size="160px,160px"></dc-import>
+        </div>
+        <div style="display:flex;gap:14px;align-items:center;justify-content:center;padding:14px;border-radius:8px;background:#e7e6e1">
+          <dc-import name="FrameBeamMark" palette="{{ palette }}" concept="b" product="hub" size="{{ s32 }}" hint-size="32px,32px"></dc-import>
+          <dc-import name="FrameBeamMark" palette="{{ palette }}" concept="b" product="hub" size="{{ s16 }}" hint-size="16px,16px"></dc-import>
+          <div style="width:1px;height:24px;background:#cfcdc7"></div>
+          <dc-import name="FrameBeamMark" palette="{{ palette }}" concept="b" product="player" size="{{ s32 }}" hint-size="32px,32px"></dc-import>
+          <dc-import name="FrameBeamMark" palette="{{ palette }}" concept="b" product="player" size="{{ s16 }}" hint-size="16px,16px"></dc-import>
+        </div>
+        <div style="font-size:14px;color:#55544f;line-height:1.5;text-wrap:pretty">Four corner brackets frame the content. Hub holds a library grid (one tile lit); Player holds a play arrow. Calm, utility-like, reads well in a dock.</div>
+      </div>
+    </div>
+    <div id="4c" style="width:520px;display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;gap:10px"><span style="font:500 13px 'IBM Plex Mono',monospace;background:#1b1b1d;color:#f6f5f2;padding:4px 8px;border-radius:4px">4c</span><span style="font-size:15px;font-weight:600;color:#1b1b1d">Beam Bars</span></div>
+      <div style="background:#f6f5f2;border-radius:10px;padding:36px;display:flex;flex-direction:column;gap:28px">
+        <div style="display:flex;gap:28px;justify-content:center">
+          <dc-import name="FrameBeamMark" palette="{{ palette }}" concept="c" product="hub" size="{{ s160 }}" hint-size="160px,160px"></dc-import>
+          <dc-import name="FrameBeamMark" palette="{{ palette }}" concept="c" product="player" size="{{ s160 }}" hint-size="160px,160px"></dc-import>
+        </div>
+        <div style="display:flex;gap:14px;align-items:center;justify-content:center;padding:14px;border-radius:8px;background:#e7e6e1">
+          <dc-import name="FrameBeamMark" palette="{{ palette }}" concept="c" product="hub" size="{{ s32 }}" hint-size="32px,32px"></dc-import>
+          <dc-import name="FrameBeamMark" palette="{{ palette }}" concept="c" product="hub" size="{{ s16 }}" hint-size="16px,16px"></dc-import>
+          <div style="width:1px;height:24px;background:#cfcdc7"></div>
+          <dc-import name="FrameBeamMark" palette="{{ palette }}" concept="c" product="player" size="{{ s32 }}" hint-size="32px,32px"></dc-import>
+          <dc-import name="FrameBeamMark" palette="{{ palette }}" concept="c" product="player" size="{{ s16 }}" hint-size="16px,16px"></dc-import>
+        </div>
+        <div style="font-size:14px;color:#55544f;line-height:1.5;text-wrap:pretty">Three bars as a stream of frames. Hub: tapering stack (a source, a rack). Player: the middle bar pushes ahead, forming a forward arrow. Boldest at 16 px.</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="4d" style="display:flex;flex-direction:column;gap:12px;max-width:1640px">
+    <div style="display:flex;align-items:center;gap:10px"><span style="font:500 13px 'IBM Plex Mono',monospace;background:#1b1b1d;color:#f6f5f2;padding:4px 8px;border-radius:4px">4d</span><span style="font-size:15px;font-weight:600;color:#1b1b1d">System sheet · concept {{ conceptLabel }}</span><span style="font:400 12px 'IBM Plex Mono',monospace;color:#5b5a56">switch in Tweaks</span></div>
+    <div style="background:#f6f5f2;border-radius:10px;padding:48px;display:grid;grid-template-columns:repeat(auto-fit,minmax(480px,1fr));gap:48px 56px">
+
+      <div style="display:flex;flex-direction:column;gap:20px;grid-column:1/-1">
+        <div style="font:500 12px 'IBM Plex Mono',monospace;color:#5b5a56;letter-spacing:.04em">APP ICON · dark (default) + light variant · 1024 master, rounded 22% · circle mask for Android adaptive</div>
+        <sc-for list="{{ iconRows }}" as="p" hint-placeholder-count="4">
+          <div style="display:flex;align-items:flex-end;gap:32px;flex-wrap:wrap">
+            <div style="width:110px;font-size:15px;font-weight:600;color:#1b1b1d;align-self:center">{{ p.label }}</div>
+            <sc-for list="{{ iconSizes }}" as="ic" hint-placeholder-count="7">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:10px">
+                <dc-import name="FrameBeamMark" palette="{{ palette }}" concept="{{ concept }}" product="{{ p.id }}" tone="{{ p.tone }}" shape="{{ ic.shape }}" size="{{ ic.size }}" hint-size="64px,64px"></dc-import>
+                <div style="font:400 11px 'IBM Plex Mono',monospace;color:#7a7974">{{ ic.label }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div style="font:500 12px 'IBM Plex Mono',monospace;color:#5b5a56;letter-spacing:.04em">LOCKUP · WEBSITE / LIGHT</div>
+        <sc-for list="{{ products }}" as="p" hint-placeholder-count="2">
+          <div style="display:flex;align-items:center;gap:16px;padding:28px 32px;border-radius:8px;background:#ffffff;box-shadow:0 0 0 1px #e3e1dc">
+            <dc-import name="FrameBeamMark" palette="{{ palette }}" concept="{{ concept }}" product="{{ p.id }}" tone="bare" size="{{ s44 }}" hint-size="44px,44px"></dc-import>
+            <div style="font-size:30px;letter-spacing:-.01em;color:#1b1b1d;display:flex;gap:8px"><span style="font-weight:600">FrameBeam</span><span style="font-weight:400;color:#6a6964">{{ p.label }}</span></div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div style="font:500 12px 'IBM Plex Mono',monospace;color:#5b5a56;letter-spacing:.04em">LOCKUP · DARK</div>
+        <sc-for list="{{ products }}" as="p" hint-placeholder-count="2">
+          <div style="display:flex;align-items:center;gap:16px;padding:28px 32px;border-radius:8px;background:#121315">
+            <dc-import name="FrameBeamMark" palette="{{ palette }}" concept="{{ concept }}" product="{{ p.id }}" tone="bare-dark" size="{{ s44 }}" hint-size="44px,44px"></dc-import>
+            <div style="font-size:30px;letter-spacing:-.01em;color:#ecebe7;display:flex;gap:8px"><span style="font-weight:600">FrameBeam</span><span style="font-weight:400;color:#a3a3a8">{{ p.label }}</span></div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div style="font:500 12px 'IBM Plex Mono',monospace;color:#5b5a56;letter-spacing:.04em">IN-APP HEADER · tile 22 px + name (replaces current placeholder squares)</div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap">
+          <div style="flex:1;min-width:220px;display:flex;align-items:center;gap:10px;padding:20px;border-radius:8px;background:#efeee9;box-shadow:0 0 0 1px #e3e1dc">
+            <dc-import name="FrameBeamMark" palette="{{ palette }}" concept="{{ concept }}" product="hub" tone="color-light" size="{{ s22 }}" hint-size="22px,22px"></dc-import>
+            <div style="font-weight:600;font-size:16px;color:#1b1b1d">FrameBeam Hub</div>
+          </div>
+          <div style="flex:1;min-width:220px;display:flex;align-items:center;gap:10px;padding:20px;border-radius:8px;background:#0e0f10">
+            <dc-import name="FrameBeamMark" palette="{{ palette }}" concept="{{ concept }}" product="player" size="{{ s22 }}" hint-size="22px,22px"></dc-import>
+            <div style="font-weight:600;font-size:16px;color:#ecebe7">FrameBeam Player</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div style="font:500 12px 'IBM Plex Mono',monospace;color:#5b5a56;letter-spacing:.04em">BROWSER TAB · favicon 16 px actual size</div>
+        <div style="display:flex;gap:2px;padding:8px 8px 0;border-radius:8px 8px 0 0;background:#dedcd6">
+          <div style="display:flex;align-items:center;gap:8px;padding:9px 14px;border-radius:7px 7px 0 0;background:#ffffff;font-size:13px;color:#1b1b1d;min-width:0">
+            <dc-import name="FrameBeamMark" palette="{{ palette }}" concept="{{ concept }}" product="hub" size="{{ s16 }}" hint-size="16px,16px"></dc-import>
+            <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">FrameBeam Hub · Library</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:9px 14px;font-size:13px;color:#55544f;min-width:0">
+            <dc-import name="FrameBeamMark" palette="{{ palette }}" concept="{{ concept }}" product="player" size="{{ s16 }}" hint-size="16px,16px"></dc-import>
+            <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">FrameBeam Player · Web</span>
+          </div>
+        </div>
+        <div style="height:12px;margin-top:-16px;background:#ffffff;border-radius:0 0 8px 8px;box-shadow:0 0 0 1px #e3e1dc"></div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div style="font:500 12px 'IBM Plex Mono',monospace;color:#5b5a56;letter-spacing:.04em">MONOCHROME · print, engraving, single-color UI</div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap">
+          <div style="flex:1;min-width:200px;display:flex;justify-content:center;gap:28px;padding:28px;border-radius:8px;background:#ffffff;box-shadow:0 0 0 1px #e3e1dc">
+            <dc-import name="FrameBeamMark" palette="{{ palette }}" concept="{{ concept }}" product="hub" tone="mono-dark" size="{{ s56 }}" hint-size="56px,56px"></dc-import>
+            <dc-import name="FrameBeamMark" palette="{{ palette }}" concept="{{ concept }}" product="player" tone="mono-dark" size="{{ s56 }}" hint-size="56px,56px"></dc-import>
+          </div>
+          <div style="flex:1;min-width:200px;display:flex;justify-content:center;gap:28px;padding:28px;border-radius:8px;background:#121315">
+            <dc-import name="FrameBeamMark" palette="{{ palette }}" concept="{{ concept }}" product="hub" tone="mono-light" size="{{ s56 }}" hint-size="56px,56px"></dc-import>
+            <dc-import name="FrameBeamMark" palette="{{ palette }}" concept="{{ concept }}" product="player" tone="mono-light" size="{{ s56 }}" hint-size="56px,56px"></dc-import>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div style="font:500 12px 'IBM Plex Mono',monospace;color:#5b5a56;letter-spacing:.04em">COLOR</div>
+        <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px">
+          <sc-for list="{{ swatches }}" as="sw" hint-placeholder-count="4"><div style="display:flex;flex-direction:column;gap:8px"><div style="height:64px;border-radius:8px;background:{{ sw.hex }};box-shadow:0 0 0 1px #e3e1dc"></div><div style="font:400 12px 'IBM Plex Mono',monospace;color:#1b1b1d">{{ sw.name }}<br>{{ sw.hex }}</div></div></sc-for>
+        </div>
+        <div style="font-size:13px;color:#55544f;line-height:1.5">Wordmark: IBM Plex Sans — "FrameBeam" SemiBold, product name Regular.</div>
+      </div>
+
+    </div>
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;concept&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;a&quot;,&quot;b&quot;,&quot;c&quot;],&quot;default&quot;:&quot;a&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;palette&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;red&quot;,&quot;crimson&quot;,&quot;signal&quot;,&quot;phosphor&quot;,&quot;violet&quot;,&quot;mono&quot;],&quot;default&quot;:&quot;signal&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const concept = this.props.concept ?? 'a';
+    const palette = this.props.palette ?? 'signal';
+    const S = { red: ['Beam Red', '#EF5045', '#CF3329'], crimson: ['Crimson', '#E8435A', '#C4263F'], signal: ['Signal Cyan', '#3CBFD8', '#1A8AA3'], phosphor: ['Phosphor Green', '#5FD38A', '#25924F'], violet: ['Beam Violet', '#A093F8', '#6A5AE0'], mono: ['Beam White', '#F6F5F2', '#1B1B1D'] }[palette];
+    return {
+      concept, palette,
+      swatches: [{ name: S[0] + ' on dark', hex: S[1] }, { name: S[0] + ' on light', hex: S[2] }, { name: 'Ink', hex: '#1B1B1D' }, { name: 'Paper', hex: '#F6F5F2' }],
+      iconRows: [{ id: 'hub', tone: 'color', label: 'Hub' }, { id: 'hub', tone: 'color-light', label: 'Hub light' }, { id: 'player', tone: 'color', label: 'Player' }, { id: 'player', tone: 'color-light', label: 'Player light' }],
+      conceptLabel: { a: '4a · Frame & Beam', b: '4b · Viewfinder', c: '4c · Beam Bars' }[concept],
+      s160: 160, s56: 56, s44: 44, s32: 32, s22: 22, s16: 16,
+      products: [{ id: 'hub', label: 'Hub' }, { id: 'player', label: 'Player' }],
+      iconSizes: [
+        { size: 180, shape: 'square', label: '1024 / 180' },
+        { size: 120, shape: 'circle', label: 'adaptive' },
+        { size: 64, shape: 'square', label: '64' },
+        { size: 48, shape: 'square', label: '48' },
+        { size: 32, shape: 'square', label: '32' },
+        { size: 16, shape: 'square', label: '16' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

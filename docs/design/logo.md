@@ -1,0 +1,56 @@
+# Design: logo
+
+Sources: `source/framebeam-logo.dc.html` (logo sheet, "TURN 4", concepts 4a-4c and system sheet 4d) and `source/framebeam-mark.dc.html` (mark component, SVG with `viewBox 0 0 100 100`). Both stay unchanged and do not render standalone (`support.js` missing). Decision (Fabio, 2026-10-07): concept 4a "Frame & Beam", palette "signal". Concepts 4b "Viewfinder" and 4c "Beam Bars" and the other palettes (red, crimson, phosphor, violet, mono) are not selected and not specified here. Colors: `tokens.md`.
+
+## Concept 4a "Frame & Beam"
+
+A square frame with a beam crossing its edge. One shared family; the product is told apart by the inner glyph (and by tile color where both are shown).
+
+| Product | Glyph | Geometry (viewBox 100) |
+|---|---|---|
+| FrameBeam Hub | The beam leaves the frame | Frame: rect 24,24, 52 x 52, radius 6, stroke 8. Beam: circle r 9 at (44, 50) plus bar x 44, y 45, 38 x 10, radius 2 (ends outside the frame, right) |
+| FrameBeam Player | The beam arrives and becomes a play arrow | Same frame. Beam: bar x 18, y 45.5, 28 x 9, radius 2 (starts outside the frame, left) plus triangle 42,35 / 64,50 / 42,65 |
+
+Frame = glyph color, beam = accent color.
+
+## Palette "signal" and tones
+
+| Name | Value |
+|---|---|
+| Signal Cyan on dark (beam) | `#3cbfd8` |
+| Signal Cyan on light (beam) | `#1a8aa3` |
+| Ink | `#1b1b1d` |
+| Paper | `#f6f5f2` |
+
+| Tone | Tile | Frame (glyph) | Beam | Use |
+|---|---|---|---|---|
+| `color` | Ink `#1b1b1d`, square, radius 21.5 | `#f6f5f2` | `#3cbfd8` | App icon dark (default), Player sidebar/header |
+| `color-light` | Paper `#f6f5f2`, edge `#dcdad4` 1.5, radius 21.5 | `#1b1b1d` | `#1a8aa3` | App icon light variant, Hub sidebar |
+| `bare` | none | `#1b1b1d` | `#1a8aa3` | Lockup on light (website) |
+| `bare-dark` | none | `#f6f5f2` | `#3cbfd8` | Lockup on dark |
+| `mono-dark` | none | `#1b1b1d` | `#1b1b1d` | Print, engraving, single-color UI (on light) |
+| `mono-light` | none | `#f6f5f2` | `#f6f5f2` | Single-color on dark |
+
+Bare and monochrome tones scale the glyph by 1.4 (no tile); the circular mask scales it by 0.9.
+
+## Sizes and placements
+
+| Placement | Size / tone | Note |
+|---|---|---|
+| App icon | 1024 master (preview 180), 64, 48, 32, 16; dark (default) and light variant, per product | Square tile, rounded corners 22 % (radius 21.5 of 100) |
+| Android adaptive icon | Circle mask (preview 120) | Glyph scaled to 0.9 inside the circle |
+| In-app header | 22 px tile + product name (16/600) | Hub: `color-light`; Player: `color`. Replaces the earlier placeholder squares in the sidebars (3a-3s) |
+| Favicon | 16 px, `color` tile | Hub: "FrameBeam Hub · Library" as tab title in the sheet |
+| Lockup | Mark 44 px + wordmark, light and dark | Website, installer, documentation |
+| Monochrome | 56 px, both products, dark and light | |
+
+## Wordmark
+
+IBM Plex Sans: "FrameBeam" SemiBold (600), product name ("Hub", "Player") Regular (400). In the UI, the full product name "FrameBeam Hub" / "FrameBeam Player" is used in the header (16/600 as drawn in the sidebars).
+
+## Open
+
+- Light accent: the logo uses `#1a8aa3`, the Hub UI accent is `#1a7f96`; one of them should win (also in `README.md`).
+- The logo sheet shows a favicon "FrameBeam Player · Web"; there is no web player. Only the Hub needs a favicon.
+- Readability at 16 px is shown in the sheet only at actual size; no separate 16 px simplification is drawn.
+- Not decided: where the icon files are produced (export from the source SVG) and in which formats (installer icon, `.ico`, Hub favicon); this belongs to the packaging work.
