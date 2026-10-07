@@ -62,7 +62,7 @@ build_hub() { # VERSION OUT
 }
 wait_api() { # up to 60 s
   for _ in $(seq 1 60); do
-    curl -fsk "https://127.0.0.1:$PORT/api/v1/info" >/dev/null 2>&1 && return 0
+    curl -fsk "https://127.0.0.1:$PORT/.well-known/framebeam" >/dev/null 2>&1 && return 0
     sleep 1
   done
   return 1
@@ -129,7 +129,7 @@ $SUDO runuser -u framebeam -- bash -c 'set -a; . /etc/framebeam/hub.env; exec /u
 ok=0
 for _ in $(seq 1 120); do
   if [ "$(installed_version)" = "$V2" ] && $SUDO systemctl is-active --quiet framebeam-hub \
-     && curl -fsk "https://127.0.0.1:$PORT/api/v1/info" >/dev/null 2>&1; then ok=1; break; fi
+     && curl -fsk "https://127.0.0.1:$PORT/.well-known/framebeam" >/dev/null 2>&1; then ok=1; break; fi
   sleep 1
 done
 [ "$ok" -eq 1 ] || fail "update was not applied within 120 s (installed: $(installed_version))"
