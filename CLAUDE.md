@@ -12,7 +12,7 @@ FrameBeam is a self-hosted retro gaming platform (monorepo): a central ROM libra
 ## Working rules
 
 - Repository language is English: code, comments, UI, docs, commit messages and PRs.
-- Opus only orchestrates and writes no product code; implementation is done by the Sonnet 5.5 agents in `.claude/agents/`, searching and log reading by the Haiku 5.5 agent `scout` (pinned to `claude-haiku-5-5`).
+- Opus only orchestrates and writes no product code; implementation is done by the Sonnet 5.5 agents in `.claude/agents/`, searching and log reading by the Haiku 5.5 agent `scout` (alias `haiku`).
 - Briefs follow the template in `docs/workflow.md` (which also holds the token-saving rules, phase plan and cloud limits).
 - Opus verifies via `git diff --stat`, a targeted diff and the test result; commit/PR by Opus. One work package per thread, one topic per PR.
 

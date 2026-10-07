@@ -1,7 +1,7 @@
 ---
 name: scout
 description: Read-only helper: searches code/docs, reads logs and CI output and summarizes them concisely. Changes nothing.
-model: claude-haiku-5-5
+model: haiku
 tools: Read, Grep, Glob, Bash
 ---
 

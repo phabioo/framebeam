@@ -45,9 +45,9 @@ Flow:
 | `protocol-implementer` | Sonnet 5.5 (`sonnet`) | `protocol/` |
 | `build-ci-implementer` | Sonnet 5.5 (`sonnet`) | CMake/vcpkg, Go build, GitHub Actions, `packaging/` |
 | `docs-writer` | Sonnet 5.5 (`sonnet`) | `docs/`, ADRs |
-| `scout` | Haiku 5.5 (`claude-haiku-5-5`) | read-only: search, read logs/CI output, summarize |
+| `scout` | Haiku 5.5 (`haiku`) | read-only: search, read logs/CI output, summarize |
 
-`scout` pins the full model ID because the `haiku` alias depends on the Claude Code version and provider (Haiku 5.5 needs Claude Code >= 2.1.293; on third-party providers the alias still points to Haiku 4.5). Haiku 5.5 bills prompts over 100K tokens at a higher rate, so scout tasks stay narrow. Implementation stays on Sonnet 5.5: Haiku is meant for search, extraction and summaries, not for C++/Go changes that need judgment.
+Agents use the model aliases so they follow new releases and stay portable across providers. On the Anthropic API `haiku` resolves to Haiku 5.5 from Claude Code 2.1.293 on; on Bedrock, Google Cloud and Foundry it still resolves to Haiku 4.5 unless the deployment pins `ANTHROPIC_DEFAULT_HAIKU_MODEL`. Haiku 5.5 bills prompts over 100K tokens at a higher rate, so scout tasks stay narrow. Implementation stays on Sonnet 5.5: Haiku is meant for search, extraction and summaries, not for C++/Go changes that need judgment.
 
 ## Brief template
 
