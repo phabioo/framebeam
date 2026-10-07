@@ -142,7 +142,7 @@ func (s *Service) ListPendingRequests(ctx context.Context) ([]PairingRequest, er
 	return out, rows.Err()
 }
 
-// ApprovePairing allows an open request and assigns it to the user userID (phase 1: admin).
+// ApprovePairing allows an open request and assigns it to the user userID (admin).
 // The device is registered only on the first poll; the deadline is extended to 10 min from now.
 func (s *Service) ApprovePairing(ctx context.Context, requestID, userID string) error {
 	if _, err := s.GetUser(ctx, userID); err != nil {

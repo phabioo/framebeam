@@ -1,5 +1,8 @@
 // framebeam_player_cli: developer tool against a real FrameBeam Hub (QtCore/QtNetwork only).
 //   identify <address> [--dev]
+//   --accept-fingerprint [<sha256>]: first contact without a value pins what the hub presents. With a value
+//     (64 hex digits, colons optional) it also accepts a CHANGED certificate of a stored profile, but only if the
+//     presented fingerprint equals the value; nothing is sent to the new certificate before that.
 //   pair <address> [--dev] [--accept-fingerprint] [games] [fetch-rom <sha256>] [wait-revoked]...
 //     wait-revoked: reports READY-FOR-REVOKE, renews the token every second and ends (exit 0) as soon as the
 //     hub has revoked the device (state NeedsPairing); exit 1 after 60 s without revocation (E2E script).
@@ -21,6 +24,7 @@
 // Exit codes: 0 ok, 1 error, 2 user action required (confirm fingerprint, approval).
 #include <QCoreApplication>
 #include <QFile>
+#include <QRegularExpression>
 #include <QTextStream>
 #include <QTimer>
 #include <memory>
@@ -63,6 +67,10 @@ class Runner : public QObject {
         dev_ = true;
       } else if (a == QLatin1String("--accept-fingerprint")) {
         accept_ = true;
+        static const QRegularExpression fpRe(QStringLiteral("^[0-9A-Fa-f]{2}(:?[0-9A-Fa-f]{2}){31}$"));
+        if (i + 1 < args_.size() && fpRe.match(args_.at(i + 1)).hasMatch()) {
+          acceptFp_ = args_.at(++i);
+        }
       } else if (a == QLatin1String("--data-dir") && i + 1 < args_.size()) {
         dataDir = args_.at(++i);
       } else if (a == QLatin1String("--code") && i + 1 < args_.size()) {
@@ -166,7 +174,11 @@ class Runner : public QObject {
     switch (s) {
       case S::NeedsTrustConfirmation:
         printHub();
-        if (!identify && accept_) {
+        if (!identify && accept_ && !acceptFp_.isEmpty() && !HubHttp::fingerprintsEqual(acceptFp_, conn_->observedFingerprint())) {
+          out() << "Fingerprint mismatch. Given: " << acceptFp_ << "\nSeen:  " << conn_->observedFingerprint() << "\n";
+          out().flush();
+          finish(1);
+        } else if (!identify && accept_) {
           conn_->confirmTrust();
         } else {
           out() << (identify ? "First contact: compare the fingerprint with the hub settings page.\n"
@@ -178,6 +190,14 @@ class Runner : public QObject {
       case S::CertificateChanged:
         out() << "CERTIFICATE CHANGED. Expected: " << conn_->expectedFingerprint() << "\nSeen:      "
               << conn_->observedFingerprint() << "\n";
+        if (!identify && !acceptFp_.isEmpty() && !changeAccepted_ && HubHttp::fingerprintsEqual(acceptFp_, conn_->observedFingerprint()) &&
+            conn_->confirmCertificateChange(acceptFp_)) {
+          changeAccepted_ = true;  // one re-pin per run; another certificate on the reconnect stays blocked
+          out() << "New certificate accepted (--accept-fingerprint).\n";
+          out().flush();
+          break;
+        }
+        out() << "Compare the fingerprint with the hub settings page and accept it with --accept-fingerprint <sha256>.\n";
         out().flush();
         finish(1);
         break;
@@ -514,6 +534,8 @@ class Runner : public QObject {
   int lastPct_ = -1;
   bool dev_ = false;
   bool accept_ = false;
+  QString acceptFp_;
+  bool changeAccepted_ = false;
   QString inviteCode_;
   QString inviteName_;
   std::unique_ptr<ProfileStore> profiles_;

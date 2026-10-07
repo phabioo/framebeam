@@ -60,18 +60,18 @@ class PlayerController : public QObject {
   Q_PROPERTY(QString saveNote READ saveNote NOTIFY hubChanged)
   // Game view
   Q_PROPERTY(framebeam::ui::GameSession* gameSession READ gameSession CONSTANT)
-  // Phase 5: appearance (Settings page), upload, core warnings
+  // Appearance (Settings page), upload, core warnings
   Q_PROPERTY(QString appearance READ appearance WRITE setAppearance NOTIFY appearanceChanged)  // dark | light | system
   Q_PROPERTY(bool darkMode READ darkMode NOTIFY appearanceChanged)  // effective palette (System resolved)
   Q_PROPERTY(bool canUpload READ canUpload NOTIFY hubChanged)       // handshake feature uploads_v1
   Q_PROPERTY(QVariantMap upload READ upload NOTIFY uploadChanged)   // active, fileName, progress, message, isError
   Q_PROPERTY(QStringList uploadFilters READ uploadFilters CONSTANT)
   Q_PROPERTY(QVariantList coreWarnings READ coreWarnings NOTIFY hubChanged)  // core_missing / core_version_mismatch
-  // Phase 5: Emulation page (3e), Controllers page (3f), applied settings
+  // Emulation page (3e), Controllers page (3f), applied settings
   Q_PROPERTY(framebeam::ui::EmulationController* emulation READ emulation CONSTANT)
   Q_PROPERTY(framebeam::ui::ControllersController* controllers READ controllers CONSTANT)
   Q_PROPERTY(bool fullscreenOnStart READ fullscreenOnStart NOTIFY emulationSettingsChanged)  // effective FrameBeam option
-  // Phase 4: Sessions (3c list, 3g panel, multiview, diagnostics)
+  // Sessions (3c list, 3g panel, multiview, diagnostics)
   Q_PROPERTY(framebeam::ui::SessionController* sessions READ sessions CONSTANT)
 
  public:
@@ -109,6 +109,7 @@ class PlayerController : public QObject {
   EmulationController* emulation() { return emulation_.get(); }
   ControllersController* controllers() { return controllers_.get(); }
   bool fullscreenOnStart() const;
+  QString currentSystemId() const;
   QString appearance() const;
   void setAppearance(const QString& name);
   bool darkMode() const;
@@ -143,6 +144,10 @@ class PlayerController : public QObject {
   Q_INVOKABLE void removeHub(const QString& hubId);  // empty: discard the running attempt
   Q_INVOKABLE void confirmTrust();
   Q_INVOKABLE void rejectTrust();
+  // Certificate changed (blocked): re-pins exactly `observedFingerprint` (raw value from the hub card) and reconnects;
+  // cancel drops the blocked attempt without touching the profile.
+  Q_INVOKABLE void trustChangedCertificate(const QString& observedFingerprint);
+  Q_INVOKABLE void cancelCertificateChange();
   Q_INVOKABLE void requestPairing();
   Q_INVOKABLE void cancelPairing();
   // Onboarding invite (3b "Redeem invite"): code + display name.
@@ -150,6 +155,7 @@ class PlayerController : public QObject {
   Q_INVOKABLE void leavePairing();
   // 3c
   Q_INVOKABLE void switchHub();
+  Q_INVOKABLE void switchToHub(const QString& hubId);  // Settings -> Hubs: switchHub() + connectProfile()
   Q_INVOKABLE void reloadLibrary();
   Q_INVOKABLE void selectGame(const QString& gameId);
   Q_INVOKABLE void playSelected();
@@ -211,6 +217,7 @@ class PlayerController : public QObject {
   void onSaveReady(const QString& gameId, const QString& saveDir, const QString& note);
   void onSaveConflict(const SaveSync::ConflictView& view);
   static QString formatWhen(const QDateTime& when);
+  void endRunningWork();
   QVariantMap hubCard(const HubProfile& p) const;
 
   Options options_;

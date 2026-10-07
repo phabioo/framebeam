@@ -18,6 +18,7 @@
 namespace rtc {
 class PeerConnection;
 class Track;
+class DataChannel;
 }  // namespace rtc
 
 namespace framebeam {
@@ -86,6 +87,7 @@ class SessionViewer : public QObject {
   std::shared_ptr<rtc::PeerConnection> pc_;
   std::shared_ptr<rtc::Track> video_;
   std::shared_ptr<rtc::Track> audio_;
+  std::shared_ptr<rtc::DataChannel> diag_;  // negotiated "fb-diag": SCTP for RTT
   std::shared_ptr<LossReceivingSession> videoSession_;
 
   VideoDecoder decoder_;

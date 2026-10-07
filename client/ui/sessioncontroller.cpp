@@ -244,7 +244,7 @@ void SessionController::onSessionEnded(const SessionEnded& e) {
     closeShare(note);
     return;
   }
-  if (sessions_.remove(e.sessionId) > 0) {
+  if (sessions_.remove(e.sessionId)) {
     emit sessionsChanged();
   }
   if ((watching_ || joining_) && watched_.sessionId == e.sessionId) {
@@ -611,7 +611,7 @@ void SessionController::watch(const QString& sessionId) {
 void SessionController::decline(const QString& sessionId) {
   api_.decline(sessionId, [this, sessionId](const SessionApiResult& r) {
     if (r.ok() || r.kind == SessionApiResult::Kind::NotFound || r.kind == SessionApiResult::Kind::Ended) {
-      if (sessions_.remove(sessionId) > 0) {
+      if (sessions_.remove(sessionId)) {
         emit sessionsChanged();
       }
     } else {

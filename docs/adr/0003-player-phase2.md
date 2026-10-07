@@ -21,7 +21,7 @@ Phase 2 ("Playable vertical slice") builds the FrameBeam Player: Hub profile, pa
 
 ## Open
 
-- Confirmed pin change on certificate renewal (as in ADR 0002).
+- ~~Confirmed pin change on certificate renewal (as in ADR 0002).~~ Update 2026-10-06: resolved in 0.1.1 ([ADR 0009](0009-finish-poc.md) D1).
 - Credential store for Linux and macOS (Secret Service or Keychain, respectively).
 
 ## Rejected

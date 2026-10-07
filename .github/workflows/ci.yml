@@ -64,7 +64,7 @@ jobs:
       - name: Cache libdatachannel
         uses: actions/cache@v4
         with:
-          path: ~/.cache/framebeam/deps
+          path: ~/.cache/framebeam/deps/libdatachannel
           key: libdatachannel-linux-${{ hashFiles('scripts/libdatachannel.pin', 'scripts/fetch-libdatachannel.sh') }}
       - name: Cache SDL3
         uses: actions/cache@v4
@@ -84,6 +84,15 @@ jobs:
         run: scripts/bootstrap-vcpkg.sh
       - name: Check Player
         run: xvfb-run -a make check-client
+      - name: Install Go for Hub E2E
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      - name: E2E Player CLI against Hub
+        run: |
+          scripts/e2e-player-hub.sh
+          scripts/e2e-session.sh
 
   client-windows:
     name: Player (C++, Windows MSVC)

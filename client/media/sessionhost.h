@@ -8,34 +8,44 @@
 #include <QObject>
 #include <QStringList>
 #include <QTimer>
+#include <atomic>
 #include <memory>
+#include <mutex>
 #include <vector>
 
 #include "mediastats.h"
-#include "opuscodec.h"
 #include "sessiontypes.h"
 #include "videoencoder.h"
 
 namespace rtc {
 class PeerConnection;
 class Track;
+class DataChannel;
 class RtpPacketizationConfig;
 }  // namespace rtc
 
 namespace framebeam {
 
 class ThreadBridge;
+class EncodeWorker;
+struct WorkerStats;
+struct SinkList;
 
 // Owner side of a Session (ADR 0006 D5): one encoder for all viewers (running only while at least one viewer is
 // there), per viewer a PeerConnection with a sendonly H.264 and a sendonly Opus track. Signaling is decoupled:
 // wire addViewer()/removeViewer()/handleSignal()/close() to the Hub messages and signalOut() to HubSocket.
-// Not thread-safe: use and feed it from one thread (the thread it lives in; use queued connections otherwise).
+//
+// Thread ownership: the public API, the PeerConnections, signaling and all Qt state belong to the thread the object
+// lives in (the UI thread); use queued connections otherwise. pushFrame()/pushAudio() only copy the data into a
+// bounded queue and return. All video/Opus encoding and the RTP sendFrame() calls run on ONE dedicated worker
+// thread (EncodeWorker, started with the encoder, joined in stopEncoder()/close()); when it falls behind the oldest
+// pending video frame is dropped, audio stays ordered. stats()/encoderName()/encoderRunning() are thread-safe.
 class SessionHost : public QObject {
   Q_OBJECT
  public:
   struct Options {
     int fps = 60;
-    int videoBitrate = 2'000'000;  // fixed in phase 4
+    int videoBitrate = 2'000'000;  // fixed default
     int audioBitrate = 96'000;
     QStringList encoderOrder;      // empty: ADR 0006 D5 preference
   };
@@ -53,7 +63,7 @@ class SessionHost : public QObject {
   int viewerCount() const { return static_cast<int>(viewers_.size()); }
   bool hasViewer(const QString& viewerId) const { return viewers_.contains(viewerId); }
   bool encoderRunning() const { return encoderRunning_; }
-  QString encoderName() const { return encoder_.name(); }
+  QString encoderName() const;
   // Last full second, aggregated over viewers; cheap.
   SessionStats stats() const;
   QList<ViewerLinkStats> viewerLinks() const;
@@ -82,6 +92,7 @@ class SessionHost : public QObject {
     std::shared_ptr<rtc::PeerConnection> pc;
     std::shared_ptr<rtc::Track> video;
     std::shared_ptr<rtc::Track> audio;
+    std::shared_ptr<rtc::DataChannel> diag;  // negotiated "fb-diag": brings up SCTP so that rtt() is available
     QList<SessionSignal> pendingCandidates;
     bool remoteSet = false;
     bool connected = false;
@@ -90,11 +101,10 @@ class SessionHost : public QObject {
 
   void dropViewer(const QString& viewerId, const QString& reason);
   void onPcState(const QString& viewerId, int state);
-  void startEncoder(int width, int height);
+  void startEncoder();
   void stopEncoder();
-  void encodeAndSend(const uint8_t* data, int width, int height, int stride, RawPixelFormat format);
-  void sendVideo(const EncodedVideoPacket& p);
-  void sendAudio(const std::vector<uint8_t>& packet);
+  void requestKeyframe();
+  void publishSinks();
   void updateStats();
   void applyRemoteCandidate(Viewer& v, const SessionSignal& s);
 
@@ -105,24 +115,22 @@ class SessionHost : public QObject {
   QHash<QString, Viewer> viewers_;
   std::shared_ptr<ThreadBridge> bridge_;
 
-  VideoEncoder encoder_;
-  OpusFramer opus_;
-  bool encoderRunning_ = false;
+  std::unique_ptr<EncodeWorker> worker_;  // exists while the encoder runs
+  std::shared_ptr<SinkList> sinks_;       // tracks the worker sends to (guarded copy of viewers_)
+  std::atomic<bool> encoderRunning_{false};
+  std::atomic<int> viewerCountAtomic_{0};
   bool encoderFailed_ = false;
+  unsigned workerGen_ = 0;
+  bool keyframePending_ = false;
   QElapsedTimer clock_;
-  int64_t lastPts_ = -1;
-  int sendErrors_ = 0;  // sendFrame exceptions (log rate limit)
   qint64 lastEncodeNs_ = 0;
-  qint64 audioFramesSent_ = 0;
-  int width_ = 0;
-  int height_ = 0;
 
   QTimer statsTimer_;
   QElapsedTimer statsClock_;
-  qint64 statFrames_ = 0, statVideoBytes_ = 0, statAudioBytes_ = 0;
-  qint64 totalFrames_ = 0, totalVideoBytes_ = 0, totalAudioBytes_ = 0;
   qint64 lastStatFrames_ = 0, lastStatVideoBytes_ = 0, lastStatAudioBytes_ = 0;
   int keyframeRequests_ = 0;
+  mutable std::mutex statsMutex_;  // guards stats_, links_, workerStats_ (the pointer)
+  std::shared_ptr<WorkerStats> workerStats_;
   SessionStats stats_;
   QList<ViewerLinkStats> links_;
 };

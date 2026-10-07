@@ -23,7 +23,7 @@
 
 ## Open
 
-- Certificate renewal and confirmed pin change.
+- ~~Certificate renewal and confirmed pin change.~~ Update 2026-10-06: resolved in 0.1.1 ([ADR 0009](0009-finish-poc.md) D1, D2).
 - Other points from section 8 (save retention, cache limits, ICE/STUN/TURN, media parameters, core/firmware manifests) are not affected by this ADR.
 
 ## Rejected

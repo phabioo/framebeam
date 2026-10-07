@@ -1,4 +1,4 @@
-// Phase 4 UI: sessions in the library, watching, Session panel, multiview, diagnostics (offscreen, FakeHub, no real network).
+// UI: sessions in the library, watching, Session panel, multiview, diagnostics (offscreen, FakeHub, no real network).
 // Tests with a running game need the DS core and the homebrew test ROM (QSKIP without FRAMEBEAM_MELONDS_DS_CORE).
 #include <QFile>
 #include <QSignalSpy>
@@ -620,6 +620,23 @@ class SessionsUiTest : public QObject {
     QTRY_COMPARE(ctl->sessions().size(), 2);
     QQuickTest::qWaitForPolish(h.window);
     QVERIFY(h.item("multiviewWatchButton_1") != nullptr && h.item("multiviewWatchButton_1")->isVisible());
+    // More than four Sessions: all of them are listed (scrollable), no pointer to the Library
+    for (const QString id : {QStringLiteral("s3"), QStringLiteral("s4"), QStringLiteral("s5"), QStringLiteral("s6")}) {
+      r.hub.sendWs(QStringLiteral("session_update"), {{QStringLiteral("session"), sessionObj(id, QStringLiteral("Mo"), QStringLiteral("Other"), QStringLiteral("hub_users"), false, 1)}});
+    }
+    QTRY_COMPARE(ctl->sessions().size(), 6);
+    QQuickTest::qWaitForPolish(h.window);
+    QVERIFY(h.item("multiviewWatchButton_5") != nullptr);
+    QVERIFY(h.item("multiviewSessionView") != nullptr);
+    {
+      QQuickItem* view = h.item("multiviewSessionView");
+      QVERIFY(view->property("contentHeight").toReal() >= view->height());
+      QVERIFY(view->property("count").toInt() == 6);
+    }
+    for (const QString id : {QStringLiteral("s3"), QStringLiteral("s4"), QStringLiteral("s5"), QStringLiteral("s6")}) {
+      r.hub.sendWs(QStringLiteral("session_ended"), {{QStringLiteral("session_id"), id}, {QStringLiteral("reason"), QStringLiteral("ended")}});
+    }
+    QTRY_COMPARE(ctl->sessions().size(), 2);
     r.hub.sendWs(QStringLiteral("session_ended"), {{QStringLiteral("session_id"), QStringLiteral("s2")}, {QStringLiteral("reason"), QStringLiteral("ended")}});
     QTRY_COMPARE(ctl->sessions().size(), 1);
     QQuickTest::qWaitForPolish(h.window);

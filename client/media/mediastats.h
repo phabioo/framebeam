@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QString>
+#include <QtGlobal>
 #include <optional>
 
 namespace framebeam {
@@ -30,6 +31,7 @@ struct SessionStats {
   qint64 videoFrames = 0;        // total frames encoded (host) / decoded (viewer)
   qint64 audioFrames = 0;        // total 20 ms Opus frames sent / decoded
   int decodeErrors = 0;          // viewer
+  qint64 droppedFrames = 0;      // host: video frames dropped because the encoder fell behind
   int keyframeRequests = 0;      // host: PLI received, viewer: PLI sent
 };
 

@@ -15,7 +15,7 @@
 
 class QSslSocket;
 
-// Fake save slot of the Hub (D3 of the phase 3 spec): current checkpoint + conflicts. Test code only.
+// Fake save slot of the Hub: current checkpoint + conflicts. Test code only.
 struct FakeConflict {
   QString id;
   QString status = QStringLiteral("open");  // open | resolved_hub | resolved_local
@@ -53,6 +53,7 @@ class FakeHub : public QTcpServer {
   bool start();
   QString address() const;      // e.g. https://127.0.0.1:PORT
   QString fingerprint() const;  // same format as hub settings; empty for HTTP
+  bool setCertificate(const QString& certName);  // "a"|"b"|"c": new connections use this certificate (renewal)
 
   // Configuration
   QString hubId = QStringLiteral("hub-test-1");
@@ -69,7 +70,7 @@ class FakeHub : public QTcpServer {
   qint64 truncateFirstRomAt = -1;  // first ROM response aborts after this many body bytes
   bool ignoreRange = false;        // always responds 200 with the full content
 
-  // Phase 5: invites (users_v1), uploads (uploads_v1), systems/firmware (firmware_v1)
+  // Invites (users_v1), uploads (uploads_v1), systems/firmware (firmware_v1)
   QString inviteCode = QStringLiteral("FB-TEST-CODE");  // the only valid code (normalized to upper case)
   bool inviteDirect = true;                              // true: 200 approved; false: 202 pending (poll like pairing)
   QStringList takenNames;                                // display names -> 409 display_name_taken (case-insensitive)

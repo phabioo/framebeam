@@ -62,9 +62,9 @@ New error codes: `session_not_found` (404), `session_forbidden` (403, ACL), `ses
 
 - WebRTC: libdatachannel 0.24.5 (media enabled, own WebSocket off). The owner offers one `sendonly` H.264 video and one Opus audio track per viewer; the viewer answers `recvonly`. Packetization and depacketization, RTCP SR/RR and PLI via libdatachannel handlers.
 - Encoding happens once per Session, not per viewer; encoded packets fan out to all viewer tracks. Keyframe on viewer join and on PLI. The encoder runs only while at least one viewer is connected (architecture: encoder off when playing alone).
-- Video: libavcodec; encoder preference `h264_nvenc`, `h264_qsv`, `h264_amf`, `libopenh264`, `libx264` (first that opens; hardware encoders are compiled in where available but only verified locally by Fabio). Low-latency settings, baseline/constrained profile, no B-frames, GOP 2 s, fixed 2 Mbit/s at native core resolution (DS: 256 x 384, both screens stacked), 60 fps. Decoder: libavcodec `h264`. Bitrate adaptation is a follow-up (fixed bitrate in phase 4).
+- Video: libavcodec; encoder preference `h264_nvenc`, `h264_qsv`, `h264_amf`, `libopenh264`, `libx264` (first that opens; hardware encoders are verified only locally by Fabio; see the update note at the end). Low-latency settings, baseline/constrained profile, no B-frames, GOP 2 s, fixed 2 Mbit/s at native core resolution (DS: 256 x 384, both screens stacked), 60 fps. Decoder: libavcodec `h264`. Bitrate adaptation is a follow-up (fixed bitrate in phase 4).
 - Audio: core audio resampled to 48 kHz stereo, libopus 20 ms frames, 96 kbit/s; viewer decodes with libopus into a small jitter buffer (target 60 ms) before the audio output.
-- Dependencies: Linux (cloud and CI) uses apt `libavcodec-dev libswscale-dev libopus-dev qt6-websockets-dev` and builds libdatachannel from git (`scripts/fetch-libdatachannel.sh`, pinned, cached under `$HOME/.cache/framebeam/deps`). Windows uses vcpkg (`libdatachannel`, `ffmpeg[avcodec,swscale,openh264]`, `opus`, platform-qualified in `client/vcpkg.json`) and install-qt-action module `qtwebsockets`. Reason: cloud sessions cannot download vcpkg source archives, only git clone. Ubuntu's FFmpeg has `libx264` but no `libopenh264`; both are GPL-compatible with the GPL-3.0 Player (melonDS DS).
+- Dependencies: Linux (cloud and CI) uses apt `libavcodec-dev libswscale-dev libopus-dev qt6-websockets-dev` and builds libdatachannel from git (`scripts/fetch-libdatachannel.sh`, pinned, cached under `$HOME/.cache/framebeam/deps`). Windows uses vcpkg (`libdatachannel`, `ffmpeg[avcodec,swscale,openh264]` (since 0.1.1 also `nvcodec`, `qsv`, `amf`), `opus`, platform-qualified in `client/vcpkg.json`) and install-qt-action module `qtwebsockets`. Reason: cloud sessions cannot download vcpkg source archives, only git clone. Ubuntu's FFmpeg has `libx264` but no `libopenh264`; both are GPL-compatible with the GPL-3.0 Player (melonDS DS).
 - WSS client: Qt WebSockets with the existing leaf-fingerprint pinning (`QSslConfiguration` from the Hub connection).
 
 ### D6 Multiview and UI
@@ -113,3 +113,11 @@ Choices made where this ADR was silent.
 - Each surface draws the combined DS frame.
 - No automatic rejoin after a failed PeerConnection.
 - Linux CI/cloud uses libx264, Windows libopenh264; hardware encoders untested.
+
+## Update 2026-10-06 (0.1.1)
+
+[ADR 0009](0009-finish-poc.md) resolves the following; the decisions above stand.
+
+- The statement that hardware encoders are "compiled in" was wrong for the PoC: the Windows FFmpeg from `client/vcpkg.json` had only `avcodec`, `swscale`, `openh264`, so selection always fell back to software H.264. Since 0.1.1 the ffmpeg features `nvcodec`, `qsv` and `amf` are enabled and a Windows-only test checks that `h264_nvenc`, `h264_qsv` and `h264_amf` are compiled in. Opening them needs a GPU and is verified only locally by Fabio.
+- Encoding no longer runs on the UI thread: a worker thread with a bounded queue (2 video frames, oldest dropped) encodes and sends; audio stays in order.
+- RTT is reported: host and viewer open a negotiated DataChannel `fb-diag` (id 0) so SCTP is up. The signaling protocol is unchanged.

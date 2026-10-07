@@ -24,11 +24,13 @@ NO_START=0 PURGE=0 YES=0
 
 usage() {
   cat <<USAGE
-Usage: install-hub.sh [install|upgrade|uninstall|status] [options]
+Usage: install-hub.sh [install|upgrade|uninstall|renew-cert|status] [options]
 
   install (default)  Install the Hub binary, config and systemd service.
   upgrade            Replace the binary and restart the service (data/config untouched).
   uninstall          Remove service and binary; keep config and data unless --purge.
+  renew-cert         Renew the self-generated TLS certificate as the service user in the
+                     service's data dir, then restart the service. Prints the new fingerprint.
   status             Show service status and URL.
 
 Options:
@@ -61,7 +63,7 @@ sys() {
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    install|upgrade|uninstall|status) CMD="$1" ;;
+    install|upgrade|uninstall|renew-cert|status) CMD="$1" ;;
     --binary)   [ $# -ge 2 ] || die "--binary needs a value"; BINARY="$2"; shift ;;
     --port)     [ $# -ge 2 ] || die "--port needs a value"; PORT="$2"; shift ;;
     --listen)   [ $# -ge 2 ] || die "--listen needs a value"; LISTEN="$2"; shift ;;
@@ -409,6 +411,25 @@ cmd_uninstall() {
   fi
 }
 
+cmd_renew_cert() {
+  local dir
+  [ -f "$ENV_FILE" ] || testmode || die "$ENV_FILE not found; is the Hub installed?"
+  if [ -n "$(env_get FRAMEBEAM_TLS_CERT)" ] || [ -n "$(env_get FRAMEBEAM_TLS_KEY)" ]; then
+    die "an own TLS certificate/key is configured in $ENV_FILE; the Hub never renews it, renew it where it comes from"
+  fi
+  dir="$(effective_data_dir)"
+  if testmode; then
+    info "[dry-run] runuser -u $SVC_USER -- env FRAMEBEAM_DATA_DIR=$dir $BIN_DEST renew-cert"
+    info "[dry-run] systemctl restart $SVC"
+    return 0
+  fi
+  [ -x "$BIN_DEST" ] || die "$BIN_DEST not found; is the Hub installed?"
+  runuser -u "$SVC_USER" -- env "FRAMEBEAM_DATA_DIR=$dir" "$BIN_DEST" renew-cert \
+    || die "renew-cert failed; the service was not restarted"
+  systemctl restart "$SVC"
+  info "Service restarted. Players must confirm the new fingerprint."
+}
+
 cmd_status() {
   if testmode; then
     echo "[dry-run] systemctl status $SVC"
@@ -426,5 +447,6 @@ case "$CMD" in
   install)   cmd_install ;;
   upgrade)   cmd_upgrade ;;
   uninstall) cmd_uninstall ;;
+  renew-cert) cmd_renew_cert ;;
   status)    cmd_status ;;
 esac

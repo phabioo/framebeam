@@ -52,6 +52,8 @@ Rectangle {
                         onConnectRequested: hubId => root.player.connectProfile(hubId)
                         onRetryRequested: root.player.retryConnection()
                         onRemoveRequested: hubId => root.player.removeHub(hubId)
+                        onTrustCertificateRequested: fingerprint => root.player.trustChangedCertificate(fingerprint)
+                        onCancelCertificateRequested: root.player.cancelCertificateChange()
                     }
                 }
                 FbLabel {

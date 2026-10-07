@@ -62,6 +62,18 @@ class HubFlowTest : public QObject {
              QStringLiteral("2F:E5:AD:C0:A7:7D:0E:CE:5E:05:AC:C5:CA:A2:C7:6C:E2:8E:63:A9:CB:22:A5:D8:3D:F2:09:85:79:E8:B2:D2"));
   }
 
+  void fingerprintsEqualIgnoresColonsCaseAndSpace() {
+    const QString colon = QStringLiteral("2F:E5:AD:C0:A7:7D:0E:CE:5E:05:AC:C5:CA:A2:C7:6C:E2:8E:63:A9:CB:22:A5:D8:3D:F2:09:85:79:E8:B2:D2");
+    const QString plain = QStringLiteral("2fe5adc0a77d0ece5e05acc5caa2c76ce28e63a9cb22a5d83df20985"
+                                         "79e8b2d2");
+    QVERIFY(HubHttp::fingerprintsEqual(plain, colon));
+    QVERIFY(HubHttp::fingerprintsEqual(colon, plain));
+    QVERIFY(HubHttp::fingerprintsEqual(QStringLiteral(" ") + colon.toLower() + QStringLiteral("\n"), colon));
+    QVERIFY(!HubHttp::fingerprintsEqual(plain.left(63) + QLatin1Char('0'), colon));
+    QVERIFY(!HubHttp::fingerprintsEqual(QString(), QString()));
+    QVERIFY(!HubHttp::fingerprintsEqual(QStringLiteral(" : "), QStringLiteral(" : ")));
+  }
+
   void firstContactReportsFingerprintThenPins() {
     FakeHub hub(QStringLiteral("a"));
     QVERIFY(hub.start());
@@ -144,6 +156,69 @@ class HubFlowTest : public QObject {
     QCOMPARE(conn_->expectedFingerprint(), hubA.fingerprint());
     QCOMPARE(profiles_->profile(p.hubId)->pinnedFingerprint, hubA.fingerprint());  // not adopted
     QCOMPARE(hubB.tokenRequests(), 0);
+  }
+
+  void confirmCertificateChangeRepinsKeepsCredential() {
+    FakeHub hub(QStringLiteral("b"));
+    QVERIFY(hub.start());
+    const QString oldFp = QStringLiteral("AA:BB:CC");  // pin of the former certificate
+    HubProfile p;
+    p.hubId = hub.hubId;
+    p.name = QStringLiteral("x");
+    p.address = hub.address();
+    p.deviceId = profiles_->deviceId();
+    p.pinnedFingerprint = oldFp;
+    p.credentialRef = credentialTarget(p.hubId, p.deviceId);
+    QVERIFY(profiles_->upsertProfile(p));
+    creds_->write(p.credentialRef, QString::fromLatin1(FakeHub::kDeviceCredential));
+
+    conn_->connectToProfile(p.hubId);
+    WAIT_STATE(*conn_, State::CertificateChanged);
+    QCOMPARE(conn_->expectedFingerprint(), oldFp);
+    QCOMPARE(conn_->observedFingerprint(), hub.fingerprint());
+    QCOMPARE(hub.tokenRequests(), 0);
+    // A wrong or empty fingerprint changes nothing.
+    QVERIFY(!conn_->confirmCertificateChange(QString()));
+    QVERIFY(!conn_->confirmCertificateChange(QStringLiteral("00:11")));
+    QVERIFY(conn_->state() == State::CertificateChanged);
+    QCOMPARE(profiles_->profile(p.hubId)->pinnedFingerprint, oldFp);
+
+    QVERIFY(conn_->confirmCertificateChange(hub.fingerprint()));
+    WAIT_STATE(*conn_, State::Connected);
+    QCOMPARE(hub.tokenRequests(), 1);
+    QCOMPARE(profiles_->profile(p.hubId)->pinnedFingerprint, hub.fingerprint());
+    QCOMPARE(profiles_->profile(p.hubId)->credentialRef, p.credentialRef);
+    QVERIFY(creds_->read(p.credentialRef).has_value());
+
+    // The pin survives a reload of the store.
+    ProfileStore reloaded(dir_->path());
+    QCOMPARE(reloaded.profile(p.hubId)->pinnedFingerprint, hub.fingerprint());
+  }
+
+  void thirdCertificateAfterConfirmIsMismatchAgain() {
+    FakeHub hub(QStringLiteral("b"));
+    QVERIFY(hub.start());
+    HubProfile p;
+    p.hubId = hub.hubId;
+    p.name = QStringLiteral("x");
+    p.address = hub.address();
+    p.deviceId = profiles_->deviceId();
+    p.pinnedFingerprint = QStringLiteral("AA:BB:CC");
+    p.credentialRef = credentialTarget(p.hubId, p.deviceId);
+    QVERIFY(profiles_->upsertProfile(p));
+    creds_->write(p.credentialRef, QString::fromLatin1(FakeHub::kDeviceCredential));
+    conn_->connectToProfile(p.hubId);
+    WAIT_STATE(*conn_, State::CertificateChanged);
+    const QString confirmed = conn_->observedFingerprint();
+
+    QVERIFY(hub.setCertificate(QStringLiteral("c")));  // yet another certificate on the reconnect
+    QVERIFY(conn_->confirmCertificateChange(confirmed));
+    WAIT_STATE(*conn_, State::CertificateChanged);
+    QCOMPARE(conn_->observedFingerprint(), hub.fingerprint());
+    QVERIFY(conn_->observedFingerprint() != confirmed);
+    QCOMPARE(conn_->expectedFingerprint(), confirmed);
+    QCOMPARE(profiles_->profile(p.hubId)->pinnedFingerprint, confirmed);
+    QCOMPARE(hub.tokenRequests(), 0);
   }
 
   void protocolIncompatibility() {

@@ -74,6 +74,14 @@ std::optional<ControllerProfile> ControllersController::currentProfile() const {
   return profiles_.find(profiles_.assignedProfileId(s.deviceKey, s.kind));
 }
 
+void ControllersController::setSystemLabels(const QString& systemLabel, const QString& touchLabel) {
+  if (systemLabel_ == systemLabel && touchLabel_ == touchLabel) return;
+  systemLabel_ = systemLabel;
+  touchLabel_ = touchLabel;
+  emit labelsChanged();
+  emit devicesChanged();
+}
+
 QVariantList ControllersController::devices() const {
   QVariantList l;
   for (const input::PadDevice& d : pads_.devices()) {
@@ -94,7 +102,7 @@ QVariantList ControllersController::devices() const {
                        {QStringLiteral("kind"), kMouse},
                        {QStringLiteral("name"), tr("Mouse")},
                        {QStringLiteral("slot"), tr("Touch")},
-                       {QStringLiteral("profile"), tr("DS touch")}});
+                       {QStringLiteral("profile"), touchLabel_}});
   return l;
 }
 

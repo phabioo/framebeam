@@ -223,7 +223,7 @@ func (s *Service) Authenticate(ctx context.Context, token string) (Principal, er
 	return p, nil
 }
 
-// HandshakeInput contains the handshake fields relevant for phase 1.
+// HandshakeInput contains the handshake fields relevant for the Hub.
 type HandshakeInput struct {
 	Platform           string
 	Arch               string

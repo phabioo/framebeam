@@ -54,11 +54,17 @@
       {{if .Body.TLS}}
       <div class="row">
         <div><div class="label">Certificate</div><div class="help">{{.Body.CertSource}}{{if .Body.CertNotAfter}} · valid until {{.Body.CertNotAfter}}{{end}}</div></div>
+        {{if .Body.CertExpiresSoon}}<span class="badge error">Expires within 30 days</span>{{end}}
       </div>
       <div class="row">
         <div><div class="label">Fingerprint</div><div class="help">SHA-256. Players compare this value on first connect.</div></div>
         <div class="value">{{.Body.Fingerprint}}</div>
       </div>
+      {{if .Body.CertSelfGenerated}}
+      <div class="row">
+        <div class="help">A self-generated certificate is renewed automatically at startup when it expires within 30 days (or with <span class="mono">framebeam-hub renew-cert</span>). After a renewal, Players must confirm the new fingerprint: compare it with the fingerprint shown here.</div>
+      </div>
+      {{end}}
       {{end}}
     </section>
     <section class="panel">

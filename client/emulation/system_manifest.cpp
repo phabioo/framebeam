@@ -96,6 +96,8 @@ std::optional<SystemManifest> ManifestRegistry::parse(const QByteArray& json, QS
   }
   if (m.extensions.isEmpty()) return fail(QStringLiteral("Missing required field: extensions"));
 
+  m.coreDisplayName = o.value(QLatin1String("core_display_name")).toString(m.coreId);
+
   const QJsonObject fw = o.value(QLatin1String("firmware")).toObject();
   m.firmware.required = fw.value(QLatin1String("required")).toBool(false);
   m.firmware.sysfileOption = fw.value(QLatin1String("sysfile_option")).toString();
@@ -118,6 +120,9 @@ std::optional<SystemManifest> ManifestRegistry::parse(const QByteArray& json, QS
 
   m.inputProfile = o.value(QLatin1String("input_profile")).toString();
   m.displayProfile = o.value(QLatin1String("display_profile")).toString();
+  const QJsonObject labels = o.value(QLatin1String("labels")).toObject();
+  m.inputLabel = labels.value(QLatin1String("input")).toString(m.displayName);
+  m.touchLabel = labels.value(QLatin1String("touch")).toString(QStringLiteral("Touch"));
 
   const QJsonObject d = o.value(QLatin1String("display")).toObject();
   m.display.layout = d.value(QLatin1String("layout")).toString(QStringLiteral("single"));

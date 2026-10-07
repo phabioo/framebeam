@@ -1,8 +1,8 @@
 #pragma once
 // ControllersController: data and actions of the Controllers page (3f) and the bridge between devices and the game.
 // Owns the SDL3 GamepadService and the local controller profiles (<data>/settings/controllers.json).
-// Mapping chain: physical -> profile -> FrameBeam input -> system profile nds -> libretro joypad (merged with the
-// keyboard in GameSession). The mouse is DS touch (fixed, no profile).
+// Mapping chain: physical -> profile -> FrameBeam input -> system input profile -> libretro joypad (merged with the
+// keyboard in GameSession). The mouse is the touch input (fixed, no profile).
 
 #include <QHash>
 #include <QObject>
@@ -38,6 +38,9 @@ class ControllersController : public QObject {
   Q_PROPERTY(QVariantList rows READ rows NOTIFY rowsChanged)
   Q_PROPERTY(QString listening READ listening NOTIFY rowsChanged)  // input id waiting for "Press a button…"
   Q_PROPERTY(bool supportsLid READ supportsLid CONSTANT)           // no input profile has a lid input yet
+  // System-specific labels from the system manifest (column header, touch input name).
+  Q_PROPERTY(QString systemLabel READ systemLabel NOTIFY labelsChanged)
+  Q_PROPERTY(QString touchLabel READ touchLabel NOTIFY labelsChanged)
   // Input test: ids of the FrameBeam inputs that are active on the selected device.
   Q_PROPERTY(QStringList activeInputs READ activeInputs NOTIFY testChanged)
 
@@ -62,6 +65,9 @@ class ControllersController : public QObject {
   QString listening() const { return listening_; }
   bool supportsLid() const { return false; }
   QStringList activeInputs() const;
+  QString systemLabel() const { return systemLabel_; }
+  QString touchLabel() const { return touchLabel_; }
+  void setSystemLabels(const QString& systemLabel, const QString& touchLabel);
 
   // Qt::Key -> joypad mask of the keyboard profile (nds system profile applied).
   QHash<int, quint32> keyboardMap() const;
@@ -87,9 +93,12 @@ class ControllersController : public QObject {
   void rowsChanged();
   void testChanged();
   void keyboardMapChanged();
+  void labelsChanged();
   void libretroMaskChanged(quint32 mask);  // P1 gamepad, nds system profile
 
  private:
+  QString systemLabel_;
+  QString touchLabel_ = QStringLiteral("Touch");
   struct Selected {
     QString kind;      // gamepad | keyboard | mouse | ""
     QString deviceKey; // assignment key (guid or "keyboard")

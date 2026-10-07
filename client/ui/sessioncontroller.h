@@ -1,5 +1,5 @@
 #pragma once
-// SessionController: Phase 4 Sessions for the QML UI (ADR 0006 D6). Owns the Hub WSS client (HubSocket), the
+// SessionController: Sessions for the QML UI (ADR 0006 D6). Owns the Hub WSS client (HubSocket), the
 // session REST client, the SessionHost (own shared Session) and the SessionViewer (one watched Session) and
 // exposes plain properties/actions to QML. Hub logic stays in network/, media in media/.
 

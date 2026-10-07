@@ -1,4 +1,4 @@
-// Phase 5 Hub client: invite redemption, user_disabled, ROM upload, systems registry and firmware provisioning.
+// Hub client features: invite redemption, user_disabled, ROM upload, systems registry and firmware provisioning.
 // Dummy bytes only (no real ROM/BIOS/firmware).
 #include <QCryptographicHash>
 #include <QFile>
@@ -34,7 +34,7 @@ QJsonObject fwFile(const QString& id, const QString& name, bool required, const 
 }
 }  // namespace
 
-class Phase5Test : public QObject {
+class HubFeaturesTest : public QObject {
   Q_OBJECT
  private:
   std::unique_ptr<QTemporaryDir> dir_;
@@ -320,5 +320,5 @@ class Phase5Test : public QObject {
   }
 };
 
-QTEST_GUILESS_MAIN(Phase5Test)
-#include "phase5_test.moc"
+QTEST_GUILESS_MAIN(HubFeaturesTest)
+#include "hub_features_test.moc"

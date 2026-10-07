@@ -1,4 +1,4 @@
-// Phase 5: Emulation page (3e), settings hierarchy at launch, Controllers page (3f) with SDL virtual joysticks.
+// Emulation page (3e), settings hierarchy at launch, Controllers page (3f) with SDL virtual joysticks.
 // Offscreen, FakeHub, dummy bytes only. The tests with the real core QSKIP without FRAMEBEAM_MELONDS_DS_CORE.
 #include <SDL3/SDL.h>
 

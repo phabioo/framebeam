@@ -278,6 +278,23 @@ void HubConnection::rejectTrust() {
   }
 }
 
+bool HubConnection::confirmCertificateChange(const QString& confirmedFingerprint) {
+  if (state_ != State::CertificateChanged || !profile_ || observedFp_.isEmpty() || confirmedFingerprint.isEmpty() ||
+      !HubHttp::fingerprintsEqual(confirmedFingerprint, observedFp_)) {
+    return false;
+  }
+  HubProfile p = *profile_;
+  p.pinnedFingerprint = observedFp_;
+  if (!profiles_->upsertProfile(p)) {
+    qCWarning(lcHub) << "profiles.json could not be written";
+    return false;
+  }
+  const QString address = address_;
+  const bool allowHttp = allowHttp_;
+  startIdentify(address, allowHttp, p);
+  return true;
+}
+
 void HubConnection::trusted() {
   HubProfile p = profile_.value_or(HubProfile());
   p.hubId = hubInfo_.hubId;
@@ -579,7 +596,7 @@ void HubConnection::doHandshake() {
         return;
       }
     }
-    // Core/capability problems (phase 5) do not block the connection; handshakeProblems() is for the UI.
+    // Core/capability problems do not block the connection; handshakeProblems() is for the UI.
     HubProfile p = profile_.value_or(HubProfile());
     p.lastConnected = QDateTime::currentDateTimeUtc();
     profiles_->upsertProfile(p);

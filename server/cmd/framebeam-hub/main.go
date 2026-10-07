@@ -2,6 +2,7 @@
 //
 //	framebeam-hub [flags]                      start the server (API + info endpoint)
 //	framebeam-hub setup-admin -username <name> create the first admin (password from stdin)
+//	framebeam-hub renew-cert                   renew the self-generated TLS certificate now and exit
 package main
 
 import (
@@ -37,6 +38,8 @@ func main() {
 	var err error
 	if len(args) > 0 && args[0] == "setup-admin" {
 		err = runSetupAdmin(args[1:], os.Stdin, os.Stdout)
+	} else if len(args) > 0 && args[0] == "renew-cert" {
+		err = runRenewCert(args[1:], os.Stdout)
 	} else {
 		err = runServer(args)
 	}
@@ -95,6 +98,33 @@ func runSetupAdmin(args []string, in io.Reader, out io.Writer) error {
 	return nil
 }
 
+// runRenewCert replaces the self-generated certificate (the old pair is kept as *.prev).
+// It refuses when an own certificate/key is configured. Restart the Hub afterwards.
+func runRenewCert(args []string, out io.Writer) error {
+	fs := flag.NewFlagSet("renew-cert", flag.ContinueOnError)
+	cfg := config.Register(fs, os.Getenv)
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if err := cfg.Validate(); err != nil {
+		return err
+	}
+	if cfg.TLSCert != "" || cfg.TLSKey != "" {
+		return errors.New("an own TLS certificate/key is configured; the Hub never renews it, renew it where it comes from")
+	}
+	_, ren, err := tlsutil.RenewSelfSigned(cfg.DataDir, time.Now())
+	if err != nil {
+		return err
+	}
+	absDir, absErr := filepath.Abs(filepath.Join(cfg.DataDir, "tls"))
+	if absErr != nil {
+		absDir = filepath.Join(cfg.DataDir, "tls")
+	}
+	fmt.Fprintf(out, "Renewed certificate in %s\nOld SHA-256 fingerprint: %s\nNew SHA-256 fingerprint: %s\n", absDir, ren.OldFingerprint, ren.NewFingerprint)
+	fmt.Fprintln(out, "The previous certificate and key were kept as *.prev next to them. Restart the Hub; Players must confirm the new fingerprint.")
+	return nil
+}
+
 func runServer(args []string) error {
 	fs := flag.NewFlagSet("framebeam-hub", flag.ContinueOnError)
 	cfg := config.Register(fs, os.Getenv)
@@ -130,7 +160,13 @@ func runServer(args []string) error {
 		if cfg.TLSCert != "" {
 			cert, err = tlsutil.Load(cfg.TLSCert, cfg.TLSKey)
 		} else {
-			cert, err = tlsutil.EnsureSelfSigned(cfg.DataDir)
+			var ren *tlsutil.Renewal
+			cert, ren, err = tlsutil.EnsureSelfSignedRenewing(cfg.DataDir, time.Now())
+			if err == nil && ren != nil {
+				log.Warn("Self-generated TLS certificate was expired or about to expire and has been renewed; Players must confirm the new fingerprint",
+					"old_sha256_fingerprint", ren.OldFingerprint, "new_sha256_fingerprint", ren.NewFingerprint,
+					"old_not_after", ren.OldNotAfter.Format(time.RFC3339), "previous_files", "tls/cert.pem.prev, tls/key.pem.prev")
+			}
 		}
 		if err != nil {
 			return fmt.Errorf("TLS certificate: %w", err)

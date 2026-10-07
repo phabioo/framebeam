@@ -1,4 +1,4 @@
-// UI tests phase 5 (offscreen, FakeHub): invite redemption, user_disabled, upload, firmware state, core warnings,
+// UI tests (offscreen, FakeHub): invite redemption, user_disabled, upload, firmware state, core warnings,
 // Settings/appearance. Dummy bytes only (no real ROM/BIOS/firmware); no real core needed.
 #include <QSignalSpy>
 #include <QtTest>
@@ -31,7 +31,7 @@ QJsonObject ndsSystem(const QString& mode, const QJsonArray& files) {
 }
 }  // namespace
 
-class Phase5UiTest : public QObject {
+class HubFeaturesUiTest : public QObject {
   Q_OBJECT
 
   static QVariantMap game(Harness& h) { return h.controller->selectedGame(); }
@@ -383,9 +383,69 @@ class Phase5UiTest : public QObject {
     }
   }
 
+  // Settings -> Hubs: list, switch (same path as the connection screen), auto-connect, remove with confirmation.
+  void settingsHubs() {
+    FakeHub hubA(QStringLiteral("a"));
+    FakeHub hubB(QStringLiteral("b"));
+    hubB.hubId = QStringLiteral("hub-test-2");
+    auto nm = [](const char* prefix, const QString& id) { return QByteArray(prefix) + id.toUtf8(); };
+    QVERIFY(hubA.start());
+    QVERIFY(hubB.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hubA);
+    h.controller->switchHub();
+    pair(h, hubB);
+    QTest::qWait(150);
+    QTRY_COMPARE_WITH_TIMEOUT(h.controller->screen(), QStringLiteral("library"), 8000);
+    QVERIFY(h.click("navSettings"));
+    QTest::qWait(100);
+    QCOMPARE(h.controller->screen(), QStringLiteral("settings"));
+    QVERIFY(h.item("hubsSection") != nullptr);
+    const QString idA = hubA.hubId;
+    const QString idB = hubB.hubId;
+    // Both Hubs listed, B is current and connected; Switch only on A.
+    QVERIFY(h.item(nm("hubName_", idA).constData()) != nullptr && h.item(nm("hubName_", idB).constData()) != nullptr);
+    QVERIFY(h.item(nm("hubCurrent_", idB).constData())->isVisible());
+    QVERIFY(!h.item(nm("hubCurrent_", idA).constData())->isVisible());
+    QVERIFY(!h.item(nm("hubSwitch_", idB).constData())->isVisible());
+    QVERIFY(h.item(nm("hubSwitch_", idA).constData())->isVisible());
+
+    // Auto-connect toggle uses the same setting as the connection screen.
+    QVERIFY(!h.controller->autoConnect());
+    QVERIFY(h.click("settingsAutoConnectToggle"));
+    QVERIFY(h.controller->autoConnect());
+    QVERIFY(h.click("settingsAutoConnectToggle"));
+    QVERIFY(!h.controller->autoConnect());
+
+    // Switch to A: B disconnects, A connects, back on the Settings page after reconnect is not required.
+    QVERIFY(h.click(nm("hubSwitch_", idA).constData()));
+    QTRY_COMPARE_WITH_TIMEOUT(h.controller->libraryState(), QStringLiteral("ready"), 8000);
+    QCOMPARE(h.controller->connection()->profile()->hubId, idA);
+
+    // Remove asks first; Cancel keeps the Hub.
+    QTRY_COMPARE_WITH_TIMEOUT(h.controller->screen(), QStringLiteral("library"), 8000);
+    h.controller->showSettings();
+    QTest::qWait(100);
+    QVERIFY(h.click(nm("hubRemove_", idB).constData()));
+    QVERIFY(h.item(nm("hubRemoveConfirm_", idB).constData())->isVisible());
+    QVERIFY(h.click(nm("hubRemoveCancel_", idB).constData()));
+    QCOMPARE(h.controller->hubs().size(), 2);
+    // Confirmed removal of a non-current Hub.
+    QVERIFY(h.click(nm("hubRemove_", idB).constData()));
+    QVERIFY(h.click(nm("hubRemoveConfirmButton_", idB).constData()));
+    QCOMPARE(h.controller->hubs().size(), 1);
+    QCOMPARE(h.controller->screen(), QStringLiteral("settings"));
+    // Removing the current Hub returns to the connection screen.
+    QVERIFY(h.click(nm("hubRemove_", idA).constData()));
+    QVERIFY(h.click(nm("hubRemoveConfirmButton_", idA).constData()));
+    QTRY_COMPARE(h.controller->screen(), QStringLiteral("connection"));
+    QCOMPARE(h.controller->hubs().size(), 0);
+  }
+
  private:
   static QString pairingError(Harness& h) { return h.controller->pairing().value(QStringLiteral("error")).toString(); }
 };
 
-UITEST_MAIN(Phase5UiTest)
-#include "phase5_ui_test.moc"
+UITEST_MAIN(HubFeaturesUiTest)
+#include "hub_features_ui_test.moc"

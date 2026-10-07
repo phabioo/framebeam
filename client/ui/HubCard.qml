@@ -9,8 +9,11 @@ Rectangle {
     signal connectRequested(string hubId)
     signal retryRequested()
     signal removeRequested(string hubId)
+    signal trustCertificateRequested(string fingerprint)
+    signal cancelCertificateRequested()
 
-    property bool showFingerprints: false
+    property bool confirmingTrust: false
+    onStatusChanged: if (status !== "certChanged") confirmingTrust = false
     readonly property string status: hub.status
     readonly property string tone: hub.tone
 
@@ -70,14 +73,80 @@ Rectangle {
             }
         }
 
-        ColumnLayout {
+        GridLayout {
+            objectName: "certFingerprints"
             Layout.fillWidth: true
-            visible: card.status === "certChanged" && card.showFingerprints
-            spacing: 6
-            Eyebrow { text: qsTr("Saved (SHA-256)") }
-            FbMono { text: card.hub.expectedFingerprint || ""; color: Theme.text }
-            Eyebrow { text: qsTr("Reported by hub now (SHA-256)"); Layout.topMargin: 4 }
-            FbMono { text: card.hub.observedFingerprint || ""; color: Theme.error }
+            visible: card.status === "certChanged"
+            columns: width > 640 ? 2 : 1
+            columnSpacing: 20
+            rowSpacing: 8
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.preferredWidth: 1
+                Layout.alignment: Qt.AlignTop
+                spacing: 4
+                Eyebrow { text: qsTr("Saved (SHA-256)") }
+                FbMono { objectName: "certExpectedFingerprint"; Layout.fillWidth: true; text: card.hub.expectedFingerprint || ""; color: Theme.text; wrapMode: Text.WrapAnywhere }
+            }
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.preferredWidth: 1
+                Layout.alignment: Qt.AlignTop
+                spacing: 4
+                Eyebrow { text: qsTr("Presented by the Hub now (SHA-256)") }
+                FbMono { objectName: "certObservedFingerprint"; Layout.fillWidth: true; text: card.hub.observedFingerprint || ""; color: Theme.error; wrapMode: Text.WrapAnywhere }
+            }
+        }
+
+        FbLabel {
+            objectName: "certHint"
+            Layout.fillWidth: true
+            visible: card.status === "certChanged"
+            text: qsTr("Open the Hub's web Settings page and compare its certificate fingerprint with the one presented now. "
+                       + "A Hub renews its certificate automatically before it expires.")
+            font.pixelSize: 13
+            color: Theme.textMuted
+            wrapMode: Text.WordWrap
+        }
+
+        Rectangle {
+            objectName: "certConfirmBox"
+            Layout.fillWidth: true
+            visible: card.status === "certChanged" && card.confirmingTrust
+            implicitHeight: confirmCol.implicitHeight + 24
+            radius: 8
+            color: Theme.toneBg("error")
+            ColumnLayout {
+                id: confirmCol
+                anchors.fill: parent
+                anchors.margins: 12
+                spacing: 10
+                FbLabel {
+                    Layout.fillWidth: true
+                    text: qsTr("Trust this certificate only if both fingerprints match the Hub's Settings page. "
+                               + "Your saved sign-in is kept and used for the new certificate.")
+                    font.pixelSize: 13
+                    wrapMode: Text.WordWrap
+                    color: Theme.errorText
+                }
+                RowLayout {
+                    spacing: 10
+                    FbButton {
+                        objectName: "certConfirmTrust"
+                        kind: "primary"
+                        text: qsTr("Yes, trust this certificate")
+                        onClicked: {
+                            card.confirmingTrust = false
+                            card.trustCertificateRequested(card.hub.observedFingerprintRaw)
+                        }
+                    }
+                    FbButton {
+                        objectName: "certConfirmBack"
+                        text: qsTr("Back")
+                        onClicked: card.confirmingTrust = false
+                    }
+                }
+            }
         }
 
         RowLayout {
@@ -95,10 +164,16 @@ Rectangle {
                 onClicked: card.retryRequested()
             }
             FbButton {
+                objectName: "certTrustNew"
+                visible: card.status === "certChanged" && !card.confirmingTrust
+                text: qsTr("Trust new certificate")
+                onClicked: card.confirmingTrust = true
+            }
+            FbButton {
+                objectName: "certCancel"
                 visible: card.status === "certChanged"
-                kind: "link"
-                text: card.showFingerprints ? qsTr("Hide fingerprints") : qsTr("Check fingerprint")
-                onClicked: card.showFingerprints = !card.showFingerprints
+                text: qsTr("Cancel")
+                onClicked: card.cancelCertificateRequested()
             }
             Item { Layout.fillWidth: true }
             FbButton {
