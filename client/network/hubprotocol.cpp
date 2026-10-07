@@ -1,6 +1,7 @@
 #include "hubprotocol.h"
 
 #include <QJsonArray>
+#include <QRegularExpression>
 #include <QSysInfo>
 
 #include "romcache.h"
@@ -102,6 +103,10 @@ std::optional<SystemInfo> parseSystemInfo(const QJsonObject& obj) {
   // Unknown mode: the safe reading is "builtin" (nothing is required or downloaded).
   s.firmwareMode = obj.value(QStringLiteral("firmware_mode")).toString() == QLatin1String("native") ? QStringLiteral("native")
                                                                                                   : QStringLiteral("builtin");
+  s.corePackageVersion = obj.value(QStringLiteral("core_package_version")).toString();
+  if (!s.corePackageVersion.isEmpty() && !isValidCoreVersion(s.corePackageVersion)) {
+    s.corePackageVersion.clear();
+  }
   if (s.id.isEmpty()) {
     return std::nullopt;
   }
@@ -121,6 +126,89 @@ std::optional<SystemInfo> parseSystemInfo(const QJsonObject& obj) {
     s.firmware.append(f);
   }
   return s;
+}
+
+bool isValidCoreId(const QString& id) {
+  static const QRegularExpression re(QStringLiteral("^[a-z0-9_]{1,64}$"));
+  return re.match(id).hasMatch();
+}
+
+bool isValidCoreVersion(const QString& v) {
+  static const QRegularExpression re(QStringLiteral("^[0-9A-Za-z][0-9A-Za-z.+_-]{0,63}$"));
+  return re.match(v).hasMatch();
+}
+
+bool isValidCorePlatform(const QString& p) {
+  static const QStringList all{QStringLiteral("windows-x64"), QStringLiteral("linux-x64"), QStringLiteral("linux-arm64"),
+                               QStringLiteral("macos-x64"), QStringLiteral("macos-arm64")};
+  return all.contains(p);
+}
+
+bool isValidCoreFileName(const QString& n) {
+  static const QRegularExpression re(QStringLiteral("^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"));
+  return re.match(n).hasMatch() && !n.contains(QLatin1String(".."));
+}
+
+const CorePackageFile* CorePackageInfo::library() const {
+  for (const CorePackageFile& f : files) {
+    if (f.role == QLatin1String("library")) {
+      return &f;
+    }
+  }
+  return nullptr;
+}
+
+QJsonObject CorePackageInfo::toJson() const {
+  QJsonArray arr;
+  for (const CorePackageFile& f : files) {
+    arr.append(QJsonObject{{QStringLiteral("name"), f.name},
+                           {QStringLiteral("role"), f.role},
+                           {QStringLiteral("size"), f.size},
+                           {QStringLiteral("sha256"), f.sha256},
+                           {QStringLiteral("available"), f.available}});
+  }
+  return QJsonObject{{QStringLiteral("core_id"), coreId},         {QStringLiteral("version"), version},
+                     {QStringLiteral("platform"), platform},      {QStringLiteral("license"), license},
+                     {QStringLiteral("source_url"), sourceUrl},   {QStringLiteral("source_ref"), sourceRef},
+                     {QStringLiteral("files"), arr}};
+}
+
+std::optional<CorePackageInfo> parseCorePackage(const QJsonObject& obj) {
+  CorePackageInfo p;
+  p.coreId = obj.value(QStringLiteral("core_id")).toString();
+  p.version = obj.value(QStringLiteral("version")).toString();
+  p.platform = obj.value(QStringLiteral("platform")).toString();
+  p.license = obj.value(QStringLiteral("license")).toString();
+  p.sourceUrl = obj.value(QStringLiteral("source_url")).toString();
+  p.sourceRef = obj.value(QStringLiteral("source_ref")).toString();
+  if (!isValidCoreId(p.coreId) || !isValidCoreVersion(p.version) || !isValidCorePlatform(p.platform)) {
+    return std::nullopt;
+  }
+  int libraries = 0;
+  QStringList names;
+  for (const QJsonValue& v : obj.value(QStringLiteral("files")).toArray()) {
+    const QJsonObject o = v.toObject();
+    CorePackageFile f;
+    f.name = o.value(QStringLiteral("name")).toString();
+    f.role = o.value(QStringLiteral("role")).toString();
+    f.size = o.value(QStringLiteral("size")).toVariant().toLongLong();
+    f.sha256 = o.value(QStringLiteral("sha256")).toString();
+    f.available = o.value(QStringLiteral("available")).toBool(false);
+    constexpr qint64 kMaxCoreFile = 512LL * 1024 * 1024;
+    if (!isValidCoreFileName(f.name) || names.contains(f.name) || (f.role != QLatin1String("library") && f.role != QLatin1String("license")) ||
+        f.size <= 0 || f.size > kMaxCoreFile || !RomCache::isValidSha256(f.sha256)) {
+      return std::nullopt;
+    }
+    names.append(f.name);
+    if (f.role == QLatin1String("library")) {
+      ++libraries;
+    }
+    p.files.append(f);
+  }
+  if (libraries != 1) {
+    return std::nullopt;
+  }
+  return p;
 }
 
 std::optional<GameEntry> parseGame(const QJsonObject& obj) {

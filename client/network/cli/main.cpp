@@ -11,6 +11,7 @@
 //      errors invite_invalid / display_name_taken / rate_limited exit 1)
 //   game upload <file> [--title T]     (needs handshake feature uploads_v1; streamed; output lines
 //     OK game_id=... sha256=... | DUPLICATE existing_game_id=... (exit 0) | ERROR upload: <code> (exit 1))
+//   fetch-core <system-id>  (needs cores_v1; prints core_path=, core_source=download|cache, core_version=)
 //   systems     (needs firmware_v1; lines: "<system>\tmode=builtin|native\tcore=..." and "  <file>\trequired=..\tpresent=..")
 //   saves list | save push <game_id> <file> [--base N] [--reason checkpoint|final|final_session_end]
 //   save pull <game_id> <out> | save resolve <game_id> <conflict_id> use_hub|use_local --expected N
@@ -33,6 +34,8 @@
 #include "hubconnection.h"
 #include "gameuploader.h"
 #include "hublibrary.h"
+#include "corecache.h"
+#include "coreprovisioner.h"
 #include "hubsystems.h"
 #include "profilestore.h"
 #include "romcache.h"
@@ -93,7 +96,8 @@ class Runner : public QObject {
     } else if (command_ != QLatin1String("games") && command_ != QLatin1String("fetch-rom") &&
                command_ != QLatin1String("saves") && command_ != QLatin1String("save") &&
                command_ != QLatin1String("session-share") && command_ != QLatin1String("session-watch") &&
-               command_ != QLatin1String("game") && command_ != QLatin1String("systems")) {
+               command_ != QLatin1String("game") && command_ != QLatin1String("systems") &&
+               command_ != QLatin1String("fetch-core")) {
       return usage();
     } else {
       rest.prepend(command_);
@@ -144,7 +148,7 @@ class Runner : public QObject {
              "        framebeam_player_cli pair <address> [--dev] [--accept-fingerprint] [games] [fetch-rom <sha256>]\n"
              "        framebeam_player_cli redeem-invite <address> --code FB-XXXX-XXXX --name <name> [--dev] [--accept-fingerprint]\n"
              "        framebeam_player_cli games | fetch-rom <sha256>   [--data-dir <path>]\n"
-             "        framebeam_player_cli game upload <file> [--title T] | systems\n"
+             "        framebeam_player_cli game upload <file> [--title T] | systems | fetch-core <system-id>\n"
              "        framebeam_player_cli saves list | save push <game_id> <file> [--base N] | save pull <game_id> <out>\n"
              "        framebeam_player_cli session-share [--game <id>] [--visibility V] --synthetic [--seconds N]\n"
              "        framebeam_player_cli session-watch (--session <id> | --first) [--seconds N]\n"
@@ -286,6 +290,8 @@ class Runner : public QObject {
       runGameCommand();
     } else if (cmd == QLatin1String("systems")) {
       runSystemsCommand();
+    } else if (cmd == QLatin1String("fetch-core") && !followUps_.isEmpty()) {
+      runFetchCoreCommand(followUps_.takeFirst());
     } else if (cmd == QLatin1String("session-share") || cmd == QLatin1String("session-watch")) {
       // Options up to the next known command belong to this one; the command runs until its end (exit code).
       QStringList opts;
@@ -376,6 +382,55 @@ class Runner : public QObject {
         systems_->disconnect(this);
         nextFollowUp();
       }
+    });
+    systems_->reload();
+  }
+
+  // fetch-core <system-id>: provisions the core the Hub serves for the system (cache hit = no download).
+  // stdout: core_path=<path>, core_source=download|cache, core_version=<version>; on failure a reason on stderr, exit 1.
+  void runFetchCoreCommand(const QString& systemId) {
+    if (!conn_->hubHasFeature(QStringLiteral("cores_v1"))) {
+      err() << "ERROR fetch-core: the Hub does not offer cores (cores_v1 missing)\n";
+      finish(1);
+      return;
+    }
+    systems_ = std::make_unique<HubSystems>(conn_.get());
+    QObject::connect(systems_.get(), &HubSystems::stateChanged, this, [this, systemId]() {
+      if (systems_->state() == HubSystems::State::Failed) {
+        err() << "ERROR fetch-core: systems: " << systems_->errorMessage() << "\n";
+        finish(1);
+        return;
+      }
+      if (systems_->state() != HubSystems::State::Ready) {
+        return;
+      }
+      systems_->disconnect(this);
+      const auto sys = systems_->system(systemId);
+      if (!sys) {
+        err() << "ERROR fetch-core: unknown system " << systemId << "\n";
+        finish(1);
+        return;
+      }
+      if (sys->corePackageVersion.isEmpty()) {
+        err() << "ERROR fetch-core: not_on_hub (the Hub serves no core package for " << sys->preferredCoreId << ")\n";
+        finish(1);
+        return;
+      }
+      coreCache_ = std::make_unique<CoreCache>(profiles_->coreCacheDir());
+      coreProv_ = std::make_unique<CoreProvisioner>(conn_.get(), coreCache_.get());
+      QObject::connect(coreProv_.get(), &CoreProvisioner::finished, this, [this](const CoreResult& r) {
+        if (!r.ok) {
+          err() << "ERROR fetch-core: " << r.problem << (r.detail.isEmpty() ? QString() : QStringLiteral(" (") + r.detail + QStringLiteral(")")) << "\n";
+          finish(1);
+          return;
+        }
+        out() << "core_path=" << r.libraryPath << "\n"
+              << "core_source=" << (r.downloaded ? "download" : "cache") << "\n"
+              << "core_version=" << r.version << "\n";
+        out().flush();
+        nextFollowUp();
+      });
+      coreProv_->prepare(sys->preferredCoreId, sys->corePackageVersion);
     });
     systems_->reload();
   }
@@ -547,6 +602,8 @@ class Runner : public QObject {
   std::unique_ptr<SaveApi> saves_;
   std::unique_ptr<GameUploader> uploader_;
   std::unique_ptr<HubSystems> systems_;
+  std::unique_ptr<CoreCache> coreCache_;
+  std::unique_ptr<CoreProvisioner> coreProv_;
   std::unique_ptr<SessionCommands> sessions_;
 };
 
