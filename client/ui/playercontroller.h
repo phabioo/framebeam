@@ -16,6 +16,8 @@
 #include "core_locator.h"
 #include "emulationcontroller.h"
 #include "firmwarecache.h"
+#include "corecache.h"
+#include "coreprovisioner.h"
 #include "firmwareprovisioner.h"
 #include "gamesession.h"
 #include "gameuploader.h"
@@ -192,7 +194,7 @@ class PlayerController : public QObject {
   void emulationSettingsChanged();
 
  private:
-  enum class PlayPhase { None, Firmware, Rom, Launching };
+  enum class PlayPhase { None, Core, Firmware, Rom, Launching };
 
   void onConnectionState(HubConnection::State s);
   void onLibraryLoaded();
@@ -205,6 +207,17 @@ class PlayerController : public QObject {
   QVariantList systemCards();
   void applyFrameBeamOptions();
   void onFirmwareFinished(const FirmwareResult& result);
+  void onCoreFinished(const CoreResult& result);
+  void continueStartAfterCore(const GameEntry& game, const emu::SystemManifest& man);
+  // Core lookup with the version the Hub serves (cache source), see CoreLocator.
+  emu::CoreLocation locateCore(const emu::SystemManifest& man) const;
+  // The Hub offers a core package for this system (cores_v1 + core_package_version of the preferred core).
+  bool hubOffersCore(const emu::SystemManifest& man, QString* version = nullptr) const;
+  // Located core is usable as is (a cached core must also pass the SHA-256 check).
+  bool coreUsable(const emu::SystemManifest& man, emu::CoreLocation* loc = nullptr) const;
+  // Core status text/tone/hint for the detail pane and the system cards.
+  void coreStatus(const emu::SystemManifest& man, QString* text, QString* tone, QString* hint) const;
+  static QString coreProblemText(const QString& reason);
   void onUploadFinished(const UploadResult& result);
   void beginRomPhase(const GameEntry& game);
   // Firmware mode of the Hub for the system of this manifest: true = native (files required).
@@ -232,6 +245,10 @@ class PlayerController : public QObject {
   std::unique_ptr<FirmwareCache> fwCache_;
   std::unique_ptr<HubSystems> systems_;
   std::unique_ptr<FirmwareProvisioner> provisioner_;
+  std::unique_ptr<CoreCache> coreCache_;
+  std::unique_ptr<CoreProvisioner> coreProv_;
+  QMap<QString, QString> coreProblems_;  // core_id -> last provisioning problem reason (cleared with a fresh registry)
+  HandshakeInfo handshake_;
   std::unique_ptr<GameUploader> uploader_;
   emu::ManifestRegistry manifests_;
   emu::CoreLocator locator_;

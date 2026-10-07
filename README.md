@@ -15,7 +15,8 @@ Phase plan: [Workflow](docs/workflow.md#phase-plan). The PoC (phases 0-5) is com
 | 4 Session sharing and multiview | done (tested locally on two Windows PCs) | Presence, signaling, WebRTC, multiview ([ADR 0006](docs/adr/0006-sessions-phase4.md), accepted) |
 | 5 Remainder and polish | done (tested locally) | Users and invites, user uploads, systems and firmware, Emulation and Controllers pages, appearance, Windows installer ([ADR 0007](docs/adr/0007-phase5.md), accepted) |
 | 0.1.1 Finish the PoC | done in code; hardware encoders and real certificates verified only locally | Hardware encoder features on Windows, Settings → Hubs, certificate renewal and change confirmation, RTT in diagnostics ([ADR 0009](docs/adr/0009-finish-poc.md), proposed) |
-| Post-PoC | planned | See [Roadmap](docs/roadmap.md) (versions 0.2 to 0.10) |
+| 0.2 Cores from the Hub | done (merged with this PR) | Installers ship no cores; the Hub fetches signed core packages and serves them to Players ([ADR 0010](docs/adr/0010-cores-from-the-hub.md), proposed) |
+| Post-PoC | planned | See [Roadmap](docs/roadmap.md) (versions 0.3 to 0.10) |
 
 ## What works
 
@@ -34,6 +35,7 @@ Phase plan: [Workflow](docs/workflow.md#phase-plan). The PoC (phases 0-5) is com
 - Users and invites: Users page creates single-use invite codes (shown once), disable/enable users, display names unique; Clients page assigns a pending device to a user.
 - Settings: "Allow users to upload games" and Appearance (Light / Dark / System).
 - Systems & Cores page: expected core version, reports from clients, firmware mode and firmware files per system (user-supplied, never shipped).
+- Core package cache: the Hub fetches an Ed25519-signed core index and the packages from FrameBeam's GitHub Releases (startup, every 24 h, "Check source now") and serves them to Players. It needs internet access to github.com; offline use `framebeam-hub import-cores <dir>` (systemd: `install-hub.sh import-cores <dir>`). Extra trusted keys: `--core-trust-key`.
 - Ships with a systemd installer for Linux / Raspberry Pi (`packaging/linux/`).
 
 **Protocol** (`protocol/`)
@@ -61,6 +63,7 @@ Phase plan: [Workflow](docs/workflow.md#phase-plan). The PoC (phases 0-5) is com
 - Redeem an invite code to join a Hub as a new user (no password).
 - Upload ROMs to the Hub from the Player when the Hub allows user uploads.
 - Firmware path for NDS: in native mode the Player fetches your firmware files from the Hub and shows "Firmware required" / "Firmware missing" instead of launching without them.
+- Cores come from the Hub: the Player downloads the core for a system on demand (size and SHA-256 checked) into `cache/cores/<core-id>/<version>/<platform>/`; installers ship no cores. CLI: `fetch-core <system-id>`.
 - Emulation page: core options per global/system level (locked options are hidden).
 - Controllers page: SDL3 gamepads, built-in and user profiles, remapping, input test.
 - Settings page: Appearance (Dark / Light / System).
@@ -122,7 +125,7 @@ Player data storage (ROM cache, `profiles.json`, `device.json`, `hubs/<id>/users
 
 `--data-dir` replaces the default; `--dev-allow-http` allows HTTP Hubs outside localhost (development only). `scripts/e2e-player-hub.sh` checks the Player CLI against a locally built Hub, including a save round trip.
 
-Windows test package: unpack the CI artifact `framebeam-player-windows-x64` from the Windows job and start `framebeam_player.exe` (core under `cores/`).
+Windows test package: unpack the CI artifact `framebeam-player-windows-x64` from the Windows job and start `framebeam_player.exe` (it ships no core; the Hub provides it on first game start).
 
 ### Test Sessions locally
 
@@ -160,6 +163,7 @@ Keyboard: Arrows, X=A, Z=B, S=X, A=Y, Q=L, W=R, Enter=Start, Backspace=Select, E
 - [ADR 0006: Sessions in phase 4](docs/adr/0006-sessions-phase4.md) (accepted)
 - [ADR 0007: Phase 5, users, firmware, settings pages, gamepads, installer](docs/adr/0007-phase5.md) (accepted)
 - [ADR 0009: Finish the PoC (0.1.1)](docs/adr/0009-finish-poc.md) (proposed)
+- [ADR 0010: Cores from the Hub](docs/adr/0010-cores-from-the-hub.md) (proposed)
 - [Roadmap after the PoC](docs/roadmap.md)
 - [Design](docs/design/README.md)
 - [Working with Claude Code](docs/workflow.md)

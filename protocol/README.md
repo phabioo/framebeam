@@ -41,6 +41,8 @@ Shared protocol definition for Hub and Player (`openapi/`, `schemas/`). Rules: `
 | POST | `/api/v1/games` | Bearer | uploadGame (raw body, 403 `uploads_disabled`) |
 | GET | `/api/v1/systems` | Bearer | listSystems |
 | GET | `/api/v1/systems/{system_id}/firmware/{file_id}` | Bearer | getFirmwareFile (ETag) |
+| GET | `/api/v1/cores/{core_id}/packages/{version}/{platform}` | Bearer | getCorePackage |
+| GET | `/api/v1/cores/{core_id}/packages/{version}/{platform}/files/{name}` | Bearer | getCorePackageFile (ETag, 304) |
 | GET | `/api/v1/ws` | Bearer | connectWebSocket (WSS upgrade, documentation only) |
 
 Phase 3 (OpenAPI 1.1.0, handshake feature `saves_v1`, `protocol_version` stays 1). Error codes added: `save_conflict` (409), `save_conflict_stale` (409), `payload_too_large` (413). Rules: ADR 0005.
@@ -65,3 +67,5 @@ Envelope `{type, id?, payload}` (JSON text frames); schema `schemas/ws-<type>.sc
 | `viewer_left` | Hub -> owner and viewer device | `{session_id, viewer_id, reason: left\|removed\|revoked\|disconnected}` |
 | `signal` | both | `{session_id, viewer_id, kind: offer\|answer\|candidate, sdp?, candidate?, mid?}` relayed unchanged between owner device and the authorized viewer's device |
 | `error` | Hub -> Player | `{code, message}`, `id` echoes the request |
+
+0.2 "Cores from the Hub" (OpenAPI 1.4.0, handshake feature `cores_v1`, `protocol_version` stays 1). Added: `getCorePackage`, `getCorePackageFile` (ETag = SHA-256, `If-None-Match` 304), optional nullable `SystemInfo.core_package_version`. Error codes added: `core_package_not_found` (404), `core_file_not_available` (404).

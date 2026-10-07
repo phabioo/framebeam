@@ -51,16 +51,21 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   fwCache_ = std::make_unique<FirmwareCache>(QDir(systemDir()).filePath(QStringLiteral("firmware")));
   systems_ = std::make_unique<HubSystems>(conn_.get());
   provisioner_ = std::make_unique<FirmwareProvisioner>(conn_.get(), fwCache_.get());
+  coreCache_ = std::make_unique<CoreCache>(profiles_->coreCacheDir());
+  coreProv_ = std::make_unique<CoreProvisioner>(conn_.get(), coreCache_.get());
+  locator_.setCache(coreCache_->root(), CoreCache::currentPlatform());
   uploader_ = std::make_unique<GameUploader>(conn_.get());
   upload_ = {{QStringLiteral("active"), false}, {QStringLiteral("fileName"), QString()}, {QStringLiteral("progress"), 0.0},
              {QStringLiteral("message"), QString()}, {QStringLiteral("isError"), false}};
   connect(systems_.get(), &HubSystems::stateChanged, this, [this]() {
     if (systems_->state() == HubSystems::State::Ready) {
       fwProblems_.clear();  // fresh registry from the Hub: validation problems are re-evaluated
+      coreProblems_.clear();
     }
     emit selectedGameChanged();
   });
   connect(provisioner_.get(), &FirmwareProvisioner::finished, this, &PlayerController::onFirmwareFinished);
+  connect(coreProv_.get(), &CoreProvisioner::finished, this, &PlayerController::onCoreFinished);
   connect(uploader_.get(), &GameUploader::progress, this, [this](qint64 sent, qint64 total) {
     upload_.insert(QStringLiteral("progress"), total > 0 ? static_cast<double>(sent) / static_cast<double>(total) : 0.0);
     emit uploadChanged();
@@ -119,6 +124,7 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   info.cores = coreList_;
   info.gamepad = controllers_->gamepadAvailable();  // input.gamepad: SDL gamepads usable on this Player
   applyMediaCapabilities(&info);  // h264_encode/h264_decode/encoders as libavcodec can really open them
+  handshake_ = info;
   conn_->setHandshakeInfo(info);
 
   sessions_ = std::make_unique<SessionController>(conn_.get(), profiles_.get(), &session_);
@@ -228,7 +234,7 @@ void PlayerController::probeCores() {
   // without a game (that also yields its options for the Emulation page), read name/version and unload it again.
   // If that fails, we report only the core_id (empty version) instead of guessing.
   for (const emu::SystemManifest& m : manifests_.all()) {
-    const emu::CoreLocation loc = locator_.locate(m);
+    const emu::CoreLocation loc = locateCore(m);
     if (!loc.found()) {
       continue;
     }
@@ -249,6 +255,86 @@ void PlayerController::probeCores() {
   }
 }
 
+emu::CoreLocation PlayerController::locateCore(const emu::SystemManifest& man) const {
+  QString version;
+  hubOffersCore(man, &version);
+  return locator_.locate(man, version);
+}
+
+bool PlayerController::hubOffersCore(const emu::SystemManifest& man, QString* version) const {
+  if (conn_->state() != HubConnection::State::Connected || !conn_->hubHasFeature(QStringLiteral("cores_v1")) || !systems_->supported() ||
+      CoreCache::currentPlatform().isEmpty()) {
+    return false;
+  }
+  const auto sys = systems_->system(man.systemId);
+  if (!sys || sys->corePackageVersion.isEmpty() || sys->preferredCoreId != man.coreId) {
+    return false;
+  }
+  if (version != nullptr) {
+    *version = sys->corePackageVersion;
+  }
+  return true;
+}
+
+bool PlayerController::coreUsable(const emu::SystemManifest& man, emu::CoreLocation* out) const {
+  const emu::CoreLocation loc = locateCore(man);
+  if (out != nullptr) {
+    *out = loc;
+  }
+  if (!loc.found()) {
+    return false;
+  }
+  // A cached core must match its package.json (size + SHA-256, memoized); the locator only checks the size.
+  return loc.source != QLatin1String("cache") || !coreCache_->libraryPath(man.coreId, loc.version, CoreCache::currentPlatform()).isEmpty();
+}
+
+QString PlayerController::coreProblemText(const QString& reason) {
+  if (reason == QLatin1String("incompatible")) return tr("Core incompatible");
+  if (reason == QLatin1String("not_on_hub") || reason == QLatin1String("not_cached_on_hub")) return tr("Core missing");
+  return tr("Core download failed");
+}
+
+void PlayerController::coreStatus(const emu::SystemManifest& man, QString* text, QString* tone, QString* hint) const {
+  emu::CoreLocation loc;
+  const bool usable = coreUsable(man, &loc);
+  hint->clear();
+  if (usable) {
+    *text = QString();
+    *tone = QStringLiteral("ok");
+    return;
+  }
+  if (phase_ == PlayPhase::Core && launchGame_.system == man.systemId) {
+    *text = tr("Loading core…");
+    *tone = QStringLiteral("neutral");
+    return;
+  }
+  const QString problem = coreProblems_.value(man.coreId);
+  if (!problem.isEmpty()) {
+    *text = coreProblemText(problem);
+    *tone = QStringLiteral("error");
+    if (problem == QLatin1String("not_on_hub")) {
+      *hint = tr("The Hub has no package of this core. Ask the Hub admin to select a core version on the Systems & Cores page.");
+    } else if (problem == QLatin1String("not_cached_on_hub")) {
+      *hint = tr("The Hub has not downloaded the core files yet. Ask the Hub admin to check the core source.");
+    } else if (problem == QLatin1String("incompatible")) {
+      *hint = tr("The Hub has this core only for other platforms than %1.").arg(CoreCache::currentPlatform());
+    } else {
+      *hint = tr("The core could not be downloaded or verified. Play to try again.");
+    }
+    return;
+  }
+  if (hubOffersCore(man)) {
+    *text = tr("Core from Hub · download at start");
+    *tone = QStringLiteral("neutral");
+    return;
+  }
+  *text = tr("Core missing");
+  *tone = QStringLiteral("error");
+  *hint = tr("Not found. Connect to a Hub that provides cores, set %1 or place the library in %2.")
+              .arg(emu::CoreLocator::environmentVariableFor(man.coreId),
+                   loc.tried.isEmpty() ? QString() : QDir::toNativeSeparators(loc.tried.last()));
+}
+
 // Emulation page: system cards (core, readiness, firmware) and the core options (loaded once without a game or from
 // the cache of the last capture; not possible while a game runs because only one core can be loaded per process).
 void PlayerController::refreshEmulationPage() {
@@ -256,7 +342,7 @@ void PlayerController::refreshEmulationPage() {
     if (emulation_->hasCoreProbe(m.coreId)) {
       continue;
     }
-    const emu::CoreLocation loc = locator_.locate(m);
+    const emu::CoreLocation loc = locateCore(m);
     if (loc.found() && !session_.isActive()) {
       const emu::CoreProbe probe = emu::probeCore(loc.path, systemDir(), QDir(profiles_->baseDir()).filePath(QStringLiteral("probe")));
       if (probe.ok) {
@@ -275,19 +361,19 @@ void PlayerController::refreshEmulationPage() {
 QVariantList PlayerController::systemCards() {
   QVariantList cards;
   for (const emu::SystemManifest& m : manifests_.all()) {
-    const emu::CoreLocation loc = locator_.locate(m);
+    const emu::CoreLocation loc = locateCore(m);
     QString version = coreVersions_.value(m.coreId);
     if (version.isEmpty()) {
       if (const emu::CoreProbe* p = emulation_->coreProbe(m.coreId)) version = p->info.version;
     }
     QString readyText;
     QString readyTone;
-    if (!loc.found()) {
-      readyText = tr("Core missing");
-      readyTone = QStringLiteral("error");
-    } else {
-      readyText = tr("Ready · included in the Player");
+    if (coreUsable(m)) {
+      readyText = loc.source == QLatin1String("cache") ? tr("Ready · core from the Hub") : tr("Ready · included in the Player");
       readyTone = QStringLiteral("ok");
+    } else {
+      QString hint;
+      coreStatus(m, &readyText, &readyTone, &hint);
     }
     // Firmware (firmware path from the Hub registry, architecture 05): built-in BIOS, from the Hub, or required/missing.
     QString fwText = tr("Built-in BIOS");
@@ -1064,6 +1150,8 @@ QVariantMap PlayerController::selectedGame() const {
 
   // Core / firmware
   bool coreOk = false;
+  bool coreProvisionable = false;  // missing locally, but the Hub offers it: provisioned at game start
+  QString coreTone = QStringLiteral("ok");
   bool fwOk = true;
   bool fwChecking = false;
   bool fwBlocked = false;
@@ -1075,14 +1163,16 @@ QVariantMap PlayerController::selectedGame() const {
   if (man == nullptr) {
     coreText = tr("no system manifest for .%1").arg(ext);
   } else {
-    const emu::CoreLocation loc = locator_.locate(*man);
+    const emu::CoreLocation loc = locateCore(*man);
     const QString label = coreLabel(*man, loc);
-    coreOk = loc.found();
-    coreText = coreOk ? tr("%1 · ready").arg(label) : tr("%1 · missing").arg(label);
-    if (!coreOk) {
-      coreHint = tr("Not found. Set %1 or place the library in %2.")
-                     .arg(emu::CoreLocator::environmentVariableFor(man->coreId),
-                          loc.tried.isEmpty() ? QString() : QDir::toNativeSeparators(loc.tried.last()));
+    coreOk = coreUsable(*man);
+    if (coreOk) {
+      coreText = tr("%1 · ready").arg(label);
+    } else {
+      QString st;
+      coreStatus(*man, &st, &coreTone, &coreHint);
+      coreText = tr("%1 · %2").arg(label, st);
+      coreProvisionable = hubOffersCore(*man) && phase_ == PlayPhase::None;
     }
     SystemInfo sys;
     if (systems_->supported() && systems_->state() == HubSystems::State::Loading && !systems_->system(man->systemId)) {
@@ -1128,7 +1218,7 @@ QVariantMap PlayerController::selectedGame() const {
     }
   }
   m.insert(QStringLiteral("coreText"), coreText);
-  m.insert(QStringLiteral("coreTone"), coreOk ? QStringLiteral("ok") : QStringLiteral("error"));
+  m.insert(QStringLiteral("coreTone"), coreOk ? QStringLiteral("ok") : coreTone);
   m.insert(QStringLiteral("coreHint"), coreHint);
   m.insert(QStringLiteral("firmwareText"), fwText);
   m.insert(QStringLiteral("firmwareTone"), fwOk ? fwTone : QStringLiteral("error"));
@@ -1181,7 +1271,10 @@ QVariantMap PlayerController::selectedGame() const {
   list.append(checkItem(tr("Save checked with Hub"),
                         phase_ == PlayPhase::Launching ? (saveReady_ ? QStringLiteral("done") : QStringLiteral("active")) : QStringLiteral("pending"),
                         saveNoteStart_));
-  list.append(checkItem(tr("Core ready"), coreOk ? QStringLiteral("done") : QStringLiteral("error"),
+  list.append(checkItem(tr("Core ready"),
+                        coreOk ? QStringLiteral("done")
+                               : (phase_ == PlayPhase::Core ? QStringLiteral("active")
+                                                            : (coreProvisionable ? QStringLiteral("pending") : QStringLiteral("error"))),
                         coreOk ? QString() : coreText));
   list.append(checkItem(tr("Emulator starting"), (phase_ == PlayPhase::Launching && saveReady_) ? QStringLiteral("active") : QStringLiteral("pending")));
   m.insert(QStringLiteral("checklist"), list);
@@ -1189,11 +1282,14 @@ QVariantMap PlayerController::selectedGame() const {
   QString error = startError_;
   m.insert(QStringLiteral("error"), error);
   m.insert(QStringLiteral("busy"), busy);
-  m.insert(QStringLiteral("canPlay"), !busy && man != nullptr && coreOk && fwOk && kind != QLatin1String("validating") &&
+  m.insert(QStringLiteral("canPlay"), !busy && man != nullptr && (coreOk || coreProvisionable) && fwOk && kind != QLatin1String("validating") &&
                                           kind != QLatin1String("downloading") && kind != QLatin1String("unknown") && !fwChecking);
   QString label = tr("Play");
   if (busy) {
-    label = phase_ == PlayPhase::Launching ? tr("Starting…") : (phase_ == PlayPhase::Firmware ? tr("Checking firmware…") : tr("Downloading…"));
+    label = phase_ == PlayPhase::Launching ? tr("Starting…")
+            : phase_ == PlayPhase::Core    ? tr("Loading core…")
+            : phase_ == PlayPhase::Firmware ? tr("Checking firmware…")
+                                            : tr("Downloading…");
   } else if (kind == QLatin1String("download")) {
     label = tr("Download and play");
   } else if (kind == QLatin1String("mismatch") || kind == QLatin1String("failed")) {
@@ -1218,12 +1314,71 @@ void PlayerController::startSelected(bool share) {
     emit selectedGameChanged();
     return;
   }
-  const emu::CoreLocation loc = locator_.locate(*man);
-  if (!loc.found()) {
-    emit selectedGameChanged();  // detail pane shows the path hint
+  emu::CoreLocation loc;
+  const bool usable = coreUsable(*man, &loc);
+  QString hubVersion;
+  const bool offered = hubOffersCore(*man, &hubVersion);
+  // Provision when the core is missing (or a cached one is damaged), or when the Hub serves another version than the
+  // cached one. Explicit/env/app-dir cores are the user's choice and are never replaced.
+  const bool versionDiffers = usable && loc.source == QLatin1String("cache") && loc.version != hubVersion;
+  if (offered && (!usable || versionDiffers)) {
+    shareOnStart_ = share;
+    launchGame_ = *game;
+    phase_ = PlayPhase::Core;
+    emit selectedGameChanged();
+    coreProv_->prepare(man->coreId, hubVersion);
+    return;
+  }
+  if (!usable) {
+    emit selectedGameChanged();  // detail pane shows the core status and hint
     return;
   }
   shareOnStart_ = share;
+  continueStartAfterCore(*game, *man);
+}
+
+void PlayerController::onCoreFinished(const CoreResult& result) {
+  if (phase_ != PlayPhase::Core) {
+    return;
+  }
+  const auto game = model_.game(selectedId_);
+  const emu::SystemManifest* man = game ? manifestFor(*game) : nullptr;
+  if (!game || man == nullptr || game->id != launchGame_.id) {
+    phase_ = PlayPhase::None;
+    shareOnStart_ = false;
+    emit selectedGameChanged();
+    return;
+  }
+  if (result.ok) {
+    coreProblems_.remove(man->coreId);
+    // The core arrived after the handshake data was built: report it and fill the Emulation page on the next refresh.
+    const bool known = std::any_of(coreList_.cbegin(), coreList_.cend(), [&](const CoreInfo& c) { return c.id == man->coreId && !c.version.isEmpty(); });
+    if (!known && options_.probeCoreVersions) {
+      coreList_.removeIf([&](const CoreInfo& c) { return c.id == man->coreId; });
+      probeCores();
+      handshake_.cores = coreList_;
+      conn_->setHandshakeInfo(handshake_);
+    }
+    continueStartAfterCore(*game, *man);
+    return;
+  }
+  coreProblems_.insert(man->coreId, result.problem);
+  emu::CoreLocation loc;
+  if (coreUsable(*man, &loc)) {
+    // Another version of the core is cached (or env/legacy): the game still starts with it (version mismatch is only a warning).
+    continueStartAfterCore(*game, *man);
+    return;
+  }
+  phase_ = PlayPhase::None;
+  shareOnStart_ = false;
+  startError_ = tr("%1. The game was not started.").arg(coreProblemText(result.problem));
+  emit selectedGameChanged();
+}
+
+void PlayerController::continueStartAfterCore(const GameEntry& gameRef, const emu::SystemManifest& manRef) {
+  const GameEntry* game = &gameRef;
+  const emu::SystemManifest* man = &manRef;
+  phase_ = PlayPhase::None;  // the core step (if any) is over; the firmware/ROM steps set their own phase
   fwOptions_.clear();
   SystemInfo sys;
   if (nativeFirmware(*man, &sys)) {
@@ -1344,7 +1499,7 @@ void PlayerController::onSaveReady(const QString& gameId, const QString& saveDir
     emit selectedGameChanged();
     return;
   }
-  const emu::CoreLocation loc = locator_.locate(*man);
+  const emu::CoreLocation loc = locateCore(*man);
   GameSession::LaunchConfig cfg;
   cfg.title = launchGame_.title;
   cfg.corePath = loc.path;

@@ -47,6 +47,7 @@ class ProfileStore {
   QString hubDir(const QString& hubId) const;
   // Cross-hub, content-addressed ROM cache (created on demand).
   QString romCacheDir() const;
+  QString coreCacheDir() const;  // <data>/cache/cores (downloaded core packages, never migrated)
 
   QString deviceId() const { return deviceId_; }
   QString deviceName() const { return deviceName_; }

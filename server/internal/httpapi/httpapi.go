@@ -114,7 +114,7 @@ func (s *Server) authMiddleware(next api.StrictHandlerFunc, op string) api.Stric
 		switch op {
 		case "UploadGame", "ListSystems", "RevokeSelf", "PostHandshake", "ListGames", "GetGame", "ConnectWebSocket",
 			"ListSaves", "GetSaveSlot", "PutSave", "DownloadSaveContent", "ListSaveHistory", "DownloadSaveHistoryContent", "ResolveSaveConflict",
-			"ListUsers", "ListSessions", "PublishSession", "GetSession", "UpdateSession", "EndSession", "InviteSessionUser",
+			"ListUsers", "GetCorePackage", "GetCorePackageFile", "ListSessions", "PublishSession", "GetSession", "UpdateSession", "EndSession", "InviteSessionUser",
 			"WithdrawSessionInvite", "DeclineSession", "JoinSession", "RemoveSessionViewer":
 			p, err := s.svc.Authenticate(ctx, tok)
 			if err != nil {
@@ -139,7 +139,7 @@ func httpStatus(c hub.Code) int {
 		return http.StatusUnauthorized
 	case hub.CodeForbidden, hub.CodeUploadsDisabled:
 		return http.StatusForbidden
-	case hub.CodeNotFound, hub.CodeInviteInvalid:
+	case hub.CodeNotFound, hub.CodeInviteInvalid, hub.CodeCorePackageNotFound, hub.CodeCoreFileNotAvailable:
 		return http.StatusNotFound
 	case hub.CodeSessionForbidden:
 		return http.StatusForbidden
@@ -268,7 +268,7 @@ func (s *Server) PostHandshake(ctx context.Context, req api.PostHandshakeRequest
 	if err != nil {
 		return nil, err
 	}
-	features := []string{hub.FeatureSavesV1, hub.FeatureSessionsV1, hub.FeatureUsersV1, hub.FeatureFirmwareV1}
+	features := []string{hub.FeatureSavesV1, hub.FeatureSessionsV1, hub.FeatureUsersV1, hub.FeatureFirmwareV1, hub.FeatureCoresV1}
 	if can, err := s.svc.CanUpload(ctx, principal(ctx).User); err != nil {
 		return nil, err
 	} else if can {

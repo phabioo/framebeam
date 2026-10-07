@@ -221,6 +221,12 @@ QString ProfileStore::hubDir(const QString& hubId) const {
   return dir;
 }
 
+QString ProfileStore::coreCacheDir() const {
+  const QString dir = QDir(baseDir_).filePath(QStringLiteral("cache/cores"));
+  QDir().mkpath(dir);
+  return dir;
+}
+
 QString ProfileStore::romCacheDir() const {
   const QString dir = QDir(baseDir_).filePath(QStringLiteral("cache/roms"));
   QDir().mkpath(dir);

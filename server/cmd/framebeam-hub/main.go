@@ -3,6 +3,7 @@
 //	framebeam-hub [flags]                      start the server (API + info endpoint)
 //	framebeam-hub setup-admin -username <name> create the first admin (password from stdin)
 //	framebeam-hub renew-cert                   renew the self-generated TLS certificate now and exit
+//	framebeam-hub import-cores <dir>           import signed core packages from a directory (offline) and exit
 package main
 
 import (
@@ -40,6 +41,8 @@ func main() {
 		err = runSetupAdmin(args[1:], os.Stdin, os.Stdout)
 	} else if len(args) > 0 && args[0] == "renew-cert" {
 		err = runRenewCert(args[1:], os.Stdout)
+	} else if len(args) > 0 && args[0] == "import-cores" {
+		err = runImportCores(args[1:], os.Stdout)
 	} else {
 		err = runServer(args)
 	}
@@ -58,7 +61,13 @@ func openService(ctx context.Context, cfg *config.Config) (*hub.Service, func(),
 	if err != nil {
 		return nil, nil, err
 	}
-	svc, err := hub.Open(ctx, db, hub.Options{DataDir: cfg.DataDir, Name: cfg.Name, HubVersion: version.String(), ICEServers: cfg.ICEServers})
+	keys, err := cfg.TrustedCoreKeys()
+	if err != nil {
+		db.Close()
+		return nil, nil, err
+	}
+	svc, err := hub.Open(ctx, db, hub.Options{DataDir: cfg.DataDir, Name: cfg.Name, HubVersion: version.String(), ICEServers: cfg.ICEServers,
+		CoreIndexURL: cfg.CoreIndexURL, CoreTrustKeys: keys})
 	if err != nil {
 		db.Close()
 		return nil, nil, err
@@ -122,6 +131,55 @@ func runRenewCert(args []string, out io.Writer) error {
 	}
 	fmt.Fprintf(out, "Renewed certificate in %s\nOld SHA-256 fingerprint: %s\nNew SHA-256 fingerprint: %s\n", absDir, ren.OldFingerprint, ren.NewFingerprint)
 	fmt.Fprintln(out, "The previous certificate and key were kept as *.prev next to them. Restart the Hub; Players must confirm the new fingerprint.")
+	return nil
+}
+
+// runImportCores verifies <dir>/cores-index.json (+ .sig) against the trusted keys like a sync and copies the
+// core files found in dir into the Hub cache (offline fallback). Restart is not needed.
+func runImportCores(args []string, out io.Writer) error {
+	// The directory may come before or after the flags.
+	dir := ""
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		dir, args = args[0], args[1:]
+	}
+	fs := flag.NewFlagSet("import-cores", flag.ContinueOnError)
+	cfg := config.Register(fs, os.Getenv)
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if dir == "" && fs.NArg() == 1 {
+		dir = fs.Arg(0)
+	} else if fs.NArg() > 0 {
+		return errors.New("usage: framebeam-hub import-cores <dir> [flags]")
+	}
+	if dir == "" {
+		return errors.New("usage: framebeam-hub import-cores <dir> [flags]")
+	}
+	if err := cfg.Validate(); err != nil {
+		return err
+	}
+	ctx := context.Background()
+	svc, closeFn, err := openService(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	defer closeFn()
+	sum, err := svc.ImportCores(ctx, dir)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(out, "Imported core packages from %s: %d package(s), %d file(s) copied, %d already cached, %d not found in the directory, %d rejected",
+		dir, sum.Packages, sum.Copied, sum.AlreadyCached, sum.Missing, sum.Rejected)
+	if sum.Skipped > 0 {
+		fmt.Fprintf(out, ", %d invalid package(s) skipped", sum.Skipped)
+	}
+	fmt.Fprintln(out)
+	for _, p := range sum.Problems {
+		fmt.Fprintln(out, "Rejected:", p)
+	}
+	if sum.Rejected > 0 {
+		return fmt.Errorf("%d file(s) did not match the signed index", sum.Rejected)
+	}
 	return nil
 }
 
@@ -209,6 +267,18 @@ func runServer(args []string) error {
 		"listen", ln.Addr().String(), "tls", cfg.UseTLS(), "protocol_version", info.ProtocolVersion)
 
 	go svc.RunCleanup(ctx, time.Minute, func(err error) { log.Error("cleanup", "err", err) })
+	// Core source sync: in the background, never blocks or fails startup; ends with ctx on shutdown.
+	syncDone := make(chan struct{})
+	go func() {
+		defer close(syncDone)
+		svc.RunCoreSync(ctx, 24*time.Hour, func(r hub.CoreSyncReport, err error) {
+			if err != nil {
+				log.Warn("core source sync failed", "err", err)
+				return
+			}
+			log.Info("core source synced", "packages", r.Packages, "skipped", r.Skipped, "downloaded", r.Downloaded)
+		})
+	}()
 
 	errc := make(chan error, 1)
 	go func() {
@@ -228,6 +298,10 @@ func runServer(args []string) error {
 	defer cancel()
 	if err := srv.Shutdown(shutCtx); err != nil {
 		srv.Close()
+	}
+	select { // the sync loop stops with ctx; downloads abort with it
+	case <-syncDone:
+	case <-time.After(5 * time.Second):
 	}
 	return nil
 }

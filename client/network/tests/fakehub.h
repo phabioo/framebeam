@@ -87,6 +87,12 @@ class FakeHub : public QTcpServer {
   QJsonObject systems;                                   // {"systems":[...]} (raw response of GET /systems)
   QMap<QString, QByteArray> firmwareFiles;               // "<system>/<file_id>" -> bytes
   int firmwareDownloads = 0;
+  // Core packages (cores_v1): "<core>/<version>/<platform>" -> CorePackage JSON as served; files "<core>/<version>/<platform>/<name>"
+  // -> bytes (a missing entry answers 404 core_file_not_available).
+  QMap<QString, QJsonObject> corePackages;
+  QMap<QString, QByteArray> coreFiles;
+  int coreFileDownloads = 0;
+  int corePackageRequests = 0;
   int count(const QString& pathPrefix, const QByteArray& method) const;
 
   // Saves (saves_v1)

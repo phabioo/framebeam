@@ -77,6 +77,7 @@ struct SystemInfo {
   QString displayName;
   QString preferredCoreId;
   QString expectedCoreVersion;  // empty = any
+  QString corePackageVersion;   // core version the Hub serves for the preferred core (cores_v1); empty = none
   QString firmwareMode = QStringLiteral("builtin");  // "builtin" | "native"
   QList<FirmwareFileInfo> firmware;
 
@@ -84,6 +85,33 @@ struct SystemInfo {
   const FirmwareFileInfo* file(const QString& fileId) const;
 };
 std::optional<SystemInfo> parseSystemInfo(const QJsonObject& obj);
+
+// Core packages (feature cores_v1): GET /cores/{core_id}/packages/{version}/{platform}.
+struct CorePackageFile {
+  QString name;
+  QString role;  // "library" | "license"
+  qint64 size = 0;
+  QString sha256;
+  bool available = false;  // the file is in the Hub cache (not part of package.json)
+};
+struct CorePackageInfo {
+  QString coreId;
+  QString version;
+  QString platform;
+  QString license;
+  QString sourceUrl;
+  QString sourceRef;
+  QList<CorePackageFile> files;
+
+  const CorePackageFile* library() const;
+  QJsonObject toJson() const;  // as served by the Hub (the cache stores this as package.json)
+};
+// Rejects invalid identifiers/file names/hashes and packages without exactly one library file.
+std::optional<CorePackageInfo> parseCorePackage(const QJsonObject& obj);
+bool isValidCoreId(const QString& id);      // ^[a-z0-9_]{1,64}$
+bool isValidCoreVersion(const QString& v);  // ^[0-9A-Za-z][0-9A-Za-z.+_-]{0,63}$
+bool isValidCorePlatform(const QString& p);
+bool isValidCoreFileName(const QString& n);  // ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$, no ".."
 
 struct GameEntry {
   QString id;

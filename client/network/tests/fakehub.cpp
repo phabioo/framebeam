@@ -311,6 +311,32 @@ void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
     list.append(game);
     games.insert(QStringLiteral("games"), list);
     respond(sock, 201, json(game));
+  } else if (req.method == "GET" && req.path.startsWith(QLatin1String("/api/v1/cores/"))) {
+    // /api/v1/cores/<core>/packages/<version>/<platform>[/files/<name>]
+    const QStringList parts = req.path.mid(14).split(QLatin1Char('/'));
+    if (parts.size() < 4 || parts.at(1) != QLatin1String("packages")) {
+      respondError(sock, 404, QStringLiteral("not_found"));
+      return;
+    }
+    const QString key = parts.at(0) + QLatin1Char('/') + parts.at(2) + QLatin1Char('/') + parts.at(3);
+    if (parts.size() == 4) {
+      ++corePackageRequests;
+      if (!corePackages.contains(key)) {
+        respondError(sock, 404, QStringLiteral("core_package_not_found"));
+        return;
+      }
+      respond(sock, 200, json(corePackages.value(key)));
+    } else if (parts.size() == 6 && parts.at(4) == QLatin1String("files")) {
+      const QString fkey = key + QLatin1Char('/') + parts.at(5);
+      if (!coreFiles.contains(fkey)) {
+        respondError(sock, 404, QStringLiteral("core_file_not_available"));
+        return;
+      }
+      ++coreFileDownloads;
+      respond(sock, 200, coreFiles.value(fkey), "application/octet-stream");
+    } else {
+      respondError(sock, 404, QStringLiteral("not_found"));
+    }
   } else if (req.method == "GET" && req.path == QLatin1String("/api/v1/systems")) {
     respond(sock, 200, json(systems));
   } else if (req.method == "GET" && req.path.startsWith(QLatin1String("/api/v1/systems/"))) {
