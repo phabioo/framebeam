@@ -1,8 +1,8 @@
 # ADR 0012: Sessions over the internet and save comfort (0.4)
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-10-07
-- Decided by: Fabio (proposal by the orchestrator; the embedded STUN/TURN server was proposed in the roadmap on 2026-10-07)
+- Decided by: Fabio (proposal by the orchestrator, accepted on 2026-10-07 after the merge of PR #31)
 
 ## Context
 
