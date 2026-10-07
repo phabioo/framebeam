@@ -1,8 +1,8 @@
 # ADR 0013: OpenGL hardware rendering (0.5)
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-10-07
-- Decided by: Fabio (proposal by the orchestrator; accepted at merge)
+- Decided by: Fabio (proposal by the orchestrator, accepted on 2026-10-07 with the merge of PR #35)
 
 ## Context
 
@@ -26,7 +26,7 @@ Roadmap 0.5 (`docs/roadmap.md`) gives the Player an OpenGL context for libretro 
 
 - Every hardware frame is read back (`glReadPixels`) into the existing XRGB8888 frame, flipped for the bottom-left origin. `GameView`, multiview and the Session encoder stay unchanged, so shared Sessions keep working.
 - Deviation from the roadmap wording "present without a CPU copy": a zero-copy path into Qt Quick is deferred. Qt Quick renders with Direct3D 11 on Windows by default, so sharing a GL texture would mean forcing the OpenGL RHI or GL/D3D interop. The software H.264 encoders need a CPU frame anyway.
-- Fabio agreed to deferring zero-copy on 2026-10-07; the status stays proposed until merge.
+- Fabio agreed to deferring zero-copy on 2026-10-07.
 - Revisit with asynchronous PBO readback or zero-copy if profiling shows that the readback costs frame time. Example: melonDS DS at 4x internal resolution is 1024x1536 x 4 B, about 6 MiB per frame.
 
 ### D4 Fallback

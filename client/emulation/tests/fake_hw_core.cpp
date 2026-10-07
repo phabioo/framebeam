@@ -3,7 +3,7 @@
 // bottom-left): blue background, red 8x8 square at GL (0,0) = bottom-left, green 8x8 square at the
 // top-right corner of the 64x48 frame. The FBO is larger (max 128x96) than the frame on purpose.
 // Environment: FB_FAKE_HW_BOTTOM_LEFT (default 1), FB_FAKE_HW_CTX (default 3 = OPENGL_CORE, 1 = OPENGL,
-// 6 = Vulkan, to test rejection), FB_FAKE_HW_LOG (file; events are appended as lines: accepted, rejected,
+// 6 = Vulkan, to test rejection), FB_FAKE_HW_MAJOR/MINOR (requested GL version, default 3.3), FB_FAKE_HW_LOG (file; events are appended as lines: accepted, rejected,
 // reset <major>.<minor>, destroy, frame <fbo-id>).
 #include <cstdint>
 #include <cstdio>
@@ -114,8 +114,8 @@ FB_EXPORT bool retro_load_game(const retro_game_info*) {
   g_env(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt);
   std::memset(&g_hw, 0, sizeof g_hw);
   g_hw.context_type = static_cast<retro_hw_context_type>(envInt("FB_FAKE_HW_CTX", RETRO_HW_CONTEXT_OPENGL_CORE));
-  g_hw.version_major = 3;
-  g_hw.version_minor = 3;
+  g_hw.version_major = static_cast<unsigned>(envInt("FB_FAKE_HW_MAJOR", 3));
+  g_hw.version_minor = static_cast<unsigned>(envInt("FB_FAKE_HW_MINOR", 3));
   g_hw.context_reset = contextReset;
   g_hw.context_destroy = contextDestroy;
   g_hw.bottom_left_origin = envInt("FB_FAKE_HW_BOTTOM_LEFT", 1) != 0;
