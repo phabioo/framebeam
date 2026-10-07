@@ -116,7 +116,11 @@ func runRenewCert(args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(out, "Certificate renewed.\nOld SHA-256 fingerprint: %s\nNew SHA-256 fingerprint: %s\n", ren.OldFingerprint, ren.NewFingerprint)
+	absDir, absErr := filepath.Abs(filepath.Join(cfg.DataDir, "tls"))
+	if absErr != nil {
+		absDir = filepath.Join(cfg.DataDir, "tls")
+	}
+	fmt.Fprintf(out, "Renewed certificate in %s\nOld SHA-256 fingerprint: %s\nNew SHA-256 fingerprint: %s\n", absDir, ren.OldFingerprint, ren.NewFingerprint)
 	fmt.Fprintln(out, "The previous certificate and key were kept as *.prev next to them. Restart the Hub; Players must confirm the new fingerprint.")
 	return nil
 }

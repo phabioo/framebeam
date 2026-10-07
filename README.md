@@ -95,6 +95,7 @@ framebeam-hub setup-admin -username <name>   # password as a single line from st
 framebeam-hub -data-dir <directory>        # HTTPS, default listen :8443
 framebeam-hub -dev -listen 127.0.0.1:8443 -data-dir /tmp/fb   # development: HTTP instead of HTTPS
 framebeam-hub renew-cert -data-dir <directory>   # renew the self-generated certificate now (refused with your own cert/key)
+# systemd install: sudo packaging/linux/install-hub.sh renew-cert (instead of calling the binary)
 ```
 
 The data directory (`-data-dir`, default `/var/lib/framebeam`) contains the database and certificate. Further flags: `-listen`, `-name`, `-tls-cert`, `-tls-key`, `-ice-servers` (comma-separated `stun:` URLs, default none); each also available via `FRAMEBEAM_*`.

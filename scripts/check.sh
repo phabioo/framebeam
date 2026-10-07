@@ -136,6 +136,14 @@ packaging() {
     || { echo "hub.env lacks FRAMEBEAM_LISTEN=:8444"; rc=1; }
   [ -x "$root/usr/local/bin/framebeam-hub" ] || { echo "binary not installed"; rc=1; }
   [ -f "$root/etc/systemd/system/framebeam-hub.service" ] || { echo "unit not installed"; rc=1; }
+  local rc_out
+  rc_out="$(FRAMEBEAM_INSTALL_ROOT="$root" "$dir/install-hub.sh" renew-cert 2>&1)" || { echo "renew-cert dry-run failed"; rc=1; }
+  grep -q 'FRAMEBEAM_DATA_DIR=/var/lib/framebeam .*renew-cert' <<<"$rc_out" \
+    || { echo "renew-cert dry-run lacks the runuser line"; rc=1; }
+  printf 'FRAMEBEAM_TLS_CERT=/x/c.pem\n' >>"$root/etc/framebeam/hub.env"
+  if FRAMEBEAM_INSTALL_ROOT="$root" "$dir/install-hub.sh" renew-cert >/dev/null 2>&1; then
+    echo "renew-cert must refuse with FRAMEBEAM_TLS_CERT set"; rc=1
+  fi
   FRAMEBEAM_INSTALL_ROOT="$root" "$dir/install-hub.sh" uninstall --purge --yes || rc=1
   [ ! -e "$root/usr/local/bin/framebeam-hub" ] && [ ! -e "$root/etc/framebeam" ] \
     || { echo "uninstall --purge left files behind"; rc=1; }

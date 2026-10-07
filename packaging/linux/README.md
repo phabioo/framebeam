@@ -51,6 +51,14 @@ sudo ./install-hub.sh upgrade --binary ./framebeam-hub-linux-arm64
 
 Replaces the binary atomically, restarts the service and prints the old and new version. Data and config are untouched.
 
+## Renew the certificate
+
+```sh
+sudo ./install-hub.sh renew-cert
+```
+
+Renews the self-generated TLS certificate as the `framebeam` user in the service's data dir (read from `/etc/framebeam/hub.env`), restarts the service and prints the new fingerprint. Refused when `FRAMEBEAM_TLS_CERT`/`FRAMEBEAM_TLS_KEY` are set. Do not call `framebeam-hub renew-cert` directly on a service install: another user or `-data-dir` renews a different certificate, and root would create root-owned files the service cannot read.
+
 ## Uninstall
 
 ```sh
