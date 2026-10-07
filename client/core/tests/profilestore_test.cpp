@@ -261,6 +261,29 @@ class ProfileStoreTest : public QObject {
     QCOMPARE(host, QStringLiteral("hub2.example.com"));
     QCOMPARE(port, 9443);
   }
+  void editHubIpv6AndFailedSaveKeepsAddress() {
+    QTemporaryDir dir;
+    HubProfile p;
+    p.hubId = QStringLiteral("hub-6");
+    p.name = QStringLiteral("V6");
+    p.address = QStringLiteral("https://hub.example.com:8443");
+    ProfileStore s(dir.path());
+    QVERIFY(s.upsertProfile(p));
+    QVERIFY(s.updateHubAddress(QStringLiteral("hub-6"), QStringLiteral("[::1]"), 8443));
+    QCOMPARE(s.profile(QStringLiteral("hub-6"))->address, QStringLiteral("https://[::1]:8443"));
+    QString host;
+    int port = 0;
+    ProfileStore::splitAddress(s.profile(QStringLiteral("hub-6"))->address, &host, &port);
+    QCOMPARE(host, QStringLiteral("[::1]"));
+    QCOMPARE(port, 8443);
+
+    // Make the write fail: a directory in place of profiles.json.
+    const QString file = QDir(dir.path()).filePath(QStringLiteral("profiles.json"));
+    QVERIFY(QFile::remove(file));
+    QVERIFY(QDir().mkdir(file));
+    QVERIFY(!s.updateHubAddress(QStringLiteral("hub-6"), QStringLiteral("hub2.example.com"), 9443));
+    QCOMPARE(s.profile(QStringLiteral("hub-6"))->address, QStringLiteral("https://[::1]:8443"));
+  }
 };
 
 QTEST_GUILESS_MAIN(ProfileStoreTest)

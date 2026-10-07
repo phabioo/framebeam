@@ -13,6 +13,7 @@ Rectangle {
     // Narrow main column (input test open on a small window): tighter mapping table.
     readonly property bool compact: content.width < 520
     readonly property int mapWidth: compact ? 130 : 170
+    readonly property int mapMinWidth: compact ? 72 : 100
     readonly property int targetWidth: compact ? 56 : 80
     readonly property int actionWidth: compact ? 48 : 60
     color: Theme.bg
@@ -147,10 +148,12 @@ Rectangle {
                         spacing: Theme.space16
                         ColumnLayout {
                             Layout.fillWidth: true
+                            Layout.minimumWidth: 0
                             spacing: Theme.space6
                             FbLabel {
                                 objectName: "controllersTitle"
                                 Layout.fillWidth: true
+                                Layout.minimumWidth: 0
                                 text: root.ctl.device.name !== undefined ? root.ctl.device.name : qsTr("Controllers")
                                 font.pixelSize: Theme.fontPage
                                 font.weight: Font.DemiBold
@@ -158,6 +161,8 @@ Rectangle {
                                 elide: Text.ElideRight
                             }
                             RowLayout {
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 0
                                 spacing: Theme.space10
                                 FbPill {
                                     objectName: "devicePill"
@@ -168,6 +173,9 @@ Rectangle {
                                           : qsTr("Not connected")
                                 }
                                 FbLabel {
+                                    Layout.fillWidth: true
+                                    Layout.minimumWidth: 0
+                                    elide: Text.ElideRight
                                     text: qsTr("Saved on this device only")
                                     color: Theme.textMuted
                                     font.pixelSize: Theme.fontMeta
@@ -234,7 +242,7 @@ Rectangle {
                             Layout.bottomMargin: 6
                             spacing: Theme.space16
                             Eyebrow { Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; text: qsTr("Input") }
-                            Eyebrow { Layout.preferredWidth: root.mapWidth; Layout.minimumWidth: root.mapWidth; Layout.maximumWidth: root.mapWidth; text: qsTr("Mapping") }
+                            Eyebrow { Layout.fillWidth: true; Layout.preferredWidth: root.mapWidth; Layout.minimumWidth: root.mapMinWidth; Layout.maximumWidth: root.mapWidth; text: qsTr("Mapping") }
                             Eyebrow { Layout.preferredWidth: root.targetWidth; Layout.minimumWidth: root.targetWidth; Layout.maximumWidth: root.targetWidth; text: root.ctl.systemLabel }
                             Item { Layout.preferredWidth: root.actionWidth }
                         }
@@ -270,8 +278,9 @@ Rectangle {
                                     Rectangle {
                                         id: field
                                         objectName: "mapField_" + mrow.modelData.input
+                                        Layout.fillWidth: true
                                         Layout.preferredWidth: root.mapWidth
-                                        Layout.minimumWidth: root.mapWidth
+                                        Layout.minimumWidth: root.mapMinWidth
                                         Layout.maximumWidth: root.mapWidth
                                         implicitHeight: 30
                                         radius: Theme.radius6

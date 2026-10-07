@@ -388,7 +388,11 @@ bool ProfileStore::updateHubAddress(const QString& hubId, const QString& host, i
     const QUrl old(p.address, QUrl::StrictMode);
     QUrl next;
     next.setScheme(old.scheme().isEmpty() ? QStringLiteral("https") : old.scheme());
-    next.setHost(host.trimmed());
+    QString bare = host.trimmed();
+    if (bare.startsWith(QLatin1Char('[')) && bare.endsWith(QLatin1Char(']'))) {
+      bare = bare.mid(1, bare.size() - 2);  // QUrl re-adds the brackets for IPv6 hosts
+    }
+    next.setHost(bare);
     next.setPort(port);
     if (!next.isValid() || next.host().isEmpty()) {
       return false;
@@ -399,8 +403,13 @@ bool ProfileStore::updateHubAddress(const QString& hubId, const QString& host, i
         return false;  // another saved Hub already lives there
       }
     }
+    const QString previous = p.address;
     p.address = address;
-    return save();
+    if (!save()) {
+      p.address = previous;  // keep the old value until the write succeeds
+      return false;
+    }
+    return true;
   }
   return false;
 }

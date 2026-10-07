@@ -23,6 +23,11 @@ Button {
 
     onClicked: if (busyOnClick) { clickBusy = true; busyReset.restart() }
     onBusyChanged: if (!busy) clickBusy = false
+    onVisibleChanged: if (!visible) clickBusy = false
+    // While work runs, further clicks and key activations are swallowed (the look stays enabled).
+    MouseArea { anchors.fill: parent; visible: control.working; z: 10; acceptedButtons: Qt.AllButtons; cursorShape: Qt.BusyCursor }
+    Keys.onPressed: (event) => { if (control.working && (event.key === Qt.Key_Space || event.key === Qt.Key_Return || event.key === Qt.Key_Enter)) event.accepted = true }
+    Keys.onReleased: (event) => { if (control.working && (event.key === Qt.Key_Space || event.key === Qt.Key_Return || event.key === Qt.Key_Enter)) event.accepted = true }
     Timer { id: busyReset; interval: 1500; onTriggered: control.clickBusy = false }
 
     contentItem: Item {

@@ -131,6 +131,7 @@ Rectangle {
 
             FbButton {
                 objectName: "backToLibraryButton"
+                Layout.minimumWidth: implicitWidth  // never squeezed; the title elides first
                 kind: "link"
                 implicitHeight: 36
                 focusPolicy: Qt.NoFocus
@@ -154,18 +155,21 @@ Rectangle {
             }
             FbPill {
                 objectName: "sharedPill"
+                Layout.minimumWidth: implicitWidth  // never squeezed; the title elides first
                 visible: root.ctl.shared
                 tone: "ok"
                 text: qsTr("● Session shared · %1 watching").arg(root.ctl.viewerCount)
             }
             FbPill {
                 objectName: "notSharedPill"
+                Layout.minimumWidth: implicitWidth  // never squeezed; the title elides first
                 visible: root.session.active && !root.ctl.shared && root.tab === "session"
                 tone: "neutral"
                 text: qsTr("Not shared")
             }
             FbSegment {
                 objectName: "modeSegment"
+                Layout.minimumWidth: implicitWidth  // never squeezed; the title elides first
                 // PiP | Side-by-Side | Grid 2×2 (side-by-side only while there are two surfaces)
                 visible: root.tab !== "session" && root.ctl.availableLayouts.length > 0
                 current: root.ctl.multiviewMode
@@ -186,6 +190,7 @@ Rectangle {
             Item { Layout.fillWidth: true }
             FbButton {
                 objectName: "pauseButton"
+                Layout.minimumWidth: implicitWidth  // never squeezed; the title elides first
                 visible: root.session.active && root.tab === "session"
                 implicitHeight: 36
                 kind: "link"
@@ -196,6 +201,7 @@ Rectangle {
             }
             FbButton {
                 objectName: "resetButton"
+                Layout.minimumWidth: implicitWidth  // never squeezed; the title elides first
                 visible: root.session.active && root.tab === "session"
                 implicitHeight: 36
                 kind: "link"
@@ -206,6 +212,7 @@ Rectangle {
             }
             FbButton {
                 objectName: "quitButton"
+                Layout.minimumWidth: implicitWidth  // never squeezed; the title elides first
                 visible: root.session.active
                 implicitHeight: 36
                 kind: "link"
@@ -215,6 +222,7 @@ Rectangle {
             }
             FbSegment {
                 objectName: "tabSegment"
+                Layout.minimumWidth: implicitWidth  // never squeezed; the title elides first
                 current: root.tab
                 options: root.session.active ? [
                     { value: "session", label: qsTr("Session"), name: "tabSession" },
@@ -228,6 +236,7 @@ Rectangle {
             }
             KeyHintButton {
                 objectName: "addSessionToggle"
+                Layout.minimumWidth: implicitWidth  // never squeezed; the title elides first
                 visible: root.tab !== "session" && root.ctl.surfaceCount >= 1
                 focusPolicy: Qt.NoFocus
                 kind: root.pickerOpen ? "raised" : "outline"
@@ -236,6 +245,7 @@ Rectangle {
             }
             LayoutSwitch {
                 objectName: "layoutSwitch"
+                Layout.minimumWidth: implicitWidth  // never squeezed; the title elides first
                 layouts: root.screenLayouts
                 compact: root.tab !== "session" && root.width < 1700
                 current: root.ctl.screenLayout
@@ -243,6 +253,7 @@ Rectangle {
             }
             KeyHintButton {
                 objectName: "fullscreenButton"
+                Layout.minimumWidth: implicitWidth  // never squeezed; the title elides first
                 focusPolicy: Qt.NoFocus
                 text: qsTr("Fullscreen")
                 hint: "F11"
