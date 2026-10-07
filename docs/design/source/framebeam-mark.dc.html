@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<svg width="{{ size }}" height="{{ size }}" viewBox="0 0 100 100" style="display:block;flex:none">
+  <rect x="0.75" y="0.75" width="98.5" height="98.5" rx="21.5" fill="{{ bg }}" stroke="{{ edge }}" stroke-width="1.5" display="{{ dSquare }}"></rect>
+  <circle cx="50" cy="50" r="49.25" fill="{{ bg }}" stroke="{{ edge }}" stroke-width="1.5" display="{{ dCircle }}"></circle>
+  <g transform="{{ tf }}">
+    <g display="{{ dAHub }}">
+      <rect x="24" y="24" width="52" height="52" rx="6" fill="none" stroke="{{ glyph }}" stroke-width="8"></rect>
+      <circle cx="44" cy="50" r="9" fill="{{ accent }}"></circle>
+      <rect x="44" y="45" width="38" height="10" rx="2" fill="{{ accent }}"></rect>
+    </g>
+    <g display="{{ dAPlayer }}">
+      <rect x="24" y="24" width="52" height="52" rx="6" fill="none" stroke="{{ glyph }}" stroke-width="8"></rect>
+      <rect x="18" y="45.5" width="28" height="9" rx="2" fill="{{ accent }}"></rect>
+      <polygon points="42,35 64,50 42,65" fill="{{ accent }}"></polygon>
+    </g>
+    <g display="{{ dBHub }}" fill="none" stroke="{{ glyph }}" stroke-width="8" stroke-linecap="square">
+      <path d="M24 38 V24 H38 M62 24 H76 V38 M76 62 V76 H62 M38 76 H24 V62"></path>
+      <rect x="39" y="39" width="9" height="9" fill="{{ glyph }}" stroke="none"></rect>
+      <rect x="52" y="39" width="9" height="9" fill="{{ glyph }}" stroke="none"></rect>
+      <rect x="39" y="52" width="9" height="9" fill="{{ glyph }}" stroke="none"></rect>
+      <rect x="52" y="52" width="9" height="9" fill="{{ accent }}" stroke="none"></rect>
+    </g>
+    <g display="{{ dBPlayer }}" fill="none" stroke="{{ glyph }}" stroke-width="8" stroke-linecap="square">
+      <path d="M24 38 V24 H38 M62 24 H76 V38 M76 62 V76 H62 M38 76 H24 V62"></path>
+      <polygon points="42,36 63,50 42,64" fill="{{ accent }}" stroke="none"></polygon>
+    </g>
+    <g display="{{ dCHub }}">
+      <rect x="22" y="25" width="56" height="12" rx="3" fill="{{ glyph }}"></rect>
+      <rect x="22" y="44" width="42" height="12" rx="3" fill="{{ accent }}"></rect>
+      <rect x="22" y="63" width="28" height="12" rx="3" fill="{{ glyph }}"></rect>
+    </g>
+    <g display="{{ dCPlayer }}">
+      <rect x="22" y="25" width="30" height="12" rx="6" fill="{{ glyph }}"></rect>
+      <rect x="22" y="44" width="56" height="12" rx="6" fill="{{ accent }}"></rect>
+      <rect x="22" y="63" width="30" height="12" rx="6" fill="{{ glyph }}"></rect>
+    </g>
+  </g>
+</svg>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:160,&quot;height&quot;:160},&quot;concept&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;a&quot;,&quot;b&quot;,&quot;c&quot;],&quot;default&quot;:&quot;a&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;product&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;hub&quot;,&quot;player&quot;],&quot;default&quot;:&quot;hub&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;palette&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;signal&quot;,&quot;phosphor&quot;,&quot;violet&quot;],&quot;default&quot;:&quot;signal&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;tone&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;color&quot;,&quot;bare&quot;,&quot;bare-dark&quot;,&quot;mono-dark&quot;,&quot;mono-light&quot;],&quot;default&quot;:&quot;color&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;shape&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;square&quot;,&quot;circle&quot;,&quot;none&quot;],&quot;default&quot;:&quot;square&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;size&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:64,&quot;tsType&quot;:&quot;number&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const c = this.props.concept ?? 'a';
+    const p = this.props.product ?? 'hub';
+    const tone = this.props.tone ?? 'color';
+    const shape = this.props.shape ?? (tone.startsWith('color') ? 'square' : 'none');
+    const ink = '#1b1b1d';
+    const P = Object.assign({ ink }, {
+      red: { beam: '#ef5045', light: '#cf3329' },
+      crimson: { beam: '#e8435a', light: '#c4263f' },
+      signal: { beam: '#3cbfd8', light: '#1a8aa3' },
+      phosphor: { beam: '#5fd38a', light: '#25924f' },
+      violet: { beam: '#a093f8', light: '#6a5ae0' },
+      mono: { beam: '#f6f5f2', light: ink },
+    }[this.props.palette ?? 'signal']);
+    const pal = {
+      color: [ink, '#f6f5f2', P.beam],
+      'color-light': ['#f6f5f2', ink, P.light],
+      bare: ['none', P.ink, P.light],
+      'bare-dark': ['none', '#f6f5f2', P.beam],
+      'mono-dark': ['none', P.ink, P.ink],
+      'mono-light': ['none', '#f6f5f2', '#f6f5f2'],
+    }[tone];
+    const d = (k) => (c + p === k ? 'inline' : 'none');
+    return {
+      size: this.props.size ?? 64,
+      bg: pal[0], glyph: pal[1], accent: pal[2],
+      edge: tone === 'color-light' ? '#dcdad4' : 'none',
+      dSquare: shape === 'square' ? 'inline' : 'none',
+      dCircle: shape === 'circle' ? 'inline' : 'none',
+      tf: shape === 'none' ? 'matrix(1.4 0 0 1.4 -20 -20)' : shape === 'circle' ? 'matrix(0.9 0 0 0.9 5 5)' : '',
+      dAHub: d('ahub'), dAPlayer: d('aplayer'), dBHub: d('bhub'),
+      dBPlayer: d('bplayer'), dCHub: d('chub'), dCPlayer: d('cplayer'),
+    };
+  }
+}
+</script>
+</body>
+</html>
