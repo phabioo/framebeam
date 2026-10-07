@@ -69,10 +69,10 @@ func (s *Server) GetCorePackageFile(ctx context.Context, req api.GetCorePackageF
 	etag := `"` + def.SHA256 + `"`
 	if req.Params.IfNoneMatch != nil && etagMatches(*req.Params.IfNoneMatch, etag) {
 		f.Close()
-		return api.GetCorePackageFile304Response{Headers: api.GetCorePackageFile304ResponseHeaders{ETag: etag}}, nil
+		return api.GetCorePackageFile304Response{Headers: api.GetCorePackageFile304ResponseHeaders{ETag: ptr(etag)}}, nil
 	}
 	return api.GetCorePackageFile200ApplicationoctetStreamResponse{Body: f, ContentLength: def.Size,
-		Headers: api.GetCorePackageFile200ResponseHeaders{ContentLength: def.Size, ETag: etag}}, nil
+		Headers: api.GetCorePackageFile200ResponseHeaders{ContentLength: ptr(def.Size), ETag: ptr(etag)}}, nil
 }
 
 // etagMatches implements the weak comparison of If-None-Match (list, "*", W/ prefix).

@@ -17,6 +17,27 @@ run() {
 }
 
 run "vcpkg bootstrap" "$ROOT/scripts/bootstrap-vcpkg.sh"
+# Go: scripts pin GOTOOLCHAIN=local, so the system go is used as is; make it at least the "toolchain" version of server/go.mod.
+# Fetch the toolchain named in go.mod's "toolchain" line into the module cache and put its bin dir first on PATH.
+ensure_go_toolchain() {
+  command -v go >/dev/null || return 0
+  local gomod="$ROOT/server/go.mod" tc want have newest dir
+  tc="$(awk '$1=="toolchain"{print $2; exit}' "$gomod")"
+  have="$(GOTOOLCHAIN=local go env GOVERSION)"; have="${have#go}"
+  [ -n "$tc" ] || return 0
+  want="${tc#go}"
+  newest="$(printf '%s\n%s\n' "$want" "$have" | sort -V | tail -n1)"
+  [ "$newest" = "$have" ] && return 0
+  (cd "$ROOT/server" && GOTOOLCHAIN="$tc" go version) >/dev/null 2>&1 || { warn "go toolchain $tc download failed"; return 0; }
+  dir="$(GOTOOLCHAIN=local go env GOMODCACHE)/golang.org/toolchain@v0.0.1-$tc.$(GOTOOLCHAIN=local go env GOOS)-$(GOTOOLCHAIN=local go env GOARCH)/bin"
+  [ -x "$dir/go" ] || { warn "go toolchain $tc not found at $dir"; return 0; }
+  export PATH="$dir:$PATH"
+  if [ -n "${CLAUDE_ENV_FILE:-}" ] && ! grep -qsF "$dir" "$CLAUDE_ENV_FILE"; then
+    echo "export PATH=\"$dir:\$PATH\"" >> "$CLAUDE_ENV_FILE"
+  fi
+}
+ensure_go_toolchain
+
 if command -v go >/dev/null; then
   # "go mod download" without arguments downloads all modules in the build list, including tool dependencies.
   run "go mod download" bash -c "cd '$ROOT/server' && go mod download"

@@ -41,7 +41,7 @@ jobs:
     steps:
       # The workflow file and scripts come from the default branch; the release files from the CI run (artifacts).
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: server/go.mod
           cache-dependency-path: server/go.sum
