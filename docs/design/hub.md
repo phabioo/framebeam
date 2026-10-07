@@ -13,7 +13,7 @@ Source: `source/framebeam-designs-v3.dc.html`, line ranges per screen = screen c
 - Second-column pattern (3k, 3s list; 3q sections): surface `#faf9f7`, right border `#e3e1dc`, padding 28 20 (3q) or 32 20 (lists); selected item surface `#eef8fa` with a left bar `inset 3px 0 0 #3cbfd8` (3q: unselected items `#fff`).
 
 ## 3j Hub Library
-Lines 681-729. Phase 1 (library, ROM upload/download).
+Lines 816-864. Phase 1 (library, ROM upload/download).
 
 - Layout: sidebar | main (padding 32 40, gap 24); Library active.
 - Header: title "Library", subtitle "42 ROMs · 3.1 GB of 118 GB used"; on the right buttons "Rescan folder" (outline) and "Upload ROM" (primary dark), each 38 high.
@@ -23,7 +23,7 @@ Lines 681-729. Phase 1 (library, ROM upload/download).
 - Open: row actions (delete, metadata; architecture 09 names metadata actions in the library entry, later), upload dialog, scan progress, error states (hash/duplicate), paging not drawn.
 
 ## 3k Hub Saves
-Lines 735-819. Phase 3; slots and snapshot markers: 0.4 features, UI in the 0.7 Hub UI pass. Conflict next to the version history, per slot.
+Lines 870-954. Phase 3; slots and snapshot markers: 0.4 features, UI in the 0.7 Hub UI pass. Conflict next to the version history, per slot.
 
 - Grid: sidebar | list 320 (surface `#faf9f7`, right border, padding 32 20) | detail (padding 32 40, gap 22).
 - List: title "Saves" (22/600); filter "User: Max ▾"; games (cover 36 with initials, title 14/500, status line 12): selected surface `#eef8fa` + left bar; status "1 conflict" (warn) or "Synced · {time}" (ok green `#2a7a4c`; with slots: "Synced · today 18:42 · 2 slots"). Mock: Harbor Rally (conflict, selected), Lumen Drift (today 18:42 · 2 slots), Tide & Lantern (28.09.), Clocktower Kids (02.10.), Stylus Knights (21.09.).
@@ -38,7 +38,7 @@ Lines 735-819. Phase 3; slots and snapshot markers: 0.4 features, UI in the 0.7 
 - Open: empty state without conflict (3s shows the synced state), revision numbering "Rev 41" (checkpoint) vs "v6" (history) is separate by ADR 0005.
 
 ## 3s Hub Saves Slots
-Lines 825-883. New. Slots per game, snapshots in the history, restore with confirmation, retention. Phase: slots, snapshots, restore, retention are 0.4 features, UI in the 0.7 Hub UI pass.
+Lines 960-1018. New. Slots per game, snapshots in the history, restore with confirmation, retention. Phase: slots, snapshots, restore, retention are 0.4 features, UI in the 0.7 Hub UI pass.
 
 - Grid and list as 3k (Saves active); selected game Lumen Drift ("Synced · today 18:42 · 2 slots").
 - Header: "Lumen Drift" 26/600, "Max · Nintendo DS", pill "✓ Synced" (ok).
@@ -52,7 +52,7 @@ Lines 825-883. New. Slots per game, snapshots in the history, restore with confi
 - Open: deleting a snapshot, creating/renaming/deleting a slot, restore error states (session running), the Player-side counterpart (3g "Save snapshot", slot selector).
 
 ## 3l Hub Systems and Cores
-Lines 889-996. Rebuilt: system list with detail and tabs. Phase 5; rebuilt in the 0.7 Hub UI pass. Registry, compatibility, firmware.
+Lines 1024-1132. Rebuilt: system list with detail and tabs. Phase 5; rebuilt in the 0.7 Hub UI pass. Registry, compatibility, firmware.
 
 - Layout: sidebar | main (padding 28 40, gap 24). Title "Systems & Cores", subtitle "Which core each system uses and which files it needs. The hub does not run cores." Content grid `300 | 1fr`, gap 20.
 - System list (left): search field 36 "Search systems…"; card list (surface `#fff`, radius 10), item 68 high: name 14 + id (mono, e.g. "nds"), line "{core} {version}" and a status chip on the right: "● Ready" (ok), "{n} firmware" (error), "{n} client" (warn). Selected: surface `#eef8fa` + left bar. Footer note: "New systems appear here when a core and manifest are added to the registry." Example systems "Game Boy Advance" and "Super Nintendo" appear in the mock only (README).
@@ -64,7 +64,7 @@ Lines 889-996. Rebuilt: system list with detail and tabs. Phase 5; rebuilt in th
 - Open: file upload dialog, removing a firmware file, the nav badge count ("2 issues" in the mock equals the two firmware rows; clients are not included in the mock count), further systems, how the 0.7 pass shows core packages (ADR 0010).
 
 ## 3m Hub Clients
-Lines 1003-1039. Phase 1 (pairing Allow/Decline, Revoke).
+Lines 1138-1174. Phase 1 (pairing Allow/Decline, Revoke).
 
 - Layout: sidebar | main (padding 32 40, gap 26). Title "Clients", subtitle "Devices allowed to access this hub".
 - "PENDING REQUESTS · 1" (eyebrow): card (border `#a6d9e6`, padding 20 22; columns `1fr | 220 | auto`): "Device name" / "Lena's Gaming PC" (20/600) with pill "▲ Awaiting approval" (warn), mono "Windows x86-64 · Player 0.1.0 · Protocol v1", "requested 2 min ago"; select "Assign user" (value "Lena"); buttons "Decline" (outline) and "Allow" (primary dark).
@@ -75,7 +75,7 @@ Lines 1003-1039. Phase 1 (pairing Allow/Decline, Revoke).
 - Open: confirmation dialog for revoking, denied state, renaming, reinstating a revoked device, certificate/compatibility errors per client (only in 3l) not drawn.
 
 ## 3n Hub Users
-Lines 1045-1082. Phase 5. Hub-local accounts and onboarding invites.
+Lines 1180-1217. Phase 5. Hub-local accounts and onboarding invites.
 
 - Grid: sidebar | main | side panel 420 (surface `#faf9f7`, left border, padding 32 28, gap 18).
 - Main: title "Users", subtitle "Accounts apply only to this hub. Regular users have no password." Table columns `1.2fr | 80 | 70 | 110 | 110 | 110`: NAME (avatar initial 28 + name), ROLE, DEVICES (mono count), CREATED, STATUS (pill Active/Disabled), action.
@@ -88,7 +88,7 @@ Lines 1045-1082. Phase 5. Hub-local accounts and onboarding invites.
 
 
 ## 3o Hub Settings (superseded by 3q)
-Lines 1088-1116. Superseded by 3q (decision 2026-10-07); kept in the source as reference only, not to be implemented. Phase 1 (Hub name, address, certificate/TLS, admin account); phase 5 (appearance, upload option).
+Lines 1223-1251. Superseded by 3q (decision 2026-10-07); kept in the source as reference only, not to be implemented. Phase 1 (Hub name, address, certificate/TLS, admin account); phase 5 (appearance, upload option).
 
 - Layout: sidebar | main (padding 32 40, gap 24). Title "Settings", subtitle "Admins only". Two columns (gap 20), cards (padding 18 22 6, radius 10, title 16/600); rows: label block left (14/500 + help text 12), control right (field 200 x 34 or segment/toggle), divider above.
 - Left column: "General" (Hub name "Home", "Address for Players" "hub.local:8443"); "Appearance" (Mode: segment "Light" | "Dark" | "System"); "Library" ("Allow users to upload games", badge "Inactive", toggle off).
@@ -96,7 +96,7 @@ Lines 1088-1116. Superseded by 3q (decision 2026-10-07); kept in the source as r
 - What 3q does differently: sub-pages instead of two columns, autosave, update section, network section. Not carried into 3q: the segment "Custom cert/key" / "Reverse Proxy" (open, README), the "Metadata" placeholder.
 
 ## 3q Hub Settings revised
-Lines 1122-1221. New; supersedes 3o. Sections Updates, General, Network, Security as sub-pages, autosave. Phase: 0.7 Hub UI pass; the Network section (public address, built-in relay) is a 0.4 feature, UI in the 0.7 pass. Updates exist since 0.3.
+Lines 1257-1356. New; supersedes 3o. Sections Updates, General, Network, Security as sub-pages, autosave. Phase: 0.7 Hub UI pass; the Network section (public address, built-in relay) is a 0.4 feature, UI in the 0.7 pass. Updates exist since 0.3.
 
 - Grid: sidebar (Settings active, badge "1 update") 232 | section column 280 | content. Section column (surface `#faf9f7`, border right, padding 28 20): title "Settings" (13/500); items with name and a status line with a colored dot: "Updates" "Update available · 0.4.0" (warn), "General" "Name, address, theme, uploads" (muted), "Network" "Only in local network" (warn) or "Reachable from the internet" (ok), "Security" "HTTPS active · admin" (ok). Selected: surface `#eef8fa` + left bar `#3cbfd8`, others `#fff`. Footer text: "Changes save automatically. Admins only." In the mock, "Network" is selected by default.
 - Content (padding 28 40, gap 24): header with section title (26/600) and subtitle (14), on the right the saved indicator "✓ All changes saved" (13, `#2a7a4c`). Autosave: every field saves on its own; no Save buttons (except "Save password" and "Save"-like actions drawn explicitly). Section cards: surface `#fff`, radius 10, border `#e3e1dc`, mono eyebrow title, rows with label block left (14/500 + 12 help) and control right.
