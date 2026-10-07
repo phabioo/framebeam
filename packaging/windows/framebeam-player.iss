@@ -51,8 +51,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-; Whole package: exe, Qt and vcpkg DLLs, plugins, qml, cores\ and the licence/notice texts
-; (LICENSE-melonDS-DS.txt, THIRD-PARTY-NOTICE.txt). No data\ and no ROMs/BIOS are part of the package.
+; Whole package: exe, Qt and vcpkg DLLs, plugins, qml and the notice text
+; (THIRD-PARTY-NOTICE.txt). No emulator cores (downloaded from the Hub), no data\ and no ROMs/BIOS are part of the package.
 Source: "{#PackageDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 
 [Icons]

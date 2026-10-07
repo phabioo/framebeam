@@ -20,17 +20,21 @@ DROPIN_FILE="$DROPIN_DIR/data-dir.conf"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 CMD=install BINARY="" PORT="" LISTEN="" DATA_DIR="" NAME="" ADMIN=""
-NO_START=0 PURGE=0 YES=0
+NO_START=0 PURGE=0 YES=0 IMPORT_DIR=""
 
 usage() {
   cat <<USAGE
-Usage: install-hub.sh [install|upgrade|uninstall|renew-cert|status] [options]
+Usage: install-hub.sh [install|upgrade|uninstall|renew-cert|import-cores DIR|status] [options]
 
   install (default)  Install the Hub binary, config and systemd service.
   upgrade            Replace the binary and restart the service (data/config untouched).
   uninstall          Remove service and binary; keep config and data unless --purge.
   renew-cert         Renew the self-generated TLS certificate as the service user in the
                      service's data dir, then restart the service. Prints the new fingerprint.
+  import-cores DIR   Offline import of signed core packages (cores-index.json, its .sig and the
+                     files) from DIR as the service user into the service's data dir. The
+                     signature must match a trusted key (built in, or FRAMEBEAM_HUB_CORE_TRUST_KEYS
+                     in the service's env file). The service keeps running.
   status             Show service status and URL.
 
 Options:
@@ -64,6 +68,7 @@ sys() {
 while [ $# -gt 0 ]; do
   case "$1" in
     install|upgrade|uninstall|renew-cert|status) CMD="$1" ;;
+    import-cores) CMD="$1" ;;
     --binary)   [ $# -ge 2 ] || die "--binary needs a value"; BINARY="$2"; shift ;;
     --port)     [ $# -ge 2 ] || die "--port needs a value"; PORT="$2"; shift ;;
     --listen)   [ $# -ge 2 ] || die "--listen needs a value"; LISTEN="$2"; shift ;;
@@ -74,7 +79,12 @@ while [ $# -gt 0 ]; do
     --purge)    PURGE=1 ;;
     --yes)      YES=1 ;;
     -h|--help)  usage; exit 0 ;;
-    *) usage >&2; die "unknown argument: $1" ;;
+    *)
+      if [ "$CMD" = import-cores ] && [ -z "$IMPORT_DIR" ] && [ "${1#-}" = "$1" ]; then
+        IMPORT_DIR="$1"
+      else
+        usage >&2; die "unknown argument: $1"
+      fi ;;
   esac
   shift
 done
@@ -430,6 +440,36 @@ cmd_renew_cert() {
   info "Service restarted. Players must confirm the new fingerprint."
 }
 
+cmd_import_cores() {
+  local dir tmp tk
+  [ -n "$IMPORT_DIR" ] || die "import-cores needs a directory: install-hub.sh import-cores DIR"
+  [ -d "$IMPORT_DIR" ] || die "not a directory: $IMPORT_DIR"
+  [ -f "$IMPORT_DIR/cores-index.json" ] && [ -f "$IMPORT_DIR/cores-index.json.sig" ] \
+    || die "$IMPORT_DIR must contain cores-index.json and cores-index.json.sig"
+  [ -f "$ENV_FILE" ] || testmode || die "$ENV_FILE not found; is the Hub installed?"
+  dir="$(effective_data_dir)"
+  tk="$(env_get FRAMEBEAM_HUB_CORE_TRUST_KEYS)"
+  if testmode; then
+    info "[dry-run] cp -a $IMPORT_DIR/. <tmp> (readable by $SVC_USER)"
+    info "[dry-run] runuser -u $SVC_USER -- env FRAMEBEAM_DATA_DIR=$dir ${tk:+FRAMEBEAM_HUB_CORE_TRUST_KEYS=<from env file> }$BIN_DEST import-cores <tmp>"
+    return 0
+  fi
+  [ -x "$BIN_DEST" ] || die "$BIN_DEST not found; is the Hub installed?"
+  # The service user may not be able to read DIR (e.g. under /root): work on a world-readable copy.
+  tmp="$(mktemp -d)" || die "cannot create a temporary directory"
+  chmod 755 "$tmp"
+  cp -a "$IMPORT_DIR"/. "$tmp"/ || { rm -rf "$tmp"; die "cannot copy $IMPORT_DIR"; }
+  chmod -R a+rX "$tmp"
+  local rc=0
+  if [ -n "$tk" ]; then
+    runuser -u "$SVC_USER" -- env "FRAMEBEAM_DATA_DIR=$dir" "FRAMEBEAM_HUB_CORE_TRUST_KEYS=$tk" "$BIN_DEST" import-cores "$tmp" || rc=$?
+  else
+    runuser -u "$SVC_USER" -- env "FRAMEBEAM_DATA_DIR=$dir" "$BIN_DEST" import-cores "$tmp" || rc=$?
+  fi
+  rm -rf "$tmp"
+  [ "$rc" = 0 ] || die "import-cores failed"
+}
+
 cmd_status() {
   if testmode; then
     echo "[dry-run] systemctl status $SVC"
@@ -448,5 +488,6 @@ case "$CMD" in
   upgrade)   cmd_upgrade ;;
   uninstall) cmd_uninstall ;;
   renew-cert) cmd_renew_cert ;;
+  import-cores) cmd_import_cores ;;
   status)    cmd_status ;;
 esac

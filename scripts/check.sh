@@ -140,6 +140,13 @@ packaging() {
   rc_out="$(FRAMEBEAM_INSTALL_ROOT="$root" "$dir/install-hub.sh" renew-cert 2>&1)" || { echo "renew-cert dry-run failed"; rc=1; }
   grep -q 'FRAMEBEAM_DATA_DIR=/var/lib/framebeam .*renew-cert' <<<"$rc_out" \
     || { echo "renew-cert dry-run lacks the runuser line"; rc=1; }
+  mkdir -p "$tmp/cores-in"; : >"$tmp/cores-in/cores-index.json"; : >"$tmp/cores-in/cores-index.json.sig"
+  rc_out="$(FRAMEBEAM_INSTALL_ROOT="$root" "$dir/install-hub.sh" import-cores "$tmp/cores-in" 2>&1)" || { echo "import-cores dry-run failed"; rc=1; }
+  grep -q 'FRAMEBEAM_DATA_DIR=/var/lib/framebeam .*import-cores' <<<"$rc_out" \
+    || { echo "import-cores dry-run lacks the runuser line"; rc=1; }
+  if FRAMEBEAM_INSTALL_ROOT="$root" "$dir/install-hub.sh" import-cores >/dev/null 2>&1; then
+    echo "import-cores without a directory must fail"; rc=1
+  fi
   printf 'FRAMEBEAM_TLS_CERT=/x/c.pem\n' >>"$root/etc/framebeam/hub.env"
   if FRAMEBEAM_INSTALL_ROOT="$root" "$dir/install-hub.sh" renew-cert >/dev/null 2>&1; then
     echo "renew-cert must refuse with FRAMEBEAM_TLS_CERT set"; rc=1
