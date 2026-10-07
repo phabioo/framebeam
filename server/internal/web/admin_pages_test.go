@@ -2,17 +2,20 @@ package web
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
 )
 
 // Admin web pages: Users, Systems & Cores, Settings and Clients.
@@ -62,7 +65,8 @@ func TestAdminPagesAreAdminOnlyAndRender(t *testing.T) {
 	}
 	contains(t, c.get("/users", nil), `href="/users" class="active"`, "Onboarding invites", "Accounts apply only on this Hub")
 	contains(t, c.get("/systems", nil), `href="/systems" class="active"`, "Nintendo DS", "melonds_ds", "1.4.0", "Included in the Player",
-		"windows-x86_64", "ARM7 BIOS", "ARM9 BIOS", "DS Firmware", "Core package cache", "LATER", "Reported by clients")
+		"windows-x86_64", "ARM7 BIOS", "ARM9 BIOS", "DS Firmware", "Core package cache", "Check source now", "No core packages known yet", `<option value="">any version</option>`, "1.4.0 (not in source)", "Reported by clients")
+	notContains(t, c.get("/systems", nil), "LATER")
 }
 
 func TestAdminPagesCSRF(t *testing.T) {
@@ -72,7 +76,7 @@ func TestAdminPagesCSRF(t *testing.T) {
 	u, _ := e.svc.CreateUser(bg, "max", "Max")
 	paths := []string{"/users/invites", "/users/" + u.ID + "/disable", "/users/" + u.ID + "/enable", "/users/invites/" + uuid.NewString() + "/revoke",
 		"/systems/nds/expected-version", "/systems/nds/firmware-mode", "/systems/nds/firmware/bios7/pin", "/systems/nds/firmware/bios7/remove",
-		"/settings/appearance", "/settings/uploads"}
+		"/settings/appearance", "/settings/uploads", "/cores/sync"}
 	for _, p := range paths {
 		status(t, c.postForm(p, url.Values{"mode": {"dark"}, "enabled": {"1"}}, nil), 403)
 		status(t, c.postForm(p, url.Values{"_csrf": {"wrong"}}, nil), 403)
@@ -332,7 +336,7 @@ func TestSystemsPageFirmwareFlow(t *testing.T) {
 	if entry, _ := e.svc.GetRegistryEntry(bg, "nds"); entry.ExpectedCoreVersion != "" {
 		t.Fatalf("%+v", entry)
 	}
-	contains(t, c.get("/systems", nil), `placeholder="any version"`)
+	contains(t, c.get("/systems", nil), `<option value="" selected>any version</option>`)
 	hs("9.9.9")
 	contains(t, c.get("/systems", nil), "● compatible")
 	if _, err := e.svc.Handshake(bg, dev, hub.HandshakeInput{Platform: "windows", Arch: "x86_64", PlayerVersion: "0.1.0",
@@ -371,4 +375,54 @@ func TestSettingsCertificateExpiryWarning(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSystemsPageCoreSource(t *testing.T) {
+	src := hubtest.NewCoreSource(t)
+	src.AddPackage(t, "melonds_ds", "1.4.0", "linux-x64", bytes.Repeat([]byte{1}, 2048))
+	src.AddPackage(t, "melonds_ds", "1.5.0", "linux-x64", bytes.Repeat([]byte{2}, 10))
+	e := newEnvOpts(t, true, nil, func(o *hub.Options) { src.Apply(o) })
+	c := e.client()
+	tok := c.login()
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	var runs atomic.Int32
+	go func() {
+		e.svc.RunCoreSync(ctx, time.Hour, func(hub.CoreSyncReport, error) { runs.Add(1) })
+		close(done)
+	}()
+	defer func() { cancel(); <-done }()
+	wait := func(cond func() bool) {
+		t.Helper()
+		for i := 0; i < 500 && !cond(); i++ {
+			time.Sleep(10 * time.Millisecond)
+		}
+		if !cond() {
+			t.Fatal("timeout")
+		}
+	}
+	wait(func() bool { return runs.Load() >= 1 })
+
+	rec := c.get("/systems", nil)
+	contains(t, rec, src.IndexURL(), "Last error", "none", "melonds_ds", "1.5.0", "GPL-3.0", "yes", "no",
+		`<option value="1.4.0" selected>1.4.0</option>`, `<option value="1.5.0">1.5.0</option>`, `<option value="">any version</option>`)
+	notContains(t, rec, "(not in source)", "LATER", "No core packages known yet")
+
+	// Changing the expected version downloads the newly selected version in the background.
+	status(t, postTok(c, tok, "/systems/nds/expected-version", url.Values{"version": {"1.5.0"}}), 303)
+	wait(func() bool {
+		p, err := e.svc.GetCorePackage(bg, "melonds_ds", "1.5.0", "linux-x64")
+		return err == nil && p.CachedFiles() == 2
+	})
+
+	// "Check source now": a CSRF-protected POST that triggers a sync; a failing source shows its error.
+	status(t, e.client().postForm("/cores/sync", url.Values{}, nil), 303) // not signed in: redirect to login, no sync
+	n := runs.Load()
+	src.Down = true
+	rec = postTok(c, tok, "/cores/sync", nil)
+	if rec.Code != 303 || location(rec) != "/systems?ok=coresync" {
+		t.Fatalf("%d %q", rec.Code, location(rec))
+	}
+	wait(func() bool { return runs.Load() > n })
+	contains(t, c.get("/systems?ok=coresync", nil), "Checking the core source", "Last error", "HTTP 503", "melonds_ds")
 }

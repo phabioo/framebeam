@@ -2,6 +2,7 @@ package web
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -25,7 +26,25 @@ type clientView struct {
 	OK                                             bool
 }
 
+type versionOption struct {
+	Value, Label string
+	Selected     bool
+}
+
+type coreRowView struct {
+	CoreID, Version, Platform, Size, License string
+	Cached                                   string
+	Class                                    string
+}
+
+type coreSourceView struct {
+	URL, LastCheck, LastSuccess, LastError string
+	Skipped                                int
+	Rows                                   []coreRowView
+}
+
 type systemView struct {
+	Versions                                                      []versionOption
 	ID, Name, CoreID, CoreName, Expected, Provisioning, Platforms string
 	Extensions, InputProfile, DisplayProfile, Mode                string
 	Native                                                        bool
@@ -33,7 +52,10 @@ type systemView struct {
 	Clients                                                       []clientView
 }
 
-type systemsBody struct{ Systems []systemView }
+type systemsBody struct {
+	Systems []systemView
+	Cores   coreSourceView
+}
 
 func statusView(f hub.FirmwareFile) (label, class string) {
 	switch f.State {
@@ -58,6 +80,19 @@ func (s *Server) systemsBodyData(r *http.Request) (systemsBody, error) {
 			Provisioning: e.Provisioning, Platforms: strings.Join(e.Platforms, ", "), Extensions: strings.Join(e.Extensions, ", "),
 			InputProfile: e.InputProfile, DisplayProfile: e.DisplayProfile, Mode: string(e.FirmwareMode),
 			Native: e.FirmwareMode == hub.FirmwareNative}
+		vers, err := s.svc.CoreVersions(r.Context(), e.CoreID)
+		if err != nil {
+			return systemsBody{}, err
+		}
+		v.Versions = append(v.Versions, versionOption{Value: "", Label: "any version", Selected: e.ExpectedCoreVersion == ""})
+		known := false
+		for _, ver := range vers {
+			known = known || ver == e.ExpectedCoreVersion
+			v.Versions = append(v.Versions, versionOption{Value: ver, Label: ver, Selected: ver == e.ExpectedCoreVersion})
+		}
+		if e.ExpectedCoreVersion != "" && !known {
+			v.Versions = append(v.Versions, versionOption{Value: e.ExpectedCoreVersion, Label: e.ExpectedCoreVersion + " (not in source)", Selected: true})
+		}
 		for _, f := range e.Firmware {
 			fv := fwView{ID: f.ID, Name: f.DisplayName, Requirement: "optional", Expected: "—", Present: "—", State: string(f.State),
 				Pinned: f.Pinned != "", HasFile: f.Present, Sizes: strings.ReplaceAll(sizeList(f.Sizes), " or ", ", ")}
@@ -98,6 +133,34 @@ func (s *Server) systemsBodyData(r *http.Request) (systemsBody, error) {
 			v.Clients = append(v.Clients, cv)
 		}
 		b.Systems = append(b.Systems, v)
+	}
+	now := s.svc.Now()
+	src, err := s.svc.CoreSource(r.Context())
+	if err != nil {
+		return systemsBody{}, err
+	}
+	b.Cores = coreSourceView{URL: src.URL, LastCheck: "never", LastSuccess: "never", LastError: src.LastError, Skipped: src.Skipped}
+	if src.LastCheck != nil {
+		b.Cores.LastCheck = ago(*src.LastCheck, now)
+	}
+	if src.LastSuccess != nil {
+		b.Cores.LastSuccess = ago(*src.LastSuccess, now)
+	}
+	pkgs, err := s.svc.ListCorePackages(r.Context())
+	if err != nil {
+		return systemsBody{}, err
+	}
+	for _, p := range pkgs {
+		row := coreRowView{CoreID: p.CoreID, Version: p.Version, Platform: p.Platform, Size: humanBytes(p.TotalSize()), License: p.License}
+		switch n := p.CachedFiles(); {
+		case n == len(p.Files):
+			row.Cached, row.Class = "yes", "ok"
+		case n == 0:
+			row.Cached = "no"
+		default:
+			row.Cached, row.Class = fmt.Sprintf("partial (%d/%d)", n, len(p.Files)), "error dashed"
+		}
+		b.Cores.Rows = append(b.Cores.Rows, row)
 	}
 	return b, nil
 }
@@ -178,4 +241,10 @@ func (s *Server) firmwareUpload(w http.ResponseWriter, r *http.Request, sess *se
 	defer f.Close()
 	_, err = s.svc.ProvideFirmware(r.Context(), r.PathValue("id"), r.PathValue("file"), f)
 	s.systemResult(w, r, sess, err, "fwfile")
+}
+
+// coresSync triggers a sync of the core source in the background ("Check source now").
+func (s *Server) coresSync(w http.ResponseWriter, r *http.Request, _ *session) {
+	s.svc.TriggerCoreSync()
+	http.Redirect(w, r, "/systems?ok=coresync", http.StatusSeeOther)
 }

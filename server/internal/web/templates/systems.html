@@ -9,10 +9,10 @@
       <dt>Expected version</dt><dd>
         <form class="inline" method="post" action="/systems/{{.ID}}/expected-version">
           <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-          <input type="text" name="version" value="{{.Expected}}" maxlength="64" placeholder="any version" aria-label="Expected core version">
+          <select name="version" aria-label="Expected core version">{{range .Versions}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</select>
           <button class="btn small" type="submit">Save</button>
         </form>
-        <div class="help">Empty = any version.</div></dd>
+        <div class="help">Versions come from the core package source. "Any version" serves the newest cached one.</div></dd>
       <dt>Platforms</dt><dd class="mono">{{.Platforms}}</dd>
       <dt>Provisioning</dt><dd>{{.Provisioning}}</dd>
     </dl>
@@ -86,8 +86,30 @@
 </div>
 {{end}}
 
-<section class="later" aria-label="Core package cache">
-  <div class="eyebrow">Core package cache <span class="pill">LATER</span></div>
-  <p class="help">Core packages with version, platform, SHA-256, origin and licence will be stored here later and distributed to Players. Not active in 0.1.</p>
+<div class="fw-head">
+  <div><div class="eyebrow">Core package cache</div><p class="help">Signed core packages from the trusted source, cached on this Hub and downloaded by Players on demand. The Hub never runs cores.</p></div>
+</div>
+<section class="card" aria-label="Core package cache">
+  <dl class="kv">
+    <dt>Source</dt><dd class="mono">{{.Body.Cores.URL}}</dd>
+    <dt>Last check</dt><dd>{{.Body.Cores.LastCheck}}{{if ne .Body.Cores.LastSuccess "never"}} · last success {{.Body.Cores.LastSuccess}}{{end}}</dd>
+    <dt>Last error</dt><dd>{{if .Body.Cores.LastError}}<span class="status-err">{{.Body.Cores.LastError}}</span>{{else}}none{{end}}</dd>
+    {{if .Body.Cores.Skipped}}<dt>Skipped</dt><dd>{{.Body.Cores.Skipped}} invalid package(s) in the source were ignored.</dd>{{end}}
+  </dl>
+  <form class="inline" method="post" action="/cores/sync">
+    <input type="hidden" name="_csrf" value="{{.CSRF}}">
+    <button class="btn small" type="submit">Check source now</button>
+  </form>
+{{if .Body.Cores.Rows}}
+<table class="list">
+  <thead><tr><th>Core</th><th>Version</th><th>Platform</th><th>Size</th><th>License</th><th>Cached</th></tr></thead>
+  <tbody>
+  {{range .Body.Cores.Rows}}
+  <tr><td class="mono">{{.CoreID}}</td><td class="mono">{{.Version}}</td><td class="mono">{{.Platform}}</td><td>{{.Size}}</td><td>{{.License}}</td>
+    <td><span class="pill {{.Class}}">{{.Cached}}</span></td></tr>
+  {{end}}
+  </tbody>
+</table>
+{{else}}<p class="empty">No core packages known yet. Players download cores from this Hub once the source has been checked.</p>{{end}}
 </section>
 {{end}}

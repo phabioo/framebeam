@@ -58,3 +58,25 @@ func TestICEServers(t *testing.T) {
 		t.Fatal("non-stun URL must fail")
 	}
 }
+
+func TestCoreSourceConfig(t *testing.T) {
+	good := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+	c := parse(t, nil)
+	if c.CoreIndexURL == "" || len(c.CoreTrustKeys) != 0 || c.Validate() != nil {
+		t.Fatalf("defaults: %+v", c)
+	}
+	c = parse(t, map[string]string{"FRAMEBEAM_HUB_CORE_INDEX_URL": "https://mirror.example/i.json", "FRAMEBEAM_HUB_CORE_TRUST_KEYS": good + " , " + good})
+	if c.CoreIndexURL != "https://mirror.example/i.json" || len(c.CoreTrustKeys) != 2 || c.Validate() != nil {
+		t.Fatalf("env: %+v", c)
+	}
+	// Repeatable flag replaces the environment list, further uses append.
+	c = parse(t, map[string]string{"FRAMEBEAM_HUB_CORE_TRUST_KEYS": "env"}, "-core-trust-key", good, "-core-trust-key", good, "-core-index-url", "https://x.example/i")
+	if len(c.CoreTrustKeys) != 2 || c.CoreIndexURL != "https://x.example/i" || c.Validate() != nil {
+		t.Fatalf("flags: %+v", c)
+	}
+	for _, bad := range []*Config{parse(t, nil, "-core-index-url", "http://x.example/i"), parse(t, nil, "-core-trust-key", "nope")} {
+		if bad.Validate() == nil {
+			t.Fatalf("invalid core config accepted: %+v", bad)
+		}
+	}
+}

@@ -207,6 +207,9 @@ func (s *Service) SetExpectedCoreVersion(ctx context.Context, systemID, version 
 	if n, _ := res.RowsAffected(); n == 0 {
 		return ErrNotFound
 	}
+	if version != "" {
+		s.TriggerCoreDownload() // fetch the newly selected version in the background
+	}
 	return nil
 }
 

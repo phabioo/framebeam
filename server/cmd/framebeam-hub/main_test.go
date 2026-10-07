@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
 	"github.com/phabioo/framebeam/server/internal/tlsutil"
 )
 
@@ -69,5 +70,45 @@ func TestRenewCertRefusesOwnCert(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "tls")); err == nil {
 		t.Fatal("tls dir created")
+	}
+}
+
+func TestImportCores(t *testing.T) {
+	src := hubtest.NewCoreSource(t)
+	src.AddPackage(t, "melonds_ds", "1.4.0", "linux-x64", bytes.Repeat([]byte{7}, 64))
+	in, data := t.TempDir(), t.TempDir()
+	idx, sig := src.Index()
+	os.WriteFile(filepath.Join(in, "cores-index.json"), idx, 0o644)
+	os.WriteFile(filepath.Join(in, "cores-index.json.sig"), sig, 0o644)
+	os.WriteFile(filepath.Join(in, "melonds_ds-1.4.0-linux-x64-melonds_ds.so"), bytes.Repeat([]byte{7}, 64), 0o644)
+	os.WriteFile(filepath.Join(in, "LICENSE.txt"), []byte("license of melonds_ds"), 0o644)
+
+	var out strings.Builder
+	// Without a trusted key: refused.
+	if err := runImportCores([]string{in, "-data-dir", data}, &out); err == nil || !strings.Contains(err.Error(), "no trusted signing key") {
+		t.Fatalf("err %v", err)
+	}
+	// Directory before or after the flags.
+	for _, args := range [][]string{{in, "-data-dir", data, "-core-trust-key", src.PublicKeyB64()},
+		{"-data-dir", data, "-core-trust-key", src.PublicKeyB64(), in}} {
+		out.Reset()
+		if err := runImportCores(args, &out); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(out.String(), "1 package(s)") {
+			t.Fatalf("summary %q", out.String())
+		}
+	}
+	if !strings.Contains(out.String(), "2 already cached") {
+		t.Fatalf("second import: %q", out.String())
+	}
+	if _, err := os.Stat(filepath.Join(data, "cores", "melonds_ds", "1.4.0", "linux-x64", "melonds_ds.so")); err != nil {
+		t.Fatal(err)
+	}
+	if err := runImportCores([]string{"-data-dir", data}, &out); err == nil {
+		t.Fatal("missing directory accepted")
+	}
+	if err := runImportCores([]string{in, "-data-dir", data, "-core-trust-key", "bad"}, &out); err == nil {
+		t.Fatal("bad key accepted")
 	}
 }

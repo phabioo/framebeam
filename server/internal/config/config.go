@@ -2,12 +2,16 @@
 package config
 
 import (
+	"crypto/ed25519"
 	"errors"
 	"flag"
 	"fmt"
 	"net"
+	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/phabioo/framebeam/server/internal/corepkg"
 )
 
 // Config is the runtime configuration of the FrameBeam Hub.
@@ -22,6 +26,33 @@ type Config struct {
 	Dev bool
 	// ICEServers are stun: URLs delivered to Players for Sessions (default empty: host candidates suffice on a LAN).
 	ICEServers []string
+	// CoreIndexURL is the signed core index (default corepkg.DefaultIndexURL).
+	CoreIndexURL string
+	// CoreTrustKeys are additional trusted index signing keys (base64 Ed25519 public keys) besides the compiled-in ones.
+	CoreTrustKeys []string
+}
+
+// repeatList is a repeatable flag.Value: the first use replaces the environment default, further uses append.
+type repeatList struct {
+	v       *[]string
+	touched *bool
+}
+
+func (l repeatList) String() string {
+	if l.v == nil {
+		return ""
+	}
+	return strings.Join(*l.v, ",")
+}
+
+func (l repeatList) Set(s string) error {
+	if !*l.touched {
+		*l.v, *l.touched = nil, true
+	}
+	if s = strings.TrimSpace(s); s != "" {
+		*l.v = append(*l.v, s)
+	}
+	return nil
 }
 
 // csvList is a flag.Value for comma-separated lists.
@@ -65,7 +96,21 @@ func Register(fs *flag.FlagSet, getenv func(string) string) *Config {
 	fs.BoolVar(&c.Dev, "dev", dev, "development mode: HTTP instead of HTTPS (FRAMEBEAM_DEV)")
 	c.ICEServers = splitCSV(getenv("FRAMEBEAM_ICE_SERVERS"))
 	fs.Var(csvList{&c.ICEServers}, "ice-servers", "comma-separated stun: URLs for Sessions, default none (FRAMEBEAM_ICE_SERVERS)")
+	fs.StringVar(&c.CoreIndexURL, "core-index-url", func() string {
+		if v := getenv("FRAMEBEAM_HUB_CORE_INDEX_URL"); v != "" {
+			return v
+		}
+		return corepkg.DefaultIndexURL
+	}(), "URL of the signed core index (FRAMEBEAM_HUB_CORE_INDEX_URL)")
+	c.CoreTrustKeys = splitCSV(getenv("FRAMEBEAM_HUB_CORE_TRUST_KEYS"))
+	fs.Var(repeatList{&c.CoreTrustKeys, new(bool)}, "core-trust-key",
+		"additional trusted core index signing key, base64 Ed25519 public key; repeatable (FRAMEBEAM_HUB_CORE_TRUST_KEYS, comma-separated)")
 	return c
+}
+
+// TrustedCoreKeys returns the compiled-in trusted keys plus the configured ones.
+func (c *Config) TrustedCoreKeys() ([]ed25519.PublicKey, error) {
+	return corepkg.TrustedKeys(c.CoreTrustKeys)
 }
 
 // Validate checks the configuration for contradictions.
@@ -83,6 +128,12 @@ func (c *Config) Validate() error {
 		if !strings.HasPrefix(u, "stun:") || len(u) == len("stun:") {
 			return fmt.Errorf("ice-servers: %q is not a stun: URL", u)
 		}
+	}
+	if u, err := url.Parse(c.CoreIndexURL); err != nil || u.Scheme != "https" || u.Host == "" {
+		return errors.New("core-index-url must be an https URL")
+	}
+	if _, err := c.TrustedCoreKeys(); err != nil {
+		return fmt.Errorf("core-trust-key: %w", err)
 	}
 	return nil
 }

@@ -37,7 +37,12 @@ type env struct {
 
 func newEnv(t *testing.T, withAdmin bool, mod func(*Config)) *env {
 	t.Helper()
-	svc, clk := hubtest.New(t, nil)
+	return newEnvOpts(t, withAdmin, mod, nil)
+}
+
+func newEnvOpts(t *testing.T, withAdmin bool, mod func(*Config), hubMod func(*hub.Options)) *env {
+	t.Helper()
+	svc, clk := hubtest.New(t, hubMod)
 	cfg := Config{Listen: ":8443", UseTLS: false, MaxUploadBytes: 1 << 20}
 	if mod != nil {
 		mod(&cfg)

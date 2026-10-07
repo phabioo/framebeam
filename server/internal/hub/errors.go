@@ -82,3 +82,14 @@ func badRequest(format string, a ...any) *Error {
 func conflict(msg string) *Error { return &Error{Code: CodeConflict, Message: msg} }
 
 func internal(err error) error { return fmt.Errorf("hub: %w", err) }
+
+// Core packages (0.2).
+const (
+	CodeCorePackageNotFound  Code = "core_package_not_found"
+	CodeCoreFileNotAvailable Code = "core_file_not_available"
+)
+
+var (
+	ErrCorePackageNotFound  = &Error{Code: CodeCorePackageNotFound, Message: "Core package not found"}
+	ErrCoreFileNotAvailable = &Error{Code: CodeCoreFileNotAvailable, Message: "Core file not available"}
+)

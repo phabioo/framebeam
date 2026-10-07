@@ -123,6 +123,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	h("POST /systems/{id}/firmware/{file}/upload", s.guard(s.firmwareUpload))
 	h("POST /systems/{id}/firmware/{file}/pin", s.guard(s.firmwarePin))
 	h("POST /systems/{id}/firmware/{file}/remove", s.guard(s.firmwareRemove))
+	h("POST /cores/sync", s.guard(s.coresSync))
 	h("GET /settings", s.guard(s.settingsGet))
 	h("POST /settings/appearance", s.guard(s.settingsAppearance))
 	h("POST /settings/uploads", s.guard(s.settingsUploads))
@@ -191,6 +192,7 @@ var flashTexts = map[string]string{
 	"fwfile":     "Firmware file saved.",
 	"fwremoved":  "Firmware file removed.",
 	"fwpin":      "Expected SHA-256 saved.",
+	"coresync":   "Checking the core source in the background. Reload the page in a moment.",
 }
 
 var errTexts = map[string]string{

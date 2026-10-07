@@ -4,8 +4,10 @@ package hub
 
 import (
 	"context"
+	"crypto/ed25519"
 	"database/sql"
 	"errors"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -50,6 +52,13 @@ type Options struct {
 	ICEServers []string
 	// OwnerGrace is how long a Session survives the owner's dropped WSS connection (default 30 s; injectable for tests).
 	OwnerGrace time.Duration
+	// CoreIndexURL is the signed core index (default corepkg.DefaultIndexURL); the signature is at the same URL + ".sig".
+	CoreIndexURL string
+	// CoreTrustKeys are the trusted index signing keys (corepkg.TrustedKeys). Empty = no index is accepted.
+	CoreTrustKeys []ed25519.PublicKey
+	// CoreHTTPClient fetches index and core files (injectable for tests); default: client with timeouts. Redirects
+	// are followed, https only.
+	CoreHTTPClient *http.Client
 }
 
 // Service is the service layer. Times are stored in SQLite as Unix seconds (UTC).
@@ -69,6 +78,8 @@ type Service struct {
 	name   string
 	dummyO sync.Once
 	dummy  string
+
+	cores coreState
 
 	redeemMu    sync.Mutex // invite redemption rate limits
 	redeemHits  map[string][]time.Time
@@ -93,6 +104,7 @@ func Open(ctx context.Context, db *sql.DB, o Options) (*Service, error) {
 		s.minProto = o.MinProtocolVersion
 	}
 	s.sess.init(o)
+	s.cores.init(o)
 	for _, d := range []string{"roms", "tmp"} {
 		if err := os.MkdirAll(filepath.Join(s.dataDir, d), 0o750); err != nil {
 			return nil, internal(err)
