@@ -34,14 +34,17 @@ Rectangle {
             clip: true
             boundsBehavior: Flickable.StopAtBounds
 
-            ColumnLayout {
+            // A plain Column, not a ColumnLayout: a layout sizes its single cell to the widest minimum of any child, so one
+            // item that cannot shrink (platform fonts, translations) would push every block and its buttons past the
+            // panel (seen with Qt 6.8 on Windows). Here every block gets exactly the panel width.
+            Column {
                 id: col
                 width: flick.width
                 spacing: 14
 
                 Rectangle {
                     objectName: "panelHubBanner"
-                    Layout.fillWidth: true
+                    width: col.width
                     visible: root.ctl.hubLink !== "online"
                     implicitHeight: bannerText.implicitHeight + 16
                     radius: 8
@@ -60,7 +63,7 @@ Rectangle {
 
                 Rectangle {
                     objectName: "panelMessage"
-                    Layout.fillWidth: true
+                    width: col.width
                     visible: root.ctl.message !== ""
                     implicitHeight: msgText.implicitHeight + 16
                     radius: 8
@@ -77,11 +80,7 @@ Rectangle {
                 }
 
                 ColumnLayout {
-                    Layout.fillWidth: true
-                    // Never wider than the panel: a header row whose labels need more room (no fonts, long
-                    // translations) must elide instead of pushing the action buttons out of the viewport.
-                    Layout.minimumWidth: 0
-                    Layout.maximumWidth: col.width
+                    width: col.width
                     spacing: 8
                     Eyebrow { text: qsTr("Visibility") }
                     FbSegment {
@@ -111,9 +110,7 @@ Rectangle {
                 // Invited / watching (only while shared)
                 ColumnLayout {
                     objectName: "participantsBlock"
-                    Layout.fillWidth: true
-                    Layout.minimumWidth: 0
-                    Layout.maximumWidth: col.width
+                    width: col.width
                     visible: root.ctl.shared
                     spacing: 8
                     RowLayout {
@@ -137,31 +134,26 @@ Rectangle {
                     }
                     Repeater {
                         model: root.ctl.participants
-                        delegate: RowLayout {
+                        // Item with anchors instead of a RowLayout: the action button is pinned to the right edge of the
+                        // block, the text takes the rest and elides, so the button cannot leave the panel.
+                        delegate: Item {
                             id: prow
                             required property var modelData
                             objectName: "participant_" + modelData.id
                             Layout.fillWidth: true
-                            spacing: 8
-                            StatusDot { tone: prow.modelData.online ? "ok" : "neutral" }
-                            ColumnLayout {
-                                // The text column may shrink below its content so the action button always stays inside the panel.
-                                Layout.fillWidth: true
-                                Layout.minimumWidth: 0
-                                Layout.preferredWidth: 0
-                                spacing: 0
-                                FbLabel { Layout.fillWidth: true; elide: Text.ElideRight; text: prow.modelData.name; font.pixelSize: 14; color: Theme.gameText }
-                                FbLabel { Layout.fillWidth: true; elide: Text.ElideRight; objectName: "participantStatus"; text: prow.modelData.status; font.pixelSize: 12; color: Theme.gameTextMuted }
-                            }
-                            FbPill {
-                                objectName: "participantPill"
-                                visible: prow.modelData.kind === "viewer" && !!prow.modelData.connection
-                                small: true
-                                text: prow.modelData.connection || ""
-                                tone: prow.modelData.connectionTone || "neutral"
+                            Layout.minimumWidth: 0
+                            implicitHeight: Math.max(30, ptext.implicitHeight)
+                            StatusDot {
+                                id: pdot
+                                anchors.left: parent.left
+                                anchors.verticalCenter: parent.verticalCenter
+                                tone: prow.modelData.online ? "ok" : "neutral"
                             }
                             FbButton {
+                                id: pbtn
                                 objectName: (prow.modelData.kind === "viewer" ? "remove_" : "withdraw_") + prow.modelData.id
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
                                 implicitHeight: 30
                                 implicitWidth: Math.max(60, implicitContentWidth + 20)
                                 font.pixelSize: 12
@@ -170,12 +162,35 @@ Rectangle {
                                 onClicked: prow.modelData.kind === "viewer" ? root.ctl.removeViewer(prow.modelData.id)
                                                                            : root.ctl.withdrawInvite(prow.modelData.id)
                             }
+                            FbPill {
+                                id: ppill
+                                objectName: "participantPill"
+                                anchors.right: pbtn.left
+                                anchors.rightMargin: 8
+                                anchors.verticalCenter: parent.verticalCenter
+                                visible: prow.modelData.kind === "viewer" && !!prow.modelData.connection
+                                small: true
+                                text: prow.modelData.connection || ""
+                                tone: prow.modelData.connectionTone || "neutral"
+                            }
+                            ColumnLayout {
+                                id: ptext
+                                anchors.left: pdot.right
+                                anchors.leftMargin: 8
+                                anchors.right: ppill.visible ? ppill.left : pbtn.left
+                                anchors.rightMargin: 8
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 0
+                                FbLabel { Layout.fillWidth: true; Layout.minimumWidth: 0; elide: Text.ElideRight; text: prow.modelData.name; font.pixelSize: 14; color: Theme.gameText }
+                                FbLabel { Layout.fillWidth: true; Layout.minimumWidth: 0; elide: Text.ElideRight; objectName: "participantStatus"; text: prow.modelData.status; font.pixelSize: 12; color: Theme.gameTextMuted }
+                            }
                         }
                     }
                     // Relay hint (D9)
                     Rectangle {
                         objectName: "relayHint"
                         Layout.fillWidth: true
+                        Layout.minimumWidth: 0
                         visible: root.ctl.relayHint !== ""
                         implicitHeight: relayRow.implicitHeight + 18
                         radius: 8
@@ -203,9 +218,7 @@ Rectangle {
                 // Invite search (invite_only)
                 ColumnLayout {
                     objectName: "inviteBlock"
-                    Layout.fillWidth: true
-                    Layout.minimumWidth: 0
-                    Layout.maximumWidth: col.width
+                    width: col.width
                     visible: root.ctl.visibility === "invite_only"
                     spacing: 8
                     RowLayout {
@@ -248,6 +261,7 @@ Rectangle {
                             required property var modelData
                             objectName: "userResult_" + modelData.id
                             Layout.fillWidth: true
+                            Layout.minimumWidth: 0
                             spacing: 10
                             StatusDot { tone: urow.modelData.online ? "ok" : "neutral" }
                             ColumnLayout {
@@ -258,6 +272,7 @@ Rectangle {
                                 FbLabel { Layout.fillWidth: true; elide: Text.ElideRight; text: urow.modelData.name; font.pixelSize: 14; color: Theme.gameText }
                                 FbLabel {
                                     Layout.fillWidth: true
+                                    Layout.minimumWidth: 0
                                     text: urow.modelData.hint
                                     wrapMode: Text.WordWrap
                                     font.pixelSize: 11
@@ -279,7 +294,7 @@ Rectangle {
 
                 FbLabel {
                     objectName: "readOnlyNote"
-                    Layout.fillWidth: true
+                    width: col.width
                     wrapMode: Text.WordWrap
                     font.pixelSize: 12
                     color: Theme.gameTextMuted

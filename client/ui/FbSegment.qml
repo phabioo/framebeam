@@ -12,6 +12,8 @@ Rectangle {
     property int segmentHeight: 30
     signal picked(string value)
 
+    // Never demands more than the room it is given (long labels elide) so a layout around it cannot grow past its parent.
+    Layout.minimumWidth: 0
     implicitHeight: segmentHeight + 6
     implicitWidth: row.implicitWidth + 6
     radius: Theme.radius7
@@ -33,6 +35,9 @@ Rectangle {
                 readonly property bool active: root.current === modelData.value
                 Layout.fillWidth: root.stretch
                 Layout.fillHeight: true
+                Layout.minimumWidth: 0
+                Layout.preferredWidth: root.stretch ? 1 : implicitWidth
+                clip: true
                 implicitWidth: segLabel.implicitWidth + 24
                 radius: Theme.radius5
                 color: active ? Theme.borderInput : (segHover.hovered && seg.modelData.disabled !== true ? Theme.surfaceRaised : "transparent")
@@ -40,6 +45,9 @@ Rectangle {
                 Text {
                     id: segLabel
                     anchors.centerIn: parent
+                    width: Math.min(implicitWidth, parent.width - 12)
+                    elide: Text.ElideRight
+                    horizontalAlignment: Text.AlignHCenter
                     text: seg.modelData.label
                     font.pixelSize: Theme.fontSmall
                     font.weight: seg.active ? Font.DemiBold : Font.Medium

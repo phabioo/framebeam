@@ -167,6 +167,7 @@ Rectangle {
                     spacing: Theme.space16
                     ColumnLayout {
                         Layout.fillWidth: true
+                        Layout.minimumWidth: 0
                         spacing: 2
                         FbLabel {
                             objectName: "emulationTitle"
@@ -195,6 +196,7 @@ Rectangle {
                     FbField {
                         objectName: "emulationSearch"
                         Layout.preferredWidth: 260
+                        Layout.minimumWidth: 120
                         implicitHeight: 36
                         Layout.alignment: Qt.AlignTop
                         font.family: Qt.application.font.family
@@ -205,30 +207,43 @@ Rectangle {
                 }
 
                 // Category chips + Reset N changed
+                // Category chips + Reset N changed. The chips wrap (Flow) instead of sitting in a RowLayout: a row of chips
+                // cannot shrink, so with many categories or wider platform fonts its minimum width would widen the whole
+                // content column and push the option controls out of the window.
                 RowLayout {
-                    objectName: "categoryChips"
                     Layout.fillWidth: true
+                    Layout.minimumWidth: 0
                     spacing: Theme.space8
                     visible: root.emu.categories.length > 0
-                    FbChip {
-                        objectName: "categoryAll"
-                        text: qsTr("All")
-                        active: root.emu.categoryFilter === ""
-                        onClicked: root.emu.categoryFilter = ""
-                    }
-                    Repeater {
-                        model: root.emu.categories
-                        delegate: FbChip {
-                            required property string modelData
-                            objectName: "category_" + modelData
-                            text: modelData
-                            active: root.emu.categoryFilter === modelData
-                            onClicked: root.emu.categoryFilter = modelData
+                    Flow {
+                        id: chipFlow
+                        objectName: "categoryChips"
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        Layout.preferredWidth: 1
+                        Layout.alignment: Qt.AlignTop
+                        Layout.preferredHeight: childrenRect.height
+                        spacing: Theme.space8
+                        FbChip {
+                            objectName: "categoryAll"
+                            text: qsTr("All")
+                            active: root.emu.categoryFilter === ""
+                            onClicked: root.emu.categoryFilter = ""
+                        }
+                        Repeater {
+                            model: root.emu.categories
+                            delegate: FbChip {
+                                required property string modelData
+                                objectName: "category_" + modelData
+                                text: modelData
+                                active: root.emu.categoryFilter === modelData
+                                onClicked: root.emu.categoryFilter = modelData
+                            }
                         }
                     }
-                    Item { Layout.fillWidth: true }
                     FbButton {
                         objectName: "resetAllChanged"
+                        Layout.alignment: Qt.AlignTop
                         visible: root.emu.changedCount > 0
                         kind: "link"
                         font.underline: true
@@ -319,10 +334,13 @@ Rectangle {
 
                                     ColumnLayout {
                                         Layout.fillWidth: true
+                                        Layout.minimumWidth: 0
                                         Layout.alignment: Qt.AlignTop
                                         Layout.rowSpan: optRow.narrow ? 2 : 1
                                         spacing: 3
                                         RowLayout {
+                                            Layout.fillWidth: true
+                                            Layout.minimumWidth: 0
                                             spacing: Theme.space8
                                             Rectangle {
                                                 objectName: "changedDot_" + opt.modelData.key
@@ -332,7 +350,7 @@ Rectangle {
                                                 radius: 3.5
                                                 color: Theme.accent
                                             }
-                                            FbLabel { text: opt.modelData.label; font.weight: Font.Medium }
+                                            FbLabel { Layout.fillWidth: true; Layout.minimumWidth: 0; elide: Text.ElideRight; text: opt.modelData.label; font.weight: Font.Medium }
                                             Rectangle {
                                                 visible: opt.modelData.restart
                                                 objectName: "restartBadge_" + opt.modelData.key

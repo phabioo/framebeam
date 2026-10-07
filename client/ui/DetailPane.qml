@@ -102,6 +102,7 @@ Rectangle {
                 // Status table
                 ColumnLayout {
                     Layout.fillWidth: true
+                    Layout.minimumWidth: 0
                     spacing: 0
                     Repeater {
                         model: [
@@ -114,6 +115,7 @@ Rectangle {
                             id: row
                             required property var modelData
                             Layout.fillWidth: true
+                            Layout.minimumWidth: 0
                             implicitHeight: rowCol.implicitHeight + 22
                             Rectangle {
                                 anchors.bottom: parent.bottom
@@ -129,9 +131,15 @@ Rectangle {
                                 spacing: 4
                                 RowLayout {
                                     Layout.fillWidth: true
+                                    Layout.minimumWidth: 0
+                                    spacing: 12
                                     FbLabel { text: row.modelData.label; color: Theme.textMuted; font.pixelSize: 13 }
-                                    Item { Layout.fillWidth: true }
                                     FbLabel {
+                                        // The value takes the rest of the row and wraps: a long status text must never widen the pane.
+                                        Layout.fillWidth: true
+                                        Layout.minimumWidth: 0
+                                        horizontalAlignment: Text.AlignRight
+                                        wrapMode: Text.Wrap
                                         objectName: "detailRowValue"
                                         text: (row.modelData.tone === "ok" ? "✓ " : (row.modelData.tone === "warn" ? "▲ " : (row.modelData.tone === "error" ? "✕ " : "")))
                                               + (row.modelData.text || "")

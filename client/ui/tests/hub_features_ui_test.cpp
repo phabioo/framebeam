@@ -558,6 +558,9 @@ class HubFeaturesUiTest : public QObject {
     QVERIFY(before != QLatin1String("ok"));
 
     // Fetch the package the way a start does; afterwards the state is refreshed without a restart or a manual reload.
+    // The start only provisions once the Hub's systems list (core_package_version) has arrived; playSelected() is
+    // a silent no-op before that, so wait for the state that signals "provisionable".
+    QTRY_VERIFY_WITH_TIMEOUT(pc->selectedGame().value(QStringLiteral("canPlay")).toBool(), 8000);
     pc->playSelected();
     QTRY_VERIFY_WITH_TIMEOUT(hub.coreFileDownloads >= 2, 8000);
     QTRY_COMPARE_WITH_TIMEOUT(pc->selectedGame().value(QStringLiteral("coreTone")).toString(), QStringLiteral("ok"), 8000);
