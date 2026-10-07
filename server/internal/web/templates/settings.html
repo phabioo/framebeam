@@ -45,6 +45,79 @@
     </section>
   </div>
   <div class="stack">
+    <section class="panel" id="updates">
+      <h2>Updates</h2>
+      {{with .Body.Updates}}
+      {{if .Err}}<div class="help">The update status could not be read.</div>{{else}}
+      <div class="row">
+        <div><div class="label">Installed version</div><div class="help">Build channel: {{.Settings.CompiledChannel}}</div></div>
+        <div class="value">{{.CurrentVersion}}</div>
+      </div>
+      {{if .Disabled}}<div class="row"><div class="help">{{.Disabled}}</div></div>{{end}}
+      <form class="update-form" method="post" action="/settings/updates">
+        <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+        <div class="row">
+          <div><div class="label">Update channel</div><div class="help">Stable gets released versions. Test also gets test builds from the main branch (newest wins).</div></div>
+          <select name="channel" aria-label="Update channel">
+            {{if .OffOption}}<option value=""{{if eq .Channel ""}} selected{{end}}>Off (development build)</option>{{end}}
+            <option value="stable"{{if eq .Channel "stable"}} selected{{end}}>Stable</option>
+            <option value="test"{{if eq .Channel "test"}} selected{{end}}>Test</option>
+          </select>
+        </div>
+        <div class="row">
+          <div><div class="label">Install automatically</div><div class="help">Downloads and installs a new version after a check, never during a running Session and never when it breaks Players seen recently. Needs the .deb package.</div></div>
+          <label><input type="checkbox" name="auto" value="1"{{if .Settings.Auto}} checked{{end}}> Automatic install</label>
+        </div>
+        <div class="row"><div></div><div><button class="btn small" type="submit">Save</button></div></div>
+      </form>
+      <div class="row">
+        <div><div class="label">Status</div>
+          <div class="help">Last check: {{.LastCheckText}}</div>
+          {{if .LastError}}<div class="help status-err">{{.LastError}}</div>{{end}}
+        </div>
+        <form method="post" action="/settings/updates/check">
+          <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+          <button class="btn small" type="submit">Check now</button>
+        </form>
+      </div>
+      {{if .Available}}
+      <div class="row">
+        <div>
+          <div class="label">Version {{.Available.Version}} is available <span class="pill">{{.Available.Channel}}</span></div>
+          {{if .Available.NotesURL}}<div class="help"><a href="{{.Available.NotesURL}}" rel="noopener noreferrer" target="_blank">Release notes</a></div>{{end}}
+          {{if .Available.Breaking}}<div class="help warn">{{.Available.Warning}}</div>{{end}}
+          {{if .ActiveSessions}}<div class="help">A Session is running; automatic install waits until it ends.</div>{{end}}
+        </div>
+        {{if .Packaged}}
+          {{if .RequestPending}}<span class="pill">Installing</span>
+          {{else if .Available.Breaking}}
+          <form method="post" action="/settings/updates/install" hx-post="/settings/updates/install" hx-confirm="Install {{.Available.Version}} anyway? Players seen in the last 30 days are too old for it and lose access until they are updated. The Hub restarts.">
+            <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+            <input type="hidden" name="confirm_breaking" value="1">
+            <button class="btn small" type="submit">Install anyway</button>
+          </form>
+          {{else}}
+          <form method="post" action="/settings/updates/install" hx-post="/settings/updates/install" hx-confirm="Install {{.Available.Version}} now? The Hub restarts and Sessions end.">
+            <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+            <button class="btn small" type="submit">Install update</button>
+          </form>
+          {{end}}
+        {{end}}
+      </div>
+      {{if not .Packaged}}
+      <div class="row"><div>
+        <div class="help">This Hub cannot install updates itself (it is not installed from the .deb package, or the request directory is not writable). Install the update manually:</div>
+        <div class="value mono">{{.ManualCommand}}</div>
+      </div></div>
+      {{end}}
+      {{else if and (not .Disabled) (not .LastError)}}
+      <div class="row"><div class="help">This Hub is up to date.</div></div>
+      {{end}}
+      {{if .Staged}}<div class="row"><div class="help">Staged: {{.Staged.Version}}{{if .RequestPending}} (waiting for the installer){{end}}</div></div>{{end}}
+      {{if .LastResult}}<div class="row"><div class="help{{if not .LastResult.OK}} status-err{{end}}">Last install attempt ({{.LastResultAt}}): {{.LastResult.Version}} {{if .LastResult.OK}}succeeded{{else}}failed: {{.LastResult.Message}}{{end}}</div></div>{{end}}
+      {{end}}
+      {{end}}
+    </section>
     <section class="panel">
       <h2>Transport &amp; certificate</h2>
       <div class="row">

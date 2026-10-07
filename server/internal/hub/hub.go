@@ -59,6 +59,17 @@ type Options struct {
 	// CoreHTTPClient fetches index and core files (injectable for tests); default: client with timeouts. Redirects
 	// are followed, https only.
 	CoreHTTPClient *http.Client
+	// UpdateIndexURL is the signed updates index (default updates.DefaultIndexURL; https or file://), fetched with
+	// CoreHTTPClient and verified with CoreTrustKeys.
+	UpdateIndexURL string
+	// UpdateRequestDir is where the update request file is created (default /run/framebeam).
+	UpdateRequestDir string
+	// UpdateChannel is the compiled-in default channel: stable, test or dev (dev = no automatic checks).
+	UpdateChannel string
+	// Executable is the path of the running binary (default os.Executable); updates are installable only when it
+	// is /usr/bin/framebeam-hub. UpdatePlatform defaults to linux-<GOARCH>. Both are injectable for tests.
+	Executable     string
+	UpdatePlatform string
 }
 
 // Service is the service layer. Times are stored in SQLite as Unix seconds (UTC).
@@ -79,7 +90,9 @@ type Service struct {
 	dummyO sync.Once
 	dummy  string
 
-	cores coreState
+	cores  coreState
+	upd    updateState
+	updCfg updateConfig
 
 	redeemMu    sync.Mutex // invite redemption rate limits
 	redeemHits  map[string][]time.Time
@@ -105,6 +118,7 @@ func Open(ctx context.Context, db *sql.DB, o Options) (*Service, error) {
 	}
 	s.sess.init(o)
 	s.cores.init(o)
+	s.initUpdates(o)
 	for _, d := range []string{"roms", "tmp"} {
 		if err := os.MkdirAll(filepath.Join(s.dataDir, d), 0o750); err != nil {
 			return nil, internal(err)

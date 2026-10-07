@@ -3,9 +3,14 @@ package web
 import (
 	"bytes"
 	"context"
+	"crypto/ed25519"
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync/atomic"
@@ -14,8 +19,10 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/phabioo/framebeam/server/internal/corepkg"
 	"github.com/phabioo/framebeam/server/internal/hub"
 	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
+	"github.com/phabioo/framebeam/server/internal/updates"
 )
 
 // Admin web pages: Users, Systems & Cores, Settings and Clients.
@@ -45,7 +52,8 @@ func TestAdminPagesAreAdminOnlyAndRender(t *testing.T) {
 		}
 	}
 	for _, p := range []string{"/users/invites", "/users/u_x/disable", "/users/u_x/enable", "/users/invites/x/revoke", "/systems/nds/expected-version",
-		"/systems/nds/firmware-mode", "/systems/nds/firmware/bios7/pin", "/systems/nds/firmware/bios7/remove", "/settings/appearance", "/settings/uploads"} {
+		"/systems/nds/firmware-mode", "/systems/nds/firmware/bios7/pin", "/systems/nds/firmware/bios7/remove", "/settings/appearance", "/settings/uploads",
+		"/settings/updates", "/settings/updates/check", "/settings/updates/install"} {
 		if rec := anon.postForm(p, url.Values{}, nil); rec.Code != http.StatusSeeOther || location(rec) != "/login" {
 			t.Fatalf("%s: %d -> %q", p, rec.Code, location(rec))
 		}
@@ -76,7 +84,7 @@ func TestAdminPagesCSRF(t *testing.T) {
 	u, _ := e.svc.CreateUser(bg, "max", "Max")
 	paths := []string{"/users/invites", "/users/" + u.ID + "/disable", "/users/" + u.ID + "/enable", "/users/invites/" + uuid.NewString() + "/revoke",
 		"/systems/nds/expected-version", "/systems/nds/firmware-mode", "/systems/nds/firmware/bios7/pin", "/systems/nds/firmware/bios7/remove",
-		"/settings/appearance", "/settings/uploads", "/cores/sync"}
+		"/settings/appearance", "/settings/uploads", "/cores/sync", "/settings/updates", "/settings/updates/check", "/settings/updates/install"}
 	for _, p := range paths {
 		status(t, c.postForm(p, url.Values{"mode": {"dark"}, "enabled": {"1"}}, nil), 403)
 		status(t, c.postForm(p, url.Values{"_csrf": {"wrong"}}, nil), 403)
@@ -425,4 +433,110 @@ func TestSystemsPageCoreSource(t *testing.T) {
 	}
 	wait(func() bool { return runs.Load() > n })
 	contains(t, c.get("/systems?ok=coresync", nil), "Checking the core source", "Last error", "HTTP 503", "melonds_ds")
+}
+
+// ---- Settings: Updates ----
+
+func updatesFeed(t *testing.T, version string) (url string, pub ed25519.PublicKey) {
+	t.Helper()
+	dir := t.TempDir()
+	seed := bytes.Repeat([]byte{9}, 32)
+	pub, _ = corepkg.PublicFromSeed(seed)
+	data := []byte("dummy deb")
+	sum := sha256.Sum256(data)
+	name := "framebeam-hub_" + version + "_amd64.deb"
+	if err := os.WriteFile(filepath.Join(dir, name), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	idx, err := updates.Marshal(updates.Index{Schema: 1, GeneratedAt: time.Now().UTC(), Releases: []updates.Release{{
+		Product: "hub", Channel: "test", Version: version, PublishedAt: time.Now().UTC(), ProtocolVersion: 1, MinProtocolVersion: 1,
+		NotesURL: "https://example.org/notes", Artifacts: []updates.Artifact{{Platform: "linux-amd64", Kind: "deb", Name: name, Size: int64(len(data)),
+			SHA256: hex.EncodeToString(sum[:]), URL: "file://" + filepath.Join(dir, name)}}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sig, _ := corepkg.Sign(idx, seed)
+	p := filepath.Join(dir, "updates-index.json")
+	os.WriteFile(p, idx, 0o644)
+	os.WriteFile(p+".sig", sig, 0o644)
+	return "file://" + p, pub
+}
+
+func TestSettingsUpdatesSection(t *testing.T) {
+	feed, pub := updatesFeed(t, "0.3.0-test.6")
+	reqDir := t.TempDir()
+	exe := updates.PackagedExecutable
+	e := newEnvOpts(t, true, nil, func(o *hub.Options) {
+		o.HubVersion, o.UpdateChannel, o.UpdateIndexURL, o.UpdateRequestDir, o.UpdatePlatform = "0.3.0-test.5", "test", feed, reqDir, "linux-amd64"
+		o.CoreTrustKeys = []ed25519.PublicKey{pub}
+		o.Executable = exe
+	})
+	c := e.client()
+	tok := c.login()
+	rec := c.get("/settings", nil)
+	status(t, rec, 200)
+	contains(t, rec, "<h2>Updates</h2>", `name="channel"`, `<option value="test" selected>`, `name="auto" value="1" checked`, "0.3.0-test.5", "Check now")
+	notContains(t, rec, "Install update")
+
+	// Check now runs in the background; run the check directly and reload.
+	status(t, postTok(c, tok, "/settings/updates/check", nil), 303)
+	e.svc.SetUpdateSettings(bg, "test", false) // automatic install would stage it right away
+	if _, err := e.svc.CheckUpdates(bg); err != nil {
+		t.Fatal(err)
+	}
+	rec = c.get("/settings", nil)
+	contains(t, rec, "Version 0.3.0-test.6 is available", "Release notes", "https://example.org/notes", `action="/settings/updates/install"`, "Install update",
+		`hx-confirm="Install 0.3.0-test.6 now?`, ">update</span>")
+
+	// Saving: channel and automatic install, invalid channel rejected.
+	rec = postTok(c, tok, "/settings/updates", url.Values{"channel": {"stable"}})
+	status(t, rec, 303)
+	if loc := location(rec); loc != "/settings?ok=updates" {
+		t.Fatal(loc)
+	}
+	if s, _ := e.svc.UpdateSettings(bg); s.Channel != "stable" || s.Auto {
+		t.Fatalf("%+v", s)
+	}
+	status(t, postTok(c, tok, "/settings/updates", url.Values{"channel": {"nightly"}}), 400)
+
+	// Install: stages and creates the request file.
+	rec = postTok(c, tok, "/settings/updates/install", nil)
+	status(t, rec, 303)
+	if loc := location(rec); loc != "/settings?ok=updateinstall" && loc != "/settings?err=updatenone" {
+		t.Fatal(loc)
+	}
+	e.svc.SetUpdateSettings(bg, "test", false)
+	rec = postTok(c, tok, "/settings/updates/install", nil)
+	if location(rec) != "/settings?ok=updateinstall" {
+		t.Fatalf("install: %d %s", rec.Code, location(rec))
+	}
+	if !updates.RequestPending(reqDir) {
+		t.Fatal("request file missing")
+	}
+	contains(t, c.get("/settings?ok=updateinstall", nil), "Update downloaded and verified", "Installing")
+}
+
+func TestSettingsUpdatesNotPackagedAndDev(t *testing.T) {
+	feed, pub := updatesFeed(t, "0.3.0-test.6")
+	e := newEnvOpts(t, true, nil, func(o *hub.Options) {
+		o.HubVersion, o.UpdateChannel, o.UpdateIndexURL, o.UpdateRequestDir, o.UpdatePlatform = "0.3.0-dev", "dev", feed, t.TempDir(), "linux-amd64"
+		o.CoreTrustKeys = []ed25519.PublicKey{pub}
+		o.Executable = "/usr/local/bin/framebeam-hub"
+	})
+	c := e.client()
+	tok := c.login()
+	rec := c.get("/settings", nil)
+	contains(t, rec, "Off (development build)", "development builds")
+	status(t, postTok(c, tok, "/settings/updates", url.Values{"channel": {"test"}}), 303)
+	if _, err := e.svc.CheckUpdates(bg); err != nil {
+		t.Fatal(err)
+	}
+	rec = c.get("/settings", nil)
+	contains(t, rec, "Version 0.3.0-test.6 is available", "sudo apt install ./framebeam-hub_0.3.0-test.6_amd64.deb")
+	notContains(t, rec, "Install update")
+	rec = postTok(c, tok, "/settings/updates/install", nil)
+	if location(rec) != "/settings?err=updatepackage" {
+		t.Fatal(location(rec))
+	}
+	contains(t, c.get("/settings?err=updatepackage", nil), "not installed from the .deb package")
 }
