@@ -68,9 +68,26 @@ void holdInstanceMutex() { g_instanceMutex = CreateMutexW(nullptr, FALSE, L"Fram
 }  // namespace
 
 int main(int argc, char* argv[]) {
+  // Info options are answered here, before QGuiApplication, the mutex, updates and the data directory.
+  // QCommandLineParser must not see --version/--help: on Windows a GUI application shows them in a message box
+  // that blocks forever when nobody clicks (CI package smoke check).
   for (int i = 1; i < argc; ++i) {
     if (std::strcmp(argv[i], "--version-json") == 0) {
       printToStdout(framebeam::playerVersionJson() + "\n");
+      return 0;
+    }
+    if (std::strcmp(argv[i], "--version") == 0 || std::strcmp(argv[i], "-v") == 0) {
+      printToStdout("FrameBeam Player " + std::string(framebeam::playerVersion()) + "\n");
+      return 0;
+    }
+    if (std::strcmp(argv[i], "--help") == 0 || std::strcmp(argv[i], "-h") == 0 || std::strcmp(argv[i], "-?") == 0) {
+      printToStdout(
+          "Usage: framebeam_player [options]\n"
+          "  --version            Print the version and exit.\n"
+          "  --version-json       Print version, channel, commit and protocol versions as JSON and exit.\n"
+          "  --smoke-test         Load QML and exit with code 0 (code 1 on QML warnings).\n"
+          "  --data-dir <path>    Data directory (profiles, cache, saves) instead of the default.\n"
+          "  --dev-allow-http     Development only: also allow HTTP hubs outside localhost.\n");
       return 0;
     }
   }
@@ -83,8 +100,6 @@ int main(int argc, char* argv[]) {
                                                            static_cast<qsizetype>(framebeam::playerVersion().size())));
 
   QCommandLineParser parser;
-  parser.addHelpOption();
-  parser.addVersionOption();
   const QCommandLineOption smoke(QStringLiteral("smoke-test"),
                                  QStringLiteral("Load QML and exit with code 0 (code 1 on QML warnings)."));
   const QCommandLineOption dataDir(QStringLiteral("data-dir"),

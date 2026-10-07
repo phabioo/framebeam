@@ -79,6 +79,4 @@ add_subdirectory(input)      # framebeam_sdl3 (SDL3 gamepad only) + headless vir
 add_subdirectory(emulation)  # framebeam_emulation
 add_subdirectory(ui)         # framebeam_ui: QML module FrameBeam.Player
 add_subdirectory(app)        # framebeam_player (executable from app/ + ui/)
-if(WIN32)
-  add_subdirectory(launcher) # framebeam_player_launcher: tiny top-level framebeam_player.exe (starts bin\\framebeam_player.exe)
-endif()
+add_subdirectory(launcher)   # framebeam_player_launcher (Windows only): tiny top-level framebeam_player.exe; cmdline test everywhere
