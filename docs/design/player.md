@@ -1,6 +1,6 @@
 # Design: FrameBeam Player (QML, dark)
 
-Source: `source/framebeam-designs-v3.dc.html`, line ranges per screen = screen container (without caption). Mock data is in the script from line 1227 (`renderVals` at line 1433); all names, versions, addresses and counts in this file are illustrative mock values. Tokens: `tokens.md`; logo: `logo.md`. All dimensions in px at 1440 x 900. Screen order in the source: 3a-3f, 3p, 3g, 3h, 3r, 3i.
+Source: `source/framebeam-designs-v3.dc.html`, line ranges per screen = screen container (without caption). Mock data is in the script from line 1362 (`renderVals` at line 1626, diagnostics in `dgVals` at line 1573); all names, versions, addresses and counts in this file are illustrative mock values. Tokens: `tokens.md`; logo: `logo.md`. All dimensions in px at 1440 x 900. Screen order in the source: 3a-3f, 3p, 3g, 3h, 3r, 3i, 3t-3y.
 
 ## Common shell (3c, 3e, 3f, 3p)
 
@@ -9,10 +9,10 @@ Source: `source/framebeam-designs-v3.dc.html`, line ranges per screen = screen c
 - Navigation (order): Library, Emulation, Controllers, Settings. Active: surface `#1f2024`, radius 6, 500; inactive `#a3a3a8`. Item padding 9 10, 14px. Settings shows a small accent dot (7px, `#3cbfd8`) while a Player update is available (3p).
 - Second column (pattern, 300px, surface `#16171a`, border right, padding 28 16): used by 3e (Defaults and systems), 3f (devices) and 3p (sections). Eyebrow title (mono 11) at the top; items radius 8, padding 11 12, selected surface `#1f2024` with ring `0 0 0 1px #2f3035`.
 - Bottom: Hub switcher card (status dot green, Hub name, on the right "switch", below it mono 11 "hub.local · active hub"), then the user block (avatar 28 "M", "Max", device name "Desktop-LivingRoom"), shown in 3c, 3e, 3f and 3p.
-- In game (3g, 3h, 3r, 3i) the sidebar is dropped; instead a 56px header (see there). The status pill component (`● Ready`, `▲`, `✕`) is specified in `tokens.md`.
+- In game (3g, 3h, 3r, 3i, 3t-3y) the sidebar is dropped; instead a 56px header (see there). The status pill component (`● Ready`, `▲`, `✕`) is specified in `tokens.md`.
 
 ## 3a Player Connection
-Lines 30-52. Start/connection screen before the main navigation.
+Lines 31-53. Start/connection screen before the main navigation.
 
 - Purpose: stored Hubs, connection status, add Hub, connect.
 - Layout: screen centered (`place-items:center`), column 620px, gap 28; background `#121315`, no sidebar.
@@ -27,7 +27,7 @@ Lines 30-52. Start/connection screen before the main navigation.
 - Remove is shown only for the incompatible Hub; whether it is available on all cards is unclear. Hubs are also managed in 3p (Hubs section, with Edit).
 
 ## 3b Player Pairing
-Lines 58-72. Add Hub: certificate (TOFU) and approval by admin.
+Lines 59-73. Add Hub: certificate (TOFU) and approval by admin.
 
 - Layout: centered, column 640px, gap 14. Title "Add hub" (30/600) + mono 13 address "hub.local:8443".
 - Three step cards (grid 18px | text, gap 4 12; status dot 10px; radius 10, padding 16-18):
@@ -41,7 +41,7 @@ Lines 58-72. Add Hub: certificate (TOFU) and approval by admin.
 - Not shown: "Redeem invite" view (code entry, display name), states denied/revoked/error (unclear).
 
 ## 3c Player Library
-Lines 78-177. Main screen; readiness states, save conflict, discovering Sessions.
+Lines 79-178. Main screen; readiness states, save conflict, discovering Sessions.
 
 - Grid: sidebar 232 | main (flexible) | detail column 392 (surface `#16171a`, border left, padding 28).
 - Main (padding 28 32, gap 28):
@@ -60,7 +60,7 @@ Lines 78-177. Main screen; readiness states, save conflict, discovering Sessions
 - Open/unclear: states of the detail column for download, hash mismatch and conflict (only the success case is drawn); search behavior; whether the filter chips combine with the search.
 
 ## 3d Player Save Conflict
-Lines 183-211. Modal dialog on start reconciliation.
+Lines 184-212. Modal dialog on start reconciliation.
 
 - Layout: screen `#08090a` with dimmed library (stripe pattern, caption "Library (dimmed)" top left, mono 12); dialog centered, 760 wide, surface `#16171a`, border `#2c2d32`, radius 12, padding 32, gap 24.
 - Header: eyebrow "▲ SAVE CONFLICT · HARBOR RALLY" (warn, cyan), title "The hub and this device have different saves" (24/600), text "This device kept playing offline while another device saved a new checkpoint. Nothing is overwritten until you decide. Both saves are backed up to the history first."
@@ -76,7 +76,7 @@ Lines 183-211. Modal dialog on start reconciliation.
 
 
 ## 3e Player Emulation
-Lines 217-293. Rebuilt: defaults and per-system settings. Replaces the earlier level switch (Global → System/Core → Game Override) and the per-row origin text.
+Lines 218-294. Rebuilt: defaults and per-system settings. Replaces the earlier level switch (Global → System/Core → Game Override) and the per-row origin text.
 
 - Grid: sidebar (Emulation active) 232 | second column 300 (surface `#16171a`) | main.
 - Second column: eyebrow "EMULATION"; item "Defaults" (sub "Apply to every system"); eyebrow "SYSTEMS"; one item per system: name 14/600, on the right "{n} changed" (11, `#3cbfd8`, only if changed), sub 12 in ok green: "melonDS DS 1.2.0 · ● Ready". Selected: surface `#1f2024`, ring `0 0 0 1px #2f3035`. Example systems "Game Boy Advance" and "Super Nintendo" appear in the mock only (the second real system is 3DS, see README). Bottom: dashed card (border `#2c2d32`) "Per-game settings" / "Coming later. Set from a game's page in the Library."
@@ -98,7 +98,7 @@ Lines 217-293. Rebuilt: defaults and per-system settings. Replaces the earlier l
 - "Renderer" and "Internal resolution" are available since 0.5 (OpenGL hardware rendering, ADR 0013 D5; they apply on next start); "Default Multiview" has no "Grid 2×2" option although 3r adds that mode; "DS screen layout" is the global default and the in-game layout switch (3g) applies only to the running game (decided by Fabio, 2026-10-07); where an inherited value comes from is no longer shown (README); views for "Firmware missing" (architecture: block launch) not drawn.
 
 ## 3f Player Controllers
-Lines 299-373. Profiles, remapping, input test.
+Lines 300-374. Profiles, remapping, input test.
 
 - Grid: sidebar (Controllers active) 232 | device list 300 | main | input test 340 (surface `#16171a`).
 - Device list: eyebrow "DEVICES"; entries (radius 8, padding 12; selected surface `#1f2024`): name 14/500, on the right slot (mono 11), below it status and profile 12. Mock: "Xbox Wireless Controller" P1 "● Connected · Standard Gamepad" (selected); "Keyboard" "—" "● Connected · Keyboard Standard"; "Mouse" "Touch" "● Connected · DS-Touch"; "DualSense" "—" "Not connected · last used 02.10." (muted).
@@ -110,7 +110,7 @@ Lines 299-373. Profiles, remapping, input test.
 - Open: Hotkeys tab content (and which keys exist; Esc/F11 see 3g), analog stick/trigger display, slot assignment and profile management (delete/rename) not drawn; SDL3 mapping details are not part of the design. The earlier note "Profiles stay local" is replaced by "Saved on this device only".
 
 ## 3p Player Settings
-Lines 379-440. New. Updates, Hubs (with edit), Appearance, Diagnostics.
+Lines 380-441. New. Updates, Hubs (with edit), Appearance, Diagnostics.
 
 - Grid: sidebar (Settings active, accent dot while an update is available) 232 | section column 300 | main (padding as 3e).
 - Section column: eyebrow "SETTINGS"; items (name + status line): "Updates" "▲ Update available · 0.3.2"; "Hubs" "2 saved · Home active"; "Appearance" "Dark"; "Diagnostics" "Logs and support". Bottom mono: "Player 0.3.1-beta.215" / "Windows x86-64 · Protocol v1" (mock versions). Open: anchors or sub-pages (README).
@@ -126,38 +126,38 @@ Lines 379-440. New. Updates, Hubs (with edit), Appearance, Diagnostics.
 - Open: add-hub flow from here (reuses 3a/3b), confirmation on Remove, what "Switch" shows while connecting, error state of "Check now".
 
 ## 3g Player Session
-Lines 446-512. In game, Session shared, visibility "Invite only" with user selection; layout switch, fullscreen, save slot, connection diagnostics.
+Lines 447-518. In game, Session shared, visibility "Invite only" with user selection; layout switch, fullscreen, save slot, diagnostics overlay (Emulation and Streaming, see 3t-3y).
 
 - Grid: rows 56 | 1fr; columns 1fr | 340; background `#0b0b0c`; no sidebar. Fullscreen: header and side panel are dropped, the play area fills the screen.
 - Header (across both columns, surface `#111214`, padding 0 20): "← Library", divider, game title "Lumen Drift" (15/600), pill "● Session shared · 1 watching" (ok); tab segment "Session" (active) | "Multiview" | "Diagnostics"; on the right (after a spacer):
   - Layout switch (segment, 13): "Stacked" | "Side by side" | "Top only", each with a mini icon (two 9 x 7 boxes with 1.5 border, laid out in a column or row; "Top only": second box at 25 % opacity). Default "Stacked". Open: does it change the default (README).
   - Fullscreen button (34 high, padding 0 12, radius 7, border `#3a3b40`, 13/500): square icon (12, dashed border) + "Fullscreen" + mono 11 "F11".
 - Play area: two DS screens (each 480 x 360, placeholders "top DS screen" / "bottom screen · touch via mouse", lower one with dashed outline) in a column (Stacked), a row (Side by side) or only the top screen (Top only).
-- Diagnostics overlay (top left of the play area, offset 16, 290 wide, surface `rgba(17,18,20,.94)`, border `#26272b`, radius 10, padding 14): eyebrow "DIAGNOSTICS · CONNECTIONS" with "Hide"; per peer: name 13/500, role 11 ("host", "viewer"), small connection pill on the right, mono 11 line below. Mock: "You" host, "Local" (neutral), "NVENC · H.264 · 6.0 Mbit/s · 60.0 fps"; "Lena" viewer, "Relayed (TURN)" (warn, cyan), "via hub.example.com:3478 · RTT 48 ms · 3.9 Mbit/s". Connection types: Local (neutral), Direct (ok), Relayed (TURN) (cyan). Toggle at the bottom of the side panel: "▾ Hide diagnostics" / "▸ Show diagnostics" (default open in the mock).
+- Diagnostics overlay (top left of the play area, offset 16, 350 wide): the common overlay with two sections as specified under 3t-3y. Mock state: Emulation collapsed to its summary line ("59.83 fps · 9.4 ms"), Streaming open with "You" (host, Local, "Encoder NVENC · H.264 · 6.0 Mbit/s · 60.0 fps", "Sending to 1 viewer · adaptive bitrate") and "Lena" (viewer, Relayed (TURN), "Decoder on her Player · 3.9 Mbit/s · 59.7 fps", "RTT 48 ms · Loss 0.4 % · via hub.example.com:3478"). Opened by the Diagnostics tab, the toggle at the bottom of the side panel ("▾ Hide diagnostics" / "▸ Show diagnostics") or F3.
 - Fullscreen toolbar (see below).
 - Side panel 340 (surface `#111214`, padding 20 24, gap 14):
   - "VISIBILITY": segment "Private" | "Hub users" | "Invite only" (active).
   - "INVITED · 2" with note on the right "only you can change this"; list: "Lena" (green dot, "watching", pill "Relayed (TURN)", action "Remove"), "Jonas" (gray dot, "invited · offline", action "Withdraw"). Relay hint (surface `#14222a`, border `#1a3238`, text `#a9cdd6`, 12): "ⓘ Lena is relayed via the hub (TURN) · may lag slightly."
   - Invite field (accent border, input "Sa", note on the right "Users on this hub") with result list: "Sam" ("online"), "Sarah" ("offline · receives the invite while the session is running"), each with button "Invite" (accent).
   - Note: "Invitees can only watch and listen. They send no input and cannot invite others."
-  - Bottom: block "SAVE SLOT" with note "synced to hub": slot selector (segment, mock "Main" | "100% run", plus a "+" button for a new slot), button "Save snapshot" with mono "F5", status line: "Checkpoint 40 s ago to “Main” · final sync on pause or exit"; after a snapshot "Snapshot v15 saved to “Main” · kept until you delete it". Then buttons "Stop sharing" (outline, 42), "Quit game and save" (surface `#1f2024`, 42) and the diagnostics toggle.
+  - Bottom: block "SAVE SLOT" with note "synced to hub": slot selector (segment, mock "Main" | "100% run", plus a "+" button for a new slot), button "Save snapshot" with mono "F5", status line: "Checkpoint 40 s ago to “Main” · final sync on pause or exit"; after a snapshot "Snapshot v15 saved to “Main” · kept until you delete it". Then buttons "Stop sharing" (outline, 42), "Quit game and save" (surface `#1f2024`, 42) and the diagnostics toggle (with the F3 hint in the diagnostics overlay).
 - Fullscreen toolbar (3g, 3h, 3i): floating bar at the top center (top 18, padding 6 6 6 14, radius 10, surface `rgba(22,23,26,.92)`, border `#2c2d32`, shadow `0 12px 30px rgba(0,0,0,.5)`): title (13/600; 3h/3i "Multiview · Side-by-Side" / "Multiview · Picture-in-Picture"), divider, layout switch, button "Exit fullscreen" with mono "F11 · Esc". Hint at the bottom center (12, `#5e5e63`): "Toolbar appears when you move the mouse to the top". The mock draws the bar permanently; the intended behavior is the hint text (appears on mouse at the top).
 - Phase note: layout switch and fullscreen: 0.6 UI pass; save slot, snapshot and Direct/Relayed: 0.4 features (README).
-- Open: views for visibility "Private" and "Hub users", behavior when the Hub or connection fails, header pill without a Session; Esc vs game hotkeys, layout vs Emulation default, 3DS layouts (README); slot creation and deletion not drawn; the diagnostics overlay stays visible in the mock's fullscreen state.
+- Open: views for visibility "Private" and "Hub users", behavior when the Hub or connection fails, header pill without a Session; Esc vs game hotkeys, layout vs Emulation default, 3DS layouts (README); slot creation and deletion not drawn; fullscreen diagnostics see 3y.
 
 ## 3h Player Side-by-Side
-Lines 518-571. Multiview, side-by-side, diagnostics expanded.
+Lines 524-572. Multiview, side-by-side, diagnostics expanded (two sections).
 
 - Grid: rows 56 | 1fr | auto; background `#0b0b0c`.
 - Header: "← Library", divider, title "Multiview", mode segment "PiP" | "Side-by-Side" (active) | "Grid 2×2"; on the right tab segment "Session" | "Multiview" (active) | "Diagnostics", then layout switch and "Fullscreen" button as in 3g. The layout applies to all tiles at once (local and remote).
 - Middle: two equal-width columns (gap 2, background `#1e1f22` as divider); per column: header with avatar 28, "{who} · {game}", meta 12 and audio button ("Audio active" accent or "Audio here" outline); below it two screens (placeholders "{label} · top/bottom"; sizes per layout: Stacked 360 x 270, Side by side 300 x 225, Top only 480 x 360 with the bottom screen hidden).
 - Mock (script): surface 1 "You · Lumen Drift", meta "local", audio active; surface 2 "Lena · Harbor Rally", meta "Lena's session", button "Audio here".
-- Diagnostics panel at the bottom (surface `#111214`, border top): title "▾ Diagnostics" + "technical details · optional"; per participant a mono-12 row: name, connection pill, four values. Mock: "local" [Local] 60.0 fps · Encoder NVENC · H.264 · 6.0 Mbit/s · Opus 128 kbit/s; "Lena" [Direct] 59.9 fps · WebRTC · RTT 14 ms · 5.8 Mbit/s · Loss 0.1 %. A "Relayed (TURN)" row looks the same with the cyan pill (shown in 3g, 3r).
-- Fullscreen: header and diagnostics panel disappear; toolbar see 3g.
+- Diagnostics panel at the bottom (surface `#111214`, border top `#26272b`, padding 12 20 14, windowed mode only): the multiview variant of the common overlay, two sections Emulation and Streaming with the F3 hint ("F3 show / hide", "Hide"); per-tile content see 3x. Mock: Emulation tile 1 local "melonDS DS 1.4.0", tile 2 remote note; Streaming grouped per tile session ("You" Local, "Jonas" Relayed (TURN) under tile 1; "Lena" Direct under tile 2).
+- Fullscreen: header and diagnostics panel disappear (diagnostics in fullscreen: 3y); toolbar see 3g.
 - Exactly one surface has audio; switching via "Audio here". Phase: per-tile connection type 0.4 feature, UI in 0.6.
 
 ## 3r Player Multiview Grid
-Lines 577-615. New. Up to four tiles, picker "Add to multiview", audio focus on one tile.
+Lines 578-616. New. Up to four tiles, picker "Add to multiview", audio focus on one tile.
 
 - Grid: rows 56 | 1fr; background `#0b0b0c`.
 - Header: "← Library", divider, "Multiview", mode segment "PiP" | "Side-by-Side" | "Grid 2×2" (active), mono 12 "{n} of 4 tiles · keys 1–4 move audio", tab segment "Session" | "Multiview" (active) | "Diagnostics", button "+ Add to multiview" (34 high, border `#3a3b40`; surface `#2c2d32` while the picker is open). No layout switch and no fullscreen button are drawn in this screen (open).
@@ -171,10 +171,66 @@ Lines 577-615. New. Up to four tiles, picker "Add to multiview", audio focus on 
 - Phase: 0.4 feature (up to 4 tiles, audio focus), UI in 0.6. Open: layout switch/fullscreen in the grid, behavior when a Session ends (tile becomes empty?), diagnostics per tile.
 
 ## 3i Player PiP
-Lines 621-665. Multiview, picture-in-picture.
+Lines 622-666. Multiview, picture-in-picture.
 
 - Layout like the 3h header (mode segment "PiP" active, "Grid 2×2" added, layout switch and Fullscreen button); tab "Multiview" active. No diagnostics bar.
 - Main picture: local Session, two screens (480 x 360, placeholders "local · top/bottom") centered.
 - PiP window bottom right (offset 28, width 248, surface `#16171a`, border `#2c2d32`, radius 10, padding 8): header row green dot, "Lena · Harbor Rally", on the right "muted"; two remote screens (each 174 high, "remote · top/bottom"); buttons "Swap" and "Remove" (50 % each).
 - Fullscreen: toolbar title "Multiview · Picture-in-Picture"; see 3g.
 - Open: moving/resizing the PiP window, multiple PiPs, audio control in the PiP (only status "muted"), connection type of the remote not shown not drawn.
+
+## Diagnostics overlay (3t-3y, common)
+Lines 669-677 (intro). New; the older single "DIAGNOSTICS · CONNECTIONS" panel is gone. Proposal from the handoff after Fabio's request of 2026-10-07 to split emulator and streaming diagnostics; not accepted yet (README, Decisions item 5). All values are illustrative; open points README m-s.
+
+Three rules of the intro block:
+- One overlay with two sections, each collapsing to one summary line; same look in the window, multiview and fullscreen.
+- One way to open it: Diagnostics tab, the toggle at the bottom of the side panel and F3 do the same; open/closed is remembered per section.
+- Streaming only when relevant: "No active session" in the window, left out in fullscreen.
+
+Overlay (windowed single game; position top left of the play area, offset 16, width 350, padding 14, radius 10, surface `rgba(17,18,20,.94)`, border `#26272b`, gap 12, above the game):
+- Section header (click toggles): caret (`▾` open, `▸` collapsed), title mono 11/500 `#7d7d83` letter-spacing .08em ("DIAGNOSTICS · EMULATION", "DIAGNOSTICS · STREAMING"), right-aligned summary mono 11 `#8e8e94` shown only while collapsed (Emulation: "59.83 fps · 9.4 ms"; Streaming: "2 · 1 relayed" or "No session"). Sections are separated by a 1px line `#1e1f22` (padding-top 12).
+- Emulation rows (label column 76, 11/`#7d7d83`; value mono 12 `#ecebe7`; optional subline mono 11 `#8e8e94`): Core ("melonDS DS 1.4.0"); Renderer ("OpenGL 4.6 Core", subline "Example GPU · Driver 1.2.3"; Software: "Software", subline "CPU · 4 threads"); Resolution (scale and pixels, subline per-screen size, e.g. "3× · 768×1152", "2 screens of 768×576"); FPS ("59.8 / 59.83 fps" = actual / core target); Frame ("9.4 ms · emu 7.1 · readback 2.3"; Software "6.2 ms · emu 6.2 · no readback"); then the frame-time sparkline (236 x 34, indent 86; last 5 s; total line accent 1.25, emu line `#6f6f75` 1, area under total `rgba(60,191,216,.14)`, dashed 16.7 ms line `#3a3b40`; legend mono 10 `#6f6f75`); then Audio ("Buffer 42 ms · 0 underruns", with underruns a subline such as "raise the buffer in Emulation settings").
+- Fallback hint (only when OpenGL was requested but software runs): info box (surface `#14222a`, border `#1a3238`, text `#a9cdd6` 12, radius 8, padding 9 10, icon `ⓘ` accent) "OpenGL requested · fell back to software (GL 4.3 not available)" above the rows; the Renderer row gets the pill "Fallback" (warn, cyan) and subline "requested: OpenGL"; the Resolution subline says "3× requested · needs OpenGL".
+- Streaming per participant: line 1 name 13/500, role 11 (`#7d7d83`, "host" / "viewer"), connection pill right (small variant: Local neutral, Direct ok, Relayed (TURN) warn); line 2 mono 11 `#a3a3a8` encoder or decoder, codec, bitrate, fps (e.g. "Encoder NVENC · H.264 · 6.0 Mbit/s · 60.0 fps", "Decoder D3D11VA · H.264 · 5.8 Mbit/s · 59.9 fps"); line 3 mono 11 `#8e8e94` RTT, loss and, when relayed, "via hub.example.com:3478", or "Sending to 1 viewer · adaptive bitrate". Without a session: text 12 `#6f6f75` "No active session · appears when you share or watch one".
+- Footer (padding-top 10, top line `#1e1f22`): key badge "F3" (mono 10, border `#3a3b40`, radius 3) + "show / hide", right "Hide" (12 `#a3a3a8`).
+- Closed: overlay gone; Diagnostics tab and side-panel toggle show the state (tab underline accent while open).
+
+Per-screen differences follow. All 1440 x 900, background `#0b0b0c`; the windowed ones (3t-3w) have the game header (as 3g: "← Library", title "Lumen Drift", Session pill, tabs, layout switch, Fullscreen) and the side panel 340 with visibility, save slot and "Quit game and save".
+
+## 3t Player Diagnostics Software
+Lines 680-699. New. Single game, no session, Renderer Software.
+
+- Pill "Not shared"; side panel visibility "Private" ("Only you can see this game. Choose Hub users or Invite only to share it.").
+- Overlay: Emulation open (Software values, "no readback", Audio "Buffer 42 ms · 0 underruns"), Streaming open showing "No active session · appears when you share or watch one".
+
+## 3u Player Diagnostics OpenGL
+Lines 703-722. New. Single game, no session, Renderer OpenGL.
+
+- Overlay: Emulation open with Renderer "OpenGL 4.6 Core" + GPU/driver subline, Resolution "3× · 768×1152", Frame with readback; Streaming collapsed to the summary "No session".
+
+## 3v Player Diagnostics Session
+Lines 726-745. New. Session shared.
+
+- Pill "Session shared · 1 watching"; side panel "INVITED · 1" with Lena (watching, Relayed (TURN), "Remove"), relay hint, "+ Invite someone", "Stop sharing".
+- Overlay: both sections open; Streaming with "You" (host, Local) and "Lena" (viewer, Relayed (TURN)).
+
+## 3w Player Diagnostics Fallback
+Lines 749-768. New. OpenGL requested, software in use.
+
+- Pill "Not shared". Overlay: Emulation open with the fallback hint, Renderer "Software" + pill "Fallback" (subline "requested: OpenGL"), Resolution "1× · 256×384" (subline "3× requested · needs OpenGL"), Frame "11.6 ms · emu 11.6 · no readback" with a spiky sparkline, Audio "Buffer 18 ms · 3 underruns" (subline "raise the buffer in Emulation settings"); Streaming collapsed ("No session").
+- Open: README q (text and reasons of the fallback).
+
+## 3x Player Multiview Diagnostics
+Lines 772-780. New. Multiview side by side (tiles with 320 x 240 screens), header as 3h with tab "Diagnostics".
+
+- Panel at the bottom (surface `#111214`, border top `#26272b`, padding 12 20 14); the sections span the width in two columns (gap 24, indent 18), F3 footer. Same panel as in 3h.
+- Emulation per tile: title ("You · Lumen Drift", "tile 1 · local"), values in one wrapped mono 12 line ("melonDS DS 1.4.0", "OpenGL 4.6 Core · 3× · 768×1152", "59.8 / 59.83 fps", "frame 9.4 ms · emu 7.1 · readback 2.3", "audio 42 ms · 0 underruns") and a sparkline (200 x 22). Remote tile ("Lena · Harbor Rally", "tile 2 · remote"): "Emulation runs on Lena's Player · not measured here".
+- Streaming grouped per tile session: "Tile 1 · your session" (You Local "Sending to 1 viewer", Jonas Relayed (TURN)); "Tile 2 · Lena's session" (Lena host, Direct, "Decoder D3D11VA · H.264 · 5.8 Mbit/s · 59.9 fps", "RTT 14 ms · Loss 0.1 %").
+- Collapsed summaries: "Tile 1 · 59.83 fps · 9.4 ms", "3 participants · 1 relayed".
+
+## 3y Player Fullscreen Diagnostics
+Lines 784-810. New. Fullscreen, Emulation diagnostics shown, F3 toggles.
+
+- No header and no panels; the common overlay floats top left (350) over the game; Streaming is omitted. Hint at the bottom center: "Toolbar appears when you move the mouse to the top · F3 diagnostics".
+- Closed: a small chip top left (surface `rgba(17,18,20,.8)`, radius 7, padding 6 10, 12 `#8e8e94`) with the badge "F3" and "Diagnostics" opens it.
+- Phase of 3t-3y: 0.6 Player UI pass; the values need new measurements. Open: README m-s.
