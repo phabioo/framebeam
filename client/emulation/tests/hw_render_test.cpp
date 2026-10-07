@@ -139,6 +139,23 @@ class HwRenderTest : public QObject {
     qunsetenv("FB_FAKE_HW_CTX");
   }
 
+  void unavailableVersionIsRejected() {
+    qputenv("FB_FAKE_HW_MAJOR", "9");
+    qputenv("FB_FAKE_HW_MINOR", "9");
+    QTemporaryFile rom;
+    QVERIFY(rom.open());
+    rom.write("x");
+    rom.flush();
+    LibretroBackend be;
+    be.prepareForStart();
+    QString err;
+    QVERIFY2(be.loadCore(QStringLiteral(FB_FAKE_HW_CORE_PATH), &err), qPrintable(err));
+    QVERIFY(!be.loadGame(rom.fileName(), &err));
+    QCOMPARE(count(QStringLiteral("rejected")), 1);
+    qunsetenv("FB_FAKE_HW_MAJOR");
+    qunsetenv("FB_FAKE_HW_MINOR");
+  }
+
   void runnerUsesEmulationThread() {
     QTemporaryFile rom;
     QVERIFY(rom.open());

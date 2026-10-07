@@ -33,15 +33,21 @@ struct BindingGuard {
     rbo = static_cast<GLuint>(v);
     f->glGetIntegerv(GL_TEXTURE_BINDING_2D, &v);
     tex = static_cast<GLuint>(v);
+    f->glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING, &v);
+    pbo = static_cast<GLuint>(v);
+    f->glGetIntegerv(GL_PACK_ALIGNMENT, &packAlign);
   }
   ~BindingGuard() {
     f->glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     f->glBindRenderbuffer(GL_RENDERBUFFER, rbo);
     f->glBindTexture(GL_TEXTURE_2D, tex);
+    f->glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo);
+    f->glPixelStorei(GL_PACK_ALIGNMENT, packAlign);
   }
   Q_DISABLE_COPY(BindingGuard)
   QOpenGLFunctions* f;
-  GLuint fbo = 0, rbo = 0, tex = 0;
+  GLuint fbo = 0, rbo = 0, tex = 0, pbo = 0;
+  GLint packAlign = 4;
 };
 }  // namespace
 
@@ -127,24 +133,43 @@ bool HwRenderContext::createContext(bool coreProfile, unsigned major, unsigned m
   fmt.setGreenBufferSize(8);
   fmt.setBlueBufferSize(8);
   fmt.setAlphaBufferSize(8);
+  int reqMajor = 0, reqMinor = 0;  // effective requested version (0.0 = any)
   if (coreProfile) {
     unsigned ma = std::max(major, 3u), mi = minor;
     if (ma == 3 && mi < 2) mi = 2;  // a core profile needs at least 3.2
-    fmt.setVersion(static_cast<int>(ma), static_cast<int>(mi));
+    reqMajor = static_cast<int>(ma);
+    reqMinor = static_cast<int>(mi);
+    fmt.setVersion(reqMajor, reqMinor);
     fmt.setProfile(QSurfaceFormat::CoreProfile);
   } else {
     fmt.setProfile(QSurfaceFormat::NoProfile);
-    if (major != 0) fmt.setVersion(static_cast<int>(major), static_cast<int>(minor));
+    if (major != 0) {
+      reqMajor = static_cast<int>(major);
+      reqMinor = static_cast<int>(minor);
+      fmt.setVersion(reqMajor, reqMinor);
+    }
   }
   d->ctx = std::make_unique<QOpenGLContext>();
   d->ctx->setFormat(fmt);
   if (!d->ctx->create()) return fail(QStringLiteral("OpenGL context could not be created"));
   const QSurfaceFormat got = d->ctx->format();
-  if (coreProfile && (got.version() < qMakePair(3, 2) || got.profile() != QSurfaceFormat::CoreProfile))
+  if (coreProfile && got.profile() != QSurfaceFormat::CoreProfile)
     return fail(QStringLiteral("Core profile not available (got %1.%2)").arg(got.majorVersion()).arg(got.minorVersion()));
   if (!d->ctx->makeCurrent(d->surface)) return fail(QStringLiteral("OpenGL context could not be made current"));
   d->f = d->ctx->functions();
   d->f->initializeOpenGLFunctions();
+  {
+    // QSurfaceFormat may echo the request; the driver's real version is authoritative.
+    GLint ma = 0, mi = 0;
+    d->f->glGetIntegerv(GL_MAJOR_VERSION, &ma);
+    d->f->glGetIntegerv(GL_MINOR_VERSION, &mi);
+    if (ma == 0) {
+      ma = got.majorVersion();
+      mi = got.minorVersion();
+    }
+    if (ma < reqMajor || (ma == reqMajor && mi < reqMinor))
+      return fail(QStringLiteral("OpenGL %1.%2 requested, got %3.%4").arg(reqMajor).arg(reqMinor).arg(ma).arg(mi));
+  }
   d->info = QStringLiteral("%1 / %2 / %3")
                 .arg(glString(d->f, GL_VENDOR), glString(d->f, GL_RENDERER), glString(d->f, GL_VERSION));
 

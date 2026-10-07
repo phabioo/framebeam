@@ -18,7 +18,7 @@ Phase plan: [Workflow](docs/workflow.md#phase-plan). The PoC (phases 0-5) is com
 | 0.2 Cores from the Hub | done (merged with this PR) | Installers ship no cores; the Hub fetches signed core packages and serves them to Players ([ADR 0010](docs/adr/0010-cores-from-the-hub.md), proposed) |
 | 0.3 Automatic updates | done (merged with this PR) | Versions and channels, signed update index, Hub as .deb with updater, Windows Player launcher layout with updater ([ADR 0011](docs/adr/0011-automatic-updates.md), proposed) |
 | 0.4 Sessions over the internet and save comfort | done in code; relay and multiview verified across networks only locally | Embedded STUN/TURN relay, connection type and bitrate adaptation, multiview with up to 4 surfaces, Player-side core index check, save retention, restore, snapshots, push and slots ([ADR 0012](docs/adr/0012-internet-sessions-and-save-comfort.md), accepted) |
-| 0.5 OpenGL hardware rendering | done in code; GPUs and drivers verified only locally | Offscreen OpenGL context for libretro cores, melonDS DS OpenGL renderer and internal resolution ([ADR 0013](docs/adr/0013-opengl-hardware-rendering.md), proposed) |
+| 0.5 OpenGL hardware rendering | done in code; GPUs and drivers verified only locally | Offscreen OpenGL context for libretro cores, melonDS DS OpenGL renderer and internal resolution ([ADR 0013](docs/adr/0013-opengl-hardware-rendering.md)) |
 | Post-PoC | planned | See [Roadmap](docs/roadmap.md) (versions 0.6 to 0.11) |
 
 ## What works

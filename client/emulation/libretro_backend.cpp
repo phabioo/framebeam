@@ -781,7 +781,7 @@ bool LibretroBackend::handleEnvironment(unsigned rawCmd, void* data) {
       *static_cast<unsigned*>(data) = RETRO_HW_CONTEXT_OPENGL_CORE;
       return true;
     }
-    case RETRO_ENVIRONMENT_SET_HW_SHARED_CONTEXT: return true;
+    case RETRO_ENVIRONMENT_SET_HW_SHARED_CONTEXT: return false;  // no shared contexts offered
 
     // Deliberately rejected: other HW APIs, rumble, sensors, VFS, microphone, netpacket, ...
     default: return false;
