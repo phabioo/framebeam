@@ -127,6 +127,9 @@ func (s *Server) Register(mux *http.ServeMux) {
 	h("GET /settings", s.guard(s.settingsGet))
 	h("POST /settings/appearance", s.guard(s.settingsAppearance))
 	h("POST /settings/uploads", s.guard(s.settingsUploads))
+	h("POST /settings/updates", s.guard(s.settingsUpdates))
+	h("POST /settings/updates/check", s.guard(s.settingsUpdatesCheck))
+	h("POST /settings/updates/install", s.guard(s.settingsUpdatesInstall))
 	h("POST /settings/name", s.guard(s.settingsName))
 	h("POST /settings/password", s.guard(s.settingsPassword))
 }
@@ -170,6 +173,7 @@ type pageData struct {
 	Pending             int
 	Conflicts           int    // open save conflicts (nav badge)
 	Firmware            int    // required firmware files missing or mismatching (nav badge, mode native)
+	UpdateAvailable     bool   // a newer Hub version is known (nav dot on Settings)
 	Theme               string // light, dark or system (Hub setting)
 	Flash, Error        string
 	Fragment            bool
@@ -177,31 +181,38 @@ type pageData struct {
 }
 
 var flashTexts = map[string]string{
-	"uploaded":   "ROM added to the library.",
-	"deleted":    "ROM deleted.",
-	"name":       "Hub name saved.",
-	"password":   "Password changed.",
-	"resolved":   "Conflict resolved.",
-	"disabled":   "User disabled. Their devices are signed out and their Sessions ended.",
-	"enabled":    "User enabled.",
-	"revoked":    "Invite revoked.",
-	"appearance": "Appearance saved.",
-	"uploads":    "Upload setting saved.",
-	"version":    "Expected core version saved.",
-	"fwmode":     "Firmware mode saved.",
-	"fwfile":     "Firmware file saved.",
-	"fwremoved":  "Firmware file removed.",
-	"fwpin":      "Expected SHA-256 saved.",
-	"coresync":   "Checking the core source in the background. Reload the page in a moment.",
+	"uploaded":      "ROM added to the library.",
+	"deleted":       "ROM deleted.",
+	"name":          "Hub name saved.",
+	"password":      "Password changed.",
+	"resolved":      "Conflict resolved.",
+	"disabled":      "User disabled. Their devices are signed out and their Sessions ended.",
+	"enabled":       "User enabled.",
+	"revoked":       "Invite revoked.",
+	"appearance":    "Appearance saved.",
+	"uploads":       "Upload setting saved.",
+	"version":       "Expected core version saved.",
+	"fwmode":        "Firmware mode saved.",
+	"fwfile":        "Firmware file saved.",
+	"fwremoved":     "Firmware file removed.",
+	"fwpin":         "Expected SHA-256 saved.",
+	"coresync":      "Checking the core source in the background. Reload the page in a moment.",
+	"updates":       "Update settings saved. Checking for updates in the background.",
+	"updatecheck":   "Checking for updates in the background. Reload the page in a moment.",
+	"updateinstall": "Update downloaded and verified. The Hub installs it and restarts in a moment; reload this page afterwards.",
 }
 
 var errTexts = map[string]string{
-	"stale":    "The slot changed in the meantime or the conflict was already resolved. Please review and decide again.",
-	"admin":    "Admins cannot be disabled.",
-	"nouser":   "User not found.",
-	"noinvite": "The invite is no longer active.",
-	"nosystem": "System or file not found.",
-	"nofile":   "Firmware file not found.",
+	"stale":          "The slot changed in the meantime or the conflict was already resolved. Please review and decide again.",
+	"admin":          "Admins cannot be disabled.",
+	"nouser":         "User not found.",
+	"noinvite":       "The invite is no longer active.",
+	"nosystem":       "System or file not found.",
+	"nofile":         "Firmware file not found.",
+	"updatepackage":  "This Hub was not installed from the .deb package, so it cannot install updates itself. Use the manual command shown below.",
+	"updatenone":     "There is no update to install.",
+	"updatebreaking": "This update breaks Players seen in the last 30 days. Use \"Install anyway\" to confirm.",
+	"updatefailed":   "The update could not be downloaded or verified. See the update status below.",
 }
 
 type session struct {
@@ -228,6 +239,7 @@ func (s *Server) base(r *http.Request, sess *session, nav, title string) pageDat
 		if n, err := s.svc.FirmwareProblems(r.Context()); err == nil {
 			d.Firmware = n
 		}
+		d.UpdateAvailable = s.svc.UpdateAvailableBadge(r.Context())
 	}
 	return d
 }

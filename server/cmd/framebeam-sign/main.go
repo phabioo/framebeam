@@ -1,8 +1,9 @@
-// Command framebeam-sign creates and signs the core index of the FrameBeam core packages.
+// Command framebeam-sign creates and signs the core index and the updates index of FrameBeam.
 //
 //	framebeam-sign keygen -out <seed-file>
 //	framebeam-sign add -index <cores-index.json> -package <package.json>
-//	framebeam-sign sign -index <cores-index.json> [-out <file>.sig]   (seed from env FRAMEBEAM_SIGNING_KEY)
+//	framebeam-sign release-add -index <updates-index.json> -release <release.json> [-keep 5]
+//	framebeam-sign sign -index <cores-index.json|updates-index.json> [-out <file>.sig]   (seed from env FRAMEBEAM_SIGNING_KEY)
 //	framebeam-sign verify -index <file> -sig <file> -pub <base64 public key>
 //	framebeam-sign pubkey                                             (seed from env FRAMEBEAM_SIGNING_KEY)
 //
@@ -22,6 +23,7 @@ import (
 	"time"
 
 	"github.com/phabioo/framebeam/server/internal/corepkg"
+	"github.com/phabioo/framebeam/server/internal/updates"
 )
 
 const signingKeyEnv = "FRAMEBEAM_SIGNING_KEY"
@@ -35,7 +37,7 @@ func main() {
 
 func run(args []string, getenv func(string) string, out io.Writer, now func() time.Time) error {
 	if len(args) == 0 {
-		return errors.New("usage: framebeam-sign keygen|add|sign|verify|pubkey [flags]")
+		return errors.New("usage: framebeam-sign keygen|add|release-add|sign|verify|pubkey [flags]")
 	}
 	fs := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	switch args[0] {
@@ -52,13 +54,23 @@ func run(args []string, getenv func(string) string, out io.Writer, now func() ti
 			return err
 		}
 		return add(*idx, *pkg, now)
-	case "sign":
-		idx := fs.String("index", "", "cores-index.json")
-		o := fs.String("out", "", "signature file (default <index>.sig)")
+	case "release-add":
+		idx := fs.String("index", "", "updates-index.json (created when missing)")
+		rel := fs.String("release", "", "release JSON (one object, same shape as an index entry)")
+		keep := fs.Int("keep", 5, "releases to keep per product and channel (newest by SemVer)")
+		allowFile := fs.Bool("allow-file-urls", false, "accept file:// artifact URLs (tests only; default https only)")
 		if err := fs.Parse(args[1:]); err != nil {
 			return err
 		}
-		return sign(*idx, *o, getenv)
+		return releaseAdd(*idx, *rel, *keep, *allowFile, now)
+	case "sign":
+		idx := fs.String("index", "", "cores-index.json or updates-index.json (detected by content)")
+		o := fs.String("out", "", "signature file (default <index>.sig)")
+		allowFile := fs.Bool("allow-file-urls", false, "accept file:// artifact URLs in an updates index (tests only)")
+		if err := fs.Parse(args[1:]); err != nil {
+			return err
+		}
+		return sign(*idx, *o, *allowFile, getenv)
 	case "verify":
 		idx := fs.String("index", "", "cores-index.json")
 		sig := fs.String("sig", "", "signature file")
@@ -164,7 +176,54 @@ func add(indexPath, pkgPath string, now func() time.Time) error {
 	return os.WriteFile(indexPath, append(b, '\n'), 0o644)
 }
 
-func sign(indexPath, outPath string, getenv func(string) string) error {
+// releaseAdd adds or replaces one release in the updates index (created when missing), keeps the newest keep
+// releases per (product, channel) by SemVer and writes deterministic JSON.
+func releaseAdd(indexPath, relPath string, keep int, allowFile bool, now func() time.Time) error {
+	if indexPath == "" || relPath == "" {
+		return errors.New("-index and -release are required")
+	}
+	if keep < 1 {
+		return errors.New("-keep must be at least 1")
+	}
+	raw, err := os.ReadFile(relPath)
+	if err != nil {
+		return err
+	}
+	var r updates.Release
+	if err := json.Unmarshal(raw, &r); err != nil {
+		return fmt.Errorf("release file: %w", err)
+	}
+	if err := updates.ValidateReleaseOpts(r, allowFile); err != nil {
+		return fmt.Errorf("release file: %w", err)
+	}
+	idx := updates.Index{Schema: updates.Schema}
+	switch data, err := os.ReadFile(indexPath); {
+	case errors.Is(err, os.ErrNotExist):
+	case err != nil:
+		return err
+	default:
+		var errs []error
+		if idx, errs = updates.ParseIndexOpts(data, allowFile); len(errs) > 0 {
+			return fmt.Errorf("existing index is invalid: %w", errs[0])
+		}
+	}
+	rels := idx.Releases[:0:0]
+	for _, q := range idx.Releases {
+		if q.Product == r.Product && q.Channel == r.Channel && q.Version == r.Version {
+			continue // replaced
+		}
+		rels = append(rels, q)
+	}
+	idx.Releases = updates.Prune(append(rels, r), keep)
+	idx.GeneratedAt = now().UTC().Truncate(time.Second)
+	b, err := updates.Marshal(idx)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(indexPath, b, 0o644)
+}
+
+func sign(indexPath, outPath string, allowFile bool, getenv func(string) string) error {
 	if indexPath == "" {
 		return errors.New("-index is required")
 	}
@@ -179,7 +238,11 @@ func sign(indexPath, outPath string, getenv func(string) string) error {
 	if err != nil {
 		return err
 	}
-	if _, errs := corepkg.ParseIndex(data); len(errs) > 0 {
+	if updates.LooksLikeUpdatesIndex(data) {
+		if _, errs := updates.ParseIndexOpts(data, allowFile); len(errs) > 0 {
+			return fmt.Errorf("updates index is invalid: %w", errs[0])
+		}
+	} else if _, errs := corepkg.ParseIndex(data); len(errs) > 0 {
 		return fmt.Errorf("index is invalid: %w", errs[0])
 	}
 	line, err := corepkg.Sign(data, seed)

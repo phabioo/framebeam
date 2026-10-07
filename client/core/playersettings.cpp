@@ -10,6 +10,8 @@ namespace framebeam {
 
 namespace {
 constexpr const char* kAppearanceKey = "appearance";
+constexpr const char* kUpdateChannelKey = "update_channel";
+constexpr const char* kUpdateAutoKey = "update_auto_install";
 }
 
 PlayerSettings::PlayerSettings(const QString& baseDir)
@@ -23,6 +25,13 @@ PlayerSettings::PlayerSettings(const QString& baseDir)
     }
   }
   appearance_ = parseAppearance(raw_.value(QLatin1String(kAppearanceKey)).toString());
+  const QString ch = raw_.value(QLatin1String(kUpdateChannelKey)).toString();
+  if (ch == QLatin1String("stable") || ch == QLatin1String("test")) {
+    updateChannel_ = ch;
+  }
+  if (raw_.value(QLatin1String(kUpdateAutoKey)).isBool()) {
+    updateAutoInstall_ = raw_.value(QLatin1String(kUpdateAutoKey)).toBool();
+  }
 }
 
 QString PlayerSettings::appearanceName(Appearance a) {
@@ -45,6 +54,25 @@ PlayerSettings::Appearance PlayerSettings::parseAppearance(const QString& name, 
 bool PlayerSettings::setAppearance(Appearance a) {
   appearance_ = a;
   raw_.insert(QLatin1String(kAppearanceKey), appearanceName(a));
+  return save();
+}
+
+bool PlayerSettings::setUpdateChannel(const QString& channel) {
+  if (!channel.isEmpty() && channel != QLatin1String("stable") && channel != QLatin1String("test")) {
+    return false;
+  }
+  updateChannel_ = channel;
+  if (channel.isEmpty()) {
+    raw_.remove(QLatin1String(kUpdateChannelKey));
+  } else {
+    raw_.insert(QLatin1String(kUpdateChannelKey), channel);
+  }
+  return save();
+}
+
+bool PlayerSettings::setUpdateAutoInstall(bool on) {
+  updateAutoInstall_ = on;
+  raw_.insert(QLatin1String(kUpdateAutoKey), on);
   return save();
 }
 

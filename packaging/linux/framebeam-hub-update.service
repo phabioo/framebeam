@@ -1,0 +1,9 @@
+[Unit]
+Description=Apply a staged FrameBeam Hub update
+Documentation=https://github.com/phabioo/framebeam
+
+[Service]
+Type=oneshot
+# Runs as root: verifies the staged package again (signature, size, SHA-256) and installs it with dpkg.
+EnvironmentFile=-/etc/framebeam/hub.env
+ExecStart=/usr/bin/framebeam-hub update apply-staged

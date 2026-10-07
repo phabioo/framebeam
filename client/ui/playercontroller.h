@@ -31,6 +31,7 @@
 #include "savesync.h"
 #include "sessioncontroller.h"
 #include "system_manifest.h"
+#include "updatescontroller.h"
 
 namespace framebeam::ui {
 
@@ -75,6 +76,8 @@ class PlayerController : public QObject {
   Q_PROPERTY(bool fullscreenOnStart READ fullscreenOnStart NOTIFY emulationSettingsChanged)  // effective FrameBeam option
   // Sessions (3c list, 3g panel, multiview, diagnostics)
   Q_PROPERTY(framebeam::ui::SessionController* sessions READ sessions CONSTANT)
+  // Updates (Settings section + banner)
+  Q_PROPERTY(framebeam::ui::UpdatesController* updates READ updates CONSTANT)
 
  public:
   struct Options {
@@ -83,6 +86,8 @@ class PlayerController : public QObject {
     bool memoryCredentials = false; // tests: no OS credential store
     bool probeCoreVersions = true;  // determine core version for the handshake (briefly loads the core)
     bool enableGamepads = true;     // SDL3 gamepads (tests without hardware use SDL virtual joysticks)
+    bool enableUpdates = false;     // schedule update checks (the app enables it; tests never touch the network)
+    QString updateIndexUrl;         // tests/CI: instead of env FRAMEBEAM_PLAYER_UPDATE_INDEX_URL / the default
     int gamepadPollMs = 8;          // <= 0: no poll timer (tests call controllers()->gamepads()->poll())
   };
 
@@ -108,6 +113,9 @@ class PlayerController : public QObject {
   QVariantMap selectedGame() const;
   GameSession* gameSession() { return &session_; }
   SessionController* sessions() { return sessions_.get(); }
+  UpdatesController* updates() { return updates_.get(); }
+  // A game or a watched Session is running (updates are never applied then).
+  bool sessionBusy() const;
   EmulationController* emulation() { return emulation_.get(); }
   ControllersController* controllers() { return controllers_.get(); }
   bool fullscreenOnStart() const;
@@ -258,6 +266,7 @@ class PlayerController : public QObject {
   LibraryModel model_;
   GameSession session_;
   std::unique_ptr<SessionController> sessions_;
+  std::unique_ptr<UpdatesController> updates_;
   std::unique_ptr<EmulationController> emulation_;
   std::unique_ptr<ControllersController> controllers_;
   bool shareOnStart_ = false;

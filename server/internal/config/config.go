@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/phabioo/framebeam/server/internal/corepkg"
+	"github.com/phabioo/framebeam/server/internal/updates"
 )
 
 // Config is the runtime configuration of the FrameBeam Hub.
@@ -28,8 +29,13 @@ type Config struct {
 	ICEServers []string
 	// CoreIndexURL is the signed core index (default corepkg.DefaultIndexURL).
 	CoreIndexURL string
-	// CoreTrustKeys are additional trusted index signing keys (base64 Ed25519 public keys) besides the compiled-in ones.
+	// CoreTrustKeys are additional trusted signing keys (base64 Ed25519 public keys) besides the compiled-in ones.
+	// They apply to the core index and the updates index.
 	CoreTrustKeys []string
+	// UpdateIndexURL is the signed updates index (default updates.DefaultIndexURL; https or file://).
+	UpdateIndexURL string
+	// UpdateRequestDir is where the update request file is created (default /run/framebeam).
+	UpdateRequestDir string
 }
 
 // repeatList is a repeatable flag.Value: the first use replaces the environment default, further uses append.
@@ -104,11 +110,23 @@ func Register(fs *flag.FlagSet, getenv func(string) string) *Config {
 	}(), "URL of the signed core index (FRAMEBEAM_HUB_CORE_INDEX_URL)")
 	c.CoreTrustKeys = splitCSV(getenv("FRAMEBEAM_HUB_CORE_TRUST_KEYS"))
 	fs.Var(repeatList{&c.CoreTrustKeys, new(bool)}, "core-trust-key",
-		"additional trusted core index signing key, base64 Ed25519 public key; repeatable (FRAMEBEAM_HUB_CORE_TRUST_KEYS, comma-separated)")
+		"additional trusted signing key for the core index and the updates index, base64 Ed25519 public key; repeatable (FRAMEBEAM_HUB_CORE_TRUST_KEYS, comma-separated)")
+	fs.StringVar(&c.UpdateIndexURL, "update-index-url", func() string {
+		if v := getenv("FRAMEBEAM_HUB_UPDATE_INDEX_URL"); v != "" {
+			return v
+		}
+		return updates.DefaultIndexURL
+	}(), "URL of the signed updates index, https or file:// (FRAMEBEAM_HUB_UPDATE_INDEX_URL)")
+	fs.StringVar(&c.UpdateRequestDir, "update-request-dir", func() string {
+		if v := getenv("FRAMEBEAM_HUB_UPDATE_REQUEST_DIR"); v != "" {
+			return v
+		}
+		return updates.DefaultRequestDir
+	}(), "directory for the update request file read by the root helper (FRAMEBEAM_HUB_UPDATE_REQUEST_DIR)")
 	return c
 }
 
-// TrustedCoreKeys returns the compiled-in trusted keys plus the configured ones.
+// TrustedCoreKeys returns the compiled-in trusted keys plus the configured ones (cores and updates).
 func (c *Config) TrustedCoreKeys() ([]ed25519.PublicKey, error) {
 	return corepkg.TrustedKeys(c.CoreTrustKeys)
 }
@@ -131,6 +149,12 @@ func (c *Config) Validate() error {
 	}
 	if u, err := url.Parse(c.CoreIndexURL); err != nil || u.Scheme != "https" || u.Host == "" {
 		return errors.New("core-index-url must be an https URL")
+	}
+	if err := updates.ValidateIndexURL(c.UpdateIndexURL); err != nil {
+		return fmt.Errorf("update-index-url: %w", err)
+	}
+	if c.UpdateRequestDir == "" {
+		return errors.New("update-request-dir must not be empty")
 	}
 	if _, err := c.TrustedCoreKeys(); err != nil {
 		return fmt.Errorf("core-trust-key: %w", err)

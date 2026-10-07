@@ -79,6 +79,114 @@ Rectangle {
                 }
 
                 Rectangle {
+                    objectName: "updatesSection"
+                    Layout.fillWidth: true
+                    implicitHeight: updatesCol.implicitHeight + 40
+                    radius: 10
+                    color: Theme.surface
+                    border.width: 1
+                    border.color: Theme.borderCard
+
+                    ColumnLayout {
+                        id: updatesCol
+                        anchors.fill: parent
+                        anchors.margins: 20
+                        spacing: 12
+                        Eyebrow { text: qsTr("Updates") }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+                            FbLabel { text: qsTr("Version"); color: Theme.textMuted; font.pixelSize: 13 }
+                            FbMono { objectName: "updatesVersion"; text: root.player.updates.currentVersion }
+                            Item { Layout.fillWidth: true }
+                            FbLabel {
+                                objectName: "updatesChannelEffective"
+                                text: qsTr("Channel: %1").arg(root.player.updates.effectiveChannel)
+                                color: Theme.textMuted
+                                font.pixelSize: 12
+                            }
+                        }
+                        FbSegment {
+                            objectName: "updateChannelSegment"
+                            options: [
+                                { value: "default", label: qsTr("Default (%1)").arg(root.player.updates.compiledChannel), name: "updateChannelDefault" },
+                                { value: "stable", label: qsTr("Stable"), name: "updateChannelStable" },
+                                { value: "test", label: qsTr("Test"), name: "updateChannelTest" }
+                            ]
+                            current: root.player.updates.channelSetting
+                            onPicked: value => root.player.updates.setChannel(value)
+                        }
+                        FbToggle {
+                            objectName: "updateAutoInstallToggle"
+                            Layout.fillWidth: true
+                            visible: root.player.updates.autoInstallAvailable
+                            text: qsTr("Install updates automatically (applied at the next start, never during a game)")
+                            checked: root.player.updates.autoInstall
+                            onToggled: root.player.updates.setAutoInstall(checked)
+                        }
+                        FbLabel {
+                            Layout.fillWidth: true
+                            visible: !root.player.updates.autoInstallAvailable && root.player.updates.effectiveChannel === "stable"
+                            color: Theme.textMuted
+                            font.pixelSize: 12
+                            wrapMode: Text.WordWrap
+                            text: qsTr("Stable updates are only installed after you confirm.")
+                        }
+                        FbLabel {
+                            objectName: "updatesStatus"
+                            Layout.fillWidth: true
+                            text: root.player.updates.statusText
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: 13
+                            color: root.player.updates.state === "error" ? Theme.toneColor("error") : Theme.text
+                        }
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: 6
+                            radius: 3
+                            visible: root.player.updates.state === "downloading"
+                            color: Theme.borderRow
+                            Rectangle {
+                                width: parent.width * root.player.updates.progress
+                                height: parent.height
+                                radius: 3
+                                color: Theme.accent
+                            }
+                        }
+                        FbLabel {
+                            text: qsTr("Last check: %1").arg(root.player.updates.lastCheckText)
+                            color: Theme.textMuted
+                            font.pixelSize: 12
+                        }
+                        RowLayout {
+                            spacing: 10
+                            FbButton {
+                                objectName: "updatesCheckNow"
+                                implicitHeight: 32
+                                text: qsTr("Check now")
+                                enabled: !root.player.updates.checking && root.player.updates.state !== "downloading"
+                                onClicked: root.player.updates.checkNow()
+                            }
+                            FbButton {
+                                objectName: "updatesInstall"
+                                implicitHeight: 32
+                                kind: "primary"
+                                visible: root.player.updates.canInstall
+                                text: root.player.updates.state === "ready" ? qsTr("Restart to update") : qsTr("Install and restart")
+                                onClicked: root.player.updates.install()
+                            }
+                            FbButton {
+                                objectName: "updatesNotes"
+                                kind: "link"
+                                visible: root.player.updates.notesUrl !== ""
+                                text: qsTr("Release notes")
+                                onClicked: root.player.updates.openNotes()
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
                     objectName: "hubsSection"
                     Layout.fillWidth: true
                     implicitHeight: hubsCol.implicitHeight + 40

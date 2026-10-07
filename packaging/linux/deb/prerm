@@ -1,0 +1,20 @@
+#!/bin/sh
+# framebeam-hub prerm: stop the units on removal. On upgrade the postinst of the new version restarts the Hub.
+set -e
+
+case "$1" in
+  remove|deconfigure)
+    if [ -d /run/systemd/system ]; then
+      systemctl stop framebeam-hub-update.path framebeam-hub-update.service framebeam-hub.service || true
+      systemctl disable framebeam-hub.service framebeam-hub-update.path >/dev/null 2>&1 || true
+    fi
+    ;;
+  upgrade|failed-upgrade)
+    ;;
+  *)
+    echo "prerm called with unknown argument '$1'" >&2
+    exit 1
+    ;;
+esac
+
+exit 0

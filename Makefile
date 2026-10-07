@@ -1,6 +1,7 @@
 # Quiet check targets (details: scripts/check.sh). Prerequisite for check-client:
 # scripts/bootstrap-vcpkg.sh has been run once.
-.PHONY: check check-hub check-client build-hub generate fetch-core fetch-deps fetch-sdl3
+# HUB_VERSION / HUB_CHANNEL / HUB_COMMIT: ldflags of build-hub; HUB_VERSION is also the .deb version of package-hub-deb.
+.PHONY: check check-hub check-client build-hub package-hub-deb generate fetch-core fetch-deps fetch-sdl3
 
 check:
 	@scripts/check.sh all
@@ -13,6 +14,9 @@ check-client:
 
 build-hub:
 	@scripts/check.sh hub-build
+
+package-hub-deb:
+	@scripts/check.sh hub-deb
 
 generate:
 	@scripts/check.sh generate

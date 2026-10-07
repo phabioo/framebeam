@@ -4,6 +4,10 @@
 //	framebeam-hub setup-admin -username <name> create the first admin (password from stdin)
 //	framebeam-hub renew-cert                   renew the self-generated TLS certificate now and exit
 //	framebeam-hub import-cores <dir>           import signed core packages from a directory (offline) and exit
+//	framebeam-hub version [--json]             print the version (JSON: product, version, channel, commit, protocol versions)
+//	framebeam-hub update check [-channel c]    print the update selection as JSON
+//	framebeam-hub update stage [-channel c]    check, download, verify and stage the update, create the request file
+//	framebeam-hub update apply-staged          root helper of the update unit: verify and install the staged .deb
 package main
 
 import (
@@ -43,6 +47,10 @@ func main() {
 		err = runRenewCert(args[1:], os.Stdout)
 	} else if len(args) > 0 && args[0] == "import-cores" {
 		err = runImportCores(args[1:], os.Stdout)
+	} else if len(args) > 0 && args[0] == "version" {
+		err = runVersion(args[1:], os.Stdout)
+	} else if len(args) > 0 && args[0] == "update" {
+		err = runUpdate(args[1:], os.Stdout)
 	} else {
 		err = runServer(args)
 	}
@@ -67,7 +75,8 @@ func openService(ctx context.Context, cfg *config.Config) (*hub.Service, func(),
 		return nil, nil, err
 	}
 	svc, err := hub.Open(ctx, db, hub.Options{DataDir: cfg.DataDir, Name: cfg.Name, HubVersion: version.String(), ICEServers: cfg.ICEServers,
-		CoreIndexURL: cfg.CoreIndexURL, CoreTrustKeys: keys})
+		CoreIndexURL: cfg.CoreIndexURL, CoreTrustKeys: keys,
+		UpdateIndexURL: cfg.UpdateIndexURL, UpdateRequestDir: cfg.UpdateRequestDir, UpdateChannel: version.Channel})
 	if err != nil {
 		db.Close()
 		return nil, nil, err
@@ -280,6 +289,22 @@ func runServer(args []string) error {
 		})
 	}()
 
+	// Update check: in the background like the core sync, never blocks or fails startup.
+	updDone := make(chan struct{})
+	go func() {
+		defer close(updDone)
+		svc.RunUpdateChecks(ctx, func(r hub.UpdateCheckReport, err error) {
+			switch {
+			case err != nil:
+				log.Warn("update check failed", "err", err)
+			case r.Staged:
+				log.Info("update staged, installation requested", "version", r.Available.Version)
+			case r.Available != nil:
+				log.Info("update available", "version", r.Available.Version, "channel", r.Available.Channel, "breaking_for_players", r.Available.Breaking)
+			}
+		})
+	}()
+
 	errc := make(chan error, 1)
 	go func() {
 		if cfg.UseTLS() {
@@ -301,6 +326,10 @@ func runServer(args []string) error {
 	}
 	select { // the sync loop stops with ctx; downloads abort with it
 	case <-syncDone:
+	case <-time.After(5 * time.Second):
+	}
+	select {
+	case <-updDone:
 	case <-time.After(5 * time.Second):
 	}
 	return nil

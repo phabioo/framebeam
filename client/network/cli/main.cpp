@@ -1,5 +1,11 @@
 // framebeam_player_cli: developer tool against a real FrameBeam Hub (QtCore/QtNetwork only).
 //   identify <address> [--dev]
+//   update-check [--channel test|stable] [--index-url URL] [--current-version X.Y.Z[-pre]] [--hub-protocol P[:MIN]]
+//     (no Hub, no data dir: fetches the signed update index (env FRAMEBEAM_PLAYER_UPDATE_INDEX_URL, trust keys
+//      compiled in + env FRAMEBEAM_PLAYER_TRUST_KEYS), verifies it and prints the selection as one JSON object:
+//      {"status":"available|up_to_date|incompatible|disabled","current_version","channel","release":{...},
+//      "artifact":{...},"skipped":[...]}; exit 0, or 1 with {"status":"error","error":...} on fetch/signature errors.
+//      Without --channel the compiled channel applies (dev = disabled).)
 //   --accept-fingerprint [<sha256>]: first contact without a value pins what the hub presents. With a value
 //     (64 hex digits, colons optional) it also accepts a CHANGED certificate of a stored profile, but only if the
 //     presented fingerprint equals the value; nothing is sent to the new certificate before that.
@@ -24,6 +30,10 @@
 // Options: --data-dir <path> (otherwise FRAMEBEAM_DATA_DIR / AppDataLocation).
 // Exit codes: 0 ok, 1 error, 2 user action required (confirm fingerprint, approval).
 #include <QCoreApplication>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QNetworkAccessManager>
+#include <QUrl>
 #include <QFile>
 #include <QRegularExpression>
 #include <QTextStream>
@@ -43,6 +53,9 @@
 #include "saveapi.h"
 #include "mediacaps.h"
 #include "sessioncommands.h"
+#include "updater.h"
+#include "updatesig.h"
+#include "version.h"
 
 using namespace framebeam;
 
@@ -88,6 +101,9 @@ class Runner : public QObject {
       return usage();
     }
     command_ = rest.takeFirst();
+    if (command_ == QLatin1String("update-check")) {
+      return updateCheck(rest);
+    }
     if (command_ == QLatin1String("identify") || command_ == QLatin1String("pair") || command_ == QLatin1String("redeem-invite")) {
       if (rest.isEmpty() || (command_ == QLatin1String("redeem-invite") && (inviteCode_.isEmpty() || inviteName_.trimmed().isEmpty()))) {
         return usage();
@@ -147,6 +163,7 @@ class Runner : public QObject {
     err() << "Usage: framebeam_player_cli identify <address> [--dev]\n"
              "        framebeam_player_cli pair <address> [--dev] [--accept-fingerprint] [games] [fetch-rom <sha256>]\n"
              "        framebeam_player_cli redeem-invite <address> --code FB-XXXX-XXXX --name <name> [--dev] [--accept-fingerprint]\n"
+             "        framebeam_player_cli update-check [--channel test|stable] [--index-url URL] [--current-version V] [--hub-protocol P[:MIN]]\n"
              "        framebeam_player_cli games | fetch-rom <sha256>   [--data-dir <path>]\n"
              "        framebeam_player_cli game upload <file> [--title T] | systems | fetch-core <system-id>\n"
              "        framebeam_player_cli saves list | save push <game_id> <file> [--base N] | save pull <game_id> <out>\n"
@@ -154,6 +171,57 @@ class Runner : public QObject {
              "        framebeam_player_cli session-watch (--session <id> | --first) [--seconds N]\n"
              "                             | save resolve <game_id> <conflict_id> use_hub|use_local --expected N\n";
     return 1;
+  }
+
+  int updateCheck(const QStringList& opts) {
+    QString channel = QString::fromUtf8(playerChannel().data(), static_cast<qsizetype>(playerChannel().size()));
+    QString indexUrl = QString::fromLocal8Bit(qgetenv("FRAMEBEAM_PLAYER_UPDATE_INDEX_URL"));
+    QString current = QString::fromUtf8(playerVersion().data(), static_cast<qsizetype>(playerVersion().size()));
+    std::optional<update::HubProtocol> hub;
+    for (qsizetype i = 0; i < opts.size(); ++i) {
+      const QString& a = opts.at(i);
+      if (a == QLatin1String("--channel") && i + 1 < opts.size()) {
+        channel = opts.at(++i);
+      } else if (a == QLatin1String("--index-url") && i + 1 < opts.size()) {
+        indexUrl = opts.at(++i);
+      } else if (a == QLatin1String("--current-version") && i + 1 < opts.size()) {
+        current = opts.at(++i);
+      } else if (a == QLatin1String("--hub-protocol") && i + 1 < opts.size()) {
+        const QStringList p = opts.at(++i).split(QLatin1Char(':'));
+        update::HubProtocol h;
+        h.protocolVersion = p.value(0).toInt();
+        h.minProtocolVersion = p.size() > 1 ? p.value(1).toInt() : h.protocolVersion;
+        if (h.protocolVersion <= 0) return usage();
+        hub = h;
+      } else {
+        return usage();
+      }
+    }
+    if (!update::parseChannel(channel) && channel != QLatin1String("dev")) {
+      return usage();
+    }
+    if (indexUrl.isEmpty()) indexUrl = QLatin1String(update::kDefaultIndexUrl);
+    update::SelectionInput in;
+    in.channel = update::channelFromCompiled(channel);
+    in.currentVersion = current;
+    in.hub = hub;
+    auto* nam = new QNetworkAccessManager(this);
+    update::UpdateManager::fetchIndex(
+        nam, QUrl(indexUrl), update::trustedKeysFromEnvironment(), this, [this, in](const update::FetchedIndex& fi) {
+          if (!fi.ok) {
+            out() << QJsonDocument(QJsonObject{{"status", "error"}, {"error", fi.error}}).toJson(QJsonDocument::Compact) << "\n";
+            out().flush();
+            err() << "Error: " << fi.error << "\n";
+            err().flush();
+            finish(1);
+            return;
+          }
+          const update::Selection sel = update::selectRelease(fi.index, in);
+          out() << QJsonDocument(update::selectionToJson(sel, in, fi.index.skipped)).toJson(QJsonDocument::Compact) << "\n";
+          out().flush();
+          finish(0);
+        });
+    return -1;
   }
 
   void finish(int code) {

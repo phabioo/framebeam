@@ -80,3 +80,22 @@ func TestCoreSourceConfig(t *testing.T) {
 		}
 	}
 }
+
+func TestUpdateConfig(t *testing.T) {
+	c := parse(t, nil)
+	if c.UpdateIndexURL != "https://github.com/phabioo/framebeam/releases/download/updates-index/updates-index.json" ||
+		c.UpdateRequestDir != "/run/framebeam" || c.Validate() != nil {
+		t.Fatalf("defaults: %+v", c)
+	}
+	c = parse(t, map[string]string{"FRAMEBEAM_HUB_UPDATE_INDEX_URL": "file:///tmp/updates-index.json", "FRAMEBEAM_HUB_UPDATE_REQUEST_DIR": "/tmp/req"})
+	if c.UpdateIndexURL != "file:///tmp/updates-index.json" || c.UpdateRequestDir != "/tmp/req" || c.Validate() != nil {
+		t.Fatalf("env: %+v", c)
+	}
+	c = parse(t, map[string]string{"FRAMEBEAM_HUB_UPDATE_INDEX_URL": "https://env.example/i"}, "-update-index-url", "https://flag.example/i", "-update-request-dir", "/x")
+	if c.UpdateIndexURL != "https://flag.example/i" || c.UpdateRequestDir != "/x" {
+		t.Fatalf("flags: %+v", c)
+	}
+	if parse(t, nil, "-update-index-url", "http://x.example/i").Validate() == nil || parse(t, nil, "-update-request-dir", "").Validate() == nil {
+		t.Fatal("invalid update config accepted")
+	}
+}

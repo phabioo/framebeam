@@ -16,3 +16,9 @@ func TestStringOverride(t *testing.T) {
 		t.Fatalf("String() = %q, want %q", got, "1.2.3")
 	}
 }
+
+func TestChannelAndCommitDefaults(t *testing.T) {
+	if Channel != "dev" || Commit != "" {
+		t.Fatalf("Channel=%q Commit=%q", Channel, Commit)
+	}
+}

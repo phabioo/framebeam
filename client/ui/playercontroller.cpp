@@ -1,5 +1,6 @@
 #include "playercontroller.h"
 
+#include <QCoreApplication>
 #include <QDate>
 #include <QDir>
 #include <QFileInfo>
@@ -12,6 +13,7 @@
 
 #include "core_options.h"
 #include "firmware_materializer.h"
+#include "installroot.h"
 #include "libretro_backend.h"
 #include "mediacaps.h"
 #include "version.h"
@@ -128,6 +130,25 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   conn_->setHandshakeInfo(info);
 
   sessions_ = std::make_unique<SessionController>(conn_.get(), profiles_.get(), &session_);
+  {
+    UpdatesController::Options uo;
+    uo.baseDir = profiles_->baseDir();
+    uo.indexUrl = options.updateIndexUrl;
+    uo.installRoot = update::installRootFor(QCoreApplication::applicationDirPath());
+    updates_ = std::make_unique<UpdatesController>(uo, settings_.get());
+    updates_->setProviders(
+        [this]() -> std::optional<update::HubProtocol> {
+          if (conn_->state() != HubConnection::State::Connected || conn_->hubInfo().protocolVersion <= 0) {
+            return std::nullopt;
+          }
+          return update::HubProtocol{conn_->hubInfo().protocolVersion, conn_->hubInfo().minProtocolVersion};
+        },
+        [this]() { return sessionBusy(); });
+    connect(updates_.get(), &UpdatesController::quitRequested, this, [this]() {
+      shutdown();
+      QCoreApplication::quit();
+    });
+  }
   connect(sessions_.get(), &SessionController::watchChanged, this, &PlayerController::updateScreen);
   connect(conn_.get(), &HubConnection::stateChanged, this, &PlayerController::onConnectionState);
   connect(conn_.get(), &HubConnection::errorOccurred, this, [this](const QString& code, const QString& message) {
@@ -419,7 +440,14 @@ QString PlayerController::systemDir() const {
 
 // ---------------------------------------------------------------- Navigation
 
+bool PlayerController::sessionBusy() const {
+  return gameActive_ || session_.isActive() || (sessions_ && sessions_->watching());
+}
+
 void PlayerController::startup() {
+  if (options_.enableUpdates && updates_) {
+    updates_->manager()->start();
+  }
   if (!profiles_->autoConnect() || profiles_->lastHubId().isEmpty()) {
     return;
   }

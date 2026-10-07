@@ -1,0 +1,62 @@
+#!/bin/sh
+# framebeam-hub postinst: user, directories, hub.env (never overwritten), migration of an install-hub.sh
+# install, units. Data (/var/lib/framebeam or a custom data dir) is never touched beyond creating the default.
+set -e
+
+SVC_USER=framebeam
+ENV_DIR=/etc/framebeam
+ENV_FILE=$ENV_DIR/hub.env
+DATA_DIR=/var/lib/framebeam
+
+case "$1" in
+  configure)
+    getent group "$SVC_USER" >/dev/null 2>&1 || groupadd --system "$SVC_USER"
+    id -u "$SVC_USER" >/dev/null 2>&1 || useradd --system --gid "$SVC_USER" --no-create-home \
+      --home-dir /nonexistent --shell /usr/sbin/nologin "$SVC_USER"
+
+    install -d -m 0750 -o root -g "$SVC_USER" "$ENV_DIR"
+    if [ ! -f "$ENV_FILE" ]; then
+      ( umask 027
+        {
+          echo "# FrameBeam Hub configuration (read by systemd, see framebeam-hub.service)."
+          echo "# FRAMEBEAM_NAME is only used on the first start."
+          echo "FRAMEBEAM_LISTEN=:8443"
+          echo "FRAMEBEAM_DATA_DIR=$DATA_DIR"
+        } >"$ENV_FILE" )
+      chown "root:$SVC_USER" "$ENV_FILE"
+      chmod 0640 "$ENV_FILE"
+    fi
+    # The default data dir is created if missing; existing content is left alone.
+    if [ ! -d "$DATA_DIR" ]; then
+      install -d -m 0750 -o "$SVC_USER" -g "$SVC_USER" "$DATA_DIR"
+    fi
+
+    # Migration from install-hub.sh: its unit in /etc/systemd/system would shadow the packaged one. Keep it
+    # for reference; drop-ins in framebeam-hub.service.d/ stay and keep applying.
+    OLD_UNIT=/etc/systemd/system/framebeam-hub.service
+    if [ -f "$OLD_UNIT" ] && grep -q '/usr/local/bin/framebeam-hub' "$OLD_UNIT"; then
+      mv -f "$OLD_UNIT" "$ENV_DIR/framebeam-hub.service.pre-deb"
+      rm -f /usr/local/bin/framebeam-hub
+      echo "framebeam-hub: migrated a script install (old unit kept as $ENV_DIR/framebeam-hub.service.pre-deb)"
+    fi
+
+    if [ -d /run/systemd/system ]; then
+      systemctl daemon-reload || true
+      systemctl enable framebeam-hub.service framebeam-hub-update.path >/dev/null 2>&1 || true
+      if systemctl is-active --quiet framebeam-hub.service; then
+        systemctl restart framebeam-hub.service || true
+      else
+        systemctl start framebeam-hub.service || true
+      fi
+      systemctl start framebeam-hub-update.path || true
+    fi
+    ;;
+  abort-upgrade|abort-remove|abort-deconfigure)
+    ;;
+  *)
+    echo "postinst called with unknown argument '$1'" >&2
+    exit 1
+    ;;
+esac
+
+exit 0

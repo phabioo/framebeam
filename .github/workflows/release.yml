@@ -1,0 +1,198 @@
+name: Release
+
+# Publishes the artifacts of a successful CI run on main (prerelease "test") or on a v* tag (stable release) as GitHub
+# releases, adds them to the signed updates index (release "updates-index") and prunes old test prereleases.
+# No rebuild: the files are exactly what CI built and tested. Spec 0.3 S2/S3, ADR 0011.
+# Stable releases need a deliberate tag push (tag == VERSION, checked by CI); that is the confirmation.
+# The signing seed is the repository secret FRAMEBEAM_SIGNING_KEY; it is only in the environment of the signing step.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  contents: read
+
+# One index update at a time (read-modify-write on the index release); a running publish is never cancelled.
+concurrency:
+  group: updates-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish release and update the index
+    # head_branch is the branch name or, for tag pushes, the tag name.
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      (github.event.workflow_run.head_branch == 'main' || startsWith(github.event.workflow_run.head_branch, 'v'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # create/delete releases and tags, upload assets
+      actions: read     # download the artifacts of the CI run
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RUN_ID: ${{ github.event.workflow_run.id }}
+      HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      # The workflow file and scripts come from the default branch; the release files from the CI run (artifacts).
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      - name: Build framebeam-sign
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          (cd server && CGO_ENABLED=0 go build -o "$RUNNER_TEMP/bin/framebeam-sign" ./cmd/framebeam-sign)
+      - name: Signing key is trusted by the Hub (before anything is published)
+        env:
+          FRAMEBEAM_SIGNING_KEY: ${{ secrets.FRAMEBEAM_SIGNING_KEY }}
+        run: scripts/check-core-signing-key.sh "$RUNNER_TEMP/bin/framebeam-sign"
+      - name: Download the artifacts of the CI run
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/artifacts
+          pattern: framebeam-*
+      - name: Collect release files and decide channel
+        run: |
+          set -euo pipefail
+          art="$RUNNER_TEMP/artifacts"
+          rel="$RUNNER_TEMP/release"
+          mkdir -p "$rel"
+          hub_info="$art/framebeam-hub-linux/hub-release-info.json"
+          player_info="$art/framebeam-player-windows-x64/player-release-info.json"
+          for f in "$hub_info" "$player_info"; do [ -f "$f" ] || { echo "::error::missing $f (artifacts of CI run $RUN_ID)"; exit 1; }; done
+          version="$(jq -r .version "$hub_info")"
+          channel="$(jq -r .channel "$hub_info")"
+          commit="$(jq -r .commit "$hub_info")"
+          for k in version channel; do
+            [ "$(jq -r ".$k" "$player_info")" = "$(jq -r ".$k" "$hub_info")" ] || { echo "::error::Hub and Player disagree on $k"; exit 1; }
+          done
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-test\.[0-9]+)?$ ]] || { echo "::error::unexpected version '$version'"; exit 1; }
+          tag="v$version"
+          if [ "$HEAD_BRANCH" = main ]; then
+            [ "$channel" = test ] || { echo "::error::main build with channel '$channel'"; exit 1; }
+          else
+            # Tag push: the CI run was triggered by the tag itself, the version is exactly the tag.
+            if [ "$channel" != stable ] || [ "$HEAD_BRANCH" != "$tag" ]; then
+              echo "::error::ref '$HEAD_BRANCH' is not the stable tag $tag (channel '$channel')"; exit 1
+            fi
+            gh api "repos/$GH_REPO/git/ref/tags/$tag" >/dev/null || { echo "::error::tag $tag does not exist"; exit 1; }
+          fi
+          cp "$art"/framebeam-hub-linux/framebeam-hub_"${version}"_amd64.deb "$art"/framebeam-hub-linux/framebeam-hub_"${version}"_arm64.deb "$rel/"
+          cp "$art/framebeam-hub-linux/framebeam-hub-linux-amd64" "$rel/framebeam-hub-$version-linux-amd64"
+          cp "$art/framebeam-hub-linux/framebeam-hub-linux-arm64" "$rel/framebeam-hub-$version-linux-arm64"
+          cp "$art/framebeam-player-windows-x64/framebeam-player-$version-windows-x64.zip" "$rel/"
+          cp "$art/framebeam-player-windows-x64-setup/framebeam-player-$version-windows-x64-setup.exe" "$rel/"
+          (cd "$rel" && sha256sum -- * > SHA256SUMS)
+          cat "$rel/SHA256SUMS"
+          {
+            echo "VERSION=$version"
+            echo "CHANNEL=$channel"
+            echo "COMMIT=$commit"
+            echo "TAG=$tag"
+          } >> "$GITHUB_ENV"
+      - name: Create or update the GitHub release
+        run: |
+          set -euo pipefail
+          rel="$RUNNER_TEMP/release"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            if [ "$CHANNEL" = stable ]; then
+              # The tag exists already (pushed by the maintainer).
+              gh release create "$TAG" --title "FrameBeam $VERSION" --verify-tag --generate-notes --latest
+            else
+              gh release create "$TAG" --target "$HEAD_SHA" --title "FrameBeam $VERSION (test build)" --prerelease --latest=false \
+                --notes "Automatic test build of commit $HEAD_SHA from main. Not for production use; stable releases are tagged vX.Y.Z."
+            fi
+          fi
+          gh release upload "$TAG" "$rel"/* --clobber
+      - name: Prune old test prereleases (keep the newest 5)
+        if: env.CHANNEL == 'test'
+        run: |
+          set -euo pipefail
+          # Only prereleases whose tag looks like v<X.Y.Z>-test.<N>; stable releases and other tags are never touched.
+          gh release list --limit 200 --json tagName,isPrerelease,createdAt \
+            --jq '[.[] | select(.isPrerelease and (.tagName | test("^v[0-9]+\\.[0-9]+\\.[0-9]+-test\\.[0-9]+$")))] | sort_by(.createdAt) | reverse | .[5:] | .[].tagName' \
+            | while read -r old; do
+                [ -n "$old" ] || continue
+                echo "deleting $old"
+                gh release delete "$old" --cleanup-tag --yes
+              done
+      - name: Build release descriptions for the index
+        run: |
+          set -euo pipefail
+          rel="$RUNNER_TEMP/release"
+          art="$RUNNER_TEMP/artifacts"
+          out="$RUNNER_TEMP/index-in"
+          mkdir -p "$out"
+          # Asset URLs and sizes as GitHub reports them (GitHub may normalise asset names): look up every wanted asset.
+          gh api "repos/$GH_REPO/releases/tags/$TAG" --jq '.assets | map({name, size, url: .browser_download_url})' > "$RUNNER_TEMP/assets.json"
+          now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          artifact() { # platform kind name
+            local name="$3" a
+            [ -f "$rel/$name" ] || { echo "::error::$name missing locally" >&2; exit 1; }
+            a="$(jq -c --arg n "$name" '.[] | select(.name == $n)' "$RUNNER_TEMP/assets.json")"
+            [ -n "$a" ] || { echo "::error::asset $name is not on release $TAG (GitHub renamed it?)" >&2; exit 1; }
+            [ "$(jq -r .size <<<"$a")" = "$(stat -c %s "$rel/$name")" ] || { echo "::error::size of $name differs on GitHub" >&2; exit 1; }
+            jq -nc --arg platform "$1" --arg kind "$2" --arg name "$name" --argjson a "$a" \
+              --arg sha "$(sha256sum "$rel/$name" | cut -d' ' -f1)" \
+              '{platform:$platform, kind:$kind, name:$name, size:$a.size, sha256:$sha, url:$a.url}'
+          }
+          mk() { # product info-file artifacts-json
+            jq --arg now "$now" --arg notes "https://github.com/$GH_REPO/releases/tag/$TAG" --argjson artifacts "$3" \
+              '{product, channel, version, commit, published_at:$now, notes_url:$notes, protocol_version, min_protocol_version, artifacts:$artifacts}
+               | if .product == "hub" or .product == "player" then . else error("bad product") end' "$2"
+          }
+          # Plain assignments (not process substitution) so a missing asset aborts the step.
+          h1="$(artifact linux-amd64 deb "framebeam-hub_${VERSION}_amd64.deb")"
+          h2="$(artifact linux-arm64 deb "framebeam-hub_${VERSION}_arm64.deb")"
+          h3="$(artifact linux-amd64 binary "framebeam-hub-$VERSION-linux-amd64")"
+          h4="$(artifact linux-arm64 binary "framebeam-hub-$VERSION-linux-arm64")"
+          p1="$(artifact windows-x64 installer "framebeam-player-$VERSION-windows-x64-setup.exe")"
+          p2="$(artifact windows-x64 zip "framebeam-player-$VERSION-windows-x64.zip")"
+          hub_arts="$(jq -sc '.' <<<"$h1 $h2 $h3 $h4")"
+          player_arts="$(jq -sc '.' <<<"$p1 $p2")"
+          mk hub "$art/framebeam-hub-linux/hub-release-info.json" "$hub_arts" > "$out/hub.json"
+          mk player "$art/framebeam-player-windows-x64/player-release-info.json" "$player_arts" > "$out/player.json"
+          jq -c '{product, channel, version, artifacts: (.artifacts | length)}' "$out/hub.json" "$out/player.json"
+      - name: Add to the index, sign and verify
+        env:
+          # The seed exists only in the environment of this step; it is never echoed or written to disk.
+          FRAMEBEAM_SIGNING_KEY: ${{ secrets.FRAMEBEAM_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          [ -n "$FRAMEBEAM_SIGNING_KEY" ] || { echo "::error title=Signing key missing::FRAMEBEAM_SIGNING_KEY is empty"; exit 1; }
+          sign="$RUNNER_TEMP/bin/framebeam-sign"
+          idx="$RUNNER_TEMP/index"
+          mkdir -p "$idx"
+          if gh release view updates-index >/dev/null 2>&1 \
+             && gh release view updates-index --json assets --jq '.assets[].name' | grep -qx updates-index.json; then
+            # An existing index must be read successfully, otherwise it would be silently replaced by a fresh one.
+            gh release download updates-index --pattern updates-index.json --dir "$idx"
+          fi
+          for product in hub player; do
+            "$sign" release-add -index "$idx/updates-index.json" -release "$RUNNER_TEMP/index-in/$product.json" -keep 5
+          done
+          "$sign" sign -index "$idx/updates-index.json" -out "$idx/updates-index.json.sig"
+          pub="$("$sign" pubkey | sed -n 's/^public_key=//p' | head -n 1)"
+          [ -n "$pub" ] || { echo "::error::could not derive the public key"; exit 1; }
+          "$sign" verify -index "$idx/updates-index.json" -sig "$idx/updates-index.json.sig" -pub "$pub"
+          # Same check as the Hub and Player: the key must be one of the compiled-in trusted keys.
+          grep -qF "\"$pub\"" server/internal/corepkg/keys.go || { echo "::error::signing key is not in DefaultTrustedKeys"; exit 1; }
+          jq -r '.releases[] | "\(.product) \(.channel) \(.version)"' "$idx/updates-index.json"
+      - name: Upload the index (release updates-index)
+        run: |
+          set -euo pipefail
+          idx="$RUNNER_TEMP/index"
+          if ! gh release view updates-index >/dev/null 2>&1; then
+            gh release create updates-index --title "FrameBeam update index" \
+              --notes "Signed index of FrameBeam Hub and Player releases (updates-index.json + .sig). Read by FrameBeam Hubs and Players; updated by the release workflow." \
+              --latest=false
+          fi
+          gh release upload updates-index "$idx/updates-index.json" "$idx/updates-index.json.sig" --clobber

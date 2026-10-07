@@ -19,6 +19,7 @@ qt_add_qml_module(framebeam_ui
     playercontroller.h playercontroller.cpp
     sessioncontroller.h sessioncontroller.cpp
     remoteview.h remoteview.cpp
+    updatescontroller.h updatescontroller.cpp
   QML_FILES
     Main.qml
     Theme.qml

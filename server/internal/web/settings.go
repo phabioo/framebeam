@@ -19,6 +19,17 @@ type settingsBody struct {
 	MinPassword             int
 	Appearance              string
 	AllowUploads            bool
+	Updates                 updatesBody
+}
+
+type updatesBody struct {
+	hub.UpdateStatus
+	LastCheckText string
+	LastResultAt  string
+	// Selectable channel option values: "" is the compiled default and only offered for development builds.
+	OffOption bool
+	Channel   string // select value: stable, test or "" (development default)
+	Err       bool   // the status could not be read
 }
 
 func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, sess *session, status int, errMsg string) {
@@ -32,6 +43,22 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, sess *se
 	b.CertSelfGenerated = s.cfg.CertSource == "Self-generated"
 	b.Appearance, _ = s.svc.Appearance(r.Context())
 	b.AllowUploads, _ = s.svc.AllowUserUploads(r.Context())
+	if st, err := s.svc.UpdateStatus(r.Context()); err == nil {
+		b.Updates = updatesBody{UpdateStatus: st, LastCheckText: "never", OffOption: st.Settings.CompiledChannel != "stable" && st.Settings.CompiledChannel != "test"}
+		if st.Settings.ChannelIsSet {
+			b.Updates.Channel = st.Settings.Channel
+		} else if !b.Updates.OffOption {
+			b.Updates.Channel = st.Settings.Channel
+		}
+		if st.LastCheck != nil {
+			b.Updates.LastCheckText = st.LastCheck.Local().Format("2006-01-02 15:04")
+		}
+		if st.LastResult != nil {
+			b.Updates.LastResultAt = st.LastResult.Time.Local().Format("2006-01-02 15:04")
+		}
+	} else {
+		b.Updates.Err = true
+	}
 	d.Body, d.Error = b, errMsg
 	s.render(w, status, "settings", "layout", d)
 }
@@ -102,4 +129,42 @@ func (s *Server) settingsUploads(w http.ResponseWriter, r *http.Request, sess *s
 		return
 	}
 	http.Redirect(w, r, "/settings?ok=uploads", http.StatusSeeOther)
+}
+
+func (s *Server) settingsUpdates(w http.ResponseWriter, r *http.Request, sess *session) {
+	if err := s.svc.SetUpdateSettings(r.Context(), r.PostFormValue("channel"), r.PostFormValue("auto") == "1"); err != nil {
+		var he *hub.Error
+		if errors.As(err, &he) {
+			s.renderSettings(w, r, sess, http.StatusBadRequest, he.Message+".")
+			return
+		}
+		s.fail(w, r, err)
+		return
+	}
+	s.redirect(w, r, "/settings?ok=updates")
+}
+
+// settingsUpdatesCheck starts a check in the background ("Check now").
+func (s *Server) settingsUpdatesCheck(w http.ResponseWriter, r *http.Request, _ *session) {
+	s.svc.TriggerUpdateCheck()
+	s.redirect(w, r, "/settings?ok=updatecheck")
+}
+
+// settingsUpdatesInstall stages the update and asks the root helper to install it. The browser asks for
+// confirmation first (hx-confirm); an update that breaks recent Players is only installed with confirm_breaking=1.
+func (s *Server) settingsUpdatesInstall(w http.ResponseWriter, r *http.Request, _ *session) {
+	_, err := s.svc.InstallUpdate(r.Context(), r.PostFormValue("confirm_breaking") == "1")
+	switch {
+	case err == nil:
+		s.redirect(w, r, "/settings?ok=updateinstall")
+	case errors.Is(err, hub.ErrNotPackaged):
+		s.redirect(w, r, "/settings?err=updatepackage")
+	case errors.Is(err, hub.ErrNoUpdate), errors.Is(err, hub.ErrUpdatesOff):
+		s.redirect(w, r, "/settings?err=updatenone")
+	case errors.Is(err, hub.ErrUpdateBreaking):
+		s.redirect(w, r, "/settings?err=updatebreaking")
+	default:
+		s.log.Error("install update", "err", err)
+		s.redirect(w, r, "/settings?err=updatefailed")
+	}
 }
