@@ -67,6 +67,7 @@ Goal: a change on `main` lands on the test devices (Windows Player, Hub on the P
 - Responsiveness: nothing blocking on the UI thread (network, hashing, encoding), loading and progress states instead of freezing, immediate click feedback.
 - Dynamics: transitions and animations (page change, hover, lists); live updates of Library, Sessions and sync status without manual reload.
 - One pass with before/after screenshots per screen to allow targeted feedback.
+- Core state refresh: after a core download the "core missing" notice on NDS games stays until the Player restarts (found by Fabio on 2026-10-07); Library and Detail must re-evaluate the core state live.
 
 ## 0.5 Hub UI pass
 
