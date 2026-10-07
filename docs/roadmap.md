@@ -67,6 +67,7 @@ Goal: a change on `main` lands on the test devices (Windows Player, Hub on the P
 - Responsiveness: nothing blocking on the UI thread (network, hashing, encoding), loading and progress states instead of freezing, immediate click feedback.
 - Dynamics: transitions and animations (page change, hover, lists); live updates of Library, Sessions and sync status without manual reload.
 - One pass with before/after screenshots per screen to allow targeted feedback.
+- Core state refresh: after a core download the "core missing" notice on NDS games stays until the Player restarts (found by Fabio on 2026-10-07); Library and Detail must re-evaluate the core state live.
 
 ## 0.5 Hub UI pass
 
@@ -87,6 +88,12 @@ Goal: a change on `main` lands on the test devices (Windows Player, Hub on the P
 - Re-evaluate the core version check (warning vs. block, ADR 0007).
 - Game override UI on the Emulation page.
 - ROM cache limit and cleanup.
+- Core sourcing (decided 2026-10-07, builds on ADR 0010):
+  - Core list: one file in the repo lists all cores (core id, upstream, pinned version/build, SHA-256 per platform, license); `cores.yml` processes the list instead of one job per core.
+  - Source: where possible take prebuilt cores from the libretro buildbot (buildbot.libretro.com) instead of building. The workflow downloads once, pins the SHA-256, signs with the FrameBeam key and mirrors the files into FrameBeam's own releases, because the buildbot overwrites "latest" and signs nothing. Hubs keep using only FrameBeam's signed index. Own builds stay possible per entry (e.g. melonDS DS today).
+  - Metadata: use libretro core info files (supported extensions, firmware with checksums) to generate or check parts of the system manifests; a short manifest per system (input, options, firmware mode) stays manual.
+  - Updates: a scheduled workflow checks upstream for new versions weekly and opens a PR that bumps the pin; merging publishes the package.
+  - Licenses: keep each core's exact license terms with the package and show them. Some cores are non-commercial only; that restricts use as well as redistribution, so the core list marks such cores and FrameBeam does not mirror them without checking their terms.
 
 ## 0.8 Metadata and artwork
 
@@ -119,3 +126,4 @@ Hosted emulation, friends list, public Session links, guest access, email/passwo
 - **Second system:** proposal GBA with mGBA (no BIOS required, small core, exercises manifest and input/display profile without the dual-screen special case). Alternatives: SNES (Snes9x), GB/GBC. Open.
 - **Update channels:** decided on 2026-10-06: the test channel updates automatically, the stable channel only after confirmation. Rollback is open.
 - **0.2:** decided in ADR 0010 (source, index, signing tooling, offline import, license file per package, cached cores stay usable without a Hub connection to GitHub). The FrameBeam release key exists since 2026-10-07.
+- **Core sourcing:** decided on 2026-10-07: libretro buildbot cores, mirrored and signed by FrameBeam (see 0.7).
