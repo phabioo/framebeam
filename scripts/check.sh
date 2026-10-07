@@ -115,12 +115,12 @@ client() {
 packaging_deb() {
   local tmp="$1" dir="$ROOT/packaging/linux" arch deb rc=0 listing info
   for arch in amd64 arm64; do
-    deb="$("$dir/build-deb.sh" --binary "$tmp/dummy-hub" --arch "$arch" --version 0.3.0-test.7 --out "$tmp/deb")" \
+    deb="$("$dir/build-deb.sh" --binary "$tmp/dummy-hub" --arch "$arch" --version 0.3.0-beta.7 --out "$tmp/deb")" \
       || { echo "build-deb.sh failed for $arch"; return 1; }
-    [ "$(basename "$deb")" = "framebeam-hub_0.3.0-test.7_${arch}.deb" ] || { echo "unexpected deb name: $deb"; rc=1; }
+    [ "$(basename "$deb")" = "framebeam-hub_0.3.0-beta.7_${arch}.deb" ] || { echo "unexpected deb name: $deb"; rc=1; }
     info="$(dpkg-deb -f "$deb")"
     grep -qx 'Package: framebeam-hub' <<<"$info" || { echo "$arch: control lacks Package"; rc=1; }
-    grep -qx 'Version: 0.3.0~test.7' <<<"$info" || { echo "$arch: control Version is not 0.3.0~test.7"; rc=1; }
+    grep -qx 'Version: 0.3.0~beta.7' <<<"$info" || { echo "$arch: control Version is not 0.3.0~beta.7"; rc=1; }
     grep -qx "Architecture: $arch" <<<"$info" || { echo "$arch: control Architecture wrong"; rc=1; }
     listing="$(dpkg-deb -c "$deb")"
     local p

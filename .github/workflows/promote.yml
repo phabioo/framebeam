@@ -1,0 +1,127 @@
+name: Promote to stable
+
+# One-button promotion of a beta build to a stable release (spec 0.3).
+# Tags the commit of a beta prerelease as vX.Y.Z (X.Y.Z must equal VERSION at that commit), starts CI on the tag
+# (a tag created with GITHUB_TOKEN triggers no push workflow, so CI is dispatched explicitly; CI then builds, tests
+# and the Release workflow publishes the stable release and the signed index entry), and opens a PR bumping VERSION.
+
+on:
+  workflow_dispatch:
+    inputs:
+      beta_version:
+        description: 'Beta version to promote, e.g. 0.3.0-beta.12 (empty = newest beta prerelease)'
+        required: false
+        default: ''
+        type: string
+      next_version:
+        description: 'VERSION after the release, e.g. 0.4.0 (empty = minor bump of the promoted version)'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: promote
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: Promote beta to stable
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write        # create the tag and the release/bump branch
+      pull-requests: write   # open the VERSION bump PR
+      actions: write         # dispatch CI on the new tag
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      IN_BETA: ${{ inputs.beta_version }}
+      IN_NEXT: ${{ inputs.next_version }}
+    steps:
+      - name: Resolve the beta build
+        id: beta
+        run: |
+          set -euo pipefail
+          beta="${IN_BETA#v}"
+          if [ -z "$beta" ]; then
+            tag="$(gh release list --limit 200 --json tagName,isPrerelease,createdAt \
+              --jq '[.[] | select(.isPrerelease and (.tagName | test("^v[0-9]+\\.[0-9]+\\.[0-9]+-beta\\.[0-9]+$")))] | sort_by(.createdAt) | reverse | .[0].tagName // empty')"
+            [ -n "$tag" ] || { echo "::error::no beta prerelease found"; exit 1; }
+            beta="${tag#v}"
+          fi
+          [[ "$beta" =~ ^([0-9]+\.[0-9]+\.[0-9]+)-beta\.[0-9]+$ ]] || { echo "::error::'$beta' is not a beta version (X.Y.Z-beta.N)"; exit 1; }
+          core="${BASH_REMATCH[1]}"
+          gh release view "v$beta" --json isPrerelease --jq .isPrerelease | grep -qx true \
+            || { echo "::error::v$beta is not a prerelease on GitHub"; exit 1; }
+          # The release tag points at the commit CI built (release.yml creates it with --target).
+          sha="$(gh api "repos/$GH_REPO/commits/v$beta" --jq .sha)"
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::cannot resolve the commit of v$beta"; exit 1; }
+          file="$(gh api "repos/$GH_REPO/contents/VERSION?ref=$sha" --jq .content | base64 -d | tr -d '[:space:]')"
+          [ "$file" = "$core" ] || { echo "::error::VERSION at $sha is '$file' but the beta is for $core"; exit 1; }
+          if gh api "repos/$GH_REPO/git/ref/tags/v$core" >/dev/null 2>&1; then
+            echo "::error::tag v$core already exists"; exit 1
+          fi
+          # Next version: explicit, or minor bump.
+          next="${IN_NEXT#v}"
+          if [ -z "$next" ]; then
+            IFS=. read -r major minor _ <<<"$core"
+            next="$major.$((minor + 1)).0"
+          fi
+          [[ "$next" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::next_version '$next' must be X.Y.Z"; exit 1; }
+          [ "$next" != "$core" ] || { echo "::error::next_version equals the promoted version"; exit 1; }
+          { echo "beta=$beta"; echo "core=$core"; echo "sha=$sha"; echo "next=$next"; } >> "$GITHUB_OUTPUT"
+      - name: Create tag and start CI
+        env:
+          CORE: ${{ steps.beta.outputs.core }}
+          SHA: ${{ steps.beta.outputs.sha }}
+        run: |
+          set -euo pipefail
+          # Lightweight tag via the API (a tag created with GITHUB_TOKEN triggers no push workflow).
+          gh api "repos/$GH_REPO/git/refs" -f "ref=refs/tags/v$CORE" -f "sha=$SHA" >/dev/null
+          # CI treats a workflow_dispatch on a v* tag like a tag push; Release publishes after CI succeeds.
+          gh workflow run ci.yml --ref "v$CORE"
+      - name: Open the VERSION bump PR
+        env:
+          CORE: ${{ steps.beta.outputs.core }}
+          NEXT: ${{ steps.beta.outputs.next }}
+        run: |
+          set -euo pipefail
+          branch="release/bump-$NEXT"
+          main_sha="$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq .object.sha)"
+          if gh api "repos/$GH_REPO/git/ref/heads/$branch" >/dev/null 2>&1; then
+            echo "::warning::branch $branch already exists; not touching it"
+            exit 0
+          fi
+          gh api "repos/$GH_REPO/git/refs" -f "ref=refs/heads/$branch" -f "sha=$main_sha" >/dev/null
+          blob="$(gh api "repos/$GH_REPO/contents/VERSION?ref=$branch" --jq .sha)"
+          gh api -X PUT "repos/$GH_REPO/contents/VERSION" \
+            -f "message=Bump VERSION to $NEXT after v$CORE" \
+            -f "content=$(printf '%s\n' "$NEXT" | base64 -w0)" \
+            -f "sha=$blob" -f "branch=$branch" >/dev/null
+          compare="https://github.com/$GH_REPO/compare/main...$branch?expand=1"
+          body="Automatic bump after promoting v$CORE to stable (workflow run $GITHUB_SERVER_URL/$GH_REPO/actions/runs/$GITHUB_RUN_ID)."
+          if url="$(gh pr create --base main --head "$branch" --title "Bump VERSION to $NEXT after v$CORE" --body "$body" 2>pr.err)"; then
+            echo "PR_URL=$url" >> "$GITHUB_ENV"
+          else
+            cat pr.err
+            echo "::warning title=Bump PR not created::GITHUB_TOKEN may not create pull requests (repo setting 'Allow GitHub Actions to create and approve pull requests'). Open it manually: $compare"
+            echo "PR_URL=$compare" >> "$GITHUB_ENV"
+          fi
+      - name: Summary
+        env:
+          BETA: ${{ steps.beta.outputs.beta }}
+          CORE: ${{ steps.beta.outputs.core }}
+          SHA: ${{ steps.beta.outputs.sha }}
+          NEXT: ${{ steps.beta.outputs.next }}
+        run: |
+          {
+            echo "## Promoted v$BETA to stable v$CORE"
+            echo
+            echo "- Commit: [\`${SHA:0:12}\`]($GITHUB_SERVER_URL/$GH_REPO/commit/$SHA)"
+            echo "- Tag: [v$CORE]($GITHUB_SERVER_URL/$GH_REPO/releases/tag/v$CORE) (the release appears once CI and Release have run)"
+            echo "- CI on the tag: [$GITHUB_SERVER_URL/$GH_REPO/actions/workflows/ci.yml]($GITHUB_SERVER_URL/$GH_REPO/actions/workflows/ci.yml)"
+            echo "- Release workflow: [$GITHUB_SERVER_URL/$GH_REPO/actions/workflows/release.yml]($GITHUB_SERVER_URL/$GH_REPO/actions/workflows/release.yml)"
+            echo "- VERSION bump to $NEXT: ${PR_URL:-not created}"
+          } >> "$GITHUB_STEP_SUMMARY"

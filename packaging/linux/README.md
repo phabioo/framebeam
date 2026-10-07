@@ -106,7 +106,7 @@ Keep the old directory as a backup until the service works. `--data-dir DIR` rem
 `framebeam-hub-update.service` (in `/lib/systemd/system`) and is the only install type the Hub can update itself
 (Settings > Updates). `sudo apt install ./framebeam-hub_<semver>_<arch>.deb`.
 
-- The control Version field uses `~` for the pre-release (`0.3.0~test.57`, so test builds sort before the release); file names keep the SemVer (`framebeam-hub_0.3.0-test.57_arm64.deb`) because GitHub rewrites special characters in asset names.
+- The control Version field uses `~` for the pre-release (`0.3.0~beta.57`, so beta builds sort before the release); file names keep the SemVer (`framebeam-hub_0.3.0-beta.57_arm64.deb`) because GitHub rewrites special characters in asset names.
 - The postinst creates the `framebeam` user, `/var/lib/framebeam` (only if missing) and `/etc/framebeam/hub.env` (only
   if missing: an existing file is never overwritten), then enables and (re)starts the Hub and the update path unit.
 - Migration from `install-hub.sh`: the old unit in `/etc/systemd/system` is moved to

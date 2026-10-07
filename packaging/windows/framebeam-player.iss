@@ -1,5 +1,5 @@
 ; FrameBeam Player installer (Inno Setup 6.3+). Built in CI from the assembled package (dist\framebeam-player).
-; Compile: ISCC /DAppVersion=0.3.0-test.5 [/DVersionInfoVersion=0.3.0.5] [/DPackageDir=...] [/DOutputDir=...] [/DOutputBaseName=...] framebeam-player.iss
+; Compile: ISCC /DAppVersion=0.3.0-beta.5 [/DVersionInfoVersion=0.3.0.5] [/DPackageDir=...] [/DOutputDir=...] [/DOutputBaseName=...] framebeam-player.iss
 ; Package layout (spec 0.3 S6): launcher framebeam_player.exe and THIRD-PARTY-NOTICE.txt at the top, everything else
 ; (real framebeam_player.exe, Qt/vcpkg DLLs, plugins, qml) in bin\.
 ; Per-user by default (no admin rights, %LOCALAPPDATA%\Programs\FrameBeam Player) so the portable <exe-dir>\data
