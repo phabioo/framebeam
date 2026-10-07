@@ -94,3 +94,13 @@ Milestone 0.3 ([Roadmap](../roadmap.md)) lets a change on `main` reach the test 
 - The Windows installer stays unsigned (SmartScreen warning).
 - macOS and Linux Player and the Windows Hub follow later (0.9, 0.10).
 - Open: rollback (D8), Player-side core signature check (0.6).
+
+## Amendment 2026-10-07
+
+Decided by Fabio after 0.3 merged. The decisions above stay as accepted; where they say "test" for the channel, versions, prereleases or tags, read "beta" from this date.
+
+- The pre-release channel is renamed from `test` to `beta`: channel id `beta`, versions `X.Y.Z-beta.<CI run number>`, prereleases tagged `vX.Y.Z-beta.N`, titled "beta build". Debian version `0.3.0~beta.57`.
+- Users can still pick Beta in Hub and Player settings, hint: "Pre-release builds from every change on main. May contain bugs." Stable builds default to stable, beta builds to beta. Stored `test` settings are read as `beta`.
+- Existing `test.N` installs do not update to beta builds (different channel, and `beta` < `test` in SemVer precedence). They must be reinstalled once from a beta or stable release.
+- New workflow `.github/workflows/promote.yml` ("Promote to stable", one button in GitHub Actions). Inputs: `beta_version` (default newest beta), `next_version` (default next minor). It tags `vX.Y.Z` on the commit of that beta build, dispatches CI for the tag (stable build, release, signed index) and opens a PR bumping `VERSION` to the next version; if Actions may not create PRs it warns with a compare link. Pushing the tag manually still works.
+- The Windows Player is a windowless (GUI-subsystem) app; no console opens on start.
