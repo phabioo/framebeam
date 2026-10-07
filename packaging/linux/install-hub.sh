@@ -444,8 +444,9 @@ cmd_import_cores() {
   local dir tmp tk
   [ -n "$IMPORT_DIR" ] || die "import-cores needs a directory: install-hub.sh import-cores DIR"
   [ -d "$IMPORT_DIR" ] || die "not a directory: $IMPORT_DIR"
-  [ -f "$IMPORT_DIR/cores-index.json" ] && [ -f "$IMPORT_DIR/cores-index.json.sig" ] \
-    || die "$IMPORT_DIR must contain cores-index.json and cores-index.json.sig"
+  if [ ! -f "$IMPORT_DIR/cores-index.json" ] || [ ! -f "$IMPORT_DIR/cores-index.json.sig" ]; then
+    die "$IMPORT_DIR must contain cores-index.json and cores-index.json.sig"
+  fi
   [ -f "$ENV_FILE" ] || testmode || die "$ENV_FILE not found; is the Hub installed?"
   dir="$(effective_data_dir)"
   tk="$(env_get FRAMEBEAM_HUB_CORE_TRUST_KEYS)"
