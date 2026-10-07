@@ -2,6 +2,7 @@
 # EmulationRunner, system manifests (Qt resource) and CoreLocator.
 add_library(framebeam_emulation STATIC
   emulation_runner.cpp
+  frame_stats.cpp
   core_locator.cpp
   libretro_backend.cpp
   system_manifest.cpp
@@ -35,6 +36,7 @@ if(BUILD_TESTING)
   framebeam_add_test(emulation_manifest tests/manifest_test.cpp LIBS framebeam_emulation)
   target_compile_definitions(test_emulation_manifest PRIVATE FB_MANIFEST_SRC_DIR="${CMAKE_CURRENT_SOURCE_DIR}/manifests")
 
+  framebeam_add_test(emulation_frame_stats tests/frame_stats_test.cpp LIBS framebeam_emulation)
   framebeam_add_test(emulation_firmware tests/firmware_test.cpp LIBS framebeam_emulation)
   framebeam_add_test(emulation_launch_options tests/launch_options_test.cpp LIBS framebeam_emulation)
   framebeam_add_test(emulation_core_options tests/core_options_test.cpp LIBS framebeam_emulation NEEDS_CORE)

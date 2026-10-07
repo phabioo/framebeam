@@ -15,6 +15,7 @@
 #include <QMap>
 #include <QMutex>
 
+#include <atomic>
 #include <map>
 #include <memory>
 #include <string>
@@ -55,6 +56,8 @@ class LibretroBackend final : public EmulatorBackend {
   QImage videoFrame() const override;
   quint64 frameCount() const override;
   QByteArray takeAudio() override;
+  double lastReadbackMs() const override;
+  RenderInfo renderInfo() const override;
 
   void setJoypadState(unsigned port, quint32 buttonMask) override;
   void setPointer(double x, double y, bool pressed) override;
@@ -126,6 +129,9 @@ class LibretroBackend final : public EmulatorBackend {
   bool m_hwActive = false;      // SET_HW_RENDER accepted, context exists
   bool m_hwResetDone = false;   // context_reset called (context_destroy owed)
   bool m_hwBottomLeft = true;
+  mutable QMutex m_renderMutex;
+  RenderInfo m_render;                     // diagnostics, written on load/setup, read from the UI thread
+  std::atomic<qint64> m_lastReadbackNs{0};
 
   int m_pixelFormat = 0;  // RETRO_PIXEL_FORMAT_*
   QImage m_frame;

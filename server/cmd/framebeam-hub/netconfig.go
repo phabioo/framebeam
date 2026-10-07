@@ -10,7 +10,7 @@ import (
 	"github.com/phabioo/framebeam/server/internal/web"
 )
 
-// Network settings saved on the web interface win over hub.env and flags (ADR 0014). The pieces below build the
+// Network settings saved on the web interface win over hub.env and flags (ADR 0015). The pieces below build the
 // effective configuration at startup and implement the restart the web interface can request.
 
 // restartCh carries the restart request from the web interface to runServer.

@@ -15,6 +15,7 @@
 #include <QSaveFile>
 #include <QStandardPaths>
 #include <QSysInfo>
+#include <QUrl>
 #include <QUuid>
 
 namespace framebeam {
@@ -336,6 +337,81 @@ bool ProfileStore::upsertProfile(const HubProfile& profile) {
     profiles_.append(profile);
   }
   return save();
+}
+
+QStringList ProfileStore::validateHubAddress(const QString& host, const QString& port) {
+  QStringList messages;
+  const QString h = host.trimmed();
+  // Colon outside [...] (an IPv6 literal in brackets may contain colons).
+  const bool bracketed = h.startsWith(QLatin1Char('[')) && h.endsWith(QLatin1Char(']')) && h.size() > 2;
+  if (h.isEmpty()) {
+    messages.append(QObject::tr("Enter an address"));
+  } else if (h.contains(QLatin1String("://"))) {
+    messages.append(QObject::tr("Leave out https:// — host name only"));
+  } else if (h.contains(QLatin1Char(' ')) || h.contains(QLatin1Char('\t'))) {
+    messages.append(QObject::tr("No spaces in the address"));
+  } else if (!bracketed && h.contains(QLatin1Char(':'))) {
+    messages.append(QObject::tr("Put the port in the port field"));
+  } else {
+    static const QRegularExpression plain(QStringLiteral("^[A-Za-z0-9.-]+$"));
+    static const QRegularExpression v6(QStringLiteral("^\\[[0-9A-Fa-f:.]+\\]$"));
+    if (!(bracketed ? v6.match(h).hasMatch() : plain.match(h).hasMatch())) {
+      messages.append(QObject::tr("Only letters, digits, dots and hyphens"));
+    }
+  }
+  bool ok = false;
+  const int n = port.trimmed().toInt(&ok);
+  if (!ok || n < 1 || n > 65535) {
+    messages.append(QObject::tr("Port must be a number from 1 to 65535"));
+  }
+  return messages;
+}
+
+void ProfileStore::splitAddress(const QString& address, QString* host, int* port) {
+  const QUrl u(address, QUrl::StrictMode);
+  QString h = u.host();
+  if (h.contains(QLatin1Char(':'))) {
+    h = QStringLiteral("[") + h + QStringLiteral("]");
+  }
+  if (host != nullptr) *host = h;
+  if (port != nullptr) *port = u.port() > 0 ? u.port() : 0;
+}
+
+bool ProfileStore::updateHubAddress(const QString& hubId, const QString& host, int port) {
+  if (!validateHubAddress(host, QString::number(port)).isEmpty()) {
+    return false;
+  }
+  for (HubProfile& p : profiles_) {
+    if (p.hubId != hubId) {
+      continue;
+    }
+    const QUrl old(p.address, QUrl::StrictMode);
+    QUrl next;
+    next.setScheme(old.scheme().isEmpty() ? QStringLiteral("https") : old.scheme());
+    QString bare = host.trimmed();
+    if (bare.startsWith(QLatin1Char('[')) && bare.endsWith(QLatin1Char(']'))) {
+      bare = bare.mid(1, bare.size() - 2);  // QUrl re-adds the brackets for IPv6 hosts
+    }
+    next.setHost(bare);
+    next.setPort(port);
+    if (!next.isValid() || next.host().isEmpty()) {
+      return false;
+    }
+    const QString address = next.toString(QUrl::RemoveUserInfo | QUrl::RemovePath | QUrl::RemoveQuery | QUrl::RemoveFragment);
+    for (const HubProfile& other : std::as_const(profiles_)) {
+      if (other.hubId != hubId && other.address == address) {
+        return false;  // another saved Hub already lives there
+      }
+    }
+    const QString previous = p.address;
+    p.address = address;
+    if (!save()) {
+      p.address = previous;  // keep the old value until the write succeeds
+      return false;
+    }
+    return true;
+  }
+  return false;
 }
 
 bool ProfileStore::removeProfile(const QString& hubId) {

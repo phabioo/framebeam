@@ -11,8 +11,8 @@ The PoC (phases 0-5) is complete. From here on, work is planned as versions 0.1.
 | 0.3 | Automatic updates | A change on `main` reaches the test devices without manual work. |
 | 0.4 | Sessions over the internet and save comfort | Sessions work beyond the LAN; saves get retention, restore and slots. |
 | 0.5 | OpenGL hardware rendering | The Player offers an OpenGL context to libretro cores, so hardware-rendered cores run; frames are read back to the CPU, zero-copy deferred ([ADR 0013](adr/0013-opengl-hardware-rendering.md)). |
-| 0.6 | Player UI pass | FrameBeam Player is clearer, more responsive and consistent with the design tokens. |
-| 0.7 | Hub UI pass | FrameBeam Hub web UI swaps fragments instead of full pages, updates live and has network settings in the browser ([ADR 0014](adr/0014-hub-ui-pass.md)). |
+| 0.6 | Player UI pass | FrameBeam Player is clearer, more responsive and consistent with the design tokens ([ADR 0014](adr/0014-player-ui-pass.md)). |
+| 0.7 | Hub UI pass | FrameBeam Hub web UI swaps fragments instead of full pages, updates live and has network settings in the browser ([ADR 0015](adr/0015-hub-ui-pass.md)). |
 | 0.8 | Second system: 3DS (Azahar) | The Azahar libretro core ships as a plain core package and runs on the OpenGL rendering from 0.5. |
 | 0.9 | Metadata and artwork | Central game metadata and boxart in Hub and Player. |
 | 0.10 | Hub for Windows / Windows Server | FrameBeam Hub runs as a Windows service with an installer. |
@@ -86,21 +86,30 @@ Decided by Fabio on 2026-10-07: OpenGL hardware rendering for the Player, for al
 
 ## 0.6 Player UI pass
 
-- Clarity: rework information density and grouping per screen (Library, Detail, game view, Emulation, Controllers, Settings).
-- Spacing, sizes and alignment consistently from the design tokens (`docs/design/tokens.md`) instead of single values.
-- Responsiveness: nothing blocking on the UI thread (network, hashing, encoding), loading and progress states instead of freezing, immediate click feedback.
-- Dynamics: transitions and animations (page change, hover, lists); live updates of Library, Sessions and sync status without manual reload.
-- One pass with before/after screenshots per screen to allow targeted feedback.
-- Core state refresh: after a core download the "core missing" notice on NDS games stays until the Player restarts (found by Fabio on 2026-10-07); Library and Detail must re-evaluate the core state live.
-- From 0.4 (requested by Fabio on 2026-10-07): Settings → Hubs lets the user edit a Hub's address and port (for example after the Hub port changed or when switching between LAN address and public name), keeping the pinned fingerprint and credential; connection type (direct / relay) and target bitrate are shown in the Streaming section of the diagnostics (next item); multiview layouts and the save history, restore, snapshot and slot picker get their final design.
-- Diagnostics split (requested by Fabio on 2026-10-07; design 3t-3y in `docs/design/player.md`, not yet accepted): one overlay with two separately collapsible sections, Emulation and Streaming, opened by the Diagnostics tab, the side-panel toggle or F3, open/closed remembered per section; the same in window, multiview (per tile) and fullscreen (Emulation only); Streaming shows "No active session" without a session. New measurements needed (today missing in the Player): actual emulation fps and frame time with the emu/readback split, audio buffer and underruns, GPU/driver string and the reason for an OpenGL fallback as UI values, decoder name, and remote viewer values on the host (loss and bitrate arrive already in the viewer's receiver report and only need to be kept; decoded fps is new); the host line shows the target bitrate next to the measured one. Open points: `docs/design/README.md`, m-t.
+Done in code (decisions: [ADR 0014](adr/0014-player-ui-pass.md), proposed); looks, GPU values and real sessions are verified only locally by Fabio.
+
+- [x] Done: Clarity: rework information density and grouping per screen (Library, Detail, game view, Emulation, Controllers, Settings).
+- [x] Done: Spacing, sizes and alignment consistently from the design tokens (`docs/design/tokens.md`) instead of single values.
+- [x] Done: Responsiveness: nothing blocking on the UI thread (network, hashing, encoding), loading and progress states instead of freezing, immediate click feedback.
+- [x] Done: Dynamics: transitions and animations (page change, hover, lists); live updates of Library, Sessions and sync status without manual reload.
+- [x] Done: One pass with screenshots per screen: the screenshot tests (`FRAMEBEAM_SCREENSHOT_DIR`, `ctest -R screenshots`) render all screens at 1440x900 and produce the "after" set, which the PR carries. There is no "before" set.
+- [x] Done (D15): Core state refresh: after a core download the "core missing" notice on NDS games stays until the Player restarts (found by Fabio on 2026-10-07); Library and Detail must re-evaluate the core state live.
+- [x] Done (D3, D9, D12, D13): From 0.4 (requested by Fabio on 2026-10-07): Settings → Hubs lets the user edit a Hub's address and port (for example after the Hub port changed or when switching between LAN address and public name), keeping the pinned fingerprint and credential; connection type (direct / relay) and target bitrate are shown in the Streaming section of the diagnostics (next item); multiview layouts and the save history, restore, snapshot and slot picker get their final design.
+- [x] Done (D4-D8, D10, D11): Diagnostics split (requested by Fabio on 2026-10-07; design 3t-3y in `docs/design/player.md`, not yet accepted): one overlay with two separately collapsible sections, Emulation and Streaming, opened by the Diagnostics tab, the side-panel toggle or F3, open/closed remembered per section; the same in window, multiview (per tile) and fullscreen (Emulation only); Streaming shows "No active session" without a session. New measurements needed (today missing in the Player): actual emulation fps and frame time with the emu/readback split, audio buffer and underruns, GPU/driver string and the reason for an OpenGL fallback as UI values, decoder name, and remote viewer values on the host (loss and bitrate arrive already in the viewer's receiver report and only need to be kept; decoded fps is new); the host line shows the target bitrate next to the measured one. Open points m-t are decided in ADR 0014. Built: split overlay (Emulation / Streaming) with F3 and persisted section states, new measurements, viewer rx report with optional `fps`/`dec` fields kept on the host, target bitrate on the host line; fullscreen with F11/Esc; Library filter chips, Settings jump list, Hub switch/edit/remove with address and port validation, layout switch from the manifest, Multiview Grid 2×2.
+
+Open in 0.6:
+
+- The Player does not know the Hub user's display name; the sidebar shows the device name.
+- Per-game settings are still "coming later"; built-in controller profiles are read-only; the Hotkeys tab (3f) is not built.
+- The `PlayerController` split (moved here from 0.1.1) is not done in 0.6; deferred, no milestone yet.
+- Verification of look and feel, GPU values and real sessions is done locally by Fabio.
 
 ## 0.7 Hub UI pass
 
-Implemented, see [ADR 0014](adr/0014-hub-ui-pass.md) (proposed).
+Implemented, see [ADR 0015](adr/0015-hub-ui-pass.md) (proposed).
 
 - [x] Done: pages restyled to the v4 design (Library with saves column and conflict marker, Saves with slot tabs, history timeline, snapshot filter, inline restore confirmation and retention box from the real rules, Systems list and detail tabs, Clients, Users); nav badge "firmware" is now "{n} issues".
-- [x] Done: no full page loads on navigation; sidebar swaps only the content area (ADR 0014 D1).
+- [x] Done: no full page loads on navigation; sidebar swaps only the content area (ADR 0015 D1).
 - [x] Done: live updates without reload via an in-process event bus and Server-Sent Events; badges and affected tables refresh themselves, Clients polling removed (D2).
 - [x] Done: Settings sub-pages Updates, General, Network, Security with per-field autosave (D3).
 - [x] Done: network settings form (Hub port, embedded TURN, public host, TURN port, relay range and IP, STUN servers, save retention). Decided by Fabio on 2026-10-07: web settings win; `hub.env` and flags only give the initial value (D4). Changes that need it are applied by a restart the Hub triggers itself, without root (D5). Ports below 1024 are refused on the web, use `install-hub.sh --port` (D6). Startup fallbacks keep the Hub reachable after a bad setting (D7). The TURN status and port forward list moved into Network; reachability is derived from the configuration (D8).

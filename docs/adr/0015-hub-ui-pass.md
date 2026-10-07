@@ -1,4 +1,4 @@
-# ADR 0014: Hub UI pass (0.7)
+# ADR 0015: Hub UI pass (0.7)
 
 - Status: proposed
 - Date: 2026-10-07

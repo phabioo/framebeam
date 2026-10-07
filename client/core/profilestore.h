@@ -3,6 +3,7 @@
 #include <QDateTime>
 #include <QList>
 #include <QString>
+#include <QStringList>
 #include <optional>
 
 namespace framebeam {
@@ -58,6 +59,15 @@ class ProfileStore {
   std::optional<HubProfile> profileByAddress(const QString& address) const;
   bool upsertProfile(const HubProfile& profile);
   bool removeProfile(const QString& hubId);
+
+  // Hub edit (Settings > Hubs, docs/design/player.md 3p): only host and port of a saved Hub change. hubId, pinned
+  // fingerprint, credentialRef, hubUserId and the scheme stay. Fails for an unknown Hub, an invalid input or a
+  // target address that another saved Hub already uses.
+  bool updateHubAddress(const QString& hubId, const QString& host, int port);
+  // Validation of the edit fields (port as typed). One message per field at most; empty list = valid.
+  static QStringList validateHubAddress(const QString& host, const QString& port);
+  // "host" and "port" of a stored address (scheme://host[:port]); port 0 = none. Used to fill the edit row.
+  static void splitAddress(const QString& address, QString* host, int* port);
 
   bool autoConnect() const { return autoConnect_; }
   bool setAutoConnect(bool on);

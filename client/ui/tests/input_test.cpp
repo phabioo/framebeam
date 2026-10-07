@@ -5,6 +5,7 @@
 
 #include "audioresampler.h"
 #include "emulator_backend.h"
+#include "gamesession.h"
 #include "inputmapping.h"
 #include "librarymodel.h"
 #include "system_manifest.h"
@@ -52,6 +53,25 @@ RomStatus st(RomState s, qint64 got = 0, qint64 total = 0) {
 class InputTest : public QObject {
   Q_OBJECT
  private slots:
+  // D4: F3, F5, F11 and Esc belong to the Player; even a profile that maps them never reaches the core.
+  void reservedKeysAreNeverForwarded() {
+    GameSession gs;
+    QHash<int, quint32> map;
+    for (int k : {int(Qt::Key_F3), int(Qt::Key_F5), int(Qt::Key_F11), int(Qt::Key_Escape)}) {
+      map.insert(k, buttonMask(JoypadButton::A));
+    }
+    map.insert(Qt::Key_Z, buttonMask(JoypadButton::B));
+    gs.setKeyboardMap(map);
+    for (int k : {int(Qt::Key_F3), int(Qt::Key_F5), int(Qt::Key_F11), int(Qt::Key_Escape)}) {
+      QVERIFY(GameSession::isReservedKey(k));
+      QVERIFY(!gs.keyEvent(k, true));
+      QVERIFY(!gs.keyEvent(k, false));
+    }
+    QVERIFY(!GameSession::isReservedKey(Qt::Key_Z));
+    QVERIFY(gs.keyEvent(Qt::Key_Z, true));
+    QVERIFY(gs.keyEvent(Qt::Key_Z, false));
+  }
+
   // Keyboard profile map: replaces the standard map; two keys on one button keep it pressed until both are up.
   void customKeyboardMap() {
     KeyboardJoypad k;

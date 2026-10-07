@@ -13,6 +13,13 @@ struct ViewerLinkStats {
   QString state;  // new | connecting | connected | disconnected | failed | closed
   std::optional<double> rttMs;
   QString connectionType;  // "direct (host|srflx|prflx)" | "relay (udp|tcp)" | empty (unknown), see rtcutil.h
+  // Host side: the latest rx report this viewer sent over fb-diag (ADR 0012 D5, 0.6 D7). hasReport = false until the
+  // first one arrives; fps and decoder stay unset for Players that do not send them yet.
+  bool hasReport = false;
+  double reportLoss = 0.0;                // 0..1
+  double reportKbps = 0.0;                // video kbit/s the viewer received
+  std::optional<double> reportFps;        // frames/s the viewer decoded
+  QString reportDecoder;                  // decoder the viewer uses, e.g. "h264"
 };
 
 struct SessionStats {
@@ -21,6 +28,7 @@ struct SessionStats {
   int width = 0;
   int height = 0;
   QString encoderName;           // host only, e.g. "libx264"
+  QString decoderName;           // viewer only: libavcodec decoder in use, e.g. "h264" (never a name that is not in use)
   QString codec;                 // "H264 + Opus"
   double videoBitrateKbps = 0.0; // measured over the last second(s), payload
   double audioBitrateKbps = 0.0;

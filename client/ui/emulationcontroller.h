@@ -8,6 +8,7 @@
 #include <QHash>
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <QVariantList>
 #include <QVariantMap>
 #include <QtQml/qqmlregistration.h>
@@ -32,6 +33,15 @@ class EmulationController : public QObject {
   // [{id, title, subtitle, note, options:[{key, label, description, category, values:[{value,label}], value,
   //   valueLabel, isSet, origin, restart}]}]
   Q_PROPERTY(QVariantList groups READ groups NOTIFY groupsChanged)
+  // Page state of 3e: "Defaults" is level "global" (defaultsSelected), a system is level "system".
+  Q_PROPERTY(bool defaultsSelected READ defaultsSelected NOTIFY levelChanged)
+  Q_PROPERTY(int defaultsChangedCount READ defaultsChangedCount NOTIFY systemsChanged)
+  // Category chips (names present in the current scope), filter ("" = All) and search text; both narrow `groups`.
+  Q_PROPERTY(QStringList categories READ categories NOTIFY groupsChanged)
+  Q_PROPERTY(QString categoryFilter READ categoryFilter WRITE setCategoryFilter NOTIFY filterChanged)
+  Q_PROPERTY(QString searchText READ searchText WRITE setSearchText NOTIFY filterChanged)
+  Q_PROPERTY(int changedCount READ changedCount NOTIFY groupsChanged)    // options of the current scope that differ from their default
+  Q_PROPERTY(bool restartHint READ restartHint NOTIFY groupsChanged)    // a changed option applies only after the next game start
   Q_PROPERTY(bool gameRunning READ gameRunning NOTIFY gameRunningChanged)
   Q_PROPERTY(int lockedCount READ lockedCount NOTIFY groupsChanged)  // options of the core that FrameBeam controls
   Q_PROPERTY(QString coreNote READ coreNote NOTIFY groupsChanged)    // why the core group is empty, else empty
@@ -43,12 +53,21 @@ class EmulationController : public QObject {
   EmulationController(const QString& dataDir, const emu::ManifestRegistry* manifests, QObject* parent = nullptr);
 
   EmulationSettings* settings() { return &settings_; }
-  QVariantList systems() const { return systems_; }
+  QVariantList systems() const;  // cards plus "changedCount" per system
   QString selectedSystem() const { return selected_; }
   QVariantMap system() const;
   QString level() const { return level_; }
   void setLevel(const QString& level);
   QVariantList groups() const { return groups_; }
+  bool defaultsSelected() const { return level_ == QLatin1String("global"); }
+  int defaultsChangedCount() const;
+  QStringList categories() const { return categories_; }
+  QString categoryFilter() const { return categoryFilter_; }
+  void setCategoryFilter(const QString& category);
+  QString searchText() const { return searchText_; }
+  void setSearchText(const QString& text);
+  int changedCount() const { return changedCount_; }
+  bool restartHint() const { return restartHint_; }
   bool gameRunning() const { return gameRunning_; }
   int lockedCount() const { return lockedCount_; }
   QString coreNote() const { return coreNote_; }
@@ -70,12 +89,14 @@ class EmulationController : public QObject {
   Q_INVOKABLE void selectSystem(const QString& id);
   Q_INVOKABLE void setOption(const QString& key, const QString& value);
   Q_INVOKABLE void resetOption(const QString& key);
+  Q_INVOKABLE void resetAllChanged();  // "Reset N changed": every explicit value of the current scope
 
  signals:
   void systemsChanged();
   void selectionChanged();
   void levelChanged();
   void groupsChanged();
+  void filterChanged();
   void gameRunningChanged();
   void frameBeamOptionsChanged();  // a "framebeam.*" value changed (the PlayerController applies it)
 
@@ -96,6 +117,7 @@ class EmulationController : public QObject {
                   bool frameBeam) const;
   bool knownOption(const QString& key, QList<emu::CoreOptionValue>* values) const;
   EmulationSettings::Level levelEnum() const;
+  QString defaultValueOf(const QString& key) const;  // default the current scope falls back to (without its own value)
   QString scope() const { return level_ == QLatin1String("global") ? QString() : selected_; }
 
   QString dataDir_;
@@ -107,6 +129,12 @@ class EmulationController : public QObject {
   QVariantList groups_;
   QHash<QString, emu::CoreProbe> probes_;  // core id -> options
   bool gameRunning_ = false;
+  QStringList categories_;
+  QString categoryFilter_;
+  QString searchText_;
+  int changedCount_ = 0;
+  bool restartHint_ = false;
+  bool restartTouched_ = false;  // an option that applies on the next start was changed while a game runs
   int lockedCount_ = 0;
   QString coreNote_;
 };

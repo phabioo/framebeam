@@ -7,41 +7,21 @@
 #include <QSaveFile>
 #include <algorithm>
 
+#include "screenlayout.h"
+
 namespace framebeam::ui {
-
-namespace {
-
-QVariantMap row(const QString& surface, const QString& name, bool available, const QStringList& values) {
-  return {{QStringLiteral("surface"), surface},
-          {QStringLiteral("name"), name},
-          {QStringLiteral("available"), available},
-          {QStringLiteral("values"), values},
-          {QStringLiteral("text"), name + QStringLiteral("  ") + values.join(QStringLiteral(" · "))}};
-}
-
-QString mbit(double kbps) { return QStringLiteral("%1 Mbit/s").arg(kbps / 1000.0, 0, 'f', 1); }
-
-// connectionType is either a bare candidate type (host | srflx | prflx | relay | unknown) or an already
-// formatted text such as "direct (host)" / "relay (udp)"; empty = not known yet.
-QString linkLabel(const QString& type) {
-  if (type == QLatin1String("host") || type == QLatin1String("srflx") || type == QLatin1String("prflx")) {
-    return QStringLiteral("WebRTC direct (%1)").arg(type);
-  }
-  if (type == QLatin1String("relay")) {
-    return QStringLiteral("WebRTC relay");
-  }
-  if (type.isEmpty() || type == QLatin1String("unknown")) {
-    return QStringLiteral("WebRTC connecting");
-  }
-  return QStringLiteral("WebRTC %1").arg(type);
-}
-
-}  // namespace
 
 SessionController::SessionController(HubConnection* conn, ProfileStore* profiles, GameSession* game, QObject* parent)
     : QObject(parent), conn_(conn), profiles_(profiles), game_(game), api_(conn), socket_(conn) {
   qRegisterMetaType<framebeam::SessionInfo>();
   qRegisterMetaType<framebeam::SessionSignal>();
+  diagnostics_ = new DiagnosticsModel(this);
+  connect(diagnostics_, &DiagnosticsModel::statesChanged, this, [this]() {
+    if (diagnostics_->isOpen()) {
+      refreshDiagnostics();
+    }
+    emit viewChanged();
+  });
   loadSettings();
 
   connect(conn_, &HubConnection::stateChanged, this, &SessionController::onConnectionState);
@@ -78,14 +58,9 @@ SessionController::SessionController(HubConnection* conn, ProfileStore* profiles
     }
   });
   minuteTimer_.start();
-  statsTimer_.setInterval(1000);
-  connect(&statsTimer_, &QTimer::timeout, this, [this]() {
-    const quint64 nr = game_->frameNumber();
-    localFps_ = nr >= lastLocalFrameNr_ ? static_cast<double>(nr - lastLocalFrameNr_) : 0.0;
-    lastLocalFrameNr_ = nr;
-    refreshDiagnostics();
-  });
-  statsTimer_.start();
+  diagTimer_.setInterval(500);
+  connect(&diagTimer_, &QTimer::timeout, this, &SessionController::refreshDiagnostics);
+  diagTimer_.start();
   audioTimer_.setInterval(10);
   connect(&audioTimer_, &QTimer::timeout, this, &SessionController::pumpAudio);
   messageTimer_.setSingleShot(true);
@@ -283,6 +258,8 @@ QVariantList SessionController::participants() const {
                            {QStringLiteral("name"), v.displayName},
                            {QStringLiteral("online"), true},
                            {QStringLiteral("status"), tr("watching")},
+                           {QStringLiteral("connection"), linkByViewer_.value(v.viewerId).toMap().value(QStringLiteral("text"), tr("Connecting"))},
+                           {QStringLiteral("connectionTone"), linkByViewer_.value(v.viewerId).toMap().value(QStringLiteral("tone"), QStringLiteral("neutral"))},
                            {QStringLiteral("action"), tr("Remove")}});
   }
   if (visibility_ == QLatin1String("invite_only")) {
@@ -741,6 +718,10 @@ QString SessionController::effectiveTab() const {
 QString SessionController::tab() const { return effectiveTab(); }
 
 void SessionController::setTab(const QString& t) {
+  if (t == QLatin1String("diagnostics")) {  // not a view of its own: the tab toggles the overlay (3g)
+    diagnostics_->toggle();
+    return;
+  }
   if ((t != QLatin1String("session") && t != QLatin1String("multiview") && t != QLatin1String("diagnostics")) || t == tab_) {
     return;
   }
@@ -748,21 +729,25 @@ void SessionController::setTab(const QString& t) {
   emit viewChanged();
 }
 
-// Layouts by surface count: 2 -> PiP or side-by-side, 3 and 4 -> PiP or grid 2 x 2, 1 -> single surface (none to choose).
+// Layouts by surface count (3h, 3r, 3i): two surfaces -> PiP | Side-by-Side | Grid 2 x 2, three or four -> PiP | Grid 2 x 2
+// (columns would get too narrow), one -> a single surface (none to choose).
 QStringList SessionController::availableLayouts() const {
   const int n = surfaceCount();
   if (n < 2) {
     return {};
   }
-  return {QStringLiteral("pip"), n == 2 ? QStringLiteral("side") : QStringLiteral("grid")};
+  if (n == 2) {
+    return {QStringLiteral("pip"), QStringLiteral("side"), QStringLiteral("grid")};
+  }
+  return {QStringLiteral("pip"), QStringLiteral("grid")};
 }
 
 QString SessionController::multiviewMode() const {
   const int n = surfaceCount();
-  if (n < 2 || mode_ == QLatin1String("pip")) {
+  if (n < 2 || mode_ == QLatin1String("pip") || mode_ == QLatin1String("grid")) {
     return mode_;  // a single surface has no layout to choose; the choice is kept for the next surface
   }
-  return n == 2 ? QStringLiteral("side") : QStringLiteral("grid");  // a chosen tile layout follows the count
+  return n == 2 ? QStringLiteral("side") : QStringLiteral("grid");  // side-by-side with more than two surfaces becomes the grid
 }
 
 void SessionController::setMultiviewMode(const QString& m) {
@@ -859,16 +844,23 @@ void SessionController::pumpAudio() {
   }
 }
 
+void SessionController::setScreenLayout(const QString& layout) {
+  if (!isScreenLayout(layout) || layout == screenLayout_) {
+    return;
+  }
+  screenLayout_ = layout;
+  emit viewChanged();
+}
+
 void SessionController::gameStarted(const QString& gameId, const QString& title) {
   gameId_ = gameId;
   gameTitle_ = title;
+  screenLayout_ = QStringLiteral("stacked");  // the in-game switch applies to this game only
   focusPref_ = QStringLiteral("local");
   if (!order_.contains(QStringLiteral("local"))) {
     order_.prepend(QStringLiteral("local"));
   }
   tab_ = watching() ? QStringLiteral("multiview") : QStringLiteral("session");
-  lastLocalFrameNr_ = 0;
-  localFps_ = 0;
   applyAudioRouting();
   presence();
   emit gameChanged();
@@ -920,55 +912,127 @@ void SessionController::setStatsOverride(const SessionStats* local, const QHash<
   refreshDiagnostics();
 }
 
-QVariantList SessionController::formatDiagnostics(const QString& localName, bool hasLocal, bool shared, double localFps,
-                                                  const SessionStats& l, const QList<RemoteDiag>& remotes) {
-  QVariantList out;
-  if (hasLocal) {
-    const bool enc = shared && l.active && !l.encoderName.isEmpty();
-    QStringList v;
-    v << QStringLiteral("%1 fps").arg(enc ? l.fps : localFps, 0, 'f', 1);
-    v << (enc ? QStringLiteral("encoder %1").arg(l.encoderName) : QStringLiteral("encoder off (not shared)"));
-    v << (enc ? QStringLiteral("H.264") : QStringLiteral("codec n/a"));
-    v << (enc ? mbit(l.videoBitrateKbps) : QStringLiteral("bitrate n/a"));
-    v << (enc ? QStringLiteral("Opus %1 kbit/s").arg(l.audioBitrateKbps, 0, 'f', 0) : QStringLiteral("Opus n/a"));
-    out.append(row(QStringLiteral("local"), localName, true, v));
-  }
-  for (const RemoteDiag& d : remotes) {  // one row per remote surface (the surface id is the Session id)
-    const SessionStats& r = d.stats;
-    QStringList v;
-    v << QStringLiteral("%1 fps").arg(r.fps, 0, 'f', 1);
-    v << linkLabel(r.connectionType);
-    v << (r.rttMs ? QStringLiteral("RTT %1 ms").arg(*r.rttMs, 0, 'f', 0) : QStringLiteral("RTT n/a"));
-    v << mbit(r.videoBitrateKbps);
-    v << (r.packetLossPercent ? QStringLiteral("loss %1 %").arg(*r.packetLossPercent, 0, 'f', 1) : QStringLiteral("loss n/a"));
-    out.append(row(d.surface, d.name, true, v));
-  }
-  return out;
+QList<ViewerLinkStats> SessionController::viewerLinks() const { return linksOverrideOn_ ? overrideLinks_ : host_.viewerLinks(); }
+
+void SessionController::setLinksOverride(bool on, const QList<ViewerLinkStats>& links) {
+  linksOverrideOn_ = on;
+  overrideLinks_ = links;
+  updateLinks();
+  refreshDiagnostics();
 }
 
-void SessionController::refreshDiagnostics() {
-  const bool hasLocal = hasLocalGame() || (override_ && overrideLocalSet_);
-  const SessionStats local = override_ && overrideLocalSet_ ? overrideLocal_ : host_.stats();
-  const bool shared = shared_ || (override_ && overrideLocalSet_ && local.active);
-  const QString localName = tr("You · %1").arg(gameTitle_.isEmpty() ? tr("local game") : gameTitle_);
-  QList<RemoteDiag> remotes;
-  for (const auto& r : remotes_) {
-    const QString id = r->info.sessionId;
-    const QString who = r->info.owner.displayName.isEmpty() ? tr("Session") : r->info.owner.displayName;
-    remotes.append({id, who, override_ && overrideRemotes_.contains(id) ? overrideRemotes_.value(id) : r->viewer->stats()});
-  }
-  if (override_) {  // fake statistics of Sessions that are not (yet) on a surface
-    for (auto it = overrideRemotes_.cbegin(); it != overrideRemotes_.cend(); ++it) {
-      if (remote(it.key()) == nullptr) {
-        remotes.append({it.key(), tr("Session"), it.value()});
+// Connection pill per viewer of the own Session and the relay hint of the side panel (D9): cheap, twice a second.
+void SessionController::updateLinks() {
+  QVariantMap byViewer;
+  QStringList relayed;
+  if (shared_) {
+    const QList<ViewerLinkStats> links = viewerLinks();
+    for (const SessionViewerEntry& v : own_.viewers) {
+      QString type;
+      for (const ViewerLinkStats& l : links) {
+        if (l.viewerId == v.viewerId) {
+          type = l.connectionType;
+        }
+      }
+      const DiagnosticsModel::Pill pill = DiagnosticsModel::connectionPill(type);
+      byViewer.insert(v.viewerId, QVariantMap{{QStringLiteral("text"), pill.text}, {QStringLiteral("tone"), pill.tone}});
+      if (DiagnosticsModel::isRelayed(type)) {
+        relayed << v.displayName;
       }
     }
   }
-  const QVariantList rows = formatDiagnostics(localName, hasLocal, shared, localFps_, local, remotes);
-  if (rows != rows_) {
-    rows_ = rows;
-    emit diagnosticsChanged();
+  QString hint;
+  if (relayed.size() == 1) {
+    hint = tr("%1 is relayed via the hub (TURN) · may lag slightly.").arg(relayed.first());
+  } else if (relayed.size() > 1) {
+    hint = tr("%1 are relayed via the hub (TURN) · may lag slightly.").arg(relayed.join(QStringLiteral(", ")));
   }
+  if (byViewer != linkByViewer_ || hint != relayHint_) {
+    linkByViewer_ = byViewer;
+    relayHint_ = hint;
+    emit shareChanged();
+  }
+  QVariantMap remoteLinks;
+  for (const auto& r : remotes_) {
+    const QString id = r->info.sessionId;
+    const SessionStats st = override_ && overrideRemotes_.contains(id) ? overrideRemotes_.value(id) : r->viewer->stats();
+    const DiagnosticsModel::Pill pill = DiagnosticsModel::connectionPill(st.connectionType);
+    remoteLinks.insert(id, QVariantMap{{QStringLiteral("text"), pill.text}, {QStringLiteral("tone"), pill.tone}});
+  }
+  if (remoteLinks != surfaceLinks_) {
+    surfaceLinks_ = remoteLinks;
+    emit surfaceLinksChanged();
+  }
+}
+
+void SessionController::refreshDiagnostics() {
+  updateLinks();
+  if (!diagnostics_->isOpen()) {
+    return;  // nothing is assembled while the overlay is closed
+  }
+  const EmulationDiagnostics emu = game_->diagnostics();
+  diagnostics_->setEmulation(emu);
+
+  const SessionStats local = override_ && overrideLocalSet_ ? overrideLocal_ : host_.stats();
+  const bool sharedNow = shared_ || (override_ && overrideLocalSet_ && local.active);
+  const QString turn = DiagnosticsModel::turnEndpoint(socket_.helloAck().turnServers);
+  const QVariantMap info = surfaceInfo();
+
+  QVariantList tiles, groups;
+  int tileNo = 0;
+  for (const QString& id : order_) {
+    ++tileNo;
+    const QVariantMap si = info.value(id).toMap();
+    const QString title = si.value(QStringLiteral("name")).toString();
+    if (id == QLatin1String("local")) {
+      tiles.append(QVariantMap{{QStringLiteral("surface"), id}, {QStringLiteral("index"), tileNo},
+                               {QStringLiteral("title"), title}, {QStringLiteral("sub"), tr("tile %1 · local").arg(tileNo)},
+                               {QStringLiteral("local"), true}, {QStringLiteral("emulation"), DiagnosticsModel::emulationMap(emu)},
+                               {QStringLiteral("note"), QString()}});
+      if (sharedNow) {
+        const QList<ViewerLinkStats> links = viewerLinks();
+        QVariantList people;
+        int viewers = 0;
+        QVariantList viewerRows;
+        for (const SessionViewerEntry& v : own_.viewers) {
+          ++viewers;
+          ViewerLinkStats l;
+          for (const ViewerLinkStats& cand : links) {
+            if (cand.viewerId == v.viewerId) l = cand;
+          }
+          const std::optional<double> kbps = l.hasReport ? std::optional<double>(l.reportKbps) : std::nullopt;
+          const std::optional<double> loss = l.hasReport ? std::optional<double>(l.reportLoss * 100.0) : std::nullopt;
+          viewerRows.append(DiagnosticsModel::participant(
+              v.displayName, tr("viewer"), DiagnosticsModel::connectionPill(l.connectionType),
+              DiagnosticsModel::decoderLine(l.reportDecoder, kbps, l.reportFps),
+              DiagnosticsModel::linkLine(l.rttMs, loss, l.connectionType, turn)));
+        }
+        people.append(DiagnosticsModel::participant(tr("You"), tr("host"), {tr("Local"), QStringLiteral("neutral")},
+                                                    DiagnosticsModel::hostLine(local),
+                                                    DiagnosticsModel::hostSendingLine(std::max(viewers, local.viewers))));
+        people.append(viewerRows);
+        groups.append(QVariantMap{{QStringLiteral("surface"), id}, {QStringLiteral("title"), tr("Tile %1 · your session").arg(tileNo)},
+                                  {QStringLiteral("participants"), people}});
+      }
+    } else if (const Remote* r = remote(id)) {
+      const QString who = r->info.owner.displayName.isEmpty() ? tr("Session") : r->info.owner.displayName;
+      tiles.append(QVariantMap{{QStringLiteral("surface"), id}, {QStringLiteral("index"), tileNo},
+                               {QStringLiteral("title"), title}, {QStringLiteral("sub"), tr("tile %1 · remote").arg(tileNo)},
+                               {QStringLiteral("local"), false}, {QStringLiteral("emulation"), QVariantMap()},
+                               {QStringLiteral("note"), tr("Emulation runs on %1's Player · not measured here").arg(who)}});
+      const SessionStats st = override_ && overrideRemotes_.contains(id) ? overrideRemotes_.value(id) : r->viewer->stats();
+      const std::optional<double> loss = st.packetLossPercent;
+      groups.append(QVariantMap{
+          {QStringLiteral("surface"), id},
+          {QStringLiteral("title"), tr("Tile %1 · %2's session").arg(tileNo).arg(who)},
+          {QStringLiteral("participants"),
+           QVariantList{DiagnosticsModel::participant(who, tr("host"), DiagnosticsModel::connectionPill(st.connectionType),
+                                                      DiagnosticsModel::decoderLine(st.decoderName, st.videoBitrateKbps, st.fps),
+                                                      DiagnosticsModel::linkLine(st.rttMs, loss, st.connectionType, turn))}}});
+    }
+  }
+  diagnostics_->setTiles(tiles);
+  diagnostics_->setStreaming(groups);
 }
 
 }  // namespace framebeam::ui

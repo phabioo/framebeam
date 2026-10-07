@@ -20,9 +20,11 @@ const QList<EmulationController::FbOption>& EmulationController::frameBeamOption
        {{QStringLiteral("off"), QObject::tr("Off")}, {QStringLiteral("on"), QObject::tr("On")}},
        QStringLiteral("off")},
       {QString::fromLatin1(kMultiviewKey),
-       QObject::tr("Default multiview"),
+       QObject::tr("Default Multiview"),
        QObject::tr("Layout the multiview opens with."),
-       {{QStringLiteral("pip"), QObject::tr("Picture-in-picture")}, {QStringLiteral("side"), QObject::tr("Side-by-side")}},
+       {{QStringLiteral("pip"), QObject::tr("Picture-in-Picture")},
+        {QStringLiteral("side"), QObject::tr("Side-by-Side")},
+        {QStringLiteral("grid"), QObject::tr("Grid 2×2")}},
        QStringLiteral("pip")},
   };
   return opts;
@@ -30,6 +32,18 @@ const QList<EmulationController::FbOption>& EmulationController::frameBeamOption
 
 EmulationController::EmulationController(const QString& dataDir, const emu::ManifestRegistry* manifests, QObject* parent)
     : QObject(parent), dataDir_(dataDir), manifests_(manifests), settings_(dataDir) {}
+
+QVariantList EmulationController::systems() const {
+  QVariantList out;
+  for (const QVariant& v : systems_) {
+    QVariantMap m = v.toMap();
+    m.insert(QStringLiteral("changedCount"), static_cast<int>(settings_.values(Level::System, m.value(QStringLiteral("id")).toString()).size()));
+    out.append(m);
+  }
+  return out;
+}
+
+int EmulationController::defaultsChangedCount() const { return static_cast<int>(settings_.values(Level::Global, QString()).size()); }
 
 QVariantMap EmulationController::system() const {
   for (const QVariant& v : systems_) {
@@ -48,6 +62,9 @@ QString EmulationController::cachePath(const QString& coreId) const {
 }
 
 void EmulationController::setSystems(const QVariantList& cards) {
+  if (cards == systems_ && !selected_.isEmpty()) {
+    return;  // periodic refresh without a change: keep the page as it is
+  }
   systems_ = cards;
   if (selected_.isEmpty() || system().isEmpty()) {
     selected_ = cards.isEmpty() ? QString() : cards.first().toMap().value(QStringLiteral("id")).toString();
@@ -60,6 +77,7 @@ void EmulationController::setSystems(const QVariantList& cards) {
 void EmulationController::setGameRunning(bool running) {
   if (gameRunning_ == running) return;
   gameRunning_ = running;
+  restartTouched_ = false;
   emit gameRunningChanged();
   rebuild();
 }
@@ -103,6 +121,7 @@ void EmulationController::setLevel(const QString& level) {
   level_ = level;
   emit levelChanged();
   rebuild();
+  emit systemsChanged();
 }
 
 void EmulationController::selectSystem(const QString& id) {
@@ -151,13 +170,38 @@ bool EmulationController::knownOption(const QString& key, QList<emu::CoreOptionV
   return false;
 }
 
+QString EmulationController::defaultValueOf(const QString& key) const {
+  const bool global = level_ == QLatin1String("global");
+  for (const FbOption& o : frameBeamOptions()) {
+    if (o.key == key) return o.defaultValue;
+  }
+  const emu::SystemManifest* man = manifests_ != nullptr ? manifests_->find(selected_) : nullptr;
+  if (man == nullptr) return {};
+  QString coreDefault;
+  if (const emu::CoreProbe* probe = coreProbe(man->coreId)) {
+    for (const emu::CoreOption& o : probe->options) {
+      if (o.key == key) coreDefault = o.defaultValue;
+    }
+  }
+  // System level inherits a Global value if the file has one; otherwise manifest, then core default.
+  if (!global && settings_.hasValue(Level::Global, QString(), key)) return settings_.value(Level::Global, QString(), key);
+  const QString manifestDefault = man->coreOptions.value(key, QString());
+  return manifestDefault.isNull() ? coreDefault : manifestDefault;
+}
+
 void EmulationController::setOption(const QString& key, const QString& value) {
   QList<emu::CoreOptionValue> values;
   if (selected_.isEmpty() || !knownOption(key, &values)) return;
   const bool valid = std::any_of(values.cbegin(), values.cend(), [&](const emu::CoreOptionValue& v) { return v.value == value; });
   if (!valid) return;
-  settings_.setValue(levelEnum(), scope(), key, value);
+  if (value == defaultValueOf(key)) {
+    settings_.removeValue(levelEnum(), scope(), key);  // back to the default: nothing stays stored, no "changed" mark
+  } else {
+    settings_.setValue(levelEnum(), scope(), key, value);
+    if (gameRunning_ && !key.startsWith(QLatin1String("framebeam."))) restartTouched_ = true;
+  }
   rebuild();
+  emit systemsChanged();
   if (key.startsWith(QLatin1String("framebeam."))) emit frameBeamOptionsChanged();
 }
 
@@ -165,7 +209,36 @@ void EmulationController::resetOption(const QString& key) {
   if (selected_.isEmpty()) return;
   settings_.removeValue(levelEnum(), scope(), key);
   rebuild();
+  emit systemsChanged();
   if (key.startsWith(QLatin1String("framebeam."))) emit frameBeamOptionsChanged();
+}
+
+void EmulationController::resetAllChanged() {
+  if (selected_.isEmpty()) return;
+  bool fb = false;
+  const QMap<QString, QString> vals = settings_.values(levelEnum(), scope());
+  for (auto it = vals.cbegin(); it != vals.cend(); ++it) {
+    settings_.removeValue(levelEnum(), scope(), it.key());
+    fb = fb || it.key().startsWith(QLatin1String("framebeam."));
+  }
+  restartTouched_ = false;
+  rebuild();
+  emit systemsChanged();
+  if (fb) emit frameBeamOptionsChanged();
+}
+
+void EmulationController::setCategoryFilter(const QString& category) {
+  if (categoryFilter_ == category) return;
+  categoryFilter_ = category;
+  rebuild();
+  emit filterChanged();
+}
+
+void EmulationController::setSearchText(const QString& text) {
+  if (searchText_ == text) return;
+  searchText_ = text;
+  rebuild();
+  emit filterChanged();
 }
 
 QVariantMap EmulationController::row(const QString& key, const QString& label, const QString& description, const QString& category,
@@ -215,21 +288,46 @@ QVariantMap EmulationController::row(const QString& key, const QString& label, c
 
 void EmulationController::rebuild() {
   QVariantList groups;
+  QStringList categories;
   lockedCount_ = 0;
   coreNote_.clear();
+  changedCount_ = 0;
+  const auto keep = [this](const QVariantMap& row) {
+    if (!categoryFilter_.isEmpty() && row.value(QStringLiteral("category")).toString() != categoryFilter_) return false;
+    const QString needle = searchText_.trimmed();
+    return needle.isEmpty() || row.value(QStringLiteral("label")).toString().contains(needle, Qt::CaseInsensitive) ||
+           row.value(QStringLiteral("description")).toString().contains(needle, Qt::CaseInsensitive);
+  };
+  // Collects chips and the changed count over all rows of the scope, returns the rows that pass the filters.
+  const auto collect = [&](const QVariantList& rows) {
+    QVariantList out;
+    for (const QVariant& v : rows) {
+      const QVariantMap r = v.toMap();
+      const QString cat = r.value(QStringLiteral("category")).toString();
+      if (!cat.isEmpty() && !categories.contains(cat)) categories.append(cat);
+      if (r.value(QStringLiteral("isSet")).toBool()) ++changedCount_;
+    }
+    if (!categoryFilter_.isEmpty() && !categories.contains(categoryFilter_)) categoryFilter_.clear();
+    for (const QVariant& v : rows) {
+      if (keep(v.toMap())) out.append(v);
+    }
+    return out;
+  };
   if (!selected_.isEmpty()) {
     const bool global = level_ == QLatin1String("global");
-    // FrameBeam group
-    QVariantList fb;
-    for (const FbOption& o : frameBeamOptions()) {
-      fb.append(row(o.key, o.label, o.description, QString(), o.values, QString(), o.defaultValue, true));
+    if (global) {
+      // Defaults: options that do not depend on a system.
+      QVariantList fb;
+      for (const FbOption& o : frameBeamOptions()) {
+        fb.append(row(o.key, o.label, o.description, tr("Display"), o.values, QString(), o.defaultValue, true));
+      }
+      groups.append(QVariantMap{{QStringLiteral("id"), QStringLiteral("framebeam")},
+                                {QStringLiteral("title"), tr("FrameBeam")},
+                                {QStringLiteral("subtitle"), tr("Presentation in the Player")},
+                                {QStringLiteral("note"), QString()},
+                                {QStringLiteral("options"), collect(fb)}});
     }
-    groups.append(QVariantMap{{QStringLiteral("id"), QStringLiteral("framebeam")},
-                              {QStringLiteral("title"), tr("FrameBeam")},
-                              {QStringLiteral("subtitle"), tr("Presentation in the Player")},
-                              {QStringLiteral("note"), QString()},
-                              {QStringLiteral("options"), fb}});
-    // Core group (system level only: the keys belong to the core)
+    // Core group (system scope only: the keys belong to the core)
     const emu::SystemManifest* man = manifests_ != nullptr ? manifests_->find(selected_) : nullptr;
     if (man != nullptr && !global) {
       const emu::CoreProbe* probe = coreProbe(man->coreId);
@@ -249,6 +347,7 @@ void EmulationController::rebuild() {
           for (const emu::CoreOptionCategory& c : probe->categories) {
             if (c.key == catKey) catName = c.description;
           }
+          if (catName.isEmpty()) catName = tr("Other");
           for (const emu::CoreOption& o : probe->options) {
             if (o.categoryKey != catKey && !(catKey.isEmpty() && !order.contains(o.categoryKey))) continue;
             if ((!o.visible && !man->alwaysShownCoreOptions.contains(o.key)) || o.values.isEmpty()) continue;
@@ -268,9 +367,11 @@ void EmulationController::rebuild() {
                                 {QStringLiteral("title"), coreName.isEmpty() ? man->coreId : coreName},
                                 {QStringLiteral("subtitle"), tr("from Libretro core options · only options reported by the core")},
                                 {QStringLiteral("note"), coreNote_},
-                                {QStringLiteral("options"), core}});
+                                {QStringLiteral("options"), collect(core)}});
     }
   }
+  categories_ = categories;
+  restartHint_ = restartTouched_ && gameRunning_;
   groups_ = groups;
   emit groupsChanged();
 }

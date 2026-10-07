@@ -59,6 +59,8 @@ struct HwRenderContext::Impl {
   bool depth = false, stencil = false;
   int w = 0, h = 0;
   QString info;
+  QString renderer, version;
+  bool coreProfile = false;
   std::vector<uchar> buf;
 
   bool allocate(int nw, int nh) {
@@ -170,6 +172,9 @@ bool HwRenderContext::createContext(bool coreProfile, unsigned major, unsigned m
     if (ma < reqMajor || (ma == reqMajor && mi < reqMinor))
       return fail(QStringLiteral("OpenGL %1.%2 requested, got %3.%4").arg(reqMajor).arg(reqMinor).arg(ma).arg(mi));
   }
+  d->renderer = glString(d->f, GL_RENDERER);
+  d->version = glString(d->f, GL_VERSION);
+  d->coreProfile = coreProfile;
   d->info = QStringLiteral("%1 / %2 / %3")
                 .arg(glString(d->f, GL_VENDOR), glString(d->f, GL_RENDERER), glString(d->f, GL_VERSION));
 
@@ -225,6 +230,41 @@ HwRenderContext::ProcAddress HwRenderContext::procAddress(const char* name) cons
 }
 
 QString HwRenderContext::glInfo() const { return d->info; }
+QString HwRenderContext::glRenderer() const { return d->renderer; }
+QString HwRenderContext::glVersion() const { return d->version; }
+bool HwRenderContext::isCoreProfile() const { return d->coreProfile; }
+
+namespace {
+// Splits "4.5 (Core Profile) Mesa 23.2.1" into the leading "major.minor" and the vendor/driver rest.
+void splitGlVersion(const QString& v, QString* number, QString* rest) {
+  const QString t = v.trimmed();
+  qsizetype i = 0;
+  while (i < t.size() && (t.at(i).isDigit() || t.at(i) == QLatin1Char('.'))) ++i;
+  const QStringList parts = t.left(i).split(QLatin1Char('.'), Qt::SkipEmptyParts);
+  *number = parts.size() >= 2 ? parts.at(0) + QLatin1Char('.') + parts.at(1) : t.left(i);
+  QString r = t.mid(i).trimmed();
+  while (r.startsWith(QLatin1Char('('))) {
+    const qsizetype close = r.indexOf(QLatin1Char(')'));
+    if (close < 0) break;
+    r = r.mid(close + 1).trimmed();
+  }
+  *rest = r;
+}
+}  // namespace
+
+QString HwRenderContext::describeApi(const QString& glVersion, bool coreProfile) {
+  QString number, rest;
+  splitGlVersion(glVersion, &number, &rest);
+  const QString base = number.isEmpty() ? QStringLiteral("OpenGL") : QStringLiteral("OpenGL ") + number;
+  return coreProfile ? base + QStringLiteral(" Core") : base;
+}
+
+QString HwRenderContext::describeGpu(const QString& glRenderer, const QString& glVersion) {
+  QString number, rest;
+  splitGlVersion(glVersion, &number, &rest);
+  const QString gpu = glRenderer.trimmed().isEmpty() ? QStringLiteral("GPU") : glRenderer.trimmed();
+  return rest.isEmpty() ? gpu : gpu + QStringLiteral(" · Driver ") + rest;
+}
 
 QImage HwRenderContext::readback(int w, int h, bool bottomLeftOrigin) {
   if (!d->ctx || w <= 0 || h <= 0 || w > d->w || h > d->h) return {};

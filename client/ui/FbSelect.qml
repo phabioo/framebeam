@@ -22,7 +22,7 @@ ComboBox {
     }
     onActivated: index => control.picked(control.model[index].value)
 
-    font.pixelSize: 13
+    font.pixelSize: Theme.fontSmall
     leftPadding: 12
     rightPadding: 28
 
@@ -37,14 +37,15 @@ ComboBox {
         x: control.width - width - 12
         y: (control.height - height) / 2
         text: "▾"
-        font.pixelSize: 12
+        font.pixelSize: Theme.fontMeta
         color: Theme.textMuted
     }
     background: Rectangle {
-        radius: 7
+        radius: Theme.radius7
         color: Theme.surface
         border.width: control.visualFocus || control.popup.visible ? 1.5 : 1
-        border.color: control.visualFocus || control.popup.visible ? Theme.accent : Theme.borderInput
+        border.color: control.visualFocus || control.popup.visible ? Theme.accent : (control.hovered ? Theme.borderButton : Theme.borderInput)
+        Behavior on border.color { ColorAnimation { duration: Theme.durFast } }
     }
     delegate: ItemDelegate {
         id: item
@@ -77,10 +78,10 @@ ComboBox {
             ScrollIndicator.vertical: ScrollIndicator { }
         }
         background: Rectangle {
-            radius: 7
-            color: Theme.surface
+            radius: Theme.radius7
+            color: Theme.popupBg
             border.width: 1
-            border.color: Theme.borderButton
+            border.color: Theme.borderPopup
         }
     }
 }

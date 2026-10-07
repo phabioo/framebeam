@@ -375,11 +375,11 @@ void SessionViewer::updateStats() {
   link_.rttMs = s.rttMs;
   link_.connectionType = s.connectionType;
   stats_ = s;
-  sendRxReport(s.videoBitrateKbps);
+  sendRxReport(s.videoBitrateKbps, s.fps);
 }
 
 // ADR 0012 D5: once per second, loss (RTP sequence numbers) and received video rate go to the host over fb-diag.
-void SessionViewer::sendRxReport(double videoKbps) {
+void SessionViewer::sendRxReport(double videoKbps, double decodedFps) {
   if (!connected_ || !diag_ || !videoSession_) {
     return;
   }
@@ -391,7 +391,7 @@ void SessionViewer::sendRxReport(double videoKbps) {
   const double loss = dExpected > 0 ? std::clamp(static_cast<double>(dExpected - dReceived) / static_cast<double>(dExpected), 0.0, 1.0) : 0.0;
   try {
     if (diag_->isOpen()) {
-      const QByteArray msg = makeRxReport(loss, videoKbps);
+      const QByteArray msg = makeRxReport(loss, videoKbps, decodedFps, decoder_.name());
       diag_->send(std::string(msg.constData(), static_cast<size_t>(msg.size())));
     }
   } catch (const std::exception& e) {
@@ -406,6 +406,7 @@ SessionStats SessionViewer::stats() const {
   s.audioFrames = totalAudioFrames_;
   s.decodeErrors = decodeErrors_;
   s.keyframeRequests = pliCount_;
+  s.decoderName = decoder_.name();
   s.width = width_;
   s.height = height_;
   s.codec = QStringLiteral("H264 + Opus");

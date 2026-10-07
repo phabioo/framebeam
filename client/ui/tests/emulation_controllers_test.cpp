@@ -171,18 +171,18 @@ class EmulationControllersTest : public QObject {
     h.controller->emulation()->setCoreProbe(QStringLiteral("melonds_ds"), fakeProbe(), false);
     QVERIFY(h.click("navEmulation"));
     QCOMPARE(h.controller->screen(), QStringLiteral("emulation"));
+    EmulationController* emu = h.controller->emulation();
 
-    // System card: name, core + version, readiness, firmware (no firmware_v1 on this hub -> built-in BIOS).
+    // System item: name, core + version, readiness, firmware (no firmware_v1 on this hub -> built-in BIOS).
     QCOMPARE(text(h, "systemCore_nds"), QStringLiteral("melonDS DS · 1.4.0"));
     QCOMPARE(text(h, "systemReady_nds"), QStringLiteral("Ready · included in the Player"));
     QCOMPARE(text(h, "systemFirmware_nds"), QStringLiteral("Built-in BIOS"));
-    QCOMPARE(text(h, "emulationTitle"), QStringLiteral("Nintendo DS · melonDS DS"));
-    QVERIFY(visible(h, "optionGroup_framebeam"));
-    QVERIFY(visible(h, "optionGroup_core"));
+    QCOMPARE(text(h, "emulationTitle"), QStringLiteral("Nintendo DS · melonDS DS 1.4.0"));
+    QVERIFY(!emu->defaultsSelected());
 
-    // FrameBeam group and the core's visible, non-locked options; nothing else.
-    QVERIFY(h.item("optionRow_framebeam.fullscreen_on_start") != nullptr);
-    QVERIFY(h.item("optionRow_framebeam.default_multiview") != nullptr);
+    // The system shows the core's visible, non-locked options; nothing else, and no FrameBeam options (those are Defaults).
+    QVERIFY(visible(h, "optionGroup_core"));
+    QVERIFY(h.item("optionGroup_framebeam") == nullptr);
     QVERIFY(h.item("optionRow_melonds_audio_interpolation") != nullptr);
     QVERIFY(h.item("optionRow_melonds_boot_mode") != nullptr);
     for (const char* hidden : {"optionRow_melonds_screen_layout1", "optionRow_melonds_sysfile_mode",
@@ -191,30 +191,41 @@ class EmulationControllersTest : public QObject {
     }
     QVERIFY(h.item("optionRow_melonds_render_mode") != nullptr);  // user choice since 0.5
     QVERIFY(h.item("optionRow_melonds_opengl_resolution") != nullptr);  // hidden by the core in software mode, the manifest shows it anyway
-    QCOMPARE(h.controller->emulation()->lockedCount(), 2);
+    QCOMPARE(emu->lockedCount(), 2);
     QVERIFY(visible(h, "lockedHint"));
-    // Level switch: Game Override is disabled ("later").
-    QVERIFY(h.item("levelGame") != nullptr);
-    QVERIFY(h.click("levelGame"));
-    QCOMPARE(h.controller->emulation()->level(), QStringLiteral("system"));
-
-    // Origins: inherited sources, no badge while no game runs.
-    QCOMPARE(text(h, "optionOrigin_melonds_audio_interpolation"), QStringLiteral("inherited · core default"));
-    QCOMPARE(text(h, "optionOrigin_melonds_boot_mode"), QStringLiteral("inherited · FrameBeam default"));  // manifest default
-    QCOMPARE(text(h, "optionOrigin_framebeam.fullscreen_on_start"), QStringLiteral("inherited · default"));
+    // Category chips: the categories of this scope.
+    QCOMPARE(emu->categories(), (QStringList{QStringLiteral("Audio"), QStringLiteral("System")}));
+    QVERIFY(visible(h, "category_Audio") && visible(h, "category_System"));
+    // Nothing changed yet: "Default" in every row, no dot, no "Reset N changed".
+    QCOMPARE(text(h, "optionOrigin_melonds_audio_interpolation"), QStringLiteral("Default"));
+    QVERIFY(!visible(h, "changedDot_melonds_audio_interpolation"));
+    QVERIFY(!visible(h, "resetAllChanged"));
     QVERIFY(!visible(h, "restartBadge_melonds_audio_interpolation"));
     uitest::saveShot(h.window, QStringLiteral("5-emulation"));
 
-    // Set a value: stored as an explicit override, "● set here" + reset; reset removes the key again.
+    // Category chip and search narrow the list.
+    QVERIFY(h.click("category_Audio"));
+    QVERIFY(h.item("optionRow_melonds_boot_mode") == nullptr);
+    QVERIFY(h.item("optionRow_melonds_audio_interpolation") != nullptr);
+    QVERIFY(h.click("categoryAll"));
+    QVERIFY(h.item("optionRow_melonds_boot_mode") != nullptr);
+    emu->setSearchText(QStringLiteral("boot"));
+    QVERIFY(h.item("optionRow_melonds_audio_interpolation") == nullptr);
+    QVERIFY(h.item("optionRow_melonds_boot_mode") != nullptr);
+    emu->setSearchText(QString());
+
+    // Set a value: stored as an explicit override with the changed dot, "N changed" and Reset; reset removes the key again.
     pick(h, "optionSelect_melonds_audio_interpolation", QStringLiteral("cosine"));
-    QCOMPARE(h.controller->emulation()->settings()->value(L::System, QStringLiteral("nds"), QStringLiteral("melonds_audio_interpolation")),
-             QStringLiteral("cosine"));
-    QCOMPARE(text(h, "optionOrigin_melonds_audio_interpolation"), QStringLiteral("● set here"));
+    QCOMPARE(emu->settings()->value(L::System, QStringLiteral("nds"), QStringLiteral("melonds_audio_interpolation")), QStringLiteral("cosine"));
+    QVERIFY(visible(h, "changedDot_melonds_audio_interpolation"));
     QVERIFY(visible(h, "optionReset_melonds_audio_interpolation"));
-    QCOMPARE(h.controller->emulation()->launchOverrides(QStringLiteral("nds"), QStringLiteral("g1")).value(QStringLiteral("melonds_audio_interpolation")),
+    QCOMPARE(emu->changedCount(), 1);
+    QCOMPARE(text(h, "resetAllChanged"), QStringLiteral("Reset 1 changed"));
+    QCOMPARE(text(h, "systemChanged_nds"), QStringLiteral("1 changed"));
+    QCOMPARE(emu->launchOverrides(QStringLiteral("nds"), QStringLiteral("g1")).value(QStringLiteral("melonds_audio_interpolation")),
              QStringLiteral("cosine"));
     {
-      QFile f(h.controller->emulation()->settings()->filePath());
+      QFile f(emu->settings()->filePath());
       QVERIFY(f.open(QIODevice::ReadOnly));
       const QJsonObject o = QJsonDocument::fromJson(f.readAll()).object();
       // Only the explicit override is stored (no complete copy of the configuration).
@@ -222,20 +233,34 @@ class EmulationControllersTest : public QObject {
       QVERIFY(!o.contains(QStringLiteral("global")));
     }
     // An invalid value and a locked key are refused.
-    h.controller->emulation()->setOption(QStringLiteral("melonds_audio_interpolation"), QStringLiteral("nonsense"));
-    h.controller->emulation()->setOption(QStringLiteral("melonds_screen_layout1"), QStringLiteral("left-right"));
-    QCOMPARE(h.controller->emulation()->settings()->values(L::System, QStringLiteral("nds")).size(), 1);
+    emu->setOption(QStringLiteral("melonds_audio_interpolation"), QStringLiteral("nonsense"));
+    emu->setOption(QStringLiteral("melonds_screen_layout1"), QStringLiteral("left-right"));
+    QCOMPARE(emu->settings()->values(L::System, QStringLiteral("nds")).size(), 1);
     QVERIFY(h.click("optionReset_melonds_audio_interpolation"));
-    QVERIFY(!h.controller->emulation()->settings()->hasValue(L::System, QStringLiteral("nds"), QStringLiteral("melonds_audio_interpolation")));
-    QCOMPARE(text(h, "optionOrigin_melonds_audio_interpolation"), QStringLiteral("inherited · core default"));
+    QVERIFY(!emu->settings()->hasValue(L::System, QStringLiteral("nds"), QStringLiteral("melonds_audio_interpolation")));
+    QCOMPARE(text(h, "optionOrigin_melonds_audio_interpolation"), QStringLiteral("Default"));
+    // Picking the default again stores nothing.
+    emu->setOption(QStringLiteral("melonds_audio_interpolation"), QStringLiteral("cosine"));
+    emu->setOption(QStringLiteral("melonds_audio_interpolation"), QStringLiteral("disabled"));
+    QVERIFY(!emu->settings()->hasValue(L::System, QStringLiteral("nds"), QStringLiteral("melonds_audio_interpolation")));
+    // "Reset N changed" resets every explicit value of the scope.
+    emu->setOption(QStringLiteral("melonds_audio_interpolation"), QStringLiteral("linear"));
+    emu->setOption(QStringLiteral("melonds_boot_mode"), QStringLiteral("native"));
+    QCOMPARE(emu->changedCount(), 2);
+    QVERIFY(h.click("resetAllChanged"));
+    QCOMPARE(emu->changedCount(), 0);
+    QCOMPARE(emu->settings()->values(L::System, QStringLiteral("nds")).size(), 0);
 
-    // "Restart required" badge on core options only while a game runs (values apply at the next launch).
-    h.controller->emulation()->setGameRunning(true);
+    // "applies on next start" badge on core options only while a game runs; the hint appears once such an option changed.
+    emu->setGameRunning(true);
     QVERIFY(visible(h, "restartBadge_melonds_audio_interpolation"));
-    QVERIFY(!visible(h, "restartBadge_framebeam.fullscreen_on_start"));
     QVERIFY(visible(h, "gameRunningNote"));
-    h.controller->emulation()->setGameRunning(false);
+    QVERIFY(!visible(h, "restartHint"));
+    emu->setOption(QStringLiteral("melonds_audio_interpolation"), QStringLiteral("linear"));
+    QVERIFY(visible(h, "restartHint"));
+    emu->setGameRunning(false);
     QVERIFY(!visible(h, "restartBadge_melonds_audio_interpolation"));
+    QVERIFY(!visible(h, "restartHint"));
   }
 
   void settingsHierarchyOnThePage() {
@@ -248,37 +273,51 @@ class EmulationControllersTest : public QObject {
     h.controller->showEmulation();
     EmulationController* emu = h.controller->emulation();
 
-    // Global level: FrameBeam options only; core keys belong to System / Core.
-    QVERIFY(h.click("levelGlobal"));
+    // Defaults: FrameBeam options only; core keys belong to the systems.
+    QVERIFY(h.click("defaultsCard"));
     QCOMPARE(emu->level(), QStringLiteral("global"));
+    QVERIFY(emu->defaultsSelected());
+    QCOMPARE(text(h, "emulationTitle"), QStringLiteral("Defaults for all systems"));
     QVERIFY(h.item("optionGroup_core") == nullptr);
     QVERIFY(visible(h, "globalCoreHint"));
-    QCOMPARE(text(h, "optionOrigin_framebeam.fullscreen_on_start"), QStringLiteral("default"));
+    QVERIFY(visible(h, "optionGroup_framebeam"));
+    QVERIFY(h.item("optionToggle_framebeam.fullscreen_on_start") != nullptr);  // off/on = toggle
+    QCOMPARE(text(h, "optionOrigin_framebeam.fullscreen_on_start"), QStringLiteral("Default"));
     QVERIFY(!h.controller->fullscreenOnStart());
-    pick(h, "optionSelect_framebeam.fullscreen_on_start", QStringLiteral("on"));
-    QCOMPARE(text(h, "optionOrigin_framebeam.fullscreen_on_start"), QStringLiteral("● set here"));
+    QVERIFY(h.click("optionToggle_framebeam.fullscreen_on_start"));
+    QVERIFY(visible(h, "changedDot_framebeam.fullscreen_on_start"));
     QVERIFY(h.controller->fullscreenOnStart());  // wired: the game view goes fullscreen on start
+    QCOMPARE(emu->defaultsChangedCount(), 1);
+    QCOMPARE(text(h, "defaultsChanged"), QStringLiteral("1 changed"));
 
-    // System level inherits it; an own value overrides it; reset falls back to Global.
-    QVERIFY(h.click("levelSystem"));
-    QCOMPARE(text(h, "optionOrigin_framebeam.fullscreen_on_start"), QStringLiteral("inherited · Global"));
-    pick(h, "optionSelect_framebeam.fullscreen_on_start", QStringLiteral("off"));
-    QVERIFY(!h.controller->fullscreenOnStart());
-    QCOMPARE(emu->frameBeamValue(QStringLiteral("framebeam.fullscreen_on_start"), QStringLiteral("nds")), QStringLiteral("off"));
-    QVERIFY(h.click("optionReset_framebeam.fullscreen_on_start"));
+    // The system inherits it (stored only once, at Global); resetting Defaults restores the default.
+    QVERIFY(h.click("systemCard_nds"));
+    QCOMPARE(emu->level(), QStringLiteral("system"));
     QVERIFY(h.controller->fullscreenOnStart());
-    QCOMPARE(text(h, "optionOrigin_framebeam.fullscreen_on_start"), QStringLiteral("inherited · Global"));
+    QVERIFY(h.click("defaultsCard"));
+    QVERIFY(h.click("optionReset_framebeam.fullscreen_on_start"));
+    QVERIFY(!h.controller->fullscreenOnStart());
 
-    // Default multiview is applied to the Session view.
+    // Default Multiview offers Picture-in-Picture, Side-by-Side and Grid 2x2; it is applied to the Session view.
     QCOMPARE(h.controller->sessions()->multiviewMode(), QStringLiteral("pip"));
+    QVERIFY(h.item("optionSelect_framebeam.default_multiview") != nullptr);
+    QStringList values;
+    for (const QVariant& g : emu->groups()) {
+      for (const QVariant& o : g.toMap().value(QStringLiteral("options")).toList()) {
+        if (o.toMap().value(QStringLiteral("key")).toString() == QStringLiteral("framebeam.default_multiview")) {
+          for (const QVariant& v : o.toMap().value(QStringLiteral("values")).toList()) values.append(v.toMap().value(QStringLiteral("value")).toString());
+        }
+      }
+    }
+    QCOMPARE(values, (QStringList{QStringLiteral("pip"), QStringLiteral("side"), QStringLiteral("grid")}));
     pick(h, "optionSelect_framebeam.default_multiview", QStringLiteral("side"));
     QCOMPARE(h.controller->sessions()->multiviewMode(), QStringLiteral("side"));
+    pick(h, "optionSelect_framebeam.default_multiview", QStringLiteral("grid"));
+    QCOMPARE(emu->frameBeamValue(QStringLiteral("framebeam.default_multiview"), QStringLiteral("nds")), QStringLiteral("grid"));
 
-    // A core option set globally in the file (keys stay assigned to the core) is inherited at System level.
+    // A core option set globally in the file (keys stay assigned to the core) is still inherited by the system.
     emu->settings()->setValue(L::Global, QString(), QStringLiteral("melonds_boot_mode"), QStringLiteral("native"));
-    emu->setLevel(QStringLiteral("global"));
     emu->setLevel(QStringLiteral("system"));
-    QCOMPARE(text(h, "optionOrigin_melonds_boot_mode"), QStringLiteral("inherited · Global"));
     QCOMPARE(emu->launchOverrides(QStringLiteral("nds"), QString()).value(QStringLiteral("melonds_boot_mode")), QStringLiteral("native"));
   }
 
@@ -324,7 +363,7 @@ class EmulationControllersTest : public QObject {
     h.controller->showEmulation();
     QCOMPARE(text(h, "systemReady_nds"), QStringLiteral("Core missing"));
     // Without a core and without a cache the page still works and says why the core group is empty.
-    QVERIFY(visible(h, "optionGroup_framebeam"));
+    QVERIFY(visible(h, "coreNoteHint"));
     QVERIFY(!h.controller->emulation()->coreNote().isEmpty());
   }
 
@@ -350,7 +389,7 @@ class EmulationControllersTest : public QObject {
     const QString cache = QDir(h.controller->profileStore()->baseDir()).filePath(QStringLiteral("cache/core-options/melonds_ds.json"));
     QVERIFY(QFile::exists(cache));
     pick(h, "optionSelect_melonds_audio_interpolation", QStringLiteral("cubic"));
-    QCOMPARE(text(h, "optionOrigin_melonds_audio_interpolation"), QStringLiteral("● set here"));
+    QVERIFY(visible(h, "changedDot_melonds_audio_interpolation"));
 
     // A fresh controller without core access reads the options from the cache.
     emu::ManifestRegistry reg;
@@ -396,7 +435,7 @@ class EmulationControllersTest : public QObject {
     QCOMPARE(h.controller->screen(), QStringLiteral("controllers"));
     QCOMPARE(c->devices().size(), 2);  // Keyboard, Mouse
     QCOMPARE(c->selectedDevice(), QStringLiteral("keyboard"));
-    QCOMPARE(text(h, "profilesLocalFooter"), QStringLiteral("Profiles stay local on this device and are not synchronized."));
+    QCOMPARE(text(h, "profilesLocalFooter"), QStringLiteral("Saved on this device only"));
     QCOMPARE(c->rows().size(), 12);
     QVERIFY(!c->supportsLid());  // no LID row: the nds profiles have no lid input
     QCOMPARE(inputRow(h, QStringLiteral("a")).value(QStringLiteral("binding")).toString(), QStringLiteral("X"));

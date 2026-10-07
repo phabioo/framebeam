@@ -195,6 +195,19 @@ class LoopbackTest : public QObject {
     QVERIFY(rxSpy.first().at(0).toString() == rig.ids.first());
     QVERIFY(rxSpy.first().at(1).toDouble() >= 0.0 && rxSpy.first().at(1).toDouble() <= 1.0);
     QVERIFY(rig.host.stats().targetBitrateKbps >= 300.0);
+    // 0.6 D7/D8: the host keeps the latest report per viewer (fps and decoder included); the viewer names its real decoder.
+    QCOMPARE(vs.decoderName, QStringLiteral("h264"));
+    QVERIFY2(QTest::qWaitFor([&]() {
+      const auto l = rig.host.viewerLinks();
+      return l.size() == 1 && l.first().hasReport && l.first().reportFps.has_value() && !l.first().reportDecoder.isEmpty();
+    }, 5000), "host did not keep fps/decoder of the viewer report");
+    {
+      const ViewerLinkStats l = rig.host.viewerLinks().first();
+      QCOMPARE(l.reportDecoder, QStringLiteral("h264"));
+      QVERIFY(l.reportFps && *l.reportFps >= 0.0 && *l.reportFps < 200.0);
+      QVERIFY(l.reportLoss >= 0.0 && l.reportLoss <= 1.0);
+      QVERIFY(l.reportKbps >= 0.0);
+    }
     QVERIFY(viewer->link().rttMs.has_value());
     QVERIFY2(*rig.host.stats().rttMs >= 0.0 && *rig.host.stats().rttMs < 1000.0, qPrintable(QString::number(*rig.host.stats().rttMs)));
 

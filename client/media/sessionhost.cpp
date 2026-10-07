@@ -466,6 +466,7 @@ void SessionHost::dropViewer(const QString& viewerId, const QString& reason) {
   viewers_.erase(it);
   viewerCountAtomic_ = static_cast<int>(viewers_.size());
   bitrate_.removeViewer(viewerId);
+  reports_.remove(viewerId);
   publishSinks();  // the worker stops sending to this viewer before its PeerConnection closes
   QString finalState = QStringLiteral("closed");
   try {
@@ -515,6 +516,15 @@ void SessionHost::onPcState(const QString& viewerId, int state) {
 void SessionHost::onRxReport(const QString& viewerId, const RxReport& report) {
   if (!open_ || !viewers_.contains(viewerId)) {
     return;
+  }
+  reports_.set(viewerId, report);
+  {
+    std::lock_guard<std::mutex> lock(statsMutex_);  // visible to viewerLinks() right away, not only after the next stats tick
+    for (ViewerLinkStats& l : links_) {
+      if (l.viewerId == viewerId) {
+        reports_.applyTo(l);
+      }
+    }
   }
   emit rxReportReceived(viewerId, report.loss, report.kbps);
   if (const auto target = bitrate_.report(viewerId, report, adaptClock_.elapsed())) {
@@ -719,6 +729,7 @@ void SessionHost::updateStats() {
     }
     links.append(l);
   }
+  reports_.applyTo(links);
   std::lock_guard<std::mutex> lock(statsMutex_);
   stats_ = s;
   links_ = links;

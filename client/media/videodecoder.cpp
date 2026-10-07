@@ -30,6 +30,8 @@ void VideoDecoder::close() {
   swsFmt_ = -1;
 }
 
+QString VideoDecoder::name() const { return ctx_ && ctx_->codec ? QString::fromLatin1(ctx_->codec->name) : QString(); }
+
 bool VideoDecoder::open() {
   close();
   const AVCodec* codec = avcodec_find_decoder(AV_CODEC_ID_H264);

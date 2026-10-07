@@ -7,6 +7,7 @@
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QRegularExpression>
+#include <QScopeGuard>
 #include <QStyleHints>
 #include <QSysInfo>
 #include <QUrl>
@@ -66,6 +67,7 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
       fwProblems_.clear();  // fresh registry from the Hub: validation problems are re-evaluated
       coreProblems_.clear();
     }
+    refreshAttention();
     emit selectedGameChanged();
   });
   connect(provisioner_.get(), &FirmwareProvisioner::finished, this, &PlayerController::onFirmwareFinished);
@@ -132,6 +134,7 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   conn_->setHandshakeInfo(info);
 
   sessions_ = std::make_unique<SessionController>(conn_.get(), profiles_.get(), &session_);
+  sessions_->setPlayerSettings(settings_.get());  // diagnostics overlay states live in settings/player.json (0.6 D5)
   saves_->setSettings(settings_.get());
   {
     SaveHistoryController::Env env;
@@ -181,10 +184,29 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   });
   connect(library_.get(), &HubLibrary::loaded, this, &PlayerController::onLibraryLoaded);
   connect(library_.get(), &HubLibrary::loadFailed, this, [this](const QString&, const QString& message) {
+    if (quietRefresh_) {
+      quietRefresh_ = false;  // periodic refresh failed: keep showing the last Library
+      return;
+    }
     libraryState_ = QStringLiteral("error");
     libraryError_ = message;
     emit libraryStateChanged();
   });
+  // Live updates (0.6): while the Library is shown it is refreshed quietly (new games, ROM and sync state) and the
+  // core / firmware state is re-evaluated, e.g. after the core cache changed outside the Player.
+  liveTimer_ = new QTimer(this);
+  liveTimer_->setInterval(30000);
+  connect(liveTimer_, &QTimer::timeout, this, [this]() {
+    if (conn_->state() != HubConnection::State::Connected || screen_ == QLatin1String("game") || phase_ != PlayPhase::None) {
+      return;
+    }
+    refreshCoreState();
+    if (screen_ == QLatin1String("library") && libraryState_ == QLatin1String("ready") && !library_->isLoading()) {
+      quietRefresh_ = true;
+      library_->reload();
+    }
+  });
+  liveTimer_->start();
   connect(library_.get(), &HubLibrary::cleared, this, [this]() {
     model_.clear();
     emit selectedGameChanged();
@@ -381,6 +403,57 @@ void PlayerController::coreStatus(const emu::SystemManifest& man, QString* text,
                    loc.tried.isEmpty() ? QString() : QDir::toNativeSeparators(loc.tried.last()));
 }
 
+// "Needs attention" (D14) for the Library: core missing/incompatible/untrusted or firmware missing, per system once.
+QString PlayerController::attentionFor(const GameEntry& game) const {
+  const emu::SystemManifest* man = manifestFor(game);
+  if (man == nullptr) {
+    return {};
+  }
+  if (!coreUsable(*man)) {
+    QString text, tone, hint;
+    coreStatus(*man, &text, &tone, &hint);
+    if (tone == QLatin1String("error")) {
+      return text;
+    }
+  }
+  SystemInfo sys;
+  if (nativeFirmware(*man, &sys)) {
+    QList<FirmwareProblem> problems = FirmwareProvisioner::missingOnHub(sys, wantedFirmwareIds(*man));
+    for (const FirmwareProblem& p : fwProblems_) {
+      if (p.reason == QLatin1String("invalid_hash") || p.reason == QLatin1String("invalid_size")) {
+        problems.append(p);
+      }
+    }
+    if (!problems.isEmpty()) {
+      return tr("Firmware missing");
+    }
+  }
+  return {};
+}
+
+void PlayerController::refreshAttention() {
+  QHash<QString, QString> bySystem;
+  QHash<QString, QString> byGame;
+  for (const GameEntry& g : library_->games()) {
+    if (!bySystem.contains(g.system)) {
+      bySystem.insert(g.system, attentionFor(g));
+    }
+    const QString a = bySystem.value(g.system);
+    if (!a.isEmpty()) {
+      byGame.insert(g.id, a);
+    }
+  }
+  model_.setAttention(byGame);
+}
+
+void PlayerController::refreshCoreState() {
+  refreshAttention();
+  if (!session_.isActive()) {
+    refreshEmulationPage();
+  }
+  emit selectedGameChanged();
+}
+
 // Emulation page: system cards (core, readiness, firmware) and the core options (loaded once without a game or from
 // the cache of the last capture; not possible while a game runs because only one core can be loaded per process).
 void PlayerController::refreshEmulationPage() {
@@ -467,6 +540,13 @@ QString PlayerController::systemDir() const {
 
 QString PlayerController::logFile() const { return QDir::toNativeSeparators(filelog::path()); }
 
+QString PlayerController::deviceName() const { return profiles_->deviceName(); }
+QString PlayerController::playerVersion() const { return HandshakeInfo::detect().playerVersion; }
+QString PlayerController::platformText() const {
+  const HandshakeInfo h = HandshakeInfo::detect();
+  return tr("%1 · Protocol v%2").arg(platformLabel(h.platform, h.arch)).arg(kProtocolVersion);
+}
+
 void PlayerController::openLogFolder() {
   const QString p = filelog::path();
   if (!p.isEmpty()) QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(p).absolutePath()));
@@ -520,6 +600,7 @@ void PlayerController::onConnectionState(HubConnection::State s) {
     page_ = QStringLiteral("library");
     fwProblems_.clear();
   }
+
   if (s == S::NeedsTrustConfirmation || s == S::NeedsPairing || s == S::AwaitingApproval || s == S::Denied ||
       s == S::Expired) {
     pairingFlow_ = true;
@@ -528,6 +609,11 @@ void PlayerController::onConnectionState(HubConnection::State s) {
     pairingFlow_ = false;
   }
   if (s == S::Connected) {
+    if (!resumePage_.isEmpty()) {
+      page_ = resumePage_;  // reconnect after "Edit Hub": back where the user was
+      resumePage_.clear();
+    }
+    quietRefresh_ = false;
     libraryState_ = QStringLiteral("loading");
     libraryError_.clear();
     emit libraryStateChanged();
@@ -580,6 +666,13 @@ QVariantMap PlayerController::hubCard(const HubProfile& p) const {
   m.insert(QStringLiteral("hubId"), p.hubId);
   m.insert(QStringLiteral("name"), p.name.isEmpty() ? trimmedScheme(p.address) : p.name);
   m.insert(QStringLiteral("saved"), true);
+  {
+    QString host;
+    int port = 0;
+    ProfileStore::splitAddress(p.address, &host, &port);
+    m.insert(QStringLiteral("host"), host);
+    m.insert(QStringLiteral("port"), port > 0 ? QString::number(port) : QStringLiteral("8443"));
+  }
   m.insert(QStringLiteral("isLast"), p.hubId == profiles_->lastHubId());
   const QString last = p.lastConnected.isValid() ? tr("last %1").arg(p.lastConnected.toLocalTime().toString(QStringLiteral("yyyy-MM-dd HH:mm")))
                                                  : tr("never connected");
@@ -670,6 +763,7 @@ QVariantList PlayerController::hubs() const {
 
 void PlayerController::addHub(const QString& address) {
   notice_.clear();
+  resumePage_.clear();
   if (address.trimmed().isEmpty()) {
     notice_ = tr("Please enter a hub address, e.g. hub.local:8443.");
     emit hubsChanged();
@@ -708,6 +802,7 @@ void PlayerController::retryConnection() {
 }
 
 void PlayerController::removeHub(const QString& hubId) {
+  resumePage_.clear();
   if (hubId.isEmpty()) {
     conn_->disconnectFromHub();
   } else {
@@ -719,6 +814,31 @@ void PlayerController::removeHub(const QString& hubId) {
   notice_.clear();
   updateScreen();
   emit hubsChanged();
+}
+
+QStringList PlayerController::validateHubAddress(const QString& host, const QString& port) const {
+  return ProfileStore::validateHubAddress(host, port);
+}
+
+bool PlayerController::editHub(const QString& hubId, const QString& host, const QString& port) {
+  if (!ProfileStore::validateHubAddress(host, port).isEmpty() || !profiles_->profile(hubId)) {
+    return false;
+  }
+  const bool active = conn_->state() != HubConnection::State::Disconnected && conn_->profile() && conn_->profile()->hubId == hubId;
+  if (active) {
+    endRunningWork();  // Sessions end and pending saves are secured before the connection goes
+  }
+  if (!profiles_->updateHubAddress(hubId, host, port.trimmed().toInt())) {
+    return false;
+  }
+  if (active) {
+    resumePage_ = page_;
+    conn_->disconnectFromHub();
+    connectProfile(hubId);  // pinned fingerprint of the profile still applies: another certificate is never accepted silently
+  } else {
+    emit hubsChanged();
+  }
+  return true;
 }
 
 // ---------------------------------------------------------------- 3b Pairing
@@ -1063,6 +1183,7 @@ void PlayerController::endRunningWork() {
 }
 
 void PlayerController::switchHub() {
+  resumePage_.clear();
   endRunningWork();
   conn_->disconnectFromHub();
   updateScreen();
@@ -1084,7 +1205,9 @@ void PlayerController::reloadLibrary() {
 }
 
 void PlayerController::onLibraryLoaded() {
+  quietRefresh_ = false;
   model_.setGames(library_->games(), [this](const GameEntry& g) { return downloader_->status(g); });
+  refreshAttention();
   QStringList ids;
   for (const GameEntry& g : library_->games()) {
     ids.append(g.id);
@@ -1357,6 +1480,39 @@ QVariantMap PlayerController::selectedGame() const {
     label = tr("Reload and play");
   }
   m.insert(QStringLiteral("playLabel"), label);
+
+  // Status pill of the detail pane (3c): same priority as the tile status line.
+  {
+    QString pill = tr("Ready to play");
+    QString tone = QStringLiteral("ok");
+    const QString attention = model_.attentionText(game->id);
+    if (kind == QLatin1String("mismatch")) {
+      pill = tr("Hash mismatch");
+      tone = QStringLiteral("error");
+    } else if (!attention.isEmpty()) {
+      pill = attention;
+      tone = QStringLiteral("warn");
+    } else if (kind == QLatin1String("failed")) {
+      pill = tr("Download failed");
+      tone = QStringLiteral("error");
+    } else if (kind == QLatin1String("download")) {
+      pill = tr("Download required");
+      tone = QStringLiteral("neutral");
+    } else if (kind == QLatin1String("downloading")) {
+      pill = tr("Downloading");
+      tone = QStringLiteral("neutral");
+    } else if (kind != QLatin1String("ready")) {
+      pill = tr("Verifying");
+      tone = QStringLiteral("neutral");
+    } else if (!coreOk && !coreProvisionable) {
+      pill = tr("Core missing");
+      tone = QStringLiteral("warn");
+    }
+    m.insert(QStringLiteral("pillText"), pill);
+    m.insert(QStringLiteral("pillTone"), tone);
+    m.insert(QStringLiteral("coreLabelText"), man != nullptr ? coreLabel(*man, locateCore(*man)) : QString());
+    m.insert(QStringLiteral("coreVersionText"), man != nullptr ? coreVersions_.value(man->coreId) : QString());
+  }
   return m;
 }
 
@@ -1399,6 +1555,8 @@ void PlayerController::startSelected(bool share) {
 }
 
 void PlayerController::onCoreFinished(const CoreResult& result) {
+  // D15: whatever happens next, Library tiles, detail pane and Emulation page see the new core state at once.
+  const auto refresh = qScopeGuard([this]() { refreshCoreState(); });
   if (phase_ != PlayPhase::Core) {
     return;
   }

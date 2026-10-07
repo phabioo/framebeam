@@ -3,11 +3,12 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import FrameBeam.Player
 
-// 3h / 3i: Multiview with up to four surfaces (ADR 0012 D8): the local game and/or remote Sessions, each remote
-// Session with its own viewer. Layouts: a single surface fills the area; two surfaces side-by-side (3h); three or
-// four as a 2 x 2 grid; PiP (3i): one main surface and the others as small tiles stacked bottom right. Exactly one
-// surface is audible ("Audio here"), "Swap" makes a tile the main surface, "Remove" leaves that Session. Every
-// surface is one delegate that is only moved when the layout changes, so the local game view is not recreated.
+// 3h / 3r / 3i: Multiview with up to four surfaces (ADR 0012 D8): the local game and/or remote Sessions, each remote
+// Session with its own viewer. Layouts: a single surface fills the area; side-by-side (3h, two columns); grid 2 x 2 (3r,
+// free cells are "Add a session" tiles); PiP (3i): one main surface and the others as small tiles stacked bottom right.
+// Exactly one surface is audible, the one with the accent ring (keys 1-4 in the grid, "Audio here"). The screen layout
+// of the game (Stacked / Side by side / Top only) applies to every tile. Every surface is one delegate that is only moved
+// when the layout changes, so the local game view is not recreated.
 Item {
     id: root
     objectName: "multiviewArea"
@@ -17,7 +18,12 @@ Item {
     readonly property var order: ctl.surfaceOrder             // display order, first = main surface
     readonly property int count: ctl.surfaceCount
     readonly property bool tiled: layoutMode === "side" || layoutMode === "grid"
+    // "Running sessions" picker (3r); the header button of the game view toggles it, an empty tile opens it.
+    property bool pickerOpen: false
     signal localReady(Item view)
+    signal escapePressed()
+    signal pickerRequested()
+    signal pickerCloseRequested()
 
     // Layout metrics
     readonly property real gap: 2
@@ -58,6 +64,41 @@ Item {
         function onSurfacesChanged() { root.syncSurfaces() }
     }
 
+    // Free cells of the grid: "Add a session" (click opens the picker)
+    Repeater {
+        model: root.layoutMode === "grid" ? Math.max(0, 4 - root.count) : 0
+        delegate: Rectangle {
+            id: freeCell
+            required property int index
+            readonly property int slot: root.count + index
+            readonly property real cellW: (root.width - root.gap) / 2
+            readonly property real cellH: (root.height - root.gap) / 2
+            objectName: "emptyTile_" + (slot + 1)
+            x: (slot % 2) * (cellW + root.gap)
+            y: Math.floor(slot / 2) * (cellH + root.gap)
+            width: cellW
+            height: cellH
+            color: Theme.gameBg
+            ColumnLayout {
+                anchors.centerIn: parent
+                spacing: 6
+                Rectangle {
+                    Layout.alignment: Qt.AlignHCenter
+                    implicitWidth: 44
+                    implicitHeight: 44
+                    radius: 22
+                    color: "transparent"
+                    border.width: 1
+                    border.color: Theme.borderButton
+                    FbLabel { anchors.centerIn: parent; text: "+"; font.pixelSize: 22; color: Theme.textMuted }
+                }
+                FbLabel { Layout.alignment: Qt.AlignHCenter; text: qsTr("Add a session"); font.pixelSize: 14; color: Theme.text }
+                FbLabel { Layout.alignment: Qt.AlignHCenter; text: qsTr("Tile %1 is free").arg(freeCell.slot + 1); font.pixelSize: 12; color: Theme.textTile }
+            }
+            TapHandler { onTapped: root.pickerRequested() }
+        }
+    }
+
     Repeater {
         model: surfaceModel
         delegate: Item {
@@ -66,6 +107,7 @@ Item {
             readonly property string modelData: sid
             readonly property int slot: root.order.indexOf(modelData)
             readonly property var info: root.ctl.surfaceInfo[modelData] || ({})
+            readonly property var link: root.ctl.surfaceLinks[modelData] || null
             readonly property bool isLocal: modelData === "local"
             readonly property bool audible: root.ctl.audioFocus === modelData
             readonly property bool pipTile: root.layoutMode === "pip" && slot > 0
@@ -95,16 +137,16 @@ Item {
                 color: tile.pipTile ? Theme.bgPanel : Theme.gameBg
                 radius: tile.pipTile ? 10 : 0
                 border.width: tile.pipTile ? 1 : 0
-                border.color: Theme.gameBorder
+                border.color: Theme.borderCard
             }
 
             // The picture: local game or the decoded frames of this remote Session.
             Item {
                 anchors.fill: parent
                 anchors.topMargin: tile.headed ? root.headerHeight : (tile.pipTile ? 40 : 0)
-                anchors.bottomMargin: tile.pipTile ? 48 : 0
-                anchors.leftMargin: tile.pipTile ? 8 : 0
-                anchors.rightMargin: tile.pipTile ? 8 : 0
+                anchors.bottomMargin: tile.pipTile ? 48 : (tile.headed ? 12 : 0)
+                anchors.leftMargin: tile.pipTile ? 8 : (tile.headed ? 20 : 0)
+                anchors.rightMargin: tile.pipTile ? 8 : (tile.headed ? 20 : 0)
                 clip: tile.pipTile
                 Loader {
                     anchors.fill: parent
@@ -116,8 +158,9 @@ Item {
                 GameView {
                     session: root.player.gameSession
                     objectName: "gameViewMulti"
+                    layout: root.ctl.screenLayout
                     Component.onCompleted: root.localReady(this)
-                    onEscapePressed: root.player.gameSession.togglePause()
+                    onEscapePressed: root.escapePressed()
                 }
             }
             Component {
@@ -126,17 +169,42 @@ Item {
                     objectName: "remoteView"
                     controller: root.ctl
                     surfaceId: tile.modelData
+                    layout: root.ctl.screenLayout
                 }
             }
 
-            // Header (side-by-side, grid, a single remote Session): avatar, "who · game", meta, audio, Swap, Remove.
+            // Audio focus ring (side, grid): inset 2 px accent
+            Rectangle {
+                objectName: "audioRing_" + tile.modelData
+                visible: tile.audible && root.tiled
+                anchors.fill: parent
+                color: "transparent"
+                border.width: 2
+                border.color: Theme.accent
+            }
+
+            // Header (side-by-side, grid, a single remote Session): key badge (grid), avatar, "who · game" with the
+            // connection pill, audio button, remove.
             RowLayout {
                 visible: tile.headed
                 anchors.top: parent.top
                 anchors.left: parent.left
                 anchors.right: parent.right
-                anchors.margins: 12
+                anchors.topMargin: 14
+                anchors.leftMargin: 20
+                anchors.rightMargin: 20
                 spacing: 10
+                Rectangle {
+                    objectName: "keyBadge_" + tile.modelData
+                    visible: root.layoutMode === "grid"
+                    Layout.preferredWidth: 20
+                    Layout.preferredHeight: 20
+                    radius: 4
+                    color: "transparent"
+                    border.width: 1
+                    border.color: Theme.borderButton
+                    FbMono { anchors.centerIn: parent; text: String(tile.slot + 1); font.pixelSize: 11; color: Theme.textMuted }
+                }
                 Rectangle {
                     Layout.preferredWidth: 28
                     Layout.preferredHeight: 28
@@ -155,8 +223,19 @@ Item {
                     Layout.minimumWidth: 0
                     Layout.preferredWidth: 0
                     spacing: 0
-                    FbLabel { Layout.fillWidth: true; text: tile.info.name || ""; elide: Text.ElideRight; font.pixelSize: 13; font.weight: Font.DemiBold; color: Theme.gameText }
-                    FbLabel { Layout.fillWidth: true; text: tile.info.meta || ""; elide: Text.ElideRight; font.pixelSize: 12; color: Theme.gameTextMuted }
+                    FbLabel { Layout.fillWidth: true; text: tile.info.name || ""; elide: Text.ElideRight; font.pixelSize: 14; font.weight: Font.Medium; color: Theme.gameText }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        FbLabel { Layout.fillWidth: true; Layout.minimumWidth: 0; text: tile.info.meta || ""; elide: Text.ElideRight; font.pixelSize: 12; color: Theme.textMeta }
+                        FbPill {
+                            objectName: "tilePill_" + tile.modelData
+                            visible: !tile.isLocal && tile.link !== null
+                            small: true
+                            text: tile.link ? tile.link.text : ""
+                            tone: tile.link ? tile.link.tone : "neutral"
+                        }
+                    }
                 }
                 FbButton {
                     objectName: "audioButton_" + tile.modelData
@@ -164,28 +243,21 @@ Item {
                     focusPolicy: Qt.NoFocus
                     font.pixelSize: 12
                     kind: tile.audible ? "primary" : "outline"
-                    text: tile.audible ? qsTr("Audio on") : qsTr("Audio here")
+                    text: tile.audible ? qsTr("Audio active") : qsTr("Audio here")
                     enabled: !tile.audible
                     onClicked: root.ctl.audioHere(tile.modelData)
                 }
                 FbButton {
-                    objectName: "swapButton_" + tile.modelData
-                    visible: tile.slot > 0
-                    implicitHeight: 30
-                    kind: "link"
-                    focusPolicy: Qt.NoFocus
-                    font.pixelSize: 12
-                    text: qsTr("Swap")
-                    onClicked: root.ctl.makeMain(tile.modelData)
-                }
-                FbButton {
                     objectName: "removeButton_" + tile.modelData
                     visible: !tile.isLocal
-                    implicitHeight: 30
-                    kind: "link"
+                    implicitWidth: 28
+                    implicitHeight: 28
+                    kind: "outline"
                     focusPolicy: Qt.NoFocus
-                    font.pixelSize: 12
-                    text: qsTr("Remove")
+                    font.pixelSize: 14
+                    text: "×"
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("Remove from multiview")
                     onClicked: root.ctl.removeSurface(tile.modelData)
                 }
             }
@@ -203,7 +275,7 @@ Item {
                     focusPolicy: Qt.NoFocus
                     font.pixelSize: 12
                     kind: tile.audible ? "primary" : "outline"
-                    text: tile.audible ? qsTr("Audio on") : qsTr("Audio here")
+                    text: tile.audible ? qsTr("Audio active") : qsTr("Audio here")
                     enabled: !tile.audible
                     onClicked: root.ctl.audioHere(tile.modelData)
                 }
@@ -242,7 +314,7 @@ Item {
                     focusPolicy: Qt.NoFocus
                     font.pixelSize: 11
                     kind: tile.audible ? "primary" : "outline"
-                    text: tile.audible ? qsTr("Audio on") : qsTr("Audio here")
+                    text: tile.audible ? qsTr("Audio active") : qsTr("Audio here")
                     enabled: !tile.audible
                     onClicked: root.ctl.audioHere(tile.modelData)
                 }
@@ -279,59 +351,53 @@ Item {
         }
     }
 
-    // Session list: "Add" per joinable Session, next to what is already shown (up to four surfaces). Open by
-    // default while there is only one surface, otherwise behind the "Add Session" button.
-    property bool pickerToggled: false
-    property bool pickerWanted: false
-    readonly property bool pickerOpen: pickerToggled ? pickerWanted : count <= 1
-
-    FbButton {
-        objectName: "addSessionToggle"
-        visible: root.count >= 2
-        z: 5
-        anchors.left: parent.left
-        anchors.bottom: parent.bottom
-        anchors.margins: 12
-        implicitHeight: 30
-        focusPolicy: Qt.NoFocus
-        font.pixelSize: 12
-        text: root.pickerOpen ? qsTr("Hide Sessions") : qsTr("Add Session")
-        onClicked: { root.pickerToggled = true; root.pickerWanted = !root.pickerOpen }
-    }
-
+    // "Running sessions" picker (3r): Add / ✓ Added · Remove / disabled when full.
     Rectangle {
         id: pick
         objectName: "multiviewSessionList"
         readonly property var list: root.ctl.sessions
         readonly property var shown: root.ctl.shownSessionIds
+        readonly property bool full: root.count >= root.ctl.maxSurfaces
         visible: root.pickerOpen
         z: 5
-        anchors.left: parent.left
-        anchors.bottom: parent.bottom
-        anchors.leftMargin: 12
-        anchors.bottomMargin: root.count >= 2 ? 54 : 14
-        width: Math.min(440, parent.width - 24)
-        height: pickCol.implicitHeight + 24
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.topMargin: 8
+        anchors.rightMargin: 20
+        width: Math.min(400, parent.width - 24)
+        height: pickCol.implicitHeight + 28
         radius: 10
-        color: Theme.bgPanel
+        color: Theme.popupBg
         border.width: 1
-        border.color: Theme.gameBorder
+        border.color: Theme.borderPopup
+
         ColumnLayout {
             id: pickCol
             anchors.fill: parent
-            anchors.margins: 12
-            spacing: 8
-            FbLabel {
-                objectName: "multiviewListTitle"
+            anchors.margins: 14
+            spacing: 10
+            RowLayout {
                 Layout.fillWidth: true
-                Layout.minimumWidth: 0
-                elide: Text.ElideRight
-                text: root.count === 0 ? qsTr("Watch a Session")
-                    : root.count >= root.ctl.maxSurfaces ? qsTr("Multiview is full · %1 surfaces").arg(root.ctl.maxSurfaces)
-                    : qsTr("Add a Session · %1 of %2 surfaces").arg(root.count).arg(root.ctl.maxSurfaces)
-                font.pixelSize: 12
-                font.weight: Font.DemiBold
-                color: Theme.gameText
+                spacing: 10
+                FbLabel {
+                    objectName: "multiviewListTitle"
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    elide: Text.ElideRight
+                    text: qsTr("Running sessions")
+                    font.pixelSize: 14
+                    font.weight: Font.DemiBold
+                    color: Theme.gameText
+                }
+                FbMono { objectName: "multiviewListCount"; text: qsTr("%1 of %2 tiles").arg(root.count).arg(root.ctl.maxSurfaces); font.pixelSize: 12; color: Theme.textMeta }
+                FbButton {
+                    objectName: "multiviewListClose"
+                    kind: "link"
+                    focusPolicy: Qt.NoFocus
+                    font.pixelSize: 12
+                    text: qsTr("Close")
+                    onClicked: root.pickerCloseRequested()
+                }
             }
             FbLabel {
                 objectName: "multiviewNoSessions"
@@ -352,7 +418,7 @@ Item {
                 // All Sessions, scrollable once the list outgrows half of the game area.
                 Layout.preferredHeight: Math.min(contentHeight, Math.max(120, root.height * 0.5))
                 clip: true
-                spacing: 8
+                spacing: 10
                 boundsBehavior: Flickable.StopAtBounds
                 model: pick.list
                 ScrollBar.vertical: ScrollBar { policy: pickView.contentHeight > pickView.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff }
@@ -364,6 +430,19 @@ Item {
                     objectName: "multiviewSession_" + modelData.sessionId
                     width: ListView.view.width - (pickView.contentHeight > pickView.height ? 12 : 0)
                     spacing: 10
+                    Rectangle {
+                        Layout.preferredWidth: 28
+                        Layout.preferredHeight: 28
+                        radius: 14
+                        color: Theme.surfaceRaised
+                        FbLabel {
+                            anchors.centerIn: parent
+                            text: ((prow.modelData.title || "?").charAt(0)).toUpperCase()
+                            font.pixelSize: 12
+                            font.weight: Font.DemiBold
+                            color: Theme.gameText
+                        }
+                    }
                     ColumnLayout {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
@@ -373,22 +452,48 @@ Item {
                         FbLabel {
                             Layout.fillWidth: true
                             elide: Text.ElideRight
-                            text: prow.shown ? qsTr("shown · %1").arg(prow.modelData.meta) : prow.modelData.meta
-                            font.pixelSize: 11
-                            color: prow.modelData.invited && !prow.shown ? Theme.accent : Theme.gameTextMuted
+                            text: prow.modelData.meta
+                            font.pixelSize: 12
+                            color: prow.modelData.invited && !prow.shown ? Theme.accent : Theme.textMeta
                         }
                     }
                     FbButton {
                         objectName: "multiviewAddButton_" + prow.modelData.sessionId
+                        visible: !prow.shown
                         implicitHeight: 30
-                        kind: "primary"
+                        implicitWidth: 64
+                        kind: pick.full ? "outline" : "primary"
                         focusPolicy: Qt.NoFocus
                         font.pixelSize: 12
                         text: qsTr("Add")
                         enabled: root.ctl.hubLink === "online" && root.ctl.canAddSurface && !prow.shown
+                        background: Rectangle {
+                            radius: 6
+                            color: parent.enabled ? Theme.accent : Theme.surfaceRaised
+                        }
                         onClicked: root.ctl.watch(prow.modelData.sessionId)
                     }
+                    FbButton {
+                        objectName: "multiviewRemoveButton_" + prow.modelData.sessionId
+                        visible: prow.shown
+                        implicitHeight: 30
+                        kind: "link"
+                        focusPolicy: Qt.NoFocus
+                        font.pixelSize: 12
+                        text: qsTr("✓ Added · Remove")
+                        onClicked: root.ctl.removeSurface(prow.modelData.sessionId)
+                    }
                 }
+            }
+            FbLabel {
+                objectName: "multiviewListNote"
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                wrapMode: Text.WordWrap
+                text: pick.full ? qsTr("Multiview is full. Remove a tile to add another session.")
+                                : qsTr("Sessions you may watch. Private sessions are not listed. Sound plays from one tile only.")
+                font.pixelSize: 12
+                color: Theme.textMeta
             }
         }
     }
