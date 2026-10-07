@@ -67,7 +67,7 @@ class UpdateManager : public QObject {
     QString baseDir;          // data directory
     QString indexUrl;         // empty: env FRAMEBEAM_PLAYER_UPDATE_INDEX_URL, else the default URL
     QString currentVersion;
-    QString compiledChannel;  // stable | test | dev
+    QString compiledChannel;  // stable | beta | dev
     QList<QByteArray> trustedKeys;
     QString installRoot;      // install root (installRootFor), empty = unknown
     bool forceApplySupport = false;  // tests: behave like an installed Windows Player
@@ -83,9 +83,9 @@ class UpdateManager : public QObject {
 
   Channel effectiveChannel() const;
   bool channelIsOverridden() const { return !settings_->updateChannel().isEmpty(); }
-  // Automatic install is only effective on the test channel (stable always asks first).
+  // Automatic install is only effective on the beta channel (stable always asks first).
   bool autoInstallSetting() const;
-  bool autoInstallEffective() const { return effectiveChannel() == Channel::Test && autoInstallSetting(); }
+  bool autoInstallEffective() const { return effectiveChannel() == Channel::Beta && autoInstallSetting(); }
   // Only an installer-based Windows install updates itself; zip/dev/Linux just show the release.
   bool applySupported() const;
   QString applyUnsupportedReason() const;
@@ -100,7 +100,7 @@ class UpdateManager : public QObject {
   QString indexUrl() const { return indexUrl_; }
   bool busy() const { return busy_ && busy_(); }
 
-  // Timers: first check 10 s after start, then every 1 h (test) / 24 h (stable).
+  // Timers: first check 10 s after start, then every 1 h (beta) / 24 h (stable).
   void start(int firstDelayMs = 10000);
   void checkNow();
   // "Install and restart" / "Restart to update": downloads when needed, then applies. Refused during a game.
@@ -108,7 +108,7 @@ class UpdateManager : public QObject {
   // Channel or automatic-install setting changed: re-evaluate and check right away.
   void settingsChanged();
   QString lastError() const { return lastError_; }
-  // Test channel + automatic: a verified staged installer from the last run is applied right now. Returns true
+  // Beta channel + automatic: a verified staged installer from the last run is applied right now. Returns true
   // when the installer was started and the Player has to quit (never during a game). Used before the main window.
   bool applyStagedAtStart();
 

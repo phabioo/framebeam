@@ -18,10 +18,10 @@ class UpdatesController : public QObject {
 
   Q_PROPERTY(QString currentVersion READ currentVersion CONSTANT)
   Q_PROPERTY(QString compiledChannel READ compiledChannel CONSTANT)
-  Q_PROPERTY(QString channelSetting READ channelSetting NOTIFY changed)  // default | stable | test
-  Q_PROPERTY(QString effectiveChannel READ effectiveChannel NOTIFY changed)  // off | stable | test
+  Q_PROPERTY(QString channelSetting READ channelSetting NOTIFY changed)  // default | stable | beta
+  Q_PROPERTY(QString effectiveChannel READ effectiveChannel NOTIFY changed)  // off | stable | beta
   Q_PROPERTY(bool autoInstall READ autoInstall NOTIFY changed)           // effective for the channel
-  Q_PROPERTY(bool autoInstallAvailable READ autoInstallAvailable NOTIFY changed)  // only on the test channel
+  Q_PROPERTY(bool autoInstallAvailable READ autoInstallAvailable NOTIFY changed)  // only on the beta channel
   Q_PROPERTY(QString state READ state NOTIFY changed)  // idle|disabled|checking|up_to_date|available|incompatible|downloading|ready|applying|error
   Q_PROPERTY(QString statusText READ statusText NOTIFY changed)
   Q_PROPERTY(QString lastCheckText READ lastCheckText NOTIFY changed)
@@ -52,7 +52,7 @@ class UpdatesController : public QObject {
   QString channelSetting() const;
   QString effectiveChannel() const;
   bool autoInstall() const { return manager_.autoInstallSetting(); }
-  bool autoInstallAvailable() const { return manager_.effectiveChannel() == update::Channel::Test; }
+  bool autoInstallAvailable() const { return manager_.effectiveChannel() == update::Channel::Beta; }
   QString state() const;
   QString statusText() const;
   QString lastCheckText() const;
@@ -66,7 +66,7 @@ class UpdatesController : public QObject {
   QString bannerActionLabel() const;
 
   Q_INVOKABLE void checkNow() { manager_.checkNow(); }
-  Q_INVOKABLE void setChannel(const QString& channel);  // "default" | "stable" | "test"
+  Q_INVOKABLE void setChannel(const QString& channel);  // "default" | "stable" | "beta"
   Q_INVOKABLE void setAutoInstall(bool on);
   Q_INVOKABLE void install() { manager_.installNow(); }
   Q_INVOKABLE void openNotes();

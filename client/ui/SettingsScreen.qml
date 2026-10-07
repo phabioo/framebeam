@@ -111,10 +111,19 @@ Rectangle {
                             options: [
                                 { value: "default", label: qsTr("Default (%1)").arg(root.player.updates.compiledChannel), name: "updateChannelDefault" },
                                 { value: "stable", label: qsTr("Stable"), name: "updateChannelStable" },
-                                { value: "test", label: qsTr("Test"), name: "updateChannelTest" }
+                                { value: "beta", label: qsTr("Beta"), name: "updateChannelBeta" }
                             ]
                             current: root.player.updates.channelSetting
                             onPicked: value => root.player.updates.setChannel(value)
+                        }
+                        FbLabel {
+                            objectName: "updateBetaHint"
+                            Layout.fillWidth: true
+                            visible: root.player.updates.channelSetting === "beta" || (root.player.updates.channelSetting === "default" && root.player.updates.compiledChannel === "beta")
+                            color: Theme.textMuted
+                            font.pixelSize: 12
+                            wrapMode: Text.WordWrap
+                            text: qsTr("Beta: Pre-release builds from every change on main. May contain bugs.")
                         }
                         FbToggle {
                             objectName: "updateAutoInstallToggle"
@@ -183,6 +192,26 @@ Rectangle {
                                 onClicked: root.player.updates.openNotes()
                             }
                         }
+                    }
+                }
+
+                RowLayout {
+                    objectName: "logFileRow"
+                    Layout.fillWidth: true
+                    visible: root.player.logFile !== ""
+                    spacing: 10
+                    FbMono {
+                        objectName: "logFilePath"
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        text: qsTr("Log file: %1").arg(root.player.logFile)
+                        elide: Text.ElideMiddle
+                    }
+                    FbButton {
+                        objectName: "logFolderOpen"
+                        kind: "link"
+                        text: qsTr("Open folder")
+                        onClicked: root.player.openLogFolder()
                     }
                 }
 

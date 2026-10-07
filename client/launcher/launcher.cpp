@@ -31,6 +31,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
   HANDLE in = GetStdHandle(STD_INPUT_HANDLE);
   HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
   HANDLE err = GetStdHandle(STD_ERROR_HANDLE);
+  if (!usable(out) && !usable(err) && AttachConsole(ATTACH_PARENT_PROCESS)) {
+    // Started from a terminal without redirection: borrow its console (no new window) for the child's output.
+    SECURITY_ATTRIBUTES sa = {sizeof(sa), nullptr, TRUE};
+    out = CreateFileW(L"CONOUT$", GENERIC_WRITE, FILE_SHARE_WRITE | FILE_SHARE_READ, &sa, OPEN_EXISTING, 0, nullptr);
+    err = out;
+  }
   if (usable(in) || usable(out) || usable(err)) {
     for (HANDLE h : {in, out, err}) {
       if (usable(h)) SetHandleInformation(h, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);

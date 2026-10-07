@@ -22,10 +22,10 @@ class PlayerSettings {
   Appearance appearance() const { return appearance_; }
   bool setAppearance(Appearance a);  // persists immediately; false if the file could not be written
 
-  // Updates (spec 0.3 S6). Channel override: "" = compiled default, otherwise "stable" | "test".
-  // Automatic install: unset = default of the effective channel (on for test).
+  // Updates (spec 0.3 S6). Channel override: "" = compiled default, otherwise "stable" | "beta" (an old "test" reads as "beta").
+  // Automatic install: unset = default of the effective channel (on for beta).
   QString updateChannel() const { return updateChannel_; }
-  bool setUpdateChannel(const QString& channel);  // "", "stable", "test"; anything else is rejected (false)
+  bool setUpdateChannel(const QString& channel);  // "", "stable", "beta" ("test" = alias); anything else is rejected (false)
   std::optional<bool> updateAutoInstall() const { return updateAutoInstall_; }
   bool setUpdateAutoInstall(bool on);
 

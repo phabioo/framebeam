@@ -78,6 +78,8 @@ class PlayerController : public QObject {
   Q_PROPERTY(framebeam::ui::SessionController* sessions READ sessions CONSTANT)
   // Updates (Settings section + banner)
   Q_PROPERTY(framebeam::ui::UpdatesController* updates READ updates CONSTANT)
+  // Log file path (empty when file logging is not active) and "open folder" (Settings)
+  Q_PROPERTY(QString logFile READ logFile CONSTANT)
 
  public:
   struct Options {
@@ -114,6 +116,7 @@ class PlayerController : public QObject {
   GameSession* gameSession() { return &session_; }
   SessionController* sessions() { return sessions_.get(); }
   UpdatesController* updates() { return updates_.get(); }
+  QString logFile() const;
   // A game or a watched Session is running (updates are never applied then).
   bool sessionBusy() const;
   EmulationController* emulation() { return emulation_.get(); }
@@ -176,6 +179,7 @@ class PlayerController : public QObject {
   // Library header / Sidebar
   Q_INVOKABLE void showLibrary();
   Q_INVOKABLE void showSettings();
+  Q_INVOKABLE void openLogFolder();
   Q_INVOKABLE void showEmulation();
   Q_INVOKABLE void showControllers();
   // "Upload ROM": source = local path or file:// URL (from the file dialog). Streamed; progress in upload.

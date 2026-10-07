@@ -15,6 +15,7 @@
 #include <shobjidl.h>
 #endif
 
+#include "filelog.h"
 #include "playercontroller.h"
 #include "version.h"
 
@@ -133,8 +134,16 @@ int main(int argc, char* argv[]) {
   }
 
   QQuickStyle::setStyle(QStringLiteral("Basic"));
+  // Log file <data>/logs/player.log (the GUI exe has no console). Lines before the data directory is known are
+  // buffered. Not in smoke mode (temporary data directory).
+  if (!smokeMode) {
+    framebeam::filelog::install();
+  }
   framebeam::ui::PlayerController controller(opts);
-  // Test channel + automatic install: a verified staged installer from the last run is applied before the
+  if (!smokeMode) {
+    framebeam::filelog::setDirectory(controller.profileStore()->baseDir());
+  }
+  // Beta channel + automatic install: a verified staged installer from the last run is applied before the
   // main window appears (never during a game: none can be running yet). The installer waits for this process.
   if (!smokeMode && controller.updates()->manager()->applyStagedAtStart()) {
     return 0;
