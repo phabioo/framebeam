@@ -38,10 +38,42 @@
         },
         "ice_servers": {
           "type": "array",
-          "description": "stun: URLs (Hub config, default empty)",
+          "description": "stun: URLs from Hub config plus the Hub's own STUN when TURN is on",
           "items": {
             "type": "string",
             "pattern": "^stuns?:"
+          }
+        },
+        "turn_servers": {
+          "type": "array",
+          "description": "Optional relay credentials; present only while the Hub's TURN server is on (feature turn_v1)",
+          "items": {
+            "type": "object",
+            "required": [
+              "urls",
+              "username",
+              "credential",
+              "expires_at"
+            ],
+            "properties": {
+              "urls": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^turns?:"
+                }
+              },
+              "username": {
+                "type": "string"
+              },
+              "credential": {
+                "type": "string"
+              },
+              "expires_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
           }
         }
       }

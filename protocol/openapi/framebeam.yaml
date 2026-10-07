@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
   title: FrameBeam Hub API
-  version: 1.4.0
+  version: 1.5.0
   description: |
-    HTTPS/JSON API of the FrameBeam Hub (phase 1; phase 3 adds save sync under `saves`, advertised by the handshake feature `saves_v1`; phase 4 adds Session sharing under `sessions` and the WSS endpoint, advertised by the handshake feature `sessions_v1`; phase 5 adds invite redemption under `users` (`users_v1`), user ROM uploads (`uploads_v1`, only advertised when the caller may upload) and the systems registry with firmware download under `systems` (`firmware_v1`); 0.2 adds core packages served by the Hub under `cores` (`cores_v1`)). `protocol_version` is an integer (starting at 1),
+    HTTPS/JSON API of the FrameBeam Hub (phase 1; phase 3 adds save sync under `saves`, advertised by the handshake feature `saves_v1`; phase 4 adds Session sharing under `sessions` and the WSS endpoint, advertised by the handshake feature `sessions_v1`; phase 5 adds invite redemption under `users` (`users_v1`), user ROM uploads (`uploads_v1`, only advertised when the caller may upload) and the systems registry with firmware download under `systems` (`firmware_v1`); 0.2 adds core packages served by the Hub under `cores` (`cores_v1`); 0.4 adds relay credentials for Sessions over the internet (`turn_v1`, `turn_servers` in `hello_ack` and the join response), save comfort (`saves_v2`: restore, manual snapshots, history labels, the `save_updated` WSS message) and the signed core index for Player-side verification (`cores_index_v1`, `/api/v1/cores/index`)). `protocol_version` is an integer (starting at 1),
     separate from the hub/player product version. All paths carry the `/api/v1` prefix explicitly;
     only the info endpoint lives under `/.well-known/framebeam`.
     Compatibility: Player.protocol_version < Hub.min_protocol_version -> player_too_old;
@@ -281,7 +281,7 @@ paths:
                     min_protocol_version: 1
                     compatible: true
                     problems: []
-                    features: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1, cores_v1]
+                    features: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1, cores_v1, turn_v1, saves_v2, cores_index_v1]
                 core_missing:
                   description: Warning only, `compatible` stays true (launch allowed; the Player shows the problem)
                   value:
@@ -517,6 +517,42 @@ paths:
               schema: { type: string, format: binary }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/cores/index:
+    get:
+      operationId: getCoresIndex
+      tags: [cores]
+      summary: Raw bytes of the last verified signed core index (`cores_index_v1`)
+      description: |
+        The exact bytes the Hub verified (sync or import); the Player verifies them against `index.sig`
+        with its trusted keys. 404 `core_package_not_found` while the Hub has no verified index yet.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Core index JSON, byte-exact as signed
+          content:
+            application/json:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/CorePackageNotFound' }
+  /api/v1/cores/index.sig:
+    get:
+      operationId: getCoresIndexSignature
+      tags: [cores]
+      summary: Signature of the core index (`cores_index_v1`)
+      description: |
+        Single line `ed25519 <key_id> <base64 signature>` plus a trailing newline, as written by
+        `framebeam-sign`. 404 `core_package_not_found` while the Hub has no verified index yet.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Signature line
+          content:
+            text/plain:
+              schema: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/CorePackageNotFound' }
   /api/v1/cores/{core_id}/packages/{version}/{platform}:
     parameters:
       - $ref: '#/components/parameters/CoreId'
@@ -825,6 +861,94 @@ paths:
           content:
             application/octet-stream:
               schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/games/{game_id}/saves/{slot}/history/{version}/restore:
+    parameters:
+      - $ref: '#/components/parameters/GameId'
+      - $ref: '#/components/parameters/SaveSlotName'
+      - name: version
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+        example: 2
+    post:
+      operationId: restoreSaveHistoryVersion
+      tags: [saves]
+      summary: Restore a history version as the new checkpoint (`saves_v2`)
+      description: |
+        `expected_revision` must equal the current checkpoint revision, otherwise 409 `save_conflict_stale`
+        (nothing changed, the caller re-reads the slot). The current checkpoint is first secured into history
+        (`before_restore`, unless already captured); then the version's content becomes the new checkpoint
+        (revision + 1, reason `restore`, device = caller). Other devices get `save_updated`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SaveRestoreRequest' }
+            examples:
+              default: { value: { expected_revision: 3 } }
+      responses:
+        '200':
+          description: Restored; the slot after the restore
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SaveSlot' }
+              examples:
+                default: { $ref: '#/components/examples/SaveSlotExample' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: expected_revision is stale; nothing changed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: save_conflict_stale, message: Slot changed since expected_revision; re-read the slot } } }
+  /api/v1/games/{game_id}/saves/{slot}/snapshots:
+    parameters:
+      - $ref: '#/components/parameters/GameId'
+      - $ref: '#/components/parameters/SaveSlotName'
+    post:
+      operationId: createSaveSnapshot
+      tags: [saves]
+      summary: Create a manual snapshot of the current checkpoint (`saves_v2`)
+      description: |
+        Creates a history version with reason `manual_snapshot` from the current checkpoint, with an optional
+        label. 404 when the slot has no checkpoint. Snapshots are never thinned by retention.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SaveSnapshotRequest' }
+            examples:
+              default: { value: { label: Before final boss } }
+      responses:
+        '201':
+          description: Snapshot created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SaveHistoryVersion' }
+              examples:
+                default:
+                  value:
+                    version: 3
+                    revision: 3
+                    sha256: '1111111111111111111111111111111111111111111111111111111111111111'
+                    size: 524288
+                    device_id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                    device_name: Wohnzimmer-PC
+                    created_at: '2026-01-01T12:30:00Z'
+                    reason: manual_snapshot
+                    label: Before final boss
+        '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -1570,9 +1694,9 @@ components:
           items: { $ref: '#/components/schemas/HandshakeProblem' }
         features:
           type: array
-          description: Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`).
+          description: Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = the Hub's embedded TURN server is on (`turn_servers` in `hello_ack` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `cores_index_v1` = signed core index served at `/api/v1/cores/index` and `/api/v1/cores/index.sig`.
           items: { type: string }
-          example: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1, cores_v1]
+          example: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1, cores_v1, turn_v1, saves_v2, cores_index_v1]
     RomInfo:
       type: object
       required: [sha256, size, filename]
@@ -1592,10 +1716,10 @@ components:
         added_at: { type: string, format: date-time }
     SaveSyncReason:
       type: string
-      enum: [checkpoint, final, final_session_end]
+      enum: [checkpoint, final, final_session_end, restore]
     SaveHistoryReason:
       type: string
-      enum: [session_end, device_change, before_conflict_resolution, conflict_upload, manual_snapshot]
+      enum: [session_end, device_change, before_conflict_resolution, conflict_upload, manual_snapshot, before_restore]
     SaveCheckpoint:
       type: object
       description: Current checkpoint of a slot (one opaque blob).
@@ -1621,6 +1745,12 @@ components:
         device_name: { type: string }
         created_at: { type: string, format: date-time }
         reason: { $ref: '#/components/schemas/SaveHistoryReason' }
+        label:
+          x-omitempty: false
+          type: string
+          nullable: true
+          maxLength: 64
+          description: Optional label (manual snapshots, `saves_v2`); null or absent when none
     SaveConflictHubSide:
       type: object
       required: [revision, sha256, device_id, device_name, created_at]
@@ -1689,6 +1819,28 @@ components:
       properties:
         resolution: { type: string, enum: [use_hub, use_local] }
         expected_revision: { type: integer, minimum: 1, description: Current checkpoint revision the caller saw }
+    SaveRestoreRequest:
+      type: object
+      required: [expected_revision]
+      properties:
+        expected_revision: { type: integer, minimum: 0, description: Current checkpoint revision the caller saw }
+    SaveSnapshotRequest:
+      type: object
+      properties:
+        label: { type: string, maxLength: 64 }
+    TurnServer:
+      type: object
+      description: Short-lived relay credentials for the Hub's embedded TURN server (`turn_v1`, TURN REST API scheme).
+      required: [urls, username, credential, expires_at]
+      properties:
+        urls:
+          type: array
+          description: '`turn:` URLs (UDP and TCP transport)'
+          items: { type: string, pattern: '^turns?:' }
+          example: ['turn:hub.example.org:3478?transport=udp', 'turn:hub.example.org:3478?transport=tcp']
+        username: { type: string }
+        credential: { type: string }
+        expires_at: { type: string, format: date-time }
     SessionVisibility:
       type: string
       enum: [private, hub_users, invite_only]
@@ -1771,8 +1923,12 @@ components:
         permissions: { $ref: '#/components/schemas/SessionPermissions' }
         ice_servers:
           type: array
-          description: '`stun:` URLs (Hub config, default empty: host candidates suffice on a LAN)'
+          description: '`stun:` URLs from the Hub config (default empty: host candidates suffice on a LAN), plus the Hub''s own STUN when TURN is on'
           items: { type: string }
+        turn_servers:
+          type: array
+          description: Optional relay credentials; present only when the Hub's TURN server is on (`turn_v1`)
+          items: { $ref: '#/components/schemas/TurnServer' }
     UserInfo:
       type: object
       required: [id, display_name, online]
