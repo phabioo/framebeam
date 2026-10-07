@@ -10,7 +10,7 @@ The PoC (phases 0-5) is complete. From here on, work is planned as versions 0.1.
 | 0.2 | Cores from the Hub | Installers no longer ship emulator cores; the Hub distributes signed core packages. |
 | 0.3 | Automatic updates | A change on `main` reaches the test devices without manual work. |
 | 0.4 | Sessions over the internet and save comfort | Sessions work beyond the LAN; saves get retention, restore and slots. |
-| 0.5 | OpenGL hardware rendering | The Player offers an OpenGL context to libretro cores, so hardware-rendered cores run and present without a CPU copy. |
+| 0.5 | OpenGL hardware rendering | The Player offers an OpenGL context to libretro cores, so hardware-rendered cores run; frames are read back to the CPU, zero-copy deferred ([ADR 0013](adr/0013-opengl-hardware-rendering.md)). |
 | 0.6 | Player UI pass | FrameBeam Player is clearer, more responsive and consistent with the design tokens. |
 | 0.7 | Hub UI pass | FrameBeam Hub web UI swaps fragments instead of full pages and updates live. |
 | 0.8 | Second system: 3DS (Azahar) | The Azahar libretro core ships as a plain core package and runs on the OpenGL rendering from 0.5. |
@@ -78,9 +78,10 @@ Moved ahead of the UI passes by Fabio on 2026-10-07: testing with friends outsid
 
 Decided by Fabio on 2026-10-07: OpenGL hardware rendering for the Player, for all emulators/cores and not only 3DS, comes before the UI passes.
 
-- Libretro hardware rendering (new for the Player, largest work item): the Player's libretro backend handles only software framebuffers today (no `RETRO_ENVIRONMENT_SET_HW_RENDER`). Needed: an OpenGL 3.3 core context (shared with the Qt Quick scene or offscreen), FBO handed to the core via `get_current_framebuffer`, `context_reset`/`context_destroy` handling, presenting the FBO without a CPU copy, and a GPU readback (or zero-copy path to the encoder) when the Session is shared.
-- CI: headless CI cannot run hardware-rendered cores end to end; core tests need a GL context (for example Mesa llvmpipe) or stay local.
-- melonDS DS then gets its OpenGL renderer and the internal resolution option; both are hidden today because the Player offers no GL context (see the Emulation page in `docs/design/player.md`).
+- [x] Done: Libretro hardware rendering (ADR 0013 D1-D4; largest work item): the Player's libretro backend handles only software framebuffers today (no `RETRO_ENVIRONMENT_SET_HW_RENDER`). Needed: an OpenGL 3.3 core context (shared with the Qt Quick scene or offscreen), FBO handed to the core via `get_current_framebuffer`, `context_reset`/`context_destroy` handling, presenting the FBO without a CPU copy, and a GPU readback (or zero-copy path to the encoder) when the Session is shared. Delivered as an offscreen context per game, Player-owned FBO and a readback of every frame into the existing frame path. Deviation: no zero-copy presentation yet (ADR 0013 D3); revisit if profiling shows the readback costs frame time. `FRAMEBEAM_DISABLE_HW_RENDER=1` switches it off.
+- [x] Done: CI (ADR 0013 D6): Mesa llvmpipe under xvfb on Linux, GL tests skipped without a GL 3.3 context. Original note: headless CI cannot run hardware-rendered cores end to end; core tests need a GL context (for example Mesa llvmpipe) or stay local.
+- [x] Done: melonDS DS OpenGL renderer and internal resolution (ADR 0013 D5). Original note: melonDS DS then gets its OpenGL renderer and the internal resolution option; both are hidden today because the Player offers no GL context (see the Emulation page in `docs/design/player.md`).
+- Open: verification on real GPUs and drivers and frame time (4x internal resolution) is done locally by Fabio.
 - Later Nintendo systems rely on it: the 3DS (0.8) and, among the later systems, N64 and GameCube/Wii.
 
 ## 0.6 Player UI pass

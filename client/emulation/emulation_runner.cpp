@@ -117,6 +117,7 @@ void EmulationRunner::start(const StartRequest& request) {
     emit startFailed(QStringLiteral("Emulation is already running"));
     return;
   }
+  m_backend->prepareForStart();  // GUI thread: resources the emulation thread cannot create itself
   m_worker = std::make_unique<Worker>(this, m_backend.get(), request);
   setState(State::Starting);
   // If the thread finishes by itself (start failure/core exit), reset the state.

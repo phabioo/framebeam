@@ -15,6 +15,7 @@
 #include <cstdio>
 #include <cstring>
 
+#include "hw_render.h"
 #include "third_party/libretro/libretro.h"
 
 namespace framebeam::emu {
@@ -51,6 +52,13 @@ void RETRO_CALLCONV coreLog(enum retro_log_level level, const char* fmt, ...) {
     case RETRO_LOG_INFO: qCInfo(lcCore).noquote() << msg; break;
     default: qCDebug(lcCore).noquote() << msg; break;
   }
+}
+
+HwRenderContext* s_hwCtx = nullptr;  // context of the active backend, for the C callbacks below
+
+uintptr_t RETRO_CALLCONV hwGetFramebuffer() { return s_hwCtx ? s_hwCtx->framebuffer() : 0; }
+retro_proc_address_t RETRO_CALLCONV hwGetProcAddress(const char* sym) {
+  return s_hwCtx ? reinterpret_cast<retro_proc_address_t>(s_hwCtx->procAddress(sym)) : nullptr;
 }
 
 QString fromC(const char* s) { return s ? QString::fromUtf8(s) : QString(); }
@@ -190,9 +198,11 @@ void LibretroBackend::unloadCore() {
   if (!m_coreLoaded) return;
   unloadGame();
   m_api->deinit();
+  teardownHw();
   m_lib.unload();
   m_coreLoaded = false;
   s_active = nullptr;
+  m_hw.reset();
 }
 
 bool LibretroBackend::isCoreLoaded() const { return m_coreLoaded; }
@@ -227,7 +237,20 @@ bool LibretroBackend::loadGame(const QString& path, QString* error) {
     m_frame = QImage();
     m_frameCount = 0;
     m_audio.clear();
-    if (!m_api->load_game(nullptr)) return fail(QStringLiteral("Core could not start without a game"));
+    if (!m_api->load_game(nullptr)) {
+      teardownHw();
+      return fail(QStringLiteral("Core could not start without a game"));
+    }
+    if (m_hwActive) {
+      retro_system_av_info hwAv{};
+      m_api->get_system_av_info(&hwAv);
+      QString hwErr;
+      if (!finishHwSetup(hwAv.geometry.max_width, hwAv.geometry.max_height, &hwErr)) {
+        m_api->unload_game();
+        teardownHw();
+        return fail(hwErr);
+      }
+    }
     m_gameLoaded = true;
     m_saveFilePath.clear();
     return true;
@@ -244,10 +267,21 @@ bool LibretroBackend::loadGame(const QString& path, QString* error) {
   m_frame = QImage();
   m_frameCount = 0;
   m_audio.clear();
-  if (!m_api->load_game(&gi)) return fail(QStringLiteral("Core could not load the game"));
+  if (!m_api->load_game(&gi)) {
+    teardownHw();
+    return fail(QStringLiteral("Core could not load the game"));
+  }
 
   retro_system_av_info av{};
   m_api->get_system_av_info(&av);
+  if (m_hwActive) {
+    QString hwErr;
+    if (!finishHwSetup(av.geometry.max_width, av.geometry.max_height, &hwErr)) {
+      m_api->unload_game();
+      teardownHw();
+      return fail(hwErr);
+    }
+  }
   m_av.width = static_cast<int>(av.geometry.base_width);
   m_av.height = static_cast<int>(av.geometry.base_height);
   m_av.aspectRatio = static_cast<double>(av.geometry.aspect_ratio);
@@ -318,7 +352,13 @@ void LibretroBackend::flushSave() {
 void LibretroBackend::unloadGame() {
   if (!m_gameLoaded) return;
   flushSave();
+  if (m_hwActive) {
+    m_hw->makeCurrent();
+    if (m_hwResetDone && m_hwContextDestroy) m_hwContextDestroy();
+    m_hwResetDone = false;
+  }
   m_api->unload_game();
+  teardownHw();
   m_gameLoaded = false;
   m_gameData.clear();
 }
@@ -328,6 +368,7 @@ AvInfo LibretroBackend::avInfo() const { return m_av; }
 
 bool LibretroBackend::runFrame() {
   if (!m_gameLoaded || m_shutdownRequested) return false;
+  if (m_hwActive && !m_hw->makeCurrent()) return false;
   m_api->run();
   if (m_savePendingLoad) tryLoadSave();  // as soon as the core exposes save memory, before any flush
   if (++m_framesSinceFlush >= 180) {
@@ -361,6 +402,69 @@ void LibretroBackend::setPointer(double x, double y, bool pressed) {
   m_input.px = std::clamp(x, 0.0, 1.0);
   m_input.py = std::clamp(y, 0.0, 1.0);
   m_input.pressed = pressed;
+}
+
+// ---------------------------------------------------------------- Hardware rendering
+
+void LibretroBackend::prepareForStart() {
+  if (!HwRenderContext::allowed()) return;
+  if (!m_hw) m_hw = std::make_unique<HwRenderContext>();
+  m_hw->prepareSurface();
+}
+
+bool LibretroBackend::setupHwRender(void* data) {
+  auto* cb = static_cast<retro_hw_render_callback*>(data);
+  if (!cb || m_hwActive) return false;
+  if (cb->context_type != RETRO_HW_CONTEXT_OPENGL && cb->context_type != RETRO_HW_CONTEXT_OPENGL_CORE) {
+    if (cb->context_type == RETRO_HW_CONTEXT_NONE) return false;  // melonDS DS announces "no hardware" for software mode
+    qCInfo(lcCore) << "Hardware render API" << static_cast<int>(cb->context_type) << "not supported; core falls back to software";
+    return false;
+  }
+  if (!HwRenderContext::allowed()) {
+    qCInfo(lcCore) << "Hardware rendering disabled (no GUI application or FRAMEBEAM_DISABLE_HW_RENDER=1); core falls back to software";
+    return false;
+  }
+  if (!m_hw) m_hw = std::make_unique<HwRenderContext>();
+  QString err;
+  const bool core = cb->context_type == RETRO_HW_CONTEXT_OPENGL_CORE;
+  if (!m_hw->createContext(core, cb->version_major, cb->version_minor, cb->depth, cb->stencil, &err)) {
+    qCWarning(lcCore).noquote() << "Hardware rendering unavailable:" << err << "; core falls back to software";
+    return false;
+  }
+  s_hwCtx = m_hw.get();
+  cb->get_current_framebuffer = &hwGetFramebuffer;
+  cb->get_proc_address = &hwGetProcAddress;
+  m_hwContextReset = cb->context_reset;
+  m_hwContextDestroy = cb->context_destroy;
+  m_hwBottomLeft = cb->bottom_left_origin;
+  m_hwActive = true;
+  m_hwResetDone = false;
+  qCInfo(lcCore).noquote() << "Hardware rendering enabled (OpenGL" << (core ? "core" : "compat") << ")," << m_hw->glInfo();
+  return true;
+}
+
+// After retro_load_game: size the FBO from the core's maximum geometry, then context_reset.
+bool LibretroBackend::finishHwSetup(unsigned maxWidth, unsigned maxHeight, QString* error) {
+  if (!m_hw->makeCurrent() ||
+      !m_hw->ensureSize(static_cast<int>(maxWidth), static_cast<int>(maxHeight))) {
+    if (error) *error = QStringLiteral("Hardware render framebuffer could not be created");
+    return false;
+  }
+  if (m_hwContextReset) m_hwContextReset();
+  m_hwResetDone = true;
+  return true;
+}
+
+void LibretroBackend::teardownHw() {
+  if (m_hw && m_hw->hasContext()) {
+    m_hw->makeCurrent();
+    if (m_hwResetDone && m_hwContextDestroy) m_hwContextDestroy();
+    m_hw->destroyContext();
+  }
+  if (s_hwCtx == m_hw.get()) s_hwCtx = nullptr;
+  m_hwActive = false;
+  m_hwResetDone = false;
+  m_hwContextReset = m_hwContextDestroy = nullptr;
 }
 
 // ---------------------------------------------------------------- Core Options
@@ -502,6 +606,12 @@ int16_t LibretroBackend::inputStateCb(unsigned port, unsigned device, unsigned i
 }
 
 void LibretroBackend::handleVideo(const void* data, unsigned width, unsigned height, size_t pitch) {
+  if (data == RETRO_HW_FRAME_BUFFER_VALID && m_hwActive && width != 0 && height != 0) {
+    const QImage img = m_hw->readback(static_cast<int>(width), static_cast<int>(height), m_hwBottomLeft);
+    if (!img.isNull()) m_frame = img;
+    ++m_frameCount;
+    return;
+  }
   if (!data || data == RETRO_HW_FRAME_BUFFER_VALID || width == 0 || height == 0) {
     ++m_frameCount;  // duplicate frame: last image stays
     return;
@@ -596,6 +706,8 @@ bool LibretroBackend::handleEnvironment(unsigned rawCmd, void* data) {
       m_av.width = static_cast<int>(g->base_width);
       m_av.height = static_cast<int>(g->base_height);
       m_av.aspectRatio = static_cast<double>(g->aspect_ratio);
+      if (m_hwActive && m_hw->makeCurrent())
+        return m_hw->ensureSize(static_cast<int>(g->max_width), static_cast<int>(g->max_height));
       return true;
     }
     case RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO: {
@@ -605,6 +717,8 @@ bool LibretroBackend::handleEnvironment(unsigned rawCmd, void* data) {
       m_av.aspectRatio = static_cast<double>(av->geometry.aspect_ratio);
       m_av.fps = av->timing.fps;
       m_av.sampleRate = av->timing.sample_rate;
+      if (m_hwActive && m_hw->makeCurrent())
+        return m_hw->ensureSize(static_cast<int>(av->geometry.max_width), static_cast<int>(av->geometry.max_height));
       return true;
     }
 
@@ -658,7 +772,18 @@ bool LibretroBackend::handleEnvironment(unsigned rawCmd, void* data) {
       return true;
     }
 
-    // Deliberately rejected: HW render (software renderer), rumble, sensors, VFS, microphone, netpacket, ...
+    // Hardware rendering (OpenGL / OpenGL Core only, see setupHwRender)
+    case RETRO_ENVIRONMENT_SET_HW_RENDER: return setupHwRender(data);
+    case RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER: {
+      if (!HwRenderContext::allowed()) return false;
+      if (!m_hw) m_hw = std::make_unique<HwRenderContext>();
+      if (!m_hw->available()) return false;
+      *static_cast<unsigned*>(data) = RETRO_HW_CONTEXT_OPENGL_CORE;
+      return true;
+    }
+    case RETRO_ENVIRONMENT_SET_HW_SHARED_CONTEXT: return true;
+
+    // Deliberately rejected: other HW APIs, rumble, sensors, VFS, microphone, netpacket, ...
     default: return false;
   }
 }

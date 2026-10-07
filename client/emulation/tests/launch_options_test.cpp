@@ -17,11 +17,13 @@ class LaunchOptionsTest : public QObject {
  private slots:
   void lockedOptionsStayUnderFrameBeamControl() {
     const SystemManifest m = nds();
-    for (const char* k : {"melonds_render_mode", "melonds_screen_layout1", "melonds_show_current_layout", "melonds_show_lid_state",
+    for (const char* k : {"melonds_screen_layout1", "melonds_show_current_layout", "melonds_show_lid_state",
                           "melonds_sysfile_mode", "melonds_firmware_nds_path"}) {
       QVERIFY2(isLockedCoreOption(m, QString::fromLatin1(k)), k);
     }
     QVERIFY(!isLockedCoreOption(m, QStringLiteral("melonds_audio_interpolation")));
+    QVERIFY(!isLockedCoreOption(m, QStringLiteral("melonds_render_mode")));  // user choice since 0.5 (default software)
+    QVERIFY(m.alwaysShownCoreOptions.contains(QStringLiteral("melonds_opengl_resolution")));
     QVERIFY(!isLockedCoreOption(m, QStringLiteral("melonds_boot_mode")));  // manifest default, user may change it
 
     // Overrides of locked keys never reach the core; the firmware mode comes from the Hub.
@@ -34,7 +36,7 @@ class LaunchOptionsTest : public QObject {
                                          {QStringLiteral("framebeam.fullscreen_on_start"), QStringLiteral("on")}};
     const QMap<QString, QString> fw = {{QStringLiteral("melonds_sysfile_mode"), QStringLiteral("builtin")}};
     const QMap<QString, QString> out = launchCoreOptions(m, user, fw);
-    QCOMPARE(out.value(QStringLiteral("melonds_render_mode")), QStringLiteral("software"));
+    QCOMPARE(out.value(QStringLiteral("melonds_render_mode")), QStringLiteral("opengl"));  // user override applies
     QCOMPARE(out.value(QStringLiteral("melonds_screen_layout1")), QStringLiteral("top-bottom"));
     QCOMPARE(out.value(QStringLiteral("melonds_show_lid_state")), QStringLiteral("disabled"));
     QCOMPARE(out.value(QStringLiteral("melonds_sysfile_mode")), QStringLiteral("builtin"));

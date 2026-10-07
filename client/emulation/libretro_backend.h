@@ -5,8 +5,11 @@
 // Therefore only ONE LibretroBackend per process may have a core loaded; loadCore() of a
 // second backend fails with an error message until the first has called unloadCore().
 //
-// Hardware rendering is rejected (cores use the software renderer). Unsupported
-// environment callbacks are answered with false.
+// Hardware rendering (ADR 0013): SET_HW_RENDER with OpenGL / OpenGL Core is served by an offscreen context
+// owned by the emulation thread (hw_render.h); every hardware frame is read back into the XRGB8888 frame.
+// Without a QGuiApplication, with FRAMEBEAM_DISABLE_HW_RENDER=1 or when the context fails, SET_HW_RENDER
+// returns false (the core falls back to software). Other APIs are rejected. Unsupported environment
+// callbacks are answered with false.
 
 #include <QLibrary>
 #include <QMap>
@@ -19,6 +22,8 @@
 #include "emulator_backend.h"
 
 namespace framebeam::emu {
+
+class HwRenderContext;
 
 class LibretroBackend final : public EmulatorBackend {
  public:
@@ -44,6 +49,8 @@ class LibretroBackend final : public EmulatorBackend {
   // Battery save (RETRO_MEMORY_SAVE_RAM) <-> <save dir>/<game basename>.sav: loaded after the game loads,
   // written when changed (about every 3 s while running, on pause and before unloading), atomically.
   void flushSave() override;
+  // GUI thread, before the emulation thread starts: creates the offscreen surface for hardware rendering.
+  void prepareForStart() override;
 
   QImage videoFrame() const override;
   quint64 frameCount() const override;
@@ -79,6 +86,10 @@ class LibretroBackend final : public EmulatorBackend {
   bool tryLoadSave();
   static QString backupStamp();
   bool handleEnvironment(unsigned cmd, void* data);
+  bool setupHwRender(void* retroHwRenderCallback);
+  bool finishHwSetup(unsigned maxWidth, unsigned maxHeight, QString* error);  // after retro_load_game
+  void teardownHw();
+
   void handleVideo(const void* data, unsigned width, unsigned height, size_t pitch);
   void registerOptionsV2(const void* options);
   void registerOptionsV1(const void* definitions);
@@ -107,6 +118,14 @@ class LibretroBackend final : public EmulatorBackend {
   QByteArray m_corePathUtf8;
   QByteArray m_gameData;  // lives until unloadGame (the core may hold pointers)
   QByteArray m_gamePathUtf8;
+
+  std::unique_ptr<HwRenderContext> m_hw;
+  // Core's hardware callbacks (copied from retro_hw_render_callback).
+  void (*m_hwContextReset)() = nullptr;
+  void (*m_hwContextDestroy)() = nullptr;
+  bool m_hwActive = false;      // SET_HW_RENDER accepted, context exists
+  bool m_hwResetDone = false;   // context_reset called (context_destroy owed)
+  bool m_hwBottomLeft = true;
 
   int m_pixelFormat = 0;  // RETRO_PIXEL_FORMAT_*
   QImage m_frame;

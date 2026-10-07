@@ -141,7 +141,7 @@ jobs:
           sudo apt-get install -y -qq ninja-build qt6-base-dev qt6-declarative-dev qt6-multimedia-dev \
             qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
             qml6-module-qtquick-window qml6-module-qtqml-workerscript qml6-module-qtquick-templates \
-            libgl-dev libepoxy-dev xvfb libavcodec-dev libswscale-dev libopus-dev \
+            libgl-dev libgl1-mesa-dri libglx-mesa0 libegl1 libepoxy-dev xvfb libavcodec-dev libswscale-dev libopus-dev \
             qt6-websockets-dev libssl-dev pkg-config
       - name: Bootstrap vcpkg
         run: scripts/bootstrap-vcpkg.sh

@@ -47,6 +47,8 @@ emu::CoreProbe fakeProbe() {
              {QStringLiteral("direct"), QStringLiteral("native")}, QStringLiteral("direct")),
       option(QStringLiteral("melonds_render_mode"), QStringLiteral("Render Mode"), QStringLiteral("system"),
              {QStringLiteral("software"), QStringLiteral("opengl")}, QStringLiteral("software")),
+      option(QStringLiteral("melonds_opengl_resolution"), QStringLiteral("Internal Resolution"), QStringLiteral("system"),
+             {QStringLiteral("1"), QStringLiteral("2"), QStringLiteral("3"), QStringLiteral("4")}, QStringLiteral("1"), false),
       option(QStringLiteral("melonds_screen_layout1"), QStringLiteral("Layout #1"), QStringLiteral("system"),
              {QStringLiteral("top-bottom"), QStringLiteral("left-right")}, QStringLiteral("top-bottom")),
       option(QStringLiteral("melonds_sysfile_mode"), QStringLiteral("BIOS/Firmware Mode"), QStringLiteral("system"),
@@ -183,11 +185,13 @@ class EmulationControllersTest : public QObject {
     QVERIFY(h.item("optionRow_framebeam.default_multiview") != nullptr);
     QVERIFY(h.item("optionRow_melonds_audio_interpolation") != nullptr);
     QVERIFY(h.item("optionRow_melonds_boot_mode") != nullptr);
-    for (const char* hidden : {"optionRow_melonds_render_mode", "optionRow_melonds_screen_layout1", "optionRow_melonds_sysfile_mode",
+    for (const char* hidden : {"optionRow_melonds_screen_layout1", "optionRow_melonds_sysfile_mode",
                                "optionRow_melonds_hidden_by_core"}) {
       QVERIFY2(h.item(hidden) == nullptr, hidden);  // locked by FrameBeam / hidden by the core: not user-editable
     }
-    QCOMPARE(h.controller->emulation()->lockedCount(), 3);
+    QVERIFY(h.item("optionRow_melonds_render_mode") != nullptr);  // user choice since 0.5
+    QVERIFY(h.item("optionRow_melonds_opengl_resolution") != nullptr);  // hidden by the core in software mode, the manifest shows it anyway
+    QCOMPARE(h.controller->emulation()->lockedCount(), 2);
     QVERIFY(visible(h, "lockedHint"));
     // Level switch: Game Override is disabled ("later").
     QVERIFY(h.item("levelGame") != nullptr);
@@ -219,7 +223,7 @@ class EmulationControllersTest : public QObject {
     }
     // An invalid value and a locked key are refused.
     h.controller->emulation()->setOption(QStringLiteral("melonds_audio_interpolation"), QStringLiteral("nonsense"));
-    h.controller->emulation()->setOption(QStringLiteral("melonds_render_mode"), QStringLiteral("opengl"));
+    h.controller->emulation()->setOption(QStringLiteral("melonds_screen_layout1"), QStringLiteral("left-right"));
     QCOMPARE(h.controller->emulation()->settings()->values(L::System, QStringLiteral("nds")).size(), 1);
     QVERIFY(h.click("optionReset_melonds_audio_interpolation"));
     QVERIFY(!h.controller->emulation()->settings()->hasValue(L::System, QStringLiteral("nds"), QStringLiteral("melonds_audio_interpolation")));
@@ -339,7 +343,7 @@ class EmulationControllersTest : public QObject {
     QCOMPARE(text(h, "systemCore_nds").left(10), QStringLiteral("melonDS DS"));
     QCOMPARE(text(h, "systemReady_nds"), QStringLiteral("Ready · included in the Player"));
     QVERIFY(h.item("optionRow_melonds_audio_interpolation") != nullptr);
-    QVERIFY(h.item("optionRow_melonds_render_mode") == nullptr);
+    QVERIFY(h.item("optionRow_melonds_render_mode") != nullptr);
     QVERIFY(h.item("optionRow_melonds_sysfile_mode") == nullptr);
     QVERIFY(h.item("optionRow_melonds_firmware_nds_path") == nullptr);
     QVERIFY(h.item("optionRow_melonds_show_lid_state") == nullptr);

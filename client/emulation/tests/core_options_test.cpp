@@ -56,7 +56,8 @@ class CoreOptionsTest : public QObject {
     }
     QVERIFY(isLockedCoreOption(m_nds, QStringLiteral("melonds_sysfile_mode")));
     QVERIFY(isLockedCoreOption(m_nds, QStringLiteral("melonds_firmware_nds_path")));
-    QVERIFY(isLockedCoreOption(m_nds, QStringLiteral("melonds_render_mode")));
+    QVERIFY(!isLockedCoreOption(m_nds, QStringLiteral("melonds_render_mode")));  // user choice (0.5): Software | OpenGL
+    QCOMPARE(m_nds.coreOptions.value(QStringLiteral("melonds_render_mode")), QStringLiteral("software"));
 
     // Cache round trip keeps everything the page needs.
     const CoreProbe c = coreProbeFromJson(coreProbeToJson(p));
