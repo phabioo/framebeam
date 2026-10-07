@@ -26,6 +26,9 @@ import (
 	"github.com/phabioo/framebeam/server/internal/updates"
 )
 
+// warnOut receives non-fatal warnings (a variable for tests).
+var warnOut io.Writer = os.Stderr
+
 const signingKeyEnv = "FRAMEBEAM_SIGNING_KEY"
 
 func main() {
@@ -203,8 +206,12 @@ func releaseAdd(indexPath, relPath string, keep int, allowFile bool, now func() 
 		return err
 	default:
 		var errs []error
-		if idx, errs = updates.ParseIndexOpts(data, allowFile); len(errs) > 0 {
+		idx, errs = updates.ParseIndexOpts(data, allowFile)
+		if updates.Fatal(errs) {
 			return fmt.Errorf("existing index is invalid: %w", errs[0])
+		}
+		for _, e := range errs { // entries invalid under the current rules (e.g. the old channel "test") are dropped
+			fmt.Fprintln(warnOut, "Warning: dropping release from the existing index:", e)
 		}
 	}
 	rels := idx.Releases[:0:0]

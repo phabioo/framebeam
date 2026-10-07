@@ -64,7 +64,7 @@ type Options struct {
 	UpdateIndexURL string
 	// UpdateRequestDir is where the update request file is created (default /run/framebeam).
 	UpdateRequestDir string
-	// UpdateChannel is the compiled-in default channel: stable, test or dev (dev = no automatic checks).
+	// UpdateChannel is the compiled-in default channel: stable, beta or dev (dev = no automatic checks).
 	UpdateChannel string
 	// Executable is the path of the running binary (default os.Executable); updates are installable only when it
 	// is /usr/bin/framebeam-hub. UpdatePlatform defaults to linux-<GOARCH>. Both are injectable for tests.

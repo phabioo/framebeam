@@ -449,7 +449,7 @@ func updatesFeed(t *testing.T, version string) (url string, pub ed25519.PublicKe
 		t.Fatal(err)
 	}
 	idx, err := updates.Marshal(updates.Index{Schema: 1, GeneratedAt: time.Now().UTC(), Releases: []updates.Release{{
-		Product: "hub", Channel: "test", Version: version, PublishedAt: time.Now().UTC(), ProtocolVersion: 1, MinProtocolVersion: 1,
+		Product: "hub", Channel: "beta", Version: version, PublishedAt: time.Now().UTC(), ProtocolVersion: 1, MinProtocolVersion: 1,
 		NotesURL: "https://example.org/notes", Artifacts: []updates.Artifact{{Platform: "linux-amd64", Kind: "deb", Name: name, Size: int64(len(data)),
 			SHA256: hex.EncodeToString(sum[:]), URL: "file://" + filepath.Join(dir, name)}}}}})
 	if err != nil {
@@ -463,11 +463,11 @@ func updatesFeed(t *testing.T, version string) (url string, pub ed25519.PublicKe
 }
 
 func TestSettingsUpdatesSection(t *testing.T) {
-	feed, pub := updatesFeed(t, "0.3.0-test.6")
+	feed, pub := updatesFeed(t, "0.3.0-beta.6")
 	reqDir := t.TempDir()
 	exe := updates.PackagedExecutable
 	e := newEnvOpts(t, true, nil, func(o *hub.Options) {
-		o.HubVersion, o.UpdateChannel, o.UpdateIndexURL, o.UpdateRequestDir, o.UpdatePlatform = "0.3.0-test.5", "test", feed, reqDir, "linux-amd64"
+		o.HubVersion, o.UpdateChannel, o.UpdateIndexURL, o.UpdateRequestDir, o.UpdatePlatform = "0.3.0-beta.5", "beta", feed, reqDir, "linux-amd64"
 		o.CoreTrustKeys = []ed25519.PublicKey{pub}
 		o.Executable = exe
 	})
@@ -475,18 +475,18 @@ func TestSettingsUpdatesSection(t *testing.T) {
 	tok := c.login()
 	rec := c.get("/settings", nil)
 	status(t, rec, 200)
-	contains(t, rec, "<h2>Updates</h2>", `name="channel"`, `<option value="test" selected>`, `name="auto" value="1" checked`, "0.3.0-test.5", "Check now")
+	contains(t, rec, "<h2>Updates</h2>", `name="channel"`, `<option value="beta" selected>`, `name="auto" value="1" checked`, "0.3.0-beta.5", "Check now")
 	notContains(t, rec, "Install update")
 
 	// Check now runs in the background; run the check directly and reload.
 	status(t, postTok(c, tok, "/settings/updates/check", nil), 303)
-	e.svc.SetUpdateSettings(bg, "test", false) // automatic install would stage it right away
+	e.svc.SetUpdateSettings(bg, "beta", false) // automatic install would stage it right away
 	if _, err := e.svc.CheckUpdates(bg); err != nil {
 		t.Fatal(err)
 	}
 	rec = c.get("/settings", nil)
-	contains(t, rec, "Version 0.3.0-test.6 is available", "Release notes", "https://example.org/notes", `action="/settings/updates/install"`, "Install update",
-		`hx-confirm="Install 0.3.0-test.6 now?`, ">update</span>")
+	contains(t, rec, "Version 0.3.0-beta.6 is available", "Release notes", "https://example.org/notes", `action="/settings/updates/install"`, "Install update",
+		`hx-confirm="Install 0.3.0-beta.6 now?`, ">update</span>")
 
 	// Saving: channel and automatic install, invalid channel rejected.
 	rec = postTok(c, tok, "/settings/updates", url.Values{"channel": {"stable"}})
@@ -505,7 +505,7 @@ func TestSettingsUpdatesSection(t *testing.T) {
 	if loc := location(rec); loc != "/settings?ok=updateinstall" && loc != "/settings?err=updatenone" {
 		t.Fatal(loc)
 	}
-	e.svc.SetUpdateSettings(bg, "test", false)
+	e.svc.SetUpdateSettings(bg, "beta", false)
 	rec = postTok(c, tok, "/settings/updates/install", nil)
 	if location(rec) != "/settings?ok=updateinstall" {
 		t.Fatalf("install: %d %s", rec.Code, location(rec))
@@ -517,9 +517,9 @@ func TestSettingsUpdatesSection(t *testing.T) {
 }
 
 func TestSettingsUpdatesNotPackagedAndDev(t *testing.T) {
-	feed, pub := updatesFeed(t, "0.3.0-test.6")
+	feed, pub := updatesFeed(t, "0.3.0-beta.6")
 	e := newEnvOpts(t, true, nil, func(o *hub.Options) {
-		o.HubVersion, o.UpdateChannel, o.UpdateIndexURL, o.UpdateRequestDir, o.UpdatePlatform = "0.3.0-dev", "dev", feed, t.TempDir(), "linux-amd64"
+		o.HubVersion, o.UpdateChannel, o.UpdateIndexURL, o.UpdateRequestDir, o.UpdatePlatform = "0.3.0-alpha.1", "dev", feed, t.TempDir(), "linux-amd64"
 		o.CoreTrustKeys = []ed25519.PublicKey{pub}
 		o.Executable = "/usr/local/bin/framebeam-hub"
 	})
@@ -527,12 +527,12 @@ func TestSettingsUpdatesNotPackagedAndDev(t *testing.T) {
 	tok := c.login()
 	rec := c.get("/settings", nil)
 	contains(t, rec, "Off (development build)", "development builds")
-	status(t, postTok(c, tok, "/settings/updates", url.Values{"channel": {"test"}}), 303)
+	status(t, postTok(c, tok, "/settings/updates", url.Values{"channel": {"beta"}}), 303)
 	if _, err := e.svc.CheckUpdates(bg); err != nil {
 		t.Fatal(err)
 	}
 	rec = c.get("/settings", nil)
-	contains(t, rec, "Version 0.3.0-test.6 is available", "sudo apt install ./framebeam-hub_0.3.0-test.6_amd64.deb")
+	contains(t, rec, "Version 0.3.0-beta.6 is available", "sudo apt install ./framebeam-hub_0.3.0-beta.6_amd64.deb")
 	notContains(t, rec, "Install update")
 	rec = postTok(c, tok, "/settings/updates/install", nil)
 	if location(rec) != "/settings?err=updatepackage" {

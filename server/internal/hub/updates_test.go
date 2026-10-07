@@ -84,7 +84,7 @@ func TestUpdateSettingsDefaults(t *testing.T) {
 	for _, c := range []struct {
 		compiled, channel string
 		auto              bool
-	}{{"test", "test", true}, {"stable", "stable", false}, {"dev", "off", false}} {
+	}{{"beta", "beta", true}, {"test", "beta", true}, {"stable", "stable", false}, {"dev", "off", false}} {
 		e := newUpdEnv(t, "0.3.0", c.compiled, true)
 		s, err := e.svc.UpdateSettings(ctx)
 		if err != nil || s.Channel != c.channel || s.Auto != c.auto || s.ChannelIsSet {
@@ -92,11 +92,11 @@ func TestUpdateSettingsDefaults(t *testing.T) {
 		}
 	}
 	e := newUpdEnv(t, "0.3.0", "dev", true)
-	if err := e.svc.SetUpdateSettings(ctx, "test", false); err != nil {
+	if err := e.svc.SetUpdateSettings(ctx, "beta", false); err != nil {
 		t.Fatal(err)
 	}
 	s, _ := e.svc.UpdateSettings(ctx)
-	if s.Channel != "test" || s.Auto || !s.ChannelIsSet {
+	if s.Channel != "beta" || s.Auto || !s.ChannelIsSet {
 		t.Fatalf("selection overrides the compiled default: %+v", s)
 	}
 	if err := e.svc.SetUpdateSettings(ctx, "nightly", true); !errors.Is(err, hub.ErrBadRequest) {
@@ -116,7 +116,7 @@ func TestCheckUpdatesDevAndNonSemVerAreOff(t *testing.T) {
 	if _, err := e.svc.CheckUpdates(ctx); !errors.Is(err, hub.ErrUpdatesOff) {
 		t.Fatalf("dev channel: %v", err)
 	}
-	e2 := newUpdEnv(t, "dev", "test", true)
+	e2 := newUpdEnv(t, "dev", "beta", true)
 	e2.feed.add(t, "stable", "0.4.0", 1)
 	if _, err := e2.svc.CheckUpdates(ctx); !errors.Is(err, hub.ErrUpdatesOff) {
 		t.Fatalf("non-SemVer version: %v", err)
@@ -134,8 +134,8 @@ func TestCheckUpdatesDevAndNonSemVerAreOff(t *testing.T) {
 }
 
 func TestCheckUpdatesRecordsAvailableAndErrors(t *testing.T) {
-	e := newUpdEnv(t, "0.3.0-test.5", "test", false)
-	e.feed.add(t, "test", "0.3.0-test.6", 1)
+	e := newUpdEnv(t, "0.3.0-beta.5", "beta", false)
+	e.feed.add(t, "beta", "0.3.0-beta.6", 1)
 	e.feed.add(t, "stable", "0.3.0", 1)
 	rep, err := e.svc.CheckUpdates(ctx)
 	if err != nil || rep.Available == nil || rep.Available.Version != "0.3.0" || rep.Staged {
@@ -159,20 +159,20 @@ func TestCheckUpdatesRecordsAvailableAndErrors(t *testing.T) {
 }
 
 func TestInstallUpdateStagesAndRequests(t *testing.T) {
-	e := newUpdEnv(t, "0.3.0-test.5", "test", true)
+	e := newUpdEnv(t, "0.3.0-beta.5", "beta", true)
 	if _, err := e.svc.InstallUpdate(ctx, false); !errors.Is(err, hub.ErrNoUpdate) && err == nil {
 		t.Fatal("empty feed")
 	}
-	e.feed.add(t, "test", "0.3.0-test.6", 1)
+	e.feed.add(t, "beta", "0.3.0-beta.6", 1)
 	st, err := e.svc.InstallUpdate(ctx, false)
-	if err != nil || st.Version != "0.3.0-test.6" {
+	if err != nil || st.Version != "0.3.0-beta.6" {
 		t.Fatalf("%+v %v", st, err)
 	}
 	if !updates.RequestPending(e.reqDir) {
 		t.Fatal("request file missing")
 	}
 	got, _ := updates.ReadStaged(e.svc.DataDir())
-	if got == nil || got.Version != "0.3.0-test.6" {
+	if got == nil || got.Version != "0.3.0-beta.6" {
 		t.Fatalf("%+v", got)
 	}
 	status, _ := e.svc.UpdateStatus(ctx)
@@ -182,9 +182,9 @@ func TestInstallUpdateStagesAndRequests(t *testing.T) {
 }
 
 func TestAutomaticInstall(t *testing.T) {
-	// Test channel default: on.
-	e := newUpdEnv(t, "0.3.0-test.5", "test", true)
-	e.feed.add(t, "test", "0.3.0-test.6", 1)
+	// Beta channel default: on.
+	e := newUpdEnv(t, "0.3.0-beta.5", "beta", true)
+	e.feed.add(t, "beta", "0.3.0-beta.6", 1)
 	rep, err := e.svc.CheckUpdates(ctx)
 	if err != nil || !rep.Staged || !updates.RequestPending(e.reqDir) {
 		t.Fatalf("%+v %v", rep, err)
@@ -202,8 +202,8 @@ func TestAutomaticInstall(t *testing.T) {
 	}
 
 	// Not while a Session is active; retried at the next check.
-	a := newUpdEnv(t, "0.3.0-test.5", "test", true)
-	a.feed.add(t, "test", "0.3.0-test.6", 1)
+	a := newUpdEnv(t, "0.3.0-beta.5", "beta", true)
+	a.feed.add(t, "beta", "0.3.0-beta.6", 1)
 	admin, _ := a.svc.CreateAdmin(ctx, "fabio", "secret-1234")
 	g, err := a.svc.AddROM(ctx, bytes.NewReader(randomROM(2000)), "demo.nds", "", "", admin.ID)
 	if err != nil {
@@ -225,17 +225,17 @@ func TestAutomaticInstall(t *testing.T) {
 	}
 
 	// A failed earlier attempt for the same version is not retried automatically.
-	f := newUpdEnv(t, "0.3.0-test.5", "test", true)
-	f.feed.add(t, "test", "0.3.0-test.6", 1)
+	f := newUpdEnv(t, "0.3.0-beta.5", "beta", true)
+	f.feed.add(t, "beta", "0.3.0-beta.6", 1)
 	os.MkdirAll(filepath.Join(f.svc.DataDir(), "updates"), 0o750)
-	os.WriteFile(filepath.Join(f.svc.DataDir(), "updates", updates.LastResultName), []byte(`{"version":"0.3.0-test.6","ok":false,"message":"x"}`), 0o640)
+	os.WriteFile(filepath.Join(f.svc.DataDir(), "updates", updates.LastResultName), []byte(`{"version":"0.3.0-beta.6","ok":false,"message":"x"}`), 0o640)
 	if rep, _ = f.svc.CheckUpdates(ctx); rep.Staged {
 		t.Fatal("failed attempt must not loop")
 	}
 }
 
 func TestBreakingUpdateWarnsAndNeedsConfirmation(t *testing.T) {
-	e := newUpdEnv(t, "0.3.0-test.5", "test", true)
+	e := newUpdEnv(t, "0.3.0-beta.5", "beta", true)
 	admin, _ := e.svc.CreateAdmin(ctx, "fabio", "secret-1234")
 	dev := pairDevice(t, e.svc, admin.ID, "Old Player")
 	cores := []hub.CoreReport{}
@@ -243,7 +243,7 @@ func TestBreakingUpdateWarnsAndNeedsConfirmation(t *testing.T) {
 		MinProtocolVersion: 1, Cores: &cores}); err != nil {
 		t.Fatal(err)
 	}
-	e.feed.add(t, "test", "0.3.0-test.6", 2) // needs Players with protocol >= 2
+	e.feed.add(t, "beta", "0.3.0-beta.6", 2) // needs Players with protocol >= 2
 	rep, err := e.svc.CheckUpdates(ctx)
 	if err != nil || rep.Available == nil || !rep.Available.Breaking || rep.Available.Warning() == "" || rep.Staged {
 		t.Fatalf("breaking must warn and skip automatic install: %+v %v", rep, err)
@@ -255,13 +255,27 @@ func TestBreakingUpdateWarnsAndNeedsConfirmation(t *testing.T) {
 		t.Fatalf("confirmed: %v", err)
 	}
 	// A Player not seen for 30 days no longer counts.
-	e2 := newUpdEnv(t, "0.3.0-test.5", "test", true)
+	e2 := newUpdEnv(t, "0.3.0-beta.5", "beta", true)
 	admin2, _ := e2.svc.CreateAdmin(ctx, "fabio", "secret-1234")
 	dev2 := pairDevice(t, e2.svc, admin2.ID, "Old Player")
 	e2.svc.Handshake(ctx, dev2, hub.HandshakeInput{Platform: "linux", Arch: "x86_64", PlayerVersion: "0.1.0", ProtocolVersion: 1, MinProtocolVersion: 1, Cores: &cores})
-	e2.feed.add(t, "test", "0.3.0-test.6", 2)
+	e2.feed.add(t, "beta", "0.3.0-beta.6", 2)
 	e2.clk.Advance(31 * 24 * time.Hour)
 	if rep, err := e2.svc.CheckUpdates(ctx); err != nil || rep.Available == nil || rep.Available.Breaking {
 		t.Fatalf("a Player not seen for 30 days must not count: %+v %v", rep, err)
+	}
+}
+
+func TestUpdateSettingsLegacyTestChannel(t *testing.T) {
+	e := newUpdEnv(t, "0.3.0", "stable", true)
+	if err := e.svc.SetRawSettingForTest(ctx, "update_channel", "test"); err != nil {
+		t.Fatal(err)
+	}
+	s, err := e.svc.UpdateSettings(ctx)
+	if err != nil || s.Channel != "beta" || !s.ChannelIsSet || !s.Auto {
+		t.Fatalf("stored test reads as beta: %+v %v", s, err)
+	}
+	if err := e.svc.SetUpdateSettings(ctx, "test", false); !errors.Is(err, hub.ErrBadRequest) {
+		t.Fatalf("test is not selectable any more: %v", err)
 	}
 }

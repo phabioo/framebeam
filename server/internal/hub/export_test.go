@@ -1,5 +1,7 @@
 package hub
 
+import "context"
+
 // Test seams for the grace-timer generation check.
 
 // ArmOwnerGraceForTest arms the owner grace timer and returns its generation.
@@ -46,4 +48,9 @@ func (s *Service) ViewerGraceArmedForTest(viewerID string) bool {
 	defer rt.mu.Unlock()
 	_, ok := rt.viewerTimers[viewerID]
 	return ok
+}
+
+// SetRawSettingForTest stores a raw settings value (legacy values).
+func (s *Service) SetRawSettingForTest(ctx context.Context, key, value string) error {
+	return s.setSetting(ctx, key, value)
 }

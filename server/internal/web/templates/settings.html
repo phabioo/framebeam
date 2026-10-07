@@ -57,13 +57,14 @@
       <form class="update-form" method="post" action="/settings/updates">
         <input type="hidden" name="_csrf" value="{{$.CSRF}}">
         <div class="row">
-          <div><div class="label">Update channel</div><div class="help">Stable gets released versions. Test also gets test builds from the main branch (newest wins).</div></div>
+          <div><div class="label">Update channel</div><div class="help">Stable gets released versions. Beta also gets pre-release builds (newest wins).</div></div>
           <select name="channel" aria-label="Update channel">
             {{if .OffOption}}<option value=""{{if eq .Channel ""}} selected{{end}}>Off (development build)</option>{{end}}
             <option value="stable"{{if eq .Channel "stable"}} selected{{end}}>Stable</option>
-            <option value="test"{{if eq .Channel "test"}} selected{{end}}>Test</option>
+            <option value="beta"{{if eq .Channel "beta"}} selected{{end}}>Beta</option>
           </select>
         </div>
+        <div class="row"><div class="help">Beta: Pre-release builds from every change on main. May contain bugs.</div></div>
         <div class="row">
           <div><div class="label">Install automatically</div><div class="help">Downloads and installs a new version after a check, never during a running Session and never when it breaks Players seen recently. Needs the .deb package.</div></div>
           <label><input type="checkbox" name="auto" value="1"{{if .Settings.Auto}} checked{{end}}> Automatic install</label>

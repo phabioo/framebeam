@@ -13,27 +13,35 @@ var (
 	ErrCurrentNotSemVer = errors.New("the running version is not a release version; the updater is disabled")
 )
 
-// ChannelsFor returns the index channels a selected channel considers: test sees test and stable releases,
+// ChannelsFor returns the index channels a selected channel considers: beta sees beta and stable releases,
 // stable only stable, anything else (dev, empty) nothing.
 func ChannelsFor(channel string) []string {
 	switch channel {
 	case ChannelStable:
 		return []string{ChannelStable}
-	case ChannelTest:
-		return []string{ChannelTest, ChannelStable}
+	case ChannelBeta:
+		return []string{ChannelBeta, ChannelStable}
 	}
 	return nil
 }
 
-// ValidSelectableChannel reports whether channel can be selected by a user (stable or test).
+// NormalizeChannel maps the legacy channel name "test" (old stored settings, old ldflags) to beta.
+func NormalizeChannel(channel string) string {
+	if channel == "test" {
+		return ChannelBeta
+	}
+	return channel
+}
+
+// ValidSelectableChannel reports whether channel can be selected by a user (stable or beta).
 func ValidSelectableChannel(channel string) bool {
-	return channel == ChannelStable || channel == ChannelTest
+	return channel == ChannelStable || channel == ChannelBeta
 }
 
 // Query selects a release.
 type Query struct {
 	Product  string
-	Channel  string // the selected channel (stable or test)
+	Channel  string // the selected channel (stable or beta)
 	Platform string // e.g. linux-amd64
 	Kind     string // e.g. deb
 	Current  string // running version (SemVer)

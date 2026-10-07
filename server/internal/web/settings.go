@@ -28,7 +28,7 @@ type updatesBody struct {
 	LastResultAt  string
 	// Selectable channel option values: "" is the compiled default and only offered for development builds.
 	OffOption bool
-	Channel   string // select value: stable, test or "" (development default)
+	Channel   string // select value: stable, beta or "" (development default)
 	Err       bool   // the status could not be read
 }
 
@@ -44,7 +44,7 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, sess *se
 	b.Appearance, _ = s.svc.Appearance(r.Context())
 	b.AllowUploads, _ = s.svc.AllowUserUploads(r.Context())
 	if st, err := s.svc.UpdateStatus(r.Context()); err == nil {
-		b.Updates = updatesBody{UpdateStatus: st, LastCheckText: "never", OffOption: st.Settings.CompiledChannel != "stable" && st.Settings.CompiledChannel != "test"}
+		b.Updates = updatesBody{UpdateStatus: st, LastCheckText: "never", OffOption: st.Settings.CompiledChannel != "stable" && st.Settings.CompiledChannel != "beta"}
 		if st.Settings.ChannelIsSet {
 			b.Updates.Channel = st.Settings.Channel
 		} else if !b.Updates.OffOption {
