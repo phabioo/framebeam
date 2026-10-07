@@ -40,12 +40,14 @@ Flow:
 
 | Agent | Model | Responsibility |
 |---|---|---|
-| `hub-implementer` | Sonnet | Go Hub (`server/`) |
-| `player-implementer` | Sonnet | C++/Qt Player (`client/`) |
-| `protocol-implementer` | Sonnet | `protocol/` |
-| `build-ci-implementer` | Sonnet | CMake/vcpkg, Go build, GitHub Actions, `packaging/` |
-| `docs-writer` | Sonnet | `docs/`, ADRs |
-| `scout` | Haiku | read-only: search, read logs/CI output, summarize |
+| `hub-implementer` | Sonnet 5.5 (`sonnet`) | Go Hub (`server/`) |
+| `player-implementer` | Sonnet 5.5 (`sonnet`) | C++/Qt Player (`client/`) |
+| `protocol-implementer` | Sonnet 5.5 (`sonnet`) | `protocol/` |
+| `build-ci-implementer` | Sonnet 5.5 (`sonnet`) | CMake/vcpkg, Go build, GitHub Actions, `packaging/` |
+| `docs-writer` | Sonnet 5.5 (`sonnet`) | `docs/`, ADRs |
+| `scout` | Haiku 5.5 (`claude-haiku-5-5`) | read-only: search, read logs/CI output, summarize |
+
+`scout` pins the full model ID because the `haiku` alias depends on the Claude Code version and provider (Haiku 5.5 needs Claude Code >= 2.1.293; on third-party providers the alias still points to Haiku 4.5). Haiku 5.5 bills prompts over 100K tokens at a higher rate, so scout tasks stay narrow. Implementation stays on Sonnet 5.5: Haiku is meant for search, extraction and summaries, not for C++/Go changes that need judgment.
 
 ## Brief template
 
