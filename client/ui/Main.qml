@@ -94,4 +94,5 @@ ApplicationWindow {
     }
 
     ConflictDialog { player: window.player }
+    SaveRestoreDialog { player: window.player }
 }

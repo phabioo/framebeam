@@ -43,14 +43,18 @@ type saveHistoryView struct {
 	Version      int
 	Device, Meta string
 	Current      bool
+	Label        string
 	DownloadHref string
+	RestoreHref  string
 }
 
 type saveDetailView struct {
-	Title, User string
-	Current     saveCheckpointView
-	Conflicts   []saveConflictView
-	History     []saveHistoryView
+	Title, User  string
+	SnapshotHref string
+	ExpectedRev  int
+	Current      saveCheckpointView
+	Conflicts    []saveConflictView
+	History      []saveHistoryView
 }
 
 type savesBody struct {
@@ -64,6 +68,7 @@ var syncReasonLabels = map[string]string{
 	hub.SyncCheckpoint:      "Auto checkpoint",
 	hub.SyncFinal:           "Final sync",
 	hub.SyncFinalSessionEnd: "Session end",
+	hub.SyncRestore:         "Restored",
 }
 
 var historyReasonLabels = map[string]string{
@@ -72,6 +77,7 @@ var historyReasonLabels = map[string]string{
 	hub.HistoryBeforeResolution: "Before conflict resolution",
 	hub.HistoryConflictUpload:   "Conflict upload",
 	hub.HistoryManualSnapshot:   "Manual snapshot",
+	hub.HistoryBeforeRestore:    "Before restore",
 }
 
 // stamp formats a time as "today 19:10", "yesterday 18:05", "10-03 21:12" or "2025-10-03 21:12".
@@ -158,7 +164,7 @@ func (s *Server) saveDetail(r *http.Request, sel hub.SaveSummary, q string, now 
 	}
 	href := saveHref(sel.UserID, sel.GameID, sel.Slot)
 	cur := slot.Current
-	d := &saveDetailView{Title: sel.GameTitle, User: sel.Username, Current: saveCheckpointView{Rev: cur.Revision,
+	d := &saveDetailView{Title: sel.GameTitle, User: sel.Username, SnapshotHref: href + "/snapshots", ExpectedRev: cur.Revision, Current: saveCheckpointView{Rev: cur.Revision,
 		Device: cur.DeviceName, When: stamp(cur.CreatedAt, now), Reason: syncReasonLabels[cur.Reason], Size: humanBytes(cur.Size),
 		ShortHash: shortHash(cur.SHA256), DownloadHref: href + "/download"}}
 	for _, c := range slot.OpenConflicts {
@@ -178,9 +184,14 @@ func (s *Server) saveDetail(r *http.Request, sel hub.SaveSummary, q string, now 
 		} else {
 			meta += fmt.Sprintf(" · Rev %d", v.Revision)
 		}
-		d.History = append(d.History, saveHistoryView{Version: v.Version, Device: v.DeviceName, Meta: meta,
+		hv := saveHistoryView{Version: v.Version, Device: v.DeviceName, Meta: meta,
 			Current:      v.Reason != hub.HistoryConflictUpload && v.Revision == cur.Revision,
-			DownloadHref: href + "/history/" + strconv.Itoa(v.Version) + "/download"})
+			DownloadHref: href + "/history/" + strconv.Itoa(v.Version) + "/download",
+			RestoreHref:  href + "/history/" + strconv.Itoa(v.Version) + "/restore"}
+		if v.Label != nil {
+			hv.Label = *v.Label
+		}
+		d.History = append(d.History, hv)
 	}
 	return d, nil
 }
@@ -279,6 +290,51 @@ func (s *Server) saveResolve(w http.ResponseWriter, r *http.Request, sess *sessi
 		http.NotFound(w, r)
 	case errors.Is(err, hub.ErrBadRequest):
 		http.Error(w, "Invalid request", http.StatusBadRequest)
+	default:
+		s.fail(w, r, err)
+	}
+}
+
+func (s *Server) saveRestore(w http.ResponseWriter, r *http.Request, sess *session) {
+	u, g, sl := r.PathValue("user"), r.PathValue("game"), r.PathValue("slot")
+	ver, err1 := strconv.Atoi(r.PathValue("version"))
+	exp, err2 := strconv.Atoi(r.PostFormValue("expected_revision"))
+	if err1 != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if err2 != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+	// The admin has no device: the change is recorded as made by the web interface (hub.WebDeviceID).
+	_, err := s.svc.RestoreSaveVersion(r.Context(), hub.RestoreInput{UserID: u, DeviceID: hub.WebDeviceID(sess.User.ID), GameID: g,
+		Slot: sl, Version: ver, ExpectedRevision: exp})
+	switch {
+	case err == nil:
+		s.redirect(w, r, saveHref(u, g, sl)+"?ok=restored")
+	case errors.Is(err, hub.ErrSaveConflictStale):
+		s.redirect(w, r, saveHref(u, g, sl)+"?err=stale")
+	case errors.Is(err, hub.ErrNotFound):
+		http.NotFound(w, r)
+	case errors.Is(err, hub.ErrBadRequest):
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+	default:
+		s.fail(w, r, err)
+	}
+}
+
+func (s *Server) saveSnapshot(w http.ResponseWriter, r *http.Request, _ *session) {
+	u, g, sl := r.PathValue("user"), r.PathValue("game"), r.PathValue("slot")
+	label := r.PostFormValue("label")
+	_, err := s.svc.CreateSaveSnapshot(r.Context(), u, g, sl, &label)
+	switch {
+	case err == nil:
+		s.redirect(w, r, saveHref(u, g, sl)+"?ok=snapshot")
+	case errors.Is(err, hub.ErrNotFound):
+		http.NotFound(w, r)
+	case errors.Is(err, hub.ErrBadRequest):
+		s.redirect(w, r, saveHref(u, g, sl)+"?err=label")
 	default:
 		s.fail(w, r, err)
 	}

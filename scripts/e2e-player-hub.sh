@@ -53,6 +53,8 @@ LIC_SIZE="$(stat -c %s "$CDIR/LICENSE-melonDS-DS.txt")"
 (umask 077; "$TMP/framebeam-sign" keygen -out "$TMP/e2e-signing.seed" >"$TMP/keygen.out" 2>"$TMP/keygen.err") || die "core: keygen" "$TMP/keygen.err"
 CORE_PUB="$(sed -n 's/^public_key=//p' "$TMP/keygen.out" | head -n1)"
 [ -n "$CORE_PUB" ] || die "core: keygen printed no public key" "$TMP/keygen.err"
+# The Player verifies the signed core index itself (ADR 0012 D6): trust the throwaway key there too.
+export FRAMEBEAM_PLAYER_TRUST_KEYS="$CORE_PUB"
 BASEURL="https://e2e.invalid/core-$CORE_ID-$CORE_VERSION"
 cat >"$TMP/package.json" <<EOF
 {

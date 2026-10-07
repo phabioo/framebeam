@@ -12,7 +12,7 @@ struct ViewerLinkStats {
   QString viewerId;
   QString state;  // new | connecting | connected | disconnected | failed | closed
   std::optional<double> rttMs;
-  QString connectionType;  // host | srflx | relay | unknown
+  QString connectionType;  // "direct (host|srflx|prflx)" | "relay (udp|tcp)" | empty (unknown), see rtcutil.h
 };
 
 struct SessionStats {
@@ -25,7 +25,9 @@ struct SessionStats {
   double videoBitrateKbps = 0.0; // measured over the last second(s), payload
   double audioBitrateKbps = 0.0;
   std::optional<double> rttMs;                // nullopt: unavailable
-  QString connectionType;        // host | srflx | prflx | relay | unknown (selected candidate pair, remote candidate)
+  QString connectionType;        // selected candidate pair: "direct (host)" | "direct (srflx)" | "direct (prflx)" | "relay (udp)" |
+                                 // "relay (tcp)" | empty (unknown). Host: the worst of its viewers (relay > srflx/prflx > host).
+  double targetBitrateKbps = 0.0; // host: current AIMD target of the encoder (ADR 0012 D5), 0 while the encoder is off
   std::optional<double> packetLossPercent;    // viewer: from RTP sequence numbers; host: unavailable
   int viewers = 0;               // host: connected viewers
   qint64 videoFrames = 0;        // total frames encoded (host) / decoded (viewer)

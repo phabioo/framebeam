@@ -132,6 +132,26 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   conn_->setHandshakeInfo(info);
 
   sessions_ = std::make_unique<SessionController>(conn_.get(), profiles_.get(), &session_);
+  saves_->setSettings(settings_.get());
+  {
+    SaveHistoryController::Env env;
+    env.saves = saves_.get();
+    env.connection = conn_.get();
+    env.gameBusy = [this](const QString& id) {
+      return (phase_ != PlayPhase::None || gameActive_ || session_.isActive()) && (launchGame_.id.isEmpty() || launchGame_.id == id);
+    };
+    env.localFileName = [this](const QString& id) {
+      const auto g = model_.game(id);
+      return g ? SaveStore::expectedSaveName(g->romSha256 + QLatin1Char('.') + RomCache::extensionFromFilename(g->romFilename)) : QString();
+    };
+    history_ = std::make_unique<SaveHistoryController>(env);
+    connect(this, &PlayerController::selectedGameChanged, history_.get(), [this]() {
+      history_->setGame(selectedId_);
+      history_->onGameStateChanged();
+    });
+    connect(sessions_->socket(), &HubSocket::saveUpdated, this, [this](const SaveUpdate& u) { saves_->handleSaveUpdate(u); });
+    connect(saves_.get(), &SaveSync::saveChangedElsewhere, history_.get(), &SaveHistoryController::onSaveUpdated);
+  }
   {
     UpdatesController::Options uo;
     uo.baseDir = profiles_->baseDir();
@@ -313,6 +333,7 @@ bool PlayerController::coreUsable(const emu::SystemManifest& man, emu::CoreLocat
 
 QString PlayerController::coreProblemText(const QString& reason) {
   if (reason == QLatin1String("incompatible")) return tr("Core incompatible");
+  if (reason == QLatin1String("untrusted")) return tr("Core untrusted");
   if (reason == QLatin1String("not_on_hub") || reason == QLatin1String("not_cached_on_hub")) return tr("Core missing");
   return tr("Core download failed");
 }
@@ -339,6 +360,8 @@ void PlayerController::coreStatus(const emu::SystemManifest& man, QString* text,
       *hint = tr("The Hub has no package of this core. Ask the Hub admin to select a core version on the Systems & Cores page.");
     } else if (problem == QLatin1String("not_cached_on_hub")) {
       *hint = tr("The Hub has not downloaded the core files yet. Ask the Hub admin to check the core source.");
+    } else if (problem == QLatin1String("untrusted")) {
+      *hint = tr("The core does not match the Hub's signed core index and was not installed. Ask the Hub admin to sync or import the core index again.");
     } else if (problem == QLatin1String("incompatible")) {
       *hint = tr("The Hub has this core only for other platforms than %1.").arg(CoreCache::currentPlatform());
     } else {
@@ -1153,6 +1176,7 @@ QVariantMap PlayerController::selectedGame() const {
   const QString ext = RomCache::extensionFromFilename(game->romFilename);
 
   m.insert(QStringLiteral("id"), game->id);
+  m.insert(QStringLiteral("saveSlot"), saves_->slotFor(game->id));
   m.insert(QStringLiteral("title"), game->title);
   m.insert(QStringLiteral("monogram"), LibraryModel::monogram(game->title));
   m.insert(QStringLiteral("systemName"), man ? man->displayName : game->system.toUpper());
@@ -1401,7 +1425,7 @@ void PlayerController::onCoreFinished(const CoreResult& result) {
   }
   coreProblems_.insert(man->coreId, result.problem);
   emu::CoreLocation loc;
-  if (coreUsable(*man, &loc)) {
+  if (result.problem != QLatin1String("untrusted") && coreUsable(*man, &loc)) {
     // Another version of the core is cached (or env/legacy): the game still starts with it (version mismatch is only a warning).
     continueStartAfterCore(*game, *man);
     return;

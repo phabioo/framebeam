@@ -48,3 +48,9 @@ framebeam_add_test(ui_emulation_controllers emulation_controllers_test.cpp ${FB_
   LIBS ${FB_UI_TEST_LIBS} framebeam_input framebeam_sdl3 NEEDS_CORE)
 target_include_directories(test_ui_emulation_controllers PRIVATE ${FB_NETTEST_DIR})
 target_compile_definitions(test_ui_emulation_controllers PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
+
+# Save history, restore, snapshots, slot picker in the detail pane (no core needed).
+framebeam_add_test(ui_save_history save_history_ui_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
+  LIBS ${FB_UI_TEST_LIBS})
+target_include_directories(test_ui_save_history PRIVATE ${FB_NETTEST_DIR})
+target_compile_definitions(test_ui_save_history PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")

@@ -34,6 +34,7 @@ import (
 	"github.com/phabioo/framebeam/server/internal/hub"
 	"github.com/phabioo/framebeam/server/internal/store"
 	"github.com/phabioo/framebeam/server/internal/tlsutil"
+	"github.com/phabioo/framebeam/server/internal/turnsrv"
 	"github.com/phabioo/framebeam/server/internal/version"
 	"github.com/phabioo/framebeam/server/internal/web"
 )
@@ -76,12 +77,32 @@ func openService(ctx context.Context, cfg *config.Config) (*hub.Service, func(),
 	}
 	svc, err := hub.Open(ctx, db, hub.Options{DataDir: cfg.DataDir, Name: cfg.Name, HubVersion: version.String(), ICEServers: cfg.ICEServers,
 		CoreIndexURL: cfg.CoreIndexURL, CoreTrustKeys: keys,
+		SaveKeepRecent: cfg.SaveKeepRecent, SaveKeepDaily: cfg.SaveKeepDaily, SaveKeepWeekly: cfg.SaveKeepWeekly,
 		UpdateIndexURL: cfg.UpdateIndexURL, UpdateRequestDir: cfg.UpdateRequestDir, UpdateChannel: version.Channel})
 	if err != nil {
 		db.Close()
 		return nil, nil, err
 	}
 	return svc, func() { db.Close() }, nil
+}
+
+// startTURN starts the embedded STUN/TURN server (ADR 0012); it stops with Close on Hub shutdown.
+func startTURN(ctx context.Context, cfg *config.Config, svc *hub.Service, log *slog.Logger) (*turnsrv.Server, error) {
+	secret, err := svc.TURNSecret(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("TURN secret: %w", err)
+	}
+	lo, hi, err := cfg.TURNRelayRange()
+	if err != nil {
+		return nil, err
+	}
+	ts, err := turnsrv.Start(ctx, turnsrv.Config{PublicHost: cfg.PublicHost, Port: cfg.TURNPort, RelayMin: lo, RelayMax: hi,
+		RelayIP: net.ParseIP(cfg.TURNRelayIP), Secret: secret, DeviceOK: svc.DeviceActive, Log: log})
+	if err != nil {
+		return nil, err
+	}
+	log.Info("TURN server started", "public_host", cfg.PublicHost, "port", ts.Port(), "relay_ports", cfg.TURNRelayPorts)
+	return ts, nil
 }
 
 func runSetupAdmin(args []string, in io.Reader, out io.Writer) error {
@@ -220,6 +241,16 @@ func runServer(args []string) error {
 	}
 
 	webCfg := web.Config{Listen: cfg.Listen, UseTLS: cfg.UseTLS()}
+	if cfg.TURN {
+		ts, err := startTURN(ctx, cfg, svc, log)
+		if err != nil {
+			return err
+		}
+		defer ts.Close()
+		svc.SetTURN(ts)
+		defer svc.SetTURN(nil)
+		webCfg.TURN = ts
+	}
 
 	var tlsConf *tls.Config
 	if cfg.UseTLS() {
@@ -276,6 +307,7 @@ func runServer(args []string) error {
 		"listen", ln.Addr().String(), "tls", cfg.UseTLS(), "protocol_version", info.ProtocolVersion)
 
 	go svc.RunCleanup(ctx, time.Minute, func(err error) { log.Error("cleanup", "err", err) })
+	go svc.RunSaveSweep(ctx, 24*time.Hour, func(err error) { log.Error("save history sweep", "err", err) })
 	// Core source sync: in the background, never blocks or fails startup; ends with ctx on shutdown.
 	syncDone := make(chan struct{})
 	go func() {

@@ -41,6 +41,13 @@ class VideoEncoder {
   int width() const { return width_; }
   int height() const { return height_; }
 
+  // Target bitrate in bit/s of the open encoder.
+  int bitrate() const { return bitrate_; }
+  // True if the encoder can change its bitrate while running (libx264: reconfigured by libavcodec on the next frame).
+  bool supportsRuntimeBitrate() const { return name_ == QLatin1String("libx264"); }
+  // Changes the bitrate without reopening; false (and nothing changed) if not supported or not open.
+  bool setBitrate(int bitrate);
+
   // The next frame becomes an IDR frame (viewer joined, PLI). Thread-safe.
   void requestKeyframe() { forceKeyframe_ = true; }
 
@@ -58,6 +65,7 @@ class VideoEncoder {
   QString name_;
   int width_ = 0;
   int height_ = 0;
+  int bitrate_ = 0;
   int swsSrcFormat_ = -1;
   std::atomic<bool> forceKeyframe_{true};  // may be set from other threads
 };

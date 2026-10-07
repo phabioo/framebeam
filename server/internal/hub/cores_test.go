@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/ed25519"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -32,7 +33,7 @@ func cacheFiles(t *testing.T, svc *hub.Service) []string {
 	t.Helper()
 	var out []string
 	filepath.Walk(filepath.Join(svc.DataDir(), "cores"), func(p string, fi os.FileInfo, err error) error {
-		if err == nil && !fi.IsDir() {
+		if err == nil && !fi.IsDir() && filepath.Dir(p) != filepath.Join(svc.DataDir(), "cores") { // not the served index
 			out = append(out, p)
 		}
 		return nil
@@ -342,4 +343,41 @@ func TestSyncCoresAnyVersionDownloadsHighest(t *testing.T) {
 		t.Fatalf("served version lost: %v", err)
 	}
 	f.Close()
+}
+
+func TestImportAndSyncPersistVerifiedIndex(t *testing.T) {
+	src := hubtest.NewCoreSource(t)
+	src.AddPackage(t, "melonds_ds", "1.4.0", "linux-x64", lib(100, 1))
+	idx, sig := src.Index()
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "cores-index.json"), idx, 0o644)
+	os.WriteFile(filepath.Join(dir, "cores-index.json.sig"), sig, 0o644)
+
+	svc, _ := hubtest.New(t, func(o *hub.Options) { o.CoreTrustKeys = []ed25519.PublicKey{src.Pub} })
+	if _, _, err := svc.CoresIndex(); !errors.Is(err, hub.ErrCorePackageNotFound) {
+		t.Fatalf("before import: %v", err)
+	}
+	// An untrusted index (wrong signature) is neither imported nor stored.
+	bad := append([]byte(" "), idx...)
+	os.WriteFile(filepath.Join(dir, "cores-index.json"), bad, 0o644)
+	if _, err := svc.ImportCores(ctx, dir); err == nil {
+		t.Fatal("tampered index imported")
+	}
+	if _, _, err := svc.CoresIndex(); !errors.Is(err, hub.ErrCorePackageNotFound) {
+		t.Fatalf("after a rejected import: %v", err)
+	}
+	os.WriteFile(filepath.Join(dir, "cores-index.json"), idx, 0o644)
+	if _, err := svc.ImportCores(ctx, dir); err != nil {
+		t.Fatal(err)
+	}
+	gotIdx, gotSig, err := svc.CoresIndex()
+	if err != nil || !bytes.Equal(gotIdx, idx) || !bytes.Equal(gotSig, sig) {
+		t.Fatalf("served index differs: %v", err)
+	}
+	// The files live in the data directory, readable by the Hub user and group only.
+	for _, f := range []string{"index.json", "index.json.sig"} {
+		if st, err := os.Stat(filepath.Join(svc.DataDir(), "cores", f)); err != nil || st.Mode().Perm()&0o007 != 0 {
+			t.Fatalf("%s: %v %v", f, st, err)
+		}
+	}
 }

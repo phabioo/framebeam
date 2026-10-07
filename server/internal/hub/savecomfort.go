@@ -1,0 +1,296 @@
+package hub
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"os"
+	"strings"
+	"time"
+	"unicode/utf8"
+
+	"github.com/google/uuid"
+)
+
+// Save comfort (ADR 0012 D7): restore, manual snapshots, retention and the save_updated push.
+
+// saveRetention holds the retention rules (0 = unlimited for that rule; recent 0 keeps every version).
+type saveRetention struct {
+	recent, daily, weekly int
+}
+
+// RestoreInput restores a history version as the new checkpoint. DeviceID is the caller's device, or
+// WebDeviceID(user) for the web interface.
+type RestoreInput struct {
+	UserID, DeviceID, GameID, Slot string
+	Version, ExpectedRevision      int
+}
+
+// RestoreSaveVersion makes the content of a history version the new checkpoint (revision + 1, reason restore,
+// device = caller). The current checkpoint goes to history first (before_restore) unless a version of it exists.
+// A different expected revision returns ErrSaveConflictStale and changes nothing.
+func (s *Service) RestoreSaveVersion(ctx context.Context, in RestoreInput) (SaveSlot, error) {
+	if !ValidSlotName(in.Slot) || in.Version < 1 {
+		return SaveSlot{}, ErrNotFound
+	}
+	if in.ExpectedRevision < 1 {
+		return SaveSlot{}, badRequest("Invalid expected revision")
+	}
+	s.saveMu.Lock()
+	defer s.saveMu.Unlock()
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return SaveSlot{}, internal(err)
+	}
+	defer tx.Rollback()
+	u, g, sl := in.UserID, in.GameID, in.Slot
+	cur, err := loadCheckpoint(ctx, tx, u, g, sl)
+	if err != nil {
+		return SaveSlot{}, err
+	}
+	var sha string
+	var size int64
+	err = tx.QueryRowContext(ctx, `SELECT sha256, size FROM save_history WHERE user_id = ? AND game_id = ? AND slot = ? AND version = ?`,
+		u, g, sl, in.Version).Scan(&sha, &size)
+	if errors.Is(err, sql.ErrNoRows) {
+		return SaveSlot{}, ErrNotFound
+	}
+	if err != nil {
+		return SaveSlot{}, internal(err)
+	}
+	if in.ExpectedRevision != cur.Revision {
+		return SaveSlot{}, ErrSaveConflictStale
+	}
+	if _, err := os.Stat(s.saveFile(u, g, sl, sha)); err != nil {
+		return SaveSlot{}, internal(err)
+	}
+	if err := captureCheckpoint(ctx, tx, u, g, sl, cur, HistoryBeforeRestore); err != nil {
+		return SaveSlot{}, internal(err)
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE save_slots SET revision = ?, sha256 = ?, size = ?, device_id = ?, reason = ?, created_at = ?
+		WHERE user_id = ? AND game_id = ? AND slot = ?`, cur.Revision+1, sha, size, in.DeviceID, SyncRestore, s.now().Unix(), u, g, sl); err != nil {
+		return SaveSlot{}, internal(err)
+	}
+	out, err := loadSlot(ctx, tx, u, g, sl)
+	if err != nil {
+		return SaveSlot{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return SaveSlot{}, internal(err)
+	}
+	s.thinSlot(ctx, u, g, sl)
+	s.notifySaveUpdated(u, in.DeviceID, g, sl, out.Current, "")
+	return out, nil
+}
+
+// CreateSaveSnapshot creates a history version (manual_snapshot) from the current checkpoint. The label is
+// optional (trimmed, up to MaxSnapshotLabel characters); ErrNotFound without a checkpoint.
+func (s *Service) CreateSaveSnapshot(ctx context.Context, userID, gameID, slot string, label *string) (SaveVersion, error) {
+	if !ValidSlotName(slot) {
+		return SaveVersion{}, ErrNotFound
+	}
+	var lbl *string
+	if label != nil {
+		t := strings.TrimSpace(*label)
+		if !utf8.ValidString(t) || utf8.RuneCountInString(t) > MaxSnapshotLabel {
+			return SaveVersion{}, badRequest("Label must be at most %d characters", MaxSnapshotLabel)
+		}
+		if t != "" {
+			lbl = &t
+		}
+	}
+	s.saveMu.Lock()
+	defer s.saveMu.Unlock()
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return SaveVersion{}, internal(err)
+	}
+	defer tx.Rollback()
+	cur, err := loadCheckpoint(ctx, tx, userID, gameID, slot)
+	if err != nil {
+		return SaveVersion{}, err
+	}
+	ver, err := addHistory(ctx, tx, userID, gameID, slot, historyEntry{revision: cur.Revision, sha: cur.SHA256, size: cur.Size,
+		deviceID: cur.DeviceID, syncReason: cur.Reason, reason: HistoryManualSnapshot, createdAt: s.now().Unix(), label: lbl})
+	if err != nil {
+		return SaveVersion{}, internal(err)
+	}
+	v, err := scanVersion(tx.QueryRowContext(ctx, `SELECT `+versionCols+` FROM save_history h LEFT JOIN devices d ON d.id = h.device_id
+		WHERE h.user_id = ? AND h.game_id = ? AND h.slot = ? AND h.version = ?`, userID, gameID, slot, ver))
+	if err != nil {
+		return SaveVersion{}, internal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		return SaveVersion{}, internal(err)
+	}
+	s.thinSlot(ctx, userID, gameID, slot)
+	return v, nil
+}
+
+// ---- retention ----
+
+type thinRow struct {
+	version   int
+	sha       string
+	createdAt time.Time
+	keep      bool
+}
+
+// thinSlot applies the retention rules to the history of one slot: the newest `recent` versions, the newest
+// version of each day within `daily` days and of each week within `weekly` weeks are kept; manual snapshots and
+// versions referenced by an open conflict never go. Content files that nothing references any more are deleted.
+// The caller holds saveMu. Errors are ignored: thinning runs again after the next insert and in the daily sweep.
+func (s *Service) thinSlot(ctx context.Context, userID, gameID, slot string) {
+	k := s.saveKeep
+	if k.recent <= 0 {
+		return
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT h.version, h.sha256, h.created_at,
+		h.reason = 'manual_snapshot' OR EXISTS (SELECT 1 FROM save_conflicts c WHERE c.user_id = h.user_id AND c.game_id = h.game_id
+			AND c.slot = h.slot AND c.status = 'open' AND c.secured_version = h.version)
+		FROM save_history h WHERE h.user_id = ? AND h.game_id = ? AND h.slot = ? ORDER BY h.version DESC`, userID, gameID, slot)
+	if err != nil {
+		return
+	}
+	var list []thinRow
+	for rows.Next() {
+		var r thinRow
+		var created int64
+		if err := rows.Scan(&r.version, &r.sha, &created, &r.keep); err != nil {
+			rows.Close()
+			return
+		}
+		r.createdAt = time.Unix(created, 0).UTC()
+		list = append(list, r)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return
+	}
+	now := s.now().UTC()
+	days, weeks := map[string]bool{}, map[string]bool{}
+	for i := range list {
+		r := &list[i]
+		if i < k.recent {
+			r.keep = true
+		}
+		if k.daily <= 0 || !r.createdAt.Before(now.AddDate(0, 0, -k.daily)) {
+			if key := r.createdAt.Format("2006-01-02"); !days[key] {
+				days[key], r.keep = true, true
+			}
+		}
+		if k.weekly <= 0 || !r.createdAt.Before(now.AddDate(0, 0, -7*k.weekly)) {
+			y, w := r.createdAt.ISOWeek()
+			if key := fmt.Sprintf("%d-%02d", y, w); !weeks[key] {
+				weeks[key], r.keep = true, true
+			}
+		}
+	}
+	var drop []thinRow
+	for _, r := range list {
+		if !r.keep {
+			drop = append(drop, r)
+		}
+	}
+	if len(drop) == 0 {
+		return
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return
+	}
+	defer tx.Rollback()
+	for _, r := range drop {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM save_history WHERE user_id = ? AND game_id = ? AND slot = ? AND version = ?`,
+			userID, gameID, slot, r.version); err != nil {
+			return
+		}
+		// A resolved conflict whose secured upload is thinned away has nothing left to show.
+		if _, err := tx.ExecContext(ctx, `DELETE FROM save_conflicts WHERE user_id = ? AND game_id = ? AND slot = ? AND status != 'open'
+			AND secured_version = ?`, userID, gameID, slot, r.version); err != nil {
+			return
+		}
+	}
+	if tx.Commit() != nil {
+		return
+	}
+	seen := map[string]bool{}
+	for _, r := range drop {
+		if !seen[r.sha] {
+			seen[r.sha] = true
+			s.dropIfUnreferenced(ctx, userID, gameID, slot, r.sha)
+		}
+	}
+}
+
+// SweepSaves applies the retention rules to every slot (daily sweep and start).
+func (s *Service) SweepSaves(ctx context.Context) error {
+	rows, err := s.db.QueryContext(ctx, `SELECT DISTINCT user_id, game_id, slot FROM save_history`)
+	if err != nil {
+		return internal(err)
+	}
+	type key struct{ u, g, sl string }
+	var keys []key
+	for rows.Next() {
+		var k key
+		if err := rows.Scan(&k.u, &k.g, &k.sl); err != nil {
+			rows.Close()
+			return internal(err)
+		}
+		keys = append(keys, k)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return internal(err)
+	}
+	for _, k := range keys {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		s.saveMu.Lock()
+		s.thinSlot(ctx, k.u, k.g, k.sl)
+		s.saveMu.Unlock()
+	}
+	return nil
+}
+
+// RunSaveSweep sweeps at once (in the caller's goroutine, so start it with go), then every `every`, until ctx ends.
+func (s *Service) RunSaveSweep(ctx context.Context, every time.Duration, onErr func(error)) {
+	t := time.NewTicker(every)
+	defer t.Stop()
+	for {
+		if err := s.SweepSaves(ctx); err != nil && onErr != nil && ctx.Err() == nil {
+			onErr(err)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+	}
+}
+
+// ---- push ----
+
+// notifySaveUpdated sends save_updated for a changed checkpoint to the user's connected devices except the
+// originating one (originDeviceID "" = all, e.g. a change made in the web interface). reason "" = the
+// checkpoint's own sync reason.
+func (s *Service) notifySaveUpdated(userID, originDeviceID, gameID, slot string, cp SaveCheckpoint, reason string) {
+	if reason == "" {
+		reason = cp.Reason
+	}
+	devID := uuid.Nil.String() // web changes have no device
+	if id, err := uuid.Parse(cp.DeviceID); err == nil {
+		devID = id.String()
+	}
+	payload := map[string]any{"game_id": gameID, "slot": slot, "revision": cp.Revision, "sha256": cp.SHA256,
+		"device_id": devID, "device_name": cp.DeviceName, "reason": reason}
+	for _, c := range s.clients() {
+		if c.userID == userID && c.deviceID != originDeviceID {
+			c.sendMsg("save_updated", "", payload)
+		}
+	}
+}

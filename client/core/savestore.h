@@ -30,6 +30,16 @@ class SaveStore {
   static QString userSavesDir(const ProfileStore& profiles, const QString& hubId, const QString& userId);
   static QString legacyDir(const ProfileStore& profiles, const QString& hubId);  // hubs/<hub_id>/saves
 
+  // Slots (ADR 0012 D7). Slot names follow the Hub rule ^[a-z0-9_-]{1,32}$ (server ValidSlotName).
+  // Layout: slot "default" keeps the pre-0.4 game directory (existing saves stay "default" without moving files),
+  // every other slot lives in <game dir>/slots/<slot>/ (core save dir + sync.json). Empty if an ID or the slot is invalid.
+  static bool isValidSlotName(const QString& slot);
+  static QString slotDir(const ProfileStore& profiles, const QString& hubId, const QString& userId, const QString& gameId,
+                         const QString& slot);
+  static QString slotDirIn(const QString& gameDir, const QString& slot);
+  // Slots with a local directory for this game ("default" first when its game dir has a sync.json or save file).
+  static QStringList localSlots(const QString& gameDir);
+
   // Save file name the core writes for a ROM path (melonDS DS: <rom basename>.sav in the save directory).
   static QString expectedSaveName(const QString& romPath);
   // Path of the save file in a game dir: the expected name, otherwise the newest other candidate

@@ -217,12 +217,16 @@ type Client struct {
 	registered bool
 	state      string
 	gameID     string
+	reqHost    string // Host of the WSS upgrade (TURN URLs)
 }
 
 // NewClient creates the connection state for an authenticated device. It is not visible to others until hello.
 func (s *Service) NewClient(p Principal) *Client {
 	return &Client{svc: s, userID: p.User.ID, deviceID: p.Device.ID, out: make(chan []byte, outBuffer), done: make(chan struct{}), state: "online"}
 }
+
+// SetRequestHost records the Host header of the WSS upgrade (used for TURN URLs in hello_ack).
+func (c *Client) SetRequestHost(h string) { c.reqHost = h }
 
 // Out delivers encoded messages (text frames) to write; Done fires when the connection must be closed.
 func (c *Client) Out() <-chan []byte    { return c.out }
@@ -324,8 +328,14 @@ func (c *Client) hello(env envelope) error {
 		c.sendError(env.ID, "player_too_old", "Player protocol version below the hub's minimum")
 		return errFatal
 	}
-	c.sendMsg("hello_ack", env.ID, map[string]any{"protocol_version": info.ProtocolVersion, "hub_version": info.HubVersion,
-		"features": []string{FeatureSavesV1, FeatureSessionsV1}, "ice_servers": c.svc.ICEServers()})
+	ice, turn := c.svc.iceFor(c.reqHost, c.deviceID)
+	ack := map[string]any{"protocol_version": info.ProtocolVersion, "hub_version": info.HubVersion,
+		"features": []string{FeatureSavesV1, FeatureSavesV2, FeatureSessionsV1}, "ice_servers": ice}
+	if turn != nil {
+		ack["turn_servers"] = []map[string]any{{"urls": turn.URLs, "username": turn.Username, "credential": turn.Credential,
+			"expires_at": turn.ExpiresAt.UTC().Format(time.RFC3339)}}
+	}
+	c.sendMsg("hello_ack", env.ID, ack)
 	c.svc.attach(c)
 	return nil
 }

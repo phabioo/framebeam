@@ -43,6 +43,7 @@ framebeam_warnings(framebeam_audioutil)
 # framebeam_media: Session media path (ADR 0006 D5): H.264/Opus encode and decode, SessionHost (owner) and
 # SessionViewer. Signaling is decoupled (Qt signals/slots), the Hub clients live in framebeam_core (network/).
 add_library(framebeam_media STATIC
+  bitratecontroller.cpp
   videoencoder.cpp
   videodecoder.cpp
   opuscodec.cpp
@@ -57,3 +58,5 @@ framebeam_warnings(framebeam_media)
 
 framebeam_add_test(media_opus_depacketizer tests/opusdepacketizer_test.cpp LIBS framebeam_media)
 framebeam_add_test(media_loopback tests/loopback_test.cpp LIBS framebeam_media)
+framebeam_add_test(media_bitrate tests/bitratecontroller_test.cpp LIBS framebeam_media)
+framebeam_add_test(media_rtcutil tests/rtcutil_test.cpp LIBS framebeam_media)

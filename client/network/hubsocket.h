@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "hubconnection.h"
+#include "saveapi.h"
 #include "sessiontypes.h"
 
 class QWebSocket;
@@ -55,6 +56,7 @@ class HubSocket : public QObject {
   void viewerJoined(const framebeam::ViewerJoined& viewer);
   void viewerLeft(const framebeam::ViewerLeft& viewer);
   void signalReceived(const framebeam::SessionSignal& signal);
+  void saveUpdated(const framebeam::SaveUpdate& update);  // saves_v2: a slot checkpoint changed on another device
   void hubError(const QString& code, const QString& message);  // `error` message of the Hub
   void connectionError(const QString& code, const QString& message);  // transport: unreachable, certificate_changed, ...
 

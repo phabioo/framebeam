@@ -101,7 +101,7 @@ func (s *Server) ListSaveHistory(ctx context.Context, req api.ListSaveHistoryReq
 	for _, v := range vs {
 		out.Versions = append(out.Versions, api.SaveHistoryVersion{Version: v.Version, Revision: v.Revision, Sha256: v.SHA256,
 			Size: v.Size, DeviceId: mustUUID(v.DeviceID), DeviceName: v.DeviceName, CreatedAt: v.CreatedAt,
-			Reason: api.SaveHistoryReason(v.Reason)})
+			Reason: api.SaveHistoryReason(v.Reason), Label: v.Label})
 	}
 	return out, nil
 }
@@ -127,4 +127,35 @@ func (s *Server) ResolveSaveConflict(ctx context.Context, req api.ResolveSaveCon
 		return nil, err
 	}
 	return api.ResolveSaveConflict200JSONResponse(toAPISlot(sl)), nil
+}
+
+func toAPIVersion(v hub.SaveVersion) api.SaveHistoryVersion {
+	return api.SaveHistoryVersion{Version: v.Version, Revision: v.Revision, Sha256: v.SHA256, Size: v.Size,
+		DeviceId: mustUUID(v.DeviceID), DeviceName: v.DeviceName, CreatedAt: v.CreatedAt,
+		Reason: api.SaveHistoryReason(v.Reason), Label: v.Label}
+}
+
+func (s *Server) RestoreSaveHistoryVersion(ctx context.Context, req api.RestoreSaveHistoryVersionRequestObject) (api.RestoreSaveHistoryVersionResponseObject, error) {
+	if req.Body == nil {
+		return nil, hub.ErrBadRequest
+	}
+	p := principal(ctx)
+	sl, err := s.svc.RestoreSaveVersion(ctx, hub.RestoreInput{UserID: p.User.ID, DeviceID: p.Device.ID, GameID: req.GameId.String(),
+		Slot: req.Slot, Version: req.Version, ExpectedRevision: req.Body.ExpectedRevision})
+	if err != nil {
+		return nil, err
+	}
+	return api.RestoreSaveHistoryVersion200JSONResponse(toAPISlot(sl)), nil
+}
+
+func (s *Server) CreateSaveSnapshot(ctx context.Context, req api.CreateSaveSnapshotRequestObject) (api.CreateSaveSnapshotResponseObject, error) {
+	var label *string
+	if req.Body != nil {
+		label = req.Body.Label
+	}
+	v, err := s.svc.CreateSaveSnapshot(ctx, principal(ctx).User.ID, req.GameId.String(), req.Slot, label)
+	if err != nil {
+		return nil, err
+	}
+	return api.CreateSaveSnapshot201JSONResponse(toAPIVersion(v)), nil
 }

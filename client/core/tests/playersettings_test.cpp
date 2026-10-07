@@ -70,6 +70,25 @@ class PlayerSettingsTest : public QObject {
     QCOMPARE(PlayerSettings::appearanceName(A::Light), QStringLiteral("light"));
     QCOMPARE(PlayerSettings::parseAppearance(QStringLiteral("x"), A::Light), A::Light);
   }
+
+  void saveSlotPerHubAndGame() {
+    QTemporaryDir dir;
+    {
+      PlayerSettings s(dir.path());
+      QCOMPARE(s.saveSlot(QStringLiteral("hub-a"), QStringLiteral("g1")), QStringLiteral("default"));
+      QVERIFY(!s.setSaveSlot(QStringLiteral("hub-a"), QStringLiteral("g1"), QStringLiteral("Bad Name")));
+      QVERIFY(s.setSaveSlot(QStringLiteral("hub-a"), QStringLiteral("g1"), QStringLiteral("boss")));
+      QVERIFY(s.setSaveSlot(QStringLiteral("hub-b"), QStringLiteral("g1"), QStringLiteral("other")));
+      QVERIFY(s.setAppearance(A::Light));
+    }
+    PlayerSettings s(dir.path());  // persisted, unrelated keys kept
+    QCOMPARE(s.saveSlot(QStringLiteral("hub-a"), QStringLiteral("g1")), QStringLiteral("boss"));
+    QCOMPARE(s.saveSlot(QStringLiteral("hub-b"), QStringLiteral("g1")), QStringLiteral("other"));
+    QCOMPARE(s.saveSlot(QStringLiteral("hub-a"), QStringLiteral("g2")), QStringLiteral("default"));
+    QCOMPARE(s.appearance(), A::Light);
+    QVERIFY(s.setSaveSlot(QStringLiteral("hub-a"), QStringLiteral("g1"), QStringLiteral("default")));
+    QCOMPARE(PlayerSettings(dir.path()).saveSlot(QStringLiteral("hub-a"), QStringLiteral("g1")), QStringLiteral("default"));
+  }
 };
 
 QTEST_GUILESS_MAIN(PlayerSettingsTest)

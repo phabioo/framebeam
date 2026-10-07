@@ -56,7 +56,9 @@ Rectangle {
                 objectName: "gameTitle"
                 Layout.fillWidth: true
                 Layout.maximumWidth: 360
-                text: root.session.active ? root.session.title : qsTr("Session from %1").arg(root.ctl.watchedWho)
+                text: root.session.active ? root.session.title
+                     : root.ctl.surfaceCount > 1 ? qsTr("%1 Sessions").arg(root.ctl.surfaceCount)
+                     : qsTr("Session from %1").arg(root.ctl.watchedWho)
                 color: Theme.gameText
                 font.pixelSize: 15
                 font.weight: Font.DemiBold
@@ -80,12 +82,14 @@ Rectangle {
             }
             FbSegment {
                 objectName: "modeSegment"
-                visible: root.tab !== "session" && root.session.active && root.ctl.watching
+                // Layouts offered by the surface count: two -> PiP | Side-by-Side, three or four -> PiP | Grid
+                visible: root.tab !== "session" && root.ctl.availableLayouts.length > 0
                 current: root.ctl.multiviewMode
-                options: [
-                    { value: "pip", label: qsTr("PiP"), name: "modePip" },
-                    { value: "side", label: qsTr("Side-by-Side"), name: "modeSide" }
-                ]
+                options: root.ctl.availableLayouts.map(function (m) {
+                    return m === "pip" ? { value: "pip", label: qsTr("PiP"), name: "modePip" }
+                         : m === "side" ? { value: "side", label: qsTr("Side-by-Side"), name: "modeSide" }
+                         : { value: "grid", label: qsTr("Grid"), name: "modeGrid" }
+                })
                 onPicked: (v) => root.ctl.multiviewMode = v
             }
             Item { Layout.fillWidth: true }
@@ -137,10 +141,36 @@ Rectangle {
         }
     }
 
+    // Non-blocking notice: the save of the running game changed on another device
+    Rectangle {
+        id: noticeBar
+        objectName: "saveNotice"
+        anchors.top: header.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        visible: root.player.saveHistory.notice !== ""
+        height: visible ? Math.max(36, noticeText.implicitHeight + 16) : 0
+        color: Theme.warnBg
+        RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: 20
+            anchors.rightMargin: 12
+            FbLabel {
+                id: noticeText
+                Layout.fillWidth: true
+                text: root.player.saveHistory.notice
+                wrapMode: Text.WordWrap
+                font.pixelSize: 13
+                color: Theme.warn
+            }
+            FbButton { kind: "link"; focusPolicy: Qt.NoFocus; text: qsTr("Dismiss"); onClicked: root.player.saveHistory.dismissNotice() }
+        }
+    }
+
     // Session tab: game + side panel
     RowLayout {
         objectName: "sessionTab"
-        anchors.top: header.bottom
+        anchors.top: noticeBar.bottom
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
@@ -185,7 +215,7 @@ Rectangle {
     // Multiview / Diagnostics
     ColumnLayout {
         objectName: "multiviewTab"
-        anchors.top: header.bottom
+        anchors.top: noticeBar.bottom
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom

@@ -43,6 +43,26 @@
         </form>
       </div>
     </section>
+    <section class="panel" id="turn">
+      <h2>Sessions over the internet</h2>
+      {{with .Body.TURN}}
+      <div class="row">
+        <div><div class="label">Relay server (STUN/TURN) <span class="pill{{if .On}} ok{{end}}">{{if .On}}On{{else}}Off{{end}}</span></div>
+          <div class="help">{{if .On}}Players behind different routers connect directly when possible, otherwise through this Hub.{{else}}Switch on with FRAMEBEAM_TURN=1 and FRAMEBEAM_PUBLIC_HOST in /etc/framebeam/hub.env, then restart the Hub. See the Sessions over the internet section of packaging/linux/README.md.{{end}}</div></div>
+      </div>
+      {{if .On}}
+      <div class="row"><div><div class="label">Public host</div></div><div class="value">{{.PublicHost}}</div></div>
+      <div class="row"><div><div class="label">Relay address (IPv4)</div>
+        <div class="help">{{if .RelayIP}}{{if .Fixed}}Configured{{else}}Resolved {{.ResolvedAt}}{{end}}{{else}}Not resolved: relayed Sessions fail until the public host has an IPv4 address (A record).{{end}}</div></div>
+        <div class="value">{{if .RelayIP}}{{.RelayIP}}{{else}}none{{end}}</div></div>
+      <div class="row"><div><div class="label">Ports</div></div><div class="value">{{.Port}} (UDP and TCP), relay {{.RelayMin}}-{{.RelayMax}} (UDP)</div></div>
+      <div class="row"><div><div class="label">Active allocations</div></div><div class="value">{{.Allocations}}</div></div>
+      <div class="row"><div><div class="label">Port forwards on the router</div>
+        <div class="help">Forward these to this Hub's host; the Hub does not configure the router.</div>
+        <ul class="help">{{range .Forwards}}<li>{{.}}</li>{{end}}</ul></div></div>
+      {{end}}
+      {{end}}
+    </section>
   </div>
   <div class="stack">
     <section class="panel" id="updates">

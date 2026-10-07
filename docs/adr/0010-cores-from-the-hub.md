@@ -41,7 +41,7 @@ Installers shipped the melonDS DS core. Milestone 0.2 ([Roadmap](../roadmap.md))
 
 ### D5 Player trust and behavior
 
-- The Player trusts the Hub (pinned TLS) and checks size and SHA-256 and the platform. It does not verify the signature; Player-side verification comes with the updater in 0.3.
+- The Player trusts the Hub (pinned TLS) and checks size and SHA-256 and the platform. It does not verify the signature; Player-side verification comes with the updater in 0.3 (moved to 0.4).
 - Cache `<data>/cache/cores/<core-id>/<version>/<platform>/`, downloaded on demand before a game starts, loaded from there.
 - A core version mismatch stays a warning (ADR 0007), until 0.7.
 - Installers ship no cores.
@@ -61,4 +61,8 @@ Installers shipped the melonDS DS core. Milestone 0.2 ([Roadmap](../roadmap.md))
 - A fresh Player installation needs a Hub with a cached core before the first game starts.
 - Until the release key exists, a stock Hub cannot verify the official index; admins can pass `--core-trust-key` or use `import-cores`.
 - The Hub depends on GitHub availability for new cores only; cached cores keep working.
-- Remaining open: Player-side signature check (0.3).
+- Remaining open: Player-side signature check (implemented in 0.4, see below).
+
+## Update 2026-10-07 (0.4)
+
+D5: the Player-side signature check is implemented in 0.4 as specified in [ADR 0012](0012-internet-sessions-and-save-comfort.md) D6: the Player fetches the signed index from the Hub and verifies it on every `prepare()`; a failure marks the core "untrusted".

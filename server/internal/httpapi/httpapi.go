@@ -111,9 +111,11 @@ func (s *Server) authMiddleware(next api.StrictHandlerFunc, op string) api.Stric
 		tok := bearer(r)
 		ctx = context.WithValue(ctx, keyBearer, tok)
 		ctx = context.WithValue(ctx, keyRemoteIP, remoteIP(r))
+		ctx = hub.WithRequestHost(ctx, r.Host)
 		switch op {
 		case "UploadGame", "ListSystems", "RevokeSelf", "PostHandshake", "ListGames", "GetGame", "ConnectWebSocket",
 			"ListSaves", "GetSaveSlot", "PutSave", "DownloadSaveContent", "ListSaveHistory", "DownloadSaveHistoryContent", "ResolveSaveConflict",
+			"RestoreSaveHistoryVersion", "CreateSaveSnapshot", "GetCoresIndex", "GetCoresIndexSignature",
 			"ListUsers", "GetCorePackage", "GetCorePackageFile", "ListSessions", "PublishSession", "GetSession", "UpdateSession", "EndSession", "InviteSessionUser",
 			"WithdrawSessionInvite", "DeclineSession", "JoinSession", "RemoveSessionViewer":
 			p, err := s.svc.Authenticate(ctx, tok)
@@ -268,7 +270,11 @@ func (s *Server) PostHandshake(ctx context.Context, req api.PostHandshakeRequest
 	if err != nil {
 		return nil, err
 	}
-	features := []string{hub.FeatureSavesV1, hub.FeatureSessionsV1, hub.FeatureUsersV1, hub.FeatureFirmwareV1, hub.FeatureCoresV1}
+	features := []string{hub.FeatureSavesV1, hub.FeatureSessionsV1, hub.FeatureUsersV1, hub.FeatureFirmwareV1, hub.FeatureCoresV1,
+		hub.FeatureSavesV2, hub.FeatureCoresIndexV1}
+	if s.svc.TURNEnabled() {
+		features = append(features, hub.FeatureTURNV1)
+	}
 	if can, err := s.svc.CanUpload(ctx, principal(ctx).User); err != nil {
 		return nil, err
 	} else if can {

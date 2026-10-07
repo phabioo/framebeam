@@ -36,6 +36,40 @@ type Config struct {
 	UpdateIndexURL string
 	// UpdateRequestDir is where the update request file is created (default /run/framebeam).
 	UpdateRequestDir string
+	// SaveKeepRecent, SaveKeepDaily, SaveKeepWeekly are the save history retention rules (ADR 0012 D7):
+	// newest versions kept, days and weeks of which the newest version is kept. 0 = unlimited for that rule.
+	SaveKeepRecent, SaveKeepDaily, SaveKeepWeekly int
+	// TURN switches on the embedded STUN/TURN server (ADR 0012 D2); it needs PublicHost.
+	TURN bool
+	// PublicHost is the DNS name (or IPv4) of the Hub's public address.
+	PublicHost string
+	// TURNPort is the UDP and TCP port of the TURN server (default 3478).
+	TURNPort int
+	// TURNRelayPorts is the UDP relay range "min-max" (default 49160-49199).
+	TURNRelayPorts string
+	// TURNRelayIP is an optional fixed public IPv4 for relayed addresses.
+	TURNRelayIP string
+}
+
+// Defaults of the TURN options.
+const (
+	DefaultTURNPort       = 3478
+	DefaultTURNRelayPorts = "49160-49199"
+)
+
+// TURNRelayRange parses TURNRelayPorts.
+func (c *Config) TURNRelayRange() (min, max int, err error) {
+	a, b, ok := strings.Cut(strings.TrimSpace(c.TURNRelayPorts), "-")
+	if ok {
+		min, err = strconv.Atoi(strings.TrimSpace(a))
+		if err == nil {
+			max, err = strconv.Atoi(strings.TrimSpace(b))
+		}
+	}
+	if !ok || err != nil || min < 1 || max > 65535 || min > max {
+		return 0, 0, fmt.Errorf("turn-relay-ports: %q is not a range like 49160-49199", c.TURNRelayPorts)
+	}
+	return min, max, nil
 }
 
 // repeatList is a repeatable flag.Value: the first use replaces the environment default, further uses append.
@@ -117,12 +151,31 @@ func Register(fs *flag.FlagSet, getenv func(string) string) *Config {
 		}
 		return updates.DefaultIndexURL
 	}(), "URL of the signed updates index, https or file:// (FRAMEBEAM_HUB_UPDATE_INDEX_URL)")
+	intEnv := func(key string, def int) int {
+		if n, err := strconv.Atoi(strings.TrimSpace(getenv("FRAMEBEAM_" + key))); err == nil {
+			return n
+		}
+		return def
+	}
+	fs.IntVar(&c.SaveKeepRecent, "save-keep-recent", intEnv("SAVE_KEEP_RECENT", 20), "save history: newest versions per slot to keep, 0 = unlimited (FRAMEBEAM_SAVE_KEEP_RECENT)")
+	fs.IntVar(&c.SaveKeepDaily, "save-keep-daily", intEnv("SAVE_KEEP_DAILY", 30), "save history: days of which the newest version is kept, 0 = unlimited (FRAMEBEAM_SAVE_KEEP_DAILY)")
+	fs.IntVar(&c.SaveKeepWeekly, "save-keep-weekly", intEnv("SAVE_KEEP_WEEKLY", 26), "save history: weeks of which the newest version is kept, 0 = unlimited (FRAMEBEAM_SAVE_KEEP_WEEKLY)")
 	fs.StringVar(&c.UpdateRequestDir, "update-request-dir", func() string {
 		if v := getenv("FRAMEBEAM_HUB_UPDATE_REQUEST_DIR"); v != "" {
 			return v
 		}
 		return updates.DefaultRequestDir
 	}(), "directory for the update request file read by the root helper (FRAMEBEAM_HUB_UPDATE_REQUEST_DIR)")
+	turn, _ := strconv.ParseBool(getenv("FRAMEBEAM_TURN"))
+	fs.BoolVar(&c.TURN, "turn", turn, "embedded STUN/TURN server for Sessions over the internet, needs -public-host (FRAMEBEAM_TURN)")
+	fs.StringVar(&c.PublicHost, "public-host", env("PUBLIC_HOST", ""), "DNS name or IPv4 of the Hub's public address, required with -turn (FRAMEBEAM_PUBLIC_HOST)")
+	turnPort := DefaultTURNPort
+	if v, err := strconv.Atoi(getenv("FRAMEBEAM_TURN_PORT")); err == nil {
+		turnPort = v
+	}
+	fs.IntVar(&c.TURNPort, "turn-port", turnPort, "TURN UDP and TCP port (FRAMEBEAM_TURN_PORT)")
+	fs.StringVar(&c.TURNRelayPorts, "turn-relay-ports", env("TURN_RELAY_PORTS", DefaultTURNRelayPorts), "TURN UDP relay port range min-max (FRAMEBEAM_TURN_RELAY_PORTS)")
+	fs.StringVar(&c.TURNRelayIP, "turn-relay-ip", env("TURN_RELAY_IP", ""), "fixed public IPv4 for relayed addresses instead of resolving -public-host (FRAMEBEAM_TURN_RELAY_IP)")
 	return c
 }
 
@@ -147,11 +200,33 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("ice-servers: %q is not a stun: URL", u)
 		}
 	}
+	if c.TURN {
+		if c.PublicHost == "" {
+			return errors.New("-turn needs -public-host")
+		}
+		if strings.ContainsAny(c.PublicHost, "/ ") {
+			return errors.New("public-host must be a host name or IP address")
+		}
+		if c.TURNPort < 1 || c.TURNPort > 65535 {
+			return errors.New("turn-port must be between 1 and 65535")
+		}
+		if _, _, err := c.TURNRelayRange(); err != nil {
+			return err
+		}
+		if c.TURNRelayIP != "" {
+			if ip := net.ParseIP(c.TURNRelayIP); ip == nil || ip.To4() == nil {
+				return fmt.Errorf("turn-relay-ip: %q is not an IPv4 address", c.TURNRelayIP)
+			}
+		}
+	}
 	if u, err := url.Parse(c.CoreIndexURL); err != nil || u.Scheme != "https" || u.Host == "" {
 		return errors.New("core-index-url must be an https URL")
 	}
 	if err := updates.ValidateIndexURL(c.UpdateIndexURL); err != nil {
 		return fmt.Errorf("update-index-url: %w", err)
+	}
+	if c.SaveKeepRecent < 0 || c.SaveKeepDaily < 0 || c.SaveKeepWeekly < 0 {
+		return errors.New("save-keep-recent, save-keep-daily and save-keep-weekly must not be negative")
 	}
 	if c.UpdateRequestDir == "" {
 		return errors.New("update-request-dir must not be empty")

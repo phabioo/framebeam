@@ -2,11 +2,14 @@ package web
 
 import (
 	"errors"
+	"fmt"
+	"net"
 	"net/http"
 	"time"
 
 	"github.com/phabioo/framebeam/server/internal/hub"
 	"github.com/phabioo/framebeam/server/internal/tlsutil"
+	"github.com/phabioo/framebeam/server/internal/turnsrv"
 )
 
 type settingsBody struct {
@@ -20,6 +23,17 @@ type settingsBody struct {
 	Appearance              string
 	AllowUploads            bool
 	Updates                 updatesBody
+	TURN                    turnBody
+}
+
+type turnBody struct {
+	On                    bool
+	PublicHost            string
+	RelayIP, ResolvedAt   string
+	Fixed                 bool
+	Port, RelayMin        int
+	RelayMax, Allocations int
+	Forwards              []string
 }
 
 type updatesBody struct {
@@ -39,6 +53,14 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, sess *se
 	if !s.cfg.CertNotAfter.IsZero() {
 		b.CertNotAfter = s.cfg.CertNotAfter.Local().Format("2006-01-02")
 		b.CertExpiresSoon = tlsutil.ExpiresSoon(s.cfg.CertNotAfter, time.Now())
+	}
+	if s.cfg.TURN != nil {
+		st := s.cfg.TURN.Status()
+		b.TURN = turnBody{On: true, PublicHost: st.PublicHost, RelayIP: st.RelayIP, Fixed: st.Fixed, Port: st.Port,
+			RelayMin: st.RelayMin, RelayMax: st.RelayMax, Allocations: st.Allocations, Forwards: turnForwards(s.cfg.Listen, st)}
+		if !st.ResolvedAt.IsZero() {
+			b.TURN.ResolvedAt = st.ResolvedAt.Local().Format("2006-01-02 15:04")
+		}
 	}
 	b.CertSelfGenerated = s.cfg.CertSource == "Self-generated"
 	b.Appearance, _ = s.svc.Appearance(r.Context())
@@ -166,5 +188,18 @@ func (s *Server) settingsUpdatesInstall(w http.ResponseWriter, r *http.Request, 
 	default:
 		s.log.Error("install update", "err", err)
 		s.redirect(w, r, "/settings?err=updatefailed")
+	}
+}
+
+// turnForwards lists the router port forwards a public Hub needs (ADR 0012 D1).
+func turnForwards(listen string, st turnsrv.Status) []string {
+	hubPort := "8443"
+	if _, p, err := net.SplitHostPort(listen); err == nil && p != "" {
+		hubPort = p
+	}
+	return []string{
+		"TCP " + hubPort + " (Hub, HTTPS/WSS)",
+		fmt.Sprintf("UDP and TCP %d (STUN/TURN)", st.Port),
+		fmt.Sprintf("UDP %d-%d (relay)", st.RelayMin, st.RelayMax),
 	}
 }
