@@ -11,7 +11,7 @@ class CoreVersionTest : public QObject {
 
   void channelIsKnown() {
     const std::string_view c = framebeam::playerChannel();
-    QVERIFY(c == "stable" || c == "test" || c == "dev");
+    QVERIFY(c == "stable" || c == "beta" || c == "dev");
   }
 
   void versionJsonHasContractKeys() {
