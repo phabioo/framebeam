@@ -4,6 +4,9 @@ target_link_libraries(framebeam_player PRIVATE
   framebeam_core framebeam_emulation framebeam_ui framebeam_uiplugin
   Qt6::Quick Qt6::QuickControls2 Qt6::Multimedia)
 framebeam_warnings(framebeam_player)
+if(WIN32)
+  target_link_libraries(framebeam_player PRIVATE shell32)
+endif()
 
 if(BUILD_TESTING)
   add_test(NAME app_smoke COMMAND framebeam_player --smoke-test)

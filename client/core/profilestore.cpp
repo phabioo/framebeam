@@ -1,5 +1,7 @@
 #include "profilestore.h"
 
+#include "installroot.h"
+
 #include <QCoreApplication>
 #include <QDir>
 #include <QDirIterator>
@@ -184,7 +186,10 @@ QString ProfileStore::defaultBaseDir() {
     return dir;
   }
   const QString appData = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-  const QString appDir = QCoreApplication::instance() ? QCoreApplication::applicationDirPath() : QString();
+  // bin\ layout (installer): data stays in <install root>\data, not in bin\data.
+  const QString appDir = QCoreApplication::instance()
+                             ? update::installRootFor(QCoreApplication::applicationDirPath())
+                             : QString();
   const BaseDirChoice c = chooseBaseDir(appDir, appData);
   if (!c.portable) {
     qCInfo(lcProfiles) << "Data directory (fallback AppData, program directory not writable or unknown):"

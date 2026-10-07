@@ -1,5 +1,27 @@
 cmake_minimum_required(VERSION 3.25)
-project(FrameBeamPlayer VERSION 0.0.0 LANGUAGES CXX)
+
+# The product version X.Y.Z comes from the root VERSION file (shared with the Hub, see docs/roadmap.md 0.3).
+file(STRINGS ${CMAKE_CURRENT_LIST_DIR}/../VERSION _fb_version_line LIMIT_COUNT 1)
+string(STRIP "${_fb_version_line}" _fb_version_core)
+if(NOT _fb_version_core MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+$")
+  message(FATAL_ERROR "VERSION must contain X.Y.Z, found '${_fb_version_core}'")
+endif()
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_LIST_DIR}/../VERSION)
+project(FrameBeamPlayer VERSION ${_fb_version_core} LANGUAGES CXX)
+
+# Build identity (CI sets it, see S1): full SemVer version, update channel (stable|test|dev), commit.
+# Empty FRAMEBEAM_VERSION = "<VERSION>-dev".
+set(FRAMEBEAM_VERSION "" CACHE STRING "Full Player version (SemVer); empty: <VERSION file>-dev")
+set(FRAMEBEAM_CHANNEL "dev" CACHE STRING "Compiled default update channel: stable | test | dev")
+set(FRAMEBEAM_COMMIT "" CACHE STRING "Commit SHA of the build")
+if(FRAMEBEAM_VERSION STREQUAL "")
+  set(FRAMEBEAM_EFFECTIVE_VERSION "${PROJECT_VERSION}-dev")
+else()
+  set(FRAMEBEAM_EFFECTIVE_VERSION "${FRAMEBEAM_VERSION}")
+endif()
+if(NOT FRAMEBEAM_CHANNEL MATCHES "^(stable|test|dev)$")
+  message(FATAL_ERROR "FRAMEBEAM_CHANNEL must be stable, test or dev")
+endif()
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -7,6 +29,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Qt >= 6.4 does NOT come from vcpkg: Linux apt (noble: 6.4.2), Windows install-qt-action (6.8 LTS).
 # Code must work with the Qt 6.4 API.
+find_package(OpenSSL REQUIRED)  # Ed25519 verification of the update index (Linux apt libssl-dev, Windows vcpkg)
 find_package(Qt6 6.4 REQUIRED COMPONENTS Core Concurrent Network Gui Quick QuickControls2 QuickTest Multimedia WebSockets Test)
 qt_standard_project_setup()
 set(CMAKE_AUTOMOC ON)
@@ -56,3 +79,6 @@ add_subdirectory(input)      # framebeam_sdl3 (SDL3 gamepad only) + headless vir
 add_subdirectory(emulation)  # framebeam_emulation
 add_subdirectory(ui)         # framebeam_ui: QML module FrameBeam.Player
 add_subdirectory(app)        # framebeam_player (executable from app/ + ui/)
+if(WIN32)
+  add_subdirectory(launcher) # framebeam_player_launcher: tiny top-level framebeam_player.exe (starts bin\\framebeam_player.exe)
+endif()

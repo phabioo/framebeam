@@ -22,6 +22,46 @@ ApplicationWindow {
         value: window.player.darkMode || window.player.screen === "game"
     }
 
+    // Update banner (S6): never shown in the game view; the install action is refused while a game runs.
+    header: Rectangle {
+        objectName: "updateBanner"
+        visible: window.player.updates.bannerText !== "" && window.player.screen !== "game"
+        implicitHeight: visible ? 44 : 0
+        height: implicitHeight
+        color: Theme.surface
+        Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.borderCard }
+        RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: 20
+            anchors.rightMargin: 20
+            spacing: 12
+            StatusDot { tone: "ok" }
+            FbLabel {
+                objectName: "updateBannerText"
+                Layout.fillWidth: true
+                text: window.player.updates.bannerText
+                font.pixelSize: 13
+                elide: Text.ElideRight
+            }
+            FbButton {
+                objectName: "updateBannerAction"
+                visible: window.player.updates.bannerAction !== "none"
+                implicitHeight: 30
+                kind: "primary"
+                text: window.player.updates.bannerActionLabel
+                onClicked: window.player.updates.bannerAction === "link" ? window.player.updates.openNotes()
+                                                                         : window.player.updates.install()
+            }
+            FbButton {
+                objectName: "updateBannerDismiss"
+                implicitHeight: 30
+                kind: "link"
+                text: qsTr("Later")
+                onClicked: window.player.updates.dismissBanner()
+            }
+        }
+    }
+
     StackLayout {
         id: stack
         anchors.fill: parent
