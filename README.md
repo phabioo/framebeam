@@ -83,7 +83,7 @@ Details: [server/README.md](server/README.md), [client/README.md](client/README.
 
 ## Build and run
 
-Prerequisites: Go 1.24 (per `server/go.mod`); for the client CMake, a C++ compiler and Qt >= 6.4 (not via vcpkg): on Linux via apt (package list `QT_PKGS` in `.claude/hooks/session-start.sh`), on Windows Qt 6.8 with the modules `qtmultimedia` and `qtwebsockets`. Sessions additionally need libdatachannel, FFmpeg and Opus: on Linux the media apt packages from the same list plus `make fetch-deps` (builds pinned libdatachannel via `scripts/fetch-libdatachannel.sh`); on Windows via vcpkg (`client/vcpkg.json`). Gamepads need SDL3 (>= 3.2): on Linux `make fetch-sdl3` (pinned 3.2.30 source build, also run by `make check-client`), on Windows via vcpkg.
+Prerequisites: Go >= 1.25 (per `server/go.mod`; CI uses the pinned toolchain go1.26.8); for the client CMake, a C++ compiler and Qt >= 6.4 (not via vcpkg): on Linux via apt (package list `QT_PKGS` in `.claude/hooks/session-start.sh`), on Windows Qt 6.8 with the modules `qtmultimedia` and `qtwebsockets`. Sessions additionally need libdatachannel, FFmpeg and Opus: on Linux the media apt packages from the same list plus `make fetch-deps` (builds pinned libdatachannel via `scripts/fetch-libdatachannel.sh`); on Windows via vcpkg (`client/vcpkg.json`). Gamepads need SDL3 (>= 3.2): on Linux `make fetch-sdl3` (pinned 3.2.30 source build, also run by `make check-client`), on Windows via vcpkg.
 
 ```sh
 make check          # Hub and client check, quiet

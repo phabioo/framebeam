@@ -1474,6 +1474,7 @@ components:
         preferred_core_id: { type: string, example: melonds_ds }
         expected_core_version: { type: string, nullable: true, description: Null = any version }
         core_package_version:
+          x-omitempty: false
           type: string
           nullable: true
           description: Version of the preferred core the Hub serves (`cores_v1`) = `expected_core_version` if set, else the highest version with a cached package; null when none. The Player provisions exactly this version. Optional (absent on Hubs without `cores_v1`).
@@ -1650,8 +1651,8 @@ components:
         hub: { $ref: '#/components/schemas/SaveConflictHubSide' }
         secured: { $ref: '#/components/schemas/SaveConflictSecuredUpload' }
         created_at: { type: string, format: date-time }
-        resolved_at: { type: string, format: date-time, nullable: true }
-        resolved_by: { type: string, nullable: true, description: Hub-local user ID or device ID of the resolver }
+        resolved_at: { type: string, format: date-time, nullable: true, x-omitempty: false }
+        resolved_by: { type: string, nullable: true, x-omitempty: false, description: Hub-local user ID or device ID of the resolver }
     SaveConflictError:
       type: object
       description: Error body of the upload 409 (`save_conflict`) carrying the conflict.

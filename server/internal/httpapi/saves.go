@@ -89,7 +89,7 @@ func (s *Server) DownloadSaveContent(ctx context.Context, req api.DownloadSaveCo
 		return nil, err
 	}
 	return api.DownloadSaveContent200ApplicationoctetStreamResponse{Body: f, Headers: api.DownloadSaveContent200ResponseHeaders{
-		ContentLength: c.Size, ETag: `"` + c.SHA256 + `"`, XFrameBeamSaveRevision: c.Revision}}, nil
+		ContentLength: ptr(c.Size), ETag: ptr(`"` + c.SHA256 + `"`), XFrameBeamSaveRevision: ptr(c.Revision)}}, nil
 }
 
 func (s *Server) ListSaveHistory(ctx context.Context, req api.ListSaveHistoryRequestObject) (api.ListSaveHistoryResponseObject, error) {
@@ -112,7 +112,7 @@ func (s *Server) DownloadSaveHistoryContent(ctx context.Context, req api.Downloa
 		return nil, err
 	}
 	return api.DownloadSaveHistoryContent200ApplicationoctetStreamResponse{Body: f, Headers: api.DownloadSaveHistoryContent200ResponseHeaders{
-		ContentLength: v.Size, ETag: `"` + v.SHA256 + `"`, XFrameBeamSaveRevision: v.Revision}}, nil
+		ContentLength: ptr(v.Size), ETag: ptr(`"` + v.SHA256 + `"`), XFrameBeamSaveRevision: ptr(v.Revision)}}, nil
 }
 
 func (s *Server) ResolveSaveConflict(ctx context.Context, req api.ResolveSaveConflictRequestObject) (api.ResolveSaveConflictResponseObject, error) {

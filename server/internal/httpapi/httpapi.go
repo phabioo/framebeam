@@ -426,3 +426,6 @@ type statusWriter struct {
 func (w *statusWriter) WriteHeader(c int) { w.status = c; w.ResponseWriter.WriteHeader(c) }
 
 func (w *statusWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+
+// ptr returns a pointer to v (optional response header fields in generated code are pointers).
+func ptr[T any](v T) *T { return &v }
