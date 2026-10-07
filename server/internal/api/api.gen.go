@@ -23,36 +23,53 @@ const (
 	PollTokenAuthScopes = "pollTokenAuth.Scopes"
 )
 
+// Defines values for CorePackageFileRole.
+const (
+	Library CorePackageFileRole = "library"
+	License CorePackageFileRole = "license"
+)
+
+// Defines values for CorePlatform.
+const (
+	LinuxArm64 CorePlatform = "linux-arm64"
+	LinuxX64   CorePlatform = "linux-x64"
+	MacosArm64 CorePlatform = "macos-arm64"
+	MacosX64   CorePlatform = "macos-x64"
+	WindowsX64 CorePlatform = "windows-x64"
+)
+
 // Defines values for ErrorCode.
 const (
-	ErrorCodeBadRequest          ErrorCode = "bad_request"
-	ErrorCodeCapabilityMissing   ErrorCode = "capability_missing"
-	ErrorCodeConflict            ErrorCode = "conflict"
-	ErrorCodeCoreMissing         ErrorCode = "core_missing"
-	ErrorCodeCoreVersionMismatch ErrorCode = "core_version_mismatch"
-	ErrorCodeDeviceRevoked       ErrorCode = "device_revoked"
-	ErrorCodeDisplayNameTaken    ErrorCode = "display_name_taken"
-	ErrorCodeForbidden           ErrorCode = "forbidden"
-	ErrorCodeHubTooOld           ErrorCode = "hub_too_old"
-	ErrorCodeInternal            ErrorCode = "internal"
-	ErrorCodeInvalidCredentials  ErrorCode = "invalid_credentials"
-	ErrorCodeInviteInvalid       ErrorCode = "invite_invalid"
-	ErrorCodeNotFound            ErrorCode = "not_found"
-	ErrorCodePairingDenied       ErrorCode = "pairing_denied"
-	ErrorCodePairingExpired      ErrorCode = "pairing_expired"
-	ErrorCodePairingPending      ErrorCode = "pairing_pending"
-	ErrorCodePayloadTooLarge     ErrorCode = "payload_too_large"
-	ErrorCodePlayerTooOld        ErrorCode = "player_too_old"
-	ErrorCodeRateLimited         ErrorCode = "rate_limited"
-	ErrorCodeSaveConflict        ErrorCode = "save_conflict"
-	ErrorCodeSaveConflictStale   ErrorCode = "save_conflict_stale"
-	ErrorCodeSessionEnded        ErrorCode = "session_ended"
-	ErrorCodeSessionForbidden    ErrorCode = "session_forbidden"
-	ErrorCodeSessionFull         ErrorCode = "session_full"
-	ErrorCodeSessionNotFound     ErrorCode = "session_not_found"
-	ErrorCodeUnauthorized        ErrorCode = "unauthorized"
-	ErrorCodeUploadsDisabled     ErrorCode = "uploads_disabled"
-	ErrorCodeUserDisabled        ErrorCode = "user_disabled"
+	ErrorCodeBadRequest           ErrorCode = "bad_request"
+	ErrorCodeCapabilityMissing    ErrorCode = "capability_missing"
+	ErrorCodeConflict             ErrorCode = "conflict"
+	ErrorCodeCoreFileNotAvailable ErrorCode = "core_file_not_available"
+	ErrorCodeCoreMissing          ErrorCode = "core_missing"
+	ErrorCodeCorePackageNotFound  ErrorCode = "core_package_not_found"
+	ErrorCodeCoreVersionMismatch  ErrorCode = "core_version_mismatch"
+	ErrorCodeDeviceRevoked        ErrorCode = "device_revoked"
+	ErrorCodeDisplayNameTaken     ErrorCode = "display_name_taken"
+	ErrorCodeForbidden            ErrorCode = "forbidden"
+	ErrorCodeHubTooOld            ErrorCode = "hub_too_old"
+	ErrorCodeInternal             ErrorCode = "internal"
+	ErrorCodeInvalidCredentials   ErrorCode = "invalid_credentials"
+	ErrorCodeInviteInvalid        ErrorCode = "invite_invalid"
+	ErrorCodeNotFound             ErrorCode = "not_found"
+	ErrorCodePairingDenied        ErrorCode = "pairing_denied"
+	ErrorCodePairingExpired       ErrorCode = "pairing_expired"
+	ErrorCodePairingPending       ErrorCode = "pairing_pending"
+	ErrorCodePayloadTooLarge      ErrorCode = "payload_too_large"
+	ErrorCodePlayerTooOld         ErrorCode = "player_too_old"
+	ErrorCodeRateLimited          ErrorCode = "rate_limited"
+	ErrorCodeSaveConflict         ErrorCode = "save_conflict"
+	ErrorCodeSaveConflictStale    ErrorCode = "save_conflict_stale"
+	ErrorCodeSessionEnded         ErrorCode = "session_ended"
+	ErrorCodeSessionForbidden     ErrorCode = "session_forbidden"
+	ErrorCodeSessionFull          ErrorCode = "session_full"
+	ErrorCodeSessionNotFound      ErrorCode = "session_not_found"
+	ErrorCodeUnauthorized         ErrorCode = "unauthorized"
+	ErrorCodeUploadsDisabled      ErrorCode = "uploads_disabled"
+	ErrorCodeUserDisabled         ErrorCode = "user_disabled"
 )
 
 // Defines values for FirmwareMode.
@@ -141,6 +158,35 @@ type CoreInfo struct {
 	Id      string `json:"id"`
 	Version string `json:"version"`
 }
+
+// CorePackage defines model for CorePackage.
+type CorePackage struct {
+	CoreId    string            `json:"core_id"`
+	Files     []CorePackageFile `json:"files"`
+	License   string            `json:"license"`
+	Platform  CorePlatform      `json:"platform"`
+	SourceRef string            `json:"source_ref"`
+	SourceUrl string            `json:"source_url"`
+	Version   string            `json:"version"`
+}
+
+// CorePackageFile defines model for CorePackageFile.
+type CorePackageFile struct {
+	// Available True when the file is in the Hub cache
+	Available bool   `json:"available"`
+	Name      string `json:"name"`
+
+	// Role Exactly one `library` per package
+	Role   CorePackageFileRole `json:"role"`
+	Sha256 string              `json:"sha256"`
+	Size   int64               `json:"size"`
+}
+
+// CorePackageFileRole Exactly one `library` per package
+type CorePackageFileRole string
+
+// CorePlatform defines model for CorePlatform.
+type CorePlatform string
 
 // DuplicateGameError defines model for DuplicateGameError.
 type DuplicateGameError struct {
@@ -242,7 +288,7 @@ type HandshakeRequest_Video struct {
 type HandshakeResponse struct {
 	Compatible bool `json:"compatible"`
 
-	// Features Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download.
+	// Features Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`).
 	Features           *[]string          `json:"features,omitempty"`
 	HubVersion         string             `json:"hub_version"`
 	MinProtocolVersion int                `json:"min_protocol_version"`
@@ -541,7 +587,9 @@ type SessionVisibility string
 
 // SystemInfo defines model for SystemInfo.
 type SystemInfo struct {
-	DisplayName string `json:"display_name"`
+	// CorePackageVersion Version of the preferred core the Hub serves (`cores_v1`) = `expected_core_version` if set, else the highest version with a cached package; null when none. The Player provisions exactly this version. Optional (absent on Hubs without `cores_v1`).
+	CorePackageVersion *string `json:"core_package_version"`
+	DisplayName        string  `json:"display_name"`
 
 	// ExpectedCoreVersion Null = any version
 	ExpectedCoreVersion *string        `json:"expected_core_version"`
@@ -584,6 +632,12 @@ type UserList struct {
 	Users []UserInfo `json:"users"`
 }
 
+// CoreId defines model for CoreId.
+type CoreId = string
+
+// CoreVersion defines model for CoreVersion.
+type CoreVersion = string
+
 // GameId defines model for GameId.
 type GameId = openapi_types.UUID
 
@@ -601,6 +655,12 @@ type BadRequest = Error
 
 // CapabilityMissing defines model for CapabilityMissing.
 type CapabilityMissing = Error
+
+// CoreFileNotAvailable defines model for CoreFileNotAvailable.
+type CoreFileNotAvailable = Error
+
+// CorePackageNotFound defines model for CorePackageNotFound.
+type CorePackageNotFound = Error
 
 // Forbidden defines model for Forbidden.
 type Forbidden = Error
@@ -625,6 +685,11 @@ type SessionNotFound = Error
 
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = Error
+
+// GetCorePackageFileParams defines parameters for GetCorePackageFile.
+type GetCorePackageFileParams struct {
+	IfNoneMatch *string `json:"If-None-Match,omitempty"`
+}
 
 // UploadGameParams defines parameters for UploadGame.
 type UploadGameParams struct {
@@ -1093,6 +1158,12 @@ type ServerInterface interface {
 	// Exchange device credential for access token
 	// (POST /api/v1/auth/token)
 	CreateAccessToken(w http.ResponseWriter, r *http.Request)
+	// Manifest of a signed core package (any trusted device)
+	// (GET /api/v1/cores/{core_id}/packages/{version}/{platform})
+	GetCorePackage(w http.ResponseWriter, r *http.Request, coreId CoreId, version CoreVersion, platform CorePlatform)
+	// Download a file of a core package (any trusted device)
+	// (GET /api/v1/cores/{core_id}/packages/{version}/{platform}/files/{name})
+	GetCorePackageFile(w http.ResponseWriter, r *http.Request, coreId CoreId, version CoreVersion, platform CorePlatform, name string, params GetCorePackageFileParams)
 	// Game library
 	// (GET /api/v1/games)
 	ListGames(w http.ResponseWriter, r *http.Request)
@@ -1230,6 +1301,137 @@ func (siw *ServerInterfaceWrapper) CreateAccessToken(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateAccessToken(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetCorePackage operation middleware
+func (siw *ServerInterfaceWrapper) GetCorePackage(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "core_id" -------------
+	var coreId CoreId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "core_id", r.PathValue("core_id"), &coreId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "core_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "version" -------------
+	var version CoreVersion
+
+	err = runtime.BindStyledParameterWithOptions("simple", "version", r.PathValue("version"), &version, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "version", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "platform" -------------
+	var platform CorePlatform
+
+	err = runtime.BindStyledParameterWithOptions("simple", "platform", r.PathValue("platform"), &platform, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "platform", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetCorePackage(w, r, coreId, version, platform)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetCorePackageFile operation middleware
+func (siw *ServerInterfaceWrapper) GetCorePackageFile(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "core_id" -------------
+	var coreId CoreId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "core_id", r.PathValue("core_id"), &coreId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "core_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "version" -------------
+	var version CoreVersion
+
+	err = runtime.BindStyledParameterWithOptions("simple", "version", r.PathValue("version"), &version, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "version", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "platform" -------------
+	var platform CorePlatform
+
+	err = runtime.BindStyledParameterWithOptions("simple", "platform", r.PathValue("platform"), &platform, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "platform", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "name" -------------
+	var name string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "name", r.PathValue("name"), &name, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "name", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetCorePackageFileParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-None-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-None-Match")]; found {
+		var IfNoneMatch string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-None-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-None-Match", valueList[0], &IfNoneMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-None-Match", Err: err})
+			return
+		}
+
+		params.IfNoneMatch = &IfNoneMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetCorePackageFile(w, r, coreId, version, platform, name, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2362,6 +2564,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/.well-known/framebeam", wrapper.GetHubInfo)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/auth/revoke", wrapper.RevokeSelf)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/auth/token", wrapper.CreateAccessToken)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/cores/{core_id}/packages/{version}/{platform}", wrapper.GetCorePackage)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/cores/{core_id}/packages/{version}/{platform}/files/{name}", wrapper.GetCorePackageFile)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/games", wrapper.ListGames)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/games", wrapper.UploadGame)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/games/{game_id}", wrapper.GetGame)
@@ -2398,6 +2602,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 type BadRequestJSONResponse Error
 
 type CapabilityMissingJSONResponse Error
+
+type CoreFileNotAvailableJSONResponse Error
+
+type CorePackageNotFoundJSONResponse Error
 
 type ForbiddenJSONResponse Error
 
@@ -2486,6 +2694,118 @@ type CreateAccessToken401JSONResponse Error
 func (response CreateAccessToken401JSONResponse) VisitCreateAccessTokenResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetCorePackageRequestObject struct {
+	CoreId   CoreId       `json:"core_id"`
+	Version  CoreVersion  `json:"version"`
+	Platform CorePlatform `json:"platform"`
+}
+
+type GetCorePackageResponseObject interface {
+	VisitGetCorePackageResponse(w http.ResponseWriter) error
+}
+
+type GetCorePackage200JSONResponse CorePackage
+
+func (response GetCorePackage200JSONResponse) VisitGetCorePackageResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetCorePackage401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetCorePackage401JSONResponse) VisitGetCorePackageResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetCorePackage404JSONResponse struct {
+	CorePackageNotFoundJSONResponse
+}
+
+func (response GetCorePackage404JSONResponse) VisitGetCorePackageResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetCorePackageFileRequestObject struct {
+	CoreId   CoreId       `json:"core_id"`
+	Version  CoreVersion  `json:"version"`
+	Platform CorePlatform `json:"platform"`
+	Name     string       `json:"name"`
+	Params   GetCorePackageFileParams
+}
+
+type GetCorePackageFileResponseObject interface {
+	VisitGetCorePackageFileResponse(w http.ResponseWriter) error
+}
+
+type GetCorePackageFile200ResponseHeaders struct {
+	ContentLength int64
+	ETag          string
+}
+
+type GetCorePackageFile200ApplicationoctetStreamResponse struct {
+	Body          io.Reader
+	Headers       GetCorePackageFile200ResponseHeaders
+	ContentLength int64
+}
+
+func (response GetCorePackageFile200ApplicationoctetStreamResponse) VisitGetCorePackageFileResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/octet-stream")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.Header().Set("Content-Length", fmt.Sprint(response.Headers.ContentLength))
+	w.Header().Set("ETag", fmt.Sprint(response.Headers.ETag))
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type GetCorePackageFile304ResponseHeaders struct {
+	ETag string
+}
+
+type GetCorePackageFile304Response struct {
+	Headers GetCorePackageFile304ResponseHeaders
+}
+
+func (response GetCorePackageFile304Response) VisitGetCorePackageFileResponse(w http.ResponseWriter) error {
+	w.Header().Set("ETag", fmt.Sprint(response.Headers.ETag))
+	w.WriteHeader(304)
+	return nil
+}
+
+type GetCorePackageFile401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetCorePackageFile401JSONResponse) VisitGetCorePackageFileResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetCorePackageFile404JSONResponse struct {
+	CoreFileNotAvailableJSONResponse
+}
+
+func (response GetCorePackageFile404JSONResponse) VisitGetCorePackageFileResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -3938,6 +4258,12 @@ type StrictServerInterface interface {
 	// Exchange device credential for access token
 	// (POST /api/v1/auth/token)
 	CreateAccessToken(ctx context.Context, request CreateAccessTokenRequestObject) (CreateAccessTokenResponseObject, error)
+	// Manifest of a signed core package (any trusted device)
+	// (GET /api/v1/cores/{core_id}/packages/{version}/{platform})
+	GetCorePackage(ctx context.Context, request GetCorePackageRequestObject) (GetCorePackageResponseObject, error)
+	// Download a file of a core package (any trusted device)
+	// (GET /api/v1/cores/{core_id}/packages/{version}/{platform}/files/{name})
+	GetCorePackageFile(ctx context.Context, request GetCorePackageFileRequestObject) (GetCorePackageFileResponseObject, error)
 	// Game library
 	// (GET /api/v1/games)
 	ListGames(ctx context.Context, request ListGamesRequestObject) (ListGamesResponseObject, error)
@@ -4128,6 +4454,64 @@ func (sh *strictHandler) CreateAccessToken(w http.ResponseWriter, r *http.Reques
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(CreateAccessTokenResponseObject); ok {
 		if err := validResponse.VisitCreateAccessTokenResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetCorePackage operation middleware
+func (sh *strictHandler) GetCorePackage(w http.ResponseWriter, r *http.Request, coreId CoreId, version CoreVersion, platform CorePlatform) {
+	var request GetCorePackageRequestObject
+
+	request.CoreId = coreId
+	request.Version = version
+	request.Platform = platform
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetCorePackage(ctx, request.(GetCorePackageRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetCorePackage")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetCorePackageResponseObject); ok {
+		if err := validResponse.VisitGetCorePackageResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetCorePackageFile operation middleware
+func (sh *strictHandler) GetCorePackageFile(w http.ResponseWriter, r *http.Request, coreId CoreId, version CoreVersion, platform CorePlatform, name string, params GetCorePackageFileParams) {
+	var request GetCorePackageFileRequestObject
+
+	request.CoreId = coreId
+	request.Version = version
+	request.Platform = platform
+	request.Name = name
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetCorePackageFile(ctx, request.(GetCorePackageFileRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetCorePackageFile")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetCorePackageFileResponseObject); ok {
+		if err := validResponse.VisitGetCorePackageFileResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
