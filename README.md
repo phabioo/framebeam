@@ -19,7 +19,8 @@ Phase plan: [Workflow](docs/workflow.md#phase-plan). The PoC (phases 0-5) is com
 | 0.3 Automatic updates | done (merged with this PR) | Versions and channels, signed update index, Hub as .deb with updater, Windows Player launcher layout with updater ([ADR 0011](docs/adr/0011-automatic-updates.md), proposed) |
 | 0.4 Sessions over the internet and save comfort | done in code; relay and multiview verified across networks only locally | Embedded STUN/TURN relay, connection type and bitrate adaptation, multiview with up to 4 surfaces, Player-side core index check, save retention, restore, snapshots, push and slots ([ADR 0012](docs/adr/0012-internet-sessions-and-save-comfort.md), accepted) |
 | 0.5 OpenGL hardware rendering | done in code; GPUs and drivers verified only locally | Offscreen OpenGL context for libretro cores, melonDS DS OpenGL renderer and internal resolution ([ADR 0013](docs/adr/0013-opengl-hardware-rendering.md)) |
-| Post-PoC | planned | See [Roadmap](docs/roadmap.md) (versions 0.6 to 0.11) |
+| 0.6 Player UI pass | done in code; look and feel, GPU values and real sessions verified only locally | Cyan tokens, new shell, Library filter chips, rebuilt Emulation/Controllers/Settings, Hub edit, in-game layout switch, fullscreen, split diagnostics ([ADR 0014](docs/adr/0014-player-ui-pass.md), proposed) |
+| Post-PoC | planned | See [Roadmap](docs/roadmap.md) (versions 0.7 to 0.11) |
 
 ## What works
 
@@ -58,6 +59,7 @@ Phase plan: [Workflow](docs/workflow.md#phase-plan). The PoC (phases 0-5) is com
 - Hash-verified ROM cache with resumable download.
 - Launch NDS games locally with melonDS DS: video, audio via Qt Multimedia, keyboard, touch via mouse.
 - OpenGL hardware rendering for libretro cores (0.5): melonDS DS offers an OpenGL renderer and an internal resolution on the Emulation page (applied on next start; default Software). Hardware frames are read back to the CPU, so Sessions work unchanged. `FRAMEBEAM_DISABLE_HW_RENDER=1` forces the software path; the CLI has no hardware rendering.
+- Player UI pass (0.6): Library filter chips with live core state, Settings with Hub switch/edit/remove (address and port), in-game layout switch, fullscreen (F11/Esc), Multiview PiP / Side-by-Side / Grid 2×2, diagnostics overlay split into Emulation and Streaming (F3).
 - Save sync with the Hub: sync before launch, auto checkpoint while playing (12 s after the last change, at most every 60 s), final sync on pause, stop and exit; pending uploads are kept per Hub and user.
 - Conflict dialog with "Keep both, decide later" as default; per-game badge Synced / Sync pending / Conflict.
 - CLI: `saves list`, `save push`, `save pull`, `save resolve`.
@@ -148,6 +150,8 @@ make fetch-core                            # build melonDS DS (pinned), prints t
 make check-client                          # preset via CLIENT_PRESET, default linux-debug; without a core, core tests are skipped
 client/build/linux-debug/app/framebeam_player [--data-dir <path>] [--dev-allow-http]
 ```
+
+Screenshot tests (`ctest -R screenshots`) render all Player screens at 1440x900 into the directory named by `FRAMEBEAM_SCREENSHOT_DIR`.
 
 Player data storage (ROM cache, `profiles.json`, `device.json`, `hubs/<id>/users/<user_id>/saves/<game_id>/`, `system/`): portable by default in `<directory of the executable>/data`. If that is not writable (e.g. Program Files), it falls back to AppData (`QStandardPaths::AppDataLocation`). On the first portable start, existing AppData data is copied once (nothing is moved, deleted or overwritten; the ROM cache is re-downloaded). Credentials stay in the OS credential store. `--data-dir` or `FRAMEBEAM_DATA_DIR` take precedence.
 

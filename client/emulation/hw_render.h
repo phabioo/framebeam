@@ -42,6 +42,14 @@ class HwRenderContext {
   using ProcAddress = void (*)();
   ProcAddress procAddress(const char* name) const;
   QString glInfo() const;  // "vendor / renderer / version" for logs
+  // Diagnostics overlay: GL_RENDERER / GL_VERSION of the live context (empty before createContext) and its profile.
+  QString glRenderer() const;
+  QString glVersion() const;
+  bool isCoreProfile() const;
+  // Pure helpers for the overlay: "4.6.0 NVIDIA 555.1" + core -> "OpenGL 4.6 Core"; renderer + version ->
+  // "<renderer> · Driver <rest of the version string>" (profile hints in parentheses are dropped).
+  static QString describeApi(const QString& glVersion, bool coreProfile);
+  static QString describeGpu(const QString& glRenderer, const QString& glVersion);
 
   // Reads the w x h region of the FBO into a new RGB32 image (alpha forced to 0xFF); null on failure.
   QImage readback(int w, int h, bool bottomLeftOrigin);

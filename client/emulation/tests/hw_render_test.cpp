@@ -10,6 +10,7 @@
 #include <QtTest>
 
 #include "emulation_runner.h"
+#include "hw_render.h"
 #include "libretro_backend.h"
 
 using namespace framebeam::emu;
@@ -69,6 +70,13 @@ class HwRenderTest : public QObject {
     QCOMPARE(count(QStringLiteral("accepted")), 1);
     QCOMPARE(count(QStringLiteral("reset")), 1);
     QCOMPARE(count(QStringLiteral("destroy")), 0);
+    {  // diagnostics: hardware path active, GPU strings from the live context, no fallback reason
+      const RenderInfo ri = be.renderInfo();
+      QVERIFY(ri.hwRequested && ri.hwActive);
+      QVERIFY(ri.fallbackReason.isEmpty());
+      QVERIFY2(ri.api.startsWith(QStringLiteral("OpenGL 3.")) || ri.api.startsWith(QStringLiteral("OpenGL 4.")), qPrintable(ri.api));
+      QVERIFY(!ri.gpu.isEmpty());
+    }
     {
       const QStringList ver = events().filter(QStringLiteral("reset ")).value(0).mid(6).split(QLatin1Char('.'));
       QVERIFY(ver.size() == 2 && ver.at(0).toInt() * 10 + ver.at(1).toInt() >= 33);  // core asked for 3.3
@@ -85,6 +93,7 @@ class HwRenderTest : public QObject {
     QCOMPARE(px(f, 61, 45), qRgb(0, 0, 255));   // bottom-right stays blue
     QCOMPARE(px(f, 32, 24), qRgb(0, 0, 255));
     QCOMPARE(qAlpha(px(f, 0, 0)), 255);
+    QVERIFY(be.lastReadbackMs() >= 0.0 && be.lastReadbackMs() < 1000.0);  // timed around the GPU readback
     be.unloadGame();
     QCOMPARE(count(QStringLiteral("destroy")), 1);  // context_destroy before retro_unload_game
     be.unloadCore();
@@ -121,7 +130,25 @@ class HwRenderTest : public QObject {
     QVERIFY(!be.loadGame(rom.fileName(), &err));  // the fake core needs HW rendering and gives up
     QCOMPARE(count(QStringLiteral("rejected")), 1);
     QCOMPARE(count(QStringLiteral("reset")), 0);
+    {  // diagnostics: requested but software, with the reason (0.6 D10)
+      const RenderInfo ri = be.renderInfo();
+      QVERIFY(ri.hwRequested && !ri.hwActive);
+      QCOMPARE(ri.fallbackReason, QString::fromLatin1(kFallbackDisabled));
+      QVERIFY(ri.api.isEmpty() && ri.gpu.isEmpty());
+    }
     qunsetenv("FRAMEBEAM_DISABLE_HW_RENDER");
+  }
+
+  void glDescriptionHelpers() {
+    using framebeam::emu::HwRenderContext;
+    QCOMPARE(HwRenderContext::describeApi(QStringLiteral("4.6.0 NVIDIA 555.42"), true), QStringLiteral("OpenGL 4.6 Core"));
+    QCOMPARE(HwRenderContext::describeApi(QStringLiteral("3.3 (Compatibility Profile) Mesa 23.2.1"), false), QStringLiteral("OpenGL 3.3"));
+    QCOMPARE(HwRenderContext::describeApi(QString(), true), QStringLiteral("OpenGL Core"));
+    QCOMPARE(HwRenderContext::describeGpu(QStringLiteral("Example GPU"), QStringLiteral("4.6.0 NVIDIA 555.42")),
+             QStringLiteral("Example GPU · Driver NVIDIA 555.42"));
+    QCOMPARE(HwRenderContext::describeGpu(QStringLiteral("llvmpipe (LLVM 15.0.7, 256 bits)"), QStringLiteral("4.5 (Core Profile) Mesa 23.2.1")),
+             QStringLiteral("llvmpipe (LLVM 15.0.7, 256 bits) · Driver Mesa 23.2.1"));
+    QCOMPARE(HwRenderContext::describeGpu(QString(), QStringLiteral("4.1")), QStringLiteral("GPU"));
   }
 
   void otherApisAreRejected() {
@@ -136,6 +163,8 @@ class HwRenderTest : public QObject {
     QVERIFY2(be.loadCore(QStringLiteral(FB_FAKE_HW_CORE_PATH), &err), qPrintable(err));
     QVERIFY(!be.loadGame(rom.fileName(), &err));
     QCOMPARE(count(QStringLiteral("rejected")), 1);
+    QCOMPARE(be.renderInfo().fallbackReason, QString::fromLatin1(kFallbackUnsupported));
+    QVERIFY(be.renderInfo().hwRequested && !be.renderInfo().hwActive);
     qunsetenv("FB_FAKE_HW_CTX");
   }
 

@@ -7,6 +7,7 @@
 #include <QObject>
 #include <QString>
 #include <QStringList>
+#include <QTimer>
 #include <QVariantList>
 #include <QVariantMap>
 #include <QtQml/qqmlregistration.h>
@@ -83,6 +84,10 @@ class PlayerController : public QObject {
   Q_PROPERTY(framebeam::ui::SaveHistoryController* saveHistory READ saveHistory CONSTANT)
   // Log file path (empty when file logging is not active) and "open folder" (Settings)
   Q_PROPERTY(QString logFile READ logFile CONSTANT)
+  // Shell (sidebar user block, Settings footer)
+  Q_PROPERTY(QString deviceName READ deviceName CONSTANT)
+  Q_PROPERTY(QString playerVersion READ playerVersion CONSTANT)
+  Q_PROPERTY(QString platformText READ platformText CONSTANT)  // "Windows x86-64 · Protocol v1"
 
  public:
   struct Options {
@@ -121,6 +126,9 @@ class PlayerController : public QObject {
   UpdatesController* updates() { return updates_.get(); }
   SaveHistoryController* saveHistory() { return history_.get(); }
   QString logFile() const;
+  QString deviceName() const;
+  QString playerVersion() const;
+  QString platformText() const;
   // A game or a watched Session is running (updates are never applied then).
   bool sessionBusy() const;
   EmulationController* emulation() { return emulation_.get(); }
@@ -159,6 +167,15 @@ class PlayerController : public QObject {
   Q_INVOKABLE void connectProfile(const QString& hubId);
   Q_INVOKABLE void retryConnection();
   Q_INVOKABLE void removeHub(const QString& hubId);  // empty: discard the running attempt
+  // Settings > Hubs > Edit (D3): only host and port of a saved Hub change; hubId, pinned fingerprint, credential and
+  // Hub user stay. validateHubAddress returns the messages of docs/design/player.md 3p (empty = valid).
+  // editHub reconnects when it is the active Hub; a different certificate at the new address then goes through
+  // the "certificate changed" flow and is never accepted silently.
+  Q_INVOKABLE QStringList validateHubAddress(const QString& host, const QString& port) const;
+  Q_INVOKABLE bool editHub(const QString& hubId, const QString& host, const QString& port);
+  // Re-evaluates the core / firmware state of all games, the detail pane and the Emulation page (after a core
+  // download or whenever the core cache may have changed) without a restart.
+  Q_INVOKABLE void refreshCoreState();
   Q_INVOKABLE void confirmTrust();
   Q_INVOKABLE void rejectTrust();
   // Certificate changed (blocked): re-pins exactly `observedFingerprint` (raw value from the hub card) and reconnects;
@@ -220,6 +237,8 @@ class PlayerController : public QObject {
   void updateScreen();
   void probeCores();
   void refreshEmulationPage();
+  void refreshAttention();
+  QString attentionFor(const GameEntry& game) const;
   QVariantList systemCards();
   void applyFrameBeamOptions();
   void onFirmwareFinished(const FirmwareResult& result);
@@ -279,6 +298,9 @@ class PlayerController : public QObject {
   std::unique_ptr<EmulationController> emulation_;
   std::unique_ptr<ControllersController> controllers_;
   bool shareOnStart_ = false;
+  QTimer* liveTimer_ = nullptr;     // periodic quiet refresh of the Library and the core state while it is shown
+  bool quietRefresh_ = false;       // the running library reload is the periodic one (no "loading" state, errors ignored)
+  QString resumePage_;              // page to return to after the reconnect of an edited active Hub
   void endGameContext();
   void startSelected(bool share);
 

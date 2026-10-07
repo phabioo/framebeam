@@ -9,12 +9,17 @@
 
 namespace framebeam {
 
-// One viewer report over the fb-diag DataChannel: {"t":"rx","loss":<0..1>,"kbps":<received video kbit/s>}.
+// One viewer report over the fb-diag DataChannel: {"t":"rx","loss":<0..1>,"kbps":<received video kbit/s>} plus, since
+// 0.6, the optional "fps" (frames/s the viewer decoded) and "dec" (name of its decoder). Old Players send neither and
+// are read as before; invalid optional values are dropped, the report itself stays valid.
 struct RxReport {
   double loss = 0.0;  // 0..1, packets lost in the last second
   double kbps = 0.0;  // video kbit/s received in the last second
+  std::optional<double> fps;
+  QString decoder;
 };
-QByteArray makeRxReport(double loss, double kbps);
+// fps < 0 / empty decoder: field left out.
+QByteArray makeRxReport(double loss, double kbps, double fps = -1.0, const QString& decoder = QString());
 // nullopt for anything that is not a well-formed rx report (other message types, bad JSON, wrong types, NaN,
 // loss outside 0..1, negative kbps): the host ignores those.
 std::optional<RxReport> parseRxReport(const QByteArray& message);

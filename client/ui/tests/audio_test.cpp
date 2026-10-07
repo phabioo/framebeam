@@ -47,6 +47,32 @@ class AudioTest : public QObject {
     QCOMPARE(AudioOutput::convertSamples(in, QAudioFormat::Int16), in);
     QVERIFY(AudioOutput::convertSamples(in, QAudioFormat::Unknown).isEmpty());
   }
+  // 0.6 D6: underrun counting and buffer fill.
+  void underrunIsActiveToIdleOnly() {
+    using S = QAudio::State;
+    QVERIFY(AudioOutput::isUnderrun(S::ActiveState, S::IdleState));
+    QVERIFY(!AudioOutput::isUnderrun(S::IdleState, S::ActiveState));
+    QVERIFY(!AudioOutput::isUnderrun(S::StoppedState, S::IdleState));  // the idle state right after start() is no underrun
+    QVERIFY(!AudioOutput::isUnderrun(S::ActiveState, S::SuspendedState));
+    QVERIFY(!AudioOutput::isUnderrun(S::ActiveState, S::StoppedState));
+  }
+  void underrunsStartAtZeroWithoutDevice() {
+    AudioOutput out;
+    QCOMPARE(out.underruns(), 0);
+    QCOMPARE(out.bufferedMs(), 0.0);
+    out.setUnderrunCounting(false);
+    out.setUnderrunCounting(true);
+    QCOMPARE(out.underruns(), 0);
+  }
+  void bufferFillInMilliseconds() {
+    // 48 kHz, 8-byte float frames: 14400-byte buffer (37.5 ms), 7200 free -> 7200 bytes queued = 900 frames = 18.75 ms
+    QVERIFY(qAbs(AudioOutput::bufferedMsFor(14400, 7200, 0, 8, 48000) - 18.75) < 1e-9);
+    // plus what waits in the pending queue
+    QVERIFY(qAbs(AudioOutput::bufferedMsFor(14400, 7200, 3600, 8, 48000) - 28.125) < 1e-9);
+    QCOMPARE(AudioOutput::bufferedMsFor(14400, 14400, 0, 8, 48000), 0.0);  // empty sink
+    QCOMPARE(AudioOutput::bufferedMsFor(100, 400, -5, 8, 48000), 0.0);     // bogus values never go negative
+    QCOMPARE(AudioOutput::bufferedMsFor(100, 0, 0, 0, 48000), 0.0);        // no format yet
+  }
   void resampleThenFloat() {
     // 32768 -> 48000 Hz, 1 s constant signal: ~48000 frames of float stereo (8 bytes per frame).
     LinearResampler r(32768, 48000);

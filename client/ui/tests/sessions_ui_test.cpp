@@ -126,7 +126,7 @@ bool approxEqual(qreal a, qreal b) { return std::abs(a - b) < 1.5; }
 QString audibleTile(Harness& h, const QStringList& ids) {  // the surfaces whose audio button reads "Audio on"
   QStringList on;
   for (const QString& id : ids) {
-    if (textOf(visibleItem(h, qPrintable(QStringLiteral("audioButton_") + id))) == QLatin1String("Audio on")) on << id;
+    if (textOf(visibleItem(h, qPrintable(QStringLiteral("audioButton_") + id))) == QLatin1String("Audio active")) on << id;
   }
   return on.join(QLatin1Char(','));
 }
@@ -319,7 +319,7 @@ class SessionsUiTest : public QObject {
     QVERIFY(h.item("tabMultiview") != nullptr);
     QVERIFY(visibleItem(h, "remoteView") != nullptr);
     QVERIFY(visibleItem(h, "audioButton_s1") != nullptr);
-    QCOMPARE(textOf(visibleItem(h, "audioButton_s1")), QStringLiteral("Audio on"));
+    QCOMPARE(textOf(visibleItem(h, "audioButton_s1")), QStringLiteral("Audio active"));
     QCOMPARE(textOf(h.item("gameTitle")), QStringLiteral("Session from Lena"));
     uitest::saveShot(h.window, QStringLiteral("p4-remote-alone"));
 
@@ -331,7 +331,7 @@ class SessionsUiTest : public QObject {
     QCOMPARE(ctl->remoteFrameNumber(QStringLiteral("s1")), nr + 1);
     QVERIFY(!ctl->remoteFrame(QStringLiteral("s1")).isNull());
 
-    // Diagnostics tab with statistics (fake): n/a where unavailable
+    // Diagnostics (overlay toggled by the tab, 0.6): one participant per remote Session, "—" where unavailable
     SessionStats remote;
     remote.active = true;
     remote.fps = 59.9;
@@ -339,28 +339,32 @@ class SessionsUiTest : public QObject {
     remote.rttMs = 14.0;
     remote.videoBitrateKbps = 5800;
     remote.packetLossPercent = 0.1;
+    remote.decoderName = QStringLiteral("h264");
     ctl->setStatsOverride(nullptr, {{QStringLiteral("s1"), remote}});
+    QVERIFY(!ctl->diagnostics()->isOpen());
     ctl->setTab(QStringLiteral("diagnostics"));
+    QVERIFY(ctl->diagnostics()->isOpen());
+    QCOMPARE(ctl->tab(), QStringLiteral("multiview"));  // the tab only toggles the overlay
+    ctl->refreshDiagnostics();
     QQuickTest::qWaitForPolish(h.window);
-    QQuickItem* row = visibleItem(h, "diagRow_s1");
-    QVERIFY(row != nullptr);
-    const QString t = textOf(row);
-    QVERIFY2(t.contains(QStringLiteral("59.9 fps")) && t.contains(QStringLiteral("WebRTC direct (host)")) && t.contains(QStringLiteral("RTT 14 ms")) &&
-                 t.contains(QStringLiteral("5.8 Mbit/s")) && t.contains(QStringLiteral("loss 0.1 %")),
-             qPrintable(t));
-    QVERIFY(visibleItem(h, "diagRow_local") == nullptr);  // no local game
+    QVERIFY(visibleItem(h, "diagnosticsPanel") != nullptr);
+    auto firstParticipant = [&]() { return ctl->diagnostics()->streaming().at(0).toMap().value(QStringLiteral("participants")).toList().at(0).toMap(); };
+    QCOMPARE(ctl->diagnostics()->participantCount(), 1);
+    QCOMPARE(firstParticipant().value(QStringLiteral("pill")).toString(), QStringLiteral("Direct"));
+    QCOMPARE(firstParticipant().value(QStringLiteral("line2")).toString(), QStringLiteral("Decoder h264 · H.264 · 5.8 Mbit/s · 59.9 fps"));
+    QCOMPARE(firstParticipant().value(QStringLiteral("line3")).toString(), QStringLiteral("RTT 14 ms · Loss 0.1 %"));
+    QVERIFY(ctl->diagnostics()->tiles().at(0).toMap().value(QStringLiteral("note")).toString().contains(QStringLiteral("not measured here")));
     remote.rttMs.reset();
     remote.packetLossPercent.reset();
-    ctl->setStatsOverride(nullptr, {{QStringLiteral("s1"), remote}});
-    QVERIFY2(textOf(visibleItem(h, "diagRow_s1")).contains(QStringLiteral("RTT n/a")) &&
-                 textOf(visibleItem(h, "diagRow_s1")).contains(QStringLiteral("loss n/a")),
-             qPrintable(textOf(visibleItem(h, "diagRow_s1"))));
-    // connectionType is shown as filled by the media layer (bare candidate type or formatted text)
     remote.connectionType = QStringLiteral("relay (udp)");
     ctl->setStatsOverride(nullptr, {{QStringLiteral("s1"), remote}});
-    QVERIFY2(textOf(visibleItem(h, "diagRow_s1")).contains(QStringLiteral("WebRTC relay (udp)")), qPrintable(textOf(visibleItem(h, "diagRow_s1"))));
+    ctl->refreshDiagnostics();
+    QCOMPARE(firstParticipant().value(QStringLiteral("line3")).toString(), QStringLiteral("RTT — · Loss —"));  // no TURN server in the FakeHub ack
+    QCOMPARE(firstParticipant().value(QStringLiteral("pill")).toString(), QStringLiteral("Relayed (TURN)"));
     uitest::saveShot(h.window, QStringLiteral("p4-diagnostics-remote"));
     ctl->setStatsOverride(nullptr, {});
+    ctl->setTab(QStringLiteral("diagnostics"));
+    QVERIFY(!ctl->diagnostics()->isOpen());
 
     // Hub removes the viewer: closed with a short notice, back to the Library
     hub.sendWs(QStringLiteral("viewer_left"), {{QStringLiteral("session_id"), QStringLiteral("s1")}, {QStringLiteral("viewer_id"), kViewerId},
@@ -396,39 +400,6 @@ class SessionsUiTest : public QObject {
     QCOMPARE(h.controller->screen(), QStringLiteral("library"));
   }
 
-  void formatDiagnosticsPure() {
-    SessionStats local;
-    local.active = true;
-    local.encoderName = QStringLiteral("h264_nvenc");
-    local.fps = 60.0;
-    local.videoBitrateKbps = 6000;
-    local.audioBitrateKbps = 128;
-    const QVariantList rows = SessionController::formatDiagnostics(QStringLiteral("You · Game"), true, true, 59.0, local, {});
-    QCOMPARE(rows.size(), 1);
-    QCOMPARE(rows.at(0).toMap().value(QStringLiteral("values")).toStringList(),
-             (QStringList{QStringLiteral("60.0 fps"), QStringLiteral("encoder h264_nvenc"), QStringLiteral("H.264"), QStringLiteral("6.0 Mbit/s"),
-                          QStringLiteral("Opus 128 kbit/s")}));
-    // Not shared: encoder off, local fps from the game, other values n/a
-    const QVariantList off = SessionController::formatDiagnostics(QStringLiteral("You · Game"), true, false, 59.0, SessionStats(), {});
-    const QStringList v = off.at(0).toMap().value(QStringLiteral("values")).toStringList();
-    QCOMPARE(v.at(0), QStringLiteral("59.0 fps"));
-    QVERIFY(v.at(1).contains(QStringLiteral("off")));
-    QCOMPARE(v.at(4), QStringLiteral("Opus n/a"));
-    // One row per remote surface, keyed by the Session id
-    SessionStats a, b;
-    a.fps = 30.0;
-    a.connectionType = QStringLiteral("direct (host)");
-    b.fps = 25.0;
-    b.connectionType = QStringLiteral("relay (udp)");
-    const QVariantList n = SessionController::formatDiagnostics(QStringLiteral("You · Game"), true, false, 59.0, SessionStats(),
-                                                                {{QStringLiteral("sa"), QStringLiteral("Lena"), a}, {QStringLiteral("sb"), QStringLiteral("Mo"), b}, {QStringLiteral("sc"), QStringLiteral("Jo"), SessionStats()}});
-    QCOMPARE(n.size(), 4);
-    QCOMPARE(n.at(1).toMap().value(QStringLiteral("surface")).toString(), QStringLiteral("sa"));
-    QVERIFY(n.at(1).toMap().value(QStringLiteral("text")).toString().contains(QStringLiteral("WebRTC direct (host)")));
-    QVERIFY(n.at(2).toMap().value(QStringLiteral("text")).toString().contains(QStringLiteral("WebRTC relay (udp)")));
-    QVERIFY(n.at(3).toMap().value(QStringLiteral("text")).toString().contains(QStringLiteral("WebRTC connecting")));  // not known yet
-  }
-
   // ---- with a running game (real core) ----
 
   void playAndShareThenPanelStates() {
@@ -452,7 +423,7 @@ class SessionsUiTest : public QObject {
     // Shared, hub_users: pill, no invite block, Stop sharing
     QCOMPARE(ctl->tab(), QStringLiteral("session"));
     QVERIFY(h.item("sharedPill")->isVisible());
-    QCOMPARE(textOf(h.item("sharedPill")->findChild<QQuickItem*>()), QStringLiteral("Session shared · 0 watching"));
+    QCOMPARE(textOf(h.item("sharedPill")), QStringLiteral("● Session shared · 0 watching"));
     QCOMPARE(ctl->viewerCount(), 0);
     QVERIFY(h.item("tabSession") && h.item("tabMultiview") && h.item("tabDiagnostics"));
     QVERIFY(h.item("visibilitySegment")->isVisible());
@@ -579,23 +550,29 @@ class SessionsUiTest : public QObject {
     QVERIFY(!h.item("inviteBlock")->isVisible());
     QVERIFY(ctl->participantsTitle().startsWith(QStringLiteral("WATCHING")));
 
-    // Diagnostics collapsible inside the Session tab
-    QVERIFY(!anyVisible(h, "diagRow_local"));
+    // Diagnostics overlay in the Session tab (toggle in the panel): Emulation and Streaming with the host row
+    QVERIFY(!anyVisible(h, "diagnosticsOverlaySession"));
     QVERIFY(h.click("diagToggle"));
+    QVERIFY(ctl->diagnostics()->isOpen());
     QQuickTest::qWaitForPolish(h.window);
-    QTRY_VERIFY(anyVisible(h, "diagRow_local"));
+    QTRY_VERIFY(anyVisible(h, "diagnosticsOverlaySession"));
     SessionStats local;
     local.active = true;
     local.encoderName = QStringLiteral("libx264");
     local.fps = 60.0;
     local.videoBitrateKbps = 2000;
+    local.targetBitrateKbps = 2500;
     local.audioBitrateKbps = 96;
     ctl->setStatsOverride(&local, {});
-    const QString lt = textOf(visibleItem(h, "diagRow_local"));
-    QVERIFY2(lt.contains(QStringLiteral("encoder libx264")) && lt.contains(QStringLiteral("H.264")) && lt.contains(QStringLiteral("2.0 Mbit/s")) &&
-                 lt.contains(QStringLiteral("Opus 96 kbit/s")),
-             qPrintable(lt));
+    ctl->refreshDiagnostics();
+    QVERIFY(ctl->diagnostics()->participantCount() >= 1);
+    const QVariantMap host = ctl->diagnostics()->streaming().at(0).toMap().value(QStringLiteral("participants")).toList().at(0).toMap();
+    QCOMPARE(host.value(QStringLiteral("role")).toString(), QStringLiteral("host"));
+    QCOMPARE(host.value(QStringLiteral("line2")).toString(), QStringLiteral("Encoder libx264 · H.264 · 2.0 / target 2.5 Mbit/s · 60.0 fps"));
+    QVERIFY(ctl->diagnostics()->emulation().value(QStringLiteral("valid")).toBool());
     ctl->setStatsOverride(nullptr, {});
+    QVERIFY(h.click("diagToggle"));
+    QVERIFY(!ctl->diagnostics()->isOpen());
 
     // Stop sharing -> DELETE session, pill gone, button back to "Share Session"
     QVERIFY(h.click("shareButton"));
@@ -654,13 +631,13 @@ class SessionsUiTest : public QObject {
     QVERIFY(!h.item("multiviewAddButton_s1")->isEnabled());      // already shown
     QVERIFY(h.item("multiviewAddButton_s2")->isEnabled());
 
-    // Two surfaces: PiP or Side-by-Side
+    // Two surfaces: PiP, Side-by-Side or Grid 2 x 2
     QVERIFY(h.click("multiviewAddButton_s2"));
     QTRY_COMPARE(ctl->surfaceCount(), 2);
-    QCOMPARE(ctl->availableLayouts(), (QStringList{QStringLiteral("pip"), QStringLiteral("side")}));
+    QCOMPARE(ctl->availableLayouts(), (QStringList{QStringLiteral("pip"), QStringLiteral("side"), QStringLiteral("grid")}));
     QCOMPARE(ctl->multiviewMode(), QStringLiteral("pip"));
     QQuickTest::qWaitForPolish(h.window);
-    QVERIFY(h.item("modeSegment")->isVisible() && h.item("modePip") != nullptr && h.item("modeSide") != nullptr && h.item("modeGrid") == nullptr);
+    QVERIFY(h.item("modeSegment")->isVisible() && h.item("modePip") != nullptr && h.item("modeSide") != nullptr && h.item("modeGrid") != nullptr);
     QVERIFY(!h.item("multiviewSessionList")->isVisible());  // behind "Add Session" once there is more than one surface
     QCOMPARE(hub.count(QStringLiteral("/api/v1/sessions/s2/join")), 1);
     QVERIFY(h.click("modeSide"));
@@ -840,7 +817,7 @@ class SessionsUiTest : public QObject {
     QTRY_COMPARE(ctl->sessions().size(), 2);
     QQuickTest::qWaitForPolish(h.window);
     QVERIFY(h.item("multiviewAddButton_s2") != nullptr && h.item("multiviewAddButton_s2")->isVisible());
-    for (const QString id : {QStringLiteral("s3"), QStringLiteral("s4"), QStringLiteral("s5"), QStringLiteral("s6")}) {
+    for (const QString& id : {QStringLiteral("s3"), QStringLiteral("s4"), QStringLiteral("s5"), QStringLiteral("s6")}) {
       r.hub.sessions.insert(id, sessionObj(id, QStringLiteral("Mo"), QStringLiteral("Other"), QStringLiteral("hub_users"), false, 1));
       r.hub.sendWs(QStringLiteral("session_update"), {{QStringLiteral("session"), r.hub.sessions.value(id)}});
     }
@@ -853,7 +830,7 @@ class SessionsUiTest : public QObject {
       QVERIFY(view->property("contentHeight").toReal() >= view->height());
       QVERIFY(view->property("count").toInt() == 6);
     }
-    for (const QString id : {QStringLiteral("s5"), QStringLiteral("s6")}) {
+    for (const QString& id : {QStringLiteral("s5"), QStringLiteral("s6")}) {
       r.hub.sendWs(QStringLiteral("session_ended"), {{QStringLiteral("session_id"), id}, {QStringLiteral("reason"), QStringLiteral("ended")}});
     }
     QTRY_COMPARE(ctl->sessions().size(), 4);
@@ -911,7 +888,7 @@ class SessionsUiTest : public QObject {
     QCOMPARE(ctl->multiviewMode(), QStringLiteral("side"));
     QQuickTest::qWaitForPolish(h.window);
     QVERIFY(approxEqual(tileRect(h, QStringLiteral("local")).width() * 2 + 2, areaRect(h).width()));
-    QVERIFY(!h.item("audioButton_local")->isEnabled() && textOf(visibleItem(h, "audioButton_local")) == QLatin1String("Audio on"));
+    QVERIFY(!h.item("audioButton_local")->isEnabled() && textOf(visibleItem(h, "audioButton_local")) == QLatin1String("Audio active"));
     QVERIFY(visibleItem(h, "audioButton_s1")->isEnabled() && textOf(visibleItem(h, "audioButton_s1")) == QLatin1String("Audio here"));
     QVERIFY(visibleItem(h, "gameViewMulti") == localView);
     uitest::saveShot(h.window, QStringLiteral("p4-3h-side"));
@@ -938,13 +915,22 @@ class SessionsUiTest : public QObject {
     remote.videoBitrateKbps = 5800;
     remote.packetLossPercent = 0.1;
     ctl->setStatsOverride(&local, {{QStringLiteral("s1"), remote}});
-    QVERIFY(h.click("tabDiagnostics"));
+    QVERIFY(h.click("tabDiagnostics"));  // multiview: the bottom panel with one column per tile
+    QVERIFY(ctl->diagnostics()->isOpen());
+    ctl->refreshDiagnostics();
     QQuickTest::qWaitForPolish(h.window);
     QVERIFY(visibleItem(h, "diagnosticsPanel") != nullptr);
-    QVERIFY(textOf(visibleItem(h, "diagRow_local")).contains(QStringLiteral("encoder h264_nvenc")));
-    QVERIFY(textOf(visibleItem(h, "diagRow_s1")).contains(QStringLiteral("WebRTC direct (srflx)")));
+    QCOMPARE(ctl->diagnostics()->tiles().size(), 2);
+    QVERIFY(ctl->diagnostics()->tiles().at(0).toMap().value(QStringLiteral("local")).toBool());
+    QVERIFY(ctl->diagnostics()->tiles().at(1).toMap().value(QStringLiteral("note")).toString().contains(QStringLiteral("Emulation runs on Lena's Player")));
+    QVERIFY(visibleItem(h, "diagTile_local") != nullptr && visibleItem(h, "diagTile_s1") != nullptr);
+    QCOMPARE(ctl->diagnostics()->streaming().size(), 2);  // own session + the watched one
+    const QVariantMap remoteHost = ctl->diagnostics()->streaming().at(1).toMap().value(QStringLiteral("participants")).toList().at(0).toMap();
+    QCOMPARE(remoteHost.value(QStringLiteral("pill")).toString(), QStringLiteral("Direct"));
     uitest::saveShot(h.window, QStringLiteral("p4-3h-diagnostics"));
     ctl->setStatsOverride(nullptr, {});
+    QVERIFY(h.click("tabDiagnostics"));
+    QVERIFY(!ctl->diagnostics()->isOpen());
     QVERIFY(h.click("tabMultiview"));
 
     // Local game plus three remote Sessions = four surfaces: grid 2 x 2, limit, audio focus without losing the game

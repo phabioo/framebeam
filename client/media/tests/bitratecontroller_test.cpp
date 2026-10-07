@@ -8,9 +8,15 @@
 using namespace framebeam;
 
 namespace {
-const RxReport kGood{0.0, 2000.0};
-const RxReport kBad{0.10, 1500.0};
-const RxReport kMild{0.03, 1800.0};  // between 1 % and 5 %
+RxReport mk(double loss, double kbps) {
+  RxReport r;
+  r.loss = loss;
+  r.kbps = kbps;
+  return r;
+}
+const RxReport kGood = mk(0.0, 2000.0);
+const RxReport kBad = mk(0.10, 1500.0);
+const RxReport kMild = mk(0.03, 1800.0);  // between 1 % and 5 %
 }  // namespace
 
 class BitrateControllerTest : public QObject {
@@ -30,7 +36,7 @@ class BitrateControllerTest : public QObject {
 
   void lossAtExactlyFivePercentIsNotHigh() {
     BitrateController c;
-    QVERIFY(!c.report(QStringLiteral("a"), RxReport{0.05, 1000}, 1000));
+    QVERIFY(!c.report(QStringLiteral("a"), mk(0.05, 1000), 1000));
     QCOMPARE(c.targetKbps(), 2000);
   }
 
@@ -150,6 +156,35 @@ class BitrateControllerTest : public QObject {
     QVERIFY(qAbs(r->loss - 0.0123) < 1e-9);
     QCOMPARE(r->kbps, 2000.0);
     QVERIFY(m.contains("\"t\":\"rx\""));
+  }
+
+  // 0.6 (D7): optional "fps" and "dec"; old Players send neither.
+  void rxReportOptionalFields() {
+    const auto full = parseRxReport(makeRxReport(0.01, 5800.0, 59.94, QStringLiteral("h264")));
+    QVERIFY(full.has_value());
+    QVERIFY(full->fps.has_value());
+    QVERIFY(qAbs(*full->fps - 59.9) < 1e-9);
+    QCOMPARE(full->decoder, QStringLiteral("h264"));
+
+    const QByteArray old = makeRxReport(0.02, 1000.0);  // no new fields written
+    QVERIFY(!old.contains("fps") && !old.contains("dec"));
+    const auto o = parseRxReport(old);
+    QVERIFY(o.has_value());
+    QVERIFY(!o->fps.has_value());
+    QVERIFY(o->decoder.isEmpty());
+
+    // A report as an older Player wrote it (literal bytes), and ones with invalid optional values: still valid reports.
+    const auto legacy = parseRxReport("{\"t\":\"rx\",\"loss\":0.1,\"kbps\":900}");
+    QVERIFY(legacy.has_value());
+    QVERIFY(!legacy->fps.has_value() && legacy->decoder.isEmpty());
+    const auto bad = parseRxReport("{\"t\":\"rx\",\"loss\":0.1,\"kbps\":900,\"fps\":\"fast\",\"dec\":\"has space\"}");
+    QVERIFY(bad.has_value());
+    QVERIFY(!bad->fps.has_value() && bad->decoder.isEmpty());
+    const auto negative = parseRxReport("{\"t\":\"rx\",\"loss\":0,\"kbps\":1,\"fps\":-3,\"dec\":12}");
+    QVERIFY(negative.has_value());
+    QVERIFY(!negative->fps.has_value() && negative->decoder.isEmpty());
+    const QByteArray partial = makeRxReport(0, 0, 30.0, QStringLiteral("a b"));  // invalid name is not written
+    QVERIFY(partial.contains("\"fps\"") && !partial.contains("\"dec\""));
   }
 
   void rxReportIgnoresMalformed_data() {

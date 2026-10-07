@@ -17,6 +17,7 @@
 #include "mediastats.h"
 #include "sessiontypes.h"
 #include "videoencoder.h"
+#include "viewerreports.h"
 
 namespace rtc {
 class PeerConnection;
@@ -146,6 +147,7 @@ class SessionHost : public QObject {
   std::shared_ptr<WorkerStats> workerStats_;
   SessionStats stats_;
   QList<ViewerLinkStats> links_;
+  ViewerReports reports_;  // latest rx report per viewer (UI thread); copied into links_ under statsMutex_
 };
 
 }  // namespace framebeam

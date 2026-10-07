@@ -8,6 +8,7 @@
 #include <QLoggingCategory>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdarg>
 #include <QHash>
@@ -167,6 +168,11 @@ bool LibretroBackend::loadCore(const QString& libraryPath, QString* error) {
   m_frame = QImage();
   m_frameCount = 0;
   m_audio.clear();
+  m_lastReadbackNs = 0;
+  {
+    QMutexLocker l(&m_renderMutex);
+    m_render = RenderInfo{};
+  }
   {
     QMutexLocker l(&m_optMutex);
     m_options.clear();
@@ -385,6 +391,13 @@ void LibretroBackend::reset() {
 QImage LibretroBackend::videoFrame() const { return m_frame; }
 quint64 LibretroBackend::frameCount() const { return m_frameCount; }
 
+double LibretroBackend::lastReadbackMs() const { return static_cast<double>(m_lastReadbackNs.load()) / 1e6; }
+
+RenderInfo LibretroBackend::renderInfo() const {
+  QMutexLocker l(&m_renderMutex);
+  return m_render;
+}
+
 QByteArray LibretroBackend::takeAudio() {
   QByteArray out;
   out.swap(m_audio);
@@ -415,13 +428,22 @@ void LibretroBackend::prepareForStart() {
 bool LibretroBackend::setupHwRender(void* data) {
   auto* cb = static_cast<retro_hw_render_callback*>(data);
   if (!cb || m_hwActive) return false;
+  // Diagnostics: a request for hardware that ends in software gets a reason (shown as "OpenGL requested · fell back").
+  auto fallback = [this](const char* reason) {
+    QMutexLocker l(&m_renderMutex);
+    m_render.hwRequested = true;
+    m_render.hwActive = false;
+    m_render.fallbackReason = QString::fromLatin1(reason);
+  };
   if (cb->context_type != RETRO_HW_CONTEXT_OPENGL && cb->context_type != RETRO_HW_CONTEXT_OPENGL_CORE) {
     if (cb->context_type == RETRO_HW_CONTEXT_NONE) return false;  // melonDS DS announces "no hardware" for software mode
     qCInfo(lcCore) << "Hardware render API" << static_cast<int>(cb->context_type) << "not supported; core falls back to software";
+    fallback(kFallbackUnsupported);
     return false;
   }
   if (!HwRenderContext::allowed()) {
     qCInfo(lcCore) << "Hardware rendering disabled (no GUI application or FRAMEBEAM_DISABLE_HW_RENDER=1); core falls back to software";
+    fallback(qEnvironmentVariable("FRAMEBEAM_DISABLE_HW_RENDER") == QLatin1String("1") ? kFallbackDisabled : kFallbackNoContext);
     return false;
   }
   if (!m_hw) m_hw = std::make_unique<HwRenderContext>();
@@ -429,6 +451,7 @@ bool LibretroBackend::setupHwRender(void* data) {
   const bool core = cb->context_type == RETRO_HW_CONTEXT_OPENGL_CORE;
   if (!m_hw->createContext(core, cb->version_major, cb->version_minor, cb->depth, cb->stencil, &err)) {
     qCWarning(lcCore).noquote() << "Hardware rendering unavailable:" << err << "; core falls back to software";
+    fallback(kFallbackNoContext);
     return false;
   }
   s_hwCtx = m_hw.get();
@@ -439,6 +462,14 @@ bool LibretroBackend::setupHwRender(void* data) {
   m_hwBottomLeft = cb->bottom_left_origin;
   m_hwActive = true;
   m_hwResetDone = false;
+  {
+    QMutexLocker l(&m_renderMutex);
+    m_render.hwRequested = true;
+    m_render.hwActive = true;
+    m_render.fallbackReason.clear();
+    m_render.api = HwRenderContext::describeApi(m_hw->glVersion(), m_hw->isCoreProfile());
+    m_render.gpu = HwRenderContext::describeGpu(m_hw->glRenderer(), m_hw->glVersion());
+  }
   qCInfo(lcCore).noquote() << "Hardware rendering enabled (OpenGL" << (core ? "core" : "compat") << ")," << m_hw->glInfo();
   return true;
 }
@@ -448,6 +479,9 @@ bool LibretroBackend::finishHwSetup(unsigned maxWidth, unsigned maxHeight, QStri
   if (!m_hw->makeCurrent() ||
       !m_hw->ensureSize(static_cast<int>(maxWidth), static_cast<int>(maxHeight))) {
     if (error) *error = QStringLiteral("Hardware render framebuffer could not be created");
+    QMutexLocker l(&m_renderMutex);
+    m_render.hwActive = false;
+    m_render.fallbackReason = QString::fromLatin1(kFallbackNoFramebuffer);
     return false;
   }
   if (m_hwContextReset) m_hwContextReset();
@@ -607,7 +641,9 @@ int16_t LibretroBackend::inputStateCb(unsigned port, unsigned device, unsigned i
 
 void LibretroBackend::handleVideo(const void* data, unsigned width, unsigned height, size_t pitch) {
   if (data == RETRO_HW_FRAME_BUFFER_VALID && m_hwActive && width != 0 && height != 0) {
+    const auto t0 = std::chrono::steady_clock::now();
     const QImage img = m_hw->readback(static_cast<int>(width), static_cast<int>(height), m_hwBottomLeft);
+    m_lastReadbackNs = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - t0).count();
     if (!img.isNull()) m_frame = img;
     ++m_frameCount;
     return;

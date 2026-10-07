@@ -16,6 +16,7 @@
 #include <memory>
 
 #include "emulator_backend.h"
+#include "frame_stats.h"
 
 namespace framebeam::emu {
 
@@ -53,6 +54,11 @@ class EmulationRunner : public QObject {
   QList<CoreOption> coreOptions() const;
   QList<CoreOptionCategory> coreOptionCategories() const;
 
+  // Diagnostics (thread-safe, cheap): measured frame timing of the emulation thread and how the core renders.
+  FrameTimingStats::Snapshot timing() const;
+  RenderInfo renderInfo() const { return m_backend->renderInfo(); }
+  static qint64 monotonicMs();  // the clock of timing()
+
  signals:
   void started(const framebeam::emu::AvInfo& av, const framebeam::emu::CoreInfo& core);
   void startFailed(const QString& error);
@@ -72,6 +78,7 @@ class EmulationRunner : public QObject {
   std::unique_ptr<EmulatorBackend> m_backend;
   std::unique_ptr<Worker> m_worker;
   std::atomic<State> m_state{State::Idle};
+  FrameTimingStats m_timing;
 };
 
 }  // namespace framebeam::emu

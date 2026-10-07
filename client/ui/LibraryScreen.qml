@@ -54,9 +54,9 @@ Rectangle {
                     FbLabel {
                         objectName: "libraryCount"
                         color: Theme.textMuted
-                        font.pixelSize: 13
+                        font.pixelSize: Theme.fontSmall
                         text: root.player.library.count === root.player.library.totalCount
-                              ? qsTr("%1 games").arg(root.player.library.totalCount)
+                              ? qsTr("%n game(s)", "", root.player.library.totalCount)
                               : qsTr("%1 of %2 games").arg(root.player.library.count).arg(root.player.library.totalCount)
                     }
                 }
@@ -75,10 +75,35 @@ Rectangle {
                     implicitWidth: 220
                     implicitHeight: 34
                     font.family: Qt.application.font.family
-                    font.pixelSize: 13
+                    font.pixelSize: Theme.fontSmall
                     placeholderText: qsTr("Search…")
                     onTextChanged: root.player.library.filterText = text
                 }
+            }
+
+            // Filter chips with counts (3c, D14); combined with the search field.
+            RowLayout {
+                objectName: "filterChips"
+                Layout.fillWidth: true
+                spacing: Theme.space8
+                Repeater {
+                    model: [
+                        { name: "filterAll", value: "all", label: qsTr("All"), badge: false },
+                        { name: "filterReady", value: "ready", label: qsTr("Ready"), badge: false },
+                        { name: "filterAttention", value: "attention", label: qsTr("Needs attention"), badge: true },
+                        { name: "filterDownload", value: "download", label: qsTr("Not downloaded"), badge: false }
+                    ]
+                    delegate: FbChip {
+                        required property var modelData
+                        objectName: modelData.name
+                        text: modelData.label
+                        count: root.player.library.counts[modelData.value]
+                        badgeAccent: modelData.badge
+                        active: root.player.library.filter === modelData.value
+                        onClicked: root.player.library.filter = modelData.value
+                    }
+                }
+                Item { Layout.fillWidth: true }
             }
 
             // Core warnings from the handshake (non-blocking)
@@ -101,7 +126,7 @@ Rectangle {
                         verticalAlignment: Text.AlignVCenter
                         text: warn.modelData.text
                         color: Theme.warn
-                        font.pixelSize: 13
+                        font.pixelSize: Theme.fontSmall
                     }
                 }
             }
@@ -147,7 +172,7 @@ Rectangle {
                               ? qsTr("Uploading %1 · %2 %").arg(root.player.upload.fileName).arg(Math.round(root.player.upload.progress * 100))
                               : root.player.upload.message
                         color: root.player.upload.isError ? Theme.errorText : Theme.text
-                        font.pixelSize: 13
+                        font.pixelSize: Theme.fontSmall
                         elide: Text.ElideRight
                     }
                     Rectangle {
@@ -186,7 +211,7 @@ Rectangle {
                     text: root.player.sessions.hubLink === "connecting" ? qsTr("Connecting to the Hub for Sessions…")
                           : qsTr("Hub connection for Sessions lost · reconnecting…")
                     color: Theme.warn
-                    font.pixelSize: 13
+                    font.pixelSize: Theme.fontSmall
                 }
             }
 
@@ -205,7 +230,7 @@ Rectangle {
                         Layout.fillWidth: true
                         text: root.player.sessions.message
                         color: root.player.sessions.messageIsError ? Theme.errorText : Theme.text
-                        font.pixelSize: 13
+                        font.pixelSize: Theme.fontSmall
                         elide: Text.ElideRight
                     }
                     FbButton { kind: "link"; text: qsTr("Dismiss"); onClicked: root.player.sessions.dismissMessage() }
@@ -215,35 +240,6 @@ Rectangle {
             SessionsSection {
                 Layout.fillWidth: true
                 player: root.player
-            }
-
-            RowLayout {
-                spacing: 8
-                Repeater {
-                    model: [
-                        { label: qsTr("All · %1").arg(root.player.library.totalCount), ready: false },
-                        { label: qsTr("Ready · %1").arg(root.player.library.readyCount), ready: true }
-                    ]
-                    delegate: Rectangle {
-                        id: chip
-                        required property var modelData
-                        readonly property bool active: root.player.library.readyOnly === modelData.ready
-                        implicitHeight: 30
-                        implicitWidth: chipLabel.implicitWidth + 28
-                        radius: 15
-                        color: active ? Theme.surfaceRaised : "transparent"
-                        border.width: 1
-                        border.color: active ? Theme.borderButton : Theme.borderInput
-                        FbLabel {
-                            id: chipLabel
-                            anchors.centerIn: parent
-                            text: chip.modelData.label
-                            font.pixelSize: 13
-                            color: chip.active ? Theme.text : Theme.textMuted
-                        }
-                        TapHandler { onTapped: root.player.library.readyOnly = chip.modelData.ready }
-                    }
-                }
             }
 
             Item {
@@ -264,6 +260,8 @@ Rectangle {
                     model: root.player.library
                     boundsBehavior: Flickable.StopAtBounds
                     ScrollBar.vertical: ScrollBar { }
+                    add: Transition { NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.durList } }
+                    displaced: Transition { NumberAnimation { properties: "x,y"; duration: Theme.durList; easing.type: Easing.OutCubic } }
                     delegate: GameTile {
                         width: grid.cellWidth
                         height: grid.cellHeight
@@ -276,18 +274,26 @@ Rectangle {
                     anchors.centerIn: parent
                     spacing: 12
                     visible: !grid.visible
+                    FbSpinner {
+                        Layout.alignment: Qt.AlignHCenter
+                        visible: root.player.libraryState === "loading"
+                        size: 22
+                    }
                     FbLabel {
+                        objectName: "libraryEmptyText"
                         Layout.alignment: Qt.AlignHCenter
                         color: root.player.libraryState === "error" ? Theme.error : Theme.textMuted
-                        font.pixelSize: 14
+                        font.pixelSize: Theme.fontBody
                         text: root.player.libraryState === "loading" ? qsTr("Loading Library…")
                               : root.player.libraryState === "error" ? qsTr("Could not load Library: %1").arg(root.player.libraryError)
                               : root.player.library.totalCount === 0 ? qsTr("This hub has no games yet.")
+                              : root.player.library.filter === "attention" && root.player.library.filterText === "" ? qsTr("Nothing needs attention.")
                               : qsTr("No results.")
                     }
                     FbButton {
                         Layout.alignment: Qt.AlignHCenter
                         visible: root.player.libraryState === "error"
+                        busyOnClick: true
                         text: qsTr("Reload")
                         onClicked: root.player.reloadLibrary()
                     }

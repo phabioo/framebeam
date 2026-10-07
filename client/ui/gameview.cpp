@@ -4,6 +4,7 @@
 #include <QMouseEvent>
 #include <QQuickWindow>
 #include <QSGImageNode>
+#include <QSGNode>
 #include <QSGTexture>
 
 namespace framebeam::ui {
@@ -44,6 +45,26 @@ void GameView::setIntegerScale(bool on) {
   emit integerScaleChanged();
 }
 
+void GameView::setLayout(const QString& layout) {
+  const QString next = isScreenLayout(layout) ? layout : QString::fromLatin1(kLayoutStacked);
+  if (layout_ == next) {
+    return;
+  }
+  layout_ = next;
+  frameDirty_ = true;
+  updateFrameRect();
+  update();
+  emit layoutChanged();
+}
+
+// "Stacked" with a vertical source is the frame as the core delivers it (one texture, the fast and unchanged path).
+bool GameView::splitDrawing() const {
+  if (!session_ || session_->screenCount() < 2) {
+    return false;
+  }
+  return layout_ != QLatin1String(kLayoutStacked) || session_->displayProfile().layout != QLatin1String("vertical");
+}
+
 void GameView::onFrame() {
   if (!session_) {
     return;
@@ -62,7 +83,28 @@ void GameView::updateFrameRect() {
   if (fs.isEmpty() && session_) {
     fs = session_->displayProfile().frameSize();
   }
-  const QRectF r = fitFrame(fs, size(), integerScale_);
+  QRectF r;
+  if (splitDrawing()) {
+    placement_ = placeScreens(session_->displayProfile(), layout_, size(), integerScale_);
+    r = placement_.content;
+  } else {
+    r = fitFrame(fs, size(), integerScale_);
+    placement_ = ScreenPlacement{};
+    if (session_) {
+      const emu::DisplayProfile& prof = session_->displayProfile();
+      for (int i = 0; i < prof.screens.size(); ++i) {
+        const QRect sr = prof.screenRect(i);
+        const QSize base = prof.frameSize();
+        if (base.isEmpty() || r.isEmpty()) {
+          placement_.targets.append(QRectF());
+          continue;
+        }
+        const qreal sx = r.width() / base.width(), sy = r.height() / base.height();
+        placement_.targets.append(QRectF(r.x() + sr.x() * sx, r.y() + sr.y() * sy, sr.width() * sx, sr.height() * sy));
+      }
+      placement_.content = r;
+    }
+  }
   if (r != frameRect_) {
     frameRect_ = r;
     emit frameRectChanged();
@@ -76,10 +118,38 @@ void GameView::geometryChange(const QRectF& newGeometry, const QRectF& oldGeomet
 }
 
 QSGNode* GameView::updatePaintNode(QSGNode* old, UpdatePaintNodeData*) {
-  auto* node = static_cast<QSGImageNode*>(old);
   if (frame_.isNull() || window() == nullptr || frameRect_.isEmpty()) {
-    delete node;
+    delete old;
     return nullptr;
+  }
+  if (splitDrawing()) {
+    // One image node per visible screen, each with its own texture cut out of the frame (a few 100 KB per frame).
+    delete old;
+    auto* group = new QSGNode;
+    const emu::DisplayProfile& prof = session_->displayProfile();
+    for (int i = 0; i < placement_.targets.size(); ++i) {
+      const QRectF target = placement_.targets.at(i);
+      if (target.isEmpty()) {
+        continue;
+      }
+      const QRectF src = screenSourceRect(prof, frame_.size(), i);
+      if (src.isEmpty()) {
+        continue;
+      }
+      auto* n = window()->createImageNode();
+      n->setFiltering(QSGTexture::Nearest);
+      n->setMipmapFiltering(QSGTexture::None);
+      n->setOwnsTexture(true);
+      n->setTexture(window()->createTextureFromImage(frame_.copy(src.toRect())));
+      n->setRect(target);
+      group->appendChildNode(n);
+    }
+    frameDirty_ = false;
+    return group;
+  }
+  auto* node = dynamic_cast<QSGImageNode*>(old);
+  if (node == nullptr && old != nullptr) {
+    delete old;  // the previous tree was a split group
   }
   if (node == nullptr) {
     node = window()->createImageNode();
@@ -137,7 +207,8 @@ void GameView::touch(const QPointF& pos, bool press, bool clamp) {
   if (!session_) {
     return;
   }
-  const auto p = touchToFrame(session_->displayProfile(), frameRect_, pos, clamp);
+  const auto p = splitDrawing() ? touchToFrameFor(session_->displayProfile(), placement_, pos, clamp)
+                                : touchToFrame(session_->displayProfile(), frameRect_, pos, clamp);
   if (!p) {
     return;
   }
@@ -161,7 +232,8 @@ void GameView::mouseMoveEvent(QMouseEvent* e) {
 
 void GameView::mouseReleaseEvent(QMouseEvent* e) {
   if (touching_ && session_) {
-    const auto p = touchToFrame(session_->displayProfile(), frameRect_, e->position(), true);
+    const auto p = splitDrawing() ? touchToFrameFor(session_->displayProfile(), placement_, e->position(), true)
+                                  : touchToFrame(session_->displayProfile(), frameRect_, e->position(), true);
     if (p) {
       session_->setPointer(*p, false);
     }

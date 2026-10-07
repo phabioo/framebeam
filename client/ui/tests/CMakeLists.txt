@@ -54,3 +54,19 @@ framebeam_add_test(ui_save_history save_history_ui_test.cpp ${FB_NETTEST_DIR}/fa
   LIBS ${FB_UI_TEST_LIBS})
 target_include_directories(test_ui_save_history PRIVATE ${FB_NETTEST_DIR})
 target_compile_definitions(test_ui_save_history PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
+
+# Screenshots of the out-of-game screens (design v4); skipped without FRAMEBEAM_SCREENSHOT_DIR.
+framebeam_add_test(ui_screenshots_shell screenshots_shell_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
+  LIBS ${FB_UI_TEST_LIBS})
+target_include_directories(test_ui_screenshots_shell PRIVATE ${FB_NETTEST_DIR})
+target_compile_definitions(test_ui_screenshots_shell PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
+
+# Screen layouts (0.6 D12) and the diagnostics model (0.6 D5-D11): pure logic, no Qt Quick.
+framebeam_add_test(ui_screenlayout screenlayout_test.cpp LIBS framebeam_ui framebeam_core framebeam_emulation)
+framebeam_add_test(ui_diagnostics diagnostics_test.cpp LIBS framebeam_ui framebeam_core framebeam_emulation)
+
+# Screenshots of the game view with fake data (0.6): QSKIP unless FRAMEBEAM_SCREENSHOT_DIR is set; no core needed.
+framebeam_add_test(ui_screenshots_game screenshots_game_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
+  LIBS ${FB_UI_TEST_LIBS})
+target_include_directories(test_ui_screenshots_game PRIVATE ${FB_NETTEST_DIR})
+target_compile_definitions(test_ui_screenshots_game PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")

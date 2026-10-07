@@ -10,6 +10,8 @@ qt_add_qml_module(framebeam_ui
   OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/FrameBeam/Player
   SOURCES
     inputmapping.h inputmapping.cpp
+    screenlayout.h screenlayout.cpp
+    diagnosticsmodel.h diagnosticsmodel.cpp
     emulationcontroller.h emulationcontroller.cpp
     controllerscontroller.h controllerscontroller.cpp
     audiooutput.h audiooutput.cpp
@@ -29,6 +31,11 @@ qt_add_qml_module(framebeam_ui
     FbButton.qml
     FbToggle.qml
     FbField.qml
+    FbPill.qml
+    FbChip.qml
+    FbSpinner.qml
+    ShellColumn.qml
+    ColumnItem.qml
     Logo.qml
     StatusDot.qml
     Eyebrow.qml
@@ -47,7 +54,15 @@ qt_add_qml_module(framebeam_ui
     SessionsSection.qml
     SessionPanel.qml
     MultiviewArea.qml
-    DiagnosticsPanel.qml
+    Sparkline.qml
+    DiagSection.qml
+    DiagRow.qml
+    DiagParticipants.qml
+    DiagFooter.qml
+    DiagnosticsOverlay.qml
+    DiagnosticsBar.qml
+    LayoutSwitch.qml
+    KeyHintButton.qml
     FbSelect.qml
     EmulationScreen.qml
     ControllersScreen.qml

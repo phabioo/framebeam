@@ -78,6 +78,26 @@ QString UpdatesController::lastCheckText() const {
   return t.isValid() ? QLocale().toString(t, QLocale::ShortFormat) : tr("never");
 }
 
+bool UpdatesController::updateAvailable() const {
+  if (manager_.availableVersion().isEmpty()) return false;
+  switch (manager_.state()) {
+    case UpdateManager::State::Available:
+    case UpdateManager::State::Downloading:
+    case UpdateManager::State::Ready:
+    case UpdateManager::State::Applying: return true;
+    default: return false;
+  }
+}
+
+// Cadence of the periodic check (core/updater.cpp: timer 1 h on Beta, 24 h on Stable).
+QString UpdatesController::cadenceText() const {
+  switch (manager_.effectiveChannel()) {
+    case update::Channel::Beta: return tr("checks every hour while the Player runs");
+    case update::Channel::Stable: return tr("checks every 24 hours while the Player runs");
+    default: return {};
+  }
+}
+
 bool UpdatesController::canInstall() const {
   const auto s = manager_.state();
   return manager_.applySupported() && (s == UpdateManager::State::Available || s == UpdateManager::State::Ready) &&

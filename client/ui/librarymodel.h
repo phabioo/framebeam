@@ -3,7 +3,9 @@
 
 #include <QAbstractListModel>
 #include <QList>
+#include <QHash>
 #include <QString>
+#include <QVariantMap>
 #include <QtQml/qqmlregistration.h>
 #include <functional>
 #include <optional>
@@ -19,6 +21,11 @@ class LibraryModel : public QAbstractListModel {
   QML_UNCREATABLE("Provided by the PlayerController")
   Q_PROPERTY(QString filterText READ filterText WRITE setFilterText NOTIFY filterChanged)
   Q_PROPERTY(bool readyOnly READ readyOnly WRITE setReadyOnly NOTIFY filterChanged)
+  // Filter chips of the Library (3c): "all" | "ready" | "attention" | "download". Combined with filterText.
+  Q_PROPERTY(QString filter READ filter WRITE setFilter NOTIFY filterChanged)
+  // Counts of the chips: {all, ready, attention, download}. Every game is in exactly one of the last three
+  // (attention wins, then ready), so they add up to all.
+  Q_PROPERTY(QVariantMap counts READ counts NOTIFY countChanged)
   Q_PROPERTY(int count READ rowCount NOTIFY countChanged)
   Q_PROPERTY(int totalCount READ totalCount NOTIFY countChanged)
   Q_PROPERTY(int readyCount READ readyCount NOTIFY countChanged)
@@ -35,7 +42,10 @@ class LibraryModel : public QAbstractListModel {
     StatusToneRole,   // ok | neutral | warn | error
     ProgressRole,     // 0..1, only meaningful for downloading
     SyncKindRole,     // none | synced | pending | conflict (save sync)
-    SyncTextRole      // "Synced" | "Sync pending" | "Conflict" | ""
+    SyncTextRole,     // "Synced" | "Sync pending" | "Conflict" | ""
+    TileTextRole,     // status line of the tile per 3c, with leading symbol ("● Ready", "▲ Save conflict", ...)
+    TileToneRole,     // ok | neutral | warn | error
+    NeedsAttentionRole  // bool, see attentionOf()
   };
   Q_ENUM(Roles)
 
@@ -47,10 +57,17 @@ class LibraryModel : public QAbstractListModel {
 
   QString filterText() const { return filterText_; }
   void setFilterText(const QString& t);
-  bool readyOnly() const { return readyOnly_; }
+  bool readyOnly() const { return filter_ == QLatin1String("ready"); }
   void setReadyOnly(bool on);
   int totalCount() const { return static_cast<int>(items_.size()); }
   int readyCount() const;
+  QString filter() const { return filter_; }
+  void setFilter(const QString& filter);
+  QVariantMap counts() const;
+  // "Needs attention" (D14): save conflict, hash mismatch, core missing/incompatible, firmware missing.
+  // Core and firmware problems come from the PlayerController (game id -> short text); sync pending is not attention.
+  void setAttention(const QHash<QString, QString>& byGameId);
+  QString attentionText(const QString& gameId) const;
 
   void setGames(const QList<GameEntry>& games, const std::function<RomStatus(const GameEntry&)>& statusOf);
   void clear();
@@ -76,14 +93,18 @@ class LibraryModel : public QAbstractListModel {
     GameEntry game;
     RomStatus status;
     QString sync = QStringLiteral("none");
+    QString attention;  // core / firmware problem
   };
+  enum class Category { Ready, Attention, Download };
+  static Category categoryOf(const Item& it);
+  static QString attentionOf(const Item& it);  // short reason, empty = none
   bool matches(const Item& it) const;
   void rebuild();
 
   QList<Item> items_;
   QList<int> visible_;  // indices into items_
   QString filterText_;
-  bool readyOnly_ = false;
+  QString filter_ = QStringLiteral("all");
 };
 
 }  // namespace framebeam::ui

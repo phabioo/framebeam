@@ -35,7 +35,7 @@ Rectangle {
                 Layout.bottomMargin: 8
                 FbLabel {
                     text: qsTr("Add hub")
-                    font.pixelSize: 30
+                    font.pixelSize: Theme.fontHero
                     font.weight: Font.DemiBold
                     font.letterSpacing: -0.6
                 }
@@ -46,7 +46,7 @@ Rectangle {
             StepCard {
                 Layout.fillWidth: true
                 objectName: "stepHub"
-                title: root.info.hubKnown ? qsTr("Hub found") : qsTr("Searching for hub…")
+                title: root.info.hubKnown ? qsTr("Hub detected") : qsTr("Searching for hub…")
                 stage: root.info.hubKnown ? "done" : "active"
                 FbMono {
                     visible: root.info.hubKnown
@@ -73,7 +73,7 @@ Rectangle {
                     Layout.fillWidth: true
                     text: root.info.fingerprint
                     color: Theme.text
-                    font.pixelSize: 12
+                    font.pixelSize: Theme.fontMeta
                     lineHeight: 1.35
                 }
                 FbLabel {
@@ -81,7 +81,7 @@ Rectangle {
                     Layout.fillWidth: true
                     text: qsTr("SHA-256 fingerprint of the hub certificate. Compare it with the one shown in the hub and trust it only if both match. If the certificate changes later, the connection is blocked.")
                     color: Theme.textMuted
-                    font.pixelSize: 12
+                    font.pixelSize: Theme.fontMeta
                     wrapMode: Text.WordWrap
                 }
                 RowLayout {
@@ -91,6 +91,7 @@ Rectangle {
                     FbButton {
                         objectName: "trustButton"
                         kind: "primary"
+                        busyOnClick: true
                         text: qsTr("Trust fingerprint")
                         onClicked: root.player.confirmTrust()
                     }
@@ -106,7 +107,7 @@ Rectangle {
                     text: root.info.tls ? qsTr("Saved. If the certificate changes later, the connection is blocked.")
                                         : qsTr("Development only: this hub is contacted without TLS, so there is no fingerprint.")
                     color: Theme.textMuted
-                    font.pixelSize: 12
+                    font.pixelSize: Theme.fontMeta
                     wrapMode: Text.WordWrap
                 }
             }
@@ -161,7 +162,7 @@ Rectangle {
                         Layout.fillWidth: true
                         text: qsTr("The invite code comes from the Hub admin and works once. Your user is created on this Hub with the name above.")
                         color: Theme.textMuted
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.fontMeta
                         wrapMode: Text.WordWrap
                     }
                 }
@@ -179,14 +180,14 @@ Rectangle {
                         spacing: 2
                         FbLabel {
                             text: root.phase === "authenticating" ? qsTr("Signing in…") : qsTr("Waiting for admin approval")
-                            font.pixelSize: 14
+                            font.pixelSize: Theme.fontBody
                             font.weight: Font.Medium
                         }
                         FbLabel {
                             visible: root.phase === "awaiting"
                             text: qsTr("The request appears in the hub under Clients.")
                             color: Theme.textMuted
-                            font.pixelSize: 12
+                            font.pixelSize: Theme.fontMeta
                         }
                     }
                 }
@@ -196,7 +197,7 @@ Rectangle {
                     Layout.fillWidth: true
                     text: qsTr("This device is not yet approved on the hub. The hub admin must confirm the request.")
                     color: Theme.textMuted
-                    font.pixelSize: 12
+                    font.pixelSize: Theme.fontMeta
                     wrapMode: Text.WordWrap
                 }
                 Rectangle {
@@ -205,14 +206,14 @@ Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: problemText.implicitHeight + 24
                     radius: 8
-                    color: root.phase === "denied" ? Theme.errorBg : Theme.warnBg
+                    color: root.phase === "denied" ? Theme.errorBg : Theme.infoBg
                     FbLabel {
                         id: problemText
                         anchors.fill: parent
                         anchors.margins: 12
                         wrapMode: Text.WordWrap
-                        font.pixelSize: 13
-                        color: root.phase === "denied" ? Theme.errorText : Theme.text
+                        font.pixelSize: Theme.fontSmall
+                        color: root.phase === "denied" ? Theme.errorText : Theme.infoText
                         text: root.phase === "denied" ? qsTr("The request was denied by the admin.")
                                                       : qsTr("The request has expired. Please request again.")
                     }
@@ -222,7 +223,7 @@ Rectangle {
                     Layout.fillWidth: true
                     text: root.info.error
                     color: Theme.error
-                    font.pixelSize: 12
+                    font.pixelSize: Theme.fontMeta
                     wrapMode: Text.WordWrap
                 }
 
@@ -248,6 +249,7 @@ Rectangle {
                         objectName: "requestButton"
                         visible: root.canChoose && !root.inviteMode
                         kind: "primary"
+                        busyOnClick: true
                         text: root.phase === "needsPairing" ? qsTr("Request approval") : qsTr("Request again")
                         onClicked: root.player.requestPairing()
                     }
@@ -257,6 +259,7 @@ Rectangle {
                         visible: root.canChoose && root.inviteMode
                         kind: "primary"
                         enabled: !root.info.inviteBusy
+                        busy: root.info.inviteBusy
                         text: root.info.inviteBusy ? qsTr("Redeeming…") : qsTr("Redeem invite")
                         onClicked: root.player.redeemInvite(inviteCodeField.text, inviteNameField.text)
                     }

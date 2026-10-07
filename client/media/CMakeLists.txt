@@ -56,6 +56,7 @@ target_include_directories(framebeam_media PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(framebeam_media PUBLIC framebeam_core framebeam_audioutil framebeam_media_deps Qt6::Gui)
 framebeam_warnings(framebeam_media)
 
+framebeam_add_test(media_viewer_reports tests/viewerreports_test.cpp LIBS framebeam_media)
 framebeam_add_test(media_opus_depacketizer tests/opusdepacketizer_test.cpp LIBS framebeam_media)
 framebeam_add_test(media_loopback tests/loopback_test.cpp LIBS framebeam_media)
 framebeam_add_test(media_bitrate tests/bitratecontroller_test.cpp LIBS framebeam_media)

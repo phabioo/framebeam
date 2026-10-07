@@ -29,6 +29,15 @@ class PlayerSettings {
   std::optional<bool> updateAutoInstall() const { return updateAutoInstall_; }
   bool setUpdateAutoInstall(bool on);
 
+  // Diagnostics overlay (0.6 D5): open/closed state of the overlay and of its two sections, shared by the window,
+  // multiview and fullscreen. Defaults: overlay closed, Emulation section open, Streaming section open.
+  bool diagnosticsOpen() const { return diagOpen_; }
+  bool diagnosticsEmulationOpen() const { return diagEmulationOpen_; }
+  bool diagnosticsStreamingOpen() const { return diagStreamingOpen_; }
+  bool setDiagnosticsOpen(bool open);
+  bool setDiagnosticsEmulationOpen(bool open);
+  bool setDiagnosticsStreamingOpen(bool open);
+
   // Chosen save slot per Hub profile and game (ADR 0012 D7); "default" when nothing valid is stored.
   QString saveSlot(const QString& hubId, const QString& gameId) const;
   bool setSaveSlot(const QString& hubId, const QString& gameId, const QString& slot);  // false: invalid name or not writable
@@ -41,6 +50,9 @@ class PlayerSettings {
   Appearance appearance_ = Appearance::Dark;
   QString updateChannel_;
   std::optional<bool> updateAutoInstall_;
+  bool diagOpen_ = false;
+  bool diagEmulationOpen_ = true;
+  bool diagStreamingOpen_ = true;
 };
 
 }  // namespace framebeam

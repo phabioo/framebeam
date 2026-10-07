@@ -201,6 +201,66 @@ class ProfileStoreTest : public QObject {
     QVERIFY(c.remove(QStringLiteral("t")));
     QVERIFY(!c.read(QStringLiteral("t")).has_value());
   }
+  void hubAddressValidatorMessages() {
+    const auto msgs = [](const char* host, const char* port) { return ProfileStore::validateHubAddress(QString::fromUtf8(host), QString::fromUtf8(port)); };
+    QVERIFY(msgs("hub.example.com", "8443").isEmpty());
+    QVERIFY(msgs("hub-1.local", "1").isEmpty());
+    QVERIFY(msgs("[::1]", "65535").isEmpty());
+    QCOMPARE(msgs("", "8443"), QStringList{QStringLiteral("Enter an address")});
+    QCOMPARE(msgs("   ", "8443"), QStringList{QStringLiteral("Enter an address")});
+    QCOMPARE(msgs("https://hub.example.com", "8443"), QStringList{QStringLiteral("Leave out https:// — host name only")});
+    QCOMPARE(msgs("hub example.com", "8443"), QStringList{QStringLiteral("No spaces in the address")});
+    QCOMPARE(msgs("hub.example.com:8443", "8443"), QStringList{QStringLiteral("Put the port in the port field")});
+    QCOMPARE(msgs("hub_example.com", "8443"), QStringList{QStringLiteral("Only letters, digits, dots and hyphens")});
+    QCOMPARE(msgs("hub.example.com/path", "8443"), QStringList{QStringLiteral("Only letters, digits, dots and hyphens")});
+    QCOMPARE(msgs("[zz]", "8443"), QStringList{QStringLiteral("Only letters, digits, dots and hyphens")});
+    const QString portMsg = QStringLiteral("Port must be a number from 1 to 65535");
+    QCOMPARE(msgs("hub.example.com", ""), QStringList{portMsg});
+    QCOMPARE(msgs("hub.example.com", "0"), QStringList{portMsg});
+    QCOMPARE(msgs("hub.example.com", "65536"), QStringList{portMsg});
+    QCOMPARE(msgs("hub.example.com", "84a3"), QStringList{portMsg});
+    // Both fields invalid: the messages add up (the UI joins them with " · ").
+    QCOMPARE(msgs("", "x"), (QStringList{QStringLiteral("Enter an address"), portMsg}));
+  }
+
+  void editHubKeepsIdentityFingerprintAndCredential() {
+    QTemporaryDir dir;
+    HubProfile p;
+    p.hubId = QStringLiteral("hub-1");
+    p.name = QStringLiteral("Home");
+    p.address = QStringLiteral("https://hub.example.com:8443");
+    p.hubUserId = QStringLiteral("u_1");
+    p.deviceId = QStringLiteral("dev");
+    p.credentialRef = credentialTarget(p.hubId, p.deviceId);
+    p.pinnedFingerprint = QStringLiteral("AA:BB:CC");
+    HubProfile other = p;
+    other.hubId = QStringLiteral("hub-2");
+    other.address = QStringLiteral("https://hub.local:8443");
+    {
+      ProfileStore s(dir.path());
+      QVERIFY(s.upsertProfile(p));
+      QVERIFY(s.upsertProfile(other));
+      QVERIFY(!s.updateHubAddress(QStringLiteral("hub-1"), QStringLiteral("hub.local"), 8443));  // taken by hub-2
+      QVERIFY(!s.updateHubAddress(QStringLiteral("hub-1"), QStringLiteral("bad host"), 8443));   // invalid
+      QVERIFY(!s.updateHubAddress(QStringLiteral("nope"), QStringLiteral("hub2.example.com"), 8443));
+      QCOMPARE(s.profile(QStringLiteral("hub-1"))->address, p.address);
+      QVERIFY(s.updateHubAddress(QStringLiteral("hub-1"), QStringLiteral("hub2.example.com"), 9443));
+    }
+    ProfileStore again(dir.path());
+    const auto q = again.profile(QStringLiteral("hub-1"));
+    QVERIFY(q.has_value());
+    QCOMPARE(q->address, QStringLiteral("https://hub2.example.com:9443"));
+    QCOMPARE(q->name, p.name);
+    QCOMPARE(q->hubUserId, p.hubUserId);
+    QCOMPARE(q->deviceId, p.deviceId);
+    QCOMPARE(q->credentialRef, p.credentialRef);
+    QCOMPARE(q->pinnedFingerprint, p.pinnedFingerprint);
+    QString host;
+    int port = 0;
+    ProfileStore::splitAddress(q->address, &host, &port);
+    QCOMPARE(host, QStringLiteral("hub2.example.com"));
+    QCOMPARE(port, 9443);
+  }
 };
 
 QTEST_GUILESS_MAIN(ProfileStoreTest)

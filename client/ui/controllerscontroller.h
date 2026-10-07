@@ -25,7 +25,7 @@ class ControllersController : public QObject {
 
   Q_PROPERTY(bool gamepadAvailable READ gamepadAvailable CONSTANT)  // SDL gamepad subsystem initialised
   Q_PROPERTY(QString gamepadNote READ gamepadNote CONSTANT)         // why gamepads are off, else empty
-  // [{key, kind: gamepad|keyboard|mouse, name, slot, profile}]
+  // [{key, kind: gamepad|keyboard|mouse, name, slot, profile, connected, status}]
   Q_PROPERTY(QVariantList devices READ devices NOTIFY devicesChanged)
   Q_PROPERTY(QString selectedDevice READ selectedDevice NOTIFY selectionChanged)
   Q_PROPERTY(QVariantMap device READ device NOTIFY selectionChanged)  // selected device row
@@ -34,8 +34,9 @@ class ControllersController : public QObject {
   Q_PROPERTY(QString profileId READ profileId NOTIFY profilesChanged)
   Q_PROPERTY(QString profileName READ profileName NOTIFY profilesChanged)
   Q_PROPERTY(bool profileBuiltin READ profileBuiltin NOTIFY profilesChanged)
-  // [{input, label, target, binding, mapped, listening}]; empty for the mouse
+  // [{input, label, target, binding, mapped, changed, listening}]; empty for the mouse
   Q_PROPERTY(QVariantList rows READ rows NOTIFY rowsChanged)
+  Q_PROPERTY(int changedCount READ changedCount NOTIFY rowsChanged)  // bindings that differ from the default profile
   Q_PROPERTY(QString listening READ listening NOTIFY rowsChanged)  // input id waiting for "Press a button…"
   Q_PROPERTY(bool supportsLid READ supportsLid CONSTANT)           // no input profile has a lid input yet
   // System-specific labels from the system manifest (column header, touch input name).
@@ -63,6 +64,7 @@ class ControllersController : public QObject {
   bool profileBuiltin() const;
   QVariantList rows() const;
   QString listening() const { return listening_; }
+  int changedCount() const;
   bool supportsLid() const { return false; }
   QStringList activeInputs() const;
   QString systemLabel() const { return systemLabel_; }
@@ -81,6 +83,7 @@ class ControllersController : public QObject {
   Q_INVOKABLE void beginCapture(const QString& inputId);
   Q_INVOKABLE void cancelCapture();
   Q_INVOKABLE void clearBinding(const QString& inputId);
+  Q_INVOKABLE void resetBinding(const QString& inputId);  // one input back to the default profile's binding
   // Keyboard: key while capturing (true = consumed; Escape cancels) / while testing (state of the tiles).
   Q_INVOKABLE bool captureKey(int qtKey);
   Q_INVOKABLE void testKey(int qtKey, bool pressed);

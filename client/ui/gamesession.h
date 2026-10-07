@@ -6,7 +6,10 @@
 #include <QMap>
 #include <QObject>
 #include <QPointF>
+#include <QSize>
 #include <QString>
+#include <QStringList>
+#include <QVector>
 #include <QtQml/qqmlregistration.h>
 #include <memory>
 
@@ -16,6 +19,33 @@
 #include "system_manifest.h"
 
 namespace framebeam::ui {
+
+// Measurements of the running game for the diagnostics overlay (0.6 D6), assembled on the UI thread from the thread-safe
+// values of the emulation runner and the audio output. `valid` = a game runs (or a preview was set).
+struct EmulationDiagnostics {
+  bool valid = false;
+  QString core;                  // "melonDS DS 1.4.0"
+  bool hwRequested = false;      // the core asked for a hardware (OpenGL) context
+  bool hwActive = false;         // ... and it runs on it
+  QString api;                   // "OpenGL 4.6 Core" while hwActive
+  QString gpu;                   // "Example GPU · Driver 1.2.3" while hwActive
+  QString fallbackReason;        // hardware requested but software runs: why (emu::kFallback*)
+  QSize frameSize;               // size of the frame the core delivers (all screens)
+  QSize baseSize;                // size of the frame at 1x (system manifest)
+  int screens = 0;
+  int requestedScale = 0;        // internal resolution the core option asks for (0 = no such option)
+  int cpuThreads = 0;            // logical CPU threads (software renderer subline)
+  double fps = 0;                // actual, sliding 1 s window; 0 while nothing runs (paused)
+  double targetFps = 0;          // from the core
+  double frameMs = 0;            // mean total frame time
+  double emuMs = 0;              // ... of which the core
+  double readbackMs = 0;         // ... of which GPU readback (0 for software)
+  QVector<float> totalHistory;   // last 5 s, ms per frame
+  QVector<float> emuHistory;
+  bool audioActive = false;      // an audio output device is open
+  double audioBufferMs = 0;
+  int underruns = 0;
+};
 
 class GameSession : public QObject {
   Q_OBJECT
@@ -27,6 +57,9 @@ class GameSession : public QObject {
   Q_PROPERTY(bool active READ isActive NOTIFY stateChanged)
   Q_PROPERTY(bool paused READ isPaused NOTIFY stateChanged)
   Q_PROPERTY(bool hasFrame READ hasFrame NOTIFY frameChanged)
+  // Screens of the running system (system manifest) and the layouts the in-game switch offers for them (D12).
+  Q_PROPERTY(int screenCount READ screenCount NOTIFY stateChanged)
+  Q_PROPERTY(QStringList screenLayouts READ screenLayouts NOTIFY stateChanged)
  public:
   enum State { Idle, Starting, Running, Paused, Failed };
   Q_ENUM(State)
@@ -54,6 +87,16 @@ class GameSession : public QObject {
   quint64 frameNumber() const { return frameNr_; }
   const emu::DisplayProfile& displayProfile() const { return display_; }
   const AudioOutput& audio() const { return audio_; }
+  int screenCount() const { return static_cast<int>(display_.screens.size()); }
+  QStringList screenLayouts() const;
+
+  // F11, F3, F5 (and Escape in the game view) belong to the Player: never mapped to a joypad button, never forwarded.
+  static bool isReservedKey(int qtKey);
+
+  // Diagnostics overlay: thread-safe reads of the emulation thread's measurements, UI thread only.
+  EmulationDiagnostics diagnostics() const;
+  // Tests and screenshots: pretend a running game without a core (title, frame, profile) and fixed measurements.
+  void setPreview(const QString& title, const QImage& frame, const emu::DisplayProfile& profile, const EmulationDiagnostics& diag);
 
   void start(const LaunchConfig& config);
 
@@ -72,7 +115,7 @@ class GameSession : public QObject {
   quint32 joypadMask() const { return keys_.mask() | pad_; }
   void setPointer(const QPointF& frameNormalized, bool pressed);
   // Multiview: exactly one surface is audible. A muted session keeps running, its audio is dropped.
-  void setAudioMuted(bool muted) { audioMuted_ = muted; }
+  void setAudioMuted(bool muted);
   bool audioMuted() const { return audioMuted_; }
 
  signals:
@@ -103,6 +146,11 @@ class GameSession : public QObject {
   State state_ = Idle;
   bool startedEmitted_ = false;
   bool audioMuted_ = false;
+  QString coreName_;
+  double targetFps_ = 0;
+  QMap<QString, QString> coreOptions_;  // as launched (requested internal resolution)
+  bool preview_ = false;
+  EmulationDiagnostics previewDiag_;
 };
 
 }  // namespace framebeam::ui

@@ -9,10 +9,11 @@ Rectangle {
     default property alias content: body.data
 
     implicitHeight: row.implicitHeight + 32
-    radius: 10
+    radius: Theme.radius10
     color: Theme.surface
     border.width: stage === "active" ? 1.5 : 1
     border.color: stage === "active" ? Theme.accent : Theme.borderCard
+    Behavior on border.color { ColorAnimation { duration: Theme.durFast } }
 
     RowLayout {
         id: row
@@ -44,7 +45,7 @@ Rectangle {
             FbLabel {
                 Layout.fillWidth: true
                 text: card.title
-                font.pixelSize: 15
+                font.pixelSize: Theme.fontSection
                 font.weight: Font.DemiBold
                 color: card.stage === "pending" ? Theme.textFaint : Theme.text
             }

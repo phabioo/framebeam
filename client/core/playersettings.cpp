@@ -14,6 +14,9 @@ namespace {
 constexpr const char* kAppearanceKey = "appearance";
 constexpr const char* kUpdateChannelKey = "update_channel";
 constexpr const char* kUpdateAutoKey = "update_auto_install";
+constexpr const char* kDiagOpenKey = "diagnostics_open";
+constexpr const char* kDiagEmulationKey = "diagnostics_emulation_open";
+constexpr const char* kDiagStreamingKey = "diagnostics_streaming_open";
 constexpr const char* kSaveSlotsKey = "save_slots";  // { hub_id: { game_id: slot } }
 }
 
@@ -38,6 +41,9 @@ PlayerSettings::PlayerSettings(const QString& baseDir)
   if (raw_.value(QLatin1String(kUpdateAutoKey)).isBool()) {
     updateAutoInstall_ = raw_.value(QLatin1String(kUpdateAutoKey)).toBool();
   }
+  diagOpen_ = raw_.value(QLatin1String(kDiagOpenKey)).toBool(false);
+  diagEmulationOpen_ = raw_.value(QLatin1String(kDiagEmulationKey)).toBool(true);
+  diagStreamingOpen_ = raw_.value(QLatin1String(kDiagStreamingKey)).toBool(true);
 }
 
 QString PlayerSettings::appearanceName(Appearance a) {
@@ -80,6 +86,24 @@ bool PlayerSettings::setUpdateChannel(const QString& channelIn) {
 bool PlayerSettings::setUpdateAutoInstall(bool on) {
   updateAutoInstall_ = on;
   raw_.insert(QLatin1String(kUpdateAutoKey), on);
+  return save();
+}
+
+bool PlayerSettings::setDiagnosticsOpen(bool open) {
+  diagOpen_ = open;
+  raw_.insert(QLatin1String(kDiagOpenKey), open);
+  return save();
+}
+
+bool PlayerSettings::setDiagnosticsEmulationOpen(bool open) {
+  diagEmulationOpen_ = open;
+  raw_.insert(QLatin1String(kDiagEmulationKey), open);
+  return save();
+}
+
+bool PlayerSettings::setDiagnosticsStreamingOpen(bool open) {
+  diagStreamingOpen_ = open;
+  raw_.insert(QLatin1String(kDiagStreamingKey), open);
   return save();
 }
 

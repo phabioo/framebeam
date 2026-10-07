@@ -3,12 +3,14 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import FrameBeam.Player
 
-// 3g: side panel (340) of the game view: visibility, watchers/invites, share/stop, diagnostics.
+// 3g: side panel (340) of the game view: visibility, invited/watching with connection pills and relay hint, invite
+// search, save slot with snapshot, Stop sharing, Quit game and save, diagnostics toggle.
 Rectangle {
     id: root
     required property PlayerController player
     readonly property SessionController ctl: player.sessions
-    property bool showDiagnostics: false
+    readonly property SaveHistoryController saves: player.saveHistory
+    readonly property DiagnosticsModel diag: ctl.diagnostics
     objectName: "sessionPanel"
     color: Theme.gameHeader
     implicitWidth: 340
@@ -17,8 +19,11 @@ Rectangle {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 24
-        spacing: 16
+        anchors.topMargin: 20
+        anchors.bottomMargin: 20
+        anchors.leftMargin: 24
+        anchors.rightMargin: 24
+        spacing: 14
 
         Flickable {
             id: flick
@@ -32,7 +37,7 @@ Rectangle {
             ColumnLayout {
                 id: col
                 width: flick.width
-                spacing: 18
+                spacing: 14
 
                 Rectangle {
                     objectName: "panelHubBanner"
@@ -40,14 +45,14 @@ Rectangle {
                     visible: root.ctl.hubLink !== "online"
                     implicitHeight: bannerText.implicitHeight + 16
                     radius: 8
-                    color: Theme.warnBg
+                    color: Theme.accentChipBg
                     FbLabel {
                         id: bannerText
                         anchors.fill: parent
                         anchors.margins: 8
                         wrapMode: Text.WordWrap
                         font.pixelSize: 12
-                        color: Theme.warn
+                        color: Theme.accent
                         text: root.ctl.shared ? qsTr("Hub not reachable · reconnecting. The running Session continues until the Hub ends it.")
                                               : qsTr("Hub not reachable · reconnecting. Sharing needs a Hub connection.")
                     }
@@ -68,46 +73,6 @@ Rectangle {
                         font.pixelSize: 12
                         color: root.ctl.messageIsError ? Theme.errorText : Theme.gameText
                         text: root.ctl.message
-                    }
-                }
-
-                // Manual save snapshot (saves_v2): a changed save is uploaded first
-                ColumnLayout {
-                    objectName: "gameSnapshotBlock"
-                    Layout.fillWidth: true
-                    Layout.minimumWidth: 0
-                    Layout.maximumWidth: col.width
-                    visible: root.player.gameSession.active && root.player.saveHistory.available
-                    spacing: 8
-                    Eyebrow { text: qsTr("Save") }
-                    FbField {
-                        id: gameSnapshotLabel
-                        objectName: "gameSnapshotLabel"
-                        Layout.fillWidth: true
-                        implicitHeight: 34
-                        placeholderText: qsTr("Snapshot label (optional)")
-                        maximumLength: 64
-                    }
-                    FbButton {
-                        objectName: "gameSnapshotButton"
-                        Layout.fillWidth: true
-                        implicitHeight: 34
-                        focusPolicy: Qt.NoFocus
-                        text: root.player.saveHistory.busy ? qsTr("Creating snapshot…") : qsTr("Create snapshot")
-                        enabled: !root.player.saveHistory.busy
-                        onClicked: {
-                            root.player.saveHistory.createSnapshotInGame(gameSnapshotLabel.text)
-                            gameSnapshotLabel.text = ""
-                        }
-                    }
-                    FbLabel {
-                        objectName: "gameSnapshotMessage"
-                        visible: root.player.saveHistory.message !== ""
-                        Layout.fillWidth: true
-                        text: root.player.saveHistory.message
-                        wrapMode: Text.WordWrap
-                        font.pixelSize: 12
-                        color: root.player.saveHistory.messageIsError ? Theme.error : Theme.ok
                     }
                 }
 
@@ -136,18 +101,17 @@ Rectangle {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         wrapMode: Text.WordWrap
-                        text: qsTr("Your own devices can always watch.")
+                        text: !root.ctl.shared ? qsTr("Not shared yet. Choose who may watch, then share the Session.")
+                                               : qsTr("Your own devices can always watch.")
                         font.pixelSize: 11
                         color: Theme.gameTextMuted
                     }
                 }
 
-                // Watchers / invites (only while shared)
+                // Invited / watching (only while shared)
                 ColumnLayout {
                     objectName: "participantsBlock"
                     Layout.fillWidth: true
-                    // Never wider than the panel: a header row whose labels need more room (no fonts, long
-                    // translations) must elide instead of pushing the action buttons out of the viewport.
                     Layout.minimumWidth: 0
                     Layout.maximumWidth: col.width
                     visible: root.ctl.shared
@@ -160,7 +124,7 @@ Rectangle {
                             Layout.minimumWidth: 0
                             horizontalAlignment: Text.AlignRight
                             elide: Text.ElideRight
-                            text: qsTr("only you can change")
+                            text: qsTr("only you can change this")
                             font.pixelSize: 11
                             color: Theme.gameTextMuted
                         }
@@ -178,7 +142,7 @@ Rectangle {
                             required property var modelData
                             objectName: "participant_" + modelData.id
                             Layout.fillWidth: true
-                            spacing: 10
+                            spacing: 8
                             StatusDot { tone: prow.modelData.online ? "ok" : "neutral" }
                             ColumnLayout {
                                 // The text column may shrink below its content so the action button always stays inside the panel.
@@ -189,14 +153,48 @@ Rectangle {
                                 FbLabel { Layout.fillWidth: true; elide: Text.ElideRight; text: prow.modelData.name; font.pixelSize: 14; color: Theme.gameText }
                                 FbLabel { Layout.fillWidth: true; elide: Text.ElideRight; objectName: "participantStatus"; text: prow.modelData.status; font.pixelSize: 12; color: Theme.gameTextMuted }
                             }
+                            FbPill {
+                                objectName: "participantPill"
+                                visible: prow.modelData.kind === "viewer" && !!prow.modelData.connection
+                                small: true
+                                text: prow.modelData.connection || ""
+                                tone: prow.modelData.connectionTone || "neutral"
+                            }
                             FbButton {
                                 objectName: (prow.modelData.kind === "viewer" ? "remove_" : "withdraw_") + prow.modelData.id
                                 implicitHeight: 30
+                                implicitWidth: Math.max(60, implicitContentWidth + 20)
                                 font.pixelSize: 12
                                 focusPolicy: Qt.NoFocus
                                 text: prow.modelData.action
                                 onClicked: prow.modelData.kind === "viewer" ? root.ctl.removeViewer(prow.modelData.id)
                                                                            : root.ctl.withdrawInvite(prow.modelData.id)
+                            }
+                        }
+                    }
+                    // Relay hint (D9)
+                    Rectangle {
+                        objectName: "relayHint"
+                        Layout.fillWidth: true
+                        visible: root.ctl.relayHint !== ""
+                        implicitHeight: relayRow.implicitHeight + 18
+                        radius: 8
+                        color: Theme.infoBg
+                        border.width: 1
+                        border.color: Theme.infoBorder
+                        RowLayout {
+                            id: relayRow
+                            anchors.fill: parent
+                            anchors.margins: 9
+                            spacing: 8
+                            FbLabel { text: "ⓘ"; font.pixelSize: 12; color: Theme.accent; Layout.alignment: Qt.AlignTop }
+                            FbLabel {
+                                objectName: "relayHintText"
+                                Layout.fillWidth: true
+                                text: root.ctl.relayHint
+                                wrapMode: Text.WordWrap
+                                font.pixelSize: 12
+                                color: Theme.infoText
                             }
                         }
                     }
@@ -206,8 +204,6 @@ Rectangle {
                 ColumnLayout {
                     objectName: "inviteBlock"
                     Layout.fillWidth: true
-                    // Never wider than the panel: a header row whose labels need more room (no fonts, long
-                    // translations) must elide instead of pushing the action buttons out of the viewport.
                     Layout.minimumWidth: 0
                     Layout.maximumWidth: col.width
                     visible: root.ctl.visibility === "invite_only"
@@ -220,7 +216,7 @@ Rectangle {
                             Layout.minimumWidth: 0
                             horizontalAlignment: Text.AlignRight
                             elide: Text.ElideRight
-                            text: qsTr("users of this Hub")
+                            text: qsTr("Users on this hub")
                             font.pixelSize: 11
                             color: Theme.gameTextMuted
                         }
@@ -287,30 +283,85 @@ Rectangle {
                     wrapMode: Text.WordWrap
                     font.pixelSize: 12
                     color: Theme.gameTextMuted
-                    text: qsTr("Invitees only watch and listen. They send no input and cannot invite others.")
-                }
-
-                FbButton {
-                    objectName: "diagToggle"
-                    kind: "link"
-                    focusPolicy: Qt.NoFocus
-                    text: root.showDiagnostics ? qsTr("▾ Hide diagnostics") : qsTr("▸ Show diagnostics")
-                    onClicked: root.showDiagnostics = !root.showDiagnostics
-                }
-                DiagnosticsPanel {
-                    Layout.fillWidth: true
-                    visible: root.showDiagnostics
-                    player: root.player
+                    text: qsTr("Invitees can only watch and listen. They send no input and cannot invite others.")
                 }
             }
         }
 
-        RowLayout {
+        // SAVE SLOT: the slot of the running game (it cannot change while the game runs) and a manual snapshot
+        ColumnLayout {
+            objectName: "saveSlotBlock"
+            Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            Layout.maximumWidth: col.width
+            visible: root.player.gameSession.active && root.saves.slotsAvailable
+            spacing: 8
+            RowLayout {
+                Layout.fillWidth: true
+                Eyebrow { text: qsTr("Save slot") }
+                FbLabel {
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    horizontalAlignment: Text.AlignRight
+                    elide: Text.ElideRight
+                    text: qsTr("synced to hub")
+                    font.pixelSize: 11
+                    color: Theme.gameTextMuted
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                FbSegment {
+                    objectName: "slotSegment"
+                    Layout.fillWidth: true
+                    stretch: true
+                    current: root.saves.slot
+                    options: root.saves.slotOptions.map(function (o) {
+                        return { value: o.value, label: o.label, name: "slot_" + o.value, disabled: o.value !== root.saves.slot }
+                    })
+                }
+                FbButton {
+                    objectName: "newSlotButton"
+                    implicitWidth: 38
+                    implicitHeight: 36
+                    focusPolicy: Qt.NoFocus
+                    text: "+"
+                    enabled: false   // slots change between games: quit the game first (SaveHistoryController)
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("Quit the game to add or change a slot")
+                }
+            }
+            KeyHintButton {
+                objectName: "gameSnapshotButton"
+                Layout.fillWidth: true
+                implicitHeight: 38
+                focusPolicy: Qt.NoFocus
+                kind: "raised"
+                text: root.saves.busy ? qsTr("Saving snapshot…") : qsTr("Save snapshot")
+                hint: "F5"
+                enabled: root.saves.available && !root.saves.busy
+                onClicked: root.saves.createSnapshotInGame("")
+            }
+            FbLabel {
+                objectName: "gameSnapshotMessage"
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                wrapMode: Text.WordWrap
+                font.pixelSize: 12
+                text: root.saves.message !== "" ? root.saves.message
+                      : qsTr("Saved to “%1” · final sync on pause or exit").arg(root.saves.slot === "default" ? qsTr("default") : root.saves.slot)
+                color: root.saves.message === "" ? Theme.gameTextMuted : (root.saves.messageIsError ? Theme.error : Theme.ok)
+            }
+        }
+
+        ColumnLayout {
             Layout.fillWidth: true
             spacing: 8
             FbButton {
                 objectName: "shareButton"
                 Layout.fillWidth: true
+                implicitHeight: 42
                 focusPolicy: Qt.NoFocus
                 kind: root.ctl.shared ? "outline" : "primary"
                 text: root.ctl.shared ? qsTr("Stop sharing") : (root.ctl.shareBusy ? qsTr("Sharing…") : qsTr("Share Session"))
@@ -320,9 +371,24 @@ Rectangle {
             FbButton {
                 objectName: "endGameButton"
                 Layout.fillWidth: true
+                implicitHeight: 42
                 focusPolicy: Qt.NoFocus
-                text: qsTr("End game and save")
+                text: qsTr("Quit game and save")
+                background: Rectangle {
+                    radius: 8
+                    color: Theme.surfaceRaised
+                    border.width: 1
+                    border.color: Theme.borderButton
+                }
                 onClicked: root.player.quitGame()
+            }
+            FbButton {
+                objectName: "diagToggle"
+                Layout.alignment: Qt.AlignHCenter
+                kind: "link"
+                focusPolicy: Qt.NoFocus
+                text: (root.diag.open ? qsTr("▾ Hide diagnostics") : qsTr("▸ Show diagnostics")) + "   F3"
+                onClicked: root.diag.toggle()
             }
         }
     }

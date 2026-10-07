@@ -90,6 +90,8 @@ QVariantList ControllersController::devices() const {
                          {QStringLiteral("kind"), QStringLiteral("gamepad")},
                          {QStringLiteral("name"), d.name},
                          {QStringLiteral("slot"), d.slot == 1 ? QStringLiteral("P1") : QStringLiteral("—")},
+                         {QStringLiteral("connected"), true},
+                         {QStringLiteral("status"), tr("Connected")},
                          {QStringLiteral("profile"), p ? p->name : QString()}});
   }
   const auto kb = profiles_.find(profiles_.assignedProfileId(kKeyboard, kKeyboard));
@@ -97,11 +99,15 @@ QVariantList ControllersController::devices() const {
                        {QStringLiteral("kind"), kKeyboard},
                        {QStringLiteral("name"), tr("Keyboard")},
                        {QStringLiteral("slot"), pads_.devices().isEmpty() ? QStringLiteral("P1") : QStringLiteral("—")},
+                       {QStringLiteral("connected"), true},
+                       {QStringLiteral("status"), tr("Connected")},
                        {QStringLiteral("profile"), kb ? kb->name : QString()}});
   l.append(QVariantMap{{QStringLiteral("key"), kMouse},
                        {QStringLiteral("kind"), kMouse},
                        {QStringLiteral("name"), tr("Mouse")},
                        {QStringLiteral("slot"), tr("Touch")},
+                       {QStringLiteral("connected"), true},
+                       {QStringLiteral("status"), tr("Connected")},
                        {QStringLiteral("profile"), touchLabel_}});
   return l;
 }
@@ -140,8 +146,10 @@ QVariantList ControllersController::rows() const {
   QVariantList l;
   const auto p = currentProfile();
   if (!p) return l;
+  const ControllerProfile def = ControllerProfiles::builtinProfile(p->kind);
   for (const InputDef& in : frameBeamInputs()) {
     const QStringList tokens = p->bindings.value(in.id);
+    const bool changed = !p->builtin && tokens != def.bindings.value(in.id);
     QStringList labels;
     for (const QString& t : tokens) labels.append(tokenLabel(t));
     l.append(QVariantMap{{QStringLiteral("input"), in.id},
@@ -149,9 +157,25 @@ QVariantList ControllersController::rows() const {
                          {QStringLiteral("target"), in.ndsTarget},
                          {QStringLiteral("binding"), labels.isEmpty() ? tr("not mapped") : labels.join(QStringLiteral(" / "))},
                          {QStringLiteral("mapped"), !labels.isEmpty()},
+                         {QStringLiteral("changed"), changed},
                          {QStringLiteral("listening"), listening_ == in.id}});
   }
   return l;
+}
+
+int ControllersController::changedCount() const {
+  int n = 0;
+  for (const QVariant& v : rows()) {
+    n += v.toMap().value(QStringLiteral("changed")).toBool() ? 1 : 0;
+  }
+  return n;
+}
+
+void ControllersController::resetBinding(const QString& inputId) {
+  const auto p = currentProfile();
+  if (!p || p->builtin || inputIndex(inputId) < 0) return;
+  cancelCapture();
+  if (profiles_.setBinding(p->id, inputId, ControllerProfiles::builtinProfile(p->kind).bindings.value(inputId))) profileChanged();
 }
 
 QStringList ControllersController::activeInputs() const {

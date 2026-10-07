@@ -9,6 +9,9 @@ Rectangle {
     readonly property var game: player.selectedGame
     readonly property bool hasGame: game.id !== undefined
     property bool showDetails: false
+    readonly property string gameId: game.id === undefined ? "" : game.id
+    onGameIdChanged: if (gameId !== "") fadeIn.restart()
+    NumberAnimation { id: fadeIn; target: flick; property: "opacity"; from: 0.35; to: 1; duration: Theme.durPage }
 
     color: Theme.bgPanel
     implicitWidth: 392
@@ -25,7 +28,7 @@ Rectangle {
         anchors.centerIn: parent
         text: qsTr("Select a game from the Library.")
         color: Theme.textFaint
-        font.pixelSize: 13
+        font.pixelSize: Theme.fontSmall
     }
 
     ColumnLayout {
@@ -49,11 +52,11 @@ Rectangle {
                 spacing: 18
 
                 RowLayout {
-                    spacing: 16
+                    spacing: Theme.space16
                     Rectangle {
                         implicitWidth: 112
                         implicitHeight: 112
-                        radius: 8
+                        radius: Theme.radius8
                         color: Theme.tile
                         FbLabel {
                             anchors.left: parent.left
@@ -67,19 +70,31 @@ Rectangle {
                     }
                     ColumnLayout {
                         Layout.fillWidth: true
-                        spacing: 4
+                        Layout.alignment: Qt.AlignTop
+                        spacing: Theme.space6
+                        FbPill {
+                            objectName: "detailPill"
+                            tone: root.game.pillTone || "neutral"
+                            text: root.game.pillText || ""
+                        }
                         FbLabel {
                             objectName: "detailTitle"
                             Layout.fillWidth: true
                             text: root.game.title || ""
-                            font.pixelSize: 22
+                            font.pixelSize: Theme.fontDetail
                             font.weight: Font.DemiBold
                             wrapMode: Text.WordWrap
                         }
                         FbLabel {
-                            text: root.game.systemName || ""
+                            objectName: "detailSystem"
+                            Layout.fillWidth: true
+                            text: (root.game.coreVersionText || "") !== ""
+                                  ? qsTr("%1 · %2 %3").arg(root.game.systemName || "").arg(root.game.coreLabelText || "").arg(root.game.coreVersionText)
+                                  : ((root.game.coreLabelText || "") !== "" ? qsTr("%1 · %2").arg(root.game.systemName || "").arg(root.game.coreLabelText)
+                                                                              : (root.game.systemName || ""))
                             color: Theme.textMuted
-                            font.pixelSize: 13
+                            font.pixelSize: Theme.fontSmall
+                            elide: Text.ElideRight
                         }
                     }
                 }
@@ -117,8 +132,10 @@ Rectangle {
                                     FbLabel { text: row.modelData.label; color: Theme.textMuted; font.pixelSize: 13 }
                                     Item { Layout.fillWidth: true }
                                     FbLabel {
-                                        text: row.modelData.text || ""
-                                        font.pixelSize: 13
+                                        objectName: "detailRowValue"
+                                        text: (row.modelData.tone === "ok" ? "✓ " : (row.modelData.tone === "warn" ? "▲ " : (row.modelData.tone === "error" ? "✕ " : "")))
+                                              + (row.modelData.text || "")
+                                        font.pixelSize: Theme.fontSmall
                                         color: row.modelData.tone === "neutral" ? Theme.text : Theme.toneColor(row.modelData.tone)
                                     }
                                 }
@@ -127,7 +144,7 @@ Rectangle {
                                     Layout.fillWidth: true
                                     text: row.modelData.hint || ""
                                     wrapMode: Text.WrapAnywhere
-                                    font.pixelSize: 11
+                                    font.pixelSize: Theme.fontMono
                                 }
                             }
                         }
@@ -195,13 +212,17 @@ Rectangle {
                             FbLabel {
                                 Layout.fillWidth: true
                                 text: step.modelData.label
-                                font.pixelSize: 13
+                                elide: Text.ElideRight
+                                Layout.minimumWidth: 60
+                                font.pixelSize: Theme.fontSmall
                                 color: step.modelData.state === "pending" ? Theme.textFaint : Theme.text
                             }
                             FbMono {
                                 visible: (step.modelData.meta || "") !== ""
                                 text: step.modelData.meta || ""
-                                font.pixelSize: 11
+                                elide: Text.ElideRight
+                                Layout.maximumWidth: 150
+                                font.pixelSize: Theme.fontMono
                             }
                         }
                     }
@@ -212,7 +233,7 @@ Rectangle {
                     objectName: "startError"
                     Layout.fillWidth: true
                     implicitHeight: errText.implicitHeight + 24
-                    radius: 8
+                    radius: Theme.radius8
                     color: Theme.errorBg
                     FbLabel {
                         id: errText
@@ -220,7 +241,7 @@ Rectangle {
                         anchors.margins: 12
                         text: root.game.error || ""
                         wrapMode: Text.WordWrap
-                        font.pixelSize: 13
+                        font.pixelSize: Theme.fontSmall
                         color: Theme.errorText
                     }
                 }
@@ -232,7 +253,9 @@ Rectangle {
             Layout.fillWidth: true
             implicitHeight: 48
             kind: "primary"
-            font.pixelSize: 15
+            font.pixelSize: Theme.fontSection
+            busy: root.game.busy === true
+            busyOnClick: true
             text: root.game.playLabel || qsTr("Play")
             enabled: root.game.canPlay === true
             onClicked: root.player.playSelected()
@@ -241,7 +264,7 @@ Rectangle {
             objectName: "playShareButton"
             visible: root.player.sessions.available
             Layout.fillWidth: true
-            implicitHeight: 40
+            implicitHeight: 44
             text: qsTr("Play and share Session")
             enabled: root.game.canPlay === true
             onClicked: root.player.playAndShareSelected()
@@ -252,7 +275,7 @@ Rectangle {
             Layout.fillWidth: true
             horizontalAlignment: Text.AlignHCenter
             color: Theme.textFaint
-            font.pixelSize: 12
+            font.pixelSize: Theme.fontMeta
             text: qsTr("Visibility: %1 · change it in the Session panel")
                   .arg(root.player.sessions.visibility === "private" ? qsTr("Private")
                        : root.player.sessions.visibility === "invite_only" ? qsTr("Invite only") : qsTr("Hub users"))
