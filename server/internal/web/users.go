@@ -106,7 +106,16 @@ func (s *Server) renderUsers(w http.ResponseWriter, r *http.Request, sess *sessi
 	}
 	d := s.base(r, sess, "users", "Users")
 	d.Body = b
-	s.render(w, status, "users", "layout", d)
+	switch {
+	case isHX(r, "users-table"):
+		d.Fragment = true
+		s.render(w, status, "users", "users-table", d)
+	case isHX(r, "users-invites"):
+		d.Fragment = true
+		s.render(w, status, "users", "users-invites", d)
+	default:
+		s.render(w, status, "users", "layout", d)
+	}
 }
 
 func (s *Server) usersGet(w http.ResponseWriter, r *http.Request, sess *session) {

@@ -588,7 +588,11 @@ func (s *Service) UsersWithPresence(ctx context.Context) ([]UserPresence, error)
 }
 
 // ICEServers returns the configured stun: URLs (never nil).
-func (s *Service) ICEServers() []string { return append([]string{}, s.sess.ice...) }
+func (s *Service) ICEServers() []string {
+	s.sess.iceMu.RLock()
+	defer s.sess.iceMu.RUnlock()
+	return append([]string{}, s.sess.ice...)
+}
 
 // ---- shared mutation helpers (caller holds sess.mu) ----
 

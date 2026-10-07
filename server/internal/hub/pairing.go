@@ -70,7 +70,8 @@ func validPairingField(v string, max int) bool { return v != "" && len(v) <= max
 // CreatePairingRequest accepts a request (no auth). Limits: 20 open requests in total and
 // 5 requests per remote IP per minute, otherwise ErrRateLimited.
 // An already trusted device stays untouched until an admin allows the new request.
-func (s *Service) CreatePairingRequest(ctx context.Context, in PairingInput) (PairingCreated, error) {
+func (s *Service) CreatePairingRequest(ctx context.Context, in PairingInput) (_ PairingCreated, err error) {
+	defer s.publishOK(&err, TopicClients)
 	if _, err := uuid.Parse(in.DeviceID); err != nil {
 		return PairingCreated{}, badRequest("device_id must be a UUID")
 	}
@@ -144,7 +145,8 @@ func (s *Service) ListPendingRequests(ctx context.Context) ([]PairingRequest, er
 
 // ApprovePairing allows an open request and assigns it to the user userID (admin).
 // The device is registered only on the first poll; the deadline is extended to 10 min from now.
-func (s *Service) ApprovePairing(ctx context.Context, requestID, userID string) error {
+func (s *Service) ApprovePairing(ctx context.Context, requestID, userID string) (err error) {
+	defer s.publishOK(&err, TopicClients)
 	if _, err := s.GetUser(ctx, userID); err != nil {
 		if errors.Is(err, ErrNotFound) {
 			return badRequest("User does not exist")
@@ -159,7 +161,8 @@ func (s *Service) ApprovePairing(ctx context.Context, requestID, userID string) 
 }
 
 // DenyPairing denies an open request.
-func (s *Service) DenyPairing(ctx context.Context, requestID string) error {
+func (s *Service) DenyPairing(ctx context.Context, requestID string) (err error) {
+	defer s.publishOK(&err, TopicClients)
 	return s.decide(ctx, requestID, func(tx *sql.Tx, _ time.Time) error {
 		_, err := tx.ExecContext(ctx, `UPDATE pairing_requests SET status = 'denied' WHERE id = ?`, requestID)
 		return err
@@ -253,5 +256,6 @@ func (s *Service) PollPairing(ctx context.Context, requestID, pollToken string) 
 	if err := tx.Commit(); err != nil {
 		return PairingResult{}, internal(err)
 	}
+	s.Publish(TopicClients, TopicUsers)
 	return PairingResult{Status: PairingApproved, HubID: s.Info().HubID, UserID: r.UserID, DeviceCredential: cred}, nil
 }

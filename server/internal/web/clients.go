@@ -69,7 +69,7 @@ func (s *Server) clientsData(r *http.Request) (clientsBody, error) {
 	return b, nil
 }
 
-// renderClients renders the page or (htmx) only #clients-body; flash/errMsg appear in the fragment.
+// renderClients renders the page or (htmx, target #clients-body) only that region; flash/errMsg appear in the fragment.
 func (s *Server) renderClients(w http.ResponseWriter, r *http.Request, sess *session, flash, errMsg string) {
 	body, err := s.clientsData(r)
 	if err != nil {
@@ -82,7 +82,7 @@ func (s *Server) renderClients(w http.ResponseWriter, r *http.Request, sess *ses
 		d.Flash = flash
 	}
 	d.Error = errMsg
-	if r.Header.Get("HX-Request") == "true" {
+	if isHX(r, "clients-body") {
 		d.Fragment = true
 		s.render(w, http.StatusOK, "clients", "clients-body", d)
 		return

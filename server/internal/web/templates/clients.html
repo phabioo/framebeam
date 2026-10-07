@@ -1,4 +1,4 @@
-{{define "clients-body"}}
+{{define "clients-body"}}<div id="clients-body" class="stack gap26" hx-get="/clients" hx-trigger="fb:clients from:body" hx-swap="outerHTML">
 {{if .Fragment}}{{template "flash" .}}{{end}}
 <section class="stack">
   <div class="eyebrow">Pending Requests · {{len .Body.Pending}}</div>
@@ -6,15 +6,15 @@
   <div class="pending">
     <div>
       <div class="eyebrow">Device name</div>
-      <h3>{{$p.Name}}</h3>
+      <h3>{{$p.Name}} <span class="pill warn">▲ Awaiting approval</span></h3>
       <div class="mono">{{$p.Platform}} {{$p.Arch}} · Player {{$p.PlayerVersion}} · Protocol v{{$p.Protocol}}</div>
       <div class="help">requested {{$p.Ago}}</div>
     </div>
-    <form hx-post="/clients/requests/{{$p.ID}}/allow" hx-target="#clients-body" hx-swap="innerHTML" id="req-{{$p.ID}}">
+    <form hx-post="/clients/requests/{{$p.ID}}/allow" hx-target="#clients-body" hx-swap="outerHTML" id="req-{{$p.ID}}">
       <label class="field">Assign user<select name="user_id">{{range $.Body.Users}}<option value="{{.ID}}"{{if eq .ID $p.AssignTo}} selected{{end}}>{{.DisplayName}}</option>{{end}}</select></label>
     </form>
     <div class="actions">
-      <button class="btn" type="button" hx-post="/clients/requests/{{$p.ID}}/deny" hx-target="#clients-body" hx-swap="innerHTML">Deny</button>
+      <button class="btn" type="button" hx-post="/clients/requests/{{$p.ID}}/deny" hx-target="#clients-body" hx-swap="outerHTML">Decline</button>
       <button class="btn primary" type="submit" form="req-{{$p.ID}}">Allow</button>
     </div>
   </div>
@@ -26,17 +26,17 @@
   <div class="eyebrow">Devices</div>
   {{if .Body.Devices}}
   <div class="card"><table class="list">
-    <thead><tr><th>Device</th><th>User</th><th>Platform</th><th>Player</th><th>Last active</th><th>Status</th><th></th></tr></thead>
+    <thead><tr><th>Device</th><th>User</th><th>Platform</th><th>Player</th><th>Last active</th><th>Status</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
     <tbody>
     {{range .Body.Devices}}
     <tr{{if .Revoked}} class="muted"{{end}}>
-      <td>{{.Name}}</td>
+      <td class="strong">{{.Name}}</td>
       <td>{{.User}}</td>
       <td class="mono">{{.Platform}} {{.Arch}}</td>
       <td class="mono">{{.PlayerVersion}}</td>
       <td>{{.LastSeen}}</td>
-      <td>{{if .Revoked}}<span class="pill">Revoked</span>{{else}}<span class="pill ok">Trusted</span>{{end}}</td>
-      <td>{{if .Revoked}}—{{else}}<button class="btn-link" type="button" hx-post="/clients/devices/{{.ID}}/revoke" hx-confirm="Really revoke access for “{{.Name}}”?" hx-target="#clients-body" hx-swap="innerHTML">Revoke access</button>{{end}}</td>
+      <td>{{if .Revoked}}<span class="pill">Revoked</span>{{else}}<span class="pill ok">● Trusted</span>{{end}}</td>
+      <td>{{if .Revoked}}—{{else}}<button class="btn-link" type="button" hx-post="/clients/devices/{{.ID}}/revoke" hx-confirm="Really revoke access for “{{.Name}}”?" hx-target="#clients-body" hx-swap="outerHTML">Revoke access</button>{{end}}</td>
     </tr>
     {{end}}
     </tbody>
@@ -46,8 +46,8 @@
   {{end}}
   <p class="foot-note">Revoking removes the device's access immediately, even with access tokens that are still valid.</p>
 </section>
-{{end}}
+</div>{{end}}
 {{define "content"}}
 <div class="page-head"><div><h1>Clients</h1><p class="sub">Devices allowed to access this hub</p></div></div>
-<div id="clients-body" class="stack" hx-get="/clients" hx-trigger="every 15s" hx-swap="innerHTML">{{template "clients-body" .}}</div>
+{{template "clients-body" .}}
 {{end}}

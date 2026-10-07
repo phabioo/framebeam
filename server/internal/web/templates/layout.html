@@ -8,32 +8,42 @@
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="/static/app.css">
 <script src="/static/htmx.min.js" defer></script>
+<script src="/static/app.js" defer></script>
+<script src="/static/settings.js" defer></script>
 </head>
 {{end}}
 {{define "flash"}}{{if .Flash}}<div class="alert ok" role="status">{{.Flash}}</div>{{end}}{{if .Error}}<div class="alert error" role="alert">{{.Error}}</div>{{end}}{{end}}
+{{define "main"}}
+    {{template "flash" .}}
+    {{template "content" .}}
+  {{end}}
+{{/* Sidebar nav. Links swap only #main; the nav re-fetches itself on fb:badges (see app.js). */}}
+{{define "nav-inner"}}
+      <a href="/library"{{if eq .Nav "library"}} class="active" aria-current="page"{{end}} hx-get="/library" hx-target="#main" hx-push-url="true">Library</a>
+      <a href="/saves"{{if eq .Nav "saves"}} class="active" aria-current="page"{{end}} hx-get="/saves" hx-target="#main" hx-push-url="true">Saves{{if .Conflicts}}<span class="badge">{{.Conflicts}} {{if eq .Conflicts 1}}conflict{{else}}conflicts{{end}}</span>{{end}}</a>
+      <a href="/systems"{{if eq .Nav "systems"}} class="active" aria-current="page"{{end}} hx-get="/systems" hx-target="#main" hx-push-url="true">Systems &amp; Cores{{if .Firmware}}<span class="badge error">{{.Firmware}} {{if eq .Firmware 1}}issue{{else}}issues{{end}}</span>{{end}}</a>
+      <a href="/clients"{{if eq .Nav "clients"}} class="active" aria-current="page"{{end}} hx-get="/clients" hx-target="#main" hx-push-url="true">Clients{{if .Pending}}<span class="badge">{{.Pending}} {{if eq .Pending 1}}request{{else}}requests{{end}}</span>{{end}}</a>
+      <a href="/users"{{if eq .Nav "users"}} class="active" aria-current="page"{{end}} hx-get="/users" hx-target="#main" hx-push-url="true">Users</a>
+      <a href="/settings"{{if eq .Nav "settings"}} class="active" aria-current="page"{{end}} hx-get="/settings" hx-target="#main" hx-push-url="true">Settings{{if .UpdateAvailable}}<span class="badge">update</span>{{end}}</a>
+{{end}}
+{{define "nav"}}    <nav class="nav" id="nav" aria-label="Main navigation" hx-get="/nav-fragment" hx-trigger="fb:badges from:body" hx-target="this" hx-swap="outerHTML" hx-disinherit="hx-swap hx-target">{{template "nav-inner" .}}    </nav>{{end}}
+{{define "nav-fragment"}}{{template "nav" .}}{{end}}
+{{/* Response of a sidebar navigation: main content plus out-of-band nav and title. */}}
+{{define "main-swap"}}{{template "main" .}}<title>{{.Title}} · FrameBeam Hub</title>
+<nav class="nav" id="nav" aria-label="Main navigation" hx-get="/nav-fragment" hx-trigger="fb:badges from:body" hx-target="this" hx-swap="outerHTML" hx-disinherit="hx-swap hx-target" hx-swap-oob="outerHTML">{{template "nav-inner" .}}</nav>{{end}}
 {{define "layout"}}{{template "head" .}}
 <body hx-headers='{"X-CSRF-Token": "{{.CSRF}}"}'>
 <div class="shell">
   <aside class="sidebar">
     <div class="logo"><span class="logo-mark"></span>FrameBeam Hub</div>
-    <nav class="nav" aria-label="Main navigation">
-      <a href="/library"{{if eq .Nav "library"}} class="active" aria-current="page"{{end}}>Library</a>
-      <a href="/saves"{{if eq .Nav "saves"}} class="active" aria-current="page"{{end}}>Saves{{if .Conflicts}}<span class="badge">{{.Conflicts}} {{if eq .Conflicts 1}}conflict{{else}}conflicts{{end}}</span>{{end}}</a>
-      <a href="/systems"{{if eq .Nav "systems"}} class="active" aria-current="page"{{end}}>Systems &amp; Cores{{if .Firmware}}<span class="badge error">{{.Firmware}} firmware</span>{{end}}</a>
-      <a href="/clients"{{if eq .Nav "clients"}} class="active" aria-current="page"{{end}}>Clients{{if .Pending}}<span class="badge">{{.Pending}} {{if eq .Pending 1}}request{{else}}requests{{end}}</span>{{end}}</a>
-      <a href="/users"{{if eq .Nav "users"}} class="active" aria-current="page"{{end}}>Users</a>
-      <a href="/settings"{{if eq .Nav "settings"}} class="active" aria-current="page"{{end}}>Settings{{if .UpdateAvailable}}<span class="badge">update</span>{{end}}</a>
-    </nav>
+    {{template "nav" .}}
     <div class="sidebar-foot">
       <div class="who">{{.User}} · {{.Role}}</div>
       <div class="meta">{{.HubName}} · {{.HubVersion}}</div>
       <form class="logout" method="post" action="/logout"><input type="hidden" name="_csrf" value="{{.CSRF}}"><button class="btn small" type="submit">Sign out</button></form>
     </div>
   </aside>
-  <main class="main">
-    {{template "flash" .}}
-    {{template "content" .}}
-  </main>
+  <main class="main" id="main">{{template "main" .}}</main>
 </div>
 </body>
 </html>{{end}}

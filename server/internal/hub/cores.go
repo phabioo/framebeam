@@ -626,7 +626,8 @@ func (s *Service) verifyIndex(data, sig []byte) (idx corepkg.Index, skipped []er
 // SyncCores fetches the signed index, verifies it, records the packages and downloads the selected versions.
 // Failures are recorded for the Systems & Cores page; the cache stays usable. Safe to call concurrently
 // (calls are serialized).
-func (s *Service) SyncCores(ctx context.Context) (CoreSyncReport, error) {
+func (s *Service) SyncCores(ctx context.Context) (_ CoreSyncReport, err error) {
+	defer s.publishOK(&err, TopicSystems)
 	s.cores.mu.Lock()
 	defer s.cores.mu.Unlock()
 	var rep CoreSyncReport
@@ -683,7 +684,8 @@ func firstN(s []string, n int) []string {
 }
 
 // DownloadCores downloads the missing files of the selected versions without contacting the index source.
-func (s *Service) DownloadCores(ctx context.Context) (CoreSyncReport, error) {
+func (s *Service) DownloadCores(ctx context.Context) (_ CoreSyncReport, err error) {
+	defer s.publishOK(&err, TopicSystems)
 	s.cores.mu.Lock()
 	defer s.cores.mu.Unlock()
 	var rep CoreSyncReport
@@ -759,7 +761,8 @@ type CoreImportSummary struct {
 // ImportCores reads <dir>/cores-index.json and its .sig, verifies them like a sync, records the packages and
 // copies the files found in dir (matched by the last path segment of their url, else by name) after checking
 // size and SHA-256.
-func (s *Service) ImportCores(ctx context.Context, dir string) (CoreImportSummary, error) {
+func (s *Service) ImportCores(ctx context.Context, dir string) (_ CoreImportSummary, err error) {
+	defer s.publishOK(&err, TopicSystems)
 	s.cores.mu.Lock()
 	defer s.cores.mu.Unlock()
 	var sum CoreImportSummary

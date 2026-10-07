@@ -1,179 +1,373 @@
 {{define "content"}}
-<div class="page-head"><div><h1>Settings</h1><p class="sub">Admins only</p></div></div>
-<div class="cols">
-  <div class="stack">
-    <section class="panel">
-      <h2>General</h2>
-      <div class="row">
-        <div><div class="label">Hub name</div><div class="help">Shown to players when they identify the hub</div></div>
-        <form method="post" action="/settings/name">
-          <input type="hidden" name="_csrf" value="{{.CSRF}}">
-          <input type="text" name="name" value="{{.Body.HubName}}" maxlength="100" required aria-label="Hub name">
-          <button class="btn small" type="submit">Save</button>
-        </form>
-      </div>
-      <div class="row">
-        <div><div class="label">Address for players</div><div class="help">How you reach this hub; listen address: {{.Body.Listen}}</div></div>
-        <div class="value">{{.Body.Host}}</div>
-      </div>
-    </section>
-    <section class="panel">
-      <h2>Appearance</h2>
-      <div class="row">
-        <div><div class="label">Mode</div><div class="help">Applies to this web interface</div></div>
-        <form class="segment" method="post" action="/settings/appearance" role="group" aria-label="Mode">
-          <input type="hidden" name="_csrf" value="{{.CSRF}}">
-          <button type="submit" name="mode" value="light"{{if eq .Body.Appearance "light"}} class="on" aria-pressed="true"{{else}} aria-pressed="false"{{end}}>Light</button>
-          <button type="submit" name="mode" value="dark"{{if eq .Body.Appearance "dark"}} class="on" aria-pressed="true"{{else}} aria-pressed="false"{{end}}>Dark</button>
-          <button type="submit" name="mode" value="system"{{if eq .Body.Appearance "system"}} class="on" aria-pressed="true"{{else}} aria-pressed="false"{{end}}>System</button>
-        </form>
-      </div>
-    </section>
-    <section class="panel">
-      <h2>Library</h2>
-      <div class="row">
-        <div>
-          <div class="label">Allow users to upload games <span class="pill{{if .Body.AllowUploads}} ok{{end}}">{{if .Body.AllowUploads}}Active{{else}}Inactive{{end}}</span></div>
-          <div class="help">{{if .Body.AllowUploads}}Users can upload ROMs from the Player.{{else}}Currently only admins can upload ROMs.{{end}}</div>
-          <div class="help">Own uploads land in the same library and are marked with uploaded_by. Managing or deleting others' entries remains reserved for admins.</div>
-        </div>
-        <form method="post" action="/settings/uploads">
-          <input type="hidden" name="_csrf" value="{{.CSRF}}">
-          <button class="switch{{if .Body.AllowUploads}} on{{end}}" type="submit" name="enabled" value="{{if .Body.AllowUploads}}0{{else}}1{{end}}" role="switch" aria-checked="{{if .Body.AllowUploads}}true{{else}}false{{end}}" aria-label="Allow users to upload games"><span></span></button>
-        </form>
-      </div>
-    </section>
-    <section class="panel" id="turn">
-      <h2>Sessions over the internet</h2>
-      {{with .Body.TURN}}
-      <div class="row">
-        <div><div class="label">Relay server (STUN/TURN) <span class="pill{{if .On}} ok{{end}}">{{if .On}}On{{else}}Off{{end}}</span></div>
-          <div class="help">{{if .On}}Players behind different routers connect directly when possible, otherwise through this Hub.{{else}}Switch on with FRAMEBEAM_TURN=1 and FRAMEBEAM_PUBLIC_HOST in /etc/framebeam/hub.env, then restart the Hub. See the Sessions over the internet section of packaging/linux/README.md.{{end}}</div></div>
-      </div>
-      {{if .On}}
-      <div class="row"><div><div class="label">Public host</div></div><div class="value">{{.PublicHost}}</div></div>
-      <div class="row"><div><div class="label">Relay address (IPv4)</div>
-        <div class="help">{{if .RelayIP}}{{if .Fixed}}Configured{{else}}Resolved {{.ResolvedAt}}{{end}}{{else}}Not resolved: relayed Sessions fail until the public host has an IPv4 address (A record).{{end}}</div></div>
-        <div class="value">{{if .RelayIP}}{{.RelayIP}}{{else}}none{{end}}</div></div>
-      <div class="row"><div><div class="label">Ports</div></div><div class="value">{{.Port}} (UDP and TCP), relay {{.RelayMin}}-{{.RelayMax}} (UDP)</div></div>
-      <div class="row"><div><div class="label">Active allocations</div></div><div class="value">{{.Allocations}}</div></div>
-      <div class="row"><div><div class="label">Port forwards on the router</div>
-        <div class="help">Forward these to this Hub's host; the Hub does not configure the router.</div>
-        <ul class="help">{{range .Forwards}}<li>{{.}}</li>{{end}}</ul></div></div>
-      {{end}}
-      {{end}}
-    </section>
-  </div>
-  <div class="stack">
-    <section class="panel" id="updates">
-      <h2>Updates</h2>
-      {{with .Body.Updates}}
-      {{if .Err}}<div class="help">The update status could not be read.</div>{{else}}
-      <div class="row">
-        <div><div class="label">Installed version</div><div class="help">Build channel: {{.Settings.CompiledChannel}}</div></div>
-        <div class="value">{{.CurrentVersion}}</div>
-      </div>
-      {{if .Disabled}}<div class="row"><div class="help">{{.Disabled}}</div></div>{{end}}
-      <form class="update-form" method="post" action="/settings/updates">
-        <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-        <div class="row">
-          <div><div class="label">Update channel</div><div class="help">Stable gets released versions. Beta also gets pre-release builds (newest wins).</div></div>
-          <select name="channel" aria-label="Update channel">
-            {{if .OffOption}}<option value=""{{if eq .Channel ""}} selected{{end}}>Off (development build)</option>{{end}}
-            <option value="stable"{{if eq .Channel "stable"}} selected{{end}}>Stable</option>
-            <option value="beta"{{if eq .Channel "beta"}} selected{{end}}>Beta</option>
-          </select>
-        </div>
-        <div class="row"><div class="help">Beta: Pre-release builds from every change on main. May contain bugs.</div></div>
-        <div class="row">
-          <div><div class="label">Install automatically</div><div class="help">Downloads and installs a new version after a check, never during a running Session and never when it breaks Players seen recently. Needs the .deb package.</div></div>
-          <label><input type="checkbox" name="auto" value="1"{{if .Settings.Auto}} checked{{end}}> Automatic install</label>
-        </div>
-        <div class="row"><div></div><div><button class="btn small" type="submit">Save</button></div></div>
-      </form>
-      <div class="row">
-        <div><div class="label">Status</div>
-          <div class="help">Last check: {{.LastCheckText}}</div>
-          {{if .LastError}}<div class="help status-err">{{.LastError}}</div>{{end}}
-        </div>
-        <form method="post" action="/settings/updates/check">
-          <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-          <button class="btn small" type="submit">Check now</button>
-        </form>
-      </div>
-      {{if .Available}}
-      <div class="row">
-        <div>
-          <div class="label">Version {{.Available.Version}} is available <span class="pill">{{.Available.Channel}}</span></div>
-          {{if .Available.NotesURL}}<div class="help"><a href="{{.Available.NotesURL}}" rel="noopener noreferrer" target="_blank">Release notes</a></div>{{end}}
-          {{if .Available.Breaking}}<div class="help warn">{{.Available.Warning}}</div>{{end}}
-          {{if .ActiveSessions}}<div class="help">A Session is running; automatic install waits until it ends.</div>{{end}}
-        </div>
-        {{if .Packaged}}
-          {{if .RequestPending}}<span class="pill">Installing</span>
-          {{else if .Available.Breaking}}
-          <form method="post" action="/settings/updates/install" hx-post="/settings/updates/install" hx-confirm="Install {{.Available.Version}} anyway? Players seen in the last 30 days are too old for it and lose access until they are updated. The Hub restarts.">
-            <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-            <input type="hidden" name="confirm_breaking" value="1">
-            <button class="btn small" type="submit">Install anyway</button>
-          </form>
-          {{else}}
-          <form method="post" action="/settings/updates/install" hx-post="/settings/updates/install" hx-confirm="Install {{.Available.Version}} now? The Hub restarts and Sessions end.">
-            <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-            <button class="btn small" type="submit">Install update</button>
-          </form>
-          {{end}}
-        {{end}}
-      </div>
-      {{if not .Packaged}}
-      <div class="row"><div>
-        <div class="help">This Hub cannot install updates itself (it is not installed from the .deb package, or the request directory is not writable). Install the update manually:</div>
-        <div class="value mono">{{.ManualCommand}}</div>
-      </div></div>
-      {{end}}
-      {{else if and (not .Disabled) (not .LastError)}}
-      <div class="row"><div class="help">This Hub is up to date.</div></div>
-      {{end}}
-      {{if .Staged}}<div class="row"><div class="help">Staged: {{.Staged.Version}}{{if .RequestPending}} (waiting for the installer){{end}}</div></div>{{end}}
-      {{if .LastResult}}<div class="row"><div class="help{{if not .LastResult.OK}} status-err{{end}}">Last install attempt ({{.LastResultAt}}): {{.LastResult.Version}} {{if .LastResult.OK}}succeeded{{else}}failed: {{.LastResult.Message}}{{end}}</div></div>{{end}}
-      {{end}}
-      {{end}}
-    </section>
-    <section class="panel">
-      <h2>Transport &amp; certificate</h2>
-      <div class="row">
-        <div><div class="label">Transport</div><div class="help">HTTPS/WSS is the default. HTTP is available in dev mode only.</div></div>
-        <span class="pill{{if .Body.TLS}} ok{{end}}">{{if .Body.TLS}}HTTPS{{else}}HTTP (dev mode){{end}}</span>
-      </div>
-      {{if .Body.TLS}}
-      <div class="row">
-        <div><div class="label">Certificate</div><div class="help">{{.Body.CertSource}}{{if .Body.CertNotAfter}} · valid until {{.Body.CertNotAfter}}{{end}}</div></div>
-        {{if .Body.CertExpiresSoon}}<span class="badge error">Expires within 30 days</span>{{end}}
-      </div>
-      <div class="row">
-        <div><div class="label">Fingerprint</div><div class="help">SHA-256. Players compare this value on first connect.</div></div>
-        <div class="value">{{.Body.Fingerprint}}</div>
-      </div>
-      {{if .Body.CertSelfGenerated}}
-      <div class="row">
-        <div class="help">A self-generated certificate is renewed automatically at startup when it expires within 30 days (or with <span class="mono">framebeam-hub renew-cert</span>). After a renewal, Players must confirm the new fingerprint: compare it with the fingerprint shown here.</div>
-      </div>
-      {{end}}
-      {{end}}
-    </section>
-    <section class="panel">
-      <h2>Admin account</h2>
-      <div class="row">
-        <div><div class="label">{{.User}}</div><div class="help">Web login with username and password</div></div>
-      </div>
-      <form class="pw-form" method="post" action="/settings/password">
-        <input type="hidden" name="_csrf" value="{{.CSRF}}">
-        <label class="field">Current password<input type="password" name="current" autocomplete="current-password" required></label>
-        <label class="field">New password (at least {{.Body.MinPassword}} characters)<input type="password" name="new" autocomplete="new-password" required></label>
-        <label class="field">Repeat new password<input type="password" name="new2" autocomplete="new-password" required></label>
-        <div><button class="btn small" type="submit">Change password</button></div>
-      </form>
-    </section>
-  </div>
+<div class="set" id="settings">
+  {{template "settings-nav" .}}
+  <div class="set-area" id="settings-area">{{template "settings-pane" .}}</div>
 </div>
+{{end}}
+
+{{/* ---- Section column ---- */}}
+{{define "settings-nav-inner"}}
+  <div class="set-nav-title">Settings</div>
+  {{range .Body.Nav}}
+  <a class="set-item{{if .Selected}} on{{end}}" href="/settings/{{.ID}}" hx-get="/settings/{{.ID}}" hx-target="#settings-area" hx-swap="innerHTML" hx-push-url="true"{{if .Selected}} aria-current="page"{{end}}>
+    <span class="set-item-name">{{.Title}}</span>
+    <span class="set-item-status {{.Level}}"><i class="dot" aria-hidden="true"></i>{{.Status}}</span>
+  </a>
+  {{end}}
+  <p class="set-nav-foot">Changes save automatically. Admins only.</p>
+{{end}}
+{{define "settings-nav"}}<nav class="set-nav" id="settings-nav" aria-label="Settings sections">{{template "settings-nav-inner" .}}</nav>{{end}}
+{{define "settings-nav-oob"}}<nav class="set-nav" id="settings-nav" aria-label="Settings sections" hx-swap-oob="true">{{template "settings-nav-inner" .}}</nav>{{end}}
+
+{{/* HTMX response: the content area plus the section column (selection and status lines). */}}
+{{define "settings-pane-hx"}}{{template "settings-pane" .}}{{template "settings-nav-oob" .}}{{end}}
+
+{{/* ---- Content area ---- */}}
+{{define "settings-pane"}}
+<div class="set-head">
+  <div><h1>{{.Body.SectionTitle}}</h1><p class="sub">{{.Body.SectionSub}}</p></div>
+  <div class="set-saved{{if .Body.FieldErr}} fail{{end}}" role="status" aria-live="polite">{{if .Body.FieldErr}}✕ Not saved{{else}}✓ All changes saved{{end}}</div>
+</div>
+{{if .Body.Notice}}<div class="alert ok" role="status">{{.Body.Notice}}</div>{{end}}
+{{if .Body.Err}}<div class="alert error" role="alert">{{.Body.Err}}</div>{{end}}
+{{if eq .Body.Section "updates"}}{{template "set-updates" .}}
+{{else if eq .Body.Section "general"}}{{template "set-general" .}}
+{{else if eq .Body.Section "network"}}{{template "set-network" .}}
+{{else if eq .Body.Section "security"}}{{template "set-security" .}}
+{{end}}
+{{end}}
+
+{{define "set-err"}}{{if .}}<div class="set-err" role="alert">{{.}}</div>{{end}}{{end}}
+
+{{/* ---- Updates ---- */}}
+{{define "set-updates"}}
+{{with .Body.Updates}}
+{{if .Err}}<div class="set-card"><div class="help">The update status could not be read.</div></div>{{else}}
+<div hx-get="/settings/updates" hx-trigger="fb:updates from:body{{if $.Body.PollUpdates}}, load delay:3s{{end}}" hx-target="#settings-area" hx-swap="innerHTML" hidden></div>
+{{if .Available}}
+<section class="set-card set-update">
+  <div class="set-update-main">
+    <span class="chip warn">▲ Update available</span>
+    <div class="set-update-ver"><span class="mono-lg">{{.Available.Version}}</span> <span class="pill">{{.Available.Channel}}</span></div>
+    <div class="help">Installed: {{.CurrentVersion}}{{if .ActiveSessions}} · a Session is running, automatic install waits until it ends{{else}} · no Session running{{end}}{{if .Available.Breaking}}{{else}} · all recent Players compatible{{end}}</div>
+    {{if .Available.Breaking}}<div class="help warn">{{.Available.Warning}}</div>{{end}}
+  </div>
+  <div class="set-actions">
+    {{if .Available.NotesURL}}<a class="btn small" href="{{.Available.NotesURL}}" rel="noopener noreferrer" target="_blank">Release notes</a>{{end}}
+    {{if .Packaged}}
+      {{if .RequestPending}}<span class="pill">Installing</span>
+      {{else if .Available.Breaking}}
+      <form method="post" action="/settings/updates/install" hx-post="/settings/updates/install" hx-confirm="Install {{.Available.Version}} anyway? Players seen in the last 30 days are too old for it and lose access until they are updated. The Hub restarts.">
+        <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="confirm_breaking" value="1">
+        <button class="btn small primary" type="submit">Install anyway</button>
+      </form>
+      {{else}}
+      <form method="post" action="/settings/updates/install" hx-post="/settings/updates/install" hx-confirm="Install {{.Available.Version}} now? The Hub restarts and Sessions end.">
+        <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+        <button class="btn small primary" type="submit">Install update</button>
+      </form>
+      {{end}}
+    {{end}}
+  </div>
+</section>
+{{if not .Packaged}}
+<section class="set-card"><div class="set-row"><div>
+  <div class="help">This Hub cannot install updates itself (it is not installed from the .deb package, or the request directory is not writable). Install the update manually:</div>
+  <div class="value mono">{{.ManualCommand}}</div>
+</div></div></section>
+{{end}}
+{{else if and (not .Disabled) (not .LastError)}}
+<section class="set-card"><div class="set-row"><div><span class="chip ok">✓ Up to date</span> <span class="help">Installed: {{.CurrentVersion}}</span></div></div></section>
+{{end}}
+{{if .Staged}}<section class="set-card"><div class="help">Staged: {{.Staged.Version}}{{if .RequestPending}} (waiting for the installer){{end}}</div></section>{{end}}
+{{if .LastResult}}{{if not .LastResult.OK}}
+<section class="set-card set-fail">
+  <div><span class="chip err">✕ Last install failed</span> <span class="help">{{.LastResultAt}} · {{.LastResult.Message}}</span></div>
+  <div class="mono">{{.LastResult.Version}}</div>
+  {{if and .Available .Packaged}}
+  <form method="post" action="/settings/updates/install" hx-post="/settings/updates/install" hx-confirm="Install {{.Available.Version}} now? The Hub restarts and Sessions end.">
+    <input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn small" type="submit">Retry</button>
+  </form>{{end}}
+</section>
+{{end}}{{end}}
+
+<section class="set-card">
+  <div class="eyebrow">Settings</div>
+  {{if .Disabled}}<div class="set-row"><div class="help">{{.Disabled}}</div></div>{{end}}
+  <div class="set-row">
+    <div><div class="label">Update channel</div>
+      <div class="help">{{if eq .Channel "beta"}}Also gets pre-release builds from every change on main. Newest wins. May contain bugs.{{else if eq .Channel "stable"}}Released versions only. Recommended.{{else}}Updates are off for this development build. Select a channel to enable them.{{end}}</div></div>
+    <form class="segment" method="post" action="/settings/updates" hx-post="/settings/updates" hx-target="#settings-area" hx-swap="innerHTML" role="group" aria-label="Update channel">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="auto" value="{{if .Settings.Auto}}1{{end}}">
+      {{if .OffOption}}<button type="submit" name="channel" value=""{{if eq .Channel ""}} class="on" aria-pressed="true"{{else}} aria-pressed="false"{{end}}>Off</button>{{end}}
+      <button type="submit" name="channel" value="stable"{{if eq .Channel "stable"}} class="on" aria-pressed="true"{{else}} aria-pressed="false"{{end}}>Stable</button>
+      <button type="submit" name="channel" value="beta"{{if eq .Channel "beta"}} class="on" aria-pressed="true"{{else}} aria-pressed="false"{{end}}>Beta</button>
+    </form>
+  </div>
+  <div class="set-row">
+    <div><div class="label">Install automatically</div>
+      <div class="help">After each check. Only installs when all of these are true:</div>
+      <ul class="set-checks"><li>No Session is running</li><li>Players seen recently stay compatible</li><li>Installed from the .deb package</li></ul></div>
+    <form method="post" action="/settings/updates" hx-post="/settings/updates" hx-target="#settings-area" hx-swap="innerHTML">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="channel" value="{{.Channel}}">
+      <button class="switch{{if .Settings.Auto}} on{{end}}" type="submit" name="auto" value="{{if .Settings.Auto}}0{{else}}1{{end}}" role="switch" aria-checked="{{if .Settings.Auto}}true{{else}}false{{end}}" aria-label="Install automatically"><span></span></button>
+    </form>
+  </div>
+  <div class="set-row">
+    <div><div class="label">Last checked</div>
+      <div class="help">{{.LastCheckText}}{{if .CadenceText}} · {{.CadenceText}}{{end}}</div>
+      {{if .LastError}}<div class="help status-err">{{.LastError}}</div>{{end}}</div>
+    <form method="post" action="/settings/updates/check" hx-post="/settings/updates/check" hx-target="#settings-area" hx-swap="innerHTML" hx-disabled-elt="find button">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <button class="btn small" type="submit">Check now</button>
+    </form>
+  </div>
+  <div class="set-row">
+    <div><div class="label">Installed version</div>
+      <div class="help">{{if .LastResult}}{{if .LastResult.OK}}Last successful install: {{.LastResultAt}} ({{.LastResult.Version}}){{else}}Build channel: {{.Settings.CompiledChannel}}{{end}}{{else}}Build channel: {{.Settings.CompiledChannel}}{{end}}</div></div>
+    <div class="value mono">{{.CurrentVersion}}</div>
+  </div>
+</section>
+{{end}}
+{{end}}
+{{end}}
+
+{{/* ---- General ---- */}}
+{{define "set-general"}}
+<section class="set-card">
+  <div class="eyebrow">Identity</div>
+  <div class="set-row">
+    <div><div class="label">Hub name</div><div class="help">Shown to Players when they connect</div></div>
+    <form method="post" action="/settings/name" hx-post="/settings/name" hx-trigger="change, submit" hx-target="#settings-area" hx-swap="innerHTML">
+      <input type="hidden" name="_csrf" value="{{.CSRF}}">
+      <input type="text" name="name" value="{{.Body.HubName}}" maxlength="100" required aria-label="Hub name"{{if eq .Body.FieldKey "name"}} aria-invalid="true"{{end}}>
+      <noscript><button class="btn small" type="submit">Save</button></noscript>
+    </form>
+  </div>
+  {{if eq .Body.FieldKey "name"}}{{template "set-err" .Body.FieldErr}}{{end}}
+  <div class="set-row">
+    <div><div class="label">Address for Players</div><div class="help">How Players reach this hub · set under <a href="/settings/network" hx-get="/settings/network" hx-target="#settings-area" hx-swap="innerHTML" hx-push-url="true">Network</a></div></div>
+    <div class="set-copy"><span class="value mono">{{.Body.PlayerAddr}}</span><button class="btn small" type="button" data-copy="{{.Body.PlayerAddr}}">Copy</button></div>
+  </div>
+</section>
+<section class="set-card">
+  <div class="eyebrow">Appearance</div>
+  <div class="set-row">
+    <div><div class="label">Theme</div><div class="help">Applies to this web interface</div></div>
+    <form class="segment" method="post" action="/settings/appearance" hx-post="/settings/appearance" role="group" aria-label="Theme">
+      <input type="hidden" name="_csrf" value="{{.CSRF}}">
+      <button type="submit" name="mode" value="light"{{if eq .Body.Appearance "light"}} class="on" aria-pressed="true"{{else}} aria-pressed="false"{{end}}>Light</button>
+      <button type="submit" name="mode" value="dark"{{if eq .Body.Appearance "dark"}} class="on" aria-pressed="true"{{else}} aria-pressed="false"{{end}}>Dark</button>
+      <button type="submit" name="mode" value="system"{{if eq .Body.Appearance "system"}} class="on" aria-pressed="true"{{else}} aria-pressed="false"{{end}}>System</button>
+    </form>
+  </div>
+</section>
+<section class="set-card">
+  <div class="eyebrow">Library</div>
+  <div class="set-row">
+    <div>
+      <div class="label">Allow users to upload games <span class="pill{{if .Body.AllowUploads}} ok{{end}}">{{if .Body.AllowUploads}}Active{{else}}Inactive{{end}}</span></div>
+      <div class="help">{{if .Body.AllowUploads}}Users can upload ROMs. Uploads are tagged with uploaded_by; only admins can edit or delete other users’ entries.{{else}}Currently only admins can upload ROMs.{{end}}</div>
+    </div>
+    <form method="post" action="/settings/uploads" hx-post="/settings/uploads" hx-target="#settings-area" hx-swap="innerHTML">
+      <input type="hidden" name="_csrf" value="{{.CSRF}}">
+      <button class="switch{{if .Body.AllowUploads}} on{{end}}" type="submit" name="enabled" value="{{if .Body.AllowUploads}}0{{else}}1{{end}}" role="switch" aria-checked="{{if .Body.AllowUploads}}true{{else}}false{{end}}" aria-label="Allow users to upload games"><span></span></button>
+    </form>
+  </div>
+</section>
+{{end}}
+
+{{/* ---- Network ---- */}}
+{{define "net-src"}}<div class="set-src">{{if .Web}}Set on the web interface · <form class="inline" method="post" action="/settings/network/{{.Key}}/reset" hx-post="/settings/network/{{.Key}}/reset" hx-target="#settings-area" hx-swap="innerHTML"><input type="hidden" name="_csrf" value="{{.CSRF}}"><button class="btn-link plain" type="submit">Reset to hub.env value{{if .EnvText}} ({{.EnvText}}){{end}}</button></form>{{else}}From hub.env / flags{{end}}</div>{{end}}
+
+{{define "set-network"}}
+{{with .Body.Net}}
+{{if .Restarting}}
+<section class="set-card set-restart" {{if not .Restarting.Changed}}data-restart-poll="/settings/network"{{end}} role="status">
+  <div class="label">Restarting…</div>
+  <div class="help">The hub restarts now and running Sessions end.{{if .Restarting.Changed}} The port changes: open the new address once the hub is back.{{else}} This page reloads when the hub answers again.{{end}}</div>
+  {{if .Restarting.Changed}}<a class="btn small primary" href="{{.Restarting.URL}}">Open {{.Restarting.URL}}</a>{{end}}
+</section>
+{{end}}
+{{range .Issues}}<section class="set-card set-fail" role="alert"><span class="chip err">✕ Not applied at startup</span><div class="help">{{.}}</div></section>{{end}}
+{{if .Pending}}
+<section class="set-card set-pending" role="status">
+  <div><span class="chip warn">▲ Restart required</span></div>
+  <div class="label">Restart required to apply: {{range $i, $l := .Pending}}{{if $i}}, {{end}}{{$l}}{{end}}</div>
+  <div class="help">The saved values take effect after a restart. Running Sessions end.</div>
+  {{if .CanRestart}}
+  <form method="post" action="/settings/network/restart" hx-post="/settings/network/restart" hx-target="#settings-area" hx-swap="innerHTML" hx-confirm="The hub restarts and running Sessions end.">
+    <input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn small primary" type="submit">Restart hub now</button>
+  </form>
+  {{else}}<div class="help">This hub cannot restart itself. Restart the service manually.</div>{{end}}
+</section>
+{{end}}
+
+<section class="set-card set-reach">
+  <span class="chip{{if .ReachOK}} ok{{else}} warn{{end}}">{{if .ReachOK}}✓{{else}}▲{{end}} {{.ReachTitle}}</span>
+  <div class="help">{{.ReachText}}</div>
+</section>
+
+<section class="set-card">
+  <div class="eyebrow">Listening &amp; public address</div>
+  <div class="set-row">
+    <div><div class="label">Listen port</div><div class="help">TCP port for Players and this web interface · changing it restarts the hub. Ports below 1024 need <span class="mono">install-hub.sh --port</span>.</div>{{template "net-src" .Listen}}</div>
+    <form method="post" action="/settings/network/listen_port" hx-post="/settings/network/listen_port" hx-trigger="change, submit" hx-target="#settings-area" hx-swap="innerHTML">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="text" inputmode="numeric" name="value" value="{{.Listen.Value}}" class="num" aria-label="Listen port"{{if .Listen.Err}} aria-invalid="true"{{end}}>
+      <noscript><button class="btn small" type="submit">Save</button></noscript>
+    </form>
+  </div>
+  {{template "set-err" .Listen.Err}}
+  <div class="set-row">
+    <div><div class="label">Public address for Players</div><div class="help">Handed to Players outside your network. Forward the listen port on your router to the hub.</div>{{template "net-src" .PublicHost}}</div>
+    <form method="post" action="/settings/network/public_host" hx-post="/settings/network/public_host" hx-trigger="change, submit" hx-target="#settings-area" hx-swap="innerHTML">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="text" name="value" value="{{.PublicHost.Value}}" placeholder="hub.example.com" class="host" aria-label="Public host"{{if .PublicHost.Err}} aria-invalid="true"{{end}}>
+      <noscript><button class="btn small" type="submit">Save</button></noscript>
+    </form>
+  </div>
+  {{template "set-err" .PublicHost.Err}}
+</section>
+
+<section class="set-card">
+  <div class="eyebrow">Relay · TURN</div>
+  <div class="set-row">
+    <div><div class="label">Built-in TURN relay</div>
+      <div class="help">{{if .TURNOn}}Relays the stream for Players that cannot connect directly (strict NAT, mobile networks). Uses this hub’s upload.{{else}}Players that cannot connect directly will fail to join unless an external TURN server is set.{{end}} Needs a public host.</div>
+      {{template "net-src" .TURNField}}</div>
+    <form method="post" action="/settings/network/turn" hx-post="/settings/network/turn" hx-target="#settings-area" hx-swap="innerHTML">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <button class="switch{{if .TURNOn}} on{{end}}" type="submit" name="value" value="{{if .TURNOn}}0{{else}}1{{end}}" role="switch" aria-checked="{{if .TURNOn}}true{{else}}false{{end}}" aria-label="Built-in TURN relay"><span></span></button>
+    </form>
+  </div>
+  {{template "set-err" .TURNField.Err}}
+  <div class="set-row">
+    <div><div class="label">TURN port</div><div class="help">UDP and TCP. Forward it to the hub.</div>{{template "net-src" .TURNPort}}</div>
+    <form method="post" action="/settings/network/turn_port" hx-post="/settings/network/turn_port" hx-trigger="change, submit" hx-target="#settings-area" hx-swap="innerHTML">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="text" inputmode="numeric" name="value" value="{{.TURNPort.Value}}" class="num" aria-label="TURN port"{{if .TURNPort.Err}} aria-invalid="true"{{end}}>
+      <noscript><button class="btn small" type="submit">Save</button></noscript>
+    </form>
+  </div>
+  {{template "set-err" .TURNPort.Err}}
+  <div class="set-row">
+    <div><div class="label">Relay ports · UDP</div><div class="help">Forward the whole range as UDP to the hub. At most 1000 ports.</div>{{template "net-src" .Relay}}</div>
+    <form method="post" action="/settings/network/turn_relay_ports" hx-post="/settings/network/turn_relay_ports" hx-trigger="change, submit" hx-target="#settings-area" hx-swap="innerHTML">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <input type="text" inputmode="numeric" name="min" value="{{.Relay.Min}}" class="num" aria-label="First relay port"{{if .Relay.Err}} aria-invalid="true"{{end}}> – <input type="text" inputmode="numeric" name="max" value="{{.Relay.Max}}" class="num" aria-label="Last relay port"{{if .Relay.Err}} aria-invalid="true"{{end}}>
+      <noscript><button class="btn small" type="submit">Save</button></noscript>
+    </form>
+  </div>
+  {{template "set-err" .Relay.Err}}
+  <div class="set-row">
+    <div><div class="label">Relay IP · optional</div><div class="help">Fixed public IPv4 for relayed addresses. Empty: resolved from the public host.</div>{{template "net-src" .RelayIP}}</div>
+    <form method="post" action="/settings/network/turn_relay_ip" hx-post="/settings/network/turn_relay_ip" hx-trigger="change, submit" hx-target="#settings-area" hx-swap="innerHTML">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="text" name="value" value="{{.RelayIP.Value}}" placeholder="203.0.113.10" class="host" aria-label="Relay IP"{{if .RelayIP.Err}} aria-invalid="true"{{end}}>
+      <noscript><button class="btn small" type="submit">Save</button></noscript>
+    </form>
+  </div>
+  {{template "set-err" .RelayIP.Err}}
+  {{with .TURN}}{{if .On}}
+  <div class="set-row"><div><div class="label">Relay status</div>
+    <div class="help">{{if .RelayIP}}Relay address {{.RelayIP}} ({{if .Fixed}}configured{{else}}resolved {{.ResolvedAt}}{{end}}){{else}}Relay address not resolved: relayed Sessions fail until the public host has an IPv4 address (A record).{{end}}</div></div>
+    <div class="value mono">{{.Allocations}} active {{if eq .Allocations 1}}allocation{{else}}allocations{{end}}</div></div>
+  <div class="set-row"><div><div class="label">Port forwards on the router</div>
+    <div class="help">Forward these to this hub’s host; the hub does not configure the router.</div>
+    <ul class="help">{{range .Forwards}}<li>{{.}}</li>{{end}}</ul></div></div>
+  {{end}}{{end}}
+</section>
+
+<section class="set-card">
+  <div class="eyebrow">External STUN servers · optional</div>
+  {{range .ICEList}}
+  <div class="set-row">
+    <div><span class="value mono">{{.}}</span> <span class="pill">STUN</span></div>
+    <form method="post" action="/settings/network/ice_servers" hx-post="/settings/network/ice_servers" hx-target="#settings-area" hx-swap="innerHTML">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="op" value="remove"><input type="hidden" name="url" value="{{.}}">
+      <button class="btn small" type="submit">Remove</button>
+    </form>
+  </div>
+  {{end}}
+  <div class="set-row">
+    <form class="set-add" method="post" action="/settings/network/ice_servers" hx-post="/settings/network/ice_servers" hx-target="#settings-area" hx-swap="innerHTML">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="op" value="add">
+      <input type="text" name="url" value="{{.ICEAdd}}" placeholder="stun:stun.example.com:3478" class="host" aria-label="STUN server URL"{{if .ICE.Err}} aria-invalid="true"{{end}}>
+      <button class="btn small" type="submit">+ Add server</button>
+    </form>
+  </div>
+  {{template "set-err" .ICE.Err}}
+  <div class="help">Offered to Players in addition to the built-in relay. Leave empty if the hub is reachable from the internet. Applies without a restart.{{if .ICE.Web}} {{template "net-src" .ICE}}{{end}}</div>
+</section>
+
+<section class="set-card">
+  <div class="eyebrow">Save history</div>
+  <div class="help">How many older versions of each save the hub keeps. 0 = unlimited. Applies without a restart; manual snapshots and open conflicts are never removed.</div>
+  <div class="set-row">
+    <div><div class="label">Keep newest versions</div><div class="help">Per slot</div>{{template "net-src" .KeepRecent}}</div>
+    <form method="post" action="/settings/network/save_keep_recent" hx-post="/settings/network/save_keep_recent" hx-trigger="change, submit" hx-target="#settings-area" hx-swap="innerHTML">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="text" inputmode="numeric" name="value" value="{{.KeepRecent.Value}}" class="num" aria-label="Keep newest versions"{{if .KeepRecent.Err}} aria-invalid="true"{{end}}>
+      <noscript><button class="btn small" type="submit">Save</button></noscript>
+    </form>
+  </div>
+  {{template "set-err" .KeepRecent.Err}}
+  <div class="set-row">
+    <div><div class="label">Keep daily versions</div><div class="help">Days of which the newest version is kept</div>{{template "net-src" .KeepDaily}}</div>
+    <form method="post" action="/settings/network/save_keep_daily" hx-post="/settings/network/save_keep_daily" hx-trigger="change, submit" hx-target="#settings-area" hx-swap="innerHTML">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="text" inputmode="numeric" name="value" value="{{.KeepDaily.Value}}" class="num" aria-label="Keep daily versions"{{if .KeepDaily.Err}} aria-invalid="true"{{end}}>
+      <noscript><button class="btn small" type="submit">Save</button></noscript>
+    </form>
+  </div>
+  {{template "set-err" .KeepDaily.Err}}
+  <div class="set-row">
+    <div><div class="label">Keep weekly versions</div><div class="help">Weeks of which the newest version is kept</div>{{template "net-src" .KeepWeekly}}</div>
+    <form method="post" action="/settings/network/save_keep_weekly" hx-post="/settings/network/save_keep_weekly" hx-trigger="change, submit" hx-target="#settings-area" hx-swap="innerHTML">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="text" inputmode="numeric" name="value" value="{{.KeepWeekly.Value}}" class="num" aria-label="Keep weekly versions"{{if .KeepWeekly.Err}} aria-invalid="true"{{end}}>
+      <noscript><button class="btn small" type="submit">Save</button></noscript>
+    </form>
+  </div>
+  {{template "set-err" .KeepWeekly.Err}}
+</section>
+{{end}}
+{{end}}
+
+{{/* ---- Security ---- */}}
+{{define "set-security"}}
+<section class="set-card">
+  <div class="eyebrow">Transport &amp; certificate</div>
+  <div class="set-row">
+    <div><div class="label">Transport</div><div class="help">HTTPS / WSS. Plain HTTP is only available in dev mode.</div></div>
+    <span class="pill{{if .Body.TLS}} ok{{end}}">{{if .Body.TLS}}✓ HTTPS{{else}}HTTP (dev mode){{end}}</span>
+  </div>
+  {{if .Body.TLS}}
+  <div class="set-row">
+    <div><div class="label">Certificate</div>
+      <div class="help">{{.Body.CertSource}}{{if .Body.CertNotAfter}} · valid until {{.Body.CertNotAfter}}{{end}}</div>
+      <div class="help">{{if .Body.CertSelfGenerated}}Renews automatically at startup when it expires within 30 days, or now with <span class="mono">framebeam-hub renew-cert</span> followed by a restart.{{else}}Your own certificate is never renewed by the hub. Renew it where it comes from.{{end}}</div></div>
+    {{if .Body.CertExpiresSoon}}<span class="badge error">Expires within 30 days</span>{{end}}
+  </div>
+  <div class="set-row">
+    <div><div class="label">Fingerprint · SHA-256</div><div class="help">Players compare this on first connect.{{if .Body.CertSelfGenerated}} After a renewal they must confirm the new value.{{end}}</div>
+      <div class="value mono">{{.Body.Fingerprint}}</div></div>
+    <button class="btn small" type="button" data-copy="{{.Body.Fingerprint}}">Copy</button>
+  </div>
+  {{end}}
+</section>
+<section class="set-card">
+  <div class="eyebrow">Admin account</div>
+  <div class="set-row">
+    <div><div class="label">{{.User}}</div><div class="help">Web login with username and password</div></div>
+    <div class="set-actions">
+      <form method="post" action="/logout"><input type="hidden" name="_csrf" value="{{.CSRF}}"><button class="btn small" type="submit">Sign out</button></form>
+    </div>
+  </div>
+  <details class="set-pw"{{if eq .Body.FieldKey "password"}} open{{end}}>
+    <summary class="btn small">Change password</summary>
+    <form class="pw-form" method="post" action="/settings/password" hx-post="/settings/password" hx-target="#settings-area" hx-swap="innerHTML">
+      <input type="hidden" name="_csrf" value="{{.CSRF}}">
+      {{if eq .Body.FieldKey "password"}}{{template "set-err" .Body.FieldErr}}{{end}}
+      <label class="field">Current password<input type="password" name="current" autocomplete="current-password" required></label>
+      <label class="field">New password · min. {{.Body.MinPassword}} characters<input type="password" name="new" autocomplete="new-password" required></label>
+      <label class="field">Repeat new password<input type="password" name="new2" autocomplete="new-password" required></label>
+      <div><button class="btn small primary" type="submit">Save password</button></div>
+    </form>
+  </details>
+</section>
 {{end}}

@@ -1,12 +1,13 @@
 {{define "library-sub"}}{{.Count}} {{if eq .Count 1}}ROM{{else}}ROMs{{end}} · {{.Used}} used · {{.Free}} free{{end}}
-{{define "library-results"}}
-<p id="library-sub" class="sub" hx-swap-oob="true">{{template "library-sub" .Body}}</p>
-{{template "library-table" .Body}}
-{{end}}
+{{define "library-results"}}<p id="library-sub" class="sub" hx-swap-oob="true">{{template "library-sub" .Body}}</p>
+{{template "library-region" .Body}}{{end}}
+{{define "library-region"}}<div id="library-results" hx-get="{{.RefreshURL}}" hx-trigger="fb:library from:body" hx-swap="outerHTML">
+{{template "library-table" .}}
+</div>{{end}}
 {{define "library-table"}}
 {{if .Rows}}
-<div class="card"><table class="list">
-  <thead><tr><th>Title</th><th>System</th><th>Size</th><th>SHA-256</th><th>Uploaded by</th><th></th></tr></thead>
+<div class="card"><table class="list lib">
+  <thead><tr><th>Title</th><th>System</th><th>Size</th><th>SHA-256</th><th>Uploaded by</th><th>Saves</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
   <tbody>
   {{range .Rows}}
   <tr>
@@ -15,7 +16,8 @@
     <td class="mono">{{.Size}}</td>
     <td class="mono" title="{{.SHA}}">{{.ShortSHA}}</td>
     <td>{{.Uploader}} · {{.Added}}</td>
-    <td><button class="btn-link" type="button" hx-post="/library/{{.ID}}/delete" hx-include="#filter-form" hx-confirm="Really delete “{{.Title}}” and its ROM file?" hx-target="#library-results" hx-swap="innerHTML">Delete</button></td>
+    <td><span class="mono">{{.Saves}}</span>{{if .Conflict}} <span class="warn-mark">▲ Conflict</span>{{end}}</td>
+    <td class="actions-cell"><button class="btn-link" type="button" hx-post="/library/{{.ID}}/delete" hx-include="#filter-form" hx-confirm="Really delete “{{.Title}}” and its ROM file?" hx-target="#library-results" hx-swap="outerHTML">Delete</button></td>
   </tr>
   {{end}}
   </tbody>
@@ -27,22 +29,22 @@
 {{define "content"}}
 <div class="page-head">
   <div><h1>Library</h1><p id="library-sub" class="sub">{{template "library-sub" .Body}}</p></div>
+  <details class="upload"{{if .Error}} open{{end}}>
+    <summary class="btn primary">Upload ROM</summary>
+    <form class="upload-form" method="post" action="/library/upload" enctype="multipart/form-data">
+      <input type="hidden" name="_csrf" value="{{.CSRF}}">
+      <label class="field">Title<input type="text" name="title" maxlength="200" placeholder="Default: file name"></label>
+      <label class="field">System<select name="system"><option value="">Detect from file extension</option>{{range .Body.Systems}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select></label>
+      <label class="field">ROM file<input type="file" name="file" required></label>
+      <button class="btn primary" type="submit">Upload</button>
+    </form>
+  </details>
 </div>
-<div class="upload-wrap"><details class="upload"{{if .Error}} open{{end}}>
-  <summary class="btn primary">Upload ROM</summary>
-  <form class="upload-form" method="post" action="/library/upload" enctype="multipart/form-data">
-    <input type="hidden" name="_csrf" value="{{.CSRF}}">
-    <label class="field">Title<input type="text" name="title" maxlength="200" placeholder="Default: file name"></label>
-    <label class="field">System<select name="system"><option value="">Detect from file extension</option>{{range .Body.Systems}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select></label>
-    <label class="field">ROM file<input type="file" name="file" required></label>
-    <button class="btn primary" type="submit">Upload</button>
-  </form>
-</details></div>
-<form id="filter-form" class="filters" hx-get="/library" hx-target="#library-results" hx-swap="innerHTML" hx-trigger="change, input delay:250ms from:#q">
-  <label class="filter-pill"><input type="radio" name="system" value=""{{if not .Body.System}} checked{{end}}><span>All systems</span></label>
+<form id="filter-form" class="filters" hx-get="/library" hx-target="#library-results" hx-swap="outerHTML" hx-trigger="change, input delay:250ms from:#q">
+  <label class="filter-pill"><input type="radio" name="system" value=""{{if not .Body.System}} checked{{end}}><span>All systems · {{.Body.Count}}</span></label>
   {{range .Body.Systems}}<label class="filter-pill"><input type="radio" name="system" value="{{.ID}}"{{if eq $.Body.System .ID}} checked{{end}}><span>{{.Name}} · {{.Count}}</span></label>{{end}}
   <span class="spacer"></span>
   <input id="q" class="search" type="search" name="q" value="{{.Body.Query}}" placeholder="Search title or hash…" aria-label="Search title or hash">
 </form>
-<div id="library-results">{{template "library-table" .Body}}</div>
+{{template "library-region" .Body}}
 {{end}}

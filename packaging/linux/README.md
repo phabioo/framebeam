@@ -80,7 +80,7 @@ Requirements:
   - UDP and TCP `3478` (STUN/TURN)
   - UDP `49160-49199` (relay range, 40 allocations)
 
-Switch it on in `/etc/framebeam/hub.env` and restart the service:
+Switch it on in the web interface (Settings → Network, then "Restart hub now"), or in `/etc/framebeam/hub.env` and restart the service:
 
 ```sh
 FRAMEBEAM_TURN=1
@@ -88,7 +88,7 @@ FRAMEBEAM_PUBLIC_HOST=hub.example.org
 # optional: FRAMEBEAM_TURN_PORT=3478, FRAMEBEAM_TURN_RELAY_PORTS=49160-49199, FRAMEBEAM_TURN_RELAY_IP=<fixed public IPv4>
 ```
 
-The Settings page of the web interface shows the state (on/off, resolved IPv4, ports, active allocations) and the forwards needed. Players pair with the DNS name; credentials are issued automatically and expire after 12 hours. Relay is IPv4 only; direct IPv6 paths still work when both Players allow them. The Hub does not configure the router.
+Values saved in Settings → Network override `hub.env` and the flags (reset per field to return to the `hub.env` value); `hub.env` only gives the initial values. This also applies to the port and the save retention values. The web form refuses ports below 1024; set those with `install-hub.sh --port` (note that a port saved in the web form then still wins until reset). The Network page shows the state (on/off, resolved IPv4, ports, active allocations) and the forwards needed. Players pair with the DNS name; credentials are issued automatically and expire after 12 hours. Relay is IPv4 only; direct IPv6 paths still work when both Players allow them. The Hub does not configure the router.
 
 ## Uninstall
 

@@ -103,7 +103,8 @@ func (s *Service) CreateAdmin(ctx context.Context, username, password string) (U
 }
 
 // CreateUser creates a regular user without a password (by the admin only).
-func (s *Service) CreateUser(ctx context.Context, username, displayName string) (User, error) {
+func (s *Service) CreateUser(ctx context.Context, username, displayName string) (_ User, err error) {
+	defer s.publishOK(&err, TopicUsers)
 	if !usernameRe.MatchString(username) {
 		return User{}, badRequest("Username: 1 to 64 characters from A-Z, a-z, 0-9, '.', '_', '-'")
 	}

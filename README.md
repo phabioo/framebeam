@@ -20,7 +20,8 @@ Phase plan: [Workflow](docs/workflow.md#phase-plan). The PoC (phases 0-5) is com
 | 0.4 Sessions over the internet and save comfort | done in code; relay and multiview verified across networks only locally | Embedded STUN/TURN relay, connection type and bitrate adaptation, multiview with up to 4 surfaces, Player-side core index check, save retention, restore, snapshots, push and slots ([ADR 0012](docs/adr/0012-internet-sessions-and-save-comfort.md), accepted) |
 | 0.5 OpenGL hardware rendering | done in code; GPUs and drivers verified only locally | Offscreen OpenGL context for libretro cores, melonDS DS OpenGL renderer and internal resolution ([ADR 0013](docs/adr/0013-opengl-hardware-rendering.md)) |
 | 0.6 Player UI pass | done in code; look and feel, GPU values and real sessions verified only locally | Cyan tokens, new shell, Library filter chips, rebuilt Emulation/Controllers/Settings, Hub edit, in-game layout switch, fullscreen, split diagnostics ([ADR 0014](docs/adr/0014-player-ui-pass.md), proposed) |
-| Post-PoC | planned | See [Roadmap](docs/roadmap.md) (versions 0.7 to 0.11) |
+| 0.7 Hub UI pass | done in code | Hub web UI: fragment navigation, live updates (SSE), v4 pages, Settings sub-pages with network settings and self-restart ([ADR 0015](docs/adr/0015-hub-ui-pass.md), proposed) |
+| Post-PoC | planned | See [Roadmap](docs/roadmap.md) (versions 0.8 to 0.11) |
 
 ## What works
 
@@ -53,6 +54,7 @@ Phase plan: [Workflow](docs/workflow.md#phase-plan). The PoC (phases 0-5) is com
 
 - Connection screen with Hub profiles and auto-connect.
 - Hub identification with fingerprint confirmation on first contact (TOFU); on mismatch the connection is blocked and no credential is sent. After a Hub certificate change the Hub card shows the stored and the presented fingerprint; "Trust new certificate" and then "Yes, trust this certificate" re-pin it and keep the credential (CLI: `--accept-fingerprint <sha256>`).
+- Hub UI pass (0.7): sidebar navigation swaps only the content area; badges and tables update live (Server-Sent Events). Settings → Network edits port, embedded TURN, public host, relay range and save retention in the browser; these web settings win over `hub.env`, and changes that need it are applied by a restart the Hub triggers itself (ports below 1024 only via `install-hub.sh --port`).
 - Settings → Hubs: switch, remove (with confirmation), auto-connect; the current Hub is marked.
 - Pairing via approval request, token renewal and Revoke.
 - Library with search and filter.

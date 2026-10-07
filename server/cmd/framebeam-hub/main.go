@@ -54,6 +54,10 @@ func main() {
 		err = runUpdate(args[1:], os.Stdout)
 	} else {
 		err = runServer(args)
+		if errors.Is(err, errRestart) {
+			// runServer returned: the server, TURN and the database are closed. Replace this process.
+			err = reexec()
+		}
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)
@@ -228,28 +232,49 @@ func runServer(args []string) error {
 		return err
 	}
 	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	sigCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	ctx, cancelAll := context.WithCancel(sigCtx)
+	defer cancelAll()
+
+	// Values from hub.env and flags; the values saved on the web interface (Settings > Network) win over them.
+	base := *cfg
+	base.ICEServers = append([]string(nil), cfg.ICEServers...)
 
 	svc, closeFn, err := openService(ctx, cfg)
 	if err != nil {
 		return err
 	}
 	defer closeFn()
+	stored, err := svc.NetOverrides(ctx)
+	if err != nil {
+		return fmt.Errorf("read network settings: %w", err)
+	}
+	eff, issues := effectiveConfig(&base, stored, log)
+	svc.SetSaveRetention(eff.SaveKeepRecent, eff.SaveKeepDaily, eff.SaveKeepWeekly)
+	svc.SetICEServers(eff.ICEServers)
 	if has, err := svc.HasAdmin(ctx); err == nil && !has {
 		log.Warn("no admin present: run 'framebeam-hub setup-admin -username <name>' or open /setup in a browser on this machine")
 	}
 
-	webCfg := web.Config{Listen: cfg.Listen, UseTLS: cfg.UseTLS()}
-	if cfg.TURN {
-		ts, err := startTURN(ctx, cfg, svc, log)
-		if err != nil {
+	webCfg := web.Config{UseTLS: eff.UseTLS()}
+	if eff.TURN {
+		ts, err := startTURN(ctx, &eff, svc, log)
+		switch {
+		case err == nil:
+			defer ts.Close()
+			svc.SetTURN(ts)
+			defer svc.SetTURN(nil)
+			webCfg.TURN = ts
+		case hasTURNOverride(stored):
+			// Saved values must never keep the hub from starting: run without TURN and say so in Settings.
+			log.Error("built-in TURN relay could not be started with the saved settings; starting without it", "err", err)
+			issues = append(issues, web.NetIssue{Key: config.NetTURN, Value: web.NetSignature(&eff, config.NetTURN),
+				Message: fmt.Sprintf("The built-in TURN relay could not be started with the saved settings: %v. The hub runs without it until you change them.", err)})
+			eff.TURN = false
+		default:
 			return err
 		}
-		defer ts.Close()
-		svc.SetTURN(ts)
-		defer svc.SetTURN(nil)
-		webCfg.TURN = ts
 	}
 
 	var tlsConf *tls.Config
@@ -283,8 +308,22 @@ func runServer(args []string) error {
 		log.Warn("Development mode: HTTP without TLS", "loopback", cfg.ListenIsLoopback())
 	}
 
+	// Listener: the effective (possibly saved) address, else the one from hub.env/flags.
+	ln, listenIssue, err := chooseListen(eff.Listen, base.Listen, func(addr string) (net.Listener, error) { return net.Listen("tcp", addr) })
+	if err != nil {
+		return err
+	}
+	if listenIssue != nil {
+		log.Error("saved listen port could not be bound; using the address from hub.env/flags", "err", listenIssue.cause, "fallback", base.Listen)
+		issues = append(issues, listenIssue.issue(eff, base.Listen))
+		eff.Listen = base.Listen
+	}
+	webCfg.Listen = eff.Listen
+	webCfg.Net = web.NetConfig{Base: base, Running: eff, Issues: issues, RequestRestart: requestRestart}
+
 	webSrv, err := web.New(svc, webCfg, log)
 	if err != nil {
+		ln.Close()
 		return err
 	}
 	mux := http.NewServeMux()
@@ -298,10 +337,7 @@ func runServer(args []string) error {
 		ErrorLog:          slog.NewLogLogger(log.Handler(), slog.LevelWarn),
 		TLSConfig:         tlsConf,
 	}
-	ln, err := net.Listen("tcp", cfg.Listen)
-	if err != nil {
-		return err
-	}
+	srv.RegisterOnShutdown(webSrv.Shutdown) // end SSE streams so Shutdown does not wait for them
 	info := svc.Info()
 	log.Info("FrameBeam Hub started", "version", version.String(), "hub_id", info.HubID, "name", info.Name,
 		"listen", ln.Addr().String(), "tls", cfg.UseTLS(), "protocol_version", info.ProtocolVersion)
@@ -345,9 +381,15 @@ func runServer(args []string) error {
 			errc <- srv.Serve(ln)
 		}
 	}()
+	restarting := false
 	select {
 	case err := <-errc:
 		return err
+	case <-restartCh:
+		// Requested on the web interface: shut down like on SIGTERM, then main re-executes the binary.
+		restarting = true
+		cancelAll()
+		log.Info("Restart requested")
 	case <-ctx.Done():
 	}
 	log.Info("Shutting down FrameBeam Hub")
@@ -363,6 +405,9 @@ func runServer(args []string) error {
 	select {
 	case <-updDone:
 	case <-time.After(5 * time.Second):
+	}
+	if restarting {
+		return errRestart
 	}
 	return nil
 }

@@ -53,7 +53,8 @@ func TestAdminPagesAreAdminOnlyAndRender(t *testing.T) {
 	}
 	for _, p := range []string{"/users/invites", "/users/u_x/disable", "/users/u_x/enable", "/users/invites/x/revoke", "/systems/nds/expected-version",
 		"/systems/nds/firmware-mode", "/systems/nds/firmware/bios7/pin", "/systems/nds/firmware/bios7/remove", "/settings/appearance", "/settings/uploads",
-		"/settings/updates", "/settings/updates/check", "/settings/updates/install"} {
+		"/settings/updates", "/settings/updates/check", "/settings/updates/install", "/settings/name", "/settings/password",
+		"/settings/network/listen_port", "/settings/network/listen_port/reset", "/settings/network/restart"} {
 		if rec := anon.postForm(p, url.Values{}, nil); rec.Code != http.StatusSeeOther || location(rec) != "/login" {
 			t.Fatalf("%s: %d -> %q", p, rec.Code, location(rec))
 		}
@@ -72,9 +73,15 @@ func TestAdminPagesAreAdminOnlyAndRender(t *testing.T) {
 		}
 	}
 	contains(t, c.get("/users", nil), `href="/users" class="active"`, "Onboarding invites", "Accounts apply only on this Hub")
-	contains(t, c.get("/systems", nil), `href="/systems" class="active"`, "Nintendo DS", "melonds_ds", "1.4.0", "Included in the Player",
-		"windows-x86_64", "ARM7 BIOS", "ARM9 BIOS", "DS Firmware", "Core package cache", "Check source now", "No core packages known yet", `<option value="">any version</option>`, "1.4.0 (not in source)", "Reported by clients")
-	notContains(t, c.get("/systems", nil), "LATER")
+	// Systems & Cores: list | detail with tabs; the firmware tab is the default.
+	rec := c.get("/systems", nil)
+	contains(t, rec, `href="/systems" class="active"`, "Nintendo DS", "melonDS DS 1.4.0", "Included in the Player", "ARM7 BIOS", "ARM9 BIOS", "DS Firmware",
+		"Search systems…", "● Ready", `aria-selected="true"`, `id="systems-list"`, `id="systems-detail"`, "Provided by the admin")
+	notContains(t, rec, "LATER", "Core package cache", "Reported by Players")
+	rec = c.get("/systems?sys=nds&tab=core", nil)
+	contains(t, rec, "melonds_ds", "windows-x86_64", "Core package cache", "Check source now", "No core packages known yet", `<option value="">any version</option>`,
+		"1.4.0 (not in source)", "File extensions", "3 files · see the Firmware tab")
+	contains(t, c.get("/systems?sys=nds&tab=clients", nil), "Reported by Players", "No client has reported yet")
 }
 
 func TestAdminPagesCSRF(t *testing.T) {
@@ -84,7 +91,8 @@ func TestAdminPagesCSRF(t *testing.T) {
 	u, _ := e.svc.CreateUser(bg, "max", "Max")
 	paths := []string{"/users/invites", "/users/" + u.ID + "/disable", "/users/" + u.ID + "/enable", "/users/invites/" + uuid.NewString() + "/revoke",
 		"/systems/nds/expected-version", "/systems/nds/firmware-mode", "/systems/nds/firmware/bios7/pin", "/systems/nds/firmware/bios7/remove",
-		"/settings/appearance", "/settings/uploads", "/cores/sync", "/settings/updates", "/settings/updates/check", "/settings/updates/install"}
+		"/settings/appearance", "/settings/uploads", "/cores/sync", "/settings/updates", "/settings/updates/check", "/settings/updates/install",
+		"/settings/network/listen_port", "/settings/network/listen_port/reset", "/settings/network/restart"}
 	for _, p := range paths {
 		status(t, c.postForm(p, url.Values{"mode": {"dark"}, "enabled": {"1"}}, nil), 403)
 		status(t, c.postForm(p, url.Values{"_csrf": {"wrong"}}, nil), 403)
@@ -238,9 +246,9 @@ func TestSettingsAppearanceAndUploadToggle(t *testing.T) {
 	contains(t, anon.get("/login", nil), `data-theme="light"`)
 	c := e.client()
 	tok := c.login()
-	rec := c.get("/settings", nil)
+	rec := c.get("/settings/general", nil)
 	contains(t, rec, `data-theme="light"`, "Appearance", "Applies to this web interface", "Allow users to upload games", "Inactive",
-		"Currently only admins can upload ROMs.", "uploaded_by")
+		"Currently only admins can upload ROMs.")
 	// Dark: stored as Hub setting and applied to every page, including login/setup for visitors.
 	status(t, postTok(c, tok, "/settings/appearance", url.Values{"mode": {"dark"}}), 303)
 	for _, p := range []string{"/settings", "/library", "/saves", "/clients", "/users", "/systems"} {
@@ -261,8 +269,8 @@ func TestSettingsAppearanceAndUploadToggle(t *testing.T) {
 	}
 	// Upload permission.
 	status(t, postTok(c, tok, "/settings/uploads", url.Values{"enabled": {"1"}}), 303)
-	rec = c.get("/settings?ok=uploads", nil)
-	contains(t, rec, "Active", "Users can upload ROMs from the Player.", "Upload setting saved.")
+	rec = c.get("/settings/general?ok=uploads", nil)
+	contains(t, rec, "Active", "Users can upload ROMs. Uploads are tagged with uploaded_by", "Upload setting saved.")
 	if on, _ := e.svc.AllowUserUploads(bg); !on {
 		t.Fatal("not on")
 	}
@@ -277,12 +285,12 @@ func TestSystemsPageFirmwareFlow(t *testing.T) {
 	c := e.client()
 	tok := c.login()
 	admin, _ := e.svc.VerifyPassword(bg, "admin", "secret-1234")
-	notContains(t, c.get("/systems", nil), "firmware</span>") // no badge in builtin mode
+	notContains(t, c.get("/systems", nil), "issues</span>") // no badge in builtin mode
 
 	// Switch to native: all three files are required and missing -> badge on every page.
 	status(t, postTok(c, tok, "/systems/nds/firmware-mode", url.Values{"mode": {"native"}}), 303)
 	rec := c.get("/library", nil)
-	contains(t, rec, `class="badge error">3 firmware</span>`)
+	contains(t, rec, `class="badge error">3 issues</span>`)
 	rec = c.get("/systems", nil)
 	contains(t, rec, "○ Missing", "required", "Provide")
 	rec = postTok(c, tok, "/systems/nds/firmware-mode", url.Values{"mode": {"bad"}})
@@ -295,27 +303,27 @@ func TestSystemsPageFirmwareFlow(t *testing.T) {
 	// Right size (dummy bytes): valid, badge drops to 2.
 	dummy7 := bytes.Repeat([]byte{9}, 16384)
 	rec = c.multipartPost("/systems/nds/firmware/bios7/upload", map[string]string{"_csrf": tok}, "any.bin", dummy7)
-	if rec.Code != 303 || location(rec) != "/systems?ok=fwfile" {
+	if rec.Code != 303 || location(rec) != "/systems?sys=nds&tab=firmware&ok=fwfile" {
 		t.Fatalf("%d %q %.200s", rec.Code, location(rec), rec.Body.String())
 	}
 	rec = c.get("/systems?ok=fwfile", nil)
-	contains(t, rec, "✓ Valid", "Replace", "Remove", "Firmware file saved.", `>2 firmware</span>`)
+	contains(t, rec, "✓ Valid", "Replace", "Remove", "Firmware file saved.", `>2 issues</span>`)
 	if b := rec.Body.String(); strings.Contains(b, string(dummy7[:64])) {
 		t.Fatal("firmware bytes in the page")
 	}
 	// Pin a differing hash: mismatch pill, badge 3; clear it again.
 	status(t, postTok(c, tok, "/systems/nds/firmware/bios7/pin", url.Values{"sha256": {strings.Repeat("A", 64)}}), 303)
 	rec = c.get("/systems", nil)
-	contains(t, rec, "✕ Hash mismatch", `>3 firmware</span>`, strings.Repeat("a", 4)+"…")
+	contains(t, rec, "✕ Hash mismatch", `>3 issues</span>`, strings.Repeat("a", 4)+"…")
 	status(t, postTok(c, tok, "/systems/nds/firmware/bios7/pin", url.Values{"sha256": {"nothex"}}), 400)
 	status(t, postTok(c, tok, "/systems/nds/firmware/bios7/pin", url.Values{"sha256": {""}}), 303)
 	contains(t, c.get("/systems", nil), "✓ Valid")
 	// Remove.
 	status(t, postTok(c, tok, "/systems/nds/firmware/bios7/remove", nil), 303)
-	if rec := postTok(c, tok, "/systems/nds/firmware/bios7/remove", nil); location(rec) != "/systems?err=nofile" {
+	if rec := postTok(c, tok, "/systems/nds/firmware/bios7/remove", nil); location(rec) != "/systems?sys=nds&tab=firmware&err=nofile" {
 		t.Fatalf("%q", location(rec))
 	}
-	if rec := postTok(c, tok, "/systems/nds/firmware/nope/pin", url.Values{"sha256": {""}}); location(rec) != "/systems?err=nofile" {
+	if rec := postTok(c, tok, "/systems/nds/firmware/nope/pin", url.Values{"sha256": {""}}); location(rec) != "/systems?sys=nds&tab=firmware&err=nofile" {
 		t.Fatalf("%q", location(rec))
 	}
 	if gone, _ := e.svc.GetRegistryEntry(bg, "nds"); gone.Firmware[0].Present {
@@ -337,21 +345,24 @@ func TestSystemsPageFirmwareFlow(t *testing.T) {
 	}
 	hs("1.3.0")
 	rec = c.get("/systems", nil)
-	contains(t, rec, "Lena&#39;s gaming PC", "Player 0.1.0 · melonDS DS 1.3.0", "Core version mismatch · 1.4.0 expected")
+	contains(t, rec, "3 firmware", "✕ Not ready · 3 files missing or invalid", `<span class="count warn">1</span>`)
+	rec = c.get("/systems?tab=clients", nil)
+	contains(t, rec, "Lena&#39;s gaming PC", "Player 0.1.0 · melonDS DS 1.3.0", "▲ Core version mismatch · 1.4.0 expected", "launching stays allowed")
+	notContains(t, rec, "✕ Core version mismatch") // a core mismatch only warns (ADR 0007 D3)
 	status(t, postTok(c, tok, "/systems/nds/expected-version", url.Values{"version": {"1.3.0"}}), 303)
-	contains(t, c.get("/systems", nil), "● compatible")
+	contains(t, c.get("/systems?tab=clients", nil), "● compatible")
 	status(t, postTok(c, tok, "/systems/nds/expected-version", url.Values{"version": {""}}), 303)
 	if entry, _ := e.svc.GetRegistryEntry(bg, "nds"); entry.ExpectedCoreVersion != "" {
 		t.Fatalf("%+v", entry)
 	}
-	contains(t, c.get("/systems", nil), `<option value="" selected>any version</option>`)
+	contains(t, c.get("/systems?tab=core", nil), `<option value="" selected>any version</option>`)
 	hs("9.9.9")
-	contains(t, c.get("/systems", nil), "● compatible")
+	contains(t, c.get("/systems?tab=clients", nil), "● compatible")
 	if _, err := e.svc.Handshake(bg, dev, hub.HandshakeInput{Platform: "windows", Arch: "x86_64", PlayerVersion: "0.1.0",
 		ProtocolVersion: 1, MinProtocolVersion: 1, Cores: &[]hub.CoreReport{}}); err != nil {
 		t.Fatal(err)
 	}
-	contains(t, c.get("/systems", nil), "Core missing", "not installed")
+	contains(t, c.get("/systems?tab=clients", nil), "▲ Core missing", "not installed")
 }
 
 func TestSettingsCertificateExpiryWarning(t *testing.T) {
@@ -374,11 +385,11 @@ func TestSettingsCertificateExpiryWarning(t *testing.T) {
 			})
 			c := e.client()
 			c.login()
-			body := c.get("/settings", nil).Body.String()
+			body := c.get("/settings/security", nil).Body.String()
 			if got := strings.Contains(body, "Expires within 30 days"); got != tc.badge {
 				t.Fatalf("badge=%v, want %v", got, tc.badge)
 			}
-			if got := strings.Contains(body, "must confirm the new fingerprint"); got != tc.hint {
+			if got := strings.Contains(body, "must confirm the new value"); got != tc.hint {
 				t.Fatalf("hint=%v, want %v", got, tc.hint)
 			}
 		})
@@ -411,7 +422,7 @@ func TestSystemsPageCoreSource(t *testing.T) {
 	}
 	wait(func() bool { return runs.Load() >= 1 })
 
-	rec := c.get("/systems", nil)
+	rec := c.get("/systems?tab=core", nil)
 	contains(t, rec, src.IndexURL(), "Last error", "none", "melonds_ds", "1.5.0", "GPL-3.0", "yes", "no",
 		`<option value="1.4.0" selected>1.4.0</option>`, `<option value="1.5.0">1.5.0</option>`, `<option value="">any version</option>`)
 	notContains(t, rec, "(not in source)", "LATER", "No core packages known yet")
@@ -432,7 +443,7 @@ func TestSystemsPageCoreSource(t *testing.T) {
 		t.Fatalf("%d %q", rec.Code, location(rec))
 	}
 	wait(func() bool { return runs.Load() > n })
-	contains(t, c.get("/systems?ok=coresync", nil), "Checking the core source", "Last error", "HTTP 503", "melonds_ds")
+	contains(t, c.get("/systems?tab=core&ok=coresync", nil), "Checking the core source", "Last error", "HTTP 503", "melonds_ds")
 }
 
 // ---- Settings: Updates ----
@@ -475,7 +486,8 @@ func TestSettingsUpdatesSection(t *testing.T) {
 	tok := c.login()
 	rec := c.get("/settings", nil)
 	status(t, rec, 200)
-	contains(t, rec, "<h2>Updates</h2>", `name="channel"`, `<option value="beta" selected>`, `name="auto" value="1" checked`, "0.3.0-beta.5", "Check now")
+	contains(t, rec, "Versions, channel and automatic installs for this hub", `name="channel" value="beta" class="on"`, `role="switch" aria-checked="true"`,
+		"0.3.0-beta.5", "Check now", "checks every hour")
 	notContains(t, rec, "Install update")
 
 	// Check now runs in the background; run the check directly and reload.
@@ -485,13 +497,13 @@ func TestSettingsUpdatesSection(t *testing.T) {
 		t.Fatal(err)
 	}
 	rec = c.get("/settings", nil)
-	contains(t, rec, "Version 0.3.0-beta.6 is available", "Release notes", "https://example.org/notes", `action="/settings/updates/install"`, "Install update",
+	contains(t, rec, "Update available", "0.3.0-beta.6", "Release notes", "https://example.org/notes", `action="/settings/updates/install"`, "Install update",
 		`hx-confirm="Install 0.3.0-beta.6 now?`, ">update</span>")
 
 	// Saving: channel and automatic install, invalid channel rejected.
 	rec = postTok(c, tok, "/settings/updates", url.Values{"channel": {"stable"}})
 	status(t, rec, 303)
-	if loc := location(rec); loc != "/settings?ok=updates" {
+	if loc := location(rec); loc != "/settings/updates?ok=updates" {
 		t.Fatal(loc)
 	}
 	if s, _ := e.svc.UpdateSettings(bg); s.Channel != "stable" || s.Auto {
@@ -502,18 +514,18 @@ func TestSettingsUpdatesSection(t *testing.T) {
 	// Install: stages and creates the request file.
 	rec = postTok(c, tok, "/settings/updates/install", nil)
 	status(t, rec, 303)
-	if loc := location(rec); loc != "/settings?ok=updateinstall" && loc != "/settings?err=updatenone" {
+	if loc := location(rec); loc != "/settings/updates?ok=updateinstall" && loc != "/settings/updates?err=updatenone" {
 		t.Fatal(loc)
 	}
 	e.svc.SetUpdateSettings(bg, "beta", false)
 	rec = postTok(c, tok, "/settings/updates/install", nil)
-	if location(rec) != "/settings?ok=updateinstall" {
+	if location(rec) != "/settings/updates?ok=updateinstall" {
 		t.Fatalf("install: %d %s", rec.Code, location(rec))
 	}
 	if !updates.RequestPending(reqDir) {
 		t.Fatal("request file missing")
 	}
-	contains(t, c.get("/settings?ok=updateinstall", nil), "Update downloaded and verified", "Installing")
+	contains(t, c.get("/settings/updates?ok=updateinstall", nil), "Update downloaded and verified", "Installing")
 }
 
 func TestSettingsUpdatesNotPackagedAndDev(t *testing.T) {
@@ -526,17 +538,17 @@ func TestSettingsUpdatesNotPackagedAndDev(t *testing.T) {
 	c := e.client()
 	tok := c.login()
 	rec := c.get("/settings", nil)
-	contains(t, rec, "Off (development build)", "development builds")
+	contains(t, rec, ">Off</button>", "development builds")
 	status(t, postTok(c, tok, "/settings/updates", url.Values{"channel": {"beta"}}), 303)
 	if _, err := e.svc.CheckUpdates(bg); err != nil {
 		t.Fatal(err)
 	}
 	rec = c.get("/settings", nil)
-	contains(t, rec, "Version 0.3.0-beta.6 is available", "sudo apt install ./framebeam-hub_0.3.0-beta.6_amd64.deb")
+	contains(t, rec, "Update available", "0.3.0-beta.6", "sudo apt install ./framebeam-hub_0.3.0-beta.6_amd64.deb")
 	notContains(t, rec, "Install update")
 	rec = postTok(c, tok, "/settings/updates/install", nil)
-	if location(rec) != "/settings?err=updatepackage" {
+	if location(rec) != "/settings/updates?err=updatepackage" {
 		t.Fatal(location(rec))
 	}
-	contains(t, c.get("/settings?err=updatepackage", nil), "not installed from the .deb package")
+	contains(t, c.get("/settings/updates?err=updatepackage", nil), "not installed from the .deb package")
 }

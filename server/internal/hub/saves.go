@@ -391,7 +391,8 @@ type PutSaveResult struct {
 func newConflictID() string { return "c_" + strings.ReplaceAll(uuid.NewString(), "-", "")[:16] }
 
 // PutSave implements the upload rules of D3 in one transaction per slot.
-func (s *Service) PutSave(ctx context.Context, in PutSaveInput) (PutSaveResult, error) {
+func (s *Service) PutSave(ctx context.Context, in PutSaveInput) (_ PutSaveResult, err error) {
+	defer s.publishOK(&err, TopicSaves, TopicLibrary)
 	switch in.Reason {
 	case SyncCheckpoint, SyncFinal, SyncFinalSessionEnd:
 	default:
@@ -676,7 +677,8 @@ type ResolveInput struct {
 
 // ResolveSaveConflict resolves a conflict. A wrong expected_revision or an already resolved conflict
 // returns ErrSaveConflictStale and changes nothing. Before applying, the current checkpoint goes to history.
-func (s *Service) ResolveSaveConflict(ctx context.Context, in ResolveInput) (SaveSlot, error) {
+func (s *Service) ResolveSaveConflict(ctx context.Context, in ResolveInput) (_ SaveSlot, err error) {
+	defer s.publishOK(&err, TopicSaves, TopicLibrary)
 	if in.Resolution != ResolveUseHub && in.Resolution != ResolveUseLocal {
 		return SaveSlot{}, badRequest("Invalid resolution")
 	}
