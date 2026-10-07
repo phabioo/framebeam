@@ -98,3 +98,26 @@ sudo ./install-hub.sh install --binary ./framebeam-hub-linux-arm64   # fixes own
 ```
 
 Keep the old directory as a backup until the service works. `--data-dir DIR` remains available for directories outside `/home` and `/root`, e.g. `/srv/framebeam`; the script chowns them to `framebeam` and never deletes or overwrites their content.
+
+## Debian package (recommended on Debian / Raspberry Pi OS)
+
+`framebeam-hub_<semver>_{amd64,arm64}.deb` (CI artifact `framebeam-hub-linux`, GitHub release asset) installs
+`/usr/bin/framebeam-hub`, the units `framebeam-hub.service`, `framebeam-hub-update.path` and
+`framebeam-hub-update.service` (in `/lib/systemd/system`) and is the only install type the Hub can update itself
+(Settings > Updates). `sudo apt install ./framebeam-hub_<semver>_<arch>.deb`.
+
+- The control Version field uses `~` for the pre-release (`0.3.0~test.57`, so test builds sort before the release); file names keep the SemVer (`framebeam-hub_0.3.0-test.57_arm64.deb`) because GitHub rewrites special characters in asset names.
+- The postinst creates the `framebeam` user, `/var/lib/framebeam` (only if missing) and `/etc/framebeam/hub.env` (only
+  if missing: an existing file is never overwritten), then enables and (re)starts the Hub and the update path unit.
+- Migration from `install-hub.sh`: the old unit in `/etc/systemd/system` is moved to
+  `/etc/framebeam/framebeam-hub.service.pre-deb`, `/usr/local/bin/framebeam-hub` is removed; drop-ins in
+  `framebeam-hub.service.d/`, `hub.env` and the data directory are kept.
+- Remove keeps config and data; purge removes `/etc/framebeam` only. The data directory (database, saves, ROM library)
+  and the `framebeam` user are never deleted by the package.
+- Updates: the Hub (user `framebeam`) stages a verified `.deb` and creates `/run/framebeam/update-request`; the path
+  unit starts `framebeam-hub update apply-staged` as root, which verifies the staged package again and runs `dpkg -i`.
+- Build (dpkg-deb only): `packaging/linux/build-deb.sh --binary PATH --arch amd64|arm64 --version X.Y.Z[-pre] --out DIR`;
+  all of it: `make build-hub package-hub-deb HUB_VERSION=...`. Checked by `make check-hub` (control, contents, units,
+  shellcheck of the maintainer scripts in `deb/`).
+- `scripts/e2e-hub-update.sh` installs and updates a Hub on a real systemd host (CI only; skips without root/systemd).
+

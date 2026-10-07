@@ -2,6 +2,8 @@ name: CI
 
 on:
   push:
+    branches: ['**']
+    tags: ['v*']
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -14,9 +16,53 @@ permissions:
   contents: read
 
 jobs:
+  # Build version and channel, computed once (spec 0.3 S1): tag vX.Y.Z -> stable, push to main -> test, else dev.
+  version:
+    name: Version and channel
+    runs-on: ubuntu-latest
+    outputs:
+      core: ${{ steps.v.outputs.core }}
+      version: ${{ steps.v.outputs.version }}
+      channel: ${{ steps.v.outputs.channel }}
+      commit: ${{ steps.v.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compute version and channel
+        id: v
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          REF_NAME: ${{ github.ref_name }}
+          RUN_NUMBER: ${{ github.run_number }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          core="$(tr -d '[:space:]' < VERSION)"
+          [[ "$core" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::VERSION must be X.Y.Z, found '$core'"; exit 1; }
+          if [ "$EVENT" = push ] && [[ "$REF" == refs/tags/v* ]]; then
+            [ "${REF_NAME#v}" = "$core" ] || { echo "::error title=Tag does not match VERSION::tag $REF_NAME but VERSION is $core"; exit 1; }
+            version="$core"; channel="stable"
+          elif [ "$EVENT" = push ] && [ "$REF" = refs/heads/main ]; then
+            version="$core-test.$RUN_NUMBER"; channel="test"
+          else
+            version="$core-dev.$RUN_NUMBER"; channel="dev"
+          fi
+          {
+            echo "core=$core"
+            echo "version=$version"
+            echo "channel=$channel"
+            echo "commit=$SHA"
+          } >> "$GITHUB_OUTPUT"
+          echo "Version $version, channel $channel" >> "$GITHUB_STEP_SUMMARY"
+
   hub:
     name: Hub (Go, Linux)
+    needs: version
     runs-on: ubuntu-latest
+    env:
+      HUB_VERSION: ${{ needs.version.outputs.version }}
+      HUB_CHANNEL: ${{ needs.version.outputs.channel }}
+      HUB_COMMIT: ${{ needs.version.outputs.commit }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -25,22 +71,38 @@ jobs:
           cache-dependency-path: server/go.sum
       - name: Check Hub
         run: make check-hub
-      - name: Build Hub (linux amd64 + arm64)
+      - name: Build Hub (linux amd64 + arm64) and .deb packages
         run: |
-          HUB_VERSION="$(git rev-parse --short=8 HEAD)" make build-hub
+          make build-hub
+          make package-hub-deb
+          # The amd64 binary runs on the runner: its version --json is the release info of the Hub.
+          server/dist/framebeam-hub-linux-amd64 version --json > server/dist/hub-release-info.json
+          cat server/dist/hub-release-info.json
+          grep -qF "\"version\":\"$HUB_VERSION\"" server/dist/hub-release-info.json
+          grep -qF "\"channel\":\"$HUB_CHANNEL\"" server/dist/hub-release-info.json
+          ls -l server/dist
+      - name: E2E Hub install and update (systemd)
+        # Real install on the runner: install-hub.sh, .deb migration, signed update round trip (uses sudo).
+        run: scripts/e2e-hub-update.sh
       - uses: actions/upload-artifact@v4
         with:
           name: framebeam-hub-linux
           path: |
             server/dist/framebeam-hub-linux-amd64
             server/dist/framebeam-hub-linux-arm64
+            server/dist/framebeam-hub_*.deb
+            server/dist/hub-release-info.json
           if-no-files-found: error
-          retention-days: 3
+          retention-days: 7
 
   client-linux:
     name: Player (C++, Linux)
+    needs: version
     runs-on: ubuntu-latest
     env:
+      FRAMEBEAM_VERSION: ${{ needs.version.outputs.version }}
+      FRAMEBEAM_CHANNEL: ${{ needs.version.outputs.channel }}
+      FRAMEBEAM_COMMIT: ${{ needs.version.outputs.commit }}
       VCPKG_ROOT: ${{ github.workspace }}/.vcpkg
       VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.vcpkg-binary-cache
     steps:
@@ -97,9 +159,14 @@ jobs:
 
   client-windows:
     name: Player (C++, Windows MSVC)
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    # ADR 0008: PRs, manual runs, pushes to main (cache priming and test releases) and release tags.
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')))
+    needs: version
     runs-on: windows-latest
     env:
+      FRAMEBEAM_VERSION: ${{ needs.version.outputs.version }}
+      FRAMEBEAM_CHANNEL: ${{ needs.version.outputs.channel }}
+      FRAMEBEAM_COMMIT: ${{ needs.version.outputs.commit }}
       VCPKG_ROOT: ${{ github.workspace }}\.vcpkg
       VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\.vcpkg-binary-cache
     steps:
@@ -170,7 +237,7 @@ jobs:
             vcpkg-bin-${{ runner.os }}-x64-windows-release-msvc-${{ steps.vcpkg-toolchain.outputs.version }}-
       - name: Configure
         working-directory: client
-        run: cmake --preset windows-msvc-release "-DFRAMEBEAM_MELONDS_DS_CORE=${{ steps.core.outputs.dll }}"
+        run: cmake --preset windows-msvc-release "-DFRAMEBEAM_MELONDS_DS_CORE=${{ steps.core.outputs.dll }}" "-DFRAMEBEAM_VERSION=$env:FRAMEBEAM_VERSION" "-DFRAMEBEAM_CHANNEL=$env:FRAMEBEAM_CHANNEL" "-DFRAMEBEAM_COMMIT=$env:FRAMEBEAM_COMMIT"
       # Save the binary cache right after vcpkg install (part of configure), even if
       # later steps fail, so a long FFmpeg build is never repeated.
       - name: Save vcpkg binary cache
@@ -241,32 +308,44 @@ jobs:
       - name: Assemble package (windeployqt)
         shell: pwsh
         run: |
+          # Layout (spec 0.3 S6): the tiny launcher and the notice at the top, everything else in bin\.
           $dist = "$env:GITHUB_WORKSPACE\dist\framebeam-player"
-          New-Item -ItemType Directory -Force $dist | Out-Null
-          # qt_standard_project_setup may not place executables in app\ on Windows: search for it.
-          $exe = @(Get-ChildItem -Recurse -Filter framebeam_player.exe client\build\windows-msvc-release)
-          if ($exe.Count -ne 1) { throw "framebeam_player.exe not found unambiguously: $($exe.FullName -join ', ')" }
-          Write-Host "Executable: $($exe[0].FullName)"
-          Copy-Item $exe[0].FullName $dist
+          $bin = "$dist\bin"
+          New-Item -ItemType Directory -Force $bin | Out-Null
+          # The launcher (target framebeam_player_launcher) is built to <build>\launcher\framebeam_player.exe; the real Player
+          # is the only other framebeam_player.exe in the build tree.
+          $build = "client\build\windows-msvc-release"
+          $launcher = Get-Item "$build\launcher\framebeam_player.exe" -ErrorAction SilentlyContinue
+          if (-not $launcher) { throw "launcher not found: $build\launcher\framebeam_player.exe" }
+          $launcherDir = (Resolve-Path "$build\launcher").Path
+          $reals = @(Get-ChildItem -Recurse -Filter framebeam_player.exe $build | Where-Object { -not $_.DirectoryName.StartsWith($launcherDir, [StringComparison]::OrdinalIgnoreCase) })
+          if ($reals.Count -ne 1) { throw "expected exactly one real framebeam_player.exe outside launcher\, found $($reals.Count): $($reals.FullName -join ', ')" }
+          $real = $reals[0]
+          if ($launcher.Length -ge $real.Length) { throw "launcher ($($launcher.Length) bytes) is not smaller than the Player ($($real.Length) bytes)" }
+          Write-Host "Launcher: $($launcher.FullName)"
+          Write-Host "Player:   $($real.FullName)"
+          Copy-Item $launcher.FullName "$dist\framebeam_player.exe"
+          Copy-Item $real.FullName "$bin\framebeam_player.exe"
           # vcpkg runtime DLLs (libdatachannel, FFmpeg, OpenH264, Opus, SDL3 and their transitive DLLs): windeployqt only
           # deploys Qt. vcpkg's applocal step puts them next to the exe; fall back to the release bin directory of
           # the manifest install (never debug\bin). Qt DLLs are left to windeployqt.
-          $sources = @($exe[0].DirectoryName)
+          $sources = @($real.DirectoryName)
           $installed = @(Get-ChildItem -Recurse -Directory -Filter 'vcpkg_installed' client\build\windows-msvc-release -ErrorAction SilentlyContinue |
             ForEach-Object { Join-Path $_.FullName 'x64-windows-release\bin' } | Where-Object { Test-Path $_ })
           $sources += $installed
           foreach ($src in ($sources | Select-Object -Unique)) {
             foreach ($f in (Get-ChildItem -Path $src -Filter *.dll -File)) {
               if ($f.Name -like 'Qt6*.dll') { continue }
-              if (-not (Test-Path "$dist\$($f.Name)")) { Copy-Item $f.FullName $dist }
+              if (-not (Test-Path "$bin\$($f.Name)")) { Copy-Item $f.FullName $bin }
             }
           }
-          Write-Host "Bundled non-Qt DLLs: $((Get-ChildItem $dist -Filter *.dll | ForEach-Object Name) -join ', ')"
+          Write-Host "Bundled non-Qt DLLs: $((Get-ChildItem $bin -Filter *.dll | ForEach-Object Name) -join ', ')"
           foreach ($need in 'datachannel', 'avutil', 'avcodec', 'swscale', 'opus', 'SDL3') {
-            if (-not (Get-ChildItem $dist -Filter "*$need*.dll")) { throw "Runtime DLL matching *$need*.dll is missing from the package" }
+            if (-not (Get-ChildItem $bin -Filter "*$need*.dll")) { throw "Runtime DLL matching *$need*.dll is missing from the package" }
           }
-          windeployqt --release --no-translations --qmldir client\ui "$dist\framebeam_player.exe"
+          windeployqt --release --no-translations --qmldir client\ui "$bin\framebeam_player.exe"
           if ($LASTEXITCODE -ne 0) { throw "windeployqt failed" }
+          if (Get-ChildItem $dist -Filter *.dll) { throw "DLLs at the top level of the package: only the launcher belongs there" }
           # No emulator cores in the package: the Player downloads them from the FrameBeam Hub on demand.
           @"
           This package contains no emulator cores. Emulator cores (e.g. melonDS DS, GPL-3.0) are
@@ -293,17 +372,19 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: |
           $dist = "$env:GITHUB_WORKSPACE\dist\framebeam-player"
-          $exe = "$dist\framebeam_player.exe"
-          # 1) Static: every non-system import of the exe and of the bundled DLLs must be in the package.
+          $bin = "$dist\bin"
+          $launcher = "$dist\framebeam_player.exe"
+          # 1) Static: every non-system import of the executables and of the bundled DLLs must be in the package.
           $dumpbin = Get-Command dumpbin.exe -ErrorAction SilentlyContinue
           if ($dumpbin) {
             $missing = @()
-            foreach ($bin in (@($exe) + (Get-ChildItem $dist -Filter *.dll | ForEach-Object FullName))) {
-              foreach ($line in (& $dumpbin.Source /dependents $bin)) {
+            foreach ($bin1 in (@($launcher, "$bin\framebeam_player.exe") + (Get-ChildItem $bin -Filter *.dll | ForEach-Object FullName))) {
+              $dir = [IO.Path]::GetDirectoryName($bin1)
+              foreach ($line in (& $dumpbin.Source /dependents $bin1)) {
                 if ($line -match '^\s+(\S+\.dll)\s*$') {
                   $d = $Matches[1]
-                  if ($d -match '^(api-ms-win-|ext-ms-win-)' -or (Test-Path "$dist\$d") -or (Test-Path "$env:SystemRoot\System32\$d")) { continue }
-                  $missing += "$([IO.Path]::GetFileName($bin)) -> $d"
+                  if ($d -match '^(api-ms-win-|ext-ms-win-)' -or (Test-Path "$dir\$d") -or (Test-Path "$env:SystemRoot\System32\$d")) { continue }
+                  $missing += "$([IO.Path]::GetFileName($bin1)) -> $d"
                 }
               }
             }
@@ -313,10 +394,10 @@ jobs:
           } else {
             Write-Host "::warning::dumpbin not available, skipping static dependency check"
           }
-          # 2) Dynamic: --version needs no window and no Hub; the loader fails before main() when a DLL is missing.
-          # --smoke-test additionally loads the QML UI (offscreen) and exits 0.
+          # 2) Dynamic, through the top-level launcher (as users start it): --version needs no window and no Hub; the
+          # loader fails before main() when a DLL is missing. --smoke-test additionally loads the QML UI (offscreen).
           foreach ($argSet in @(@('--version'), @('--smoke-test'))) {
-            $p = Start-Process -FilePath $exe -ArgumentList $argSet -WorkingDirectory $dist -PassThru -NoNewWindow
+            $p = Start-Process -FilePath $launcher -ArgumentList $argSet -WorkingDirectory $dist -PassThru -NoNewWindow
             $null = $p.Handle  # cache the handle, otherwise ExitCode can be empty
             if (-not $p.WaitForExit(60000)) { $p.Kill(); throw "$argSet did not exit within 60 s" }
             $code = $p.ExitCode
@@ -326,14 +407,36 @@ jobs:
             }
             if ($code -ne 0) { throw "framebeam_player.exe $argSet failed with exit code $code" }
           }
+          # 3) Release info: --version-json with redirected stdout (the launcher passes its handles on).
+          $out = "$env:GITHUB_WORKSPACE\dist\zip\player-release-info.json"
+          New-Item -ItemType Directory -Force (Split-Path $out) | Out-Null
+          $err = "$env:RUNNER_TEMP\version-json.err"
+          $p = Start-Process -FilePath $launcher -ArgumentList '--version-json' -WorkingDirectory $dist -PassThru -NoNewWindow `
+            -RedirectStandardOutput $out -RedirectStandardError $err
+          $null = $p.Handle
+          if (-not $p.WaitForExit(60000)) { $p.Kill(); throw "--version-json did not exit within 60 s" }
+          if ($p.ExitCode -ne 0) { throw "--version-json failed with exit code $($p.ExitCode)" }
+          Get-Content $out | Write-Host
+          $info = Get-Content $out -Raw | ConvertFrom-Json
+          if ($info.product -ne 'player') { throw "release info: product is '$($info.product)'" }
+          if ($info.version -ne $env:FRAMEBEAM_VERSION) { throw "release info: version '$($info.version)' != $env:FRAMEBEAM_VERSION" }
+          if ($info.channel -ne $env:FRAMEBEAM_CHANNEL) { throw "release info: channel '$($info.channel)' != $env:FRAMEBEAM_CHANNEL" }
+          # 4) Portable zip (one top-level folder).
+          $zip = "$env:GITHUB_WORKSPACE\dist\zip\framebeam-player-$($env:FRAMEBEAM_VERSION)-windows-x64.zip"
+          Compress-Archive -Path $dist -DestinationPath $zip -CompressionLevel Optimal
+          Get-Item $zip | Format-Table Name, Length
       - uses: actions/upload-artifact@v4
         with:
           name: framebeam-player-windows-x64
-          path: dist/framebeam-player
+          path: |
+            dist/zip/framebeam-player-*-windows-x64.zip
+            dist/zip/player-release-info.json
           if-no-files-found: error
           retention-days: 7
       - name: Build installer (Inno Setup)
         shell: pwsh
+        env:
+          CORE_VERSION: ${{ needs.version.outputs.core }}
         run: |
           $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
           if (-not (Test-Path $iscc)) {
@@ -341,18 +444,49 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "choco install innosetup failed" }
           }
           if (-not (Test-Path $iscc)) { throw "ISCC.exe not found at $iscc" }
-          # AppVersion = project version + short commit; VersionInfoVersion must be numeric (x.y.z.build).
-          $base = [regex]::Match((Get-Content client\CMakeLists.txt -Raw), 'project\(FrameBeamPlayer VERSION (\d+\.\d+\.\d+)').Groups[1].Value
-          if (-not $base) { throw "project VERSION not found in client\CMakeLists.txt" }
-          $sha = "${{ github.sha }}".Substring(0, 7)
-          & $iscc "/DAppVersion=$base+$sha" "/DVersionInfoVersion=$base.${{ github.run_number }}" `
+          # AppVersion = full SemVer; VersionInfoVersion must be numeric (x.y.z.build).
+          $name = "framebeam-player-$($env:FRAMEBEAM_VERSION)-windows-x64-setup"
+          & $iscc "/DAppVersion=$env:FRAMEBEAM_VERSION" "/DVersionInfoVersion=$env:CORE_VERSION.${{ github.run_number }}" `
+            "/DOutputBaseName=$name" `
             "/DPackageDir=$env:GITHUB_WORKSPACE\dist\framebeam-player" "/DOutputDir=$env:GITHUB_WORKSPACE\dist\installer" `
             packaging\windows\framebeam-player.iss
           if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
-          if (-not (Test-Path dist\installer\framebeam-player-setup.exe)) { throw "installer was not produced" }
+          if (-not (Test-Path "dist\installer\$name.exe")) { throw "installer was not produced" }
+      - name: Installer test (silent install, upgrade over the old flat layout)
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          $setup = (Get-ChildItem dist\installer\framebeam-player-*-windows-x64-setup.exe | Select-Object -First 1).FullName
+          $dir = Join-Path $env:RUNNER_TEMP 'fb-install-test'
+          $log = Join-Path $env:RUNNER_TEMP 'fb-setup.log'
+          function Invoke-Setup {
+            $p = Start-Process -FilePath $setup -PassThru -Wait -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', "/DIR=$dir", "/LOG=$log")
+            if ($p.ExitCode -ne 0) { Get-Content $log -Tail 40 | Write-Host; throw "setup exited with $($p.ExitCode)" }
+          }
+          Invoke-Setup
+          foreach ($f in 'framebeam_player.exe', 'bin\framebeam_player.exe', 'THIRD-PARTY-NOTICE.txt', 'unins000.exe') {
+            if (-not (Test-Path "$dir\$f")) { throw "after the first install: $f is missing" }
+          }
+          # An old (flat) install: DLLs and Qt directories next to the exe, plus user data.
+          New-Item -ItemType Directory -Force "$dir\platforms", "$dir\qml\QtQuick", "$dir\data" | Out-Null
+          Set-Content "$dir\Qt6Core.dll", "$dir\avcodec-61.dll", "$dir\platforms\qwindows.dll", "$dir\qml\QtQuick\qmldir" -Value 'old'
+          Set-Content "$dir\data\marker" -Value 'keep-me'
+          Invoke-Setup
+          foreach ($gone in 'Qt6Core.dll', 'avcodec-61.dll', 'platforms', 'qml') {
+            if (Test-Path "$dir\$gone") { throw "old layout item survived the upgrade: $gone" }
+          }
+          if ((Get-Content "$dir\data\marker" -Raw).Trim() -ne 'keep-me') { throw "data\marker was changed or removed" }
+          if (-not (Test-Path "$dir\bin\framebeam_player.exe")) { throw "bin\framebeam_player.exe is missing after the upgrade" }
+          $p = Start-Process -FilePath "$dir\framebeam_player.exe" -ArgumentList '--version' -WorkingDirectory $dir -PassThru -NoNewWindow
+          $null = $p.Handle
+          if (-not $p.WaitForExit(60000)) { $p.Kill(); throw "installed launcher --version did not exit within 60 s" }
+          if ($p.ExitCode -ne 0) { throw "installed launcher --version exited with $($p.ExitCode)" }
+          $u = Start-Process -FilePath "$dir\unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -PassThru -Wait
+          Write-Host "uninstall exit code: $($u.ExitCode)"
       - uses: actions/upload-artifact@v4
         with:
           name: framebeam-player-windows-x64-setup
-          path: dist/installer/framebeam-player-setup.exe
+          path: dist/installer/framebeam-player-*-windows-x64-setup.exe
           if-no-files-found: error
           retention-days: 7

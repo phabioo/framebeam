@@ -1,0 +1,11 @@
+[Unit]
+Description=FrameBeam Hub update request
+Documentation=https://github.com/phabioo/framebeam
+
+[Path]
+# The Hub (user framebeam) creates this file after it has staged a verified update.
+PathExists=/run/framebeam/update-request
+Unit=framebeam-hub-update.service
+
+[Install]
+WantedBy=multi-user.target
