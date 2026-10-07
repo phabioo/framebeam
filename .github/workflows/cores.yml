@@ -11,6 +11,13 @@ on:
     branches: [main]
     paths:
       - scripts/melonds-ds.pin
+  # Pre-merge check only (workflow_dispatch needs the workflow on main): no builds, no releases.
+  pull_request:
+    paths:
+      - .github/workflows/cores.yml
+      - scripts/check-core-signing-key.sh
+      - server/internal/corepkg/**
+      - server/cmd/framebeam-sign/**
 
 permissions:
   contents: read
@@ -34,8 +41,30 @@ jobs:
             exit 1
           fi
 
+  # Pull requests: the signing secret must match a key compiled into the Hub and sign/verify a throwaway index.
+  check-signing-key:
+    name: Check signing key
+    if: github.event_name == 'pull_request'
+    needs: preflight
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      - name: Build framebeam-sign
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          (cd server && CGO_ENABLED=0 go build -o "$RUNNER_TEMP/bin/framebeam-sign" ./cmd/framebeam-sign)
+      - name: Signing key is trusted by the Hub and signs
+        env:
+          FRAMEBEAM_SIGNING_KEY: ${{ secrets.FRAMEBEAM_SIGNING_KEY }}
+        run: scripts/check-core-signing-key.sh "$RUNNER_TEMP/bin/framebeam-sign"
+
   build-linux-x64:
     name: melonDS DS (linux-x64)
+    if: github.event_name != 'pull_request'
     needs: preflight
     runs-on: ubuntu-latest
     steps:
@@ -67,6 +96,7 @@ jobs:
 
   build-windows-x64:
     name: melonDS DS (windows-x64)
+    if: github.event_name != 'pull_request'
     needs: preflight
     runs-on: windows-latest
     steps:
@@ -98,6 +128,7 @@ jobs:
 
   publish:
     name: Publish and sign index
+    if: github.event_name != 'pull_request'
     needs: [preflight, build-linux-x64, build-windows-x64]
     runs-on: ubuntu-latest
     permissions:
@@ -115,6 +146,10 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/bin"
           (cd server && CGO_ENABLED=0 go build -o "$RUNNER_TEMP/bin/framebeam-sign" ./cmd/framebeam-sign)
+      - name: Signing key is trusted by the Hub (before anything is published)
+        env:
+          FRAMEBEAM_SIGNING_KEY: ${{ secrets.FRAMEBEAM_SIGNING_KEY }}
+        run: scripts/check-core-signing-key.sh "$RUNNER_TEMP/bin/framebeam-sign"
       - uses: actions/download-artifact@v4
         with:
           path: ${{ runner.temp }}/artifacts
@@ -192,6 +227,8 @@ jobs:
           pub="$("$sign" pubkey | sed -n 's/^public_key=//p' | head -n 1)"
           [ -n "$pub" ] || { echo "::error::could not derive the public key"; exit 1; }
           "$sign" verify -index "$idx/cores-index.json" -sig "$idx/cores-index.json.sig" -pub "$pub"
+          # Same check as the Hub: the key must be one of the compiled-in trusted keys.
+          grep -qF "\"$pub\"" server/internal/corepkg/keys.go || { echo "::error::signing key is not in DefaultTrustedKeys"; exit 1; }
           jq -r '.packages[] | "\(.core_id) \(.version) \(.platform)"' "$idx/cores-index.json"
       - name: Upload the index (release cores-index)
         run: |
