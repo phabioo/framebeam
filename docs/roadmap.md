@@ -127,8 +127,9 @@ Decided by Fabio on 2026-10-07: the second system is the Nintendo 3DS with the A
 
 - Save States, remote control/input for viewers, netplay, emulation settings sync, StandaloneBackend, Hub as a macOS service.
 - Further library features: row actions (delete, edit title), paging.
-- Remaining Nintendo systems from NES to Wii U (Fabio, 2026-10-07), as plain core packages after 0.7. libretro cores exist for NES, SNES, N64, GB/GBC, GBA, Virtual Boy and GameCube/Wii (Dolphin; the libretro port lags upstream). N64 and GameCube/Wii also need hardware rendering. Wii U (Cemu) has no libretro core and needs the StandaloneBackend.
-- Vulkan hardware rendering next to OpenGL, so cores that offer both can be switched per core option.
+- Remaining Nintendo systems from NES to GameCube/Wii (Fabio, 2026-10-07), as plain core packages after 0.7, rendered with OpenGL first: NES, SNES, N64, GB/GBC, GBA, Virtual Boy and GameCube/Wii (Dolphin; the libretro port lags upstream). N64 and GameCube/Wii build on the hardware rendering from 0.7.
+- Afterwards Vulkan hardware rendering next to OpenGL (Fabio, 2026-10-07), so cores that offer both can be switched per core option in the Emulation settings.
+- Wii U deferred (Fabio, 2026-10-07): Cemu has no libretro core and would need the StandaloneBackend.
 
 ## Out of scope
 
