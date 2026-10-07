@@ -84,8 +84,8 @@ func TestImportCores(t *testing.T) {
 	os.WriteFile(filepath.Join(in, "LICENSE.txt"), []byte("license of melonds_ds"), 0o644)
 
 	var out strings.Builder
-	// Without a trusted key: refused.
-	if err := runImportCores([]string{in, "-data-dir", data}, &out); err == nil || !strings.Contains(err.Error(), "no trusted signing key") {
+	// Without the test key: refused (only the compiled-in release key is trusted).
+	if err := runImportCores([]string{in, "-data-dir", data}, &out); err == nil || !strings.Contains(err.Error(), "is not trusted") {
 		t.Fatalf("err %v", err)
 	}
 	// Directory before or after the flags.

@@ -15,7 +15,7 @@ Phase plan: [Workflow](docs/workflow.md#phase-plan). The PoC (phases 0-5) is com
 | 4 Session sharing and multiview | done (tested locally on two Windows PCs) | Presence, signaling, WebRTC, multiview ([ADR 0006](docs/adr/0006-sessions-phase4.md), accepted) |
 | 5 Remainder and polish | done (tested locally) | Users and invites, user uploads, systems and firmware, Emulation and Controllers pages, appearance, Windows installer ([ADR 0007](docs/adr/0007-phase5.md), accepted) |
 | 0.1.1 Finish the PoC | done in code; hardware encoders and real certificates verified only locally | Hardware encoder features on Windows, Settings → Hubs, certificate renewal and change confirmation, RTT in diagnostics ([ADR 0009](docs/adr/0009-finish-poc.md), proposed) |
-| 0.2 Cores from the Hub | in progress; release signing key still to be generated | Installers ship no cores; the Hub fetches signed core packages and serves them to Players ([ADR 0010](docs/adr/0010-cores-from-the-hub.md), proposed) |
+| 0.2 Cores from the Hub | done (merged with this PR) | Installers ship no cores; the Hub fetches signed core packages and serves them to Players ([ADR 0010](docs/adr/0010-cores-from-the-hub.md), proposed) |
 | Post-PoC | planned | See [Roadmap](docs/roadmap.md) (versions 0.3 to 0.10) |
 
 ## What works
