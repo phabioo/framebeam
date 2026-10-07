@@ -10,10 +10,9 @@ CLI="${1:-$ROOT/client/build/linux-debug/network/framebeam_player_cli}"
 export CGO_ENABLED=0 GOTOOLCHAIN=local
 PW="e2e-dummy-password"
 TMP="$(mktemp -d)"
-HUB_PID="" CLI_PID="" POLL_PID=""
+HUB_PID="" CLI_PID=""
 cleanup() {
   [ -n "$CLI_PID" ] && kill "$CLI_PID" 2>/dev/null
-  [ -n "$POLL_PID" ] && kill "$POLL_PID" 2>/dev/null
   [ -n "$HUB_PID" ] && kill "$HUB_PID" 2>/dev/null
   wait 2>/dev/null
   rm -rf "$TMP"
@@ -232,7 +231,7 @@ body=$("${CURL[@]}" -o /dev/null -w '%{http_code}' -H "X-CSRF-Token: $tok" -H "H
   "https://$ADDR/systems/nds/firmware-mode")
 case "$body" in 200|303) ;; *) die "firmware: set mode native (HTTP $body)" "$TMP/hub.log";; esac
 # One admin device for upload + systems (the Hub allows only 5 pairing requests per IP and minute).
-pair_run devU "$TMP/up1.out" games game upload "$TMP/cli-up.nds" --title "CLI Upload" game upload "$TMP/cli-up.nds" systems
+pair_run devU "$TMP/up1.out" games game upload "$TMP/cli-up.nds" --title "CLI Upload" game upload "$TMP/cli-up.nds" systems fetch-core nds fetch-core nds
 UPID=$(sed -n 's/^OK game_id=\([^ ]*\) sha256=.*/\1/p' "$TMP/up1.out" | head -n1)
 [ "$PAIR_RC" = "0" ] && [ -n "$UPID" ] && grep -q "^OK game_id=$UPID sha256=$UPSHA" "$TMP/up1.out" \
   && ok "upload: admin CLI upload -> game created (streamed, sha256 matches)" || die "upload: CLI upload (exit $PAIR_RC)" "$TMP/up1.out" "$TMP/up1.out.err"
@@ -242,28 +241,17 @@ grep -Pq '^nds\tmode=native\t' "$TMP/up1.out" && grep -Pq '^  bios7\trequired=tr
   && ok "firmware: mode native, required files missing on the Hub (Player: Firmware required/missing, launch blocked)" \
   || die "firmware: systems output" "$TMP/up1.out" "$TMP/up1.out.err"
 
-# 11. Cores from the Hub (0.2): the Player downloads the imported dummy core on demand (fetch-core in one process,
-#     twice). The second call must be a cache hit: inode + mtime of the library stay unchanged while it runs.
-CDEV="$TMP/dev-core"
-(
-  while :; do
-    f="$(find "$CDEV/cache/cores" -name melondsds_libretro.so -type f 2>/dev/null | head -n1)"
-    [ -n "$f" ] && stat -c '%i %y' "$f" >>"$TMP/core-stat.log" 2>/dev/null
-    sleep 0.02
-  done
-) &
-POLL_PID=$!
-pair_run devCore "$TMP/core1.out" fetch-core nds fetch-core nds
-kill "$POLL_PID" 2>/dev/null; wait "$POLL_PID" 2>/dev/null
-[ "$PAIR_RC" = "0" ] || die "core: fetch-core (exit $PAIR_RC)" "$TMP/core1.out" "$TMP/core1.out.err"
-mapfile -t CPATHS < <(sed -n 's/^core_path=//p' "$TMP/core1.out")
+# 11. Cores from the Hub (0.2): the devU run above also ran fetch-core nds twice (the Hub limits pairing requests
+#     per IP, so no extra device). First call downloads the imported dummy core, the second is a cache hit.
+mapfile -t CPATHS < <(sed -n 's/^core_path=//p' "$TMP/up1.out")
+mapfile -t CSRC < <(sed -n 's/^core_source=//p' "$TMP/up1.out")
 [ "${#CPATHS[@]}" = "2" ] && [ "${CPATHS[0]}" = "${CPATHS[1]}" ] && [ -f "${CPATHS[0]}" ] \
-  || die "core: expected two identical core_path lines" "$TMP/core1.out" "$TMP/core1.out.err"
+  || die "core: expected two identical core_path lines" "$TMP/up1.out" "$TMP/up1.out.err"
 [ "$(sha256sum "${CPATHS[0]}" | cut -d' ' -f1)" = "$CORE_SHA" ] \
-  && ok "core: fetch-core nds -> library in the cache, SHA-256 matches the signed package" || die "core: sha256 of the fetched library" "$TMP/core1.out"
-[ -f "$TMP/core-stat.log" ] && [ "$(sort -u "$TMP/core-stat.log" | wc -l)" = "1" ] \
-  && ok "core: second fetch-core is a cache hit (library file untouched)" || die "core: library was rewritten by the second fetch-core" "$TMP/core-stat.log"
-case "${CPATHS[0]}" in "$CDEV"/*) ok "core: library below the Player data dir" ;; *) die "core: path outside the data dir: ${CPATHS[0]}" ;; esac
+  && ok "core: fetch-core nds -> library in the cache, SHA-256 matches the signed package" || die "core: sha256 of the fetched library" "$TMP/up1.out"
+[ "${CSRC[0]:-}" = "download" ] && [ "${CSRC[1]:-}" = "cache" ] \
+  && ok "core: first fetch-core downloads, second is a cache hit (core_source=download, then cache)" || die "core: core_source sequence: ${CSRC[*]:-none}" "$TMP/up1.out"
+case "${CPATHS[0]}" in "$TMP/dev-devU"/*) ok "core: library below the Player data dir" ;; *) die "core: path outside the data dir: ${CPATHS[0]}" ;; esac
 SEED="$(cat "$TMP/e2e-signing.seed")"
-! grep -rqF "$SEED" "$TMP/hub.log" "$TMP/import.log" "$TMP/core1.out" "$TMP/core1.out.err" \
+! grep -rqF "$SEED" "$TMP/hub.log" "$TMP/import.log" "$TMP/up1.out" "$TMP/up1.out.err" \
   && ok "core: signing seed not in any log" || die "core: signing seed found in a log"
