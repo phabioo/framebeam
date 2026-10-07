@@ -6,7 +6,8 @@ add_library(framebeam_emulation STATIC
   libretro_backend.cpp
   system_manifest.cpp
   firmware_materializer.cpp
-  core_options.cpp)
+  core_options.cpp
+  hw_render.cpp)
 qt_add_resources(framebeam_emulation framebeam_manifests
   PREFIX "/framebeam/emulation"
   FILES manifests/nds.json)
@@ -46,8 +47,23 @@ if(BUILD_TESTING)
   target_compile_definitions(test_emulation_save_ram PRIVATE FB_FAKE_CORE_PATH="$<TARGET_FILE:framebeam_fake_core>")
   add_dependencies(test_emulation_save_ram framebeam_fake_core)
 
+  # Fake libretro core with OpenGL hardware rendering + test (needs QGuiApplication and a GL 3.3 context; SKIP/77
+  # without one, except on Linux CI where it must run). Runs on the offscreen QPA with GLX (under xvfb) or EGL.
+  add_library(framebeam_fake_hw_core MODULE tests/fake_hw_core.cpp)
+  target_include_directories(framebeam_fake_hw_core PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+  set_target_properties(framebeam_fake_hw_core PROPERTIES PREFIX "" OUTPUT_NAME framebeam_fake_hw_core)
+  framebeam_add_test(emulation_hw_render tests/hw_render_test.cpp LIBS framebeam_emulation Qt6::Gui)
+  target_compile_definitions(test_emulation_hw_render PRIVATE FB_FAKE_HW_CORE_PATH="$<TARGET_FILE:framebeam_fake_hw_core>")
+  add_dependencies(test_emulation_hw_render framebeam_fake_hw_core)
+  set_tests_properties(emulation_hw_render PROPERTIES SKIP_RETURN_CODE 77)
+
   # With core (SKIP/77 without FRAMEBEAM_MELONDS_DS_CORE).
   framebeam_add_test(emulation_core tests/core_test.cpp LIBS framebeam_emulation NEEDS_CORE)
   target_compile_definitions(test_emulation_core PRIVATE FB_TEST_ROM_PATH="${FB_TEST_ROM}")
   add_dependencies(test_emulation_core framebeam_test_rom)
+
+  # melonDS DS OpenGL renderer through hardware-frame readback (SKIP/77 without core or GL 3.3 context).
+  framebeam_add_test(emulation_core_gl tests/core_gl_test.cpp LIBS framebeam_emulation Qt6::Gui NEEDS_CORE)
+  target_compile_definitions(test_emulation_core_gl PRIVATE FB_TEST_ROM_PATH="${FB_TEST_ROM}")
+  add_dependencies(test_emulation_core_gl framebeam_test_rom)
 endif()

@@ -8,6 +8,7 @@ Details only as needed from `docs/architecture/` (index: `docs/architecture/READ
 ## Emulation
 - `EmulatorBackend` -> `LibretroBackend` (later possibly `StandaloneBackend`). Systems/cores are data-driven via manifests (e.g. `nds` -> `melonds_ds`), no console-specific launch logic.
 - Core options dynamically from Libretro core options, no invented options. See `05-emulation.md`.
+- Hardware rendering (ADR 0013): offscreen OpenGL context per game on the emulation thread, Player-owned FBO, every frame read back into the XRGB8888 path; unavailable in the CLI, with `FRAMEBEAM_DISABLE_HW_RENDER=1` or if context creation fails (cores fall back to software).
 - Settings are local: global -> system/core -> game override, partial overrides only. Controller profiles are local (`06-controllers.md`).
 
 ## Hub binding

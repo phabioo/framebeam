@@ -67,7 +67,6 @@
     "melonds_show_bios_warnings": "disabled"
   },
   "locked_core_options": [
-    "melonds_render_mode",
     "melonds_screen_layout1",
     "melonds_number_of_screen_layouts",
     "melonds_screen_gap",
@@ -91,5 +90,8 @@
     "melonds_opengl_filtering",
     "melonds_secondary_screen_scale",
     "melonds_secondary_screen_filtering"
+  ],
+  "always_shown_core_options": [
+    "melonds_opengl_resolution"
   ]
 }

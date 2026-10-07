@@ -56,9 +56,75 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           echo "Version $version, channel $channel" >> "$GITHUB_STEP_SUMMARY"
 
+  # Docs-only gate: true only for PRs and non-main branch pushes whose diff touches nothing but docs/** and *.md.
+  # Pushes classify the whole branch vs main (origin/main...sha), not just the last push, so a docs-only push that
+  # cancels an earlier code run (concurrency) still runs the builds. PRs use base...head.
+  # Always false for main (beta release, Windows cache priming per ADR 0008), v* tags and workflow_dispatch.
+  changes:
+    name: Detect docs-only changes
+    runs-on: ubuntu-latest
+    outputs:
+      docs_only: ${{ steps.d.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Classify changed paths
+        id: d
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          SHA: ${{ github.sha }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          docs_only=false
+          reason=""
+          range=""
+          if [ "$EVENT" = pull_request ]; then
+            range="$PR_BASE...$PR_HEAD"
+          elif [ "$EVENT" = push ] && [ "$REF" != refs/heads/main ] && [[ "$REF" != refs/tags/* ]]; then
+            # Whole branch since the merge base with main (covers new branches and cancelled earlier runs).
+            git rev-parse --verify -q refs/remotes/origin/main >/dev/null || git fetch --no-tags origin main || true
+            if git rev-parse --verify -q refs/remotes/origin/main >/dev/null && git merge-base origin/main "$SHA" >/dev/null 2>&1; then
+              range="origin/main...$SHA"
+            else
+              reason="origin/main or merge base not available"
+            fi
+          else
+            reason="event $EVENT on $REF always runs the full pipeline"
+          fi
+          files=()
+          if [ -n "$range" ]; then
+            while IFS= read -r -d '' f; do files+=("$f"); done < <(git diff --name-only --no-renames -z "$range")
+            if [ "${#files[@]}" -eq 0 ]; then
+              reason="empty diff"
+            else
+              docs_only=true
+              for f in "${files[@]}"; do
+                case "$f" in
+                  docs/* | *.md) ;;
+                  *) docs_only=false; reason="non-docs path: $f"; break ;;
+                esac
+              done
+            fi
+          fi
+          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Docs-only detection"
+            echo "docs_only=$docs_only ${reason:+($reason)}"
+            if [ "${#files[@]}" -gt 0 ]; then
+              echo "Changed files (\`$range\`):"
+              printf -- '- %s\n' "${files[@]}"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
   hub:
     name: Hub (Go, Linux)
-    needs: version
+    # Skipped for docs-only changes (see job changes); a skipped job counts as passing for required checks.
+    if: needs.changes.outputs.docs_only != 'true'
+    needs: [version, changes]
     runs-on: ubuntu-latest
     env:
       HUB_VERSION: ${{ needs.version.outputs.version }}
@@ -98,7 +164,9 @@ jobs:
 
   client-linux:
     name: Player (C++, Linux)
-    needs: version
+    # Skipped for docs-only changes (see job changes).
+    if: needs.changes.outputs.docs_only != 'true'
+    needs: [version, changes]
     runs-on: ubuntu-latest
     env:
       FRAMEBEAM_VERSION: ${{ needs.version.outputs.version }}
@@ -141,7 +209,7 @@ jobs:
           sudo apt-get install -y -qq ninja-build qt6-base-dev qt6-declarative-dev qt6-multimedia-dev \
             qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
             qml6-module-qtquick-window qml6-module-qtqml-workerscript qml6-module-qtquick-templates \
-            libgl-dev libepoxy-dev xvfb libavcodec-dev libswscale-dev libopus-dev \
+            libgl-dev libgl1-mesa-dri libglx-mesa0 libegl1 libepoxy-dev xvfb libavcodec-dev libswscale-dev libopus-dev \
             qt6-websockets-dev libssl-dev pkg-config
       - name: Bootstrap vcpkg
         run: scripts/bootstrap-vcpkg.sh
@@ -161,8 +229,9 @@ jobs:
   client-windows:
     name: Player (C++, Windows MSVC)
     # ADR 0008: PRs, manual runs, pushes to main (cache priming and test releases) and release tags.
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')))
-    needs: version
+    # Also skipped for docs-only changes (see job changes).
+    if: needs.changes.outputs.docs_only != 'true' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))))
+    needs: [version, changes]
     runs-on: windows-latest
     env:
       FRAMEBEAM_VERSION: ${{ needs.version.outputs.version }}
@@ -305,7 +374,10 @@ jobs:
             }
             throw "ctest failed"
           }
-          if (Select-String -Path ctest.log -Pattern '\(Skipped\)' -Quiet) { throw "Tests were skipped although the core should be present" }
+          # GL tests may skip here (no GL 3.3 context, ADR 0013 D6); any other skip is an error.
+          $skipped = @(Select-String -Path ctest.log -Pattern '\(Skipped\)|\*\*\*Skipped' | ForEach-Object { $_.Line })
+          if (@($skipped | Where-Object { $_ -notmatch '\b(emulation_hw_render|emulation_core_gl)\b' }).Count -gt 0) { throw "Tests were skipped although the core should be present" }
+          if ($skipped.Count -gt 0) { Write-Host "Note: GL tests skipped (no GL 3.3 context on this runner), allowed by ADR 0013 D6" }
       - name: Assemble package (windeployqt)
         shell: pwsh
         run: |

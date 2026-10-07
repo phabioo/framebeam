@@ -84,6 +84,9 @@ class EmulatorBackend {
   // Writes the game's battery save (if any) to the save directory when it changed. Called on pause and
   // before unloading; default: nothing.
   virtual void flushSave() {}
+  // Called on the GUI thread right before the emulation thread starts (e.g. to create resources that only
+  // the GUI thread may create, such as an offscreen surface for hardware rendering).
+  virtual void prepareForStart() {}
 
   // Last video frame (XRGB8888). Implicitly shared, cheap to copy.
   virtual QImage videoFrame() const = 0;

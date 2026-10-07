@@ -1568,7 +1568,7 @@ void PlayerController::onSaveReady(const QString& gameId, const QString& saveDir
   cfg.systemDir = systemDir();
   cfg.saveDir = saveDir;
   // Manifest defaults < user overrides (game > system/core > global) < firmware mode of the Hub (builtin | native +
-  // files) < manifest-locked options (render mode software, screen layout, OSD off): FrameBeam stays in control of those.
+  // files) < manifest-locked options (screen layout, OSD off; the render mode is a user choice, default software): FrameBeam stays in control of those.
   cfg.coreOptions = emu::launchCoreOptions(*man, emulation_->launchOverrides(man->systemId, launchGame_.id), fwOptions_);
   cfg.display = man->display;
   emit selectedGameChanged();
