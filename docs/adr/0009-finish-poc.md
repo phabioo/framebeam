@@ -39,7 +39,7 @@ The PoC left open points in ADR 0002, 0003, 0006 and 0007 and in the architectur
 ### D5 Multiview picker
 
 - The picker lists all Sessions in a scrollable list. The "+N more in the Library" pointer is removed, so "← Library" no longer ends the game by way of that pointer.
-- Multiview stays local plus one remote Session (ADR 0006 D6); more remote Sessions are planned for 0.6.
+- Multiview stays local plus one remote Session (ADR 0006 D6); more remote Sessions are planned for 0.4 (Sessions over the internet; numbered 0.6 until 2026-10-07).
 
 ### D6 Settings → Hubs
 
@@ -56,7 +56,7 @@ The PoC left open points in ADR 0002, 0003, 0006 and 0007 and in the architectur
 - A core version mismatch still only warns (ADR 0007); re-evaluated in 0.7 with a second core.
 - The system display name and controller labels come from the system manifest (`nds.json`: `core_display_name`, `labels.input`/`labels.touch`) instead of hardcoded NDS texts.
 - Phase-named files, tests and comments are renamed (`httpapi/phase5.go` becomes `invites.go`, `uploads.go`, `systems.go`). Migration `0004_phase5.sql` keeps its name, because applied migrations are identified by it.
-- The `PlayerController` split stays in 0.4.
+- The `PlayerController` split moves to the Player UI pass (0.5; numbered 0.4 until 2026-10-07).
 
 ## Rejected
 

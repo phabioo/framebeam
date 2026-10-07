@@ -70,7 +70,7 @@ Milestone 0.3 ([Roadmap](../roadmap.md)) lets a change on `main` reach the test 
   - stable: banner with "Install and restart", install only after that confirmation.
   - test with automatic install: download in the background, apply at the next start before the main window; banner "Restart to update" meanwhile; never during a running game.
   - zip, dev build, Linux: availability and release link only.
-- The Player-side signature check of core packages (ADR 0010 D5) is not part of 0.3 and moves to 0.6 (Sessions over the internet and save comfort, [Roadmap](../roadmap.md)). The Player's own update check does verify the signature (above).
+- The Player-side signature check of core packages (ADR 0010 D5) is not part of 0.3 and moves to 0.4 (Sessions over the internet and save comfort, [Roadmap](../roadmap.md); numbered 0.6 until 2026-10-07). The Player's own update check does verify the signature (above).
 
 ### D8 Rollback (proposal, open for Fabio)
 
@@ -93,7 +93,7 @@ Milestone 0.3 ([Roadmap](../roadmap.md)) lets a change on `main` reach the test 
 - `VERSION` must be bumped after each stable tag, otherwise later test builds sort below the release.
 - The Windows installer stays unsigned (SmartScreen warning).
 - macOS and Linux Player and the Windows Hub follow later (0.9, 0.10).
-- Open: rollback (D8), Player-side core signature check (0.6).
+- Open: rollback (D8), Player-side core signature check (0.4).
 
 ## Amendment 2026-10-07
 
