@@ -86,6 +86,28 @@ class GameTest : public QObject {
     // Saves kept separate per hub and user: <data>/hubs/<hub_id>/users/<user_id>/saves/<game_id>
     QVERIFY(QDir(QDir(h.controller->profileStore()->hubDir(QStringLiteral("hub-game"))).filePath(QStringLiteral("users/u_test_1/saves/t1"))).exists());
 
+    // Header at the default test window (1280 wide): every visible header button lies fully inside the header
+    // and no two overlap (clicks must never land on a neighbor).
+    {
+      QQuickTest::qWaitForPolish(h.window);
+      QQuickItem* header = h.item("gameHeader");
+      QVERIFY(header != nullptr);
+      const QRectF headerRect = header->mapRectToScene(QRectF(0, 0, header->width(), header->height()));
+      QList<QPair<QString, QRectF>> rects;
+      for (const char* name : {"backToLibraryButton", "pauseButton", "resetButton", "quitButton", "tabSegment", "layoutSwitch", "fullscreenButton"}) {
+        QQuickItem* it = h.item(name);
+        if (it == nullptr || !it->isVisible()) continue;
+        const QRectF r = it->mapRectToScene(QRectF(0, 0, it->width(), it->height()));
+        QVERIFY2(headerRect.contains(r), qPrintable(QStringLiteral("%1 outside header: %2,%3 %4x%5 (header width %6)")
+                                                        .arg(QLatin1String(name)).arg(r.x()).arg(r.y()).arg(r.width()).arg(r.height()).arg(headerRect.width())));
+        rects.append({QLatin1String(name), r});
+      }
+      QVERIFY(rects.size() >= 5);
+      for (int i = 0; i < rects.size(); ++i)
+        for (int j = i + 1; j < rects.size(); ++j)
+          QVERIFY2(!rects[i].second.intersects(rects[j].second), qPrintable(rects[i].first + QStringLiteral(" overlaps ") + rects[j].first));
+    }
+
     // Pause/Resume, Reset
     QVERIFY(h.click("pauseButton"));
     QTRY_COMPARE(s->state(), GameSession::Paused);

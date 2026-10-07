@@ -115,6 +115,7 @@ Rectangle {
         visible: !root.fullscreen
         height: visible ? 56 : 0
         color: Theme.gameHeader
+        readonly property real pauseWidth: Math.max(pauseProbe.implicitWidth, resumeProbe.implicitWidth)
 
         Rectangle {
             anchors.bottom: parent.bottom
@@ -122,6 +123,10 @@ Rectangle {
             height: 1
             color: Theme.gameBorder
         }
+
+        // Probes for a stable Pause/Resume width (invisible, outside the layout).
+        FbButton { id: pauseProbe; visible: false; kind: "link"; text: qsTr("Pause") }
+        FbButton { id: resumeProbe; visible: false; kind: "link"; text: qsTr("Resume") }
 
         RowLayout {
             anchors.fill: parent
@@ -155,14 +160,14 @@ Rectangle {
             }
             FbPill {
                 objectName: "sharedPill"
-                Layout.minimumWidth: implicitWidth  // never squeezed; the title elides first
+                Layout.minimumWidth: 0  // shrinks (elides its text) right after the title
                 visible: root.ctl.shared
                 tone: "ok"
                 text: qsTr("● Session shared · %1 watching").arg(root.ctl.viewerCount)
             }
             FbPill {
                 objectName: "notSharedPill"
-                Layout.minimumWidth: implicitWidth  // never squeezed; the title elides first
+                Layout.minimumWidth: 0  // shrinks (elides its text) right after the title
                 visible: root.session.active && !root.ctl.shared && root.tab === "session"
                 tone: "neutral"
                 text: qsTr("Not shared")
@@ -190,7 +195,8 @@ Rectangle {
             Item { Layout.fillWidth: true }
             FbButton {
                 objectName: "pauseButton"
-                Layout.minimumWidth: implicitWidth  // never squeezed; the title elides first
+                Layout.minimumWidth: header.pauseWidth  // same width for Pause and Resume
+                Layout.preferredWidth: header.pauseWidth
                 visible: root.session.active && root.tab === "session"
                 implicitHeight: 36
                 kind: "link"
@@ -247,7 +253,7 @@ Rectangle {
                 objectName: "layoutSwitch"
                 Layout.minimumWidth: implicitWidth  // never squeezed; the title elides first
                 layouts: root.screenLayouts
-                compact: root.tab !== "session" && root.width < 1700
+                compact: root.width < (root.tab === "session" ? 1360 : 1700)
                 current: root.ctl.screenLayout
                 onPicked: (v) => root.ctl.screenLayout = v
             }
