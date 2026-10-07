@@ -66,7 +66,7 @@ jobs:
       HUB_COMMIT: ${{ needs.version.outputs.commit }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: server/go.mod
           cache-dependency-path: server/go.sum
@@ -148,7 +148,7 @@ jobs:
       - name: Check Player
         run: xvfb-run -a make check-client
       - name: Install Go for Hub E2E
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: server/go.mod
           cache-dependency-path: server/go.sum
