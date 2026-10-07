@@ -16,7 +16,8 @@ Phase plan: [Workflow](docs/workflow.md#phase-plan). The PoC (phases 0-5) is com
 | 5 Remainder and polish | done (tested locally) | Users and invites, user uploads, systems and firmware, Emulation and Controllers pages, appearance, Windows installer ([ADR 0007](docs/adr/0007-phase5.md), accepted) |
 | 0.1.1 Finish the PoC | done in code; hardware encoders and real certificates verified only locally | Hardware encoder features on Windows, Settings → Hubs, certificate renewal and change confirmation, RTT in diagnostics ([ADR 0009](docs/adr/0009-finish-poc.md), proposed) |
 | 0.2 Cores from the Hub | done (merged with this PR) | Installers ship no cores; the Hub fetches signed core packages and serves them to Players ([ADR 0010](docs/adr/0010-cores-from-the-hub.md), proposed) |
-| Post-PoC | planned | See [Roadmap](docs/roadmap.md) (versions 0.3 to 0.10) |
+| 0.3 Automatic updates | done (merged with this PR) | Versions and channels, signed update index, Hub as .deb with updater, Windows Player launcher layout with updater ([ADR 0011](docs/adr/0011-automatic-updates.md), proposed) |
+| Post-PoC | planned | See [Roadmap](docs/roadmap.md) (versions 0.4 to 0.10) |
 
 ## What works
 
@@ -103,7 +104,25 @@ framebeam-hub renew-cert -data-dir <directory>   # renew the self-generated cert
 
 The data directory (`-data-dir`, default `/var/lib/framebeam`) contains the database and certificate. Further flags: `-listen`, `-name`, `-tls-cert`, `-tls-key`, `-ice-servers` (comma-separated `stun:` URLs, default none); each also available via `FRAMEBEAM_*`.
 
-### Run the Hub as a service (Linux / Raspberry Pi)
+### Install the Hub from the .deb (Debian / Raspberry Pi OS, recommended)
+
+Download `framebeam-hub_<version>_<amd64|arm64>.deb` from the [GitHub releases](https://github.com/phabioo/framebeam/releases) and install it:
+
+```sh
+sudo apt install ./framebeam-hub_<version>_arm64.deb
+```
+
+The package installs `/usr/bin/framebeam-hub`, the systemd service and the update units, creates the user `framebeam` and the data directory `/var/lib/framebeam`, and keeps an existing `/etc/framebeam/hub.env`. Configure flags (port, admin) there. Migrating from `install-hub.sh`: install the .deb over it; the old unit moves to `/etc/framebeam/framebeam-hub.service.pre-deb`, `/usr/local/bin/framebeam-hub` is removed, drop-ins and data are kept. Details: [ADR 0011](docs/adr/0011-automatic-updates.md) D5.
+
+### Updates
+
+- **Hub:** checks the signed update index at startup, hourly on the test channel and daily on stable. Admin Settings, section "Updates": channel and automatic install. Test installs automatically (not during an active Session); stable only on request. The install runs through a root helper (systemd path unit) that re-verifies the signature. Before a schema migration the Hub backs up its database to `<data>/backups/` (newest 5). Needs internet access to github.com; non-.deb installs only show the available version.
+- **Player (Windows installer install):** same check (10 s after start, then hourly/daily). Settings, section "Updates": channel and automatic install. Stable shows a banner and installs after "Install and restart"; test downloads in the background and applies at the next start, never during a game. Portable zip and dev builds only show availability.
+- **Switch channel:** `stable` or `test` in the same Settings sections (default is the channel the build was made for; `dev` builds do not check until a channel is chosen). `test` also takes stable releases when newer.
+- **Make a stable release:** bump `VERSION` on `main`, then push the tag `vX.Y.Z` (must equal `VERSION`); CI builds, `release.yml` publishes and updates the index. Afterwards bump `VERSION` to the next version, otherwise test builds sort below the release.
+- Rollback is manual in 0.3 (proposal in ADR 0011 D8). The Windows installer is unsigned (SmartScreen warning).
+
+### Run the Hub as a service from a script (non-Debian Linux)
 
 ```sh
 sudo packaging/linux/install-hub.sh install --binary framebeam-hub-linux-arm64 --port 8444 --admin <name>
@@ -164,6 +183,7 @@ Keyboard: Arrows, X=A, Z=B, S=X, A=Y, Q=L, W=R, Enter=Start, Backspace=Select, E
 - [ADR 0007: Phase 5, users, firmware, settings pages, gamepads, installer](docs/adr/0007-phase5.md) (accepted)
 - [ADR 0009: Finish the PoC (0.1.1)](docs/adr/0009-finish-poc.md) (proposed)
 - [ADR 0010: Cores from the Hub](docs/adr/0010-cores-from-the-hub.md) (proposed)
+- [ADR 0011: Automatic updates](docs/adr/0011-automatic-updates.md) (proposed)
 - [Roadmap after the PoC](docs/roadmap.md)
 - [Design](docs/design/README.md)
 - [Working with Claude Code](docs/workflow.md)
