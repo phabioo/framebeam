@@ -3,6 +3,7 @@
 #include <QSignalSpy>
 #include <QtTest>
 
+#include "corecache.h"
 #include "fakehub.h"
 #include "testsupport.h"
 
@@ -441,6 +442,131 @@ class HubFeaturesUiTest : public QObject {
     QVERIFY(h.click(nm("hubRemoveConfirmButton_", idA).constData()));
     QTRY_COMPARE(h.controller->screen(), QStringLiteral("connection"));
     QCOMPARE(h.controller->hubs().size(), 0);
+  }
+
+  // Settings -> Hubs -> Edit (D3): validator messages, edit row with an invalid field, edit keeps fingerprint + credential,
+  // editing the active Hub reconnects.
+  void settingsHubEdit() {
+    FakeHub hubA(QStringLiteral("a"));
+    FakeHub hubB(QStringLiteral("b"));
+    hubB.hubId = QStringLiteral("hub-test-2");
+    QVERIFY(hubA.start());
+    QVERIFY(hubB.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hubA);
+    h.controller->switchHub();
+    pair(h, hubB);
+    PlayerController* pc = h.controller.get();
+    QTest::qWait(150);
+    QTRY_COMPARE_WITH_TIMEOUT(pc->screen(), QStringLiteral("library"), 8000);
+
+    // Every validator message.
+    QCOMPARE(pc->validateHubAddress(QString(), QStringLiteral("8443")), QStringList{QStringLiteral("Enter an address")});
+    QCOMPARE(pc->validateHubAddress(QStringLiteral("https://x"), QStringLiteral("8443")),
+             QStringList{QStringLiteral("Leave out https:// — host name only")});
+    QCOMPARE(pc->validateHubAddress(QStringLiteral("a b"), QStringLiteral("8443")), QStringList{QStringLiteral("No spaces in the address")});
+    QCOMPARE(pc->validateHubAddress(QStringLiteral("a:1"), QStringLiteral("8443")),
+             QStringList{QStringLiteral("Put the port in the port field")});
+    QCOMPARE(pc->validateHubAddress(QStringLiteral("a_b!"), QStringLiteral("8443")),
+             QStringList{QStringLiteral("Only letters, digits, dots and hyphens")});
+    QCOMPARE(pc->validateHubAddress(QStringLiteral("hub.example.com"), QStringLiteral("0")),
+             QStringList{QStringLiteral("Port must be a number from 1 to 65535")});
+    QVERIFY(pc->validateHubAddress(QStringLiteral("hub.example.com"), QStringLiteral("8443")).isEmpty());
+
+    QVERIFY(h.click("navSettings"));
+    QTest::qWait(100);
+    const QString idA = hubA.hubId;
+    const QString idB = hubB.hubId;
+    auto nm = [](const char* prefix, const QString& id) { return QByteArray(prefix) + id.toUtf8(); };
+
+    // Open the edit row of the non-active Hub A, enter an invalid host: error shown, Save disabled.
+    QVERIFY(h.click(nm("hubEdit_", idA).constData()));
+    QQuickItem* host = h.item(nm("hubEditHost_", idA).constData());
+    QVERIFY(host != nullptr && host->isVisible());
+    host->setProperty("text", QStringLiteral("bad host"));
+    QTRY_VERIFY(h.item(nm("hubEditError_", idA).constData())->isVisible());
+    QVERIFY(!h.item(nm("hubEditSave_", idA).constData())->isEnabled());
+    QVERIFY(h.click(nm("hubEditCancel_", idA).constData()));
+    QCOMPARE(pc->profileStore()->profile(idA)->address, hubA.address());
+
+    // Edit through the controller: the fingerprint, user and credential reference stay.
+    const auto before = *pc->profileStore()->profile(idA);
+    QVERIFY(!pc->editHub(idA, QStringLiteral("bad host"), QStringLiteral("8443")));
+    QVERIFY(pc->editHub(idA, QStringLiteral("hub-a.invalid"), QStringLiteral("9443")));
+    const auto after = *pc->profileStore()->profile(idA);
+    QCOMPARE(after.address, QStringLiteral("https://hub-a.invalid:9443"));
+    QCOMPARE(after.pinnedFingerprint, before.pinnedFingerprint);
+    QCOMPARE(after.credentialRef, before.credentialRef);
+    QCOMPARE(after.hubUserId, before.hubUserId);
+    // An address that another Hub already uses is refused.
+    QVERIFY(!pc->editHub(idA, QUrl(hubB.address()).host(), QString::number(QUrl(hubB.address()).port())));
+
+    // Active Hub B: the edit is stored and the link is rebuilt (the page stays Settings).
+    const auto beforeB = *pc->profileStore()->profile(idB);
+    QVERIFY(pc->editHub(idB, QStringLiteral("localhost"), QString::number(QUrl(hubB.address()).port())));
+    QCOMPARE(pc->profileStore()->profile(idB)->pinnedFingerprint, beforeB.pinnedFingerprint);
+    QCOMPARE(pc->profileStore()->profile(idB)->credentialRef, beforeB.credentialRef);
+    QVERIFY(pc->profileStore()->profile(idB)->address.contains(QStringLiteral("localhost")));
+  }
+
+  // D15: the core arrives through the Hub (cores_v1 package) while the Player runs; tile, counts and detail pane
+  // change from "core missing" to ready without a restart.
+  void coreDownloadRefreshesLibraryState() {
+    const QByteArray rom = "dummy-rom-for-d15";
+    const QByteArray lib(2048, 'l');
+    const QByteArray license(128, 'x');
+    const QString platform = CoreCache::currentPlatform();
+    if (platform.isEmpty()) QSKIP("no core platform on this build");
+    FakeHub hub(QStringLiteral("a"));
+    hub.features = {QStringLiteral("saves_v1"), QStringLiteral("firmware_v1"), QStringLiteral("cores_v1")};
+    setGames(hub, rom);
+    QJsonObject sys = ndsSystem(QStringLiteral("builtin"), {});
+    QJsonObject nds = sys.value(QStringLiteral("systems")).toArray().first().toObject();
+    nds.insert(QStringLiteral("core_package_version"), QStringLiteral("1.4.0"));
+    hub.systems = QJsonObject{{QStringLiteral("systems"), QJsonArray{nds}}};
+    const auto sha = [](const QByteArray& d) { return QString::fromLatin1(QCryptographicHash::hash(d, QCryptographicHash::Sha256).toHex()); };
+    const auto file = [&](const QString& name, const QString& role, const QByteArray& c) {
+      return QJsonObject{{QStringLiteral("name"), name}, {QStringLiteral("role"), role}, {QStringLiteral("size"), c.size()},
+                         {QStringLiteral("sha256"), sha(c)}, {QStringLiteral("available"), true}};
+    };
+    const QString key = QStringLiteral("melonds_ds/1.4.0/") + platform;
+    hub.corePackages.insert(key, QJsonObject{{QStringLiteral("core_id"), QStringLiteral("melonds_ds")},
+                                             {QStringLiteral("version"), QStringLiteral("1.4.0")},
+                                             {QStringLiteral("platform"), platform},
+                                             {QStringLiteral("license"), QStringLiteral("GPL-3.0")},
+                                             {QStringLiteral("source_url"), QStringLiteral("https://example.invalid/src")},
+                                             {QStringLiteral("source_ref"), QStringLiteral("v1.4.0")},
+                                             {QStringLiteral("files"), QJsonArray{file(QStringLiteral("dummy_libretro.so"), QStringLiteral("library"), lib),
+                                                                                  file(QStringLiteral("LICENSE.txt"), QStringLiteral("license"), license)}}});
+    hub.coreFiles.insert(key + QStringLiteral("/dummy_libretro.so"), lib);
+    hub.coreFiles.insert(key + QStringLiteral("/LICENSE.txt"), license);
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    PlayerController* pc = h.controller.get();
+    pc->selectGame(QStringLiteral("g1"));
+    const auto tileText = [pc]() {
+      const QHash<int, QByteArray> roles = pc->library()->roleNames();
+      const int role = roles.key("tileText");
+      return pc->library()->index(0, 0).data(role).toString();
+    };
+    const QString tileBefore = tileText();
+    QVERIFY2(!tileBefore.startsWith(QStringLiteral("● Ready")), qPrintable(tileBefore));
+    const QString before = pc->selectedGame().value(QStringLiteral("coreTone")).toString();
+    QVERIFY(before != QLatin1String("ok"));
+
+    // Fetch the package the way a start does; afterwards the state is refreshed without a restart or a manual reload.
+    // The start only provisions once the Hub's systems list (core_package_version) has arrived; playSelected() is
+    // a silent no-op before that, so wait for the state that signals "provisionable".
+    QTRY_VERIFY_WITH_TIMEOUT(pc->selectedGame().value(QStringLiteral("canPlay")).toBool(), 8000);
+    pc->playSelected();
+    QTRY_VERIFY_WITH_TIMEOUT(hub.coreFileDownloads >= 2, 8000);
+    QTRY_COMPARE_WITH_TIMEOUT(pc->selectedGame().value(QStringLiteral("coreTone")).toString(), QStringLiteral("ok"), 8000);
+    QCOMPARE(pc->library()->counts().value(QStringLiteral("attention")).toInt(), 0);
+    QVERIFY(!tileText().contains(QStringLiteral("Core"), Qt::CaseSensitive));
+    QVERIFY(!pc->selectedGame().value(QStringLiteral("coreText")).toString().contains(QStringLiteral("missing"), Qt::CaseInsensitive));
   }
 
  private:

@@ -14,7 +14,8 @@ QHash<int, QByteArray> LibraryModel::roleNames() const {
   return {{GameIdRole, "gameId"},       {TitleRole, "title"},         {SystemRole, "system"},
           {MonogramRole, "monogram"},   {RomShaRole, "romSha256"},    {RomSizeRole, "romSize"},
           {StateKindRole, "stateKind"}, {StatusTextRole, "statusText"}, {StatusToneRole, "statusTone"},
-          {ProgressRole, "progress"}, {SyncKindRole, "syncKind"}, {SyncTextRole, "syncText"}};
+          {ProgressRole, "progress"}, {SyncKindRole, "syncKind"}, {SyncTextRole, "syncText"},
+          {TileTextRole, "tileText"}, {TileToneRole, "tileTone"}, {NeedsAttentionRole, "needsAttention"}};
 }
 
 QString LibraryModel::formatSize(qint64 bytes) {
@@ -71,6 +72,39 @@ QVariant LibraryModel::data(const QModelIndex& index, int role) const {
     case StateKindRole: return kind;
     case SyncKindRole: return it.sync;
     case SyncTextRole: return syncText(it.sync);
+    case NeedsAttentionRole: return categoryOf(it) == Category::Attention;
+    case TileToneRole:
+    case TileTextRole: {
+      QString text;
+      QString tone = QStringLiteral("neutral");
+      const qint64 total = it.status.totalBytes > 0 ? it.status.totalBytes : it.game.romSize;
+      if (kind == QLatin1String("mismatch")) {
+        text = tr("✕ Hash mismatch · reload");
+        tone = QStringLiteral("error");
+      } else if (it.sync == QLatin1String("conflict")) {
+        text = tr("▲ Save conflict");
+        tone = QStringLiteral("warn");
+      } else if (!it.attention.isEmpty()) {
+        text = QStringLiteral("▲ ") + it.attention;
+        tone = QStringLiteral("warn");
+      } else if (kind == QLatin1String("failed")) {
+        text = tr("✕ Download failed · retry");
+        tone = QStringLiteral("error");
+      } else if (kind == QLatin1String("download")) {
+        text = tr("↓ Download required · %1").arg(formatSize(total));
+      } else if (kind == QLatin1String("downloading")) {
+        const int pct = total > 0 ? static_cast<int>(it.status.receivedBytes * 100 / total) : 0;
+        text = tr("↓ Downloading %1 %").arg(qBound(0, pct, 100));
+      } else if (kind != QLatin1String("ready")) {
+        text = tr("Verifying…");
+      } else if (it.sync == QLatin1String("pending")) {
+        text = tr("⟳ Save sync pending");
+      } else {
+        text = tr("● Ready");
+        tone = QStringLiteral("ok");
+      }
+      return role == TileTextRole ? QVariant(text) : QVariant(tone);
+    }
     case ProgressRole: {
       const qint64 total = it.status.totalBytes > 0 ? it.status.totalBytes : it.game.romSize;
       return total > 0 ? static_cast<double>(it.status.receivedBytes) / static_cast<double>(total) : 0.0;
@@ -98,9 +132,46 @@ QVariant LibraryModel::data(const QModelIndex& index, int role) const {
   }
 }
 
+QString LibraryModel::attentionOf(const Item& it) {
+  if (it.status.state == RomState::HashMismatch) return tr("Hash mismatch");
+  if (it.sync == QLatin1String("conflict")) return tr("Save conflict");
+  return it.attention;
+}
+
+LibraryModel::Category LibraryModel::categoryOf(const Item& it) {
+  if (!attentionOf(it).isEmpty()) return Category::Attention;
+  return it.status.state == RomState::Ready ? Category::Ready : Category::Download;
+}
+
+QVariantMap LibraryModel::counts() const {
+  int ready = 0, attention = 0, download = 0;
+  for (const Item& it : items_) {
+    switch (categoryOf(it)) {
+      case Category::Ready: ++ready; break;
+      case Category::Attention: ++attention; break;
+      case Category::Download: ++download; break;
+    }
+  }
+  return {{QStringLiteral("all"), static_cast<int>(items_.size())},
+          {QStringLiteral("ready"), ready},
+          {QStringLiteral("attention"), attention},
+          {QStringLiteral("download"), download}};
+}
+
+QString LibraryModel::attentionText(const QString& gameId) const {
+  for (const Item& it : items_) {
+    if (it.game.id == gameId) return attentionOf(it);
+  }
+  return {};
+}
+
 bool LibraryModel::matches(const Item& it) const {
-  if (readyOnly_ && it.status.state != RomState::Ready) {
-    return false;
+  if (filter_ != QLatin1String("all")) {
+    const Category c = categoryOf(it);
+    if ((filter_ == QLatin1String("ready") && c != Category::Ready) || (filter_ == QLatin1String("attention") && c != Category::Attention) ||
+        (filter_ == QLatin1String("download") && c != Category::Download)) {
+      return false;
+    }
   }
   const QString needle = filterText_.trimmed();
   return needle.isEmpty() || it.game.title.contains(needle, Qt::CaseInsensitive);
@@ -139,16 +210,58 @@ void LibraryModel::setFilterText(const QString& t) {
   emit filterChanged();
 }
 
-void LibraryModel::setReadyOnly(bool on) {
-  if (readyOnly_ == on) {
+void LibraryModel::setReadyOnly(bool on) { setFilter(on ? QStringLiteral("ready") : QStringLiteral("all")); }
+
+void LibraryModel::setFilter(const QString& filter) {
+  static const QStringList known = {QStringLiteral("all"), QStringLiteral("ready"), QStringLiteral("attention"), QStringLiteral("download")};
+  const QString f = known.contains(filter) ? filter : QStringLiteral("all");
+  if (filter_ == f) {
     return;
   }
-  readyOnly_ = on;
+  filter_ = f;
   rebuild();
   emit filterChanged();
 }
 
+void LibraryModel::setAttention(const QHash<QString, QString>& byGameId) {
+  bool anyChange = false;
+  for (Item& it : items_) {
+    const QString next = byGameId.value(it.game.id);
+    if (it.attention != next) {
+      it.attention = next;
+      anyChange = true;
+    }
+  }
+  if (!anyChange) return;
+  const QList<int> before = visible_;
+  rebuild();  // resets when the visible set changed (filter "attention" / "ready")
+  if (before == visible_ && !visible_.isEmpty()) {
+    emit dataChanged(index(0), index(static_cast<int>(visible_.size()) - 1));
+  }
+  emit countChanged();
+}
+
 void LibraryModel::setGames(const QList<GameEntry>& games, const std::function<RomStatus(const GameEntry&)>& statusOf) {
+  // Same games in the same order (periodic refresh): update in place, no reset (scroll position and selection stay).
+  if (games.size() == items_.size() && !games.isEmpty()) {
+    bool same = true;
+    for (int i = 0; i < games.size() && same; ++i) {
+      same = games.at(i).id == items_.at(i).game.id;
+    }
+    if (same) {
+      for (int i = 0; i < games.size(); ++i) {
+        items_[i].game = games.at(i);
+        items_[i].status = statusOf ? statusOf(games.at(i)) : RomStatus{};
+      }
+      const QList<int> before = visible_;
+      rebuild();
+      if (before == visible_ && !visible_.isEmpty()) {
+        emit dataChanged(index(0), index(static_cast<int>(visible_.size()) - 1));
+      }
+      emit countChanged();
+      return;
+    }
+  }
   beginResetModel();
   items_.clear();
   for (const GameEntry& g : games) {
@@ -211,8 +324,10 @@ void LibraryModel::setSyncKind(const QString& gameId, const QString& kind) {
     items_[i].sync = kind;
     const qsizetype row = visible_.indexOf(i);
     if (row >= 0) {
-      emit dataChanged(index(static_cast<int>(row)), index(static_cast<int>(row)), {SyncKindRole, SyncTextRole});
+      emit dataChanged(index(static_cast<int>(row)), index(static_cast<int>(row)));
     }
+    rebuild();  // a conflict moves the game between the chips
+    emit countChanged();
   }
 }
 

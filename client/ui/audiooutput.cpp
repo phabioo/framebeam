@@ -119,8 +119,14 @@ bool AudioOutput::start(int coreSampleRate) {
   pendingCap_ = bufBytes / 2;
   auto sink = std::make_unique<QAudioSink>(device, fmt);
   sink->setBufferSize(bufBytes);
-  connect(sink.get(), &QAudioSink::stateChanged, this, [s = sink.get()](QAudio::State st) {
+  underruns_ = 0;
+  lastState_ = QAudio::StoppedState;
+  connect(sink.get(), &QAudioSink::stateChanged, this, [this, s = sink.get()](QAudio::State st) {
     qCInfo(lcAudio) << "Sink state:" << static_cast<int>(st) << "error:" << static_cast<int>(s->error());
+    if (counting_ && isUnderrun(lastState_, st)) {
+      ++underruns_;
+    }
+    lastState_ = st;
   });
   io_ = sink->start();
   qCInfo(lcAudio) << "start():" << (io_ ? "ok" : "failed") << "error:" << static_cast<int>(sink->error())
@@ -135,6 +141,31 @@ bool AudioOutput::start(int coreSampleRate) {
   }
   sink_ = std::move(sink);
   return true;
+}
+
+double AudioOutput::bufferedMsFor(qint64 sinkBufferBytes, qint64 sinkFreeBytes, qint64 pendingBytes, int bytesPerFrame, int sampleRate) {
+  if (bytesPerFrame <= 0 || sampleRate <= 0) {
+    return 0.0;
+  }
+  const qint64 queued = std::max<qint64>(0, sinkBufferBytes - sinkFreeBytes) + std::max<qint64>(0, pendingBytes);
+  return static_cast<double>(queued) / bytesPerFrame * 1000.0 / sampleRate;
+}
+
+double AudioOutput::bufferedMs() const {
+  if (!sink_) {
+    return 0.0;
+  }
+  return bufferedMsFor(sink_->bufferSize(), sink_->bytesFree(), pending_.size(), fmt_.bytesPerFrame(), outRate_);
+}
+
+void AudioOutput::setUnderrunCounting(bool on) {
+  if (on == counting_) {
+    return;
+  }
+  counting_ = on;
+  if (on && sink_) {
+    lastState_ = sink_->state();  // the idle period while counting was off is not an underrun
+  }
 }
 
 void AudioOutput::stop() {

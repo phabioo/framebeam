@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 
-// Tile in the game grid (3c): square monogram, title, status.
+// Tile in the game grid (3c): square cover with system label and monogram, title, status line with symbol.
 Item {
     id: tile
     required property string gameId
@@ -9,11 +9,9 @@ Item {
     required property string system
     required property string monogram
     required property string stateKind
-    required property string statusText
-    required property string statusTone
+    required property string tileText
+    required property string tileTone
     required property real progress
-    required property string syncKind
-    required property string syncText
     property bool selected: false
 
     signal clicked()
@@ -24,9 +22,11 @@ Item {
         id: cover
         width: parent.width - 18
         height: width
-        radius: 8
+        radius: Theme.radius8
         color: Theme.tile
         clip: true
+        scale: hover.hovered ? 1.015 : 1
+        Behavior on scale { NumberAnimation { duration: Theme.durFast; easing.type: Easing.OutCubic } }
 
         Repeater {
             model: 6
@@ -45,8 +45,8 @@ Item {
             x: 12
             y: 10
             text: tile.system
-            font.pixelSize: 11
-            color: Theme.textFaint
+            font.pixelSize: Theme.fontMono
+            color: Theme.textTile
         }
         FbLabel {
             anchors.left: parent.left
@@ -58,26 +58,6 @@ Item {
             font.letterSpacing: -0.7
             color: Theme.monogram
         }
-        // Save sync badge (synced / pending / conflict)
-        Rectangle {
-            objectName: "syncBadge"
-            visible: tile.syncKind !== "none"
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.margins: 8
-            implicitHeight: 20
-            implicitWidth: badgeText.implicitWidth + 14
-            radius: 10
-            color: Theme.toneBg(tile.syncKind === "synced" ? "ok" : "warn")
-            FbLabel {
-                id: badgeText
-                anchors.centerIn: parent
-                text: (tile.syncKind === "conflict" ? "▲ " : "") + tile.syncText
-                font.pixelSize: 11
-                font.weight: Font.Medium
-                color: Theme.toneColor(tile.syncKind === "synced" ? "ok" : "warn")
-            }
-        }
         Rectangle {
             visible: tile.stateKind === "downloading"
             anchors.left: parent.left
@@ -85,16 +65,19 @@ Item {
             height: 4
             width: parent.width * Math.max(0, Math.min(1, tile.progress))
             color: Theme.accent
+            Behavior on width { NumberAnimation { duration: Theme.durFast } }
         }
     }
+    // Selection: accent border 2 px, offset -3, radius 8 (outside the cover).
     Rectangle {
-        visible: tile.selected
         anchors.fill: cover
         anchors.margins: -3
-        radius: 10
+        radius: Theme.radius10
         color: "transparent"
         border.width: 2
         border.color: Theme.accent
+        opacity: tile.selected ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: Theme.durFast } }
     }
 
     ColumnLayout {
@@ -109,20 +92,18 @@ Item {
             font.weight: Font.Medium
             elide: Text.ElideRight
         }
-        RowLayout {
-            spacing: 6
-            StatusDot { tone: tile.statusTone }
-            FbLabel {
-                Layout.fillWidth: true
-                text: tile.statusText
-                font.pixelSize: 12
-                color: tile.statusTone === "neutral" ? Theme.textMuted : Theme.toneColor(tile.statusTone)
-                font.weight: tile.statusTone === "error" ? Font.Medium : Font.Normal
-                elide: Text.ElideRight
-            }
+        FbLabel {
+            objectName: "tileStatus"
+            Layout.fillWidth: true
+            text: tile.tileText
+            font.pixelSize: Theme.fontMeta
+            font.weight: Font.Medium
+            color: tile.tileTone === "neutral" ? Theme.textMuted : Theme.toneColor(tile.tileTone)
+            elide: Text.ElideRight
         }
     }
 
+    HoverHandler { id: hover; cursorShape: Qt.PointingHandCursor }
     TapHandler {
         onTapped: tile.clicked()
     }

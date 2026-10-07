@@ -111,14 +111,25 @@ ColumnLayout {
         Layout.topMargin: 8
         spacing: 8
 
-        RowLayout {
+        // Anchored instead of a RowLayout: the title elides, the button stays pinned to the right edge of the pane.
+        Item {
             Layout.fillWidth: true
             Layout.minimumWidth: 0
             Layout.preferredWidth: 1
-            Eyebrow { text: qsTr("Save history") }
-            Item { Layout.fillWidth: true }
+            implicitHeight: Math.max(historyTitle.implicitHeight, historyRefresh.implicitHeight)
+            Eyebrow {
+                id: historyTitle
+                anchors.left: parent.left
+                anchors.right: historyRefresh.left
+                anchors.rightMargin: 8
+                anchors.verticalCenter: parent.verticalCenter
+                text: qsTr("Save history")
+            }
             FbButton {
+                id: historyRefresh
                 objectName: "historyRefresh"
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
                 kind: "link"
                 text: root.hist.loading ? qsTr("Loading…") : qsTr("Refresh")
                 enabled: !root.hist.loading

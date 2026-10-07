@@ -1,6 +1,6 @@
 import QtQuick
 
-// Statuspunkt; tone: ok | warn | error | neutral
+// Status dot; tone: ok | warn | error | neutral
 Rectangle {
     property string tone: "neutral"
     implicitWidth: 8

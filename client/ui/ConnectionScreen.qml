@@ -29,12 +29,12 @@ Rectangle {
                 spacing: 18
                 RowLayout {
                     spacing: 10
-                    Logo { }
+                    Logo { size: 22 }
                     FbLabel { text: qsTr("FrameBeam Player"); font.pixelSize: 16; font.weight: Font.DemiBold }
                 }
                 FbLabel {
                     text: qsTr("Connect to a hub")
-                    font.pixelSize: 30
+                    font.pixelSize: Theme.fontHero
                     font.weight: Font.DemiBold
                     font.letterSpacing: -0.6
                 }
@@ -60,7 +60,7 @@ Rectangle {
                     visible: root.player.hubs.length === 0
                     text: qsTr("No hub saved yet. Enter the address of your FrameBeam Hub below.")
                     color: Theme.textMuted
-                    font.pixelSize: 13
+                    font.pixelSize: Theme.fontSmall
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
                 }
@@ -84,6 +84,7 @@ Rectangle {
                         id: addButton
                         objectName: "addButton"
                         implicitHeight: 44
+                        busyOnClick: true
                         text: qsTr("Add hub")
                         onClicked: root.player.addHub(addressField.text)
                     }
@@ -93,7 +94,7 @@ Rectangle {
                     Layout.fillWidth: true
                     text: root.player.connectionNotice
                     color: Theme.error
-                    font.pixelSize: 13
+                    font.pixelSize: Theme.fontSmall
                     wrapMode: Text.WordWrap
                 }
             }

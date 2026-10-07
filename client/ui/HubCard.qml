@@ -18,10 +18,11 @@ Rectangle {
     readonly property string tone: hub.tone
 
     implicitHeight: body.implicitHeight + 32
-    radius: 10
+    radius: Theme.radius10
     color: Theme.surface
     border.width: hub.isLast && status === "idle" ? 1.5 : 1
     border.color: hub.isLast && status === "idle" ? Theme.accent : (status === "certChanged" ? Theme.error : Theme.borderCard)
+    Behavior on border.color { ColorAnimation { duration: Theme.durFast } }
 
     ColumnLayout {
         id: body
@@ -37,15 +38,15 @@ Rectangle {
             FbLabel {
                 Layout.fillWidth: true
                 text: card.hub.name
-                font.pixelSize: 16
+                font.pixelSize: Theme.fontCard
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
             }
-            StatusDot { tone: card.tone }
-            FbLabel {
-                text: card.hub.statusText
-                font.pixelSize: 13
-                color: card.tone === "neutral" ? Theme.textMuted : Theme.toneColor(card.tone)
+            FbPill {
+                objectName: "hubStatusPill"
+                tone: card.status === "idle" ? "ok" : card.tone
+                symbol: card.status === "connecting" ? "…" : (card.status === "idle" ? "●" : (card.tone === "warn" ? "▲" : (card.tone === "error" ? "✕" : "")))
+                text: card.status === "idle" ? qsTr("Reachable") : card.hub.statusText
             }
         }
 
@@ -60,16 +61,18 @@ Rectangle {
             Layout.fillWidth: true
             visible: card.hub.message !== ""
             implicitHeight: msg.implicitHeight + 24
-            radius: 8
-            color: Theme.toneBg(card.tone)
+            radius: Theme.radius8
+            color: card.tone === "warn" ? Theme.infoBg : Theme.toneBg(card.tone)
+            border.width: card.tone === "warn" ? 1 : 0
+            border.color: Theme.infoBorder
             FbLabel {
                 id: msg
                 anchors.fill: parent
                 anchors.margins: 12
                 text: card.hub.message
-                font.pixelSize: 13
+                font.pixelSize: Theme.fontSmall
                 wrapMode: Text.WordWrap
-                color: card.tone === "error" ? Theme.errorText : Theme.text
+                color: card.tone === "error" ? Theme.errorText : (card.tone === "warn" ? Theme.infoText : Theme.text)
             }
         }
 
@@ -104,7 +107,7 @@ Rectangle {
             visible: card.status === "certChanged"
             text: qsTr("Open the Hub's web Settings page and compare its certificate fingerprint with the one presented now. "
                        + "A Hub renews its certificate automatically before it expires.")
-            font.pixelSize: 13
+            font.pixelSize: Theme.fontSmall
             color: Theme.textMuted
             wrapMode: Text.WordWrap
         }
@@ -125,7 +128,7 @@ Rectangle {
                     Layout.fillWidth: true
                     text: qsTr("Trust this certificate only if both fingerprints match the Hub's Settings page. "
                                + "Your saved sign-in is kept and used for the new certificate.")
-                    font.pixelSize: 13
+                    font.pixelSize: Theme.fontSmall
                     wrapMode: Text.WordWrap
                     color: Theme.errorText
                 }
@@ -153,13 +156,18 @@ Rectangle {
             Layout.fillWidth: true
             spacing: 10
             FbButton {
-                visible: card.status === "idle"
+                objectName: "hubConnectButton"
+                visible: card.status === "idle" || card.status === "connecting"
                 kind: "primary"
-                text: qsTr("Connect")
+                busy: card.status === "connecting"
+                busyOnClick: true
+                enabled: card.status === "idle"
+                text: card.status === "connecting" ? qsTr("Connecting…") : qsTr("Connect")
                 onClicked: card.connectRequested(card.hub.hubId)
             }
             FbButton {
                 visible: card.status === "unreachable" || card.status === "userDisabled"
+                busyOnClick: true
                 text: qsTr("Retry")
                 onClicked: card.retryRequested()
             }

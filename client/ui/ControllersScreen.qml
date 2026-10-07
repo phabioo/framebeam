@@ -10,6 +10,12 @@ Rectangle {
     readonly property bool isMouse: root.ctl.device.kind === "mouse"
     property bool renaming: false
     property bool confirmDelete: false
+    // Narrow main column (input test open on a small window): tighter mapping table.
+    readonly property bool compact: content.width < 520
+    readonly property int mapWidth: compact ? 130 : 170
+    readonly property int mapMinWidth: compact ? 72 : 100
+    readonly property int targetWidth: compact ? 56 : 80
+    readonly property int actionWidth: compact ? 48 : 60
     color: Theme.bg
 
     onVisibleChanged: if (visible) keyScope.forceActiveFocus()
@@ -48,95 +54,75 @@ Rectangle {
             }
 
             // Devices
-            Rectangle {
+            ShellColumn {
                 Layout.fillHeight: true
-                Layout.preferredWidth: 260
-                color: Theme.bgPanel
-                Rectangle {
-                    anchors.right: parent.right
-                    width: 1
-                    height: parent.height
-                    color: Theme.borderSidebar
-                }
-                ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: 16
-                    anchors.topMargin: 24
-                    spacing: 6
+                Layout.preferredWidth: Theme.columnWidth
+                title: qsTr("Devices")
 
-                    Eyebrow { text: qsTr("Devices"); Layout.leftMargin: 4; Layout.bottomMargin: 4 }
-
-                    Repeater {
-                        model: root.ctl.devices
-                        delegate: Rectangle {
-                            id: dev
-                            required property var modelData
-                            objectName: "device_" + modelData.key
-                            readonly property bool selected: modelData.key === root.ctl.selectedDevice
+                Repeater {
+                    model: root.ctl.devices
+                    delegate: ColumnItem {
+                        id: dev
+                        required property var modelData
+                        objectName: "device_" + modelData.key
+                        selected: modelData.key === root.ctl.selectedDevice
+                        onClicked: root.ctl.selectDevice(dev.modelData.key)
+                        RowLayout {
                             Layout.fillWidth: true
-                            implicitHeight: devCol.implicitHeight + 24
-                            radius: 8
-                            color: dev.selected ? Theme.surfaceRaised : "transparent"
-                            ColumnLayout {
-                                id: devCol
-                                anchors.fill: parent
-                                anchors.margins: 12
-                                spacing: 3
-                                RowLayout {
-                                    FbLabel {
-                                        Layout.fillWidth: true
-                                        text: dev.modelData.name
-                                        font.weight: Font.Medium
-                                        elide: Text.ElideRight
-                                    }
-                                    FbMono {
-                                        objectName: "deviceSlot_" + dev.modelData.key
-                                        text: dev.modelData.slot
-                                        font.pixelSize: 11
-                                    }
-                                }
-                                FbLabel {
-                                    text: dev.modelData.profile
-                                    color: Theme.textMuted
-                                    font.pixelSize: 12
-                                    elide: Text.ElideRight
-                                    Layout.fillWidth: true
-                                }
+                            FbLabel {
+                                Layout.fillWidth: true
+                                text: dev.modelData.name
+                                font.weight: Font.Medium
+                                elide: Text.ElideRight
                             }
-                            TapHandler { onTapped: root.ctl.selectDevice(dev.modelData.key) }
+                            FbMono {
+                                objectName: "deviceSlot_" + dev.modelData.key
+                                text: dev.modelData.slot
+                                font.pixelSize: Theme.fontMono
+                                color: Theme.textMeta
+                            }
+                        }
+                        FbLabel {
+                            objectName: "deviceStatus_" + dev.modelData.key
+                            Layout.fillWidth: true
+                            text: (dev.modelData.connected ? "● " : "") + dev.modelData.status
+                                  + (dev.modelData.profile !== "" ? " · " + dev.modelData.profile : "")
+                            color: dev.modelData.connected ? Theme.ok : Theme.textFaint
+                            font.pixelSize: Theme.fontMeta
+                            elide: Text.ElideRight
                         }
                     }
+                }
 
-                    FbLabel {
-                        visible: !root.ctl.gamepadAvailable
-                        objectName: "gamepadNote"
-                        Layout.fillWidth: true
-                        Layout.topMargin: 8
-                        text: root.ctl.gamepadNote
-                        color: Theme.warn
-                        font.pixelSize: 12
-                        wrapMode: Text.WordWrap
-                    }
-                    FbLabel {
-                        visible: root.ctl.gamepadAvailable && root.ctl.devices.length <= 2
-                        objectName: "noGamepadHint"
-                        Layout.fillWidth: true
-                        Layout.topMargin: 8
-                        text: qsTr("No gamepad connected. Connect one and it appears here (the first gamepad is P1).")
-                        color: Theme.textFaint
-                        font.pixelSize: 12
-                        wrapMode: Text.WordWrap
-                    }
+                FbLabel {
+                    visible: !root.ctl.gamepadAvailable
+                    objectName: "gamepadNote"
+                    Layout.fillWidth: true
+                    Layout.topMargin: Theme.space8
+                    text: root.ctl.gamepadNote
+                    color: Theme.textMuted
+                    font.pixelSize: Theme.fontMeta
+                    wrapMode: Text.WordWrap
+                }
+                FbLabel {
+                    visible: root.ctl.gamepadAvailable && root.ctl.devices.length <= 2
+                    objectName: "noGamepadHint"
+                    Layout.fillWidth: true
+                    Layout.topMargin: Theme.space8
+                    text: qsTr("No gamepad connected. Connect one and it appears here (the first gamepad is P1).")
+                    color: Theme.textFaint
+                    font.pixelSize: Theme.fontMeta
+                    wrapMode: Text.WordWrap
+                }
 
-                    Item { Layout.fillHeight: true }
-                    FbLabel {
-                        objectName: "profilesLocalFooter"
-                        Layout.fillWidth: true
-                        text: qsTr("Profiles stay local on this device and are not synchronized.")
-                        color: Theme.textFaint
-                        font.pixelSize: 12
-                        wrapMode: Text.WordWrap
-                    }
+                Item { Layout.fillHeight: true }
+                FbLabel {
+                    objectName: "profilesLocalFooter"
+                    Layout.fillWidth: true
+                    text: qsTr("Saved on this device only")
+                    color: Theme.textFaint
+                    font.pixelSize: Theme.fontMeta
+                    wrapMode: Text.WordWrap
                 }
             }
 
@@ -157,33 +143,72 @@ Rectangle {
                     width: Math.min(760, flick.width - 56)
                     spacing: 18
 
-                    FbLabel {
-                        objectName: "controllersTitle"
-                        Layout.fillWidth: true
-                        text: root.ctl.device.name !== undefined ? root.ctl.device.name : qsTr("Controllers")
-                        font.pixelSize: 26
-                        font.weight: Font.DemiBold
-                        font.letterSpacing: -0.4
-                        elide: Text.ElideRight
-                    }
                     RowLayout {
-                        visible: !root.isMouse
                         Layout.fillWidth: true
-                        Layout.topMargin: -8
-                        spacing: 12
-                        FbLabel {
-                            text: qsTr("Profile:")
-                            color: Theme.textMuted
-                            font.pixelSize: 13
+                        spacing: Theme.space16
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            spacing: Theme.space6
+                            FbLabel {
+                                objectName: "controllersTitle"
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 0
+                                text: root.ctl.device.name !== undefined ? root.ctl.device.name : qsTr("Controllers")
+                                font.pixelSize: Theme.fontPage
+                                font.weight: Font.DemiBold
+                                font.letterSpacing: -0.4
+                                elide: Text.ElideRight
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 0
+                                spacing: Theme.space10
+                                FbPill {
+                                    objectName: "devicePill"
+                                    visible: root.ctl.device.name !== undefined
+                                    tone: root.ctl.device.connected ? "ok" : "neutral"
+                                    text: root.ctl.device.connected === true
+                                          ? (root.ctl.device.slot !== "—" ? qsTr("Connected · %1").arg(root.ctl.device.slot) : qsTr("Connected"))
+                                          : qsTr("Not connected")
+                                }
+                                FbLabel {
+                                    Layout.fillWidth: true
+                                    Layout.minimumWidth: 0
+                                    elide: Text.ElideRight
+                                    text: qsTr("Saved on this device only")
+                                    color: Theme.textMuted
+                                    font.pixelSize: Theme.fontMeta
+                                }
+                            }
                         }
                         FbSelect {
                             objectName: "profileSelect"
-                            Layout.preferredWidth: 260
+                            visible: !root.isMouse
+                            Layout.preferredWidth: 210
+                            Layout.preferredHeight: 36
+                            Layout.alignment: Qt.AlignTop
                             model: root.ctl.profiles
                             current: root.ctl.profileId
                             onPicked: value => root.ctl.selectProfile(value)
                         }
+                    }
+
+                    // Tab chips + Reset N changed
+                    RowLayout {
+                        visible: !root.isMouse
+                        Layout.fillWidth: true
+                        spacing: Theme.space8
+                        FbChip { objectName: "tabButtons"; text: qsTr("Buttons"); active: true }
                         Item { Layout.fillWidth: true }
+                        FbButton {
+                            objectName: "resetChanged"
+                            visible: root.ctl.changedCount > 0 && !root.ctl.profileBuiltin
+                            kind: "link"
+                            font.underline: true
+                            text: qsTr("Reset %1 changed").arg(root.ctl.changedCount)
+                            onClicked: root.ctl.resetProfile()
+                        }
                     }
 
                     // Mouse: touch input (fixed)
@@ -202,7 +227,7 @@ Rectangle {
                         Layout.fillWidth: true
                         text: qsTr("Built-in profiles are read-only. Duplicate the profile to change the mapping.")
                         color: Theme.textMuted
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.fontMeta
                         wrapMode: Text.WordWrap
                     }
 
@@ -215,10 +240,11 @@ Rectangle {
                         RowLayout {
                             Layout.fillWidth: true
                             Layout.bottomMargin: 6
-                            spacing: 12
-                            Eyebrow { Layout.fillWidth: true; text: qsTr("FrameBeam input") }
-                            Eyebrow { Layout.preferredWidth: 190; text: qsTr("Mapping") }
-                            Eyebrow { Layout.preferredWidth: 90; text: root.ctl.systemLabel }
+                            spacing: Theme.space16
+                            Eyebrow { Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; text: qsTr("Input") }
+                            Eyebrow { Layout.fillWidth: true; Layout.preferredWidth: root.mapWidth; Layout.minimumWidth: root.mapMinWidth; Layout.maximumWidth: root.mapWidth; text: qsTr("Mapping") }
+                            Eyebrow { Layout.preferredWidth: root.targetWidth; Layout.minimumWidth: root.targetWidth; Layout.maximumWidth: root.targetWidth; text: root.ctl.systemLabel }
+                            Item { Layout.preferredWidth: root.actionWidth }
                         }
                         Rectangle { Layout.fillWidth: true; height: 1; color: Theme.borderRow }
 
@@ -233,14 +259,31 @@ Rectangle {
                                     Layout.fillWidth: true
                                     Layout.topMargin: 6
                                     Layout.bottomMargin: 6
-                                    spacing: 12
-                                    FbLabel { Layout.fillWidth: true; text: mrow.modelData.label }
+                                    spacing: Theme.space16
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        Layout.preferredWidth: 1
+                                        Layout.minimumWidth: 0
+                                        spacing: Theme.space8
+                                        Rectangle {
+                                            objectName: "changedDot_" + mrow.modelData.input
+                                            visible: mrow.modelData.changed
+                                            Layout.preferredWidth: 7
+                                            Layout.preferredHeight: 7
+                                            radius: 3.5
+                                            color: Theme.accent
+                                        }
+                                        FbLabel { Layout.fillWidth: true; text: mrow.modelData.label; elide: Text.ElideRight }
+                                    }
                                     Rectangle {
                                         id: field
                                         objectName: "mapField_" + mrow.modelData.input
-                                        Layout.preferredWidth: 190
+                                        Layout.fillWidth: true
+                                        Layout.preferredWidth: root.mapWidth
+                                        Layout.minimumWidth: root.mapMinWidth
+                                        Layout.maximumWidth: root.mapWidth
                                         implicitHeight: 30
-                                        radius: 6
+                                        radius: Theme.radius6
                                         color: Theme.surface
                                         border.width: mrow.modelData.listening ? 1.5 : 1
                                         border.color: mrow.modelData.listening ? Theme.accent : Theme.borderInput
@@ -257,7 +300,7 @@ Rectangle {
                                                       : mrow.modelData.binding
                                                 color: mrow.modelData.listening ? Theme.accent
                                                        : (mrow.modelData.mapped ? Theme.text : Theme.textFaint)
-                                                font.pixelSize: 13
+                                                font.pixelSize: Theme.fontSmall
                                                 elide: Text.ElideRight
                                             }
                                             FbButton {
@@ -273,7 +316,28 @@ Rectangle {
                                             onTapped: mrow.modelData.listening ? root.ctl.cancelCapture() : root.ctl.beginCapture(mrow.modelData.input)
                                         }
                                     }
-                                    FbMono { Layout.preferredWidth: 90; text: mrow.modelData.target; font.pixelSize: 12; color: Theme.textSecondary }
+                                    FbMono { Layout.preferredWidth: root.targetWidth; Layout.minimumWidth: root.targetWidth; Layout.maximumWidth: root.targetWidth; text: mrow.modelData.target; font.pixelSize: Theme.fontSmall; color: Theme.textMeta }
+                                    RowLayout {
+                                        Layout.preferredWidth: root.actionWidth
+                                        Layout.minimumWidth: root.actionWidth
+                                        Layout.maximumWidth: root.actionWidth
+                                        FbButton {
+                                            objectName: "mapReset_" + mrow.modelData.input
+                                            visible: mrow.modelData.changed
+                                            kind: "link"
+                                            font.underline: true
+                                            font.pixelSize: Theme.fontMeta
+                                            text: qsTr("Reset")
+                                            onClicked: root.ctl.resetBinding(mrow.modelData.input)
+                                        }
+                                        FbLabel {
+                                            visible: !mrow.modelData.changed
+                                            text: qsTr("Default")
+                                            font.pixelSize: Theme.fontMeta
+                                            color: Theme.textDisabled
+                                        }
+                                        Item { Layout.fillWidth: true }
+                                    }
                                 }
                                 Rectangle { Layout.fillWidth: true; height: 1; color: Theme.borderRow }
                             }
@@ -285,9 +349,10 @@ Rectangle {
                             Layout.fillWidth: true
                             sourceComponent: RowLayout {
                                 spacing: 12
-                                FbLabel { Layout.fillWidth: true; text: qsTr("Close lid") }
-                                FbLabel { Layout.preferredWidth: 190; text: qsTr("not mapped"); color: Theme.textFaint }
-                                FbMono { Layout.preferredWidth: 90; text: "LID"; font.pixelSize: 12 }
+                                FbLabel { Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; text: qsTr("Close lid") }
+                                FbLabel { Layout.preferredWidth: root.mapWidth; Layout.minimumWidth: root.mapWidth; Layout.maximumWidth: root.mapWidth; text: qsTr("not mapped"); color: Theme.textFaint }
+                                FbMono { Layout.preferredWidth: root.targetWidth; Layout.minimumWidth: root.targetWidth; Layout.maximumWidth: root.targetWidth; text: "LID"; font.pixelSize: Theme.fontSmall; color: Theme.textMeta }
+                                Item { Layout.preferredWidth: root.actionWidth }
                             }
                         }
                     }
@@ -299,23 +364,27 @@ Rectangle {
                         spacing: 10
                         FbButton {
                             objectName: "resetProfileButton"
-                            text: qsTr("Reset to default")
+                            implicitHeight: 38
+                            text: qsTr("Reset profile to default")
                             enabled: !root.ctl.profileBuiltin
                             onClicked: root.ctl.resetProfile()
                         }
                         FbButton {
                             objectName: "duplicateProfileButton"
+                            implicitHeight: 38
                             text: qsTr("Duplicate profile")
                             onClicked: root.ctl.duplicateProfile()
                         }
                         FbButton {
                             objectName: "renameProfileButton"
+                            implicitHeight: 38
                             text: qsTr("Rename")
                             enabled: !root.ctl.profileBuiltin
                             onClicked: { root.renaming = true; renameField.text = root.ctl.profileName; renameField.forceActiveFocus(); renameField.selectAll() }
                         }
                         FbButton {
                             objectName: "deleteProfileButton"
+                            implicitHeight: 38
                             text: root.confirmDelete ? qsTr("Confirm delete") : qsTr("Delete")
                             enabled: !root.ctl.profileBuiltin
                             onClicked: {
@@ -348,9 +417,9 @@ Rectangle {
 
             // Input test
             Rectangle {
-                visible: root.width >= 1100  // narrow windows keep the mapping table, the test lives on wide ones
+                visible: root.width >= 1180  // narrow windows keep the mapping table, the test lives on wide ones
                 Layout.fillHeight: true
-                Layout.preferredWidth: 300
+                Layout.preferredWidth: Theme.inputTestWidth
                 color: Theme.bgPanel
                 Rectangle {
                     anchors.left: parent.left
@@ -361,6 +430,7 @@ Rectangle {
                 ColumnLayout {
                     anchors.fill: parent
                     anchors.margins: 24
+                    anchors.topMargin: Theme.space28
                     spacing: 14
 
                     Eyebrow { text: qsTr("Input test") }
@@ -370,7 +440,7 @@ Rectangle {
                               : root.isMouse ? qsTr("The mouse drives the %1 input.").arg(root.ctl.touchLabel)
                               : qsTr("Press buttons on the controller — active inputs light up.")
                         color: Theme.textMuted
-                        font.pixelSize: 13
+                        font.pixelSize: Theme.fontSmall
                         wrapMode: Text.WordWrap
                     }
                     GridLayout {
@@ -391,14 +461,15 @@ Rectangle {
                                 readonly property bool active: root.ctl.activeInputs.indexOf(modelData.id) >= 0
                                 Layout.fillWidth: true
                                 implicitHeight: 44
-                                radius: 8
-                                color: tile.active ? Theme.accent : Theme.surfaceRaised
+                                radius: Theme.radius8
+                                color: tile.active ? Theme.accent : Theme.surface
                                 border.width: 1
                                 border.color: tile.active ? Theme.accent : Theme.borderCard
+                                Behavior on color { ColorAnimation { duration: 60 } }
                                 Text {
                                     anchors.centerIn: parent
                                     text: tile.modelData.text
-                                    font.pixelSize: 14
+                                    font.pixelSize: Theme.fontBody
                                     font.weight: Font.Medium
                                     color: tile.active ? Theme.textOnAccent : Theme.textSecondary
                                 }
@@ -408,23 +479,24 @@ Rectangle {
 
                     Eyebrow { text: root.ctl.touchLabel; Layout.topMargin: 10 }
                     Rectangle {
+                        objectName: "touchBox"
                         Layout.fillWidth: true
                         implicitHeight: 150
-                        radius: 8
+                        radius: Theme.radius8
                         color: Theme.surface
                         border.width: 1
                         border.color: Theme.borderCard
                         FbLabel {
                             anchors.centerIn: parent
-                            text: qsTr("Mouse on lower screen")
+                            text: qsTr("Mouse on bottom screen")
                             color: Theme.textMuted
-                            font.pixelSize: 13
+                            font.pixelSize: Theme.fontSmall
                         }
                     }
                     FbLabel {
                         text: qsTr("Left mouse button = stylus")
                         color: Theme.textFaint
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.fontMeta
                     }
                     Item { Layout.fillHeight: true }
                 }

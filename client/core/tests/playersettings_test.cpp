@@ -19,6 +19,29 @@ class PlayerSettingsTest : public QObject {
     QVERIFY(!QFile::exists(s.filePath()));  // nothing is written until something changes
   }
 
+  void diagnosticsStatesDefaultAndPersist() {  // 0.6 D5
+    QTemporaryDir dir;
+    {
+      PlayerSettings s(dir.path());
+      QVERIFY(!s.diagnosticsOpen());
+      QVERIFY(s.diagnosticsEmulationOpen());
+      QVERIFY(s.diagnosticsStreamingOpen());
+      QVERIFY(s.setDiagnosticsOpen(true));
+      QVERIFY(s.setDiagnosticsEmulationOpen(false));
+    }
+    {
+      PlayerSettings s(dir.path());
+      QVERIFY(s.diagnosticsOpen());
+      QVERIFY(!s.diagnosticsEmulationOpen());
+      QVERIFY(s.diagnosticsStreamingOpen());  // untouched stays at the default
+      QVERIFY(s.setAppearance(A::Light));      // other keys survive and vice versa
+      QVERIFY(s.setDiagnosticsStreamingOpen(false));
+    }
+    PlayerSettings s(dir.path());
+    QCOMPARE(s.appearance(), A::Light);
+    QVERIFY(s.diagnosticsOpen() && !s.diagnosticsEmulationOpen() && !s.diagnosticsStreamingOpen());
+  }
+
   void persistsAppearance() {
     QTemporaryDir dir;
     {

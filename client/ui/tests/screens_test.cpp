@@ -351,10 +351,32 @@ class ScreensTest : public QObject {
     lib->setFilterText(QStringLiteral("ts"));  // Stylus Knights
     QCOMPARE(lib->rowCount(), 1);
     lib->setFilterText(QString());
+    // Chips (D14): without a core every game of the system "needs attention" (core missing); counts add up to the total.
+    QCOMPARE(lib->counts().value(QStringLiteral("attention")).toInt(), 6);
+    QCOMPARE(lib->counts().value(QStringLiteral("ready")).toInt(), 0);
+    lib->setFilter(QStringLiteral("attention"));
+    QCOMPARE(lib->rowCount(), 6);
+    QCOMPARE(lib->data(lib->index(lib->rowOfGame(QStringLiteral("g1"))), LibraryModel::TileTextRole).toString(), QStringLiteral("▲ Core missing"));
+    lib->setFilter(QStringLiteral("all"));
+    // D15: the core appears (as after a download) and the state is re-evaluated without a restart.
+    qputenv("FRAMEBEAM_MELONDS_DS_CORE", QCoreApplication::applicationFilePath().toLocal8Bit());
+    h.controller->refreshCoreState();
+    QVERIFY(h.controller->selectedGame().value(QStringLiteral("coreText")).toString().contains(QStringLiteral("ready")));
+    QCOMPARE(lib->counts().value(QStringLiteral("attention")).toInt(), 1);  // Copper Courier: hash mismatch
+    QCOMPARE(lib->counts().value(QStringLiteral("ready")).toInt(), 1);
+    QCOMPARE(lib->counts().value(QStringLiteral("download")).toInt(), 4);
     lib->setReadyOnly(true);
     QCOMPARE(lib->rowCount(), 1);
+    lib->setFilter(QStringLiteral("download"));
+    QCOMPARE(lib->rowCount(), 4);
+    lib->setFilter(QStringLiteral("attention"));
+    QCOMPARE(lib->rowCount(), 1);
+    lib->setFilterText(QStringLiteral("zzz"));  // chips combine with the search
+    QCOMPARE(lib->rowCount(), 0);
+    lib->setFilterText(QString());
     lib->setReadyOnly(false);
     QCOMPARE(lib->rowCount(), 6);
+    qunsetenv("FRAMEBEAM_MELONDS_DS_CORE");
     QVERIFY(h.item("gameGrid") != nullptr);
     QVERIFY(h.item("searchField") != nullptr);
     uitest::saveShot(h.window, QStringLiteral("3c-library"));

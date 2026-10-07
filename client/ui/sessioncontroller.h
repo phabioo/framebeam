@@ -18,10 +18,12 @@
 #include <memory>
 
 #include "audiooutput.h"
+#include "diagnosticsmodel.h"
 #include "gamesession.h"
 #include "hubconnection.h"
 #include "hubsocket.h"
 #include "mediastats.h"
+#include "playersettings.h"
 #include "profilestore.h"
 #include "sessionapi.h"
 #include "sessionhost.h"
@@ -64,6 +66,8 @@ class SessionController : public QObject {
   Q_PROPERTY(int maxSurfaces READ maxSurfaces CONSTANT)
   Q_PROPERTY(bool canAddSurface READ canAddSurface NOTIFY watchChanged)  // fewer than four surfaces and no join running
   Q_PROPERTY(QStringList shownSessionIds READ shownSessionIds NOTIFY surfacesChanged)  // remote Sessions on a surface
+  // Connection pill per remote surface {sessionId: {text, tone}} (D9): "Direct" | "Relayed (TURN)" | "Connecting" ...
+  Q_PROPERTY(QVariantMap surfaceLinks READ surfaceLinks NOTIFY surfaceLinksChanged)
   Q_PROPERTY(QStringList availableLayouts READ availableLayouts NOTIFY surfacesChanged)  // "pip" | "side" (2) | "grid" (3, 4)
   Q_PROPERTY(QString mainSurface READ mainSurface NOTIFY surfacesChanged)
   Q_PROPERTY(bool hasLocalGame READ hasLocalGame NOTIFY gameChanged)
@@ -72,7 +76,13 @@ class SessionController : public QObject {
   Q_PROPERTY(QString tab READ tab WRITE setTab NOTIFY viewChanged)
   Q_PROPERTY(QString multiviewMode READ multiviewMode WRITE setMultiviewMode NOTIFY viewChanged)
   Q_PROPERTY(QString audioFocus READ audioFocus NOTIFY viewChanged)  // effective surface id: "local" | Session id
-  Q_PROPERTY(QVariantList diagnosticRows READ diagnosticRows NOTIFY diagnosticsChanged)
+  // In-game screen layout (0.6 D12): "stacked" | "side" | "top"; applies to the running game and the remote pictures, reset
+  // to "stacked" when a game starts. Which layouts exist comes from the system (GameSession::screenLayouts).
+  Q_PROPERTY(QString screenLayout READ screenLayout WRITE setScreenLayout NOTIFY viewChanged)
+  // Diagnostics overlay (3t-3y): states, formatted values.
+  Q_PROPERTY(framebeam::ui::DiagnosticsModel* diagnostics READ diagnostics CONSTANT)
+  // 3g: "Lena is relayed via the hub (TURN) · may lag slightly." (empty when nobody is relayed)
+  Q_PROPERTY(QString relayHint READ relayHint NOTIFY shareChanged)
 
  public:
   SessionController(HubConnection* conn, ProfileStore* profiles, GameSession* game, QObject* parent = nullptr);
@@ -99,6 +109,7 @@ class SessionController : public QObject {
   QStringList surfaceIds() const;
   QStringList surfaceOrder() const { return order_; }
   QVariantMap surfaceInfo() const;
+  QVariantMap surfaceLinks() const { return surfaceLinks_; }
   int surfaceCount() const { return static_cast<int>(order_.size()); }
   int maxSurfaces() const { return kMaxSurfaces; }
   bool canAddSurface() const { return !joining_ && surfaceCount() < kMaxSurfaces; }
@@ -117,7 +128,12 @@ class SessionController : public QObject {
   quint64 remoteFrameNumber(const QString& sessionId) const;
   // Frames of silence/audio handed to the audio output on behalf of a surface (tests: muted surfaces stay at 0).
   qint64 audioFedFrames(const QString& surface) const { return fedFrames_.value(surface); }
-  QVariantList diagnosticRows() const { return rows_; }
+  QString screenLayout() const { return screenLayout_; }
+  void setScreenLayout(const QString& layout);
+  DiagnosticsModel* diagnostics() const { return diagnostics_; }
+  QString relayHint() const { return relayHint_; }
+  // The Player's settings object (owned by the PlayerController): persists the open/closed states of the overlay.
+  void setPlayerSettings(PlayerSettings* settings) { diagnostics_->setSettings(settings); }
 
   // Local game context (PlayerController): presence, share feed, audio focus.
   void gameStarted(const QString& gameId, const QString& title);
@@ -130,13 +146,9 @@ class SessionController : public QObject {
   SessionViewer* viewer(const QString& sessionId);  // nullptr if the Session is not shown
   // Fake statistics: local (nullptr keeps the real ones) and remote per Session id (missing ids keep the real ones).
   void setStatsOverride(const SessionStats* local, const QHash<QString, SessionStats>& remotes);
-  struct RemoteDiag {
-    QString surface;  // Session id
-    QString name;
-    SessionStats stats;
-  };
-  static QVariantList formatDiagnostics(const QString& localName, bool hasLocal, bool shared, double localFps, const SessionStats& local,
-                                        const QList<RemoteDiag>& remotes);
+  // Fake host-side viewer links (tests/screenshots); an empty list with `on` = true means "no viewer links".
+  void refreshDiagnostics();  // also runs every 500 ms while the overlay is open; tests and screenshots call it directly
+  void setLinksOverride(bool on, const QList<ViewerLinkStats>& links);
 
   Q_INVOKABLE void refreshSessions();
   Q_INVOKABLE void shareSession();
@@ -165,7 +177,7 @@ class SessionController : public QObject {
   void viewChanged();
   void surfacesChanged();
   void remoteFrameChanged(const QString& sessionId);
-  void diagnosticsChanged();
+  void surfaceLinksChanged();
 
  private:
   void onConnectionState(HubConnection::State s);
@@ -186,7 +198,8 @@ class SessionController : public QObject {
   void presence();
   void pumpAudio();
   void applyAudioRouting();
-  void refreshDiagnostics();
+  void updateLinks();
+  QList<ViewerLinkStats> viewerLinks() const;
   void loadSettings();
   void saveSettings() const;
   static QString visibilityLabel(const QString& v);
@@ -206,7 +219,7 @@ class SessionController : public QObject {
   quint64 visGen_ = 0;           // bumped by every local visibility change (stale REST answers keep the newer one)
   quint64 sessionEventGen_ = 0;  // bumped by every live session event; stale GET /sessions results are dropped
   QTimer minuteTimer_;
-  QTimer statsTimer_;
+  QTimer diagTimer_;  // 500 ms: link pills of the side panel, and the diagnostics values while the overlay is open
   QTimer audioTimer_;
   QTimer messageTimer_;
   QElapsedTimer audioClock_;
@@ -214,8 +227,6 @@ class SessionController : public QObject {
 
   QString gameId_;
   QString gameTitle_;
-  quint64 lastLocalFrameNr_ = 0;
-  double localFps_ = 0;
 
   bool shared_ = false;
   bool shareBusy_ = false;
@@ -251,7 +262,13 @@ class SessionController : public QObject {
 
   QString message_;
   bool messageIsError_ = false;
-  QVariantList rows_;
+  QString screenLayout_ = QStringLiteral("stacked");
+  DiagnosticsModel* diagnostics_ = nullptr;  // owned (parent: this)
+  QString relayHint_;
+  QVariantMap linkByViewer_;  // viewerId -> {text, tone}
+  QVariantMap surfaceLinks_;  // remote Session id -> {text, tone}
+  bool linksOverrideOn_ = false;
+  QList<ViewerLinkStats> overrideLinks_;
   bool override_ = false;
   bool overrideLocalSet_ = false;
   SessionStats overrideLocal_;

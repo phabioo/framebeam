@@ -78,7 +78,7 @@ class SessionViewer : public QObject {
   void onVideoFrame(QByteArray data);
   void onAudioFrame(QByteArray data);
   void updateStats();
-  void sendRxReport(double videoKbps);
+  void sendRxReport(double videoKbps, double decodedFps);
   void teardown();
 
   QString sessionId_;

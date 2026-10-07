@@ -30,6 +30,10 @@ class UpdatesController : public QObject {
   Q_PROPERTY(QString notesUrl READ notesUrl NOTIFY changed)
   Q_PROPERTY(bool canInstall READ canInstall NOTIFY changed)
   Q_PROPERTY(bool checking READ checking NOTIFY changed)
+  // Sidebar dot on Settings (3p): a newer Player is known (available, downloading or ready to install).
+  Q_PROPERTY(bool updateAvailable READ updateAvailable NOTIFY changed)
+  // "checks every hour" (Beta) / "checks every 24 hours" (Stable) while the Player runs, empty when updates are off.
+  Q_PROPERTY(QString cadenceText READ cadenceText NOTIFY changed)
   // Banner (S6): text empty = hidden. Action: install ("Install and restart") | restart ("Restart to update") | link | none.
   Q_PROPERTY(QString bannerText READ bannerText NOTIFY changed)
   Q_PROPERTY(QString bannerAction READ bannerAction NOTIFY changed)
@@ -61,6 +65,8 @@ class UpdatesController : public QObject {
   QString notesUrl() const { return manager_.notesUrl(); }
   bool canInstall() const;
   bool checking() const { return manager_.state() == update::UpdateManager::State::Checking; }
+  bool updateAvailable() const;
+  QString cadenceText() const;
   QString bannerText() const;
   QString bannerAction() const;
   QString bannerActionLabel() const;

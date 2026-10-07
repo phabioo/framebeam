@@ -9,6 +9,7 @@
 #include <QtQuick/QQuickItem>
 
 #include "gamesession.h"
+#include "screenlayout.h"
 
 namespace framebeam::ui {
 
@@ -18,6 +19,8 @@ class GameView : public QQuickItem {
   Q_PROPERTY(framebeam::ui::GameSession* session READ session WRITE setSession NOTIFY sessionChanged)
   Q_PROPERTY(bool integerScale READ integerScale WRITE setIntegerScale NOTIFY integerScaleChanged)
   Q_PROPERTY(QRectF frameRect READ frameRect NOTIFY frameRectChanged)
+  // In-game screen layout (0.6 D12): "stacked" (as delivered by the core) | "side" | "top"; applies to this game only.
+  Q_PROPERTY(QString layout READ layout WRITE setLayout NOTIFY layoutChanged)
  public:
   explicit GameView(QQuickItem* parent = nullptr);
 
@@ -26,11 +29,16 @@ class GameView : public QQuickItem {
   bool integerScale() const { return integerScale_; }
   void setIntegerScale(bool on);
   QRectF frameRect() const { return frameRect_; }
+  QString layout() const { return layout_; }
+  void setLayout(const QString& layout);
+  // Where each screen is drawn right now (item coordinates); empty rects for hidden screens. Tests.
+  ScreenPlacement placement() const { return placement_; }
 
  signals:
   void sessionChanged();
   void integerScaleChanged();
   void frameRectChanged();
+  void layoutChanged();
   void escapePressed();
 
  protected:
@@ -47,6 +55,7 @@ class GameView : public QQuickItem {
  private:
   void onFrame();
   void updateFrameRect();
+  bool splitDrawing() const;  // screens are redrawn individually (side by side, top only, or a non-stacked source)
   void touch(const QPointF& pos, bool press, bool clamp);
 
   QPointer<GameSession> session_;
@@ -55,6 +64,8 @@ class GameView : public QQuickItem {
   bool integerScale_ = true;
   bool touching_ = false;
   QRectF frameRect_;
+  QString layout_ = QLatin1String(kLayoutStacked);
+  ScreenPlacement placement_;
 };
 
 }  // namespace framebeam::ui

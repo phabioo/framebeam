@@ -65,7 +65,11 @@ class EmulationRunner::Worker : public QThread {
         if (wasPaused) { wasPaused = false; next = std::chrono::steady_clock::now(); m_owner->setState(State::Running); }
         if (m_reset) { m_reset = false; be.reset(); }
       }
-      if (!be.runFrame()) {
+      const auto frameStart = std::chrono::steady_clock::now();
+      const bool frameOk = be.runFrame();
+      const double frameMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - frameStart).count();
+      if (frameOk) m_owner->m_timing.recordFrame(monotonicMs(), frameMs, be.lastReadbackMs());
+      if (!frameOk) {
         emit m_owner->errorOccurred(QStringLiteral("Core stopped execution"));
         break;
       }
@@ -117,6 +121,7 @@ void EmulationRunner::start(const StartRequest& request) {
     emit startFailed(QStringLiteral("Emulation is already running"));
     return;
   }
+  m_timing.reset();
   m_backend->prepareForStart();  // GUI thread: resources the emulation thread cannot create itself
   m_worker = std::make_unique<Worker>(this, m_backend.get(), request);
   setState(State::Starting);
@@ -138,6 +143,12 @@ void EmulationRunner::stop() {
   m_worker.reset();
   setState(State::Idle);
   emit stopped();
+}
+
+FrameTimingStats::Snapshot EmulationRunner::timing() const { return m_timing.snapshot(monotonicMs()); }
+
+qint64 EmulationRunner::monotonicMs() {
+  return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 }
 
 void EmulationRunner::setJoypadState(unsigned port, quint32 mask) { m_backend->setJoypadState(port, mask); }

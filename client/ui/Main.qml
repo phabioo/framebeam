@@ -40,7 +40,7 @@ ApplicationWindow {
                 objectName: "updateBannerText"
                 Layout.fillWidth: true
                 text: window.player.updates.bannerText
-                font.pixelSize: 13
+                font.pixelSize: Theme.fontSmall
                 elide: Text.ElideRight
             }
             FbButton {
@@ -74,6 +74,22 @@ ApplicationWindow {
         SettingsScreen { player: window.player }
         EmulationScreen { player: window.player }
         ControllersScreen { player: window.player }
+    }
+
+    // Page transition: short fade-in of the page that becomes current. Never in the game view.
+    NumberAnimation { id: pageFade; property: "opacity"; from: 0; to: 1; duration: Theme.durPage; easing.type: Easing.OutCubic }
+    Connections {
+        target: window.player
+        function onScreenChanged() {
+            if (window.player.screen === "game") {
+                return
+            }
+            const page = stack.children[stack.currentIndex]
+            if (page !== undefined) {
+                pageFade.target = page
+                pageFade.restart()
+            }
+        }
     }
 
     // Emulation > FrameBeam > "Fullscreen on start": the window goes fullscreen while a game is shown and returns afterwards.

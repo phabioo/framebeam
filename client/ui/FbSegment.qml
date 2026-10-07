@@ -2,7 +2,8 @@ import QtQuick
 import QtQuick.Layouts
 import FrameBeam.Player
 
-// Segment control. options: [{ value, label, name, disabled }] (name = objectName of the segment).
+// Segment control (tokens.md): padding 3, radius 7, surface; active option #2c2d32 radius 5.
+// options: [{ value, label, name, disabled, underline }] (name = objectName of the segment).
 Rectangle {
     id: root
     property var options: []
@@ -11,12 +12,14 @@ Rectangle {
     property int segmentHeight: 30
     signal picked(string value)
 
+    // Never demands more than the room it is given (long labels elide) so a layout around it cannot grow past its parent.
+    Layout.minimumWidth: 0
     implicitHeight: segmentHeight + 6
     implicitWidth: row.implicitWidth + 6
-    radius: 8
+    radius: Theme.radius7
     color: Theme.surface
     border.width: 1
-    border.color: Theme.borderInput
+    border.color: Theme.borderCard
 
     RowLayout {
         id: row
@@ -32,16 +35,21 @@ Rectangle {
                 readonly property bool active: root.current === modelData.value
                 Layout.fillWidth: root.stretch
                 Layout.fillHeight: true
+                Layout.minimumWidth: 0
+                Layout.preferredWidth: root.stretch ? 1 : implicitWidth
+                clip: true
                 implicitWidth: segLabel.implicitWidth + 24
-                radius: 6
-                color: active ? Theme.surfaceRaised : "transparent"
-                border.width: active ? 1 : 0
-                border.color: Theme.borderButton
+                radius: Theme.radius5
+                color: active ? Theme.borderInput : (segHover.hovered && seg.modelData.disabled !== true ? Theme.surfaceRaised : "transparent")
+                Behavior on color { ColorAnimation { duration: Theme.durFast } }
                 Text {
                     id: segLabel
                     anchors.centerIn: parent
+                    width: Math.min(implicitWidth, parent.width - 12)
+                    elide: Text.ElideRight
+                    horizontalAlignment: Text.AlignHCenter
                     text: seg.modelData.label
-                    font.pixelSize: 13
+                    font.pixelSize: Theme.fontSmall
                     font.weight: seg.active ? Font.DemiBold : Font.Medium
                     color: seg.modelData.disabled === true ? Theme.textDisabled : (seg.active ? Theme.text : Theme.textMuted)
                 }
@@ -53,6 +61,7 @@ Rectangle {
                     height: 2
                     color: Theme.accent
                 }
+                HoverHandler { id: segHover; cursorShape: seg.modelData.disabled === true ? Qt.ArrowCursor : Qt.PointingHandCursor }
                 TapHandler { enabled: seg.modelData.disabled !== true; onTapped: root.picked(seg.modelData.value) }
             }
         }

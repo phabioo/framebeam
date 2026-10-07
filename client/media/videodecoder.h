@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QImage>
+#include <QString>
 #include <cstddef>
 #include <cstdint>
 #include <vector>
@@ -24,6 +25,8 @@ class VideoDecoder {
 
   bool open();
   void close();
+  // libavcodec name of the decoder that is open (e.g. "h264"); empty while closed.
+  QString name() const;
   // Decodes one access unit (Annex B). False on a decode error: the caller requests a keyframe.
   bool decode(const uint8_t* data, size_t size, std::vector<QImage>& out);
 
