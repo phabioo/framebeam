@@ -17,7 +17,7 @@ func TestOpenMigrateIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 	v, _ := SchemaVersion(db)
-	if v != 5 {
+	if v != 6 {
 		t.Fatalf("version %d", v)
 	}
 	var fk int
@@ -31,7 +31,7 @@ func TestOpenMigrateIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	if v, _ := SchemaVersion(db); v != 5 {
+	if v, _ := SchemaVersion(db); v != 6 {
 		t.Fatalf("version after restart %d", v)
 	}
 	if _, err := db.Exec(`INSERT INTO devices(id,user_id,name,platform,arch,player_version,credential_hash,status,created_at) VALUES('d','nouser','n','p','a','v','h','trusted',1)`); err == nil {
@@ -82,7 +82,7 @@ func TestBackupBeforeMigration(t *testing.T) {
 		t.Fatal("no pending migration, no backup")
 	}
 
-	// An existing database at schema 3 gets a backup before 4 and 5 are applied.
+	// An existing database at schema 3 gets a backup before 4, 5 and 6 are applied.
 	p2 := filepath.Join(dir, "old.db")
 	raw := rawDB(t, p2)
 	if err := migrate(raw, "", 3); err != nil {
@@ -94,12 +94,12 @@ func TestBackupBeforeMigration(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	if v, _ := SchemaVersion(db); v != 5 {
+	if v, _ := SchemaVersion(db); v != 6 {
 		t.Fatalf("version %d", v)
 	}
 	bdir := filepath.Join(dir, "backups")
 	got := backupFiles(t, bdir)
-	if len(got) != 1 || got[0] != "hub-3-to-5-20261007T123045Z.db" {
+	if len(got) != 1 || got[0] != "hub-3-to-6-20261007T123045Z.db" {
 		t.Fatalf("backups: %v", got)
 	}
 	bk := rawDB(t, filepath.Join(bdir, got[0]))
@@ -149,5 +149,50 @@ func TestBackupFailureAbortsMigration(t *testing.T) {
 	os.WriteFile(blocker, []byte("x"), 0o600)
 	if _, err := Open(p); err == nil || !strings.Contains(err.Error(), "backup") {
 		t.Fatalf("Open: %v", err)
+	}
+}
+
+func TestMigration0006KeepsSavesAndAllowsNewReasons(t *testing.T) {
+	db := rawDB(t, filepath.Join(t.TempDir(), "s.db"))
+	defer db.Close()
+	if err := migrate(db, "", 5); err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range []string{
+		`INSERT INTO users(id, username, display_name, role, created_at) VALUES ('u1','a','A','admin',1)`,
+		`INSERT INTO save_slots VALUES ('u1','g1','default',2,'aa',3,'d1','final',10)`,
+		`INSERT INTO save_history VALUES ('u1','g1','default',1,1,'bb',3,'d1','checkpoint','session_end',NULL,9)`,
+		`INSERT INTO save_history VALUES ('u1','g1','default',2,1,'cc',3,'d2','checkpoint','conflict_upload',1,9)`,
+	} {
+		if _, err := db.Exec(q); err != nil {
+			t.Fatal(q, err)
+		}
+	}
+	if err := migrate(db, "", 0); err != nil {
+		t.Fatal(err)
+	}
+	var n int
+	var label sql.NullString
+	if err := db.QueryRow(`SELECT COUNT(*), MAX(label) FROM save_history WHERE slot = 'default'`).Scan(&n, &label); err != nil || n != 2 || label.Valid {
+		t.Fatalf("history rows %d label %v: %v", n, label, err)
+	}
+	var base sql.NullInt64
+	if err := db.QueryRow(`SELECT base_revision FROM save_history WHERE version = 2`).Scan(&base); err != nil || base.Int64 != 1 {
+		t.Fatalf("base_revision: %v %v", base, err)
+	}
+	for _, q := range []string{
+		`UPDATE save_slots SET reason = 'restore'`,
+		`INSERT INTO save_history VALUES ('u1','g1','default',3,2,'aa',3,'d1','restore','before_restore',NULL,11,'my label')`,
+	} {
+		if _, err := db.Exec(q); err != nil {
+			t.Fatal(q, err)
+		}
+	}
+	if _, err := db.Exec(`UPDATE save_slots SET reason = 'bogus'`); err == nil {
+		t.Fatal("reason constraint missing")
+	}
+	// The index of the history table exists again.
+	if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE name = 'save_history_sha'`).Scan(&n); err != nil || n != 1 {
+		t.Fatalf("index: %d %v", n, err)
 	}
 }

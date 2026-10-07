@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/phabioo/framebeam/server/internal/turnsrv"
 )
 
 // Sessions (ADR 0006): metadata, visibility, invites and viewers. Media never touches the Hub.
@@ -101,6 +103,8 @@ type JoinResult struct {
 	ViewerID    string
 	Permissions ViewerPermissions
 	ICEServers  []string
+	// TURN holds relay credentials while the embedded TURN server is on.
+	TURN *turnsrv.Credentials
 }
 
 // UserPresence is a user with online state (GET /users).
@@ -512,7 +516,8 @@ func (s *Service) JoinSession(ctx context.Context, p Principal, id string) (Join
 	if dec != nil && !*dec {
 		return JoinResult{}, &Error{Code: CodeCapabilityMissing, Message: "Device cannot decode H.264"}
 	}
-	res := JoinResult{Permissions: ViewerPermissions{ViewVideo: true, HearAudio: true}, ICEServers: s.ICEServers()}
+	res := JoinResult{Permissions: ViewerPermissions{ViewVideo: true, HearAudio: true}}
+	res.ICEServers, res.TURN = s.iceFor(requestHost(ctx), p.Device.ID)
 	if v := before.viewerByDevice(p.Device.ID); v != nil {
 		res.ViewerID = v.id
 		return res, nil

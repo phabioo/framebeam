@@ -65,7 +65,7 @@ Envelope `{type, id?, payload}` (JSON text frames); schema `schemas/ws-<type>.sc
 | `hello_ack` | Hub -> Player | `{protocol_version, hub_version, features, ice_servers, turn_servers?}` (`turn_servers` only while TURN is on, feature `turn_v1`) |
 | `presence_update` | both | Player: `{state: online\|in_game, game_id?}`; Hub: plus `user_id`, `device_id`, state may be `offline` |
 | `session_update` | Hub -> Player | `{session}` created/changed, personalised, to every device that may see the Session |
-| `save_updated` | Hub -> Player | `{game_id, slot, revision, sha256, device_id, device_name, reason}` a slot's checkpoint changed; to the user's other connected devices (feature `saves_v2`) |
+| `save_updated` | Hub -> Player | `{game_id, slot, revision, sha256, device_id, device_name, reason}` a slot's checkpoint changed; to the user's other connected devices (feature `saves_v2`); `reason` is `checkpoint`, `final`, `final_session_end`, `restore` or `conflict_resolution`; `device_id` is the nil UUID for changes made in the Hub web interface |
 | `session_ended` | Hub -> Player | `{session_id, reason}` |
 | `session_invite` | Hub -> Player | `{session}` for the invited user's devices |
 | `viewer_joined` | Hub -> owner device | `{session_id, viewer_id, display_name, device_name}` |

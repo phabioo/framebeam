@@ -50,12 +50,13 @@
           "type": "string"
         },
         "reason": {
-          "description": "SaveSyncReason of the new checkpoint",
+          "description": "SaveSyncReason of the new checkpoint, or conflict_resolution when a conflict resolution (use_local) changed it",
           "enum": [
             "checkpoint",
             "final",
             "final_session_end",
-            "restore"
+            "restore",
+            "conflict_resolution"
           ]
         }
       }

@@ -156,7 +156,7 @@ func TestWSExamplesMatchSchemas(t *testing.T) {
 		seen[v.Type] = true
 	}
 	for _, typ := range []string{"hello", "hello_ack", "presence_update", "session_update", "session_ended", "session_invite",
-		"viewer_joined", "viewer_left", "signal", "error"} {
+		"viewer_joined", "viewer_left", "signal", "error", "save_updated"} {
 		if !seen[typ] {
 			t.Errorf("no example for message type %s", typ)
 		}

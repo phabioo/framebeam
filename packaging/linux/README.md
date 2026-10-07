@@ -67,6 +67,29 @@ sudo ./install-hub.sh import-cores /path/to/dir
 
 For a Hub that cannot reach the FrameBeam core source. `dir` holds `cores-index.json`, `cores-index.json.sig` and the package files (download them from the `cores-index` and `core-*` releases on GitHub). The script copies the directory to a temporary location the service user can read and runs `framebeam-hub import-cores` as the `framebeam` user in the service's data dir (read from `/etc/framebeam/hub.env`, like `renew-cert`). The index signature must match a trusted key: the built-in FrameBeam key or keys in `FRAMEBEAM_HUB_CORE_TRUST_KEYS` of `/etc/framebeam/hub.env`. The service keeps running.
 
+## Sessions over the internet
+
+Players on the same LAN need nothing. For Players behind other routers the Hub embeds a STUN/TURN relay (off by default; ADR 0012). Media goes directly between Players when possible and through the Hub otherwise.
+
+Requirements:
+
+- A public IPv4 address at the Hub's router. DS-Lite and CGNAT (shared addresses) do not work; ask your provider or compare the router's WAN address with what a "what is my IP" site shows.
+- A DNS name for that address, for example a DynDNS name such as `hub.example.org`. The Hub resolves its A record at start and every 5 minutes, so address changes are followed.
+- Router port forwards to the Hub host:
+  - TCP `<hub port>` (default 8443; the Hub's HTTPS/WSS port)
+  - UDP and TCP `3478` (STUN/TURN)
+  - UDP `49160-49199` (relay range, 40 allocations)
+
+Switch it on in `/etc/framebeam/hub.env` and restart the service:
+
+```sh
+FRAMEBEAM_TURN=1
+FRAMEBEAM_PUBLIC_HOST=hub.example.org
+# optional: FRAMEBEAM_TURN_PORT=3478, FRAMEBEAM_TURN_RELAY_PORTS=49160-49199, FRAMEBEAM_TURN_RELAY_IP=<fixed public IPv4>
+```
+
+The Settings page of the web interface shows the state (on/off, resolved IPv4, ports, active allocations) and the forwards needed. Players pair with the DNS name; credentials are issued automatically and expire after 12 hours. Relay is IPv4 only; direct IPv6 paths still work when both Players allow them. The Hub does not configure the router.
+
 ## Uninstall
 
 ```sh

@@ -34,6 +34,7 @@ func (s *Server) serveWS(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 	cl := s.svc.NewClient(p)
+	cl.SetRequestHost(r.Host)
 	defer cl.Disconnect()
 
 	go func() { // writer, keepalive, hub-initiated close

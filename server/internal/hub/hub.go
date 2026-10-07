@@ -70,6 +70,9 @@ type Options struct {
 	// is /usr/bin/framebeam-hub. UpdatePlatform defaults to linux-<GOARCH>. Both are injectable for tests.
 	Executable     string
 	UpdatePlatform string
+	// SaveKeepRecent, SaveKeepDaily and SaveKeepWeekly are the history retention rules (ADR 0012 D7): newest versions,
+	// days and weeks to keep one version of. 0 = unlimited for that rule (SaveKeepRecent 0 = no thinning at all).
+	SaveKeepRecent, SaveKeepDaily, SaveKeepWeekly int
 }
 
 // Service is the service layer. Times are stored in SQLite as Unix seconds (UTC).
@@ -82,17 +85,19 @@ type Service struct {
 	protoVer int
 	minProto int
 
-	saveMu sync.Mutex // serializes save uploads/resolutions (and content cleanup)
-	sess   sessionState
-	mu     sync.RWMutex
-	hubID  string
-	name   string
-	dummyO sync.Once
-	dummy  string
+	saveMu   sync.Mutex // serializes save uploads/resolutions (and content cleanup)
+	saveKeep saveRetention
+	sess     sessionState
+	mu       sync.RWMutex
+	hubID    string
+	name     string
+	dummyO   sync.Once
+	dummy    string
 
 	cores  coreState
 	upd    updateState
 	updCfg updateConfig
+	turn   turnState
 
 	redeemMu    sync.Mutex // invite redemption rate limits
 	redeemHits  map[string][]time.Time
@@ -116,6 +121,7 @@ func Open(ctx context.Context, db *sql.DB, o Options) (*Service, error) {
 	if o.MinProtocolVersion != 0 {
 		s.minProto = o.MinProtocolVersion
 	}
+	s.saveKeep = saveRetention{recent: o.SaveKeepRecent, daily: o.SaveKeepDaily, weekly: o.SaveKeepWeekly}
 	s.sess.init(o)
 	s.cores.init(o)
 	s.initUpdates(o)

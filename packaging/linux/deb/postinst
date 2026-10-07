@@ -22,6 +22,9 @@ case "$1" in
           echo "# FRAMEBEAM_NAME is only used on the first start."
           echo "FRAMEBEAM_LISTEN=:8443"
           echo "FRAMEBEAM_DATA_DIR=$DATA_DIR"
+          echo "# Sessions over the internet (relay server, see the README): uncomment and set your DNS name."
+          echo "#FRAMEBEAM_TURN=1"
+          echo "#FRAMEBEAM_PUBLIC_HOST=hub.example.org"
         } >"$ENV_FILE" )
       chown "root:$SVC_USER" "$ENV_FILE"
       chmod 0640 "$ENV_FILE"

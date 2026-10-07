@@ -26,7 +26,11 @@ const (
 	SyncCheckpoint      = "checkpoint"
 	SyncFinal           = "final"
 	SyncFinalSessionEnd = "final_session_end"
+	SyncRestore         = "restore" // checkpoint reason only (restore of a history version)
 )
+
+// PushConflictResolution is the save_updated reason when a conflict resolution changed the checkpoint.
+const PushConflictResolution = "conflict_resolution"
 
 // History reasons (API: SaveHistoryReason).
 const (
@@ -35,7 +39,24 @@ const (
 	HistoryBeforeResolution = "before_conflict_resolution"
 	HistoryConflictUpload   = "conflict_upload"
 	HistoryManualSnapshot   = "manual_snapshot"
+	HistoryBeforeRestore    = "before_restore"
 )
+
+// MaxSnapshotLabel is the maximum length of a snapshot label in characters.
+const MaxSnapshotLabel = 64
+
+// WebDeviceID is the device ID recorded for save changes made in the web interface (the admin has no device).
+func WebDeviceID(userID string) string { return webDevicePrefix + userID }
+
+const (
+	webDevicePrefix = "web:"
+	webDeviceName   = "Hub web interface"
+)
+
+// deviceNameSQL is the display name of a device column: the device name, the web label or a placeholder.
+func deviceNameSQL(alias, col string) string {
+	return "COALESCE(" + alias + ".name, CASE WHEN " + col + " LIKE 'web:%' THEN '" + webDeviceName + "' ELSE '(unknown device)' END)"
+}
 
 // Conflict status and resolutions.
 const (
@@ -74,6 +95,7 @@ type SaveVersion struct {
 	CreatedAt    time.Time
 	Reason       string // history reason
 	BaseRevision *int   // only conflict_upload
+	Label        *string
 }
 
 // SaveConflict is a recorded save conflict. For open conflicts Hub shows the live checkpoint,
@@ -144,7 +166,7 @@ func (s *Service) saveFile(userID, gameID, slot, sha string) string {
 	return filepath.Join(s.saveDir(userID, gameID, slot), sha)
 }
 
-const checkpointSQL = `SELECT s.revision, s.sha256, s.size, s.device_id, COALESCE(d.name, '(unknown device)'), s.created_at, s.reason
+var checkpointSQL = `SELECT s.revision, s.sha256, s.size, s.device_id, ` + deviceNameSQL("d", "s.device_id") + `, s.created_at, s.reason
 	FROM save_slots s LEFT JOIN devices d ON d.id = s.device_id
 	WHERE s.user_id = ? AND s.game_id = ? AND s.slot = ?`
 
@@ -169,14 +191,18 @@ func loadCheckpoint(ctx context.Context, q dbq, userID, gameID, slot string) (Sa
 	return c, nil
 }
 
-const versionCols = `h.version, h.revision, h.sha256, h.size, h.device_id, COALESCE(d.name, '(unknown device)'), h.created_at, h.reason, h.base_revision`
+var versionCols = `h.version, h.revision, h.sha256, h.size, h.device_id, ` + deviceNameSQL("d", "h.device_id") + `, h.created_at, h.reason, h.base_revision, h.label`
 
 func scanVersion(r scanner) (SaveVersion, error) {
 	var v SaveVersion
 	var created int64
 	var base sql.NullInt64
-	if err := r.Scan(&v.Version, &v.Revision, &v.SHA256, &v.Size, &v.DeviceID, &v.DeviceName, &created, &v.Reason, &base); err != nil {
+	var label sql.NullString
+	if err := r.Scan(&v.Version, &v.Revision, &v.SHA256, &v.Size, &v.DeviceID, &v.DeviceName, &created, &v.Reason, &base, &label); err != nil {
 		return SaveVersion{}, err
+	}
+	if label.Valid {
+		v.Label = &label.String
 	}
 	v.CreatedAt = time.Unix(created, 0).UTC()
 	if base.Valid {
@@ -186,9 +212,9 @@ func scanVersion(r scanner) (SaveVersion, error) {
 	return v, nil
 }
 
-const conflictSQL = `SELECT c.id, c.user_id, c.game_id, c.slot, c.status,
-	c.hub_revision, c.hub_sha256, c.hub_device_id, COALESCE(hd.name, '(unknown device)'), c.hub_created_at,
-	c.secured_version, h.sha256, COALESCE(h.base_revision, 0), c.device_id, COALESCE(sd.name, '(unknown device)'), h.created_at,
+var conflictSQL = `SELECT c.id, c.user_id, c.game_id, c.slot, c.status,
+	c.hub_revision, c.hub_sha256, c.hub_device_id, ` + deviceNameSQL("hd", "c.hub_device_id") + `, c.hub_created_at,
+	c.secured_version, h.sha256, COALESCE(h.base_revision, 0), c.device_id, ` + deviceNameSQL("sd", "c.device_id") + `, h.created_at,
 	c.created_at, c.resolved_at, c.resolved_by
 	FROM save_conflicts c
 	JOIN save_history h ON h.user_id = c.user_id AND h.game_id = c.game_id AND h.slot = c.slot AND h.version = c.secured_version
@@ -262,6 +288,7 @@ type historyEntry struct {
 	reason       string
 	baseRevision *int
 	createdAt    int64
+	label        *string
 }
 
 func addHistory(ctx context.Context, q dbq, userID, gameID, slot string, e historyEntry) (int, error) {
@@ -274,9 +301,13 @@ func addHistory(ctx context.Context, q dbq, userID, gameID, slot string, e histo
 	if e.baseRevision != nil {
 		base = *e.baseRevision
 	}
+	var label any
+	if e.label != nil {
+		label = *e.label
+	}
 	_, err := q.ExecContext(ctx, `INSERT INTO save_history(user_id, game_id, slot, version, revision, sha256, size, device_id,
-		sync_reason, reason, base_revision, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
-		userID, gameID, slot, v, e.revision, e.sha, e.size, e.deviceID, e.syncReason, e.reason, base, e.createdAt)
+		sync_reason, reason, base_revision, created_at, label) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		userID, gameID, slot, v, e.revision, e.sha, e.size, e.deviceID, e.syncReason, e.reason, base, e.createdAt, label)
 	return v, err
 }
 
@@ -411,6 +442,7 @@ func (s *Service) PutSave(ctx context.Context, in PutSaveInput) (PutSaveResult, 
 	}
 	res := PutSaveResult{}
 	var dropSHA string // content of the replaced checkpoint, deleted after commit unless referenced
+	changed := false   // the checkpoint changed (save_updated push)
 
 	switch {
 	case exists && cur.SHA256 == sha: // 1. idempotent retry
@@ -423,6 +455,7 @@ func (s *Service) PutSave(ctx context.Context, in PutSaveInput) (PutSaveResult, 
 		if placed, err = placeContent(tmpName, dst); err != nil {
 			return PutSaveResult{}, internal(err)
 		}
+		changed = true
 		rev := 1
 		if exists {
 			rev = cur.Revision + 1
@@ -463,6 +496,10 @@ func (s *Service) PutSave(ctx context.Context, in PutSaveInput) (PutSaveResult, 
 	committed = true
 	if dropSHA != "" {
 		s.dropIfUnreferenced(ctx, u, g, sl, dropSHA)
+	}
+	s.thinSlot(ctx, u, g, sl)
+	if changed {
+		s.notifySaveUpdated(u, in.DeviceID, g, sl, res.Slot.Current, "")
 	}
 	return res, nil
 }
@@ -527,7 +564,7 @@ func (s *Service) dropIfUnreferenced(ctx context.Context, userID, gameID, slot, 
 // ListSaveSlots lists slots; userID "" = all users (admin web page). Conflicts first, then newest checkpoint.
 func (s *Service) ListSaveSlots(ctx context.Context, userID string) ([]SaveSummary, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT s.user_id, u.username, s.game_id, COALESCE(g.title, '(removed game)'), s.slot,
-		s.revision, s.sha256, s.size, s.device_id, COALESCE(d.name, '(unknown device)'), s.created_at, s.reason,
+		s.revision, s.sha256, s.size, s.device_id, `+deviceNameSQL("d", "s.device_id")+`, s.created_at, s.reason,
 		(SELECT COUNT(*) FROM save_conflicts c WHERE c.user_id = s.user_id AND c.game_id = s.game_id AND c.slot = s.slot AND c.status = 'open') AS oc
 		FROM save_slots s JOIN users u ON u.id = s.user_id
 		LEFT JOIN games g ON g.id = s.game_id LEFT JOIN devices d ON d.id = s.device_id
@@ -702,11 +739,22 @@ func (s *Service) ResolveSaveConflict(ctx context.Context, in ResolveInput) (Sav
 	if err := tx.Commit(); err != nil {
 		return SaveSlot{}, internal(err)
 	}
+	s.thinSlot(ctx, u, g, sl)
+	if in.Resolution == ResolveUseLocal {
+		origin, _ := strings.CutPrefix(in.ResolvedBy, "device:")
+		if origin == in.ResolvedBy {
+			origin = "" // resolved in the web interface: all devices of the user are told
+		}
+		s.notifySaveUpdated(u, origin, g, sl, out.Current, PushConflictResolution)
+	}
 	return out, nil
 }
 
 // FeatureSavesV1 is the handshake feature flag for the save sync API.
 const FeatureSavesV1 = "saves_v1"
+
+// FeatureSavesV2 is the handshake feature flag for restore, snapshots, history labels and the save_updated push.
+const FeatureSavesV2 = "saves_v2"
 
 // GetSaveConflict returns one conflict of a slot (open or resolved).
 func (s *Service) GetSaveConflict(ctx context.Context, userID, gameID, slot, id string) (SaveConflict, error) {

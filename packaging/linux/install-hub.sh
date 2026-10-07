@@ -324,6 +324,9 @@ cmd_install() {
         echo "# FRAMEBEAM_NAME is only used on the first start."
         echo "FRAMEBEAM_LISTEN=$listen"
         echo "FRAMEBEAM_DATA_DIR=$data_dir"
+        echo "# Sessions over the internet (relay server, see the README): uncomment and set your DNS name."
+        echo "#FRAMEBEAM_TURN=1"
+        echo "#FRAMEBEAM_PUBLIC_HOST=hub.example.org"
         [ -z "$NAME" ] || echo "FRAMEBEAM_NAME=$(quote_name "$NAME")"
       } >"$ENV_FILE" )
     info "Config:      created /etc/framebeam/hub.env"

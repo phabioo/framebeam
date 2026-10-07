@@ -118,8 +118,12 @@ func (s *Server) JoinSession(ctx context.Context, req api.JoinSessionRequestObje
 	if err != nil {
 		return nil, err
 	}
-	return api.JoinSession201JSONResponse{ViewerId: mustUUID(r.ViewerID), IceServers: r.ICEServers,
-		Permissions: api.SessionPermissions{ViewVideo: r.Permissions.ViewVideo, HearAudio: r.Permissions.HearAudio, SendInput: r.Permissions.SendInput}}, nil
+	out := api.JoinSession201JSONResponse{ViewerId: mustUUID(r.ViewerID), IceServers: r.ICEServers,
+		Permissions: api.SessionPermissions{ViewVideo: r.Permissions.ViewVideo, HearAudio: r.Permissions.HearAudio, SendInput: r.Permissions.SendInput}}
+	if r.TURN != nil {
+		out.TurnServers = &[]api.TurnServer{{Urls: r.TURN.URLs, Username: r.TURN.Username, Credential: r.TURN.Credential, ExpiresAt: r.TURN.ExpiresAt}}
+	}
+	return out, nil
 }
 
 func (s *Server) RemoveSessionViewer(ctx context.Context, req api.RemoveSessionViewerRequestObject) (api.RemoveSessionViewerResponseObject, error) {

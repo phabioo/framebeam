@@ -99,3 +99,47 @@ func TestUpdateConfig(t *testing.T) {
 		t.Fatal("invalid update config accepted")
 	}
 }
+
+func TestTURNConfig(t *testing.T) {
+	c := parse(t, nil)
+	if c.TURN || c.TURNPort != 3478 || c.TURNRelayPorts != "49160-49199" || c.Validate() != nil {
+		t.Fatalf("defaults: %+v", c)
+	}
+	if c = parse(t, nil, "-turn"); c.Validate() == nil {
+		t.Fatal("-turn without -public-host accepted")
+	}
+	c = parse(t, map[string]string{"FRAMEBEAM_TURN": "1", "FRAMEBEAM_PUBLIC_HOST": "hub.example.org", "FRAMEBEAM_TURN_PORT": "3479",
+		"FRAMEBEAM_TURN_RELAY_PORTS": "50000-50009", "FRAMEBEAM_TURN_RELAY_IP": "203.0.113.7"})
+	lo, hi, rerr := c.TURNRelayRange()
+	if err := c.Validate(); err != nil || !c.TURN || c.TURNPort != 3479 || lo != 50000 || hi != 50009 || rerr != nil {
+		t.Fatalf("env: %+v %v", c, err)
+	}
+	c = parse(t, map[string]string{"FRAMEBEAM_TURN_PORT": "3479"}, "-turn", "-public-host", "hub.example.org", "-turn-port", "4000")
+	if c.TURNPort != 4000 || c.Validate() != nil {
+		t.Fatalf("flag: %+v", c)
+	}
+	for _, bad := range [][]string{{"-turn-relay-ports", "5-"}, {"-turn-relay-ports", "50010-50000"}, {"-turn-relay-ports", "0-10"},
+		{"-turn-relay-ports", "x"}, {"-turn-relay-ports", "1-70000"}, {"-turn-port", "0"}, {"-turn-relay-ip", "2001:db8::1"}, {"-turn-relay-ip", "nope"}} {
+		c = parse(t, nil, append([]string{"-turn", "-public-host", "hub.example.org"}, bad...)...)
+		if c.Validate() == nil {
+			t.Errorf("%v accepted", bad)
+		}
+	}
+}
+
+func TestSaveRetentionConfig(t *testing.T) {
+	c := parse(t, nil)
+	if c.SaveKeepRecent != 20 || c.SaveKeepDaily != 30 || c.SaveKeepWeekly != 26 {
+		t.Fatalf("defaults: %+v", c)
+	}
+	c = parse(t, map[string]string{"FRAMEBEAM_SAVE_KEEP_RECENT": "5", "FRAMEBEAM_SAVE_KEEP_DAILY": "0"}, "-save-keep-weekly", "3")
+	if c.SaveKeepRecent != 5 || c.SaveKeepDaily != 0 || c.SaveKeepWeekly != 3 {
+		t.Fatalf("env/flag: %+v", c)
+	}
+	if err := c.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	if err := parse(t, nil, "-save-keep-daily", "-1").Validate(); err == nil {
+		t.Fatal("negative value must fail")
+	}
+}

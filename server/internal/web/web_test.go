@@ -668,8 +668,8 @@ func TestSavesPage(t *testing.T) {
 		"▲ Conflict: upload is based on Rev 1, current is Rev 2", "Current checkpoint on the Hub", "Secured upload · sync pending",
 		"Desktop Living Room", shortHash(sha(hubSave)), shortHash(sha(localSave)),
 		"Use Hub version", "Adopt local save as new current version", "Keep both, decide later", "Download",
-		`name="expected_revision" value="2"`, `hx-confirm=`, base+"/conflicts/"+r.Conflict.ID+"/resolve", "CURRENT", "Session end", "Conflict upload")
-	notContains(t, rec, "Restore")
+		`name="expected_revision" value="2"`, `hx-confirm=`, base+"/conflicts/"+r.Conflict.ID+"/resolve", "CURRENT", "Session end", "Conflict upload",
+		"Restore", base+"/history/"+strconv.Itoa(r.Conflict.Secured.Version)+"/restore", "Create snapshot", base+"/snapshots")
 	// Detail by path, unknown slot is 404.
 	status(t, c.get(base, nil), http.StatusOK)
 	status(t, c.get("/saves/"+adminID+"/"+g.ID+"/nope", nil), http.StatusNotFound)
@@ -723,11 +723,66 @@ func TestSavesPage(t *testing.T) {
 	rec = c.get(base+"?ok=resolved", nil)
 	status(t, rec, http.StatusOK)
 	contains(t, rec, "Conflict resolved.", "Rev 3", "Desktop Living Room", "Checkpoint · today", "Session end", "Conflict upload")
-	notContains(t, rec, "Use Hub version", "conflict</span>", "Restore")
+	notContains(t, rec, "Use Hub version", "conflict</span>")
 	// Resolving again: stale.
 	rec = c.postForm(resolve, url.Values{"resolution": {"use_hub"}, "expected_revision": {"3"}, "_csrf": {tok}}, nil)
 	status(t, rec, http.StatusSeeOther)
 	if !strings.Contains(location(rec), "err=stale") {
 		t.Fatalf("location %q", location(rec))
 	}
+}
+
+func TestSavesRestoreAndSnapshotWeb(t *testing.T) {
+	e := newEnv(t, true, nil)
+	c := e.client()
+	tok := c.login()
+	users, _ := e.svc.ListUsers(bg)
+	adminID := users[0].ID
+	g, err := e.svc.AddROM(bg, bytes.NewReader([]byte("homebrew-dummy-rom")), "harbor.nds", "Harbor Rally", "", adminID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dev := pairTestDevice(t, e, adminID, "Laptop Office")
+	putSave(t, e, adminID, dev, g.ID, 0, []byte("first"), hub.SyncFinalSessionEnd) // Rev 1 + v1 session end
+	putSave(t, e, adminID, dev, g.ID, 1, []byte("second"), hub.SyncCheckpoint)     // Rev 2, not in history
+	base := "/saves/" + adminID + "/" + g.ID + "/default"
+	restore := base + "/history/1/restore"
+
+	// Snapshot with a label: shown on the page; an overlong label is refused with a message.
+	status(t, c.postForm(base+"/snapshots", url.Values{"label": {"before boss"}}, nil), http.StatusForbidden) // CSRF
+	rec := c.postForm(base+"/snapshots", url.Values{"label": {"  before boss  "}, "_csrf": {tok}}, nil)
+	status(t, rec, http.StatusSeeOther)
+	if location(rec) != base+"?ok=snapshot" {
+		t.Fatalf("location %q", location(rec))
+	}
+	contains(t, c.get(location(rec), nil), "Snapshot created.", "“before boss”", "Manual snapshot")
+	rec = c.postForm(base+"/snapshots", url.Values{"label": {strings.Repeat("x", 65)}, "_csrf": {tok}}, nil)
+	status(t, rec, http.StatusSeeOther)
+	if location(rec) != base+"?err=label" {
+		t.Fatalf("location %q", location(rec))
+	}
+	contains(t, c.get(location(rec), nil), "at most 64 characters")
+	status(t, c.postForm("/saves/"+adminID+"/"+g.ID+"/nope/snapshots", url.Values{"_csrf": {tok}}, nil), http.StatusNotFound)
+
+	// Restore: CSRF, stale revision, unknown version, then ok (HX-Redirect for htmx).
+	status(t, c.postForm(restore, url.Values{"expected_revision": {"2"}}, nil), http.StatusForbidden)
+	rec = c.postForm(restore, url.Values{"expected_revision": {"1"}, "_csrf": {tok}}, nil)
+	status(t, rec, http.StatusSeeOther)
+	if location(rec) != base+"?err=stale" {
+		t.Fatalf("location %q", location(rec))
+	}
+	status(t, c.postForm(base+"/history/99/restore", url.Values{"expected_revision": {"2"}, "_csrf": {tok}}, nil), http.StatusNotFound)
+	status(t, c.postForm(restore, url.Values{"expected_revision": {"x"}, "_csrf": {tok}}, nil), http.StatusBadRequest)
+	rec = c.postForm(restore, url.Values{"expected_revision": {"2"}, "_csrf": {tok}}, map[string]string{"HX-Request": "true"})
+	status(t, rec, http.StatusOK)
+	if rec.Header().Get("HX-Redirect") != base+"?ok=restored" {
+		t.Fatalf("HX-Redirect %q", rec.Header().Get("HX-Redirect"))
+	}
+	s, err := e.svc.GetSaveSlot(bg, adminID, g.ID, "default")
+	if err != nil || s.Current.Revision != 3 || s.Current.Reason != hub.SyncRestore || s.Current.DeviceID != hub.WebDeviceID(adminID) ||
+		s.Current.DeviceName != "Hub web interface" {
+		t.Fatalf("%+v %v", s.Current, err)
+	}
+	rec = c.get(base+"?ok=restored", nil)
+	contains(t, rec, "Version restored", "Rev 3", "Hub web interface", "Restored")
 }
