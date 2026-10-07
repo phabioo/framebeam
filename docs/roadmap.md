@@ -135,7 +135,7 @@ Hosted emulation, friends list, public Session links, guest access, email/passwo
 ## Open decisions
 
 - **Second system:** decided on 2026-10-07: Nintendo 3DS with Azahar (see 0.7). The earlier proposal GBA with mGBA is dropped.
-- **Internet reachability:** open (see 0.4): which setups FrameBeam supports and documents (Hub port forward, VPN, own TURN server on the Hub host or elsewhere).
+- **Internet reachability:** open (see 0.4): which setups FrameBeam supports and documents (Hub port forward, VPN, own TURN server on the Hub host or elsewhere). Proposal (2026-10-07): the Hub embeds an optional STUN/TURN server (for example `pion/turn`, pure Go, same binary) on UDP/TCP 3478 plus a small UDP relay port range, hands out short-lived TURN credentials in `hello_ack`/join instead of static secrets, and learns its public address from a configured hostname (DynDNS). Fabio's setup: `dynamic.phabio.net` pointing at the Pi, port forwards for the Hub port, 3478 and the relay range; check first that the connection has a public IPv4 (no CGNAT/DS-Lite).
 - **Update channels:** decided on 2026-10-06: the pre-release channel (renamed from test to beta on 2026-10-07) updates automatically, the stable channel only after confirmation. Details and rollback proposal: [ADR 0011](adr/0011-automatic-updates.md).
 - **0.2:** decided in ADR 0010 (source, index, signing tooling, offline import, license file per package, cached cores stay usable without a Hub connection to GitHub). The FrameBeam release key exists since 2026-10-07.
 - **Core sourcing:** decided on 2026-10-07: libretro buildbot cores, mirrored and signed by FrameBeam (see 0.7).
