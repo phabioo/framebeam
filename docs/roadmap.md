@@ -88,7 +88,7 @@ Moved ahead of the UI passes by Fabio on 2026-10-07: testing with friends outsid
 - Same approach for the web UI: clarity, spacing from tokens.
 - No full page loads on navigation: switching pages swaps only the content area. Some actions already swap htmx fragments (Library filter/delete, Clients actions and 15 s polling, Saves filter); sidebar navigation still loads whole pages.
 - Live updates without reload: sidebar badges (new pending clients, save conflicts, firmware) and affected tables update themselves, for example via Server-Sent Events.
-- From 0.4 (requested by Fabio on 2026-10-07): a network settings form instead of editing `hub.env`: Hub port, embedded TURN on/off, public host, TURN port and relay range, and the save retention values. Open: precedence between web settings and flags/environment, applying changes by a service restart from the web UI, ports below 1024. The TURN status panel and the router port forward list from 0.4 move into this form.
+- From 0.4 (requested by Fabio on 2026-10-07): a network settings form instead of editing `hub.env`: Hub port, embedded TURN on/off, public host, TURN port and relay range, and the save retention values. Decided by Fabio on 2026-10-07: web settings win; `hub.env` and flags only provide the initial value; changes that need it (for example the port) are applied by a service restart the Hub triggers itself, like the updater. Open: ports below 1024. The TURN status panel and the router port forward list from 0.4 move into this form.
 
 ## 0.7 Second system: Nintendo 3DS with Azahar
 
