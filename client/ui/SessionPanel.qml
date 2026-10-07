@@ -79,13 +79,15 @@ Rectangle {
                     }
                 }
 
-                ColumnLayout {
+                // Blocks are plain Columns whose children take exactly the block width (see the note on `col`).
+                Column {
+                    id: visBlock
                     width: col.width
                     spacing: 8
-                    Eyebrow { text: qsTr("Visibility") }
+                    Eyebrow { width: parent.width; elide: Text.ElideRight; text: qsTr("Visibility") }
                     FbSegment {
                         objectName: "visibilitySegment"
-                        Layout.fillWidth: true
+                        width: parent.width
                         stretch: true
                         current: root.ctl.visibility
                         options: [
@@ -97,8 +99,7 @@ Rectangle {
                     }
                     FbLabel {
                         objectName: "visibilityHint"
-                        Layout.fillWidth: true
-                        Layout.minimumWidth: 0
+                        width: parent.width
                         wrapMode: Text.WordWrap
                         text: !root.ctl.shared ? qsTr("Not shared yet. Choose who may watch, then share the Session.")
                                                : qsTr("Your own devices can always watch.")
@@ -108,14 +109,15 @@ Rectangle {
                 }
 
                 // Invited / watching (only while shared)
-                ColumnLayout {
+                Column {
+                    id: partBlock
                     objectName: "participantsBlock"
                     width: col.width
                     visible: root.ctl.shared
                     spacing: 8
                     RowLayout {
-                        Layout.fillWidth: true
-                        Eyebrow { objectName: "participantsTitle"; text: root.ctl.participantsTitle }
+                        width: parent.width
+                        Eyebrow { objectName: "participantsTitle"; Layout.minimumWidth: 0; elide: Text.ElideRight; text: root.ctl.participantsTitle }
                         FbLabel {
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
@@ -127,6 +129,8 @@ Rectangle {
                         }
                     }
                     FbLabel {
+                        width: parent.width
+                        wrapMode: Text.WordWrap
                         visible: root.ctl.participants.length === 0
                         text: root.ctl.visibility === "invite_only" ? qsTr("Nobody invited yet.") : qsTr("Nobody is watching yet.")
                         font.pixelSize: 12
@@ -140,8 +144,7 @@ Rectangle {
                             id: prow
                             required property var modelData
                             objectName: "participant_" + modelData.id
-                            Layout.fillWidth: true
-                            Layout.minimumWidth: 0
+                            width: partBlock.width
                             implicitHeight: Math.max(30, ptext.implicitHeight)
                             StatusDot {
                                 id: pdot
@@ -189,8 +192,7 @@ Rectangle {
                     // Relay hint (D9)
                     Rectangle {
                         objectName: "relayHint"
-                        Layout.fillWidth: true
-                        Layout.minimumWidth: 0
+                        width: parent.width
                         visible: root.ctl.relayHint !== ""
                         implicitHeight: relayRow.implicitHeight + 18
                         radius: 8
@@ -206,6 +208,7 @@ Rectangle {
                             FbLabel {
                                 objectName: "relayHintText"
                                 Layout.fillWidth: true
+                                Layout.minimumWidth: 0
                                 text: root.ctl.relayHint
                                 wrapMode: Text.WordWrap
                                 font.pixelSize: 12
@@ -216,14 +219,15 @@ Rectangle {
                 }
 
                 // Invite search (invite_only)
-                ColumnLayout {
+                Column {
+                    id: invBlock
                     objectName: "inviteBlock"
                     width: col.width
                     visible: root.ctl.visibility === "invite_only"
                     spacing: 8
                     RowLayout {
-                        Layout.fillWidth: true
-                        FbLabel { text: qsTr("Invite"); font.pixelSize: 12; color: Theme.gameTextMuted }
+                        width: parent.width
+                        FbLabel { Layout.minimumWidth: 0; elide: Text.ElideRight; text: qsTr("Invite"); font.pixelSize: 12; color: Theme.gameTextMuted }
                         FbLabel {
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
@@ -237,7 +241,7 @@ Rectangle {
                     FbField {
                         id: inviteField
                         objectName: "inviteField"
-                        Layout.fillWidth: true
+                        width: parent.width
                         implicitHeight: 36
                         enabled: root.ctl.shared
                         font.family: Qt.application.font.family
@@ -246,8 +250,7 @@ Rectangle {
                     }
                     FbLabel {
                         objectName: "userSearchHint"
-                        Layout.fillWidth: true
-                        Layout.minimumWidth: 0
+                        width: parent.width
                         visible: root.ctl.userSearchHint.length > 0
                         wrapMode: Text.WordWrap
                         text: root.ctl.userSearchHint
@@ -260,8 +263,7 @@ Rectangle {
                             id: urow
                             required property var modelData
                             objectName: "userResult_" + modelData.id
-                            Layout.fillWidth: true
-                            Layout.minimumWidth: 0
+                            width: invBlock.width
                             spacing: 10
                             StatusDot { tone: urow.modelData.online ? "ok" : "neutral" }
                             ColumnLayout {
@@ -269,7 +271,7 @@ Rectangle {
                                 Layout.minimumWidth: 0
                                 Layout.preferredWidth: 0
                                 spacing: 0
-                                FbLabel { Layout.fillWidth: true; elide: Text.ElideRight; text: urow.modelData.name; font.pixelSize: 14; color: Theme.gameText }
+                                FbLabel { Layout.fillWidth: true; Layout.minimumWidth: 0; elide: Text.ElideRight; text: urow.modelData.name; font.pixelSize: 14; color: Theme.gameText }
                                 FbLabel {
                                     Layout.fillWidth: true
                                     Layout.minimumWidth: 0
@@ -304,16 +306,18 @@ Rectangle {
         }
 
         // SAVE SLOT: the slot of the running game (it cannot change while the game runs) and a manual snapshot
-        ColumnLayout {
+        // Plain Column: children take exactly the block width, nothing can demand more (see the note on `col`).
+        Column {
+            id: slotBlock
             objectName: "saveSlotBlock"
             Layout.fillWidth: true
             Layout.minimumWidth: 0
-            Layout.maximumWidth: col.width
+            Layout.preferredWidth: 1
             visible: root.player.gameSession.active && root.saves.slotsAvailable
             spacing: 8
             RowLayout {
-                Layout.fillWidth: true
-                Eyebrow { text: qsTr("Save slot") }
+                width: parent.width
+                Eyebrow { Layout.minimumWidth: 0; elide: Text.ElideRight; text: qsTr("Save slot") }
                 FbLabel {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
@@ -325,7 +329,7 @@ Rectangle {
                 }
             }
             RowLayout {
-                Layout.fillWidth: true
+                width: parent.width
                 spacing: 8
                 FbSegment {
                     objectName: "slotSegment"
@@ -349,7 +353,7 @@ Rectangle {
             }
             KeyHintButton {
                 objectName: "gameSnapshotButton"
-                Layout.fillWidth: true
+                width: parent.width
                 implicitHeight: 38
                 focusPolicy: Qt.NoFocus
                 kind: "raised"
@@ -360,8 +364,7 @@ Rectangle {
             }
             FbLabel {
                 objectName: "gameSnapshotMessage"
-                Layout.fillWidth: true
-                Layout.minimumWidth: 0
+                width: parent.width
                 wrapMode: Text.WordWrap
                 font.pixelSize: 12
                 text: root.saves.message !== "" ? root.saves.message
@@ -370,12 +373,15 @@ Rectangle {
             }
         }
 
-        ColumnLayout {
+        Column {
+            id: btnBlock
             Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            Layout.preferredWidth: 1
             spacing: 8
             FbButton {
                 objectName: "shareButton"
-                Layout.fillWidth: true
+                width: parent.width
                 implicitHeight: 42
                 focusPolicy: Qt.NoFocus
                 kind: root.ctl.shared ? "outline" : "primary"
@@ -385,7 +391,7 @@ Rectangle {
             }
             FbButton {
                 objectName: "endGameButton"
-                Layout.fillWidth: true
+                width: parent.width
                 implicitHeight: 42
                 focusPolicy: Qt.NoFocus
                 text: qsTr("Quit game and save")
@@ -399,7 +405,8 @@ Rectangle {
             }
             FbButton {
                 objectName: "diagToggle"
-                Layout.alignment: Qt.AlignHCenter
+                x: Math.max(0, (parent.width - width) / 2)
+                width: Math.min(implicitWidth, parent.width)
                 kind: "link"
                 focusPolicy: Qt.NoFocus
                 text: (root.diag.open ? qsTr("▾ Hide diagnostics") : qsTr("▸ Show diagnostics")) + "   F3"

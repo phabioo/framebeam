@@ -1,6 +1,8 @@
 // UI: sessions in the library, watching, Session panel, multiview, diagnostics (offscreen, FakeHub, no real network).
 // Tests with a running game need the DS core and the homebrew test ROM (QSKIP without FRAMEBEAM_MELONDS_DS_CORE).
 #include <QFile>
+#include <QQmlContext>
+#include <QQmlProperty>
 #include <QSignalSpy>
 #include <QtTest>
 
@@ -76,6 +78,22 @@ void collectByPrefix(QQuickItem* root, const QString& prefix, QList<QQuickItem*>
     collectByPrefix(c, prefix, out);
   }
 }
+// Failure diagnostics: every direct child of a layout ancestor with its implicit width and Layout.minimumWidth
+// (the largest minimum decides the width every cell is laid out with, see SessionPanel.qml), one level deeper for nested layouts.
+void dumpLayoutChildren(QQuickItem* layout, int depth = 0) {
+  for (QQuickItem* c : layout->childItems()) {
+    QVariant minW;
+    if (QQmlContext* ctx = qmlContext(c)) {
+      const QQmlProperty p(c, QStringLiteral("Layout.minimumWidth"), ctx);
+      if (p.isValid()) minW = p.read();
+    }
+    qInfo().noquote() << QString(depth * 2 + 2, QLatin1Char(' ')) + "[layout-child]" << c->metaObject()->className() << c->objectName()
+                      << "visible" << c->isVisible() << "w" << c->width() << "implicitW" << c->implicitWidth()
+                      << "Layout.minimumWidth" << (minW.isValid() ? minW.toString() : QStringLiteral("n/a"));
+    if (depth < 2 && qstrcmp(c->metaObject()->className(), "QQuickRowLayout") == 0) dumpLayoutChildren(c, depth + 1);
+  }
+}
+
 QString panelButtonsOutside(Harness& h) {
   QQuickItem* panel = h.item("sessionPanel");
   if (panel == nullptr) return QStringLiteral("no sessionPanel");
@@ -90,6 +108,7 @@ QString panelButtonsOutside(Harness& h) {
       if (r.right() > pr.right() - 1 || r.left() < pr.left()) {
         for (QQuickItem* a = b->parentItem(); a != nullptr && a != panel; a = a->parentItem()) {
           qInfo().noquote() << "[layout]" << b->objectName() << "ancestor" << a->metaObject()->className() << a->objectName() << "w" << a->width() << "implicitW" << a->implicitWidth();
+          if (qstrcmp(a->metaObject()->className(), "QQuickColumnLayout") == 0 || qstrcmp(a->metaObject()->className(), "QQuickRowLayout") == 0) dumpLayoutChildren(a);
         }
         bad += QStringLiteral("%1 [%2..%3] outside panel [%4..%5]; ").arg(b->objectName()).arg(r.left()).arg(r.right()).arg(pr.left()).arg(pr.right());
       }

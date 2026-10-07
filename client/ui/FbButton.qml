@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
+import QtQuick.Layouts
 
 // kind: "primary" (accent) | "outline" | "link".
 // Feedback: hover and pressed states change at once (short color transition); `busy` shows a spinner and blocks
@@ -16,6 +17,7 @@ Button {
     implicitHeight: kind === "link" ? 28 : 40
     implicitWidth: Math.max(kind === "link" ? 0 : 88, labelRow.implicitWidth + (kind === "link" ? 8 : 32))
     padding: 0
+    Layout.minimumWidth: kind === "link" ? 0 : implicitWidth
     hoverEnabled: true
     font.pixelSize: Theme.fontBody
     font.weight: kind === "primary" ? Font.DemiBold : Font.Medium

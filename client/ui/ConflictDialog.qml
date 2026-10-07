@@ -11,6 +11,7 @@ Item {
     readonly property bool shown: conflict.active === true
 
     visible: opacity > 0
+    enabled: shown   // while fading out it takes no clicks or keys
     opacity: shown ? 1 : 0
     anchors.fill: parent
     z: 100
