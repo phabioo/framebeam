@@ -143,7 +143,7 @@ bool EmulationController::knownOption(const QString& key, QList<emu::CoreOptionV
   const emu::CoreProbe* probe = man != nullptr ? coreProbe(man->coreId) : nullptr;
   if (man == nullptr || probe == nullptr || emu::isLockedCoreOption(*man, key)) return false;
   for (const emu::CoreOption& o : probe->options) {
-    if (o.key == key && o.visible) {
+    if (o.key == key && (o.visible || man->alwaysShownCoreOptions.contains(key))) {
       *values = o.values;
       return true;
     }
@@ -251,7 +251,7 @@ void EmulationController::rebuild() {
           }
           for (const emu::CoreOption& o : probe->options) {
             if (o.categoryKey != catKey && !(catKey.isEmpty() && !order.contains(o.categoryKey))) continue;
-            if (!o.visible || o.values.isEmpty()) continue;
+            if ((!o.visible && !man->alwaysShownCoreOptions.contains(o.key)) || o.values.isEmpty()) continue;
             if (emu::isLockedCoreOption(*man, o.key)) {
               ++lockedCount_;
               continue;

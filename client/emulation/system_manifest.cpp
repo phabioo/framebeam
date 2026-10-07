@@ -144,6 +144,9 @@ std::optional<SystemManifest> ManifestRegistry::parse(const QByteArray& json, QS
   for (const QJsonValue& v : o.value(QLatin1String("locked_core_options")).toArray()) {
     if (v.isString()) m.lockedCoreOptions.append(v.toString());
   }
+  for (const QJsonValue& v : o.value(QLatin1String("always_shown_core_options")).toArray()) {
+    if (v.isString()) m.alwaysShownCoreOptions.append(v.toString());
+  }
   return m;
 }
 

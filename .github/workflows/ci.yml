@@ -141,7 +141,7 @@ jobs:
           sudo apt-get install -y -qq ninja-build qt6-base-dev qt6-declarative-dev qt6-multimedia-dev \
             qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
             qml6-module-qtquick-window qml6-module-qtqml-workerscript qml6-module-qtquick-templates \
-            libgl-dev libepoxy-dev xvfb libavcodec-dev libswscale-dev libopus-dev \
+            libgl-dev libgl1-mesa-dri libglx-mesa0 libegl1 libepoxy-dev xvfb libavcodec-dev libswscale-dev libopus-dev \
             qt6-websockets-dev libssl-dev pkg-config
       - name: Bootstrap vcpkg
         run: scripts/bootstrap-vcpkg.sh
@@ -305,7 +305,10 @@ jobs:
             }
             throw "ctest failed"
           }
-          if (Select-String -Path ctest.log -Pattern '\(Skipped\)' -Quiet) { throw "Tests were skipped although the core should be present" }
+          # GL tests may skip here (no GL 3.3 context, ADR 0013 D6); any other skip is an error.
+          $skipped = @(Select-String -Path ctest.log -Pattern '\(Skipped\)|\*\*\*Skipped' | ForEach-Object { $_.Line })
+          if (@($skipped | Where-Object { $_ -notmatch '\b(emulation_hw_render|emulation_core_gl)\b' }).Count -gt 0) { throw "Tests were skipped although the core should be present" }
+          if ($skipped.Count -gt 0) { Write-Host "Note: GL tests skipped (no GL 3.3 context on this runner), allowed by ADR 0013 D6" }
       - name: Assemble package (windeployqt)
         shell: pwsh
         run: |
