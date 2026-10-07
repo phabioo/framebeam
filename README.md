@@ -17,7 +17,8 @@ Phase plan: [Workflow](docs/workflow.md#phase-plan). The PoC (phases 0-5) is com
 | 0.1.1 Finish the PoC | done in code; hardware encoders and real certificates verified only locally | Hardware encoder features on Windows, Settings → Hubs, certificate renewal and change confirmation, RTT in diagnostics ([ADR 0009](docs/adr/0009-finish-poc.md), proposed) |
 | 0.2 Cores from the Hub | done (merged with this PR) | Installers ship no cores; the Hub fetches signed core packages and serves them to Players ([ADR 0010](docs/adr/0010-cores-from-the-hub.md), proposed) |
 | 0.3 Automatic updates | done (merged with this PR) | Versions and channels, signed update index, Hub as .deb with updater, Windows Player launcher layout with updater ([ADR 0011](docs/adr/0011-automatic-updates.md), proposed) |
-| Post-PoC | planned | See [Roadmap](docs/roadmap.md) (versions 0.4 to 0.10) |
+| 0.4 Sessions over the internet and save comfort | done in code; relay and multiview verified across networks only locally | Embedded STUN/TURN relay, connection type and bitrate adaptation, multiview with up to 4 surfaces, Player-side core index check, save retention, restore, snapshots, push and slots ([ADR 0012](docs/adr/0012-internet-sessions-and-save-comfort.md), accepted) |
+| Post-PoC | planned | See [Roadmap](docs/roadmap.md) (versions 0.5 to 0.10) |
 
 ## What works
 
@@ -37,11 +38,14 @@ Phase plan: [Workflow](docs/workflow.md#phase-plan). The PoC (phases 0-5) is com
 - Settings: "Allow users to upload games" and Appearance (Light / Dark / System).
 - Systems & Cores page: expected core version, reports from clients, firmware mode and firmware files per system (user-supplied, never shipped).
 - Core package cache: the Hub fetches an Ed25519-signed core index and the packages from FrameBeam's GitHub Releases (startup, every 24 h, "Check source now") and serves them to Players. It needs internet access to github.com; offline use `framebeam-hub import-cores <dir>` (systemd: `install-hub.sh import-cores <dir>`). Extra trusted keys: `--core-trust-key`.
+- Sessions over the internet: optional embedded STUN/TURN relay (`-turn`, `-public-host`; off by default) with short-lived credentials; Settings shows TURN status and the router port forwards (ADR 0012).
+- Save comfort: retention/thinning (`-save-keep-recent`, `-save-keep-daily`, `-save-keep-weekly`), restore from history, manual snapshots, `save_updated` push over WSS; the Saves page can restore and snapshot.
+- Core index endpoints (`GET /api/v1/cores/index` and `.sig`, served byte-exact) so Players verify the signature themselves.
 - Ships with a systemd installer for Linux / Raspberry Pi (`packaging/linux/`).
 
 **Protocol** (`protocol/`)
 
-- OpenAPI 3.0.3 for `/api/v1` and WSS message schemas; OpenAPI spec version 1.3.0, `protocol_version` is 1; handshake features `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1`, `firmware_v1`.
+- OpenAPI 3.0.3 for `/api/v1` and WSS message schemas; OpenAPI spec version 1.5.0, `protocol_version` is 1; handshake features `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1`, `firmware_v1`, `saves_v2`, `cores_index_v1` and, with TURN on, `turn_v1`.
 
 **FrameBeam Player** (`client/`, [ADR 0003](docs/adr/0003-player-phase2.md))
 
@@ -57,8 +61,10 @@ Phase plan: [Workflow](docs/workflow.md#phase-plan). The PoC (phases 0-5) is com
 - CLI: `saves list`, `save push`, `save pull`, `save resolve`.
 - Share a running game as a Session (Private / Hub users / Invite only with invites, Join/Decline); "Sessions on this Hub" in the library.
 - Watch a Session over direct WebRTC (H.264 + Opus); watch-only mode without a running game.
-- Multiview: side-by-side and PiP, one audible surface; the picker lists all Sessions; diagnostics tab with RTT (negotiated DataChannel `fb-diag`). Encoding runs on a worker thread; under load the oldest pending video frame is dropped.
+- Multiview: up to 4 surfaces (local game plus up to 3 remote Sessions, or 4 remote Sessions) as side-by-side, 2 x 2 grid or PiP; exactly one audible surface ("Audio here"); the picker lists all Sessions; diagnostics tab with RTT (negotiated DataChannel `fb-diag`). Encoding runs on a worker thread; under load the oldest pending video frame is dropped.
 - Windows: the FFmpeg build enables the NVENC, QSV and AMF H.264 encoders (selected at runtime, software H.264 as fallback). A Windows test checks they are compiled in; opening them needs a GPU and is verified only locally.
+- Diagnostics show the connection type (direct / relay) and the target bitrate; the host adapts the encoder bitrate to the worst viewer (AIMD). `FRAMEBEAM_FORCE_RELAY=1` (CLI `--force-relay`) forces the relay for testing.
+- Save comfort: save history with Restore and manual snapshots, slot picker per game, live "save changed on another device" notice; the Player verifies the signed core index itself and marks a core "untrusted" otherwise.
 - CLI: `session-share --synthetic`, `session-watch`.
 - Credentials in the Credential Manager on Windows, in memory only on Linux (new pairing after restart).
 - Redeem an invite code to join a Hub as a new user (no password).
@@ -150,6 +156,10 @@ Windows test package: unpack the CI artifact `framebeam-player-windows-x64` from
 ### Test Sessions locally
 
 Two Players on the LAN, both paired to the same Hub. With only the admin, both devices belong to the admin: Private (own devices only), Hub users and Invite only can be tested. With a second Hub user (see below) Private rejects the foreign user and Hub users lets them in. STUN (`-ice-servers`) is not needed on a LAN. `scripts/e2e-session.sh` runs the same flow headless with two CLI processes against a local Hub.
+
+### Sessions over the internet
+
+For Players outside the Hub's LAN, switch on the embedded TURN relay: set `FRAMEBEAM_TURN=1` and `FRAMEBEAM_PUBLIC_HOST=hub.example.org` (or the flags `-turn`, `-public-host`) and forward the Hub port, 3478 (UDP/TCP) and the relay range at the router. This needs a public IPv4 (no CGNAT/DS-Lite). Requirements and ports: [packaging/linux/README.md](packaging/linux/README.md#sessions-over-the-internet). Alternative: a VPN such as WireGuard or Tailscale.
 
 ### Try the phase 5 features
 

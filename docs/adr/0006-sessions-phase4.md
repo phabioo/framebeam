@@ -121,3 +121,7 @@ Choices made where this ADR was silent.
 - The statement that hardware encoders are "compiled in" was wrong for the PoC: the Windows FFmpeg from `client/vcpkg.json` had only `avcodec`, `swscale`, `openh264`, so selection always fell back to software H.264. Since 0.1.1 the ffmpeg features `nvcodec`, `qsv` and `amf` are enabled and a Windows-only test checks that `h264_nvenc`, `h264_qsv` and `h264_amf` are compiled in. Opening them needs a GPU and is verified only locally by Fabio.
 - Encoding no longer runs on the UI thread: a worker thread with a bounded queue (2 video frames, oldest dropped) encodes and sends; audio stays in order.
 - RTT is reported: host and viewer open a negotiated DataChannel `fb-diag` (id 0) so SCTP is up. The signaling protocol is unchanged.
+
+## Update 2026-10-07 (0.4)
+
+[ADR 0012](0012-internet-sessions-and-save-comfort.md) extends this ADR; the decisions above stand. D4 (ICE): the Hub can embed a STUN/TURN relay and hands out `turn_servers` with short-lived credentials besides `ice_servers`; the Player shows the connection type. D6 (multiview): up to 4 surfaces (several remote Sessions) with layouts side-by-side, grid and PiP and one audible surface (audio focus), instead of one remote Session.

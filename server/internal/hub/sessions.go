@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/phabioo/framebeam/server/internal/turnsrv"
 )
 
 // Sessions (ADR 0006): metadata, visibility, invites and viewers. Media never touches the Hub.
@@ -101,6 +103,8 @@ type JoinResult struct {
 	ViewerID    string
 	Permissions ViewerPermissions
 	ICEServers  []string
+	// TURN holds relay credentials while the embedded TURN server is on.
+	TURN *turnsrv.Credentials
 }
 
 // UserPresence is a user with online state (GET /users).
@@ -512,7 +516,8 @@ func (s *Service) JoinSession(ctx context.Context, p Principal, id string) (Join
 	if dec != nil && !*dec {
 		return JoinResult{}, &Error{Code: CodeCapabilityMissing, Message: "Device cannot decode H.264"}
 	}
-	res := JoinResult{Permissions: ViewerPermissions{ViewVideo: true, HearAudio: true}, ICEServers: s.ICEServers()}
+	res := JoinResult{Permissions: ViewerPermissions{ViewVideo: true, HearAudio: true}}
+	res.ICEServers, res.TURN = s.iceFor(requestHost(ctx), p.Device.ID)
 	if v := before.viewerByDevice(p.Device.ID); v != nil {
 		res.ViewerID = v.id
 		return res, nil
@@ -525,8 +530,16 @@ func (s *Service) JoinSession(ctx context.Context, p Principal, id string) (Join
 		res.ViewerID, id, p.User.ID, p.Device.ID, s.now().Unix()); err != nil {
 		return JoinResult{}, internal(err)
 	}
-	s.sendTo(before.ownerDeviceID, "viewer_joined", map[string]string{"session_id": id, "viewer_id": res.ViewerID,
-		"display_name": p.User.DisplayName, "device_name": p.Device.Name})
+	joined := map[string]any{"session_id": id, "viewer_id": res.ViewerID,
+		"display_name": p.User.DisplayName, "device_name": p.Device.Name}
+	if oc := s.clientOf(before.ownerDeviceID); oc != nil {
+		// Fresh relay credentials for the owner (its hello_ack ones may have expired); host = the owner's WSS request host.
+		if _, creds := s.turnFor(oc.reqHost, before.ownerDeviceID); creds != nil {
+			joined["turn_servers"] = []map[string]any{{"urls": creds.URLs, "username": creds.Username, "credential": creds.Credential,
+				"expires_at": creds.ExpiresAt.UTC().Format(time.RFC3339)}}
+		}
+	}
+	s.sendTo(before.ownerDeviceID, "viewer_joined", joined)
 	if !s.deviceConnected(p.Device.ID) {
 		s.armViewerGrace(res.ViewerID, p.Device.ID)
 	}

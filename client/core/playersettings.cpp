@@ -6,12 +6,15 @@
 #include <QJsonDocument>
 #include <QSaveFile>
 
+#include "savestore.h"
+
 namespace framebeam {
 
 namespace {
 constexpr const char* kAppearanceKey = "appearance";
 constexpr const char* kUpdateChannelKey = "update_channel";
 constexpr const char* kUpdateAutoKey = "update_auto_install";
+constexpr const char* kSaveSlotsKey = "save_slots";  // { hub_id: { game_id: slot } }
 }
 
 PlayerSettings::PlayerSettings(const QString& baseDir)
@@ -77,6 +80,35 @@ bool PlayerSettings::setUpdateChannel(const QString& channelIn) {
 bool PlayerSettings::setUpdateAutoInstall(bool on) {
   updateAutoInstall_ = on;
   raw_.insert(QLatin1String(kUpdateAutoKey), on);
+  return save();
+}
+
+QString PlayerSettings::saveSlot(const QString& hubId, const QString& gameId) const {
+  const QString slot = raw_.value(QLatin1String(kSaveSlotsKey)).toObject().value(hubId).toObject().value(gameId).toString();
+  return SaveStore::isValidSlotName(slot) ? slot : QStringLiteral("default");
+}
+
+bool PlayerSettings::setSaveSlot(const QString& hubId, const QString& gameId, const QString& slot) {
+  if (!SaveStore::isValidSlotName(slot) || hubId.isEmpty() || gameId.isEmpty()) {
+    return false;
+  }
+  QJsonObject all = raw_.value(QLatin1String(kSaveSlotsKey)).toObject();
+  QJsonObject hub = all.value(hubId).toObject();
+  if (slot == QLatin1String("default")) {
+    hub.remove(gameId);
+  } else {
+    hub.insert(gameId, slot);
+  }
+  if (hub.isEmpty()) {
+    all.remove(hubId);
+  } else {
+    all.insert(hubId, hub);
+  }
+  if (all.isEmpty()) {
+    raw_.remove(QLatin1String(kSaveSlotsKey));
+  } else {
+    raw_.insert(QLatin1String(kSaveSlotsKey), all);
+  }
   return save();
 }
 

@@ -15,6 +15,7 @@ namespace framebeam {
 
 // Hub save API (protocol/openapi/framebeam.yaml, tag `saves`, handshake feature `saves_v1`).
 inline constexpr const char* kSavesFeature = "saves_v1";
+inline constexpr const char* kSavesV2Feature = "saves_v2";  // restore, snapshots, history labels, save_updated (0.4)
 inline constexpr qint64 kMaxSaveBytes = 64LL * 1024 * 1024;
 
 struct SaveCheckpoint {
@@ -24,8 +25,34 @@ struct SaveCheckpoint {
   QString deviceId;
   QString deviceName;
   QString createdAt;  // ISO 8601
-  QString reason;     // checkpoint | final | final_session_end
+  QString reason;     // checkpoint | final | final_session_end | restore
 };
+
+// Permanent history version (GET .../history, POST .../snapshots).
+struct SaveHistoryVersion {
+  int version = 0;
+  int revision = 0;
+  QString sha256;
+  qint64 size = 0;
+  QString deviceId;
+  QString deviceName;
+  QString createdAt;  // ISO 8601
+  QString reason;     // session_end | device_change | before_conflict_resolution | conflict_upload | manual_snapshot | before_restore
+  QString label;      // optional (saves_v2); empty = none
+};
+
+// WSS `save_updated` (feature saves_v2): the checkpoint of a slot changed on another device. `reason` is not validated
+// (the Hub may add values).
+struct SaveUpdate {
+  QString gameId;
+  QString slot;
+  int revision = 0;
+  QString sha256;
+  QString deviceId;
+  QString deviceName;
+  QString reason;
+};
+std::optional<SaveUpdate> parseSaveUpdate(const QJsonObject& payload);
 
 struct SaveConflictInfo {
   QString id;
@@ -60,6 +87,7 @@ struct SaveSlotInfo {
 std::optional<SaveCheckpoint> parseSaveCheckpoint(const QJsonObject& o);
 std::optional<SaveConflictInfo> parseSaveConflict(const QJsonObject& o);
 std::optional<SaveSlotInfo> parseSaveSlot(const QJsonObject& o);
+std::optional<SaveHistoryVersion> parseSaveHistoryVersion(const QJsonObject& o);
 
 struct SaveApiResult {
   enum class Kind {
@@ -78,6 +106,8 @@ struct SaveApiResult {
   std::optional<SaveSlotInfo> slot;
   std::optional<SaveConflictInfo> conflict;
   QList<SaveSlotInfo> slotList;  // listSlots
+  QList<SaveHistoryVersion> history;  // listHistory (newest first)
+  std::optional<SaveHistoryVersion> snapshot;  // createSnapshot
   QByteArray content;         // downloadContent (verified against the ETag)
   int contentRevision = 0;
   bool ok() const { return kind == Kind::Ok; }
@@ -98,9 +128,13 @@ class SaveApi : public QObject {
   void getContent(const QString& gameId, const QString& slot, Callback cb);
   void resolve(const QString& gameId, const QString& slot, const QString& conflictId, const QString& resolution,
                int expectedRevision, Callback cb);
+  // saves_v2
+  void listHistory(const QString& gameId, const QString& slot, Callback cb);
+  void restore(const QString& gameId, const QString& slot, int version, int expectedRevision, Callback cb);
+  void createSnapshot(const QString& gameId, const QString& slot, const QString& label, Callback cb);
 
  private:
-  enum class Expect { Slot, SlotList, Content, Put, Resolve };
+  enum class Expect { Slot, SlotList, Content, Put, Resolve, History, Snapshot };
   void run(QNetworkReply* reply, Expect expect, Callback cb);
   void immediate(SaveApiResult::Kind kind, const QString& code, Callback cb);
   static QString slotPath(const QString& gameId, const QString& slot);
@@ -109,3 +143,5 @@ class SaveApi : public QObject {
 };
 
 }  // namespace framebeam
+
+Q_DECLARE_METATYPE(framebeam::SaveUpdate)

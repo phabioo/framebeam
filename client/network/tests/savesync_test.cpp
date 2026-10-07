@@ -68,6 +68,7 @@ class SaveSyncTest : public QObject {
     profiles_ = std::make_unique<ProfileStore>(dir_->path());
     creds_ = std::make_unique<MemoryCredentialStore>();
     hub_ = std::make_unique<FakeHub>(QStringLiteral("a"));
+    hub_->features = {QStringLiteral("saves_v1"), QStringLiteral("saves_v2")};
     if (noFeature_) {
       hub_->features.clear();
     }
@@ -455,6 +456,159 @@ class SaveSyncTest : public QObject {
     sync_->retryPending();
     QTRY_COMPARE_WITH_TIMEOUT(up.count(), 1, 5000);
     QCOMPARE(hub_->saves.value(kGame).content, QByteArray("play-1"));
+  }
+
+  // ---------------------------------------------------------------- saves_v2: restore, snapshots, push, slots
+
+  void restoreReplacesLocalSaveAndRespectsPending() {
+    hub_->setHubSave(kGame, "cp-1");
+    hub_->addHistory(kGame, QStringLiteral("default"), "old-content", QStringLiteral("session_end"), QStringLiteral("Boss"));
+    QCOMPARE(start(), QStringLiteral("ready"));  // downloads cp-1
+    QCOMPARE(readFile(saveFile()), QByteArray("cp-1"));
+    QVERIFY(sync_->hubSupportsSavesV2());
+    QVERIFY(sync_->pendingReason(kGame, QStringLiteral("default")).isEmpty());
+
+    // Pending local changes block the restore; nothing is sent
+    writeFile(saveFile(), "unsynced-local");
+    QVERIFY(!sync_->pendingReason(kGame, QStringLiteral("default")).isEmpty());
+    SaveSync::RestoreResult res;
+    bool done = false;
+    sync_->restoreVersion(kGame, QStringLiteral("default"), 1, 1, QStringLiteral("rom1.sav"), [&](const SaveSync::RestoreResult& r) { res = r; done = true; });
+    QTRY_VERIFY(done);
+    QCOMPARE(res.kind, SaveRestoreResult::Outcome::Blocked);
+    QCOMPARE(hub_->restoreCount, 0);
+    QCOMPARE(readFile(saveFile()), QByteArray("unsynced-local"));
+
+    // Stale expected revision: 409, nothing changes
+    writeFile(saveFile(), "cp-1");  // back to the synced content
+    done = false;
+    sync_->restoreVersion(kGame, QStringLiteral("default"), 1, 7, QStringLiteral("rom1.sav"), [&](const SaveSync::RestoreResult& r) { res = r; done = true; });
+    QTRY_VERIFY(done);
+    QCOMPARE(res.kind, SaveRestoreResult::Outcome::Stale);
+    QCOMPARE(hub_->restoreCount, 0);
+    QCOMPARE(readFile(saveFile()), QByteArray("cp-1"));
+
+    // Restore: Hub checkpoint + local save replaced (download), backup of the old local file kept
+    done = false;
+    sync_->restoreVersion(kGame, QStringLiteral("default"), 1, 1, QStringLiteral("rom1.sav"), [&](const SaveSync::RestoreResult& r) { res = r; done = true; });
+    QTRY_VERIFY(done);
+    QVERIFY2(res.ok(), qPrintable(res.message));
+    QVERIFY(res.localUpdated);
+    QCOMPARE(res.revision, 2);
+    QCOMPARE(hub_->saves.value(kGame).content, QByteArray("old-content"));
+    QCOMPARE(readFile(saveFile()), QByteArray("old-content"));
+    QCOMPARE(QDir(gdir()).entryList({QStringLiteral("*.restore-*.bak")}).size(), 1);
+    const SyncState st = SaveStore::loadState(gdir());
+    QCOMPARE(st.baseRevision, 2);
+    QVERIFY(!st.pending);
+    QCOMPARE(sync_->kind(kGame), SaveSync::Kind::Synced);
+    QCOMPARE(hub_->saves.value(kGame).history.last().reason, QStringLiteral("before_restore"));
+
+    // Not while the game runs
+    sync_->prepareStart(kGame, kRom, {QStringLiteral("rom1")});
+    QSignalSpy ready(sync_.get(), &SaveSync::startReady);
+    QTRY_COMPARE(ready.count(), 1);
+    sync_->beginSession();
+    done = false;
+    sync_->restoreVersion(kGame, QStringLiteral("default"), 1, 2, QStringLiteral("rom1.sav"), [&](const SaveSync::RestoreResult& r) { res = r; done = true; });
+    QTRY_VERIFY(done);
+    QCOMPARE(res.kind, SaveRestoreResult::Outcome::Blocked);
+    QCOMPARE(hub_->restoreCount, 1);
+    QVERIFY(sync_->finalSyncBlocking(true));
+  }
+
+  void snapshotInGameUploadsChangedSaveFirst() {
+    hub_->setHubSave(kGame, "cp-1");
+    QCOMPARE(start(), QStringLiteral("ready"));
+    sync_->beginSession();
+    writeFile(saveFile(), "play-1");
+    SaveSync::SnapshotResult res;
+    bool done = false;
+    sync_->snapshotActive(QStringLiteral("Before boss"), [&](const SaveSync::SnapshotResult& r) { res = r; done = true; });
+    QTRY_VERIFY_WITH_TIMEOUT(done, 5000);
+    QVERIFY2(res.ok(), qPrintable(res.message));
+    QCOMPARE(res.version.label, QStringLiteral("Before boss"));
+    QCOMPARE(res.version.reason, QStringLiteral("manual_snapshot"));
+    QCOMPARE(hub_->saves.value(kGame).content, QByteArray("play-1"));  // uploaded first
+    QCOMPARE(hub_->saves.value(kGame).history.last().content, QByteArray("play-1"));
+    QCOMPARE(lastPutReason(), QByteArray("final"));
+    QVERIFY(sync_->sessionActive());
+    QVERIFY(sync_->finalSyncBlocking(true));
+
+    // Snapshot of an unknown slot: not found, clear message
+    done = false;
+    sync_->createSnapshot(kGame, QStringLiteral("nothing"), QString(), [&](const SaveSync::SnapshotResult& r) { res = r; done = true; });
+    QTRY_VERIFY(done);
+    QCOMPARE(res.kind, SaveSnapshotResult::Outcome::NotFound);
+  }
+
+  void saveUpdatedPushIsReportedAndOwnDeviceIgnored() {
+    hub_->setHubSave(kGame, "cp-1");
+    QCOMPARE(start(), QStringLiteral("ready"));
+    QSignalSpy spy(sync_.get(), &SaveSync::saveChangedElsewhere);
+    SaveUpdate u;
+    u.gameId = kGame;
+    u.slot = QStringLiteral("default");
+    u.revision = 5;
+    u.sha256 = QString(64, QLatin1Char('a'));
+    u.deviceId = QStringLiteral("other-device");
+    u.deviceName = QStringLiteral("Laptop");
+    u.reason = QStringLiteral("checkpoint");
+    sync_->handleSaveUpdate(u);  // game not running here
+    QCOMPARE(spy.count(), 1);
+    QVERIFY(!spy.at(0).at(1).toBool());
+    sync_->beginSession();
+    u.deviceId = QStringLiteral("00000000-0000-0000-0000-000000000000");  // Hub web interface, any reason string
+    u.deviceName = QStringLiteral("Hub web interface");
+    u.reason = QStringLiteral("conflict_resolution");
+    sync_->handleSaveUpdate(u);
+    QCOMPARE(spy.count(), 2);
+    QVERIFY(spy.at(1).at(1).toBool());  // running here with this slot
+    u.slot = QStringLiteral("boss");
+    sync_->handleSaveUpdate(u);
+    QVERIFY(!spy.at(2).at(1).toBool());  // other slot
+    u.deviceId = conn_->deviceId();
+    sync_->handleSaveUpdate(u);
+    QCOMPARE(spy.count(), 3);  // own device ignored
+    QVERIFY(sync_->finalSyncBlocking(true));
+  }
+
+  void slotSelectionIsPersistedAndUsedBySync() {
+    PlayerSettings settings(dir_->path());
+    sync_->setSettings(&settings);
+    QCOMPARE(sync_->slotFor(kGame), QStringLiteral("default"));
+    QVERIFY(!sync_->setSlot(kGame, QStringLiteral("Bad Slot")));
+    QVERIFY(sync_->setSlot(kGame, QStringLiteral("boss")));
+    QCOMPARE(PlayerSettings(dir_->path()).saveSlot(kHubId, kGame), QStringLiteral("boss"));
+
+    const QString sdir = SaveStore::slotDir(*profiles_, kHubId, kUser, kGame, QStringLiteral("boss"));
+    QVERIFY(sdir != gdir());
+    writeFile(sdir + QStringLiteral("/rom1.sav"), "boss-local");
+    writeFile(saveFile(), "default-local");  // other slot, must stay untouched
+    QCOMPARE(start(), QStringLiteral("ready"));  // uploads the boss slot's file at start
+    QCOMPARE(hub_->saves.value(FakeHub::slotKey(kGame, QStringLiteral("boss"))).content, QByteArray("boss-local"));
+    QVERIFY(!hub_->saves.contains(kGame));
+    QCOMPARE(sync_->activeSaveFile(), sdir + QStringLiteral("/rom1.sav"));
+    QCOMPARE(sync_->activeSlot(), QStringLiteral("boss"));
+    QCOMPARE(SaveStore::loadState(sdir).slot, QStringLiteral("boss"));
+
+    // checkpoint + final sync go to the chosen slot
+    sync_->beginSession();
+    writeFile(sdir + QStringLiteral("/rom1.sav"), "boss-play");
+    QVERIFY(sync_->finalSyncBlocking(true));
+    QCOMPARE(hub_->saves.value(FakeHub::slotKey(kGame, QStringLiteral("boss"))).content, QByteArray("boss-play"));
+    QVERIFY(!hub_->saves.contains(kGame));
+    QCOMPARE(readFile(saveFile()), QByteArray("default-local"));
+
+    // Pending retry also covers non-default slots
+    writeFile(sdir + QStringLiteral("/rom1.sav"), "boss-offline");
+    SyncState st = SaveStore::loadState(sdir);
+    st.pending = true;
+    SaveStore::saveState(sdir, st);
+    QSignalSpy up(sync_.get(), &SaveSync::uploaded);
+    sync_->retryPending();
+    QTRY_COMPARE_WITH_TIMEOUT(up.count(), 1, 5000);
+    QCOMPARE(hub_->saves.value(FakeHub::slotKey(kGame, QStringLiteral("boss"))).content, QByteArray("boss-offline"));
   }
 };
 

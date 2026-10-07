@@ -294,6 +294,7 @@ func (e SaveConflictStatus) Valid() bool {
 // Defines values for SaveHistoryReason.
 const (
 	BeforeConflictResolution SaveHistoryReason = "before_conflict_resolution"
+	BeforeRestore            SaveHistoryReason = "before_restore"
 	ConflictUpload           SaveHistoryReason = "conflict_upload"
 	DeviceChange             SaveHistoryReason = "device_change"
 	ManualSnapshot           SaveHistoryReason = "manual_snapshot"
@@ -304,6 +305,8 @@ const (
 func (e SaveHistoryReason) Valid() bool {
 	switch e {
 	case BeforeConflictResolution:
+		return true
+	case BeforeRestore:
 		return true
 	case ConflictUpload:
 		return true
@@ -341,6 +344,7 @@ const (
 	Checkpoint      SaveSyncReason = "checkpoint"
 	Final           SaveSyncReason = "final"
 	FinalSessionEnd SaveSyncReason = "final_session_end"
+	Restore         SaveSyncReason = "restore"
 )
 
 // Valid indicates whether the value is a known member of the SaveSyncReason enum.
@@ -351,6 +355,8 @@ func (e SaveSyncReason) Valid() bool {
 	case Final:
 		return true
 	case FinalSessionEnd:
+		return true
+	case Restore:
 		return true
 	default:
 		return false
@@ -549,7 +555,7 @@ type HandshakeRequest_Video struct {
 type HandshakeResponse struct {
 	Compatible bool `json:"compatible"`
 
-	// Features Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`).
+	// Features Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = the Hub's embedded TURN server is on (`turn_servers` in `hello_ack` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `cores_index_v1` = signed core index served at `/api/v1/cores/index` and `/api/v1/cores/index.sig`.
 	Features           *[]string          `json:"features,omitempty"`
 	HubVersion         string             `json:"hub_version"`
 	MinProtocolVersion int                `json:"min_protocol_version"`
@@ -713,7 +719,10 @@ type SaveHistoryVersion struct {
 	CreatedAt  time.Time          `json:"created_at"`
 	DeviceId   openapi_types.UUID `json:"device_id"`
 	DeviceName string             `json:"device_name"`
-	Reason     SaveHistoryReason  `json:"reason"`
+
+	// Label Optional label (manual snapshots, `saves_v2`); null or absent when none
+	Label  *string           `json:"label"`
+	Reason SaveHistoryReason `json:"reason"`
 
 	// Revision Checkpoint revision captured
 	Revision int    `json:"revision"`
@@ -732,6 +741,12 @@ type SaveResolveRequest struct {
 // SaveResolveRequestResolution defines model for SaveResolveRequest.Resolution.
 type SaveResolveRequestResolution string
 
+// SaveRestoreRequest defines model for SaveRestoreRequest.
+type SaveRestoreRequest struct {
+	// ExpectedRevision Current checkpoint revision the caller saw
+	ExpectedRevision int `json:"expected_revision"`
+}
+
 // SaveSlot defines model for SaveSlot.
 type SaveSlot struct {
 	// Current Current checkpoint of a slot (one opaque blob).
@@ -748,6 +763,11 @@ type SaveSlotSummary struct {
 	GameId            openapi_types.UUID `json:"game_id"`
 	OpenConflictCount int                `json:"open_conflict_count"`
 	Slot              string             `json:"slot"`
+}
+
+// SaveSnapshotRequest defines model for SaveSnapshotRequest.
+type SaveSnapshotRequest struct {
+	Label *string `json:"label,omitempty"`
 }
 
 // SaveSyncReason defines model for SaveSyncReason.
@@ -792,9 +812,12 @@ type SessionInviteInfoState string
 
 // SessionJoinResponse defines model for SessionJoinResponse.
 type SessionJoinResponse struct {
-	// IceServers `stun:` URLs (Hub config, default empty: host candidates suffice on a LAN)
+	// IceServers `stun:` URLs from the Hub config (default empty: host candidates suffice on a LAN), plus the Hub's own STUN when TURN is on
 	IceServers  []string           `json:"ice_servers"`
 	Permissions SessionPermissions `json:"permissions"`
+
+	// TurnServers Optional relay credentials; present only when the Hub's TURN server is on (`turn_v1`)
+	TurnServers *[]TurnServer      `json:"turn_servers,omitempty"`
 	ViewerId    openapi_types.UUID `json:"viewer_id"`
 }
 
@@ -880,6 +903,16 @@ type TokenResponse struct {
 
 // TokenResponseTokenType defines model for TokenResponse.TokenType.
 type TokenResponseTokenType string
+
+// TurnServer Short-lived relay credentials for the Hub's embedded TURN server (`turn_v1`, TURN REST API scheme).
+type TurnServer struct {
+	Credential string    `json:"credential"`
+	ExpiresAt  time.Time `json:"expires_at"`
+
+	// Urls `turn:` URLs (UDP and TCP transport)
+	Urls     []string `json:"urls"`
+	Username string   `json:"username"`
+}
 
 // UserInfo defines model for UserInfo.
 type UserInfo struct {
@@ -987,6 +1020,12 @@ type CreateAccessTokenJSONRequestBody = TokenRequest
 
 // ResolveSaveConflictJSONRequestBody defines body for ResolveSaveConflict for application/json ContentType.
 type ResolveSaveConflictJSONRequestBody = SaveResolveRequest
+
+// RestoreSaveHistoryVersionJSONRequestBody defines body for RestoreSaveHistoryVersion for application/json ContentType.
+type RestoreSaveHistoryVersionJSONRequestBody = SaveRestoreRequest
+
+// CreateSaveSnapshotJSONRequestBody defines body for CreateSaveSnapshot for application/json ContentType.
+type CreateSaveSnapshotJSONRequestBody = SaveSnapshotRequest
 
 // PostHandshakeJSONRequestBody defines body for PostHandshake for application/json ContentType.
 type PostHandshakeJSONRequestBody = HandshakeRequest
@@ -1425,6 +1464,12 @@ type ServerInterface interface {
 	// Exchange device credential for access token
 	// (POST /api/v1/auth/token)
 	CreateAccessToken(w http.ResponseWriter, r *http.Request)
+	// Raw bytes of the last verified signed core index (`cores_index_v1`)
+	// (GET /api/v1/cores/index)
+	GetCoresIndex(w http.ResponseWriter, r *http.Request)
+	// Signature of the core index (`cores_index_v1`)
+	// (GET /api/v1/cores/index.sig)
+	GetCoresIndexSignature(w http.ResponseWriter, r *http.Request)
 	// Manifest of a signed core package (any trusted device)
 	// (GET /api/v1/cores/{core_id}/packages/{version}/{platform})
 	GetCorePackage(w http.ResponseWriter, r *http.Request, coreId CoreId, version CoreVersion, platform CorePlatform)
@@ -1458,6 +1503,12 @@ type ServerInterface interface {
 	// Bytes of a history version
 	// (GET /api/v1/games/{game_id}/saves/{slot}/history/{version}/content)
 	DownloadSaveHistoryContent(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName, version int)
+	// Restore a history version as the new checkpoint (`saves_v2`)
+	// (POST /api/v1/games/{game_id}/saves/{slot}/history/{version}/restore)
+	RestoreSaveHistoryVersion(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName, version int)
+	// Create a manual snapshot of the current checkpoint (`saves_v2`)
+	// (POST /api/v1/games/{game_id}/saves/{slot}/snapshots)
+	CreateSaveSnapshot(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName)
 	// Handshake with capability negotiation
 	// (POST /api/v1/handshake)
 	PostHandshake(w http.ResponseWriter, r *http.Request)
@@ -1568,6 +1619,46 @@ func (siw *ServerInterfaceWrapper) CreateAccessToken(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateAccessToken(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetCoresIndex operation middleware
+func (siw *ServerInterfaceWrapper) GetCoresIndex(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetCoresIndex(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetCoresIndexSignature operation middleware
+func (siw *ServerInterfaceWrapper) GetCoresIndexSignature(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetCoresIndexSignature(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2143,6 +2234,97 @@ func (siw *ServerInterfaceWrapper) DownloadSaveHistoryContent(w http.ResponseWri
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.DownloadSaveHistoryContent(w, r, gameId, slot, version)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RestoreSaveHistoryVersion operation middleware
+func (siw *ServerInterfaceWrapper) RestoreSaveHistoryVersion(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "game_id" -------------
+	var gameId GameId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "game_id", r.PathValue("game_id"), &gameId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "game_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "slot" -------------
+	var slot SaveSlotName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slot", r.PathValue("slot"), &slot, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slot", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "version" -------------
+	var version int
+
+	err = runtime.BindStyledParameterWithOptions("simple", "version", r.PathValue("version"), &version, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "version", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RestoreSaveHistoryVersion(w, r, gameId, slot, version)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateSaveSnapshot operation middleware
+func (siw *ServerInterfaceWrapper) CreateSaveSnapshot(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "game_id" -------------
+	var gameId GameId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "game_id", r.PathValue("game_id"), &gameId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "game_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "slot" -------------
+	var slot SaveSlotName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slot", r.PathValue("slot"), &slot, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slot", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateSaveSnapshot(w, r, gameId, slot)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2855,6 +3037,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/.well-known/framebeam", wrapper.GetHubInfo)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/auth/revoke", wrapper.RevokeSelf)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/auth/token", wrapper.CreateAccessToken)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/cores/index", wrapper.GetCoresIndex)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/cores/index.sig", wrapper.GetCoresIndexSignature)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/cores/{core_id}/packages/{version}/{platform}", wrapper.GetCorePackage)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/cores/{core_id}/packages/{version}/{platform}/files/{name}", wrapper.GetCorePackageFile)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/games", wrapper.ListGames)
@@ -2866,6 +3050,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/content", wrapper.DownloadSaveContent)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/history", wrapper.ListSaveHistory)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/history/{version}/content", wrapper.DownloadSaveHistoryContent)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/history/{version}/restore", wrapper.RestoreSaveHistoryVersion)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/snapshots", wrapper.CreateSaveSnapshot)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/handshake", wrapper.PostHandshake)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/invites/redeem", wrapper.RedeemInvite)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/pairing/requests", wrapper.CreatePairingRequest)
@@ -3010,6 +3196,105 @@ func (response CreateAccessToken401JSONResponse) VisitCreateAccessTokenResponse(
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetCoresIndexRequestObject struct {
+}
+
+type GetCoresIndexResponseObject interface {
+	VisitGetCoresIndexResponse(w http.ResponseWriter) error
+}
+
+type GetCoresIndex200JSONResponse openapi_types.File
+
+func (response GetCoresIndex200JSONResponse) VisitGetCoresIndexResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetCoresIndex401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetCoresIndex401JSONResponse) VisitGetCoresIndexResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetCoresIndex404JSONResponse struct {
+	CorePackageNotFoundJSONResponse
+}
+
+func (response GetCoresIndex404JSONResponse) VisitGetCoresIndexResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetCoresIndexSignatureRequestObject struct {
+}
+
+type GetCoresIndexSignatureResponseObject interface {
+	VisitGetCoresIndexSignatureResponse(w http.ResponseWriter) error
+}
+
+type GetCoresIndexSignature200TextResponse string
+
+func (response GetCoresIndexSignature200TextResponse) VisitGetCoresIndexSignatureResponse(w http.ResponseWriter) error {
+
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(200)
+
+	_, err := w.Write([]byte(response))
+	return err
+}
+
+type GetCoresIndexSignature401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetCoresIndexSignature401JSONResponse) VisitGetCoresIndexSignatureResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetCoresIndexSignature404JSONResponse struct {
+	CorePackageNotFoundJSONResponse
+}
+
+func (response GetCoresIndexSignature404JSONResponse) VisitGetCoresIndexSignatureResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -3838,6 +4123,181 @@ func (response DownloadSaveHistoryContent403JSONResponse) VisitDownloadSaveHisto
 type DownloadSaveHistoryContent404JSONResponse struct{ NotFoundJSONResponse }
 
 func (response DownloadSaveHistoryContent404JSONResponse) VisitDownloadSaveHistoryContentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RestoreSaveHistoryVersionRequestObject struct {
+	GameId  GameId       `json:"game_id"`
+	Slot    SaveSlotName `json:"slot"`
+	Version int          `json:"version"`
+	Body    *RestoreSaveHistoryVersionJSONRequestBody
+}
+
+type RestoreSaveHistoryVersionResponseObject interface {
+	VisitRestoreSaveHistoryVersionResponse(w http.ResponseWriter) error
+}
+
+type RestoreSaveHistoryVersion200JSONResponse SaveSlot
+
+func (response RestoreSaveHistoryVersion200JSONResponse) VisitRestoreSaveHistoryVersionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RestoreSaveHistoryVersion400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response RestoreSaveHistoryVersion400JSONResponse) VisitRestoreSaveHistoryVersionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RestoreSaveHistoryVersion401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response RestoreSaveHistoryVersion401JSONResponse) VisitRestoreSaveHistoryVersionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RestoreSaveHistoryVersion403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response RestoreSaveHistoryVersion403JSONResponse) VisitRestoreSaveHistoryVersionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RestoreSaveHistoryVersion404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response RestoreSaveHistoryVersion404JSONResponse) VisitRestoreSaveHistoryVersionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RestoreSaveHistoryVersion409JSONResponse Error
+
+func (response RestoreSaveHistoryVersion409JSONResponse) VisitRestoreSaveHistoryVersionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateSaveSnapshotRequestObject struct {
+	GameId GameId       `json:"game_id"`
+	Slot   SaveSlotName `json:"slot"`
+	Body   *CreateSaveSnapshotJSONRequestBody
+}
+
+type CreateSaveSnapshotResponseObject interface {
+	VisitCreateSaveSnapshotResponse(w http.ResponseWriter) error
+}
+
+type CreateSaveSnapshot201JSONResponse SaveHistoryVersion
+
+func (response CreateSaveSnapshot201JSONResponse) VisitCreateSaveSnapshotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateSaveSnapshot400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response CreateSaveSnapshot400JSONResponse) VisitCreateSaveSnapshotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateSaveSnapshot401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response CreateSaveSnapshot401JSONResponse) VisitCreateSaveSnapshotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateSaveSnapshot403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response CreateSaveSnapshot403JSONResponse) VisitCreateSaveSnapshotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateSaveSnapshot404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response CreateSaveSnapshot404JSONResponse) VisitCreateSaveSnapshotResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -5195,6 +5655,12 @@ type StrictServerInterface interface {
 	// Exchange device credential for access token
 	// (POST /api/v1/auth/token)
 	CreateAccessToken(ctx context.Context, request CreateAccessTokenRequestObject) (CreateAccessTokenResponseObject, error)
+	// Raw bytes of the last verified signed core index (`cores_index_v1`)
+	// (GET /api/v1/cores/index)
+	GetCoresIndex(ctx context.Context, request GetCoresIndexRequestObject) (GetCoresIndexResponseObject, error)
+	// Signature of the core index (`cores_index_v1`)
+	// (GET /api/v1/cores/index.sig)
+	GetCoresIndexSignature(ctx context.Context, request GetCoresIndexSignatureRequestObject) (GetCoresIndexSignatureResponseObject, error)
 	// Manifest of a signed core package (any trusted device)
 	// (GET /api/v1/cores/{core_id}/packages/{version}/{platform})
 	GetCorePackage(ctx context.Context, request GetCorePackageRequestObject) (GetCorePackageResponseObject, error)
@@ -5228,6 +5694,12 @@ type StrictServerInterface interface {
 	// Bytes of a history version
 	// (GET /api/v1/games/{game_id}/saves/{slot}/history/{version}/content)
 	DownloadSaveHistoryContent(ctx context.Context, request DownloadSaveHistoryContentRequestObject) (DownloadSaveHistoryContentResponseObject, error)
+	// Restore a history version as the new checkpoint (`saves_v2`)
+	// (POST /api/v1/games/{game_id}/saves/{slot}/history/{version}/restore)
+	RestoreSaveHistoryVersion(ctx context.Context, request RestoreSaveHistoryVersionRequestObject) (RestoreSaveHistoryVersionResponseObject, error)
+	// Create a manual snapshot of the current checkpoint (`saves_v2`)
+	// (POST /api/v1/games/{game_id}/saves/{slot}/snapshots)
+	CreateSaveSnapshot(ctx context.Context, request CreateSaveSnapshotRequestObject) (CreateSaveSnapshotResponseObject, error)
 	// Handshake with capability negotiation
 	// (POST /api/v1/handshake)
 	PostHandshake(ctx context.Context, request PostHandshakeRequestObject) (PostHandshakeResponseObject, error)
@@ -5391,6 +5863,54 @@ func (sh *strictHandler) CreateAccessToken(w http.ResponseWriter, r *http.Reques
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(CreateAccessTokenResponseObject); ok {
 		if err := validResponse.VisitCreateAccessTokenResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetCoresIndex operation middleware
+func (sh *strictHandler) GetCoresIndex(w http.ResponseWriter, r *http.Request) {
+	var request GetCoresIndexRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetCoresIndex(ctx, request.(GetCoresIndexRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetCoresIndex")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetCoresIndexResponseObject); ok {
+		if err := validResponse.VisitGetCoresIndexResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetCoresIndexSignature operation middleware
+func (sh *strictHandler) GetCoresIndexSignature(w http.ResponseWriter, r *http.Request) {
+	var request GetCoresIndexSignatureRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetCoresIndexSignature(ctx, request.(GetCoresIndexSignatureRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetCoresIndexSignature")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetCoresIndexSignatureResponseObject); ok {
+		if err := validResponse.VisitGetCoresIndexSignatureResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -5701,6 +6221,78 @@ func (sh *strictHandler) DownloadSaveHistoryContent(w http.ResponseWriter, r *ht
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(DownloadSaveHistoryContentResponseObject); ok {
 		if err := validResponse.VisitDownloadSaveHistoryContentResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RestoreSaveHistoryVersion operation middleware
+func (sh *strictHandler) RestoreSaveHistoryVersion(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName, version int) {
+	var request RestoreSaveHistoryVersionRequestObject
+
+	request.GameId = gameId
+	request.Slot = slot
+	request.Version = version
+
+	var body RestoreSaveHistoryVersionJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RestoreSaveHistoryVersion(ctx, request.(RestoreSaveHistoryVersionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RestoreSaveHistoryVersion")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RestoreSaveHistoryVersionResponseObject); ok {
+		if err := validResponse.VisitRestoreSaveHistoryVersionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateSaveSnapshot operation middleware
+func (sh *strictHandler) CreateSaveSnapshot(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName) {
+	var request CreateSaveSnapshotRequestObject
+
+	request.GameId = gameId
+	request.Slot = slot
+
+	var body CreateSaveSnapshotJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		if !errors.Is(err, io.EOF) {
+			sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+			return
+		}
+	} else {
+		request.Body = &body
+	}
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateSaveSnapshot(ctx, request.(CreateSaveSnapshotRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateSaveSnapshot")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateSaveSnapshotResponseObject); ok {
+		if err := validResponse.VisitCreateSaveSnapshotResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

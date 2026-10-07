@@ -18,9 +18,10 @@
 namespace framebeam {
 
 // CLI session-share / session-watch (developer tool and E2E, headless). Needs a Connected HubConnection.
-//   session-share [--game <id>] [--visibility private|hub_users|invite_only] [--synthetic] [--seconds N]
-//   session-watch (--session <id> | --first) [--seconds N]
-// Output lines (stdout): SHARING / VIEWER-JOINED / WATCHING / STATS ... / SHARE-DONE / WATCH-OK / WATCH-FAIL.
+//   session-share [--game <id>] [--visibility private|hub_users|invite_only] [--synthetic] [--seconds N] [--force-relay]
+//   session-watch (--session <id> | --first) [--seconds N] [--force-relay]
+// Output lines (stdout): SHARING / VIEWER-JOINED / WATCHING / STATS ... / SHARE-DONE / WATCH-OK / WATCH-FAIL; the last
+// connection type of the run as `CONNECTION direct (host)|relay (udp)|...|unknown` (--force-relay = FRAMEBEAM_FORCE_RELAY=1).
 class SessionCommands : public QObject {
   Q_OBJECT
  public:
@@ -68,6 +69,8 @@ class SessionCommands : public QObject {
   qint64 framesSeen_ = 0;
   QList<SessionSignal> earlySignals_;
   bool ended_ = false;
+  bool forceRelay_ = false;
+  QString lastConnection_;  // last known connection type (stats are gone once the PeerConnection closed)
 };
 
 }  // namespace framebeam

@@ -58,6 +58,7 @@ type slotResp struct {
 		Revision   int    `json:"revision"`
 		Sha256     string `json:"sha256"`
 		Size       int64  `json:"size"`
+		DeviceID   string `json:"device_id"`
 		DeviceName string `json:"device_name"`
 		Reason     string `json:"reason"`
 	} `json:"current"`
@@ -272,7 +273,7 @@ func TestHandshakeAdvertisesFeatures(t *testing.T) {
 		Features []string `json:"features"`
 	}](t, rec).Features
 	// The test device belongs to the admin, who may always upload.
-	if strings.Join(f, ",") != "saves_v1,sessions_v1,users_v1,firmware_v1,cores_v1,uploads_v1" {
+	if strings.Join(f, ",") != "saves_v1,sessions_v1,users_v1,firmware_v1,cores_v1,saves_v2,cores_index_v1,uploads_v1" {
 		t.Fatalf("%v", f)
 	}
 }

@@ -13,6 +13,7 @@
 #include <mutex>
 #include <vector>
 
+#include "bitratecontroller.h"
 #include "mediastats.h"
 #include "sessiontypes.h"
 #include "videoencoder.h"
@@ -45,7 +46,7 @@ class SessionHost : public QObject {
  public:
   struct Options {
     int fps = 60;
-    int videoBitrate = 2'000'000;  // fixed default
+    int videoBitrate = 2'000'000;  // start value of the bitrate adaptation (ADR 0012 D5, AIMD 300..4000 kbit/s)
     int audioBitrate = 96'000;
     QStringList encoderOrder;      // empty: ADR 0006 D5 preference
   };
@@ -55,7 +56,11 @@ class SessionHost : public QObject {
 
   void setOptions(const Options& o) { options_ = o; }
   // Session published: signaling and viewers refer to this id.
-  void open(const QString& sessionId, const QStringList& iceServers);
+  // `turnServers`: relay credentials from hello_ack / the join response (ADR 0012 D3-D5).
+  void open(const QString& sessionId, const QStringList& iceServers, const QList<TurnServer>& turnServers = {});
+  // ICE transport policy "relay" for the PeerConnections created from now on (default: FRAMEBEAM_FORCE_RELAY=1).
+  void setForceRelay(bool force) { forceRelay_ = force; }
+  bool forceRelay() const { return forceRelay_; }
   // Session ended or stopped sharing: closes every viewer immediately and stops the encoder.
   void close();
   bool isOpen() const { return open_; }
@@ -76,7 +81,7 @@ class SessionHost : public QObject {
   void pushAudio(const QByteArray& pcm, int sampleRate);
 
  public slots:
-  void addViewer(const QString& viewerId);     // `viewer_joined`: creates the PeerConnection and sends the offer
+  void addViewer(const QString& viewerId, const QList<TurnServer>& turnServers = {});     // `viewer_joined`: creates the PeerConnection and sends the offer
   void removeViewer(const QString& viewerId);  // `viewer_left`: closes the PeerConnection immediately
   void handleSignal(const framebeam::SessionSignal& signal);  // answer / candidate from a viewer
 
@@ -85,6 +90,7 @@ class SessionHost : public QObject {
   void viewerConnected(const QString& viewerId);  // media path established
   void viewerClosed(const QString& viewerId, const QString& reason);  // PeerConnection closed (removed, failed, ...)
   void encoderRunningChanged(bool running);
+  void rxReportReceived(const QString& viewerId, double loss, double kbps);  // viewer report over fb-diag (tests, diagnostics)
   void errorOccurred(const QString& message);  // e.g. no encoder can be opened
 
  private:
@@ -107,10 +113,17 @@ class SessionHost : public QObject {
   void publishSinks();
   void updateStats();
   void applyRemoteCandidate(Viewer& v, const SessionSignal& s);
+  void onRxReport(const QString& viewerId, const RxReport& report);
 
   Options options_;
   QString sessionId_;
   QStringList iceServers_;
+  QList<TurnServer> turnServers_;
+  bool forceRelay_ = false;
+  bool relayTcpOnly_ = false;
+  BitrateController bitrate_;
+  QElapsedTimer adaptClock_;  // monotonic clock of the controller, never restarted
+  std::atomic<int> targetKbps_{0};
   bool open_ = false;
   QHash<QString, Viewer> viewers_;
   std::shared_ptr<ThreadBridge> bridge_;

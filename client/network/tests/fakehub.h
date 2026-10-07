@@ -27,7 +27,16 @@ struct FakeConflict {
   int securedBase = 0;
   QString securedDeviceId, securedDeviceName;
 };
+// History version of a slot (saves_v2: labels, before_restore, manual_snapshot).
+struct FakeVersion {
+  int version = 0;
+  int revision = 0;
+  QByteArray content;
+  QString deviceId, deviceName, reason = QStringLiteral("session_end");
+  QString label;
+};
 struct FakeSlot {
+  QList<FakeVersion> history;  // oldest first
   int revision = 0;
   QByteArray content;
   QString deviceId, deviceName, reason = QStringLiteral("checkpoint");
@@ -97,7 +106,18 @@ class FakeHub : public QTcpServer {
 
   // Saves (saves_v1)
   QStringList features{QStringLiteral("saves_v1")};  // handshake features
-  QMap<QString, FakeSlot> saves;                     // game_id -> slot "default"
+  // game_id -> slot "default"; other slots under the key "<game_id>/<slot>" (slotKey()).
+  QMap<QString, FakeSlot> saves;
+  static QString slotKey(const QString& gameId, const QString& slot) {
+    return slot == QLatin1String("default") ? gameId : gameId + QLatin1Char('/') + slot;
+  }
+  // Adds a history version to a slot (creates the slot object if needed; revision of the slot is not changed).
+  void addHistory(const QString& gameId, const QString& slot, const QByteArray& content, const QString& reason,
+                  const QString& label = QString(), const QString& deviceName = QStringLiteral("Laptop Office"));
+  // Signed core index (cores_index_v1): GET /cores/index and /cores/index.sig answer these bytes (empty: 404).
+  QByteArray coreIndex, coreIndexSig;
+  int coreIndexRequests = 0;
+  int restoreCount = 0;  // restore requests that succeeded
   int failSaveRequests = 0;                          // next N save requests answer 503
   QString callerDeviceId;                            // device_id of the last token request
   // Simulates another device that uploaded a new checkpoint.
@@ -109,6 +129,8 @@ class FakeHub : public QTcpServer {
   QJsonArray fakeUsers;                 // GET /users (empty: only the test user)
   bool publishCapabilityMissing = false;
   bool joinFull = false;
+  QJsonArray helloTurnServers;            // `turn_servers` of hello_ack (omitted when empty)
+  QJsonArray joinTurnServers;             // `turn_servers` of the join response (omitted when empty)
   bool refuseWs = false;                  // WSS upgrade answered with 401
   QList<QJsonObject> wsReceived;          // envelopes received from the Player (all connections)
   QByteArray lastWsAuthorization;
@@ -141,8 +163,19 @@ class FakeHub : public QTcpServer {
   void wsWrite(QSslSocket* sock, quint8 opcode, const QByteArray& payload);
   QList<QSslSocket*> wsClients_;
   QHash<QSslSocket*, QByteArray> wsBuffers_;
-  QJsonObject slotJson(const QString& gameId, const FakeSlot& s) const;
-  QJsonObject conflictJson(const QString& gameId, const FakeSlot& s, const FakeConflict& c) const;
+  QJsonObject slotJson(const QString& key, const FakeSlot& s) const;  // key: slotKey()
+  QJsonObject conflictJson(const QString& key, const FakeSlot& s, const FakeConflict& c) const;
+  QJsonObject versionJson(const FakeVersion& v) const;
+  QJsonArray wsFeatures() const {
+    QJsonArray a;
+    for (const QString& f : features) {
+      a.append(f);
+    }
+    if (!features.contains(QStringLiteral("sessions_v1"))) {
+      a.append(QStringLiteral("sessions_v1"));
+    }
+    return a;
+  }
   bool bearerIs(const FakeRequest& req, const QByteArray& prefix) const;
 
   QString certName_;

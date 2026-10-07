@@ -54,10 +54,22 @@ struct SessionPermissions {
   bool sendInput = false;
 };
 
+// Short-lived relay credentials of the Hub's embedded TURN server (`turn_servers`, protocol turn_v1).
+struct TurnServer {
+  QStringList urls;  // turn:host:port?transport=udp|tcp
+  QString username;
+  QString credential;
+  QString expiresAt;  // RFC 3339, informational
+  bool operator==(const TurnServer&) const = default;
+};
+// Parses a `turn_servers` array; entries without urls, username or credential are dropped.
+QList<TurnServer> parseTurnServers(const QJsonValue& v);
+
 struct SessionJoinInfo {
   QString viewerId;
   SessionPermissions permissions;
   QStringList iceServers;  // stun: URLs
+  QList<TurnServer> turnServers;
 };
 std::optional<SessionJoinInfo> parseJoinInfo(const QJsonObject& o);
 
@@ -85,6 +97,7 @@ struct HelloAck {
   QString hubVersion;
   QStringList features;
   QStringList iceServers;
+  QList<TurnServer> turnServers;
 };
 
 struct ViewerJoined {
@@ -92,6 +105,7 @@ struct ViewerJoined {
   QString viewerId;
   QString displayName;
   QString deviceName;
+  QList<TurnServer> turnServers;  // fresh relay credentials for the owner device (optional)
 };
 
 struct ViewerLeft {

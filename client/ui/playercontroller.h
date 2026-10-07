@@ -28,6 +28,7 @@
 #include "playersettings.h"
 #include "romcache.h"
 #include "romdownloader.h"
+#include "savehistorycontroller.h"
 #include "savesync.h"
 #include "sessioncontroller.h"
 #include "system_manifest.h"
@@ -78,6 +79,8 @@ class PlayerController : public QObject {
   Q_PROPERTY(framebeam::ui::SessionController* sessions READ sessions CONSTANT)
   // Updates (Settings section + banner)
   Q_PROPERTY(framebeam::ui::UpdatesController* updates READ updates CONSTANT)
+  // Save slot picker, history/restore, snapshots, "save changed elsewhere" notice (ADR 0012 D7)
+  Q_PROPERTY(framebeam::ui::SaveHistoryController* saveHistory READ saveHistory CONSTANT)
   // Log file path (empty when file logging is not active) and "open folder" (Settings)
   Q_PROPERTY(QString logFile READ logFile CONSTANT)
 
@@ -116,6 +119,7 @@ class PlayerController : public QObject {
   GameSession* gameSession() { return &session_; }
   SessionController* sessions() { return sessions_.get(); }
   UpdatesController* updates() { return updates_.get(); }
+  SaveHistoryController* saveHistory() { return history_.get(); }
   QString logFile() const;
   // A game or a watched Session is running (updates are never applied then).
   bool sessionBusy() const;
@@ -271,6 +275,7 @@ class PlayerController : public QObject {
   GameSession session_;
   std::unique_ptr<SessionController> sessions_;
   std::unique_ptr<UpdatesController> updates_;
+  std::unique_ptr<SaveHistoryController> history_;  // after saves_/conn_: destroyed first
   std::unique_ptr<EmulationController> emulation_;
   std::unique_ptr<ControllersController> controllers_;
   bool shareOnStart_ = false;

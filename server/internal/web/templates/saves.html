@@ -22,6 +22,10 @@
     <div class="help mono">{{.Current.Size}} · {{.Current.ShortHash}}</div></div>
   <a class="btn" href="{{.Current.DownloadHref}}">Download</a>
 </div>
+<form class="save-snapshot" method="post" action="{{.SnapshotHref}}" hx-post="{{.SnapshotHref}}">
+  <label>Snapshot label (optional): <input type="text" name="label" maxlength="64" aria-label="Snapshot label" autocomplete="off"></label>
+  <button class="btn" type="submit">Create snapshot</button>
+</form>
 {{range .Conflicts}}
 <section class="conflict" aria-label="Save conflict">
   <h3>{{.Title}}</h3>
@@ -57,8 +61,12 @@
   {{range .History}}
   <li class="{{if .Current}}current{{end}}">
     <span class="node" aria-hidden="true"></span>
-    <div class="tl-text"><div><span class="mono">v{{.Version}}</span> <strong>{{.Device}}</strong>{{if .Current}} <span class="badge">CURRENT</span>{{end}}</div><div class="help">{{.Meta}}</div></div>
-    <a class="btn-link plain" href="{{.DownloadHref}}">Download</a>
+    <div class="tl-text"><div><span class="mono">v{{.Version}}</span> <strong>{{.Device}}</strong>{{if .Label}} <span class="snap-label">“{{.Label}}”</span>{{end}}{{if .Current}} <span class="badge">CURRENT</span>{{end}}</div><div class="help">{{.Meta}}</div></div>
+    <div class="tl-actions"><a class="btn-link plain" href="{{.DownloadHref}}">Download</a>
+    {{if not .Current}}<form class="inline" method="post" action="{{.RestoreHref}}" hx-post="{{.RestoreHref}}" hx-confirm="Restore v{{.Version}} as the new current checkpoint? The current checkpoint stays in the history.">
+      <input type="hidden" name="expected_revision" value="{{$.ExpectedRev}}">
+      <button class="btn small" type="submit">Restore</button>
+    </form>{{end}}</div>
   </li>
   {{end}}
 </ol>

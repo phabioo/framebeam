@@ -40,6 +40,41 @@ QString SaveStore::gameDir(const ProfileStore& profiles, const QString& hubId, c
   return (base.isEmpty() || !isSafeId(gameId)) ? QString() : QDir(base).filePath(gameId);
 }
 
+bool SaveStore::isValidSlotName(const QString& slot) {
+  static const QRegularExpression re(QStringLiteral("\\A[a-z0-9_-]{1,32}\\z"));  // \z: no trailing newline (Go's $ semantics)
+  return re.match(slot).hasMatch();
+}
+
+QString SaveStore::slotDirIn(const QString& gameDir, const QString& slot) {
+  if (gameDir.isEmpty() || !isValidSlotName(slot)) {
+    return {};
+  }
+  return slot == QLatin1String("default") ? gameDir : QDir(gameDir).filePath(QStringLiteral("slots/%1").arg(slot));
+}
+
+QString SaveStore::slotDir(const ProfileStore& profiles, const QString& hubId, const QString& userId, const QString& gameId,
+                           const QString& slot) {
+  return slotDirIn(gameDir(profiles, hubId, userId, gameId), slot);
+}
+
+QStringList SaveStore::localSlots(const QString& gameDir) {
+  QStringList out;
+  if (gameDir.isEmpty()) {
+    return out;
+  }
+  if (QFileInfo::exists(stateFilePath(gameDir)) || !findSaveFile(gameDir, QString()).isEmpty()) {
+    out.append(QStringLiteral("default"));
+  }
+  QStringList extra;
+  const QDir slotsDir(QDir(gameDir).filePath(QStringLiteral("slots")));
+  for (const QString& n : slotsDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name)) {
+    if (isValidSlotName(n) && n != QLatin1String("default")) {
+      extra.append(n);
+    }
+  }
+  return out + extra;
+}
+
 QString SaveStore::legacyDir(const ProfileStore& profiles, const QString& hubId) {
   const QString hub = profiles.hubDir(hubId);
   return hub.isEmpty() ? QString() : QDir(hub).filePath(QStringLiteral("saves"));

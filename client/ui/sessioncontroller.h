@@ -1,7 +1,9 @@
 #pragma once
-// SessionController: Sessions for the QML UI (ADR 0006 D6). Owns the Hub WSS client (HubSocket), the
-// session REST client, the SessionHost (own shared Session) and the SessionViewer (one watched Session) and
-// exposes plain properties/actions to QML. Hub logic stays in network/, media in media/.
+// SessionController: Sessions for the QML UI (ADR 0006 D6, ADR 0012 D8). Owns the Hub WSS client (HubSocket), the
+// session REST client, the SessionHost (own shared Session) and one SessionViewer per watched remote Session
+// (up to kMaxSurfaces surfaces in total, the local game counts as one) and exposes plain properties/actions to
+// QML. A surface is identified by "local" or by the Session id of a remote Session. Hub logic stays in network/,
+// media in media/.
 
 #include <QElapsedTimer>
 #include <QHash>
@@ -11,6 +13,7 @@
 #include <QTimer>
 #include <QVariantList>
 #include <QVariantMap>
+#include <vector>
 #include <QtQml/qqmlregistration.h>
 #include <memory>
 
@@ -50,16 +53,25 @@ class SessionController : public QObject {
   // Watching
   Q_PROPERTY(bool watching READ watching NOTIFY watchChanged)
   Q_PROPERTY(bool joining READ joining NOTIFY watchChanged)
-  Q_PROPERTY(QString watchedWho READ watchedWho NOTIFY watchChanged)
+  Q_PROPERTY(QString watchedWho READ watchedWho NOTIFY watchChanged)  // first remote surface
   Q_PROPERTY(QString watchedGame READ watchedGame NOTIFY watchChanged)
+  // Multiview surfaces (ADR 0012 D8): ids ("local" | Session id) in creation order (changes only when the set
+  // changes), display order (index 0 is the main surface), info {id: {kind, name, meta}}.
+  Q_PROPERTY(QStringList surfaceIds READ surfaceIds NOTIFY surfacesChanged)
+  Q_PROPERTY(QStringList surfaceOrder READ surfaceOrder NOTIFY surfacesChanged)
+  Q_PROPERTY(QVariantMap surfaceInfo READ surfaceInfo NOTIFY surfacesChanged)
+  Q_PROPERTY(int surfaceCount READ surfaceCount NOTIFY surfacesChanged)
+  Q_PROPERTY(int maxSurfaces READ maxSurfaces CONSTANT)
+  Q_PROPERTY(bool canAddSurface READ canAddSurface NOTIFY watchChanged)  // fewer than four surfaces and no join running
+  Q_PROPERTY(QStringList shownSessionIds READ shownSessionIds NOTIFY surfacesChanged)  // remote Sessions on a surface
+  Q_PROPERTY(QStringList availableLayouts READ availableLayouts NOTIFY surfacesChanged)  // "pip" | "side" (2) | "grid" (3, 4)
+  Q_PROPERTY(QString mainSurface READ mainSurface NOTIFY surfacesChanged)
   Q_PROPERTY(bool hasLocalGame READ hasLocalGame NOTIFY gameChanged)
   Q_PROPERTY(QString localTitle READ localTitle NOTIFY gameChanged)
-  // Views: tab "session" | "multiview" | "diagnostics"; mode "pip" | "side"
+  // Views: tab "session" | "multiview" | "diagnostics"; layout "pip" | "side" | "grid" (a tile layout follows the surface count; availableLayouts is empty below two surfaces)
   Q_PROPERTY(QString tab READ tab WRITE setTab NOTIFY viewChanged)
   Q_PROPERTY(QString multiviewMode READ multiviewMode WRITE setMultiviewMode NOTIFY viewChanged)
-  Q_PROPERTY(bool swapped READ swapped NOTIFY viewChanged)
-  Q_PROPERTY(QString audioFocus READ audioFocus NOTIFY viewChanged)  // effective: "local" | "remote"
-  Q_PROPERTY(quint64 remoteFrameNumber READ remoteFrameNumber NOTIFY remoteFrameChanged)
+  Q_PROPERTY(QString audioFocus READ audioFocus NOTIFY viewChanged)  // effective surface id: "local" | Session id
   Q_PROPERTY(QVariantList diagnosticRows READ diagnosticRows NOTIFY diagnosticsChanged)
 
  public:
@@ -79,20 +91,32 @@ class SessionController : public QObject {
   QString userSearchHint() const { return userHint_; }
   QString message() const { return message_; }
   bool messageIsError() const { return messageIsError_; }
-  bool watching() const { return watching_; }
+  static constexpr int kMaxSurfaces = 4;
+  bool watching() const { return !remotes_.empty(); }
   bool joining() const { return joining_; }
-  QString watchedWho() const { return watched_.owner.displayName; }
-  QString watchedGame() const { return watched_.gameTitle; }
+  QString watchedWho() const { return remotes_.empty() ? QString() : remotes_.front()->info.owner.displayName; }
+  QString watchedGame() const { return remotes_.empty() ? QString() : remotes_.front()->info.gameTitle; }
+  QStringList surfaceIds() const;
+  QStringList surfaceOrder() const { return order_; }
+  QVariantMap surfaceInfo() const;
+  int surfaceCount() const { return static_cast<int>(order_.size()); }
+  int maxSurfaces() const { return kMaxSurfaces; }
+  bool canAddSurface() const { return !joining_ && surfaceCount() < kMaxSurfaces; }
+  QStringList shownSessionIds() const;
+  QStringList availableLayouts() const;
+  QString mainSurface() const { return order_.isEmpty() ? QString() : order_.first(); }
   bool hasLocalGame() const { return !gameId_.isEmpty(); }
   QString localTitle() const { return gameTitle_; }
   QString tab() const;
   void setTab(const QString& tab);
-  QString multiviewMode() const { return mode_; }
+  QString multiviewMode() const;
   void setMultiviewMode(const QString& mode);
-  bool swapped() const { return swapped_; }
   QString audioFocus() const;
-  quint64 remoteFrameNumber() const { return remoteFrameNr_; }
-  QImage remoteFrame() const { return remoteFrame_; }
+  // Newest decoded frame / frame counter of a remote surface (empty / 0 if the Session is not shown).
+  QImage remoteFrame(const QString& sessionId) const;
+  quint64 remoteFrameNumber(const QString& sessionId) const;
+  // Frames of silence/audio handed to the audio output on behalf of a surface (tests: muted surfaces stay at 0).
+  qint64 audioFedFrames(const QString& surface) const { return fedFrames_.value(surface); }
   QVariantList diagnosticRows() const { return rows_; }
 
   // Local game context (PlayerController): presence, share feed, audio focus.
@@ -103,10 +127,16 @@ class SessionController : public QObject {
   HubSocket* socket() { return &socket_; }
   SessionApi* api() { return &api_; }
   SessionHost* host() { return &host_; }
-  SessionViewer* viewer() { return &viewer_; }
-  void setStatsOverride(const SessionStats* local, const SessionStats* remote);
+  SessionViewer* viewer(const QString& sessionId);  // nullptr if the Session is not shown
+  // Fake statistics: local (nullptr keeps the real ones) and remote per Session id (missing ids keep the real ones).
+  void setStatsOverride(const SessionStats* local, const QHash<QString, SessionStats>& remotes);
+  struct RemoteDiag {
+    QString surface;  // Session id
+    QString name;
+    SessionStats stats;
+  };
   static QVariantList formatDiagnostics(const QString& localName, bool hasLocal, bool shared, double localFps, const SessionStats& local,
-                                        const QString& remoteName, bool hasRemote, const SessionStats& remote);
+                                        const QList<RemoteDiag>& remotes);
 
   Q_INVOKABLE void refreshSessions();
   Q_INVOKABLE void shareSession();
@@ -116,11 +146,12 @@ class SessionController : public QObject {
   Q_INVOKABLE void invite(const QString& userId);
   Q_INVOKABLE void withdrawInvite(const QString& userId);
   Q_INVOKABLE void removeViewer(const QString& viewerId);
-  Q_INVOKABLE void watch(const QString& sessionId);  // "Watch Session" and "Join"
+  Q_INVOKABLE void watch(const QString& sessionId);  // "Watch Session", "Join" and "Add": adds a surface (max four)
   Q_INVOKABLE void decline(const QString& sessionId);
-  Q_INVOKABLE void leaveWatch();
-  Q_INVOKABLE void swapSurfaces();
-  Q_INVOKABLE void audioHere(const QString& surface);  // "local" | "remote"
+  Q_INVOKABLE void leaveWatch();                        // leaves every remote Session
+  Q_INVOKABLE void removeSurface(const QString& sessionId);  // "Remove": leaves that Session only
+  Q_INVOKABLE void makeMain(const QString& surface);    // "Swap": the surface takes the main position
+  Q_INVOKABLE void audioHere(const QString& surface);   // "local" | Session id
   Q_INVOKABLE void dismissMessage();
 
  signals:
@@ -132,7 +163,8 @@ class SessionController : public QObject {
   void watchChanged();
   void gameChanged();
   void viewChanged();
-  void remoteFrameChanged();
+  void surfacesChanged();
+  void remoteFrameChanged(const QString& sessionId);
   void diagnosticsChanged();
 
  private:
@@ -146,7 +178,10 @@ class SessionController : public QObject {
   void applyOwnSession(const SessionInfo& s);
   void applyOwnSession(const SessionInfo& s, quint64 requestVisGen);
   void closeShare(const QString& note);
-  void closeWatch(const QString& note, bool callHub);
+  struct Remote;
+  Remote* remote(const QString& sessionId) const;
+  void closeRemote(const QString& sessionId, const QString& note, bool callHub);
+  void cancelJoin();
   void say(const QString& text, bool error);
   void presence();
   void pumpAudio();
@@ -164,7 +199,6 @@ class SessionController : public QObject {
   SessionApi api_;
   HubSocket socket_;
   SessionHost host_;
-  SessionViewer viewer_;
   AudioOutput remoteAudio_;
 
   QHash<QString, SessionInfo> sessions_;  // visible Sessions (not own)
@@ -187,7 +221,7 @@ class SessionController : public QObject {
   bool shareBusy_ = false;
   QString visibility_ = QStringLiteral("hub_users");
   SessionInfo own_;
-  QStringList pendingViewers_;
+  QList<ViewerJoined> pendingViewers_;
   QList<SessionSignal> pendingHostSignals_;
   QList<HubUser> users_;
   QElapsedTimer usersAge_;
@@ -196,25 +230,32 @@ class SessionController : public QObject {
   QString userHint_;
   bool usersLoaded_ = false;
 
-  bool watching_ = false;
+  // One watched remote Session = one viewer join = one SessionViewer.
+  struct Remote {
+    SessionInfo info;
+    QString viewerId;
+    SessionViewer* viewer = nullptr;  // owned (parent: the controller), deleted with deleteLater
+    QImage frame;
+    quint64 frameNr = 0;
+  };
+  std::vector<std::unique_ptr<Remote>> remotes_;  // creation order
+  QStringList order_;                             // display order of the surfaces; first = main
   bool joining_ = false;
-  SessionInfo watched_;
-  QString viewerId_;
+  SessionInfo joinInfo_;
   QList<SessionSignal> earlySignals_;
-  QImage remoteFrame_;
-  quint64 remoteFrameNr_ = 0;
+  QHash<QString, qint64> fedFrames_;
 
   QString tab_ = QStringLiteral("session");
-  QString mode_ = QStringLiteral("pip");
-  bool swapped_ = false;
+  QString mode_ = QStringLiteral("pip");  // chosen layout: "pip" | "side" | "grid"
   QString focusPref_ = QStringLiteral("local");
 
   QString message_;
   bool messageIsError_ = false;
   QVariantList rows_;
   bool override_ = false;
-  bool overrideLocalSet_ = false, overrideRemoteSet_ = false;
-  SessionStats overrideLocal_, overrideRemote_;
+  bool overrideLocalSet_ = false;
+  SessionStats overrideLocal_;
+  QHash<QString, SessionStats> overrideRemotes_;
 };
 
 }  // namespace framebeam::ui

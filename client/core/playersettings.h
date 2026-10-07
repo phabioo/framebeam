@@ -29,6 +29,10 @@ class PlayerSettings {
   std::optional<bool> updateAutoInstall() const { return updateAutoInstall_; }
   bool setUpdateAutoInstall(bool on);
 
+  // Chosen save slot per Hub profile and game (ADR 0012 D7); "default" when nothing valid is stored.
+  QString saveSlot(const QString& hubId, const QString& gameId) const;
+  bool setSaveSlot(const QString& hubId, const QString& gameId, const QString& slot);  // false: invalid name or not writable
+
  private:
   bool save() const;
 

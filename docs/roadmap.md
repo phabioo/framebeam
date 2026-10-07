@@ -59,17 +59,19 @@ Goal: a change on `main` lands on the test devices (Windows Player, Hub on the P
 - [x] Done: Hub: database backup before schema migration, service restart by the package after the update (ADR 0011 D6).
 - [x] Done: Windows Player and Linux Hub only; other platforms follow later.
 - Rollback: proposed in ADR 0011 (D8), decided with the merge. No automatic or one-click rollback in 0.3; manual downgrade plus DB backup restore.
-- Moved: the Player-side signature check of core packages (ADR 0010 D5) is not part of 0.3; it is in 0.4.
+- Moved: the Player-side signature check of core packages (ADR 0010 D5) is not part of 0.3; it is in 0.4 (done there, see below).
 
 ## 0.4 Sessions over the internet and save comfort
 
 Moved ahead of the UI passes by Fabio on 2026-10-07: testing with friends outside the LAN comes first.
 
-- Reachability (current design, see `docs/architecture/04-sessions-and-multiview.md`): the Hub only signals over its HTTPS/WSS port; media flows Player to Player over WebRTC. Remote Players therefore need the Hub port reachable (port forwarding or a VPN such as WireGuard/Tailscale) and, for media, either a direct ICE path (STUN) or a TURN relay. Decide and document the supported setups (port forward, VPN, TURN host) and show the connection type (direct / relayed) in diagnostics.
-- TURN fallback including credentials (STUN URLs are already configurable via `-ice-servers` / `FRAMEBEAM_ICE_SERVERS`), bitrate adaptation (`docs/architecture/04-sessions-and-multiview.md`).
-- Multiview with more than one remote Session, audio focus.
-- Player-side signature check of core packages (moved from 0.3, ADR 0010 D5, ADR 0011 D7): the Player verifies the signed core index itself instead of trusting the Hub for provenance.
-- Saves: retention/thinning, restore from history, manual snapshot, WebSocket push, multiple slots (`docs/architecture/03-saves.md`).
+- [x] Done: Supported setups decided and documented: LAN, internet with port forward (recommended), VPN; no external TURN server in 0.4 (ADR 0012 D1; `packaging/linux/README.md`, "Sessions over the internet").
+- [x] Done: Hub: embedded STUN/TURN relay (pion/turn, off by default) with short-lived credentials in `hello_ack` and the join response; Settings shows TURN status and the router port forwards (ADR 0012 D2-D4).
+- [x] Done: Player: TURN via libdatachannel, connection type (direct / relay) in diagnostics, `FRAMEBEAM_FORCE_RELAY` / `--force-relay`, AIMD bitrate adaptation to the worst viewer (ADR 0012 D5).
+- [x] Done: Multiview with up to 4 surfaces (several remote Sessions) and the audio focus rule (ADR 0012 D8).
+- [x] Done: Player-side signature check of core packages (moved from 0.3, ADR 0010 D5): the Player verifies the signed core index served by the Hub (ADR 0012 D6).
+- [x] Done: Saves: retention/thinning, restore from history, manual snapshot, WebSocket push `save_updated`, multiple slots (ADR 0012 D7; `docs/architecture/03-saves.md`).
+- Open: verification across real networks (two Players behind different routers, forced relay, more than one remote Session) is done locally by Fabio.
 
 ## 0.5 Player UI pass
 
@@ -79,12 +81,14 @@ Moved ahead of the UI passes by Fabio on 2026-10-07: testing with friends outsid
 - Dynamics: transitions and animations (page change, hover, lists); live updates of Library, Sessions and sync status without manual reload.
 - One pass with before/after screenshots per screen to allow targeted feedback.
 - Core state refresh: after a core download the "core missing" notice on NDS games stays until the Player restarts (found by Fabio on 2026-10-07); Library and Detail must re-evaluate the core state live.
+- From 0.4 (requested by Fabio on 2026-10-07): Settings → Hubs lets the user edit a Hub's address and port (for example after the Hub port changed or when switching between LAN address and public name), keeping the pinned fingerprint and credential; diagnostics present the connection type (direct / relay) and target bitrate clearly; multiview layouts and the save history, restore, snapshot and slot picker get their final design.
 
 ## 0.6 Hub UI pass
 
 - Same approach for the web UI: clarity, spacing from tokens.
 - No full page loads on navigation: switching pages swaps only the content area. Some actions already swap htmx fragments (Library filter/delete, Clients actions and 15 s polling, Saves filter); sidebar navigation still loads whole pages.
 - Live updates without reload: sidebar badges (new pending clients, save conflicts, firmware) and affected tables update themselves, for example via Server-Sent Events.
+- From 0.4 (requested by Fabio on 2026-10-07): a network settings form instead of editing `hub.env`: Hub port, embedded TURN on/off, public host, TURN port and relay range, and the save retention values. Decided by Fabio on 2026-10-07: web settings win; `hub.env` and flags only provide the initial value; changes that need it (for example the port) are applied by a service restart the Hub triggers itself, like the updater. Open: ports below 1024. The TURN status panel and the router port forward list from 0.4 move into this form.
 
 ## 0.7 Second system: Nintendo 3DS with Azahar
 
@@ -138,7 +142,7 @@ Hosted emulation, friends list, public Session links, guest access, email/passwo
 ## Open decisions
 
 - **Second system:** decided on 2026-10-07: Nintendo 3DS with Azahar (see 0.7). The earlier proposal GBA with mGBA is dropped.
-- **Internet reachability:** open (see 0.4): which setups FrameBeam supports and documents (Hub port forward, VPN, own TURN server on the Hub host or elsewhere). Proposal (2026-10-07): the Hub embeds an optional STUN/TURN server (for example `pion/turn`, pure Go, same binary) on UDP/TCP 3478 plus a small UDP relay port range, hands out short-lived TURN credentials in `hello_ack`/join instead of static secrets, and learns its public address from a configured hostname (DynDNS). Fabio's setup: `dynamic.phabio.net` pointing at the Pi, port forwards for the Hub port, 3478 and the relay range; check first that the connection has a public IPv4 (no CGNAT/DS-Lite).
+- **Internet reachability:** decided in 0.4 (ADR 0012); the text below is the original proposal. Which setups FrameBeam supports and documents (Hub port forward, VPN, own TURN server on the Hub host or elsewhere). Proposal (2026-10-07): the Hub embeds an optional STUN/TURN server (for example `pion/turn`, pure Go, same binary) on UDP/TCP 3478 plus a small UDP relay port range, hands out short-lived TURN credentials in `hello_ack`/join instead of static secrets, and learns its public address from a configured hostname (DynDNS). A typical setup: a DynDNS name pointing at the Hub's router, port forwards for the Hub port, 3478 and the relay range; check first that the connection has a public IPv4 (no CGNAT/DS-Lite).
 - **Update channels:** decided on 2026-10-06: the pre-release channel (renamed from test to beta on 2026-10-07) updates automatically, the stable channel only after confirmation. Details and rollback proposal: [ADR 0011](adr/0011-automatic-updates.md).
 - **0.2:** decided in ADR 0010 (source, index, signing tooling, offline import, license file per package, cached cores stay usable without a Hub connection to GitHub). The FrameBeam release key exists since 2026-10-07.
 - **Core sourcing:** decided on 2026-10-07: libretro buildbot cores, mirrored and signed by FrameBeam (see 0.7).

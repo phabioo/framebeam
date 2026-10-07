@@ -260,7 +260,7 @@ void HubSocket::onTextMessage(const QString& text) {
   if (type == QLatin1String("hello_ack")) {
     helloTimer_.stop();
     hello_ = {p.value(QStringLiteral("protocol_version")).toInt(), str(p, "hub_version"), strList(p.value(QStringLiteral("features"))),
-              strList(p.value(QStringLiteral("ice_servers")))};
+              strList(p.value(QStringLiteral("ice_servers"))), parseTurnServers(p.value(QStringLiteral("turn_servers")))};
     backoffMs_ = backoffInitialMs_;
     upgradeRejects_ = 0;
     setState(State::Open);
@@ -279,12 +279,17 @@ void HubSocket::onTextMessage(const QString& text) {
   } else if (type == QLatin1String("session_ended")) {
     emit sessionEnded({str(p, "session_id"), str(p, "reason")});
   } else if (type == QLatin1String("viewer_joined")) {
-    emit viewerJoined({str(p, "session_id"), str(p, "viewer_id"), str(p, "display_name"), str(p, "device_name")});
+    emit viewerJoined({str(p, "session_id"), str(p, "viewer_id"), str(p, "display_name"), str(p, "device_name"),
+                       parseTurnServers(p.value(QStringLiteral("turn_servers")))});
   } else if (type == QLatin1String("viewer_left")) {
     emit viewerLeft({str(p, "session_id"), str(p, "viewer_id"), str(p, "reason")});
   } else if (type == QLatin1String("signal")) {
     if (const auto s = parseSignal(p)) {
       emit signalReceived(*s);
+    }
+  } else if (type == QLatin1String("save_updated")) {
+    if (const auto u = parseSaveUpdate(p)) {
+      emit saveUpdated(*u);
     }
   } else if (type == QLatin1String("error")) {
     emit hubError(str(p, "code"), str(p, "message"));

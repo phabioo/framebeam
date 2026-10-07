@@ -26,6 +26,10 @@ import (
 // FeatureCoresV1 is announced in the handshake: the Hub serves signed core packages.
 const FeatureCoresV1 = "cores_v1"
 
+// FeatureCoresIndexV1 is announced in the handshake: the Hub serves the raw verified core index and its signature
+// (404 until a sync or import has verified one).
+const FeatureCoresIndexV1 = "cores_index_v1"
+
 // Source state keys in the settings table.
 const (
 	settingCoreLastCheck   = "core_source_last_check"
@@ -43,7 +47,8 @@ type coreState struct {
 	url      string
 	keys     []ed25519.PublicKey
 	client   *http.Client
-	mu       sync.Mutex // serializes sync, download and import
+	mu       sync.Mutex   // serializes sync, download and import
+	idxMu    sync.RWMutex // index.json and index.json.sig are written and read as a pair
 	kickSync chan struct{}
 	kickDL   chan struct{}
 }
@@ -648,6 +653,9 @@ func (s *Service) SyncCores(ctx context.Context) (CoreSyncReport, error) {
 	if err := s.applyIndex(ctx, idx); err != nil {
 		return fail(err)
 	}
+	if err := s.persistIndex(data, sig); err != nil {
+		return fail(err)
+	}
 	rep.Packages, rep.Skipped = len(idx.Packages), len(skipped)
 	for _, e := range skipped {
 		rep.Problems = append(rep.Problems, "skipped: "+e.Error())
@@ -785,6 +793,9 @@ func (s *Service) ImportCores(ctx context.Context, dir string) (CoreImportSummar
 	if err := s.applyIndex(ctx, idx); err != nil {
 		return sum, err
 	}
+	if err := s.persistIndex(data, sig); err != nil {
+		return sum, err
+	}
 	sum.Packages, sum.Skipped = len(idx.Packages), len(skipped)
 	for _, p := range idx.Packages {
 		k := pkgKey{p.CoreID, p.Version, p.Platform}
@@ -829,4 +840,67 @@ func (s *Service) ImportCores(ctx context.Context, dir string) (CoreImportSummar
 		}
 	}
 	return sum, nil
+}
+
+// ---- Verified index (served to Players, ADR 0012 D6) ----
+
+func (s *Service) indexPaths() (index, sig string) {
+	return filepath.Join(s.dataDir, "cores", "index.json"), filepath.Join(s.dataDir, "cores", "index.json.sig")
+}
+
+func writeFileAtomic(path string, data []byte) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".index-*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name()) // no effect after the rename
+	_, err = tmp.Write(data)
+	if err == nil {
+		err = tmp.Sync()
+	}
+	if cerr := tmp.Close(); err == nil {
+		err = cerr
+	}
+	if err == nil {
+		err = os.Chmod(tmp.Name(), 0o640)
+	}
+	if err == nil {
+		err = os.Rename(tmp.Name(), path)
+	}
+	return err
+}
+
+// persistIndex stores the raw bytes and the signature of a verified index in the data directory.
+func (s *Service) persistIndex(data, sig []byte) error {
+	ip, sp := s.indexPaths()
+	if err := os.MkdirAll(filepath.Dir(ip), 0o750); err != nil {
+		return internal(err)
+	}
+	s.cores.idxMu.Lock()
+	defer s.cores.idxMu.Unlock()
+	if err := writeFileAtomic(ip, data); err != nil {
+		return internal(err)
+	}
+	if err := writeFileAtomic(sp, sig); err != nil {
+		return internal(err)
+	}
+	return nil
+}
+
+// CoresIndex returns the raw bytes and the signature of the last verified core index; ErrCorePackageNotFound
+// while none has been verified.
+func (s *Service) CoresIndex() (data, sig []byte, err error) {
+	ip, sp := s.indexPaths()
+	s.cores.idxMu.RLock()
+	defer s.cores.idxMu.RUnlock()
+	if data, err = os.ReadFile(ip); err == nil {
+		sig, err = os.ReadFile(sp)
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil, ErrCorePackageNotFound
+	}
+	if err != nil {
+		return nil, nil, internal(err)
+	}
+	return data, sig, nil
 }

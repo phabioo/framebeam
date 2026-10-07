@@ -179,7 +179,12 @@ class SessionsTest : public QObject {
     hub.sendWs(QStringLiteral("session_ended"), {{QStringLiteral("session_id"), kSession}, {QStringLiteral("reason"), QStringLiteral("replaced")}});
     hub.sendWs(QStringLiteral("viewer_joined"), {{QStringLiteral("session_id"), kSession}, {QStringLiteral("viewer_id"), kViewer},
                                                  {QStringLiteral("display_name"), QStringLiteral("Anna")},
-                                                 {QStringLiteral("device_name"), QStringLiteral("Laptop")}});
+                                                 {QStringLiteral("device_name"), QStringLiteral("Laptop")},
+                                                 {QStringLiteral("turn_servers"),
+                                                  QJsonArray{QJsonObject{{QStringLiteral("urls"), QJsonArray{QStringLiteral("turn:hub.example.org:3478?transport=udp")}},
+                                                                         {QStringLiteral("username"), QStringLiteral("300:dev")},
+                                                                         {QStringLiteral("credential"), QStringLiteral("fresh")},
+                                                                         {QStringLiteral("expires_at"), QStringLiteral("2026-10-08T12:00:00Z")}}}}});
     hub.sendWs(QStringLiteral("viewer_left"), {{QStringLiteral("session_id"), kSession}, {QStringLiteral("viewer_id"), kViewer},
                                                {QStringLiteral("reason"), QStringLiteral("removed")}});
     hub.sendWs(QStringLiteral("signal"), {{QStringLiteral("session_id"), kSession}, {QStringLiteral("viewer_id"), kViewer},
@@ -199,6 +204,9 @@ class SessionsTest : public QObject {
     QCOMPARE(invited.count(), 1);
     QCOMPARE(ended.first().first().value<SessionEnded>().reason, QStringLiteral("replaced"));
     QCOMPARE(joined.first().first().value<ViewerJoined>().viewerId, kViewer);
+    // Fresh owner credentials ride on viewer_joined (turn_v1).
+    QCOMPARE(joined.first().first().value<ViewerJoined>().turnServers.size(), 1);
+    QCOMPARE(joined.first().first().value<ViewerJoined>().turnServers.first().credential, QStringLiteral("fresh"));
     QCOMPARE(left.first().first().value<ViewerLeft>().reason, QStringLiteral("removed"));
     const auto sig = signals_.first().first().value<SessionSignal>();
     QCOMPARE(sig.kind, QStringLiteral("candidate"));
@@ -216,6 +224,53 @@ class SessionsTest : public QObject {
     QCOMPARE(hub.wsReceived.at(2).value(QStringLiteral("payload")).toObject().value(QStringLiteral("game_id")).toString(), QStringLiteral("g1"));
     ws.stop();
     QCOMPARE(ws.state(), HubSocket::State::Stopped);
+  }
+
+  void turnServersInHelloAckAndJoinResponse() {
+    const auto turn = [](const QString& host, const QString& user) {
+      return QJsonObject{{QStringLiteral("urls"), QJsonArray{QStringLiteral("turn:%1:3478?transport=udp").arg(host),
+                                                              QStringLiteral("turn:%1:3478?transport=tcp").arg(host)}},
+                         {QStringLiteral("username"), user},
+                         {QStringLiteral("credential"), QStringLiteral("c-") + user},
+                         {QStringLiteral("expires_at"), QStringLiteral("2026-10-08T12:00:00Z")}};
+    };
+    FakeHub hub(QStringLiteral("a"));
+    hub.features = {QStringLiteral("saves_v1"), QStringLiteral("sessions_v1"), QStringLiteral("turn_v1")};
+    hub.helloTurnServers = QJsonArray{turn(QStringLiteral("hub.example.org"), QStringLiteral("100:dev")),
+                                      QJsonObject{{QStringLiteral("urls"), QJsonArray{QStringLiteral("turn:broken")}}}};  // dropped: no credentials
+    hub.joinTurnServers = QJsonArray{turn(QStringLiteral("192.168.1.2"), QStringLiteral("200:dev"))};
+    QVERIFY(hub.start());
+    connectTo(hub);
+    HubSocket ws(conn_.get());
+    QSignalSpy acked(&ws, &HubSocket::helloAcked);
+    ws.start();
+    QTRY_COMPARE_WITH_TIMEOUT(acked.count(), 1, 8000);
+    const HelloAck ack = ws.helloAck();
+    QCOMPARE(ack.turnServers.size(), 1);
+    QCOMPARE(ack.turnServers.first().urls, (QStringList{QStringLiteral("turn:hub.example.org:3478?transport=udp"),
+                                                         QStringLiteral("turn:hub.example.org:3478?transport=tcp")}));
+    QCOMPARE(ack.turnServers.first().username, QStringLiteral("100:dev"));
+    QCOMPARE(ack.turnServers.first().credential, QStringLiteral("c-100:dev"));
+    QCOMPARE(ack.turnServers.first().expiresAt, QStringLiteral("2026-10-08T12:00:00Z"));
+    ws.stop();
+
+    SessionApi api(conn_.get());
+    auto r = call([](SessionApi& a, auto cb) { a.publish(QStringLiteral("g-1"), QStringLiteral("hub_users"), cb); }, api);
+    QCOMPARE(r.kind, K::Ok);
+    const QString id = r.session->sessionId;
+    r = call([&](SessionApi& a, auto cb) { a.join(id, cb); }, api);
+    QCOMPARE(r.kind, K::Ok);
+    QCOMPARE(r.join->turnServers.size(), 1);
+    // The join response carries its own, fresher credentials: they win over the hello_ack ones (caller side rule).
+    QCOMPARE(r.join->turnServers.first().username, QStringLiteral("200:dev"));
+    QCOMPARE(r.join->turnServers.first().urls.first(), QStringLiteral("turn:192.168.1.2:3478?transport=udp"));
+    QVERIFY(r.join->turnServers != ack.turnServers);
+
+    // Without turn_servers (TURN off or a 0.3 Hub): empty lists, STUN servers as before.
+    hub.joinTurnServers = {};
+    r = call([&](SessionApi& a, auto cb) { a.join(id, cb); }, api);
+    QVERIFY(r.join->turnServers.isEmpty());
+    QCOMPARE(r.join->iceServers, QStringList{QStringLiteral("stun:stun.example.org:3478")});
   }
 
   void reconnectsWithBackoffAndRenewsRejectedToken() {

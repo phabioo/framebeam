@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://framebeam.invalid/schemas/ws-save-updated.schema.json",
+  "title": "ws-save-updated (Hub to the user's other devices, feature saves_v2)",
+  "type": "object",
+  "required": [
+    "type",
+    "payload"
+  ],
+  "properties": {
+    "type": {
+      "const": "save_updated"
+    },
+    "id": {
+      "type": "string"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "game_id",
+        "slot",
+        "revision",
+        "sha256",
+        "device_id",
+        "device_name",
+        "reason"
+      ],
+      "properties": {
+        "game_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "slot": {
+          "type": "string",
+          "pattern": "^[a-z0-9_-]{1,32}$"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "device_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "device_name": {
+          "type": "string"
+        },
+        "reason": {
+          "description": "SaveSyncReason of the new checkpoint, or conflict_resolution when a conflict resolution (use_local) changed it",
+          "enum": [
+            "checkpoint",
+            "final",
+            "final_session_end",
+            "restore",
+            "conflict_resolution"
+          ]
+        }
+      }
+    }
+  }
+}

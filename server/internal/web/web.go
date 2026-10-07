@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/framebeam/server/internal/turnsrv"
 )
 
 //go:embed templates/*.html
@@ -47,6 +48,8 @@ type Config struct {
 	CertNotAfter    time.Time
 	// MaxUploadBytes: limit for ROM uploads (0 = DefaultMaxUploadBytes).
 	MaxUploadBytes int64
+	// TURN is the embedded TURN server (nil: off), shown on the Settings page.
+	TURN *turnsrv.Server
 }
 
 // Server is the web interface.
@@ -108,6 +111,8 @@ func (s *Server) Register(mux *http.ServeMux) {
 	h("GET /saves/{user}/{game}/{slot}/download", s.guard(s.saveDownload))
 	h("GET /saves/{user}/{game}/{slot}/history/{version}/download", s.guard(s.saveHistoryDownload))
 	h("POST /saves/{user}/{game}/{slot}/conflicts/{id}/resolve", s.guard(s.saveResolve))
+	h("POST /saves/{user}/{game}/{slot}/history/{version}/restore", s.guard(s.saveRestore))
+	h("POST /saves/{user}/{game}/{slot}/snapshots", s.guard(s.saveSnapshot))
 	h("GET /clients", s.guard(s.clientsGet))
 	h("POST /clients/requests/{id}/allow", s.guard(s.clientAllow))
 	h("POST /clients/requests/{id}/deny", s.guard(s.clientDeny))
@@ -186,6 +191,8 @@ var flashTexts = map[string]string{
 	"name":          "Hub name saved.",
 	"password":      "Password changed.",
 	"resolved":      "Conflict resolved.",
+	"restored":      "Version restored as the new current checkpoint. The previous checkpoint is in the history.",
+	"snapshot":      "Snapshot created.",
 	"disabled":      "User disabled. Their devices are signed out and their Sessions ended.",
 	"enabled":       "User enabled.",
 	"revoked":       "Invite revoked.",
@@ -204,6 +211,7 @@ var flashTexts = map[string]string{
 
 var errTexts = map[string]string{
 	"stale":          "The slot changed in the meantime or the conflict was already resolved. Please review and decide again.",
+	"label":          "The snapshot label must be at most 64 characters.",
 	"admin":          "Admins cannot be disabled.",
 	"nouser":         "User not found.",
 	"noinvite":       "The invite is no longer active.",

@@ -60,6 +60,7 @@ bool SessionCommands::share(const QStringList& args) {
     else if (args[i] == QLatin1String("--game") && i + 1 < args.size()) gameId_ = args[++i];
     else if (args[i] == QLatin1String("--visibility") && i + 1 < args.size()) visibility_ = args[++i];
     else if (args[i] == QLatin1String("--seconds") && i + 1 < args.size()) seconds_ = args[++i].toInt();
+    else if (args[i] == QLatin1String("--force-relay")) forceRelay_ = true;
     else {
       err() << "Unknown option " << args[i] << "\n";
       return false;
@@ -77,6 +78,9 @@ bool SessionCommands::share(const QStringList& args) {
     gameId_ = library_->games().first().id;
   }
   host_ = std::make_unique<SessionHost>();
+  if (forceRelay_) {
+    host_->setForceRelay(true);
+  }
   connect(host_.get(), &SessionHost::errorOccurred, this, [](const QString& m) { err() << "Host: " << m << "\n"; });
   connect(host_.get(), &SessionHost::viewerConnected, this, [](const QString& v) {
     out() << "VIEWER-CONNECTED " << v << "\n";
@@ -93,13 +97,13 @@ void SessionCommands::publish() {
       return;
     }
     sessionId_ = r.session->sessionId;
-    host_->open(sessionId_, socket_->helloAck().iceServers);
+    host_->open(sessionId_, socket_->helloAck().iceServers, socket_->helloAck().turnServers);
     connect(host_.get(), &SessionHost::signalOut, socket_.get(), &HubSocket::sendSignal);
     connect(socket_.get(), &HubSocket::viewerJoined, host_.get(), [this](const ViewerJoined& v) {
       if (v.sessionId == sessionId_) {
         out() << "VIEWER-JOINED " << v.viewerId << " " << v.displayName << "\n";
         out().flush();
-        host_->addViewer(v.viewerId);
+        host_->addViewer(v.viewerId, v.turnServers);
       }
     });
     connect(socket_.get(), &HubSocket::viewerLeft, host_.get(), [this](const ViewerLeft& v) {
@@ -149,17 +153,22 @@ void SessionCommands::feedSynthetic() {
 void SessionCommands::shareTick() {
   ++elapsed_;
   const SessionStats st = host_->stats();
+  if (!st.connectionType.isEmpty()) {
+    lastConnection_ = st.connectionType;
+  }
   out() << "STATS host viewers=" << st.viewers << " encoder=" << (st.encoderName.isEmpty() ? QStringLiteral("-") : st.encoderName)
         << " fps=" << QString::number(st.fps, 'f', 1) << " video_kbps=" << QString::number(st.videoBitrateKbps, 'f', 0)
         << " audio_kbps=" << QString::number(st.audioBitrateKbps, 'f', 0) << " rtt_ms="
         << (st.rttMs ? QString::number(*st.rttMs, 'f', 1) : QStringLiteral("n/a")) << " link="
-        << (st.connectionType.isEmpty() ? QStringLiteral("-") : st.connectionType) << "\n";
+        << (st.connectionType.isEmpty() ? QStringLiteral("-") : QString(st.connectionType).replace(QLatin1Char(' '), QLatin1Char('_')))
+        << " target_kbps=" << QString::number(st.targetBitrateKbps, 'f', 0) << "\n";
   out().flush();
   if (seconds_ > 0 && elapsed_ >= seconds_) {
     source_.stop();
     ticker_.stop();
     host_->close();
     ending_ = true;  // our own DELETE: its session_ended event must not race the SHARE-DONE line
+    out() << "CONNECTION " << (lastConnection_.isEmpty() ? QStringLiteral("unknown") : lastConnection_) << "\n";
     api_->end(sessionId_, [this](const SessionApiResult& r) {
       out() << "SHARE-DONE " << (r.ok() ? "ended" : r.errorCode) << "\n";
       out().flush();
@@ -175,6 +184,7 @@ bool SessionCommands::watch(const QStringList& args) {
     if (args[i] == QLatin1String("--first")) first_ = true;
     else if (args[i] == QLatin1String("--session") && i + 1 < args.size()) sessionId_ = args[++i];
     else if (args[i] == QLatin1String("--seconds") && i + 1 < args.size()) seconds_ = args[++i].toInt();
+    else if (args[i] == QLatin1String("--force-relay")) forceRelay_ = true;
     else {
       err() << "Unknown option " << args[i] << "\n";
       return false;
@@ -188,6 +198,9 @@ bool SessionCommands::watch(const QStringList& args) {
     seconds_ = 10;
   }
   viewer_ = std::make_unique<SessionViewer>();
+  if (forceRelay_) {
+    viewer_->setForceRelay(true);
+  }
   connect(viewer_.get(), &SessionViewer::errorOccurred, this, [](const QString& m) { err() << "Viewer: " << m << "\n"; });
   connect(viewer_.get(), &SessionViewer::frameReady, this, [this](const QImage&) { ++framesSeen_; });
   // The owner may offer before the join response reaches us: keep early signals until the viewer exists.
@@ -259,7 +272,8 @@ void SessionCommands::join(const QString& sessionId) {
     }
     viewerId_ = r.join->viewerId;
     connect(viewer_.get(), &SessionViewer::signalOut, socket_.get(), &HubSocket::sendSignal);
-    viewer_->open(sessionId_, viewerId_, r.join->iceServers.isEmpty() ? socket_->helloAck().iceServers : r.join->iceServers);
+    viewer_->open(sessionId_, viewerId_, r.join->iceServers.isEmpty() ? socket_->helloAck().iceServers : r.join->iceServers,
+                  r.join->turnServers.isEmpty() ? socket_->helloAck().turnServers : r.join->turnServers);
     joining_ = false;
     const QList<SessionSignal> early = std::exchange(earlySignals_, {});
     for (const SessionSignal& s : early) {
@@ -277,9 +291,12 @@ void SessionCommands::join(const QString& sessionId) {
 void SessionCommands::watchTick() {
   ++elapsed_;
   const SessionStats st = viewer_->stats();
+  if (!st.connectionType.isEmpty()) {
+    lastConnection_ = st.connectionType;
+  }
   out() << "STATS viewer frames=" << st.videoFrames << " audio_frames=" << st.audioFrames << " fps=" << QString::number(st.fps, 'f', 1)
         << " video_kbps=" << QString::number(st.videoBitrateKbps, 'f', 0) << " rtt_ms="
-        << (st.rttMs ? QString::number(*st.rttMs, 'f', 1) : QStringLiteral("n/a")) << " link=" << st.connectionType << " loss="
+        << (st.rttMs ? QString::number(*st.rttMs, 'f', 1) : QStringLiteral("n/a")) << " link=" << (st.connectionType.isEmpty() ? QStringLiteral("-") : QString(st.connectionType).replace(QLatin1Char(' '), QLatin1Char('_'))) << " loss="
         << (st.packetLossPercent ? QString::number(*st.packetLossPercent, 'f', 2) + QStringLiteral("%") : QStringLiteral("n/a"))
         << " size=" << st.width << "x" << st.height << "\n";
   out().flush();
@@ -289,6 +306,7 @@ void SessionCommands::watchTick() {
   ticker_.stop();
   sink_.stop();
   const SessionStats fin = viewer_->stats();
+  out() << "CONNECTION " << (lastConnection_.isEmpty() ? QStringLiteral("unknown") : lastConnection_) << "\n";
   const bool good = fin.videoFrames >= 30 && fin.audioFrames > 0 && viewer_->audioPeak() > 0;
   out() << (good ? "WATCH-OK" : "WATCH-FAIL") << " frames=" << fin.videoFrames << " audio_frames=" << fin.audioFrames
         << " audio_peak=" << viewer_->audioPeak() << " size=" << fin.width << "x" << fin.height << "\n";

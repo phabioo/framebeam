@@ -249,6 +249,9 @@ table.list tr.muted td { color: var(--text-faint); }
 .timeline li:last-child::before { display: none; }
 .timeline .node { width: 15px; height: 15px; border-radius: 50%; border: 2px solid var(--border-dashed); background: var(--surface); margin-top: 2px; }
 .timeline li.current .node { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 3px var(--warn-bg); }
+.timeline .tl-actions { display: flex; gap: 8px; align-items: center; }
+.snap-label { color: var(--text-muted, inherit); font-style: italic; }
+.save-snapshot { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 12px 0; }
 .btn-link.plain { color: var(--text); text-decoration: underline; font-size: 13px; }
 
 @media (max-width: 800px) {

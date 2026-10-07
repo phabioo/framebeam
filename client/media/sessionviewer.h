@@ -10,6 +10,7 @@
 #include <atomic>
 #include <memory>
 
+#include "bitratecontroller.h"
 #include "mediastats.h"
 #include "opuscodec.h"
 #include "sessiontypes.h"
@@ -39,7 +40,12 @@ class SessionViewer : public QObject {
   ~SessionViewer() override;
 
   // After the REST join: signaling for (sessionId, viewerId) is accepted from now on.
-  void open(const QString& sessionId, const QString& viewerId, const QStringList& iceServers);
+  // `turnServers`: relay credentials from the join response / hello_ack (ADR 0012 D3-D5).
+  void open(const QString& sessionId, const QString& viewerId, const QStringList& iceServers,
+            const QList<TurnServer>& turnServers = {});
+  // ICE transport policy "relay" for the PeerConnection created from now on (default: FRAMEBEAM_FORCE_RELAY=1).
+  void setForceRelay(bool force) { forceRelay_ = force; }
+  bool forceRelay() const { return forceRelay_; }
   // Leave / Session ended / viewer removed: closes the PeerConnection immediately.
   void close();
   bool isOpen() const { return open_; }
@@ -72,11 +78,15 @@ class SessionViewer : public QObject {
   void onVideoFrame(QByteArray data);
   void onAudioFrame(QByteArray data);
   void updateStats();
+  void sendRxReport(double videoKbps);
   void teardown();
 
   QString sessionId_;
   QString viewerId_;
   QStringList iceServers_;
+  QList<TurnServer> turnServers_;
+  bool forceRelay_ = false;
+  bool relayTcpOnly_ = false;
   bool open_ = false;
   unsigned pcGen_ = 0;  // UI thread only; bumped by teardown()
   bool connected_ = false;
@@ -107,6 +117,7 @@ class SessionViewer : public QObject {
   int decodeErrors_ = 0;
   int pliCount_ = 0;
   int width_ = 0, height_ = 0;
+  int64_t lastExpected_ = 0, lastReceived_ = 0;  // RTP counters at the previous rx report
   SessionStats stats_;
   ViewerLinkStats link_;
 };

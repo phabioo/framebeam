@@ -116,6 +116,7 @@ class LoopbackTest : public QObject {
     Rig rig;
     QSignalSpy encoderSpy(&rig.host, &SessionHost::encoderRunningChanged);
     QSignalSpy closedSpy(&rig.host, &SessionHost::viewerClosed);
+    QSignalSpy rxSpy(&rig.host, &SessionHost::rxReportReceived);
     SessionViewer* viewer = rig.addViewer();
 
     int frames = 0, wrongSize = 0, nonSilentPulls = 0;
@@ -176,7 +177,10 @@ class LoopbackTest : public QObject {
     QVERIFY(!hs.packetLossPercent.has_value());
     QVERIFY2(vs.fps > 20.0, qPrintable(QString::number(vs.fps)));
     QCOMPARE(vs.width, kW);
-    QVERIFY2(vs.connectionType == QLatin1String("host") || vs.connectionType == QLatin1String("srflx"), qPrintable(vs.connectionType));
+    QVERIFY2(vs.connectionType.startsWith(QLatin1String("direct (")), qPrintable(vs.connectionType));
+    QVERIFY2(rig.host.viewerLinks().first().connectionType.startsWith(QLatin1String("direct (")),
+             qPrintable(rig.host.viewerLinks().first().connectionType));
+    QCOMPARE(hs.targetBitrateKbps, 2000.0);
     QVERIFY(vs.audioFrames > 0);
     QVERIFY(rig.host.viewerLinks().size() == 1);
 
@@ -186,6 +190,11 @@ class LoopbackTest : public QObject {
                             .arg(rig.host.stats().rttMs ? QString::number(*rig.host.stats().rttMs) : QStringLiteral("n/a"))
                             .arg(viewer->stats().rttMs ? QString::number(*viewer->stats().rttMs) : QStringLiteral("n/a"))));
     QVERIFY(rig.host.viewerLinks().first().rttMs.has_value());
+    // Bitrate adaptation input: the viewer reports loss and received rate once a second over fb-diag.
+    QVERIFY2(QTest::qWaitFor([&]() { return rxSpy.count() >= 1; }, 5000), "no rx report reached the host");
+    QVERIFY(rxSpy.first().at(0).toString() == rig.ids.first());
+    QVERIFY(rxSpy.first().at(1).toDouble() >= 0.0 && rxSpy.first().at(1).toDouble() <= 1.0);
+    QVERIFY(rig.host.stats().targetBitrateKbps >= 300.0);
     QVERIFY(viewer->link().rttMs.has_value());
     QVERIFY2(*rig.host.stats().rttMs >= 0.0 && *rig.host.stats().rttMs < 1000.0, qPrintable(QString::number(*rig.host.stats().rttMs)));
 

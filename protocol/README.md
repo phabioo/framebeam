@@ -25,6 +25,8 @@ Shared protocol definition for Hub and Player (`openapi/`, `schemas/`). Rules: `
 | GET | `/api/v1/games/{game_id}/saves/{slot}/content` | Bearer | downloadSaveContent (ETag, `X-FrameBeam-Save-Revision`) |
 | GET | `/api/v1/games/{game_id}/saves/{slot}/history` | Bearer | listSaveHistory |
 | GET | `/api/v1/games/{game_id}/saves/{slot}/history/{version}/content` | Bearer | downloadSaveHistoryContent |
+| POST | `/api/v1/games/{game_id}/saves/{slot}/history/{version}/restore` | Bearer | restoreSaveHistoryVersion (`{expected_revision}`, 200 SaveSlot, 409 `save_conflict_stale`; `saves_v2`) |
+| POST | `/api/v1/games/{game_id}/saves/{slot}/snapshots` | Bearer | createSaveSnapshot (optional `{label}`, 201 SaveHistoryVersion, 404 without checkpoint; `saves_v2`) |
 | POST | `/api/v1/games/{game_id}/saves/{slot}/conflicts/{conflict_id}/resolve` | Bearer | resolveSaveConflict (409 `save_conflict_stale`) |
 | GET | `/api/v1/users` | Bearer | listUsers (`{id, display_name, online}` for the invite field) |
 | GET | `/api/v1/sessions` | Bearer | listSessions (Sessions the caller may join or owns, plus inviting) |
@@ -35,12 +37,14 @@ Shared protocol definition for Hub and Player (`openapi/`, `schemas/`). Rules: `
 | PUT | `/api/v1/sessions/{session_id}/invites/{user_id}` | Bearer (owner device) | inviteSessionUser |
 | DELETE | `/api/v1/sessions/{session_id}/invites/{user_id}` | Bearer (owner device) | withdrawSessionInvite (removes that user's viewers) |
 | POST | `/api/v1/sessions/{session_id}/decline` | Bearer (invited user) | declineSession |
-| POST | `/api/v1/sessions/{session_id}/join` | Bearer | joinSession (`{viewer_id, permissions, ice_servers}`; 409 `session_full` / `capability_missing` without H.264 decode) |
+| POST | `/api/v1/sessions/{session_id}/join` | Bearer | joinSession (`{viewer_id, permissions, ice_servers, turn_servers?}`; 409 `session_full` / `capability_missing` without H.264 decode) |
 | DELETE | `/api/v1/sessions/{session_id}/viewers/{viewer_id}` | Bearer (owner device or that viewer) | removeSessionViewer |
 | POST | `/api/v1/invites/redeem` | none | redeemInvite |
 | POST | `/api/v1/games` | Bearer | uploadGame (raw body, 403 `uploads_disabled`) |
 | GET | `/api/v1/systems` | Bearer | listSystems |
 | GET | `/api/v1/systems/{system_id}/firmware/{file_id}` | Bearer | getFirmwareFile (ETag) |
+| GET | `/api/v1/cores/index` | Bearer | getCoresIndex (raw signed bytes, 404 `core_package_not_found` without verified index; `cores_index_v1`) |
+| GET | `/api/v1/cores/index.sig` | Bearer | getCoresIndexSignature (text/plain `ed25519 <key_id> <base64>`; `cores_index_v1`) |
 | GET | `/api/v1/cores/{core_id}/packages/{version}/{platform}` | Bearer | getCorePackage |
 | GET | `/api/v1/cores/{core_id}/packages/{version}/{platform}/files/{name}` | Bearer | getCorePackageFile (ETag, 304) |
 | GET | `/api/v1/ws` | Bearer | connectWebSocket (WSS upgrade, documentation only) |
@@ -58,12 +62,13 @@ Envelope `{type, id?, payload}` (JSON text frames); schema `schemas/ws-<type>.sc
 | Type | Direction | Purpose |
 |---|---|---|
 | `hello` | Player -> Hub | `{protocol_version, device_id}`, first message |
-| `hello_ack` | Hub -> Player | `{protocol_version, hub_version, features, ice_servers}` |
+| `hello_ack` | Hub -> Player | `{protocol_version, hub_version, features, ice_servers, turn_servers?}` (`turn_servers` only while TURN is on, feature `turn_v1`) |
 | `presence_update` | both | Player: `{state: online\|in_game, game_id?}`; Hub: plus `user_id`, `device_id`, state may be `offline` |
 | `session_update` | Hub -> Player | `{session}` created/changed, personalised, to every device that may see the Session |
+| `save_updated` | Hub -> Player | `{game_id, slot, revision, sha256, device_id, device_name, reason}` a slot's checkpoint changed; to the user's other connected devices (feature `saves_v2`); `reason` is `checkpoint`, `final`, `final_session_end`, `restore` or `conflict_resolution`; `device_id` is the nil UUID for changes made in the Hub web interface |
 | `session_ended` | Hub -> Player | `{session_id, reason}` |
 | `session_invite` | Hub -> Player | `{session}` for the invited user's devices |
-| `viewer_joined` | Hub -> owner device | `{session_id, viewer_id, display_name, device_name}` |
+| `viewer_joined` | Hub -> owner device | `{session_id, viewer_id, display_name, device_name, turn_servers?}` (`turn_servers`: fresh relay credentials for the owner while TURN is on) |
 | `viewer_left` | Hub -> owner and viewer device | `{session_id, viewer_id, reason: left\|removed\|revoked\|disconnected}` |
 | `signal` | both | `{session_id, viewer_id, kind: offer\|answer\|candidate, sdp?, candidate?, mid?}` relayed unchanged between owner device and the authorized viewer's device |
 | `error` | Hub -> Player | `{code, message}`, `id` echoes the request |
@@ -104,3 +109,5 @@ Schema 1:
 - Artifact URLs must be https (`file://` only when the index itself was loaded from `file://`, for tests). Integrity comes from size and SHA-256 in the signed index.
 - Unknown fields are ignored, an unknown schema is an error, invalid releases are skipped and reported, a duplicate (product, channel, version) rejects the whole index.
 - Versions are SemVer 2.0; a consumer picks the highest release of its product, channel, platform and kind that is strictly newer than the running version and protocol-compatible. Maintained with `framebeam-sign release-add` (newest 5 per product and channel).
+
+0.4 "Internet sessions and save comfort" (OpenAPI 1.5.0, ADR 0012, `protocol_version` stays 1). Added: handshake features `turn_v1`, `saves_v2`, `cores_index_v1`; optional `turn_servers` (`TurnServer`) in `hello_ack` and `SessionJoinResponse`; `restoreSaveHistoryVersion`, `createSaveSnapshot`, optional nullable `SaveHistoryVersion.label`, `SaveSyncReason` `restore`, `SaveHistoryReason` `before_restore`; `getCoresIndex`, `getCoresIndexSignature`; WSS message `save_updated`.

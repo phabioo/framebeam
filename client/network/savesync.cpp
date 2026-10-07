@@ -6,6 +6,7 @@
 #include <QFileInfo>
 #include <QLoggingCategory>
 #include <algorithm>
+#include <memory>
 
 namespace framebeam {
 
@@ -61,6 +62,38 @@ QString SaveSync::note() const {
   return available() ? QString() : tr("Save sync is off: Hub user unknown");
 }
 
+bool SaveSync::hubSupportsSavesV2() const {
+  return hubSupportsSaves() && conn_->hubHasFeature(QString::fromLatin1(kSavesV2Feature));
+}
+
+QString SaveSync::slotFor(const QString& gameId) const {
+  const QString hubId = conn_->hubId();
+  if (settings_ != nullptr) {
+    return settings_->saveSlot(hubId, gameId);
+  }
+  return memorySlots_.value(hubId + QLatin1Char('/') + gameId, QStringLiteral("default"));
+}
+
+bool SaveSync::setSlot(const QString& gameId, const QString& slot) {
+  if (!SaveStore::isValidSlotName(slot) || gameId.isEmpty()) {
+    return false;
+  }
+  const QString hubId = conn_->hubId();
+  if (settings_ != nullptr) {
+    if (!settings_->setSaveSlot(hubId, gameId, slot)) {
+      return false;
+    }
+  } else {
+    memorySlots_.insert(hubId + QLatin1Char('/') + gameId, slot);
+  }
+  refreshKinds({gameId});
+  return true;
+}
+
+QString SaveSync::slotDirFor(const QString& gameId, const QString& slot) const {
+  return SaveStore::slotDir(*profiles_, conn_->hubId(), conn_->hubUserId(), gameId, slot);
+}
+
 bool SaveSync::sameHub(const QString& hubId) const {
   return conn_->state() == HubConnection::State::Connected && !hubId.isEmpty() && conn_->hubId() == hubId;
 }
@@ -97,7 +130,7 @@ void SaveSync::refreshKinds(const QStringList& gameIds) {
   for (const QString& id : gameIds) {
     Kind k = Kind::None;
     if (on) {
-      const QString dir = SaveStore::gameDir(*profiles_, conn_->hubId(), conn_->hubUserId(), id);
+      const QString dir = slotDirFor(id, slotFor(id));
       if (!dir.isEmpty() && QFileInfo::exists(SaveStore::stateFilePath(dir))) {
         const SyncState st = SaveStore::loadState(dir);
         const bool hasFile = !SaveStore::findSaveFile(dir, QString()).isEmpty();
@@ -129,7 +162,8 @@ void SaveSync::prepareStart(const QString& gameId, const QString& romPath, const
   a_.romPath = romPath;
   a_.hubId = conn_->hubId();
   a_.userId = conn_->hubUserId();
-  a_.dir = SaveStore::gameDir(*profiles_, a_.hubId, a_.userId, gameId);
+  a_.slot = slotFor(gameId);
+  a_.dir = SaveStore::slotDir(*profiles_, a_.hubId, a_.userId, gameId, a_.slot);
   const quint64 gen = gen_;
   if (a_.dir.isEmpty()) {
     QTimer::singleShot(0, this, [this, gen, gameId]() {
@@ -147,8 +181,10 @@ void SaveSync::prepareStart(const QString& gameId, const QString& romPath, const
     qCWarning(lcSaveSync) << w;
   }
   a_.st = SaveStore::loadState(a_.dir);
+  a_.st.slot = a_.slot;  // pre-0.4 sync.json files have no slot choice: they belong to "default"
   if (a_.file.isEmpty()) {
-    if (SaveStore::migrateLegacy(SaveStore::legacyDir(*profiles_, a_.hubId), romBasenames, a_.dir, a_.expectedName)) {
+    if (a_.slot == QLatin1String("default") &&
+        SaveStore::migrateLegacy(SaveStore::legacyDir(*profiles_, a_.hubId), romBasenames, a_.dir, a_.expectedName)) {
       qCInfo(lcSaveSync) << "Legacy save copied into the per-user save directory";
       a_.st = SyncState{};
       a_.st.pending = true;  // counts as an unsynced local change (base 0)
@@ -701,35 +737,47 @@ void SaveSync::retryPending() {
     return;
   }
   const QString base = SaveStore::userSavesDir(*profiles_, conn_->hubId(), conn_->hubUserId());
-  QStringList dirs;
-  for (const QString& name : QDir(base).entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
-    if (session_ && name == a_.gameId) {
-      continue;  // the running game is handled by its own watcher
+  QList<RetryItem> items;
+  const auto consider = [&](const QString& gameId, const QString& slot, const QString& dir) {
+    if (session_ && gameId == a_.gameId && slot == a_.slot) {
+      return;  // the running game is handled by its own watcher
     }
-    const QString dir = QDir(base).filePath(name);
     const SyncState st = SaveStore::loadState(dir);
     if (st.pending && st.conflictId.isEmpty()) {
-      dirs.append(dir);
+      items.append({gameId, slot, dir});
+    }
+  };
+  for (const QString& name : QDir(base).entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+    const QString dir = QDir(base).filePath(name);
+    consider(name, QStringLiteral("default"), dir);
+    for (const QString& slot : SaveStore::localSlots(dir)) {
+      if (slot != QLatin1String("default")) {
+        consider(name, slot, SaveStore::slotDirIn(dir, slot));
+      }
     }
   }
-  if (dirs.isEmpty()) {
+  if (items.isEmpty()) {
     retryBackoffMs_ = 0;
     return;
   }
   retryRunning_ = true;
-  retryNext(dirs);
+  retryNext(items);
 }
 
-void SaveSync::retryNext(QStringList dirs) {
-  if (dirs.isEmpty() || !available()) {
+void SaveSync::retryNext(QList<RetryItem> items) {
+  if (items.isEmpty() || !available()) {
     retryRunning_ = false;
     retryBackoffMs_ = 0;
     return;
   }
   const QString hubId = conn_->hubId();
-  const QString dir = dirs.takeFirst();
-  const QString gameId = QFileInfo(dir).fileName();
+  const RetryItem item = items.takeFirst();
+  const QString dir = item.dir;
+  const QString gameId = item.gameId;
+  const QString slot = item.slot;
+  const bool chosen = slot == slotFor(gameId);  // the library badge shows the chosen slot only
   SyncState st = SaveStore::loadState(dir);
+  st.slot = slot;
   const QString file = SaveStore::findSaveFile(dir, QString());
   const QByteArray data = [&]() {
     QFile f(file);
@@ -738,20 +786,24 @@ void SaveSync::retryNext(QStringList dirs) {
   if (file.isEmpty()) {
     st.pending = false;
     SaveStore::saveState(dir, st);
-    setKind(gameId, st, false);
-    retryNext(dirs);
+    if (chosen) {
+      setKind(gameId, st, false);
+    }
+    retryNext(items);
     return;
   }
   const QString sha = SaveStore::sha256Of(data);
   if (sha == st.lastSyncedSha256) {
     st.pending = false;
     SaveStore::saveState(dir, st);
-    setKind(gameId, st, true);
-    retryNext(dirs);
+    if (chosen) {
+      setKind(gameId, st, true);
+    }
+    retryNext(items);
     return;
   }
-  api_.putSave(gameId, st.slot, data, st.baseRevision, QStringLiteral("checkpoint"),
-               [this, hubId, dir, gameId, sha, st, dirs](const SaveApiResult& r) mutable {
+  api_.putSave(gameId, slot, data, st.baseRevision, QStringLiteral("checkpoint"),
+               [this, hubId, dir, gameId, chosen, sha, st, items](const SaveApiResult& r) mutable {
                  using K = SaveApiResult::Kind;
                  if (!sameHub(hubId)) {
                    retryRunning_ = false;  // never continue against another Hub
@@ -763,12 +815,16 @@ void SaveSync::retryNext(QStringList dirs) {
                    st.pending = false;
                    st.lastError.clear();
                    SaveStore::saveState(dir, st);
-                   setKind(gameId, st, true);
+                   if (chosen) {
+                     setKind(gameId, st, true);
+                   }
                    emit uploaded(gameId, st.baseRevision);
                  } else if (r.kind == K::Conflict) {
                    st.conflictId = r.conflict->id;
                    SaveStore::saveState(dir, st);
-                   setKind(gameId, st, true);
+                   if (chosen) {
+                     setKind(gameId, st, true);
+                   }
                  } else if (r.kind == K::Offline) {
                    retryRunning_ = false;
                    scheduleRetry();
@@ -777,8 +833,199 @@ void SaveSync::retryNext(QStringList dirs) {
                    st.lastError = r.errorCode;
                    SaveStore::saveState(dir, st);
                  }
-                 retryNext(dirs);
+                 retryNext(items);
                });
+}
+
+// ---------------------------------------------------------------- Save comfort (saves_v2): restore, snapshots, push
+
+QString SaveSync::pendingReason(const QString& gameId, const QString& slot) const {
+  if (isRunning(gameId, slot)) {
+    return tr("This game is running on this Player.");
+  }
+  const QString dir = slotDirFor(gameId, slot);
+  if (dir.isEmpty()) {
+    return tr("The save directory for this game is unknown.");
+  }
+  const SyncState st = SaveStore::loadState(dir);
+  if (!st.conflictId.isEmpty()) {
+    return tr("This slot has an open save conflict. Resolve it first.");
+  }
+  if (st.pending) {
+    return tr("This slot has local changes that are not uploaded yet.");
+  }
+  const QString file = SaveStore::findSaveFile(dir, QString());
+  if (!file.isEmpty() && SaveStore::sha256OfFile(file) != st.lastSyncedSha256) {
+    return tr("This slot has local changes that are not uploaded yet.");
+  }
+  return {};
+}
+
+void SaveSync::restoreVersion(const QString& gameId, const QString& slot, int version, int expectedRevision,
+                              const QString& localFileName, RestoreCallback cb) {
+  using RK = RestoreResult::Outcome;
+  const auto finish = [this, cb](RK kind, const QString& message, int revision = 0, bool local = false) {
+    RestoreResult r;
+    r.kind = kind;
+    r.message = message;
+    r.revision = revision;
+    r.localUpdated = local;
+    QTimer::singleShot(0, this, [cb, r]() { cb(r); });
+  };
+  if (!hubSupportsSavesV2() || !available()) {
+    finish(RK::Failed, tr("The Hub does not support restoring saves."));
+    return;
+  }
+  if (const QString why = pendingReason(gameId, slot); !why.isEmpty()) {
+    finish(RK::Blocked, why);
+    return;
+  }
+  const QString hubId = conn_->hubId();
+  api_.restore(gameId, slot, version, expectedRevision, [=, this](const SaveApiResult& r) {
+    using K = SaveApiResult::Kind;
+    if (!sameHub(hubId)) {
+      cb({RK::Failed, tr("The Hub connection changed."), 0, false});
+      return;
+    }
+    switch (r.kind) {
+      case K::Ok:
+        break;
+      case K::Stale:
+        cb({RK::Stale, tr("The save changed on the Hub in the meantime. Nothing was restored."), 0, false});
+        return;
+      case K::NotFound:
+        cb({RK::NotFound, tr("That version no longer exists on the Hub."), 0, false});
+        return;
+      case K::Offline:
+        cb({RK::Offline, tr("Hub not reachable. Nothing was changed."), 0, false});
+        return;
+      default:
+        cb({RK::Failed, tr("The version could not be restored (%1). Nothing was changed.").arg(r.errorCode.isEmpty() ? QString::number(r.status) : r.errorCode),
+            0, false});
+        return;
+    }
+    const int newRevision = r.slot->current.revision;
+    // The Hub restored. Replace the local save of the slot by the new checkpoint (download); nothing unsynced exists here.
+    const QString dir = slotDirFor(gameId, slot);
+    if (dir.isEmpty() || (SaveStore::findSaveFile(dir, QString()).isEmpty() && localFileName.isEmpty())) {
+      cb({RK::Ok, QString(), newRevision, false});  // no local file: the next start downloads the checkpoint
+      return;
+    }
+    api_.getContent(gameId, slot, [=, this](const SaveApiResult& cr) {
+      if (!sameHub(hubId) || pendingReason(gameId, slot).isEmpty() == false) {
+        cb({RK::Ok, QString(), newRevision, false});  // something started meanwhile: leave the local save to the next sync
+        return;
+      }
+      if (!cr.ok()) {
+        cb({RK::Ok, tr("Restored on the Hub; the local save will be updated at the next start."), newRevision, false});
+        return;
+      }
+      QDir().mkpath(dir);
+      QString file = SaveStore::findSaveFile(dir, localFileName);
+      if (file.isEmpty()) {
+        file = QDir(dir).filePath(localFileName);
+      }
+      if (QFileInfo(file).isFile() && SaveStore::backupFile(file, QStringLiteral("restore")).isEmpty()) {
+        cb({RK::Ok, tr("Restored on the Hub; the local save could not be backed up and stays unchanged until the next start."),
+            newRevision, false});
+        return;
+      }
+      if (!SaveStore::atomicWrite(file, cr.content)) {
+        cb({RK::Ok, tr("Restored on the Hub; the local save could not be written."), newRevision, false});
+        return;
+      }
+      SyncState st = SaveStore::loadState(dir);
+      st.slot = slot;
+      st.baseRevision = cr.contentRevision;
+      st.lastSyncedSha256 = SaveStore::sha256Of(cr.content);
+      st.pending = false;
+      st.conflictId.clear();
+      st.lastError.clear();
+      SaveStore::saveState(dir, st);
+      if (slot == slotFor(gameId)) {
+        setKind(gameId, st, true);
+      }
+      cb({RK::Ok, QString(), cr.contentRevision, true});
+    });
+  });
+}
+
+namespace {
+SaveSnapshotResult snapshotResultOf(const SaveApiResult& r) {
+  using K = SaveApiResult::Kind;
+  using SK = SaveSnapshotResult::Outcome;
+  SaveSnapshotResult out;
+  switch (r.kind) {
+    case K::Ok:
+      out.kind = SK::Ok;
+      out.version = *r.snapshot;
+      break;
+    case K::NotFound:
+      out.kind = SK::NotFound;
+      out.message = QObject::tr("There is no save on the Hub yet, so there is nothing to snapshot.");
+      break;
+    case K::Offline:
+      out.kind = SK::Offline;
+      out.message = QObject::tr("Hub not reachable. No snapshot was created.");
+      break;
+    default:
+      out.kind = SK::Failed;
+      out.message = QObject::tr("The snapshot could not be created (%1).").arg(r.errorCode.isEmpty() ? QString::number(r.status) : r.errorCode);
+      break;
+  }
+  return out;
+}
+}  // namespace
+
+void SaveSync::createSnapshot(const QString& gameId, const QString& slot, const QString& label, SnapshotCallback cb) {
+  if (!hubSupportsSavesV2() || !available()) {
+    QTimer::singleShot(0, this, [cb]() {
+      SnapshotResult r;
+      r.message = tr("The Hub does not support snapshots.");
+      cb(r);
+    });
+    return;
+  }
+  api_.createSnapshot(gameId, slot, label, [cb](const SaveApiResult& r) { cb(snapshotResultOf(r)); });
+}
+
+void SaveSync::snapshotActive(const QString& label, SnapshotCallback cb) {
+  if (!session_ || a_.gameId.isEmpty() || !hubSupportsSavesV2() || !available()) {
+    QTimer::singleShot(0, this, [cb]() {
+      SnapshotResult r;
+      r.kind = SnapshotResult::Outcome::Blocked;
+      r.message = tr("No snapshot is possible right now.");
+      cb(r);
+    });
+    return;
+  }
+  const QString gameId = a_.gameId;
+  const QString slot = a_.slot;
+  auto conn = std::make_shared<QMetaObject::Connection>();
+  *conn = connect(this, &SaveSync::finalSyncFinished, this, [this, conn, gameId, slot, label, cb](const QString& id, bool ok) {
+    if (!id.isEmpty() && id != gameId) {
+      return;
+    }
+    disconnect(*conn);
+    if (id.isEmpty() || !ok) {
+      SnapshotResult r;
+      r.kind = SnapshotResult::Outcome::Failed;
+      r.message = tr("The current save could not be uploaded, so no snapshot was created.");
+      cb(r);
+      return;
+    }
+    createSnapshot(gameId, slot, label, cb);
+  });
+  finalSync(false);  // existing final-sync path: uploads a changed save immediately
+}
+
+void SaveSync::handleSaveUpdate(const SaveUpdate& u) {
+  // The Hub web interface reports the nil UUID with device_name "Hub web interface": never "this device".
+  const bool nilDevice = u.deviceId == QLatin1String("00000000-0000-0000-0000-000000000000");
+  if (!nilDevice && !conn_->deviceId().isEmpty() && u.deviceId == conn_->deviceId()) {
+    return;  // our own change
+  }
+  emit saveChangedElsewhere(u, isRunning(u.gameId, u.slot));
 }
 
 }  // namespace framebeam
