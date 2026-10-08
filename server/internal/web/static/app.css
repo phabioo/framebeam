@@ -190,6 +190,8 @@ a { color: inherit; }
 .btn:hover { border-color: var(--text-faint); }
 .btn.primary { background: var(--btn-bg); border-color: var(--btn-bg); color: var(--btn-text); }
 .btn.primary:hover { opacity: .88; }
+.btn.danger { background: var(--error); border-color: var(--error); color: #fff; }
+.btn.danger:hover { opacity: .88; }
 .btn.small { height: 32px; padding: 0 12px; }
 .btn-link { background: none; border: 0; padding: 0; font: 500 13px var(--font-sans); color: var(--error); cursor: pointer; }
 .btn-link:hover { text-decoration: underline; }
@@ -272,6 +274,12 @@ table.list tr.muted td { color: var(--text-faint); }
 .tab { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; font-size: 14px; color: var(--text-muted); text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; }
 .tab:hover { color: var(--text); }
 .tab.selected, .tab[aria-selected="true"] { color: var(--text); font-weight: 600; border-bottom-color: var(--text); }
+.tab-new { margin-left: auto; color: var(--accent); }
+.tab-new:hover { color: var(--accent-hover); }
+.newslot .field { max-width: 320px; }
+.newslot form { flex-direction: column; }
+.newslot .actions { display: flex; gap: 8px; }
+.error-line { color: var(--error); }
 .tab-meta { font-size: 12px; font-weight: 400; color: var(--text-faint); }
 .tab-meta.warn { color: var(--warn-text); font-weight: 500; }
 .count { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; font-size: 11px; font-weight: 600; background: var(--warn-bg); color: var(--warn-text); }

@@ -94,6 +94,7 @@ const (
 	ErrorCodeRateLimited          ErrorCode = "rate_limited"
 	ErrorCodeSaveConflict         ErrorCode = "save_conflict"
 	ErrorCodeSaveConflictStale    ErrorCode = "save_conflict_stale"
+	ErrorCodeSaveNotSnapshot      ErrorCode = "save_not_snapshot"
 	ErrorCodeSessionEnded         ErrorCode = "session_ended"
 	ErrorCodeSessionForbidden     ErrorCode = "session_forbidden"
 	ErrorCodeSessionFull          ErrorCode = "session_full"
@@ -151,6 +152,8 @@ func (e ErrorCode) Valid() bool {
 	case ErrorCodeSaveConflict:
 		return true
 	case ErrorCodeSaveConflictStale:
+		return true
+	case ErrorCodeSaveNotSnapshot:
 		return true
 	case ErrorCodeSessionEnded:
 		return true
@@ -555,7 +558,7 @@ type HandshakeRequest_Video struct {
 type HandshakeResponse struct {
 	Compatible bool `json:"compatible"`
 
-	// Features Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = the Hub's embedded TURN server is on (`turn_servers` in `hello_ack` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `cores_index_v1` = signed core index served at `/api/v1/cores/index` and `/api/v1/cores/index.sig`.
+	// Features Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = the Hub's embedded TURN server is on (`turn_servers` in `hello_ack` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `cores_index_v1` = signed core index served at `/api/v1/cores/index` and `/api/v1/cores/index.sig`, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`).
 	Features           *[]string          `json:"features,omitempty"`
 	HubVersion         string             `json:"hub_version"`
 	MinProtocolVersion int                `json:"min_protocol_version"`
@@ -1500,6 +1503,9 @@ type ServerInterface interface {
 	// Permanent history versions of a slot (newest first)
 	// (GET /api/v1/games/{game_id}/saves/{slot}/history)
 	ListSaveHistory(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName)
+	// Delete a manual snapshot from the history (`saves_v3`)
+	// (DELETE /api/v1/games/{game_id}/saves/{slot}/history/{version})
+	DeleteSaveSnapshot(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName, version int)
 	// Bytes of a history version
 	// (GET /api/v1/games/{game_id}/saves/{slot}/history/{version}/content)
 	DownloadSaveHistoryContent(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName, version int)
@@ -2184,6 +2190,56 @@ func (siw *ServerInterfaceWrapper) ListSaveHistory(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListSaveHistory(w, r, gameId, slot)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteSaveSnapshot operation middleware
+func (siw *ServerInterfaceWrapper) DeleteSaveSnapshot(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "game_id" -------------
+	var gameId GameId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "game_id", r.PathValue("game_id"), &gameId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "game_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "slot" -------------
+	var slot SaveSlotName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slot", r.PathValue("slot"), &slot, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slot", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "version" -------------
+	var version int
+
+	err = runtime.BindStyledParameterWithOptions("simple", "version", r.PathValue("version"), &version, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "version", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteSaveSnapshot(w, r, gameId, slot, version)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -3049,6 +3105,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/conflicts/{conflict_id}/resolve", wrapper.ResolveSaveConflict)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/content", wrapper.DownloadSaveContent)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/history", wrapper.ListSaveHistory)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/history/{version}", wrapper.DeleteSaveSnapshot)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/history/{version}/content", wrapper.DownloadSaveHistoryContent)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/history/{version}/restore", wrapper.RestoreSaveHistoryVersion)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/snapshots", wrapper.CreateSaveSnapshot)
@@ -4042,6 +4099,80 @@ func (response ListSaveHistory404JSONResponse) VisitListSaveHistoryResponse(w ht
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteSaveSnapshotRequestObject struct {
+	GameId  GameId       `json:"game_id"`
+	Slot    SaveSlotName `json:"slot"`
+	Version int          `json:"version"`
+}
+
+type DeleteSaveSnapshotResponseObject interface {
+	VisitDeleteSaveSnapshotResponse(w http.ResponseWriter) error
+}
+
+type DeleteSaveSnapshot204Response struct {
+}
+
+func (response DeleteSaveSnapshot204Response) VisitDeleteSaveSnapshotResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteSaveSnapshot401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DeleteSaveSnapshot401JSONResponse) VisitDeleteSaveSnapshotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteSaveSnapshot403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response DeleteSaveSnapshot403JSONResponse) VisitDeleteSaveSnapshotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteSaveSnapshot404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DeleteSaveSnapshot404JSONResponse) VisitDeleteSaveSnapshotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteSaveSnapshot409JSONResponse Error
+
+func (response DeleteSaveSnapshot409JSONResponse) VisitDeleteSaveSnapshotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -5691,6 +5822,9 @@ type StrictServerInterface interface {
 	// Permanent history versions of a slot (newest first)
 	// (GET /api/v1/games/{game_id}/saves/{slot}/history)
 	ListSaveHistory(ctx context.Context, request ListSaveHistoryRequestObject) (ListSaveHistoryResponseObject, error)
+	// Delete a manual snapshot from the history (`saves_v3`)
+	// (DELETE /api/v1/games/{game_id}/saves/{slot}/history/{version})
+	DeleteSaveSnapshot(ctx context.Context, request DeleteSaveSnapshotRequestObject) (DeleteSaveSnapshotResponseObject, error)
 	// Bytes of a history version
 	// (GET /api/v1/games/{game_id}/saves/{slot}/history/{version}/content)
 	DownloadSaveHistoryContent(ctx context.Context, request DownloadSaveHistoryContentRequestObject) (DownloadSaveHistoryContentResponseObject, error)
@@ -6193,6 +6327,34 @@ func (sh *strictHandler) ListSaveHistory(w http.ResponseWriter, r *http.Request,
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ListSaveHistoryResponseObject); ok {
 		if err := validResponse.VisitListSaveHistoryResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteSaveSnapshot operation middleware
+func (sh *strictHandler) DeleteSaveSnapshot(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName, version int) {
+	var request DeleteSaveSnapshotRequestObject
+
+	request.GameId = gameId
+	request.Slot = slot
+	request.Version = version
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteSaveSnapshot(ctx, request.(DeleteSaveSnapshotRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteSaveSnapshot")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteSaveSnapshotResponseObject); ok {
+		if err := validResponse.VisitDeleteSaveSnapshotResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

@@ -137,6 +137,8 @@ func (s *Server) Register(mux *http.ServeMux) {
 	h("POST /saves/{user}/{game}/{slot}/conflicts/{id}/resolve", s.guard(s.saveResolve))
 	h("POST /saves/{user}/{game}/{slot}/history/{version}/restore", s.guard(s.saveRestore))
 	h("POST /saves/{user}/{game}/{slot}/snapshots", s.guard(s.saveSnapshot))
+	h("POST /saves/{user}/{game}/{slot}/history/{version}/delete", s.guard(s.saveDeleteSnapshot))
+	h("POST /saves/{user}/{game}/{slot}/slots", s.guard(s.saveNewSlot))
 	h("GET /clients", s.guard(s.clientsGet))
 	h("POST /clients/requests/{id}/allow", s.guard(s.clientAllow))
 	h("POST /clients/requests/{id}/deny", s.guard(s.clientDeny))
@@ -224,6 +226,8 @@ var flashTexts = map[string]string{
 	"resolved":      "Conflict resolved.",
 	"restored":      "Version restored as the new current checkpoint. The previous checkpoint is in the history.",
 	"snapshot":      "Snapshot created.",
+	"snapdeleted":   "Snapshot deleted.",
+	"slotcreated":   "Slot created from the current version.",
 	"disabled":      "User disabled. Their devices are signed out and their Sessions ended.",
 	"enabled":       "User enabled.",
 	"revoked":       "Invite revoked.",
