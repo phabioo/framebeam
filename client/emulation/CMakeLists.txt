@@ -16,6 +16,9 @@ target_include_directories(framebeam_emulation PUBLIC ${CMAKE_CURRENT_SOURCE_DIR
 target_include_directories(framebeam_emulation SYSTEM PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 target_compile_features(framebeam_emulation PUBLIC cxx_std_20)
 target_link_libraries(framebeam_emulation PUBLIC Qt6::Core Qt6::Gui ${CMAKE_DL_LIBS})
+if(WIN32)
+  target_link_libraries(framebeam_emulation PRIVATE winmm)
+endif()
 framebeam_warnings(framebeam_emulation)
 
 if(BUILD_TESTING)
@@ -66,6 +69,10 @@ if(BUILD_TESTING)
   framebeam_add_test(emulation_core tests/core_test.cpp LIBS framebeam_emulation NEEDS_CORE)
   target_compile_definitions(test_emulation_core PRIVATE FB_TEST_ROM_PATH="${FB_TEST_ROM}")
   add_dependencies(test_emulation_core framebeam_test_rom)
+
+  framebeam_add_test(emulation_core_speed tests/core_speed_test.cpp LIBS framebeam_emulation NEEDS_CORE)
+  target_compile_definitions(test_emulation_core_speed PRIVATE FB_TEST_ROM_PATH="${FB_TEST_ROM}")
+  add_dependencies(test_emulation_core_speed framebeam_test_rom)
 
   # melonDS DS OpenGL renderer through hardware-frame readback (SKIP/77 without core or GL 3.3 context).
   framebeam_add_test(emulation_core_gl tests/core_gl_test.cpp LIBS framebeam_emulation Qt6::Gui NEEDS_CORE)

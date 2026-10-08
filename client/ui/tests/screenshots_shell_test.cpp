@@ -127,6 +127,13 @@ class ShellScreenshotsTest : public QObject {
     h.controller->showControllers();
     QTest::qWait(150);
     shot(h, QStringLiteral("3f-controllers"));
+    QVERIFY(h.click("tabHotkeys"));
+    QVERIFY(h.click("hotkeyField_diagnostics"));
+    QTest::keyClick(h.window, Qt::Key_F4);
+    QVERIFY(h.click("hotkeyField_snapshot"));
+    QTest::qWait(100);
+    shot(h, QStringLiteral("3f-controllers-hotkeys"));
+    QVERIFY(h.click("tabButtons"));
 
     // Settings with the hub edit row open and one invalid field.
     h.controller->showSettings();

@@ -7,6 +7,7 @@
 #include <QObject>
 #include <QPointF>
 #include <QSize>
+#include <QSet>
 #include <QString>
 #include <QStringList>
 #include <QVariantList>
@@ -110,8 +111,10 @@ class GameSession : public QObject {
   // Tests and screenshots: pretend the core supports fast-forward (preview only).
   void setPreviewFastForwardSupported(bool supported);
 
-  // Space, F11, F3, F5 (and Escape in the game view) belong to the Player: never mapped to a joypad button, never forwarded.
-  static bool isReservedKey(int qtKey);
+  // Player hotkeys (configured keys, default F11/F3/F5/Space) and Escape belong to the Player: never mapped to a joypad
+  // button, never forwarded. The hotkey keys are set by the PlayerController from the Controllers settings.
+  bool isReservedKey(int qtKey) const;
+  void setHotkeyKeys(const QSet<int>& keys) { hotkeyKeys_ = keys; }
 
   // Diagnostics overlay: thread-safe reads of the emulation thread's measurements, UI thread only.
   EmulationDiagnostics diagnostics() const;
@@ -158,6 +161,7 @@ class GameSession : public QObject {
   std::unique_ptr<emu::EmulationRunner> runner_;
   AudioOutput audio_;
   KeyboardJoypad keys_;
+  QSet<int> hotkeyKeys_{Qt::Key_F11, Qt::Key_F3, Qt::Key_F5, Qt::Key_Space};
   quint32 pad_ = 0;
   emu::DisplayProfile display_;
   QImage frame_;

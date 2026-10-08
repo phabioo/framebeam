@@ -39,6 +39,15 @@ class ControllersController : public QObject {
   Q_PROPERTY(int changedCount READ changedCount NOTIFY rowsChanged)  // bindings that differ from the default profile
   Q_PROPERTY(QString listening READ listening NOTIFY rowsChanged)  // input id waiting for "Press a button…"
   Q_PROPERTY(bool supportsLid READ supportsLid CONSTANT)           // no input profile has a lid input yet
+  // Player hotkeys (global, independent of the selected device): [{action, label, key, set, changed, listening, fixed,
+  // conflictInput}]. The last row is the fixed Esc row (fixed = true, no capture). conflictInput = label of the
+  // keyboard-profile input mapped to the same key ("" = none; the hotkey wins).
+  Q_PROPERTY(QVariantList hotkeyRows READ hotkeyRows NOTIFY hotkeysChanged)
+  Q_PROPERTY(int hotkeysChangedCount READ hotkeysChangedCount NOTIFY hotkeysChanged)
+  Q_PROPERTY(QString hotkeyListening READ hotkeyListening NOTIFY hotkeysChanged)  // action id waiting for "Press a key…"
+  Q_PROPERTY(QString hotkeyNote READ hotkeyNote NOTIFY hotkeysChanged)            // "Already used by <label>" after a rejected key
+  // {actionId: key label} for the key hints; "" = unassigned (no hint).
+  Q_PROPERTY(QVariantMap hotkeyLabels READ hotkeyLabels NOTIFY hotkeysChanged)
   // System-specific labels from the system manifest (column header, touch input name).
   Q_PROPERTY(QString systemLabel READ systemLabel NOTIFY labelsChanged)
   Q_PROPERTY(QString touchLabel READ touchLabel NOTIFY labelsChanged)
@@ -71,7 +80,14 @@ class ControllersController : public QObject {
   QString touchLabel() const { return touchLabel_; }
   void setSystemLabels(const QString& systemLabel, const QString& touchLabel);
 
-  // Qt::Key -> joypad mask of the keyboard profile (nds system profile applied).
+  QVariantList hotkeyRows() const;
+  int hotkeysChangedCount() const { return profiles_.hotkeysChangedCount(); }
+  QString hotkeyListening() const { return hotkeyListening_; }
+  QString hotkeyNote() const { return hotkeyNote_; }
+  QVariantMap hotkeyLabels() const;
+  QSet<int> hotkeyKeys() const;  // assigned hotkey keys (Esc not included)
+
+  // Qt::Key -> joypad mask of the keyboard profile (nds system profile applied); keys that are hotkeys are left out.
   QHash<int, quint32> keyboardMap() const;
 
   Q_INVOKABLE void selectDevice(const QString& key);
@@ -88,6 +104,15 @@ class ControllersController : public QObject {
   Q_INVOKABLE bool captureKey(int qtKey);
   Q_INVOKABLE void testKey(int qtKey, bool pressed);
   Q_INVOKABLE void clearTestKeys();
+  // Hotkeys. hotkeyAction: action id the Qt key triggers ("" = none; Esc is fixed and not an action).
+  Q_INVOKABLE QString hotkeyAction(int qtKey) const { return profiles_.hotkeyAction(qtKey); }
+  Q_INVOKABLE void beginHotkeyCapture(const QString& action);
+  Q_INVOKABLE void cancelHotkeyCapture();
+  Q_INVOKABLE void clearHotkey(const QString& action);
+  Q_INVOKABLE void resetHotkey(const QString& action);
+  Q_INVOKABLE void resetHotkeys();
+  // "Duplicate to edit": duplicates the built-in profile, selects the copy and begins capture for the input on it.
+  Q_INVOKABLE void duplicateAndCapture(const QString& inputId);
 
  signals:
   void devicesChanged();
@@ -97,6 +122,7 @@ class ControllersController : public QObject {
   void testChanged();
   void keyboardMapChanged();
   void labelsChanged();
+  void hotkeysChanged();
   void libretroMaskChanged(quint32 mask);  // P1 gamepad, nds system profile
 
  private:
@@ -112,6 +138,8 @@ class ControllersController : public QObject {
   QString deviceKeyForAssignment() const;
   void profileChanged();   // after a change of profiles/assignments: tell the consumers
   void applyCapture(const QString& token);
+  bool captureHotkey(int qtKey);
+  void hotkeysUpdated();  // after a change of the hotkeys: consumers refresh (also the keyboard map)
   void ensureSelection();
 
   ControllerProfiles profiles_;
@@ -119,6 +147,8 @@ class ControllersController : public QObject {
   QString selected_ = QStringLiteral("keyboard");
   QString listening_;
   QString note_;
+  QString hotkeyListening_;
+  QString hotkeyNote_;
   QSet<int> heldKeys_;
 };
 

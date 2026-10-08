@@ -199,7 +199,133 @@ QStringList ControllersController::activeInputs() const {
 
 QHash<int, quint32> ControllersController::keyboardMap() const {
   const auto p = profiles_.find(profiles_.assignedProfileId(kKeyboard, kKeyboard));
-  return input::ndsKeyMap(p ? p->bindings : ControllerProfiles::builtinProfile(kKeyboard).bindings);
+  QHash<int, quint32> map = input::ndsKeyMap(p ? p->bindings : ControllerProfiles::builtinProfile(kKeyboard).bindings);
+  for (auto it = map.begin(); it != map.end();) {  // a hotkey wins over the keyboard profile
+    it = profiles_.hotkeyAction(it.key()).isEmpty() ? std::next(it) : map.erase(it);
+  }
+  return map;
+}
+
+namespace {
+QString keyLabelOf(int key) { return key > 0 ? tokenLabel(keyToken(key)) : QString(); }
+}  // namespace
+
+QVariantList ControllersController::hotkeyRows() const {
+  QVariantList l;
+  const auto kb = profiles_.find(profiles_.assignedProfileId(kKeyboard, kKeyboard));
+  for (const HotkeyDef& d : hotkeyDefs()) {
+    const int key = profiles_.hotkey(d.id);
+    QString conflict;
+    if (key > 0 && kb) {
+      const QString token = keyToken(key);
+      for (const InputDef& in : frameBeamInputs()) {
+        if (kb->bindings.value(in.id).contains(token)) {
+          conflict = in.label;
+          break;
+        }
+      }
+    }
+    l.append(QVariantMap{{QStringLiteral("action"), d.id},
+                         {QStringLiteral("label"), d.label},
+                         {QStringLiteral("key"), key > 0 ? keyLabelOf(key) : tr("not set")},
+                         {QStringLiteral("set"), key > 0},
+                         {QStringLiteral("changed"), key != d.defaultKey},
+                         {QStringLiteral("listening"), hotkeyListening_ == d.id},
+                         {QStringLiteral("fixed"), false},
+                         {QStringLiteral("conflictInput"), conflict}});
+  }
+  l.append(QVariantMap{{QStringLiteral("action"), QStringLiteral("escape")},
+                       {QStringLiteral("label"), tr("Leave fullscreen / pause")},
+                       {QStringLiteral("key"), QStringLiteral("Esc")},
+                       {QStringLiteral("set"), true},
+                       {QStringLiteral("changed"), false},
+                       {QStringLiteral("listening"), false},
+                       {QStringLiteral("fixed"), true},
+                       {QStringLiteral("conflictInput"), QString()}});
+  return l;
+}
+
+QVariantMap ControllersController::hotkeyLabels() const {
+  QVariantMap m;
+  for (const HotkeyDef& d : hotkeyDefs()) m.insert(d.id, keyLabelOf(profiles_.hotkey(d.id)));
+  return m;
+}
+
+QSet<int> ControllersController::hotkeyKeys() const {
+  QSet<int> s;
+  for (const HotkeyDef& d : hotkeyDefs()) {
+    if (const int k = profiles_.hotkey(d.id); k > 0) s.insert(k);
+  }
+  return s;
+}
+
+void ControllersController::hotkeysUpdated() {
+  emit hotkeysChanged();
+  emit keyboardMapChanged();
+}
+
+void ControllersController::beginHotkeyCapture(const QString& action) {
+  if (hotkeyIndex(action) < 0) return;
+  cancelCapture();
+  hotkeyListening_ = action;
+  hotkeyNote_.clear();
+  emit hotkeysChanged();
+}
+
+void ControllersController::cancelHotkeyCapture() {
+  if (!hotkeyListening_.isEmpty() || !hotkeyNote_.isEmpty()) {
+    hotkeyListening_.clear();
+    hotkeyNote_.clear();
+    emit hotkeysChanged();
+  }
+}
+
+void ControllersController::clearHotkey(const QString& action) {
+  cancelHotkeyCapture();
+  if (profiles_.clearHotkey(action)) hotkeysUpdated();
+}
+
+void ControllersController::resetHotkey(const QString& action) {
+  cancelHotkeyCapture();
+  if (profiles_.resetHotkey(action)) hotkeysUpdated();
+}
+
+void ControllersController::resetHotkeys() {
+  cancelHotkeyCapture();
+  if (profiles_.resetHotkeys()) hotkeysUpdated();
+}
+
+bool ControllersController::captureHotkey(int qtKey) {
+  if (qtKey == Qt::Key_Escape) {
+    cancelHotkeyCapture();
+    return true;
+  }
+  if (qtKey == 0 || qtKey == Qt::Key_unknown || qtKey == Qt::Key_Shift || qtKey == Qt::Key_Control || qtKey == Qt::Key_Alt ||
+      qtKey == Qt::Key_Meta) {
+    return true;
+  }
+  const QString action = hotkeyListening_;
+  if (!profiles_.setHotkey(action, qtKey)) {
+    const QString owner = profiles_.hotkeyAction(qtKey);
+    for (const HotkeyDef& d : hotkeyDefs()) {
+      if (d.id == owner) hotkeyNote_ = tr("Already used by %1").arg(d.label);
+    }
+    emit hotkeysChanged();  // the binding stays, the field keeps listening
+    return true;
+  }
+  hotkeyListening_.clear();
+  hotkeyNote_.clear();
+  hotkeysUpdated();
+  return true;
+}
+
+void ControllersController::duplicateAndCapture(const QString& inputId) {
+  if (!profileBuiltin()) {
+    beginCapture(inputId);
+    return;
+  }
+  duplicateProfile();
+  if (!profileBuiltin()) beginCapture(inputId);
 }
 
 void ControllersController::selectDevice(const QString& key) {
@@ -225,6 +351,7 @@ void ControllersController::profileChanged() {
   emit rowsChanged();
   emit testChanged();
   emit keyboardMapChanged();
+  emit hotkeysChanged();  // conflictInput depends on the keyboard profile
 }
 
 void ControllersController::selectProfile(const QString& id) {
@@ -272,6 +399,7 @@ void ControllersController::resetProfile() {
 }
 
 void ControllersController::beginCapture(const QString& inputId) {
+  cancelHotkeyCapture();
   const auto p = currentProfile();
   const Selected s = selection();
   if (!p || p->builtin || inputIndex(inputId) < 0) return;  // built-in profiles are read-only
@@ -313,6 +441,7 @@ void ControllersController::applyCapture(const QString& token) {
 }
 
 bool ControllersController::captureKey(int qtKey) {
+  if (!hotkeyListening_.isEmpty()) return captureHotkey(qtKey);
   const Selected s = selection();
   if (listening_.isEmpty() || s.kind != kKeyboard) return false;
   if (qtKey == Qt::Key_Escape) {

@@ -7,8 +7,9 @@ import FrameBeam.Player
 // layout switch and Fullscreen; Session tab = local game + side panel (340), Multiview = MultiviewArea (3h, 3r, 3i). The
 // Diagnostics tab toggles the overlay (3t-3y; bottom panel in the multiview). Fullscreen (F11) drops header and panel; the
 // toolbar appears when the mouse moves to the top. Without a local game (watching only) the remote Session fills the surface.
-// Keys (never forwarded to the core): F11 fullscreen, Esc leaves fullscreen (else pause), F3 diagnostics, F5 snapshot,
-// 1-4 audio focus in the grid; Space speed-up (only when the core allows it; also while the Session is shared).
+// Keys (never forwarded to the core; defaults, configurable in Controllers > Hotkeys except Esc): F11 fullscreen, Esc leaves
+// fullscreen (else pause), F3 diagnostics, F5 snapshot, Space speed-up (only when the core allows it; also while the Session
+// is shared), 1-4 audio focus in the grid.
 Rectangle {
     id: root
     required property PlayerController player
@@ -85,19 +86,22 @@ Rectangle {
         }
     }
 
+    // Player hotkeys are configurable (Controllers > Hotkeys): the controller maps the Qt key to an action name.
+    readonly property var hotkeyLabels: root.player.controllers.hotkeyLabels
     Keys.onPressed: (e) => {
-        if (e.key === Qt.Key_F11) {
+        var action = root.player.controllers.hotkeyAction(e.key)
+        if (action === "fullscreen") {
             root.toggleFullscreen()
             e.accepted = true
-        } else if (e.key === Qt.Key_F3) {
+        } else if (action === "diagnostics") {
             root.diag.toggle()
             e.accepted = true
-        } else if (e.key === Qt.Key_F5) {
+        } else if (action === "snapshot") {
             root.saveSnapshot()
             e.accepted = true
-        } else if (e.key === Qt.Key_Space) {
+        } else if (action === "speedup") {
             if (!e.isAutoRepeat && root.session.fastForwardAvailable) root.session.toggleFastForward()
-            e.accepted = true   // Space never reaches the core (GameSession::isReservedKey)
+            e.accepted = true   // the key never reaches the core (GameSession::isReservedKey)
         } else if (e.key === Qt.Key_Escape) {
             if (root.fullscreen) { root.setFullscreen(false); e.accepted = true }
         } else if (e.key >= Qt.Key_1 && e.key <= Qt.Key_4 && root.tab !== "session" && root.ctl.multiviewMode === "grid") {
@@ -204,10 +208,10 @@ Rectangle {
                 kind: root.session.fastForward ? "raised" : "outline"
                 readonly property bool narrow: root.width < 1360
                 text: narrow ? "»" : qsTr("Speed-up")   // narrow: minimal button, the full name is the tooltip
-                hint: narrow ? "" : "Space"
+                hint: narrow ? "" : root.hotkeyLabels.speedup
                 Accessible.name: qsTr("Speed-up")
                 ToolTip.visible: narrow && hovered
-                ToolTip.text: qsTr("Speed-up (Space)")
+                ToolTip.text: root.hotkeyLabels.speedup !== "" ? qsTr("Speed-up (%1)").arg(root.hotkeyLabels.speedup) : qsTr("Speed-up")
                 onClicked: root.session.toggleFastForward()
             }
             FbButton {
@@ -279,7 +283,7 @@ Rectangle {
                 Layout.minimumWidth: implicitWidth  // never squeezed; the title elides first
                 focusPolicy: Qt.NoFocus
                 text: qsTr("Fullscreen")
-                hint: "F11"
+                hint: root.hotkeyLabels.fullscreen
                 compact: root.width < 1360  // same threshold as the layout switch: drop the key hint when narrow
                 onClicked: root.toggleFullscreen()
             }
@@ -382,6 +386,7 @@ Rectangle {
         }
 
         DiagnosticsOverlay {
+            hotkey: root.hotkeyLabels.diagnostics
             objectName: "diagnosticsOverlaySession"
             x: 16
             y: 16
@@ -442,6 +447,7 @@ Rectangle {
             }
             // Fullscreen: the same overlay, Emulation only (3y)
             DiagnosticsOverlay {
+                hotkey: root.hotkeyLabels.diagnostics
                 objectName: "diagnosticsOverlayMulti"
                 x: 16
                 y: 16
@@ -452,6 +458,7 @@ Rectangle {
             }
         }
         DiagnosticsBar {
+            hotkey: root.hotkeyLabels.diagnostics
             Layout.fillWidth: true
             visible: root.diag.open && !root.fullscreen
             model: root.diag
@@ -476,13 +483,14 @@ Rectangle {
             anchors.centerIn: parent
             spacing: 8
             Rectangle {
+                visible: root.hotkeyLabels.diagnostics !== ""
                 implicitWidth: chipKey.implicitWidth + 10
                 implicitHeight: 16
                 radius: 3
                 color: "transparent"
                 border.width: 1
                 border.color: Theme.borderButton
-                FbMono { id: chipKey; anchors.centerIn: parent; text: "F3"; font.pixelSize: 10; color: Theme.textMuted }
+                FbMono { id: chipKey; anchors.centerIn: parent; text: root.hotkeyLabels.diagnostics; font.pixelSize: 10; color: Theme.textMuted }
             }
             FbLabel { text: qsTr("Diagnostics"); font.pixelSize: 12; color: Theme.textMeta }
         }
@@ -539,7 +547,7 @@ Rectangle {
                     objectName: "exitFullscreenButton"
                     focusPolicy: Qt.NoFocus
                     text: qsTr("Exit fullscreen")
-                    hint: "F11 · Esc"
+                    hint: root.hotkeyLabels.fullscreen !== "" ? root.hotkeyLabels.fullscreen + " · Esc" : "Esc"
                     onClicked: root.setFullscreen(false)
                 }
             }
@@ -552,7 +560,8 @@ Rectangle {
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 24
         anchors.horizontalCenter: parent.horizontalCenter
-        text: qsTr("Toolbar appears when you move the mouse to the top · F3 diagnostics")
+        text: root.hotkeyLabels.diagnostics !== "" ? qsTr("Toolbar appears when you move the mouse to the top · %1 diagnostics").arg(root.hotkeyLabels.diagnostics)
+                                                   : qsTr("Toolbar appears when you move the mouse to the top")
         font.pixelSize: 12
         color: Theme.textDisabled
     }

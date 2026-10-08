@@ -8,6 +8,7 @@ import FrameBeam.Player
 Rectangle {
     id: root
     required property DiagnosticsModel model
+    property string hotkey: ""
     property bool fullscreen: false
     readonly property var emu: model.emulation
     objectName: "diagnosticsOverlay"
@@ -111,6 +112,6 @@ Rectangle {
             DiagParticipants { Layout.fillWidth: true; groups: root.model.streaming }
         }
 
-        DiagFooter { Layout.fillWidth: true; onHideRequested: root.model.open = false }
+        DiagFooter { Layout.fillWidth: true; hotkey: root.hotkey; onHideRequested: root.model.open = false }
     }
 }

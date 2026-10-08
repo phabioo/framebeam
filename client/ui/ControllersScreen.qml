@@ -10,12 +10,15 @@ Rectangle {
     readonly property bool isMouse: root.ctl.device.kind === "mouse"
     property bool renaming: false
     property bool confirmDelete: false
+    property string tab: "buttons"  // "buttons" | "hotkeys" (hotkeys are global, independent of the selected device)
+    readonly property bool hotkeysTab: root.tab === "hotkeys"
     // Narrow main column (input test open on a small window): tighter mapping table.
     readonly property bool compact: content.width < 520
     readonly property int mapWidth: compact ? 130 : 170
     readonly property int mapMinWidth: compact ? 72 : 100
     readonly property int targetWidth: compact ? 56 : 80
     readonly property int actionWidth: compact ? 48 : 60
+    readonly property int hotkeyGapWidth: compact ? 0 : root.targetWidth  // empty third column of the Hotkeys table
     color: Theme.bg
 
     onVisibleChanged: if (visible) keyScope.forceActiveFocus()
@@ -145,6 +148,7 @@ Rectangle {
 
                     RowLayout {
                         Layout.fillWidth: true
+                        Layout.minimumWidth: 0
                         spacing: Theme.space16
                         ColumnLayout {
                             Layout.fillWidth: true
@@ -154,7 +158,8 @@ Rectangle {
                                 objectName: "controllersTitle"
                                 Layout.fillWidth: true
                                 Layout.minimumWidth: 0
-                                text: root.ctl.device.name !== undefined ? root.ctl.device.name : qsTr("Controllers")
+                                text: root.hotkeysTab ? qsTr("Hotkeys")
+                                      : root.ctl.device.name !== undefined ? root.ctl.device.name : qsTr("Controllers")
                                 font.pixelSize: Theme.fontPage
                                 font.weight: Font.DemiBold
                                 font.letterSpacing: -0.4
@@ -166,7 +171,7 @@ Rectangle {
                                 spacing: Theme.space10
                                 FbPill {
                                     objectName: "devicePill"
-                                    visible: root.ctl.device.name !== undefined
+                                    visible: root.ctl.device.name !== undefined && !root.hotkeysTab
                                     tone: root.ctl.device.connected ? "ok" : "neutral"
                                     text: root.ctl.device.connected === true
                                           ? (root.ctl.device.slot !== "—" ? qsTr("Connected · %1").arg(root.ctl.device.slot) : qsTr("Connected"))
@@ -176,7 +181,7 @@ Rectangle {
                                     Layout.fillWidth: true
                                     Layout.minimumWidth: 0
                                     elide: Text.ElideRight
-                                    text: qsTr("Saved on this device only")
+                                    text: root.hotkeysTab ? qsTr("Player hotkeys · saved on this device only") : qsTr("Saved on this device only")
                                     color: Theme.textMuted
                                     font.pixelSize: Theme.fontMeta
                                 }
@@ -184,7 +189,7 @@ Rectangle {
                         }
                         FbSelect {
                             objectName: "profileSelect"
-                            visible: !root.isMouse
+                            visible: !root.isMouse && !root.hotkeysTab
                             Layout.preferredWidth: 210
                             Layout.preferredHeight: 36
                             Layout.alignment: Qt.AlignTop
@@ -196,44 +201,217 @@ Rectangle {
 
                     // Tab chips + Reset N changed
                     RowLayout {
-                        visible: !root.isMouse
                         Layout.fillWidth: true
+                        Layout.minimumWidth: 0  // chips + "Reset N changed" must not widen the whole column on narrow windows
                         spacing: Theme.space8
-                        FbChip { objectName: "tabButtons"; text: qsTr("Buttons"); active: true }
+                        FbChip { objectName: "tabButtons"; text: qsTr("Buttons"); active: !root.hotkeysTab; onClicked: { root.ctl.cancelHotkeyCapture(); root.tab = "buttons" } }
+                        FbChip { objectName: "tabHotkeys"; text: qsTr("Hotkeys"); active: root.hotkeysTab; onClicked: { root.ctl.cancelCapture(); root.tab = "hotkeys" } }
                         Item { Layout.fillWidth: true }
                         FbButton {
                             objectName: "resetChanged"
-                            visible: root.ctl.changedCount > 0 && !root.ctl.profileBuiltin
+                            readonly property int n: root.hotkeysTab ? root.ctl.hotkeysChangedCount : root.ctl.changedCount
+                            visible: n > 0 && (root.hotkeysTab || (!root.isMouse && !root.ctl.profileBuiltin))
                             kind: "link"
                             font.underline: true
-                            text: qsTr("Reset %1 changed").arg(root.ctl.changedCount)
-                            onClicked: root.ctl.resetProfile()
+                            text: root.compact ? qsTr("Reset %1").arg(n) : qsTr("Reset %1 changed").arg(n)
+                            onClicked: root.hotkeysTab ? root.ctl.resetHotkeys() : root.ctl.resetProfile()
                         }
                     }
 
                     // Mouse: touch input (fixed)
                     FbLabel {
-                        visible: root.isMouse
+                        visible: root.isMouse && !root.hotkeysTab
                         objectName: "mouseNote"
                         Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
                         text: qsTr("The mouse is the %1 input: move it over the touch screen, left mouse button = touch. This mapping is fixed and has no profile.").arg(root.ctl.touchLabel)
                         color: Theme.textMuted
                         wrapMode: Text.WordWrap
                     }
 
-                    FbLabel {
-                        visible: !root.isMouse && root.ctl.profileBuiltin
-                        objectName: "builtinNote"
+                    RowLayout {
+                        visible: !root.isMouse && !root.hotkeysTab && root.ctl.profileBuiltin
                         Layout.fillWidth: true
-                        text: qsTr("Built-in profiles are read-only. Duplicate the profile to change the mapping.")
-                        color: Theme.textMuted
-                        font.pixelSize: Theme.fontMeta
-                        wrapMode: Text.WordWrap
+                        spacing: Theme.space12
+                        FbLabel {
+                            objectName: "builtinNote"
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            text: qsTr("Built-in profiles are read-only. Duplicate the profile to change the mapping.")
+                            color: Theme.textMuted
+                            font.pixelSize: Theme.fontMeta
+                            wrapMode: Text.WordWrap
+                        }
+                        FbButton {
+                            objectName: "duplicateToEditButton"
+                            text: qsTr("Duplicate to edit")
+                            onClicked: root.ctl.duplicateProfile()
+                        }
+                    }
+
+                    // Hotkeys table (global): ACTION | KEY | (empty) | Reset / Default
+                    ColumnLayout {
+                        visible: root.hotkeysTab
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
+                        Layout.maximumWidth: content.width
+                        spacing: 0
+
+                        FbLabel {
+                            objectName: "hotkeysInfo"
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 1
+                            Layout.minimumWidth: 0
+                            Layout.bottomMargin: Theme.space12
+                            text: qsTr("Player hotkeys work on the keyboard and are never sent to the game.")
+                            color: Theme.textMuted
+                            font.pixelSize: Theme.fontMeta
+                            wrapMode: Text.WordWrap
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Layout.bottomMargin: 6
+                            spacing: Theme.space16
+                            Eyebrow { Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; text: qsTr("Action") }
+                            Eyebrow { Layout.fillWidth: true; Layout.preferredWidth: root.mapWidth; Layout.minimumWidth: root.mapMinWidth; Layout.maximumWidth: root.mapWidth; text: qsTr("Key") }
+                            Item { Layout.preferredWidth: root.hotkeyGapWidth; Layout.minimumWidth: root.hotkeyGapWidth; Layout.maximumWidth: root.hotkeyGapWidth }
+                            Item { Layout.preferredWidth: root.actionWidth; Layout.minimumWidth: root.actionWidth; Layout.maximumWidth: root.actionWidth }
+                        }
+                        Rectangle { Layout.fillWidth: true; height: 1; color: Theme.borderRow }
+
+                        Repeater {
+                            model: root.ctl.hotkeyRows
+                            delegate: ColumnLayout {
+                                id: hrow
+                                required property var modelData
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 0
+                                spacing: 0
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Layout.topMargin: 6
+                                    Layout.bottomMargin: 6
+                                    spacing: Theme.space16
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        Layout.preferredWidth: 1
+                                        Layout.minimumWidth: 0
+                                        spacing: Theme.space8
+                                        Rectangle {
+                                            objectName: "hotkeyChangedDot_" + hrow.modelData.action
+                                            visible: hrow.modelData.changed
+                                            Layout.preferredWidth: 7
+                                            Layout.preferredHeight: 7
+                                            radius: 3.5
+                                            color: Theme.accent
+                                        }
+                                        // Same structure as the Buttons table: one label directly in the cell.
+                                        FbLabel { Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; text: hrow.modelData.label; elide: Text.ElideRight }
+                                    }
+                                    Rectangle {
+                                        objectName: "hotkeyField_" + hrow.modelData.action
+                                        Layout.fillWidth: true
+                                        Layout.preferredWidth: root.mapWidth
+                                        Layout.minimumWidth: root.mapMinWidth
+                                        Layout.maximumWidth: root.mapWidth
+                                        implicitHeight: 30
+                                        radius: Theme.radius6
+                                        color: Theme.surface
+                                        border.width: hrow.modelData.listening ? 1.5 : 1
+                                        border.color: hrow.modelData.listening ? Theme.accent : Theme.borderInput
+                                        opacity: hrow.modelData.fixed ? 0.85 : 1
+                                        RowLayout {
+                                            anchors.fill: parent
+                                            anchors.leftMargin: 10
+                                            anchors.rightMargin: 4
+                                            FbLabel {
+                                                objectName: "hotkeyText_" + hrow.modelData.action
+                                                Layout.fillWidth: true
+                                                Layout.preferredWidth: 1
+                                                Layout.minimumWidth: 0
+                                                text: hrow.modelData.listening ? qsTr("Press a key…") : hrow.modelData.key
+                                                color: hrow.modelData.listening ? Theme.accent
+                                                       : (hrow.modelData.set ? Theme.text : Theme.textFaint)
+                                                font.pixelSize: Theme.fontSmall
+                                                elide: Text.ElideRight
+                                            }
+                                            FbButton {
+                                                visible: hrow.modelData.set && !hrow.modelData.fixed && !hrow.modelData.listening
+                                                objectName: "hotkeyClear_" + hrow.modelData.action
+                                                kind: "link"
+                                                text: "×"
+                                                onClicked: root.ctl.clearHotkey(hrow.modelData.action)
+                                            }
+                                        }
+                                        TapHandler {
+                                            enabled: !hrow.modelData.fixed
+                                            onTapped: hrow.modelData.listening ? root.ctl.cancelHotkeyCapture() : root.ctl.beginHotkeyCapture(hrow.modelData.action)
+                                        }
+                                    }
+                                    Item { Layout.preferredWidth: root.hotkeyGapWidth; Layout.minimumWidth: root.hotkeyGapWidth; Layout.maximumWidth: root.hotkeyGapWidth }
+                                    RowLayout {
+                                        Layout.preferredWidth: root.actionWidth
+                                        Layout.minimumWidth: root.actionWidth
+                                        Layout.maximumWidth: root.actionWidth
+                                        FbButton {
+                                            objectName: "hotkeyReset_" + hrow.modelData.action
+                                            Layout.maximumWidth: root.actionWidth
+                                            visible: hrow.modelData.changed
+                                            kind: "link"
+                                            font.underline: true
+                                            font.pixelSize: Theme.fontMeta
+                                            text: qsTr("Reset")
+                                            onClicked: root.ctl.resetHotkey(hrow.modelData.action)
+                                        }
+                                        FbLabel {
+                                            visible: !hrow.modelData.changed && !hrow.modelData.fixed
+                                            text: qsTr("Default")
+                                            font.pixelSize: Theme.fontMeta
+                                            color: Theme.textDisabled
+                                        }
+                                        FbLabel {
+                                            visible: hrow.modelData.fixed
+                                            text: qsTr("Fixed")
+                                            font.pixelSize: Theme.fontMeta
+                                            color: Theme.textDisabled
+                                        }
+                                        Item { Layout.fillWidth: true }
+                                    }
+                                }
+                                FbLabel {
+                                    objectName: "hotkeyConflict_" + hrow.modelData.action
+                                    visible: hrow.modelData.conflictInput !== ""
+                                    Layout.fillWidth: true
+                                    Layout.preferredWidth: 1
+                                    Layout.minimumWidth: 0
+                                    Layout.bottomMargin: 6
+                                    text: qsTr("Also mapped to %1 in the keyboard profile · the hotkey wins").arg(hrow.modelData.conflictInput)
+                                    color: Theme.textMuted
+                                    font.pixelSize: Theme.fontMeta
+                                    elide: Text.ElideRight
+                                }
+                                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.borderRow }
+                            }
+                        }
+                        FbLabel {
+                            objectName: "hotkeyNote"
+                            visible: root.ctl.hotkeyNote !== ""
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 1
+                            Layout.minimumWidth: 0
+                            Layout.topMargin: Theme.space8
+                            text: root.ctl.hotkeyNote
+                            color: Theme.warn
+                            font.pixelSize: Theme.fontMeta
+                            wrapMode: Text.WordWrap
+                        }
                     }
 
                     // Mapping table
                     ColumnLayout {
-                        visible: !root.isMouse
+                        visible: !root.isMouse && !root.hotkeysTab
                         Layout.fillWidth: true
                         spacing: 0
 
@@ -312,8 +490,9 @@ Rectangle {
                                             }
                                         }
                                         TapHandler {
-                                            enabled: !root.ctl.profileBuiltin
-                                            onTapped: mrow.modelData.listening ? root.ctl.cancelCapture() : root.ctl.beginCapture(mrow.modelData.input)
+                                            // Built-in profile: duplicate to a user profile first, then capture on the copy.
+                                            onTapped: root.ctl.profileBuiltin ? root.ctl.duplicateAndCapture(mrow.modelData.input)
+                                                      : mrow.modelData.listening ? root.ctl.cancelCapture() : root.ctl.beginCapture(mrow.modelData.input)
                                         }
                                     }
                                     FbMono { Layout.preferredWidth: root.targetWidth; Layout.minimumWidth: root.targetWidth; Layout.maximumWidth: root.targetWidth; text: mrow.modelData.target; font.pixelSize: Theme.fontSmall; color: Theme.textMeta }
@@ -359,7 +538,7 @@ Rectangle {
 
                     // Profile actions
                     Flow {
-                        visible: !root.isMouse
+                        visible: !root.isMouse && !root.hotkeysTab
                         Layout.fillWidth: true
                         spacing: 10
                         FbButton {
@@ -393,7 +572,7 @@ Rectangle {
                         }
                     }
                     Flow {
-                        visible: root.renaming && !root.isMouse
+                        visible: root.renaming && !root.isMouse && !root.hotkeysTab
                         Layout.fillWidth: true
                         spacing: 10
                         FbField {

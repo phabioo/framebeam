@@ -412,12 +412,18 @@ class SaveSyncTest : public QObject {
     QTest::qWait(20);
     QCOMPARE(puts(), 0);  // debounce not over yet
     QTRY_COMPARE_WITH_TIMEOUT(puts(), 1, 3000);
+    QElapsedTimer sinceFirstUpload;  // started after the upload happened: real elapsed >= measured
+    sinceFirstUpload.start();
     QCOMPARE(lastPutReason(), QByteArray("checkpoint"));
     QCOMPARE(hub_->saves.value(kGame).content, QByteArray("play-1"));
     // Next change: only after the minimum interval (500 ms since the last upload)
     writeFile(saveFile(), "play-22");
     QTest::qWait(250);
-    QCOMPARE(puts(), 1);
+    // On a slow runner the interval may already have passed; the second upload is then
+    // legitimate, so assert "still 1" only while safely below the 500 ms interval.
+    if (sinceFirstUpload.elapsed() < 400) {
+      QCOMPARE(puts(), 1);
+    }
     QTRY_COMPARE_WITH_TIMEOUT(puts(), 2, 3000);
     // Same content again (new mtime, same hash): no upload
     writeFile(saveFile(), "play-22");

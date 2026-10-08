@@ -101,6 +101,28 @@ class FastForwardUiTest : public QObject {
     QVERIFY(h.click("fastForwardButton"));
     QVERIFY(gs->fastForward());
 
+    // Remapped speed-up key (Controllers > Hotkeys): the new key toggles, Space no longer does and reaches the keyboard map.
+    ControllersController* cc = h.controller->controllers();
+    cc->beginHotkeyCapture(QStringLiteral("speedup"));
+    QVERIFY(cc->captureKey(Qt::Key_V));
+    QCOMPARE(cc->hotkeyLabels().value(QStringLiteral("speedup")).toString(), QStringLiteral("V"));
+    QVERIFY(gs->isReservedKey(Qt::Key_V));
+    QVERIFY(!gs->isReservedKey(Qt::Key_Space));
+    QVERIFY(gs->fastForward());
+    QTest::keyClick(h.window, Qt::Key_V);
+    QTRY_VERIFY(!gs->fastForward());
+    QTest::keyClick(h.window, Qt::Key_Space);
+    QTest::qWait(50);
+    QVERIFY(!gs->fastForward());
+    gs->setKeyboardMap({{Qt::Key_Space, 1u << 8}});
+    QVERIFY(gs->keyEvent(Qt::Key_Space, true));
+    gs->keyEvent(Qt::Key_Space, false);
+    QVERIFY(!gs->keyEvent(Qt::Key_V, true));
+    cc->resetHotkeys();
+    QVERIFY(gs->isReservedKey(Qt::Key_Space));
+    QTest::keyClick(h.window, Qt::Key_Space);
+    QTRY_VERIFY(gs->fastForward());
+
     // Core without support (new game): everything off and hidden again.
     gs->setPreviewFastForwardSupported(false);
     QVERIFY(!gs->fastForward());

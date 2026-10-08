@@ -28,7 +28,7 @@ Fabio asked for SpeedUp/FastForward in the FrameBeam Player, visible when the em
 
 ### D4 UI in the game screen
 
-- Header button "Speed-up" with key hint Space; Space toggles it. Space is never forwarded to the core.
+- Header button "Speed-up" with key hint Space; Space toggles it. Space is never forwarded to the core. The key is configurable in Controllers > Hotkeys (action `speedup`).
 - A speed select in the Session panel ("Speed-up speed") changes the speed for the running game only. Below 1360 px the header button shrinks to "»".
 - While on, the indicator "Speed-up ×N" is shown.
 
@@ -58,5 +58,5 @@ Fabio asked for SpeedUp/FastForward in the FrameBeam Player, visible when the em
 ## Consequences
 
 - The key becomes configurable in Controllers -> Hotkeys (separate work package); a gamepad hotkey also comes later. Both are open.
-- Space is reserved by the Player like F3, F5 and F11 ([ADR 0014](0014-player-ui-pass.md) D4).
+- The speed-up key (default Space) is reserved by the Player like F3, F5 and F11 ([ADR 0014](0014-player-ui-pass.md) D4).
 - Three new Player settings keys under `framebeam.` (D5), controlled by FrameBeam and not core options.
