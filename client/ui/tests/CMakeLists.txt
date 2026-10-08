@@ -43,6 +43,9 @@ framebeam_add_test(ui_hub_features hub_features_ui_test.cpp ${FB_NETTEST_DIR}/fa
 target_include_directories(test_ui_hub_features PRIVATE ${FB_NETTEST_DIR})
 target_compile_definitions(test_ui_hub_features PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
 
+# SettingsRow in isolation (grid, dot slot, More / Less, segment -> select, disabled reason, narrow); no hub, no core.
+framebeam_add_test(ui_settings_row settings_row_ui_test.cpp LIBS ${FB_UI_TEST_LIBS})
+
 # Emulation page (3e, settings hierarchy, core options) and Controllers page (3f) with SDL virtual joysticks.
 # The test with the real core QSKIPs without FRAMEBEAM_MELONDS_DS_CORE.
 framebeam_add_test(ui_emulation_controllers emulation_controllers_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h

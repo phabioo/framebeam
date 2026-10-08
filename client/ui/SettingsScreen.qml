@@ -136,6 +136,7 @@ Rectangle {
 
         Flickable {
             id: flick
+            objectName: "settingsScroll"
             Layout.fillWidth: true
             Layout.fillHeight: true
             contentWidth: width
@@ -150,7 +151,9 @@ Rectangle {
                 id: content
                 x: 36
                 y: 28
-                width: Math.min(760, flick.width - 72)
+                width: Math.min(Theme.settingsContentMax, flick.width - 72)
+                // Hub card and update card sit on the label edge (14 in) and end where the controls end (72 in) on wide pages.
+                readonly property bool wide: width >= Theme.settingsNarrowBelow
                 spacing: 32
 
                 ColumnLayout {
@@ -170,12 +173,23 @@ Rectangle {
                     Layout.fillWidth: true
                     spacing: Theme.space14
 
-                    Eyebrow { text: qsTr("Updates") }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        Eyebrow { text: qsTr("Updates"); Layout.fillWidth: true }
+                        FbPill {
+                            objectName: "updatesPill"
+                            visible: root.updates.state === "up_to_date" && !root.updates.updateAvailable
+                            tone: "ok"
+                            text: qsTr("✓ Up to date · %1").arg(root.updates.currentVersion)
+                        }
+                    }
 
                     // Update card
                     Rectangle {
                         objectName: "updateCard"
                         Layout.fillWidth: true
+                        Layout.leftMargin: Theme.settingsDotSlot
                         implicitHeight: cardCol.implicitHeight + 36
                         radius: Theme.radius10
                         color: Theme.surface
@@ -258,118 +272,73 @@ Rectangle {
                     // Rows
                     ColumnLayout {
                         Layout.fillWidth: true
+                        Layout.minimumWidth: 0
                         spacing: 0
                         Rectangle { Layout.fillWidth: true; height: 1; color: Theme.borderRow }
 
-                        // Update channel
-                        RowLayout {
+                        SettingsRow {
+                            objectName: "updateChannelRow"
                             Layout.fillWidth: true
-                            Layout.topMargin: 14
-                            Layout.bottomMargin: 14
-                            spacing: Theme.space20
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 3
-                                RowLayout {
-                                    spacing: Theme.space8
-                                    FbLabel { text: qsTr("Update channel"); font.weight: Font.Medium }
-                                    FbLabel {
-                                        objectName: "updatesChannelEffective"
-                                        text: qsTr("Channel: %1").arg(root.updates.effectiveChannel)
-                                        color: Theme.textMeta
-                                        font.pixelSize: Theme.fontMono
-                                    }
-                                }
-                                FbLabel {
-                                    objectName: "updateChannelHint"
-                                    Layout.fillWidth: true
-                                    wrapMode: Text.WordWrap
-                                    color: Theme.textMuted
-                                    font.pixelSize: Theme.fontMeta
-                                    text: root.updates.effectiveChannel === "beta"
-                                          ? qsTr("Pre-release builds from every change on main. May contain bugs.")
-                                          : qsTr("Tested releases. Recommended for everyday use.")
-                                }
-                            }
-                            FbSegment {
-                                objectName: "updateChannelSegment"
-                                readonly property string chosen: root.updates.channelSetting === "default" ? (root.updates.effectiveChannel !== "off" ? root.updates.effectiveChannel : root.updates.compiledChannel) : root.updates.channelSetting
-                                options: [
-                                    { value: "stable", label: qsTr("Stable"), name: "updateChannelStable" },
-                                    { value: "beta", label: root.updates.compiledChannel === "beta" ? qsTr("Beta · this build") : qsTr("Beta"), name: "updateChannelBeta" }
-                                ]
-                                current: chosen
-                                onPicked: value => root.updates.setChannel(value)
-                            }
+                            Layout.minimumWidth: 0
+                            resetMode: "none"
+                            label: qsTr("Update channel")
+                            meta: qsTr("Channel: %1").arg(root.updates.effectiveChannel)
+                            descriptionName: "updateChannelHint"
+                            description: root.updates.effectiveChannel === "beta"
+                                         ? qsTr("Pre-release builds from every change on main. May contain bugs.")
+                                         : qsTr("Tested releases. Recommended for everyday use.")
+                            ctrl: "segment"
+                            controlName: "updateChannelSegment"
+                            values: [
+                                { value: "stable", label: qsTr("Stable"), name: "updateChannelStable" },
+                                { value: "beta", label: root.updates.compiledChannel === "beta" ? qsTr("Beta · this build") : qsTr("Beta"), name: "updateChannelBeta" }
+                            ]
+                            current: root.updates.channelSetting === "default" ? (root.updates.effectiveChannel !== "off" ? root.updates.effectiveChannel : root.updates.compiledChannel) : root.updates.channelSetting
+                            onValuePicked: value => root.updates.setChannel(value)
                         }
-                        Rectangle { Layout.fillWidth: true; height: 1; color: Theme.borderRow }
 
-                        // Install automatically
-                        RowLayout {
+                        SettingsRow {
+                            objectName: "updateAutoInstallRow"
                             Layout.fillWidth: true
-                            Layout.topMargin: 14
-                            Layout.bottomMargin: 14
-                            spacing: Theme.space20
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 3
-                                FbLabel { text: qsTr("Install updates automatically"); font.weight: Font.Medium }
-                                FbLabel {
-                                    Layout.fillWidth: true
-                                    wrapMode: Text.WordWrap
-                                    color: Theme.textMuted
-                                    font.pixelSize: Theme.fontMeta
-                                    text: root.updates.autoInstallAvailable
-                                          ? qsTr("Downloaded in the background, applied on the next start")
-                                          : qsTr("Stable updates are only installed after you confirm.")
-                                }
-                            }
-                            FbToggle {
-                                objectName: "updateAutoInstallToggle"
-                                enabled: root.updates.autoInstallAvailable
-                                checked: root.updates.autoInstall
-                                onToggled: root.updates.setAutoInstall(checked)
-                            }
+                            Layout.minimumWidth: 0
+                            resetMode: "none"
+                            label: qsTr("Install updates automatically")
+                            description: root.updates.autoInstallAvailable
+                                         ? qsTr("Downloaded in the background, applied on the next start.")
+                                         : qsTr("Stable updates are only installed after you confirm.")
+                            ctrl: "toggle"
+                            toggleName: "updateAutoInstallToggle"
+                            controlEnabled: root.updates.autoInstallAvailable
+                            checked: root.updates.autoInstall
+                            onToggled: on => root.updates.setAutoInstall(on)
                         }
-                        Rectangle { Layout.fillWidth: true; height: 1; color: Theme.borderRow }
 
-                        // Last checked
-                        RowLayout {
+                        SettingsRow {
+                            objectName: "updatesLastCheckRow"
                             Layout.fillWidth: true
-                            Layout.topMargin: 14
-                            Layout.bottomMargin: 14
-                            spacing: Theme.space20
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 3
-                                FbLabel { text: qsTr("Last checked"); font.weight: Font.Medium }
-                                FbLabel {
-                                    objectName: "updatesLastCheck"
-                                    Layout.fillWidth: true
-                                    wrapMode: Text.WordWrap
-                                    color: Theme.textMuted
-                                    font.pixelSize: Theme.fontMeta
-                                    text: root.updates.cadenceText !== ""
-                                          ? qsTr("%1 · %2").arg(root.updates.lastCheckText).arg(root.updates.cadenceText)
-                                          : root.updates.lastCheckText
-                                }
-                            }
-                            FbButton {
-                                objectName: "updatesCheckNow"
-                                implicitHeight: 34
-                                busy: root.updates.checking
-                                busyOnClick: true
-                                text: qsTr("Check now")
-                                enabled: !root.updates.checking && root.updates.state !== "downloading"
-                                onClicked: root.updates.checkNow()
-                            }
+                            Layout.minimumWidth: 0
+                            resetMode: "none"
+                            label: qsTr("Last checked")
+                            descriptionName: "updatesLastCheck"
+                            description: root.updates.cadenceText !== ""
+                                         ? qsTr("%1 · %2").arg(root.updates.lastCheckText).arg(root.updates.cadenceText)
+                                         : root.updates.lastCheckText
+                            ctrl: "buttons"
+                            buttons: [{ name: "updatesCheckNow", text: qsTr("Check now"), busy: root.updates.checking, busyOnClick: true,
+                                        enabled: !root.updates.checking && root.updates.state !== "downloading" }]
+                            onButtonClicked: root.updates.checkNow()
                         }
-                        Rectangle { Layout.fillWidth: true; height: 1; color: Theme.borderRow }
-                        RowLayout {
-                            Layout.topMargin: 10
-                            spacing: Theme.space8
-                            FbLabel { text: qsTr("Version"); color: Theme.textMeta; font.pixelSize: Theme.fontMeta }
-                            FbMono { objectName: "updatesVersion"; text: root.updates.currentVersion }
+
+                        SettingsRow {
+                            objectName: "versionRow"
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            resetMode: "none"
+                            label: qsTr("Version")
+                            description: root.player.platformText
+                            ctrl: "value"
+                            controlName: "updatesVersion"
+                            valueText: root.updates.currentVersion
                         }
                     }
                 }
@@ -402,6 +371,9 @@ Rectangle {
                             readonly property bool editing: root.editingHubId === modelData.hubId && modelData.hubId !== ""
                             visible: modelData.saved
                             Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            Layout.leftMargin: Theme.settingsDotSlot
+                            Layout.rightMargin: content.wide ? Theme.settingsResetWidth : 0
                             Layout.preferredHeight: visible ? rowCol.implicitHeight + 28 : 0
                             radius: Theme.radius10
                             color: Theme.surface
@@ -613,21 +585,18 @@ Rectangle {
                         font.pixelSize: Theme.fontSmall
                     }
 
-                    RowLayout {
+                    SettingsRow {
+                        objectName: "autoConnectRow"
                         Layout.fillWidth: true
+                        Layout.minimumWidth: 0
                         Layout.topMargin: 4
-                        spacing: Theme.space20
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 3
-                            FbLabel { text: qsTr("Connect automatically on startup"); font.weight: Font.Medium }
-                            FbLabel { text: qsTr("Uses the last active hub"); color: Theme.textMuted; font.pixelSize: Theme.fontMeta }
-                        }
-                        FbToggle {
-                            objectName: "settingsAutoConnectToggle"
-                            checked: root.player.autoConnect
-                            onToggled: root.player.autoConnect = checked
-                        }
+                        resetMode: "none"
+                        label: qsTr("Connect automatically on startup")
+                        description: qsTr("Uses the last active hub.")
+                        ctrl: "toggle"
+                        toggleName: "settingsAutoConnectToggle"
+                        checked: root.player.autoConnect
+                        onToggled: on => root.player.autoConnect = on
                     }
                 }
 
@@ -638,31 +607,22 @@ Rectangle {
                     Layout.fillWidth: true
                     spacing: Theme.space12
                     Eyebrow { text: qsTr("Appearance") }
-                    RowLayout {
+                    SettingsRow {
+                        objectName: "themeRow"
                         Layout.fillWidth: true
-                        spacing: Theme.space20
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 3
-                            FbLabel { text: qsTr("Theme"); font.weight: Font.Medium }
-                            FbLabel {
-                                Layout.fillWidth: true
-                                color: Theme.textMuted
-                                font.pixelSize: Theme.fontMeta
-                                wrapMode: Text.WordWrap
-                                text: qsTr("The game view always stays dark")
-                            }
-                        }
-                        FbSegment {
-                            objectName: "appearanceSegment"
-                            options: [
-                                { value: "dark", label: qsTr("Dark"), name: "appearanceDark" },
-                                { value: "light", label: qsTr("Light"), name: "appearanceLight" },
-                                { value: "system", label: qsTr("System"), name: "appearanceSystem" }
-                            ]
-                            current: root.player.appearance
-                            onPicked: value => root.player.appearance = value
-                        }
+                        Layout.minimumWidth: 0
+                        resetMode: "none"
+                        label: qsTr("Theme")
+                        description: qsTr("The game view always stays dark.")
+                        ctrl: "segment"
+                        controlName: "appearanceSegment"
+                        values: [
+                            { value: "dark", label: qsTr("Dark"), name: "appearanceDark" },
+                            { value: "light", label: qsTr("Light"), name: "appearanceLight" },
+                            { value: "system", label: qsTr("System"), name: "appearanceSystem" }
+                        ]
+                        current: root.player.appearance
+                        onValuePicked: value => root.player.appearance = value
                     }
                 }
 
@@ -673,43 +633,30 @@ Rectangle {
                     Layout.fillWidth: true
                     spacing: Theme.space12
                     Eyebrow { text: qsTr("Diagnostics") }
-                    RowLayout {
+                    SettingsRow {
                         objectName: "logFileRow"
                         Layout.fillWidth: true
-                        spacing: Theme.space20
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            Layout.minimumWidth: 0
-                            spacing: 3
-                            FbLabel { text: qsTr("Log file"); font.weight: Font.Medium }
-                            FbMono {
-                                objectName: "logFilePath"
-                                Layout.fillWidth: true
-                                Layout.minimumWidth: 0
-                                text: root.player.logFile !== "" ? root.player.logFile : qsTr("File logging is not active")
-                                elide: Text.ElideMiddle
-                            }
-                        }
-                        FbButton {
-                            objectName: "logCopyPath"
-                            visible: root.player.logFile !== ""
-                            implicitHeight: 34
-                            text: copied.running ? qsTr("Copied") : qsTr("Copy path")
-                            onClicked: {
+                        Layout.minimumWidth: 0
+                        resetMode: "none"
+                        label: qsTr("Log file")
+                        descriptionName: "logFilePath"
+                        description: root.player.logFile !== "" ? root.player.logFile : qsTr("File logging is not active")
+                        ctrl: "buttons"
+                        buttons: [
+                            { name: "logCopyPath", text: copied.running ? qsTr("Copied") : qsTr("Copy path"), visible: root.player.logFile !== "" },
+                            { name: "logFolderOpen", text: qsTr("Open folder"), visible: root.player.logFile !== "" }
+                        ]
+                        onButtonClicked: name => {
+                            if (name === "logCopyPath") {
                                 clip.text = root.player.logFile
                                 clip.selectAll()
                                 clip.copy()
                                 copied.restart()
+                            } else if (name === "logFolderOpen") {
+                                root.player.openLogFolder()
                             }
-                            Timer { id: copied; interval: 1500 }
                         }
-                        FbButton {
-                            objectName: "logFolderOpen"
-                            visible: root.player.logFile !== ""
-                            implicitHeight: 34
-                            text: qsTr("Open folder")
-                            onClicked: root.player.openLogFolder()
-                        }
+                        Timer { id: copied; interval: 1500 }
                     }
                     TextEdit { id: clip; visible: false }
                 }
