@@ -72,12 +72,15 @@ class GameTest : public QObject {
     auto* view = h.window->findChild<GameView*>(QStringLiteral("gameView"));
     QVERIFY(view != nullptr);
     QTRY_VERIFY(!view->frameRect().isEmpty());
-    QTest::qWait(300);
-    const QImage shot = h.window->grabWindow();
-    const QPointF topLeft = view->mapToScene(view->frameRect().topLeft());
-    const QRect region = QRectF(topLeft, view->frameRect().size()).toAlignedRect().intersected(shot.rect());
-    QVERIFY(!region.isEmpty());
-    QVERIFY2(!uitest::isAllBlack(shot.copy(region)), "Game view is black");
+    QImage shot;
+    QRect region;
+    const auto grabGameView = [&]() {  // the first rendered frames may still be black: poll the rendered scene
+      shot = h.window->grabWindow();
+      const QPointF topLeft = view->mapToScene(view->frameRect().topLeft());
+      region = QRectF(topLeft, view->frameRect().size()).toAlignedRect().intersected(shot.rect());
+      return !region.isEmpty() && !uitest::isAllBlack(shot.copy(region));
+    };
+    QTRY_VERIFY2_WITH_TIMEOUT(grabGameView(), "Game view is black", 10000);
     // Aspect ratio 2:3 is preserved and the frame fills the height of the view.
     QVERIFY(std::abs(view->frameRect().width() / view->frameRect().height() - 256.0 / 384.0) < 0.01);
     QVERIFY(view->frameRect().height() >= view->height() * 0.9);

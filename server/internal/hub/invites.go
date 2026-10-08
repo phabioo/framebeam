@@ -332,6 +332,9 @@ func (s *Service) RedeemInvite(ctx context.Context, in RedeemInput) (_ RedeemRes
 		}
 	}
 	rows.Close()
+	if err := rows.Err(); err != nil {
+		return RedeemResult{}, internal(err)
+	}
 	if inviteID == "" {
 		s.noteRedeemFailure()
 		return RedeemResult{}, ErrInviteInvalid

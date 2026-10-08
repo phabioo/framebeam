@@ -163,6 +163,8 @@ packaging() {
   if command -v shellcheck >/dev/null 2>&1; then
     shellcheck "$dir/install-hub.sh" "$dir/build-deb.sh" "$ROOT/scripts/check-trusted-keys.sh" "$ROOT/scripts/e2e-hub-update.sh" || rc=1
     shellcheck -s sh "$dir"/deb/* || rc=1
+    # Remaining scripts: warnings and errors only (the e2e scripts use A && ok || die on purpose).
+    shellcheck -S warning "$ROOT"/scripts/*.sh "$ROOT/.claude/hooks/session-start.sh" || rc=1
   else
     echo "skip shellcheck (not installed)"
   fi

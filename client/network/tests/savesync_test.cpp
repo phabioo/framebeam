@@ -404,7 +404,7 @@ class SaveSyncTest : public QObject {
     QCOMPARE(start(), QStringLiteral("ready"));
     sync_->beginSession();
     writeFile(saveFile(), "play-1");
-    QTest::qWait(60);
+    QTest::qWait(20);
     QCOMPARE(puts(), 0);  // debounce not over yet
     QTRY_COMPARE_WITH_TIMEOUT(puts(), 1, 3000);
     QCOMPARE(lastPutReason(), QByteArray("checkpoint"));

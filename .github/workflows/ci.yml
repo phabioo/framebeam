@@ -21,6 +21,7 @@ jobs:
   version:
     name: Version and channel
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       core: ${{ steps.v.outputs.core }}
       version: ${{ steps.v.outputs.version }}
@@ -63,6 +64,7 @@ jobs:
   changes:
     name: Detect docs-only changes
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       docs_only: ${{ steps.d.outputs.docs_only }}
     steps:
@@ -126,6 +128,7 @@ jobs:
     if: needs.changes.outputs.docs_only != 'true'
     needs: [version, changes]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       HUB_VERSION: ${{ needs.version.outputs.version }}
       HUB_CHANNEL: ${{ needs.version.outputs.channel }}
@@ -168,6 +171,7 @@ jobs:
     if: needs.changes.outputs.docs_only != 'true'
     needs: [version, changes]
     runs-on: ubuntu-latest
+    timeout-minutes: 150
     env:
       FRAMEBEAM_VERSION: ${{ needs.version.outputs.version }}
       FRAMEBEAM_CHANNEL: ${{ needs.version.outputs.channel }}
@@ -233,6 +237,7 @@ jobs:
     if: needs.changes.outputs.docs_only != 'true' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))))
     needs: [version, changes]
     runs-on: windows-latest
+    timeout-minutes: 300
     env:
       FRAMEBEAM_VERSION: ${{ needs.version.outputs.version }}
       FRAMEBEAM_CHANNEL: ${{ needs.version.outputs.channel }}

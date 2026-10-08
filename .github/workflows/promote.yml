@@ -30,6 +30,7 @@ jobs:
   promote:
     name: Promote beta to stable
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write        # create the tag and the release/bump branch
       pull-requests: write   # open the VERSION bump PR

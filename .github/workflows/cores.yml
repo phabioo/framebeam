@@ -31,6 +31,7 @@ jobs:
   preflight:
     name: Check signing secret
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
       FRAMEBEAM_SIGNING_KEY: ${{ secrets.FRAMEBEAM_SIGNING_KEY }}
     steps:
@@ -47,6 +48,7 @@ jobs:
     if: github.event_name == 'pull_request'
     needs: preflight
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v6
@@ -67,6 +69,7 @@ jobs:
     if: github.event_name != 'pull_request'
     needs: preflight
     runs-on: ubuntu-latest
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v4
       - name: Cache melonDS DS core
@@ -99,6 +102,7 @@ jobs:
     if: github.event_name != 'pull_request'
     needs: preflight
     runs-on: windows-latest
+    timeout-minutes: 300
     steps:
       - uses: actions/checkout@v4
       - name: Cache melonDS DS core
@@ -131,6 +135,7 @@ jobs:
     if: github.event_name != 'pull_request'
     needs: [preflight, build-linux-x64, build-windows-x64]
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: write
     env:

@@ -126,7 +126,9 @@ int countContaining(const FakeHub& hub, const QString& part, const QByteArray& m
 }
 QJsonObject lastBody(const FakeHub& hub, const QByteArray& method, const QString& pathPrefix) {
   for (qsizetype i = hub.requests.size() - 1; i >= 0; --i) {
-    if (hub.requests.at(i).method == method && hub.requests.at(i).path.startsWith(pathPrefix)) {
+    const QString& path = hub.requests.at(i).path;
+    // A prefix ending in '/' matches sub-paths (PATCH /sessions/<id>); otherwise the path must match exactly.
+    if (hub.requests.at(i).method == method && (pathPrefix.endsWith(QLatin1Char('/')) ? path.startsWith(pathPrefix) : path == pathPrefix)) {
       return QJsonDocument::fromJson(hub.requests.at(i).body).object();
     }
   }
@@ -565,6 +567,9 @@ class SessionsUiTest : public QObject {
     // Visibility "Private": only watchers are listed, no invite block
     QVERIFY(h.click("visPrivate"));
     QTRY_COMPARE(ctl->visibility(), QStringLiteral("private"));
+    // The local state flips at once; wait until the Hub applied the PATCH so no request of this step is still in flight.
+    QTRY_COMPARE(lastBody(hub, "PATCH", QStringLiteral("/api/v1/sessions/")).value(QStringLiteral("visibility")).toString(), QStringLiteral("private"));
+    QTRY_COMPARE(hub.sessions.value(ownSessionId(hub)).value(QStringLiteral("visibility")).toString(), QStringLiteral("private"));
     QQuickTest::qWaitForPolish(h.window);
     QVERIFY(!h.item("inviteBlock")->isVisible());
     QVERIFY(ctl->participantsTitle().startsWith(QStringLiteral("WATCHING")));
