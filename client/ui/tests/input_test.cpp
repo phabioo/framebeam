@@ -63,13 +63,29 @@ class InputTest : public QObject {
     map.insert(Qt::Key_Z, buttonMask(JoypadButton::B));
     gs.setKeyboardMap(map);
     for (int k : {int(Qt::Key_F3), int(Qt::Key_F5), int(Qt::Key_F11), int(Qt::Key_Escape)}) {
-      QVERIFY(GameSession::isReservedKey(k));
+      QVERIFY(gs.isReservedKey(k));
       QVERIFY(!gs.keyEvent(k, true));
       QVERIFY(!gs.keyEvent(k, false));
     }
-    QVERIFY(!GameSession::isReservedKey(Qt::Key_Z));
+    QVERIFY(!gs.isReservedKey(Qt::Key_Z));
     QVERIFY(gs.keyEvent(Qt::Key_Z, true));
     QVERIFY(gs.keyEvent(Qt::Key_Z, false));
+  }
+
+  // Configurable hotkeys: the remapped key is reserved (and not forwarded), the old default key is a normal key again.
+  void remappedHotkeyIsReserved() {
+    GameSession gs;
+    gs.setHotkeyKeys({Qt::Key_F10, Qt::Key_F3, Qt::Key_F5});
+    QHash<int, quint32> map{{Qt::Key_F10, buttonMask(JoypadButton::A)}, {Qt::Key_F11, buttonMask(JoypadButton::B)}};
+    gs.setKeyboardMap(map);
+    QVERIFY(gs.isReservedKey(Qt::Key_F10));
+    QVERIFY(!gs.keyEvent(Qt::Key_F10, true));
+    QVERIFY(!gs.isReservedKey(Qt::Key_F11));
+    QVERIFY(gs.keyEvent(Qt::Key_F11, true));
+    QVERIFY(gs.isReservedKey(Qt::Key_Escape));  // fixed
+    gs.setHotkeyKeys({});
+    QVERIFY(gs.isReservedKey(Qt::Key_Escape));
+    QVERIFY(!gs.isReservedKey(Qt::Key_F3));
   }
 
   // Keyboard profile map: replaces the standard map; two keys on one button keep it pressed until both are up.

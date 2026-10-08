@@ -164,8 +164,8 @@ void GameSession::applyJoypad() {
   }
 }
 
-bool GameSession::isReservedKey(int qtKey) {
-  return qtKey == Qt::Key_F3 || qtKey == Qt::Key_F5 || qtKey == Qt::Key_F11 || qtKey == Qt::Key_Escape;
+bool GameSession::isReservedKey(int qtKey) const {
+  return qtKey == Qt::Key_Escape || hotkeyKeys_.contains(qtKey);
 }
 
 QStringList GameSession::screenLayouts() const { return screenLayoutsFor(screenCount()); }

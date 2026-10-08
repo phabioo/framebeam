@@ -44,6 +44,17 @@ QString keyToken(int qtKey);
 std::optional<int> keyFromToken(const QString& token);
 QString tokenLabel(const QString& token);  // "B", "LB", "Left stick ◀", "Return", ...
 
+// Player hotkeys (keyboard only, global, never forwarded to the core; stored in controllers.json under "hotkeys" as
+// {actionId: "key:<Qt::Key>" | "none"}, only non-default entries). One entry per action: a later action is one more line
+// in hotkeyDefs(). Esc is fixed (leave fullscreen, else pause), not an action and never assignable.
+struct HotkeyDef {
+  QString id;       // "fullscreen"
+  QString label;    // shown in the Hotkeys table
+  int defaultKey;   // Qt::Key
+};
+const QList<HotkeyDef>& hotkeyDefs();
+int hotkeyIndex(const QString& id);  // -1 = unknown
+
 class ControllerProfiles {
  public:
   static constexpr const char* kBuiltinGamepadId = "builtin-gamepad";
@@ -68,6 +79,16 @@ class ControllerProfiles {
   bool setBinding(const QString& id, const QString& inputId, const QStringList& tokens);
   bool resetToDefault(const QString& id);  // user profiles only: bindings of the built-in profile of its kind
 
+  // Hotkeys. key = Qt::Key, 0 = unassigned. setHotkey rejects a key used by another action or Esc (and unknown actions).
+  int hotkey(const QString& actionId) const;
+  bool setHotkey(const QString& actionId, int qtKey);
+  bool clearHotkey(const QString& actionId);  // unassigned
+  bool resetHotkey(const QString& actionId);
+  bool resetHotkeys();
+  QString hotkeyAction(int qtKey) const;      // action id the key triggers, empty = none (Esc is not an action)
+  QMap<QString, int> hotkeys() const { return hotkeys_; }  // effective key per action id (0 = unassigned)
+  int hotkeysChangedCount() const;
+
   // Device assignment: deviceKey = gamepad GUID string or kKeyboardDevice. Falls back to the built-in profile of
   // the kind when nothing (valid) is assigned.
   QString assignedProfileId(const QString& deviceKey, const QString& kind) const;
@@ -81,6 +102,7 @@ class ControllerProfiles {
   QJsonObject raw_;
   QList<ControllerProfile> user_;
   QMap<QString, QString> assignments_;
+  QMap<QString, int> hotkeys_;  // effective key per action id, all actions present
 };
 
 }  // namespace framebeam

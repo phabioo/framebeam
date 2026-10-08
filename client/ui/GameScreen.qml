@@ -7,7 +7,7 @@ import FrameBeam.Player
 // layout switch and Fullscreen; Session tab = local game + side panel (340), Multiview = MultiviewArea (3h, 3r, 3i). The
 // Diagnostics tab toggles the overlay (3t-3y; bottom panel in the multiview). Fullscreen (F11) drops header and panel; the
 // toolbar appears when the mouse moves to the top. Without a local game (watching only) the remote Session fills the surface.
-// Keys (never forwarded to the core): F11 fullscreen, Esc leaves fullscreen (else pause), F3 diagnostics, F5 snapshot,
+// Keys (never forwarded to the core; defaults, configurable except Esc): F11 fullscreen, Esc leaves fullscreen (else pause), F3 diagnostics, F5 snapshot,
 // 1-4 audio focus in the grid.
 Rectangle {
     id: root
@@ -85,14 +85,17 @@ Rectangle {
         }
     }
 
+    // Player hotkeys are configurable (Controllers > Hotkeys): the controller maps the Qt key to an action name.
+    readonly property var hotkeyLabels: root.player.controllers.hotkeyLabels
     Keys.onPressed: (e) => {
-        if (e.key === Qt.Key_F11) {
+        var action = root.player.controllers.hotkeyAction(e.key)
+        if (action === "fullscreen") {
             root.toggleFullscreen()
             e.accepted = true
-        } else if (e.key === Qt.Key_F3) {
+        } else if (action === "diagnostics") {
             root.diag.toggle()
             e.accepted = true
-        } else if (e.key === Qt.Key_F5) {
+        } else if (action === "snapshot") {
             root.saveSnapshot()
             e.accepted = true
         } else if (e.key === Qt.Key_Escape) {
@@ -262,7 +265,7 @@ Rectangle {
                 Layout.minimumWidth: implicitWidth  // never squeezed; the title elides first
                 focusPolicy: Qt.NoFocus
                 text: qsTr("Fullscreen")
-                hint: "F11"
+                hint: root.hotkeyLabels.fullscreen
                 compact: root.width < 1360  // same threshold as the layout switch: drop the key hint when narrow
                 onClicked: root.toggleFullscreen()
             }
@@ -446,7 +449,7 @@ Rectangle {
                 color: "transparent"
                 border.width: 1
                 border.color: Theme.borderButton
-                FbMono { id: chipKey; anchors.centerIn: parent; text: "F3"; font.pixelSize: 10; color: Theme.textMuted }
+                FbMono { id: chipKey; anchors.centerIn: parent; text: root.hotkeyLabels.diagnostics; font.pixelSize: 10; color: Theme.textMuted }
             }
             FbLabel { text: qsTr("Diagnostics"); font.pixelSize: 12; color: Theme.textMeta }
         }
@@ -503,7 +506,7 @@ Rectangle {
                     objectName: "exitFullscreenButton"
                     focusPolicy: Qt.NoFocus
                     text: qsTr("Exit fullscreen")
-                    hint: "F11 · Esc"
+                    hint: root.hotkeyLabels.fullscreen !== "" ? root.hotkeyLabels.fullscreen + " · Esc" : "Esc"
                     onClicked: root.setFullscreen(false)
                 }
             }

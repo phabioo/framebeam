@@ -460,7 +460,7 @@ class EmulationControllersTest : public QObject {
     QCOMPARE(text(h, "mapText_a"), QStringLiteral("B"));       // NDS A on the east button
     QCOMPARE(text(h, "mapText_up"), QStringLiteral("D-Pad ▲ / Left stick ▲"));
     // Built-in profiles are read-only.
-    QVERIFY(h.click("mapField_a"));
+    c->beginCapture(QStringLiteral("a"));
     QVERIFY(c->listening().isEmpty());
     uitest::saveShot(h.window, QStringLiteral("5-controllers"));
 
@@ -542,6 +542,126 @@ class EmulationControllersTest : public QObject {
     QVERIFY(deviceRow(h, QStringLiteral("gamepad")).isEmpty());
     QCOMPARE(c->selectedDevice(), QStringLiteral("keyboard"));
     QCOMPARE(deviceRow(h, QStringLiteral("keyboard")).value(QStringLiteral("slot")).toString(), QStringLiteral("P1"));
+  }
+
+  void controllersHotkeysTab() {
+    FakeHub hub(QStringLiteral("a"));
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    ControllersController* c = h.controller->controllers();
+    GameSession* s = h.controller->gameSession();
+    h.controller->showControllers();
+    QVERIFY(!visible(h, "hotkeysInfo"));
+    QVERIFY(h.click("tabHotkeys"));
+    QVERIFY(visible(h, "hotkeysInfo"));
+    QCOMPARE(text(h, "hotkeysInfo"), QStringLiteral("Player hotkeys work on the keyboard and are never sent to the game."));
+    QCOMPARE(c->hotkeyRows().size(), 4);  // three actions + the fixed Esc row
+    QCOMPARE(text(h, "hotkeyText_fullscreen"), QStringLiteral("F11"));
+    QCOMPARE(text(h, "hotkeyText_diagnostics"), QStringLiteral("F3"));
+    QCOMPARE(text(h, "hotkeyText_snapshot"), QStringLiteral("F5"));
+    QCOMPARE(text(h, "hotkeyText_escape"), QStringLiteral("Esc"));
+    QVERIFY(!visible(h, "resetChanged"));
+    // The fixed Esc row cannot be captured.
+    QVERIFY(h.click("hotkeyField_escape"));
+    QVERIFY(c->hotkeyListening().isEmpty());
+
+    // Capture: Escape cancels, a key used by another action is rejected (binding stays, note), a free key is taken.
+    QVERIFY(h.click("hotkeyField_fullscreen"));
+    QCOMPARE(text(h, "hotkeyText_fullscreen"), QStringLiteral("Press a key…"));
+    QTest::keyClick(h.window, Qt::Key_Escape);
+    QVERIFY(c->hotkeyListening().isEmpty());
+    QCOMPARE(text(h, "hotkeyText_fullscreen"), QStringLiteral("F11"));
+    QVERIFY(h.click("hotkeyField_fullscreen"));
+    QTest::keyClick(h.window, Qt::Key_F3);
+    QCOMPARE(c->hotkeyNote(), QStringLiteral("Already used by Diagnostics overlay"));
+    QVERIFY(visible(h, "hotkeyNote"));
+    QCOMPARE(c->hotkeyListening(), QStringLiteral("fullscreen"));
+    QCOMPARE(c->hotkeyAction(Qt::Key_F11), QStringLiteral("fullscreen"));
+    QTest::keyClick(h.window, Qt::Key_F10);
+    QVERIFY(c->hotkeyListening().isEmpty());
+    QVERIFY(c->hotkeyNote().isEmpty());
+    QCOMPARE(text(h, "hotkeyText_fullscreen"), QStringLiteral("F10"));
+    QVERIFY(visible(h, "hotkeyChangedDot_fullscreen"));
+    QCOMPARE(c->hotkeysChangedCount(), 1);
+    QVERIFY(visible(h, "resetChanged"));
+    QCOMPARE(c->hotkeyLabels().value(QStringLiteral("fullscreen")).toString(), QStringLiteral("F10"));
+    // The Player resolves keys through the configured actions.
+    QCOMPARE(c->hotkeyAction(Qt::Key_F10), QStringLiteral("fullscreen"));
+    QCOMPARE(c->hotkeyAction(Qt::Key_F11), QString());
+    QVERIFY(s->isReservedKey(Qt::Key_F10));
+    QVERIFY(!s->isReservedKey(Qt::Key_F11));
+    QVERIFY(s->isReservedKey(Qt::Key_Escape));
+
+    // A hotkey wins over the keyboard profile: Z is B in the standard keyboard profile.
+    QVERIFY(s->keyEvent(Qt::Key_Z, true));
+    s->keyEvent(Qt::Key_Z, false);
+    QVERIFY(h.click("hotkeyField_snapshot"));
+    QTest::keyClick(h.window, Qt::Key_Z);
+    QCOMPARE(text(h, "hotkeyText_snapshot"), QStringLiteral("Z"));
+    QCOMPARE(c->hotkeyAction(Qt::Key_Z), QStringLiteral("snapshot"));
+    QCOMPARE(c->hotkeyRows().at(2).toMap().value(QStringLiteral("conflictInput")).toString(), QStringLiteral("B"));
+    QVERIFY(visible(h, "hotkeyConflict_snapshot"));
+    QVERIFY(!c->keyboardMap().contains(Qt::Key_Z));
+    QVERIFY(!s->keyEvent(Qt::Key_Z, true));
+    QCOMPARE(s->joypadMask(), 0u);
+    // Unassigned: no key, no hint.
+    QVERIFY(h.click("hotkeyClear_diagnostics"));
+    QCOMPARE(text(h, "hotkeyText_diagnostics"), QStringLiteral("not set"));
+    QCOMPARE(c->hotkeyLabels().value(QStringLiteral("diagnostics")).toString(), QString());
+    QVERIFY(!s->isReservedKey(Qt::Key_F3));
+
+    // Persisted, then reset one / all.
+    {
+      ControllerProfiles reread(h.controller->profileStore()->baseDir());
+      QCOMPARE(reread.hotkey(QStringLiteral("fullscreen")), int(Qt::Key_F10));
+      QCOMPARE(reread.hotkey(QStringLiteral("diagnostics")), 0);
+    }
+    QCOMPARE(c->hotkeysChangedCount(), 3);
+    QVERIFY(h.click("hotkeyReset_fullscreen"));
+    QCOMPARE(text(h, "hotkeyText_fullscreen"), QStringLiteral("F11"));
+    QCOMPARE(c->hotkeysChangedCount(), 2);
+    QVERIFY(h.click("resetChanged"));
+    QCOMPARE(c->hotkeysChangedCount(), 0);
+    QCOMPARE(text(h, "hotkeyText_snapshot"), QStringLiteral("F5"));
+    QVERIFY(s->isReservedKey(Qt::Key_F3));
+    QVERIFY(c->keyboardMap().contains(Qt::Key_Z));  // the profile key is back
+    // Back on the Buttons tab the mapping table is shown again.
+    QVERIFY(h.click("tabButtons"));
+    QVERIFY(!visible(h, "hotkeysInfo"));
+    QVERIFY(visible(h, "mapField_a"));
+  }
+
+  void controllersDuplicateToEdit() {
+    FakeHub hub(QStringLiteral("a"));
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    ControllersController* c = h.controller->controllers();
+    h.controller->showControllers();
+    QVERIFY(c->profileBuiltin());
+    QVERIFY(visible(h, "duplicateToEditButton"));
+    QVERIFY(h.click("duplicateToEditButton"));
+    QVERIFY(!c->profileBuiltin());
+    QCOMPARE(c->profileName(), QStringLiteral("Keyboard · Standard copy"));
+    QVERIFY(!visible(h, "duplicateToEditButton"));
+    QVERIFY(!visible(h, "builtinNote"));
+    // Clicking a field of a built-in profile duplicates and starts the capture on the copy.
+    c->selectProfile(QString::fromLatin1(ControllerProfiles::kBuiltinKeyboardId));
+    QVERIFY(c->profileBuiltin());
+    QVERIFY(h.click("mapField_a"));
+    QVERIFY(!c->profileBuiltin());
+    QCOMPARE(c->profileName(), QStringLiteral("Keyboard · Standard copy 2"));
+    QCOMPARE(c->listening(), QStringLiteral("a"));
+    QCOMPARE(text(h, "mapText_a"), QStringLiteral("Press a key…"));
+    QTest::keyClick(h.window, Qt::Key_J);
+    QCOMPARE(text(h, "mapText_a"), QStringLiteral("J"));
+    // The built-in profile stays untouched and read-only.
+    const auto builtin = c->profileStore()->find(QString::fromLatin1(ControllerProfiles::kBuiltinKeyboardId));
+    QVERIFY(builtin && builtin->builtin);
+    QCOMPARE(builtin->bindings.value(QStringLiteral("a")), QStringList{keyToken(Qt::Key_X)});
   }
 
   void controllersKeyboardProfileAndMouse() {
