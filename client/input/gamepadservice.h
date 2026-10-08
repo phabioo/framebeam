@@ -17,6 +17,7 @@
 #include <functional>
 
 #include "inputmap.h"
+#include "padtype.h"
 
 namespace framebeam::input {
 
@@ -25,6 +26,7 @@ struct PadDevice {
   QString name;
   QString key;      // stable key for profile assignment (SDL GUID string)
   int slot = 0;     // 1 = P1, 0 = no slot
+  PadType type = PadType::Generic;  // detected controller type (glyph set "Auto")
 };
 
 class GamepadService : public QObject {

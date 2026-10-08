@@ -53,6 +53,15 @@ class ControllersController : public QObject {
   Q_PROPERTY(QString touchLabel READ touchLabel NOTIFY labelsChanged)
   // Input test: ids of the FrameBeam inputs that are active on the selected device.
   Q_PROPERTY(QStringList activeInputs READ activeInputs NOTIFY testChanged)
+  // Button labels (glyph sets, design 3f-2/3f-3). labelChoice = saved choice of the selected gamepad ("auto" | "xbox" |
+  // "playstation" | "generic"; saved per physical device), labelSet = effective set id (adds "keyboard" for the keyboard),
+  // labelSetName = its title ("Xbox"), labelChoices = select model [{value, label}] ("Auto (PlayStation)" first).
+  Q_PROPERTY(QString labelChoice READ labelChoice NOTIFY labelSetChanged)
+  Q_PROPERTY(QString labelSet READ labelSet NOTIFY labelSetChanged)
+  Q_PROPERTY(QString labelSetName READ labelSetName NOTIFY labelSetChanged)
+  Q_PROPERTY(QVariantList labelChoices READ labelChoices NOTIFY labelSetChanged)
+  // Cells of the controller-shaped input test: [{id, glyph, col, row, span, square, active}].
+  Q_PROPERTY(QVariantList testCells READ testCells NOTIFY testChanged)
 
  public:
   ControllersController(const QString& dataDir, QObject* parent = nullptr);
@@ -76,6 +85,11 @@ class ControllersController : public QObject {
   int changedCount() const;
   bool supportsLid() const { return false; }
   QStringList activeInputs() const;
+  QString labelChoice() const;
+  QString labelSet() const;
+  QString labelSetName() const;
+  QVariantList labelChoices() const;
+  QVariantList testCells() const;
   QString systemLabel() const { return systemLabel_; }
   QString touchLabel() const { return touchLabel_; }
   void setSystemLabels(const QString& systemLabel, const QString& touchLabel);
@@ -91,6 +105,7 @@ class ControllersController : public QObject {
   QHash<int, quint32> keyboardMap() const;
 
   Q_INVOKABLE void selectDevice(const QString& key);
+  Q_INVOKABLE void setLabelChoice(const QString& choice);  // "auto" | "xbox" | "playstation" | "generic"; gamepads only
   Q_INVOKABLE void selectProfile(const QString& id);
   Q_INVOKABLE void duplicateProfile();
   Q_INVOKABLE void renameProfile(const QString& name);
@@ -122,6 +137,7 @@ class ControllersController : public QObject {
   void testChanged();
   void keyboardMapChanged();
   void labelsChanged();
+  void labelSetChanged();
   void hotkeysChanged();
   void libretroMaskChanged(quint32 mask);  // P1 gamepad, nds system profile
 
@@ -134,6 +150,7 @@ class ControllersController : public QObject {
     int padId = 0;
   };
   Selected selection() const;
+  QString labelSetFor(const Selected& s, const input::PadDevice& d) const;
   std::optional<ControllerProfile> currentProfile() const;
   QString deviceKeyForAssignment() const;
   void profileChanged();   // after a change of profiles/assignments: tell the consumers

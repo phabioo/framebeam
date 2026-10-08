@@ -108,6 +108,12 @@ QString tokenLabel(const QString& token) {
   return token;
 }
 
+namespace {
+bool isLabelSet(const QString& v) {
+  return v == QLatin1String("xbox") || v == QLatin1String("playstation") || v == QLatin1String("generic");
+}
+}  // namespace
+
 ControllerProfile ControllerProfiles::builtinProfile(const QString& kind) {
   ControllerProfile p;
   p.builtin = true;
@@ -189,6 +195,10 @@ ControllerProfiles::ControllerProfiles(const QString& baseDir)
   const QJsonObject a = raw_.value(QStringLiteral("assignments")).toObject();
   for (auto it = a.begin(); it != a.end(); ++it) {
     if (it.value().isString()) assignments_.insert(it.key(), it.value().toString());
+  }
+  const QJsonObject ls = raw_.value(QStringLiteral("labelSets")).toObject();
+  for (auto it = ls.begin(); it != ls.end(); ++it) {
+    if (it.value().isString() && isLabelSet(it.value().toString())) labelSets_.insert(it.key(), it.value().toString());
   }
   // Hotkeys: a missing, corrupted or conflicting entry falls back to the action's default.
   const QJsonObject hk = raw_.value(QStringLiteral("hotkeys")).toObject();
@@ -376,6 +386,17 @@ bool ControllerProfiles::assign(const QString& deviceKey, const QString& profile
   return save();
 }
 
+bool ControllerProfiles::setLabelSet(const QString& deviceKey, const QString& value) {
+  if (deviceKey.isEmpty() || (!value.isEmpty() && !isLabelSet(value))) return false;
+  if (value.isEmpty()) {
+    if (labelSets_.remove(deviceKey) == 0) return true;
+  } else {
+    if (labelSets_.value(deviceKey) == value) return true;
+    labelSets_.insert(deviceKey, value);
+  }
+  return save();
+}
+
 bool ControllerProfiles::save() const {
   if (!QDir().mkpath(QFileInfo(path_).absolutePath())) {
     return false;
@@ -398,6 +419,13 @@ bool ControllerProfiles::save() const {
     a.insert(it.key(), it.value());
   }
   root.insert(QStringLiteral("assignments"), a);
+  if (labelSets_.isEmpty()) {
+    root.remove(QStringLiteral("labelSets"));
+  } else {
+    QJsonObject ls;
+    for (auto it = labelSets_.cbegin(); it != labelSets_.cend(); ++it) ls.insert(it.key(), it.value());
+    root.insert(QStringLiteral("labelSets"), ls);
+  }
   QJsonObject hk;
   for (const HotkeyDef& d : hotkeyDefs()) {
     const int k = hotkeys_.value(d.id, d.defaultKey);

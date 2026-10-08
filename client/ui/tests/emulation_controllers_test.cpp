@@ -757,8 +757,10 @@ class EmulationControllersTest : public QObject {
     QCOMPARE(text(h, "controllersTitle"), QStringLiteral("FrameBeam Test Pad"));
     QVERIFY(c->profileBuiltin());
     QVERIFY(visible(h, "builtinNote"));
-    QCOMPARE(text(h, "mapText_a"), QStringLiteral("B"));       // NDS A on the east button
-    QCOMPARE(text(h, "mapText_up"), QStringLiteral("D-Pad ▲ / Left stick ▲"));
+    QCOMPARE(c->labelSet(), QStringLiteral("generic"));  // not an Xbox/PlayStation pad: names of the emulated system
+    QCOMPARE(text(h, "mapText_a"), QStringLiteral("A"));       // NDS A on the east button, generic set = DS names
+    QCOMPARE(inputRow(h, QStringLiteral("a")).value(QStringLiteral("binding")).toString(), QStringLiteral("B"));  // token label
+    QCOMPARE(text(h, "mapText_up"), QStringLiteral("D-pad · or left stick"));
     // Built-in profiles are read-only.
     c->beginCapture(QStringLiteral("a"));
     QVERIFY(c->listening().isEmpty());
@@ -796,8 +798,8 @@ class EmulationControllersTest : public QObject {
     pad.button(LB, true);
     c->gamepads()->poll();
     QVERIFY(c->listening().isEmpty());
-    QCOMPARE(text(h, "mapText_a"), QStringLiteral("LB"));
-    QCOMPARE(text(h, "mapText_l"), QStringLiteral("LT"));  // taken away from L (a token drives one input)
+    QCOMPARE(text(h, "mapText_a"), QStringLiteral("L"));   // left shoulder = DS "L" in the generic set
+    QCOMPARE(text(h, "mapText_l"), QStringLiteral("L2"));  // LT, taken away from L (a token drives one input)
     pad.button(LB, false);
     c->gamepads()->poll();
     pad.button(LB, true);  // remapped profile drives the game
@@ -811,7 +813,7 @@ class EmulationControllersTest : public QObject {
     c->gamepads()->poll();
     // Not mapped state, clear.
     QVERIFY(h.click("mapClear_start"));
-    QCOMPARE(text(h, "mapText_start"), QStringLiteral("not mapped"));
+    QCOMPARE(text(h, "mapText_start"), QStringLiteral("Unassigned"));
     QVERIFY(!inputRow(h, QStringLiteral("start")).value(QStringLiteral("mapped")).toBool());
     // Escape cancels a capture on the keyboard only; for pads a second tap on the field cancels.
     QVERIFY(h.click("mapField_b"));
@@ -827,7 +829,7 @@ class EmulationControllersTest : public QObject {
     }
     // Reset to default restores the built-in bindings; rename; delete (two-step) falls back to the built-in profile.
     QVERIFY(h.click("resetProfileButton"));
-    QCOMPARE(text(h, "mapText_a"), QStringLiteral("B"));
+    QCOMPARE(text(h, "mapText_a"), QStringLiteral("A"));
     c->renameProfile(QStringLiteral("Couch pad"));
     QCOMPARE(c->profileName(), QStringLiteral("Couch pad"));
     QVERIFY(h.click("deleteProfileButton"));
@@ -978,7 +980,7 @@ class EmulationControllersTest : public QObject {
     QCOMPARE(c->listening(), QStringLiteral("a"));
     QCOMPARE(text(h, "mapText_a"), QStringLiteral("Press a key…"));
     QTest::keyClick(h.window, Qt::Key_J);
-    QCOMPARE(text(h, "mapText_a"), QStringLiteral("J"));
+    QCOMPARE(inputRow(h, QStringLiteral("a")).value(QStringLiteral("glyphs")).toStringList(), QStringList{QStringLiteral("J")});  // key names
     // The built-in profile stays untouched and read-only.
     const auto builtin = c->profileStore()->find(QString::fromLatin1(ControllerProfiles::kBuiltinKeyboardId));
     QVERIFY(builtin && builtin->builtin);
@@ -1012,7 +1014,7 @@ class EmulationControllersTest : public QObject {
     QVERIFY(c->listening().isEmpty());
     QVERIFY(h.click("mapField_a"));
     QTest::keyClick(h.window, Qt::Key_J);
-    QCOMPARE(text(h, "mapText_a"), QStringLiteral("J"));
+    QCOMPARE(inputRow(h, QStringLiteral("a")).value(QStringLiteral("glyphs")).toStringList(), QStringList{QStringLiteral("J")});  // key names
     // Taking X away from nothing else; X is now unmapped, J is A in the game and in the test panel.
     GameSession* s = h.controller->gameSession();
     QVERIFY(!s->keyEvent(Qt::Key_X, true));
@@ -1028,7 +1030,7 @@ class EmulationControllersTest : public QObject {
     QTest::keyRelease(h.window, Qt::Key_J);
     // Built-in keyboard profile is untouched (read-only).
     c->selectProfile(QString::fromLatin1(ControllerProfiles::kBuiltinKeyboardId));
-    QCOMPARE(text(h, "mapText_a"), QStringLiteral("X"));
+    QCOMPARE(inputRow(h, QStringLiteral("a")).value(QStringLiteral("glyphs")).toStringList(), QStringList{QStringLiteral("X")});
     QVERIFY(visible(h, "builtinNote"));
     QTest::keyClick(h.window, Qt::Key_Q);  // not capturing: only feeds the test
 
