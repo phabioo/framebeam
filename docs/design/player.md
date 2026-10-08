@@ -180,7 +180,7 @@ Lines 622-666. Multiview, picture-in-picture.
 - Open: moving/resizing the PiP window, multiple PiPs, audio control in the PiP (only status "muted"), connection type of the remote not shown not drawn.
 
 ## Diagnostics overlay (3t-3y, common)
-Lines 669-677 (intro). New; the older single "DIAGNOSTICS · CONNECTIONS" panel is gone. Proposal from the handoff after Fabio's request of 2026-10-07 to split emulator and streaming diagnostics; not accepted yet by Fabio, although built in 0.6 per ADR 0014 (decisions.md, item 5). All values are illustrative; open points README m-t.
+Lines 669-677 (intro). New; the older single "DIAGNOSTICS · CONNECTIONS" panel is gone. From the handoff after Fabio's request of 2026-10-07 to split emulator and streaming diagnostics; accepted by Fabio on 2026-10-08 and built in 0.6 per ADR 0014 (decisions.md, item 5). All values are illustrative; open points README m-t.
 
 Three rules of the intro block:
 - One overlay with two sections, each collapsing to one summary line; same look in the window, multiview and fullscreen.
