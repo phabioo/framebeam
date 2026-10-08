@@ -61,6 +61,37 @@ emu::CoreProbe fakeProbe() {
   return p;
 }
 
+// A core with many categories and every control type: toggle, segment, select (6 values), description with an option list.
+emu::CoreProbe richProbe() {
+  emu::CoreProbe p;
+  p.ok = true;
+  p.info.name = QStringLiteral("melonDS DS");
+  p.info.version = QStringLiteral("1.4.0");
+  const QStringList cats = {QStringLiteral("System"), QStringLiteral("Video"), QStringLiteral("Audio"), QStringLiteral("Screen"),
+                            QStringLiteral("Firmware"), QStringLiteral("Network"), QStringLiteral("Date/Time"), QStringLiteral("Input Devices")};
+  for (const QString& c : cats) p.categories.append({QString(c.toLower()).replace(QLatin1Char('/'), QLatin1Char('_')), c, QString()});
+  p.options = {
+      option(QStringLiteral("rich_boot"), QStringLiteral("Boot Mode"), QStringLiteral("system"), {QStringLiteral("direct"), QStringLiteral("native")}, QStringLiteral("direct")),
+      option(QStringLiteral("rich_threaded"), QStringLiteral("Threaded Software Renderer"), QStringLiteral("video"),
+             {QStringLiteral("disabled"), QStringLiteral("enabled")}, QStringLiteral("enabled")),
+      option(QStringLiteral("rich_res"), QStringLiteral("Internal Resolution"), QStringLiteral("video"),
+             {QStringLiteral("1x native (256 x 192)"), QStringLiteral("2x native (512 x 384)"), QStringLiteral("3x native (768 x 576)"),
+              QStringLiteral("4x native (1024 x 768)"), QStringLiteral("5x native (1280 x 960)"), QStringLiteral("6x native (1536 x 1152)")},
+             QStringLiteral("1x native (256 x 192)")),
+      option(QStringLiteral("rich_interp"), QStringLiteral("Interpolation"), QStringLiteral("audio"),
+             {QStringLiteral("None"), QStringLiteral("Linear"), QStringLiteral("Cosine"), QStringLiteral("Cubic")}, QStringLiteral("None")),
+      option(QStringLiteral("rich_mic"), QStringLiteral("Microphone Input Mode"), QStringLiteral("audio"),
+             {QStringLiteral("silence"), QStringLiteral("noise"), QStringLiteral("host")}, QStringLiteral("silence")),
+      option(QStringLiteral("rich_screen"), QStringLiteral("Screen Gap"), QStringLiteral("screen"), {QStringLiteral("0"), QStringLiteral("1")}, QStringLiteral("0")),
+      option(QStringLiteral("rich_fw"), QStringLiteral("Firmware Source"), QStringLiteral("firmware"), {QStringLiteral("a"), QStringLiteral("b")}, QStringLiteral("a")),
+      option(QStringLiteral("rich_net"), QStringLiteral("Network Mode"), QStringLiteral("network"), {QStringLiteral("a"), QStringLiteral("b")}, QStringLiteral("a")),
+      option(QStringLiteral("rich_time"), QStringLiteral("Time Mode"), QStringLiteral("date_time"), {QStringLiteral("a"), QStringLiteral("b")}, QStringLiteral("a")),
+      option(QStringLiteral("rich_input"), QStringLiteral("Cursor Mode"), QStringLiteral("input devices"), {QStringLiteral("a"), QStringLiteral("b")}, QStringLiteral("a")),
+  };
+  p.options[4].info = QStringLiteral("Select the microphone input.\n- Silence: No input.\n- White noise: Random noise.\n- Host: Use the host microphone.");
+  return p;
+}
+
 QJsonObject fwFile(const QString& id, const QString& name, bool required, const QByteArray& content) {
   return {{QStringLiteral("id"), id},
           {QStringLiteral("display_name"), name},
@@ -302,6 +333,223 @@ class EmulationControllersTest : public QObject {
     emu->setGameRunning(false);
     QVERIFY(!visible(h, "restartBadge_melonds_audio_interpolation"));
     QVERIFY(!visible(h, "restartHint"));
+  }
+
+  // ------------------------------------------------------------------ SettingsRow on the Emulation and Settings pages
+
+  static QList<QQuickItem*> settingsRows(QQuickItem* root) {
+    QList<QQuickItem*> out;
+    for (QQuickItem* c : root->childItems()) {
+      if (c->property("controlColumn").isValid() && c->isVisible()) out.append(c);
+      out.append(settingsRows(c));
+    }
+    return out;
+  }
+  static QRectF sceneRect(QQuickItem* it) { return it->mapRectToScene(QRectF(0, 0, it->width(), it->height())); }
+  static QQuickItem* rowItem(QQuickItem* row, const char* prop) { return row->property(prop).value<QQuickItem*>(); }
+  // Every element of every row lies inside the visible column (Windows layout rule: nothing widens a column).
+  static void verifyRowsInside(Harness& h, const char* scrollName, int windowWidth) {
+    QQuickItem* flick = h.item(scrollName);
+    QVERIFY(flick != nullptr);
+    const QRectF col = sceneRect(flick);
+    const QList<QQuickItem*> rows = settingsRows(flick->property("contentItem").value<QQuickItem*>());
+    QVERIFY(!rows.isEmpty());
+    for (QQuickItem* row : rows) {
+      for (const char* prop : {"controlColumn", "resetColumn", "textColumn", "labelItem"}) {
+        QQuickItem* it = rowItem(row, prop);
+        QVERIFY(it != nullptr);
+        const QRectF r = sceneRect(it);
+        QVERIFY2(r.left() >= col.left() - 0.5 && r.right() <= col.right() + 0.5,
+                 qPrintable(QStringLiteral("%1.%2 at %3 px: %4..%5 outside the column %6..%7")
+                                .arg(row->objectName(), QString::fromLatin1(prop)).arg(windowWidth).arg(r.left()).arg(r.right()).arg(col.left()).arg(col.right())));
+      }
+      QQuickItem* ctl = rowItem(row, "controlLoader")->property("item").value<QQuickItem*>();
+      if (ctl != nullptr) {
+        const QRectF r = sceneRect(ctl);
+        QVERIFY2(r.left() >= col.left() - 0.5 && r.right() <= col.right() + 0.5, qPrintable(row->objectName()));
+      }
+    }
+  }
+  static qreal controlRight(QQuickItem* row) { return sceneRect(rowItem(row, "controlColumn")).right(); }
+
+  void emulationRowsAlignAndStayInsideTheColumn() {
+    FakeHub hub(QStringLiteral("a"));
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    h.controller->emulation()->setCoreProbe(QStringLiteral("melonds_ds"), richProbe(), false);
+    h.controller->showEmulation();
+    QTest::qWait(100);
+    qreal emuRight = 0;
+    for (const int w : {1280, 1440, 960}) {
+      h.window->resize(w, 800);
+      QTest::qWait(120);
+      QQuickTest::qWaitForPolish(h.window);
+      QQuickItem* boot = h.item("optionRow_rich_boot");        // segment
+      QQuickItem* thr = h.item("optionRow_rich_threaded");     // toggle
+      QQuickItem* res = h.item("optionRow_rich_res");          // select
+      QQuickItem* interp = h.item("optionRow_rich_interp");    // segment, 4 options
+      QVERIFY(boot && thr && res && interp);
+      QCOMPARE(boot->property("kind").toString(), QStringLiteral("segment"));
+      QCOMPARE(thr->property("kind").toString(), QStringLiteral("toggle"));
+      QCOMPARE(res->property("kind").toString(), QStringLiteral("select"));
+      verifyRowsInside(h, "emulationScroll", w);
+      if (w >= 1280) {
+        QCOMPARE(controlRight(thr), controlRight(boot));
+        QCOMPARE(controlRight(res), controlRight(boot));
+        QCOMPARE(controlRight(interp), controlRight(boot));
+        QCOMPARE(sceneRect(h.item("optionSelect_rich_boot")).right(), controlRight(boot));
+        QCOMPARE(sceneRect(h.item("optionSelect_rich_res")).left(), sceneRect(h.item("optionSelect_rich_interp")).left());
+        QCOMPARE(sceneRect(h.item("optionSelect_rich_res")).width(), 280.0);
+        QCOMPARE(sceneRect(h.item("optionSelect_rich_res")).height(), 32.0);
+        QCOMPARE(sceneRect(h.item("optionToggle_rich_threaded")).right(), controlRight(boot));
+        // The changed dot never moves the label.
+        const qreal labelX = sceneRect(rowItem(boot, "labelItem")).left();
+        QCOMPARE(sceneRect(rowItem(thr, "labelItem")).left(), labelX);
+        const qreal thrRight = controlRight(thr);
+        h.controller->emulation()->setOption(QStringLiteral("rich_boot"), QStringLiteral("native"));  // rebuilds the rows
+        QTest::qWait(60);
+        QQuickItem* boot2 = h.item("optionRow_rich_boot");
+        QVERIFY(visible(h, "changedDot_rich_boot"));
+        QCOMPARE(sceneRect(rowItem(boot2, "labelItem")).left(), labelX);
+        QCOMPARE(controlRight(boot2), thrRight);
+        h.controller->emulation()->resetOption(QStringLiteral("rich_boot"));
+        QTest::qWait(60);
+        if (w == 1280) emuRight = thrRight;
+      }
+    }
+    h.window->resize(1280, 800);
+    QTest::qWait(100);
+    QCOMPARE(controlRight(h.item("optionRow_rich_threaded")), emuRight);
+  }
+
+  void emulationCategoryChipsCollapse() {
+    FakeHub hub(QStringLiteral("a"));
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    h.controller->emulation()->setCoreProbe(QStringLiteral("melonds_ds"), richProbe(), false);
+    h.controller->showEmulation();
+    h.window->resize(960, 800);
+    QTest::qWait(150);
+    QQuickTest::qWaitForPolish(h.window);
+    QQuickItem* bar = h.item("categoryChips");
+    QVERIFY(bar != nullptr);
+    QVERIFY(visible(h, "categoryMore"));
+    QVERIFY(text(h, "categoryMore").startsWith(QLatin1Char('+')) && text(h, "categoryMore").contains(QStringLiteral("more")));
+    QQuickItem* flick = h.item("emulationScroll");
+    QVERIFY(sceneRect(h.item("categoryMore")).right() <= sceneRect(bar).right() + 0.5);
+    QVERIFY(sceneRect(bar).right() <= sceneRect(flick).right() + 0.5);
+    QVERIFY(visible(h, "categoryAll"));
+    // The hidden categories are in the menu; picking one filters and keeps the selection reachable.
+    QVERIFY(h.click("categoryMore"));
+    QTest::qWait(80);
+    QQuickItem* last = h.item("categoryOverflow_Input Devices");
+    QVERIFY(last != nullptr && last->isVisible());
+    QVERIFY(h.click("categoryOverflow_Input Devices"));
+    QTest::qWait(80);
+    QCOMPARE(h.controller->emulation()->categoryFilter(), QStringLiteral("Input Devices"));
+    QVERIFY(h.item("optionRow_rich_input") != nullptr);
+    QVERIFY(h.item("optionRow_rich_boot") == nullptr);
+    QVERIFY(h.click("categoryAll"));
+    // Wide enough: all chips are shown and there is no "+N more".
+    h.window->resize(1920, 800);
+    QTest::qWait(150);
+    QQuickTest::qWaitForPolish(h.window);
+    QVERIFY(!visible(h, "categoryMore"));
+    QVERIFY(visible(h, "category_Input Devices"));
+  }
+
+  void emulationDescriptionOptionList() {
+    FakeHub hub(QStringLiteral("a"));
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    h.controller->emulation()->setCoreProbe(QStringLiteral("melonds_ds"), richProbe(), false);
+    h.controller->showEmulation();
+    QTest::qWait(120);
+    QQuickItem* row = h.item("optionRow_rich_mic");
+    QVERIFY(row != nullptr);
+    QCOMPARE(row->property("moreLabel").toString(), QStringLiteral("More · 3 options"));
+    QVERIFY(!visible(h, "optionList_rich_mic"));
+    QVERIFY(h.click("descMore_rich_mic"));
+    QTest::qWait(60);
+    QVERIFY(visible(h, "optionList_rich_mic"));
+    QVERIFY(h.click("descMore_rich_mic"));
+    QVERIFY(!visible(h, "optionList_rich_mic"));
+  }
+
+  void settingsRowsAlignWithEmulation() {
+    FakeHub hub(QStringLiteral("a"));
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    h.controller->emulation()->setCoreProbe(QStringLiteral("melonds_ds"), richProbe(), false);
+    for (const int w : {1280, 1440, 960}) {
+      h.window->resize(w, 800);
+      h.controller->showEmulation();
+      QTest::qWait(150);
+      QQuickTest::qWaitForPolish(h.window);
+      qreal emuRight = 0;
+      if (w >= 1280) {
+        QQuickItem* thr = h.item("optionRow_rich_threaded");
+        QVERIFY(thr != nullptr);
+        emuRight = controlRight(thr);
+      }
+      h.controller->showSettings();
+      QTest::qWait(150);
+      QQuickTest::qWaitForPolish(h.window);
+      QCOMPARE(h.controller->screen(), QStringLiteral("settings"));
+      verifyRowsInside(h, "settingsScroll", w);
+      // The inline meta ("Channel: beta") keeps its natural width (never clipped to "Channel: o").
+      for (QQuickItem* it : h.items("updateChannelRow")) {
+        if (!it->isVisible()) continue;
+        QList<QQuickItem*> st{it};
+        int found = 0;
+        while (!st.isEmpty()) {
+          QQuickItem* c = st.takeLast();
+          st.append(c->childItems());
+          if (c->isVisible() && c->property("text").toString().startsWith(QStringLiteral("Channel:"))) {
+            QVERIFY(c->parentItem()->width() + 0.5 >= c->implicitWidth());
+            ++found;
+          }
+        }
+        QCOMPARE(found, 1);
+      }
+      QQuickItem* flick = h.item("settingsScroll");
+      const QRectF col = sceneRect(flick);
+      // Hub card and update card are indented 14 to the label edge and stay inside the column.
+      QQuickItem* card = h.item("updateCard");
+      QVERIFY(card != nullptr);
+      QVERIFY(sceneRect(card).left() >= col.left() + 36 + 14 - 0.5);
+      QVERIFY(sceneRect(card).right() <= col.right() + 0.5);
+      QQuickItem* autoRow = h.item("autoConnectRow");
+      QQuickItem* themeRow = h.item("themeRow");
+      QQuickItem* channelRow = h.item("updateChannelRow");
+      QQuickItem* versionRow = h.item("versionRow");
+      QQuickItem* logRow = h.item("logFileRow");
+      QQuickItem* autoInstall = h.item("updateAutoInstallRow");
+      QVERIFY(autoRow && themeRow && channelRow && versionRow && logRow && autoInstall);
+      QCOMPARE(autoRow->property("kind").toString(), QStringLiteral("toggle"));
+      QCOMPARE(themeRow->property("kind").toString(), QStringLiteral("segment"));
+      QCOMPARE(versionRow->property("kind").toString(), QStringLiteral("value"));
+      QVERIFY(sceneRect(rowItem(autoRow, "controlColumn")).left() >= col.left());
+      // The reset column stays empty on Settings.
+      QVERIFY(!rowItem(themeRow, "resetColumn")->isVisible());
+      if (w >= 1280) {
+        for (QQuickItem* r : {autoRow, themeRow, channelRow, versionRow, logRow, autoInstall}) QCOMPARE(controlRight(r), emuRight);
+        QCOMPARE(sceneRect(h.item("settingsAutoConnectToggle")).right(), emuRight);
+        QCOMPARE(sceneRect(h.item("appearanceSegment")).right(), emuRight);
+        QCOMPARE(sceneRect(h.item("appearanceSegment")).width(), 280.0);
+        QCOMPARE(sceneRect(h.item("updatesVersion")).right(), emuRight);
+        QCOMPARE(sceneRect(h.item("updateChannelSegment")).right(), emuRight);
+        QCOMPARE(sceneRect(h.item("updateAutoInstallToggle")).right(), emuRight);
+      }
+    }
   }
 
   void settingsHierarchyOnThePage() {
