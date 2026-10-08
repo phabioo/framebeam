@@ -2,6 +2,8 @@
 // Offscreen, FakeHub, dummy bytes only. The tests with the real core QSKIP without FRAMEBEAM_MELONDS_DS_CORE.
 #include <SDL3/SDL.h>
 
+#include <QQmlContext>
+#include <QQmlProperty>
 #include <QSignalSpy>
 #include <QtTest>
 
@@ -118,6 +120,45 @@ class EmulationControllersTest : public QObject {
     QTRY_COMPARE_WITH_TIMEOUT(h.controller->connection()->state(), S::NeedsPairing, 8000);
     h.controller->requestPairing();
     QTRY_COMPARE_WITH_TIMEOUT(h.controller->libraryState(), QStringLiteral("ready"), 8000);
+  }
+  // One line per item for the CI log: class, objectName, width, implicitWidth, attached Layout.min/pref/max.
+  static QString layoutDump(QQuickItem* it, int depth) {
+    const auto lay = [it](const char* p) {
+      QQmlContext* ctx = qmlContext(it);
+      const QVariant v = ctx ? QQmlProperty(it, QString::fromLatin1(p), ctx).read() : QVariant();
+      return v.isValid() ? QString::number(v.toDouble()) : QStringLiteral("?");
+    };
+    QString s = QStringLiteral("\n%1%2 '%3' w=%4 impl=%5 min=%6 pref=%7 max=%8")
+                    .arg(QString(depth * 2, QLatin1Char(' ')), QString::fromLatin1(it->metaObject()->className()), it->objectName())
+                    .arg(it->width()).arg(it->implicitWidth())
+                    .arg(lay("Layout.minimumWidth"), lay("Layout.preferredWidth"), lay("Layout.maximumWidth"));
+    return s;
+  }
+  static QString hotkeysLayoutDump(Harness& h) {
+    QQuickItem* info = h.item("hotkeysInfo");
+    if (!info || !info->parentItem()) return QStringLiteral("(no hotkeysInfo)");
+    QQuickItem* table = info->parentItem();
+    QString s = QStringLiteral("Hotkeys layout:");
+    if (table->parentItem()) {
+      s += layoutDump(table->parentItem(), 0);  // content
+      for (QQuickItem* sibling : table->parentItem()->childItems()) {
+        if (sibling != table && sibling->isVisible()) s += layoutDump(sibling, 1);
+      }
+    }
+    s += layoutDump(table, 1);
+    for (QQuickItem* child : table->childItems()) {
+      s += layoutDump(child, 2);
+      for (QQuickItem* rowBox : child->childItems()) {  // delegate column: row layout, conflict line, divider
+        s += layoutDump(rowBox, 3);
+        if (rowBox->objectName().isEmpty() && rowBox->inherits("QQuickRowLayout")) {
+          for (QQuickItem* cell : rowBox->childItems()) {
+            s += layoutDump(cell, 4);
+            for (QQuickItem* inner : cell->childItems()) s += layoutDump(inner, 5);
+          }
+        }
+      }
+    }
+    return s;
   }
   static QString text(Harness& h, const char* name) {
     QQuickItem* it = h.item(name);
@@ -613,14 +654,15 @@ class EmulationControllersTest : public QObject {
       while (flick && !flick->inherits("QQuickFlickable")) flick = flick->parentItem();
       QVERIFY(flick != nullptr);
       const QRectF column = flick->mapRectToScene(QRectF(0, 0, flick->width(), flick->height()));
-      QVERIFY2(h.item("hotkeysInfo")->width() <= column.width() - 56 + 0.5, "hotkeysInfo wider than the content column");
+      QVERIFY2(h.item("hotkeysInfo")->width() <= column.width() - 56 + 0.5,
+               qPrintable(QStringLiteral("hotkeysInfo wider than the content column (%1)\n%2").arg(column.width() - 56).arg(hotkeysLayoutDump(h))));
       for (const char* name : {"hotkeyField_fullscreen", "hotkeyField_snapshot", "hotkeyField_escape", "hotkeyReset_fullscreen",
                                "hotkeyReset_snapshot", "hotkeyConflict_snapshot", "hotkeyText_snapshot"}) {
         QQuickItem* it = h.item(name);
         QVERIFY2(it != nullptr && it->isVisible(), name);
         const QRectF r = it->mapRectToScene(QRectF(0, 0, it->width(), it->height()));
         QVERIFY2(r.left() >= column.left() - 0.5 && r.right() <= column.right() + 0.5,
-                 qPrintable(QStringLiteral("%1 outside the column: %2..%3 vs %4..%5").arg(QLatin1String(name)).arg(r.left()).arg(r.right()).arg(column.left()).arg(column.right())));
+                 qPrintable(QStringLiteral("%1 outside the column: %2..%3 vs %4..%5\n%6").arg(QLatin1String(name)).arg(r.left()).arg(r.right()).arg(column.left()).arg(column.right()).arg(hotkeysLayoutDump(h))));
       }
     }
     QVERIFY(!c->keyboardMap().contains(Qt::Key_Z));

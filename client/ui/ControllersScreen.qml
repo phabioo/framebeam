@@ -148,6 +148,7 @@ Rectangle {
 
                     RowLayout {
                         Layout.fillWidth: true
+                        Layout.minimumWidth: 0
                         spacing: Theme.space16
                         ColumnLayout {
                             Layout.fillWidth: true
@@ -201,6 +202,7 @@ Rectangle {
                     // Tab chips + Reset N changed
                     RowLayout {
                         Layout.fillWidth: true
+                        Layout.minimumWidth: 0  // chips + "Reset N changed" must not widen the whole column on narrow windows
                         spacing: Theme.space8
                         FbChip { objectName: "tabButtons"; text: qsTr("Buttons"); active: !root.hotkeysTab; onClicked: { root.ctl.cancelHotkeyCapture(); root.tab = "buttons" } }
                         FbChip { objectName: "tabHotkeys"; text: qsTr("Hotkeys"); active: root.hotkeysTab; onClicked: { root.ctl.cancelCapture(); root.tab = "hotkeys" } }
@@ -211,7 +213,7 @@ Rectangle {
                             visible: n > 0 && (root.hotkeysTab || (!root.isMouse && !root.ctl.profileBuiltin))
                             kind: "link"
                             font.underline: true
-                            text: qsTr("Reset %1 changed").arg(n)
+                            text: root.compact ? qsTr("Reset %1").arg(n) : qsTr("Reset %1 changed").arg(n)
                             onClicked: root.hotkeysTab ? root.ctl.resetHotkeys() : root.ctl.resetProfile()
                         }
                     }
@@ -254,6 +256,7 @@ Rectangle {
                         Layout.fillWidth: true
                         Layout.preferredWidth: 1
                         Layout.minimumWidth: 0
+                        Layout.maximumWidth: content.width
                         spacing: 0
 
                         FbLabel {
@@ -284,6 +287,7 @@ Rectangle {
                                 id: hrow
                                 required property var modelData
                                 Layout.fillWidth: true
+                                Layout.minimumWidth: 0
                                 spacing: 0
                                 RowLayout {
                                     Layout.fillWidth: true
@@ -303,24 +307,8 @@ Rectangle {
                                             radius: 3.5
                                             color: Theme.accent
                                         }
-                                        ColumnLayout {
-                                            Layout.fillWidth: true
-                                            Layout.preferredWidth: 1  // long text must not widen the row; it elides
-                                            Layout.minimumWidth: 0
-                                            spacing: 2
-                                            FbLabel { Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; text: hrow.modelData.label; elide: Text.ElideRight }
-                                            FbLabel {
-                                                objectName: "hotkeyConflict_" + hrow.modelData.action
-                                                visible: hrow.modelData.conflictInput !== ""
-                                                Layout.fillWidth: true
-                                                Layout.preferredWidth: 1
-                                                Layout.minimumWidth: 0
-                                                text: qsTr("Also mapped to %1 in the keyboard profile · the hotkey wins").arg(hrow.modelData.conflictInput)
-                                                color: Theme.textMuted
-                                                font.pixelSize: Theme.fontMeta
-                                                elide: Text.ElideRight
-                                            }
-                                        }
+                                        // Same structure as the Buttons table: one label directly in the cell.
+                                        FbLabel { Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; text: hrow.modelData.label; elide: Text.ElideRight }
                                     }
                                     Rectangle {
                                         objectName: "hotkeyField_" + hrow.modelData.action
@@ -328,7 +316,6 @@ Rectangle {
                                         Layout.preferredWidth: root.mapWidth
                                         Layout.minimumWidth: root.mapMinWidth
                                         Layout.maximumWidth: root.mapWidth
-                                        Layout.alignment: Qt.AlignTop
                                         implicitHeight: 30
                                         radius: Theme.radius6
                                         color: Theme.surface
@@ -368,7 +355,6 @@ Rectangle {
                                         Layout.preferredWidth: root.actionWidth
                                         Layout.minimumWidth: root.actionWidth
                                         Layout.maximumWidth: root.actionWidth
-                                        Layout.alignment: Qt.AlignTop
                                         FbButton {
                                             objectName: "hotkeyReset_" + hrow.modelData.action
                                             Layout.maximumWidth: root.actionWidth
@@ -393,6 +379,18 @@ Rectangle {
                                         }
                                         Item { Layout.fillWidth: true }
                                     }
+                                }
+                                FbLabel {
+                                    objectName: "hotkeyConflict_" + hrow.modelData.action
+                                    visible: hrow.modelData.conflictInput !== ""
+                                    Layout.fillWidth: true
+                                    Layout.preferredWidth: 1
+                                    Layout.minimumWidth: 0
+                                    Layout.bottomMargin: 6
+                                    text: qsTr("Also mapped to %1 in the keyboard profile · the hotkey wins").arg(hrow.modelData.conflictInput)
+                                    color: Theme.textMuted
+                                    font.pixelSize: Theme.fontMeta
+                                    elide: Text.ElideRight
                                 }
                                 Rectangle { Layout.fillWidth: true; height: 1; color: Theme.borderRow }
                             }
