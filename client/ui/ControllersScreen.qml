@@ -690,6 +690,8 @@ Rectangle {
                 visible: root.width >= 1180  // narrow windows keep the mapping table, the test lives on wide ones
                 Layout.fillHeight: true
                 Layout.preferredWidth: Theme.inputTestWidth
+                Layout.minimumWidth: Theme.inputTestWidth  // never squeezed below the 288 px grid + margins by wide text
+                Layout.maximumWidth: Theme.inputTestWidth
                 color: Theme.bgPanel
                 Rectangle {
                     anchors.left: parent.left

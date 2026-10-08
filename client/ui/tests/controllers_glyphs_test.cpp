@@ -538,7 +538,11 @@ class ControllersGlyphsTest : public QObject {
     const QRectF g = sceneRect(grid);
     QCOMPARE(g.width(), 7 * 36.0 + 6 * 6.0);
     QCOMPARE(g.height(), 5 * 36.0 + 4 * 6.0);
-    QVERIFY(g.left() >= panel.left() && g.right() <= panel.right());
+    const QByteArray gridMsg = QStringLiteral("grid %1,%2 %3x%4 panel %5,%6 %7x%8 window %9")
+                                   .arg(g.x()).arg(g.y()).arg(g.width()).arg(g.height())
+                                   .arg(panel.x()).arg(panel.y()).arg(panel.width()).arg(panel.height())
+                                   .arg(h.window->width()).toLocal8Bit();
+    QVERIFY2(g.left() >= panel.left() && g.right() <= panel.right(), gridMsg.constData());
     QVERIFY(qAbs((g.center().x()) - panel.center().x()) < 1.0);  // centered in the panel
     for (const QVariant& v : c->testCells()) {
       QQuickItem* tile = h.item(("testTile_" + v.toMap().value(QStringLiteral("id")).toString()).toLatin1().constData());
