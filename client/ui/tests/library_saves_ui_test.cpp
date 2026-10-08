@@ -570,15 +570,30 @@ class LibrarySavesUiTest : public QObject {
     pair(h, hub);
     SaveHistoryController* hist = h.controller->saveHistory();
     QTRY_VERIFY_WITH_TIMEOUT(hist->available() && !hist->loading() && hist->slotCount() == 4 && hist->versionCount() == 3, 8000);
-    for (const QSize size : {QSize(1280, 800), QSize(960, 600)}) {
+    auto widen = [&h](bool wide) {
+      if (!wide) return;
+      QList<QQuickItem*> all{h.window->contentItem()};
+      for (int i = 0; i < all.size(); ++i) all.append(all.at(i)->childItems());
+      for (QQuickItem* it : std::as_const(all)) {
+        const QVariant fv = it->property("font");
+        if (fv.metaType() != QMetaType::fromType<QFont>()) continue;
+        QFont f = fv.value<QFont>();
+        if (f.letterSpacing() < 1.0) { f.setLetterSpacing(QFont::AbsoluteSpacing, 4.5); it->setProperty("font", f); }
+      }
+      QQuickTest::qWaitForPolish(h.window);
+      QTest::qWait(60);
+    };
+    // Second pass with wider glyphs (extra letter spacing on every item with a font), like the wider Windows fonts.
+    for (const bool wide : {false, true}) for (const QSize size : {QSize(1280, 800), QSize(960, 600)}) {
       h.window->resize(size);
       QQuickTest::qWaitForPolish(h.window);
       QTest::qWait(60);
-      const QString what = QStringLiteral("%1x%2").arg(size.width()).arg(size.height());
+      const QString what = QStringLiteral("%1x%2%3").arg(size.width()).arg(size.height()).arg(wide ? QStringLiteral("-wide") : QString());
       // Overview
       QTRY_VERIFY(shown(h, "saveSummary") || shown(h, "savesView"));
       if (shown(h, "savesView")) QVERIFY(h.click("savesBack"));
       QTRY_VERIFY(shown(h, "saveSummary"));
+      widen(wide);
       checkInColumn(h, {"detailPane", "detailTitle", "detailPill", "detailSystem", "detailRowValue", "saveSummary", "saveCurrentRow", "saveSlotName",
                         "saveVersion", "saveMeta", "saveSyncPill", "saveCounts", "manageSavesLink", "playButton", "playShareButton"}, 12);
       if (QTest::currentTestFailed()) { qWarning("[uitest] overview layout failed at %s", qPrintable(what)); return; }
@@ -588,6 +603,7 @@ class LibrarySavesUiTest : public QObject {
       QTRY_VERIFY(shown(h, "slotSwitcher"));
       hist->requestRestore(1);
       QTRY_VERIFY(shown(h, "restoreConfirmBox"));
+      widen(wide);
       checkInColumn(h, {"savesView", "savesBack", "savesUpdated", "historyRefresh", "savesTitle", "slotTabs", "slotSwitcher", "currentBar", "currentMeta",
                         "saveActions", "snapshotButton", "uploadSaveButton", "historyHeader", "historyFilter", "timeline", "saveRow", "historyTitle",
                         "historyLabel", "historyMeta", "restoreButton", "deleteButton", "restoreConfirmBox", "confirmTitle", "restoreCancel",

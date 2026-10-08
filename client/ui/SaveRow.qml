@@ -183,20 +183,18 @@ ColumnLayout {
         color: root.confirm === "delete" ? Theme.errorBg : Theme.accentChipBg
         border.width: 1
         border.color: root.confirm === "delete" ? Theme.dangerBorder : Theme.confirmBorder
-        ColumnLayout {
+        Column {
             id: confirmCol
-            anchors.fill: parent
-            anchors.margins: 12
-            anchors.leftMargin: 14
-            anchors.rightMargin: 14
+            x: 14
+            y: 12
+            width: parent.width - 28
             spacing: 10
-            ColumnLayout {
-                Layout.fillWidth: true
-                Layout.minimumWidth: 0
+            Column {
+                width: parent.width
                 spacing: 3
                 FbLabel {
                     objectName: "confirmTitle"
-                    Layout.fillWidth: true
+                    width: parent.width
                     wrapMode: Text.WordWrap
                     text: root.confirmTitle
                     font.pixelSize: Theme.fontSmall
@@ -204,32 +202,22 @@ ColumnLayout {
                     color: root.confirm === "delete" ? Theme.error : Theme.accent
                 }
                 FbLabel {
-                    Layout.fillWidth: true
+                    width: parent.width
                     wrapMode: Text.WordWrap
                     text: root.confirmBody
                     font.pixelSize: Theme.fontMeta
                     color: Theme.textSecondary
                 }
             }
-            RowLayout {
-                Layout.fillWidth: true
-                Layout.minimumWidth: 0
+            Flow {
+                width: parent.width
                 spacing: 8
-                Item { Layout.fillWidth: true }
-                FbButton {
-                    id: cancelBtn
-                    objectName: root.confirm === "delete" ? "deleteCancel" : "restoreCancel"
-                    implicitHeight: 30
-                    font.pixelSize: Theme.fontSmall
-                    text: qsTr("Cancel")
-                    onClicked: root.cancelled()
-                }
+                layoutDirection: Qt.RightToLeft
                 Rectangle {
                     id: okBtn
                     objectName: root.confirm === "delete" ? "deleteConfirm" : "restoreConfirm"
-                    Layout.preferredHeight: 30
-                    Layout.preferredWidth: okText.implicitWidth + 24
-                    Layout.minimumWidth: 0
+                    height: 30
+                    width: okText.implicitWidth + 24
                     radius: Theme.radius6
                     color: root.confirm === "delete" ? Theme.error : Theme.accent
                     opacity: okTap.pressed ? 0.8 : 1
@@ -240,6 +228,14 @@ ColumnLayout {
                     HoverHandler { cursorShape: Qt.PointingHandCursor }
                     TapHandler { id: okTap; onTapped: root.confirmed() }
                     Keys.onPressed: (event) => { if (event.key === Qt.Key_Space || event.key === Qt.Key_Return) { root.confirmed(); event.accepted = true } }
+                }
+                FbButton {
+                    id: cancelBtn
+                    objectName: root.confirm === "delete" ? "deleteCancel" : "restoreCancel"
+                    implicitHeight: 30
+                    font.pixelSize: Theme.fontSmall
+                    text: qsTr("Cancel")
+                    onClicked: root.cancelled()
                 }
             }
         }

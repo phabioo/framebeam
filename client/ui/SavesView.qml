@@ -634,7 +634,7 @@ FocusScope {
                 }
 
                 // Actions
-                RowLayout {
+                Flow {
                     objectName: "saveActions"
                     visible: root.historyAvailable && !root.snapshotOpen && !root.uploadConfirming && !root.hist.uploading && !root.uploadFailed
                     Layout.fillWidth: true
@@ -659,7 +659,6 @@ FocusScope {
                         enabled: root.hist.restoreBlockReason === "" && !root.hist.busy && root.hist.online && root.hist.canUploadFile
                         onClicked: root.openUpload()
                     }
-                    Item { Layout.fillWidth: true }
                 }
                 FbField {
                     id: uploadPath
