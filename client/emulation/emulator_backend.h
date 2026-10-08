@@ -9,6 +9,7 @@
 #include <QByteArray>
 #include <QImage>
 #include <QList>
+#include <QSize>
 #include <QString>
 #include <QStringList>
 #include <QtGlobal>
@@ -113,6 +114,14 @@ class EmulatorBackend {
   // Diagnostics (thread-safe). Time the last runFrame() spent reading a hardware frame back; 0 for software.
   virtual double lastReadbackMs() const { return 0.0; }
   virtual RenderInfo renderInfo() const { return {}; }
+
+  // Readback size limit (thread-safe, applied on the next frame): the largest width/height the consumers (display,
+  // Session encoder) need. A backend that reads frames back from the GPU downscales larger ones on the GPU first
+  // (aspect kept, never upscaled); empty or a non-positive component = no limit. Software frames are never scaled.
+  virtual void setReadbackLimit(const QSize& maxSize) { Q_UNUSED(maxSize); }
+  // Diagnostics (thread-safe): size of the last frame as the core rendered it, before any readback downscaling;
+  // empty when unknown (then videoFrame().size() is the source size).
+  virtual QSize sourceFrameSize() const { return {}; }
 
   // Fast-forward (thread-safe). libretro has no capability flag: it is a frontend feature, unless the core forbids
   // it (SET_FASTFORWARDING_OVERRIDE with inhibit_toggle). setFastForwarding only stores a flag the core can query.

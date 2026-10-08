@@ -336,6 +336,162 @@ class HwRenderTest : public QObject {
     qunsetenv("FB_FAKE_HW_LOGAV");
   }
 
+  // ---- readback size limit (GPU downscale before readback)
+
+  // Runs `n` frames and returns the last video frame (the PBO path lags one frame behind a limit change).
+  static QImage runFrames(LibretroBackend& be, int n) {
+    for (int i = 0; i < n; ++i)
+      if (!be.runFrame()) return {};
+    return be.videoFrame();
+  }
+
+  void scaledReadbackSizeRules() {
+    QCOMPARE(HwRenderContext::scaledReadbackSize(2048, 3072, {}), QSize(2048, 3072));
+    QCOMPARE(HwRenderContext::scaledReadbackSize(2048, 3072, QSize(0, 0)), QSize(2048, 3072));
+    QCOMPARE(HwRenderContext::scaledReadbackSize(2048, 3072, QSize(4096, 4096)), QSize(2048, 3072));  // never upscale
+    QCOMPARE(HwRenderContext::scaledReadbackSize(2048, 3072, QSize(2048, 3072)), QSize(2048, 3072));
+    QCOMPARE(HwRenderContext::scaledReadbackSize(2048, 3072, QSize(1312, 1968)), QSize(1312, 1968));
+    QCOMPARE(HwRenderContext::scaledReadbackSize(2048, 3072, QSize(1312, 5000)), QSize(1312, 1968));  // width limits
+    QCOMPARE(HwRenderContext::scaledReadbackSize(2048, 3072, QSize(5000, 1000)), QSize(667, 1000));   // height limits
+    QCOMPARE(HwRenderContext::scaledReadbackSize(256, 192, QSize(1, 1)), QSize(1, 1));
+  }
+
+  void checkPattern(const QImage& f, int w, int h) {  // red bottom-left, green top-right, blue elsewhere
+    QCOMPARE(f.size(), QSize(w, h));
+    QCOMPARE(f.format(), QImage::Format_RGB32);
+    const int m = std::max(2, w / 32);  // well inside the squares (w/8 wide)
+    QCOMPARE(px(f, m, h - 1 - m), qRgb(255, 0, 0));
+    QCOMPARE(px(f, w - 1 - m, m), qRgb(0, 255, 0));
+    QCOMPARE(px(f, m, m), qRgb(0, 0, 255));
+    QCOMPARE(px(f, w - 1 - m, h - 1 - m), qRgb(0, 0, 255));
+    QCOMPARE(px(f, w / 2, h / 2), qRgb(0, 0, 255));
+    QCOMPARE(qAlpha(px(f, 0, 0)), 255);
+  }
+
+  void limitedReadbackKeepsAspectOrientationAndColors_data() {
+    QTest::addColumn<bool>("bottomLeft");
+    QTest::addColumn<bool>("syncReadback");
+    QTest::newRow("bottom-left, PBO") << true << false;
+    QTest::newRow("top-left, PBO") << false << false;
+    QTest::newRow("bottom-left, sync") << true << true;
+  }
+
+  void limitedReadbackKeepsAspectOrientationAndColors() {
+    QFETCH(bool, bottomLeft);
+    QFETCH(bool, syncReadback);
+    qputenv("FB_FAKE_HW_SCALE", "4");  // 256x192 frame, the core leaves GL_SCISSOR_TEST enabled
+    qputenv("FB_FAKE_HW_BOTTOM_LEFT", bottomLeft ? "1" : "0");
+    if (syncReadback) qputenv("FRAMEBEAM_SYNC_READBACK", "1");
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    QVERIFY(be.sourceFrameSize().isEmpty());
+    be.setReadbackLimit(QSize(128, 128));
+    // 256x192 -> width limits: 128x96 (aspect 4:3 kept)
+    const QImage f = runFrames(be, 4);
+    if (bottomLeft) checkPattern(f, 128, 96);
+    else {  // top-left origin: the pattern is not flipped, so red is top-left and green bottom-right
+      QCOMPARE(f.size(), QSize(128, 96));
+      QCOMPARE(px(f, 4, 4), qRgb(255, 0, 0));
+      QCOMPARE(px(f, 123, 91), qRgb(0, 255, 0));
+      QCOMPARE(px(f, 4, 91), qRgb(0, 0, 255));
+    }
+    QCOMPARE(be.sourceFrameSize(), QSize(256, 192));  // diagnostics still know the real frame size
+    qunsetenv("FB_FAKE_HW_SCALE");
+    qunsetenv("FB_FAKE_HW_BOTTOM_LEFT");
+    qunsetenv("FRAMEBEAM_SYNC_READBACK");
+  }
+
+  void limitClearedAndNeverUpscaled() {
+    qputenv("FB_FAKE_HW_SCALE", "4");
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    QCOMPARE(runFrames(be, 3).size(), QSize(256, 192));  // no limit: unchanged
+    be.setReadbackLimit(QSize(1000, 1000));
+    QCOMPARE(runFrames(be, 3).size(), QSize(256, 192));  // limit above the frame: never upscaled
+    be.setReadbackLimit(QSize(256, 192));
+    checkPattern(runFrames(be, 3), 256, 192);
+    qunsetenv("FB_FAKE_HW_SCALE");
+  }
+
+  void limitChangesMidRun() {
+    qputenv("FB_FAKE_HW_SCALE", "4");
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    checkPattern(runFrames(be, 3), 256, 192);
+    be.setReadbackLimit(QSize(128, 128));
+    checkPattern(runFrames(be, 3), 128, 96);
+    be.setReadbackLimit(QSize(64, 64));
+    checkPattern(runFrames(be, 3), 64, 48);
+    be.setReadbackLimit(QSize(200, 100));  // height limits: 133x100
+    const QImage f = runFrames(be, 3);
+    QCOMPARE(f.size(), QSize(133, 100));
+    QCOMPARE(px(f, 3, 96), qRgb(255, 0, 0));
+    QCOMPARE(px(f, 129, 3), qRgb(0, 255, 0));
+    be.setReadbackLimit(QSize());  // cleared: full size again
+    checkPattern(runFrames(be, 3), 256, 192);
+    qunsetenv("FB_FAKE_HW_SCALE");
+  }
+
+  void skippedFramesReportNoReadbackTime() {
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    be.setVideoWanted(true);
+    QVERIFY(be.runFrame());
+    QVERIFY(be.lastReadbackMs() > 0.0);
+    be.setVideoWanted(false);
+    QVERIFY(be.runFrame());
+    QCOMPARE(be.lastReadbackMs(), 0.0);  // not the stale value of the previous frame
+  }
+
+  void readbackTimingFullVsLimited() {  // informational (llvmpipe): ms per readback of a large frame
+    qputenv("FB_FAKE_HW_SCALE", "32");  // 2048x1536
+    const QSize limits[] = {QSize(), QSize(1312, 984), QSize(656, 492)};
+    for (const QSize& lim : limits) {
+      QTemporaryFile rom;
+      LibretroBackend be;
+      loadFake(be, rom);
+      be.setReadbackLimit(lim);
+      runFrames(be, 3);
+      double sum = 0;
+      for (int i = 0; i < 20; ++i) {
+        QVERIFY(be.runFrame());
+        sum += be.lastReadbackMs();
+      }
+      qInfo("readback 2048x1536 -> %dx%d: %.2f ms avg", be.videoFrame().width(), be.videoFrame().height(), sum / 20);
+    }
+    qunsetenv("FB_FAKE_HW_SCALE");
+  }
+
+  void runnerAppliesReadbackLimit() {
+    qputenv("FB_FAKE_HW_SCALE", "4");
+    QTemporaryFile rom;
+    QVERIFY(rom.open());
+    rom.write("x");
+    rom.flush();
+    EmulationRunner runner(std::make_unique<LibretroBackend>());
+    QSignalSpy frames(&runner, &EmulationRunner::frameReady);
+    QSignalSpy failed(&runner, &EmulationRunner::startFailed);
+    runner.setReadbackLimit(QSize(128, 128));  // before start: applies from the first frame
+    EmulationRunner::StartRequest req;
+    req.corePath = QStringLiteral(FB_FAKE_HW_CORE_PATH);
+    req.gamePath = rom.fileName();
+    runner.start(req);
+    QTRY_VERIFY2(frames.count() >= 3 || failed.count() > 0, "no frames");
+    QCOMPARE(failed.count(), 0);
+    QCOMPARE(frames.last().at(0).value<QImage>().size(), QSize(128, 96));
+    QCOMPARE(runner.sourceFrameSize(), QSize(256, 192));
+    runner.setReadbackLimit(QSize());  // thread-safe change while running
+    const int before = frames.count();
+    QTRY_VERIFY(frames.count() >= before + 4);
+    QCOMPARE(frames.last().at(0).value<QImage>().size(), QSize(256, 192));
+    runner.stop();
+    qunsetenv("FB_FAKE_HW_SCALE");
+  }
+
   void runnerUsesEmulationThread() {
     QTemporaryFile rom;
     QVERIFY(rom.open());
