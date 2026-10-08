@@ -15,6 +15,7 @@ ColumnLayout {
         id: hideRow
         objectName: "diagHide"
         Layout.fillWidth: true
+        Layout.minimumWidth: 0
         Layout.topMargin: 10
         spacing: 8
         Item { Layout.fillWidth: true }

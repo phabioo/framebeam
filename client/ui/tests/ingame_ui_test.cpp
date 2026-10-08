@@ -177,6 +177,80 @@ class InGameUiTest : public QObject {
 
   // ---- Session ----
 
+  // ---- screenshots (FRAMEBEAM_SHOT_DIR only) ----
+
+  void zScreenshots() {
+    if (qEnvironmentVariableIsEmpty("FRAMEBEAM_SHOT_DIR")) QSKIP("FRAMEBEAM_SHOT_DIR not set");
+    FakeHub hub(QStringLiteral("a"));
+    Harness h;
+    pair(hub, h, true);
+    PlayerController* c = h.controller.get();
+    SessionController* ctl = c->sessions();
+    auto shot = [&](const char* name) { uitest::saveShot(h.window, QString::fromLatin1(name)); };
+    auto feed = [&](const QString& id, const QColor& tint) {
+      if (QObject* v = ctl->viewer(id)) {
+        QImage img(256, 192, QImage::Format_RGB32);
+        img.fill(tint);
+        QMetaObject::invokeMethod(v, "frameReady", Qt::DirectConnection, Q_ARG(QImage, img));
+      }
+    };
+    startPreview(h, true);
+    resize(h, 1440, 900);
+    shot("3g-2-session-1440");
+    // shared + Reset popover
+    ctl->shareSession();
+    QTRY_VERIFY_WITH_TIMEOUT(ctl->shared(), 8000);
+    QQuickTest::qWaitForPolish(h.window);
+    h.click("resetButton");
+    QTest::qWait(250);
+    shot("3g-3-session-shared-reset-1440");
+    QTest::keyClick(h.window, Qt::Key_Escape);
+    QTest::qWait(150);
+    ctl->stopSharing();
+    QTest::qWait(300);
+    resize(h, 1280, 800);
+    shot("3g-2-session-1280");
+    // diagnostics in the Session
+    resize(h, 1440, 900);
+    ctl->diagnostics()->setOpen(true);
+    QTest::qWait(200);
+    shot("3t-2-diagnostics-1440");
+    ctl->diagnostics()->setOpen(false);
+    // multiview
+    h.click("tabMultiview");
+    QQuickTest::qWaitForPolish(h.window);
+    for (const char* id : {"s1", "s2"}) {
+      h.click("addSessionToggle");
+      h.click((QByteArray("multiviewAddButton_") + id).constData());
+      QTest::qWait(150);
+    }
+    h.click("modeGrid");
+    QTest::qWait(200);
+    feed(QStringLiteral("s1"), QColor(150, 80, 60));
+    feed(QStringLiteral("s2"), QColor(70, 140, 90));
+    QTest::qWait(150);
+    h.click("addSessionToggle");
+    QTest::qWait(250);
+    shot("3r-2-multiview-1440");
+    h.click("addSessionToggle");
+    QTest::qWait(150);
+    ctl->diagnostics()->setOpen(true);
+    QTest::qWait(250);
+    shot("3x-2-diagnostics-multiview-1440");
+    ctl->diagnostics()->setOpen(false);
+    resize(h, 1280, 800);
+    h.click("addSessionToggle");
+    QTest::qWait(250);
+    shot("3r-2-multiview-1280");
+    h.click("addSessionToggle");
+    // sidebar strip
+    resize(h, 1440, 900);
+    c->leaveGameView();
+    QTRY_VERIFY(c->gameSession()->isPaused());
+    QQuickTest::qWaitForPolish(h.window);
+    shot("sidebar-now-running");
+  }
+
   void sessionHeaderZonesAndPanel() {
     FakeHub hub(QStringLiteral("a"));
     Harness h;

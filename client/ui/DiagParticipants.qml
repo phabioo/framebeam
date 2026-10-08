@@ -29,6 +29,7 @@ ColumnLayout {
             spacing: 8
             RowLayout {
                 visible: root.grouped
+                Layout.minimumWidth: 0
                 spacing: 8
                 Rectangle {
                     objectName: "diagGroupBadge"
@@ -58,6 +59,7 @@ ColumnLayout {
                     spacing: 2
                     RowLayout {
                         Layout.fillWidth: true
+                        Layout.minimumWidth: 0
                         spacing: 8
                         FbLabel { text: person.modelData.name; font.pixelSize: 13; font.weight: Font.Medium; color: Theme.gameText }
                         FbLabel { text: person.modelData.role; font.pixelSize: 11; color: Theme.gameFaint }

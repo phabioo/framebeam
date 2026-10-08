@@ -66,14 +66,18 @@ Item {
             border.width: 1
             border.color: root.danger ? Theme.gameDangerBorder : Theme.gamePopoverBorder
         }
-        Rectangle {  // soft shadow
-            x: 0
-            y: 10
-            width: parent.width
-            height: parent.height
-            radius: 12
-            color: "#33000000"
-            z: -1
+        Repeater {  // soft shadow: stacked, growing low-alpha layers instead of one hard offset strip
+            model: 4
+            Rectangle {
+                required property int index
+                x: -index * 2
+                y: 8
+                width: parent.width + index * 4
+                height: parent.height + index * 3
+                radius: 10 + index * 2
+                color: "#12000000"
+                z: -1
+            }
         }
         Rectangle {
             id: bodyBox
