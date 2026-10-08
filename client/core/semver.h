@@ -22,4 +22,10 @@ struct SemVer {
 // Both must be valid SemVer; otherwise nullopt.
 std::optional<int> compareVersions(const QString& a, const QString& b);
 
+// Launch decision for a core whose version differs from the one the Hub expects (ADR 0017): only a different MAJOR
+// version blocks. Same major, an empty expected version or an unparsable version on either side only warns/passes.
+// A leading "v" is tolerated.
+enum class CoreVersionVerdict { Compatible, Warn, Block };
+CoreVersionVerdict coreVersionVerdict(const QString& coreVersion, const QString& expectedVersion);
+
 }  // namespace framebeam::update

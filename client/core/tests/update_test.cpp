@@ -104,6 +104,24 @@ class UpdateTest : public QObject {
       QVERIFY(compareVersions(ordered[i + 1], ordered[i]).value() > 0);
     }
   }
+  void coreVersionVerdictMajorOnly() {
+    using V = framebeam::update::CoreVersionVerdict;
+    const auto v = [](const char* core, const char* expected) {
+      return framebeam::update::coreVersionVerdict(QString::fromLatin1(core), QString::fromLatin1(expected));
+    };
+    QCOMPARE(v("1.2.3", "1.2.3"), V::Compatible);
+    QCOMPARE(v("1.2.3", "1.4.0"), V::Warn);
+    QCOMPARE(v("1.2.3", "1.2.9"), V::Warn);
+    QCOMPARE(v("1.2.3", "2.0.0"), V::Block);
+    QCOMPARE(v("v1.2.3", "2.0.0"), V::Block);
+    QCOMPARE(v("v1.2.3", "1.9.0"), V::Warn);
+    QCOMPARE(v("1.2.3", "v1.2.3"), V::Compatible);
+    QCOMPARE(v("1.2.3", ""), V::Compatible);  // empty Hub version: any version
+    QCOMPARE(v("", "1.2.3"), V::Warn);        // unparsable core version: warn, never block
+    QCOMPARE(v("nightly", "2.0.0"), V::Warn);
+    QCOMPARE(v("1.2.3", "latest"), V::Warn);
+  }
+
   void semverBuildMetadataIgnored() {
     QCOMPARE(compareVersions("1.2.3+abc", "1.2.3+def").value(), 0);
     QCOMPARE(SemVer::parse("1.2.3-rc.1+build")->toString(), QString("1.2.3-rc.1"));
