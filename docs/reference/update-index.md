@@ -12,15 +12,15 @@ Schema 1:
     {
       "product": "hub",
       "channel": "beta",
-      "version": "0.3.0-beta.57",
+      "version": "0.8.3",
       "commit": "<40 hex>",
       "published_at": "2026-10-07T10:00:00Z",
-      "notes_url": "https://github.com/phabioo/framebeam/releases/tag/v0.3.0-beta.57",
+      "notes_url": "https://github.com/phabioo/framebeam/releases/tag/v0.8.3",
       "protocol_version": 1,
       "min_protocol_version": 1,
       "artifacts": [
-        {"platform": "linux-arm64", "kind": "deb", "name": "framebeam-hub_0.3.0~beta.57_arm64.deb",
-         "size": 123, "sha256": "<64 lowercase hex>", "url": "https://github.com/.../framebeam-hub_0.3.0~beta.57_arm64.deb"}
+        {"platform": "linux-arm64", "kind": "deb", "name": "framebeam-hub_0.8.3_arm64.deb",
+         "size": 123, "sha256": "<64 lowercase hex>", "url": "https://github.com/.../framebeam-hub_0.8.3_arm64.deb"}
       ]
     }
   ]

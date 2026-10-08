@@ -51,20 +51,20 @@ Windows release builds use the `x64-windows-release` overlay triplet (Release-on
 
 ## CI and releases
 
-- `.github/workflows/ci.yml`: Linux on every push; Windows on PRs against `main`, manually, and on pushes to `main` and `v*` tags (primes the Windows vcpkg binary cache after merges, [ADR 0008](adr/0008-windows-ci-cache.md); cache misses still need a cold dependency build). The Windows job builds the layout launcher plus `bin\`, the zip and the installer and tests silent install and upgrade.
+- `.github/workflows/ci.yml`: Linux on every push; Windows on PRs against `main`, manually, and on pushes to `main` (primes the Windows vcpkg binary cache after merges, [ADR 0008](adr/0008-windows-ci-cache.md); cache misses still need a cold dependency build). The Windows job builds the layout launcher plus `bin\`, the zip and the installer and tests silent install and upgrade.
 - Every workflow job has `timeout-minutes` (Windows client and core builds 300, so a cold vcpkg cache still fits).
 - Linux apt steps go through `scripts/ci-apt-install.sh` (update limited to 120 s and install to 240 s per attempt, apt retries and network timeouts, 3 attempts) plus a 20 minute step `timeout-minutes`, so a hanging Ubuntu mirror cannot block CI for long.
 - Changes that touch only `docs/*` or `*.md` files are detected as docs-only on branches and PRs; the Hub, Player and Windows jobs are skipped for them.
-- `.github/workflows/release.yml`: after a successful CI run on `main` or a `v*` tag it publishes the CI artifacts as GitHub (pre)release (beta prereleases `v<X.Y.Z-beta.N>`, newest 5 kept) and adds Hub and Player to the signed `updates-index` release (`framebeam-sign release-add`, secret `FRAMEBEAM_SIGNING_KEY`).
-- `.github/workflows/promote.yml` ("Promote to stable", manual): see [guides/updates.md](guides/updates.md).
+- `.github/workflows/release.yml`: after a successful CI run on `main` it publishes the CI artifacts as GitHub prerelease `vX.Y.Z` (newest 5 beta prereleases kept, promoted releases never pruned) and adds Hub and Player to the signed `updates-index` release under channel `beta` (`framebeam-sign release-add`, secret `FRAMEBEAM_SIGNING_KEY`). The per-product index entries are stored as `index-hub.json` / `index-player.json` assets on the release. Pushing a `v*` tag builds nothing.
+- `.github/workflows/promote.yml` ("Promote to release", manual): see [guides/updates.md](guides/updates.md).
 - `.github/workflows/cores.yml`: builds and publishes signed core packages and the `cores-index` release (needs secret `FRAMEBEAM_SIGNING_KEY`) ([ADR 0010](adr/0010-cores-from-the-hub.md)). Tooling: `server/cmd/framebeam-sign` (keygen / add / sign / verify / pubkey / release-add). Offline Hub: `framebeam-hub import-cores <dir>` or `install-hub.sh import-cores <dir>`.
 - The SessionStart hook `.claude/hooks/session-start.sh` only prepares cloud sessions (vcpkg, Go modules, Qt apt packages); the core build runs only via `make fetch-core`.
 
 ## Versions and channels
 
-- The root file `VERSION` (`X.Y.Z`) is shared by Hub and Player. CI computes version and channel once: tag `vX.Y.Z` gives stable; a push to `main` gives `X.Y.Z-beta.<run>` on channel `beta`; anything else `-dev.<run>`. A tag different from `VERSION` fails CI.
+- The root file `VERSION` (`X.Y.Z`) is shared by Hub and Player and is the floor for the next beta ([ADR 0016](adr/0016-release-numbering-and-promotion.md)). CI computes version and channel once: a push to `main` gives the plain `X.Y.Z` on channel `beta` (the larger of `VERSION` and the highest existing tag `vX.Y.*` plus 1; the version job creates the tag on the commit before building, so a failed or re-run build can leave gaps); anything else `X.Y.Z-dev.<run>`. Main CI runs do not cancel each other.
 - They are passed to `make build-hub` (`HUB_VERSION`, `HUB_CHANNEL`, `HUB_COMMIT`) and to the Player configure (`FRAMEBEAM_VERSION`, `FRAMEBEAM_CHANNEL`, `FRAMEBEAM_COMMIT`, also read by `make check-client` from the environment).
-- A milestone PR raises `VERSION` to its own version (for example 0.6.0) when it starts the next milestone without a stable promotion in between; otherwise betas keep the old number.
+- Only a milestone PR that starts a new minor line raises `VERSION` (to `X.(Y+1).0`, for example 0.8.0); otherwise nobody touches it. Stable releases are promoted betas and keep the beta number.
 - `framebeam-hub version [--json]` and `framebeam_player --version-json` print `{"product", "version", "channel", "commit", "protocol_version", "min_protocol_version"}`.
 - `protocol_version` is separate from product versions ([protocol reference](reference/protocol.md)).
 

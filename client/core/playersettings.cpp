@@ -13,6 +13,7 @@ namespace framebeam {
 namespace {
 constexpr const char* kAppearanceKey = "appearance";
 constexpr const char* kUpdateChannelKey = "update_channel";
+constexpr const char* kUpdateChannelDefaultKey = "update_channel_default";
 constexpr const char* kUpdateAutoKey = "update_auto_install";
 constexpr const char* kDiagOpenKey = "diagnostics_open";
 constexpr const char* kDiagEmulationKey = "diagnostics_emulation_open";
@@ -38,6 +39,8 @@ PlayerSettings::PlayerSettings(const QString& baseDir)
     updateChannel_ = QStringLiteral("beta");  // old name; rewritten as "beta" on the next save
     raw_.insert(QLatin1String(kUpdateChannelKey), updateChannel_);
   }
+  const QString chDef = raw_.value(QLatin1String(kUpdateChannelDefaultKey)).toString();
+  if (chDef == QLatin1String("stable") || chDef == QLatin1String("beta")) updateChannelDefault_ = chDef;
   if (raw_.value(QLatin1String(kUpdateAutoKey)).isBool()) {
     updateAutoInstall_ = raw_.value(QLatin1String(kUpdateAutoKey)).toBool();
   }
@@ -80,6 +83,13 @@ bool PlayerSettings::setUpdateChannel(const QString& channelIn) {
   } else {
     raw_.insert(QLatin1String(kUpdateChannelKey), channel);
   }
+  return save();
+}
+
+bool PlayerSettings::setUpdateChannelDefault(const QString& channel) {
+  if (channel != QLatin1String("stable") && channel != QLatin1String("beta")) return false;
+  updateChannelDefault_ = channel;
+  raw_.insert(QLatin1String(kUpdateChannelDefaultKey), channel);
   return save();
 }
 

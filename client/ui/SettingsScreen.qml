@@ -293,7 +293,7 @@ Rectangle {
                             }
                             FbSegment {
                                 objectName: "updateChannelSegment"
-                                readonly property string chosen: root.updates.channelSetting === "default" ? root.updates.compiledChannel : root.updates.channelSetting
+                                readonly property string chosen: root.updates.channelSetting === "default" ? (root.updates.effectiveChannel !== "off" ? root.updates.effectiveChannel : root.updates.compiledChannel) : root.updates.channelSetting
                                 options: [
                                     { value: "stable", label: qsTr("Stable"), name: "updateChannelStable" },
                                     { value: "beta", label: root.updates.compiledChannel === "beta" ? qsTr("Beta · this build") : qsTr("Beta"), name: "updateChannelBeta" }

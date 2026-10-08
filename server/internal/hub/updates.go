@@ -16,11 +16,14 @@ import (
 
 // Update settings and state keys in the settings table.
 const (
-	settingUpdateChannel   = "update_channel" // "", stable or beta
-	settingUpdateAuto      = "update_auto"    // "", "1" or "0"
-	settingUpdateLastCheck = "update_last_check"
-	settingUpdateLastError = "update_last_error"
-	settingUpdateAvailable = "update_available" // JSON of UpdateAvailable
+	settingUpdateChannel = "update_channel" // "", stable or beta
+	// settingUpdateChannelDefault is the resolved default of a beta build ("stable" or "beta"), stored once by the
+	// first verified index load; it applies while no channel is selected explicitly.
+	settingUpdateChannelDefault = "update_channel_default"
+	settingUpdateAuto           = "update_auto" // "", "1" or "0"
+	settingUpdateLastCheck      = "update_last_check"
+	settingUpdateLastError      = "update_last_error"
+	settingUpdateAvailable      = "update_available" // JSON of UpdateAvailable
 )
 
 // Update check intervals (S5).
@@ -87,12 +90,14 @@ func (s *Service) initUpdates(o Options) {
 type UpdateSettings struct {
 	CompiledChannel string // stable, beta or dev
 	Channel         string // effective: stable, beta or off
-	ChannelIsSet    bool   // an admin selected the channel (otherwise the compiled default applies)
+	ChannelIsSet    bool   // an admin selected the channel (otherwise the default applies)
+	DefaultChannel  string // channel used without a selection: the resolved default, else the compiled channel; stable, beta or off
 	Auto            bool   // effective automatic install
 }
 
-// UpdateSettings returns the effective settings: channel = setting, else the compiled channel (dev = off);
-// automatic install = setting, else on for beta and off otherwise.
+// UpdateSettings returns the effective settings: channel = setting, else the resolved default of a beta build
+// (see resolveChannelDefault), else the compiled channel (dev = off); automatic install = setting, else on for
+// beta and off otherwise.
 func (s *Service) UpdateSettings(ctx context.Context) (UpdateSettings, error) {
 	st := UpdateSettings{CompiledChannel: s.updCfg.compiledChannel, Channel: UpdateChannelOff}
 	if st.CompiledChannel == "" {
@@ -101,6 +106,12 @@ func (s *Service) UpdateSettings(ctx context.Context) (UpdateSettings, error) {
 	if updates.ValidSelectableChannel(st.CompiledChannel) {
 		st.Channel = st.CompiledChannel
 	}
+	if d, _, err := s.getSetting(ctx, settingUpdateChannelDefault); err != nil {
+		return st, err
+	} else if d = updates.NormalizeChannel(d); st.CompiledChannel == updates.ChannelBeta && updates.ValidSelectableChannel(d) {
+		st.Channel = d
+	}
+	st.DefaultChannel = st.Channel
 	v, _, err := s.getSetting(ctx, settingUpdateChannel)
 	if err != nil {
 		return st, err
@@ -119,7 +130,7 @@ func (s *Service) UpdateSettings(ctx context.Context) (UpdateSettings, error) {
 	return st, nil
 }
 
-// SetUpdateSettings stores the channel ("" = use the compiled default, else stable or beta) and the automatic
+// SetUpdateSettings stores the channel ("" = use the default (resolved default or compiled channel), else stable or beta) and the automatic
 // install switch. A new check is started in the background.
 func (s *Service) SetUpdateSettings(ctx context.Context, channel string, auto bool) (err error) {
 	defer s.publishOK(&err, TopicUpdates)
@@ -283,8 +294,34 @@ func (s *Service) selectUpdate(ctx context.Context) (*updates.Fetched, updates.S
 	if err != nil {
 		return nil, updates.Selection{}, err
 	}
+	if s.resolveChannelDefault(ctx, set, f.Index) {
+		if set, err = s.UpdateSettings(ctx); err != nil {
+			return nil, updates.Selection{}, err
+		}
+		q.Channel = set.Channel
+	}
 	sel, err := updates.Select(f.Index, q)
 	return f, sel, err
+}
+
+// resolveChannelDefault stores the default channel of a beta build once: with no channel selected and none
+// resolved yet, "stable" if the verified index lists the running version as a stable Hub release (it was promoted
+// without a rebuild), else "beta". It never changes afterwards. It reports whether it stored a value.
+func (s *Service) resolveChannelDefault(ctx context.Context, set UpdateSettings, idx updates.Index) bool {
+	if set.ChannelIsSet || set.CompiledChannel != updates.ChannelBeta {
+		return false
+	}
+	if _, stored, err := s.getSetting(ctx, settingUpdateChannelDefault); err != nil || stored {
+		return false
+	}
+	def := UpdateChannelBeta
+	for _, r := range idx.Releases {
+		if r.Product == updates.ProductHub && r.Channel == updates.ChannelStable && r.Version == s.hubVer {
+			def = UpdateChannelStable
+			break
+		}
+	}
+	return s.setSetting(ctx, settingUpdateChannelDefault, def) == nil
 }
 
 // UpdateCheckReport summarizes a check.

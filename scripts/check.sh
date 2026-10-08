@@ -139,6 +139,11 @@ packaging_deb() {
     grep -qx 'ExecStart=/usr/bin/framebeam-hub update apply-staged' "$x/pkg/lib/systemd/system/framebeam-hub-update.service" || { echo "$arch: update unit"; rc=1; }
     for p in postinst prerm postrm; do [ -x "$x/pkg/DEBIAN/$p" ] || { echo "$arch: $p not executable"; rc=1; }; done
   done
+  if command -v actionlint >/dev/null 2>&1; then
+    actionlint "$ROOT"/.github/workflows/*.yml || rc=1
+  else
+    echo "skip actionlint (not installed)"
+  fi
   if command -v systemd-analyze >/dev/null 2>&1; then
     local u="$tmp/units"; mkdir -p "$u"
     dpkg-deb -x "$deb" "$tmp/xunits"
@@ -157,9 +162,11 @@ packaging() {
   local dir="$ROOT/packaging/linux" tmp rc=0
   tmp="$(mktemp -d)"
   local f
-  for f in "$dir/install-hub.sh" "$dir/build-deb.sh" "$dir"/deb/* "$ROOT/scripts/check-trusted-keys.sh" "$ROOT/scripts/e2e-hub-update.sh"; do
+  for f in "$dir/install-hub.sh" "$dir/build-deb.sh" "$dir"/deb/* "$ROOT/scripts/check-trusted-keys.sh" "$ROOT/scripts/e2e-hub-update.sh" "$ROOT/scripts/next-beta-version.sh" "$ROOT/scripts/update-index.sh"; do
     bash -n "$f" || rc=1
   done
+  # Beta version numbering of the CI version job (ADR 0011).
+  "$ROOT/scripts/next-beta-version.sh" --self-test >"$tmp/beta-version.log" 2>&1 || { cat "$tmp/beta-version.log"; rc=1; }
   if command -v shellcheck >/dev/null 2>&1; then
     shellcheck "$dir/install-hub.sh" "$dir/build-deb.sh" "$ROOT/scripts/check-trusted-keys.sh" "$ROOT/scripts/e2e-hub-update.sh" || rc=1
     shellcheck -s sh "$dir"/deb/* || rc=1
