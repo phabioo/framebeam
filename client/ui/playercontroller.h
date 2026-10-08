@@ -20,12 +20,17 @@
 #include "corecache.h"
 #include "coreprovisioner.h"
 #include "firmwareprovisioner.h"
+#include "corecatalog.h"
+#include "gamedetail.h"
 #include "gamesession.h"
+#include "gamestarter.h"
 #include "gameuploader.h"
 #include "hubconnection.h"
 #include "hublibrary.h"
+#include "hubpresenter.h"
 #include "hubsystems.h"
 #include "librarymodel.h"
+#include "playphase.h"
 #include "playersettings.h"
 #include "romcache.h"
 #include "romdownloader.h"
@@ -227,46 +232,16 @@ class PlayerController : public QObject {
   void emulationSettingsChanged();
 
  private:
-  enum class PlayPhase { None, Core, Firmware, Rom, Launching };
-
   void onConnectionState(HubConnection::State s);
   void onLibraryLoaded();
   void onRomStatus(const QString& sha, const RomStatus& st);
-  void onRomReady(const QString& sha, const QString& path);
-  void launch(const GameEntry& game, const QString& romPath);
   void updateScreen();
-  void probeCores();
   void refreshEmulationPage();
   void refreshAttention();
-  QString attentionFor(const GameEntry& game) const;
-  QVariantList systemCards();
   void applyFrameBeamOptions();
-  void onFirmwareFinished(const FirmwareResult& result);
-  void onCoreFinished(const CoreResult& result);
-  void continueStartAfterCore(const GameEntry& game, const emu::SystemManifest& man);
-  // Core lookup with the version the Hub serves (cache source), see CoreLocator.
-  emu::CoreLocation locateCore(const emu::SystemManifest& man) const;
-  // The Hub offers a core package for this system (cores_v1 + core_package_version of the preferred core).
-  bool hubOffersCore(const emu::SystemManifest& man, QString* version = nullptr) const;
-  // Located core is usable as is (a cached core must also pass the SHA-256 check).
-  bool coreUsable(const emu::SystemManifest& man, emu::CoreLocation* loc = nullptr) const;
-  // Core status text/tone/hint for the detail pane and the system cards.
-  void coreStatus(const emu::SystemManifest& man, QString* text, QString* tone, QString* hint) const;
-  static QString coreProblemText(const QString& reason);
   void onUploadFinished(const UploadResult& result);
-  void beginRomPhase(const GameEntry& game);
-  // Firmware mode of the Hub for the system of this manifest: true = native (files required).
-  bool nativeFirmware(const emu::SystemManifest& man, SystemInfo* system = nullptr) const;
-  QStringList wantedFirmwareIds(const emu::SystemManifest& man) const;
   QString friendlyError(const QString& code, const QString& message) const;
-  const emu::SystemManifest* manifestFor(const GameEntry& game) const;
-  QString coreLabel(const emu::SystemManifest& m, const emu::CoreLocation& loc) const;
-  QString systemDir() const;
-  void onSaveReady(const QString& gameId, const QString& saveDir, const QString& note);
-  void onSaveConflict(const SaveSync::ConflictView& view);
-  static QString formatWhen(const QDateTime& when);
   void endRunningWork();
-  QVariantMap hubCard(const HubProfile& p) const;
 
   Options options_;
   std::unique_ptr<ProfileStore> profiles_;
@@ -297,12 +272,16 @@ class PlayerController : public QObject {
   std::unique_ptr<SaveHistoryController> history_;  // after saves_/conn_: destroyed first
   std::unique_ptr<EmulationController> emulation_;
   std::unique_ptr<ControllersController> controllers_;
+  // Helpers (after everything they reference): they read/write the state below through references.
+  std::unique_ptr<CoreCatalog> catalog_;
+  std::unique_ptr<GameDetail> detail_;
+  std::unique_ptr<HubPresenter> hubPresenter_;
+  std::unique_ptr<GameStarter> starter_;
   bool shareOnStart_ = false;
   QTimer* liveTimer_ = nullptr;     // periodic quiet refresh of the Library and the core state while it is shown
   bool quietRefresh_ = false;       // the running library reload is the periodic one (no "loading" state, errors ignored)
   QString resumePage_;              // page to return to after the reconnect of an edited active Hub
   void endGameContext();
-  void startSelected(bool share);
 
   QString screen_ = QStringLiteral("connection");
   QString page_ = QStringLiteral("library");  // page shown while connected: library | settings | emulation | controllers

@@ -18,6 +18,7 @@ constexpr const char* kUpdateAutoKey = "update_auto_install";
 constexpr const char* kDiagOpenKey = "diagnostics_open";
 constexpr const char* kDiagEmulationKey = "diagnostics_emulation_open";
 constexpr const char* kDiagStreamingKey = "diagnostics_streaming_open";
+constexpr const char* kSessionVisibilityKey = "session_visibility";
 constexpr const char* kSaveSlotsKey = "save_slots";  // { hub_id: { game_id: slot } }
 }
 
@@ -47,6 +48,10 @@ PlayerSettings::PlayerSettings(const QString& baseDir)
   diagOpen_ = raw_.value(QLatin1String(kDiagOpenKey)).toBool(false);
   diagEmulationOpen_ = raw_.value(QLatin1String(kDiagEmulationKey)).toBool(true);
   diagStreamingOpen_ = raw_.value(QLatin1String(kDiagStreamingKey)).toBool(true);
+  const QString vis = raw_.value(QLatin1String(kSessionVisibilityKey)).toString();
+  if (vis == QLatin1String("private") || vis == QLatin1String("hub_users") || vis == QLatin1String("invite_only")) {
+    sessionVisibility_ = vis;
+  }
 }
 
 QString PlayerSettings::appearanceName(Appearance a) {
@@ -114,6 +119,15 @@ bool PlayerSettings::setDiagnosticsEmulationOpen(bool open) {
 bool PlayerSettings::setDiagnosticsStreamingOpen(bool open) {
   diagStreamingOpen_ = open;
   raw_.insert(QLatin1String(kDiagStreamingKey), open);
+  return save();
+}
+
+bool PlayerSettings::setSessionVisibility(const QString& visibility) {
+  if (visibility != QLatin1String("private") && visibility != QLatin1String("hub_users") && visibility != QLatin1String("invite_only")) {
+    return false;
+  }
+  sessionVisibility_ = visibility;
+  raw_.insert(QLatin1String(kSessionVisibilityKey), visibility);
   return save();
 }
 
