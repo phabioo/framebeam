@@ -6,6 +6,7 @@
 #include <QJsonObject>
 #include <QSaveFile>
 #include <algorithm>
+#include <limits>
 
 #include "screenlayout.h"
 
@@ -190,13 +191,11 @@ void SessionController::refreshSessions() {
 void SessionController::onSessionUpdated(const SessionInfo& s) {
   ++sessionEventGen_;
   if (shared_ && s.sessionId == own_.sessionId) {
-    if (visInFlight_ > 0) {  // a newer local visibility choice is still being PATCHed: the update may carry the older one
-      SessionInfo copy = s;
-      copy.visibility = visibility_;
-      applyOwnSession(copy);
-    } else {
-      applyOwnSession(s);
-    }
+    // This Player is the only writer of the own Session's visibility, and the updates carry no revision: one that
+    // differs from the local choice was emitted before the Hub applied the latest PATCH (also after its answer).
+    SessionInfo copy = s;
+    copy.visibility = visibility_;
+    applyOwnSession(copy);
     return;
   }
   if (s.isOwner) {
@@ -286,6 +285,12 @@ void SessionController::applyOwnSession(const SessionInfo& s) {
   own_ = s;
   visibility_ = s.visibility;
   emit shareChanged();
+}
+
+// Taken when a REST request is SENT: a request overlapping a visibility PATCH (separate connection) may be served
+// before the Hub applied it, so its answer is never trusted for the visibility (the sentinel never equals visGen_).
+quint64 SessionController::requestVisToken() const {
+  return visInFlight_ > 0 ? std::numeric_limits<quint64>::max() : visGen_;
 }
 
 // A REST answer to a request sent before the user changed the visibility again carries the older visibility:
@@ -468,7 +473,7 @@ void SessionController::invite(const QString& userId) {
   if (!shared_) {
     return;
   }
-  const quint64 gen = visGen_;
+  const quint64 gen = requestVisToken();
   const QString sessionId = own_.sessionId;
   api_.invite(sessionId, userId, [this, gen, sessionId](const SessionApiResult& r) {
     if (r.ok() && r.session && shared_ && own_.sessionId == sessionId) {
@@ -489,7 +494,7 @@ void SessionController::withdrawInvite(const QString& userId) {
     if (!r.ok()) {
       say(errorText(r, tr("Withdrawing the invite")), true);
     } else if (shared_ && own_.sessionId == id) {
-      const quint64 gen = visGen_;
+      const quint64 gen = requestVisToken();
       api_.get(id, [this, gen, id](const SessionApiResult& g) {
         if (g.ok() && g.session && shared_ && own_.sessionId == id) {
           applyOwnSession(*g.session, gen);

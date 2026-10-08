@@ -4,6 +4,10 @@ name: Promote to stable
 # Tags the commit of a beta prerelease as vX.Y.Z (X.Y.Z must equal VERSION at that commit), starts CI on the tag
 # (a tag created with GITHUB_TOKEN triggers no push workflow, so CI is dispatched explicitly; CI then builds, tests
 # and the Release workflow publishes the stable release and the signed index entry), and opens a PR bumping VERSION.
+# PRs and pushes made with GITHUB_TOKEN start no workflows, so CI is also dispatched on the bump branch (its check
+# runs land on the PR head and satisfy the required checks of the main ruleset) and auto-merge is enabled on the PR.
+# The merge done by auto-merge with GITHUB_TOKEN triggers no push CI on main either: the bump commit itself gets no
+# beta build, the next merge produces the next beta.
 
 on:
   workflow_dispatch:
@@ -34,7 +38,7 @@ jobs:
     permissions:
       contents: write        # create the tag and the release/bump branch
       pull-requests: write   # open the VERSION bump PR
-      actions: write         # dispatch CI on the new tag
+      actions: write         # dispatch CI on the new tag and the bump branch
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
@@ -105,6 +109,19 @@ jobs:
           body="Automatic bump after promoting v$CORE to stable (workflow run $GITHUB_SERVER_URL/$GH_REPO/actions/runs/$GITHUB_RUN_ID)."
           if url="$(gh pr create --base main --head "$branch" --title "Bump VERSION to $NEXT after v$CORE" --body "$body" 2>pr.err)"; then
             echo "PR_URL=$url" >> "$GITHUB_ENV"
+            # The PR was opened with GITHUB_TOKEN, so no pull_request run starts. A workflow_dispatch run on the
+            # branch reports its check runs on the branch head SHA (= PR head), which satisfies the required checks.
+            if gh workflow run ci.yml --ref "$branch"; then
+              echo "CI_DISPATCHED=1" >> "$GITHUB_ENV"
+            else
+              echo "::warning title=CI not started on the bump branch::Run the CI workflow manually on $branch, otherwise the required checks never report."
+            fi
+            # Merges as soon as the required checks pass (needs 'Allow auto-merge' in the repo settings).
+            if gh pr merge --auto --merge "$url"; then
+              echo "AUTO_MERGE=1" >> "$GITHUB_ENV"
+            else
+              echo "::warning title=Auto-merge not enabled::Enable auto-merge on $url manually (repo setting 'Allow auto-merge' may be off)."
+            fi
           else
             cat pr.err
             echo "::warning title=Bump PR not created::GITHUB_TOKEN may not create pull requests (repo setting 'Allow GitHub Actions to create and approve pull requests'). Open it manually: $compare"
@@ -125,4 +142,5 @@ jobs:
             echo "- CI on the tag: [$GITHUB_SERVER_URL/$GH_REPO/actions/workflows/ci.yml]($GITHUB_SERVER_URL/$GH_REPO/actions/workflows/ci.yml)"
             echo "- Release workflow: [$GITHUB_SERVER_URL/$GH_REPO/actions/workflows/release.yml]($GITHUB_SERVER_URL/$GH_REPO/actions/workflows/release.yml)"
             echo "- VERSION bump to $NEXT: ${PR_URL:-not created}"
+            echo "- Bump PR: CI dispatched on the branch: ${CI_DISPATCHED:-no}; auto-merge enabled: ${AUTO_MERGE:-no}"
           } >> "$GITHUB_STEP_SUMMARY"

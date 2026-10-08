@@ -423,6 +423,49 @@ class SessionsUiTest : public QObject {
 
   // ---- with a running game (real core) ----
 
+  // A GET sent while a visibility PATCH is in flight (the withdraw's follow-up GET) can be served before the Hub
+  // applied the PATCH and answered after the PATCH answer: it must not revert the visibility. Same for a ws update.
+  void staleAnswerAfterPatchKeepsVisibility() {
+    GameRig r;
+    if (!startGame(r, true)) QSKIP("core or test ROM not available");
+    Harness& h = r.h;
+    FakeHub& hub = r.hub;
+    SessionController* ctl = h.controller->sessions();
+    QTRY_COMPARE_WITH_TIMEOUT(h.controller->screen(), QStringLiteral("game"), 20000);
+    QTRY_VERIFY_WITH_TIMEOUT(ctl->shared(), 20000);
+    QVERIFY(h.click("visInviteOnly"));
+    QTRY_COMPARE(lastBody(hub, "PATCH", QStringLiteral("/api/v1/sessions/")).value(QStringLiteral("visibility")).toString(), QStringLiteral("invite_only"));
+    QTRY_COMPARE(hub.sessions.value(ownSessionId(hub)).value(QStringLiteral("visibility")).toString(), QStringLiteral("invite_only"));
+
+    hub.holdSessionGet = true;
+    ctl->withdrawInvite(QStringLiteral("u_jonas"));
+    QVERIFY(h.click("visPrivate"));
+    QCOMPARE(ctl->visibility(), QStringLiteral("private"));
+    QTRY_COMPARE(hub.sessions.value(ownSessionId(hub)).value(QStringLiteral("visibility")).toString(), QStringLiteral("private"));
+    QTRY_COMPARE(hub.heldSessionGets(), 1);
+    // let the PATCH answer arrive (its request is answered before the held GET is released)
+    QTRY_VERIFY(countContaining(hub, QStringLiteral("/invites/u_jonas"), "DELETE") == 1);
+    hub.releaseHeldSessionGets(QStringLiteral("invite_only"));
+    hub.holdSessionGet = false;
+    // a later round trip on another connection: the held answer is processed by then at the latest
+    ctl->searchUsers(QStringLiteral("x"));
+    QTRY_VERIFY(countContaining(hub, QStringLiteral("/users"), "GET") >= 1);
+    QCOMPARE(ctl->visibility(), QStringLiteral("private"));
+
+    // a ws update emitted before the Hub applied the PATCH, arriving after its answer
+    QJsonObject stale = hub.sessions.value(ownSessionId(hub));
+    stale.insert(QStringLiteral("visibility"), QStringLiteral("invite_only"));
+    hub.sendWs(QStringLiteral("session_update"), {{QStringLiteral("session"), stale}});
+    // (ws updates arrive in order: once the following one is applied, the stale one has been processed)
+    QJsonObject marker = hub.sessions.value(ownSessionId(hub));
+    marker.insert(QStringLiteral("viewer_count"), 7);
+    hub.sendWs(QStringLiteral("session_update"), {{QStringLiteral("session"), marker}});
+    QTRY_COMPARE(ctl->viewerCount(), 7);
+    QCOMPARE(ctl->visibility(), QStringLiteral("private"));
+    QQuickTest::qWaitForPolish(h.window);
+    QVERIFY(!h.item("inviteBlock")->isVisible());
+  }
+
   void playAndShareThenPanelStates() {
     GameRig r;
     if (!startGame(r, true)) QSKIP("core or test ROM not available");
