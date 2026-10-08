@@ -207,10 +207,10 @@ jobs:
           path: ~/.cache/framebeam/deps/sdl3
           key: sdl3-linux-${{ hashFiles('scripts/sdl3.pin', 'scripts/fetch-sdl3.sh') }}
       - name: Provision tools and Qt 6.4
+        timeout-minutes: 20
         run: |
           mkdir -p "$VCPKG_DEFAULT_BINARY_CACHE"
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq ninja-build qt6-base-dev qt6-declarative-dev qt6-multimedia-dev \
+          scripts/ci-apt-install.sh ninja-build qt6-base-dev qt6-declarative-dev qt6-multimedia-dev \
             qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
             qml6-module-qtquick-window qml6-module-qtqml-workerscript qml6-module-qtquick-templates \
             libgl-dev libgl1-mesa-dri libglx-mesa0 libegl1 libepoxy-dev xvfb libavcodec-dev libswscale-dev libopus-dev \
