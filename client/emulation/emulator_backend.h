@@ -110,6 +110,12 @@ class EmulatorBackend {
   virtual double lastReadbackMs() const { return 0.0; }
   virtual RenderInfo renderInfo() const { return {}; }
 
+  // Fast-forward (thread-safe). libretro has no capability flag: it is a frontend feature, unless the core forbids
+  // it (SET_FASTFORWARDING_OVERRIDE with inhibit_toggle). setFastForwarding only stores a flag the core can query.
+  virtual bool supportsFastForward() const { return false; }
+  // `ratio` = the speed multiple the frontend runs at while on (reported to the core via GET_THROTTLE_STATE).
+  virtual void setFastForwarding(bool on, double ratio) { Q_UNUSED(on); Q_UNUSED(ratio); }
+
   // thread-safe: input state, picked up on the next runFrame.
   virtual void setJoypadState(unsigned port, quint32 buttonMask) = 0;
   // Pointer/touch in normalized coordinates (0..1) relative to the whole video frame.

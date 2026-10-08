@@ -49,6 +49,9 @@ class EmulationController : public QObject {
  public:
   static constexpr const char* kFullscreenKey = "framebeam.fullscreen_on_start";
   static constexpr const char* kMultiviewKey = "framebeam.default_multiview";
+  static constexpr const char* kSpeedUpRatioKey = "framebeam.speedup_ratio";
+  static constexpr const char* kSpeedUpOnStartKey = "framebeam.speedup_on_start";
+  static constexpr const char* kSpeedUpAudioKey = "framebeam.speedup_audio";
 
   EmulationController(const QString& dataDir, const emu::ManifestRegistry* manifests, QObject* parent = nullptr);
 
@@ -107,6 +110,7 @@ class EmulationController : public QObject {
     QString description;
     QList<emu::CoreOptionValue> values;
     QString defaultValue;
+    bool perSystem = false;  // also offered (and stored) per system, not only globally
   };
   static const QList<FbOption>& frameBeamOptions();
   QString coreIdOf(const QString& systemId) const;

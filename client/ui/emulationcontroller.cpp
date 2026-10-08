@@ -26,6 +26,25 @@ const QList<EmulationController::FbOption>& EmulationController::frameBeamOption
         {QStringLiteral("side"), QObject::tr("Side-by-Side")},
         {QStringLiteral("grid"), QObject::tr("Grid 2×2")}},
        QStringLiteral("pip")},
+      {QString::fromLatin1(kSpeedUpRatioKey),
+       QObject::tr("Speed-up speed"),
+       QObject::tr("How fast the game runs while speed-up is on."),
+       {{QStringLiteral("1.5"), QStringLiteral("1.5×")}, {QStringLiteral("2"), QStringLiteral("2×")}, {QStringLiteral("3"), QStringLiteral("3×")},
+        {QStringLiteral("4"), QStringLiteral("4×")}, {QStringLiteral("6"), QStringLiteral("6×")}, {QStringLiteral("8"), QStringLiteral("8×")}},
+       QStringLiteral("2"),
+       true},
+      {QString::fromLatin1(kSpeedUpOnStartKey),
+       QObject::tr("Speed-up on start"),
+       QObject::tr("The game starts sped up and stays so until you switch speed-up off."),
+       {{QStringLiteral("false"), QObject::tr("Off")}, {QStringLiteral("true"), QObject::tr("On")}},
+       QStringLiteral("false"),
+       true},
+      {QString::fromLatin1(kSpeedUpAudioKey),
+       QObject::tr("Audio during speed-up"),
+       QObject::tr("Plays the sound at a higher pitch while sped up; off mutes it."),
+       {{QStringLiteral("false"), QObject::tr("Off")}, {QStringLiteral("true"), QObject::tr("On")}},
+       QStringLiteral("true"),
+       true},
   };
   return opts;
 }
@@ -319,7 +338,7 @@ void EmulationController::rebuild() {
       // Defaults: options that do not depend on a system.
       QVariantList fb;
       for (const FbOption& o : frameBeamOptions()) {
-        fb.append(row(o.key, o.label, o.description, tr("Display"), o.values, QString(), o.defaultValue, true));
+        fb.append(row(o.key, o.label, o.description, o.perSystem ? tr("Speed-up") : tr("Display"), o.values, QString(), o.defaultValue, true));
       }
       groups.append(QVariantMap{{QStringLiteral("id"), QStringLiteral("framebeam")},
                                 {QStringLiteral("title"), tr("FrameBeam")},
@@ -368,6 +387,18 @@ void EmulationController::rebuild() {
                                 {QStringLiteral("subtitle"), tr("from Libretro core options · only options reported by the core")},
                                 {QStringLiteral("note"), coreNote_},
                                 {QStringLiteral("options"), collect(core)}});
+    }
+    // Speed-up options of the system: collected after the core group so its categories exist for the filter.
+    if (!global) {
+      QVariantList fb;
+      for (const FbOption& o : frameBeamOptions()) {
+        if (o.perSystem) fb.append(row(o.key, o.label, o.description, QString(), o.values, QString(), o.defaultValue, true));
+      }
+      groups.prepend(QVariantMap{{QStringLiteral("id"), QStringLiteral("framebeam")},
+                                {QStringLiteral("title"), tr("FrameBeam")},
+                                {QStringLiteral("subtitle"), tr("Speed-up in the Player")},
+                                {QStringLiteral("note"), QString()},
+                                {QStringLiteral("options"), collect(fb)}});
     }
   }
   categories_ = categories;

@@ -8,7 +8,7 @@ import FrameBeam.Player
 // Diagnostics tab toggles the overlay (3t-3y; bottom panel in the multiview). Fullscreen (F11) drops header and panel; the
 // toolbar appears when the mouse moves to the top. Without a local game (watching only) the remote Session fills the surface.
 // Keys (never forwarded to the core): F11 fullscreen, Esc leaves fullscreen (else pause), F3 diagnostics, F5 snapshot,
-// 1-4 audio focus in the grid.
+// 1-4 audio focus in the grid; Space speed-up (only when the core allows it; also while the Session is shared).
 Rectangle {
     id: root
     required property PlayerController player
@@ -95,6 +95,9 @@ Rectangle {
         } else if (e.key === Qt.Key_F5) {
             root.saveSnapshot()
             e.accepted = true
+        } else if (e.key === Qt.Key_Space) {
+            if (!e.isAutoRepeat && root.session.fastForwardAvailable) root.session.toggleFastForward()
+            e.accepted = true   // Space never reaches the core (GameSession::isReservedKey)
         } else if (e.key === Qt.Key_Escape) {
             if (root.fullscreen) { root.setFullscreen(false); e.accepted = true }
         } else if (e.key >= Qt.Key_1 && e.key <= Qt.Key_4 && root.tab !== "session" && root.ctl.multiviewMode === "grid") {
@@ -193,6 +196,20 @@ Rectangle {
                 color: Theme.textMeta
             }
             Item { Layout.fillWidth: true }
+            KeyHintButton {
+                objectName: "fastForwardButton"
+                Layout.minimumWidth: implicitWidth  // never squeezed; the title elides first
+                visible: root.session.active && root.tab === "session" && root.session.fastForwardAvailable
+                focusPolicy: Qt.NoFocus
+                kind: root.session.fastForward ? "raised" : "outline"
+                readonly property bool narrow: root.width < 1360
+                text: narrow ? "»" : qsTr("Speed-up")   // narrow: minimal button, the full name is the tooltip
+                hint: narrow ? "" : "Space"
+                Accessible.name: qsTr("Speed-up")
+                ToolTip.visible: narrow && hovered
+                ToolTip.text: qsTr("Speed-up (Space)")
+                onClicked: root.session.toggleFastForward()
+            }
             FbButton {
                 objectName: "pauseButton"
                 Layout.minimumWidth: header.pauseWidth  // same width for Pause and Resume
@@ -323,6 +340,25 @@ Rectangle {
                     visible: !root.session.hasFrame && root.session.state !== GameSession.Failed
                     text: qsTr("Starting emulator…")
                     color: Theme.gameTextMuted
+                }
+                Rectangle {
+                    objectName: "fastForwardIndicator"
+                    visible: root.session.fastForward && !root.session.paused
+                    anchors.top: parent.top
+                    anchors.left: parent.left
+                    anchors.margins: 12
+                    width: ffLabel.implicitWidth + 20
+                    height: ffLabel.implicitHeight + 10
+                    radius: 6
+                    color: "#99000000"
+                    FbLabel {
+                        id: ffLabel
+                        anchors.centerIn: parent
+                        text: qsTr("Speed-up ×%1").arg(Math.round(root.session.fastForwardRatio * 10) / 10)
+                        color: Theme.gameText
+                        font.pixelSize: 13
+                        font.weight: Font.Medium
+                    }
                 }
                 Rectangle {
                     visible: root.session.paused

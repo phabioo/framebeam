@@ -70,3 +70,9 @@ framebeam_add_test(ui_screenshots_game screenshots_game_test.cpp ${FB_NETTEST_DI
   LIBS ${FB_UI_TEST_LIBS})
 target_include_directories(test_ui_screenshots_game PRIVATE ${FB_NETTEST_DIR})
 target_compile_definitions(test_ui_screenshots_game PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
+
+# Speed-up button, speed select, Space (preview game, no core).
+framebeam_add_test(ui_fast_forward fast_forward_ui_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
+  LIBS ${FB_UI_TEST_LIBS})
+target_include_directories(test_ui_fast_forward PRIVATE ${FB_NETTEST_DIR})
+target_compile_definitions(test_ui_fast_forward PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
