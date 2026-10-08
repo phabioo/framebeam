@@ -143,6 +143,13 @@ See [ADR 0018](adr/0018-player-speed-up.md) (proposed).
 - [x] Done: Emulation settings "Speed-up speed", "Speed-up on start" (default off) and "Audio during speed-up" (default on, resampled; off drops audio) with the global > system > game hierarchy.
 - [x] Done (0.7.x): the speed-up key is configurable in Controllers → Hotkeys.
 - Open: gamepad hotkey.
+- [x] Done (0.7.x follow-up): hardware frames are scaled down on the GPU to the size the view (and, while shared, the stream) needs before the readback; diagnostics show "read back W×H", an honest readback mean and reads per second. melonDS DS ignores `GET_AUDIO_VIDEO_ENABLE`, so it still renders every frame during speed-up.
+
+## 0.7.x Direct GPU display (zero-copy)
+
+Follow-up to ADR 0013 D3 (requested 2026-10-08 after speed-up stutter at 8× internal resolution).
+
+- Open: show hardware-rendered frames in the game view straight from the GPU (shared texture or interop with the Qt Quick scene graph, D3D11 on Windows), without the CPU readback and QImage upload; readback only while the Session is shared.
 
 ## 0.7.x Hotkeys and controller profiles
 

@@ -11,6 +11,12 @@
 
 namespace framebeam::ui {
 
+namespace {
+// Largest frame the Session encoder is fed from the local game (the encoder opens at the frame size it gets). While
+// shared, the GPU readback keeps at least this much of a larger hardware frame; the view's own size may need more.
+const QSize kShareEncodeMax(1280, 1920);
+}  // namespace
+
 SessionController::SessionController(HubConnection* conn, ProfileStore* profiles, GameSession* game, QObject* parent)
     : QObject(parent), conn_(conn), profiles_(profiles), game_(game), api_(conn), socket_(conn) {
   qRegisterMetaType<framebeam::SessionInfo>();
@@ -346,6 +352,7 @@ void SessionController::shareSession() {
     }
     own_ = *r.session;
     shared_ = true;
+    game_->setShareSize(kShareEncodeMax);
     saveSettings();
     host_.open(own_.sessionId, socket_.helloAck().iceServers, socket_.helloAck().turnServers);
     for (const ViewerJoined& v : std::exchange(pendingViewers_, {})) {
@@ -363,6 +370,7 @@ void SessionController::closeShare(const QString& note) {
   const bool was = shared_ || shareBusy_;
   host_.close();
   shared_ = false;
+  game_->setShareSize(QSize());
   shareBusy_ = false;
   own_ = SessionInfo();
   visInFlight_ = 0;

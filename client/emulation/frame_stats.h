@@ -22,14 +22,16 @@ class FrameTimingStats {
     qint64 atMs = 0;
     float totalMs = 0;
     float emuMs = 0;
-    float readbackMs = 0;
+    float readbackMs = 0;  // 0 = this frame did not read back
   };
   struct Snapshot {
     bool valid = false;        // at least one frame inside the window
     double fps = 0.0;          // actual frames per second over the last second
     double frameMs = 0.0;      // mean total frame time inside the window
     double emuMs = 0.0;        // mean emulation part
-    double readbackMs = 0.0;   // mean readback part (0 without hardware rendering)
+    double readbackMs = 0.0;   // mean readback part over ALL frames of the window (0 without hardware rendering)
+    double readbacksPerSec = 0.0;  // frames of the window that read back (hardware frames that were shown)
+    double readbackMsPerRead = 0.0;  // mean duration of those frames' readback only
     QList<Sample> history;     // last 5 s, oldest first
   };
 

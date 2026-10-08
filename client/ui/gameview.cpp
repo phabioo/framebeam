@@ -1,6 +1,7 @@
 #include "gameview.h"
 
 #include <QKeyEvent>
+#include <cmath>
 #include <QMouseEvent>
 #include <QQuickWindow>
 #include <QSGImageNode>
@@ -16,12 +17,49 @@ GameView::GameView(QQuickItem* parent) : QQuickItem(parent) {
   setAcceptedMouseButtons(Qt::LeftButton);
 }
 
+GameView::~GameView() {
+  if (session_) session_->setViewSize(this, QSize());
+}
+
+QSize GameView::physicalSize(const QSizeF& logical, qreal dpr) {
+  if (logical.isEmpty() || dpr <= 0) return {};
+  return QSize(static_cast<int>(std::ceil(logical.width() * dpr - 1e-6)), static_cast<int>(std::ceil(logical.height() * dpr - 1e-6)));
+}
+
+void GameView::reportSize() {
+  if (!session_) return;
+  const qreal dpr = window() ? window()->effectiveDevicePixelRatio() : 1.0;
+  // Needed size = the 1x base frame times the on-screen scale (the source may be several times larger than that
+  // and is downscaled to it), so split layouts, where screens are drawn individually, get what they really show.
+  const emu::DisplayProfile& prof = session_->displayProfile();
+  const QSize base = prof.frameSize();
+  qreal scale = 0;  // logical pixels per base pixel
+  if (!base.isEmpty()) {
+    if (splitDrawing()) {
+      for (int i = 0; i < placement_.targets.size() && scale <= 0; ++i) {
+        const QRect sr = prof.screenRect(i);
+        if (!placement_.targets.at(i).isEmpty() && sr.width() > 0) scale = placement_.targets.at(i).width() / sr.width();
+      }
+    } else if (!frameRect_.isEmpty()) {
+      scale = frameRect_.width() / base.width();
+    }
+  }
+  const QSize px = scale > 0 ? physicalSize(QSizeF(base.width() * scale, base.height() * scale), dpr) : physicalSize(size(), dpr);
+  session_->setViewSize(this, px);
+}
+
+void GameView::itemChange(ItemChange change, const ItemChangeData& value) {
+  QQuickItem::itemChange(change, value);
+  if (change == ItemDevicePixelRatioHasChanged || change == ItemSceneChange) reportSize();
+}
+
 void GameView::setSession(GameSession* s) {
   if (session_ == s) {
     return;
   }
   if (session_) {
     session_->disconnect(this);
+    session_->setViewSize(this, QSize());
   }
   session_ = s;
   frame_ = QImage();
@@ -109,6 +147,7 @@ void GameView::updateFrameRect() {
     frameRect_ = r;
     emit frameRectChanged();
   }
+  reportSize();
 }
 
 void GameView::geometryChange(const QRectF& newGeometry, const QRectF& oldGeometry) {
