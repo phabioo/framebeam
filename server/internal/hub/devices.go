@@ -301,3 +301,23 @@ func (s *Service) Handshake(ctx context.Context, deviceID string, in HandshakeIn
 	}
 	return res, nil
 }
+
+// DeviceProtocols returns the protocol version of each device's last report (device id -> version).
+// Devices that never reported are absent. Compare with Info().MinProtocolVersion.
+func (s *Service) DeviceProtocols(ctx context.Context) (map[string]int, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT device_id, protocol_version FROM device_reports`)
+	if err != nil {
+		return nil, internal(err)
+	}
+	defer rows.Close()
+	out := map[string]int{}
+	for rows.Next() {
+		var id string
+		var v int
+		if err := rows.Scan(&id, &v); err != nil {
+			return nil, internal(err)
+		}
+		out[id] = v
+	}
+	return out, rows.Err()
+}

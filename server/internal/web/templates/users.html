@@ -50,7 +50,11 @@
   <div class="invite new" role="status">
     <div class="invite-head"><span class="pill ok">New invite</span><span class="help warn">{{.Body.NewMeta}}</span></div>
     <div class="invite-code">{{.Body.NewCode}}</div>
-    <div class="help">Shown once. Only a hash of the code is stored, so it cannot be displayed again.</div>
+    {{if .Body.NewLink}}<div class="invite-link">
+      <button class="btn small" type="button" data-copy-link="{{.Body.NewLink}}">Copy link</button>
+      <input class="mono" type="text" readonly hidden data-copy-fallback value="{{.Body.NewLink}}" aria-label="Invite link">
+    </div>{{end}}
+    <div class="help">Shown once. Only a hash of the code is stored, so it cannot be displayed again. The link carries the code in its fragment, which is never sent to the Hub.</div>
   </div>{{end}}
   {{template "users-invites" .}}
 </aside>

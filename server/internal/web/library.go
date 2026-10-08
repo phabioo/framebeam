@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -30,6 +31,8 @@ type libBody struct {
 	System     string
 	Query      string
 	Filtered   bool
+	// ImportDir is the import folder for "Rescan folder" (empty: not configured).
+	ImportDir string
 	// RefreshURL is the URL the live region reloads itself from (keeps the current filter).
 	RefreshURL string
 }
@@ -63,7 +66,7 @@ func (s *Server) libraryBody(ctx context.Context, system, q string) (libBody, er
 		}
 	}
 	b := libBody{Count: len(games), Used: humanBytes(st.ROMBytes), Free: humanBytes(st.FreeBytes),
-		System: system, Query: q, Filtered: system != "" || q != "", RefreshURL: "/library"}
+		System: system, Query: q, Filtered: system != "" || q != "", RefreshURL: "/library", ImportDir: s.cfg.ImportDir}
 	f := url.Values{}
 	if system != "" {
 		f.Set("system", system)
@@ -106,6 +109,10 @@ func (s *Server) libraryBody(ctx context.Context, system, q string) (libBody, er
 }
 
 func (s *Server) renderLibrary(w http.ResponseWriter, r *http.Request, sess *session, status int, system, q, errMsg string) {
+	s.renderLibraryFlash(w, r, sess, status, system, q, "", errMsg)
+}
+
+func (s *Server) renderLibraryFlash(w http.ResponseWriter, r *http.Request, sess *session, status int, system, q, flash, errMsg string) {
 	body, err := s.libraryBody(r.Context(), system, q)
 	if err != nil {
 		s.fail(w, r, err)
@@ -113,6 +120,9 @@ func (s *Server) renderLibrary(w http.ResponseWriter, r *http.Request, sess *ses
 	}
 	d := s.base(r, sess, "library", "Library")
 	d.Body, d.Error = body, errMsg
+	if flash != "" {
+		d.Flash = flash
+	}
 	if isHX(r, "library-results") {
 		d.Fragment = true
 		s.render(w, status, "library", "library-results", d)
@@ -212,4 +222,36 @@ func (s *Server) libraryDelete(w http.ResponseWriter, r *http.Request, sess *ses
 	}
 	r.Header.Set("HX-Target", "library-results")
 	s.renderLibrary(w, r, sess, http.StatusOK, r.PostFormValue("system"), r.PostFormValue("q"), "")
+}
+
+// libraryRescan imports the files of the import folder (admin only, like uploads). Source files are only read.
+func (s *Server) libraryRescan(w http.ResponseWriter, r *http.Request, sess *session) {
+	if s.cfg.ImportDir == "" {
+		s.renderLibrary(w, r, sess, http.StatusBadRequest, "", "", "No import folder is configured.")
+		return
+	}
+	sum, err := s.svc.ImportFolder(r.Context(), s.cfg.ImportDir, sess.User.ID, s.cfg.MaxUploadBytes)
+	if errors.Is(err, hub.ErrImportDirMissing) {
+		s.renderLibrary(w, r, sess, http.StatusBadRequest, "", "", "The import folder "+s.cfg.ImportDir+" does not exist.")
+		return
+	}
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	flash := fmt.Sprintf("Rescan finished: %d added, %d already in the library, %d unsupported, %d failed.",
+		sum.Added, sum.AlreadyHere, sum.Unsupported, len(sum.Failed))
+	errMsg := ""
+	if len(sum.Failed) > 0 {
+		var parts []string
+		for i, f := range sum.Failed {
+			if i == 5 {
+				parts = append(parts, fmt.Sprintf("and %d more", len(sum.Failed)-5))
+				break
+			}
+			parts = append(parts, f.File+": "+f.Reason)
+		}
+		errMsg = "Not imported: " + strings.Join(parts, "; ") + "."
+	}
+	s.renderLibraryFlash(w, r, sess, http.StatusOK, "", "", flash, errMsg)
 }

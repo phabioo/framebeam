@@ -3,7 +3,9 @@ package web
 import (
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/phabioo/framebeam/server/internal/hub"
@@ -32,6 +34,8 @@ type usersBody struct {
 	TTLs    []ttlOpt
 	// NewCode is the code of the invite created just now; it is shown exactly once.
 	NewCode, NewMeta string
+	// NewLink is the shareable link for NewCode (<scheme>://<host>/invite#<code>); the code stays in the URL fragment.
+	NewLink string
 }
 
 var ttlOptions = []ttlOpt{{"15m", "15 minutes", false}, {"1h", "1 hour", true}, {"24h", "24 hours", false}}
@@ -74,6 +78,9 @@ func (s *Server) renderUsers(w http.ResponseWriter, r *http.Request, sess *sessi
 	}
 	now := s.svc.Now()
 	b := usersBody{TTLs: ttlOptions, NewCode: newCode, NewMeta: newMeta}
+	if newCode != "" {
+		b.NewLink = s.scheme() + "://" + s.hubAddress(r) + "/invite#" + newCode
+	}
 	for _, u := range rows {
 		b.Users = append(b.Users, userView{ID: u.ID, Name: u.DisplayName, Initial: initial(u.DisplayName), Role: roleLabel(u.Role),
 			Created: u.CreatedAt.Local().Format("02.01.2006"), Devices: u.Devices, Disabled: u.Disabled(), Admin: u.Role == hub.RoleAdmin})
@@ -173,4 +180,36 @@ func (s *Server) inviteRevoke(w http.ResponseWriter, r *http.Request, sess *sess
 	default:
 		s.fail(w, r, err)
 	}
+}
+
+func (s *Server) scheme() string {
+	if s.cfg.UseTLS {
+		return "https"
+	}
+	return "http"
+}
+
+// hubAddress is the host[:port] players should use: the configured public host (with its external port when
+// known), else the host of the request.
+func (s *Server) hubAddress(r *http.Request) string {
+	if h := s.cfg.PublicHost; h != "" {
+		if p := s.cfg.PublicPort; p > 0 {
+			return net.JoinHostPort(h, strconv.Itoa(p))
+		}
+		return h
+	}
+	return r.Host
+}
+
+type inviteLandingBody struct {
+	Address, Fingerprint string
+}
+
+// inviteLanding is the public page behind an invite link. The code lives only in the URL fragment, which
+// browsers never send to the server; a static script shows it. The page carries no admin data.
+func (s *Server) inviteLanding(w http.ResponseWriter, r *http.Request) {
+	d := s.base(r, nil, "", "Join this Hub")
+	fp, _ := s.certInfo()
+	d.Body = inviteLandingBody{Address: s.hubAddress(r), Fingerprint: fp}
+	s.render(w, http.StatusOK, "invite", "bare", d)
 }

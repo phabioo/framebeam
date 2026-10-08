@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -147,5 +148,158 @@ func TestExpiresSoon(t *testing.T) {
 	now := time.Now()
 	if !ExpiresSoon(now.Add(29*24*time.Hour), now) || !ExpiresSoon(now.Add(-time.Hour), now) || ExpiresSoon(now.Add(31*24*time.Hour), now) {
 		t.Fatal("ExpiresSoon wrong")
+	}
+}
+
+// mkPair writes a fresh pair into dir/<name>.pem + suffix and returns its fingerprint.
+func mkPair(t *testing.T, dataDir, suffix string) string {
+	t.Helper()
+	_, certFile, keyFile := selfSignedPaths(dataDir)
+	if err := os.MkdirAll(filepath.Dir(certFile), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	k, c, err := generate(time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writeFileAtomic(keyFile+suffix, k, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeFileAtomic(certFile+suffix, c, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tc, err := Load(certFile+suffix, keyFile+suffix)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return Fingerprint(tc)
+}
+
+func TestRenewLeavesNoTempFiles(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := EnsureSelfSigned(dir); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := RenewSelfSigned(dir, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	ents, _ := os.ReadDir(filepath.Join(dir, "tls"))
+	var names []string
+	for _, e := range ents {
+		names = append(names, e.Name())
+	}
+	want := map[string]bool{"cert.pem": true, "key.pem": true, "cert.pem.prev": true, "key.pem.prev": true}
+	if len(names) != len(want) {
+		t.Fatalf("unexpected files %v", names)
+	}
+	for _, n := range names {
+		if !want[n] {
+			t.Fatalf("unexpected file %s", n)
+		}
+	}
+	st, _ := os.Stat(filepath.Join(dir, "tls", "key.pem"))
+	if st.Mode().Perm() != 0o600 {
+		t.Fatalf("key mode %v", st.Mode())
+	}
+}
+
+func TestRecoverOnlyNewPresent(t *testing.T) {
+	// Crash after moving the old pair to .prev, before the .new pair was renamed in.
+	dir := t.TempDir()
+	prevFP := mkPair(t, dir, ".prev")
+	newFP := mkPair(t, dir, ".new")
+	c, ren, err := EnsureSelfSignedRenewing(dir, time.Now())
+	if err != nil || ren != nil {
+		t.Fatalf("err=%v ren=%v", err, ren)
+	}
+	if Fingerprint(c) != newFP || newFP == prevFP {
+		t.Fatalf("expected the staged pair, got %s", Fingerprint(c))
+	}
+	_, certFile, keyFile := selfSignedPaths(dir)
+	if exists(certFile+".new") || exists(keyFile+".new") {
+		t.Fatal(".new files should be consumed")
+	}
+}
+
+func TestRecoverMismatchedCurrentUsesNew(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := EnsureSelfSigned(dir); err != nil {
+		t.Fatal(err)
+	}
+	_, certFile, keyFile := selfSignedPaths(dir)
+	// Replace the key with a foreign one: mismatched current pair.
+	k, _, _ := generate(time.Now())
+	if err := writeFileAtomic(keyFile, k, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	newFP := mkPair(t, dir, ".new")
+	c, _, err := RenewSelfSigned(dir, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// RenewSelfSigned repairs first, then renews: the result is neither the broken pair nor the staged one.
+	if Fingerprint(c) == newFP {
+		t.Fatal("renew should create another certificate after repairing")
+	}
+	got, _ := Load(certFile+".prev", keyFile+".prev")
+	if Fingerprint(got) != newFP {
+		t.Fatal("repaired .new pair should be kept as .prev")
+	}
+}
+
+func TestRecoverMismatchedCurrentRestoresPrev(t *testing.T) {
+	dir := t.TempDir()
+	prevFP := mkPair(t, dir, ".prev")
+	cur := mkPair(t, dir, "")
+	_ = cur
+	_, _, keyFile := selfSignedPaths(dir)
+	k, _, _ := generate(time.Now())
+	if err := writeFileAtomic(keyFile, k, 0o600); err != nil { // mismatch
+		t.Fatal(err)
+	}
+	c, _, err := EnsureSelfSignedRenewing(dir, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if Fingerprint(c) != prevFP {
+		t.Fatal("expected .prev to be restored")
+	}
+}
+
+func TestRecoverIncompleteNewIsIgnored(t *testing.T) {
+	dir := t.TempDir()
+	prevFP := mkPair(t, dir, ".prev")
+	_, certFile, keyFile := selfSignedPaths(dir)
+	k, _, _ := generate(time.Now())
+	if err := writeFileAtomic(keyFile+".new", k, 0o600); err != nil { // cert.new missing
+		t.Fatal(err)
+	}
+	c, _, err := EnsureSelfSignedRenewing(dir, time.Now())
+	if err != nil || Fingerprint(c) != prevFP {
+		t.Fatalf("expected restore of .prev, err=%v", err)
+	}
+	_ = certFile
+}
+
+func TestRecoverUnrecoverable(t *testing.T) {
+	dir := t.TempDir()
+	mkPair(t, dir, "")
+	_, _, keyFile := selfSignedPaths(dir)
+	k, _, _ := generate(time.Now())
+	if err := writeFileAtomic(keyFile, k, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := EnsureSelfSignedRenewing(dir, time.Now()); err == nil || errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("want clear error, got %v", err)
+	}
+}
+
+func TestStaleNewIgnoredWhenCurrentOK(t *testing.T) {
+	dir := t.TempDir()
+	c1, _ := EnsureSelfSigned(dir)
+	mkPair(t, dir, ".new")
+	c2, _, err := EnsureSelfSignedRenewing(dir, time.Now())
+	if err != nil || Fingerprint(c1) != Fingerprint(c2) {
+		t.Fatalf("current pair must win: %v", err)
 	}
 }

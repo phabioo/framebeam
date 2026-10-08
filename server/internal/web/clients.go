@@ -12,11 +12,17 @@ type pendingView struct {
 	Protocol                                     int
 	// AssignTo is the preselected user: the pre-assigned (invite) user, else the admin.
 	AssignTo string
+	TooOld   bool
+	// MinProtocol is the Hub's minimum protocol version.
+	MinProtocol int
 }
 
 type deviceView struct {
 	ID, Name, User, Platform, Arch, PlayerVersion, LastSeen string
 	Revoked                                                 bool
+	// TooOld: the last reported protocol version is below the Hub minimum; MinProtocol is that minimum.
+	TooOld      bool
+	MinProtocol int
 }
 
 type userOpt struct{ ID, DisplayName string }
@@ -41,6 +47,11 @@ func (s *Server) clientsData(r *http.Request) (clientsBody, error) {
 	if err != nil {
 		return clientsBody{}, err
 	}
+	protos, err := s.svc.DeviceProtocols(ctx)
+	if err != nil {
+		return clientsBody{}, err
+	}
+	minProto := s.svc.Info().MinProtocolVersion
 	now := s.svc.Now()
 	var b clientsBody
 	names := map[string]string{}
@@ -60,11 +71,13 @@ func (s *Server) clientsData(r *http.Request) (clientsBody, error) {
 			assign = q.UserID
 		}
 		b.Pending = append(b.Pending, pendingView{ID: q.ID, Name: q.DeviceName, Platform: q.Platform, Arch: q.Arch,
-			PlayerVersion: q.PlayerVersion, Protocol: q.ProtocolVersion, Ago: ago(q.CreatedAt, now), AssignTo: assign})
+			PlayerVersion: q.PlayerVersion, Protocol: q.ProtocolVersion, Ago: ago(q.CreatedAt, now), AssignTo: assign,
+			TooOld: q.ProtocolVersion < minProto, MinProtocol: minProto})
 	}
 	for _, d := range devs {
 		b.Devices = append(b.Devices, deviceView{ID: d.ID, Name: d.Name, User: names[d.UserID], Platform: d.Platform, Arch: d.Arch,
-			PlayerVersion: d.PlayerVersion, LastSeen: lastSeen(d.LastSeenAt, now), Revoked: d.Status == hub.DeviceRevoked})
+			PlayerVersion: d.PlayerVersion, LastSeen: lastSeen(d.LastSeenAt, now), Revoked: d.Status == hub.DeviceRevoked,
+			TooOld: d.Status == hub.DeviceTrusted && protos[d.ID] > 0 && protos[d.ID] < minProto, MinProtocol: minProto})
 	}
 	return b, nil
 }

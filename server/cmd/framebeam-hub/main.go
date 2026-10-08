@@ -14,7 +14,6 @@ import (
 	"bufio"
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"errors"
 	"flag"
 	"fmt"
@@ -246,6 +245,10 @@ func runServer(args []string) error {
 		return err
 	}
 	defer closeFn()
+	importDir := cfg.ImportDir()
+	if err := os.MkdirAll(importDir, 0o750); err != nil {
+		return fmt.Errorf("create library import folder: %w", err)
+	}
 	stored, err := svc.NetOverrides(ctx)
 	if err != nil {
 		return fmt.Errorf("read network settings: %w", err)
@@ -294,16 +297,16 @@ func runServer(args []string) error {
 		if err != nil {
 			return fmt.Errorf("TLS certificate: %w", err)
 		}
-		tlsConf = &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}
-		webCfg.CertFingerprint = tlsutil.Fingerprint(cert)
+		holder := newCertHolder(cert)
+		tlsConf = &tls.Config{GetCertificate: holder.getCertificate, MinVersion: tls.VersionTLS12}
 		webCfg.CertSource = "Self-generated"
 		if cfg.TLSCert != "" {
 			webCfg.CertSource = "Own cert/key"
+		} else {
+			webCfg.RenewCert = func() (string, time.Time, error) { return holder.renew(cfg.DataDir, time.Now()) }
 		}
-		if leaf, err := x509.ParseCertificate(cert.Certificate[0]); err == nil {
-			webCfg.CertNotAfter = leaf.NotAfter
-		}
-		log.Info("TLS certificate", "sha256_fingerprint", webCfg.CertFingerprint)
+		webCfg.CertState = holder.state
+		log.Info("TLS certificate", "sha256_fingerprint", tlsutil.Fingerprint(cert))
 	} else {
 		log.Warn("Development mode: HTTP without TLS", "loopback", cfg.ListenIsLoopback())
 	}
@@ -319,6 +322,8 @@ func runServer(args []string) error {
 		eff.Listen = base.Listen
 	}
 	webCfg.Listen = eff.Listen
+	webCfg.ImportDir = importDir
+	webCfg.PublicHost, webCfg.PublicPort = eff.PublicHost, publicPort(eff.Listen)
 	webCfg.Net = web.NetConfig{Base: base, Running: eff, Issues: issues, RequestRestart: requestRestart}
 
 	webSrv, err := web.New(svc, webCfg, log)
