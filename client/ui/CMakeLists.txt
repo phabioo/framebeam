@@ -14,6 +14,7 @@ qt_add_qml_module(framebeam_ui
     diagnosticsmodel.h diagnosticsmodel.cpp
     emulationcontroller.h emulationcontroller.cpp
     controllerscontroller.h controllerscontroller.cpp
+    controllersglyphs.h controllersglyphs.cpp
     audiooutput.h audiooutput.cpp
     gamesession.h gamesession.cpp
     gameview.h gameview.cpp
@@ -72,6 +73,7 @@ qt_add_qml_module(framebeam_ui
     FbSelect.qml
     EmulationScreen.qml
     ControllersScreen.qml
+    PadGlyph.qml
     UploadFileDialog.qml
     SaveHistorySection.qml
     SaveRestoreDialog.qml
