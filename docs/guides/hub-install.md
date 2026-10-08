@@ -67,7 +67,7 @@ At the end the script prints the service status, the URL (`https://<ip>:<port>/`
 
 ## Admin account
 
-`--admin USER` asks for the password twice (or reads one line from stdin when not a terminal, e.g. `echo ... | sudo ./install-hub.sh ...`). It runs `framebeam-hub setup-admin` as the `framebeam` user and is skipped if an admin already exists. On a headless Pi this is needed because the web setup form only accepts connections from localhost. Without the script (for example after the `.deb` install) run `framebeam-hub setup-admin -username <name>` as the `framebeam` user in the service data directory, or open `/setup` in a browser on the Hub host itself.
+`--admin USER` asks for the password twice (or reads one line from stdin when not a terminal, e.g. `echo ... | sudo ./install-hub.sh ...`). It runs `framebeam-hub setup-admin` as the `framebeam` user and is skipped if an admin already exists. On a headless Pi this is needed because the web setup form only accepts connections from localhost. Without the script (for example after the `.deb` install) run `setup-admin` as the `framebeam` user with the data directory from `hub.env`, for example `sudo runuser -u framebeam -- env FRAMEBEAM_DATA_DIR=/var/lib/framebeam framebeam-hub setup-admin -username <name>` (use the `FRAMEBEAM_DATA_DIR` value from `/etc/framebeam/hub.env` if you changed it), or open `/setup` in a browser on the Hub host itself.
 
 ## TLS fingerprint
 
