@@ -82,6 +82,7 @@ class UpdateManager : public QObject {
   void setLauncher(std::function<bool(const QString& program, const QStringList& args)> f) { launcher_ = std::move(f); }
 
   Channel effectiveChannel() const;
+  // Effective channel: explicit setting > resolved default (beta builds only) > compiled channel.
   bool channelIsOverridden() const { return !settings_->updateChannel().isEmpty(); }
   // Automatic install is only effective on the beta channel (stable always asks first).
   bool autoInstallSetting() const;
@@ -121,6 +122,7 @@ class UpdateManager : public QObject {
   void quitRequested();  // installer started: the Player has to exit now
 
  private:
+  void resolveDefaultChannel(const Index& index);
   void setState(State s, const QString& text);
   void onIndex(const FetchedIndex& fi);
   void startDownload(bool applyAfter);

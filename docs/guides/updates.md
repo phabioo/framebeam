@@ -1,6 +1,6 @@
 # Updates and releases
 
-How the Hub and the Windows Player update themselves, and how a stable release is made. Decisions: [ADR 0011](../adr/0011-automatic-updates.md). Mechanics (index format, install path, root helper): [hub-internals.md](../reference/hub-internals.md), [player-internals.md](../reference/player-internals.md), [update-index.md](../reference/update-index.md).
+How the Hub and the Windows Player update themselves, and how a beta is promoted to a release. Decisions: [ADR 0011](../adr/0011-automatic-updates.md). Mechanics (index format, install path, root helper): [hub-internals.md](../reference/hub-internals.md), [player-internals.md](../reference/player-internals.md), [update-index.md](../reference/update-index.md).
 
 ## Hub
 
@@ -20,14 +20,14 @@ How the Hub and the Windows Player update themselves, and how a stable release i
 ## Channels
 
 - `stable` or `beta` (hint in the UI: "Pre-release builds from every change on main. May contain bugs."), switchable in the same Settings sections. `beta` also takes stable releases when newer. Never a downgrade.
-- Default is the channel the build was made for: stable builds default to stable, beta builds to beta; `dev` builds do not check until a channel is chosen.
-- Beta naming: pre-release builds are versioned `X.Y.Z-beta.<CI run number>`, channel `beta`, published as "beta build" prereleases `vX.Y.Z-beta.N`. Stored `test` settings are read as `beta`. Installs of the former `test.N` builds do not update to beta builds (different channel, and `beta` < `test` in SemVer); reinstall once from a beta or stable release.
+- Release builds are compiled with channel `beta`. With no channel selected, the first successful index load stores `update_channel_default` (Hub: `settings` table; Player: `player.json`): `stable` if the index lists the running version as stable, else `beta`. It is never re-resolved, so a beta install stays on beta after its version is promoted, and a fresh install of a stable release follows stable. An explicit selection always wins; `dev` builds do not check until a channel is chosen. Automatic install defaults to on for beta, off for stable.
+- Beta naming ([ADR 0016](../adr/0016-release-numbering-and-promotion.md)): every push to `main` is a beta with a plain version `X.Y.Z`, published as prerelease `vX.Y.Z`; the number can have gaps. Older `vX.Y.Z-beta.N` builds still update normally but cannot be promoted. Stored `test` settings are read as `beta`. Installs of the former `test.N` builds do not update to beta builds (different channel, and `beta` < `test` in SemVer); reinstall once from a beta or release.
 
-## Make a stable release
+## Promote a beta to a release
 
-GitHub Actions > "Promote to stable" > Run workflow (`.github/workflows/promote.yml`). Optional inputs: `beta_version` (default: newest beta) and `next_version` (default: next minor).
+GitHub Actions > "Promote to release" > Run workflow (`.github/workflows/promote.yml`). Optional input `version` (default: newest beta prerelease).
 
-The workflow tags `vX.Y.Z` on the commit of that beta build, dispatches CI for the tag (stable build, release, signed index) and opens a PR bumping `VERSION` to the next version, dispatches CI on its branch (PRs made with the workflow token start no CI) and enables auto-merge, so it merges once the required checks pass; if Actions may not create PRs it warns with a compare link. The auto-merge itself triggers no beta build; the next merge does. Make sure that PR gets merged, otherwise beta builds sort below the release. Pushing the tag `vX.Y.Z` manually (it must equal `VERSION`) still works.
+The workflow does not rebuild and creates no tag or `VERSION` PR. It adds the beta's artifacts to the signed `updates-index` under channel `stable` (from the `index-hub.json` / `index-player.json` assets on the beta release) and turns the GitHub release from prerelease into the latest stable release. Stable numbers therefore skip (0.7.1, 0.8.3, 0.8.6). Betas built as `vX.Y.Z-beta.N` cannot be promoted; `v0.7.1` is the last stable made the old way. Promoted releases are never pruned.
 
 ## Rollback
 

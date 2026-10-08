@@ -17,7 +17,7 @@ The package installs
 
 Package details:
 
-- The control Version field uses `~` for the pre-release (`0.3.0~beta.57`, so beta builds sort before the release); file names keep the SemVer (`framebeam-hub_0.3.0-beta.57_arm64.deb`) because GitHub rewrites special characters in asset names.
+- Published betas and releases have a plain version (`framebeam-hub_0.8.3_arm64.deb`). The control Version field uses `~` for other pre-release versions (`0.8.3~dev.57`, legacy `0.3.0~beta.57`), so they sort before the release; file names keep the SemVer because GitHub rewrites special characters in asset names.
 - The postinst creates the `framebeam` user, `/var/lib/framebeam` (only if missing) and `/etc/framebeam/hub.env` (only
   if missing: an existing file is never overwritten), then enables and (re)starts the Hub and the update path unit.
 - Migration from `install-hub.sh`: the old unit in `/etc/systemd/system` is moved to

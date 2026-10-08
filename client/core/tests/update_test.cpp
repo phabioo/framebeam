@@ -465,6 +465,73 @@ class UpdateTest : public QObject {
     QTRY_COMPARE_WITH_TIMEOUT(m.state(), UpdateManager::State::Error, 5000);
     QVERIFY(m.statusText().contains("signature"));
   }
+  // ---------------------------------------------------------------- resolved default channel
+  void defaultChannelResolvesStableWhenPromoted() {
+    Env env;
+    env.publishPromoted("0.3.0-dev", true);
+    {
+      framebeam::PlayerSettings settings(env.dir.filePath("data"));
+      auto mp = env.manager(settings);
+      QCOMPARE(mp->effectiveChannel(), Channel::Beta);  // not resolved yet
+      QSignalSpy spy(mp.get(), &UpdateManager::changed);
+      mp->checkNow();
+      QTRY_COMPARE_WITH_TIMEOUT(settings.updateChannelDefault(), QString("stable"), 5000);
+      QCOMPARE(mp->effectiveChannel(), Channel::Stable);
+      QVERIFY(!mp->autoInstallSetting());
+      QVERIFY(settings.updateChannel().isEmpty());
+    }
+    framebeam::PlayerSettings reloaded(env.dir.filePath("data"));  // persisted
+    QCOMPARE(reloaded.updateChannelDefault(), QString("stable"));
+    QCOMPARE(env.manager(reloaded)->effectiveChannel(), Channel::Stable);
+  }
+  void defaultChannelResolvesBetaAndStaysAfterPromotion() {
+    Env env;
+    env.publishPromoted("0.3.0-dev", false);
+    framebeam::PlayerSettings settings(env.dir.filePath("data"));
+    auto mp = env.manager(settings);
+    mp->checkNow();
+    QTRY_COMPARE_WITH_TIMEOUT(settings.updateChannelDefault(), QString("beta"), 5000);
+    QCOMPARE(mp->effectiveChannel(), Channel::Beta);
+    QVERIFY(mp->autoInstallSetting());
+    env.publishPromoted("0.3.0-dev", true);  // promoted later: never re-resolved
+    mp->checkNow();
+    QTRY_VERIFY_WITH_TIMEOUT(!mp->busy() && mp->state() != UpdateManager::State::Checking, 5000);
+    QCOMPARE(settings.updateChannelDefault(), QString("beta"));
+    QCOMPARE(mp->effectiveChannel(), Channel::Beta);
+  }
+  void defaultChannelExplicitWins() {
+    Env env;
+    env.publishPromoted("0.3.0-dev", true);
+    framebeam::PlayerSettings settings(env.dir.filePath("data"));
+    settings.setUpdateChannel("beta");
+    auto mp = env.manager(settings);
+    mp->checkNow();
+    QTRY_VERIFY_WITH_TIMEOUT(mp->state() != UpdateManager::State::Checking && mp->state() != UpdateManager::State::Idle, 5000);
+    QVERIFY(settings.updateChannelDefault().isEmpty());  // not resolved at all
+    QCOMPARE(mp->effectiveChannel(), Channel::Beta);
+    // An already stored default is overridden by an explicit choice too.
+    QVERIFY(settings.setUpdateChannelDefault("stable"));
+    QCOMPARE(mp->effectiveChannel(), Channel::Beta);
+    settings.setUpdateChannel("stable");
+    QCOMPARE(mp->effectiveChannel(), Channel::Stable);
+  }
+  void defaultChannelIgnoredForStableAndDevBuilds() {
+    Env env;
+    env.publishPromoted("0.3.0-dev", true);
+    for (const QString compiled : {QStringLiteral("stable"), QStringLiteral("dev")}) {
+      framebeam::PlayerSettings settings(env.dir.filePath("data-" + compiled));
+      auto mp = env.manager(settings, compiled);
+      mp->checkNow();
+      QTRY_VERIFY_WITH_TIMEOUT(mp->state() != UpdateManager::State::Checking && mp->state() != UpdateManager::State::Idle, 5000);
+      QVERIFY(settings.updateChannelDefault().isEmpty());
+      QCOMPARE(mp->effectiveChannel(), compiled == "stable" ? Channel::Stable : Channel::Off);
+    }
+    framebeam::PlayerSettings s2(env.dir.filePath("data-x"));
+    QVERIFY(s2.setUpdateChannelDefault("beta"));
+    QCOMPARE(env.manager(s2, "stable")->effectiveChannel(), Channel::Stable);
+    QCOMPARE(env.manager(s2, "dev")->effectiveChannel(), Channel::Off);
+    QVERIFY(!s2.setUpdateChannelDefault("bogus"));
+  }
   void managerDevChannelIsOff() {
     Env env;
     env.publish("installer-bytes", "0.3.1-test.3");
@@ -536,6 +603,14 @@ class UpdateTest : public QObject {
       if (!shaOverride.isEmpty()) art["sha256"] = shaOverride;
       const QByteArray idx = indexJson({release("player", chan, version, QJsonArray{art}),
                                         release("hub", "beta", "9.9.9-test.1", oneArt("hub"))});
+      QVERIFY(writeBytes(dir.filePath("updates-index.json"), idx));
+      QVERIFY(writeBytes(dir.filePath("updates-index.json.sig"), signLine(key, idx)));
+    }
+    void publishPromoted(const QString& version, bool stableListed) {
+      publish("installer-bytes", version);
+      QJsonArray rel{release("player", "beta", version, QJsonArray{}), release("hub", "beta", "9.9.9", oneArt("hub"))};
+      if (stableListed) rel.append(release("player", "stable", version, oneArt("p")));
+      const QByteArray idx = indexJson(rel);
       QVERIFY(writeBytes(dir.filePath("updates-index.json"), idx));
       QVERIFY(writeBytes(dir.filePath("updates-index.json.sig"), signLine(key, idx)));
     }

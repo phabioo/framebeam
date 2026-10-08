@@ -279,3 +279,83 @@ func TestUpdateSettingsLegacyTestChannel(t *testing.T) {
 		t.Fatalf("test is not selectable any more: %v", err)
 	}
 }
+
+func TestChannelDefaultResolution(t *testing.T) {
+	// The running version is listed as stable (promoted without a rebuild): the beta build follows stable.
+	e := newUpdEnv(t, "0.3.0", "beta", false)
+	e.feed.add(t, "beta", "0.3.0", 1)
+	e.feed.add(t, "stable", "0.3.0", 1)
+	if s, _ := e.svc.UpdateSettings(ctx); s.Channel != "beta" || !s.Auto || s.DefaultChannel != "beta" {
+		t.Fatalf("before the first check the compiled channel applies: %+v", s)
+	}
+	if _, err := e.svc.CheckUpdates(ctx); err != nil {
+		t.Fatal(err)
+	}
+	s, _ := e.svc.UpdateSettings(ctx)
+	if s.Channel != "stable" || s.Auto || s.ChannelIsSet || s.DefaultChannel != "stable" {
+		t.Fatalf("promoted version resolves to stable, auto follows it: %+v", s)
+	}
+	// Persisted: a later newer stable listing or a re-check does not change it, and "" keeps the resolved default.
+	if err := e.svc.SetUpdateSettings(ctx, "beta", true); err != nil {
+		t.Fatal(err)
+	}
+	if s, _ = e.svc.UpdateSettings(ctx); s.Channel != "beta" || !s.ChannelIsSet {
+		t.Fatalf("explicit setting wins: %+v", s)
+	}
+	if err := e.svc.SetUpdateSettings(ctx, "", false); err != nil {
+		t.Fatal(err)
+	}
+	if s, _ = e.svc.UpdateSettings(ctx); s.Channel != "stable" || s.ChannelIsSet {
+		t.Fatalf("empty keeps the resolved default: %+v", s)
+	}
+
+	// The running version is not stable in the index: beta, and never re-resolved afterwards.
+	e = newUpdEnv(t, "0.3.1", "beta", false)
+	e.feed.add(t, "stable", "0.3.0", 1)
+	if _, err := e.svc.CheckUpdates(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if s, _ = e.svc.UpdateSettings(ctx); s.Channel != "beta" || !s.Auto {
+		t.Fatalf("%+v", s)
+	}
+	e.feed.add(t, "stable", "0.3.1", 1) // promoted later
+	if _, err := e.svc.CheckUpdates(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if s, _ = e.svc.UpdateSettings(ctx); s.Channel != "beta" {
+		t.Fatalf("a beta install stays beta: %+v", s)
+	}
+
+	// An explicit selection is never resolved over.
+	e = newUpdEnv(t, "0.3.0", "beta", false)
+	e.feed.add(t, "stable", "0.3.0", 1)
+	if err := e.svc.SetUpdateSettings(ctx, "beta", false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.CheckUpdates(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.SetUpdateSettings(ctx, "", false); err != nil {
+		t.Fatal(err)
+	}
+	if s, _ = e.svc.UpdateSettings(ctx); s.Channel != "beta" {
+		t.Fatalf("no default was resolved while a channel was selected: %+v", s)
+	}
+
+	// Compiled stable builds are unaffected.
+	e = newUpdEnv(t, "0.3.0", "stable", false)
+	e.feed.add(t, "stable", "0.3.0", 1)
+	if _, err := e.svc.CheckUpdates(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if s, _ = e.svc.UpdateSettings(ctx); s.Channel != "stable" || s.Auto {
+		t.Fatalf("%+v", s)
+	}
+	// Compiled dev builds stay off.
+	e = newUpdEnv(t, "0.3.0", "dev", false)
+	e.feed.add(t, "stable", "0.3.0", 1)
+	e.svc.CheckUpdates(ctx)
+	if s, _ = e.svc.UpdateSettings(ctx); s.Channel != "off" {
+		t.Fatalf("%+v", s)
+	}
+}

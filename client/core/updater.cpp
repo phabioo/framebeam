@@ -207,7 +207,29 @@ UpdateManager::UpdateManager(const Config& config, PlayerSettings* settings, QOb
 
 Channel UpdateManager::effectiveChannel() const {
   if (const auto c = parseChannel(settings_->updateChannel()); c && *c != Channel::Off) return *c;
-  return channelFromCompiled(config_.compiledChannel);
+  // A beta build follows the resolved default (stable once its own version was promoted); dev/stable builds do not.
+  const Channel compiled = channelFromCompiled(config_.compiledChannel);
+  if (compiled == Channel::Beta) {
+    if (const auto c = parseChannel(settings_->updateChannelDefault()); c && *c != Channel::Off) return *c;
+  }
+  return compiled;
+}
+
+void UpdateManager::resolveDefaultChannel(const Index& index) {
+  if (!settings_->updateChannel().isEmpty() || !settings_->updateChannelDefault().isEmpty()) return;
+  if (channelFromCompiled(config_.compiledChannel) != Channel::Beta) return;
+  bool promoted = false;
+  for (const Release& r : index.releases) {
+    if (r.product == QLatin1String("player") && r.channel == QLatin1String("stable") && r.version == config_.currentVersion) {
+      promoted = true;
+      break;
+    }
+  }
+  if (!settings_->setUpdateChannelDefault(promoted ? QStringLiteral("stable") : QStringLiteral("beta"))) {
+    qCWarning(lcUpdate) << "could not persist the resolved default channel";
+  }
+  scheduleNext();  // the interval follows the resolved channel
+  emit changed();
 }
 
 bool UpdateManager::autoInstallSetting() const {
@@ -289,6 +311,7 @@ void UpdateManager::onIndex(const FetchedIndex& fi) {
   }
   lastError_.clear();
   lastIndex_ = fi;
+  resolveDefaultChannel(fi.index);
   SelectionInput in;
   in.channel = effectiveChannel();
   in.currentVersion = config_.currentVersion;

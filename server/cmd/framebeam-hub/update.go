@@ -105,7 +105,7 @@ func runUpdateCheck(args []string, out io.Writer, stage bool) error {
 	}
 	fs := flag.NewFlagSet("update "+name, flag.ContinueOnError)
 	cfg := config.Register(fs, os.Getenv)
-	channel := fs.String("channel", "", "channel stable or beta (default: the Hub setting, else the build channel)")
+	channel := fs.String("channel", "", "channel stable or beta (default: the Hub setting, else its default channel, else the build channel)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}

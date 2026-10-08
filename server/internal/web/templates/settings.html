@@ -109,7 +109,7 @@
       <div class="help">After each check. Only installs when all of these are true:</div>
       <ul class="set-checks"><li>No Session is running</li><li>Players seen recently stay compatible</li><li>Installed from the .deb package</li></ul></div>
     <form method="post" action="/settings/updates" hx-post="/settings/updates" hx-target="#settings-area" hx-swap="innerHTML">
-      <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="channel" value="{{.Channel}}">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="channel" value="{{if .Settings.ChannelIsSet}}{{.Channel}}{{end}}">
       <button class="switch{{if .Settings.Auto}} on{{end}}" type="submit" name="auto" value="{{if .Settings.Auto}}0{{else}}1{{end}}" role="switch" aria-checked="{{if .Settings.Auto}}true{{else}}false{{end}}" aria-label="Install automatically"><span></span></button>
     </form>
   </div>
@@ -124,7 +124,7 @@
   </div>
   <div class="set-row">
     <div><div class="label">Installed version</div>
-      <div class="help">{{if .LastResult}}{{if .LastResult.OK}}Last successful install: {{.LastResultAt}} ({{.LastResult.Version}}){{else}}Build channel: {{.Settings.CompiledChannel}}{{end}}{{else}}Build channel: {{.Settings.CompiledChannel}}{{end}}</div></div>
+      <div class="help">{{if .LastResult}}{{if .LastResult.OK}}Last successful install: {{.LastResultAt}} ({{.LastResult.Version}}){{else}}Default channel: {{.Settings.DefaultChannel}} (build: {{.Settings.CompiledChannel}}){{end}}{{else}}Default channel: {{.Settings.DefaultChannel}} (build: {{.Settings.CompiledChannel}}){{end}}</div></div>
     <div class="value mono">{{.CurrentVersion}}</div>
   </div>
 </section>

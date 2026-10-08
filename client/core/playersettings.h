@@ -26,6 +26,10 @@ class PlayerSettings {
   // Automatic install: unset = default of the effective channel (on for beta).
   QString updateChannel() const { return updateChannel_; }
   bool setUpdateChannel(const QString& channel);  // "", "stable", "beta" ("test" = alias); anything else is rejected (false)
+  // Resolved default channel of a beta build ("" = not resolved yet, otherwise "stable" | "beta"); written once by the
+  // updater on the first verified index load, never by the user. An explicit updateChannel() wins.
+  QString updateChannelDefault() const { return updateChannelDefault_; }
+  bool setUpdateChannelDefault(const QString& channel);  // "stable" | "beta"; anything else is rejected (false)
   std::optional<bool> updateAutoInstall() const { return updateAutoInstall_; }
   bool setUpdateAutoInstall(bool on);
 
@@ -49,6 +53,7 @@ class PlayerSettings {
   QJsonObject raw_;
   Appearance appearance_ = Appearance::Dark;
   QString updateChannel_;
+  QString updateChannelDefault_;
   std::optional<bool> updateAutoInstall_;
   bool diagOpen_ = false;
   bool diagEmulationOpen_ = true;

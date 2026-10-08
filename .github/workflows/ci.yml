@@ -3,25 +3,29 @@ name: CI
 on:
   push:
     branches: ['**']
-    tags: ['v*']
   pull_request:
     branches: [main]
   workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Runs on main never cancel each other: a cancelled run would waste its reserved beta version number.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: read
 
 jobs:
-  # Build version and channel, computed once (spec 0.3 S1): tag vX.Y.Z -> stable, push to main -> beta, else dev.
-  # A workflow_dispatch on a v* tag (started by promote.yml, tags created with GITHUB_TOKEN trigger no push) counts like a tag push.
+  # Build version and channel, computed once (ADR 0011). A push to main gets a plain, auto-incremented beta version X.Y.Z
+  # (VERSION is the floor, scripts/next-beta-version.sh) and reserves it by creating the lightweight tag vX.Y.Z on the
+  # commit; release.yml publishes the prerelease for that tag and promote.yml turns it into the stable release without
+  # a rebuild. Everything else (PRs, branches, manual runs) is VERSION-dev.<run>, channel dev, and publishes nothing.
   version:
     name: Version and channel
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: write   # reserve the version tag (push to main only)
     outputs:
       core: ${{ steps.v.outputs.core }}
       version: ${{ steps.v.outputs.version }}
@@ -34,20 +38,29 @@ jobs:
         env:
           EVENT: ${{ github.event_name }}
           REF: ${{ github.ref }}
-          REF_NAME: ${{ github.ref_name }}
           RUN_NUMBER: ${{ github.run_number }}
           SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          core="$(tr -d '[:space:]' < VERSION)"
-          [[ "$core" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::VERSION must be X.Y.Z, found '$core'"; exit 1; }
-          if { [ "$EVENT" = push ] || [ "$EVENT" = workflow_dispatch ]; } && [[ "$REF" == refs/tags/v* ]]; then
-            [ "${REF_NAME#v}" = "$core" ] || { echo "::error title=Tag does not match VERSION::tag $REF_NAME but VERSION is $core"; exit 1; }
-            version="$core"; channel="stable"
-          elif [ "$EVENT" = push ] && [ "$REF" = refs/heads/main ]; then
-            version="$core-beta.$RUN_NUMBER"; channel="beta"
+          floor="$(tr -d '[:space:]' < VERSION)"
+          [[ "$floor" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::VERSION must be X.Y.Z, found '$floor'"; exit 1; }
+          if [ "$EVENT" = push ] && [ "$REF" = refs/heads/main ]; then
+            channel="beta"
+            for attempt in 1 2 3 4 5; do
+              core="$(git ls-remote --tags origin 'refs/tags/v*' | scripts/next-beta-version.sh "$floor" "$SHA")"
+              # Tag already on this commit (re-run) or reserved now; a lost race ("Reference already exists") recomputes.
+              if [ "$(git ls-remote origin "refs/tags/v$core" | cut -f1)" = "$SHA" ]; then break; fi
+              if gh api "repos/$GH_REPO/git/refs" -f "ref=refs/tags/v$core" -f "sha=$SHA" >/dev/null 2>err.txt; then break; fi
+              echo "attempt $attempt: could not reserve v$core: $(head -c 300 err.txt)"
+              core=""
+              sleep $((attempt * 2))
+            done
+            [ -n "$core" ] || { echo "::error title=Version tag::could not reserve a beta version tag after 5 attempts"; exit 1; }
+            version="$core"
           else
-            version="$core-dev.$RUN_NUMBER"; channel="dev"
+            core="$floor"; version="$floor-dev.$RUN_NUMBER"; channel="dev"
           fi
           {
             echo "core=$core"
@@ -60,7 +73,7 @@ jobs:
   # Docs-only gate: true only for PRs and non-main branch pushes whose diff touches nothing but docs/** and *.md.
   # Pushes classify the whole branch vs main (origin/main...sha), not just the last push, so a docs-only push that
   # cancels an earlier code run (concurrency) still runs the builds. PRs use base...head.
-  # Always false for main (beta release, Windows cache priming per ADR 0008), v* tags and workflow_dispatch.
+  # Always false for main (beta release, Windows cache priming per ADR 0008) and workflow_dispatch.
   changes:
     name: Detect docs-only changes
     runs-on: ubuntu-latest
@@ -86,7 +99,7 @@ jobs:
           range=""
           if [ "$EVENT" = pull_request ]; then
             range="$PR_BASE...$PR_HEAD"
-          elif [ "$EVENT" = push ] && [ "$REF" != refs/heads/main ] && [[ "$REF" != refs/tags/* ]]; then
+          elif [ "$EVENT" = push ] && [ "$REF" != refs/heads/main ]; then
             # Whole branch since the merge base with main (covers new branches and cancelled earlier runs).
             git rev-parse --verify -q refs/remotes/origin/main >/dev/null || git fetch --no-tags origin main || true
             if git rev-parse --verify -q refs/remotes/origin/main >/dev/null && git merge-base origin/main "$SHA" >/dev/null 2>&1; then
@@ -232,9 +245,9 @@ jobs:
 
   client-windows:
     name: Player (C++, Windows MSVC)
-    # ADR 0008: PRs, manual runs, pushes to main (cache priming and test releases) and release tags.
+    # ADR 0008: PRs, manual runs, pushes to main (cache priming and beta releases).
     # Also skipped for docs-only changes (see job changes).
-    if: needs.changes.outputs.docs_only != 'true' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))))
+    if: needs.changes.outputs.docs_only != 'true' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main'))
     needs: [version, changes]
     runs-on: windows-latest
     timeout-minutes: 300
