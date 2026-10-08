@@ -72,7 +72,7 @@ class EmulationRunner::Worker : public QThread {
     m_owner->setState(State::Running);
 
     auto next = std::chrono::steady_clock::now();
-    auto lastEmit = next - period;
+    auto nextEmit = next;  // fast-forward: when the UI wants its next frame (base fps schedule)
     bool wasPaused = false;
     bool wasFast = false;
     double audioPhase = 0.0;
@@ -92,12 +92,16 @@ class EmulationRunner::Worker : public QThread {
         wasFast = fast;
         be.setFastForwarding(fast, m_owner->fastForwardRatio());
         next = std::chrono::steady_clock::now();
+        nextEmit = next;
         audioPhase = 0.0;
       }
       const double ratio = fast ? m_owner->fastForwardRatio() : 1.0;
       if (fast) be.setFastForwarding(true, ratio);
       const auto step = fast ? std::chrono::duration_cast<std::chrono::steady_clock::duration>(period / ratio) : period;
       const auto frameStart = std::chrono::steady_clock::now();
+      // Fast-forward: the UI sees at most the base fps, so only those frames need video (readback/conversion).
+      const bool wantVideo = !fast || frameStart >= nextEmit;
+      be.setVideoWanted(wantVideo);
       const bool frameOk = be.runFrame();
       const double frameMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - frameStart).count();
       if (frameOk) m_owner->m_timing.recordFrame(monotonicMs(), frameMs, be.lastReadbackMs());
@@ -105,9 +109,9 @@ class EmulationRunner::Worker : public QThread {
         emit m_owner->errorOccurred(QStringLiteral("Core stopped execution"));
         break;
       }
-      const auto emitNow = std::chrono::steady_clock::now();
-      if (!fast || emitNow - lastEmit >= period) {  // fast-forward: the UI sees at most the base fps
-        lastEmit = emitNow;
+      if (wantVideo) {
+        nextEmit += period;  // a schedule, not 'last + period': jitter must not skip a whole slot
+        if (nextEmit < frameStart) nextEmit = frameStart + period;
         emit m_owner->frameReady(be.videoFrame(), be.frameCount());
       }
       const QByteArray pcm = be.takeAudio();  // always drained
@@ -122,9 +126,10 @@ class EmulationRunner::Worker : public QThread {
 
       next += step;
       const auto now = std::chrono::steady_clock::now();
-      // Too far behind: resynchronize. Sped up, a coarse timer may oversleep by more than 5 short steps, which
+      // Too far behind: resynchronize. At normal speed catch-up is limited to 2 frames, so a late frame never turns into
+      // a long burst (average = target; the measured fps stays near it). Sped up, a coarse timer may oversleep by more than 5 short steps, which
       // would drop the catch-up and cap the speed, so the limit is at least 100 ms there.
-      const auto maxBehind = fast ? std::max<std::chrono::steady_clock::duration>(5 * step, std::chrono::milliseconds(100)) : 5 * step;
+      const auto maxBehind = fast ? std::max<std::chrono::steady_clock::duration>(5 * step, std::chrono::milliseconds(100)) : 2 * step;
       if (next < now - maxBehind) next = now;
       QMutexLocker l(&m_mutex);
       while (!m_stop && !m_paused && !m_reset) {

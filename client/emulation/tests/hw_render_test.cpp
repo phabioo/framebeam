@@ -1,6 +1,7 @@
 // OpenGL hardware rendering of LibretroBackend with a fake HW core (no ROM). Needs a GUI application and a
 // working OpenGL 3.3 core context. Without one the test returns 77 (ctest: SKIP) - except on Linux CI
 // (environment variable CI set), where a missing context is a failure so the test cannot silently vanish.
+#include <QElapsedTimer>
 #include <QGuiApplication>
 #include <QTemporaryFile>
 #include <QOffscreenSurface>
@@ -8,6 +9,8 @@
 #include <QSignalSpy>
 #include <QSurfaceFormat>
 #include <QtTest>
+
+#include <atomic>
 
 #include "emulation_runner.h"
 #include "hw_render.h"
@@ -183,6 +186,154 @@ class HwRenderTest : public QObject {
     QCOMPARE(count(QStringLiteral("rejected")), 1);
     qunsetenv("FB_FAKE_HW_MAJOR");
     qunsetenv("FB_FAKE_HW_MINOR");
+  }
+
+  // Loads the fake HW core into `be`; the ROM file is a dummy.
+  void loadFake(LibretroBackend& be, QTemporaryFile& rom) {
+    QVERIFY(rom.open());
+    rom.write("x");
+    rom.flush();
+    be.prepareForStart();
+    QString err;
+    QVERIFY2(be.loadCore(QStringLiteral(FB_FAKE_HW_CORE_PATH), &err), qPrintable(err));
+    QVERIFY2(be.loadGame(rom.fileName(), &err), qPrintable(err));
+  }
+
+  void videoNotWantedSkipsReadback() {
+    qputenv("FB_FAKE_HW_LOGAV", "1");
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    QCOMPARE(be.hwReadbackCount(), quint64(0));
+    be.setVideoWanted(true);
+    QVERIFY(be.runFrame());
+    QCOMPARE(be.hwReadbackCount(), quint64(1));
+    const QImage shown = be.videoFrame();
+    QVERIFY(!shown.isNull());
+    for (int i = 0; i < 3; ++i) {
+      be.setVideoWanted(false);
+      QVERIFY(be.runFrame());
+    }
+    QCOMPARE(be.hwReadbackCount(), quint64(1));  // no readback for frames nobody sees
+    QCOMPARE(be.frameCount(), quint64(4));       // but they are still emulated
+    QCOMPARE(be.videoFrame(), shown);            // the last frame stays
+    be.setVideoWanted(true);
+    QVERIFY(be.runFrame());
+    QCOMPARE(be.hwReadbackCount(), quint64(2));
+    // GET_AUDIO_VIDEO_ENABLE reached the core with the right bits: 3 = video + audio, 2 = audio only.
+    const QStringList av = events().filter(QStringLiteral("av "));
+    QCOMPARE(av, (QStringList{QStringLiteral("av 3"), QStringLiteral("av 2"), QStringLiteral("av 2"), QStringLiteral("av 2"),
+                              QStringLiteral("av 3")}));
+    qunsetenv("FB_FAKE_HW_LOGAV");
+  }
+
+  // Red value of the fake core's frame counter (GL (28..36, 20..28) -> image row 23).
+  static int counterOf(const QImage& img) { return qRed(px(img, 32, 23)); }
+
+  void pboReadbackHasOneFrameLatency() {
+    qputenv("FB_FAKE_HW_COUNTER", "1");
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    QVERIFY(be.runFrame());
+    QCOMPARE(counterOf(be.videoFrame()), 1);           // the first frame is valid at once
+    QCOMPARE(px(be.videoFrame(), 2, 45), qRgb(255, 0, 0));
+    for (int k = 2; k <= 8; ++k) {
+      QVERIFY(be.runFrame());
+      const QImage f = be.videoFrame();
+      QCOMPARE(f.size(), QSize(64, 48));
+      QCOMPARE(counterOf(f), k - 1);                    // asynchronous: the previous frame
+      QCOMPARE(px(f, 2, 45), qRgb(255, 0, 0));          // orientation and pixels intact
+      QCOMPARE(px(f, 61, 2), qRgb(0, 255, 0));
+    }
+    qunsetenv("FB_FAKE_HW_COUNTER");
+  }
+
+  void syncFallbackIsCurrentFrame() {
+    qputenv("FB_FAKE_HW_COUNTER", "1");
+    qputenv("FRAMEBEAM_SYNC_READBACK", "1");
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    for (int k = 1; k <= 4; ++k) {
+      QVERIFY(be.runFrame());
+      QCOMPARE(counterOf(be.videoFrame()), k);
+      QCOMPARE(px(be.videoFrame(), 2, 45), qRgb(255, 0, 0));
+    }
+    qunsetenv("FRAMEBEAM_SYNC_READBACK");
+    qunsetenv("FB_FAKE_HW_COUNTER");
+  }
+
+  void readbackTimingSyncVsPbo() {  // informational measurement (llvmpipe): ms per readback on the emulation thread
+    QTemporaryFile rom;
+    double ms[2] = {0, 0};
+    for (int mode = 0; mode < 2; ++mode) {
+      if (mode == 1) qputenv("FRAMEBEAM_SYNC_READBACK", "1");
+      LibretroBackend be;
+      QTemporaryFile r;
+      loadFake(be, r);
+      QVERIFY(be.runFrame());
+      double sum = 0;
+      for (int i = 0; i < 100; ++i) {
+        QVERIFY(be.runFrame());
+        sum += be.lastReadbackMs();
+      }
+      ms[mode] = sum / 100;
+      qunsetenv("FRAMEBEAM_SYNC_READBACK");
+    }
+    qInfo("readback avg: PBO %.3f ms, sync %.3f ms (64x48)", ms[0], ms[1]);
+  }
+
+  void runnerRequestsVideoOnlyAtBaseRateWhileFast() {
+    qputenv("FB_FAKE_HW_LOGAV", "1");
+    QTemporaryFile rom;
+    QVERIFY(rom.open());
+    rom.write("x");
+    rom.flush();
+    auto owned = std::make_unique<LibretroBackend>();
+    LibretroBackend* be = owned.get();
+    EmulationRunner runner(std::move(owned));
+    std::atomic<int> ui{0};
+    QObject::connect(&runner, &EmulationRunner::frameReady, &runner, [&ui] { ++ui; }, Qt::DirectConnection);
+    EmulationRunner::StartRequest req;
+    req.corePath = QStringLiteral(FB_FAKE_HW_CORE_PATH);
+    req.gamePath = rom.fileName();
+    req.speedUpRatio = 4.0;
+    QSignalSpy started(&runner, &EmulationRunner::started);
+    runner.start(req);
+    QTRY_VERIFY2(started.count() == 1, "not started");
+    QTest::qWait(300);
+    // Normal speed: every frame is wanted.
+    const quint64 rb0 = be->hwReadbackCount();
+    const quint64 fr0 = be->frameCount();
+    QTest::qWait(500);
+    const quint64 rbNormal = be->hwReadbackCount() - rb0;
+    const quint64 frNormal = be->frameCount() - fr0;
+    QVERIFY2(frNormal > 15, qPrintable(QString::number(frNormal)));
+    QVERIFY2(rbNormal >= frNormal - 2, qPrintable(QStringLiteral("normal: %1 readbacks for %2 frames").arg(rbNormal).arg(frNormal)));
+
+    runner.setFastForward(true);
+    QTest::qWait(300);
+    const quint64 rb1 = be->hwReadbackCount();
+    const quint64 fr1 = be->frameCount();
+    const int ui1 = ui.load();
+    QElapsedTimer t;
+    t.start();
+    QTest::qWait(1500);
+    const double secs = t.elapsed() / 1000.0;
+    const quint64 rbFast = be->hwReadbackCount() - rb1;
+    const quint64 frFast = be->frameCount() - fr1;
+    const int uiFast = ui.load() - ui1;
+    qInfo("4x: %.1f emu frames/s, %.1f readbacks/s, %.1f UI frames/s", frFast / secs, rbFast / secs, uiFast / secs);
+    QVERIFY2(frFast / secs > 60 * 2.0, qPrintable(QStringLiteral("emu %1/s").arg(frFast / secs)));  // actually faster
+    QVERIFY2(rbFast / secs < 60 * 1.3, qPrintable(QStringLiteral("readbacks %1/s").arg(rbFast / secs)));  // ~base fps
+    QVERIFY2(rbFast / secs > 60 * 0.5, qPrintable(QStringLiteral("readbacks %1/s").arg(rbFast / secs)));
+    QVERIFY2(rbFast <= static_cast<quint64>(uiFast) + 3, "readback without a shown frame");
+    runner.stop();
+    // The core saw video on/off: both answers occurred while fast.
+    QVERIFY(count(QStringLiteral("av 2")) > 0);
+    QVERIFY(count(QStringLiteral("av 3")) > 0);
+    qunsetenv("FB_FAKE_HW_LOGAV");
   }
 
   void runnerUsesEmulationThread() {

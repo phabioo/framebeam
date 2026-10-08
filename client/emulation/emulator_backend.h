@@ -91,6 +91,10 @@ class EmulatorBackend {
   virtual bool isGameLoaded() const = 0;
   virtual AvInfo avInfo() const = 0;  // valid after loadGame
 
+  // Whether the NEXT runFrame()'s video will be shown (emulation thread, call before runFrame). false lets the
+  // backend skip the expensive video work (hardware readback, pixel conversion) and tell the core video is off;
+  // videoFrame() then keeps the last frame. Audio is always produced. Default: always wanted.
+  virtual void setVideoWanted(bool wanted) { Q_UNUSED(wanted); }
   // Emulate exactly one frame; then videoFrame()/takeAudio(). false = error/core shutdown.
   virtual bool runFrame() = 0;
   virtual void reset() = 0;
