@@ -3,6 +3,7 @@
 // another device" notice for the QML UI (ADR 0012 D7). Slot choice, restore, snapshots and the sync logic live in
 // network/ (SaveSync, SaveApi); this class only holds the view state of the selected game.
 
+#include <QFileInfo>
 #include <QObject>
 #include <QString>
 #include <QStringList>
@@ -36,6 +37,11 @@ class SaveHistoryController : public QObject {
   // Why restoring is blocked right now (empty = possible).
   Q_PROPERTY(QString restoreBlockReason READ restoreBlockReason NOTIFY changed)
   Q_PROPERTY(bool canSnapshot READ canSnapshot NOTIFY changed)
+  // Hub advertises saves_v4: "Upload save file..." is offered (enabled when restoreBlockReason is empty and not busy).
+  Q_PROPERTY(bool canUploadFile READ canUploadFile NOTIFY changed)
+  Q_PROPERTY(QStringList saveFileFilters READ saveFileFilters CONSTANT)
+  // Pending upload confirmation: {} = none, else {path, fileName, size, sizeText, slot, gameTitle}.
+  Q_PROPERTY(QVariantMap uploadRequest READ uploadRequest NOTIFY changed)
   Q_PROPERTY(QString message READ message NOTIFY changed)
   Q_PROPERTY(bool messageIsError READ messageIsError NOTIFY changed)
   // Pending restore confirmation: {} = none, else {version, versionText, label, reasonText, device, when, slot, gameTitle}.
@@ -48,6 +54,7 @@ class SaveHistoryController : public QObject {
     SaveSync* saves = nullptr;
     HubConnection* connection = nullptr;
     std::function<bool(const QString&)> gameBusy;         // game is starting/running on this Player
+    std::function<QString(const QString&)> gameTitle;      // library title of a game (may be empty)
     std::function<QString(const QString&)> localFileName;  // expected local save file name of a game (may be empty)
   };
   explicit SaveHistoryController(const Env& env, QObject* parent = nullptr);
@@ -63,6 +70,9 @@ class SaveHistoryController : public QObject {
   bool gameRunning() const;
   QString restoreBlockReason() const;
   bool canSnapshot() const;
+  bool canUploadFile() const;
+  static QStringList saveFileFilters();
+  QVariantMap uploadRequest() const { return uploadRequest_; }
   QString message() const { return message_; }
   bool messageIsError() const { return messageIsError_; }
   QString notice() const;
@@ -85,6 +95,11 @@ class SaveHistoryController : public QObject {
   Q_INVOKABLE void confirmRestore();
   Q_INVOKABLE void cancelRestore();
   Q_INVOKABLE void restore(int version);
+  // Upload a local save file as the current save of the slot: requestUploadFile() (path or file: URL) validates and opens
+  // the confirmation data, confirmUploadFile() runs it, cancelUploadFile() closes it.
+  Q_INVOKABLE void requestUploadFile(const QString& source);
+  Q_INVOKABLE void confirmUploadFile();
+  Q_INVOKABLE void cancelUploadFile();
   Q_INVOKABLE void createSnapshot(const QString& label);        // detail pane
   Q_INVOKABLE void createSnapshotInGame(const QString& label);  // running game: uploads a changed save first
   Q_INVOKABLE void dismissMessage();
@@ -112,6 +127,7 @@ class SaveHistoryController : public QObject {
   QString notice_;
   QString blockReason_;
   QVariantMap restoreRequest_;
+  QVariantMap uploadRequest_;
   bool lastBusy_ = false;
 };
 

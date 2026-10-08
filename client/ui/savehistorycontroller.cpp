@@ -2,7 +2,9 @@
 
 #include <QDate>
 #include <QDateTime>
+#include <QLocale>
 #include <QPointer>
+#include <QUrl>
 #include <QVariantMap>
 #include <algorithm>
 
@@ -83,12 +85,21 @@ void SaveHistoryController::recomputeBlock() {
   blockReason_ = why;
   if (!why.isEmpty()) {
     restoreRequest_.clear();
+    uploadRequest_.clear();
   }
   emit changed();
 }
 
 bool SaveHistoryController::canSnapshot() const {
   return available() && !busy_ && (currentRevision_ > 0 || env_.saves->sessionActive());
+}
+
+bool SaveHistoryController::canUploadFile() const {
+  return available() && env_.saves->hubSupportsSavesV4() && !busy_;
+}
+
+QStringList SaveHistoryController::saveFileFilters() {
+  return {tr("All files (*)"), tr("Save files (*.sav *.srm *.dsv)")};
 }
 
 QString SaveHistoryController::notice() const { return env_.saves->sessionActive() ? notice_ : QString(); }
@@ -112,6 +123,7 @@ void SaveHistoryController::setGame(const QString& gameId) {
   history_.clear();
   remoteSlots_.clear();
   restoreRequest_.clear();
+  uploadRequest_.clear();
   currentRevision_ = 0;
   message_.clear();
   messageIsError_ = false;
@@ -315,6 +327,88 @@ void SaveHistoryController::restore(int version) {
                              });
 }
 
+void SaveHistoryController::requestUploadFile(const QString& source) {
+  if (!canUploadFile()) {
+    return;
+  }
+  recomputeBlock();
+  if (!blockReason_.isEmpty()) {
+    setMessage(blockReason_, true);
+    return;
+  }
+  const QString path = source.startsWith(QLatin1String("file:")) ? QUrl(source).toLocalFile() : source;
+  const QFileInfo info(path);
+  if (!info.isFile()) {
+    setMessage(tr("The file could not be read."), true);
+    return;
+  }
+  if (info.size() == 0) {
+    setMessage(tr("The file is empty. Nothing was uploaded."), true);
+    return;
+  }
+  if (info.size() > kMaxSaveBytes) {
+    setMessage(tr("The file is larger than %1 MiB. Nothing was uploaded.").arg(kMaxSaveBytes / (1024 * 1024)), true);
+    return;
+  }
+  message_.clear();
+  uploadRequest_ = QVariantMap{{QStringLiteral("path"), info.absoluteFilePath()},
+                               {QStringLiteral("fileName"), info.fileName()},
+                               {QStringLiteral("size"), info.size()},
+                               {QStringLiteral("sizeText"), QLocale().formattedDataSize(info.size())},
+                               {QStringLiteral("slot"), slot()},
+                               {QStringLiteral("gameTitle"), env_.gameTitle ? env_.gameTitle(gameId_) : QString()}};
+  emit changed();
+}
+
+void SaveHistoryController::cancelUploadFile() {
+  if (!uploadRequest_.isEmpty()) {
+    uploadRequest_.clear();
+    emit changed();
+  }
+}
+
+void SaveHistoryController::confirmUploadFile() {
+  if (uploadRequest_.isEmpty()) {
+    return;
+  }
+  const QString path = uploadRequest_.value(QStringLiteral("path")).toString();
+  const QString fileName = uploadRequest_.value(QStringLiteral("fileName")).toString();
+  uploadRequest_.clear();
+  if (busy_ || !canUploadFile()) {
+    emit changed();
+    return;
+  }
+  recomputeBlock();
+  if (!blockReason_.isEmpty()) {
+    setMessage(blockReason_, true);
+    return;
+  }
+  busy_ = true;
+  message_.clear();
+  emit changed();
+  const QString game = gameId_;
+  const QString slotName = slot();
+  QPointer<SaveHistoryController> self(this);
+  env_.saves->uploadSaveFile(game, slotName, path, currentRevision_, env_.localFileName ? env_.localFileName(game) : QString(),
+                             [self, fileName](const SaveSync::RestoreResult& r) {
+                               if (!self) {
+                                 return;
+                               }
+                               self->busy_ = false;
+                               using O = SaveRestoreResult::Outcome;
+                               if (r.ok()) {
+                                 self->setMessage(r.message.isEmpty() ? tr("\"%1\" uploaded. It is now the current save.").arg(fileName) : r.message,
+                                                  false);
+                               } else if (r.kind == O::Stale) {
+                                 self->setMessage(tr("The save changed on the Hub in the meantime. The list was refreshed; try again."), true);
+                               } else {
+                                 self->setMessage(r.message, true);
+                               }
+                               self->recomputeBlock();
+                               self->refresh();
+                             });
+}
+
 void SaveHistoryController::createSnapshot(const QString& label) {
   if (busy_ || !canSnapshot()) {
     return;
@@ -410,6 +504,8 @@ QString SaveHistoryController::reasonText(const QString& reason) {
   if (reason == QLatin1String("conflict_upload")) return tr("Conflict upload");
   if (reason == QLatin1String("manual_snapshot")) return tr("Manual snapshot");
   if (reason == QLatin1String("before_restore")) return tr("Before restore");
+  if (reason == QLatin1String("before_upload")) return tr("Before upload");
+  if (reason == QLatin1String("upload")) return tr("Upload");
   return reason;
 }
 

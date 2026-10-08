@@ -17,7 +17,7 @@
     <td class="mono" title="{{.SHA}}">{{.ShortSHA}}</td>
     <td>{{.Uploader}} · {{.Added}}</td>
     <td><span class="mono">{{.Saves}}</span>{{if .Conflict}} <span class="warn-mark">▲ Conflict</span>{{end}}</td>
-    <td class="actions-cell"><button class="btn-link" type="button" hx-post="/library/{{.ID}}/delete" hx-include="#filter-form" hx-confirm="Really delete “{{.Title}}” and its ROM file?" hx-target="#library-results" hx-swap="outerHTML">Delete</button></td>
+    <td class="actions-cell"><a class="btn-link" href="/saves?upload={{.ID}}">Upload save</a> <button class="btn-link" type="button" hx-post="/library/{{.ID}}/delete" hx-include="#filter-form" hx-confirm="Really delete “{{.Title}}” and its ROM file?" hx-target="#library-results" hx-swap="outerHTML">Delete</button></td>
   </tr>
   {{end}}
   </tbody>

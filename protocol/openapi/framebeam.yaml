@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
   title: FrameBeam Hub API
-  version: 1.7.0
+  version: 1.8.0
   description: |
-    HTTPS/JSON API of the FrameBeam Hub (phase 1; phase 3 adds save sync under `saves`, advertised by the handshake feature `saves_v1`; phase 4 adds Session sharing under `sessions` and the WSS endpoint, advertised by the handshake feature `sessions_v1`; phase 5 adds invite redemption under `users` (`users_v1`), user ROM uploads (`uploads_v1`, only advertised when the caller may upload) and the systems registry with firmware download under `systems` (`firmware_v1`); 0.2 adds core packages served by the Hub under `cores` (`cores_v1`); 0.4 adds relay credentials for Sessions over the internet (`turn_v1`, `turn_servers` in `hello_ack` and the join response), save comfort (`saves_v2`: restore, manual snapshots, history labels, the `save_updated` WSS message) and the signed core index for Player-side verification (`cores_index_v1`, `/api/v1/cores/index`); 0.7 adds deleting manual snapshots (`saves_v3`) and the optional `user` in the handshake response). `protocol_version` is an integer (starting at 1),
+    HTTPS/JSON API of the FrameBeam Hub (phase 1; phase 3 adds save sync under `saves`, advertised by the handshake feature `saves_v1`; phase 4 adds Session sharing under `sessions` and the WSS endpoint, advertised by the handshake feature `sessions_v1`; phase 5 adds invite redemption under `users` (`users_v1`), user ROM uploads (`uploads_v1`, only advertised when the caller may upload) and the systems registry with firmware download under `systems` (`firmware_v1`); 0.2 adds core packages served by the Hub under `cores` (`cores_v1`); 0.4 adds relay credentials for Sessions over the internet (`turn_v1`, `turn_servers` in `hello_ack` and the join response), save comfort (`saves_v2`: restore, manual snapshots, history labels, the `save_updated` WSS message) and the signed core index for Player-side verification (`cores_index_v1`, `/api/v1/cores/index`); 0.7 adds deleting manual snapshots (`saves_v3`) and the optional `user` in the handshake response; 0.8 adds uploading a save file from outside the sync flow (`saves_v4`, `POST /games/{game_id}/saves/{slot}/upload`)). `protocol_version` is an integer (starting at 1),
     separate from the hub/player product version. All paths carry the `/api/v1` prefix explicitly;
     only the info endpoint lives under `/.well-known/framebeam`.
     Compatibility: Player.protocol_version < Hub.min_protocol_version -> player_too_old;
@@ -281,7 +281,7 @@ paths:
                     min_protocol_version: 1
                     compatible: true
                     problems: []
-                    features: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1, cores_v1, turn_v1, saves_v2, cores_index_v1, saves_v3]
+                    features: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1, cores_v1, turn_v1, saves_v2, cores_index_v1, saves_v3, saves_v4]
                 core_missing:
                   description: Warning only, `compatible` stays true (launch allowed; the Player shows the problem)
                   value:
@@ -941,6 +941,70 @@ paths:
               schema: { $ref: '#/components/schemas/Error' }
               examples:
                 default: { value: { error: { code: save_conflict_stale, message: Slot changed since expected_revision; re-read the slot } } }
+  /api/v1/games/{game_id}/saves/{slot}/upload:
+    parameters:
+      - $ref: '#/components/parameters/GameId'
+      - $ref: '#/components/parameters/SaveSlotName'
+    post:
+      operationId: uploadSaveFile
+      tags: [saves]
+      summary: Upload a save file (e.g. from another emulator) into a slot (`saves_v4`)
+      description: |
+        Raw `application/octet-stream` body (max 64 MiB, opaque, never interpreted by the Hub). Unlike `putSave`
+        this is a deliberate replacement and never creates a conflict: `X-FrameBeam-Expected-Revision` must equal the
+        current checkpoint revision (0 = the slot must not exist yet), otherwise 409 `save_conflict_stale` and nothing
+        changes. An existing checkpoint is first secured into history (`before_upload`, unless already captured);
+        then the body becomes the new checkpoint (revision + 1, reason `upload`, device = caller). A missing slot is
+        created at revision 1. A body identical to the current checkpoint changes nothing (200, idempotent).
+        Other devices get `save_updated` with reason `upload`.
+        An invalid slot name, an empty body, a hash mismatch or a bad header returns 400 `bad_request`; an unknown
+        game 404; oversize bodies 413 `payload_too_large`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: X-FrameBeam-Expected-Revision
+          in: header
+          required: true
+          description: Current checkpoint revision the caller saw; 0 = the slot must not exist yet.
+          schema: { type: integer, minimum: 0 }
+          example: 3
+        - name: X-FrameBeam-Content-SHA256
+          in: header
+          required: true
+          description: Lowercase hex SHA-256 of the body; verified by the Hub.
+          schema: { type: string, pattern: '^[0-9a-f]{64}$' }
+          example: '2222222222222222222222222222222222222222222222222222222222222222'
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        '200':
+          description: Uploaded (new revision) or identical to the current checkpoint (unchanged)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SaveSlot' }
+              examples:
+                default: { $ref: '#/components/examples/SaveSlotExample' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Expected revision does not match; nothing changed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: save_conflict_stale, message: Slot changed since expected_revision; re-read the slot } } }
+        '413':
+          description: Body exceeds 64 MiB
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: payload_too_large, message: Save exceeds 64 MiB } } }
   /api/v1/games/{game_id}/saves/{slot}/snapshots:
     parameters:
       - $ref: '#/components/parameters/GameId'
@@ -1725,9 +1789,9 @@ components:
           items: { $ref: '#/components/schemas/HandshakeProblem' }
         features:
           type: array
-          description: Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = the Hub's embedded TURN server is on (`turn_servers` in `hello_ack` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `cores_index_v1` = signed core index served at `/api/v1/cores/index` and `/api/v1/cores/index.sig`, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`).
+          description: Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = the Hub's embedded TURN server is on (`turn_servers` in `hello_ack` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `cores_index_v1` = signed core index served at `/api/v1/cores/index` and `/api/v1/cores/index.sig`, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`), `saves_v4` = uploading a save file into a slot (`POST /games/{game_id}/saves/{slot}/upload`).
           items: { type: string }
-          example: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1, cores_v1, turn_v1, saves_v2, cores_index_v1, saves_v3]
+          example: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1, cores_v1, turn_v1, saves_v2, cores_index_v1, saves_v3, saves_v4]
         user:
           $ref: '#/components/schemas/HandshakeUser'
     HandshakeUser:
@@ -1757,10 +1821,10 @@ components:
         added_at: { type: string, format: date-time }
     SaveSyncReason:
       type: string
-      enum: [checkpoint, final, final_session_end, restore]
+      enum: [checkpoint, final, final_session_end, restore, upload]
     SaveHistoryReason:
       type: string
-      enum: [session_end, device_change, before_conflict_resolution, conflict_upload, manual_snapshot, before_restore]
+      enum: [session_end, device_change, before_conflict_resolution, conflict_upload, manual_snapshot, before_restore, before_upload]
     SaveCheckpoint:
       type: object
       description: Current checkpoint of a slot (one opaque blob).

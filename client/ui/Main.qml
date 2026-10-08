@@ -111,4 +111,5 @@ ApplicationWindow {
 
     ConflictDialog { player: window.player }
     SaveRestoreDialog { player: window.player }
+    SaveUploadDialog { player: window.player }
 }

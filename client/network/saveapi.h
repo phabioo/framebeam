@@ -16,6 +16,7 @@ namespace framebeam {
 // Hub save API (protocol/openapi/framebeam.yaml, tag `saves`, handshake feature `saves_v1`).
 inline constexpr const char* kSavesFeature = "saves_v1";
 inline constexpr const char* kSavesV2Feature = "saves_v2";  // restore, snapshots, history labels, save_updated (0.4)
+inline constexpr const char* kSavesV4Feature = "saves_v4";  // upload of a local save file as the current checkpoint
 inline constexpr qint64 kMaxSaveBytes = 64LL * 1024 * 1024;
 
 struct SaveCheckpoint {
@@ -25,7 +26,7 @@ struct SaveCheckpoint {
   QString deviceId;
   QString deviceName;
   QString createdAt;  // ISO 8601
-  QString reason;     // checkpoint | final | final_session_end | restore
+  QString reason;     // checkpoint | final | final_session_end | restore | upload
 };
 
 // Permanent history version (GET .../history, POST .../snapshots).
@@ -37,7 +38,7 @@ struct SaveHistoryVersion {
   QString deviceId;
   QString deviceName;
   QString createdAt;  // ISO 8601
-  QString reason;     // session_end | device_change | before_conflict_resolution | conflict_upload | manual_snapshot | before_restore
+  QString reason;     // session_end | device_change | before_conflict_resolution | conflict_upload | manual_snapshot | before_restore | before_upload
   QString label;      // optional (saves_v2); empty = none
 };
 
@@ -132,6 +133,8 @@ class SaveApi : public QObject {
   void listHistory(const QString& gameId, const QString& slot, Callback cb);
   void restore(const QString& gameId, const QString& slot, int version, int expectedRevision, Callback cb);
   void createSnapshot(const QString& gameId, const QString& slot, const QString& label, Callback cb);
+  // saves_v4: POST .../upload; `expectedRevision` 0 = the slot does not exist on the Hub yet. Answer: the new SaveSlot.
+  void uploadFile(const QString& gameId, const QString& slot, const QByteArray& data, int expectedRevision, Callback cb);
 
  private:
   enum class Expect { Slot, SlotList, Content, Put, Resolve, History, Snapshot };

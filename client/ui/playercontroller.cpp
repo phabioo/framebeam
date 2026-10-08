@@ -148,6 +148,10 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     env.gameBusy = [this](const QString& id) {
       return (phase_ != PlayPhase::None || gameActive_ || session_.isActive()) && (launchGame_.id.isEmpty() || launchGame_.id == id);
     };
+    env.gameTitle = [this](const QString& id) {
+      const auto g = model_.game(id);
+      return g ? g->title : QString();
+    };
     env.localFileName = [this](const QString& id) {
       const auto g = model_.game(id);
       return g ? SaveStore::expectedSaveName(g->romSha256 + QLatin1Char('.') + RomCache::extensionFromFilename(g->romFilename)) : QString();

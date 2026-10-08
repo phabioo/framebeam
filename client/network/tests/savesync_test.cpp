@@ -44,6 +44,7 @@ class SaveSyncTest : public QObject {
   std::unique_ptr<HubConnection> conn_;
   std::unique_ptr<SaveSync> sync_;
   bool noFeature_ = false;
+  bool noV4_ = false;
 
   QString gdir() const { return SaveStore::gameDir(*profiles_, kHubId, kUser, kGame); }
   QString saveFile() const { return gdir() + QStringLiteral("/rom1.sav"); }
@@ -69,6 +70,9 @@ class SaveSyncTest : public QObject {
     creds_ = std::make_unique<MemoryCredentialStore>();
     hub_ = std::make_unique<FakeHub>(QStringLiteral("a"));
     hub_->features = {QStringLiteral("saves_v1"), QStringLiteral("saves_v2")};
+    if (!noV4_) {
+      hub_->features.append(QStringLiteral("saves_v4"));
+    }
     if (noFeature_) {
       hub_->features.clear();
     }
@@ -114,6 +118,7 @@ class SaveSyncTest : public QObject {
  private slots:
   void init() {
     noFeature_ = false;
+    noV4_ = false;
     qRegisterMetaType<framebeam::SaveSync::Kind>();
     connectAll();
   }
@@ -521,6 +526,94 @@ class SaveSyncTest : public QObject {
     QCOMPARE(res.kind, SaveRestoreResult::Outcome::Blocked);
     QCOMPARE(hub_->restoreCount, 1);
     QVERIFY(sync_->finalSyncBlocking(true));
+  }
+
+  void uploadSaveFileReplacesHubAndLocalSave() {
+    hub_->setHubSave(kGame, "cp-1");
+    QCOMPARE(start(), QStringLiteral("ready"));
+    QVERIFY(sync_->hubSupportsSavesV4());
+    const QString dflt = QStringLiteral("default");
+    const QString picked = QDir(dir_->path()).filePath(QStringLiteral("picked.srm"));
+    writeFile(picked, "uploaded-bytes");
+    const auto run = [&](const QString& file, int rev) {
+      SaveSync::RestoreResult res;
+      bool done = false;
+      sync_->uploadSaveFile(kGame, dflt, file, rev, QStringLiteral("rom1.sav"), [&](const SaveSync::RestoreResult& r) { res = r; done = true; });
+      (void)QTest::qWaitFor([&]() { return done; }, 8000);
+      return res;
+    };
+
+    // Stale expected revision: error, local file untouched
+    SaveSync::RestoreResult res = run(picked, 5);
+    QCOMPARE(res.kind, SaveRestoreResult::Outcome::Stale);
+    QCOMPARE(hub_->uploadCount, 0);
+    QCOMPARE(readFile(saveFile()), QByteArray("cp-1"));
+
+    // Empty file is refused locally, nothing is sent
+    const QString empty = QDir(dir_->path()).filePath(QStringLiteral("empty.sav"));
+    writeFile(empty, "");
+    res = run(empty, 1);
+    QVERIFY(!res.ok());
+    QVERIFY(!res.message.isEmpty());
+    QCOMPARE(hub_->uploadCount, 0);
+
+    // Too large for the Hub (413): error, local file untouched
+    hub_->uploadLimit = 4;
+    res = run(picked, 1);
+    QCOMPARE(res.kind, SaveRestoreResult::Outcome::Failed);
+    QVERIFY(res.message.contains(QStringLiteral("too large")));
+    QCOMPARE(readFile(saveFile()), QByteArray("cp-1"));
+    hub_->uploadLimit = 64LL * 1024 * 1024;
+
+    // Success: Hub checkpoint, local file replaced, backup, state
+    res = run(picked, 1);
+    QVERIFY2(res.ok(), qPrintable(res.message));
+    QVERIFY(res.localUpdated);
+    QCOMPARE(res.revision, 2);
+    QCOMPARE(hub_->uploadCount, 1);
+    QCOMPARE(hub_->saves.value(kGame).content, QByteArray("uploaded-bytes"));
+    QCOMPARE(hub_->saves.value(kGame).reason, QStringLiteral("upload"));
+    QCOMPARE(hub_->saves.value(kGame).history.last().reason, QStringLiteral("before_upload"));
+    QCOMPARE(readFile(saveFile()), QByteArray("uploaded-bytes"));
+    QCOMPARE(QDir(gdir()).entryList({QStringLiteral("*.upload-*.bak")}).size(), 1);
+    const SyncState st = SaveStore::loadState(gdir());
+    QCOMPARE(st.baseRevision, 2);
+    QVERIFY(!st.pending);
+    QCOMPARE(st.lastSyncedSha256, SaveStore::sha256Of(QByteArray("uploaded-bytes")));
+    QCOMPARE(sync_->kind(kGame), SaveSync::Kind::Synced);
+
+    // Pending local changes block it
+    writeFile(saveFile(), "unsynced-local");
+    res = run(picked, 2);
+    QCOMPARE(res.kind, SaveRestoreResult::Outcome::Blocked);
+    QCOMPARE(hub_->uploadCount, 1);
+    QCOMPARE(readFile(saveFile()), QByteArray("unsynced-local"));
+    writeFile(saveFile(), "uploaded-bytes");
+
+    // Not while the game runs
+    sync_->prepareStart(kGame, kRom, {QStringLiteral("rom1")});
+    QSignalSpy ready(sync_.get(), &SaveSync::startReady);
+    QTRY_COMPARE(ready.count(), 1);
+    sync_->beginSession();
+    res = run(picked, 2);
+    QCOMPARE(res.kind, SaveRestoreResult::Outcome::Blocked);
+    QCOMPARE(hub_->uploadCount, 1);
+    QVERIFY(sync_->finalSyncBlocking(true));
+  }
+
+  void uploadSaveFileNeedsSavesV4() {
+    cleanup();
+    noV4_ = true;
+    connectAll();
+    QVERIFY(!sync_->hubSupportsSavesV4());
+    const QString picked = QDir(dir_->path()).filePath(QStringLiteral("picked.srm"));
+    writeFile(picked, "x");
+    SaveSync::RestoreResult res;
+    bool done = false;
+    sync_->uploadSaveFile(kGame, QStringLiteral("default"), picked, 0, QStringLiteral("rom1.sav"), [&](const SaveSync::RestoreResult& r) { res = r; done = true; });
+    QTRY_VERIFY(done);
+    QVERIFY(!res.ok());
+    QCOMPARE(hub_->uploadCount, 0);
   }
 
   void snapshotInGameUploadsChangedSaveFirst() {

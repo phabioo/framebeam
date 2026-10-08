@@ -166,3 +166,17 @@ func (s *Server) DeleteSaveSnapshot(ctx context.Context, req api.DeleteSaveSnaps
 	}
 	return api.DeleteSaveSnapshot204Response{}, nil
 }
+
+func (s *Server) UploadSaveFile(ctx context.Context, req api.UploadSaveFileRequestObject) (api.UploadSaveFileResponseObject, error) {
+	if req.Body == nil || req.Params.XFrameBeamContentSHA256 == "" {
+		return nil, hub.ErrBadRequest
+	}
+	p := principal(ctx)
+	rev := req.Params.XFrameBeamExpectedRevision
+	sl, err := s.svc.UploadSaveFile(ctx, hub.UploadSaveInput{UserID: p.User.ID, DeviceID: p.Device.ID, GameID: req.GameId.String(),
+		Slot: req.Slot, ExpectedRevision: &rev, SHA256: req.Params.XFrameBeamContentSHA256, Body: req.Body})
+	if err != nil {
+		return nil, err
+	}
+	return api.UploadSaveFile200JSONResponse(toAPISlot(sl)), nil
+}
