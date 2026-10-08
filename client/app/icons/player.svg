@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="1024" height="1024">
+  <!-- FrameBeam Player mark (docs/design/logo.md, concept 4a, tone "color"). Source of truth; regenerate with scripts/gen-player-icons.py -->
+  <rect width="100" height="100" rx="21.5" fill="#1b1b1d"/>
+  <rect x="24" y="24" width="52" height="52" rx="6" fill="none" stroke="#f6f5f2" stroke-width="8"/>
+  <rect x="18" y="45.5" width="28" height="9" rx="2" fill="#3cbfd8"/>
+  <path d="M42 35 L64 50 L42 65 Z" fill="#3cbfd8"/>
+</svg>

@@ -36,7 +36,7 @@
       <td class="mono">{{.PlayerVersion}}</td>
       <td>{{.LastSeen}}</td>
       <td>{{if .Revoked}}<span class="pill">Revoked</span>{{else}}<span class="pill ok">● Trusted</span>{{end}}</td>
-      <td>{{if .Revoked}}—{{else}}<button class="btn-link" type="button" hx-post="/clients/devices/{{.ID}}/revoke" hx-confirm="Really revoke access for “{{.Name}}”?" hx-target="#clients-body" hx-swap="outerHTML">Revoke access</button>{{end}}</td>
+      <td><div class="row-actions">{{if not .Revoked}}<button class="btn-link" type="button" hx-post="/clients/devices/{{.ID}}/revoke" hx-confirm="Really revoke access for “{{.Name}}”?" hx-target="#clients-body" hx-swap="outerHTML">Revoke access</button>{{end}}<a class="btn-link" href="/clients/devices/{{.ID}}/delete">Delete</a></div></td>
     </tr>
     {{end}}
     </tbody>
@@ -44,7 +44,7 @@
   {{else}}
   <div class="card"><p class="empty">No devices paired yet.</p></div>
   {{end}}
-  <p class="foot-note">Revoking removes the device's access immediately, even with access tokens that are still valid.</p>
+  <p class="foot-note">Revoking removes the device's access immediately, even with access tokens that are still valid. Deleting removes the device entry for good; saves are kept.</p>
 </section>
 </div>{{end}}
 {{define "content"}}

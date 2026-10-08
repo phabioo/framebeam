@@ -9,12 +9,12 @@
       <td class="mono">{{.Devices}}</td>
       <td>{{.Created}}</td>
       <td>{{if .Disabled}}<span class="pill">Disabled</span>{{else}}<span class="pill ok">Active</span>{{end}}</td>
-      <td>{{if .Admin}}—{{else if .Disabled}}<form method="post" action="/users/{{.ID}}/enable"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn-link plain" type="submit">Enable</button></form>{{else}}<form method="post" action="/users/{{.ID}}/disable"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn-link" type="submit">Disable</button></form>{{end}}</td>
+      <td>{{if .Admin}}—{{else}}<div class="row-actions">{{if .Disabled}}<form method="post" action="/users/{{.ID}}/enable"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn-link plain" type="submit">Enable</button></form>{{else}}<form method="post" action="/users/{{.ID}}/disable"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn-link" type="submit">Disable</button></form>{{end}}<a class="btn-link" href="/users/{{.ID}}/delete">Delete</a></div>{{end}}</td>
     </tr>
     {{end}}
     </tbody>
   </table></div>
-  <p class="foot-note">Disabled users cannot sign in on any device. Saves and uploads are preserved.</p>
+  <p class="foot-note">Disabled users cannot sign in on any device. Saves and uploads are preserved. Deleting a user removes their devices, invites and saves for good.</p>
 </div>{{end}}
 {{define "users-invites"}}<div id="users-invites" class="stack" hx-get="/users" hx-trigger="fb:users from:body" hx-swap="outerHTML">
   {{range .Body.Active}}

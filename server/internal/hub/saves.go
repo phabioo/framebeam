@@ -53,9 +53,9 @@ const (
 	webDeviceName   = "Hub web interface"
 )
 
-// deviceNameSQL is the display name of a device column: the device name, the web label or a placeholder.
+// deviceNameSQL is the display name of a device column: the device name, the web label or "Deleted device" (the history keeps the ID after a device was deleted).
 func deviceNameSQL(alias, col string) string {
-	return "COALESCE(" + alias + ".name, CASE WHEN " + col + " LIKE 'web:%' THEN '" + webDeviceName + "' ELSE '(unknown device)' END)"
+	return "COALESCE(" + alias + ".name, CASE WHEN " + col + " LIKE 'web:%' THEN '" + webDeviceName + "' ELSE 'Deleted device' END)"
 }
 
 // Conflict status and resolutions.

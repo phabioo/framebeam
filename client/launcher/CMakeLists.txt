@@ -4,7 +4,9 @@
 # Output name is framebeam_player, so it is built into its own directory and never overwrites the real Player:
 #   <build>/launcher/framebeam_player.exe   (CI copies it to the package top level)
 if(WIN32)
-  add_executable(framebeam_player_launcher WIN32 launcher.cpp)
+  add_executable(framebeam_player_launcher WIN32 launcher.cpp launcher.rc)
+  # launcher.rc references the Player icon (../app/icons/player.ico); rc.exe resolves it via the include path, independent of the working directory.
+  target_include_directories(framebeam_player_launcher PRIVATE $<$<COMPILE_LANGUAGE:RC>:${CMAKE_CURRENT_SOURCE_DIR}/../app>)
   set_target_properties(framebeam_player_launcher PROPERTIES
     OUTPUT_NAME framebeam_player
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/launcher
