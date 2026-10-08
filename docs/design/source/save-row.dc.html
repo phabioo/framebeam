@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="display:flex;flex-direction:column;font-family:'IBM Plex Sans',system-ui,sans-serif">
+  <sc-if value="{{ isThin }}" hint-placeholder-val="{{ false }}">
+    <div style="display:grid;grid-template-columns:20px minmax(0,1fr);gap:12px;align-items:stretch"><div style="display:flex;justify-content:center"><div style="width:0;border-left:1px dashed {{ c.rail }}"></div></div><div style="padding:8px 0;font-size:12px;color:{{ c.muted }};border-bottom:1px solid {{ c.line }}">⋯ {{ row.text }}</div></div>
+  </sc-if>
+  <sc-if value="{{ isVer }}" hint-placeholder-val="{{ true }}">
+    <div style="display:grid;grid-template-columns:20px minmax(0,1fr) auto;gap:12px;align-items:stretch">
+      <div style="display:flex;flex-direction:column;align-items:center">
+        <div style="width:1px;height:14px;background:{{ c.rail }}"></div>
+        <sc-if value="{{ isCur }}" hint-placeholder-val="{{ false }}"><div style="flex:none;width:12px;height:12px;border-radius:50%;background:#3cbfd8;box-shadow:0 0 0 3px {{ c.bg }},0 0 0 4px #3cbfd8"></div></sc-if>
+        <sc-if value="{{ isSnap }}" hint-placeholder-val="{{ false }}"><div style="flex:none;width:9px;height:9px;margin:1.5px 0;background:{{ c.snap }};transform:rotate(45deg)"></div></sc-if>
+        <sc-if value="{{ isPlain }}" hint-placeholder-val="{{ true }}"><div style="flex:none;width:10px;height:10px;border-radius:50%;background:{{ c.bg }};border:2px solid {{ c.hollow }};box-sizing:border-box;margin:1px 0"></div></sc-if>
+        <div style="flex:1;width:1px;background:{{ c.rail }}"></div>
+      </div>
+      <div style="padding:7px 0 9px;display:flex;flex-direction:column;gap:3px;border-bottom:1px solid {{ c.line }};min-width:0">
+        <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px"><span style="font:500 13px 'IBM Plex Mono',monospace;color:{{ c.fg }}">v{{ row.n }}</span>
+          <sc-if value="{{ isCur }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:{{ c.curBg }};color:{{ c.curFg }};white-space:nowrap">✓ Current</span></sc-if>
+          <sc-if value="{{ snapBadge }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:{{ c.snapBg }};color:{{ c.snapFg }};white-space:nowrap">◆ Snapshot</span></sc-if>
+          <sc-if value="{{ hasLabel }}" hint-placeholder-val="{{ false }}"><span style="font-size:13px;font-weight:500;color:{{ c.fg }}">“{{ row.label }}”</span></sc-if>
+        </div>
+        <div style="font-size:12px;line-height:17px;color:{{ c.muted }};text-wrap:pretty">{{ meta }}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;border-bottom:1px solid {{ c.line }};font-size:12px">
+        <sc-for list="{{ actions }}" as="a" hint-placeholder-count="1">
+          <sc-if value="{{ a.btn }}" hint-placeholder-val="{{ true }}"><span style="height:28px;padding:0 10px;border-radius:6px;display:flex;align-items:center;white-space:nowrap;background:{{ c.btnBg }};color:{{ a.fg }};border:1px solid {{ a.line }}">{{ a.label }}</span></sc-if>
+          <sc-if value="{{ a.link }}" hint-placeholder-val="{{ false }}"><span style="height:28px;padding:0 6px;display:flex;align-items:center;white-space:nowrap;color:{{ a.fg }}">{{ a.label }}</span></sc-if>
+        </sc-for>
+      </div>
+    </div>
+    <sc-if value="{{ confirming }}" hint-placeholder-val="{{ false }}">
+      <div style="margin:8px 0 10px 32px;padding:12px 14px;border-radius:9px;background:{{ c.cBg }};border:1px solid {{ c.cLine }};display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;flex-direction:column;gap:3px"><span style="font-size:13px;font-weight:600;color:{{ c.cTitle }};text-wrap:pretty">{{ cTitle }}</span><span style="font-size:12px;line-height:17px;color:{{ c.cBody }};text-wrap:pretty">{{ cBody }}</span></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end"><span style="height:30px;padding:0 12px;border-radius:6px;border:1px solid {{ c.cancelLine }};background:{{ c.btnBg }};color:{{ c.fg }};display:flex;align-items:center;font-size:13px;white-space:nowrap">Cancel</span><span style="height:30px;padding:0 12px;border-radius:6px;background:{{ cOkBg }};color:{{ cOkFg }};display:flex;align-items:center;font-size:13px;font-weight:600;white-space:nowrap">{{ cOk }}</span></div>
+      </div>
+    </sc-if>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:400,&quot;height&quot;:160},&quot;row&quot;:{&quot;editor&quot;:null,&quot;default&quot;:{&quot;n&quot;:13,&quot;kind&quot;:&quot;plain&quot;,&quot;time&quot;:&quot;today 17:58&quot;,&quot;device&quot;:&quot;Laptop-Office&quot;,&quot;reason&quot;:&quot;Auto checkpoint&quot;,&quot;confirm&quot;:&quot;restore&quot;},&quot;tsType&quot;:&quot;{n,kind:'current'|'snap'|'plain'|'thin',label?,time,device,reason,actions?:string[],confirm?:'restore'|'delete',disabled?:boolean,text?}&quot;},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;dark&quot;,&quot;light&quot;],&quot;default&quot;:&quot;dark&quot;,&quot;tsType&quot;:&quot;'dark'|'light'&quot;},&quot;slot&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Main&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;currentN&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:14,&quot;tsType&quot;:&quot;number&quot;},&quot;bg&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#16171a&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const row = this.props.row || { n: 13, kind: 'plain', time: 'today 17:58', device: 'Laptop-Office', reason: 'Auto checkpoint' };
+    const light = (this.props.theme ?? 'dark') === 'light', slot = this.props.slot ?? 'Main', curN = this.props.currentN ?? 14;
+    const c = light ? {
+      bg: this.props.bg ?? '#f6f5f2', fg: '#1b1b1d', muted: '#6b6a66', line: '#e9e7e2', rail: '#d9d7d1', hollow: '#b9b7b0', snap: '#1a7f96',
+      curBg: '#e2f1e7', curFg: '#1f6a3f', snapBg: '#ddf1f6', snapFg: '#0f5a6b', btnBg: '#fff', btnLine: '#d9d7d1', link: '#55544f', danger: '#b5402f',
+      cBg: '#fff', cLine: '#a6d9e6', cTitle: '#0f5a6b', cBody: '#55544f', cancelLine: '#d9d7d1', okBg: '#1b1b1d', okFg: '#f6f5f2', dBg: '#b5402f', dFg: '#fff', dLine: '#efc9c2', dTitle: '#b5402f'
+    } : {
+      bg: this.props.bg ?? '#16171a', fg: '#ecebe7', muted: '#8e8e94', line: '#232428', rail: '#34353a', hollow: '#6f6f75', snap: '#3cbfd8',
+      curBg: '#17291f', curFg: '#6fd39a', snapBg: '#15262b', snapFg: '#3cbfd8', btnBg: 'transparent', btnLine: '#3a3b40', link: '#a3a3a8', danger: '#ef8a78',
+      cBg: '#15262b', cLine: '#1f4650', cTitle: '#3cbfd8', cBody: '#c9c8c4', cancelLine: '#3a3b40', okBg: '#3cbfd8', okFg: '#161512', dBg: '#ef8a78', dFg: '#161512', dLine: '#4a2a24', dTitle: '#ef8a78'
+    };
+    const k = row.kind || 'plain', isCur = k === 'current', isSnap = k === 'snap';
+    const actions = (row.actions || (isCur ? [] : isSnap ? ['Restore', 'Delete'] : ['Restore'])).map(l => {
+      const danger = l === 'Delete', dis = row.disabled && l !== 'Download', active = (row.confirm === 'restore' && l === 'Restore') || (row.confirm === 'delete' && l === 'Delete');
+      return { label: l, btn: l === 'Restore', link: l !== 'Restore', fg: dis ? c.muted : danger ? c.danger : l === 'Download' ? c.link : c.fg, line: active ? (danger ? c.danger : '#3cbfd8') : c.btnLine };
+    });
+    const del = row.confirm === 'delete';
+    const cdc = del ? { ...c, cLine: c.dLine, cTitle: c.dTitle, cBg: light ? '#fff' : '#2a1a17' } : c;
+    return {
+      row, c: cdc, isThin: k === 'thin', isVer: k !== 'thin', isCur, isSnap, isPlain: !isCur && !isSnap, snapBadge: isSnap || (isCur && !!row.label), hasLabel: !!row.label,
+      meta: [row.time, row.device, row.reason].filter(Boolean).join(' · '), actions,
+      confirming: !!row.confirm,
+      cTitle: del ? 'Delete snapshot v' + row.n + (row.label ? ' “' + row.label + '”' : '') + '?' : 'Restore v' + row.n + ' as the current version of “' + slot + '”?',
+      cBody: del ? 'Only this snapshot is removed. The current version and all other versions stay.' : 'v' + curN + ' stays in the history.',
+      cOk: del ? 'Delete snapshot' : 'Restore v' + row.n, cOkBg: del ? c.dBg : c.okBg, cOkFg: del ? c.dFg : c.okFg
+    };
+  }
+}
+</script>
+</body>
+</html>

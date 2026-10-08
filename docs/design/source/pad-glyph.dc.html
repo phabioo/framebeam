@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<span style="display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;flex:none;width:{{ w }};height:{{ h }};min-width:{{ h }};padding:{{ pad }};border-radius:{{ radius }};background:{{ bg }};color:{{ fg }};box-shadow:{{ ring }};font:500 {{ fs }} 'IBM Plex Mono',monospace;line-height:1;white-space:nowrap">
+  <sc-if value="{{ isArrow }}" hint-placeholder-val="{{ false }}"><svg width="{{ ic }}" height="{{ ic }}" viewBox="0 0 16 16" style="transform:rotate({{ rot }})"><path d="M8 3.75 L12.5 10.25 H3.5 Z" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"></path></svg></sc-if>
+  <sc-if value="{{ isCross }}" hint-placeholder-val="{{ false }}"><svg width="{{ ic }}" height="{{ ic }}" viewBox="0 0 16 16"><path d="M3.5 3.5 L12.5 12.5 M12.5 3.5 L3.5 12.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"></path></svg></sc-if>
+  <sc-if value="{{ isCircle }}" hint-placeholder-val="{{ false }}"><svg width="{{ ic }}" height="{{ ic }}" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5" stroke="currentColor" stroke-width="1.7" fill="none"></circle></svg></sc-if>
+  <sc-if value="{{ isSquare }}" hint-placeholder-val="{{ false }}"><svg width="{{ ic }}" height="{{ ic }}" viewBox="0 0 16 16"><rect x="3.5" y="3.5" width="9" height="9" rx=".8" stroke="currentColor" stroke-width="1.7" fill="none"></rect></svg></sc-if>
+  <sc-if value="{{ isTriangle }}" hint-placeholder-val="{{ false }}"><svg width="{{ ic }}" height="{{ ic }}" viewBox="0 0 16 16"><path d="M8 3.2 L13 11.8 H3 Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" fill="none"></path></svg></sc-if>
+  <sc-if value="{{ isText }}" hint-placeholder-val="{{ true }}"><span>{{ text }}</span></sc-if>
+</span>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:120,&quot;height&quot;:48},&quot;g&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;A&quot;,&quot;B&quot;,&quot;X&quot;,&quot;Y&quot;,&quot;LB&quot;,&quot;RB&quot;,&quot;LT&quot;,&quot;RT&quot;,&quot;View&quot;,&quot;Menu&quot;,&quot;cross&quot;,&quot;circle&quot;,&quot;square&quot;,&quot;triangle&quot;,&quot;L1&quot;,&quot;R1&quot;,&quot;L2&quot;,&quot;R2&quot;,&quot;Create&quot;,&quot;Options&quot;,&quot;up&quot;,&quot;down&quot;,&quot;left&quot;,&quot;right&quot;],&quot;default&quot;:&quot;A&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;size&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:24,&quot;min&quot;:16,&quot;max&quot;:48,&quot;tsType&quot;:&quot;number&quot;},&quot;active&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;flat&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;label&quot;:&quot;No chip (icon only)&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const g = this.props.g ?? 'A', size = this.props.size ?? 24, active = !!this.props.active, flat = !!this.props.flat;
+    const arrows = { up: '0deg', right: '90deg', down: '180deg', left: '270deg' };
+    const shapes = ['cross', 'circle', 'square', 'triangle'];
+    const isArrow = g in arrows, isShape = shapes.includes(g), isText = !isArrow && !isShape;
+    const round = isArrow || isShape || (isText && String(g).length === 1);
+    return {
+      isArrow, rot: arrows[g] || '0deg', isCross: g === 'cross', isCircle: g === 'circle', isSquare: g === 'square', isTriangle: g === 'triangle', isText, text: g,
+      h: size + 'px', w: this.props.fill ? '100%' : 'auto', ic: Math.round(size * 0.62) + 'px', fs: Math.round(size * 0.5) + 'px',
+      pad: round ? '0' : '0 ' + Math.round(size * 0.3) + 'px', radius: this.props.square ? Math.round(size * 0.2) + 'px' : round ? '50%' : Math.round(size * 0.25) + 'px',
+      bg: flat ? 'transparent' : active ? '#3cbfd8' : '#26272b', fg: active ? (flat ? '#3cbfd8' : '#161512') : '#c9c8c4',
+      ring: flat ? 'none' : active ? 'none' : 'inset 0 0 0 1px #34353a'
+    };
+  }
+}
+</script>
+</body>
+</html>
