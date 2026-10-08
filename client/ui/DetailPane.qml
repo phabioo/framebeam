@@ -266,20 +266,20 @@ Rectangle {
             busyOnClick: true
             text: root.game.playLabel || qsTr("Play")
             enabled: root.game.canPlay === true
-            onClicked: root.player.playSelected()
+            onClicked: root.game.running === true ? root.player.resumeGame() : root.player.playSelected()
         }
         FbButton {
             objectName: "playShareButton"
-            visible: root.player.sessions.available
+            visible: root.player.sessions.available || root.game.running === true
             Layout.fillWidth: true
             implicitHeight: 44
-            text: qsTr("Play and share Session")
-            enabled: root.game.canPlay === true
-            onClicked: root.player.playAndShareSelected()
+            text: root.game.running === true ? qsTr("Quit game") : qsTr("Play and share Session")
+            enabled: root.game.running === true || root.game.canPlay === true
+            onClicked: root.game.running === true ? root.player.quitGame() : root.player.playAndShareSelected()
         }
         FbLabel {
             objectName: "shareVisibilityHint"
-            visible: root.player.sessions.available
+            visible: root.player.sessions.available && root.game.running !== true
             Layout.fillWidth: true
             horizontalAlignment: Text.AlignHCenter
             color: Theme.textFaint

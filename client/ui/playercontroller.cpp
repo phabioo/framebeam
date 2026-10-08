@@ -183,7 +183,14 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
       QCoreApplication::quit();
     });
   }
-  connect(sessions_.get(), &SessionController::watchChanged, this, &PlayerController::updateScreen);
+  connect(sessions_.get(), &SessionController::watchChanged, this, [this]() {
+    // Watching a Session from the Library while a game is in the background shows the game view again (multiview with
+    // the paused game); the game stays paused until the user resumes it.
+    if (background_ && sessions_->watching()) {
+      setBackground(false);
+    }
+    updateScreen();
+  });
   connect(conn_.get(), &HubConnection::stateChanged, this, &PlayerController::onConnectionState);
   connect(conn_.get(), &HubConnection::errorOccurred, this, [this](const QString& code, const QString& message) {
     lastError_ = friendlyError(code, message);
@@ -287,6 +294,7 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
 PlayerController::~PlayerController() { shutdown(); }
 
 void PlayerController::endGameContext() {
+  setBackground(false);
   gameActive_ = false;
   if (sessions_) {
     sessions_->gameEnded();  // ends a shared Session
@@ -294,6 +302,7 @@ void PlayerController::endGameContext() {
 }
 
 void PlayerController::shutdown() {
+  background_ = false;  // app close with a game in the background: same path as a game in the foreground
   if (sessions_) {
     sessions_->gameEnded();
   }
@@ -390,7 +399,7 @@ void PlayerController::updateScreen() {
   using S = HubConnection::State;
   QString next;
   const S s = conn_->state();
-  if (gameActive_ || (sessions_ && sessions_->watching())) {
+  if ((gameActive_ && !background_) || (sessions_ && sessions_->watching())) {
     next = QStringLiteral("game");
   } else if (s == S::Connected) {
     next = page_;
@@ -636,7 +645,7 @@ void PlayerController::showLibrary() {
 }
 
 void PlayerController::showSettings() {
-  if (conn_->state() != HubConnection::State::Connected || gameActive_) {
+  if (conn_->state() != HubConnection::State::Connected || (gameActive_ && !background_)) {
     return;
   }
   page_ = QStringLiteral("settings");
@@ -644,7 +653,7 @@ void PlayerController::showSettings() {
 }
 
 void PlayerController::showEmulation() {
-  if (conn_->state() != HubConnection::State::Connected || gameActive_) {
+  if (conn_->state() != HubConnection::State::Connected || (gameActive_ && !background_)) {
     return;
   }
   refreshEmulationPage();
@@ -653,7 +662,7 @@ void PlayerController::showEmulation() {
 }
 
 void PlayerController::showControllers() {
-  if (conn_->state() != HubConnection::State::Connected || gameActive_) {
+  if (conn_->state() != HubConnection::State::Connected || (gameActive_ && !background_)) {
     return;
   }
   page_ = QStringLiteral("controllers");
@@ -830,6 +839,7 @@ QString PlayerController::hubAddress() const { return trimmedScheme(conn_->addre
 // Ends the running game/Session and secures pending save uploads; needs the connection, so call before disconnecting.
 void PlayerController::endRunningWork() {
   if (gameActive_) {
+    setBackground(false);
     session_.stop();
     saves_->finalSyncBlocking(true);
     gameActive_ = false;
@@ -910,13 +920,112 @@ void PlayerController::onRomStatus(const QString& sha, const RomStatus& st) {
   }
 }
 
-void PlayerController::playSelected() { starter_->startSelected(false); }
+void PlayerController::playSelected() {
+  if (background_) {
+    if (selectedId_ == backgroundId_) {
+      resumeGame();
+    } else {
+      askQuitAndStart(false);
+    }
+    return;
+  }
+  starter_->startSelected(false);
+}
 
 void PlayerController::resolveSaveConflict(const QString& action) { starter_->resolveSaveConflict(action); }
 
-QVariantMap PlayerController::selectedGame() const { return detail_->selectedGame(); }
+QVariantMap PlayerController::selectedGame() const {
+  QVariantMap m = detail_->selectedGame();
+  if (background_ && !m.isEmpty() && m.value(QStringLiteral("id")).toString() == backgroundId_) {
+    // The game runs (paused) in the background: the primary button resumes it instead of starting it again.
+    m.insert(QStringLiteral("running"), true);
+    m.insert(QStringLiteral("playLabel"), tr("Resume"));
+    m.insert(QStringLiteral("canPlay"), true);
+    m.insert(QStringLiteral("busy"), false);
+    m.insert(QStringLiteral("pillText"), tr("Running · paused"));
+    m.insert(QStringLiteral("pillTone"), QStringLiteral("ok"));
+  }
+  return m;
+}
+
+void PlayerController::adoptPreviewGame(const QString& gameId) {
+  if (const auto g = model_.game(gameId)) {
+    launchGame_ = *g;
+  }
+}
+
+QVariantMap PlayerController::backgroundGame() const {
+  if (!background_) {
+    return {};
+  }
+  return {{QStringLiteral("id"), backgroundId_}, {QStringLiteral("title"), backgroundTitle_}};
+}
+
+QVariantMap PlayerController::startConfirm() const {
+  QVariantMap m{{QStringLiteral("active"), confirmActive_}};
+  if (confirmActive_) {
+    const auto g = model_.game(selectedId_);
+    m.insert(QStringLiteral("runningTitle"), backgroundTitle_);
+    m.insert(QStringLiteral("newTitle"), g ? g->title : QString());
+  }
+  return m;
+}
+
+void PlayerController::setBackground(bool on) {
+  const bool wasConfirm = confirmActive_;
+  confirmActive_ = false;
+  if (on == background_) {
+    if (wasConfirm) emit startConfirmChanged();
+    return;
+  }
+  background_ = on;
+  if (on) {
+    backgroundId_ = launchGame_.id;
+    backgroundTitle_ = launchGame_.title;
+  } else {
+    backgroundId_.clear();
+    backgroundTitle_.clear();
+  }
+  session_.setInputBlocked(on);
+  emit backgroundGameChanged();
+  if (wasConfirm) emit startConfirmChanged();
+  emit selectedGameChanged();
+}
+
+void PlayerController::askQuitAndStart(bool share) {
+  if (!background_ || !model_.game(selectedId_) || phase_ != PlayPhase::None) {
+    return;
+  }
+  confirmActive_ = true;
+  confirmShare_ = share;
+  emit startConfirmChanged();
+}
+
+void PlayerController::cancelQuitAndStart() {
+  if (confirmActive_) {
+    confirmActive_ = false;
+    emit startConfirmChanged();
+  }
+}
+
+void PlayerController::confirmQuitAndStart() {
+  if (!confirmActive_) {
+    return;
+  }
+  const bool share = confirmShare_;
+  quitGame();  // saved and synced first (core unloaded, final upload), also clears the confirmation
+  starter_->startSelected(share);
+}
 
 void PlayerController::playAndShareSelected() {
+  if (background_) {
+    if (selectedId_ == backgroundId_) {
+      resumeGame();
+    } else {
+      askQuitAndStart(true);
+    }
+    return;
+  }
   if (phase_ != PlayPhase::None || session_.isActive()) {
     return;
   }
@@ -924,15 +1033,32 @@ void PlayerController::playAndShareSelected() {
 }
 
 void PlayerController::leaveGameView() {
-  if (gameActive_) {
-    quitGame();
-  } else {
-    sessions_->leaveWatch();
+  if (gameActive_ && !background_) {
+    // Pause and keep the game loaded (the pause triggers the immediate save sync); a shared Session stays shared.
+    page_ = QStringLiteral("library");
+    session_.pause();
+    setBackground(true);
+    if (sessions_->watching()) {
+      sessions_->leaveWatch();  // remote surfaces end with the game view
+    }
+    updateScreen();
+  } else if (sessions_->watching()) {
+    sessions_->leaveWatch();  // a game in the background stays there
     updateScreen();
   }
 }
 
+void PlayerController::resumeGame() {
+  if (!gameActive_ || !background_) {
+    return;
+  }
+  setBackground(false);
+  session_.resume();
+  updateScreen();
+}
+
 void PlayerController::quitGame() {
+  setBackground(false);
   sessions_->gameEnded();
   session_.stop();  // core unloaded (save flushed), then the final upload
   saves_->finalSync(true);

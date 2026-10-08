@@ -76,3 +76,9 @@ framebeam_add_test(ui_fast_forward fast_forward_ui_test.cpp ${FB_NETTEST_DIR}/fa
   LIBS ${FB_UI_TEST_LIBS})
 target_include_directories(test_ui_fast_forward PRIVATE ${FB_NETTEST_DIR})
 target_compile_definitions(test_ui_fast_forward PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
+
+# "← Library" keeps the game loaded in the background: strip, Resume/Quit, confirmation, input (preview game, no core).
+framebeam_add_test(ui_background_game background_game_ui_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
+  LIBS ${FB_UI_TEST_LIBS})
+target_include_directories(test_ui_background_game PRIVATE ${FB_NETTEST_DIR})
+target_compile_definitions(test_ui_background_game PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")

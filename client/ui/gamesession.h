@@ -135,7 +135,10 @@ class GameSession : public QObject {
   // Keyboard map of the keyboard profile (Qt::Key -> joypad mask); gamepad = joypad mask of P1. Both are merged.
   void setKeyboardMap(const QHash<int, quint32>& map);
   void setGamepadMask(quint32 mask);
-  quint32 joypadMask() const { return keys_.mask() | pad_; }
+  quint32 joypadMask() const { return inputBlocked_ ? 0 : (keys_.mask() | pad_); }
+  // Game in the background (Library shown): no keyboard, gamepad or pointer input reaches the core.
+  void setInputBlocked(bool blocked);
+  bool inputBlocked() const { return inputBlocked_; }
   void setPointer(const QPointF& frameNormalized, bool pressed);
   // Multiview: exactly one surface is audible. A muted session keeps running, its audio is dropped.
   void setAudioMuted(bool muted);
@@ -163,6 +166,7 @@ class GameSession : public QObject {
   KeyboardJoypad keys_;
   QSet<int> hotkeyKeys_{Qt::Key_F11, Qt::Key_F3, Qt::Key_F5, Qt::Key_Space};
   quint32 pad_ = 0;
+  bool inputBlocked_ = false;
   emu::DisplayProfile display_;
   QImage frame_;
   quint64 frameNr_ = 0;
