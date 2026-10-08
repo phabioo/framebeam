@@ -303,3 +303,25 @@ func TestStaleNewIgnoredWhenCurrentOK(t *testing.T) {
 		t.Fatalf("current pair must win: %v", err)
 	}
 }
+
+func TestLoneKeyOrCertIsFirstStart(t *testing.T) {
+	for _, which := range []string{"key", "cert"} {
+		dir := t.TempDir()
+		mkPair(t, dir, "")
+		_, certFile, keyFile := selfSignedPaths(dir)
+		rm := keyFile
+		if which == "key" {
+			rm = certFile // keep only the key
+		}
+		if err := os.Remove(rm); err != nil {
+			t.Fatal(err)
+		}
+		c, ren, err := EnsureSelfSignedRenewing(dir, time.Now())
+		if err != nil || ren != nil || Fingerprint(c) == "" {
+			t.Fatalf("lone %s: err=%v", which, err)
+		}
+		if _, err := Load(certFile, keyFile); err != nil {
+			t.Fatalf("lone %s: not regenerated: %v", which, err)
+		}
+	}
+}

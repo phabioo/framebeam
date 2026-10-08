@@ -158,8 +158,9 @@ func loadCurrent(dataDir string) (tls.Certificate, error) {
 		}
 		return Load(certFile, keyFile)
 	}
-	if !exists(certFile) && !exists(keyFile) {
-		// Only unusable leftovers (e.g. a lone key from an interrupted first start).
+	if !exists(certFile) || !exists(keyFile) {
+		// An incomplete current pair (e.g. a lone key or cert from an interrupted first start) with no
+		// usable .new/.prev is treated as a first start; a complete but unusable pair stays an error.
 		return tls.Certificate{}, os.ErrNotExist
 	}
 	return tls.Certificate{}, fmt.Errorf("tls certificate in %s is unusable and no complete .new or .prev pair can replace it: %w", dir, curErr)
