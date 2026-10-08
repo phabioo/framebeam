@@ -52,6 +52,7 @@ Windows release builds use the `x64-windows-release` overlay triplet (Release-on
 ## CI and releases
 
 - `.github/workflows/ci.yml`: Linux on every push; Windows on PRs against `main`, manually, and on pushes to `main` and `v*` tags (primes the Windows vcpkg binary cache after merges, [ADR 0008](adr/0008-windows-ci-cache.md); cache misses still need a cold dependency build). The Windows job builds the layout launcher plus `bin\`, the zip and the installer and tests silent install and upgrade.
+- Every workflow job has `timeout-minutes` (Windows client and core builds 300, so a cold vcpkg cache still fits).
 - Changes that touch only `docs/*` or `*.md` files are detected as docs-only on branches and PRs; the Hub, Player and Windows jobs are skipped for them.
 - `.github/workflows/release.yml`: after a successful CI run on `main` or a `v*` tag it publishes the CI artifacts as GitHub (pre)release (beta prereleases `v<X.Y.Z-beta.N>`, newest 5 kept) and adds Hub and Player to the signed `updates-index` release (`framebeam-sign release-add`, secret `FRAMEBEAM_SIGNING_KEY`).
 - `.github/workflows/promote.yml` ("Promote to stable", manual): see [guides/updates.md](guides/updates.md).
@@ -68,7 +69,7 @@ Windows release builds use the `x64-windows-release` overlay triplet (Release-on
 
 ## Hub package and installer builds
 
-- `make package-hub-deb`: via `packaging/linux/build-deb.sh --binary PATH --arch amd64|arm64 --version X.Y.Z[-pre] --out DIR` (dpkg-deb only; units and maintainer scripts in `packaging/linux/deb/`). `scripts/check.sh packaging` (part of `make check-hub`) checks control, contents, units, runs shellcheck and a smoke test of `install-hub.sh` with `FRAMEBEAM_INSTALL_ROOT`.
+- `make package-hub-deb`: via `packaging/linux/build-deb.sh --binary PATH --arch amd64|arm64 --version X.Y.Z[-pre] --out DIR` (dpkg-deb only; units and maintainer scripts in `packaging/linux/deb/`). `scripts/check.sh packaging` (part of `make check-hub`) checks control, contents, units, runs shellcheck (the packaging scripts fully, all `scripts/*.sh` and the SessionStart hook at warning level) and a smoke test of `install-hub.sh` with `FRAMEBEAM_INSTALL_ROOT`.
 - Windows installer (Inno Setup, per-user), built by ISCC in the Windows CI job: [guides/packaging.md](guides/packaging.md).
 
 ## Documentation checks

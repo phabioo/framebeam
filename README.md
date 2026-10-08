@@ -6,7 +6,7 @@ FrameBeam is a self-hosted retro gaming platform. The **FrameBeam Hub** keeps yo
 
 ## Status
 
-Version 0.7.0. The proof of concept (Nintendo DS with melonDS DS) is complete; Hub UI and Player UI have had their design passes (0.6, 0.7). Next on the [roadmap](docs/roadmap.md): Nintendo 3DS, game metadata, Hub for Windows, Linux and macOS Player. Windows Player and Linux Hub (Debian, Raspberry Pi) are the supported platforms; real GPUs, drivers and networks are verified only locally.
+Version 0.7.1. The proof of concept (Nintendo DS with melonDS DS) is complete; Hub UI and Player UI have had their design passes (0.6, 0.7). Next on the [roadmap](docs/roadmap.md): Nintendo 3DS, game metadata, Hub for Windows, Linux and macOS Player. Windows Player and Linux Hub (Debian, Raspberry Pi) are the supported platforms; real GPUs, drivers and networks are verified only locally.
 
 ## Highlights
 

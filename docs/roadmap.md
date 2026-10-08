@@ -26,6 +26,7 @@ Phase plan: [workflow.md](workflow.md#phase-plan).
 | 0.5 | done in code (GPUs and drivers verified only locally) | OpenGL hardware rendering | The Player offers an OpenGL context to libretro cores, so hardware-rendered cores run; frames are read back to the CPU, zero-copy deferred ([ADR 0013](adr/0013-opengl-hardware-rendering.md)). |
 | 0.6 | done in code (look and feel, GPU values, real sessions verified only locally) | Player UI pass | FrameBeam Player is clearer, more responsive and consistent with the design tokens ([ADR 0014](adr/0014-player-ui-pass.md)). |
 | 0.7 | done in code | Hub UI pass | FrameBeam Hub web UI swaps fragments instead of full pages, updates live and has network settings in the browser ([ADR 0015](adr/0015-hub-ui-pass.md)). |
+| 0.7.1 | done | Revision pass | Bug fixes and cleanup in Hub, Player and CI (flaky Session visibility race, query error handling, job timeouts); docs and READMEs consolidated. |
 | 0.8 | planned | Second system: 3DS (Azahar) | The Azahar libretro core ships as a plain core package and runs on the OpenGL rendering from 0.5. |
 | 0.9 | planned | Metadata and artwork | Central game metadata and boxart in Hub and Player. |
 | 0.10 | planned | Hub for Windows / Windows Server | FrameBeam Hub runs as a Windows service with an installer. |
