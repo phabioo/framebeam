@@ -61,6 +61,10 @@ class LibretroBackend final : public EmulatorBackend {
   // Diagnostics/tests: number of hardware frames read back from the GPU so far.
   quint64 hwReadbackCount() const { return m_hwReadbacks.load(); }
   RenderInfo renderInfo() const override;
+  void setReadbackLimit(const QSize& maxSize) override {
+    m_readbackLimit.store(pack(maxSize));
+  }
+  QSize sourceFrameSize() const override { return unpack(m_sourceSize.load()); }
 
   bool supportsFastForward() const override { return !m_ffInhibit.load(); }
   void setFastForwarding(bool on, double ratio) override {
@@ -142,6 +146,12 @@ class LibretroBackend final : public EmulatorBackend {
   RenderInfo m_render;                     // diagnostics, written on load/setup, read from the UI thread
   std::atomic<qint64> m_lastReadbackNs{0};
   std::atomic<bool> m_videoWanted{true};
+  static quint64 pack(const QSize& s) {
+    return (static_cast<quint64>(static_cast<quint32>(std::max(0, s.width()))) << 32) | static_cast<quint32>(std::max(0, s.height()));
+  }
+  static QSize unpack(quint64 v) { return QSize(static_cast<int>(v >> 32), static_cast<int>(v & 0xFFFFFFFFu)); }
+  std::atomic<quint64> m_readbackLimit{0};  // packed QSize (0 = none)
+  std::atomic<quint64> m_sourceSize{0};     // packed QSize of the last frame as the core rendered it
   std::atomic<quint64> m_hwReadbacks{0};
   std::atomic<bool> m_fastForwarding{false};
   std::atomic<bool> m_ffInhibit{false};  // the core forbids toggling fast-forward

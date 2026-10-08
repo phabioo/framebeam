@@ -626,3 +626,12 @@ func TestDeleteUserAndDeviceWeb(t *testing.T) {
 	contains(t, rec, "User deleted")
 	notContains(t, rec, "Max")
 }
+
+func (c *client) multipartPostH(path string, fields map[string]string, filename string, data []byte, hdr map[string]string) *httptest.ResponseRecorder {
+	body, ct := multipartBody(fields, filename, data)
+	h := map[string]string{"Content-Type": ct}
+	for k, v := range hdr {
+		h[k] = v
+	}
+	return c.do("POST", path, body, h)
+}

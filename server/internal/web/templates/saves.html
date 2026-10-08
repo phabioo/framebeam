@@ -1,3 +1,24 @@
+{{define "upload-panel"}}
+<form class="upl-panel" method="post" action="{{.Up.Action}}" enctype="multipart/form-data" hx-post="{{.Up.Action}}" hx-encoding="multipart/form-data" hx-target="#save-detail" hx-swap="outerHTML">
+  <input type="hidden" name="_csrf" value="{{.CSRF}}">
+  {{range .Up.Slots}}<input type="hidden" name="rev.{{.Name}}" value="{{.Rev}}">{{end}}
+  {{with .Up.Result}}{{if eq .Kind "same"}}
+  <div class="upl-notice" role="status"><b>{{.Text}}</b><br>{{.Sub}}</div>
+  <div class="upl-foot"><a class="btn" href="{{$.Up.CloseHref}}" hx-get="{{$.Up.CloseHref}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true">Close</a></div>
+  {{else if eq .Kind "error"}}<p class="upl-error" role="alert">✕ {{.Text}}</p>{{end}}{{end}}
+  {{if not (and .Up.Result (eq .Up.Result.Kind "same"))}}
+  <div class="upl-slot"><label for="upl-slot">Into slot</label>
+    <select id="upl-slot" name="slot">{{range .Up.Slots}}<option value="{{.Name}}"{{if .Selected}} selected{{end}}>{{.Name}}</option>{{end}}</select></div>
+  <div class="upl-file"><label for="upl-file">File</label>
+    <input id="upl-file" type="file" name="file" required aria-describedby="upl-hint"><span id="upl-hint" class="help">Drop the save file here or choose a file.</span></div>
+  <div class="upl-foot">
+    {{if not .Empty}}<span class="upl-note">The current version Rev {{.Up.Version}} stays in the history as “Before upload”.</span>{{end}}
+    {{if not .Empty}}<a class="btn" href="{{.Up.CloseHref}}" hx-get="{{.Up.CloseHref}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true">Cancel</a>{{end}}
+    <button class="btn primary" type="submit">Upload as new current version</button>
+  </div>
+  {{end}}
+</form>
+{{end}}
 {{define "saves-list"}}<div id="saves-list" class="saves-listbox" hx-get="{{.Body.ListURL}}" hx-trigger="fb:saves from:body" hx-swap="outerHTML"{{if .Body.OOB}} hx-swap-oob="true"{{end}}>
 {{if .Body.Rows}}
 <ul class="save-list">
@@ -48,32 +69,44 @@
 {{define "saves-detail-fragment"}}{{template "saves-detail" .Body.Detail}}{{template "saves-list" .}}{{end}}
 {{define "saves-detail"}}
 {{with .}}
-<div id="save-detail" class="save-detail" hx-get="{{.RefreshURL}}" hx-trigger="fb:saves from:body" hx-swap="outerHTML">
+<div id="save-detail" class="save-detail"{{if not .Up.Open}} hx-get="{{.RefreshURL}}" hx-trigger="fb:saves from:body" hx-swap="outerHTML"{{end}}>
 <header class="save-head">
   <div><h2>{{.Title}}</h2><p class="sub">{{.User}}{{if .System}} · {{.System}}{{end}}</p></div>
-  {{if .Conflict}}<span class="pill warn lg">▲ Conflict · unresolved</span>{{else}}<span class="pill ok lg">✓ Synced</span>{{end}}
+  {{if .Empty}}<span class="pill lg">No save yet</span>{{else if .Conflict}}<span class="pill warn lg">▲ Conflict · unresolved</span>{{else}}<span class="pill ok lg">✓ Synced</span>{{end}}
 </header>
+{{if not .Empty}}
 <div class="tabs" role="tablist" aria-label="Slots">
   {{range .Tabs}}<a role="tab" class="tab{{if .Selected}} selected{{end}}" aria-selected="{{if .Selected}}true{{else}}false{{end}}" href="{{.Href}}" hx-get="{{.Href}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true">{{.Name}} <span class="tab-meta{{if .Conflict}} warn{{end}}">{{.Meta}}</span></a>{{end}}
   <a class="tab tab-new" href="{{.NewSlotAsk}}" hx-get="{{.NewSlotAsk}}" hx-target="#newslot-form" hx-swap="innerHTML">+ New slot</a>
 </div>
 <div id="newslot-form">{{with .NewSlot}}{{template "newslot-card" .}}{{end}}</div>
-<div class="eyebrow">Current checkpoint</div>
-<div class="save-bar">
-  <div><span class="mono">Rev {{.Current.Rev}}</span> · {{.Current.Device}} · {{.Current.When}} · {{.Current.Reason}}
-    <div class="help mono">{{.Current.Size}} · {{.Current.ShortHash}}</div></div>
-  <a class="btn" href="{{.Current.DownloadHref}}">Download</a>
+{{end}}
+{{if .Up.Result}}{{if ne .Up.Result.Kind "same"}}{{if ne .Up.Result.Kind "error"}}
+<div class="upl-result ok" role="status"><span class="upl-strong">{{.Up.Result.Text}}</span> <span>{{.Up.Result.Sub}}</span>
+  {{if .Up.Result.UndoHref}}<form class="inline" method="post" action="{{.Up.Result.UndoHref}}" hx-post="{{.Up.Result.UndoHref}}"><input type="hidden" name="expected_revision" value="{{.Up.Result.ExpectedRev}}"><button class="btn-link" type="submit">{{.Up.Result.UndoLabel}}</button></form>{{end}}
+</div>{{end}}{{end}}{{end}}
+{{if .Empty}}
+<div class="cur-card open">{{template "upload-panel" .}}</div>
+{{else}}
+<div class="cur-card{{if .Up.Open}} open{{end}}">
+  <div class="cur-bar">
+    <span class="cur-eyebrow">CURRENT</span>
+    <span><span class="mono">Rev {{.Current.Rev}}</span> · {{.Current.When}} · {{.Current.Device}} · {{.Current.Reason}}
+      <span class="help mono cur-meta">{{.Current.Size}} · {{.Current.ShortHash}}</span></span>
+    <a class="btn-link plain" href="{{.Current.DownloadHref}}">Download</a>
+    {{if .Up.Can}}{{if .Up.Open}}<a class="btn upl-toggle on" href="{{.Up.CloseHref}}" hx-get="{{.Up.CloseHref}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true" aria-expanded="true">Upload save ▴</a>
+    {{else}}<a class="btn upl-toggle" href="{{.Up.OpenHref}}" hx-get="{{.Up.OpenHref}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true" aria-expanded="false">Upload save ▾</a>{{end}}{{end}}
+  </div>
+  {{if and .Up.Can .Up.Open}}{{template "upload-panel" .}}{{end}}
 </div>
+{{end}}
+{{if not .Empty}}
 <form class="save-snapshot" method="post" action="{{.SnapshotHref}}" hx-post="{{.SnapshotHref}}">
   <label>Snapshot label (optional): <input type="text" name="label" maxlength="64" aria-label="Snapshot label" autocomplete="off"></label>
   <button class="btn" type="submit">Create snapshot</button>
 </form>
-<form class="save-snapshot save-upload" method="post" action="{{.UploadHref}}" enctype="multipart/form-data">
-  <input type="hidden" name="_csrf" value="{{.CSRF}}"><input type="hidden" name="expected_revision" value="{{.ExpectedRev}}">
-  <label>Upload save file: <input type="file" name="file" required aria-describedby="upload-note"></label>
-  <button class="btn" type="submit">Upload save file</button>
-  <span id="upload-note" class="help">The current version moves to the save history.</span>
-</form>
+{{end}}
+{{if not .Empty}}
 {{range .Conflicts}}
 <section class="conflict" aria-label="Save conflict">
   <h3>{{.Title}}</h3>
@@ -127,6 +160,7 @@
 <p class="help">{{$.HistoryEmpty}}</p>
 {{end}}
 <div class="retention"><div class="eyebrow">Retention</div><p>{{.Retention}}</p></div>
+{{end}}
 </div>
 {{end}}
 {{end}}
@@ -138,18 +172,6 @@
       <label>User: <select name="user" aria-label="Filter by user"><option value="">All users</option>{{range .Body.Users}}<option value="{{.ID}}"{{if eq $.Body.UserFilter .ID}} selected{{end}}>{{.DisplayName}}</option>{{end}}</select></label>
       <noscript><button class="btn small" type="submit">Apply</button></noscript>
     </form>
-    <details class="upload upload-inline"{{if .Body.UploadOpen}} open{{end}}>
-      <summary class="btn">Upload save</summary>
-      <form class="upload-form" method="post" action="/saves/upload" enctype="multipart/form-data">
-        <input type="hidden" name="_csrf" value="{{.CSRF}}">
-        <label class="field">User<select name="user">{{range .Body.Users}}<option value="{{.ID}}"{{if eq $.Body.UploadUser .ID}} selected{{end}}>{{.DisplayName}}</option>{{end}}</select></label>
-        <label class="field">Game<select name="game" required>{{range .Body.Games}}<option value="{{.ID}}"{{if eq $.Body.UploadGame .ID}} selected{{end}}>{{.DisplayName}}</option>{{end}}</select></label>
-        <label class="field">Slot name<input type="text" name="slot" value="default" maxlength="32" pattern="[a-z0-9_-]{1,32}" autocomplete="off" required></label>
-        <label class="field">Save file<input type="file" name="file" required></label>
-        <p class="help">Creates the slot, or replaces its current version; the old version moves to the save history.</p>
-        <button class="btn primary" type="submit">Upload</button>
-      </form>
-    </details>
     {{template "saves-list" .}}
   </section>
   <section class="saves-detail">{{template "saves-detail" .Body.Detail}}</section>
