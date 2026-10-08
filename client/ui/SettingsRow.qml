@@ -65,7 +65,8 @@ Item {
         const v = [root.values[0].value, root.values[1].value].join("|")
         return ["off|on", "disabled|enabled", "false|true", "0|1"].indexOf(v) >= 0
     }
-    // Segment only when every label fits its cell (control width / n - 12px of padding), else select.
+    // Segment only when every label fits its cell (control width / n - 12px of padding), else select. Measured in
+    // characters (6.5 px each), not font metrics, so the kind never flips with the platform font.
     readonly property bool segmentFits: {
         const n = root.values.length
         if (n < 2 || n > 4) {
@@ -73,7 +74,7 @@ Item {
         }
         const cell = root.controlWidth / n - 12
         for (let i = 0; i < n; ++i) {
-            if (segMetrics.advanceWidth(root.values[i].label || "") > cell) {
+            if (String(root.values[i].label || "").length > Math.floor(cell / 6.5)) {
                 return false
             }
         }
@@ -123,11 +124,13 @@ Item {
                                         : (root.hasList ? qsTr("More · %1").arg(root.optionList.length === 1 ? qsTr("1 option") : qsTr("%1 options").arg(root.optionList.length))
                                                         : qsTr("More"))
 
-    implicitHeight: (root.narrow ? Theme.settingsDotSlot + textCol.implicitHeight + 8 + Theme.settingsControlHeight
-                                 : Theme.settingsDotSlot + Math.max(Theme.settingsControlHeight, textCol.implicitHeight))
+    // Buttons wrap onto further lines when the control column is too narrow for them (wide fonts), so the control may be taller.
+    property real buttonsHeight: 0   // set by the buttons control (not bound: the Loader item would loop)
+    readonly property real ctlHeight: root.kind === "buttons" ? Math.max(Theme.settingsControlHeight, root.buttonsHeight) : Theme.settingsControlHeight
+    implicitHeight: (root.narrow ? Theme.settingsDotSlot + textCol.implicitHeight + 8 + root.ctlHeight
+                                 : Theme.settingsDotSlot + Math.max(root.ctlHeight, textCol.implicitHeight))
                     + Theme.settingsDotSlot + 1
 
-    FontMetrics { id: segMetrics; font.pixelSize: Theme.fontSmall; font.weight: Font.Medium }
 
     // Hidden measurement of the full intro at the clamp width: more than 2 lines -> "More".
     Text {
@@ -344,7 +347,7 @@ Item {
         x: root.narrow ? Theme.settingsDotSlot : root.width - Theme.settingsResetWidth - Theme.settingsControlWidth
         y: root.narrow ? Theme.settingsDotSlot + textCol.implicitHeight + 8 : Theme.settingsDotSlot
         width: root.controlWidth
-        height: Theme.settingsControlHeight
+        height: root.ctlHeight
         Loader {
             id: ctlLoader
             anchors.right: parent.right
@@ -613,10 +616,14 @@ Item {
 
     Component {
         id: buttonsComp
-        Row {
+        Flow {
+            // Never wider than the column: wide rows right-align the buttons, narrow rows left-align and wrap.
+            width: root.controlWidth
             spacing: Theme.space8
+            layoutDirection: root.narrow ? Qt.LeftToRight : Qt.RightToLeft
+            onChildrenRectChanged: root.buttonsHeight = childrenRect.height
             Repeater {
-                model: root.buttons
+                model: root.narrow ? root.buttons : root.buttons.slice().reverse()
                 delegate: FbButton {
                     required property var modelData
                     objectName: modelData.name || ""
@@ -625,7 +632,7 @@ Item {
                     busy: modelData.busy === true
                     busyOnClick: modelData.busyOnClick === true
                     implicitHeight: Theme.settingsControlHeight
-                    implicitWidth: contentItem.implicitWidth + 28
+                    implicitWidth: Math.min(contentItem.implicitWidth + 28, root.controlWidth)
                     font.pixelSize: Theme.fontSmall
                     text: modelData.text
                     onClicked: root.buttonClicked(modelData.name || "")

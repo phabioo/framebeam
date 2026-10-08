@@ -454,12 +454,23 @@ class EmulationControllersTest : public QObject {
     QVERIFY(h.item("optionRow_rich_input") != nullptr);
     QVERIFY(h.item("optionRow_rich_boot") == nullptr);
     QVERIFY(h.click("categoryAll"));
-    // Wide enough: all chips are shown and there is no "+N more".
+    // Wider window: more chips fit than at 960 px. The page column is capped (840 px), so whether all eight chips fit
+    // there depends on the platform font; the "everything fits" case is checked with a short category list below.
+    const auto hiddenCount = [&]() { return visible(h, "categoryMore") ? text(h, "categoryMore").mid(1).split(QLatin1Char(' ')).first().toInt() : 0; };
+    const int hiddenNarrow = hiddenCount();
     h.window->resize(1920, 800);
     QTest::qWait(150);
     QQuickTest::qWaitForPolish(h.window);
+    QVERIFY(hiddenCount() < hiddenNarrow);
+    QVERIFY(visible(h, "category_System"));
+    // Few short categories always fit: all chips are shown and there is no "+N more".
+    emu::CoreProbe few = richProbe();
+    few.categories = {few.categories.at(0), few.categories.at(2)};
+    h.controller->emulation()->setCoreProbe(QStringLiteral("melonds_ds"), few, false);
+    QTest::qWait(150);
+    QQuickTest::qWaitForPolish(h.window);
     QVERIFY(!visible(h, "categoryMore"));
-    QVERIFY(visible(h, "category_Input Devices"));
+    QVERIFY(visible(h, "category_System") && visible(h, "category_Audio"));
   }
 
   void emulationDescriptionOptionList() {
