@@ -143,6 +143,13 @@ See [ADR 0018](adr/0018-player-speed-up.md) (proposed).
 - [x] Done: Emulation settings "Speed-up speed", "Speed-up on start" (default off) and "Audio during speed-up" (default on, resampled; off drops audio) with the global > system > game hierarchy.
 - [x] Done (0.7.x): the speed-up key is configurable in Controllers → Hotkeys.
 - Open: gamepad hotkey.
+- [x] Done (0.7.x follow-up): hardware frames are scaled down on the GPU to the size the view (and, while shared, the stream) needs before the readback; diagnostics show "read back W×H", an honest readback mean and reads per second. melonDS DS ignores `GET_AUDIO_VIDEO_ENABLE`, so it still renders every frame during speed-up.
+
+## 0.7.x Direct GPU display (zero-copy)
+
+Follow-up to ADR 0013 D3 (requested 2026-10-08 after speed-up stutter at 8× internal resolution).
+
+- Open: show hardware-rendered frames in the game view straight from the GPU (shared texture or interop with the Qt Quick scene graph, D3D11 on Windows), without the CPU readback and QImage upload; readback only while the Session is shared.
 
 ## 0.7.x Hotkeys and controller profiles
 
@@ -163,7 +170,7 @@ Design handoff of 2026-10-08 after a friends playtest, imported in [docs/design/
 - [x] Settings rows: one SettingsRow component for Emulation and Settings (3e-2, 3p-2): grid 14 | flex | 280 | 72, changed dot, "More" description with option list, segment/select rule, disabled reason, hover and focus, core-agnostic rendering of the core's options and categories.
 - [ ] Library sort and Ready first, compact SAVE summary, saves view and upload confirmation (3c-2, 3c-3, 3c-4): toolbar with count, Sort menu and "Ready first" (saved per device), NOT READY group divider, empty-result state, "Upload ROM" in the header, saves mode in the 392 column (slot tabs or switcher, CURRENT bar, snapshot, new slot, restore and delete confirmations, file details, offline/running/conflict states, upload with local backup).
 - [ ] Controllers glyphs (3f-2, 3f-3): PadGlyph chips and drawn D-pad icons, "Button labels" select (Auto, Xbox, PlayStation, Generic; saved per device), mapping table `14 | flex | 240 | 72`, controller-shaped input test grid.
-- [ ] Hub saves upload (3s-2, 3s-3): "Upload save" panel in the CURRENT bar, standalone form removed, Library row link opens the panel, timeline reasons "Uploaded" and "Before upload", upload counts in retention, states (identical file, blocked while a session runs), undo link.
+- [x] Hub saves upload (3s-2, 3s-3): "Upload save" panel in the CURRENT bar, standalone form removed, Library row link opens the panel, timeline reasons "Uploaded" and "Before upload", upload counts in retention, states (identical file, blocked while a session runs), undo link.
 - [ ] In-game header, panel and diagnostics (3g-2, 3g-3, 3r-2, 3h-2, 3i-2, 3t-2, 3x-2, 3c-5): GameHeader in five zones with Reset popover and compact 1280 mode, GamePanel (Sharing, Save, Quit game pinned; collapsible rail; remote-tile panel), multiview tile selection vs audio focus and "+ Add" picker, one diagnostics toggle (header + F3) with the overlay at the top right, "Now running" strip, paused background game with Resume/Quit and the quit-and-start dialog.
 
 ## 0.8 Second system: Nintendo 3DS with Azahar

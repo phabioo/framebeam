@@ -63,6 +63,7 @@ void GameSession::start(const LaunchConfig& config) {
   emit fastForwardChanged();
 
   runner_ = std::make_unique<EmulationRunner>(std::make_unique<emu::LibretroBackend>());
+  runner_->setReadbackLimit(limit_);
   EmulationRunner* r = runner_.get();
   connect(r, &EmulationRunner::started, this, [this](const emu::AvInfo& av, const emu::CoreInfo& core) {
     coreName_ = core.version.isEmpty() ? core.name : core.name + QLatin1Char(' ') + core.version;
@@ -246,6 +247,27 @@ int requestedScaleOf(const QMap<QString, QString>& options) {
 }
 }  // namespace
 
+void GameSession::setViewSize(const QObject* view, const QSize& pixels) {
+  if (!view) return;
+  if (pixels.isEmpty()) viewSizes_.remove(view);
+  else viewSizes_.insert(view, pixels);
+  updateReadbackLimit();
+}
+
+void GameSession::setShareSize(const QSize& pixels) {
+  if (shareSize_ == pixels) return;
+  shareSize_ = pixels;
+  updateReadbackLimit();
+}
+
+void GameSession::updateReadbackLimit() {
+  QSize limit;  // empty = nobody reported a size: unlimited
+  for (const QSize& s : std::as_const(viewSizes_)) limit = limit.expandedTo(s);
+  if (!limit.isEmpty()) limit = limit.expandedTo(shareSize_);
+  limit_ = limit;
+  if (runner_) runner_->setReadbackLimit(limit_);
+}
+
 EmulationDiagnostics GameSession::diagnostics() const {
   if (preview_) {
     return previewDiag_;
@@ -262,7 +284,9 @@ EmulationDiagnostics GameSession::diagnostics() const {
   d.api = ri.api;
   d.gpu = ri.gpu;
   d.fallbackReason = ri.fallbackReason;
-  d.frameSize = frame_.size();
+  d.frameSize = runner_->sourceFrameSize();
+  if (d.frameSize.isEmpty()) d.frameSize = frame_.size();
+  if (!frame_.isNull() && frame_.size() != d.frameSize) d.readbackSize = frame_.size();
   d.baseSize = display_.frameSize();
   d.screens = screenCount();
   d.requestedScale = requestedScaleOf(coreOptions_);
@@ -274,6 +298,7 @@ EmulationDiagnostics GameSession::diagnostics() const {
     d.frameMs = t.frameMs;
     d.emuMs = t.emuMs;
     d.readbackMs = t.readbackMs;
+    d.readbacksPerSec = t.readbacksPerSec;
   }
   d.totalHistory.reserve(t.history.size());
   d.emuHistory.reserve(t.history.size());

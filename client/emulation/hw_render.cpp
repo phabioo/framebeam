@@ -10,6 +10,7 @@
 #include <QThread>
 
 #include <algorithm>
+#include <cmath>
 #include <vector>
 
 namespace framebeam::emu {
@@ -58,6 +59,10 @@ struct HwRenderContext::Impl {
   QOpenGLFunctions* f = nullptr;
   QOpenGLExtraFunctions* fx = nullptr;  // glMapBufferRange/glUnmapBuffer (GL 3.0 core, ES 3)
   GLuint fbo = 0, tex = 0, rbo = 0;
+  // Downscale target for readbacks under a size limit (color only); sw x sh is its current size.
+  GLuint scaledFbo = 0, scaledTex = 0;
+  int sw = 0, sh = 0;
+  bool scaleFailed = false;  // blit FBO unusable: full-size readback from now on
   bool depth = false, stencil = false;
   int w = 0, h = 0;
   QString info;
@@ -123,6 +128,56 @@ struct HwRenderContext::Impl {
     while (f->glGetError() != GL_NO_ERROR) {}  // stale errors from the core must not look like ours
     f->glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     return f->glGetError() == GL_NO_ERROR;
+  }
+
+  void releaseScaled() {
+    if (f && scaledFbo) f->glDeleteFramebuffers(1, &scaledFbo);
+    if (f && scaledTex) f->glDeleteTextures(1, &scaledTex);
+    scaledFbo = scaledTex = 0;
+    sw = sh = 0;
+  }
+
+  // (Re)creates the scaled FBO at tw x th if needed. false: not possible (scaleFailed is set).
+  bool ensureScaled(int tw, int th) {
+    if (scaledFbo && sw == tw && sh == th) return true;
+    BindingGuard guard(f);
+    if (!scaledFbo) f->glGenFramebuffers(1, &scaledFbo);
+    if (!scaledTex) f->glGenTextures(1, &scaledTex);
+    while (f->glGetError() != GL_NO_ERROR) {}
+    f->glBindTexture(GL_TEXTURE_2D, scaledTex);
+    f->glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tw, th, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    f->glBindFramebuffer(GL_FRAMEBUFFER, scaledFbo);
+    f->glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, scaledTex, 0);
+    if (f->glGetError() != GL_NO_ERROR || f->glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+      releaseScaled();
+      scaleFailed = true;
+      return false;
+    }
+    sw = tw;
+    sh = th;
+    return true;
+  }
+
+  // Downscales the w x h region of the main FBO into the scaled FBO (flipping vertically when `flip`).
+  // Leaves the scaled FBO bound as GL_FRAMEBUFFER on success.
+  bool blitScaled(int w, int h, int tw, int th, bool flip) {
+    if (!fx || !ensureScaled(tw, th)) return false;
+    const GLboolean scissor = f->glIsEnabled(GL_SCISSOR_TEST);  // the core may leave it on; a blit honours it
+    if (scissor) f->glDisable(GL_SCISSOR_TEST);
+    while (f->glGetError() != GL_NO_ERROR) {}
+    f->glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
+    f->glBindFramebuffer(GL_DRAW_FRAMEBUFFER, scaledFbo);
+    fx->glBlitFramebuffer(0, 0, w, h, 0, flip ? th : 0, tw, flip ? 0 : th, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    const bool ok = f->glGetError() == GL_NO_ERROR;
+    if (scissor) f->glEnable(GL_SCISSOR_TEST);
+    f->glBindFramebuffer(GL_FRAMEBUFFER, scaledFbo);
+    if (!ok) {
+      releaseScaled();
+      scaleFailed = true;
+    }
+    return ok;
   }
 
   bool allocate(int nw, int nh) {
@@ -258,6 +313,7 @@ void HwRenderContext::destroyContext() {
   if (d->ctx) {
     if (d->f && d->ctx->makeCurrent(d->surface)) {
       d->releasePbos();
+      d->releaseScaled();
       if (d->fbo) d->f->glDeleteFramebuffers(1, &d->fbo);
       if (d->tex) d->f->glDeleteTextures(1, &d->tex);
       if (d->rbo) d->f->glDeleteRenderbuffers(1, &d->rbo);
@@ -269,13 +325,21 @@ void HwRenderContext::destroyContext() {
   d->fx = nullptr;
   d->pboSlots[0] = d->pboSlots[1] = {};
   d->fbo = d->tex = d->rbo = 0;
+  d->scaledFbo = d->scaledTex = 0;
+  d->sw = d->sh = 0;
+  d->scaleFailed = false;
   d->w = d->h = 0;
   d->buf.clear();
 }
 
 bool HwRenderContext::hasContext() const { return d->ctx != nullptr; }
 
-bool HwRenderContext::makeCurrent() { return d->ctx && d->surface && d->ctx->makeCurrent(d->surface); }
+bool HwRenderContext::makeCurrent() {
+  if (!d->ctx || !d->surface) return false;
+  // Already current (the normal case: one context per emulation thread): no driver call on every frame.
+  if (QOpenGLContext::currentContext() == d->ctx.get()) return true;
+  return d->ctx->makeCurrent(d->surface);
+}
 void HwRenderContext::doneCurrent() {
   if (d->ctx) d->ctx->doneCurrent();
 }
@@ -336,19 +400,45 @@ QString HwRenderContext::describeGpu(const QString& glRenderer, const QString& g
 
 bool HwRenderContext::asyncReadback() const { return d->async; }
 
-QImage HwRenderContext::readback(int w, int h, bool bottomLeftOrigin) {
+QSize HwRenderContext::scaledReadbackSize(int w, int h, const QSize& maxSize) {
+  if (w <= 0 || h <= 0 || maxSize.width() <= 0 || maxSize.height() <= 0) return QSize(w, h);
+  if (w <= maxSize.width() && h <= maxSize.height()) return QSize(w, h);  // never upscale
+  const double scale = std::min(static_cast<double>(maxSize.width()) / w, static_cast<double>(maxSize.height()) / h);
+  const int tw = std::clamp(static_cast<int>(std::lround(w * scale)), 1, maxSize.width());
+  const int th = std::clamp(static_cast<int>(std::lround(h * scale)), 1, maxSize.height());
+  return QSize(tw, th);
+}
+
+QImage HwRenderContext::readback(int w, int h, bool bottomLeftOrigin, const QSize& maxSize) {
   if (!d->ctx || w <= 0 || h <= 0 || w > d->w || h > d->h) return {};
   BindingGuard guard(d->f);
   d->f->glBindFramebuffer(GL_FRAMEBUFFER, d->fbo);
   d->f->glPixelStorei(GL_PACK_ALIGNMENT, 4);
 
+  // Downscale on the GPU first when the frame is larger than the consumers need.
+  int rw = w, rh = h;
+  bool bottomLeft = bottomLeftOrigin;
+  if (!d->scaleFailed) {
+    const QSize t = scaledReadbackSize(w, h, maxSize);
+    if (t != QSize(w, h)) {
+      if (d->blitScaled(w, h, t.width(), t.height(), bottomLeftOrigin)) {
+        rw = t.width();
+        rh = t.height();
+        bottomLeft = false;  // the blit already flipped
+      } else {
+        qCWarning(lcHw) << "GPU downscale unavailable; reading back full-size frames";
+        d->f->glBindFramebuffer(GL_FRAMEBUFFER, d->fbo);
+      }
+    }
+  }
+
   if (d->async) {
     Impl::Slot& cur = d->pboSlots[d->cur];
     Impl::Slot& prev = d->pboSlots[1 - d->cur];
-    if (d->readIntoSlot(cur, w, h)) {
-      cur.w = w;
-      cur.h = h;
-      cur.bottomLeft = bottomLeftOrigin;
+    if (d->readIntoSlot(cur, rw, rh)) {
+      cur.w = rw;
+      cur.h = rh;
+      cur.bottomLeft = bottomLeft;
       // The first frame (nothing pending) is returned synchronously so it is never empty; later calls map the
       // previous frame, which the GPU finished long ago (one frame of latency, no stall).
       const bool first = prev.w == 0;
@@ -367,9 +457,9 @@ QImage HwRenderContext::readback(int w, int h, bool bottomLeftOrigin) {
   }
 
   d->f->glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
-  d->buf.resize(static_cast<size_t>(w) * static_cast<size_t>(h) * 4);
-  d->f->glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, d->buf.data());
-  return Impl::convert(d->buf.data(), w, h, bottomLeftOrigin);
+  d->buf.resize(static_cast<size_t>(rw) * static_cast<size_t>(rh) * 4);
+  d->f->glReadPixels(0, 0, rw, rh, GL_RGBA, GL_UNSIGNED_BYTE, d->buf.data());
+  return Impl::convert(d->buf.data(), rw, rh, bottomLeft);
 }
 
 }  // namespace framebeam::emu
