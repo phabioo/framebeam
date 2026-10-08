@@ -26,9 +26,19 @@ Rectangle {
 
         RowLayout {
             spacing: Theme.space10
+            Layout.fillWidth: true
             Layout.leftMargin: 4
+            // The header must never widen the column (and with it every fillWidth block below, e.g. the Now running
+            // strip) when the font is wide: the title elides instead.
+            Layout.minimumWidth: 0
             Logo { size: 22 }
-            FbLabel { text: qsTr("FrameBeam Player"); font.pixelSize: Theme.fontCard; font.weight: Font.DemiBold }
+            FbLabel {
+                Layout.fillWidth: true
+                text: qsTr("FrameBeam Player")
+                elide: Text.ElideRight
+                font.pixelSize: Theme.fontCard
+                font.weight: Font.DemiBold
+            }
         }
 
         ColumnLayout {

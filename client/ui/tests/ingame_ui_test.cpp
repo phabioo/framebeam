@@ -420,7 +420,10 @@ class InGameUiTest : public QObject {
     QCOMPARE(ctl->tab(), QStringLiteral("multiview"));
 
     // Multiview with only your game: same zones, "+ Add · 1/4", the picker is closed and does not open on its own
-    QVERIFY(shown(h, "yourGameLabel") && shown(h, "addSessionToggle") && shown(h, "pauseButton") && shown(h, "multiviewTitle"));
+    QVERIFY(shown(h, "addSessionToggle") && shown(h, "pauseButton"));
+    // The optional texts ("Multiview", "YOUR GAME") give way only when the font is so wide that the zones would overlap.
+    QVERIFY2(rectOf(h, "modeSegment").right() <= rectOf(h, "gameControls").left(), "mode switch and game controls must not overlap");
+    QVERIFY2(rectOf(h, "gameControls").right() <= rectOf(h, "viewSegment").left(), "game controls and view switch must not overlap");
     QVERIFY(!shown(h, "multiviewSessionList") && !shown(h, "pickerPopover"));
     QCOMPARE(textOf(visibleItem(h, "addSessionToggle")), QStringLiteral("+ Add"));
     QCOMPARE(visibleItem(h, "addSessionToggle")->property("meta").toString(), QStringLiteral("· 1/4"));

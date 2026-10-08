@@ -39,8 +39,25 @@ Rectangle {
                                                   : qsTr("Not shared")
     readonly property var watchLink: ctl.surfaceLinks[ctl.surfaceOrder.length > 0 ? ctl.surfaceOrder[0] : ""] || null
 
+    // Wide fonts: when the five zones do not fit at their preferred widths, the optional Multiview texts give way
+    // ("Multiview" title first, then the "YOUR GAME" label) instead of the zones overlapping (the context zone is
+    // squeezed below its mode switch otherwise and the controls cover it). `need` is the preferred width with both texts
+    // shown, derived from the current implicit width, so the result does not depend on what is hidden right now.
+    property bool hideMultiTitle: false
+    property bool hideYourGame: false
+    function updateFit() {
+        const titleW = multiTitle.implicitWidth + 10
+        const labelW = yourGame.implicitWidth + 20
+        const need = headerRow.implicitWidth + (multiTitle.visible ? 0 : titleW) + (yourGame.visible ? 0 : labelW)
+        hideMultiTitle = need > headerRow.width
+        hideYourGame = need - titleW > headerRow.width
+    }
+
     RowLayout {
+        id: headerRow
         anchors.fill: parent
+        onWidthChanged: root.updateFit()
+        onImplicitWidthChanged: root.updateFit()
         anchors.leftMargin: 16
         anchors.rightMargin: 16
         spacing: 12
@@ -112,8 +129,9 @@ Rectangle {
             }
             // Multiview: title + mode
             FbLabel {
+                id: multiTitle
                 objectName: "multiviewTitle"
-                visible: root.multi && !root.narrow
+                visible: root.multi && !root.narrow && !root.hideMultiTitle
                 Layout.minimumWidth: 0
                 text: qsTr("Multiview")
                 color: Theme.gameText
@@ -153,8 +171,9 @@ Rectangle {
                 anchors.margins: 2
                 spacing: 2
                 ColumnLayout {
+                    id: yourGame
                     objectName: "yourGameLabel"
-                    visible: root.multi && !root.narrow
+                    visible: root.multi && !root.narrow && !root.hideYourGame
                     Layout.leftMargin: 8
                     Layout.rightMargin: 10
                     spacing: 1
