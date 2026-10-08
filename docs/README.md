@@ -42,7 +42,8 @@ Start with the [root README](../README.md) for what FrameBeam is and a quick sta
   [0013 OpenGL hardware rendering](adr/0013-opengl-hardware-rendering.md),
   [0014 Player UI pass](adr/0014-player-ui-pass.md),
   [0015 Hub UI pass](adr/0015-hub-ui-pass.md),
-  [0016 release numbering and promotion](adr/0016-release-numbering-and-promotion.md)
+  [0016 release numbering and promotion](adr/0016-release-numbering-and-promotion.md),
+  [0017 Player tech debt](adr/0017-player-tech-debt.md)
 
 ## Conventions
 

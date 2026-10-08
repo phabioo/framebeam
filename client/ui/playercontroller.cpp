@@ -19,6 +19,7 @@
 #include "installroot.h"
 #include "libretro_backend.h"
 #include "mediacaps.h"
+#include "semver.h"
 #include "version.h"
 
 namespace framebeam::ui {
@@ -1583,14 +1584,23 @@ void PlayerController::onCoreFinished(const CoreResult& result) {
   }
   coreProblems_.insert(man->coreId, result.problem);
   emu::CoreLocation loc;
+  QString blockedText;
   if (result.problem != QLatin1String("untrusted") && coreUsable(*man, &loc)) {
-    // Another version of the core is cached (or env/legacy): the game still starts with it (version mismatch is only a warning).
-    continueStartAfterCore(*game, *man);
-    return;
+    // Another version of the core is cached (or env/legacy): the game still starts with it, unless the cached core's
+    // major version differs from the one the Hub expects (ADR 0017). Explicit/env/app-dir cores are never blocked.
+    QString hubVersion;
+    hubOffersCore(*man, &hubVersion);
+    if (loc.source != QLatin1String("cache") ||
+        update::coreVersionVerdict(loc.version, hubVersion) != update::CoreVersionVerdict::Block) {
+      continueStartAfterCore(*game, *man);
+      return;
+    }
+    blockedText = tr("The cached core %1 %2 is not compatible with version %3 the Hub expects. The game was not started.")
+                      .arg(man->coreId, loc.version, hubVersion);
   }
   phase_ = PlayPhase::None;
   shareOnStart_ = false;
-  startError_ = tr("%1. The game was not started.").arg(coreProblemText(result.problem));
+  startError_ = blockedText.isEmpty() ? tr("%1. The game was not started.").arg(coreProblemText(result.problem)) : blockedText;
   emit selectedGameChanged();
 }
 
