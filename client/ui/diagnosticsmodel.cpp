@@ -140,6 +140,9 @@ QVariantMap DiagnosticsModel::emulationMap(const EmulationDiagnostics& d) {
   if (!d.frameSize.isEmpty()) {
     const int scale = d.baseSize.width() > 0 ? std::max(1, static_cast<int>(std::lround(static_cast<double>(d.frameSize.width()) / d.baseSize.width()))) : 1;
     resolution = tr("%1× · %2×%3").arg(scale).arg(d.frameSize.width()).arg(d.frameSize.height());
+    if (!d.readbackSize.isEmpty() && d.readbackSize != d.frameSize) {
+      resolution += tr(" → read back %1×%2").arg(d.readbackSize.width()).arg(d.readbackSize.height());
+    }
     if (fallback && d.requestedScale > 1) {
       resolutionSub = tr("%1× requested · needs OpenGL").arg(d.requestedScale);
     } else if (d.screens > 1) {
@@ -157,7 +160,8 @@ QVariantMap DiagnosticsModel::emulationMap(const EmulationDiagnostics& d) {
   // Frame time split
   QString frame = dash();
   if (running) {
-    frame = hw ? tr("%1 ms · emu %2 · readback %3").arg(fixed(d.frameMs, 1), fixed(d.emuMs, 1), fixed(d.readbackMs, 1))
+    frame = hw ? tr("%1 ms · emu %2 · readback %3 (%4/s)")
+                     .arg(fixed(d.frameMs, 1), fixed(d.emuMs, 1), fixed(d.readbackMs, 1), QString::number(qRound(d.readbacksPerSec)))
                : tr("%1 ms · emu %2 · no readback").arg(fixed(d.frameMs, 1), fixed(d.emuMs, 1));
   }
   m.insert(QStringLiteral("frame"), frame);

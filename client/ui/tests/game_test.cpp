@@ -1,5 +1,6 @@
 // Game view with the real melonDS DS core and the homebrew test ROM (NEEDS_CORE: return code 77 without a core).
 #include <QFile>
+#include <QQuickWindow>
 #include <QSignalSpy>
 #include <QtTest>
 
@@ -14,6 +15,49 @@ using uitest::Harness;
 class GameTest : public QObject {
   Q_OBJECT
  private slots:
+  // The view reports the physical pixel size it shows the frame at; the session derives the readback limit.
+  void viewReportsPhysicalSizeToSession() {
+    emu::DisplayProfile profile;
+    profile.layout = QStringLiteral("vertical");
+    profile.gap = 0;
+    profile.screens = {{QStringLiteral("top"), 256, 192, false}, {QStringLiteral("bottom"), 256, 192, true}};
+    GameSession gs;
+    QImage frame(1024, 1536, QImage::Format_RGB32);  // a 4x internal resolution frame
+    frame.fill(QColor(40, 90, 140));
+    gs.setPreview(QStringLiteral("t"), frame, profile, EmulationDiagnostics());
+    QCOMPARE(gs.readbackLimit(), QSize());  // no view yet: unlimited
+
+    QQuickWindow window;
+    window.resize(1000, 1000);
+    const qreal dpr = window.effectiveDevicePixelRatio();
+    {
+      GameView view;
+      view.setParentItem(window.contentItem());
+      view.setSize(QSizeF(300, 450));
+      view.setSession(&gs);
+      const auto expected = [&](qreal w, qreal h) { return QSize(qCeil(w * dpr - 1e-6), qCeil(h * dpr - 1e-6)); };
+      QCOMPARE(gs.readbackLimit(), expected(300, 450));
+      view.setSize(QSizeF(600, 900));  // resize: reported again
+      QCOMPARE(gs.readbackLimit(), expected(600, 900));
+      // The Session encoder needs more than a small view: the larger of both applies while shared.
+      gs.setShareSize(QSize(1280, 1920));
+      QCOMPARE(gs.readbackLimit(), QSize(1280, 1920).expandedTo(expected(600, 900)));
+      gs.setShareSize(QSize());
+      QCOMPARE(gs.readbackLimit(), expected(600, 900));
+      // A second view of the same game (multiview/fullscreen): the larger one wins.
+      GameView other;
+      other.setParentItem(window.contentItem());
+      other.setSize(QSizeF(900, 1350));
+      other.setSession(&gs);
+      QCOMPARE(gs.readbackLimit(), expected(900, 1350));
+    }
+    QCOMPARE(gs.readbackLimit(), QSize());  // views gone: no limit again
+    // devicePixelRatio: physical = logical * ratio, rounded up
+    QCOMPARE(GameView::physicalSize(QSizeF(300, 450), 2.0), QSize(600, 900));
+    QCOMPARE(GameView::physicalSize(QSizeF(301.2, 450.5), 1.5), QSize(452, 676));
+    QCOMPARE(GameView::physicalSize(QSizeF(), 2.0), QSize());
+  }
+
   void playTestRom() {
     if (qEnvironmentVariableIsEmpty("FRAMEBEAM_MELONDS_DS_CORE")) {
       QSKIP("FRAMEBEAM_MELONDS_DS_CORE not set");

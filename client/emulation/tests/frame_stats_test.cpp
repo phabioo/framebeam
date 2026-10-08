@@ -61,6 +61,18 @@ class FrameStatsTest : public QObject {
     QVERIFY(qAbs(b.emuMs + b.readbackMs - b.frameMs) < 0.001);
   }
 
+  void readbackIsAveragedOverAllFramesWithCount() {
+    FrameTimingStats s;
+    // 100 frames at 100/s; every 5th reads back for 2.5 ms, the others (skipped video) do not.
+    for (int i = 0; i < 100; ++i) s.recordFrame(i * 10, 3.0, i % 5 == 0 ? 2.5 : 0.0);
+    const auto snap = s.snapshot(995);
+    QVERIFY(snap.valid);
+    QVERIFY(qAbs(snap.readbackMs - 0.5) < 0.01);         // mean over all frames, not the last value
+    QVERIFY(qAbs(snap.readbackMsPerRead - 2.5) < 0.01);  // per actual readback
+    QVERIFY(qAbs(snap.readbacksPerSec - 20.0) < 0.5);
+    QVERIFY(qAbs(snap.emuMs - 2.5) < 0.01);
+  }
+
   void readbackNeverExceedsTheFrame() {
     FrameTimingStats s;
     s.recordFrame(10, 4.0, 9.0);  // bogus readback larger than the frame: clamped
