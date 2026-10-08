@@ -78,6 +78,8 @@ class SaveSync : public QObject {
   SaveApi* api() { return &api_; }
   // Hub advertises saves_v2 (restore, snapshots, save_updated).
   bool hubSupportsSavesV2() const;
+  // Hub advertises saves_v4 (upload of a local save file).
+  bool hubSupportsSavesV4() const;
 
   // The game runs (or its Session just ended) with this slot on this Player.
   bool isRunning(const QString& gameId, const QString& slot = QString()) const {
@@ -91,6 +93,10 @@ class SaveSync : public QObject {
   // local save of the slot becomes the new checkpoint (download); `localFileName` names the file if none exists yet.
   void restoreVersion(const QString& gameId, const QString& slot, int version, int expectedRevision, const QString& localFileName,
                       RestoreCallback cb);
+  // saves_v4: make a local file the Hub's current save of the slot (and the local save). Same block rules as restore;
+  // the file must be non-empty and at most kMaxSaveBytes. `expectedRevision` 0 = no save on the Hub yet.
+  void uploadSaveFile(const QString& gameId, const QString& slot, const QString& filePath, int expectedRevision,
+                      const QString& localFileName, RestoreCallback cb);
   // Snapshot of the Hub's current checkpoint (game not running here).
   void createSnapshot(const QString& gameId, const QString& slot, const QString& label, SnapshotCallback cb);
   // In game: first uploads a changed save through the final-sync path, then creates the snapshot.

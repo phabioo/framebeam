@@ -577,6 +577,38 @@ void FakeHub::handleSaves(QSslSocket* sock, const FakeRequest& req) {
     v.label = QJsonDocument::fromJson(req.body).object().value(QStringLiteral("label")).toString();
     s.history.append(v);
     respond(sock, 201, json(versionJson(v)));
+  } else if (parts.size() == 7 && parts.at(6) == QLatin1String("upload") && req.method == "POST") {
+    if (req.body.size() > uploadLimit) {
+      respondError(sock, 413, QStringLiteral("payload_too_large"));
+      return;
+    }
+    const QString actual = QString::fromLatin1(QCryptographicHash::hash(req.body, QCryptographicHash::Sha256).toHex());
+    if (req.body.isEmpty() || actual != sha256Hdr) {
+      respondError(sock, 400, QStringLiteral("bad_request"));
+      return;
+    }
+    FakeSlot& s = saves[key];
+    if (req.headers.value(QStringLiteral("x-framebeam-expected-revision")).toInt() != (exists ? s.revision : 0)) {
+      respondError(sock, 409, QStringLiteral("save_conflict_stale"));
+      return;
+    }
+    if (exists) {
+      FakeVersion before;
+      before.version = s.nextVersion++;
+      before.revision = s.revision;
+      before.content = s.content;
+      before.deviceId = s.deviceId;
+      before.deviceName = s.deviceName;
+      before.reason = QStringLiteral("before_upload");
+      s.history.append(before);
+    }
+    s.revision += 1;
+    s.content = req.body;
+    s.deviceId = callerDeviceId;
+    s.deviceName = QStringLiteral("Test Device");
+    s.reason = QStringLiteral("upload");
+    ++uploadCount;
+    respond(sock, 200, json(slotJson(key, s)));
   } else if (parts.size() == 9 && parts.at(6) == QLatin1String("history") && parts.at(8) == QLatin1String("restore") &&
              req.method == "POST") {
     if (!exists) {

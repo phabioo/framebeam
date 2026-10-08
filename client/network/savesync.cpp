@@ -66,6 +66,10 @@ bool SaveSync::hubSupportsSavesV2() const {
   return hubSupportsSaves() && conn_->hubHasFeature(QString::fromLatin1(kSavesV2Feature));
 }
 
+bool SaveSync::hubSupportsSavesV4() const {
+  return hubSupportsSavesV2() && conn_->hubHasFeature(QString::fromLatin1(kSavesV4Feature));
+}
+
 QString SaveSync::slotFor(const QString& gameId) const {
   const QString hubId = conn_->hubId();
   if (settings_ != nullptr) {
@@ -947,6 +951,115 @@ void SaveSync::restoreVersion(const QString& gameId, const QString& slot, int ve
       }
       cb({RK::Ok, QString(), cr.contentRevision, true});
     });
+  });
+}
+
+void SaveSync::uploadSaveFile(const QString& gameId, const QString& slot, const QString& filePath, int expectedRevision,
+                              const QString& localFileName, RestoreCallback cb) {
+  using RK = RestoreResult::Outcome;
+  const auto finish = [this, cb](RK kind, const QString& message) {
+    RestoreResult r;
+    r.kind = kind;
+    r.message = message;
+    QTimer::singleShot(0, this, [cb, r]() { cb(r); });
+  };
+  if (!hubSupportsSavesV4() || !available()) {
+    finish(RK::Failed, tr("The Hub does not support uploading save files."));
+    return;
+  }
+  if (const QString why = pendingReason(gameId, slot); !why.isEmpty()) {
+    finish(RK::Blocked, why);
+    return;
+  }
+  const QFileInfo info(filePath);
+  if (!info.isFile()) {
+    finish(RK::Failed, tr("The file could not be read."));
+    return;
+  }
+  if (info.size() == 0) {
+    finish(RK::Failed, tr("The file is empty. Nothing was uploaded."));
+    return;
+  }
+  if (info.size() > kMaxSaveBytes) {
+    finish(RK::Failed, tr("The file is larger than %1 MiB. Nothing was uploaded.").arg(kMaxSaveBytes / (1024 * 1024)));
+    return;
+  }
+  QFile in(filePath);
+  if (!in.open(QIODevice::ReadOnly)) {
+    finish(RK::Failed, tr("The file could not be read."));
+    return;
+  }
+  const QByteArray data = in.readAll();
+  in.close();
+  if (data.isEmpty()) {
+    finish(RK::Failed, tr("The file is empty. Nothing was uploaded."));
+    return;
+  }
+  const QString hubId = conn_->hubId();
+  api_.uploadFile(gameId, slot, data, expectedRevision, [=, this](const SaveApiResult& r) {
+    using K = SaveApiResult::Kind;
+    if (!sameHub(hubId)) {
+      cb({RK::Failed, tr("The Hub connection changed."), 0, false});
+      return;
+    }
+    switch (r.kind) {
+      case K::Ok:
+        break;
+      case K::Stale:
+        cb({RK::Stale, tr("The save changed on the Hub in the meantime. Nothing was uploaded."), 0, false});
+        return;
+      case K::NotFound:
+        cb({RK::NotFound, tr("The game or slot was not found on the Hub."), 0, false});
+        return;
+      case K::Offline:
+        cb({RK::Offline, tr("Hub not reachable. Nothing was changed."), 0, false});
+        return;
+      default:
+        if (r.errorCode == QLatin1String("payload_too_large")) {
+          cb({RK::Failed, tr("The file is too large for the Hub (limit %1 MiB). Nothing was uploaded.").arg(kMaxSaveBytes / (1024 * 1024)), 0, false});
+        } else {
+          cb({RK::Failed, tr("The file could not be uploaded (%1). Nothing was changed.").arg(r.errorCode.isEmpty() ? QString::number(r.status) : r.errorCode),
+              0, false});
+        }
+        return;
+    }
+    const int newRevision = r.slot->current.revision;
+    // The Hub took the file. Make it the local save of the slot, too (backup first); nothing unsynced exists here.
+    const QString dir = slotDirFor(gameId, slot);
+    if (dir.isEmpty() || (SaveStore::findSaveFile(dir, QString()).isEmpty() && localFileName.isEmpty())) {
+      cb({RK::Ok, QString(), newRevision, false});  // no local file: the next start downloads the checkpoint
+      return;
+    }
+    if (!pendingReason(gameId, slot).isEmpty()) {
+      cb({RK::Ok, tr("Uploaded to the Hub; the local save will be updated at the next start."), newRevision, false});
+      return;
+    }
+    QDir().mkpath(dir);
+    QString file = SaveStore::findSaveFile(dir, localFileName);
+    if (file.isEmpty()) {
+      file = QDir(dir).filePath(localFileName);
+    }
+    if (QFileInfo(file).isFile() && SaveStore::backupFile(file, QStringLiteral("upload")).isEmpty()) {
+      cb({RK::Ok, tr("Uploaded to the Hub; the local save could not be backed up and stays unchanged until the next start."),
+          newRevision, false});
+      return;
+    }
+    if (!SaveStore::atomicWrite(file, data)) {
+      cb({RK::Ok, tr("Uploaded to the Hub; the local save could not be written."), newRevision, false});
+      return;
+    }
+    SyncState st = SaveStore::loadState(dir);
+    st.slot = slot;
+    st.baseRevision = newRevision;
+    st.lastSyncedSha256 = SaveStore::sha256Of(data);
+    st.pending = false;
+    st.conflictId.clear();
+    st.lastError.clear();
+    SaveStore::saveState(dir, st);
+    if (slot == slotFor(gameId)) {
+      setKind(gameId, st, true);
+    }
+    cb({RK::Ok, QString(), newRevision, true});
   });
 }
 

@@ -27,6 +27,7 @@ const (
 	SyncFinal           = "final"
 	SyncFinalSessionEnd = "final_session_end"
 	SyncRestore         = "restore" // checkpoint reason only (restore of a history version)
+	SyncUpload          = "upload"  // checkpoint reason only (save file uploaded via UploadSaveFile)
 )
 
 // PushConflictResolution is the save_updated reason when a conflict resolution changed the checkpoint.
@@ -40,6 +41,7 @@ const (
 	HistoryConflictUpload   = "conflict_upload"
 	HistoryManualSnapshot   = "manual_snapshot"
 	HistoryBeforeRestore    = "before_restore"
+	HistoryBeforeUpload     = "before_upload"
 )
 
 // MaxSnapshotLabel is the maximum length of a snapshot label in characters.
@@ -766,6 +768,9 @@ const FeatureSavesV1 = "saves_v1"
 
 // FeatureSavesV3 is the handshake feature flag for deleting manual snapshots.
 const FeatureSavesV3 = "saves_v3"
+
+// FeatureSavesV4 is the handshake feature flag for uploading a save file into a slot.
+const FeatureSavesV4 = "saves_v4"
 
 // FeatureSavesV2 is the handshake feature flag for restore, snapshots, history labels and the save_updated push.
 const FeatureSavesV2 = "saves_v2"

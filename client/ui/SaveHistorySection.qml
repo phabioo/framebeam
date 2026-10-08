@@ -14,6 +14,28 @@ ColumnLayout {
     visible: hist.slotsAvailable
     spacing: 10
 
+    // "Upload save file...": native file dialog (SaveFileDialog.qml, QtQuick.Dialogs) when the module is installed,
+    // otherwise a path field.
+    property bool pathPromptOpen: false
+    Loader {
+        id: saveFileDialogLoader
+        active: false
+        source: "SaveFileDialog.qml"
+        onLoaded: item.history = root.hist
+    }
+    function openSaveFileDialog(field) {
+        if (root.pathPromptOpen) {
+            root.hist.requestUploadFile(field.text)
+            return
+        }
+        saveFileDialogLoader.active = true
+        if (saveFileDialogLoader.status === Loader.Ready && saveFileDialogLoader.item !== null) {
+            saveFileDialogLoader.item.open()
+        } else {
+            root.pathPromptOpen = true
+        }
+    }
+
     function createSlot() {
         root.newSlotError = root.hist.createSlot(newSlotField.text)
         if (root.newSlotError === "") {
@@ -241,14 +263,43 @@ ColumnLayout {
 
         FbLabel {
             objectName: "restoreBlockReason"
-            visible: root.hist.restoreBlockReason !== "" && root.hist.history.length > 0
+            visible: root.hist.restoreBlockReason !== "" && (root.hist.history.length > 0 || root.hist.canUploadFile)
             Layout.fillWidth: true
             Layout.minimumWidth: 0
             Layout.preferredWidth: 1
-            text: qsTr("Restore is off: %1").arg(root.hist.restoreBlockReason)
+            text: qsTr("Restore and upload are off: %1").arg(root.hist.restoreBlockReason)
             color: Theme.textFaint
             font.pixelSize: 12
             wrapMode: Text.WordWrap
+        }
+
+        // Upload a local save file (saves_v4)
+        RowLayout {
+            objectName: "uploadSaveRow"
+            visible: root.hist.canUploadFile
+            Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            Layout.preferredWidth: 1
+            spacing: 8
+            FbField {
+                id: uploadPath
+                objectName: "uploadPathField"
+                visible: root.pathPromptOpen
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                Layout.preferredWidth: 1
+                implicitHeight: 34
+                placeholderText: qsTr("Path to the save file")
+                onAccepted: root.hist.requestUploadFile(text)
+            }
+            Item { visible: !root.pathPromptOpen; Layout.fillWidth: true }
+            FbButton {
+                objectName: "uploadSaveButton"
+                implicitHeight: 34
+                text: root.pathPromptOpen ? qsTr("Choose") : qsTr("Upload save file…")
+                enabled: root.hist.restoreBlockReason === "" && !root.hist.busy
+                onClicked: root.openSaveFileDialog(uploadPath)
+            }
         }
 
         // Snapshot

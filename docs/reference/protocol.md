@@ -5,7 +5,7 @@ Shared protocol definition for Hub and Player: `protocol/openapi/framebeam.yaml`
 - Current `protocol_version`: **1** (integer, separate from product versions). Hub and Player each report `protocol_version` and `min_protocol_version`.
 - Compatibility: `Player.protocol_version < Hub.min_protocol_version` -> `player_too_old`; `Hub.protocol_version < Player.min_protocol_version` -> `hub_too_old`.
 - Error format: `{"error": {"code": <enum>, "message": string}}`. Auth: Bearer (`fba_` access token, 15 min, `fbd_` device credential, `fbp_` poll token).
-- Current OpenAPI spec version: 1.7.0 (history per milestone below). Handshake features: `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1` (only advertised when the caller may upload), `firmware_v1`, `cores_v1`, `turn_v1` (only with TURN on), `saves_v2`, `cores_index_v1`, `saves_v3`.
+- Current OpenAPI spec version: 1.8.0 (history per milestone below). Handshake features: `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1` (only advertised when the caller may upload), `firmware_v1`, `cores_v1`, `turn_v1` (only with TURN on), `saves_v2`, `cores_index_v1`, `saves_v3`, `saves_v4`.
 
 | Method | Path | Auth | operationId |
 |---|---|---|---|
@@ -27,6 +27,7 @@ Shared protocol definition for Hub and Player: `protocol/openapi/framebeam.yaml`
 | POST | `/api/v1/games/{game_id}/saves/{slot}/history/{version}/restore` | Bearer | restoreSaveHistoryVersion (`{expected_revision}`, 200 SaveSlot, 409 `save_conflict_stale`; `saves_v2`) |
 | POST | `/api/v1/games/{game_id}/saves/{slot}/snapshots` | Bearer | createSaveSnapshot (optional `{label}`, 201 SaveHistoryVersion, 404 without checkpoint; `saves_v2`) |
 | DELETE | `/api/v1/games/{game_id}/saves/{slot}/history/{version}` | Bearer | deleteSaveSnapshot (204; only `manual_snapshot`, else 409 `save_not_snapshot`; 404 when missing; `saves_v3`) |
+| POST | `/api/v1/games/{game_id}/saves/{slot}/upload` | Bearer | uploadSaveFile (raw `application/octet-stream`, headers `X-FrameBeam-Content-SHA256` and `X-FrameBeam-Expected-Revision`, 0 = slot must not exist; 200 SaveSlot, 400 `bad_request`, 404, 409 `save_conflict_stale`, 413 `payload_too_large`; `saves_v4`) |
 | POST | `/api/v1/games/{game_id}/saves/{slot}/conflicts/{conflict_id}/resolve` | Bearer | resolveSaveConflict (409 `save_conflict_stale`) |
 | GET | `/api/v1/users` | Bearer | listUsers (`{id, display_name, online}` for the invite field) |
 | GET | `/api/v1/sessions` | Bearer | listSessions (Sessions the caller may join or owns, plus inviting) |
@@ -65,7 +66,7 @@ Envelope `{type, id?, payload}` (JSON text frames); schema `schemas/ws-<type>.sc
 | `hello_ack` | Hub -> Player | `{protocol_version, hub_version, features, ice_servers, turn_servers?}` (`turn_servers` only while TURN is on, feature `turn_v1`) |
 | `presence_update` | both | Player: `{state: online\|in_game, game_id?}`; Hub: plus `user_id`, `device_id`, state may be `offline` |
 | `session_update` | Hub -> Player | `{session}` created/changed, personalised, to every device that may see the Session |
-| `save_updated` | Hub -> Player | `{game_id, slot, revision, sha256, device_id, device_name, reason}` a slot's checkpoint changed; to the user's other connected devices (feature `saves_v2`); `reason` is `checkpoint`, `final`, `final_session_end`, `restore` or `conflict_resolution`; `device_id` is the nil UUID for changes made in the Hub web interface |
+| `save_updated` | Hub -> Player | `{game_id, slot, revision, sha256, device_id, device_name, reason}` a slot's checkpoint changed; to the user's other connected devices (feature `saves_v2`); `reason` is `checkpoint`, `final`, `final_session_end`, `restore`, `upload` or `conflict_resolution`; `device_id` is the nil UUID for changes made in the Hub web interface |
 | `session_ended` | Hub -> Player | `{session_id, reason}` |
 | `session_invite` | Hub -> Player | `{session}` for the invited user's devices |
 | `viewer_joined` | Hub -> owner device | `{session_id, viewer_id, display_name, device_name, turn_servers?}` (`turn_servers`: fresh relay credentials for the owner while TURN is on) |
@@ -82,3 +83,5 @@ Envelope `{type, id?, payload}` (JSON text frames); schema `schemas/ws-<type>.sc
 0.7.x "Handshake user" (OpenAPI 1.7.0, `protocol_version` stays 1). Added: optional `user` (`HandshakeUser`: `id`, `display_name`, `role` admin|user) in `HandshakeResponse`, the Hub user the authenticated device belongs to.
 
 The release feed of the updaters is specified in [update-index.md](update-index.md).
+
+0.8 "Upload a save file" (OpenAPI 1.8.0, `protocol_version` stays 1). Added: handshake feature `saves_v4`; `uploadSaveFile` (`POST .../saves/{slot}/upload`): deliberate replacement of a slot's checkpoint with a file from outside the sync flow (for example a `.sav` from another emulator); it never creates a conflict, a stale `X-FrameBeam-Expected-Revision` returns 409 `save_conflict_stale`, an existing checkpoint is secured in the history first; `SaveSyncReason` `upload`, `SaveHistoryReason` `before_upload`; `save_updated` `reason` `upload`. The Hub web interface offers the same upload for admins.

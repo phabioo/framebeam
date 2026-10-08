@@ -231,7 +231,7 @@ func TestHandshakeAndHelloAckAdvertiseSavesV2(t *testing.T) {
 	rec := s.do("POST", "/api/v1/handshake", handshakeBody(1, 1), opt{token: d.tok})
 	wantStatus(t, rec, 200, "")
 	f := strings.Join(decode[struct{ Features []string }](t, rec).Features, ",")
-	if !strings.Contains(f, "saves_v2") || !strings.Contains(f, "saves_v3") || !strings.Contains(f, "cores_index_v1") {
+	if !strings.Contains(f, "saves_v2") || !strings.Contains(f, "saves_v3") || !strings.Contains(f, "saves_v4") || !strings.Contains(f, "cores_index_v1") {
 		t.Fatal(f)
 	}
 }

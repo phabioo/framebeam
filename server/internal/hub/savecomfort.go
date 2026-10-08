@@ -87,6 +87,105 @@ func (s *Service) RestoreSaveVersion(ctx context.Context, in RestoreInput) (_ Sa
 	return out, nil
 }
 
+// UploadSaveInput is a deliberate save file upload (feature saves_v4). DeviceID is the caller's device, or
+// WebDeviceID(user) for the web interface. ExpectedRevision nil = no check (web only); otherwise 0 = the slot must
+// not exist yet, N = the current checkpoint revision must be N.
+type UploadSaveInput struct {
+	UserID, DeviceID, GameID, Slot string
+	ExpectedRevision               *int
+	SHA256                         string // claimed hash, verified; "" = not checked (web)
+	Body                           io.Reader
+}
+
+// UploadSaveFile makes the body the new checkpoint of a slot (revision + 1, reason upload, device = caller), or
+// creates the slot at revision 1. An existing checkpoint first goes to history (before_upload) unless a version of it
+// exists. Identical content changes nothing. A wrong expected revision returns ErrSaveConflictStale.
+func (s *Service) UploadSaveFile(ctx context.Context, in UploadSaveInput) (_ SaveSlot, err error) {
+	defer s.publishOK(&err, TopicSaves, TopicLibrary)
+	if !ValidSlotName(in.Slot) {
+		return SaveSlot{}, badRequest("Invalid slot name")
+	}
+	if in.SHA256 != "" && !ValidSHA256(in.SHA256) {
+		return SaveSlot{}, badRequest("Invalid content hash")
+	}
+	if in.ExpectedRevision != nil && *in.ExpectedRevision < 0 {
+		return SaveSlot{}, badRequest("Invalid expected revision")
+	}
+	if _, err := s.GetGame(ctx, in.GameID); err != nil {
+		return SaveSlot{}, err
+	}
+	tmpName, sha, size, err := s.stageUpload(in.Body)
+	defer os.Remove(tmpName) // no effect after a successful rename
+	if err != nil {
+		return SaveSlot{}, err
+	}
+	if size == 0 {
+		return SaveSlot{}, badRequest("Save file is empty")
+	}
+	if in.SHA256 != "" && sha != in.SHA256 {
+		return SaveSlot{}, badRequest("Content hash does not match the body")
+	}
+
+	s.saveMu.Lock()
+	defer s.saveMu.Unlock()
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return SaveSlot{}, internal(err)
+	}
+	defer tx.Rollback()
+	u, g, sl := in.UserID, in.GameID, in.Slot
+	cur, err := loadCheckpoint(ctx, tx, u, g, sl)
+	exists := err == nil
+	if err != nil && !errors.Is(err, ErrNotFound) {
+		return SaveSlot{}, err
+	}
+	if exists && cur.SHA256 == sha { // idempotent
+		out, err := loadSlot(ctx, tx, u, g, sl)
+		if err != nil {
+			return SaveSlot{}, err
+		}
+		return out, nil
+	}
+	if want := in.ExpectedRevision; want != nil && (exists && *want != cur.Revision || !exists && *want != 0) {
+		return SaveSlot{}, ErrSaveConflictStale
+	}
+	dst := s.saveFile(u, g, sl, sha)
+	placed, err := placeContent(tmpName, dst)
+	if err != nil {
+		return SaveSlot{}, internal(err)
+	}
+	committed := false
+	defer func() {
+		if !committed && placed {
+			os.Remove(dst)
+		}
+	}()
+	rev := 1
+	if exists {
+		rev = cur.Revision + 1
+		if err := captureCheckpoint(ctx, tx, u, g, sl, cur, HistoryBeforeUpload); err != nil {
+			return SaveSlot{}, internal(err)
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO save_slots(user_id, game_id, slot, revision, sha256, size, device_id, reason, created_at)
+		VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(user_id, game_id, slot) DO UPDATE SET revision = excluded.revision,
+		sha256 = excluded.sha256, size = excluded.size, device_id = excluded.device_id, reason = excluded.reason,
+		created_at = excluded.created_at`, u, g, sl, rev, sha, size, in.DeviceID, SyncUpload, s.now().Unix()); err != nil {
+		return SaveSlot{}, internal(err)
+	}
+	out, err := loadSlot(ctx, tx, u, g, sl)
+	if err != nil {
+		return SaveSlot{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return SaveSlot{}, internal(err)
+	}
+	committed = true
+	s.thinSlot(ctx, u, g, sl)
+	s.notifySaveUpdated(u, in.DeviceID, g, sl, out.Current, "")
+	return out, nil
+}
+
 // CreateSaveSnapshot creates a history version (manual_snapshot) from the current checkpoint. The label is
 // optional (trimmed, up to MaxSnapshotLabel characters); ErrNotFound without a checkpoint.
 func (s *Service) CreateSaveSnapshot(ctx context.Context, userID, gameID, slot string, label *string) (_ SaveVersion, err error) {
