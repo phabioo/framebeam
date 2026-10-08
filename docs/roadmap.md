@@ -2,21 +2,34 @@
 
 The PoC (phases 0-5) is complete. From here on, work is planned as versions 0.1.1 to 0.11, each cut into one work package per thread/PR (see `docs/workflow.md`). The order was decided by Fabio on 2026-10-06; on 2026-10-07 he moved Sessions over the internet ahead of the UI passes (renumbered 0.4 to 0.6). On 2026-10-07 Fabio also moved OpenGL hardware rendering for the Player (all emulators/cores, not only 3DS) ahead of the UI passes as the new 0.5; the UI passes, 3DS and everything after shifted by one. ADRs written before 2026-10-07 use the old numbering: old 0.5/0.6/0.7/0.8/0.9/0.10 = new 0.6/0.7/0.8/0.9/0.10/0.11. Items marked open are not decided yet; decisions are recorded as ADRs in `docs/adr/`.
 
+## PoC phases (history)
+
+Phase plan: [workflow.md](workflow.md#phase-plan).
+
+| Phase | Status | Scope |
+|---|---|---|
+| 0 Foundation | done | Monorepo, CLAUDE.md, architecture, CI (Linux/Windows), build scaffolding, check scripts |
+| 1 Protocol and Hub basics | done | OpenAPI `/api/v1`, WSS schemas, Hub with SQLite, admin setup, TLS, pairing, tokens, library, ROM download, web interface |
+| 2 Playable vertical slice | done | Player core (profile, pairing, library, ROM cache), melonDS DS via Libretro, minimal Qt UI |
+| 3 Saves | done | Save storage, sync, versions, conflict model ([ADR 0005](adr/0005-saves-phase3.md)) |
+| 4 Session sharing and multiview | done (tested locally on two Windows PCs) | Presence, signaling, WebRTC, multiview ([ADR 0006](adr/0006-sessions-phase4.md), accepted) |
+| 5 Remainder and polish | done (tested locally) | Users and invites, user uploads, systems and firmware, Emulation and Controllers pages, appearance, Windows installer ([ADR 0007](adr/0007-phase5.md), accepted) |
+
 ## Overview
 
-| Version | Theme | Goal |
-|---|---|---|
-| 0.1.1 | Finish the PoC | Close the PoC leftovers and clean up the codebase. |
-| 0.2 | Cores from the Hub | Installers no longer ship emulator cores; the Hub distributes signed core packages. |
-| 0.3 | Automatic updates | A change on `main` reaches the test devices without manual work. |
-| 0.4 | Sessions over the internet and save comfort | Sessions work beyond the LAN; saves get retention, restore and slots. |
-| 0.5 | OpenGL hardware rendering | The Player offers an OpenGL context to libretro cores, so hardware-rendered cores run; frames are read back to the CPU, zero-copy deferred ([ADR 0013](adr/0013-opengl-hardware-rendering.md)). |
-| 0.6 | Player UI pass | FrameBeam Player is clearer, more responsive and consistent with the design tokens ([ADR 0014](adr/0014-player-ui-pass.md)). |
-| 0.7 | Hub UI pass | FrameBeam Hub web UI swaps fragments instead of full pages, updates live and has network settings in the browser ([ADR 0015](adr/0015-hub-ui-pass.md)). |
-| 0.8 | Second system: 3DS (Azahar) | The Azahar libretro core ships as a plain core package and runs on the OpenGL rendering from 0.5. |
-| 0.9 | Metadata and artwork | Central game metadata and boxart in Hub and Player. |
-| 0.10 | Hub for Windows / Windows Server | FrameBeam Hub runs as a Windows service with an installer. |
-| 0.11 | Linux and macOS Player | FrameBeam Player on Linux and macOS. |
+| Version | Status | Theme | Goal |
+|---|---|---|---|
+| 0.1.1 | done | Finish the PoC | Close the PoC leftovers and clean up the codebase. |
+| 0.2 | done | Cores from the Hub | Installers no longer ship emulator cores; the Hub distributes signed core packages. |
+| 0.3 | done | Automatic updates | A change on `main` reaches the test devices without manual work. |
+| 0.4 | done (relay and multiview verified across networks only locally) | Sessions over the internet and save comfort | Sessions work beyond the LAN; saves get retention, restore and slots. |
+| 0.5 | done in code (GPUs and drivers verified only locally) | OpenGL hardware rendering | The Player offers an OpenGL context to libretro cores, so hardware-rendered cores run; frames are read back to the CPU, zero-copy deferred ([ADR 0013](adr/0013-opengl-hardware-rendering.md)). |
+| 0.6 | done in code (look and feel, GPU values, real sessions verified only locally) | Player UI pass | FrameBeam Player is clearer, more responsive and consistent with the design tokens ([ADR 0014](adr/0014-player-ui-pass.md)). |
+| 0.7 | done in code | Hub UI pass | FrameBeam Hub web UI swaps fragments instead of full pages, updates live and has network settings in the browser ([ADR 0015](adr/0015-hub-ui-pass.md)). |
+| 0.8 | planned | Second system: 3DS (Azahar) | The Azahar libretro core ships as a plain core package and runs on the OpenGL rendering from 0.5. |
+| 0.9 | planned | Metadata and artwork | Central game metadata and boxart in Hub and Player. |
+| 0.10 | planned | Hub for Windows / Windows Server | FrameBeam Hub runs as a Windows service with an installer. |
+| 0.11 | planned | Linux and macOS Player | FrameBeam Player on Linux and macOS. |
 
 ## 0.1.1 Finish the PoC
 
@@ -45,7 +58,7 @@ Decision: the Hub obtains signed core packages from a fixed trusted source and c
 - [x] Done: Player: core cache `cache/cores/<core-id>/<version>/<platform>/`, download on demand with hash, version and platform checks, `CoreLocator` searches there. Library and Emulation page show "core loading / missing / incompatible".
 - [x] Done: Trust: Ed25519-signed index (`framebeam-sign`, `.github/workflows/cores.yml`), checked by the Hub against compiled-in and `--core-trust-key` keys; the Player checks size and SHA-256 (ADR 0010). The key is reused by the updater in 0.3.
 - [x] Done: FrameBeam release key generated by Fabio (GitHub secret `FRAMEBEAM_SIGNING_KEY`, public key in `corepkg.DefaultTrustedKeys`).
-- [x] Done: Package format and index defined (ADR 0010, `protocol/README.md`). Source: FrameBeam's own GitHub Releases; the Hub needs internet access to github.com or uses `framebeam-hub import-cores <dir>` offline.
+- [x] Done: Package format and index defined (ADR 0010, `docs/reference/protocol.md`). Source: FrameBeam's own GitHub Releases; the Hub needs internet access to github.com or uses `framebeam-hub import-cores <dir>` offline.
 - [x] Done: Windows installer and package no longer contain cores.
 - Template: the firmware path from phase 5.
 
@@ -66,7 +79,7 @@ Goal: a change on `main` lands on the test devices (Windows Player, Hub on the P
 
 Moved ahead of the UI passes by Fabio on 2026-10-07: testing with friends outside the LAN comes first.
 
-- [x] Done: Supported setups decided and documented: LAN, internet with port forward (recommended), VPN; no external TURN server in 0.4 (ADR 0012 D1; `packaging/linux/README.md`, "Sessions over the internet").
+- [x] Done: Supported setups decided and documented: LAN, internet with port forward (recommended), VPN; no external TURN server in 0.4 (ADR 0012 D1; `docs/guides/sessions-over-the-internet.md`).
 - [x] Done: Hub: embedded STUN/TURN relay (pion/turn, off by default) with short-lived credentials in `hello_ack` and the join response; Settings shows TURN status and the router port forwards (ADR 0012 D2-D4).
 - [x] Done: Player: TURN via libdatachannel, connection type (direct / relay) in diagnostics, `FRAMEBEAM_FORCE_RELAY` / `--force-relay`, AIMD bitrate adaptation to the worst viewer (ADR 0012 D5).
 - [x] Done: Multiview with up to 4 surfaces (several remote Sessions) and the audio focus rule (ADR 0012 D8).

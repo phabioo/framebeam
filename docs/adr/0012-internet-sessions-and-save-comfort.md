@@ -85,7 +85,7 @@ An external TURN server (for example coturn) is not supported in 0.4; `-ice-serv
 
 - New Go dependency `pion/turn/v4`; the Hub opens UDP/TCP 3478 and a UDP range when TURN is on.
 - Relayed Sessions use the Hub's uplink: about 2 Mbit/s per relayed viewer (both directions through the Pi).
-- Fabio has to configure router port forwards and DynDNS himself (documented in `packaging/linux/README.md` and the README).
+- Fabio has to configure router port forwards and DynDNS himself (documented in [sessions-over-the-internet.md](../guides/sessions-over-the-internet.md); update 2026-10-08: this was moved there from `packaging/linux/README.md` and the root README).
 
 ## Implementation notes (0.4 PR)
 

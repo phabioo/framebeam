@@ -72,3 +72,7 @@ The PoC left open points in ADR 0002, 0003, 0006 and 0007 and in the architectur
 - Windows vcpkg builds of FFmpeg grow (more features); cold builds take longer until cached (ADR 0008).
 - Host and viewer must both run 0.1.1 or later; mixing with an older Player is not tested.
 - Dropped frames appear in diagnostics under load.
+
+## Update 2026-10-08 (milestone numbering)
+
+Milestone numbers above 0.4 in this ADR use the numbering from before the roadmap renumbering of 2026-10-07: old 0.5/0.6/0.7/0.8/0.9/0.10 are now 0.6 (Player UI pass) / 0.7 (Hub UI pass) / 0.8 (3DS) / 0.9 (metadata) / 0.10 (Hub for Windows) / 0.11 (Linux and macOS Player); 0.5 is now OpenGL hardware rendering. See [roadmap.md](../roadmap.md).
