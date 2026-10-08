@@ -133,7 +133,7 @@ class SessionController : public QObject {
   DiagnosticsModel* diagnostics() const { return diagnostics_; }
   QString relayHint() const { return relayHint_; }
   // The Player's settings object (owned by the PlayerController): persists the open/closed states of the overlay.
-  void setPlayerSettings(PlayerSettings* settings) { diagnostics_->setSettings(settings); }
+  void setPlayerSettings(PlayerSettings* settings);  // diagnostics states + session visibility (migrates the legacy player-settings.json)
 
   // Local game context (PlayerController): presence, share feed, audio focus.
   void gameStarted(const QString& gameId, const QString& title);
@@ -201,7 +201,7 @@ class SessionController : public QObject {
   void applyAudioRouting();
   void updateLinks();
   QList<ViewerLinkStats> viewerLinks() const;
-  void loadSettings();
+  PlayerSettings* settings_ = nullptr;  // owned by the PlayerController
   void saveSettings() const;
   static QString visibilityLabel(const QString& v);
   QString effectiveTab() const;

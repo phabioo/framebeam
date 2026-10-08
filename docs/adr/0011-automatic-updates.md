@@ -1,6 +1,6 @@
 # ADR 0011: Automatic updates (0.3)
 
-- Status: proposed
+- Status: accepted (Fabio, 2026-10-07, with the merge of the PR)
 - Date: 2026-10-07
 - Decided by: Fabio (proposal by the orchestrator; accepted with the PR)
 - Amended 2026-10-08: version numbering, promotion and the default channel are superseded by [ADR 0016](0016-release-numbering-and-promotion.md); D1, D3 and the channel default in D5 below are the original decisions.

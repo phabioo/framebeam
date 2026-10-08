@@ -231,6 +231,19 @@ class SessionsUiTest : public QObject {
     QTRY_VERIFY(!hub.wsReceived.isEmpty() && hub.wsReceived.first().value(QStringLiteral("type")).toString() == QLatin1String("hello"));
   }
 
+  void legacyVisibilityFileIsMigrated() {
+    Harness h;
+    const QString legacy = h.dir.path() + QStringLiteral("/player-settings.json");
+    QFile f(legacy);
+    QVERIFY(f.open(QIODevice::WriteOnly));
+    f.write("{\"session_visibility\": \"private\"}");
+    f.close();
+    QVERIFY(h.start());
+    QCOMPARE(h.controller->sessions()->visibility(), QStringLiteral("private"));
+    QVERIFY(!QFile::exists(legacy));
+    QCOMPARE(framebeam::PlayerSettings(h.dir.path()).sessionVisibility(), QStringLiteral("private"));
+  }
+
   void sessionsSectionRenderingAndActions() {
     FakeHub hub(QStringLiteral("a"));
     prepareHub(hub);
@@ -510,7 +523,7 @@ class SessionsUiTest : public QObject {
     QVERIFY(h.click("visInviteOnly"));
     QTRY_COMPARE(ctl->visibility(), QStringLiteral("invite_only"));
     QTRY_COMPARE(lastBody(hub, "PATCH", QStringLiteral("/api/v1/sessions/")).value(QStringLiteral("visibility")).toString(), QStringLiteral("invite_only"));
-    QFile settings(h.dir.path() + QStringLiteral("/player-settings.json"));
+    QFile settings(h.dir.path() + QStringLiteral("/settings/player.json"));
     QVERIFY(settings.open(QIODevice::ReadOnly));
     QVERIFY(settings.readAll().contains("invite_only"));
     QQuickTest::qWaitForPolish(h.window);

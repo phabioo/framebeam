@@ -27,6 +27,7 @@ Phase plan: [workflow.md](workflow.md#phase-plan).
 | 0.6 | done in code (look and feel, GPU values, real sessions verified only locally) | Player UI pass | FrameBeam Player is clearer, more responsive and consistent with the design tokens ([ADR 0014](adr/0014-player-ui-pass.md)). |
 | 0.7 | done in code | Hub UI pass | FrameBeam Hub web UI swaps fragments instead of full pages, updates live and has network settings in the browser ([ADR 0015](adr/0015-hub-ui-pass.md)). |
 | 0.7.1 | done | Revision pass | Bug fixes and cleanup in Hub, Player and CI (flaky Session visibility race, query error handling, job timeouts); docs and READMEs consolidated. |
+| 0.7.x | done | Player tech debt | Session visibility lives in `settings/player.json`, a core with another major version blocks the launch, `PlayerController` split into helpers ([ADR 0017](adr/0017-player-tech-debt.md)). |
 | 0.8 | planned | Second system: 3DS (Azahar) | The Azahar libretro core ships as a plain core package and runs on the OpenGL rendering from 0.5. |
 | 0.9 | planned | Metadata and artwork | Central game metadata and boxart in Hub and Player. |
 | 0.10 | planned | Hub for Windows / Windows Server | FrameBeam Hub runs as a Windows service with an installer. |
@@ -34,21 +35,21 @@ Phase plan: [workflow.md](workflow.md#phase-plan).
 
 ## 0.1.1 Finish the PoC
 
-PoC leftovers. Decisions: [ADR 0009](adr/0009-finish-poc.md) (proposed).
+PoC leftovers. Decisions: [ADR 0009](adr/0009-finish-poc.md) (accepted).
 
 - [x] Done: Hardware encoders NVENC/QSV/AMF: the Windows FFmpeg in `client/vcpkg.json` enables `nvcodec`, `qsv` and `amf`; a Windows-only test checks that `h264_nvenc`, `h264_qsv` and `h264_amf` are compiled in. ADR 0006 is corrected. Opening the encoders needs a GPU and is verified only locally by Fabio.
 - [x] Done: Multiview picker lists all Sessions in a scrollable list; the "+N more in the Library" pointer is gone.
 - [x] Done: Settings → Hubs (switch, remove with confirmation, auto-connect, current Hub marked); switching ends running work and secures saves like the connection screen.
 - [x] Done: Certificate renewal and confirmed pin change. The Hub renews its self-generated certificate at startup when expired or expiring within 30 days (`framebeam-hub renew-cert`, Settings badge); the Player shows both fingerprints and re-pins after a two-step confirmation, keeping the credential (`--accept-fingerprint` in the CLI). Own certificate and key are never modified. Verified only locally by Fabio against a real Hub certificate.
 - [x] Done: Session encoding and RTP send run on a worker thread (bounded queue, oldest video frame dropped); RTT is reported in diagnostics via the negotiated DataChannel `fb-diag`.
-- [ ] Open: A core version mismatch only warns (ADR 0007). Intentionally unchanged; moves to 0.8, when several cores exist.
+- [x] Done (0.7.x, ADR 0017 D1): A core whose major version differs from the Hub's expected version blocks the launch; other differences only warn.
 - [x] Done: Codebase cleanup: system display name and controller labels from the system manifest, phase-named files and tests renamed (migration `0004_phase5.sql` kept), MSVC C4804 fixed, E2E scripts run in the Linux CI job, staticcheck in `make check-hub`, narrower libdatachannel CI cache path. The `PlayerController` split moves to the Player UI pass (0.6).
 
 Completed 2026-10-06: Windows CI runs on `main` pushes to prime its vcpkg binary cache after merges. The release preset uses a release-only dependency triplet. Cache keys distinguish the triplet and MSVC version and cover the manifest, presets and overlay triplets. The first main run with the new triplet is expected to build cold; later runtimes depend on cache hits and runner performance. See [ADR 0008](adr/0008-windows-ci-cache.md).
 
 ## 0.2 Cores from the Hub
 
-Decisions: [ADR 0010](adr/0010-cores-from-the-hub.md) (proposed).
+Decisions: [ADR 0010](adr/0010-cores-from-the-hub.md) (accepted).
 
 Goal: installers ship no emulator cores. melonDS DS leaves the Windows installer and comes from the Hub.
 
@@ -115,19 +116,20 @@ Open in 0.6:
 
 - The Player does not know the Hub user's display name; the sidebar shows the device name.
 - Per-game settings are still "coming later"; built-in controller profiles are read-only; the Hotkeys tab (3f) is not built.
-- The `PlayerController` split (moved here from 0.1.1) is not done in 0.6; deferred, no milestone yet.
+- [x] Done (0.7.x, ADR 0017 D3): `PlayerController` split into `CoreCatalog`, `GameDetail`, `HubPresenter` and `GameStarter`.
 - Verification of look and feel, GPU values and real sessions is done locally by Fabio.
 
 ## 0.7 Hub UI pass
 
-Implemented, see [ADR 0015](adr/0015-hub-ui-pass.md) (proposed).
+Implemented, see [ADR 0015](adr/0015-hub-ui-pass.md) (accepted).
 
 - [x] Done: pages restyled to the v4 design (Library with saves column and conflict marker, Saves with slot tabs, history timeline, snapshot filter, inline restore confirmation and retention box from the real rules, Systems list and detail tabs, Clients, Users); nav badge "firmware" is now "{n} issues".
 - [x] Done: no full page loads on navigation; sidebar swaps only the content area (ADR 0015 D1).
 - [x] Done: live updates without reload via an in-process event bus and Server-Sent Events; badges and affected tables refresh themselves, Clients polling removed (D2).
 - [x] Done: Settings sub-pages Updates, General, Network, Security with per-field autosave (D3).
 - [x] Done: network settings form (Hub port, embedded TURN, public host, TURN port, relay range and IP, STUN servers, save retention). Decided by Fabio on 2026-10-07: web settings win; `hub.env` and flags only give the initial value (D4). Changes that need it are applied by a restart the Hub triggers itself, without root (D5). Ports below 1024 are refused on the web, use `install-hub.sh --port` (D6). Startup fallbacks keep the Hub reachable after a bad setting (D7). The TURN status and port forward list moved into Network; reachability is derived from the configuration (D8).
-- Open (left out of 0.7): Rescan folder, "+ New slot", deleting a snapshot, thinned-out history marker, invite "Copy link", metadata actions, "Player too old" marker in the Clients table, Library "of total" disk capacity, external TURN servers with login (only a STUN list), certificate "Renew now", reachability probe from outside, core packages not filtered per system, transport options "Custom cert/key" and "Reverse proxy".
+- Open (left out of 0.7): Rescan folder, thinned-out history marker, invite "Copy link", metadata actions, "Player too old" marker in the Clients table, Library "of total" disk capacity, external TURN servers with login (only a STUN list), certificate "Renew now", reachability probe from outside, core packages not filtered per system, transport options "Custom cert/key" and "Reverse proxy".
+- [x] Done (0.7.x follow-up): Hub Saves page "+ New slot" (new slot starts from the current version of the selected slot; web only, no API) and deleting a snapshot (inline confirmation; `DELETE /api/v1/games/{game_id}/saves/{slot}/history/{version}`, handshake feature `saves_v3`, OpenAPI 1.6.0, `protocol_version` unchanged). Renaming/deleting a slot stay open.
 
 ## 0.8 Second system: Nintendo 3DS with Azahar
 
@@ -139,7 +141,7 @@ Decided by Fabio on 2026-10-07: the second system is the Nintendo 3DS with the A
 - Games: decrypted dumps only (`.3ds`/`.cci`/`.cxi`/`.3dsx`, plus the compressed `z*` variants); FrameBeam never decrypts. Some games need system files such as Mii data dumped from the user's own console; these follow the firmware path from phase 5 and are never shipped.
 - Performance: 3DS emulation needs a considerably faster CPU/GPU than DS; check on Fabio's devices whether play plus encoding fits.
 - It arrives only as another package through the core distribution from 0.2, without installer changes.
-- Re-evaluate the core version check (warning vs. block, ADR 0007).
+- ~~Re-evaluate the core version check (warning vs. block, ADR 0007).~~ Decided in ADR 0017 D1.
 - Game override UI on the Emulation page.
 - ROM cache limit and cleanup.
 - Core sourcing (decided 2026-10-07, builds on ADR 0010):

@@ -46,6 +46,10 @@ class PlayerSettings {
   QString saveSlot(const QString& hubId, const QString& gameId) const;
   bool setSaveSlot(const QString& hubId, const QString& gameId, const QString& slot);  // false: invalid name or not writable
 
+  // Visibility of the own shared Session: "private" | "hub_users" | "invite_only"; "" = not chosen yet (the caller's default).
+  QString sessionVisibility() const { return sessionVisibility_; }
+  bool setSessionVisibility(const QString& visibility);  // anything else is rejected (false)
+
  private:
   bool save() const;
 
@@ -58,6 +62,7 @@ class PlayerSettings {
   bool diagOpen_ = false;
   bool diagEmulationOpen_ = true;
   bool diagStreamingOpen_ = true;
+  QString sessionVisibility_;
 };
 
 }  // namespace framebeam
