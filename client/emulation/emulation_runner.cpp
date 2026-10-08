@@ -2,11 +2,21 @@
 
 #include <QThread>
 
+#ifdef Q_OS_WIN
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <timeapi.h>
+#endif
+
 #include <chrono>
 #include <algorithm>
 #include <cmath>
 
 namespace framebeam::emu {
+
+std::atomic<int> EmulationRunner::sleepQuantumMsForTest{0};
 
 class EmulationRunner::Worker : public QThread {
  public:
@@ -31,6 +41,13 @@ class EmulationRunner::Worker : public QThread {
 
  protected:
   void run() override {
+#ifdef Q_OS_WIN
+    // Waits round up to the ~15.6 ms system tick otherwise; sped up, one frame lasts only 2-8 ms.
+    struct TimerResolution {
+      TimerResolution() { timeBeginPeriod(1); }
+      ~TimerResolution() { timeEndPeriod(1); }
+    } timerResolution;
+#endif
     QString err;
     EmulatorBackend& be = *m_backend;
     // Directories before loadCore (cores already read them in retro_set_environment).
@@ -105,12 +122,18 @@ class EmulationRunner::Worker : public QThread {
 
       next += step;
       const auto now = std::chrono::steady_clock::now();
-      if (next < now - 5 * step) next = now;  // too far behind: resynchronize
+      // Too far behind: resynchronize. Sped up, a coarse timer may oversleep by more than 5 short steps, which
+      // would drop the catch-up and cap the speed, so the limit is at least 100 ms there.
+      const auto maxBehind = fast ? std::max<std::chrono::steady_clock::duration>(5 * step, std::chrono::milliseconds(100)) : 5 * step;
+      if (next < now - maxBehind) next = now;
       QMutexLocker l(&m_mutex);
       while (!m_stop && !m_paused && !m_reset) {
         const auto wait = std::chrono::duration_cast<std::chrono::milliseconds>(next - std::chrono::steady_clock::now());
         if (wait.count() <= 0) break;
-        m_cond.wait(&m_mutex, static_cast<unsigned long>(wait.count()));
+        unsigned long ms = static_cast<unsigned long>(wait.count());
+        const int q = sleepQuantumMsForTest.load();
+        if (q > 1) ms = (ms + q - 1) / q * q;  // test: sleeps overshoot like on Windows without 1 ms timer resolution
+        m_cond.wait(&m_mutex, ms);
       }
     }
     be.unloadGame();

@@ -80,6 +80,8 @@ class EmulationRunner : public QObject {
   // Diagnostics (thread-safe, cheap): measured frame timing of the emulation thread and how the core renders.
   FrameTimingStats::Snapshot timing() const;
   RenderInfo renderInfo() const { return m_backend->renderInfo(); }
+  // Tests only: round every pacing sleep up to a multiple of this many ms (0 = off), simulating coarse OS timers.
+  static std::atomic<int> sleepQuantumMsForTest;
   static qint64 monotonicMs();  // the clock of timing()
 
  signals:
