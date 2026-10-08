@@ -70,6 +70,7 @@ Rectangle {
     function toggleFullscreen() { setFullscreen(!root.fullscreen) }
     // Esc: leaves fullscreen when fullscreen, otherwise it keeps its meaning (pause)
     function handleEscape() {
+        if (!root.visible) return   // game in the background (Library shown): Esc never acts on it
         if (root.fullscreen) setFullscreen(false)
         else root.session.togglePause()
     }
@@ -89,6 +90,7 @@ Rectangle {
     // Player hotkeys are configurable (Controllers > Hotkeys): the controller maps the Qt key to an action name.
     readonly property var hotkeyLabels: root.player.controllers.hotkeyLabels
     Keys.onPressed: (e) => {
+        if (!root.visible) return   // game in the background: hotkeys do not act on it from other screens
         var action = root.player.controllers.hotkeyAction(e.key)
         if (action === "fullscreen") {
             root.toggleFullscreen()

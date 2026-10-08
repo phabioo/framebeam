@@ -134,6 +134,10 @@ void GameSession::teardown() {
 }
 
 void GameSession::pause() {
+  if (preview_ && !runner_ && state_ == Running) {
+    setState(Paused);  // preview game (tests, screenshots) has no core, the state alone follows
+    return;
+  }
   if (runner_ && state_ == Running) {
     runner_->pause();
     audio_.setUnderrunCounting(false);
@@ -141,6 +145,10 @@ void GameSession::pause() {
 }
 
 void GameSession::resume() {
+  if (preview_ && !runner_ && state_ == Paused) {
+    setState(Running);
+    return;
+  }
   if (runner_ && state_ == Paused) {
     runner_->resume();
     audio_.setUnderrunCounting(!audioMuted_ && !(fastForward_ && !ffAudio_));
@@ -211,7 +219,7 @@ void GameSession::stop() {
 
 void GameSession::applyJoypad() {
   if (runner_) {
-    runner_->setJoypadState(0, keys_.mask() | pad_);
+    runner_->setJoypadState(0, joypadMask());
   }
 }
 
@@ -293,7 +301,7 @@ void GameSession::setPreview(const QString& title, const QImage& frame, const em
 }
 
 bool GameSession::keyEvent(int qtKey, bool pressed) {
-  if (isReservedKey(qtKey)) {
+  if (inputBlocked_ || isReservedKey(qtKey)) {
     return false;
   }
   const bool mapped = pressed ? keys_.press(qtKey) : keys_.release(qtKey);
@@ -322,7 +330,18 @@ void GameSession::setGamepadMask(quint32 mask) {
   applyJoypad();
 }
 
+void GameSession::setInputBlocked(bool blocked) {
+  if (blocked == inputBlocked_) return;
+  inputBlocked_ = blocked;
+  if (blocked) {
+    keys_.clear();
+    if (runner_) runner_->setPointer(0.0, 0.0, false);
+  }
+  applyJoypad();  // blocked: released; unblocked: a gamepad button that is still held counts again
+}
+
 void GameSession::setPointer(const QPointF& p, bool pressed) {
+  if (inputBlocked_) return;
   if (runner_) {
     runner_->setPointer(p.x(), p.y(), pressed);
   }

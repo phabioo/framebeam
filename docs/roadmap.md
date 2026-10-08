@@ -150,6 +150,12 @@ See [ADR 0018](adr/0018-player-speed-up.md) (proposed).
 - [x] Done: built-in controller profiles stay read-only; "Duplicate to edit" (and clicking a mapping of a built-in profile) creates a copy, assigns it to the device and starts editing it.
 - Open: gamepad hotkeys.
 
+## 0.7.x Background game
+
+Decided by the project owner on 2026-10-08.
+
+- [x] Done (interim UI): "← Library" in the game view pauses the game and keeps it loaded (a shared Session stays shared); the Library shows "Now running" with Resume and Quit game, the tile and the detail pane mark the game, input does not reach the core, and starting another game asks "Quit {running} and start {new}?" first. Quitting is an explicit action (header "Quit", Session panel, Library).
+
 ## 0.8 Second system: Nintendo 3DS with Azahar
 
 Decided by Fabio on 2026-10-07: the second system is the Nintendo 3DS with the Azahar libretro core (replaces the mGBA proposal).

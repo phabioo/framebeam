@@ -65,6 +65,10 @@ class PlayerController : public QObject {
   Q_PROPERTY(QString libraryError READ libraryError NOTIFY libraryStateChanged)
   Q_PROPERTY(QString selectedGameId READ selectedGameId NOTIFY selectedGameChanged)
   Q_PROPERTY(QVariantMap selectedGame READ selectedGame NOTIFY selectedGameChanged)
+  // Game paused and kept loaded while the Library is shown: {id, title}; empty map when there is none (0.7.x).
+  Q_PROPERTY(QVariantMap backgroundGame READ backgroundGame NOTIFY backgroundGameChanged)
+  // Confirmation "Quit {running} and start {new}?": {active, runningTitle, newTitle}
+  Q_PROPERTY(QVariantMap startConfirm READ startConfirm NOTIFY startConfirmChanged)
   // Save sync (3d): conflict dialog data; empty map = no dialog
   Q_PROPERTY(QVariantMap saveConflict READ saveConflict NOTIFY saveConflictChanged)
   Q_PROPERTY(QString saveNote READ saveNote NOTIFY hubChanged)
@@ -127,6 +131,11 @@ class PlayerController : public QObject {
   QString libraryError() const { return libraryError_; }
   QString selectedGameId() const { return selectedId_; }
   QVariantMap selectedGame() const;
+  QVariantMap backgroundGame() const;
+  // Tests and screenshots (GameSession::setPreview): declare the library game that the preview game stands for.
+  void adoptPreviewGame(const QString& gameId);
+  QVariantMap startConfirm() const;
+  bool gameInBackground() const { return background_; }
   GameSession* gameSession() { return &session_; }
   SessionController* sessions() { return sessions_.get(); }
   UpdatesController* updates() { return updates_.get(); }
@@ -202,8 +211,14 @@ class PlayerController : public QObject {
   Q_INVOKABLE void playSelected();
   // "Play and share Session": starts the game and publishes it with the last chosen visibility.
   Q_INVOKABLE void playAndShareSelected();
-  // "← Library" in the game view: ends the running game (with save) or leaves the watched Session.
+  // "← Library" in the game view: pauses the running game and keeps it loaded in the background (the Session stays
+  // shared), or leaves the watched Session. Quitting is quitGame().
   Q_INVOKABLE void leaveGameView();
+  // Library "Resume": back to the game view; the game continues (resumed, not left paused).
+  Q_INVOKABLE void resumeGame();
+  // Starting another game while one is in the background asks first; confirm = quitGame() + start.
+  Q_INVOKABLE void confirmQuitAndStart();
+  Q_INVOKABLE void cancelQuitAndStart();
   // Library header / Sidebar
   Q_INVOKABLE void showLibrary();
   Q_INVOKABLE void showSettings();
@@ -228,6 +243,8 @@ class PlayerController : public QObject {
   void hubChanged();
   void libraryStateChanged();
   void selectedGameChanged();
+  void backgroundGameChanged();
+  void startConfirmChanged();
   void saveConflictChanged();
   void appearanceChanged();
   void uploadChanged();
@@ -303,6 +320,13 @@ class PlayerController : public QObject {
   QString pendingSha_;
   PlayPhase phase_ = PlayPhase::None;
   bool gameActive_ = false;
+  bool background_ = false;      // gameActive_ and paused behind the Library (input blocked)
+  QString backgroundId_;
+  QString backgroundTitle_;
+  bool confirmActive_ = false;   // "Quit X and start Y?" is open
+  bool confirmShare_ = false;
+  void setBackground(bool on);
+  void askQuitAndStart(bool share);
   // Start of a game: after the ROM and the save sync
   GameEntry launchGame_;
   QString launchRom_;

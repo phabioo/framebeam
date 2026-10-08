@@ -85,6 +85,45 @@ Rectangle {
                 }
             }
 
+            // Game paused in the background (interim UI): resume or quit it.
+            Rectangle {
+                objectName: "runningStrip"
+                Layout.fillWidth: true
+                visible: root.player.backgroundGame.id !== undefined
+                implicitHeight: 48
+                radius: Theme.radius8
+                color: Theme.okBg
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: 14
+                    anchors.rightMargin: 8
+                    spacing: 10
+                    FbLabel {
+                        objectName: "runningStripText"
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        text: qsTr("Now running: %1 · paused").arg(root.player.backgroundGame.title || "")
+                        color: Theme.ok
+                        font.pixelSize: Theme.fontSmall
+                        font.weight: Font.Medium
+                        elide: Text.ElideRight
+                    }
+                    FbButton {
+                        objectName: "stripResumeButton"
+                        kind: "primary"
+                        implicitHeight: 34
+                        text: qsTr("Resume")
+                        onClicked: root.player.resumeGame()
+                    }
+                    FbButton {
+                        objectName: "stripQuitButton"
+                        implicitHeight: 34
+                        text: qsTr("Quit game")
+                        onClicked: root.player.quitGame()
+                    }
+                }
+            }
+
             // Filter chips with counts (3c, D14); combined with the search field.
             RowLayout {
                 objectName: "filterChips"
@@ -270,6 +309,7 @@ Rectangle {
                         width: grid.cellWidth
                         height: grid.cellHeight
                         selected: gameId === root.player.selectedGameId
+                        running: root.player.backgroundGame.id === gameId
                         onClicked: root.player.selectGame(gameId)
                     }
                 }
@@ -311,4 +351,6 @@ Rectangle {
             player: root.player
         }
     }
+
+    StartConfirmDialog { player: root.player }
 }

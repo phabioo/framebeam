@@ -13,6 +13,7 @@ Item {
     required property string tileTone
     required property real progress
     property bool selected: false
+    property bool running: false   // game paused in the background (Library strip "Now running")
 
     signal clicked()
 
@@ -95,10 +96,10 @@ Item {
         FbLabel {
             objectName: "tileStatus"
             Layout.fillWidth: true
-            text: tile.tileText
+            text: tile.running ? qsTr("▶ Running · paused") : tile.tileText
             font.pixelSize: Theme.fontMeta
             font.weight: Font.Medium
-            color: tile.tileTone === "neutral" ? Theme.textMuted : Theme.toneColor(tile.tileTone)
+            color: tile.running ? Theme.ok : tile.tileTone === "neutral" ? Theme.textMuted : Theme.toneColor(tile.tileTone)
             elide: Text.ElideRight
         }
     }

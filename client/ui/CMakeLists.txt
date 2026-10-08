@@ -55,6 +55,7 @@ qt_add_qml_module(framebeam_ui
     GameScreen.qml
     SettingsScreen.qml
     ConflictDialog.qml
+    StartConfirmDialog.qml
     FbSegment.qml
     SessionsSection.qml
     SessionPanel.qml
