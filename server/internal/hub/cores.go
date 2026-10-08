@@ -367,6 +367,9 @@ func (s *Service) applyIndex(ctx context.Context, idx corepkg.Index) error {
 		}
 	}
 	rows.Close()
+	if err := rows.Err(); err != nil {
+		return internal(err)
+	}
 	for _, k := range drop {
 		if _, err := tx.ExecContext(ctx, `DELETE FROM core_packages WHERE core_id = ? AND version = ? AND platform = ?`, k.core, k.version, k.platform); err != nil {
 			return internal(err)
@@ -402,6 +405,9 @@ func (s *Service) applyIndex(ctx context.Context, idx corepkg.Index) error {
 			olds[n] = o
 		}
 		orows.Close()
+		if err := orows.Err(); err != nil {
+			return internal(err)
+		}
 		names := map[string]bool{}
 		for _, f := range p.Files {
 			names[f.Name] = true

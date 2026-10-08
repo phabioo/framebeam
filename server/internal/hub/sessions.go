@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -232,7 +233,8 @@ func (s *Service) loadSession(ctx context.Context, id string) (*sessionData, err
 		}
 		d.viewers = append(d.viewers, v)
 	}
-	if err := rows.Close(); err != nil {
+	rows.Close()
+	if err := rows.Err(); err != nil {
 		return nil, internal(err)
 	}
 	rows, err = s.db.QueryContext(ctx, `SELECT i.user_id, u.display_name, i.state FROM session_invites i
@@ -248,7 +250,8 @@ func (s *Service) loadSession(ctx context.Context, id string) (*sessionData, err
 		}
 		d.invites = append(d.invites, i)
 	}
-	if err := rows.Close(); err != nil {
+	rows.Close()
+	if err := rows.Err(); err != nil {
 		return nil, internal(err)
 	}
 	return d, nil
@@ -692,16 +695,22 @@ func (s *Service) dropViewersOfDevice(ctx context.Context, deviceID, reason stri
 	rows, err := s.db.QueryContext(ctx, `SELECT v.session_id FROM session_viewers v JOIN sessions s ON s.id = v.session_id
 		WHERE v.device_id = ? AND v.left_at IS NULL AND s.ended_at IS NULL`, deviceID)
 	if err != nil {
+		slog.Warn("drop viewers of device: query failed", "device_id", deviceID, "err", err)
 		return
 	}
 	var ids []string
 	for rows.Next() {
 		var id string
-		if rows.Scan(&id) == nil {
-			ids = append(ids, id)
+		if err := rows.Scan(&id); err != nil {
+			slog.Warn("drop viewers of device: scan failed", "device_id", deviceID, "err", err)
+			continue
 		}
+		ids = append(ids, id)
 	}
 	rows.Close()
+	if err := rows.Err(); err != nil {
+		slog.Warn("drop viewers of device: iteration failed", "device_id", deviceID, "err", err)
+	}
 	for _, id := range ids {
 		before, err := s.loadSession(ctx, id)
 		if err != nil {

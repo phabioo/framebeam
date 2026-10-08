@@ -27,7 +27,7 @@ QJsonObject sessionJson() {
           {QStringLiteral("game_id"), QStringLiteral("9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d")},
           {QStringLiteral("game_title"), QStringLiteral("Demo Homebrew")},
           {QStringLiteral("owner"), QJsonObject{{QStringLiteral("user_id"), QStringLiteral("u1")},
-                                                {QStringLiteral("display_name"), QStringLiteral("Fabio")},
+                                                {QStringLiteral("display_name"), QStringLiteral("Alex")},
                                                 {QStringLiteral("device_name"), QStringLiteral("PC")}}},
           {QStringLiteral("visibility"), QStringLiteral("hub_users")},
           {QStringLiteral("created_at"), QStringLiteral("2026-01-01T12:00:00Z")},

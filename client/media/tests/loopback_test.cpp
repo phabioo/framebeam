@@ -164,7 +164,12 @@ class LoopbackTest : public QObject {
     // Stats on both sides (the host/viewer refresh them once a second).
     QVERIFY2(QTest::qWaitFor([&]() { return rig.host.stats().viewers == 1 && rig.host.stats().videoBitrateKbps > 0; }, 15000),
              qPrintable(QStringLiteral("viewers=%1 video_kbps=%2").arg(rig.host.stats().viewers).arg(rig.host.stats().videoBitrateKbps)));
-    QTest::qWait(1200);
+    // Stats refresh once a second: wait until every value checked below has been computed at least once.
+    QVERIFY2(QTest::qWaitFor([&]() {
+      const SessionStats h = rig.host.stats(), v = viewer->stats();
+      return h.fps > 20.0 && h.videoBitrateKbps > 5.0 && h.audioBitrateKbps > 20.0 && v.fps > 20.0 && v.audioFrames > 0 && v.width == kW &&
+             !v.connectionType.isEmpty() && !rig.host.viewerLinks().isEmpty() && !rig.host.viewerLinks().first().connectionType.isEmpty();
+    }, 15000), "stats did not settle");
     const SessionStats hs = rig.host.stats();
     const SessionStats vs = viewer->stats();
     QVERIFY(!hs.encoderName.isEmpty());

@@ -291,7 +291,7 @@ void SessionController::applyOwnSession(const SessionInfo& s) {
 // A REST answer to a request sent before the user changed the visibility again carries the older visibility:
 // take everything else from it but keep the newer local choice.
 void SessionController::applyOwnSession(const SessionInfo& s, quint64 requestVisGen) {
-  if (requestVisGen == visGen_) {
+  if (requestVisGen == visGen_ && visInFlight_ == 0) {  // a PATCH still in flight: the Hub may not have applied it yet
     applyOwnSession(s);
     return;
   }
@@ -392,13 +392,17 @@ void SessionController::setVisibility(const QString& v) {
   emit shareChanged();
   if (shared_) {
     ++visInFlight_;
-    api_.setVisibility(own_.sessionId, v, [this, before, gen](const SessionApiResult& r) {
+    const QString sessionId = own_.sessionId;
+    api_.setVisibility(sessionId, v, [this, before, gen, sessionId](const SessionApiResult& r) {
+      if (!shared_ || own_.sessionId != sessionId) {  // stopped or replaced meanwhile: the answer belongs to an old Session
+        return;
+      }
       if (visInFlight_ > 0) {
         --visInFlight_;
       }
       if (r.ok() && r.session) {
         applyOwnSession(*r.session, gen);
-      } else if (shared_ && gen == visGen_) {
+      } else if (gen == visGen_) {
         visibility_ = before;
         saveSettings();
         say(errorText(r, tr("Changing the visibility")), true);
@@ -465,8 +469,9 @@ void SessionController::invite(const QString& userId) {
     return;
   }
   const quint64 gen = visGen_;
-  api_.invite(own_.sessionId, userId, [this, gen](const SessionApiResult& r) {
-    if (r.ok() && r.session && shared_) {
+  const QString sessionId = own_.sessionId;
+  api_.invite(sessionId, userId, [this, gen, sessionId](const SessionApiResult& r) {
+    if (r.ok() && r.session && shared_ && own_.sessionId == sessionId) {
       applyOwnSession(*r.session, gen);
       searchUsers(userQuery_);
     } else if (!r.ok()) {
@@ -485,8 +490,8 @@ void SessionController::withdrawInvite(const QString& userId) {
       say(errorText(r, tr("Withdrawing the invite")), true);
     } else if (shared_ && own_.sessionId == id) {
       const quint64 gen = visGen_;
-      api_.get(id, [this, gen](const SessionApiResult& g) {
-        if (g.ok() && g.session && shared_) {
+      api_.get(id, [this, gen, id](const SessionApiResult& g) {
+        if (g.ok() && g.session && shared_ && own_.sessionId == id) {
           applyOwnSession(*g.session, gen);
         }
       });
