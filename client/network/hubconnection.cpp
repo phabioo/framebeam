@@ -168,7 +168,7 @@ void HubConnection::startIdentify(const QString& addressInput, bool allowHttp, s
   QUrl base;
   base.setScheme(parsed.scheme());
   base.setHost(parsed.host());
-  // Without a port: hub default :8443 (server/README.md), also for http (dev flag). Explicit ports are kept.
+  // Without a port: hub default :8443 (docs/guides/hub-configuration.md), also for http (dev flag). Explicit ports are kept.
   base.setPort(parsed.port() > 0 ? parsed.port() : kDefaultHubPort);
   if (!HubHttp::isSchemeAllowed(base, allowHttp)) {
     fail(State::Unreachable, QStringLiteral("insecure_http"),

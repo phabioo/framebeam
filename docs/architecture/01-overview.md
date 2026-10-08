@@ -39,6 +39,8 @@ FrameBeam combines a central ROM library and versioned saves with local emulatio
 | Media formats | H.264 + Opus | Video and audio transmission |
 | Windows encoding | NVENC / QSV / AMF; software H.264 as fallback | Hardware encoding where available |
 
+> Superseded by [ADR 0001](../adr/0001-stack-additions.md) (C++20 baseline, not C++23) and [ADR 0007](../adr/0007-phase5.md) (audio output via Qt Multimedia; SDL3 only for gamepads). Hardware-rendered cores: [ADR 0013](../adr/0013-opengl-hardware-rendering.md).
+
 The server performs no emulation, no encoding, no decoding and no multiview rendering. The client contains library access, separate ROM/core caches, local emulator/controller settings, save sync, Session manager, emulator backend, rendering, audio, encoder/decoder and input.
 
 The Hub manages Hub-local users and device pairing. The Player manages the local device identity and stored Hub profiles; a connected Player instance uses exactly one active Hub (see section 14). A central metadata service with a provider abstraction and artwork cache is planned exclusively as a later extension (see section 15).

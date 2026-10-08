@@ -71,6 +71,10 @@ Windows release builds use the `x64-windows-release` overlay triplet (Release-on
 - `make package-hub-deb`: via `packaging/linux/build-deb.sh --binary PATH --arch amd64|arm64 --version X.Y.Z[-pre] --out DIR` (dpkg-deb only; units and maintainer scripts in `packaging/linux/deb/`). `scripts/check.sh packaging` (part of `make check-hub`) checks control, contents, units, runs shellcheck and a smoke test of `install-hub.sh` with `FRAMEBEAM_INSTALL_ROOT`.
 - Windows installer (Inno Setup, per-user), built by ISCC in the Windows CI job: [guides/packaging.md](guides/packaging.md).
 
+## Documentation checks
+
+`scripts/check-doc-links.py [repo-root]` (stdlib only) checks relative links and heading anchors in all Markdown files and exits 1 on broken ones. It is not part of `make check` or CI.
+
 ## Hard rules
 
 No ROMs, BIOS or firmware in the repository or in tests (homebrew ROMs and dummy files only); never overwrite saves silently or send them to another Hub; no secrets in files, profiles or logs.
