@@ -14,11 +14,12 @@ Build, test, dependencies, CI and versioning. Agent workflow and briefs: [workfl
 
 ```sh
 make check            # Hub and Player checks, quiet (errors + summary only)
-make check-hub        # Hub only: gofmt, vet, staticcheck, tests, codegen freshness, packaging checks
+make check-hub        # Hub only: gofmt, vet, staticcheck, tests, codegen freshness, Hub third-party notices, packaging checks
 make check-client     # Player only (preset via CLIENT_PRESET, default linux-debug)
 make build-hub        # server/dist/framebeam-hub-linux-{amd64,arm64} (HUB_VERSION, HUB_CHANNEL, HUB_COMMIT)
 make package-hub-deb HUB_VERSION=...   # Hub .deb for amd64/arm64 in server/dist/ (after build-hub)
 make generate         # regenerate Go code from OpenAPI (oapi-codegen)
+make notices          # regenerate server/THIRD-PARTY-NOTICES.txt (needed after Go dependency bumps; make check-hub fails when stale)
 make fetch-core       # build melonDS DS (pinned) and print the .so path
 make fetch-deps       # build libdatachannel (pinned) and print the prefix
 make fetch-sdl3       # build SDL3 (pinned) and print the prefix
@@ -76,6 +77,10 @@ Windows release builds use the `x64-windows-release` overlay triplet (Release-on
 ## Documentation checks
 
 `scripts/check-doc-links.py [repo-root]` (stdlib only) checks relative links and heading anchors in all Markdown files and exits 1 on broken ones. It is not part of `make check` or CI.
+
+## Contributions
+
+Contributions require agreeing to the CLA; see [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## Hard rules
 

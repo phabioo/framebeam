@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Quiet check steps: output buffered, on failure only the last 40 lines.
-# Usage: scripts/check.sh hub-fmt|hub-vet|hub-staticcheck|hub-test|hub-codegen|hub-build|hub-deb|generate|client|packaging|hub|all
+# Usage: scripts/check.sh hub-fmt|hub-vet|hub-staticcheck|hub-test|hub-codegen|hub-notices|hub-build|hub-deb|generate|client|packaging|hub|all
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -51,6 +51,8 @@ hub_codegen() {
   [ "$before" = "$after" ] || { echo "Generated code is stale: run 'make generate' and commit"; return 1; }
   (cd "$ROOT/server" && go mod tidy -diff) || { echo "go.mod/go.sum not tidy: run 'go mod tidy'"; return 1; }
 }
+# hub-notices: server/THIRD-PARTY-NOTICES.txt matches the compiled-in Go modules (regenerate: make notices).
+hub_notices() { "$ROOT/scripts/gen-hub-notices.sh" --check; }
 hub_build() {
   local arch
   mkdir -p "$ROOT/server/dist"
@@ -125,11 +127,12 @@ packaging_deb() {
     listing="$(dpkg-deb -c "$deb")"
     local p
     for p in ./usr/bin/framebeam-hub ./lib/systemd/system/framebeam-hub.service \
-             ./lib/systemd/system/framebeam-hub-update.path ./lib/systemd/system/framebeam-hub-update.service; do
+             ./lib/systemd/system/framebeam-hub-update.path ./lib/systemd/system/framebeam-hub-update.service \
+             ./usr/share/doc/framebeam-hub/copyright ./usr/share/doc/framebeam-hub/THIRD-PARTY-NOTICES.txt; do
       grep -q " $p\$" <<<"$listing" || { echo "$arch: $p missing from the package"; rc=1; }
     done
-    # Nothing outside usr/bin and the unit directory: no data, no config.
-    if grep -E ' \./' <<<"$listing" | grep -vE ' \./(usr/(bin/(framebeam-hub)?)?|lib/(systemd/(system/(framebeam-hub[a-z.-]*)?)?)?)?$' | grep -q .; then
+    # Nothing outside usr/bin, usr/share/doc/framebeam-hub and the unit directory: no data, no config.
+    if grep -E ' \./' <<<"$listing" | grep -vE ' \./(usr/(bin/(framebeam-hub)?|share/(doc/(framebeam-hub/(copyright|THIRD-PARTY-NOTICES\.txt)?)?)?)?|lib/(systemd/(system/(framebeam-hub[a-z.-]*)?)?)?)?$' | grep -q .; then
       echo "$arch: unexpected paths in the package"; rc=1
     fi
     local x="$tmp/x-$arch"
@@ -162,13 +165,13 @@ packaging() {
   local dir="$ROOT/packaging/linux" tmp rc=0
   tmp="$(mktemp -d)"
   local f
-  for f in "$dir/install-hub.sh" "$dir/build-deb.sh" "$dir"/deb/* "$ROOT/scripts/check-trusted-keys.sh" "$ROOT/scripts/e2e-hub-update.sh" "$ROOT/scripts/next-beta-version.sh" "$ROOT/scripts/update-index.sh"; do
+  for f in "$dir/install-hub.sh" "$dir/build-deb.sh" "$dir"/deb/* "$ROOT/scripts/gen-hub-notices.sh" "$ROOT/scripts/check-trusted-keys.sh" "$ROOT/scripts/e2e-hub-update.sh" "$ROOT/scripts/next-beta-version.sh" "$ROOT/scripts/update-index.sh"; do
     bash -n "$f" || rc=1
   done
   # Beta version numbering of the CI version job (ADR 0011).
   "$ROOT/scripts/next-beta-version.sh" --self-test >"$tmp/beta-version.log" 2>&1 || { cat "$tmp/beta-version.log"; rc=1; }
   if command -v shellcheck >/dev/null 2>&1; then
-    shellcheck "$dir/install-hub.sh" "$dir/build-deb.sh" "$ROOT/scripts/check-trusted-keys.sh" "$ROOT/scripts/e2e-hub-update.sh" || rc=1
+    shellcheck "$dir/install-hub.sh" "$dir/build-deb.sh" "$ROOT/scripts/gen-hub-notices.sh" "$ROOT/scripts/check-trusted-keys.sh" "$ROOT/scripts/e2e-hub-update.sh" || rc=1
     shellcheck -s sh "$dir"/deb/* || rc=1
     # Remaining scripts: warnings and errors only (the e2e scripts use A && ok || die on purpose).
     shellcheck -S warning "$ROOT"/scripts/*.sh "$ROOT/.claude/hooks/session-start.sh" || rc=1
@@ -206,6 +209,7 @@ packaging() {
     || { echo "hub.env lacks FRAMEBEAM_LISTEN=:8444"; rc=1; }
   [ -x "$root/usr/local/bin/framebeam-hub" ] || { echo "binary not installed"; rc=1; }
   [ -f "$root/etc/systemd/system/framebeam-hub.service" ] || { echo "unit not installed"; rc=1; }
+  [ -f "$root/usr/local/share/doc/framebeam-hub/THIRD-PARTY-NOTICES.txt" ] || { echo "third-party notices not installed"; rc=1; }
   local rc_out
   rc_out="$(FRAMEBEAM_INSTALL_ROOT="$root" "$dir/install-hub.sh" renew-cert 2>&1)" || { echo "renew-cert dry-run failed"; rc=1; }
   grep -q 'FRAMEBEAM_DATA_DIR=/var/lib/framebeam .*renew-cert' <<<"$rc_out" \
@@ -234,8 +238,10 @@ case "${1:-all}" in
   hub-staticcheck) step "hub: staticcheck" hub_staticcheck ;;
   hub-test)    step "hub: test" hub_test ;;
   hub-codegen) step "hub: codegen" hub_codegen ;;
+  hub-notices) step "hub: notices" hub_notices ;;
+  notices)     "$ROOT/scripts/gen-hub-notices.sh" ;;
   packaging) step "packaging" packaging ;;
-  hub)   step "hub: fmt" hub_fmt; step "hub: vet" hub_vet; step "hub: staticcheck" hub_staticcheck; step "hub: test" hub_test; step "hub: codegen" hub_codegen; step "packaging" packaging ;;
+  hub)   step "hub: fmt" hub_fmt; step "hub: vet" hub_vet; step "hub: staticcheck" hub_staticcheck; step "hub: test" hub_test; step "hub: codegen" hub_codegen; step "hub: notices" hub_notices; step "packaging" packaging ;;
   hub-deb) step "hub: deb packages" hub_deb ;;
   hub-build) step "hub: build linux/amd64+arm64" hub_build ;;
   generate)  step "hub: generate" generate ;;

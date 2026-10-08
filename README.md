@@ -60,4 +60,10 @@ Index: [docs/README.md](docs/README.md). Most used:
 - [Updates and releases](docs/guides/updates.md), [Sessions](docs/guides/sessions-over-the-internet.md), [Saves](docs/guides/saves.md)
 - [Roadmap](docs/roadmap.md), [Architecture](docs/architecture/README.md), [Decisions (ADRs)](docs/adr/), [Design](docs/design/README.md), [Working with Claude Code](docs/workflow.md)
 
-No ROMs, BIOS or firmware are included or may be committed; use homebrew ROMs and your own firmware dumps.
+## License
+
+GPL-3.0-or-later. Copyright (C) 2026 Fabio and FrameBeam contributors. See [LICENSE](LICENSE), [NOTICE.md](NOTICE.md) (trademarks, disclaimer) and [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). Contributing: [CONTRIBUTING.md](CONTRIBUTING.md) and [CLA.md](CLA.md).
+
+## Legal
+
+Not affiliated with Nintendo or any other console maker. No games, ROMs, BIOS or firmware are included or may be committed; use homebrew ROMs and only content you are legally entitled to.

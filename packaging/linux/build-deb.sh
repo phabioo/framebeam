@@ -33,7 +33,10 @@ STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
 chmod 0755 "$STAGE"
 
-install -d -m 0755 "$STAGE/usr/bin" "$STAGE/lib/systemd/system" "$STAGE/DEBIAN" "$OUT"
+DOCDIR="$STAGE/usr/share/doc/framebeam-hub"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+[ -f "$REPO_ROOT/server/THIRD-PARTY-NOTICES.txt" ] || die "server/THIRD-PARTY-NOTICES.txt missing (make notices)"
+install -d -m 0755 "$STAGE/usr/bin" "$STAGE/lib/systemd/system" "$STAGE/DEBIAN" "$DOCDIR" "$OUT"
 install -m 0755 "$BINARY" "$STAGE/usr/bin/framebeam-hub"
 
 # The script-install unit points at /usr/local/bin; the package unit runs /usr/bin and gets a runtime dir for the
@@ -47,6 +50,36 @@ grep -qx 'RuntimeDirectory=framebeam' "$unit" || die "could not add RuntimeDirec
 chmod 0644 "$unit"
 install -m 0644 "$SCRIPT_DIR/framebeam-hub-update.path" "$SCRIPT_DIR/framebeam-hub-update.service" \
   "$STAGE/lib/systemd/system/"
+
+# Debian machine-readable copyright (format 1.0); the third-party Go module licenses ship next to it.
+install -m 0644 "$REPO_ROOT/server/THIRD-PARTY-NOTICES.txt" "$DOCDIR/THIRD-PARTY-NOTICES.txt"
+cat >"$DOCDIR/copyright" <<'COPYRIGHT'
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: FrameBeam
+Source: https://github.com/phabioo/framebeam
+
+Files: *
+Copyright: 2026 Fabio and FrameBeam contributors
+License: GPL-3+
+
+License: GPL-3+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+ .
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ .
+ On Debian systems, the complete text of the GNU General Public
+ License version 3 can be found in /usr/share/common-licenses/GPL-3.
+ .
+ The licenses of the third-party Go modules compiled into the binary are
+ listed in /usr/share/doc/framebeam-hub/THIRD-PARTY-NOTICES.txt.
+COPYRIGHT
+chmod 0644 "$DOCDIR/copyright"
 
 for s in postinst prerm postrm; do install -m 0755 "$SCRIPT_DIR/deb/$s" "$STAGE/DEBIAN/$s"; done
 

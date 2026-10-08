@@ -24,6 +24,7 @@ Start with the [root README](../README.md) for what FrameBeam is and a quick sta
 - [Development](development.md): build, test, dependency scripts, CI, versioning
 - [Roadmap](roadmap.md): status and plan by version
 - [Working with Claude Code](workflow.md): roles, briefs, phase plan
+- Legal: [LICENSE](../LICENSE), [NOTICE.md](../NOTICE.md) (trademarks, disclaimer), [third-party notices](../THIRD-PARTY-NOTICES.md), [CONTRIBUTING.md](../CONTRIBUTING.md), [CLA](../CLA.md)
 - [Architecture](architecture/README.md): design basis of the PoC (index; read only the file you need)
 - [Design](design/README.md): screens, tokens, logo; [decisions](design/decisions.md)
 - Decisions (ADRs, historical records):

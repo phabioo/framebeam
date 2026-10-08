@@ -163,6 +163,9 @@ jobs:
           cat server/dist/hub-release-info.json
           grep -qF "\"version\":\"$HUB_VERSION\"" server/dist/hub-release-info.json
           grep -qF "\"channel\":\"$HUB_CHANNEL\"" server/dist/hub-release-info.json
+          # License texts travel with the raw binaries (GPL-3.0-or-later; third-party Go module licenses).
+          cp LICENSE server/dist/LICENSE
+          cp server/THIRD-PARTY-NOTICES.txt server/dist/THIRD-PARTY-NOTICES.txt
           ls -l server/dist
       - name: E2E Hub install and update (systemd)
         # Real install on the runner: install-hub.sh, .deb migration, signed update round trip (uses sudo).
@@ -175,6 +178,8 @@ jobs:
             server/dist/framebeam-hub-linux-arm64
             server/dist/framebeam-hub_*.deb
             server/dist/hub-release-info.json
+            server/dist/LICENSE
+            server/dist/THIRD-PARTY-NOTICES.txt
           if-no-files-found: error
           retention-days: 7
 
@@ -438,25 +443,20 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "windeployqt failed" }
           if (Get-ChildItem $dist -Filter *.dll) { throw "DLLs at the top level of the package: only the launcher belongs there" }
           # No emulator cores in the package: the Player downloads them from the FrameBeam Hub on demand.
-          @"
-          This package contains no emulator cores. Emulator cores (e.g. melonDS DS, GPL-3.0) are
-          downloaded from your FrameBeam Hub when needed; the Hub provides each core together with its
-          licence text and source link.
-          Contains no ROMs, BIOS or firmware.
-
-          Further bundled libraries (built via vcpkg, see client/vcpkg.json):
-          - FFmpeg (avcodec, avutil, swscale), LGPL-2.1-or-later, https://ffmpeg.org/ (source: https://git.ffmpeg.org/ffmpeg.git)
-          - OpenH264, BSD-2-Clause, https://github.com/cisco/openh264
-          - libdatachannel, MPL-2.0, https://github.com/paullouisageneau/libdatachannel
-          - libjuice, MPL-2.0, https://github.com/paullouisageneau/libjuice
-          - libsrtp, BSD-3-Clause, https://github.com/cisco/libsrtp
-          - usrsctp, BSD-3-Clause, https://github.com/sctplab/usrsctp
-          - Opus, BSD-3-Clause, https://opus-codec.org/ (source: https://gitlab.xiph.org/xiph/opus)
-          - SDL3 (gamepad input only), zlib, https://libsdl.org/ (source: https://github.com/libsdl-org/SDL)
-          - OpenSSL, Apache-2.0, https://www.openssl.org/
-          - Qt 6 (LGPL-3.0, dynamically linked), https://www.qt.io/
-          The FFmpeg and Qt DLLs are shared libraries and can be replaced by compatible builds.
-          "@ | Set-Content "$dist\THIRD-PARTY-NOTICE.txt"
+          # License material (GPL-3.0-or-later): notice, LICENSE.txt and licenses\ with the vcpkg port copyrights and Qt's LGPL-3.0.
+          Copy-Item packaging\windows\THIRD-PARTY-NOTICE.txt "$dist\THIRD-PARTY-NOTICE.txt"
+          Copy-Item LICENSE "$dist\LICENSE.txt"
+          $lic = New-Item -ItemType Directory -Force -Path "$dist\licenses"
+          Copy-Item packaging\windows\licenses\*.txt $lic.FullName
+          $shares = @(Get-ChildItem -Recurse -Directory -Filter 'vcpkg_installed' client\build\windows-msvc-release -ErrorAction SilentlyContinue |
+            ForEach-Object { Join-Path $_.FullName 'x64-windows-release\share' } | Where-Object { Test-Path $_ })
+          foreach ($share in $shares) {
+            foreach ($port in (Get-ChildItem -Path $share -Directory)) {
+              $cr = Join-Path $port.FullName 'copyright'
+              if (Test-Path $cr) { Copy-Item $cr (Join-Path $lic.FullName "$($port.Name).txt") -Force }
+            }
+          }
+          Write-Host "Bundled licenses: $((Get-ChildItem $lic.FullName | ForEach-Object Name) -join ', ')"
       - name: Package smoke check
         shell: pwsh
         env:
@@ -465,6 +465,11 @@ jobs:
           $dist = "$env:GITHUB_WORKSPACE\dist\framebeam-player"
           $bin = "$dist\bin"
           $launcher = "$dist\framebeam_player.exe"
+          # 0) License material: notice, LICENSE.txt and a non-empty licenses\ directory.
+          foreach ($f in 'THIRD-PARTY-NOTICE.txt', 'LICENSE.txt') {
+            if (-not (Test-Path "$dist\$f")) { throw "$f is missing from the package" }
+          }
+          if (-not (Get-ChildItem "$dist\licenses" -File -ErrorAction SilentlyContinue)) { throw "licenses\ is missing or empty in the package" }
           # 1) Static: every non-system import of the executables and of the bundled DLLs must be in the package.
           $dumpbin = Get-Command dumpbin.exe -ErrorAction SilentlyContinue
           if ($dumpbin) {
@@ -556,9 +561,10 @@ jobs:
             if ($p.ExitCode -ne 0) { Get-Content $log -Tail 40 | Write-Host; throw "setup exited with $($p.ExitCode)" }
           }
           Invoke-Setup
-          foreach ($f in 'framebeam_player.exe', 'bin\framebeam_player.exe', 'THIRD-PARTY-NOTICE.txt', 'unins000.exe') {
+          foreach ($f in 'framebeam_player.exe', 'bin\framebeam_player.exe', 'THIRD-PARTY-NOTICE.txt', 'LICENSE.txt', 'unins000.exe') {
             if (-not (Test-Path "$dir\$f")) { throw "after the first install: $f is missing" }
           }
+          if (-not (Get-ChildItem "$dir\licenses" -File -ErrorAction SilentlyContinue)) { throw "after the first install: licenses\ is missing or empty" }
           # An old (flat) install: DLLs and Qt directories next to the exe, plus user data.
           New-Item -ItemType Directory -Force "$dir\platforms", "$dir\qml\QtQuick", "$dir\data" | Out-Null
           Set-Content "$dir\Qt6Core.dll", "$dir\avcodec-61.dll", "$dir\platforms\qwindows.dll", "$dir\qml\QtQuick\qmldir" -Value 'old'
