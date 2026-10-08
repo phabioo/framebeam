@@ -68,6 +68,12 @@
   <label>Snapshot label (optional): <input type="text" name="label" maxlength="64" aria-label="Snapshot label" autocomplete="off"></label>
   <button class="btn" type="submit">Create snapshot</button>
 </form>
+<form class="save-snapshot save-upload" method="post" action="{{.UploadHref}}" enctype="multipart/form-data">
+  <input type="hidden" name="_csrf" value="{{.CSRF}}"><input type="hidden" name="expected_revision" value="{{.ExpectedRev}}">
+  <label>Upload save file: <input type="file" name="file" required aria-describedby="upload-note"></label>
+  <button class="btn" type="submit">Upload save file</button>
+  <span id="upload-note" class="help">The current version moves to the save history.</span>
+</form>
 {{range .Conflicts}}
 <section class="conflict" aria-label="Save conflict">
   <h3>{{.Title}}</h3>
@@ -132,6 +138,18 @@
       <label>User: <select name="user" aria-label="Filter by user"><option value="">All users</option>{{range .Body.Users}}<option value="{{.ID}}"{{if eq $.Body.UserFilter .ID}} selected{{end}}>{{.DisplayName}}</option>{{end}}</select></label>
       <noscript><button class="btn small" type="submit">Apply</button></noscript>
     </form>
+    <details class="upload upload-inline"{{if .Body.UploadOpen}} open{{end}}>
+      <summary class="btn">Upload save</summary>
+      <form class="upload-form" method="post" action="/saves/upload" enctype="multipart/form-data">
+        <input type="hidden" name="_csrf" value="{{.CSRF}}">
+        <label class="field">User<select name="user">{{range .Body.Users}}<option value="{{.ID}}"{{if eq $.Body.UploadUser .ID}} selected{{end}}>{{.DisplayName}}</option>{{end}}</select></label>
+        <label class="field">Game<select name="game" required>{{range .Body.Games}}<option value="{{.ID}}"{{if eq $.Body.UploadGame .ID}} selected{{end}}>{{.DisplayName}}</option>{{end}}</select></label>
+        <label class="field">Slot name<input type="text" name="slot" value="default" maxlength="32" pattern="[a-z0-9_-]{1,32}" autocomplete="off" required></label>
+        <label class="field">Save file<input type="file" name="file" required></label>
+        <p class="help">Creates the slot, or replaces its current version; the old version moves to the save history.</p>
+        <button class="btn primary" type="submit">Upload</button>
+      </form>
+    </details>
     {{template "saves-list" .}}
   </section>
   <section class="saves-detail">{{template "saves-detail" .Body.Detail}}</section>

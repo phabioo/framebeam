@@ -342,6 +342,9 @@ table.list tr.muted td { color: var(--text-faint); }
 .timeline .tl-confirm { grid-column: 2 / 4; }
 .timeline .tl-confirm:empty { display: none; }
 .snap-label { color: var(--text-muted); font-style: italic; }
+.upload-inline { margin: 4px 0 10px; }
+.upload-inline .upload-form { position: static; width: auto; margin-top: 8px; box-shadow: none; grid-template-columns: 1fr; }
+.save-upload input[type="file"] { max-width: 100%; }
 .save-snapshot { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0; font-size: 13px; }
 .confirm { border: 1px solid var(--accent-border); background: var(--surface); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
 .confirm-title { font-size: 14px; font-weight: 600; color: var(--warn-strong); }

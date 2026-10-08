@@ -316,6 +316,7 @@ func (e SaveConflictStatus) Valid() bool {
 const (
 	BeforeConflictResolution SaveHistoryReason = "before_conflict_resolution"
 	BeforeRestore            SaveHistoryReason = "before_restore"
+	BeforeUpload             SaveHistoryReason = "before_upload"
 	ConflictUpload           SaveHistoryReason = "conflict_upload"
 	DeviceChange             SaveHistoryReason = "device_change"
 	ManualSnapshot           SaveHistoryReason = "manual_snapshot"
@@ -328,6 +329,8 @@ func (e SaveHistoryReason) Valid() bool {
 	case BeforeConflictResolution:
 		return true
 	case BeforeRestore:
+		return true
+	case BeforeUpload:
 		return true
 	case ConflictUpload:
 		return true
@@ -366,6 +369,7 @@ const (
 	Final           SaveSyncReason = "final"
 	FinalSessionEnd SaveSyncReason = "final_session_end"
 	Restore         SaveSyncReason = "restore"
+	Upload          SaveSyncReason = "upload"
 )
 
 // Valid indicates whether the value is a known member of the SaveSyncReason enum.
@@ -378,6 +382,8 @@ func (e SaveSyncReason) Valid() bool {
 	case FinalSessionEnd:
 		return true
 	case Restore:
+		return true
+	case Upload:
 		return true
 	default:
 		return false
@@ -576,7 +582,7 @@ type HandshakeRequest_Video struct {
 type HandshakeResponse struct {
 	Compatible bool `json:"compatible"`
 
-	// Features Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = the Hub's embedded TURN server is on (`turn_servers` in `hello_ack` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `cores_index_v1` = signed core index served at `/api/v1/cores/index` and `/api/v1/cores/index.sig`, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`).
+	// Features Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = the Hub's embedded TURN server is on (`turn_servers` in `hello_ack` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `cores_index_v1` = signed core index served at `/api/v1/cores/index` and `/api/v1/cores/index.sig`, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`), `saves_v4` = uploading a save file into a slot (`POST /games/{game_id}/saves/{slot}/upload`).
 	Features           *[]string          `json:"features,omitempty"`
 	HubVersion         string             `json:"hub_version"`
 	MinProtocolVersion int                `json:"min_protocol_version"`
@@ -1044,6 +1050,15 @@ type PutSaveParams struct {
 	// XFrameBeamContentSHA256 Lowercase hex SHA-256 of the body; verified by the Hub.
 	XFrameBeamContentSHA256 string         `json:"X-FrameBeam-Content-SHA256"`
 	XFrameBeamSyncReason    SaveSyncReason `json:"X-FrameBeam-Sync-Reason"`
+}
+
+// UploadSaveFileParams defines parameters for UploadSaveFile.
+type UploadSaveFileParams struct {
+	// XFrameBeamExpectedRevision Current checkpoint revision the caller saw; 0 = the slot must not exist yet.
+	XFrameBeamExpectedRevision int `json:"X-FrameBeam-Expected-Revision"`
+
+	// XFrameBeamContentSHA256 Lowercase hex SHA-256 of the body; verified by the Hub.
+	XFrameBeamContentSHA256 string `json:"X-FrameBeam-Content-SHA256"`
 }
 
 // DownloadRomParams defines parameters for DownloadRom.
@@ -1548,6 +1563,9 @@ type ServerInterface interface {
 	// Create a manual snapshot of the current checkpoint (`saves_v2`)
 	// (POST /api/v1/games/{game_id}/saves/{slot}/snapshots)
 	CreateSaveSnapshot(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName)
+	// Upload a save file (e.g. from another emulator) into a slot (`saves_v4`)
+	// (POST /api/v1/games/{game_id}/saves/{slot}/upload)
+	UploadSaveFile(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName, params UploadSaveFileParams)
 	// Handshake with capability negotiation
 	// (POST /api/v1/handshake)
 	PostHandshake(w http.ResponseWriter, r *http.Request)
@@ -2423,6 +2441,98 @@ func (siw *ServerInterfaceWrapper) CreateSaveSnapshot(w http.ResponseWriter, r *
 	handler.ServeHTTP(w, r)
 }
 
+// UploadSaveFile operation middleware
+func (siw *ServerInterfaceWrapper) UploadSaveFile(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "game_id" -------------
+	var gameId GameId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "game_id", r.PathValue("game_id"), &gameId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "game_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "slot" -------------
+	var slot SaveSlotName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slot", r.PathValue("slot"), &slot, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slot", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UploadSaveFileParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-FrameBeam-Expected-Revision" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-FrameBeam-Expected-Revision")]; found {
+		var XFrameBeamExpectedRevision int
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-FrameBeam-Expected-Revision", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-FrameBeam-Expected-Revision", valueList[0], &XFrameBeamExpectedRevision, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "integer", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-FrameBeam-Expected-Revision", Err: err})
+			return
+		}
+
+		params.XFrameBeamExpectedRevision = XFrameBeamExpectedRevision
+
+	} else {
+		err := fmt.Errorf("Header parameter X-FrameBeam-Expected-Revision is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-FrameBeam-Expected-Revision", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-FrameBeam-Content-SHA256" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-FrameBeam-Content-SHA256")]; found {
+		var XFrameBeamContentSHA256 string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-FrameBeam-Content-SHA256", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-FrameBeam-Content-SHA256", valueList[0], &XFrameBeamContentSHA256, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-FrameBeam-Content-SHA256", Err: err})
+			return
+		}
+
+		params.XFrameBeamContentSHA256 = XFrameBeamContentSHA256
+
+	} else {
+		err := fmt.Errorf("Header parameter X-FrameBeam-Content-SHA256 is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-FrameBeam-Content-SHA256", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UploadSaveFile(w, r, gameId, slot, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // PostHandshake operation middleware
 func (siw *ServerInterfaceWrapper) PostHandshake(w http.ResponseWriter, r *http.Request) {
 
@@ -3142,6 +3252,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/history/{version}/content", wrapper.DownloadSaveHistoryContent)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/history/{version}/restore", wrapper.RestoreSaveHistoryVersion)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/snapshots", wrapper.CreateSaveSnapshot)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/upload", wrapper.UploadSaveFile)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/handshake", wrapper.PostHandshake)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/invites/redeem", wrapper.RedeemInvite)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/pairing/requests", wrapper.CreatePairingRequest)
@@ -4469,6 +4580,115 @@ func (response CreateSaveSnapshot404JSONResponse) VisitCreateSaveSnapshotRespons
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadSaveFileRequestObject struct {
+	GameId GameId       `json:"game_id"`
+	Slot   SaveSlotName `json:"slot"`
+	Params UploadSaveFileParams
+	Body   io.Reader
+}
+
+type UploadSaveFileResponseObject interface {
+	VisitUploadSaveFileResponse(w http.ResponseWriter) error
+}
+
+type UploadSaveFile200JSONResponse SaveSlot
+
+func (response UploadSaveFile200JSONResponse) VisitUploadSaveFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadSaveFile400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UploadSaveFile400JSONResponse) VisitUploadSaveFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadSaveFile401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response UploadSaveFile401JSONResponse) VisitUploadSaveFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadSaveFile403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response UploadSaveFile403JSONResponse) VisitUploadSaveFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadSaveFile404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response UploadSaveFile404JSONResponse) VisitUploadSaveFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadSaveFile409JSONResponse Error
+
+func (response UploadSaveFile409JSONResponse) VisitUploadSaveFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadSaveFile413JSONResponse Error
+
+func (response UploadSaveFile413JSONResponse) VisitUploadSaveFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(413)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -5867,6 +6087,9 @@ type StrictServerInterface interface {
 	// Create a manual snapshot of the current checkpoint (`saves_v2`)
 	// (POST /api/v1/games/{game_id}/saves/{slot}/snapshots)
 	CreateSaveSnapshot(ctx context.Context, request CreateSaveSnapshotRequestObject) (CreateSaveSnapshotResponseObject, error)
+	// Upload a save file (e.g. from another emulator) into a slot (`saves_v4`)
+	// (POST /api/v1/games/{game_id}/saves/{slot}/upload)
+	UploadSaveFile(ctx context.Context, request UploadSaveFileRequestObject) (UploadSaveFileResponseObject, error)
 	// Handshake with capability negotiation
 	// (POST /api/v1/handshake)
 	PostHandshake(ctx context.Context, request PostHandshakeRequestObject) (PostHandshakeResponseObject, error)
@@ -6488,6 +6711,36 @@ func (sh *strictHandler) CreateSaveSnapshot(w http.ResponseWriter, r *http.Reque
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(CreateSaveSnapshotResponseObject); ok {
 		if err := validResponse.VisitCreateSaveSnapshotResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UploadSaveFile operation middleware
+func (sh *strictHandler) UploadSaveFile(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName, params UploadSaveFileParams) {
+	var request UploadSaveFileRequestObject
+
+	request.GameId = gameId
+	request.Slot = slot
+	request.Params = params
+
+	request.Body = r.Body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UploadSaveFile(ctx, request.(UploadSaveFileRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UploadSaveFile")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UploadSaveFileResponseObject); ok {
+		if err := validResponse.VisitUploadSaveFileResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

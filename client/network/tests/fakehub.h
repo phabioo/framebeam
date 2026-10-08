@@ -118,6 +118,8 @@ class FakeHub : public QTcpServer {
   // Signed core index (cores_index_v1): GET /cores/index and /cores/index.sig answer these bytes (empty: 404).
   QByteArray coreIndex, coreIndexSig;
   int coreIndexRequests = 0;
+  int uploadCount = 0;   // save file uploads that succeeded
+  qint64 uploadLimit = 64LL * 1024 * 1024;  // 413 above this
   int restoreCount = 0;  // restore requests that succeeded
   int failSaveRequests = 0;                          // next N save requests answer 503
   QString callerDeviceId;                            // device_id of the last token request

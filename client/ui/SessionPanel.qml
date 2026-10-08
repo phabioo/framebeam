@@ -378,7 +378,7 @@ Rectangle {
                 focusPolicy: Qt.NoFocus
                 kind: "raised"
                 text: root.saves.busy ? qsTr("Saving snapshot…") : qsTr("Save snapshot")
-                hint: "F5"
+                hint: root.player.controllers.hotkeyLabels.snapshot
                 enabled: root.saves.available && !root.saves.busy
                 onClicked: root.saves.createSnapshotInGame("")
             }
@@ -429,7 +429,8 @@ Rectangle {
                 width: Math.min(implicitWidth, parent.width)
                 kind: "link"
                 focusPolicy: Qt.NoFocus
-                text: (root.diag.open ? qsTr("▾ Hide diagnostics") : qsTr("▸ Show diagnostics")) + "   F3"
+                text: (root.diag.open ? qsTr("▾ Hide diagnostics") : qsTr("▸ Show diagnostics"))
+                      + (root.player.controllers.hotkeyLabels.diagnostics !== "" ? "   " + root.player.controllers.hotkeyLabels.diagnostics : "")
                 onClicked: root.diag.toggle()
             }
         }

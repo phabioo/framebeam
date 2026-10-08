@@ -273,7 +273,48 @@ func TestHandshakeAdvertisesFeatures(t *testing.T) {
 		Features []string `json:"features"`
 	}](t, rec).Features
 	// The test device belongs to the admin, who may always upload.
-	if strings.Join(f, ",") != "saves_v1,sessions_v1,users_v1,firmware_v1,cores_v1,saves_v2,cores_index_v1,saves_v3,uploads_v1" {
+	if strings.Join(f, ",") != "saves_v1,sessions_v1,users_v1,firmware_v1,cores_v1,saves_v2,cores_index_v1,saves_v3,saves_v4,uploads_v1" {
 		t.Fatalf("%v", f)
 	}
+}
+
+func (a *savesAPI) upload(tok, slot string, expected any, data []byte, sha string) *httptest.ResponseRecorder {
+	a.t.Helper()
+	return a.do("POST", "/api/v1/games/"+a.game.ID+"/saves/"+slot+"/upload", nil, opt{token: tok, data: data, ctype: "application/octet-stream", raw: true,
+		header: map[string]string{"X-FrameBeam-Expected-Revision": fmt.Sprint(expected), "X-FrameBeam-Content-SHA256": sha}})
+}
+
+func TestUploadSaveFileAPI(t *testing.T) {
+	a := newSavesAPI(t)
+	data := []byte("other-emulator-sav")
+	// New slot at revision 1.
+	rec := a.upload(a.tokA, "default", 0, data, hexSHA(data))
+	wantStatus(t, rec, 200, "")
+	if c := decode[slotResp](t, rec).Current; c.Revision != 1 || c.Reason != "upload" || c.Sha256 != hexSHA(data) {
+		t.Fatalf("%+v", c)
+	}
+	// Existing slot: expected 0 is stale, expected 1 replaces and keeps the old version in the history.
+	wantStatus(t, a.upload(a.tokA, "default", 0, []byte("b"), hexSHA([]byte("b"))), 409, "save_conflict_stale")
+	wantStatus(t, a.upload(a.tokB, "default", 1, []byte("b"), hexSHA([]byte("b"))), 200, "")
+	h := decode[struct {
+		Versions []versionResp
+	}](t, a.do("GET", a.path("/history"), nil, opt{token: a.tokA})).Versions
+	if len(h) != 1 || h[0].Reason != "before_upload" || h[0].Revision != 1 {
+		t.Fatalf("%+v", h)
+	}
+	// Missing slot with N > 0, bad input.
+	wantStatus(t, a.upload(a.tokA, "other", 3, data, hexSHA(data)), 409, "save_conflict_stale")
+	wantStatus(t, a.upload(a.tokA, "other", 0, data, hexSHA([]byte("x"))), 400, "bad_request")
+	wantStatus(t, a.upload(a.tokA, "other", 0, nil, hexSHA(nil)), 400, "bad_request")
+	wantStatus(t, a.upload(a.tokA, "other", -1, data, hexSHA(data)), 400, "")
+	wantStatus(t, a.upload(a.tokA, "BadSlot", 0, data, hexSHA(data)), 400, "")
+	wantStatus(t, a.upload("", "other", 0, data, hexSHA(data)), 401, "")
+	// Over 64 MiB -> 413.
+	big := bytes.Repeat([]byte{1}, hub.MaxSaveBytes+1)
+	wantStatus(t, a.upload(a.tokA, "other", 0, big, hexSHA(big)), 413, "payload_too_large")
+	wantStatus(t, a.do("GET", "/api/v1/games/"+a.game.ID+"/saves/other", nil, opt{token: a.tokA}), 404, "not_found")
+	// Unknown game -> 404.
+	rec = a.do("POST", "/api/v1/games/"+uuid.NewString()+"/saves/default/upload", nil, opt{token: a.tokA, data: data, ctype: "application/octet-stream", raw: true,
+		header: map[string]string{"X-FrameBeam-Expected-Revision": "0", "X-FrameBeam-Content-SHA256": hexSHA(data)}})
+	wantStatus(t, rec, 404, "not_found")
 }

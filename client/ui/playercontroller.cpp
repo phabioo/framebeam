@@ -148,6 +148,10 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     env.gameBusy = [this](const QString& id) {
       return (phase_ != PlayPhase::None || gameActive_ || session_.isActive()) && (launchGame_.id.isEmpty() || launchGame_.id == id);
     };
+    env.gameTitle = [this](const QString& id) {
+      const auto g = model_.game(id);
+      return g ? g->title : QString();
+    };
     env.localFileName = [this](const QString& id) {
       const auto g = model_.game(id);
       return g ? SaveStore::expectedSaveName(g->romSha256 + QLatin1Char('.') + RomCache::extensionFromFilename(g->romFilename)) : QString();
@@ -232,6 +236,8 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   session_.setKeyboardMap(controllers_->keyboardMap());
   connect(controllers_.get(), &ControllersController::keyboardMapChanged, this,
           [this]() { session_.setKeyboardMap(controllers_->keyboardMap()); });
+  session_.setHotkeyKeys(controllers_->hotkeyKeys());
+  connect(controllers_.get(), &ControllersController::hotkeysChanged, this, [this]() { session_.setHotkeyKeys(controllers_->hotkeyKeys()); });
   connect(controllers_.get(), &ControllersController::libretroMaskChanged, this,
           [this](quint32 mask) { session_.setGamepadMask(mask); });
   session_.setGamepadMask(controllers_->gamepads()->libretroMask());

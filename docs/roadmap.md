@@ -116,7 +116,8 @@ Done in code (decisions: [ADR 0014](adr/0014-player-ui-pass.md), accepted); look
 Open in 0.6:
 
 - The Player does not know the Hub user's display name; the sidebar shows the device name.
-- Per-game settings are still "coming later"; built-in controller profiles are read-only; the Hotkeys tab (3f) is not built.
+- Per-game settings are still "coming later".
+- [x] Done (0.7.x): Hotkeys tab (3f) and "Duplicate to edit" for built-in controller profiles, see "0.7.x Hotkeys and controller profiles".
 - [x] Done (0.7.x, ADR 0017 D3): `PlayerController` split into `CoreCatalog`, `GameDetail`, `HubPresenter` and `GameStarter`.
 - Verification of look and feel, GPU values and real sessions is done locally by Fabio.
 
@@ -140,7 +141,14 @@ See [ADR 0018](adr/0018-player-speed-up.md) (proposed).
 - [x] Done: "Speed-up" (libretro fast-forward) in the Player for cores that do not inhibit it; Space toggles; speed 1.5×, 2×, 3×, 4×, 6×, 8× (default 2×, the user's choice wins over a core ratio); screen frames limited to the base rate.
 - [x] Done: header button "Speed-up" ("»" when narrow) and a speed select in the Session panel (running game only) and indicator "Speed-up ×N"; hidden when the core inhibits it; stays usable while the Session is shared (viewers get the normal stream frame rate).
 - [x] Done: Emulation settings "Speed-up speed", "Speed-up on start" (default off) and "Audio during speed-up" (default on, resampled; off drops audio) with the global > system > game hierarchy.
-- Open: configurable key in Controllers → Hotkeys (separate work package); gamepad hotkey.
+- [x] Done (0.7.x): the speed-up key is configurable in Controllers → Hotkeys.
+- Open: gamepad hotkey.
+
+## 0.7.x Hotkeys and controller profiles
+
+- [x] Done: Hotkeys tab in Controllers (3f): Player keyboard hotkeys for fullscreen (F11), diagnostics (F3), snapshot (F5) and speed-up (Space) are configurable, can be cleared and reset; Esc stays fixed (leave fullscreen, else pause). Stored locally in `settings/controllers.json` (`hotkeys`, only non-default entries); a key used by another hotkey is refused; a hotkey wins over the keyboard profile and is never sent to the core. Key hints in the game screen, diagnostics and Session panel follow the configured keys.
+- [x] Done: built-in controller profiles stay read-only; "Duplicate to edit" (and clicking a mapping of a built-in profile) creates a copy, assigns it to the device and starts editing it.
+- Open: gamepad hotkeys.
 
 ## 0.8 Second system: Nintendo 3DS with Azahar
 

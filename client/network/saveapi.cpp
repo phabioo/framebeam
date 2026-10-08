@@ -297,6 +297,24 @@ void SaveApi::restore(const QString& gameId, const QString& slot, int version, i
   run(reply, Expect::Resolve, std::move(cb));  // answer: the SaveSlot after the restore
 }
 
+void SaveApi::uploadFile(const QString& gameId, const QString& slot, const QByteArray& data, int expectedRevision, Callback cb) {
+  if (data.size() > kMaxSaveBytes) {
+    immediate(SaveApiResult::Kind::Rejected, QStringLiteral("payload_too_large"), std::move(cb));
+    return;
+  }
+  const QByteArray sha = QCryptographicHash::hash(data, QCryptographicHash::Sha256).toHex();
+  QNetworkReply* reply = conn_ ? conn_->authorizedSend("POST", slotPath(gameId, slot) + QStringLiteral("/upload"), data,
+                                                       {{"X-FrameBeam-Content-SHA256", sha},
+                                                        {"X-FrameBeam-Expected-Revision", QByteArray::number(expectedRevision)}},
+                                                       "application/octet-stream")
+                               : nullptr;
+  if (reply == nullptr) {
+    immediate(SaveApiResult::Kind::Offline, QStringLiteral("not_connected"), std::move(cb));
+    return;
+  }
+  run(reply, Expect::Resolve, std::move(cb));  // answer: the SaveSlot after the upload
+}
+
 void SaveApi::createSnapshot(const QString& gameId, const QString& slot, const QString& label, Callback cb) {
   QJsonObject o;
   if (!label.trimmed().isEmpty()) {

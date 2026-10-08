@@ -678,7 +678,7 @@ func TestSavesPage(t *testing.T) {
 	rec = c.get("/saves?user="+other.ID, nil)
 	status(t, rec, http.StatusOK)
 	contains(t, rec, "No saves yet.")
-	notContains(t, rec, "Harbor Rally")
+	notContains(t, rec, `class="save-title">Harbor Rally`)
 	contains(t, c.get("/saves?user="+adminID, nil), "Harbor Rally")
 
 	// Downloads (current + history).
