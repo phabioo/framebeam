@@ -1,6 +1,6 @@
 # ADR 0010: Cores from the Hub (0.2)
 
-- Status: proposed
+- Status: accepted (Fabio, 2026-10-07, with the merge of the PR)
 - Date: 2026-10-07
 - Decided by: Fabio (proposal by the orchestrator; accepted with the PR)
 

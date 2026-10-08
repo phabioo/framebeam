@@ -1,4 +1,4 @@
-# ADR 0017: Player speed-up (fast-forward)
+# ADR 0018: Player speed-up (fast-forward)
 
 - Status: Proposed
 - Date: 2026-10-08

@@ -53,7 +53,7 @@ Library and emulation show understandable states for the respective ROM or core 
 | Download required | Required local file is missing; offer download or trigger it on launch |
 | Download running / failed | Progress or an understandable error with a retry option |
 | Hash mismatch | Local file does not match the expected SHA-256; do not use, fetch again |
-| Version mismatch | Core version does not match the intended version; matching version required |
+| Version mismatch | Core version does not match the intended version; matching version required (a different major version blocks the launch, other differences warn; ADR 0017 D1) |
 | Core unavailable / incompatible | No matching core for the Player platform; launch not possible |
 
 The status refers to the respective device and artifact. The Hub registry can display reported client compatibility; it does not imply core execution on the Hub. Full hashes and further technical details can live in a detail view.
@@ -78,4 +78,4 @@ In the PoC, emulation settings remain local. The hierarchy is prepared conceptua
 
 ### Pacing and speed-up (fast-forward)
 
-The Player paces the core to the base frame rate. Libretro has no fast-forward capability flag, so fast-forward is a frontend feature (UI name "Speed-up"): the core runs unthrottled up to the selected speed (1.5x to 8x, default 2x; the user's choice wins over a ratio from `SET_FASTFORWARDING_OVERRIDE`), screen frames stay at the base rate and audio is resampled to real time or dropped (setting). Speed, speed-up on start and audio are FrameBeam options (`framebeam.speedup_ratio`, `framebeam.speedup_on_start`, `framebeam.speedup_audio`) in the global > system > game hierarchy. The Player answers `GET_FASTFORWARDING` and `GET_THROTTLE_STATE`; a core that sets `inhibit_toggle` hides the control. It stays usable while the Session is shared (viewers get the base frame rate). See [ADR 0017](../adr/0017-player-fast-forward.md).
+The Player paces the core to the base frame rate. Libretro has no fast-forward capability flag, so fast-forward is a frontend feature (UI name "Speed-up"): the core runs unthrottled up to the selected speed (1.5x to 8x, default 2x; the user's choice wins over a ratio from `SET_FASTFORWARDING_OVERRIDE`), screen frames stay at the base rate and audio is resampled to real time or dropped (setting). Speed, speed-up on start and audio are FrameBeam options (`framebeam.speedup_ratio`, `framebeam.speedup_on_start`, `framebeam.speedup_audio`) in the global > system > game hierarchy. The Player answers `GET_FASTFORWARDING` and `GET_THROTTLE_STATE`; a core that sets `inhibit_toggle` hides the control. It stays usable while the Session is shared (viewers get the base frame rate). See [ADR 0018](../adr/0018-player-speed-up.md).

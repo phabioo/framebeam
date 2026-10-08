@@ -75,4 +75,18 @@ std::optional<int> compareVersions(const QString& a, const QString& b) {
   return SemVer::compare(*va, *vb);
 }
 
+CoreVersionVerdict coreVersionVerdict(const QString& coreVersion, const QString& expectedVersion) {
+  const QString expected = expectedVersion.trimmed();
+  if (expected.isEmpty()) return CoreVersionVerdict::Compatible;  // the Hub accepts any version
+  const auto strip = [](QString v) {
+    v = v.trimmed();
+    return v.startsWith(QLatin1Char('v')) ? v.mid(1) : v;
+  };
+  if (strip(coreVersion) == strip(expected)) return CoreVersionVerdict::Compatible;
+  const auto a = SemVer::parse(strip(coreVersion));
+  const auto b = SemVer::parse(strip(expected));
+  if (!a || !b) return CoreVersionVerdict::Warn;
+  return a->major != b->major ? CoreVersionVerdict::Block : CoreVersionVerdict::Warn;
+}
+
 }  // namespace framebeam::update

@@ -54,6 +54,9 @@ type saveHistoryView struct {
 	CancelHref   string
 	CancelXHR    string // fragment URL that answers an empty body
 	Open         bool   // the restore confirmation is shown under this row
+	DeleteHref   string // POST: delete the snapshot
+	DeleteAsk    string // GET: the inline delete confirmation (snapshots only)
+	DeleteOpen   bool   // the delete confirmation is shown under this row
 	ExpectedRev  int    // current revision the restore is based on
 	Slot         string
 }
@@ -81,6 +84,15 @@ type saveDetailView struct {
 	Confirm             int // version whose restore confirmation is open (0 = none)
 	Retention           string
 	RefreshURL          string
+	NewSlotAsk          string // GET: the inline "New slot" form
+	NewSlot             *newSlotView
+}
+
+// newSlotView is the inline "New slot" form. Error is set when a submit was refused.
+type newSlotView struct {
+	Game, From, Value, Error     string
+	PostHref, CancelHref, Cancel string
+	Max                          int
 }
 
 type savesBody struct {
@@ -145,6 +157,15 @@ func savesURL(path, user, hist string, confirm int) string {
 	return path + "?" + v.Encode()
 }
 
+// withParam appends one query parameter to a URL.
+func withParam(u, k, v string) string {
+	sep := "?"
+	if strings.Contains(u, "?") {
+		sep = "&"
+	}
+	return u + sep + url.QueryEscape(k) + "=" + url.QueryEscape(v)
+}
+
 func cancelParam(user, hist string) string {
 	if user == "" && hist == "" {
 		return "?cancel=1"
@@ -165,7 +186,7 @@ type saveGroup struct {
 	slots      []hub.SaveSummary
 }
 
-func (s *Server) savesBody(r *http.Request) (savesBody, error) {
+func (s *Server) savesBody(r *http.Request, nf *newSlotView) (savesBody, error) {
 	ctx := r.Context()
 	q := r.URL.Query()
 	filter, hist := q.Get("user"), q.Get("hist")
@@ -173,6 +194,7 @@ func (s *Server) savesBody(r *http.Request) (savesBody, error) {
 		hist = ""
 	}
 	confirm, _ := strconv.Atoi(q.Get("confirm"))
+	del, _ := strconv.Atoi(q.Get("delete"))
 	users, err := s.svc.ListUsers(ctx)
 	if err != nil {
 		return savesBody{}, err
@@ -248,7 +270,7 @@ func (s *Server) savesBody(r *http.Request) (savesBody, error) {
 		b.Rows = append(b.Rows, v)
 	}
 	if sel != nil {
-		d, err := s.saveDetail(r, sel, selName, filter, hist, confirm, now)
+		d, err := s.saveDetail(r, sel, selName, filter, hist, confirm, del, nf, now)
 		if err != nil {
 			return savesBody{}, err
 		}
@@ -275,7 +297,7 @@ func (s *Server) retentionText() string {
 		"plus the newest version %s and %s. Everything else is deleted for good, after each new version and in a daily sweep.", kept, recent, day, week)
 }
 
-func (s *Server) saveDetail(r *http.Request, grp *saveGroup, slotName, filter, hist string, confirm int, now time.Time) (*saveDetailView, error) {
+func (s *Server) saveDetail(r *http.Request, grp *saveGroup, slotName, filter, hist string, confirm, del int, nf *newSlotView, now time.Time) (*saveDetailView, error) {
 	ctx := r.Context()
 	first := grp.slots[0]
 	d := &saveDetailView{Title: first.GameTitle, User: first.Username, Slot: slotName, Snapshots: hist == "snapshots", Retention: s.retentionText()}
@@ -312,6 +334,14 @@ func (s *Server) saveDetail(r *http.Request, grp *saveGroup, slotName, filter, h
 	}
 	href := saveHref(grp.user, grp.game, slotName)
 	d.RefreshURL = savesURL(href, filter, hist, 0)
+	d.NewSlotAsk = withParam(savesURL(href, filter, "", 0), "newslot", "1")
+	if nf != nil {
+		nf.Game, nf.From, nf.Max = d.Title, slotName, hub.MaxSlotName
+		nf.PostHref = href + "/slots"
+		nf.CancelHref = savesURL(href, filter, hist, 0)
+		nf.Cancel = withParam(nf.CancelHref, "cancel", "1")
+		d.NewSlot = nf
+	}
 	d.AllHref, d.SnapHref = savesURL(href, filter, "", 0), savesURL(href, filter, "snapshots", 0)
 	cur := slot.Current
 	d.SnapshotHref, d.ExpectedRev = href+"/snapshots", cur.Revision
@@ -341,6 +371,8 @@ func (s *Server) saveDetail(r *http.Request, grp *saveGroup, slotName, filter, h
 			DownloadHref: href + "/history/" + vs + "/download",
 			RestoreHref:  href + "/history/" + vs + "/restore",
 			ConfirmHref:  savesURL(href, filter, hist, v.Version),
+			DeleteHref:   href + "/history/" + vs + "/delete",
+			DeleteAsk:    withParam(savesURL(href, filter, hist, 0), "delete", vs),
 			CancelHref:   savesURL(href, filter, hist, 0), CancelXHR: savesURL(href, filter, hist, 0) + cancelParam(filter, hist), ExpectedRev: cur.Revision, Slot: slotName}
 		switch {
 		case hv.Current:
@@ -357,6 +389,9 @@ func (s *Server) saveDetail(r *http.Request, grp *saveGroup, slotName, filter, h
 		if confirm == v.Version && !hv.Current {
 			d.Confirm, hv.Open = v.Version, true
 		}
+		if del == v.Version && hv.Snapshot {
+			d.Confirm, hv.DeleteOpen = v.Version, true
+		}
 		d.History = append(d.History, hv)
 	}
 	d.HistoryEmpty = "No history versions yet."
@@ -369,11 +404,16 @@ func (s *Server) saveDetail(r *http.Request, grp *saveGroup, slotName, filter, h
 func (s *Server) savesGet(w http.ResponseWriter, r *http.Request, sess *session) {
 	hx := r.Header.Get("HX-Request") == "true"
 	inConfirm := hx && strings.HasPrefix(r.Header.Get("HX-Target"), "confirm-v")
-	if inConfirm && r.URL.Query().Get("cancel") != "" {
+	inNew := hx && r.Header.Get("HX-Target") == "newslot-form"
+	if (inConfirm || inNew) && r.URL.Query().Get("cancel") != "" {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		return
 	}
-	body, err := s.savesBody(r)
+	var nf *newSlotView
+	if r.URL.Query().Get("newslot") != "" {
+		nf = &newSlotView{}
+	}
+	body, err := s.savesBody(r, nf)
 	if err != nil {
 		if errors.Is(err, hub.ErrNotFound) {
 			http.NotFound(w, r)
@@ -400,7 +440,10 @@ func (s *Server) savesGet(w http.ResponseWriter, r *http.Request, sess *session)
 	case inConfirm && body.Detail != nil && body.Detail.Confirm > 0:
 		d.Fragment = true
 		s.render(w, http.StatusOK, "saves", "restore-confirm", d)
-	case inConfirm:
+	case inNew && body.Detail != nil && body.Detail.NewSlot != nil:
+		d.Fragment = true
+		s.render(w, http.StatusOK, "saves", "newslot-fragment", d)
+	case inConfirm, inNew:
 		http.NotFound(w, r)
 	default:
 		s.render(w, http.StatusOK, "saves", "layout", d)
@@ -530,4 +573,64 @@ func (s *Server) saveSnapshot(w http.ResponseWriter, r *http.Request, _ *session
 	default:
 		s.fail(w, r, err)
 	}
+}
+
+func (s *Server) saveDeleteSnapshot(w http.ResponseWriter, r *http.Request, _ *session) {
+	u, g, sl := r.PathValue("user"), r.PathValue("game"), r.PathValue("slot")
+	ver, err := strconv.Atoi(r.PathValue("version"))
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	err = s.svc.DeleteSaveSnapshot(r.Context(), u, g, sl, ver)
+	switch {
+	case err == nil:
+		s.redirect(w, r, saveHref(u, g, sl)+"?ok=snapdeleted")
+	case errors.Is(err, hub.ErrNotFound):
+		http.NotFound(w, r)
+	case errors.Is(err, hub.ErrSaveNotSnapshot):
+		http.Error(w, "Only manual snapshots can be deleted", http.StatusConflict)
+	default:
+		s.fail(w, r, err)
+	}
+}
+
+// saveNewSlot creates a slot from the current version of the slot in the path. A refused name shows the form again.
+func (s *Server) saveNewSlot(w http.ResponseWriter, r *http.Request, sess *session) {
+	u, g, from := r.PathValue("user"), r.PathValue("game"), r.PathValue("slot")
+	name := strings.TrimSpace(r.PostFormValue("name"))
+	_, err := s.svc.CreateSaveSlot(r.Context(), u, g, from, name, hub.WebDeviceID(sess.User.ID))
+	var msg string
+	switch {
+	case err == nil:
+		s.redirect(w, r, saveHref(u, g, name)+"?ok=slotcreated")
+		return
+	case errors.Is(err, hub.ErrNotFound):
+		http.NotFound(w, r)
+		return
+	case errors.Is(err, hub.ErrSaveSlotExists):
+		msg = "A slot with this name already exists."
+	case errors.Is(err, hub.ErrBadRequest):
+		msg = fmt.Sprintf("Use lowercase letters, digits, - and _ (up to %d characters).", hub.MaxSlotName)
+	default:
+		s.fail(w, r, err)
+		return
+	}
+	body, err := s.savesBody(r, &newSlotView{Value: name, Error: msg})
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	if body.Detail == nil {
+		http.NotFound(w, r)
+		return
+	}
+	d := s.base(r, sess, "saves", "Saves")
+	d.Body = body
+	if r.Header.Get("HX-Request") == "true" {
+		d.Fragment = true
+		s.render(w, http.StatusOK, "saves", "newslot-fragment", d)
+		return
+	}
+	s.render(w, http.StatusOK, "saves", "layout", d)
 }
