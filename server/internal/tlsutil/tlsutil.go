@@ -13,6 +13,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/big"
 	"net"
 	"os"
@@ -79,33 +80,30 @@ func EnsureSelfSigned(dataDir string) (tls.Certificate, error) {
 // EnsureSelfSignedRenewing is EnsureSelfSigned with an explicit clock. When an existing
 // certificate is expired or expires within RenewBefore, it is replaced and the returned
 // Renewal is non-nil; the previous files are kept as cert.pem.prev / key.pem.prev.
+// An interrupted earlier write or renewal is repaired first (see loadCurrent).
 func EnsureSelfSignedRenewing(dataDir string, now time.Time) (tls.Certificate, *Renewal, error) {
-	_, certFile, keyFile := selfSignedPaths(dataDir)
-	if _, err := os.Stat(certFile); err == nil {
-		c, err := Load(certFile, keyFile)
-		if err != nil {
-			return tls.Certificate{}, nil, err
-		}
-		leaf, err := x509.ParseCertificate(c.Certificate[0])
-		if err != nil {
-			return tls.Certificate{}, nil, err
-		}
-		if !NeedsRenewal(leaf, now) {
-			return c, nil, nil
-		}
-		return renew(dataDir, c, leaf, now)
-	} else if !errors.Is(err, os.ErrNotExist) {
+	c, err := loadCurrent(dataDir)
+	if errors.Is(err, os.ErrNotExist) {
+		c, err := create(dataDir, now)
+		return c, nil, err
+	}
+	if err != nil {
 		return tls.Certificate{}, nil, err
 	}
-	c, err := create(dataDir, now)
-	return c, nil, err
+	leaf, err := x509.ParseCertificate(c.Certificate[0])
+	if err != nil {
+		return tls.Certificate{}, nil, err
+	}
+	if !NeedsRenewal(leaf, now) {
+		return c, nil, nil
+	}
+	return renew(dataDir, c, leaf, now)
 }
 
 // RenewSelfSigned replaces the self-generated certificate unconditionally (admin command).
 // It fails when no self-generated certificate exists yet.
 func RenewSelfSigned(dataDir string, now time.Time) (tls.Certificate, *Renewal, error) {
-	_, certFile, keyFile := selfSignedPaths(dataDir)
-	c, err := Load(certFile, keyFile)
+	c, err := loadCurrent(dataDir)
 	if err != nil {
 		return tls.Certificate{}, nil, fmt.Errorf("load current certificate: %w", err)
 	}
@@ -116,9 +114,90 @@ func RenewSelfSigned(dataDir string, now time.Time) (tls.Certificate, *Renewal, 
 	return renew(dataDir, c, leaf, now)
 }
 
-// renew keeps the old pair as *.prev and creates a new certificate.
+// pair holds the cert/key paths of one generation (current, ".new" or ".prev").
+func pair(certFile, keyFile, suffix string) (string, string) {
+	return certFile + suffix, keyFile + suffix
+}
+
+func exists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+// loadCurrent loads the self-generated pair and repairs interrupted writes. If the current
+// pair is missing, unloadable or mismatched: a complete, loadable ".new" pair finishes the
+// interrupted swap; otherwise a loadable ".prev" pair is restored. It returns an error
+// wrapping os.ErrNotExist when there is nothing at all (first start). Own certificates
+// (-tls-cert/-tls-key) never go through here.
+func loadCurrent(dataDir string) (tls.Certificate, error) {
+	dir, certFile, keyFile := selfSignedPaths(dataDir)
+	c, curErr := Load(certFile, keyFile)
+	if curErr == nil {
+		return c, nil
+	}
+	newCert, newKey := pair(certFile, keyFile, ".new")
+	prevCert, prevKey := pair(certFile, keyFile, ".prev")
+	present := exists(certFile) || exists(keyFile) || exists(newCert) || exists(newKey) || exists(prevCert) || exists(prevKey)
+	if !present {
+		return tls.Certificate{}, os.ErrNotExist
+	}
+	log := slog.Default()
+	if nc, err := Load(newCert, newKey); err == nil {
+		log.Warn("TLS: current certificate unusable, finishing interrupted renewal from staged .new pair",
+			"error", curErr, "sha256_fingerprint", Fingerprint(nc))
+		if err := swapIn(dir, newKey, keyFile, newCert, certFile); err != nil {
+			return tls.Certificate{}, fmt.Errorf("finish interrupted tls renewal: %w", err)
+		}
+		return Load(certFile, keyFile)
+	}
+	if pc, err := Load(prevCert, prevKey); err == nil {
+		log.Warn("TLS: current certificate unusable, restoring previous .prev pair",
+			"error", curErr, "sha256_fingerprint", Fingerprint(pc))
+		if err := swapIn(dir, prevKey, keyFile, prevCert, certFile); err != nil {
+			return tls.Certificate{}, fmt.Errorf("restore previous tls certificate: %w", err)
+		}
+		return Load(certFile, keyFile)
+	}
+	if !exists(certFile) || !exists(keyFile) {
+		// An incomplete current pair (e.g. a lone key or cert from an interrupted first start) with no
+		// usable .new/.prev is treated as a first start; a complete but unusable pair stays an error.
+		return tls.Certificate{}, os.ErrNotExist
+	}
+	return tls.Certificate{}, fmt.Errorf("tls certificate in %s is unusable and no complete .new or .prev pair can replace it: %w", dir, curErr)
+}
+
+// swapIn renames the key and cert sources into place and syncs the directory.
+func swapIn(dir, srcKey, dstKey, srcCert, dstCert string) error {
+	if err := os.Rename(srcKey, dstKey); err != nil {
+		return err
+	}
+	if err := os.Rename(srcCert, dstCert); err != nil {
+		return err
+	}
+	return syncDir(dir)
+}
+
+// renew stages a new pair as *.new, keeps the old pair as *.prev and moves the new one in.
 func renew(dataDir string, old tls.Certificate, leaf *x509.Certificate, now time.Time) (tls.Certificate, *Renewal, error) {
-	_, certFile, keyFile := selfSignedPaths(dataDir)
+	dir, certFile, keyFile := selfSignedPaths(dataDir)
+	newCert, newKey := pair(certFile, keyFile, ".new")
+	keyPEM, certPEM, err := generate(now)
+	if err != nil {
+		return tls.Certificate{}, nil, err
+	}
+	if err := writeFileAtomic(newKey, keyPEM, 0o600); err != nil {
+		return tls.Certificate{}, nil, fmt.Errorf("stage tls key: %w", err)
+	}
+	if err := writeFileAtomic(newCert, certPEM, 0o644); err != nil {
+		_ = os.Remove(newKey)
+		return tls.Certificate{}, nil, fmt.Errorf("stage tls cert: %w", err)
+	}
+	c, err := Load(newCert, newKey)
+	if err != nil {
+		_ = os.Remove(newKey)
+		_ = os.Remove(newCert)
+		return tls.Certificate{}, nil, fmt.Errorf("staged tls pair invalid: %w", err)
+	}
 	if err := os.Rename(keyFile, keyFile+".prev"); err != nil {
 		return tls.Certificate{}, nil, fmt.Errorf("back up tls key: %w", err)
 	}
@@ -126,29 +205,41 @@ func renew(dataDir string, old tls.Certificate, leaf *x509.Certificate, now time
 		_ = os.Rename(keyFile+".prev", keyFile)
 		return tls.Certificate{}, nil, fmt.Errorf("back up tls cert: %w", err)
 	}
-	c, err := create(dataDir, now)
-	if err != nil {
-		// Restore the previous pair so the Hub keeps a usable certificate.
-		_ = os.Rename(keyFile+".prev", keyFile)
-		_ = os.Rename(certFile+".prev", certFile)
-		return tls.Certificate{}, nil, err
+	// A crash from here on is repaired by loadCurrent (finishes the swap from .new).
+	if err := swapIn(dir, newKey, keyFile, newCert, certFile); err != nil {
+		return tls.Certificate{}, nil, fmt.Errorf("activate new tls pair: %w", err)
 	}
 	return c, &Renewal{OldFingerprint: Fingerprint(old), NewFingerprint: Fingerprint(c), OldNotAfter: leaf.NotAfter}, nil
 }
 
-// create generates and writes a new self-signed certificate valid from now-1h.
+// create generates a new self-signed certificate and writes it atomically (first start).
 func create(dataDir string, now time.Time) (tls.Certificate, error) {
 	dir, certFile, keyFile := selfSignedPaths(dataDir)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return tls.Certificate{}, err
 	}
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	keyPEM, certPEM, err := generate(now)
 	if err != nil {
 		return tls.Certificate{}, err
 	}
+	if err := writeFileAtomic(keyFile, keyPEM, 0o600); err != nil {
+		return tls.Certificate{}, fmt.Errorf("write tls key: %w", err)
+	}
+	if err := writeFileAtomic(certFile, certPEM, 0o644); err != nil {
+		return tls.Certificate{}, fmt.Errorf("write tls cert: %w", err)
+	}
+	return Load(certFile, keyFile)
+}
+
+// generate creates a self-signed ECDSA P-256 key/cert pair (PEM) valid from now-1h.
+func generate(now time.Time) (keyPEM, certPEM []byte, err error) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, nil, err
+	}
 	serial, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 127))
 	if err != nil {
-		return tls.Certificate{}, err
+		return nil, nil, err
 	}
 	host, _ := os.Hostname()
 	dns, ips := sans(host)
@@ -169,19 +260,61 @@ func create(dataDir string, now time.Time) (tls.Certificate, error) {
 	}
 	der, err := x509.CreateCertificate(rand.Reader, tpl, tpl, &key.PublicKey, key)
 	if err != nil {
-		return tls.Certificate{}, err
+		return nil, nil, err
 	}
 	keyDER, err := x509.MarshalECPrivateKey(key)
 	if err != nil {
-		return tls.Certificate{}, err
+		return nil, nil, err
 	}
-	if err := os.WriteFile(keyFile, pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER}), 0o600); err != nil {
-		return tls.Certificate{}, fmt.Errorf("write tls key: %w", err)
+	return pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER}),
+		pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), nil
+}
+
+// writeFileAtomic writes data to a temp file in the same directory (created with perm),
+// fsyncs it and renames it over path.
+func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
+	dir := filepath.Dir(path)
+	f, err := os.CreateTemp(dir, filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return err
 	}
-	if err := os.WriteFile(certFile, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), 0o644); err != nil {
-		return tls.Certificate{}, fmt.Errorf("write tls cert: %w", err)
+	tmp := f.Name()
+	cleanup := func(err error) error {
+		_ = f.Close()
+		_ = os.Remove(tmp)
+		return err
 	}
-	return Load(certFile, keyFile)
+	if err := f.Chmod(perm); err != nil {
+		return cleanup(err)
+	}
+	if _, err := f.Write(data); err != nil {
+		return cleanup(err)
+	}
+	if err := f.Sync(); err != nil {
+		return cleanup(err)
+	}
+	if err := f.Close(); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	return syncDir(dir)
+}
+
+// syncDir fsyncs a directory so renames are durable (best effort where unsupported).
+func syncDir(dir string) error {
+	d, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+	defer d.Close()
+	if err := d.Sync(); err != nil && !errors.Is(err, os.ErrInvalid) {
+		return err
+	}
+	return nil
 }
 
 func sans(host string) ([]string, []net.IP) {

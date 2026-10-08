@@ -23,12 +23,19 @@
   </tbody>
 </table></div>
 {{else}}
-<div class="card"><p class="empty">{{if .Filtered}}No ROMs found.{{else}}No ROMs in the library yet. Upload the first ROM.{{end}}</p></div>
+<div class="card"><p class="empty">{{if .Filtered}}No ROMs found.{{else}}No ROMs in the library yet. Upload the first ROM{{if $.ImportDir}} or copy ROM files into <span class="mono">{{$.ImportDir}}</span> and use "Rescan folder"{{end}}.{{end}}</p></div>
 {{end}}
 {{end}}
 {{define "content"}}
 <div class="page-head">
   <div><h1>Library</h1><p id="library-sub" class="sub">{{template "library-sub" .Body}}</p></div>
+  <div class="head-actions">
+  {{if .Body.ImportDir}}
+  <form method="post" action="/library/rescan">
+    <input type="hidden" name="_csrf" value="{{.CSRF}}">
+    <button class="btn" type="submit" title="Imports ROM files from {{.Body.ImportDir}}. Files there are only read, never moved or deleted.">Rescan folder</button>
+  </form>
+  {{end}}
   <details class="upload"{{if .Error}} open{{end}}>
     <summary class="btn primary">Upload ROM</summary>
     <form class="upload-form" method="post" action="/library/upload" enctype="multipart/form-data">
@@ -39,7 +46,9 @@
       <button class="btn primary" type="submit">Upload</button>
     </form>
   </details>
+  </div>
 </div>
+{{if .Body.ImportDir}}<p class="help">Import folder: <span class="mono">{{.Body.ImportDir}}</span> · "Rescan folder" adds new ROM files from it; files there are only read, never moved or deleted.</p>{{end}}
 <form id="filter-form" class="filters" hx-get="/library" hx-target="#library-results" hx-swap="outerHTML" hx-trigger="change, input delay:250ms from:#q">
   <label class="filter-pill"><input type="radio" name="system" value=""{{if not .Body.System}} checked{{end}}><span>All systems · {{.Body.Count}}</span></label>
   {{range .Body.Systems}}<label class="filter-pill"><input type="radio" name="system" value="{{.ID}}"{{if eq $.Body.System .ID}} checked{{end}}><span>{{.Name}} · {{.Count}}</span></label>{{end}}

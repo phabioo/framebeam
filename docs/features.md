@@ -5,8 +5,8 @@ What the Hub, the protocol and the Player do today, by area. Status by version: 
 **FrameBeam Hub** (`server/`)
 
 - Admin setup via `setup-admin` and via `/setup` in the web interface (loopback only).
-- HTTPS with a self-signed certificate (or your own certificate); the fingerprint is logged at startup. The Hub renews its own certificate at startup when it is expired or expires within 30 days (`framebeam-hub renew-cert` does it on demand); the Settings page shows "Expires within 30 days". Own certificates are never modified.
-- Web interface with login (admins only): Library, Saves, Systems & Cores, Clients, Users, Settings.
+- HTTPS with a self-signed certificate (or your own certificate); the fingerprint is logged at startup. The Hub renews its own certificate at startup when it is expired or expires within 30 days (`framebeam-hub renew-cert` does it on demand, or "Renew now" in Settings › Security without a restart; key and certificate are written atomically); the Settings page shows "Expires within 30 days". Own certificates are never modified.
+- Web interface with login (admins only): Library (upload and "Rescan folder" import), Saves, Systems & Cores, Clients, Users, Settings.
 - Pairing of new devices with Allow/Deny; issue and revoke tokens (Revoke); Delete removes a device entry for good (confirmation page, saves are kept).
 - ROM upload in the web interface.
 - ROM download via API with Range and ETag.
@@ -14,7 +14,7 @@ What the Hub, the protocol and the Player do today, by area. Status by version: 
 - Web page "Saves" (admin): slots, conflicts ("Use Hub version" / "Adopt local save"), history with Download, badge in the navigation.
 - Info endpoint `/.well-known/framebeam` and handshake with `protocol_version`.
 - Sessions: session API (visibility Private / Hub users / Invite only, invites, viewers), WSS presence and signaling relay, revoke on visibility change; optional STUN servers via `-ice-servers` / `FRAMEBEAM_ICE_SERVERS`.
-- Users and invites: Users page creates single-use invite codes (shown once), disable/enable users and delete them for good (confirmation page; removes their devices, invites, saves and save history, uploaded games stay), display names unique; Clients page assigns a pending device to a user.
+- Users and invites: Users page creates single-use invite codes (shown once, with "Copy link" to the public `/invite` page at creation), disable/enable users and delete them for good (confirmation page; removes their devices, invites, saves and save history, uploaded games stay), display names unique; Clients page assigns a pending device to a user and marks Players below the minimum protocol version as "Player too old".
 - Settings: "Allow users to upload games" and Appearance (Light / Dark / System).
 - Systems & Cores page: expected core version, reports from clients, firmware mode and firmware files per system (user-supplied, never shipped).
 - Core package cache: the Hub fetches an Ed25519-signed core index and the packages from FrameBeam's GitHub Releases (startup, every 24 h, "Check source now") and serves them to Players. It needs internet access to github.com; offline use `framebeam-hub import-cores <dir>` (systemd: `install-hub.sh import-cores <dir>`). Extra trusted keys: `--core-trust-key`.

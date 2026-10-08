@@ -1,0 +1,21 @@
+{{define "content"}}
+<h1>Join this FrameBeam Hub</h1>
+<p class="help">You have been invited to <strong>{{.HubName}}</strong>. Follow these steps in the FrameBeam Player.</p>
+<div class="invite">
+  <div class="eyebrow">Your invite code</div>
+  <div class="invite-code" id="invite-code" data-invite-code></div>
+  <div class="help" id="invite-missing" hidden>No invite code found in this link. Ask the person who invited you for a new link.</div>
+  <noscript><div class="help">Enable JavaScript to see the code from this link, or ask for the code in plain text.</div></noscript>
+</div>
+<ol class="steps">
+  <li>Install or open the FrameBeam Player.</li>
+  <li>Add this Hub: <span class="mono">{{.Body.Address}}</span></li>
+  <li>Choose "I have an invite code".</li>
+  <li>Enter the code shown above and pick a display name.</li>
+</ol>
+{{if .Body.Fingerprint}}
+<div class="eyebrow">Hub certificate · SHA-256 fingerprint</div>
+<div class="mono">{{.Body.Fingerprint}}</div>
+<p class="help">The Player shows this value when it connects for the first time. Only continue if both match.</p>
+{{end}}
+{{end}}

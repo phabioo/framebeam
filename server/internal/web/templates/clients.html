@@ -6,7 +6,7 @@
   <div class="pending">
     <div>
       <div class="eyebrow">Device name</div>
-      <h3>{{$p.Name}} <span class="pill warn">▲ Awaiting approval</span></h3>
+      <h3>{{$p.Name}} <span class="pill warn">▲ Awaiting approval</span>{{if $p.TooOld}} <span class="pill error">Player too old · protocol v{{$p.MinProtocol}} required</span>{{end}}</h3>
       <div class="mono">{{$p.Platform}} {{$p.Arch}} · Player {{$p.PlayerVersion}} · Protocol v{{$p.Protocol}}</div>
       <div class="help">requested {{$p.Ago}}</div>
     </div>
@@ -35,7 +35,7 @@
       <td class="mono">{{.Platform}} {{.Arch}}</td>
       <td class="mono">{{.PlayerVersion}}</td>
       <td>{{.LastSeen}}</td>
-      <td>{{if .Revoked}}<span class="pill">Revoked</span>{{else}}<span class="pill ok">● Trusted</span>{{end}}</td>
+      <td>{{if .Revoked}}<span class="pill">Revoked</span>{{else}}<span class="pill ok">● Trusted</span>{{if .TooOld}} <span class="pill error">Player too old · protocol v{{.MinProtocol}} required</span>{{end}}{{end}}</td>
       <td><div class="row-actions">{{if not .Revoked}}<button class="btn-link" type="button" hx-post="/clients/devices/{{.ID}}/revoke" hx-confirm="Really revoke access for “{{.Name}}”?" hx-target="#clients-body" hx-swap="outerHTML">Revoke access</button>{{end}}<a class="btn-link" href="/clients/devices/{{.ID}}/delete">Delete</a></div></td>
     </tr>
     {{end}}

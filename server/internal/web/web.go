@@ -47,6 +47,17 @@ type Config struct {
 	CertFingerprint string
 	CertSource      string
 	CertNotAfter    time.Time
+	// CertState, when set, returns the current fingerprint and expiry and overrides CertFingerprint/CertNotAfter
+	// (the certificate can change at runtime after RenewCert).
+	CertState func() (fingerprint string, notAfter time.Time)
+	// RenewCert replaces the self-generated certificate without a restart and returns the new fingerprint and
+	// expiry. nil when not supported (own certificate, plain HTTP): Settings then shows no "Renew now".
+	RenewCert func() (fingerprint string, notAfter time.Time, err error)
+	// PublicHost and PublicPort (0: unknown) are the externally used address (-public-host) for invite links.
+	PublicHost string
+	PublicPort int
+	// ImportDir is the library import folder shown in the Library ("Rescan folder").
+	ImportDir string
 	// MaxUploadBytes: limit for ROM uploads (0 = DefaultMaxUploadBytes).
 	MaxUploadBytes int64
 	// TURN is the embedded TURN server (nil: off), shown on the Settings page.
@@ -76,7 +87,7 @@ func New(svc *hub.Service, cfg Config, log *slog.Logger) (*Server, error) {
 	}
 	s := &Server{svc: svc, cfg: cfg, log: log, tmpl: map[string]*template.Template{}, done: make(chan struct{}),
 		login: &limiter{max: 5, window: time.Minute, now: svc.Now, hits: map[string][]time.Time{}}}
-	for _, p := range []string{"login", "setup", "library", "saves", "clients", "settings", "users", "systems", "confirm"} {
+	for _, p := range []string{"login", "setup", "invite", "library", "saves", "clients", "settings", "users", "systems", "confirm"} {
 		t, err := template.New(p).ParseFS(templatesFS, "templates/layout.html", "templates/"+p+".html")
 		if err != nil {
 			return nil, err
@@ -109,6 +120,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	})
 	h("GET /setup", s.setupGet)
 	h("POST /setup", s.setupPost)
+	h("GET /invite", s.inviteLanding)
 	h("GET /login", s.loginGet)
 	h("POST /login", s.loginPost)
 	h("POST /logout", s.guard(s.logout))
@@ -116,6 +128,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.Handle("GET /events", secure(s.guard(s.events)))
 	h("GET /library", s.guard(s.libraryGet))
 	h("POST /library/upload", s.guard(s.libraryUpload))
+	h("POST /library/rescan", s.guard(s.libraryRescan))
 	h("POST /library/{id}/delete", s.guard(s.libraryDelete))
 	h("GET /saves", s.guard(s.savesGet))
 	h("GET /saves/{user}/{game}/{slot}", s.guard(s.savesGet))
@@ -158,6 +171,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	h("POST /settings/updates/install", s.guard(s.settingsUpdatesInstall))
 	h("POST /settings/name", s.guard(s.settingsName))
 	h("POST /settings/password", s.guard(s.settingsPassword))
+	h("POST /settings/security/renew-cert", s.guard(s.settingsRenewCert))
 }
 
 // secure sets security headers (no inline script/style) and prevents caching of pages.
@@ -209,6 +223,7 @@ type pageData struct {
 
 var flashTexts = map[string]string{
 	"uploaded":      "ROM added to the library.",
+	"certrenewed":   "Certificate renewed. Every Player must confirm the new fingerprint on its next connection.",
 	"deleted":       "ROM deleted.",
 	"name":          "Hub name saved.",
 	"password":      "Password changed.",
@@ -236,18 +251,20 @@ var flashTexts = map[string]string{
 }
 
 var errTexts = map[string]string{
-	"stale":          "The slot changed in the meantime or the conflict was already resolved. Please review and decide again.",
-	"label":          "The snapshot label must be at most 64 characters.",
-	"admin":          "Admins cannot be disabled or deleted.",
-	"nodevice":       "Device not found.",
-	"nouser":         "User not found.",
-	"noinvite":       "The invite is no longer active.",
-	"nosystem":       "System or file not found.",
-	"nofile":         "Firmware file not found.",
-	"updatepackage":  "This Hub was not installed from the .deb package, so it cannot install updates itself. Use the manual command shown below.",
-	"updatenone":     "There is no update to install.",
-	"updatebreaking": "This update breaks Players seen in the last 30 days. Use \"Install anyway\" to confirm.",
-	"updatefailed":   "The update could not be downloaded or verified. See the update status below.",
+	"stale":            "The slot changed in the meantime or the conflict was already resolved. Please review and decide again.",
+	"label":            "The snapshot label must be at most 64 characters.",
+	"admin":            "Admins cannot be disabled or deleted.",
+	"nodevice":         "Device not found.",
+	"nouser":           "User not found.",
+	"noinvite":         "The invite is no longer active.",
+	"renewfailed":      "The certificate could not be renewed. The previous certificate stays active; see the Hub log.",
+	"renewunsupported": "This Hub cannot renew its certificate here (own certificate or plain HTTP).",
+	"nosystem":         "System or file not found.",
+	"nofile":           "Firmware file not found.",
+	"updatepackage":    "This Hub was not installed from the .deb package, so it cannot install updates itself. Use the manual command shown below.",
+	"updatenone":       "There is no update to install.",
+	"updatebreaking":   "This update breaks Players seen in the last 30 days. Use \"Install anyway\" to confirm.",
+	"updatefailed":     "The update could not be downloaded or verified. See the update status below.",
 }
 
 type session struct {

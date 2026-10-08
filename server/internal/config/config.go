@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -39,6 +40,8 @@ type Config struct {
 	// SaveKeepRecent, SaveKeepDaily, SaveKeepWeekly are the save history retention rules (ADR 0012 D7):
 	// newest versions kept, days and weeks of which the newest version is kept. 0 = unlimited for that rule.
 	SaveKeepRecent, SaveKeepDaily, SaveKeepWeekly int
+	// LibraryImportDir is the folder "Rescan folder" imports ROMs from (default <data-dir>/library-import; files are only read).
+	LibraryImportDir string
 	// TURN switches on the embedded STUN/TURN server (ADR 0012 D2); it needs PublicHost.
 	TURN bool
 	// PublicHost is the DNS name (or IPv4) of the Hub's public address.
@@ -129,6 +132,7 @@ func Register(fs *flag.FlagSet, getenv func(string) string) *Config {
 	}
 	dev, _ := strconv.ParseBool(getenv("FRAMEBEAM_DEV"))
 	fs.StringVar(&c.DataDir, "data-dir", env("DATA_DIR", "/var/lib/framebeam"), "data directory (FRAMEBEAM_DATA_DIR)")
+	fs.StringVar(&c.LibraryImportDir, "library-import-dir", env("LIBRARY_IMPORT_DIR", ""), "folder the Library's \"Rescan folder\" imports ROMs from, default <data-dir>/library-import (FRAMEBEAM_LIBRARY_IMPORT_DIR)")
 	fs.StringVar(&c.Listen, "listen", env("LISTEN", ":8443"), "listen address (FRAMEBEAM_LISTEN)")
 	fs.StringVar(&c.Name, "name", env("NAME", ""), "hub name on first start (FRAMEBEAM_NAME)")
 	fs.StringVar(&c.TLSCert, "tls-cert", env("TLS_CERT", ""), "TLS certificate (PEM) (FRAMEBEAM_TLS_CERT)")
@@ -177,6 +181,14 @@ func Register(fs *flag.FlagSet, getenv func(string) string) *Config {
 	fs.StringVar(&c.TURNRelayPorts, "turn-relay-ports", env("TURN_RELAY_PORTS", DefaultTURNRelayPorts), "TURN UDP relay port range min-max (FRAMEBEAM_TURN_RELAY_PORTS)")
 	fs.StringVar(&c.TURNRelayIP, "turn-relay-ip", env("TURN_RELAY_IP", ""), "fixed public IPv4 for relayed addresses instead of resolving -public-host (FRAMEBEAM_TURN_RELAY_IP)")
 	return c
+}
+
+// ImportDir returns the library import folder: the configured one, else <data-dir>/library-import.
+func (c *Config) ImportDir() string {
+	if c.LibraryImportDir != "" {
+		return c.LibraryImportDir
+	}
+	return filepath.Join(c.DataDir, "library-import")
 }
 
 // TrustedCoreKeys returns the compiled-in trusted keys plus the configured ones (cores and updates).
