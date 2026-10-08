@@ -50,7 +50,7 @@ IBM Plex Sans: "FrameBeam" SemiBold (600), product name ("Hub", "Player") Regula
 
 ## Open
 
-- Light accent: the logo uses `#1a8aa3`, the Hub UI accent is `#1a7f96`; one of them should win (also in `README.md`).
+- Light accent (decided 2026-10-08): both stay on purpose. The logo, app icon and favicon use the brand cyan `#1a8aa3`; the UI accent is `#1a7f96` (better text contrast). See `decisions.md` point i.
 - The logo sheet shows a favicon "FrameBeam Player · Web"; there is no web player. Only the Hub needs a favicon.
 - Readability at 16 px is shown in the sheet only at actual size; no separate 16 px simplification is drawn.
 - Not decided: where the icon files are produced (export from the source SVG) and in which formats (installer icon, `.ico`, Hub favicon); this belongs to the packaging work.
