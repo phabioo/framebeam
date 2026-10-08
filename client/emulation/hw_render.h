@@ -7,6 +7,7 @@
 // The context is NOT shared with Qt Quick; each hardware frame is read back into an XRGB8888 QImage.
 
 #include <QImage>
+#include <QSize>
 #include <QString>
 
 #include <memory>
@@ -55,7 +56,14 @@ class HwRenderContext {
   // Asynchronous via two pixel-pack buffers: the first call returns its own frame, every later call returns the
   // PREVIOUS call's frame (one frame of latency, no GPU stall). Falls back to a synchronous glReadPixels when
   // PBOs or mapping fail or FRAMEBEAM_SYNC_READBACK=1 (read at createContext).
-  QImage readback(int w, int h, bool bottomLeftOrigin);
+  //
+  // maxSize (width/height in pixels, empty or non-positive component = no limit): when the w x h frame is larger,
+  // it is first downscaled on the GPU (glBlitFramebuffer, GL_LINEAR, aspect ratio kept, vertical flip done by the
+  // blit) into a second, smaller FBO and only that is read back. Never upscales. The scaled FBO follows the target
+  // size; if it cannot be created or the blit fails, the full-size frame is read back (and scaling stays off).
+  QImage readback(int w, int h, bool bottomLeftOrigin, const QSize& maxSize = {});
+  // Size readback() uses for a w x h frame under maxSize (pure; no upscaling, aspect kept, never above maxSize).
+  static QSize scaledReadbackSize(int w, int h, const QSize& maxSize);
   bool asyncReadback() const;  // PBO path currently in use
 
  private:

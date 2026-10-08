@@ -2,6 +2,7 @@
 // GameSession: a local emulation session (EmulationRunner + AudioOutput) for the game view.
 // Holds the last frame, the keyboard state and the display profile for touch conversion.
 
+#include <QHash>
 #include <QImage>
 #include <QMap>
 #include <QObject>
@@ -32,7 +33,8 @@ struct EmulationDiagnostics {
   QString api;                   // "OpenGL 4.6 Core" while hwActive
   QString gpu;                   // "Example GPU · Driver 1.2.3" while hwActive
   QString fallbackReason;        // hardware requested but software runs: why (emu::kFallback*)
-  QSize frameSize;               // size of the frame the core delivers (all screens)
+  QSize frameSize;               // size of the frame the core renders (all screens), before any readback downscale
+  QSize readbackSize;            // size actually read back from the GPU when smaller than frameSize (else empty)
   QSize baseSize;                // size of the frame at 1x (system manifest)
   int screens = 0;
   int requestedScale = 0;        // internal resolution the core option asks for (0 = no such option)
@@ -41,7 +43,8 @@ struct EmulationDiagnostics {
   double targetFps = 0;          // from the core
   double frameMs = 0;            // mean total frame time
   double emuMs = 0;              // ... of which the core
-  double readbackMs = 0;         // ... of which GPU readback (0 for software)
+  double readbackMs = 0;         // ... of which GPU readback, mean over all frames (0 for software)
+  double readbacksPerSec = 0;    // frames per second that were actually read back (skipped/unseen frames are not)
   QVector<float> totalHistory;   // last 5 s, ms per frame
   QVector<float> emuHistory;
   bool audioActive = false;      // an audio output device is open
@@ -121,6 +124,13 @@ class GameSession : public QObject {
   // Tests and screenshots: pretend a running game without a core (title, frame, profile) and fixed measurements.
   void setPreview(const QString& title, const QImage& frame, const emu::DisplayProfile& profile, const EmulationDiagnostics& diag);
 
+  // Readback size limit (hardware frames are downscaled on the GPU before readback, see EmulatorBackend). Each view
+  // reports the physical pixel size it needs for the frame (empty removes it); the limit is the component-wise
+  // maximum over all views and, while the own Session is shared, the encoder's size. No view = no limit.
+  void setViewSize(const QObject* view, const QSize& pixels);
+  void setShareSize(const QSize& pixels);
+  QSize readbackLimit() const { return limit_; }
+
   void start(const LaunchConfig& config);
 
   Q_INVOKABLE void pause();
@@ -160,6 +170,7 @@ class GameSession : public QObject {
   void fail(const QString& msg);
   void teardown();
   void applyJoypad();
+  void updateReadbackLimit();
 
   std::unique_ptr<emu::EmulationRunner> runner_;
   AudioOutput audio_;
@@ -168,6 +179,9 @@ class GameSession : public QObject {
   quint32 pad_ = 0;
   bool inputBlocked_ = false;
   emu::DisplayProfile display_;
+  QHash<const QObject*, QSize> viewSizes_;
+  QSize shareSize_;
+  QSize limit_;
   QImage frame_;
   quint64 frameNr_ = 0;
   QString title_;

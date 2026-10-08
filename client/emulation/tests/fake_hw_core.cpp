@@ -23,7 +23,10 @@
 #endif
 
 namespace {
-constexpr unsigned kW = 64, kH = 48;
+constexpr unsigned kBaseW = 64, kBaseH = 48;
+// FB_FAKE_HW_SCALE (default 1) multiplies the frame (and the squares) for large-frame tests.
+unsigned kW = kBaseW, kH = kBaseH;
+unsigned sq = 8;
 
 using GlBindFramebuffer = void(FB_GL*)(unsigned, unsigned);
 using GlClearColor = void(FB_GL*)(float, float, float, float);
@@ -66,6 +69,14 @@ int envInt(const char* n, int def) {
   return v ? std::atoi(v) : def;
 }
 
+void applyScale() {
+  const char* v = std::getenv("FB_FAKE_HW_SCALE");
+  const unsigned k = v && std::atoi(v) > 0 ? static_cast<unsigned>(std::atoi(v)) : 1u;
+  kW = kBaseW * k;
+  kH = kBaseH * k;
+  sq = 8 * k;
+}
+
 void RETRO_CALLCONV contextReset() {
   load(glBindFramebuffer_, "glBindFramebuffer");
   load(glClearColor_, "glClearColor");
@@ -103,6 +114,7 @@ FB_EXPORT void retro_get_system_info(retro_system_info* i) {
   i->need_fullpath = false;
 }
 FB_EXPORT void retro_get_system_av_info(retro_system_av_info* i) {
+  applyScale();
   std::memset(i, 0, sizeof(*i));
   i->geometry.base_width = kW;
   i->geometry.base_height = kH;
@@ -113,6 +125,7 @@ FB_EXPORT void retro_get_system_av_info(retro_system_av_info* i) {
   i->timing.sample_rate = 44100.0;
 }
 FB_EXPORT bool retro_load_game(const retro_game_info*) {
+  applyScale();
   int fmt = RETRO_PIXEL_FORMAT_XRGB8888;
   g_env(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt);
   std::memset(&g_hw, 0, sizeof g_hw);
@@ -148,14 +161,14 @@ FB_EXPORT void retro_run() {
   glScissor_(0, 0, kW, kH);
   glClearColor_(0.f, 0.f, 1.f, 1.f);
   glClear_(0x4000);  // GL_COLOR_BUFFER_BIT
-  glScissor_(0, 0, 8, 8);
+  glScissor_(0, 0, static_cast<int>(sq), static_cast<int>(sq));
   glClearColor_(1.f, 0.f, 0.f, 1.f);
   glClear_(0x4000);
-  glScissor_(static_cast<int>(kW) - 8, static_cast<int>(kH) - 8, 8, 8);
+  glScissor_(static_cast<int>(kW - sq), static_cast<int>(kH - sq), static_cast<int>(sq), static_cast<int>(sq));
   glClearColor_(0.f, 1.f, 0.f, 1.f);
   glClear_(0x4000);
   if (envInt("FB_FAKE_HW_COUNTER", 0)) {
-    glScissor_(28, 20, 8, 8);
+    glScissor_(static_cast<int>(28 * sq / 8), static_cast<int>(20 * sq / 8), static_cast<int>(sq), static_cast<int>(sq));
     glClearColor_(static_cast<float>(g_frameNo & 0xFF) / 255.f, 0.f, 0.f, 1.f);
     glClear_(0x4000);
   }

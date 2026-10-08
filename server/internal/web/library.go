@@ -16,6 +16,15 @@ type libRow struct {
 	ID, Title, Initial, System, Size, SHA, ShortSHA, Uploader, Added string
 	Saves                                                            int
 	Conflict                                                         bool
+	UploadHref                                                       string // the slot detail of the signed-in user with the upload panel open
+}
+
+// uploadHref opens the upload panel of the user's slot (a game without a save of the user starts the slot "default").
+func uploadHref(user, game, slot string) string {
+	if slot == "" {
+		slot = "default"
+	}
+	return saveHref(user, game, slot) + "?upload=1"
 }
 
 type sysOpt struct {
@@ -37,7 +46,7 @@ type libBody struct {
 	RefreshURL string
 }
 
-func (s *Server) libraryBody(ctx context.Context, system, q string) (libBody, error) {
+func (s *Server) libraryBody(ctx context.Context, viewer, system, q string) (libBody, error) {
 	games, err := s.svc.ListGames(ctx)
 	if err != nil {
 		return libBody{}, err
@@ -59,7 +68,11 @@ func (s *Server) libraryBody(ctx context.Context, system, q string) (libBody, er
 		return libBody{}, err
 	}
 	saves, conflicts := map[string]int{}, map[string]bool{}
+	own := map[string]string{} // game -> slot of the viewer that "Upload save" opens ("default" preferred, else the first)
 	for _, sl := range slots {
+		if sl.UserID == viewer && (own[sl.GameID] == "" || sl.Slot == "default") {
+			own[sl.GameID] = sl.Slot
+		}
 		saves[sl.GameID]++
 		if sl.OpenConflictCount > 0 {
 			conflicts[sl.GameID] = true
@@ -96,7 +109,7 @@ func (s *Server) libraryBody(ctx context.Context, system, q string) (libBody, er
 		}
 		b.Rows = append(b.Rows, libRow{ID: g.ID, Title: g.Title, Initial: initial(g.Title), System: g.System,
 			Size: humanBytes(g.ROMSize), SHA: g.ROMSHA256, ShortSHA: shortHash(g.ROMSHA256), Uploader: up,
-			Added: g.AddedAt.Local().Format("02.01."), Saves: saves[g.ID], Conflict: conflicts[g.ID]})
+			Added: g.AddedAt.Local().Format("02.01."), Saves: saves[g.ID], Conflict: conflicts[g.ID], UploadHref: uploadHref(viewer, g.ID, own[g.ID])})
 	}
 	systems, err := s.svc.Systems(ctx)
 	if err != nil {
@@ -113,7 +126,7 @@ func (s *Server) renderLibrary(w http.ResponseWriter, r *http.Request, sess *ses
 }
 
 func (s *Server) renderLibraryFlash(w http.ResponseWriter, r *http.Request, sess *session, status int, system, q, flash, errMsg string) {
-	body, err := s.libraryBody(r.Context(), system, q)
+	body, err := s.libraryBody(r.Context(), sess.User.ID, system, q)
 	if err != nil {
 		s.fail(w, r, err)
 		return

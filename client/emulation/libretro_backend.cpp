@@ -374,6 +374,7 @@ AvInfo LibretroBackend::avInfo() const { return m_av; }
 
 bool LibretroBackend::runFrame() {
   if (!m_gameLoaded || m_shutdownRequested) return false;
+  m_lastReadbackNs = 0;  // only frames that really read back count; a skipped frame must not repeat the last value
   if (m_hwActive && !m_hw->makeCurrent()) return false;
   m_api->run();
   if (m_savePendingLoad) tryLoadSave();  // as soon as the core exposes save memory, before any flush
@@ -646,7 +647,9 @@ void LibretroBackend::handleVideo(const void* data, unsigned width, unsigned hei
   }
   if (data == RETRO_HW_FRAME_BUFFER_VALID && m_hwActive && width != 0 && height != 0) {
     const auto t0 = std::chrono::steady_clock::now();
-    const QImage img = m_hw->readback(static_cast<int>(width), static_cast<int>(height), m_hwBottomLeft);
+    m_sourceSize.store(pack(QSize(static_cast<int>(width), static_cast<int>(height))));
+    const QImage img = m_hw->readback(static_cast<int>(width), static_cast<int>(height), m_hwBottomLeft,
+                                      unpack(m_readbackLimit.load()));
     m_lastReadbackNs = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - t0).count();
     ++m_hwReadbacks;
     if (!img.isNull()) m_frame = img;
@@ -657,6 +660,7 @@ void LibretroBackend::handleVideo(const void* data, unsigned width, unsigned hei
     ++m_frameCount;  // duplicate frame: last image stays
     return;
   }
+  m_sourceSize.store(pack(QSize(static_cast<int>(width), static_cast<int>(height))));
   QImage img(static_cast<int>(width), static_cast<int>(height), QImage::Format_RGB32);
   const auto* src = static_cast<const uchar*>(data);
   for (unsigned y = 0; y < height; ++y, src += pitch) {

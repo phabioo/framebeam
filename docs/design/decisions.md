@@ -75,5 +75,7 @@ ai. The "Button labels" override and "Auto" are saved per physical device, not p
 aj. The input test grid has no stick cells for now (default, 2026-10-08).
 ak. Hub upload size validation: no per-system size ranges yet (the manifest has no save-size data). The Hub keeps its current limits; the error "This file can’t be a Nintendo DS save." and the 512 B to 8 MB range are not built until the system manifest carries save sizes (default, 2026-10-08).
 al. Admins cannot upload into another user's slot (default, 2026-10-08).
+am. 3s-2: the CURRENT bar and the upload result keep the checkpoint label "Rev {n}"; history versions stay "v{n}" (separate numbering per ADR 0005); a unified numbering is open (2026-10-08).
+an. Blocked upload while a session of the game runs is not built; the Hub has no running-session check per game yet (open, 2026-10-08).
 
 Notes on the revision against the built state (not open questions): the drawn speed menu ends with "Unlimited" while the built set is 1.5×, 2×, 3×, 4×, 6×, 8× (ADR 0018) and the panel's speed select is removed in the new design; "jitter" in the multiview streaming lines is not measured today; keys 1-4 select tiles in the new multiview (v3: they moved the audio focus).
