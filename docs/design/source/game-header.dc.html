@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<header style="height:56px;box-sizing:border-box;display:flex;align-items:center;gap:12px;padding:0 16px;border-bottom:1px solid #1e1f22;background:#111214;position:relative;font-family:'IBM Plex Sans',system-ui,sans-serif;color:#ecebe7;font-size:13px;white-space:nowrap">
+  <sc-if value="{{ full }}" hint-placeholder-val="{{ true }}"><div title="Game keeps running, paused" style="height:32px;display:flex;align-items:center;gap:6px;padding:0 8px;border-radius:7px;color:#a3a3a8">← Library</div></sc-if>
+  <sc-if value="{{ compact }}" hint-placeholder-val="{{ false }}"><div title="Library · game keeps running, paused" style="width:32px;height:32px;display:grid;place-items:center;border-radius:7px;color:#a3a3a8;font-size:15px">←</div></sc-if>
+  <div style="width:1px;height:20px;background:#2c2d32;flex:none"></div>
+
+  <div style="display:flex;align-items:center;gap:10px;min-width:0;flex:{{ ctxFlex }}">
+    <sc-if value="{{ ctxSession }}" hint-placeholder-val="{{ true }}">
+      <span style="font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis;max-width:{{ titleMax }}">{{ title }}</span>
+      <span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:500;flex:none;background:{{ pillBg }};color:{{ pillFg }}"><span style="width:6px;height:6px;border-radius:50%;background:{{ pillFg }}"></span>{{ pillText }}</span>
+    </sc-if>
+    <sc-if value="{{ ctxWatch }}" hint-placeholder-val="{{ false }}">
+      <span style="font-size:13px;color:#8e8e94">Watching</span><span style="font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis">{{ watchWho }} · {{ watchGame }}</span>
+      <span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:500;background:#17291f;color:#6fd39a;flex:none"><span style="width:6px;height:6px;border-radius:50%;background:#6fd39a"></span>Direct · 18 ms</span>
+    </sc-if>
+    <sc-if value="{{ ctxMulti }}" hint-placeholder-val="{{ false }}">
+      <span style="font-size:15px;font-weight:600">Multiview</span>
+      <div style="display:flex;gap:2px;padding:3px;border-radius:7px;background:#1a1b1e;flex:none"><sc-for list="{{ modes }}" as="m" hint-placeholder-count="3"><sc-if value="{{ m.on }}" hint-placeholder-val="{{ false }}"><span style="padding:5px 11px;border-radius:5px;background:#2c2d32;color:#ecebe7;font-weight:500">{{ m.label }}</span></sc-if><sc-if value="{{ m.off }}" hint-placeholder-val="{{ true }}"><span style="padding:5px 11px;border-radius:5px;color:#a3a3a8">{{ m.label }}</span></sc-if></sc-for></div>
+    </sc-if>
+  </div>
+
+  <div style="margin-left:auto;display:flex;align-items:center;gap:12px;flex:none">
+    <sc-if value="{{ own }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;align-items:center;gap:2px;padding:2px;border-radius:9px;background:#16171a;border:1px solid #26272b">
+        <sc-if value="{{ ctxMulti }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column;gap:1px;padding:0 10px 0 8px;line-height:1.15"><span style="font:500 10px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#7d7d83">YOUR GAME</span><span style="display:flex;align-items:center;gap:5px;font-size:11px;color:{{ pillFg }}"><span style="width:5px;height:5px;border-radius:50%;background:{{ pillFg }}"></span>{{ pillText }}</span></div></sc-if>
+        <div title="{{ pauseTip }}" style="height:30px;display:flex;align-items:center;gap:7px;padding:0 {{ btnPad }};border-radius:7px;color:#ecebe7;font-weight:500">
+          <sc-if value="{{ paused }}" hint-placeholder-val="{{ false }}"><span style="width:0;height:0;border-left:8px solid currentColor;border-top:5px solid transparent;border-bottom:5px solid transparent;margin-left:2px"></span></sc-if>
+          <sc-if value="{{ running }}" hint-placeholder-val="{{ true }}"><span style="display:flex;gap:2px"><span style="width:3px;height:10px;border-radius:1px;background:currentColor"></span><span style="width:3px;height:10px;border-radius:1px;background:currentColor"></span></span></sc-if>
+          <sc-if value="{{ full }}" hint-placeholder-val="{{ true }}"><span>{{ pauseLabel }}</span></sc-if>
+        </div>
+        <div style="display:flex;align-items:center;border-radius:7px;background:{{ speedBg }};color:{{ speedFg }}">
+          <div title="Speed-up · Space" style="height:30px;display:flex;align-items:center;gap:7px;padding:0 {{ btnPad }};font-weight:500"><span style="display:flex"><span style="width:0;height:0;border-left:6px solid currentColor;border-top:5px solid transparent;border-bottom:5px solid transparent"></span><span style="width:0;height:0;border-left:6px solid currentColor;border-top:5px solid transparent;border-bottom:5px solid transparent"></span></span><sc-if value="{{ full }}" hint-placeholder-val="{{ true }}"><span>Speed-up</span></sc-if></div>
+          <div style="width:1px;height:16px;background:#34353a"></div>
+          <div title="Speed-up speed" style="height:30px;display:flex;align-items:center;gap:4px;padding:0 8px;font:500 12px 'IBM Plex Mono',monospace">{{ speed }}<span style="font-size:9px;color:#7d7d83">▾</span></div>
+        </div>
+        <sc-if value="{{ full }}" hint-placeholder-val="{{ true }}">
+          <div style="position:relative">
+            <div title="Reset game" style="height:30px;display:flex;align-items:center;gap:7px;padding:0 10px;border-radius:7px;font-weight:500;background:{{ resetBg }};color:{{ resetFg }}"><span style="font-size:14px;line-height:1">↺</span>Reset</div>
+            <sc-if value="{{ resetOpen }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;top:42px;left:50%;transform:translateX(-50%);width:290px;z-index:20;white-space:normal">
+                <div style="position:absolute;top:-6px;left:50%;width:12px;height:12px;margin-left:-6px;transform:rotate(45deg);background:#1d1e22;border-left:1px solid #4a2a24;border-top:1px solid #4a2a24"></div>
+                <div style="padding:14px;border-radius:10px;background:#1d1e22;border:1px solid #4a2a24;box-shadow:0 18px 40px rgba(0,0,0,.55);display:flex;flex-direction:column;gap:10px">
+                  <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:14px;font-weight:600">Reset {{ title }}?</span><span style="font-size:12px;line-height:1.5;color:#c9c8c4">Unsaved progress since the last checkpoint is lost.</span><span style="font-size:12px;color:#8e8e94">Last checkpoint 40 s ago</span></div>
+                  <div style="display:flex;gap:8px;justify-content:flex-end"><span style="height:30px;padding:0 12px;border-radius:6px;border:1px solid #3a3b40;display:flex;align-items:center">Cancel</span><span style="height:30px;padding:0 12px;border-radius:6px;background:#ef8a78;color:#161512;display:flex;align-items:center;font-weight:600">Reset</span></div>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+    <sc-if value="{{ watchOnly }}" hint-placeholder-val="{{ false }}"><div style="height:32px;display:flex;align-items:center;padding:0 12px;border-radius:7px;border:1px solid #3a3b40;font-weight:500">Leave</div></sc-if>
+
+    <div style="width:1px;height:20px;background:#2c2d32"></div>
+    <div style="display:flex;gap:2px;padding:3px;border-radius:7px;background:#1a1b1e">
+      <sc-if value="{{ ctxMultiNot }}" hint-placeholder-val="{{ true }}"><span style="padding:5px 12px;border-radius:5px;background:#2c2d32;font-weight:500">Session</span><span style="padding:5px 12px;color:#a3a3a8">Multiview</span></sc-if>
+      <sc-if value="{{ ctxMulti }}" hint-placeholder-val="{{ false }}"><span style="padding:5px 12px;color:#a3a3a8">Session</span><span style="padding:5px 12px;border-radius:5px;background:#2c2d32;font-weight:500">Multiview</span></sc-if>
+    </div>
+    <sc-if value="{{ ctxMulti }}" hint-placeholder-val="{{ false }}">
+      <div style="position:relative">
+        <div style="height:32px;box-sizing:border-box;display:flex;align-items:center;gap:6px;padding:0 11px;border-radius:7px;font-weight:500;background:{{ addBg }};border:1px solid {{ addLine }};color:{{ addFg }}">+ Add<span style="font:400 11px 'IBM Plex Mono',monospace;color:{{ addMeta }}">{{ tiles }}</span></div>
+        <sc-if value="{{ pickerOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;top:42px;right:-60px;width:340px;z-index:20;white-space:normal">
+            <div style="position:absolute;top:-6px;right:100px;width:12px;height:12px;transform:rotate(45deg);background:#1d1e22;border-left:1px solid #34353a;border-top:1px solid #34353a"></div>
+            <div style="padding:12px;border-radius:10px;background:#1d1e22;border:1px solid #34353a;box-shadow:0 18px 40px rgba(0,0,0,.55);display:flex;flex-direction:column;gap:8px">
+              <div style="display:flex;align-items:center"><span style="font-size:14px;font-weight:600">Running sessions</span><span style="margin-left:auto;font:400 11px 'IBM Plex Mono',monospace;color:#8e8e94">{{ tilesLong }}</span></div>
+              <sc-if value="{{ pkList }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex;flex-direction:column;border-radius:8px;background:#16171a;border:1px solid #26272b">
+                  <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid #26272b"><span style="width:26px;height:26px;border-radius:50%;background:#2c2d32;display:grid;place-items:center;font-size:12px;font-weight:600;flex:none">L</span><div style="display:flex;flex-direction:column;min-width:0"><span style="font-size:13px">Lena · Harbor Rally</span><span style="font-size:11px;color:#8e8e94">Hub users · in tile 2</span></div><span style="margin-left:auto;font-size:12px;color:#6fd39a">✓ Added</span></div>
+                  <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid #26272b"><span style="width:26px;height:26px;border-radius:50%;background:#2c2d32;display:grid;place-items:center;font-size:12px;font-weight:600;flex:none">J</span><div style="display:flex;flex-direction:column;min-width:0"><span style="font-size:13px">Jonas · Clocktower Kids</span><span style="font-size:11px;color:#8e8e94">Invited you · in tile 3</span></div><span style="margin-left:auto;font-size:12px;color:#6fd39a">✓ Added</span></div>
+                  <div style="display:flex;align-items:center;gap:10px;padding:8px 10px"><span style="width:26px;height:26px;border-radius:50%;background:#2c2d32;display:grid;place-items:center;font-size:12px;font-weight:600;flex:none">S</span><div style="display:flex;flex-direction:column;min-width:0"><span style="font-size:13px">Sam · Orbit Gardens</span><span style="font-size:11px;color:#8e8e94">Hub users · for 8 min</span></div><span style="margin-left:auto;padding:5px 10px;border-radius:5px;background:#3cbfd8;color:#161512;font-size:12px;font-weight:600">Add</span></div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ pkEmpty }}" hint-placeholder-val="{{ false }}"><div style="padding:14px 12px;border-radius:8px;background:#16171a;border:1px dashed #2c2d32;display:flex;flex-direction:column;gap:4px"><span style="font-size:13px;color:#c9c8c4">No other sessions right now</span><span style="font-size:12px;color:#8e8e94;line-height:1.5">Sessions appear here when someone on hub.example.com shares a game with Hub users or invites you.</span></div></sc-if>
+              <sc-if value="{{ pkFull }}" hint-placeholder-val="{{ false }}"><div style="padding:10px 12px;border-radius:8px;background:#232428;font-size:12px;line-height:1.5;color:#c9c8c4">Multiview is full. Remove a tile to add Sam · Orbit Gardens.</div></sc-if>
+              <span style="font-size:11px;color:#7d7d83;line-height:1.5">Private sessions are not listed. Sound plays from one tile only.</span>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <div style="width:1px;height:20px;background:#2c2d32"></div>
+    <div style="display:flex;align-items:center;gap:2px;padding:2px;border-radius:9px;background:#16171a;border:1px solid #26272b">
+      <div title="{{ layoutTip }}" style="height:30px;display:flex;align-items:center;gap:6px;padding:0 9px;border-radius:7px;color:#ecebe7"><span style="display:flex;flex-direction:column;gap:2px"><span style="width:10px;height:6px;border-radius:1px;border:1.5px solid currentColor"></span><span style="width:10px;height:6px;border-radius:1px;border:1.5px solid currentColor"></span></span><sc-if value="{{ showAllTiles }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;color:#a3a3a8">All tiles</span></sc-if><span style="font-size:9px;color:#7d7d83">▾</span></div>
+      <div title="Diagnostics · F3" style="height:30px;display:flex;align-items:center;gap:7px;padding:0 {{ btnPad }};border-radius:7px;font-weight:500;background:{{ diagBg }};color:{{ diagFg }}"><span style="display:flex;align-items:flex-end;gap:2px;height:11px"><span style="width:2px;height:5px;background:currentColor"></span><span style="width:2px;height:11px;background:currentColor"></span><span style="width:2px;height:8px;background:currentColor"></span></span><sc-if value="{{ dispLabels }}" hint-placeholder-val="{{ true }}"><span>Diagnostics</span></sc-if><span style="font:500 10px 'IBM Plex Mono',monospace;padding:1px 4px;border-radius:3px;border:1px solid {{ keyLine }};color:{{ keyFg }}">F3</span></div>
+      <div title="Fullscreen · F11" style="height:30px;display:flex;align-items:center;gap:7px;padding:0 {{ btnPad }};border-radius:7px;font-weight:500"><span style="width:11px;height:11px;box-sizing:border-box;border:1.5px dashed currentColor;border-radius:2px"></span><sc-if value="{{ dispLabels }}" hint-placeholder-val="{{ true }}"><span>Fullscreen</span></sc-if><span style="font:500 10px 'IBM Plex Mono',monospace;padding:1px 4px;border-radius:3px;border:1px solid #3a3b40;color:#a3a3a8">F11</span></div>
+    </div>
+    <sc-if value="{{ compactOwn }}" hint-placeholder-val="{{ false }}">
+      <div style="position:relative">
+        <div title="More" style="width:32px;height:32px;box-sizing:border-box;display:grid;place-items:center;border-radius:7px;border:1px solid {{ moreLine }};background:{{ moreBg }};font-size:15px;letter-spacing:1px">⋯</div>
+        <sc-if value="{{ overflowOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;top:42px;right:0;width:250px;z-index:20;white-space:normal">
+            <div style="position:absolute;top:-6px;right:10px;width:12px;height:12px;transform:rotate(45deg);background:#1d1e22;border-left:1px solid #34353a;border-top:1px solid #34353a"></div>
+            <div style="padding:4px;border-radius:9px;background:#1d1e22;border:1px solid #34353a;box-shadow:0 18px 40px rgba(0,0,0,.55);display:flex;flex-direction:column">
+              <div style="height:32px;display:flex;align-items:center;gap:8px;padding:0 10px;border-radius:6px;background:#2c2d32"><span style="font-size:14px;width:14px">↺</span>Reset {{ title }}…</div>
+              <div style="height:32px;display:flex;align-items:center;gap:8px;padding:0 10px;color:#c9c8c4"><span style="width:14px"></span>{{ pauseLabel }}<span style="margin-left:auto;font:400 11px 'IBM Plex Mono',monospace;color:#7d7d83">Esc</span></div>
+              <div style="height:32px;display:flex;align-items:center;gap:8px;padding:0 10px;color:#c9c8c4;border-top:1px solid #2c2d32;margin-top:2px"><span style="width:14px"></span>Hotkeys…<span style="margin-left:auto;font-size:11px;color:#7d7d83">Controllers</span></div>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+  </div>
+</header>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:320},&quot;mode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;session&quot;,&quot;multiview&quot;],&quot;default&quot;:&quot;session&quot;,&quot;tsType&quot;:&quot;'session'|'multiview'&quot;},&quot;own&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;label&quot;:&quot;Own game running&quot;},&quot;compact&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;label&quot;:&quot;1280 compact&quot;},&quot;title&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Lumen Drift&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;share&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;not&quot;,&quot;shared&quot;,&quot;invite&quot;],&quot;default&quot;:&quot;not&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;watchers&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;1 watching&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;mvMode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;PiP&quot;,&quot;Side by side&quot;,&quot;Grid 2×2&quot;],&quot;default&quot;:&quot;Grid 2×2&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;paused&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;speedOn&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;speed&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;4×&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;resetOpen&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;pickerOpen&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;pickerState&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;list&quot;,&quot;empty&quot;,&quot;full&quot;],&quot;default&quot;:&quot;list&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;tiles&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;3/4&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;diagOn&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;overflowOpen&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;watchWho&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Lena&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;watchGame&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Harbor Rally&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const p = this.props;
+    const mode = p.mode ?? 'session', own = p.own ?? true, compact = !!p.compact, multi = mode === 'multiview';
+    const share = p.share ?? 'not', paused = !!p.paused;
+    const pill = { not: ['Not shared', '#1a1b1e', '#8e8e94'], shared: ['Shared · ' + (p.watchers ?? '1 watching'), '#17291f', '#6fd39a'], invite: ['Invite only · ' + (p.watchers ?? '2 watching'), '#17291f', '#6fd39a'] }[share];
+    const mv = p.mvMode ?? 'Grid 2×2', pk = p.pickerState ?? 'list', tiles = p.tiles ?? '3/4';
+    return {
+      full: !compact, compact, dispLabels: !compact && !multi, ctxFlex: multi ? 'none' : '0 1 auto', own, watchOnly: !own, compactOwn: compact && own,
+      ctxSession: !multi && own, ctxWatch: !multi && !own, ctxMulti: multi, ctxMultiNot: !multi,
+      title: p.title ?? 'Lumen Drift', titleMax: compact ? '150px' : '240px',
+      pillText: pill[0], pillBg: pill[1], pillFg: pill[2], watchWho: p.watchWho ?? 'Lena', watchGame: p.watchGame ?? 'Harbor Rally',
+      modes: ['PiP', 'Side by side', 'Grid 2×2'].map(l => ({ label: l, on: l === mv, off: l !== mv })),
+      paused, running: !paused, pauseLabel: paused ? 'Resume' : 'Pause', pauseTip: (paused ? 'Resume' : 'Pause') + (multi ? ' your game' : '') + ' · Esc',
+      btnPad: compact ? '9px' : '10px', speed: p.speed ?? '4×',
+      speedBg: p.speedOn ? '#15262b' : 'transparent', speedFg: p.speedOn ? '#3cbfd8' : '#ecebe7',
+      resetOpen: !!p.resetOpen, resetBg: p.resetOpen ? '#2a1a17' : 'transparent', resetFg: p.resetOpen ? '#ef8a78' : '#ecebe7',
+      pickerOpen: !!p.pickerOpen, pkList: pk === 'list', pkEmpty: pk === 'empty', pkFull: pk === 'full',
+      tiles: '· ' + tiles, tilesLong: tiles.replace('/', ' of ') + ' tiles',
+      addBg: p.pickerOpen ? '#15262b' : '#1a1b1e', addLine: p.pickerOpen ? '#3cbfd8' : '#2c2d32', addFg: p.pickerOpen ? '#3cbfd8' : '#ecebe7', addMeta: p.pickerOpen ? '#3cbfd8' : '#7d7d83',
+      showAllTiles: multi && !compact, layoutTip: multi ? 'Screen layout · all tiles' : 'Screen layout · this game only',
+      diagBg: p.diagOn ? '#15262b' : 'transparent', diagFg: p.diagOn ? '#3cbfd8' : '#ecebe7', keyLine: p.diagOn ? '#1f4650' : '#3a3b40', keyFg: p.diagOn ? '#3cbfd8' : '#a3a3a8',
+      overflowOpen: !!p.overflowOpen, moreBg: p.overflowOpen ? '#15262b' : '#1a1b1e', moreLine: p.overflowOpen ? '#3cbfd8' : '#2c2d32'
+    };
+  }
+}
+</script>
+</body>
+</html>

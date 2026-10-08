@@ -49,3 +49,31 @@ q. Fallback hint "OpenGL requested · fell back to software (GL 4.3 not availabl
 r. F3 for diagnostics: no F3 (or F11) binding exists in `client/ui` today; F5 is drawn for "Save snapshot". F3 may collide with game hotkeys like Esc (point d); the Hotkeys tab (3f) is not drawn and which keys the keyboard mapping forwards to the core is not specified. (0.6: decided by ADR 0014 D4: F3, F5, F11 handled by the Player. 0.7.x: Space toggles speed-up (fast-forward) and is never forwarded to the core, ADR 0018.)
 s. Persistence of "open/closed per section": today `SessionPanel.showDiagnostics` is a non-persisted QML property (default hidden, one panel). Player settings live in `settings/player.json` (`PlayerSettings`) and Session settings in `player-settings.json`; where the three states (overlay, Emulation, Streaming) are stored, and whether window, multiview and fullscreen share them, is open. The initial states in the mock (e.g. 3g: Emulation collapsed, Streaming open) are mock defaults. (0.6: decided by ADR 0014 D5: three booleans in `PlayerSettings`.)
 t. Target bitrate: the Streaming rows show only the measured bitrate and "adaptive bitrate", not the current target, although the roadmap (0.6, "From 0.4") requires connection type and target bitrate to be shown clearly. `SessionStats` has `videoBitrateKbps` and `targetBitrateKbps` separately; the host line must show both (for example "6.0 / target 6.5 Mbit/s"); exact presentation open. (0.6: decided by ADR 0014 D11: host line shows measured and target bitrate.)
+
+Open points (revision handoff 2026-10-08, after a friends playtest; source `source/framebeam-designs-v4.dc.html`, handoff sections at lines 290 and 1102). Each open question of the handoff with the default decided by the orchestrator on 2026-10-08; these are working defaults, Fabio can overrule them. The handoff's in-game points (3g-2 to 3c-5) first, then the Turn 4 points (3c-2 to 3s-3).
+
+In-game (Turn 5):
+
+u. Esc: pauses as today; no second Esc to the Library (default, 2026-10-08). Esc keeps its fixed role from ADR 0014 D4 (leave fullscreen, else pause).
+v. The paused state is not shown to viewers specially; they see the frozen picture (default, 2026-10-08).
+w. The Multiview layout switch applies to all tiles (as decided 2026-10-07, item a); in the Session view the layout switch applies to this game only. The drawn state is correct (default, 2026-10-08).
+x. Selecting a remote tile in Multiview does not route controller input; input always goes to your game (default, 2026-10-08).
+y. Diagnostics section open/collapsed state (Emulation, Streaming) stays global, not per view (ADR 0014 D5; default, 2026-10-08).
+z. A paused background game does not auto-quit on idle; a hub disconnect quits and saves as today (default, 2026-10-08).
+
+Library, saves, settings, controllers, Hub (Turn 4):
+
+aa. "Save sync pending" does not count as ready for "Ready first" (default, 2026-10-08; as drawn).
+ab. Size sort: both directions, largest first and smallest first, like the other sorts (default, 2026-10-08; the draw shows only "largest first").
+ac. The toolbar count reflects the filter ("37 of 42", "0 of 37 ready games" in the empty result) (default, 2026-10-08).
+ad. Slot tabs: more than 3 slots collapse into the switcher "Main · 8 ▾" (threshold 3, default, 2026-10-08).
+ae. Snapshots can be created while the game runs, from the last written save, as F5 does today (default, 2026-10-08).
+af. "Play" is disabled while a restore, delete or upload confirmation is open (default, 2026-10-08).
+ag. At 1280 the category chips of Emulation collapse to "+N more ▾" (alternative horizontal scroll not taken; default, 2026-10-08).
+ah. The read-only "Version" row gets no Copy button (default, 2026-10-08).
+ai. The "Button labels" override and "Auto" are saved per physical device, not per profile (default, 2026-10-08; as drawn).
+aj. The input test grid has no stick cells for now (default, 2026-10-08).
+ak. Hub upload size validation: no per-system size ranges yet (the manifest has no save-size data). The Hub keeps its current limits; the error "This file can’t be a Nintendo DS save." and the 512 B to 8 MB range are not built until the system manifest carries save sizes (default, 2026-10-08).
+al. Admins cannot upload into another user's slot (default, 2026-10-08).
+
+Notes on the revision against the built state (not open questions): the drawn speed menu ends with "Unlimited" while the built set is 1.5×, 2×, 3×, 4×, 6×, 8× (ADR 0018) and the panel's speed select is removed in the new design; "jitter" in the multiview streaming lines is not measured today; keys 1-4 select tiles in the new multiview (v3: they moved the audio focus).

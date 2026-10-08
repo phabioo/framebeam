@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="height:100%;box-sizing:border-box;background:#111214;border-left:1px solid #1e1f22;color:#ecebe7;font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:13px;display:flex;flex-direction:column">
+  <sc-if value="{{ rail }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:14px 0">
+      <div title="Show panel" style="width:32px;height:32px;border-radius:7px;border:1px solid #2c2d32;display:grid;place-items:center;color:#c9c8c4">⇤</div>
+      <span style="font:500 11px 'IBM Plex Mono',monospace;width:20px;height:20px;border-radius:4px;background:#ecebe7;color:#121315;display:grid;place-items:center">{{ tileN }}</span>
+      <span title="{{ shareText }}" style="width:8px;height:8px;border-radius:50%;background:{{ shareDot }}"></span>
+      <span title="Save snapshot · F5" style="width:9px;height:9px;background:#c9c8c4;transform:rotate(45deg)"></span>
+    </div>
+  </sc-if>
+  <sc-if value="{{ open }}" hint-placeholder-val="{{ true }}">
+    <sc-if value="{{ multi }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;align-items:center;gap:8px;padding:12px 16px 12px 24px;border-bottom:1px solid #1e1f22"><span style="font:500 11px 'IBM Plex Mono',monospace;width:20px;height:20px;border-radius:4px;background:#ecebe7;color:#121315;display:grid;place-items:center">{{ tileN }}</span><span style="font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#c9c8c4">{{ tileLabel }}</span><div title="Hide panel" style="margin-left:auto;width:28px;height:28px;border-radius:6px;border:1px solid #2c2d32;display:grid;place-items:center;color:#a3a3a8">⇥</div></div>
+    </sc-if>
+    <sc-if value="{{ own }}" hint-placeholder-val="{{ true }}">
+      <div style="flex:1;min-height:0;display:flex;flex-direction:column;padding:20px 24px;gap:20px">
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;align-items:center"><span style="font:500 11px 'IBM Plex Mono',monospace;color:#7d7d83;letter-spacing:.08em">SHARING</span><span style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px;color:{{ shareDot }}"><span style="width:6px;height:6px;border-radius:50%;background:{{ shareDot }}"></span>{{ shareText }}</span></div>
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px;padding:3px;border-radius:7px;background:#1a1b1e;border:1px solid #2c2d32">
+            <sc-for list="{{ vis }}" as="v" hint-placeholder-count="3"><sc-if value="{{ v.on }}" hint-placeholder-val="{{ false }}"><span style="text-align:center;padding:6px 0;border-radius:5px;background:#2c2d32;font-weight:500">{{ v.label }}</span></sc-if><sc-if value="{{ v.off }}" hint-placeholder-val="{{ true }}"><span style="text-align:center;padding:6px 0;color:#a3a3a8">{{ v.label }}</span></sc-if></sc-for>
+          </div>
+          <span style="font-size:12px;line-height:1.5;color:#8e8e94;text-wrap:pretty">{{ visHint }}</span>
+          <sc-if value="{{ notShared }}" hint-placeholder-val="{{ true }}"><div style="height:40px;border-radius:8px;background:#3cbfd8;color:#161512;display:grid;place-items:center;font-size:14px;font-weight:600">Share Session</div></sc-if>
+          <sc-if value="{{ shared }}" hint-placeholder-val="{{ false }}">
+            <sc-if value="{{ inviteOnly }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;border-radius:8px;background:#1a1b1e;border:1px solid #26272b">
+                <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid #26272b"><span style="width:26px;height:26px;border-radius:50%;background:#2c2d32;display:grid;place-items:center;font-size:12px;font-weight:600;flex:none">L</span><div style="display:flex;flex-direction:column;min-width:0"><span>Lena</span><span style="display:flex;align-items:center;gap:6px;font-size:11px;color:#8e8e94"><span style="width:6px;height:6px;border-radius:50%;background:#6fd39a"></span>watching · relayed</span></div><span style="margin-left:auto;font-size:12px;color:#a3a3a8;text-decoration:underline">Remove</span></div>
+                <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid #26272b"><span style="width:26px;height:26px;border-radius:50%;background:#2c2d32;display:grid;place-items:center;font-size:12px;font-weight:600;flex:none">J</span><div style="display:flex;flex-direction:column;min-width:0"><span>Jonas</span><span style="display:flex;align-items:center;gap:6px;font-size:11px;color:#8e8e94"><span style="width:6px;height:6px;border-radius:50%;background:#6fd39a"></span>watching · direct</span></div><span style="margin-left:auto;font-size:12px;color:#a3a3a8;text-decoration:underline">Remove</span></div>
+                <div style="display:flex;align-items:center;gap:10px;padding:8px 10px"><span style="width:26px;height:26px;border-radius:50%;background:#2c2d32;display:grid;place-items:center;font-size:12px;font-weight:600;flex:none">S</span><div style="display:flex;flex-direction:column;min-width:0"><span>Sam</span><span style="display:flex;align-items:center;gap:6px;font-size:11px;color:#8e8e94"><span style="width:6px;height:6px;border-radius:50%;background:#5e5e63"></span>invited · offline</span></div><span style="margin-left:auto;font-size:12px;color:#a3a3a8;text-decoration:underline">Withdraw</span></div>
+              </div>
+              <div style="height:34px;box-sizing:border-box;border-radius:7px;background:#1a1b1e;border:1px solid #2c2d32;display:flex;align-items:center;gap:8px;padding:0 10px;color:#7d7d83"><span>+</span>Invite a hub user…</div>
+            </sc-if>
+            <div style="height:36px;border-radius:8px;border:1px solid #3a3b40;display:grid;place-items:center;font-weight:500">Stop sharing</div>
+          </sc-if>
+        </div>
+        <div style="height:1px;background:#1e1f22;flex:none"></div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;align-items:center"><span style="font:500 11px 'IBM Plex Mono',monospace;color:#7d7d83;letter-spacing:.08em">SAVE</span><span style="margin-left:auto;font-size:12px;color:#c9c8c4">Manage saves →</span></div>
+          <div style="display:flex;align-items:baseline;gap:8px"><span style="font-size:14px;font-weight:600">Main</span><span style="font:500 12px 'IBM Plex Mono',monospace;color:#a3a3a8">v14</span><span style="margin-left:auto;font-size:12px;color:#6fd39a">✓ synced to hub</span></div>
+          <div style="height:36px;border-radius:8px;border:1px solid #3a3b40;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:500"><span style="width:8px;height:8px;background:currentColor;transform:rotate(45deg)"></span>Save snapshot<span style="font:500 10px 'IBM Plex Mono',monospace;padding:1px 4px;border-radius:3px;border:1px solid #3a3b40;color:#a3a3a8">F5</span></div>
+          <span style="font-size:12px;line-height:1.5;color:#8e8e94">Last checkpoint 40 s ago · final sync on pause or quit</span>
+        </div>
+        <div style="margin-top:auto;display:flex;flex-direction:column;gap:8px;padding-top:16px;border-top:1px solid #1e1f22">
+          <sc-if value="{{ notQuitting }}" hint-placeholder-val="{{ true }}"><div style="height:40px;border-radius:8px;background:#1f2024;display:grid;place-items:center;font-size:14px;font-weight:500">Quit game</div><span style="font-size:12px;color:#7d7d83;text-align:center">Saves and syncs first</span></sc-if>
+          <sc-if value="{{ quitting }}" hint-placeholder-val="{{ false }}"><div style="padding:12px;border-radius:8px;background:#1a1b1e;border:1px solid #26272b;display:flex;flex-direction:column;gap:8px"><div style="display:flex;align-items:center;gap:10px"><span style="width:16px;height:16px;border-radius:50%;border:2px solid #2c2d32;border-top-color:#3cbfd8;box-sizing:border-box"></span><span style="font-weight:600">Saving and syncing…</span></div><div style="display:grid;grid-template-columns:16px minmax(0,1fr);gap:4px 8px;font-size:12px;color:#c9c8c4"><span style="color:#3cbfd8">✓</span><span>Saved to “Main” as v15</span><span style="color:#7d7d83">○</span><span>Uploading to hub.example.com</span></div><span style="font-size:11px;color:#7d7d83">Returns to the Library when done.</span></div></sc-if>
+        </div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ remote }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;min-height:0;display:flex;flex-direction:column;padding:20px 24px;gap:16px">
+        <div style="display:flex;align-items:center;gap:12px"><span style="width:36px;height:36px;border-radius:50%;background:#2c2d32;display:grid;place-items:center;font-size:14px;font-weight:600;flex:none">{{ remoteInitial }}</span><div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:15px;font-weight:600">{{ remoteWho }}</span><span style="font-size:13px;color:#a3a3a8">{{ remoteGame }}</span></div></div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;background:#17291f;color:#6fd39a">● Direct · 18 ms</span><span style="font-size:12px;color:#8e8e94">Hub users · for 24 min</span></div>
+        <sc-if value="{{ audioHere }}" hint-placeholder-val="{{ false }}"><div style="height:36px;border-radius:8px;background:#15262b;border:1px solid #1f4650;color:#3cbfd8;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:500">♪ Audio plays from this tile</div></sc-if>
+        <sc-if value="{{ audioElse }}" hint-placeholder-val="{{ true }}"><div style="height:36px;border-radius:8px;border:1px solid #3a3b40;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:500">♪ Audio here</div></sc-if>
+        <div style="height:36px;border-radius:8px;border:1px solid #3a3b40;display:grid;place-items:center;font-weight:500">Remove from multiview</div>
+        <span style="font-size:12px;line-height:1.5;color:#8e8e94">You only watch and listen. {{ remoteWho }} sees you as a viewer.</span>
+        <div style="margin-top:auto;padding-top:16px;border-top:1px solid #1e1f22;display:flex;align-items:center;gap:8px;font-size:12px;color:#8e8e94"><span style="font:500 11px 'IBM Plex Mono',monospace;width:20px;height:20px;border-radius:4px;background:#26272b;color:#c9c8c4;display:grid;place-items:center">1</span>Your game runs in tile 1<span style="margin-left:auto;color:#c9c8c4;text-decoration:underline">Select</span></div>
+      </div>
+    </sc-if>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:340,&quot;height&quot;:844},&quot;kind&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;own&quot;,&quot;remote&quot;],&quot;default&quot;:&quot;own&quot;,&quot;tsType&quot;:&quot;'own'|'remote'&quot;},&quot;multi&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;share&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;not&quot;,&quot;shared&quot;],&quot;default&quot;:&quot;not&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;vis&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Private&quot;,&quot;Hub users&quot;,&quot;Invite only&quot;],&quot;default&quot;:&quot;Private&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;watchers&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;2 watching&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;quitting&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;collapsed&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;tileN&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:1,&quot;tsType&quot;:&quot;number&quot;},&quot;remoteWho&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Lena&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;remoteGame&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Harbor Rally&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;audioHere&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const p = this.props, kind = p.kind ?? 'own', share = p.share ?? 'not', v = p.vis ?? (share === 'not' ? 'Private' : 'Invite only');
+    const shared = share !== 'not', collapsed = !!p.collapsed;
+    const hint = shared ? (v === 'Invite only' ? 'Only invited users can watch. They send no input and cannot invite others.' : 'Everyone on hub.example.com can watch. Viewers send no input.')
+      : (v === 'Private' ? 'Only you can see this game. Choose Hub users or Invite only, then share.' : 'Not shared yet. Share to let ' + (v === 'Hub users' ? 'hub users' : 'invited users') + ' watch.');
+    const who = p.remoteWho ?? 'Lena';
+    return {
+      rail: collapsed, open: !collapsed, multi: !!p.multi, own: kind === 'own', remote: kind === 'remote',
+      tileN: p.tileN ?? (kind === 'own' ? 1 : 2), tileLabel: kind === 'own' ? 'TILE ' + (p.tileN ?? 1) + ' · YOUR GAME' : 'TILE ' + (p.tileN ?? 2) + ' · WATCHING',
+      vis: ['Private', 'Hub users', 'Invite only'].map(l => ({ label: l, on: l === v, off: l !== v })), visHint: hint,
+      notShared: !shared, shared, inviteOnly: shared && v === 'Invite only',
+      shareText: shared ? 'Shared · ' + (p.watchers ?? '2 watching') : 'Not shared', shareDot: shared ? '#6fd39a' : '#8e8e94',
+      quitting: !!p.quitting, notQuitting: !p.quitting,
+      remoteWho: who, remoteInitial: who[0], remoteGame: p.remoteGame ?? 'Harbor Rally', audioHere: !!p.audioHere, audioElse: !p.audioHere
+    };
+  }
+}
+</script>
+</body>
+</html>

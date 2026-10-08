@@ -1,6 +1,6 @@
 # Design tokens
 
-Extracted from `source/framebeam-designs-v3.dc.html` (only values that actually occur; roles are derived from usage, the source does not name tokens). Shared: fonts, accent, layout grid. The canvas chrome of the prototype page (background `#d9d8d4`, headings `#1b1b1d`/`#3a3936`/`#5b5a56`, links `#1a7f96`, hover `#0f5a6b`) is not UI and not listed. The old amber accent no longer occurs in the UI (the logo sheet canvas still carries the old amber link color; canvas only). Decisions on accent and warning color: `README.md`.
+Extracted from `source/framebeam-designs-v3.dc.html` (only values that actually occur; the section "Additions of the revision handoff (2026-10-08)" at the end comes from `source/framebeam-designs-v4.dc.html`; roles are derived from usage, the source does not name tokens). Shared: fonts, accent, layout grid. The canvas chrome of the prototype page (background `#d9d8d4`, headings `#1b1b1d`/`#3a3936`/`#5b5a56`, links `#1a7f96`, hover `#0f5a6b`) is not UI and not listed. The old amber accent no longer occurs in the UI (the logo sheet canvas still carries the old amber link color; canvas only). Decisions on accent and warning color: `README.md`.
 
 ## Shared
 
@@ -144,6 +144,27 @@ Status is shown as a pill (surface + text), no longer as colored text only (exce
 | Toggle Hub | on `#1b1b1d`, off `#d9d7d1`, knob `#fff` with `0 1px 2px rgba(0,0,0,.2)` (not accent) |
 | Changed marker | 7px dot `#3cbfd8` before the label of an option or binding changed from its default (3e, 3f); "Reset" link (`#a3a3a8`, underlined) or "Default" (`#5e5e63`) on the right |
 | Tabs (Hub) | Sans 14, active 600 with 2px underline `#1b1b1d`, inactive `#6b6a66`; count either as counter badge (3l: min 18 x 18, radius 9, 11/600, `#9b2f20` on `#f7dcd6`, padding 10 14 per tab) or as 12px text (3k/3s slot tabs: `#1a7f96` for "1 conflict", `#8a8984` for "N versions") |
+
+## Additions of the revision handoff (2026-10-08)
+
+Source `source/framebeam-designs-v4.dc.html` (handoff sections "Tokens", lines 311-313 and 1142-1150). All other colors are existing tokens.
+
+| Role | Value |
+|---|---|
+| Accent box border (dark) | `#1f4650`; confirmation boxes (surface `#15262b`), "Now running" strip, audio-here button, key badge ring of an active toggle |
+| Danger box border (dark) | `#4a2a24`; delete confirmation (surface `#2a1a17`) and the Reset popover |
+| Danger box border (light, Hub) | `#efc9c2`; delete confirmation in the Hub (SaveRow light) |
+| Group divider / rail / ring (dark) | `#34353a`; timeline rail, glyph chip ring (inset 1px), menu and popover borders, speed-up split divider |
+| Outline button on an accent surface | `#2b5560`; "Quit" in the Now running strip |
+| Row hover (dark) | `#17181b` (same value as the Hub card in the sidebar); SettingsRow hover. Tile hover in the multiview: `#141517` |
+| Focus ring (dark) | `0 0 0 2px #121315, 0 0 0 4px #3cbfd8` (2px accent with a 2px gap in the app background); on the control of a SettingsRow |
+| Glyph chip | surface `#26272b`, glyph `#c9c8c4`; active `#3cbfd8` / `#161512` |
+| Group box in the game header | surface `#16171a`, border `#26272b`, radius 9, padding 2; button hover `#1f2024` |
+| Popover / menu surface | `#1d1e22` with border `#34353a`, shadow `0 18px 40px rgba(0,0,0,.55)` |
+| Tile selection (multiview) | outline 2px `#ecebe7`, offset 3; audio focus stays the inset ring `#3cbfd8` |
+| Overlay backdrop (dialog on the Library) | `rgba(5,5,6,.7)`; dialog shadow `0 40px 80px rgba(0,0,0,.6)` |
+
+Changed marker size: SettingsRow draws the changed dot 6px in a reserved 14px slot (earlier 7px). Toggle in toolbars (Ready first): 32 x 18, knob 14.
 
 ## Mapping (note, not code)
 

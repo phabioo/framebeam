@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="width:340px;box-sizing:border-box;padding:14px;border-radius:10px;background:rgba(17,18,20,.95);border:1px solid #2c2d32;box-shadow:0 18px 40px rgba(0,0,0,.45);display:flex;flex-direction:column;gap:12px;color:#ecebe7;font-family:'IBM Plex Sans',system-ui,sans-serif">
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div style="display:flex;align-items:center;gap:8px"><span style="width:10px;font-size:10px;color:#8e8e94">{{ emuCaret }}</span><span style="font:500 11px 'IBM Plex Mono',monospace;color:#7d7d83;letter-spacing:.08em">EMULATION</span><span style="margin-left:auto;font:400 11px 'IBM Plex Mono',monospace;color:#8e8e94">{{ emuSummary }}</span></div>
+    <sc-if value="{{ emuSingle }}" hint-placeholder-val="{{ true }}">
+      <div style="display:grid;grid-template-columns:76px minmax(0,1fr);gap:7px 10px;align-items:baseline;font:400 12px 'IBM Plex Mono',monospace">
+        <span style="font:400 11px 'IBM Plex Sans',sans-serif;color:#7d7d83">Core</span><span>melonDS DS 1.4.0</span>
+        <span style="font:400 11px 'IBM Plex Sans',sans-serif;color:#7d7d83">Renderer</span><span style="display:flex;flex-direction:column;gap:2px"><span>OpenGL 4.6 Core</span><span style="font-size:11px;color:#8e8e94">Example GPU · driver 1.2.3</span></span>
+        <span style="font:400 11px 'IBM Plex Sans',sans-serif;color:#7d7d83">Resolution</span><span style="display:flex;flex-direction:column;gap:2px"><span>3× · 768×1152</span><span style="font-size:11px;color:#8e8e94">2 screens of 768×576</span></span>
+        <span style="font:400 11px 'IBM Plex Sans',sans-serif;color:#7d7d83">FPS</span><span>59.8 / 59.83 fps</span>
+        <span style="font:400 11px 'IBM Plex Sans',sans-serif;color:#7d7d83">Frame</span><span>9.4 ms · emu 6.1 · readback 2.8</span>
+        <span></span><span style="display:flex;flex-direction:column;gap:3px"><svg width="236" height="34" viewBox="0 0 236 34" style="display:block"><line x1="0" x2="236" y1="5.6" y2="5.6" stroke="#3a3b40" stroke-dasharray="3 3"></line><polyline points="0,22 12,21 24,23 36,20 48,22 60,19 72,21 84,22 96,14 108,20 120,21 132,22 144,20 156,21 168,23 180,20 192,21 204,19 216,22 236,21" fill="none" stroke="#3cbfd8" stroke-width="1.25"></polyline><polyline points="0,26 12,26 24,27 36,25 48,26 60,25 72,26 84,26 96,22 108,25 120,26 132,26 144,25 156,26 168,27 180,25 192,26 204,25 216,26 236,26" fill="none" stroke="#6f6f75" stroke-width="1"></polyline></svg><span style="display:flex;gap:10px;font-size:10px;color:#6f6f75"><span>last 5 s</span><span style="margin-left:auto;color:#3cbfd8">— total</span><span>— emu</span><span>┄ 16.7 ms</span></span></span>
+        <span style="font:400 11px 'IBM Plex Sans',sans-serif;color:#7d7d83">Audio</span><span>buffer 64 ms · 0 underruns</span>
+      </div>
+    </sc-if>
+    <sc-if value="{{ emuMulti }}" hint-placeholder-val="{{ false }}">
+      <div style="display:grid;grid-template-columns:20px minmax(0,1fr);gap:4px 10px;align-items:start">
+        <span style="font:500 11px 'IBM Plex Mono',monospace;width:20px;height:20px;border-radius:4px;background:#26272b;color:#c9c8c4;display:grid;place-items:center">1</span>
+        <div style="display:flex;flex-direction:column;gap:3px"><span style="font-size:13px;font-weight:500">You · Lumen Drift</span><span style="font:400 11px 'IBM Plex Mono',monospace;color:#c9c8c4">59.8 fps · frame 9.4 ms · emu 6.1</span><span style="font:400 11px 'IBM Plex Mono',monospace;color:#8e8e94">OpenGL 4.6 · 3× · audio 64 ms · 0 underruns</span></div>
+      </div>
+      <span style="font-size:11px;color:#6f6f75;padding-left:30px">Only your tile is emulated on this device.</span>
+    </sc-if>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px;padding-top:12px;border-top:1px solid #1e1f22">
+    <div style="display:flex;align-items:center;gap:8px"><span style="width:10px;font-size:10px;color:#8e8e94">{{ streamCaret }}</span><span style="font:500 11px 'IBM Plex Mono',monospace;color:#7d7d83;letter-spacing:.08em">STREAMING</span><span style="margin-left:auto;font:400 11px 'IBM Plex Mono',monospace;color:#8e8e94">{{ streamSummary }}</span></div>
+    <sc-if value="{{ streamMulti }}" hint-placeholder-val="{{ false }}">
+      <div style="display:grid;grid-template-columns:20px minmax(0,1fr);gap:10px;align-items:start">
+        <span style="font:500 11px 'IBM Plex Mono',monospace;width:20px;height:20px;border-radius:4px;background:#26272b;color:#c9c8c4;display:grid;place-items:center">2</span>
+        <div style="display:flex;flex-direction:column;gap:3px"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:13px;font-weight:500">Lena · Harbor Rally</span><span style="margin-left:auto;font-size:11px;font-weight:600;padding:1px 8px;border-radius:999px;background:#17291f;color:#6fd39a">Direct</span></div><span style="font:400 11px 'IBM Plex Mono',monospace;color:#c9c8c4">59.9 fps · 5.8 Mbit/s · RTT 14 ms</span><span style="font:400 11px 'IBM Plex Mono',monospace;color:#8e8e94">loss 0.1 % · jitter 3 ms · H.264</span></div>
+        <span style="font:500 11px 'IBM Plex Mono',monospace;width:20px;height:20px;border-radius:4px;background:#26272b;color:#c9c8c4;display:grid;place-items:center">3</span>
+        <div style="display:flex;flex-direction:column;gap:3px"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:13px;font-weight:500">Jonas · Clocktower Kids</span><span style="margin-left:auto;font-size:11px;font-weight:600;padding:1px 8px;border-radius:999px;background:#15262b;color:#3cbfd8">Relayed</span></div><span style="font:400 11px 'IBM Plex Mono',monospace;color:#c9c8c4">58.7 fps · 4.1 Mbit/s · RTT 61 ms</span><span style="font:400 11px 'IBM Plex Mono',monospace;color:#8e8e94">loss 0.8 % · jitter 9 ms · via TURN</span></div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ streamNone }}" hint-placeholder-val="{{ true }}"><span style="font-size:12px;color:#6f6f75">No active session · appears when you share or watch one</span></sc-if>
+  </div>
+  <div style="display:flex;align-items:center;justify-content:flex-end;padding-top:10px;border-top:1px solid #1e1f22"><span style="display:flex;align-items:center;gap:7px;font-size:12px;color:#a3a3a8">Hide diagnostics<span style="font:500 10px 'IBM Plex Mono',monospace;padding:1px 4px;border-radius:3px;border:1px solid #3a3b40">F3</span></span></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:360,&quot;height&quot;:460},&quot;multi&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;label&quot;:&quot;Multiview (one block per tile)&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const multi = !!this.props.multi;
+    return {
+      emuSingle: !multi, emuMulti: multi, streamMulti: multi, streamNone: !multi,
+      emuCaret: '▾', streamCaret: multi ? '▾' : '▸',
+      emuSummary: multi ? 'tile 1 · 59.8 fps' : '59.8 fps · 9.4 ms',
+      streamSummary: multi ? '2 tiles · 1 relayed' : 'not shared'
+    };
+  }
+}
+</script>
+</body>
+</html>
