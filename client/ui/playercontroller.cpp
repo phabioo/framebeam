@@ -349,6 +349,7 @@ void PlayerController::refreshEmulationPage() {
 
 QString PlayerController::logFile() const { return QDir::toNativeSeparators(filelog::path()); }
 
+QString PlayerController::userName() const { return conn_->userDisplayName(); }
 QString PlayerController::deviceName() const { return profiles_->deviceName(); }
 QString PlayerController::playerVersion() const { return HandshakeInfo::detect().playerVersion; }
 QString PlayerController::platformText() const {

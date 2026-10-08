@@ -91,6 +91,7 @@ class PlayerController : public QObject {
   Q_PROPERTY(QString logFile READ logFile CONSTANT)
   // Shell (sidebar user block, Settings footer)
   Q_PROPERTY(QString deviceName READ deviceName CONSTANT)
+  Q_PROPERTY(QString userName READ userName NOTIFY hubChanged)  // Hub user (handshake `user`); empty for older Hubs
   Q_PROPERTY(QString playerVersion READ playerVersion CONSTANT)
   Q_PROPERTY(QString platformText READ platformText CONSTANT)  // "Windows x86-64 · Protocol v1"
 
@@ -132,6 +133,7 @@ class PlayerController : public QObject {
   SaveHistoryController* saveHistory() { return history_.get(); }
   QString logFile() const;
   QString deviceName() const;
+  QString userName() const;
   QString playerVersion() const;
   QString platformText() const;
   // A game or a watched Session is running (updates are never applied then).

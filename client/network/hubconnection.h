@@ -68,6 +68,7 @@ class HubConnection : public QObject {
   bool hubHasFeature(const QString& feature) const { return features_.contains(feature); }
   QString hubId() const { return hubInfo_.hubId; }
   QString hubUserId() const { return profile_ ? profile_->hubUserId : QString(); }
+  QString userDisplayName() const { return profile_ ? profile_->userDisplayName : QString(); }
   QString deviceId() const { return profile_ ? profile_->deviceId : QString(); }
 
   // Exactly one active hub: calls first disconnect the old connection.

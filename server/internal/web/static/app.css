@@ -193,6 +193,15 @@ a { color: inherit; }
 .btn.danger { background: var(--error); border-color: var(--error); color: #fff; }
 .btn.danger:hover { opacity: .88; }
 .btn.small { height: 32px; padding: 0 12px; }
+.btn.danger { background: var(--error); border-color: var(--error); color: #fff; }
+.btn.danger:hover { opacity: .88; }
+.row-actions { display: flex; gap: 14px; align-items: center; }
+.row-actions form { margin: 0; }
+a.btn-link { text-decoration: none; }
+.confirm { max-width: 560px; }
+.confirm-card { padding: 20px; display: flex; flex-direction: column; gap: 14px; overflow: visible; }
+.confirm-list { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
 .btn-link { background: none; border: 0; padding: 0; font: 500 13px var(--font-sans); color: var(--error); cursor: pointer; }
 .btn-link:hover { text-decoration: underline; }
 .btn-link.plain { color: var(--accent); text-decoration: none; }

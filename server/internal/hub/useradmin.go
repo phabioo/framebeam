@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -110,4 +112,54 @@ func (s *Service) onUserDisabled(ctx context.Context, userID string) {
 			c.closeWith(CloseCodePolicy, "user_disabled")
 		}
 	}
+}
+
+// DeleteUser permanently deletes a regular user in one transaction: the user, their devices and tokens, invites they
+// created, pairing requests, saves, save history and conflicts. Games the user uploaded stay in the library and are
+// reassigned to actorID (the deleting admin), because games.uploaded_by is a foreign key without cascade. Admins
+// (which covers the own account and the last admin) cannot be deleted (ErrForbidden); actorID must be an existing
+// admin. Live Sessions and WSS connections end as on disable. Save blobs are removed from disk after the commit.
+func (s *Service) DeleteUser(ctx context.Context, userID, actorID string) (err error) {
+	defer s.publishOK(&err, TopicUsers, TopicClients, TopicSaves)
+	u, err := s.GetUser(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if u.Role == RoleAdmin || userID == actorID {
+		return &Error{Code: CodeForbidden, Message: "Admins cannot be deleted"}
+	}
+	if a, err := s.GetUser(ctx, actorID); err != nil || a.Role != RoleAdmin {
+		return ErrForbidden
+	}
+	// Block further authentication and end Sessions / close connections before the rows disappear.
+	if err := s.DisableUser(ctx, userID); err != nil {
+		return err
+	}
+	s.saveMu.Lock()
+	defer s.saveMu.Unlock()
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return internal(err)
+	}
+	defer tx.Rollback()
+	stmts := []struct {
+		q    string
+		args []any
+	}{
+		{`UPDATE games SET uploaded_by = ? WHERE uploaded_by = ?`, []any{actorID, userID}},
+		{`DELETE FROM pairing_requests WHERE user_id = ? OR device_id IN (SELECT id FROM devices WHERE user_id = ?)`, []any{userID, userID}},
+		{`DELETE FROM invites WHERE created_by = ?`, []any{userID}},
+		// Cascades: devices, tokens, Sessions, web sessions, saves, history, conflicts.
+		{`DELETE FROM users WHERE id = ?`, []any{userID}},
+	}
+	for _, st := range stmts {
+		if _, err := tx.ExecContext(ctx, st.q, st.args...); err != nil {
+			return internal(err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return internal(err)
+	}
+	_ = os.RemoveAll(filepath.Join(s.dataDir, "saves", userID)) // best effort: orphaned blobs are harmless
+	return nil
 }

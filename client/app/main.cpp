@@ -1,5 +1,6 @@
 #include <QCommandLineParser>
 #include <QGuiApplication>
+#include <QIcon>
 #include <QQmlApplicationEngine>
 #include <QTemporaryDir>
 #include <QTimer>
@@ -97,6 +98,13 @@ int main(int argc, char* argv[]) {
 #endif
   QGuiApplication app(argc, argv);
   QGuiApplication::setApplicationName(QStringLiteral("FrameBeam Player"));
+  {
+    QIcon icon;
+    for (const int s : {16, 24, 32, 48, 64, 128, 256, 512}) {
+      icon.addFile(QStringLiteral(":/framebeam/app/player-%1.png").arg(s), QSize(s, s));
+    }
+    QGuiApplication::setWindowIcon(icon);
+  }
   QGuiApplication::setApplicationVersion(QString::fromUtf8(framebeam::playerVersion().data(),
                                                            static_cast<qsizetype>(framebeam::playerVersion().size())));
 

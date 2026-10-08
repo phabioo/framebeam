@@ -140,3 +140,42 @@ func (s *Server) clientRevoke(w http.ResponseWriter, r *http.Request, sess *sess
 	}
 	s.renderClients(w, r, sess, "Access revoked.", "")
 }
+
+// clientDeleteConfirm is the no-JS confirmation step that names what the deletion removes.
+func (s *Server) clientDeleteConfirm(w http.ResponseWriter, r *http.Request, sess *session) {
+	dev, err := s.svc.GetDevice(r.Context(), r.PathValue("id"))
+	if errors.Is(err, hub.ErrNotFound) {
+		http.Redirect(w, r, "/clients?err=nodevice", http.StatusSeeOther)
+		return
+	} else if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	owner := ""
+	if u, err := s.svc.GetUser(r.Context(), dev.UserID); err == nil {
+		owner = " of " + u.DisplayName
+	}
+	d := s.base(r, sess, "clients", "Delete device")
+	d.Body = confirmBody{
+		Heading: "Delete “" + dev.Name + "”?",
+		Intro:   "This permanently deletes the device" + owner + " and cannot be undone. The following is removed:",
+		Removes: []string{
+			"The device and all its access tokens; a running Session or connection ends immediately",
+			"The player has to be paired and approved again to use this Hub",
+		},
+		Note:   "Saves stay untouched; in the save history this device is then shown as “Deleted device”.",
+		Action: "/clients/devices/" + dev.ID + "/delete", Button: "Delete device", Cancel: "/clients",
+	}
+	s.render(w, http.StatusOK, "confirm", "layout", d)
+}
+
+func (s *Server) clientDelete(w http.ResponseWriter, r *http.Request, sess *session) {
+	switch err := s.svc.DeleteDevice(r.Context(), r.PathValue("id")); {
+	case err == nil:
+		http.Redirect(w, r, "/clients?ok=devdeleted", http.StatusSeeOther)
+	case errors.Is(err, hub.ErrNotFound):
+		http.Redirect(w, r, "/clients?err=nodevice", http.StatusSeeOther)
+	default:
+		s.fail(w, r, err)
+	}
+}

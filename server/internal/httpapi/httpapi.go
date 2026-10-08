@@ -284,6 +284,9 @@ func (s *Server) PostHandshake(ctx context.Context, req api.PostHandshakeRequest
 	out := api.HandshakeResponse{HubVersion: res.Info.HubVersion, ProtocolVersion: res.Info.ProtocolVersion,
 		MinProtocolVersion: res.Info.MinProtocolVersion, Compatible: res.Compatible, Problems: []api.HandshakeProblem{},
 		Features: &features}
+	if u := principal(ctx).User; u.ID != "" {
+		out.User = &api.HandshakeUser{Id: u.ID, DisplayName: u.DisplayName, Role: api.HandshakeUserRole(u.Role)}
+	}
 	for _, p := range res.Problems {
 		hp := api.HandshakeProblem{Code: api.HandshakeProblemCode(p.Code), Detail: p.Detail}
 		if p.CoreID != "" {

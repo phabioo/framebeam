@@ -275,6 +275,15 @@ func TestPairingFlowTokenLibraryDownloadRevoke(t *testing.T) {
 	if h := decode[map[string]any](t, hs); h["compatible"] != true || len(h["problems"].([]any)) != 0 {
 		t.Fatalf("%v", h)
 	}
+	if h := decode[struct {
+		User struct {
+			ID          string `json:"id"`
+			DisplayName string `json:"display_name"`
+			Role        string `json:"role"`
+		} `json:"user"`
+	}](t, hs); h.User.ID != e.admin.ID || h.User.DisplayName != e.admin.DisplayName || h.User.Role != "admin" {
+		t.Fatalf("handshake user: %+v", h.User)
+	}
 
 	// Library
 	empty := e.do("GET", "/api/v1/games", nil, opt{token: at})

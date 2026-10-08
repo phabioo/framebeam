@@ -241,6 +241,46 @@ class HubFlowTest : public QObject {
     QVERIFY(conn_->incompatibleReason() == HubConnection::IncompatibleReason::HubTooOld);
   }
 
+  void parseHandshakeUser() {
+    QJsonObject o{{QStringLiteral("compatible"), true}};
+    auto r = parseHandshakeResult(o);
+    QVERIFY(r.has_value());
+    QVERIFY(r->userDisplayName.isEmpty());
+    QVERIFY(r->userId.isEmpty());
+    o.insert(QStringLiteral("user"), QJsonObject{{QStringLiteral("id"), QStringLiteral("u_1")},
+                                                 {QStringLiteral("display_name"), QStringLiteral(" Lena ")},
+                                                 {QStringLiteral("role"), QStringLiteral("user")}});
+    r = parseHandshakeResult(o);
+    QVERIFY(r.has_value());
+    QCOMPARE(r->userId, QStringLiteral("u_1"));
+    QCOMPARE(r->userDisplayName, QStringLiteral("Lena"));
+    QCOMPARE(r->userRole, QStringLiteral("user"));
+  }
+
+  // The user name is stored per Hub profile on every handshake and cleared when an older Hub omits `user`.
+  void userNameStoredPerProfile() {
+    FakeHub hub(QStringLiteral("a"));
+    hub.handshakeExtra = QJsonObject{{QStringLiteral("user"), QJsonObject{{QStringLiteral("id"), QStringLiteral("u_1")},
+                                                                          {QStringLiteral("display_name"), QStringLiteral("Lena")},
+                                                                          {QStringLiteral("role"), QStringLiteral("admin")}}}};
+    QVERIFY(hub.start());
+    conn_->connectToAddress(hub.address());
+    WAIT_STATE(*conn_, State::NeedsTrustConfirmation);
+    conn_->confirmTrust();
+    WAIT_STATE(*conn_, State::NeedsPairing);
+    conn_->requestPairing();
+    WAIT_STATE(*conn_, State::AwaitingApproval);
+    hub.decision = FakeHub::Decision::Approve;
+    WAIT_STATE(*conn_, State::Connected);
+    QCOMPARE(conn_->userDisplayName(), QStringLiteral("Lena"));
+    QCOMPARE(profiles_->profile(hub.hubId)->userDisplayName, QStringLiteral("Lena"));
+
+    hub.handshakeExtra = QJsonObject();  // Hub downgraded / older Hub
+    conn_->connectToProfile(hub.hubId);
+    WAIT_STATE(*conn_, State::Connected);
+    QVERIFY(profiles_->profile(hub.hubId)->userDisplayName.isEmpty());
+  }
+
   void pairingAllowStoresCredentialOutsideProfile() {
     FakeHub hub(QStringLiteral("a"));
     QVERIFY(hub.start());
