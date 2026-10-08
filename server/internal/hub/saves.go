@@ -296,7 +296,8 @@ type historyEntry struct {
 
 func addHistory(ctx context.Context, q dbq, userID, gameID, slot string, e historyEntry) (int, error) {
 	var v int
-	if err := q.QueryRowContext(ctx, `SELECT COALESCE(MAX(version), 0) + 1 FROM save_history WHERE user_id = ? AND game_id = ? AND slot = ?`,
+	if err := q.QueryRowContext(ctx, `SELECT MAX(COALESCE((SELECT MAX(version) FROM save_history WHERE user_id = ?1 AND game_id = ?2 AND slot = ?3), 0),
+		COALESCE((SELECT history_high FROM save_slots WHERE user_id = ?1 AND game_id = ?2 AND slot = ?3), 0)) + 1`,
 		userID, gameID, slot).Scan(&v); err != nil {
 		return 0, err
 	}
@@ -369,11 +370,16 @@ func placeContent(tmpName, dst string) (placed bool, err error) {
 	if err := os.Rename(tmpName, dst); err != nil {
 		return false, err
 	}
-	if d, err := os.Open(filepath.Dir(dst)); err == nil { // best effort: persist the directory entry
+	syncDir(filepath.Dir(dst))
+	return true, nil
+}
+
+// syncDir persists a directory entry (best effort).
+func syncDir(dir string) {
+	if d, err := os.Open(dir); err == nil {
 		d.Sync()
 		d.Close()
 	}
-	return true, nil
 }
 
 // PutSaveInput is an upload (D3). UserID is the owner of the authenticated device.

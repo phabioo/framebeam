@@ -163,6 +163,11 @@ func (s *Service) DeleteSaveSnapshot(ctx context.Context, userID, gameID, slot s
 		userID, gameID, slot, version); err != nil {
 		return internal(err)
 	}
+	// Keep version numbers monotonic: the deleted number is never handed out again.
+	if _, err := tx.ExecContext(ctx, `UPDATE save_slots SET history_high = MAX(history_high, ?) WHERE user_id = ? AND game_id = ? AND slot = ?`,
+		version, userID, gameID, slot); err != nil {
+		return internal(err)
+	}
 	if err := tx.Commit(); err != nil {
 		return internal(err)
 	}
@@ -246,6 +251,7 @@ func copyContent(src, dst string) (placed bool, err error) {
 		return false, err
 	}
 	if os.Link(src, dst) == nil {
+		syncDir(filepath.Dir(dst))
 		return true, nil
 	}
 	in, err := os.Open(src)
@@ -274,6 +280,7 @@ func copyContent(src, dst string) (placed bool, err error) {
 		os.Remove(tmp.Name())
 		return false, err
 	}
+	syncDir(filepath.Dir(dst))
 	return true, nil
 }
 

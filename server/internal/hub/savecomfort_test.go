@@ -419,3 +419,20 @@ func TestCreateSaveSlot(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestSnapshotVersionNumbersStayMonotonicAfterDelete(t *testing.T) {
+	e, _ := newComfortEnv(t, nil)
+	e.put(e.devA, 0, []byte("one"), hub.SyncCheckpoint)
+	u, g := e.user.ID, e.game.ID
+	s1, err := e.svc.CreateSaveSnapshot(ctx, u, g, "default", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.DeleteSaveSnapshot(ctx, u, g, "default", s1.Version); err != nil {
+		t.Fatal(err)
+	}
+	s2, err := e.svc.CreateSaveSnapshot(ctx, u, g, "default", nil)
+	if err != nil || s2.Version != s1.Version+1 {
+		t.Fatalf("v%d after deleting v%d: %v", s2.Version, s1.Version, err)
+	}
+}
