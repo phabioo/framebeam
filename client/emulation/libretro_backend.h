@@ -45,6 +45,7 @@ class LibretroBackend final : public EmulatorBackend {
   bool isGameLoaded() const override;
   AvInfo avInfo() const override;
 
+  void setVideoWanted(bool wanted) override { m_videoWanted.store(wanted); }
   bool runFrame() override;
   void reset() override;
   // Battery save (RETRO_MEMORY_SAVE_RAM) <-> <save dir>/<game basename>.sav: loaded after the game loads,
@@ -57,6 +58,8 @@ class LibretroBackend final : public EmulatorBackend {
   quint64 frameCount() const override;
   QByteArray takeAudio() override;
   double lastReadbackMs() const override;
+  // Diagnostics/tests: number of hardware frames read back from the GPU so far.
+  quint64 hwReadbackCount() const { return m_hwReadbacks.load(); }
   RenderInfo renderInfo() const override;
 
   bool supportsFastForward() const override { return !m_ffInhibit.load(); }
@@ -138,6 +141,8 @@ class LibretroBackend final : public EmulatorBackend {
   mutable QMutex m_renderMutex;
   RenderInfo m_render;                     // diagnostics, written on load/setup, read from the UI thread
   std::atomic<qint64> m_lastReadbackNs{0};
+  std::atomic<bool> m_videoWanted{true};
+  std::atomic<quint64> m_hwReadbacks{0};
   std::atomic<bool> m_fastForwarding{false};
   std::atomic<bool> m_ffInhibit{false};  // the core forbids toggling fast-forward
   std::atomic<double> m_ffRatio{1.0};    // speed multiple while fast-forwarding (chosen by the user)

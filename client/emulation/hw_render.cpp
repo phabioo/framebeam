@@ -4,6 +4,7 @@
 #include <QLoggingCategory>
 #include <QOffscreenSurface>
 #include <QOpenGLContext>
+#include <QOpenGLExtraFunctions>
 #include <QOpenGLFunctions>
 #include <QSurfaceFormat>
 #include <QThread>
@@ -55,6 +56,7 @@ struct HwRenderContext::Impl {
   QOffscreenSurface* surface = nullptr;
   std::unique_ptr<QOpenGLContext> ctx;
   QOpenGLFunctions* f = nullptr;
+  QOpenGLExtraFunctions* fx = nullptr;  // glMapBufferRange/glUnmapBuffer (GL 3.0 core, ES 3)
   GLuint fbo = 0, tex = 0, rbo = 0;
   bool depth = false, stencil = false;
   int w = 0, h = 0;
@@ -62,6 +64,66 @@ struct HwRenderContext::Impl {
   QString renderer, version;
   bool coreProfile = false;
   std::vector<uchar> buf;
+
+  // Asynchronous readback: two pixel-pack buffers used alternately (ping-pong). Frame N is read into
+  // slot N and the previous frame (slot N-1) is mapped, so the emulation thread never waits for the GPU.
+  struct Slot {
+    GLuint pbo = 0;
+    qsizetype capacity = 0;  // bytes allocated
+    int w = 0, h = 0;        // dimensions of the pending frame (0 = none)
+    bool bottomLeft = true;
+  };
+  Slot pboSlots[2];
+  int cur = 0;
+  bool async = true;
+
+  void releasePbos() {
+    for (Slot& s : pboSlots) {
+      if (s.pbo && f) f->glDeleteBuffers(1, &s.pbo);
+      s = Slot{};
+    }
+    cur = 0;
+  }
+
+  // Converts RGBA bytes (GL order) into an RGB32 image; bottomLeftOrigin flips vertically.
+  static QImage convert(const uchar* src, int w, int h, bool bottomLeftOrigin) {
+    QImage img(w, h, QImage::Format_RGB32);
+    for (int y = 0; y < h; ++y) {
+      const int srcY = bottomLeftOrigin ? h - 1 - y : y;
+      const uchar* s = src + static_cast<size_t>(srcY) * static_cast<size_t>(w) * 4;
+      auto* dst = reinterpret_cast<quint32*>(img.scanLine(y));
+      for (int x = 0; x < w; ++x, s += 4)
+        dst[x] = 0xFF000000u | (quint32(s[0]) << 16) | (quint32(s[1]) << 8) | quint32(s[2]);
+    }
+    return img;
+  }
+
+  // Maps the slot's PBO (must be bound as GL_PIXEL_PACK_BUFFER) and converts its pending frame; null on failure.
+  QImage mapSlot(const Slot& s) {
+    if (!s.pbo || s.w <= 0) return {};
+    f->glBindBuffer(GL_PIXEL_PACK_BUFFER, s.pbo);
+    const auto* p = static_cast<const uchar*>(
+        fx->glMapBufferRange(GL_PIXEL_PACK_BUFFER, 0, static_cast<GLsizeiptr>(s.w) * s.h * 4, GL_MAP_READ_BIT));
+    if (!p) return {};
+    const QImage img = convert(p, s.w, s.h, s.bottomLeft);
+    fx->glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+    return img;
+  }
+
+  // Issues the read of the FBO into the current slot's PBO. false: PBO unusable (caller falls back).
+  bool readIntoSlot(Slot& s, int w, int h) {
+    if (!s.pbo) f->glGenBuffers(1, &s.pbo);
+    if (!s.pbo) return false;
+    f->glBindBuffer(GL_PIXEL_PACK_BUFFER, s.pbo);
+    const qsizetype need = static_cast<qsizetype>(w) * h * 4;
+    if (need > s.capacity) {
+      f->glBufferData(GL_PIXEL_PACK_BUFFER, static_cast<GLsizeiptr>(need), nullptr, GL_STREAM_READ);
+      s.capacity = need;
+    }
+    while (f->glGetError() != GL_NO_ERROR) {}  // stale errors from the core must not look like ours
+    f->glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    return f->glGetError() == GL_NO_ERROR;
+  }
 
   bool allocate(int nw, int nh) {
     BindingGuard guard(f);
@@ -160,6 +222,9 @@ bool HwRenderContext::createContext(bool coreProfile, unsigned major, unsigned m
   if (!d->ctx->makeCurrent(d->surface)) return fail(QStringLiteral("OpenGL context could not be made current"));
   d->f = d->ctx->functions();
   d->f->initializeOpenGLFunctions();
+  d->fx = d->ctx->extraFunctions();
+  if (d->fx) d->fx->initializeOpenGLFunctions();
+  d->async = d->fx != nullptr && qEnvironmentVariable("FRAMEBEAM_SYNC_READBACK") != QLatin1String("1");
   {
     // QSurfaceFormat may echo the request; the driver's real version is authoritative.
     GLint ma = 0, mi = 0;
@@ -192,6 +257,7 @@ bool HwRenderContext::createContext(bool coreProfile, unsigned major, unsigned m
 void HwRenderContext::destroyContext() {
   if (d->ctx) {
     if (d->f && d->ctx->makeCurrent(d->surface)) {
+      d->releasePbos();
       if (d->fbo) d->f->glDeleteFramebuffers(1, &d->fbo);
       if (d->tex) d->f->glDeleteTextures(1, &d->tex);
       if (d->rbo) d->f->glDeleteRenderbuffers(1, &d->rbo);
@@ -200,6 +266,8 @@ void HwRenderContext::destroyContext() {
     d->ctx.reset();
   }
   d->f = nullptr;
+  d->fx = nullptr;
+  d->pboSlots[0] = d->pboSlots[1] = {};
   d->fbo = d->tex = d->rbo = 0;
   d->w = d->h = 0;
   d->buf.clear();
@@ -266,23 +334,42 @@ QString HwRenderContext::describeGpu(const QString& glRenderer, const QString& g
   return rest.isEmpty() ? gpu : gpu + QStringLiteral(" · Driver ") + rest;
 }
 
+bool HwRenderContext::asyncReadback() const { return d->async; }
+
 QImage HwRenderContext::readback(int w, int h, bool bottomLeftOrigin) {
   if (!d->ctx || w <= 0 || h <= 0 || w > d->w || h > d->h) return {};
   BindingGuard guard(d->f);
   d->f->glBindFramebuffer(GL_FRAMEBUFFER, d->fbo);
-  d->f->glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
   d->f->glPixelStorei(GL_PACK_ALIGNMENT, 4);
+
+  if (d->async) {
+    Impl::Slot& cur = d->pboSlots[d->cur];
+    Impl::Slot& prev = d->pboSlots[1 - d->cur];
+    if (d->readIntoSlot(cur, w, h)) {
+      cur.w = w;
+      cur.h = h;
+      cur.bottomLeft = bottomLeftOrigin;
+      // The first frame (nothing pending) is returned synchronously so it is never empty; later calls map the
+      // previous frame, which the GPU finished long ago (one frame of latency, no stall).
+      const bool first = prev.w == 0;
+      QImage img = d->mapSlot(first ? cur : prev);
+      d->f->glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+      if (!img.isNull()) {
+        d->cur = 1 - d->cur;
+        return img;
+      }
+      qCWarning(lcHw) << "Mapping the readback buffer failed; falling back to synchronous readback";
+    } else {
+      qCWarning(lcHw) << "Asynchronous readback unavailable; falling back to synchronous readback";
+    }
+    d->async = false;
+    d->releasePbos();
+  }
+
+  d->f->glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
   d->buf.resize(static_cast<size_t>(w) * static_cast<size_t>(h) * 4);
   d->f->glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, d->buf.data());
-  QImage img(w, h, QImage::Format_RGB32);
-  for (int y = 0; y < h; ++y) {
-    const int srcY = bottomLeftOrigin ? h - 1 - y : y;
-    const uchar* s = d->buf.data() + static_cast<size_t>(srcY) * static_cast<size_t>(w) * 4;
-    auto* dst = reinterpret_cast<quint32*>(img.scanLine(y));
-    for (int x = 0; x < w; ++x, s += 4)
-      dst[x] = 0xFF000000u | (quint32(s[0]) << 16) | (quint32(s[1]) << 8) | quint32(s[2]);
-  }
-  return img;
+  return Impl::convert(d->buf.data(), w, h, bottomLeftOrigin);
 }
 
 }  // namespace framebeam::emu

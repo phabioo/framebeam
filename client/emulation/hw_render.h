@@ -52,7 +52,11 @@ class HwRenderContext {
   static QString describeGpu(const QString& glRenderer, const QString& glVersion);
 
   // Reads the w x h region of the FBO into a new RGB32 image (alpha forced to 0xFF); null on failure.
+  // Asynchronous via two pixel-pack buffers: the first call returns its own frame, every later call returns the
+  // PREVIOUS call's frame (one frame of latency, no GPU stall). Falls back to a synchronous glReadPixels when
+  // PBOs or mapping fail or FRAMEBEAM_SYNC_READBACK=1 (read at createContext).
   QImage readback(int w, int h, bool bottomLeftOrigin);
+  bool asyncReadback() const;  // PBO path currently in use
 
  private:
   struct Impl;

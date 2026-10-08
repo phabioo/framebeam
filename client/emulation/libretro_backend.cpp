@@ -640,10 +640,15 @@ int16_t LibretroBackend::inputStateCb(unsigned port, unsigned device, unsigned i
 }
 
 void LibretroBackend::handleVideo(const void* data, unsigned width, unsigned height, size_t pitch) {
+  if (!m_videoWanted.load()) {  // frame is not shown: no readback, no conversion; the last image stays
+    ++m_frameCount;
+    return;
+  }
   if (data == RETRO_HW_FRAME_BUFFER_VALID && m_hwActive && width != 0 && height != 0) {
     const auto t0 = std::chrono::steady_clock::now();
     const QImage img = m_hw->readback(static_cast<int>(width), static_cast<int>(height), m_hwBottomLeft);
     m_lastReadbackNs = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - t0).count();
+    ++m_hwReadbacks;
     if (!img.isNull()) m_frame = img;
     ++m_frameCount;
     return;
@@ -723,7 +728,7 @@ bool LibretroBackend::handleEnvironment(unsigned rawCmd, void* data) {
     case RETRO_ENVIRONMENT_GET_INPUT_DEVICE_CAPABILITIES:
       *static_cast<uint64_t*>(data) = (1ull << RETRO_DEVICE_JOYPAD) | (1ull << RETRO_DEVICE_POINTER);
       return true;
-    case RETRO_ENVIRONMENT_GET_INPUT_BITMASKS: return true;
+    case RETRO_ENVIRONMENT_GET_INPUT_BITMASKS & ~RETRO_ENVIRONMENT_EXPERIMENTAL: return true;
     case RETRO_ENVIRONMENT_GET_LOG_INTERFACE:
       static_cast<retro_log_callback*>(data)->log = &coreLog;
       return true;
@@ -732,7 +737,7 @@ bool LibretroBackend::handleEnvironment(unsigned rawCmd, void* data) {
     case RETRO_ENVIRONMENT_SET_CONTENT_INFO_OVERRIDE: return true;
     case RETRO_ENVIRONMENT_SET_CONTROLLER_INFO: return true;
     case RETRO_ENVIRONMENT_SET_SUBSYSTEM_INFO: return true;
-    case RETRO_ENVIRONMENT_SET_MEMORY_MAPS: return true;
+    case RETRO_ENVIRONMENT_SET_MEMORY_MAPS & ~RETRO_ENVIRONMENT_EXPERIMENTAL: return false;  // unused by the Player (was dead code before masking)
     case RETRO_ENVIRONMENT_SET_FASTFORWARDING_OVERRIDE: {
       // Only inhibit_toggle matters: the user's chosen speed always wins over the core's ratio.
       if (data) m_ffInhibit.store(static_cast<const retro_fastforwarding_override*>(data)->inhibit_toggle);
@@ -754,8 +759,11 @@ bool LibretroBackend::handleEnvironment(unsigned rawCmd, void* data) {
       }
       return true;
     }
-    case RETRO_ENVIRONMENT_GET_AUDIO_VIDEO_ENABLE: *static_cast<int*>(data) = 3; return true;  // Video + Audio
-    case RETRO_ENVIRONMENT_GET_TARGET_REFRESH_RATE: *static_cast<float*>(data) = static_cast<float>(m_av.fps); return true;
+    case RETRO_ENVIRONMENT_GET_AUDIO_VIDEO_ENABLE & ~RETRO_ENVIRONMENT_EXPERIMENTAL:
+      // bit 0 = video, bit 1 = audio: audio is always on; video only when the frame will be shown
+      if (data) *static_cast<int*>(data) = m_videoWanted.load() ? 3 : 2;
+      return true;
+    case RETRO_ENVIRONMENT_GET_TARGET_REFRESH_RATE & ~RETRO_ENVIRONMENT_EXPERIMENTAL: *static_cast<float*>(data) = static_cast<float>(m_av.fps); return true;
     case RETRO_ENVIRONMENT_GET_LANGUAGE: *static_cast<unsigned*>(data) = RETRO_LANGUAGE_ENGLISH; return true;
     case RETRO_ENVIRONMENT_SET_GEOMETRY: {
       const auto* g = static_cast<const retro_game_geometry*>(data);
@@ -837,7 +845,7 @@ bool LibretroBackend::handleEnvironment(unsigned rawCmd, void* data) {
       *static_cast<unsigned*>(data) = RETRO_HW_CONTEXT_OPENGL_CORE;
       return true;
     }
-    case RETRO_ENVIRONMENT_SET_HW_SHARED_CONTEXT: return false;  // no shared contexts offered
+    case RETRO_ENVIRONMENT_SET_HW_SHARED_CONTEXT & ~RETRO_ENVIRONMENT_EXPERIMENTAL: return false;  // no shared contexts offered
 
     // Deliberately rejected: other HW APIs, rumble, sensors, VFS, microphone, netpacket, ...
     default: return false;

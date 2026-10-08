@@ -4,7 +4,9 @@
 // top-right corner of the 64x48 frame. The FBO is larger (max 128x96) than the frame on purpose.
 // Environment: FB_FAKE_HW_BOTTOM_LEFT (default 1), FB_FAKE_HW_CTX (default 3 = OPENGL_CORE, 1 = OPENGL,
 // 6 = Vulkan, to test rejection), FB_FAKE_HW_MAJOR/MINOR (requested GL version, default 3.3), FB_FAKE_HW_LOG (file; events are appended as lines: accepted, rejected,
-// reset <major>.<minor>, destroy, frame <fbo-id>).
+// reset <major>.<minor>, destroy, frame <fbo-id>). FB_FAKE_HW_LOGAV=1 logs "av <bits>" per frame (the answer to
+// GET_AUDIO_VIDEO_ENABLE). FB_FAKE_HW_COUNTER=1 draws a frame counter (red value of the 8x8 square at GL (28,20)).
+// With video disabled by the frontend (bit 0 clear) the core skips rendering and dupes the frame.
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -42,6 +44,7 @@ void logLine(const char* fmt, int a = 0, int b = 0) {
 }
 
 uintptr_t g_lastFbo = 0;
+unsigned g_frameNo = 0;
 
 retro_environment_t g_env = nullptr;
 retro_video_refresh_t g_video = nullptr;
@@ -129,6 +132,14 @@ FB_EXPORT bool retro_load_game(const retro_game_info*) {
 FB_EXPORT void retro_unload_game() {}
 FB_EXPORT void retro_run() {
   if (!glBindFramebuffer_) return;
+  ++g_frameNo;
+  int av = 3;
+  if (!g_env(RETRO_ENVIRONMENT_GET_AUDIO_VIDEO_ENABLE, &av)) av = -1;
+  if (envInt("FB_FAKE_HW_LOGAV", 0)) logLine("av %d", av);
+  if (av >= 0 && !(av & 1)) {  // video disabled: nothing to render
+    g_video(nullptr, kW, kH, 0);
+    return;
+  }
   g_lastFbo = g_hw.get_current_framebuffer();
   if (g_lastFbo == 0) logLine("frame without fbo");
   glBindFramebuffer_(0x8D40, static_cast<unsigned>(g_lastFbo));  // GL_FRAMEBUFFER
@@ -143,6 +154,11 @@ FB_EXPORT void retro_run() {
   glScissor_(static_cast<int>(kW) - 8, static_cast<int>(kH) - 8, 8, 8);
   glClearColor_(0.f, 1.f, 0.f, 1.f);
   glClear_(0x4000);
+  if (envInt("FB_FAKE_HW_COUNTER", 0)) {
+    glScissor_(28, 20, 8, 8);
+    glClearColor_(static_cast<float>(g_frameNo & 0xFF) / 255.f, 0.f, 0.f, 1.f);
+    glClear_(0x4000);
+  }
   g_video(RETRO_HW_FRAME_BUFFER_VALID, kW, kH, 0);
 }
 FB_EXPORT void retro_reset() {}
