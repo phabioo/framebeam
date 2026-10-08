@@ -57,12 +57,12 @@ class InputTest : public QObject {
   void reservedKeysAreNeverForwarded() {
     GameSession gs;
     QHash<int, quint32> map;
-    for (int k : {int(Qt::Key_F3), int(Qt::Key_F5), int(Qt::Key_F11), int(Qt::Key_Escape)}) {
+    for (int k : {int(Qt::Key_F3), int(Qt::Key_F5), int(Qt::Key_F11), int(Qt::Key_Escape), int(Qt::Key_Space)}) {
       map.insert(k, buttonMask(JoypadButton::A));
     }
     map.insert(Qt::Key_Z, buttonMask(JoypadButton::B));
     gs.setKeyboardMap(map);
-    for (int k : {int(Qt::Key_F3), int(Qt::Key_F5), int(Qt::Key_F11), int(Qt::Key_Escape)}) {
+    for (int k : {int(Qt::Key_F3), int(Qt::Key_F5), int(Qt::Key_F11), int(Qt::Key_Escape), int(Qt::Key_Space)}) {
       QVERIFY(gs.isReservedKey(k));
       QVERIFY(!gs.keyEvent(k, true));
       QVERIFY(!gs.keyEvent(k, false));

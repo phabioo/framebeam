@@ -8,6 +8,7 @@ import FrameBeam.Player
 Rectangle {
     id: root
     required property DiagnosticsModel model
+    property string hotkey: ""
     objectName: "diagnosticsPanel"
     implicitHeight: col.implicitHeight + 26
     color: Theme.gameHeader
@@ -111,6 +112,6 @@ Rectangle {
             }
         }
 
-        DiagFooter { Layout.fillWidth: true; onHideRequested: root.model.open = false }
+        DiagFooter { Layout.fillWidth: true; hotkey: root.hotkey; onHideRequested: root.model.open = false }
     }
 }

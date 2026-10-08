@@ -305,6 +305,26 @@ Rectangle {
             }
         }
 
+        // SPEED-UP: speed of the running game only (not persisted); the toggle is in the header (Space).
+        Column {
+            id: speedBlock
+            objectName: "speedBlock"
+            Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            Layout.preferredWidth: 1
+            visible: root.player.gameSession.active && root.player.gameSession.fastForwardAvailable
+            spacing: 8
+            Eyebrow { width: parent.width; elide: Text.ElideRight; text: qsTr("Speed-up speed") }
+            FbSelect {
+                objectName: "speedSelect"
+                width: parent.width
+                focusPolicy: Qt.NoFocus
+                model: root.player.gameSession.speedUpRatios.map(function (r) { return { value: String(r), label: r + "×" } })
+                current: String(root.player.gameSession.fastForwardRatio)
+                onPicked: (v) => root.player.gameSession.fastForwardRatio = Number(v)
+            }
+        }
+
         // SAVE SLOT: the slot of the running game (it cannot change while the game runs) and a manual snapshot
         // Plain Column: children take exactly the block width, nothing can demand more (see the note on `col`).
         Column {
@@ -409,7 +429,8 @@ Rectangle {
                 width: Math.min(implicitWidth, parent.width)
                 kind: "link"
                 focusPolicy: Qt.NoFocus
-                text: (root.diag.open ? qsTr("▾ Hide diagnostics") : qsTr("▸ Show diagnostics")) + "   F3"
+                text: (root.diag.open ? qsTr("▾ Hide diagnostics") : qsTr("▸ Show diagnostics"))
+                      + (root.player.controllers.hotkeyLabels.diagnostics !== "" ? "   " + root.player.controllers.hotkeyLabels.diagnostics : "")
                 onClicked: root.diag.toggle()
             }
         }

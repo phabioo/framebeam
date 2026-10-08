@@ -59,6 +59,12 @@ class LibretroBackend final : public EmulatorBackend {
   double lastReadbackMs() const override;
   RenderInfo renderInfo() const override;
 
+  bool supportsFastForward() const override { return !m_ffInhibit.load(); }
+  void setFastForwarding(bool on, double ratio) override {
+    m_ffRatio.store(ratio);
+    m_fastForwarding.store(on);
+  }
+
   void setJoypadState(unsigned port, quint32 buttonMask) override;
   void setPointer(double x, double y, bool pressed) override;
 
@@ -132,6 +138,9 @@ class LibretroBackend final : public EmulatorBackend {
   mutable QMutex m_renderMutex;
   RenderInfo m_render;                     // diagnostics, written on load/setup, read from the UI thread
   std::atomic<qint64> m_lastReadbackNs{0};
+  std::atomic<bool> m_fastForwarding{false};
+  std::atomic<bool> m_ffInhibit{false};  // the core forbids toggling fast-forward
+  std::atomic<double> m_ffRatio{1.0};    // speed multiple while fast-forwarding (chosen by the user)
 
   int m_pixelFormat = 0;  // RETRO_PIXEL_FORMAT_*
   QImage m_frame;

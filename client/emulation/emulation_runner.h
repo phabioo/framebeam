@@ -26,12 +26,24 @@ class EmulationRunner : public QObject {
   enum class State { Idle, Starting, Running, Paused };
   Q_ENUM(State)
 
+  static constexpr double kDefaultSpeedUpRatio = 2.0;
+  // Speeds the user can choose: 1.5, 2, 3, 4, 6, 8.
+  static QList<double> speedUpRatios() { return {1.5, 2.0, 3.0, 4.0, 6.0, 8.0}; }
+  static double normalizeSpeedUpRatio(double ratio);  // nearest allowed value
+  // Speed-up audio: linear-interpolating decimation of interleaved stereo int16 by `ratio` to real time (pitch rises).
+  // `phase` carries the fractional read position across chunks (start with 0).
+  static QByteArray resampleForSpeedUp(const QByteArray& pcm, double ratio, double* phase);
+
   struct StartRequest {
     QString corePath;
     QString gamePath;
     QString systemDir;
     QString saveDir;
     QMap<QString, QString> coreOptions;  // e.g. manifest defaults, set before the game starts
+    // Speed-up (fast-forward) settings: chosen speed, start sped up (if the core allows it), audio during speed-up.
+    double speedUpRatio = kDefaultSpeedUpRatio;
+    bool speedUpOnStart = false;
+    bool speedUpAudio = true;
   };
 
   explicit EmulationRunner(std::unique_ptr<EmulatorBackend> backend, QObject* parent = nullptr);
@@ -53,6 +65,17 @@ class EmulationRunner : public QObject {
   bool setCoreOption(const QString& key, const QString& value);
   QList<CoreOption> coreOptions() const;
   QList<CoreOptionCategory> coreOptionCategories() const;
+
+  // Speed-up (thread-safe): the clock runs at fps * fastForwardRatio(); the UI still gets frames at the base fps and
+  // audio is resampled to real time (or dropped when speedUpAudio is off). Only possible if the core allows it (known
+  // after started()). The user's ratio wins over a ratio in the core's override.
+  void setFastForward(bool on);
+  bool fastForward() const { return m_fastForward.load(); }
+  bool supportsFastForward() const { return m_backend->supportsFastForward(); }
+  void setFastForwardRatio(double ratio) { m_ratio.store(normalizeSpeedUpRatio(ratio)); }
+  double fastForwardRatio() const { return m_ratio.load(); }
+  void setSpeedUpAudio(bool on) { m_speedUpAudio.store(on); }
+  bool speedUpAudio() const { return m_speedUpAudio.load(); }
 
   // Diagnostics (thread-safe, cheap): measured frame timing of the emulation thread and how the core renders.
   FrameTimingStats::Snapshot timing() const;
@@ -79,6 +102,9 @@ class EmulationRunner : public QObject {
   std::unique_ptr<Worker> m_worker;
   std::atomic<State> m_state{State::Idle};
   FrameTimingStats m_timing;
+  std::atomic<bool> m_fastForward{false};
+  std::atomic<double> m_ratio{kDefaultSpeedUpRatio};
+  std::atomic<bool> m_speedUpAudio{true};
 };
 
 }  // namespace framebeam::emu

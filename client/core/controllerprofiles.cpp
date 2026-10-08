@@ -44,6 +44,7 @@ const QList<HotkeyDef>& hotkeyDefs() {
       {QStringLiteral("fullscreen"), QStringLiteral("Toggle fullscreen"), Qt::Key_F11},
       {QStringLiteral("diagnostics"), QStringLiteral("Diagnostics overlay"), Qt::Key_F3},
       {QStringLiteral("snapshot"), QStringLiteral("Save snapshot"), Qt::Key_F5},
+      {QStringLiteral("speedup"), QStringLiteral("Speed-up"), Qt::Key_Space},
   };
   return defs;
 }

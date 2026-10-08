@@ -10,6 +10,7 @@
 #include <QSet>
 #include <QString>
 #include <QStringList>
+#include <QVariantList>
 #include <QVector>
 #include <QtQml/qqmlregistration.h>
 #include <memory>
@@ -61,6 +62,11 @@ class GameSession : public QObject {
   // Screens of the running system (system manifest) and the layouts the in-game switch offers for them (D12).
   Q_PROPERTY(int screenCount READ screenCount NOTIFY stateChanged)
   Q_PROPERTY(QStringList screenLayouts READ screenLayouts NOTIFY stateChanged)
+  // Speed-up (fast-forward): offered when the running core allows it. The ratio is for the running game only.
+  Q_PROPERTY(bool fastForwardAvailable READ fastForwardAvailable NOTIFY fastForwardChanged)
+  Q_PROPERTY(bool fastForward READ fastForward WRITE setFastForward NOTIFY fastForwardChanged)
+  Q_PROPERTY(double fastForwardRatio READ fastForwardRatio WRITE setFastForwardRatio NOTIFY fastForwardChanged)
+  Q_PROPERTY(QVariantList speedUpRatios READ speedUpRatios CONSTANT)
  public:
   enum State { Idle, Starting, Running, Paused, Failed };
   Q_ENUM(State)
@@ -73,6 +79,10 @@ class GameSession : public QObject {
     QString saveDir;
     QMap<QString, QString> coreOptions;
     emu::DisplayProfile display;
+    // Speed-up settings (framebeam.speedup_*), resolved game > system > global by the caller.
+    double speedUpRatio = emu::EmulationRunner::kDefaultSpeedUpRatio;
+    bool speedUpOnStart = false;
+    bool speedUpAudio = true;
   };
 
   explicit GameSession(QObject* parent = nullptr);
@@ -91,7 +101,17 @@ class GameSession : public QObject {
   int screenCount() const { return static_cast<int>(display_.screens.size()); }
   QStringList screenLayouts() const;
 
-  // Player hotkeys (configured keys, default F11/F3/F5) and Escape belong to the Player: never mapped to a joypad
+  bool fastForwardAvailable() const { return fastForwardSupported_; }
+  bool fastForward() const { return fastForward_; }
+  double fastForwardRatio() const { return ffRatio_; }
+  void setFastForwardRatio(double ratio);
+  static QVariantList speedUpRatios();
+  void setFastForward(bool on);
+  Q_INVOKABLE void toggleFastForward() { setFastForward(!fastForward_); }
+  // Tests and screenshots: pretend the core supports fast-forward (preview only).
+  void setPreviewFastForwardSupported(bool supported);
+
+  // Player hotkeys (configured keys, default F11/F3/F5/Space) and Escape belong to the Player: never mapped to a joypad
   // button, never forwarded. The hotkey keys are set by the PlayerController from the Controllers settings.
   bool isReservedKey(int qtKey) const;
   void setHotkeyKeys(const QSet<int>& keys) { hotkeyKeys_ = keys; }
@@ -123,6 +143,7 @@ class GameSession : public QObject {
 
  signals:
   void stateChanged();
+  void fastForwardChanged();
   void titleChanged();
   void errorChanged();
   void frameChanged();
@@ -140,7 +161,7 @@ class GameSession : public QObject {
   std::unique_ptr<emu::EmulationRunner> runner_;
   AudioOutput audio_;
   KeyboardJoypad keys_;
-  QSet<int> hotkeyKeys_{Qt::Key_F11, Qt::Key_F3, Qt::Key_F5};
+  QSet<int> hotkeyKeys_{Qt::Key_F11, Qt::Key_F3, Qt::Key_F5, Qt::Key_Space};
   quint32 pad_ = 0;
   emu::DisplayProfile display_;
   QImage frame_;
@@ -150,6 +171,11 @@ class GameSession : public QObject {
   State state_ = Idle;
   bool startedEmitted_ = false;
   bool audioMuted_ = false;
+  bool fastForwardSupported_ = false;
+  bool fastForward_ = false;
+  double ffRatio_ = emu::EmulationRunner::kDefaultSpeedUpRatio;
+  bool ffAudio_ = true;
+  void updateUnderrunCounting();
   QString coreName_;
   double targetFps_ = 0;
   QMap<QString, QString> coreOptions_;  // as launched (requested internal resolution)
