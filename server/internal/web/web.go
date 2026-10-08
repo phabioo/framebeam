@@ -140,7 +140,6 @@ func (s *Server) Register(mux *http.ServeMux) {
 	h("POST /saves/{user}/{game}/{slot}/history/{version}/delete", s.guard(s.saveDeleteSnapshot))
 	h("POST /saves/{user}/{game}/{slot}/slots", s.guard(s.saveNewSlot))
 	h("POST /saves/{user}/{game}/{slot}/upload", s.guard(s.saveUpload))
-	h("POST /saves/upload", s.guard(s.saveUploadNew))
 	h("GET /clients", s.guard(s.clientsGet))
 	h("POST /clients/requests/{id}/allow", s.guard(s.clientAllow))
 	h("POST /clients/requests/{id}/deny", s.guard(s.clientDeny))
