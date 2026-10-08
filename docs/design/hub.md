@@ -74,6 +74,7 @@ Lines 1138-1174. Phase 1 (pairing Allow/Decline, Revoke).
   - Trusted (green) with action "Revoke access" (red, text link): Desktop-LivingRoom (Max, 0.1.0, "just now"), Laptop-Office (Max, 0.1.0, "today 19:10"), Jonas's notebook (Jonas, 0.0.9 marked "▲", "yesterday"), Desktop admin (admin, 0.1.0, "02.10.").
   - Revoked (gray, row muted, action "—"): Old laptop (Max, 0.0.9, "12.09.").
 - Footnote: "Revoking removes the device's access immediately, even with still-valid access tokens. ▲ marks a Player version the hub no longer accepts."
+- Added in 0.7: a "Delete" text link (red) next to "Revoke access" on every row (also revoked ones). It opens a no-JS confirmation page (card, names what is removed, Cancel + red "Delete device"); the device disappears for good, saves stay and show "Deleted device" in the history.
 - Open: confirmation dialog for revoking, denied state, renaming, reinstating a revoked device, certificate/compatibility errors per client (only in 3l) not drawn.
 
 ## 3n Hub Users
@@ -82,7 +83,8 @@ Lines 1180-1217. Phase 5. Hub-local accounts and onboarding invites.
 - Grid: sidebar | main | side panel 420 (surface `#faf9f7`, left border, padding 32 28, gap 18).
 - Main: title "Users", subtitle "Accounts apply only to this hub. Regular users have no password." Table columns `1.2fr | 80 | 70 | 110 | 110 | 110`: NAME (avatar initial 28 + name), ROLE, DEVICES (mono count), CREATED, STATUS (pill Active/Disabled), action.
   - Mock: admin (Admin, 1, 14.08.2026, Active, "—"); Max (User, 2, 14.08.2026, Active, "Disable" red); Lena (User, 1, 20.08.2026); Jonas (User, 1, 02.09.2026); Sam (User, 1, 11.09.2026, Disabled, row muted, action "Enable").
-  - Footnote: "Disabled users cannot sign in on any device. Saves and uploads are kept."
+  - Footnote: "Disabled users cannot sign in on any device. Saves and uploads are preserved. Deleting a user removes their devices, invites and saves for good."
+  - Added in 0.7: non-admin rows get a red "Delete" text link next to Disable/Enable. It opens a no-JS confirmation page (card listing what is removed: account, devices and tokens, saves and save history deleted for good, invites; uploaded games stay and move to the deleting admin) with Cancel and a red "Delete user" button. Admins cannot be deleted.
 - Side panel "Onboarding invites" (18/600): text "The invited person redeems the code in the Player and picks a display name. This is not a session invite."; button "Create invite" (dark, 36).
   - Active invite (card): "Active", "expires in 42 min" (warn); code mono 24 "FB-7KQ2-M9XD"; toggle (on, black) "Approve first device directly"; "Single use"; buttons "Copy link" (outline), "Revoke" (red).
   - History (muted): "FB-2HC9-…" "redeemed by Jonas · 02.09."; "FB-Q81M-…" "expired · 30.09.".

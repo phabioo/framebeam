@@ -338,6 +338,37 @@ class HubFeaturesUiTest : public QObject {
     uitest::saveShot(h.window, QStringLiteral("5-core-warning"));
   }
 
+  // Sidebar user block: Hub user name above the device name; without `user` (older Hub) device name + "This device".
+  void userBlockShowsHubUserName() {
+    {
+      FakeHub hub(QStringLiteral("a"));
+      hub.handshakeExtra = QJsonObject{{QStringLiteral("user"),
+                                        QJsonObject{{QStringLiteral("id"), QStringLiteral("u_1")},
+                                                    {QStringLiteral("display_name"), QStringLiteral("lena")},
+                                                    {QStringLiteral("role"), QStringLiteral("admin")}}}};
+      QVERIFY(hub.start());
+      Harness h;
+      QVERIFY(h.start());
+      pair(h, hub);
+      QCOMPARE(h.controller->userName(), QStringLiteral("lena"));
+      QTRY_VERIFY(h.item("userName") != nullptr);
+      QCOMPARE(h.item("userName")->property("text").toString(), QStringLiteral("lena"));
+      QCOMPARE(h.item("userDevice")->property("text").toString(), h.controller->deviceName());
+      QCOMPARE(h.item("userAvatarInitial")->property("text").toString(), QStringLiteral("L"));
+    }
+    {
+      FakeHub hub(QStringLiteral("a"));
+      QVERIFY(hub.start());
+      Harness h;
+      QVERIFY(h.start());
+      pair(h, hub);
+      QVERIFY(h.controller->userName().isEmpty());
+      QTRY_VERIFY(h.item("userDevice") != nullptr);
+      QCOMPARE(h.item("userDevice")->property("text").toString(), h.controller->deviceName());
+      QVERIFY(!h.item("userName")->isVisible());
+    }
+  }
+
   // The handshake reports the core id of the registry ("melonds_ds"), never "melonds".
   void handshakeCoreId() {
     qputenv("FRAMEBEAM_MELONDS_DS_CORE", QCoreApplication::applicationFilePath().toLocal8Bit());

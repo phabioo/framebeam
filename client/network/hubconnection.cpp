@@ -599,6 +599,7 @@ void HubConnection::doHandshake() {
     // Core/capability problems do not block the connection; handshakeProblems() is for the UI.
     HubProfile p = profile_.value_or(HubProfile());
     p.lastConnected = QDateTime::currentDateTimeUtc();
+    p.userDisplayName = res->userDisplayName;  // cleared when an older Hub omits `user`
     profiles_->upsertProfile(p);
     profiles_->setLastHubId(p.hubId);
     profile_ = p;

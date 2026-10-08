@@ -1,5 +1,7 @@
 // Tiny fake libretro core (test only, no ROM): exposes SAVE_RAM. Configuration via environment:
 //   FB_FAKE_SRAM_SIZE (default 8), FB_FAKE_SRAM_DELAY_FRAMES (no save memory for the first N frames),
+//   FB_FAKE_FF_INHIBIT=1 (SET_FASTFORWARDING_OVERRIDE with inhibit_toggle), FB_FAKE_FF_RATIO (override ratio).
+// Every frame the core queries GET_FASTFORWARDING and renders it into pixel 0 (nonzero = on) and sends audio.
 //   FB_FAKE_SRAM_WRITE (byte written into SRAM[0] once memory is available, as a change by the "game").
 #include <cstdint>
 #include <cstdlib>
@@ -20,6 +22,9 @@ int g_frames = 0;
 int g_delay = 0;
 int g_write = -1;
 retro_video_refresh_t g_video = nullptr;
+retro_environment_t g_env = nullptr;
+retro_audio_sample_batch_t g_audio = nullptr;
+int16_t g_samples[2 * 735] = {};
 uint16_t g_pixels[16 * 16];
 int envInt(const char* n, int def) {
   const char* v = std::getenv(n);
@@ -29,10 +34,10 @@ bool memAvailable() { return g_frames >= g_delay; }
 }  // namespace
 
 FB_EXPORT unsigned retro_api_version() { return RETRO_API_VERSION; }
-FB_EXPORT void retro_set_environment(retro_environment_t) {}
+FB_EXPORT void retro_set_environment(retro_environment_t e) { g_env = e; }
 FB_EXPORT void retro_set_video_refresh(retro_video_refresh_t v) { g_video = v; }
 FB_EXPORT void retro_set_audio_sample(retro_audio_sample_t) {}
-FB_EXPORT void retro_set_audio_sample_batch(retro_audio_sample_batch_t) {}
+FB_EXPORT void retro_set_audio_sample_batch(retro_audio_sample_batch_t a) { g_audio = a; }
 FB_EXPORT void retro_set_input_poll(retro_input_poll_t) {}
 FB_EXPORT void retro_set_input_state(retro_input_state_t) {}
 FB_EXPORT void retro_init() {}
@@ -57,12 +62,22 @@ FB_EXPORT bool retro_load_game(const retro_game_info*) {
   g_delay = envInt("FB_FAKE_SRAM_DELAY_FRAMES", 0);
   g_write = envInt("FB_FAKE_SRAM_WRITE", -1);
   g_frames = 0;
+  if (g_env && (envInt("FB_FAKE_FF_INHIBIT", 0) || envInt("FB_FAKE_FF_RATIO", 0))) {
+    retro_fastforwarding_override o = {};
+    o.ratio = static_cast<float>(envInt("FB_FAKE_FF_RATIO", 0));
+    o.inhibit_toggle = envInt("FB_FAKE_FF_INHIBIT", 0) != 0;
+    g_env(RETRO_ENVIRONMENT_SET_FASTFORWARDING_OVERRIDE, &o);
+  }
   return true;
 }
 FB_EXPORT void retro_unload_game() {}
 FB_EXPORT void retro_run() {
   ++g_frames;
   if (g_write >= 0 && g_frames > g_delay && !g_sram.empty()) g_sram[0] = static_cast<uint8_t>(g_write);
+  bool ff = false;
+  if (g_env) g_env(RETRO_ENVIRONMENT_GET_FASTFORWARDING, &ff);
+  g_pixels[0] = ff ? 0x7fff : 0;
+  if (g_audio) g_audio(g_samples, 735);
   if (g_video) g_video(g_pixels, 16, 16, 32);
 }
 FB_EXPORT void retro_reset() {}

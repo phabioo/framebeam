@@ -6,6 +6,7 @@ import (
 	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -89,7 +90,7 @@ func TestAdminPagesCSRF(t *testing.T) {
 	c := e.client()
 	tok := c.login()
 	u, _ := e.svc.CreateUser(bg, "max", "Max")
-	paths := []string{"/users/invites", "/users/" + u.ID + "/disable", "/users/" + u.ID + "/enable", "/users/invites/" + uuid.NewString() + "/revoke",
+	paths := []string{"/users/invites", "/users/" + u.ID + "/disable", "/users/" + u.ID + "/enable", "/users/" + u.ID + "/delete", "/clients/devices/" + uuid.NewString() + "/delete", "/users/invites/" + uuid.NewString() + "/revoke",
 		"/systems/nds/expected-version", "/systems/nds/firmware-mode", "/systems/nds/firmware/bios7/pin", "/systems/nds/firmware/bios7/remove",
 		"/settings/appearance", "/settings/uploads", "/settings/security/renew-cert", "/library/rescan", "/cores/sync", "/settings/updates", "/settings/updates/check", "/settings/updates/install",
 		"/settings/network/listen_port", "/settings/network/listen_port/reset", "/settings/network/restart"}
@@ -104,6 +105,9 @@ func TestAdminPagesCSRF(t *testing.T) {
 	status(t, c.do("POST", "/systems/nds/firmware/bios7/upload", body, map[string]string{"Content-Type": ct}), 403)
 	if got, _ := e.svc.GetUser(bg, u.ID); got.Disabled() {
 		t.Fatal("disabled despite missing CSRF")
+	}
+	if _, err := e.svc.GetUser(bg, u.ID); err != nil {
+		t.Fatal("deleted despite missing CSRF")
 	}
 	if a, _ := e.svc.Appearance(bg); a != hub.AppearanceLight {
 		t.Fatal("appearance changed despite missing CSRF")
@@ -180,7 +184,7 @@ func TestUsersPageInvitesAndDisable(t *testing.T) {
 	if rec := postTok(c, tok, "/users/"+admin.ID+"/disable", nil); location(rec) != "/users?err=admin" {
 		t.Fatalf("%q", location(rec))
 	}
-	contains(t, c.get("/users?err=admin", nil), "Admins cannot be disabled.")
+	contains(t, c.get("/users?err=admin", nil), "Admins cannot be disabled or deleted.")
 	if a, _ := e.svc.GetUser(bg, admin.ID); a.Disabled() {
 		t.Fatal("admin disabled")
 	}
@@ -551,4 +555,74 @@ func TestSettingsUpdatesNotPackagedAndDev(t *testing.T) {
 		t.Fatal(location(rec))
 	}
 	contains(t, c.get("/settings/updates?err=updatepackage", nil), "not installed from the .deb package")
+}
+
+func TestDeleteUserAndDeviceWeb(t *testing.T) {
+	e := newEnv(t, true, nil)
+	c := e.client()
+	tok := c.login()
+	admin, _ := e.svc.VerifyPassword(bg, "admin", "secret-1234")
+	u, _ := e.svc.CreateUser(bg, "max", "Max")
+
+	// Users page: Delete link for regular users only.
+	rec := c.get("/users", nil)
+	contains(t, rec, `href="/users/`+u.ID+`/delete"`)
+	notContains(t, rec, `/users/`+admin.ID+`/delete`)
+
+	// Confirm page names what is removed and carries a CSRF-protected POST form.
+	rec = c.get("/users/"+u.ID+"/delete", nil)
+	status(t, rec, 200)
+	contains(t, rec, "Delete “Max”?", "deleted for good", "Games they uploaded stay in the library",
+		`action="/users/`+u.ID+`/delete"`, `name="_csrf"`, "Cancel")
+	if rec := c.get("/users/"+admin.ID+"/delete", nil); location(rec) != "/users?err=admin" {
+		t.Fatalf("%q", location(rec))
+	}
+	if rec := c.get("/users/u_nobody/delete", nil); location(rec) != "/users?err=nouser" {
+		t.Fatalf("%q", location(rec))
+	}
+	// Admin and unknown user cannot be deleted.
+	if rec := postTok(c, tok, "/users/"+admin.ID+"/delete", nil); location(rec) != "/users?err=admin" {
+		t.Fatalf("%q", location(rec))
+	}
+	if rec := postTok(c, tok, "/users/u_nobody/delete", nil); location(rec) != "/users?err=nouser" {
+		t.Fatalf("%q", location(rec))
+	}
+	if _, err := e.svc.GetUser(bg, admin.ID); err != nil {
+		t.Fatal("admin deleted")
+	}
+
+	// Device delete: confirm page, then POST.
+	dev := uuid.NewString()
+	pr := pending(t, e, dev)
+	if err := e.svc.ApprovePairing(bg, pr.RequestID, u.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.PollPairing(bg, pr.RequestID, pr.PollToken); err != nil {
+		t.Fatal(err)
+	}
+	contains(t, c.get("/clients", nil), `href="/clients/devices/`+dev+`/delete"`)
+	rec = c.get("/clients/devices/"+dev+"/delete", nil)
+	status(t, rec, 200)
+	contains(t, rec, "Lena Gaming PC", "Deleted device", `action="/clients/devices/`+dev+`/delete"`, `name="_csrf"`)
+	if rec := postTok(c, tok, "/clients/devices/"+dev+"/delete", nil); location(rec) != "/clients?ok=devdeleted" {
+		t.Fatalf("%q", location(rec))
+	}
+	if _, err := e.svc.GetDevice(bg, dev); !errors.Is(err, hub.ErrNotFound) {
+		t.Fatalf("device not deleted: %v", err)
+	}
+	contains(t, c.get("/clients?ok=devdeleted", nil), "Device deleted.")
+	if rec := postTok(c, tok, "/clients/devices/"+dev+"/delete", nil); location(rec) != "/clients?err=nodevice" {
+		t.Fatalf("%q", location(rec))
+	}
+
+	// User delete.
+	if rec := postTok(c, tok, "/users/"+u.ID+"/delete", nil); location(rec) != "/users?ok=userdeleted" {
+		t.Fatalf("%q", location(rec))
+	}
+	if _, err := e.svc.GetUser(bg, u.ID); !errors.Is(err, hub.ErrNotFound) {
+		t.Fatalf("user not deleted: %v", err)
+	}
+	rec = c.get("/users?ok=userdeleted", nil)
+	contains(t, rec, "User deleted")
+	notContains(t, rec, "Max")
 }

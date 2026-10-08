@@ -56,12 +56,21 @@ void GameSession::start(const LaunchConfig& config) {
   preview_ = false;
   audio_.setUnderrunCounting(true);
   keys_.clear();
+  fastForward_ = false;
+  fastForwardSupported_ = false;
+  ffRatio_ = emu::EmulationRunner::normalizeSpeedUpRatio(config.speedUpRatio);
+  ffAudio_ = config.speedUpAudio;
+  emit fastForwardChanged();
 
   runner_ = std::make_unique<EmulationRunner>(std::make_unique<emu::LibretroBackend>());
   EmulationRunner* r = runner_.get();
   connect(r, &EmulationRunner::started, this, [this](const emu::AvInfo& av, const emu::CoreInfo& core) {
     coreName_ = core.version.isEmpty() ? core.name : core.name + QLatin1Char(' ') + core.version;
     targetFps_ = av.fps;
+    fastForwardSupported_ = runner_ && runner_->supportsFastForward();
+    fastForward_ = fastForwardSupported_ && runner_->fastForward();  // speed-up on start
+    updateUnderrunCounting();
+    emit fastForwardChanged();
     if (!audio_.start(static_cast<int>(av.sampleRate + 0.5))) {
       qCWarning(lcAudio) << "Audio output not available; session runs without sound";
     }
@@ -101,6 +110,9 @@ void GameSession::start(const LaunchConfig& config) {
   req.systemDir = config.systemDir;
   req.saveDir = config.saveDir;
   req.coreOptions = config.coreOptions;
+  req.speedUpRatio = config.speedUpRatio;
+  req.speedUpOnStart = config.speedUpOnStart;
+  req.speedUpAudio = config.speedUpAudio;
   r->start(req);
   applyJoypad();  // a gamepad button that is already held counts from the first frame
 }
@@ -114,25 +126,64 @@ void GameSession::teardown() {
   audio_.stop();
   keys_.clear();
   preview_ = false;
+  if (fastForward_ || fastForwardSupported_) {
+    fastForward_ = false;
+    fastForwardSupported_ = false;
+    emit fastForwardChanged();
+  }
 }
 
 void GameSession::pause() {
   if (runner_ && state_ == Running) {
-    audio_.setUnderrunCounting(false);  // nothing is pushed while paused: the sink running dry is not an underrun
     runner_->pause();
+    audio_.setUnderrunCounting(false);
   }
 }
 
 void GameSession::resume() {
   if (runner_ && state_ == Paused) {
     runner_->resume();
-    audio_.setUnderrunCounting(!audioMuted_);
+    audio_.setUnderrunCounting(!audioMuted_ && !(fastForward_ && !ffAudio_));
   }
+}
+
+// Nothing is pushed on purpose while paused, muted or fast-forwarding: the sink running dry is not an underrun.
+void GameSession::updateUnderrunCounting() {
+  audio_.setUnderrunCounting(!audioMuted_ && state_ != Paused && !(fastForward_ && !ffAudio_));
+}
+
+QVariantList GameSession::speedUpRatios() {
+  QVariantList l;
+  for (const double r : emu::EmulationRunner::speedUpRatios()) l.append(r);
+  return l;
+}
+
+void GameSession::setFastForwardRatio(double ratio) {
+  ratio = emu::EmulationRunner::normalizeSpeedUpRatio(ratio);
+  if (ratio == ffRatio_) return;
+  ffRatio_ = ratio;
+  if (runner_) runner_->setFastForwardRatio(ratio);
+  emit fastForwardChanged();
+}
+
+void GameSession::setFastForward(bool on) {
+  on = on && fastForwardSupported_;
+  if (on == fastForward_) return;
+  fastForward_ = on;
+  if (runner_) runner_->setFastForward(on);
+  updateUnderrunCounting();
+  emit fastForwardChanged();
+}
+
+void GameSession::setPreviewFastForwardSupported(bool supported) {
+  fastForwardSupported_ = supported;
+  if (!supported) fastForward_ = false;
+  emit fastForwardChanged();
 }
 
 void GameSession::setAudioMuted(bool muted) {
   audioMuted_ = muted;
-  audio_.setUnderrunCounting(!muted && state_ != Paused);  // a muted surface pushes nothing on purpose
+  updateUnderrunCounting();
 }
 
 void GameSession::togglePause() {
@@ -165,7 +216,7 @@ void GameSession::applyJoypad() {
 }
 
 bool GameSession::isReservedKey(int qtKey) {
-  return qtKey == Qt::Key_F3 || qtKey == Qt::Key_F5 || qtKey == Qt::Key_F11 || qtKey == Qt::Key_Escape;
+  return qtKey == Qt::Key_Space || qtKey == Qt::Key_F3 || qtKey == Qt::Key_F5 || qtKey == Qt::Key_F11 || qtKey == Qt::Key_Escape;
 }
 
 QStringList GameSession::screenLayouts() const { return screenLayoutsFor(screenCount()); }

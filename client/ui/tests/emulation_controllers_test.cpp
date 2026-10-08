@@ -182,7 +182,7 @@ class EmulationControllersTest : public QObject {
 
     // The system shows the core's visible, non-locked options; nothing else, and no FrameBeam options (those are Defaults).
     QVERIFY(visible(h, "optionGroup_core"));
-    QVERIFY(h.item("optionGroup_framebeam") == nullptr);
+    QVERIFY(h.item("optionSelect_framebeam.default_multiview") == nullptr);  // display options are global only (speed-up options are offered per system)
     QVERIFY(h.item("optionRow_melonds_audio_interpolation") != nullptr);
     QVERIFY(h.item("optionRow_melonds_boot_mode") != nullptr);
     for (const char* hidden : {"optionRow_melonds_screen_layout1", "optionRow_melonds_sysfile_mode",

@@ -213,3 +213,56 @@ func (s *Server) inviteLanding(w http.ResponseWriter, r *http.Request) {
 	d.Body = inviteLandingBody{Address: s.hubAddress(r), Fingerprint: fp}
 	s.render(w, http.StatusOK, "invite", "bare", d)
 }
+
+type confirmBody struct {
+	Heading, Intro, Note, Action, Button, Cancel string
+	Removes                                      []string
+}
+
+// userDeleteConfirm is the no-JS confirmation step that names everything the deletion removes.
+func (s *Server) userDeleteConfirm(w http.ResponseWriter, r *http.Request, sess *session) {
+	rows, err := s.svc.ListUserRows(r.Context())
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	id := r.PathValue("id")
+	for _, u := range rows {
+		if u.ID != id {
+			continue
+		}
+		if u.Role == hub.RoleAdmin || u.ID == sess.User.ID {
+			http.Redirect(w, r, "/users?err=admin", http.StatusSeeOther)
+			return
+		}
+		d := s.base(r, sess, "users", "Delete user")
+		d.Body = confirmBody{
+			Heading: "Delete “" + u.DisplayName + "”?",
+			Intro:   "This permanently deletes the user and cannot be undone. The following is removed:",
+			Removes: []string{
+				"The account and sign-in of " + u.DisplayName,
+				"All their devices and access tokens (" + fmt.Sprint(u.Devices) + " trusted now); running Sessions end",
+				"All their saves and save history: these are deleted for good",
+				"Invites they created",
+			},
+			Note:   "Games they uploaded stay in the library and are reassigned to you.",
+			Action: "/users/" + u.ID + "/delete", Button: "Delete user", Cancel: "/users",
+		}
+		s.render(w, http.StatusOK, "confirm", "layout", d)
+		return
+	}
+	http.Redirect(w, r, "/users?err=nouser", http.StatusSeeOther)
+}
+
+func (s *Server) userDelete(w http.ResponseWriter, r *http.Request, sess *session) {
+	switch err := s.svc.DeleteUser(r.Context(), r.PathValue("id"), sess.User.ID); {
+	case err == nil:
+		http.Redirect(w, r, "/users?ok=userdeleted", http.StatusSeeOther)
+	case errors.Is(err, hub.ErrForbidden):
+		http.Redirect(w, r, "/users?err=admin", http.StatusSeeOther)
+	case errors.Is(err, hub.ErrNotFound):
+		http.Redirect(w, r, "/users?err=nouser", http.StatusSeeOther)
+	default:
+		s.fail(w, r, err)
+	}
+}

@@ -60,6 +60,9 @@ struct HandshakeResult {
   bool compatible = false;
   QList<HandshakeProblem> problems;
   QStringList features;  // optional Hub feature flags, e.g. "saves_v1"
+  QString userId;           // optional `user` (older Hubs omit it)
+  QString userDisplayName;
+  QString userRole;         // "admin" | "user"
 };
 std::optional<HandshakeResult> parseHandshakeResult(const QJsonObject& obj);
 

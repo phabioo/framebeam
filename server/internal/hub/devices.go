@@ -77,6 +77,34 @@ func (s *Service) ListDevices(ctx context.Context) ([]Device, error) {
 	return out, rows.Err()
 }
 
+// DeleteDevice permanently removes a device and all its tokens. Live Sessions and the WSS connection end exactly like on
+// revoke. Save history and conflicts keep the bare device ID (no foreign key); they show "Deleted device" afterwards.
+func (s *Service) DeleteDevice(ctx context.Context, deviceID string) (err error) {
+	defer s.publishOK(&err, TopicClients, TopicUsers)
+	if _, err := s.GetDevice(ctx, deviceID); err != nil {
+		return err
+	}
+	// Revoke first: removes tokens and ends Sessions/viewers/WSS while the rows still exist.
+	if err := s.RevokeDevice(ctx, deviceID); err != nil {
+		return err
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return internal(err)
+	}
+	defer tx.Rollback()
+	// Pairing requests of this device ID would otherwise allow it to be re-created from an approved request.
+	for _, q := range []string{`DELETE FROM pairing_requests WHERE device_id = ?`, `DELETE FROM devices WHERE id = ?`} {
+		if _, err := tx.ExecContext(ctx, q, deviceID); err != nil {
+			return internal(err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return internal(err)
+	}
+	return nil
+}
+
 // RevokeDevice revokes a device and immediately deletes all its access tokens (idempotent).
 func (s *Service) RevokeDevice(ctx context.Context, deviceID string) (err error) {
 	defer s.publishOK(&err, TopicClients, TopicUsers)
