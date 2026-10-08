@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -87,6 +88,9 @@ func (s *Service) RestoreSaveVersion(ctx context.Context, in RestoreInput) (_ Sa
 	return out, nil
 }
 
+// pathPartRe matches a user ID (u_<hex>) or game ID (UUID): no separators, no dots.
+var pathPartRe = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+
 // UploadSaveInput is a deliberate save file upload (feature saves_v4). DeviceID is the caller's device, or
 // WebDeviceID(user) for the web interface. ExpectedRevision nil = no check (web only); otherwise 0 = the slot must
 // not exist yet, N = the current checkpoint revision must be N.
@@ -102,6 +106,10 @@ type UploadSaveInput struct {
 // exists. Identical content changes nothing. A wrong expected revision returns ErrSaveConflictStale.
 func (s *Service) UploadSaveFile(ctx context.Context, in UploadSaveInput) (_ SaveSlot, err error) {
 	defer s.publishOK(&err, TopicSaves, TopicLibrary)
+	// User and game IDs become path segments of the content file: only plain ID characters pass.
+	if !pathPartRe.MatchString(in.UserID) || !pathPartRe.MatchString(in.GameID) {
+		return SaveSlot{}, ErrNotFound
+	}
 	if !ValidSlotName(in.Slot) {
 		return SaveSlot{}, badRequest("Invalid slot name")
 	}

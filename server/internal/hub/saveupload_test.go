@@ -105,3 +105,19 @@ func TestUploadSaveFileRejects(t *testing.T) {
 		t.Fatalf("slot created by a rejected upload: %v", err)
 	}
 }
+
+func TestUploadSaveFileRefusesPathIDs(t *testing.T) {
+	e := newSavesEnv(t)
+	for _, bad := range []string{"../x", "a/b", "..", "", `a\b`} {
+		in := hub.UploadSaveInput{UserID: e.user.ID, DeviceID: e.devA, GameID: bad, Slot: "default", ExpectedRevision: intp(0),
+			SHA256: hexSHA([]byte("x")), Body: strings.NewReader("x")}
+		if _, err := e.svc.UploadSaveFile(ctx, in); !errors.Is(err, hub.ErrNotFound) {
+			t.Fatalf("game %q: %v", bad, err)
+		}
+		in.GameID, in.UserID = e.game.ID, bad
+		in.Body = strings.NewReader("x")
+		if _, err := e.svc.UploadSaveFile(ctx, in); !errors.Is(err, hub.ErrNotFound) {
+			t.Fatalf("user %q: %v", bad, err)
+		}
+	}
+}
