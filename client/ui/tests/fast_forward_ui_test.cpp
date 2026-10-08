@@ -57,6 +57,33 @@ class FastForwardUiTest : public QObject {
     QTest::keyClick(h.window, Qt::Key_Space);
     QTRY_VERIFY(gs->fastForward());
 
+    // Header at 1280 px (Windows fonts are wider): every header button lies inside the header, none overlap, and at
+    // least 120 px stay free between "Library" and the right-hand controls.
+    h.window->resize(1280, 800);
+    QTest::qWait(100);
+    QQuickTest::qWaitForPolish(h.window);
+    {
+      QQuickItem* header = h.item("gameHeader");
+      QVERIFY(header != nullptr);
+      const QRectF headerRect = header->mapRectToScene(QRectF(0, 0, header->width(), header->height()));
+      QList<QPair<QString, QRectF>> rects;
+      for (const char* name : {"backToLibraryButton", "fastForwardButton", "pauseButton", "resetButton", "quitButton", "tabSegment", "layoutSwitch", "fullscreenButton"}) {
+        QQuickItem* it = h.item(name);
+        if (it == nullptr || !it->isVisible()) continue;
+        const QRectF r = it->mapRectToScene(QRectF(0, 0, it->width(), it->height()));
+        QVERIFY2(headerRect.contains(r), qPrintable(QStringLiteral("%1 outside header").arg(QLatin1String(name))));
+        rects.append({QLatin1String(name), r});
+      }
+      QVERIFY(h.item("fastForwardButton")->isVisible());
+      QVERIFY(h.item("fastForwardButton")->width() <= 44);  // minimal below 1360 px
+      for (int i = 0; i < rects.size(); ++i)
+        for (int j = i + 1; j < rects.size(); ++j)
+          QVERIFY2(!rects[i].second.intersects(rects[j].second), qPrintable(rects[i].first + QStringLiteral(" overlaps ") + rects[j].first));
+      const qreal spare = h.item("fastForwardButton")->mapRectToScene(QRectF(0, 0, 1, 1)).left() -
+                          h.item("backToLibraryButton")->mapRectToScene(QRectF(0, 0, h.item("backToLibraryButton")->width(), 1)).right();
+      QVERIFY2(spare >= 120, qPrintable(QStringLiteral("only %1 px spare").arg(spare)));
+    }
+
     // Speed select: changes the ratio of the running game; the indicator follows.
     QQuickItem* sel = h.item("speedSelect");
     QVERIFY(sel != nullptr && sel->isVisible());

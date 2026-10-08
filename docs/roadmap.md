@@ -137,7 +137,7 @@ Implemented, see [ADR 0015](adr/0015-hub-ui-pass.md) (accepted).
 See [ADR 0018](adr/0018-player-speed-up.md) (proposed).
 
 - [x] Done: "Speed-up" (libretro fast-forward) in the Player for cores that do not inhibit it; Space toggles; speed 1.5×, 2×, 3×, 4×, 6×, 8× (default 2×, the user's choice wins over a core ratio); screen frames limited to the base rate.
-- [x] Done: header button "Speed-up" with a compact speed select (running game only) and indicator "Speed-up ×N"; hidden when the core inhibits it; stays usable while the Session is shared (viewers get the normal stream frame rate).
+- [x] Done: header button "Speed-up" ("»" when narrow) and a speed select in the Session panel (running game only) and indicator "Speed-up ×N"; hidden when the core inhibits it; stays usable while the Session is shared (viewers get the normal stream frame rate).
 - [x] Done: Emulation settings "Speed-up speed", "Speed-up on start" (default off) and "Audio during speed-up" (default on, resampled; off drops audio) with the global > system > game hierarchy.
 - Open: configurable key in Controllers → Hotkeys (separate work package); gamepad hotkey.
 

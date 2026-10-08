@@ -196,25 +196,18 @@ Rectangle {
                 color: Theme.textMeta
             }
             Item { Layout.fillWidth: true }
-            FbSelect {
-                objectName: "speedSelect"
-                Layout.minimumWidth: 78
-                Layout.preferredWidth: 78
-                implicitWidth: 78
-                visible: root.session.active && root.tab === "session" && root.session.fastForwardAvailable
-                focusPolicy: Qt.NoFocus
-                model: root.session.speedUpRatios.map(function (r) { return { value: String(r), label: r + "×" } })
-                current: String(root.session.fastForwardRatio)
-                onPicked: (v) => root.session.fastForwardRatio = Number(v)   // this game only, not persisted
-            }
             KeyHintButton {
                 objectName: "fastForwardButton"
                 Layout.minimumWidth: implicitWidth  // never squeezed; the title elides first
                 visible: root.session.active && root.tab === "session" && root.session.fastForwardAvailable
                 focusPolicy: Qt.NoFocus
                 kind: root.session.fastForward ? "raised" : "outline"
-                text: qsTr("Speed-up")
-                hint: root.width < 1360 ? "" : "Space"   // narrow: drop the key hint
+                readonly property bool narrow: root.width < 1360
+                text: narrow ? "»" : qsTr("Speed-up")   // narrow: minimal button, the full name is the tooltip
+                hint: narrow ? "" : "Space"
+                Accessible.name: qsTr("Speed-up")
+                ToolTip.visible: narrow && hovered
+                ToolTip.text: qsTr("Speed-up (Space)")
                 onClicked: root.session.toggleFastForward()
             }
             FbButton {

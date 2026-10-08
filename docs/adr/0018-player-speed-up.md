@@ -29,7 +29,7 @@ Fabio asked for SpeedUp/FastForward in the FrameBeam Player, visible when the em
 ### D4 UI in the game screen
 
 - Header button "Speed-up" with key hint Space; Space toggles it. Space is never forwarded to the core.
-- Next to it a compact speed select. It changes the speed for the running game only.
+- A speed select in the Session panel ("Speed-up speed") changes the speed for the running game only. Below 1360 px the header button shrinks to "»".
 - While on, the indicator "Speed-up ×N" is shown.
 
 ### D5 Persistent settings
@@ -41,7 +41,7 @@ Fabio asked for SpeedUp/FastForward in the FrameBeam Player, visible when the em
 
 ### D6 Shared Sessions
 
-- Speed-up stays allowed while the own Session is shared and can be toggled and changed during play (header toggle and speed select).
+- Speed-up stays allowed while the own Session is shared and can be toggled and changed during play (header toggle and Session panel speed select).
 - Viewers see the sped-up game at the normal stream frame rate: frames are capped at the base frame rate, audio is resampled to real time or dropped per the audio setting (D3).
 
 ### D7 Save sync
