@@ -28,7 +28,14 @@ Three Player items collected during 0.7.x need a recorded decision: the core ver
 
 ### D3 PlayerController split
 
-See implementation notes.
+`PlayerController` stays the single QML facade with an unchanged API (properties, invokables, signals). It delegates to four plain `QObject` helpers it owns:
+
+- `CoreCatalog`: system manifests, core lookup and probing, core and firmware status per system (Library "needs attention", Emulation page cards).
+- `GameDetail`: builds the `selectedGame` map for the detail pane (read-only view).
+- `HubPresenter`: builds the `hubs` and `pairing` maps for the connection and pairing screens (read-only view).
+- `GameStarter`: the start pipeline (core provisioning, firmware, ROM, start sync and save-conflict data, launching the `GameSession`); it reports back through signals.
+
+The mutable start state stays in `PlayerController`; helpers get references and service pointers through a `Deps` struct, so none holds a pointer back to the controller. Hub connection lifecycle and ROM upload stay in `PlayerController` for now; moving the start state into `GameStarter` can follow later.
 
 ## Rejected
 
