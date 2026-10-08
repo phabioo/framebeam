@@ -5,7 +5,7 @@ Shared protocol definition for Hub and Player: `protocol/openapi/framebeam.yaml`
 - Current `protocol_version`: **1** (integer, separate from product versions). Hub and Player each report `protocol_version` and `min_protocol_version`.
 - Compatibility: `Player.protocol_version < Hub.min_protocol_version` -> `player_too_old`; `Hub.protocol_version < Player.min_protocol_version` -> `hub_too_old`.
 - Error format: `{"error": {"code": <enum>, "message": string}}`. Auth: Bearer (`fba_` access token, 15 min, `fbd_` device credential, `fbp_` poll token).
-- Current OpenAPI spec version: 1.6.0 (history per milestone below). Handshake features: `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1` (only advertised when the caller may upload), `firmware_v1`, `cores_v1`, `turn_v1` (only with TURN on), `saves_v2`, `cores_index_v1`.
+- Current OpenAPI spec version: 1.7.0 (history per milestone below). Handshake features: `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1` (only advertised when the caller may upload), `firmware_v1`, `cores_v1`, `turn_v1` (only with TURN on), `saves_v2`, `cores_index_v1`, `saves_v3`.
 
 | Method | Path | Auth | operationId |
 |---|---|---|---|
@@ -26,6 +26,7 @@ Shared protocol definition for Hub and Player: `protocol/openapi/framebeam.yaml`
 | GET | `/api/v1/games/{game_id}/saves/{slot}/history/{version}/content` | Bearer | downloadSaveHistoryContent |
 | POST | `/api/v1/games/{game_id}/saves/{slot}/history/{version}/restore` | Bearer | restoreSaveHistoryVersion (`{expected_revision}`, 200 SaveSlot, 409 `save_conflict_stale`; `saves_v2`) |
 | POST | `/api/v1/games/{game_id}/saves/{slot}/snapshots` | Bearer | createSaveSnapshot (optional `{label}`, 201 SaveHistoryVersion, 404 without checkpoint; `saves_v2`) |
+| DELETE | `/api/v1/games/{game_id}/saves/{slot}/history/{version}` | Bearer | deleteSaveSnapshot (204; only `manual_snapshot`, else 409 `save_not_snapshot`; 404 when missing; `saves_v3`) |
 | POST | `/api/v1/games/{game_id}/saves/{slot}/conflicts/{conflict_id}/resolve` | Bearer | resolveSaveConflict (409 `save_conflict_stale`) |
 | GET | `/api/v1/users` | Bearer | listUsers (`{id, display_name, online}` for the invite field) |
 | GET | `/api/v1/sessions` | Bearer | listSessions (Sessions the caller may join or owns, plus inviting) |
@@ -76,6 +77,8 @@ Envelope `{type, id?, payload}` (JSON text frames); schema `schemas/ws-<type>.sc
 
 0.4 "Internet sessions and save comfort" (OpenAPI 1.5.0, ADR 0012, `protocol_version` stays 1). Added: handshake features `turn_v1`, `saves_v2`, `cores_index_v1`; optional `turn_servers` (`TurnServer`) in `hello_ack` and `SessionJoinResponse`; `restoreSaveHistoryVersion`, `createSaveSnapshot`, optional nullable `SaveHistoryVersion.label`, `SaveSyncReason` `restore`, `SaveHistoryReason` `before_restore`; `getCoresIndex`, `getCoresIndexSignature`; WSS message `save_updated`.
 
-0.7 "Handshake user" (OpenAPI 1.6.0, `protocol_version` stays 1). Added: optional `user` (`HandshakeUser`: `id`, `display_name`, `role` admin|user) in `HandshakeResponse`, the Hub user the authenticated device belongs to.
+0.7.x "Hub saves: new slot and deleting a snapshot" (OpenAPI 1.6.0, `protocol_version` stays 1). Added: handshake feature `saves_v3`; `deleteSaveSnapshot` (`DELETE .../history/{version}`, 204; only `manual_snapshot`, else 409 `save_not_snapshot`; 404 when missing; no `save_updated`). Slot creation from the Hub web interface has no API.
+
+0.7.x "Handshake user" (OpenAPI 1.7.0, `protocol_version` stays 1). Added: optional `user` (`HandshakeUser`: `id`, `display_name`, `role` admin|user) in `HandshakeResponse`, the Hub user the authenticated device belongs to.
 
 The release feed of the updaters is specified in [update-index.md](update-index.md).

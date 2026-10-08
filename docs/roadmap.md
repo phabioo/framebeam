@@ -34,7 +34,7 @@ Phase plan: [workflow.md](workflow.md#phase-plan).
 
 ## 0.1.1 Finish the PoC
 
-PoC leftovers. Decisions: [ADR 0009](adr/0009-finish-poc.md) (proposed).
+PoC leftovers. Decisions: [ADR 0009](adr/0009-finish-poc.md) (accepted).
 
 - [x] Done: Hardware encoders NVENC/QSV/AMF: the Windows FFmpeg in `client/vcpkg.json` enables `nvcodec`, `qsv` and `amf`; a Windows-only test checks that `h264_nvenc`, `h264_qsv` and `h264_amf` are compiled in. ADR 0006 is corrected. Opening the encoders needs a GPU and is verified only locally by Fabio.
 - [x] Done: Multiview picker lists all Sessions in a scrollable list; the "+N more in the Library" pointer is gone.
@@ -48,7 +48,7 @@ Completed 2026-10-06: Windows CI runs on `main` pushes to prime its vcpkg binary
 
 ## 0.2 Cores from the Hub
 
-Decisions: [ADR 0010](adr/0010-cores-from-the-hub.md) (proposed).
+Decisions: [ADR 0010](adr/0010-cores-from-the-hub.md) (accepted).
 
 Goal: installers ship no emulator cores. melonDS DS leaves the Windows installer and comes from the Hub.
 
@@ -120,14 +120,15 @@ Open in 0.6:
 
 ## 0.7 Hub UI pass
 
-Implemented, see [ADR 0015](adr/0015-hub-ui-pass.md) (proposed).
+Implemented, see [ADR 0015](adr/0015-hub-ui-pass.md) (accepted).
 
 - [x] Done: pages restyled to the v4 design (Library with saves column and conflict marker, Saves with slot tabs, history timeline, snapshot filter, inline restore confirmation and retention box from the real rules, Systems list and detail tabs, Clients, Users); nav badge "firmware" is now "{n} issues".
 - [x] Done: no full page loads on navigation; sidebar swaps only the content area (ADR 0015 D1).
 - [x] Done: live updates without reload via an in-process event bus and Server-Sent Events; badges and affected tables refresh themselves, Clients polling removed (D2).
 - [x] Done: Settings sub-pages Updates, General, Network, Security with per-field autosave (D3).
 - [x] Done: network settings form (Hub port, embedded TURN, public host, TURN port, relay range and IP, STUN servers, save retention). Decided by Fabio on 2026-10-07: web settings win; `hub.env` and flags only give the initial value (D4). Changes that need it are applied by a restart the Hub triggers itself, without root (D5). Ports below 1024 are refused on the web, use `install-hub.sh --port` (D6). Startup fallbacks keep the Hub reachable after a bad setting (D7). The TURN status and port forward list moved into Network; reachability is derived from the configuration (D8).
-- Open (left out of 0.7): Rescan folder, "+ New slot", deleting a snapshot, thinned-out history marker, invite "Copy link", metadata actions, "Player too old" marker in the Clients table, Library "of total" disk capacity, external TURN servers with login (only a STUN list), certificate "Renew now", reachability probe from outside, core packages not filtered per system, transport options "Custom cert/key" and "Reverse proxy".
+- Open (left out of 0.7): Rescan folder, thinned-out history marker, invite "Copy link", metadata actions, "Player too old" marker in the Clients table, Library "of total" disk capacity, external TURN servers with login (only a STUN list), certificate "Renew now", reachability probe from outside, core packages not filtered per system, transport options "Custom cert/key" and "Reverse proxy".
+- [x] Done (0.7.x follow-up): Hub Saves page "+ New slot" (new slot starts from the current version of the selected slot; web only, no API) and deleting a snapshot (inline confirmation; `DELETE /api/v1/games/{game_id}/saves/{slot}/history/{version}`, handshake feature `saves_v3`, OpenAPI 1.6.0, `protocol_version` unchanged). Renaming/deleting a slot stay open.
 
 ## 0.8 Second system: Nintendo 3DS with Azahar
 

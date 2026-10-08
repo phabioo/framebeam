@@ -1,6 +1,6 @@
 # ADR 0015: Hub UI pass (0.7)
 
-- Status: proposed
+- Status: accepted (Fabio, 2026-10-08)
 - Date: 2026-10-07
 - Decided by: Fabio (precedence and restart decided on 2026-10-07; self-restart without root, ports below 1024 refused on the web and reachability derived from configuration accepted on 2026-10-07)
 

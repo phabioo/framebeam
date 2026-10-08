@@ -1,6 +1,6 @@
 # ADR 0009: Finish the PoC (0.1.1)
 
-- Status: proposed
+- Status: accepted (Fabio, 2026-10-07, with the merge of the PR)
 - Date: 2026-10-06
 - Decided by: Fabio (proposal by the orchestrator; accepted with the PR)
 
