@@ -53,6 +53,7 @@ Windows release builds use the `x64-windows-release` overlay triplet (Release-on
 
 - `.github/workflows/ci.yml`: Linux on every push; Windows on PRs against `main`, manually, and on pushes to `main` and `v*` tags (primes the Windows vcpkg binary cache after merges, [ADR 0008](adr/0008-windows-ci-cache.md); cache misses still need a cold dependency build). The Windows job builds the layout launcher plus `bin\`, the zip and the installer and tests silent install and upgrade.
 - Every workflow job has `timeout-minutes` (Windows client and core builds 300, so a cold vcpkg cache still fits).
+- Linux apt steps go through `scripts/ci-apt-install.sh` (update limited to 120 s and install to 240 s per attempt, apt retries and network timeouts, 3 attempts) plus a 20 minute step `timeout-minutes`, so a hanging Ubuntu mirror cannot block CI for long.
 - Changes that touch only `docs/*` or `*.md` files are detected as docs-only on branches and PRs; the Hub, Player and Windows jobs are skipped for them.
 - `.github/workflows/release.yml`: after a successful CI run on `main` or a `v*` tag it publishes the CI artifacts as GitHub (pre)release (beta prereleases `v<X.Y.Z-beta.N>`, newest 5 kept) and adds Hub and Player to the signed `updates-index` release (`framebeam-sign release-add`, secret `FRAMEBEAM_SIGNING_KEY`).
 - `.github/workflows/promote.yml` ("Promote to stable", manual): see [guides/updates.md](guides/updates.md).

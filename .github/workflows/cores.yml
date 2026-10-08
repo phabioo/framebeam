@@ -78,9 +78,9 @@ jobs:
           path: ~/.cache/framebeam/cores
           key: melondsds-core-linux-${{ hashFiles('scripts/melonds-ds.pin', 'scripts/fetch-melonds-ds.sh') }}
       - name: Install build tools
+        timeout-minutes: 20
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq ninja-build cmake pkg-config libgl-dev libepoxy-dev
+          scripts/ci-apt-install.sh ninja-build cmake pkg-config libgl-dev libepoxy-dev
       - name: Build core
         run: |
           [ "$(uname -m)" = "x86_64" ] || { echo "::error::expected an x86_64 runner"; exit 1; }
