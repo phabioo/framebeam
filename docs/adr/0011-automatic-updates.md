@@ -26,7 +26,7 @@ Milestone 0.3 ([Roadmap](../roadmap.md)) lets a change on `main` reach the test 
 
 - Release `updates-index` holds `updates-index.json` and `updates-index.json.sig`. Default URL `https://github.com/phabioo/framebeam/releases/download/updates-index/updates-index.json`.
 - Signature, key and compiled-in trust list are those of the core index (ADR 0010 D2): Ed25519 over the exact bytes, one line `ed25519 <key_id> <base64>`. Extra trust keys keep the existing flags and env (now trust keys for cores and updates).
-- Schema 1 contract: [`protocol/README.md`](../../protocol/README.md#update-index-03). Unknown fields are ignored, an unknown schema is an error, invalid releases are skipped and reported, duplicate (product, channel, version) rejects the index.
+- Schema 1 contract: [`docs/reference/update-index.md`](../reference/update-index.md). Unknown fields are ignored, an unknown schema is an error, invalid releases are skipped and reported, duplicate (product, channel, version) rejects the index.
 - `framebeam-sign release-add` maintains the index (newest 5 releases per product and channel); `sign` accepts both index kinds.
 - Selection (both consumers): own product, channel per D1, artifact for own platform and kind, version strictly greater than the running one, protocol-compatible (D4). Highest wins. Never an automatic downgrade.
 
@@ -104,3 +104,7 @@ Decided by Fabio after 0.3 merged. The decisions above stay as accepted; where t
 - Existing `test.N` installs do not update to beta builds (different channel, and `beta` < `test` in SemVer precedence). They must be reinstalled once from a beta or stable release.
 - New workflow `.github/workflows/promote.yml` ("Promote to stable", one button in GitHub Actions). Inputs: `beta_version` (default newest beta), `next_version` (default next minor). It tags `vX.Y.Z` on the commit of that beta build, dispatches CI for the tag (stable build, release, signed index) and opens a PR bumping `VERSION` to the next version; if Actions may not create PRs it warns with a compare link. Pushing the tag manually still works.
 - The Windows Player is a windowless (GUI-subsystem) app; no console opens on start.
+
+## Update 2026-10-08 (milestone numbering)
+
+Milestone numbers above 0.4 in this ADR use the numbering from before the roadmap renumbering of 2026-10-07: old 0.5/0.6/0.7/0.8/0.9/0.10 are now 0.6 (Player UI pass) / 0.7 (Hub UI pass) / 0.8 (3DS) / 0.9 (metadata) / 0.10 (Hub for Windows) / 0.11 (Linux and macOS Player); 0.5 is now OpenGL hardware rendering. See [roadmap.md](../roadmap.md).

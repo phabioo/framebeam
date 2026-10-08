@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Install / upgrade / uninstall the FrameBeam Hub as a systemd service.
-# Installs a local binary; nothing is downloaded. See packaging/linux/README.md.
+# Installs a local binary; nothing is downloaded. See docs/guides/hub-install.md.
 set -euo pipefail
 
 SVC=framebeam-hub

@@ -66,3 +66,7 @@ Installers shipped the melonDS DS core. Milestone 0.2 ([Roadmap](../roadmap.md))
 ## Update 2026-10-07 (0.4)
 
 D5: the Player-side signature check is implemented in 0.4 as specified in [ADR 0012](0012-internet-sessions-and-save-comfort.md) D6: the Player fetches the signed index from the Hub and verifies it on every `prepare()`; a failure marks the core "untrusted".
+
+## Update 2026-10-08 (milestone numbering)
+
+Milestone numbers above 0.4 in this ADR use the numbering from before the roadmap renumbering of 2026-10-07: old 0.5/0.6/0.7/0.8/0.9/0.10 are now 0.6 (Player UI pass) / 0.7 (Hub UI pass) / 0.8 (3DS) / 0.9 (metadata) / 0.10 (Hub for Windows) / 0.11 (Linux and macOS Player); 0.5 is now OpenGL hardware rendering. See [roadmap.md](../roadmap.md).

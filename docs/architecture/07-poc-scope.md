@@ -27,6 +27,8 @@
 | Transport | HTTPS/WSS; own initial TLS certificate, own cert/key or reverse proxy; Player TOFU/pinning; HTTP/WS only in explicit dev mode or on localhost |
 | Connection start | Start/connection screen; optional auto-connect to the last used Hub |
 
+> Superseded since the PoC: automatic core distribution ([ADR 0010](../adr/0010-cores-from-the-hub.md)), installers and the integrated updater ([ADR 0011](../adr/0011-automatic-updates.md)) and the TURN fallback ([ADR 0012](../adr/0012-internet-sessions-and-save-comfort.md)) are delivered; see [roadmap](../roadmap.md).
+
 **Outside the PoC:** Linux and macOS clients, Windows/macOS server builds, further emulators, hosted emulation, installers for all platforms and an integrated updater, automatic core distribution, complete game-override UI and TURN fallback. Also outside: metadata service with external providers, automatic or manual provider matching, external base metadata and artwork/metadata cache; simultaneous multi-Hub use, Hub federation, cross-Hub Sessions, OAuth and central accounts. A web client is not planned. Remote control, emulator netplay, save states, friends list, public Session links, guest access, email/password recovery and a custom ACME client are not part of the agreed PoC.
 
 In the long term, Windows/Linux/macOS remains the platform goal. The PoC should already create the reusable basis of Go server, C++ client, emulator abstraction, ROM/save protocol and WebRTC Session model.

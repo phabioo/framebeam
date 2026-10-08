@@ -23,7 +23,7 @@ Details only as needed from `docs/architecture/` (index: `docs/architecture/READ
 - Data: all Player data under `ProfileStore::baseDir()` (portable `<exe-dir>/data`, ADR 0004); never invent own paths.
 
 ## Media and language
-- FFmpeg (libavcodec) with NVENC/QSV/AMF, OpenH264 as software fallback; encoder order h264_nvenc, h264_qsv, h264_amf, libopenh264, libx264 (ADR 0006 D5; the Windows vcpkg FFmpeg has no hardware encoder features yet, so it falls back to libopenh264); audio output via Qt Multimedia, SDL3 only for gamepads (ADR 0007); WebRTC with libdatachannel (ADR 0001, `04-sessions-and-multiview.md`).
+- FFmpeg (libavcodec) with NVENC/QSV/AMF, OpenH264 as software fallback; encoder order h264_nvenc, h264_qsv, h264_amf, libopenh264, libx264 (ADR 0006 D5; the Windows vcpkg FFmpeg enables `nvcodec`, `qsv` and `amf` since 0.1.1, ADR 0009 D7; opening them needs a GPU and is verified only locally, otherwise it falls back to libopenh264); audio output via Qt Multimedia, SDL3 only for gamepads (ADR 0007); WebRTC with libdatachannel (ADR 0001, `04-sessions-and-multiview.md`).
 - C++20 as baseline; C++23 only if MSVC, GCC and AppleClang support it. vcpkg (manifest) + CMake presets.
 - Firmware missing: "Firmware required/missing", block launch.
 - Design: Player UI `docs/design/README.md`, `docs/design/player.md`, `docs/design/tokens.md`.
