@@ -45,6 +45,7 @@ PrivilegesRequiredOverridesAllowed=dialog
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 InfoBeforeFile={#PackageDir}\THIRD-PARTY-NOTICE.txt
+LicenseFile={#PackageDir}\LICENSE.txt
 ; Icon paths are relative to this script; the installer and the uninstaller entry use the Player logo.
 SetupIconFile=..\..\client\app\icons\player.ico
 UninstallDisplayIcon={app}\{#AppExe}

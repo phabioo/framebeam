@@ -193,6 +193,22 @@ install_binary() { # SRC: atomic copy to temp + mv
   mv -f "$tmp" "$BIN_DEST"
 }
 
+# License and third-party notices: best effort, from next to the script (flat copy) or from a repository checkout.
+install_notices() {
+  local f src found=0 dest="$P/usr/local/share/doc/framebeam-hub"
+  for f in THIRD-PARTY-NOTICES.txt LICENSE; do
+    src=""
+    for c in "$SCRIPT_DIR/$f" "$SCRIPT_DIR/../../server/$f" "$SCRIPT_DIR/../../$f"; do
+      [ -f "$c" ] && { src="$c"; break; }
+    done
+    [ -n "$src" ] || continue
+    install -d -m 0755 "$dest"
+    install -m 0644 "$src" "$dest/$f"
+    found=1
+  done
+  [ "$found" -eq 1 ] || info "Note: LICENSE and THIRD-PARTY-NOTICES.txt not found next to the script; copy them to /usr/local/share/doc/framebeam-hub/ (GPL-3.0-or-later)."
+}
+
 check_binary_runs() {
   [ -x "$BINARY" ] || chmod +x "$BINARY" 2>/dev/null || true
   "$BINARY" -version >/dev/null 2>&1 || die "$BINARY does not run on this machine (wrong architecture?)"
@@ -351,6 +367,7 @@ cmd_install() {
   install -d -m 0755 "$(dirname "$UNIT_DEST")"
   install -m 0644 "$unit_src" "$UNIT_DEST"
   write_dropin "$listen" "$data_dir"
+  install_notices
 
   [ -z "$ADMIN" ] || create_admin "$data_dir"
 
@@ -405,6 +422,7 @@ cmd_uninstall() {
     systemctl disable --now "$SVC" >/dev/null 2>&1 || true
   fi
   rm -f "$UNIT_DEST" "$DROPIN_FILE" "$BIN_DEST"
+  rm -rf "$P/usr/local/share/doc/framebeam-hub"
   rmdir "$DROPIN_DIR" 2>/dev/null || true
   sys systemctl daemon-reload
   info "Removed:     service unit and /usr/local/bin/framebeam-hub"

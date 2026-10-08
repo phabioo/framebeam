@@ -44,7 +44,7 @@ Package details:
 Copy the binary and the files of `packaging/linux/` to the Pi, for example:
 
 ```sh
-scp framebeam-hub-linux-arm64 packaging/linux/install-hub.sh packaging/linux/framebeam-hub.service pi@raspberrypi:
+scp framebeam-hub-linux-arm64 packaging/linux/install-hub.sh packaging/linux/framebeam-hub.service LICENSE server/THIRD-PARTY-NOTICES.txt pi@raspberrypi:
 ```
 
 ## 2. Install

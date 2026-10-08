@@ -83,6 +83,8 @@ jobs:
           cp "$art"/framebeam-hub-linux/framebeam-hub_"${version}"_amd64.deb "$art"/framebeam-hub-linux/framebeam-hub_"${version}"_arm64.deb "$rel/"
           cp "$art/framebeam-hub-linux/framebeam-hub-linux-amd64" "$rel/framebeam-hub-$version-linux-amd64"
           cp "$art/framebeam-hub-linux/framebeam-hub-linux-arm64" "$rel/framebeam-hub-$version-linux-arm64"
+          cp "$art/framebeam-hub-linux/LICENSE" "$rel/LICENSE"
+          cp "$art/framebeam-hub-linux/THIRD-PARTY-NOTICES.txt" "$rel/THIRD-PARTY-NOTICES-hub.txt"
           cp "$art/framebeam-player-windows-x64/framebeam-player-$version-windows-x64.zip" "$rel/"
           cp "$art/framebeam-player-windows-x64-setup/framebeam-player-$version-windows-x64-setup.exe" "$rel/"
           (cd "$rel" && sha256sum -- * > SHA256SUMS)
