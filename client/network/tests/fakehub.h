@@ -11,6 +11,7 @@
 #include <QMap>
 #include <QSslCertificate>
 #include <QSslKey>
+#include <QPointer>
 #include <QTcpServer>
 
 class QSslSocket;
@@ -137,6 +138,11 @@ class FakeHub : public QTcpServer {
   int wsConnections = 0;                  // upgrades accepted so far
   int wsOpen() const { return static_cast<int>(wsClients_.size()); }
   void sendWs(const QString& type, const QJsonObject& payload);  // to every open WSS connection
+  // GET /sessions/<id> answers are held (body of that moment, visibility optionally overridden) until released:
+  // models a request served before a later PATCH whose answer arrives after the PATCH answer.
+  bool holdSessionGet = false;
+  int heldSessionGets() const { return static_cast<int>(heldGets_.size()); }
+  void releaseHeldSessionGets(const QString& visibilityOverride = {});
   void closeWsClients();                                         // drops the connections (reconnect tests)
 
   // Observation
@@ -152,6 +158,11 @@ class FakeHub : public QTcpServer {
   void incomingConnection(qintptr handle) override;
 
  private:
+  struct HeldGet {
+    QPointer<QSslSocket> sock;
+    QJsonObject session;
+  };
+  QList<HeldGet> heldGets_;
   void handle(QSslSocket* sock, const FakeRequest& req);
   void respond(QSslSocket* sock, int status, const QByteArray& body, const QByteArray& contentType = "application/json",
                const QList<QPair<QByteArray, QByteArray>>& extra = {}, qint64 truncateAt = -1);

@@ -189,6 +189,7 @@ class SessionController : public QObject {
   void onSignal(const SessionSignal& s);
   void applyOwnSession(const SessionInfo& s);
   void applyOwnSession(const SessionInfo& s, quint64 requestVisGen);
+  quint64 requestVisToken() const;
   void closeShare(const QString& note);
   struct Remote;
   Remote* remote(const QString& sessionId) const;
