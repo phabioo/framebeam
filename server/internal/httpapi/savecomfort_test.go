@@ -231,7 +231,39 @@ func TestHandshakeAndHelloAckAdvertiseSavesV2(t *testing.T) {
 	rec := s.do("POST", "/api/v1/handshake", handshakeBody(1, 1), opt{token: d.tok})
 	wantStatus(t, rec, 200, "")
 	f := strings.Join(decode[struct{ Features []string }](t, rec).Features, ",")
-	if !strings.Contains(f, "saves_v2") || !strings.Contains(f, "cores_index_v1") {
+	if !strings.Contains(f, "saves_v2") || !strings.Contains(f, "saves_v3") || !strings.Contains(f, "cores_index_v1") {
 		t.Fatal(f)
+	}
+}
+
+func TestDeleteSaveSnapshotAPI(t *testing.T) {
+	s := newSessEnv(t, nil)
+	d := s.device(s.admin.ID, "Desktop")
+	wantStatus(t, s.putSave(d, "default", 0, []byte("one"), "final_session_end"), 200, "")
+	wantStatus(t, s.putSave(d, "default", 1, []byte("two"), "checkpoint"), 200, "")
+	rec := s.api(d, "POST", s.savePath("default", "/snapshots"), map[string]any{"label": "keep me"})
+	wantStatus(t, rec, 201, "")
+	snap := decode[versionResp](t, rec).Version
+	vpath := func(v int) string { return s.savePath("default", fmt.Sprintf("/history/%d", v)) }
+
+	wantStatus(t, s.do("DELETE", vpath(snap), nil, opt{}), 401, "")
+	// Another user's device sees no slot.
+	wantStatus(t, s.api(s.device(s.anna.ID, "Anna PC"), "DELETE", vpath(snap), nil), 404, "not_found")
+	// The auto-captured version is not a snapshot.
+	wantStatus(t, s.api(d, "DELETE", vpath(1), nil), 409, "save_not_snapshot")
+	wantStatus(t, s.api(d, "DELETE", vpath(99), nil), 404, "not_found")
+	wantStatus(t, s.api(d, "DELETE", s.savePath("nothere", "/history/1"), nil), 404, "not_found")
+
+	wantStatus(t, s.api(d, "DELETE", vpath(snap), nil), 204, "")
+	wantStatus(t, s.api(d, "DELETE", vpath(snap), nil), 404, "not_found")
+	h := decode[struct{ Versions []versionResp }](t, s.api(d, "GET", s.savePath("default", "/history"), nil)).Versions
+	for _, v := range h {
+		if v.Version == snap {
+			t.Fatalf("snapshot still listed: %+v", h)
+		}
+	}
+	sl := decode[slotResp](t, s.api(d, "GET", s.savePath("default", ""), nil))
+	if sl.Current.Revision != 2 {
+		t.Fatalf("%+v", sl.Current)
 	}
 }

@@ -29,6 +29,8 @@ const (
 	CodeDisplayNameTaken   Code = "display_name_taken"
 	CodeUserDisabled       Code = "user_disabled"
 	CodeUploadsDisabled    Code = "uploads_disabled"
+	CodeSaveNotSnapshot    Code = "save_not_snapshot"
+	CodeSaveSlotExists     Code = "save_slot_exists"
 )
 
 // Error is a domain error with a spec code. errors.Is compares the code only.
@@ -73,6 +75,10 @@ var (
 	ErrDisplayNameTaken = &Error{Code: CodeDisplayNameTaken, Message: "Display name is already taken"}
 	ErrUserDisabled     = &Error{Code: CodeUserDisabled, Message: "User has been disabled"}
 	ErrUploadsDisabled  = &Error{Code: CodeUploadsDisabled, Message: "Uploads by users are disabled on this Hub"}
+	// ErrSaveNotSnapshot: only manual snapshots can be deleted from the history (409).
+	ErrSaveNotSnapshot = &Error{Code: CodeSaveNotSnapshot, Message: "Only manual snapshots can be deleted"}
+	// ErrSaveSlotExists: a slot with that name already exists (409, web interface).
+	ErrSaveSlotExists = &Error{Code: CodeSaveSlotExists, Message: "A slot with this name already exists"}
 )
 
 func badRequest(format string, a ...any) *Error {

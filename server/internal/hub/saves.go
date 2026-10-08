@@ -68,7 +68,10 @@ const (
 	ResolveUseLocal = "use_local"
 )
 
-var slotRe = regexp.MustCompile(`^[a-z0-9_-]{1,32}$`)
+// MaxSlotName is the maximum length of a slot name.
+const MaxSlotName = 32
+
+var slotRe = regexp.MustCompile(fmt.Sprintf(`^[a-z0-9_-]{1,%d}$`, MaxSlotName))
 
 // ValidSlotName checks a slot name (pattern of the API: SaveSlotName).
 func ValidSlotName(s string) bool { return slotRe.MatchString(s) }
@@ -293,7 +296,8 @@ type historyEntry struct {
 
 func addHistory(ctx context.Context, q dbq, userID, gameID, slot string, e historyEntry) (int, error) {
 	var v int
-	if err := q.QueryRowContext(ctx, `SELECT COALESCE(MAX(version), 0) + 1 FROM save_history WHERE user_id = ? AND game_id = ? AND slot = ?`,
+	if err := q.QueryRowContext(ctx, `SELECT MAX(COALESCE((SELECT MAX(version) FROM save_history WHERE user_id = ?1 AND game_id = ?2 AND slot = ?3), 0),
+		COALESCE((SELECT history_high FROM save_slots WHERE user_id = ?1 AND game_id = ?2 AND slot = ?3), 0)) + 1`,
 		userID, gameID, slot).Scan(&v); err != nil {
 		return 0, err
 	}
@@ -366,11 +370,16 @@ func placeContent(tmpName, dst string) (placed bool, err error) {
 	if err := os.Rename(tmpName, dst); err != nil {
 		return false, err
 	}
-	if d, err := os.Open(filepath.Dir(dst)); err == nil { // best effort: persist the directory entry
+	syncDir(filepath.Dir(dst))
+	return true, nil
+}
+
+// syncDir persists a directory entry (best effort).
+func syncDir(dir string) {
+	if d, err := os.Open(dir); err == nil {
 		d.Sync()
 		d.Close()
 	}
-	return true, nil
 }
 
 // PutSaveInput is an upload (D3). UserID is the owner of the authenticated device.
@@ -754,6 +763,9 @@ func (s *Service) ResolveSaveConflict(ctx context.Context, in ResolveInput) (_ S
 
 // FeatureSavesV1 is the handshake feature flag for the save sync API.
 const FeatureSavesV1 = "saves_v1"
+
+// FeatureSavesV3 is the handshake feature flag for deleting manual snapshots.
+const FeatureSavesV3 = "saves_v3"
 
 // FeatureSavesV2 is the handshake feature flag for restore, snapshots, history labels and the save_updated push.
 const FeatureSavesV2 = "saves_v2"

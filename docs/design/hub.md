@@ -35,6 +35,7 @@ Lines 870-954. Phase 3; slots and snapshot markers: 0.4 features, UI in the 0.7 
   - "Backed-up upload · sync pending": "Local save", Desktop-LivingRoom, "today, 19:24", base "Rev 40", hash "6e02…d911".
   - Actions (38 high): "Use hub version", "Use local save as new current version" (outline), "Keep both, decide later" (primary dark).
 - "HISTORY · PERMANENT VERSIONS": timeline (column 24 with vertical line and node | text | actions). Node current = filled `#3cbfd8` with ring, old = hollow circle. Row: mono "v{n}", device 500, badge "◆ Snapshot" (`#ddf1f6`/`#0f5a6b`, manual snapshots), badge "✓ Current" (ok, current only), meta "{time} · {reason}"; actions "Download" (always), "Restore" (old only). Mock (all old): v6 Desktop-LivingRoom yesterday 22:30 "Session end"; v5 Laptop-Office yesterday 18:05 "Device switch"; v4 Desktop-LivingRoom 03.10. 21:12 "Manual snapshot" (badge). The full slot history with diamond markers, filter, thinned-out marker and restore confirmation is 3s.
+- Implemented in 0.7.x: "+ New slot" and deleting a snapshot, as described under 3s.
 - Open: empty state without conflict (3s shows the synced state), revision numbering "Rev 41" (checkpoint) vs "v6" (history) is separate by ADR 0005.
 
 ## 3s Hub Saves Slots
@@ -49,7 +50,8 @@ Lines 960-1018. New. Slots per game, snapshots in the history, restore with conf
   - Thinned-out marker (dashed vertical line, row text 12 `#6b6a66`): "⋯ 5 auto checkpoints from 03.–05.10. thinned out · last one per day kept".
   - Restore confirmation (inline card under the row, border `#a6d9e6`, radius 10, padding 14 16): title "Restore v13 as the current version of “Main”?" (14/600, `#0f5a6b`), text "v14 stays in the history. Players load the restored save on their next start. Not possible while a session of this game is running."; buttons "Cancel" (outline) and "Restore v13" (primary dark). The mock shows the confirmation open on v13. Restore creates a new version; nothing is overwritten.
 - Retention box (bottom, surface `#efeee9`, radius 10): eyebrow "RETENTION" and text "Snapshots and the current version are kept until you delete them. Auto checkpoints, session ends and device switches: all from the last 48 hours, then the last one per day for 30 days, then one per month. Thinned-out versions are deleted for good." The policy text is design text; the actual retention rules are open (README).
-- Open: deleting a snapshot, creating/renaming/deleting a slot, restore error states (session running), the Player-side counterpart (3g "Save snapshot", slot selector).
+- Implemented in 0.7.x: deleting a snapshot (row action "Delete" on snapshots with inline confirmation "Delete snapshot v{n} “{label}”?" / "The snapshot is removed for good. The current version and other versions are not affected."; only `manual_snapshot` versions, never the current checkpoint) and "+ New slot" (inline form with a name by the Hub slot name rule; the new slot starts from the current version of the selected slot: revision 1, checkpoint reason `restore`, device "Hub web interface", plus history v1 as manual snapshot labelled `From “<source slot>”`; Players get `save_updated`).
+- Open: renaming/deleting a slot, restore error states (session running), the Player-side counterpart (3g "Save snapshot", slot selector).
 
 ## 3l Hub Systems and Cores
 Lines 1024-1132. Rebuilt: system list with detail and tabs. Phase 5; rebuilt in the 0.7 Hub UI pass. Registry, compatibility, firmware.
