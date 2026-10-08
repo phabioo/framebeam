@@ -185,9 +185,9 @@ class LoopbackTest : public QObject {
     QVERIFY2(vs.connectionType.startsWith(QLatin1String("direct (")), qPrintable(vs.connectionType));
     QVERIFY2(rig.host.viewerLinks().first().connectionType.startsWith(QLatin1String("direct (")),
              qPrintable(rig.host.viewerLinks().first().connectionType));
-    // AIMD may already have stepped the target down on a slow runner: only require 300 (controller minimum) <= target <= 2000 (initial).
-    QVERIFY2(hs.targetBitrateKbps >= 300.0 && hs.targetBitrateKbps <= 2000.0,
-             qPrintable(QStringLiteral("target_kbps %1").arg(hs.targetBitrateKbps)));
+    // Starts at 2000 kbit/s; a lossy rx report from a loaded CI runner may already have lowered it by the adaptation
+    // (x0.7 per step, floor 300). The exact steps are covered by bitratecontroller_test.
+    QVERIFY2(hs.targetBitrateKbps >= 300.0 && hs.targetBitrateKbps <= 2000.0, qPrintable(QString::number(hs.targetBitrateKbps)));
     QVERIFY(vs.audioFrames > 0);
     QVERIFY(rig.host.viewerLinks().size() == 1);
 

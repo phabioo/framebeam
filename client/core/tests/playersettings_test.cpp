@@ -94,6 +94,19 @@ class PlayerSettingsTest : public QObject {
     QCOMPARE(PlayerSettings::parseAppearance(QStringLiteral("x"), A::Light), A::Light);
   }
 
+  void sessionVisibilityRoundTrip() {
+    QTemporaryDir dir;
+    {
+      PlayerSettings s(dir.path());
+      QVERIFY(s.sessionVisibility().isEmpty());
+      QVERIFY(!s.setSessionVisibility(QStringLiteral("public")));
+      QVERIFY(!s.setSessionVisibility(QString()));
+      QVERIFY(s.sessionVisibility().isEmpty());
+      QVERIFY(s.setSessionVisibility(QStringLiteral("invite_only")));
+    }
+    QCOMPARE(PlayerSettings(dir.path()).sessionVisibility(), QStringLiteral("invite_only"));
+  }
+
   void saveSlotPerHubAndGame() {
     QTemporaryDir dir;
     {

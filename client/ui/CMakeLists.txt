@@ -19,6 +19,11 @@ qt_add_qml_module(framebeam_ui
     gameview.h gameview.cpp
     librarymodel.h librarymodel.cpp
     playercontroller.h playercontroller.cpp
+    playphase.h
+    corecatalog.h corecatalog.cpp
+    gamedetail.h gamedetail.cpp
+    hubpresenter.h hubpresenter.cpp
+    gamestarter.h gamestarter.cpp
     sessioncontroller.h sessioncontroller.cpp
     remoteview.h remoteview.cpp
     updatescontroller.h updatescontroller.cpp

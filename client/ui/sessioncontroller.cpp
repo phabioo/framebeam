@@ -4,7 +4,6 @@
 #include <QDir>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QSaveFile>
 #include <algorithm>
 #include <limits>
 
@@ -23,7 +22,6 @@ SessionController::SessionController(HubConnection* conn, ProfileStore* profiles
     }
     emit viewChanged();
   });
-  loadSettings();
 
   connect(conn_, &HubConnection::stateChanged, this, &SessionController::onConnectionState);
   connect(&socket_, &HubSocket::stateChanged, this, [this]() { emit linkChanged(); });
@@ -81,23 +79,33 @@ SessionController::~SessionController() {
 
 // ---------------------------------------------------------------- settings
 
-void SessionController::loadSettings() {
-  QFile f(QDir(profiles_->baseDir()).filePath(QStringLiteral("player-settings.json")));
+void SessionController::setPlayerSettings(PlayerSettings* settings) {
+  settings_ = settings;
+  diagnostics_->setSettings(settings);
+  if (settings_ == nullptr) {
+    return;
+  }
+  if (!settings_->sessionVisibility().isEmpty()) {
+    visibility_ = settings_->sessionVisibility();
+    return;
+  }
+  // Migration: the value used to live in <data>/player-settings.json. The legacy file goes only after player.json holds it.
+  const QString legacyPath = QDir(profiles_->baseDir()).filePath(QStringLiteral("player-settings.json"));
+  QFile f(legacyPath);
   if (!f.open(QIODevice::ReadOnly)) {
     return;
   }
   const QString v = QJsonDocument::fromJson(f.readAll()).object().value(QStringLiteral("session_visibility")).toString();
-  if (v == QLatin1String("private") || v == QLatin1String("hub_users") || v == QLatin1String("invite_only")) {
+  f.close();
+  if (settings_->setSessionVisibility(v)) {
     visibility_ = v;
+    QFile::remove(legacyPath);
   }
 }
 
 void SessionController::saveSettings() const {
-  QDir().mkpath(profiles_->baseDir());
-  QSaveFile f(QDir(profiles_->baseDir()).filePath(QStringLiteral("player-settings.json")));
-  if (f.open(QIODevice::WriteOnly)) {
-    f.write(QJsonDocument(QJsonObject{{QStringLiteral("session_visibility"), visibility_}}).toJson(QJsonDocument::Indented));
-    f.commit();
+  if (settings_ != nullptr) {
+    settings_->setSessionVisibility(visibility_);
   }
 }
 

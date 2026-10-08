@@ -53,7 +53,7 @@ Library and emulation show understandable states for the respective ROM or core 
 | Download required | Required local file is missing; offer download or trigger it on launch |
 | Download running / failed | Progress or an understandable error with a retry option |
 | Hash mismatch | Local file does not match the expected SHA-256; do not use, fetch again |
-| Version mismatch | Core version does not match the intended version; matching version required |
+| Version mismatch | Core version does not match the intended version; matching version required (a different major version blocks the launch, other differences warn; ADR 0017 D1) |
 | Core unavailable / incompatible | No matching core for the Player platform; launch not possible |
 
 The status refers to the respective device and artifact. The Hub registry can display reported client compatibility; it does not imply core execution on the Hub. Full hashes and further technical details can live in a detail view.
