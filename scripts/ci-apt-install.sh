@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Installs apt packages on a CI runner with bounded time: each attempt
-# (update + install) is limited to 300 s, apt retries/timeouts are set, and
+# is limited (update 120 s, install 240 s, max 6 min), apt retries/timeouts are set, and
 # up to 3 attempts are made so a hanging mirror cannot block a job for long.
 # Usage: scripts/ci-apt-install.sh <packages...>
 set -euo pipefail
@@ -14,8 +14,8 @@ opts=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Time
 attempts=3
 
 attempt_once() {
-  timeout 300 sudo apt-get update -qq "${opts[@]}" &&
-    timeout 300 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${opts[@]}" "$@"
+  timeout 120 sudo apt-get update -qq "${opts[@]}" &&
+    timeout 240 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${opts[@]}" "$@"
 }
 
 for ((i = 1; i <= attempts; i++)); do
