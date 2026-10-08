@@ -97,6 +97,10 @@ QtObject {
     readonly property color toolbarBg: Qt.rgba(22 / 255, 23 / 255, 26 / 255, 0.92)
     // ---- end of the shared v4 block
 
+    // SettingsRow (tokens.md "Additions of the revision handoff"): hover surface and menu / ring border; light values derived.
+    readonly property color rowHover: dark ? "#17181b" : "#f3f2ee"
+    readonly property color borderGroup: dark ? "#34353a" : "#d9d7d1"
+
     // Radii (tokens.md): 4, 5 (segment), 6, 7 (input, button), 8 (card, primary button), 9, 10 (Hub card), 11 (toggle), 12 (dialog),
     // 16 (filter chip).
     readonly property int radius4: 4
@@ -127,6 +131,14 @@ QtObject {
     readonly property int columnWidth: 300       // second column of 3e / 3f / 3p
     readonly property int detailWidth: 392       // Library detail column
     readonly property int inputTestWidth: 340    // Controllers input test
+    // SettingsRow grid 14 | flex | 280 | 72 (player.md "SettingsRow"); Emulation and Settings share the content width, so
+    // the controls end on the same x on both pages.
+    readonly property int settingsDotSlot: 14
+    readonly property int settingsControlWidth: 280
+    readonly property int settingsResetWidth: 72
+    readonly property int settingsControlHeight: 32
+    readonly property int settingsContentMax: 840
+    readonly property int settingsNarrowBelow: 640   // below this row width the control moves under the text
 
     // Font size roles
     readonly property int fontHero: 30      // start / pairing title
