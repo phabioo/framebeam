@@ -4,6 +4,8 @@
 #include <QJsonArray>
 #include <QFile>
 #include <QTemporaryDir>
+#include <QThread>
+#include <QDateTime>
 #include <QtTest>
 
 #include "corecache.h"
@@ -108,6 +110,34 @@ class CoreCacheTest : public QObject {
     QCOMPARE(c.store(p, p.files.at(0), QByteArray(256, 'm')), CoreCache::StoreResult::HashMismatch);
     QVERIFY(!QFileInfo::exists(c.filePath(p.coreId, p.version, p.platform, p.files.at(0).name)));
     QVERIFY(c.versions(p.coreId, p.platform).isEmpty());
+  }
+
+  void sameTickRewriteDetected() {
+    // The memo is active (settle 0); the file is rewritten with the same size and its mtime is set back to the
+    // memoised value: only the change time betrays the rewrite.
+    QTemporaryDir dir;
+    CoreCache c(dir.path());
+    c.setMemoSettleMsForTest(0);
+    const QByteArray lib(512, 'l');
+    const CorePackageInfo p = makePackage(QStringLiteral("1.0.0"), lib, QByteArray(8, 'x'));
+    QCOMPARE(c.store(p, p.files.at(0), lib), CoreCache::StoreResult::Ok);
+    const QString path = c.filePath(p.coreId, p.version, p.platform, p.files.at(0).name);
+    QThread::msleep(30);
+    QVERIFY(c.fileValid(p, p.files.at(0)));  // memoised
+    const QDateTime mtime = QFileInfo(path).lastModified();
+    QThread::msleep(30);
+    {
+      QFile f(path);
+      QVERIFY(f.open(QIODevice::WriteOnly));
+      f.write(QByteArray(512, 'z'));
+    }
+    {
+      QFile f(path);
+      QVERIFY(f.open(QIODevice::ReadWrite));
+      QVERIFY(f.setFileTime(mtime, QFileDevice::FileModificationTime));
+    }
+    QCOMPARE(QFileInfo(path).lastModified().toMSecsSinceEpoch(), mtime.toMSecsSinceEpoch());
+    QVERIFY(!c.fileValid(p, p.files.at(0)));
   }
 
   void corruptedFileRejected() {
