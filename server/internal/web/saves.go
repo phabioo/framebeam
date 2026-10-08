@@ -88,8 +88,35 @@ type saveDetailView struct {
 	RefreshURL          string
 	NewSlotAsk          string // GET: the inline "New slot" form
 	NewSlot             *newSlotView
-	UploadHref          string // POST (multipart): upload a save file into this slot
-	CSRF                string // token for the no-JS multipart form
+	CSRF                string // token for the multipart upload form
+	Empty               bool   // the user has no save for this game yet: only the upload panel is shown
+	Up                  uploadView
+}
+
+// uploadView is the upload action of the CURRENT bar: the button, the inline panel and the last result.
+type uploadView struct {
+	Can       bool   // the viewer owns the slot (admins cannot upload into another user's slot)
+	Open      bool   // the panel is expanded
+	OpenHref  string // GET: the slot with the panel open (fragment with htmx, page without)
+	CloseHref string
+	Action    string // POST (multipart)
+	Version   int    // revision of the selected slot's current version (the note and the no-op text)
+	Slots     []uploadSlot
+	Result    *uploadResult
+}
+
+type uploadSlot struct {
+	Name     string
+	Rev      int
+	Selected bool
+}
+
+// uploadResult is the inline outcome of an upload. Kind is "ok", "same" or "error".
+type uploadResult struct {
+	Kind, Text, Sub string
+	UndoLabel       string
+	UndoHref        string // POST: restore the version the upload replaced
+	ExpectedRev     int
 }
 
 // newSlotView is the inline "New slot" form. Error is set when a submit was refused.
@@ -101,10 +128,6 @@ type newSlotView struct {
 
 type savesBody struct {
 	Users      []userOpt
-	Games      []userOpt // ID and title, for the "Upload save" form
-	UploadOpen bool
-	UploadGame string
-	UploadUser string
 	UserFilter string
 	Rows       []saveRow
 	Detail     *saveDetailView
@@ -118,7 +141,7 @@ var syncReasonLabels = map[string]string{
 	hub.SyncFinal:           "Final sync",
 	hub.SyncFinalSessionEnd: "Session end",
 	hub.SyncRestore:         "Restored",
-	hub.SyncUpload:          "Uploaded file",
+	hub.SyncUpload:          "Uploaded",
 }
 
 var historyReasonLabels = map[string]string{
@@ -196,7 +219,23 @@ type saveGroup struct {
 	slots      []hub.SaveSummary
 }
 
-func (s *Server) savesBody(r *http.Request, nf *newSlotView) (savesBody, error) {
+// uploadErrTexts are the inline texts of failed uploads (query key up=...).
+var uploadErrTexts = map[string]string{
+	"stale":     "The slot changed in the meantime. Reload the page and upload again.",
+	"toolarge":  "The save file is too large (maximum 64 MiB).",
+	"emptyfile": "Please select a save file that is not empty.",
+}
+
+// webDeviceLabel names the device of a change; changes made in the web interface carry the user.
+func webDeviceLabel(name, id string, names map[string]string) string {
+	if u, ok := strings.CutPrefix(id, "web:"); ok && names[u] != "" {
+		return name + " · " + names[u]
+	}
+	return name
+}
+
+// savesBody collects the page data. viewer is the signed-in user (only the owner of a slot can upload into it).
+func (s *Server) savesBody(r *http.Request, nf *newSlotView, viewer string) (savesBody, error) {
 	ctx := r.Context()
 	q := r.URL.Query()
 	filter, hist := q.Get("user"), q.Get("hist")
@@ -213,17 +252,9 @@ func (s *Server) savesBody(r *http.Request, nf *newSlotView) (savesBody, error) 
 	for _, u := range users {
 		b.Users = append(b.Users, userOpt{u.ID, u.DisplayName})
 	}
-	b.UploadGame, b.UploadUser = q.Get("upload"), filter
-	b.UploadOpen = b.UploadGame != "" || r.URL.Query().Get("err") == "toolarge"
-	if b.UploadUser == "" && len(users) > 0 {
-		b.UploadUser = users[0].ID
-	}
-	games, err := s.svc.ListGames(ctx)
-	if err != nil {
-		return savesBody{}, err
-	}
-	for _, g := range games {
-		b.Games = append(b.Games, userOpt{g.ID, g.Title})
+	names := map[string]string{}
+	for _, u := range users {
+		names[u.ID] = u.DisplayName
 	}
 	rows, err := s.svc.ListSaveSlots(ctx, filter)
 	if err != nil {
@@ -292,11 +323,19 @@ func (s *Server) savesBody(r *http.Request, nf *newSlotView) (savesBody, error) 
 		b.Rows = append(b.Rows, v)
 	}
 	if sel != nil {
-		d, err := s.saveDetail(r, sel, selName, filter, hist, confirm, del, nf, now)
+		d, err := s.saveDetail(r, sel, selName, filter, hist, confirm, del, nf, now, viewer, names)
 		if err != nil {
 			return savesBody{}, err
 		}
 		b.Detail = d
+	} else if selUser != "" && selUser == viewer && q.Get("upload") != "" && hub.ValidSlotName(selSlot) {
+		// No save of this game yet (opened from the Library): only the upload panel, which creates the slot.
+		if g, err := s.svc.GetGame(ctx, selGame); err == nil {
+			href := saveHref(selUser, selGame, selSlot)
+			b.Detail = &saveDetailView{Title: g.Title, User: names[selUser], Slot: selSlot, Empty: true, RefreshURL: href + "?upload=1",
+				Up: uploadView{Can: true, Open: true, Action: href + "/upload", Slots: []uploadSlot{{Name: selSlot, Selected: true}},
+					Result: uploadResultFor(q, hub.SaveCheckpoint{}, nil, "")}}
+		}
 	}
 	return b, nil
 }
@@ -315,11 +354,46 @@ func (s *Server) retentionText() string {
 	if weekly > 0 {
 		week = fmt.Sprintf("of each week for %d weeks", weekly)
 	}
-	return fmt.Sprintf("%sOther history versions (session ends, device changes, checkpoints before a resolution or restore): the newest %d are kept, "+
+	return fmt.Sprintf("%sOther history versions (session ends, device changes, uploads, checkpoints before a resolution, restore or upload): the newest %d are kept, "+
 		"plus the newest version %s and %s. Everything else is deleted for good, after each new version and in a daily sweep.", kept, recent, day, week)
 }
 
-func (s *Server) saveDetail(r *http.Request, grp *saveGroup, slotName, filter, hist string, confirm, del int, nf *newSlotView, now time.Time) (*saveDetailView, error) {
+// uploadFailed reports an upload error result in the query (the panel stays open, the file has to be chosen again).
+func uploadFailed(q url.Values) bool {
+	_, ok := uploadErrTexts[q.Get("up")]
+	return ok || q.Get("up") == "same"
+}
+
+// uploadResultFor builds the inline result from the query (up=ok|same|<error key>, name=file name). "ok" is only shown
+// while the current version really is an upload; the undo link restores the version that the upload replaced.
+func uploadResultFor(q url.Values, cur hub.SaveCheckpoint, hist []hub.SaveVersion, histHref string) *uploadResult {
+	switch key := q.Get("up"); {
+	case key == "ok" && cur.Reason == hub.SyncUpload:
+		res := &uploadResult{Kind: "ok", Text: fmt.Sprintf("✓ Uploaded as Rev %d.", cur.Revision)}
+		for _, v := range hist { // newest first
+			if v.Reason == hub.HistoryBeforeUpload && v.Revision == cur.Revision-1 {
+				res.Sub = fmt.Sprintf("Rev %d is in the history as “Before upload”. Players get Rev %d on their next start.", cur.Revision-1, cur.Revision)
+				res.UndoLabel = fmt.Sprintf("Undo: restore v%d", v.Version)
+				res.UndoHref = histHref + strconv.Itoa(v.Version) + "/restore"
+				return res
+			}
+		}
+		res.Sub = fmt.Sprintf("Players get Rev %d on their next start.", cur.Revision)
+		return res
+	case key == "same" && cur.Revision > 0:
+		name := q.Get("name")
+		if name == "" {
+			name = "The file"
+		}
+		return &uploadResult{Kind: "same", Text: "This file matches the current version. Nothing changed.",
+			Sub: fmt.Sprintf("%s has the same hash as Rev %d (%s). No new version was created.", name, cur.Revision, shortHash(cur.SHA256))}
+	case uploadErrTexts[key] != "":
+		return &uploadResult{Kind: "error", Text: uploadErrTexts[key]}
+	}
+	return nil
+}
+
+func (s *Server) saveDetail(r *http.Request, grp *saveGroup, slotName, filter, hist string, confirm, del int, nf *newSlotView, now time.Time, viewer string, names map[string]string) (*saveDetailView, error) {
 	ctx := r.Context()
 	first := grp.slots[0]
 	d := &saveDetailView{Title: first.GameTitle, User: first.Username, Slot: slotName, Snapshots: hist == "snapshots", Retention: s.retentionText()}
@@ -357,7 +431,12 @@ func (s *Server) saveDetail(r *http.Request, grp *saveGroup, slotName, filter, h
 	href := saveHref(grp.user, grp.game, slotName)
 	d.RefreshURL = savesURL(href, filter, hist, 0)
 	d.NewSlotAsk = withParam(savesURL(href, filter, "", 0), "newslot", "1")
-	d.UploadHref = href + "/upload"
+	q := r.URL.Query()
+	d.Up = uploadView{Can: grp.user == viewer, Open: q.Get("upload") != "" || uploadFailed(q), Action: href + "/upload",
+		OpenHref: withParam(savesURL(href, filter, hist, 0), "upload", "1"), CloseHref: savesURL(href, filter, hist, 0), Version: slot.Current.Revision}
+	for _, sl := range grp.slots {
+		d.Up.Slots = append(d.Up.Slots, uploadSlot{Name: sl.Slot, Rev: sl.Current.Revision, Selected: sl.Slot == slotName})
+	}
 	if nf != nil {
 		nf.Game, nf.From, nf.Max = d.Title, slotName, hub.MaxSlotName
 		nf.PostHref = href + "/slots"
@@ -368,7 +447,7 @@ func (s *Server) saveDetail(r *http.Request, grp *saveGroup, slotName, filter, h
 	d.AllHref, d.SnapHref = savesURL(href, filter, "", 0), savesURL(href, filter, "snapshots", 0)
 	cur := slot.Current
 	d.SnapshotHref, d.ExpectedRev = href+"/snapshots", cur.Revision
-	d.Current = saveCheckpointView{Rev: cur.Revision, Device: cur.DeviceName, When: stamp(cur.CreatedAt, now), Reason: syncReasonLabels[cur.Reason],
+	d.Current = saveCheckpointView{Rev: cur.Revision, Device: webDeviceLabel(cur.DeviceName, cur.DeviceID, names), When: stamp(cur.CreatedAt, now), Reason: syncReasonLabels[cur.Reason],
 		Size: humanBytes(cur.Size), ShortHash: shortHash(cur.SHA256), DownloadHref: href + "/download"}
 	for _, c := range slot.OpenConflicts {
 		d.Conflicts = append(d.Conflicts, saveConflictView{
@@ -388,7 +467,7 @@ func (s *Server) saveDetail(r *http.Request, grp *saveGroup, slotName, filter, h
 			meta += fmt.Sprintf(" · Rev %d", v.Revision)
 		}
 		vs := strconv.Itoa(v.Version)
-		hv := saveHistoryView{Version: v.Version, Device: v.DeviceName, Meta: meta,
+		hv := saveHistoryView{Version: v.Version, Device: webDeviceLabel(v.DeviceName, v.DeviceID, names), Meta: meta,
 			Current:      v.Reason != hub.HistoryConflictUpload && v.Revision == cur.Revision,
 			Snapshot:     v.Reason == hub.HistoryManualSnapshot,
 			DownloadHref: href + "/history/" + vs + "/download",
@@ -417,6 +496,19 @@ func (s *Server) saveDetail(r *http.Request, grp *saveGroup, slotName, filter, h
 		}
 		d.History = append(d.History, hv)
 	}
+	if d.Up.Can {
+		d.Up.Result = uploadResultFor(q, cur, selHist, href+"/history/")
+		if res := d.Up.Result; res != nil {
+			res.ExpectedRev = cur.Revision
+			d.RefreshURL = withParam(d.RefreshURL, "up", q.Get("up"))
+			if res.Kind == "same" {
+				d.RefreshURL = withParam(d.RefreshURL, "name", q.Get("name"))
+			}
+		}
+		if d.Up.Open {
+			d.RefreshURL = withParam(d.RefreshURL, "upload", "1")
+		}
+	}
 	d.HistoryEmpty = "No history versions yet."
 	if d.Snapshots {
 		d.HistoryEmpty = "No snapshots yet."
@@ -436,7 +528,7 @@ func (s *Server) savesGet(w http.ResponseWriter, r *http.Request, sess *session)
 	if r.URL.Query().Get("newslot") != "" {
 		nf = &newSlotView{}
 	}
-	body, err := s.savesBody(r, nf)
+	body, err := s.savesBody(r, nf, sess.User.ID)
 	if err != nil {
 		if errors.Is(err, hub.ErrNotFound) {
 			http.NotFound(w, r)
@@ -454,9 +546,6 @@ func (s *Server) savesGet(w http.ResponseWriter, r *http.Request, sess *session)
 		body.Detail.CSRF = sess.CSRFToken
 	}
 	d.Body = body
-	if r.URL.Query().Get("ok") == "uploaded" { // the key is shared with the library's ROM upload
-		d.Flash = "Save file uploaded. The previous version is in the history."
-	}
 	switch {
 	case isHX(r, "saves-list"):
 		d.Fragment = true
@@ -645,7 +734,7 @@ func (s *Server) saveNewSlot(w http.ResponseWriter, r *http.Request, sess *sessi
 		s.fail(w, r, err)
 		return
 	}
-	body, err := s.savesBody(r, &newSlotView{Value: name, Error: msg})
+	body, err := s.savesBody(r, &newSlotView{Value: name, Error: msg}, sess.User.ID)
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -718,7 +807,7 @@ func (s *Server) readSaveUpload(w http.ResponseWriter, r *http.Request, sess *se
 	return fields, nil, 0
 }
 
-// uploadErrKey maps an UploadSaveFile error to the key of an error text; "" = not an expected failure.
+// uploadErrKey maps an UploadSaveFile error to the result key (up=...); "" = not an expected failure.
 func uploadErrKey(err error) string {
 	var mbe *http.MaxBytesError
 	switch {
@@ -732,101 +821,84 @@ func uploadErrKey(err error) string {
 	return ""
 }
 
-// saveUpload replaces the current version of the slot in the path with an uploaded file (the old one goes to the history).
+// saveUpload makes an uploaded file the new current version of a slot of the signed-in user (the old one goes to the
+// history as "Before upload"). Only the owner can upload; the slot field selects another slot of the same game
+// (the revision of every offered slot is in the form as rev.<slot>). The result is shown inline: htmx gets the
+// slot detail back, a plain form post is redirected to the slot with up=<result> in the query.
 func (s *Server) saveUpload(w http.ResponseWriter, r *http.Request, sess *session) {
-	u, g, sl := r.PathValue("user"), r.PathValue("game"), r.PathValue("slot")
-	if !hub.ValidSlotName(sl) {
+	u, g, slot := r.PathValue("user"), r.PathValue("game"), r.PathValue("slot")
+	if !hub.ValidSlotName(slot) {
 		http.NotFound(w, r)
+		return
+	}
+	if u != sess.User.ID { // admins cannot upload into another user's slot
+		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
 	fields, file, code := s.readSaveUpload(w, r, sess)
 	if code != 0 {
 		return
 	}
-	exp, err := strconv.Atoi(fields["expected_revision"])
-	if err != nil || exp < 1 {
+	if file != nil {
+		defer file.Close()
+	}
+	if sel := fields["slot"]; sel != "" && sel != slot {
+		if _, err := s.svc.GetSaveSlot(r.Context(), u, g, sel); err != nil { // only existing slots of the user are offered
+			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
+		slot = sel
+	}
+	exp, err := strconv.Atoi(fields["rev."+slot])
+	if err != nil || exp < 0 {
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
-	back := saveHref(u, g, sl)
-	if fields["_toolarge"] != "" {
-		s.redirect(w, r, back+"?err=toolarge")
-		return
-	}
-	if file == nil {
-		s.redirect(w, r, back+"?err=emptyfile")
-		return
-	}
-	defer file.Close()
-	_, err = s.svc.UploadSaveFile(r.Context(), hub.UploadSaveInput{UserID: u, DeviceID: hub.WebDeviceID(sess.User.ID), GameID: g, Slot: sl,
-		ExpectedRevision: &exp, Body: file})
-	switch key := uploadErrKey(err); {
-	case err == nil:
-		s.redirect(w, r, back+"?ok=uploaded")
-	case errors.Is(err, hub.ErrNotFound):
-		http.NotFound(w, r)
-	case key != "":
-		s.redirect(w, r, back+"?err="+key)
-	default:
-		s.fail(w, r, err)
-	}
-}
-
-// saveUploadNew uploads a save file for a chosen user, game and slot (creates the slot or replaces its current version,
-// the old one stays in the history) and shows the slot afterwards.
-func (s *Server) saveUploadNew(w http.ResponseWriter, r *http.Request, sess *session) {
-	fields, file, code := s.readSaveUpload(w, r, sess)
-	if code != 0 {
-		return
-	}
-	u, g, sl := fields["user"], fields["game"], strings.TrimSpace(fields["slot"])
-	if sl == "" {
-		sl = "default"
-	}
-	back := func(key string) {
-		q := url.Values{"err": {key}}
-		if g != "" {
-			q.Set("upload", g)
-		} else {
-			q.Set("upload", "1")
-		}
-		s.redirect(w, r, "/saves?"+q.Encode())
-	}
-	if _, err := s.svc.GetUser(r.Context(), u); err != nil {
-		if errors.Is(err, hub.ErrNotFound) {
-			back("nouser")
-		} else {
-			s.fail(w, r, err)
-		}
-		return
-	}
-	if _, err := s.svc.GetGame(r.Context(), g); err != nil {
-		if errors.Is(err, hub.ErrNotFound) {
-			back("nogame")
-		} else {
-			s.fail(w, r, err)
-		}
-		return
-	}
+	q := url.Values{}
 	switch {
-	case !hub.ValidSlotName(sl):
-		back("slotname")
-		return
 	case fields["_toolarge"] != "":
-		back("toolarge")
-		return
+		q.Set("up", "toolarge")
 	case file == nil:
-		back("emptyfile")
+		q.Set("up", "emptyfile")
+	default:
+		out, err := s.svc.UploadSaveFile(r.Context(), hub.UploadSaveInput{UserID: u, DeviceID: hub.WebDeviceID(sess.User.ID), GameID: g, Slot: slot,
+			ExpectedRevision: &exp, Body: file})
+		switch key := uploadErrKey(err); {
+		case err == nil && out.Current.Revision == exp: // identical content changes nothing
+			q.Set("up", "same")
+			q.Set("name", file.FileName())
+		case err == nil:
+			q.Set("up", "ok")
+		case errors.Is(err, hub.ErrNotFound):
+			http.NotFound(w, r)
+			return
+		case key != "":
+			q.Set("up", key)
+		default:
+			s.fail(w, r, err)
+			return
+		}
+	}
+	to := saveHref(u, g, slot) + "?" + q.Encode()
+	if r.Header.Get("HX-Request") != "true" {
+		s.redirect(w, r, to)
 		return
 	}
-	defer file.Close()
-	_, err := s.svc.UploadSaveFile(r.Context(), hub.UploadSaveInput{UserID: u, DeviceID: hub.WebDeviceID(sess.User.ID), GameID: g, Slot: sl, Body: file})
-	switch key := uploadErrKey(err); {
-	case err == nil:
-		s.redirect(w, r, saveHref(u, g, sl)+"?ok=uploaded")
-	case key != "":
-		back(key)
-	default:
+	// htmx: render the slot detail with the result (the same page the redirect would show), no reload.
+	r.URL.Path, r.URL.RawQuery = saveHref(u, g, slot), q.Encode()
+	r.SetPathValue("slot", slot)
+	body, err := s.savesBody(r, nil, sess.User.ID)
+	if err != nil {
 		s.fail(w, r, err)
+		return
 	}
+	if body.Detail == nil {
+		http.NotFound(w, r)
+		return
+	}
+	body.Detail.CSRF, body.OOB = sess.CSRFToken, true
+	d := s.base(r, sess, "saves", "Saves")
+	d.Fragment, d.Body = true, body
+	w.Header().Set("HX-Push-Url", to)
+	s.render(w, http.StatusOK, "saves", "saves-detail-fragment", d)
 }
