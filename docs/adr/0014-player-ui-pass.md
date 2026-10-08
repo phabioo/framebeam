@@ -1,6 +1,6 @@
 # ADR 0014: Player UI pass (0.6)
 
-- Status: proposed (decided with the merge of the 0.6 PR)
+- Status: accepted (diagnostics design 3t-3y accepted by Fabio on 2026-10-08)
 - Date: 2026-10-07
 - Decided by: Fabio (proposal by the orchestrator; open design points answered with defaults, accepted with the merge)
 

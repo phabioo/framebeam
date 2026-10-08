@@ -27,7 +27,7 @@ How the Hub and the Windows Player update themselves, and how a stable release i
 
 GitHub Actions > "Promote to stable" > Run workflow (`.github/workflows/promote.yml`). Optional inputs: `beta_version` (default: newest beta) and `next_version` (default: next minor).
 
-The workflow tags `vX.Y.Z` on the commit of that beta build, dispatches CI for the tag (stable build, release, signed index) and opens a PR bumping `VERSION` to the next version; if Actions may not create PRs it warns with a compare link. Merge that PR, otherwise beta builds sort below the release. Pushing the tag `vX.Y.Z` manually (it must equal `VERSION`) still works.
+The workflow tags `vX.Y.Z` on the commit of that beta build, dispatches CI for the tag (stable build, release, signed index) and opens a PR bumping `VERSION` to the next version, dispatches CI on its branch (PRs made with the workflow token start no CI) and enables auto-merge, so it merges once the required checks pass; if Actions may not create PRs it warns with a compare link. The auto-merge itself triggers no beta build; the next merge does. Make sure that PR gets merged, otherwise beta builds sort below the release. Pushing the tag `vX.Y.Z` manually (it must equal `VERSION`) still works.
 
 ## Rollback
 
