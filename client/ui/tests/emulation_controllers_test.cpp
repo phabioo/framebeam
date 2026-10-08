@@ -553,6 +553,9 @@ class EmulationControllersTest : public QObject {
     ControllersController* c = h.controller->controllers();
     GameSession* s = h.controller->gameSession();
     h.controller->showControllers();
+    h.window->resize(940, 800);  // narrow main column (408 px, input test hidden), like Windows with wide fallback fonts
+    QTest::qWait(100);
+    QQuickTest::qWaitForPolish(h.window);
     QVERIFY(!visible(h, "hotkeysInfo"));
     QVERIFY(h.click("tabHotkeys"));
     QVERIFY(visible(h, "hotkeysInfo"));
@@ -603,6 +606,23 @@ class EmulationControllersTest : public QObject {
     QCOMPARE(c->hotkeyAction(Qt::Key_Z), QStringLiteral("snapshot"));
     QCOMPARE(c->hotkeyRows().at(2).toMap().value(QStringLiteral("conflictInput")).toString(), QStringLiteral("B"));
     QVERIFY(visible(h, "hotkeyConflict_snapshot"));
+    QQuickTest::qWaitForPolish(h.window);
+    {
+      // Nothing of the Hotkeys table lies outside the main column (the flickable).
+      QQuickItem* flick = h.item("hotkeysInfo");
+      while (flick && !flick->inherits("QQuickFlickable")) flick = flick->parentItem();
+      QVERIFY(flick != nullptr);
+      const QRectF column = flick->mapRectToScene(QRectF(0, 0, flick->width(), flick->height()));
+      QVERIFY2(h.item("hotkeysInfo")->width() <= column.width() - 56 + 0.5, "hotkeysInfo wider than the content column");
+      for (const char* name : {"hotkeyField_fullscreen", "hotkeyField_snapshot", "hotkeyField_escape", "hotkeyReset_fullscreen",
+                               "hotkeyReset_snapshot", "hotkeyConflict_snapshot", "hotkeyText_snapshot"}) {
+        QQuickItem* it = h.item(name);
+        QVERIFY2(it != nullptr && it->isVisible(), name);
+        const QRectF r = it->mapRectToScene(QRectF(0, 0, it->width(), it->height()));
+        QVERIFY2(r.left() >= column.left() - 0.5 && r.right() <= column.right() + 0.5,
+                 qPrintable(QStringLiteral("%1 outside the column: %2..%3 vs %4..%5").arg(QLatin1String(name)).arg(r.left()).arg(r.right()).arg(column.left()).arg(column.right())));
+      }
+    }
     QVERIFY(!c->keyboardMap().contains(Qt::Key_Z));
     QVERIFY(!s->keyEvent(Qt::Key_Z, true));
     QCOMPARE(s->joypadMask(), 0u);

@@ -18,6 +18,7 @@ Rectangle {
     readonly property int mapMinWidth: compact ? 72 : 100
     readonly property int targetWidth: compact ? 56 : 80
     readonly property int actionWidth: compact ? 48 : 60
+    readonly property int hotkeyGapWidth: compact ? 0 : root.targetWidth  // empty third column of the Hotkeys table
     color: Theme.bg
 
     onVisibleChanged: if (visible) keyScope.forceActiveFocus()
@@ -220,6 +221,8 @@ Rectangle {
                         visible: root.isMouse && !root.hotkeysTab
                         objectName: "mouseNote"
                         Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
                         text: qsTr("The mouse is the %1 input: move it over the touch screen, left mouse button = touch. This mapping is fixed and has no profile.").arg(root.ctl.touchLabel)
                         color: Theme.textMuted
                         wrapMode: Text.WordWrap
@@ -249,11 +252,15 @@ Rectangle {
                     ColumnLayout {
                         visible: root.hotkeysTab
                         Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
                         spacing: 0
 
                         FbLabel {
                             objectName: "hotkeysInfo"
                             Layout.fillWidth: true
+                            Layout.preferredWidth: 1
+                            Layout.minimumWidth: 0
                             Layout.bottomMargin: Theme.space12
                             text: qsTr("Player hotkeys work on the keyboard and are never sent to the game.")
                             color: Theme.textMuted
@@ -266,8 +273,8 @@ Rectangle {
                             spacing: Theme.space16
                             Eyebrow { Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; text: qsTr("Action") }
                             Eyebrow { Layout.fillWidth: true; Layout.preferredWidth: root.mapWidth; Layout.minimumWidth: root.mapMinWidth; Layout.maximumWidth: root.mapWidth; text: qsTr("Key") }
-                            Item { Layout.preferredWidth: root.targetWidth }
-                            Item { Layout.preferredWidth: root.actionWidth }
+                            Item { Layout.preferredWidth: root.hotkeyGapWidth; Layout.minimumWidth: root.hotkeyGapWidth; Layout.maximumWidth: root.hotkeyGapWidth }
+                            Item { Layout.preferredWidth: root.actionWidth; Layout.minimumWidth: root.actionWidth; Layout.maximumWidth: root.actionWidth }
                         }
                         Rectangle { Layout.fillWidth: true; height: 1; color: Theme.borderRow }
 
@@ -298,12 +305,16 @@ Rectangle {
                                         }
                                         ColumnLayout {
                                             Layout.fillWidth: true
+                                            Layout.preferredWidth: 1  // long text must not widen the row; it elides
+                                            Layout.minimumWidth: 0
                                             spacing: 2
-                                            FbLabel { Layout.fillWidth: true; text: hrow.modelData.label; elide: Text.ElideRight }
+                                            FbLabel { Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; text: hrow.modelData.label; elide: Text.ElideRight }
                                             FbLabel {
                                                 objectName: "hotkeyConflict_" + hrow.modelData.action
                                                 visible: hrow.modelData.conflictInput !== ""
                                                 Layout.fillWidth: true
+                                                Layout.preferredWidth: 1
+                                                Layout.minimumWidth: 0
                                                 text: qsTr("Also mapped to %1 in the keyboard profile · the hotkey wins").arg(hrow.modelData.conflictInput)
                                                 color: Theme.textMuted
                                                 font.pixelSize: Theme.fontMeta
@@ -331,6 +342,8 @@ Rectangle {
                                             FbLabel {
                                                 objectName: "hotkeyText_" + hrow.modelData.action
                                                 Layout.fillWidth: true
+                                                Layout.preferredWidth: 1
+                                                Layout.minimumWidth: 0
                                                 text: hrow.modelData.listening ? qsTr("Press a key…") : hrow.modelData.key
                                                 color: hrow.modelData.listening ? Theme.accent
                                                        : (hrow.modelData.set ? Theme.text : Theme.textFaint)
@@ -350,7 +363,7 @@ Rectangle {
                                             onTapped: hrow.modelData.listening ? root.ctl.cancelHotkeyCapture() : root.ctl.beginHotkeyCapture(hrow.modelData.action)
                                         }
                                     }
-                                    Item { Layout.preferredWidth: root.targetWidth; Layout.minimumWidth: root.targetWidth; Layout.maximumWidth: root.targetWidth }
+                                    Item { Layout.preferredWidth: root.hotkeyGapWidth; Layout.minimumWidth: root.hotkeyGapWidth; Layout.maximumWidth: root.hotkeyGapWidth }
                                     RowLayout {
                                         Layout.preferredWidth: root.actionWidth
                                         Layout.minimumWidth: root.actionWidth
@@ -358,6 +371,7 @@ Rectangle {
                                         Layout.alignment: Qt.AlignTop
                                         FbButton {
                                             objectName: "hotkeyReset_" + hrow.modelData.action
+                                            Layout.maximumWidth: root.actionWidth
                                             visible: hrow.modelData.changed
                                             kind: "link"
                                             font.underline: true
@@ -387,6 +401,8 @@ Rectangle {
                             objectName: "hotkeyNote"
                             visible: root.ctl.hotkeyNote !== ""
                             Layout.fillWidth: true
+                            Layout.preferredWidth: 1
+                            Layout.minimumWidth: 0
                             Layout.topMargin: Theme.space8
                             text: root.ctl.hotkeyNote
                             color: Theme.warn
