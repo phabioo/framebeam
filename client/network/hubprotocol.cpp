@@ -82,6 +82,10 @@ std::optional<HandshakeResult> parseHandshakeResult(const QJsonObject& obj) {
       r.features.append(v.toString());
     }
   }
+  const QJsonObject user = obj.value(QStringLiteral("user")).toObject();
+  r.userId = user.value(QStringLiteral("id")).toString();
+  r.userDisplayName = user.value(QStringLiteral("display_name")).toString().trimmed();
+  r.userRole = user.value(QStringLiteral("role")).toString();
   return r;
 }
 

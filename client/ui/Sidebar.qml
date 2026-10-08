@@ -143,8 +143,9 @@ Rectangle {
                 border.width: 1
                 border.color: Theme.borderInput
                 Text {
+                    objectName: "userAvatarInitial"
                     anchors.centerIn: parent
-                    text: (root.player.deviceName || "?").charAt(0).toUpperCase()
+                    text: (root.player.userName || root.player.deviceName || "?").charAt(0).toUpperCase()
                     font.pixelSize: Theme.fontMeta
                     font.weight: Font.DemiBold
                     color: Theme.textSecondary
@@ -153,15 +154,29 @@ Rectangle {
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 0
+                // With a Hub user name: name on top, device name below. Older Hubs: device name + "This device".
                 FbLabel {
-                    objectName: "userDevice"
+                    id: userNameLabel
+                    objectName: "userName"
+                    visible: root.player.userName !== ""
                     Layout.fillWidth: true
-                    text: root.player.deviceName
+                    Layout.preferredHeight: visible ? implicitHeight : 0
+                    text: root.player.userName
                     font.pixelSize: Theme.fontSmall
                     font.weight: Font.Medium
                     elide: Text.ElideRight
                 }
                 FbLabel {
+                    objectName: "userDevice"
+                    Layout.fillWidth: true
+                    text: root.player.deviceName
+                    font.pixelSize: userNameLabel.visible ? Theme.fontMeta : Theme.fontSmall
+                    font.weight: userNameLabel.visible ? Font.Normal : Font.Medium
+                    color: userNameLabel.visible ? Theme.textMeta : Theme.text
+                    elide: Text.ElideRight
+                }
+                FbLabel {
+                    visible: !userNameLabel.visible
                     Layout.fillWidth: true
                     text: qsTr("This device")
                     font.pixelSize: Theme.fontMeta
