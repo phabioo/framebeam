@@ -294,3 +294,128 @@ func TestRestoreFromWebRecordsWebDevice(t *testing.T) {
 		t.Fatalf("%+v %v", sl.Current, err)
 	}
 }
+
+func (e *savesEnv) fileExistsIn(slot string, data []byte) bool {
+	_, err := os.Stat(filepath.Join(e.svc.DataDir(), "saves", e.user.ID, e.game.ID, slot, hexSHA(data)))
+	return err == nil
+}
+
+func TestDeleteSaveSnapshot(t *testing.T) {
+	e, _ := newComfortEnv(t, nil)
+	e.put(e.devA, 0, []byte("one"), hub.SyncFinalSessionEnd) // Rev 1, v1 session_end
+	e.put(e.devB, 1, []byte("two"), hub.SyncFinalSessionEnd) // Rev 2, v2 device_change/session_end of Rev 1 is already v1
+	u, g := e.user.ID, e.game.ID
+	lbl := "boss"
+	snap, err := e.svc.CreateSaveSnapshot(ctx, u, g, "default", &lbl) // snapshot of "two" (still the checkpoint)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Not a snapshot -> save_not_snapshot; missing slot / version -> not found.
+	for _, v := range e.history() {
+		if v.Reason != hub.HistoryManualSnapshot {
+			if err := e.svc.DeleteSaveSnapshot(ctx, u, g, "default", v.Version); !errors.Is(err, hub.ErrSaveNotSnapshot) {
+				t.Fatalf("v%d: %v", v.Version, err)
+			}
+		}
+	}
+	if err := e.svc.DeleteSaveSnapshot(ctx, u, g, "default", 99); !errors.Is(err, hub.ErrNotFound) {
+		t.Fatal(err)
+	}
+	if err := e.svc.DeleteSaveSnapshot(ctx, u, g, "nothere", 1); !errors.Is(err, hub.ErrNotFound) {
+		t.Fatal(err)
+	}
+	if err := e.svc.DeleteSaveSnapshot(ctx, u, g, "Bad Slot", 1); !errors.Is(err, hub.ErrNotFound) {
+		t.Fatal(err)
+	}
+	if err := e.svc.DeleteSaveSnapshot(ctx, "other-user", g, "default", snap.Version); !errors.Is(err, hub.ErrNotFound) {
+		t.Fatal(err)
+	}
+	n := len(e.history())
+	// The snapshot shares its content with the checkpoint: the file stays.
+	if err := e.svc.DeleteSaveSnapshot(ctx, u, g, "default", snap.Version); err != nil {
+		t.Fatal(err)
+	}
+	if len(e.history()) != n-1 || !e.fileExists([]byte("two")) {
+		t.Fatalf("history %d, file %v", len(e.history()), e.fileExists([]byte("two")))
+	}
+	if sl, _ := e.svc.GetSaveSlot(ctx, u, g, "default"); sl.Current.Revision != 2 || string(e.content()) != "two" {
+		t.Fatalf("%+v", sl.Current)
+	}
+	if err := e.svc.DeleteSaveSnapshot(ctx, u, g, "default", snap.Version); !errors.Is(err, hub.ErrNotFound) {
+		t.Fatal(err)
+	}
+}
+
+func TestDeleteSaveSnapshotDropsUnreferencedFile(t *testing.T) {
+	e, _ := newComfortEnv(t, nil)
+	e.put(e.devA, 0, []byte("one"), hub.SyncCheckpoint) // Rev 1
+	u, g := e.user.ID, e.game.ID
+	snap, err := e.svc.CreateSaveSnapshot(ctx, u, g, "default", nil) // v1 of "one"
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.put(e.devA, 1, []byte("two"), hub.SyncCheckpoint) // Rev 2: "one" only in the snapshot now
+	if !e.fileExists([]byte("one")) {
+		t.Fatal("snapshot content missing")
+	}
+	if err := e.svc.DeleteSaveSnapshot(ctx, u, g, "default", snap.Version); err != nil {
+		t.Fatal(err)
+	}
+	if e.fileExists([]byte("one")) || !e.fileExists([]byte("two")) {
+		t.Fatalf("one=%v two=%v", e.fileExists([]byte("one")), e.fileExists([]byte("two")))
+	}
+}
+
+func TestCreateSaveSlot(t *testing.T) {
+	e, _ := newComfortEnv(t, nil)
+	e.put(e.devA, 0, []byte("one"), hub.SyncCheckpoint)
+	u, g, web := e.user.ID, e.game.ID, hub.WebDeviceID(e.user.ID)
+	sl, err := e.svc.CreateSaveSlot(ctx, u, g, "default", "speedrun", web)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := sl.Current
+	if sl.Slot != "speedrun" || c.Revision != 1 || c.Reason != hub.SyncRestore || c.DeviceID != web || c.SHA256 != hexSHA([]byte("one")) || c.Size != 3 {
+		t.Fatalf("%+v", sl)
+	}
+	h, err := e.svc.ListSaveHistory(ctx, u, g, "speedrun")
+	if err != nil || len(h) != 1 {
+		t.Fatalf("%+v %v", h, err)
+	}
+	if v := h[0]; v.Version != 1 || v.Revision != 1 || v.Reason != hub.HistoryManualSnapshot || v.Label == nil || *v.Label != "From “default”" {
+		t.Fatalf("%+v", v)
+	}
+	if !e.fileExistsIn("speedrun", []byte("one")) {
+		t.Fatal("content not copied")
+	}
+	f, _, err := e.svc.OpenSaveContent(ctx, u, g, "speedrun")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+	// The source is untouched and independent: deleting the new slot's snapshot keeps both checkpoints.
+	if src, _ := e.svc.GetSaveSlot(ctx, u, g, "default"); src.Current.Revision != 1 {
+		t.Fatalf("%+v", src.Current)
+	}
+	if err := e.svc.DeleteSaveSnapshot(ctx, u, g, "speedrun", 1); err != nil || !e.fileExistsIn("speedrun", []byte("one")) {
+		t.Fatalf("%v", err)
+	}
+
+	if _, err := e.svc.CreateSaveSlot(ctx, u, g, "default", "speedrun", web); !errors.Is(err, hub.ErrSaveSlotExists) {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.CreateSaveSlot(ctx, u, g, "default", "default", web); !errors.Is(err, hub.ErrSaveSlotExists) {
+		t.Fatal(err)
+	}
+	for _, bad := range []string{"", "Speed Run", "UPPER", strings.Repeat("x", 33), "a/b"} {
+		if _, err := e.svc.CreateSaveSlot(ctx, u, g, "default", bad, web); !errors.Is(err, hub.ErrBadRequest) {
+			t.Fatalf("%q: %v", bad, err)
+		}
+	}
+	if _, err := e.svc.CreateSaveSlot(ctx, u, g, "nothere", "other", web); !errors.Is(err, hub.ErrNotFound) {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.CreateSaveSlot(ctx, "other-user", g, "default", "other", web); !errors.Is(err, hub.ErrNotFound) {
+		t.Fatal(err)
+	}
+}

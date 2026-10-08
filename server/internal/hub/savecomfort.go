@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -128,6 +130,151 @@ func (s *Service) CreateSaveSnapshot(ctx context.Context, userID, gameID, slot s
 	}
 	s.thinSlot(ctx, userID, gameID, slot)
 	return v, nil
+}
+
+// DeleteSaveSnapshot deletes a manual snapshot from the history (feature saves_v3). Other history versions are
+// not deletable (ErrSaveNotSnapshot); a missing slot or version returns ErrNotFound. The checkpoint is never
+// touched and nothing is pushed. The content file goes only if no checkpoint, version or conflict still uses it.
+func (s *Service) DeleteSaveSnapshot(ctx context.Context, userID, gameID, slot string, version int) (err error) {
+	defer s.publishOK(&err, TopicSaves)
+	if !ValidSlotName(slot) || version < 1 {
+		return ErrNotFound
+	}
+	s.saveMu.Lock()
+	defer s.saveMu.Unlock()
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return internal(err)
+	}
+	defer tx.Rollback()
+	var sha, reason string
+	err = tx.QueryRowContext(ctx, `SELECT sha256, reason FROM save_history WHERE user_id = ? AND game_id = ? AND slot = ? AND version = ?`,
+		userID, gameID, slot, version).Scan(&sha, &reason)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return internal(err)
+	}
+	if reason != HistoryManualSnapshot {
+		return ErrSaveNotSnapshot
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM save_history WHERE user_id = ? AND game_id = ? AND slot = ? AND version = ?`,
+		userID, gameID, slot, version); err != nil {
+		return internal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		return internal(err)
+	}
+	s.dropIfUnreferenced(ctx, userID, gameID, slot, sha)
+	return nil
+}
+
+// CreateSaveSlot creates the slot newSlot of a game from the current checkpoint of fromSlot. The new slot starts at
+// revision 1 (reason restore, device deviceID) and gets the history version v1 (manual_snapshot, label From “<fromSlot>”)
+// so that the origin stays visible and is kept. ErrNotFound without a source checkpoint, ErrBadRequest for an invalid
+// name, ErrSaveSlotExists if the name is taken. Connected devices of the user get save_updated.
+func (s *Service) CreateSaveSlot(ctx context.Context, userID, gameID, fromSlot, newSlot, deviceID string) (_ SaveSlot, err error) {
+	defer s.publishOK(&err, TopicSaves)
+	if !ValidSlotName(fromSlot) {
+		return SaveSlot{}, ErrNotFound
+	}
+	if !ValidSlotName(newSlot) {
+		return SaveSlot{}, badRequest("Invalid slot name")
+	}
+	s.saveMu.Lock()
+	defer s.saveMu.Unlock()
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return SaveSlot{}, internal(err)
+	}
+	defer tx.Rollback()
+	src, err := loadCheckpoint(ctx, tx, userID, gameID, fromSlot)
+	if err != nil {
+		return SaveSlot{}, err
+	}
+	var n int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM save_slots WHERE user_id = ? AND game_id = ? AND slot = ?`,
+		userID, gameID, newSlot).Scan(&n); err != nil {
+		return SaveSlot{}, internal(err)
+	}
+	if n > 0 {
+		return SaveSlot{}, ErrSaveSlotExists
+	}
+	dst := s.saveFile(userID, gameID, newSlot, src.SHA256)
+	placed, err := copyContent(s.saveFile(userID, gameID, fromSlot, src.SHA256), dst)
+	if err != nil {
+		return SaveSlot{}, internal(err)
+	}
+	committed := false
+	defer func() {
+		if !committed && placed {
+			os.Remove(dst)
+		}
+	}()
+	now := s.now().Unix()
+	if _, err := tx.ExecContext(ctx, `INSERT INTO save_slots(user_id, game_id, slot, revision, sha256, size, device_id, reason, created_at)
+		VALUES (?,?,?,?,?,?,?,?,?)`, userID, gameID, newSlot, 1, src.SHA256, src.Size, deviceID, SyncRestore, now); err != nil {
+		return SaveSlot{}, internal(err)
+	}
+	label := fmt.Sprintf("From “%s”", fromSlot)
+	if r := []rune(label); len(r) > MaxSnapshotLabel {
+		label = string(r[:MaxSnapshotLabel])
+	}
+	if _, err := addHistory(ctx, tx, userID, gameID, newSlot, historyEntry{revision: 1, sha: src.SHA256, size: src.Size,
+		deviceID: deviceID, syncReason: SyncRestore, reason: HistoryManualSnapshot, createdAt: now, label: &label}); err != nil {
+		return SaveSlot{}, internal(err)
+	}
+	out, err := loadSlot(ctx, tx, userID, gameID, newSlot)
+	if err != nil {
+		return SaveSlot{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return SaveSlot{}, internal(err)
+	}
+	committed = true
+	s.notifySaveUpdated(userID, deviceID, gameID, newSlot, out.Current, "")
+	return out, nil
+}
+
+// copyContent places a copy of src at dst (hard link, else a byte copy). placed is false if dst already exists.
+func copyContent(src, dst string) (placed bool, err error) {
+	if _, err := os.Stat(dst); err == nil {
+		return false, nil
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o750); err != nil {
+		return false, err
+	}
+	if os.Link(src, dst) == nil {
+		return true, nil
+	}
+	in, err := os.Open(src)
+	if err != nil {
+		return false, err
+	}
+	defer in.Close()
+	tmp, err := os.CreateTemp(filepath.Dir(dst), ".copy-*")
+	if err != nil {
+		return false, err
+	}
+	_, err = io.Copy(tmp, in)
+	if err == nil {
+		err = tmp.Sync()
+	}
+	if cerr := tmp.Close(); err == nil {
+		err = cerr
+	}
+	if err == nil {
+		err = os.Chmod(tmp.Name(), 0o640)
+	}
+	if err == nil {
+		err = os.Rename(tmp.Name(), dst)
+	}
+	if err != nil {
+		os.Remove(tmp.Name())
+		return false, err
+	}
+	return true, nil
 }
 
 // ---- retention ----

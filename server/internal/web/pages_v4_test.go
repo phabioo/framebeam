@@ -2,8 +2,10 @@ package web
 
 import (
 	"bytes"
+	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -40,13 +42,14 @@ func TestSavesSlotsFragmentsAndRestoreConfirmation(t *testing.T) {
 	base := "/saves/" + adminID + "/" + g.ID + "/default"
 	trial := "/saves/" + adminID + "/" + g.ID + "/trial"
 
-	// Full page: one list entry per game with the slot count, slot tabs, retention box with the real rules, no "+ New slot".
+	// Full page: one list entry per game with the slot count, slot tabs, retention box with the real rules, "+ New slot" on the tabs.
 	rec := c.get(base, nil)
 	status(t, rec, 200)
 	contains(t, rec, "Synced · today", "2 slots", "✓ Synced", `role="tablist"`, `aria-selected="true"`, "trial", "1 version", "2 versions",
 		"◆ Snapshot", "“before the lighthouse”", "Retention", "newest 7", "each day for 14 days", "each week for 6 weeks",
 		`hx-trigger="fb:saves from:body"`, `id="saves-list"`, `id="save-detail"`, `aria-current="page"`)
-	notContains(t, rec, "New slot", "▲ Conflict")
+	contains(t, rec, "+ New slot", `id="newslot-form"`)
+	notContains(t, rec, "▲ Conflict", "New slot for")
 
 	// Slot switch (htmx target #save-detail): the detail region plus the list as out-of-band part.
 	rec = c.get(trial, hxHdr("save-detail"))
@@ -164,4 +167,100 @@ func TestSystemsTabsAndListFragments(t *testing.T) {
 	rec = c.get("/systems", nil)
 	contains(t, rec, `class="pill warn lg"`, "▲ 1 client differ from the registry · launching stays allowed", `class="pill warn sm">1 client`)
 	notContains(t, rec, `pill error`)
+}
+
+func TestSavesDeleteSnapshotAndNewSlotWeb(t *testing.T) {
+	e := newEnv(t, true, nil)
+	c := e.client()
+	tok := c.login()
+	users, _ := e.svc.ListUsers(bg)
+	adminID := users[0].ID
+	g, _ := e.svc.AddROM(bg, bytes.NewReader([]byte("homebrew-dummy-rom")), "lumen.nds", "Lumen Drift", "", adminID)
+	dev := pairTestDevice(t, e, adminID, "Desktop Living Room")
+	putSave(t, e, adminID, dev, g.ID, 0, []byte("first"), hub.SyncFinalSessionEnd) // Rev 1 + v1 session end
+	label := "before the lighthouse"
+	snap, err := e.svc.CreateSaveSnapshot(bg, adminID, g.ID, "default", &label) // v2
+	if err != nil {
+		t.Fatal(err)
+	}
+	bare, err := e.svc.CreateSaveSnapshot(bg, adminID, g.ID, "default", nil) // v3, no label
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := "/saves/" + adminID + "/" + g.ID + "/default"
+	del := func(v int) string { return base + "/history/" + strconv.Itoa(v) + "/delete" }
+
+	// Delete is offered on snapshots only.
+	rec := c.get(base, nil)
+	if n := strings.Count(rec.Body.String(), ">Delete</a>"); n != 2 {
+		t.Fatalf("%d Delete actions", n)
+	}
+	// Inline confirmation: fragment under the row, with and without label; Cancel answers an empty body.
+	rec = c.get(base+"?delete="+strconv.Itoa(snap.Version), hxHdr("confirm-v"+strconv.Itoa(snap.Version)))
+	status(t, rec, 200)
+	contains(t, rec, "Delete snapshot v"+strconv.Itoa(snap.Version)+" “before the lighthouse”?", "The snapshot is removed for good. The current version and other versions are not affected.",
+		`hx-post="`+del(snap.Version)+`"`, "Cancel", "Delete v"+strconv.Itoa(snap.Version), "btn small danger")
+	notContains(t, rec, "<html")
+	rec = c.get(base+"?delete="+strconv.Itoa(bare.Version), hxHdr("confirm-v"+strconv.Itoa(bare.Version)))
+	contains(t, rec, "Delete snapshot v"+strconv.Itoa(bare.Version)+"?")
+	notContains(t, rec, "“")
+	rec = c.get(base+"?delete=1&cancel=1", hxHdr("confirm-v1"))
+	status(t, rec, 200)
+	if strings.TrimSpace(rec.Body.String()) != "" {
+		t.Fatalf("cancel body %q", rec.Body.String())
+	}
+	status(t, c.get(base+"?delete=1", hxHdr("confirm-v1")), 404) // v1 is not a snapshot
+	contains(t, c.get(base+"?delete="+strconv.Itoa(snap.Version), nil), "Delete snapshot v"+strconv.Itoa(snap.Version), `id="confirm-v`+strconv.Itoa(snap.Version)+`"`)
+
+	// POST: CSRF, not a snapshot, unknown version, then ok.
+	status(t, c.postForm(del(snap.Version), url.Values{}, nil), http.StatusForbidden)
+	status(t, c.postForm(del(1), url.Values{"_csrf": {tok}}, nil), http.StatusConflict)
+	status(t, c.postForm(del(99), url.Values{"_csrf": {tok}}, nil), http.StatusNotFound)
+	status(t, c.postForm(base+"/history/x/delete", url.Values{"_csrf": {tok}}, nil), http.StatusNotFound)
+	rec = c.postForm(del(snap.Version), url.Values{"_csrf": {tok}}, map[string]string{"HX-Request": "true"})
+	status(t, rec, 200)
+	if rec.Header().Get("HX-Redirect") != base+"?ok=snapdeleted" {
+		t.Fatalf("HX-Redirect %q", rec.Header().Get("HX-Redirect"))
+	}
+	rec = c.get(base+"?ok=snapdeleted", nil)
+	contains(t, rec, "Snapshot deleted.")
+	notContains(t, rec, "before the lighthouse")
+
+	// New slot: the form as a fragment (and inline on the full page), Cancel answers an empty body.
+	rec = c.get(base+"?newslot=1", hxHdr("newslot-form"))
+	status(t, rec, 200)
+	contains(t, rec, "New slot for “Lumen Drift”", "Starts from the current version of “default”. Players can pick the slot in the game details.",
+		`name="name"`, `placeholder="Speedrun"`, "up to 32 characters", `hx-post="`+base+`/slots"`, "Cancel", "Create slot")
+	notContains(t, rec, "<html")
+	contains(t, c.get(base+"?newslot=1", nil), "New slot for “Lumen Drift”", `id="newslot-form"`)
+	rec = c.get(base+"?newslot=1&cancel=1", hxHdr("newslot-form"))
+	if strings.TrimSpace(rec.Body.String()) != "" {
+		t.Fatalf("cancel body %q", rec.Body.String())
+	}
+
+	// POST: CSRF, invalid and existing names re-render the form with an error, unknown source slot is 404, then ok.
+	slots := base + "/slots"
+	status(t, c.postForm(slots, url.Values{"name": {"speedrun"}}, nil), http.StatusForbidden)
+	rec = c.postForm(slots, url.Values{"name": {"Speed Run"}, "_csrf": {tok}}, map[string]string{"HX-Request": "true", "HX-Target": "newslot-form"})
+	status(t, rec, 200)
+	contains(t, rec, "Use lowercase letters, digits, - and _ (up to 32 characters).", `value="Speed Run"`)
+	notContains(t, rec, "<html")
+	rec = c.postForm(slots, url.Values{"name": {"default"}, "_csrf": {tok}}, nil)
+	status(t, rec, 200)
+	contains(t, rec, "A slot with this name already exists.", "<html", `value="default"`)
+	status(t, c.postForm("/saves/"+adminID+"/"+g.ID+"/nope/slots", url.Values{"name": {"x"}, "_csrf": {tok}}, nil), http.StatusNotFound)
+	rec = c.postForm(slots, url.Values{"name": {"speedrun"}, "_csrf": {tok}}, map[string]string{"HX-Request": "true"})
+	status(t, rec, 200)
+	next := "/saves/" + adminID + "/" + g.ID + "/speedrun"
+	if rec.Header().Get("HX-Redirect") != next+"?ok=slotcreated" {
+		t.Fatalf("HX-Redirect %q", rec.Header().Get("HX-Redirect"))
+	}
+	rec = c.get(next+"?ok=slotcreated", nil)
+	contains(t, rec, "Slot created from the current version.", "Rev 1", "Hub web interface", "From “default”", "◆ Snapshot", "2 slots")
+	// A second creation without htmx redirects (303) to the new tab.
+	rec = c.postForm(slots, url.Values{"name": {"second"}, "_csrf": {tok}}, nil)
+	status(t, rec, http.StatusSeeOther)
+	if location(rec) != "/saves/"+adminID+"/"+g.ID+"/second?ok=slotcreated" {
+		t.Fatalf("location %q", location(rec))
+	}
 }

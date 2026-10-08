@@ -68,7 +68,10 @@ const (
 	ResolveUseLocal = "use_local"
 )
 
-var slotRe = regexp.MustCompile(`^[a-z0-9_-]{1,32}$`)
+// MaxSlotName is the maximum length of a slot name.
+const MaxSlotName = 32
+
+var slotRe = regexp.MustCompile(fmt.Sprintf(`^[a-z0-9_-]{1,%d}$`, MaxSlotName))
 
 // ValidSlotName checks a slot name (pattern of the API: SaveSlotName).
 func ValidSlotName(s string) bool { return slotRe.MatchString(s) }
@@ -754,6 +757,9 @@ func (s *Service) ResolveSaveConflict(ctx context.Context, in ResolveInput) (_ S
 
 // FeatureSavesV1 is the handshake feature flag for the save sync API.
 const FeatureSavesV1 = "saves_v1"
+
+// FeatureSavesV3 is the handshake feature flag for deleting manual snapshots.
+const FeatureSavesV3 = "saves_v3"
 
 // FeatureSavesV2 is the handshake feature flag for restore, snapshots, history labels and the save_updated push.
 const FeatureSavesV2 = "saves_v2"
