@@ -48,13 +48,103 @@ class AudioTest : public QObject {
     QVERIFY(AudioOutput::convertSamples(in, QAudioFormat::Unknown).isEmpty());
   }
   // 0.6 D6: underrun counting and buffer fill.
-  void underrunIsActiveToIdleOnly() {
-    using S = QAudio::State;
-    QVERIFY(AudioOutput::isUnderrun(S::ActiveState, S::IdleState));
-    QVERIFY(!AudioOutput::isUnderrun(S::IdleState, S::ActiveState));
-    QVERIFY(!AudioOutput::isUnderrun(S::StoppedState, S::IdleState));  // the idle state right after start() is no underrun
-    QVERIFY(!AudioOutput::isUnderrun(S::ActiveState, S::SuspendedState));
-    QVERIFY(!AudioOutput::isUnderrun(S::ActiveState, S::StoppedState));
+  void readPadsWithSilence() {
+    AudioQueueDevice d;
+    d.configure(8, 0, 1000, 1000);
+    d.open(QIODevice::ReadOnly | QIODevice::Unbuffered);
+    d.append(QByteArray(16, 'x'));
+    QByteArray out(30, 'z');  // rounds down to 3 frames; only 2 are queued: no padding
+    QCOMPARE(d.read(out.data(), out.size()), qint64(16));
+    QCOMPARE(out.left(16), QByteArray(16, 'x'));
+    QCOMPARE(out.mid(16), QByteArray(14, 'z'));  // untouched
+    out.fill('z');
+    QCOMPARE(d.read(out.data(), 30), qint64(24));  // dry: whole request is silence
+    QCOMPARE(out.left(24), QByteArray(24, '\0'));
+    QCOMPARE(out.mid(24), QByteArray(6, 'z'));
+  }
+  void silenceIsMidpointForUInt8() {
+    AudioQueueDevice d;
+    d.configure(2, static_cast<char>(0x80), 100, 100);
+    d.open(QIODevice::ReadOnly | QIODevice::Unbuffered);
+    QByteArray out(4, 0);
+    QCOMPARE(d.read(out.data(), 4), qint64(4));
+    QCOMPARE(out, QByteArray(4, static_cast<char>(0x80)));
+  }
+  void queuedDataKeepsOrder() {
+    AudioQueueDevice d;
+    d.configure(2, 0, 100, 100);
+    d.open(QIODevice::ReadOnly | QIODevice::Unbuffered);
+    d.append(QByteArray("ab"));
+    d.append(QByteArray("cd"));
+    QCOMPARE(d.queuedBytes(), qint64(4));
+    char o[2];
+    QCOMPARE(d.read(o, 2), qint64(2));
+    QCOMPARE(QByteArray(o, 2), QByteArray("ab"));
+    QCOMPARE(d.read(o, 2), qint64(2));
+    QCOMPARE(QByteArray(o, 2), QByteArray("cd"));
+    QCOMPARE(d.queuedBytes(), qint64(0));
+  }
+  void underrunOncePerDrySpell() {
+    AudioQueueDevice d;
+    d.configure(2, 0, 100, 100);
+    d.open(QIODevice::ReadOnly | QIODevice::Unbuffered);
+    char o[4];
+    d.read(o, 4);  // dry before any data: no underrun
+    QCOMPARE(d.underruns(), 0);
+    d.append(QByteArray(2, 'a'));
+    d.read(o, 4);  // partial read, not dry yet
+    QCOMPARE(d.underruns(), 0);
+    d.read(o, 4);  // now dry after data
+    QCOMPARE(d.underruns(), 1);
+    d.read(o, 4);  // still dry: not counted again
+    d.read(o, 4);
+    QCOMPARE(d.underruns(), 1);
+    d.append(QByteArray(2, 'b'));
+    d.read(o, 4);
+    d.read(o, 4);
+    QCOMPARE(d.underruns(), 2);
+  }
+  void underrunNotCountedWhileOff() {
+    AudioQueueDevice d;
+    d.configure(2, 0, 100, 100);
+    d.open(QIODevice::ReadOnly | QIODevice::Unbuffered);
+    char o[4];
+    d.setUnderrunCounting(false);
+    d.append(QByteArray(2, 'a'));
+    d.read(o, 4);
+    d.read(o, 4);
+    QCOMPARE(d.underruns(), 0);
+    d.append(QByteArray(2, 'a'));
+    d.setUnderrunCounting(true);  // data predates re-enabling
+    d.read(o, 4);
+    d.read(o, 4);
+    QCOMPARE(d.underruns(), 0);
+    d.append(QByteArray(2, 'a'));
+    d.read(o, 4);
+    d.read(o, 4);
+    QCOMPARE(d.underruns(), 1);
+  }
+  void capDropsOldestWholeFrames() {
+    AudioQueueDevice d;
+    d.configure(4, 0, 100, 8);
+    QCOMPARE(d.append(QByteArray("aaaabbbb")), qint64(0));
+    QCOMPARE(d.append(QByteArray("cccc")), qint64(4));
+    QCOMPARE(d.queuedBytes(), qint64(8));
+    QCOMPARE(d.append(QByteArray(20, 'd')), qint64(20));  // more than the cap in one go
+    QCOMPARE(d.queuedBytes(), qint64(8));
+    d.open(QIODevice::ReadOnly | QIODevice::Unbuffered);
+    char o[8];
+    d.read(o, 8);
+    QCOMPARE(QByteArray(o, 8), QByteArray(8, 'd'));
+  }
+  void bytesAvailableNeverZero() {
+    AudioQueueDevice d;
+    d.configure(8, 0, 1200, 8000);
+    d.open(QIODevice::ReadOnly | QIODevice::Unbuffered);
+    QCOMPARE(d.bytesAvailable(), qint64(1200));  // empty: nominal
+    d.append(QByteArray(4000, 'x'));
+    QCOMPARE(d.bytesAvailable(), qint64(4000));  // queued
+    QVERIFY(d.isSequential());
   }
   void underrunsStartAtZeroWithoutDevice() {
     AudioOutput out;
@@ -67,7 +157,7 @@ class AudioTest : public QObject {
   void bufferFillInMilliseconds() {
     // 48 kHz, 8-byte float frames: 14400-byte buffer (37.5 ms), 7200 free -> 7200 bytes queued = 900 frames = 18.75 ms
     QVERIFY(qAbs(AudioOutput::bufferedMsFor(14400, 7200, 0, 8, 48000) - 18.75) < 1e-9);
-    // plus what waits in the pending queue
+    // plus what waits in the device queue
     QVERIFY(qAbs(AudioOutput::bufferedMsFor(14400, 7200, 3600, 8, 48000) - 28.125) < 1e-9);
     QCOMPARE(AudioOutput::bufferedMsFor(14400, 14400, 0, 8, 48000), 0.0);  // empty sink
     QCOMPARE(AudioOutput::bufferedMsFor(100, 400, -5, 8, 48000), 0.0);     // bogus values never go negative

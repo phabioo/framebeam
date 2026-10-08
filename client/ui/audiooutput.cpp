@@ -113,32 +113,33 @@ bool AudioOutput::start(int coreSampleRate) {
   resampler_.reset();
   resampler_.setRates(coreSampleRate, rate);
   outRate_ = rate;
+  coreRate_ = coreSampleRate;
   dropped_ = 0;
-  pending_.clear();
+  underruns_ = 0;
+  levelFrames_ = 0;
+  levelPeak_ = 0;
+  levelLogged_ = false;
   const int bufBytes = rate * fmt.bytesPerFrame() * kBufferMs / 1000;
-  pendingCap_ = bufBytes / 2;
+  auto dev = std::make_unique<AudioQueueDevice>();
+  dev->configure(fmt.bytesPerFrame(), fmt.sampleFormat() == QAudioFormat::UInt8 ? static_cast<char>(0x80) : char(0),
+                 bufBytes, bufBytes);
+  dev->setUnderrunCounting(counting_);
+  dev->open(QIODevice::ReadOnly | QIODevice::Unbuffered);
   auto sink = std::make_unique<QAudioSink>(device, fmt);
   sink->setBufferSize(bufBytes);
-  underruns_ = 0;
-  lastState_ = QAudio::StoppedState;
-  connect(sink.get(), &QAudioSink::stateChanged, this, [this, s = sink.get()](QAudio::State st) {
-    qCInfo(lcAudio) << "Sink state:" << static_cast<int>(st) << "error:" << static_cast<int>(s->error());
-    if (counting_ && isUnderrun(lastState_, st)) {
-      ++underruns_;
-    }
-    lastState_ = st;
+  connect(sink.get(), &QAudioSink::stateChanged, this, [s = sink.get()](QAudio::State st) {
+    qCDebug(lcAudio) << "Sink state:" << static_cast<int>(st) << "error:" << static_cast<int>(s->error());
   });
-  io_ = sink->start();
-  qCInfo(lcAudio) << "start():" << (io_ ? "ok" : "failed") << "error:" << static_cast<int>(sink->error())
-                  << "Status:" << static_cast<int>(sink->state()) << "buffer:" << sink->bufferSize()
-                  << "bytes, free:" << sink->bytesFree();
-  if (io_ == nullptr || sink->error() != QAudio::NoError) {
+  sink->start(dev.get());  // pull mode
+  qCInfo(lcAudio) << "start():" << (sink->error() == QAudio::NoError ? "ok" : "failed")
+                  << "error:" << static_cast<int>(sink->error()) << "Status:" << static_cast<int>(sink->state())
+                  << "buffer:" << sink->bufferSize() << "bytes, free:" << sink->bytesFree();
+  if (sink->error() != QAudio::NoError) {
     qCWarning(lcAudio) << "QAudioSink could not start, error" << static_cast<int>(sink->error());
-    if (io_ == nullptr) {
-      io_ = nullptr;
-      return false;
-    }
+    sink->stop();
+    return false;
   }
+  device_ = std::move(dev);
   sink_ = std::move(sink);
   return true;
 }
@@ -152,10 +153,10 @@ double AudioOutput::bufferedMsFor(qint64 sinkBufferBytes, qint64 sinkFreeBytes, 
 }
 
 double AudioOutput::bufferedMs() const {
-  if (!sink_) {
+  if (!sink_ || !device_) {
     return 0.0;
   }
-  return bufferedMsFor(sink_->bufferSize(), sink_->bytesFree(), pending_.size(), fmt_.bytesPerFrame(), outRate_);
+  return bufferedMsFor(sink_->bufferSize(), sink_->bytesFree(), device_->queuedBytes(), fmt_.bytesPerFrame(), outRate_);
 }
 
 void AudioOutput::setUnderrunCounting(bool on) {
@@ -163,8 +164,8 @@ void AudioOutput::setUnderrunCounting(bool on) {
     return;
   }
   counting_ = on;
-  if (on && sink_) {
-    lastState_ = sink_->state();  // the idle period while counting was off is not an underrun
+  if (device_) {
+    device_->setUnderrunCounting(on);
   }
 }
 
@@ -174,34 +175,121 @@ void AudioOutput::stop() {
     sink_->stop();
     sink_.reset();
   }
-  io_ = nullptr;
-  pending_.clear();
+  if (device_) {
+    underruns_ = device_->underruns();
+    device_->resetState();
+    device_->close();
+    device_.reset();
+  }
 }
 
 void AudioOutput::push(const QByteArray& pcm) {
-  if (!sink_ || io_ == nullptr || pcm.isEmpty()) {
+  if (!sink_ || !device_ || pcm.isEmpty()) {
     return;
   }
-  const QByteArray resampled = resampler_.isPassthrough() ? pcm : resampler_.process(pcm);
-  pending_.append(convertSamples(resampled, fmt_.sampleFormat()));
-  const int bpf = fmt_.bytesPerFrame();
-  // Write what fits into the buffer (bytesFree may still be 0 right after start()).
-  const qint64 free = sink_->bytesFree();
-  const qint64 n = std::min<qint64>(free - (free % bpf), pending_.size());
-  if (n > 0) {
-    const qint64 w = io_->write(pending_.constData(), n);
-    pending_.remove(0, static_cast<qsizetype>(std::max<qint64>(w, 0)));
+  if (!levelLogged_) {
+    const auto* s = reinterpret_cast<const unsigned char*>(pcm.constData());
+    const qsizetype n = pcm.size() / 2;
+    for (qsizetype i = 0; i < n; ++i) {
+      const int v = static_cast<qint16>(static_cast<quint16>(s[2 * i] | (s[2 * i + 1] << 8)));
+      levelPeak_ = std::max(levelPeak_, v < 0 ? -v : v);
+    }
+    levelFrames_ += pcm.size() / 4;
+    if (levelFrames_ >= coreRate_) {
+      levelLogged_ = true;
+      qCInfo(lcAudio) << "Audio level after 1 s: peak" << levelPeak_ << "of 32767";
+    }
   }
-  // Keep the remainder bounded so latency does not grow; drop the oldest data.
-  if (pending_.size() > pendingCap_) {
-    qsizetype drop = pending_.size() - pendingCap_;
-    drop -= drop % bpf;
-    if (dropped_ == 0 && drop > 0) {
+  const QByteArray resampled = resampler_.isPassthrough() ? pcm : resampler_.process(pcm);
+  const qint64 drop = device_->append(convertSamples(resampled, fmt_.sampleFormat()));
+  if (drop > 0) {
+    if (dropped_ == 0) {
       qCWarning(lcAudio) << "Audio overflow: first dropped bytes (buffer full)";
     }
-    pending_.remove(0, drop);
     dropped_ += drop;
   }
+  device_->notifyNewData();
+}
+
+AudioQueueDevice::AudioQueueDevice(QObject* parent) : QIODevice(parent) {}
+
+void AudioQueueDevice::configure(int bytesPerFrame, char silenceByte, qint64 nominalBytes, qsizetype capBytes) {
+  QMutexLocker lock(&mutex_);
+  bytesPerFrame_ = std::max(1, bytesPerFrame);
+  silence_ = silenceByte;
+  nominal_ = nominalBytes;
+  cap_ = capBytes;
+}
+
+qint64 AudioQueueDevice::append(const QByteArray& bytes) {
+  QMutexLocker lock(&mutex_);
+  if (bytes.isEmpty()) {
+    return 0;
+  }
+  queue_.append(bytes);
+  hadData_ = true;
+  qsizetype drop = queue_.size() - cap_;
+  if (drop <= 0) {
+    return 0;
+  }
+  drop += (bytesPerFrame_ - drop % bytesPerFrame_) % bytesPerFrame_;  // whole frames, queue ends up <= cap
+  drop = std::min<qsizetype>(drop, queue_.size());
+  queue_.remove(0, drop);
+  return drop;
+}
+
+qint64 AudioQueueDevice::queuedBytes() const {
+  QMutexLocker lock(&mutex_);
+  return queue_.size();
+}
+
+int AudioQueueDevice::underruns() const {
+  QMutexLocker lock(&mutex_);
+  return underruns_;
+}
+
+void AudioQueueDevice::setUnderrunCounting(bool on) {
+  QMutexLocker lock(&mutex_);
+  if (on && !counting_) {
+    hadData_ = false;  // the dry period while counting was off is not an underrun
+  }
+  counting_ = on;
+}
+
+void AudioQueueDevice::resetState() {
+  QMutexLocker lock(&mutex_);
+  queue_.clear();
+  hadData_ = false;
+}
+
+qint64 AudioQueueDevice::bytesAvailable() const {
+  QMutexLocker lock(&mutex_);
+  return (queue_.size() > 0 ? static_cast<qint64>(queue_.size()) : nominal_) + QIODevice::bytesAvailable();
+}
+
+qint64 AudioQueueDevice::readData(char* data, qint64 maxlen) {
+  QMutexLocker lock(&mutex_);
+  const qint64 len = maxlen - maxlen % bytesPerFrame_;
+  if (len <= 0) {
+    return 0;
+  }
+  qint64 avail = queue_.size();
+  avail -= avail % bytesPerFrame_;
+  if (avail > 0) {  // partial read: only what is queued, no padding
+    const qint64 n = std::min(len, avail);
+    std::memcpy(data, queue_.constData(), static_cast<size_t>(n));
+    queue_.remove(0, static_cast<qsizetype>(n));
+    return n;
+  }
+  // Completely dry: silence for the whole request, one underrun per dry spell.
+  std::memset(data, static_cast<unsigned char>(silence_), static_cast<size_t>(len));
+  if (hadData_) {
+    if (counting_) {
+      ++underruns_;
+    }
+    hadData_ = false;
+  }
+  return len;
 }
 
 }  // namespace framebeam::ui
