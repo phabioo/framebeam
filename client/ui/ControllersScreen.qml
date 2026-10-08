@@ -730,14 +730,20 @@ Rectangle {
                     // Controller-shaped grid: 7 x 5 cells of 36, gap 6; triggers and shoulders on top, back/start in the
                     // middle, D-pad cross left, face diamond right. Glyphs follow the Button labels set.
                     Item {
+                        // Fixed-width slot (panel width minus margins): whatever the text elsewhere in the column
+                        // measures, the layout cannot hand the grid a wider area to center in.
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        Layout.maximumWidth: Theme.inputTestWidth - 48
+                        Layout.preferredHeight: padGrid.height
+                    Item {
                         id: padGrid
                         objectName: "inputTestGrid"
                         readonly property int cell: 36
                         readonly property int gap: 6
-                        Layout.alignment: Qt.AlignHCenter
-                        Layout.preferredWidth: 7 * cell + 6 * gap
-                        Layout.preferredHeight: 5 * cell + 4 * gap
-                        Layout.minimumWidth: 0
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: 7 * cell + 6 * gap
+                        height: 5 * cell + 4 * gap
                         Repeater {
                             model: root.ctl.testCells
                             delegate: PadGlyph {
@@ -754,11 +760,13 @@ Rectangle {
                             }
                         }
                     }
+                    }
 
-                    Eyebrow { text: root.ctl.touchLabel; Layout.topMargin: 10 }
+                    Eyebrow { text: root.ctl.touchLabel; Layout.topMargin: 10; Layout.minimumWidth: 0; Layout.maximumWidth: Theme.inputTestWidth - 48 }
                     Rectangle {
                         objectName: "touchBox"
                         Layout.fillWidth: true
+                        Layout.minimumWidth: 0
                         implicitHeight: 150
                         radius: Theme.radius8
                         color: Theme.surface
@@ -772,6 +780,9 @@ Rectangle {
                         }
                     }
                     FbLabel {
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        wrapMode: Text.WordWrap
                         text: qsTr("Left mouse button = stylus")
                         color: Theme.textFaint
                         font.pixelSize: Theme.fontMeta

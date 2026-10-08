@@ -534,15 +534,45 @@ class ControllersGlyphsTest : public QObject {
     QTest::qWait(100);
     QQuickItem* grid = h.item("inputTestGrid");
     QVERIFY(grid->isVisible());
+    // Widen every text like a wide Windows font would (letter spacing), then let the layout settle.
+    const auto widen = [&](qreal spacing) {
+      for (QQuickItem* it : h.window->contentItem()->findChildren<QQuickItem*>()) {
+        const int idx = it->metaObject()->indexOfProperty("font");
+        if (idx < 0 || it->metaObject()->property(idx).userType() != QMetaType::QFont) continue;
+        QFont f = it->property("font").value<QFont>();
+        f.setLetterSpacing(QFont::AbsoluteSpacing, spacing);
+        it->setProperty("font", f);
+      }
+      QTest::qWait(100);
+      QQuickTest::qWaitForPolish(h.window);
+    };
+    widen(qEnvironmentVariableIsSet("FB_TEST_LETTERSPACING") ? qEnvironmentVariable("FB_TEST_LETTERSPACING").toDouble() : 4.5);
     const QRectF panel = sceneRect(grid->parentItem());
+    QString chain = QStringLiteral(" column:");
+    for (QQuickItem* k : grid->parentItem()->childItems()) {
+      chain += QStringLiteral(" [%1 x=%2 w=%3 iw=%4]").arg(QString::fromLatin1(k->metaObject()->className()))
+                   .arg(k->x()).arg(k->width()).arg(k->implicitWidth());
+    }
+    chain += QStringLiteral(" row:");
+    for (QQuickItem* p = grid->parentItem(); p && p->parentItem(); p = p->parentItem()) {
+      if (qobject_cast<QQuickItem*>(p->parentItem()) && p->parentItem()->inherits("QQuickRowLayout")) {
+        for (QQuickItem* sib : p->parentItem()->childItems()) {
+          chain += QStringLiteral(" [%1 w=%2 iw=%3 minW=%4]").arg(QString::fromLatin1(sib->metaObject()->className()))
+                       .arg(sib->width()).arg(sib->implicitWidth())
+                       .arg(sib->property("Layout.minimumWidth").toString());
+        }
+        break;
+      }
+    }
     const QRectF g = sceneRect(grid);
     QCOMPARE(g.width(), 7 * 36.0 + 6 * 6.0);
     QCOMPARE(g.height(), 5 * 36.0 + 4 * 6.0);
     const QByteArray gridMsg = QStringLiteral("grid %1,%2 %3x%4 panel %5,%6 %7x%8 window %9")
                                    .arg(g.x()).arg(g.y()).arg(g.width()).arg(g.height())
                                    .arg(panel.x()).arg(panel.y()).arg(panel.width()).arg(panel.height())
-                                   .arg(h.window->width()).toLocal8Bit();
+                                   .arg(h.window->width()).toLocal8Bit() + chain.toLocal8Bit();
     QVERIFY2(g.left() >= panel.left() && g.right() <= panel.right(), gridMsg.constData());
+    qInfo().noquote() << gridMsg;
     QVERIFY(qAbs((g.center().x()) - panel.center().x()) < 1.0);  // centered in the panel
     for (const QVariant& v : c->testCells()) {
       QQuickItem* tile = h.item(("testTile_" + v.toMap().value(QStringLiteral("id")).toString()).toLatin1().constData());
