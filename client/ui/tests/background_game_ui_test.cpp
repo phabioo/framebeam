@@ -1,5 +1,7 @@
 // Game in the background (0.7.x): "← Library" pauses and keeps the game loaded; Library strip, Resume, Quit, the
 // confirmation before another game starts, and no input to the core while in the background (preview game, no core).
+#include <QQmlContext>
+#include <QQmlProperty>
 #include <QtTest>
 
 #include "fakehub.h"
@@ -66,7 +68,40 @@ class BackgroundGameUiTest : public QObject {
     QQuickTest::qWaitForPolish(h.window);
     QQuickItem* strip = h.item("runningStrip");
     QVERIFY(strip != nullptr && strip->isVisible());
-    QVERIFY(strip->parentItem() != nullptr && strip->width() <= strip->parentItem()->width());
+    const auto checkStripInColumn = [&]() {
+      // The strip must stay inside the Library main column, which in turn must stay inside the window (wide fonts on
+      // Windows must not widen the column). The chain is dumped for the CI log.
+      QString chain;
+      for (QQuickItem* i = strip; i != nullptr; i = i->parentItem()) {
+        const QRectF r = i->mapRectToScene(QRectF(0, 0, i->width(), i->height()));
+        chain += QStringLiteral("\n  %1 '%2' x=%3 w=%4 impl=%5").arg(QString::fromLatin1(i->metaObject()->className()), i->objectName())
+                     .arg(r.x()).arg(r.width()).arg(i->implicitWidth());
+      }
+      QQuickItem* column = strip->parentItem();
+      for (QQuickItem* sib : column->childItems()) {
+        QQmlContext* ctx = qmlContext(sib);
+        const auto lay = [&](const char* p) {
+          const QVariant v = ctx ? QQmlProperty(sib, QString::fromLatin1(p), ctx).read() : QVariant();
+          return v.isValid() ? v.toDouble() : -1.0;
+        };
+        chain += QStringLiteral("\n  sibling %1 '%2' vis=%3 w=%4 impl=%5 min=%6")
+                     .arg(QString::fromLatin1(sib->metaObject()->className()), sib->objectName()).arg(sib->isVisible())
+                     .arg(sib->width()).arg(sib->implicitWidth()).arg(lay("Layout.minimumWidth"));
+      }
+      QVERIFY2(column != nullptr, "strip has no parent");
+      const QRectF sr = strip->mapRectToScene(QRectF(0, 0, strip->width(), strip->height()));
+      const QRectF cr = column->mapRectToScene(QRectF(0, 0, column->width(), column->height()));
+      QVERIFY2(sr.left() >= cr.left() - 0.5 && sr.right() <= cr.right() + 0.5, qPrintable(QStringLiteral("strip outside column:") + chain));
+      QVERIFY2(cr.right() <= h.window->width() + 0.5, qPrintable(QStringLiteral("column outside window:") + chain));
+    };
+    checkStripInColumn();
+    // Narrowest window (960 px, also what wide Windows fonts amount to): the column must not widen past its slot.
+    h.window->resize(960, 600);
+    QQuickTest::qWaitForPolish(h.window);
+    QTest::qWait(50);
+    checkStripInColumn();
+    h.window->resize(1280, 800);
+    QQuickTest::qWaitForPolish(h.window);
     QVERIFY(h.item("stripResumeButton") != nullptr && h.item("stripQuitButton") != nullptr);
     const QVariantMap sel = c->selectedGame();
     QCOMPARE(sel.value(QStringLiteral("running")).toBool(), true);

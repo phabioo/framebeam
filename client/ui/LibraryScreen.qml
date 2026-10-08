@@ -51,6 +51,7 @@ Rectangle {
 
             RowLayout {
                 Layout.fillWidth: true
+                Layout.minimumWidth: 0   // the header's content minimum must never widen the whole column
                 spacing: 16
                 ColumnLayout {
                     spacing: 2
@@ -128,6 +129,7 @@ Rectangle {
             RowLayout {
                 objectName: "filterChips"
                 Layout.fillWidth: true
+                Layout.minimumWidth: 0   // a narrow column must not be widened by the chips (it would widen every sibling, e.g. the running strip)
                 spacing: Theme.space8
                 Repeater {
                     model: [
