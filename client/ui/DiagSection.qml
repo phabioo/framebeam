@@ -9,7 +9,7 @@ ColumnLayout {
     property string title: ""
     property string summary: ""
     property bool expanded: true
-    property real indent: 0           // body indent (multiview panel: 18)
+    property real indent: 0
     default property alias content: body.data
     signal toggled()
     spacing: 10
@@ -22,13 +22,13 @@ ColumnLayout {
         RowLayout {
             anchors.fill: parent
             spacing: 8
-            FbMono { text: root.expanded ? "▾" : "▸"; font.pixelSize: 11; color: Theme.textFaint }
+            FbMono { text: root.expanded ? "▾" : "▸"; font.pixelSize: 10; color: Theme.gameMeta }
             FbMono {
                 text: root.title
                 font.pixelSize: 11
                 font.weight: Font.Medium
                 font.letterSpacing: 0.9
-                color: Theme.textFaint
+                color: Theme.gameFaint
             }
             Item { Layout.fillWidth: true }
             FbMono {
@@ -36,7 +36,7 @@ ColumnLayout {
                 visible: !root.expanded
                 text: root.summary
                 font.pixelSize: 11
-                color: Theme.textMeta
+                color: Theme.gameMeta
             }
         }
         TapHandler { onTapped: root.toggled() }

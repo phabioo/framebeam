@@ -90,6 +90,105 @@ Rectangle {
 
         Item { Layout.fillHeight: true }
 
+        // Now running (3c-5): the game paused in the background, on every page; disappears when the game quits.
+        Rectangle {
+            id: nowRunning
+            objectName: "nowRunningStrip"
+            readonly property var game: root.player.backgroundGame
+            readonly property bool shown: game.id !== undefined
+            readonly property bool quitting: root.player.quitting
+            property real nowMs: Date.now()
+            readonly property int minutes: shown && game.startedMs ? Math.max(0, Math.floor((nowMs - game.startedMs) / 60000)) : 0
+            visible: shown
+            Layout.fillWidth: true
+            implicitHeight: nrCol.implicitHeight + 24
+            radius: Theme.radius9
+            color: Theme.accentChipBg
+            border.width: 1
+            border.color: Theme.accentBoxBorder
+            Timer { running: nowRunning.shown; interval: 30000; repeat: true; onTriggered: nowRunning.nowMs = Date.now() }
+            onShownChanged: nowMs = Date.now()
+            ColumnLayout {
+                id: nrCol
+                anchors.fill: parent
+                anchors.margins: 12
+                spacing: 6
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    FbMono {
+                        Layout.minimumWidth: 0
+                        text: qsTr("NOW RUNNING")
+                        font.pixelSize: 10
+                        font.letterSpacing: 0.8
+                        font.weight: Font.Medium
+                        color: Theme.accent
+                    }
+                    Item { Layout.fillWidth: true }
+                    FbLabel {
+                        objectName: "nowRunningTime"
+                        Layout.minimumWidth: 0
+                        elide: Text.ElideRight
+                        text: qsTr("%1 min").arg(nowRunning.minutes)
+                        font.pixelSize: 11
+                        color: Theme.textMeta
+                    }
+                }
+                FbLabel {
+                    objectName: "nowRunningTitle"
+                    Layout.fillWidth: true
+                    text: nowRunning.game.title || ""
+                    elide: Text.ElideRight
+                    font.pixelSize: Theme.fontBody
+                    font.weight: Font.DemiBold
+                }
+                FbLabel {
+                    objectName: "nowRunningStatus"
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    font.pixelSize: Theme.fontMeta
+                    color: Theme.infoText
+                    text: nowRunning.quitting ? qsTr("Saving and syncing…")
+                          : root.player.sessions.watching ? qsTr("Paused while you watch %1 · %2").arg(root.player.sessions.watchedWho).arg(root.player.sessions.watchedGame)
+                          : qsTr("Paused")
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 4
+                    spacing: 6
+                    visible: !nowRunning.quitting
+                    FbButton {
+                        objectName: "nowRunningResume"
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        kind: "primary"
+                        implicitHeight: 30
+                        implicitWidth: 0
+                        font.pixelSize: Theme.fontSmall
+                        text: qsTr("▶ Resume")
+                        onClicked: root.player.resumeGame()
+                    }
+                    FbButton {
+                        objectName: "nowRunningQuit"
+                        implicitHeight: 30
+                        implicitWidth: 0
+                        Layout.minimumWidth: 0
+                        Layout.preferredWidth: quitProbe.implicitWidth + 20
+                        font.pixelSize: Theme.fontSmall
+                        text: qsTr("Quit")
+                        background: Rectangle {
+                            radius: Theme.radius6
+                            color: parent.hovered ? Theme.surfaceRaised : "transparent"
+                            border.width: 1
+                            border.color: Theme.accentOutline
+                        }
+                        onClicked: root.player.requestQuit()
+                        Text { id: quitProbe; visible: false; text: qsTr("Quit"); font.pixelSize: Theme.fontSmall }
+                    }
+                }
+            }
+        }
+
         // Hub switcher card
         Rectangle {
             Layout.fillWidth: true

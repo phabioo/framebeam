@@ -58,7 +58,15 @@ qt_add_qml_module(framebeam_ui
     StartConfirmDialog.qml
     FbSegment.qml
     SessionsSection.qml
-    SessionPanel.qml
+    GamePanel.qml
+    GameHeader.qml
+    GameButton.qml
+    GameIcon.qml
+    GameSegment.qml
+    SharePill.qml
+    AnchoredPopover.qml
+    PopoverItem.qml
+    SessionPicker.qml
     MultiviewArea.qml
     Sparkline.qml
     DiagSection.qml
@@ -66,7 +74,6 @@ qt_add_qml_module(framebeam_ui
     DiagParticipants.qml
     DiagFooter.qml
     DiagnosticsOverlay.qml
-    DiagnosticsBar.qml
     LayoutSwitch.qml
     KeyHintButton.qml
     FbSelect.qml
