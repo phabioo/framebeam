@@ -11,7 +11,7 @@ export GOTOOLCHAIN=local CGO_ENABLED=0
 die() { echo "error: $*" >&2; exit 1; }
 
 generate() {
-  local dest="$1" mainmod mods line path ver dir f found
+  local dest="$1" mainmod mods path ver dir f found
   cd "$ROOT/server"
   mainmod="$(go list -m)"
   mods="$(go list -deps -f '{{with .Module}}{{.Path}} {{.Version}}{{end}}' ./cmd/framebeam-hub \
