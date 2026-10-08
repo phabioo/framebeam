@@ -8,7 +8,7 @@ Decisions on the design handoff, deviations from the architecture and the open p
 2. Cyan is intentionally also the warning color; there is no separate warning color. Warnings (conflict, hub too old, awaiting approval, relayed) therefore read as "needs attention", not as danger; errors keep their red.
 3. 3q "Hub Settings revised" supersedes 3o. 3o stays in the source only as reference and is marked superseded in the table.
 4. Logo: concept 4a "Frame & Beam", palette "signal" ([logo.md](logo.md)).
-5. Requested by Fabio (2026-10-07), implemented in 0.6 per [ADR 0014](../adr/0014-player-ui-pass.md) (proposed, decided with the merge): split the in-game diagnostics into emulator diagnostics and streaming diagnostics, shown separately. The handoff draws this as 3t-3y; the specification in `player.md` stays a proposal until Fabio accepts it.
+5. Requested by Fabio (2026-10-07), implemented in 0.6 per [ADR 0014](../adr/0014-player-ui-pass.md) (accepted): split the in-game diagnostics into emulator diagnostics and streaming diagnostics, shown separately. The handoff draws this as 3t-3y; Fabio accepted the design on 2026-10-08.
 
 ## Deviations from the architecture
 
