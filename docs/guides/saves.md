@@ -22,5 +22,5 @@ The Player shows a per-game badge Synced / Sync pending / Conflict; the Hub navi
 ## History, restore, snapshots, slots
 
 - Each slot has a current checkpoint ("Rev N") and a durable history ("vN"). The history can be downloaded.
-- Restore a history version and create manual snapshots in the Player (save history, slot picker per game) or on the Hub's Saves page. A "save changed on another device" notice appears live (WSS push `save_updated`).
+- Restore a history version and create manual snapshots in the Player (save history, slot picker per game) or on the Hub's Saves page. The Saves page can also delete a snapshot (inline confirmation; the current version and other versions stay) and create a slot with "+ New slot", which starts from the current version of the selected slot. A "save changed on another device" notice appears live (WSS push `save_updated`).
 - Retention thins the history per slot: `-save-keep-recent` (20), `-save-keep-daily` (30), `-save-keep-weekly` (26); manual snapshots and versions of unresolved conflicts are never thinned. See [hub-configuration.md](hub-configuration.md) (also editable in Settings → Network).

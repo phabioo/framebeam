@@ -22,7 +22,29 @@
     <button class="btn small primary" type="submit">Restore v{{.Version}}</button>
   </form>
 </div>{{end}}
-{{define "restore-confirm"}}{{range .Body.Detail.History}}{{if .Open}}{{template "restore-card" .}}{{end}}{{end}}{{end}}
+{{define "delete-card"}}<div class="confirm" role="group" aria-label="Confirm deletion of v{{.Version}}">
+  <div class="confirm-title">Delete snapshot v{{.Version}}{{if .Label}} “{{.Label}}”{{end}}?</div>
+  <p class="help">The snapshot is removed for good. The current version and other versions are not affected.</p>
+  <form class="inline" method="post" action="{{.DeleteHref}}" hx-post="{{.DeleteHref}}">
+    <a class="btn small" href="{{.CancelHref}}" hx-get="{{.CancelXHR}}" hx-target="#confirm-v{{.Version}}" hx-swap="innerHTML">Cancel</a>
+    <button class="btn small danger" type="submit">Delete v{{.Version}}</button>
+  </form>
+</div>{{end}}
+{{define "newslot-card"}}<div class="confirm newslot" role="group" aria-label="New slot">
+  <div class="confirm-title">New slot for “{{.Game}}”</div>
+  <p class="help">Starts from the current version of “{{.From}}”. Players can pick the slot in the game details.</p>
+  <form class="inline" method="post" action="{{.PostHref}}" hx-post="{{.PostHref}}" hx-target="#newslot-form" hx-swap="innerHTML">
+    <label class="field">Slot name <input type="text" name="name" value="{{.Value}}" placeholder="Speedrun" maxlength="{{.Max}}" required autocomplete="off" autofocus aria-describedby="newslot-hint"{{if .Error}} aria-invalid="true"{{end}}></label>
+    <p id="newslot-hint" class="help">Lowercase letters, digits, - and _ (up to {{.Max}} characters), for example speedrun.</p>
+    {{if .Error}}<p class="help error-line" role="alert">{{.Error}}</p>{{end}}
+    <div class="actions">
+      <a class="btn small" href="{{.CancelHref}}" hx-get="{{.Cancel}}" hx-target="#newslot-form" hx-swap="innerHTML">Cancel</a>
+      <button class="btn small primary" type="submit">Create slot</button>
+    </div>
+  </form>
+</div>{{end}}
+{{define "newslot-fragment"}}{{with .Body.Detail}}{{with .NewSlot}}{{template "newslot-card" .}}{{end}}{{end}}{{end}}
+{{define "restore-confirm"}}{{range .Body.Detail.History}}{{if .Open}}{{template "restore-card" .}}{{else if .DeleteOpen}}{{template "delete-card" .}}{{end}}{{end}}{{end}}
 {{define "saves-detail-fragment"}}{{template "saves-detail" .Body.Detail}}{{template "saves-list" .}}{{end}}
 {{define "saves-detail"}}
 {{with .}}
@@ -33,7 +55,9 @@
 </header>
 <div class="tabs" role="tablist" aria-label="Slots">
   {{range .Tabs}}<a role="tab" class="tab{{if .Selected}} selected{{end}}" aria-selected="{{if .Selected}}true{{else}}false{{end}}" href="{{.Href}}" hx-get="{{.Href}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true">{{.Name}} <span class="tab-meta{{if .Conflict}} warn{{end}}">{{.Meta}}</span></a>{{end}}
+  <a class="tab tab-new" href="{{.NewSlotAsk}}" hx-get="{{.NewSlotAsk}}" hx-target="#newslot-form" hx-swap="innerHTML">+ New slot</a>
 </div>
+<div id="newslot-form">{{with .NewSlot}}{{template "newslot-card" .}}{{end}}</div>
 <div class="eyebrow">Current checkpoint</div>
 <div class="save-bar">
   <div><span class="mono">Rev {{.Current.Rev}}</span> · {{.Current.Device}} · {{.Current.When}} · {{.Current.Reason}}
@@ -87,8 +111,9 @@
     <span class="node" aria-hidden="true"></span>
     <div class="tl-text"><div><span class="mono">v{{.Version}}</span> <strong>{{.Device}}</strong>{{if .Snapshot}} <span class="chip">◆ Snapshot</span>{{end}}{{if .Current}} <span class="pill ok sm">✓ Current</span>{{end}}{{if .Label}} <span class="snap-label">“{{.Label}}”</span>{{end}}</div><div class="help">{{.Meta}}</div></div>
     <div class="tl-actions"><a class="btn-link plain" href="{{.DownloadHref}}">Download</a>
-    {{if not .Current}}<a class="btn small" href="{{.ConfirmHref}}" hx-get="{{.ConfirmHref}}" hx-target="#confirm-v{{.Version}}" hx-swap="innerHTML">Restore</a>{{end}}</div>
-    <div id="confirm-v{{.Version}}" class="tl-confirm">{{if .Open}}{{template "restore-card" .}}{{end}}</div>
+    {{if not .Current}}<a class="btn small" href="{{.ConfirmHref}}" hx-get="{{.ConfirmHref}}" hx-target="#confirm-v{{.Version}}" hx-swap="innerHTML">Restore</a>{{end}}
+    {{if .Snapshot}}<a class="btn small" href="{{.DeleteAsk}}" hx-get="{{.DeleteAsk}}" hx-target="#confirm-v{{.Version}}" hx-swap="innerHTML">Delete</a>{{end}}</div>
+    <div id="confirm-v{{.Version}}" class="tl-confirm">{{if .Open}}{{template "restore-card" .}}{{else if .DeleteOpen}}{{template "delete-card" .}}{{end}}</div>
   </li>
   {{end}}
 </ol>
