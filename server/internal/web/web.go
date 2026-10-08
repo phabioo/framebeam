@@ -76,7 +76,7 @@ func New(svc *hub.Service, cfg Config, log *slog.Logger) (*Server, error) {
 	}
 	s := &Server{svc: svc, cfg: cfg, log: log, tmpl: map[string]*template.Template{}, done: make(chan struct{}),
 		login: &limiter{max: 5, window: time.Minute, now: svc.Now, hits: map[string][]time.Time{}}}
-	for _, p := range []string{"login", "setup", "library", "saves", "clients", "settings", "users", "systems"} {
+	for _, p := range []string{"login", "setup", "library", "saves", "clients", "settings", "users", "systems", "confirm"} {
 		t, err := template.New(p).ParseFS(templatesFS, "templates/layout.html", "templates/"+p+".html")
 		if err != nil {
 			return nil, err
@@ -128,11 +128,15 @@ func (s *Server) Register(mux *http.ServeMux) {
 	h("POST /clients/requests/{id}/allow", s.guard(s.clientAllow))
 	h("POST /clients/requests/{id}/deny", s.guard(s.clientDeny))
 	h("POST /clients/devices/{id}/revoke", s.guard(s.clientRevoke))
+	h("GET /clients/devices/{id}/delete", s.guard(s.clientDeleteConfirm))
+	h("POST /clients/devices/{id}/delete", s.guard(s.clientDelete))
 	h("GET /users", s.guard(s.usersGet))
 	h("POST /users/invites", s.guard(s.inviteCreate))
 	h("POST /users/invites/{id}/revoke", s.guard(s.inviteRevoke))
 	h("POST /users/{id}/disable", s.guard(s.userDisable))
 	h("POST /users/{id}/enable", s.guard(s.userEnable))
+	h("GET /users/{id}/delete", s.guard(s.userDeleteConfirm))
+	h("POST /users/{id}/delete", s.guard(s.userDelete))
 	h("GET /systems", s.guard(s.systemsGet))
 	h("POST /systems/{id}/expected-version", s.guard(s.systemVersion))
 	h("POST /systems/{id}/firmware-mode", s.guard(s.systemFirmwareMode))
@@ -211,6 +215,8 @@ var flashTexts = map[string]string{
 	"snapshot":      "Snapshot created.",
 	"disabled":      "User disabled. Their devices are signed out and their Sessions ended.",
 	"enabled":       "User enabled.",
+	"userdeleted":   "User deleted, together with their devices, invites, saves and save history.",
+	"devdeleted":    "Device deleted.",
 	"revoked":       "Invite revoked.",
 	"appearance":    "Appearance saved.",
 	"uploads":       "Upload setting saved.",
@@ -228,7 +234,8 @@ var flashTexts = map[string]string{
 var errTexts = map[string]string{
 	"stale":          "The slot changed in the meantime or the conflict was already resolved. Please review and decide again.",
 	"label":          "The snapshot label must be at most 64 characters.",
-	"admin":          "Admins cannot be disabled.",
+	"admin":          "Admins cannot be disabled or deleted.",
+	"nodevice":       "Device not found.",
 	"nouser":         "User not found.",
 	"noinvite":       "The invite is no longer active.",
 	"nosystem":       "System or file not found.",

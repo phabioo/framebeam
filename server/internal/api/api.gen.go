@@ -216,6 +216,24 @@ func (e HandshakeProblemCode) Valid() bool {
 	}
 }
 
+// Defines values for HandshakeUserRole.
+const (
+	Admin HandshakeUserRole = "admin"
+	User  HandshakeUserRole = "user"
+)
+
+// Valid indicates whether the value is a known member of the HandshakeUserRole enum.
+func (e HandshakeUserRole) Valid() bool {
+	switch e {
+	case Admin:
+		return true
+	case User:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for InviteRedeemApprovedStatus.
 const (
 	InviteRedeemApprovedStatusApproved InviteRedeemApprovedStatus = "approved"
@@ -561,7 +579,22 @@ type HandshakeResponse struct {
 	MinProtocolVersion int                `json:"min_protocol_version"`
 	Problems           []HandshakeProblem `json:"problems"`
 	ProtocolVersion    int                `json:"protocol_version"`
+
+	// User The Hub user the authenticated device belongs to (additive, protocol_version unchanged). Lets the Player show who is signed in.
+	User *HandshakeUser `json:"user,omitempty"`
 }
+
+// HandshakeUser The Hub user the authenticated device belongs to (additive, protocol_version unchanged). Lets the Player show who is signed in.
+type HandshakeUser struct {
+	DisplayName string `json:"display_name"`
+
+	// Id Hub-local user ID
+	Id   string            `json:"id"`
+	Role HandshakeUserRole `json:"role"`
+}
+
+// HandshakeUserRole defines model for HandshakeUser.Role.
+type HandshakeUserRole string
 
 // HubInfo defines model for HubInfo.
 type HubInfo struct {

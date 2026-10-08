@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: FrameBeam Hub API
-  version: 1.5.0
+  version: 1.6.0
   description: |
     HTTPS/JSON API of the FrameBeam Hub (phase 1; phase 3 adds save sync under `saves`, advertised by the handshake feature `saves_v1`; phase 4 adds Session sharing under `sessions` and the WSS endpoint, advertised by the handshake feature `sessions_v1`; phase 5 adds invite redemption under `users` (`users_v1`), user ROM uploads (`uploads_v1`, only advertised when the caller may upload) and the systems registry with firmware download under `systems` (`firmware_v1`); 0.2 adds core packages served by the Hub under `cores` (`cores_v1`); 0.4 adds relay credentials for Sessions over the internet (`turn_v1`, `turn_servers` in `hello_ack` and the join response), save comfort (`saves_v2`: restore, manual snapshots, history labels, the `save_updated` WSS message) and the signed core index for Player-side verification (`cores_index_v1`, `/api/v1/cores/index`)). `protocol_version` is an integer (starting at 1),
     separate from the hub/player product version. All paths carry the `/api/v1` prefix explicitly;
@@ -1697,6 +1697,16 @@ components:
           description: Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = the Hub's embedded TURN server is on (`turn_servers` in `hello_ack` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `cores_index_v1` = signed core index served at `/api/v1/cores/index` and `/api/v1/cores/index.sig`.
           items: { type: string }
           example: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1, cores_v1, turn_v1, saves_v2, cores_index_v1]
+        user:
+          $ref: '#/components/schemas/HandshakeUser'
+    HandshakeUser:
+      type: object
+      description: The Hub user the authenticated device belongs to (additive, protocol_version unchanged). Lets the Player show who is signed in.
+      required: [id, display_name, role]
+      properties:
+        id: { type: string, description: Hub-local user ID }
+        display_name: { type: string }
+        role: { type: string, enum: [admin, user] }
     RomInfo:
       type: object
       required: [sha256, size, filename]
