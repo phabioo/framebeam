@@ -127,10 +127,24 @@ class ControllersGlyphsTest : public QObject {
     QVERIFY(sel != nullptr);
     QVERIFY(QMetaObject::invokeMethod(sel, "picked", Q_ARG(QString, value)));
   }
+  bool sdlHeld_ = false;
   static QRectF sceneRect(QQuickItem* it) { return it->mapRectToScene(QRectF(0, 0, it->width(), it->height())); }
 
  private slots:
-  void initTestCase() { uitest::installWarningCounter(); }
+  void initTestCase() {
+    uitest::installWarningCounter();
+    // Keep SDL's reference count above zero for the whole run. Each Harness with gamepads makes the GamepadService
+    // SDL_Init / SDL_QuitSubSystem; a full shutdown followed by a re-init crashed inside SDL's Windows joystick
+    // drivers (second Harness in this process, MSVC CI). The Player itself initializes SDL once per process.
+    SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
+    SDL_SetHint(SDL_HINT_NO_SIGNAL_HANDLERS, "1");
+    sdlHeld_ = SDL_Init(SDL_INIT_GAMEPAD);
+    QVERIFY2(sdlHeld_, SDL_GetError());
+  }
+  void cleanupTestCase() {
+    if (sdlHeld_) SDL_QuitSubSystem(SDL_INIT_GAMEPAD);
+    sdlHeld_ = false;
+  }
   void init() { uitest::warningCount() = 0; }
   void cleanup() { QCOMPARE(uitest::warningCount().load(), 0); }
 
@@ -359,6 +373,7 @@ class ControllersGlyphsTest : public QObject {
 
   // Screenshots 3f-2 (Xbox) and 3f-3 (DualSense) at 1280 x 800, dark; only written with FRAMEBEAM_SHOT_DIR.
   void screenshotsXboxAndDualSense() {
+    if (qEnvironmentVariableIsEmpty("FRAMEBEAM_SHOT_DIR")) QSKIP("FRAMEBEAM_SHOT_DIR not set");
     FakeHub hub(QStringLiteral("a"));
     QVERIFY(hub.start());
     Harness h;

@@ -77,6 +77,7 @@ Rectangle {
                         onClicked: root.ctl.selectDevice(dev.modelData.key)
                         RowLayout {
                             Layout.fillWidth: true
+                            Layout.minimumWidth: 0
                             FbLabel {
                                 Layout.fillWidth: true
                                 text: dev.modelData.name
@@ -283,6 +284,7 @@ Rectangle {
                     RowLayout {
                         visible: !root.isMouse && !root.hotkeysTab && root.ctl.profileBuiltin
                         Layout.fillWidth: true
+                        Layout.minimumWidth: 0
                         spacing: Theme.space12
                         FbLabel {
                             objectName: "builtinNote"
@@ -322,6 +324,7 @@ Rectangle {
                         }
                         RowLayout {
                             Layout.fillWidth: true
+                            Layout.minimumWidth: 0
                             Layout.bottomMargin: 6
                             spacing: Theme.space16
                             Eyebrow { Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; text: qsTr("Action") }
@@ -468,6 +471,7 @@ Rectangle {
 
                         RowLayout {
                             Layout.fillWidth: true
+                            Layout.minimumWidth: 0
                             Layout.bottomMargin: 6
                             spacing: Theme.space12
                             Item { Layout.preferredWidth: 14; Layout.minimumWidth: 14; Layout.maximumWidth: 14 }
