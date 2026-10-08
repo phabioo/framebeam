@@ -73,9 +73,10 @@ qt_add_qml_module(framebeam_ui
     EmulationScreen.qml
     ControllersScreen.qml
     UploadFileDialog.qml
-    SaveHistorySection.qml
-    SaveRestoreDialog.qml
-    SaveUploadDialog.qml
+    SaveSummary.qml
+    SavesView.qml
+    SaveRow.qml
+    SortControl.qml
     SaveFileDialog.qml
 )
 target_include_directories(framebeam_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

@@ -322,7 +322,7 @@ class ScreensTest : public QObject {
     QCOMPARE(lib->totalCount(), 6);
     QCOMPARE(h.controller->hubName(), QStringLiteral("Home"));
     QTRY_COMPARE(lib->readyCount(), 1);  // Lumen Drift after asynchronous verification
-    QCOMPARE(h.controller->selectedGameId(), QStringLiteral("g1"));  // first game preselected
+    QCOMPARE(h.controller->selectedGameId(), h.controller->library()->data(h.controller->library()->index(0), LibraryModel::GameIdRole).toString());  // first game in the current sort preselected
 
     // Make hash mismatch visible (hub delivers wrong content).
     h.controller->downloader()->ensureRom(h.controller->hubLibrary()->games().at(4));
@@ -330,6 +330,7 @@ class ScreensTest : public QObject {
                  QStringLiteral("mismatch"));
 
     // Detail pane: core missing (path hint), firmware not required, Play disabled.
+    h.controller->selectGame(QStringLiteral("g1"));  // the preselected game follows the sort order
     QVariantMap g = h.controller->selectedGame();
     QCOMPARE(g.value(QStringLiteral("title")).toString(), QStringLiteral("Lumen Drift"));
     QCOMPARE(g.value(QStringLiteral("systemName")).toString(), QStringLiteral("Nintendo DS"));

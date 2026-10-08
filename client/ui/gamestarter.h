@@ -79,6 +79,8 @@ class GameStarter : public QObject {
   void selectedGameChanged();
   void saveConflictChanged();
   void coreStateRefreshRequested();
+  // The game is about to start on this Player (after the start sync): "last played" is recorded.
+  void gameLaunched(const QString& gameId);
 
  private:
   void continueStartAfterCore(const GameEntry& game, const emu::SystemManifest& man);

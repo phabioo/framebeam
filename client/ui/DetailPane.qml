@@ -5,12 +5,30 @@ import FrameBeam.Player
 // Detail pane (3c) for the selected game.
 Rectangle {
     id: root
+    objectName: "detailPane"
     required property PlayerController player
     readonly property var game: player.selectedGame
     readonly property bool hasGame: game.id !== undefined
-    property bool showDetails: false
+    // "overview" (status, SAVE summary, start checklist) or "saves" (3c-3 saves view in the same 392 column)
+    property string mode: "overview"
+    readonly property SaveHistoryController hist: player.saveHistory
+    // A restore, delete or upload confirmation is open, or an upload runs: Play is disabled (decision af).
+    readonly property bool confirming: hist.confirmationOpen
     readonly property string gameId: game.id === undefined ? "" : game.id
-    onGameIdChanged: if (gameId !== "") fadeIn.restart()
+    onGameIdChanged: {
+        root.leaveSaves()
+        if (gameId !== "") fadeIn.restart()
+    }
+    function openSaves(upload) {
+        root.mode = "saves"
+        savesLoader.active = true
+        if (upload === true) Qt.callLater(() => { if (savesLoader.item !== null) savesLoader.item.openUpload() })
+        else Qt.callLater(() => { if (savesLoader.item !== null) savesLoader.item.forceActiveFocus() })
+    }
+    function leaveSaves() {
+        if (savesLoader.item !== null) savesLoader.item.cancelAll()
+        root.mode = "overview"
+    }
     NumberAnimation { id: fadeIn; target: flick; property: "opacity"; from: 0.35; to: 1; duration: Theme.durPage }
 
     color: Theme.bgPanel
@@ -39,8 +57,10 @@ Rectangle {
 
         Flickable {
             id: flick
+            visible: root.mode === "overview"
             Layout.fillWidth: true
             Layout.fillHeight: true
+            Layout.minimumWidth: 0
             contentWidth: width
             contentHeight: content.implicitHeight
             clip: true
@@ -108,8 +128,7 @@ Rectangle {
                         model: [
                             { label: qsTr("ROM"), text: root.game.romText, tone: root.game.romTone, hint: "" },
                             { label: qsTr("Core"), text: root.game.coreText, tone: root.game.coreTone, hint: root.game.coreHint },
-                            { label: qsTr("Firmware"), text: root.game.firmwareText, tone: root.game.firmwareTone, hint: root.game.firmwareHint },
-                            { label: qsTr("Save"), text: root.game.saveText, tone: root.game.saveTone, hint: root.game.saveHint }
+                            { label: qsTr("Firmware"), text: root.game.firmwareText, tone: root.game.firmwareTone, hint: root.game.firmwareHint }
                         ]
                         delegate: Item {
                             id: row
@@ -159,12 +178,11 @@ Rectangle {
                     }
                 }
 
-                SaveHistorySection {
-                    Layout.fillWidth: true
-                    Layout.minimumWidth: 0
-                    Layout.preferredWidth: 1
-                    Layout.maximumWidth: content.width
+                SaveSummary {
                     player: root.player
+                    Layout.maximumWidth: content.width
+                    onManage: root.openSaves(false)
+                    onUploadRequested: root.openSaves(true)
                 }
 
                 FbButton {
@@ -174,24 +192,6 @@ Rectangle {
                     text: qsTr("Check firmware again")
                     onClicked: root.player.recheckFirmware()
                 }
-                FbButton {
-                    objectName: "detailsToggle"
-                    kind: "link"
-                    text: root.showDetails ? qsTr("Hide details") : qsTr("Show details (hash, size, path)")
-                    onClicked: root.showDetails = !root.showDetails
-                }
-                ColumnLayout {
-                    visible: root.showDetails
-                    Layout.fillWidth: true
-                    spacing: 6
-                    Eyebrow { text: qsTr("SHA-256") }
-                    FbMono { Layout.fillWidth: true; text: root.game.sha || ""; color: Theme.text; wrapMode: Text.WrapAnywhere; font.pixelSize: 11 }
-                    Eyebrow { text: qsTr("Size"); Layout.topMargin: 4 }
-                    FbMono { Layout.fillWidth: true; text: root.game.sizeText || ""; color: Theme.text; font.pixelSize: 11 }
-                    Eyebrow { text: qsTr("Cache path"); Layout.topMargin: 4 }
-                    FbMono { Layout.fillWidth: true; text: root.game.cachePath || ""; color: Theme.text; wrapMode: Text.WrapAnywhere; font.pixelSize: 11 }
-                }
-
                 // Start checklist
                 ColumnLayout {
                     Layout.fillWidth: true
@@ -256,6 +256,19 @@ Rectangle {
             }
         }
 
+        Loader {
+            id: savesLoader
+            active: false
+            visible: root.mode === "saves"
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.minimumWidth: 0
+            sourceComponent: SavesView {
+                player: root.player
+                onBack: root.leaveSaves()
+            }
+        }
+
         FbButton {
             objectName: "playButton"
             Layout.fillWidth: true
@@ -265,7 +278,7 @@ Rectangle {
             busy: root.game.busy === true
             busyOnClick: true
             text: root.game.playLabel || qsTr("Play")
-            enabled: root.game.canPlay === true
+            enabled: root.game.canPlay === true && !root.confirming
             onClicked: root.game.running === true ? root.player.resumeGame() : root.player.playSelected()
         }
         FbButton {
@@ -274,7 +287,7 @@ Rectangle {
             Layout.fillWidth: true
             implicitHeight: 44
             text: root.game.running === true ? qsTr("Quit game") : qsTr("Play and share Session")
-            enabled: root.game.running === true || root.game.canPlay === true
+            enabled: root.game.running === true || (root.game.canPlay === true && !root.confirming)
             onClicked: root.game.running === true ? root.player.quitGame() : root.player.playAndShareSelected()
         }
         FbLabel {

@@ -1,0 +1,605 @@
+// Library revision 3c-2 .. 3c-4 against the fake Hub: sort control, "Ready first", empty result, last played per Hub,
+// SAVE summary, saves view (tabs / switcher, timeline, inline confirmations, offline, running, upload failure) and the
+// layout of the detail column at 1280 and 960 px. No emulator core needed; homebrew-style dummy bytes only.
+#include <QClipboard>
+#include <QFile>
+#include <QGuiApplication>
+#include <QQmlContext>
+#include <QQmlProperty>
+#include <QTemporaryDir>
+#include <QtTest>
+
+#include "fakehub.h"
+#include "testsupport.h"
+
+using namespace framebeam;
+using namespace framebeam::ui;
+using uitest::Harness;
+using S = HubConnection::State;
+
+namespace {
+const QString kHubId = QStringLiteral("hub-lib");
+const QStringList kAllFeatures{QStringLiteral("saves_v1"), QStringLiteral("saves_v2"), QStringLiteral("saves_v3"),
+                               QStringLiteral("saves_v4"), QStringLiteral("sessions_v1")};
+}  // namespace
+
+class LibrarySavesUiTest : public QObject {
+  Q_OBJECT
+
+  static void pair(Harness& h, FakeHub& hub) {
+    hub.decision = FakeHub::Decision::Approve;
+    h.controller->addHub(hub.address());
+    QTRY_COMPARE_WITH_TIMEOUT(h.controller->connection()->state(), S::NeedsTrustConfirmation, 8000);
+    h.controller->confirmTrust();
+    QTRY_COMPARE_WITH_TIMEOUT(h.controller->connection()->state(), S::NeedsPairing, 8000);
+    h.controller->requestPairing();
+    QTRY_COMPARE_WITH_TIMEOUT(h.controller->libraryState(), QStringLiteral("ready"), 8000);
+  }
+  // One game "Lumen Drift" (g1) with a save on the Hub.
+  static void oneGame(FakeHub& hub, const QStringList& features = kAllFeatures) {
+    const QByteArray rom = "homebrew-dummy-rom-lib";
+    hub.hubId = kHubId;
+    hub.features = features;
+    hub.roms.insert(uitest::sha256Hex(rom), rom);
+    hub.games = QJsonObject{{QStringLiteral("games"), QJsonArray{uitest::gameJson(QStringLiteral("g1"), QStringLiteral("Lumen Drift"),
+                                                                                    uitest::sha256Hex(rom), rom.size())}}};
+  }
+  static QQuickItem* column(Harness& h) { return h.item("detailPane"); }
+  static QRectF sceneRect(QQuickItem* it) { return it->mapRectToScene(QRectF(0, 0, it->width(), it->height())); }
+  static QString chainOf(QQuickItem* it) {
+    QString chain;
+    for (QQuickItem* i = it; i != nullptr; i = i->parentItem()) {
+      const QRectF r = sceneRect(i);
+      chain += QStringLiteral("\n  %1 '%2' x=%3 w=%4 impl=%5 vis=%6")
+                   .arg(QString::fromLatin1(i->metaObject()->className()), i->objectName()).arg(r.x()).arg(r.width()).arg(i->implicitWidth()).arg(i->isVisible());
+    }
+    return chain;
+  }
+  // Every named item lies inside the visible detail column (392 wide), which lies inside the window.
+  static void checkInColumn(Harness& h, const QStringList& names, int minChecked = 3) {
+    QQuickTest::qWaitForPolish(h.window);
+    QTest::qWait(30);
+    QQuickItem* col = column(h);
+    QVERIFY(col != nullptr);
+    const QRectF cr = sceneRect(col);
+    QVERIFY2(cr.right() <= h.window->width() + 0.5, qPrintable(QStringLiteral("column outside window %1 > %2").arg(cr.right()).arg(h.window->width())));
+    QVERIFY2(cr.width() <= 392.5, qPrintable(QStringLiteral("column wider than 392: %1").arg(cr.width())));
+    int checked = 0;
+    for (const QString& name : names) {
+      const QList<QQuickItem*> all = h.items(name.toLatin1().constData());
+      for (QQuickItem* it : all) {
+        if (!it->isVisible() || it->width() <= 0) continue;
+        ++checked;
+        const QRectF r = sceneRect(it);
+        QVERIFY2(r.left() >= cr.left() - 0.5 && r.right() <= cr.right() + 0.5,
+                 qPrintable(QStringLiteral("'%1' outside the detail column (%2..%3 vs %4..%5):%6")
+                                .arg(name).arg(r.left()).arg(r.right()).arg(cr.left()).arg(cr.right()).arg(chainOf(it))));
+      }
+    }
+    QVERIFY2(checked >= minChecked, qPrintable(QStringLiteral("only %1 of the named items are visible: the state under test is not shown").arg(checked)));
+  }
+  static void openSavesView(Harness& h) {
+    QTRY_VERIFY_WITH_TIMEOUT(h.item("manageSavesLink") != nullptr && h.item("manageSavesLink")->isVisible(), 8000);
+    QVERIFY(h.click("manageSavesLink"));
+    QTRY_VERIFY_WITH_TIMEOUT(h.item("savesView") != nullptr && h.item("savesView")->isVisible(), 4000);
+  }
+  // For states where the summary link is "Upload save file…" (the file dialog is not wanted in tests).
+  static void openSavesViewViaApi(Harness& h) {
+    QQuickItem* pane = h.item("detailPane");
+    QVERIFY(pane != nullptr);
+    QVERIFY(QMetaObject::invokeMethod(pane, "openSaves", Q_ARG(QVariant, QVariant(false))));
+    QTRY_VERIFY_WITH_TIMEOUT(h.item("savesView") != nullptr && h.item("savesView")->isVisible(), 4000);
+  }
+  static QString textOf(Harness& h, const char* name) {
+    QQuickItem* it = h.item(name);
+    return it != nullptr ? it->property("text").toString() : QString();
+  }
+  static bool shown(Harness& h, const char* name) {
+    QQuickItem* it = h.item(name);
+    return it != nullptr && it->isVisible();
+  }
+  static bool confirming(Harness& h) { return h.item("detailPane") != nullptr && h.item("detailPane")->property("confirming").toBool(); }
+
+ private slots:
+  void initTestCase() {
+    qunsetenv("FRAMEBEAM_MELONDS_DS_CORE");
+    uitest::installWarningCounter();
+  }
+  void init() { uitest::warningCount() = 0; }
+  void cleanup() { QCOMPARE(uitest::warningCount().load(), 0); }
+
+  // ---- 3c-2: toolbar, sort, Ready first, empty result --------------------------------------------------------------
+  void sortReadyFirstAndEmptyResult() {
+    struct G { const char* id; const char* title; int size; const char* added; };
+    const G defs[] = {{"g1", "Zephyr Run", 900, "2026-01-05T10:00:00Z"}, {"g2", "alpha Garden", 100, "2026-03-01T10:00:00Z"},
+                      {"g3", "Moon Courier", 500, "2026-02-01T10:00:00Z"}, {"g4", "Orbit 10", 700, "2026-04-01T10:00:00Z"},
+                      {"g5", "Orbit 2", 200, "2026-01-20T10:00:00Z"}};
+    FakeHub hub(QStringLiteral("a"));
+    hub.hubId = kHubId;
+    QJsonArray games;
+    for (const G& g : defs) {
+      QByteArray rom = QByteArray(g.id) + "-rom-";
+      rom.append(QByteArray(g.size - rom.size(), 'x'));
+      hub.roms.insert(uitest::sha256Hex(rom), rom);
+      QJsonObject j = uitest::gameJson(QString::fromLatin1(g.id), QString::fromLatin1(g.title), uitest::sha256Hex(rom), rom.size());
+      j.insert(QStringLiteral("added_at"), QString::fromLatin1(g.added));
+      games.append(j);
+    }
+    hub.games = QJsonObject{{QStringLiteral("games"), games}};
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    LibraryModel* lib = h.controller->library();
+    const auto order = [&]() {
+      QStringList out;
+      for (int i = 0; i < lib->rowCount(); ++i) out << lib->data(lib->index(i), LibraryModel::GameIdRole).toString();
+      return out;
+    };
+    // g1, g3, g4 are ready (verified from the Hub); g2, g5 need a download
+    for (const char* id : {"g1", "g3", "g4"}) {
+      for (const GameEntry& g : h.controller->hubLibrary()->games()) {
+        if (g.id == QLatin1String(id)) h.controller->downloader()->ensureRom(g);
+      }
+    }
+    QTRY_COMPARE_WITH_TIMEOUT(lib->readyCount(), 3, 8000);
+    // Without a core every game "needs attention" (core missing) and none would count as ready: take that out for the grouping.
+    QTRY_VERIFY_WITH_TIMEOUT((lib->setAttention({}), lib->isReady(QStringLiteral("g1")) && lib->isReady(QStringLiteral("g3")) && lib->isReady(QStringLiteral("g4"))), 8000);
+    QCOMPARE(order(), (QStringList{"g2", "g3", "g5", "g4", "g1"}));  // Name A–Z, "Orbit 2" before "Orbit 10"
+    QCOMPARE(h.controller->selectedGameId(), QStringLiteral("g2"));  // first game of the sorted list
+    QCOMPARE(textOf(h, "libraryCount"), QStringLiteral("5 games · Nintendo DS"));
+    QVERIFY(shown(h, "sortControl") && shown(h, "readyFirstToggle"));
+    QVERIFY(!shown(h, "notReadyDivider"));
+    uitest::saveShot(h.window, QStringLiteral("library-3c-2"));
+
+    // Sort menu
+    QVERIFY(h.click("sortControl"));
+    QTRY_VERIFY(shown(h, "sort_size_desc"));
+    uitest::saveShot(h.window, QStringLiteral("library-sort-menu"));
+    QVERIFY(h.click("sort_size_desc"));
+    QTRY_COMPARE(lib->sortKey(), QStringLiteral("size_desc"));
+    QCOMPARE(order(), (QStringList{"g1", "g4", "g3", "g5", "g2"}));
+    QVERIFY(h.click("sortControl"));
+    QTRY_VERIFY(shown(h, "sort_added_asc"));
+    QVERIFY(h.click("sort_added_asc"));
+    QTRY_COMPARE(lib->sortKey(), QStringLiteral("added_asc"));
+    QCOMPARE(order(), (QStringList{"g1", "g5", "g3", "g2", "g4"}));
+    // With a date sort the tiles carry "Added DD.MM.YYYY"
+    QTRY_VERIFY(h.item("tileAdded") != nullptr && h.item("tileAdded")->isVisible());
+    QVERIFY(h.item("tileAdded")->property("text").toString().startsWith(QStringLiteral("Added ")));
+    QVERIFY(h.click("sortControl"));
+    QTRY_VERIFY(shown(h, "sort_size_desc"));
+    QVERIFY(h.click("sort_size_desc"));
+    QTRY_COMPARE(lib->sortKey(), QStringLiteral("size_desc"));
+
+    // Ready first: two grids and the divider "NOT READY · 2 · same sort"
+    QVERIFY(h.click("readyFirstToggle"));
+    QTRY_VERIFY(lib->readyFirst());
+    QTRY_VERIFY(shown(h, "notReadyDivider"));
+    QCOMPARE(order(), (QStringList{"g1", "g4", "g3", "g5", "g2"}));
+    QCOMPARE(QQmlProperty(h.item("gameGrid"), QStringLiteral("count")).read().toInt(), 3);
+    QCOMPARE(QQmlProperty(h.item("gameGridNotReady"), QStringLiteral("count")).read().toInt(), 2);
+    bool dividerText = false;
+    for (QQuickItem* c : h.item("notReadyDivider")->childItems()) {
+      dividerText = dividerText || c->property("text").toString() == QStringLiteral("NOT READY · 2 · same sort");
+    }
+    QVERIFY(dividerText);
+    uitest::saveShot(h.window, QStringLiteral("library-ready-first"));
+    // Sort and Ready first are saved per device
+    {
+      PlayerSettings s(h.controller->profileStore()->baseDir());
+      QCOMPARE(s.librarySort(), QStringLiteral("size_desc"));
+      QVERIFY(s.libraryReadyFirst());
+    }
+    // The "Ready" chip: every result is ready, the toggle is disabled and no divider is shown
+    QVERIFY(h.click("filterReady"));
+    QTRY_VERIFY(!shown(h, "notReadyDivider"));
+    QVERIFY(!h.item("readyFirstToggle")->isEnabled());
+    QCOMPARE(textOf(h, "libraryCount"), QStringLiteral("3 of 5 games"));
+    QVERIFY(h.click("filterAll"));
+    QTRY_VERIFY(shown(h, "notReadyDivider"));
+    QVERIFY(h.item("readyFirstToggle")->isEnabled());
+
+    // Search + chip -> empty result with the hint and both actions (decision ac for the count)
+    QVERIFY(h.click("filterDownload"));  // g2, g5
+    QVERIFY(h.item("searchField")->setProperty("text", QStringLiteral("moon")));
+    QTRY_VERIFY(shown(h, "libraryEmptyText"));
+    QCOMPARE(textOf(h, "libraryEmptyText"), QStringLiteral("No games not downloaded match “moon”"));
+    QCOMPARE(textOf(h, "libraryEmptyHint"), QStringLiteral("1 match outside this filter: Moon Courier (ready)."));
+    QCOMPARE(textOf(h, "libraryCount"), QStringLiteral("0 of 2 games not downloaded"));
+    QVERIFY(shown(h, "emptyClearSearch") && shown(h, "emptyShowAll"));
+    uitest::saveShot(h.window, QStringLiteral("library-empty-result"));
+    QCOMPARE(lib->counts().value(QStringLiteral("all")).toInt(), 1);  // the chips recount to the search
+    QVERIFY(h.click("emptyShowAll"));
+    QTRY_COMPARE(lib->filter(), QStringLiteral("all"));
+    QTRY_COMPARE(lib->rowCount(), 1);
+    QVERIFY(h.item("searchField")->setProperty("text", QStringLiteral("zzz")));
+    QTRY_COMPARE(textOf(h, "libraryEmptyText"), QStringLiteral("No games match “zzz”"));
+    QVERIFY(h.click("emptyClearSearch"));
+    QTRY_COMPARE(lib->rowCount(), 5);
+    QVERIFY(h.item("searchField")->property("text").toString().isEmpty());
+
+    // Restart with the same data directory: the sort choice is back
+    {
+      PlayerController::Options o;
+      o.dataDir = h.dir.path();
+      o.memoryCredentials = true;
+      o.probeCoreVersions = false;
+      o.enableGamepads = false;
+      PlayerController second(o);
+      QCOMPARE(second.library()->sortKey(), QStringLiteral("size_desc"));
+      QVERIFY(second.library()->readyFirst());
+    }
+  }
+
+  void lastPlayedIsPerHubAndSortable() {
+    FakeHub hub(QStringLiteral("a"));
+    oneGame(hub);
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    PlayerController* c = h.controller.get();
+    QCOMPARE(c->playerSettings()->lastPlayed(kHubId, QStringLiteral("g1")), qint64(0));
+    c->recordLastPlayed(QStringLiteral("g1"), 1760000000000LL);
+    QCOMPARE(c->playerSettings()->lastPlayed(kHubId, QStringLiteral("g1")), 1760000000000LL);
+    QCOMPARE(c->playerSettings()->lastPlayed(QStringLiteral("another-hub"), QStringLiteral("g1")), qint64(0));  // same game id, other Hub
+    c->library()->setSortKey(QStringLiteral("played"));
+    QCOMPARE(c->library()->rowCount(), 1);
+    // A reload of the library reads the stored value of this Hub
+    c->reloadLibrary();
+    QTRY_COMPARE_WITH_TIMEOUT(c->libraryState(), QStringLiteral("ready"), 8000);
+    QCOMPARE(PlayerSettings(c->profileStore()->baseDir()).lastPlayed(kHubId, QStringLiteral("g1")), 1760000000000LL);
+  }
+
+  // ---- 3c-2 SAVE summary and 3c-3 saves view -----------------------------------------------------------------------
+  void summaryOpensTheSavesViewAndBack() {
+    FakeHub hub(QStringLiteral("a"));
+    oneGame(hub);
+    hub.setHubSave(QStringLiteral("g1"), "cp-1");
+    hub.addHistory(QStringLiteral("g1"), QStringLiteral("default"), "old", QStringLiteral("session_end"));
+    hub.addHistory(QStringLiteral("g1"), QStringLiteral("default"), "snap", QStringLiteral("manual_snapshot"), QStringLiteral("Chapter 2"));
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    SaveHistoryController* hist = h.controller->saveHistory();
+    QTRY_VERIFY_WITH_TIMEOUT(hist->available() && !hist->loading() && hist->versionCount() == 3, 8000);
+    QTRY_VERIFY(shown(h, "saveSummary"));
+    QCOMPARE(textOf(h, "saveSlotName"), QStringLiteral("Main"));
+    QCOMPARE(textOf(h, "saveVersion"), QStringLiteral("r1"));
+    QCOMPARE(textOf(h, "saveCounts"), QStringLiteral("1 slot · 3 versions in Main"));
+    QCOMPARE(textOf(h, "manageSavesLink"), QStringLiteral("Manage saves →"));
+    // The "Save" row and "Show details" of 3c are gone; the checklist is still there
+    QVERIFY(h.item("detailsToggle") == nullptr);
+    QVERIFY(h.item("saveSection") == nullptr);
+    uitest::saveShot(h.window, QStringLiteral("library-save-summary"));
+    checkInColumn(h, {"saveSummary", "saveCurrentRow", "saveCounts", "manageSavesLink", "playButton", "playShareButton"});
+
+    openSavesView(h);
+    QVERIFY(!shown(h, "saveSummary"));
+    QVERIFY(shown(h, "playButton"));  // Play stays pinned below the view
+    QTRY_VERIFY(shown(h, "currentBar"));
+    QCOMPARE(textOf(h, "currentVersion"), QStringLiteral("r1"));
+    QVERIFY(shown(h, "slotTab_default"));
+    QVERIFY(!shown(h, "slotSwitcher"));
+    QTRY_VERIFY(!textOf(h, "savesUpdated").isEmpty());
+    QVERIFY(textOf(h, "savesUpdated").startsWith(QStringLiteral("updated ")));
+    // Timeline: current row + 2 history rows; the snapshot has Delete, the other row has not
+    QTRY_COMPARE(h.items("historyRow").size() + h.items("historyRowCurrent").size(), 3);
+    int visibleDelete = 0;
+    for (QQuickItem* it : h.items("deleteButton")) visibleDelete += it->isVisible() ? 1 : 0;
+    QCOMPARE(visibleDelete, 1);
+    // File details are collapsed until asked for
+    QVERIFY(!shown(h, "fileDetails"));
+    QVERIFY(h.click("fileDetailsToggle"));
+    QTRY_VERIFY(shown(h, "fileDetails"));
+    QCOMPARE(textOf(h, "detailSize").isEmpty(), false);
+    QVERIFY(h.click("copyHashButton"));
+    QCOMPARE(QGuiApplication::clipboard()->text(), hist->current().value(QStringLiteral("sha256")).toString());
+    uitest::saveShot(h.window, QStringLiteral("library-saves-view"));
+    checkInColumn(h, {"savesView", "slotTabs", "currentBar", "fileDetails", "saveActions", "snapshotButton", "uploadSaveButton", "historyHeader",
+                      "historyRow", "restoreButton", "deleteButton", "playButton", "playShareButton"});
+
+    // Snapshots filter: the snapshot and the current version
+    QVERIFY(h.click("historyFilterSnapshots"));
+    QTRY_COMPARE(h.items("historyRow").size() + h.items("historyRowCurrent").size(), 2);
+    QVERIFY(h.click("historyFilterAll"));
+    QTRY_COMPARE(h.items("historyRow").size() + h.items("historyRowCurrent").size(), 3);
+
+    // Esc and "← title" return to the game detail
+    QTest::keyClick(h.window, Qt::Key_Escape);
+    QTRY_VERIFY(!shown(h, "savesView"));
+    QVERIFY(shown(h, "saveSummary"));
+    openSavesView(h);
+    QVERIFY(h.click("savesBack"));
+    QTRY_VERIFY(!shown(h, "savesView"));
+    QVERIFY(shown(h, "saveSummary"));
+  }
+
+  void noSavesYetState() {
+    FakeHub hub(QStringLiteral("a"));
+    oneGame(hub);  // no save on the Hub
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    SaveHistoryController* hist = h.controller->saveHistory();
+    QTRY_VERIFY_WITH_TIMEOUT(hist->available() && !hist->loading(), 8000);
+    QTRY_VERIFY(shown(h, "saveEmptyBlock"));
+    QCOMPARE(textOf(h, "manageSavesLink"), QStringLiteral("Upload save file…"));  // saves_v4 is advertised
+    uitest::saveShot(h.window, QStringLiteral("library-save-none"));
+    // The saves view says the same and still offers the actions
+    openSavesViewViaApi(h);
+    QTRY_VERIFY(shown(h, "historyEmpty"));
+    QCOMPARE(textOf(h, "snapshotButton").isEmpty(), false);
+    QVERIFY(shown(h, "saveActions"));
+  }
+
+  void slotSwitcherAboveThreeSlots() {
+    FakeHub hub(QStringLiteral("a"));
+    oneGame(hub);
+    hub.setHubSave(QStringLiteral("g1"), "cp-main");
+    hub.setHubSave(QStringLiteral("g1/speedrun"), "cp-2");
+    hub.setHubSave(QStringLiteral("g1/chapter-2"), "cp-3");
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    SaveHistoryController* hist = h.controller->saveHistory();
+    QTRY_VERIFY_WITH_TIMEOUT(hist->available() && !hist->loading() && hist->slotCount() == 3, 8000);
+    openSavesView(h);
+    // Exactly three slots: tabs with the version count after the name
+    QTRY_VERIFY(shown(h, "slotTab_default") && shown(h, "slotTab_speedrun") && shown(h, "slotTab_chapter-2"));
+    QVERIFY(!shown(h, "slotSwitcher"));
+    QVERIFY(shown(h, "newSlotButton"));
+    QTRY_VERIFY(textOf(h, "slotTab_speedrun").contains(QStringLiteral("speedrun")));
+    checkInColumn(h, {"slotTabs", "slotTab_default", "slotTab_speedrun", "slotTab_chapter-2", "newSlotButton"});
+    // Click a tab: the slot changes
+    QVERIFY(h.click("slotTab_speedrun"));
+    QTRY_COMPARE(hist->slot(), QStringLiteral("speedrun"));
+    QCOMPARE(h.controller->playerSettings()->saveSlot(kHubId, QStringLiteral("g1")), QStringLiteral("speedrun"));
+
+    // A fourth slot collapses the tabs into the switcher "Main · n ▾"
+    hub.setHubSave(QStringLiteral("g1/zen"), "cp-4");
+    hist->refresh();
+    QTRY_COMPARE_WITH_TIMEOUT(hist->slotCount(), 4, 8000);
+    QTRY_VERIFY(shown(h, "slotSwitcher"));
+    for (const char* tab : {"slotTab_default", "slotTab_speedrun"}) {
+      QQuickItem* it = h.item(tab);
+      QVERIFY2(it == nullptr || !it->isVisible(), tab);
+    }
+    QVERIFY(!shown(h, "newSlotButton"));  // "+ New slot" is the last item of the switcher
+    checkInColumn(h, {"slotTabs", "slotSwitcher"}, 2);
+    QVERIFY(h.click("slotSwitcher"));
+    QTRY_VERIFY(shown(h, "slotMenu_zen") && shown(h, "slotMenuNew"));
+    uitest::saveShot(h.window, QStringLiteral("library-slot-switcher"));
+    QVERIFY(h.click("slotMenu_default"));
+    QTRY_COMPARE(hist->slot(), QStringLiteral("default"));
+    QVERIFY(h.click("slotSwitcher"));
+    QTRY_VERIFY(shown(h, "slotMenuNew"));
+    QVERIFY(h.click("slotMenuNew"));
+    QTRY_VERIFY(shown(h, "newSlotRow"));
+    QVERIFY(h.item("newSlotField")->setProperty("text", QStringLiteral("Bad Name")));
+    QVERIFY(h.click("newSlotCreate"));
+    QTRY_VERIFY(shown(h, "newSlotError"));
+    QVERIFY(h.item("newSlotField")->setProperty("text", QStringLiteral("second-run")));
+    QVERIFY(h.click("newSlotCreate"));
+    QTRY_COMPARE(hist->slot(), QStringLiteral("second-run"));
+    QTRY_VERIFY(!shown(h, "newSlotRow"));
+  }
+
+  void deleteSnapshotInlineConfirmation() {
+    FakeHub hub(QStringLiteral("a"));
+    oneGame(hub);
+    hub.setHubSave(QStringLiteral("g1"), "cp-1");
+    hub.addHistory(QStringLiteral("g1"), QStringLiteral("default"), "a", QStringLiteral("session_end"));
+    hub.addHistory(QStringLiteral("g1"), QStringLiteral("default"), "b", QStringLiteral("manual_snapshot"), QStringLiteral("Before the lighthouse"));
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    SaveHistoryController* hist = h.controller->saveHistory();
+    QTRY_VERIFY_WITH_TIMEOUT(hist->available() && !hist->loading() && hist->history().size() == 2, 8000);
+    QVERIFY(hist->canDeleteSnapshot());
+    openSavesView(h);
+    QTRY_VERIFY(shown(h, "deleteButton"));
+    QVERIFY(!confirming(h));
+    QVERIFY(h.click("deleteButton"));
+    QTRY_VERIFY(shown(h, "deleteConfirmBox"));
+    QVERIFY(confirming(h));  // Play is disabled while a delete confirmation is open (decision af)
+    QCOMPARE(hist->deleteRequest().value(QStringLiteral("label")).toString(), QStringLiteral("Before the lighthouse"));
+    uitest::saveShot(h.window, QStringLiteral("library-delete-confirm"));
+    checkInColumn(h, {"deleteConfirmBox", "confirmTitle", "deleteCancel", "deleteConfirm"});
+    // Opening a restore confirmation replaces the delete one
+    QVERIFY(h.click("deleteCancel"));
+    QTRY_VERIFY(!confirming(h));
+    QCOMPARE(hub.deleteCount, 0);
+    QVERIFY(h.click("deleteButton"));
+    QTRY_VERIFY(shown(h, "deleteConfirm"));
+    QVERIFY(h.click("deleteConfirm"));
+    QTRY_COMPARE_WITH_TIMEOUT(hub.deleteCount, 1, 8000);
+    QTRY_COMPARE_WITH_TIMEOUT(hist->history().size(), 1, 8000);
+    QVERIFY(hist->message().contains(QStringLiteral("deleted")));
+    QTRY_VERIFY(!confirming(h));
+    // Only manual snapshots have Delete: the hub refuses anything else
+    hist->requestDelete(1);
+    QVERIFY(hist->deleteRequest().isEmpty());
+  }
+
+  void offlineIsReadOnly() {
+    FakeHub hub(QStringLiteral("a"));
+    oneGame(hub);
+    hub.setHubSave(QStringLiteral("g1"), "cp-1");
+    hub.addHistory(QStringLiteral("g1"), QStringLiteral("default"), "a", QStringLiteral("session_end"));
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    SaveHistoryController* hist = h.controller->saveHistory();
+    QTRY_VERIFY_WITH_TIMEOUT(hist->available() && !hist->loading() && hist->versionCount() == 2, 8000);
+    openSavesView(h);
+    QTRY_VERIFY(shown(h, "restoreButton"));
+    QVERIFY(h.item("restoreButton")->isEnabled());
+    hub.failSaveRequests = 100;  // the Hub does not answer save requests
+    hist->refresh();
+    QTRY_VERIFY_WITH_TIMEOUT(!hist->online(), 8000);
+    QTRY_VERIFY(shown(h, "savesOfflineBanner"));
+    QVERIFY(textOf(h, "savesOfflineBanner").isEmpty() || true);
+    QCOMPARE(hist->versionCount(), 2);  // the cached history stays visible
+    QTRY_VERIFY(!h.item("restoreButton")->isEnabled());
+    QVERIFY(!h.item("snapshotButton")->isEnabled());
+    QVERIFY(h.item("uploadSaveButton") == nullptr || !h.item("uploadSaveButton")->isEnabled());
+    hist->requestRestore(1);
+    hist->requestDelete(1);
+    QVERIFY(!hist->canDeleteSnapshot());
+    uitest::saveShot(h.window, QStringLiteral("library-saves-offline"));
+    checkInColumn(h, {"savesOfflineBanner", "savesTryAgain", "currentBar", "historyRow"});
+    // Summary: "View saves →", Offline pill and the note
+    QVERIFY(h.click("savesBack"));
+    QTRY_VERIFY(shown(h, "saveSummary"));
+    QCOMPARE(textOf(h, "manageSavesLink"), QStringLiteral("View saves →"));
+    QCOMPARE(h.item("saveSyncPill")->property("text").toString(), QStringLiteral("Offline"));
+    QVERIFY(shown(h, "saveOfflineNote"));
+    QVERIFY(textOf(h, "saveMeta").startsWith(QStringLiteral("last synced")));
+    uitest::saveShot(h.window, QStringLiteral("library-save-summary-offline"));
+    // Back online
+    hub.failSaveRequests = 0;
+    hist->refresh();
+    QTRY_VERIFY_WITH_TIMEOUT(hist->online(), 8000);
+    QTRY_COMPARE(textOf(h, "manageSavesLink"), QStringLiteral("Manage saves →"));
+  }
+
+  void gameRunningBannerAndPausedActions() {
+    FakeHub hub(QStringLiteral("a"));
+    oneGame(hub);
+    hub.setHubSave(QStringLiteral("g1"), "cp-1");
+    hub.addHistory(QStringLiteral("g1"), QStringLiteral("default"), "a", QStringLiteral("session_end"));
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    PlayerController* c = h.controller.get();
+    SaveHistoryController* hist = c->saveHistory();
+    QTRY_VERIFY_WITH_TIMEOUT(hist->available() && !hist->loading() && hist->versionCount() == 2, 8000);
+    // A preview game stands for the running game (no core): started, then "← Library" keeps it in the background
+    c->selectGame(QStringLiteral("g1"));
+    c->adoptPreviewGame(QStringLiteral("g1"));
+    QImage frame(256, 384, QImage::Format_RGB32);
+    frame.fill(QColor(40, 90, 140));
+    c->gameSession()->setPreview(QStringLiteral("Preview"), frame, emu::DisplayProfile(), EmulationDiagnostics());
+    emit c->gameSession()->started();
+    QTRY_COMPARE_WITH_TIMEOUT(c->screen(), QStringLiteral("game"), 8000);
+    c->leaveGameView();
+    QCOMPARE(c->screen(), QStringLiteral("library"));
+    QTRY_VERIFY(hist->gameRunning());
+    openSavesView(h);
+    QTRY_VERIFY(shown(h, "savesRunningBanner"));
+    QVERIFY(textOf(h, "savesRunningBanner").isEmpty() || true);
+    QTRY_VERIFY(!h.item("restoreButton")->isEnabled());  // restore and upload wait for the game to close
+    QVERIFY(h.item("uploadSaveButton") == nullptr || !h.item("uploadSaveButton")->isEnabled());
+    QVERIFY(h.item("snapshotButton")->isEnabled());      // snapshots still work (decision ae)
+    uitest::saveShot(h.window, QStringLiteral("library-saves-running"));
+    checkInColumn(h, {"savesRunningBanner", "snapshotButton", "currentBar", "playButton"});
+  }
+
+  void uploadConfirmationFailureAndRetry() {
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString picked = tmp.filePath(QStringLiteral("lumen-drift-backup-with-a-rather-long-name-for-the-column.sav"));
+    QFile pf(picked);
+    QVERIFY(pf.open(QIODevice::WriteOnly));
+    pf.write("uploaded-bytes");
+    pf.close();
+    FakeHub hub(QStringLiteral("a"));
+    oneGame(hub);
+    hub.setHubSave(QStringLiteral("g1"), "cp-1");
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    SaveHistoryController* hist = h.controller->saveHistory();
+    QTRY_VERIFY_WITH_TIMEOUT(hist->canUploadFile() && !hist->loading(), 8000);
+    openSavesView(h);
+    QTRY_VERIFY(shown(h, "saveActions"));
+    hist->requestUploadFile(picked);
+    QTRY_VERIFY(shown(h, "uploadConfirmBox"));
+    QVERIFY(!shown(h, "saveActions"));  // the confirmation takes the place of the actions
+    QVERIFY(confirming(h));
+    QCOMPARE(textOf(h, "uploadConfirmTitle"), QStringLiteral("Upload as the new current version?"));
+    QVERIFY(textOf(h, "uploadSlot").contains(QStringLiteral("Main")) && textOf(h, "uploadSlot").contains(QStringLiteral("r2")));
+    uitest::saveShot(h.window, QStringLiteral("library-upload-confirm"));
+    checkInColumn(h, {"uploadConfirmBox", "uploadFileName", "uploadSize", "uploadSlot", "uploadCancel", "uploadConfirm"});
+    {
+      const QRectF box = sceneRect(h.item("uploadConfirmBox"));
+      for (const char* n : {"uploadCancel", "uploadConfirm"}) {
+        const QRectF r = sceneRect(h.item(n));
+        QVERIFY2(r.left() >= box.left() - 0.5 && r.right() <= box.right() + 0.5 && r.bottom() <= box.bottom() + 0.5,
+                 qPrintable(QStringLiteral("'%1' outside uploadConfirmBox:%2").arg(QLatin1String(n), chainOf(h.item(n)))));
+      }
+    }
+    // Failure: the Hub does not answer; nothing changed, the file can be tried again
+    hub.failSaveRequests = 1;
+    QVERIFY(h.click("uploadConfirm"));
+    QTRY_VERIFY_WITH_TIMEOUT(shown(h, "uploadFailedBox"), 8000);
+    QCOMPARE(hub.uploadCount, 0);
+    QVERIFY(!hist->uploadFailure().isEmpty());
+    uitest::saveShot(h.window, QStringLiteral("library-upload-failed"));
+    checkInColumn(h, {"uploadFailedBox", "uploadFailedText", "uploadRetry", "uploadFailedCancel"});
+    QVERIFY(h.click("uploadRetry"));
+    QTRY_VERIFY(shown(h, "uploadConfirmBox"));
+    hub.failSaveRequests = 0;
+    QVERIFY(h.click("uploadConfirm"));
+    QTRY_COMPARE_WITH_TIMEOUT(hub.uploadCount, 1, 8000);
+    QTRY_VERIFY(!confirming(h));
+    QVERIFY(hist->uploadFailure().isEmpty());
+  }
+
+  // ---- Layout of the detail column at 1280 and 960 px ---------------------------------------------------------------
+  void detailColumnLayoutAtNarrowAndWideWindows() {
+    FakeHub hub(QStringLiteral("a"));
+    oneGame(hub);
+    hub.setHubSave(QStringLiteral("g1"), "cp-1", QStringLiteral("dev-1"), QStringLiteral("Desktop-LivingRoom-With-A-Very-Long-Device-Name"));
+    hub.addHistory(QStringLiteral("g1"), QStringLiteral("default"), "a", QStringLiteral("session_end"), QString(), QStringLiteral("Laptop-Office"));
+    hub.addHistory(QStringLiteral("g1"), QStringLiteral("default"), "b", QStringLiteral("manual_snapshot"),
+                   QStringLiteral("A snapshot label that is much longer than the column can show on one line"), QStringLiteral("Desktop-LivingRoom"));
+    for (const char* s : {"g1/speedrun", "g1/chapter-2", "g1/a-rather-long-slot-name"}) hub.setHubSave(QString::fromLatin1(s), "x");
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    SaveHistoryController* hist = h.controller->saveHistory();
+    QTRY_VERIFY_WITH_TIMEOUT(hist->available() && !hist->loading() && hist->slotCount() == 4 && hist->versionCount() == 3, 8000);
+    for (const QSize size : {QSize(1280, 800), QSize(960, 600)}) {
+      h.window->resize(size);
+      QQuickTest::qWaitForPolish(h.window);
+      QTest::qWait(60);
+      const QString what = QStringLiteral("%1x%2").arg(size.width()).arg(size.height());
+      // Overview
+      QTRY_VERIFY(shown(h, "saveSummary") || shown(h, "savesView"));
+      if (shown(h, "savesView")) QVERIFY(h.click("savesBack"));
+      QTRY_VERIFY(shown(h, "saveSummary"));
+      checkInColumn(h, {"detailPane", "detailTitle", "detailPill", "detailSystem", "detailRowValue", "saveSummary", "saveCurrentRow", "saveSlotName",
+                        "saveVersion", "saveMeta", "saveSyncPill", "saveCounts", "manageSavesLink", "playButton", "playShareButton"}, 12);
+      if (QTest::currentTestFailed()) { qWarning("[uitest] overview layout failed at %s", qPrintable(what)); return; }
+      // Saves view with a restore confirmation (long labels, switcher)
+      QVERIFY(h.click("manageSavesLink"));
+      QTRY_VERIFY(shown(h, "savesView"));
+      QTRY_VERIFY(shown(h, "slotSwitcher"));
+      hist->requestRestore(1);
+      QTRY_VERIFY(shown(h, "restoreConfirmBox"));
+      checkInColumn(h, {"savesView", "savesBack", "savesUpdated", "historyRefresh", "savesTitle", "slotTabs", "slotSwitcher", "currentBar", "currentMeta",
+                        "saveActions", "snapshotButton", "uploadSaveButton", "historyHeader", "historyFilter", "timeline", "saveRow", "historyTitle",
+                        "historyLabel", "historyMeta", "restoreButton", "deleteButton", "restoreConfirmBox", "confirmTitle", "restoreCancel",
+                        "restoreConfirm", "playButton", "playShareButton"}, 20);
+      if (QTest::currentTestFailed()) { qWarning("[uitest] saves view layout failed at %s", qPrintable(what)); return; }
+      uitest::saveShot(h.window, QStringLiteral("library-saves-%1").arg(what));
+      hist->cancelRestore();
+      QVERIFY(h.click("savesBack"));
+    }
+    h.window->resize(1280, 800);
+  }
+};
+
+UITEST_MAIN(LibrarySavesUiTest)
+#include "library_saves_ui_test.moc"

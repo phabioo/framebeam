@@ -262,28 +262,30 @@ class InputTest : public QObject {
     QCOMPARE(m.rowCount(), 4);
     QCOMPARE(m.totalCount(), 4);
     QCOMPARE(m.readyCount(), 1);
+    // Default sort is Name A–Z: address rows by game id, not by input order.
+    auto roleOf = [&](const char* id, int r) { return m.data(m.index(m.rowOfGame(QString::fromLatin1(id))), r); };
     auto role = [&](int row, int r) { return m.data(m.index(row), r); };
-    QCOMPARE(role(0, LibraryModel::TitleRole).toString(), QStringLiteral("Lumen Drift"));
-    QCOMPARE(role(0, LibraryModel::MonogramRole).toString(), QStringLiteral("LD"));
-    QCOMPARE(role(0, LibraryModel::SystemRole).toString(), QStringLiteral("NDS"));
-    QCOMPARE(role(0, LibraryModel::StatusTextRole).toString(), QStringLiteral("Ready"));
-    QCOMPARE(role(0, LibraryModel::StatusToneRole).toString(), QStringLiteral("ok"));
-    QCOMPARE(role(1, LibraryModel::StatusTextRole).toString(), QStringLiteral("Download needed · 128 MB"));
-    QCOMPARE(role(2, LibraryModel::StatusTextRole).toString(), QStringLiteral("Hash mismatch · reload"));
-    QCOMPARE(role(2, LibraryModel::StatusToneRole).toString(), QStringLiteral("error"));
-    QCOMPARE(role(3, LibraryModel::StatusTextRole).toString(), QStringLiteral("Verifying…"));
-    QCOMPARE(role(0, LibraryModel::GameIdRole).toString(), QStringLiteral("g1"));
+    QCOMPARE(roleOf("g1", LibraryModel::TitleRole).toString(), QStringLiteral("Lumen Drift"));
+    QCOMPARE(roleOf("g1", LibraryModel::MonogramRole).toString(), QStringLiteral("LD"));
+    QCOMPARE(roleOf("g1", LibraryModel::SystemRole).toString(), QStringLiteral("NDS"));
+    QCOMPARE(roleOf("g1", LibraryModel::StatusTextRole).toString(), QStringLiteral("Ready"));
+    QCOMPARE(roleOf("g1", LibraryModel::StatusToneRole).toString(), QStringLiteral("ok"));
+    QCOMPARE(roleOf("g2", LibraryModel::StatusTextRole).toString(), QStringLiteral("Download needed · 128 MB"));
+    QCOMPARE(roleOf("g3", LibraryModel::StatusTextRole).toString(), QStringLiteral("Hash mismatch · reload"));
+    QCOMPARE(roleOf("g3", LibraryModel::StatusToneRole).toString(), QStringLiteral("error"));
+    QCOMPARE(roleOf("g4", LibraryModel::StatusTextRole).toString(), QStringLiteral("Verifying…"));
+    QCOMPARE(roleOf("g1", LibraryModel::GameIdRole).toString(), QStringLiteral("g1"));
     QCOMPARE(m.roleNames().value(LibraryModel::StateKindRole), QByteArray("stateKind"));
 
     // Download progress
     m.setStatus(shaB, st(RomState::Downloading, 32LL * 1024 * 1024, 128LL * 1024 * 1024));
-    QCOMPARE(role(1, LibraryModel::StatusTextRole).toString(), QStringLiteral("Downloading 25 %"));
-    QVERIFY(std::abs(role(1, LibraryModel::ProgressRole).toDouble() - 0.25) < 1e-9);
+    QCOMPARE(roleOf("g2", LibraryModel::StatusTextRole).toString(), QStringLiteral("Downloading 25 %"));
+    QVERIFY(std::abs(roleOf("g2", LibraryModel::ProgressRole).toDouble() - 0.25) < 1e-9);
 
     // Unknown state (e.g. future enum value): robust, neutral
     m.setStatus(shaD, st(static_cast<RomState>(99)));
-    QCOMPARE(role(3, LibraryModel::StatusTextRole).toString(), QStringLiteral("Verifying…"));
-    QCOMPARE(role(3, LibraryModel::StatusToneRole).toString(), QStringLiteral("neutral"));
+    QCOMPARE(roleOf("g4", LibraryModel::StatusTextRole).toString(), QStringLiteral("Verifying…"));
+    QCOMPARE(roleOf("g4", LibraryModel::StatusToneRole).toString(), QStringLiteral("neutral"));
 
     // Text filter (title, case-insensitive)
     m.setFilterText(QStringLiteral("ar"));

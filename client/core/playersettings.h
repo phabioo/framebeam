@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QHash>
 #include <QJsonObject>
 #include <QString>
 #include <optional>
@@ -46,6 +47,19 @@ class PlayerSettings {
   QString saveSlot(const QString& hubId, const QString& gameId) const;
   bool setSaveSlot(const QString& hubId, const QString& gameId, const QString& slot);  // false: invalid name or not writable
 
+  // Library (3c-2, per device): sort key and "Ready first". Sort keys: name_asc | name_desc | added_desc | added_asc |
+  // size_desc | size_asc | system | played. Unknown values fall back to name_asc.
+  static bool isValidLibrarySort(const QString& key);
+  QString librarySort() const { return librarySort_; }
+  bool setLibrarySort(const QString& key);  // false: unknown key
+  bool libraryReadyFirst() const { return libraryReadyFirst_; }
+  bool setLibraryReadyFirst(bool on);
+
+  // Last played per Hub profile and game, local only (Unix time in ms; 0 = never played on this device).
+  qint64 lastPlayed(const QString& hubId, const QString& gameId) const;
+  QHash<QString, qint64> lastPlayedAll(const QString& hubId) const;
+  bool setLastPlayed(const QString& hubId, const QString& gameId, qint64 msecs);  // false: empty ids or not writable
+
   // Visibility of the own shared Session: "private" | "hub_users" | "invite_only"; "" = not chosen yet (the caller's default).
   QString sessionVisibility() const { return sessionVisibility_; }
   bool setSessionVisibility(const QString& visibility);  // anything else is rejected (false)
@@ -62,6 +76,8 @@ class PlayerSettings {
   bool diagOpen_ = false;
   bool diagEmulationOpen_ = true;
   bool diagStreamingOpen_ = true;
+  QString librarySort_ = QStringLiteral("name_asc");
+  bool libraryReadyFirst_ = false;
   QString sessionVisibility_;
 };
 

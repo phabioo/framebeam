@@ -78,6 +78,8 @@ class SaveSync : public QObject {
   SaveApi* api() { return &api_; }
   // Hub advertises saves_v2 (restore, snapshots, save_updated).
   bool hubSupportsSavesV2() const;
+  // Hub advertises saves_v3 (deleting manual snapshots).
+  bool hubSupportsSavesV3() const;
   // Hub advertises saves_v4 (upload of a local save file).
   bool hubSupportsSavesV4() const;
 

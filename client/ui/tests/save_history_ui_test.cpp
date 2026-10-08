@@ -33,6 +33,19 @@ class SaveHistoryUiTest : public QObject {
     h.controller->requestPairing();
     QTRY_COMPARE_WITH_TIMEOUT(h.controller->libraryState(), QStringLiteral("ready"), 8000);
   }
+  // Play is off while a restore / delete / upload confirmation is open (decision af): the DetailPane's `confirming`, and the
+  // button is disabled in any case (these tests run without a core, so Play is never enabled).
+  static bool playBlockedByConfirmation(Harness& h) {
+    QQuickItem* pane = h.item("detailPane");
+    return pane != nullptr && pane->property("confirming").toBool() && h.item("playButton") != nullptr && !h.item("playButton")->isEnabled();
+  }
+  static bool confirming(Harness& h) { return h.item("detailPane") != nullptr && h.item("detailPane")->property("confirming").toBool(); }
+  // Detail column -> saves view ("Manage saves →").
+  static void openSavesView(Harness& h) {
+    QTRY_VERIFY_WITH_TIMEOUT(h.item("manageSavesLink") != nullptr && h.item("manageSavesLink")->isVisible(), 8000);
+    QVERIFY(h.click("manageSavesLink"));
+    QTRY_VERIFY_WITH_TIMEOUT(h.item("savesView") != nullptr && h.item("savesView")->isVisible(), 4000);
+  }
   static void setGames(FakeHub& hub, const QByteArray& rom) {
     hub.hubId = kHubId;
     hub.roms.insert(uitest::sha256Hex(rom), rom);
@@ -65,10 +78,14 @@ class SaveHistoryUiTest : public QObject {
     QTRY_COMPARE_WITH_TIMEOUT(hist->history().size(), 1, 8000);
     QCOMPARE(hist->history().first().toMap().value(QStringLiteral("label")).toString(), QStringLiteral("Boss"));
     QVERIFY(hist->restoreBlockReason().isEmpty());
+    // Summary block in the overview, then the saves view
+    QTRY_VERIFY(h.item("saveSummary") != nullptr && h.item("saveSummary")->isVisible());
+    uitest::saveShot(h.window, QStringLiteral("save-summary"));
+    openSavesView(h);
     QTRY_VERIFY(h.item("historyRow") != nullptr && h.item("historyRow")->isVisible());
-    QVERIFY(h.item("slotPicker") != nullptr && h.item("snapshotButton") != nullptr);
+    QVERIFY(h.item("slotTabs") != nullptr && h.item("snapshotButton") != nullptr);
     uitest::saveShot(h.window, QStringLiteral("save-history"));
-    for (const char* name : {"slotPicker", "newSlotButton", "historyRow", "restoreButton", "snapshotLabel", "snapshotButton", "historyRefresh"}) {
+    for (const char* name : {"slotTabs", "newSlotButton", "historyRow", "restoreButton", "snapshotButton", "historyRefresh", "currentBar"}) {
       QQuickItem* it = h.item(name);
       QVERIFY2(it != nullptr, name);
       const QPointF right = it->mapToItem(h.window->contentItem(), QPointF(it->width(), 0));
@@ -78,11 +95,13 @@ class SaveHistoryUiTest : public QObject {
 
     // Restore needs a confirmation; cancel changes nothing
     QVERIFY(h.click("restoreButton"));
-    QTRY_VERIFY(h.item("restoreDialog") != nullptr && h.item("restoreDialog")->isVisible());
+    QTRY_VERIFY(h.item("restoreConfirmBox") != nullptr && h.item("restoreConfirmBox")->isVisible());
     QCOMPARE(hist->restoreRequest().value(QStringLiteral("version")).toInt(), 1);
-    uitest::saveShot(h.window, QStringLiteral("save-restore-dialog"));
+    QVERIFY(playBlockedByConfirmation(h));  // decision af
+    uitest::saveShot(h.window, QStringLiteral("save-restore-confirm"));
     QVERIFY(h.click("restoreCancel"));
     QTRY_VERIFY(hist->restoreRequest().isEmpty());
+    QTRY_VERIFY(!confirming(h));
     QCOMPARE(hub.restoreCount, 0);
 
     // Confirm: Hub restores, the local save becomes the new checkpoint
@@ -121,11 +140,13 @@ class SaveHistoryUiTest : public QObject {
     QCOMPARE(readFile(f.fileName()), QByteArray("unsynced"));
     f.remove();
 
-    // Snapshot with label from the detail pane
+    // Snapshot with label from the saves view (inline form)
     hist->refresh();
     QTRY_VERIFY(hist->canSnapshot());
-    QVERIFY(h.item("snapshotLabel")->setProperty("text", QStringLiteral("Before final boss")));
     QVERIFY(h.click("snapshotButton"));
+    QTRY_VERIFY(h.item("snapshotLabel") != nullptr && h.item("snapshotLabel")->isVisible());
+    QVERIFY(h.item("snapshotLabel")->setProperty("text", QStringLiteral("Before final boss")));
+    QVERIFY(h.click("snapshotCreate"));
     QTRY_VERIFY_WITH_TIMEOUT(hub.saves.value(QStringLiteral("g1")).history.last().reason == QLatin1String("manual_snapshot"), 8000);
     QCOMPARE(hub.saves.value(QStringLiteral("g1")).history.last().label, QStringLiteral("Before final boss"));
     QTRY_VERIFY(hist->message().contains(QStringLiteral("Before final boss")));
@@ -145,6 +166,7 @@ class SaveHistoryUiTest : public QObject {
     QVERIFY(hasBoss);
     QTRY_VERIFY(hist->history().isEmpty());  // the boss slot has no versions on the Hub
     QTRY_VERIFY(h.item("historyEmpty") != nullptr && h.item("historyEmpty")->isVisible());
+    QTRY_VERIFY(h.item("slotTab_boss") != nullptr && h.item("slotTab_boss")->isVisible());
     // Back to default: existing Hub slots are offered
     hub.setHubSave(QStringLiteral("g1/extra"), "x");
     hist->selectSlot(QStringLiteral("default"));
@@ -207,6 +229,7 @@ class SaveHistoryUiTest : public QObject {
       SaveHistoryController* hist = h.controller->saveHistory();
       QTRY_VERIFY_WITH_TIMEOUT(hist->available() && !hist->loading(), 8000);
       QVERIFY(!hist->canUploadFile());
+      openSavesView(h);
       QVERIFY(h.item("uploadSaveButton") == nullptr || !h.item("uploadSaveButton")->isVisible());
       hist->requestUploadFile(picked);
       QVERIFY(hist->uploadRequest().isEmpty());
@@ -223,6 +246,7 @@ class SaveHistoryUiTest : public QObject {
     SaveHistoryController* hist = h.controller->saveHistory();
     QTRY_COMPARE_WITH_TIMEOUT(h.controller->selectedGameId(), QStringLiteral("g1"), 8000);
     QTRY_VERIFY_WITH_TIMEOUT(hist->canUploadFile() && !hist->loading(), 8000);
+    openSavesView(h);
     QTRY_VERIFY(h.item("uploadSaveButton") != nullptr && h.item("uploadSaveButton")->isVisible());
     QVERIFY(h.item("uploadSaveButton")->isEnabled());
 
@@ -233,12 +257,14 @@ class SaveHistoryUiTest : public QObject {
 
     // Request -> cancel changes nothing
     hist->requestUploadFile(QUrl::fromLocalFile(picked).toString());
-    QTRY_VERIFY(h.item("uploadDialog") != nullptr && h.item("uploadDialog")->isVisible());
+    QTRY_VERIFY(h.item("uploadConfirmBox") != nullptr && h.item("uploadConfirmBox")->isVisible());
     QCOMPARE(hist->uploadRequest().value(QStringLiteral("fileName")).toString(), QStringLiteral("picked.srm"));
     QCOMPARE(hist->uploadRequest().value(QStringLiteral("gameTitle")).toString(), QStringLiteral("Lumen Drift"));
-    uitest::saveShot(h.window, QStringLiteral("save-upload-dialog"));
+    QVERIFY(playBlockedByConfirmation(h));  // decision af
+    uitest::saveShot(h.window, QStringLiteral("save-upload-confirm"));
     QVERIFY(h.click("uploadCancel"));
     QTRY_VERIFY(hist->uploadRequest().isEmpty());
+    QTRY_VERIFY(!confirming(h));
     QCOMPARE(hub.uploadCount, 0);
 
     // Confirm: Hub takes the file, local save follows
@@ -278,11 +304,14 @@ class SaveHistoryUiTest : public QObject {
     QVERIFY(hist->slotsAvailable());
     QVERIFY(!hist->available());
     QVERIFY(!hist->canSnapshot());
-    QTRY_VERIFY(h.item("slotPicker") != nullptr && h.item("slotPicker")->isVisible());
-    const QList<QQuickItem*> hidden = h.items("historyBlock");
-    for (QQuickItem* it : hidden) {
-      QVERIFY(!it->isVisible());
+    openSavesView(h);
+    QTRY_VERIFY(h.item("slotTabs") != nullptr && h.item("slotTabs")->isVisible());
+    for (const char* name : {"timeline", "historyHeader", "saveActions"}) {
+      for (QQuickItem* it : h.items(name)) {
+        QVERIFY2(!it->isVisible(), name);
+      }
     }
+    QVERIFY(h.item("historyUnsupported") != nullptr && h.item("historyUnsupported")->isVisible());
     hist->requestRestore(1);  // no-op without saves_v2
     QVERIFY(hist->restoreRequest().isEmpty());
     QCOMPARE(hub.count(QStringLiteral("/api/v1/games/g1/saves/default/history")), 0);

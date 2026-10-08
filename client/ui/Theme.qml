@@ -65,6 +65,11 @@ QtObject {
     readonly property color toolbarBg: Qt.rgba(22 / 255, 23 / 255, 26 / 255, 0.92)
     // ---- end of the shared v4 block
 
+    // Library revision 3c-2..3c-4 (saves view, SaveRow): confirmation boxes and the version rail.
+    readonly property color confirmBorder: dark ? "#1f4650" : "#a6d9e6"   // restore / upload box border (surface = accentChipBg)
+    readonly property color dangerBorder: dark ? "#4a2a24" : "#efc9c2"    // delete box border (surface = errorBg)
+    readonly property color rail: dark ? "#34353a" : "#d9d7d1"            // timeline rail of the SaveRow
+
     // Radii (tokens.md): 4, 5 (segment), 6, 7 (input, button), 8 (card, primary button), 9, 10 (Hub card), 11 (toggle), 12 (dialog),
     // 16 (filter chip).
     readonly property int radius4: 4

@@ -2,6 +2,7 @@
 
 #include <QCoreApplication>
 #include <QDate>
+#include <QDateTime>
 #include <QDesktopServices>
 #include <QDir>
 #include <QFileInfo>
@@ -40,6 +41,13 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   downloader_ = std::make_unique<RomDownloader>(conn_.get(), cache_.get());
   saves_ = std::make_unique<SaveSync>(conn_.get(), profiles_.get());
   settings_ = std::make_unique<PlayerSettings>(profiles_->baseDir());
+  // Library sort and "Ready first" are saved per device (3c-2).
+  model_.setSortKey(settings_->librarySort());
+  model_.setReadyFirst(settings_->libraryReadyFirst());
+  connect(&model_, &LibraryModel::sortChanged, this, [this]() {
+    settings_->setLibrarySort(model_.sortKey());
+    settings_->setLibraryReadyFirst(model_.readyFirst());
+  });
   fwCache_ = std::make_unique<FirmwareCache>(QDir(CoreCatalog::systemDirIn(profiles_->baseDir())).filePath(QStringLiteral("firmware")));
   systems_ = std::make_unique<HubSystems>(conn_.get());
   provisioner_ = std::make_unique<FirmwareProvisioner>(conn_.get(), fwCache_.get());
@@ -127,6 +135,7 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     connect(starter_.get(), &GameStarter::selectedGameChanged, this, &PlayerController::selectedGameChanged);
     connect(starter_.get(), &GameStarter::saveConflictChanged, this, &PlayerController::saveConflictChanged);
     connect(starter_.get(), &GameStarter::coreStateRefreshRequested, this, &PlayerController::refreshCoreState);
+    connect(starter_.get(), &GameStarter::gameLaunched, this, [this](const QString& gameId) { recordLastPlayed(gameId); });
   }
   if (options.probeCoreVersions) {
     catalog_->probeCores();
@@ -862,6 +871,13 @@ void PlayerController::switchToHub(const QString& hubId) {
   connectProfile(hubId);
 }
 
+// Last played is local and kept per Hub (a game id on another Hub is a different game).
+void PlayerController::recordLastPlayed(const QString& gameId, qint64 msecs) {
+  const qint64 now = msecs > 0 ? msecs : QDateTime::currentMSecsSinceEpoch();
+  settings_->setLastPlayed(conn_->hubInfo().hubId, gameId, now);
+  model_.noteLastPlayed(gameId, now);
+}
+
 void PlayerController::reloadLibrary() {
   libraryState_ = QStringLiteral("loading");
   emit libraryStateChanged();
@@ -870,7 +886,23 @@ void PlayerController::reloadLibrary() {
 
 void PlayerController::onLibraryLoaded() {
   quietRefresh_ = false;
+  model_.setLastPlayed(settings_->lastPlayedAll(conn_->hubInfo().hubId));
   model_.setGames(library_->games(), [this](const GameEntry& g) { return downloader_->status(g); });
+  {
+    // "42 games · Nintendo DS": the system name shows only when all games share one system.
+    QString label;
+    bool single = true;
+    for (const GameEntry& g : library_->games()) {
+      const emu::SystemManifest* man = catalog_->manifestFor(g);
+      const QString name = man != nullptr ? man->displayName : g.system.toUpper();
+      if (label.isEmpty()) {
+        label = name;
+      } else if (label != name) {
+        single = false;
+      }
+    }
+    model_.setSystemLabel(single ? label : QString());
+  }
   refreshAttention();
   QStringList ids;
   for (const GameEntry& g : library_->games()) {

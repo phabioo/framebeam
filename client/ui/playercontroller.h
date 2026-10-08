@@ -132,6 +132,8 @@ class PlayerController : public QObject {
   QString selectedGameId() const { return selectedId_; }
   QVariantMap selectedGame() const;
   QVariantMap backgroundGame() const;
+  // Called when a game starts (msecs 0 = now); tests pass fixed times.
+  void recordLastPlayed(const QString& gameId, qint64 msecs = 0);
   // Tests and screenshots (GameSession::setPreview): declare the library game that the preview game stands for.
   void adoptPreviewGame(const QString& gameId);
   QVariantMap startConfirm() const;

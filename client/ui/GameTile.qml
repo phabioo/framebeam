@@ -12,12 +12,14 @@ Item {
     required property string tileText
     required property string tileTone
     required property real progress
+    required property string addedText   // "DD.MM.YYYY" from the Hub; shown as "Added ..." with a date sort
+    property bool showAdded: false
     property bool selected: false
     property bool running: false   // game paused in the background (Library strip "Now running")
 
     signal clicked()
 
-    implicitHeight: cover.height + 62
+    implicitHeight: cover.height + 62 + (showAdded ? 16 : 0)
 
     Rectangle {
         id: cover
@@ -100,6 +102,15 @@ Item {
             font.pixelSize: Theme.fontMeta
             font.weight: Font.Medium
             color: tile.running ? Theme.ok : tile.tileTone === "neutral" ? Theme.textMuted : Theme.toneColor(tile.tileTone)
+            elide: Text.ElideRight
+        }
+        FbLabel {
+            objectName: "tileAdded"
+            visible: tile.showAdded && tile.addedText !== ""
+            Layout.fillWidth: true
+            text: qsTr("Added %1").arg(tile.addedText)
+            font.pixelSize: Theme.fontMeta
+            color: Theme.textFaint
             elide: Text.ElideRight
         }
     }
