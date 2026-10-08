@@ -704,7 +704,11 @@ void FakeHub::handleSessions(QSslSocket* sock, const FakeRequest& req) {
   QJsonObject& s = sessions[id];
   if (parts.size() == 2) {
     if (req.method == "GET") {
-      respond(sock, 200, json(s));
+      if (holdSessionGet) {
+        heldGets_.append({sock, s});
+      } else {
+        respond(sock, 200, json(s));
+      }
     } else if (req.method == "PATCH") {
       s.insert(QStringLiteral("visibility"), body.value(QStringLiteral("visibility")));
       respond(sock, 200, json(s));
@@ -810,6 +814,20 @@ void FakeHub::onWsData(QSslSocket* sock) {
         wsWrite(sock, 0x1, QJsonDocument(ack).toJson(QJsonDocument::Compact));
       }
     }
+  }
+}
+
+void FakeHub::releaseHeldSessionGets(const QString& visibilityOverride) {
+  const QList<HeldGet> held = heldGets_;
+  heldGets_.clear();
+  for (HeldGet h : held) {
+    if (!h.sock) {
+      continue;
+    }
+    if (!visibilityOverride.isEmpty()) {
+      h.session.insert(QStringLiteral("visibility"), visibilityOverride);
+    }
+    respond(h.sock, 200, QJsonDocument(h.session).toJson(QJsonDocument::Compact));
   }
 }
 
