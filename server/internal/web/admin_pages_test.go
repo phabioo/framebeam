@@ -54,7 +54,7 @@ func TestAdminPagesAreAdminOnlyAndRender(t *testing.T) {
 	}
 	for _, p := range []string{"/users/invites", "/users/u_x/disable", "/users/u_x/enable", "/users/invites/x/revoke", "/systems/nds/expected-version",
 		"/systems/nds/firmware-mode", "/systems/nds/firmware/bios7/pin", "/systems/nds/firmware/bios7/remove", "/settings/appearance", "/settings/uploads",
-		"/settings/updates", "/settings/updates/check", "/settings/updates/install", "/settings/name", "/settings/password",
+		"/settings/updates", "/settings/updates/check", "/settings/updates/install", "/settings/name", "/settings/password", "/settings/security/renew-cert", "/library/rescan",
 		"/settings/network/listen_port", "/settings/network/listen_port/reset", "/settings/network/restart"} {
 		if rec := anon.postForm(p, url.Values{}, nil); rec.Code != http.StatusSeeOther || location(rec) != "/login" {
 			t.Fatalf("%s: %d -> %q", p, rec.Code, location(rec))
@@ -92,7 +92,7 @@ func TestAdminPagesCSRF(t *testing.T) {
 	u, _ := e.svc.CreateUser(bg, "max", "Max")
 	paths := []string{"/users/invites", "/users/" + u.ID + "/disable", "/users/" + u.ID + "/enable", "/users/" + u.ID + "/delete", "/clients/devices/" + uuid.NewString() + "/delete", "/users/invites/" + uuid.NewString() + "/revoke",
 		"/systems/nds/expected-version", "/systems/nds/firmware-mode", "/systems/nds/firmware/bios7/pin", "/systems/nds/firmware/bios7/remove",
-		"/settings/appearance", "/settings/uploads", "/cores/sync", "/settings/updates", "/settings/updates/check", "/settings/updates/install",
+		"/settings/appearance", "/settings/uploads", "/settings/security/renew-cert", "/library/rescan", "/cores/sync", "/settings/updates", "/settings/updates/check", "/settings/updates/install",
 		"/settings/network/listen_port", "/settings/network/listen_port/reset", "/settings/network/restart"}
 	for _, p := range paths {
 		status(t, c.postForm(p, url.Values{"mode": {"dark"}, "enabled": {"1"}}, nil), 403)

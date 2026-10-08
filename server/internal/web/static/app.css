@@ -499,3 +499,8 @@ form.pin input { font-size: 12px; }
   .set-row { flex-direction: column; align-items: flex-start; }
 }
 /* ---- end Settings (3q) ---- */
+
+.head-actions { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
+.invite-link { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.invite-link input { width: 100%; padding: 6px 8px; border: 1px solid var(--border-input); border-radius: 6px; background: var(--surface); color: var(--text); font-size: 12px; }
+.steps { padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }

@@ -340,9 +340,19 @@
   <div class="set-row">
     <div><div class="label">Certificate</div>
       <div class="help">{{.Body.CertSource}}{{if .Body.CertNotAfter}} · valid until {{.Body.CertNotAfter}}{{end}}</div>
-      <div class="help">{{if .Body.CertSelfGenerated}}Renews automatically at startup when it expires within 30 days, or now with <span class="mono">framebeam-hub renew-cert</span> followed by a restart.{{else}}Your own certificate is never renewed by the hub. Renew it where it comes from.{{end}}</div></div>
+      <div class="help">{{if .Body.CanRenewCert}}Renews automatically at startup when it expires within 30 days, or now with "Renew now". The previous pair is kept as <span class="mono">*.prev</span> in the data directory.{{else if .Body.CertSelfGenerated}}Renews automatically at startup when it expires within 30 days, or now with <span class="mono">framebeam-hub renew-cert</span> followed by a restart.{{else}}Your own certificate is never renewed by the hub. Renew it where it comes from.{{end}}</div></div>
     {{if .Body.CertExpiresSoon}}<span class="badge error">Expires within 30 days</span>{{end}}
   </div>
+  {{if .Body.CanRenewCert}}
+  <details class="set-pw">
+    <summary class="btn small">Renew now</summary>
+    <form class="pw-form" method="post" action="/settings/security/renew-cert">
+      <input type="hidden" name="_csrf" value="{{.CSRF}}">
+      <p class="help">This creates a new certificate with a new fingerprint and uses it for new connections right away, without a restart. Every Player has to confirm the new fingerprint on its next connection before it can reach this Hub again. Existing connections are not interrupted.</p>
+      <div><button class="btn small primary" type="submit">Renew certificate</button></div>
+    </form>
+  </details>
+  {{end}}
   <div class="set-row">
     <div><div class="label">Fingerprint · SHA-256</div><div class="help">Players compare this on first connect.{{if .Body.CertSelfGenerated}} After a renewal they must confirm the new value.{{end}}</div>
       <div class="value mono">{{.Body.Fingerprint}}</div></div>

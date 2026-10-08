@@ -90,6 +90,7 @@ type settingsBody struct {
 	CertNotAfter            string
 	CertExpiresSoon         bool
 	CertSelfGenerated       bool
+	CanRenewCert            bool
 	MinPassword             int
 	Updates                 updatesBody
 	Net                     netBody
@@ -216,12 +217,14 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, sess *se
 	// General / Security basics.
 	b.HubName = s.svc.Info().Name
 	b.Host, b.Listen = r.Host, s.cfg.Listen
-	b.TLS, b.Fingerprint, b.CertSource, b.MinPassword = s.cfg.UseTLS, s.cfg.CertFingerprint, s.cfg.CertSource, hub.MinPasswordLen
-	if !s.cfg.CertNotAfter.IsZero() {
-		b.CertNotAfter = s.cfg.CertNotAfter.Local().Format("2006-01-02")
-		b.CertExpiresSoon = tlsutil.ExpiresSoon(s.cfg.CertNotAfter, time.Now())
+	fp, notAfter := s.certInfo()
+	b.TLS, b.Fingerprint, b.CertSource, b.MinPassword = s.cfg.UseTLS, fp, s.cfg.CertSource, hub.MinPasswordLen
+	if !notAfter.IsZero() {
+		b.CertNotAfter = notAfter.Local().Format("2006-01-02")
+		b.CertExpiresSoon = tlsutil.ExpiresSoon(notAfter, time.Now())
 	}
 	b.CertSelfGenerated = s.cfg.CertSource == "Self-generated"
+	b.CanRenewCert = b.CertSelfGenerated && s.cfg.RenewCert != nil
 	b.Appearance, _ = s.svc.Appearance(ctx)
 	b.AllowUploads, _ = s.svc.AllowUserUploads(ctx)
 
@@ -539,6 +542,30 @@ func (s *Server) settingsPassword(w http.ResponseWriter, r *http.Request, sess *
 		return
 	}
 	s.redirect(w, r, "/settings/security?ok=password")
+}
+
+// certInfo returns the current certificate fingerprint and expiry (live when the Hub can renew at runtime).
+func (s *Server) certInfo() (string, time.Time) {
+	if s.cfg.CertState != nil {
+		return s.cfg.CertState()
+	}
+	return s.cfg.CertFingerprint, s.cfg.CertNotAfter
+}
+
+// settingsRenewCert replaces the self-generated certificate; new TLS handshakes use it immediately.
+func (s *Server) settingsRenewCert(w http.ResponseWriter, r *http.Request, sess *session) {
+	if s.cfg.RenewCert == nil || s.cfg.CertSource != "Self-generated" {
+		s.redirect(w, r, "/settings/security?err=renewunsupported")
+		return
+	}
+	fp, _, err := s.cfg.RenewCert()
+	if err != nil {
+		s.log.Error("renew tls certificate", "err", err)
+		s.redirect(w, r, "/settings/security?err=renewfailed")
+		return
+	}
+	s.log.Warn("TLS certificate renewed from Settings; Players must confirm the new fingerprint", "new_sha256_fingerprint", fp, "admin", sess.User.Username)
+	s.redirect(w, r, "/settings/security?ok=certrenewed")
 }
 
 // ---- handlers: Updates ----
