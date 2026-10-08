@@ -1,3 +1,5 @@
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QTemporaryDir>
 #include <QtTest>
 
@@ -89,6 +91,80 @@ class ControllerProfilesTest : public QObject {
     QCOMPARE(tokenLabel(padToken(QStringLiteral("leftshoulder"))), QStringLiteral("LB"));
     QCOMPARE(inputIndex(QStringLiteral("start")), 6);
     QCOMPARE(inputIndex(QStringLiteral("lid")), -1);
+  }
+
+  void hotkeyDefaultsAndConflicts() {
+    QTemporaryDir dir;
+    ControllerProfiles p(dir.path());
+    QCOMPARE(hotkeyDefs().size(), 4);
+    QCOMPARE(p.hotkey(QStringLiteral("fullscreen")), int(Qt::Key_F11));
+    QCOMPARE(p.hotkey(QStringLiteral("diagnostics")), int(Qt::Key_F3));
+    QCOMPARE(p.hotkey(QStringLiteral("snapshot")), int(Qt::Key_F5));
+    QCOMPARE(p.hotkeyAction(Qt::Key_F3), QStringLiteral("diagnostics"));
+    QCOMPARE(p.hotkeyAction(Qt::Key_Z), QString());
+    QCOMPARE(p.hotkeysChangedCount(), 0);
+    QVERIFY(!QFile::exists(p.filePath()));
+    QVERIFY(!p.setHotkey(QStringLiteral("fullscreen"), Qt::Key_F3));      // used by another action
+    QVERIFY(!p.setHotkey(QStringLiteral("fullscreen"), Qt::Key_Escape));  // Esc is fixed
+    QVERIFY(!p.setHotkey(QStringLiteral("nope"), Qt::Key_Q));
+    QCOMPARE(p.hotkey(QStringLiteral("fullscreen")), int(Qt::Key_F11));
+    QVERIFY(p.setHotkey(QStringLiteral("fullscreen"), Qt::Key_F11));  // same key again is fine
+    QVERIFY(p.setHotkey(QStringLiteral("fullscreen"), Qt::Key_F10));
+    QCOMPARE(p.hotkeyAction(Qt::Key_F11), QString());
+    QCOMPARE(p.hotkeysChangedCount(), 1);
+    QVERIFY(p.clearHotkey(QStringLiteral("snapshot")));
+    QCOMPARE(p.hotkey(QStringLiteral("snapshot")), 0);
+    QCOMPARE(p.hotkeyAction(0), QString());
+    QVERIFY(p.resetHotkey(QStringLiteral("snapshot")));
+    QCOMPARE(p.hotkey(QStringLiteral("snapshot")), int(Qt::Key_F5));
+    QVERIFY(p.resetHotkeys());
+    QCOMPARE(p.hotkeysChangedCount(), 0);
+  }
+
+  void hotkeysPersistAndUnknownKeysSurvive() {
+    QTemporaryDir dir;
+    QDir().mkpath(dir.path() + QStringLiteral("/settings"));
+    QFile f(dir.path() + QStringLiteral("/settings/controllers.json"));
+    QVERIFY(f.open(QIODevice::WriteOnly));
+    f.write(R"({"futureKey": {"x": 1}, "hotkeys": {"future": "key:65"}})");
+    f.close();
+    {
+      ControllerProfiles p(dir.path());
+      QVERIFY(p.setHotkey(QStringLiteral("diagnostics"), Qt::Key_F4));
+      QVERIFY(p.clearHotkey(QStringLiteral("snapshot")));
+    }
+    ControllerProfiles p(dir.path());
+    QCOMPARE(p.hotkey(QStringLiteral("diagnostics")), int(Qt::Key_F4));
+    QCOMPARE(p.hotkey(QStringLiteral("snapshot")), 0);
+    QCOMPARE(p.hotkey(QStringLiteral("fullscreen")), int(Qt::Key_F11));
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    const QJsonObject o = QJsonDocument::fromJson(f.readAll()).object();
+    f.close();
+    QVERIFY(o.contains(QStringLiteral("futureKey")));
+    const QJsonObject hk = o.value(QStringLiteral("hotkeys")).toObject();
+    QCOMPARE(hk.size(), 2);  // only non-default entries
+    QCOMPARE(hk.value(QStringLiteral("snapshot")).toString(), QStringLiteral("none"));
+    QVERIFY(p.resetHotkeys());
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    QVERIFY(!QJsonDocument::fromJson(f.readAll()).object().contains(QStringLiteral("hotkeys")));
+  }
+
+  void corruptedHotkeysFallBackToDefault() {
+    QTemporaryDir dir;
+    QDir().mkpath(dir.path() + QStringLiteral("/settings"));
+    QFile f(dir.path() + QStringLiteral("/settings/controllers.json"));
+    QVERIFY(f.open(QIODevice::WriteOnly));
+    f.write(R"({"hotkeys": {"fullscreen": "bogus", "diagnostics": 7, "snapshot": "key:16777216"}})");  // last = Esc
+    f.close();
+    ControllerProfiles p(dir.path());
+    QCOMPARE(p.hotkey(QStringLiteral("fullscreen")), int(Qt::Key_F11));
+    QCOMPARE(p.hotkey(QStringLiteral("diagnostics")), int(Qt::Key_F3));
+    QCOMPARE(p.hotkey(QStringLiteral("snapshot")), int(Qt::Key_F5));
+    QDir().mkpath(dir.path() + QStringLiteral("/settings"));
+    QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
+    f.write(R"({"hotkeys": "oops"})");
+    f.close();
+    QCOMPARE(ControllerProfiles(dir.path()).hotkey(QStringLiteral("fullscreen")), int(Qt::Key_F11));
   }
 
   void corruptedFileYieldsBuiltinOnly() {

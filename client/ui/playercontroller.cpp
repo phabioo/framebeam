@@ -232,6 +232,8 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   session_.setKeyboardMap(controllers_->keyboardMap());
   connect(controllers_.get(), &ControllersController::keyboardMapChanged, this,
           [this]() { session_.setKeyboardMap(controllers_->keyboardMap()); });
+  session_.setHotkeyKeys(controllers_->hotkeyKeys());
+  connect(controllers_.get(), &ControllersController::hotkeysChanged, this, [this]() { session_.setHotkeyKeys(controllers_->hotkeyKeys()); });
   connect(controllers_.get(), &ControllersController::libretroMaskChanged, this,
           [this](quint32 mask) { session_.setGamepadMask(mask); });
   session_.setGamepadMask(controllers_->gamepads()->libretroMask());

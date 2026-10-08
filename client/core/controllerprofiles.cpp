@@ -7,6 +7,7 @@
 #include <QJsonDocument>
 #include <QMetaEnum>
 #include <QSaveFile>
+#include <QSet>
 #include <QUuid>
 #include <Qt>
 
@@ -34,6 +35,24 @@ int inputIndex(const QString& id) {
   const auto& in = frameBeamInputs();
   for (int i = 0; i < in.size(); ++i) {
     if (in.at(i).id == id) return i;
+  }
+  return -1;
+}
+
+const QList<HotkeyDef>& hotkeyDefs() {
+  static const QList<HotkeyDef> defs = {
+      {QStringLiteral("fullscreen"), QStringLiteral("Toggle fullscreen"), Qt::Key_F11},
+      {QStringLiteral("diagnostics"), QStringLiteral("Diagnostics overlay"), Qt::Key_F3},
+      {QStringLiteral("snapshot"), QStringLiteral("Save snapshot"), Qt::Key_F5},
+      {QStringLiteral("speedup"), QStringLiteral("Speed-up"), Qt::Key_Space},
+  };
+  return defs;
+}
+
+int hotkeyIndex(const QString& id) {
+  const auto& d = hotkeyDefs();
+  for (int i = 0; i < d.size(); ++i) {
+    if (d.at(i).id == id) return i;
   }
   return -1;
 }
@@ -136,6 +155,7 @@ ControllerProfile ControllerProfiles::builtinProfile(const QString& kind) {
 
 ControllerProfiles::ControllerProfiles(const QString& baseDir)
     : path_(QDir(baseDir).filePath(QStringLiteral("settings/controllers.json"))) {
+  for (const HotkeyDef& d : hotkeyDefs()) hotkeys_.insert(d.id, d.defaultKey);
   QFile f(path_);
   if (!f.open(QIODevice::ReadOnly)) {
     return;
@@ -170,6 +190,82 @@ ControllerProfiles::ControllerProfiles(const QString& baseDir)
   for (auto it = a.begin(); it != a.end(); ++it) {
     if (it.value().isString()) assignments_.insert(it.key(), it.value().toString());
   }
+  // Hotkeys: a missing, corrupted or conflicting entry falls back to the action's default.
+  const QJsonObject hk = raw_.value(QStringLiteral("hotkeys")).toObject();
+  QSet<int> taken{Qt::Key_Escape};
+  QMap<QString, int> chosen;
+  for (const HotkeyDef& d : hotkeyDefs()) {
+    const QJsonValue v = hk.value(d.id);
+    if (!v.isString()) continue;
+    if (v.toString() == QLatin1String("none")) {
+      chosen.insert(d.id, 0);
+      continue;
+    }
+    const auto k = keyFromToken(v.toString());
+    if (k && *k > 0 && *k != Qt::Key_Escape && !taken.contains(*k)) {
+      taken.insert(*k);
+      chosen.insert(d.id, *k);
+    }
+  }
+  for (const HotkeyDef& d : hotkeyDefs()) {
+    int k = chosen.value(d.id, -1);
+    if (k < 0) k = d.defaultKey;
+    hotkeys_.insert(d.id, k);
+  }
+  // A default that now clashes with a chosen key of another action is unassigned (the explicit choice wins).
+  QSet<int> seen;
+  for (const HotkeyDef& d : hotkeyDefs()) {
+    if (chosen.contains(d.id) && chosen.value(d.id) != 0) seen.insert(chosen.value(d.id));
+  }
+  for (const HotkeyDef& d : hotkeyDefs()) {
+    if (!chosen.contains(d.id) && seen.contains(hotkeys_.value(d.id))) hotkeys_.insert(d.id, 0);
+  }
+}
+
+int ControllerProfiles::hotkey(const QString& actionId) const { return hotkeys_.value(actionId, 0); }
+
+QString ControllerProfiles::hotkeyAction(int qtKey) const {
+  if (qtKey <= 0) return {};
+  for (const HotkeyDef& d : hotkeyDefs()) {
+    if (hotkeys_.value(d.id) == qtKey) return d.id;
+  }
+  return {};
+}
+
+bool ControllerProfiles::setHotkey(const QString& actionId, int qtKey) {
+  if (hotkeyIndex(actionId) < 0 || qtKey <= 0 || qtKey == Qt::Key_Escape) return false;
+  const QString owner = hotkeyAction(qtKey);
+  if (!owner.isEmpty() && owner != actionId) return false;
+  hotkeys_.insert(actionId, qtKey);
+  return save();
+}
+
+bool ControllerProfiles::clearHotkey(const QString& actionId) {
+  if (hotkeyIndex(actionId) < 0) return false;
+  hotkeys_.insert(actionId, 0);
+  return save();
+}
+
+bool ControllerProfiles::resetHotkey(const QString& actionId) {
+  const int i = hotkeyIndex(actionId);
+  if (i < 0) return false;
+  const int def = hotkeyDefs().at(i).defaultKey;
+  // The default may be held by another action meanwhile: that one is unassigned (the reset wins).
+  const QString owner = hotkeyAction(def);
+  if (!owner.isEmpty() && owner != actionId) hotkeys_.insert(owner, 0);
+  hotkeys_.insert(actionId, def);
+  return save();
+}
+
+bool ControllerProfiles::resetHotkeys() {
+  for (const HotkeyDef& d : hotkeyDefs()) hotkeys_.insert(d.id, d.defaultKey);
+  return save();
+}
+
+int ControllerProfiles::hotkeysChangedCount() const {
+  int n = 0;
+  for (const HotkeyDef& d : hotkeyDefs()) n += hotkeys_.value(d.id) != d.defaultKey ? 1 : 0;
+  return n;
 }
 
 QList<ControllerProfile> ControllerProfiles::all() const {
@@ -302,6 +398,16 @@ bool ControllerProfiles::save() const {
     a.insert(it.key(), it.value());
   }
   root.insert(QStringLiteral("assignments"), a);
+  QJsonObject hk;
+  for (const HotkeyDef& d : hotkeyDefs()) {
+    const int k = hotkeys_.value(d.id, d.defaultKey);
+    if (k != d.defaultKey) hk.insert(d.id, k == 0 ? QStringLiteral("none") : keyToken(k));
+  }
+  if (hk.isEmpty()) {
+    root.remove(QStringLiteral("hotkeys"));
+  } else {
+    root.insert(QStringLiteral("hotkeys"), hk);
+  }
   QSaveFile f(path_);
   if (!f.open(QIODevice::WriteOnly)) {
     return false;
