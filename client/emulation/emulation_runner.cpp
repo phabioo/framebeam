@@ -3,6 +3,7 @@
 #include <QThread>
 
 #include <chrono>
+#include <algorithm>
 #include <cmath>
 
 namespace framebeam::emu {
@@ -49,11 +50,15 @@ class EmulationRunner::Worker : public QThread {
     const int rate = static_cast<int>(std::lround(av.sampleRate));
     const double fps = av.fps > 1.0 ? av.fps : 60.0;
     const auto period = std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>(1.0 / fps));
+    if (m_req.speedUpOnStart && be.supportsFastForward()) m_owner->m_fastForward.store(true);
     emit m_owner->started(av, be.coreInfo());
     m_owner->setState(State::Running);
 
     auto next = std::chrono::steady_clock::now();
+    auto lastEmit = next - period;
     bool wasPaused = false;
+    bool wasFast = false;
+    double audioPhase = 0.0;
     while (true) {
       {
         QMutexLocker l(&m_mutex);
@@ -65,6 +70,16 @@ class EmulationRunner::Worker : public QThread {
         if (wasPaused) { wasPaused = false; next = std::chrono::steady_clock::now(); m_owner->setState(State::Running); }
         if (m_reset) { m_reset = false; be.reset(); }
       }
+      const bool fast = m_owner->m_fastForward.load();
+      if (fast != wasFast) {  // resynchronize the clock like after a pause
+        wasFast = fast;
+        be.setFastForwarding(fast, m_owner->fastForwardRatio());
+        next = std::chrono::steady_clock::now();
+        audioPhase = 0.0;
+      }
+      const double ratio = fast ? m_owner->fastForwardRatio() : 1.0;
+      if (fast) be.setFastForwarding(true, ratio);
+      const auto step = fast ? std::chrono::duration_cast<std::chrono::steady_clock::duration>(period / ratio) : period;
       const auto frameStart = std::chrono::steady_clock::now();
       const bool frameOk = be.runFrame();
       const double frameMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - frameStart).count();
@@ -73,13 +88,24 @@ class EmulationRunner::Worker : public QThread {
         emit m_owner->errorOccurred(QStringLiteral("Core stopped execution"));
         break;
       }
-      emit m_owner->frameReady(be.videoFrame(), be.frameCount());
-      const QByteArray pcm = be.takeAudio();
-      if (!pcm.isEmpty()) emit m_owner->audioReady(pcm, rate);
+      const auto emitNow = std::chrono::steady_clock::now();
+      if (!fast || emitNow - lastEmit >= period) {  // fast-forward: the UI sees at most the base fps
+        lastEmit = emitNow;
+        emit m_owner->frameReady(be.videoFrame(), be.frameCount());
+      }
+      const QByteArray pcm = be.takeAudio();  // always drained
+      if (!pcm.isEmpty()) {
+        if (!fast) {
+          emit m_owner->audioReady(pcm, rate);
+        } else if (m_owner->speedUpAudio()) {  // real-time rate again: the sink and a shared Session see a normal stream
+          const QByteArray slow = resampleForSpeedUp(pcm, ratio, &audioPhase);
+          if (!slow.isEmpty()) emit m_owner->audioReady(slow, rate);
+        }
+      }
 
-      next += period;
+      next += step;
       const auto now = std::chrono::steady_clock::now();
-      if (next < now - 5 * period) next = now;  // too far behind: resynchronize
+      if (next < now - 5 * step) next = now;  // too far behind: resynchronize
       QMutexLocker l(&m_mutex);
       while (!m_stop && !m_paused && !m_reset) {
         const auto wait = std::chrono::duration_cast<std::chrono::milliseconds>(next - std::chrono::steady_clock::now());
@@ -122,6 +148,9 @@ void EmulationRunner::start(const StartRequest& request) {
     return;
   }
   m_timing.reset();
+  m_fastForward.store(false);
+  m_ratio.store(normalizeSpeedUpRatio(request.speedUpRatio));
+  m_speedUpAudio.store(request.speedUpAudio);
   m_backend->prepareForStart();  // GUI thread: resources the emulation thread cannot create itself
   m_worker = std::make_unique<Worker>(this, m_backend.get(), request);
   setState(State::Starting);
@@ -135,6 +164,41 @@ void EmulationRunner::start(const StartRequest& request) {
 void EmulationRunner::pause() { if (m_worker) m_worker->setPaused(true); }
 void EmulationRunner::resume() { if (m_worker) m_worker->setPaused(false); }
 void EmulationRunner::reset() { if (m_worker) m_worker->requestReset(); }
+
+void EmulationRunner::setFastForward(bool on) {
+  if (on && !m_backend->supportsFastForward()) return;
+  m_fastForward.store(on);
+}
+
+double EmulationRunner::normalizeSpeedUpRatio(double ratio) {
+  double best = kDefaultSpeedUpRatio;
+  double dist = 1e9;
+  for (const double r : speedUpRatios()) {
+    if (std::abs(r - ratio) < dist) { dist = std::abs(r - ratio); best = r; }
+  }
+  return best;
+}
+
+QByteArray EmulationRunner::resampleForSpeedUp(const QByteArray& pcm, double ratio, double* phase) {
+  const qsizetype n = pcm.size() / 4;  // stereo frames
+  if (n == 0 || ratio <= 1.0) return pcm;
+  const auto* in = reinterpret_cast<const qint16*>(pcm.constData());
+  QByteArray out;
+  out.reserve(static_cast<qsizetype>(static_cast<double>(n) / ratio + 2) * 4);
+  double pos = phase ? *phase : 0.0;
+  while (pos < static_cast<double>(n)) {
+    const qsizetype i = static_cast<qsizetype>(pos);
+    const qsizetype j = std::min<qsizetype>(i + 1, n - 1);
+    const double f = pos - static_cast<double>(i);
+    for (int ch = 0; ch < 2; ++ch) {
+      const qint16 v = static_cast<qint16>(std::lround(in[2 * i + ch] * (1.0 - f) + in[2 * j + ch] * f));
+      out.append(reinterpret_cast<const char*>(&v), 2);
+    }
+    pos += ratio;
+  }
+  if (phase) *phase = pos - static_cast<double>(n);
+  return out;
+}
 
 void EmulationRunner::stop() {
   if (!m_worker) return;

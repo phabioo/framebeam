@@ -39,6 +39,7 @@ What the Hub, the protocol and the Player do today, by area. Status by version: 
 - Launch NDS games locally with melonDS DS: video, audio via Qt Multimedia, keyboard, touch via mouse.
 - OpenGL hardware rendering for libretro cores (0.5): melonDS DS offers an OpenGL renderer and an internal resolution on the Emulation page (applied on next start; default Software). Hardware frames are read back to the CPU, so Sessions work unchanged. `FRAMEBEAM_DISABLE_HW_RENDER=1` forces the software path; the CLI has no hardware rendering.
 - Player UI pass (0.6): Library filter chips with live core state, Settings with Hub switch/edit/remove (address and port), in-game layout switch, fullscreen (F11/Esc), Multiview PiP / Side-by-Side / Grid 2×2, diagnostics overlay split into Emulation and Streaming (F3).
+- Speed-up / fast-forward (0.7.x, [ADR 0017](adr/0017-player-fast-forward.md)): Space or header button, speed 1.5× to 8× (default 2×), for libretro cores that allow it; Emulation settings for speed, speed-up on start and audio; usable while the Session is shared.
 - Save sync with the Hub: sync before launch, auto checkpoint while playing (12 s after the last change, at most every 60 s), final sync on pause, stop and exit; pending uploads are kept per Hub and user.
 - Conflict dialog with "Keep both, decide later" as default; per-game badge Synced / Sync pending / Conflict.
 - CLI: `saves list`, `save push`, `save pull`, `save resolve`.

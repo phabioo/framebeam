@@ -733,7 +733,27 @@ bool LibretroBackend::handleEnvironment(unsigned rawCmd, void* data) {
     case RETRO_ENVIRONMENT_SET_CONTROLLER_INFO: return true;
     case RETRO_ENVIRONMENT_SET_SUBSYSTEM_INFO: return true;
     case RETRO_ENVIRONMENT_SET_MEMORY_MAPS: return true;
-    case RETRO_ENVIRONMENT_SET_FASTFORWARDING_OVERRIDE: return true;
+    case RETRO_ENVIRONMENT_SET_FASTFORWARDING_OVERRIDE: {
+      // Only inhibit_toggle matters: the user's chosen speed always wins over the core's ratio.
+      if (data) m_ffInhibit.store(static_cast<const retro_fastforwarding_override*>(data)->inhibit_toggle);
+      return true;
+    }
+    // rawCmd is masked: the experimental flag is not part of the case labels.
+    case RETRO_ENVIRONMENT_GET_FASTFORWARDING & ~RETRO_ENVIRONMENT_EXPERIMENTAL:
+      *static_cast<bool*>(data) = m_fastForwarding.load();
+      return true;
+    case RETRO_ENVIRONMENT_GET_THROTTLE_STATE & ~RETRO_ENVIRONMENT_EXPERIMENTAL: {
+      auto* t = static_cast<retro_throttle_state*>(data);
+      const double fps = m_av.fps > 1.0 ? m_av.fps : 60.0;
+      if (m_fastForwarding.load()) {
+        t->mode = RETRO_THROTTLE_FAST_FORWARD;
+        t->rate = static_cast<float>(fps * m_ffRatio.load());
+      } else {
+        t->mode = RETRO_THROTTLE_NONE;
+        t->rate = static_cast<float>(fps);
+      }
+      return true;
+    }
     case RETRO_ENVIRONMENT_GET_AUDIO_VIDEO_ENABLE: *static_cast<int*>(data) = 3; return true;  // Video + Audio
     case RETRO_ENVIRONMENT_GET_TARGET_REFRESH_RATE: *static_cast<float*>(data) = static_cast<float>(m_av.fps); return true;
     case RETRO_ENVIRONMENT_GET_LANGUAGE: *static_cast<unsigned*>(data) = RETRO_LANGUAGE_ENGLISH; return true;

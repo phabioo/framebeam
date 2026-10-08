@@ -27,6 +27,7 @@ Phase plan: [workflow.md](workflow.md#phase-plan).
 | 0.6 | done in code (look and feel, GPU values, real sessions verified only locally) | Player UI pass | FrameBeam Player is clearer, more responsive and consistent with the design tokens ([ADR 0014](adr/0014-player-ui-pass.md)). |
 | 0.7 | done in code | Hub UI pass | FrameBeam Hub web UI swaps fragments instead of full pages, updates live and has network settings in the browser ([ADR 0015](adr/0015-hub-ui-pass.md)). |
 | 0.7.1 | done | Revision pass | Bug fixes and cleanup in Hub, Player and CI (flaky Session visibility race, query error handling, job timeouts); docs and READMEs consolidated. |
+| 0.7.x | done in code | Speed-up | The Player can run a game faster than real time ("Speed-up", Space, 1.5x to 8x) when the libretro core allows it ([ADR 0017](adr/0017-player-fast-forward.md)). |
 | 0.8 | planned | Second system: 3DS (Azahar) | The Azahar libretro core ships as a plain core package and runs on the OpenGL rendering from 0.5. |
 | 0.9 | planned | Metadata and artwork | Central game metadata and boxart in Hub and Player. |
 | 0.10 | planned | Hub for Windows / Windows Server | FrameBeam Hub runs as a Windows service with an installer. |
@@ -128,6 +129,15 @@ Implemented, see [ADR 0015](adr/0015-hub-ui-pass.md) (proposed).
 - [x] Done: Settings sub-pages Updates, General, Network, Security with per-field autosave (D3).
 - [x] Done: network settings form (Hub port, embedded TURN, public host, TURN port, relay range and IP, STUN servers, save retention). Decided by Fabio on 2026-10-07: web settings win; `hub.env` and flags only give the initial value (D4). Changes that need it are applied by a restart the Hub triggers itself, without root (D5). Ports below 1024 are refused on the web, use `install-hub.sh --port` (D6). Startup fallbacks keep the Hub reachable after a bad setting (D7). The TURN status and port forward list moved into Network; reachability is derived from the configuration (D8).
 - Open (left out of 0.7): Rescan folder, "+ New slot", deleting a snapshot, thinned-out history marker, invite "Copy link", metadata actions, "Player too old" marker in the Clients table, Library "of total" disk capacity, external TURN servers with login (only a STUN list), certificate "Renew now", reachability probe from outside, core packages not filtered per system, transport options "Custom cert/key" and "Reverse proxy".
+
+## 0.7.x Speed-up (fast-forward)
+
+See [ADR 0017](adr/0017-player-fast-forward.md) (proposed).
+
+- [x] Done: "Speed-up" (libretro fast-forward) in the Player for cores that do not inhibit it; Space toggles; speed 1.5×, 2×, 3×, 4×, 6×, 8× (default 2×, the user's choice wins over a core ratio); screen frames limited to the base rate.
+- [x] Done: header button "Speed-up" with a compact speed select (running game only) and indicator "Speed-up ×N"; hidden when the core inhibits it; stays usable while the Session is shared (viewers get the normal stream frame rate).
+- [x] Done: Emulation settings "Speed-up speed", "Speed-up on start" (default off) and "Audio during speed-up" (default on, resampled; off drops audio) with the global > system > game hierarchy.
+- Open: configurable key in Controllers → Hotkeys (separate work package); gamepad hotkey.
 
 ## 0.8 Second system: Nintendo 3DS with Azahar
 

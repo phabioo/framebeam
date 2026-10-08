@@ -48,6 +48,9 @@ if(BUILD_TESTING)
   framebeam_add_test(emulation_save_ram tests/save_ram_test.cpp LIBS framebeam_emulation)
   target_compile_definitions(test_emulation_save_ram PRIVATE FB_FAKE_CORE_PATH="$<TARGET_FILE:framebeam_fake_core>")
   add_dependencies(test_emulation_save_ram framebeam_fake_core)
+  framebeam_add_test(emulation_fast_forward tests/fast_forward_test.cpp LIBS framebeam_emulation)
+  target_compile_definitions(test_emulation_fast_forward PRIVATE FB_FAKE_CORE_PATH="$<TARGET_FILE:framebeam_fake_core>")
+  add_dependencies(test_emulation_fast_forward framebeam_fake_core)
 
   # Fake libretro core with OpenGL hardware rendering + test (needs QGuiApplication and a GL 3.3 context; SKIP/77
   # without one, except on Linux CI where it must run). Runs on the offscreen QPA with GLX (under xvfb) or EGL.
