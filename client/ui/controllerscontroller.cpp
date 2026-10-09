@@ -2,6 +2,9 @@
 
 #include <Qt>
 
+#include "controllersglyphs.h"
+#include "padtype.h"
+
 namespace framebeam::ui {
 
 namespace {
@@ -20,6 +23,7 @@ ControllersController::ControllersController(const QString& dataDir, QObject* pa
   connect(&pads_, &input::GamepadService::devicesChanged, this, [this]() {
     ensureSelection();
     emit devicesChanged();
+    emit labelSetChanged();
     emit profilesChanged();
     emit rowsChanged();
     emit testChanged();
@@ -65,6 +69,7 @@ void ControllersController::ensureSelection() {
     listening_.clear();
     pads_.cancelCapture();
     emit selectionChanged();
+    emit labelSetChanged();
   }
 }
 
@@ -92,7 +97,9 @@ QVariantList ControllersController::devices() const {
                          {QStringLiteral("slot"), d.slot == 1 ? QStringLiteral("P1") : QStringLiteral("—")},
                          {QStringLiteral("connected"), true},
                          {QStringLiteral("status"), tr("Connected")},
-                         {QStringLiteral("profile"), p ? p->name : QString()}});
+                         {QStringLiteral("profile"), p ? p->name : QString()},
+                         {QStringLiteral("padType"), input::padTypeId(d.type)},
+                         {QStringLiteral("padTypeName"), input::padTypeName(d.type)}});
   }
   const auto kb = profiles_.find(profiles_.assignedProfileId(kKeyboard, kKeyboard));
   l.append(QVariantMap{{QStringLiteral("key"), kKeyboard},
@@ -147,15 +154,19 @@ QVariantList ControllersController::rows() const {
   const auto p = currentProfile();
   if (!p) return l;
   const ControllerProfile def = ControllerProfiles::builtinProfile(p->kind);
+  const QString set = labelSet();
   for (const InputDef& in : frameBeamInputs()) {
     const QStringList tokens = p->bindings.value(in.id);
     const bool changed = !p->builtin && tokens != def.bindings.value(in.id);
     QStringList labels;
     for (const QString& t : tokens) labels.append(tokenLabel(t));
+    const QVariantMap d = describeBinding(set, tokens);
     l.append(QVariantMap{{QStringLiteral("input"), in.id},
                          {QStringLiteral("label"), in.label},
                          {QStringLiteral("target"), in.ndsTarget},
-                         {QStringLiteral("binding"), labels.isEmpty() ? tr("not mapped") : labels.join(QStringLiteral(" / "))},
+                         {QStringLiteral("binding"), labels.isEmpty() ? tr("Unassigned") : labels.join(QStringLiteral(" / "))},
+                         {QStringLiteral("glyphs"), d.value(QStringLiteral("glyphs"))},
+                         {QStringLiteral("bindingName"), labels.isEmpty() ? tr("Unassigned") : d.value(QStringLiteral("name"))},
                          {QStringLiteral("mapped"), !labels.isEmpty()},
                          {QStringLiteral("changed"), changed},
                          {QStringLiteral("listening"), listening_ == in.id}});
@@ -195,6 +206,75 @@ QStringList ControllersController::activeInputs() const {
     if ((mask & (1u << i)) != 0) out.append(inputs.at(i).id);
   }
   return out;
+}
+
+QString ControllersController::labelSetFor(const Selected& s, const input::PadDevice& d) const {
+  if (s.kind == kKeyboard) return kKeyboard;
+  if (s.kind != QLatin1String("gamepad")) return QStringLiteral("generic");
+  const QString override = profiles_.labelSet(s.deviceKey);
+  return override.isEmpty() ? input::padTypeId(d.type) : override;
+}
+
+QString ControllersController::labelChoice() const {
+  const Selected s = selection();
+  if (s.kind != QLatin1String("gamepad")) return QStringLiteral("auto");
+  const QString o = profiles_.labelSet(s.deviceKey);
+  return o.isEmpty() ? QStringLiteral("auto") : o;
+}
+
+QString ControllersController::labelSet() const {
+  const Selected s = selection();
+  return labelSetFor(s, s.kind == QLatin1String("gamepad") ? pads_.device(s.padId) : input::PadDevice{});
+}
+
+QString ControllersController::labelSetName() const { return labelSetTitle(labelSet()); }
+
+QVariantList ControllersController::labelChoices() const {
+  const Selected s = selection();
+  const input::PadDevice d = s.kind == QLatin1String("gamepad") ? pads_.device(s.padId) : input::PadDevice{};
+  const auto entry = [](const QString& value, const QString& label) {
+    return QVariantMap{{QStringLiteral("value"), value}, {QStringLiteral("label"), label}};
+  };
+  return {entry(QStringLiteral("auto"), tr("Auto (%1)").arg(input::padTypeName(d.type))), entry(QStringLiteral("xbox"), tr("Xbox")),
+          entry(QStringLiteral("playstation"), tr("PlayStation")), entry(QStringLiteral("generic"), tr("Generic"))};
+}
+
+void ControllersController::setLabelChoice(const QString& choice) {
+  const Selected s = selection();
+  if (s.kind != QLatin1String("gamepad")) return;
+  if (choice != QLatin1String("auto") && choice != QLatin1String("xbox") && choice != QLatin1String("playstation") &&
+      choice != QLatin1String("generic")) {
+    return;
+  }
+  if (!profiles_.setLabelSet(s.deviceKey, choice == QLatin1String("auto") ? QString() : choice)) return;
+  emit labelSetChanged();
+  emit rowsChanged();
+  emit testChanged();
+}
+
+QVariantList ControllersController::testCells() const {
+  const Selected s = selection();
+  QSet<QString> tokens;
+  QStringList inputs;
+  if (s.kind == QLatin1String("gamepad")) {
+    tokens = pads_.pressedTokens(s.padId);
+  } else {
+    inputs = activeInputs();
+  }
+  QVariantList cells = inputTestCells(labelSet());
+  for (QVariant& v : cells) {
+    QVariantMap c = v.toMap();
+    bool on = false;
+    if (s.kind == QLatin1String("gamepad")) {
+      for (const QString& t : c.value(QStringLiteral("tokens")).toStringList()) on = on || tokens.contains(t);
+    } else {
+      on = inputs.contains(c.value(QStringLiteral("id")).toString());
+    }
+    c.insert(QStringLiteral("active"), on);
+    c.remove(QStringLiteral("tokens"));
+    v = c;
+  }
+  return cells;
 }
 
 QHash<int, quint32> ControllersController::keyboardMap() const {
@@ -339,6 +419,7 @@ void ControllersController::selectDevice(const QString& key) {
   cancelCapture();
   heldKeys_.clear();
   emit selectionChanged();
+  emit labelSetChanged();
   emit profilesChanged();
   emit rowsChanged();
   emit testChanged();

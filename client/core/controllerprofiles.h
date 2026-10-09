@@ -94,6 +94,11 @@ class ControllerProfiles {
   QString assignedProfileId(const QString& deviceKey, const QString& kind) const;
   bool assign(const QString& deviceKey, const QString& profileId);
 
+  // "Button labels" override per physical device (not per profile; stored under "labelSets"): "" = Auto (detected
+  // controller type), else "xbox" | "playstation" | "generic". Unknown values read as Auto and are not stored.
+  QString labelSet(const QString& deviceKey) const { return labelSets_.value(deviceKey); }
+  bool setLabelSet(const QString& deviceKey, const QString& value);
+
  private:
   bool save() const;
   QString uniqueName(const QString& base) const;
@@ -102,6 +107,7 @@ class ControllerProfiles {
   QJsonObject raw_;
   QList<ControllerProfile> user_;
   QMap<QString, QString> assignments_;
+  QMap<QString, QString> labelSets_;  // device key -> override (Auto = absent)
   QMap<QString, int> hotkeys_;  // effective key per action id, all actions present
 };
 

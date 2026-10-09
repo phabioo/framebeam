@@ -22,6 +22,7 @@ struct GamepadService::Dev {
   QString name;
   QString key;
   int slot = 0;
+  PadType type = PadType::Generic;
   QSet<QString> pressed;
 };
 
@@ -76,13 +77,13 @@ const GamepadService::Dev* GamepadService::find(int id) const {
 
 QList<PadDevice> GamepadService::devices() const {
   QList<PadDevice> l;
-  for (const Dev* d : devs_) l.append({d->id, d->name, d->key, d->slot});
+  for (const Dev* d : devs_) l.append({d->id, d->name, d->key, d->slot, d->type});
   return l;
 }
 
 PadDevice GamepadService::device(int id) const {
   const Dev* d = find(id);
-  return d ? PadDevice{d->id, d->name, d->key, d->slot} : PadDevice{};
+  return d ? PadDevice{d->id, d->name, d->key, d->slot, d->type} : PadDevice{};
 }
 
 void GamepadService::setBindingsProvider(BindingsProvider provider) {
@@ -120,6 +121,7 @@ void GamepadService::openDevice(int id) {
   char guid[64] = {};
   SDL_GUIDToString(SDL_GetGamepadGUIDForID(static_cast<SDL_JoystickID>(id)), guid, sizeof(guid));
   d->key = QString::fromLatin1(guid);
+  d->type = classifyPad(static_cast<int>(SDL_GetGamepadType(pad)), SDL_GetGamepadVendor(pad), SDL_GetGamepadProduct(pad));
   devs_.append(d);
   refreshSlots();
   emit devicesChanged();
