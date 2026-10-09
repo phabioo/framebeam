@@ -1115,7 +1115,7 @@ FocusScope {
                     FbSegment {
                         objectName: "historyFilter"
                         // Deterministic width: never wider than what the eyebrow leaves, so wide fonts shrink and elide the labels
-                        Layout.preferredWidth: Math.max(0, Math.min(implicitWidth, 200, historyHeader.width - historyEyebrow.width - historyHeader.spacing))
+                        Layout.preferredWidth: Math.max(0, Math.min(implicitWidth, 200, body.width - historyEyebrow.implicitWidth - historyHeader.spacing))
                         Layout.maximumWidth: 200
                         Layout.minimumWidth: 0
                         segmentHeight: 22
