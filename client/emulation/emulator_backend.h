@@ -14,6 +14,10 @@
 #include <QStringList>
 #include <QtGlobal>
 
+#include <memory>
+
+#include "gpu_encode_target.h"
+
 namespace framebeam::emu {
 
 struct CoreInfo {
@@ -114,6 +118,15 @@ class EmulatorBackend {
   // Diagnostics (thread-safe). Time the last runFrame() spent reading a hardware frame back; 0 for software.
   virtual double lastReadbackMs() const { return 0.0; }
   virtual RenderInfo renderInfo() const { return {}; }
+
+  // Session encoding from the GPU (ADR 0019). thread-safe: the target is taken over by the emulation thread at the start
+  // of the next runFrame (nullptr removes it). A backend that renders on the GPU then also hands each shown frame to the
+  // target as a GL texture; software backends ignore it. Default: ignored.
+  virtual void setGpuEncodeTarget(std::shared_ptr<GpuEncodeTarget>) {}
+  // Diagnostics (thread-safe). Time the last runFrame() spent on the encode texture (blit + capture); 0 without a target.
+  virtual double lastGpuCopyMs() const { return 0.0; }
+  // Whether the last runFrame() captured a frame for the target.
+  virtual bool lastGpuCaptured() const { return false; }
 
   // Readback size limit (thread-safe, applied on the next frame): the largest width/height the consumers (display,
   // Session encoder) need. A backend that reads frames back from the GPU downscales larger ones on the GPU first

@@ -3,14 +3,18 @@
 // (environment variable CI set), where a missing context is a failure so the test cannot silently vanish.
 #include <QElapsedTimer>
 #include <QGuiApplication>
+#include <QMutex>
 #include <QTemporaryFile>
 #include <QOffscreenSurface>
 #include <QOpenGLContext>
+#include <QOpenGLExtraFunctions>
+#include <QOpenGLFunctions>
 #include <QSignalSpy>
 #include <QSurfaceFormat>
 #include <QtTest>
 
 #include <atomic>
+#include <memory>
 
 #include "emulation_runner.h"
 #include "hw_render.h"
@@ -33,6 +37,157 @@ bool canCreateGl33Core() {
 }
 
 QRgb px(const QImage& img, int x, int y) { return img.pixel(x, y); }
+
+constexpr int kRgba8 = 0x8058;  // GL_RGBA8
+
+// GpuEncodeTarget double (ADR 0019): records every call, checks the contract (GL current on the emulation thread) and
+// reads the encode texture with its own FBO, so it needs nothing but GL 3.3 core functions. Results are scriptable.
+// Thread-safe: the runner tests call it from the emulation thread.
+class FakeTarget : public GpuEncodeTarget {
+ public:
+  struct Call {
+    QString name;               // attach | attach (not ready) | detach | capture | fail
+    unsigned tex = 0;           // the texture of attach / detach / capture
+    QSize size;                 // attach / detach / capture
+    bool glCurrentArg = false;  // detach
+    bool isTexture = false;     // detach: glIsTexture(tex) at that moment
+    int internalFormat = 0;     // attach / detach: GL_TEXTURE_INTERNAL_FORMAT of level 0
+    QString reason;             // fail
+  };
+
+  // Scripting. wanted and the size limit may change while the Session runs.
+  std::atomic<bool> isWanted{true};
+  std::atomic<int> maxW{1280}, maxH{1920};
+  int notReady = 0;          // attach() answers NotReady this many times first
+  bool attachFails = false;  // attach() answers Failed
+  int failCaptureAt = 0;     // the n-th capture() (1-based) returns false
+  bool keepImages = true;
+
+  bool wanted() const override { return isWanted.load(); }
+  QSize maxSize() const override { return QSize(maxW.load(), maxH.load()); }
+
+  Attach attach(unsigned texture, int width, int height) override {
+    QMutexLocker l(&m_);
+    if (!glCurrent()) violations_.append(QStringLiteral("attach without a current GL context"));
+    if (notReady > 0) {
+      --notReady;
+      calls_.append(makeCall(QStringLiteral("attach (not ready)"), texture, QSize(width, height)));
+      return Attach::NotReady;
+    }
+    Call c = makeCall(QStringLiteral("attach"), texture, QSize(width, height));
+    c.internalFormat = internalFormatOf(texture);
+    calls_.append(c);
+    if (attachFails) return Attach::Failed;
+    tex_ = texture;
+    size_ = QSize(width, height);
+    return Attach::Ok;
+  }
+
+  void detach(bool glCurrentArg) override {
+    QMutexLocker l(&m_);
+    Call c = makeCall(QStringLiteral("detach"), tex_, size_);
+    c.glCurrentArg = glCurrentArg;
+    if (glCurrentArg && !glCurrent()) violations_.append(QStringLiteral("detach(true) without a current GL context"));
+    if (QOpenGLContext* ctx = QOpenGLContext::currentContext()) {
+      c.isTexture = ctx->functions()->glIsTexture(tex_) != GL_FALSE;
+      if (c.isTexture) c.internalFormat = internalFormatOf(tex_);
+    }
+    calls_.append(c);
+    tex_ = 0;  // idempotent
+  }
+
+  bool capture() override {
+    QMutexLocker l(&m_);
+    calls_.append(makeCall(QStringLiteral("capture"), tex_, size_));
+    QOpenGLContext* ctx = QOpenGLContext::currentContext();
+    if (!ctx) {
+      violations_.append(QStringLiteral("capture without a current GL context"));
+      return false;
+    }
+    if (tex_ == 0) {
+      violations_.append(QStringLiteral("capture while detached"));
+      return false;
+    }
+    ++captures_;
+    if (failCaptureAt > 0 && captures_ == failCaptureAt) return false;
+    QOpenGLFunctions* f = ctx->functions();
+    GLint readFbo = 0, drawFbo = 0;
+    f->glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &readFbo);
+    f->glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &drawFbo);
+    GLuint fbo = 0;
+    f->glGenFramebuffers(1, &fbo);
+    f->glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    f->glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex_, 0);
+    QImage img(size_, QImage::Format_RGBA8888);  // row 0 = GL row 0 = top row of the image (the interface contract)
+    const bool ok = f->glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+    if (ok) f->glReadPixels(0, 0, size_.width(), size_.height(), GL_RGBA, GL_UNSIGNED_BYTE, img.bits());
+    f->glBindFramebuffer(GL_READ_FRAMEBUFFER, static_cast<GLuint>(readFbo));  // the core's state stays as it was
+    f->glBindFramebuffer(GL_DRAW_FRAMEBUFFER, static_cast<GLuint>(drawFbo));
+    f->glDeleteFramebuffers(1, &fbo);
+    if (!ok) {
+      violations_.append(QStringLiteral("the encode texture cannot be read through an FBO"));
+      return false;
+    }
+    if (keepImages) images_.append(img);
+    return true;
+  }
+
+  void fail(const QString& reason) override {
+    QMutexLocker l(&m_);
+    Call c = makeCall(QStringLiteral("fail"), 0, QSize());
+    c.reason = reason;
+    calls_.append(c);
+  }
+
+  // Inspection (any thread).
+  QList<Call> calls() const {
+    QMutexLocker l(&m_);
+    return calls_;
+  }
+  QStringList names() const {
+    QStringList out;
+    for (const Call& c : calls()) out.append(c.name);
+    return out;
+  }
+  int count(const QString& name) const { return static_cast<int>(names().count(name)); }
+  QList<QImage> images() const {
+    QMutexLocker l(&m_);
+    return images_;
+  }
+  QStringList violations() const {
+    QMutexLocker l(&m_);
+    return violations_;
+  }
+
+ private:
+  static Call makeCall(const QString& name, unsigned tex, const QSize& size) {
+    Call c;
+    c.name = name;
+    c.tex = tex;
+    c.size = size;
+    return c;
+  }
+  static bool glCurrent() { return QOpenGLContext::currentContext() != nullptr; }
+  static int internalFormatOf(unsigned texture) {
+    QOpenGLContext* ctx = QOpenGLContext::currentContext();
+    if (!ctx) return 0;
+    QOpenGLExtraFunctions* fx = ctx->extraFunctions();
+    GLint prev = 0, v = 0;
+    fx->glGetIntegerv(GL_TEXTURE_BINDING_2D, &prev);
+    fx->glBindTexture(GL_TEXTURE_2D, texture);
+    fx->glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, 0x1003 /* GL_TEXTURE_INTERNAL_FORMAT */, &v);
+    fx->glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(prev));
+    return v;
+  }
+
+  mutable QMutex m_;
+  QList<Call> calls_;
+  QList<QImage> images_;
+  QStringList violations_;
+  unsigned tex_ = 0;
+  QSize size_;
+  int captures_ = 0;
+};
 }  // namespace
 
 class HwRenderTest : public QObject {
@@ -606,6 +761,517 @@ class HwRenderTest : public QObject {
       QCOMPARE(drawFbo.at(k), fbo.at(k - 1));
       QCOMPARE(scissor.at(k), 1);  // the core leaves GL_SCISSOR_TEST on
     }
+  }
+
+  // ---- Session encode texture (GpuEncodeTarget, ADR 0019)
+
+  // Red value of the fake core's frame counter in a capture (GL (28..36, 20..28) -> image row 23).
+  static int captureCounter(const QImage& img) { return qRed(px(img, 32, 23)); }
+  // A capture as the RGB32 image checkPattern() understands (the encode texture is RGBA).
+  static QImage asRgb32(const QImage& img) { return img.convertToFormat(QImage::Format_RGB32); }
+
+  void encodeSizeForRules() {
+    const QSize full(1280, 1920);
+    QCOMPARE(HwRenderContext::encodeSizeFor(2048, 3072, full), QSize(1280, 1920));  // DS at 8x
+    QCOMPARE(HwRenderContext::encodeSizeFor(1024, 1536, full), QSize(1024, 1536));  // DS at 4x: unchanged
+    QCOMPARE(HwRenderContext::encodeSizeFor(256, 384, full), QSize(256, 384));      // DS at 1x: never upscaled
+    QCOMPARE(HwRenderContext::encodeSizeFor(255, 383, full), QSize(254, 382));      // odd: rounded down to even
+    QCOMPARE(HwRenderContext::encodeSizeFor(255, 383, {}), QSize(254, 382));        // no limit: the frame, even
+    QCOMPARE(HwRenderContext::encodeSizeFor(256, 192, {}), QSize(256, 192));
+    QCOMPARE(HwRenderContext::encodeSizeFor(256, 192, QSize(100, 100)), QSize(100, 74));  // 100 x 75 -> even
+    QCOMPARE(HwRenderContext::encodeSizeFor(2048, 3072, QSize(1312, 5000)), QSize(1312, 1968));
+    QCOMPARE(HwRenderContext::encodeSizeFor(1, 1, full), QSize(2, 2));  // at least 2 x 2
+    QCOMPARE(HwRenderContext::encodeSizeFor(3, 3, full), QSize(2, 2));
+    QCOMPARE(HwRenderContext::encodeSizeFor(64, 48, QSize(1, 1)), QSize(2, 2));
+    const QSize s = HwRenderContext::encodeSizeFor(2048, 3072, QSize(1000, 1000));  // aspect kept: 2:3
+    QCOMPARE(s.width() % 2 + s.height() % 2, 0);
+    QVERIFY(qAbs(static_cast<double>(s.width()) / s.height() - 2.0 / 3.0) < 0.01);
+    QVERIFY(s.width() <= 1000 && s.height() <= 1000);
+  }
+
+  void encodeTextureIsTopDownRgb() {
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    auto t = std::make_shared<FakeTarget>();
+    QCOMPARE(be.lastGpuCopyMs(), 0.0);  // no target: no GPU copy time
+    QVERIFY(!be.lastGpuCaptured());
+    be.setGpuEncodeTarget(t);
+    QTest::ignoreMessage(QtInfoMsg, "Session encode texture 64x48 for a 64x48 frame");
+    QVERIFY(be.runFrame());  // frame 1 is blitted, nothing to capture yet
+    QCOMPARE(t->names(), (QStringList{QStringLiteral("attach")}));
+    QVERIFY(!be.lastGpuCaptured());
+    QVERIFY(be.runFrame());  // frame 2 starts by capturing frame 1
+    QCOMPARE(t->names(), (QStringList{QStringLiteral("attach"), QStringLiteral("capture")}));
+    QVERIFY2(t->violations().isEmpty(), qPrintable(t->violations().join(QLatin1Char(';'))));
+    const FakeTarget::Call attach = t->calls().at(0);
+    QCOMPARE(attach.size, QSize(64, 48));
+    QCOMPARE(attach.internalFormat, kRgba8);  // sized GL_RGBA8
+    QVERIFY(attach.tex != 0);
+    QCOMPARE(t->images().size(), 1);
+    const QImage img = t->images().at(0);
+    QCOMPARE(img.size(), QSize(64, 48));
+    // Row 0 is the top of the image: green top-right, red bottom-left (the core draws with a bottom-left origin).
+    QCOMPARE(px(img, 61, 2), qRgb(0, 255, 0));
+    QCOMPARE(px(img, 2, 45), qRgb(255, 0, 0));
+    QCOMPARE(px(img, 2, 2), qRgb(0, 0, 255));
+    QCOMPARE(px(img, 61, 45), qRgb(0, 0, 255));
+    const uchar* bottom = img.constScanLine(45);  // bytes R, G, B (red = FF 00 00)
+    QCOMPARE(int(bottom[2 * 4 + 0]), 0xFF);
+    QCOMPARE(int(bottom[2 * 4 + 1]), 0x00);
+    QCOMPARE(int(bottom[2 * 4 + 2]), 0x00);
+    const uchar* top = img.constScanLine(2);
+    QCOMPARE(int(top[61 * 4 + 0]), 0x00);
+    QCOMPARE(int(top[61 * 4 + 1]), 0xFF);
+    QCOMPARE(int(top[61 * 4 + 2]), 0x00);
+    checkPattern(asRgb32(img), 64, 48);
+    checkPattern(be.videoFrame(), 64, 48);  // the display readback is unaffected
+  }
+
+  void encodeTextureOfTopLeftCoreIsNotFlipped() {
+    qputenv("FB_FAKE_HW_BOTTOM_LEFT", "0");
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    qunsetenv("FB_FAKE_HW_BOTTOM_LEFT");
+    auto t = std::make_shared<FakeTarget>();
+    be.setGpuEncodeTarget(t);
+    runFrames(be, 2);
+    QCOMPARE(t->images().size(), 1);
+    const QImage img = t->images().at(0);
+    QCOMPARE(px(img, 2, 2), qRgb(255, 0, 0));     // GL row 0 is already the top row
+    QCOMPARE(px(img, 61, 45), qRgb(0, 255, 0));
+    QCOMPARE(px(img, 2, 45), qRgb(0, 0, 255));
+  }
+
+  void encodeTextureIsScaledIntoTheLimitAndEven() {
+    qputenv("FB_FAKE_HW_SCALE", "4");  // 256x192; the core leaves GL_SCISSOR_TEST enabled
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    auto t = std::make_shared<FakeTarget>();
+    t->maxW = 100;
+    t->maxH = 100;
+    be.setGpuEncodeTarget(t);
+    QTest::ignoreMessage(QtInfoMsg, "Session encode texture 100x74 for a 256x192 frame");
+    runFrames(be, 3);
+    QCOMPARE(t->calls().at(0).size, QSize(100, 74));  // 100 x 75, rounded down to even
+    QVERIFY(t->images().size() >= 2);
+    for (const QImage& img : t->images()) checkPattern(asRgb32(img), 100, 74);
+    QOpenGLContext* ctx = QOpenGLContext::currentContext();
+    QVERIFY(ctx);
+    QVERIFY(ctx->functions()->glIsEnabled(GL_SCISSOR_TEST));  // the blits switched it off and restored it
+    QCOMPARE(be.sourceFrameSize(), QSize(256, 192));
+    checkPattern(be.videoFrame(), 256, 192);
+    qunsetenv("FB_FAKE_HW_SCALE");
+  }
+
+  void encodeTextureAveragesStripes() {
+    qputenv("FB_FAKE_HW_SCALE", "4");
+    qputenv("FB_FAKE_HW_STRIPES", "1");  // 1-pixel black/white columns
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    auto t = std::make_shared<FakeTarget>();
+    t->maxW = 100;
+    t->maxH = 100;
+    be.setGpuEncodeTarget(t);
+    runFrames(be, 3);
+    QVERIFY(!t->images().isEmpty());
+    const QImage img = t->images().last();
+    QCOMPARE(img.size(), QSize(100, 74));
+    for (int y = 0; y < img.height(); ++y)
+      for (int x = 0; x < img.width(); ++x) {
+        const int g = qRed(px(img, x, y));
+        QVERIFY2(g >= 100 && g <= 155, qPrintable(QStringLiteral("(%1,%2) = %3").arg(x).arg(y).arg(g)));
+      }
+    qunsetenv("FB_FAKE_HW_SCALE");
+    qunsetenv("FB_FAKE_HW_STRIPES");
+  }
+
+  void encodeCaptureIsOneFrameBehind() {
+    qputenv("FB_FAKE_HW_COUNTER", "1");
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    auto t = std::make_shared<FakeTarget>();
+    be.setGpuEncodeTarget(t);
+    for (int k = 1; k <= 8; ++k) {
+      QVERIFY(be.runFrame());
+      QCOMPARE(t->images().size(), k - 1);  // no capture in the first runFrame, one in every later one
+      QCOMPARE(be.lastGpuCaptured(), k > 1);
+      if (k > 1) QCOMPARE(captureCounter(t->images().last()), k - 1);  // the frame of the previous runFrame
+    }
+    qunsetenv("FB_FAKE_HW_COUNTER");
+  }
+
+  void encodeNotWantedDoesNothing() {
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    auto t = std::make_shared<FakeTarget>();
+    t->isWanted = false;
+    be.setGpuEncodeTarget(t);
+    runFrames(be, 4);
+    QVERIFY(t->calls().isEmpty());  // no attach, no capture
+    QVERIFY(!be.lastGpuCaptured());
+    checkPattern(be.videoFrame(), 64, 48);  // the display is unchanged
+    t->isWanted = true;  // wanted again: attaches on the next frame, captures on the one after
+    runFrames(be, 1);
+    QCOMPARE(t->names(), (QStringList{QStringLiteral("attach")}));
+    runFrames(be, 1);
+    QCOMPARE(t->count(QStringLiteral("capture")), 1);
+    t->isWanted = false;  // a frame that is pending when the target stops being wanted is discarded
+    runFrames(be, 3);
+    QCOMPARE(t->count(QStringLiteral("capture")), 1);
+    QVERIFY(t->violations().isEmpty());
+  }
+
+  void encodeNotReadyAsksAgain() {
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    auto t = std::make_shared<FakeTarget>();
+    t->notReady = 2;
+    be.setGpuEncodeTarget(t);
+    const int expectedCaptures[] = {0, 0, 0, 1, 2};
+    for (int k = 1; k <= 5; ++k) {
+      QVERIFY(be.runFrame());
+      QCOMPARE(t->count(QStringLiteral("capture")), expectedCaptures[k - 1]);
+      checkPattern(be.videoFrame(), 64, 48);  // the readback keeps encoding meanwhile
+    }
+    QCOMPARE(t->count(QStringLiteral("attach (not ready)")), 2);
+    QCOMPARE(t->count(QStringLiteral("attach")), 1);  // captures start after the third wanted frame
+    QCOMPARE(t->count(QStringLiteral("fail")), 0);
+  }
+
+  void encodeFailureDropsTheTargetAndFails_data() {
+    QTest::addColumn<bool>("attachFails");
+    QTest::addColumn<QString>("reason");
+    QTest::addColumn<QStringList>("expectedCalls");
+    QTest::newRow("capture fails") << false << QStringLiteral("capture failed")
+                                   << QStringList{QStringLiteral("attach"), QStringLiteral("capture"), QStringLiteral("fail"),
+                                                  QStringLiteral("detach")};
+    QTest::newRow("attach fails") << true << QStringLiteral("attach failed")
+                                  << QStringList{QStringLiteral("attach"), QStringLiteral("fail")};  // never attached: no detach
+  }
+
+  void encodeFailureDropsTheTargetAndFails() {
+    QFETCH(bool, attachFails);
+    QFETCH(QString, reason);
+    QFETCH(QStringList, expectedCalls);
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    auto t = std::make_shared<FakeTarget>();
+    t->attachFails = attachFails;
+    t->failCaptureAt = attachFails ? 0 : 1;
+    be.setGpuEncodeTarget(t);
+    QTest::ignoreMessage(QtWarningMsg, qPrintable(QStringLiteral("Session encode target dropped (%1); the Session encoder gets "
+                                                                 "readback frames").arg(reason)));
+    runFrames(be, 3);
+    QCOMPARE(t->names(), expectedCalls);
+    const QList<FakeTarget::Call> calls = t->calls();
+    QCOMPARE(calls.at(expectedCalls.indexOf(QStringLiteral("fail"))).reason, reason);  // fail() first ...
+    if (!attachFails) {                                                                  // ... then detach, GL current
+      QVERIFY(calls.last().glCurrentArg);
+      QVERIFY(calls.last().isTexture);  // detach comes before the texture is deleted
+      QCOMPARE(calls.last().internalFormat, kRgba8);
+    }
+    const quint64 frames = be.frameCount();
+    QCOMPARE(runFrames(be, 4).size(), QSize(64, 48));  // the Session keeps running ...
+    QCOMPARE(be.frameCount(), frames + 4);
+    checkPattern(be.videoFrame(), 64, 48);              // ... with display frames,
+    QCOMPARE(t->names(), expectedCalls);                // and the target is not called any more
+    QVERIFY(t->violations().isEmpty());
+    QCOMPARE(t.use_count(), 1);                         // the dropped target is released (only the test holds it)
+  }
+
+  void encodeSizeChangeDetachesBeforeTheNewTexture() {
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    auto t = std::make_shared<FakeTarget>();
+    be.setGpuEncodeTarget(t);
+    runFrames(be, 3);
+    QCOMPARE(t->calls().at(0).size, QSize(64, 48));
+    t->maxW = 32;  // a smaller limit -> a new encode texture
+    t->maxH = 24;
+    runFrames(be, 3);
+    // Frame 4 still captures the 64x48 frame 3 through the old registration; its own blit then detaches and re-attaches.
+    QCOMPARE(t->names(), (QStringList{QStringLiteral("attach"), QStringLiteral("capture"), QStringLiteral("capture"),
+                                      QStringLiteral("capture"), QStringLiteral("detach"), QStringLiteral("attach"),
+                                      QStringLiteral("capture"), QStringLiteral("capture")}));
+    const QList<FakeTarget::Call> calls = t->calls();
+    const FakeTarget::Call detach = calls.at(4), attach = calls.at(5);
+    QVERIFY(detach.glCurrentArg);
+    QVERIFY(detach.isTexture);  // the old texture still exists while it is detached ...
+    QCOMPARE(detach.internalFormat, kRgba8);
+    QCOMPARE(detach.tex, calls.at(0).tex);
+    QCOMPARE(attach.size, QSize(32, 24));
+    QVERIFY(attach.tex != detach.tex);  // ... and the new size gets a new texture object, never a re-specified one
+    QCOMPARE(attach.internalFormat, kRgba8);
+    QOpenGLContext* ctx = QOpenGLContext::currentContext();
+    QVERIFY(ctx);
+    QVERIFY(ctx->functions()->glIsTexture(attach.tex));
+    QVERIFY(!ctx->functions()->glIsTexture(detach.tex));  // deleted after the detach
+    QCOMPARE(t->images().last().size(), QSize(32, 24));
+    checkPattern(asRgb32(t->images().last()), 32, 24);
+    QVERIFY(t->violations().isEmpty());
+  }
+
+  void encodeTargetLifecycle() {
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    runFrames(be, 3);
+    // A target set mid-run applies at the start of the next runFrame, not before.
+    auto t1 = std::make_shared<FakeTarget>();
+    be.setGpuEncodeTarget(t1);
+    QVERIFY(t1->calls().isEmpty());
+    runFrames(be, 2);
+    QCOMPARE(t1->names(), (QStringList{QStringLiteral("attach"), QStringLiteral("capture")}));
+    // Replaced by another one: the old one is detached (GL current) at the next runFrame, the new one attaches.
+    auto t2 = std::make_shared<FakeTarget>();
+    be.setGpuEncodeTarget(t2);
+    QCOMPARE(t1->names().size(), 2);
+    runFrames(be, 1);
+    QCOMPARE(t1->names(), (QStringList{QStringLiteral("attach"), QStringLiteral("capture"), QStringLiteral("detach")}));
+    QVERIFY(t1->calls().last().glCurrentArg && t1->calls().last().isTexture);
+    QCOMPARE(t2->names(), (QStringList{QStringLiteral("attach")}));
+    QCOMPARE(t1.use_count(), 1);  // released by the backend
+    // Two replacements before the emulation thread looks: only the last one is ever used.
+    auto t3 = std::make_shared<FakeTarget>();
+    auto t4 = std::make_shared<FakeTarget>();
+    be.setGpuEncodeTarget(t3);
+    be.setGpuEncodeTarget(t4);
+    QCOMPARE(t3.use_count(), 1);
+    runFrames(be, 2);
+    QVERIFY(t3->calls().isEmpty());
+    QCOMPARE(t2->count(QStringLiteral("detach")), 1);
+    QCOMPARE(t4->names(), (QStringList{QStringLiteral("attach"), QStringLiteral("capture")}));
+    // Removed: detached, nothing more happens.
+    be.setGpuEncodeTarget(nullptr);
+    runFrames(be, 3);
+    QCOMPARE(t4->names(), (QStringList{QStringLiteral("attach"), QStringLiteral("capture"), QStringLiteral("detach")}));
+    QCOMPARE(t4.use_count(), 1);
+    // Game quit with a target: exactly one detach(true), with GL current, before the texture goes.
+    auto t5 = std::make_shared<FakeTarget>();
+    be.setGpuEncodeTarget(t5);
+    runFrames(be, 3);
+    QCOMPARE(t5->count(QStringLiteral("detach")), 0);
+    be.unloadGame();
+    QCOMPARE(t5->count(QStringLiteral("detach")), 1);
+    QVERIFY(t5->calls().last().glCurrentArg && t5->calls().last().isTexture);
+    QCOMPARE(t5->calls().last().internalFormat, kRgba8);
+    QCOMPARE(t5.use_count(), 1);
+    be.unloadCore();
+    QCOMPARE(t5->count(QStringLiteral("detach")), 1);
+    for (const auto& t : {t1, t2, t3, t4, t5}) QVERIFY2(t->violations().isEmpty(), qPrintable(t->violations().join(QLatin1Char(';'))));
+  }
+
+  void encodeDuplicateFramesRepeatTheLastCapture() {
+    qputenv("FB_FAKE_HW_COUNTER", "1");
+    qputenv("FB_FAKE_HW_DUPE_EVERY", "3");  // frames 3, 6, 9 are duplicates (the core renders nothing)
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    auto t = std::make_shared<FakeTarget>();
+    be.setGpuEncodeTarget(t);
+    runFrames(be, 9);
+    qunsetenv("FB_FAKE_HW_COUNTER");
+    qunsetenv("FB_FAKE_HW_DUPE_EVERY");
+    const QList<QImage> images = t->images();
+    QCOMPARE(images.size(), 8);  // one capture per displayed frame (the first runFrame has none to capture)
+    QList<int> counters;
+    for (const QImage& img : images) counters.append(captureCounter(img));
+    QCOMPARE(counters, (QList<int>{1, 2, 2, 4, 5, 5, 7, 8}));  // a duplicate re-captures the previous frame
+    QCOMPARE(images.at(2), images.at(1));
+    QCOMPARE(images.at(5), images.at(4));
+    QVERIFY(t->violations().isEmpty());
+  }
+
+  void encodeFollowsDisplayedFramesWhileSpedUp() {
+    QTemporaryFile rom;
+    QVERIFY(rom.open());
+    rom.write("x");
+    rom.flush();
+    auto owned = std::make_unique<LibretroBackend>();
+    LibretroBackend* be = owned.get();
+    EmulationRunner runner(std::move(owned));
+    auto t = std::make_shared<FakeTarget>();
+    t->keepImages = false;
+    runner.setGpuEncodeTarget(t);  // before start: applies from the first frame
+    EmulationRunner::StartRequest req;
+    req.corePath = QStringLiteral(FB_FAKE_HW_CORE_PATH);
+    req.gamePath = rom.fileName();
+    req.speedUpRatio = 4.0;
+    QSignalSpy started(&runner, &EmulationRunner::started);
+    runner.start(req);
+    QTRY_VERIFY2(started.count() == 1, "not started");
+    QTest::qWait(300);
+    const int cap0 = t->count(QStringLiteral("capture"));
+    const quint64 rb0 = be->hwReadbackCount();
+    QTest::qWait(500);
+    const int capNormal = t->count(QStringLiteral("capture")) - cap0;
+    const quint64 rbNormal = be->hwReadbackCount() - rb0;
+    QVERIFY2(capNormal > 15, qPrintable(QString::number(capNormal)));
+    QVERIFY2(qAbs(static_cast<qint64>(capNormal) - static_cast<qint64>(rbNormal)) <= 3,
+             qPrintable(QStringLiteral("normal: %1 captures for %2 readbacks").arg(capNormal).arg(rbNormal)));
+
+    runner.setFastForward(true);
+    QTest::qWait(300);
+    const int cap1 = t->count(QStringLiteral("capture"));
+    const quint64 rb1 = be->hwReadbackCount();
+    const quint64 fr1 = be->frameCount();
+    QElapsedTimer timer;
+    timer.start();
+    QTest::qWait(1500);
+    const double secs = timer.elapsed() / 1000.0;
+    const double capFast = (t->count(QStringLiteral("capture")) - cap1) / secs;
+    const double rbFast = static_cast<double>(be->hwReadbackCount() - rb1) / secs;
+    const double frFast = static_cast<double>(be->frameCount() - fr1) / secs;
+    qInfo("4x: %.1f emu frames/s, %.1f readbacks/s, %.1f captures/s", frFast, rbFast, capFast);
+    QVERIFY2(frFast > 60 * 2.0, qPrintable(QStringLiteral("emu %1/s").arg(frFast)));            // actually faster
+    QVERIFY2(capFast < 60 * 1.3, qPrintable(QStringLiteral("captures %1/s").arg(capFast)));      // ~ the base fps
+    QVERIFY2(capFast > 60 * 0.5, qPrintable(QStringLiteral("captures %1/s").arg(capFast)));
+    QVERIFY2(qAbs(capFast - rbFast) < 60 * 0.15, qPrintable(QStringLiteral("%1 captures/s vs %2 readbacks/s").arg(capFast).arg(rbFast)));
+    runner.stop();
+    QVERIFY(t->violations().isEmpty());
+    QCOMPARE(t->count(QStringLiteral("detach")), 1);  // the game quit detached it
+    QCOMPARE(t->count(QStringLiteral("fail")), 0);
+  }
+
+  void encodeKeepsTheCoresBindings_data() {
+    QTest::addColumn<QSize>("limit");
+    QTest::newRow("1:1 copy") << QSize(1280, 1920);
+    QTest::newRow("scaled (halving)") << QSize(32, 24);
+    QTest::newRow("scaled (final blit only)") << QSize(50, 37);
+  }
+
+  // The same state check as readAndDrawBindingsAreRestoredSeparately, now with the encode blit and the capture: read FBO 0,
+  // draw FBO = the core's, scissor on, exactly as the core left them.
+  void encodeKeepsTheCoresBindings() {
+    QFETCH(QSize, limit);
+    qputenv("FB_FAKE_HW_READFBO", "1");
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    auto t = std::make_shared<FakeTarget>();
+    t->maxW = limit.width();
+    t->maxH = limit.height();
+    be.setGpuEncodeTarget(t);
+    QVERIFY(!runFrames(be, 6).isNull());
+    qunsetenv("FB_FAKE_HW_READFBO");
+    QVERIFY2(t->images().size() == 5, qPrintable(QString::number(t->images().size())));
+    const QList<int> readFbo = logValues(QStringLiteral("readfbo")), drawFbo = logValues(QStringLiteral("drawfbo"));
+    const QList<int> scissor = logValues(QStringLiteral("scissor")), fbo = logValues(QStringLiteral("fbo"));
+    QCOMPARE(readFbo.size(), 6);
+    QCOMPARE(fbo.size(), 6);
+    for (int k = 1; k < 6; ++k) {
+      QCOMPARE(readFbo.at(k), 0);
+      QCOMPARE(drawFbo.at(k), fbo.at(k - 1));
+      QCOMPARE(scissor.at(k), 1);
+    }
+    QVERIFY(t->violations().isEmpty());
+  }
+
+  void encodeTimingIsReported() {
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    auto t = std::make_shared<FakeTarget>();
+    be.setGpuEncodeTarget(t);
+    QVERIFY(be.runFrame());
+    QVERIFY(be.lastGpuCopyMs() > 0.0 && be.lastGpuCopyMs() < 1000.0);  // the blit
+    QVERIFY(!be.lastGpuCaptured());
+    QVERIFY(be.runFrame());
+    QVERIFY(be.lastGpuCopyMs() > 0.0 && be.lastGpuCopyMs() < 1000.0);  // capture + blit
+    QVERIFY(be.lastGpuCaptured());
+    be.setGpuEncodeTarget(nullptr);
+    QVERIFY(be.runFrame());
+    QCOMPARE(be.lastGpuCopyMs(), 0.0);  // removed: not a stale value
+    QVERIFY(!be.lastGpuCaptured());
+  }
+
+  void encodeSurvivesAStaleGlErrorFromTheCore_data() {
+    QTest::addColumn<bool>("syncReadback");
+    QTest::newRow("PBO readback") << false;
+    QTest::newRow("sync readback") << true;  // the PBO path drains errors itself; the sync path leaves them to the encode path
+  }
+
+  void encodeSurvivesAStaleGlErrorFromTheCore() {
+    QFETCH(bool, syncReadback);
+    qputenv("FB_FAKE_HW_GLERROR", "1");  // the core leaves GL_INVALID_ENUM pending after every frame
+    if (syncReadback) qputenv("FRAMEBEAM_SYNC_READBACK", "1");
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    auto t = std::make_shared<FakeTarget>();
+    be.setGpuEncodeTarget(t);
+    runFrames(be, 6);
+    qunsetenv("FRAMEBEAM_SYNC_READBACK");
+    qunsetenv("FB_FAKE_HW_GLERROR");
+    QCOMPARE(t->count(QStringLiteral("capture")), 5);  // neither the texture creation nor the blit saw the stale error
+    QCOMPARE(t->count(QStringLiteral("fail")), 0);
+    checkPattern(asRgb32(t->images().last()), 64, 48);
+    checkPattern(be.videoFrame(), 64, 48);
+  }
+
+  // The public HwRenderContext API without a backend: the "core" is a glClear into the context's FBO.
+  void encodeApiOnTheContext() {
+    HwRenderContext hw;
+    hw.prepareSurface();
+    QString err;
+    QVERIFY2(hw.createContext(true, 3, 3, false, false, &err), qPrintable(err));
+    QVERIFY(hw.ensureSize(64, 48));
+    QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
+    auto drawColor = [&](float r, float g, float b) {
+      f->glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(hw.framebuffer()));
+      f->glClearColor(r, g, b, 1.f);
+      f->glClear(GL_COLOR_BUFFER_BIT);
+    };
+    QVERIFY(!hw.hasEncodeTarget());
+    QVERIFY(hw.encodeSize().isEmpty());
+    drawColor(1.f, 0.f, 0.f);
+    hw.encodeBlit(64, 48, true);  // no target: nothing happens
+    QVERIFY(!hw.captureEncode());
+    QVERIFY(hw.encodeSize().isEmpty());
+
+    auto t = std::make_shared<FakeTarget>();
+    t->maxW = 32;
+    t->maxH = 24;
+    hw.setEncodeTarget(t);
+    QVERIFY(hw.hasEncodeTarget());
+    QVERIFY(!hw.captureEncode());  // nothing blitted yet
+    hw.encodeBlit(64, 48, true);
+    QCOMPARE(hw.encodeSize(), QSize(32, 24));
+    QVERIFY(hw.captureEncode());
+    QVERIFY(!hw.captureEncode());  // captured once; the texture is not captured again by itself
+    hw.encodeRepeat();             // duplicate frame
+    drawColor(0.f, 1.f, 0.f);      // a core drawing the next frame does not touch the captured one
+    QVERIFY(hw.captureEncode());
+    hw.encodeBlit(64, 48, true);
+    QVERIFY(hw.captureEncode());
+    QCOMPARE(t->images().size(), 3);
+    QCOMPARE(px(t->images().at(0), 16, 12), qRgb(255, 0, 0));
+    QCOMPARE(px(t->images().at(1), 16, 12), qRgb(255, 0, 0));  // the repeat shows the old frame
+    QCOMPARE(px(t->images().at(2), 16, 12), qRgb(0, 255, 0));
+    hw.setEncodeTarget(nullptr);
+    QVERIFY(!hw.hasEncodeTarget());
+    QVERIFY(hw.encodeSize().isEmpty());
+    QCOMPARE(t->count(QStringLiteral("detach")), 1);
+    hw.encodeBlit(64, 48, true);  // removed again: nothing happens
+    QVERIFY(!hw.captureEncode());
+    hw.setEncodeTarget(t);        // a target set again attaches again ...
+    hw.encodeBlit(64, 48, true);
+    QCOMPARE(t->count(QStringLiteral("attach")), 2);
+    hw.destroyContext();          // ... and the context's end detaches it with GL still alive
+    QCOMPARE(t->count(QStringLiteral("detach")), 2);
+    QVERIFY(t->calls().last().glCurrentArg && t->calls().last().isTexture);
+    QVERIFY(!hw.hasEncodeTarget());
+    QCOMPARE(t.use_count(), 1);
+    QVERIFY(t->violations().isEmpty());
   }
 };
 

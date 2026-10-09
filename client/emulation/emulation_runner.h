@@ -66,6 +66,9 @@ class EmulationRunner : public QObject {
   // Empty = no limit. See EmulatorBackend::setReadbackLimit.
   void setReadbackLimit(const QSize& maxSize) { m_backend->setReadbackLimit(maxSize); }
   QSize sourceFrameSize() const { return m_backend->sourceFrameSize(); }
+  // Session encoding from the GPU (ADR 0019; thread-safe): hands the backend a target for the Session encode texture,
+  // applied by the emulation thread at the start of its next frame. nullptr removes it. See EmulatorBackend.
+  void setGpuEncodeTarget(std::shared_ptr<GpuEncodeTarget> target) { m_backend->setGpuEncodeTarget(std::move(target)); }
   bool setCoreOption(const QString& key, const QString& value);
   QList<CoreOption> coreOptions() const;
   QList<CoreOptionCategory> coreOptionCategories() const;

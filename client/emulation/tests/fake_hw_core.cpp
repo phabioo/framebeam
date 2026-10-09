@@ -10,6 +10,8 @@
 // FBO) and logs what it finds at the start of every retro_run: "readfbo <id>" (read binding), "drawfbo <id>" (draw
 // binding), "scissor <0|1>" (GL_SCISSOR_TEST); "fbo <id>" is the FBO it renders into. It proves that the frontend
 // restores the read and draw framebuffer bindings separately.
+// FB_FAKE_HW_DUPE_EVERY=N: every Nth frame calls video_refresh(NULL, w, h, 0) (duplicate frame, nothing rendered).
+// FB_FAKE_HW_GLERROR=1: the core leaves a GL error (GL_INVALID_ENUM) pending after every frame.
 // With video disabled by the frontend (bit 0 clear) the core skips rendering and dupes the frame.
 #include <cstdint>
 #include <cstdio>
@@ -79,6 +81,7 @@ int envInt(const char* n, int def) {
 // Ends a rendered frame. FB_FAKE_HW_READFBO=1: the read framebuffer is left at 0 (draw stays on the FBO).
 void presentFrame() {
   if (envInt("FB_FAKE_HW_READFBO", 0)) glBindFramebuffer_(0x8CA8, 0);  // GL_READ_FRAMEBUFFER
+  if (envInt("FB_FAKE_HW_GLERROR", 0)) glEnable_(0);  // GL_INVALID_ENUM, left pending for the frontend
   g_video(RETRO_HW_FRAME_BUFFER_VALID, kW, kH, 0);
 }
 
@@ -171,6 +174,11 @@ FB_EXPORT void retro_run() {
   if (!g_env(RETRO_ENVIRONMENT_GET_AUDIO_VIDEO_ENABLE, &av)) av = -1;
   if (envInt("FB_FAKE_HW_LOGAV", 0)) logLine("av %d", av);
   if (av >= 0 && !(av & 1)) {  // video disabled: nothing to render
+    g_video(nullptr, kW, kH, 0);
+    return;
+  }
+  const int dupeEvery = envInt("FB_FAKE_HW_DUPE_EVERY", 0);
+  if (dupeEvery > 0 && g_frameNo % static_cast<unsigned>(dupeEvery) == 0) {  // nothing changed: duplicate frame
     g_video(nullptr, kW, kH, 0);
     return;
   }

@@ -82,6 +82,56 @@ class FrameStatsTest : public QObject {
     QCOMPARE(snap.emuMs, 0.0);
   }
 
+  // GPU copy (Session encode texture, ADR 0019): its own part of the frame, excluded from the emulation part.
+  void gpuCopyIsExcludedFromEmuAndCountsOnlyCaptures() {
+    FrameTimingStats s;
+    // 100 frames at 100/s, 10 ms each, 2 ms readback. Every 2nd frame blits and captures (1.5 ms), the others only blit
+    // (0.5 ms) and capture nothing.
+    for (int i = 0; i < 100; ++i) s.recordFrame(i * 10, 10.0, 2.0, i % 2 == 0 ? 1.5 : 0.5, i % 2 == 0);
+    const auto snap = s.snapshot(995);
+    QVERIFY(snap.valid);
+    QVERIFY(qAbs(snap.frameMs - 10.0) < 0.01);
+    QVERIFY(qAbs(snap.readbackMs - 2.0) < 0.01);
+    QVERIFY(qAbs(snap.gpuCopyMs - 1.0) < 0.01);          // mean over all frames, like the readback
+    QVERIFY(qAbs(snap.emuMs - 7.0) < 0.01);              // 10 - 2 - 1
+    QVERIFY(qAbs(snap.emuMs + snap.readbackMs + snap.gpuCopyMs - snap.frameMs) < 0.001);
+    QVERIFY2(qAbs(snap.gpuCopiesPerSec - 50.0) < 0.5, qPrintable(QString::number(snap.gpuCopiesPerSec)));  // captures only
+    QVERIFY(snap.history.last().gpuCaptured == false && snap.history.at(snap.history.size() - 2).gpuCaptured);
+    QVERIFY(qAbs(snap.history.last().gpuCopyMs - 0.5) < 0.001);
+  }
+
+  void blitWithoutCaptureIsNotACopyPerSecond() {
+    FrameTimingStats s;
+    for (int i = 0; i < 50; ++i) s.recordFrame(i * 20, 8.0, 1.0, 0.4, false);  // e.g. the target is not ready yet
+    const auto snap = s.snapshot(990);
+    QVERIFY(snap.valid);
+    QVERIFY(qAbs(snap.gpuCopyMs - 0.4) < 0.01);
+    QCOMPARE(snap.gpuCopiesPerSec, 0.0);
+  }
+
+  void withoutGpuEncodingNothingChanges() {
+    FrameTimingStats s;
+    for (int i = 0; i < 100; ++i) s.recordFrame(i * 10, 6.0, 1.0);  // the old three-argument form
+    const auto snap = s.snapshot(995);
+    QVERIFY(snap.valid);
+    QCOMPARE(snap.gpuCopyMs, 0.0);
+    QCOMPARE(snap.gpuCopiesPerSec, 0.0);
+    QVERIFY(qAbs(snap.emuMs - 5.0) < 0.01);
+    QVERIFY(!snap.history.last().gpuCaptured);
+  }
+
+  void gpuCopyNeverExceedsTheRestOfTheFrame() {
+    FrameTimingStats s;
+    s.recordFrame(10, 4.0, 1.0, 9.0, true);  // bogus copy time larger than the frame: clamped to what is left
+    const auto snap = s.snapshot(10);
+    QVERIFY(snap.valid);
+    QCOMPARE(snap.readbackMs, 1.0);
+    QCOMPARE(snap.gpuCopyMs, 3.0);
+    QCOMPARE(snap.emuMs, 0.0);
+    s.recordFrame(20, 4.0, 1.0, -2.0, false);  // negative: ignored
+    QCOMPARE(s.snapshot(20).history.last().gpuCopyMs, 0.0f);
+  }
+
   void historyKeepsFiveSeconds() {
     FrameTimingStats s;
     feed(s, 0, 9000, 20.0, 5.0, 0.0);

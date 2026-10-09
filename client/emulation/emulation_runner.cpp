@@ -104,7 +104,7 @@ class EmulationRunner::Worker : public QThread {
       be.setVideoWanted(wantVideo);
       const bool frameOk = be.runFrame();
       const double frameMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - frameStart).count();
-      if (frameOk) m_owner->m_timing.recordFrame(monotonicMs(), frameMs, be.lastReadbackMs());
+      if (frameOk) m_owner->m_timing.recordFrame(monotonicMs(), frameMs, be.lastReadbackMs(), be.lastGpuCopyMs(), be.lastGpuCaptured());
       if (!frameOk) {
         emit m_owner->errorOccurred(QStringLiteral("Core stopped execution"));
         break;
