@@ -2,23 +2,32 @@ import QtQuick
 import QtQuick.Layouts
 import FrameBeam.Player
 
-// Diagnostics overlay (3t-3w, 3y): top left over the play area, 350 wide, two collapsible sections. Emulation of the local
-// game (core, renderer, resolution, fps, frame time with sparkline, audio, fallback hint) and Streaming per participant. In
-// fullscreen only Emulation is shown (3y). Open/closed per section is kept by the model (settings/player.json).
+// Diagnostics overlay (3t-2, 3x-2; fullscreen 3y): 340 wide, two collapsible sections. Emulation of the local game (core,
+// renderer, resolution, fps, frame time with sparkline, audio, fallback hint) and Streaming per participant. In the
+// Multiview (`multi`) Emulation shows your tile only and Streaming one block per tile Session, with the tile badges.
+// Fullscreen shows Emulation only (3y). Opened and closed by one toggle (header button, F3); section state is global
+// (ADR 0014 D5, kept by the model). Positioned by the game screen: top right of the play area, 16 px from the edges.
 Rectangle {
     id: root
     required property DiagnosticsModel model
     property string hotkey: ""
     property bool fullscreen: false
+    property bool multi: false
+    property var tileBadges: ({})
     readonly property var emu: model.emulation
+    readonly property var localTile: {
+        var t = model.tiles
+        for (var i = 0; i < t.length; ++i) if (t[i].local === true) return t[i]
+        return null
+    }
     objectName: "diagnosticsOverlay"
 
-    width: 350
+    width: 340
     implicitHeight: col.implicitHeight + 28
     radius: 10
-    color: Theme.overlayBg
+    color: Theme.gameOverlayBg
     border.width: 1
-    border.color: Theme.borderCard
+    border.color: Theme.gameDivider
 
     ColumnLayout {
         id: col
@@ -29,8 +38,8 @@ Rectangle {
         DiagSection {
             objectName: "diagEmulationSection"
             Layout.fillWidth: true
-            title: qsTr("DIAGNOSTICS · EMULATION")
-            summary: root.model.emulationSummary
+            title: qsTr("EMULATION")
+            summary: root.multi && root.localTile ? root.model.tilesSummary : root.model.emulationSummary
             expanded: root.model.emulationOpen
             onToggled: root.model.toggleEmulation()
 
@@ -39,13 +48,13 @@ Rectangle {
                 visible: root.emu.valid !== true
                 text: qsTr("No game running")
                 font.pixelSize: 12
-                color: Theme.textTile
+                color: Theme.gameFaint
             }
             // Fallback hint: OpenGL requested but software runs (D10)
             Rectangle {
                 objectName: "diagFallbackHint"
                 Layout.fillWidth: true
-                visible: root.emu.fallback === true
+                visible: root.emu.fallback === true && !root.multi
                 implicitHeight: hintRow.implicitHeight + 18
                 radius: 8
                 color: Theme.infoBg
@@ -58,7 +67,7 @@ Rectangle {
                     anchors.leftMargin: 10
                     anchors.rightMargin: 10
                     spacing: 8
-                    FbLabel { text: "ⓘ"; font.pixelSize: 12; color: Theme.accent; Layout.alignment: Qt.AlignTop }
+                    FbLabel { text: "ⓘ"; font.pixelSize: 12; color: Theme.gameAccent; Layout.alignment: Qt.AlignTop }
                     FbLabel {
                         objectName: "diagFallbackText"
                         Layout.fillWidth: true
@@ -71,7 +80,7 @@ Rectangle {
             }
             ColumnLayout {
                 Layout.fillWidth: true
-                visible: root.emu.valid === true
+                visible: root.emu.valid === true && !root.multi
                 spacing: 8
                 DiagRow { Layout.fillWidth: true; label: qsTr("Core"); value: root.emu.core || ""; valueName: "diagCore" }
                 DiagRow {
@@ -97,6 +106,52 @@ Rectangle {
                 }
                 DiagRow { Layout.fillWidth: true; label: qsTr("Audio"); value: root.emu.audio || ""; sub: root.emu.audioSub || ""; valueName: "diagAudio"; subName: "diagAudioSub" }
             }
+            // Multiview: your tile only
+            ColumnLayout {
+                objectName: "diagTileBlock"
+                Layout.fillWidth: true
+                visible: root.multi && root.localTile !== null
+                spacing: 4
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    Rectangle {
+                        Layout.preferredWidth: 20; Layout.preferredHeight: 20; radius: 4
+                        color: Theme.gameBadge
+                        FbMono { anchors.centerIn: parent; text: String(root.localTile ? root.localTile.index : ""); font.pixelSize: 11; color: Theme.gameBadgeText }
+                    }
+                    FbLabel { Layout.fillWidth: true; Layout.minimumWidth: 0; elide: Text.ElideRight; text: root.localTile ? root.localTile.title : ""; font.pixelSize: 13; font.weight: Font.Medium; color: Theme.gameText }
+                }
+                FbMono {
+                    objectName: "diagTileLine1"
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    wrapMode: Text.WordWrap
+                    font.pixelSize: 11
+                    color: Theme.gameBadgeText
+                    visible: root.localTile !== null && root.localTile.emulation.valid === true
+                    text: root.localTile && root.localTile.emulation.lines ? root.localTile.emulation.lines[2] + " · " + root.localTile.emulation.lines[3] : ""
+                }
+                FbMono {
+                    objectName: "diagTileLine2"
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    wrapMode: Text.WordWrap
+                    font.pixelSize: 11
+                    color: Theme.gameMeta
+                    visible: root.localTile !== null && root.localTile.emulation.valid === true
+                    text: root.localTile && root.localTile.emulation.lines ? root.localTile.emulation.lines[1] + " · " + root.localTile.emulation.lines[4] : ""
+                }
+            }
+            FbLabel {
+                objectName: "diagOnlyYourTile"
+                Layout.fillWidth: true
+                visible: root.multi
+                wrapMode: Text.WordWrap
+                text: qsTr("Only your tile is emulated on this device.")
+                font.pixelSize: 11
+                color: Theme.gameFaint
+            }
         }
 
         // Streaming is not part of the fullscreen overlay (3y)
@@ -105,11 +160,11 @@ Rectangle {
             objectName: "diagStreamingSection"
             visible: !root.fullscreen
             Layout.fillWidth: true
-            title: qsTr("DIAGNOSTICS · STREAMING")
+            title: qsTr("STREAMING")
             summary: root.model.streamingSummary
             expanded: root.model.streamingOpen
             onToggled: root.model.toggleStreaming()
-            DiagParticipants { Layout.fillWidth: true; groups: root.model.streaming }
+            DiagParticipants { Layout.fillWidth: true; groups: root.model.streaming; grouped: root.multi; badges: root.tileBadges }
         }
 
         DiagFooter { Layout.fillWidth: true; hotkey: root.hotkey; onHideRequested: root.model.open = false }

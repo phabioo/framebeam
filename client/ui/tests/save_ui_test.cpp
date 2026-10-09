@@ -94,8 +94,8 @@ class SaveUiTest : public QObject {
     QCOMPARE(readFile(saveFile), QByteArray("local-offline-bytes"));
     QVERIFY(!SaveStore::loadState(dir).conflictId.isEmpty());
     QTRY_VERIFY_WITH_TIMEOUT(h.controller->gameSession()->frameNumber() >= 3, 10000);
-    QVERIFY(h.click("quitButton"));
-    QCOMPARE(h.controller->screen(), QStringLiteral("library"));
+    QVERIFY(h.click("endGameButton"));
+    QTRY_COMPARE(h.controller->screen(), QStringLiteral("library"));
     QCOMPARE(h.controller->library()->syncKind(QStringLiteral("t1")), QStringLiteral("conflict"));
     QCOMPARE(h.controller->selectedGame().value(QStringLiteral("saveText")).toString(), QStringLiteral("Conflict"));
     QCOMPARE(hub.saves.value(QStringLiteral("t1")).revision, 1);  // Hub current unchanged
@@ -110,7 +110,7 @@ class SaveUiTest : public QObject {
     QCOMPARE(QDir(dir).entryList({QStringLiteral("*.local-*.bak")}).size(), 1);
     QTRY_VERIFY_WITH_TIMEOUT(h.controller->gameSession()->frameNumber() >= 3, 10000);
     // Pause = immediate sync check, stop = final sync
-    QVERIFY(h.click("quitButton"));
+    QVERIFY(h.click("endGameButton"));
     QTRY_COMPARE(h.controller->library()->syncKind(QStringLiteral("t1")), QStringLiteral("synced"));
     qInfo().noquote() << "Files in the game save dir after play:" << QDir(dir).entryList(QDir::Files).join(QLatin1Char(' '));
     QCOMPARE(uitest::warningCount().load(), 0);

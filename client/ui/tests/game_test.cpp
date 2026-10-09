@@ -141,7 +141,7 @@ class GameTest : public QObject {
       QVERIFY(header != nullptr);
       const QRectF headerRect = header->mapRectToScene(QRectF(0, 0, header->width(), header->height()));
       QList<QPair<QString, QRectF>> rects;
-      for (const char* name : {"backToLibraryButton", "pauseButton", "resetButton", "quitButton", "tabSegment", "layoutSwitch", "fullscreenButton"}) {
+      for (const char* name : {"backToLibraryButton", "pauseButton", "resetButton", "viewSegment", "layoutSwitch", "diagnosticsButton", "fullscreenButton"}) {
         QQuickItem* it = h.item(name);
         if (it == nullptr || !it->isVisible()) continue;
         const QRectF r = it->mapRectToScene(QRectF(0, 0, it->width(), it->height()));
@@ -165,7 +165,15 @@ class GameTest : public QObject {
     QVERIFY(h.click("pauseButton"));
     QTRY_COMPARE(s->state(), GameSession::Running);
     QTRY_VERIFY(s->frameNumber() > pausedAt + 5);
-    QVERIFY(h.click("resetButton"));
+    if (h.item("resetButton") && h.item("resetButton")->isVisible()) {
+      QVERIFY(h.click("resetButton"));  // asks first (anchored popover), Reset confirms
+    } else {
+      QVERIFY(h.click("moreButton"));  // compact header: Reset lives in the More menu
+      QVERIFY(h.click("moreReset"));
+    }
+    QTRY_VERIFY(h.item("resetConfirm") != nullptr && h.item("resetConfirm")->isVisible());
+    QVERIFY(h.click("resetConfirm"));
+    QTRY_VERIFY(!h.item("resetConfirm")->isVisible());
 
     // Input: keyboard (A/B/arrows) and mouse touch reach the core without crashing.
     view->forceActiveFocus();
@@ -181,8 +189,8 @@ class GameTest : public QObject {
     QTRY_COMPARE(s->state(), GameSession::Running);
 
     // Quit: back to the Library.
-    QVERIFY(h.click("quitButton"));
-    QCOMPARE(h.controller->screen(), QStringLiteral("library"));
+    QVERIFY(h.click("endGameButton"));
+    QTRY_COMPARE(h.controller->screen(), QStringLiteral("library"));
     QCOMPARE(s->state(), GameSession::Idle);
     // Diagnostics: which files the core wrote into the save dir (save sync detects <rom basename>.sav)
     qInfo().noquote() << "Save dir content:"

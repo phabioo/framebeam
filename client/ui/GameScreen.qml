@@ -3,13 +3,15 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import FrameBeam.Player
 
-// Game view (3g-3i): header (56 px) with "← Library", title, Session pill, tabs Session | Multiview | Diagnostics, the
-// layout switch and Fullscreen; Session tab = local game + side panel (340), Multiview = MultiviewArea (3h, 3r, 3i). The
-// Diagnostics tab toggles the overlay (3t-3y; bottom panel in the multiview). Fullscreen (F11) drops header and panel; the
-// toolbar appears when the mouse moves to the top. Without a local game (watching only) the remote Session fills the surface.
-// Keys (never forwarded to the core; defaults, configurable in Controllers > Hotkeys except Esc): F11 fullscreen, Esc leaves
-// fullscreen (else pause), F3 diagnostics, F5 snapshot, Space speed-up (only when the core allows it; also while the Session
-// is shared), 1-4 audio focus in the grid.
+// Game view (3g-2, 3r-2, 3h-2, 3i-2, 3t-2, 3x-2): GameHeader (56 px, five zones) over the play area and the GamePanel
+// (340, 320 at 1280, or a 48 px rail). Session = your game; Multiview = MultiviewArea (tiles), the panel follows the
+// selected tile. Diagnostics: one overlay toggled by the header button and F3, top right of the play area. The anchored
+// popovers (Reset, speed, screen layout, Running sessions, "⋯") are opened from the header and live here so they can
+// overlap header and play area. Fullscreen (F11) drops header and panel; the toolbar appears when the mouse moves to the
+// top. Without a local game (watching only) the remote Session fills the surface.
+// Keys (never forwarded to the core; defaults, configurable in Controllers > Hotkeys except Esc): F11 fullscreen, Esc closes
+// an open popover, else leaves fullscreen, else pauses; F3 diagnostics, F5 snapshot, Space speed-up (only when the core
+// allows it; also while the Session is shared), 1-4 select a tile in the Multiview (audio moves with "Audio here").
 Rectangle {
     id: root
     required property PlayerController player
@@ -28,14 +30,21 @@ Rectangle {
     property int windowedVisibility: Window.Windowed
     property bool enteredHere: false
 
-    // "Running sessions" picker: open by default while there is at most one surface
-    property bool pickerToggled: false
-    property bool pickerWanted: false
-    readonly property bool pickerOpen: pickerToggled ? pickerWanted : ctl.surfaceCount <= 1
+    // 1280 and below: compact header and a 320 px panel
+    readonly property bool compact: width < 1400
+    // Anchored popover that is open: "" | "reset" | "speed" | "layout" | "picker" | "more". The picker never opens on its own.
+    property string popover: ""
+    property bool panelCollapsed: false
+    readonly property bool multiMode: tab !== "session"
+    readonly property var tileBadges: {
+        var m = {}, o = ctl.surfaceOrder
+        for (var i = 0; i < o.length; ++i) m[o[i]] = i + 1
+        return m
+    }
 
     // Layouts of the running system (D12); remote pictures offer the switch for frames with two stacked screens.
     readonly property var screenLayouts: session.active ? session.screenLayouts : (ctl.watching ? ["stacked", "side", "top"] : [])
-    readonly property string modeTitle: ctl.multiviewMode === "side" ? qsTr("Multiview · Side-by-Side")
+    readonly property string modeTitle: ctl.multiviewMode === "side" ? qsTr("Multiview · Side by side")
                                        : ctl.multiviewMode === "grid" ? qsTr("Multiview · Grid 2×2")
                                        : qsTr("Multiview · Picture-in-Picture")
 
@@ -43,14 +52,33 @@ Rectangle {
         var v = root.tab === "session" ? view : root.multiLocal
         if (v) v.forceActiveFocus()
     }
+    function togglePopover(name) {
+        root.popover = root.popover === name ? "" : name
+        if (root.popover === "") Qt.callLater(focusLocal)
+    }
+    function closePopover() {
+        if (root.popover === "") return false
+        root.popover = ""
+        Qt.callLater(focusLocal)
+        return true
+    }
+    function manageSaves() {
+        // Back to the Library with the game paused in the background and its entry selected (the saves view of the
+        // Library follows with the Library package).
+        root.player.leaveGameView()
+        var id = root.player.backgroundGame.id
+        if (id !== undefined) root.player.selectGame(id)
+    }
     onVisibleChanged: {
         if (visible) {
             Qt.callLater(focusLocal)
-        } else if (root.fullscreen && root.enteredHere) {
-            root.setFullscreen(false)   // leaving the game view: the window goes back to where it was
+        } else {
+            root.popover = ""
+            if (root.fullscreen && root.enteredHere) root.setFullscreen(false)   // leaving the game view: the window goes back to where it was
         }
     }
-    onTabChanged: Qt.callLater(focusLocal)
+    onTabChanged: { root.popover = ""; Qt.callLater(focusLocal) }
+    onFullscreenChanged: root.popover = ""
 
     function setFullscreen(on) {
         if (on === root.fullscreen) return
@@ -68,9 +96,10 @@ Rectangle {
         Qt.callLater(focusLocal)
     }
     function toggleFullscreen() { setFullscreen(!root.fullscreen) }
-    // Esc: leaves fullscreen when fullscreen, otherwise it keeps its meaning (pause)
+    // Esc: closes an open popover; else leaves fullscreen; else it keeps its meaning (pause)
     function handleEscape() {
         if (!root.visible) return   // game in the background (Library shown): Esc never acts on it
+        if (root.closePopover()) return
         if (root.fullscreen) setFullscreen(false)
         else root.session.togglePause()
     }
@@ -105,191 +134,31 @@ Rectangle {
             if (!e.isAutoRepeat && root.session.fastForwardAvailable) root.session.toggleFastForward()
             e.accepted = true   // the key never reaches the core (GameSession::isReservedKey)
         } else if (e.key === Qt.Key_Escape) {
-            if (root.fullscreen) { root.setFullscreen(false); e.accepted = true }
-        } else if (e.key >= Qt.Key_1 && e.key <= Qt.Key_4 && root.tab !== "session" && root.ctl.multiviewMode === "grid") {
+            if (root.closePopover()) { e.accepted = true }
+            else if (root.fullscreen) { root.setFullscreen(false); e.accepted = true }
+        } else if (e.key >= Qt.Key_1 && e.key <= Qt.Key_4 && root.multiMode) {
             var id = root.ctl.surfaceOrder[e.key - Qt.Key_1]
-            if (id !== undefined) root.ctl.audioHere(id)
+            if (id !== undefined) root.ctl.selectSurface(id)
             e.accepted = true
         }
     }
 
     Timer { id: hintTimer; interval: 6000 }
 
-    Rectangle {
+    GameHeader {
         id: header
-        objectName: "gameHeader"
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
+        z: 5
         visible: !root.fullscreen
         height: visible ? 56 : 0
-        color: Theme.gameHeader
-        readonly property real pauseWidth: Math.max(pauseProbe.implicitWidth, resumeProbe.implicitWidth)
-
-        Rectangle {
-            anchors.bottom: parent.bottom
-            width: parent.width
-            height: 1
-            color: Theme.gameBorder
-        }
-
-        // Probes for a stable Pause/Resume width (invisible, outside the layout).
-        FbButton { id: pauseProbe; visible: false; kind: "link"; text: qsTr("Pause") }
-        FbButton { id: resumeProbe; visible: false; kind: "link"; text: qsTr("Resume") }
-
-        RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: 20
-            anchors.rightMargin: 20
-            spacing: 10
-
-            FbButton {
-                objectName: "backToLibraryButton"
-                Layout.minimumWidth: implicitWidth  // never squeezed; the title elides first
-                kind: "link"
-                implicitHeight: 36
-                focusPolicy: Qt.NoFocus
-                text: qsTr("← Library")
-                onClicked: root.player.leaveGameView()
-            }
-            Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 24; color: Theme.gameBorder }
-            FbLabel {
-                objectName: "gameTitle"
-                Layout.fillWidth: true
-                Layout.minimumWidth: 0
-                Layout.maximumWidth: 360
-                text: root.tab !== "session" && (root.session.active || root.ctl.surfaceCount > 1) ? qsTr("Multiview")
-                     : root.session.active ? root.session.title
-                     : root.ctl.surfaceCount > 1 ? qsTr("%1 Sessions").arg(root.ctl.surfaceCount)
-                     : qsTr("Session from %1").arg(root.ctl.watchedWho)
-                color: Theme.gameText
-                font.pixelSize: 15
-                font.weight: Font.DemiBold
-                elide: Text.ElideRight
-            }
-            FbPill {
-                objectName: "sharedPill"
-                Layout.minimumWidth: 0  // shrinks (elides its text) right after the title
-                visible: root.ctl.shared
-                tone: "ok"
-                text: qsTr("● Session shared · %1 watching").arg(root.ctl.viewerCount)
-            }
-            FbPill {
-                objectName: "notSharedPill"
-                Layout.minimumWidth: 0  // shrinks (elides its text) right after the title
-                visible: root.session.active && !root.ctl.shared && root.tab === "session"
-                tone: "neutral"
-                text: qsTr("Not shared")
-            }
-            FbSegment {
-                objectName: "modeSegment"
-                Layout.minimumWidth: implicitWidth  // never squeezed; the title elides first
-                // PiP | Side-by-Side | Grid 2×2 (side-by-side only while there are two surfaces)
-                visible: root.tab !== "session" && root.ctl.availableLayouts.length > 0
-                current: root.ctl.multiviewMode
-                options: root.ctl.availableLayouts.map(function (m) {
-                    return m === "pip" ? { value: "pip", label: qsTr("PiP"), name: "modePip" }
-                         : m === "side" ? { value: "side", label: qsTr("Side-by-Side"), name: "modeSide" }
-                         : { value: "grid", label: qsTr("Grid 2×2"), name: "modeGrid" }
-                })
-                onPicked: (v) => root.ctl.multiviewMode = v
-            }
-            FbMono {
-                objectName: "tileCount"
-                visible: root.width >= 1700 && root.tab !== "session" && root.ctl.multiviewMode === "grid" && root.ctl.surfaceCount > 1
-                text: qsTr("%1 of %2 tiles · keys 1–4 move audio").arg(root.ctl.surfaceCount).arg(root.ctl.maxSurfaces)
-                font.pixelSize: 12
-                color: Theme.textMeta
-            }
-            Item { Layout.fillWidth: true }
-            KeyHintButton {
-                objectName: "fastForwardButton"
-                Layout.minimumWidth: implicitWidth  // never squeezed; the title elides first
-                visible: root.session.active && root.tab === "session" && root.session.fastForwardAvailable
-                focusPolicy: Qt.NoFocus
-                kind: root.session.fastForward ? "raised" : "outline"
-                readonly property bool narrow: root.width < 1360
-                text: narrow ? "»" : qsTr("Speed-up")   // narrow: minimal button, the full name is the tooltip
-                hint: narrow ? "" : root.hotkeyLabels.speedup
-                Accessible.name: qsTr("Speed-up")
-                ToolTip.visible: narrow && hovered
-                ToolTip.text: root.hotkeyLabels.speedup !== "" ? qsTr("Speed-up (%1)").arg(root.hotkeyLabels.speedup) : qsTr("Speed-up")
-                onClicked: root.session.toggleFastForward()
-            }
-            FbButton {
-                objectName: "pauseButton"
-                Layout.minimumWidth: header.pauseWidth  // same width for Pause and Resume
-                Layout.preferredWidth: header.pauseWidth
-                visible: root.session.active && root.tab === "session"
-                implicitHeight: 36
-                kind: "link"
-                focusPolicy: Qt.NoFocus
-                text: root.session.paused ? qsTr("Resume") : qsTr("Pause")
-                enabled: root.session.state === GameSession.Running || root.session.state === GameSession.Paused
-                onClicked: root.session.togglePause()
-            }
-            FbButton {
-                objectName: "resetButton"
-                Layout.minimumWidth: implicitWidth  // never squeezed; the title elides first
-                visible: root.session.active && root.tab === "session"
-                implicitHeight: 36
-                kind: "link"
-                focusPolicy: Qt.NoFocus
-                text: qsTr("Reset")
-                enabled: root.session.active
-                onClicked: root.session.reset()
-            }
-            FbButton {
-                objectName: "quitButton"
-                Layout.minimumWidth: implicitWidth  // never squeezed; the title elides first
-                visible: root.session.active
-                implicitHeight: 36
-                kind: "link"
-                focusPolicy: Qt.NoFocus
-                text: qsTr("Quit")
-                onClicked: root.player.quitGame()
-            }
-            FbSegment {
-                objectName: "tabSegment"
-                Layout.minimumWidth: implicitWidth  // never squeezed; the title elides first
-                current: root.tab
-                options: root.session.active ? [
-                    { value: "session", label: qsTr("Session"), name: "tabSession" },
-                    { value: "multiview", label: qsTr("Multiview"), name: "tabMultiview" },
-                    { value: "diagnostics", label: qsTr("Diagnostics"), name: "tabDiagnostics", underline: root.diag.open }
-                ] : [
-                    { value: "multiview", label: qsTr("Multiview"), name: "tabMultiview" },
-                    { value: "diagnostics", label: qsTr("Diagnostics"), name: "tabDiagnostics", underline: root.diag.open }
-                ]
-                onPicked: (v) => root.ctl.tab = v
-            }
-            KeyHintButton {
-                objectName: "addSessionToggle"
-                Layout.minimumWidth: implicitWidth  // never squeezed; the title elides first
-                visible: root.tab !== "session" && root.ctl.surfaceCount >= 1
-                focusPolicy: Qt.NoFocus
-                kind: root.pickerOpen ? "raised" : "outline"
-                text: qsTr("+ Add to multiview")
-                onClicked: { root.pickerToggled = true; root.pickerWanted = !root.pickerOpen }
-            }
-            LayoutSwitch {
-                objectName: "layoutSwitch"
-                Layout.minimumWidth: implicitWidth  // never squeezed; the title elides first
-                layouts: root.screenLayouts
-                compact: root.width < (root.tab === "session" ? 1360 : 1700)
-                current: root.ctl.screenLayout
-                onPicked: (v) => root.ctl.screenLayout = v
-            }
-            KeyHintButton {
-                objectName: "fullscreenButton"
-                Layout.minimumWidth: implicitWidth  // never squeezed; the title elides first
-                focusPolicy: Qt.NoFocus
-                text: qsTr("Fullscreen")
-                hint: root.hotkeyLabels.fullscreen
-                compact: root.width < 1360  // same threshold as the layout switch: drop the key hint when narrow
-                onClicked: root.toggleFullscreen()
-            }
-        }
+        player: root.player
+        compact: root.compact
+        popover: root.popover
+        hotkeys: root.hotkeyLabels
+        onPopoverToggled: (name) => root.togglePopover(name)
+        onFullscreenRequested: root.toggleFullscreen()
     }
 
     // Non-blocking notice: the save of the running game changed on another device
@@ -318,152 +187,338 @@ Rectangle {
         }
     }
 
-    // Session tab: game + side panel, overlay top left of the play area
+    // Play area and panel
     Item {
-        objectName: "sessionTab"
+        id: body
         anchors.top: noticeBar.bottom
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        visible: root.tab === "session"
 
         RowLayout {
             anchors.fill: parent
             spacing: 0
 
-            GameView {
-                id: view
-                objectName: "gameView"
+            Item {
+                id: playArea
+                objectName: "playArea"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                session: root.session
-                layout: root.ctl.screenLayout
-                focus: true
-                onEscapePressed: root.handleEscape()
+                Layout.minimumWidth: 0
 
-                FbLabel {
-                    anchors.centerIn: parent
-                    visible: !root.session.hasFrame && root.session.state !== GameSession.Failed
-                    text: qsTr("Starting emulator…")
-                    color: Theme.gameTextMuted
-                }
-                Rectangle {
-                    objectName: "fastForwardIndicator"
-                    visible: root.session.fastForward && !root.session.paused
-                    anchors.top: parent.top
-                    anchors.left: parent.left
-                    anchors.margins: 12
-                    width: ffLabel.implicitWidth + 20
-                    height: ffLabel.implicitHeight + 10
-                    radius: 6
-                    color: "#99000000"
-                    FbLabel {
-                        id: ffLabel
-                        anchors.centerIn: parent
-                        text: qsTr("Speed-up ×%1").arg(Math.round(root.session.fastForwardRatio * 10) / 10)
-                        color: Theme.gameText
-                        font.pixelSize: 13
-                        font.weight: Font.Medium
-                    }
-                }
-                Rectangle {
-                    visible: root.session.paused
+                // Session tab: your game
+                Item {
+                    objectName: "sessionTab"
                     anchors.fill: parent
-                    color: "#99000000"
-                    FbLabel {
-                        anchors.centerIn: parent
-                        text: qsTr("Paused · Esc or Resume")
-                        color: Theme.gameText
-                        font.pixelSize: 18
-                        font.weight: Font.Medium
+                    visible: root.tab === "session"
+
+                    GameView {
+                        id: view
+                        objectName: "gameView"
+                        anchors.fill: parent
+                        session: root.session
+                        layout: root.ctl.screenLayout
+                        focus: true
+                        onEscapePressed: root.handleEscape()
+
+                        FbLabel {
+                            anchors.centerIn: parent
+                            visible: !root.session.hasFrame && root.session.state !== GameSession.Failed
+                            text: qsTr("Starting emulator…")
+                            color: Theme.gameTextMuted
+                        }
+                        Rectangle {
+                            objectName: "fastForwardIndicator"
+                            visible: root.session.fastForward && !root.session.paused
+                            anchors.top: parent.top
+                            anchors.left: parent.left
+                            anchors.margins: 12
+                            width: ffLabel.implicitWidth + 20
+                            height: ffLabel.implicitHeight + 10
+                            radius: 6
+                            color: "#99000000"
+                            FbLabel {
+                                id: ffLabel
+                                anchors.centerIn: parent
+                                text: qsTr("Speed-up ×%1").arg(Math.round(root.session.fastForwardRatio * 10) / 10)
+                                color: Theme.gameText
+                                font.pixelSize: 13
+                                font.weight: Font.Medium
+                            }
+                        }
+                        Rectangle {
+                            visible: root.session.paused
+                            anchors.fill: parent
+                            color: "#99000000"
+                            FbLabel {
+                                anchors.centerIn: parent
+                                text: qsTr("Paused · Esc or Resume")
+                                color: Theme.gameText
+                                font.pixelSize: 18
+                                font.weight: Font.Medium
+                            }
+                        }
                     }
+                }
+
+                // Multiview
+                ColumnLayout {
+                    objectName: "multiviewTab"
+                    anchors.fill: parent
+                    visible: root.tab !== "session"
+                    spacing: 0
+
+                    Rectangle {
+                        objectName: "gameMessage"
+                        Layout.fillWidth: true
+                        visible: root.ctl.message !== ""
+                        implicitHeight: 34
+                        color: root.ctl.messageIsError ? Theme.errorBg : Theme.surfaceRaised
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 20
+                            anchors.rightMargin: 12
+                            FbLabel {
+                                Layout.fillWidth: true
+                                text: root.ctl.message
+                                color: root.ctl.messageIsError ? Theme.errorText : Theme.gameText
+                                font.pixelSize: 13
+                            }
+                            FbButton { kind: "link"; focusPolicy: Qt.NoFocus; text: qsTr("Dismiss"); onClicked: root.ctl.dismissMessage() }
+                        }
+                    }
+                    FbLabel {
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.margins: 20
+                        visible: !root.session.active && !root.ctl.watching
+                        text: root.ctl.joining ? qsTr("Joining Session…") : qsTr("Not watching a Session.")
+                        color: Theme.gameTextMuted
+                    }
+                    Item {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        MultiviewArea {
+                            anchors.fill: parent
+                            player: root.player
+                            onLocalReady: (v) => { root.multiLocal = v; Qt.callLater(root.focusLocal) }
+                            onPickerRequested: root.popover = "picker"
+                            onTileSelected: Qt.callLater(root.focusLocal)
+                            onEscapePressed: root.handleEscape()
+                        }
+                    }
+                }
+
+                // Diagnostics overlay (3t-2, 3x-2): top right of the play area, 16 px under the header and 16 px left of
+                // the panel, in every view. Fullscreen (3y): Emulation only, top left.
+                DiagnosticsOverlay {
+                    hotkey: root.hotkeyLabels.diagnostics
+                    objectName: "diagnosticsOverlay"
+                    x: root.fullscreen ? 16 : parent.width - width - 16
+                    y: 16
+                    z: 10
+                    visible: root.diag.open
+                    model: root.diag
+                    fullscreen: root.fullscreen
+                    multi: root.multiMode && !root.fullscreen
+                    tileBadges: root.tileBadges
                 }
             }
-            SessionPanel {
+
+            GamePanel {
+                id: panel
                 visible: !root.fullscreen
                 Layout.fillHeight: true
-                Layout.preferredWidth: visible ? 340 : 0
+                Layout.preferredWidth: visible ? implicitWidth : 0
                 player: root.player
+                compact: root.compact
+                collapsed: root.panelCollapsed
+                multi: root.multiMode
+                tile: root.multiMode ? root.ctl.selectedSurface : "local"
+                onCollapseToggled: root.panelCollapsed = !root.panelCollapsed
+                onManageSavesRequested: root.manageSaves()
+                onSelectLocalRequested: root.ctl.selectSurface("local")
             }
-        }
-
-        DiagnosticsOverlay {
-            hotkey: root.hotkeyLabels.diagnostics
-            objectName: "diagnosticsOverlaySession"
-            x: 16
-            y: 16
-            z: 10
-            visible: root.diag.open
-            model: root.diag
-            fullscreen: root.fullscreen
         }
     }
 
-    // Multiview
-    ColumnLayout {
-        objectName: "multiviewTab"
-        anchors.top: noticeBar.bottom
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-        visible: root.tab !== "session"
-        spacing: 0
+    // ---- anchored popovers (opened from the header) ----
 
-        Rectangle {
-            objectName: "gameMessage"
-            Layout.fillWidth: true
-            visible: root.ctl.message !== ""
-            implicitHeight: 34
-            color: root.ctl.messageIsError ? Theme.errorBg : Theme.surfaceRaised
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 20
-                anchors.rightMargin: 12
+    AnchoredPopover {
+        id: resetPop
+        objectName: "resetPopover"
+        anchorItem: header.tight ? header.moreAnchor : header.resetAnchor
+        open: root.popover === "reset"
+        danger: true
+        popWidth: 290
+        scrimTop: header.height
+        onCloseRequested: root.closePopover()
+        Column {
+            width: parent.width
+            spacing: 10
+            Column {
+                width: parent.width
+                spacing: 4
                 FbLabel {
-                    Layout.fillWidth: true
-                    text: root.ctl.message
-                    color: root.ctl.messageIsError ? Theme.errorText : Theme.gameText
-                    font.pixelSize: 13
+                    objectName: "resetTitle"
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                    text: qsTr("Reset %1?").arg(root.session.title)
+                    font.pixelSize: 14
+                    font.weight: Font.DemiBold
+                    color: Theme.gameText
                 }
-                FbButton { kind: "link"; focusPolicy: Qt.NoFocus; text: qsTr("Dismiss"); onClicked: root.ctl.dismissMessage() }
+                FbLabel {
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                    lineHeight: 1.2
+                    text: qsTr("Unsaved progress since the last checkpoint is lost.")
+                    font.pixelSize: 12
+                    color: Theme.gameBadgeText
+                }
+            }
+            Row {
+                layoutDirection: Qt.RightToLeft
+                width: parent.width
+                spacing: 8
+                Rectangle {
+                    objectName: "resetConfirm"
+                    width: confirmLabel.implicitWidth + 24
+                    height: 30
+                    radius: 6
+                    color: Theme.gameDanger
+                    Accessible.role: Accessible.Button
+                    Accessible.name: qsTr("Reset")
+                    FbLabel { id: confirmLabel; anchors.centerIn: parent; text: qsTr("Reset"); font.pixelSize: 13; font.weight: Font.DemiBold; color: "#161512" }
+                    TapHandler { onTapped: { root.session.reset(); root.closePopover() } }
+                }
+                Rectangle {
+                    objectName: "resetCancel"
+                    width: cancelLabel.implicitWidth + 24
+                    height: 30
+                    radius: 6
+                    color: "transparent"
+                    border.width: 1
+                    border.color: Theme.gameKeyLine
+                    Accessible.role: Accessible.Button
+                    Accessible.name: qsTr("Cancel")
+                    FbLabel { id: cancelLabel; anchors.centerIn: parent; text: qsTr("Cancel"); font.pixelSize: 13; color: Theme.gameText }
+                    TapHandler { onTapped: root.closePopover() }
+                }
             }
         }
-        FbLabel {
-            Layout.alignment: Qt.AlignHCenter
-            Layout.margins: 20
-            visible: !root.session.active && !root.ctl.watching
-            text: root.ctl.joining ? qsTr("Joining Session…") : qsTr("Not watching a Session.")
-            color: Theme.gameTextMuted
-        }
-        Item {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            MultiviewArea {
-                anchors.fill: parent
-                player: root.player
-                pickerOpen: root.pickerOpen
-                onLocalReady: (v) => { root.multiLocal = v; Qt.callLater(root.focusLocal) }
-                onPickerRequested: { root.pickerToggled = true; root.pickerWanted = true }
-                onPickerCloseRequested: { root.pickerToggled = true; root.pickerWanted = false }
-                onEscapePressed: root.handleEscape()
-            }
-            // Fullscreen: the same overlay, Emulation only (3y)
-            DiagnosticsOverlay {
-                hotkey: root.hotkeyLabels.diagnostics
-                objectName: "diagnosticsOverlayMulti"
-                x: 16
-                y: 16
-                z: 10
-                visible: root.diag.open && root.fullscreen
-                model: root.diag
-                fullscreen: true
+    }
+
+    AnchoredPopover {
+        id: speedPop
+        objectName: "speedPopover"
+        anchorItem: header.speedAnchor
+        open: root.popover === "speed"
+        popWidth: 150
+        padding: 4
+        scrimTop: header.height
+        onCloseRequested: root.closePopover()
+        Column {
+            width: parent.width
+            Repeater {
+                model: root.session.speedUpRatios
+                delegate: PopoverItem {
+                    required property var modelData
+                    objectName: "speedOption_" + modelData
+                    width: parent.width
+                    monoText: true
+                    text: modelData + "×"
+                    current: Math.abs(root.session.fastForwardRatio - Number(modelData)) < 0.001
+                    onActivated: { root.session.fastForwardRatio = Number(modelData); root.closePopover() }
+                }
             }
         }
-        DiagnosticsBar {
-            hotkey: root.hotkeyLabels.diagnostics
-            Layout.fillWidth: true
-            visible: root.diag.open && !root.fullscreen
-            model: root.diag
+    }
+
+    AnchoredPopover {
+        id: layoutPop
+        objectName: "layoutPopover"
+        anchorItem: header.layoutAnchor
+        open: root.popover === "layout"
+        popWidth: 190
+        padding: 4
+        scrimTop: header.height
+        onCloseRequested: root.closePopover()
+        Column {
+            width: parent.width
+            Repeater {
+                model: root.screenLayouts
+                delegate: PopoverItem {
+                    required property string modelData
+                    objectName: modelData === "stacked" ? "layoutStacked" : modelData === "side" ? "layoutSide" : "layoutTop"
+                    width: parent.width
+                    text: modelData === "stacked" ? qsTr("Stacked") : modelData === "side" ? qsTr("Side by side") : qsTr("Top only")
+                    iconKind: "layout"
+                    current: root.ctl.screenLayout === modelData
+                    onActivated: { root.ctl.screenLayout = modelData; root.closePopover() }
+                }
+            }
+            FbLabel {
+                width: parent.width
+                topPadding: 4
+                bottomPadding: 6
+                leftPadding: 10
+                text: root.multiMode ? qsTr("Applies to all tiles") : qsTr("This game only")
+                font.pixelSize: 11
+                color: Theme.gameFaint
+            }
+        }
+    }
+
+    AnchoredPopover {
+        id: morePop
+        objectName: "morePopover"
+        anchorItem: header.moreAnchor
+        open: root.popover === "more"
+        popWidth: 250
+        padding: 4
+        scrimTop: header.height
+        onCloseRequested: root.closePopover()
+        Column {
+            width: parent.width
+            PopoverItem {
+                objectName: "moreReset"
+                width: parent.width
+                glyph: "↺"
+                text: qsTr("Reset %1…").arg(root.session.title)
+                onActivated: root.popover = "reset"
+            }
+            PopoverItem {
+                objectName: "morePause"
+                width: parent.width
+                text: root.session.paused ? qsTr("Resume") : qsTr("Pause")
+                trailing: "Esc"
+                onActivated: { root.session.togglePause(); root.closePopover() }
+            }
+            PopoverItem {
+                objectName: "moreHotkeys"
+                width: parent.width
+                divider: true
+                text: qsTr("Hotkeys…")
+                trailing: qsTr("Controllers")
+                onActivated: { root.popover = ""; root.player.leaveGameView(); root.player.showControllers() }
+            }
+        }
+    }
+
+    AnchoredPopover {
+        id: pickerPop
+        objectName: "pickerPopover"
+        anchorItem: header.addAnchor
+        open: root.popover === "picker"
+        align: "right"
+        popWidth: 340
+        padding: 12
+        scrimTop: header.height
+        onCloseRequested: root.closePopover()
+        SessionPicker {
+            width: parent.width
+            player: root.player
+            maxListHeight: Math.max(120, root.height * 0.5 - 60)
         }
     }
 

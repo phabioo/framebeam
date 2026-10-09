@@ -67,7 +67,7 @@ class FastForwardUiTest : public QObject {
       QVERIFY(header != nullptr);
       const QRectF headerRect = header->mapRectToScene(QRectF(0, 0, header->width(), header->height()));
       QList<QPair<QString, QRectF>> rects;
-      for (const char* name : {"backToLibraryButton", "fastForwardButton", "pauseButton", "resetButton", "quitButton", "tabSegment", "layoutSwitch", "fullscreenButton"}) {
+      for (const char* name : {"backToLibraryButton", "fastForwardButton", "speedValueButton", "pauseButton", "moreButton", "viewSegment", "layoutSwitch", "diagnosticsButton", "fullscreenButton"}) {
         QQuickItem* it = h.item(name);
         if (it == nullptr || !it->isVisible()) continue;
         const QRectF r = it->mapRectToScene(QRectF(0, 0, it->width(), it->height()));
@@ -75,7 +75,7 @@ class FastForwardUiTest : public QObject {
         rects.append({QLatin1String(name), r});
       }
       QVERIFY(h.item("fastForwardButton")->isVisible());
-      QVERIFY(h.item("fastForwardButton")->width() <= 44);  // minimal below 1360 px
+      QVERIFY(h.item("fastForwardButton")->width() <= 44);  // icon only in the compact header
       for (int i = 0; i < rects.size(); ++i)
         for (int j = i + 1; j < rects.size(); ++j)
           QVERIFY2(!rects[i].second.intersects(rects[j].second), qPrintable(rects[i].first + QStringLiteral(" overlaps ") + rects[j].first));
@@ -84,14 +84,18 @@ class FastForwardUiTest : public QObject {
       QVERIFY2(spare >= 120, qPrintable(QStringLiteral("only %1 px spare").arg(spare)));
     }
 
-    // Speed select: changes the ratio of the running game; the indicator follows.
-    QQuickItem* sel = h.item("speedSelect");
-    QVERIFY(sel != nullptr && sel->isVisible());
+    // Speed menu (split button, right half): changes the ratio of the running game; the value and the indicator follow.
     QCOMPARE(gs->fastForwardRatio(), 2.0);
-    QCOMPARE(sel->property("current").toString(), QStringLiteral("2"));
-    QMetaObject::invokeMethod(sel, "picked", Q_ARG(QString, QStringLiteral("6")));
+    QCOMPARE(h.item("speedValueButton")->property("text").toString(), QStringLiteral("2×"));
+    QVERIFY(h.click("speedValueButton"));
+    QTRY_VERIFY(h.item("speedPopover") != nullptr && h.item("speedPopover")->isVisible());
+    for (const char* option : {"speedOption_1.5", "speedOption_2", "speedOption_3", "speedOption_4", "speedOption_6", "speedOption_8"}) {
+      QVERIFY2(h.item(option) != nullptr && h.item(option)->isVisible(), option);  // the built set of ADR 0018, no "Unlimited"
+    }
+    QVERIFY(h.click("speedOption_6"));
     QCOMPARE(gs->fastForwardRatio(), 6.0);
-    QCOMPARE(sel->property("current").toString(), QStringLiteral("6"));
+    QTRY_VERIFY(!h.item("speedPopover")->isVisible());
+    QCOMPARE(h.item("speedValueButton")->property("text").toString(), QStringLiteral("6×"));
     QVERIFY(h.item("fastForwardIndicator")->isVisible());
 
     // Still usable while the own Session is shared (no block): Space and the button keep working.

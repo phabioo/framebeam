@@ -2,6 +2,7 @@
 
 #include <QCoreApplication>
 #include <QDate>
+#include <QDateTime>
 #include <QDesktopServices>
 #include <QDir>
 #include <QFileInfo>
@@ -10,6 +11,7 @@
 #include <QScopeGuard>
 #include <QStyleHints>
 #include <QSysInfo>
+#include <QTimer>
 #include <QUrl>
 #include <algorithm>
 
@@ -257,6 +259,7 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     saves_->beginSession();
     phase_ = PlayPhase::None;
     gameActive_ = true;
+    gameStartedMs_ = QDateTime::currentMSecsSinceEpoch();
     sessions_->gameStarted(launchGame_.id, launchGame_.title);
     if (shareOnStart_) {
       shareOnStart_ = false;
@@ -958,7 +961,9 @@ QVariantMap PlayerController::backgroundGame() const {
   if (!background_) {
     return {};
   }
-  return {{QStringLiteral("id"), backgroundId_}, {QStringLiteral("title"), backgroundTitle_}};
+  return {{QStringLiteral("id"), backgroundId_},
+          {QStringLiteral("title"), backgroundTitle_},
+          {QStringLiteral("startedMs"), gameStartedMs_}};
 }
 
 QVariantMap PlayerController::startConfirm() const {
@@ -1057,7 +1062,21 @@ void PlayerController::resumeGame() {
   updateScreen();
 }
 
+void PlayerController::requestQuit() {
+  if (quitting_ || !gameActive_) {
+    return;
+  }
+  quitting_ = true;
+  emit quittingChanged();
+  // quitGame() blocks until the core is unloaded: let the "Saving and syncing…" state paint first.
+  QTimer::singleShot(80, this, [this]() { quitGame(); });
+}
+
 void PlayerController::quitGame() {
+  if (quitting_) {
+    quitting_ = false;
+    emit quittingChanged();
+  }
   setBackground(false);
   sessions_->gameEnded();
   session_.stop();  // core unloaded (save flushed), then the final upload

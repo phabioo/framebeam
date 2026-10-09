@@ -22,6 +22,7 @@ SessionController::SessionController(HubConnection* conn, ProfileStore* profiles
   qRegisterMetaType<framebeam::SessionInfo>();
   qRegisterMetaType<framebeam::SessionSignal>();
   diagnostics_ = new DiagnosticsModel(this);
+  connect(this, &SessionController::surfacesChanged, this, &SessionController::selectionChanged);
   connect(diagnostics_, &DiagnosticsModel::statesChanged, this, [this]() {
     if (diagnostics_->isOpen()) {
       refreshDiagnostics();
@@ -744,11 +745,7 @@ QString SessionController::effectiveTab() const {
 QString SessionController::tab() const { return effectiveTab(); }
 
 void SessionController::setTab(const QString& t) {
-  if (t == QLatin1String("diagnostics")) {  // not a view of its own: the tab toggles the overlay (3g)
-    diagnostics_->toggle();
-    return;
-  }
-  if ((t != QLatin1String("session") && t != QLatin1String("multiview") && t != QLatin1String("diagnostics")) || t == tab_) {
+  if ((t != QLatin1String("session") && t != QLatin1String("multiview")) || t == tab_) {
     return;
   }
   tab_ = t;
@@ -807,11 +804,17 @@ QVariantMap SessionController::surfaceInfo() const {
   QVariantMap out;
   if (hasLocalGame()) {
     out.insert(QStringLiteral("local"), QVariantMap{{QStringLiteral("kind"), QStringLiteral("local")},
+                                                    {QStringLiteral("who"), tr("You")},
+                                                    {QStringLiteral("game"), gameTitle_},
                                                     {QStringLiteral("name"), tr("You · %1").arg(gameTitle_)},
                                                     {QStringLiteral("meta"), tr("local")}});
   }
   for (const auto& r : remotes_) {
     out.insert(r->info.sessionId, QVariantMap{{QStringLiteral("kind"), QStringLiteral("remote")},
+                                              {QStringLiteral("who"), r->info.owner.displayName},
+                                              {QStringLiteral("game"), r->info.gameTitle},
+                                              {QStringLiteral("visibility"), visibilityLabel(r->info.visibility)},
+                                              {QStringLiteral("since"), r->info.createdAt},
                                               {QStringLiteral("name"), tr("%1 · %2").arg(r->info.owner.displayName, r->info.gameTitle)},
                                               {QStringLiteral("meta"), tr("Session from %1").arg(r->info.owner.displayName)}});
   }
@@ -838,6 +841,25 @@ QString SessionController::audioFocus() const {
     return QStringLiteral("local");
   }
   return order_.first();
+}
+
+// The selected tile: the chosen one while it exists, else your game's tile, else the first remaining one.
+QString SessionController::selectedSurface() const {
+  if (order_.contains(selected_)) {
+    return selected_;
+  }
+  if (order_.contains(QStringLiteral("local"))) {
+    return QStringLiteral("local");
+  }
+  return order_.isEmpty() ? QString() : order_.first();
+}
+
+void SessionController::selectSurface(const QString& surface) {
+  if (!order_.contains(surface) || selectedSurface() == surface) {
+    return;
+  }
+  selected_ = surface;
+  emit selectionChanged();
 }
 
 void SessionController::audioHere(const QString& surface) {
@@ -983,7 +1005,9 @@ void SessionController::updateLinks() {
     const QString id = r->info.sessionId;
     const SessionStats st = override_ && overrideRemotes_.contains(id) ? overrideRemotes_.value(id) : r->viewer->stats();
     const DiagnosticsModel::Pill pill = DiagnosticsModel::connectionPill(st.connectionType);
-    remoteLinks.insert(id, QVariantMap{{QStringLiteral("text"), pill.text}, {QStringLiteral("tone"), pill.tone}});
+    remoteLinks.insert(id, QVariantMap{{QStringLiteral("text"), pill.text},
+                                       {QStringLiteral("tone"), pill.tone},
+                                       {QStringLiteral("rtt"), st.rttMs ? tr("%1 ms").arg(qRound(*st.rttMs)) : QString()}});
   }
   if (remoteLinks != surfaceLinks_) {
     surfaceLinks_ = remoteLinks;

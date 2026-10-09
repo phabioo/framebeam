@@ -19,7 +19,7 @@ RowLayout {
         Layout.alignment: Qt.AlignTop
         text: root.label
         font.pixelSize: 11
-        color: Theme.textFaint
+        color: Theme.gameFaint
     }
     ColumnLayout {
         Layout.fillWidth: true
@@ -35,7 +35,7 @@ RowLayout {
                 text: root.value
                 wrapMode: Text.WordWrap
                 font.pixelSize: 12
-                color: Theme.text
+                color: Theme.gameText
             }
             FbPill {
                 objectName: root.valueName !== "" ? root.valueName + "Pill" : ""
@@ -53,7 +53,7 @@ RowLayout {
             text: root.sub
             wrapMode: Text.WordWrap
             font.pixelSize: 11
-            color: Theme.textMeta
+            color: Theme.gameMeta
         }
     }
 }

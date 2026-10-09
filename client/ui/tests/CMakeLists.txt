@@ -100,3 +100,10 @@ framebeam_add_test(ui_background_game background_game_ui_test.cpp ${FB_NETTEST_D
   LIBS ${FB_UI_TEST_LIBS})
 target_include_directories(test_ui_background_game PRIVATE ${FB_NETTEST_DIR})
 target_compile_definitions(test_ui_background_game PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
+
+# In-game view revision (0.7.x, 3g-2/3r-2/3t-2/3x-2): header zones, game controls, Reset popover, one diagnostics toggle and
+# its overlay position, panel following the tile selection, picker anchoring, "Now running" strip in the sidebar (preview game, no core).
+framebeam_add_test(ui_ingame ingame_ui_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
+  LIBS ${FB_UI_TEST_LIBS})
+target_include_directories(test_ui_ingame PRIVATE ${FB_NETTEST_DIR})
+target_compile_definitions(test_ui_ingame PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")

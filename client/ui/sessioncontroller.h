@@ -72,10 +72,13 @@ class SessionController : public QObject {
   Q_PROPERTY(QString mainSurface READ mainSurface NOTIFY surfacesChanged)
   Q_PROPERTY(bool hasLocalGame READ hasLocalGame NOTIFY gameChanged)
   Q_PROPERTY(QString localTitle READ localTitle NOTIFY gameChanged)
-  // Views: tab "session" | "multiview" | "diagnostics"; layout "pip" | "side" | "grid" (a tile layout follows the surface count; availableLayouts is empty below two surfaces)
+  // Views: tab "session" | "multiview" (diagnostics is an overlay toggle, not a view); layout "pip" | "side" | "grid" (a tile layout follows the surface count; availableLayouts is empty below two surfaces)
   Q_PROPERTY(QString tab READ tab WRITE setTab NOTIFY viewChanged)
   Q_PROPERTY(QString multiviewMode READ multiviewMode WRITE setMultiviewMode NOTIFY viewChanged)
   Q_PROPERTY(QString audioFocus READ audioFocus NOTIFY viewChanged)  // effective surface id: "local" | Session id
+  // Multiview: the selected tile (surface id) the side panel follows; your game's tile unless another one was chosen.
+  // Selecting a remote tile does not route input: input always goes to your game.
+  Q_PROPERTY(QString selectedSurface READ selectedSurface NOTIFY selectionChanged)
   // In-game screen layout (0.6 D12): "stacked" | "side" | "top"; applies to the running game and the remote pictures, reset
   // to "stacked" when a game starts. Which layouts exist comes from the system (GameSession::screenLayouts).
   Q_PROPERTY(QString screenLayout READ screenLayout WRITE setScreenLayout NOTIFY viewChanged)
@@ -123,6 +126,7 @@ class SessionController : public QObject {
   QString multiviewMode() const;
   void setMultiviewMode(const QString& mode);
   QString audioFocus() const;
+  QString selectedSurface() const;
   // Newest decoded frame / frame counter of a remote surface (empty / 0 if the Session is not shown).
   QImage remoteFrame(const QString& sessionId) const;
   quint64 remoteFrameNumber(const QString& sessionId) const;
@@ -164,6 +168,7 @@ class SessionController : public QObject {
   Q_INVOKABLE void removeSurface(const QString& sessionId);  // "Remove": leaves that Session only
   Q_INVOKABLE void makeMain(const QString& surface);    // "Swap": the surface takes the main position
   Q_INVOKABLE void audioHere(const QString& surface);   // "local" | Session id
+  Q_INVOKABLE void selectSurface(const QString& surface);  // "local" | Session id; the side panel follows
   Q_INVOKABLE void dismissMessage();
 
  signals:
@@ -178,6 +183,7 @@ class SessionController : public QObject {
   void surfacesChanged();
   void remoteFrameChanged(const QString& sessionId);
   void surfaceLinksChanged();
+  void selectionChanged();
 
  private:
   void onConnectionState(HubConnection::State s);
@@ -260,6 +266,7 @@ class SessionController : public QObject {
   QString tab_ = QStringLiteral("session");
   QString mode_ = QStringLiteral("pip");  // chosen layout: "pip" | "side" | "grid"
   QString focusPref_ = QStringLiteral("local");
+  QString selected_ = QStringLiteral("local");
 
   QString message_;
   bool messageIsError_ = false;
