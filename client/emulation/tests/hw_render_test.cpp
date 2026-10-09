@@ -59,7 +59,8 @@ class FakeTarget : public GpuEncodeTarget {
   std::atomic<bool> isWanted{true};
   std::atomic<int> maxW{1280}, maxH{1920};
   int notReady = 0;          // attach() answers NotReady this many times first
-  bool attachFails = false;  // attach() answers Failed
+  bool attachFails = false;        // attach() answers Failed
+  bool attachUnavailable = false;  // attach() answers Unavailable (not applicable here, e.g. a non-NVIDIA GL context)
   int failCaptureAt = 0;     // the n-th capture() (1-based) returns false
   bool keepImages = true;
 
@@ -77,6 +78,7 @@ class FakeTarget : public GpuEncodeTarget {
     Call c = makeCall(QStringLiteral("attach"), texture, QSize(width, height));
     c.internalFormat = internalFormatOf(texture);
     calls_.append(c);
+    if (attachUnavailable) return Attach::Unavailable;
     if (attachFails) return Attach::Failed;
     tex_ = texture;
     size_ = QSize(width, height);
@@ -947,17 +949,22 @@ class HwRenderTest : public QObject {
 
   void encodeFailureDropsTheTargetAndFails_data() {
     QTest::addColumn<bool>("attachFails");
+    QTest::addColumn<bool>("attachUnavailable");
     QTest::addColumn<QString>("reason");
     QTest::addColumn<QStringList>("expectedCalls");
-    QTest::newRow("capture fails") << false << QStringLiteral("capture failed")
+    QTest::newRow("capture fails") << false << false << QStringLiteral("capture failed")
                                    << QStringList{QStringLiteral("attach"), QStringLiteral("capture"), QStringLiteral("fail"),
                                                   QStringLiteral("detach")};
-    QTest::newRow("attach fails") << true << QStringLiteral("attach failed")
+    QTest::newRow("attach fails") << true << false << QStringLiteral("attach failed")
                                   << QStringList{QStringLiteral("attach"), QStringLiteral("fail")};  // never attached: no detach
+    // Not applicable (e.g. Optimus: the game's GL context runs on the iGPU): the target is released quietly, without a
+    // fail() call (it reports Unavailable itself) and without the warning.
+    QTest::newRow("attach unavailable") << false << true << QString() << QStringList{QStringLiteral("attach")};
   }
 
   void encodeFailureDropsTheTargetAndFails() {
     QFETCH(bool, attachFails);
+    QFETCH(bool, attachUnavailable);
     QFETCH(QString, reason);
     QFETCH(QStringList, expectedCalls);
     QTemporaryFile rom;
@@ -965,15 +972,22 @@ class HwRenderTest : public QObject {
     loadFake(be, rom);
     auto t = std::make_shared<FakeTarget>();
     t->attachFails = attachFails;
-    t->failCaptureAt = attachFails ? 0 : 1;
+    t->attachUnavailable = attachUnavailable;
+    t->failCaptureAt = (attachFails || attachUnavailable) ? 0 : 1;
     be.setGpuEncodeTarget(t);
-    QTest::ignoreMessage(QtWarningMsg, qPrintable(QStringLiteral("Session encode target dropped (%1); the Session encoder gets "
-                                                                 "readback frames").arg(reason)));
+    if (attachUnavailable) {
+      QTest::failOnWarning(QRegularExpression(QStringLiteral("Session encode target")));  // quiet: at most an info line
+    } else {
+      QTest::ignoreMessage(QtWarningMsg, qPrintable(QStringLiteral("Session encode target dropped (%1); the Session encoder gets "
+                                                                   "readback frames").arg(reason)));
+    }
     runFrames(be, 3);
     QCOMPARE(t->names(), expectedCalls);
     const QList<FakeTarget::Call> calls = t->calls();
-    QCOMPARE(calls.at(expectedCalls.indexOf(QStringLiteral("fail"))).reason, reason);  // fail() first ...
-    if (!attachFails) {                                                                  // ... then detach, GL current
+    if (!attachUnavailable) {
+      QCOMPARE(calls.at(expectedCalls.indexOf(QStringLiteral("fail"))).reason, reason);  // fail() first ...
+    }
+    if (!attachFails && !attachUnavailable) {  // ... then detach, GL current
       QVERIFY(calls.last().glCurrentArg);
       QVERIFY(calls.last().isTexture);  // detach comes before the texture is deleted
       QCOMPARE(calls.last().internalFormat, kRgba8);

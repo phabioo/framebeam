@@ -53,7 +53,7 @@ class GpuEncodeBridge final : public emu::GpuEncodeTarget {
   // emu::GpuEncodeTarget
   bool wanted() const override;             // wanted_ && state_ == Running
   QSize maxSize() const override;
-  Attach attach(unsigned texture, int width, int height) override;  // Ok/NotReady; Unavailable|Failed -> state, Failed
+  Attach attach(unsigned texture, int width, int height) override;  // Ok/NotReady; Unavailable/Failed also set the state
   void detach(bool glCurrent) override;     // capture_.detach(glCurrent)
   bool capture() override;                  // stores the frame in the mailbox, only while wanted
   void fail(const QString& reason) override;  // Running -> Failed, first reason wins; never overrides Unavailable

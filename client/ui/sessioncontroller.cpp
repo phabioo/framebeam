@@ -42,6 +42,8 @@ SessionController::SessionController(HubConnection* conn, ProfileStore* profiles
   // dropped from inside the SessionHost call that changed the state.
   connect(&host_, &SessionHost::encoderRunningChanged, this, [this]() { updateGpuEncode(); }, Qt::QueuedConnection);
   connect(&host_, &SessionHost::gpuInputChanged, this, [this]() { updateGpuEncode(); }, Qt::QueuedConnection);
+  // The game's state too: after a live-save restart the plan runs again once the core is back (Running).
+  connect(game_, &GameSession::stateChanged, this, [this]() { updateGpuEncode(); }, Qt::QueuedConnection);
 
   // Local game: frames and audio feed the host only while shared (SessionHost drops them otherwise).
   connect(game_, &GameSession::frameChanged, this, [this]() {
@@ -376,10 +378,11 @@ void SessionController::shareSession() {
 // The bridge is created once the encoder runs on a hardware-rendered game with GPU input allowed, kept while the share
 // lasts (also while nobody watches: its CUDA context and registration stay) and dropped when GPU input is off, the
 // game is not hardware rendered any more or the share closes. A live-save restart keeps it: GameSession re-applies the
-// target to the new runner.
+// target to the new runner. While the core (re)starts, hardwareRendered() is false for a moment; an existing bridge
+// counts as hardware rendered then, or a queued update in that window would drop it for good.
 void SessionController::updateGpuEncode() {
-  const GpuEncodePlan p = planGpuEncode(shared_, game_->hardwareRendered(), host_.encoderRunning(), host_.gpuInputAllowed(),
-                                        host_.gpuInputActive());
+  const bool hw = game_->hardwareRendered() || (gpu_ && game_->state() == GameSession::Starting);
+  const GpuEncodePlan p = planGpuEncode(shared_, hw, host_.encoderRunning(), host_.gpuInputAllowed(), host_.gpuInputActive());
   if (!p.keep && gpu_) {
     game_->setGpuEncodeTarget(nullptr);
     gpu_.reset();

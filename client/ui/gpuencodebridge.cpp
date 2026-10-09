@@ -55,7 +55,7 @@ emu::GpuEncodeTarget::Attach GpuEncodeBridge::attach(unsigned texture, int width
       return Attach::NotReady;
     case CudaGlCapture::Status::Unavailable:
       transition(State::Unavailable, capture_.reason());
-      return Attach::Failed;
+      return Attach::Unavailable;
     case CudaGlCapture::Status::Failed:
       transition(State::Failed, capture_.reason());
       return Attach::Failed;

@@ -285,7 +285,7 @@ class CudaGlHwTest : public QObject {
     QVERIFY(old);
     capture_->detach(true);
     freeTarget(target_);
-    target_ = makeTarget(128, 96);
+    target_ = makeTarget(192, 144);  // NVENC on Turing and newer rejects H.264 below 145x49 (FFmpeg does not check it)
     drawPattern(target_, 3);
     QCOMPARE(attachUntilDecided(*capture_, target_), Status::Ok);
     std::shared_ptr<AVFrame> frame = capture_->capture();
@@ -306,7 +306,7 @@ class CudaGlHwTest : public QObject {
     std::vector<QImage> images;
     QVERIFY(fresh.decode(packets[0].data.data(), packets[0].data.size(), images));
     QCOMPARE(images.size(), size_t(1));
-    const QString problem = checkImage(images[0], 128, 96, 40, 3);
+    const QString problem = checkImage(images[0], 192, 144, 40, 3);
     QVERIFY2(problem.isEmpty(), qPrintable(problem));
   }
 

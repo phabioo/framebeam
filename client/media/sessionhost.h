@@ -103,7 +103,10 @@ class SessionHost : public QObject {
   // Idempotent; emits gpuInputChanged().
   void disableGpuInput(const QString& reason, bool failure);
   // Tests: gpuActive_ = true, as if the worker had confirmed GPU mode.
-  void simulateGpuActiveForTest() { gpuActive_ = true; }
+  void simulateGpuActiveForTest() {
+    gpuActive_ = true;
+    lastGpuNs_ = clock_.nsecsElapsed();
+  }
 
  public slots:
   void addViewer(const QString& viewerId, const QList<TurnServer>& turnServers = {});     // `viewer_joined`: creates the PeerConnection and sends the offer
@@ -171,6 +174,7 @@ class SessionHost : public QObject {
   std::atomic<bool> gpuInputFailed_{false};  // ... because it failed
   bool gpuConfigured_ = false;               // computed at open(): kill switch and forced encoder
   int gpuSkips_ = 0;                         // watchdog: readback frames since the last GPU frame
+  qint64 lastGpuNs_ = 0;  // clock_ time of the last GPU frame (watchdog)
 
   QTimer statsTimer_;
   QElapsedTimer statsClock_;

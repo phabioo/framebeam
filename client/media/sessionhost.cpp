@@ -549,6 +549,7 @@ void SessionHost::open(const QString& sessionId, const QStringList& iceServers, 
   gpuInputFailed_ = false;
   gpuActive_ = false;
   gpuSkips_ = 0;
+  lastGpuNs_ = 0;
   QString notUsed;
   gpuConfigured_ = VideoEncoder::gpuInputConfigured(&notUsed);
   if (!gpuConfigured_) {
@@ -839,6 +840,7 @@ void SessionHost::startEncoder() {
         bridge->post([this, gen]() {
           if (gen != workerGen_ || !worker_ || gpuInputOff_) return;
           gpuActive_ = true;
+          lastGpuNs_ = clock_.nsecsElapsed();  // the watchdog counts from the confirmation
           emit gpuInputChanged();
         });
       },
@@ -867,6 +869,7 @@ void SessionHost::stopEncoder() {
   encoderRunning_ = false;
   gpuActive_ = false;  // a new worker starts with the CPU encoder; gpuInputOff_ stays for this Session
   gpuSkips_ = 0;
+  lastGpuNs_ = 0;
   {
     std::lock_guard<std::mutex> lock(statsMutex_);
     stats_ = SessionStats();
@@ -906,10 +909,12 @@ void SessionHost::pushFrame(const uint8_t* data, int width, int height, int stri
     startEncoder();
   }
   if (gpuInputActive()) {
-    if (++gpuSkips_ < kGpuWatchdogFrames) {
+    // Trips only when both hold: kGpuWatchdogFrames readback frames and no GPU frame for 1 s on the host clock. A UI
+    // stall queues a burst of frame events that is drained in a few ms while the mailbox holds a single capture.
+    if (++gpuSkips_ < kGpuWatchdogFrames || clock_.nsecsElapsed() - lastGpuNs_ < 1'000'000'000LL) {
       return;  // the encoder takes GPU frames; no 10 MB copy
     }
-    // No GPU frame for kGpuWatchdogFrames frames, whatever the reason: back to readback; this frame is encoded below.
+    // No GPU frame for kGpuWatchdogFrames frames and a second, whatever the reason: back to readback; this frame is encoded below.
     disableGpuInput(QStringLiteral("no GPU frames for %1 frames").arg(kGpuWatchdogFrames), true);
   }
   const qint64 nowNs = clock_.nsecsElapsed();
@@ -932,6 +937,7 @@ void SessionHost::pushGpuFrame(std::shared_ptr<AVFrame> frame) {
     return;  // never starts the encoder: only readback frames do
   }
   gpuSkips_ = 0;  // watchdog: GPU frames arrive
+  lastGpuNs_ = clock_.nsecsElapsed();
   const qint64 nowNs = clock_.nsecsElapsed();  // the same clock and gap as pushFrame()
   const qint64 minGapNs = 1'000'000'000LL / (2 * std::max(1, options_.fps));
   if (lastEncodeNs_ != 0 && nowNs - lastEncodeNs_ < minGapNs) {
@@ -967,6 +973,7 @@ void SessionHost::disableGpuInput(const QString& reason, bool failure) {
   gpuInputFailed_ = failure;
   gpuActive_ = false;
   gpuSkips_ = 0;
+  lastGpuNs_ = 0;
   if (failure) {
     qCWarning(lcHost).noquote() << QStringLiteral("GPU-direct encoding off for this Session (%1); encoding readback frames").arg(reason);
   } else {

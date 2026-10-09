@@ -347,15 +347,16 @@ class GpuEncodeTest : public QObject {
     checkBalanced(fake);
   }
 
-  // attach() maps the capture's status: Unavailable (here: no GL context) and Failed (here: no frame pool) both end in
-  // Failed for the caller and in their own state for the UI; fail() never turns Unavailable into Failed.
+  // attach() maps the capture's status: Unavailable (here: no GL context) stays Unavailable for the caller (released
+  // quietly) and Failed (here: no frame pool) stays Failed; each ends in its own state for the UI, and fail() never
+  // turns Unavailable into Failed.
   void attachMapsStatuses() {
     {
       QVERIFY(!QOpenGLContext::currentContext());
       FakeCuda fake;
       GpuEncodeBridge b(QSize(100, 100), fake.deps());
       b.setWanted(true);
-      QCOMPARE(b.attach(1, 64, 48), emu::GpuEncodeTarget::Attach::Failed);
+      QCOMPARE(b.attach(1, 64, 48), emu::GpuEncodeTarget::Attach::Unavailable);
       QCOMPARE(b.state(), GpuEncodeBridge::State::Unavailable);
       QVERIFY2(b.reason().contains(QStringLiteral("OpenGL")), qPrintable(b.reason()));
       const QString reason = b.reason();
@@ -482,10 +483,17 @@ class GpuEncodeTest : public QObject {
       QCOMPARE(fake.counters().contextsCreated, 1);
 
       bridge->takeFrame();  // nothing left over from the first runner
+      QSignalSpy stateSpy(&gs, &GameSession::stateChanged);
       QVERIFY(gs.restartWithSave(dir_.filePath(QStringLiteral("restart.sav")), QByteArray("save")));
       QCOMPARE(fake.counters().unregistrations, 1);  // the old runner detached the target with GL current while unloading
       QCOMPARE(bridge->state(), GpuEncodeBridge::State::Running);
+      // The window SessionController::updateGpuEncode has to survive: the new core is starting, so hardwareRendered() is
+      // false although the target stays set; the controller keeps its bridge by the state (Starting) and runs its plan
+      // again on the stateChanged that follows (Running).
+      QCOMPARE(gs.state(), GameSession::Starting);
+      QVERIFY(!gs.hardwareRendered());
       QTRY_COMPARE_WITH_TIMEOUT(gs.state(), GameSession::Running, 10000);
+      QVERIFY(stateSpy.count() >= 1);
       arrived = false;
       QTRY_VERIFY_WITH_TIMEOUT(frameArrived(*bridge, &arrived), 10000);  // frames flow again
       QCOMPARE(started.count(), 1);                                    // same Session: no second started()

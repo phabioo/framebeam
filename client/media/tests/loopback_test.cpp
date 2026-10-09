@@ -407,8 +407,8 @@ class LoopbackTest : public QObject {
     QCOMPARE(encoderSpy.count(), 1);
   }
 
-  // The watchdog: GPU input is "active" but only readback frames arrive. After 60 of them it is turned off and the
-  // 60th is encoded.
+  // The watchdog: GPU input is "active" but only readback frames arrive. After 60 of them and a second without a GPU
+  // frame it is turned off and the 60th is encoded.
   void watchdogTurnsGpuOff() {
     EnvScope noKill("FRAMEBEAM_DISABLE_GPU_ENCODE", nullptr);
     EnvScope noForce("FRAMEBEAM_H264_ENCODER", nullptr);
@@ -429,6 +429,7 @@ class LoopbackTest : public QObject {
     }
     QCOMPARE(gpuSpy.count(), 0);
     QVERIFY(rig.host.gpuInputActive());
+    QTest::qWait(1100);  // the watchdog also wants a second without a GPU frame on the host clock
     rig.host.pushFrame(syntheticFrame(59));
     QCOMPARE(gpuSpy.count(), 1);
     QVERIFY(rig.host.gpuInputFailed());
@@ -441,6 +442,36 @@ class LoopbackTest : public QObject {
     QVERIFY2(QTest::qWaitFor([&]() { return frames >= before + 20; }, 10000), qPrintable(QString::number(frames - before)));
     QVERIFY(rig.host.encoderRunning());
     QCOMPARE(gpuSpy.count(), 1);
+  }
+
+  // A UI stall queues a burst of frame events that the mailbox answers with one GPU frame and many empty takes: 120
+  // readback frames right after a GPU frame are no failure. Only 60 frames AND a second without a GPU frame are.
+  void watchdogIgnoresABurstRightAfterAGpuFrame() {
+    EnvScope noKill("FRAMEBEAM_DISABLE_GPU_ENCODE", nullptr);
+    EnvScope noForce("FRAMEBEAM_H264_ENCODER", nullptr);
+    Rig rig;
+    SessionViewer* viewer = rig.addViewer();
+    int frames = 0;
+    QObject::connect(viewer, &SessionViewer::frameReady, this, [&](const QImage&) { ++frames; });
+    rig.source.start();
+    QVERIFY2(QTest::qWaitFor([&]() { return frames >= 20 && rig.host.encoderRunning(); }, 15000), qPrintable(QString::number(frames)));
+    rig.source.stop();
+    QSignalSpy gpuSpy(&rig.host, &SessionHost::gpuInputChanged);
+
+    rig.host.simulateGpuActiveForTest();  // "a GPU frame was just encoded"
+    QVERIFY(rig.host.gpuInputActive());
+    for (int i = 0; i < 120; ++i) {
+      rig.host.pushFrame(syntheticFrame(i));  // skipped, and no trip: the last GPU frame is milliseconds old
+    }
+    QCOMPARE(gpuSpy.count(), 0);
+    QVERIFY(rig.host.gpuInputActive());
+    QVERIFY(!rig.host.gpuInputFailed());
+
+    QTest::qWait(1100);  // no GPU frame for a second now, and far more than 60 readback frames counted: the next one trips
+    rig.host.pushFrame(syntheticFrame(120));
+    QCOMPARE(gpuSpy.count(), 1);
+    QVERIFY(rig.host.gpuInputFailed());
+    QVERIFY(!rig.host.gpuInputActive());
   }
 
   // GPU input is configured at open(): the kill switch and a forced encoder (also h264_nvenc) keep the readback path.

@@ -280,6 +280,16 @@ struct HwRenderContext::Impl {
     qCWarning(lcHw).noquote() << QStringLiteral("Session encode target dropped (%1); the Session encoder gets readback frames").arg(why);
   }
 
+  // The target says GPU-direct encoding is not applicable here (it reports Unavailable itself): detach, free the encode
+  // objects and forget it, without fail() and without a warning.
+  void releaseTargetQuietly() {
+    pending = false;
+    detachTarget(true);
+    releaseEncode();
+    target.reset();
+    qCInfo(lcHw) << "Session encode target not applicable; the Session encoder gets readback frames";
+  }
+
   // Makes encTex/encFbo es-sized. A NEW texture object per size: the target may have the old one registered, and a
   // registered texture is never re-specified. The new texture is created while the old one still exists, so GL cannot
   // hand out the same name again; then the old one is detached and deleted (detach always comes first). false: not
@@ -647,6 +657,9 @@ void HwRenderContext::encodeBlit(int w, int h, bool bottomLeftOrigin) {
   if (!d->attached) {
     switch (d->target->attach(d->encTex, es.width(), es.height())) {
       case GpuEncodeTarget::Attach::NotReady:  // the target is still being set up; the readback keeps encoding
+        return;
+      case GpuEncodeTarget::Attach::Unavailable:  // not applicable here (e.g. a non-NVIDIA GL context): quiet, no fail()
+        d->releaseTargetQuietly();
         return;
       case GpuEncodeTarget::Attach::Failed:
         d->dropTarget(QStringLiteral("attach failed"));
