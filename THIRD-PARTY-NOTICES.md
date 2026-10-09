@@ -47,13 +47,13 @@ Linux development builds use the same libdatachannel and SDL3, built from source
 
 ## Emulator cores
 
-Cores are not part of the installer or the Hub binary. They are distributed as separate signed core packages (GitHub releases, `cores.yml`) and served by the Hub.
+Cores are not part of the installer or the Hub binary. Until 0.7 they were distributed as separate signed core packages (GitHub releases, `cores.yml`); from 0.8 each Hub downloads them from the libretro buildbot.
 
 | Core | License | Upstream |
 |---|---|---|
 | melonDS DS (libretro core) | GPL-3.0 | <https://github.com/JesseTG/melonds-ds> |
 
-Each core package carries the core's license file (for melonDS DS: `LICENSE-melonDS-DS.txt`), and the core index records the source URL and the exact source ref (tag or commit). The Linux core is built from source in CI; the Windows core is the upstream release asset at the pinned tag.
+The following applies to the retired signed packages (0.2 to 0.7). Each core package carries the core's license file (for melonDS DS: `LICENSE-melonDS-DS.txt`), and the core index records the source URL and the exact source ref (tag or commit). The Linux core is built from source in CI; the Windows core is the upstream release asset at the pinned tag.
 
 From 0.8 on ([ADR 0020](docs/adr/0020-cores-from-the-libretro-buildbot.md)) FrameBeam no longer redistributes cores: each Hub downloads them from the libretro buildbot for its own Players and shows the license from the libretro core info. Packages from the retired signed source keep the license file described above.
 

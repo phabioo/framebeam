@@ -7,7 +7,7 @@
 | Client | Windows x86-64 |
 | Server | Linux x86-64 and ARM64; Raspberry Pi 5 as the intended server target |
 | System/core | Exclusively Nintendo DS with melonDS DS via Libretro; core included in the Windows Player |
-| Registry | Hub knows system, core ID and expected version; no automatic core distribution |
+| Registry | Hub knows system, core ID and expected version; no automatic core distribution (PoC state; since 0.2 core distribution, since 0.8 cores from the libretro buildbot, ADR 0020) |
 | UI | Dark/light mode for Player and Hub; optional diagnostics |
 | Settings | Player pages Emulation and Controllers; only the options actually needed for melonDS in the PoC must work completely; generic core options and hierarchy prepared |
 | Library | Central ROM library with technical library data and a simple game title; no external metadata providers or box art sourcing |

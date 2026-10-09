@@ -6,14 +6,14 @@ FrameBeam is a self-hosted retro gaming platform. The **FrameBeam Hub** keeps yo
 
 ## Status
 
-Version 0.7.x. The proof of concept (Nintendo DS with melonDS DS) is complete; Hub UI and Player UI have had their design passes (0.6, 0.7). Next on the [roadmap](docs/roadmap.md): cores from the libretro buildbot (0.8), one Windows installer for Player and Hub (0.9), Nintendo 3DS, game metadata, Linux and macOS Player. Windows Player and Linux Hub (Debian, Raspberry Pi) are the supported platforms; real GPUs, drivers and networks are verified only locally.
+Version 0.8 (cores from the libretro buildbot, [ADR 0020](docs/adr/0020-cores-from-the-libretro-buildbot.md)). The proof of concept (Nintendo DS with melonDS DS) is complete; Hub UI and Player UI have had their design passes (0.6, 0.7). Next on the [roadmap](docs/roadmap.md): one Windows installer for Player and Hub (0.9), Nintendo 3DS, game metadata, Linux and macOS Player. Windows Player and Linux Hub (Debian, Raspberry Pi) are the supported platforms; real GPUs, drivers and networks are verified only locally.
 
 ## Highlights
 
 - **One library, many devices:** the Hub serves ROMs to Players with a hash-verified cache; pairing needs an admin's approval or an invite code.
 - **Saves that never get lost:** versioned checkpoints, conflicts are never overwritten silently, history, restore and snapshots ([how saves work](docs/guides/saves.md)).
 - **Share a running game:** Sessions with Private / Hub users / Invite only visibility, multiview with up to 4 surfaces, direct WebRTC with an optional relay on the Hub for Players outside your LAN.
-- **Cores from the Hub:** installers ship no emulator cores; the Hub fetches signed core packages and serves them (from 0.8 the Hub downloads cores from the libretro buildbot instead, [ADR 0020](docs/adr/0020-cores-from-the-libretro-buildbot.md)).
+- **Cores from the Hub:** installers ship no emulator cores; since 0.8 the Hub downloads cores from the libretro buildbot on the admin's request ([ADR 0020](docs/adr/0020-cores-from-the-libretro-buildbot.md)) and serves them to Players, which choose the core per system and game.
 - **OpenGL rendering, gamepads, firmware handling** for DS (firmware files are yours; FrameBeam never ships them).
 - **Self-updating:** signed releases, `stable` and `beta` channels, Debian package for the Hub, Windows installer for the Player.
 

@@ -20,7 +20,7 @@ Phase plan: [workflow.md](workflow.md#phase-plan).
 | Version | Status | Theme | Goal |
 |---|---|---|---|
 | 0.1.1 | done | Finish the PoC | Close the PoC leftovers and clean up the codebase. |
-| 0.2 | done | Cores from the Hub | Installers no longer ship emulator cores; the Hub distributes signed core packages. |
+| 0.2 | done | Cores from the Hub | Installers no longer ship emulator cores; the Hub distributes core packages (signed until 0.7, from the libretro buildbot since 0.8). |
 | 0.3 | done | Automatic updates | A change on `main` reaches the test devices without manual work. |
 | 0.4 | done (relay and multiview verified across networks only locally) | Sessions over the internet and save comfort | Sessions work beyond the LAN; saves get retention, restore and slots. |
 | 0.5 | done in code (GPUs and drivers verified only locally) | OpenGL hardware rendering | The Player offers an OpenGL context to libretro cores, so hardware-rendered cores run; frames are read back to the CPU, zero-copy deferred ([ADR 0013](adr/0013-opengl-hardware-rendering.md)). |
@@ -31,7 +31,7 @@ Phase plan: [workflow.md](workflow.md#phase-plan).
 | 0.7.x | done in code | Speed-up | The Player can run a game faster than real time ("Speed-up", Space, 1.5x to 8x) when the libretro core allows it ([ADR 0018](adr/0018-player-speed-up.md)). |
 | 0.7.x | done in code | GPU-direct NVENC, hotkeys, background game, playtest UI revision | Shared Sessions on NVIDIA skip the readback ([ADR 0019](adr/0019-gpu-direct-nvenc.md)); configurable Player hotkeys; paused background game; UI changes after the friends playtest. |
 | 0.7.x | done | Hub admin gaps, save upload, hardening, license | Delete users and devices, Hub user name in the Player, upload a save file, hardened TURN relay and web port, GPL-3.0-or-later with CLA and notices. |
-| 0.8 | planned, in progress | Cores from the libretro buildbot | Systems instead of fixed cores: the Hub downloads cores RetroArch-style from the libretro buildbot; admin installs, updates and removes them per system; Player chooses the core per system and game ([ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md)). |
+| 0.8 | done in code | Cores from the libretro buildbot | Systems instead of fixed cores: the Hub downloads cores RetroArch-style from the libretro buildbot; admin installs, updates and removes them per system; Player chooses the core per system and game ([ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md)). |
 | 0.9 | planned | One installer: Player, Hub or both | One Windows MSI (WiX) with the components Player, Hub or both; the Hub runs as a Windows service; "Set up a Hub on this PC" and a standalone mode like RetroArch. |
 | 0.10 | planned | Second system: 3DS (Azahar) | The Azahar libretro core arrives as a buildbot core through 0.8 and runs on the OpenGL rendering from 0.5. |
 | 0.11 | planned | Metadata and artwork | Central game metadata and boxart in Hub and Player. |
@@ -46,7 +46,7 @@ PoC leftovers. Decisions: [ADR 0009](adr/0009-finish-poc.md) (accepted).
 - [x] Done: Settings → Hubs (switch, remove with confirmation, auto-connect, current Hub marked); switching ends running work and secures saves like the connection screen.
 - [x] Done: Certificate renewal and confirmed pin change. The Hub renews its self-generated certificate at startup when expired or expiring within 30 days (`framebeam-hub renew-cert`, Settings badge); the Player shows both fingerprints and re-pins after a two-step confirmation, keeping the credential (`--accept-fingerprint` in the CLI). Own certificate and key are never modified. Verified only locally by Fabio against a real Hub certificate.
 - [x] Done: Session encoding and RTP send run on a worker thread (bounded queue, oldest video frame dropped); RTT is reported in diagnostics via the negotiated DataChannel `fb-diag`.
-- [x] Done (0.7.x, ADR 0017 D1): A core whose major version differs from the Hub's expected version blocks the launch; other differences only warn.
+- [x] Done (0.7.x, ADR 0017 D1): A core whose major version differs from the Hub's expected version blocks the launch; other differences only warn. Since 0.8 it applies only where both sides report a semver version.
 - [x] Done: Codebase cleanup: system display name and controller labels from the system manifest, phase-named files and tests renamed (migration `0004_phase5.sql` kept), MSVC C4804 fixed, E2E scripts run in the Linux CI job, staticcheck in `make check-hub`, narrower libdatachannel CI cache path. The `PlayerController` split moves to the Player UI pass (0.6).
 
 Completed 2026-10-06: Windows CI runs on `main` pushes to prime its vcpkg binary cache after merges. The release preset uses a release-only dependency triplet. Cache keys distinguish the triplet and MSVC version and cover the manifest, presets and overlay triplets. The first main run with the new triplet is expected to build cold; later runtimes depend on cache hits and runner performance. See [ADR 0008](adr/0008-windows-ci-cache.md).
@@ -57,12 +57,12 @@ Decisions: [ADR 0010](adr/0010-cores-from-the-hub.md) (accepted). The source, th
 
 Goal: installers ship no emulator cores. melonDS DS leaves the Windows installer and comes from the Hub.
 
-Decision: the Hub obtains signed core packages from a fixed trusted source and caches them. There is no admin upload.
+Decision (replaced in 0.8 by ADR 0020): the Hub obtains signed core packages from a fixed trusted source and caches them. There is no admin upload.
 
 - [x] Done: Hub: Core Package Cache (storage per core ID, version, platform/architecture, SHA-256, origin, license text). The Hub downloads signed packages from the trusted source, verifies the signature and caches them. On "Systems & Cores" (replaces the "LATER" placeholder) the admin only selects the version. Download endpoint for Players with ETag.
 - [x] Done: Protocol: endpoints for package metadata and download, a handshake feature (for example `cores_v1`); `protocol_version` stays 1.
 - [x] Done: Player: core cache `cache/cores/<core-id>/<version>/<platform>/`, download on demand with hash, version and platform checks, `CoreLocator` searches there. Library and Emulation page show "core loading / missing / incompatible".
-- [x] Done: Trust: Ed25519-signed index (`framebeam-sign`, `.github/workflows/cores.yml`), checked by the Hub against compiled-in and `--core-trust-key` keys; the Player checks size and SHA-256 (ADR 0010). The key is reused by the updater in 0.3.
+- [x] Done: Trust: Ed25519-signed index (`framebeam-sign`, `.github/workflows/cores.yml`), checked by the Hub against compiled-in and `--core-trust-key` keys; the Player checks size and SHA-256 (ADR 0010). The key is reused by the updater in 0.3. Retired in 0.8 (ADR 0020): `cores.yml` is deleted and cores are no longer signed; the key and `framebeam-sign` stay for the updates index.
 - [x] Done: FrameBeam release key generated by Fabio (GitHub secret `FRAMEBEAM_SIGNING_KEY`, public key in `corepkg.DefaultTrustedKeys`).
 - [x] Done: Package format and index defined (ADR 0010, `docs/reference/protocol.md`). Source: FrameBeam's own GitHub Releases; the Hub needs internet access to github.com or uses `framebeam-hub import-cores <dir>` offline.
 - [x] Done: Windows installer and package no longer contain cores.
@@ -89,7 +89,7 @@ Moved ahead of the UI passes by Fabio on 2026-10-07: testing with friends outsid
 - [x] Done: Hub: embedded STUN/TURN relay (pion/turn, off by default) with short-lived credentials in `hello_ack` and the join response; Settings shows TURN status and the router port forwards (ADR 0012 D2-D4).
 - [x] Done: Player: TURN via libdatachannel, connection type (direct / relay) in diagnostics, `FRAMEBEAM_FORCE_RELAY` / `--force-relay`, AIMD bitrate adaptation to the worst viewer (ADR 0012 D5).
 - [x] Done: Multiview with up to 4 surfaces (several remote Sessions) and the audio focus rule (ADR 0012 D8).
-- [x] Done: Player-side signature check of core packages (moved from 0.3, ADR 0010 D5): the Player verifies the signed core index served by the Hub (ADR 0012 D6).
+- [x] Done: Player-side signature check of core packages (moved from 0.3, ADR 0010 D5): the Player verifies the signed core index served by the Hub (ADR 0012 D6). Retired in 0.8 (ADR 0020 D6).
 - [x] Done: Saves: retention/thinning, restore from history, manual snapshot, WebSocket push `save_updated`, multiple slots (ADR 0012 D7; `docs/architecture/03-saves.md`).
 - Open: verification across real networks (two Players behind different routers, forced relay, more than one remote Session) is done locally by Fabio.
 
@@ -139,7 +139,7 @@ Implemented, see [ADR 0015](adr/0015-hub-ui-pass.md) (accepted).
 
 ## 0.7.x Speed-up (fast-forward)
 
-See [ADR 0018](adr/0018-player-speed-up.md) (proposed).
+See [ADR 0018](adr/0018-player-speed-up.md) (accepted).
 
 - [x] Done: "Speed-up" (libretro fast-forward) in the Player for cores that do not inhibit it; Space toggles; speed 1.5×, 2×, 3×, 4×, 6×, 8× (default 2×, the user's choice wins over a core ratio); screen frames limited to the base rate.
 - [x] Done: header button "Speed-up" ("»" when narrow) and a speed select in the Session panel (running game only) and indicator "Speed-up ×N"; hidden when the core inhibits it; stays usable while the Session is shared (viewers get the normal stream frame rate).
@@ -211,14 +211,19 @@ Design handoff of 2026-10-08 after a friends playtest, imported in [docs/design/
 
 ## 0.8 Cores from the libretro buildbot
 
-Planned, in progress. Decisions: [ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md) (accepted 2026-10-09). Supersedes the signed core mirror of 0.2 (ADR 0010 D1 to D3, D6) and the Player-side index check.
+Done in code. Decisions: [ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md) (accepted 2026-10-09). Supersedes the signed core mirror of 0.2 (ADR 0010 D1 to D3, D6) and the Player-side index check.
 
-- Systems instead of fixed cores: the Hub registry keeps the supported systems; every libretro core for a system that the buildbot provides can be offered.
-- Hub: downloads cores RetroArch-style from the libretro buildbot (catalog from `info.zip` and `.index-extended`); the admin installs, updates and removes cores per system on "Systems & Cores" and picks the default core; SHA-256 is pinned at install; no automatic updates; offline `import-cores` keeps working with buildbot zips.
-- Protocol: handshake feature `cores_v2` (`default_core_id`, `cores` per system), OpenAPI 1.9.0, `protocol_version` stays 1; the signed core index endpoints are removed.
-- Player: system manifest and core profiles are split (`manifests/systems/`, `manifests/cores/`); core choice per system and game; cores without a profile are marked experimental; snapshot of the save before a core change.
-- DeSmuME is the second NDS core (with a core profile); CI fetches it from the buildbot.
-- The signed core mirror (`cores.yml`, release `cores-index`) is retired; existing releases stay.
+- [x] Done: Systems instead of fixed cores: the Hub registry keeps the supported systems with their libretro system ids (migration 0009); every libretro core for a system that the buildbot provides is offered.
+- [x] Done: Hub downloads cores RetroArch-style from the libretro buildbot (catalog from `info.zip` and `.index-extended`, refreshed at start, every 24 h and on "Check source now"; flags `-core-buildbot-url`, `-core-info-url`). The admin installs, updates and removes cores per system on "Systems & Cores" (Cores tab) and picks the default core; SHA-256 pinned at install; versions `YYYY.MM.DD[.N]`; no automatic updates; the expected-version selector is gone. A legacy `melonds_ds` package is adopted as installed default.
+- [x] Done: Offline `framebeam-hub import-cores <dir>` with buildbot zips (`<dir>/<platform>/<core>_libretro.<suffix>.zip`, optional `info.zip` and `.index-extended`); `install-hub.sh import-cores` updated.
+- [x] Done: Protocol: handshake feature `cores_v2` (`default_core_id`, `cores` per system), OpenAPI 1.9.0, `protocol_version` stays 1; `cores_index_v1` and the signed core index endpoints are removed.
+- [x] Done: Player: system manifest and core profiles are split (`manifests/systems/nds.json`, `manifests/cores/{melondsds,desmume}.json`); cores without a profile are experimental; core choice game > system > Hub default with a "Core" select per system on the Emulation page; the signed core index check is removed (size and SHA-256 against the Hub stay).
+- [x] Done: Snapshot of the save on the Hub before a core change (`writer_core_id`/`writer_core_version` in `sync.json`, label `Before core change: ...`); a failed snapshot blocks the start. The ADR 0017 major-version block applies only when both sides report a semver version.
+- [x] Done: DeSmuME is the second NDS core (with a core profile); CI fetches it from the buildbot (`scripts/fetch-buildbot-core.sh|ps1`, `make fetch-desmume`, `FRAMEBEAM_REQUIRE_CORES=1`).
+- [x] Done: The signed core mirror (`cores.yml`, release `cores-index`) is retired; existing releases stay.
+- Open: The real buildbot download (catalog refresh and install against `buildbot.libretro.com`) is only exercised by CI, not by a local test.
+- Open: Game-level core choice has no UI yet; the Player reads and stores the setting, the Emulation page offers the system level only.
+- Open: Real play with DeSmuME and melonDS DS is verified by Fabio locally.
 
 ## 0.9 One installer: Player, Hub or both
 

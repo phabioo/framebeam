@@ -15,7 +15,7 @@ Three Player items collected during 0.7.x need a recorded decision: the core ver
 - The Player compares the version of the core it would run with the version the Hub expects for the system, using semver.
 - Different MAJOR version: the launch is blocked with an error.
 - Same major, other minor or patch: warning, the launch continues.
-- Empty expected version on the Hub means any version: no check.
+- Empty expected version on the Hub means any version: no check (retired in 0.8 with the expected-version selector).
 - A version that cannot be parsed (either side) only warns.
 - A core chosen explicitly (environment variable or explicit path) is never blocked, only warned.
 - The Hub handshake is unchanged: `core_version_mismatch` stays a warning and `compatible` stays `true`, so a Player is never locked out of the Hub. The block happens at launch only.
@@ -45,7 +45,8 @@ The mutable start state stays in `PlayerController`; helpers get references and 
 
 ## Consequences
 
-- Launching with a core of another major version fails with a clear error until the core or the Hub's expected version is changed.
+- Since 0.8 ([ADR 0020](0020-cores-from-the-libretro-buildbot.md) D3) the block applies only where both sides report a semver version; buildbot build ids (`YYYY.MM.DD[.N]`) only warn, and the Hub has no expected-version selector.
+- Launching with a core of another major version fails with a clear error until the core or the Hub's expected version is changed (0.7.x state; the expected version no longer exists since 0.8).
 - Developers can still use any core through the explicit override, with a warning.
 - Hub behaviour, API and OpenAPI are unchanged.
 - Settings live in one file; no new key is needed beyond `session_visibility`.

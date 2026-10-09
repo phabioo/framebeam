@@ -26,11 +26,13 @@ The Hub validates expected metadata and hashes according to system/core requirem
 
 ## 10. Systems & Cores: registry and package provisioning
 
-The Hub page **"Systems & Cores"** is retained. It manages the system registry and core registry: system ID, assigned or preferred cores, core ID, expected version and supported platforms. The Hub never runs cores.
+The Hub page **"Systems & Cores"** is retained. It manages the system registry and core registry: system ID, installed cores and the default core, core ID and supported platforms (until 0.7 also an expected version, retired by ADR 0020). The Hub never runs cores.
 
-For FrameBeam 0.1: `nds → melonds_ds`; the Player reports platform and available core versions so that compatibility can be checked. A missing or unsuitable core version is reported visibly. Since 0.2 installers ship no cores; they come from the Hub (ADR 0010).
+For FrameBeam 0.1: `nds → melonds_ds`; the Player reports platform and available core versions so that compatibility can be checked. A missing or unsuitable core version is reported visibly. Since 0.2 installers ship no cores; they come from the Hub (ADR 0010). Since 0.8 (ADR 0020) the registry is systems-first: a system lists its libretro system ids and its installed cores with one default core; the expected-version selector is gone.
 
-Since 0.2 the Hub has a **core package cache**. Packages carry core ID, version, platform, SHA-256 per file, origin and licence information. The Hub fetches them from FrameBeam's GitHub Releases through an Ed25519-signed index and verifies the signature; the Player checks size and SHA-256 (ADR 0010). "Cached on Hub" denotes a stored package, not an emulation installed or run there.
+Since 0.2 the Hub has a **core package cache**. Packages carry core ID, version, platform, SHA-256 per file, origin and licence information. Since 0.8 the Hub downloads them from the libretro buildbot on the admin's request (RetroArch-style, catalog from the libretro core info files), pins the SHA-256 at install and serves exactly that build; there is no signature on cores and no automatic update. The Player checks size and SHA-256 against the Hub (ADR 0010 D5, ADR 0020).
+
+The Player splits a **system manifest** (screens, input, firmware files) from **core profiles** (option defaults and locks, firmware mapping). A core without a profile is experimental. The core is chosen per game > system > Hub default, and a save is snapshotted on the Hub before a core change (ADR 0020 D6, D7).
 
 The flow (built in 0.2) is: Player requests the intended core → Hub delivers package metadata → Player checks local version, platform and hash → download only if needed → hash/version check → inclusion in the local core cache → local execution. Multiple versions can be cached in parallel; a later version-bound game assignment remains possible.
 
