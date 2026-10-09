@@ -18,7 +18,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        color: Theme.dark ? "#cc08090a" : "#99000000"
+        color: Theme.dark ? "#b3050506" : "#99000000"
     }
     MouseArea {
         anchors.fill: parent
@@ -34,7 +34,7 @@ Item {
         Rectangle {
             objectName: "startConfirmDialog"
             anchors.centerIn: parent
-            width: Math.min(520, parent.width - 48)
+            width: Math.min(500, parent.width - 48)
             implicitHeight: col.implicitHeight + 56
             height: Math.min(implicitHeight, parent.height - 32)
             radius: Theme.radius12
@@ -46,9 +46,14 @@ Item {
                 id: col
                 anchors.fill: parent
                 anchors.margins: 28
-                spacing: 16
+                spacing: 18
 
-                Eyebrow { text: qsTr("Game running") }
+                Eyebrow {
+                    objectName: "startConfirmEyebrow"
+                    Layout.fillWidth: true
+                    text: qsTr("%1 is running · paused").arg(root.request.runningTitle || "")
+                    color: Theme.accent
+                }
                 FbLabel {
                     objectName: "startConfirmTitle"
                     Layout.fillWidth: true
@@ -67,11 +72,13 @@ Item {
                     wrapMode: Text.WordWrap
                 }
                 RowLayout {
+                    id: buttonRow
                     Layout.fillWidth: true
                     spacing: 10
                     Item { Layout.fillWidth: true; Layout.minimumWidth: 0 }
                     FbButton {
                         id: cancelButton
+                        implicitHeight: 40
                         objectName: "startConfirmCancel"
                         text: qsTr("Cancel")
                         KeyNavigation.tab: confirmButton
@@ -81,13 +88,51 @@ Item {
                     }
                     FbButton {
                         id: confirmButton
+                        implicitHeight: 40
+                        // Deterministic width: natural width, at most 360 and at most what is left next to Cancel, so a long
+                        // title (or a wide font) elides in the button instead of spilling out of the dialog.
+                        Layout.fillWidth: false
+                        Layout.minimumWidth: 0
+                        Layout.preferredWidth: Math.max(0, Math.min(implicitWidth, 360, buttonRow.width - cancelButton.width - buttonRow.spacing * 2))
+                        Layout.maximumWidth: Layout.preferredWidth
                         objectName: "startConfirmQuit"
                         kind: "primary"
-                        text: qsTr("Quit and start")
+                        text: qsTr("Quit and start %1").arg(root.request.newTitle || "")
                         KeyNavigation.tab: cancelButton
                         KeyNavigation.backtab: cancelButton
                         Keys.onReturnPressed: root.player.confirmQuitAndStart()
                         onClicked: root.player.confirmQuitAndStart()
+                    }
+                }
+
+                // What happens after confirming (3c-5): the steps are shown ahead, the start happens in place.
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    spacing: 8
+                    Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.borderSidebar }
+                    FbLabel { Layout.topMargin: 6; text: qsTr("After confirming"); color: Theme.textMeta; font.pixelSize: Theme.fontMeta }
+                    Repeater {
+                        model: [
+                            qsTr("%1 is saved").arg(root.request.runningTitle || ""),
+                            qsTr("Syncing to the hub"),
+                            qsTr("Starting %1").arg(root.request.newTitle || "")
+                        ]
+                        delegate: RowLayout {
+                            required property string modelData
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            spacing: 8
+                            FbLabel { text: "○"; color: Theme.textDisabled; font.pixelSize: Theme.fontSmall }
+                            FbLabel {
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 0
+                                text: modelData
+                                elide: Text.ElideRight
+                                color: Theme.textMuted
+                                font.pixelSize: Theme.fontSmall
+                            }
+                        }
                     }
                 }
             }

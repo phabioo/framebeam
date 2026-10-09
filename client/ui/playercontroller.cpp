@@ -976,8 +976,8 @@ QVariantMap PlayerController::selectedGame() const {
     m.insert(QStringLiteral("playLabel"), tr("Resume"));
     m.insert(QStringLiteral("canPlay"), true);
     m.insert(QStringLiteral("busy"), false);
-    m.insert(QStringLiteral("pillText"), tr("Running · paused"));
-    m.insert(QStringLiteral("pillTone"), QStringLiteral("ok"));
+    m.insert(QStringLiteral("pillText"), tr("❚❚ Running · paused"));
+    m.insert(QStringLiteral("pillTone"), QStringLiteral("warn"));  // the accent chip (3c-5)
   }
   return m;
 }
@@ -994,7 +994,8 @@ QVariantMap PlayerController::backgroundGame() const {
   }
   return {{QStringLiteral("id"), backgroundId_},
           {QStringLiteral("title"), backgroundTitle_},
-          {QStringLiteral("startedMs"), gameStartedMs_}};
+          {QStringLiteral("startedMs"), gameStartedMs_},
+          {QStringLiteral("pausedMs"), gamePausedMs_}};
 }
 
 QVariantMap PlayerController::startConfirm() const {
@@ -1018,6 +1019,7 @@ void PlayerController::setBackground(bool on) {
   if (on) {
     backgroundId_ = launchGame_.id;
     backgroundTitle_ = launchGame_.title;
+    gamePausedMs_ = QDateTime::currentMSecsSinceEpoch();
   } else {
     backgroundId_.clear();
     backgroundTitle_.clear();

@@ -15,7 +15,7 @@ Item {
     required property string addedText   // "DD.MM.YYYY" from the Hub; shown as "Added ..." with a date sort
     property bool showAdded: false
     property bool selected: false
-    property bool running: false   // game paused in the background (Library strip "Now running")
+    property bool running: false   // game paused in the background (3c-5: marker on the cover, status line)
 
     signal clicked()
 
@@ -61,6 +61,36 @@ Item {
             font.letterSpacing: -0.7
             color: Theme.monogram
         }
+        // Running marker (3c-5): pill "Paused" top right of the cover, two 2 x 8 bars as the pause icon.
+        Rectangle {
+            objectName: "tileRunningPill"
+            visible: tile.running
+            anchors.top: parent.top
+            anchors.right: parent.right
+            anchors.margins: 10
+            height: 22
+            width: Math.min(parent.width - 20, pillRow.implicitWidth + 16)
+            radius: Theme.radiusPill
+            color: Theme.accentChipBg
+            Row {
+                id: pillRow
+                anchors.centerIn: parent
+                spacing: 6
+                Row {
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 2
+                    Rectangle { width: 2; height: 8; color: Theme.accent }
+                    Rectangle { width: 2; height: 8; color: Theme.accent }
+                }
+                Text {
+                    text: qsTr("Paused")
+                    anchors.verticalCenter: parent.verticalCenter
+                    font.pixelSize: Theme.fontMono
+                    font.weight: Font.DemiBold
+                    color: Theme.accent
+                }
+            }
+        }
         Rectangle {
             visible: tile.stateKind === "downloading"
             anchors.left: parent.left
@@ -98,10 +128,10 @@ Item {
         FbLabel {
             objectName: "tileStatus"
             Layout.fillWidth: true
-            text: tile.running ? qsTr("▶ Running · paused") : tile.tileText
+            text: tile.running ? qsTr("❚❚ Running · paused") : tile.tileText
             font.pixelSize: Theme.fontMeta
             font.weight: Font.Medium
-            color: tile.running ? Theme.ok : tile.tileTone === "neutral" ? Theme.textMuted : Theme.toneColor(tile.tileTone)
+            color: tile.running ? Theme.accent : tile.tileTone === "neutral" ? Theme.textMuted : Theme.toneColor(tile.tileTone)
             elide: Text.ElideRight
         }
         FbLabel {

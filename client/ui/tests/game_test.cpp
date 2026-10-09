@@ -33,6 +33,7 @@ class GameTest : public QObject {
     {
       GameView view;
       view.setParentItem(window.contentItem());
+      view.setIntegerScale(false);
       view.setSize(QSizeF(300, 450));
       view.setSession(&gs);
       const auto expected = [&](qreal w, qreal h) { return QSize(qCeil(w * dpr - 1e-6), qCeil(h * dpr - 1e-6)); };
@@ -47,9 +48,18 @@ class GameTest : public QObject {
       // A second view of the same game (multiview/fullscreen): the larger one wins.
       GameView other;
       other.setParentItem(window.contentItem());
+      other.setIntegerScale(false);
       other.setSize(QSizeF(900, 1350));
       other.setSession(&gs);
       QCOMPARE(gs.readbackLimit(), expected(900, 1350));
+    }
+    {
+      // Integer scaling fits the 1x base size, not the (larger) delivered frame: stable, no frame-size feedback.
+      GameView view;
+      view.setParentItem(window.contentItem());
+      view.setSize(QSizeF(300, 450));
+      view.setSession(&gs);
+      QCOMPARE(gs.readbackLimit(), QSize(256, 384).expandedTo(QSize()));
     }
     QCOMPARE(gs.readbackLimit(), QSize());  // views gone: no limit again
     // devicePixelRatio: physical = logical * ratio, rounded up
