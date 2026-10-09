@@ -784,6 +784,43 @@ class LibrarySavesUiTest : public QObject {
   }
 
   // ---- Layout of the detail column at 1280 and 960 px ---------------------------------------------------------------
+  // Regression: "◆ Create snapshot" / "Upload save file…" in the saveActions Flow showed as "◆ Crea…" / "Uplo…" at every size.
+  // While the 392 px column has room, both buttons show their full label (width >= label implicitWidth + padding).
+  void saveActionButtonsKeepTheirFullLabel() {
+    FakeHub hub(QStringLiteral("a"));
+    oneGame(hub, kAllFeatures);
+    hub.setHubSave(QStringLiteral("g1"), "cp-1");
+    hub.addHistory(QStringLiteral("g1"), QStringLiteral("default"), "old", QStringLiteral("session_end"));
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    SaveHistoryController* hist = h.controller->saveHistory();
+    QTRY_VERIFY_WITH_TIMEOUT(hist->available() && !hist->loading() && hist->versionCount() >= 2, 8000);
+    for (const QSize size : {QSize(1280, 800), QSize(1920, 1080)}) {
+      h.window->resize(size);
+      QQuickTest::qWaitForPolish(h.window);
+      QTest::qWait(60);
+      if (!shown(h, "savesView")) openSavesView(h);
+      QTRY_VERIFY(shown(h, "saveActions"));
+      QTest::qWait(60);
+      QQuickTest::qWaitForPolish(h.window);
+      const qreal room = h.item("saveActions")->width();
+      QVERIFY2(room > 250, qPrintable(QStringLiteral("saveActions only %1 wide").arg(room)));
+      for (const char* name : {"snapshotButton", "uploadSaveButton"}) {
+        QQuickItem* btn = h.item(name);
+        QVERIFY2(btn != nullptr && btn->isVisible(), name);
+        QQuickItem* lbl = btn->findChild<QQuickItem*>("fbButtonLabel");
+        QVERIFY(lbl != nullptr);
+        const qreal natural = lbl->implicitWidth();
+        const qreal pad = btn->property("hPadding").toReal();
+        const QString tag = QStringLiteral("%1 at %2 px").arg(QLatin1String(name)).arg(size.width());
+        QVERIFY2(btn->width() + 0.5 >= natural + pad, qPrintable(tag + QStringLiteral(": width %1 < label %2 + padding %3").arg(btn->width()).arg(natural).arg(pad)));
+        QVERIFY2(lbl->width() + 0.5 >= natural, qPrintable(tag + QStringLiteral(": label elided (%1 < %2)").arg(lbl->width()).arg(natural)));
+      }
+    }
+  }
+
   void detailColumnLayoutAtNarrowAndWideWindows() {
     FakeHub hub(QStringLiteral("a"));
     oneGame(hub, kAllFeatures, QStringLiteral("Supercalifragilisticexpialidocious Adventures of the Remastered Deluxe Edition"));
