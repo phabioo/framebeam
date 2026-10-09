@@ -7,6 +7,7 @@ import (
 	"crypto/sha1" //nolint:gosec // TURN REST API scheme (HMAC-SHA1)
 	"encoding/base64"
 	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 	"time"
@@ -94,15 +95,47 @@ func STUNURL(host string, port int) string {
 	return "stun:" + net.JoinHostPort(strings.Trim(host, "[]"), strconv.Itoa(port))
 }
 
+var internalPrefixes = func() []netip.Prefix {
+	var out []netip.Prefix
+	for _, p := range []string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10", "0.0.0.0/8",
+		"192.0.0.0/24", "198.18.0.0/15", "240.0.0.0/4", "fc00::/7"} {
+		out = append(out, netip.MustParsePrefix(p))
+	}
+	return out
+}()
+
+// isInternal reports whether ip is a private/internal range (RFC1918, CGNAT, ULA, reserved, ...).
+func isInternal(ip netip.Addr) bool {
+	for _, p := range internalPrefixes {
+		if p.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
 // PeerAllowed is the relay peer filter (ADR 0012 D2): loopback, unspecified, multicast and link-local peers are
-// refused unless the relay address itself is loopback (tests). Private LAN addresses are allowed on purpose.
-func PeerAllowed(relay, peer net.IP) bool {
+// refused unless the relay address itself is loopback (tests). Internal ranges (RFC1918, CGNAT, ULA, reserved,
+// IPv4-mapped forms) are refused unless lanOK reports the address as the remote IP of a connected Player; nil
+// lanOK allows no internal peers. Loopback/link-local/multicast/unspecified stay refused even then.
+func PeerAllowed(relay, peer net.IP, lanOK func(netip.Addr) bool) bool {
 	if relay != nil && relay.IsLoopback() {
 		return true
 	}
 	if peer == nil {
 		return false
 	}
-	return !(peer.IsLoopback() || peer.IsUnspecified() || peer.IsMulticast() ||
-		peer.IsLinkLocalUnicast() || peer.IsLinkLocalMulticast() || peer.IsInterfaceLocalMulticast())
+	if peer.IsLoopback() || peer.IsUnspecified() || peer.IsMulticast() ||
+		peer.IsLinkLocalUnicast() || peer.IsLinkLocalMulticast() || peer.IsInterfaceLocalMulticast() {
+		return false
+	}
+	a, ok := netip.AddrFromSlice(peer)
+	if !ok {
+		return false
+	}
+	a = a.Unmap()
+	if isInternal(a) {
+		return lanOK != nil && lanOK(a)
+	}
+	return true
 }

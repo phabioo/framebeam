@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/netip"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -17,6 +18,12 @@ import (
 
 // DefaultResolveInterval is how often the public host's A record is re-resolved (DynDNS).
 const DefaultResolveInterval = 5 * time.Minute
+
+// MaxAllocationsPerDevice is the number of concurrent relay allocations one device may hold.
+const MaxAllocationsPerDevice = 10
+
+// MaxTCPConns is the number of TURN TCP connections open at once; further ones are closed right after Accept.
+const MaxTCPConns = 64
 
 // Config configures the embedded TURN server.
 type Config struct {
@@ -37,7 +44,10 @@ type Config struct {
 	ResolveInterval time.Duration
 	// ListenHost restricts the listeners (default: all addresses; tests: 127.0.0.1).
 	ListenHost string
-	Log        *slog.Logger
+	// LANPeerOK reports whether an internal (private) peer IP may be relayed to, i.e. it is the remote IP of a
+	// connected Player. nil: no internal peers are allowed.
+	LANPeerOK func(ip netip.Addr) bool
+	Log       *slog.Logger
 }
 
 // Status is the state shown on the Settings page.
@@ -60,6 +70,12 @@ type Server struct {
 	port int
 
 	relay atomic.Pointer[net.IP]
+
+	allocMu sync.Mutex
+	allocs  map[string]int // device ID -> live allocations
+
+	logMu      sync.Mutex
+	refusedLog map[netip.Addr]time.Time
 
 	mu         sync.Mutex
 	resolvedAt time.Time
@@ -95,7 +111,7 @@ func Start(ctx context.Context, cfg Config) (*Server, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, err
 	}
-	s := &Server{cfg: cfg, log: cfg.Log, now: cfg.Now}
+	s := &Server{cfg: cfg, log: cfg.Log, now: cfg.Now, allocs: map[string]int{}, refusedLog: map[netip.Addr]time.Time{}}
 	if s.log == nil {
 		s.log = slog.Default()
 	}
@@ -127,12 +143,18 @@ func Start(ctx context.Context, cfg Config) (*Server, error) {
 		pc.Close()
 		return nil, fmt.Errorf("turn tcp listener: %w", err)
 	}
+	ln = &limitListener{Listener: ln, sem: make(chan struct{}, MaxTCPConns)}
 	gen := &relayGen{s: s}
 	lf := logging.NewDefaultLoggerFactory()
 	lf.DefaultLogLevel = logging.LogLevelError
 	srv, err := turn.NewServer(turn.ServerConfig{
-		Realm:             Realm,
-		AuthHandler:       s.auth,
+		Realm:        Realm,
+		AuthHandler:  s.auth,
+		QuotaHandler: s.quota,
+		EventHandler: turn.EventHandler{
+			OnAllocationCreated: func(_, _ net.Addr, _, username, _ string, _ net.Addr, _ int) { s.trackAlloc(username, 1) },
+			OnAllocationDeleted: func(_, _ net.Addr, _, username, _ string) { s.trackAlloc(username, -1) },
+		},
 		LoggerFactory:     lf,
 		PacketConnConfigs: []turn.PacketConnConfig{{PacketConn: pc, RelayAddressGenerator: gen, PermissionHandler: s.permission}},
 		ListenerConfigs:   []turn.ListenerConfig{{Listener: ln, RelayAddressGenerator: gen, PermissionHandler: s.permission}},
@@ -264,7 +286,8 @@ func (s *Server) resolveLoop(ctx context.Context) {
 
 func (s *Server) auth(username, _ string, _ net.Addr) ([]byte, bool) {
 	exp, id, ok := ParseUsername(username)
-	if !ok || !s.now().Before(exp) {
+	now := s.now()
+	if !ok || !now.Before(exp) || exp.After(now.Add(CredentialTTL+time.Minute)) {
 		return nil, false
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -275,7 +298,92 @@ func (s *Server) auth(username, _ string, _ net.Addr) ([]byte, bool) {
 	return turn.GenerateAuthKey(username, Realm, password(s.cfg.Secret, username)), true
 }
 
-func (s *Server) permission(_ net.Addr, peer net.IP) bool { return PeerAllowed(s.relayIP(), peer) }
+func (s *Server) permission(_ net.Addr, peer net.IP) bool {
+	if PeerAllowed(s.relayIP(), peer, s.cfg.LANPeerOK) {
+		return true
+	}
+	if a, ok := netip.AddrFromSlice(peer); ok {
+		s.logRefused(a.Unmap())
+	}
+	return false
+}
+
+// logRefused logs a refused peer at most once per peer IP per minute.
+func (s *Server) logRefused(ip netip.Addr) {
+	now := s.now()
+	s.logMu.Lock()
+	last, seen := s.refusedLog[ip]
+	if seen && now.Sub(last) < time.Minute {
+		s.logMu.Unlock()
+		return
+	}
+	if len(s.refusedLog) > 1024 {
+		for k, t := range s.refusedLog {
+			if now.Sub(t) >= time.Minute {
+				delete(s.refusedLog, k)
+			}
+		}
+	}
+	s.refusedLog[ip] = now
+	s.logMu.Unlock()
+	s.log.Info("TURN: relay peer refused (internal or reserved address)", "peer", ip.String())
+}
+
+func (s *Server) quota(username, _ string, _ net.Addr) bool {
+	_, id, ok := ParseUsername(username)
+	if !ok {
+		return false
+	}
+	s.allocMu.Lock()
+	defer s.allocMu.Unlock()
+	return s.allocs[id] < MaxAllocationsPerDevice
+}
+
+func (s *Server) trackAlloc(username string, delta int) {
+	_, id, ok := ParseUsername(username)
+	if !ok {
+		return
+	}
+	s.allocMu.Lock()
+	defer s.allocMu.Unlock()
+	if n := s.allocs[id] + delta; n > 0 {
+		s.allocs[id] = n
+	} else {
+		delete(s.allocs, id)
+	}
+}
+
+// limitListener closes connections beyond the cap right after Accept (never blocks Accept).
+type limitListener struct {
+	net.Listener
+	sem chan struct{}
+}
+
+func (l *limitListener) Accept() (net.Conn, error) {
+	for {
+		c, err := l.Listener.Accept()
+		if err != nil {
+			return nil, err
+		}
+		select {
+		case l.sem <- struct{}{}:
+			return &limitConn{Conn: c, release: func() { <-l.sem }}, nil
+		default:
+			c.Close()
+		}
+	}
+}
+
+type limitConn struct {
+	net.Conn
+	once    sync.Once
+	release func()
+}
+
+func (c *limitConn) Close() error {
+	c.once.Do(c.release)
+	return c.Conn.Close()
+}
 
 // relayGen allocates UDP relay sockets in the configured range and reports the current public IPv4.
 type relayGen struct{ s *Server }

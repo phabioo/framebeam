@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"net"
+	"net/netip"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -39,16 +41,30 @@ func TestCredentialsValidate(t *testing.T) {
 
 func TestPeerAllowed(t *testing.T) {
 	pub := net.ParseIP("203.0.113.5")
+	lan := netip.MustParseAddr("192.168.1.20")
+	lanOK := func(a netip.Addr) bool { return a == lan || a == netip.MustParseAddr("127.0.0.1") }
 	for _, c := range []struct {
 		peer string
 		ok   bool
 	}{{"127.0.0.1", false}, {"::1", false}, {"0.0.0.0", false}, {"224.0.0.1", false}, {"169.254.1.1", false},
-		{"fe80::1", false}, {"ff02::1", false}, {"192.0.2.10", true}, {"10.1.2.3", true}, {"192.168.0.7", true}} {
-		if got := PeerAllowed(pub, net.ParseIP(c.peer)); got != c.ok {
+		{"fe80::1", false}, {"ff02::1", false}, {"192.0.2.10", true}, {"198.51.100.7", true}, {"2001:db8::1", true},
+		{"10.1.2.3", false}, {"172.16.0.1", false}, {"172.31.255.255", false}, {"172.32.0.1", true}, {"192.168.0.7", false},
+		{"100.64.0.1", false}, {"100.127.255.255", false}, {"100.128.0.1", true}, {"0.1.2.3", false}, {"192.0.0.8", false},
+		{"198.18.0.1", false}, {"198.19.255.255", false}, {"198.20.0.1", true}, {"240.0.0.1", false}, {"255.255.255.255", false},
+		{"fc00::1", false}, {"fd12:3456::1", false}, {"::ffff:10.1.2.3", false}, {"::ffff:192.168.0.7", false},
+		{"::ffff:100.64.0.1", false}, {"::ffff:192.0.2.10", true},
+		{"192.168.1.20", true}, {"::ffff:192.168.1.20", true}} {
+		if got := PeerAllowed(pub, net.ParseIP(c.peer), lanOK); got != c.ok {
 			t.Errorf("%s: %v", c.peer, got)
 		}
 	}
-	if !PeerAllowed(net.ParseIP("127.0.0.1"), net.ParseIP("127.0.0.1")) {
+	if PeerAllowed(pub, net.ParseIP("192.168.1.20"), nil) {
+		t.Error("nil LANPeerOK must refuse internal peers")
+	}
+	if PeerAllowed(pub, net.ParseIP("127.0.0.1"), lanOK) {
+		t.Error("allowlisted loopback must stay refused")
+	}
+	if !PeerAllowed(net.ParseIP("127.0.0.1"), net.ParseIP("127.0.0.1"), nil) {
 		t.Error("loopback relay must allow loopback peers")
 	}
 }
@@ -181,4 +197,107 @@ func TestAllocationExpiredAndNoRelayIP(t *testing.T) {
 	if err := allocate(t, s2, c.Username, c.Credential); err == nil {
 		t.Fatal("allocated without relay IP")
 	}
+}
+
+func TestAuthRejectsFarFutureUsername(t *testing.T) {
+	s := startLoopback(t, func(string) bool { return true }, net.ParseIP("127.0.0.1"), nil)
+	u, p, _ := Issue(secret, "dev", time.Now().Add(48*time.Hour))
+	if err := allocate(t, s, u, p); err == nil {
+		t.Fatal("far-future username allocated")
+	}
+	u, p, _ = Issue(secret, "dev", time.Now())
+	if err := allocate(t, s, u, p); err != nil {
+		t.Fatalf("regular username: %v", err)
+	}
+}
+
+func TestAllocationQuotaPerDevice(t *testing.T) {
+	s := startLoopback(t, func(string) bool { return true }, net.ParseIP("127.0.0.1"), nil)
+	open := func(user, cred string) error {
+		conn, err := net.ListenPacket("udp4", "127.0.0.1:0")
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { conn.Close() })
+		c, err := turn.NewClient(&turn.ClientConfig{STUNServerAddr: net.JoinHostPort("127.0.0.1", itoa(s.Port())),
+			TURNServerAddr: net.JoinHostPort("127.0.0.1", itoa(s.Port())), Username: user, Password: cred, Realm: Realm, Conn: conn})
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(c.Close)
+		if err := c.Listen(); err != nil {
+			t.Fatal(err)
+		}
+		rc, err := c.Allocate()
+		if err != nil {
+			return err
+		}
+		t.Cleanup(func() { rc.Close() })
+		return nil
+	}
+	a := s.Credentials("", "dev-a")
+	for i := 0; i < MaxAllocationsPerDevice; i++ {
+		if err := open(a.Username, a.Credential); err != nil {
+			t.Fatalf("allocation %d: %v", i+1, err)
+		}
+	}
+	if err := open(a.Username, a.Credential); err == nil {
+		t.Fatal("allocation over the per-device quota succeeded")
+	}
+	b := s.Credentials("", "dev-b")
+	if err := open(b.Username, b.Credential); err != nil {
+		t.Fatalf("other device: %v", err)
+	}
+}
+
+func TestLimitListenerCapsConnections(t *testing.T) {
+	inner, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ln := &limitListener{Listener: inner, sem: make(chan struct{}, 2)}
+	defer ln.Close()
+	accepted := make(chan net.Conn, 8)
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			accepted <- c
+		}
+	}()
+	dial := func() net.Conn {
+		c, err := net.Dial("tcp", inner.Addr().String())
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { c.Close() })
+		return c
+	}
+	c1, c2, c3 := dial(), dial(), dial()
+	_ = c1
+	_ = c2
+	// The third connection is closed by the server right after Accept.
+	c3.SetReadDeadline(time.Now().Add(2 * time.Second))
+	if _, err := c3.Read(make([]byte, 1)); err == nil || errors.Is(err, os.ErrDeadlineExceeded) {
+		t.Fatalf("excess connection not closed: %v", err)
+	}
+	s1, s2 := <-accepted, <-accepted
+	select {
+	case <-accepted:
+		t.Fatal("third connection handed out")
+	default:
+	}
+	// Closing one frees a slot.
+	s1.Close()
+	s1.Close() // idempotent
+	c4 := dial()
+	select {
+	case s4 := <-accepted:
+		s4.Close()
+	case <-time.After(2 * time.Second):
+		t.Fatal("slot not released")
+	}
+	_, _ = s2, c4
 }
