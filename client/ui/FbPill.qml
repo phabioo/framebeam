@@ -9,7 +9,7 @@ Rectangle {
     property string tone: "neutral"
     property string text: ""
     property bool small: false
-    readonly property bool textHasSymbol: /^[●▲✕⟳↓]/.test(text)
+    readonly property bool textHasSymbol: /^[●▲✕⟳↓❚]/.test(text)
     property string symbol: (small || textHasSymbol) ? ""
                           : (tone === "ok" ? "●" : (tone === "warn" ? "▲" : (tone === "error" ? "✕" : "")))
 

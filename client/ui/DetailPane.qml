@@ -9,6 +9,8 @@ Rectangle {
     required property PlayerController player
     readonly property var game: player.selectedGame
     readonly property bool hasGame: game.id !== undefined
+    // 3c-5: the selected game is the one paused in the background (detail column with Resume / Quit game).
+    readonly property bool running: game.running === true
     // "overview" (status, SAVE summary, start checklist) or "saves" (3c-3 saves view in the same 392 column)
     property string mode: "overview"
     readonly property SaveHistoryController hist: player.saveHistory
@@ -19,6 +21,9 @@ Rectangle {
         root.leaveSaves()
         if (gameId !== "") fadeIn.restart()
     }
+    readonly property var bg: player.backgroundGame
+    readonly property string sinceText: !running || !bg.startedMs ? "" :
+        qsTr("%1 · paused %2").arg(Qt.formatTime(new Date(bg.startedMs), "HH:mm")).arg(Qt.formatTime(new Date(bg.pausedMs), "HH:mm"))
     function openSaves(upload) {
         root.mode = "saves"
         savesLoader.active = true
@@ -76,8 +81,8 @@ Rectangle {
                     Layout.minimumWidth: 0
                     spacing: Theme.space16
                     Rectangle {
-                        implicitWidth: 112
-                        implicitHeight: 112
+                        implicitWidth: root.running ? 96 : 112
+                        implicitHeight: root.running ? 96 : 112
                         radius: Theme.radius8
                         color: Theme.tile
                         FbLabel {
@@ -135,7 +140,11 @@ Rectangle {
                     Layout.minimumWidth: 0
                     spacing: 0
                     Repeater {
-                        model: [
+                        model: root.running ? [
+                            { label: qsTr("Running since"), text: root.sinceText, tone: "neutral", hint: "" },
+                            { label: qsTr("Sharing"), text: root.player.sessions.shared ? qsTr("Shared") : qsTr("Not shared"), tone: "neutral", hint: "" },
+                            { label: qsTr("Core"), text: root.game.coreText, tone: root.game.coreTone, hint: "" }
+                        ] : [
                             { label: qsTr("ROM"), text: root.game.romText, tone: root.game.romTone, hint: "" },
                             { label: qsTr("Core"), text: root.game.coreText, tone: root.game.coreTone, hint: root.game.coreHint },
                             { label: qsTr("Firmware"), text: root.game.firmwareText, tone: root.game.firmwareTone, hint: root.game.firmwareHint }
@@ -195,6 +204,18 @@ Rectangle {
                     onUploadRequested: root.openSaves(true)
                 }
 
+                FbLabel {
+                    objectName: "runningNote"
+                    visible: root.running
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    Layout.preferredWidth: 1
+                    wrapMode: Text.Wrap
+                    lineHeight: 1.3
+                    color: Theme.textMeta
+                    font.pixelSize: Theme.fontMeta
+                    text: qsTr("The game stays loaded and paused while you browse, change settings or watch someone else’s session.")
+                }
                 FbButton {
                     objectName: "firmwareRecheck"
                     visible: root.game.firmwareBlocked === true
@@ -204,6 +225,8 @@ Rectangle {
                 }
                 // Start checklist
                 ColumnLayout {
+                    objectName: "startChecklist"
+                    visible: !root.running
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     spacing: 10
@@ -249,7 +272,7 @@ Rectangle {
                 }
 
                 Rectangle {
-                    visible: (root.game.error || "") !== ""
+                    visible: (root.game.error || "") !== "" && !root.running
                     objectName: "startError"
                     Layout.fillWidth: true
                     implicitHeight: errText.implicitHeight + 24
@@ -290,19 +313,30 @@ Rectangle {
             font.pixelSize: Theme.fontSection
             busy: root.game.busy === true
             busyOnClick: true
-            text: root.game.playLabel || qsTr("Play")
-            enabled: root.game.canPlay === true && !root.confirming
+            text: root.running ? qsTr("▶ Resume") : (root.game.playLabel || qsTr("Play"))
+            enabled: root.game.canPlay === true && !root.confirming && !(root.running && root.player.quitting)
             onClicked: root.game.running === true ? root.player.resumeGame() : root.player.playSelected()
         }
         FbButton {
             objectName: "playShareButton"
-            visible: root.player.sessions.available || root.game.running === true
+            visible: root.player.sessions.available || root.running
             Layout.fillWidth: true
             Layout.minimumWidth: 0
             implicitHeight: 44
             text: root.game.running === true ? qsTr("Quit game") : qsTr("Play and share Session")
-            enabled: root.game.running === true || (root.game.canPlay === true && !root.confirming)
-            onClicked: root.game.running === true ? root.player.quitGame() : root.player.playAndShareSelected()
+            enabled: (root.running && !root.player.quitting) || (root.game.canPlay === true && !root.confirming)
+            onClicked: root.running ? root.player.requestQuit() : root.player.playAndShareSelected()
+        }
+        FbLabel {
+            objectName: "quitNote"
+            visible: root.running
+            Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.Wrap
+            color: Theme.textFaint
+            font.pixelSize: Theme.fontMeta
+            text: root.player.quitting ? qsTr("Saving and syncing…") : qsTr("Quit saves and syncs to the hub first")
         }
         FbLabel {
             objectName: "shareVisibilityHint"
