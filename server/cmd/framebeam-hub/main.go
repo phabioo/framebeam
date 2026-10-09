@@ -100,7 +100,7 @@ func startTURN(ctx context.Context, cfg *config.Config, svc *hub.Service, log *s
 		return nil, err
 	}
 	ts, err := turnsrv.Start(ctx, turnsrv.Config{PublicHost: cfg.PublicHost, Port: cfg.TURNPort, RelayMin: lo, RelayMax: hi,
-		RelayIP: net.ParseIP(cfg.TURNRelayIP), Secret: secret, DeviceOK: svc.DeviceActive, Log: log})
+		RelayIP: net.ParseIP(cfg.TURNRelayIP), Secret: secret, DeviceOK: svc.DeviceActive, LANPeerOK: svc.ConnectedPlayerIP, Log: log})
 	if err != nil {
 		return nil, err
 	}

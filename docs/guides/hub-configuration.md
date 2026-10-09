@@ -46,6 +46,18 @@ A flag wins over the environment variable. Under systemd the variables live in `
 
 `0` for a `-save-keep-*` rule means unlimited for that rule. Invalid combinations (for example `-turn` without `-public-host`, a `-public-host` containing `/` or spaces, a non-`stun:` ICE URL, a non-IPv4 `-turn-relay-ip`) stop the start with an error.
 
+### TURN security
+
+With `-turn`, forwarding the TURN ports exposes only the TURN port (`-turn-port`, 3478 UDP and TCP by default) and the UDP relay range (`-turn-relay-ports`). The relay works only with short-lived (12 h) credentials that the Hub issues to paired, non-revoked devices; every TURN authentication re-checks the device. Relay targets in internal address ranges (private LAN, CGNAT, ULA, loopback, link-local and similar) are refused, except the address of a Player currently connected to the Hub, so a remote Player can still reach a Player in the Hub's LAN. Limits: UDP allocations only, at most 10 concurrent allocations per device and 64 concurrent TURN TCP connections. Decisions: [ADR 0012](../adr/0012-internet-sessions-and-save-comfort.md).
+
+Recommendations for a home network:
+
+- Forward only the TURN port and the relay range (for example `hub.example.com`, 3478 and 49160-49199), nothing else.
+- Keep SSH and the Hub web port unforwarded unless you need them from outside.
+- Keep the Hub machine updated.
+- Optionally put the Hub host in a separate guest or DMZ network or VLAN.
+- Revoke devices you no longer trust.
+
 ## Settings in the web interface
 
 Settings → Network edits port, embedded TURN, public host, TURN port, relay range and IP, STUN servers and save retention. These values live in the Hub database and win over flags and `hub.env`, which only give the initial values (reset per field to return to the `hub.env` value). Changes that need it are applied by a restart the Hub triggers itself (no root). The web form refuses ports below 1024; set those with `install-hub.sh --port` (a port saved in the web form still wins until reset). Startup fallbacks keep the Hub reachable after a bad setting. Decisions: [ADR 0015](../adr/0015-hub-ui-pass.md).
