@@ -253,6 +253,51 @@ class SettingsRowTest : public QObject {
     QCOMPARE(checked, 2);
   }
 
+  // Regression (Settings > Updates "Check now", Diagnostics "Copy path" / "Open folder"): a button in the buttons Flow keeps its natural
+  // width (label implicitWidth + padding) when there is room, is capped (and elides) only when the column is narrower, and siblings never overlap.
+  void buttonsKeepNaturalWidthAndDoNotOverlap() {
+    struct Case { QVariantList buttons; };
+    const auto mk = [](const char* n, const char* t) { return QVariantMap{{"name", n}, {"text", t}}; };
+    const QList<QVariantList> sets = {
+        {mk("b1", "Check now")},
+        {mk("b1", "Copy path"), mk("b2", "Open folder")},
+        {mk("b1", "Copy path to the clipboard"), mk("b2", "Open containing folder")},
+    };
+    for (const int w : {1500, 676, 356}) {
+      for (const QVariantList& set : sets) {
+        setPageWidth(w);
+        row("rBtn")->setProperty("buttons", set);
+        QQuickTest::qWaitForPolish(win_);
+        QTest::qWait(30);
+        QQuickTest::qWaitForPolish(win_);
+        const qreal colW = itemProp(row("rBtn"), "controlColumn")->width();
+        QList<QRectF> rects;
+        for (const QVariant& b : set) {
+          const QString name = b.toMap().value("name").toString();
+          QQuickItem* btn = nullptr;
+          if (QQuickItem* flow = visibleControl("rBtn")) {
+            for (QQuickItem* c : flow->childItems()) if (c->objectName() == name) btn = c;
+          }
+          QVERIFY2(btn != nullptr, qPrintable(name));
+          QQuickItem* lbl = btn->findChild<QQuickItem*>("fbButtonLabel");
+          QVERIFY(lbl != nullptr);
+          const qreal natural = lbl->implicitWidth();
+          const QString tag = QStringLiteral("%1 at %2").arg(name).arg(w);
+          QVERIFY2(natural > 0, qPrintable(tag));
+          // At least the label plus padding, unless the column itself is narrower.
+          QVERIFY2(btn->width() + 0.5 >= qMin(natural + 28, colW), qPrintable(tag + QStringLiteral(": width %1 < label %2 + padding").arg(btn->width()).arg(natural)));
+          QVERIFY2(btn->width() <= colW + 0.5, qPrintable(tag));
+          // The label is not narrower than its text unless the button was capped.
+          if (natural + 28 <= colW) QVERIFY2(lbl->width() + 0.5 >= natural, qPrintable(tag + QStringLiteral(": label elided")));
+          rects.append(scene(btn));
+        }
+        for (int i = 0; i < rects.size(); ++i)
+          for (int j = i + 1; j < rects.size(); ++j)
+            QVERIFY2(!rects[i].adjusted(0.5, 0.5, -0.5, -0.5).intersects(rects[j]), qPrintable(QStringLiteral("buttons overlap at %1").arg(w)));
+      }
+    }
+  }
+
   // Narrow page column (960 px window): the control moves under the text; nothing leaves the column.
   void narrowRowsStayInsideTheColumn() {
     for (const int w : {356, 280}) {
