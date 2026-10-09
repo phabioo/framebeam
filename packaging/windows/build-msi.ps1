@@ -63,9 +63,16 @@ wix build "$here\framebeam.wxs" -arch x64 -o $OutFile `
   -d "ProductVersion=$ProductVersion" -d "PackageDir=$PackageDir" -d "HubExe=$HubExe" -d "LicenseRtf=$rtf" `
   -d "IconFile=$here\..\..\client\app\icons\player.ico"
 if ($LASTEXITCODE -ne 0) { throw "wix build failed" }
-# ICE validation. ICE38/ICE64/ICE91 complain about files as key paths in per-user installs (the Files harvest uses the file as key
-# path); the findings are shown but do not fail the build, the install tests in CI are the judge.
-wix msi validate $OutFile -sice ICE38 -sice ICE64 -sice ICE91
-if ($LASTEXITCODE -ne 0) { Write-Host "::warning::MSI validation reported findings (see above)" }
+# ICE validation: errors fail the build. Deliberately suppressed:
+#  ICE38/ICE64/ICE91  files (the Files harvest uses each file as key path) in the per-user profile of a per-user install.
+#  ICE57              components PlayerShell/PlayerDesktopShortcut: shortcuts in Programs/Desktop plus an HKMU key path. In a
+#                     perUserOrMachine package that is the intended form (HKMU follows the scope; an HKCU key path would be wrong for
+#                     the per-machine case), the check cannot know the scope and reports a mix.
+#  ICE17              the Print button of the stock WixUI LicenseAgreementDlg.
+# ICE105 (per-user validation of a dual-purpose package) stays a warning: wix msi validate does not fail on warnings.
+wix msi validate $OutFile -sice ICE38 -sice ICE64 -sice ICE91 -sice ICE57 -sice ICE17
+if ($LASTEXITCODE -ne 0) { throw "MSI validation failed (see the ICE messages above)" }
 Remove-Item -Recurse -Force $work
 Get-Item $OutFile | Format-Table Name, Length
+# The step must not inherit a native exit code from the last command.
+$global:LASTEXITCODE = 0

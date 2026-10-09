@@ -28,7 +28,9 @@
            UpgradeCode="3B9D7A52-6C14-4E8F-A2D5-71F0C8E94B36" Scope="perUserOrMachine"
            Language="1033" InstallerVersion="500" Compressed="yes">
 
-    <MajorUpgrade DowngradeErrorMessage="A newer version of FrameBeam is already installed." AllowSameVersionUpgrades="yes" />
+    <!-- afterInstallInitialize: RemoveExistingProducts (and the deferred removal actions below) must sit between InstallInitialize and
+         InstallFinalize (ICE77); the default schedule would put it before InstallInitialize. -->
+    <MajorUpgrade DowngradeErrorMessage="A newer version of FrameBeam is already installed." AllowSameVersionUpgrades="yes" Schedule="afterInstallInitialize" />
     <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
     <Icon Id="PlayerIcon" SourceFile="$(IconFile)" />
     <Property Id="ARPPRODUCTICON" Value="PlayerIcon" />
@@ -93,7 +95,7 @@
     </Property>
 
     <!-- Inno: silent uninstall (keeps data\). The user's own install runs impersonated; an all-users one needs the
-         elevated, per-machine package. Scheduled after InstallInitialize and before RemoveExistingProducts/InstallFiles. -->
+         elevated, per-machine package. Deferred, so scheduled inside the script (after InstallInitialize, before InstallFiles; ICE77). -->
     <CustomAction Id="RemoveInnoUser" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="deferred" Impersonate="yes" Return="check" />
     <CustomAction Id="RemoveInnoMachine" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="deferred" Impersonate="no" Return="check" />
     <SetProperty Id="RemoveInnoUser" Value="[INNO_UNINSTALL_USER] /VERYSILENT /SUPPRESSMSGBOXES /NORESTART" Before="RemoveInnoUser" Sequence="execute"
@@ -108,8 +110,8 @@
                   ExeCommand="&quot;[System64Folder]cmd.exe&quot; /c ping -n 15 127.0.0.1 &gt;nul &amp; &quot;[System64Folder]msiexec.exe&quot; /x [PERUSER_PRODUCTCODE] /qn /norestart" />
 
     <InstallExecuteSequence>
-      <Custom Action="RemoveInnoUser" Before="RemoveExistingProducts" Condition="NOT Installed AND INNO_UNINSTALL_USER" />
-      <Custom Action="RemoveInnoMachine" Before="RemoveExistingProducts" Condition="NOT Installed AND ALLUSERS=1 AND INNO_UNINSTALL_MACHINE" />
+      <Custom Action="RemoveInnoUser" After="InstallInitialize" Condition="NOT Installed AND INNO_UNINSTALL_USER" />
+      <Custom Action="RemoveInnoMachine" After="InstallInitialize" Condition="NOT Installed AND ALLUSERS=1 AND INNO_UNINSTALL_MACHINE" />
       <!-- Only per machine, and never for our own product code (an upgrade of the per-user install by itself). -->
       <Custom Action="RemovePerUserProduct" Before="InstallFiles"
               Condition="NOT Installed AND ALLUSERS=1 AND PERUSER_PRODUCTCODE AND PERUSER_PRODUCTCODE&lt;&gt;ProductCode" />
