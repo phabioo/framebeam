@@ -341,7 +341,7 @@ class InGameUiTest : public QObject {
       QVERIFY2(problem.isEmpty(), qPrintable(QStringLiteral("%1 px: %2").arg(w).arg(problem)));
     }
     resize(h, 1280, 800);
-    widenFonts(h, 1.4);
+    widenFonts(h, 6.0);
     const QString wide = outsidePanel(h, names, 8);
     QVERIFY2(wide.isEmpty(), qPrintable(QStringLiteral("wide fonts: ") + wide));
 
@@ -500,7 +500,7 @@ class InGameUiTest : public QObject {
       QVERIFY2(problem.isEmpty(), qPrintable(QStringLiteral("%1 px: %2").arg(w).arg(problem)));
     }
     resize(h, 1280, 800);
-    widenFonts(h, 1.4);
+    widenFonts(h, 6.0);
     const QString wide = outsidePanel(h, names, 8);
     QVERIFY2(wide.isEmpty(), qPrintable(QStringLiteral("wide fonts: ") + wide));
 
