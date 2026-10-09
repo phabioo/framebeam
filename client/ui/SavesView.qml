@@ -208,7 +208,7 @@ FocusScope {
                         id: tabsFitProbe
                         visible: false
                         property real sum: 0
-                        readonly property real needed: sum + newSlotLink.implicitWidth + 16
+                        readonly property real needed: sum + newSlotLink.implicitWidth + 8
                         Repeater {
                             model: root.hist.slotOptions
                             onCountChanged: Qt.callLater(tabsFitProbe.recalc)
@@ -227,9 +227,9 @@ FocusScope {
                             let w = 0, n = 0
                             for (let i = 0; i < children.length; ++i) {
                                 const c = children[i]
-                                if (c.implicitWidth !== undefined && c.text !== undefined) { w += Math.min(c.implicitWidth, 110); ++n }
+                                if (c.implicitWidth !== undefined && c.text !== undefined) { w += Math.min(c.implicitWidth, 90); ++n }
                             }
-                            sum = w + Math.max(0, n - 1) * 16
+                            sum = w + Math.max(0, n - 1) * 12
                         }
                     }
                     Row {
@@ -239,7 +239,7 @@ FocusScope {
                         anchors.right: newSlotLink.left
                         anchors.rightMargin: 8
                         height: parent.height
-                        spacing: 16
+                        spacing: 12
                         clip: true
                         Repeater {
                             model: root.tabsCollapsed ? [] : root.hist.slotOptions
@@ -250,7 +250,7 @@ FocusScope {
                                 objectName: "slotTab_" + modelData.value
                                 readonly property string text: tabText.text
                                 height: tabRow.height
-                                width: Math.min(tabText.implicitWidth, 110)
+                                width: Math.min(tabText.implicitWidth, 90)
                                 opacity: tabs.changeable || active ? 1 : 0.5
                                 activeFocusOnTab: true
                                 Accessible.role: Accessible.PageTab

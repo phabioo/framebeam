@@ -382,8 +382,8 @@ class LibrarySavesUiTest : public QObject {
     FakeHub hub(QStringLiteral("a"));
     oneGame(hub);
     hub.setHubSave(QStringLiteral("g1"), "cp-main");
-    hub.setHubSave(QStringLiteral("g1/speedrun"), "cp-2");
-    hub.setHubSave(QStringLiteral("g1/chapter-2"), "cp-3");
+    hub.setHubSave(QStringLiteral("g1/alt"), "cp-2");
+    hub.setHubSave(QStringLiteral("g1/ch2"), "cp-3");
     QVERIFY(hub.start());
     Harness h;
     QVERIFY(h.start());
@@ -392,22 +392,22 @@ class LibrarySavesUiTest : public QObject {
     QTRY_VERIFY_WITH_TIMEOUT(hist->available() && !hist->loading() && hist->slotCount() == 3, 8000);
     openSavesView(h);
     // Exactly three slots: tabs with the version count after the name
-    QTRY_VERIFY(shown(h, "slotTab_default") && shown(h, "slotTab_speedrun") && shown(h, "slotTab_chapter-2"));
+    QTRY_VERIFY(shown(h, "slotTab_default") && shown(h, "slotTab_alt") && shown(h, "slotTab_ch2"));
     QVERIFY(!shown(h, "slotSwitcher"));
     QVERIFY(shown(h, "newSlotButton"));
-    QTRY_VERIFY(textOf(h, "slotTab_speedrun").contains(QStringLiteral("speedrun")));
-    checkInColumn(h, {"slotTabs", "slotTab_default", "slotTab_speedrun", "slotTab_chapter-2", "newSlotButton"});
+    QTRY_VERIFY(textOf(h, "slotTab_alt").contains(QStringLiteral("alt")));
+    checkInColumn(h, {"slotTabs", "slotTab_default", "slotTab_alt", "slotTab_ch2", "newSlotButton"});
     // Click a tab: the slot changes
-    QVERIFY(h.click("slotTab_speedrun"));
-    QTRY_COMPARE(hist->slot(), QStringLiteral("speedrun"));
-    QCOMPARE(h.controller->playerSettings()->saveSlot(kHubId, QStringLiteral("g1")), QStringLiteral("speedrun"));
+    QVERIFY(h.click("slotTab_alt"));
+    QTRY_COMPARE(hist->slot(), QStringLiteral("alt"));
+    QCOMPARE(h.controller->playerSettings()->saveSlot(kHubId, QStringLiteral("g1")), QStringLiteral("alt"));
 
     // A fourth slot collapses the tabs into the switcher "Main · n ▾"
     hub.setHubSave(QStringLiteral("g1/zen"), "cp-4");
     hist->refresh();
     QTRY_COMPARE_WITH_TIMEOUT(hist->slotCount(), 4, 8000);
     QTRY_VERIFY(shown(h, "slotSwitcher"));
-    for (const char* tab : {"slotTab_default", "slotTab_speedrun"}) {
+    for (const char* tab : {"slotTab_default", "slotTab_alt"}) {
       QQuickItem* it = h.item(tab);
       QVERIFY2(it == nullptr || !it->isVisible(), tab);
     }
