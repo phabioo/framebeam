@@ -155,3 +155,8 @@ func RequestPending(requestDir string) bool {
 	_, err := os.Lstat(RequestPath(requestDir))
 	return err == nil
 }
+
+func requestExists(p string) bool {
+	_, err := os.Lstat(p)
+	return err == nil
+}

@@ -235,15 +235,21 @@ type fixture struct {
 // newFixture writes a signed file:// feed with one hub release for platform linux-amd64.
 func newFixture(t *testing.T, version string) *fixture {
 	t.Helper()
+	return newFixtureFor(t, version, "linux-amd64", KindDeb, "_amd64.deb")
+}
+
+// newFixtureFor is newFixture for another platform, artifact kind and file name suffix.
+func newFixtureFor(t *testing.T, version, platform, kind, suffix string) *fixture {
+	t.Helper()
 	f := &fixture{dir: t.TempDir(), feed: t.TempDir(), keys: testKeys(t)}
-	f.debName = "framebeam-hub_" + strings.ReplaceAll(version, "-", "~") + "_amd64.deb"
+	f.debName = "framebeam-hub_" + strings.ReplaceAll(version, "-", "~") + suffix
 	f.debData = []byte("dummy deb payload for " + version)
 	if err := os.WriteFile(filepath.Join(f.feed, f.debName), f.debData, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	sum := sha256.Sum256(f.debData)
-	a := Artifact{Platform: "linux-amd64", Kind: KindDeb, Name: f.debName, Size: int64(len(f.debData)),
-		SHA256: hex.EncodeToString(sum[:]), URL: "file://" + filepath.Join(f.feed, f.debName)}
+	a := Artifact{Platform: platform, Kind: kind, Name: f.debName, Size: int64(len(f.debData)),
+		SHA256: hex.EncodeToString(sum[:]), URL: FileURL(filepath.Join(f.feed, f.debName))}
 	f.writeIndex(t, Release{Product: "hub", Channel: "beta", Version: version, PublishedAt: t0, ProtocolVersion: 1, MinProtocolVersion: 1,
 		Artifacts: []Artifact{a}})
 	return f
@@ -259,7 +265,7 @@ func (f *fixture) writeIndex(t *testing.T, rs ...Release) {
 	p := filepath.Join(f.feed, "updates-index.json")
 	os.WriteFile(p, data, 0o644)
 	os.WriteFile(p+".sig", sig, 0o644)
-	f.src = Source{IndexURL: "file://" + p}
+	f.src = Source{IndexURL: FileURL(p)}
 }
 
 func (f *fixture) stage(t *testing.T, current string) Staged {
@@ -355,9 +361,11 @@ type fakeRunner struct {
 
 func (r *fakeRunner) run(_ context.Context, name string, args ...string) ([]byte, error) {
 	r.calls = append(r.calls, append([]string{name}, args...))
-	if len(args) == 2 {
-		b, err := os.ReadFile(args[1])
-		r.copyOK, r.content = err == nil, b
+	for i, a := range args { // the package path follows "-i" (dpkg) or "/i" (msiexec)
+		if (a == "-i" || a == "/i") && i+1 < len(args) {
+			b, err := os.ReadFile(args[i+1])
+			r.copyOK, r.content = err == nil, b
+		}
 	}
 	return []byte("ok"), r.err
 }

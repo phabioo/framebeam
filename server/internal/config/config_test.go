@@ -2,6 +2,8 @@ package config
 
 import (
 	"flag"
+	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -17,7 +19,7 @@ func parse(t *testing.T, env map[string]string, args ...string) *Config {
 
 func TestDefaultsEnvAndFlags(t *testing.T) {
 	c := parse(t, nil)
-	if c.DataDir != "/var/lib/framebeam" || c.Listen != ":8443" || c.Dev || !c.UseTLS() {
+	if c.DataDir != DefaultDataDir(runtime.GOOS, func(string) string { return "" }) || c.Listen != ":8443" || c.Dev || !c.UseTLS() {
 		t.Fatalf("defaults: %+v", c)
 	}
 	c = parse(t, map[string]string{"FRAMEBEAM_LISTEN": ":9000", "FRAMEBEAM_DEV": "true"}, "-data-dir", "/x")
@@ -95,8 +97,8 @@ func TestCoreSourceConfig(t *testing.T) {
 
 func TestUpdateConfig(t *testing.T) {
 	c := parse(t, nil)
-	if c.UpdateIndexURL != "https://github.com/phabioo/framebeam/releases/download/updates-index/updates-index.json" ||
-		c.UpdateRequestDir != "/run/framebeam" || c.Validate() != nil {
+	if c.Validate() != nil || c.UpdateIndexURL != "https://github.com/phabioo/framebeam/releases/download/updates-index/updates-index.json" ||
+		c.UpdateRequestDir != DefaultUpdateRequestDir(runtime.GOOS, c.DataDir) {
 		t.Fatalf("defaults: %+v", c)
 	}
 	c = parse(t, map[string]string{"FRAMEBEAM_HUB_UPDATE_INDEX_URL": "file:///tmp/updates-index.json", "FRAMEBEAM_HUB_UPDATE_REQUEST_DIR": "/tmp/req"})
@@ -153,5 +155,44 @@ func TestSaveRetentionConfig(t *testing.T) {
 	}
 	if err := parse(t, nil, "-save-keep-daily", "-1").Validate(); err == nil {
 		t.Fatal("negative value must fail")
+	}
+}
+
+func TestWindowsDefaults(t *testing.T) {
+	env := map[string]string{"ProgramData": filepath.Join("D:", "PD")}
+	get := func(k string) string { return env[k] }
+	data := filepath.Join("D:", "PD", "FrameBeam", "Hub")
+	if got := DefaultDataDir("windows", get); got != data {
+		t.Fatalf("data dir %q", got)
+	}
+	if got := DefaultDataDir("windows", func(string) string { return "" }); got != filepath.Join(`C:\ProgramData`, "FrameBeam", "Hub") {
+		t.Fatalf("fallback data dir %q", got)
+	}
+	if DefaultDataDir("linux", get) != "/var/lib/framebeam" || DefaultUpdateRequestDir("linux", "/x") != "/run/framebeam" {
+		t.Fatal("linux defaults changed")
+	}
+	reg := func(goos string, args ...string) *Config {
+		fs := flag.NewFlagSet("t", flag.ContinueOnError)
+		c := register(fs, get, goos)
+		if err := fs.Parse(args); err != nil {
+			t.Fatal(err)
+		}
+		return c
+	}
+	c := reg("windows")
+	if err := c.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	if c.DataDir != data || c.UpdateRequestDir != filepath.Join(data, "update-request") || c.ImportDir() != filepath.Join(data, "library-import") {
+		t.Fatalf("windows defaults: %+v", c)
+	}
+	// The request directory follows -data-dir unless set itself.
+	c = reg("windows", "-data-dir", filepath.Join("E:", "hub"))
+	if err := c.Validate(); err != nil || c.UpdateRequestDir != filepath.Join("E:", "hub", "update-request") {
+		t.Fatalf("custom data dir: %v %q", err, c.UpdateRequestDir)
+	}
+	c = reg("windows", "-update-request-dir", "")
+	if c.Validate() == nil {
+		t.Fatal("explicit empty request dir accepted")
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -31,12 +32,17 @@ func newUpdFeed(t *testing.T) *updFeed {
 	return f
 }
 
-func (f *updFeed) url() string { return "file://" + filepath.Join(f.dir, "updates-index.json") }
+func (f *updFeed) url() string { return updates.FileURL(filepath.Join(f.dir, "updates-index.json")) }
 
 // add publishes a hub release with a dummy .deb for linux-amd64 and re-signs the index.
 func (f *updFeed) add(t *testing.T, channel, version string, minProto int) {
 	t.Helper()
-	name := "framebeam-hub_" + version + "_amd64.deb"
+	f.addFor(t, channel, version, minProto, "linux-amd64", "deb", "framebeam-hub_"+version+"_amd64.deb")
+}
+
+// addFor is add for another platform, artifact kind and file name.
+func (f *updFeed) addFor(t *testing.T, channel, version string, minProto int, platform, kind, name string) {
+	t.Helper()
 	data := []byte("dummy deb " + version)
 	if err := os.WriteFile(filepath.Join(f.dir, name), data, 0o644); err != nil {
 		t.Fatal(err)
@@ -44,8 +50,8 @@ func (f *updFeed) add(t *testing.T, channel, version string, minProto int) {
 	sum := sha256.Sum256(data)
 	f.rels = append(f.rels, updates.Release{Product: "hub", Channel: channel, Version: version, PublishedAt: time.Now().UTC().Truncate(time.Second),
 		ProtocolVersion: 3, MinProtocolVersion: minProto, NotesURL: "https://example.org/notes",
-		Artifacts: []updates.Artifact{{Platform: "linux-amd64", Kind: "deb", Name: name, Size: int64(len(data)),
-			SHA256: hex.EncodeToString(sum[:]), URL: "file://" + filepath.Join(f.dir, name)}}})
+		Artifacts: []updates.Artifact{{Platform: platform, Kind: kind, Name: name, Size: int64(len(data)),
+			SHA256: hex.EncodeToString(sum[:]), URL: updates.FileURL(filepath.Join(f.dir, name))}}})
 	b, err := updates.Marshal(updates.Index{Schema: 1, GeneratedAt: time.Now().UTC(), Releases: f.rels})
 	if err != nil {
 		t.Fatal(err)
@@ -357,5 +363,32 @@ func TestChannelDefaultResolution(t *testing.T) {
 	e.svc.CheckUpdates(ctx)
 	if s, _ = e.svc.UpdateSettings(ctx); s.Channel != "off" {
 		t.Fatalf("%+v", s)
+	}
+}
+
+func TestWindowsUpdatePlatform(t *testing.T) {
+	feed := newUpdFeed(t)
+	feed.addFor(t, "beta", "0.9.1", 1, "windows-amd64", "msi", "FrameBeam-Hub-0.9.1.msi")
+	bin, reqDir := t.TempDir(), t.TempDir()
+	exe := filepath.Join(bin, "framebeam-hub.exe")
+	svc, _ := hubtest.New(t, func(o *hub.Options) {
+		o.HubVersion, o.UpdateChannel = "0.9.0", "beta"
+		o.UpdateIndexURL, o.UpdateRequestDir, o.UpdatePlatform = feed.url(), reqDir, "windows-amd64"
+		o.CoreTrustKeys = []ed25519.PublicKey{feed.pub}
+		o.Executable = exe
+	})
+	rep, err := svc.CheckUpdates(ctx)
+	if err != nil || rep.Available == nil || rep.Available.Version != "0.9.1" || rep.Staged {
+		t.Fatalf("msi is selected on windows-amd64: %+v %v", rep, err)
+	}
+	st, _ := svc.UpdateStatus(ctx)
+	if st.Packaged || !strings.Contains(st.ManualCommand, ".msi") || strings.Contains(st.ManualCommand, "apt") {
+		t.Fatalf("without the marker the install is not packaged: %+v", st)
+	}
+	if err := os.WriteFile(filepath.Join(bin, updates.MSIMarkerName), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if st, _ = svc.UpdateStatus(ctx); !st.Packaged {
+		t.Fatalf("marker file marks the MSI install: %+v", st)
 	}
 }

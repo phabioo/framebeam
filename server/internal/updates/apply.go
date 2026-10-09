@@ -12,16 +12,12 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 )
 
 // Runner runs an external command (injectable; tests use a fake). Output is combined stdout/stderr.
 type Runner func(ctx context.Context, name string, args ...string) ([]byte, error)
-
-// LinuxPlatform is the platform string of this binary, e.g. linux-amd64.
-func LinuxPlatform() string { return "linux-" + runtime.GOARCH }
 
 // Result is the content of <data>/updates/last-result.json.
 type Result struct {
@@ -57,9 +53,9 @@ type ApplyOptions struct {
 	Keys []ed25519.PublicKey
 	// CurrentVersion is the compiled-in version of the running binary.
 	CurrentVersion string
-	// Platform defaults to LinuxPlatform().
+	// Platform defaults to Platform().
 	Platform string
-	// Run runs dpkg; required.
+	// Run runs the installer (dpkg or msiexec); required.
 	Run Runner
 	// Now defaults to time.Now. TempDir is the parent of the private temp directory ("" = system default).
 	Now     func() time.Time
@@ -79,7 +75,7 @@ func ApplyStaged(ctx context.Context, o ApplyOptions) (res Result, err error) {
 		o.Now = time.Now
 	}
 	if o.Platform == "" {
-		o.Platform = LinuxPlatform()
+		o.Platform = Platform()
 	}
 	if o.RequestFile != "" {
 		if rerr := os.Remove(o.RequestFile); rerr != nil && !errors.Is(rerr, os.ErrNotExist) {
@@ -162,6 +158,7 @@ func ApplyStaged(ctx context.Context, o ApplyOptions) (res Result, err error) {
 	if perr != nil {
 		return res, perr
 	}
+	kind := KindFor(o.Platform)
 	var art *Artifact
 	for i := range idx.Releases {
 		r := &idx.Releases[i]
@@ -170,7 +167,7 @@ func ApplyStaged(ctx context.Context, o ApplyOptions) (res Result, err error) {
 		}
 		for j := range r.Artifacts {
 			a := &r.Artifacts[j]
-			if a.Platform == o.Platform && a.Kind == KindDeb && a.Name == st.Artifact {
+			if a.Platform == o.Platform && a.Kind == kind && a.Name == st.Artifact {
 				art = a
 			}
 		}
@@ -187,12 +184,17 @@ func ApplyStaged(ctx context.Context, o ApplyOptions) (res Result, err error) {
 		return res, fmt.Errorf("staged package: %w", err)
 	}
 	defer src.Close()
+	if o.TempDir != "" {
+		if err = os.MkdirAll(o.TempDir, 0o700); err != nil {
+			return res, err
+		}
+	}
 	tmp, err := os.MkdirTemp(o.TempDir, "framebeam-update-")
 	if err != nil {
 		return res, err
 	}
 	defer os.RemoveAll(tmp)
-	copyPath := tmp + "/" + art.Name
+	copyPath := filepath.Join(tmp, art.Name)
 	dst, err := os.OpenFile(copyPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
 		return res, err
@@ -207,7 +209,7 @@ func ApplyStaged(ctx context.Context, o ApplyOptions) (res Result, err error) {
 	if n != art.Size {
 		return res, fmt.Errorf("staged package has %d bytes, the signed index says %d", n, art.Size)
 	}
-	// Verify the root-owned copy itself (not the data directory file) before dpkg reads it.
+	// Verify the root-owned copy itself (not the data directory file) before the installer reads it.
 	got, err := fileSHA256(copyPath)
 	if err != nil {
 		return res, err
@@ -215,11 +217,35 @@ func ApplyStaged(ctx context.Context, o ApplyOptions) (res Result, err error) {
 	if got != art.SHA256 {
 		return res, errors.New("staged package SHA-256 does not match the signed index")
 	}
-	out, err := o.Run(ctx, "dpkg", "-i", copyPath)
+	// The installer log goes into the private directory and is copied into the data directory afterwards through
+	// root, so the (less trusted) service user cannot redirect what a privileged process writes.
+	logPath := filepath.Join(tmp, MSILogName)
+	name, args := InstallCommand(o.Platform, copyPath, logPath)
+	out, err := o.Run(ctx, name, args...)
+	if kind == KindMSI {
+		copyInstallerLog(root, logPath)
+	}
 	if err != nil {
-		return res, fmt.Errorf("dpkg -i failed: %w: %s", err, tail(string(out), 400))
+		return res, fmt.Errorf("%s failed: %w: %s", name, err, tail(string(out), 400))
 	}
 	return res, nil
+}
+
+// copyInstallerLog copies the msiexec log to <data>/updates/msiexec.log (best effort, capped at 4 MiB).
+func copyInstallerLog(root *os.Root, logPath string) {
+	src, err := os.Open(logPath)
+	if err != nil {
+		return
+	}
+	defer src.Close()
+	rel := path.Join(UpdatesDir, MSILogName)
+	_ = root.Remove(rel)
+	dst, err := root.OpenFile(rel, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o640)
+	if err != nil {
+		return
+	}
+	_, _ = io.Copy(dst, io.LimitReader(src, 4<<20))
+	_ = dst.Close()
 }
 
 // openRegular opens a regular file below root without following a symlink as the last element.

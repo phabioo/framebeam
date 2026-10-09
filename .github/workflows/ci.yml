@@ -154,7 +154,7 @@ jobs:
           cache-dependency-path: server/go.sum
       - name: Check Hub
         run: make check-hub
-      - name: Build Hub (linux amd64 + arm64) and .deb packages
+      - name: Build Hub (linux amd64 + arm64, windows amd64) and .deb packages
         run: |
           make build-hub
           make package-hub-deb
@@ -182,6 +182,51 @@ jobs:
             server/dist/THIRD-PARTY-NOTICES.txt
           if-no-files-found: error
           retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: framebeam-hub-windows
+          path: server/dist/framebeam-hub-windows-amd64.exe
+          if-no-files-found: error
+          retention-days: 7
+
+  hub-windows:
+    name: Hub (Go, Windows)
+    # Same triggers as client-windows (ADR 0008); also skipped for docs-only changes.
+    # Not a required check unless the repository settings say so.
+    if: needs.changes.outputs.docs_only != 'true' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main'))
+    needs: [version, changes]
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      HUB_VERSION: ${{ needs.version.outputs.version }}
+      HUB_CHANNEL: ${{ needs.version.outputs.channel }}
+      HUB_COMMIT: ${{ needs.version.outputs.commit }}
+      CGO_ENABLED: "0"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      - name: Vet
+        working-directory: server
+        run: go vet ./...
+      - name: Test
+        working-directory: server
+        run: go test ./...
+      - name: Build and check version
+        working-directory: server
+        run: |
+          mkdir -p dist
+          go build -trimpath \
+            -ldflags "-s -w -X github.com/phabioo/framebeam/server/internal/version.Version=$HUB_VERSION -X github.com/phabioo/framebeam/server/internal/version.Channel=$HUB_CHANNEL -X github.com/phabioo/framebeam/server/internal/version.Commit=$HUB_COMMIT" \
+            -o dist/framebeam-hub-windows-amd64.exe ./cmd/framebeam-hub
+          dist/framebeam-hub-windows-amd64.exe version --json | tee dist/hub-windows-info.json
+          grep -qF "\"version\":\"$HUB_VERSION\"" dist/hub-windows-info.json
+          grep -qF "\"channel\":\"$HUB_CHANNEL\"" dist/hub-windows-info.json
 
   client-linux:
     name: Player (C++, Linux)

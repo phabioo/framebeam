@@ -7,7 +7,8 @@
 //	framebeam-hub version [--json]             print the version (JSON: product, version, channel, commit, protocol versions)
 //	framebeam-hub update check [-channel c]    print the update selection as JSON
 //	framebeam-hub update stage [-channel c]    check, download, verify and stage the update, create the request file
-//	framebeam-hub update apply-staged          root helper of the update unit: verify and install the staged .deb
+//	framebeam-hub update apply-staged          root helper of the update unit: verify and install the staged .deb (Windows: .msi)
+//	framebeam-hub update watch                 Windows: SYSTEM helper service, applies a staged update when the Hub requests it
 package main
 
 import (
@@ -24,6 +25,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -212,6 +214,10 @@ func runImportCores(args []string, out io.Writer) error {
 	return nil
 }
 
+// inProcessRestart makes a restart requested on the web interface run the server again inside this process
+// instead of re-executing the binary (Windows has no exec; the service must keep its handle to the SCM).
+var inProcessRestart = runtime.GOOS == "windows"
+
 func runServer(args []string) error {
 	fs := flag.NewFlagSet("framebeam-hub", flag.ContinueOnError)
 	cfg := config.Register(fs, os.Getenv)
@@ -226,13 +232,46 @@ func runServer(args []string) error {
 	if err := cfg.Validate(); err != nil {
 		return err
 	}
-	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
+	return runMaybeService(hubServiceName, func(ctx context.Context) error {
+		log, closeLog := newLogger(filepath.Join(cfg.DataDir, "logs", "hub.log"))
+		defer closeLog()
+		return serveLoop(ctx, cfg, log)
+	})
+}
+
+// runMaybeService runs fn under the Windows service manager when started by it, else with a context that ends on
+// Ctrl-C/SIGTERM.
+func runMaybeService(name string, fn func(ctx context.Context) error) error {
+	if isWindowsService() {
+		return runAsService(name, fn)
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	return fn(ctx)
+}
+
+// serveLoop runs the server; a restart requested on the web interface runs it again when the platform restarts
+// in-process, else it returns errRestart for main to re-execute the binary.
+func serveLoop(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
+	for {
+		err := serve(ctx, cfg, log)
+		if !errors.Is(err, errRestart) || !inProcessRestart {
+			return err
+		}
+		if ctx.Err() != nil {
+			return nil
+		}
+		log.Info("Restarting FrameBeam Hub")
+	}
+}
+
+// serve is the server lifecycle: it starts everything, runs until ctx ends, the listener fails or a restart is
+// requested, and shuts down gracefully. A requested restart returns errRestart after everything is closed.
+func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	if cfg.CoreIndexURL != "" {
 		log.Warn("core-index-url is deprecated and ignored: cores come from the libretro buildbot (core-buildbot-url, ADR 0020)")
 	}
-	sigCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-	ctx, cancelAll := context.WithCancel(sigCtx)
+	ctx, cancelAll := context.WithCancel(ctx)
 	defer cancelAll()
 
 	// Values from hub.env and flags; the values saved on the web interface (Settings > Network) win over them.

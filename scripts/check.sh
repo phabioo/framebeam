@@ -54,12 +54,15 @@ hub_codegen() {
 # hub-notices: server/THIRD-PARTY-NOTICES.txt matches the compiled-in Go modules (regenerate: make notices).
 hub_notices() { "$ROOT/scripts/gen-hub-notices.sh" --check; }
 hub_build() {
-  local arch
+  local target goos arch ext
   mkdir -p "$ROOT/server/dist"
-  for arch in amd64 arm64; do
-    (cd "$ROOT/server" && GOOS=linux GOARCH="$arch" go build -trimpath \
+  # CGO is off (pure-Go sqlite), so the Windows binary cross-compiles on Linux.
+  for target in linux/amd64 linux/arm64 windows/amd64; do
+    goos="${target%/*}"; arch="${target#*/}"; ext=""
+    [ "$goos" = windows ] && ext=".exe"
+    (cd "$ROOT/server" && GOOS="$goos" GOARCH="$arch" go build -trimpath \
       -ldflags "-s -w -X github.com/phabioo/framebeam/server/internal/version.Version=${HUB_VERSION:-dev} -X github.com/phabioo/framebeam/server/internal/version.Channel=${HUB_CHANNEL:-dev} -X github.com/phabioo/framebeam/server/internal/version.Commit=${HUB_COMMIT:-}" \
-      -o "dist/framebeam-hub-linux-$arch" ./cmd/framebeam-hub) || return 1
+      -o "dist/framebeam-hub-$goos-$arch$ext" ./cmd/framebeam-hub) || return 1
   done
 }
 # hub-deb: .deb packages from the binaries in server/dist (make build-hub first), version = HUB_VERSION.
@@ -259,7 +262,7 @@ case "${1:-all}" in
   packaging) step "packaging" packaging ;;
   hub)   step "hub: fmt" hub_fmt; step "hub: vet" hub_vet; step "hub: staticcheck" hub_staticcheck; step "hub: test" hub_test; step "hub: codegen" hub_codegen; step "hub: notices" hub_notices; step "packaging" packaging ;;
   hub-deb) step "hub: deb packages" hub_deb ;;
-  hub-build) step "hub: build linux/amd64+arm64" hub_build ;;
+  hub-build) step "hub: build linux/amd64+arm64, windows/amd64" hub_build ;;
   generate)  step "hub: generate" generate ;;
   client)    client ;;
   all)       "$0" hub || status=1; "$0" client || status=1 ;;

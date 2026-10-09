@@ -80,7 +80,7 @@ func (s *Service) initUpdates(o Options) {
 		s.updCfg.executable, _ = os.Executable()
 	}
 	if s.updCfg.platform == "" {
-		s.updCfg.platform = updates.LinuxPlatform()
+		s.updCfg.platform = updates.Platform()
 	}
 }
 
@@ -224,7 +224,7 @@ func (s *Service) UpdateStatus(ctx context.Context) (UpdateStatus, error) {
 	st.LastResult, _ = updates.ReadResult(s.dataDir)
 	st.ActiveSessions = s.countActiveSessions(ctx)
 	if st.Available != nil {
-		st.ManualCommand = "curl -fLO " + st.Available.URL + " && sudo apt install ./" + st.Available.Artifact
+		st.ManualCommand = manualCommand(s.updCfg.platform, st.Available)
 	}
 	return st, nil
 }
@@ -251,7 +251,7 @@ func (s *Service) storedAvailable(ctx context.Context) *UpdateAvailable {
 }
 
 func (s *Service) packaged() bool {
-	return s.updCfg.executable == updates.PackagedExecutable && updates.RequestDirWritable(s.updCfg.requestDir)
+	return updates.IsPackaged(s.updCfg.platform, s.updCfg.executable, s.updCfg.requestDir)
 }
 
 func (s *Service) countActiveSessions(ctx context.Context) int {
@@ -286,7 +286,7 @@ func (s *Service) selectUpdate(ctx context.Context) (*updates.Fetched, updates.S
 	if err != nil {
 		return nil, updates.Selection{}, err
 	}
-	q := updates.Query{Product: updates.ProductHub, Channel: set.Channel, Platform: s.updCfg.platform, Kind: updates.KindDeb, Current: s.hubVer}
+	q := updates.Query{Product: updates.ProductHub, Channel: set.Channel, Platform: s.updCfg.platform, Kind: updates.KindFor(s.updCfg.platform), Current: s.hubVer}
 	if _, err := updates.Select(updates.Index{}, q); err != nil { // off / not SemVer: do not even fetch
 		return nil, updates.Selection{}, fmt.Errorf("%w: %v", ErrUpdatesOff, err)
 	}
@@ -471,4 +471,12 @@ func (s *Service) RunUpdateChecks(ctx context.Context, report func(UpdateCheckRe
 			do()
 		}
 	}
+}
+
+// manualCommand is what an admin does by hand when the Hub cannot install the update itself.
+func manualCommand(platform string, a *UpdateAvailable) string {
+	if updates.KindFor(platform) == updates.KindMSI {
+		return "Download " + a.URL + " and run " + a.Artifact + " as Administrator."
+	}
+	return "curl -fLO " + a.URL + " && sudo apt install ./" + a.Artifact
 }

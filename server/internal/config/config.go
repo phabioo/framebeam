@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/url"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -18,8 +19,10 @@ import (
 
 // Config is the runtime configuration of the FrameBeam Hub.
 type Config struct {
-	DataDir string
-	Listen  string
+	goos          string // platform the defaults were chosen for
+	requestDirSet bool   // -update-request-dir was given
+	DataDir       string
+	Listen        string
 	// Name is the display name on first start; afterwards the name stored in the database applies.
 	Name    string
 	TLSCert string
@@ -40,7 +43,7 @@ type Config struct {
 	CoreTrustKeys []string
 	// UpdateIndexURL is the signed updates index (default updates.DefaultIndexURL; https or file://).
 	UpdateIndexURL string
-	// UpdateRequestDir is where the update request file is created (default /run/framebeam).
+	// UpdateRequestDir is where the update request file is created (default /run/framebeam; Windows <data-dir>\update-request).
 	UpdateRequestDir string
 	// SaveKeepRecent, SaveKeepDaily, SaveKeepWeekly are the save history retention rules (ADR 0012 D7):
 	// newest versions kept, days and weeks of which the newest version is kept. 0 = unlimited for that rule.
@@ -131,10 +134,51 @@ func splitCSV(s string) []string {
 	return out
 }
 
+// DefaultDataDir is the built-in data directory: /var/lib/framebeam, on Windows %ProgramData%\FrameBeam\Hub.
+func DefaultDataDir(goos string, getenv func(string) string) string {
+	if goos != "windows" {
+		return "/var/lib/framebeam"
+	}
+	pd := getenv("ProgramData")
+	if pd == "" {
+		pd = `C:\ProgramData`
+	}
+	return filepath.Join(pd, "FrameBeam", "Hub")
+}
+
+// DefaultUpdateRequestDir is the built-in update request directory: /run/framebeam (systemd RuntimeDirectory), on
+// Windows the directory <data>\update-request that the installer creates (writable for the Hub service account,
+// readable for the updater service).
+func DefaultUpdateRequestDir(goos, dataDir string) string {
+	if goos == "windows" {
+		return filepath.Join(dataDir, "update-request")
+	}
+	return updates.DefaultRequestDir
+}
+
+// trackedString is a string flag that remembers whether it was set explicitly.
+type trackedString struct {
+	p   *string
+	set *bool
+}
+
+func (t trackedString) String() string {
+	if t.p == nil {
+		return ""
+	}
+	return *t.p
+}
+
+func (t trackedString) Set(s string) error { *t.p, *t.set = s, true; return nil }
+
 // Register registers the configuration flags on fs. Defaults come from the environment (FRAMEBEAM_*), otherwise built-in defaults.
 // An explicitly set flag overrides the environment.
 func Register(fs *flag.FlagSet, getenv func(string) string) *Config {
-	c := &Config{}
+	return register(fs, getenv, runtime.GOOS)
+}
+
+func register(fs *flag.FlagSet, getenv func(string) string, goos string) *Config {
+	c := &Config{goos: goos}
 	env := func(key, def string) string {
 		if v := getenv("FRAMEBEAM_" + key); v != "" {
 			return v
@@ -142,7 +186,7 @@ func Register(fs *flag.FlagSet, getenv func(string) string) *Config {
 		return def
 	}
 	dev, _ := strconv.ParseBool(getenv("FRAMEBEAM_DEV"))
-	fs.StringVar(&c.DataDir, "data-dir", env("DATA_DIR", "/var/lib/framebeam"), "data directory (FRAMEBEAM_DATA_DIR)")
+	fs.StringVar(&c.DataDir, "data-dir", env("DATA_DIR", DefaultDataDir(goos, getenv)), "data directory (FRAMEBEAM_DATA_DIR)")
 	fs.StringVar(&c.LibraryImportDir, "library-import-dir", env("LIBRARY_IMPORT_DIR", ""), "folder the Library's \"Rescan folder\" imports ROMs from, default <data-dir>/library-import (FRAMEBEAM_LIBRARY_IMPORT_DIR)")
 	fs.StringVar(&c.Listen, "listen", env("LISTEN", ":8443"), "listen address (FRAMEBEAM_LISTEN)")
 	fs.StringVar(&c.Name, "name", env("NAME", ""), "hub name on first start (FRAMEBEAM_NAME)")
@@ -183,12 +227,16 @@ func Register(fs *flag.FlagSet, getenv func(string) string) *Config {
 	fs.IntVar(&c.SaveKeepRecent, "save-keep-recent", intEnv("SAVE_KEEP_RECENT", 20), "save history: newest versions per slot to keep, 0 = unlimited (FRAMEBEAM_SAVE_KEEP_RECENT)")
 	fs.IntVar(&c.SaveKeepDaily, "save-keep-daily", intEnv("SAVE_KEEP_DAILY", 30), "save history: days of which the newest version is kept, 0 = unlimited (FRAMEBEAM_SAVE_KEEP_DAILY)")
 	fs.IntVar(&c.SaveKeepWeekly, "save-keep-weekly", intEnv("SAVE_KEEP_WEEKLY", 26), "save history: weeks of which the newest version is kept, 0 = unlimited (FRAMEBEAM_SAVE_KEEP_WEEKLY)")
-	fs.StringVar(&c.UpdateRequestDir, "update-request-dir", func() string {
+	c.UpdateRequestDir = func() string {
 		if v := getenv("FRAMEBEAM_HUB_UPDATE_REQUEST_DIR"); v != "" {
 			return v
 		}
+		if goos == "windows" {
+			return "" // follows -data-dir, resolved in Validate unless set explicitly
+		}
 		return updates.DefaultRequestDir
-	}(), "directory for the update request file read by the root helper (FRAMEBEAM_HUB_UPDATE_REQUEST_DIR)")
+	}()
+	fs.Var(trackedString{&c.UpdateRequestDir, &c.requestDirSet}, "update-request-dir", "directory for the update request file read by the root helper (FRAMEBEAM_HUB_UPDATE_REQUEST_DIR)")
 	turn, _ := strconv.ParseBool(getenv("FRAMEBEAM_TURN"))
 	fs.BoolVar(&c.TURN, "turn", turn, "embedded STUN/TURN server for Sessions over the internet, needs -public-host (FRAMEBEAM_TURN)")
 	fs.StringVar(&c.PublicHost, "public-host", env("PUBLIC_HOST", ""), "DNS name or IPv4 of the Hub's public address, required with -turn (FRAMEBEAM_PUBLIC_HOST)")
@@ -260,6 +308,9 @@ func (c *Config) Validate() error {
 	}
 	if c.SaveKeepRecent < 0 || c.SaveKeepDaily < 0 || c.SaveKeepWeekly < 0 {
 		return errors.New("save-keep-recent, save-keep-daily and save-keep-weekly must not be negative")
+	}
+	if c.UpdateRequestDir == "" && !c.requestDirSet {
+		c.UpdateRequestDir = DefaultUpdateRequestDir(c.goos, c.DataDir)
 	}
 	if c.UpdateRequestDir == "" {
 		return errors.New("update-request-dir must not be empty")

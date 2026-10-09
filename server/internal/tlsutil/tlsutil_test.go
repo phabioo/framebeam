@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -34,7 +35,7 @@ func TestEnsureSelfSigned(t *testing.T) {
 		t.Fatal(err)
 	}
 	st, _ := os.Stat(filepath.Join(dir, "tls", "key.pem"))
-	if st.Mode().Perm() != 0o600 {
+	if runtime.GOOS != "windows" && st.Mode().Perm() != 0o600 { // Windows has no unix modes
 		t.Fatalf("key mode %v", st.Mode())
 	}
 	c2, err := EnsureSelfSigned(dir) // second start loads the same certificate
@@ -198,7 +199,7 @@ func TestRenewLeavesNoTempFiles(t *testing.T) {
 		}
 	}
 	st, _ := os.Stat(filepath.Join(dir, "tls", "key.pem"))
-	if st.Mode().Perm() != 0o600 {
+	if runtime.GOOS != "windows" && st.Mode().Perm() != 0o600 { // Windows has no unix modes
 		t.Fatalf("key mode %v", st.Mode())
 	}
 }

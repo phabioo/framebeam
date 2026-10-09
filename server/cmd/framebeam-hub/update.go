@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -51,7 +52,10 @@ func runVersion(args []string, out io.Writer) error {
 	return json.NewEncoder(out).Encode(currentVersionInfo())
 }
 
-const updateUsage = "usage: framebeam-hub update check|stage|apply-staged [flags]"
+// applyTimeout bounds one installation (dpkg or msiexec).
+const applyTimeout = 15 * time.Minute
+
+const updateUsage = "usage: framebeam-hub update check|stage|apply-staged|watch [flags]"
 
 func runUpdate(args []string, out io.Writer) error {
 	if len(args) == 0 {
@@ -64,6 +68,8 @@ func runUpdate(args []string, out io.Writer) error {
 		return runUpdateCheck(args[1:], out, true)
 	case "apply-staged":
 		return runApplyStaged(args[1:], out, execRunner)
+	case "watch":
+		return runUpdateWatch(args[1:], out, execRunner)
 	}
 	return errors.New(updateUsage)
 }
@@ -141,13 +147,13 @@ func runUpdateCheck(args []string, out io.Writer, stage bool) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Minute)
 	defer cancel()
-	platform := updates.LinuxPlatform()
+	platform := updates.Platform()
 	f, err := updates.Source{IndexURL: cfg.UpdateIndexURL}.LoadIndex(ctx, keys)
 	if err != nil {
 		return err
 	}
 	sel, err := updates.Select(f.Index, updates.Query{Product: updates.ProductHub, Channel: ch, Platform: platform,
-		Kind: updates.KindDeb, Current: version.Version})
+		Kind: updates.KindFor(platform), Current: version.Version})
 	if err != nil {
 		return err
 	}
@@ -193,10 +199,10 @@ func runApplyStaged(args []string, out io.Writer, run updates.Runner) error {
 	if err != nil {
 		return err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), applyTimeout)
 	defer cancel()
 	res, err := updates.ApplyStaged(ctx, updates.ApplyOptions{DataDir: cfg.DataDir, RequestFile: updates.RequestPath(cfg.UpdateRequestDir),
-		Keys: keys, CurrentVersion: version.Version, Run: run})
+		Keys: keys, CurrentVersion: version.Version, Run: run, TempDir: updates.DefaultPrivateDir(runtime.GOOS, os.Getenv)})
 	if err != nil {
 		return err
 	}

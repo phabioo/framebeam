@@ -513,7 +513,7 @@ func updatesFeed(t *testing.T, version string) (url string, pub ed25519.PublicKe
 	idx, err := updates.Marshal(updates.Index{Schema: 1, GeneratedAt: time.Now().UTC(), Releases: []updates.Release{{
 		Product: "hub", Channel: "beta", Version: version, PublishedAt: time.Now().UTC(), ProtocolVersion: 1, MinProtocolVersion: 1,
 		NotesURL: "https://example.org/notes", Artifacts: []updates.Artifact{{Platform: "linux-amd64", Kind: "deb", Name: name, Size: int64(len(data)),
-			SHA256: hex.EncodeToString(sum[:]), URL: "file://" + filepath.Join(dir, name)}}}}})
+			SHA256: hex.EncodeToString(sum[:]), URL: updates.FileURL(filepath.Join(dir, name))}}}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -521,7 +521,7 @@ func updatesFeed(t *testing.T, version string) (url string, pub ed25519.PublicKe
 	p := filepath.Join(dir, "updates-index.json")
 	os.WriteFile(p, idx, 0o644)
 	os.WriteFile(p+".sig", sig, 0o644)
-	return "file://" + p, pub
+	return updates.FileURL(p), pub
 }
 
 func TestSettingsUpdatesSection(t *testing.T) {

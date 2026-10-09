@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -31,7 +32,7 @@ func TestSignerFlow(t *testing.T) {
 	if strings.Contains(out.String(), seed) || !strings.Contains(out.String(), "public_key=") || !strings.Contains(out.String(), "key_id=") {
 		t.Fatalf("keygen output %q", out.String())
 	}
-	if st, _ := os.Stat(seedFile); st.Mode().Perm() != 0o600 {
+	if st, _ := os.Stat(seedFile); runtime.GOOS != "windows" && st.Mode().Perm() != 0o600 { // Windows has no unix modes
 		t.Fatalf("seed mode %v", st.Mode())
 	}
 	if err := run0(nil, "keygen", "-out", seedFile); err == nil {

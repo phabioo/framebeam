@@ -10,6 +10,12 @@ How the Hub and the Windows Player update themselves, and how a beta is promoted
 - Before a schema migration the Hub backs up its database to `<data>/backups/` (newest 5).
 - Needs internet access to github.com. Only the Debian package can update itself; other installs (including `install-hub.sh`) only show the available version.
 
+### Hub on Windows
+
+- The unprivileged service `FrameBeamHub` only downloads and stages the `msi` and writes a request file to `<data>\update-request`. It never installs.
+- The service `FrameBeamHubUpdater` (LocalSystem) runs `framebeam-hub update watch` (polls every 5 s), re-verifies the signed index, copies the MSI to a private directory (`%ProgramData%\FrameBeam\HubUpdater`) and runs `msiexec /i <copy> /qn /norestart /l*v <log>`. The log is copied to `<data>\updates\msiexec.log`.
+- "Packaged" means the marker file `framebeam-hub.msi-installed` next to the executable. The MSI that installs the services, ACLs and marker arrives in the next 0.9 package; the standalone `.exe` cannot update itself and only shows the available version.
+
 ## Player (Windows installer install)
 
 - Same check (10 s after start, then hourly on beta, daily on stable). Settings, section "Updates": channel and automatic install.
