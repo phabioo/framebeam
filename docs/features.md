@@ -22,6 +22,7 @@ What the Hub, the protocol and the Player do today, by area. Status by version: 
 - Save comfort: retention/thinning (`-save-keep-recent`, `-save-keep-daily`, `-save-keep-weekly`), restore from history, manual snapshots, `save_updated` push over WSS; the Saves page can restore, snapshot, delete a snapshot and create a slot (0.7.x, `saves_v3`). Save upload (`saves_v4`): upload a save file into a slot via API or web (Saves slot detail, collapsible "Upload save" form on the Saves list, "Upload save" link per Library row); the file becomes the current checkpoint and the previous one goes to history as `before_upload`.
 - Core index endpoints (`GET /api/v1/cores/index` and `.sig`, served byte-exact) so Players verify the signature themselves.
 - Hub UI pass (0.7): sidebar navigation swaps only the content area; badges and tables update live (Server-Sent Events). Settings → Network edits port, embedded TURN, public host, relay range and save retention in the browser; these web settings win over `hub.env`, and changes that need it are applied by a restart the Hub triggers itself (ports below 1024 only via `install-hub.sh --port`).
+- Hardening for internet exposure: TURN relay refuses internal-range peers (except connected Players) and limits allocations; the web port requires CSRF tokens on multipart forms, limits sign-in attempts, uses `__Host-` cookies with TLS and needs passwords of at least 12 characters; the Player API rate limits WebSocket messages, pairing and invite redemption ([hub-configuration.md](guides/hub-configuration.md#turn-security)).
 - Ships as a Debian package and with a systemd installer script for Linux / Raspberry Pi (`packaging/linux/`).
 
 **Protocol** (`protocol/`)
@@ -40,6 +41,9 @@ What the Hub, the protocol and the Player do today, by area. Status by version: 
 - OpenGL hardware rendering for libretro cores (0.5): melonDS DS offers an OpenGL renderer and an internal resolution on the Emulation page (applied on next start; default Software). Hardware frames are read back to the CPU, so Sessions work unchanged. `FRAMEBEAM_DISABLE_HW_RENDER=1` forces the software path; the CLI has no hardware rendering.
 - GPU-direct encoding (0.7.x, [ADR 0019](adr/0019-gpu-direct-nvenc.md)): on NVIDIA, a shared hardware-rendered Session hands the core's OpenGL texture to NVENC through CUDA-GL interop, with no readback or CPU conversion for the encoder. Any problem falls back to the readback path without stopping the Session; `FRAMEBEAM_DISABLE_GPU_ENCODE=1` turns it off, and the diagnostics host line shows `· GPU-direct` or `· readback (GPU-direct off)`. Verified only locally on a real NVIDIA GPU.
 - Player UI pass (0.6): Library filter chips with live core state, Settings with Hub switch/edit/remove (address and port), in-game layout switch, fullscreen (F11/Esc), Multiview PiP / Side-by-Side / Grid 2×2, diagnostics overlay split into Emulation and Streaming (F3).
+- Hotkeys (0.7.x): Controllers → Hotkeys configures fullscreen (F11), diagnostics (F3), snapshot (F5) and speed-up (Space); Esc is fixed. Built-in controller profiles are read-only; "Duplicate to edit" copies one.
+- Background game (0.7.x): "← Library" pauses the running game and keeps it loaded (a shared Session stays shared); the Library shows "Now running" with Resume and Quit game, and starting another game asks first.
+- Saves in the running game: "Manage saves" in the game panel shows slots and history live (snapshot, delete, restore, upload) and resolves conflicts inline; restore and upload apply as a game restart.
 - Speed-up / fast-forward (0.7.x, [ADR 0018](adr/0018-player-speed-up.md)): Space or header button, speed 1.5× to 8× (default 2×), for libretro cores that allow it; Emulation settings for speed, speed-up on start and audio; usable while the Session is shared.
 - Save sync with the Hub: sync before launch, auto checkpoint while playing (12 s after the last change, at most every 60 s), final sync on pause, stop and exit; pending uploads are kept per Hub and user.
 - Conflict dialog with "Keep both, decide later" as default; per-game badge Synced / Sync pending / Conflict.
@@ -60,4 +64,4 @@ What the Hub, the protocol and the Player do today, by area. Status by version: 
 - Emulation page: core options per global/system level (locked options are hidden).
 - Controllers page: SDL3 gamepads, built-in and user profiles, remapping, input test.
 - Settings page: Appearance (Dark / Light / System).
-- Windows installer (Inno Setup), CI artifact `framebeam-player-windows-x64-setup`.
+- Windows installer (Inno Setup; the MSI with WiX is planned in 0.9), CI artifact `framebeam-player-windows-x64-setup`.

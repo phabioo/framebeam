@@ -46,7 +46,8 @@ Start with the [root README](../README.md) for what FrameBeam is and a quick sta
   [0016 release numbering and promotion](adr/0016-release-numbering-and-promotion.md),
   [0017 Player tech debt](adr/0017-player-tech-debt.md),
   [0018 Player speed-up](adr/0018-player-speed-up.md),
-  [0019 GPU-direct NVENC encoding](adr/0019-gpu-direct-nvenc.md)
+  [0019 GPU-direct NVENC encoding](adr/0019-gpu-direct-nvenc.md),
+  [0020 cores from the libretro buildbot](adr/0020-cores-from-the-libretro-buildbot.md)
 
 ## Conventions
 

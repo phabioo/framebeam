@@ -13,7 +13,7 @@ Roadmap 0.5 (`docs/roadmap.md`) gives the Player an OpenGL context for libretro 
 ### D1 OpenGL context
 
 - One offscreen OpenGL context per running game, owned by the emulation thread (`QOpenGLContext` plus `QOffscreenSurface`; the surface is created on the GUI thread). The context is not shared with Qt Quick.
-- `RETRO_HW_CONTEXT_OPENGL_CORE` requests get a core profile at the requested version. 3.3 is the tested minimum target; Azahar/3DS in 0.8 needs 3.3. `RETRO_HW_CONTEXT_OPENGL` (compatibility) gets a default/compatibility context.
+- `RETRO_HW_CONTEXT_OPENGL_CORE` requests get a core profile at the requested version. 3.3 is the tested minimum target; Azahar/3DS (0.10 since the reorder of 2026-10-09) needs 3.3. `RETRO_HW_CONTEXT_OPENGL` (compatibility) gets a default/compatibility context.
 - GLES, Vulkan and Direct3D requests are rejected so that cores fall back to their software path. `GET_PREFERRED_HW_RENDER` answers OpenGL Core.
 
 ### D2 Framebuffer and callbacks
