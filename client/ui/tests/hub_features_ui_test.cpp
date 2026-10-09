@@ -664,7 +664,8 @@ class HubFeaturesUiTest : public QObject {
     hub.localImportDirError.clear();
     local->chooseFolder(QStringLiteral("/tmp"));
     QTRY_VERIFY_WITH_TIMEOUT(!local->settingsBusy() && local->settingsError().isEmpty(), 8000);
-    QCOMPARE(local->importDir(), QStringLiteral("/tmp"));
+    // The Player sends and shows the native absolute path (backslashes on Windows).
+    QCOMPARE(local->importDir(), QDir::toNativeSeparators(QStringLiteral("/tmp")));
     QVERIFY(!local->settingsNotice().isEmpty());
     qunsetenv("FRAMEBEAM_LOCAL_HUB_PORT");
   }

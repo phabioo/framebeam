@@ -354,18 +354,23 @@ Rectangle {
                         Layout.fillWidth: true
                         Eyebrow { text: qsTr("Hubs"); Layout.fillWidth: true }
                         FbButton {
-                            objectName: "settingsLocalHubButton"
-                            visible: root.player.localHub.available && !root.player.localHub.onThisPc
-                            kind: "link"
-                            text: qsTr("Set up a Hub on this PC")
-                            onClicked: { root.player.switchHub(); root.player.localHub.start() }
-                        }
-                        FbButton {
                             objectName: "settingsAddHubButton"
                             kind: "link"
                             text: qsTr("+ Add hub")
                             onClicked: root.player.switchHub()
                         }
+                    }
+
+                    // Own row (not in the header): a long label must never widen the settings column.
+                    FbButton {
+                        objectName: "settingsLocalHubButton"
+                        visible: root.player.localHub.available && !root.player.localHub.onThisPc
+                        Layout.alignment: Qt.AlignLeft
+                        Layout.minimumWidth: 0
+                        Layout.maximumWidth: content.width - Theme.settingsDotSlot
+                        kind: "link"
+                        text: qsTr("Set up a Hub on this PC")
+                        onClicked: { root.player.switchHub(); root.player.localHub.start() }
                     }
 
                     LocalHubCard {
