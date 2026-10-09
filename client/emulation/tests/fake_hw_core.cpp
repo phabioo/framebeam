@@ -159,6 +159,20 @@ FB_EXPORT void retro_run() {
   glViewport_(0, 0, kW, kH);
   glEnable_(0x0C11);  // GL_SCISSOR_TEST
   glScissor_(0, 0, kW, kH);
+  const int stripes = envInt("FB_FAKE_HW_STRIPES", 0);  // 1: 1-pixel vertical, 2: 1-pixel horizontal black/white
+  if (stripes != 0) {
+    glClearColor_(0.f, 0.f, 0.f, 1.f);
+    glClear_(0x4000);
+    glClearColor_(1.f, 1.f, 1.f, 1.f);
+    const int n = static_cast<int>(stripes == 1 ? kW : kH);
+    for (int i = 1; i < n; i += 2) {
+      if (stripes == 1) glScissor_(i, 0, 1, static_cast<int>(kH));
+      else glScissor_(0, i, static_cast<int>(kW), 1);
+      glClear_(0x4000);
+    }
+    g_video(RETRO_HW_FRAME_BUFFER_VALID, kW, kH, 0);
+    return;
+  }
   glClearColor_(0.f, 0.f, 1.f, 1.f);
   glClear_(0x4000);  // GL_COLOR_BUFFER_BIT
   glScissor_(0, 0, static_cast<int>(sq), static_cast<int>(sq));

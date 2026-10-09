@@ -356,6 +356,57 @@ class HwRenderTest : public QObject {
     QCOMPARE(HwRenderContext::scaledReadbackSize(256, 192, QSize(1, 1)), QSize(1, 1));
   }
 
+  void stripesAverageToGrey_data() {
+    QTest::addColumn<int>("stripes");
+    QTest::addColumn<bool>("bottomLeft");
+    QTest::newRow("vertical, bottom-left") << 1 << true;
+    QTest::newRow("vertical, top-left") << 1 << false;
+    QTest::newRow("horizontal, bottom-left") << 2 << true;
+    QTest::newRow("horizontal, top-left") << 2 << false;
+  }
+
+  // 1-pixel black/white stripes downscaled 4:1 must come out as uniform mid-grey (box filter), not aliased.
+  void stripesAverageToGrey() {
+    QFETCH(int, stripes);
+    QFETCH(bool, bottomLeft);
+    qputenv("FB_FAKE_HW_SCALE", "4");  // 256x192
+    qputenv("FB_FAKE_HW_STRIPES", QByteArray::number(stripes));
+    qputenv("FB_FAKE_HW_BOTTOM_LEFT", bottomLeft ? "1" : "0");
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    be.setReadbackLimit(QSize(64, 48));  // 4:1 -> 64x48
+    const QImage f = runFrames(be, 4);
+    QCOMPARE(f.size(), QSize(64, 48));
+    for (int y = 0; y < f.height(); ++y)
+      for (int x = 0; x < f.width(); ++x) {
+        const int g = qRed(px(f, x, y));
+        QVERIFY2(g >= 126 && g <= 129, qPrintable(QStringLiteral("(%1,%2) = %3").arg(x).arg(y).arg(g)));
+      }
+    qunsetenv("FB_FAKE_HW_SCALE");
+    qunsetenv("FB_FAKE_HW_STRIPES");
+    qunsetenv("FB_FAKE_HW_BOTTOM_LEFT");
+  }
+
+  // 1-pixel stripes through a halving plus a final non-2:1 blit (256x192 -> 100x75): smoothed, never black/white.
+  void stripesStayFilteredOnNonPowerOfTwoTarget() {
+    qputenv("FB_FAKE_HW_SCALE", "4");
+    qputenv("FB_FAKE_HW_STRIPES", "1");
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    be.setReadbackLimit(QSize(100, 75));
+    const QImage f = runFrames(be, 4);
+    QCOMPARE(f.size(), QSize(100, 75));
+    for (int y = 0; y < f.height(); ++y)
+      for (int x = 0; x < f.width(); ++x) {
+        const int g = qRed(px(f, x, y));
+        QVERIFY2(g >= 100 && g <= 155, qPrintable(QStringLiteral("(%1,%2) = %3").arg(x).arg(y).arg(g)));
+      }
+    qunsetenv("FB_FAKE_HW_SCALE");
+    qunsetenv("FB_FAKE_HW_STRIPES");
+  }
+
   void checkPattern(const QImage& f, int w, int h) {  // red bottom-left, green top-right, blue elsewhere
     QCOMPARE(f.size(), QSize(w, h));
     QCOMPARE(f.format(), QImage::Format_RGB32);
@@ -386,8 +437,8 @@ class HwRenderTest : public QObject {
     LibretroBackend be;
     loadFake(be, rom);
     QVERIFY(be.sourceFrameSize().isEmpty());
-    be.setReadbackLimit(QSize(128, 128));
-    // 256x192 -> width limits: 128x96 (aspect 4:3 kept)
+    be.setReadbackLimit(QSize(128, 96));
+    // 256x192 -> one halving: 128x96 (aspect 4:3 kept)
     const QImage f = runFrames(be, 4);
     if (bottomLeft) checkPattern(f, 128, 96);
     else {  // top-left origin: the pattern is not flipped, so red is top-left and green bottom-right
@@ -421,11 +472,13 @@ class HwRenderTest : public QObject {
     LibretroBackend be;
     loadFake(be, rom);
     checkPattern(runFrames(be, 3), 256, 192);
-    be.setReadbackLimit(QSize(128, 128));
+    be.setReadbackLimit(QSize(128, 96));
     checkPattern(runFrames(be, 3), 128, 96);
-    be.setReadbackLimit(QSize(64, 64));
+    be.setReadbackLimit(QSize(64, 48));  // two halvings
     checkPattern(runFrames(be, 3), 64, 48);
-    be.setReadbackLimit(QSize(200, 100));  // height limits: 133x100
+    be.setReadbackLimit(QSize(64, 64));  // width limits: 64x48
+    checkPattern(runFrames(be, 3), 64, 48);
+    be.setReadbackLimit(QSize(200, 100));  // height limits: 133x100 (one non-2:1 blit)
     const QImage f = runFrames(be, 3);
     QCOMPARE(f.size(), QSize(133, 100));
     QCOMPARE(px(f, 3, 96), qRgb(255, 0, 0));
@@ -475,7 +528,7 @@ class HwRenderTest : public QObject {
     EmulationRunner runner(std::make_unique<LibretroBackend>());
     QSignalSpy frames(&runner, &EmulationRunner::frameReady);
     QSignalSpy failed(&runner, &EmulationRunner::startFailed);
-    runner.setReadbackLimit(QSize(128, 128));  // before start: applies from the first frame
+    runner.setReadbackLimit(QSize(128, 96));  // before start: applies from the first frame
     EmulationRunner::StartRequest req;
     req.corePath = QStringLiteral(FB_FAKE_HW_CORE_PATH);
     req.gamePath = rom.fileName();

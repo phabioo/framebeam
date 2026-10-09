@@ -59,9 +59,12 @@ struct HwRenderContext::Impl {
   QOpenGLFunctions* f = nullptr;
   QOpenGLExtraFunctions* fx = nullptr;  // glMapBufferRange/glUnmapBuffer (GL 3.0 core, ES 3)
   GLuint fbo = 0, tex = 0, rbo = 0;
-  // Downscale target for readbacks under a size limit (color only); sw x sh is its current size.
-  GLuint scaledFbo = 0, scaledTex = 0;
-  int sw = 0, sh = 0;
+  // Halving chain for readbacks under a size limit (color only): level i holds the frame at 1/2^(i+1) size.
+  struct Level {
+    GLuint fbo = 0, tex = 0;
+    int w = 0, h = 0;
+  };
+  std::vector<Level> levels;
   bool scaleFailed = false;  // blit FBO unusable: full-size readback from now on
   bool depth = false, stencil = false;
   int w = 0, h = 0;
@@ -131,53 +134,80 @@ struct HwRenderContext::Impl {
   }
 
   void releaseScaled() {
-    if (f && scaledFbo) f->glDeleteFramebuffers(1, &scaledFbo);
-    if (f && scaledTex) f->glDeleteTextures(1, &scaledTex);
-    scaledFbo = scaledTex = 0;
-    sw = sh = 0;
+    for (Level& l : levels) {
+      if (f && l.fbo) f->glDeleteFramebuffers(1, &l.fbo);
+      if (f && l.tex) f->glDeleteTextures(1, &l.tex);
+    }
+    levels.clear();
   }
 
-  // (Re)creates the scaled FBO at tw x th if needed. false: not possible (scaleFailed is set).
-  bool ensureScaled(int tw, int th) {
-    if (scaledFbo && sw == tw && sh == th) return true;
+  // (Re)creates halving level `i` at tw x th if needed; levels are cached per size, so a steady stream of
+  // equally sized frames never reallocates. false: not possible (scaleFailed is set).
+  bool ensureLevel(size_t i, int tw, int th) {
+    if (levels.size() <= i) levels.resize(i + 1);
+    Level& l = levels[i];
+    if (l.fbo && l.w == tw && l.h == th) return true;
     BindingGuard guard(f);
-    if (!scaledFbo) f->glGenFramebuffers(1, &scaledFbo);
-    if (!scaledTex) f->glGenTextures(1, &scaledTex);
+    if (!l.fbo) f->glGenFramebuffers(1, &l.fbo);
+    if (!l.tex) f->glGenTextures(1, &l.tex);
     while (f->glGetError() != GL_NO_ERROR) {}
-    f->glBindTexture(GL_TEXTURE_2D, scaledTex);
+    f->glBindTexture(GL_TEXTURE_2D, l.tex);
     f->glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tw, th, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    f->glBindFramebuffer(GL_FRAMEBUFFER, scaledFbo);
-    f->glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, scaledTex, 0);
+    f->glBindFramebuffer(GL_FRAMEBUFFER, l.fbo);
+    f->glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, l.tex, 0);
     if (f->glGetError() != GL_NO_ERROR || f->glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
       releaseScaled();
       scaleFailed = true;
       return false;
     }
-    sw = tw;
-    sh = th;
+    l.w = tw;
+    l.h = th;
     return true;
   }
 
-  // Downscales the w x h region of the main FBO into the scaled FBO (flipping vertically when `flip`).
-  // Leaves the scaled FBO bound as GL_FRAMEBUFFER on success.
-  bool blitScaled(int w, int h, int tw, int th, bool flip) {
-    if (!fx || !ensureScaled(tw, th)) return false;
+  // Downscales the w x h region of the main FBO to tw x th: `steps` exact 2:1 GL_LINEAR blits (each output pixel
+  // is the average of a 2x2 block: a box filter), then, unless the chain already ends at tw x th, one final
+  // GL_LINEAR blit with a ratio below 2:1 (every source texel still contributes). Odd sizes crop the last
+  // row/column of a halving step. The first blit flips vertically when `flip`. Leaves the final level bound as
+  // GL_FRAMEBUFFER on success.
+  bool blitScaled(int w, int h, int steps, int tw, int th, bool flip) {
+    if (!fx) return false;
+    const bool finalStep = (w >> steps) != tw || (h >> steps) != th;
+    const int stages = steps + (finalStep ? 1 : 0);
+    if (stages <= 0) return false;
     const GLboolean scissor = f->glIsEnabled(GL_SCISSOR_TEST);  // the core may leave it on; a blit honours it
     if (scissor) f->glDisable(GL_SCISSOR_TEST);
-    while (f->glGetError() != GL_NO_ERROR) {}
-    f->glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
-    f->glBindFramebuffer(GL_DRAW_FRAMEBUFFER, scaledFbo);
-    fx->glBlitFramebuffer(0, 0, w, h, 0, flip ? th : 0, tw, flip ? 0 : th, GL_COLOR_BUFFER_BIT, GL_LINEAR);
-    const bool ok = f->glGetError() == GL_NO_ERROR;
+    GLuint src = fbo;
+    int sw = w, sh = h;
+    bool ok = true;
+    for (int i = 0; i < stages && ok; ++i) {
+      const bool halving = i < steps;
+      const int dw = halving ? std::max(1, sw / 2) : tw, dh = halving ? std::max(1, sh / 2) : th;
+      if (!ensureLevel(static_cast<size_t>(i), dw, dh)) {
+        ok = false;
+        break;
+      }
+      const int cw = halving ? std::min(sw, dw * 2) : sw, ch = halving ? std::min(sh, dh * 2) : sh;
+      while (f->glGetError() != GL_NO_ERROR) {}
+      f->glBindFramebuffer(GL_READ_FRAMEBUFFER, src);
+      f->glBindFramebuffer(GL_DRAW_FRAMEBUFFER, levels[static_cast<size_t>(i)].fbo);
+      const bool fl = flip && i == 0;
+      fx->glBlitFramebuffer(0, 0, cw, ch, 0, fl ? dh : 0, dw, fl ? 0 : dh, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+      ok = f->glGetError() == GL_NO_ERROR;
+      src = levels[static_cast<size_t>(i)].fbo;
+      sw = dw;
+      sh = dh;
+    }
     if (scissor) f->glEnable(GL_SCISSOR_TEST);
-    f->glBindFramebuffer(GL_FRAMEBUFFER, scaledFbo);
     if (!ok) {
       releaseScaled();
       scaleFailed = true;
+      return false;
     }
-    return ok;
+    f->glBindFramebuffer(GL_FRAMEBUFFER, src);
+    return true;
   }
 
   bool allocate(int nw, int nh) {
@@ -325,8 +355,6 @@ void HwRenderContext::destroyContext() {
   d->fx = nullptr;
   d->pboSlots[0] = d->pboSlots[1] = {};
   d->fbo = d->tex = d->rbo = 0;
-  d->scaledFbo = d->scaledTex = 0;
-  d->sw = d->sh = 0;
   d->scaleFailed = false;
   d->w = d->h = 0;
   d->buf.clear();
@@ -409,6 +437,15 @@ QSize HwRenderContext::scaledReadbackSize(int w, int h, const QSize& maxSize) {
   return QSize(tw, th);
 }
 
+namespace {
+// Exact 2:1 halvings before the final blit: the most that keep the result >= the target in both dimensions.
+int halvingSteps(int w, int h, const QSize& target) {
+  int k = 0;
+  while (k < 30 && (w >> (k + 1)) >= std::max(1, target.width()) && (h >> (k + 1)) >= std::max(1, target.height())) ++k;
+  return k;
+}
+}  // namespace
+
 QImage HwRenderContext::readback(int w, int h, bool bottomLeftOrigin, const QSize& maxSize) {
   if (!d->ctx || w <= 0 || h <= 0 || w > d->w || h > d->h) return {};
   BindingGuard guard(d->f);
@@ -421,7 +458,7 @@ QImage HwRenderContext::readback(int w, int h, bool bottomLeftOrigin, const QSiz
   if (!d->scaleFailed) {
     const QSize t = scaledReadbackSize(w, h, maxSize);
     if (t != QSize(w, h)) {
-      if (d->blitScaled(w, h, t.width(), t.height(), bottomLeftOrigin)) {
+      if (d->blitScaled(w, h, halvingSteps(w, h, t), t.width(), t.height(), bottomLeftOrigin)) {
         rw = t.width();
         rh = t.height();
         bottomLeft = false;  // the blit already flipped
