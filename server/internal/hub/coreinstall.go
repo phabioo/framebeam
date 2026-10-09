@@ -251,8 +251,7 @@ func (s *Service) stage(ctx context.Context, dir string, coreID string, src buil
 		return sb, internal(err)
 	}
 	defer os.Remove(zf.Name())
-	h := crc32.NewIEEE()
-	n, err := io.Copy(io.MultiWriter(zf, h), io.LimitReader(rc, s.cores.maxZip+1))
+	n, err := io.Copy(zf, io.LimitReader(rc, s.cores.maxZip+1))
 	if cerr := zf.Close(); err == nil {
 		err = cerr
 	}
@@ -262,66 +261,67 @@ func (s *Service) stage(ctx context.Context, dir string, coreID string, src buil
 	if n > s.cores.maxZip {
 		return fail("the zip is larger than the limit of %d bytes", s.cores.maxZip)
 	}
-	sb.crc = fmt.Sprintf("%08x", h.Sum32())
-	if src.crc != "" && !strings.EqualFold(src.crc, sb.crc) {
-		return fail("CRC32 mismatch (expected %s, got %s)", strings.ToLower(src.crc), sb.crc)
-	}
 	sb.libName = coreID + "_libretro" + src.platform.Suffix
 	sb.libPath = filepath.Join(dir, src.platform.ID+"-"+sb.libName)
-	sb.size, sb.sha, err = extractLibrary(zf.Name(), sb.libName, src.platform.Suffix, sb.libPath, s.cores.maxLib)
+	sb.size, sb.sha, sb.crc, err = extractLibrary(zf.Name(), sb.libName, src.platform.Suffix, sb.libPath, s.cores.maxLib)
 	if err != nil {
 		return fail("%v", err)
+	}
+	// The index CRC32 is the one of the uncompressed library (like RetroArch's core updater), not of the zip.
+	if src.crc != "" && !strings.EqualFold(src.crc, sb.crc) {
+		os.Remove(sb.libPath)
+		return fail("CRC32 mismatch (expected %s, got %s)", strings.ToLower(src.crc), sb.crc)
 	}
 	return sb, nil
 }
 
 // extractLibrary writes the single library `want` of the zip to dst and returns its size and SHA-256. Entries with
 // path components, a missing or second library, a symlink or an oversize library are rejected.
-func extractLibrary(zipPath, want, suffix, dst string, maxBytes int64) (size int64, sha string, err error) {
+func extractLibrary(zipPath, want, suffix, dst string, maxBytes int64) (size int64, sha, crc string, err error) {
 	zr, err := zip.OpenReader(zipPath)
 	if err != nil {
-		return 0, "", fmt.Errorf("not a valid zip: %w", err)
+		return 0, "", "", fmt.Errorf("not a valid zip: %w", err)
 	}
 	defer zr.Close()
 	if len(zr.File) > maxZipEntries {
-		return 0, "", errors.New("the zip has too many entries")
+		return 0, "", "", errors.New("the zip has too many entries")
 	}
 	var lib *zip.File
 	for _, f := range zr.File {
 		n := f.Name
 		if n == "" || n == "." || n == ".." || strings.ContainsAny(n, "/\\\x00") || strings.Contains(n, "..") {
-			return 0, "", fmt.Errorf("the zip contains an unsafe path %q", n)
+			return 0, "", "", fmt.Errorf("the zip contains an unsafe path %q", n)
 		}
 		if f.Mode()&os.ModeSymlink != 0 {
-			return 0, "", fmt.Errorf("the zip contains a link %q", n)
+			return 0, "", "", fmt.Errorf("the zip contains a link %q", n)
 		}
 		if strings.HasSuffix(n, "_libretro"+suffix) {
 			if lib != nil {
-				return 0, "", errors.New("the zip contains more than one library")
+				return 0, "", "", errors.New("the zip contains more than one library")
 			}
 			lib = f
 		}
 	}
 	if lib == nil {
-		return 0, "", errors.New("the zip contains no library")
+		return 0, "", "", errors.New("the zip contains no library")
 	}
 	if lib.Name != want {
-		return 0, "", fmt.Errorf("the zip holds %q, expected %q", lib.Name, want)
+		return 0, "", "", fmt.Errorf("the zip holds %q, expected %q", lib.Name, want)
 	}
 	if lib.UncompressedSize64 > uint64(maxBytes) {
-		return 0, "", fmt.Errorf("the library is larger than the limit of %d bytes", maxBytes)
+		return 0, "", "", fmt.Errorf("the library is larger than the limit of %d bytes", maxBytes)
 	}
 	rc, err := lib.Open()
 	if err != nil {
-		return 0, "", err
+		return 0, "", "", err
 	}
 	defer rc.Close()
 	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o640)
 	if err != nil {
-		return 0, "", internal(err)
+		return 0, "", "", internal(err)
 	}
-	h := sha256.New()
-	n, err := io.Copy(io.MultiWriter(out, h), io.LimitReader(rc, maxBytes+1))
+	h, ch := sha256.New(), crc32.NewIEEE()
+	n, err := io.Copy(io.MultiWriter(out, h, ch), io.LimitReader(rc, maxBytes+1))
 	if cerr := out.Close(); err == nil {
 		err = cerr
 	}
@@ -333,9 +333,9 @@ func extractLibrary(zipPath, want, suffix, dst string, maxBytes int64) (size int
 	}
 	if err != nil {
 		os.Remove(dst)
-		return 0, "", err
+		return 0, "", "", err
 	}
-	return n, hex.EncodeToString(h.Sum(nil)), nil
+	return n, hex.EncodeToString(h.Sum(nil)), fmt.Sprintf("%08x", ch.Sum32()), nil
 }
 
 func (s *Service) packageVersionExists(ctx context.Context, coreID, version string) (bool, error) {

@@ -1,7 +1,7 @@
 # Downloads a libretro core from the nightly buildbot (ADR 0020 D10, CI test dependency) and prints the DLL path.
 #   scripts/fetch-buildbot-core.ps1 <core>      e.g. desmume  ->  desmume_libretro.dll
 # Source: $env:FRAMEBEAM_BUILDBOT_URL (default https://buildbot.libretro.com/nightly)/windows/x86_64/latest/<core>_libretro.dll.zip
-# CRC32 of the zip is verified against ".index-extended" of the same directory; exactly one library is extracted to
+# CRC32 of the extracted library (not of the zip) is verified against ".index-extended" of the same directory; exactly one library is extracted to
 # <cache>\cores\buildbot\<core>\<date>-<crc>\ (cache = FRAMEBEAM_CACHE_DIR or $env:LOCALAPPDATA\framebeam).
 # No pin on purpose: CI tests against the current nightly; date and CRC are logged. Idempotent (same date+crc = reuse),
 # retries with backoff, timeouts. http:// is accepted only for 127.0.0.1 (tests).
@@ -75,22 +75,22 @@ try {
   if (Test-Path $dll) { Write-Host "buildbot core: cached $dll"; Write-Output $dll; exit 0 }
 
   $zip = Join-Path $tmp $zipName
+  $stage = Join-Path $tmp $lib
+  Add-Type -AssemblyName System.IO.Compression.FileSystem
+  # The index CRC32 is over the uncompressed library (like RetroArch's core updater), not over the zip.
   Invoke-Retry "download/verification of $zipName" {
     Invoke-WebRequest -UseBasicParsing -TimeoutSec 300 -Headers @{ 'User-Agent' = 'framebeam-ci' } -Uri "$dirUrl/$zipName" -OutFile $zip
-    $actual = [FbCrc32]::OfFile($zip)
-    if ($actual -ne $crc) { throw "CRC32 mismatch for ${zipName}: index says $crc, file is $actual" }
+    $arc = [IO.Compression.ZipFile]::OpenRead($zip)
+    try {
+      $names = @($arc.Entries | ForEach-Object { $_.FullName })
+      if ($names.Count -ne 1 -or $names[0] -ne $lib) { throw "unexpected zip content (expected only ${lib}): $($names -join ', ')" }
+      [IO.Compression.ZipFileExtensions]::ExtractToFile($arc.Entries[0], $stage, $true)
+    } finally { $arc.Dispose() }
+    if ((Get-Item $stage).Length -eq 0) { throw "extracted $lib is empty" }
+    $actual = [FbCrc32]::OfFile($stage)
+    if ($actual -ne $crc) { Remove-Item $stage -Force; throw "CRC32 mismatch for ${lib}: index says $crc, extracted library is $actual" }
   }
-
-  Add-Type -AssemblyName System.IO.Compression.FileSystem
-  $arc = [IO.Compression.ZipFile]::OpenRead($zip)
-  try {
-    $names = @($arc.Entries | ForEach-Object { $_.FullName })
-    if ($names.Count -ne 1 -or $names[0] -ne $lib) { throw "buildbot core: unexpected zip content (expected only $lib): $($names -join ', ')" }
-    New-Item -ItemType Directory -Force $out | Out-Null
-    $stage = Join-Path $tmp $lib
-    [IO.Compression.ZipFileExtensions]::ExtractToFile($arc.Entries[0], $stage, $true)
-  } finally { $arc.Dispose() }
-  if ((Get-Item $stage).Length -eq 0) { throw "buildbot core: extracted $lib is empty" }
+  New-Item -ItemType Directory -Force $out | Out-Null
   Move-Item -Force $stage $dll
   Write-Host "buildbot core: installed $dll"
   Write-Output $dll

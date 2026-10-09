@@ -52,7 +52,7 @@ with zipfile.ZipFile(f"{cdir}/info.zip", "w") as z:
 name = "melondsds_libretro.so.zip"
 with zipfile.ZipFile(f"{cdir}/{plat}/{name}", "w") as z:
     z.write(f"{tmp}/melondsds_libretro.so", "melondsds_libretro.so")
-crc = zlib.crc32(open(f"{cdir}/{plat}/{name}", "rb").read()) & 0xFFFFFFFF
+crc = zlib.crc32(open(f"{tmp}/melondsds_libretro.so", "rb").read()) & 0xFFFFFFFF
 open(f"{cdir}/{plat}/.index-extended", "w").write(f"2026-10-09 {crc:08x} {name}\n")
 PY
 ok "core: import directory built (melondsds $CORE_PLATFORM)"

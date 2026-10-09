@@ -155,7 +155,20 @@ func (b *Buildbot) AddCore(t *testing.T, c BuildbotCore) {
 	}
 }
 
-// SetZip sets the zip of a core for a platform (its CRC32 is computed) and the build date.
+// libraryCRC is the CRC32 the real index lists: the one of the uncompressed library (the zip entry's CRC32). For
+// something that is not a zip with a library, the CRC32 of the bytes.
+func libraryCRC(z []byte) string {
+	if zr, err := zip.NewReader(bytes.NewReader(z), int64(len(z))); err == nil {
+		for _, f := range zr.File {
+			if strings.Contains(f.Name, "_libretro.") {
+				return fmt.Sprintf("%08x", f.CRC32)
+			}
+		}
+	}
+	return fmt.Sprintf("%08x", crc32.ChecksumIEEE(z))
+}
+
+// SetZip sets the zip of a core for a platform (the CRC32 of its library is listed in the index) and the build date.
 func (b *Buildbot) SetZip(platform, coreID, date string, zipBytes []byte) {
 	suffix := ""
 	for _, p := range buildbotPlatforms {
@@ -168,7 +181,7 @@ func (b *Buildbot) SetZip(platform, coreID, date string, zipBytes []byte) {
 	if b.builds[platform] == nil {
 		b.builds[platform] = map[string]*fakeBuild{}
 	}
-	b.builds[platform][coreID+"_libretro"+suffix+".zip"] = &fakeBuild{date: date, crc: fmt.Sprintf("%08x", crc32.ChecksumIEEE(zipBytes)), zip: zipBytes}
+	b.builds[platform][coreID+"_libretro"+suffix+".zip"] = &fakeBuild{date: date, crc: libraryCRC(zipBytes), zip: zipBytes}
 }
 
 // SetCRC overrides the CRC32 listed in the index (to simulate a corrupt download).
