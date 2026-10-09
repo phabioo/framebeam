@@ -73,9 +73,10 @@
                  Condition="NETWORK_SHARING=&quot;&quot; AND INSTALL_PLAYER=&quot;0&quot;" />
     <SetProperty Id="HUB_SHARING_FLAG" Value="true" Before="CostFinalize" Sequence="execute"
                  Condition="NETWORK_SHARING=&quot;1&quot;" />
-    <!-- Per user: same folder as the Inno installer. Per machine keeps ProgramFiles64Folder\FrameBeam\Player. -->
-    <SetDirectory Id="PLAYERDIR" Value="[LocalAppDataFolder]Programs\FrameBeam Player" Sequence="execute"
-                  Condition="NOT ALLUSERS=1" />
+    <!-- The per-user folder is the static default of PLAYERDIR (%LOCALAPPDATA%\Programs\FrameBeam Player, the folder of the Inno
+         installer), so the documented default needs no custom action. Only the per-machine install redirects it to
+         %ProgramFiles%\FrameBeam\Player (trailing backslash: directory properties end with one). -->
+    <SetDirectory Id="PLAYERDIR" Value="[ProgramFiles64Folder]FrameBeam\Player\" Sequence="execute" Condition="ALLUSERS=1" />
 
     <Launch Condition="Installed OR (HUB_PORT &gt;= 1 AND HUB_PORT &lt;= 65535)"
             Message="HUB_PORT must be a TCP port number between 1 and 65535." />
@@ -147,8 +148,12 @@
   <Fragment>
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="FRAMEBEAMDIR" Name="FrameBeam">
-        <Directory Id="PLAYERDIR" Name="Player" />
         <Directory Id="HUBDIR" Name="Hub" />
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="USERPROGRAMSDIR" Name="Programs">
+        <Directory Id="PLAYERDIR" Name="FrameBeam Player" />
       </Directory>
     </StandardDirectory>
     <StandardDirectory Id="CommonAppDataFolder">

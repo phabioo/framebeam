@@ -676,6 +676,14 @@ jobs:
         run: |
           $setup = (Get-ChildItem dist\installer\framebeam-player-*-windows-x64-setup.exe | Select-Object -First 1).FullName
           scripts\test-windows-msi.ps1 -Scenario migrate -Msi "dist\msi\framebeam-$($env:FRAMEBEAM_VERSION)-windows-x64.msi" -Setup $setup
+      - name: Upload MSI test logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: framebeam-msi-test-logs
+          path: ${{ runner.temp }}/fb-msi-test-*/*.log
+          if-no-files-found: ignore
+          retention-days: 7
       - uses: actions/upload-artifact@v4
         with:
           name: framebeam-windows-x64-msi

@@ -32,13 +32,31 @@ $userStartMenu = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\F
 $innoKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{6F0C2B7E-3D1A-4C55-9B8E-F4A1D2C37A60}_is1'
 $script:logN = 0
 
-function Fail([string] $m) { throw $m }
+$script:lastLog = $null
+# Every failure shows what the last msiexec did (scope, folders, status, skipped/disallowed actions) and where the Player files
+# actually are, so that a failed check is never blind.
+function Show-Diagnostics {
+  if ($script:lastLog -and (Test-Path $script:lastLog)) {
+    Write-Host "::group::key lines of $($script:lastLog)"
+    Select-String -Path $script:lastLog -Pattern 'ALLUSERS|MSIINSTALLPERUSER|APPLICATIONFOLDER|INSTALLFOLDER|PLAYERDIR|HUBDIR|Product: |Installation success or error status|Disallowing|Skipping action|LaunchCondition|Feature: |Action ended|Return value 3' |
+      Select-Object -First 150 | ForEach-Object { $_.Line.Trim() } | Out-Host
+    Write-Host '::endgroup::'
+    Write-Host "::group::tail of $($script:lastLog)"; Get-Content $script:lastLog -Tail 80 | Out-Host; Write-Host '::endgroup::'
+  }
+  Write-Host '::group::framebeam_player.exe on this machine'
+  foreach ($root in (Join-Path $env:LOCALAPPDATA 'Programs'), $env:ProgramFiles) {
+    Get-ChildItem -Path $root -Recurse -Filter framebeam_player.exe -ErrorAction SilentlyContinue | ForEach-Object FullName | Out-Host
+  }
+  Write-Host '::endgroup::'
+}
+function Fail([string] $m) { Show-Diagnostics; throw $m }
 function Show-Log([string] $log) {
   if (Test-Path $log) { Write-Host "::group::$log (tail)"; Get-Content $log -Tail 80 | Out-Host; Write-Host '::endgroup::' }
 }
 function Invoke-Msiexec([string[]] $msiArgs) {
   $script:logN++
   $log = Join-Path $work "msiexec-$($script:logN).log"
+  $script:lastLog = $log
   $p = Start-Process msiexec.exe -ArgumentList (($msiArgs + @('/qn', '/norestart', '/l*v', "`"$log`"")) -join ' ') -Wait -PassThru
   if ($p.ExitCode -ne 0 -and $p.ExitCode -ne 3010) { Show-Log $log; Fail "msiexec $($msiArgs -join ' ') exited with $($p.ExitCode)" }
 }
