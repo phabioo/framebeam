@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"context"
-	"net/http"
 	"strings"
 
 	"github.com/phabioo/framebeam/server/internal/api"
@@ -85,33 +84,4 @@ func etagMatches(header, etag string) bool {
 		}
 	}
 	return false
-}
-
-// rawIndexResponse writes the index bytes unchanged: the signature covers exactly these bytes, so they must not
-// pass through a JSON encoder.
-type rawIndexResponse []byte
-
-func (r rawIndexResponse) VisitGetCoresIndexResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_, err := w.Write(r)
-	return err
-}
-
-// GetCoresIndex serves the raw bytes of the last verified core index (404 until one exists).
-func (s *Server) GetCoresIndex(_ context.Context, _ api.GetCoresIndexRequestObject) (api.GetCoresIndexResponseObject, error) {
-	data, _, err := s.svc.CoresIndex()
-	if err != nil {
-		return nil, err
-	}
-	return rawIndexResponse(data), nil
-}
-
-// GetCoresIndexSignature serves the signature file of the last verified core index.
-func (s *Server) GetCoresIndexSignature(_ context.Context, _ api.GetCoresIndexSignatureRequestObject) (api.GetCoresIndexSignatureResponseObject, error) {
-	_, sig, err := s.svc.CoresIndex()
-	if err != nil {
-		return nil, err
-	}
-	return api.GetCoresIndexSignature200TextResponse(sig), nil
 }

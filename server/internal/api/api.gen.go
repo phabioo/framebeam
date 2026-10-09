@@ -24,6 +24,24 @@ const (
 	PollTokenAuthScopes pollTokenAuthContextKey = "pollTokenAuth.Scopes"
 )
 
+// Defines values for CoreOrigin.
+const (
+	Framebeam        CoreOrigin = "framebeam"
+	LibretroBuildbot CoreOrigin = "libretro-buildbot"
+)
+
+// Valid indicates whether the value is a known member of the CoreOrigin enum.
+func (e CoreOrigin) Valid() bool {
+	switch e {
+	case Framebeam:
+		return true
+	case LibretroBuildbot:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CorePackageFileRole.
 const (
 	Library CorePackageFileRole = "library"
@@ -453,15 +471,23 @@ type CoreInfo struct {
 	Version string `json:"version"`
 }
 
+// CoreOrigin `libretro-buildbot` = installed from the libretro buildbot; `framebeam` = legacy package from the retired signed FrameBeam source.
+type CoreOrigin string
+
 // CorePackage defines model for CorePackage.
 type CorePackage struct {
-	CoreId    string            `json:"core_id"`
-	Files     []CorePackageFile `json:"files"`
-	License   string            `json:"license"`
-	Platform  CorePlatform      `json:"platform"`
-	SourceRef string            `json:"source_ref"`
-	SourceUrl string            `json:"source_url"`
-	Version   string            `json:"version"`
+	CoreId string            `json:"core_id"`
+	Files  []CorePackageFile `json:"files"`
+
+	// License License name. Packages from the libretro buildbot carry no license file; the name comes from the core info (`files` then has no `license` role entry).
+	License string `json:"license"`
+
+	// Origin `libretro-buildbot` = installed from the libretro buildbot; `framebeam` = legacy package from the retired signed FrameBeam source.
+	Origin    *CoreOrigin  `json:"origin,omitempty"`
+	Platform  CorePlatform `json:"platform"`
+	SourceRef string       `json:"source_ref"`
+	SourceUrl string       `json:"source_url"`
+	Version   string       `json:"version"`
 }
 
 // CorePackageFile defines model for CorePackageFile.
@@ -582,7 +608,7 @@ type HandshakeRequest_Video struct {
 type HandshakeResponse struct {
 	Compatible bool `json:"compatible"`
 
-	// Features Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = the Hub's embedded TURN server is on (`turn_servers` in `hello_ack` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `cores_index_v1` = signed core index served at `/api/v1/cores/index` and `/api/v1/cores/index.sig`, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`), `saves_v4` = uploading a save file into a slot (`POST /games/{game_id}/saves/{slot}/upload`).
+	// Features Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = the Hub's embedded TURN server is on (`turn_servers` in `hello_ack` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`), `saves_v4` = uploading a save file into a slot (`POST /games/{game_id}/saves/{slot}/upload`), `cores_v2` = several cores per system (`default_core_id` and `cores` in `SystemInfo`; core ids follow `^[a-z0-9][a-z0-9_-]{0,63}$`). `cores_index_v1` (signed core index) existed in 0.4 to 0.7 and was removed in 0.8.
 	Features           *[]string          `json:"features,omitempty"`
 	HubVersion         string             `json:"hub_version"`
 	MinProtocolVersion int                `json:"min_protocol_version"`
@@ -911,20 +937,49 @@ type SessionViewerInfo struct {
 // `invite_only`: devices of the owner user plus invited users who have not declined.
 type SessionVisibility string
 
+// SystemCore defines model for SystemCore.
+type SystemCore struct {
+	// BuildDate Date of the upstream build
+	BuildDate   *openapi_types.Date `json:"build_date,omitempty"`
+	CoreId      string              `json:"core_id"`
+	DisplayName string              `json:"display_name"`
+
+	// Experimental True when the Player has no core profile for this core. Set by the Hub from its list of profiled cores.
+	Experimental bool   `json:"experimental"`
+	License      string `json:"license"`
+
+	// Origin `libretro-buildbot` = installed from the libretro buildbot; `framebeam` = legacy package from the retired signed FrameBeam source.
+	Origin CoreOrigin `json:"origin"`
+
+	// RequiredHwApi Graphics API requirement from the core info, e.g. `OpenGL Core >= 3.2`; null when none.
+	RequiredHwApi *string `json:"required_hw_api"`
+
+	// Version Package version: the Hub build id (UTC date of the upstream build, `2026.10.09`, `.N` appended for a second build the same day) or a legacy semver such as `1.4.0`. The Player provisions exactly this version.
+	Version string `json:"version"`
+}
+
 // SystemInfo defines model for SystemInfo.
 type SystemInfo struct {
 	// CorePackageVersion Version of the preferred core the Hub serves (`cores_v1`) = `expected_core_version` if set, else the highest version with a cached package; null when none. The Player provisions exactly this version. Optional (absent on Hubs without `cores_v1`).
 	CorePackageVersion *string `json:"core_package_version"`
-	DisplayName        string  `json:"display_name"`
+
+	// Cores One entry per installed core of the system (`cores_v2`). Optional (absent on Hubs without `cores_v2`).
+	Cores *[]SystemCore `json:"cores,omitempty"`
+
+	// DefaultCoreId Id of the system's default core (`cores_v2`); null when no core is installed. Optional (absent on Hubs without `cores_v2`).
+	DefaultCoreId *string `json:"default_core_id"`
+	DisplayName   string  `json:"display_name"`
 
 	// ExpectedCoreVersion Null = any version
 	ExpectedCoreVersion *string        `json:"expected_core_version"`
 	Firmware            []FirmwareFile `json:"firmware"`
 
 	// FirmwareMode `builtin` = the core uses its built-in firmware (files optional); `native` = files required.
-	FirmwareMode    FirmwareMode `json:"firmware_mode"`
-	Id              string       `json:"id"`
-	PreferredCoreId string       `json:"preferred_core_id"`
+	FirmwareMode FirmwareMode `json:"firmware_mode"`
+	Id           string       `json:"id"`
+
+	// PreferredCoreId The default core. Together with `expected_core_version` and `core_package_version` it keeps describing the default core for Players without `cores_v2`.
+	PreferredCoreId string `json:"preferred_core_id"`
 }
 
 // TokenRequest defines model for TokenRequest.
@@ -1515,12 +1570,6 @@ type ServerInterface interface {
 	// Exchange device credential for access token
 	// (POST /api/v1/auth/token)
 	CreateAccessToken(w http.ResponseWriter, r *http.Request)
-	// Raw bytes of the last verified signed core index (`cores_index_v1`)
-	// (GET /api/v1/cores/index)
-	GetCoresIndex(w http.ResponseWriter, r *http.Request)
-	// Signature of the core index (`cores_index_v1`)
-	// (GET /api/v1/cores/index.sig)
-	GetCoresIndexSignature(w http.ResponseWriter, r *http.Request)
 	// Manifest of a signed core package (any trusted device)
 	// (GET /api/v1/cores/{core_id}/packages/{version}/{platform})
 	GetCorePackage(w http.ResponseWriter, r *http.Request, coreId CoreId, version CoreVersion, platform CorePlatform)
@@ -1676,46 +1725,6 @@ func (siw *ServerInterfaceWrapper) CreateAccessToken(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateAccessToken(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// GetCoresIndex operation middleware
-func (siw *ServerInterfaceWrapper) GetCoresIndex(w http.ResponseWriter, r *http.Request) {
-
-	ctx := r.Context()
-
-	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
-
-	r = r.WithContext(ctx)
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetCoresIndex(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// GetCoresIndexSignature operation middleware
-func (siw *ServerInterfaceWrapper) GetCoresIndexSignature(w http.ResponseWriter, r *http.Request) {
-
-	ctx := r.Context()
-
-	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
-
-	r = r.WithContext(ctx)
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetCoresIndexSignature(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -3236,8 +3245,6 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/.well-known/framebeam", wrapper.GetHubInfo)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/auth/revoke", wrapper.RevokeSelf)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/auth/token", wrapper.CreateAccessToken)
-	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/cores/index", wrapper.GetCoresIndex)
-	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/cores/index.sig", wrapper.GetCoresIndexSignature)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/cores/{core_id}/packages/{version}/{platform}", wrapper.GetCorePackage)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/cores/{core_id}/packages/{version}/{platform}/files/{name}", wrapper.GetCorePackageFile)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/games", wrapper.ListGames)
@@ -3397,105 +3404,6 @@ func (response CreateAccessToken401JSONResponse) VisitCreateAccessTokenResponse(
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(401)
-	_, err := buf.WriteTo(w)
-	return err
-}
-
-type GetCoresIndexRequestObject struct {
-}
-
-type GetCoresIndexResponseObject interface {
-	VisitGetCoresIndexResponse(w http.ResponseWriter) error
-}
-
-type GetCoresIndex200JSONResponse openapi_types.File
-
-func (response GetCoresIndex200JSONResponse) VisitGetCoresIndexResponse(w http.ResponseWriter) error {
-
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response); err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-	_, err := buf.WriteTo(w)
-	return err
-}
-
-type GetCoresIndex401JSONResponse struct{ UnauthorizedJSONResponse }
-
-func (response GetCoresIndex401JSONResponse) VisitGetCoresIndexResponse(w http.ResponseWriter) error {
-
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response); err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(401)
-	_, err := buf.WriteTo(w)
-	return err
-}
-
-type GetCoresIndex404JSONResponse struct {
-	CorePackageNotFoundJSONResponse
-}
-
-func (response GetCoresIndex404JSONResponse) VisitGetCoresIndexResponse(w http.ResponseWriter) error {
-
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response); err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(404)
-	_, err := buf.WriteTo(w)
-	return err
-}
-
-type GetCoresIndexSignatureRequestObject struct {
-}
-
-type GetCoresIndexSignatureResponseObject interface {
-	VisitGetCoresIndexSignatureResponse(w http.ResponseWriter) error
-}
-
-type GetCoresIndexSignature200TextResponse string
-
-func (response GetCoresIndexSignature200TextResponse) VisitGetCoresIndexSignatureResponse(w http.ResponseWriter) error {
-
-	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(200)
-
-	_, err := w.Write([]byte(response))
-	return err
-}
-
-type GetCoresIndexSignature401JSONResponse struct{ UnauthorizedJSONResponse }
-
-func (response GetCoresIndexSignature401JSONResponse) VisitGetCoresIndexSignatureResponse(w http.ResponseWriter) error {
-
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response); err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(401)
-	_, err := buf.WriteTo(w)
-	return err
-}
-
-type GetCoresIndexSignature404JSONResponse struct {
-	CorePackageNotFoundJSONResponse
-}
-
-func (response GetCoresIndexSignature404JSONResponse) VisitGetCoresIndexSignatureResponse(w http.ResponseWriter) error {
-
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response); err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(404)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -6039,12 +5947,6 @@ type StrictServerInterface interface {
 	// Exchange device credential for access token
 	// (POST /api/v1/auth/token)
 	CreateAccessToken(ctx context.Context, request CreateAccessTokenRequestObject) (CreateAccessTokenResponseObject, error)
-	// Raw bytes of the last verified signed core index (`cores_index_v1`)
-	// (GET /api/v1/cores/index)
-	GetCoresIndex(ctx context.Context, request GetCoresIndexRequestObject) (GetCoresIndexResponseObject, error)
-	// Signature of the core index (`cores_index_v1`)
-	// (GET /api/v1/cores/index.sig)
-	GetCoresIndexSignature(ctx context.Context, request GetCoresIndexSignatureRequestObject) (GetCoresIndexSignatureResponseObject, error)
 	// Manifest of a signed core package (any trusted device)
 	// (GET /api/v1/cores/{core_id}/packages/{version}/{platform})
 	GetCorePackage(ctx context.Context, request GetCorePackageRequestObject) (GetCorePackageResponseObject, error)
@@ -6253,54 +6155,6 @@ func (sh *strictHandler) CreateAccessToken(w http.ResponseWriter, r *http.Reques
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(CreateAccessTokenResponseObject); ok {
 		if err := validResponse.VisitCreateAccessTokenResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
-	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// GetCoresIndex operation middleware
-func (sh *strictHandler) GetCoresIndex(w http.ResponseWriter, r *http.Request) {
-	var request GetCoresIndexRequestObject
-
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetCoresIndex(ctx, request.(GetCoresIndexRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetCoresIndex")
-	}
-
-	response, err := handler(r.Context(), w, r, request)
-
-	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(GetCoresIndexResponseObject); ok {
-		if err := validResponse.VisitGetCoresIndexResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
-	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// GetCoresIndexSignature operation middleware
-func (sh *strictHandler) GetCoresIndexSignature(w http.ResponseWriter, r *http.Request) {
-	var request GetCoresIndexSignatureRequestObject
-
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetCoresIndexSignature(ctx, request.(GetCoresIndexSignatureRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetCoresIndexSignature")
-	}
-
-	response, err := handler(r.Context(), w, r, request)
-
-	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(GetCoresIndexSignatureResponseObject); ok {
-		if err := validResponse.VisitGetCoresIndexSignatureResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
