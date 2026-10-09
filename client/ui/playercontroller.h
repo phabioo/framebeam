@@ -331,6 +331,7 @@ class PlayerController : public QObject {
   bool background_ = false;      // gameActive_ and paused behind the Library (input blocked)
   QString backgroundId_;
   QString backgroundTitle_;
+  qint64 gamePausedMs_ = 0;      // epoch ms when the game went to the background (3c-5 detail column: "paused 22:31")
   qint64 gameStartedMs_ = 0;     // epoch ms of the start of the running game ("12 min" in the Now running strip)
   bool quitting_ = false;
   bool confirmActive_ = false;   // "Quit X and start Y?" is open
