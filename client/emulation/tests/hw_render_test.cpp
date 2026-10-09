@@ -566,6 +566,47 @@ class HwRenderTest : public QObject {
     QCOMPARE(count(QStringLiteral("reset")), 1);
     QCOMPARE(count(QStringLiteral("destroy")), 1);
   }
+
+  // ---- GL state left to the core
+
+  // Integer values of the fake core's log lines "<key> <n>", in order.
+  QList<int> logValues(const QString& key) {
+    QList<int> out;
+    for (const QString& e : events())
+      if (e.startsWith(key + QLatin1Char(' '))) out.append(e.mid(key.size() + 1).toInt());
+    return out;
+  }
+
+  void readAndDrawBindingsAreRestoredSeparately_data() {
+    QTest::addColumn<QSize>("limit");
+    QTest::newRow("full size readback") << QSize();
+    QTest::newRow("GPU downscale") << QSize(32, 24);
+  }
+
+  // The fake core leaves GL_READ_FRAMEBUFFER at 0 and GL_DRAW_FRAMEBUFFER on its FBO. After the readback it must
+  // find exactly that again (the guard used to restore both bindings from the draw binding).
+  void readAndDrawBindingsAreRestoredSeparately() {
+    QFETCH(QSize, limit);
+    qputenv("FB_FAKE_HW_READFBO", "1");
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    be.setReadbackLimit(limit);
+    QVERIFY(!runFrames(be, 5).isNull());
+    qunsetenv("FB_FAKE_HW_READFBO");
+    const QList<int> readFbo = logValues(QStringLiteral("readfbo")), drawFbo = logValues(QStringLiteral("drawfbo"));
+    const QList<int> scissor = logValues(QStringLiteral("scissor")), fbo = logValues(QStringLiteral("fbo"));
+    QCOMPARE(readFbo.size(), 5);
+    QCOMPARE(drawFbo.size(), 5);
+    QCOMPARE(scissor.size(), 5);
+    QCOMPARE(fbo.size(), 5);
+    QVERIFY(fbo.at(0) != 0);
+    for (int k = 1; k < 5; ++k) {  // the state at the start of frame k is what frame k-1 and the readback left
+      QCOMPARE(readFbo.at(k), 0);
+      QCOMPARE(drawFbo.at(k), fbo.at(k - 1));
+      QCOMPARE(scissor.at(k), 1);  // the core leaves GL_SCISSOR_TEST on
+    }
+  }
 };
 
 int main(int argc, char** argv) {

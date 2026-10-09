@@ -25,12 +25,15 @@ QString glString(QOpenGLFunctions* f, GLenum name) {
   return s ? QString::fromLatin1(reinterpret_cast<const char*>(s)) : QStringLiteral("?");
 }
 
-// Restores the GL bindings that this class touches, so the core's own state stays intact.
+// Restores the GL bindings that this class touches, so the core's own state stays intact. The read and draw
+// framebuffer bindings are separate state: a core may leave them different (e.g. read 0, draw = its FBO).
 struct BindingGuard {
   explicit BindingGuard(QOpenGLFunctions* fn) : f(fn) {
     GLint v = 0;
-    f->glGetIntegerv(GL_FRAMEBUFFER_BINDING, &v);
-    fbo = static_cast<GLuint>(v);
+    f->glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &v);
+    readFbo = static_cast<GLuint>(v);
+    f->glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &v);
+    drawFbo = static_cast<GLuint>(v);
     f->glGetIntegerv(GL_RENDERBUFFER_BINDING, &v);
     rbo = static_cast<GLuint>(v);
     f->glGetIntegerv(GL_TEXTURE_BINDING_2D, &v);
@@ -40,7 +43,8 @@ struct BindingGuard {
     f->glGetIntegerv(GL_PACK_ALIGNMENT, &packAlign);
   }
   ~BindingGuard() {
-    f->glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    f->glBindFramebuffer(GL_READ_FRAMEBUFFER, readFbo);
+    f->glBindFramebuffer(GL_DRAW_FRAMEBUFFER, drawFbo);
     f->glBindRenderbuffer(GL_RENDERBUFFER, rbo);
     f->glBindTexture(GL_TEXTURE_2D, tex);
     f->glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo);
@@ -48,7 +52,7 @@ struct BindingGuard {
   }
   Q_DISABLE_COPY(BindingGuard)
   QOpenGLFunctions* f;
-  GLuint fbo = 0, rbo = 0, tex = 0, pbo = 0;
+  GLuint readFbo = 0, drawFbo = 0, rbo = 0, tex = 0, pbo = 0;
   GLint packAlign = 4;
 };
 }  // namespace
