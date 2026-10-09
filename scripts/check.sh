@@ -73,6 +73,8 @@ hub_deb() {
 }
 CORE_PATH=""
 client_core() { CORE_PATH="$("$ROOT/scripts/fetch-melonds-ds.sh")" && [ -f "$CORE_PATH" ]; }
+DESMUME_PATH=""
+client_desmume() { DESMUME_PATH="$("$ROOT/scripts/fetch-buildbot-core.sh" desmume)" && [ -f "$DESMUME_PATH" ]; }
 DDC_PATH=""
 client_libdatachannel() { DDC_PATH="$("$ROOT/scripts/fetch-libdatachannel.sh")" && [ -d "$DDC_PATH" ]; }
 SDL3_PATH=""
@@ -86,6 +88,11 @@ client_test() {
     grep -E '^\s*[0-9]+/[0-9]+ Test\s+#[0-9]+: .*\*\*\*|tests failed|The following tests FAILED|^\s+[0-9]+ - ' "$out" | head -n 20
     echo "--- failed test output (FAIL!/QWARN/QFATAL, context) ---"
     grep -E -B2 -A4 'FAIL!|QFATAL|QWARN|Exception|Segmentation' "$out" | head -n 110
+  fi
+  # CI (FRAMEBEAM_REQUIRE_CORES): the core tests must run, a skip counts as a failure.
+  if [ "$rc" -eq 0 ] && [ -n "${FRAMEBEAM_REQUIRE_CORES:-}" ] \
+     && grep -E 'Test\s+#[0-9]+: emulation_core(_desmume)?\s.*(Skipped|Not Run)' "$out"; then
+    echo "core test skipped although the cores are required (FRAMEBEAM_REQUIRE_CORES)"; rc=1
   fi
   rm -f "$out"
   return "$rc"
@@ -107,6 +114,15 @@ client() {
   # Core first (idempotent, cached); if it fails, tests with NEEDS_CORE run as SKIP.
   step "client: core" client_core
   [ -n "$CORE_PATH" ] && [ -f "$CORE_PATH" ] && core_arg+=("-DFRAMEBEAM_MELONDS_DS_CORE=$CORE_PATH")
+  # DeSmuME (nightly buildbot, ADR 0020 D10): offline = one warning, tests with NEEDS_DESMUME_CORE skip.
+  # FRAMEBEAM_REQUIRE_CORES=1 (CI): a failed fetch fails the check instead.
+  if client_desmume 2>/dev/null; then
+    core_arg+=("-DFRAMEBEAM_DESMUME_CORE=$DESMUME_PATH"); echo "ok  client: desmume core"
+  elif [ -n "${FRAMEBEAM_REQUIRE_CORES:-}" ]; then
+    echo "FAIL client: desmume core (buildbot fetch failed; FRAMEBEAM_REQUIRE_CORES is set)"; "$ROOT/scripts/fetch-buildbot-core.sh" desmume 2>&1 | tail -n 5; return 1
+  else
+    echo "warn client: desmume core not fetched (buildbot unreachable?), DeSmuME tests will be skipped"
+  fi
   step "client: configure" bash -c "cd '$ROOT/client' && cmake --preset $p ${core_arg[*]:-}"
   step "client: build"     bash -c "cd '$ROOT/client' && cmake --build --preset $p"
   STEP_TAIL=150 step "client: test" client_test "$p"
@@ -165,7 +181,7 @@ packaging() {
   local dir="$ROOT/packaging/linux" tmp rc=0
   tmp="$(mktemp -d)"
   local f
-  for f in "$dir/install-hub.sh" "$dir/build-deb.sh" "$dir"/deb/* "$ROOT/scripts/gen-hub-notices.sh" "$ROOT/scripts/check-trusted-keys.sh" "$ROOT/scripts/e2e-hub-update.sh" "$ROOT/scripts/next-beta-version.sh" "$ROOT/scripts/update-index.sh"; do
+  for f in "$dir/install-hub.sh" "$dir/build-deb.sh" "$dir"/deb/* "$ROOT/scripts/gen-hub-notices.sh" "$ROOT/scripts/check-trusted-keys.sh" "$ROOT/scripts/e2e-hub-update.sh" "$ROOT/scripts/next-beta-version.sh" "$ROOT/scripts/update-index.sh" "$ROOT/scripts/fetch-buildbot-core.sh"; do
     bash -n "$f" || rc=1
   done
   # Beta version numbering of the CI version job (ADR 0011).
@@ -214,7 +230,7 @@ packaging() {
   rc_out="$(FRAMEBEAM_INSTALL_ROOT="$root" "$dir/install-hub.sh" renew-cert 2>&1)" || { echo "renew-cert dry-run failed"; rc=1; }
   grep -q 'FRAMEBEAM_DATA_DIR=/var/lib/framebeam .*renew-cert' <<<"$rc_out" \
     || { echo "renew-cert dry-run lacks the runuser line"; rc=1; }
-  mkdir -p "$tmp/cores-in"; : >"$tmp/cores-in/cores-index.json"; : >"$tmp/cores-in/cores-index.json.sig"
+  mkdir -p "$tmp/cores-in/linux-x64"; : >"$tmp/cores-in/linux-x64/dummy_libretro.so.zip"
   rc_out="$(FRAMEBEAM_INSTALL_ROOT="$root" "$dir/install-hub.sh" import-cores "$tmp/cores-in" 2>&1)" || { echo "import-cores dry-run failed"; rc=1; }
   grep -q 'FRAMEBEAM_DATA_DIR=/var/lib/framebeam .*import-cores' <<<"$rc_out" \
     || { echo "import-cores dry-run lacks the runuser line"; rc=1; }
