@@ -2,6 +2,7 @@
 // same arguments, passes its std handles on, waits and returns the exit code of the child.
 // Deliberately tiny: no Qt, no C++ runtime features beyond the static CRT.
 #include <windows.h>
+#include <shellapi.h>  // not part of windows.h under WIN32_LEAN_AND_MEAN
 #include <shobjidl.h>
 
 #include <cwchar>
@@ -57,7 +58,7 @@ int applyMsiUpdate(const framebeam::launcher::MsiUpdateRequest& req) {
   }
   if (code != 0 && code != 3010) {  // 3010 = success, restart required
     wchar_t msg[256];
-    _snwprintf(msg, sizeof(msg) / sizeof(msg[0]), L"The FrameBeam update could not be installed (code %lu).", code);
+    _snwprintf_s(msg, _countof(msg), _TRUNCATE, L"The FrameBeam update could not be installed (code %lu).", code);
     MessageBoxW(nullptr, msg, L"FrameBeam Player", MB_OK | MB_ICONERROR);
   }
   // Start the Player again (the installed one after success, otherwise the previous one).
@@ -83,7 +84,7 @@ int applyMsiUpdate(const framebeam::launcher::MsiUpdateRequest& req) {
     STARTUPINFOW si2 = {};
     si2.cb = sizeof(si2);
     PROCESS_INFORMATION pi2 = {};
-    if (CreateProcessW(nullptr, &clean[0], nullptr, nullptr, FALSE, CREATE_NO_WINDOW | DETACHED_PROCESS, nullptr, nullptr, &si2, &pi2)) {
+    if (CreateProcessW(nullptr, &clean[0], nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &si2, &pi2)) {
       CloseHandle(pi2.hThread);
       CloseHandle(pi2.hProcess);
     }
@@ -146,7 +147,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
                       nullptr /* keep the caller's working directory */, &si, &pi)) {
     const DWORD code = GetLastError();
     wchar_t msg[512];
-    _snwprintf(msg, sizeof(msg) / sizeof(msg[0]), L"FrameBeam Player could not be started (%lu):\n%ls", code, child.c_str());
+    _snwprintf_s(msg, _countof(msg), _TRUNCATE, L"FrameBeam Player could not be started (%lu):\n%ls", code, child.c_str());
     MessageBoxW(nullptr, msg, L"FrameBeam Player", MB_OK | MB_ICONERROR);
     return 1;
   }
