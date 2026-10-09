@@ -40,13 +40,18 @@ class CoreCache {
   // Cached versions with a package.json for this platform, newest first (validity of the files is not checked).
   QStringList versions(const QString& coreId, const QString& platform) const;
 
+ // Tests only: how long a file must have been unchanged before its verified hash is memoized (default 2 s).
+  void setMemoSettleMsForTest(qint64 ms) { memoSettleMs_ = ms; }
+
  private:
   struct Memo {
     qint64 size = 0;
     qint64 mtimeMs = 0;
+    qint64 ctimeMs = 0;  // metadata change time
     QString sha256;  // hash that was verified
   };
   QString root_;
+  qint64 memoSettleMs_ = 2000;
   mutable QHash<QString, Memo> memo_;
 };
 

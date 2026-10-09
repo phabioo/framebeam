@@ -1,6 +1,7 @@
 #include "corecache.h"
 
 #include <QCryptographicHash>
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -74,19 +75,29 @@ bool CoreCache::fileValid(const CorePackageInfo& pkg, const CorePackageFile& fil
   if (!fi.isFile() || fi.size() != file.size) {
     return false;
   }
+  // The memo skips re-hashing a big core on every launch, but must never vouch for a file rewritten since it was
+  // verified. mtime alone is not enough: a same-size rewrite within one timestamp tick (coarse file systems) or with
+  // a restored mtime keeps size + mtime identical. So the key also holds the metadata change time (ctime, which
+  // every write bumps and user code cannot set back), and an entry is only recorded when the file had settled, i.e.
+  // both timestamps lie at least memoSettleMs_ before this verification; a file touched more recently is re-hashed
+  // next time instead. Limitation: on Windows Qt does not expose the real NTFS change time (metadataChangeTime()
+  // mirrors the mtime), so there a rewrite with a restored mtime and the same size is not detected; the settle window
+  // and the size/mtime comparison still hold on every platform.
   const qint64 mtime = fi.lastModified().toMSecsSinceEpoch();
+  const qint64 ctime = fi.metadataChangeTime().toMSecsSinceEpoch();
   const auto it = memo_.constFind(p);
-  if (it != memo_.constEnd() && it->size == fi.size() && it->mtimeMs == mtime && it->sha256 == file.sha256) {
+  if (it != memo_.constEnd() && it->size == fi.size() && it->mtimeMs == mtime && it->ctimeMs == ctime && it->sha256 == file.sha256) {
     return true;
   }
   QFile f(p);
   if (!f.open(QIODevice::ReadOnly)) {
     return false;
   }
+  const qint64 startedMs = QDateTime::currentMSecsSinceEpoch();
   QCryptographicHash h(QCryptographicHash::Sha256);
   const bool ok = h.addData(&f) && QString::fromLatin1(h.result().toHex()) == file.sha256;
-  if (ok) {
-    memo_.insert(p, {fi.size(), mtime, file.sha256});
+  if (ok && std::max(mtime, ctime) + memoSettleMs_ <= startedMs) {
+    memo_.insert(p, {fi.size(), mtime, ctime, file.sha256});
   } else {
     memo_.remove(p);
   }
