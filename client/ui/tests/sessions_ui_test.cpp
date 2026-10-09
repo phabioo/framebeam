@@ -461,10 +461,12 @@ class SessionsUiTest : public QObject {
 
     hub.holdSessionGet = true;
     ctl->withdrawInvite(QStringLiteral("u_jonas"));
+    // The follow-up GET is sent only when the DELETE answers. Wait until it is held (sent before the visibility change),
+    // otherwise it could be sent after the PATCH and its answer would rightly be trusted.
+    QTRY_COMPARE(hub.heldSessionGets(), 1);
     QVERIFY(h.click("visPrivate"));
     QCOMPARE(ctl->visibility(), QStringLiteral("private"));
     QTRY_COMPARE(hub.sessions.value(ownSessionId(hub)).value(QStringLiteral("visibility")).toString(), QStringLiteral("private"));
-    QTRY_COMPARE(hub.heldSessionGets(), 1);
     // let the PATCH answer arrive (its request is answered before the held GET is released)
     QTRY_VERIFY(countContaining(hub, QStringLiteral("/invites/u_jonas"), "DELETE") == 1);
     hub.releaseHeldSessionGets(QStringLiteral("invite_only"));
