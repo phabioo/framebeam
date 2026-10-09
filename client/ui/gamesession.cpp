@@ -72,6 +72,9 @@ void GameSession::launch(const LaunchConfig& config, bool restart) {
 
   runner_ = std::make_unique<EmulationRunner>(std::make_unique<emu::LibretroBackend>());
   runner_->setReadbackLimit(limit_);
+  if (gpuTarget_) {
+    runner_->setGpuEncodeTarget(gpuTarget_);  // applied by the emulation thread at its first frame
+  }
   EmulationRunner* r = runner_.get();
   connect(r, &EmulationRunner::started, this, [this](const emu::AvInfo& av, const emu::CoreInfo& core) {
     coreName_ = core.version.isEmpty() ? core.name : core.name + QLatin1Char(' ') + core.version;
@@ -133,7 +136,7 @@ void GameSession::launch(const LaunchConfig& config, bool restart) {
 void GameSession::teardown() {
   if (runner_) {
     runner_->disconnect(this);
-    runner_->stop();
+    runner_->stop();  // unloading the game detaches the GPU encode target (GL current); gpuTarget_ stays for a restart
     runner_.reset();
   }
   audio_.stop();
@@ -301,6 +304,15 @@ void GameSession::setShareSize(const QSize& pixels) {
   updateReadbackLimit();
 }
 
+void GameSession::setGpuEncodeTarget(std::shared_ptr<emu::GpuEncodeTarget> target) {
+  gpuTarget_ = std::move(target);
+  if (runner_) {
+    runner_->setGpuEncodeTarget(gpuTarget_);
+  }
+}
+
+bool GameSession::hardwareRendered() const { return runner_ && isActive() && runner_->renderInfo().hwActive; }
+
 void GameSession::updateReadbackLimit() {
   QSize limit;  // empty = nobody reported a size: unlimited
   for (const QSize& s : std::as_const(viewSizes_)) limit = limit.expandedTo(s);
@@ -340,6 +352,8 @@ EmulationDiagnostics GameSession::diagnostics() const {
     d.emuMs = t.emuMs;
     d.readbackMs = t.readbackMs;
     d.readbacksPerSec = t.readbacksPerSec;
+    d.gpuCopyMs = t.gpuCopyMs;
+    d.gpuCopiesPerSec = t.gpuCopiesPerSec;
   }
   d.totalHistory.reserve(t.history.size());
   d.emuHistory.reserve(t.history.size());

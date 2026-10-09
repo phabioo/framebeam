@@ -163,6 +163,9 @@ QVariantMap DiagnosticsModel::emulationMap(const EmulationDiagnostics& d) {
     frame = hw ? tr("%1 ms · emu %2 · readback %3 (%4/s)")
                      .arg(fixed(d.frameMs, 1), fixed(d.emuMs, 1), fixed(d.readbackMs, 1), QString::number(qRound(d.readbacksPerSec)))
                : tr("%1 ms · emu %2 · no readback").arg(fixed(d.frameMs, 1), fixed(d.emuMs, 1));
+    if (hw && d.gpuCopiesPerSec > 0.0) {  // GPU-direct Session encoding (ADR 0019): the copy into the encoder's texture
+      frame += tr(" · GPU copy %1 (%2/s)").arg(fixed(d.gpuCopyMs, 1), QString::number(qRound(d.gpuCopiesPerSec)));
+    }
   }
   m.insert(QStringLiteral("frame"), frame);
 
@@ -223,7 +226,13 @@ QString DiagnosticsModel::hostLine(const SessionStats& s) {
   if (s.targetBitrateKbps > 0) {
     rate = tr("%1 / target %2").arg(rate, mbit(s.targetBitrateKbps));
   }
-  return tr("Encoder %1 · H.264 · %2 Mbit/s · %3 fps").arg(s.encoderName, rate, fixed(s.fps, 1));
+  QString line = tr("Encoder %1 · H.264 · %2 Mbit/s · %3 fps").arg(s.encoderName, rate, fixed(s.fps, 1));
+  if (s.gpuInput) {  // ADR 0019: h264_nvenc takes CUDA frames straight from the GPU
+    line += tr(" · GPU-direct");
+  } else if (s.gpuInputFailed) {
+    line += tr(" · readback (GPU-direct off)");
+  }
+  return line;
 }
 
 QString DiagnosticsModel::hostSendingLine(int viewers) {

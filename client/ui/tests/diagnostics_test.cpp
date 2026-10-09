@@ -2,6 +2,7 @@
 #include <QtTest>
 
 #include "diagnosticsmodel.h"
+#include "gpuencodebridge.h"
 
 using namespace framebeam;
 using namespace framebeam::ui;
@@ -102,6 +103,85 @@ class DiagnosticsTest : public QObject {
     QCOMPARE(DiagnosticsModel::decoderLine(QStringLiteral("h264"), 3900.0, 59.7),
              QStringLiteral("Decoder h264 · H.264 · 3.9 Mbit/s · 59.7 fps"));
     QCOMPARE(DiagnosticsModel::decoderLine(QString(), std::nullopt, std::nullopt), QStringLiteral("Decoder — · H.264 · — · —"));
+  }
+
+  // ADR 0019: the host line names the GPU-direct path, or says that it was tried and is off. Without either, the string is
+  // exactly the one above.
+  void hostLineNamesTheGpuPath() {
+    SessionStats s;
+    s.encoderName = QStringLiteral("h264_nvenc");
+    s.videoBitrateKbps = 6000;
+    s.targetBitrateKbps = 6500;
+    s.fps = 60;
+    const QString base = QStringLiteral("Encoder h264_nvenc · H.264 · 6.0 / target 6.5 Mbit/s · 60.0 fps");
+    QCOMPARE(DiagnosticsModel::hostLine(s), base);
+    s.gpuInput = true;
+    QCOMPARE(DiagnosticsModel::hostLine(s), base + QStringLiteral(" · GPU-direct"));
+    s.gpuInput = false;
+    s.gpuInputFailed = true;
+    QCOMPARE(DiagnosticsModel::hostLine(s), base + QStringLiteral(" · readback (GPU-direct off)"));
+    s.gpuInput = true;  // cannot be both in practice; GPU-direct wins
+    QCOMPARE(DiagnosticsModel::hostLine(s), base + QStringLiteral(" · GPU-direct"));
+    SessionStats idle;  // no encoder yet: the suffixes do not apply
+    idle.gpuInputFailed = true;
+    QCOMPARE(DiagnosticsModel::hostLine(idle), QStringLiteral("Encoder starts with the first viewer"));
+  }
+
+  // The frame row gets the copy into the Session encode texture only while frames are captured.
+  void frameRowShowsTheGpuCopy() {
+    EmulationDiagnostics d = sw();
+    d.hwRequested = d.hwActive = true;
+    d.api = QStringLiteral("OpenGL 4.6 Core");
+    d.gpu = QStringLiteral("Example GPU · Driver 1.2.3");
+    d.frameMs = 9.4;
+    d.emuMs = 7.1;
+    d.readbackMs = 0.4;
+    d.readbacksPerSec = 60;
+    const QString base = QStringLiteral("9.4 ms · emu 7.1 · readback 0.4 (60/s)");
+    QCOMPARE(DiagnosticsModel::emulationMap(d).value("frame").toString(), base);
+    d.gpuCopyMs = 0.3;
+    QCOMPARE(DiagnosticsModel::emulationMap(d).value("frame").toString(), base);  // copy time without captures: unchanged
+    d.gpuCopiesPerSec = 60;
+    QCOMPARE(DiagnosticsModel::emulationMap(d).value("frame").toString(), base + QStringLiteral(" · GPU copy 0.3 (60/s)"));
+    d.gpuCopiesPerSec = 29.6;
+    QVERIFY(DiagnosticsModel::emulationMap(d).value("frame").toString().endsWith(QStringLiteral(" · GPU copy 0.3 (30/s)")));
+    d.fps = 0;  // paused: the dash stays
+    QCOMPARE(DiagnosticsModel::emulationMap(d).value("frame").toString(), QStringLiteral("—"));
+  }
+
+  // planGpuEncode over all 32 combinations: written out by cases, not by the formula of the implementation.
+  void planGpuEncodeTruthTable() {
+    int rows = 0, keep = 0, create = 0, wanted = 0, emptyShare = 0, maxShare = 0;
+    for (int bits = 0; bits < 32; ++bits) {
+      const bool shared = bits & 16, hw = bits & 8, running = bits & 4, allowed = bits & 2, active = bits & 1;
+      const GpuEncodePlan p = planGpuEncode(shared, hw, running, allowed, active);
+      const QString row = QStringLiteral("shared=%1 hw=%2 running=%3 allowed=%4 active=%5").arg(shared).arg(hw).arg(running).arg(allowed).arg(active);
+      ++rows;
+      bool expectKeep = false, expectCreate = false;
+      QSize expectSize;  // not shared: no share size at all
+      if (shared) {
+        expectSize = active ? QSize() : kShareEncodeMax;  // GPU-direct active: nothing needs reading back for the encoder
+        if (hw && allowed) {
+          expectKeep = true;
+          expectCreate = running;  // the bridge exists only while the encoder runs ...
+        }
+      }
+      QVERIFY2(p.keep == expectKeep, qPrintable(row));
+      QVERIFY2(p.create == expectCreate, qPrintable(row));
+      QVERIFY2(p.wanted == expectCreate, qPrintable(row));  // ... and produces frames exactly then
+      QVERIFY2(p.shareSize == expectSize, qPrintable(row));
+      keep += p.keep;
+      create += p.create;
+      wanted += p.wanted;
+      (p.shareSize.isEmpty() ? emptyShare : maxShare) += 1;
+    }
+    QCOMPARE(rows, 32);
+    QCOMPARE(keep, 4);
+    QCOMPARE(create, 2);
+    QCOMPARE(wanted, 2);
+    QCOMPARE(emptyShare, 24);  // 16 unshared + 8 shared with GPU-direct active
+    QCOMPARE(maxShare, 8);
+    QCOMPARE(kShareEncodeMax, QSize(1280, 1920));
   }
 
   void linkLineAndTurn() {

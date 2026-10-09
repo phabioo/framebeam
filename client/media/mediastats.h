@@ -43,6 +43,8 @@ struct SessionStats {
   int decodeErrors = 0;          // viewer
   qint64 droppedFrames = 0;      // host: video frames dropped because the encoder fell behind
   int keyframeRequests = 0;      // host: PLI received, viewer: PLI sent
+  bool gpuInput = false;         // host: the encoder takes CUDA frames straight from the GPU (GPU-direct, ADR 0019)
+  bool gpuInputFailed = false;   // host: GPU-direct was tried in this Session and failed; readback frames again
 };
 
 }  // namespace framebeam

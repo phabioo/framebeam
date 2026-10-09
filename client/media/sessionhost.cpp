@@ -11,6 +11,14 @@
 #include <thread>
 #include <variant>
 
+extern "C" {
+#include <libavutil/buffer.h>
+#include <libavutil/frame.h>
+}
+
+#include "cudadriver.h"
+#include "cudaglcapture.h"
+#include "mediacaps.h"
 #include "opuscodec.h"
 #include "rtcutil.h"
 
@@ -24,6 +32,7 @@ constexpr int kAudioPayloadType = 111;
 constexpr int kMaxFragment = 1200;
 constexpr uint32_t kOpusClockRate = 48000;
 constexpr uint16_t kDiagChannelId = 0;
+constexpr int kGpuWatchdogFrames = 60;  // readback frames without a GPU frame before GPU input is turned off (ADR 0019)
 
 QString stateName(rtc::PeerConnection::State s) {
   using S = rtc::PeerConnection::State;
@@ -68,26 +77,33 @@ struct WorkerStats {
   int width = 0, height = 0;
 };
 
-// Owns the H.264 encoder and the Opus framer and runs them on its own thread. Producers (owner thread) only copy
-// data into a bounded queue. Video: at most kMaxPendingVideo frames wait, the oldest is dropped. Audio: ordered,
-// bounded to ~1.4 s of PCM (only exceeded if the thread is stuck). Destruction joins the thread (pending work is
-// discarded) and so guarantees that no callback or sendFrame() runs afterwards.
+// Owns the H.264 encoders and the Opus framer and runs them on its own thread. Producers (owner thread) only copy
+// data into a bounded queue. Video: at most kMaxPendingVideo frames wait, the oldest is dropped; readback frames and
+// GPU frames (ADR 0019, CUDA frames of the local game, not copied) share that bound. Audio: ordered, bounded to
+// ~1.4 s of PCM (only exceeded if the thread is stuck). Destruction joins the thread (pending work is discarded) and so
+// guarantees that no callback or sendFrame() runs afterwards. Jobs that may hold a CUDA frame are never destroyed
+// under the queue lock: returning a pool buffer pushes the CUDA context.
 class EncodeWorker {
  public:
   static constexpr int kMaxPendingVideo = 2;
   static constexpr qint64 kMaxPendingAudioBytes = 256 * 1024;
 
   EncodeWorker(const SessionHost::Options& options, std::shared_ptr<SinkList> sinks, std::shared_ptr<WorkerStats> stats,
-               std::function<void(QString)> onError, std::function<void()> onOpenFailed)
+               std::function<void(QString)> onError, std::function<void()> onOpenFailed, std::function<void()> onGpuActive,
+               std::function<void(QString)> onGpuOff)
       : options_(options), targetKbps_(options.videoBitrate / 1000), sinks_(std::move(sinks)), stats_(std::move(stats)), onError_(std::move(onError)),
-        onOpenFailed_(std::move(onOpenFailed)), thread_([this]() { run(); }) {}
+        onOpenFailed_(std::move(onOpenFailed)), onGpuActive_(std::move(onGpuActive)), onGpuOff_(std::move(onGpuOff)),
+        thread_([this]() { run(); }) {}
   ~EncodeWorker() {
+    std::deque<Job> doomed;
     {
       std::lock_guard<std::mutex> lock(mutex_);
       stop_ = true;
+      doomed = std::move(queue_);
       queue_.clear();
     }
     cv_.notify_all();
+    doomed.clear();  // outside the lock
     thread_.join();
   }
   EncodeWorker(const EncodeWorker&) = delete;
@@ -96,6 +112,14 @@ class EncodeWorker {
   void requestKeyframe() { keyframe_ = true; }
   // Bitrate adaptation: picked up before the next frame (runtime change or reopen, see applyTargetBitrate()).
   void setTargetBitrate(int kbps) { targetKbps_ = kbps; }
+  // GPU input was switched off by the owner: the worker leaves GPU mode before its next job (any thread).
+  void disableGpu() {
+    gpuDisabled_ = true;
+    {
+      std::lock_guard<std::mutex> lock(mutex_);  // pairs with the wait predicate in run()
+    }
+    cv_.notify_one();
+  }
 
   void pushVideo(const uint8_t* data, int width, int height, int stride, RawPixelFormat format, qint64 ns) {
     Job j;
@@ -108,23 +132,16 @@ class EncodeWorker {
     const int bpp = format == RawPixelFormat::Rgb565 ? 2 : 4;
     const size_t bytes = static_cast<size_t>(stride) * static_cast<size_t>(height - 1) + static_cast<size_t>(width) * bpp;
     j.pixels.assign(data, data + bytes);  // copy outside the lock
-    {
-      std::lock_guard<std::mutex> lock(mutex_);
-      if (stop_) return;
-      int pending = 0;
-      for (const Job& q : queue_) pending += q.video ? 1 : 0;
-      for (auto it = queue_.begin(); pending >= kMaxPendingVideo && it != queue_.end();) {
-        if (it->video) {
-          it = queue_.erase(it);
-          --pending;
-          ++stats_->dropped;
-        } else {
-          ++it;
-        }
-      }
-      queue_.push_back(std::move(j));
-    }
-    cv_.notify_one();
+    insertVideo(std::move(j));
+  }
+
+  // One CUDA frame of the local game (no copy). Same bounded insert as pushVideo().
+  void pushGpuVideo(std::shared_ptr<AVFrame> frame, qint64 ns) {
+    Job j;
+    j.video = true;
+    j.gpu = std::move(frame);
+    j.ns = ns;
+    insertVideo(std::move(j));
   }
 
   void pushAudio(const QByteArray& pcm, int rate) {
@@ -155,31 +172,69 @@ class EncodeWorker {
   struct Job {
     bool video = false;
     std::vector<uint8_t> pixels;
+    std::shared_ptr<AVFrame> gpu;  // GPU-direct job: a CUDA frame instead of pixels (video is true as well)
     int width = 0, height = 0, stride = 0;
     RawPixelFormat format = RawPixelFormat::Xrgb8888;
     qint64 ns = 0;
     QByteArray pcm;
     int rate = 0;
   };
+  // Where the video frames come from. Untried: only the CPU encoder runs, a GPU job opens the CUDA encoder next to it.
+  // Active: the CUDA encoder works, the CPU encoder is closed and readback jobs are skipped. Off: back to readback for
+  // the rest of this worker (failed, or switched off by the owner).
+  enum class GpuState { Untried, Active, Off };
+
+  // Bounded insert shared by both video job kinds. Dropped jobs are destroyed after the unlock (they may hold CUDA frames).
+  void insertVideo(Job&& j) {
+    std::vector<Job> dropped;
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (stop_) {
+        dropped.push_back(std::move(j));
+      } else {
+        int pending = 0;
+        for (const Job& q : queue_) pending += q.video ? 1 : 0;
+        for (auto it = queue_.begin(); pending >= kMaxPendingVideo && it != queue_.end();) {
+          if (it->video) {
+            dropped.push_back(std::move(*it));
+            it = queue_.erase(it);
+            --pending;
+            ++stats_->dropped;
+          } else {
+            ++it;
+          }
+        }
+        queue_.push_back(std::move(j));
+      }
+    }
+    cv_.notify_one();
+  }
 
   void run() {
     opus_.open(options_.audioBitrate);
     for (;;) {
       Job j;
+      bool leaveOnly = false;
       {
         std::unique_lock<std::mutex> lock(mutex_);
-        cv_.wait(lock, [this]() { return stop_ || !queue_.empty(); });
+        cv_.wait(lock, [this]() { return stop_ || !queue_.empty() || (gpuDisabled_.load() && gpu_ != GpuState::Off); });
         if (stop_) break;
-        j = std::move(queue_.front());
-        queue_.pop_front();
-        if (!j.video) {
-          pendingAudio_ -= j.pcm.size();
-          audioClockOffset_ += droppedAudioSeconds_;
-          droppedAudioSeconds_ = 0;
+        if (queue_.empty()) {
+          leaveOnly = true;  // woken by disableGpu(): close the CUDA encoder and drop queued GPU jobs now
+        } else {
+          j = std::move(queue_.front());
+          queue_.pop_front();
+          if (!j.video) {
+            pendingAudio_ -= j.pcm.size();
+            audioClockOffset_ += droppedAudioSeconds_;
+            droppedAudioSeconds_ = 0;
+          }
         }
       }
       try {
-        if (j.video) {
+        if (leaveOnly) {
+          leaveGpu({}, /*notify*/ false);
+        } else if (j.video) {
           encodeVideo(j);
         } else {
           encodeAudio(j);
@@ -189,14 +244,46 @@ class EncodeWorker {
       }
     }
     encoder_.close();
+    gpuEncoder_.close();
     opus_.close();
+  }
+
+  // Encoders the CPU path tries: after a fatal CUDA error the driver is Dead and h264_nvenc (which would create its own
+  // CUDA context) is left out.
+  QStringList cpuOrder() const {
+    return VideoEncoder::effectiveOrder(options_.encoderOrder, cuda::Driver::instance().state() == cuda::Driver::State::Dead);
+  }
+
+  int64_t nextPts(const Job& j) {
+    int64_t pts = static_cast<int64_t>(j.ns * options_.fps / 1'000'000'000.0 + 0.5);
+    pts = std::max<int64_t>(pts, lastPts_ + 1);
+    lastPts_ = pts;
+    return pts;
+  }
+
+  void sendPackets(const std::vector<EncodedVideoPacket>& packets) {
+    const std::vector<Sink> sinks = sinks_->get();
+    for (const EncodedVideoPacket& p : packets) {
+      ++stats_->frames;
+      stats_->videoBytes += static_cast<qint64>(p.data.size());
+      const double seconds = static_cast<double>(p.pts) / std::max(1, options_.fps);
+      for (const Sink& sink : sinks) {
+        send(sink.video, p.data.data(), p.data.size(), seconds, "video");
+      }
+    }
   }
 
   void encodeVideo(const Job& j) {
     if (failed_) return;
+    if (gpuDisabled_.load() && gpu_ != GpuState::Off) leaveGpu({}, /*notify*/ false);  // the host already knows
+    if (j.gpu) {
+      if (gpu_ != GpuState::Off) encodeGpuJob(j);
+      return;
+    }
+    if (gpu_ == GpuState::Active) return;  // the CUDA encoder works; readback frames are not needed
     if (!encoder_.isOpen() || encoder_.width() != j.width || encoder_.height() != j.height) {
       encoder_.close();  // first frame or resolution change (the first frame is a keyframe again)
-      if (!encoder_.open(j.width, j.height, options_.fps, targetKbps_.load() * 1000, options_.encoderOrder)) {
+      if (!encoder_.open(j.width, j.height, options_.fps, targetKbps_.load() * 1000, cpuOrder())) {
         failed_ = true;
         onOpenFailed_();
         return;
@@ -212,10 +299,9 @@ class EncodeWorker {
     if (keyframe_.exchange(false)) {
       encoder_.requestKeyframe();
     }
-    int64_t pts = static_cast<int64_t>(j.ns * options_.fps / 1'000'000'000.0 + 0.5);
-    pts = std::max<int64_t>(pts, lastPts_ + 1);
-    lastPts_ = pts;
+    const int64_t pts = nextPts(j);
     std::vector<EncodedVideoPacket> packets;
+    const auto t0 = std::chrono::steady_clock::now();
     if (!encoder_.encode(j.pixels.data(), j.stride, j.format, pts, packets)) {
       if (!encodeErrorReported_) {
         encodeErrorReported_ = true;
@@ -223,15 +309,115 @@ class EncodeWorker {
       }
       return;
     }
-    const std::vector<Sink> sinks = sinks_->get();
-    for (const EncodedVideoPacket& p : packets) {
-      ++stats_->frames;
-      stats_->videoBytes += static_cast<qint64>(p.data.size());
-      const double seconds = static_cast<double>(p.pts) / std::max(1, options_.fps);
-      for (const Sink& sink : sinks) {
-        send(sink.video, p.data.data(), p.data.size(), seconds, "video");
+    recordTiming(false, t0);
+    sendPackets(packets);
+  }
+
+  // ADR 0019: one CUDA frame. Every error leaves GPU mode (failGpu); none of them touches failed_, onOpenFailed_ or
+  // encodeErrorReported_, which belong to the CPU encoder.
+  void encodeGpuJob(const Job& j) {
+    AVBufferRef* fc = j.gpu->hw_frames_ctx;
+    if (!fc) {
+      leaveGpu(QStringLiteral("GPU frame without frames context"), true);
+      return;
+    }
+    if (!gpuEncoder_.isOpen() || gpuEncoder_.gpuFramesKey() != fc->data) {  // first frame or new encode size
+      QString why;
+      if (!gpuEncoder_.openGpu(fc, options_.fps, targetKbps_.load() * 1000, &why)) {
+        failGpu(why.isEmpty() ? QStringLiteral("h264_nvenc does not open with CUDA frames") : why, fc);
+        return;
+      }
+      lastReopen_ = std::chrono::steady_clock::now();
+      if (gpu_ == GpuState::Active) {
+        std::lock_guard<std::mutex> lock(stats_->mutex);
+        stats_->width = gpuEncoder_.width();
+        stats_->height = gpuEncoder_.height();
       }
     }
+    applyGpuBitrate(fc);
+    if (gpu_ == GpuState::Off) return;
+    if (keyframe_.exchange(false)) {
+      gpuEncoder_.requestKeyframe();
+    }
+    const int64_t pts = nextPts(j);
+    std::vector<EncodedVideoPacket> packets;
+    const auto t0 = std::chrono::steady_clock::now();
+    if (!gpuEncoder_.encodeGpu(j.gpu.get(), pts, packets)) {
+      failGpu(QStringLiteral("encoding a CUDA frame failed"), fc);
+      return;
+    }
+    recordTiming(true, t0);
+    if (gpu_ == GpuState::Untried) {
+      gpu_ = GpuState::Active;
+      encoder_.close();  // only now: a failed GPU open never cost a CPU reopen
+      const int w = gpuEncoder_.width(), h = gpuEncoder_.height();
+      {
+        std::lock_guard<std::mutex> lock(stats_->mutex);
+        stats_->encoderName = gpuEncoder_.name();
+        stats_->width = w;
+        stats_->height = h;
+      }
+      qCInfo(lcHost).noquote() << QStringLiteral("GPU-direct encoding active: h264_nvenc takes CUDA frames %1 x %2 "
+                                                 "(no readback, no CPU conversion)")
+                                      .arg(w)
+                                      .arg(h);
+      onGpuActive_();
+    }
+    sendPackets(packets);
+  }
+
+  // After a GPU open/encode failure: if the CUDA context is dead the whole driver goes Dead (health check), then leave.
+  void failGpu(const QString& what, AVBufferRef* fc) {
+    const int r = cudaHealthCheck(fc);
+    leaveGpu(r != 0 ? QStringLiteral("%1; %2").arg(what, cuda::Driver::describe(r)) : what, true);
+  }
+
+  // Back to readback frames for the rest of this worker. The CPU encoder is still open unless GPU mode was Active; then
+  // the next readback job reopens it (with a keyframe). `notify`: tell the owner (false when it asked for this).
+  void leaveGpu(const QString& reason, bool notify) {
+    gpuEncoder_.close();
+    gpu_ = GpuState::Off;
+    std::vector<Job> dropped;
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      for (auto it = queue_.begin(); it != queue_.end();) {
+        if (it->gpu) {
+          dropped.push_back(std::move(*it));
+          it = queue_.erase(it);
+        } else {
+          ++it;
+        }
+      }
+    }
+    dropped.clear();  // CUDA buffers go back to their pool outside the lock
+    if (notify) onGpuOff_(reason);
+  }
+
+  // Encode time per input kind, logged every 10 s: the CPU-side number for comparing both paths.
+  void recordTiming(bool gpu, std::chrono::steady_clock::time_point started) {
+    const auto now = std::chrono::steady_clock::now();
+    EncodeTiming& t = timing_[gpu ? 1 : 0];
+    const double ms = std::chrono::duration<double, std::milli>(now - started).count();
+    ++t.frames;
+    t.sumMs += ms;
+    t.maxMs = std::max(t.maxMs, ms);
+    if (timingStart_ == std::chrono::steady_clock::time_point{}) timingStart_ = started;
+    if (now - timingStart_ < std::chrono::seconds(10)) return;
+    const qint64 dropped = stats_->dropped.load();
+    for (int i = 0; i < 2; ++i) {
+      EncodeTiming& e = timing_[i];
+      if (e.frames > 0) {
+        qCInfo(lcHost).noquote() << QStringLiteral("Encode timing (10 s): input %1, %2 frames, %3 ms/frame (max %4 ms), %5 dropped")
+                                        .arg(i == 1 ? QStringLiteral("gpu-direct") : QStringLiteral("readback"))
+                                        .arg(e.frames)
+                                        .arg(QString::number(e.sumMs / static_cast<double>(e.frames), 'f', 1))
+                                        .arg(QString::number(e.maxMs, 'f', 1))
+                                        .arg(dropped - timingDropped_);
+      }
+      e = EncodeTiming();
+    }
+    timingDropped_ = dropped;
+    timingStart_ = now;
   }
 
   // ADR 0012 D5: libx264 changes its bitrate at runtime; any other encoder is reopened (with a keyframe) at most every 5 s.
@@ -243,7 +429,7 @@ class EncodeWorker {
     if (now - lastReopen_ < std::chrono::seconds(5)) return;  // the target stays pending
     const QString name = encoder_.name();
     if (!encoder_.open(j.width, j.height, options_.fps, want, {name}) &&
-        !encoder_.open(j.width, j.height, options_.fps, want, options_.encoderOrder)) {
+        !encoder_.open(j.width, j.height, options_.fps, want, cpuOrder())) {
       failed_ = true;
       onOpenFailed_();
       return;
@@ -251,6 +437,21 @@ class EncodeWorker {
     lastReopen_ = now;
     std::lock_guard<std::mutex> lock(stats_->mutex);
     stats_->encoderName = encoder_.name();
+  }
+
+  // The same 5 s rule for the CUDA encoder (a runtime reconfigure forces an IDR in FFmpeg anyway). A failed reopen
+  // leaves GPU mode.
+  void applyGpuBitrate(AVBufferRef* fc) {
+    const int want = targetKbps_.load() * 1000;
+    if (!gpuEncoder_.isOpen() || want == gpuEncoder_.bitrate()) return;
+    const auto now = std::chrono::steady_clock::now();
+    if (now - lastReopen_ < std::chrono::seconds(5)) return;  // the target stays pending
+    QString why;
+    if (!gpuEncoder_.openGpu(fc, options_.fps, want, &why)) {
+      failGpu(why.isEmpty() ? QStringLiteral("h264_nvenc does not reopen with CUDA frames") : why, fc);
+      return;
+    }
+    lastReopen_ = now;
   }
 
   void encodeAudio(const Job& j) {
@@ -286,6 +487,8 @@ class EncodeWorker {
   std::shared_ptr<WorkerStats> stats_;
   std::function<void(QString)> onError_;
   std::function<void()> onOpenFailed_;
+  std::function<void()> onGpuActive_;       // worker thread; the owner posts it to its thread with the generation check
+  std::function<void(QString)> onGpuOff_;   // ... likewise: the GPU path failed, reason
 
   std::mutex mutex_;
   std::condition_variable cv_;
@@ -294,10 +497,20 @@ class EncodeWorker {
   double droppedAudioSeconds_ = 0;  // PCM dropped by pushAudio, not yet added to audioClockOffset_
   bool stop_ = false;
   std::atomic<bool> keyframe_{false};
+  std::atomic<bool> gpuDisabled_{false};  // set by the owner (UI thread)
 
   // Worker-thread only:
+  struct EncodeTiming {
+    qint64 frames = 0;
+    double sumMs = 0, maxMs = 0;
+  };
   std::chrono::steady_clock::time_point lastReopen_{};
-  VideoEncoder encoder_;
+  VideoEncoder encoder_;     // readback frames
+  VideoEncoder gpuEncoder_;  // CUDA frames (h264_nvenc); a second instance next to encoder_ (ADR 0019)
+  GpuState gpu_ = GpuState::Untried;
+  EncodeTiming timing_[2];   // [0] readback, [1] gpu-direct
+  std::chrono::steady_clock::time_point timingStart_{};
+  qint64 timingDropped_ = 0;
   OpusFramer opus_;
   bool failed_ = false;
   bool encodeErrorReported_ = false;
@@ -332,6 +545,18 @@ void SessionHost::open(const QString& sessionId, const QStringList& iceServers, 
   bitrate_.reset(options_.videoBitrate / 1000);
   targetKbps_ = bitrate_.targetKbps();
   encoderFailed_ = false;
+  gpuInputOff_ = false;
+  gpuInputFailed_ = false;
+  gpuActive_ = false;
+  gpuSkips_ = 0;
+  QString notUsed;
+  gpuConfigured_ = VideoEncoder::gpuInputConfigured(&notUsed);
+  if (!gpuConfigured_) {
+    qCInfo(lcHost).noquote() << QStringLiteral("GPU-direct encoding not used: %1").arg(notUsed);
+  } else if (const cuda::Driver& driver = cuda::Driver::instance();
+             driver.state() == cuda::Driver::State::Unavailable || driver.state() == cuda::Driver::State::Dead) {
+    qCInfo(lcHost).noquote() << QStringLiteral("GPU-direct encoding not used: CUDA unavailable (%1)").arg(driver.reason());
+  }
   open_ = true;
 }
 
@@ -609,6 +834,19 @@ void SessionHost::startEncoder() {
           emit errorOccurred(QStringLiteral("No H.264 encoder can be opened"));
           stopEncoder();
         });
+      },
+      [this, bridge, gen]() {  // the first CUDA frame was encoded: GPU mode is confirmed
+        bridge->post([this, gen]() {
+          if (gen != workerGen_ || !worker_ || gpuInputOff_) return;
+          gpuActive_ = true;
+          emit gpuInputChanged();
+        });
+      },
+      [this, bridge, gen](QString reason) {  // the GPU path failed in the worker; it already left GPU mode
+        bridge->post([this, gen, reason]() {
+          if (gen != workerGen_ || !worker_) return;
+          disableGpuInput(reason, true);
+        });
       });
   keyframePending_ = false;  // a fresh encoder starts with a keyframe anyway
   lastEncodeNs_ = 0;
@@ -627,6 +865,8 @@ void SessionHost::stopEncoder() {
   statsTimer_.stop();
   worker_.reset();  // joins the worker thread: no encode or send runs after this line
   encoderRunning_ = false;
+  gpuActive_ = false;  // a new worker starts with the CPU encoder; gpuInputOff_ stays for this Session
+  gpuSkips_ = 0;
   {
     std::lock_guard<std::mutex> lock(statsMutex_);
     stats_ = SessionStats();
@@ -665,6 +905,13 @@ void SessionHost::pushFrame(const uint8_t* data, int width, int height, int stri
     }
     startEncoder();
   }
+  if (gpuInputActive()) {
+    if (++gpuSkips_ < kGpuWatchdogFrames) {
+      return;  // the encoder takes GPU frames; no 10 MB copy
+    }
+    // No GPU frame for kGpuWatchdogFrames frames, whatever the reason: back to readback; this frame is encoded below.
+    disableGpuInput(QStringLiteral("no GPU frames for %1 frames").arg(kGpuWatchdogFrames), true);
+  }
   const qint64 nowNs = clock_.nsecsElapsed();
   const qint64 minGapNs = 1'000'000'000LL / (2 * std::max(1, options_.fps));
   if (lastEncodeNs_ != 0 && nowNs - lastEncodeNs_ < minGapNs) {
@@ -676,6 +923,59 @@ void SessionHost::pushFrame(const uint8_t* data, int width, int height, int stri
     worker_->requestKeyframe();
   }
   worker_->pushVideo(data, width, height, stride, format, nowNs);  // copies; encoding happens on the worker thread
+}
+
+// ---------------------------------------------------------------- GPU-direct input (ADR 0019)
+
+void SessionHost::pushGpuFrame(std::shared_ptr<AVFrame> frame) {
+  if (!frame || !open_ || !encoderRunning_ || !worker_ || encoderFailed_ || gpuInputOff_ || !gpuConfigured_) {
+    return;  // never starts the encoder: only readback frames do
+  }
+  gpuSkips_ = 0;  // watchdog: GPU frames arrive
+  const qint64 nowNs = clock_.nsecsElapsed();  // the same clock and gap as pushFrame()
+  const qint64 minGapNs = 1'000'000'000LL / (2 * std::max(1, options_.fps));
+  if (lastEncodeNs_ != 0 && nowNs - lastEncodeNs_ < minGapNs) {
+    return;
+  }
+  lastEncodeNs_ = nowNs;
+  if (keyframePending_) {
+    keyframePending_ = false;
+    worker_->requestKeyframe();
+  }
+  worker_->pushGpuVideo(std::move(frame), nowNs);
+}
+
+bool SessionHost::gpuInputAllowed() const {
+  if (!open_ || gpuInputOff_ || !gpuConfigured_ || !options_.encoderOrder.isEmpty()) {
+    return false;  // tests pin encoders
+  }
+  const cuda::Driver::State state = cuda::Driver::instance().state();  // does not load the driver
+  if (state == cuda::Driver::State::Unavailable || state == cuda::Driver::State::Dead) {
+    return false;
+  }
+  if (!VideoEncoder::cudaInputSupported()) {
+    return false;
+  }
+  return detectMediaCapabilities().encoders.contains(QStringLiteral("h264_nvenc"));  // cached; the Hub handshake computed it
+}
+
+void SessionHost::disableGpuInput(const QString& reason, bool failure) {
+  if (gpuInputOff_) {
+    return;
+  }
+  gpuInputOff_ = true;
+  gpuInputFailed_ = failure;
+  gpuActive_ = false;
+  gpuSkips_ = 0;
+  if (failure) {
+    qCWarning(lcHost).noquote() << QStringLiteral("GPU-direct encoding off for this Session (%1); encoding readback frames").arg(reason);
+  } else {
+    qCInfo(lcHost).noquote() << QStringLiteral("GPU-direct encoding not available (%1); encoding readback frames").arg(reason);
+  }
+  if (worker_) {
+    worker_->disableGpu();
+  }
+  emit gpuInputChanged();
 }
 
 void SessionHost::pushAudio(const QByteArray& pcm, int sampleRate) {
@@ -751,6 +1051,8 @@ SessionStats SessionHost::stats() const {
     s.width = workerStats_->width;
     s.height = workerStats_->height;
   }
+  s.gpuInput = gpuInputActive();
+  s.gpuInputFailed = gpuInputFailed_;
   return s;
 }
 
