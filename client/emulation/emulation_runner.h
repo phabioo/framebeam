@@ -60,8 +60,6 @@ class EmulationRunner : public QObject {
   // Runs `fn` on the emulation thread between two frames (also while paused) and waits for it (GUI thread). false: the
   // thread is not running, stopped meanwhile, or did not get to it within `timeoutMs` (then `fn` never runs).
   bool runOnEmuThread(std::function<void(EmulatorBackend&)> fn, int timeoutMs = 3000);
-  // Live save (see EmulatorBackend::applySave): replaces the battery save by reloading the game (unload, load like a start). Blocking, false = unchanged.
-  bool applySaveAndReset(const QByteArray& data);
   // Writes the battery save to its file now if it changed (blocking). Without it the file lags up to ~3 s.
   bool flushSaveNow();
   // Whether the running core's battery save memory has exactly `size` bytes (blocking).

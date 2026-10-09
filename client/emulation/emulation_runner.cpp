@@ -239,15 +239,6 @@ void EmulationRunner::reset() { if (m_worker) m_worker->requestReset(); }
 bool EmulationRunner::runOnEmuThread(std::function<void(EmulatorBackend&)> fn, int timeoutMs) {
   return m_worker && m_worker->runTask(std::move(fn), timeoutMs);
 }
-bool EmulationRunner::applySaveAndReset(const QByteArray& data) {
-  bool ok = false;
-  const bool ran = runOnEmuThread(
-      [&](EmulatorBackend& be) {
-        ok = be.applySave(data);  // reloads the game
-      },
-      5000);
-  return ran && ok;
-}
 bool EmulationRunner::flushSaveNow() { return runOnEmuThread([](EmulatorBackend& be) { be.flushSave(); }); }
 bool EmulationRunner::saveMemoryAccepts(qint64 size) {
   bool ok = false;

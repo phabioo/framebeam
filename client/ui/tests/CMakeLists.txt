@@ -7,6 +7,11 @@ framebeam_add_test(ui_input input_test.cpp LIBS framebeam_ui framebeam_core fram
 framebeam_add_test(ui_library_sort library_sort_test.cpp LIBS framebeam_ui framebeam_core framebeam_emulation)
 framebeam_add_test(ui_audio audio_test.cpp LIBS framebeam_ui framebeam_core framebeam_emulation)
 
+# Live save = full game restart (GameSession::restartWithSave) with the fake libretro core from emulation/tests.
+framebeam_add_test(ui_live_restart live_restart_test.cpp LIBS framebeam_ui framebeam_core framebeam_emulation)
+target_compile_definitions(test_ui_live_restart PRIVATE FB_FAKE_CORE_PATH="$<TARGET_FILE:framebeam_fake_core>")
+add_dependencies(test_ui_live_restart framebeam_fake_core)
+
 framebeam_add_test(ui_screens screens_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
   LIBS ${FB_UI_TEST_LIBS})
 target_include_directories(test_ui_screens PRIVATE ${FB_NETTEST_DIR})
