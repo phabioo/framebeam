@@ -1,6 +1,6 @@
 # ADR 0010: Cores from the Hub (0.2)
 
-- Status: accepted (Fabio, 2026-10-07, with the merge of the PR)
+- Status: accepted (Fabio, 2026-10-07, with the merge of the PR); D1 to D3 and D6 superseded by [ADR 0020](0020-cores-from-the-libretro-buildbot.md) (0.8, in progress; D4 and D5 stay)
 - Date: 2026-10-07
 - Decided by: Fabio (proposal by the orchestrator; accepted with the PR)
 

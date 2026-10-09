@@ -1,6 +1,6 @@
 # ADR 0012: Sessions over the internet and save comfort (0.4)
 
-- Status: accepted
+- Status: accepted; the Player-side core index check (D6) is superseded by [ADR 0020](0020-cores-from-the-libretro-buildbot.md) (0.8, in progress)
 - Date: 2026-10-07
 - Decided by: Fabio (proposal by the orchestrator, accepted on 2026-10-07 after the merge of PR #31)
 

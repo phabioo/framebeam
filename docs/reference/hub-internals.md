@@ -4,9 +4,9 @@ How the FrameBeam Hub (`server/`, Go, SQLite) is built and behaves. Running it: 
 
 ## Code layout
 
-Layout of `internal/`: `api` (generated from OpenAPI via `make generate`, oapi-codegen), `config`, `store` (SQLite, migrations 0001-0006, backup before migrating an existing DB), `auth` (Argon2id, tokens), `tlsutil`, `updates` (signed updates index, SemVer, selection, staging, root apply helper), `hub` (service layer for the API and web interface), `httpapi` (OpenAPI implementation incl. the WSS endpoint in `ws.go`; tests validate against `protocol/openapi/framebeam.yaml`), `version`, `web`.
+Layout of `internal/`: `api` (generated from OpenAPI via `make generate`, oapi-codegen), `config`, `store` (SQLite, migrations 0001-0008, backup before migrating an existing DB), `auth` (Argon2id, tokens), `tlsutil`, `updates` (signed updates index, SemVer, selection, staging, root apply helper), `hub` (service layer for the API and web interface), `httpapi` (OpenAPI implementation incl. the WSS endpoint in `ws.go`; tests validate against `protocol/openapi/framebeam.yaml`), `version`, `web`.
 
-Web interface (`internal/web`, `html/template` + htmx via `embed`, no external resources): setup, login (cookie `fb_session`, admins only), Library, Saves, Systems & Cores, Clients, Users, Settings. htmx 2.0.4 (0BSD) lives unmodified at `internal/web/static/htmx.min.js`. ROM upload limit: `web.DefaultMaxUploadBytes` (4 GiB).
+Web interface (`internal/web`, `html/template` + htmx via `embed`, no external resources): setup, login (cookie `fb_session`, admins only), Library, Saves, Systems & Cores, Clients, Users, Settings. htmx 2.0.4 (0BSD) lives unmodified at `internal/web/static/htmx.min.js`. ROM upload limit: `web.DefaultMaxUploadBytes` (4 GiB). For the internet-facing hardening (CSRF on multipart forms, login and pairing limits, `__Host-` cookies with TLS, minimum password length 12 via `hub.MinPasswordLen`, read deadlines, 512 connection cap, TURN relay limits) see [hub-configuration.md](../guides/hub-configuration.md#turn-security).
 
 ## Saves and Sessions
 
@@ -17,6 +17,7 @@ Web interface (`internal/web`, `html/template` + htmx via `embed`, no external r
 ## Users, invites and uploads
 
 - Users page (admins): create onboarding invites (code `FB-XXXX-XXXX`, single use, expiry 15 min / 1 h / 24 h, optionally authorizing the first device directly). The code is shown once; only a hash is stored. The Player redeems it with `POST /api/v1/invites/redeem` (rate limited), which creates a passwordless user and either a trusted device (200) or a pending request pre-assigned to that user (202; the admin allows it on the Clients page, "Assign user" defaults to the invite user).
+- Admins can delete users and devices for good from the web interface (confirmation page): deleting a user removes their devices, invites, saves and save history; uploaded games are reassigned to the deleting admin. The handshake response carries the optional `user` (id, display name, role) of the caller (API 1.7.0).
 - Admins can disable and enable users. A disabled user gets `401 user_disabled` on every bearer call and the token exchange, their WSS connections are closed and their Sessions end; saves and uploads stay. Web login remains admin-only.
 - Settings: "Allow users to upload games" (default off) lets users call `POST /api/v1/games` (raw body, streamed to disk, max 4 GiB, same hashing and de-duplication as the web upload; `uploaded_by` is the caller). Appearance (Light / Dark / System) is a Hub setting for all web pages.
 

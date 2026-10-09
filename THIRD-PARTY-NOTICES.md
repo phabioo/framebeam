@@ -55,7 +55,7 @@ Cores are not part of the installer or the Hub binary. They are distributed as s
 
 Each core package carries the core's license file (for melonDS DS: `LICENSE-melonDS-DS.txt`), and the core index records the source URL and the exact source ref (tag or commit). The Linux core is built from source in CI; the Windows core is the upstream release asset at the pinned tag.
 
-The planned Azahar core (GPLv2+, roadmap 0.8) will follow the source-archive rule in [docs/roadmap.md](docs/roadmap.md): the exact source revision is archived as a release asset next to the binary.
+From 0.8 on ([ADR 0020](docs/adr/0020-cores-from-the-libretro-buildbot.md)) FrameBeam no longer redistributes cores: each Hub downloads them from the libretro buildbot for its own Players and shows the license from the libretro core info. Packages from the retired signed source keep the license file described above.
 
 ## Design, fonts and icons
 

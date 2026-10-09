@@ -1,6 +1,6 @@
 # Roadmap after the PoC
 
-The PoC (phases 0-5) is complete. From here on, work is planned as versions 0.1.1 to 0.11, each cut into one work package per thread/PR (see `docs/workflow.md`). The order was decided by Fabio on 2026-10-06; on 2026-10-07 he moved Sessions over the internet ahead of the UI passes (renumbered 0.4 to 0.6). On 2026-10-07 Fabio also moved OpenGL hardware rendering for the Player (all emulators/cores, not only 3DS) ahead of the UI passes as the new 0.5; the UI passes, 3DS and everything after shifted by one. ADRs written before 2026-10-07 use the old numbering: old 0.5/0.6/0.7/0.8/0.9/0.10 = new 0.6/0.7/0.8/0.9/0.10/0.11. Items marked open are not decided yet; decisions are recorded as ADRs in `docs/adr/`.
+The PoC (phases 0-5) is complete. From here on, work is planned as versions 0.1.1 to 0.12, each cut into one work package per thread/PR (see `docs/workflow.md`). The order was decided by Fabio on 2026-10-06; on 2026-10-07 he moved Sessions over the internet ahead of the UI passes (renumbered 0.4 to 0.6). On 2026-10-07 Fabio also moved OpenGL hardware rendering for the Player (all emulators/cores, not only 3DS) ahead of the UI passes as the new 0.5; the UI passes, 3DS and everything after shifted by one. ADRs written before 2026-10-07 use the old numbering: old 0.5/0.6/0.7/0.8/0.9/0.10 = new 0.6/0.7/0.8/0.9/0.10/0.11. On 2026-10-09 Fabio reordered the planned milestones again: cores come from the libretro buildbot first ([ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md), new 0.8) and one installer for Player, Hub or both follows (new 0.9, which absorbs the Hub-for-Windows milestone). Old (2026-10-07) 0.8 3DS / 0.9 Metadata and artwork / 0.10 Hub for Windows / 0.11 Linux and macOS Player = new 0.10 / 0.11 / 0.9 / 0.12. ADRs and docs written before 2026-10-09 may still use the older numbers for these milestones. Items marked open are not decided yet; decisions are recorded as ADRs in `docs/adr/`.
 
 ## PoC phases (history)
 
@@ -29,10 +29,13 @@ Phase plan: [workflow.md](workflow.md#phase-plan).
 | 0.7.1 | done | Revision pass | Bug fixes and cleanup in Hub, Player and CI (flaky Session visibility race, query error handling, job timeouts); docs and READMEs consolidated. |
 | 0.7.x | done | Player tech debt | Session visibility lives in `settings/player.json`, a core with another major version blocks the launch, `PlayerController` split into helpers ([ADR 0017](adr/0017-player-tech-debt.md)). |
 | 0.7.x | done in code | Speed-up | The Player can run a game faster than real time ("Speed-up", Space, 1.5x to 8x) when the libretro core allows it ([ADR 0018](adr/0018-player-speed-up.md)). |
-| 0.8 | planned | Second system: 3DS (Azahar) | The Azahar libretro core ships as a plain core package and runs on the OpenGL rendering from 0.5. |
-| 0.9 | planned | Metadata and artwork | Central game metadata and boxart in Hub and Player. |
-| 0.10 | planned | Hub for Windows / Windows Server | FrameBeam Hub runs as a Windows service with an installer. |
-| 0.11 | planned | Linux and macOS Player | FrameBeam Player on Linux and macOS. |
+| 0.7.x | done in code | GPU-direct NVENC, hotkeys, background game, playtest UI revision | Shared Sessions on NVIDIA skip the readback ([ADR 0019](adr/0019-gpu-direct-nvenc.md)); configurable Player hotkeys; paused background game; UI changes after the friends playtest. |
+| 0.7.x | done | Hub admin gaps, save upload, hardening, license | Delete users and devices, Hub user name in the Player, upload a save file, hardened TURN relay and web port, GPL-3.0-or-later with CLA and notices. |
+| 0.8 | planned, in progress | Cores from the libretro buildbot | Systems instead of fixed cores: the Hub downloads cores RetroArch-style from the libretro buildbot; admin installs, updates and removes them per system; Player chooses the core per system and game ([ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md)). |
+| 0.9 | planned | One installer: Player, Hub or both | One Windows MSI (WiX) with the components Player, Hub or both; the Hub runs as a Windows service; "Set up a Hub on this PC" and a standalone mode like RetroArch. |
+| 0.10 | planned | Second system: 3DS (Azahar) | The Azahar libretro core arrives as a buildbot core through 0.8 and runs on the OpenGL rendering from 0.5. |
+| 0.11 | planned | Metadata and artwork | Central game metadata and boxart in Hub and Player. |
+| 0.12 | planned | Linux and macOS Player | FrameBeam Player on Linux and macOS. |
 
 ## 0.1.1 Finish the PoC
 
@@ -50,7 +53,7 @@ Completed 2026-10-06: Windows CI runs on `main` pushes to prime its vcpkg binary
 
 ## 0.2 Cores from the Hub
 
-Decisions: [ADR 0010](adr/0010-cores-from-the-hub.md) (accepted).
+Decisions: [ADR 0010](adr/0010-cores-from-the-hub.md) (accepted). The source, the signed index and the package origin (D1 to D3, D6) are superseded by [ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md) with 0.8; what is described here is the state as built until then.
 
 Goal: installers ship no emulator cores. melonDS DS leaves the Windows installer and comes from the Hub.
 
@@ -98,7 +101,7 @@ Decided by Fabio on 2026-10-07: OpenGL hardware rendering for the Player, for al
 - [x] Done: CI (ADR 0013 D6): Mesa llvmpipe under xvfb on Linux, GL tests skipped without a GL 3.3 context. Original note: headless CI cannot run hardware-rendered cores end to end; core tests need a GL context (for example Mesa llvmpipe) or stay local.
 - [x] Done: melonDS DS OpenGL renderer and internal resolution (ADR 0013 D5). Original note: melonDS DS then gets its OpenGL renderer and the internal resolution option; both are hidden today because the Player offers no GL context (see the Emulation page in `docs/design/player.md`).
 - Open: verification on real GPUs and drivers and frame time (4x internal resolution) is done locally by Fabio.
-- Later Nintendo systems rely on it: the 3DS (0.8) and, among the later systems, N64 and GameCube/Wii.
+- Later Nintendo systems rely on it: the 3DS (0.10) and, among the later systems, N64 and GameCube/Wii.
 
 ## 0.6 Player UI pass
 
@@ -115,7 +118,7 @@ Done in code (decisions: [ADR 0014](adr/0014-player-ui-pass.md), accepted); look
 
 Open in 0.6:
 
-- The Player does not know the Hub user's display name; the sidebar shows the device name.
+- [x] Done (0.7.x): the sidebar shows the Hub user name from the handshake `user` (API 1.7.0) above the device name.
 - Per-game settings are still "coming later".
 - [x] Done (0.7.x): Hotkeys tab (3f) and "Duplicate to edit" for built-in controller profiles, see "0.7.x Hotkeys and controller profiles".
 - [x] Done (0.7.x, ADR 0017 D3): `PlayerController` split into `CoreCatalog`, `GameDetail`, `HubPresenter` and `GameStarter`.
@@ -185,38 +188,72 @@ Design handoff of 2026-10-08 after a friends playtest, imported in [docs/design/
 - [x] In-game header, panel and diagnostics (3g-2, 3g-3, 3r-2, 3h-2, 3i-2, 3t-2, 3x-2, 3c-5): GameHeader in five zones with Reset popover and compact 1280 mode, GamePanel (Sharing, Save, Quit game pinned; collapsible rail; remote-tile panel), multiview tile selection vs audio focus and "+ Add" picker, one diagnostics toggle (header + F3) with the overlay at the top right, "Now running" strip, paused background game with Resume/Quit and the quit-and-start dialog. The 3c-5 Library look (tile marker, running detail column, quit-and-start dialog; interim strip removed) is done in the line below.
 - [x] Library with a running game (3c-5): "❚❚ Paused" marker and status line on the running tile, detail column of the running game (Running since / Sharing / Core, SAVE "Syncs on quit", Resume and Quit game), quit-and-start dialog with the "After confirming" steps; the interim Library strip is removed (the sidebar "Now running" strip stays).
 
-## 0.8 Second system: Nintendo 3DS with Azahar
+## 0.7.x Hub admin gaps, identity and save upload
+
+- [x] Done: Hub: admins delete users and devices for good (confirmation page; deleting a user removes their devices, invites, saves and save history, uploaded games are reassigned to the deleting admin). The handshake carries the optional `user` object (API 1.7.0).
+- [x] Done: Player: app and taskbar icon from the logo spec (also the Windows executable and installer icon), Hub user name in the sidebar.
+- [x] Done: Upload a save file into a slot (`saves_v4`, API 1.8.0, migration 0008): Hub API and web, Player "Upload save file…" in the game detail; the previous checkpoint goes to history as `before_upload`.
+- [x] Done: Saves in the running game: "Manage saves" works live; restore and upload apply the save as a full game restart (stop, write, start) instead of reloading inside the running core.
+
+## 0.7.x Hardening of the internet-facing ports
+
+- [x] Done: Embedded TURN relay: relay peers in internal ranges are refused unless they are a currently connected Player, limits per device and for TCP connections, credential expiry checked ([ADR 0012](adr/0012-internet-sessions-and-save-comfort.md); [hub-configuration.md](guides/hub-configuration.md#turn-security)).
+- [x] Done: Web port and Player API: CSRF token on multipart forms, login attempt limits (IPv6 per /64, per-username backoff, at most two password checks at once), `__Host-` cookies with TLS, minimum password length 12, read deadlines and a cap of 512 connections, rate limits for WebSocket messages, pairing and invite redemption.
+
+## 0.7.x License and legal notices
+
+- [x] Done: The repository is licensed GPL-3.0-or-later with `LICENSE`, `NOTICE.md`, `THIRD-PARTY-NOTICES.md`, `CLA.md`, `CONTRIBUTING.md` and a PR template with a CLA checkbox. The Hub `.deb`, Hub release assets and the Windows installer carry the license and third-party license texts; `server/THIRD-PARTY-NOTICES.txt` is generated (`make notices`) and checked by `make check-hub`.
+
+## 0.7.x Player fixes
+
+- [x] Done: Audio output in pull mode (Qt 6.8 WASAPI push mode went idle and stayed silent on Windows); underruns are counted once per dry spell.
+- [x] Done: The core cache re-hashes core files that were rewritten shortly before the check (the verified-hash memo keys on size, mtime and change time).
+
+## 0.8 Cores from the libretro buildbot
+
+Planned, in progress. Decisions: [ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md) (accepted 2026-10-09). Supersedes the signed core mirror of 0.2 (ADR 0010 D1 to D3, D6) and the Player-side index check.
+
+- Systems instead of fixed cores: the Hub registry keeps the supported systems; every libretro core for a system that the buildbot provides can be offered.
+- Hub: downloads cores RetroArch-style from the libretro buildbot (catalog from `info.zip` and `.index-extended`); the admin installs, updates and removes cores per system on "Systems & Cores" and picks the default core; SHA-256 is pinned at install; no automatic updates; offline `import-cores` keeps working with buildbot zips.
+- Protocol: handshake feature `cores_v2` (`default_core_id`, `cores` per system), OpenAPI 1.9.0, `protocol_version` stays 1; the signed core index endpoints are removed.
+- Player: system manifest and core profiles are split (`manifests/systems/`, `manifests/cores/`); core choice per system and game; cores without a profile are marked experimental; snapshot of the save before a core change.
+- DeSmuME is the second NDS core (with a core profile); CI fetches it from the buildbot.
+- The signed core mirror (`cores.yml`, release `cores-index`) is retired; existing releases stay.
+
+## 0.9 One installer: Player, Hub or both
+
+Planned. Absorbs the former "Hub for Windows / Windows Server" milestone.
+
+- One Windows installer as MSI built with the WiX Toolset (replaces Inno Setup) with the components Player, Hub or both.
+- "Set up a Hub on this PC" in the Player: starts the local Hub, creates the admin and pairs over localhost without a pairing code.
+- Standalone mode like RetroArch: the Player plus a Hub bound only to 127.0.0.1 with a local ROM folder (the existing import folder); network sharing can be switched on later. A Player that wants cores directly from the internet uses this local Hub (ADR 0020 D1).
+- Per-machine install under Program Files: Player data falls back to AppData (existing fallback, [ADR 0004](adr/0004-player-portable-data.md)), Hub data lives under ProgramData.
+- Rejected: MSIX. It needs a paid, trusted signing certificate, virtualizes the install directory so the portable `<exe-dir>/data` cannot work, limits services, and its own update mechanism conflicts with the FrameBeam updater.
+- Hub for Windows: Windows amd64 Hub build in CI and release; runs as its own Windows service (start/stop, automatic start), never inside the Player process.
+- Hub installer part (data directory, port, firewall rules by the installer, admin setup); updates via the updater from 0.3.
+- Review paths, file permissions (instead of 0600) and certificate storage on Windows.
+
+## 0.10 Second system: Nintendo 3DS with Azahar
 
 Decided by Fabio on 2026-10-07: the second system is the Nintendo 3DS with the Azahar libretro core (replaces the mGBA proposal).
 
-- Core: `azahar_libretro` (GPLv2+), available prebuilt on the libretro buildbot (checked 2026-10-07: `nightly/windows/x86_64/latest/azahar_libretro.dll.zip`) and described by `azahar_libretro.info` in libretro-core-info. GPLv2+ allows mirroring only with the complete corresponding source: the workflow archives the exact source revision (including build scripts and submodules) as a release asset next to every mirrored binary and keeps it as long as that binary is published (GPLv2 §3(a)); the package carries the license text and names that archive. The same applies to every GPL core in the core list.
-- Hardware rendering: the core info sets `hw_render = true`, `required_hw_api = OpenGL Core >= 3.3`. The Player's OpenGL hardware rendering is a prerequisite and arrives in 0.5; this version only uses it.
+- Core: `azahar_libretro` (GPLv2+), available prebuilt on the libretro buildbot (checked 2026-10-07: `nightly/windows/x86_64/latest/azahar_libretro.dll.zip`) and described by `azahar_libretro.info` in libretro-core-info. It arrives as a buildbot core through 0.8 and is installed by the Hub admin like any other core; FrameBeam mirrors nothing ([ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md)).
+- Hardware rendering: the core info sets `hw_render = true`, `required_hw_api = OpenGL Core >= 3.3`. The Player's OpenGL hardware rendering is a prerequisite and arrived in 0.5; this version only uses it.
 - Display: two screens of different sizes (top 400 x 240, bottom 320 x 240 touch); the system manifest describes layout and touch mapping, and the Session encoder sends the composed frame.
 - Games: decrypted dumps only (`.3ds`/`.cci`/`.cxi`/`.3dsx`, plus the compressed `z*` variants); FrameBeam never decrypts. Some games need system files such as Mii data dumped from the user's own console; these follow the firmware path from phase 5 and are never shipped.
 - Performance: 3DS emulation needs a considerably faster CPU/GPU than DS; check on Fabio's devices whether play plus encoding fits.
-- It arrives only as another package through the core distribution from 0.2, without installer changes.
+- It needs no installer changes: the Hub installs the core from the buildbot (0.8).
 - ~~Re-evaluate the core version check (warning vs. block, ADR 0007).~~ Decided in ADR 0017 D1.
 - Game override UI on the Emulation page.
 - ROM cache limit and cleanup.
-- Core sourcing (decided 2026-10-07, builds on ADR 0010):
-  - Core list: one file in the repo lists all cores (core id, upstream, pinned version/build, SHA-256 per platform, license); `cores.yml` processes the list instead of one job per core.
-  - Source: where possible take prebuilt cores from the libretro buildbot (buildbot.libretro.com) instead of building. The workflow downloads once, pins the SHA-256, signs with the FrameBeam key and mirrors the files into FrameBeam's own releases, because the buildbot overwrites "latest" and signs nothing. Hubs keep using only FrameBeam's signed index. Own builds stay possible per entry (e.g. melonDS DS today).
-  - Metadata: use libretro core info files (supported extensions, firmware with checksums) to generate or check parts of the system manifests; a short manifest per system (input, options, firmware mode) stays manual.
-  - Updates: a scheduled workflow checks upstream for new versions weekly and opens a PR that bumps the pin; merging publishes the package.
-  - Licenses: keep each core's exact license terms with the package and show them. Some cores are non-commercial only; that restricts use as well as redistribution, so the core list marks such cores and FrameBeam does not mirror them without checking their terms.
+- Core sourcing: superseded by [ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md) (0.8); the signed mirror, core list and weekly pin bumps of the 2026-10-07 plan are dropped.
 
-## 0.9 Metadata and artwork
+## 0.11 Metadata and artwork
 
 - Hub Metadata Service with provider abstraction, hash matching, overrides, artwork cache (`docs/architecture/11-metadata-future.md`).
 - Hub: Settings → Metadata, actions in the library entry. Player: boxart and basic data in Library and game view.
 
-## 0.10 Hub for Windows / Windows Server
-
-- Windows amd64 Hub build in CI and release; runs as a Windows service (start/stop, automatic start).
-- Hub installer (data directory, port, firewall rule, admin setup); updates via the updater from 0.3.
-- Review paths, file permissions (instead of 0600) and certificate storage on Windows.
-
-## 0.11 Linux and macOS Player
+## 0.12 Linux and macOS Player
 
 - Linux: Secret Service instead of in-memory credentials, package (AppImage or .deb/Flatpak), check gamepads and audio.
 - macOS: Keychain, app bundle/dmg, signing and notarization, VideoToolbox encoder, CI on a macOS runner.
@@ -226,7 +263,7 @@ Decided by Fabio on 2026-10-07: the second system is the Nintendo 3DS with the A
 
 - Save States, remote control/input for viewers, netplay, emulation settings sync, StandaloneBackend, Hub as a macOS service.
 - Further library features: row actions (delete, edit title), paging.
-- Remaining Nintendo systems from NES to GameCube/Wii (Fabio, 2026-10-07), as plain core packages after 0.8, rendered with OpenGL first: NES, SNES, N64, GB/GBC, GBA, Virtual Boy and GameCube/Wii (Dolphin; the libretro port lags upstream). N64 and GameCube/Wii build on the hardware rendering from 0.5.
+- Remaining Nintendo systems from NES to GameCube/Wii (Fabio, 2026-10-07), as plain buildbot cores after 0.10, rendered with OpenGL first: NES, SNES, N64, GB/GBC, GBA, Virtual Boy and GameCube/Wii (Dolphin; the libretro port lags upstream). N64 and GameCube/Wii build on the hardware rendering from 0.5.
 - Afterwards Vulkan hardware rendering next to OpenGL (Fabio, 2026-10-07), so cores that offer both can be switched per core option in the Emulation settings.
 - Wii U deferred (Fabio, 2026-10-07): Cemu has no libretro core and would need the StandaloneBackend.
 - To evaluate (Fabio, 2026-10-07): Cloudflare in front of a self-hosted Hub, so no router port forwards are needed. The Hub itself stays self-hosted; running it on Workers/Pages would be a rewrite and is not planned.
@@ -240,8 +277,8 @@ Hosted emulation, friends list, public Session links, guest access, email/passwo
 
 ## Open decisions
 
-- **Second system:** decided on 2026-10-07: Nintendo 3DS with Azahar (see 0.8). The earlier proposal GBA with mGBA is dropped.
+- **Second system:** decided on 2026-10-07: Nintendo 3DS with Azahar (see 0.10). The earlier proposal GBA with mGBA is dropped.
 - **Internet reachability:** decided in 0.4 (ADR 0012); the text below is the original proposal. Which setups FrameBeam supports and documents (Hub port forward, VPN, own TURN server on the Hub host or elsewhere). Proposal (2026-10-07): the Hub embeds an optional STUN/TURN server (for example `pion/turn`, pure Go, same binary) on UDP/TCP 3478 plus a small UDP relay port range, hands out short-lived TURN credentials in `hello_ack`/join instead of static secrets, and learns its public address from a configured hostname (DynDNS). A typical setup: a DynDNS name pointing at the Hub's router, port forwards for the Hub port, 3478 and the relay range; check first that the connection has a public IPv4 (no CGNAT/DS-Lite).
 - **Update channels:** decided on 2026-10-06: the pre-release channel (renamed from test to beta on 2026-10-07) updates automatically, the stable channel only after confirmation. Details and rollback proposal: [ADR 0011](adr/0011-automatic-updates.md). Numbering, "Promote to release" and the default channel changed on 2026-10-08: [ADR 0016](adr/0016-release-numbering-and-promotion.md).
 - **0.2:** decided in ADR 0010 (source, index, signing tooling, offline import, license file per package, cached cores stay usable without a Hub connection to GitHub). The FrameBeam release key exists since 2026-10-07.
-- **Core sourcing:** decided on 2026-10-07: libretro buildbot cores, mirrored and signed by FrameBeam (see 0.8).
+- **Core sourcing:** decided on 2026-10-09: libretro buildbot cores downloaded by the Hub, no FrameBeam mirror ([ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md), see 0.8). The 2026-10-07 mirror plan is dropped.

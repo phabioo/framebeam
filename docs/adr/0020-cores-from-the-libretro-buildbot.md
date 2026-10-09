@@ -16,7 +16,7 @@ ADR 0010 made FrameBeam's own signed GitHub releases the only core source, and t
 - The Hub downloads cores from the libretro buildbot, nightly channel: base URL `https://buildbot.libretro.com/nightly` (flag `-core-buildbot-url`, env `FRAMEBEAM_HUB_CORE_BUILDBOT_URL`).
 - Core metadata comes from the libretro core info files: `https://buildbot.libretro.com/assets/frontend/info.zip` (flag `-core-info-url`, env `FRAMEBEAM_HUB_CORE_INFO_URL`), the same archive RetroArch's "Update Core Info Files" uses.
 - Available builds per platform come from `<base>/<os>/<arch>/latest/.index-extended`, one line per file: `<YYYY-MM-DD> <crc32 hex> <file>`, e.g. `2026-10-09 1a2b3c4d desmume_libretro.dll.zip`.
-- Platform mapping (FrameBeam platform → buildbot path, library suffix): `windows-x64` → `windows/x86_64` (`.dll`), `linux-x64` → `linux/x86_64` (`.so`). Other FrameBeam platforms are not offered until the Player exists for them (0.11); the mapping is a table in the Hub.
+- Platform mapping (FrameBeam platform → buildbot path, library suffix): `windows-x64` → `windows/x86_64` (`.dll`), `linux-x64` → `linux/x86_64` (`.so`). Other FrameBeam platforms are not offered until the Player exists for them (0.12); the mapping is a table in the Hub.
 - Players never contact the buildbot. The Player downloads cores from its Hub as before (ADR 0010 D5). A Player that wants cores "directly from the internet" uses a Hub on the same PC (planned with the combined installer).
 - Stable channel (`/stable/<RetroArch version>/`) is not used: it is only rebuilt with RetroArch releases and lags behind.
 

@@ -1,6 +1,6 @@
 # Packaging
 
-Release artifacts and how they are built (PoC platforms: [07-poc-scope.md](../architecture/07-poc-scope.md); other platforms are planned, see [08-repo-and-open-points.md](../architecture/08-repo-and-open-points.md)): the Windows Player installer (below), the Hub `.deb` (ships `/usr/share/doc/framebeam-hub/copyright` and `THIRD-PARTY-NOTICES.txt`; the raw Hub binaries on a release come with `LICENSE` and `THIRD-PARTY-NOTICES-hub.txt`; regenerate with `make notices`) and the systemd script ([hub-install.md](hub-install.md)), and the macOS placeholder `packaging/macos/` (empty, later; see [roadmap](../roadmap.md) 0.11).
+Release artifacts and how they are built (PoC platforms: [07-poc-scope.md](../architecture/07-poc-scope.md); other platforms are planned, see [08-repo-and-open-points.md](../architecture/08-repo-and-open-points.md)): the Windows Player installer (below), the Hub `.deb` (ships `/usr/share/doc/framebeam-hub/copyright` and `THIRD-PARTY-NOTICES.txt`; the raw Hub binaries on a release come with `LICENSE` and `THIRD-PARTY-NOTICES-hub.txt`; regenerate with `make notices`) and the systemd script ([hub-install.md](hub-install.md)), and the macOS placeholder `packaging/macos/` (empty, later; see [roadmap](../roadmap.md) 0.12).
 
 ## Windows installer
 
