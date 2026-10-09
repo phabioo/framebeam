@@ -25,3 +25,5 @@ endif()
 
 framebeam_add_test(launcher_cmdline tests/cmdline_test.cpp)
 target_include_directories(test_launcher_cmdline PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+framebeam_add_test(launcher_msiupdate tests/msiupdate_test.cpp)
+target_include_directories(test_launcher_msiupdate PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

@@ -354,11 +354,25 @@ Rectangle {
                         Layout.fillWidth: true
                         Eyebrow { text: qsTr("Hubs"); Layout.fillWidth: true }
                         FbButton {
+                            objectName: "settingsLocalHubButton"
+                            visible: root.player.localHub.available && !root.player.localHub.onThisPc
+                            kind: "link"
+                            text: qsTr("Set up a Hub on this PC")
+                            onClicked: { root.player.switchHub(); root.player.localHub.start() }
+                        }
+                        FbButton {
                             objectName: "settingsAddHubButton"
                             kind: "link"
                             text: qsTr("+ Add hub")
                             onClicked: root.player.switchHub()
                         }
+                    }
+
+                    LocalHubCard {
+                        objectName: "localHubSettingsCard"
+                        player: root.player
+                        Layout.leftMargin: Theme.settingsDotSlot
+                        Layout.rightMargin: content.wide ? Theme.settingsResetWidth : 0
                     }
 
                     Repeater {

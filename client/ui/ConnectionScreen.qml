@@ -99,6 +99,73 @@ Rectangle {
                 }
             }
 
+            // Hub on this PC (0.9): install it or connect to it, create the admin, done.
+            Rectangle {
+                id: localCard
+                objectName: "localHubCard"
+                readonly property var local: root.player.localHub
+                readonly property bool installing: local.phase === "installing"
+                visible: local.available
+                Layout.fillWidth: true
+                implicitHeight: localCol.implicitHeight + 28
+                radius: Theme.radius10
+                color: Theme.surface
+                border.width: 1
+                border.color: Theme.borderCard
+                ColumnLayout {
+                    id: localCol
+                    anchors.fill: parent
+                    anchors.margins: 14
+                    spacing: Theme.space8
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.space12
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 2
+                            FbLabel { text: qsTr("Set up a Hub on this PC"); font.pixelSize: Theme.fontSection; font.weight: Font.DemiBold }
+                            FbLabel {
+                                Layout.fillWidth: true
+                                text: localCard.local.present ? qsTr("Connect to the Hub on this PC and sign in as its admin.")
+                                                              : qsTr("Install the FrameBeam Hub on this PC to keep your games and saves here.")
+                                color: Theme.textMuted
+                                font.pixelSize: Theme.fontSmall
+                                wrapMode: Text.WordWrap
+                            }
+                        }
+                        FbButton {
+                            objectName: "setupLocalHubButton"
+                            kind: "primary"
+                            busy: localCard.installing || localCard.local.phase === "connecting"
+                            enabled: !busy
+                            text: localCard.local.present ? qsTr("Connect") : qsTr("Set up")
+                            onClicked: localCard.local.start()
+                        }
+                    }
+                    FbLabel {
+                        objectName: "localHubInstallText"
+                        visible: localCard.installing && localCard.local.installText !== ""
+                        text: localCard.local.installText
+                        color: Theme.textSecondary
+                        font.pixelSize: Theme.fontSmall
+                    }
+                    ProgressBar {
+                        visible: localCard.installing && value > 0 && value < 1
+                        Layout.fillWidth: true
+                        value: localCard.local.installProgress
+                    }
+                    FbLabel {
+                        objectName: "localHubError"
+                        visible: localCard.local.phase === "error" && localCard.local.error !== ""
+                        Layout.fillWidth: true
+                        text: localCard.local.error
+                        color: Theme.error
+                        font.pixelSize: Theme.fontSmall
+                        wrapMode: Text.WordWrap
+                    }
+                }
+            }
+
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 14

@@ -87,6 +87,15 @@ class HubConnection : public QObject {
   // directly; 202 -> AwaitingApproval (same polling as requestPairing). Errors (invite_invalid, display_name_taken,
   // rate_limited, ...) keep the state and are reported via errorOccurred(code, message).
   void redeemInvite(const QString& code, const QString& displayName);
+  // Hub on this PC (0.9, feature local_setup_v1): only against a loopback address, otherwise errorOccurred("not_local").
+  // GET /local/status (no auth) from NeedsPairing/Denied/Expired/Connected; the handler gets (ok, status object,
+  // error message).
+  void fetchLocalStatus(std::function<void(bool, const QJsonObject&, const QString&)> done);
+  // POST /local/setup (creates the first admin) or /local/pair (existing admin) from NeedsPairing/Denied/Expired: the
+  // Hub answers with the normal approved-pairing payload, which is stored like a normal pairing and signs in.
+  // Errors (invalid credentials, admin_exists, rate_limited, ...) keep the state and are reported via errorOccurred().
+  void localSetup(const QString& username, const QString& password);
+  void localPair(const QString& username, const QString& password);
   void cancelPairing();   // AwaitingApproval -> NeedsPairing (local; the hub request expires on its own)
   void retry();           // Unreachable/UserDisabled: identify again
   void revokeSelf();      // Connected: the device revokes itself, credential is deleted -> NeedsPairing
@@ -138,6 +147,8 @@ class HubConnection : public QObject {
   bool handleCommonFailure(const HttpResult& r);
   bool handleUserDisabled(const HttpResult& r);
   void onPairingAccepted(const QJsonObject& o);
+  void localPairingRequest(const QString& path, const QString& username, const QString& password);
+  bool isLoopbackHub() const;
 
   ProfileStore* profiles_;
   CredentialStore* credentials_;

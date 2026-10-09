@@ -207,6 +207,21 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
       QCoreApplication::quit();
     });
   }
+  {
+    LocalHubController::Deps ld;
+    ld.conn = conn_.get();
+    ld.addHub = [this](const QString& address) { addHub(address); };
+    ld.installer.indexUrl = options.updateIndexUrl;
+    ld.installer.currentVersion = updates_->currentVersion();
+    ld.installer.installRoot = update::installRootFor(QCoreApplication::applicationDirPath());
+    localHub_ = std::make_unique<LocalHubController>(ld);
+    connect(localHub_.get(), &LocalHubController::quitRequested, this, [this]() {
+      shutdown();
+      QCoreApplication::quit();
+    });
+    // Paired with the Hub on this PC: show Settings, where its card (network sharing, ROM folder) is.
+    connect(localHub_.get(), &LocalHubController::setupCompleted, this, &PlayerController::showSettings);
+  }
   connect(sessions_.get(), &SessionController::watchChanged, this, [this]() {
     // Watching a Session from the Library while a game is in the background shows the game view again (multiview with
     // the paused game); the game stays paused until the user resumes it.

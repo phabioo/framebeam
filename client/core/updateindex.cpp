@@ -96,6 +96,13 @@ QString parseRelease(const QJsonObject& o, bool allowFile, Release* r) {
 
 }  // namespace
 
+std::optional<Artifact> Release::preferredArtifact(const QString& platform, const QString& kind) const {
+  if (kind == QLatin1String(kKindInstaller)) {
+    if (auto msi = artifact(platform, QLatin1String(kKindMsi))) return msi;
+  }
+  return artifact(platform, kind);
+}
+
 std::optional<Artifact> Release::artifact(const QString& platform, const QString& kind) const {
   for (const Artifact& a : artifacts) {
     if (a.platform == platform && a.kind == kind) return a;
@@ -215,7 +222,7 @@ Selection selectRelease(const Index& index, const SelectionInput& in) {
     const bool channelOk = r.channel == QLatin1String("stable") ||
                            (in.channel == Channel::Beta && r.channel == QLatin1String("beta"));
     if (!channelOk) continue;
-    const auto art = r.artifact(in.platform, in.kind);
+    const auto art = r.preferredArtifact(in.platform, in.kind);
     if (!art) continue;
     if (SemVer::compare(r.semver, *cur) <= 0) continue;  // never an automatic downgrade; equal = up to date
     if (protocolCompatible(r, in.hub)) {

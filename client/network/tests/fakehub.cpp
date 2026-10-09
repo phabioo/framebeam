@@ -230,6 +230,26 @@ void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
                                {QStringLiteral("status"), QStringLiteral("pending")},
                                {QStringLiteral("expires_in"), 600}}));
     }
+  } else if (req.method == "GET" && req.path == QLatin1String("/api/v1/local/status")) {
+    respond(sock, 200, json({{QStringLiteral("admin_exists"), localAdminExists},
+                             {QStringLiteral("network_sharing"), localNetworkSharing},
+                             {QStringLiteral("import_dir"), localImportDir},
+                             {QStringLiteral("hub_version"), QStringLiteral("0.9.0")}}));
+  } else if (req.method == "POST" && (req.path == QLatin1String("/api/v1/local/setup") || req.path == QLatin1String("/api/v1/local/pair"))) {
+    lastLocalBody = body;
+    const bool setup = req.path.endsWith(QLatin1String("/setup"));
+    if (setup && localAdminExists) {
+      respondError(sock, 409, QStringLiteral("admin_exists"));
+    } else if (!setup && body.value(QStringLiteral("password")).toString() != QLatin1String("correct horse")) {
+      respondError(sock, 401, QStringLiteral("invalid_credentials"));
+    } else {
+      if (setup) localAdminExists = true;
+      approvedDelivered_ = true;
+      respond(sock, 200, json({{QStringLiteral("status"), QStringLiteral("approved")},
+                               {QStringLiteral("hub_id"), hubId},
+                               {QStringLiteral("user_id"), QStringLiteral("u_admin_1")},
+                               {QStringLiteral("device_credential"), QString::fromLatin1(kDeviceCredential)}}));
+    }
   } else if (req.method == "POST" && req.path == QLatin1String("/api/v1/auth/token")) {
     ++tokenRequests_;
     callerDeviceId = body.value(QStringLiteral("device_id")).toString();
@@ -255,6 +275,19 @@ void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
     respond(sock, 204, {});
   } else if (!bearerIs(req, "fba_")) {
     respondError(sock, 401, QStringLiteral("unauthorized"));
+  } else if (req.method == "PUT" && req.path == QLatin1String("/api/v1/local/settings")) {
+    lastLocalSettings = body;
+    if (body.contains(QStringLiteral("import_dir")) && !localImportDirError.isEmpty()) {
+      respond(sock, 400, json({{QStringLiteral("error"), QJsonObject{{QStringLiteral("code"), QStringLiteral("import_dir_unreadable")},
+                                                                    {QStringLiteral("message"), localImportDirError}}}}));
+      return;
+    }
+    if (body.contains(QStringLiteral("network_sharing"))) localNetworkSharing = body.value(QStringLiteral("network_sharing")).toBool();
+    if (body.contains(QStringLiteral("import_dir"))) localImportDir = body.value(QStringLiteral("import_dir")).toString();
+    respond(sock, 200, json({{QStringLiteral("admin_exists"), localAdminExists},
+                             {QStringLiteral("network_sharing"), localNetworkSharing},
+                             {QStringLiteral("import_dir"), localImportDir},
+                             {QStringLiteral("hub_version"), QStringLiteral("0.9.0")}}));
   } else if (req.method == "POST" && req.path == QLatin1String("/api/v1/handshake")) {
     lastHandshakeBody = body;
     QJsonObject res{{QStringLiteral("hub_version"), QStringLiteral("0.1.0")},

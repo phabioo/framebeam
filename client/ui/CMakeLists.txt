@@ -30,6 +30,7 @@ qt_add_qml_module(framebeam_ui
     remoteview.h remoteview.cpp
     updatescontroller.h updatescontroller.cpp
     savehistorycontroller.h savehistorycontroller.cpp
+    localhubcontroller.h localhubcontroller.cpp
   QML_FILES
     Main.qml
     Theme.qml
@@ -89,6 +90,9 @@ qt_add_qml_module(framebeam_ui
     SaveRow.qml
     SortControl.qml
     SaveFileDialog.qml
+    LocalHubForm.qml
+    LocalHubCard.qml
+    LocalFolderDialog.qml
 )
 target_include_directories(framebeam_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(framebeam_ui PUBLIC framebeam_core framebeam_input framebeam_audioutil framebeam_media framebeam_emulation Qt6::Quick Qt6::QuickControls2 Qt6::Multimedia)

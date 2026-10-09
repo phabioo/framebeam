@@ -17,6 +17,7 @@ inline constexpr const char* kDefaultIndexUrl =
     "https://github.com/phabioo/framebeam/releases/download/updates-index/updates-index.json";
 inline constexpr const char* kPlayerPlatform = "windows-x64";  // the only Player update platform
 inline constexpr const char* kKindInstaller = "installer";
+inline constexpr const char* kKindMsi = "msi";  // 0.9 "One installer": preferred over the Inno installer
 inline constexpr const char* kKindZip = "zip";
 
 struct Artifact {
@@ -41,6 +42,8 @@ struct Release {
   QList<Artifact> artifacts;
 
   std::optional<Artifact> artifact(const QString& platform, const QString& kind) const;
+  // Player installer artifact: kind `msi` first, falls back to `installer` (Inno). Any other kind is looked up as is.
+  std::optional<Artifact> preferredArtifact(const QString& platform, const QString& kind) const;
   QJsonObject toJson() const;
 };
 

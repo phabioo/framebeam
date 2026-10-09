@@ -125,8 +125,15 @@ std::optional<StagedUpdate> loadVerifiedStaged(const QString& baseDir, const QSt
       }
     }
     if (rel == nullptr) continue;
-    const auto art = rel->artifact(QLatin1String(kPlayerPlatform), QLatin1String(kKindInstaller));
-    if (!art || art->name != artifactName) continue;
+    std::optional<Artifact> art;
+    for (const char* kind : {kKindMsi, kKindInstaller}) {  // the staged artifact is whichever the index offers by that name
+      const auto a = rel->artifact(QLatin1String(kPlayerPlatform), QLatin1String(kind));
+      if (a && a->name == artifactName) {
+        art = a;
+        break;
+      }
+    }
+    if (!art) continue;
     const QString path = d.filePath(art->name);
     if (!verifyArtifactFile(path, *art)) continue;
     if (!bestVer || SemVer::compare(*sv, *bestVer) > 0) {
@@ -240,7 +247,7 @@ bool UpdateManager::autoInstallSetting() const {
 bool UpdateManager::applySupported() const {
   if (config_.forceApplySupport) return true;
 #ifdef Q_OS_WIN
-  return hasUninstaller(config_.installRoot);
+  return canSelfUpdate(config_.installRoot);
 #else
   return false;
 #endif
@@ -248,7 +255,7 @@ bool UpdateManager::applySupported() const {
 
 QString UpdateManager::applyUnsupportedReason() const {
 #ifdef Q_OS_WIN
-  if (!hasUninstaller(config_.installRoot)) {
+  if (!canSelfUpdate(config_.installRoot)) {
     return QStringLiteral("This copy of the FrameBeam Player was not installed with the installer (portable or development build).");
   }
   return {};
@@ -467,7 +474,22 @@ void UpdateManager::apply(const StagedUpdate& staged) {
     setState(state_, tr("A game or Session is running. Finish it first, then install the update."));
     return;
   }
-  const InstallerCommand cmd = installerCommand(staged.installerPath, directoryWritable(config_.installRoot));
+  InstallerCommand cmd;
+  if (isMsiFile(staged.installerPath)) {
+    // MSI: a temp copy of the launcher runs msiexec (elevated for a per-machine install) after this Player exited,
+    // then starts the installed Player again.
+    QString why;
+    const QString launcher = copyLauncherToTemp(config_.installRoot, QDir::tempPath(), &why);
+    if (launcher.isEmpty()) {
+      lastError_ = why;
+      setState(State::Error, tr("The installer could not be started."));
+      return;
+    }
+    const MsiScope scope = detectMsiScope(directoryWritable(config_.installRoot), hubInstalledNear(config_.installRoot));
+    cmd = msiRelaunchCommand(launcher, staged.installerPath, scope, QDir(config_.installRoot).filePath(QLatin1String(kPlayerExeName)));
+  } else {
+    cmd = installerCommand(staged.installerPath, directoryWritable(config_.installRoot));
+  }
   qCInfo(lcUpdate) << "starting installer for" << staged.version;
   if (!launcher_(cmd.program, cmd.args)) {
     lastError_ = QStringLiteral("installer could not be started");

@@ -600,6 +600,89 @@ class HubFeaturesUiTest : public QObject {
     QVERIFY(!pc->selectedGame().value(QStringLiteral("coreText")).toString().contains(QStringLiteral("missing"), Qt::CaseInsensitive));
   }
 
+  // ------------------------------------------------------------ "Set up a Hub on this PC" (0.9)
+
+  static QString hubPort(const FakeHub& hub) { return QString::number(QUrl(hub.address()).port()); }
+
+  void localHubCreatesAdminAndPairs() {
+    FakeHub hub(QStringLiteral("a"));
+    QVERIFY(hub.start());
+    qputenv("FRAMEBEAM_LOCAL_HUB_PORT", hubPort(hub).toUtf8());
+    Harness h;
+    QVERIFY(h.start());
+    auto* local = h.controller->localHub();
+    QVERIFY(local->available());
+    QVERIFY(h.item("setupLocalHubButton") != nullptr);
+    local->start();
+    // The self-signed certificate of the loopback Hub is trusted without the trust screen; the admin form follows.
+    QTRY_COMPARE_WITH_TIMEOUT(local->phase(), QStringLiteral("needsSetup"), 8000);
+    QVERIFY(h.controller->profileStore()->profile(hub.hubId).has_value());
+    QVERIFY(!h.controller->profileStore()->profile(hub.hubId)->pinnedFingerprint.isEmpty());
+    QVERIFY(h.item("localUserField") != nullptr);
+    local->submit(QStringLiteral("fabio"), QStringLiteral("pw-one"), QStringLiteral("pw-two"));
+    QVERIFY(!local->error().isEmpty());  // passwords differ
+    QCOMPARE(local->phase(), QStringLiteral("needsSetup"));
+    local->submit(QStringLiteral("fabio"), QStringLiteral("pw-one"), QStringLiteral("pw-one"));
+    QTRY_COMPARE_WITH_TIMEOUT(h.controller->connection()->state(), S::Connected, 8000);
+    QCOMPARE(hub.lastLocalBody.value(QStringLiteral("username")).toString(), QStringLiteral("fabio"));
+    QCOMPARE(hub.lastLocalBody.value(QStringLiteral("device_id")).toString(), h.controller->profileStore()->deviceId());
+    QVERIFY(!hub.lastLocalBody.value(QStringLiteral("player_version")).toString().isEmpty());
+    const auto p = h.controller->profileStore()->profile(hub.hubId);
+    QCOMPARE(p->hubUserId, QStringLiteral("u_admin_1"));
+    QVERIFY(!p->credentialRef.isEmpty());
+    QVERIFY(local->onThisPc());
+    QCOMPARE(h.controller->screen(), QStringLiteral("settings"));
+    qunsetenv("FRAMEBEAM_LOCAL_HUB_PORT");
+  }
+
+  void localHubSignInAndSettings() {
+    FakeHub hub(QStringLiteral("a"));
+    hub.localAdminExists = true;
+    hub.localImportDir = QStringLiteral("C:\\Games");
+    QVERIFY(hub.start());
+    qputenv("FRAMEBEAM_LOCAL_HUB_PORT", hubPort(hub).toUtf8());
+    Harness h;
+    QVERIFY(h.start());
+    auto* local = h.controller->localHub();
+    local->start();
+    QTRY_COMPARE_WITH_TIMEOUT(local->phase(), QStringLiteral("needsSignIn"), 8000);
+    local->submit(QStringLiteral("fabio"), QStringLiteral("wrong"), QString());
+    QTRY_VERIFY_WITH_TIMEOUT(!local->error().isEmpty(), 8000);
+    QCOMPARE(local->phase(), QStringLiteral("needsSignIn"));  // form stays open
+    local->submit(QStringLiteral("fabio"), QStringLiteral("correct horse"), QString());
+    QTRY_COMPARE_WITH_TIMEOUT(h.controller->connection()->state(), S::Connected, 8000);
+    QTRY_COMPARE_WITH_TIMEOUT(local->importDir(), QStringLiteral("C:\\Games"), 8000);
+
+    local->setNetworkSharing(true);
+    QTRY_VERIFY_WITH_TIMEOUT(local->networkSharing() && !local->settingsBusy(), 8000);
+    QCOMPARE(hub.lastLocalSettings.value(QStringLiteral("network_sharing")).toBool(), true);
+
+    hub.localImportDirError = QStringLiteral("The Hub cannot read this folder.");
+    local->chooseFolder(QStringLiteral("/nonexistent/roms"));
+    QTRY_VERIFY_WITH_TIMEOUT(!local->settingsBusy(), 8000);
+    QCOMPARE(local->settingsError(), QStringLiteral("The Hub cannot read this folder."));
+    hub.localImportDirError.clear();
+    local->chooseFolder(QStringLiteral("/tmp"));
+    QTRY_VERIFY_WITH_TIMEOUT(!local->settingsBusy() && local->settingsError().isEmpty(), 8000);
+    QCOMPARE(local->importDir(), QStringLiteral("/tmp"));
+    QVERIFY(!local->settingsNotice().isEmpty());
+    qunsetenv("FRAMEBEAM_LOCAL_HUB_PORT");
+  }
+
+  void localHubAddressMismatchIsNotTrusted() {
+    FakeHub hub(QStringLiteral("a"));
+    QVERIFY(hub.start());
+    // A normally added Hub on the same loopback address is never trusted automatically.
+    qputenv("FRAMEBEAM_LOCAL_HUB_PORT", "1");
+    Harness h;
+    QVERIFY(h.start());
+    h.controller->addHub(hub.address());
+    QTRY_COMPARE(h.controller->connection()->state(), S::NeedsTrustConfirmation);
+    QTest::qWait(300);
+    QCOMPARE(h.controller->connection()->state(), S::NeedsTrustConfirmation);
+    qunsetenv("FRAMEBEAM_LOCAL_HUB_PORT");
+  }
+
  private:
   static QString pairingError(Harness& h) { return h.controller->pairing().value(QStringLiteral("error")).toString(); }
 };
