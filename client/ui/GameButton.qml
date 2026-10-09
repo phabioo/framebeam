@@ -50,6 +50,7 @@ Button {
             anchors.centerIn: parent
             spacing: 7
             GameIcon {
+                objectName: "iconItem"
                 visible: control.iconKind !== ""
                 anchors.verticalCenter: parent.verticalCenter
                 kind: control.iconKind
@@ -69,7 +70,9 @@ Button {
                 height: label.implicitHeight
                 Text {
                     id: label
+                    objectName: "labelText"
                     anchors.centerIn: parent
+                    verticalAlignment: Text.AlignVCenter
                     text: control.text
                     font.pixelSize: control.monoLabel ? 12 : control.font.pixelSize
                     font.weight: control.font.weight
@@ -105,11 +108,11 @@ Button {
                     color: control.on ? Theme.gameAccent : Theme.gameTextMuted
                 }
             }
-            Text {
+            GameIcon {
+                objectName: "caretIcon"
                 visible: control.caret !== ""
                 anchors.verticalCenter: parent.verticalCenter
-                text: control.caret
-                font.pixelSize: 9
+                kind: "caret"
                 color: Theme.gameFaint
             }
         }

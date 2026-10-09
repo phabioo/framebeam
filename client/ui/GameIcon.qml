@@ -2,12 +2,12 @@ import QtQuick
 import FrameBeam.Player
 
 // Small icons of the in-game header and panel (GameHeader sheet): drawn from primitives so they follow the text color.
-// kind: pause | play | speed | layout | diag | fullscreen | diamond.
+// kind: pause | play | speed | layout | diag | fullscreen | diamond | caret (drawn, so it centres like the other icons).
 Item {
     id: root
     property string kind: ""
     property color color: Theme.gameText
-    implicitWidth: kind === "speed" ? 12 : kind === "diamond" ? 10 : kind === "play" ? 8 : kind === "pause" ? 8 : 11
+    implicitWidth: kind === "speed" ? 12 : kind === "caret" ? 8 : kind === "diamond" ? 10 : kind === "play" ? 8 : kind === "pause" ? 8 : 11
     implicitHeight: 14
 
     Row {
@@ -59,6 +59,29 @@ Item {
         color: "transparent"
         border.width: 1.5
         border.color: root.color
+    }
+    Canvas {
+        id: caretTri
+        visible: root.kind === "caret"
+        anchors.centerIn: parent
+        width: 8
+        height: 5
+        onPaint: {
+            var c = getContext("2d")
+            c.clearRect(0, 0, width, height)
+            c.fillStyle = root.color
+            c.beginPath()
+            c.moveTo(0, 0)
+            c.lineTo(8, 0)
+            c.lineTo(4, 5)
+            c.closePath()
+            c.fill()
+        }
+        Connections {
+            target: root
+            function onColorChanged() { caretTri.requestPaint() }
+            function onKindChanged() { caretTri.requestPaint() }
+        }
     }
     Canvas {
         id: tri

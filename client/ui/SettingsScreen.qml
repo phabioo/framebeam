@@ -151,7 +151,7 @@ Rectangle {
                 id: content
                 x: 36
                 y: 28
-                width: Math.min(Theme.settingsContentMax, flick.width - 72)
+                width: flick.width - 72   // grows with the window; descriptions are capped per row (SettingsRow)
                 // Hub card and update card sit on the label edge (14 in) and end where the controls end (72 in) on wide pages.
                 readonly property bool wide: width >= Theme.settingsNarrowBelow
                 spacing: 32
