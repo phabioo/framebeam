@@ -117,9 +117,11 @@ void GameView::onFrame() {
 }
 
 void GameView::updateFrameRect() {
-  QSizeF fs = frame_.size();
-  if (fs.isEmpty() && session_) {
-    fs = session_->displayProfile().frameSize();
+  // Fit the 1x base size when the system declares one, not the delivered frame: that one follows the readback limit,
+  // which follows this rect (integer scaling would feed back: frame size -> rect -> limit -> frame size).
+  QSizeF fs = session_ ? QSizeF(session_->displayProfile().frameSize()) : QSizeF();
+  if (fs.isEmpty()) {
+    fs = frame_.size();
   }
   QRectF r;
   if (splitDrawing()) {
@@ -156,11 +158,25 @@ void GameView::geometryChange(const QRectF& newGeometry, const QRectF& oldGeomet
   update();
 }
 
+namespace {
+// A texture drawn smaller than it is (physical pixels) must be filtered, or fine detail aliases and shimmers on
+// moving content (mipmapped linear = box-ish average). Drawn at 1:1 or larger, nearest keeps the pixels crisp.
+bool isDownscaled(const QSize& tex, const QRectF& target, qreal dpr) {
+  return tex.width() > std::ceil(target.width() * dpr - 1e-6) || tex.height() > std::ceil(target.height() * dpr - 1e-6);
+}
+
+void applyFiltering(QSGImageNode* n, bool down) {
+  n->setFiltering(down ? QSGTexture::Linear : QSGTexture::Nearest);
+  n->setMipmapFiltering(down ? QSGTexture::Linear : QSGTexture::None);
+}
+}  // namespace
+
 QSGNode* GameView::updatePaintNode(QSGNode* old, UpdatePaintNodeData*) {
   if (frame_.isNull() || window() == nullptr || frameRect_.isEmpty()) {
     delete old;
     return nullptr;
   }
+  const qreal dpr = window()->effectiveDevicePixelRatio();
   if (splitDrawing()) {
     // One image node per visible screen, each with its own texture cut out of the frame (a few 100 KB per frame).
     delete old;
@@ -176,10 +192,11 @@ QSGNode* GameView::updatePaintNode(QSGNode* old, UpdatePaintNodeData*) {
         continue;
       }
       auto* n = window()->createImageNode();
-      n->setFiltering(QSGTexture::Nearest);
-      n->setMipmapFiltering(QSGTexture::None);
+      const QImage part = frame_.copy(src.toRect());
+      const bool down = isDownscaled(part.size(), target, dpr);
+      applyFiltering(n, down);
       n->setOwnsTexture(true);
-      n->setTexture(window()->createTextureFromImage(frame_.copy(src.toRect())));
+      n->setTexture(window()->createTextureFromImage(part, down ? QQuickWindow::TextureHasMipmaps : QQuickWindow::CreateTextureOptions()));
       n->setRect(target);
       group->appendChildNode(n);
     }
@@ -192,13 +209,14 @@ QSGNode* GameView::updatePaintNode(QSGNode* old, UpdatePaintNodeData*) {
   }
   if (node == nullptr) {
     node = window()->createImageNode();
-    node->setFiltering(QSGTexture::Nearest);
-    node->setMipmapFiltering(QSGTexture::None);
     node->setOwnsTexture(true);
     frameDirty_ = true;
   }
-  if (frameDirty_) {
-    node->setTexture(window()->createTextureFromImage(frame_));
+  const bool down = isDownscaled(frame_.size(), frameRect_, dpr);
+  if (frameDirty_ || down != lastDown_) {
+    applyFiltering(node, down);
+    node->setTexture(window()->createTextureFromImage(frame_, down ? QQuickWindow::TextureHasMipmaps : QQuickWindow::CreateTextureOptions()));
+    lastDown_ = down;
     frameDirty_ = false;
   }
   node->setRect(frameRect_);

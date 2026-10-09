@@ -1,7 +1,6 @@
 // Game in the background (0.7.x): "← Library" pauses and keeps the game loaded; Library strip, Resume, Quit, the
 // confirmation before another game starts, and no input to the core while in the background (preview game, no core).
-#include <QQmlContext>
-#include <QQmlProperty>
+#include <QDir>
 #include <QtTest>
 
 #include "fakehub.h"
@@ -43,6 +42,75 @@ class BackgroundGameUiTest : public QObject {
     QTRY_COMPARE_WITH_TIMEOUT(h.controller->screen(), QStringLiteral("game"), 8000);
   }
 
+
+  static QList<QQuickItem*> itemsNamed(Harness& h, const char* name) {
+    QList<QQuickItem*> all{h.window->contentItem()}, out;
+    for (int i = 0; i < all.size(); ++i) all.append(all.at(i)->childItems());
+    for (QQuickItem* it : std::as_const(all)) if (it->objectName() == QLatin1String(name)) out.append(it);
+    return out;
+  }
+  static QRectF sceneRect(QQuickItem* it) { return it->mapRectToScene(QRectF(0, 0, it->width(), it->height())); }
+  static QQuickItem* visibleOne(Harness& h, const char* name) {
+    QQuickItem* found = nullptr;
+    for (QQuickItem* it : itemsNamed(h, name)) {
+      if (!it->isVisible()) continue;
+      if (found != nullptr) return nullptr;  // more than one
+      found = it;
+    }
+    return found;
+  }
+  // Adds letter spacing to every item that has a font (stand-in for wider Windows fonts).
+  static void widenFonts(Harness& h, qreal spacing) {
+    QList<QQuickItem*> all{h.window->contentItem()};
+    for (int i = 0; i < all.size(); ++i) all.append(all.at(i)->childItems());
+    for (QQuickItem* it : std::as_const(all)) {
+      const QVariant fv = it->property("font");
+      if (fv.metaType() != QMetaType::fromType<QFont>()) continue;
+      QFont f = fv.value<QFont>();
+      if (f.letterSpacing() < 1.0) { f.setLetterSpacing(QFont::AbsoluteSpacing, spacing); it->setProperty("font", f); }
+    }
+    QQuickTest::qWaitForPolish(h.window);
+    QTest::qWait(60);
+  }
+  static void inside(Harness& h, const char* name, const QRectF& bounds) {
+    QQuickItem* it = visibleOne(h, name);
+    QVERIFY2(it != nullptr, name);
+    const QRectF r = sceneRect(it);
+    QVERIFY2(r.left() >= bounds.left() - 0.5 && r.right() <= bounds.right() + 0.5 && r.top() >= bounds.top() - 0.5 && r.bottom() <= bounds.bottom() + 0.5,
+             qPrintable(QStringLiteral("'%1' %2,%3 %4x%5 outside %6,%7 %8x%9").arg(QLatin1String(name)).arg(r.x()).arg(r.y()).arg(r.width()).arg(r.height())
+                            .arg(bounds.x()).arg(bounds.y()).arg(bounds.width()).arg(bounds.height())));
+  }
+  static void shot(Harness& h, const QString& name) {
+    const QString dir = qEnvironmentVariable("FRAMEBEAM_SCREENSHOT_DIR");
+    if (dir.isEmpty()) return;
+    QDir().mkpath(dir);
+    QTest::qWait(150);
+    h.window->grabWindow().save(QDir(dir).filePath(name + QStringLiteral(".png")));
+  }
+  // Layout checks of the running game's Library (3c-5) at the current window size.
+  static void checkRunningLayout(Harness& h) {
+    const QRectF win(0, 0, h.window->width(), h.window->height());
+    QQuickItem* pill = visibleOne(h, "tileRunningPill");
+    QVERIFY2(pill != nullptr, "exactly one running marker expected");
+    QQuickItem* tile = pill;
+    while (tile != nullptr && !tile->property("gameId").isValid()) tile = tile->parentItem();
+    QVERIFY(tile != nullptr);
+    QCOMPARE(tile->property("gameId").toString(), QStringLiteral("g1"));
+    const QRectF tr = sceneRect(tile);
+    const QRectF cover(tr.x(), tr.y(), tr.width() - 18, tr.width() - 18);
+    const QRectF pr = sceneRect(pill);
+    QVERIFY2(pr.left() >= cover.left() - 0.5 && pr.right() <= cover.right() + 0.5 && pr.top() >= cover.top() - 0.5 && pr.bottom() <= cover.bottom() + 0.5,
+             "marker outside the cover");
+    QVERIFY2(pr.right() > cover.right() - 14, "marker is not top right");
+    QQuickItem* pane = h.item("detailPane");
+    QVERIFY(pane != nullptr);
+    const QRectF pb = sceneRect(pane);
+    QVERIFY(pb.right() <= win.right() + 0.5);
+    for (const char* n : {"playButton", "playShareButton", "runningNote", "quitNote", "detailPill", "detailTitle"}) inside(h, n, pb);
+    inside(h, "nowRunningStrip", win);
+    QVERIFY(h.item("startChecklist") == nullptr || !h.item("startChecklist")->isVisible());
+  }
+
  private slots:
   void initTestCase() { uitest::installWarningCounter(); }
 
@@ -66,43 +134,11 @@ class BackgroundGameUiTest : public QObject {
     QCOMPARE(c->backgroundGame().value(QStringLiteral("id")).toString(), QStringLiteral("g1"));
     QCOMPARE(c->backgroundGame().value(QStringLiteral("title")).toString(), QStringLiteral("Lumen Drift"));
     QQuickTest::qWaitForPolish(h.window);
-    QQuickItem* strip = h.item("runningStrip");
+    // The interim Library strip is gone; the sidebar "Now running" strip shows the game (3c-5).
+    QVERIFY(h.item("runningStrip") == nullptr && h.item("stripResumeButton") == nullptr && h.item("stripQuitButton") == nullptr);
+    QQuickItem* strip = h.item("nowRunningStrip");
     QVERIFY(strip != nullptr && strip->isVisible());
-    const auto checkStripInColumn = [&]() {
-      // The strip must stay inside the Library main column, which in turn must stay inside the window (wide fonts on
-      // Windows must not widen the column). The chain is dumped for the CI log.
-      QString chain;
-      for (QQuickItem* i = strip; i != nullptr; i = i->parentItem()) {
-        const QRectF r = i->mapRectToScene(QRectF(0, 0, i->width(), i->height()));
-        chain += QStringLiteral("\n  %1 '%2' x=%3 w=%4 impl=%5").arg(QString::fromLatin1(i->metaObject()->className()), i->objectName())
-                     .arg(r.x()).arg(r.width()).arg(i->implicitWidth());
-      }
-      QQuickItem* column = strip->parentItem();
-      for (QQuickItem* sib : column->childItems()) {
-        QQmlContext* ctx = qmlContext(sib);
-        const auto lay = [&](const char* p) {
-          const QVariant v = ctx ? QQmlProperty(sib, QString::fromLatin1(p), ctx).read() : QVariant();
-          return v.isValid() ? v.toDouble() : -1.0;
-        };
-        chain += QStringLiteral("\n  sibling %1 '%2' vis=%3 w=%4 impl=%5 min=%6")
-                     .arg(QString::fromLatin1(sib->metaObject()->className()), sib->objectName()).arg(sib->isVisible())
-                     .arg(sib->width()).arg(sib->implicitWidth()).arg(lay("Layout.minimumWidth"));
-      }
-      QVERIFY2(column != nullptr, "strip has no parent");
-      const QRectF sr = strip->mapRectToScene(QRectF(0, 0, strip->width(), strip->height()));
-      const QRectF cr = column->mapRectToScene(QRectF(0, 0, column->width(), column->height()));
-      QVERIFY2(sr.left() >= cr.left() - 0.5 && sr.right() <= cr.right() + 0.5, qPrintable(QStringLiteral("strip outside column:") + chain));
-      QVERIFY2(cr.right() <= h.window->width() + 0.5, qPrintable(QStringLiteral("column outside window:") + chain));
-    };
-    checkStripInColumn();
-    // Narrowest window (960 px, also what wide Windows fonts amount to): the column must not widen past its slot.
-    h.window->resize(960, 600);
-    QQuickTest::qWaitForPolish(h.window);
-    QTest::qWait(50);
-    checkStripInColumn();
-    h.window->resize(1280, 800);
-    QQuickTest::qWaitForPolish(h.window);
-    QVERIFY(h.item("stripResumeButton") != nullptr && h.item("stripQuitButton") != nullptr);
+    QVERIFY(h.item("nowRunningResume") != nullptr && h.item("nowRunningQuit") != nullptr);
     const QVariantMap sel = c->selectedGame();
     QCOMPARE(sel.value(QStringLiteral("running")).toBool(), true);
     QCOMPARE(sel.value(QStringLiteral("playLabel")).toString(), QStringLiteral("Resume"));
@@ -148,7 +184,7 @@ class BackgroundGameUiTest : public QObject {
     QVERIFY(c->backgroundGame().isEmpty());
     QVERIFY(c->selectedGame().value(QStringLiteral("running")).toBool() == false);
     QQuickTest::qWaitForPolish(h.window);
-    QQuickItem* gone = h.item("runningStrip");
+    QQuickItem* gone = h.item("nowRunningStrip");
     QVERIFY(gone == nullptr || !gone->isVisible());
     QCOMPARE(uitest::warningCount().load(), 0);
   }
@@ -189,6 +225,105 @@ class BackgroundGameUiTest : public QObject {
     QVERIFY(c->backgroundGame().isEmpty());
     QVERIFY(!gs->isActive() || gs->state() == GameSession::Starting);
     QVERIFY(!c->startConfirm().value(QStringLiteral("active")).toBool());
+    QCOMPARE(uitest::warningCount().load(), 0);
+  }
+  void libraryShowsRunningGame() {
+    FakeHub hub(QStringLiteral("a"));
+    Harness h;
+    pair(hub, h);
+    PlayerController* c = h.controller.get();
+    startPreview(h, QStringLiteral("g1"));
+    c->leaveGameView();
+    c->selectGame(QStringLiteral("g1"));
+    QCOMPARE(c->screen(), QStringLiteral("library"));
+    QQuickTest::qWaitForPolish(h.window);
+
+    // Marker on the right tile only, status line, detail column with Resume / Quit game, no interim strip.
+    QVERIFY(h.item("runningStrip") == nullptr);
+    const QList<QQuickItem*> statuses = itemsNamed(h, "tileStatus");
+    int running = 0;
+    for (QQuickItem* st : statuses) {
+      if (!st->isVisible() || !st->property("text").toString().contains(QStringLiteral("Running · paused"))) continue;
+      ++running;
+      QQuickItem* t = st;
+      while (t != nullptr && !t->property("gameId").isValid()) t = t->parentItem();
+      QVERIFY(t != nullptr);
+      QCOMPARE(t->property("gameId").toString(), QStringLiteral("g1"));
+    }
+    QCOMPARE(running, 1);
+    QCOMPARE(h.item("detailPill")->property("text").toString(), QStringLiteral("❚❚ Running · paused"));
+    QVERIFY(h.item("playButton")->property("text").toString().contains(QStringLiteral("Resume")));
+    QCOMPARE(h.item("playShareButton")->property("text").toString(), QStringLiteral("Quit game"));
+    QVERIFY(h.item("playShareButton")->isVisible());
+    QVERIFY(h.item("quitNote")->isVisible() && h.item("runningNote")->isVisible());
+
+    struct Size { int w, h; };
+    for (const Size sz : {Size{960, 600}, Size{1280, 800}, Size{1920, 1080}}) {
+      h.window->resize(sz.w, sz.h);
+      QQuickTest::qWaitForPolish(h.window);
+      QTest::qWait(60);
+      checkRunningLayout(h);
+      if (sz.w == 1920) shot(h, QStringLiteral("3c-5-library-running-1920"));
+    }
+    h.window->resize(1440, 900);
+    QQuickTest::qWaitForPolish(h.window);
+    shot(h, QStringLiteral("3c-5-library-running"));
+    // Wide Windows fonts at the narrowest window.
+    h.window->resize(960, 600);
+    widenFonts(h, 3.0);
+    checkRunningLayout(h);
+    QCOMPARE(uitest::warningCount().load(), 0);
+  }
+
+  void playOnAnotherGameAsksAndCancelKeepsRunning() {
+    FakeHub hub(QStringLiteral("a"));
+    Harness h;
+    pair(hub, h);
+    PlayerController* c = h.controller.get();
+    GameSession* gs = c->gameSession();
+    startPreview(h, QStringLiteral("g1"));
+    c->leaveGameView();
+    c->selectGame(QStringLiteral("g2"));
+    QQuickTest::qWaitForPolish(h.window);
+    // Another game selected: plain detail column (Play), no running marker on its tile.
+    QVERIFY(!h.item("playButton")->property("text").toString().contains(QStringLiteral("Resume")));
+    QVERIFY(h.item("quitNote") == nullptr || !h.item("quitNote")->isVisible());
+    c->playSelected();  // what the Play button does for this game (the dummy ROM is not downloaded, so the button itself is not clickable)
+    QQuickItem* dlg = h.item("startConfirmDialog");
+    QTRY_VERIFY(dlg != nullptr && dlg->isVisible());
+    QCOMPARE(h.item("startConfirmEyebrow")->property("text").toString(), QStringLiteral("Lumen Drift is running · paused"));
+    QCOMPARE(h.item("startConfirmTitle")->property("text").toString(), QStringLiteral("Quit Lumen Drift and start Night Run?"));
+    QVERIFY(h.item("startConfirmQuit")->property("text").toString().contains(QStringLiteral("Night Run")));
+    struct Size { int w, h; };
+    for (const Size sz : {Size{960, 600}, Size{1280, 800}, Size{1920, 1080}}) {
+      h.window->resize(sz.w, sz.h);
+      QQuickTest::qWaitForPolish(h.window);
+      QTest::qWait(60);
+      const QRectF win(0, 0, sz.w, sz.h);
+      for (const char* n : {"startConfirmDialog", "startConfirmCancel", "startConfirmQuit"}) inside(h, n, win);
+      const QRectF dr = sceneRect(h.item("startConfirmDialog"));
+      QVERIFY2(dr.width() <= 500.5, "dialog wider than 500");
+      inside(h, "startConfirmQuit", dr);
+    }
+    h.window->resize(1440, 900);
+    QQuickTest::qWaitForPolish(h.window);
+    shot(h, QStringLiteral("3c-5-quit-and-start-dialog"));
+    h.window->resize(960, 600);
+    widenFonts(h, 10.0);  // far wider than any Windows UI font: the confirm button must elide, never spill out of the dialog
+    for (const char* n : {"startConfirmCancel", "startConfirmQuit"}) inside(h, n, sceneRect(h.item("startConfirmDialog")));
+    QVERIFY(sceneRect(h.item("startConfirmQuit")).left() >= sceneRect(h.item("startConfirmCancel")).right() - 0.5);
+    h.window->resize(1280, 800);
+    QQuickTest::qWaitForPolish(h.window);
+
+    // Cancel: nothing changes, the game keeps running in the background.
+    QVERIFY(h.click("startConfirmCancel"));
+    QTRY_VERIFY(!c->startConfirm().value(QStringLiteral("active")).toBool());
+    QVERIFY(gs->isActive() && gs->isPaused());
+    QCOMPARE(c->backgroundGame().value(QStringLiteral("id")).toString(), QStringLiteral("g1"));
+    QCOMPARE(c->screen(), QStringLiteral("library"));
+    QQuickTest::qWaitForPolish(h.window);
+    QVERIFY(!h.item("startConfirmDialog")->isVisible());
+    QVERIFY(visibleOne(h, "tileRunningPill") != nullptr);
     QCOMPARE(uitest::warningCount().load(), 0);
   }
 };

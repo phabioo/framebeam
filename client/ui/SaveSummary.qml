@@ -16,6 +16,16 @@ Rectangle {
     readonly property bool unsupported: !hist.hasSaveData
     readonly property bool noSaves: hist.slotsAvailable && hist.online && !hist.loading && hist.current.revision === undefined
                                     && hist.history.length === 0 && (syncKind === "none" || hist.available)
+    // 3c-5: the game of this summary is paused in the background; the checkpoint was written when it was paused.
+    readonly property bool running: game.running === true
+    readonly property var bg: player.backgroundGame
+    property real nowMs: Date.now()
+    function ago(ms) {
+        const s = Math.max(0, Math.round((nowMs - ms) / 1000))
+        return s < 60 ? qsTr("%1 s").arg(s) : (s < 3600 ? qsTr("%1 min").arg(Math.floor(s / 60)) : qsTr("%1 h").arg(Math.floor(s / 3600)))
+    }
+    Timer { running: root.running; interval: 10000; repeat: true; onTriggered: root.nowMs = Date.now() }
+    onRunningChanged: nowMs = Date.now()
     signal manage()
     signal uploadRequested()
 
@@ -186,7 +196,8 @@ Rectangle {
                     wrapMode: Text.WordWrap
                     color: Theme.textMeta
                     font.pixelSize: Theme.fontMeta
-                    text: root.offline ? qsTr("last synced %1").arg(root.hist.lastSynced)
+                    text: root.running && root.bg.pausedMs ? qsTr("checkpoint %1 ago · this device").arg(root.ago(root.bg.pausedMs))
+                          : root.offline ? qsTr("last synced %1").arg(root.hist.lastSynced)
                           : root.syncKind === "pending" ? qsTr("local changes not uploaded yet · this device")
                           : (root.hist.current.device ? qsTr("%1 · %2").arg(root.hist.current.when).arg(root.hist.current.device)
                                                       : (root.hist.current.when || ""))
@@ -197,8 +208,9 @@ Rectangle {
                 Layout.alignment: Qt.AlignTop
                 visible: text !== ""
                 small: true
-                tone: root.offline ? "neutral" : (root.syncKind === "pending" ? "warn" : "ok")
-                text: root.offline ? qsTr("Offline")
+                tone: root.running || root.offline ? "neutral" : (root.syncKind === "pending" ? "warn" : "ok")
+                text: root.running ? qsTr("Syncs on quit")
+                      : root.offline ? qsTr("Offline")
                       : root.syncKind === "pending" ? qsTr("⟳ Sync pending")
                       : root.syncKind === "synced" ? qsTr("✓ Synced") : ""
             }
