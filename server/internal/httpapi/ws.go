@@ -35,6 +35,7 @@ func (s *Server) serveWS(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	cl := s.svc.NewClient(p)
 	cl.SetRequestHost(r.Host)
+	cl.SetRemoteAddr(r.RemoteAddr)
 	defer cl.Disconnect()
 
 	go func() { // writer, keepalive, hub-initiated close

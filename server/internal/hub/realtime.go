@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net"
+	"net/netip"
 	"sync"
 	"time"
 
@@ -219,6 +221,7 @@ type Client struct {
 	state      string
 	gameID     string
 	reqHost    string // Host of the WSS upgrade (TURN URLs)
+	remoteIP   netip.Addr
 }
 
 // NewClient creates the connection state for an authenticated device. It is not visible to others until hello.
@@ -228,6 +231,33 @@ func (s *Service) NewClient(p Principal) *Client {
 
 // SetRequestHost records the Host header of the WSS upgrade (used for TURN URLs in hello_ack).
 func (c *Client) SetRequestHost(h string) { c.reqHost = h }
+
+// SetRemoteAddr records the peer IP of the WSS connection from r.RemoteAddr (port stripped).
+func (c *Client) SetRemoteAddr(remoteAddr string) {
+	host := remoteAddr
+	if h, _, err := net.SplitHostPort(remoteAddr); err == nil {
+		host = h
+	}
+	if a, err := netip.ParseAddr(host); err == nil {
+		c.mu.Lock()
+		c.remoteIP = a.Unmap()
+		c.mu.Unlock()
+	}
+}
+
+// ConnectedPlayerIP reports whether ip is the remote IP of a currently connected (hello-processed) Player.
+func (s *Service) ConnectedPlayerIP(ip netip.Addr) bool {
+	ip = ip.Unmap()
+	for _, c := range s.clients() {
+		c.mu.Lock()
+		ok := c.remoteIP.IsValid() && c.remoteIP == ip
+		c.mu.Unlock()
+		if ok {
+			return true
+		}
+	}
+	return false
+}
 
 // Out delivers encoded messages (text frames) to write; Done fires when the connection must be closed.
 func (c *Client) Out() <-chan []byte    { return c.out }
