@@ -11,7 +11,7 @@ add_library(framebeam_emulation STATIC
   hw_render.cpp)
 qt_add_resources(framebeam_emulation framebeam_manifests
   PREFIX "/framebeam/emulation"
-  FILES manifests/nds.json)
+  FILES manifests/systems/nds.json manifests/cores/melondsds.json manifests/cores/desmume.json)
 target_include_directories(framebeam_emulation PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(framebeam_emulation SYSTEM PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 target_compile_features(framebeam_emulation PUBLIC cxx_std_20)
@@ -69,6 +69,11 @@ if(BUILD_TESTING)
   framebeam_add_test(emulation_core tests/core_test.cpp LIBS framebeam_emulation NEEDS_CORE)
   target_compile_definitions(test_emulation_core PRIVATE FB_TEST_ROM_PATH="${FB_TEST_ROM}")
   add_dependencies(test_emulation_core framebeam_test_rom)
+
+  # DeSmuME smoke test (SKIP/77 without FRAMEBEAM_DESMUME_CORE).
+  framebeam_add_test(emulation_core_desmume tests/core_desmume_test.cpp LIBS framebeam_emulation NEEDS_DESMUME_CORE)
+  target_compile_definitions(test_emulation_core_desmume PRIVATE FB_TEST_ROM_PATH="${FB_TEST_ROM}")
+  add_dependencies(test_emulation_core_desmume framebeam_test_rom)
 
   framebeam_add_test(emulation_core_speed tests/core_speed_test.cpp LIBS framebeam_emulation NEEDS_CORE)
   target_compile_definitions(test_emulation_core_speed PRIVATE FB_TEST_ROM_PATH="${FB_TEST_ROM}")

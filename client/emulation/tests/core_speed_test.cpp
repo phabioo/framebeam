@@ -42,7 +42,7 @@ class CoreSpeedTest : public QObject {
     QVERIFY(QDir().mkpath(m_dirs.filePath(QStringLiteral("save"))));
     ManifestRegistry reg;
     QVERIFY(reg.loadBuiltin());
-    m_nds = *reg.find(QStringLiteral("nds"));
+    m_nds = *reg.resolve(QStringLiteral("nds"), QStringLiteral("melondsds"));
     const CoreLocation loc = CoreLocator().locate(m_nds);
     QVERIFY2(loc.found(), "Core not found");
     m_corePath = loc.path;

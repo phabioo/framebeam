@@ -115,9 +115,6 @@ class FakeHub : public QTcpServer {
   // Adds a history version to a slot (creates the slot object if needed; revision of the slot is not changed).
   void addHistory(const QString& gameId, const QString& slot, const QByteArray& content, const QString& reason,
                   const QString& label = QString(), const QString& deviceName = QStringLiteral("Laptop Office"));
-  // Signed core index (cores_index_v1): GET /cores/index and /cores/index.sig answer these bytes (empty: 404).
-  QByteArray coreIndex, coreIndexSig;
-  int coreIndexRequests = 0;
   int uploadCount = 0;   // save file uploads that succeeded
   qint64 uploadLimit = 64LL * 1024 * 1024;  // 413 above this
   int deleteCount = 0;   // snapshot deletions that succeeded

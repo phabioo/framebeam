@@ -268,6 +268,12 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
           [this](quint32 mask) { session_.setGamepadMask(mask); });
   session_.setGamepadMask(controllers_->gamepads()->libretroMask());
   connect(emulation_.get(), &EmulationController::frameBeamOptionsChanged, this, &PlayerController::applyFrameBeamOptions);
+  // The core choice of a system changed: the new core's options, status and the game detail follow at once.
+  connect(emulation_.get(), &EmulationController::coreChoiceChanged, this, [this]() {
+    refreshEmulationPage();
+    refreshAttention();
+    emit selectedGameChanged();
+  });
   applyFrameBeamOptions();
   connect(&session_, &GameSession::stateChanged, this, [this]() { emulation_->setGameRunning(session_.isActive()); });
 
@@ -360,10 +366,12 @@ void PlayerController::refreshCoreState() {
 // Emulation page: system cards (core, readiness, firmware) and the core options (loaded once without a game or from
 // the cache of the last capture; not possible while a game runs because only one core can be loaded per process).
 void PlayerController::refreshEmulationPage() {
-  for (const emu::SystemManifest& m : manifests_.all()) {
-    if (emulation_->hasCoreProbe(m.coreId)) {
+  for (const emu::SystemManifest& sysManifest : manifests_.all()) {
+    const emu::SystemManifest* mp = catalog_->manifestForSystem(sysManifest.systemId);
+    if (mp == nullptr || mp->coreId.isEmpty() || emulation_->hasCoreProbe(mp->coreId)) {
       continue;
     }
+    const emu::SystemManifest& m = *mp;
     const emu::CoreLocation loc = catalog_->locateCore(m);
     if (loc.found() && !session_.isActive()) {
       const emu::CoreProbe probe = emu::probeCore(loc.path, catalog_->systemDir(), QDir(profiles_->baseDir()).filePath(QStringLiteral("probe")));
@@ -750,10 +758,8 @@ QVariantList PlayerController::coreWarnings() const {
       continue;
     }
     QString label = p.coreId;
-    for (const emu::SystemManifest& m : manifests_.all()) {
-      if (m.coreId == p.coreId) {
-        label = catalog_->coreLabel(m, emu::CoreLocation{});
-      }
+    if (const emu::CoreProfile* prof = manifests_.profile(p.coreId)) {
+      label = coreNames_.value(p.coreId, prof->displayName);
     }
     if (label.isEmpty()) {
       label = tr("Core");

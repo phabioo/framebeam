@@ -13,6 +13,7 @@
 #include <QVariantMap>
 #include <QtQml/qqmlregistration.h>
 #include <memory>
+#include <optional>
 
 #include "core_options.h"
 #include "emulationsettings.h"
@@ -25,7 +26,8 @@ class EmulationController : public QObject {
   QML_ELEMENT
   QML_UNCREATABLE("Provided by the PlayerController")
 
-  // [{id, name, coreName, coreVersion, readyText, readyTone, firmwareText, firmwareTone}]
+  // [{id, name, coreName, coreVersion, coreId, coreExperimental, cores:[{id,name,version,license,buildDate,experimental,
+  //   isDefault,label}], defaultCoreId, coreNotice, readyText, readyTone, firmwareText, firmwareTone}]
   Q_PROPERTY(QVariantList systems READ systems NOTIFY systemsChanged)
   Q_PROPERTY(QString selectedSystem READ selectedSystem NOTIFY selectionChanged)
   Q_PROPERTY(QVariantMap system READ system NOTIFY selectionChanged)  // card of the selected system, empty if none
@@ -47,6 +49,7 @@ class EmulationController : public QObject {
   Q_PROPERTY(QString coreNote READ coreNote NOTIFY groupsChanged)    // why the core group is empty, else empty
 
  public:
+  static constexpr const char* kCoreKey = EmulationSettings::kCoreKey;  // "framebeam.core": core of a system (ADR 0020 D6)
   static constexpr const char* kFullscreenKey = "framebeam.fullscreen_on_start";
   static constexpr const char* kMultiviewKey = "framebeam.default_multiview";
   static constexpr const char* kSpeedUpRatioKey = "framebeam.speedup_ratio";
@@ -102,6 +105,7 @@ class EmulationController : public QObject {
   void filterChanged();
   void gameRunningChanged();
   void frameBeamOptionsChanged();  // a "framebeam.*" value changed (the PlayerController applies it)
+  void coreChoiceChanged();        // the core of a system was chosen or reset (the PlayerController refreshes the core state)
 
  private:
   struct FbOption {
@@ -113,7 +117,9 @@ class EmulationController : public QObject {
     bool perSystem = false;  // also offered (and stored) per system, not only globally
   };
   static const QList<FbOption>& frameBeamOptions();
-  QString coreIdOf(const QString& systemId) const;
+  // Effective manifest of the selected system for its effective core (card field "coreId"); the system-only manifest
+  // when the card names no core.
+  std::optional<emu::SystemManifest> selectedManifest() const;
   QString cachePath(const QString& coreId) const;
   void rebuild();
   QVariantMap row(const QString& key, const QString& label, const QString& description, const QString& category,

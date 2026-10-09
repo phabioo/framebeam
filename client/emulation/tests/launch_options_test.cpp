@@ -11,7 +11,7 @@ class LaunchOptionsTest : public QObject {
   SystemManifest nds() {
     ManifestRegistry reg;
     reg.loadBuiltin();
-    return *reg.find(QStringLiteral("nds"));
+    return *reg.resolve(QStringLiteral("nds"), QStringLiteral("melondsds"));
   }
 
  private slots:

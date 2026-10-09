@@ -104,7 +104,7 @@ QJsonObject ndsSystem(const QString& mode, const QJsonArray& files) {
   return {{QStringLiteral("systems"),
            QJsonArray{QJsonObject{{QStringLiteral("id"), QStringLiteral("nds")},
                                   {QStringLiteral("display_name"), QStringLiteral("Nintendo DS")},
-                                  {QStringLiteral("preferred_core_id"), QStringLiteral("melonds_ds")},
+                                  {QStringLiteral("preferred_core_id"), QStringLiteral("melondsds")},
                                   {QStringLiteral("expected_core_version"), QStringLiteral("1.4.0")},
                                   {QStringLiteral("firmware_mode"), mode},
                                   {QStringLiteral("firmware"), files}}}}};
@@ -240,7 +240,7 @@ class EmulationControllersTest : public QObject {
     Harness h;
     QVERIFY(h.start());
     pair(h, hub);
-    h.controller->emulation()->setCoreProbe(QStringLiteral("melonds_ds"), fakeProbe(), false);
+    h.controller->emulation()->setCoreProbe(QStringLiteral("melondsds"), fakeProbe(), false);
     QVERIFY(h.click("navEmulation"));
     QCOMPARE(h.controller->screen(), QStringLiteral("emulation"));
     EmulationController* emu = h.controller->emulation();
@@ -378,7 +378,7 @@ class EmulationControllersTest : public QObject {
     Harness h;
     QVERIFY(h.start());
     pair(h, hub);
-    h.controller->emulation()->setCoreProbe(QStringLiteral("melonds_ds"), richProbe(), false);
+    h.controller->emulation()->setCoreProbe(QStringLiteral("melondsds"), richProbe(), false);
     h.controller->showEmulation();
     QTest::qWait(100);
     qreal emuRight = 0;
@@ -430,7 +430,7 @@ class EmulationControllersTest : public QObject {
     Harness h;
     QVERIFY(h.start());
     pair(h, hub);
-    h.controller->emulation()->setCoreProbe(QStringLiteral("melonds_ds"), richProbe(), false);
+    h.controller->emulation()->setCoreProbe(QStringLiteral("melondsds"), richProbe(), false);
     h.controller->showEmulation();
     h.window->resize(960, 800);
     QTest::qWait(150);
@@ -466,7 +466,7 @@ class EmulationControllersTest : public QObject {
     // Few short categories always fit: all chips are shown and there is no "+N more".
     emu::CoreProbe few = richProbe();
     few.categories = {few.categories.at(0), few.categories.at(2)};
-    h.controller->emulation()->setCoreProbe(QStringLiteral("melonds_ds"), few, false);
+    h.controller->emulation()->setCoreProbe(QStringLiteral("melondsds"), few, false);
     QTest::qWait(150);
     QQuickTest::qWaitForPolish(h.window);
     QVERIFY(!visible(h, "categoryMore"));
@@ -479,7 +479,7 @@ class EmulationControllersTest : public QObject {
     Harness h;
     QVERIFY(h.start());
     pair(h, hub);
-    h.controller->emulation()->setCoreProbe(QStringLiteral("melonds_ds"), richProbe(), false);
+    h.controller->emulation()->setCoreProbe(QStringLiteral("melondsds"), richProbe(), false);
     h.controller->showEmulation();
     QTest::qWait(120);
     QQuickItem* row = h.item("optionRow_rich_mic");
@@ -499,7 +499,7 @@ class EmulationControllersTest : public QObject {
     Harness h;
     QVERIFY(h.start());
     pair(h, hub);
-    h.controller->emulation()->setCoreProbe(QStringLiteral("melonds_ds"), richProbe(), false);
+    h.controller->emulation()->setCoreProbe(QStringLiteral("melondsds"), richProbe(), false);
     for (const int w : {1280, 1440, 960}) {
       h.window->resize(w, 800);
       h.controller->showEmulation();
@@ -569,7 +569,7 @@ class EmulationControllersTest : public QObject {
     Harness h;
     QVERIFY(h.start());
     pair(h, hub);
-    h.controller->emulation()->setCoreProbe(QStringLiteral("melonds_ds"), fakeProbe(), false);
+    h.controller->emulation()->setCoreProbe(QStringLiteral("melondsds"), fakeProbe(), false);
     h.controller->showEmulation();
     EmulationController* emu = h.controller->emulation();
 
@@ -644,13 +644,87 @@ class EmulationControllersTest : public QObject {
       QVERIFY(h.start());
       pair(h, hub);
       QTRY_VERIFY_WITH_TIMEOUT(h.controller->hubSystems()->state() == HubSystems::State::Ready, 8000);
-      h.controller->emulation()->setCoreProbe(QStringLiteral("melonds_ds"), fakeProbe(), false);
+      h.controller->emulation()->setCoreProbe(QStringLiteral("melondsds"), fakeProbe(), false);
       h.controller->showEmulation();
       QTRY_COMPARE(text(h, "systemFirmware_nds"), c.expected);
       if (c.expected.startsWith(QStringLiteral("Firmware required"))) {
         QCOMPARE(h.controller->emulation()->system().value(QStringLiteral("firmwareTone")).toString(), QStringLiteral("error"));
       }
     }
+  }
+
+  // ADR 0020 D6: the Core select lists the cores the Hub serves; the choice is stored and becomes the effective core.
+  void coreChoiceOnTheEmulationPage() {
+    FakeHub hub(QStringLiteral("a"));
+    hub.features = {QStringLiteral("saves_v1"), QStringLiteral("firmware_v1"), QStringLiteral("cores_v1"), QStringLiteral("cores_v2")};
+    const auto core = [](const QString& id, const QString& name, const QString& license, const QString& date) {
+      return QJsonObject{{QStringLiteral("core_id"), id},   {QStringLiteral("display_name"), name},
+                         {QStringLiteral("version"), date},  {QStringLiteral("license"), license},
+                         {QStringLiteral("experimental"), false}, {QStringLiteral("origin"), QStringLiteral("libretro-buildbot")},
+                         {QStringLiteral("build_date"), date}};
+    };
+    hub.systems = {{QStringLiteral("systems"),
+                    QJsonArray{QJsonObject{{QStringLiteral("id"), QStringLiteral("nds")},
+                                           {QStringLiteral("display_name"), QStringLiteral("Nintendo DS")},
+                                           {QStringLiteral("preferred_core_id"), QStringLiteral("melondsds")},
+                                           {QStringLiteral("default_core_id"), QStringLiteral("melondsds")},
+                                           {QStringLiteral("core_package_version"), QStringLiteral("2026.10.09")},
+                                           {QStringLiteral("cores"),
+                                            QJsonArray{core(QStringLiteral("melondsds"), QStringLiteral("melonDS DS"), QStringLiteral("GPLv3"), QStringLiteral("2026.10.09")),
+                                                       core(QStringLiteral("desmume"), QStringLiteral("DeSmuME"), QStringLiteral("GPLv2"), QStringLiteral("2026.10.08")),
+                                                       core(QStringLiteral("noods"), QStringLiteral("NooDS"), QStringLiteral("GPLv3"), QStringLiteral("2026.10.07"))}},
+                                           {QStringLiteral("firmware_mode"), QStringLiteral("builtin")},
+                                           {QStringLiteral("firmware"), QJsonArray{}}}}}};
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    QTRY_VERIFY_WITH_TIMEOUT(h.controller->hubSystems()->state() == HubSystems::State::Ready, 8000);
+    h.controller->emulation()->setCoreProbe(QStringLiteral("melondsds"), fakeProbe(), false);
+    h.controller->showEmulation();
+    EmulationController* emu = h.controller->emulation();
+    QCOMPARE(emu->system().value(QStringLiteral("coreId")).toString(), QStringLiteral("melondsds"));
+    QVERIFY(h.item("optionSelect_framebeam.core") != nullptr);
+    const QVariantList cores = emu->system().value(QStringLiteral("cores")).toList();
+    QCOMPARE(cores.size(), 3);
+    const QString melon = cores.at(0).toMap().value(QStringLiteral("label")).toString();
+    QVERIFY2(melon.contains(QStringLiteral("GPLv3")) && melon.contains(QStringLiteral("2026.10.09")) && !melon.contains(QStringLiteral("Experimental")), qPrintable(melon));
+    QVERIFY(cores.at(2).toMap().value(QStringLiteral("label")).toString().contains(QStringLiteral("Experimental")));  // no profile for noods
+    QVERIFY(!cores.at(1).toMap().value(QStringLiteral("experimental")).toBool());                                     // DeSmuME has one
+    QCOMPARE(h.controller->selectedGame().value(QStringLiteral("coreExperimental")).toBool(), false);
+
+    // Choose DeSmuME for the system: stored locally, effective at once.
+    pick(h, "optionSelect_framebeam.core", QStringLiteral("desmume"));
+    const QString key = QString::fromLatin1(EmulationSettings::kCoreKey);
+    QCOMPARE(emu->settings()->value(EmulationSettings::Level::System, QStringLiteral("nds"), key), QStringLiteral("desmume"));
+    QCOMPARE(emu->system().value(QStringLiteral("coreId")).toString(), QStringLiteral("desmume"));
+    QVERIFY(!emu->system().value(QStringLiteral("coreExperimental")).toBool());
+    QVERIFY(visible(h, "changedDot_framebeam.core"));
+    // Choosing the Hub default again stores nothing.
+    pick(h, "optionSelect_framebeam.core", QStringLiteral("melondsds"));
+    QVERIFY(!emu->settings()->hasValue(EmulationSettings::Level::System, QStringLiteral("nds"), key));
+    QCOMPARE(emu->system().value(QStringLiteral("coreId")).toString(), QStringLiteral("melondsds"));
+
+    // A core without profile is experimental: marked everywhere, no option defaults.
+    pick(h, "optionSelect_framebeam.core", QStringLiteral("noods"));
+    QCOMPARE(emu->system().value(QStringLiteral("coreId")).toString(), QStringLiteral("noods"));
+    QVERIFY(emu->system().value(QStringLiteral("coreExperimental")).toBool());
+    QVERIFY(emu->system().value(QStringLiteral("coreName")).toString().contains(QStringLiteral("Experimental")));
+    QString coreNote;
+    for (const QVariant& g : emu->groups()) {
+      if (g.toMap().value(QStringLiteral("id")).toString() == QStringLiteral("core")) coreNote = g.toMap().value(QStringLiteral("note")).toString();
+    }
+    QVERIFY2(coreNote.contains(QStringLiteral("Experimental core")), qPrintable(coreNote));
+
+    // A stored choice the Hub does not serve (any more) falls back to the Hub default with a notice.
+    QVERIFY(emu->settings()->setValue(EmulationSettings::Level::System, QStringLiteral("nds"), key, QStringLiteral("gone-core")));
+    emit emu->coreChoiceChanged();  // what the page does after a change: the PlayerController refreshes the cards
+    QCOMPARE(emu->system().value(QStringLiteral("coreId")).toString(), QStringLiteral("melondsds"));
+    QVERIFY2(emu->system().value(QStringLiteral("coreNotice")).toString().contains(QStringLiteral("gone-core")),
+             qPrintable(emu->system().value(QStringLiteral("coreNotice")).toString()));
+    // Reset restores inheritance and the notice goes away.
+    emu->resetOption(key);
+    QVERIFY(emu->system().value(QStringLiteral("coreNotice")).toString().isEmpty());
   }
 
   void coreMissingIsShown() {
@@ -678,7 +752,7 @@ class EmulationControllersTest : public QObject {
     QVERIFY(h.start(true));  // probes the core like the handshake does
     pair(h, hub);
     h.controller->showEmulation();
-    QVERIFY(h.controller->emulation()->hasCoreProbe(QStringLiteral("melonds_ds")));
+    QVERIFY(h.controller->emulation()->hasCoreProbe(QStringLiteral("melondsds")));
     QCOMPARE(text(h, "systemCore_nds").left(10), QStringLiteral("melonDS DS"));
     QCOMPARE(text(h, "systemReady_nds"), QStringLiteral("Ready · included in the Player"));
     QVERIFY(h.item("optionRow_melonds_audio_interpolation") != nullptr);
@@ -686,7 +760,7 @@ class EmulationControllersTest : public QObject {
     QVERIFY(h.item("optionRow_melonds_sysfile_mode") == nullptr);
     QVERIFY(h.item("optionRow_melonds_firmware_nds_path") == nullptr);
     QVERIFY(h.item("optionRow_melonds_show_lid_state") == nullptr);
-    const QString cache = QDir(h.controller->profileStore()->baseDir()).filePath(QStringLiteral("cache/core-options/melonds_ds.json"));
+    const QString cache = QDir(h.controller->profileStore()->baseDir()).filePath(QStringLiteral("cache/core-options/melondsds.json"));
     QVERIFY(QFile::exists(cache));
     pick(h, "optionSelect_melonds_audio_interpolation", QStringLiteral("cubic"));
     QVERIFY(visible(h, "changedDot_melonds_audio_interpolation"));
@@ -695,9 +769,9 @@ class EmulationControllersTest : public QObject {
     emu::ManifestRegistry reg;
     QVERIFY(reg.loadBuiltin());
     EmulationController cached(h.controller->profileStore()->baseDir(), &reg);
-    cached.loadCoreCache(QStringLiteral("melonds_ds"));
-    QVERIFY(cached.hasCoreProbe(QStringLiteral("melonds_ds")));
-    QCOMPARE(cached.coreProbe(QStringLiteral("melonds_ds"))->options.size(), h.controller->emulation()->coreProbe(QStringLiteral("melonds_ds"))->options.size());
+    cached.loadCoreCache(QStringLiteral("melondsds"));
+    QVERIFY(cached.hasCoreProbe(QStringLiteral("melondsds")));
+    QCOMPARE(cached.coreProbe(QStringLiteral("melondsds"))->options.size(), h.controller->emulation()->coreProbe(QStringLiteral("melondsds"))->options.size());
     QCOMPARE(cached.settings()->value(L::System, QStringLiteral("nds"), QStringLiteral("melonds_audio_interpolation")), QStringLiteral("cubic"));
   }
 
@@ -1049,7 +1123,7 @@ class EmulationControllersTest : public QObject {
     Harness h;
     QVERIFY(h.start());
     pair(h, hub);
-    h.controller->emulation()->setCoreProbe(QStringLiteral("melonds_ds"), fakeProbe(), false);
+    h.controller->emulation()->setCoreProbe(QStringLiteral("melondsds"), fakeProbe(), false);
     for (const QString& mode : {QStringLiteral("light"), QStringLiteral("dark")}) {
       h.controller->setAppearance(mode);
       h.controller->showEmulation();

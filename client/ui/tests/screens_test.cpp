@@ -336,7 +336,7 @@ class ScreensTest : public QObject {
     QCOMPARE(g.value(QStringLiteral("systemName")).toString(), QStringLiteral("Nintendo DS"));
     QCOMPARE(g.value(QStringLiteral("romText")).toString(), QStringLiteral("Cached locally · verified"));
     QVERIFY(g.value(QStringLiteral("coreText")).toString().contains(QStringLiteral("missing")));
-    QVERIFY(g.value(QStringLiteral("coreHint")).toString().contains(QStringLiteral("FRAMEBEAM_MELONDS_DS_CORE")));
+    QVERIFY(g.value(QStringLiteral("coreHint")).toString().contains(QStringLiteral("FRAMEBEAM_MELONDSDS_CORE")));
     QCOMPARE(g.value(QStringLiteral("firmwareText")).toString(), QStringLiteral("Not required"));
     QVERIFY(!g.value(QStringLiteral("canPlay")).toBool());
     QCOMPARE(g.value(QStringLiteral("checklist")).toList().size(), 5);

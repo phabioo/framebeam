@@ -98,6 +98,34 @@ const FirmwareFileInfo* SystemInfo::file(const QString& fileId) const {
   return nullptr;
 }
 
+const SystemCore* SystemInfo::core(const QString& coreId) const {
+  for (const SystemCore& c : cores) {
+    if (c.coreId == coreId) {
+      return &c;
+    }
+  }
+  return nullptr;
+}
+
+SystemCore SystemInfo::defaultCore() const {
+  if (const SystemCore* c = core(defaultCoreId)) {
+    return *c;
+  }
+  if (!cores.isEmpty() && defaultCoreId.isEmpty() && preferredCoreId.isEmpty()) {
+    return cores.first();
+  }
+  SystemCore legacy;  // Hub without cores_v2 (or a default that is not listed): the preferred core
+  if (!preferredCoreId.isEmpty() && !corePackageVersion.isEmpty()) {
+    legacy.coreId = preferredCoreId;
+    legacy.version = corePackageVersion;
+    legacy.displayName = preferredCoreId;
+    if (const SystemCore* c = core(preferredCoreId)) {
+      legacy = *c;
+    }
+  }
+  return legacy;
+}
+
 std::optional<SystemInfo> parseSystemInfo(const QJsonObject& obj) {
   SystemInfo s;
   s.id = obj.value(QStringLiteral("id")).toString();
@@ -113,6 +141,26 @@ std::optional<SystemInfo> parseSystemInfo(const QJsonObject& obj) {
   }
   if (s.id.isEmpty()) {
     return std::nullopt;
+  }
+  s.defaultCoreId = obj.value(QStringLiteral("default_core_id")).toString();
+  if (!isValidCoreId(s.defaultCoreId)) {
+    s.defaultCoreId.clear();
+  }
+  for (const QJsonValue& v : obj.value(QStringLiteral("cores")).toArray()) {
+    const QJsonObject o = v.toObject();
+    SystemCore c;
+    c.coreId = o.value(QStringLiteral("core_id")).toString();
+    c.version = o.value(QStringLiteral("version")).toString();
+    if (!isValidCoreId(c.coreId) || !isValidCoreVersion(c.version) || s.core(c.coreId) != nullptr) {
+      continue;  // unusable entry: the Player could not provision it
+    }
+    c.displayName = o.value(QStringLiteral("display_name")).toString(c.coreId);
+    c.license = o.value(QStringLiteral("license")).toString();
+    c.experimental = o.value(QStringLiteral("experimental")).toBool(false);
+    c.requiredHwApi = o.value(QStringLiteral("required_hw_api")).toString();
+    c.origin = o.value(QStringLiteral("origin")).toString();
+    c.buildDate = o.value(QStringLiteral("build_date")).toString();
+    s.cores.append(c);
   }
   for (const QJsonValue& v : obj.value(QStringLiteral("firmware")).toArray()) {
     const QJsonObject o = v.toObject();
@@ -133,7 +181,7 @@ std::optional<SystemInfo> parseSystemInfo(const QJsonObject& obj) {
 }
 
 bool isValidCoreId(const QString& id) {
-  static const QRegularExpression re(QStringLiteral("^[a-z0-9_]{1,64}$"));
+  static const QRegularExpression re(QStringLiteral("^[a-z0-9][a-z0-9_-]{0,63}$"));
   return re.match(id).hasMatch();
 }
 

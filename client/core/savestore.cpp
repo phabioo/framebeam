@@ -121,6 +121,8 @@ SyncState SaveStore::loadState(const QString& gameDir) {
   s.conflictId = o.value(QStringLiteral("conflict_id")).toString();
   s.lastError = o.value(QStringLiteral("last_error")).toString();
   s.updatedAt = QDateTime::fromString(o.value(QStringLiteral("updated_at")).toString(), Qt::ISODate);
+  s.writerCoreId = o.value(QStringLiteral("writer_core_id")).toString();
+  s.writerCoreVersion = o.value(QStringLiteral("writer_core_version")).toString();
   return s;
 }
 
@@ -132,7 +134,9 @@ bool SaveStore::saveState(const QString& gameDir, SyncState s) {
                       {QStringLiteral("pending"), s.pending},
                       {QStringLiteral("conflict_id"), s.conflictId},
                       {QStringLiteral("last_error"), s.lastError},
-                      {QStringLiteral("updated_at"), s.updatedAt.toString(Qt::ISODate)}};
+                      {QStringLiteral("updated_at"), s.updatedAt.toString(Qt::ISODate)},
+                      {QStringLiteral("writer_core_id"), s.writerCoreId},
+                      {QStringLiteral("writer_core_version"), s.writerCoreVersion}};
   return atomicWrite(stateFilePath(gameDir), QJsonDocument(o).toJson(QJsonDocument::Indented));
 }
 

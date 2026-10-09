@@ -13,7 +13,7 @@ target_sources(framebeam_core PRIVATE
   hubsystems.cpp
   firmwareprovisioner.cpp
   coreprovisioner.cpp
-  coreindex.cpp
+  corechoice.cpp
   gameuploader.cpp
 )
 target_link_libraries(framebeam_core PUBLIC Qt6::WebSockets)
@@ -33,6 +33,7 @@ framebeam_add_test(network_savesync tests/savesync_test.cpp ${FB_FAKEHUB} LIBS f
 framebeam_add_test(network_sessions tests/sessions_test.cpp ${FB_FAKEHUB} LIBS framebeam_core)
 framebeam_add_test(network_hub_features tests/hub_features_test.cpp ${FB_FAKEHUB} LIBS framebeam_core)
 framebeam_add_test(network_coreprovisioner tests/coreprovisioner_test.cpp ${FB_FAKEHUB} LIBS framebeam_core)
+framebeam_add_test(network_corechoice tests/corechoice_test.cpp LIBS framebeam_core)
 if(BUILD_TESTING)
   foreach(t network_hub_flow network_library_rom network_savesync network_sessions network_hub_features network_coreprovisioner)
     target_compile_definitions(test_${t} PRIVATE FB_TEST_DATA_DIR="${FB_TESTDATA_DIR}")

@@ -17,6 +17,13 @@ namespace framebeam::emu {
 namespace {
 const char kBuiltinDir[] = ":/framebeam/emulation/manifests";
 
+QStringList stringList(const QJsonValue& v) {
+  QStringList out;
+  for (const QJsonValue& x : v.toArray())
+    if (x.isString()) out.append(x.toString());
+  return out;
+}
+
 QString normExt(QString e) {
   e = e.trimmed().toLower();
   if (!e.isEmpty() && !e.startsWith(QLatin1Char('.'))) e.prepend(QLatin1Char('.'));
@@ -85,8 +92,7 @@ std::optional<SystemManifest> ManifestRegistry::parse(const QByteArray& json, QS
 
   SystemManifest m;
   struct Req { const char* key; QString* dst; };
-  for (const Req& r : {Req{"system_id", &m.systemId}, Req{"display_name", &m.displayName},
-                       Req{"core_id", &m.coreId}, Req{"core_library_basename", &m.coreLibraryBasename}}) {
+  for (const Req& r : {Req{"system_id", &m.systemId}, Req{"display_name", &m.displayName}}) {
     *r.dst = o.value(QLatin1String(r.key)).toString().trimmed();
     if (r.dst->isEmpty()) return fail(QStringLiteral("Missing required field: ") + QLatin1String(r.key));
   }
@@ -96,13 +102,8 @@ std::optional<SystemManifest> ManifestRegistry::parse(const QByteArray& json, QS
   }
   if (m.extensions.isEmpty()) return fail(QStringLiteral("Missing required field: extensions"));
 
-  m.coreDisplayName = o.value(QLatin1String("core_display_name")).toString(m.coreId);
-
   const QJsonObject fw = o.value(QLatin1String("firmware")).toObject();
   m.firmware.required = fw.value(QLatin1String("required")).toBool(false);
-  m.firmware.sysfileOption = fw.value(QLatin1String("sysfile_option")).toString();
-  m.firmware.sysfileNative = fw.value(QLatin1String("sysfile_native")).toString(m.firmware.sysfileNative);
-  m.firmware.sysfileBuiltin = fw.value(QLatin1String("sysfile_builtin")).toString(m.firmware.sysfileBuiltin);
   for (const QJsonValue& v : fw.value(QLatin1String("files")).toArray()) {
     const QJsonObject f = v.toObject();
     FirmwareFile ff;
@@ -114,7 +115,6 @@ std::optional<SystemManifest> ManifestRegistry::parse(const QByteArray& json, QS
     }
     ff.id = f.value(QLatin1String("id")).toString(QFileInfo(ff.name).completeBaseName());
     ff.required = f.value(QLatin1String("required")).toBool(false);
-    ff.coreOption = f.value(QLatin1String("core_option")).toString();
     m.firmware.files.append(ff);
   }
 
@@ -139,14 +139,100 @@ std::optional<SystemManifest> ManifestRegistry::parse(const QByteArray& json, QS
       m.display.layout != QLatin1String("horizontal"))
     return fail(QStringLiteral("display.layout unknown: ") + m.display.layout);
 
+  return m;
+}
+
+std::optional<CoreProfile> ManifestRegistry::parseProfile(const QByteArray& json, QString* error) {
+  auto fail = [&](const QString& m) -> std::optional<CoreProfile> {
+    if (error) *error = m;
+    return std::nullopt;
+  };
+  QJsonParseError pe;
+  const QJsonDocument doc = QJsonDocument::fromJson(json, &pe);
+  if (pe.error != QJsonParseError::NoError || !doc.isObject()) return fail(QStringLiteral("Invalid JSON: ") + pe.errorString());
+  const QJsonObject o = doc.object();  // "_source" and other unknown keys are ignored
+  CoreProfile p;
+  p.coreId = o.value(QLatin1String("core_id")).toString().trimmed();
+  p.libraryBasename = o.value(QLatin1String("library_basename")).toString().trimmed();
+  if (p.coreId.isEmpty()) return fail(QStringLiteral("Missing required field: core_id"));
+  if (p.libraryBasename.isEmpty()) return fail(QStringLiteral("Missing required field: library_basename"));
+  p.aliases = stringList(o.value(QLatin1String("aliases")));
+  p.displayName = o.value(QLatin1String("display_name")).toString(p.coreId);
+  p.systemIds = stringList(o.value(QLatin1String("system_ids")));
+  p.order = o.value(QLatin1String("order")).toInt(100);
+  if (p.systemIds.isEmpty()) return fail(QStringLiteral("Missing required field: system_ids"));
   const QJsonObject co = o.value(QLatin1String("core_options")).toObject();
-  for (auto it = co.begin(); it != co.end(); ++it) m.coreOptions.insert(it.key(), it.value().toString());
-  for (const QJsonValue& v : o.value(QLatin1String("locked_core_options")).toArray()) {
-    if (v.isString()) m.lockedCoreOptions.append(v.toString());
+  for (auto it = co.begin(); it != co.end(); ++it) p.coreOptions.insert(it.key(), it.value().toString());
+  p.lockedCoreOptions = stringList(o.value(QLatin1String("locked_core_options")));
+  p.alwaysShownCoreOptions = stringList(o.value(QLatin1String("always_shown_core_options")));
+  const QJsonObject fw = o.value(QLatin1String("firmware")).toObject();
+  p.sysfileOption = fw.value(QLatin1String("sysfile_option")).toString();
+  p.sysfileNative = fw.value(QLatin1String("sysfile_native")).toString(p.sysfileNative);
+  p.sysfileBuiltin = fw.value(QLatin1String("sysfile_builtin")).toString(p.sysfileBuiltin);
+  const QJsonObject fo = fw.value(QLatin1String("file_options")).toObject();
+  for (auto it = fo.begin(); it != fo.end(); ++it) p.fileOptions.insert(it.key(), it.value().toString());
+  return p;
+}
+
+bool ManifestRegistry::addProfile(const CoreProfile& profile, QString* error) {
+  for (const QString& id : QStringList(profile.coreId) + profile.aliases) {
+    if (this->profile(id)) {
+      if (error) *error = QStringLiteral("Duplicate core_id or alias: ") + id;
+      return false;
+    }
   }
-  for (const QJsonValue& v : o.value(QLatin1String("always_shown_core_options")).toArray()) {
-    if (v.isString()) m.alwaysShownCoreOptions.append(v.toString());
+  m_profiles.append(profile);
+  return true;
+}
+
+const CoreProfile* ManifestRegistry::profile(const QString& id) const {
+  for (const CoreProfile& p : m_profiles)
+    if (p.matches(id)) return &p;
+  return nullptr;
+}
+
+QList<CoreProfile> ManifestRegistry::profilesForSystem(const QString& systemId) const {
+  QList<CoreProfile> out;
+  for (const CoreProfile& p : m_profiles)
+    if (p.systemIds.contains(systemId)) out.append(p);
+  std::stable_sort(out.begin(), out.end(), [](const CoreProfile& a, const CoreProfile& b) {
+    return a.order != b.order ? a.order < b.order : a.coreId < b.coreId;
+  });
+  return out;
+}
+
+QString ManifestRegistry::canonicalCoreId(const QString& id) const {
+  const CoreProfile* p = profile(id);
+  return p ? p->coreId : id;
+}
+
+std::optional<SystemManifest> ManifestRegistry::resolve(const QString& systemId, const QString& coreId) const {
+  const SystemManifest* base = find(systemId);
+  if (!base) return std::nullopt;
+  SystemManifest m = *base;
+  const CoreProfile* p = profile(coreId);
+  if (p && p->systemIds.contains(systemId)) {
+    m.coreId = coreId;  // the id the Hub serves (may be a legacy alias): cache directory and provisioning use it
+    m.coreAliases = QStringList(p->coreId) + p->aliases;
+    m.coreAliases.removeAll(coreId);
+    m.coreDisplayName = p->displayName;
+    m.coreLibraryBasename = p->libraryBasename;
+    m.coreOptions = p->coreOptions;
+    m.lockedCoreOptions = p->lockedCoreOptions;
+    m.alwaysShownCoreOptions = p->alwaysShownCoreOptions;
+    m.firmware.sysfileOption = p->sysfileOption;
+    m.firmware.sysfileNative = p->sysfileNative;
+    m.firmware.sysfileBuiltin = p->sysfileBuiltin;
+    for (FirmwareFile& f : m.firmware.files) f.coreOption = p->fileOptions.value(f.id);
+    return m;
   }
+  // Experimental (ADR 0020 D6): no defaults, no locks, the raw framebuffer as one screen, touch off, firmware only
+  // placed into the system directory.
+  m.coreId = coreId;
+  m.coreDisplayName = coreId;
+  m.coreLibraryBasename = coreId + QStringLiteral("_libretro");
+  m.experimental = true;
+  m.display = DisplayProfile{QStringLiteral("single"), 0, {}};
   return m;
 }
 
@@ -160,19 +246,28 @@ bool ManifestRegistry::add(const SystemManifest& manifest, QString* error) {
 }
 
 bool ManifestRegistry::loadDirectory(const QString& dir, QString* error) {
-  const QDir d(dir);
-  const QStringList files = d.entryList({QStringLiteral("*.json")}, QDir::Files, QDir::Name);
-  for (const QString& name : files) {
-    QFile f(d.filePath(name));
-    if (!f.open(QIODevice::ReadOnly)) {
-      if (error) *error = name + QStringLiteral(": ") + f.errorString();
-      return false;
-    }
-    QString err;
-    const auto m = parse(f.readAll(), &err);
-    if (!m || !add(*m, &err)) {
-      if (error) *error = name + QStringLiteral(": ") + err;
-      return false;
+  for (const bool systems : {true, false}) {
+    const QDir d(dir + (systems ? QStringLiteral("/systems") : QStringLiteral("/cores")));
+    const QStringList files = d.entryList({QStringLiteral("*.json")}, QDir::Files, QDir::Name);
+    for (const QString& name : files) {
+      QFile f(d.filePath(name));
+      if (!f.open(QIODevice::ReadOnly)) {
+        if (error) *error = name + QStringLiteral(": ") + f.errorString();
+        return false;
+      }
+      QString err;
+      bool ok = false;
+      if (systems) {
+        const auto m = parse(f.readAll(), &err);
+        ok = m && add(*m, &err);
+      } else {
+        const auto p = parseProfile(f.readAll(), &err);
+        ok = p && addProfile(*p, &err);
+      }
+      if (!ok) {
+        if (error) *error = name + QStringLiteral(": ") + err;
+        return false;
+      }
     }
   }
   return true;

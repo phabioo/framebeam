@@ -156,8 +156,19 @@ class SaveSync : public QObject {
   Kind kind(const QString& gameId) const { return kinds_.value(gameId, Kind::None); }
   void refreshKinds(const QStringList& gameIds);
 
+  // Core (id + version) a game is about to start with (ADR 0020 D7).
+  struct CoreRef {
+    QString id;
+    QString version;
+    bool valid() const { return !id.isEmpty() && !version.isEmpty(); }
+  };
   // Start sync before the core loads. The core's save dir comes with startReady().
-  void prepareStart(const QString& gameId, const QString& romPath, const QStringList& romBasenames);
+  // With a valid `core`: when the save dir was last written by another core id or version, a manual snapshot on the Hub
+  // ("Before core change: <old id> <old ver> → <new id> <new ver>") is created before the start sync and the change is
+  // reported in the startReady() note; a failed snapshot (or an unreachable Hub with a local save) ends in startFailed()
+  // and the record stays unchanged. No record yet (first start): the core is only recorded.
+  void prepareStart(const QString& gameId, const QString& romPath, const QStringList& romBasenames, const CoreRef& core = {});
+  static QString coreChangeLabel(const CoreRef& from, const CoreRef& to);  // at most 64 bytes (Hub limit)
   void resolveConflict(Resolution r);
   bool hasPendingConflictDialog() const { return dialogOpen_; }
 
@@ -202,7 +213,13 @@ class SaveSync : public QObject {
     QElapsedTimer sinceChange, sinceUpload, sinceFail;
     bool uploadedOnce = false, failedOnce = false;
     int finalRequested = 0;  // 0 none, 1 final, 2 final_session_end
+    QString coreNote;        // one-time notice about a core change, prepended to the start note
   };
+
+  void continueStart(quint64 gen);
+  void guardCoreChange(quint64 gen, const CoreRef& core);
+  void recordCore(const CoreRef& core);
+  void failStart(quint64 gen, const QString& message);
 
   bool sameHub(const QString& hubId) const;
   QString noteForOffline() const;

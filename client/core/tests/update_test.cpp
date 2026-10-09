@@ -119,6 +119,13 @@ class UpdateTest : public QObject {
     QCOMPARE(v("1.2.3", ""), V::Compatible);  // empty Hub version: any version
     QCOMPARE(v("", "1.2.3"), V::Warn);        // unparsable core version: warn, never block
     QCOMPARE(v("nightly", "2.0.0"), V::Warn);
+    // Buildbot build ids and core-reported "SVN"/git hashes (ADR 0020 D3) never block.
+    QCOMPARE(v("2026.10.09", "2027.01.02"), V::Warn);
+    QCOMPARE(v("2026.10.10", "2027.11.12"), V::Warn);
+    QCOMPARE(v("2026.10.10.2", "2.0.0"), V::Warn);
+    QCOMPARE(v("SVN", "2026.10.09"), V::Warn);
+    QCOMPARE(v("git1a2b3c4", "2026.10.09"), V::Warn);
+    QCOMPARE(v("2026.10.09", "2026.10.09"), V::Compatible);
     QCOMPARE(v("1.2.3", "latest"), V::Warn);
   }
 

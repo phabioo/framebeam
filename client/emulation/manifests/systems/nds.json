@@ -1,0 +1,47 @@
+{
+  "system_id": "nds",
+  "display_name": "Nintendo DS",
+  "extensions": [
+    ".nds"
+  ],
+  "firmware": {
+    "required": false,
+    "files": [
+      {
+        "id": "bios7",
+        "name": "bios7.bin"
+      },
+      {
+        "id": "bios9",
+        "name": "bios9.bin"
+      },
+      {
+        "id": "firmware",
+        "name": "firmware.bin"
+      }
+    ]
+  },
+  "input_profile": "nds",
+  "display_profile": "dual_screen",
+  "labels": {
+    "input": "NDS",
+    "touch": "DS touch"
+  },
+  "display": {
+    "layout": "vertical",
+    "gap": 0,
+    "screens": [
+      {
+        "id": "top",
+        "width": 256,
+        "height": 192
+      },
+      {
+        "id": "bottom",
+        "width": 256,
+        "height": 192,
+        "touch": true
+      }
+    ]
+  }
+}

@@ -160,7 +160,11 @@ void SaveSync::refreshKinds(const QStringList& gameIds) {
 
 // ---------------------------------------------------------------- Start sync
 
-void SaveSync::prepareStart(const QString& gameId, const QString& romPath, const QStringList& romBasenames) {
+namespace {
+SaveSnapshotResult snapshotResultOf(const SaveApiResult& r);
+}
+
+void SaveSync::prepareStart(const QString& gameId, const QString& romPath, const QStringList& romBasenames, const CoreRef& core) {
   ++gen_;
   pollTimer_.stop();
   session_ = false;
@@ -194,7 +198,10 @@ void SaveSync::prepareStart(const QString& gameId, const QString& romPath, const
     if (a_.slot == QLatin1String("default") &&
         SaveStore::migrateLegacy(SaveStore::legacyDir(*profiles_, a_.hubId), romBasenames, a_.dir, a_.expectedName)) {
       qCInfo(lcSaveSync) << "Legacy save copied into the per-user save directory";
+      const SyncState before = a_.st;
       a_.st = SyncState{};
+      a_.st.writerCoreId = before.writerCoreId;
+      a_.st.writerCoreVersion = before.writerCoreVersion;
       a_.st.pending = true;  // counts as an unsynced local change (base 0)
       a_.file = QDir(a_.dir).filePath(a_.expectedName);
       persist();
@@ -202,15 +209,110 @@ void SaveSync::prepareStart(const QString& gameId, const QString& romPath, const
       a_.file = QDir(a_.dir).filePath(a_.expectedName);
     }
   }
+  if (core.valid()) {
+    guardCoreChange(gen, core);
+    return;
+  }
+  continueStart(gen);
+}
+
+void SaveSync::continueStart(quint64 gen) {
   if (!available()) {
     QTimer::singleShot(0, this, [this, gen]() {
       if (gen == gen_) {
-        emit startReady(a_.gameId, a_.dir, note());
+        emit startReady(a_.gameId, a_.dir, a_.coreNote.isEmpty() ? note() : (note().isEmpty() ? a_.coreNote : a_.coreNote + QLatin1Char(' ') + note()));
       }
     });
     return;
   }
   startSync();
+}
+
+QString SaveSync::coreChangeLabel(const CoreRef& from, const CoreRef& to) {
+  QString label = QStringLiteral("Before core change: %1 %2 \u2192 %3 %4").arg(from.id, from.version, to.id, to.version);
+  QByteArray bytes = label.toUtf8();
+  if (bytes.size() > 64) {  // Hub limit; cut on a character boundary
+    int n = 64;
+    while (n > 0 && (static_cast<unsigned char>(bytes.at(n)) & 0xC0) == 0x80) {
+      --n;
+    }
+    label = QString::fromUtf8(bytes.left(n));
+  }
+  return label;
+}
+
+void SaveSync::recordCore(const CoreRef& core) {
+  a_.st.writerCoreId = core.id;
+  a_.st.writerCoreVersion = core.version;
+  persist();
+}
+
+void SaveSync::failStart(quint64 gen, const QString& message) {
+  QTimer::singleShot(0, this, [this, gen, message]() {
+    if (gen == gen_) {
+      emit startFailed(a_.gameId, message);
+    }
+  });
+}
+
+// ADR 0020 D7: a save written by another core (or another build of it) is snapshotted on the Hub before the new core
+// touches it. Never risk a save silently: a failed snapshot blocks the start.
+void SaveSync::guardCoreChange(quint64 gen, const CoreRef& core) {
+  const CoreRef old{a_.st.writerCoreId, a_.st.writerCoreVersion};
+  if (old.id.isEmpty()) {  // first start with this save directory: just record
+    recordCore(core);
+    continueStart(gen);
+    return;
+  }
+  if (old.id == core.id && old.version == core.version) {
+    continueStart(gen);
+    return;
+  }
+  const bool haveLocal = QFileInfo(a_.file).isFile();
+  if (haveLocal) {
+    SaveStore::backupFile(a_.file, QStringLiteral("core-change"));  // local copy, also covers unsynced changes
+  }
+  const QString label = coreChangeLabel(old, core);
+  const QString change = tr("This game was last played with %1 %2 and now starts with %3 %4.").arg(old.id, old.version, core.id, core.version);
+  if (available() && hubSupportsSavesV2()) {
+    const QString slot = a_.slot;
+    const QString gameId = a_.gameId;
+    api_.createSnapshot(gameId, slot, label, [this, gen, core, change, label](const SaveApiResult& r) {
+      if (gen != gen_) {
+        return;
+      }
+      const SnapshotResult res = snapshotResultOf(r);
+      using SK = SnapshotResult::Outcome;
+      if (res.kind == SK::Ok || res.kind == SK::NotFound) {  // NotFound: the Hub has no save to protect (a local one is uploaded first)
+        if (res.kind == SK::Ok) {
+          a_.coreNote = tr("Core changed: %1 A snapshot \"%2\" of your save was created on the Hub first.").arg(change, label);
+        }
+        recordCore(core);
+        continueStart(gen);
+        return;
+      }
+      const QString why = res.kind == SK::Offline
+                              ? tr("The Hub is not reachable, so the snapshot of your save that is required before a core change could not be created.")
+                              : res.message;
+      emit startFailed(a_.gameId, tr("%1 %2 The game was not started, so your save stays untouched. Switch back to the previous core or try again when the Hub is reachable.").arg(change, why));
+    });
+    return;
+  }
+  if (conn_->state() == HubConnection::State::Connected) {
+    // The Hub has no snapshots or no save sync at all: nothing on the Hub to protect, the local copy above remains.
+    a_.coreNote = tr("Core changed: %1 A backup copy of the local save was made.").arg(change);
+    recordCore(core);
+    continueStart(gen);
+    return;
+  }
+  if (haveLocal) {
+    failStart(gen, tr("%1 The Hub is not reachable, so the snapshot of your save that is required before a core change could not be created. "
+                      "The game was not started, so your save stays untouched. Switch back to the previous core or connect to the Hub.")
+                       .arg(change));
+    return;
+  }
+  recordCore(core);
+  continueStart(gen);
 }
 
 void SaveSync::startSync() {
@@ -221,7 +323,7 @@ void SaveSync::startSync() {
 void SaveSync::readyToPlay(const QString& note) {
   dialogOpen_ = false;
   setKind(a_.gameId, a_.st, QFileInfo(a_.file).isFile());
-  emit startReady(a_.gameId, a_.dir, note);
+  emit startReady(a_.gameId, a_.dir, a_.coreNote.isEmpty() ? note : (note.isEmpty() ? a_.coreNote : a_.coreNote + QLatin1Char(' ') + note));
 }
 
 void SaveSync::onSlot(quint64 gen, const SaveApiResult& r) {

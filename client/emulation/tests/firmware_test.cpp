@@ -29,7 +29,8 @@ class FirmwareTest : public QObject {
   void ndsManifestDeclaresFiles() {
     ManifestRegistry reg;
     QVERIFY(reg.loadBuiltin());
-    const FirmwareSpec& fw = reg.find(QStringLiteral("nds"))->firmware;
+    const SystemManifest man = *reg.resolve(QStringLiteral("nds"), QStringLiteral("melondsds"));
+    const FirmwareSpec& fw = man.firmware;
     QCOMPARE(fw.sysfileOption, QStringLiteral("melonds_sysfile_mode"));
     QCOMPARE(fw.sysfileNative, QStringLiteral("native"));
     QCOMPARE(fw.sysfileBuiltin, QStringLiteral("builtin"));
@@ -44,7 +45,7 @@ class FirmwareTest : public QObject {
   void rejectsPathsInFileNames() {
     QString err;
     const QByteArray base =
-        R"({"system_id":"x","display_name":"X","core_id":"c","core_library_basename":"c","extensions":[".x"],
+        R"({"system_id":"x","display_name":"X","extensions":[".x"],
             "display":{"screens":[{"width":1,"height":1}]},"firmware":{"files":[{"name":"%1"}]}})";
     QVERIFY(!ManifestRegistry::parse(QByteArray(base).replace("%1", "../evil.bin"), &err));
     QVERIFY(!ManifestRegistry::parse(QByteArray(base).replace("%1", "a/b.bin"), &err));
@@ -56,7 +57,8 @@ class FirmwareTest : public QObject {
   void materializesUnderManifestNames() {
     ManifestRegistry reg;
     QVERIFY(reg.loadBuiltin());
-    const FirmwareSpec& fw = reg.find(QStringLiteral("nds"))->firmware;
+    const SystemManifest man = *reg.resolve(QStringLiteral("nds"), QStringLiteral("melondsds"));
+    const FirmwareSpec& fw = man.firmware;
     QTemporaryDir dir;
     const QString sys = dir.filePath(QStringLiteral("system"));
     const QMap<QString, QString> files{
@@ -80,7 +82,8 @@ class FirmwareTest : public QObject {
   void unknownIdOrMissingSourceFails() {
     ManifestRegistry reg;
     QVERIFY(reg.loadBuiltin());
-    const FirmwareSpec& fw = reg.find(QStringLiteral("nds"))->firmware;
+    const SystemManifest man = *reg.resolve(QStringLiteral("nds"), QStringLiteral("melondsds"));
+    const FirmwareSpec& fw = man.firmware;
     QTemporaryDir dir;
     QString err;
     QVERIFY(!materializeFirmware(fw, {{QStringLiteral("zzz"), QStringLiteral("/x")}}, dir.path(), nullptr, &err));
@@ -92,7 +95,8 @@ class FirmwareTest : public QObject {
   void coreOptionsByMode() {
     ManifestRegistry reg;
     QVERIFY(reg.loadBuiltin());
-    const FirmwareSpec& fw = reg.find(QStringLiteral("nds"))->firmware;
+    const SystemManifest man = *reg.resolve(QStringLiteral("nds"), QStringLiteral("melondsds"));
+    const FirmwareSpec& fw = man.firmware;
     const auto builtin = firmwareCoreOptions(fw, false, {QStringLiteral("bios7"), QStringLiteral("firmware")});
     QCOMPARE(builtin.size(), 1);
     QCOMPARE(builtin.value(QStringLiteral("melonds_sysfile_mode")), QStringLiteral("builtin"));

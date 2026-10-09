@@ -18,6 +18,9 @@ struct SyncState {
   QString conflictId;        // open conflict, uploads paused while set
   QString lastError;
   QDateTime updatedAt;
+  // Core (id + version) that last wrote this save on this Player (ADR 0020 D7); empty = not recorded yet.
+  QString writerCoreId;
+  QString writerCoreVersion;
 };
 
 // File logic of the save sync (no network, no GUI).

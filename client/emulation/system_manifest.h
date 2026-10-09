@@ -1,7 +1,10 @@
 #pragma once
-// Data-driven system manifests (e.g. manifests/nds.json). No console-specific
-// launch logic outside this data: core mapping, extensions, firmware, input/display profile
-// and core option defaults come from the manifest.
+// Data-driven system manifests (manifests/systems/<system>.json) and core profiles (manifests/cores/<core_id>.json),
+// ADR 0020 D6. No console-specific launch logic outside this data. A SystemManifest returned by
+// ManifestRegistry::find() describes the system only; ManifestRegistry::resolve(system, core) returns the
+// "effective" manifest for a core: the system data plus the core fields (coreId, library, option defaults, locks,
+// firmware option mapping). A core without profile resolves to an experimental manifest (no defaults or locks,
+// raw single-screen display, touch off, firmware only placed into the system directory).
 
 #include <QList>
 #include <QMap>
@@ -40,7 +43,7 @@ struct FirmwareFile {
   QString id;          // id of the file in the Hub registry (e.g. "bios7"); defaults to the file name without extension
   QString name;        // file name in the core's system directory (the Player materializes it there)
   bool required = false;
-  QString coreOption;  // core option that receives `name` (e.g. melonds_firmware_nds_path); empty = none
+  QString coreOption;  // core option that receives `name` (e.g. melonds_firmware_nds_path); empty = none (set by the core profile)
 };
 
 // Whether firmware is needed is decided by the Hub per system (mode builtin|native); the manifest only says
@@ -48,7 +51,7 @@ struct FirmwareFile {
 struct FirmwareSpec {
   bool required = false;  // static override: true = no start without the files (the Hub mode normally decides)
   QList<FirmwareFile> files;
-  QString sysfileOption;                       // e.g. melonds_sysfile_mode; empty = the core has no such switch
+  QString sysfileOption;                       // e.g. melonds_sysfile_mode; empty = the core has no such switch (core profile)
   QString sysfileNative = QStringLiteral("native");
   QString sysfileBuiltin = QStringLiteral("builtin");
 
@@ -58,9 +61,12 @@ struct FirmwareSpec {
 struct SystemManifest {
   QString systemId;
   QString displayName;
+  // Effective core (empty on the system-only manifest returned by find()):
   QString coreId;
-  QString coreDisplayName;  // optional ("core_display_name"), shown when the core was not probed; defaults to coreId
+  QString coreDisplayName;  // shown when the core was not probed; defaults to coreId
   QString coreLibraryBasename;
+  QStringList coreAliases;  // legacy ids of the core (e.g. melonds_ds)
+  bool experimental = false;  // core without profile
   QStringList extensions;  // lowercase, with dot
   FirmwareSpec firmware;
   QString inputProfile;
@@ -76,22 +82,52 @@ struct SystemManifest {
   bool supportsExtension(const QString& ext) const;  // ".nds" or "nds", case-insensitive
 };
 
+// Per-core data (manifests/cores/<core_id>.json): how FrameBeam drives one libretro core.
+struct CoreProfile {
+  QString coreId;
+  QStringList aliases;  // legacy ids, e.g. "melonds_ds" for "melondsds"
+  QString displayName;
+  QString libraryBasename;  // e.g. melondsds_libretro (no platform extension)
+  QStringList systemIds;
+  int order = 100;  // listing order and offline default (lower first), then by core id
+  QMap<QString, QString> coreOptions;  // defaults
+  QStringList lockedCoreOptions;
+  QStringList alwaysShownCoreOptions;
+  QString sysfileOption;  // core option that switches built-in / external BIOS; empty = none
+  QString sysfileNative = QStringLiteral("native");
+  QString sysfileBuiltin = QStringLiteral("builtin");
+  QMap<QString, QString> fileOptions;  // firmware file id -> core option that receives the file name
+
+  bool matches(const QString& id) const { return id == coreId || aliases.contains(id); }
+};
+
 class ManifestRegistry {
  public:
   static std::optional<SystemManifest> parse(const QByteArray& json, QString* error = nullptr);
+  static std::optional<CoreProfile> parseProfile(const QByteArray& json, QString* error = nullptr);
 
-  // Built-in manifests (Qt resource :/framebeam/emulation/manifests/*.json).
+  // Built-in manifests (Qt resource :/framebeam/emulation/manifests/{systems,cores}/*.json).
   bool loadBuiltin(QString* error = nullptr);
-  // Additional manifests from a directory (*.json).
+  // Additional manifests from a directory holding systems/*.json and cores/*.json (either may be missing).
   bool loadDirectory(const QString& dir, QString* error = nullptr);
   bool add(const SystemManifest& manifest, QString* error = nullptr);
+  bool addProfile(const CoreProfile& profile, QString* error = nullptr);
 
   QList<SystemManifest> all() const { return m_manifests; }
   const SystemManifest* find(const QString& systemId) const;
   const SystemManifest* forExtension(const QString& ext) const;
 
+  // Core profile by core id or legacy alias; nullptr = unknown core (experimental).
+  const CoreProfile* profile(const QString& coreIdOrAlias) const;
+  QList<CoreProfile> profilesForSystem(const QString& systemId) const;
+  // Canonical core id for an id or alias (unknown ids are returned unchanged).
+  QString canonicalCoreId(const QString& coreIdOrAlias) const;
+  // Effective manifest of `systemId` for `coreId` (id or alias). Unknown core = experimental. nullopt = unknown system.
+  std::optional<SystemManifest> resolve(const QString& systemId, const QString& coreId) const;
+
  private:
   QList<SystemManifest> m_manifests;
+  QList<CoreProfile> m_profiles;
 };
 
 }  // namespace framebeam::emu

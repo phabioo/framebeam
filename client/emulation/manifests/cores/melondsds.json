@@ -1,0 +1,64 @@
+{
+  "_source": "Moved 1:1 from the former manifests/nds.json (ADR 0020 D6); option keys of the libretro melondsds core.",
+  "core_id": "melondsds",
+  "aliases": [
+    "melonds_ds"
+  ],
+  "display_name": "melonDS DS",
+  "library_basename": "melondsds_libretro",
+  "system_ids": [
+    "nds"
+  ],
+  "order": 0,
+  "firmware": {
+    "sysfile_option": "melonds_sysfile_mode",
+    "sysfile_native": "native",
+    "sysfile_builtin": "builtin",
+    "file_options": {
+      "firmware": "melonds_firmware_nds_path"
+    }
+  },
+  "core_options": {
+    "melonds_render_mode": "software",
+    "melonds_screen_layout1": "top-bottom",
+    "melonds_number_of_screen_layouts": "1",
+    "melonds_screen_gap": "0",
+    "melonds_boot_mode": "direct",
+    "melonds_show_current_layout": "disabled",
+    "melonds_show_mic_state": "disabled",
+    "melonds_show_lid_state": "disabled",
+    "melonds_show_camera_state": "disabled",
+    "melonds_show_sensor_reading": "disabled",
+    "melonds_touch_mode": "auto",
+    "melonds_show_unsupported_features": "disabled",
+    "melonds_show_bios_warnings": "disabled"
+  },
+  "locked_core_options": [
+    "melonds_screen_layout1",
+    "melonds_number_of_screen_layouts",
+    "melonds_screen_gap",
+    "melonds_show_current_layout",
+    "melonds_show_mic_state",
+    "melonds_show_lid_state",
+    "melonds_show_camera_state",
+    "melonds_show_sensor_reading",
+    "melonds_touch_mode",
+    "melonds_show_unsupported_features",
+    "melonds_show_bios_warnings",
+    "melonds_screen_layout2",
+    "melonds_screen_layout3",
+    "melonds_screen_layout4",
+    "melonds_screen_layout5",
+    "melonds_screen_layout6",
+    "melonds_screen_layout7",
+    "melonds_screen_layout8",
+    "melonds_hybrid_ratio",
+    "melonds_hybrid_small_screen",
+    "melonds_opengl_filtering",
+    "melonds_secondary_screen_scale",
+    "melonds_secondary_screen_filtering"
+  ],
+  "always_shown_core_options": [
+    "melonds_opengl_resolution"
+  ]
+}

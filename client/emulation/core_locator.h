@@ -19,6 +19,7 @@ struct CoreLocation {
   QString path;    // empty = not found
   QString source;  // "explicit" | "env" | "cache" | "app-dir"
   QString version;    // cache source only: version of the cached package
+  QString cacheCoreId;  // cache source only: core id of the cache directory (the core's id or one of its aliases)
   QStringList tried;  // checked but not present (for diagnostics)
   bool found() const { return !path.isEmpty(); }
 };

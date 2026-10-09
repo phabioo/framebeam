@@ -112,7 +112,7 @@ void GameStarter::onCoreFinished(const CoreResult& result) {
   coreProblems_.insert(man->coreId, result.problem);
   emu::CoreLocation loc;
   QString blockedText;
-  if (result.problem != QLatin1String("untrusted") && catalog_->coreUsable(*man, &loc)) {
+  if (catalog_->coreUsable(*man, &loc)) {
     // Another version of the core is cached (or env/legacy): the game still starts with it, unless the cached core's
     // major version differs from the one the Hub expects (ADR 0017). Explicit/env/app-dir cores are never blocked.
     QString hubVersion;
@@ -236,7 +236,18 @@ void GameStarter::launch(const GameEntry& game, const QString& romPath) {
   saveNoteStart_.clear();
   emit selectedGameChanged();
   // Start sync with the Hub first (before the core loads); the game starts in onSaveReady().
-  saves_->prepareStart(game.id, romPath, {game.romSha256, QFileInfo(game.romFilename).completeBaseName()});
+  // The core id + version go along: a save last written by another core or build is snapshotted first (ADR 0020 D7).
+  saves_->prepareStart(game.id, romPath, {game.romSha256, QFileInfo(game.romFilename).completeBaseName()}, coreRefFor(*man));
+}
+
+SaveSync::CoreRef GameStarter::coreRefFor(const emu::SystemManifest& man) const {
+  const emu::CoreLocation loc = catalog_->locateCore(man);
+  QString version = loc.source == QLatin1String("cache") ? loc.version : QString();
+  if (version.isEmpty()) {
+    // env / explicit / app-dir core (development): the version the core reports, else a fixed marker
+    version = catalog_->reportedCoreVersion(man.coreId);
+  }
+  return {man.coreId, version.isEmpty() ? QStringLiteral("local") : version};
 }
 
 void GameStarter::onSaveReady(const QString& gameId, const QString& saveDir, const QString& note) {

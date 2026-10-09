@@ -311,16 +311,6 @@ void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
     list.append(game);
     games.insert(QStringLiteral("games"), list);
     respond(sock, 201, json(game));
-  } else if (req.method == "GET" &&
-             (req.path == QLatin1String("/api/v1/cores/index") || req.path == QLatin1String("/api/v1/cores/index.sig"))) {
-    ++coreIndexRequests;
-    const bool sig = req.path.endsWith(QLatin1String(".sig"));
-    const QByteArray& indexBody = sig ? coreIndexSig : coreIndex;
-    if (coreIndex.isEmpty()) {
-      respondError(sock, 404, QStringLiteral("core_package_not_found"));
-    } else {
-      respond(sock, 200, indexBody, sig ? "text/plain" : "application/json");
-    }
   } else if (req.method == "GET" && req.path.startsWith(QLatin1String("/api/v1/cores/"))) {
     // /api/v1/cores/<core>/packages/<version>/<platform>[/files/<name>]
     const QStringList parts = req.path.mid(14).split(QLatin1Char('/'));
