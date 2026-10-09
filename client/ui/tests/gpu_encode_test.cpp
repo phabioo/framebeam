@@ -68,7 +68,7 @@ QString checkPattern(const AVFrame* f, int w, int h) {
   if (!f) return QStringLiteral("no frame");
   if (f->width != w || f->height != h) return QStringLiteral("frame is %1x%2, not %3x%4").arg(f->width).arg(f->height).arg(w).arg(h);
   if (f->format != AV_PIX_FMT_CUDA) return QStringLiteral("format %1, not CUDA").arg(f->format);
-  const int m = std::max(2, w / 32);  // well inside the squares (w/8 wide)
+  const int m = (std::max)(2, w / 32);  // well inside the squares (w/8 wide); parentheses: windows.h max macro
   struct Probe {
     int x, y;
     int r, g, b;
