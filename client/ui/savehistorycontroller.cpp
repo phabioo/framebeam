@@ -1,7 +1,11 @@
 #include "savehistorycontroller.h"
 
+#include <QClipboard>
 #include <QDate>
 #include <QDateTime>
+#include <QDesktopServices>
+#include <QDir>
+#include <QGuiApplication>
 #include <QLocale>
 #include <QPointer>
 #include <QUrl>
@@ -58,16 +62,48 @@ QVariantList SaveHistoryController::slotOptions() const {
       add(n);
     }
   }
-  add(slot());
+  const QString active = slot();
+  add(active);
   QStringList rest = names.mid(1);
   rest.sort();
   names = QStringList{QStringLiteral("default")} + rest;
   QVariantList out;
   for (const QString& n : names) {
+    const int count = n == active ? versionCount() : slotVersionCounts_.value(n, -1);
     out.append(QVariantMap{{QStringLiteral("value"), n},
-                           {QStringLiteral("label"), n == QLatin1String("default") ? tr("default") : n}});
+                           {QStringLiteral("label"), n == QLatin1String("default") ? tr("Main") : n},
+                           {QStringLiteral("count"), count}});
   }
   return out;
+}
+
+QString SaveHistoryController::slotLabel() const { return slot() == QLatin1String("default") ? tr("Main") : slot(); }
+
+QString SaveHistoryController::lastUpdated() const { return lastRefresh_.isValid() ? lastRefresh_.toString(QStringLiteral("HH:mm")) : QString(); }
+
+QString SaveHistoryController::lastSynced() const { return lastRefresh_.isValid() ? formatWhen(lastRefresh_) : QString(); }
+
+bool SaveHistoryController::canDeleteSnapshot() const { return available() && online() && env_.saves->hubSupportsSavesV3() && !busy_; }
+
+QVariantMap SaveHistoryController::currentMap(const SaveCheckpoint& c) const {
+  QString localPath;
+  if (!gameId_.isEmpty() && env_.saves->available()) {
+    const QString dir = env_.saves->slotDirFor(gameId_, slot());
+    const QString name = env_.localFileName ? env_.localFileName(gameId_) : QString();
+    localPath = name.isEmpty() ? dir : QDir(dir).filePath(name);
+  }
+  const QString sha = c.sha256;
+  return QVariantMap{{QStringLiteral("revision"), c.revision},
+                     {QStringLiteral("revisionText"), QStringLiteral("r%1").arg(c.revision)},
+                     {QStringLiteral("device"), c.deviceName},
+                     {QStringLiteral("when"), formatWhen(c.createdAt)},
+                     {QStringLiteral("reason"), c.reason},
+                     {QStringLiteral("reasonText"), reasonText(c.reason)},
+                     {QStringLiteral("sha256"), sha},
+                     {QStringLiteral("shaShort"), sha.size() > 18 ? sha.left(8) + QStringLiteral("…") + sha.right(8) : sha},
+                     {QStringLiteral("size"), c.size},
+                     {QStringLiteral("sizeText"), QLocale().formattedDataSize(c.size)},
+                     {QStringLiteral("localPath"), localPath}};
 }
 
 QString SaveHistoryController::restoreBlockReason() const { return blockReason_; }
@@ -124,6 +160,12 @@ void SaveHistoryController::setGame(const QString& gameId) {
   remoteSlots_.clear();
   restoreRequest_.clear();
   uploadRequest_.clear();
+  deleteRequest_.clear();
+  uploadFailure_.clear();
+  current_.clear();
+  slotVersionCounts_.clear();
+  lastRefresh_ = QDateTime();
+  offline_ = false;
   currentRevision_ = 0;
   message_.clear();
   messageIsError_ = false;
@@ -134,13 +176,35 @@ void SaveHistoryController::setGame(const QString& gameId) {
   refresh();
 }
 
+void SaveHistoryController::fetchOtherSlotCounts(const QString& game, quint64 gen, const QStringList& names) {
+  QPointer<SaveHistoryController> self(this);
+  for (const QString& n : names) {
+    if (n == slot()) {
+      continue;
+    }
+    env_.saves->api()->listHistory(game, n, [self, gen, n](const SaveApiResult& r) {
+      if (!self || gen != self->gen_ || !r.ok()) {
+        return;
+      }
+      self->slotVersionCounts_.insert(n, static_cast<int>(r.history.size()) + 1);  // + the current checkpoint
+      emit self->changed();
+    });
+  }
+}
+
 void SaveHistoryController::refresh() {
   const quint64 gen = ++gen_;
   pending_ = 0;
-  if (gameId_.isEmpty() || !slotsAvailable()) {
+  if (gameId_.isEmpty()) {
     history_.clear();
     remoteSlots_.clear();
+    current_.clear();
     currentRevision_ = 0;
+    emit changed();
+    return;
+  }
+  if (!slotsAvailable()) {
+    // Hub not reachable (or no saves): the cached state of this game stays visible, read-only.
     emit changed();
     return;
   }
@@ -153,6 +217,9 @@ void SaveHistoryController::refresh() {
     if (self && gen == self->gen_ && self->pending_ > 0) {
       --self->pending_;
       if (self->pending_ == 0) {
+        if (!self->offline_) {
+          self->lastRefresh_ = QDateTime::currentDateTime();
+        }
         self->recomputeBlock();
       } else {
         emit self->changed();
@@ -172,11 +239,15 @@ void SaveHistoryController::refresh() {
         }
       }
       self->remoteSlots_ = names;
+      if (self->env_.saves->hubSupportsSavesV2()) {
+        self->fetchOtherSlotCounts(game, gen, names);
+      }
     }
     step();
   });
   if (!v2) {
     history_.clear();
+    current_.clear();
     currentRevision_ = 0;
     emit changed();
     return;
@@ -185,29 +256,39 @@ void SaveHistoryController::refresh() {
     if (!self || gen != self->gen_) {
       return;
     }
-    self->currentRevision_ = r.ok() ? r.slot->current.revision : 0;
+    if (r.kind == SaveApiResult::Kind::Offline) {
+      self->offline_ = true;
+      self->currentRevision_ = 0;  // nothing can be changed without the Hub; the cached state stays visible
+    } else {
+      self->offline_ = false;
+      self->currentRevision_ = r.ok() ? r.slot->current.revision : 0;
+      self->current_ = r.ok() ? self->currentMap(r.slot->current) : QVariantMap();
+    }
     step();
   });
   api->listHistory(game, slotName, [self, gen, step](const SaveApiResult& r) {
     if (!self || gen != self->gen_) {
       return;
     }
-    QVariantList out;
-    if (r.ok()) {
-      for (const SaveHistoryVersion& v : r.history) {
-        out.append(QVariantMap{{QStringLiteral("version"), v.version},
-                               {QStringLiteral("versionText"), QStringLiteral("v%1").arg(v.version)},
-                               {QStringLiteral("revision"), v.revision},
-                               {QStringLiteral("label"), v.label},
-                               {QStringLiteral("reason"), v.reason},
-                               {QStringLiteral("reasonText"), reasonText(v.reason)},
-                               {QStringLiteral("device"), v.deviceName},
-                               {QStringLiteral("when"), formatWhen(v.createdAt)}});
+    if (r.kind == SaveApiResult::Kind::Offline) {
+      self->offline_ = true;
+    } else {
+      QVariantList out;
+      if (r.ok()) {
+        for (const SaveHistoryVersion& v : r.history) {
+          out.append(QVariantMap{{QStringLiteral("version"), v.version},
+                                 {QStringLiteral("versionText"), QStringLiteral("v%1").arg(v.version)},
+                                 {QStringLiteral("revision"), v.revision},
+                                 {QStringLiteral("label"), v.label},
+                                 {QStringLiteral("reason"), v.reason},
+                                 {QStringLiteral("reasonText"), reasonText(v.reason)},
+                                 {QStringLiteral("device"), v.deviceName},
+                                 {QStringLiteral("when"), formatWhen(v.createdAt)},
+                                 {QStringLiteral("isSnapshot"), v.reason == QLatin1String("manual_snapshot")}});
+        }
       }
-    } else if (r.kind == SaveApiResult::Kind::Offline) {
-      self->setMessage(tr("Hub not reachable. The save history is unavailable."), true);
+      self->history_ = out;
     }
-    self->history_ = out;
     step();
   });
   emit changed();
@@ -222,6 +303,8 @@ void SaveHistoryController::selectSlot(const QString& slotName) {
     return;
   }
   history_.clear();
+  current_.clear();
+  deleteRequest_.clear();
   currentRevision_ = 0;
   message_.clear();
   recomputeBlock();
@@ -267,6 +350,8 @@ void SaveHistoryController::requestRestore(int version) {
     if (m.value(QStringLiteral("version")).toInt() == version) {
       restoreRequest_ = m;
       restoreRequest_.insert(QStringLiteral("slot"), slot());
+      restoreRequest_.insert(QStringLiteral("currentText"), current_.value(QStringLiteral("revisionText")).toString());
+      deleteRequest_.clear();
       emit changed();
       return;
     }
@@ -327,6 +412,93 @@ void SaveHistoryController::restore(int version) {
                              });
 }
 
+void SaveHistoryController::requestDelete(int version) {
+  if (!canDeleteSnapshot()) {
+    return;
+  }
+  for (const QVariant& v : std::as_const(history_)) {
+    const QVariantMap m = v.toMap();
+    if (m.value(QStringLiteral("version")).toInt() == version && m.value(QStringLiteral("isSnapshot")).toBool()) {
+      deleteRequest_ = m;
+      deleteRequest_.insert(QStringLiteral("slot"), slot());
+      restoreRequest_.clear();
+      emit changed();
+      return;
+    }
+  }
+}
+
+void SaveHistoryController::cancelDelete() {
+  if (!deleteRequest_.isEmpty()) {
+    deleteRequest_.clear();
+    emit changed();
+  }
+}
+
+void SaveHistoryController::confirmDelete() {
+  if (deleteRequest_.isEmpty()) {
+    return;
+  }
+  const int version = deleteRequest_.value(QStringLiteral("version")).toInt();
+  deleteRequest_.clear();
+  if (!canDeleteSnapshot()) {
+    emit changed();
+    return;
+  }
+  busy_ = true;
+  message_.clear();
+  emit changed();
+  QPointer<SaveHistoryController> self(this);
+  env_.saves->api()->deleteSnapshot(gameId_, slot(), version, [self, version](const SaveApiResult& r) {
+    if (!self) {
+      return;
+    }
+    self->busy_ = false;
+    using K = SaveApiResult::Kind;
+    if (r.ok()) {
+      self->setMessage(tr("Snapshot v%1 deleted.").arg(version), false);
+    } else if (r.kind == K::NotFound) {
+      self->setMessage(tr("Snapshot v%1 was already gone. The list was refreshed.").arg(version), true);
+    } else if (r.errorCode == QLatin1String("save_not_snapshot")) {
+      self->setMessage(tr("Only manual snapshots can be deleted. Nothing was changed."), true);
+    } else if (r.kind == K::Offline) {
+      self->setMessage(tr("Hub not reachable. Nothing was deleted."), true);
+    } else {
+      self->setMessage(tr("The Hub refused to delete the snapshot. Nothing was changed."), true);
+    }
+    self->refresh();
+  });
+}
+
+void SaveHistoryController::retryUpload() {
+  const QString path = uploadFailure_.value(QStringLiteral("path")).toString();
+  if (!path.isEmpty()) {
+    requestUploadFile(path);
+  }
+}
+
+void SaveHistoryController::dismissUploadFailure() {
+  if (!uploadFailure_.isEmpty()) {
+    uploadFailure_.clear();
+    emit changed();
+  }
+}
+
+void SaveHistoryController::copyText(const QString& text) {
+  if (QClipboard* cb = QGuiApplication::clipboard()) {
+    cb->setText(text);
+  }
+}
+
+void SaveHistoryController::openSaveFolder() {
+  const QString path = current_.value(QStringLiteral("localPath")).toString();
+  if (path.isEmpty()) {
+    return;
+  }
+  const QFileInfo info(path);
+  QDesktopServices::openUrl(QUrl::fromLocalFile(info.isDir() ? info.absoluteFilePath() : info.absolutePath()));
+}
+
 void SaveHistoryController::requestUploadFile(const QString& source) {
   if (!canUploadFile()) {
     return;
@@ -351,12 +523,15 @@ void SaveHistoryController::requestUploadFile(const QString& source) {
     return;
   }
   message_.clear();
+  uploadFailure_.clear();
   uploadRequest_ = QVariantMap{{QStringLiteral("path"), info.absoluteFilePath()},
                                {QStringLiteral("fileName"), info.fileName()},
                                {QStringLiteral("size"), info.size()},
                                {QStringLiteral("sizeText"), QLocale().formattedDataSize(info.size())},
                                {QStringLiteral("slot"), slot()},
-                               {QStringLiteral("gameTitle"), env_.gameTitle ? env_.gameTitle(gameId_) : QString()}};
+                               {QStringLiteral("gameTitle"), env_.gameTitle ? env_.gameTitle(gameId_) : QString()},
+                               {QStringLiteral("currentText"), current_.value(QStringLiteral("revisionText")).toString()},
+                               {QStringLiteral("nextText"), QStringLiteral("r%1").arg(currentRevision_ + 1)}};
   emit changed();
 }
 
@@ -384,18 +559,23 @@ void SaveHistoryController::confirmUploadFile() {
     return;
   }
   busy_ = true;
+  uploading_ = true;
   message_.clear();
   emit changed();
   const QString game = gameId_;
   const QString slotName = slot();
   QPointer<SaveHistoryController> self(this);
   env_.saves->uploadSaveFile(game, slotName, path, currentRevision_, env_.localFileName ? env_.localFileName(game) : QString(),
-                             [self, fileName](const SaveSync::RestoreResult& r) {
+                             [self, fileName, path](const SaveSync::RestoreResult& r) {
                                if (!self) {
                                  return;
                                }
                                self->busy_ = false;
+                               self->uploading_ = false;
                                using O = SaveRestoreResult::Outcome;
+                               if (!r.ok()) {
+                                 self->uploadFailure_ = QVariantMap{{QStringLiteral("path"), path}, {QStringLiteral("fileName"), fileName}};
+                               }
                                if (r.ok()) {
                                  self->setMessage(r.message.isEmpty() ? tr("\"%1\" uploaded. It is now the current save.").arg(fileName) : r.message,
                                                   false);
@@ -505,18 +685,31 @@ QString SaveHistoryController::reasonText(const QString& reason) {
   if (reason == QLatin1String("manual_snapshot")) return tr("Manual snapshot");
   if (reason == QLatin1String("before_restore")) return tr("Before restore");
   if (reason == QLatin1String("before_upload")) return tr("Before upload");
-  if (reason == QLatin1String("upload")) return tr("Upload");
+  if (reason == QLatin1String("upload")) return tr("Uploaded");
+  if (reason == QLatin1String("checkpoint")) return tr("Auto checkpoint");
+  if (reason == QLatin1String("final")) return tr("Game closed");
+  if (reason == QLatin1String("final_session_end")) return tr("Session end");
+  if (reason == QLatin1String("restore")) return tr("Restored");
   return reason;
 }
 
 QString SaveHistoryController::formatWhen(const QString& iso) {
   const QDateTime when = QDateTime::fromString(iso, Qt::ISODate);
-  if (!when.isValid()) {
-    return tr("unknown time");
-  }
+  return when.isValid() ? formatWhen(when) : tr("unknown time");
+}
+
+// "today 18:42", "yesterday 22:30", "03.10. 21:12" (this year), "03.10.2025 21:12" (older): as drawn in 3c-3.
+QString SaveHistoryController::formatWhen(const QDateTime& when) {
   const QDateTime local = when.toLocalTime();
-  return local.date() == QDate::currentDate() ? tr("today, %1").arg(local.toString(QStringLiteral("HH:mm")))
-                                              : local.toString(QStringLiteral("yyyy-MM-dd HH:mm"));
+  const QString time = local.toString(QStringLiteral("HH:mm"));
+  const QDate today = QDate::currentDate();
+  if (local.date() == today) {
+    return tr("today %1").arg(time);
+  }
+  if (local.date() == today.addDays(-1)) {
+    return tr("yesterday %1").arg(time);
+  }
+  return local.date().year() == today.year() ? local.toString(QStringLiteral("dd.MM. HH:mm")) : local.toString(QStringLiteral("dd.MM.yyyy HH:mm"));
 }
 
 }  // namespace framebeam::ui

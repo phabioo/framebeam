@@ -183,6 +183,8 @@ void SaveApi::run(QNetworkReply* reply, Expect expect, Callback cb) {
           }
           break;
         }
+        case Expect::None:
+          break;
         case Expect::Snapshot:
           res.snapshot = parseSaveHistoryVersion(r.json());
           if (!res.snapshot) {
@@ -313,6 +315,17 @@ void SaveApi::uploadFile(const QString& gameId, const QString& slot, const QByte
     return;
   }
   run(reply, Expect::Resolve, std::move(cb));  // answer: the SaveSlot after the upload
+}
+
+void SaveApi::deleteSnapshot(const QString& gameId, const QString& slot, int version, Callback cb) {
+  QNetworkReply* reply =
+      conn_ ? conn_->authorizedSend("DELETE", slotPath(gameId, slot) + QStringLiteral("/history/%1").arg(version), QByteArray())
+            : nullptr;
+  if (reply == nullptr) {
+    immediate(SaveApiResult::Kind::Offline, QStringLiteral("not_connected"), std::move(cb));
+    return;
+  }
+  run(reply, Expect::None, std::move(cb));
 }
 
 void SaveApi::createSnapshot(const QString& gameId, const QString& slot, const QString& label, Callback cb) {

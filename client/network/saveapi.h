@@ -16,6 +16,7 @@ namespace framebeam {
 // Hub save API (protocol/openapi/framebeam.yaml, tag `saves`, handshake feature `saves_v1`).
 inline constexpr const char* kSavesFeature = "saves_v1";
 inline constexpr const char* kSavesV2Feature = "saves_v2";  // restore, snapshots, history labels, save_updated (0.4)
+inline constexpr const char* kSavesV3Feature = "saves_v3";  // deleting manual snapshots
 inline constexpr const char* kSavesV4Feature = "saves_v4";  // upload of a local save file as the current checkpoint
 inline constexpr qint64 kMaxSaveBytes = 64LL * 1024 * 1024;
 
@@ -133,11 +134,13 @@ class SaveApi : public QObject {
   void listHistory(const QString& gameId, const QString& slot, Callback cb);
   void restore(const QString& gameId, const QString& slot, int version, int expectedRevision, Callback cb);
   void createSnapshot(const QString& gameId, const QString& slot, const QString& label, Callback cb);
+  // saves_v3: DELETE .../history/{version}; only manual snapshots (else 409 `save_not_snapshot` -> Rejected). Answer: 204.
+  void deleteSnapshot(const QString& gameId, const QString& slot, int version, Callback cb);
   // saves_v4: POST .../upload; `expectedRevision` 0 = the slot does not exist on the Hub yet. Answer: the new SaveSlot.
   void uploadFile(const QString& gameId, const QString& slot, const QByteArray& data, int expectedRevision, Callback cb);
 
  private:
-  enum class Expect { Slot, SlotList, Content, Put, Resolve, History, Snapshot };
+  enum class Expect { Slot, SlotList, Content, Put, Resolve, History, Snapshot, None };
   void run(QNetworkReply* reply, Expect expect, Callback cb);
   void immediate(SaveApiResult::Kind kind, const QString& code, Callback cb);
   static QString slotPath(const QString& gameId, const QString& slot);

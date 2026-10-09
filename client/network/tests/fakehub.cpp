@@ -609,6 +609,30 @@ void FakeHub::handleSaves(QSslSocket* sock, const FakeRequest& req) {
     s.reason = QStringLiteral("upload");
     ++uploadCount;
     respond(sock, 200, json(slotJson(key, s)));
+  } else if (parts.size() == 8 && parts.at(6) == QLatin1String("history") && req.method == "DELETE") {
+    if (!exists) {
+      respondError(sock, 404, QStringLiteral("not_found"));
+      return;
+    }
+    FakeSlot& s = saves[key];
+    const int want = parts.at(7).toInt();
+    qsizetype found = -1;
+    for (qsizetype k = 0; k < s.history.size(); ++k) {
+      if (s.history.at(k).version == want) {
+        found = k;
+      }
+    }
+    if (found < 0) {
+      respondError(sock, 404, QStringLiteral("not_found"));
+      return;
+    }
+    if (s.history.at(found).reason != QLatin1String("manual_snapshot")) {
+      respondError(sock, 409, QStringLiteral("save_not_snapshot"));
+      return;
+    }
+    s.history.removeAt(found);
+    ++deleteCount;
+    respond(sock, 204, {});
   } else if (parts.size() == 9 && parts.at(6) == QLatin1String("history") && parts.at(8) == QLatin1String("restore") &&
              req.method == "POST") {
     if (!exists) {

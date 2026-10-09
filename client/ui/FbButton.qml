@@ -17,6 +17,13 @@ Button {
     implicitHeight: kind === "link" ? 28 : 40
     implicitWidth: Math.max(kind === "link" ? 0 : 88, labelRow.implicitWidth + (kind === "link" ? 8 : 32))
     padding: 0
+    // In a Flow/Row-like container the button never grows past the container (the label elides); layouts size it themselves.
+    Binding {
+        target: control
+        property: "width"
+        when: control.parent && control.parent.flow !== undefined && control.parent.width > 0
+        value: Math.min(control.implicitWidth, control.parent ? control.parent.width : 0)
+    }
     Layout.minimumWidth: kind === "link" ? 0 : implicitWidth
     hoverEnabled: true
     font.pixelSize: Theme.fontBody
@@ -57,6 +64,13 @@ Button {
                        : control.kind === "link" ? (control.hovered ? Theme.text : Theme.textMuted)
                        : Theme.text
                 Behavior on color { ColorAnimation { duration: Theme.durFast } }
+                // Elide the label when the button was capped to its Flow/Row-like container.
+                Binding {
+                    target: labelItem
+                    property: "width"
+                    when: control.parent && control.parent.flow !== undefined && control.parent.width > 0
+                    value: Math.min(labelItem.implicitWidth, Math.max(0, control.width - (control.kind === "link" ? 8 : 32) - (control.working ? 20 : 0)))
+                }
             }
         }
     }

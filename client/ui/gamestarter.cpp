@@ -273,6 +273,7 @@ void GameStarter::onSaveReady(const QString& gameId, const QString& saveDir, con
     cfg.speedUpAudio = fb(EmulationController::kSpeedUpAudioKey) != QLatin1String("false");
   }
   emit selectedGameChanged();
+  emit gameLaunched(launchGame_.id);
   session_.start(cfg);
 }
 

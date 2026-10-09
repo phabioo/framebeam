@@ -125,6 +125,46 @@ class PlayerSettingsTest : public QObject {
     QVERIFY(s.setSaveSlot(QStringLiteral("hub-a"), QStringLiteral("g1"), QStringLiteral("default")));
     QCOMPARE(PlayerSettings(dir.path()).saveSlot(QStringLiteral("hub-a"), QStringLiteral("g1")), QStringLiteral("default"));
   }
+
+  void librarySortAndReadyFirstPersistPerDevice() {
+    QTemporaryDir dir;
+    {
+      PlayerSettings s(dir.path());
+      QCOMPARE(s.librarySort(), QStringLiteral("name_asc"));
+      QVERIFY(!s.libraryReadyFirst());
+      QVERIFY(!s.setLibrarySort(QStringLiteral("random")));
+      QCOMPARE(s.librarySort(), QStringLiteral("name_asc"));
+      QVERIFY(s.setLibrarySort(QStringLiteral("size_asc")));
+      QVERIFY(s.setLibraryReadyFirst(true));
+      QVERIFY(s.setAppearance(A::Light));
+    }
+    PlayerSettings s(dir.path());
+    QCOMPARE(s.librarySort(), QStringLiteral("size_asc"));
+    QVERIFY(s.libraryReadyFirst());
+    QCOMPARE(s.appearance(), A::Light);  // unrelated keys kept
+  }
+
+  void lastPlayedIsSeparatedByHub() {
+    QTemporaryDir dir;
+    {
+      PlayerSettings s(dir.path());
+      QCOMPARE(s.lastPlayed(QStringLiteral("hub-a"), QStringLiteral("g1")), qint64(0));
+      QVERIFY(!s.setLastPlayed(QString(), QStringLiteral("g1"), 5));
+      QVERIFY(!s.setLastPlayed(QStringLiteral("hub-a"), QString(), 5));
+      QVERIFY(!s.setLastPlayed(QStringLiteral("hub-a"), QStringLiteral("g1"), 0));
+      QVERIFY(s.setLastPlayed(QStringLiteral("hub-a"), QStringLiteral("g1"), 1760000000000LL));
+      QVERIFY(s.setLastPlayed(QStringLiteral("hub-a"), QStringLiteral("g2"), 1760000001000LL));
+      QVERIFY(s.setLastPlayed(QStringLiteral("hub-b"), QStringLiteral("g1"), 1770000000000LL));
+    }
+    PlayerSettings s(dir.path());
+    QCOMPARE(s.lastPlayed(QStringLiteral("hub-a"), QStringLiteral("g1")), 1760000000000LL);
+    QCOMPARE(s.lastPlayed(QStringLiteral("hub-b"), QStringLiteral("g1")), 1770000000000LL);
+    QCOMPARE(s.lastPlayed(QStringLiteral("hub-b"), QStringLiteral("g2")), qint64(0));  // same game id on another Hub stays separate
+    const QHash<QString, qint64> a = s.lastPlayedAll(QStringLiteral("hub-a"));
+    QCOMPARE(a.size(), 2);
+    QCOMPARE(a.value(QStringLiteral("g2")), 1760000001000LL);
+    QVERIFY(s.lastPlayedAll(QStringLiteral("hub-c")).isEmpty());
+  }
 };
 
 QTEST_GUILESS_MAIN(PlayerSettingsTest)

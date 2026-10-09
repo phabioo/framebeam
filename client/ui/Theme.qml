@@ -97,6 +97,10 @@ QtObject {
     readonly property color toolbarBg: Qt.rgba(22 / 255, 23 / 255, 26 / 255, 0.92)
     // ---- end of the shared v4 block
 
+    // Library revision 3c-2..3c-4 (saves view, SaveRow): confirmation boxes and the version rail.
+    readonly property color confirmBorder: dark ? "#1f4650" : "#a6d9e6"   // restore / upload box border (surface = accentChipBg)
+    readonly property color dangerBorder: dark ? "#4a2a24" : "#efc9c2"    // delete box border (surface = errorBg)
+    readonly property color rail: dark ? "#34353a" : "#d9d7d1"            // timeline rail of the SaveRow
     // SettingsRow (tokens.md "Additions of the revision handoff"): hover surface and menu / ring border; light values derived.
     readonly property color rowHover: dark ? "#17181b" : "#f3f2ee"
     readonly property color borderGroup: dark ? "#34353a" : "#d9d7d1"

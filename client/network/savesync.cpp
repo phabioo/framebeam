@@ -66,6 +66,10 @@ bool SaveSync::hubSupportsSavesV2() const {
   return hubSupportsSaves() && conn_->hubHasFeature(QString::fromLatin1(kSavesV2Feature));
 }
 
+bool SaveSync::hubSupportsSavesV3() const {
+  return hubSupportsSavesV2() && conn_->hubHasFeature(QString::fromLatin1(kSavesV3Feature));
+}
+
 bool SaveSync::hubSupportsSavesV4() const {
   return hubSupportsSavesV2() && conn_->hubHasFeature(QString::fromLatin1(kSavesV4Feature));
 }

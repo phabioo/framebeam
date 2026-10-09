@@ -4,6 +4,7 @@ get_filename_component(FB_NETTEST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../network
 get_filename_component(FB_ROM_DIR "${CMAKE_BINARY_DIR}/emulation" ABSOLUTE)
 
 framebeam_add_test(ui_input input_test.cpp LIBS framebeam_ui framebeam_core framebeam_emulation)
+framebeam_add_test(ui_library_sort library_sort_test.cpp LIBS framebeam_ui framebeam_core framebeam_emulation)
 framebeam_add_test(ui_audio audio_test.cpp LIBS framebeam_ui framebeam_core framebeam_emulation)
 
 framebeam_add_test(ui_screens screens_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
@@ -72,6 +73,12 @@ framebeam_add_test(ui_save_history save_history_ui_test.cpp ${FB_NETTEST_DIR}/fa
   LIBS ${FB_UI_TEST_LIBS})
 target_include_directories(test_ui_save_history PRIVATE ${FB_NETTEST_DIR})
 target_compile_definitions(test_ui_save_history PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
+
+# Library revision 3c-2..3c-4: sort, Ready first, SAVE summary, saves view, upload confirmation, column layout (no core needed).
+framebeam_add_test(ui_library_saves library_saves_ui_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
+  LIBS ${FB_UI_TEST_LIBS})
+target_include_directories(test_ui_library_saves PRIVATE ${FB_NETTEST_DIR})
+target_compile_definitions(test_ui_library_saves PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
 
 # Screenshots of the out-of-game screens (design v4); skipped without FRAMEBEAM_SCREENSHOT_DIR.
 framebeam_add_test(ui_screenshots_shell screenshots_shell_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
