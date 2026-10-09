@@ -610,10 +610,44 @@ jobs:
             dist/zip/player-release-info.json
           if-no-files-found: error
           retention-days: 7
-      - name: Build installer (Inno Setup)
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      - name: Build Hub exe (for the MSI)
+        # Built natively here (same flags and version stamping as scripts/check.sh hub_build) instead of downloading the
+        # artifact of job hub-windows: no dependency between the jobs, no artifact-name coupling.
+        shell: bash
+        working-directory: server
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          mkdir -p ../dist/hub
+          go build -trimpath \
+            -ldflags "-s -w -X github.com/phabioo/framebeam/server/internal/version.Version=$FRAMEBEAM_VERSION -X github.com/phabioo/framebeam/server/internal/version.Channel=$FRAMEBEAM_CHANNEL -X github.com/phabioo/framebeam/server/internal/version.Commit=$FRAMEBEAM_COMMIT" \
+            -o ../dist/hub/framebeam-hub.exe ./cmd/framebeam-hub
+          ../dist/hub/framebeam-hub.exe version --json | tee ../dist/hub/hub-info.json
+          grep -qF "\"version\":\"$FRAMEBEAM_VERSION\"" ../dist/hub/hub-info.json
+      - name: Build MSI (WiX v5)
         shell: pwsh
         env:
           CORE_VERSION: ${{ needs.version.outputs.core }}
+        run: |
+          # ProductVersion must be numeric: X.Y.Z plus the run number as 4th field (ignored by Windows Installer's upgrade logic).
+          $msi = "$env:GITHUB_WORKSPACE\dist\msi\framebeam-$($env:FRAMEBEAM_VERSION)-windows-x64.msi"
+          packaging\windows\build-msi.ps1 -ProductVersion "$env:CORE_VERSION.${{ github.run_number }}" `
+            -PackageDir "$env:GITHUB_WORKSPACE\dist\framebeam-player" -HubExe "$env:GITHUB_WORKSPACE\dist\hub\framebeam-hub.exe" -OutFile $msi
+          if (-not (Test-Path $msi)) { throw "MSI was not produced" }
+          # An older build of the same product (other product code) for the per-user -> per-machine switch test.
+          packaging\windows\build-msi.ps1 -ProductVersion "0.0.1.0" `
+            -PackageDir "$env:GITHUB_WORKSPACE\dist\framebeam-player" -HubExe "$env:GITHUB_WORKSPACE\dist\hub\framebeam-hub.exe" `
+            -OutFile "$env:GITHUB_WORKSPACE\dist\msi-old\framebeam-old.msi"
+          # Same version, new product code: an upgrade of the main MSI (as the Hub updater runs it).
+          packaging\windows\build-msi.ps1 -ProductVersion "$env:CORE_VERSION.${{ github.run_number }}" `
+            -PackageDir "$env:GITHUB_WORKSPACE\dist\framebeam-player" -HubExe "$env:GITHUB_WORKSPACE\dist\hub\framebeam-hub.exe" `
+            -OutFile "$env:GITHUB_WORKSPACE\dist\msi-upgrade\framebeam-upgrade.msi"
+      - name: Build setup shell (Inno Setup)
+        shell: pwsh
         run: |
           $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
           if (-not (Test-Path $iscc)) {
@@ -621,47 +655,33 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "choco install innosetup failed" }
           }
           if (-not (Test-Path $iscc)) { throw "ISCC.exe not found at $iscc" }
-          # AppVersion = full SemVer; VersionInfoVersion must be numeric (x.y.z.build).
+          # Same file name as the former Inno installer: old Players and the docs look for *-windows-x64-setup.exe.
           $name = "framebeam-player-$($env:FRAMEBEAM_VERSION)-windows-x64-setup"
-          & $iscc "/DAppVersion=$env:FRAMEBEAM_VERSION" "/DVersionInfoVersion=$env:CORE_VERSION.${{ github.run_number }}" `
-            "/DOutputBaseName=$name" `
-            "/DPackageDir=$env:GITHUB_WORKSPACE\dist\framebeam-player" "/DOutputDir=$env:GITHUB_WORKSPACE\dist\installer" `
-            packaging\windows\framebeam-player.iss
+          & $iscc "/DAppVersion=$env:FRAMEBEAM_VERSION" "/DMsiFile=$env:GITHUB_WORKSPACE\dist\msi\framebeam-$($env:FRAMEBEAM_VERSION)-windows-x64.msi" `
+            "/DOutputBaseName=$name" "/DOutputDir=$env:GITHUB_WORKSPACE\dist\installer" `
+            packaging\windows\framebeam-setup-shell.iss
           if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
-          if (-not (Test-Path "dist\installer\$name.exe")) { throw "installer was not produced" }
-      - name: Installer test (silent install, upgrade over the old flat layout)
+          if (-not (Test-Path "dist\installer\$name.exe")) { throw "setup shell was not produced" }
+      - name: MSI test (a) Player only, per user
+        shell: pwsh
+        run: scripts\test-windows-msi.ps1 -Scenario user -Msi "dist\msi\framebeam-$($env:FRAMEBEAM_VERSION)-windows-x64.msi"
+      - name: MSI test (b) Player and Hub, per machine
+        shell: pwsh
+        run: scripts\test-windows-msi.ps1 -Scenario machine -Msi "dist\msi\framebeam-$($env:FRAMEBEAM_VERSION)-windows-x64.msi" -OldMsi dist\msi-old\framebeam-old.msi -UpgradeMsi dist\msi-upgrade\framebeam-upgrade.msi -Version $env:FRAMEBEAM_VERSION
+      - name: MSI test (c) migration from the Inno installer
         shell: pwsh
         env:
-          QT_QPA_PLATFORM: offscreen
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           $setup = (Get-ChildItem dist\installer\framebeam-player-*-windows-x64-setup.exe | Select-Object -First 1).FullName
-          $dir = Join-Path $env:RUNNER_TEMP 'fb-install-test'
-          $log = Join-Path $env:RUNNER_TEMP 'fb-setup.log'
-          function Invoke-Setup {
-            $p = Start-Process -FilePath $setup -PassThru -Wait -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', "/DIR=$dir", "/LOG=$log")
-            if ($p.ExitCode -ne 0) { Get-Content $log -Tail 40 | Write-Host; throw "setup exited with $($p.ExitCode)" }
-          }
-          Invoke-Setup
-          foreach ($f in 'framebeam_player.exe', 'bin\framebeam_player.exe', 'THIRD-PARTY-NOTICE.txt', 'LICENSE.txt', 'unins000.exe') {
-            if (-not (Test-Path "$dir\$f")) { throw "after the first install: $f is missing" }
-          }
-          if (-not (Get-ChildItem "$dir\licenses" -File -ErrorAction SilentlyContinue)) { throw "after the first install: licenses\ is missing or empty" }
-          # An old (flat) install: DLLs and Qt directories next to the exe, plus user data.
-          New-Item -ItemType Directory -Force "$dir\platforms", "$dir\qml\QtQuick", "$dir\data" | Out-Null
-          Set-Content "$dir\Qt6Core.dll", "$dir\avcodec-61.dll", "$dir\platforms\qwindows.dll", "$dir\qml\QtQuick\qmldir" -Value 'old'
-          Set-Content "$dir\data\marker" -Value 'keep-me'
-          Invoke-Setup
-          foreach ($gone in 'Qt6Core.dll', 'avcodec-61.dll', 'platforms', 'qml') {
-            if (Test-Path "$dir\$gone") { throw "old layout item survived the upgrade: $gone" }
-          }
-          if ((Get-Content "$dir\data\marker" -Raw).Trim() -ne 'keep-me') { throw "data\marker was changed or removed" }
-          if (-not (Test-Path "$dir\bin\framebeam_player.exe")) { throw "bin\framebeam_player.exe is missing after the upgrade" }
-          $p = Start-Process -FilePath "$dir\framebeam_player.exe" -ArgumentList '--version' -WorkingDirectory $dir -PassThru -NoNewWindow
-          $null = $p.Handle
-          if (-not $p.WaitForExit(60000)) { $p.Kill(); throw "installed launcher --version did not exit within 60 s" }
-          if ($p.ExitCode -ne 0) { throw "installed launcher --version exited with $($p.ExitCode)" }
-          $u = Start-Process -FilePath "$dir\unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -PassThru -Wait
-          Write-Host "uninstall exit code: $($u.ExitCode)"
+          scripts\test-windows-msi.ps1 -Scenario migrate -Msi "dist\msi\framebeam-$($env:FRAMEBEAM_VERSION)-windows-x64.msi" -Setup $setup
+      - uses: actions/upload-artifact@v4
+        with:
+          name: framebeam-windows-x64-msi
+          path: dist/msi/framebeam-*-windows-x64.msi
+          if-no-files-found: error
+          retention-days: 7
       - uses: actions/upload-artifact@v4
         with:
           name: framebeam-player-windows-x64-setup
