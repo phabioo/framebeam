@@ -346,7 +346,7 @@ Rectangle {
     AnchoredPopover {
         id: resetPop
         objectName: "resetPopover"
-        anchorItem: root.compact ? header.moreAnchor : header.resetAnchor
+        anchorItem: header.tight ? header.moreAnchor : header.resetAnchor
         open: root.popover === "reset"
         danger: true
         popWidth: 290

@@ -12,6 +12,9 @@ Rectangle {
     objectName: "gameHeader"
     required property PlayerController player
     property bool compact: false
+    // `compact` from the window width, or forced when the zones still do not fit with wide fonts (icons, Reset into "⋯").
+    property bool forceCompact: false
+    readonly property bool tight: compact || forceCompact
     property string popover: ""
     property var hotkeys: ({})
     readonly property GameSession session: player.gameSession
@@ -45,12 +48,23 @@ Rectangle {
     // shown, derived from the current implicit width, so the result does not depend on what is hidden right now.
     property bool hideMultiTitle: false
     property bool hideYourGame: false
+    property real wideNeed: 0   // preferred width without the optional texts, regular (not tight) widths
     function updateFit() {
         const titleW = multiTitle.implicitWidth + 10
         const labelW = yourGame.implicitWidth + 20
         const need = headerRow.implicitWidth + (multiTitle.visible ? 0 : titleW) + (yourGame.visible ? 0 : labelW)
-        hideMultiTitle = need > headerRow.width
-        hideYourGame = need - titleW > headerRow.width
+        if (!root.forceCompact) {
+            root.wideNeed = need - titleW - labelW - headerContext.implicitWidth + (modeSegment.visible ? modeSegment.implicitWidth : 0)   // the context zone can shrink to its mode switch; measured only at regular widths, so the decision cannot flap
+        }
+        if (root.compact) return   // compact from the window width: the layout was designed for it
+        root.forceCompact = root.wideNeed > headerRow.width
+        if (root.forceCompact) {
+            hideMultiTitle = true
+            hideYourGame = true
+        } else {
+            hideMultiTitle = need > headerRow.width
+            hideYourGame = need - titleW > headerRow.width
+        }
     }
 
     RowLayout {
@@ -69,10 +83,10 @@ Rectangle {
             look: "flat"
             implicitHeight: 32
             hPad: 8
-            fixedWidth: root.compact ? 32 : 0
-            text: root.compact ? "" : qsTr("← Library")
-            glyph: root.compact ? "←" : ""
-            tip: root.own ? (root.compact ? qsTr("Library · game keeps running, paused") : qsTr("Game keeps running, paused"))
+            fixedWidth: root.tight ? 32 : 0
+            text: root.tight ? "" : qsTr("← Library")
+            glyph: root.tight ? "←" : ""
+            tip: root.own ? (root.tight ? qsTr("Library · game keeps running, paused") : qsTr("Game keeps running, paused"))
                           : qsTr("Leave the Session and go to the Library")
             Accessible.name: qsTr("Library")
             onClicked: root.player.leaveGameView()
@@ -81,16 +95,19 @@ Rectangle {
 
         // 2 Context
         RowLayout {
+            id: headerContext
             objectName: "headerContext"
             Layout.fillWidth: true
-            Layout.minimumWidth: 0
+            // Never narrower than the Multiview mode switch (regular, non-compact windows): when even the collapsed header does not fit (very wide
+            // fallback fonts), the right-hand zones run past the window edge instead of covering this switch.
+            Layout.minimumWidth: modeSegment.visible && !root.compact ? modeSegment.implicitWidth : 0
             spacing: 10
             // Session: title + share pill
             FbLabel {
                 objectName: "gameTitle"
                 visible: root.own && !root.multi
                 Layout.minimumWidth: 0
-                Layout.maximumWidth: root.compact ? 150 : 240
+                Layout.maximumWidth: root.tight ? 150 : 240
                 text: root.session.title
                 elide: Text.ElideRight
                 color: Theme.gameText
@@ -133,15 +150,17 @@ Rectangle {
                 objectName: "multiviewTitle"
                 visible: root.multi && !root.narrow && !root.hideMultiTitle
                 Layout.minimumWidth: 0
+                elide: Text.ElideRight
                 text: qsTr("Multiview")
                 color: Theme.gameText
                 font.pixelSize: 15
                 font.weight: Font.DemiBold
             }
             GameSegment {
+                id: modeSegment
                 objectName: "modeSegment"
                 visible: root.multi && root.ctl.availableLayouts.length > 0
-                padX: root.compact ? 8 : 11
+                padX: root.tight ? 8 : 11
                 current: root.ctl.multiviewMode
                 options: root.ctl.availableLayouts.map(function (m) {
                     return m === "pip" ? { value: "pip", label: qsTr("PiP"), name: "modePip" }
@@ -185,8 +204,8 @@ Rectangle {
                     iconKind: root.session.paused ? "play" : "pause"
                     text: root.session.paused ? qsTr("Resume") : qsTr("Pause")
                     widthText: qsTr("Resume")
-                    iconOnly: root.compact
-                    hPad: root.compact ? 9 : 10
+                    iconOnly: root.tight
+                    hPad: root.tight ? 9 : 10
                     tip: (root.session.paused ? qsTr("Resume") : qsTr("Pause")) + (root.multi ? qsTr(" your game") : "") + " · Esc"
                     enabled: root.session.state === GameSession.Running || root.session.state === GameSession.Paused
                     onClicked: root.session.togglePause()
@@ -210,8 +229,8 @@ Rectangle {
                             plain: true
                             iconKind: "speed"
                             text: qsTr("Speed-up")
-                            iconOnly: root.compact
-                            hPad: root.compact ? 9 : 10
+                            iconOnly: root.tight
+                            hPad: root.tight ? 9 : 10
                             on: speedSplit.on
                             tip: qsTr("Speed-up") + root.key(root.hotkeys.speedup)
                             onClicked: root.session.toggleFastForward()
@@ -234,7 +253,7 @@ Rectangle {
                 GameButton {
                     id: resetButton
                     objectName: "resetButton"
-                    visible: !root.compact
+                    visible: !root.tight
                     glyph: "↺"
                     text: qsTr("Reset")
                     danger: root.popover === "reset"
@@ -302,8 +321,8 @@ Rectangle {
                     objectName: "layoutSwitch"
                     visible: root.layouts.length > 1
                     iconKind: "layout"
-                    text: root.multi && !root.compact ? qsTr("All tiles") : ""
-                    iconOnly: !(root.multi && !root.compact)
+                    text: root.multi && !root.tight ? qsTr("All tiles") : ""
+                    iconOnly: !(root.multi && !root.tight)
                     caret: "▾"
                     hPad: 9
                     on: root.popover === "layout"
@@ -314,9 +333,9 @@ Rectangle {
                     objectName: "diagnosticsButton"
                     iconKind: "diag"
                     text: qsTr("Diagnostics")
-                    iconOnly: root.compact || root.multi
+                    iconOnly: root.tight || root.multi
                     hint: root.hotkeys.diagnostics || ""
-                    hPad: root.compact ? 9 : 10
+                    hPad: root.tight ? 9 : 10
                     on: root.diag.open
                     tip: qsTr("Diagnostics") + root.key(root.hotkeys.diagnostics)
                     onClicked: root.diag.toggle()
@@ -325,9 +344,9 @@ Rectangle {
                     objectName: "fullscreenButton"
                     iconKind: "fullscreen"
                     text: qsTr("Fullscreen")
-                    iconOnly: root.compact || root.multi
+                    iconOnly: root.tight || root.multi
                     hint: root.hotkeys.fullscreen || ""
-                    hPad: root.compact ? 9 : 10
+                    hPad: root.tight ? 9 : 10
                     tip: qsTr("Fullscreen") + root.key(root.hotkeys.fullscreen)
                     onClicked: root.fullscreenRequested()
                 }
@@ -336,7 +355,7 @@ Rectangle {
         GameButton {
             id: moreButton
             objectName: "moreButton"
-            visible: root.compact && root.own
+            visible: root.tight && root.own
             look: "surface"
             fixedWidth: 32
             glyph: "⋯"
