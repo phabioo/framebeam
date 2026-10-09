@@ -58,9 +58,11 @@ class HwRenderContext {
   // PBOs or mapping fail or FRAMEBEAM_SYNC_READBACK=1 (read at createContext).
   //
   // maxSize (width/height in pixels, empty or non-positive component = no limit): when the w x h frame is larger,
-  // it is first downscaled on the GPU (glBlitFramebuffer, GL_LINEAR, aspect ratio kept, vertical flip done by the
-  // blit) into a second, smaller FBO and only that is read back. Never upscales. The scaled FBO follows the target
-  // size; if it cannot be created or the blit fails, the full-size frame is read back (and scaling stays off).
+  // it is first downscaled on the GPU (aspect ratio kept, never upscaled) and only that is read back: exact 2:1
+  // GL_LINEAR halvings (box filter) while the result stays >= the target, then one final GL_LINEAR blit with a
+  // ratio below 2:1, so no texel is skipped and nothing aliases. The vertical flip is done by the first blit. The
+  // chain's FBOs are cached per size; if one cannot be created or a blit fails, the full-size frame is read back
+  // (and scaling stays off).
   QImage readback(int w, int h, bool bottomLeftOrigin, const QSize& maxSize = {});
   // Size readback() uses for a w x h frame under maxSize (pure; no upscaling, aspect kept, never above maxSize).
   static QSize scaledReadbackSize(int w, int h, const QSize& maxSize);

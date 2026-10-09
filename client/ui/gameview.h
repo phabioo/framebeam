@@ -68,6 +68,7 @@ class GameView : public QQuickItem {
   QImage frame_;
   bool frameDirty_ = false;
   bool integerScale_ = true;
+  bool lastDown_ = false;  // the single-node texture was last created for a downscaled draw (filtered + mipmapped)
   bool touching_ = false;
   QRectF frameRect_;
   QString layout_ = QLatin1String(kLayoutStacked);
