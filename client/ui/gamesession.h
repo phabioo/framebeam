@@ -143,7 +143,10 @@ class GameSession : public QObject {
   bool liveSaveReady() const { return runner_ && (state_ == Running || state_ == Paused); }
   bool liveSaveAccepts(qint64 size);                 // the core's battery save memory has exactly this size
   void flushLiveSave();                              // the save file is current (the core flushes about every 3 s)
-  bool applyLiveSave(const QByteArray& data);        // replaces the battery save by reloading the game from the new file
+  // Replaces the battery save by restarting the game (stop = flush old save, write `saveFile`, start again like a normal start).
+  // Blocks until the old core is unloaded; the new core starts asynchronously (state Starting, then Running; no new started()).
+  // false = the file could not be written or the game could not be restarted (the game then runs with the old save).
+  bool restartWithSave(const QString& saveFile, const QByteArray& data);
 
   // Input (UI thread). Returns true if the key is mapped.
   bool keyEvent(int qtKey, bool pressed);
@@ -173,6 +176,7 @@ class GameSession : public QObject {
 
  private:
   void setState(State s);
+  void launch(const LaunchConfig& config, bool restart);
   void fail(const QString& msg);
   void teardown();
   void applyJoypad();
@@ -194,6 +198,8 @@ class GameSession : public QObject {
   QString error_;
   State state_ = Idle;
   bool startedEmitted_ = false;
+  bool restarting_ = false;  // a live-save restart is starting the core again
+  LaunchConfig config_;
   bool audioMuted_ = false;
   bool fastForwardSupported_ = false;
   bool fastForward_ = false;

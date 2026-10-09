@@ -157,7 +157,7 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     hooks.ready = [this]() { return session_.liveSaveReady(); };
     hooks.flush = [this]() { session_.flushLiveSave(); };
     hooks.accepts = [this](qint64 size) { return session_.liveSaveAccepts(size); };
-    hooks.apply = [this](const QByteArray& data) { return session_.applyLiveSave(data); };
+    hooks.apply = [this](const QByteArray& data) { return session_.restartWithSave(saves_->activeSaveFile(), data); };
     saves_->setLiveHooks(std::move(hooks));
   }
   {
