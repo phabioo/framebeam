@@ -247,7 +247,11 @@ SaveSync::CoreRef GameStarter::coreRefFor(const emu::SystemManifest& man) const 
     // env / explicit / app-dir core (development): the version the core reports, else a fixed marker
     version = catalog_->reportedCoreVersion(man.coreId);
   }
-  return {man.coreId, version.isEmpty() ? QStringLiteral("local") : version};
+  SaveSync::CoreRef ref{man.coreId, version.isEmpty() ? QStringLiteral("local") : version};
+  ref.saveSource = man.saveSource;
+  ref.fileExtension = man.saveExtension;
+  ref.fileFormat = man.saveFormat;
+  return ref;
 }
 
 void GameStarter::onSaveReady(const QString& gameId, const QString& saveDir, const QString& note) {

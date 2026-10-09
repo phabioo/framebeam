@@ -55,6 +55,12 @@ class ManifestTest : public QObject {
     QCOMPARE(des->coreOptions.value(QStringLiteral("desmume_screens_layout")), QStringLiteral("top/bottom"));
     QCOMPARE(des->coreOptions.value(QStringLiteral("desmume_screens_gap")), QStringLiteral("0"));
     QCOMPARE(des->coreOptions.value(QStringLiteral("desmume_pointer_type")), QStringLiteral("touch"));
+    QCOMPARE(des->saveSource, QStringLiteral("core_file"));
+    QCOMPARE(des->saveExtension, QStringLiteral(".dsv"));
+    QCOMPARE(des->saveFormat, QStringLiteral("desmume_dsv"));
+    QCOMPARE(mel->saveSource, QStringLiteral("save_ram"));
+    QCOMPARE(mel->saveExtension, QStringLiteral(".sav"));
+    QCOMPARE(mel->saveFormat, QStringLiteral("raw"));
     QCOMPARE(des->sysfileOption, QStringLiteral("desmume_use_external_bios"));
     QCOMPARE(des->sysfileNative, QStringLiteral("enabled"));
     QCOMPARE(des->sysfileBuiltin, QStringLiteral("disabled"));
@@ -98,6 +104,7 @@ class ManifestTest : public QObject {
     QVERIFY(m->experimental);
     QCOMPARE(m->coreId, QStringLiteral("noods"));
     QCOMPARE(m->coreLibraryBasename, QStringLiteral("noods_libretro"));
+    QCOMPARE(m->saveSource, QStringLiteral("auto"));  // SAVE_RAM when the core reports it, else the single file it writes
     QVERIFY(m->coreOptions.isEmpty());
     QVERIFY(m->lockedCoreOptions.isEmpty());
     QVERIFY(m->alwaysShownCoreOptions.isEmpty());
@@ -126,6 +133,7 @@ class ManifestTest : public QObject {
     QCOMPARE(p->coreId, QStringLiteral("a-b"));
     QCOMPARE(p->sysfileNative, QStringLiteral("native"));
     QCOMPARE(p->fileOptions.value(QStringLiteral("firmware")), QStringLiteral("fo"));
+    QVERIFY(!ManifestRegistry::parseProfile(R"({"core_id":"x","library_basename":"x","system_ids":["nds"],"save":{"source":"core_file","extension":"../x"}})", &err));
     QVERIFY(!ManifestRegistry::parseProfile("not json", &err));
     QVERIFY(!ManifestRegistry::parseProfile(R"({"core_id":"x","system_ids":["nds"]})", &err));
     QVERIFY(err.contains(QStringLiteral("library_basename")));

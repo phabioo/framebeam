@@ -57,7 +57,11 @@ class DesmumeCoreTest : public QObject {
     QVERIFY(be.frameCount() >= 90);
     QCOMPARE(be.videoFrame().size(), m_nds.display.frameSize());  // 256x384: top above bottom, no gap
     QCOMPARE(m_nds.display.frameSize(), QSize(256, 384));
-    QVERIFY2(be.saveMemorySize() > 0, "SAVE_RAM not present");
+    // DeSmuME manages its cartridge save itself (<content basename>.dsv): no libretro SAVE_RAM, the profile says core_file.
+    QVERIFY(be.saveMemorySize() <= 0);
+    QCOMPARE(m_nds.saveSource, QStringLiteral("core_file"));
+    QCOMPARE(m_nds.saveExtension, QStringLiteral(".dsv"));
+    QCOMPARE(m_nds.saveFormat, QStringLiteral("desmume_dsv"));
     be.unloadCore();
   }
 };

@@ -10,6 +10,10 @@
     "nds"
   ],
   "order": 0,
+  "save": {
+    "source": "save_ram",
+    "extension": ".sav"
+  },
   "firmware": {
     "sysfile_option": "melonds_sysfile_mode",
     "sysfile_native": "native",

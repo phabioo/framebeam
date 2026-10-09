@@ -18,7 +18,7 @@ constexpr const char* kStateFile = "sync.json";
 
 bool isCandidateName(const QString& name) {
   return !(name == QLatin1String(kStateFile) || name.endsWith(QLatin1String(".bak")) || name.endsWith(QLatin1String(".tmp")) ||
-           name.endsWith(QLatin1String(".part")) || name.startsWith(QLatin1Char('.')));
+           name.endsWith(QLatin1String(".part")) || name.endsWith(QLatin1String(".dsv")) || name.startsWith(QLatin1Char('.')));
 }
 }  // namespace
 
@@ -84,10 +84,17 @@ QString SaveStore::expectedSaveName(const QString& romPath) {
   return QFileInfo(romPath).completeBaseName() + QStringLiteral(".sav");
 }
 
-QString SaveStore::findSaveFile(const QString& gameDir, const QString& expectedName, QStringList* warnings) {
+QString SaveStore::expectedSaveName(const QString& romPath, const QString& extension) {
+  return QFileInfo(romPath).completeBaseName() + extension;
+}
+
+QString SaveStore::findSaveFile(const QString& gameDir, const QString& expectedName, QStringList* warnings, bool exactOnly) {
   const QDir dir(gameDir);
   if (!expectedName.isEmpty() && QFileInfo(dir.filePath(expectedName)).isFile()) {
     return dir.filePath(expectedName);
+  }
+  if (exactOnly && !expectedName.isEmpty()) {
+    return {};
   }
   const QFileInfoList files = dir.entryInfoList(QDir::Files | QDir::NoDotAndDotDot, QDir::Time);
   QFileInfoList cands;
@@ -123,6 +130,7 @@ SyncState SaveStore::loadState(const QString& gameDir) {
   s.updatedAt = QDateTime::fromString(o.value(QStringLiteral("updated_at")).toString(), Qt::ISODate);
   s.writerCoreId = o.value(QStringLiteral("writer_core_id")).toString();
   s.writerCoreVersion = o.value(QStringLiteral("writer_core_version")).toString();
+  s.coreFileSha256 = o.value(QStringLiteral("core_file_sha256")).toString();
   return s;
 }
 
@@ -136,7 +144,8 @@ bool SaveStore::saveState(const QString& gameDir, SyncState s) {
                       {QStringLiteral("last_error"), s.lastError},
                       {QStringLiteral("updated_at"), s.updatedAt.toString(Qt::ISODate)},
                       {QStringLiteral("writer_core_id"), s.writerCoreId},
-                      {QStringLiteral("writer_core_version"), s.writerCoreVersion}};
+                      {QStringLiteral("writer_core_version"), s.writerCoreVersion},
+                      {QStringLiteral("core_file_sha256"), s.coreFileSha256}};
   return atomicWrite(stateFilePath(gameDir), QJsonDocument(o).toJson(QJsonDocument::Indented));
 }
 

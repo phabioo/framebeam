@@ -67,6 +67,11 @@ struct SystemManifest {
   QString coreLibraryBasename;
   QStringList coreAliases;  // legacy ids of the core (e.g. melonds_ds)
   bool experimental = false;  // core without profile
+  // Save handling of the effective core (from its profile); "auto" = experimental core: SAVE_RAM when the core
+  // reports it, else whatever single file the core writes (today's behavior).
+  QString saveSource = QStringLiteral("auto");
+  QString saveExtension = QStringLiteral(".sav");
+  QString saveFormat = QStringLiteral("raw");
   QStringList extensions;  // lowercase, with dot
   FirmwareSpec firmware;
   QString inputProfile;
@@ -93,6 +98,12 @@ struct CoreProfile {
   QMap<QString, QString> coreOptions;  // defaults
   QStringList lockedCoreOptions;
   QStringList alwaysShownCoreOptions;
+  // Where the cartridge save lives (ADR 0020 D7): "save_ram" = libretro SAVE_RAM, persisted by the Player as
+  // <rom basename><extension> (raw); "core_file" = the core manages its own file <rom basename><extension> in the
+  // save directory in `saveFormat` ("desmume_dsv"); the Player converts around the core. The Hub stores raw saves only.
+  QString saveSource = QStringLiteral("save_ram");
+  QString saveExtension = QStringLiteral(".sav");
+  QString saveFormat = QStringLiteral("raw");
   QString sysfileOption;  // core option that switches built-in / external BIOS; empty = none
   QString sysfileNative = QStringLiteral("native");
   QString sysfileBuiltin = QStringLiteral("builtin");

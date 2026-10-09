@@ -1,5 +1,7 @@
 #include "savesync.h"
 
+#include "dsvsave.h"
+
 #include <QDir>
 #include <QEventLoop>
 #include <QFile>
@@ -187,13 +189,27 @@ void SaveSync::prepareStart(const QString& gameId, const QString& romPath, const
   }
   QDir().mkpath(a_.dir);
   a_.expectedName = SaveStore::expectedSaveName(romPath);
+  a_.exactSave = core.valid() && core.saveSource != QLatin1String("auto");
+  if (core.valid() && core.saveSource == QLatin1String("core_file") && core.fileFormat == QLatin1String("desmume_dsv")) {
+    a_.coreFileExt = core.fileExtension;
+    a_.coreFileFormat = core.fileFormat;
+  }
+  a_.st = SaveStore::loadState(a_.dir);
+  a_.st.slot = a_.slot;
+  if (!a_.coreFileExt.isEmpty()) {
+    // The core's own save of the last session may hold progress the raw save does not have yet: bring it in first.
+    QString err;
+    if (!importCoreFile(true, &err)) {
+      failStart(gen, tr("The save file %1 of %2 could not be read (%3). It was left untouched and the game was not started, so no progress is lost.")
+                         .arg(QFileInfo(coreFilePath()).fileName(), core.id, err));
+      return;
+    }
+  }
   QStringList warnings;
-  a_.file = SaveStore::findSaveFile(a_.dir, a_.expectedName, &warnings);
+  a_.file = findLocalSave(&warnings);
   for (const QString& w : warnings) {
     qCWarning(lcSaveSync) << w;
   }
-  a_.st = SaveStore::loadState(a_.dir);
-  a_.st.slot = a_.slot;  // pre-0.4 sync.json files have no slot choice: they belong to "default"
   if (a_.file.isEmpty()) {
     if (a_.slot == QLatin1String("default") &&
         SaveStore::migrateLegacy(SaveStore::legacyDir(*profiles_, a_.hubId), romBasenames, a_.dir, a_.expectedName)) {
@@ -202,6 +218,7 @@ void SaveSync::prepareStart(const QString& gameId, const QString& romPath, const
       a_.st = SyncState{};
       a_.st.writerCoreId = before.writerCoreId;
       a_.st.writerCoreVersion = before.writerCoreVersion;
+      a_.st.coreFileSha256 = before.coreFileSha256;
       a_.st.pending = true;  // counts as an unsynced local change (base 0)
       a_.file = QDir(a_.dir).filePath(a_.expectedName);
       persist();
@@ -220,12 +237,115 @@ void SaveSync::continueStart(quint64 gen) {
   if (!available()) {
     QTimer::singleShot(0, this, [this, gen]() {
       if (gen == gen_) {
-        emit startReady(a_.gameId, a_.dir, a_.coreNote.isEmpty() ? note() : (note().isEmpty() ? a_.coreNote : a_.coreNote + QLatin1Char(' ') + note()));
+        emitStartReady(note());
       }
     });
     return;
   }
   startSync();
+}
+
+QString SaveSync::findLocalSave(QStringList* warnings) const {
+  return SaveStore::findSaveFile(a_.dir, a_.expectedName, warnings, a_.exactSave);
+}
+
+QString SaveSync::coreFilePath() const {
+  return a_.coreFileExt.isEmpty() ? QString() : QDir(a_.dir).filePath(a_.gameId.isEmpty() ? QString() : SaveStore::expectedSaveName(a_.romPath, a_.coreFileExt));
+}
+
+bool SaveSync::importCoreFile(bool backup, QString* error) {
+  const QString path = coreFilePath();
+  QFile in(path);
+  if (path.isEmpty() || !in.exists()) {
+    return true;
+  }
+  if (!in.open(QIODevice::ReadOnly)) {
+    *error = in.errorString();
+    return false;
+  }
+  const QByteArray data = in.readAll();
+  in.close();
+  const QString sha = SaveStore::sha256Of(data);
+  if (sha == a_.st.coreFileSha256) {
+    return true;  // nothing new since the last export / import
+  }
+  const auto raw = dsv::dsvToRaw(data, error);
+  if (!raw) {
+    return false;  // never convert or upload what cannot be parsed
+  }
+  const QString rawFile = QDir(a_.dir).filePath(a_.expectedName);
+  QFile cur(rawFile);
+  const bool same = cur.open(QIODevice::ReadOnly) && cur.readAll() == *raw;
+  cur.close();
+  if (!same) {
+    if (backup) {
+      SaveStore::backupFile(rawFile, QStringLiteral("core-file"));
+    }
+    if (!SaveStore::atomicWrite(rawFile, *raw)) {
+      *error = tr("the raw save could not be written");
+      return false;
+    }
+  }
+  a_.file = rawFile;
+  a_.st.coreFileSha256 = sha;
+  persist();
+  return true;
+}
+
+bool SaveSync::exportCoreFile(QString* error) {
+  const QString path = coreFilePath();
+  const QString rawFile = QDir(a_.dir).filePath(a_.expectedName);
+  QFile in(rawFile);
+  if (path.isEmpty() || !in.open(QIODevice::ReadOnly)) {
+    return true;  // no save yet: the core starts fresh
+  }
+  const QByteArray raw = in.readAll();
+  in.close();
+  const auto d = dsv::rawToDsv(raw, error);
+  if (!d) {
+    return false;
+  }
+  if (!SaveStore::atomicWrite(path, *d)) {
+    *error = tr("the file could not be written");
+    return false;
+  }
+  a_.st.coreFileSha256 = SaveStore::sha256Of(*d);
+  persist();
+  return true;
+}
+
+bool SaveSync::pullCoreFile(bool force) {
+  const QString path = coreFilePath();
+  if (path.isEmpty()) {
+    return true;
+  }
+  const QFileInfo fi(path);
+  if (!fi.exists()) {
+    return true;
+  }
+  if (!force && fi.size() == a_.coreFileSize && fi.lastModified() == a_.coreFileMtime) {
+    return true;
+  }
+  a_.coreFileSize = fi.size();
+  a_.coreFileMtime = fi.lastModified();
+  QString err;
+  if (importCoreFile(false, &err)) {
+    return true;
+  }
+  if (force) {  // a half-written file is retried silently; a forced pull is the last chance of the session
+    emit coreSaveProblem(a_.gameId, tr("The save file %1 could not be converted (%2). It stays on this device untouched and was not uploaded; your Hub save is unchanged.")
+                                        .arg(fi.fileName(), err));
+  }
+  return false;
+}
+
+void SaveSync::emitStartReady(const QString& note) {
+  QString err;
+  if (!a_.coreFileExt.isEmpty() && !exportCoreFile(&err)) {
+    emit startFailed(a_.gameId, tr("The save cannot be prepared for the core (%1). The game was not started, so your save stays untouched.").arg(err));
+    return;
+  }
+  emit startReady(a_.gameId, a_.dir, a_.coreNote.isEmpty() ? note : (note.isEmpty() ? a_.coreNote : a_.coreNote + QLatin1Char(' ') + note));
 }
 
 QString SaveSync::coreChangeLabel(const CoreRef& from, const CoreRef& to) {
@@ -323,7 +443,7 @@ void SaveSync::startSync() {
 void SaveSync::readyToPlay(const QString& note) {
   dialogOpen_ = false;
   setKind(a_.gameId, a_.st, QFileInfo(a_.file).isFile());
-  emit startReady(a_.gameId, a_.dir, a_.coreNote.isEmpty() ? note : (note.isEmpty() ? a_.coreNote : a_.coreNote + QLatin1Char(' ') + note));
+  emitStartReady(note);
 }
 
 void SaveSync::onSlot(quint64 gen, const SaveApiResult& r) {
@@ -708,7 +828,7 @@ void SaveSync::beginSession() {
   }
   session_ = true;
   a_.pausedByConflict = !a_.st.conflictId.isEmpty();
-  const QString found = SaveStore::findSaveFile(a_.dir, a_.expectedName);
+  const QString found = findLocalSave();
   if (!found.isEmpty()) {
     a_.file = found;
   }
@@ -727,8 +847,9 @@ void SaveSync::poll() {
   if (!session_ || a_.gameId.isEmpty() || liveOp_) {
     return;
   }
+  pullCoreFile(false);
   if (!QFileInfo::exists(a_.file)) {
-    const QString found = SaveStore::findSaveFile(a_.dir, a_.expectedName);
+    const QString found = findLocalSave();
     if (!found.isEmpty()) {
       a_.file = found;
     }
@@ -856,7 +977,8 @@ void SaveSync::finalSync(bool sessionEnd) {
     return;
   }
   // Pick up the latest state of the file (the core just flushed it).
-  const QString found = SaveStore::findSaveFile(a_.dir, a_.expectedName);
+  pullCoreFile(true);
+  const QString found = findLocalSave();
   if (!found.isEmpty()) {
     a_.file = found;
   }

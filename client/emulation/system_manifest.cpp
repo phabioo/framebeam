@@ -165,6 +165,14 @@ std::optional<CoreProfile> ManifestRegistry::parseProfile(const QByteArray& json
   for (auto it = co.begin(); it != co.end(); ++it) p.coreOptions.insert(it.key(), it.value().toString());
   p.lockedCoreOptions = stringList(o.value(QLatin1String("locked_core_options")));
   p.alwaysShownCoreOptions = stringList(o.value(QLatin1String("always_shown_core_options")));
+  const QJsonObject save = o.value(QLatin1String("save")).toObject();
+  p.saveSource = save.value(QLatin1String("source")).toString(p.saveSource);
+  p.saveExtension = save.value(QLatin1String("extension")).toString(p.saveExtension);
+  p.saveFormat = save.value(QLatin1String("format")).toString(p.saveFormat);
+  if ((p.saveSource != QLatin1String("save_ram") && p.saveSource != QLatin1String("core_file")) || !p.saveExtension.startsWith(QLatin1Char('.')) ||
+      p.saveExtension.contains(QLatin1Char('/')) || p.saveExtension.contains(QLatin1Char('\\')) || p.saveExtension.size() < 2) {
+    return fail(QStringLiteral("save: invalid source or extension"));
+  }
   const QJsonObject fw = o.value(QLatin1String("firmware")).toObject();
   p.sysfileOption = fw.value(QLatin1String("sysfile_option")).toString();
   p.sysfileNative = fw.value(QLatin1String("sysfile_native")).toString(p.sysfileNative);
@@ -217,6 +225,9 @@ std::optional<SystemManifest> ManifestRegistry::resolve(const QString& systemId,
     m.coreAliases.removeAll(coreId);
     m.coreDisplayName = p->displayName;
     m.coreLibraryBasename = p->libraryBasename;
+    m.saveSource = p->saveSource;
+    m.saveExtension = p->saveExtension;
+    m.saveFormat = p->saveFormat;
     m.coreOptions = p->coreOptions;
     m.lockedCoreOptions = p->lockedCoreOptions;
     m.alwaysShownCoreOptions = p->alwaysShownCoreOptions;

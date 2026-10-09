@@ -21,6 +21,8 @@ struct SyncState {
   // Core (id + version) that last wrote this save on this Player (ADR 0020 D7); empty = not recorded yet.
   QString writerCoreId;
   QString writerCoreVersion;
+  // Core-managed save file (DeSmuME .dsv): hash of that file as last exported from / imported into the raw save.
+  QString coreFileSha256;
 };
 
 // File logic of the save sync (no network, no GUI).
@@ -47,7 +49,10 @@ class SaveStore {
   static QString expectedSaveName(const QString& romPath);
   // Path of the save file in a game dir: the expected name, otherwise the newest other candidate
   // (warning appended to *warnings if there are several). Empty if there is none.
-  static QString findSaveFile(const QString& gameDir, const QString& expectedName, QStringList* warnings = nullptr);
+  // exactOnly: only `expectedName` (profiled cores: never another file); core-managed mirrors (.dsv) are never candidates.
+  static QString findSaveFile(const QString& gameDir, const QString& expectedName, QStringList* warnings = nullptr, bool exactOnly = false);
+  // Save file name for a ROM path and extension (".sav" raw / ".dsv" core file).
+  static QString expectedSaveName(const QString& romPath, const QString& extension);
 
   static SyncState loadState(const QString& gameDir);
   static bool saveState(const QString& gameDir, SyncState state);

@@ -95,6 +95,11 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     startError_ = msg;
     emit selectedGameChanged();
   });
+  connect(saves_.get(), &SaveSync::coreSaveProblem, this, [this](const QString&, const QString& msg) {
+    qWarning().noquote() << msg;
+    startError_ = msg;  // shown with the game (detail pane); the save itself stays untouched
+    emit selectedGameChanged();
+  });
   connect(saves_.get(), &SaveSync::kindChanged, this, [this](const QString& gameId, SaveSync::Kind k) {
     model_.setSyncKind(gameId, SaveSync::kindName(k));
     if (gameId == selectedId_) {

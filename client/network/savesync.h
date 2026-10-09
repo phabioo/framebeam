@@ -160,6 +160,13 @@ class SaveSync : public QObject {
   struct CoreRef {
     QString id;
     QString version;
+    // Save handling of the core's profile (SystemManifest::saveSource/saveExtension/saveFormat). "auto" (experimental
+    // core): sync the newest candidate file as before. "save_ram" / "core_file": exactly <rom>.sav is synced, never
+    // another file. "core_file" with format "desmume_dsv": the core's own <rom><extension> is converted around the
+    // core (raw .sav <-> .dsv); the Hub only ever holds the raw save.
+    QString saveSource = QStringLiteral("auto");
+    QString fileExtension;
+    QString fileFormat;
     bool valid() const { return !id.isEmpty() && !version.isEmpty(); }
   };
   // Start sync before the core loads. The core's save dir comes with startReady().
@@ -167,7 +174,8 @@ class SaveSync : public QObject {
   // ("Before core change: <old id> <old ver> → <new id> <new ver>") is created before the start sync and the change is
   // reported in the startReady() note; a failed snapshot (or an unreachable Hub with a local save) ends in startFailed()
   // and the record stays unchanged. No record yet (first start): the core is only recorded.
-  void prepareStart(const QString& gameId, const QString& romPath, const QStringList& romBasenames, const CoreRef& core = {});
+  void prepareStart(const QString& gameId, const QString& romPath, const QStringList& romBasenames, const CoreRef& core);
+  void prepareStart(const QString& gameId, const QString& romPath, const QStringList& romBasenames) { prepareStart(gameId, romPath, romBasenames, CoreRef()); }
   static QString coreChangeLabel(const CoreRef& from, const CoreRef& to);  // at most 64 bytes (Hub limit)
   void resolveConflict(Resolution r);
   bool hasPendingConflictDialog() const { return dialogOpen_; }
@@ -193,6 +201,8 @@ class SaveSync : public QObject {
   void startFailed(const QString& gameId, const QString& message);
   void kindChanged(const QString& gameId, framebeam::SaveSync::Kind kind);
   void finalSyncFinished(const QString& gameId, bool ok);
+  // The core's own save file could not be converted; it stays untouched locally and is not uploaded.
+  void coreSaveProblem(const QString& gameId, const QString& message);
   void uploaded(const QString& gameId, int revision);  // after every accepted upload (tests/diagnostics)
   // save_updated from another device; runningHere = this game runs on this Player with that slot (next upload conflicts).
   void saveChangedElsewhere(const framebeam::SaveUpdate& update, bool runningHere);
@@ -214,7 +224,19 @@ class SaveSync : public QObject {
     bool uploadedOnce = false, failedOnce = false;
     int finalRequested = 0;  // 0 none, 1 final, 2 final_session_end
     QString coreNote;        // one-time notice about a core change, prepended to the start note
+    bool exactSave = false;  // profiled core: only <rom>.sav is the save, never another file in the directory
+    QString coreFileExt;     // core-managed save file next to it (".dsv"); empty = none
+    QString coreFileFormat;
+    qint64 coreFileSize = -1;
+    QDateTime coreFileMtime;
   };
+
+  QString findLocalSave(QStringList* warnings = nullptr) const;
+  QString coreFilePath() const;
+  bool importCoreFile(bool backup, QString* error);  // core file -> raw .sav when it changed since the last export/import
+  bool exportCoreFile(QString* error);               // raw .sav -> core file before the core starts
+  bool pullCoreFile(bool force);                     // session: import, error reported once on a forced pull
+  void emitStartReady(const QString& note);
 
   void continueStart(quint64 gen);
   void guardCoreChange(quint64 gen, const CoreRef& core);
