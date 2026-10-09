@@ -67,6 +67,8 @@ class PlayerController : public QObject {
   Q_PROPERTY(QVariantMap selectedGame READ selectedGame NOTIFY selectedGameChanged)
   // Game paused and kept loaded while the Library is shown: {id, title}; empty map when there is none (0.7.x).
   Q_PROPERTY(QVariantMap backgroundGame READ backgroundGame NOTIFY backgroundGameChanged)
+  // "Quit game" was asked for and is running ("Saving and syncing…" in the game panel and the Now running strip).
+  Q_PROPERTY(bool quitting READ quitting NOTIFY quittingChanged)
   // Confirmation "Quit {running} and start {new}?": {active, runningTitle, newTitle}
   Q_PROPERTY(QVariantMap startConfirm READ startConfirm NOTIFY startConfirmChanged)
   // Save sync (3d): conflict dialog data; empty map = no dialog
@@ -138,6 +140,7 @@ class PlayerController : public QObject {
   void adoptPreviewGame(const QString& gameId);
   QVariantMap startConfirm() const;
   bool gameInBackground() const { return background_; }
+  bool quitting() const { return quitting_; }
   GameSession* gameSession() { return &session_; }
   SessionController* sessions() { return sessions_.get(); }
   UpdatesController* updates() { return updates_.get(); }
@@ -234,6 +237,8 @@ class PlayerController : public QObject {
   Q_INVOKABLE void recheckFirmware();
   // Game view
   Q_INVOKABLE void quitGame();
+  // "Quit game" of the panel and the sidebar strip: shows the "Saving and syncing…" state for a moment, then quitGame().
+  Q_INVOKABLE void requestQuit();
   // Conflict dialog: "use_hub" | "use_local" | "later" (Keep both, decide later)
   Q_INVOKABLE void resolveSaveConflict(const QString& action);
 
@@ -246,6 +251,7 @@ class PlayerController : public QObject {
   void libraryStateChanged();
   void selectedGameChanged();
   void backgroundGameChanged();
+  void quittingChanged();
   void startConfirmChanged();
   void saveConflictChanged();
   void appearanceChanged();
@@ -325,6 +331,8 @@ class PlayerController : public QObject {
   bool background_ = false;      // gameActive_ and paused behind the Library (input blocked)
   QString backgroundId_;
   QString backgroundTitle_;
+  qint64 gameStartedMs_ = 0;     // epoch ms of the start of the running game ("12 min" in the Now running strip)
+  bool quitting_ = false;
   bool confirmActive_ = false;   // "Quit X and start Y?" is open
   bool confirmShare_ = false;
   void setBackground(bool on);

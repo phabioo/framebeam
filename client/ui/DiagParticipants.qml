@@ -8,6 +8,7 @@ ColumnLayout {
     id: root
     property var groups: []
     property bool grouped: false
+    property var badges: ({})         // surface id -> tile number: a key badge before each group (Multiview)
     spacing: 10
 
     FbLabel {
@@ -17,7 +18,7 @@ ColumnLayout {
         text: qsTr("No active session · appears when you share or watch one")
         wrapMode: Text.WordWrap
         font.pixelSize: 12
-        color: Theme.textTile
+        color: Theme.gameFaint
     }
     Repeater {
         model: root.groups
@@ -26,11 +27,27 @@ ColumnLayout {
             required property var modelData
             Layout.fillWidth: true
             spacing: 8
-            FbMono {
+            RowLayout {
                 visible: root.grouped
-                text: grp.modelData.title
-                font.pixelSize: 11
-                color: Theme.textFaint
+                Layout.minimumWidth: 0
+                spacing: 8
+                Rectangle {
+                    objectName: "diagGroupBadge"
+                    visible: root.badges[grp.modelData.surface] !== undefined
+                    Layout.preferredWidth: 20
+                    Layout.preferredHeight: 20
+                    radius: 4
+                    color: Theme.gameBadge
+                    FbMono { anchors.centerIn: parent; text: String(root.badges[grp.modelData.surface]); font.pixelSize: 11; color: Theme.gameBadgeText }
+                }
+                FbMono {
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    elide: Text.ElideRight
+                    text: grp.modelData.title
+                    font.pixelSize: 11
+                    color: Theme.gameFaint
+                }
             }
             Repeater {
                 model: grp.modelData.participants
@@ -42,9 +59,10 @@ ColumnLayout {
                     spacing: 2
                     RowLayout {
                         Layout.fillWidth: true
+                        Layout.minimumWidth: 0
                         spacing: 8
-                        FbLabel { text: person.modelData.name; font.pixelSize: 13; font.weight: Font.Medium; color: Theme.text }
-                        FbLabel { text: person.modelData.role; font.pixelSize: 11; color: Theme.textFaint }
+                        FbLabel { text: person.modelData.name; font.pixelSize: 13; font.weight: Font.Medium; color: Theme.gameText }
+                        FbLabel { text: person.modelData.role; font.pixelSize: 11; color: Theme.gameFaint }
                         Item { Layout.fillWidth: true }
                         FbPill { objectName: "diagParticipantPill"; small: true; text: person.modelData.pill; tone: person.modelData.tone }
                     }
@@ -54,7 +72,7 @@ ColumnLayout {
                         text: person.modelData.line2
                         wrapMode: Text.WordWrap
                         font.pixelSize: 11
-                        color: Theme.textMuted
+                        color: Theme.gameBadgeText
                     }
                     FbMono {
                         objectName: "diagParticipantLine3"
@@ -62,7 +80,7 @@ ColumnLayout {
                         text: person.modelData.line3
                         wrapMode: Text.WordWrap
                         font.pixelSize: 11
-                        color: Theme.textMeta
+                        color: Theme.gameMeta
                     }
                 }
             }

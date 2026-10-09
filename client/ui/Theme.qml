@@ -28,6 +28,38 @@ QtObject {
     readonly property color gameText: "#ecebe7"
     readonly property color gameTextMuted: "#a3a3a8"
 
+    // In-game view, revision v4 (docs/design/tokens.md "Additions"): header groups, popovers, tiles, selection.
+    readonly property color gameAccent: "#3cbfd8"
+    readonly property color gameGroupBg: "#16171a"
+    readonly property color gameGroupBorder: "#26272b"
+    readonly property color gameHover: "#1f2024"
+    readonly property color gameTrack: "#1a1b1e"
+    readonly property color gameSegmentOn: "#2c2d32"
+    readonly property color gameDivider: "#2c2d32"
+    readonly property color gameSplitDivider: "#34353a"
+    readonly property color gamePopover: "#1d1e22"
+    readonly property color gamePopoverBorder: "#34353a"
+    readonly property color gameOnBg: "#15262b"
+    readonly property color gameOnBorder: "#1f4650"
+    readonly property color gameDangerBg: "#2a1a17"
+    readonly property color gameDangerBorder: "#4a2a24"
+    readonly property color gameDanger: "#ef8a78"
+    readonly property color gameTile: "#0f1011"
+    readonly property color gameTileHover: "#141517"
+    readonly property color gameSelection: "#ecebe7"
+    readonly property color gameChip: Qt.rgba(17 / 255, 18 / 255, 20 / 255, 0.88)
+    readonly property color gameOk: "#6fd39a"
+    readonly property color gameOkBg: "#17291f"
+    readonly property color gameMeta: "#8e8e94"
+    readonly property color gameFaint: "#7d7d83"
+    readonly property color gameKeyLine: "#3a3b40"
+    readonly property color gameBadge: "#26272b"
+    readonly property color gameBadgeText: "#c9c8c4"
+    readonly property color gameOverlayBg: Qt.rgba(17 / 255, 18 / 255, 20 / 255, 0.95)
+    // "Now running" strip in the sidebar (follows dark/light)
+    readonly property color accentBoxBorder: dark ? "#1f4650" : "#a6d9e6"
+    readonly property color accentOutline: dark ? "#2b5560" : "#a6d9e6"
+
     readonly property color borderSidebar: dark ? "#232428" : "#e3e1dc"
     readonly property color borderCard: dark ? "#26272b" : "#e3e1dc"
     readonly property color borderInput: dark ? "#2c2d32" : "#d9d7d1"
