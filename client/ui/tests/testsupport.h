@@ -53,7 +53,8 @@ inline void countingHandler(QtMsgType type, const QMessageLogContext& ctx, const
   // (fonts, multimedia/audio backend without a device, platform) deliberately do not cause a failure.
   if (type == QtWarningMsg || type == QtCriticalMsg) {
     const bool qml = msg.contains(QLatin1String(".qml")) || msg.contains(QLatin1String("qrc:/")) ||
-                     msg.contains(QLatin1String("QML")) ||
+                     msg.contains(QLatin1String("QML")) || msg.contains(QLatin1String("Qt Quick Layouts")) ||
+                     msg.contains(QLatin1String("recursive rearrange")) || msg.contains(QLatin1String("Polish loop")) ||
                      (ctx.category != nullptr && (QByteArrayView(ctx.category).startsWith("qt.qml") ||
                                                   QByteArrayView(ctx.category).startsWith("qt.quick")));
     if (qml) {

@@ -269,13 +269,7 @@ void SaveSync::onSlot(quint64 gen, const SaveApiResult& r) {
 
 void SaveSync::onHubSlot(quint64 gen, const SaveSlotInfo& slot) {
   const int h = slot.current.revision;
-  std::optional<SaveConflictInfo> own;
-  for (const SaveConflictInfo& c : slot.openConflicts) {
-    const bool mine = conn_->deviceId().isEmpty() || c.securedDeviceId == conn_->deviceId();
-    if (c.isOpen() && mine && (!own || c.id == a_.st.conflictId)) {
-      own = c;
-    }
-  }
+  const std::optional<SaveConflictInfo> own = ownConflict(slot, a_.st.conflictId);
   if (own) {
     showConflict(*own);
     return;
@@ -384,21 +378,36 @@ void SaveSync::uploadAtStart(quint64 gen, const QString& sha) {
                });
 }
 
+std::optional<SaveConflictInfo> SaveSync::ownConflict(const SaveSlotInfo& slot, const QString& preferredId) const {
+  std::optional<SaveConflictInfo> own;
+  for (const SaveConflictInfo& c : slot.openConflicts) {
+    const bool mine = conn_->deviceId().isEmpty() || c.securedDeviceId == conn_->deviceId();
+    if (c.isOpen() && mine && (!own || c.id == preferredId)) {
+      own = c;
+    }
+  }
+  return own;
+}
+
+SaveSync::ConflictView SaveSync::makeConflictView(const SaveConflictInfo& c, const QString& gameId, const QString& file) const {
+  ConflictView v;
+  v.conflict = c;
+  v.gameId = gameId;
+  v.localDeviceName = profiles_->deviceName();
+  const QFileInfo fi(file);
+  v.localModified = fi.exists() ? fi.lastModified() : QDateTime();
+  v.localSha256 = SaveStore::sha256OfFile(file);
+  v.localBaseRevision = c.securedBaseRevision;
+  return v;
+}
+
 void SaveSync::showConflict(const SaveConflictInfo& c) {
   a_.conflict = c;
   a_.st.conflictId = c.id;
   a_.st.pending = true;
   persist();
   dialogOpen_ = true;
-  ConflictView v;
-  v.conflict = c;
-  v.gameId = a_.gameId;
-  v.localDeviceName = profiles_->deviceName();
-  const QFileInfo fi(a_.file);
-  v.localModified = fi.exists() ? fi.lastModified() : QDateTime();
-  v.localSha256 = SaveStore::sha256OfFile(a_.file);
-  v.localBaseRevision = c.securedBaseRevision;
-  emit startConflict(v);
+  emit startConflict(makeConflictView(c, a_.gameId, a_.file));
 }
 
 void SaveSync::resolveConflict(Resolution res) {
@@ -418,12 +427,17 @@ void SaveSync::resolveConflict(Resolution res) {
   const auto fail = [this](const SaveApiResult& r) {
     using K = SaveApiResult::Kind;
     if (r.kind == K::Stale) {
+      if (resolveCb_) {  // saves view: no reconcile (it would start the play flow); the view loads the conflict again
+        resolveError(tr("The save changed on the Hub in the meantime. Nothing was changed; check the conflict again."), SaveRestoreResult::Outcome::Stale);
+        return;
+      }
       dialogOpen_ = false;
       startSync();  // the Hub changed meanwhile: reconcile again, dialog shows the new state
       return;
     }
-    emit resolveFailed(r.kind == K::Offline ? tr("Hub not reachable. Nothing was changed.")
-                                            : tr("The conflict could not be resolved (%1). Nothing was changed.").arg(r.errorCode));
+    resolveError(r.kind == K::Offline ? tr("Hub not reachable. Nothing was changed.")
+                                      : tr("The conflict could not be resolved (%1). Nothing was changed.").arg(r.errorCode),
+                 r.kind == K::Offline ? SaveRestoreResult::Outcome::Offline : SaveRestoreResult::Outcome::Failed);
   };
   if (res == Resolution::UseLocal) {
     api_.resolve(a_.gameId, a_.st.slot, c.id, QStringLiteral("use_local"), c.hubRevision, [this, gen, fail](const SaveApiResult& r) {
@@ -453,7 +467,9 @@ void SaveSync::resolveConflict(Resolution res) {
             a_.st.pending = false;
             a_.st.lastError.clear();
             persist();
-            readyToPlay(QString());
+            resolvedOk(QString());
+          } else if (resolveCb_) {
+            resolvedOk(tr("Resolved on the Hub; the local save is fetched at the next start."));
           } else {
             dialogOpen_ = false;
             startSync();  // reconcile again: Hub slot without a local file -> download (or offline note)
@@ -468,7 +484,7 @@ void SaveSync::resolveConflict(Resolution res) {
       a_.st.conflictId.clear();
       a_.st.lastError.clear();
       persist();
-      readyToPlay(QString());
+      resolvedOk(QString());
     });
     return;
   }
@@ -481,13 +497,17 @@ void SaveSync::resolveConflict(Resolution res) {
       fail(cr);
       return;
     }
+    if (resolveLive_ && !(live_.accepts && live_.accepts(cr.content.size()))) {
+      resolveError(tr("The running game cannot load this save. Nothing was changed; quit the game and resolve the conflict at the next start."));
+      return;
+    }
     // The local file must be backed up BEFORE anything changes; if that fails nothing is changed.
     if (QFileInfo(a_.file).isFile()) {
       const QString bak = backupHook_ ? backupHook_(a_.file, QStringLiteral("local")) : SaveStore::backupFile(a_.file, QStringLiteral("local"));
       if (bak.isEmpty()) {
         a_.st.lastError = QStringLiteral("backup_failed");
         persist();
-        emit resolveFailed(tr("Could not back up the local save; nothing was changed."));
+        resolveError(tr("Could not back up the local save; nothing was changed."));
         return;
       }
     }
@@ -501,10 +521,11 @@ void SaveSync::resolveConflict(Resolution res) {
                      fail(r);
                      return;
                    }
-                   if (!SaveStore::atomicWrite(a_.file, cr.content)) {
+                   if (!writeResolvedSave(cr.content)) {
                      a_.st.lastError = QStringLiteral("write_failed");
                      persist();
-                     emit resolveFailed(tr("The Hub save could not be written locally."));
+                     resolveError(resolveLive_ ? tr("The Hub save is now current, but the running game could not load it. Quit the game and start it again to use it.")
+                                               : tr("The Hub save could not be written locally."));
                      return;
                    }
                    a_.st.baseRevision = r.slot->current.revision;
@@ -513,9 +534,68 @@ void SaveSync::resolveConflict(Resolution res) {
                    a_.st.conflictId.clear();
                    a_.st.lastError.clear();
                    persist();
-                   readyToPlay(QString());
+                   resolvedOk(QString());
                  });
   });
+}
+
+bool SaveSync::writeResolvedSave(const QByteArray& data) {
+  if (resolveLive_) {
+    return live_.apply && live_.apply(data);  // the emulation thread writes memory and file, then resets the core
+  }
+  return SaveStore::atomicWrite(a_.file, data);
+}
+
+void SaveSync::resyncActiveFile() {
+  const QFileInfo fi(a_.file);
+  a_.lastMtime = fi.exists() ? fi.lastModified() : QDateTime();
+  a_.lastSize = fi.exists() ? fi.size() : -1;
+  a_.lastHash = fi.exists() ? SaveStore::sha256OfFile(a_.file) : QString();
+  a_.dirty = a_.st.pending && fi.exists();
+  a_.sinceChange.restart();
+}
+
+void SaveSync::resolvedOk(const QString& note) {
+  if (!resolveCb_) {
+    readyToPlay(note);
+    return;
+  }
+  const RestoreCallback cb = std::move(resolveCb_);
+  resolveCb_ = nullptr;
+  dialogOpen_ = false;
+  setKind(a_.gameId, a_.st, QFileInfo(a_.file).isFile());
+  RestoreResult r;
+  r.kind = SaveRestoreResult::Outcome::Ok;
+  r.message = note;
+  r.revision = a_.st.baseRevision;
+  r.localUpdated = true;
+  if (resolveLive_) {
+    a_.pausedByConflict = false;
+    a_.conflict.reset();
+    resyncActiveFile();
+  } else {
+    a_ = Active{};
+  }
+  resolveLive_ = false;
+  cb(r);
+}
+
+void SaveSync::resolveError(const QString& message, SaveRestoreResult::Outcome kind) {
+  if (!resolveCb_) {
+    emit resolveFailed(message);
+    return;
+  }
+  const RestoreCallback cb = std::move(resolveCb_);
+  resolveCb_ = nullptr;
+  dialogOpen_ = false;
+  if (!resolveLive_) {
+    a_ = Active{};
+  }
+  resolveLive_ = false;
+  RestoreResult r;
+  r.kind = kind;
+  r.message = message;
+  cb(r);
 }
 
 // ---------------------------------------------------------------- Session: checkpoints and final sync
@@ -542,7 +622,7 @@ void SaveSync::beginSession() {
 }
 
 void SaveSync::poll() {
-  if (!session_ || a_.gameId.isEmpty()) {
+  if (!session_ || a_.gameId.isEmpty() || liveOp_) {
     return;
   }
   if (!QFileInfo::exists(a_.file)) {
@@ -579,7 +659,7 @@ void SaveSync::pump() {
                   [this](UploadOutcome o) { finishFinal(o == UploadOutcome::Clean || o == UploadOutcome::Uploaded); });
     return;
   }
-  if (!a_.dirty || a_.pausedByConflict || !available() || !sameHub(a_.hubId)) {
+  if (!a_.dirty || a_.pausedByConflict || liveOp_ || !available() || !sameHub(a_.hubId)) {
     return;
   }
   if (a_.sinceChange.elapsed() < timing_.debounceMs) {
@@ -884,6 +964,10 @@ void SaveSync::restoreVersion(const QString& gameId, const QString& slot, int ve
     finish(RK::Failed, tr("The Hub does not support restoring saves."));
     return;
   }
+  if (liveApplyAvailable(gameId, slot)) {
+    restoreVersionLive(gameId, slot, version, expectedRevision, cb);
+    return;
+  }
   if (const QString why = pendingReason(gameId, slot); !why.isEmpty()) {
     finish(RK::Blocked, why);
     return;
@@ -969,6 +1053,10 @@ void SaveSync::uploadSaveFile(const QString& gameId, const QString& slot, const 
   };
   if (!hubSupportsSavesV4() || !available()) {
     finish(RK::Failed, tr("The Hub does not support uploading save files."));
+    return;
+  }
+  if (liveApplyAvailable(gameId, slot)) {
+    uploadSaveFileLive(gameId, slot, filePath, expectedRevision, cb);
     return;
   }
   if (const QString why = pendingReason(gameId, slot); !why.isEmpty()) {
@@ -1067,6 +1155,382 @@ void SaveSync::uploadSaveFile(const QString& gameId, const QString& slot, const 
   });
 }
 
+// ---------------------------------------------------------------- Live save and conflicts outside the play flow
+
+QString SaveSync::liveBlockReason(const QString& gameId, const QString& slot) const {
+  if (!liveApplyAvailable(gameId, slot)) {
+    return tr("This game is running on this Player. Quit it to restore a version.");
+  }
+  if (!a_.st.conflictId.isEmpty()) {
+    return tr("This slot has an open save conflict. Resolve it first.");
+  }
+  return {};
+}
+
+void SaveSync::livePrelude(const QString& gameId, const QString& slot, int expectedRevision,
+                           std::function<void(bool, int, const QString&)> next) {
+  if (!liveApplyAvailable(gameId, slot) || liveOp_) {
+    QTimer::singleShot(0, this, [next]() { next(false, 0, tr("This game is running on this Player. Quit it to restore a version.")); });
+    return;
+  }
+  if (const QString why = liveBlockReason(gameId, slot); !why.isEmpty()) {
+    QTimer::singleShot(0, this, [next, why]() { next(false, 0, why); });
+    return;
+  }
+  liveOp_ = true;
+  if (live_.flush) {
+    live_.flush();
+  }
+  const int before = a_.st.baseRevision;
+  auto conn = std::make_shared<QMetaObject::Connection>();
+  *conn = connect(this, &SaveSync::finalSyncFinished, this, [this, conn, gameId, before, expectedRevision, next](const QString& id, bool ok) {
+    if (!id.isEmpty() && id != gameId) {
+      return;
+    }
+    disconnect(*conn);
+    if (id.isEmpty() || !ok) {
+      liveOp_ = false;
+      next(false, 0, tr("The current save could not be uploaded first. Nothing was changed."));
+      return;
+    }
+    next(true, a_.st.baseRevision != before ? a_.st.baseRevision : expectedRevision, QString());
+  });
+  finalSync(false);  // existing final-sync path: a changed save becomes a Hub version first, so nothing is lost
+}
+
+// Backup of the local save, then the running core takes `data`; the sync state follows. Never leaves the file and the core apart.
+SaveSync::RestoreResult SaveSync::applyLiveContent(const QByteArray& data, int newRevision, const QString& backupTag) {
+  using RK = RestoreResult::Outcome;
+  RestoreResult out;
+  out.kind = RK::Ok;
+  out.revision = newRevision;
+  const QString quitHint = tr("Quit the game and start it again to use it.");
+  if (!live_.accepts || !live_.accepts(data.size())) {
+    out.message = tr("Done on the Hub, but the running game cannot load this save. %1").arg(quitHint);
+    return out;
+  }
+  if (QFileInfo(a_.file).isFile()) {
+    const QString bak = backupHook_ ? backupHook_(a_.file, backupTag) : SaveStore::backupFile(a_.file, backupTag);
+    if (bak.isEmpty()) {
+      out.message = tr("Done on the Hub; the local save could not be backed up, so the running game was not changed. %1").arg(quitHint);
+      return out;
+    }
+  }
+  if (!live_.apply || !live_.apply(data)) {
+    out.message = tr("Done on the Hub, but the running game could not load the save. %1").arg(quitHint);
+    return out;
+  }
+  a_.st.baseRevision = newRevision;
+  a_.st.lastSyncedSha256 = SaveStore::sha256Of(data);
+  a_.st.pending = false;
+  a_.st.conflictId.clear();
+  a_.st.lastError.clear();
+  persist();
+  resyncActiveFile();
+  out.localUpdated = true;
+  return out;
+}
+
+void SaveSync::restoreVersionLive(const QString& gameId, const QString& slot, int version, int expectedRevision, RestoreCallback cb) {
+  using RK = RestoreResult::Outcome;
+  const auto done = [this, cb](const RestoreResult& r) {
+    liveOp_ = false;
+    cb(r);
+  };
+  if (const QString why = liveBlockReason(gameId, slot); !why.isEmpty()) {
+    QTimer::singleShot(0, this, [cb, why]() { cb({RK::Blocked, why, 0, false}); });
+    return;
+  }
+  const QString hubId = conn_->hubId();
+  api_.listHistory(gameId, slot, [=, this](const SaveApiResult& hr) {
+    qint64 size = -1;
+    for (const SaveHistoryVersion& v : hr.history) {
+      if (v.version == version) {
+        size = v.size;
+      }
+    }
+    if (hr.ok() && size < 0) {
+      cb({RK::NotFound, tr("That version no longer exists on the Hub."), 0, false});
+      return;
+    }
+    if (hr.ok() && !(live_.accepts && live_.accepts(size))) {
+      cb({RK::Blocked, tr("The running game cannot load this version. Quit the game to restore it."), 0, false});
+      return;
+    }
+    livePrelude(gameId, slot, expectedRevision, [=, this](bool ok, int revision, const QString& message) {
+      if (!ok) {
+        cb({RK::Blocked, message, 0, false});
+        return;
+      }
+      api_.restore(gameId, slot, version, revision, [=, this](const SaveApiResult& r) {
+        using K = SaveApiResult::Kind;
+        if (!sameHub(hubId)) {
+          done({RK::Failed, tr("The Hub connection changed."), 0, false});
+          return;
+        }
+        switch (r.kind) {
+          case K::Ok:
+            break;
+          case K::Stale:
+            done({RK::Stale, tr("The save changed on the Hub in the meantime. Nothing was restored."), 0, false});
+            return;
+          case K::NotFound:
+            done({RK::NotFound, tr("That version no longer exists on the Hub."), 0, false});
+            return;
+          case K::Offline:
+            done({RK::Offline, tr("Hub not reachable. Nothing was changed."), 0, false});
+            return;
+          default:
+            done({RK::Failed, tr("The version could not be restored (%1). Nothing was changed.").arg(r.errorCode.isEmpty() ? QString::number(r.status) : r.errorCode),
+                  0, false});
+            return;
+        }
+        const int newRevision = r.slot->current.revision;
+        api_.getContent(gameId, slot, [=, this](const SaveApiResult& cr) {
+          if (!sameHub(hubId) || !isRunning(gameId, slot)) {
+            done({RK::Ok, QString(), newRevision, false});
+            return;
+          }
+          if (!cr.ok()) {
+            done({RK::Ok, tr("Restored on the Hub; the running game keeps its save until the next start."), newRevision, false});
+            return;
+          }
+          done(applyLiveContent(cr.content, cr.contentRevision, QStringLiteral("restore")));
+        });
+      });
+    });
+  });
+}
+
+void SaveSync::uploadSaveFileLive(const QString& gameId, const QString& slot, const QString& filePath, int expectedRevision, RestoreCallback cb) {
+  using RK = RestoreResult::Outcome;
+  const auto fail = [this, cb](RK kind, const QString& message) {
+    RestoreResult r;
+    r.kind = kind;
+    r.message = message;
+    QTimer::singleShot(0, this, [cb, r]() { cb(r); });
+  };
+  if (const QString why = liveBlockReason(gameId, slot); !why.isEmpty()) {
+    fail(RK::Blocked, why);
+    return;
+  }
+  const QFileInfo info(filePath);
+  if (!info.isFile()) {
+    fail(RK::Failed, tr("The file could not be read."));
+    return;
+  }
+  if (info.size() == 0) {
+    fail(RK::Failed, tr("The file is empty. Nothing was uploaded."));
+    return;
+  }
+  if (info.size() > kMaxSaveBytes) {
+    fail(RK::Failed, tr("The file is larger than %1 MiB. Nothing was uploaded.").arg(kMaxSaveBytes / (1024 * 1024)));
+    return;
+  }
+  QFile in(filePath);
+  if (!in.open(QIODevice::ReadOnly)) {
+    fail(RK::Failed, tr("The file could not be read."));
+    return;
+  }
+  const QByteArray data = in.readAll();
+  in.close();
+  if (!(live_.accepts && live_.accepts(data.size()))) {
+    fail(RK::Blocked, tr("The running game cannot load a save of this size. Quit the game to upload it."));
+    return;
+  }
+  const QString hubId = conn_->hubId();
+  const auto done = [this, cb](const RestoreResult& r) {
+    liveOp_ = false;
+    cb(r);
+  };
+  livePrelude(gameId, slot, expectedRevision, [=, this](bool ok, int revision, const QString& message) {
+    if (!ok) {
+      cb({RK::Blocked, message, 0, false});
+      return;
+    }
+    api_.uploadFile(gameId, slot, data, revision, [=, this](const SaveApiResult& r) {
+      using K = SaveApiResult::Kind;
+      if (!sameHub(hubId)) {
+        done({RK::Failed, tr("The Hub connection changed."), 0, false});
+        return;
+      }
+      switch (r.kind) {
+        case K::Ok:
+          break;
+        case K::Stale:
+          done({RK::Stale, tr("The save changed on the Hub in the meantime. Nothing was uploaded."), 0, false});
+          return;
+        case K::NotFound:
+          done({RK::NotFound, tr("The game or slot was not found on the Hub."), 0, false});
+          return;
+        case K::Offline:
+          done({RK::Offline, tr("Hub not reachable. Nothing was changed."), 0, false});
+          return;
+        default:
+          done({RK::Failed, tr("The file could not be uploaded (%1). Nothing was changed.").arg(r.errorCode.isEmpty() ? QString::number(r.status) : r.errorCode),
+                0, false});
+          return;
+      }
+      done(applyLiveContent(data, r.slot->current.revision, QStringLiteral("upload")));
+    });
+  });
+}
+
+void SaveSync::loadSlotConflict(const QString& gameId, const QString& slot, const QString& localFileName, ConflictCallback cb) {
+  using O = SlotConflict::Outcome;
+  if (!available()) {
+    QTimer::singleShot(0, this, [cb]() {
+      SlotConflict c;
+      c.kind = O::Offline;
+      c.message = tr("Hub not reachable. The conflict cannot be shown right now.");
+      cb(c);
+    });
+    return;
+  }
+  const QString hubId = conn_->hubId();
+  api_.getSlot(gameId, slot, [=, this](const SaveApiResult& r) {
+    SlotConflict out;
+    if (!sameHub(hubId) || r.kind == SaveApiResult::Kind::Offline) {
+      out.kind = O::Offline;
+      out.message = tr("Hub not reachable. The conflict cannot be shown right now.");
+      cb(out);
+      return;
+    }
+    if (!r.ok()) {
+      out.kind = r.kind == SaveApiResult::Kind::NotFound ? O::None : O::Failed;
+      out.message = tr("The conflict could not be loaded (%1).").arg(r.errorCode.isEmpty() ? QString::number(r.status) : r.errorCode);
+      cb(out);
+      return;
+    }
+    const QString dir = slotDirFor(gameId, slot);
+    const QString preferred = dir.isEmpty() ? QString() : SaveStore::loadState(dir).conflictId;
+    const std::optional<SaveConflictInfo> own = ownConflict(*r.slot, preferred);
+    if (!own) {
+      out.kind = O::None;
+      if (!dir.isEmpty() && !isRunning(gameId, slot) && !dialogOpen_) {
+        // Resolved elsewhere (e.g. in the Hub web interface): drop the local conflict marker; the next start reconciles.
+        SyncState st = SaveStore::loadState(dir);
+        if (!st.conflictId.isEmpty()) {
+          st.conflictId.clear();
+          st.slot = slot;
+          SaveStore::saveState(dir, st);
+          if (slot == slotFor(gameId)) {
+            refreshKinds({gameId});
+          }
+        }
+      }
+      cb(out);
+      return;
+    }
+    QString file = isRunning(gameId, slot) ? a_.file : (dir.isEmpty() ? QString() : SaveStore::findSaveFile(dir, localFileName));
+    out.kind = O::Found;
+    out.view = makeConflictView(*own, gameId, file);
+    out.localExists = !file.isEmpty() && QFileInfo(file).isFile();
+    out.localSize = out.localExists ? QFileInfo(file).size() : 0;
+    out.hubSize = r.slot->current.size;
+    cb(out);
+  });
+}
+
+void SaveSync::resolveSlotConflict(const QString& gameId, const QString& slot, Resolution res, const QString& localFileName, RestoreCallback cb) {
+  using RK = RestoreResult::Outcome;
+  const auto fail = [this, cb](RK kind, const QString& message) {
+    RestoreResult r;
+    r.kind = kind;
+    r.message = message;
+    QTimer::singleShot(0, this, [cb, r]() { cb(r); });
+  };
+  if (res == Resolution::DecideLater) {
+    fail(RK::Ok, QString());
+    return;
+  }
+  if (!available()) {
+    fail(RK::Offline, tr("Hub not reachable. Nothing was changed."));
+    return;
+  }
+  if (resolveCb_ || dialogOpen_ || liveOp_) {
+    fail(RK::Blocked, tr("Another save action is in progress."));
+    return;
+  }
+  const bool live = isRunning(gameId, slot);
+  if (live) {
+    if (!liveApplyAvailable(gameId, slot) && res == Resolution::UseHub) {
+      fail(RK::Blocked, tr("This game is running on this Player. Quit it to use the Hub save."));
+      return;
+    }
+    if (live_.flush) {
+      live_.flush();  // the local side is the game's current save
+    }
+  } else {
+    if (session_ && a_.gameId != gameId) {
+      fail(RK::Blocked, tr("Another game is running. Quit it first."));
+      return;
+    }
+    const QString dir = SaveStore::slotDir(*profiles_, conn_->hubId(), conn_->hubUserId(), gameId, slot);
+    if (dir.isEmpty()) {
+      fail(RK::Failed, tr("The save directory for this game is unknown."));
+      return;
+    }
+    ++gen_;
+    pollTimer_.stop();
+    session_ = false;
+    a_ = Active{};
+    a_.gameId = gameId;
+    a_.slot = slot;
+    a_.hubId = conn_->hubId();
+    a_.userId = conn_->hubUserId();
+    a_.dir = dir;
+    QDir().mkpath(dir);
+    a_.expectedName = localFileName;
+    a_.file = SaveStore::findSaveFile(dir, localFileName);
+    if (a_.file.isEmpty()) {
+      a_.file = QDir(dir).filePath(localFileName);
+    }
+    a_.st = SaveStore::loadState(dir);
+    a_.st.slot = slot;
+  }
+  const QString hubId = conn_->hubId();
+  api_.getSlot(gameId, slot, [=, this](const SaveApiResult& r) {
+    const auto abort = [&](RK kind, const QString& message) {
+      if (!live) {
+        a_ = Active{};
+      }
+      RestoreResult out;
+      out.kind = kind;
+      out.message = message;
+      cb(out);
+    };
+    if (!sameHub(hubId) || r.kind == SaveApiResult::Kind::Offline) {
+      abort(RK::Offline, tr("Hub not reachable. Nothing was changed."));
+      return;
+    }
+    if (!r.ok()) {
+      abort(RK::Failed, tr("The conflict could not be loaded (%1). Nothing was changed.").arg(r.errorCode.isEmpty() ? QString::number(r.status) : r.errorCode));
+      return;
+    }
+    const std::optional<SaveConflictInfo> own = ownConflict(*r.slot, a_.st.conflictId);
+    if (!own) {
+      // Resolved elsewhere (e.g. in the Hub web interface): drop the local marker so the slot is usable again.
+      if (!a_.st.conflictId.isEmpty()) {
+        a_.st.conflictId.clear();
+        persist();
+      }
+      if (live) {
+        a_.pausedByConflict = false;
+      }
+      abort(RK::NotFound, tr("The conflict was already resolved elsewhere."));
+      return;
+    }
+    a_.conflict = *own;
+    a_.st.conflictId = own->id;
+    a_.st.pending = true;
+    dialogOpen_ = true;
+    resolveCb_ = cb;
+    resolveLive_ = live;
+    resolveConflict(res);
+  });
+}
+
 namespace {
 SaveSnapshotResult snapshotResultOf(const SaveApiResult& r) {
   using K = SaveApiResult::Kind;
@@ -1133,6 +1597,9 @@ void SaveSync::snapshotActive(const QString& label, SnapshotCallback cb) {
     }
     createSnapshot(gameId, slot, label, cb);
   });
+  if (live_.flush) {
+    live_.flush();  // the core writes its save RAM to the file first, so the snapshot includes the latest progress
+  }
   finalSync(false);  // existing final-sync path: uploads a changed save immediately
 }
 

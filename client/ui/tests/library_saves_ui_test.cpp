@@ -10,6 +10,8 @@
 #include <QtTest>
 
 #include "fakehub.h"
+#include "savestore.h"
+#include "savesync.h"
 #include "testsupport.h"
 
 using namespace framebeam;
@@ -112,6 +114,53 @@ class LibrarySavesUiTest : public QObject {
     return it != nullptr && it->isVisible();
   }
   static bool confirming(Harness& h) { return h.item("detailPane") != nullptr && h.item("detailPane")->property("confirming").toBool(); }
+
+  // An open save conflict of g1 without the game start flow (that would open the start dialog): the Hub holds a newer
+  // checkpoint and the conflict with this device's secured upload, this device holds an unsynced local save.
+  struct ConflictSeed {
+    QString dir, file;
+  };
+  static ConflictSeed seedConflict(Harness& h, FakeHub& hub, const QString& id, const QByteArray& hubContent, const QByteArray& local) {
+    FakeSlot& s = hub.saves[QStringLiteral("g1")];
+    const int base = s.revision;
+    s.revision += 1;
+    s.content = hubContent;
+    s.deviceId = QStringLiteral("other-device");
+    s.deviceName = QStringLiteral("Laptop Office");
+    FakeConflict c;
+    c.id = id;
+    c.hubRevision = s.revision;
+    c.hubSha = uitest::sha256Hex(hubContent);
+    c.hubDeviceId = QStringLiteral("other-device");
+    c.hubDeviceName = QStringLiteral("Laptop Office");
+    c.securedContent = local;
+    c.securedVersion = s.nextVersion++;
+    c.securedBase = base;
+    c.securedDeviceId = h.controller->connection()->deviceId();
+    c.securedDeviceName = QStringLiteral("Test Device");
+    s.conflicts.append(c);
+    ConflictSeed out;
+    out.dir = h.controller->saveSync()->slotDirFor(QStringLiteral("g1"), QStringLiteral("default"));
+    out.file = out.dir + QLatin1Char('/') + SaveStore::expectedSaveName(uitest::sha256Hex("homebrew-dummy-rom-lib") + QStringLiteral(".nds"));
+    QDir().mkpath(out.dir);
+    QFile f(out.file);
+    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+      f.write(local);
+      f.close();
+    }
+    SyncState st;
+    st.baseRevision = base;
+    st.lastSyncedSha256 = uitest::sha256Hex("base-state");
+    st.pending = true;
+    st.conflictId = id;
+    SaveStore::saveState(out.dir, st);
+    h.controller->saveSync()->refreshKinds({QStringLiteral("g1")});
+    return out;
+  }
+  static QByteArray fileBytes(const QString& path) {
+    QFile f(path);
+    return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+  }
 
  private slots:
   void initTestCase() {
@@ -568,6 +617,120 @@ class LibrarySavesUiTest : public QObject {
     checkInColumn(h, {"savesRunningBanner", "snapshotButton", "currentBar", "playButton"});
   }
 
+  // "Resolve conflict" opens the inline resolution; it never starts the game (3c-4 follow-up).
+  void resolveConflictInlineBothWaysWithoutStartingTheGame() {
+    FakeHub hub(QStringLiteral("a"));
+    oneGame(hub);
+    hub.setHubSave(QStringLiteral("g1"), "base-state");
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    PlayerController* c = h.controller.get();
+    SaveHistoryController* hist = c->saveHistory();
+    QTRY_VERIFY_WITH_TIMEOUT(hist->available() && !hist->loading(), 8000);
+    const ConflictSeed seed = seedConflict(h, hub, QStringLiteral("c1"), "hub-newer-save", "local-newer-offline");
+    QTRY_COMPARE_WITH_TIMEOUT(c->selectedGame().value(QStringLiteral("syncKind")).toString(), QStringLiteral("conflict"), 8000);
+    hist->refresh();
+    openSavesViewViaApi(h);
+    QTRY_VERIFY_WITH_TIMEOUT(shown(h, "savesConflictBanner"), 8000);
+    QVERIFY(!shown(h, "conflictBox"));
+    QVERIFY(!textOf(h, "resolveConflictButton").isEmpty());
+    // Restore / upload stay paused while the conflict is open
+    QTRY_VERIFY(h.items("restoreButton").isEmpty() || !h.item("restoreButton")->isEnabled());
+
+    QVERIFY(h.click("resolveConflictButton"));
+    QTRY_VERIFY_WITH_TIMEOUT(shown(h, "conflictBox"), 8000);
+    QTRY_VERIFY_WITH_TIMEOUT(shown(h, "conflictLocal") && shown(h, "conflictHub"), 8000);
+    QVERIFY(!shown(h, "savesConflictBanner"));
+    QCOMPARE(c->screen(), QStringLiteral("library"));         // the game did not start
+    QCOMPARE(c->gameSession()->state(), GameSession::Idle);
+    QVERIFY(c->saveConflict().isEmpty());                      // and the start dialog did not open
+    QVERIFY(!shown(h, "conflictDialog"));
+    QVERIFY(!h.item("playButton")->isEnabled());               // Play waits for the decision
+    QVERIFY(!textOf(h, "conflictLocalDevice").isEmpty());
+    QVERIFY(!textOf(h, "conflictLocalWhen").isEmpty());
+    QCOMPARE(textOf(h, "conflictLocalSize").isEmpty(), false);
+    QCOMPARE(textOf(h, "conflictHubDevice"), QStringLiteral("Laptop Office"));
+    QVERIFY(!textOf(h, "conflictHubWhen").isEmpty());
+    QVERIFY(textOf(h, "conflictHubSize").startsWith(QStringLiteral("r2 · ")));
+    QCOMPARE(fileBytes(seed.file), QByteArray("local-newer-offline"));  // looking at it changes nothing
+    uitest::saveShot(h.window, QStringLiteral("library-conflict-resolution"));
+    checkInColumn(h, {"conflictBox", "conflictLocal", "conflictHub", "conflictLocalDevice", "conflictHubDevice", "conflictKeepLocal",
+                      "conflictUseHub", "conflictCancel"});
+    widenFonts(h, 1.4);
+    checkInColumn(h, {"conflictBox", "conflictLocal", "conflictHub", "conflictLocalDevice", "conflictHubWhen", "conflictKeepLocal",
+                      "conflictUseHub", "conflictCancel"});
+
+    // Cancel leaves everything as it is
+    QVERIFY(h.click("conflictCancel"));
+    QTRY_VERIFY(!shown(h, "conflictBox"));
+    QTRY_VERIFY(shown(h, "savesConflictBanner"));
+    QCOMPARE(hub.saves.value(QStringLiteral("g1")).conflicts.first().status, QStringLiteral("open"));
+
+    // Use the Hub save: the device copy is backed up first, then replaced
+    QVERIFY(h.click("resolveConflictButton"));
+    QTRY_VERIFY_WITH_TIMEOUT(shown(h, "conflictUseHub") && h.item("conflictUseHub")->isEnabled(), 8000);
+    QVERIFY(h.click("conflictUseHub"));
+    QTRY_VERIFY_WITH_TIMEOUT(!shown(h, "conflictBox"), 8000);
+    QTRY_VERIFY(hist->message().startsWith(QStringLiteral("Conflict resolved")));
+    QCOMPARE(fileBytes(seed.file), QByteArray("hub-newer-save"));
+    const QStringList backups = QDir(seed.dir).entryList({QStringLiteral("*.local-*.bak")});
+    QCOMPARE(backups.size(), 1);
+    QCOMPARE(fileBytes(seed.dir + QLatin1Char('/') + backups.first()), QByteArray("local-newer-offline"));
+    QCOMPARE(hub.saves.value(QStringLiteral("g1")).conflicts.first().status, QStringLiteral("resolved_hub"));
+    QCOMPARE(hub.saves.value(QStringLiteral("g1")).revision, 2);
+    QTRY_COMPARE(c->selectedGame().value(QStringLiteral("syncKind")).toString(), QStringLiteral("synced"));
+    QVERIFY(!shown(h, "savesConflictBanner"));
+    QCOMPARE(c->screen(), QStringLiteral("library"));
+    QCOMPARE(c->gameSession()->state(), GameSession::Idle);
+    uitest::saveShot(h.window, QStringLiteral("library-conflict-resolved"));
+
+    // The next conflict: keep this device's save, which becomes the new current version
+    const ConflictSeed seed2 = seedConflict(h, hub, QStringLiteral("c2"), "hub-third-save", "local-third-offline");
+    QTRY_COMPARE_WITH_TIMEOUT(c->selectedGame().value(QStringLiteral("syncKind")).toString(), QStringLiteral("conflict"), 8000);
+    QTRY_VERIFY(shown(h, "savesConflictBanner"));
+    QVERIFY(h.click("resolveConflictButton"));
+    QTRY_VERIFY_WITH_TIMEOUT(shown(h, "conflictKeepLocal") && h.item("conflictKeepLocal")->isEnabled(), 8000);
+    QVERIFY(h.click("conflictKeepLocal"));
+    QTRY_VERIFY_WITH_TIMEOUT(!shown(h, "conflictBox"), 8000);
+    QTRY_VERIFY(hist->message().startsWith(QStringLiteral("Conflict resolved")));
+    QCOMPARE(hub.saves.value(QStringLiteral("g1")).content, QByteArray("local-third-offline"));
+    QCOMPARE(hub.saves.value(QStringLiteral("g1")).revision, 4);
+    QCOMPARE(fileBytes(seed2.file), QByteArray("local-third-offline"));
+    QTRY_COMPARE(c->selectedGame().value(QStringLiteral("syncKind")).toString(), QStringLiteral("synced"));
+    QCOMPARE(c->screen(), QStringLiteral("library"));
+    QCOMPARE(c->gameSession()->state(), GameSession::Idle);
+    QVERIFY(c->saveConflict().isEmpty());
+  }
+
+  void resolveConflictAlreadyResolvedElsewhere() {
+    FakeHub hub(QStringLiteral("a"));
+    oneGame(hub);
+    hub.setHubSave(QStringLiteral("g1"), "base-state");
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    PlayerController* c = h.controller.get();
+    SaveHistoryController* hist = c->saveHistory();
+    QTRY_VERIFY_WITH_TIMEOUT(hist->available() && !hist->loading(), 8000);
+    const ConflictSeed seed = seedConflict(h, hub, QStringLiteral("c1"), "hub-newer-save", "local-newer-offline");
+    QTRY_COMPARE_WITH_TIMEOUT(c->selectedGame().value(QStringLiteral("syncKind")).toString(), QStringLiteral("conflict"), 8000);
+    hist->refresh();
+    openSavesViewViaApi(h);
+    QTRY_VERIFY_WITH_TIMEOUT(shown(h, "resolveConflictButton"), 8000);
+    // Resolved in the Hub web interface meanwhile: the view says so and the local marker is dropped
+    hub.saves[QStringLiteral("g1")].conflicts[0].status = QStringLiteral("resolved_hub");
+    QVERIFY(h.click("resolveConflictButton"));
+    QTRY_VERIFY_WITH_TIMEOUT(hist->message().contains(QStringLiteral("already resolved")), 8000);
+    QVERIFY(!shown(h, "conflictBox"));
+    QVERIFY(SaveStore::loadState(seed.dir).conflictId.isEmpty());
+    QCOMPARE(fileBytes(seed.file), QByteArray("local-newer-offline"));  // nothing was overwritten
+    QTRY_VERIFY(c->selectedGame().value(QStringLiteral("syncKind")).toString() != QStringLiteral("conflict"));
+    QCOMPARE(c->screen(), QStringLiteral("library"));
+  }
+
   void uploadConfirmationFailureAndRetry() {
     QTemporaryDir tmp;
     QVERIFY(tmp.isValid());
@@ -621,6 +784,43 @@ class LibrarySavesUiTest : public QObject {
   }
 
   // ---- Layout of the detail column at 1280 and 960 px ---------------------------------------------------------------
+  // Regression: "◆ Create snapshot" / "Upload save file…" in the saveActions Flow showed as "◆ Crea…" / "Uplo…" at every size.
+  // While the 392 px column has room, both buttons show their full label (width >= label implicitWidth + padding).
+  void saveActionButtonsKeepTheirFullLabel() {
+    FakeHub hub(QStringLiteral("a"));
+    oneGame(hub, kAllFeatures);
+    hub.setHubSave(QStringLiteral("g1"), "cp-1");
+    hub.addHistory(QStringLiteral("g1"), QStringLiteral("default"), "old", QStringLiteral("session_end"));
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    SaveHistoryController* hist = h.controller->saveHistory();
+    QTRY_VERIFY_WITH_TIMEOUT(hist->available() && !hist->loading() && hist->versionCount() >= 2, 8000);
+    for (const QSize size : {QSize(1280, 800), QSize(1920, 1080)}) {
+      h.window->resize(size);
+      QQuickTest::qWaitForPolish(h.window);
+      QTest::qWait(60);
+      if (!shown(h, "savesView")) openSavesView(h);
+      QTRY_VERIFY(shown(h, "saveActions"));
+      QTest::qWait(60);
+      QQuickTest::qWaitForPolish(h.window);
+      const qreal room = h.item("saveActions")->width();
+      QVERIFY2(room > 250, qPrintable(QStringLiteral("saveActions only %1 wide").arg(room)));
+      for (const char* name : {"snapshotButton", "uploadSaveButton"}) {
+        QQuickItem* btn = h.item(name);
+        QVERIFY2(btn != nullptr && btn->isVisible(), name);
+        QQuickItem* lbl = btn->findChild<QQuickItem*>("fbButtonLabel");
+        QVERIFY(lbl != nullptr);
+        const qreal natural = lbl->implicitWidth();
+        const qreal pad = btn->property("hPadding").toReal();
+        const QString tag = QStringLiteral("%1 at %2 px").arg(QLatin1String(name)).arg(size.width());
+        QVERIFY2(btn->width() + 0.5 >= natural + pad, qPrintable(tag + QStringLiteral(": width %1 < label %2 + padding %3").arg(btn->width()).arg(natural).arg(pad)));
+        QVERIFY2(lbl->width() + 0.5 >= natural, qPrintable(tag + QStringLiteral(": label elided (%1 < %2)").arg(lbl->width()).arg(natural)));
+      }
+    }
+  }
+
   void detailColumnLayoutAtNarrowAndWideWindows() {
     FakeHub hub(QStringLiteral("a"));
     oneGame(hub, kAllFeatures, QStringLiteral("Supercalifragilisticexpialidocious Adventures of the Remastered Deluxe Edition"));

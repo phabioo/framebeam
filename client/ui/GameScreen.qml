@@ -62,13 +62,6 @@ Rectangle {
         Qt.callLater(focusLocal)
         return true
     }
-    function manageSaves() {
-        // Back to the Library with the game paused in the background and its entry selected (the saves view of the
-        // Library follows with the Library package).
-        root.player.leaveGameView()
-        var id = root.player.backgroundGame.id
-        if (id !== undefined) root.player.selectGame(id)
-    }
     onVisibleChanged: {
         if (visible) {
             Qt.callLater(focusLocal)
@@ -335,7 +328,7 @@ Rectangle {
                 multi: root.multiMode
                 tile: root.multiMode ? root.ctl.selectedSurface : "local"
                 onCollapseToggled: root.panelCollapsed = !root.panelCollapsed
-                onManageSavesRequested: root.manageSaves()
+                onSavesClosed: Qt.callLater(root.focusLocal)
                 onSelectLocalRequested: root.ctl.selectSurface("local")
             }
         }

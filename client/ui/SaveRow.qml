@@ -202,6 +202,7 @@ ColumnLayout {
                     color: root.confirm === "delete" ? Theme.error : Theme.accent
                 }
                 FbLabel {
+                    objectName: "confirmBody"
                     width: parent.width
                     wrapMode: Text.WordWrap
                     text: root.confirmBody
