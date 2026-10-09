@@ -29,6 +29,7 @@ Roadmap 0.5 (`docs/roadmap.md`) gives the Player an OpenGL context for libretro 
 - Fabio agreed to deferring zero-copy on 2026-10-07.
 - Revisit with asynchronous PBO readback or zero-copy if profiling shows that the readback costs frame time. Example: melonDS DS at 4x internal resolution is 1024x1536 x 4 B, about 6 MiB per frame.
 - Update 2026-10-08 (0.7.x): measured 12.4 ms per synchronous readback at 8x (2048x3072) on an RTX 4080, which starved audio and capped speed-up ([ADR 0018](0018-player-speed-up.md)). The readback now uses double-buffered PBOs (one frame of latency, synchronous fallback, `FRAMEBEAM_SYNC_READBACK=1` forces it), and frames that are not shown during speed-up are not read back; the core then gets `GET_AUDIO_VIDEO_ENABLE` without the video bit.
+- Amended by [ADR 0019](0019-gpu-direct-nvenc.md) (2026-10-09): on NVIDIA, while a Session is shared and GPU-direct encoding is active, frames reach the encoder without a readback; the display readback remains, sized to the view. Every other case keeps the readback above.
 
 ### D4 Fallback
 

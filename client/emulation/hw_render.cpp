@@ -25,12 +25,21 @@ QString glString(QOpenGLFunctions* f, GLenum name) {
   return s ? QString::fromLatin1(reinterpret_cast<const char*>(s)) : QStringLiteral("?");
 }
 
-// Restores the GL bindings that this class touches, so the core's own state stays intact.
+// Clears stale GL errors (e.g. left by the core) before a check of our own. Bounded: a lost context reports an error forever.
+void drainGlErrors(QOpenGLFunctions* f) {
+  for (int i = 0; i < 16 && f->glGetError() != GL_NO_ERROR; ++i) {
+  }
+}
+
+// Restores the GL bindings that this class touches, so the core's own state stays intact. The read and draw
+// framebuffer bindings are separate state: a core may leave them different (e.g. read 0, draw = its FBO).
 struct BindingGuard {
   explicit BindingGuard(QOpenGLFunctions* fn) : f(fn) {
     GLint v = 0;
-    f->glGetIntegerv(GL_FRAMEBUFFER_BINDING, &v);
-    fbo = static_cast<GLuint>(v);
+    f->glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &v);
+    readFbo = static_cast<GLuint>(v);
+    f->glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &v);
+    drawFbo = static_cast<GLuint>(v);
     f->glGetIntegerv(GL_RENDERBUFFER_BINDING, &v);
     rbo = static_cast<GLuint>(v);
     f->glGetIntegerv(GL_TEXTURE_BINDING_2D, &v);
@@ -40,7 +49,8 @@ struct BindingGuard {
     f->glGetIntegerv(GL_PACK_ALIGNMENT, &packAlign);
   }
   ~BindingGuard() {
-    f->glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    f->glBindFramebuffer(GL_READ_FRAMEBUFFER, readFbo);
+    f->glBindFramebuffer(GL_DRAW_FRAMEBUFFER, drawFbo);
     f->glBindRenderbuffer(GL_RENDERBUFFER, rbo);
     f->glBindTexture(GL_TEXTURE_2D, tex);
     f->glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo);
@@ -48,7 +58,7 @@ struct BindingGuard {
   }
   Q_DISABLE_COPY(BindingGuard)
   QOpenGLFunctions* f;
-  GLuint fbo = 0, rbo = 0, tex = 0, pbo = 0;
+  GLuint readFbo = 0, drawFbo = 0, rbo = 0, tex = 0, pbo = 0;
   GLint packAlign = 4;
 };
 }  // namespace
@@ -84,6 +94,16 @@ struct HwRenderContext::Impl {
   Slot pboSlots[2];
   int cur = 0;
   bool async = true;
+
+  // Session encode path (ADR 0019). Separate from the readback chain: its target (<= the encode limit) differs from the
+  // readback size, so a shared level cache would re-specify its textures every frame.
+  GLuint encFbo = 0, encTex = 0;  // encTex is sized GL_RGBA8; a NEW texture object per size, never re-specified
+  int encW = 0, encH = 0;
+  std::vector<Level> encLevels;   // halving chain of the encode path
+  std::shared_ptr<GpuEncodeTarget> target;
+  bool attached = false;  // target->attach() returned Ok for the current encTex
+  bool hasFrame = false;  // encTex holds a complete frame (for encodeRepeat)
+  bool pending = false;   // encTex holds a frame that has not been captured yet
 
   void releasePbos() {
     for (Slot& s : pboSlots) {
@@ -133,24 +153,26 @@ struct HwRenderContext::Impl {
     return f->glGetError() == GL_NO_ERROR;
   }
 
-  void releaseScaled() {
-    for (Level& l : levels) {
+  void releaseChain(std::vector<Level>& chain) {
+    for (Level& l : chain) {
       if (f && l.fbo) f->glDeleteFramebuffers(1, &l.fbo);
       if (f && l.tex) f->glDeleteTextures(1, &l.tex);
     }
-    levels.clear();
+    chain.clear();
   }
+  void releaseScaled() { releaseChain(levels); }
 
-  // (Re)creates halving level `i` at tw x th if needed; levels are cached per size, so a steady stream of
-  // equally sized frames never reallocates. false: not possible (scaleFailed is set).
-  bool ensureLevel(size_t i, int tw, int th) {
-    if (levels.size() <= i) levels.resize(i + 1);
-    Level& l = levels[i];
+  // (Re)creates halving level `i` of `chain` at tw x th if needed; levels are cached per size, so a steady stream of
+  // equally sized frames never reallocates. false: not possible (the whole chain is released; the caller decides
+  // what that means, e.g. scaleFailed).
+  bool ensureLevel(std::vector<Level>& chain, size_t i, int tw, int th) {
+    if (chain.size() <= i) chain.resize(i + 1);
+    Level& l = chain[i];
     if (l.fbo && l.w == tw && l.h == th) return true;
     BindingGuard guard(f);
     if (!l.fbo) f->glGenFramebuffers(1, &l.fbo);
     if (!l.tex) f->glGenTextures(1, &l.tex);
-    while (f->glGetError() != GL_NO_ERROR) {}
+    drainGlErrors(f);
     f->glBindTexture(GL_TEXTURE_2D, l.tex);
     f->glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tw, th, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -158,8 +180,7 @@ struct HwRenderContext::Impl {
     f->glBindFramebuffer(GL_FRAMEBUFFER, l.fbo);
     f->glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, l.tex, 0);
     if (f->glGetError() != GL_NO_ERROR || f->glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-      releaseScaled();
-      scaleFailed = true;
+      releaseChain(chain);
       return false;
     }
     l.w = tw;
@@ -167,46 +188,142 @@ struct HwRenderContext::Impl {
     return true;
   }
 
-  // Downscales the w x h region of the main FBO to tw x th: `steps` exact 2:1 GL_LINEAR blits (each output pixel
-  // is the average of a 2x2 block: a box filter), then, unless the chain already ends at tw x th, one final
+  // Downscales the w x h region of the main FBO to tw x th through `chain`: `steps` exact 2:1 GL_LINEAR blits (each
+  // output pixel is the average of a 2x2 block: a box filter), then, unless the chain already ends at tw x th, one final
   // GL_LINEAR blit with a ratio below 2:1 (every source texel still contributes). Odd sizes crop the last
-  // row/column of a halving step. The first blit flips vertically when `flip`. Leaves the final level bound as
-  // GL_FRAMEBUFFER on success.
-  bool blitScaled(int w, int h, int steps, int tw, int th, bool flip) {
+  // row/column of a halving step. The first blit flips vertically when `flip`. GL_SCISSOR_TEST is switched off for the
+  // blits and restored (a core may leave it on; a blit honours it).
+  //  - dstFbo == 0: the last stage writes into the chain's last level, which stays bound as GL_FRAMEBUFFER on success.
+  //  - dstFbo != 0 (size tw x th): the last stage writes into dstFbo, which stays bound. That stage always exists, also
+  //    when the frame already has tw x th (then it only copies and flips); a 1:1 copy uses GL_NEAREST.
+  // false: nothing usable was produced; the caller releases the chain if it wants to stop using it.
+  bool blitChain(std::vector<Level>& chain, int w, int h, int steps, int tw, int th, bool flip, GLuint dstFbo) {
     if (!fx) return false;
     const bool finalStep = (w >> steps) != tw || (h >> steps) != th;
-    const int stages = steps + (finalStep ? 1 : 0);
+    int stages = steps + (finalStep ? 1 : 0);
+    if (dstFbo != 0) stages = std::max(stages, 1);
     if (stages <= 0) return false;
-    const GLboolean scissor = f->glIsEnabled(GL_SCISSOR_TEST);  // the core may leave it on; a blit honours it
+    const GLboolean scissor = f->glIsEnabled(GL_SCISSOR_TEST);
     if (scissor) f->glDisable(GL_SCISSOR_TEST);
     GLuint src = fbo;
     int sw = w, sh = h;
     bool ok = true;
     for (int i = 0; i < stages && ok; ++i) {
       const bool halving = i < steps;
+      const bool toDst = dstFbo != 0 && i == stages - 1;
       const int dw = halving ? std::max(1, sw / 2) : tw, dh = halving ? std::max(1, sh / 2) : th;
-      if (!ensureLevel(static_cast<size_t>(i), dw, dh)) {
-        ok = false;
-        break;
+      GLuint dst = dstFbo;
+      if (!toDst) {
+        if (!ensureLevel(chain, static_cast<size_t>(i), dw, dh)) {
+          ok = false;
+          break;
+        }
+        dst = chain[static_cast<size_t>(i)].fbo;
       }
       const int cw = halving ? std::min(sw, dw * 2) : sw, ch = halving ? std::min(sh, dh * 2) : sh;
-      while (f->glGetError() != GL_NO_ERROR) {}
+      drainGlErrors(f);
       f->glBindFramebuffer(GL_READ_FRAMEBUFFER, src);
-      f->glBindFramebuffer(GL_DRAW_FRAMEBUFFER, levels[static_cast<size_t>(i)].fbo);
+      f->glBindFramebuffer(GL_DRAW_FRAMEBUFFER, dst);
       const bool fl = flip && i == 0;
-      fx->glBlitFramebuffer(0, 0, cw, ch, 0, fl ? dh : 0, dw, fl ? 0 : dh, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+      const GLenum filter = toDst && cw == dw && ch == dh ? GL_NEAREST : GL_LINEAR;
+      fx->glBlitFramebuffer(0, 0, cw, ch, 0, fl ? dh : 0, dw, fl ? 0 : dh, GL_COLOR_BUFFER_BIT, filter);
       ok = f->glGetError() == GL_NO_ERROR;
-      src = levels[static_cast<size_t>(i)].fbo;
+      src = dst;
       sw = dw;
       sh = dh;
     }
     if (scissor) f->glEnable(GL_SCISSOR_TEST);
-    if (!ok) {
+    if (!ok) return false;
+    f->glBindFramebuffer(GL_FRAMEBUFFER, src);
+    return true;
+  }
+
+  // Readback downscale: blitChain into the readback chain. A failure switches the downscale off for good.
+  bool blitScaled(int w, int h, int steps, int tw, int th, bool flip) {
+    if (!blitChain(levels, w, h, steps, tw, th, flip, 0)) {
       releaseScaled();
       scaleFailed = true;
       return false;
     }
-    f->glBindFramebuffer(GL_FRAMEBUFFER, src);
+    return true;
+  }
+
+  // ---- Session encode path (ADR 0019)
+
+  // Detaches the target from encTex (only if attached). Must come before encTex is deleted or the target is dropped.
+  void detachTarget(bool glCurrent) {
+    if (target && attached) target->detach(glCurrent);
+    attached = false;
+  }
+
+  void releaseEncodeTexture() {
+    if (f) {
+      if (encFbo) f->glDeleteFramebuffers(1, &encFbo);
+      if (encTex) f->glDeleteTextures(1, &encTex);
+    }
+    encFbo = encTex = 0;
+    encW = encH = 0;
+    hasFrame = pending = false;
+  }
+  void releaseEncode() {
+    releaseEncodeTexture();
+    releaseChain(encLevels);
+  }
+
+  // The producer gave up: tell it (consumers fall back to readback frames), detach, free the encode objects.
+  void dropTarget(const QString& why) {
+    pending = false;
+    if (target) target->fail(why);
+    detachTarget(true);
+    releaseEncode();
+    target.reset();
+    qCWarning(lcHw).noquote() << QStringLiteral("Session encode target dropped (%1); the Session encoder gets readback frames").arg(why);
+  }
+
+  // The target says GPU-direct encoding is not applicable here (it reports Unavailable itself): detach, free the encode
+  // objects and forget it, without fail() and without a warning.
+  void releaseTargetQuietly() {
+    pending = false;
+    detachTarget(true);
+    releaseEncode();
+    target.reset();
+    qCInfo(lcHw) << "Session encode target not applicable; the Session encoder gets readback frames";
+  }
+
+  // Makes encTex/encFbo es-sized. A NEW texture object per size: the target may have the old one registered, and a
+  // registered texture is never re-specified. The new texture is created while the old one still exists, so GL cannot
+  // hand out the same name again; then the old one is detached and deleted (detach always comes first). false: not
+  // possible, the target has been dropped.
+  bool ensureEncodeTexture(const QSize& es, int srcW, int srcH) {
+    if (encTex && encW == es.width() && encH == es.height()) return true;
+    GLuint tex = 0, newFbo = 0;
+    bool ok = false;
+    {
+      BindingGuard guard(f);
+      drainGlErrors(f);
+      f->glGenTextures(1, &tex);
+      f->glBindTexture(GL_TEXTURE_2D, tex);
+      f->glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, es.width(), es.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+      f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+      f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+      f->glGenFramebuffers(1, &newFbo);
+      f->glBindFramebuffer(GL_FRAMEBUFFER, newFbo);
+      f->glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);
+      ok = f->glGetError() == GL_NO_ERROR && f->glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+    }
+    if (!ok) {
+      if (newFbo) f->glDeleteFramebuffers(1, &newFbo);
+      if (tex) f->glDeleteTextures(1, &tex);
+      dropTarget(QStringLiteral("encode texture could not be created"));
+      return false;
+    }
+    detachTarget(true);  // the old texture may be registered with the target
+    releaseEncodeTexture();
+    encTex = tex;
+    encFbo = newFbo;
+    encW = es.width();
+    encH = es.height();
+    qCInfo(lcHw).noquote() << QStringLiteral("Session encode texture %1x%2 for a %3x%4 frame").arg(encW).arg(encH).arg(srcW).arg(srcH);
     return true;
   }
 
@@ -341,7 +458,15 @@ bool HwRenderContext::createContext(bool coreProfile, unsigned major, unsigned m
 
 void HwRenderContext::destroyContext() {
   if (d->ctx) {
-    if (d->f && d->ctx->makeCurrent(d->surface)) {
+    const bool current = d->f && d->ctx->makeCurrent(d->surface);
+    // The Session encode target goes first (ADR 0019): unregister its texture while GL is alive, never without GL (then
+    // the registration is leaked), and only then free the GL objects. Dropping the last reference may release CUDA
+    // resources here, still before the GL context dies.
+    d->pending = false;
+    d->detachTarget(current);
+    if (current) d->releaseEncode();
+    d->target.reset();
+    if (current) {
       d->releasePbos();
       d->releaseScaled();
       if (d->fbo) d->f->glDeleteFramebuffers(1, &d->fbo);
@@ -355,6 +480,11 @@ void HwRenderContext::destroyContext() {
   d->fx = nullptr;
   d->pboSlots[0] = d->pboSlots[1] = {};
   d->fbo = d->tex = d->rbo = 0;
+  d->target.reset();  // also when there was no context
+  d->encFbo = d->encTex = 0;
+  d->encW = d->encH = 0;
+  d->encLevels.clear();
+  d->attached = d->hasFrame = d->pending = false;
   d->scaleFailed = false;
   d->w = d->h = 0;
   d->buf.clear();
@@ -497,6 +627,76 @@ QImage HwRenderContext::readback(int w, int h, bool bottomLeftOrigin, const QSiz
   d->buf.resize(static_cast<size_t>(rw) * static_cast<size_t>(rh) * 4);
   d->f->glReadPixels(0, 0, rw, rh, GL_RGBA, GL_UNSIGNED_BYTE, d->buf.data());
   return Impl::convert(d->buf.data(), rw, rh, bottomLeft);
+}
+
+// ---------------------------------------------------------------- Session encoding from the GPU (ADR 0019)
+
+QSize HwRenderContext::encodeSizeFor(int w, int h, const QSize& maxSize) {
+  const QSize s = scaledReadbackSize(w, h, maxSize);
+  return QSize(std::max(2, s.width() & ~1), std::max(2, s.height() & ~1));
+}
+
+void HwRenderContext::setEncodeTarget(std::shared_ptr<GpuEncodeTarget> target) {
+  d->pending = false;
+  d->detachTarget(true);  // before the texture it registered is deleted
+  d->releaseEncode();
+  d->target = std::move(target);  // the old target may end here (last reference)
+}
+
+bool HwRenderContext::hasEncodeTarget() const { return d->target != nullptr; }
+
+QSize HwRenderContext::encodeSize() const { return QSize(d->encW, d->encH); }
+
+void HwRenderContext::encodeBlit(int w, int h, bool bottomLeftOrigin) {
+  if (!d->ctx || !d->target || !d->target->wanted() || w <= 0 || h <= 0 || w > d->w || h > d->h) {
+    d->pending = false;  // nothing to capture for this frame
+    return;
+  }
+  const QSize es = encodeSizeFor(w, h, d->target->maxSize());
+  if (!d->ensureEncodeTexture(es, w, h)) return;  // the target has been dropped
+  if (!d->attached) {
+    switch (d->target->attach(d->encTex, es.width(), es.height())) {
+      case GpuEncodeTarget::Attach::NotReady:  // the target is still being set up; the readback keeps encoding
+        return;
+      case GpuEncodeTarget::Attach::Unavailable:  // not applicable here (e.g. a non-NVIDIA GL context): quiet, no fail()
+        d->releaseTargetQuietly();
+        return;
+      case GpuEncodeTarget::Attach::Failed:
+        d->dropTarget(QStringLiteral("attach failed"));
+        return;
+      case GpuEncodeTarget::Attach::Ok:
+        d->attached = true;
+        break;
+    }
+  }
+  bool ok = false;
+  {
+    BindingGuard guard(d->f);
+    drainGlErrors(d->f);
+    ok = d->blitChain(d->encLevels, w, h, halvingSteps(w, h, es), es.width(), es.height(), bottomLeftOrigin, d->encFbo);
+  }
+  if (!ok) {
+    d->dropTarget(QStringLiteral("blit failed"));
+    return;
+  }
+  d->f->glFlush();  // otherwise the blit sits unflushed while the emulation thread sleeps and the next map waits for it
+  d->pending = true;
+  d->hasFrame = true;
+}
+
+void HwRenderContext::encodeRepeat() {
+  if (d->target && d->attached && d->hasFrame && d->target->wanted()) d->pending = true;
+}
+
+bool HwRenderContext::captureEncode() {
+  if (!d->pending) return false;
+  d->pending = false;
+  if (!d->target || !d->attached || !d->target->wanted()) return false;
+  if (!d->target->capture()) {
+    d->dropTarget(QStringLiteral("capture failed"));
+    return false;
+  }
+  return true;
 }
 
 }  // namespace framebeam::emu

@@ -45,6 +45,8 @@ struct EmulationDiagnostics {
   double emuMs = 0;              // ... of which the core
   double readbackMs = 0;         // ... of which GPU readback, mean over all frames (0 for software)
   double readbacksPerSec = 0;    // frames per second that were actually read back (skipped/unseen frames are not)
+  double gpuCopyMs = 0;          // ... of which the Session encode texture (GPU-direct encoding, ADR 0019), mean over all frames
+  double gpuCopiesPerSec = 0;    // frames per second that handed a frame to the Session encoder (0 without GPU-direct)
   QVector<float> totalHistory;   // last 5 s, ms per frame
   QVector<float> emuHistory;
   bool audioActive = false;      // an audio output device is open
@@ -131,6 +133,13 @@ class GameSession : public QObject {
   void setShareSize(const QSize& pixels);
   QSize readbackLimit() const { return limit_; }
 
+  // GPU-direct Session encoding (ADR 0019): the target for the Session encode texture of the running game, nullptr =
+  // none. Stored like the readback limit and handed to every runner this session creates (start() and the live-save
+  // restart), so a restart re-attaches it. teardown() leaves it detached: unloading the game detaches it with GL current.
+  void setGpuEncodeTarget(std::shared_ptr<emu::GpuEncodeTarget> target);
+  // The game runs on an OpenGL context (a software core, a preview or no game: false).
+  bool hardwareRendered() const;
+
   void start(const LaunchConfig& config);
 
   Q_INVOKABLE void pause();
@@ -192,6 +201,7 @@ class GameSession : public QObject {
   QHash<const QObject*, QSize> viewSizes_;
   QSize shareSize_;
   QSize limit_;
+  std::shared_ptr<emu::GpuEncodeTarget> gpuTarget_;
   QImage frame_;
   quint64 frameNr_ = 0;
   QString title_;

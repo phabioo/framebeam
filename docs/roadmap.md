@@ -157,7 +157,7 @@ Follow-up to ADR 0013 D3 (requested 2026-10-08 after speed-up stutter at 8× int
 
 Requested 2026-10-09. Today a shared Session reads the frame back, converts it to YUV on the CPU and uploads it again to NVENC/QSV/AMF.
 
-- Open: NVIDIA first: hand the core's OpenGL texture to NVENC through CUDA-GL interop and FFmpeg CUDA hardware frames (NVENC takes RGB and converts on the GPU); no readback or CPU conversion while sharing.
+- [x] Done in code: NVIDIA first ([ADR 0019](adr/0019-gpu-direct-nvenc.md)): the core's OpenGL texture goes to NVENC through CUDA-GL interop and FFmpeg CUDA hardware frames (NVENC takes RGB and converts on the GPU); no readback or CPU conversion while sharing. Only Fabio can verify it, on his NVIDIA GPU (CI has none); until then every failure falls back to readback frames.
 - Open: QSV and AMF via the OpenGL to D3D11 bridge from "Direct GPU display".
 - Software encoders, cores without hardware rendering and failed interop keep today's readback path. Verifiable only on real GPUs (CI has none).
 

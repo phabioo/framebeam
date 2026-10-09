@@ -8,7 +8,7 @@ Details only as needed from `docs/architecture/` (index: `docs/architecture/READ
 ## Emulation
 - `EmulatorBackend` -> `LibretroBackend` (later possibly `StandaloneBackend`). Systems/cores are data-driven via manifests (e.g. `nds` -> `melonds_ds`), no console-specific launch logic.
 - Core options dynamically from Libretro core options, no invented options. See `05-emulation.md`.
-- Hardware rendering (ADR 0013): offscreen OpenGL context per game on the emulation thread, Player-owned FBO, every frame read back into the XRGB8888 path; unavailable in the CLI, with `FRAMEBEAM_DISABLE_HW_RENDER=1` or if context creation fails (cores fall back to software).
+- Hardware rendering (ADR 0013): offscreen OpenGL context per game on the emulation thread, Player-owned FBO, every frame read back into the XRGB8888 path; unavailable in the CLI, with `FRAMEBEAM_DISABLE_HW_RENDER=1` or if context creation fails (cores fall back to software). ADR 0019: while a Session is shared on NVIDIA the emulation thread also blits a Session encode texture and hands it to `emu::GpuEncodeTarget` (CUDA-GL interop; all interop calls on the emulation thread with GL current).
 - Settings are local: global -> system/core -> game override, partial overrides only. Controller profiles are local (`06-controllers.md`).
 
 ## Hub binding
@@ -23,7 +23,7 @@ Details only as needed from `docs/architecture/` (index: `docs/architecture/READ
 - Data: all Player data under `ProfileStore::baseDir()` (portable `<exe-dir>/data`, ADR 0004); never invent own paths.
 
 ## Media and language
-- FFmpeg (libavcodec) with NVENC/QSV/AMF, OpenH264 as software fallback; encoder order h264_nvenc, h264_qsv, h264_amf, libopenh264, libx264 (ADR 0006 D5; the Windows vcpkg FFmpeg enables `nvcodec`, `qsv` and `amf` since 0.1.1, ADR 0009 D7; opening them needs a GPU and is verified only locally, otherwise it falls back to libopenh264); audio output via Qt Multimedia, SDL3 only for gamepads (ADR 0007); WebRTC with libdatachannel (ADR 0001, `04-sessions-and-multiview.md`).
+- FFmpeg (libavcodec) with NVENC/QSV/AMF, OpenH264 as software fallback; encoder order h264_nvenc, h264_qsv, h264_amf, libopenh264, libx264 (ADR 0006 D5; the Windows vcpkg FFmpeg enables `nvcodec`, `qsv` and `amf` since 0.1.1, ADR 0009 D7; opening them needs a GPU and is verified only locally, otherwise it falls back to libopenh264); GPU-direct encoding (ADR 0019): `CudaGlCapture` feeds CUDA frames to a second `VideoEncoder` (`h264_nvenc`); failures fall back to readback frames, never to the sticky encoder failure; `FRAMEBEAM_DISABLE_GPU_ENCODE=1` and a forced `FRAMEBEAM_H264_ENCODER` keep readback; audio output via Qt Multimedia, SDL3 only for gamepads (ADR 0007); WebRTC with libdatachannel (ADR 0001, `04-sessions-and-multiview.md`).
 - C++20 as baseline; C++23 only if MSVC, GCC and AppleClang support it. vcpkg (manifest) + CMake presets.
 - Firmware missing: "Firmware required/missing", block launch.
 - Design: Player UI `docs/design/README.md`, `docs/design/player.md`, `docs/design/tokens.md`.

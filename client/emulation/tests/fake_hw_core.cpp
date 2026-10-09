@@ -6,6 +6,12 @@
 // 6 = Vulkan, to test rejection), FB_FAKE_HW_MAJOR/MINOR (requested GL version, default 3.3), FB_FAKE_HW_LOG (file; events are appended as lines: accepted, rejected,
 // reset <major>.<minor>, destroy, frame <fbo-id>). FB_FAKE_HW_LOGAV=1 logs "av <bits>" per frame (the answer to
 // GET_AUDIO_VIDEO_ENABLE). FB_FAKE_HW_COUNTER=1 draws a frame counter (red value of the 8x8 square at GL (28,20)).
+// FB_FAKE_HW_READFBO=1: the core leaves GL_READ_FRAMEBUFFER bound to 0 after rendering (its draw framebuffer stays on the
+// FBO) and logs what it finds at the start of every retro_run: "readfbo <id>" (read binding), "drawfbo <id>" (draw
+// binding), "scissor <0|1>" (GL_SCISSOR_TEST); "fbo <id>" is the FBO it renders into. It proves that the frontend
+// restores the read and draw framebuffer bindings separately.
+// FB_FAKE_HW_DUPE_EVERY=N: every Nth frame calls video_refresh(NULL, w, h, 0) (duplicate frame, nothing rendered).
+// FB_FAKE_HW_GLERROR=1: the core leaves a GL error (GL_INVALID_ENUM) pending after every frame.
 // With video disabled by the frontend (bit 0 clear) the core skips rendering and dupes the frame.
 #include <cstdint>
 #include <cstdio>
@@ -35,6 +41,7 @@ using GlEnable = void(FB_GL*)(unsigned);
 using GlScissor = void(FB_GL*)(int, int, int, int);
 using GlViewport = void(FB_GL*)(int, int, int, int);
 using GlGetIntegerv = void(FB_GL*)(unsigned, int*);
+using GlIsEnabled = unsigned char(FB_GL*)(unsigned);
 
 void logLine(const char* fmt, int a = 0, int b = 0) {
   const char* path = std::getenv("FB_FAKE_HW_LOG");
@@ -58,6 +65,8 @@ GlClear glClear_ = nullptr;
 GlEnable glEnable_ = nullptr;
 GlScissor glScissor_ = nullptr;
 GlViewport glViewport_ = nullptr;
+GlGetIntegerv glGetIntegerv_ = nullptr;
+GlIsEnabled glIsEnabled_ = nullptr;
 
 template <typename F>
 void load(F& fn, const char* name) {
@@ -67,6 +76,13 @@ void load(F& fn, const char* name) {
 int envInt(const char* n, int def) {
   const char* v = std::getenv(n);
   return v ? std::atoi(v) : def;
+}
+
+// Ends a rendered frame. FB_FAKE_HW_READFBO=1: the read framebuffer is left at 0 (draw stays on the FBO).
+void presentFrame() {
+  if (envInt("FB_FAKE_HW_READFBO", 0)) glBindFramebuffer_(0x8CA8, 0);  // GL_READ_FRAMEBUFFER
+  if (envInt("FB_FAKE_HW_GLERROR", 0)) glEnable_(0);  // GL_INVALID_ENUM, left pending for the frontend
+  g_video(RETRO_HW_FRAME_BUFFER_VALID, kW, kH, 0);
 }
 
 void applyScale() {
@@ -84,12 +100,12 @@ void RETRO_CALLCONV contextReset() {
   load(glEnable_, "glEnable");
   load(glScissor_, "glScissor");
   load(glViewport_, "glViewport");
-  GlGetIntegerv getIntegerv = nullptr;
-  load(getIntegerv, "glGetIntegerv");
+  load(glGetIntegerv_, "glGetIntegerv");
+  load(glIsEnabled_, "glIsEnabled");
   int major = 0, minor = 0;
-  if (getIntegerv) {
-    getIntegerv(0x821B, &major);  // GL_MAJOR_VERSION
-    getIntegerv(0x821C, &minor);  // GL_MINOR_VERSION
+  if (glGetIntegerv_) {
+    glGetIntegerv_(0x821B, &major);  // GL_MAJOR_VERSION
+    glGetIntegerv_(0x821C, &minor);  // GL_MINOR_VERSION
   }
   logLine("reset %d.%d", major, minor);
 }
@@ -146,6 +162,14 @@ FB_EXPORT void retro_unload_game() {}
 FB_EXPORT void retro_run() {
   if (!glBindFramebuffer_) return;
   ++g_frameNo;
+  if (envInt("FB_FAKE_HW_READFBO", 0) && glGetIntegerv_ && glIsEnabled_) {
+    int rb = -1, db = -1;
+    glGetIntegerv_(0x8CAA, &rb);  // GL_READ_FRAMEBUFFER_BINDING
+    glGetIntegerv_(0x8CA6, &db);  // GL_DRAW_FRAMEBUFFER_BINDING
+    logLine("readfbo %d", rb);
+    logLine("drawfbo %d", db);
+    logLine("scissor %d", glIsEnabled_(0x0C11) ? 1 : 0);
+  }
   int av = 3;
   if (!g_env(RETRO_ENVIRONMENT_GET_AUDIO_VIDEO_ENABLE, &av)) av = -1;
   if (envInt("FB_FAKE_HW_LOGAV", 0)) logLine("av %d", av);
@@ -153,8 +177,14 @@ FB_EXPORT void retro_run() {
     g_video(nullptr, kW, kH, 0);
     return;
   }
+  const int dupeEvery = envInt("FB_FAKE_HW_DUPE_EVERY", 0);
+  if (dupeEvery > 0 && g_frameNo % static_cast<unsigned>(dupeEvery) == 0) {  // nothing changed: duplicate frame
+    g_video(nullptr, kW, kH, 0);
+    return;
+  }
   g_lastFbo = g_hw.get_current_framebuffer();
   if (g_lastFbo == 0) logLine("frame without fbo");
+  if (envInt("FB_FAKE_HW_READFBO", 0)) logLine("fbo %d", static_cast<int>(g_lastFbo));
   glBindFramebuffer_(0x8D40, static_cast<unsigned>(g_lastFbo));  // GL_FRAMEBUFFER
   glViewport_(0, 0, kW, kH);
   glEnable_(0x0C11);  // GL_SCISSOR_TEST
@@ -170,7 +200,7 @@ FB_EXPORT void retro_run() {
       else glScissor_(0, i, static_cast<int>(kW), 1);
       glClear_(0x4000);
     }
-    g_video(RETRO_HW_FRAME_BUFFER_VALID, kW, kH, 0);
+    presentFrame();
     return;
   }
   glClearColor_(0.f, 0.f, 1.f, 1.f);
@@ -186,7 +216,7 @@ FB_EXPORT void retro_run() {
     glClearColor_(static_cast<float>(g_frameNo & 0xFF) / 255.f, 0.f, 0.f, 1.f);
     glClear_(0x4000);
   }
-  g_video(RETRO_HW_FRAME_BUFFER_VALID, kW, kH, 0);
+  presentFrame();
 }
 FB_EXPORT void retro_reset() {}
 FB_EXPORT void* retro_get_memory_data(unsigned) { return nullptr; }

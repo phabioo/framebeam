@@ -95,6 +95,14 @@ target_compile_definitions(test_ui_screenshots_shell PRIVATE FB_TEST_DATA_DIR="$
 framebeam_add_test(ui_screenlayout screenlayout_test.cpp LIBS framebeam_ui framebeam_core framebeam_emulation)
 framebeam_add_test(ui_diagnostics diagnostics_test.cpp LIBS framebeam_ui framebeam_core framebeam_emulation)
 
+# GPU-direct encoding of the own Session (ADR 0019): GpuEncodeBridge and GameSession on the fake hardware core from
+# emulation/tests and the fake CUDA API (testutil/fake_cuda.h); needs a GL 3.3 context (SKIP/77 without one, except on
+# Linux CI where it must run). Same wiring as emulation_hw_render for FB_FAKE_HW_CORE_PATH.
+framebeam_add_test(ui_gpu_encode gpu_encode_test.cpp LIBS framebeam_ui framebeam_core framebeam_emulation framebeam_media Qt6::Gui)
+target_compile_definitions(test_ui_gpu_encode PRIVATE FB_FAKE_HW_CORE_PATH="$<TARGET_FILE:framebeam_fake_hw_core>")
+add_dependencies(test_ui_gpu_encode framebeam_fake_hw_core)
+set_tests_properties(ui_gpu_encode PROPERTIES SKIP_RETURN_CODE 77)
+
 # Screenshots of the game view with fake data (0.6): QSKIP unless FRAMEBEAM_SCREENSHOT_DIR is set; no core needed.
 framebeam_add_test(ui_screenshots_game screenshots_game_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
   LIBS ${FB_UI_TEST_LIBS})

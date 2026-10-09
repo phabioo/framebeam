@@ -11,12 +11,6 @@
 
 namespace framebeam::ui {
 
-namespace {
-// Largest frame the Session encoder is fed from the local game (the encoder opens at the frame size it gets). While
-// shared, the GPU readback keeps at least this much of a larger hardware frame; the view's own size may need more.
-const QSize kShareEncodeMax(1280, 1920);
-}  // namespace
-
 SessionController::SessionController(HubConnection* conn, ProfileStore* profiles, GameSession* game, QObject* parent)
     : QObject(parent), conn_(conn), profiles_(profiles), game_(game), api_(conn), socket_(conn) {
   qRegisterMetaType<framebeam::SessionInfo>();
@@ -44,12 +38,25 @@ SessionController::SessionController(HubConnection* conn, ProfileStore* profiles
   connect(&host_, &SessionHost::signalOut, &socket_, &HubSocket::sendSignal);
   connect(&host_, &SessionHost::errorOccurred, this, [this](const QString& m) { say(m, true); });
   connect(&host_, &SessionHost::viewerConnected, this, [this]() { emit shareChanged(); });
+  // GPU-direct encoding (ADR 0019) follows the encoder and the GPU input state; queued, so a bridge is never created or
+  // dropped from inside the SessionHost call that changed the state.
+  connect(&host_, &SessionHost::encoderRunningChanged, this, [this]() { updateGpuEncode(); }, Qt::QueuedConnection);
+  connect(&host_, &SessionHost::gpuInputChanged, this, [this]() { updateGpuEncode(); }, Qt::QueuedConnection);
+  // The game's state too: after a live-save restart the plan runs again once the core is back (Running).
+  connect(game_, &GameSession::stateChanged, this, [this]() { updateGpuEncode(); }, Qt::QueuedConnection);
 
   // Local game: frames and audio feed the host only while shared (SessionHost drops them otherwise).
   connect(game_, &GameSession::frameChanged, this, [this]() {
-    if (shared_) {
-      host_.pushFrame(game_->frame());
+    if (!shared_) return;
+    if (gpu_) {
+      const auto st = gpu_->state();
+      if (st != GpuEncodeBridge::State::Running) {
+        host_.disableGpuInput(gpu_->reason(), st == GpuEncodeBridge::State::Failed);  // idempotent
+      } else if (std::shared_ptr<AVFrame> f = gpu_->takeFrame()) {
+        host_.pushGpuFrame(std::move(f));
+      }
     }
+    host_.pushFrame(game_->frame());  // unchanged call; SessionHost skips it while GPU input is active
   });
   connect(game_, &GameSession::audioChunk, this, [this](const QByteArray& pcm, int rate) {
     if (shared_) {
@@ -353,7 +360,7 @@ void SessionController::shareSession() {
     }
     own_ = *r.session;
     shared_ = true;
-    game_->setShareSize(kShareEncodeMax);
+    updateGpuEncode();  // share size = kShareEncodeMax; a bridge follows once the encoder runs
     saveSettings();
     host_.open(own_.sessionId, socket_.helloAck().iceServers, socket_.helloAck().turnServers);
     for (const ViewerJoined& v : std::exchange(pendingViewers_, {})) {
@@ -367,11 +374,34 @@ void SessionController::shareSession() {
   });
 }
 
+// ADR 0019: the readback size limit and the GPU-direct bridge of the own Session follow one pure plan (planGpuEncode).
+// The bridge is created once the encoder runs on a hardware-rendered game with GPU input allowed, kept while the share
+// lasts (also while nobody watches: its CUDA context and registration stay) and dropped when GPU input is off, the
+// game is not hardware rendered any more or the share closes. A live-save restart keeps it: GameSession re-applies the
+// target to the new runner. While the core (re)starts, hardwareRendered() is false for a moment; an existing bridge
+// counts as hardware rendered then, or a queued update in that window would drop it for good.
+void SessionController::updateGpuEncode() {
+  const bool hw = game_->hardwareRendered() || (gpu_ && game_->state() == GameSession::Starting);
+  const GpuEncodePlan p = planGpuEncode(shared_, hw, host_.encoderRunning(), host_.gpuInputAllowed(), host_.gpuInputActive());
+  if (!p.keep && gpu_) {
+    game_->setGpuEncodeTarget(nullptr);
+    gpu_.reset();
+  }
+  if (p.create && !gpu_) {
+    gpu_ = std::make_shared<GpuEncodeBridge>(kShareEncodeMax);
+    game_->setGpuEncodeTarget(gpu_);
+  }
+  if (gpu_) {
+    gpu_->setWanted(p.wanted);
+  }
+  game_->setShareSize(p.shareSize);
+}
+
 void SessionController::closeShare(const QString& note) {
   const bool was = shared_ || shareBusy_;
   host_.close();
   shared_ = false;
-  game_->setShareSize(QSize());
+  updateGpuEncode();  // drops the bridge, share size = empty
   shareBusy_ = false;
   own_ = SessionInfo();
   visInFlight_ = 0;

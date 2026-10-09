@@ -59,6 +59,10 @@ class LibretroBackend final : public EmulatorBackend {
   quint64 frameCount() const override;
   QByteArray takeAudio() override;
   double lastReadbackMs() const override;
+  // ADR 0019: the target is parked here and applied by the emulation thread at the start of the next runFrame.
+  void setGpuEncodeTarget(std::shared_ptr<GpuEncodeTarget> target) override;
+  double lastGpuCopyMs() const override;
+  bool lastGpuCaptured() const override { return m_lastGpuCaptured.load(); }
   // Diagnostics/tests: number of hardware frames read back from the GPU so far.
   quint64 hwReadbackCount() const { return m_hwReadbacks.load(); }
   RenderInfo renderInfo() const override;
@@ -106,6 +110,7 @@ class LibretroBackend final : public EmulatorBackend {
   bool setupHwRender(void* retroHwRenderCallback);
   bool finishHwSetup(unsigned maxWidth, unsigned maxHeight, QString* error);  // after retro_load_game
   void teardownHw();
+  void applyTargetChange();  // emulation thread, context current
 
   void handleVideo(const void* data, unsigned width, unsigned height, size_t pitch);
   void registerOptionsV2(const void* options);
@@ -147,6 +152,12 @@ class LibretroBackend final : public EmulatorBackend {
   mutable QMutex m_renderMutex;
   RenderInfo m_render;                     // diagnostics, written on load/setup, read from the UI thread
   std::atomic<qint64> m_lastReadbackNs{0};
+  // Session encode target (ADR 0019): handed over under m_targetMutex, the dirty flag is only a cheap pre-check.
+  QMutex m_targetMutex;
+  std::shared_ptr<GpuEncodeTarget> m_nextTarget;
+  std::atomic<bool> m_targetChanged{false};
+  std::atomic<qint64> m_lastGpuCopyNs{0};   // encode blit + capture of the last runFrame
+  std::atomic<bool> m_lastGpuCaptured{false};
   std::atomic<bool> m_videoWanted{true};
   static quint64 pack(const QSize& s) {
     return (static_cast<quint64>(static_cast<quint32>(std::max(0, s.width()))) << 32) | static_cast<quint32>(std::max(0, s.height()));

@@ -4,13 +4,16 @@
 // One instance per LibretroBackend. Thread rules (ADR 0013):
 //  - prepareSurface() runs on the GUI thread (QOffscreenSurface must be created there);
 //  - createContext()/makeCurrent()/readback()/destroyContext() run on the emulation thread.
-// The context is NOT shared with Qt Quick; each hardware frame is read back into an XRGB8888 QImage.
+// The context is NOT shared with Qt Quick; each hardware frame is read back into an XRGB8888 QImage. An optional
+// GpuEncodeTarget additionally receives the Session frame as a GL texture (setEncodeTarget, ADR 0019).
 
 #include <QImage>
 #include <QSize>
 #include <QString>
 
 #include <memory>
+
+#include "gpu_encode_target.h"
 
 namespace framebeam::emu {
 
@@ -67,6 +70,25 @@ class HwRenderContext {
   // Size readback() uses for a w x h frame under maxSize (pure; no upscaling, aspect kept, never above maxSize).
   static QSize scaledReadbackSize(int w, int h, const QSize& maxSize);
   bool asyncReadback() const;  // PBO path currently in use
+
+  // Session encoding from the GPU (ADR 0019). Emulation thread, context current. With a target set, each hardware frame
+  // is also scaled into a separate GL_RGBA8 encode texture, which the target copies out at the start of the next frame;
+  // the readback above is unchanged. Without a target none of this costs a GL call.
+  //
+  // Replaces the target: the old one is detached and the encode GL objects are freed (nullptr = none).
+  void setEncodeTarget(std::shared_ptr<GpuEncodeTarget> target);
+  bool hasEncodeTarget() const;
+  // After readback(): when target->wanted(), downscales (aspect kept, never upscaled, even, within maxSize()) and flips
+  // (bottomLeftOrigin) the w x h frame into the encode texture, then glFlush(). Never waits for the GPU.
+  void encodeBlit(int w, int h, bool bottomLeftOrigin);
+  // Duplicate frame (video_refresh with NULL): the encode texture still holds the last frame; capture it again.
+  void encodeRepeat();
+  // Start of the next frame, before the core renders again: target->capture(), which waits for its own copy.
+  // true = a frame was captured; false = nothing pending, not wanted, or the target failed (then it was dropped).
+  bool captureEncode();
+  QSize encodeSize() const;  // current encode texture size (tests, logs); empty without one
+  // Encode texture size for a w x h frame: scaledReadbackSize(), then rounded down to even, at least 2 x 2.
+  static QSize encodeSizeFor(int w, int h, const QSize& maxSize);
 
  private:
   struct Impl;

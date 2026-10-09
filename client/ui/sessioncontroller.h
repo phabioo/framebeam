@@ -20,6 +20,7 @@
 #include "audiooutput.h"
 #include "diagnosticsmodel.h"
 #include "gamesession.h"
+#include "gpuencodebridge.h"
 #include "hubconnection.h"
 #include "hubsocket.h"
 #include "mediastats.h"
@@ -209,6 +210,7 @@ class SessionController : public QObject {
   QList<ViewerLinkStats> viewerLinks() const;
   PlayerSettings* settings_ = nullptr;  // owned by the PlayerController
   void saveSettings() const;
+  void updateGpuEncode();
   static QString visibilityLabel(const QString& v);
   QString effectiveTab() const;
   QString errorText(const SessionApiResult& r, const QString& what) const;
@@ -236,6 +238,7 @@ class SessionController : public QObject {
   QString gameTitle_;
 
   bool shared_ = false;
+  std::shared_ptr<GpuEncodeBridge> gpu_;  // GPU-direct encoding of the own Session (ADR 0019); null = readback frames
   bool shareBusy_ = false;
   QString visibility_ = QStringLiteral("hub_users");
   SessionInfo own_;

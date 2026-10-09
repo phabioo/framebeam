@@ -46,6 +46,8 @@ add_library(framebeam_media STATIC
   bitratecontroller.cpp
   videoencoder.cpp
   videodecoder.cpp
+  cudadriver.cpp
+  cudaglcapture.cpp
   opuscodec.cpp
   opusdepacketizer.cpp
   mediacaps.cpp
@@ -54,6 +56,7 @@ add_library(framebeam_media STATIC
 )
 target_include_directories(framebeam_media PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(framebeam_media PUBLIC framebeam_core framebeam_audioutil framebeam_media_deps Qt6::Gui)
+target_link_libraries(framebeam_media PRIVATE ${CMAKE_DL_LIBS})  # cudadriver.cpp: dlopen("libcuda.so.1") (ADR 0019)
 framebeam_warnings(framebeam_media)
 
 framebeam_add_test(media_viewer_reports tests/viewerreports_test.cpp LIBS framebeam_media)
@@ -61,3 +64,16 @@ framebeam_add_test(media_opus_depacketizer tests/opusdepacketizer_test.cpp LIBS 
 framebeam_add_test(media_loopback tests/loopback_test.cpp LIBS framebeam_media)
 framebeam_add_test(media_bitrate tests/bitratecontroller_test.cpp LIBS framebeam_media)
 framebeam_add_test(media_rtcutil tests/rtcutil_test.cpp LIBS framebeam_media)
+
+# GPU-direct encoding (ADR 0019): CUDA driver loader, CudaGlCapture and the CUDA input of VideoEncoder.
+# media_cuda: pure (loader, error codes, encoder helpers). media_cuda_gl_capture: the real CudaGlCapture on a fake CUDA
+# API (testutil/fake_cuda.h) and a GL 3.3 context; SKIP/77 without one, except on Linux CI where it must run.
+# media_cuda_gl_hw: the same with the real driver; SKIP/77 without a GL 3.3 context, an NVIDIA GPU or a CUDA driver,
+# also on CI. Run test_media_cuda_gl_hw by hand on a machine with an NVIDIA GPU.
+if(BUILD_TESTING)
+  framebeam_add_test(media_cuda tests/cuda_test.cpp LIBS framebeam_media)
+  framebeam_add_test(media_cuda_gl_capture tests/cuda_gl_capture_test.cpp LIBS framebeam_media Qt6::Gui)
+  set_tests_properties(media_cuda_gl_capture PROPERTIES SKIP_RETURN_CODE 77)
+  framebeam_add_test(media_cuda_gl_hw tests/cuda_gl_hw_test.cpp LIBS framebeam_media Qt6::Gui)
+  set_tests_properties(media_cuda_gl_hw PROPERTIES SKIP_RETURN_CODE 77)
+endif()

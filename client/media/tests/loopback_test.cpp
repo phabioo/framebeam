@@ -9,6 +9,13 @@
 #include <cmath>
 #include <memory>
 
+extern "C" {
+#include <libavutil/buffer.h>
+#include <libavutil/frame.h>
+#include <libavutil/hwcontext.h>
+#include <libavutil/pixfmt.h>
+}
+
 #include "mediacaps.h"
 #include "sessionhost.h"
 #include "sessionviewer.h"
@@ -44,6 +51,28 @@ QColor averageColor(const QImage& img) {
   const qint64 n = (img.width() / 4) * (img.height() / 4);
   return QColor(static_cast<int>(r / n), static_cast<int>(g / n), static_cast<int>(b / n));
 }
+
+// A GPU frame the encoder cannot use: format CUDA, a 16-byte buffer, and a zeroed frames context (so openGpu() rejects it
+// deterministically without touching NVENC, and cudaHealthCheck() has nothing to check). Stands in for a CudaGlCapture frame.
+std::shared_ptr<AVFrame> fakeGpuFrame() {
+  AVFrame* f = av_frame_alloc();
+  f->format = AV_PIX_FMT_CUDA;
+  f->width = kW;
+  f->height = kH;
+  f->buf[0] = av_buffer_alloc(16);
+  f->hw_frames_ctx = av_buffer_allocz(sizeof(AVHWFramesContext));
+  return std::shared_ptr<AVFrame>(f, [](AVFrame* p) { av_frame_free(&p); });
+}
+
+// Sets (or removes, value == nullptr) an environment variable for one scope.
+struct EnvScope {
+  EnvScope(const char* name, const char* value) : name_(name) {
+    if (value) qputenv(name, value);
+    else qunsetenv(name);
+  }
+  ~EnvScope() { qunsetenv(name_); }
+  const char* name_;
+};
 
 // One Session with a host and N viewers, wired in memory the way the Hub would relay.
 struct Rig {
@@ -313,6 +342,169 @@ class LoopbackTest : public QObject {
     int f2 = 0;
     QObject::connect(v2, &SessionViewer::frameReady, this, [&](const QImage&) { ++f2; });
     QVERIFY(QTest::qWaitFor([&]() { return f2 >= 20; }, 15000));
+  }
+
+  // ADR 0019: a CUDA frame that h264_nvenc cannot take (here: a frames context that is no CUDA context) sends the Session
+  // back to readback frames without an error, without stopping the encoder and without a second keyframe storm.
+  void gpuFrameThatCannotOpenFallsBackToReadback() {
+    EnvScope noKill("FRAMEBEAM_DISABLE_GPU_ENCODE", nullptr);
+    EnvScope noForce("FRAMEBEAM_H264_ENCODER", nullptr);
+    Rig rig;
+    SessionViewer* viewer = rig.addViewer();
+    int frames = 0;
+    QObject::connect(viewer, &SessionViewer::frameReady, this, [&](const QImage&) { ++frames; });
+    QSignalSpy gpuSpy(&rig.host, &SessionHost::gpuInputChanged);
+    QSignalSpy errorSpy(&rig.host, &SessionHost::errorOccurred);
+    rig.source.start();
+    QVERIFY2(QTest::qWaitFor([&]() { return frames >= 20; }, 15000), qPrintable(QString::number(frames)));
+    QVERIFY(rig.host.encoderRunning());
+    const QString cpuEncoder = rig.host.stats().encoderName;
+    QVERIFY(!cpuEncoder.isEmpty());
+
+    // A GPU frame that follows a readback frame closely is dropped by the shared 1/(2 fps) gap: push until one gets through.
+    QVERIFY2(QTest::qWaitFor([&]() {
+      rig.host.pushGpuFrame(fakeGpuFrame());
+      return gpuSpy.count() >= 1;
+    }, 10000), "the GPU frame did not reach the worker");
+    QCOMPARE(gpuSpy.count(), 1);
+    QVERIFY(rig.host.gpuInputFailed());
+    QVERIFY(!rig.host.gpuInputActive());
+    QVERIFY(!rig.host.stats().gpuInput);
+    QVERIFY(rig.host.stats().gpuInputFailed);
+    QCOMPARE(rig.host.stats().encoderName, cpuEncoder);  // the CPU encoder was never touched
+    QVERIFY(rig.host.encoderRunning());
+    QVERIFY(!rig.host.gpuInputAllowed());
+
+    const int before = frames;
+    QVERIFY2(QTest::qWaitFor([&]() { return frames >= before + 20; }, 10000), "readback frames stopped arriving");
+    rig.host.pushGpuFrame(fakeGpuFrame());  // a second GPU frame is ignored
+    QTest::qWait(100);
+    QCOMPARE(gpuSpy.count(), 1);
+    QVERIFY(rig.host.encoderRunning());
+    QCOMPARE(errorSpy.count(), 0);  // no toast: this is not an encoder failure
+    QCOMPARE(rig.host.stats().encoderName, cpuEncoder);
+  }
+
+  // GPU frames never start the encoder: only a readback frame of a connected viewer does.
+  void gpuFrameNeverStartsEncoder() {
+    EnvScope noKill("FRAMEBEAM_DISABLE_GPU_ENCODE", nullptr);
+    EnvScope noForce("FRAMEBEAM_H264_ENCODER", nullptr);
+    Rig rig;
+    SessionViewer* viewer = rig.addViewer();
+    QVERIFY(QTest::qWaitFor([&]() { return viewer->isConnected(); }, 15000));
+    QSignalSpy encoderSpy(&rig.host, &SessionHost::encoderRunningChanged);
+    QSignalSpy gpuSpy(&rig.host, &SessionHost::gpuInputChanged);
+    for (int i = 0; i < 10; ++i) {
+      rig.host.pushGpuFrame(fakeGpuFrame());
+      QTest::qWait(5);
+    }
+    QVERIFY(!rig.host.encoderRunning());
+    QCOMPARE(encoderSpy.count(), 0);
+    QCOMPARE(gpuSpy.count(), 0);
+    QVERIFY(!rig.host.gpuInputFailed());
+    rig.host.pushFrame(syntheticFrame(0));  // a readback frame starts it
+    QVERIFY(rig.host.encoderRunning());
+    QCOMPARE(encoderSpy.count(), 1);
+  }
+
+  // The watchdog: GPU input is "active" but only readback frames arrive. After 60 of them and a second without a GPU
+  // frame it is turned off and the 60th is encoded.
+  void watchdogTurnsGpuOff() {
+    EnvScope noKill("FRAMEBEAM_DISABLE_GPU_ENCODE", nullptr);
+    EnvScope noForce("FRAMEBEAM_H264_ENCODER", nullptr);
+    Rig rig;
+    SessionViewer* viewer = rig.addViewer();
+    int frames = 0;
+    QObject::connect(viewer, &SessionViewer::frameReady, this, [&](const QImage&) { ++frames; });
+    rig.source.start();
+    QVERIFY2(QTest::qWaitFor([&]() { return frames >= 20 && rig.host.encoderRunning(); }, 15000), qPrintable(QString::number(frames)));
+    rig.source.stop();
+    QSignalSpy gpuSpy(&rig.host, &SessionHost::gpuInputChanged);
+
+    rig.host.simulateGpuActiveForTest();
+    QVERIFY(rig.host.gpuInputActive());
+    QVERIFY(rig.host.stats().gpuInput);
+    for (int i = 0; i < 59; ++i) {
+      rig.host.pushFrame(syntheticFrame(i));  // skipped: the encoder is supposed to get GPU frames
+    }
+    QCOMPARE(gpuSpy.count(), 0);
+    QVERIFY(rig.host.gpuInputActive());
+    QTest::qWait(1100);  // the watchdog also wants a second without a GPU frame on the host clock
+    rig.host.pushFrame(syntheticFrame(59));
+    QCOMPARE(gpuSpy.count(), 1);
+    QVERIFY(rig.host.gpuInputFailed());
+    QVERIFY(!rig.host.gpuInputActive());
+    QVERIFY(!rig.host.stats().gpuInput);
+    QVERIFY(rig.host.stats().gpuInputFailed);
+
+    const int before = frames;
+    rig.source.start();  // readback frames are encoded again
+    QVERIFY2(QTest::qWaitFor([&]() { return frames >= before + 20; }, 10000), qPrintable(QString::number(frames - before)));
+    QVERIFY(rig.host.encoderRunning());
+    QCOMPARE(gpuSpy.count(), 1);
+  }
+
+  // A UI stall queues a burst of frame events that the mailbox answers with one GPU frame and many empty takes: 120
+  // readback frames right after a GPU frame are no failure. Only 60 frames AND a second without a GPU frame are.
+  void watchdogIgnoresABurstRightAfterAGpuFrame() {
+    EnvScope noKill("FRAMEBEAM_DISABLE_GPU_ENCODE", nullptr);
+    EnvScope noForce("FRAMEBEAM_H264_ENCODER", nullptr);
+    Rig rig;
+    SessionViewer* viewer = rig.addViewer();
+    int frames = 0;
+    QObject::connect(viewer, &SessionViewer::frameReady, this, [&](const QImage&) { ++frames; });
+    rig.source.start();
+    QVERIFY2(QTest::qWaitFor([&]() { return frames >= 20 && rig.host.encoderRunning(); }, 15000), qPrintable(QString::number(frames)));
+    rig.source.stop();
+    QSignalSpy gpuSpy(&rig.host, &SessionHost::gpuInputChanged);
+
+    rig.host.simulateGpuActiveForTest();  // "a GPU frame was just encoded"
+    QVERIFY(rig.host.gpuInputActive());
+    for (int i = 0; i < 120; ++i) {
+      rig.host.pushFrame(syntheticFrame(i));  // skipped, and no trip: the last GPU frame is milliseconds old
+    }
+    QCOMPARE(gpuSpy.count(), 0);
+    QVERIFY(rig.host.gpuInputActive());
+    QVERIFY(!rig.host.gpuInputFailed());
+
+    QTest::qWait(1100);  // no GPU frame for a second now, and far more than 60 readback frames counted: the next one trips
+    rig.host.pushFrame(syntheticFrame(120));
+    QCOMPARE(gpuSpy.count(), 1);
+    QVERIFY(rig.host.gpuInputFailed());
+    QVERIFY(!rig.host.gpuInputActive());
+  }
+
+  // GPU input is configured at open(): the kill switch and a forced encoder (also h264_nvenc) keep the readback path.
+  void gpuConfigSwitches() {
+    {
+      EnvScope kill("FRAMEBEAM_DISABLE_GPU_ENCODE", "1");
+      EnvScope noForce("FRAMEBEAM_H264_ENCODER", nullptr);
+      Rig rig;
+      QVERIFY(!rig.host.gpuInputAllowed());
+      SessionViewer* viewer = rig.addViewer();
+      int frames = 0;
+      QObject::connect(viewer, &SessionViewer::frameReady, this, [&](const QImage&) { ++frames; });
+      QSignalSpy gpuSpy(&rig.host, &SessionHost::gpuInputChanged);
+      rig.source.start();
+      QVERIFY2(QTest::qWaitFor([&]() { return frames >= 10; }, 15000), qPrintable(QString::number(frames)));
+      for (int i = 0; i < 20; ++i) {
+        rig.host.pushGpuFrame(fakeGpuFrame());  // ignored: had the worker seen it, GPU input would have failed
+        QTest::qWait(5);
+      }
+      QCOMPARE(gpuSpy.count(), 0);
+      QVERIFY(!rig.host.gpuInputFailed());
+      QVERIFY(!rig.host.gpuInputAllowed());
+    }
+    {
+      EnvScope noKill("FRAMEBEAM_DISABLE_GPU_ENCODE", nullptr);
+      EnvScope force("FRAMEBEAM_H264_ENCODER", "libx264");
+      Rig rig;  // no frames are encoded here: the forced encoder may not exist in this FFmpeg
+      QVERIFY(!rig.host.gpuInputAllowed());
+      SessionViewer* viewer = rig.addViewer();
+      QVERIFY(QTest::qWaitFor([&]() { return viewer->isConnected(); }, 15000));
+      rig.host.pushGpuFrame(fakeGpuFrame());
+      QVERIFY(!rig.host.encoderRunning());
+    }
   }
 };
 

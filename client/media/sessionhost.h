@@ -19,6 +19,8 @@
 #include "videoencoder.h"
 #include "viewerreports.h"
 
+struct AVFrame;
+
 namespace rtc {
 class PeerConnection;
 class Track;
@@ -42,6 +44,11 @@ struct SinkList;
 // bounded queue and return. All video/Opus encoding and the RTP sendFrame() calls run on ONE dedicated worker
 // thread (EncodeWorker, started with the encoder, joined in stopEncoder()/close()); when it falls behind the oldest
 // pending video frame is dropped, audio stays ordered. stats()/encoderName()/encoderRunning() are thread-safe.
+//
+// GPU-direct input (ADR 0019): on an NVIDIA GPU the local game can hand CUDA frames to pushGpuFrame() instead of the
+// readback frames of pushFrame(). h264_nvenc then takes them without a CPU copy. Readback stays the default and the
+// safety net: the CPU encoder keeps running until the first CUDA frame was encoded, and any problem on the GPU path
+// switches this Session back to readback frames (gpuInputChanged()), never to an error.
 class SessionHost : public QObject {
   Q_OBJECT
  public:
@@ -81,6 +88,26 @@ class SessionHost : public QObject {
   // Audio: interleaved int16 stereo at the core rate (any rate), e.g. straight from the emulation callback.
   void pushAudio(const QByteArray& pcm, int sampleRate);
 
+  // GPU-direct input (ADR 0019): one CUDA frame (AV_PIX_FMT_CUDA, sw_format RGB0) of the local game. Never starts the
+  // encoder (readback frames do); ignored unless the encoder runs and GPU input is not off for this Session. Does not
+  // look at the driver or the caps (tests push fake frames).
+  void pushGpuFrame(std::shared_ptr<AVFrame> frame);
+  // GPU input may be tried in this Session: open, not off, configured (no kill switch, no forced encoder), no pinned
+  // encoder order, CUDA usable in this process, FFmpeg feeds h264_nvenc with CUDA frames and the encoder opens here.
+  bool gpuInputAllowed() const;
+  // The encoder runs on GPU frames (confirmed by its first CUDA encode); readback frames are not copied then.
+  bool gpuInputActive() const { return encoderRunning_ && gpuActive_ && !gpuInputOff_; }
+  // GPU input was tried in this Session and failed (diagnostics: "readback (GPU-direct off)").
+  bool gpuInputFailed() const { return gpuInputFailed_; }
+  // Off for the rest of this Session: readback frames again. `failure` false = not applicable (silent), true = failed.
+  // Idempotent; emits gpuInputChanged().
+  void disableGpuInput(const QString& reason, bool failure);
+  // Tests: gpuActive_ = true, as if the worker had confirmed GPU mode.
+  void simulateGpuActiveForTest() {
+    gpuActive_ = true;
+    lastGpuNs_ = clock_.nsecsElapsed();
+  }
+
  public slots:
   void addViewer(const QString& viewerId, const QList<TurnServer>& turnServers = {});     // `viewer_joined`: creates the PeerConnection and sends the offer
   void removeViewer(const QString& viewerId);  // `viewer_left`: closes the PeerConnection immediately
@@ -93,6 +120,8 @@ class SessionHost : public QObject {
   void encoderRunningChanged(bool running);
   void rxReportReceived(const QString& viewerId, double loss, double kbps);  // viewer report over fb-diag (tests, diagnostics)
   void errorOccurred(const QString& message);  // e.g. no encoder can be opened
+  // GPU input became active or was switched off (UI thread). Read gpuInputActive()/gpuInputFailed().
+  void gpuInputChanged();
 
  private:
   struct Viewer {
@@ -138,6 +167,14 @@ class SessionHost : public QObject {
   bool keyframePending_ = false;
   QElapsedTimer clock_;
   qint64 lastEncodeNs_ = 0;
+
+  // GPU-direct input (ADR 0019). Atomic where stats()/gpuInputActive() may be read from other threads.
+  std::atomic<bool> gpuActive_{false};       // the worker confirmed GPU mode
+  std::atomic<bool> gpuInputOff_{false};     // off for this Session (failed or not applicable)
+  std::atomic<bool> gpuInputFailed_{false};  // ... because it failed
+  bool gpuConfigured_ = false;               // computed at open(): kill switch and forced encoder
+  int gpuSkips_ = 0;                         // watchdog: readback frames since the last GPU frame
+  qint64 lastGpuNs_ = 0;  // clock_ time of the last GPU frame (watchdog)
 
   QTimer statsTimer_;
   QElapsedTimer statsClock_;

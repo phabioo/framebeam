@@ -17,6 +17,7 @@ qt_add_qml_module(framebeam_ui
     controllersglyphs.h controllersglyphs.cpp
     audiooutput.h audiooutput.cpp
     gamesession.h gamesession.cpp
+    gpuencodebridge.h gpuencodebridge.cpp
     gameview.h gameview.cpp
     librarymodel.h librarymodel.cpp
     playercontroller.h playercontroller.cpp
