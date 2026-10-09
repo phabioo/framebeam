@@ -150,6 +150,16 @@ See [ADR 0018](adr/0018-player-speed-up.md) (proposed).
 Follow-up to ADR 0013 D3 (requested 2026-10-08 after speed-up stutter at 8× internal resolution).
 
 - Open: show hardware-rendered frames in the game view straight from the GPU (shared texture or interop with the Qt Quick scene graph, D3D11 on Windows), without the CPU readback and QImage upload; readback only while the Session is shared.
+- Open: an OpenGL to D3D11 bridge (WGL_NV_DX_interop2) for the core's texture, shared with the QSV and AMF paths of "GPU-direct hardware encoding"; today's readback stays the fallback.
+- Picture quality is unchanged (the frame is still downscaled to the window); the gain is CPU time and about one frame of latency.
+
+## 0.7.x GPU-direct hardware encoding (NVENC first)
+
+Requested 2026-10-09. Today a shared Session reads the frame back, converts it to YUV on the CPU and uploads it again to NVENC/QSV/AMF.
+
+- Open: NVIDIA first: hand the core's OpenGL texture to NVENC through CUDA-GL interop and FFmpeg CUDA hardware frames (NVENC takes RGB and converts on the GPU); no readback or CPU conversion while sharing.
+- Open: QSV and AMF via the OpenGL to D3D11 bridge from "Direct GPU display".
+- Software encoders, cores without hardware rendering and failed interop keep today's readback path. Verifiable only on real GPUs (CI has none).
 
 ## 0.7.x Hotkeys and controller profiles
 
