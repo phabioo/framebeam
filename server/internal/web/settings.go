@@ -519,14 +519,30 @@ func (s *Server) settingsPassword(w http.ResponseWriter, r *http.Request, sess *
 		fail("The new passwords do not match.")
 		return
 	}
+	// A stolen session must not be able to guess the current password: same attempt budget as the login.
+	ip, who := remoteIP(r), "pw:"+sess.User.ID
+	if !s.login.take(ip, who) {
+		w.Header().Set("Retry-After", "60")
+		fail("Too many attempts. Please try again in a minute.")
+		return
+	}
+	release, ok := s.acquireVerify(r.Context())
+	if !ok {
+		s.login.refund(ip, who)
+		busy(w)
+		return
+	}
+	defer release()
 	if _, err := s.svc.VerifyPassword(r.Context(), sess.User.Username, r.PostFormValue("current")); err != nil {
 		if errors.Is(err, hub.ErrInvalidCredentials) {
 			fail("The current password is incorrect.")
 			return
 		}
+		s.login.refund(ip, who)
 		s.fail(w, r, err)
 		return
 	}
+	s.login.refund(ip, who)
 	if err := s.svc.ChangePassword(r.Context(), sess.User.ID, r.PostFormValue("new")); err != nil {
 		var he *hub.Error
 		if errors.As(err, &he) && he.Code == hub.CodeBadRequest {
@@ -795,14 +811,20 @@ func (s *Server) settingsNetRestart(w http.ResponseWriter, r *http.Request, sess
 	if !s.cfg.UseTLS {
 		scheme = "http"
 	}
-	host := r.Host
-	if h, _, err := net.SplitHostPort(r.Host); err == nil {
-		host = h
+	// The address comes from the configuration (public host, else a concrete listen host), never from the
+	// request's Host header. Without one the URL stays empty and the page asks the admin to open the new port.
+	host := s.cfg.PublicHost
+	if host == "" {
+		if h, _, err := net.SplitHostPort(s.cfg.Listen); err == nil && h != "" {
+			if ip := net.ParseIP(h); ip == nil || !ip.IsUnspecified() {
+				host = h
+			}
+		}
 	}
 	port := desired.ListenPort()
-	rb := &restartBody{
-		URL:     scheme + "://" + net.JoinHostPort(host, strconv.Itoa(port)) + "/settings/network",
-		Changed: port != s.cfg.Net.Running.ListenPort(),
+	rb := &restartBody{Changed: port != s.cfg.Net.Running.ListenPort()}
+	if host != "" {
+		rb.URL = scheme + "://" + net.JoinHostPort(host, strconv.Itoa(port)) + "/settings/network"
 	}
 	s.log.Info("hub restart requested from the web interface", "user", sess.User.Username)
 	s.renderSettings(w, r, sess, http.StatusOK, "network", settingsRes{OK: "restarting", Restarting: rb})

@@ -24,22 +24,22 @@ func TestAdminSetupTwiceRefused(t *testing.T) {
 	if _, err := svc.CreateAdmin(ctx, "fabio", "short"); !errors.Is(err, hub.ErrBadRequest) {
 		t.Fatalf("short password: %v", err)
 	}
-	u, err := svc.CreateAdmin(ctx, "fabio", "secret-1234")
+	u, err := svc.CreateAdmin(ctx, "fabio", "secret-12345")
 	if err != nil || u.Role != hub.RoleAdmin {
 		t.Fatalf("%v %+v", err, u)
 	}
-	if _, err := svc.CreateAdmin(ctx, "second", "secret-1234"); !errors.Is(err, hub.ErrAdminExists) {
+	if _, err := svc.CreateAdmin(ctx, "second", "secret-12345"); !errors.Is(err, hub.ErrAdminExists) {
 		t.Fatalf("second admin: %v", err)
 	}
 }
 
 func TestVerifyAndChangePassword(t *testing.T) {
 	svc, _ := hubtest.New(t, nil)
-	u, _ := svc.CreateAdmin(ctx, "fabio", "secret-1234")
-	if _, err := svc.VerifyPassword(ctx, "FABIO", "secret-1234"); err != nil {
+	u, _ := svc.CreateAdmin(ctx, "fabio", "secret-12345")
+	if _, err := svc.VerifyPassword(ctx, "FABIO", "secret-12345"); err != nil {
 		t.Fatalf("verify: %v", err)
 	}
-	for _, c := range [][2]string{{"fabio", "wrong"}, {"nobody", "secret-1234"}} {
+	for _, c := range [][2]string{{"fabio", "wrong"}, {"nobody", "secret-12345"}} {
 		if _, err := svc.VerifyPassword(ctx, c[0], c[1]); !errors.Is(err, hub.ErrInvalidCredentials) {
 			t.Fatalf("%v: %v", c, err)
 		}
@@ -61,7 +61,7 @@ func TestVerifyAndChangePassword(t *testing.T) {
 	if _, err := svc.LookupWebSession(ctx, tok); !errors.Is(err, hub.ErrUnauthorized) {
 		t.Fatal("session still valid after password change")
 	}
-	if _, err := svc.VerifyPassword(ctx, "fabio", "secret-1234"); err == nil {
+	if _, err := svc.VerifyPassword(ctx, "fabio", "secret-12345"); err == nil {
 		t.Fatal("old password still valid")
 	}
 	if _, err := svc.VerifyPassword(ctx, "fabio", "new-password"); err != nil {
@@ -74,7 +74,7 @@ func TestVerifyAndChangePassword(t *testing.T) {
 
 func TestWebSessionExpiry(t *testing.T) {
 	svc, clk := hubtest.New(t, nil)
-	u, _ := svc.CreateAdmin(ctx, "fabio", "secret-1234")
+	u, _ := svc.CreateAdmin(ctx, "fabio", "secret-12345")
 	tok, _, _ := svc.CreateWebSession(ctx, u.ID)
 	clk.Advance(hub.WebSessionTTL + time.Second)
 	if _, err := svc.LookupWebSession(ctx, tok); !errors.Is(err, hub.ErrUnauthorized) {
@@ -93,7 +93,7 @@ func randomROM(n int) []byte {
 
 func TestLibraryAddDuplicateDeleteStorage(t *testing.T) {
 	svc, _ := hubtest.New(t, nil)
-	u, _ := svc.CreateAdmin(ctx, "fabio", "secret-1234")
+	u, _ := svc.CreateAdmin(ctx, "fabio", "secret-12345")
 	rom := randomROM(5000)
 	g, err := svc.AddROM(ctx, bytes.NewReader(rom), "demo.NDS", "", "", u.ID)
 	if err != nil {

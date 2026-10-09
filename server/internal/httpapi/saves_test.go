@@ -284,6 +284,13 @@ func (a *savesAPI) upload(tok, slot string, expected any, data []byte, sha strin
 		header: map[string]string{"X-FrameBeam-Expected-Revision": fmt.Sprint(expected), "X-FrameBeam-Content-SHA256": sha}})
 }
 
+// The body limit middleware must allow save uploads above the 1 MiB default of other endpoints.
+func TestUploadSaveFileAboveDefaultBodyLimit(t *testing.T) {
+	a := newSavesAPI(t)
+	data := bytes.Repeat([]byte{7}, 2<<20)
+	wantStatus(t, a.upload(a.tokA, "big", 0, data, hexSHA(data)), 200, "")
+}
+
 func TestUploadSaveFileAPI(t *testing.T) {
 	a := newSavesAPI(t)
 	data := []byte("other-emulator-sav")

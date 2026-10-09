@@ -197,10 +197,35 @@ func (s *Service) IssueAccessToken(ctx context.Context, deviceID, credential str
 		auth.HashToken(tok), deviceID, now.Add(AccessTokenTTL).Unix()); err != nil {
 		return AccessToken{}, internal(err)
 	}
+	// Bound the rows per device: expired tokens go, of the rest only the newest MaxAccessTokensPerDevice stay.
+	if _, err := tx.ExecContext(ctx, `DELETE FROM access_tokens WHERE device_id = ? AND (expires_at <= ? OR token_hash NOT IN
+		(SELECT token_hash FROM access_tokens WHERE device_id = ? ORDER BY expires_at DESC, rowid DESC LIMIT ?))`,
+		deviceID, now.Unix(), deviceID, MaxAccessTokensPerDevice); err != nil {
+		return AccessToken{}, internal(err)
+	}
 	if err := tx.Commit(); err != nil {
 		return AccessToken{}, internal(err)
 	}
 	return AccessToken{Token: tok, ExpiresIn: AccessTokenTTL}, nil
+}
+
+// MaxAccessTokensPerDevice is how many unexpired access tokens a device keeps; older ones are deleted on issue.
+const MaxAccessTokensPerDevice = 5
+
+// DeviceAuthorized reports whether the device is still trusted and its user not disabled (used to re-check
+// long-lived WSS connections). A database error counts as authorized so a hiccup does not drop connections.
+func (s *Service) DeviceAuthorized(ctx context.Context, deviceID string) bool {
+	var status string
+	var disabled sql.NullInt64
+	err := s.db.QueryRowContext(ctx, `SELECT d.status, u.disabled_at FROM devices d JOIN users u ON u.id = d.user_id WHERE d.id = ?`,
+		deviceID).Scan(&status, &disabled)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false
+	}
+	if err != nil {
+		return true
+	}
+	return status == string(DeviceTrusted) && !disabled.Valid
 }
 
 // Principal is the authenticated identity behind an access token.

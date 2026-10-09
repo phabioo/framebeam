@@ -51,7 +51,7 @@ func newEnv(t *testing.T, mod func(*hub.Options)) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	admin, err := svc.CreateAdmin(context.Background(), "admin", "secret-1234")
+	admin, err := svc.CreateAdmin(context.Background(), "admin", "secret-12345")
 	if err != nil {
 		t.Fatal(err)
 	}

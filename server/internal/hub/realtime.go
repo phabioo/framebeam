@@ -21,6 +21,20 @@ const CloseCodePolicy = 1008
 
 const outBuffer = 64
 
+// Incoming message rate limit per connection (token bucket). ICE candidates for one Session arrive in bursts
+// of a few dozen messages, so the burst leaves headroom; the sustained rate is far above normal use.
+const (
+	wsMsgRate  = 50.0 // messages per second
+	wsMsgBurst = 300.0
+)
+
+// maxPreHelloConns is how many connections per device may be open without having completed hello.
+const maxPreHelloConns = 2
+
+// presenceReserve is the free space in a client's out queue that presence broadcasts must leave for other
+// messages (signals, errors, Session updates): presence is dropped for a busy receiver instead of closing it.
+const presenceReserve = outBuffer / 2
+
 type sessionState struct {
 	mu    sync.Mutex // serializes Session mutations; lock order: mu, then rt.mu
 	iceMu sync.RWMutex
@@ -42,6 +56,7 @@ type rtState struct {
 	ownerTimers  map[string]timerEntry // session ID -> owner grace timer
 	viewerTimers map[string]timerEntry // viewer ID -> "never connected" timer
 	timerGen     uint64                // last timerEntry generation handed out
+	preHello     map[string]int        // device ID -> open connections that have not completed hello
 }
 
 func (ss *sessionState) init(o Options) {
@@ -51,6 +66,7 @@ func (ss *sessionState) init(o Options) {
 		ss.grace = DefaultOwnerGrace
 	}
 	ss.rt.conns = map[string]*Client{}
+	ss.rt.preHello = map[string]int{}
 	ss.rt.ownerTimers = map[string]timerEntry{}
 	ss.rt.viewerTimers = map[string]timerEntry{}
 }
@@ -222,6 +238,32 @@ type Client struct {
 	gameID     string
 	reqHost    string // Host of the WSS upgrade (TURN URLs)
 	remoteIP   netip.Addr
+
+	bucket   float64   // rate limit tokens; guarded by mu
+	bucketAt time.Time // last refill
+}
+
+// AcquirePreHello reserves one of the few not-yet-hello connection slots of a device. It returns false when
+// the device has too many; release (idempotent) frees the slot and must be called when hello completed or the
+// connection ended.
+func (s *Service) AcquirePreHello(deviceID string) (release func(), ok bool) {
+	rt := &s.sess.rt
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+	if rt.preHello[deviceID] >= maxPreHelloConns {
+		return func() {}, false
+	}
+	rt.preHello[deviceID]++
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			rt.mu.Lock()
+			defer rt.mu.Unlock()
+			if rt.preHello[deviceID]--; rt.preHello[deviceID] <= 0 {
+				delete(rt.preHello, deviceID)
+			}
+		})
+	}, true
 }
 
 // NewClient creates the connection state for an authenticated device. It is not visible to others until hello.
@@ -300,6 +342,33 @@ func (c *Client) sendRaw(b []byte) {
 	}
 }
 
+// sendDroppable queues a message that may be lost (presence): it is dropped when the queue is more than half
+// full instead of closing the receiver as slow consumer.
+func (c *Client) sendDroppable(b []byte) {
+	if len(c.out) >= outBuffer-presenceReserve {
+		return
+	}
+	c.sendRaw(b)
+}
+
+// allow takes one token of the incoming message bucket.
+func (c *Client) allow() bool {
+	now := time.Now() // real time: independent of the injectable test clock
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.bucketAt.IsZero() {
+		c.bucket = wsMsgBurst
+	} else if d := now.Sub(c.bucketAt).Seconds(); d > 0 {
+		c.bucket = min(wsMsgBurst, c.bucket+d*wsMsgRate)
+	}
+	c.bucketAt = now
+	if c.bucket < 1 {
+		return false
+	}
+	c.bucket--
+	return true
+}
+
 func (c *Client) sendMsg(typ, id string, payload any) { c.sendRaw(encode(typ, id, payload)) }
 
 func (c *Client) sendError(id string, code Code, msg string) {
@@ -311,6 +380,10 @@ var errFatal = errors.New("hub: connection must close")
 // Handle processes one incoming text frame. A non-nil error means the connection must be closed
 // (the reason was already sent to the client as error message where possible).
 func (c *Client) Handle(data []byte) error {
+	if !c.allow() {
+		c.closeWith(CloseCodePolicy, "rate limit exceeded")
+		return errFatal
+	}
 	var env envelope
 	if err := json.Unmarshal(data, &env); err != nil || env.Type == "" {
 		c.sendError("", CodeBadRequest, "Invalid message")
@@ -451,7 +524,7 @@ func (c *Client) presence(env envelope) {
 	msg := encode("presence_update", "", c.presencePayload(""))
 	for _, o := range c.svc.clients() {
 		if o != c {
-			o.sendRaw(msg)
+			o.sendDroppable(msg)
 		}
 	}
 }

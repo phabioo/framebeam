@@ -21,8 +21,9 @@ import (
 const (
 	// MaxRedeemPerIPPerMinute limits redeem attempts per remote IP (like pairing requests).
 	MaxRedeemPerIPPerMinute = 5
-	// MaxRedeemFailuresPerMinute limits failed attempts over all IPs (brute-force guard).
-	MaxRedeemFailuresPerMinute = 30
+	// MaxRedeemFailuresPerMinute limits failed attempts over all IPs: only a safety net, far above what
+	// per-IP limits let through from a few sources, so a single client cannot lock everyone out.
+	MaxRedeemFailuresPerMinute = 1000
 	MaxDisplayNameLen          = 32
 	inviteHistoryKeep          = 90 * 24 * time.Hour
 )
@@ -222,6 +223,7 @@ func (s *Service) rateLimitRedeem(ip string) error {
 		}
 		return h[i:]
 	}
+	ip = limitKey(ip)
 	s.redeemFails = prune(s.redeemFails)
 	h := prune(s.redeemHits[ip])
 	if len(h) >= MaxRedeemPerIPPerMinute || len(s.redeemFails) >= MaxRedeemFailuresPerMinute {
@@ -407,11 +409,19 @@ func (s *Service) RedeemInvite(ctx context.Context, in RedeemInput) (_ RedeemRes
 		}
 		out.Approved, out.Credential = true, cred
 	} else {
-		var open int
-		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM pairing_requests WHERE status = 'pending' AND expires_at > ?`, now.Unix()).Scan(&open); err != nil {
+		var status string
+		err := tx.QueryRowContext(ctx, `SELECT status FROM devices WHERE id = ?`, in.DeviceID).Scan(&status)
+		if err == nil && status == string(DeviceTrusted) { // the new user cannot own it: never reassign on approval
+			return RedeemResult{}, conflict("This device is already paired with the Hub")
+		} else if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return RedeemResult{}, internal(err)
 		}
-		if open >= MaxOpenPairingRequests {
+		var open int
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM pairing_requests WHERE status = 'pending' AND expires_at > ? AND user_id IS NOT NULL`,
+			now.Unix()).Scan(&open); err != nil {
+			return RedeemResult{}, internal(err)
+		}
+		if open >= MaxOpenInviteRequests {
 			return RedeemResult{}, &Error{Code: CodeRateLimited, Message: "Too many open requests"}
 		}
 		poll, err := auth.NewToken(auth.PrefixPoll)
