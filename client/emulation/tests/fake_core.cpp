@@ -21,6 +21,7 @@ std::vector<uint8_t> g_sram;
 int g_frames = 0;
 int g_delay = 0;
 int g_write = -1;
+int g_loads = 0;  // retro_load_game calls (survives reloads), rendered into pixel 1 (blue component) for tests
 retro_video_refresh_t g_video = nullptr;
 retro_environment_t g_env = nullptr;
 retro_audio_sample_batch_t g_audio = nullptr;
@@ -62,6 +63,7 @@ FB_EXPORT bool retro_load_game(const retro_game_info*) {
   g_delay = envInt("FB_FAKE_SRAM_DELAY_FRAMES", 0);
   g_write = envInt("FB_FAKE_SRAM_WRITE", -1);
   g_frames = 0;
+  ++g_loads;
   if (g_env && (envInt("FB_FAKE_FF_INHIBIT", 0) || envInt("FB_FAKE_FF_RATIO", 0))) {
     retro_fastforwarding_override o = {};
     o.ratio = static_cast<float>(envInt("FB_FAKE_FF_RATIO", 0));
@@ -77,6 +79,8 @@ FB_EXPORT void retro_run() {
   bool ff = false;
   if (g_env) g_env(RETRO_ENVIRONMENT_GET_FASTFORWARDING, &ff);
   g_pixels[0] = ff ? 0x7fff : 0;
+  g_pixels[1] = static_cast<uint16_t>(g_loads & 0x1f);
+  g_pixels[2] = static_cast<uint16_t>((g_sram.empty() ? 0 : g_sram[0]) & 0x1f);  // first save byte, low 5 bits
   if (g_audio) g_audio(g_samples, 735);
   if (g_video) g_video(g_pixels, 16, 16, 32);
 }

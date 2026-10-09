@@ -102,6 +102,13 @@ class EmulatorBackend {
   // Writes the game's battery save (if any) to the save directory when it changed. Called on pause and
   // before unloading; default: nothing.
   virtual void flushSave() {}
+  // Live save replacement (emulation thread, game loaded): the save file is written atomically, then the game is unloaded
+  // (without flushing the old memory) and loaded again exactly like a normal start, which copies the file into the core's
+  // save memory. false = nothing changed (no save memory, other size, file not writable) or the reload failed (the new save
+  // is then safe in the file and the core stops).
+  virtual bool applySave(const QByteArray& data) { Q_UNUSED(data); return false; }
+  // Size of the core's battery save memory, -1 when unknown/none (emulation thread).
+  virtual qint64 saveMemorySize() const { return -1; }
   // Called on the GUI thread right before the emulation thread starts (e.g. to create resources that only
   // the GUI thread may create, such as an offscreen surface for hardware rendering).
   virtual void prepareForStart() {}

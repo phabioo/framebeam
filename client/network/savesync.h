@@ -99,6 +99,39 @@ class SaveSync : public QObject {
   // the file must be non-empty and at most kMaxSaveBytes. `expectedRevision` 0 = no save on the Hub yet.
   void uploadSaveFile(const QString& gameId, const QString& slot, const QString& filePath, int expectedRevision,
                       const QString& localFileName, RestoreCallback cb);
+  // ---- Live save: the running core loads a restored / uploaded / chosen save (saves view inside the game) ----
+  // Hooks set by the Player (GameSession). All block the calling (GUI) thread until the emulation thread did it.
+  struct LiveHooks {
+    std::function<bool()> ready;                          // a core is loaded and running or paused (optional)
+    std::function<void()> flush;                          // the core's battery save is written to the save file
+    std::function<bool(qint64)> accepts;                  // the core's battery save memory has exactly this size
+    std::function<bool(const QByteArray&)> apply;         // replaces the battery save by reloading the game from the new file
+  };
+  void setLiveHooks(LiveHooks hooks) { live_ = std::move(hooks); }
+  // This game runs here with this slot and the core can take a new save.
+  bool liveApplyAvailable(const QString& gameId, const QString& slot) const {
+    return isRunning(gameId, slot) && live_.apply && live_.accepts && (!live_.ready || live_.ready());
+  }
+  // Why restore / upload are off for a running game even though the core could take the save; empty = allowed.
+  QString liveBlockReason(const QString& gameId, const QString& slot) const;
+
+  // ---- Save conflict outside the play flow (Library / in-game saves view) ----
+  struct SlotConflict {
+    enum class Outcome { Found, None, Offline, Failed };
+    Outcome kind = Outcome::Failed;
+    QString message;
+    ConflictView view;        // both sides: view.conflict (Hub), local device name / modification time
+    bool localExists = false;
+    qint64 localSize = 0;
+    qint64 hubSize = 0;       // size of the Hub's current checkpoint
+  };
+  using ConflictCallback = std::function<void(const SlotConflict&)>;
+  // Reads the open conflict of this device in the slot from the Hub (the game does not start).
+  void loadSlotConflict(const QString& gameId, const QString& slot, const QString& localFileName, ConflictCallback cb);
+  // Resolves it with the same code as the start dialog (UseHub: local backup first; UseLocal: upload as current). For a
+  // running game the local save is replaced live (hooks). The game never starts. `localFileName` names the file if none exists.
+  void resolveSlotConflict(const QString& gameId, const QString& slot, Resolution r, const QString& localFileName, RestoreCallback cb);
+
   // Snapshot of the Hub's current checkpoint (game not running here).
   void createSnapshot(const QString& gameId, const QString& slot, const QString& label, SnapshotCallback cb);
   // In game: first uploads a changed save through the final-sync path, then creates the snapshot.
@@ -182,6 +215,19 @@ class SaveSync : public QObject {
   void downloadAndApply(quint64 gen, bool backupLocal, const QString& note);
   void uploadAtStart(quint64 gen, const QString& sha);
   void showConflict(const SaveConflictInfo& c);
+  std::optional<SaveConflictInfo> ownConflict(const SaveSlotInfo& slot, const QString& preferredId) const;
+  ConflictView makeConflictView(const SaveConflictInfo& c, const QString& gameId, const QString& file) const;
+  // End of resolveConflict(): the play flow starts the game; a resolution from the saves view calls its callback instead.
+  void resolvedOk(const QString& note);
+  void resolveError(const QString& message, SaveRestoreResult::Outcome kind = SaveRestoreResult::Outcome::Failed);
+  bool writeResolvedSave(const QByteArray& data);
+  void resyncActiveFile();
+  void restoreVersionLive(const QString& gameId, const QString& slot, int version, int expectedRevision, RestoreCallback cb);
+  void uploadSaveFileLive(const QString& gameId, const QString& slot, const QString& filePath, int expectedRevision, RestoreCallback cb);
+  // Flush, upload a changed save (final-sync path), then `next(ok, revisionToExpect, message)`; liveOp_ stays set on ok.
+  void livePrelude(const QString& gameId, const QString& slot, int expectedRevision,
+                   std::function<void(bool, int, const QString&)> next);
+  RestoreResult applyLiveContent(const QByteArray& data, int newRevision, const QString& backupTag);
   void poll();
   void pump();
   void uploadCurrent(const QString& reason, std::function<void(UploadOutcome)> done);
@@ -204,6 +250,10 @@ class SaveSync : public QObject {
   quint64 gen_ = 0;
   bool dialogOpen_ = false;
   bool session_ = false;
+  LiveHooks live_;
+  bool liveOp_ = false;                     // a live restore / upload runs: no checkpoint uploads meanwhile
+  RestoreCallback resolveCb_;               // set while a resolution from the saves view runs
+  bool resolveLive_ = false;                // ... for the running game (a_ is its session state)
   QTimer pollTimer_;
   QTimer retryTimer_;
   int retryBackoffMs_ = 0;

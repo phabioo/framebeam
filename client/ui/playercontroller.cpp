@@ -152,6 +152,15 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   sessions_->setPlayerSettings(settings_.get());  // diagnostics overlay states live in settings/player.json (0.6 D5)
   saves_->setSettings(settings_.get());
   {
+    // Saves view inside the game: restore / upload / "use the Hub save" load the save into the running core.
+    SaveSync::LiveHooks hooks;
+    hooks.ready = [this]() { return session_.liveSaveReady(); };
+    hooks.flush = [this]() { session_.flushLiveSave(); };
+    hooks.accepts = [this](qint64 size) { return session_.liveSaveAccepts(size); };
+    hooks.apply = [this](const QByteArray& data) { return session_.applyLiveSave(data); };
+    saves_->setLiveHooks(std::move(hooks));
+  }
+  {
     SaveHistoryController::Env env;
     env.saves = saves_.get();
     env.connection = conn_.get();

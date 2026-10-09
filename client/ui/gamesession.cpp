@@ -209,6 +209,20 @@ void GameSession::reset() {
   }
 }
 
+bool GameSession::liveSaveAccepts(qint64 size) {
+  return runner_ && (state_ == Running || state_ == Paused) && runner_->saveMemoryAccepts(size);
+}
+
+void GameSession::flushLiveSave() {
+  if (runner_ && (state_ == Running || state_ == Paused)) {
+    runner_->flushSaveNow();
+  }
+}
+
+bool GameSession::applyLiveSave(const QByteArray& data) {
+  return runner_ && (state_ == Running || state_ == Paused) && runner_->applySaveAndReset(data);
+}
+
 void GameSession::stop() {
   const bool wasActive = state_ != Idle;
   teardown();

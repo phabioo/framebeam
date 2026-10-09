@@ -24,9 +24,23 @@ Rectangle {
     readonly property string hubWord: qsTr("this Hub")
     readonly property bool quitting: player.quitting
     readonly property string shareText: ctl.shared ? qsTr("Shared · %1 watching").arg(ctl.viewerCount) : qsTr("Not shared")
+    // "Manage saves" opens the saves view (SavesView, the one of the Library) inside the panel; the game keeps running.
+    property bool savesOpen: false
     signal collapseToggled()
-    signal manageSavesRequested()
+    signal savesClosed()
     signal selectLocalRequested()
+
+    function closeSaves() {
+        if (!root.savesOpen) return
+        root.savesOpen = false
+        root.savesClosed()
+    }
+    // Gone with the game, or when another tile is selected.
+    onLocalTileChanged: if (!localTile) root.savesOpen = false
+    Connections {
+        target: root.gameSession
+        function onStateChanged() { if (!root.gameSession.active) root.savesOpen = false }
+    }
 
     objectName: "gamePanel"
     color: Theme.gameHeader
@@ -147,7 +161,7 @@ Rectangle {
             id: flick
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: root.localTile
+            visible: root.localTile && !root.savesOpen
             contentWidth: width
             contentHeight: col.implicitHeight + 40
             clip: true
@@ -542,7 +556,7 @@ Rectangle {
                                 font: manageBtn.font
                                 color: manageBtn.hovered ? Theme.gameText : Theme.gameBadgeText
                             }
-                            onClicked: root.manageSavesRequested()
+                            onClicked: root.savesOpen = true
                         }
                     }
                     RowLayout {
@@ -594,6 +608,32 @@ Rectangle {
                               : qsTr("Saved to “%1” · final sync on pause or quit").arg(root.slotLabel())
                         color: root.saves.message === "" ? Theme.gameMeta : (root.saves.messageIsError ? Theme.gameDanger : Theme.gameOk)
                     }
+                }
+            }
+        }
+
+        // ---- saves view (Manage saves) ----
+        Item {
+            id: savesBox
+            objectName: "gamePanelSaves"
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.minimumWidth: 0
+            visible: root.localTile && root.savesOpen
+            clip: true
+            Loader {
+                anchors.fill: parent
+                anchors.topMargin: 16
+                anchors.leftMargin: 20
+                anchors.rightMargin: 20
+                anchors.bottomMargin: 8
+                active: savesBox.visible
+                sourceComponent: SavesView {
+                    player: root.player
+                    inGame: true
+                    backTitle: qsTr("Game panel")
+                    onBack: root.closeSaves()
+                    Component.onCompleted: forceActiveFocus()
                 }
             }
         }

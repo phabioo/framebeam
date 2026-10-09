@@ -1,5 +1,6 @@
 #include "emulation_runner.h"
 
+#include <QDeadlineTimer>
 #include <QThread>
 
 #ifdef Q_OS_WIN
@@ -13,6 +14,8 @@
 #include <chrono>
 #include <algorithm>
 #include <cmath>
+#include <deque>
+#include <memory>
 
 namespace framebeam::emu {
 
@@ -37,6 +40,19 @@ class EmulationRunner::Worker : public QThread {
     QMutexLocker l(&m_mutex);
     m_reset = true;
     m_cond.wakeAll();
+  }
+  // GUI thread: queue `fn` for the emulation thread and wait until it ran.
+  bool runTask(std::function<void(EmulatorBackend&)> fn, int timeoutMs) {
+    auto task = std::make_shared<Task>();
+    task->fn = std::move(fn);
+    QMutexLocker l(&m_mutex);
+    if (!isRunning() || m_stop || m_exited) return false;
+    m_tasks.push_back(task);
+    m_cond.wakeAll();
+    QDeadlineTimer deadline(timeoutMs);
+    while (!task->done && !m_exited && !deadline.hasExpired()) m_doneCond.wait(&m_mutex, deadline);
+    if (!task->done) task->cancelled = true;  // never runs later
+    return task->done;
   }
 
  protected:
@@ -81,8 +97,10 @@ class EmulationRunner::Worker : public QThread {
         QMutexLocker l(&m_mutex);
         while (m_paused && !m_stop) {
           if (!wasPaused) { wasPaused = true; be.flushSave(); m_owner->setState(State::Paused); }
+          drainTasks(be);
           m_cond.wait(&m_mutex);
         }
+        drainTasks(be);
         if (m_stop) break;
         if (wasPaused) { wasPaused = false; next = std::chrono::steady_clock::now(); m_owner->setState(State::Running); }
         if (m_reset) { m_reset = false; be.reset(); }
@@ -132,7 +150,7 @@ class EmulationRunner::Worker : public QThread {
       const auto maxBehind = fast ? std::max<std::chrono::steady_clock::duration>(5 * step, std::chrono::milliseconds(100)) : 2 * step;
       if (next < now - maxBehind) next = now;
       QMutexLocker l(&m_mutex);
-      while (!m_stop && !m_paused && !m_reset) {
+      while (!m_stop && !m_paused && !m_reset && m_tasks.empty()) {
         const auto wait = std::chrono::duration_cast<std::chrono::milliseconds>(next - std::chrono::steady_clock::now());
         if (wait.count() <= 0) break;
         unsigned long ms = static_cast<unsigned long>(wait.count());
@@ -141,11 +159,36 @@ class EmulationRunner::Worker : public QThread {
         m_cond.wait(&m_mutex, ms);
       }
     }
+    {
+      QMutexLocker l(&m_mutex);
+      m_exited = true;  // waiting callers give up
+      m_doneCond.wakeAll();
+    }
     be.unloadGame();
     be.unloadCore();
   }
 
  private:
+  struct Task {
+    std::function<void(EmulatorBackend&)> fn;
+    bool done = false;
+    bool cancelled = false;
+  };
+  // Called with m_mutex held, on the emulation thread.
+  void drainTasks(EmulatorBackend& be) {
+    while (!m_tasks.empty()) {
+      const std::shared_ptr<Task> t = m_tasks.front();
+      m_tasks.pop_front();
+      if (!t->cancelled) {
+        t->fn(be);
+        t->done = true;
+      }
+      m_doneCond.wakeAll();
+    }
+  }
+  std::deque<std::shared_ptr<Task>> m_tasks;
+  QWaitCondition m_doneCond;
+  bool m_exited = false;
   EmulationRunner* m_owner;
   EmulatorBackend* m_backend;
   StartRequest m_req;
@@ -192,6 +235,25 @@ void EmulationRunner::start(const StartRequest& request) {
 void EmulationRunner::pause() { if (m_worker) m_worker->setPaused(true); }
 void EmulationRunner::resume() { if (m_worker) m_worker->setPaused(false); }
 void EmulationRunner::reset() { if (m_worker) m_worker->requestReset(); }
+
+bool EmulationRunner::runOnEmuThread(std::function<void(EmulatorBackend&)> fn, int timeoutMs) {
+  return m_worker && m_worker->runTask(std::move(fn), timeoutMs);
+}
+bool EmulationRunner::applySaveAndReset(const QByteArray& data) {
+  bool ok = false;
+  const bool ran = runOnEmuThread(
+      [&](EmulatorBackend& be) {
+        ok = be.applySave(data);  // reloads the game
+      },
+      5000);
+  return ran && ok;
+}
+bool EmulationRunner::flushSaveNow() { return runOnEmuThread([](EmulatorBackend& be) { be.flushSave(); }); }
+bool EmulationRunner::saveMemoryAccepts(qint64 size) {
+  bool ok = false;
+  const bool ran = runOnEmuThread([&](EmulatorBackend& be) { ok = size > 0 && be.saveMemorySize() == size; });
+  return ran && ok;
+}
 
 void EmulationRunner::setFastForward(bool on) {
   if (on && !m_backend->supportsFastForward()) return;

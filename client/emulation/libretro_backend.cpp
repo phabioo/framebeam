@@ -294,6 +294,7 @@ bool LibretroBackend::loadGame(const QString& path, QString* error) {
   m_av.fps = av.timing.fps;
   m_av.sampleRate = av.timing.sample_rate;
   m_gameLoaded = true;
+  m_loadedPath = path;
 
   // Battery save: the core exposes it as memory, the frontend persists it (like RetroArch's .srm).
   m_saveFilePath.clear();
@@ -353,6 +354,34 @@ void LibretroBackend::flushSave() {
   if (f.open(QIODevice::WriteOnly) && f.write(now) == now.size() && f.commit()) {
     m_sramSnapshot = now;
   }
+}
+
+// Live save replacement as a real game reload: the file is written first, then the game is unloaded WITHOUT flushing the
+// old memory and loaded again through loadGame(), whose normal path copies the file into SAVE_RAM after retro_load_game.
+// No retro_reset() and no reliance on the core re-reading memory we poke into it.
+bool LibretroBackend::applySave(const QByteArray& data) {
+  if (!m_gameLoaded || m_saveFilePath.isEmpty() || m_loadedPath.isEmpty() || !m_api->get_memory_data || !m_api->get_memory_size) return false;
+  if (m_savePendingLoad && !tryLoadSave()) return false;
+  const size_t size = m_api->get_memory_size(RETRO_MEMORY_SAVE_RAM);
+  if (m_api->get_memory_data(RETRO_MEMORY_SAVE_RAM) == nullptr || size == 0 || static_cast<size_t>(data.size()) != size) return false;
+  const QString path = m_loadedPath;
+  const QString saveFile = m_saveFilePath;
+  QSaveFile f(saveFile);  // the file first: if it fails, nothing was touched
+  if (!(f.open(QIODevice::WriteOnly) && f.write(data) == data.size() && f.commit())) return false;
+  m_saveFilePath.clear();  // unloadGame() must not flush the old memory over the new file
+  unloadGame();
+  QString err;
+  if (!loadGame(path, &err)) {
+    qCWarning(lcCore) << "Reloading the game after a live save failed:" << err;
+    return false;  // the game is unloaded: the runner reports the core as stopped; the new save is safe in the file
+  }
+  return m_saveFilePath == saveFile && !m_savePendingLoad;
+}
+
+qint64 LibretroBackend::saveMemorySize() const {
+  if (!m_gameLoaded || m_saveFilePath.isEmpty() || !m_api->get_memory_data || !m_api->get_memory_size) return -1;
+  if (m_api->get_memory_data(RETRO_MEMORY_SAVE_RAM) == nullptr) return -1;
+  return static_cast<qint64>(m_api->get_memory_size(RETRO_MEMORY_SAVE_RAM));
 }
 
 void LibretroBackend::unloadGame() {

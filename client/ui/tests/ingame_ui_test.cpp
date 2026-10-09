@@ -7,6 +7,8 @@
 #include <QtTest>
 
 #include "fakehub.h"
+#include "savestore.h"
+#include "savesync.h"
 #include "testsupport.h"
 
 using namespace framebeam;
@@ -73,11 +75,12 @@ QString chain(QQuickItem* it) {
 
 FakeHub* gHub = nullptr;
 
-void pair(FakeHub& hub, Harness& h, bool withGames) {
+void pair(FakeHub& hub, Harness& h, bool withGames, bool withSaveHistory = false) {
   hub.hubId = QStringLiteral("hub-ingame");
   hub.name = QStringLiteral("Home");
   hub.decision = FakeHub::Decision::Approve;
   hub.features = {QStringLiteral("saves_v1"), QStringLiteral("sessions_v1")};
+  if (withSaveHistory) hub.features += {QStringLiteral("saves_v2"), QStringLiteral("saves_v3"), QStringLiteral("saves_v4")};
   if (withGames) {
     hub.games = QJsonObject{{QStringLiteral("games"),
                              QJsonArray{uitest::gameJson(QStringLiteral("g1"), QStringLiteral("Lumen Drift"), uitest::sha256Hex("a"), 1)}}};
@@ -129,6 +132,55 @@ void resize(Harness& h, int w, int ht) {
   h.window->resize(w, ht);
   QTest::qWait(60);
   QQuickTest::qWaitForPolish(h.window);
+}
+
+// ---- saves view inside the game (live) ----
+
+// Stand-in for the running core: 12 bytes of battery save; "apply" writes the save file like the emulation thread does.
+struct FakeCore {
+  int flushes = 0, applies = 0;
+  qint64 size = 12;
+  QByteArray applied;
+  QString file;
+};
+
+QByteArray fileBytes(const QString& path) {
+  QFile f(path);
+  return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+}
+void writeBytes(const QString& path, const QByteArray& data) {
+  QFile f(path);
+  QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
+  f.write(data);
+}
+
+// Scrolls the Flickable around `name` so that the item is at its top (screenshots of long views).
+void scrollTo(Harness& h, const char* name, bool end = false) {
+  QQuickItem* it = h.item(name);
+  for (QQuickItem* a = it ? it->parentItem() : nullptr; a != nullptr; a = a->parentItem()) {
+    const QVariant ch = a->property("contentHeight"), cy = a->property("contentY");
+    QQuickItem* content = a->property("contentItem").value<QQuickItem*>();
+    if (ch.isValid() && cy.isValid() && content != nullptr) {
+      const qreal y = end ? ch.toReal() - a->height() : it->mapToItem(content, QPointF(0, 0)).y() - 8;
+      a->setProperty("contentY", std::clamp<qreal>(y, 0, std::max<qreal>(0, ch.toReal() - a->height())));
+      break;
+    }
+  }
+  QQuickTest::qWaitForPolish(h.window);
+}
+
+// Adds letter spacing to every item that has a font (stand-in for the wider Windows fonts).
+void widenFonts(Harness& h, qreal spacing) {
+  QList<QQuickItem*> all{h.window->contentItem()};
+  for (int i = 0; i < all.size(); ++i) all.append(all.at(i)->childItems());
+  for (QQuickItem* it : std::as_const(all)) {
+    const QVariant fv = it->property("font");
+    if (fv.metaType() != QMetaType::fromType<QFont>()) continue;
+    QFont f = fv.value<QFont>();
+    if (f.letterSpacing() < 1.0) { f.setLetterSpacing(QFont::AbsoluteSpacing, spacing); it->setProperty("font", f); }
+  }
+  QQuickTest::qWaitForPolish(h.window);
+  QTest::qWait(60);
 }
 
 }  // namespace
@@ -185,12 +237,301 @@ class InGameUiTest : public QObject {
     return {};
   }
 
+  // A running game (preview, no core) with a real save session against the FakeHub and a fake core behind the live hooks.
+  void startLiveGame(FakeHub& hub, Harness& h, FakeCore* core) {
+    pair(hub, h, true, true);
+    hub.setHubSave(QStringLiteral("g1"), "hub-cp-1-xxx");
+    hub.addHistory(QStringLiteral("g1"), QStringLiteral("default"), "hub-old-1234", QStringLiteral("session_end"));
+    hub.addHistory(QStringLiteral("g1"), QStringLiteral("default"), "hub-snap-123", QStringLiteral("manual_snapshot"), QStringLiteral("Boss door"));
+    const QString sha = uitest::sha256Hex("a");
+    SaveSync* sync = h.controller->saveSync();
+    QSignalSpy ready(sync, &SaveSync::startReady);
+    sync->prepareStart(QStringLiteral("g1"), QStringLiteral("/cache/") + sha + QStringLiteral(".nds"), {sha});
+    QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 8000);
+    core->file = sync->activeSaveFile();
+    QCOMPARE(fileBytes(core->file), QByteArray("hub-cp-1-xxx"));
+    SaveSync::LiveHooks hooks;
+    hooks.flush = [core]() { ++core->flushes; };
+    hooks.accepts = [core](qint64 n) { return n == core->size; };
+    hooks.apply = [core](const QByteArray& d) {
+      ++core->applies;
+      core->applied = d;
+      QFile f(core->file);
+      if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return false;
+      f.write(d);
+      return true;
+    };
+    sync->setLiveHooks(std::move(hooks));
+    startPreview(h, true);   // GameSession::started begins the save session
+    QVERIFY(sync->sessionActive());
+    SaveHistoryController* hist = h.controller->saveHistory();
+    QTRY_VERIFY_WITH_TIMEOUT(hist->available() && !hist->loading() && hist->versionCount() == 3, 8000);
+    QVERIFY(hist->gameRunning());
+    resize(h, 1280, 800);
+  }
+  // Every named visible item lies inside the game panel, which lies inside the window.
+  static QString outsidePanel(Harness& h, const QStringList& names, int minChecked) {
+    QQuickTest::qWaitForPolish(h.window);
+    QTest::qWait(40);
+    const QRectF panel = rectOf(h, "gamePanel");
+    if (panel.isEmpty() || panel.right() > h.window->width() + 0.5) return QStringLiteral("panel outside the window");
+    int checked = 0;
+    for (const QString& n : names) {
+      for (QQuickItem* it : h.items(n.toLatin1().constData())) {
+        if (!it->isVisible() || it->width() <= 0) continue;
+        ++checked;
+        const QRectF r = sceneRect(it);
+        if (r.left() < panel.left() - 0.5 || r.right() > panel.right() + 0.5) {
+          return QStringLiteral("'%1' outside the panel (%2..%3 vs %4..%5)%6").arg(n).arg(r.left()).arg(r.right()).arg(panel.left()).arg(panel.right()).arg(chain(it));
+        }
+      }
+    }
+    return checked >= minChecked ? QString() : QStringLiteral("only %1 items visible").arg(checked);
+  }
+
  private slots:
   void initTestCase() { uitest::installWarningCounter(); }
   void init() { uitest::warningCount() = 0; }
   void cleanup() { QCOMPARE(uitest::warningCount().load(), 0); }
 
   // ---- Session ----
+
+  // ---- Manage saves inside the game ----
+
+  void manageSavesOpensTheSavesViewInsideTheGame() {
+    FakeHub hub(QStringLiteral("a"));
+    Harness h;
+    FakeCore core;
+    startLiveGame(hub, h, &core);
+    PlayerController* c = h.controller.get();
+    GameSession* gs = c->gameSession();
+    SaveHistoryController* hist = c->saveHistory();
+    QVERIFY(shown(h, "manageSavesButton"));
+    QVERIFY(h.click("manageSavesButton"));
+    QTRY_VERIFY_WITH_TIMEOUT(shown(h, "savesView"), 4000);
+    // Still in the game: no navigation, the game runs on
+    QCOMPARE(c->screen(), QStringLiteral("game"));
+    QVERIFY(gs->isActive());
+    QVERIFY(gs->state() != GameSession::Idle);
+    QVERIFY(shown(h, "gamePanel") && shown(h, "gameHeader"));
+    QVERIFY(shown(h, "endGameButton"));          // Quit game stays reachable
+    QVERIFY(!shown(h, "gameSnapshotButton"));    // the panel page is replaced by the saves view
+    QVERIFY(hist->liveMode() && hist->liveApply());
+    QTRY_COMPARE(h.items("historyRow").size() + h.items("historyRowCurrent").size(), 3);
+    QVERIFY(shown(h, "savesRunningBanner"));
+    QVERIFY(h.item("restoreButton")->isEnabled());    // restore works live
+    QVERIFY(!h.item("newSlotButton")->isEnabled());   // slots cannot be changed while the game runs
+    // History filter
+    QVERIFY(h.click("historyFilterSnapshots"));
+    QTRY_COMPARE(h.items("historyRow").size() + h.items("historyRowCurrent").size(), 2);
+    QVERIFY(h.click("historyFilterAll"));
+    QTRY_COMPARE(h.items("historyRow").size() + h.items("historyRowCurrent").size(), 3);
+    uitest::saveShot(h.window, QStringLiteral("ingame-saves-view"));
+
+    // Scene rects at 1280 and 1920 px: the panel is 320 / 340 wide and everything stays inside it
+    const QStringList names{"savesView", "savesBack", "historyRefresh", "slotTabs", "currentBar", "saveActions", "snapshotButton", "uploadSaveButton",
+                            "historyHeader", "historyFilter", "historyRow", "restoreButton", "deleteButton", "savesRunningBanner", "endGameButton"};
+    for (const int w : {1280, 1920}) {
+      resize(h, w, 800);
+      QCOMPARE(rectOf(h, "gamePanel").width(), w < 1400 ? 320.0 : 340.0);
+      const QRectF box = rectOf(h, "gamePanelSaves"), panel = rectOf(h, "gamePanel");
+      QVERIFY2(panel.contains(box.adjusted(0.5, 0.5, -0.5, -0.5)), qPrintable(QStringLiteral("saves box outside the panel at %1").arg(w)));
+      QVERIFY2(box.bottom() <= rectOf(h, "endGameButton").top(), "saves view above Quit game");
+      const QString problem = outsidePanel(h, names, 8);
+      QVERIFY2(problem.isEmpty(), qPrintable(QStringLiteral("%1 px: %2").arg(w).arg(problem)));
+    }
+    resize(h, 1280, 800);
+    widenFonts(h, 1.4);
+    const QString wide = outsidePanel(h, names, 8);
+    QVERIFY2(wide.isEmpty(), qPrintable(QStringLiteral("wide fonts: ") + wide));
+
+    // Back returns to the panel; the game was never left
+    QVERIFY(h.click("savesBack"));
+    QTRY_VERIFY(!shown(h, "savesView"));
+    QVERIFY(shown(h, "gameSnapshotButton"));
+    QCOMPARE(c->screen(), QStringLiteral("game"));
+    QVERIFY(gs->isActive());
+    QVERIFY(!hist->liveMode());
+    QVERIFY(h.click("manageSavesButton"));
+    QTRY_VERIFY(shown(h, "savesView"));
+    QTest::keyClick(h.window, Qt::Key_Escape);   // Esc in the saves view = back, not "pause the game"
+    QTRY_VERIFY(!shown(h, "savesView"));
+    QCOMPARE(c->screen(), QStringLiteral("game"));
+  }
+
+  void createSnapshotRestoreAndDeleteWorkLive() {
+    FakeHub hub(QStringLiteral("a"));
+    Harness h;
+    FakeCore core;
+    startLiveGame(hub, h, &core);
+    PlayerController* c = h.controller.get();
+    SaveHistoryController* hist = c->saveHistory();
+    SaveSync* sync = c->saveSync();
+    const QString dir = QFileInfo(core.file).absolutePath();
+    QVERIFY(h.click("manageSavesButton"));
+    QTRY_VERIFY_WITH_TIMEOUT(shown(h, "snapshotButton"), 4000);
+
+    // Create snapshot: the game's current state is saved first (core flush + upload), then the snapshot is made
+    writeBytes(core.file, "play-1-xxxxx");
+    QVERIFY(h.click("snapshotButton"));
+    QTRY_VERIFY(shown(h, "snapshotForm"));
+    h.item("snapshotLabel")->setProperty("text", QStringLiteral("Before the boss"));
+    QVERIFY(h.click("snapshotCreate"));
+    QTRY_VERIFY_WITH_TIMEOUT(hist->message().startsWith(QStringLiteral("Snapshot v")), 8000);
+    QVERIFY(core.flushes >= 1);
+    QCOMPARE(hub.saves.value(QStringLiteral("g1")).content, QByteArray("play-1-xxxxx"));   // uploaded first
+    QCOMPARE(hub.saves.value(QStringLiteral("g1")).history.last().reason, QStringLiteral("manual_snapshot"));
+    QCOMPARE(hub.saves.value(QStringLiteral("g1")).history.last().label, QStringLiteral("Before the boss"));
+    QCOMPARE(hub.saves.value(QStringLiteral("g1")).history.last().content, QByteArray("play-1-xxxxx"));
+    QCOMPARE(c->screen(), QStringLiteral("game"));
+    QVERIFY(c->gameSession()->isActive());
+    QTRY_COMPARE_WITH_TIMEOUT(h.items("historyRow").size() + h.items("historyRowCurrent").size(), 4, 8000);
+
+    // Delete a snapshot
+    QVERIFY(h.click("deleteButton"));
+    QTRY_VERIFY(shown(h, "deleteConfirmBox"));
+    QVERIFY(h.click("deleteConfirm"));
+    QTRY_COMPARE_WITH_TIMEOUT(hub.deleteCount, 1, 8000);
+    QTRY_COMPARE_WITH_TIMEOUT(h.items("historyRow").size() + h.items("historyRowCurrent").size(), 3, 8000);
+
+    // Restore while running: confirmation first (with the restart line), nothing changes before it
+    writeBytes(core.file, "play-2-xxxxx");   // unsynced progress of the running game
+    hist->requestRestore(1);
+    QTRY_VERIFY(shown(h, "restoreConfirmBox"));
+    QVERIFY(textOf(visibleItem(h, "confirmBody")).contains(QStringLiteral("The game restarts from this save")));
+    QCOMPARE(hub.restoreCount, 0);
+    QCOMPARE(core.applies, 0);
+    QCOMPARE(fileBytes(core.file), QByteArray("play-2-xxxxx"));
+    scrollTo(h, "restoreConfirmBox");
+    uitest::saveShot(h.window, QStringLiteral("ingame-saves-restore-confirm"));
+    const QString problem = outsidePanel(h, {"restoreConfirmBox", "confirmTitle", "confirmBody", "restoreCancel", "restoreConfirm", "savesView"}, 4);
+    QVERIFY2(problem.isEmpty(), qPrintable(problem));
+    // Cancel changes nothing, a second request is confirmed
+    QVERIFY(h.click("restoreCancel"));
+    QTRY_VERIFY(!shown(h, "restoreConfirmBox"));
+    hist->requestRestore(1);
+    QTRY_VERIFY(shown(h, "restoreConfirm"));
+    QVERIFY(h.click("restoreConfirm"));
+    QTRY_COMPARE_WITH_TIMEOUT(hub.restoreCount, 1, 8000);
+    QTRY_VERIFY_WITH_TIMEOUT(hist->message().contains(QStringLiteral("restored")), 8000);
+    QCOMPARE(core.applies, 1);
+    QCOMPARE(core.applied, QByteArray("hub-old-1234"));              // loaded into the running core
+    QCOMPARE(fileBytes(core.file), QByteArray("hub-old-1234"));
+    const QStringList backups = QDir(dir).entryList({QStringLiteral("*.restore-*.bak")});
+    QCOMPARE(backups.size(), 1);                                     // the local backup of the game's progress
+    QCOMPARE(fileBytes(dir + QLatin1Char('/') + backups.first()), QByteArray("play-2-xxxxx"));
+    QCOMPARE(hub.saves.value(QStringLiteral("g1")).history.last().reason, QStringLiteral("before_restore"));
+    QCOMPARE(hub.saves.value(QStringLiteral("g1")).history.last().content, QByteArray("play-2-xxxxx"));   // and on the Hub
+    QCOMPARE(c->screen(), QStringLiteral("game"));
+    QVERIFY(c->gameSession()->isActive());
+    QVERIFY(sync->sessionActive());
+    QVERIFY(!SaveStore::loadState(dir).pending);
+
+    // Upload save file while running: confirmation with the restart line, then the core loads it
+    const QString picked = h.dir.filePath(QStringLiteral("picked.sav"));
+    writeBytes(picked, "picked-12-by");
+    QTRY_VERIFY_WITH_TIMEOUT(!hist->loading() && hist->current().value(QStringLiteral("revision")).toInt() == hub.saves.value(QStringLiteral("g1")).revision, 8000);
+    hist->requestUploadFile(picked);
+    QTRY_VERIFY(shown(h, "uploadConfirmBox"));
+    QVERIFY(textOf(visibleItem(h, "uploadConfirmNote")).contains(QStringLiteral("The game restarts from this save")));
+    QVERIFY(h.click("uploadConfirm"));
+    QTRY_VERIFY2_WITH_TIMEOUT(hub.uploadCount == 1, qPrintable(hist->message()), 8000);
+    QTRY_COMPARE_WITH_TIMEOUT(core.applies, 2, 8000);
+    QCOMPARE(core.applied, QByteArray("picked-12-by"));
+    QCOMPARE(QDir(dir).entryList({QStringLiteral("*.upload-*.bak")}).size(), 1);
+    QCOMPARE(c->screen(), QStringLiteral("game"));
+  }
+
+  void restoreAsksToRestartWhenTheCoreCannotTakeTheSave() {
+    FakeHub hub(QStringLiteral("a"));
+    Harness h;
+    FakeCore core;
+    core.size = 99;   // the core's save memory has another size: nothing can be loaded live
+    startLiveGame(hub, h, &core);
+    SaveHistoryController* hist = h.controller->saveHistory();
+    QVERIFY(h.click("manageSavesButton"));
+    QTRY_VERIFY_WITH_TIMEOUT(shown(h, "savesView"), 4000);
+    hist->requestRestore(1);
+    QTRY_VERIFY(shown(h, "restoreConfirm"));
+    QVERIFY(h.click("restoreConfirm"));
+    QTRY_VERIFY_WITH_TIMEOUT(hist->messageIsError() && hist->message().contains(QStringLiteral("Quit the game")), 8000);
+    QCOMPARE(hub.restoreCount, 0);              // nothing happened on the Hub
+    QCOMPARE(core.applies, 0);
+    QCOMPARE(fileBytes(core.file), QByteArray("hub-cp-1-xxx"));
+    QVERIFY(shown(h, "historyMessage"));
+    QCOMPARE(h.controller->screen(), QStringLiteral("game"));
+  }
+
+  void resolveConflictInTheGameBothWays() {
+    FakeHub hub(QStringLiteral("a"));
+    Harness h;
+    FakeCore core;
+    startLiveGame(hub, h, &core);
+    PlayerController* c = h.controller.get();
+    SaveSync* sync = c->saveSync();
+    const QString dir = QFileInfo(core.file).absolutePath();
+    const auto makeConflict = [&](const QByteArray& local, const QByteArray& hubNew) {
+      writeBytes(core.file, local);
+      hub.setHubSave(QStringLiteral("g1"), hubNew);   // another device saved meanwhile
+      QSignalSpy fin(sync, &SaveSync::finalSyncFinished);
+      sync->finalSync(false);                          // the checkpoint upload runs into the conflict
+      QTRY_COMPARE_WITH_TIMEOUT(fin.count(), 1, 8000);
+      QTRY_COMPARE_WITH_TIMEOUT(c->selectedGame().value(QStringLiteral("syncKind")).toString(), QStringLiteral("conflict"), 8000);
+    };
+    makeConflict("local-1-xxxxx", "hub-newer-xx");
+    QVERIFY(h.click("manageSavesButton"));
+    QTRY_VERIFY_WITH_TIMEOUT(shown(h, "savesConflictBanner"), 8000);
+    QVERIFY(h.click("resolveConflictButton"));
+    QTRY_VERIFY_WITH_TIMEOUT(shown(h, "conflictBox") && shown(h, "conflictLocal") && shown(h, "conflictHub"), 8000);
+    QCOMPARE(c->screen(), QStringLiteral("game"));
+    QVERIFY(c->saveConflict().isEmpty());
+    QCOMPARE(textOf(visibleItem(h, "conflictHubDevice")), QStringLiteral("Laptop Office"));
+    QVERIFY(!textOf(visibleItem(h, "conflictLocalWhen")).isEmpty());
+    scrollTo(h, "conflictBox");
+    uitest::saveShot(h.window, QStringLiteral("ingame-saves-conflict"));
+    scrollTo(h, "conflictKeepLocal", true);
+    uitest::saveShot(h.window, QStringLiteral("ingame-saves-conflict-actions"));
+    scrollTo(h, "conflictBox");
+    const QStringList names{"savesView", "conflictBox", "conflictLocal", "conflictHub", "conflictLocalDevice", "conflictHubDevice", "conflictLocalWhen",
+                            "conflictHubWhen", "conflictKeepLocal", "conflictUseHub", "conflictCancel"};
+    for (const int w : {1280, 1920}) {
+      resize(h, w, 800);
+      const QString problem = outsidePanel(h, names, 8);
+      QVERIFY2(problem.isEmpty(), qPrintable(QStringLiteral("%1 px: %2").arg(w).arg(problem)));
+    }
+    resize(h, 1280, 800);
+    widenFonts(h, 1.4);
+    const QString wide = outsidePanel(h, names, 8);
+    QVERIFY2(wide.isEmpty(), qPrintable(QStringLiteral("wide fonts: ") + wide));
+
+    // Use the Hub save: backup of the device copy, then the core loads the Hub save
+    QVERIFY(h.click("conflictUseHub"));
+    QTRY_VERIFY_WITH_TIMEOUT(!shown(h, "conflictBox"), 8000);
+    QCOMPARE(core.applied, QByteArray("hub-newer-xx"));
+    QCOMPARE(fileBytes(core.file), QByteArray("hub-newer-xx"));
+    const QStringList backups = QDir(dir).entryList({QStringLiteral("*.local-*.bak")});
+    QCOMPARE(backups.size(), 1);
+    QCOMPARE(fileBytes(dir + QLatin1Char('/') + backups.first()), QByteArray("local-1-xxxxx"));
+    QCOMPARE(hub.saves.value(QStringLiteral("g1")).conflicts.first().status, QStringLiteral("resolved_hub"));
+    QTRY_COMPARE(c->selectedGame().value(QStringLiteral("syncKind")).toString(), QStringLiteral("synced"));
+    QCOMPARE(c->screen(), QStringLiteral("game"));
+    QVERIFY(c->gameSession()->isActive());
+
+    // Next conflict: keep this device's save; the core keeps its save, the Hub takes it as the new current version
+    const int applies = core.applies;
+    makeConflict("local-2-xxxxx", "hub-third-xx");
+    QTRY_VERIFY_WITH_TIMEOUT(shown(h, "resolveConflictButton"), 8000);
+    QVERIFY(h.click("resolveConflictButton"));
+    QTRY_VERIFY_WITH_TIMEOUT(shown(h, "conflictKeepLocal") && h.item("conflictKeepLocal")->isEnabled(), 8000);
+    QVERIFY(h.click("conflictKeepLocal"));
+    QTRY_VERIFY_WITH_TIMEOUT(!shown(h, "conflictBox"), 8000);
+    QCOMPARE(core.applies, applies);
+    QCOMPARE(hub.saves.value(QStringLiteral("g1")).content, QByteArray("local-2-xxxxx"));
+    QCOMPARE(fileBytes(core.file), QByteArray("local-2-xxxxx"));
+    QTRY_COMPARE(c->selectedGame().value(QStringLiteral("syncKind")).toString(), QStringLiteral("synced"));
+    QCOMPARE(c->screen(), QStringLiteral("game"));
+    QVERIFY(c->gameSession()->isActive());
+  }
 
   // ---- screenshots (FRAMEBEAM_SHOT_DIR only) ----
 

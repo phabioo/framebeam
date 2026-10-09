@@ -139,6 +139,12 @@ class GameSession : public QObject {
   Q_INVOKABLE void reset();
   Q_INVOKABLE void stop();  // blocks until the core is unloaded
 
+  // Live save (saves view in the game): all block the GUI thread until the emulation thread did it (a few ms).
+  bool liveSaveReady() const { return runner_ && (state_ == Running || state_ == Paused); }
+  bool liveSaveAccepts(qint64 size);                 // the core's battery save memory has exactly this size
+  void flushLiveSave();                              // the save file is current (the core flushes about every 3 s)
+  bool applyLiveSave(const QByteArray& data);        // replaces the battery save by reloading the game from the new file
+
   // Input (UI thread). Returns true if the key is mapped.
   bool keyEvent(int qtKey, bool pressed);
   void releaseAllKeys();
