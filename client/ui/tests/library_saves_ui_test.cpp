@@ -349,6 +349,29 @@ class LibrarySavesUiTest : public QObject {
     QVERIFY(shown(h, "saveActions"));
   }
 
+  void threeShortSlotsStayTabsWithModeratelyWideFonts() {
+    FakeHub hub(QStringLiteral("a"));
+    oneGame(hub);
+    hub.setHubSave(QStringLiteral("g1"), "cp-main");
+    hub.setHubSave(QStringLiteral("g1/alt"), "cp-2");
+    hub.setHubSave(QStringLiteral("g1/ch2"), "cp-3");
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    SaveHistoryController* hist = h.controller->saveHistory();
+    QTRY_VERIFY_WITH_TIMEOUT(hist->available() && !hist->loading() && hist->slotCount() == 3, 8000);
+    openSavesView(h);
+    QTRY_VERIFY(shown(h, "slotTab_alt"));
+    widenFonts(h, 1.5);  // roughly a wide Windows UI font
+    QTest::qWait(200);   // counts of the other slots arrive
+    QVERIFY(shown(h, "slotTab_default") && shown(h, "slotTab_alt") && shown(h, "slotTab_ch2"));
+    QVERIFY(!shown(h, "slotSwitcher"));
+    checkInColumn(h, {"slotTabs", "slotTab_default", "slotTab_alt", "slotTab_ch2", "newSlotButton"}, 5);
+    QVERIFY(h.click("slotTab_ch2"));
+    QTRY_COMPARE(hist->slot(), QStringLiteral("ch2"));
+  }
+
   void slotTabsStayReachableWithWideFonts() {
     FakeHub hub(QStringLiteral("a"));
     oneGame(hub);
@@ -612,7 +635,7 @@ class LibrarySavesUiTest : public QObject {
     pair(h, hub);
     SaveHistoryController* hist = h.controller->saveHistory();
     QTRY_VERIFY_WITH_TIMEOUT(hist->available() && !hist->loading() && hist->slotCount() == 4 && hist->versionCount() == 3, 8000);
-    auto widen = [&h](bool wide) { if (wide) widenFonts(h, 8.0); };
+    auto widen = [&h](bool wide) { if (wide) widenFonts(h, 10.0); };
     // Second pass with wider glyphs (extra letter spacing on every item with a font), like the wider Windows fonts.
     for (const bool wide : {false, true}) for (const QSize size : {QSize(1280, 800), QSize(960, 600)}) {
       h.window->resize(size);

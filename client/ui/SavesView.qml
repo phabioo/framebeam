@@ -14,7 +14,7 @@ FocusScope {
     readonly property string syncKind: game.syncKind || "none"
     readonly property bool conflict: syncKind === "conflict"
     // Decision ad: the switcher above three slots; also whenever the tabs would not fit the column (wide fonts), so no slot is clipped.
-    readonly property bool tabsCollapsed: hist.slotCount > 3 || (tabsFitProbe.needed > 0 && tabs.width > 0 && tabsFitProbe.needed > tabs.width)
+    readonly property bool tabsCollapsed: hist.slotCount > 3 || (tabsFitProbe.sum > 0 && tabs.width > 0 && tabsFitProbe.sum + 8 + 28 > tabs.width)
     readonly property bool hasCurrent: hist.current.revision !== undefined
     readonly property bool uploadConfirming: hist.uploadRequest.path !== undefined
     readonly property bool uploadFailed: hist.uploadFailure.path !== undefined && !hist.uploading && !uploadConfirming
@@ -208,7 +208,15 @@ FocusScope {
                         id: tabsFitProbe
                         visible: false
                         property real sum: 0
-                        readonly property real needed: sum + newSlotLink.implicitWidth + 8
+                        // "+ New slot" shrinks to a plain "+" when the full label does not fit beside the tabs.
+                        readonly property bool linkCompact: sum + 8 + linkProbe.implicitWidth + 8 > tabs.width
+                        Text {
+                            id: linkProbe
+                            visible: false
+                            text: qsTr("+ New slot")
+                            font.pixelSize: Theme.fontSmall
+                            font.weight: Font.Medium
+                        }
                         Repeater {
                             model: root.hist.slotOptions
                             onCountChanged: Qt.callLater(tabsFitProbe.recalc)
@@ -218,7 +226,7 @@ FocusScope {
                                 textFormat: Text.StyledText
                                 text: modelData.label + (modelData.count > 0 ? " <font color='" + Theme.textFaint + "'>" + modelData.count + "</font>" : "")
                                 font.pixelSize: Theme.fontSmall
-                                font.weight: Font.DemiBold
+                                font.weight: modelData.value === root.hist.slot ? Font.DemiBold : Font.Normal
                                 onImplicitWidthChanged: tabsFitProbe.recalc()
                                 Component.onCompleted: tabsFitProbe.recalc()
                             }
@@ -227,7 +235,7 @@ FocusScope {
                             let w = 0, n = 0
                             for (let i = 0; i < children.length; ++i) {
                                 const c = children[i]
-                                if (c.implicitWidth !== undefined && c.text !== undefined) { w += Math.min(c.implicitWidth, 90); ++n }
+                                if (c !== linkProbe && c.implicitWidth !== undefined && c.text !== undefined) { w += Math.min(c.implicitWidth, 90); ++n }
                             }
                             sum = w + Math.max(0, n - 1) * 12
                         }
@@ -330,7 +338,8 @@ FocusScope {
                             padding: 4
                             closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
                             background: Rectangle { radius: Theme.radius8; color: Theme.popupBg; border.width: 1; border.color: Theme.borderPopup }
-                            contentItem: ColumnLayout {
+                            // A plain Column (no Layout): the model can change while the popup resizes without touching stale layout items.
+                            contentItem: Column {
                                 spacing: 0
                                 Repeater {
                                     model: root.hist.slotOptions
@@ -338,7 +347,7 @@ FocusScope {
                                         id: slotItem
                                         required property var modelData
                                         objectName: "slotMenu_" + modelData.value
-                                        Layout.fillWidth: true
+                                        width: switchMenu.availableWidth
                                         implicitHeight: 30
                                         padding: 0
                                         leftPadding: 8
@@ -359,11 +368,11 @@ FocusScope {
                                         background: Rectangle { radius: Theme.radius6; color: slotItem.highlighted || slotItem.hovered ? Theme.surfaceRaised : "transparent" }
                                     }
                                 }
-                                Rectangle { Layout.fillWidth: true; Layout.topMargin: 4; Layout.bottomMargin: 4; height: 1; color: Theme.borderSidebar }
+                                Item { width: switchMenu.availableWidth; height: 9; Rectangle { anchors.centerIn: parent; width: parent.width; height: 1; color: Theme.borderSidebar } }
                                 ItemDelegate {
                                     id: newItem
                                     objectName: "slotMenuNew"
-                                    Layout.fillWidth: true
+                                    width: switchMenu.availableWidth
                                     implicitHeight: 30
                                     padding: 0
                                     leftPadding: 24
@@ -386,7 +395,8 @@ FocusScope {
                         implicitHeight: 28
                         font.pixelSize: Theme.fontSmall
                         font.weight: Font.Medium
-                        text: qsTr("+ New slot")
+                        text: tabsFitProbe.linkCompact ? "+" : qsTr("+ New slot")
+                        Accessible.name: qsTr("New slot")
                         enabled: !root.hist.gameRunning
                         onClicked: {
                             root.newSlotError = ""
@@ -941,6 +951,8 @@ FocusScope {
                     Item { Layout.fillWidth: true }
                     FbSegment {
                         objectName: "historyFilter"
+                        Layout.maximumWidth: 200
+                        Layout.minimumWidth: 0
                         segmentHeight: 22
                         current: root.filter
                         options: [
