@@ -239,10 +239,11 @@ class InGameUiTest : public QObject {
 
   // A running game (preview, no core) with a real save session against the FakeHub and a fake core behind the live hooks.
   void startLiveGame(FakeHub& hub, Harness& h, FakeCore* core) {
-    pair(hub, h, true, true);
+    // The Hub's data exists before pairing: a history refresh started by the connection coming up must not race it
     hub.setHubSave(QStringLiteral("g1"), "hub-cp-1-xxx");
     hub.addHistory(QStringLiteral("g1"), QStringLiteral("default"), "hub-old-1234", QStringLiteral("session_end"));
     hub.addHistory(QStringLiteral("g1"), QStringLiteral("default"), "hub-snap-123", QStringLiteral("manual_snapshot"), QStringLiteral("Boss door"));
+    pair(hub, h, true, true);
     const QString sha = uitest::sha256Hex("a");
     SaveSync* sync = h.controller->saveSync();
     QSignalSpy ready(sync, &SaveSync::startReady);
@@ -1034,5 +1035,5 @@ class InGameUiTest : public QObject {
   }
 };
 
-QTEST_MAIN(InGameUiTest)
+UITEST_MAIN(InGameUiTest)
 #include "ingame_ui_test.moc"
