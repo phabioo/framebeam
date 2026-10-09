@@ -149,7 +149,7 @@ Rectangle {
                     id: content
                     x: 28
                     y: 28
-                    width: Math.min(760, flick.width - 56)
+                    width: Math.max(240, Math.min(760, flick.width - 56))  // never collapses to 0 on a hidden or unsized page (wrapping text would oscillate)
                     spacing: 18
 
                     GridLayout {
