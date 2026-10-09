@@ -46,6 +46,9 @@ framebeam_player_cli <command> ...            # run without arguments for the us
 | `FRAMEBEAM_DATA_DIR` | Data directory (same as `--data-dir`) |
 | `FRAMEBEAM_FORCE_RELAY=1` | Force the TURN relay for Sessions (testing; the CLI also has `--force-relay`) |
 | `FRAMEBEAM_DISABLE_HW_RENDER=1` | Force the software rendering path of cores |
+| `FRAMEBEAM_DISABLE_GPU_ENCODE=1` | Kill switch for GPU-direct encoding of shared Sessions ([ADR 0019](../adr/0019-gpu-direct-nvenc.md)); the Session encoder gets read-back frames |
+| `FRAMEBEAM_H264_ENCODER=<name>` | Force one H.264 encoder (for example `h264_nvenc` or `libx264`); keeps the readback path, also for `h264_nvenc`, so it serves as the baseline when comparing against GPU-direct |
+| `FRAMEBEAM_SYNC_READBACK=1` | Force synchronous readback of hardware-rendered frames instead of double-buffered PBOs ([ADR 0013](../adr/0013-opengl-hardware-rendering.md) D3) |
 | `FRAMEBEAM_PLAYER_UPDATE_INDEX_URL`, `FRAMEBEAM_PLAYER_TRUST_KEYS` | Update index URL and extra trusted keys (tests) |
 | `FRAMEBEAM_MELONDS_DS_CORE` | Core path for tests (build time / tests only) |
 | `FRAMEBEAM_SCREENSHOT_DIR` | Output directory of the screenshot tests |
