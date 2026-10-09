@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -372,7 +373,7 @@ func TestFirmwareValidationStatusAndBadge(t *testing.T) {
 		t.Fatalf("%v %+v", err, f)
 	}
 	fi, err := os.Stat(filepath.Join(svc.DataDir(), "firmware", "nds", "bios7"))
-	if err != nil || fi.Mode().Perm() != 0o600 {
+	if err != nil || runtime.GOOS != "windows" && fi.Mode().Perm() != 0o600 { // Windows has no unix modes
 		t.Fatalf("%v %v", err, fi)
 	}
 	if _, err := svc.ProvideFirmware(ctx, "nds", "bios9", bytes.NewReader(b9)); err != nil {

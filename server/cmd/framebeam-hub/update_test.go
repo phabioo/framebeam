@@ -10,6 +10,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -73,13 +74,14 @@ func newCLIFeed(t *testing.T, ver string) *cliFeed {
 	seed := bytes.Repeat([]byte{5}, 32)
 	pub, _ := corepkg.PublicFromSeed(seed)
 	f := &cliFeed{dir: t.TempDir(), pubB64: base64.StdEncoding.EncodeToString(pub), data: []byte("dummy deb " + ver)}
-	f.name = "framebeam-hub_" + strings.ReplaceAll(ver, "-", "~") + "_" + strings.TrimPrefix(updates.LinuxPlatform(), "linux-") + ".deb"
+	kind := updates.KindFor(updates.Platform()) // deb on Linux, msi on Windows
+	f.name = "framebeam-hub_" + strings.ReplaceAll(ver, "-", "~") + "_" + runtime.GOARCH + "." + kind
 	os.WriteFile(filepath.Join(f.dir, f.name), f.data, 0o644)
 	sum := sha256.Sum256(f.data)
 	idx, err := updates.Marshal(updates.Index{Schema: 1, GeneratedAt: time.Now().UTC(), Releases: []updates.Release{{
 		Product: "hub", Channel: "beta", Version: ver, PublishedAt: time.Now().UTC(), ProtocolVersion: 1, MinProtocolVersion: 1,
-		Artifacts: []updates.Artifact{{Platform: updates.LinuxPlatform(), Kind: "deb", Name: f.name, Size: int64(len(f.data)),
-			SHA256: hex.EncodeToString(sum[:]), URL: "file://" + filepath.Join(f.dir, f.name)}}}}})
+		Artifacts: []updates.Artifact{{Platform: updates.Platform(), Kind: kind, Name: f.name, Size: int64(len(f.data)),
+			SHA256: hex.EncodeToString(sum[:]), URL: updates.FileURL(filepath.Join(f.dir, f.name))}}}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,7 +93,7 @@ func newCLIFeed(t *testing.T, ver string) *cliFeed {
 }
 
 func (f *cliFeed) flags(data, req string) []string {
-	return []string{"-data-dir", data, "-update-index-url", "file://" + filepath.Join(f.dir, "updates-index.json"), "-core-trust-key", f.pubB64,
+	return []string{"-data-dir", data, "-update-index-url", updates.FileURL(filepath.Join(f.dir, "updates-index.json")), "-core-trust-key", f.pubB64,
 		"-update-request-dir", req}
 }
 
@@ -170,6 +172,8 @@ func TestApplyStagedCommand(t *testing.T) {
 	t.Setenv("FRAMEBEAM_HUB_CORE_TRUST_KEYS", f.pubB64)
 	t.Setenv("FRAMEBEAM_HUB_UPDATE_REQUEST_DIR", req)
 
+	t.Setenv("ProgramData", t.TempDir()) // private directory of the Windows updater
+	wantCmd, _ := updates.InstallCommand(updates.Platform(), "", "")
 	var calls [][]string
 	run := func(_ context.Context, name string, args ...string) ([]byte, error) {
 		calls = append(calls, append([]string{name}, args...))
@@ -196,16 +200,16 @@ func TestApplyStagedCommand(t *testing.T) {
 	if err := runApplyStaged(nil, &out, run); err != nil {
 		t.Fatal(err)
 	}
-	if len(calls) != 1 || calls[0][0] != "dpkg" || calls[0][1] != "-i" || !strings.HasSuffix(calls[0][2], f.name) {
+	if len(calls) != 1 || calls[0][0] != wantCmd || !strings.Contains(strings.Join(calls[0], " "), f.name) {
 		t.Fatalf("%v", calls)
 	}
 	if !strings.Contains(out.String(), "0.3.0-beta.6") {
 		t.Fatal(out.String())
 	}
-	// A failing dpkg is an error.
+	// A failing installer is an error.
 	updates.WriteRequest(req, "x")
 	fail := func(context.Context, string, ...string) ([]byte, error) { return []byte("boom"), errors.New("exit 1") }
 	if err := runApplyStaged(nil, &out, fail); err == nil {
-		t.Fatal("dpkg failure must fail")
+		t.Fatal("installer failure must fail")
 	}
 }

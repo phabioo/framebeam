@@ -11,6 +11,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"time"
 
 	"github.com/phabioo/framebeam/server/internal/corepkg"
@@ -52,6 +55,24 @@ func parseSourceURL(raw string, allowFile bool) (*url.URL, error) {
 	return u, nil
 }
 
+// FileURL returns the file:// URL of a local path (also for drive paths on Windows: file:///C:/dir/file).
+func FileURL(p string) string {
+	p = filepath.ToSlash(p)
+	if !strings.HasPrefix(p, "/") {
+		p = "/" + p
+	}
+	return (&url.URL{Scheme: "file", Path: p}).String()
+}
+
+// filePath is the local path of a file:// URL (the inverse of FileURL).
+func filePath(u *url.URL) string {
+	p := u.Path
+	if runtime.GOOS == "windows" && len(p) >= 3 && p[0] == '/' && p[2] == ':' {
+		p = p[1:]
+	}
+	return filepath.FromSlash(p)
+}
+
 // ValidateIndexURL checks an index URL (https or file://).
 func ValidateIndexURL(raw string) error { _, err := parseSourceURL(raw, true); return err }
 
@@ -86,7 +107,7 @@ func (s Source) open(ctx context.Context, raw string, allowFile bool) (io.ReadCl
 		return nil, err
 	}
 	if u.Scheme == "file" {
-		f, err := os.Open(u.Path)
+		f, err := os.Open(filePath(u))
 		if err != nil {
 			return nil, err
 		}

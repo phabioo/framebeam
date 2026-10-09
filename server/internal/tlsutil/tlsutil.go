@@ -18,6 +18,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -185,6 +186,7 @@ func renew(dataDir string, old tls.Certificate, leaf *x509.Certificate, now time
 	if err != nil {
 		return tls.Certificate{}, nil, err
 	}
+	// On Windows the data directory ACL protects the key, not this mode.
 	if err := writeFileAtomic(newKey, keyPEM, 0o600); err != nil {
 		return tls.Certificate{}, nil, fmt.Errorf("stage tls key: %w", err)
 	}
@@ -222,6 +224,7 @@ func create(dataDir string, now time.Time) (tls.Certificate, error) {
 	if err != nil {
 		return tls.Certificate{}, err
 	}
+	// On Windows the data directory ACL protects the key, not this mode.
 	if err := writeFileAtomic(keyFile, keyPEM, 0o600); err != nil {
 		return tls.Certificate{}, fmt.Errorf("write tls key: %w", err)
 	}
@@ -306,6 +309,9 @@ func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
 
 // syncDir fsyncs a directory so renames are durable (best effort where unsupported).
 func syncDir(dir string) error {
+	if runtime.GOOS == "windows" {
+		return nil // directories cannot be opened for sync on Windows; NTFS journals the rename
+	}
 	d, err := os.Open(dir)
 	if err != nil {
 		return err

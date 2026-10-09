@@ -38,6 +38,7 @@ const (
 	ChannelDev    = "dev" // compiled-in default only; never part of an index
 
 	KindDeb       = "deb"
+	KindMSI       = "msi"
 	KindBinary    = "binary"
 	KindInstaller = "installer"
 	KindZip       = "zip"
@@ -52,11 +53,12 @@ var (
 // platformKinds lists the platforms of each product with their allowed artifact kinds.
 var platformKinds = map[string]map[string][]string{
 	ProductHub: {
-		"linux-amd64": {KindDeb, KindBinary},
-		"linux-arm64": {KindDeb, KindBinary},
+		"linux-amd64":   {KindDeb, KindBinary},
+		"linux-arm64":   {KindDeb, KindBinary},
+		"windows-amd64": {KindMSI, KindBinary},
 	},
 	ProductPlayer: {
-		"windows-x64": {KindInstaller, KindZip},
+		"windows-x64": {KindInstaller, KindZip, KindMSI},
 	},
 }
 
