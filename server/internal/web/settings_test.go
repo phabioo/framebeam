@@ -223,7 +223,11 @@ func TestNetworkLiveSettings(t *testing.T) {
 }
 
 func TestNetworkRestartEndpoint(t *testing.T) {
-	e, restarts := netEnv(t, nil)
+	restarts := new(int)
+	e := newEnv(t, true, func(c *Config) {
+		c.Net = NetConfig{Base: baseNet(), Running: baseNet(), RequestRestart: func() { *restarts++ }}
+		c.PublicHost = "hub.example.org"
+	})
 	anon := e.client()
 	status(t, anon.postForm("/settings/network/restart", url.Values{}, nil), 303) // not signed in -> login
 	c := e.client()
@@ -243,8 +247,11 @@ func TestNetworkRestartEndpoint(t *testing.T) {
 	// Changed port: a link to the new address, no reload.
 	p := freePort(t)
 	status(t, postTok(c, tok, "/settings/network/listen_port", url.Values{"value": {strconv.Itoa(p)}}), 303)
-	rec = postTok(c, tok, "/settings/network/restart", nil)
-	contains(t, rec, "Restarting…", ":"+strconv.Itoa(p)+"/settings/network")
+	// The link is built from the configured public host, never from the request's Host header.
+	rec = c.do("POST", "http://evil.example/settings/network/restart", strings.NewReader(url.Values{"_csrf": {tok}}.Encode()),
+		map[string]string{"Content-Type": "application/x-www-form-urlencoded"})
+	contains(t, rec, "Restarting…", "http://hub.example.org:"+strconv.Itoa(p)+"/settings/network")
+	notContains(t, rec, "evil.example")
 	notContains(t, rec, "data-restart-poll")
 	if *restarts != 2 {
 		t.Fatalf("restarts: %d", *restarts)

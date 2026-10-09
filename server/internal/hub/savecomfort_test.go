@@ -16,7 +16,7 @@ import (
 func newComfortEnv(t *testing.T, mod func(*hub.Options)) (*savesEnv, *hubtest.Clock) {
 	t.Helper()
 	svc, clk := hubtest.New(t, mod)
-	u, err := svc.CreateAdmin(ctx, "fabio", "secret-1234")
+	u, err := svc.CreateAdmin(ctx, "fabio", "secret-12345")
 	if err != nil {
 		t.Fatal(err)
 	}

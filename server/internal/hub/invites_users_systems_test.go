@@ -25,7 +25,7 @@ import (
 func newAdmin(t *testing.T) (*hub.Service, *hubtest.Clock, hub.User) {
 	t.Helper()
 	svc, clk := hubtest.New(t, nil)
-	admin, err := svc.CreateAdmin(ctx, "admin", "secret-1234")
+	admin, err := svc.CreateAdmin(ctx, "admin", "secret-12345")
 	if err != nil {
 		t.Fatal(err)
 	}

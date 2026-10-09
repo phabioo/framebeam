@@ -53,7 +53,13 @@ func (s *Server) setupPost(w http.ResponseWriter, r *http.Request) {
 		s.render(w, http.StatusBadRequest, "setup", "bare", d)
 		return
 	}
+	release, ok := s.acquireVerify(r.Context())
+	if !ok {
+		busy(w)
+		return
+	}
 	u, err := s.svc.CreateAdmin(r.Context(), strings.TrimSpace(r.PostFormValue("username")), pw)
+	release()
 	if err != nil {
 		var he *hub.Error
 		if errors.As(err, &he) {
@@ -98,16 +104,26 @@ func (s *Server) loginPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ip := remoteIP(r)
+	user := r.PostFormValue("username")
 	d := s.base(r, nil, "", "Sign in")
 	d.CSRF = s.preCSRF(w, r)
-	if s.login.blocked(ip) {
+	// Reserve the attempt before the (expensive) verification; a success refunds it.
+	if !s.login.take(ip, user) {
 		w.Header().Set("Retry-After", "60")
 		d.Error = "Too many failed attempts. Please try again in a minute."
 		s.render(w, http.StatusTooManyRequests, "login", "bare", d)
 		return
 	}
-	u, err := s.svc.VerifyPassword(r.Context(), r.PostFormValue("username"), r.PostFormValue("password"))
+	release, ok := s.acquireVerify(r.Context())
+	if !ok {
+		s.login.refund(ip, user)
+		busy(w)
+		return
+	}
+	u, err := s.svc.VerifyPassword(r.Context(), user, r.PostFormValue("password"))
+	release()
 	if err == nil && u.Role == hub.RoleAdmin {
+		s.login.success(ip, user)
 		if err := s.startSession(w, r, u.ID); err != nil {
 			s.fail(w, r, err)
 			return
@@ -116,16 +132,16 @@ func (s *Server) loginPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil && !errors.Is(err, hub.ErrInvalidCredentials) {
+		s.login.refund(ip, user)
 		s.fail(w, r, err)
 		return
 	}
-	s.login.fail(ip)
 	d.Error = "Username or password is incorrect."
 	s.render(w, http.StatusUnauthorized, "login", "bare", d)
 }
 
 func (s *Server) logout(w http.ResponseWriter, r *http.Request, _ *session) {
-	if c, err := r.Cookie(sessionCookie); err == nil {
+	if c, err := r.Cookie(s.cookieName(sessionCookie)); err == nil {
 		s.svc.DeleteWebSession(r.Context(), c.Value)
 	}
 	s.clearSession(w)

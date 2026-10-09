@@ -127,7 +127,7 @@ func TestUsersPageInvitesAndDisable(t *testing.T) {
 	e := newEnv(t, true, nil)
 	c := e.client()
 	tok := c.login()
-	admin, _ := e.svc.VerifyPassword(bg, "admin", "secret-1234")
+	admin, _ := e.svc.VerifyPassword(bg, "admin", "secret-12345")
 
 	// Create: the code is shown once, only in this response.
 	rec := postTok(c, tok, "/users/invites", url.Values{"expiry": {"15m"}}) // authorize unchecked
@@ -206,7 +206,7 @@ func TestClientsAssignUserDefaults(t *testing.T) {
 	e := newEnv(t, true, nil)
 	c := e.client()
 	tok := c.login()
-	admin, _ := e.svc.VerifyPassword(bg, "admin", "secret-1234")
+	admin, _ := e.svc.VerifyPassword(bg, "admin", "secret-12345")
 	_, code, _ := e.svc.CreateInvite(bg, admin.ID, time.Hour, false)
 	res, err := e.svc.RedeemInvite(bg, hub.RedeemInput{Code: code, DisplayName: "Jonas", DeviceID: uuid.NewString(), DeviceName: "Jonas PC",
 		Platform: "linux", Arch: "x86_64", PlayerVersion: "0.1.0", ProtocolVersion: 1, RemoteAddr: "192.0.2.3"})
@@ -288,7 +288,7 @@ func TestSystemsPageFirmwareFlow(t *testing.T) {
 	e := newEnv(t, true, nil)
 	c := e.client()
 	tok := c.login()
-	admin, _ := e.svc.VerifyPassword(bg, "admin", "secret-1234")
+	admin, _ := e.svc.VerifyPassword(bg, "admin", "secret-12345")
 	notContains(t, c.get("/systems", nil), "issues</span>") // no badge in builtin mode
 
 	// Switch to native: all three files are required and missing -> badge on every page.
@@ -561,7 +561,7 @@ func TestDeleteUserAndDeviceWeb(t *testing.T) {
 	e := newEnv(t, true, nil)
 	c := e.client()
 	tok := c.login()
-	admin, _ := e.svc.VerifyPassword(bg, "admin", "secret-1234")
+	admin, _ := e.svc.VerifyPassword(bg, "admin", "secret-12345")
 	u, _ := e.svc.CreateUser(bg, "max", "Max")
 
 	// Users page: Delete link for regular users only.
