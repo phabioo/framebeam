@@ -42,6 +42,15 @@ bool headerTight(Harness& h) {
   QQuickItem* hd = visibleItem(h, "gameHeader");
   return hd != nullptr && hd->property("tight").toBool();
 }
+// Opens the Reset confirmation the way the current header offers it: the Reset button, or "⋯" > Reset when the header is tight.
+bool openReset(Harness& h) {
+  if (visibleItem(h, "resetButton") != nullptr) return h.click("resetButton");
+  if (!h.click("moreButton")) return false;
+  for (int i = 0; i < 60 && !shown(h, "morePopover"); ++i) QTest::qWait(50);
+  return h.click("moreReset");
+}
+// The element that anchors the Reset popover.
+const char* resetAnchorName(Harness& h) { return visibleItem(h, "resetButton") != nullptr ? "resetButton" : "moreButton"; }
 QRectF sceneRect(QQuickItem* i) { return i ? i->mapRectToScene(QRectF(0, 0, i->width(), i->height())) : QRectF(); }
 QRectF rectOf(Harness& h, const char* name) { return sceneRect(visibleItem(h, name)); }
 QString textOf(QQuickItem* i) { return i ? i->property("text").toString() : QString();}
@@ -207,7 +216,7 @@ class InGameUiTest : public QObject {
     ctl->shareSession();
     QTRY_VERIFY_WITH_TIMEOUT(ctl->shared(), 8000);
     QQuickTest::qWaitForPolish(h.window);
-    h.click("resetButton");
+    openReset(h);
     QTest::qWait(250);
     shot("3g-3-session-shared-reset-1440");
     QTest::keyClick(h.window, Qt::Key_Escape);
@@ -322,13 +331,14 @@ class InGameUiTest : public QObject {
 
     // Reset asks first: anchored popover under the button, danger look; Cancel keeps the game, Reset confirms
     QVERIFY(!shown(h, "resetPopover"));
-    QVERIFY(h.click("resetButton"));
+    const bool resetViaMore = visibleItem(h, "resetButton") == nullptr;   // tight header: Reset lives in "⋯"
+    QVERIFY(openReset(h));
     QTRY_VERIFY(shown(h, "popoverPanel"));
     QVERIFY(shown(h, "resetPopover"));
     QCOMPARE(textOf(visibleItem(h, "resetTitle")), QStringLiteral("Reset Lumen Drift?"));
-    QVERIFY(visibleItem(h, "resetButton")->property("danger").toBool());
+    if (!resetViaMore) QVERIFY(visibleItem(h, "resetButton")->property("danger").toBool());
     {
-      const QRectF anchor = rectOf(h, "resetButton"), pop = sceneRect(visibleItem(h, "popoverPanel"));
+      const QRectF anchor = rectOf(h, resetAnchorName(h)), pop = sceneRect(visibleItem(h, "popoverPanel"));
       QVERIFY2(pop.top() >= anchor.bottom() + 8 && pop.top() <= anchor.bottom() + 12, qPrintable(QStringLiteral("popover top %1, anchor bottom %2").arg(pop.top()).arg(anchor.bottom())));
       QVERIFY2(pop.left() <= anchor.center().x() && pop.right() >= anchor.center().x(), "popover is centered under its anchor");
       QCOMPARE(pop.width(), 290.0);
@@ -336,14 +346,14 @@ class InGameUiTest : public QObject {
     QVERIFY(shown(h, "resetCancel") && shown(h, "resetConfirm"));
     QVERIFY(h.click("resetCancel"));
     QTRY_VERIFY(!shown(h, "resetConfirm"));
-    QVERIFY(!visibleItem(h, "resetButton")->property("danger").toBool());
-    QVERIFY(h.click("resetButton"));
+    if (!resetViaMore) QVERIFY(!visibleItem(h, "resetButton")->property("danger").toBool());
+    QVERIFY(openReset(h));
     QTRY_VERIFY(shown(h, "resetConfirm"));
     // Esc closes the popover first and does not pause
     QTest::keyClick(h.window, Qt::Key_Escape);
     QTRY_VERIFY(!shown(h, "resetConfirm"));
     QVERIFY(!gs->isPaused());
-    QVERIFY(h.click("resetButton"));
+    QVERIFY(openReset(h));
     QTRY_VERIFY(shown(h, "resetConfirm"));
     QVERIFY(h.click("resetConfirm"));
     QTRY_VERIFY(!shown(h, "resetConfirm"));
