@@ -14,13 +14,13 @@ import (
 func TestSetupAdminTwice(t *testing.T) {
 	dir := t.TempDir()
 	var out bytes.Buffer
-	if err := runSetupAdmin([]string{"-data-dir", dir, "-username", "fabio"}, strings.NewReader("secret-1234\n"), &out); err != nil {
+	if err := runSetupAdmin([]string{"-data-dir", dir, "-username", "fabio"}, strings.NewReader("secret-12345\n"), &out); err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(out.String(), "secret") {
 		t.Fatal("password in output")
 	}
-	err := runSetupAdmin([]string{"-data-dir", dir, "-username", "second"}, strings.NewReader("secret-1234\n"), &out)
+	err := runSetupAdmin([]string{"-data-dir", dir, "-username", "second"}, strings.NewReader("secret-12345\n"), &out)
 	if err == nil {
 		t.Fatal("second admin must be refused")
 	}

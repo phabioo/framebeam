@@ -130,7 +130,7 @@ func TestInviteLandingPublic(t *testing.T) {
 	status(t, rec, 200)
 	contains(t, rec, "I have an invite code", "Install or open the FrameBeam Player", "AA:BB:CC:DD", "example.com",
 		`/static/invite.js`, "data-invite-code")
-	notContains(t, rec, "FB-", "secret-1234", "csrf", "Sign out", `name="_csrf"`)
+	notContains(t, rec, "FB-", "secret-12345", "csrf", "Sign out", `name="_csrf"`)
 	if got := rec.Header().Get("Content-Security-Policy"); !strings.Contains(got, "script-src 'self'") {
 		t.Fatalf("csp %q", got)
 	}

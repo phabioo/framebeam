@@ -28,7 +28,7 @@ func principal(t *testing.T, svc *hub.Service, userID, name string) hub.Principa
 
 func TestSessionACLService(t *testing.T) {
 	svc, _ := hubtest.New(t, nil)
-	admin, _ := svc.CreateAdmin(ctx, "fabio", "secret-1234")
+	admin, _ := svc.CreateAdmin(ctx, "fabio", "secret-12345")
 	anna, _ := svc.CreateUser(ctx, "anna", "Anna")
 	g, err := svc.AddROM(ctx, bytes.NewReader(randomROM(2000)), "demo.nds", "", "", admin.ID)
 	if err != nil {
@@ -95,7 +95,7 @@ func TestRecoveredSessionEndsAfterGraceWithoutOwner(t *testing.T) {
 		return svc
 	}
 	svc := open(time.Hour)
-	admin, _ := svc.CreateAdmin(ctx, "fabio", "secret-1234")
+	admin, _ := svc.CreateAdmin(ctx, "fabio", "secret-12345")
 	g, _ := svc.AddROM(ctx, bytes.NewReader(randomROM(2000)), "demo.nds", "", "", admin.ID)
 	owner := principal(t, svc, admin.ID, "Desktop")
 	s, err := svc.PublishSession(ctx, owner, g.ID, hub.VisibilityHubUsers)
@@ -121,7 +121,7 @@ func TestRecoveredSessionEndsAfterGraceWithoutOwner(t *testing.T) {
 
 func TestStaleOwnerGraceCallbackIsIgnored(t *testing.T) {
 	svc, _ := hubtest.New(t, func(o *hub.Options) { o.OwnerGrace = time.Hour })
-	admin, _ := svc.CreateAdmin(ctx, "fabio", "secret-1234")
+	admin, _ := svc.CreateAdmin(ctx, "fabio", "secret-12345")
 	g, _ := svc.AddROM(ctx, bytes.NewReader(randomROM(2000)), "demo.nds", "", "", admin.ID)
 	owner := principal(t, svc, admin.ID, "Desktop")
 	s, err := svc.PublishSession(ctx, owner, g.ID, hub.VisibilityHubUsers)

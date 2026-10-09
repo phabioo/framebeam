@@ -48,7 +48,7 @@ func pairDevice(t *testing.T, svc *hub.Service, userID, name string) string {
 func newSavesEnv(t *testing.T) *savesEnv {
 	t.Helper()
 	svc, _ := hubtest.New(t, nil)
-	u, err := svc.CreateAdmin(ctx, "fabio", "secret-1234")
+	u, err := svc.CreateAdmin(ctx, "fabio", "secret-12345")
 	if err != nil {
 		t.Fatal(err)
 	}

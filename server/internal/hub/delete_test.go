@@ -61,7 +61,7 @@ func TestDeleteDevice(t *testing.T) {
 
 func TestDeleteUser(t *testing.T) {
 	svc, _ := hubtest.New(t, nil)
-	admin, _ := svc.CreateAdmin(ctx, "fabio", "secret-1234")
+	admin, _ := svc.CreateAdmin(ctx, "fabio", "secret-12345")
 	anna, _ := svc.CreateUser(ctx, "anna", "Anna")
 	bob, _ := svc.CreateUser(ctx, "bob", "Bob")
 	g, err := svc.AddROM(ctx, bytes.NewReader(randomROM(2000)), "demo.nds", "", "", anna.ID)

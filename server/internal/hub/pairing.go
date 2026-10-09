@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"net/netip"
 	"time"
 
 	"github.com/google/uuid"
@@ -90,13 +91,14 @@ func (s *Service) CreatePairingRequest(ctx context.Context, in PairingInput) (_ 
 		return PairingCreated{}, internal(err)
 	}
 	defer tx.Rollback()
-	var open, perIP int
-	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM pairing_requests WHERE status = 'pending' AND expires_at > ?`, now.Unix()).Scan(&open); err != nil {
+	var open int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM pairing_requests WHERE status = 'pending' AND expires_at > ? AND user_id IS NULL`,
+		now.Unix()).Scan(&open); err != nil {
 		return PairingCreated{}, internal(err)
 	}
-	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM pairing_requests WHERE remote_addr = ? AND created_at > ?`,
-		in.RemoteAddr, now.Add(-time.Minute).Unix()).Scan(&perIP); err != nil {
-		return PairingCreated{}, internal(err)
+	perIP, err := countRecentFromNet(ctx, tx, in.RemoteAddr, now.Add(-time.Minute))
+	if err != nil {
+		return PairingCreated{}, err
 	}
 	if open >= MaxOpenPairingRequests || perIP >= MaxPairingPerIPPerMinute {
 		return PairingCreated{}, &Error{Code: CodeRateLimited, Message: "Too many open requests"}
@@ -111,6 +113,55 @@ func (s *Service) CreatePairingRequest(ctx context.Context, in PairingInput) (_ 
 		return PairingCreated{}, internal(err)
 	}
 	return PairingCreated{RequestID: id, PollToken: poll, ExpiresIn: PairingTTL}, nil
+}
+
+// limitKey is the rate limit key of a remote address: IPv6 addresses count per /64 (one subscriber can use
+// any address in it), IPv4 and unparsable values as they are.
+func limitKey(addr string) string {
+	a, err := netip.ParseAddr(addr)
+	if err != nil {
+		return addr
+	}
+	a = a.Unmap()
+	if a.Is6() {
+		if p, err := a.Prefix(64); err == nil {
+			return p.String()
+		}
+	}
+	return a.String()
+}
+
+// countRecentFromNet counts pairing requests created since cut by the same limit key as addr.
+func countRecentFromNet(ctx context.Context, tx *sql.Tx, addr string, cut time.Time) (int, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT remote_addr FROM pairing_requests WHERE created_at > ?`, cut.Unix())
+	if err != nil {
+		return 0, internal(err)
+	}
+	defer rows.Close()
+	want, n := limitKey(addr), 0
+	for rows.Next() {
+		var a string
+		if err := rows.Scan(&a); err != nil {
+			return 0, internal(err)
+		}
+		if limitKey(a) == want {
+			n++
+		}
+	}
+	return n, internal2(rows.Err())
+}
+
+// deviceOfOtherUser reports whether deviceID is a trusted device owned by a user other than userID.
+func deviceOfOtherUser(ctx context.Context, tx *sql.Tx, deviceID, userID string) (bool, error) {
+	var owner, status string
+	err := tx.QueryRowContext(ctx, `SELECT user_id, status FROM devices WHERE id = ?`, deviceID).Scan(&owner, &status)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, internal(err)
+	}
+	return status == string(DeviceTrusted) && owner != userID, nil
 }
 
 func (s *Service) effectiveStatus(status string, expires int64) PairingStatus {
@@ -154,6 +205,15 @@ func (s *Service) ApprovePairing(ctx context.Context, requestID, userID string) 
 		return err
 	}
 	return s.decide(ctx, requestID, func(tx *sql.Tx, now time.Time) error {
+		var deviceID string
+		if err := tx.QueryRowContext(ctx, `SELECT device_id FROM pairing_requests WHERE id = ?`, requestID).Scan(&deviceID); err != nil {
+			return err
+		}
+		if other, err := deviceOfOtherUser(ctx, tx, deviceID, userID); err != nil {
+			return err
+		} else if other {
+			return conflict("This device ID already belongs to a device of another user")
+		}
 		_, err := tx.ExecContext(ctx, `UPDATE pairing_requests SET status = 'approved', user_id = ?, expires_at = ? WHERE id = ?`,
 			userID, now.Add(PairingTTL).Unix(), requestID)
 		return err
@@ -192,6 +252,10 @@ func (s *Service) decide(ctx context.Context, requestID string, apply func(*sql.
 		return conflict("Request has already been handled")
 	}
 	if err := apply(tx, s.now()); err != nil {
+		var he *Error
+		if errors.As(err, &he) {
+			return err
+		}
 		return internal(err)
 	}
 	return internal2(tx.Commit())
@@ -233,6 +297,15 @@ func (s *Service) PollPairing(ctx context.Context, requestID, pollToken string) 
 	now := s.now()
 	if exp <= now.Unix() {
 		return PairingResult{Status: PairingExpired}, nil
+	}
+	// A trusted device of another user is never taken over (the check at approval can be raced).
+	if other, err := deviceOfOtherUser(ctx, tx, r.DeviceID, r.UserID); err != nil {
+		return PairingResult{}, err
+	} else if other {
+		if _, err := tx.ExecContext(ctx, `UPDATE pairing_requests SET status = 'denied' WHERE id = ?`, requestID); err != nil {
+			return PairingResult{}, internal(err)
+		}
+		return PairingResult{Status: PairingDenied}, internal2(tx.Commit())
 	}
 	cred, err := auth.NewToken(auth.PrefixDevice)
 	if err != nil {

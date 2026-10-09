@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+
+	"github.com/phabioo/framebeam/server/internal/hub"
 )
 
 // Transport settings of the WSS endpoint (variables so tests can shorten them).
@@ -26,14 +28,21 @@ func (s *Server) serveWS(w http.ResponseWriter, r *http.Request) {
 		s.writeErr(w, r, err)
 		return
 	}
+	release, ok := s.svc.AcquirePreHello(p.Device.ID)
+	if !ok { // too many connections of this device that have not completed hello
+		s.writeErr(w, r, hub.ErrRateLimited)
+		return
+	}
 	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{CompressionMode: websocket.CompressionDisabled})
 	if err != nil {
+		release()
 		return // Accept already answered
 	}
 	conn.SetReadLimit(wsReadLimit)
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 	cl := s.svc.NewClient(p)
+	defer release()
 	cl.SetRequestHost(r.Host)
 	cl.SetRemoteAddr(r.RemoteAddr)
 	defer cl.Disconnect()
@@ -77,6 +86,11 @@ func (s *Server) serveWS(w http.ResponseWriter, r *http.Request) {
 					conn.CloseNow()
 					return
 				}
+				// The access token only authenticates the upgrade; re-check the device and user periodically.
+				if !s.svc.DeviceAuthorized(ctx, p.Device.ID) {
+					conn.Close(websocket.StatusPolicyViolation, "device no longer authorized")
+					return
+				}
 			case <-hello.C:
 				if !cl.Ready() {
 					conn.Close(websocket.StatusPolicyViolation, "hello timeout")
@@ -103,6 +117,9 @@ func (s *Server) serveWS(w http.ResponseWriter, r *http.Request) {
 			cl.Fail()
 			<-ctx.Done()
 			return
+		}
+		if cl.Ready() {
+			release()
 		}
 	}
 }

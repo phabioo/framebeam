@@ -32,7 +32,9 @@ const DefaultMaxUploadBytes = hub.MaxROMBytes
 const (
 	sessionCookie = "fb_session"
 	csrfCookie    = "fb_csrf" // double-submit cookie for forms before sign-in (setup, login)
-	maxFormBytes  = 1 << 20
+	// hostPrefix is prepended to both cookie names when TLS is on (Secure, Path=/, no Domain).
+	hostPrefix   = "__Host-"
+	maxFormBytes = 1 << 20
 	// multipartSlack is the headroom for multipart framing and fields above the file limit.
 	multipartSlack = 16 << 10
 )
@@ -73,8 +75,10 @@ type Server struct {
 	log   *slog.Logger
 	tmpl  map[string]*template.Template
 	login *limiter
-	done  chan struct{} // closed by Shutdown: long-lived streams (SSE) end
-	once  sync.Once
+	// verifySem bounds concurrent Argon2id verifications (64 MiB each) so parallel requests cannot exhaust memory.
+	verifySem chan struct{}
+	done      chan struct{} // closed by Shutdown: long-lived streams (SSE) end
+	once      sync.Once
 }
 
 // New creates the web interface.
@@ -86,7 +90,7 @@ func New(svc *hub.Service, cfg Config, log *slog.Logger) (*Server, error) {
 		cfg.MaxUploadBytes = DefaultMaxUploadBytes
 	}
 	s := &Server{svc: svc, cfg: cfg, log: log, tmpl: map[string]*template.Template{}, done: make(chan struct{}),
-		login: &limiter{max: 5, window: time.Minute, now: svc.Now, hits: map[string][]time.Time{}}}
+		login: newLimiter(svc.Now), verifySem: make(chan struct{}, maxConcurrentVerify)}
 	for _, p := range []string{"login", "setup", "invite", "library", "saves", "clients", "settings", "users", "systems", "confirm"} {
 		t, err := template.New(p).ParseFS(templatesFS, "templates/layout.html", "templates/"+p+".html")
 		if err != nil {
@@ -127,7 +131,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	h("GET /nav-fragment", s.guard(s.navFragment))
 	mux.Handle("GET /events", secure(s.guard(s.events)))
 	h("GET /library", s.guard(s.libraryGet))
-	h("POST /library/upload", s.guard(s.libraryUpload))
+	h("POST /library/upload", s.guardUpload(s.libraryUpload))
 	h("POST /library/rescan", s.guard(s.libraryRescan))
 	h("POST /library/{id}/delete", s.guard(s.libraryDelete))
 	h("GET /saves", s.guard(s.savesGet))
@@ -139,7 +143,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	h("POST /saves/{user}/{game}/{slot}/snapshots", s.guard(s.saveSnapshot))
 	h("POST /saves/{user}/{game}/{slot}/history/{version}/delete", s.guard(s.saveDeleteSnapshot))
 	h("POST /saves/{user}/{game}/{slot}/slots", s.guard(s.saveNewSlot))
-	h("POST /saves/{user}/{game}/{slot}/upload", s.guard(s.saveUpload))
+	h("POST /saves/{user}/{game}/{slot}/upload", s.guardUpload(s.saveUpload))
 	h("GET /clients", s.guard(s.clientsGet))
 	h("POST /clients/requests/{id}/allow", s.guard(s.clientAllow))
 	h("POST /clients/requests/{id}/deny", s.guard(s.clientDeny))
@@ -156,7 +160,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	h("GET /systems", s.guard(s.systemsGet))
 	h("POST /systems/{id}/expected-version", s.guard(s.systemVersion))
 	h("POST /systems/{id}/firmware-mode", s.guard(s.systemFirmwareMode))
-	h("POST /systems/{id}/firmware/{file}/upload", s.guard(s.firmwareUpload))
+	h("POST /systems/{id}/firmware/{file}/upload", s.guardUpload(s.firmwareUpload))
 	h("POST /systems/{id}/firmware/{file}/pin", s.guard(s.firmwarePin))
 	h("POST /systems/{id}/firmware/{file}/remove", s.guard(s.firmwareRemove))
 	h("POST /cores/sync", s.guard(s.coresSync))
@@ -361,7 +365,15 @@ type ctxKey int
 
 const keyCSRFChecked ctxKey = 1
 
-func (s *Server) guard(f handlerFunc) http.HandlerFunc {
+// guard checks the setup state, the admin session and the CSRF token of every POST. Multipart bodies must carry
+// the token in X-CSRF-Token or in the _csrf field (the form is parsed with the 1 MiB cap).
+func (s *Server) guard(f handlerFunc) http.HandlerFunc { return s.guardWith(false, f) }
+
+// guardUpload is the guard for the three streaming upload routes (ROM, save file, firmware). Only these may defer
+// the CSRF check of a multipart body to the handler, which verifies _csrf before it reads the file part.
+func (s *Server) guardUpload(f handlerFunc) http.HandlerFunc { return s.guardWith(true, f) }
+
+func (s *Server) guardWith(streamingUpload bool, f handlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if has, err := s.svc.HasAdmin(r.Context()); err != nil {
 			s.fail(w, r, err)
@@ -370,7 +382,7 @@ func (s *Server) guard(f handlerFunc) http.HandlerFunc {
 			s.redirect(w, r, "/setup")
 			return
 		}
-		c, err := r.Cookie(sessionCookie)
+		c, err := r.Cookie(s.cookieName(sessionCookie))
 		if err != nil || c.Value == "" {
 			s.redirect(w, r, "/login")
 			return
@@ -383,7 +395,8 @@ func (s *Server) guard(f handlerFunc) http.HandlerFunc {
 		}
 		sess := &session{ws}
 		if r.Method == http.MethodPost {
-			if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
+			multipart := strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data")
+			if multipart && streamingUpload {
 				// Streaming upload: the handler checks _csrf (before the file) or the header.
 				if tok := r.Header.Get("X-CSRF-Token"); tok != "" {
 					if !hub.TokenEqual(tok, ws.CSRFToken) {
@@ -395,7 +408,16 @@ func (s *Server) guard(f handlerFunc) http.HandlerFunc {
 			} else {
 				r.Body = http.MaxBytesReader(w, r.Body, maxFormBytes)
 				tok := r.Header.Get("X-CSRF-Token")
-				if err := r.ParseForm(); err != nil {
+				var err error
+				if multipart {
+					err = r.ParseMultipartForm(maxFormBytes)
+					if r.MultipartForm != nil {
+						defer r.MultipartForm.RemoveAll()
+					}
+				} else {
+					err = r.ParseForm()
+				}
+				if err != nil {
 					http.Error(w, "Invalid request", http.StatusBadRequest)
 					return
 				}
@@ -428,8 +450,16 @@ func (s *Server) fail(w http.ResponseWriter, r *http.Request, err error) {
 
 // ---- Cookies, CSRF before sign-in, login rate limiting ----
 
-func (s *Server) setCookie(w http.ResponseWriter, name, value string, maxAge int) {
-	http.SetCookie(w, &http.Cookie{Name: name, Value: value, Path: "/", MaxAge: maxAge, HttpOnly: true,
+// cookieName returns the cookie name for base: with the __Host- prefix when TLS is on.
+func (s *Server) cookieName(base string) string {
+	if s.cfg.UseTLS {
+		return hostPrefix + base
+	}
+	return base
+}
+
+func (s *Server) setCookie(w http.ResponseWriter, base, value string, maxAge int) {
+	http.SetCookie(w, &http.Cookie{Name: s.cookieName(base), Value: value, Path: "/", MaxAge: maxAge, HttpOnly: true,
 		SameSite: http.SameSiteStrictMode, Secure: s.cfg.UseTLS})
 }
 
@@ -446,7 +476,7 @@ func (s *Server) startSession(w http.ResponseWriter, r *http.Request, userID str
 
 // preCSRF returns the double-submit token for forms without a session and sets the cookie if needed.
 func (s *Server) preCSRF(w http.ResponseWriter, r *http.Request) string {
-	if c, err := r.Cookie(csrfCookie); err == nil && len(c.Value) >= 20 {
+	if c, err := r.Cookie(s.cookieName(csrfCookie)); err == nil && len(c.Value) >= 20 {
 		return c.Value
 	}
 	tok, err := hub.RandomToken()
@@ -458,49 +488,11 @@ func (s *Server) preCSRF(w http.ResponseWriter, r *http.Request) string {
 }
 
 func (s *Server) checkPreCSRF(r *http.Request) bool {
-	c, err := r.Cookie(csrfCookie)
+	c, err := r.Cookie(s.cookieName(csrfCookie))
 	if err != nil || c.Value == "" {
 		return false
 	}
 	return hub.TokenEqual(r.PostFormValue("_csrf"), c.Value)
-}
-
-type limiter struct {
-	mu     sync.Mutex
-	max    int
-	window time.Duration
-	now    func() time.Time
-	hits   map[string][]time.Time
-}
-
-func (l *limiter) prune(key string) []time.Time {
-	cut := l.now().Add(-l.window)
-	h := l.hits[key]
-	i := 0
-	for i < len(h) && !h[i].After(cut) {
-		i++
-	}
-	h = h[i:]
-	if len(h) == 0 {
-		delete(l.hits, key)
-	} else {
-		l.hits[key] = h
-	}
-	return h
-}
-
-// blocked reports whether key has reached the limit.
-func (l *limiter) blocked(key string) bool {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return len(l.prune(key)) >= l.max
-}
-
-func (l *limiter) fail(key string) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.prune(key)
-	l.hits[key] = append(l.hits[key], l.now())
 }
 
 func remoteIP(r *http.Request) string {

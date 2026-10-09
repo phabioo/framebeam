@@ -336,7 +336,7 @@ func runServer(args []string) error {
 	webSrv.Register(mux)
 
 	srv := &http.Server{
-		Handler:           httpapi.LogRequests(log, mux),
+		Handler:           withReadDeadline(httpapi.LogRequests(log, mux)),
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       120 * time.Second,
 		ErrorLog:          slog.NewLogLogger(log.Handler(), slog.LevelWarn),
@@ -381,9 +381,9 @@ func runServer(args []string) error {
 	errc := make(chan error, 1)
 	go func() {
 		if cfg.UseTLS() {
-			errc <- srv.ServeTLS(ln, "", "")
+			errc <- srv.ServeTLS(limitListener(ln, maxConns), "", "")
 		} else {
-			errc <- srv.Serve(ln)
+			errc <- srv.Serve(limitListener(ln, maxConns))
 		}
 	}()
 	restarting := false

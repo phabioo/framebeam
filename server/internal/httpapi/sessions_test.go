@@ -960,3 +960,30 @@ func TestPingKeepaliveAndUsersList(t *testing.T) {
 	}
 	wantStatus(t, s.do("GET", "/api/v1/users", nil, opt{}), 401, "unauthorized")
 }
+
+// The access token only authenticates the upgrade: a disabled user's open connection is closed on a ping tick.
+func TestWSClosedWhenUserDisabled(t *testing.T) {
+	old := wsPingInterval
+	wsPingInterval = 50 * time.Millisecond
+	defer func() { wsPingInterval = old }()
+	s := newSessEnv(t, nil)
+	b1 := s.device(s.anna.ID, "Anna-Laptop")
+	w := s.dial(b1)
+	time.Sleep(150 * time.Millisecond)
+	if err := s.svc.DisableUser(context.Background(), s.anna.ID); err != nil {
+		t.Fatal(err)
+	}
+	w.wantClosed()
+}
+
+// At most two connections per device may be open without having completed hello.
+func TestWSPreHelloConnectionsLimited(t *testing.T) {
+	s := newSessEnv(t, nil)
+	a1 := s.device(s.admin.ID, "Desktop")
+	s.dialRaw(a1)
+	s.dialRaw(a1)
+	_, resp, err := websocket.Dial(context.Background(), s.wsURL(), &websocket.DialOptions{HTTPHeader: http.Header{"Authorization": {"Bearer " + a1.tok}}})
+	if err == nil || resp == nil || resp.StatusCode != 429 {
+		t.Fatalf("third pre-hello connection: %v %v", resp, err)
+	}
+}

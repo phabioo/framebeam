@@ -55,7 +55,7 @@ func newEnvOpts(t *testing.T, withAdmin bool, mod func(*Config), hubMod func(*hu
 	httpapi.Register(mux, svc, nil)
 	w.Register(mux)
 	if withAdmin {
-		if _, err := svc.CreateAdmin(bg, "admin", "secret-1234"); err != nil {
+		if _, err := svc.CreateAdmin(bg, "admin", "secret-12345"); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -75,7 +75,10 @@ func (e *env) client() *client {
 func (c *client) do(method, path string, body io.Reader, hdr map[string]string) *httptest.ResponseRecorder {
 	r := httptest.NewRequest(method, path, body)
 	r.RemoteAddr = c.remote
-	for k, v := range c.cookies {
+	for k, v := range c.cookies { // c.cookies is keyed by the base names; the server expects __Host- with TLS
+		if c.e.cfg.UseTLS {
+			k = hostPrefix + k
+		}
 		r.AddCookie(&http.Cookie{Name: k, Value: v})
 	}
 	for k, v := range hdr {
@@ -84,10 +87,14 @@ func (c *client) do(method, path string, body io.Reader, hdr map[string]string) 
 	rec := httptest.NewRecorder()
 	c.e.mux.ServeHTTP(rec, r)
 	for _, ck := range rec.Result().Cookies() {
+		name := strings.TrimPrefix(ck.Name, hostPrefix)
+		if c.e.cfg.UseTLS && (name == ck.Name || !ck.Secure || ck.Path != "/" || ck.Domain != "") {
+			c.e.t.Fatalf("cookie %q must be __Host- prefixed, Secure, Path=/ and without Domain with TLS", ck.Name)
+		}
 		if ck.MaxAge < 0 {
-			delete(c.cookies, ck.Name)
+			delete(c.cookies, name)
 		} else {
-			c.cookies[ck.Name] = ck.Value
+			c.cookies[name] = ck.Value
 		}
 	}
 	return rec
@@ -109,7 +116,7 @@ func (c *client) postForm(path string, v url.Values, hdr map[string]string) *htt
 func (c *client) login() string {
 	c.e.t.Helper()
 	c.get("/login", nil)
-	rec := c.postForm("/login", url.Values{"username": {"admin"}, "password": {"secret-1234"}, "_csrf": {c.cookies[csrfCookie]}}, nil)
+	rec := c.postForm("/login", url.Values{"username": {"admin"}, "password": {"secret-12345"}, "_csrf": {c.cookies[csrfCookie]}}, nil)
 	if rec.Code != http.StatusSeeOther {
 		c.e.t.Fatalf("login: %d %s", rec.Code, rec.Body.String())
 	}
@@ -174,7 +181,7 @@ func TestSetupLoopbackOnly(t *testing.T) {
 	status(t, rec, 200)
 	contains(t, rec, "framebeam-hub setup-admin")
 	notContains(t, rec, `name="password"`)
-	status(t, remote.postForm("/setup", url.Values{"username": {"x"}, "password": {"secret-1234"}, "password2": {"secret-1234"}, "_csrf": {"a"}}, nil), 403)
+	status(t, remote.postForm("/setup", url.Values{"username": {"x"}, "password": {"secret-12345"}, "password2": {"secret-12345"}, "_csrf": {"a"}}, nil), 403)
 	if has, _ := e.svc.HasAdmin(bg); has {
 		t.Fatal("admin created from remote")
 	}
@@ -183,10 +190,10 @@ func TestSetupLoopbackOnly(t *testing.T) {
 	rec = c.get("/setup", nil)
 	status(t, rec, 200)
 	contains(t, rec, `name="password"`)
-	good := url.Values{"username": {"fabio"}, "password": {"secret-1234"}, "password2": {"secret-1234"}, "_csrf": {c.cookies[csrfCookie]}}
-	bad := url.Values{"username": {"fabio"}, "password": {"secret-1234"}, "password2": {"secret-1234"}, "_csrf": {"wrong"}}
+	good := url.Values{"username": {"fabio"}, "password": {"secret-12345"}, "password2": {"secret-12345"}, "_csrf": {c.cookies[csrfCookie]}}
+	bad := url.Values{"username": {"fabio"}, "password": {"secret-12345"}, "password2": {"secret-12345"}, "_csrf": {"wrong"}}
 	status(t, c.postForm("/setup", bad, nil), 403)
-	mismatch := url.Values{"username": {"fabio"}, "password": {"secret-1234"}, "password2": {"different-1234"}, "_csrf": {c.cookies[csrfCookie]}}
+	mismatch := url.Values{"username": {"fabio"}, "password": {"secret-12345"}, "password2": {"different-1234"}, "_csrf": {c.cookies[csrfCookie]}}
 	status(t, c.postForm("/setup", mismatch, nil), 400)
 	rec = c.postForm("/setup", good, nil)
 	if rec.Code != 303 || location(rec) != "/library" || c.cookies[sessionCookie] == "" {
@@ -216,13 +223,13 @@ func TestLoginLogoutAndCookieFlags(t *testing.T) {
 			t.Fatalf("HX-Redirect %q", h)
 		}
 		c.get("/login", nil)
-		rec = c.postForm("/login", url.Values{"username": {"admin"}, "password": {"secret-1234"}, "_csrf": {c.cookies[csrfCookie]}}, nil)
+		rec = c.postForm("/login", url.Values{"username": {"admin"}, "password": {"secret-12345"}, "_csrf": {c.cookies[csrfCookie]}}, nil)
 		if rec.Code != 303 || location(rec) != "/library" {
 			t.Fatalf("login: %d", rec.Code)
 		}
 		var found bool
 		for _, ck := range rec.Result().Cookies() {
-			if ck.Name != sessionCookie {
+			if strings.TrimPrefix(ck.Name, hostPrefix) != sessionCookie || (tls && ck.Name != hostPrefix+sessionCookie) {
 				continue
 			}
 			found = true
@@ -269,16 +276,16 @@ func TestLoginFailureAndRateLimit(t *testing.T) {
 	}
 	status(t, wrong("admin"), 429)
 	// even the correct password is rejected now
-	status(t, c.postForm("/login", url.Values{"username": {"admin"}, "password": {"secret-1234"}, "_csrf": {c.cookies[csrfCookie]}}, nil), 429)
+	status(t, c.postForm("/login", url.Values{"username": {"admin"}, "password": {"secret-12345"}, "_csrf": {c.cookies[csrfCookie]}}, nil), 429)
 	// a different IP is not affected
 	o := e.client()
 	o.remote = "192.0.2.9:1"
 	o.login()
 	e.clk.Advance(61 * time.Second)
-	status(t, c.postForm("/login", url.Values{"username": {"admin"}, "password": {"secret-1234"}, "_csrf": {c.cookies[csrfCookie]}}, nil), 303)
+	status(t, c.postForm("/login", url.Values{"username": {"admin"}, "password": {"secret-12345"}, "_csrf": {c.cookies[csrfCookie]}}, nil), 303)
 	// Login without/with wrong CSRF
 	n := e.client()
-	status(t, n.postForm("/login", url.Values{"username": {"admin"}, "password": {"secret-1234"}}, nil), 403)
+	status(t, n.postForm("/login", url.Values{"username": {"admin"}, "password": {"secret-12345"}}, nil), 403)
 }
 
 func TestNonAdminCannotLogin(t *testing.T) {
@@ -366,7 +373,7 @@ func TestUploadListAPIDeleteAndErrors(t *testing.T) {
 	_ = api
 	dev := uuid.NewString()
 	pr, _ := e.svc.CreatePairingRequest(bg, hub.PairingInput{DeviceID: dev, DeviceName: "PC", Platform: "linux", Arch: "x86_64", PlayerVersion: "0.1", ProtocolVersion: 1, RemoteAddr: "192.0.2.1"})
-	admin, _ := e.svc.VerifyPassword(bg, "admin", "secret-1234")
+	admin, _ := e.svc.VerifyPassword(bg, "admin", "secret-12345")
 	e.svc.ApprovePairing(bg, pr.RequestID, admin.ID)
 	res, _ := e.svc.PollPairing(bg, pr.RequestID, pr.PollToken)
 	at, _ := e.svc.IssueAccessToken(bg, dev, res.DeviceCredential)
@@ -409,7 +416,7 @@ func TestSearchAndFilterFragment(t *testing.T) {
 	e := newEnv(t, true, nil)
 	c := e.client()
 	c.login()
-	admin, _ := e.svc.VerifyPassword(bg, "admin", "secret-1234")
+	admin, _ := e.svc.VerifyPassword(bg, "admin", "secret-12345")
 	a, _ := e.svc.AddROM(bg, bytes.NewReader(randomBytes(200)), "alpha.nds", "Alpha Quest", "", admin.ID)
 	e.svc.AddROM(bg, bytes.NewReader(randomBytes(200)), "beta.nds", "Beta Racer", "", admin.ID)
 	hx := map[string]string{"HX-Request": "true", "HX-Target": "library-results"}
@@ -452,7 +459,7 @@ func TestClientsAllowDenyRevoke(t *testing.T) {
 	rec := c.get("/clients", nil)
 	status(t, rec, 200)
 	contains(t, rec, "Lena Gaming PC", "Pending Requests · 1", "windows x86_64", "Player 0.1.0", "just now", "1 request")
-	admin, _ := e.svc.VerifyPassword(bg, "admin", "secret-1234")
+	admin, _ := e.svc.VerifyPassword(bg, "admin", "secret-12345")
 
 	// Allow with an invalid user: message, nothing happens
 	rec = c.postForm("/clients/requests/"+pr.RequestID+"/allow", url.Values{"user_id": {"u_doesnotexist"}}, hdr)
@@ -530,13 +537,13 @@ func TestSettingsNameAndPassword(t *testing.T) {
 		return c.postForm("/settings/password", url.Values{"current": {cur}, "new": {n}, "new2": {n2}, "_csrf": {c.csrf()}}, nil)
 	}
 	contains(t, pw("wrong", "new-password", "new-password"), "current password is incorrect")
-	contains(t, pw("secret-1234", "new-password", "different"), "do not match")
-	contains(t, pw("secret-1234", "short", "short"), "at least")
-	if rec := pw("secret-1234", "new-password", "new-password"); rec.Code != 303 {
+	contains(t, pw("secret-12345", "new-password", "different"), "do not match")
+	contains(t, pw("secret-12345", "short", "short"), "at least")
+	if rec := pw("secret-12345", "new-password", "new-password"); rec.Code != 303 {
 		t.Fatalf("%d %s", rec.Code, rec.Body.String())
 	}
 	status(t, c.get("/settings", nil), 200) // new session active
-	if _, err := e.svc.VerifyPassword(bg, "admin", "secret-1234"); err == nil {
+	if _, err := e.svc.VerifyPassword(bg, "admin", "secret-12345"); err == nil {
 		t.Fatal("old password still valid")
 	}
 	if _, err := e.svc.VerifyPassword(bg, "admin", "new-password"); err != nil {
@@ -565,7 +572,7 @@ func TestAllPagesRenderWithHeaders(t *testing.T) {
 	status(t, rec, 200)
 	c.login()
 	pending(t, e, uuid.NewString())
-	admin, _ := e.svc.VerifyPassword(bg, "admin", "secret-1234")
+	admin, _ := e.svc.VerifyPassword(bg, "admin", "secret-12345")
 	e.svc.AddROM(bg, bytes.NewReader(randomBytes(300)), "a.nds", "Trouble <b>Title</b>", "", admin.ID)
 	for _, p := range []string{"/library", "/saves", "/clients", "/settings"} {
 		rec := c.get(p, nil)

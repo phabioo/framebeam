@@ -186,7 +186,7 @@
 <section class="set-card set-restart" {{if not .Restarting.Changed}}data-restart-poll="/settings/network"{{end}} role="status">
   <div class="label">Restarting…</div>
   <div class="help">The hub restarts now and running Sessions end.{{if .Restarting.Changed}} The port changes: open the new address once the hub is back.{{else}} This page reloads when the hub answers again.{{end}}</div>
-  {{if .Restarting.Changed}}<a class="btn small primary" href="{{.Restarting.URL}}">Open {{.Restarting.URL}}</a>{{end}}
+  {{if and .Restarting.Changed .Restarting.URL}}<a class="btn small primary" href="{{.Restarting.URL}}">Open {{.Restarting.URL}}</a>{{end}}
 </section>
 {{end}}
 {{range .Issues}}<section class="set-card set-fail" role="alert"><span class="chip err">✕ Not applied at startup</span><div class="help">{{.}}</div></section>{{end}}

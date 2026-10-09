@@ -204,7 +204,7 @@ func TestAutomaticInstall(t *testing.T) {
 	// Not while a Session is active; retried at the next check.
 	a := newUpdEnv(t, "0.3.0-beta.5", "beta", true)
 	a.feed.add(t, "beta", "0.3.0-beta.6", 1)
-	admin, _ := a.svc.CreateAdmin(ctx, "fabio", "secret-1234")
+	admin, _ := a.svc.CreateAdmin(ctx, "fabio", "secret-12345")
 	g, err := a.svc.AddROM(ctx, bytes.NewReader(randomROM(2000)), "demo.nds", "", "", admin.ID)
 	if err != nil {
 		t.Fatal(err)
@@ -236,7 +236,7 @@ func TestAutomaticInstall(t *testing.T) {
 
 func TestBreakingUpdateWarnsAndNeedsConfirmation(t *testing.T) {
 	e := newUpdEnv(t, "0.3.0-beta.5", "beta", true)
-	admin, _ := e.svc.CreateAdmin(ctx, "fabio", "secret-1234")
+	admin, _ := e.svc.CreateAdmin(ctx, "fabio", "secret-12345")
 	dev := pairDevice(t, e.svc, admin.ID, "Old Player")
 	cores := []hub.CoreReport{}
 	if _, err := e.svc.Handshake(ctx, dev, hub.HandshakeInput{Platform: "linux", Arch: "x86_64", PlayerVersion: "0.1.0", ProtocolVersion: 1,
@@ -256,7 +256,7 @@ func TestBreakingUpdateWarnsAndNeedsConfirmation(t *testing.T) {
 	}
 	// A Player not seen for 30 days no longer counts.
 	e2 := newUpdEnv(t, "0.3.0-beta.5", "beta", true)
-	admin2, _ := e2.svc.CreateAdmin(ctx, "fabio", "secret-1234")
+	admin2, _ := e2.svc.CreateAdmin(ctx, "fabio", "secret-12345")
 	dev2 := pairDevice(t, e2.svc, admin2.ID, "Old Player")
 	e2.svc.Handshake(ctx, dev2, hub.HandshakeInput{Platform: "linux", Arch: "x86_64", PlayerVersion: "0.1.0", ProtocolVersion: 1, MinProtocolVersion: 1, Cores: &cores})
 	e2.feed.add(t, "beta", "0.3.0-beta.6", 2)

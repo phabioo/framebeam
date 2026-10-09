@@ -29,10 +29,13 @@ const (
 const (
 	AccessTokenTTL           = 15 * time.Minute
 	PairingTTL               = 10 * time.Minute
-	MaxOpenPairingRequests   = 20
-	MaxPairingPerIPPerMinute = 5
-	WebSessionTTL            = 12 * time.Hour
-	MinPasswordLen           = 8
+	MaxOpenPairingRequests   = 20 // anonymous pairing requests only
+	MaxPairingPerIPPerMinute = 5  // per IPv4 address or IPv6 /64
+	// MaxOpenInviteRequests caps pending requests created by invite redemptions (own budget, so anonymous
+	// pairing requests cannot starve invited users and vice versa).
+	MaxOpenInviteRequests = 50
+	WebSessionTTL         = 12 * time.Hour
+	MinPasswordLen        = 12
 )
 
 // Options configure the service.

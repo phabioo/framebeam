@@ -55,7 +55,8 @@ func Register(mux *http.ServeMux, svc *hub.Service, log *slog.Logger) {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Cache-Control", "no-store")
 				limit := int64(maxBodyBytes)
-				if r.Method == http.MethodPut && strings.Contains(r.URL.Path, "/saves/") {
+				if (r.Method == http.MethodPut && strings.Contains(r.URL.Path, "/saves/")) ||
+					(r.Method == http.MethodPost && strings.Contains(r.URL.Path, "/saves/") && strings.HasSuffix(r.URL.Path, "/upload")) {
 					limit = hub.MaxSaveBytes + 1 // the service answers 413 payload_too_large
 				}
 				if r.Method == http.MethodPost && r.URL.Path == "/api/v1/games" {
