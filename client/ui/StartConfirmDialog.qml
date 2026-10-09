@@ -72,6 +72,7 @@ Item {
                     wrapMode: Text.WordWrap
                 }
                 RowLayout {
+                    id: buttonRow
                     Layout.fillWidth: true
                     spacing: 10
                     Item { Layout.fillWidth: true; Layout.minimumWidth: 0 }
@@ -88,8 +89,12 @@ Item {
                     FbButton {
                         id: confirmButton
                         implicitHeight: 40
-                        Layout.minimumWidth: 0   // a long title elides in the button instead of widening the dialog
-                        Layout.maximumWidth: 360
+                        // Deterministic width: natural width, at most 360 and at most what is left next to Cancel, so a long
+                        // title (or a wide font) elides in the button instead of spilling out of the dialog.
+                        Layout.fillWidth: false
+                        Layout.minimumWidth: 0
+                        Layout.preferredWidth: Math.max(0, Math.min(implicitWidth, 360, buttonRow.width - cancelButton.width - buttonRow.spacing * 2))
+                        Layout.maximumWidth: Layout.preferredWidth
                         objectName: "startConfirmQuit"
                         kind: "primary"
                         text: qsTr("Quit and start %1").arg(root.request.newTitle || "")

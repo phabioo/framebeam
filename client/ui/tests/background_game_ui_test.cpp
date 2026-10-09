@@ -309,8 +309,9 @@ class BackgroundGameUiTest : public QObject {
     QQuickTest::qWaitForPolish(h.window);
     shot(h, QStringLiteral("3c-5-quit-and-start-dialog"));
     h.window->resize(960, 600);
-    widenFonts(h, 3.0);
-    inside(h, "startConfirmQuit", sceneRect(h.item("startConfirmDialog")));
+    widenFonts(h, 10.0);  // far wider than any Windows UI font: the confirm button must elide, never spill out of the dialog
+    for (const char* n : {"startConfirmCancel", "startConfirmQuit"}) inside(h, n, sceneRect(h.item("startConfirmDialog")));
+    QVERIFY(sceneRect(h.item("startConfirmQuit")).left() >= sceneRect(h.item("startConfirmCancel")).right() - 0.5);
     h.window->resize(1280, 800);
     QQuickTest::qWaitForPolish(h.window);
 
