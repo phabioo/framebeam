@@ -93,7 +93,7 @@ class GameTest : public QObject {
     QVERIFY(h.start(/*probeCores=*/true));
     // Core version for the handshake came from the core info (or: only core_id, empty version).
     QCOMPARE(h.controller->handshakeCores().size(), 1);
-    QCOMPARE(h.controller->handshakeCores().at(0).id, QStringLiteral("melonds_ds"));
+    QCOMPARE(h.controller->handshakeCores().at(0).id, QStringLiteral("melondsds"));
     QVERIFY2(!h.controller->handshakeCores().at(0).version.isEmpty(), "Core version not determined");
 
     h.controller->addHub(hub.address());

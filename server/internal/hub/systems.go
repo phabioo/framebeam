@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-// Handshake features announced by the Hub (additive; protocol_version unchanged).
+// Handshake features announced by the Hub (additive; protocol_version unchanged). Core features: cores.go.
 const (
 	FeatureUsersV1    = "users_v1"
 	FeatureUploadsV1  = "uploads_v1"
@@ -60,20 +60,26 @@ type FirmwareFile struct {
 	State  FirmwareState
 }
 
-// SystemEntry is a registry entry: system, preferred core, expected version, provisioning and firmware.
+// SystemEntry is a registry entry: system, installed cores and default core, provisioning and firmware.
 type SystemEntry struct {
-	ID                  string
-	Name                string
-	Extensions          []string
+	ID         string
+	Name       string
+	Extensions []string
+	// LibretroIDs are the libretro system ids (core info `systemid`) that belong to the system.
+	LibretroIDs []string
+	// CoreID, CoreName and ExpectedCoreVersion describe the default core (ADR 0020 D5); empty when none is installed.
+	// ExpectedCoreVersion is the installed (served) version of the default core.
 	CoreID              string
 	CoreName            string
-	ExpectedCoreVersion string // empty = any version
-	Platforms           []string
-	Provisioning        string
-	InputProfile        string
-	DisplayProfile      string
-	FirmwareMode        FirmwareMode
-	Firmware            []FirmwareFile
+	ExpectedCoreVersion string
+	// Cores are the installed cores, ordered by core id.
+	Cores          []InstalledCore
+	Platforms      []string
+	Provisioning   string
+	InputProfile   string
+	DisplayProfile string
+	FirmwareMode   FirmwareMode
+	Firmware       []FirmwareFile
 }
 
 func splitList(v string) []string {
@@ -92,21 +98,21 @@ func (s *Service) firmwarePath(systemID, fileID string) string {
 
 // ListRegistry returns all registry entries with their firmware files and states.
 func (s *Service) ListRegistry(ctx context.Context) ([]SystemEntry, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, display_name, extensions, preferred_core_id, preferred_core_name,
-		COALESCE(expected_core_version,''), platforms, provisioning, input_profile, display_profile, firmware_mode FROM systems ORDER BY id`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, display_name, extensions, libretro_ids, COALESCE(default_core_id,''),
+		platforms, provisioning, input_profile, display_profile, firmware_mode FROM systems ORDER BY id`)
 	if err != nil {
 		return nil, internal(err)
 	}
 	var out []SystemEntry
 	for rows.Next() {
 		var e SystemEntry
-		var ext, plat string
-		if err := rows.Scan(&e.ID, &e.Name, &ext, &e.CoreID, &e.CoreName, &e.ExpectedCoreVersion, &plat, &e.Provisioning,
+		var ext, plat, libretro string
+		if err := rows.Scan(&e.ID, &e.Name, &ext, &libretro, &e.CoreID, &plat, &e.Provisioning,
 			&e.InputProfile, &e.DisplayProfile, &e.FirmwareMode); err != nil {
 			rows.Close()
 			return nil, internal(err)
 		}
-		e.Extensions, e.Platforms = splitList(ext), splitList(plat)
+		e.Extensions, e.Platforms, e.LibretroIDs = splitList(ext), splitList(plat), splitList(libretro)
 		out = append(out, e)
 	}
 	if err := rows.Err(); err != nil {
@@ -114,12 +120,25 @@ func (s *Service) ListRegistry(ctx context.Context) ([]SystemEntry, error) {
 		return nil, internal(err)
 	}
 	rows.Close()
+	installed, err := s.loadInstalledCores(ctx, "")
+	if err != nil {
+		return nil, err
+	}
 	for i := range out {
 		files, err := s.systemFirmware(ctx, out[i].ID, out[i].FirmwareMode)
 		if err != nil {
 			return nil, err
 		}
 		out[i].Firmware = files
+		out[i].Cores = installed[out[i].ID]
+		for _, c := range out[i].Cores {
+			if c.CoreID == out[i].CoreID {
+				out[i].CoreName, out[i].ExpectedCoreVersion = c.DisplayName, c.Version
+			}
+		}
+		if out[i].CoreName == "" { // default core id without an installed core (cannot happen with the install code)
+			out[i].CoreID = ""
+		}
 	}
 	return out, nil
 }
@@ -191,27 +210,6 @@ func (s *Service) FirmwareProblems(ctx context.Context) (int, error) {
 		}
 	}
 	return n, nil
-}
-
-// SetExpectedCoreVersion sets the expected core version of a system (empty = any version).
-func (s *Service) SetExpectedCoreVersion(ctx context.Context, systemID, version string) (err error) {
-	defer s.publishOK(&err, TopicSystems)
-	version = cleanText(version, 64)
-	var v any
-	if version != "" {
-		v = version
-	}
-	res, err := s.db.ExecContext(ctx, `UPDATE systems SET expected_core_version = ? WHERE id = ?`, v, systemID)
-	if err != nil {
-		return internal(err)
-	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		return ErrNotFound
-	}
-	if version != "" {
-		s.TriggerCoreDownload() // fetch the newly selected version in the background
-	}
-	return nil
 }
 
 // SetFirmwareMode switches a system between builtin and native firmware.
@@ -401,6 +399,9 @@ type CoreReport struct {
 func checkCores(reg []SystemEntry, cores []CoreReport) []Problem {
 	var out []Problem
 	for _, e := range reg {
+		if e.CoreID == "" {
+			continue // no core installed for the system: nothing to compare
+		}
 		var got *CoreReport
 		for i := range cores {
 			if cores[i].ID == e.CoreID {

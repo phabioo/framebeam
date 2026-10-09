@@ -35,56 +35,36 @@ wait_for() { local n=$(( $1 * 10 )); shift; while [ "$n" -gt 0 ]; do "$@" >/dev/
 (cd "$ROOT/server" && go build -o "$TMP/framebeam-hub" ./cmd/framebeam-hub) >"$TMP/build.log" 2>&1 || die "hub build" "$TMP/build.log"
 ok "hub build"
 
-# 1b. Core packages (0.2): throwaway signing key, dummy library (random bytes, no real core) + dummy license,
-#     signed index. Imported offline before the Hub starts; the core source URL is unreachable on purpose.
-(cd "$ROOT/server" && go build -o "$TMP/framebeam-sign" ./cmd/framebeam-sign) >"$TMP/build-sign.log" 2>&1 || die "framebeam-sign build" "$TMP/build-sign.log"
+# 1b. Core import (ADR 0020): dummy library (random bytes, no real core) zipped like the libretro buildbot does,
+#     plus an info.zip with a minimal .info (systemid nds) and an .index-extended. Imported offline before the Hub
+#     starts (no signing); the Hub's buildbot URL is unreachable on purpose.
 case "$(uname -m)" in aarch64|arm64) CORE_PLATFORM=linux-arm64 ;; *) CORE_PLATFORM=linux-x64 ;; esac
-CORE_ID=melonds_ds
-# Version = expected_core_version of the nds system in the seed data (migration 0004); NULL there would accept any version.
-CORE_VERSION=1.4.0
 CDIR="$TMP/cores-in"
-mkdir -p "$CDIR"
-head -c 8192 /dev/urandom >"$CDIR/melondsds_libretro.so"
-printf 'E2E dummy license text, not a real license.\n' >"$CDIR/LICENSE-melonDS-DS.txt"
-CORE_SHA="$(sha256sum "$CDIR/melondsds_libretro.so" | cut -d' ' -f1)"
-LIC_SHA="$(sha256sum "$CDIR/LICENSE-melonDS-DS.txt" | cut -d' ' -f1)"
-CORE_SIZE="$(stat -c %s "$CDIR/melondsds_libretro.so")"
-LIC_SIZE="$(stat -c %s "$CDIR/LICENSE-melonDS-DS.txt")"
-(umask 077; "$TMP/framebeam-sign" keygen -out "$TMP/e2e-signing.seed" >"$TMP/keygen.out" 2>"$TMP/keygen.err") || die "core: keygen" "$TMP/keygen.err"
-CORE_PUB="$(sed -n 's/^public_key=//p' "$TMP/keygen.out" | head -n1)"
-[ -n "$CORE_PUB" ] || die "core: keygen printed no public key" "$TMP/keygen.err"
-# The Player verifies the signed core index itself (ADR 0012 D6): trust the throwaway key there too.
-export FRAMEBEAM_PLAYER_TRUST_KEYS="$CORE_PUB"
-BASEURL="https://e2e.invalid/core-$CORE_ID-$CORE_VERSION"
-cat >"$TMP/package.json" <<EOF
-{
-  "core_id": "$CORE_ID",
-  "version": "$CORE_VERSION",
-  "platform": "$CORE_PLATFORM",
-  "license": "GPL-3.0",
-  "source_url": "https://e2e.invalid/source",
-  "source_ref": "e2e-dummy",
-  "origin": "e2e dummy package",
-  "files": [
-    {"name": "melondsds_libretro.so", "role": "library", "size": $CORE_SIZE, "sha256": "$CORE_SHA", "url": "$BASEURL/melondsds_libretro.so"},
-    {"name": "LICENSE-melonDS-DS.txt", "role": "license", "size": $LIC_SIZE, "sha256": "$LIC_SHA", "url": "$BASEURL/LICENSE-melonDS-DS.txt"}
-  ]
-}
-EOF
-"$TMP/framebeam-sign" add -index "$CDIR/cores-index.json" -package "$TMP/package.json" >"$TMP/sign.log" 2>&1 \
-  && FRAMEBEAM_SIGNING_KEY="$(cat "$TMP/e2e-signing.seed")" "$TMP/framebeam-sign" sign -index "$CDIR/cores-index.json" >>"$TMP/sign.log" 2>&1 \
-  && "$TMP/framebeam-sign" verify -index "$CDIR/cores-index.json" -sig "$CDIR/cores-index.json.sig" -pub "$CORE_PUB" >>"$TMP/sign.log" 2>&1 \
-  || die "core: add/sign/verify" "$TMP/sign.log"
-ok "core: throwaway key, dummy package signed ($CORE_ID $CORE_VERSION $CORE_PLATFORM)"
+mkdir -p "$CDIR/$CORE_PLATFORM"
+head -c 8192 /dev/urandom >"$TMP/melondsds_libretro.so"
+CORE_SHA="$(sha256sum "$TMP/melondsds_libretro.so" | cut -d' ' -f1)"
+printf 'display_name = "melonDS DS (E2E dummy)"\ncorename = "melonDS DS"\nsystemid = "nds"\nlicense = "GPLv3"\n' >"$TMP/melondsds_libretro.info"
+python3 -I - "$TMP" "$CDIR" "$CORE_PLATFORM" <<'PY' || die "core: building the import directory"
+import sys, zipfile, zlib
+tmp, cdir, plat = sys.argv[1:4]
+with zipfile.ZipFile(f"{cdir}/info.zip", "w") as z:
+    z.write(f"{tmp}/melondsds_libretro.info", "melondsds_libretro.info")
+name = "melondsds_libretro.so.zip"
+with zipfile.ZipFile(f"{cdir}/{plat}/{name}", "w") as z:
+    z.write(f"{tmp}/melondsds_libretro.so", "melondsds_libretro.so")
+crc = zlib.crc32(open(f"{tmp}/melondsds_libretro.so", "rb").read()) & 0xFFFFFFFF
+open(f"{cdir}/{plat}/.index-extended", "w").write(f"2026-10-09 {crc:08x} {name}\n")
+PY
+ok "core: import directory built (melondsds $CORE_PLATFORM)"
 
 # 2. Create admin, start Hub (self-signed TLS, free loopback port)
 export FRAMEBEAM_DATA_DIR="$TMP/hub"
 printf '%s\n' "$PW" | "$TMP/framebeam-hub" setup-admin -username admin >"$TMP/setup.log" 2>&1 || die "setup-admin" "$TMP/setup.log"
-FRAMEBEAM_HUB_CORE_TRUST_KEYS="$CORE_PUB" "$TMP/framebeam-hub" import-cores "$CDIR" >"$TMP/import.log" 2>&1 || die "core: import-cores" "$TMP/import.log"
+"$TMP/framebeam-hub" import-cores "$CDIR" >"$TMP/import.log" 2>&1 || die "core: import-cores" "$TMP/import.log"
 ok "core: import-cores"
 PORT="$(python3 -c 'import socket;s=socket.socket();s.bind(("127.0.0.1",0));print(s.getsockname()[1])')"
 ADDR="127.0.0.1:$PORT"
-"$TMP/framebeam-hub" -listen "$ADDR" -core-index-url "https://127.0.0.1:1/cores-index.json" -core-trust-key "$CORE_PUB" >"$TMP/hub.log" 2>&1 &
+"$TMP/framebeam-hub" -listen "$ADDR" -core-buildbot-url "https://127.0.0.1:1/nightly" >"$TMP/hub.log" 2>&1 &
 HUB_PID=$!
 wait_for 15 curl -fsk "https://$ADDR/.well-known/framebeam" || die "hub start" "$TMP/hub.log"
 ok "hub start $ADDR"
@@ -250,10 +230,9 @@ mapfile -t CSRC < <(sed -n 's/^core_source=//p' "$TMP/up1.out")
 [ "${#CPATHS[@]}" = "2" ] && [ "${CPATHS[0]}" = "${CPATHS[1]}" ] && [ -f "${CPATHS[0]}" ] \
   || die "core: expected two identical core_path lines" "$TMP/up1.out" "$TMP/up1.out.err"
 [ "$(sha256sum "${CPATHS[0]}" | cut -d' ' -f1)" = "$CORE_SHA" ] \
-  && ok "core: fetch-core nds -> library in the cache, SHA-256 matches the signed package" || die "core: sha256 of the fetched library" "$TMP/up1.out"
+  && ok "core: fetch-core nds -> library in the cache, SHA-256 matches the imported library" || die "core: sha256 of the fetched library" "$TMP/up1.out"
 [ "${CSRC[0]:-}" = "download" ] && [ "${CSRC[1]:-}" = "cache" ] \
   && ok "core: first fetch-core downloads, second is a cache hit (core_source=download, then cache)" || die "core: core_source sequence: ${CSRC[*]:-none}" "$TMP/up1.out"
 case "${CPATHS[0]}" in "$TMP/dev-devU"/*) ok "core: library below the Player data dir" ;; *) die "core: path outside the data dir: ${CPATHS[0]}" ;; esac
-SEED="$(cat "$TMP/e2e-signing.seed")"
-! grep -rqF "$SEED" "$TMP/hub.log" "$TMP/import.log" "$TMP/up1.out" "$TMP/up1.out.err" \
-  && ok "core: signing seed not in any log" || die "core: signing seed found in a log"
+CVER="$(sed -n 's/^core_version=//p' "$TMP/up1.out" | head -n1)"
+[ -n "$CVER" ] && ok "core: fetch-core reports the Hub build id as version ($CVER)" || die "core: core_version missing" "$TMP/up1.out"

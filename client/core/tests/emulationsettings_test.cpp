@@ -98,6 +98,27 @@ class EmulationSettingsTest : public QObject {
              QStringLiteral("melonds_ds"));
   }
 
+  // The core choice (ADR 0020 D6) is a FrameBeam key at system and game level and survives a reload.
+  void coreChoiceRoundTrip() {
+    QTemporaryDir dir;
+    const QString key = QString::fromLatin1(EmulationSettings::kCoreKey);
+    QCOMPARE(key, QStringLiteral("framebeam.core"));
+    {
+      EmulationSettings s(dir.path());
+      QVERIFY(s.setValue(L::System, QStringLiteral("nds"), key, QStringLiteral("desmume")));
+      QVERIFY(s.setValue(L::Game, QStringLiteral("g1"), key, QStringLiteral("melondsds")));
+      QVERIFY(s.setValue(L::System, QStringLiteral("nds"), QStringLiteral("desmume_x"), QStringLiteral("1")));
+    }
+    EmulationSettings s(dir.path());
+    QCOMPARE(s.value(L::System, QStringLiteral("nds"), key), QStringLiteral("desmume"));
+    QCOMPARE(s.value(L::Game, QStringLiteral("g1"), key), QStringLiteral("melondsds"));
+    QCOMPARE(s.resolve(key, QStringLiteral("nds"), QStringLiteral("g1"), QString(), QString()).source, S::Game);
+    QCOMPARE(s.resolve(key, QStringLiteral("nds"), QStringLiteral("g2"), QString(), QString()).value, QStringLiteral("desmume"));
+    QVERIFY(s.removeValue(L::System, QStringLiteral("nds"), key));
+    QVERIFY(!s.hasValue(L::System, QStringLiteral("nds"), key));
+    QVERIFY(s.hasValue(L::System, QStringLiteral("nds"), QStringLiteral("desmume_x")));  // other options stay
+  }
+
   void corruptedFileYieldsDefaults() {
     QTemporaryDir dir;
     QDir().mkpath(dir.path() + QStringLiteral("/settings"));

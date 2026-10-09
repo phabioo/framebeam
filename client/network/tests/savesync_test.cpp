@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "credentialstore.h"
+#include "dsvsave.h"
 #include "fakehub.h"
 #include "hubconnection.h"
 #include "profilestore.h"
@@ -105,6 +106,26 @@ class SaveSyncTest : public QObject {
     (void)QTest::qWaitFor([&]() { return ready.count() + conflict.count() > 0; }, 8000);
     return conflict.count() > 0 ? QStringLiteral("conflict") : (ready.count() > 0 ? QStringLiteral("ready") : QString());
   }
+  // prepareStart with a core; waits for startReady / startFailed. Returns "ready" | "failed" | "conflict" (empty = timeout).
+  QString startWithCore(const QString& coreId, const QString& version, QString* text = nullptr) {
+    QSignalSpy ready(sync_.get(), &SaveSync::startReady);
+    QSignalSpy failed(sync_.get(), &SaveSync::startFailed);
+    QSignalSpy conflict(sync_.get(), &SaveSync::startConflict);
+    sync_->prepareStart(kGame, kRom, {QStringLiteral("rom1")}, SaveSync::CoreRef{coreId, version});
+    (void)QTest::qWaitFor([&]() { return ready.count() + failed.count() + conflict.count() > 0; }, 8000);
+    if (text != nullptr) {
+      *text = failed.count() > 0 ? failed.at(0).at(1).toString() : (ready.count() > 0 ? ready.at(0).at(2).toString() : QString());
+    }
+    return failed.count() > 0 ? QStringLiteral("failed") : (conflict.count() > 0 ? QStringLiteral("conflict") : (ready.count() > 0 ? QStringLiteral("ready") : QString()));
+  }
+  int snapshotsOnHub() const {
+    int n = 0;
+    for (const FakeVersion& v : hub_->saves.value(kGame).history) {
+      n += v.reason == QLatin1String("manual_snapshot") ? 1 : 0;
+    }
+    return n;
+  }
+
   // After a conflict dialog: resolve and wait for ready.
   QString resolve(SaveSync::Resolution r) {
     QSignalSpy ready(sync_.get(), &SaveSync::startReady);
@@ -990,6 +1011,201 @@ class SaveSyncTest : public QObject {
     sync_->retryPending();
     QTRY_COMPARE_WITH_TIMEOUT(up.count(), 1, 5000);
     QCOMPARE(hub_->saves.value(FakeHub::slotKey(kGame, QStringLiteral("boss"))).content, QByteArray("boss-offline"));
+  }
+
+  // ---------------------------------------------------------------- ADR 0020 D7: save snapshot before a core change
+
+  void firstStartWithACoreOnlyRecords() {
+    hub_->setHubSave(kGame, "hub-1");
+    QString text;
+    QCOMPARE(startWithCore(QStringLiteral("melondsds"), QStringLiteral("2026.10.09"), &text), QStringLiteral("ready"));
+    QCOMPARE(snapshotsOnHub(), 0);
+    QVERIFY(!text.contains(QStringLiteral("Core changed")));
+    const SyncState st = SaveStore::loadState(gdir());
+    QCOMPARE(st.writerCoreId, QStringLiteral("melondsds"));
+    QCOMPARE(st.writerCoreVersion, QStringLiteral("2026.10.09"));
+    // Same core and version again: nothing happens.
+    QCOMPARE(startWithCore(QStringLiteral("melondsds"), QStringLiteral("2026.10.09")), QStringLiteral("ready"));
+    QCOMPARE(snapshotsOnHub(), 0);
+  }
+
+  void coreChangeSnapshotsTheHubSaveFirstAndNotifies() {
+    hub_->setHubSave(kGame, "hub-1");
+    QCOMPARE(startWithCore(QStringLiteral("melondsds"), QStringLiteral("2026.10.09")), QStringLiteral("ready"));
+    QString text;
+    QCOMPARE(startWithCore(QStringLiteral("desmume"), QStringLiteral("2026.10.08"), &text), QStringLiteral("ready"));
+    QCOMPARE(snapshotsOnHub(), 1);
+    const FakeVersion snap = hub_->saves.value(kGame).history.last();
+    QCOMPARE(snap.label, QString::fromUtf8("Before core change: melondsds 2026.10.09 \xe2\x86\x92 desmume 2026.10.08"));
+    QCOMPARE(snap.content, QByteArray("hub-1"));
+    QVERIFY2(text.contains(QStringLiteral("melondsds 2026.10.09")) && text.contains(QStringLiteral("desmume 2026.10.08")), qPrintable(text));
+    QCOMPARE(SaveStore::loadState(gdir()).writerCoreId, QStringLiteral("desmume"));
+    // A local copy of the save is kept as well.
+    QVERIFY(!QDir(gdir()).entryList({QStringLiteral("rom1.sav.core-change-*.bak")}).isEmpty());
+    // Back to the first core: another change, another snapshot.
+    QCOMPARE(startWithCore(QStringLiteral("melondsds"), QStringLiteral("2026.10.09")), QStringLiteral("ready"));
+    QCOMPARE(snapshotsOnHub(), 2);
+  }
+
+  void newBuildOfTheSameCoreIsAChange() {
+    hub_->setHubSave(kGame, "hub-1");
+    QCOMPARE(startWithCore(QStringLiteral("my-core"), QStringLiteral("2026.10.09")), QStringLiteral("ready"));
+    QCOMPARE(startWithCore(QStringLiteral("my-core"), QStringLiteral("2026.10.10")), QStringLiteral("ready"));
+    QCOMPARE(snapshotsOnHub(), 1);
+    QVERIFY(hub_->saves.value(kGame).history.last().label.contains(QStringLiteral("my-core 2026.10.09")));
+  }
+
+  void failedSnapshotBlocksTheStartAndKeepsTheRecord() {
+    hub_->setHubSave(kGame, "hub-1");
+    QCOMPARE(startWithCore(QStringLiteral("melondsds"), QStringLiteral("2026.10.09")), QStringLiteral("ready"));
+    hub_->failSaveRequests = 1;  // the snapshot request answers 503
+    QString text;
+    QCOMPARE(startWithCore(QStringLiteral("desmume"), QStringLiteral("2026.10.08"), &text), QStringLiteral("failed"));
+    QVERIFY2(text.contains(QStringLiteral("not started")) && text.contains(QStringLiteral("melondsds")), qPrintable(text));
+    QCOMPARE(snapshotsOnHub(), 0);
+    QCOMPARE(SaveStore::loadState(gdir()).writerCoreId, QStringLiteral("melondsds"));  // unchanged: the old core stays the writer
+    QCOMPARE(hub_->saves.value(kGame).content, QByteArray("hub-1"));
+    // Next try works.
+    QCOMPARE(startWithCore(QStringLiteral("desmume"), QStringLiteral("2026.10.08")), QStringLiteral("ready"));
+    QCOMPARE(snapshotsOnHub(), 1);
+  }
+
+  void offlineHubBlocksACoreChangeWithALocalSave() {
+    hub_->setHubSave(kGame, "hub-1");
+    QCOMPARE(startWithCore(QStringLiteral("melondsds"), QStringLiteral("2026.10.09")), QStringLiteral("ready"));
+    QVERIFY(QFileInfo::exists(saveFile()));
+    hub_.reset();  // Hub gone
+    QString text;
+    QCOMPARE(startWithCore(QStringLiteral("desmume"), QStringLiteral("2026.10.08"), &text), QStringLiteral("failed"));
+    QVERIFY2(text.contains(QStringLiteral("not reachable")) && text.contains(QStringLiteral("not started")), qPrintable(text));
+    QCOMPARE(SaveStore::loadState(gdir()).writerCoreId, QStringLiteral("melondsds"));
+    // Same core while offline is fine.
+    QCOMPARE(startWithCore(QStringLiteral("melondsds"), QStringLiteral("2026.10.09")), QStringLiteral("ready"));
+  }
+
+  void noSaveOnTheHubDoesNotBlockACoreChange() {
+    // Local save only (never uploaded): there is nothing to snapshot, the start sync uploads the local save first.
+    writeFile(saveFile(), "local-1");
+    hub_->failSaveRequests = 0;
+    QCOMPARE(startWithCore(QStringLiteral("melondsds"), QStringLiteral("2026.10.09")), QStringLiteral("ready"));
+    QCOMPARE(startWithCore(QStringLiteral("desmume"), QStringLiteral("2026.10.08")), QStringLiteral("ready"));
+    QCOMPARE(SaveStore::loadState(gdir()).writerCoreId, QStringLiteral("desmume"));
+    QVERIFY(hub_->saves.contains(kGame));  // uploaded by the start sync
+  }
+
+  void snapshotLabelStaysWithinTheHubLimit() {
+    const SaveSync::CoreRef a{QStringLiteral("a-very-long-core-identifier-number-one"), QStringLiteral("2026.10.09.12")};
+    const SaveSync::CoreRef b{QStringLiteral("another-very-long-core-identifier-two"), QStringLiteral("2026.10.10.3")};
+    const QString label = SaveSync::coreChangeLabel(a, b);
+    QVERIFY(label.toUtf8().size() <= 64);
+    QVERIFY(label.startsWith(QStringLiteral("Before core change: a-very-long")));
+    QCOMPARE(SaveSync::coreChangeLabel({QStringLiteral("x"), QStringLiteral("1")}, {QStringLiteral("y"), QStringLiteral("2")}),
+             QString::fromUtf8("Before core change: x 1 \xe2\x86\x92 y 2"));
+  }
+
+  // ---------------------------------------------------------------- ADR 0020 D7: DeSmuME core file (.dsv) around the raw save
+
+  static QByteArray dsRaw(char fill) { return QByteArray(0x2000, fill); }  // 64 kbit EEPROM sized dummy save
+  static SaveSync::CoreRef desmumeRef() {
+    SaveSync::CoreRef r{QStringLiteral("desmume"), QStringLiteral("2026.10.08")};
+    r.saveSource = QStringLiteral("core_file");
+    r.fileExtension = QStringLiteral(".dsv");
+    r.fileFormat = QStringLiteral("desmume_dsv");
+    return r;
+  }
+  static SaveSync::CoreRef melonRef() {
+    SaveSync::CoreRef r{QStringLiteral("melondsds"), QStringLiteral("2026.10.09")};
+    r.saveSource = QStringLiteral("save_ram");
+    r.fileExtension = QStringLiteral(".sav");
+    return r;
+  }
+  QString dsvFile() const { return gdir() + QStringLiteral("/rom1.dsv"); }
+  QString startWith(const SaveSync::CoreRef& core, QString* text = nullptr) {
+    QSignalSpy ready(sync_.get(), &SaveSync::startReady);
+    QSignalSpy failed(sync_.get(), &SaveSync::startFailed);
+    sync_->prepareStart(kGame, kRom, {QStringLiteral("rom1")}, core);
+    (void)QTest::qWaitFor([&]() { return ready.count() + failed.count() > 0; }, 8000);
+    if (text != nullptr) *text = failed.count() > 0 ? failed.at(0).at(1).toString() : QString();
+    return failed.count() > 0 ? QStringLiteral("failed") : (ready.count() > 0 ? QStringLiteral("ready") : QString());
+  }
+
+  void desmumeStartWritesTheHubSaveAsDsv() {
+    hub_->setHubSave(kGame, dsRaw('a'));
+    QCOMPARE(startWith(desmumeRef()), QStringLiteral("ready"));
+    QCOMPARE(readFile(saveFile()), dsRaw('a'));  // canonical raw save
+    const auto back = dsv::dsvToRaw(readFile(dsvFile()));
+    QVERIFY(back.has_value());
+    QCOMPARE(*back, dsRaw('a'));  // what DeSmuME loads
+    QCOMPARE(puts(), 0);
+  }
+
+  void desmumeDsvChangesAreUploadedAsRawNeverAsDsv() {
+    hub_->setHubSave(kGame, dsRaw('a'));
+    QCOMPARE(startWith(desmumeRef()), QStringLiteral("ready"));
+    sync_->beginSession();
+    writeFile(dsvFile(), *dsv::rawToDsv(dsRaw('b')));  // the fake core saves
+    QVERIFY(sync_->finalSyncBlocking(true));
+    QCOMPARE(hub_->saves.value(kGame).content, dsRaw('b'));  // raw, no footer
+    QCOMPARE(readFile(saveFile()), dsRaw('b'));
+    QCOMPARE(SaveStore::loadState(gdir()).lastSyncedSha256, SaveStore::sha256Of(dsRaw('b')));
+  }
+
+  void changesFromACrashedSessionAreImportedAtTheNextStart() {
+    hub_->setHubSave(kGame, dsRaw('a'));
+    QCOMPARE(startWith(desmumeRef()), QStringLiteral("ready"));
+    writeFile(dsvFile(), *dsv::rawToDsv(dsRaw('c')));  // progress that was never synced (app crashed)
+    QCOMPARE(startWith(desmumeRef()), QStringLiteral("ready"));
+    QCOMPARE(hub_->saves.value(kGame).content, dsRaw('c'));
+    QVERIFY(!QDir(gdir()).entryList({QStringLiteral("rom1.sav.core-file-*.bak")}).isEmpty());  // the old raw save is kept
+  }
+
+  void unparsableDsvIsNeverUploadedAndNeverLost() {
+    hub_->setHubSave(kGame, dsRaw('a'));
+    QCOMPARE(startWith(desmumeRef()), QStringLiteral("ready"));
+    sync_->beginSession();
+    QSignalSpy problem(sync_.get(), &SaveSync::coreSaveProblem);
+    const QByteArray junk = "this is not a DeSmuME save";
+    writeFile(dsvFile(), junk);
+    sync_->finalSyncBlocking(true);
+    QCOMPARE(problem.count(), 1);
+    QCOMPARE(hub_->saves.value(kGame).content, dsRaw('a'));  // Hub unchanged
+    QCOMPARE(readFile(dsvFile()), junk);                       // kept locally untouched
+    QCOMPARE(readFile(saveFile()), dsRaw('a'));
+    // The next start refuses to run over it.
+    QString text;
+    QCOMPARE(startWith(desmumeRef(), &text), QStringLiteral("failed"));
+    QVERIFY2(text.contains(QStringLiteral("untouched")), qPrintable(text));
+    QCOMPARE(readFile(dsvFile()), junk);
+  }
+
+  void bothFormatsInOneDirectoryNeverFlipTheHubSlot() {
+    hub_->setHubSave(kGame, dsRaw('a'));
+    QCOMPARE(startWith(desmumeRef()), QStringLiteral("ready"));
+    sync_->beginSession();
+    writeFile(dsvFile(), *dsv::rawToDsv(dsRaw('b')));
+    QVERIFY(sync_->finalSyncBlocking(true));
+    // Core change to a SAVE_RAM core: .sav (raw) is the save, the stale .dsv next to it is ignored.
+    QCOMPARE(startWith(melonRef()), QStringLiteral("ready"));
+    QVERIFY(QFileInfo::exists(dsvFile()));
+    QCOMPARE(hub_->saves.value(kGame).content, dsRaw('b'));
+    sync_->beginSession();
+    writeFile(saveFile(), dsRaw('m'));  // melonDS DS persists its SAVE_RAM
+    QVERIFY(sync_->finalSyncBlocking(true));
+    QCOMPARE(hub_->saves.value(kGame).content, dsRaw('m'));
+    // Back to DeSmuME: the .dsv is rebuilt from the raw save, the older .dsv content does not come back.
+    QCOMPARE(startWith(desmumeRef()), QStringLiteral("ready"));
+    QCOMPARE(*dsv::dsvToRaw(readFile(dsvFile())), dsRaw('m'));
+    QCOMPARE(hub_->saves.value(kGame).content, dsRaw('m'));
+    QCOMPARE(snapshotsOnHub(), 2);  // each core change was snapshotted
+  }
+
+  void profiledCoreSyncsExactlyItsFileNotTheNewest() {
+    // A foreign newer file in the directory is not picked up by a profiled core.
+    writeFile(gdir() + QStringLiteral("/other.bin"), "foreign");
+    hub_->setHubSave(kGame, dsRaw('a'));
+    QCOMPARE(startWith(melonRef()), QStringLiteral("ready"));
+    QCOMPARE(readFile(saveFile()), dsRaw('a'));
+    QCOMPARE(puts(), 0);
   }
 };
 

@@ -21,6 +21,7 @@ make package-hub-deb HUB_VERSION=...   # Hub .deb for amd64/arm64 in server/dist
 make generate         # regenerate Go code from OpenAPI (oapi-codegen)
 make notices          # regenerate server/THIRD-PARTY-NOTICES.txt (needed after Go dependency bumps; make check-hub fails when stale)
 make fetch-core       # build melonDS DS (pinned) and print the .so path
+make fetch-desmume    # download DeSmuME from the libretro buildbot (nightly, CRC32-checked) and print the .so path
 make fetch-deps       # build libdatachannel (pinned) and print the prefix
 make fetch-sdl3       # build SDL3 (pinned) and print the prefix
 ```
@@ -32,6 +33,7 @@ make fetch-sdl3       # build SDL3 (pinned) and print the prefix
 | Script | What it does |
 |---|---|
 | `scripts/bootstrap-vcpkg.sh` | vcpkg (pinned) into `$HOME/.cache/framebeam/vcpkg` |
+| `scripts/fetch-buildbot-core.sh <core>` / `.ps1` | Downloads a core from the libretro buildbot nightly (`FRAMEBEAM_BUILDBOT_URL` overrides the base URL), checks the CRC32 against `.index-extended`, extracts one library into `$HOME/.cache/framebeam/cores/buildbot/`, prints the path. Not pinned on purpose: CI tests against the current nightly ([ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md) D10). `FRAMEBEAM_REQUIRE_CORES=1` (CI) makes a failed fetch or a skipped core test fail the check |
 | `scripts/fetch-melonds-ds.sh` / `.ps1` | Builds the melonDS DS core (pin: `scripts/melonds-ds.pin`) into `$HOME/.cache/framebeam/cores/`, idempotent, prints the path. No core in the repository |
 | `scripts/fetch-libdatachannel.sh` | Builds libdatachannel (pin: `scripts/libdatachannel.pin`, media on, no own WebSocket) into `$HOME/.cache/framebeam/deps/libdatachannel/`, idempotent, prints the prefix (mandatory for the Player build) |
 | `scripts/fetch-sdl3.sh` | Builds SDL3 (pin: `scripts/sdl3.pin`, gamepad only, no video/audio) into `$HOME/.cache/framebeam/deps/sdl3/`, idempotent, prints the prefix. Windows: vcpkg port `sdl3` |
@@ -42,7 +44,7 @@ Windows release builds use the `x64-windows-release` overlay triplet (Release-on
 
 ## End-to-end and UI tests
 
-- `scripts/e2e-player-hub.sh`: Player CLI against a locally built Hub, including a save round trip and a core round trip (throwaway signing key, dummy library, `fetch-core`).
+- `scripts/e2e-player-hub.sh`: Player CLI against a locally built Hub, including a save round trip and a core round trip (dummy library zipped in the buildbot layout, `import-cores`, `fetch-core`).
 - `scripts/e2e-session.sh`: two CLI processes share and watch a Session against a local Hub; a second round forces the relay against a Hub with TURN on loopback.
 - `scripts/e2e-hub-update.sh`: real install on a systemd host (`install-hub.sh`, `.deb` migration, signed update round trip); skips without root/systemd.
 - All three run in the Linux CI job.
@@ -58,7 +60,7 @@ Windows release builds use the `x64-windows-release` overlay triplet (Release-on
 - Changes that touch only `docs/*` or `*.md` files are detected as docs-only on branches and PRs; the Hub, Player and Windows jobs are skipped for them.
 - `.github/workflows/release.yml`: after a successful CI run on `main` it publishes the CI artifacts as GitHub prerelease `vX.Y.Z` (newest 5 beta prereleases kept, promoted releases never pruned) and adds Hub and Player to the signed `updates-index` release under channel `beta` (`framebeam-sign release-add`, secret `FRAMEBEAM_SIGNING_KEY`). The per-product index entries are stored as `index-hub.json` / `index-player.json` assets on the release. Pushing a `v*` tag builds nothing.
 - `.github/workflows/promote.yml` ("Promote to release", manual): see [guides/updates.md](guides/updates.md).
-- `.github/workflows/cores.yml`: builds and publishes signed core packages and the `cores-index` release (needs secret `FRAMEBEAM_SIGNING_KEY`) ([ADR 0010](adr/0010-cores-from-the-hub.md)). Tooling: `server/cmd/framebeam-sign` (keygen / add / sign / verify / pubkey / release-add). Offline Hub: `framebeam-hub import-cores <dir>` or `install-hub.sh import-cores <dir>`.
+- `.github/workflows/cores.yml` was deleted in 0.8 ([ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md) D10): cores are no longer built or signed by FrameBeam; the existing `cores-index` and `core-*` releases stay for older Hubs. CI fetches DeSmuME from the libretro buildbot for the core tests (`scripts/fetch-buildbot-core.sh|ps1`, base URL override `FRAMEBEAM_BUILDBOT_URL`) and sets `FRAMEBEAM_REQUIRE_CORES=1`, so a skipped core test or a failed fetch fails the check. Tooling: `server/cmd/framebeam-sign` (keygen / add / sign / verify / pubkey / release-add) now serves the updates index only. Offline Hub: `framebeam-hub import-cores <dir>` or `install-hub.sh import-cores <dir>`.
 - The SessionStart hook `.claude/hooks/session-start.sh` only prepares cloud sessions (vcpkg, Go modules, Qt apt packages); the core build runs only via `make fetch-core`.
 
 ## Versions and channels

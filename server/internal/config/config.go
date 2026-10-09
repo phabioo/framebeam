@@ -28,10 +28,15 @@ type Config struct {
 	Dev bool
 	// ICEServers are stun: URLs delivered to Players for Sessions (default empty: host candidates suffice on a LAN).
 	ICEServers []string
-	// CoreIndexURL is the signed core index (default corepkg.DefaultIndexURL).
+	// CoreBuildbotURL is the libretro buildbot nightly base URL (ADR 0020 D1), https only.
+	CoreBuildbotURL string
+	// CoreInfoURL is the libretro core info archive (info.zip), https only.
+	CoreInfoURL string
+	// CoreIndexURL is deprecated and ignored (the signed core index was retired by ADR 0020); a non-empty value
+	// only produces a log warning.
 	CoreIndexURL string
 	// CoreTrustKeys are additional trusted signing keys (base64 Ed25519 public keys) besides the compiled-in ones.
-	// They apply to the core index and the updates index.
+	// They apply to the updates index only (cores are no longer signed).
 	CoreTrustKeys []string
 	// UpdateIndexURL is the signed updates index (default updates.DefaultIndexURL; https or file://).
 	UpdateIndexURL string
@@ -53,6 +58,12 @@ type Config struct {
 	// TURNRelayIP is an optional fixed public IPv4 for relayed addresses.
 	TURNRelayIP string
 }
+
+// Defaults of the core source (ADR 0020 D1).
+const (
+	DefaultCoreBuildbotURL = "https://buildbot.libretro.com/nightly"
+	DefaultCoreInfoURL     = "https://buildbot.libretro.com/assets/frontend/info.zip"
+)
 
 // Defaults of the TURN options.
 const (
@@ -140,15 +151,23 @@ func Register(fs *flag.FlagSet, getenv func(string) string) *Config {
 	fs.BoolVar(&c.Dev, "dev", dev, "development mode: HTTP instead of HTTPS (FRAMEBEAM_DEV)")
 	c.ICEServers = splitCSV(getenv("FRAMEBEAM_ICE_SERVERS"))
 	fs.Var(csvList{&c.ICEServers}, "ice-servers", "comma-separated stun: URLs for Sessions, default none (FRAMEBEAM_ICE_SERVERS)")
-	fs.StringVar(&c.CoreIndexURL, "core-index-url", func() string {
-		if v := getenv("FRAMEBEAM_HUB_CORE_INDEX_URL"); v != "" {
+	fs.StringVar(&c.CoreBuildbotURL, "core-buildbot-url", func() string {
+		if v := getenv("FRAMEBEAM_HUB_CORE_BUILDBOT_URL"); v != "" {
 			return v
 		}
-		return corepkg.DefaultIndexURL
-	}(), "URL of the signed core index (FRAMEBEAM_HUB_CORE_INDEX_URL)")
+		return DefaultCoreBuildbotURL
+	}(), "base URL of the libretro buildbot nightly builds, https only (FRAMEBEAM_HUB_CORE_BUILDBOT_URL)")
+	fs.StringVar(&c.CoreInfoURL, "core-info-url", func() string {
+		if v := getenv("FRAMEBEAM_HUB_CORE_INFO_URL"); v != "" {
+			return v
+		}
+		return DefaultCoreInfoURL
+	}(), "URL of the libretro core info archive info.zip, https only (FRAMEBEAM_HUB_CORE_INFO_URL)")
+	fs.StringVar(&c.CoreIndexURL, "core-index-url", getenv("FRAMEBEAM_HUB_CORE_INDEX_URL"),
+		"deprecated and ignored: the signed core index was retired (ADR 0020), see -core-buildbot-url (FRAMEBEAM_HUB_CORE_INDEX_URL)")
 	c.CoreTrustKeys = splitCSV(getenv("FRAMEBEAM_HUB_CORE_TRUST_KEYS"))
 	fs.Var(repeatList{&c.CoreTrustKeys, new(bool)}, "core-trust-key",
-		"additional trusted signing key for the core index and the updates index, base64 Ed25519 public key; repeatable (FRAMEBEAM_HUB_CORE_TRUST_KEYS, comma-separated)")
+		"additional trusted signing key for the updates index (cores are not signed), base64 Ed25519 public key; repeatable (FRAMEBEAM_HUB_CORE_TRUST_KEYS, comma-separated)")
 	fs.StringVar(&c.UpdateIndexURL, "update-index-url", func() string {
 		if v := getenv("FRAMEBEAM_HUB_UPDATE_INDEX_URL"); v != "" {
 			return v
@@ -191,7 +210,7 @@ func (c *Config) ImportDir() string {
 	return filepath.Join(c.DataDir, "library-import")
 }
 
-// TrustedCoreKeys returns the compiled-in trusted keys plus the configured ones (cores and updates).
+// TrustedCoreKeys returns the compiled-in trusted keys plus the configured ones (updates index).
 func (c *Config) TrustedCoreKeys() ([]ed25519.PublicKey, error) {
 	return corepkg.TrustedKeys(c.CoreTrustKeys)
 }
@@ -231,8 +250,10 @@ func (c *Config) Validate() error {
 			}
 		}
 	}
-	if u, err := url.Parse(c.CoreIndexURL); err != nil || u.Scheme != "https" || u.Host == "" {
-		return errors.New("core-index-url must be an https URL")
+	for name, v := range map[string]string{"core-buildbot-url": c.CoreBuildbotURL, "core-info-url": c.CoreInfoURL} {
+		if u, err := url.Parse(v); err != nil || u.Scheme != "https" || u.Host == "" {
+			return fmt.Errorf("%s must be an https URL", name)
+		}
 	}
 	if err := updates.ValidateIndexURL(c.UpdateIndexURL); err != nil {
 		return fmt.Errorf("update-index-url: %w", err)

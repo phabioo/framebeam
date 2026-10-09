@@ -8,15 +8,12 @@
 #include <QtTest>
 #include <memory>
 
-#include <openssl/evp.h>
-
 #include "corecache.h"
 #include "coreprovisioner.h"
 #include "credentialstore.h"
 #include "fakehub.h"
 #include "hubconnection.h"
 #include "profilestore.h"
-#include "updatesig.h"
 
 using namespace framebeam;
 using State = HubConnection::State;
@@ -26,33 +23,6 @@ QString shaOf(const QByteArray& d) { return QString::fromLatin1(QCryptographicHa
 const QByteArray kLib(2048, 'l');
 const QByteArray kLicense(128, 'x');
 
-// Ed25519 test key pair (generated per test run, never a real signing key).
-struct TestKey {
-  QByteArray pub;
-  EVP_PKEY* pkey = nullptr;
-  TestKey() {
-    EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_ED25519, nullptr);
-    EVP_PKEY_keygen_init(ctx);
-    EVP_PKEY_keygen(ctx, &pkey);
-    EVP_PKEY_CTX_free(ctx);
-    size_t n = 32;
-    pub.resize(32);
-    EVP_PKEY_get_raw_public_key(pkey, reinterpret_cast<unsigned char*>(pub.data()), &n);
-  }
-  ~TestKey() { EVP_PKEY_free(pkey); }
-  TestKey(const TestKey&) = delete;
-  TestKey& operator=(const TestKey&) = delete;
-  QByteArray signLine(const QByteArray& data) const {
-    EVP_MD_CTX* c = EVP_MD_CTX_new();
-    EVP_DigestSignInit(c, nullptr, nullptr, nullptr, pkey);
-    size_t n = 64;
-    QByteArray sig(64, 0);
-    EVP_DigestSign(c, reinterpret_cast<unsigned char*>(sig.data()), &n, reinterpret_cast<const unsigned char*>(data.constData()),
-                   static_cast<size_t>(data.size()));
-    EVP_MD_CTX_free(c);
-    return "ed25519 " + framebeam::update::keyId(pub).toLatin1() + " " + sig.toBase64() + "\n";
-  }
-};
 }  // namespace
 
 class CoreProvisionerTest : public QObject {
@@ -66,40 +36,13 @@ class CoreProvisionerTest : public QObject {
   std::unique_ptr<CoreCache> cache_;
   std::unique_ptr<CoreProvisioner> prov_;
   QString platform_;
-  bool indexFeature_ = false;
-
-  // Signed index (corepkg format, schema 1) listing exactly the packages registered on the fake Hub.
-  QByteArray indexFor(const QString& version, const QString& platform, const QByteArray& lib = kLib, const QString& listedVersion = QString()) const {
-    QJsonArray files;
-    files.append(QJsonObject{{QStringLiteral("name"), QStringLiteral("dummy_libretro.so")}, {QStringLiteral("role"), QStringLiteral("library")},
-                             {QStringLiteral("size"), lib.size()}, {QStringLiteral("sha256"), shaOf(lib)}, {QStringLiteral("url"), QStringLiteral("https://example.invalid/l")}});
-    files.append(QJsonObject{{QStringLiteral("name"), QStringLiteral("LICENSE.txt")}, {QStringLiteral("role"), QStringLiteral("license")},
-                             {QStringLiteral("size"), kLicense.size()}, {QStringLiteral("sha256"), shaOf(kLicense)}, {QStringLiteral("url"), QStringLiteral("https://example.invalid/x")}});
-    const QJsonObject pkg{{QStringLiteral("core_id"), QStringLiteral("melonds_ds")},
-                          {QStringLiteral("version"), listedVersion.isEmpty() ? version : listedVersion},
-                          {QStringLiteral("platform"), platform},
-                          {QStringLiteral("license"), QStringLiteral("GPL-3.0")},
-                          {QStringLiteral("source_url"), QStringLiteral("https://example.invalid/src")},
-                          {QStringLiteral("source_ref"), QStringLiteral("v") + version},
-                          {QStringLiteral("origin"), QStringLiteral("test")},
-                          {QStringLiteral("files"), files}};
-    return QJsonDocument(QJsonObject{{QStringLiteral("schema"), 1}, {QStringLiteral("generated_at"), QStringLiteral("2026-01-01T00:00:00Z")},
-                                     {QStringLiteral("packages"), QJsonArray{pkg}}})
-        .toJson(QJsonDocument::Compact);
+  QString key(const QString& version, const QString& platform, const QString& core = QStringLiteral("melonds_ds")) const {
+    return QStringLiteral("%1/%2/%3").arg(core, version, platform);
   }
-  // Reconnects to a Hub that advertises cores_index_v1.
-  void withIndexFeature() {
-    cleanup();
-    indexFeature_ = true;
-    init();
-    QVERIFY(conn_->hubHasFeature(QStringLiteral("cores_index_v1")));
-  }
-
-  QString key(const QString& version, const QString& platform) const { return QStringLiteral("melonds_ds/%1/%2").arg(version, platform); }
 
   // Registers a package on the fake Hub. libAdvertised: content the metadata describes; served: what the file endpoint returns.
   void addPackage(const QString& version, const QString& platform, const QByteArray& libAdvertised, const QByteArray& libServed,
-                  bool libAvailable = true) {
+                  bool libAvailable = true, const QString& core = QStringLiteral("melonds_ds")) {
     const auto file = [](const QString& name, const QString& role, const QByteArray& content, bool available) {
       return QJsonObject{{QStringLiteral("name"), name},
                          {QStringLiteral("role"), role},
@@ -107,8 +50,8 @@ class CoreProvisionerTest : public QObject {
                          {QStringLiteral("sha256"), shaOf(content)},
                          {QStringLiteral("available"), available}};
     };
-    hub_->corePackages.insert(key(version, platform),
-                              QJsonObject{{QStringLiteral("core_id"), QStringLiteral("melonds_ds")},
+    hub_->corePackages.insert(key(version, platform, core),
+                              QJsonObject{{QStringLiteral("core_id"), core},
                                           {QStringLiteral("version"), version},
                                           {QStringLiteral("platform"), platform},
                                           {QStringLiteral("license"), QStringLiteral("GPL-3.0")},
@@ -117,13 +60,13 @@ class CoreProvisionerTest : public QObject {
                                           {QStringLiteral("files"),
                                            QJsonArray{file(QStringLiteral("dummy_libretro.so"), QStringLiteral("library"), libAdvertised, libAvailable),
                                                       file(QStringLiteral("LICENSE.txt"), QStringLiteral("license"), kLicense, true)}}});
-    if (libAvailable) hub_->coreFiles.insert(key(version, platform) + QStringLiteral("/dummy_libretro.so"), libServed);
-    hub_->coreFiles.insert(key(version, platform) + QStringLiteral("/LICENSE.txt"), kLicense);
+    if (libAvailable) hub_->coreFiles.insert(key(version, platform, core) + QStringLiteral("/dummy_libretro.so"), libServed);
+    hub_->coreFiles.insert(key(version, platform, core) + QStringLiteral("/LICENSE.txt"), kLicense);
   }
 
-  CoreResult run(const QString& version) {
+  CoreResult run(const QString& version, const QString& core = QStringLiteral("melonds_ds")) {
     QSignalSpy spy(prov_.get(), &CoreProvisioner::finished);
-    prov_->prepare(QStringLiteral("melonds_ds"), version);
+    prov_->prepare(core, version);
     if (!spy.wait(8000) && spy.isEmpty()) {
       QTest::qFail("no result", __FILE__, __LINE__);
       return {};
@@ -138,9 +81,6 @@ class CoreProvisionerTest : public QObject {
     creds_ = std::make_unique<MemoryCredentialStore>();
     hub_ = std::make_unique<FakeHub>(QStringLiteral("a"));
     hub_->features = {QStringLiteral("saves_v1"), QStringLiteral("firmware_v1"), QStringLiteral("cores_v1")};
-    if (indexFeature_) {
-      hub_->features.append(QStringLiteral("cores_index_v1"));
-    }
     QVERIFY(hub_->start());
     conn_ = std::make_unique<HubConnection>(profiles_.get(), creds_.get());
     conn_->setPollIntervalMs(50);
@@ -158,7 +98,6 @@ class CoreProvisionerTest : public QObject {
     QVERIFY(!platform_.isEmpty());
   }
   void cleanup() {
-    indexFeature_ = false;
     prov_.reset();
     cache_.reset();
     conn_.reset();
@@ -275,78 +214,85 @@ class CoreProvisionerTest : public QObject {
     QCOMPARE(r.problem, QStringLiteral("download_failed"));
   }
 
-  // ---------------------------------------------------------------- signed core index (ADR 0012 D6)
+  // ---------------------------------------------------------------- no core index check (ADR 0020 D6)
 
-  void noIndexFeatureKeepsOldBehavior() {
-    addPackage(QStringLiteral("1.4.0"), platform_, kLib, kLib);
-    const CoreResult r = run(QStringLiteral("1.4.0"));
+  void installsWithoutAnyIndexOrSignature() {
+    // Size and SHA-256 of the Hub metadata are the only checks; no index or signature is requested.
+    addPackage(QStringLiteral("2026.10.09"), platform_, kLib, kLib);
+    const CoreResult r = run(QStringLiteral("2026.10.09"));
     QVERIFY2(r.ok, qPrintable(r.problem + r.detail));
-    QCOMPARE(hub_->coreIndexRequests, 0);
-  }
-
-  void goodIndexInstalls() {
-    withIndexFeature();
-    TestKey k;
-    prov_->setTrustedKeys({k.pub});
-    addPackage(QStringLiteral("1.4.0"), platform_, kLib, kLib);
-    hub_->coreIndex = indexFor(QStringLiteral("1.4.0"), platform_);
-    hub_->coreIndexSig = k.signLine(hub_->coreIndex);
-    const CoreResult r = run(QStringLiteral("1.4.0"));
-    QVERIFY2(r.ok, qPrintable(r.problem + r.detail));
-    QCOMPARE(hub_->coreIndexRequests, 2);
+    QCOMPARE(hub_->count(QStringLiteral("/api/v1/cores/index"), "GET"), 0);
     QVERIFY(!r.libraryPath.isEmpty());
   }
 
-  void badSignatureIsUntrustedAndNothingInstalled() {
-    withIndexFeature();
-    TestKey trusted, attacker;
-    prov_->setTrustedKeys({trusted.pub});
-    addPackage(QStringLiteral("1.4.0"), platform_, kLib, kLib);
-    hub_->coreIndex = indexFor(QStringLiteral("1.4.0"), platform_);
-    hub_->coreIndexSig = attacker.signLine(hub_->coreIndex);  // untrusted key id
-    CoreResult r = run(QStringLiteral("1.4.0"));
-    QVERIFY(!r.ok);
-    QCOMPARE(r.problem, QStringLiteral("untrusted"));
-    QCOMPARE(hub_->coreFileDownloads, 0);
-    QVERIFY(cache_->libraryPath(QStringLiteral("melonds_ds"), QStringLiteral("1.4.0"), platform_).isEmpty());
-    // Right key id but altered index bytes: signature mismatch
-    hub_->coreIndexSig = trusted.signLine(hub_->coreIndex);
-    hub_->coreIndex.replace("GPL-3.0", "GPL-2.0");
-    r = run(QStringLiteral("1.4.0"));
-    QCOMPARE(r.problem, QStringLiteral("untrusted"));
-    QCOMPARE(hub_->coreFileDownloads, 0);
+  void coreIdWithDashProvisions() {
+    const QString core = QStringLiteral("my-core_2");
+    addPackage(QStringLiteral("2026.10.09.2"), platform_, kLib, kLib, true, core);
+    const CoreResult r = run(QStringLiteral("2026.10.09.2"), core);
+    QVERIFY2(r.ok, qPrintable(r.problem + r.detail));
+    QCOMPARE(r.coreId, core);
+    QVERIFY(r.libraryPath.contains(QLatin1String("/cache/cores/my-core_2/2026.10.09.2/") + platform_));
+    QCOMPARE(cache_->libraryPath(core, QStringLiteral("2026.10.09.2"), platform_), r.libraryPath);
+    QCOMPARE(hub_->count(QStringLiteral("/api/v1/cores/my-core_2/packages/2026.10.09.2/") + platform_, "GET"), 3);
+    // Invalid ids never reach the network.
+    const int before = hub_->corePackageRequests;
+    QCOMPARE(run(QStringLiteral("1.0.0"), QStringLiteral("-bad")).problem, QStringLiteral("not_on_hub"));
+    QCOMPARE(run(QStringLiteral("1.0.0"), QStringLiteral("../x")).problem, QStringLiteral("not_on_hub"));
+    QCOMPARE(hub_->corePackageRequests, before);
   }
 
-  void hashMismatchAndMissingEntryAreUntrusted() {
-    withIndexFeature();
-    TestKey k;
-    prov_->setTrustedKeys({k.pub});
-    addPackage(QStringLiteral("1.4.0"), platform_, kLib, kLib);
-    // Signed index lists a different library hash than the package the Hub serves
-    hub_->coreIndex = indexFor(QStringLiteral("1.4.0"), platform_, QByteArray(2048, 'z'));
-    hub_->coreIndexSig = k.signLine(hub_->coreIndex);
-    CoreResult r = run(QStringLiteral("1.4.0"));
-    QCOMPARE(r.problem, QStringLiteral("untrusted"));
-    QVERIFY(r.detail.contains(QStringLiteral("dummy_libretro.so")));
-    // Index has no entry for this version
-    hub_->coreIndex = indexFor(QStringLiteral("1.4.0"), platform_, kLib, QStringLiteral("1.3.0"));
-    hub_->coreIndexSig = k.signLine(hub_->coreIndex);
-    r = run(QStringLiteral("1.4.0"));
-    QCOMPARE(r.problem, QStringLiteral("untrusted"));
-    // Different size
-    hub_->coreIndex = indexFor(QStringLiteral("1.4.0"), platform_, QByteArray(100, 'l'));
-    hub_->coreIndexSig = k.signLine(hub_->coreIndex);
-    r = run(QStringLiteral("1.4.0"));
-    QCOMPARE(r.problem, QStringLiteral("untrusted"));
-    QCOMPARE(hub_->coreFileDownloads, 0);
+  void twoCoresOfOneSystemCoexistInTheCache() {
+    addPackage(QStringLiteral("2026.10.09"), platform_, kLib, kLib, true, QStringLiteral("melondsds"));
+    addPackage(QStringLiteral("2026.10.08"), platform_, kLib, kLib, true, QStringLiteral("desmume"));
+    QVERIFY(run(QStringLiteral("2026.10.09"), QStringLiteral("melondsds")).ok);
+    QVERIFY(run(QStringLiteral("2026.10.08"), QStringLiteral("desmume")).ok);
+    QCOMPARE(cache_->versions(QStringLiteral("melondsds"), platform_), QStringList{QStringLiteral("2026.10.09")});
+    QCOMPARE(cache_->versions(QStringLiteral("desmume"), platform_), QStringList{QStringLiteral("2026.10.08")});
   }
 
-  void hubWithoutVerifiedIndexIsUntrusted() {
-    withIndexFeature();
-    addPackage(QStringLiteral("1.4.0"), platform_, kLib, kLib);  // coreIndex stays empty: 404
-    const CoreResult r = run(QStringLiteral("1.4.0"));
-    QCOMPARE(r.problem, QStringLiteral("untrusted"));
-    QCOMPARE(hub_->coreFileDownloads, 0);
+  void parsesSystemCoresV2() {
+    const QJsonObject o{
+        {QStringLiteral("id"), QStringLiteral("nds")},
+        {QStringLiteral("preferred_core_id"), QStringLiteral("melondsds")},
+        {QStringLiteral("core_package_version"), QStringLiteral("2026.10.09")},
+        {QStringLiteral("default_core_id"), QStringLiteral("melondsds")},
+        {QStringLiteral("cores"),
+         QJsonArray{QJsonObject{{QStringLiteral("core_id"), QStringLiteral("melondsds")},
+                                {QStringLiteral("display_name"), QStringLiteral("Nintendo DS (melonDS DS)")},
+                                {QStringLiteral("version"), QStringLiteral("2026.10.09")},
+                                {QStringLiteral("license"), QStringLiteral("GPLv3")},
+                                {QStringLiteral("experimental"), false},
+                                {QStringLiteral("required_hw_api"), QStringLiteral("OpenGL Core >= 3.2")},
+                                {QStringLiteral("origin"), QStringLiteral("libretro-buildbot")},
+                                {QStringLiteral("build_date"), QStringLiteral("2026-10-09")}},
+                    QJsonObject{{QStringLiteral("core_id"), QStringLiteral("desmume")},
+                                {QStringLiteral("version"), QStringLiteral("2026.10.08")},
+                                {QStringLiteral("experimental"), true},
+                                {QStringLiteral("required_hw_api"), QJsonValue::Null}},
+                    QJsonObject{{QStringLiteral("core_id"), QStringLiteral("Bad Id")}, {QStringLiteral("version"), QStringLiteral("1")}},
+                    QJsonObject{{QStringLiteral("core_id"), QStringLiteral("novers")}}}}};
+    const auto s = parseSystemInfo(o);
+    QVERIFY(s.has_value());
+    QCOMPARE(s->defaultCoreId, QStringLiteral("melondsds"));
+    QCOMPARE(s->cores.size(), 2);  // invalid entries are dropped
+    QCOMPARE(s->core(QStringLiteral("melondsds"))->requiredHwApi, QStringLiteral("OpenGL Core >= 3.2"));
+    QCOMPARE(s->core(QStringLiteral("melondsds"))->buildDate, QStringLiteral("2026-10-09"));
+    QVERIFY(s->core(QStringLiteral("desmume"))->experimental);
+    QVERIFY(s->core(QStringLiteral("desmume"))->requiredHwApi.isEmpty());
+    QCOMPARE(s->defaultCore().coreId, QStringLiteral("melondsds"));
+    QCOMPARE(s->defaultCore().version, QStringLiteral("2026.10.09"));
+  }
+
+  void legacyHubWithoutCoresV2UsesPreferredCore() {
+    const auto s = parseSystemInfo(QJsonObject{{QStringLiteral("id"), QStringLiteral("nds")},
+                                               {QStringLiteral("preferred_core_id"), QStringLiteral("melonds_ds")},
+                                               {QStringLiteral("core_package_version"), QStringLiteral("1.4.0")}});
+    QVERIFY(s.has_value());
+    QVERIFY(s->cores.isEmpty());
+    QCOMPARE(s->defaultCore().coreId, QStringLiteral("melonds_ds"));
+    QCOMPARE(s->defaultCore().version, QStringLiteral("1.4.0"));
+    const auto none = parseSystemInfo(QJsonObject{{QStringLiteral("id"), QStringLiteral("nds")}});
+    QVERIFY(none->defaultCore().coreId.isEmpty());
   }
 
   void parsesCorePackageVersionOfSystems() {

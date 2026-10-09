@@ -2,7 +2,7 @@
 # Checks that the signing seed in env FRAMEBEAM_SIGNING_KEY matches a public key compiled into the Hub
 # (DefaultTrustedKeys in server/internal/corepkg/keys.go) and that a throwaway index signed with it verifies.
 # Usage: scripts/check-core-signing-key.sh <path/to/framebeam-sign>
-# Never prints the seed. Used by .github/workflows/cores.yml (pull requests and before every publish).
+# Never prints the seed. Used by release.yml and promote.yml before the updates-index is signed.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

@@ -3,37 +3,61 @@ package hub_test
 import (
 	"bytes"
 	"context"
-	"crypto/ed25519"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/corepkg"
 	"github.com/phabioo/framebeam/server/internal/hub"
 	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
 )
 
-func coreSvc(t *testing.T, src *hubtest.CoreSource) *hub.Service {
+// bbEnv is a Hub on a fake buildbot with a few dummy cores.
+func bbEnv(t *testing.T, mod func(*hub.Options)) (*hub.Service, *hubtest.Buildbot) {
 	t.Helper()
+	bb := hubtest.NewBuildbot(t)
+	bb.AddCore(t, hubtest.BuildbotCore{ID: "desmume", SystemID: "nds", DisplayName: "Nintendo - DS (DeSmuME)", License: "GPLv2", Date: "2026-10-09"})
+	bb.AddCore(t, hubtest.BuildbotCore{ID: "noods", SystemID: "nds", DisplayName: "Nintendo - DS (NooDS)", License: "GPLv3",
+		RequiredHWAPI: "OpenGL Core >= 3.2", Date: "2026-10-08", Platforms: []string{"linux-x64"}})
+	bb.AddCore(t, hubtest.BuildbotCore{ID: "azahar", SystemID: "3ds", DisplayName: "Nintendo - 3DS (Azahar)", Date: "2026-10-09"})
+	bb.AddCore(t, hubtest.BuildbotCore{ID: "nc-core", SystemID: "nds", DisplayName: "NC", License: "Non-commercial", Date: "2026-10-01"})
 	svc, _ := hubtest.New(t, func(o *hub.Options) {
-		if src != nil {
-			src.Apply(o)
+		bb.Apply(o)
+		if mod != nil {
+			mod(o)
 		}
 	})
-	return svc
+	return svc, bb
 }
 
-func lib(n int, b byte) []byte { return bytes.Repeat([]byte{b}, n) }
+func refresh(t *testing.T, svc *hub.Service) {
+	t.Helper()
+	if _, err := svc.RefreshCatalog(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func installedIDs(t *testing.T, svc *hub.Service) (def string, ids []string) {
+	t.Helper()
+	e, err := svc.GetRegistryEntry(ctx, "nds")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range e.Cores {
+		ids = append(ids, c.CoreID)
+	}
+	return e.CoreID, ids
+}
 
 func cacheFiles(t *testing.T, svc *hub.Service) []string {
 	t.Helper()
 	var out []string
 	filepath.Walk(filepath.Join(svc.DataDir(), "cores"), func(p string, fi os.FileInfo, err error) error {
-		if err == nil && !fi.IsDir() && filepath.Dir(p) != filepath.Join(svc.DataDir(), "cores") { // not the served index
+		if err == nil && !fi.IsDir() {
 			out = append(out, p)
 		}
 		return nil
@@ -41,343 +65,415 @@ func cacheFiles(t *testing.T, svc *hub.Service) []string {
 	return out
 }
 
-func TestSyncCoresDownloadsSelectedVersionForAllPlatforms(t *testing.T) {
-	src := hubtest.NewCoreSource(t)
-	src.AddPackage(t, "melonds_ds", "1.4.0", "linux-x64", lib(100, 1))
-	src.AddPackage(t, "melonds_ds", "1.4.0", "windows-x64", lib(200, 2))
-	src.AddPackage(t, "melonds_ds", "1.5.0", "linux-x64", lib(300, 3))
-	svc := coreSvc(t, src)
-	// The seeded system "nds" expects melonds_ds 1.4.0.
-	rep, err := svc.SyncCores(ctx)
-	if err != nil {
-		t.Fatal(err)
+func TestCatalogRefreshAndAvailableCores(t *testing.T) {
+	svc, bb := bbEnv(t, nil)
+	if st, _ := svc.CoreSource(ctx); st.LastCheck != nil || st.Cores != 0 {
+		t.Fatalf("%+v", st)
 	}
-	if rep.Packages != 3 || rep.Downloaded != 4 {
-		t.Fatalf("report %+v", rep)
+	if sc, _ := svc.SystemCores(ctx, "nds"); len(sc.Available) != 0 {
+		t.Fatalf("catalog before the first refresh: %+v", sc.Available)
 	}
-	if n := len(cacheFiles(t, svc)); n != 4 {
-		t.Fatalf("cache files: %v", cacheFiles(t, svc))
-	}
-	for _, plat := range []string{"linux-x64", "windows-x64"} {
-		p, err := svc.GetCorePackage(ctx, "melonds_ds", "1.4.0", plat)
-		if err != nil || p.CachedFiles() != 2 {
-			t.Fatalf("%s: %+v %v", plat, p, err)
-		}
-	}
-	if p, _ := svc.GetCorePackage(ctx, "melonds_ds", "1.5.0", "linux-x64"); p.CachedFiles() != 0 {
-		t.Fatal("unselected version was downloaded")
+	rep, err := svc.RefreshCatalog(ctx)
+	if err != nil || rep.Cores != 4 {
+		t.Fatalf("%+v %v", rep, err)
 	}
 	st, _ := svc.CoreSource(ctx)
-	if st.LastCheck == nil || st.LastSuccess == nil || st.LastError != "" {
-		t.Fatalf("state %+v", st)
+	if st.LastCheck == nil || st.LastSuccess == nil || st.LastError != "" || st.Cores != 4 || !strings.HasSuffix(st.BuildbotURL, "/nightly") {
+		t.Fatalf("%+v", st)
 	}
-	// A second sync downloads nothing.
-	before := src.Hits["/files/melonds_ds-1.4.0-linux-x64-melonds_ds.so"]
-	if rep, err := svc.SyncCores(ctx); err != nil || rep.Downloaded != 0 {
-		t.Fatalf("resync %+v %v", rep, err)
+	sc, err := svc.SystemCores(ctx, "nds")
+	if err != nil || len(sc.Installed) != 0 {
+		t.Fatalf("%+v %v", sc, err)
 	}
-	if src.Hits["/files/melonds_ds-1.4.0-linux-x64-melonds_ds.so"] != before {
-		t.Fatal("cached file downloaded again")
+	// 3ds cores are not offered for nds; profiled cores come first.
+	var ids []string
+	for _, a := range sc.Available {
+		ids = append(ids, a.CoreID)
 	}
-	// Served version: expected 1.4.0; with "any version" the highest fully cached one (1.5.0 is not cached).
-	if v, _ := svc.CoreServedVersion(ctx, "melonds_ds", "1.4.0"); v != "1.4.0" {
-		t.Fatal(v)
+	if strings.Join(ids, ",") != "desmume,nc-core,noods" {
+		t.Fatalf("available %v", ids)
 	}
-	if v, _ := svc.CoreServedVersion(ctx, "melonds_ds", ""); v != "1.4.0" {
-		t.Fatalf("served %q", v)
+	d := sc.Available[0]
+	if d.DisplayName != "Nintendo - DS (DeSmuME)" || d.License != "GPLv2" || d.Experimental || d.BuildDate != "2026-10-09" ||
+		strings.Join(d.Platforms, ",") != "windows-x64,linux-x64" || strings.Join(d.Extensions, ",") != "nds,bin" ||
+		len(d.Notes) != 2 || d.Notes[0] != "BIOS for desmume" || d.RequiredHWAPI != "" {
+		t.Fatalf("%+v", d)
 	}
-	if vs, _ := svc.CoreVersions(ctx, "melonds_ds"); strings.Join(vs, ",") != "1.5.0,1.4.0" {
-		t.Fatal(vs)
+	if nc := sc.Available[1]; !nc.NonCommercial || !nc.Experimental {
+		t.Fatalf("%+v", nc)
 	}
-}
-
-func TestSyncCoresRejectsBadFilesLeavesNothingBehind(t *testing.T) {
-	for name, bad := range map[string][]byte{"size": lib(99, 1), "longer": lib(101, 1), "hash": lib(100, 9)} {
-		src := hubtest.NewCoreSource(t)
-		src.AddPackage(t, "melonds_ds", "1.4.0", "linux-x64", lib(100, 1))
-		src.SetFile("/files/melonds_ds-1.4.0-linux-x64-melonds_ds.so", bad)
-		svc := coreSvc(t, src)
-		rep, err := svc.SyncCores(ctx)
-		if err == nil || len(rep.Problems) != 1 {
-			t.Fatalf("%s: %+v %v", name, rep, err)
-		}
-		for _, f := range cacheFiles(t, svc) {
-			if strings.Contains(f, ".so") || strings.Contains(f, ".tmp-") {
-				t.Fatalf("%s: left behind %s", name, f)
-			}
-		}
-		p, _ := svc.GetCorePackage(ctx, "melonds_ds", "1.4.0", "linux-x64")
-		if p.Files[0].Available {
-			t.Fatalf("%s: marked available", name)
-		}
-		if st, _ := svc.CoreSource(ctx); st.LastError == "" {
-			t.Fatalf("%s: error not recorded", name)
-		}
-		if _, f, err := svc.OpenCoreFile(ctx, "melonds_ds", "1.4.0", "linux-x64", "melonds_ds.so"); err == nil {
-			t.Fatal("unavailable file opened")
-		} else {
-			_ = f
-		}
+	if n := sc.Available[2]; !n.Experimental || n.RequiredHWAPI != "OpenGL Core >= 3.2" || strings.Join(n.Platforms, ",") != "linux-x64" || n.BuildDate != "2026-10-08" {
+		t.Fatalf("%+v", n)
 	}
-}
-
-func TestSyncCoresSignatureFailureKeepsState(t *testing.T) {
-	src := hubtest.NewCoreSource(t)
-	src.AddPackage(t, "melonds_ds", "1.4.0", "linux-x64", lib(100, 1))
-	svc := coreSvc(t, src)
-	if _, err := svc.SyncCores(ctx); err != nil {
+	// The catalog is cached on disk: a new service on the same data dir knows it without a refresh.
+	if _, err := os.Stat(filepath.Join(svc.DataDir(), "core-catalog.json")); err != nil {
 		t.Fatal(err)
 	}
-	src.AddPackage(t, "melonds_ds", "1.9.0", "linux-x64", lib(50, 5))
-	src.Tamper()
-	if _, err := svc.SyncCores(ctx); err == nil || !strings.Contains(err.Error(), "signature") {
-		t.Fatalf("tampered index accepted: %v", err)
+	// A failing source keeps the last catalog and records the error.
+	bb.Down = true
+	if _, err := svc.RefreshCatalog(ctx); err == nil {
+		t.Fatal("refresh succeeded against a down source")
 	}
-	if vs, _ := svc.CoreVersions(ctx, "melonds_ds"); strings.Join(vs, ",") != "1.4.0" {
-		t.Fatalf("state changed: %v", vs)
+	st, _ = svc.CoreSource(ctx)
+	if !strings.Contains(st.LastError, "503") || st.Cores != 4 {
+		t.Fatalf("%+v", st)
 	}
-	if st, _ := svc.CoreSource(ctx); !strings.Contains(st.LastError, "signature") {
-		t.Fatalf("error %q", st.LastError)
+	if sc, _ := svc.SystemCores(ctx, "nds"); len(sc.Available) != 3 {
+		t.Fatal("catalog lost after a failed refresh")
 	}
-	// Wrong key: the source signs with a key the Hub does not trust.
-	otherSeed := make([]byte, 32)
-	otherSeed[0] = 1
-	otherPub, _ := corepkg.PublicFromSeed(otherSeed)
-	wrong, _ := hubtest.New(t, func(o *hub.Options) {
-		src.Apply(o)
-		o.CoreTrustKeys = []ed25519.PublicKey{otherPub}
-	})
-	src.Publish(t) // valid signature again, but by an untrusted key
-	if _, err := wrong.SyncCores(ctx); err == nil || !strings.Contains(err.Error(), "not trusted") {
-		t.Fatalf("untrusted key accepted: %v", err)
-	}
-	if vs, _ := wrong.CoreVersions(ctx, "melonds_ds"); len(vs) != 0 {
-		t.Fatal("state recorded from an untrusted index")
+	bb.Down = false
+	refresh(t, svc)
+	if st, _ = svc.CoreSource(ctx); st.LastError != "" {
+		t.Fatalf("%+v", st)
 	}
 }
 
-func TestSyncCoresNoTrustedKeyAndNetworkFailure(t *testing.T) {
-	src := hubtest.NewCoreSource(t)
-	src.AddPackage(t, "melonds_ds", "1.4.0", "linux-x64", lib(100, 1))
-	nokey, _ := hubtest.New(t, func(o *hub.Options) { o.CoreIndexURL = src.IndexURL(); o.CoreHTTPClient = src.Server.Client() })
-	if _, err := nokey.SyncCores(ctx); err == nil || err.Error() != "no trusted signing key configured" {
+func TestInstallCoreHappyPath(t *testing.T) {
+	svc, bb := bbEnv(t, nil)
+	refresh(t, svc)
+	ic, err := svc.InstallCore(ctx, "nds", "desmume")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ic.Version != "2026.10.09" || ic.BuildDate != "2026-10-09" || ic.Origin != "libretro-buildbot" || ic.License != "GPLv2" || !ic.Default ||
+		ic.Experimental || strings.Join(ic.Platforms, ",") != "linux-x64,windows-x64" || ic.UpdateAvailable {
+		t.Fatalf("%+v", ic)
+	}
+	// Both platforms are stored, exactly one library each, with the SHA-256 of the extracted file.
+	for plat, name := range map[string]string{"linux-x64": "desmume_libretro.so", "windows-x64": "desmume_libretro.dll"} {
+		p, err := svc.GetCorePackage(ctx, "desmume", "2026.10.09", plat)
+		if err != nil {
+			t.Fatal(plat, err)
+		}
+		lib := bytes.Repeat([]byte("desmume!"), 40)
+		sum := sha256.Sum256(lib)
+		if len(p.Files) != 1 || p.Files[0].Name != name || p.Files[0].Role != "library" || !p.Files[0].Available || p.Files[0].SHA256 != hex.EncodeToString(sum[:]) ||
+			p.Files[0].Size != int64(len(lib)) || p.License != "GPLv2" || p.Origin != "libretro-buildbot" {
+			t.Fatalf("%s: %+v", plat, p)
+		}
+		if p.SourceURL != bb.ZipURL(plat, "desmume") || !strings.HasPrefix(p.SourceRef, "2026-10-09 ") || len(p.SourceRef) != len("2026-10-09 ")+8 {
+			t.Fatalf("%s: source %q %q", plat, p.SourceURL, p.SourceRef)
+		}
+		f, def, err := svc.OpenCoreFile(ctx, "desmume", "2026.10.09", plat, name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := make([]byte, len(lib)+1)
+		n, _ := f.Read(got)
+		f.Close()
+		if !bytes.Equal(got[:n], lib) || def.SHA256 != p.Files[0].SHA256 {
+			t.Fatalf("%s: served file differs", plat)
+		}
+	}
+	// The registry shows the default core and its served version; nothing is left in the staging directory.
+	e, _ := svc.GetRegistryEntry(ctx, "nds")
+	if e.CoreID != "desmume" || e.CoreName != "Nintendo - DS (DeSmuME)" || e.ExpectedCoreVersion != "2026.10.09" || len(e.Cores) != 1 {
+		t.Fatalf("%+v", e)
+	}
+	if left, _ := os.ReadDir(filepath.Join(svc.DataDir(), "tmp")); len(left) != 0 {
+		t.Fatalf("staging left behind: %v", left)
+	}
+	// Errors: twice, wrong system, unknown core, bad id.
+	if _, err := svc.InstallCore(ctx, "nds", "desmume"); !errors.Is(err, hub.ErrBadRequest) {
+		t.Fatal(err)
+	}
+	if _, err := svc.InstallCore(ctx, "nds", "azahar"); !errors.Is(err, hub.ErrBadRequest) {
+		t.Fatal("3ds core installed for nds:", err)
+	}
+	if _, err := svc.InstallCore(ctx, "nds", "nothing"); !errors.Is(err, hub.ErrBadRequest) {
+		t.Fatal(err)
+	}
+	if _, err := svc.InstallCore(ctx, "nds", "../x"); !errors.Is(err, hub.ErrBadRequest) {
+		t.Fatal(err)
+	}
+	if _, err := svc.InstallCore(ctx, "snes", "desmume"); !errors.Is(err, hub.ErrNotFound) {
+		t.Fatal(err)
+	}
+	// A core that has a build for one platform only is stored for that platform.
+	if _, err := svc.InstallCore(ctx, "nds", "noods"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.GetCorePackage(ctx, "noods", "2026.10.08", "windows-x64"); !errors.Is(err, hub.ErrCorePackageNotFound) {
+		t.Fatal(err)
+	}
+	if def, ids := installedIDs(t, svc); def != "desmume" || strings.Join(ids, ",") != "desmume,noods" {
+		t.Fatalf("%s %v", def, ids)
+	}
+}
+
+func TestInstallCoreRejectsBadDownloadsAndLeavesNothing(t *testing.T) {
+	dummy := bytes.Repeat([]byte{7}, 100)
+	cases := map[string]struct {
+		zip  map[string][]byte
+		want string
+	}{
+		"traversal":     {map[string][]byte{"../desmume_libretro.so": dummy}, "unsafe path"},
+		"subdir":        {map[string][]byte{"cores/desmume_libretro.so": dummy}, "unsafe path"},
+		"two libraries": {map[string][]byte{"desmume_libretro.so": dummy, "other_libretro.so": dummy}, "more than one library"},
+		"no library":    {map[string][]byte{"readme.txt": dummy}, "no library"},
+		"wrong name":    {map[string][]byte{"other_libretro.so": dummy}, "expected"},
+		"oversize":      {map[string][]byte{"desmume_libretro.so": bytes.Repeat([]byte{1}, 5000)}, "larger than the limit"},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			svc, bb := bbEnv(t, func(o *hub.Options) { o.CoreMaxLibraryBytes = 1000 })
+			bb.SetZip("linux-x64", "desmume", "2026-10-09", hubtest.MakeZip(t, c.zip))
+			refresh(t, svc)
+			_, err := svc.InstallCore(ctx, "nds", "desmume")
+			if !errors.Is(err, hub.ErrBadRequest) || !strings.Contains(err.Error(), c.want) {
+				t.Fatalf("err %v, want %q", err, c.want)
+			}
+			if def, ids := installedIDs(t, svc); def != "" || len(ids) != 0 {
+				t.Fatalf("installed %s %v", def, ids)
+			}
+			if files := cacheFiles(t, svc); len(files) != 0 {
+				t.Fatalf("cache files left: %v", files)
+			}
+			if left, _ := os.ReadDir(filepath.Join(svc.DataDir(), "tmp")); len(left) != 0 {
+				t.Fatalf("staging left behind: %v", left)
+			}
+		})
+	}
+}
+
+func TestInstallCoreCRCMismatchAndHTTPStatusAndZipCap(t *testing.T) {
+	svc, bb := bbEnv(t, func(o *hub.Options) { o.CoreMaxZipBytes = 1 << 20 })
+	bb.SetCRC("windows-x64", "desmume", "deadbeef")
+	refresh(t, svc)
+	if _, err := svc.InstallCore(ctx, "nds", "desmume"); err == nil || !strings.Contains(err.Error(), "CRC32 mismatch") {
 		t.Fatalf("err %v", err)
 	}
-	if src.Hits["/cores-index.json"] != 0 {
-		t.Fatal("index fetched without a trusted key")
+	if _, ids := installedIDs(t, svc); len(ids) != 0 || len(cacheFiles(t, svc)) != 0 {
+		t.Fatalf("%v %v", ids, cacheFiles(t, svc))
 	}
-	if st, _ := nokey.CoreSource(ctx); st.LastError != "no trusted signing key configured" || st.LastCheck == nil {
-		t.Fatalf("state %+v", st)
+	bb.SetCRC("windows-x64", "desmume", "00000000")
+	// Oversize zip: larger than the cap.
+	big := bytes.Repeat([]byte{9}, 2<<20) // not even a zip: the size cap applies before anything is read
+	bb.SetZip("linux-x64", "desmume", "2026-10-09", big)
+	bb.SetZip("windows-x64", "desmume", "2026-10-09", big)
+	refresh(t, svc)
+	if _, err := svc.InstallCore(ctx, "nds", "desmume"); err == nil || !strings.Contains(err.Error(), "larger than the limit") {
+		t.Fatalf("err %v", err)
 	}
+	bb.Down = true // the catalog stays; downloads fail with HTTP 503
+	if _, err := svc.InstallCore(ctx, "nds", "noods"); err == nil || !strings.Contains(err.Error(), "HTTP 503") {
+		t.Fatalf("err %v", err)
+	}
+	if _, ids := installedIDs(t, svc); len(ids) != 0 {
+		t.Fatal(ids)
+	}
+}
 
-	svc := coreSvc(t, src)
-	if _, err := svc.SyncCores(ctx); err != nil {
+func TestUpdateCoreKeepsOldBuildUntilNewIsCached(t *testing.T) {
+	svc, bb := bbEnv(t, nil)
+	refresh(t, svc)
+	if _, err := svc.InstallCore(ctx, "nds", "desmume"); err != nil {
 		t.Fatal(err)
 	}
-	src.Down = true
-	if _, err := svc.SyncCores(ctx); err == nil {
-		t.Fatal("network failure not reported")
+	if _, err := svc.UpdateCore(ctx, "nds", "desmume"); !errors.Is(err, hub.ErrBadRequest) || !strings.Contains(err.Error(), "up to date") {
+		t.Fatalf("update without a newer build: %v", err)
 	}
-	if st, _ := svc.CoreSource(ctx); st.LastError == "" {
-		t.Fatal("network failure not recorded")
+	if _, err := svc.UpdateCore(ctx, "nds", "noods"); !errors.Is(err, hub.ErrNotFound) {
+		t.Fatal(err)
 	}
-	f, _, err := svc.OpenCoreFile(ctx, "melonds_ds", "1.4.0", "linux-x64", "melonds_ds.so")
+	// A newer upstream build appears; nothing changes until the admin updates.
+	newLib := bytes.Repeat([]byte("newer"), 50)
+	for _, p := range []string{"linux-x64", "windows-x64"} {
+		suffix := map[string]string{"linux-x64": ".so", "windows-x64": ".dll"}[p]
+		bb.SetZip(p, "desmume", "2026-10-12", hubtest.MakeZip(t, map[string][]byte{"desmume_libretro" + suffix: newLib}))
+	}
+	refresh(t, svc)
+	sc, _ := svc.SystemCores(ctx, "nds")
+	if len(sc.Installed) != 1 || !sc.Installed[0].UpdateAvailable || sc.Installed[0].UpdateDate != "2026-10-12" || sc.Installed[0].Version != "2026.10.09" {
+		t.Fatalf("%+v", sc.Installed)
+	}
+	// The new build fails to download (bad CRC): the old build stays installed, served and cached.
+	bb.SetCRC("windows-x64", "desmume", "deadbeef")
+	refresh(t, svc)
+	if _, err := svc.UpdateCore(ctx, "nds", "desmume"); err == nil {
+		t.Fatal("update with a bad CRC succeeded")
+	}
+	e, _ := svc.GetRegistryEntry(ctx, "nds")
+	if e.ExpectedCoreVersion != "2026.10.09" {
+		t.Fatalf("%+v", e)
+	}
+	if _, f, err := svc.OpenCoreFile(ctx, "desmume", "2026.10.09", "linux-x64", "desmume_libretro.so"); err != nil {
+		t.Fatal(err)
+	} else {
+		_ = f
+	}
+	// Fixed upstream: the update installs the new version and drops the old one.
+	bb.SetZip("windows-x64", "desmume", "2026-10-12", hubtest.MakeZip(t, map[string][]byte{"desmume_libretro.dll": newLib}))
+	refresh(t, svc)
+	ic, err := svc.UpdateCore(ctx, "nds", "desmume")
 	if err != nil {
-		t.Fatalf("cache not served after failure: %v", err)
-	}
-	f.Close()
-	// Success clears the error.
-	src.Down = false
-	if _, err := svc.SyncCores(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if st, _ := svc.CoreSource(ctx); st.LastError != "" {
-		t.Fatal("error not cleared")
+	if ic.Version != "2026.10.12" || ic.BuildDate != "2026-10-12" || ic.UpdateAvailable || !ic.Default {
+		t.Fatalf("%+v", ic)
+	}
+	if _, err := svc.GetCorePackage(ctx, "desmume", "2026.10.09", "linux-x64"); !errors.Is(err, hub.ErrCorePackageNotFound) {
+		t.Fatal("old version still known:", err)
+	}
+	if _, err := os.Stat(filepath.Join(svc.DataDir(), "cores", "desmume", "2026.10.09")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("old cache files remain:", err)
+	}
+	if e, _ = svc.GetRegistryEntry(ctx, "nds"); e.ExpectedCoreVersion != "2026.10.12" {
+		t.Fatalf("%+v", e)
+	}
+	if len(cacheFiles(t, svc)) != 2 {
+		t.Fatalf("cache: %v", cacheFiles(t, svc))
 	}
 }
 
-func TestSyncCoresKeepsSelectedVersionAndDropsOthers(t *testing.T) {
-	src := hubtest.NewCoreSource(t)
-	src.AddPackage(t, "melonds_ds", "1.4.0", "linux-x64", lib(100, 1))
-	src.AddPackage(t, "melonds_ds", "1.3.0", "linux-x64", lib(100, 2))
-	svc := coreSvc(t, src)
-	if _, err := svc.SyncCores(ctx); err != nil {
-		t.Fatal(err)
-	}
-	// Cache the non-selected version too (import-like), then drop both from the source.
-	src.RemovePackage(t, "melonds_ds", "1.4.0")
-	src.RemovePackage(t, "melonds_ds", "1.3.0")
-	src.AddPackage(t, "melonds_ds", "2.0.0", "linux-x64", lib(10, 3))
-	if _, err := svc.SyncCores(ctx); err != nil {
-		t.Fatal(err)
-	}
-	if vs, _ := svc.CoreVersions(ctx, "melonds_ds"); strings.Join(vs, ",") != "2.0.0,1.4.0" {
-		t.Fatalf("%v", vs)
-	}
-	// The selected version keeps its cached files.
-	f, _, err := svc.OpenCoreFile(ctx, "melonds_ds", "1.4.0", "linux-x64", "melonds_ds.so")
-	if err != nil {
-		t.Fatal(err)
-	}
-	f.Close()
-}
-
-func TestExpectedVersionChangeDownloadsInBackground(t *testing.T) {
-	src := hubtest.NewCoreSource(t)
-	src.AddPackage(t, "melonds_ds", "1.4.0", "linux-x64", lib(100, 1))
-	src.AddPackage(t, "melonds_ds", "1.5.0", "linux-x64", lib(120, 2))
-	svc := coreSvc(t, src)
-	c, cancel := context.WithCancel(context.Background())
-	done := make(chan struct{})
-	var reports atomic.Int32
-	go func() { svc.RunCoreSync(c, time.Hour, func(hub.CoreSyncReport, error) { reports.Add(1) }); close(done) }()
-	waitFor(t, func() bool { return reports.Load() >= 1 })
-	if err := svc.SetExpectedCoreVersion(ctx, "nds", "1.5.0"); err != nil {
-		t.Fatal(err)
-	}
-	waitFor(t, func() bool {
-		p, err := svc.GetCorePackage(ctx, "melonds_ds", "1.5.0", "linux-x64")
-		return err == nil && p.CachedFiles() == 2
-	})
-	// "Check source now".
-	n := reports.Load()
-	svc.TriggerCoreSync()
-	waitFor(t, func() bool { return reports.Load() > n })
-	cancel()
-	select {
-	case <-done:
-	case <-time.After(5 * time.Second):
-		t.Fatal("RunCoreSync did not stop on shutdown")
-	}
-}
-
-func waitFor(t *testing.T, cond func() bool) {
-	t.Helper()
-	for i := 0; i < 500; i++ {
-		if cond() {
-			return
+func TestRemoveCoreReassignsDefault(t *testing.T) {
+	svc, _ := bbEnv(t, nil)
+	refresh(t, svc)
+	for _, id := range []string{"noods", "desmume"} { // experimental first
+		if _, err := svc.InstallCore(ctx, "nds", id); err != nil {
+			t.Fatal(err)
 		}
-		time.Sleep(10 * time.Millisecond)
 	}
-	t.Fatal("timeout")
+	// The first installed core became the default; the admin can change it.
+	if def, _ := installedIDs(t, svc); def != "noods" {
+		t.Fatal(def)
+	}
+	if err := svc.SetDefaultCore(ctx, "nds", "nc-core"); !errors.Is(err, hub.ErrNotFound) {
+		t.Fatal(err)
+	}
+	if err := svc.SetDefaultCore(ctx, "nds", "desmume"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.InstallCore(ctx, "nds", "nc-core"); err != nil {
+		t.Fatal(err)
+	}
+	// Removing a non-default core keeps the default.
+	if err := svc.RemoveCore(ctx, "nds", "nc-core"); err != nil {
+		t.Fatal(err)
+	}
+	if def, ids := installedIDs(t, svc); def != "desmume" || strings.Join(ids, ",") != "desmume,noods" {
+		t.Fatalf("%s %v", def, ids)
+	}
+	// Removing the default reassigns it, and the packages and cache files are gone.
+	if err := svc.RemoveCore(ctx, "nds", "desmume"); err != nil {
+		t.Fatal(err)
+	}
+	if def, ids := installedIDs(t, svc); def != "noods" || len(ids) != 1 {
+		t.Fatalf("%s %v", def, ids)
+	}
+	if _, err := svc.GetCorePackage(ctx, "desmume", "2026.10.09", "linux-x64"); !errors.Is(err, hub.ErrCorePackageNotFound) {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(svc.DataDir(), "cores", "desmume")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal(err)
+	}
+	if e, _ := svc.GetRegistryEntry(ctx, "nds"); e.ExpectedCoreVersion != "2026.10.08" {
+		t.Fatalf("%+v", e)
+	}
+	if err := svc.RemoveCore(ctx, "nds", "noods"); err != nil {
+		t.Fatal(err)
+	}
+	if def, ids := installedIDs(t, svc); def != "" || len(ids) != 0 || len(cacheFiles(t, svc)) != 0 {
+		t.Fatalf("%q %v %v", def, ids, cacheFiles(t, svc))
+	}
+	if err := svc.RemoveCore(ctx, "nds", "noods"); !errors.Is(err, hub.ErrNotFound) {
+		t.Fatal(err)
+	}
+	// A profiled core is preferred as the new default.
+	for _, id := range []string{"noods", "desmume", "nc-core"} {
+		if _, err := svc.InstallCore(ctx, "nds", id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := svc.RemoveCore(ctx, "nds", "noods"); err != nil {
+		t.Fatal(err)
+	}
+	if def, _ := installedIDs(t, svc); def != "desmume" {
+		t.Fatal(def)
+	}
 }
 
 func TestImportCores(t *testing.T) {
-	src := hubtest.NewCoreSource(t)
-	p := src.AddPackage(t, "melonds_ds", "1.4.0", "linux-x64", lib(100, 1))
+	svc, bb := bbEnv(t, nil)
 	dir := t.TempDir()
-	idx, sig := src.Index()
-	os.WriteFile(filepath.Join(dir, "cores-index.json"), idx, 0o644)
-	os.WriteFile(filepath.Join(dir, "cores-index.json.sig"), sig, 0o644)
-	// Library under its URL's last segment, license under its plain name, via a bad file for a mismatch test later.
-	os.WriteFile(filepath.Join(dir, "melonds_ds-1.4.0-linux-x64-melonds_ds.so"), lib(100, 1), 0o644)
-	os.WriteFile(filepath.Join(dir, "LICENSE.txt"), []byte("license of melonds_ds"), 0o644)
-
-	svc, _ := hubtest.New(t, func(o *hub.Options) { o.CoreTrustKeys = []ed25519.PublicKey{src.Pub} })
+	bb.WriteImportDir(t, dir)
+	// No catalog refresh: the info comes from <dir>/info.zip.
 	sum, err := svc.ImportCores(ctx, dir)
-	if err != nil || sum.Packages != 1 || sum.Copied != 2 || sum.Missing != 0 || sum.Rejected != 0 {
-		t.Fatalf("%+v %v", sum, err)
-	}
-	f, def, err := svc.OpenCoreFile(ctx, "melonds_ds", "1.4.0", "linux-x64", p.Files[0].Name)
-	if err != nil || def.Size != 100 {
+	if err != nil {
 		t.Fatal(err)
 	}
-	f.Close()
-	// Second import: already cached.
-	if sum, _ := svc.ImportCores(ctx, dir); sum.AlreadyCached != 2 || sum.Copied != 0 {
+	// azahar is a 3ds core: no supported system.
+	if sum.Installed != 3 || sum.Updated != 0 || sum.Unchanged != 0 || len(sum.Problems) != 1 || !strings.Contains(sum.Problems[0], "azahar") {
 		t.Fatalf("%+v", sum)
 	}
-
-	// Wrong content is rejected and nothing is left behind.
-	svc2, _ := hubtest.New(t, func(o *hub.Options) { o.CoreTrustKeys = []ed25519.PublicKey{src.Pub} })
-	os.WriteFile(filepath.Join(dir, "melonds_ds-1.4.0-linux-x64-melonds_ds.so"), lib(100, 7), 0o644)
-	sum, err = svc2.ImportCores(ctx, dir)
-	if err != nil || sum.Rejected != 1 || sum.Copied != 1 {
+	if def, ids := installedIDs(t, svc); def != "desmume" || strings.Join(ids, ",") != "desmume,noods,nc-core" && strings.Join(ids, ",") != "desmume,nc-core,noods" {
+		t.Fatalf("%s %v", def, ids)
+	}
+	p, err := svc.GetCorePackage(ctx, "desmume", "2026.10.09", "windows-x64")
+	if err != nil || p.Origin != "libretro-buildbot" || !strings.HasPrefix(p.SourceRef, "2026-10-09 ") || !p.Files[0].Available {
+		t.Fatalf("%+v %v", p, err)
+	}
+	// Importing the same zips again changes nothing but the unchanged count.
+	sum, err = svc.ImportCores(ctx, dir)
+	if err != nil || sum.Unchanged != 3 || sum.Installed != 0 || sum.Updated != 0 {
 		t.Fatalf("%+v %v", sum, err)
 	}
-	for _, f := range cacheFiles(t, svc2) {
-		if strings.Contains(f, ".so") || strings.Contains(f, ".tmp-") {
-			t.Fatal("left behind", f)
-		}
+	if e, _ := svc.GetRegistryEntry(ctx, "nds"); e.ExpectedCoreVersion != "2026.10.09" {
+		t.Fatalf("%+v", e)
 	}
-	// Tampered index / no key.
-	os.WriteFile(filepath.Join(dir, "cores-index.json"), append([]byte(" "), idx...), 0o644)
-	if _, err := svc2.ImportCores(ctx, dir); err == nil {
-		t.Fatal("tampered index imported")
-	}
-	nokey, _ := hubtest.New(t, nil)
-	if _, err := nokey.ImportCores(ctx, dir); err == nil || err.Error() != "no trusted signing key configured" {
-		t.Fatal(err)
-	}
-	_ = corepkg.DefaultIndexURL
 }
 
-func TestSyncCoresAnyVersionDownloadsHighest(t *testing.T) {
-	src := hubtest.NewCoreSource(t)
-	src.AddPackage(t, "melonds_ds", "1.9.0", "linux-x64", lib(10, 1))
-	src.AddPackage(t, "melonds_ds", "1.10.0", "linux-x64", lib(20, 2))
-	src.AddPackage(t, "melonds_ds", "1.10.0", "windows-x64", lib(30, 3))
-	svc := coreSvc(t, src)
-	if err := svc.SetExpectedCoreVersion(ctx, "nds", ""); err != nil {
-		t.Fatal(err)
-	}
-	rep, err := svc.SyncCores(ctx)
-	if err != nil || rep.Downloaded != 4 {
-		t.Fatalf("%+v %v", rep, err)
-	}
-	if p, _ := svc.GetCorePackage(ctx, "melonds_ds", "1.9.0", "linux-x64"); p.CachedFiles() != 0 {
-		t.Fatal("older version downloaded")
-	}
-	if v, _ := svc.CoreServedVersion(ctx, "melonds_ds", ""); v != "1.10.0" {
-		t.Fatalf("served %q", v)
-	}
-	// Dropped from the index later: the served version stays protected.
-	src.RemovePackage(t, "melonds_ds", "1.10.0")
-	src.RemovePackage(t, "melonds_ds", "1.9.0")
-	src.AddPackage(t, "melonds_ds", "1.8.0", "linux-x64", lib(5, 4))
-	if _, err := svc.SyncCores(ctx); err != nil {
-		t.Fatal(err)
-	}
-	f, _, err := svc.OpenCoreFile(ctx, "melonds_ds", "1.10.0", "windows-x64", "melonds_ds.so")
-	if err != nil {
-		t.Fatalf("served version lost: %v", err)
-	}
-	f.Close()
-}
-
-func TestImportAndSyncPersistVerifiedIndex(t *testing.T) {
-	src := hubtest.NewCoreSource(t)
-	src.AddPackage(t, "melonds_ds", "1.4.0", "linux-x64", lib(100, 1))
-	idx, sig := src.Index()
+func TestImportCoresSameDayNewBuildGetsSuffix(t *testing.T) {
+	svc, bb := bbEnv(t, nil)
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "cores-index.json"), idx, 0o644)
-	os.WriteFile(filepath.Join(dir, "cores-index.json.sig"), sig, 0o644)
-
-	svc, _ := hubtest.New(t, func(o *hub.Options) { o.CoreTrustKeys = []ed25519.PublicKey{src.Pub} })
-	if _, _, err := svc.CoresIndex(); !errors.Is(err, hub.ErrCorePackageNotFound) {
-		t.Fatalf("before import: %v", err)
-	}
-	// An untrusted index (wrong signature) is neither imported nor stored.
-	bad := append([]byte(" "), idx...)
-	os.WriteFile(filepath.Join(dir, "cores-index.json"), bad, 0o644)
-	if _, err := svc.ImportCores(ctx, dir); err == nil {
-		t.Fatal("tampered index imported")
-	}
-	if _, _, err := svc.CoresIndex(); !errors.Is(err, hub.ErrCorePackageNotFound) {
-		t.Fatalf("after a rejected import: %v", err)
-	}
-	os.WriteFile(filepath.Join(dir, "cores-index.json"), idx, 0o644)
+	bb.WriteImportDir(t, dir)
 	if _, err := svc.ImportCores(ctx, dir); err != nil {
 		t.Fatal(err)
 	}
-	gotIdx, gotSig, err := svc.CoresIndex()
-	if err != nil || !bytes.Equal(gotIdx, idx) || !bytes.Equal(gotSig, sig) {
-		t.Fatalf("served index differs: %v", err)
-	}
-	// The files live in the data directory, readable by the Hub user and group only.
-	for _, f := range []string{"index.json", "index.json.sig"} {
-		if st, err := os.Stat(filepath.Join(svc.DataDir(), "cores", f)); err != nil || st.Mode().Perm()&0o007 != 0 {
-			t.Fatalf("%s: %v %v", f, st, err)
+	// A different build of the same day (other content, CRC32 not listed this time).
+	for _, p := range []string{"linux-x64", "windows-x64"} {
+		suffix := map[string]string{"linux-x64": ".so", "windows-x64": ".dll"}[p]
+		z := hubtest.MakeZip(t, map[string][]byte{"desmume_libretro" + suffix: []byte("second build of the day")})
+		if err := os.WriteFile(filepath.Join(dir, p, "desmume_libretro"+suffix+".zip"), z, 0o644); err != nil {
+			t.Fatal(err)
 		}
+		idx := filepath.Join(dir, p, ".index-extended")
+		b, _ := os.ReadFile(idx)
+		var keep []string
+		for _, l := range strings.Split(string(b), "\n") {
+			if !strings.Contains(l, "desmume_") {
+				keep = append(keep, l)
+			}
+		}
+		keep = append(keep, "2026-10-09 "+"00000000 desmume_libretro"+suffix+".zip") // wrong CRC32 is rejected below
+		os.WriteFile(idx, []byte(strings.Join(keep, "\n")), 0o644)
+	}
+	sum, err := svc.ImportCores(ctx, dir)
+	if err == nil && len(sum.Problems) == 0 {
+		t.Fatalf("a wrong CRC32 was accepted: %+v", sum)
+	}
+	if !strings.Contains(strings.Join(sum.Problems, ";"), "CRC32 mismatch") {
+		t.Fatalf("%+v", sum)
+	}
+	if e, _ := svc.GetRegistryEntry(ctx, "nds"); e.ExpectedCoreVersion != "2026.10.09" {
+		t.Fatalf("a rejected import changed the installed build: %+v", e)
+	}
+	// Without the .index-extended the file date is the build date, no CRC32 check: same day => version suffix.
+	for _, p := range []string{"linux-x64", "windows-x64"} {
+		os.Remove(filepath.Join(dir, p, ".index-extended"))
+		suffix := map[string]string{"linux-x64": ".so", "windows-x64": ".dll"}[p]
+		day := time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC)
+		os.Chtimes(filepath.Join(dir, p, "desmume_libretro"+suffix+".zip"), day, day)
+	}
+	sum, err = svc.ImportCores(ctx, dir)
+	if err != nil || sum.Updated < 1 {
+		t.Fatalf("%+v %v", sum, err)
+	}
+	e, _ := svc.GetRegistryEntry(ctx, "nds")
+	if e.ExpectedCoreVersion != "2026.10.09.2" {
+		t.Fatalf("%+v", e)
+	}
+	if _, err := svc.GetCorePackage(ctx, "desmume", "2026.10.09", "linux-x64"); !errors.Is(err, hub.ErrCorePackageNotFound) {
+		t.Fatal("the replaced build is still known")
 	}
 }

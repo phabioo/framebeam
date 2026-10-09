@@ -1,5 +1,6 @@
-// Package corepkg describes signed core indexes and packages (0.2 "Cores from the Hub"): parsing, validation,
-// signing and verification. It is shared by the Hub and the framebeam-sign tool.
+// Package corepkg holds the identifier formats and version compare of core packages (ADR 0020) and the Ed25519
+// signing and verification used for the updates index (ADR 0011). The legacy core index types remain for the
+// framebeam-sign tool. It is shared by the Hub and the framebeam-sign tool.
 package corepkg
 
 import (
@@ -35,7 +36,7 @@ const (
 )
 
 var (
-	coreIDRe  = regexp.MustCompile(`^[a-z0-9_]{1,64}$`)
+	coreIDRe  = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,63}$`)
 	versionRe = regexp.MustCompile(`^[0-9A-Za-z][0-9A-Za-z.+_-]{0,63}$`)
 	nameRe    = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
 	sha256Re  = regexp.MustCompile(`^[0-9a-f]{64}$`)

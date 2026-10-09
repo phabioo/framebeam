@@ -99,7 +99,7 @@ Renews the self-generated TLS certificate as the `framebeam` user in the service
 sudo ./install-hub.sh import-cores /path/to/dir
 ```
 
-For a Hub that cannot reach the FrameBeam core source. `dir` holds `cores-index.json`, `cores-index.json.sig` and the package files (download them from the `cores-index` and `core-*` releases on GitHub). The script copies the directory to a temporary location the service user can read and runs `framebeam-hub import-cores` as the `framebeam` user in the service's data dir (read from `/etc/framebeam/hub.env`, like `renew-cert`). The index signature must match a trusted key: the built-in FrameBeam key or keys in `FRAMEBEAM_HUB_CORE_TRUST_KEYS` of `/etc/framebeam/hub.env`. The service keeps running.
+For a Hub that cannot reach the libretro buildbot. `dir` holds buildbot core zips as `<platform>/<core>_libretro.<suffix>.zip` (platform `linux-x64` or `windows-x64`, for example `linux-x64/desmume_libretro.so.zip`), optionally `info.zip` and `<platform>/.index-extended`. The script copies the directory to a temporary location the service user can read and runs `framebeam-hub import-cores` as the `framebeam` user in the service's data dir (read from `/etc/framebeam/hub.env`, like `renew-cert`). Cores are not signed; the SHA-256 is pinned at import. The service keeps running. Details: [hub-configuration.md](hub-configuration.md).
 
 ## Uninstall
 

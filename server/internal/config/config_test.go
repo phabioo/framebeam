@@ -62,19 +62,31 @@ func TestICEServers(t *testing.T) {
 func TestCoreSourceConfig(t *testing.T) {
 	good := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 	c := parse(t, nil)
-	if c.CoreIndexURL == "" || len(c.CoreTrustKeys) != 0 || c.Validate() != nil {
+	if c.CoreBuildbotURL != "https://buildbot.libretro.com/nightly" || c.CoreInfoURL != "https://buildbot.libretro.com/assets/frontend/info.zip" ||
+		c.CoreIndexURL != "" || len(c.CoreTrustKeys) != 0 || c.Validate() != nil {
 		t.Fatalf("defaults: %+v", c)
 	}
-	c = parse(t, map[string]string{"FRAMEBEAM_HUB_CORE_INDEX_URL": "https://mirror.example/i.json", "FRAMEBEAM_HUB_CORE_TRUST_KEYS": good + " , " + good})
-	if c.CoreIndexURL != "https://mirror.example/i.json" || len(c.CoreTrustKeys) != 2 || c.Validate() != nil {
+	c = parse(t, map[string]string{"FRAMEBEAM_HUB_CORE_BUILDBOT_URL": "https://mirror.example/nightly", "FRAMEBEAM_HUB_CORE_INFO_URL": "https://mirror.example/info.zip",
+		"FRAMEBEAM_HUB_CORE_TRUST_KEYS": good + " , " + good})
+	if c.CoreBuildbotURL != "https://mirror.example/nightly" || c.CoreInfoURL != "https://mirror.example/info.zip" || len(c.CoreTrustKeys) != 2 || c.Validate() != nil {
 		t.Fatalf("env: %+v", c)
 	}
-	// Repeatable flag replaces the environment list, further uses append.
-	c = parse(t, map[string]string{"FRAMEBEAM_HUB_CORE_TRUST_KEYS": "env"}, "-core-trust-key", good, "-core-trust-key", good, "-core-index-url", "https://x.example/i")
-	if len(c.CoreTrustKeys) != 2 || c.CoreIndexURL != "https://x.example/i" || c.Validate() != nil {
+	// Repeatable flag replaces the environment list, further uses append; flags win over the environment.
+	c = parse(t, map[string]string{"FRAMEBEAM_HUB_CORE_TRUST_KEYS": "env", "FRAMEBEAM_HUB_CORE_BUILDBOT_URL": "https://env.example/n"},
+		"-core-trust-key", good, "-core-trust-key", good, "-core-buildbot-url", "https://x.example/n", "-core-info-url", "https://x.example/info.zip")
+	if len(c.CoreTrustKeys) != 2 || c.CoreBuildbotURL != "https://x.example/n" || c.CoreInfoURL != "https://x.example/info.zip" || c.Validate() != nil {
 		t.Fatalf("flags: %+v", c)
 	}
-	for _, bad := range []*Config{parse(t, nil, "-core-index-url", "http://x.example/i"), parse(t, nil, "-core-trust-key", "nope")} {
+	// The deprecated -core-index-url is still accepted (and ignored), even with an old http value.
+	c = parse(t, map[string]string{"FRAMEBEAM_HUB_CORE_INDEX_URL": "https://old.example/i.json"})
+	if c.CoreIndexURL != "https://old.example/i.json" || c.Validate() != nil {
+		t.Fatalf("deprecated env: %+v", c)
+	}
+	if c = parse(t, nil, "-core-index-url", "http://x.example/i"); c.Validate() != nil {
+		t.Fatal("deprecated flag must not be validated")
+	}
+	for _, bad := range []*Config{parse(t, nil, "-core-buildbot-url", "http://x.example/n"), parse(t, nil, "-core-info-url", "http://x.example/i.zip"),
+		parse(t, nil, "-core-trust-key", "nope")} {
 		if bad.Validate() == nil {
 			t.Fatalf("invalid core config accepted: %+v", bad)
 		}

@@ -1,6 +1,6 @@
 # ADR 0018: Player speed-up (fast-forward)
 
-- Status: Proposed
+- Status: accepted (Fabio, 2026-10-09)
 - Date: 2026-10-08
 - Deciders: Fabio
 

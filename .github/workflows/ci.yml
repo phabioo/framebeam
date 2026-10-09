@@ -212,8 +212,16 @@ jobs:
       - name: Cache melonDS DS core
         uses: actions/cache@v4
         with:
-          path: ~/.cache/framebeam/cores
+          path: ~/.cache/framebeam/cores/melondsds
           key: melondsds-core-linux-${{ hashFiles('scripts/melonds-ds.pin', 'scripts/fetch-melonds-ds.sh') }}
+      - name: Week key for the buildbot core cache
+        id: week
+        run: echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+      - name: Cache DeSmuME core (buildbot nightly)
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/framebeam/cores/buildbot
+          key: desmume-linux-${{ steps.week.outputs.week }}
       - name: Cache libdatachannel
         uses: actions/cache@v4
         with:
@@ -235,7 +243,13 @@ jobs:
             qt6-websockets-dev libssl-dev pkg-config
       - name: Bootstrap vcpkg
         run: scripts/bootstrap-vcpkg.sh
+      - name: Fetch DeSmuME core (libretro buildbot, ADR 0020 D10)
+        # Fails with a clear error when the buildbot is unreachable or the CRC32 does not match.
+        run: scripts/fetch-buildbot-core.sh desmume
       - name: Check Player
+        env:
+          # The cores are always present in CI: a failed fetch or a skipped emulation_core* test fails the check.
+          FRAMEBEAM_REQUIRE_CORES: "1"
         run: xvfb-run -a make check-client
       - name: Install Go for Hub E2E
         uses: actions/setup-go@v6
@@ -288,8 +302,19 @@ jobs:
       - name: Cache melonDS DS core
         uses: actions/cache@v4
         with:
-          path: ${{ github.workspace }}\.framebeam-cache\cores
+          path: ${{ github.workspace }}\.framebeam-cache\cores\melondsds
           key: melondsds-core-windows-${{ hashFiles('scripts/melonds-ds.pin', 'scripts/fetch-melonds-ds.ps1') }}
+      - name: Week key for the buildbot core cache
+        id: week
+        shell: pwsh
+        run: |
+          $d = (Get-Date).ToUniversalTime()
+          "week=$([Globalization.ISOWeek]::GetYear($d))-$('{0:00}' -f [Globalization.ISOWeek]::GetWeekOfYear($d))" >> $env:GITHUB_OUTPUT
+      - name: Cache DeSmuME core (buildbot nightly)
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}\.framebeam-cache\cores\buildbot
+          key: desmume-windows-${{ steps.week.outputs.week }}
       - name: Install Qt 6.8
         uses: jurplel/install-qt-action@v4
         with:
@@ -307,6 +332,16 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           $dll = scripts/fetch-melonds-ds.ps1 | Select-Object -Last 1
+          "dll=$dll" >> $env:GITHUB_OUTPUT
+      - name: Fetch DeSmuME core (libretro buildbot, ADR 0020 D10)
+        id: desmume
+        shell: pwsh
+        env:
+          FRAMEBEAM_CACHE_DIR: ${{ github.workspace }}\.framebeam-cache
+        run: |
+          # Fails with a clear error when the buildbot is unreachable or the CRC32 does not match.
+          $dll = scripts/fetch-buildbot-core.ps1 desmume | Select-Object -Last 1
+          if (-not $dll -or -not (Test-Path $dll)) { throw "DeSmuME core was not provisioned" }
           "dll=$dll" >> $env:GITHUB_OUTPUT
       - uses: ilammy/msvc-dev-cmd@v1
         with:
@@ -330,7 +365,7 @@ jobs:
             vcpkg-bin-${{ runner.os }}-x64-windows-release-msvc-${{ steps.vcpkg-toolchain.outputs.version }}-
       - name: Configure
         working-directory: client
-        run: cmake --preset windows-msvc-release "-DFRAMEBEAM_MELONDS_DS_CORE=${{ steps.core.outputs.dll }}" "-DFRAMEBEAM_VERSION=$env:FRAMEBEAM_VERSION" "-DFRAMEBEAM_CHANNEL=$env:FRAMEBEAM_CHANNEL" "-DFRAMEBEAM_COMMIT=$env:FRAMEBEAM_COMMIT"
+        run: cmake --preset windows-msvc-release "-DFRAMEBEAM_MELONDS_DS_CORE=${{ steps.core.outputs.dll }}" "-DFRAMEBEAM_DESMUME_CORE=${{ steps.desmume.outputs.dll }}" "-DFRAMEBEAM_VERSION=$env:FRAMEBEAM_VERSION" "-DFRAMEBEAM_CHANNEL=$env:FRAMEBEAM_CHANNEL" "-DFRAMEBEAM_COMMIT=$env:FRAMEBEAM_COMMIT"
       # Save the binary cache right after vcpkg install (part of configure), even if
       # later steps fail, so a long FFmpeg build is never repeated.
       - name: Save vcpkg binary cache
@@ -397,7 +432,8 @@ jobs:
             }
             throw "ctest failed"
           }
-          # GL tests may skip here (no GL 3.3 context, ADR 0013 D6); any other skip is an error.
+          # GL tests may skip here (no GL 3.3 context, ADR 0013 D6); any other skip is an error, including
+          # emulation_core and emulation_core_desmume (both cores are present in CI).
           $skipped = @(Select-String -Path ctest.log -Pattern '\(Skipped\)|\*\*\*Skipped' | ForEach-Object { $_.Line })
           if (@($skipped | Where-Object { $_ -notmatch '\b(emulation_hw_render|emulation_core_gl|media_cuda_gl_capture|media_cuda_gl_hw|ui_gpu_encode)\b' }).Count -gt 0) { throw "Tests were skipped although the core should be present" }
           if ($skipped.Count -gt 0) { Write-Host "Note: GL tests skipped (no GL 3.3 context on this runner), allowed by ADR 0013 D6" }

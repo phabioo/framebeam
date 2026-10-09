@@ -322,7 +322,7 @@ func TestRegistrySeed(t *testing.T) {
 		t.Fatalf("%v %+v", err, reg)
 	}
 	e := reg[0]
-	if e.ID != "nds" || e.CoreID != "melonds_ds" || e.ExpectedCoreVersion != "1.4.0" || e.FirmwareMode != hub.FirmwareBuiltin ||
+	if e.ID != "nds" || e.CoreID != "" || e.ExpectedCoreVersion != "" || len(e.Cores) != 0 || strings.Join(e.LibretroIDs, ",") != "nds" || e.FirmwareMode != hub.FirmwareBuiltin ||
 		e.Provisioning != "Included in the Player" || strings.Join(e.Platforms, ",") != "windows-x86_64,linux-x86_64" {
 		t.Fatalf("%+v", e)
 	}
@@ -336,15 +336,6 @@ func TestRegistrySeed(t *testing.T) {
 	}
 	if n, _ := svc.FirmwareProblems(ctx); n != 0 {
 		t.Fatalf("badge in builtin mode: %d", n)
-	}
-	if err := svc.SetExpectedCoreVersion(ctx, "nds", "  "); err != nil {
-		t.Fatal(err)
-	}
-	if e, _ := svc.GetRegistryEntry(ctx, "nds"); e.ExpectedCoreVersion != "" {
-		t.Fatalf("%+v", e)
-	}
-	if err := svc.SetExpectedCoreVersion(ctx, "snes", "1"); !errors.Is(err, hub.ErrNotFound) {
-		t.Fatal(err)
 	}
 	if err := svc.SetFirmwareMode(ctx, "nds", "weird"); !errors.Is(err, hub.ErrBadRequest) {
 		t.Fatal(err)
@@ -485,7 +476,11 @@ func pairedDevice(t *testing.T, svc *hub.Service, adminID string) string {
 }
 
 func TestHandshakeCoreChecksAndReports(t *testing.T) {
-	svc, _, admin := newAdmin(t)
+	svc, bb := bbEnv(t, nil)
+	admin, err := svc.CreateAdmin(ctx, "admin", "secret-12345")
+	if err != nil {
+		t.Fatal(err)
+	}
 	dev := pairedDevice(t, svc, admin.ID)
 	hs := func(cores *[]hub.CoreReport) hub.HandshakeResult {
 		t.Helper()
@@ -496,6 +491,13 @@ func TestHandshakeCoreChecksAndReports(t *testing.T) {
 		}
 		return r
 	}
+	if _, err := svc.RefreshCatalog(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.InstallCore(ctx, "nds", "desmume"); err != nil {
+		t.Fatal(err)
+	}
+	_ = bb
 	// Not reported: no check, no report.
 	if r := hs(nil); len(r.Problems) != 0 || !r.Compatible {
 		t.Fatalf("%+v", r)
@@ -505,16 +507,16 @@ func TestHandshakeCoreChecksAndReports(t *testing.T) {
 	}
 	// Missing core: warning only.
 	r := hs(&[]hub.CoreReport{})
-	if !r.Compatible || len(r.Problems) != 1 || r.Problems[0].Code != hub.ProblemCoreMissing || r.Problems[0].CoreID != "melonds_ds" {
+	if !r.Compatible || len(r.Problems) != 1 || r.Problems[0].Code != hub.ProblemCoreMissing || r.Problems[0].CoreID != "desmume" {
 		t.Fatalf("%+v", r)
 	}
 	// Other version: warning only.
-	r = hs(&[]hub.CoreReport{{ID: "melonds_ds", Version: "1.3.0"}})
-	if !r.Compatible || len(r.Problems) != 1 || r.Problems[0].Code != hub.ProblemCoreVersionMismatch || !strings.Contains(r.Problems[0].Detail, "1.4.0") {
+	r = hs(&[]hub.CoreReport{{ID: "desmume", Version: "2026.10.01"}})
+	if !r.Compatible || len(r.Problems) != 1 || r.Problems[0].Code != hub.ProblemCoreVersionMismatch || !strings.Contains(r.Problems[0].Detail, "2026.10.09") {
 		t.Fatalf("%+v", r)
 	}
 	reps, _ := svc.ListClientReports(ctx, mustEntry(t, svc))
-	if len(reps) != 1 || reps[0].Status != hub.ClientCoreMismatch || reps[0].Expected != "1.4.0" || reps[0].CoreVersion != "1.3.0" ||
+	if len(reps) != 1 || reps[0].Status != hub.ClientCoreMismatch || reps[0].Expected != "2026.10.09" || reps[0].CoreVersion != "2026.10.01" ||
 		reps[0].Platform != "windows" || reps[0].PlayerVersion != "0.2.0" {
 		t.Fatalf("%+v", reps)
 	}
@@ -522,23 +524,25 @@ func TestHandshakeCoreChecksAndReports(t *testing.T) {
 		t.Fatalf("%+v", d)
 	}
 	// Exact version, other cores ignored.
-	r = hs(&[]hub.CoreReport{{ID: "melonds_ds", Version: "1.4.0"}, {ID: "other", Version: "9"}})
+	r = hs(&[]hub.CoreReport{{ID: "desmume", Version: "2026.10.09"}, {ID: "other", Version: "9"}})
 	if !r.Compatible || len(r.Problems) != 0 {
 		t.Fatalf("%+v", r)
 	}
 	if reps, _ = svc.ListClientReports(ctx, mustEntry(t, svc)); reps[0].Status != hub.ClientCompatible {
 		t.Fatalf("%+v", reps)
 	}
-	// Empty expected version = any version.
-	svc.SetExpectedCoreVersion(ctx, "nds", "")
-	if r = hs(&[]hub.CoreReport{{ID: "melonds_ds", Version: "0.0.1"}}); len(r.Problems) != 0 {
-		t.Fatalf("%+v", r)
-	}
 	// A protocol problem still makes the Player incompatible next to core warnings.
 	r2, err := svc.Handshake(ctx, dev, hub.HandshakeInput{Platform: "windows", Arch: "x86_64", PlayerVersion: "0.2.0",
 		ProtocolVersion: 5, MinProtocolVersion: 5, Cores: &[]hub.CoreReport{}})
 	if err != nil || r2.Compatible || len(r2.Problems) != 2 {
 		t.Fatalf("%v %+v", err, r2)
+	}
+	// No core installed for the system: nothing to compare, no warning.
+	if err := svc.RemoveCore(ctx, "nds", "desmume"); err != nil {
+		t.Fatal(err)
+	}
+	if r = hs(&[]hub.CoreReport{}); len(r.Problems) != 0 || !r.Compatible {
+		t.Fatalf("%+v", r)
 	}
 	// A revoked device disappears from the list.
 	svc.RevokeDevice(ctx, dev)

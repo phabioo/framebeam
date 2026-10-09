@@ -17,7 +17,7 @@ func TestOpenMigrateIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 	v, _ := SchemaVersion(db)
-	if v != 8 {
+	if v != 9 {
 		t.Fatalf("version %d", v)
 	}
 	var fk int
@@ -31,7 +31,7 @@ func TestOpenMigrateIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	if v, _ := SchemaVersion(db); v != 8 {
+	if v, _ := SchemaVersion(db); v != 9 {
 		t.Fatalf("version after restart %d", v)
 	}
 	if _, err := db.Exec(`INSERT INTO devices(id,user_id,name,platform,arch,player_version,credential_hash,status,created_at) VALUES('d','nouser','n','p','a','v','h','trusted',1)`); err == nil {
@@ -94,12 +94,12 @@ func TestBackupBeforeMigration(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	if v, _ := SchemaVersion(db); v != 8 {
+	if v, _ := SchemaVersion(db); v != 9 {
 		t.Fatalf("version %d", v)
 	}
 	bdir := filepath.Join(dir, "backups")
 	got := backupFiles(t, bdir)
-	if len(got) != 1 || got[0] != "hub-3-to-8-20261007T123045Z.db" {
+	if len(got) != 1 || got[0] != "hub-3-to-9-20261007T123045Z.db" {
 		t.Fatalf("backups: %v", got)
 	}
 	bk := rawDB(t, filepath.Join(bdir, got[0]))
@@ -194,5 +194,72 @@ func TestMigration0006KeepsSavesAndAllowsNewReasons(t *testing.T) {
 	// The index of the history table exists again.
 	if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE name = 'save_history_sha'`).Scan(&n); err != nil || n != 1 {
 		t.Fatalf("index: %d %v", n, err)
+	}
+}
+
+func TestMigration0009AdoptsLegacyCoreAsDefault(t *testing.T) {
+	setup := func(t *testing.T, cached bool) *sql.DB {
+		db := rawDB(t, filepath.Join(t.TempDir(), "s.db"))
+		t.Cleanup(func() { db.Close() })
+		if err := migrate(db, "", 8); err != nil {
+			t.Fatal(err)
+		}
+		cachedAt := "NULL"
+		if cached {
+			cachedAt = "5"
+		}
+		for _, q := range []string{
+			`INSERT INTO core_packages VALUES ('melonds_ds','1.3.0','linux-x64','GPL-3.0','u','r','FrameBeam CI',1)`,
+			`INSERT INTO core_packages VALUES ('melonds_ds','1.4.0','linux-x64','GPL-3.0','u','r','FrameBeam CI',2)`,
+			`INSERT INTO core_package_files VALUES ('melonds_ds','1.3.0','linux-x64','a.so','library',1,'aa','u',5)`,
+			`INSERT INTO core_package_files VALUES ('melonds_ds','1.4.0','linux-x64','a.so','library',1,'bb','u',` + cachedAt + `)`,
+		} {
+			if _, err := db.Exec(q); err != nil {
+				t.Fatal(q, err)
+			}
+		}
+		if err := migrate(db, "", 0); err != nil {
+			t.Fatal(err)
+		}
+		return db
+	}
+	// The expected version (1.4.0 in the seed) is cached: it becomes the installed default core.
+	db := setup(t, true)
+	var ver, origin, def, lib string
+	if err := db.QueryRow(`SELECT version, origin FROM system_cores WHERE system_id = 'nds' AND core_id = 'melonds_ds'`).Scan(&ver, &origin); err != nil ||
+		ver != "1.4.0" || origin != "framebeam" {
+		t.Fatalf("%q %q %v", ver, origin, err)
+	}
+	db.QueryRow(`SELECT default_core_id, libretro_ids FROM systems WHERE id = 'nds'`).Scan(&def, &lib)
+	if def != "melonds_ds" || lib != "nds" {
+		t.Fatalf("default %q libretro %q", def, lib)
+	}
+	db.QueryRow(`SELECT origin FROM core_packages WHERE version = '1.3.0'`).Scan(&origin)
+	if origin != "framebeam" {
+		t.Fatalf("package origin %q", origin)
+	}
+	var n int
+	if db.QueryRow(`SELECT COUNT(*) FROM profiled_cores WHERE core_id IN ('melondsds','desmume')`).Scan(&n); n != 2 {
+		t.Fatalf("profiled cores %d", n)
+	}
+	// 1.4.0 is not cached: the cached 1.3.0 is adopted instead.
+	db = setup(t, false)
+	if err := db.QueryRow(`SELECT version FROM system_cores WHERE core_id = 'melonds_ds'`).Scan(&ver); err != nil || ver != "1.3.0" {
+		t.Fatalf("%q %v", ver, err)
+	}
+}
+
+func TestMigration0009WithoutLegacyPackagesInstallsNothing(t *testing.T) {
+	db := rawDB(t, filepath.Join(t.TempDir(), "s.db"))
+	defer db.Close()
+	if err := migrate(db, "", 0); err != nil {
+		t.Fatal(err)
+	}
+	var n int
+	var def sql.NullString
+	db.QueryRow(`SELECT COUNT(*) FROM system_cores`).Scan(&n)
+	db.QueryRow(`SELECT default_core_id FROM systems WHERE id = 'nds'`).Scan(&def)
+	if n != 0 || def.Valid {
+		t.Fatalf("%d %v", n, def)
 	}
 }

@@ -10,8 +10,10 @@
 #include <QStringList>
 #include <QVariantList>
 #include <QVariantMap>
+#include <map>
 
 #include "core_locator.h"
+#include "corechoice.h"
 #include "corecache.h"
 #include "coreprovisioner.h"
 #include "emulationcontroller.h"
@@ -57,9 +59,21 @@ class CoreCatalog : public QObject {
   static QString systemDirIn(const QString& baseDir);
 
   void probeCores();
+  // Effective core of a system (and game): game > system > Hub default, among the cores the Hub serves (ADR 0020 D6).
+  // Without Hub data (offline): the stored choice, else the first profiled core that is available locally.
+  CoreChoice choiceFor(const QString& systemId, const QString& gameId = QString()) const;
+  // Effective manifest (system + core profile; experimental without profile) of a system / game. Pointers stay valid.
+  const emu::SystemManifest* manifestForSystem(const QString& systemId, const QString& gameId = QString()) const;
+  // Cores of a system for the Emulation page: [{id, name, version, license, buildDate, experimental, requiredHwApi,
+  // isDefault, label}]; the Hub's list, else the local profiles.
+  QVariantList coresOf(const QString& systemId) const;
+  QString reportedCoreVersion(const QString& coreId) const;  // version from the core info (probe); empty = unknown
+  QString systemDefaultCore(const QString& systemId) const;  // Hub default core id, else the first profile
+  // "A stored choice is not served any more" notice for the effective core of this system / game; empty = none.
+  QString coreNoticeFor(const QString& systemId, const QString& gameId = QString()) const;
   // Core lookup with the version the Hub serves (cache source), see CoreLocator.
   emu::CoreLocation locateCore(const emu::SystemManifest& man) const;
-  // The Hub offers a core package for this system (cores_v1 + core_package_version of the preferred core).
+  // The Hub serves this core for the system (cores_v1: SystemCore version, or the legacy preferred core).
   bool hubOffersCore(const emu::SystemManifest& man, QString* version = nullptr) const;
   // Located core is usable as is (a cached core must also pass the SHA-256 check).
   bool coreUsable(const emu::SystemManifest& man, emu::CoreLocation* loc = nullptr) const;
@@ -68,7 +82,9 @@ class CoreCatalog : public QObject {
   static QString coreProblemText(const QString& reason);
   QString attentionFor(const GameEntry& game) const;
   QVariantList systemCards();
+  // Core name for the UI; cores without profile carry the "Experimental" marker.
   QString coreLabel(const emu::SystemManifest& m, const emu::CoreLocation& loc) const;
+  // Effective manifest of the game's system for the game's effective core.
   const emu::SystemManifest* manifestFor(const GameEntry& game) const;
   QStringList wantedFirmwareIds(const emu::SystemManifest& man) const;
   // Firmware mode of the Hub for the system of this manifest: true = native (files required).
@@ -90,6 +106,7 @@ class CoreCatalog : public QObject {
   const QList<FirmwareProblem>& fwProblems_;
   const PlayPhase& phase_;
   const GameEntry& launchGame_;
+  mutable std::map<QString, emu::SystemManifest> effective_;
 };
 
 }  // namespace framebeam::ui

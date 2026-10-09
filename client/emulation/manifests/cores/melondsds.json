@@ -1,55 +1,26 @@
 {
-  "system_id": "nds",
-  "display_name": "Nintendo DS",
-  "core_id": "melonds_ds",
-  "core_display_name": "melonDS DS",
-  "core_library_basename": "melondsds_libretro",
-  "extensions": [
-    ".nds"
+  "_source": "Moved 1:1 from the former manifests/nds.json (ADR 0020 D6); option keys of the libretro melondsds core.",
+  "core_id": "melondsds",
+  "aliases": [
+    "melonds_ds"
   ],
+  "display_name": "melonDS DS",
+  "library_basename": "melondsds_libretro",
+  "system_ids": [
+    "nds"
+  ],
+  "order": 0,
+  "save": {
+    "source": "save_ram",
+    "extension": ".sav"
+  },
   "firmware": {
-    "required": false,
     "sysfile_option": "melonds_sysfile_mode",
     "sysfile_native": "native",
     "sysfile_builtin": "builtin",
-    "files": [
-      {
-        "id": "bios7",
-        "name": "bios7.bin"
-      },
-      {
-        "id": "bios9",
-        "name": "bios9.bin"
-      },
-      {
-        "id": "firmware",
-        "name": "firmware.bin",
-        "core_option": "melonds_firmware_nds_path"
-      }
-    ]
-  },
-  "input_profile": "nds",
-  "display_profile": "dual_screen",
-  "labels": {
-    "input": "NDS",
-    "touch": "DS touch"
-  },
-  "display": {
-    "layout": "vertical",
-    "gap": 0,
-    "screens": [
-      {
-        "id": "top",
-        "width": 256,
-        "height": 192
-      },
-      {
-        "id": "bottom",
-        "width": 256,
-        "height": 192,
-        "touch": true
-      }
-    ]
+    "file_options": {
+      "firmware": "melonds_firmware_nds_path"
+    }
   },
   "core_options": {
     "melonds_render_mode": "software",

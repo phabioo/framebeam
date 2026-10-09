@@ -158,7 +158,10 @@ func (s *Server) Register(mux *http.ServeMux) {
 	h("GET /users/{id}/delete", s.guard(s.userDeleteConfirm))
 	h("POST /users/{id}/delete", s.guard(s.userDelete))
 	h("GET /systems", s.guard(s.systemsGet))
-	h("POST /systems/{id}/expected-version", s.guard(s.systemVersion))
+	h("POST /systems/{id}/cores/{core}/install", s.guard(s.coreInstall))
+	h("POST /systems/{id}/cores/{core}/update", s.guard(s.coreUpdate))
+	h("POST /systems/{id}/cores/{core}/remove", s.guard(s.coreRemove))
+	h("POST /systems/{id}/cores/{core}/default", s.guard(s.coreDefault))
 	h("POST /systems/{id}/firmware-mode", s.guard(s.systemFirmwareMode))
 	h("POST /systems/{id}/firmware/{file}/upload", s.guardUpload(s.firmwareUpload))
 	h("POST /systems/{id}/firmware/{file}/pin", s.guard(s.firmwarePin))
@@ -244,12 +247,15 @@ var flashTexts = map[string]string{
 	"revoked":       "Invite revoked.",
 	"appearance":    "Appearance saved.",
 	"uploads":       "Upload setting saved.",
-	"version":       "Expected core version saved.",
+	"coreinstalled": "Core installed.",
+	"coreupdated":   "Core updated. The old build was removed.",
+	"coreremoved":   "Core removed.",
+	"coredefault":   "Default core changed.",
 	"fwmode":        "Firmware mode saved.",
 	"fwfile":        "Firmware file saved.",
 	"fwremoved":     "Firmware file removed.",
 	"fwpin":         "Expected SHA-256 saved.",
-	"coresync":      "Checking the core source in the background. Reload the page in a moment.",
+	"coresync":      "Checking the libretro buildbot in the background. Reload the page in a moment.",
 	"updates":       "Update settings saved. Checking for updates in the background.",
 	"updatecheck":   "Checking for updates in the background. Reload the page in a moment.",
 	"updateinstall": "Update downloaded and verified. The Hub installs it and restarts in a moment; reload this page afterwards.",
@@ -270,6 +276,7 @@ var errTexts = map[string]string{
 	"renewunsupported": "This Hub cannot renew its certificate here (own certificate or plain HTTP).",
 	"nosystem":         "System or file not found.",
 	"nofile":           "Firmware file not found.",
+	"nocore":           "System or core not found.",
 	"updatepackage":    "This Hub was not installed from the .deb package, so it cannot install updates itself. Use the manual command shown below.",
 	"updatenone":       "There is no update to install.",
 	"updatebreaking":   "This update breaks Players seen in the last 30 days. Use \"Install anyway\" to confirm.",

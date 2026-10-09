@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
 )
 
 // Hub web pages restyled to the v4 design: fragments of the live regions, slot tabs, restore confirmation, tabs of Systems.
@@ -139,7 +140,15 @@ func TestClientsAndUsersLiveRegions(t *testing.T) {
 }
 
 func TestSystemsTabsAndListFragments(t *testing.T) {
-	e := newEnv(t, true, nil)
+	bb := hubtest.NewBuildbot(t)
+	bb.AddCore(t, hubtest.BuildbotCore{ID: "desmume", SystemID: "nds"})
+	e := newEnvOpts(t, true, nil, func(o *hub.Options) { bb.Apply(o) })
+	if _, err := e.svc.RefreshCatalog(bg); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.InstallCore(bg, "nds", "desmume"); err != nil {
+		t.Fatal(err)
+	}
 	c := e.client()
 	c.login()
 	// Tab switch: the detail region plus the list out-of-band.
@@ -147,9 +156,9 @@ func TestSystemsTabsAndListFragments(t *testing.T) {
 	status(t, rec, 200)
 	contains(t, rec, `id="systems-detail"`, `hx-trigger="fb:systems from:body"`, `hx-get="/systems?sys=nds&amp;tab=clients"`, "Reported by Players",
 		`id="systems-list"`, `hx-swap-oob="true"`, `aria-current="true"`)
-	notContains(t, rec, "<html", "<aside", "Core package cache")
+	notContains(t, rec, "<html", "<aside", "Installed cores")
 	rec = c.get("/systems?sys=nds&tab=core", hxHdr("systems-detail"))
-	contains(t, rec, "Core package cache", "Display profile", "Input profile")
+	contains(t, rec, "Installed cores", "Display profile", "Input profile")
 	// Search: only the list region; the selection stays the one of the page URL.
 	rec = c.get("/systems?q=zzz", map[string]string{"HX-Request": "true", "HX-Target": "systems-list", "HX-Current-URL": "http://hub/systems?sys=nds&tab=core"})
 	status(t, rec, 200)
@@ -159,7 +168,7 @@ func TestSystemsTabsAndListFragments(t *testing.T) {
 	// Core differences only warn (ADR 0007 D3): the summary of a system with a differing client is warn colored and allows launching.
 	users, _ := e.svc.ListUsers(bg)
 	dev := pairTestDevice(t, e, users[0].ID, "Lena PC")
-	cores := []hub.CoreReport{{ID: "melonds_ds", Version: "1.3.0"}}
+	cores := []hub.CoreReport{{ID: "desmume", Version: "2026.10.01"}}
 	if _, err := e.svc.Handshake(bg, dev, hub.HandshakeInput{Platform: "windows", Arch: "x86_64", PlayerVersion: "0.1.0", ProtocolVersion: 1,
 		MinProtocolVersion: 1, Cores: &cores}); err != nil {
 		t.Fatal(err)

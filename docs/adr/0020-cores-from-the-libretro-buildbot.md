@@ -22,7 +22,7 @@ ADR 0010 made FrameBeam's own signed GitHub releases the only core source, and t
 
 ### D2 Trust and pinning
 
-- The buildbot signs nothing. Integrity of a download: HTTPS, the CRC32 from `.index-extended` must match the zip, and the zip must hold exactly one library file `<core>_libretro.<suffix>` (no path components, bounded size; zip slip and zip bombs are rejected).
+- The buildbot signs nothing. Integrity of a download: HTTPS, the CRC32 from `.index-extended` must match the extracted library (like RetroArch, the index CRC is over the uncompressed core file, not the zip), and the zip must hold exactly one library file `<core>_libretro.<suffix>` (no path components, bounded size; zip slip and zip bombs are rejected).
 - Pin at install: the Hub computes the SHA-256 of the extracted library when it installs a build and serves exactly that file with that hash to Players (trust on first download). Players check size and SHA-256 as today and trust the Hub through the pinned TLS fingerprint.
 - No signature check on cores anymore, neither on the Hub nor on the Player. The Ed25519 release key and `framebeam-sign` stay for the update index (ADR 0011).
 - The UI says where a core comes from ("libretro buildbot, nightly 2026-10-09").

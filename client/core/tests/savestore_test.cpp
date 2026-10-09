@@ -43,8 +43,13 @@ class SaveStoreTest : public QObject {
     s.lastSyncedSha256 = QStringLiteral("ab");
     s.pending = true;
     s.conflictId = QStringLiteral("c1");
+    s.writerCoreId = QStringLiteral("my-core");
+    s.writerCoreVersion = QStringLiteral("2026.10.09.2");
     QVERIFY(SaveStore::saveState(tmp.path(), s));
     const SyncState r = SaveStore::loadState(tmp.path());
+    QCOMPARE(r.writerCoreId, QStringLiteral("my-core"));
+    QCOMPARE(r.writerCoreVersion, QStringLiteral("2026.10.09.2"));
+    QVERIFY(SaveStore::loadState(tmp.path() + QStringLiteral("/none")).writerCoreId.isEmpty());
     QCOMPARE(r.baseRevision, 4);
     QCOMPARE(r.lastSyncedSha256, QStringLiteral("ab"));
     QVERIFY(r.pending);

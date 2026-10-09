@@ -9,7 +9,7 @@ framebeam-hub [flags]                          # run the server (HTTPS, self-sig
 framebeam-hub -dev -listen 127.0.0.1:8443 -data-dir /tmp/fb   # development: HTTP instead of HTTPS
 framebeam-hub setup-admin -username <name>     # password as a single line from stdin; refused if an admin already exists
 framebeam-hub renew-cert [-data-dir <dir>]     # renew the self-generated certificate now (refused with own cert/key)
-framebeam-hub import-cores <dir>               # import signed core packages offline
+framebeam-hub import-cores <dir>               # import libretro buildbot core zips offline
 framebeam-hub version [--json]                 # version info
 framebeam-hub update check|stage [-channel stable|beta]   # see updates.md
 ```
@@ -39,8 +39,10 @@ A flag wins over the environment variable. Under systemd the variables live in `
 | `-save-keep-recent` | `FRAMEBEAM_SAVE_KEEP_RECENT` | `20` | Save history: newest versions per slot to keep |
 | `-save-keep-daily` | `FRAMEBEAM_SAVE_KEEP_DAILY` | `30` | Save history: days of which the newest version is kept |
 | `-save-keep-weekly` | `FRAMEBEAM_SAVE_KEEP_WEEKLY` | `26` | Save history: weeks of which the newest version is kept |
-| `-core-index-url` | `FRAMEBEAM_HUB_CORE_INDEX_URL` | FrameBeam's `cores-index` release | Signed core index (https) |
-| `-core-trust-key` | `FRAMEBEAM_HUB_CORE_TRUST_KEYS` | none | Extra trusted Ed25519 public key (base64) for the core and updates index; flag repeatable, env comma-separated |
+| `-core-buildbot-url` | `FRAMEBEAM_HUB_CORE_BUILDBOT_URL` | `https://buildbot.libretro.com/nightly` | Base URL of the libretro buildbot builds (https only) |
+| `-core-info-url` | `FRAMEBEAM_HUB_CORE_INFO_URL` | `https://buildbot.libretro.com/assets/frontend/info.zip` | libretro core info archive (https only) |
+| `-core-index-url` | `FRAMEBEAM_HUB_CORE_INDEX_URL` | none | Deprecated and ignored since 0.8 (the signed core index was retired) |
+| `-core-trust-key` | `FRAMEBEAM_HUB_CORE_TRUST_KEYS` | none | Extra trusted Ed25519 public key (base64) for the updates index only (cores are not signed); flag repeatable, env comma-separated |
 | `-update-index-url` | `FRAMEBEAM_HUB_UPDATE_INDEX_URL` | FrameBeam's `updates-index` release | Signed updates index (https, or `file://` for tests) |
 | `-update-request-dir` | `FRAMEBEAM_HUB_UPDATE_REQUEST_DIR` | `/run/framebeam` | Directory of the update request file read by the root helper |
 
@@ -75,7 +77,15 @@ The certificate's SHA-256 fingerprint is printed to the log at startup (`journal
 
 ## Core packages
 
-The Hub fetches an Ed25519-signed core index and the packages from FrameBeam's GitHub Releases (at startup, every 24 h, and on "Check source now" in Systems & Cores) and serves them to Players. It needs internet access to github.com. Offline: `framebeam-hub import-cores <dir>` (systemd: `install-hub.sh import-cores <dir>`) with a directory holding `cores-index.json`, `cores-index.json.sig` and the package files. Extra trusted keys: `-core-trust-key`. Details: [ADR 0010](../adr/0010-cores-from-the-hub.md).
+The Hub downloads cores RetroArch-style from the libretro buildbot (nightly channel) and serves them to Players; Players never contact the buildbot. The catalog comes from the libretro core info archive (`info.zip`) and the buildbot's `.index-extended`; it is refreshed at start, every 24 h and on "Check source now" on Systems & Cores. Nothing installs or updates by itself.
+
+- On Systems & Cores the Cores tab lists the installed cores per system with Update (when the buildbot has a newer build), Remove and Make default, and "Available from the libretro buildbot" with Install. A core without a FrameBeam Player profile carries the badge "No FrameBeam profile" and runs as experimental in the Player.
+- A download is checked against the CRC32 of `.index-extended` and must contain exactly one library file; the Hub pins the SHA-256 of that file at install and serves exactly it. The buildbot signs nothing; trust equals HTTPS to the buildbot.
+- Versions are build ids `YYYY.MM.DD`, with `.N` appended for a second install on the same day. There is no expected-version selector; all Players of a Hub run the build the Hub serves.
+- The Hub needs HTTPS egress to `buildbot.libretro.com`. Offline: `framebeam-hub import-cores <dir>` (systemd: `install-hub.sh import-cores <dir>`) with the layout `<dir>/<platform>/<core>_libretro.<suffix>.zip` (platform `linux-x64` or `windows-x64`, suffix `.so` or `.dll`) plus an optional `<dir>/info.zip` and `<dir>/<platform>/.index-extended` (the CRC32 is checked only when that file is present). The SHA-256 is pinned at import.
+- Hubs upgraded from 0.7: a cached `melonds_ds` package from the retired signed source is adopted as installed default core of `nds` and keeps working until another core is installed or made default.
+
+Details: [ADR 0020](../adr/0020-cores-from-the-libretro-buildbot.md).
 
 ## Data directory
 

@@ -18,7 +18,7 @@ CoreLocator::CoreLocator(QString appDir) : m_appDir(std::move(appDir)) {
 void CoreLocator::setExplicitPath(const QString& coreId, const QString& path) { m_explicit.insert(coreId, path); }
 
 QString CoreLocator::environmentVariableFor(const QString& coreId) {
-  return QStringLiteral("FRAMEBEAM_") + coreId.toUpper() + QStringLiteral("_CORE");
+  return QStringLiteral("FRAMEBEAM_") + coreId.toUpper().replace(QLatin1Char('-'), QLatin1Char('_')) + QStringLiteral("_CORE");
 }
 
 QString CoreLocator::libraryFileName(const QString& basename) {
@@ -86,24 +86,31 @@ CoreLocation CoreLocator::locate(const SystemManifest& manifest, const QString& 
     return false;
   };
   if (probe(m_explicit.value(manifest.coreId), "explicit")) return loc;
-  if (probe(qEnvironmentVariable(environmentVariableFor(manifest.coreId).toUtf8().constData()), "env")) return loc;
+  // Environment: FRAMEBEAM_<CORE_ID>_CORE, also under the core's other ids (FRAMEBEAM_MELONDS_DS_CORE for melondsds).
+  for (const QString& id : QStringList(manifest.coreId) + manifest.coreAliases) {
+    if (probe(qEnvironmentVariable(environmentVariableFor(id).toUtf8().constData()), "env")) return loc;
+  }
   if (!m_cacheRoot.isEmpty() && !m_platform.isEmpty()) {
-    const QDir coreDir(QDir(m_cacheRoot).filePath(manifest.coreId));
-    QStringList versions = coreDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
-    std::sort(versions.begin(), versions.end(), [](const QString& a, const QString& b) { return compareVersions(a, b) > 0; });
-    if (!preferredVersion.isEmpty() && versions.removeOne(preferredVersion)) {
-      versions.prepend(preferredVersion);  // preferred first, the others as a fallback (newest first)
-    }
-    for (const QString& v : versions) {
-      const QString lib = cachedLibrary(QDir(coreDir.filePath(v + QLatin1Char('/') + m_platform)));
-      if (!lib.isEmpty()) {
-        loc.path = QDir::cleanPath(lib);
-        loc.source = QStringLiteral("cache");
-        loc.version = v;
-        return loc;
+    // The core's own cache directory first, then those of its other ids (a core cached under a legacy id still works).
+    for (const QString& id : QStringList(manifest.coreId) + manifest.coreAliases) {
+      const QDir coreDir(QDir(m_cacheRoot).filePath(id));
+      QStringList versions = coreDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+      std::sort(versions.begin(), versions.end(), [](const QString& a, const QString& b) { return compareVersions(a, b) > 0; });
+      if (!preferredVersion.isEmpty() && versions.removeOne(preferredVersion)) {
+        versions.prepend(preferredVersion);  // preferred first, the others as a fallback (newest first)
+      }
+      for (const QString& v : versions) {
+        const QString lib = cachedLibrary(QDir(coreDir.filePath(v + QLatin1Char('/') + m_platform)));
+        if (!lib.isEmpty()) {
+          loc.path = QDir::cleanPath(lib);
+          loc.source = QStringLiteral("cache");
+          loc.version = v;
+          loc.cacheCoreId = id;
+          return loc;
+        }
       }
     }
-    loc.tried.append(coreDir.filePath(QStringLiteral("<version>/") + m_platform));
+    loc.tried.append(QDir(m_cacheRoot).filePath(manifest.coreId + QStringLiteral("/<version>/") + m_platform));
   }
   probe(QDir(m_appDir).filePath(QStringLiteral("cores/") + libraryFileName(manifest.coreLibraryBasename)), "app-dir");
   return loc;

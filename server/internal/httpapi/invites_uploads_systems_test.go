@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
 )
 
 // Invites over HTTP: invites, user disable, uploads, systems and firmware, handshake core warnings.
@@ -284,7 +285,7 @@ func TestSystemsAndFirmwareAPI(t *testing.T) {
 		return l[0]
 	}
 	nds := list()
-	if nds.FirmwareMode != "builtin" || nds.PreferredCoreID != "melonds_ds" || nds.ExpectedCoreVersion == nil || *nds.ExpectedCoreVersion != "1.4.0" || len(nds.Firmware) != 3 {
+	if nds.FirmwareMode != "builtin" || nds.PreferredCoreID != "" || nds.ExpectedCoreVersion != nil || len(nds.Firmware) != 3 {
 		t.Fatalf("%+v", nds)
 	}
 	for _, f := range nds.Firmware {
@@ -305,7 +306,6 @@ func TestSystemsAndFirmwareAPI(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.svc.SetFirmwareMode(ctx, "nds", hub.FirmwareNative)
-	s.svc.SetExpectedCoreVersion(ctx, "nds", "")
 	nds = list()
 	if nds.FirmwareMode != "native" || nds.ExpectedCoreVersion != nil || !nds.Firmware[0].Required || !nds.Firmware[0].Present ||
 		*nds.Firmware[0].Size != 16384 || nds.Firmware[1].Present {
@@ -344,9 +344,17 @@ func TestSystemsAndFirmwareAPI(t *testing.T) {
 }
 
 func TestHandshakeCoreWarningsOverHTTP(t *testing.T) {
-	e := newEnv(t, nil)
+	bb := hubtest.NewBuildbot(t)
+	bb.AddCore(t, hubtest.BuildbotCore{ID: "desmume", SystemID: "nds"})
+	e := newEnv(t, func(o *hub.Options) { bb.Apply(o) })
 	dev := uuid.NewString()
 	tok := e.login(dev)
+	if _, err := e.svc.RefreshCatalog(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.InstallCore(context.Background(), "nds", "desmume"); err != nil {
+		t.Fatal(err)
+	}
 	hs := func(cores []map[string]string) (bool, []map[string]any) {
 		body := handshakeBody(1, 1)
 		body["cores"] = cores
@@ -359,19 +367,19 @@ func TestHandshakeCoreWarningsOverHTTP(t *testing.T) {
 		return r.Compatible, r.Problems
 	}
 	ok, pr := hs([]map[string]string{})
-	if !ok || len(pr) != 1 || pr[0]["code"] != "core_missing" || pr[0]["core_id"] != "melonds_ds" {
+	if !ok || len(pr) != 1 || pr[0]["code"] != "core_missing" || pr[0]["core_id"] != "desmume" {
 		t.Fatalf("%v %v", ok, pr)
 	}
-	ok, pr = hs([]map[string]string{{"id": "melonds_ds", "version": "1.3.9"}})
+	ok, pr = hs([]map[string]string{{"id": "desmume", "version": "2026.10.01"}})
 	if !ok || len(pr) != 1 || pr[0]["code"] != "core_version_mismatch" {
 		t.Fatalf("%v %v", ok, pr)
 	}
 	reg, _ := e.svc.GetRegistryEntry(context.Background(), "nds")
 	reps, _ := e.svc.ListClientReports(context.Background(), reg)
-	if len(reps) != 1 || reps[0].CoreVersion != "1.3.9" || reps[0].Status != hub.ClientCoreMismatch {
+	if len(reps) != 1 || reps[0].CoreVersion != "2026.10.01" || reps[0].Status != hub.ClientCoreMismatch {
 		t.Fatalf("%+v", reps)
 	}
-	ok, pr = hs([]map[string]string{{"id": "melonds_ds", "version": "1.4.0"}})
+	ok, pr = hs([]map[string]string{{"id": "desmume", "version": "2026.10.09"}})
 	if !ok || len(pr) != 0 {
 		t.Fatalf("%v %v", ok, pr)
 	}

@@ -75,14 +75,35 @@ struct FirmwareFileInfo {
   qint64 size = 0;
   QString sha256;
 };
+// One core the Hub serves for a system (feature cores_v2, ADR 0020 D5).
+struct SystemCore {
+  QString coreId;
+  QString displayName;
+  QString version;  // package version the Hub serves; the Player provisions exactly this one
+  QString license;
+  bool experimental = false;  // Hub's view: no Player core profile
+  QString requiredHwApi;      // empty = none
+  QString origin;
+  QString buildDate;  // YYYY-MM-DD, may be empty
+  bool valid() const { return !coreId.isEmpty(); }
+};
+inline constexpr const char* kCoresV2Feature = "cores_v2";
+
 struct SystemInfo {
   QString id;
   QString displayName;
   QString preferredCoreId;
   QString expectedCoreVersion;  // empty = any
   QString corePackageVersion;   // core version the Hub serves for the preferred core (cores_v1); empty = none
+  QString defaultCoreId;        // cores_v2: the Hub's default core; empty = none / Hub without cores_v2
+  QList<SystemCore> cores;      // cores_v2: every core the Hub serves for the system
   QString firmwareMode = QStringLiteral("builtin");  // "builtin" | "native"
   QList<FirmwareFileInfo> firmware;
+
+  const SystemCore* core(const QString& coreId) const;
+  // The Hub's default core: default_core_id when listed, else the legacy preferred core with corePackageVersion.
+  // Empty coreId = the Hub serves no core.
+  SystemCore defaultCore() const;
 
   bool nativeFirmware() const { return firmwareMode == QLatin1String("native"); }
   const FirmwareFileInfo* file(const QString& fileId) const;
@@ -111,7 +132,7 @@ struct CorePackageInfo {
 };
 // Rejects invalid identifiers/file names/hashes and packages without exactly one library file.
 std::optional<CorePackageInfo> parseCorePackage(const QJsonObject& obj);
-bool isValidCoreId(const QString& id);      // ^[a-z0-9_]{1,64}$
+bool isValidCoreId(const QString& id);      // ^[a-z0-9][a-z0-9_-]{0,63}$
 bool isValidCoreVersion(const QString& v);  // ^[0-9A-Za-z][0-9A-Za-z.+_-]{0,63}$
 bool isValidCorePlatform(const QString& p);
 bool isValidCoreFileName(const QString& n);  // ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$, no ".."

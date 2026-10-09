@@ -83,6 +83,7 @@ class GameStarter : public QObject {
   void gameLaunched(const QString& gameId);
 
  private:
+  SaveSync::CoreRef coreRefFor(const emu::SystemManifest& man) const;
   void continueStartAfterCore(const GameEntry& game, const emu::SystemManifest& man);
   void beginRomPhase(const GameEntry& game);
   void launch(const GameEntry& game, const QString& romPath);

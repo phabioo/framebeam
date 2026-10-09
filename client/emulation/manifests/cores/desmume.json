@@ -1,0 +1,51 @@
+{
+  "_source": "Option keys and values taken from libretro/desmume branch master, desmume/src/frontend/libretro/libretro.cpp (sha256 bbc2088d35e06bcbb0080e680b024d1ea8068a633bbdb0cfb41806c9f7dc6efd) and libretro_core_options.h, retrieved 2026-10-09 (commit id not obtainable offline; core reports library_version \"SVN\" or \"git<hash>\"). desmume_screens_layout/desmume_screens_gap compose the 256x384 vertical frame; desmume_pointer_type=touch reads RETRO_DEVICE_POINTER (absolute); desmume_use_external_bios=enabled reads bios7.bin, bios9.bin and firmware.bin from the system directory.",
+  "core_id": "desmume",
+  "aliases": [],
+  "display_name": "Nintendo DS (DeSmuME)",
+  "library_basename": "desmume_libretro",
+  "system_ids": [
+    "nds"
+  ],
+  "order": 10,
+  "save": {
+    "source": "core_file",
+    "extension": ".dsv",
+    "format": "desmume_dsv"
+  },
+  "firmware": {
+    "sysfile_option": "desmume_use_external_bios",
+    "sysfile_native": "enabled",
+    "sysfile_builtin": "disabled",
+    "file_options": {}
+  },
+  "core_options": {
+    "desmume_screens_layout": "top/bottom",
+    "desmume_screens_gap": "0",
+    "desmume_pointer_type": "touch",
+    "desmume_input_rotation": "0",
+    "desmume_internal_resolution": "256x192",
+    "desmume_opengl_mode": "disabled",
+    "desmume_boot_into_bios": "disabled",
+    "desmume_hybrid_showboth_screens": "enabled"
+  },
+  "locked_core_options": [
+    "desmume_screens_layout",
+    "desmume_screens_gap",
+    "desmume_pointer_type",
+    "desmume_input_rotation",
+    "desmume_boot_into_bios",
+    "desmume_hybrid_showboth_screens",
+    "desmume_hybrid_layout_ratio",
+    "desmume_hybrid_layout_scale",
+    "desmume_hybrid_cursor_always_smallscreen",
+    "desmume_pointer_mouse",
+    "desmume_pointer_device_l",
+    "desmume_pointer_device_r",
+    "desmume_mouse_speed",
+    "desmume_pointer_colour"
+  ],
+  "always_shown_core_options": [
+    "desmume_internal_resolution"
+  ]
+}

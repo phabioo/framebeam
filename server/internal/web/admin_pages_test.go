@@ -52,7 +52,7 @@ func TestAdminPagesAreAdminOnlyAndRender(t *testing.T) {
 			t.Fatalf("%s: %d -> %q", p, rec.Code, location(rec))
 		}
 	}
-	for _, p := range []string{"/users/invites", "/users/u_x/disable", "/users/u_x/enable", "/users/invites/x/revoke", "/systems/nds/expected-version",
+	for _, p := range []string{"/users/invites", "/users/u_x/disable", "/users/u_x/enable", "/users/invites/x/revoke", "/systems/nds/cores/desmume/install",
 		"/systems/nds/firmware-mode", "/systems/nds/firmware/bios7/pin", "/systems/nds/firmware/bios7/remove", "/settings/appearance", "/settings/uploads",
 		"/settings/updates", "/settings/updates/check", "/settings/updates/install", "/settings/name", "/settings/password", "/settings/security/renew-cert", "/library/rescan",
 		"/settings/network/listen_port", "/settings/network/listen_port/reset", "/settings/network/restart"} {
@@ -76,12 +76,12 @@ func TestAdminPagesAreAdminOnlyAndRender(t *testing.T) {
 	contains(t, c.get("/users", nil), `href="/users" class="active"`, "Onboarding invites", "Accounts apply only on this Hub")
 	// Systems & Cores: list | detail with tabs; the firmware tab is the default.
 	rec := c.get("/systems", nil)
-	contains(t, rec, `href="/systems" class="active"`, "Nintendo DS", "melonDS DS 1.4.0", "Included in the Player", "ARM7 BIOS", "ARM9 BIOS", "DS Firmware",
+	contains(t, rec, `href="/systems" class="active"`, "Nintendo DS", "No core installed", "Included in the Player", "ARM7 BIOS", "ARM9 BIOS", "DS Firmware",
 		"Search systems…", "● Ready", `aria-selected="true"`, `id="systems-list"`, `id="systems-detail"`, "Provided by the admin")
-	notContains(t, rec, "LATER", "Core package cache", "Reported by Players")
+	notContains(t, rec, "LATER", "Installed cores", "Reported by Players")
 	rec = c.get("/systems?sys=nds&tab=core", nil)
-	contains(t, rec, "melonds_ds", "windows-x86_64", "Core package cache", "Check source now", "No core packages known yet", `<option value="">any version</option>`,
-		"1.4.0 (not in source)", "File extensions", "3 files · see the Firmware tab")
+	contains(t, rec, "windows-x86_64", "Installed cores", "Available from the libretro buildbot", "Check source now", "No core installed",
+		"No further cores known for this system", "Libretro system", "File extensions", "3 files · see the Firmware tab")
 	contains(t, c.get("/systems?sys=nds&tab=clients", nil), "Reported by Players", "No client has reported yet")
 }
 
@@ -91,7 +91,7 @@ func TestAdminPagesCSRF(t *testing.T) {
 	tok := c.login()
 	u, _ := e.svc.CreateUser(bg, "max", "Max")
 	paths := []string{"/users/invites", "/users/" + u.ID + "/disable", "/users/" + u.ID + "/enable", "/users/" + u.ID + "/delete", "/clients/devices/" + uuid.NewString() + "/delete", "/users/invites/" + uuid.NewString() + "/revoke",
-		"/systems/nds/expected-version", "/systems/nds/firmware-mode", "/systems/nds/firmware/bios7/pin", "/systems/nds/firmware/bios7/remove",
+		"/systems/nds/cores/desmume/install", "/systems/nds/cores/desmume/update", "/systems/nds/cores/desmume/remove", "/systems/nds/cores/desmume/default", "/systems/nds/firmware-mode", "/systems/nds/firmware/bios7/pin", "/systems/nds/firmware/bios7/remove",
 		"/settings/appearance", "/settings/uploads", "/settings/security/renew-cert", "/library/rescan", "/cores/sync", "/settings/updates", "/settings/updates/check", "/settings/updates/install",
 		"/settings/network/listen_port", "/settings/network/listen_port/reset", "/settings/network/restart"}
 	for _, p := range paths {
@@ -285,7 +285,9 @@ func TestSettingsAppearanceAndUploadToggle(t *testing.T) {
 }
 
 func TestSystemsPageFirmwareFlow(t *testing.T) {
-	e := newEnv(t, true, nil)
+	bb := hubtest.NewBuildbot(t)
+	bb.AddCore(t, hubtest.BuildbotCore{ID: "desmume", SystemID: "nds", DisplayName: "Nintendo - DS (DeSmuME)"})
+	e := newEnvOpts(t, true, nil, func(o *hub.Options) { bb.Apply(o) })
 	c := e.client()
 	tok := c.login()
 	admin, _ := e.svc.VerifyPassword(bg, "admin", "secret-12345")
@@ -337,30 +339,29 @@ func TestSystemsPageFirmwareFlow(t *testing.T) {
 	rec = c.multipartPost("/systems/nds/firmware/bios7/upload", map[string]string{"_csrf": tok}, "", nil)
 	status(t, rec, 400)
 
-	// Expected version and reported clients.
+	// Reported clients, compared with the default core.
+	if _, err := e.svc.RefreshCatalog(bg); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.InstallCore(bg, "nds", "desmume"); err != nil {
+		t.Fatal(err)
+	}
 	dev := pairTestDevice(t, e, admin.ID, "Lena's gaming PC")
 	hs := func(ver string) {
 		t.Helper()
-		cores := []hub.CoreReport{{ID: "melonds_ds", Version: ver}}
+		cores := []hub.CoreReport{{ID: "desmume", Version: ver}}
 		if _, err := e.svc.Handshake(bg, dev, hub.HandshakeInput{Platform: "windows", Arch: "x86_64", PlayerVersion: "0.1.0",
 			ProtocolVersion: 1, MinProtocolVersion: 1, Cores: &cores}); err != nil {
 			t.Fatal(err)
 		}
 	}
-	hs("1.3.0")
+	hs("2026.10.01")
 	rec = c.get("/systems", nil)
 	contains(t, rec, "3 firmware", "✕ Not ready · 3 files missing or invalid", `<span class="count warn">1</span>`)
 	rec = c.get("/systems?tab=clients", nil)
-	contains(t, rec, "Lena&#39;s gaming PC", "Player 0.1.0 · melonDS DS 1.3.0", "▲ Core version mismatch · 1.4.0 expected", "launching stays allowed")
+	contains(t, rec, "Lena&#39;s gaming PC", "Player 0.1.0 · Nintendo - DS (DeSmuME) 2026.10.01", "▲ Core version mismatch · 2026.10.09 expected", "launching stays allowed")
 	notContains(t, rec, "✕ Core version mismatch") // a core mismatch only warns (ADR 0007 D3)
-	status(t, postTok(c, tok, "/systems/nds/expected-version", url.Values{"version": {"1.3.0"}}), 303)
-	contains(t, c.get("/systems?tab=clients", nil), "● compatible")
-	status(t, postTok(c, tok, "/systems/nds/expected-version", url.Values{"version": {""}}), 303)
-	if entry, _ := e.svc.GetRegistryEntry(bg, "nds"); entry.ExpectedCoreVersion != "" {
-		t.Fatalf("%+v", entry)
-	}
-	contains(t, c.get("/systems?tab=core", nil), `<option value="" selected>any version</option>`)
-	hs("9.9.9")
+	hs("2026.10.09")
 	contains(t, c.get("/systems?tab=clients", nil), "● compatible")
 	if _, err := e.svc.Handshake(bg, dev, hub.HandshakeInput{Platform: "windows", Arch: "x86_64", PlayerVersion: "0.1.0",
 		ProtocolVersion: 1, MinProtocolVersion: 1, Cores: &[]hub.CoreReport{}}); err != nil {
@@ -400,11 +401,13 @@ func TestSettingsCertificateExpiryWarning(t *testing.T) {
 	}
 }
 
-func TestSystemsPageCoreSource(t *testing.T) {
-	src := hubtest.NewCoreSource(t)
-	src.AddPackage(t, "melonds_ds", "1.4.0", "linux-x64", bytes.Repeat([]byte{1}, 2048))
-	src.AddPackage(t, "melonds_ds", "1.5.0", "linux-x64", bytes.Repeat([]byte{2}, 10))
-	e := newEnvOpts(t, true, nil, func(o *hub.Options) { src.Apply(o) })
+func TestSystemsPageCores(t *testing.T) {
+	bb := hubtest.NewBuildbot(t)
+	bb.AddCore(t, hubtest.BuildbotCore{ID: "desmume", SystemID: "nds", DisplayName: "Nintendo - DS (DeSmuME)", License: "GPLv2"})
+	bb.AddCore(t, hubtest.BuildbotCore{ID: "noods", SystemID: "nds", DisplayName: "Nintendo - DS (NooDS)", License: "GPLv3",
+		RequiredHWAPI: "OpenGL Core >= 3.2", Date: "2026-10-08"})
+	bb.AddCore(t, hubtest.BuildbotCore{ID: "azahar", SystemID: "3ds", DisplayName: "Nintendo - 3DS (Azahar)"})
+	e := newEnvOpts(t, true, nil, func(o *hub.Options) { bb.Apply(o) })
 	c := e.client()
 	tok := c.login()
 	ctx, cancel := context.WithCancel(context.Background())
@@ -426,28 +429,72 @@ func TestSystemsPageCoreSource(t *testing.T) {
 	}
 	wait(func() bool { return runs.Load() >= 1 })
 
+	// Nothing installed: the catalog cores of the system are offered, other systems' cores are not.
 	rec := c.get("/systems?tab=core", nil)
-	contains(t, rec, src.IndexURL(), "Last error", "none", "melonds_ds", "1.5.0", "GPL-3.0", "yes", "no",
-		`<option value="1.4.0" selected>1.4.0</option>`, `<option value="1.5.0">1.5.0</option>`, `<option value="">any version</option>`)
-	notContains(t, rec, "(not in source)", "LATER", "No core packages known yet")
+	contains(t, rec, bb.Server.URL+"/nightly", "Last error", "none", "Available from the libretro buildbot", "No core installed",
+		"Nintendo - DS (DeSmuME)", "GPLv2", "OpenGL Core &gt;= 3.2", "nightly 2026-10-08", "/systems/nds/cores/desmume/install", "/systems/nds/cores/noods/install",
+		"No FrameBeam profile", "Check source now", "3 core(s) in the catalog")
+	notContains(t, rec, "Azahar", "/cores/azahar/", "Update available")
 
-	// Changing the expected version downloads the newly selected version in the background.
-	status(t, postTok(c, tok, "/systems/nds/expected-version", url.Values{"version": {"1.5.0"}}), 303)
-	wait(func() bool {
-		p, err := e.svc.GetCorePackage(bg, "melonds_ds", "1.5.0", "linux-x64")
-		return err == nil && p.CachedFiles() == 2
-	})
+	// Install: redirect, the core is listed as installed default with its origin.
+	rec = postTok(c, tok, "/systems/nds/cores/desmume/install", nil)
+	if rec.Code != 303 || location(rec) != "/systems?sys=nds&tab=core&ok=coreinstalled" {
+		t.Fatalf("%d %q", rec.Code, location(rec))
+	}
+	rec = c.get("/systems?tab=core&ok=coreinstalled", nil)
+	contains(t, rec, "Core installed.", "Installed cores", "2026.10.09", "libretro buildbot, nightly 2026-10-09", "Default", "/systems/nds/cores/desmume/remove",
+		"Nintendo - DS (DeSmuME) 2026.10.09")
+	notContains(t, rec, "/cores/desmume/install", "/cores/desmume/default", "Update available") // the only core is the default
+	// The experimental core carries the badge once installed; Make default switches.
+	status(t, postTok(c, tok, "/systems/nds/cores/noods/install", nil), 303)
+	rec = c.get("/systems?tab=core", nil)
+	contains(t, rec, "No FrameBeam profile", "/systems/nds/cores/noods/default", "Graphics API: OpenGL Core &gt;= 3.2")
+	status(t, postTok(c, tok, "/systems/nds/cores/noods/default", nil), 303)
+	if entry, _ := e.svc.GetRegistryEntry(bg, "nds"); entry.CoreID != "noods" {
+		t.Fatalf("%+v", entry)
+	}
+	// Installing again, an unknown core or an unknown system.
+	rec = postTok(c, tok, "/systems/nds/cores/noods/install", nil)
+	status(t, rec, 400)
+	contains(t, rec, "already installed")
+	status(t, postTok(c, tok, "/systems/nds/cores/nothing/install", nil), 400)
+	if rec := postTok(c, tok, "/systems/nds/cores/desmume/update", nil); rec.Code != 400 {
+		t.Fatalf("update without newer build: %d", rec.Code)
+	}
+	if rec := postTok(c, tok, "/systems/snes/cores/desmume/default", nil); rec.Code != 303 || !strings.Contains(location(rec), "err=nocore") {
+		t.Fatalf("%d %q", rec.Code, location(rec))
+	}
 
-	// "Check source now": a CSRF-protected POST that triggers a sync; a failing source shows its error.
-	status(t, e.client().postForm("/cores/sync", url.Values{}, nil), 303) // not signed in: redirect to login, no sync
+	// A newer upstream build: "Check source now" refreshes in the background, then Update is offered.
+	for _, p := range []string{"linux-x64", "windows-x64"} {
+		suffix := map[string]string{"linux-x64": ".so", "windows-x64": ".dll"}[p]
+		bb.SetZip(p, "desmume", "2026-10-12", hubtest.MakeZip(t, map[string][]byte{"desmume_libretro" + suffix: []byte("newer dummy build")}))
+	}
 	n := runs.Load()
-	src.Down = true
 	rec = postTok(c, tok, "/cores/sync", nil)
 	if rec.Code != 303 || location(rec) != "/systems?ok=coresync" {
 		t.Fatalf("%d %q", rec.Code, location(rec))
 	}
 	wait(func() bool { return runs.Load() > n })
-	contains(t, c.get("/systems?tab=core&ok=coresync", nil), "Checking the core source", "Last error", "HTTP 503", "melonds_ds")
+	contains(t, c.get("/systems?tab=core&ok=coresync", nil), "Checking the libretro buildbot", "Update available · 2026-10-12", "/systems/nds/cores/desmume/update")
+	status(t, e.client().postForm("/cores/sync", url.Values{}, nil), 303) // not signed in: redirect to login, no sync
+	rec = postTok(c, tok, "/systems/nds/cores/desmume/update", nil)
+	if rec.Code != 303 || location(rec) != "/systems?sys=nds&tab=core&ok=coreupdated" {
+		t.Fatalf("%d %q", rec.Code, location(rec))
+	}
+	contains(t, c.get("/systems?tab=core", nil), "2026.10.12", "nightly 2026-10-12")
+	notContains(t, c.get("/systems?tab=core", nil), "Update available")
+
+	// Remove the default: the other core takes over; a failing source shows its error.
+	status(t, postTok(c, tok, "/systems/nds/cores/noods/remove", nil), 303)
+	if entry, _ := e.svc.GetRegistryEntry(bg, "nds"); entry.CoreID != "desmume" || len(entry.Cores) != 1 {
+		t.Fatalf("%+v", entry)
+	}
+	bb.Down = true
+	n = runs.Load()
+	status(t, postTok(c, tok, "/cores/sync", nil), 303)
+	wait(func() bool { return runs.Load() > n })
+	contains(t, c.get("/systems?tab=core&ok=coresync", nil), "Last error", "HTTP 503", "Nintendo - DS (NooDS)") // the old catalog stays
 }
 
 // ---- Settings: Updates ----

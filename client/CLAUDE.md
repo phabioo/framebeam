@@ -6,7 +6,7 @@ Details only as needed from `docs/architecture/` (index: `docs/architecture/READ
 - Library access, ROM/core/firmware cache (separate, ROM hash-based), save sync, Session manager, emulation, rendering incl. multiview, audio, encoder/decoder, input. See `01-overview.md`, `02-protocols-and-rom-cache.md`.
 
 ## Emulation
-- `EmulatorBackend` -> `LibretroBackend` (later possibly `StandaloneBackend`). Systems/cores are data-driven via manifests (e.g. `nds` -> `melonds_ds`), no console-specific launch logic.
+- `EmulatorBackend` -> `LibretroBackend` (later possibly `StandaloneBackend`). Systems and cores are data-driven (ADR 0020 D6): system manifests `emulation/manifests/systems/<system>.json` and core profiles `manifests/cores/<core_id>.json` (`melondsds`, `desmume`; cores without profile are experimental), core choice game > system > Hub default among the cores the Hub serves (`framebeam.core`), no console-specific launch logic. A save last written by another core/build is snapshotted on the Hub before the start (D7).
 - Core options dynamically from Libretro core options, no invented options. See `05-emulation.md`.
 - Hardware rendering (ADR 0013): offscreen OpenGL context per game on the emulation thread, Player-owned FBO, every frame read back into the XRGB8888 path; unavailable in the CLI, with `FRAMEBEAM_DISABLE_HW_RENDER=1` or if context creation fails (cores fall back to software). ADR 0019: while a Session is shared on NVIDIA the emulation thread also blits a Session encode texture and hands it to `emu::GpuEncodeTarget` (CUDA-GL interop; all interop calls on the emulation thread with GL current).
 - Settings are local: global -> system/core -> game override, partial overrides only. Controller profiles are local (`06-controllers.md`).
@@ -30,4 +30,4 @@ Details only as needed from `docs/architecture/` (index: `docs/architecture/READ
 
 ## Build targets (ADR 0003, 0006, 0007)
 - Targets: `framebeam_core` (core/ + network/ sources), `framebeam_emulation`, `framebeam_input` + `framebeam_sdl3` (input/), `framebeam_media` + `framebeam_audioutil` + `framebeam_media_deps` (media/), `framebeam_ui` (static lib, QML module `FrameBeam.Player`), executables `framebeam_player` (app/) and `framebeam_player_cli` (network/cli/). Qt >= 6.4, 6.4 API only, not via vcpkg.
-- Core path: CMake variable/environment `FRAMEBEAM_MELONDS_DS_CORE`; empty = tests with `NEEDS_CORE` are skipped. Never check in a core, ROM or BIOS.
+- Core path: CMake variable/environment `FRAMEBEAM_MELONDS_DS_CORE` (`FRAMEBEAM_DESMUME_CORE` for DeSmuME, test `emulation_core_desmume`); empty = tests with `NEEDS_CORE` are skipped. Never check in a core, ROM or BIOS.

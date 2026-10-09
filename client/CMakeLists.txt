@@ -40,6 +40,7 @@ set(CMAKE_AUTOMOC ON)
 # Path to the libretro core melonDS DS (.so/.dll), see scripts/fetch-melonds-ds.sh.
 # Empty: everything builds, tests with NEEDS_CORE are skipped by ctest (SKIP), not failed.
 set(FRAMEBEAM_MELONDS_DS_CORE "" CACHE FILEPATH "Path to the melonDS DS core library (.so/.dll)")
+set(FRAMEBEAM_DESMUME_CORE "" CACHE FILEPATH "Path to the DeSmuME core library (.so/.dll); empty = DeSmuME tests are skipped")
 
 include(CTest)
 
@@ -55,9 +56,10 @@ endfunction()
 # QtTest/plain test as executable test_<name>, ctest name <name>, runs with QT_QPA_PLATFORM=offscreen.
 # NEEDS_CORE: passes FRAMEBEAM_MELONDS_DS_CORE as an environment variable; if the core is not set,
 # the test ends with return code 77 (= SKIP). The test itself must then return 77.
+# NEEDS_DESMUME_CORE: same with FRAMEBEAM_DESMUME_CORE.
 set(FRAMEBEAM_TESTUTIL_DIR ${CMAKE_CURRENT_LIST_DIR}/testutil)
 function(framebeam_add_test name)
-  cmake_parse_arguments(ARG "NEEDS_CORE" "" "LIBS" ${ARGN})
+  cmake_parse_arguments(ARG "NEEDS_CORE;NEEDS_DESMUME_CORE" "" "LIBS" ${ARGN})
   if(NOT BUILD_TESTING)
     return()
   endif()
@@ -69,6 +71,10 @@ function(framebeam_add_test name)
   set(env "QT_QPA_PLATFORM=offscreen" "QT_QUICK_BACKEND=software")
   if(ARG_NEEDS_CORE)
     list(APPEND env "FRAMEBEAM_MELONDS_DS_CORE=${FRAMEBEAM_MELONDS_DS_CORE}")
+    set_tests_properties(${name} PROPERTIES SKIP_RETURN_CODE 77)
+  endif()
+  if(ARG_NEEDS_DESMUME_CORE)
+    list(APPEND env "FRAMEBEAM_DESMUME_CORE=${FRAMEBEAM_DESMUME_CORE}")
     set_tests_properties(${name} PROPERTIES SKIP_RETURN_CODE 77)
   endif()
   set_tests_properties(${name} PROPERTIES ENVIRONMENT "${env}")

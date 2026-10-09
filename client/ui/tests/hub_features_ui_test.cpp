@@ -369,14 +369,14 @@ class HubFeaturesUiTest : public QObject {
     }
   }
 
-  // The handshake reports the core id of the registry ("melonds_ds"), never "melonds".
+  // The handshake reports the core id of the registry ("melondsds" (offline default; ADR 0020)), never "melonds".
   void handshakeCoreId() {
     qputenv("FRAMEBEAM_MELONDS_DS_CORE", QCoreApplication::applicationFilePath().toLocal8Bit());
     Harness h;
     QVERIFY(h.start(/*probeCores=*/true));
     qunsetenv("FRAMEBEAM_MELONDS_DS_CORE");
     QCOMPARE(h.controller->handshakeCores().size(), 1);
-    QCOMPARE(h.controller->handshakeCores().first().id, QStringLiteral("melonds_ds"));
+    QCOMPARE(h.controller->handshakeCores().first().id, QStringLiteral("melondsds"));
   }
 
   // Settings page: Appearance Dark (default) | Light | System, persisted; the game view stays dark.

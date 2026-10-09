@@ -17,7 +17,7 @@
 //      errors invite_invalid / display_name_taken / rate_limited exit 1)
 //   game upload <file> [--title T]     (needs handshake feature uploads_v1; streamed; output lines
 //     OK game_id=... sha256=... | DUPLICATE existing_game_id=... (exit 0) | ERROR upload: <code> (exit 1))
-//   fetch-core <system-id>  (needs cores_v1; prints core_path=, core_source=download|cache, core_version=)
+//   fetch-core <system-id>  (needs cores_v1; fetches the default core; prints core_path=, core_source=download|cache, core_version=)
 //   systems     (needs firmware_v1; lines: "<system>\tmode=builtin|native\tcore=..." and "  <file>\trequired=..\tpresent=..")
 //   saves list | save push <game_id> <file> [--base N] [--reason checkpoint|final|final_session_end]
 //   save pull <game_id> <out> | save resolve <game_id> <conflict_id> use_hub|use_local --expected N
@@ -479,7 +479,8 @@ class Runner : public QObject {
         finish(1);
         return;
       }
-      if (sys->corePackageVersion.isEmpty()) {
+      const SystemCore core = sys->defaultCore();
+      if (core.version.isEmpty()) {
         err() << "ERROR fetch-core: not_on_hub (the Hub serves no core package for " << sys->preferredCoreId << ")\n";
         finish(1);
         return;
@@ -498,7 +499,7 @@ class Runner : public QObject {
         out().flush();
         nextFollowUp();
       });
-      coreProv_->prepare(sys->preferredCoreId, sys->corePackageVersion);
+      coreProv_->prepare(core.coreId, core.version);
     });
     systems_->reload();
   }

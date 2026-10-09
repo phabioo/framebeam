@@ -74,41 +74,50 @@ func TestRenewCertRefusesOwnCert(t *testing.T) {
 }
 
 func TestImportCores(t *testing.T) {
-	src := hubtest.NewCoreSource(t)
-	src.AddPackage(t, "melonds_ds", "1.4.0", "linux-x64", bytes.Repeat([]byte{7}, 64))
+	bb := hubtest.NewBuildbot(t)
+	bb.AddCore(t, hubtest.BuildbotCore{ID: "desmume", SystemID: "nds", Lib: bytes.Repeat([]byte{7}, 64)})
+	bb.AddCore(t, hubtest.BuildbotCore{ID: "azahar", SystemID: "3ds"})
 	in, data := t.TempDir(), t.TempDir()
-	idx, sig := src.Index()
-	os.WriteFile(filepath.Join(in, "cores-index.json"), idx, 0o644)
-	os.WriteFile(filepath.Join(in, "cores-index.json.sig"), sig, 0o644)
-	os.WriteFile(filepath.Join(in, "melonds_ds-1.4.0-linux-x64-melonds_ds.so"), bytes.Repeat([]byte{7}, 64), 0o644)
-	os.WriteFile(filepath.Join(in, "LICENSE.txt"), []byte("license of melonds_ds"), 0o644)
+	bb.WriteImportDir(t, in)
 
 	var out strings.Builder
-	// Without the test key: refused (only the compiled-in release key is trusted).
-	if err := runImportCores([]string{in, "-data-dir", data}, &out); err == nil || !strings.Contains(err.Error(), "is not trusted") {
-		t.Fatalf("err %v", err)
+	// A core of a system the Hub does not support is reported and makes the command fail, the others are imported.
+	// The directory may come before or after the flags.
+	err := runImportCores([]string{in, "-data-dir", data}, &out)
+	if err == nil || !strings.Contains(out.String(), "1 installed, 0 updated, 0 unchanged, 1 problem(s)") || !strings.Contains(out.String(), "azahar") {
+		t.Fatalf("err %v summary %q", err, out.String())
 	}
-	// Directory before or after the flags.
-	for _, args := range [][]string{{in, "-data-dir", data, "-core-trust-key", src.PublicKeyB64()},
-		{"-data-dir", data, "-core-trust-key", src.PublicKeyB64(), in}} {
-		out.Reset()
-		if err := runImportCores(args, &out); err != nil {
-			t.Fatal(err)
-		}
-		if !strings.Contains(out.String(), "1 package(s)") {
-			t.Fatalf("summary %q", out.String())
-		}
+	if _, err := os.Stat(filepath.Join(data, "cores", "desmume", "2026.10.09", "linux-x64", "desmume_libretro.so")); err != nil {
+		t.Fatal(err)
 	}
-	if !strings.Contains(out.String(), "2 already cached") {
+	if _, err := os.Stat(filepath.Join(data, "cores", "desmume", "2026.10.09", "windows-x64", "desmume_libretro.dll")); err != nil {
+		t.Fatal(err)
+	}
+	// Again: nothing changes. Without the 3ds core the command succeeds.
+	for _, p := range []string{"linux-x64", "windows-x64"} {
+		suffix := map[string]string{"linux-x64": ".so", "windows-x64": ".dll"}[p]
+		os.Remove(filepath.Join(in, p, "azahar_libretro"+suffix+".zip"))
+	}
+	out.Reset()
+	if err := runImportCores([]string{"-data-dir", data, in}, &out); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "0 installed, 0 updated, 1 unchanged, 0 problem(s)") {
 		t.Fatalf("second import: %q", out.String())
 	}
-	if _, err := os.Stat(filepath.Join(data, "cores", "melonds_ds", "1.4.0", "linux-x64", "melonds_ds.so")); err != nil {
-		t.Fatal(err)
+	// A corrupt zip is rejected with its reason.
+	bad := t.TempDir()
+	os.MkdirAll(filepath.Join(bad, "linux-x64"), 0o755)
+	os.WriteFile(filepath.Join(bad, "info.zip"), bb.InfoZip(t), 0o644)
+	os.WriteFile(filepath.Join(bad, "linux-x64", "desmume_libretro.so.zip"), hubtest.MakeZip(t, map[string][]byte{"../desmume_libretro.so": {1}}), 0o644)
+	out.Reset()
+	if err := runImportCores([]string{bad, "-data-dir", t.TempDir()}, &out); err == nil || !strings.Contains(out.String(), "unsafe path") {
+		t.Fatalf("err %v out %q", err, out.String())
 	}
 	if err := runImportCores([]string{"-data-dir", data}, &out); err == nil {
 		t.Fatal("missing directory accepted")
 	}
-	if err := runImportCores([]string{in, "-data-dir", data, "-core-trust-key", "bad"}, &out); err == nil {
-		t.Fatal("bad key accepted")
+	if err := runImportCores([]string{in, "-data-dir", data, "-core-buildbot-url", "http://x"}, &out); err == nil {
+		t.Fatal("http source accepted")
 	}
 }

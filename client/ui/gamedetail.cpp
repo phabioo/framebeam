@@ -266,6 +266,8 @@ QVariantMap GameDetail::selectedGame() const {
     m.insert(QStringLiteral("pillTone"), tone);
     m.insert(QStringLiteral("coreLabelText"), man != nullptr ? catalog_->coreLabel(*man, catalog_->locateCore(*man)) : QString());
     m.insert(QStringLiteral("coreVersionText"), man != nullptr ? coreVersions_.value(man->coreId) : QString());
+    m.insert(QStringLiteral("coreExperimental"), man != nullptr && man->experimental);
+    m.insert(QStringLiteral("coreNotice"), man != nullptr ? catalog_->coreNoticeFor(man->systemId, game->id) : QString());
   }
   return m;
 }

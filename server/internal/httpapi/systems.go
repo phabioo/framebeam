@@ -2,8 +2,10 @@ package httpapi
 
 import (
 	"context"
-	"net/http"
 	"strings"
+	"time"
+
+	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/phabioo/framebeam/server/internal/api"
 	"github.com/phabioo/framebeam/server/internal/hub"
@@ -17,17 +19,29 @@ func (s *Server) ListSystems(ctx context.Context, _ api.ListSystemsRequestObject
 	}
 	out := api.ListSystems200JSONResponse{Systems: make([]api.SystemInfo, 0, len(reg))}
 	for _, e := range reg {
+		cores := make([]api.SystemCore, 0, len(e.Cores))
+		for _, c := range e.Cores {
+			sc := api.SystemCore{CoreId: c.CoreID, DisplayName: c.DisplayName, Version: c.Version, License: c.License,
+				Experimental: c.Experimental, Origin: coreOrigin(c.Origin)}
+			if c.RequiredHWAPI != "" {
+				v := c.RequiredHWAPI
+				sc.RequiredHwApi = &v
+			}
+			if t, err := time.Parse("2006-01-02", c.BuildDate); err == nil {
+				sc.BuildDate = &openapi_types.Date{Time: t}
+			}
+			cores = append(cores, sc)
+		}
+		// preferred_core_id, expected_core_version and core_package_version describe the default core (old Players).
 		si := api.SystemInfo{Id: e.ID, DisplayName: e.Name, PreferredCoreId: e.CoreID, FirmwareMode: api.FirmwareMode(e.FirmwareMode),
-			Firmware: make([]api.FirmwareFile, 0, len(e.Firmware))}
+			Firmware: make([]api.FirmwareFile, 0, len(e.Firmware)), Cores: &cores}
+		if e.CoreID != "" {
+			id := e.CoreID
+			si.DefaultCoreId = &id
+		}
 		if e.ExpectedCoreVersion != "" {
 			v := e.ExpectedCoreVersion
 			si.ExpectedCoreVersion = &v
-		}
-		v, err := s.svc.CoreServedVersion(ctx, e.CoreID, e.ExpectedCoreVersion)
-		if err != nil {
-			return nil, err
-		}
-		if v != "" {
 			si.CorePackageVersion = &v
 		}
 		for _, f := range e.Firmware {
@@ -52,7 +66,7 @@ func (s *Server) GetCorePackage(ctx context.Context, req api.GetCorePackageReque
 		return nil, err
 	}
 	out := api.GetCorePackage200JSONResponse{CoreId: p.CoreID, Version: p.Version, Platform: api.CorePlatform(p.Platform),
-		License: p.License, SourceUrl: p.SourceURL, SourceRef: p.SourceRef, Files: make([]api.CorePackageFile, 0, len(p.Files))}
+		License: p.License, SourceUrl: p.SourceURL, SourceRef: p.SourceRef, Origin: ptr(coreOrigin(p.Origin)), Files: make([]api.CorePackageFile, 0, len(p.Files))}
 	for _, f := range p.Files {
 		out.Files = append(out.Files, api.CorePackageFile{Name: f.Name, Role: api.CorePackageFileRole(f.Role), Size: f.Size,
 			Sha256: f.SHA256, Available: f.Available})
@@ -87,31 +101,10 @@ func etagMatches(header, etag string) bool {
 	return false
 }
 
-// rawIndexResponse writes the index bytes unchanged: the signature covers exactly these bytes, so they must not
-// pass through a JSON encoder.
-type rawIndexResponse []byte
-
-func (r rawIndexResponse) VisitGetCoresIndexResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_, err := w.Write(r)
-	return err
-}
-
-// GetCoresIndex serves the raw bytes of the last verified core index (404 until one exists).
-func (s *Server) GetCoresIndex(_ context.Context, _ api.GetCoresIndexRequestObject) (api.GetCoresIndexResponseObject, error) {
-	data, _, err := s.svc.CoresIndex()
-	if err != nil {
-		return nil, err
+// coreOrigin maps a stored origin to the API enum: anything but the buildbot is a legacy FrameBeam package.
+func coreOrigin(o string) api.CoreOrigin {
+	if o == hub.OriginBuildbot {
+		return api.LibretroBuildbot
 	}
-	return rawIndexResponse(data), nil
-}
-
-// GetCoresIndexSignature serves the signature file of the last verified core index.
-func (s *Server) GetCoresIndexSignature(_ context.Context, _ api.GetCoresIndexSignatureRequestObject) (api.GetCoresIndexSignatureResponseObject, error) {
-	_, sig, err := s.svc.CoresIndex()
-	if err != nil {
-		return nil, err
-	}
-	return api.GetCoresIndexSignature200TextResponse(sig), nil
+	return api.Framebeam
 }

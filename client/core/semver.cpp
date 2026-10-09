@@ -83,6 +83,9 @@ CoreVersionVerdict coreVersionVerdict(const QString& coreVersion, const QString&
     return v.startsWith(QLatin1Char('v')) ? v.mid(1) : v;
   };
   if (strip(coreVersion) == strip(expected)) return CoreVersionVerdict::Compatible;
+  // Hub build ids (`2026.10.09`, `2026.10.10.2`, ADR 0020 D3) are dates, not semver: never a major-version block.
+  static const QRegularExpression buildId(QStringLiteral("^[0-9]{4}\\.[0-9]{2}\\.[0-9]{2}(\\.[0-9]+)?$"));
+  if (buildId.match(strip(coreVersion)).hasMatch() || buildId.match(strip(expected)).hasMatch()) return CoreVersionVerdict::Warn;
   const auto a = SemVer::parse(strip(coreVersion));
   const auto b = SemVer::parse(strip(expected));
   if (!a || !b) return CoreVersionVerdict::Warn;

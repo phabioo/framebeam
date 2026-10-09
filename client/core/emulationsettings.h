@@ -9,8 +9,11 @@ namespace framebeam {
 // Local emulation settings: <data>/settings/emulation.json (never hub-specific, never contains a secret).
 //
 //   { "global":  { "<key>": "<value>", ... },
-//     "systems": { "nds": { "core": "melonds_ds", "options": { "<key>": "<value>" } } },
+//     "systems": { "nds": { "options": { "<key>": "<value>" } } },
 //     "games":   { "<game id>": { "<key>": "<value>" } } }
+//
+// The core choice (ADR 0020 D6) is the FrameBeam key kCoreKey ("framebeam.core") at system level (options) and at game
+// level; effective core = game > system > the Hub's default core (see corechoice.h).
 //
 // Only explicit overrides are stored (partial, no full copies). Effective value =
 // game > system/core > global > manifest default > core default; removing a key restores inheritance.
@@ -18,6 +21,7 @@ namespace framebeam {
 // Unknown content of the file is preserved when saving. A missing or corrupted file yields no overrides.
 class EmulationSettings {
  public:
+  static constexpr const char* kCoreKey = "framebeam.core";  // core id chosen for a system / a game
   enum class Level { Global, System, Game };
   enum class Source { Game, System, Global, Manifest, Core };
 

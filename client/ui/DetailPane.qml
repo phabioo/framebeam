@@ -131,6 +131,17 @@ Rectangle {
                             font.pixelSize: Theme.fontSmall
                             elide: Text.ElideRight
                         }
+                        FbLabel {
+                            objectName: "detailCoreNotice"
+                            visible: (root.game.coreNotice || "") !== ""
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            Layout.preferredWidth: 1
+                            text: root.game.coreNotice || ""
+                            color: Theme.textMuted
+                            font.pixelSize: Theme.fontMeta
+                            wrapMode: Text.WordWrap
+                        }
                     }
                 }
 

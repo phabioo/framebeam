@@ -4,8 +4,6 @@
 #include <QNetworkReply>
 #include <QTimer>
 
-#include "coreindex.h"
-#include "updatesig.h"
 
 namespace framebeam {
 
@@ -89,66 +87,12 @@ void CoreProvisioner::onPackage(const HttpResult& r) {
   }
   pkg_ = *pkg;
   qCInfo(lcCores) << "package" << pkg_.coreId << pkg_.version << pkg_.platform << "files" << pkg_.files.size();
-  verifyIndex(generation_);
+  startDownloads();
 }
 
 void CoreProvisioner::startDownloads() {
   queue_ = pkg_.files;
   next();
-}
-
-// ADR 0012 D6: nothing is downloaded or installed before the package matches the signed index of the Hub.
-void CoreProvisioner::verifyIndex(quint64 gen) {
-  if (!conn_ || !conn_->hubHasFeature(QString::fromLatin1(kCoresIndexFeature))) {
-    qCWarning(lcCores) << "Hub does not advertise cores_index_v1: core" << pkg_.coreId << pkg_.version
-                       << "is not verified against the signed index (size and SHA-256 come from the Hub)";
-    startDownloads();
-    return;
-  }
-  const auto fetch = [this, gen](const QString& path, std::function<void(const HttpResult&)> then) {
-    QNetworkReply* reply = conn_ ? conn_->authorizedGet(path) : nullptr;
-    if (reply == nullptr) {
-      fail(QStringLiteral("download_failed"), QStringLiteral("Not connected to the Hub"));
-      return;
-    }
-    connect(reply, &QNetworkReply::finished, this, [this, reply, gen, then = std::move(then)]() {
-      const HttpResult r = HubHttp::resultOf(reply);
-      reply->deleteLater();
-      if (gen != generation_ || !busy_) {
-        return;
-      }
-      if (r.status == 401 && conn_) {
-        conn_->noteUnauthorized();
-      }
-      if (r.status == 404) {
-        fail(QStringLiteral("untrusted"), QStringLiteral("the Hub has no verified core index"));
-        return;
-      }
-      if (!r.ok()) {
-        fail(QStringLiteral("download_failed"),
-             r.networkError ? r.errorString : (r.apiErrorCode.isEmpty() ? QStringLiteral("HTTP %1").arg(r.status) : r.apiErrorCode));
-        return;
-      }
-      then(r);
-    });
-  };
-  fetch(QStringLiteral("/cores/index"), [this, gen, fetch](const HttpResult& idx) {
-    const QByteArray index = idx.body;
-    fetch(QStringLiteral("/cores/index.sig"), [this, gen, index](const HttpResult& sig) {
-      if (gen != generation_ || !busy_) {
-        return;
-      }
-      const QList<QByteArray> keys = keysOverridden_ ? trustedKeys_ : update::trustedKeysFromEnvironment();
-      const CoreIndexCheck check = verifyCorePackageAgainstIndex(index, sig.body, keys, pkg_);
-      if (!check.ok) {
-        qCWarning(lcCores) << "core untrusted" << pkg_.coreId << pkg_.version << check.error;
-        fail(QStringLiteral("untrusted"), check.error);
-        return;
-      }
-      qCInfo(lcCores) << "core index verified" << pkg_.coreId << pkg_.version << pkg_.platform;
-      startDownloads();
-    });
-  });
 }
 
 void CoreProvisioner::probeOtherPlatforms(quint64 gen, QStringList remaining) {
