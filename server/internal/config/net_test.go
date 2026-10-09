@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"flag"
 	"strings"
 	"testing"
 )
@@ -144,5 +145,39 @@ func TestValidateNet(t *testing.T) {
 	odd.Listen = ":443"
 	if err := change(odd, NetKeepRecent, "10"); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestNetSharingAndImportDir(t *testing.T) {
+	fs := flag.NewFlagSet("t", flag.ContinueOnError)
+	c := register(fs, func(string) string { return "" }, "linux")
+	if !c.NetworkSharing {
+		t.Fatal("network sharing defaults to on")
+	}
+	fs = flag.NewFlagSet("t", flag.ContinueOnError)
+	c = register(fs, func(k string) string {
+		if k == "FRAMEBEAM_NETWORK_SHARING" {
+			return "false"
+		}
+		return ""
+	}, "linux")
+	if c.NetworkSharing {
+		t.Fatal("env value ignored")
+	}
+	if err := fs.Parse([]string{"-network-sharing=true"}); err != nil || !c.NetworkSharing {
+		t.Fatal("flag must win over env")
+	}
+	dir := t.TempDir()
+	bad := c.ApplyNet(map[string]string{NetSharing: "false", NetImportDir: dir})
+	if len(bad) != 0 || c.NetworkSharing || c.ImportDir() != dir || c.NetValue(NetSharing) != "false" || c.NetValue(NetImportDir) != dir {
+		t.Fatalf("%v %v %q", bad, c.NetworkSharing, c.ImportDir())
+	}
+	if err := c.ValidateNet(NetImportDir); err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range []string{"relative", dir + "/nope"} {
+		if err := CheckImportDir(d); err == nil {
+			t.Fatalf("%q accepted", d)
+		}
 	}
 }

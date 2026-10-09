@@ -2,8 +2,12 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -24,11 +28,14 @@ const (
 	NetKeepRecent = "save_keep_recent"
 	NetKeepDaily  = "save_keep_daily"
 	NetKeepWeekly = "save_keep_weekly"
+	// NetSharing and NetImportDir belong to the local setup (0.9): "Network sharing" and "Import folder".
+	NetSharing   = "network_sharing"
+	NetImportDir = "import_dir"
 )
 
 // NetKeys lists all network settings in display order.
 var NetKeys = []string{NetListenPort, NetPublicHost, NetTURN, NetTURNPort, NetRelayPorts, NetRelayIP, NetICEServers,
-	NetKeepRecent, NetKeepDaily, NetKeepWeekly}
+	NetKeepRecent, NetKeepDaily, NetKeepWeekly, NetSharing, NetImportDir}
 
 // NetNeedsRestart reports whether a change of the setting only takes effect after a restart of the Hub.
 // Retention and external STUN servers apply live.
@@ -63,6 +70,10 @@ func NetLabel(key string) string {
 		return "Keep daily versions"
 	case NetKeepWeekly:
 		return "Keep weekly versions"
+	case NetSharing:
+		return "Network sharing"
+	case NetImportDir:
+		return "Import folder"
 	}
 	return key
 }
@@ -122,6 +133,10 @@ func (c *Config) NetValue(key string) string {
 		return strconv.Itoa(c.SaveKeepDaily)
 	case NetKeepWeekly:
 		return strconv.Itoa(c.SaveKeepWeekly)
+	case NetSharing:
+		return strconv.FormatBool(c.NetworkSharing)
+	case NetImportDir:
+		return c.ImportDir()
 	}
 	return ""
 }
@@ -182,6 +197,14 @@ func (c *Config) SetNet(key, raw string) error {
 			return err
 		}
 		c.ICEServers = l
+	case NetSharing:
+		b, err := strconv.ParseBool(raw)
+		if err != nil {
+			return netErr("%q is not on or off", raw)
+		}
+		c.NetworkSharing = b
+	case NetImportDir:
+		c.LibraryImportDir = strings.TrimSpace(raw)
 	case NetKeepRecent, NetKeepDaily, NetKeepWeekly:
 		n, err := strconv.Atoi(strings.TrimSpace(raw))
 		if err != nil || n < 0 {
@@ -289,6 +312,13 @@ func (c *Config) ValidateNet(key string) error {
 				return err
 			}
 		}
+	case NetSharing:
+		// Any value is fine; turning it off also switches the built-in TURN relay off while it is off.
+	case NetImportDir:
+		if c.LibraryImportDir == "" {
+			return nil // the default folder is created at startup
+		}
+		return CheckImportDir(c.LibraryImportDir)
 	case NetKeepRecent, NetKeepDaily, NetKeepWeekly:
 		for _, n := range []int{c.SaveKeepRecent, c.SaveKeepDaily, c.SaveKeepWeekly} {
 			if n < 0 || n > maxRetentionValue {
@@ -358,3 +388,24 @@ type NetError struct{ Msg string }
 func (e *NetError) Error() string { return e.Msg }
 
 func netErr(format string, a ...any) error { return &NetError{Msg: fmt.Sprintf(format, a...)} }
+
+// CheckImportDir checks that dir is an absolute path of an existing directory that this process can list. The
+// error text is meant for the web interface and the local API.
+func CheckImportDir(dir string) error {
+	if !filepath.IsAbs(dir) {
+		return netErr("The import folder must be an absolute path")
+	}
+	st, err := os.Stat(dir)
+	if err != nil || !st.IsDir() {
+		return netErr("The import folder does not exist or is not a directory")
+	}
+	f, err := os.Open(dir)
+	if err != nil {
+		return netErr("The Hub cannot read the import folder")
+	}
+	defer f.Close()
+	if _, err := f.Readdirnames(1); err != nil && !errors.Is(err, io.EOF) {
+		return netErr("The Hub cannot read the import folder")
+	}
+	return nil
+}

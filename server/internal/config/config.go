@@ -50,6 +50,9 @@ type Config struct {
 	SaveKeepRecent, SaveKeepDaily, SaveKeepWeekly int
 	// LibraryImportDir is the folder "Rescan folder" imports ROMs from (default <data-dir>/library-import; files are only read).
 	LibraryImportDir string
+	// NetworkSharing lets other devices reach the Hub. Off: the Hub listens on loopback only (127.0.0.1 and ::1) and
+	// the embedded TURN server stays off. Initial value only: once stored (Settings), the stored value wins.
+	NetworkSharing bool
 	// TURN switches on the embedded STUN/TURN server (ADR 0012 D2); it needs PublicHost.
 	TURN bool
 	// PublicHost is the DNS name (or IPv4) of the Hub's public address.
@@ -237,6 +240,11 @@ func register(fs *flag.FlagSet, getenv func(string) string, goos string) *Config
 		return updates.DefaultRequestDir
 	}()
 	fs.Var(trackedString{&c.UpdateRequestDir, &c.requestDirSet}, "update-request-dir", "directory for the update request file read by the root helper (FRAMEBEAM_HUB_UPDATE_REQUEST_DIR)")
+	sharing := true
+	if b, err := strconv.ParseBool(getenv("FRAMEBEAM_NETWORK_SHARING")); err == nil {
+		sharing = b
+	}
+	fs.BoolVar(&c.NetworkSharing, "network-sharing", sharing, "other devices may reach the Hub; false = loopback only, no TURN; initial value, the saved setting wins (FRAMEBEAM_NETWORK_SHARING)")
 	turn, _ := strconv.ParseBool(getenv("FRAMEBEAM_TURN"))
 	fs.BoolVar(&c.TURN, "turn", turn, "embedded STUN/TURN server for Sessions over the internet, needs -public-host (FRAMEBEAM_TURN)")
 	fs.StringVar(&c.PublicHost, "public-host", env("PUBLIC_HOST", ""), "DNS name or IPv4 of the Hub's public address, required with -turn (FRAMEBEAM_PUBLIC_HOST)")

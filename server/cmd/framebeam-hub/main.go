@@ -2,6 +2,7 @@
 //
 //	framebeam-hub [flags]                      start the server (API + info endpoint)
 //	framebeam-hub setup-admin -username <name> create the first admin (password from stdin)
+//	framebeam-hub grant-folder <path>          Windows: let the Hub service account read a folder (needs administrator)
 //	framebeam-hub renew-cert                   renew the self-generated TLS certificate now and exit
 //	framebeam-hub import-cores <dir>           import libretro buildbot core zips from a directory (offline) and exit
 //	framebeam-hub version [--json]             print the version (JSON: product, version, channel, commit, protocol versions)
@@ -45,6 +46,12 @@ func main() {
 	var err error
 	if len(args) > 0 && args[0] == "setup-admin" {
 		err = runSetupAdmin(args[1:], os.Stdin, os.Stdout)
+	} else if len(args) > 0 && args[0] == "grant-folder" {
+		err = runGrantFolder(args[1:], os.Stdout)
+		if errors.Is(err, errGrantUnsupported) {
+			fmt.Fprintln(os.Stderr, "not supported")
+			os.Exit(2)
+		}
 	} else if len(args) > 0 && args[0] == "renew-cert" {
 		err = runRenewCert(args[1:], os.Stdout)
 	} else if len(args) > 0 && args[0] == "import-cores" {
@@ -283,15 +290,27 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		return err
 	}
 	defer closeFn()
-	importDir := cfg.ImportDir()
-	if err := os.MkdirAll(importDir, 0o750); err != nil {
-		return fmt.Errorf("create library import folder: %w", err)
+	// Network sharing: the flag only seeds the stored setting once; afterwards the stored value wins.
+	if err := svc.SeedNetworkSharing(ctx, base.NetworkSharing); err != nil {
+		return fmt.Errorf("store network sharing: %w", err)
 	}
+	svc.SetLocalDefaults(hub.LocalDefaults{NetworkSharing: base.NetworkSharing, ImportDir: base.ImportDir()})
 	stored, err := svc.NetOverrides(ctx)
 	if err != nil {
 		return fmt.Errorf("read network settings: %w", err)
 	}
 	eff, issues := effectiveConfig(&base, stored, log)
+	importDir := eff.ImportDir()
+	if err := os.MkdirAll(importDir, 0o750); err != nil {
+		if eff.ImportDir() == base.ImportDir() {
+			return fmt.Errorf("create library import folder: %w", err)
+		}
+		log.Error("saved import folder cannot be used; using the default", "dir", importDir, "err", err)
+		importDir = base.ImportDir()
+		if err := os.MkdirAll(importDir, 0o750); err != nil {
+			return fmt.Errorf("create library import folder: %w", err)
+		}
+	}
 	svc.SetSaveRetention(eff.SaveKeepRecent, eff.SaveKeepDaily, eff.SaveKeepWeekly)
 	svc.SetICEServers(eff.ICEServers)
 	if has, err := svc.HasAdmin(ctx); err == nil && !has {
@@ -299,7 +318,9 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	}
 
 	webCfg := web.Config{UseTLS: eff.UseTLS()}
-	if eff.TURN {
+	if eff.TURN && !eff.NetworkSharing {
+		log.Info("built-in TURN relay stays off while Network sharing is off")
+	} else if eff.TURN {
 		ts, err := startTURN(ctx, &eff, svc, log)
 		switch {
 		case err == nil:
@@ -350,7 +371,12 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	}
 
 	// Listener: the effective (possibly saved) address, else the one from hub.env/flags.
-	ln, listenIssue, err := chooseListen(eff.Listen, base.Listen, func(addr string) (net.Listener, error) { return net.Listen("tcp", addr) })
+	listen := func(addr string) (net.Listener, error) { return net.Listen("tcp", addr) }
+	if !eff.NetworkSharing {
+		log.Info("Network sharing is off: listening on loopback only")
+		listen = listenLoopback
+	}
+	ln, listenIssue, err := chooseListen(eff.Listen, base.Listen, listen)
 	if err != nil {
 		return err
 	}
@@ -370,7 +396,7 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		return err
 	}
 	mux := http.NewServeMux()
-	httpapi.Register(mux, svc, log)
+	httpapi.Register(mux, svc, log, httpapi.WithRestart(requestRestart))
 	webSrv.Register(mux)
 
 	srv := &http.Server{
@@ -383,7 +409,7 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	srv.RegisterOnShutdown(webSrv.Shutdown) // end SSE streams so Shutdown does not wait for them
 	info := svc.Info()
 	log.Info("FrameBeam Hub started", "version", version.String(), "hub_id", info.HubID, "name", info.Name,
-		"listen", ln.Addr().String(), "tls", cfg.UseTLS(), "protocol_version", info.ProtocolVersion)
+		"listen", ln.Addr().String(), "network_sharing", eff.NetworkSharing, "tls", cfg.UseTLS(), "protocol_version", info.ProtocolVersion)
 
 	go svc.RunCleanup(ctx, time.Minute, func(err error) { log.Error("cleanup", "err", err) })
 	go svc.RunSaveSweep(ctx, 24*time.Hour, func(err error) { log.Error("save history sweep", "err", err) })

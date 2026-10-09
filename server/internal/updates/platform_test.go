@@ -48,7 +48,7 @@ func TestPlatformKindsInIndex(t *testing.T) {
 
 func TestInstallCommand(t *testing.T) {
 	name, args := InstallCommand("windows-amd64", `C:\p\a.msi`, `C:\p\msiexec.log`)
-	if name != "msiexec.exe" || strings.Join(args, " ") != `/i C:\p\a.msi /qn /norestart /l*v C:\p\msiexec.log` {
+	if name != "msiexec.exe" || strings.Join(args, " ") != `/i C:\p\a.msi /qn /norestart /l*v C:\p\msiexec.log ALLUSERS=1` {
 		t.Fatal(name, args)
 	}
 	name, args = InstallCommand("linux-amd64", "/p/a.deb", "/p/log")
@@ -108,7 +108,7 @@ func TestApplyStagedMSI(t *testing.T) {
 		t.Fatal(res, err)
 	}
 	c := fr.calls[0]
-	if len(c) != 7 || c[0] != "msiexec.exe" || c[1] != "/i" || c[3] != "/qn" || c[4] != "/norestart" || c[5] != "/l*v" || !fr.copyOK || string(fr.content) != string(f.debData) {
+	if len(c) != 8 || c[0] != "msiexec.exe" || c[1] != "/i" || c[3] != "/qn" || c[4] != "/norestart" || c[5] != "/l*v" || !fr.copyOK || string(fr.content) != string(f.debData) {
 		t.Fatalf("calls=%v", fr.calls)
 	}
 	if strings.HasPrefix(c[2], f.dir) || !strings.HasSuffix(c[2], ".msi") {

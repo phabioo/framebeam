@@ -48,7 +48,7 @@ func IsPackaged(platform, executable, requestDir string) bool {
 // InstallCommand is the privileged install command for the (private, verified) package copy.
 func InstallCommand(platform, pkgPath, logPath string) (name string, args []string) {
 	if isWindowsPlatform(platform) {
-		return "msiexec.exe", []string{"/i", pkgPath, "/qn", "/norestart", "/l*v", logPath}
+		return "msiexec.exe", []string{"/i", pkgPath, "/qn", "/norestart", "/l*v", logPath, "ALLUSERS=1"}
 	}
 	return "dpkg", []string{"-i", pkgPath}
 }
