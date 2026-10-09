@@ -52,6 +52,21 @@ framebeam_add_test(ui_emulation_controllers emulation_controllers_test.cpp ${FB_
 target_include_directories(test_ui_emulation_controllers PRIVATE ${FB_NETTEST_DIR})
 target_compile_definitions(test_ui_emulation_controllers PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
 
+# Controllers glyph sets, Button labels (Auto + override per device), drawn arrows, input test grid and layout at 1280 / 960
+# (SDL virtual joysticks, no core needed).
+framebeam_add_test(ui_controllers_glyphs controllers_glyphs_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
+  LIBS ${FB_UI_TEST_LIBS} framebeam_input framebeam_sdl3)
+target_include_directories(test_ui_controllers_glyphs PRIVATE ${FB_NETTEST_DIR})
+target_compile_definitions(test_ui_controllers_glyphs PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
+# Same test at devicePixelRatio 2 (icons are painted in device pixels; the arrows must stay equal). Own executable
+# (same source) so the CI rerun step finds test_<ctest name>.exe.
+framebeam_add_test(ui_controllers_glyphs_hidpi controllers_glyphs_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
+  LIBS ${FB_UI_TEST_LIBS} framebeam_input framebeam_sdl3)
+target_include_directories(test_ui_controllers_glyphs_hidpi PRIVATE ${FB_NETTEST_DIR})
+target_compile_definitions(test_ui_controllers_glyphs_hidpi PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
+set_tests_properties(ui_controllers_glyphs_hidpi PROPERTIES
+  ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_SCALE_FACTOR=2")
+
 # Save history, restore, snapshots, slot picker in the detail pane (no core needed).
 framebeam_add_test(ui_save_history save_history_ui_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
   LIBS ${FB_UI_TEST_LIBS})
