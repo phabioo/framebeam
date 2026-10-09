@@ -80,7 +80,9 @@ bool CoreCache::fileValid(const CorePackageInfo& pkg, const CorePackageFile& fil
   // a restored mtime keeps size + mtime identical. So the key also holds the metadata change time (ctime, which
   // every write bumps and user code cannot set back), and an entry is only recorded when the file had settled, i.e.
   // both timestamps lie at least memoSettleMs_ before this verification; a file touched more recently is re-hashed
-  // next time instead.
+  // next time instead. Limitation: on Windows Qt does not expose the real NTFS change time (metadataChangeTime()
+  // mirrors the mtime), so there a rewrite with a restored mtime and the same size is not detected; the settle window
+  // and the size/mtime comparison still hold on every platform.
   const qint64 mtime = fi.lastModified().toMSecsSinceEpoch();
   const qint64 ctime = fi.metadataChangeTime().toMSecsSinceEpoch();
   const auto it = memo_.constFind(p);
