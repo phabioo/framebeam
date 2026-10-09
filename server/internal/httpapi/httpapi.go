@@ -273,7 +273,7 @@ func (s *Server) PostHandshake(ctx context.Context, req api.PostHandshakeRequest
 		return nil, err
 	}
 	features := []string{hub.FeatureSavesV1, hub.FeatureSessionsV1, hub.FeatureUsersV1, hub.FeatureFirmwareV1, hub.FeatureCoresV1,
-		hub.FeatureSavesV2, hub.FeatureCoresIndexV1, hub.FeatureSavesV3, hub.FeatureSavesV4}
+		hub.FeatureSavesV2, hub.FeatureCoresV2, hub.FeatureSavesV3, hub.FeatureSavesV4}
 	if s.svc.TURNEnabled() {
 		features = append(features, hub.FeatureTURNV1)
 	}

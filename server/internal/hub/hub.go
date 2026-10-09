@@ -55,12 +55,16 @@ type Options struct {
 	ICEServers []string
 	// OwnerGrace is how long a Session survives the owner's dropped WSS connection (default 30 s; injectable for tests).
 	OwnerGrace time.Duration
-	// CoreIndexURL is the signed core index (default corepkg.DefaultIndexURL); the signature is at the same URL + ".sig".
-	CoreIndexURL string
-	// CoreTrustKeys are the trusted index signing keys (corepkg.TrustedKeys). Empty = no index is accepted.
+	// CoreBuildbotURL is the libretro buildbot nightly base URL (default https://buildbot.libretro.com/nightly), CoreInfoURL
+	// the core info archive (default https://buildbot.libretro.com/assets/frontend/info.zip). Both https only (ADR 0020).
+	CoreBuildbotURL, CoreInfoURL string
+	// CoreMaxLibraryBytes caps the extracted library of one core zip (default 1 GiB; zip bomb guard) and
+	// CoreMaxZipBytes the downloaded zip (default 512 MiB). Injectable for tests.
+	CoreMaxLibraryBytes, CoreMaxZipBytes int64
+	// CoreTrustKeys are the trusted signing keys of the updates index (corepkg.TrustedKeys). Empty = no index is accepted.
 	CoreTrustKeys []ed25519.PublicKey
-	// CoreHTTPClient fetches index and core files (injectable for tests); default: client with timeouts. Redirects
-	// are followed, https only.
+	// CoreHTTPClient fetches the core catalog, core zips and the updates index (injectable for tests); default:
+	// client with timeouts. Redirects are followed, https only.
 	CoreHTTPClient *http.Client
 	// UpdateIndexURL is the signed updates index (default updates.DefaultIndexURL; https or file://), fetched with
 	// CoreHTTPClient and verified with CoreTrustKeys.

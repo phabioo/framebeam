@@ -29,27 +29,26 @@ type clientView struct {
 	Blocking                                       bool // only an incompatible protocol blocks launching (ADR 0007 D3)
 }
 
-type versionOption struct {
-	Value, Label string
-	Selected     bool
+type coreInstalledView struct {
+	CoreID, Name, Version, License, Origin, Build, HWAPI, Platforms, UpdateDate string
+	Default, Experimental, Update                                               bool
 }
 
-type coreRowView struct {
-	CoreID, Version, Platform, Size, License string
-	Cached                                   string
-	Class                                    string
+type coreAvailView struct {
+	CoreID, Name, License, HWAPI, Platforms, BuildDate, Extensions, Notes string
+	Experimental, NonCommercial                                           bool
 }
 
 type coreSourceView struct {
 	URL, LastCheck, LastSuccess, LastError string
-	Skipped                                int
-	Rows                                   []coreRowView
+	Count                                  int
 }
 
 type systemView struct {
-	Versions                                                      []versionOption
+	Installed                                                     []coreInstalledView
+	Available                                                     []coreAvailView
 	ID, Name, CoreID, CoreName, Expected, Provisioning, Platforms string
-	Extensions, InputProfile, DisplayProfile, Mode                string
+	Extensions, InputProfile, DisplayProfile, Mode, LibretroIDs   string
 	Native                                                        bool
 	Firmware                                                      []fwView
 	Clients                                                       []clientView
@@ -122,18 +121,33 @@ func (s *Server) systemsBodyData(r *http.Request) (systemsBody, error) {
 			Provisioning: e.Provisioning, Platforms: strings.Join(e.Platforms, ", "), Extensions: strings.Join(e.Extensions, ", "),
 			InputProfile: e.InputProfile, DisplayProfile: e.DisplayProfile, Mode: string(e.FirmwareMode),
 			Native: e.FirmwareMode == hub.FirmwareNative}
-		vers, err := s.svc.CoreVersions(r.Context(), e.CoreID)
+		v.LibretroIDs = strings.Join(e.LibretroIDs, ", ")
+		sc, err := s.svc.SystemCores(r.Context(), e.ID)
 		if err != nil {
 			return systemsBody{}, err
 		}
-		v.Versions = append(v.Versions, versionOption{Value: "", Label: "any version", Selected: e.ExpectedCoreVersion == ""})
-		known := false
-		for _, ver := range vers {
-			known = known || ver == e.ExpectedCoreVersion
-			v.Versions = append(v.Versions, versionOption{Value: ver, Label: ver, Selected: ver == e.ExpectedCoreVersion})
+		for _, c := range sc.Installed {
+			cv := coreInstalledView{CoreID: c.CoreID, Name: c.DisplayName, Version: c.Version, License: c.License, HWAPI: c.RequiredHWAPI,
+				Default: c.Default, Experimental: c.Experimental, Update: c.UpdateAvailable, UpdateDate: c.UpdateDate,
+				Platforms: strings.Join(c.Platforms, ", "), Build: c.BuildDate}
+			if c.Origin == hub.OriginBuildbot {
+				cv.Origin = "libretro buildbot, nightly " + c.BuildDate
+			} else {
+				cv.Origin = "FrameBeam (retired signed source)"
+			}
+			if cv.License == "" {
+				cv.License = "unknown"
+			}
+			v.Installed = append(v.Installed, cv)
 		}
-		if e.ExpectedCoreVersion != "" && !known {
-			v.Versions = append(v.Versions, versionOption{Value: e.ExpectedCoreVersion, Label: e.ExpectedCoreVersion + " (not in source)", Selected: true})
+		for _, c := range sc.Available {
+			av := coreAvailView{CoreID: c.CoreID, Name: c.DisplayName, License: c.License, HWAPI: c.RequiredHWAPI, BuildDate: c.BuildDate,
+				Platforms: strings.Join(c.Platforms, ", "), Extensions: strings.Join(c.Extensions, ", "), Notes: strings.Join(c.Notes, " · "),
+				Experimental: c.Experimental, NonCommercial: c.NonCommercial}
+			if av.License == "" {
+				av.License = "unknown"
+			}
+			v.Available = append(v.Available, av)
 		}
 		for _, f := range e.Firmware {
 			fv := fwView{ID: f.ID, Name: f.DisplayName, Requirement: "optional", Expected: "—", Present: "—", State: string(f.State),
@@ -180,7 +194,7 @@ func (s *Server) systemsBodyData(r *http.Request) (systemsBody, error) {
 			if core == "" {
 				core = "not installed"
 			}
-			cv.Versions = "Player " + c.PlayerVersion + " · " + e.CoreName + " " + core
+			cv.Versions = "Player " + c.PlayerVersion + " · " + coreLabel(e.CoreName) + " " + core
 			switch c.Status {
 			case hub.ClientCompatible:
 				cv.OK, cv.StatusText = true, "compatible"
@@ -211,28 +225,12 @@ func (s *Server) systemsBodyData(r *http.Request) (systemsBody, error) {
 	if err != nil {
 		return systemsBody{}, err
 	}
-	b.Cores = coreSourceView{URL: src.URL, LastCheck: "never", LastSuccess: "never", LastError: src.LastError, Skipped: src.Skipped}
+	b.Cores = coreSourceView{URL: src.BuildbotURL, LastCheck: "never", LastSuccess: "never", LastError: src.LastError, Count: src.Cores}
 	if src.LastCheck != nil {
 		b.Cores.LastCheck = ago(*src.LastCheck, now)
 	}
 	if src.LastSuccess != nil {
 		b.Cores.LastSuccess = ago(*src.LastSuccess, now)
-	}
-	pkgs, err := s.svc.ListCorePackages(r.Context())
-	if err != nil {
-		return systemsBody{}, err
-	}
-	for _, p := range pkgs {
-		row := coreRowView{CoreID: p.CoreID, Version: p.Version, Platform: p.Platform, Size: humanBytes(p.TotalSize()), License: p.License}
-		switch n := p.CachedFiles(); {
-		case n == len(p.Files):
-			row.Cached, row.Class = "yes", "ok"
-		case n == 0:
-			row.Cached = "no"
-		default:
-			row.Cached, row.Class = fmt.Sprintf("partial (%d/%d)", n, len(p.Files)), "error dashed"
-		}
-		b.Cores.Rows = append(b.Cores.Rows, row)
 	}
 	return b, nil
 }
@@ -365,8 +363,38 @@ func (s *Server) systemResult(w http.ResponseWriter, r *http.Request, sess *sess
 	}
 }
 
-func (s *Server) systemVersion(w http.ResponseWriter, r *http.Request, sess *session) {
-	s.systemResult(w, r, sess, s.svc.SetExpectedCoreVersion(r.Context(), r.PathValue("id"), r.PostFormValue("version")), "version", tabCore)
+func coreLabel(name string) string {
+	if name == "" {
+		return "core"
+	}
+	return name
+}
+
+// coreResult is systemResult for the core actions; an unknown system or core is reported as such.
+func (s *Server) coreResult(w http.ResponseWriter, r *http.Request, sess *session, err error, ok string) {
+	if errors.Is(err, hub.ErrNotFound) {
+		http.Redirect(w, r, "/systems?sys="+url.QueryEscape(r.PathValue("id"))+"&tab=core&err=nocore", http.StatusSeeOther)
+		return
+	}
+	s.systemResult(w, r, sess, err, ok, tabCore)
+}
+
+func (s *Server) coreInstall(w http.ResponseWriter, r *http.Request, sess *session) {
+	_, err := s.svc.InstallCore(r.Context(), r.PathValue("id"), r.PathValue("core"))
+	s.coreResult(w, r, sess, err, "coreinstalled")
+}
+
+func (s *Server) coreUpdate(w http.ResponseWriter, r *http.Request, sess *session) {
+	_, err := s.svc.UpdateCore(r.Context(), r.PathValue("id"), r.PathValue("core"))
+	s.coreResult(w, r, sess, err, "coreupdated")
+}
+
+func (s *Server) coreRemove(w http.ResponseWriter, r *http.Request, sess *session) {
+	s.coreResult(w, r, sess, s.svc.RemoveCore(r.Context(), r.PathValue("id"), r.PathValue("core")), "coreremoved")
+}
+
+func (s *Server) coreDefault(w http.ResponseWriter, r *http.Request, sess *session) {
+	s.coreResult(w, r, sess, s.svc.SetDefaultCore(r.Context(), r.PathValue("id"), r.PathValue("core")), "coredefault")
 }
 
 func (s *Server) systemFirmwareMode(w http.ResponseWriter, r *http.Request, sess *session) {

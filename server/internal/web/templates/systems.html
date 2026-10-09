@@ -3,7 +3,7 @@
   {{range .Body.Systems}}
     <a class="sys-item{{if .Selected}} selected{{end}}" href="{{.Href}}" hx-get="{{.Href}}" hx-target="#systems-detail" hx-swap="outerHTML" hx-push-url="true"{{if .Selected}} aria-current="true"{{end}}>
       <span class="sys-item-text"><span class="sys-item-name">{{.Name}} <span class="mono">{{.ID}}</span></span>
-      <span class="sys-item-core">{{.CoreName}} {{if .Expected}}{{.Expected}}{{else}}any version{{end}}</span></span>
+      <span class="sys-item-core">{{if .CoreName}}{{.CoreName}} {{.Expected}}{{else}}no core installed{{end}}</span></span>
       <span class="pill {{.ChipClass}} sm">{{.ChipText}}</span>
     </a>
   {{else}}
@@ -17,13 +17,13 @@
 {{with .Body.Sel}}
   <header class="sys-head">
     <div><h2>{{.Name}} <span class="mono">{{.ID}}</span></h2>
-      <p class="sys-line">{{.CoreName}} {{if .Expected}}{{.Expected}}{{else}}any version{{end}} · {{.Provisioning}}</p></div>
+      <p class="sys-line">{{if .CoreName}}{{.CoreName}} {{.Expected}}{{else}}No core installed{{end}} · {{.Provisioning}}</p></div>
     <span class="pill {{.SummaryClass}} lg">{{.SummaryText}}</span>
   </header>
   <div class="tabs flush" role="tablist" aria-label="{{.Name}}">
     <a role="tab" class="tab{{if eq $.Body.Tab "firmware"}} selected{{end}}" aria-selected="{{if eq $.Body.Tab "firmware"}}true{{else}}false{{end}}" href="{{index $.Body.TabHrefs "firmware"}}" hx-get="{{index $.Body.TabHrefs "firmware"}}" hx-target="#systems-detail" hx-swap="outerHTML" hx-push-url="true">Firmware{{if .FwBad}} <span class="count error">{{.FwBad}}</span>{{end}}</a>
     <a role="tab" class="tab{{if eq $.Body.Tab "clients"}} selected{{end}}" aria-selected="{{if eq $.Body.Tab "clients"}}true{{else}}false{{end}}" href="{{index $.Body.TabHrefs "clients"}}" hx-get="{{index $.Body.TabHrefs "clients"}}" hx-target="#systems-detail" hx-swap="outerHTML" hx-push-url="true">Clients{{if .ClientsBad}} <span class="count{{if .ClientsBlocking}} error{{else}} warn{{end}}">{{.ClientsBad}}</span>{{end}}</a>
-    <a role="tab" class="tab{{if eq $.Body.Tab "core"}} selected{{end}}" aria-selected="{{if eq $.Body.Tab "core"}}true{{else}}false{{end}}" href="{{index $.Body.TabHrefs "core"}}" hx-get="{{index $.Body.TabHrefs "core"}}" hx-target="#systems-detail" hx-swap="outerHTML" hx-push-url="true">Core &amp; manifest</a>
+    <a role="tab" class="tab{{if eq $.Body.Tab "core"}} selected{{end}}" aria-selected="{{if eq $.Body.Tab "core"}}true{{else}}false{{end}}" href="{{index $.Body.TabHrefs "core"}}" hx-get="{{index $.Body.TabHrefs "core"}}" hx-target="#systems-detail" hx-swap="outerHTML" hx-push-url="true">Cores &amp; manifest</a>
   </div>
   <div class="tabpanel" role="tabpanel">
   {{if eq $.Body.Tab "firmware"}}
@@ -88,16 +88,9 @@
   {{else}}
     <div class="sys-cols">
       <div>
-        <div class="eyebrow">Core</div>
+        <div class="eyebrow">Cores</div>
         <dl class="kv">
-          <dt>Preferred core</dt><dd>{{.CoreName}} <span class="mono">{{.CoreID}}</span></dd>
-          <dt>Expected version</dt><dd>
-            <form class="inline" method="post" action="/systems/{{.ID}}/expected-version">
-              <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-              <select name="version" aria-label="Expected core version">{{range .Versions}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</select>
-              <button class="btn small" type="submit">Save</button>
-            </form>
-            <div class="help">Versions come from the core package source. "Any version" serves the newest cached one.</div></dd>
+          <dt>Default core</dt><dd>{{if .CoreName}}{{.CoreName}} <span class="mono">{{.CoreID}} {{.Expected}}</span>{{else}}none installed{{end}}</dd>
           <dt>Platforms</dt><dd class="mono">{{.Platforms}}</dd>
           <dt>Provisioning</dt><dd>{{.Provisioning}}</dd>
         </dl>
@@ -106,37 +99,75 @@
         <div class="eyebrow">Manifest</div>
         <dl class="kv">
           <dt>File extensions</dt><dd class="mono">{{.Extensions}}</dd>
+          <dt>Libretro system</dt><dd class="mono">{{.LibretroIDs}}</dd>
           <dt>Input profile</dt><dd class="mono">{{.InputProfile}}</dd>
           <dt>Display profile</dt><dd class="mono">{{.DisplayProfile}}</dd>
           <dt>BIOS / Firmware</dt><dd>{{.FirmwareHint}}</dd>
         </dl>
       </div>
     </div>
-    <section class="cache" aria-label="Core package cache">
-      <div class="eyebrow">Core package cache</div>
-      <p class="help">Signed core packages from the trusted source, cached on this Hub and downloaded by Players on demand. The Hub never runs cores.</p>
+    {{$sys := .}}
+    <section class="cache" aria-label="Installed cores">
+      <div class="eyebrow">Installed cores</div>
+      <p class="help">Installed cores are enabled for Players, which download them from this Hub. Nothing installs or updates by itself. The Hub never runs cores.</p>
+      {{if .Installed}}
+      <table class="list">
+        <thead><tr><th>Core</th><th>Version</th><th>License</th><th>Origin</th><th>Actions</th></tr></thead>
+        <tbody>
+        {{range .Installed}}
+        <tr>
+          <td><span class="strong">{{.Name}}</span> <span class="mono">{{.CoreID}}</span>
+            {{if .Default}}<span class="pill ok sm">Default</span>{{end}}
+            {{if .Experimental}}<span class="pill warn sm" title="The Player has no profile for this core: it runs without option defaults, as a single screen and without touch.">No FrameBeam profile</span>{{end}}
+            {{if .Update}}<span class="pill warn sm">Update available · {{.UpdateDate}}</span>{{end}}
+            {{if .HWAPI}}<div class="help">Graphics API: {{.HWAPI}}</div>{{end}}</td>
+          <td class="mono">{{.Version}}{{if .Build}}<div class="help">build {{.Build}}</div>{{end}}</td>
+          <td>{{.License}}</td>
+          <td>{{.Origin}}<div class="help mono">{{.Platforms}}</div></td>
+          <td>
+            <div class="fw-actions">
+            {{if .Update}}<form class="inline" method="post" action="/systems/{{$sys.ID}}/cores/{{.CoreID}}/update"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn small primary" type="submit">Update</button></form>{{end}}
+            {{if not .Default}}<form class="inline" method="post" action="/systems/{{$sys.ID}}/cores/{{.CoreID}}/default"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn small" type="submit">Make default</button></form>{{end}}
+            <form class="inline" method="post" action="/systems/{{$sys.ID}}/cores/{{.CoreID}}/remove"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn-link" type="submit">Remove</button></form>
+            </div>
+          </td>
+        </tr>
+        {{end}}
+        </tbody>
+      </table>
+      {{else}}<p class="empty">No core installed. Install one from the libretro buildbot below, or use <span class="mono">framebeam-hub import-cores</span> on an offline Hub.</p>{{end}}
+    </section>
+    <section class="cache" aria-label="Available cores">
+      <div class="eyebrow">Available from the libretro buildbot</div>
       <dl class="kv">
         <dt>Source</dt><dd class="mono">{{$.Body.Cores.URL}}</dd>
-        <dt>Last check</dt><dd>{{$.Body.Cores.LastCheck}}{{if ne $.Body.Cores.LastSuccess "never"}} · last success {{$.Body.Cores.LastSuccess}}{{end}}</dd>
+        <dt>Last check</dt><dd>{{$.Body.Cores.LastCheck}}{{if ne $.Body.Cores.LastSuccess "never"}} · last success {{$.Body.Cores.LastSuccess}}{{end}} · {{$.Body.Cores.Count}} core(s) in the catalog</dd>
         <dt>Last error</dt><dd>{{if $.Body.Cores.LastError}}<span class="status-err">{{$.Body.Cores.LastError}}</span>{{else}}none{{end}}</dd>
-        {{if $.Body.Cores.Skipped}}<dt>Skipped</dt><dd>{{$.Body.Cores.Skipped}} invalid package(s) in the source were ignored.</dd>{{end}}
       </dl>
       <form class="inline" method="post" action="/cores/sync">
         <input type="hidden" name="_csrf" value="{{$.CSRF}}">
         <input type="hidden" name="sys" value="{{.ID}}">
         <button class="btn small" type="submit">Check source now</button>
       </form>
-      {{if $.Body.Cores.Rows}}
+      {{if .Available}}
       <table class="list">
-        <thead><tr><th>Core</th><th>Version</th><th>Platform</th><th>Size</th><th>License</th><th>Cached</th></tr></thead>
+        <thead><tr><th>Core</th><th>License</th><th>Graphics API</th><th>Platforms</th><th></th></tr></thead>
         <tbody>
-        {{range $.Body.Cores.Rows}}
-        <tr><td class="mono">{{.CoreID}}</td><td class="mono">{{.Version}}</td><td class="mono">{{.Platform}}</td><td>{{.Size}}</td><td>{{.License}}</td>
-          <td><span class="pill {{.Class}}">{{.Cached}}</span></td></tr>
+        {{range .Available}}
+        <tr>
+          <td><span class="strong">{{.Name}}</span> <span class="mono">{{.CoreID}}</span>
+            {{if .Experimental}}<span class="pill warn sm" title="The Player has no profile for this core.">No FrameBeam profile</span>{{end}}
+            <div class="help">nightly {{.BuildDate}}{{if .Extensions}} · {{.Extensions}}{{end}}</div>
+            {{if .Notes}}<div class="help">{{.Notes}}</div>{{end}}</td>
+          <td>{{.License}}{{if .NonCommercial}} <span class="pill warn sm">non-commercial</span>{{end}}</td>
+          <td>{{if .HWAPI}}{{.HWAPI}}{{else}}software{{end}}</td>
+          <td class="mono">{{.Platforms}}</td>
+          <td><form class="inline" method="post" action="/systems/{{$sys.ID}}/cores/{{.CoreID}}/install"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn small primary" type="submit">Install</button></form></td>
+        </tr>
         {{end}}
         </tbody>
       </table>
-      {{else}}<p class="empty">No core packages known yet. Players download cores from this Hub once the source has been checked.</p>{{end}}
+      {{else}}<p class="empty">No further cores known for this system. Check the source to refresh the catalog.</p>{{end}}
     </section>
   {{end}}
   </div>

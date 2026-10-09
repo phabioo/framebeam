@@ -3,7 +3,7 @@
 //	framebeam-hub [flags]                      start the server (API + info endpoint)
 //	framebeam-hub setup-admin -username <name> create the first admin (password from stdin)
 //	framebeam-hub renew-cert                   renew the self-generated TLS certificate now and exit
-//	framebeam-hub import-cores <dir>           import signed core packages from a directory (offline) and exit
+//	framebeam-hub import-cores <dir>           import libretro buildbot core zips from a directory (offline) and exit
 //	framebeam-hub version [--json]             print the version (JSON: product, version, channel, commit, protocol versions)
 //	framebeam-hub update check [-channel c]    print the update selection as JSON
 //	framebeam-hub update stage [-channel c]    check, download, verify and stage the update, create the request file
@@ -79,7 +79,7 @@ func openService(ctx context.Context, cfg *config.Config) (*hub.Service, func(),
 		return nil, nil, err
 	}
 	svc, err := hub.Open(ctx, db, hub.Options{DataDir: cfg.DataDir, Name: cfg.Name, HubVersion: version.String(), ICEServers: cfg.ICEServers,
-		CoreIndexURL: cfg.CoreIndexURL, CoreTrustKeys: keys,
+		CoreBuildbotURL: cfg.CoreBuildbotURL, CoreInfoURL: cfg.CoreInfoURL, CoreTrustKeys: keys,
 		SaveKeepRecent: cfg.SaveKeepRecent, SaveKeepDaily: cfg.SaveKeepDaily, SaveKeepWeekly: cfg.SaveKeepWeekly,
 		UpdateIndexURL: cfg.UpdateIndexURL, UpdateRequestDir: cfg.UpdateRequestDir, UpdateChannel: version.Channel})
 	if err != nil {
@@ -167,8 +167,8 @@ func runRenewCert(args []string, out io.Writer) error {
 	return nil
 }
 
-// runImportCores verifies <dir>/cores-index.json (+ .sig) against the trusted keys like a sync and copies the
-// core files found in dir into the Hub cache (offline fallback). Restart is not needed.
+// runImportCores installs libretro buildbot core zips from a directory (<dir>/<platform>/<core>_libretro.<suffix>.zip,
+// optional <dir>/info.zip) into the Hub (offline fallback, ADR 0020 D8). Restart is not needed.
 func runImportCores(args []string, out io.Writer) error {
 	// The directory may come before or after the flags.
 	dir := ""
@@ -201,17 +201,13 @@ func runImportCores(args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(out, "Imported core packages from %s: %d package(s), %d file(s) copied, %d already cached, %d not found in the directory, %d rejected",
-		dir, sum.Packages, sum.Copied, sum.AlreadyCached, sum.Missing, sum.Rejected)
-	if sum.Skipped > 0 {
-		fmt.Fprintf(out, ", %d invalid package(s) skipped", sum.Skipped)
-	}
-	fmt.Fprintln(out)
+	fmt.Fprintf(out, "Imported cores from %s: %d installed, %d updated, %d unchanged, %d problem(s)\n",
+		dir, sum.Installed, sum.Updated, sum.Unchanged, len(sum.Problems))
 	for _, p := range sum.Problems {
 		fmt.Fprintln(out, "Rejected:", p)
 	}
-	if sum.Rejected > 0 {
-		return fmt.Errorf("%d file(s) did not match the signed index", sum.Rejected)
+	if len(sum.Problems) > 0 {
+		return fmt.Errorf("%d core(s) could not be imported", len(sum.Problems))
 	}
 	return nil
 }
@@ -231,6 +227,9 @@ func runServer(args []string) error {
 		return err
 	}
 	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
+	if cfg.CoreIndexURL != "" {
+		log.Warn("core-index-url is deprecated and ignored: cores come from the libretro buildbot (core-buildbot-url, ADR 0020)")
+	}
 	sigCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	ctx, cancelAll := context.WithCancel(sigCtx)
@@ -355,10 +354,10 @@ func runServer(args []string) error {
 		defer close(syncDone)
 		svc.RunCoreSync(ctx, 24*time.Hour, func(r hub.CoreSyncReport, err error) {
 			if err != nil {
-				log.Warn("core source sync failed", "err", err)
+				log.Warn("core catalog refresh failed", "err", err)
 				return
 			}
-			log.Info("core source synced", "packages", r.Packages, "skipped", r.Skipped, "downloaded", r.Downloaded)
+			log.Info("core catalog refreshed", "cores", r.Cores)
 		})
 	}()
 

@@ -59,7 +59,7 @@ func TestChooseListenFallsBackWhenSavedAddressFails(t *testing.T) {
 
 func TestEffectiveConfigPrecedence(t *testing.T) {
 	base := config.Config{Listen: ":8443", TURNPort: 3478, TURNRelayPorts: "49160-49199", SaveKeepRecent: 20, SaveKeepDaily: 30, SaveKeepWeekly: 26,
-		DataDir: "/x", CoreIndexURL: "https://example.org/i.json", UpdateIndexURL: "https://example.org/u.json", UpdateRequestDir: "/run/framebeam",
+		DataDir: "/x", CoreBuildbotURL: "https://example.org/n", CoreInfoURL: "https://example.org/i.zip", UpdateIndexURL: "https://example.org/u.json", UpdateRequestDir: "/run/framebeam",
 		ICEServers: []string{"stun:env.example.com:3478"}}
 	eff, issues := effectiveConfig(&base, map[string]string{config.NetListenPort: "9000", config.NetKeepRecent: "3"}, quietLog())
 	if len(issues) != 0 || eff.Listen != ":9000" || eff.SaveKeepRecent != 3 || eff.SaveKeepDaily != 30 || len(eff.ICEServers) != 1 {

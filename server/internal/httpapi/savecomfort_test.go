@@ -1,18 +1,14 @@
 package httpapi
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
 )
 
 func (s *sessEnv) putSave(d dev, slot string, base int, data []byte, reason string) *httptest.ResponseRecorder {
@@ -182,56 +178,13 @@ func TestSaveUpdatedPush(t *testing.T) {
 	wb.quiet("save_updated")
 }
 
-func TestCoresIndexEndpoints(t *testing.T) {
-	src := hubtest.NewCoreSource(t)
-	src.AddPackage(t, "melonds_ds", "1.4.0", "linux-x64", bytes.Repeat([]byte("core!"), 100))
-	s := newSessEnv(t, func(o *hub.Options) { src.Apply(o) })
-	d := s.device(s.anna.ID, "Anna PC")
-
-	// No verified index yet.
-	wantStatus(t, s.do("GET", "/api/v1/cores/index", nil, opt{token: d.tok}), 404, "core_package_not_found")
-	wantStatus(t, s.do("GET", "/api/v1/cores/index.sig", nil, opt{token: d.tok}), 404, "core_package_not_found")
-	wantStatus(t, s.do("GET", "/api/v1/cores/index", nil, opt{}), 401, "")
-	wantStatus(t, s.do("GET", "/api/v1/cores/index.sig", nil, opt{}), 401, "")
-
-	// A tampered index is not stored.
-	src.Tamper()
-	if _, err := s.svc.SyncCores(context.Background()); err == nil {
-		t.Fatal("tampered index accepted")
-	}
-	wantStatus(t, s.do("GET", "/api/v1/cores/index", nil, opt{token: d.tok}), 404, "core_package_not_found")
-	src.Publish(t)
-
-	if _, err := s.svc.SyncCores(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	idx, sig := src.Index()
-	rec := s.do("GET", "/api/v1/cores/index", nil, opt{token: d.tok})
-	wantStatus(t, rec, 200, "")
-	if !bytes.Equal(rec.Body.Bytes(), idx) || rec.Header().Get("Content-Type") != "application/json" {
-		t.Fatalf("index differs (%d bytes, want %d), type %q", rec.Body.Len(), len(idx), rec.Header().Get("Content-Type"))
-	}
-	rec = s.do("GET", "/api/v1/cores/index.sig", nil, opt{token: d.tok})
-	wantStatus(t, rec, 200, "")
-	if !bytes.Equal(rec.Body.Bytes(), sig) || !strings.HasPrefix(rec.Header().Get("Content-Type"), "text/plain") {
-		t.Fatalf("signature differs, type %q", rec.Header().Get("Content-Type"))
-	}
-	// The files are served from the data directory, not from memory: they survive in place.
-	if b, err := os.ReadFile(filepath.Join(s.svc.DataDir(), "cores", "index.json")); err != nil || !bytes.Equal(b, idx) {
-		t.Fatalf("index.json in the data dir: %v", err)
-	}
-	// "index" is not a core id: the package routes still work.
-	wantStatus(t, s.do("GET", "/api/v1/cores/melonds_ds/packages/1.4.0/linux-x64", nil, opt{token: d.tok}), 200, "")
-	wantStatus(t, s.do("GET", "/api/v1/cores/index/packages/1.4.0/linux-x64", nil, opt{token: d.tok}), 404, "core_package_not_found")
-}
-
 func TestHandshakeAndHelloAckAdvertiseSavesV2(t *testing.T) {
 	s := newSessEnv(t, nil)
 	d := s.device(s.admin.ID, "Desktop")
 	rec := s.do("POST", "/api/v1/handshake", handshakeBody(1, 1), opt{token: d.tok})
 	wantStatus(t, rec, 200, "")
 	f := strings.Join(decode[struct{ Features []string }](t, rec).Features, ",")
-	if !strings.Contains(f, "saves_v2") || !strings.Contains(f, "saves_v3") || !strings.Contains(f, "saves_v4") || !strings.Contains(f, "cores_index_v1") {
+	if !strings.Contains(f, "saves_v2") || !strings.Contains(f, "saves_v3") || !strings.Contains(f, "saves_v4") || !strings.Contains(f, "cores_v2") || strings.Contains(f, "cores_index_v1") {
 		t.Fatal(f)
 	}
 }

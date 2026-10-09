@@ -31,10 +31,10 @@ Usage: install-hub.sh [install|upgrade|uninstall|renew-cert|import-cores DIR|sta
   uninstall          Remove service and binary; keep config and data unless --purge.
   renew-cert         Renew the self-generated TLS certificate as the service user in the
                      service's data dir, then restart the service. Prints the new fingerprint.
-  import-cores DIR   Offline import of signed core packages (cores-index.json, its .sig and the
-                     files) from DIR as the service user into the service's data dir. The
-                     signature must match a trusted key (built in, or FRAMEBEAM_HUB_CORE_TRUST_KEYS
-                     in the service's env file). The service keeps running.
+  import-cores DIR   Offline import of libretro buildbot core zips from DIR as the service user
+                     into the service's data dir: DIR/<platform>/<core>_libretro.<suffix>.zip
+                     (platform linux-x64 or windows-x64), optionally DIR/info.zip and
+                     DIR/<platform>/.index-extended. The service keeps running.
   status             Show service status and URL.
 
 Options:
@@ -462,18 +462,14 @@ cmd_renew_cert() {
 }
 
 cmd_import_cores() {
-  local dir tmp tk
+  local dir tmp
   [ -n "$IMPORT_DIR" ] || die "import-cores needs a directory: install-hub.sh import-cores DIR"
   [ -d "$IMPORT_DIR" ] || die "not a directory: $IMPORT_DIR"
-  if [ ! -f "$IMPORT_DIR/cores-index.json" ] || [ ! -f "$IMPORT_DIR/cores-index.json.sig" ]; then
-    die "$IMPORT_DIR must contain cores-index.json and cores-index.json.sig"
-  fi
   [ -f "$ENV_FILE" ] || testmode || die "$ENV_FILE not found; is the Hub installed?"
   dir="$(effective_data_dir)"
-  tk="$(env_get FRAMEBEAM_HUB_CORE_TRUST_KEYS)"
   if testmode; then
     info "[dry-run] cp -a $IMPORT_DIR/. <tmp> (readable by $SVC_USER)"
-    info "[dry-run] runuser -u $SVC_USER -- env FRAMEBEAM_DATA_DIR=$dir ${tk:+FRAMEBEAM_HUB_CORE_TRUST_KEYS=<from env file> }$BIN_DEST import-cores <tmp>"
+    info "[dry-run] runuser -u $SVC_USER -- env FRAMEBEAM_DATA_DIR=$dir $BIN_DEST import-cores <tmp>"
     return 0
   fi
   [ -x "$BIN_DEST" ] || die "$BIN_DEST not found; is the Hub installed?"
@@ -483,11 +479,7 @@ cmd_import_cores() {
   cp -a "$IMPORT_DIR"/. "$tmp"/ || { rm -rf "$tmp"; die "cannot copy $IMPORT_DIR"; }
   chmod -R a+rX "$tmp"
   local rc=0
-  if [ -n "$tk" ]; then
-    runuser -u "$SVC_USER" -- env "FRAMEBEAM_DATA_DIR=$dir" "FRAMEBEAM_HUB_CORE_TRUST_KEYS=$tk" "$BIN_DEST" import-cores "$tmp" || rc=$?
-  else
-    runuser -u "$SVC_USER" -- env "FRAMEBEAM_DATA_DIR=$dir" "$BIN_DEST" import-cores "$tmp" || rc=$?
-  fi
+  runuser -u "$SVC_USER" -- env "FRAMEBEAM_DATA_DIR=$dir" "$BIN_DEST" import-cores "$tmp" || rc=$?
   rm -rf "$tmp"
   [ "$rc" = 0 ] || die "import-cores failed"
 }
