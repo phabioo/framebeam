@@ -72,6 +72,8 @@ Rectangle {
                 spacing: 18
 
                 RowLayout {
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
                     spacing: Theme.space16
                     Rectangle {
                         implicitWidth: 112
@@ -90,24 +92,32 @@ Rectangle {
                     }
                     ColumnLayout {
                         Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        Layout.preferredWidth: 1
                         Layout.alignment: Qt.AlignTop
                         spacing: Theme.space6
                         FbPill {
                             objectName: "detailPill"
+                            Layout.minimumWidth: 0
+                            Layout.maximumWidth: parent.width
                             tone: root.game.pillTone || "neutral"
                             text: root.game.pillText || ""
                         }
                         FbLabel {
                             objectName: "detailTitle"
                             Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            Layout.preferredWidth: 1
+                            wrapMode: Text.Wrap
                             text: root.game.title || ""
                             font.pixelSize: Theme.fontDetail
                             font.weight: Font.DemiBold
-                            wrapMode: Text.WordWrap
                         }
                         FbLabel {
                             objectName: "detailSystem"
                             Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            Layout.preferredWidth: 1
                             text: (root.game.coreVersionText || "") !== ""
                                   ? qsTr("%1 · %2 %3").arg(root.game.systemName || "").arg(root.game.coreLabelText || "").arg(root.game.coreVersionText)
                                   : ((root.game.coreLabelText || "") !== "" ? qsTr("%1 · %2").arg(root.game.systemName || "").arg(root.game.coreLabelText)
@@ -195,6 +205,7 @@ Rectangle {
                 // Start checklist
                 ColumnLayout {
                     Layout.fillWidth: true
+                    Layout.minimumWidth: 0
                     spacing: 10
                     Eyebrow { text: qsTr("Start") }
                     Repeater {
@@ -203,6 +214,7 @@ Rectangle {
                             id: step
                             required property var modelData
                             Layout.fillWidth: true
+                            Layout.minimumWidth: 0
                             spacing: 12
                             Item {
                                 Layout.preferredWidth: 18
@@ -272,6 +284,7 @@ Rectangle {
         FbButton {
             objectName: "playButton"
             Layout.fillWidth: true
+            Layout.minimumWidth: 0
             implicitHeight: 48
             kind: "primary"
             font.pixelSize: Theme.fontSection
@@ -285,6 +298,7 @@ Rectangle {
             objectName: "playShareButton"
             visible: root.player.sessions.available || root.game.running === true
             Layout.fillWidth: true
+            Layout.minimumWidth: 0
             implicitHeight: 44
             text: root.game.running === true ? qsTr("Quit game") : qsTr("Play and share Session")
             enabled: root.game.running === true || (root.game.canPlay === true && !root.confirming)

@@ -36,12 +36,12 @@ class LibrarySavesUiTest : public QObject {
     QTRY_COMPARE_WITH_TIMEOUT(h.controller->libraryState(), QStringLiteral("ready"), 8000);
   }
   // One game "Lumen Drift" (g1) with a save on the Hub.
-  static void oneGame(FakeHub& hub, const QStringList& features = kAllFeatures) {
+  static void oneGame(FakeHub& hub, const QStringList& features = kAllFeatures, const QString& title = QStringLiteral("Lumen Drift")) {
     const QByteArray rom = "homebrew-dummy-rom-lib";
     hub.hubId = kHubId;
     hub.features = features;
     hub.roms.insert(uitest::sha256Hex(rom), rom);
-    hub.games = QJsonObject{{QStringLiteral("games"), QJsonArray{uitest::gameJson(QStringLiteral("g1"), QStringLiteral("Lumen Drift"),
+    hub.games = QJsonObject{{QStringLiteral("games"), QJsonArray{uitest::gameJson(QStringLiteral("g1"), title,
                                                                                     uitest::sha256Hex(rom), rom.size())}}};
   }
   static QQuickItem* column(Harness& h) { return h.item("detailPane"); }
@@ -77,6 +77,19 @@ class LibrarySavesUiTest : public QObject {
       }
     }
     QVERIFY2(checked >= minChecked, qPrintable(QStringLiteral("only %1 of the named items are visible: the state under test is not shown").arg(checked)));
+  }
+  // Adds letter spacing to every item that has a font (stand-in for wider Windows fonts).
+  static void widenFonts(Harness& h, qreal spacing) {
+    QList<QQuickItem*> all{h.window->contentItem()};
+    for (int i = 0; i < all.size(); ++i) all.append(all.at(i)->childItems());
+    for (QQuickItem* it : std::as_const(all)) {
+      const QVariant fv = it->property("font");
+      if (fv.metaType() != QMetaType::fromType<QFont>()) continue;
+      QFont f = fv.value<QFont>();
+      if (f.letterSpacing() < 1.0) { f.setLetterSpacing(QFont::AbsoluteSpacing, spacing); it->setProperty("font", f); }
+    }
+    QQuickTest::qWaitForPolish(h.window);
+    QTest::qWait(60);
   }
   static void openSavesView(Harness& h) {
     QTRY_VERIFY_WITH_TIMEOUT(h.item("manageSavesLink") != nullptr && h.item("manageSavesLink")->isVisible(), 8000);
@@ -336,6 +349,35 @@ class LibrarySavesUiTest : public QObject {
     QVERIFY(shown(h, "saveActions"));
   }
 
+  void slotTabsStayReachableWithWideFonts() {
+    FakeHub hub(QStringLiteral("a"));
+    oneGame(hub);
+    hub.setHubSave(QStringLiteral("g1"), "cp-main");
+    hub.setHubSave(QStringLiteral("g1/speedrun-any-percent"), "cp-2");
+    hub.setHubSave(QStringLiteral("g1/chapter-2"), "cp-3");
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    SaveHistoryController* hist = h.controller->saveHistory();
+    QTRY_VERIFY_WITH_TIMEOUT(hist->available() && !hist->loading() && hist->slotCount() == 3, 8000);
+    openSavesView(h);
+    widenFonts(h, 8.0);
+    // Either every tab is fully inside the clipped row, or the compact switcher is shown; both reach every slot by click.
+    if (shown(h, "slotSwitcher")) {
+      QVERIFY(h.click("slotSwitcher"));
+      QTRY_VERIFY(shown(h, "slotMenu_chapter-2"));
+      QVERIFY(h.click("slotMenu_chapter-2"));
+      QTRY_COMPARE(hist->slot(), QStringLiteral("chapter-2"));
+    } else {
+      for (const char* t : {"slotTab_default", "slotTab_speedrun-any-percent", "slotTab_chapter-2"}) {
+        QVERIFY2(shown(h, t), t);
+        QVERIFY(h.click(t));
+      }
+    }
+    QVERIFY2(uitest::warningCount().load() == 0, "a click was lost (tab clipped?)");
+  }
+
   void slotSwitcherAboveThreeSlots() {
     FakeHub hub(QStringLiteral("a"));
     oneGame(hub);
@@ -558,7 +600,7 @@ class LibrarySavesUiTest : public QObject {
   // ---- Layout of the detail column at 1280 and 960 px ---------------------------------------------------------------
   void detailColumnLayoutAtNarrowAndWideWindows() {
     FakeHub hub(QStringLiteral("a"));
-    oneGame(hub);
+    oneGame(hub, kAllFeatures, QStringLiteral("Supercalifragilisticexpialidocious Adventures of the Remastered Deluxe Edition"));
     hub.setHubSave(QStringLiteral("g1"), "cp-1", QStringLiteral("dev-1"), QStringLiteral("Desktop-LivingRoom-With-A-Very-Long-Device-Name"));
     hub.addHistory(QStringLiteral("g1"), QStringLiteral("default"), "a", QStringLiteral("session_end"), QString(), QStringLiteral("Laptop-Office"));
     hub.addHistory(QStringLiteral("g1"), QStringLiteral("default"), "b", QStringLiteral("manual_snapshot"),
@@ -570,19 +612,7 @@ class LibrarySavesUiTest : public QObject {
     pair(h, hub);
     SaveHistoryController* hist = h.controller->saveHistory();
     QTRY_VERIFY_WITH_TIMEOUT(hist->available() && !hist->loading() && hist->slotCount() == 4 && hist->versionCount() == 3, 8000);
-    auto widen = [&h](bool wide) {
-      if (!wide) return;
-      QList<QQuickItem*> all{h.window->contentItem()};
-      for (int i = 0; i < all.size(); ++i) all.append(all.at(i)->childItems());
-      for (QQuickItem* it : std::as_const(all)) {
-        const QVariant fv = it->property("font");
-        if (fv.metaType() != QMetaType::fromType<QFont>()) continue;
-        QFont f = fv.value<QFont>();
-        if (f.letterSpacing() < 1.0) { f.setLetterSpacing(QFont::AbsoluteSpacing, 4.5); it->setProperty("font", f); }
-      }
-      QQuickTest::qWaitForPolish(h.window);
-      QTest::qWait(60);
-    };
+    auto widen = [&h](bool wide) { if (wide) widenFonts(h, 8.0); };
     // Second pass with wider glyphs (extra letter spacing on every item with a font), like the wider Windows fonts.
     for (const bool wide : {false, true}) for (const QSize size : {QSize(1280, 800), QSize(960, 600)}) {
       h.window->resize(size);
@@ -594,6 +624,14 @@ class LibrarySavesUiTest : public QObject {
       if (shown(h, "savesView")) QVERIFY(h.click("savesBack"));
       QTRY_VERIFY(shown(h, "saveSummary"));
       widen(wide);
+      {
+        // The header text must stay inside the column's content area (28 px margin), not just inside the column.
+        const QRectF cr = sceneRect(column(h));
+        for (const char* n : {"detailTitle", "detailSystem", "detailPill"}) {
+          const QRectF r = sceneRect(h.item(n));
+          QVERIFY2(r.right() <= cr.right() - 28 + 0.5, qPrintable(QStringLiteral("'%1' crosses the content margin (%2 > %3):%4").arg(QLatin1String(n)).arg(r.right()).arg(cr.right() - 28).arg(chainOf(h.item(n)))));
+        }
+      }
       checkInColumn(h, {"detailPane", "detailTitle", "detailPill", "detailSystem", "detailRowValue", "saveSummary", "saveCurrentRow", "saveSlotName",
                         "saveVersion", "saveMeta", "saveSyncPill", "saveCounts", "manageSavesLink", "playButton", "playShareButton"}, 12);
       if (QTest::currentTestFailed()) { qWarning("[uitest] overview layout failed at %s", qPrintable(what)); return; }

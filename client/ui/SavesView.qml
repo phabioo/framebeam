@@ -13,7 +13,8 @@ FocusScope {
     readonly property var game: player.selectedGame
     readonly property string syncKind: game.syncKind || "none"
     readonly property bool conflict: syncKind === "conflict"
-    readonly property bool tabsCollapsed: hist.slotCount > 3        // decision ad
+    // Decision ad: the switcher above three slots; also whenever the tabs would not fit the column (wide fonts), so no slot is clipped.
+    readonly property bool tabsCollapsed: hist.slotCount > 3 || (tabsFitProbe.needed > 0 && tabs.width > 0 && tabsFitProbe.needed > tabs.width)
     readonly property bool hasCurrent: hist.current.revision !== undefined
     readonly property bool uploadConfirming: hist.uploadRequest.path !== undefined
     readonly property bool uploadFailed: hist.uploadFailure.path !== undefined && !hist.uploading && !uploadConfirming
@@ -202,6 +203,35 @@ FocusScope {
                     Layout.minimumWidth: 0
                     implicitHeight: 30
                     readonly property bool changeable: !root.hist.gameRunning && !root.hist.busy
+                    // Invisible measurement of the natural tab widths (independent of the collapsed state)
+                    Item {
+                        id: tabsFitProbe
+                        visible: false
+                        property real sum: 0
+                        readonly property real needed: sum + newSlotLink.implicitWidth + 16
+                        Repeater {
+                            model: root.hist.slotOptions
+                            onCountChanged: Qt.callLater(tabsFitProbe.recalc)
+                            delegate: Text {
+                                required property var modelData
+                                required property int index
+                                textFormat: Text.StyledText
+                                text: modelData.label + (modelData.count > 0 ? " <font color='" + Theme.textFaint + "'>" + modelData.count + "</font>" : "")
+                                font.pixelSize: Theme.fontSmall
+                                font.weight: Font.DemiBold
+                                onImplicitWidthChanged: tabsFitProbe.recalc()
+                                Component.onCompleted: tabsFitProbe.recalc()
+                            }
+                        }
+                        function recalc() {
+                            let w = 0, n = 0
+                            for (let i = 0; i < children.length; ++i) {
+                                const c = children[i]
+                                if (c.implicitWidth !== undefined && c.text !== undefined) { w += Math.min(c.implicitWidth, 110); ++n }
+                            }
+                            sum = w + Math.max(0, n - 1) * 16
+                        }
+                    }
                     Row {
                         id: tabRow
                         visible: !root.tabsCollapsed
@@ -830,6 +860,8 @@ FocusScope {
                         anchors.margins: 14
                         spacing: 8
                         RowLayout {
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
                             spacing: 8
                             FbSpinner { size: 14 }
                             FbLabel {
