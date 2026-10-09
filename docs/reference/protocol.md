@@ -5,7 +5,7 @@ Shared protocol definition for Hub and Player: `protocol/openapi/framebeam.yaml`
 - Current `protocol_version`: **1** (integer, separate from product versions). Hub and Player each report `protocol_version` and `min_protocol_version`.
 - Compatibility: `Player.protocol_version < Hub.min_protocol_version` -> `player_too_old`; `Hub.protocol_version < Player.min_protocol_version` -> `hub_too_old`.
 - Error format: `{"error": {"code": <enum>, "message": string}}`. Auth: Bearer (`fba_` access token, 15 min, `fbd_` device credential, `fbp_` poll token).
-- Current OpenAPI spec version: 1.9.0 (history per milestone below). Handshake features: `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1` (only advertised when the caller may upload), `firmware_v1`, `cores_v1`, `turn_v1` (only with TURN on), `saves_v2`, `saves_v3`, `saves_v4`, `cores_v2` (`cores_index_v1` existed in 0.4 to 0.7 and was removed in 0.8).
+- Current OpenAPI spec version: 1.10.0 (history per milestone below). Handshake features: `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1` (only advertised when the caller may upload), `firmware_v1`, `cores_v1`, `turn_v1` (only with TURN on), `saves_v2`, `saves_v3`, `saves_v4`, `cores_v2`, `local_setup_v1`; `cores_index_v1` existed in 0.4 to 0.7 and was removed in 0.8.
 
 | Method | Path | Auth | operationId |
 |---|---|---|---|
@@ -41,6 +41,10 @@ Shared protocol definition for Hub and Player: `protocol/openapi/framebeam.yaml`
 | POST | `/api/v1/sessions/{session_id}/join` | Bearer | joinSession (`{viewer_id, permissions, ice_servers, turn_servers?}`; 409 `session_full` / `capability_missing` without H.264 decode) |
 | DELETE | `/api/v1/sessions/{session_id}/viewers/{viewer_id}` | Bearer (owner device or that viewer) | removeSessionViewer |
 | POST | `/api/v1/invites/redeem` | none | redeemInvite |
+| GET | `/api/v1/local/status` | none, loopback only | getLocalStatus (`local_setup_v1`) |
+| POST | `/api/v1/local/setup` | none, loopback only | localSetup (first admin plus pairing; 409 when an admin exists) |
+| POST | `/api/v1/local/pair` | none, loopback only | localPair (enabled admin credentials, else 401) |
+| PUT | `/api/v1/local/settings` | Bearer (admin), loopback only | updateLocalSettings |
 | POST | `/api/v1/games` | Bearer | uploadGame (raw body, 403 `uploads_disabled`) |
 | GET | `/api/v1/systems` | Bearer | listSystems |
 | GET | `/api/v1/systems/{system_id}/firmware/{file_id}` | Bearer | getFirmwareFile (ETag) |
@@ -85,3 +89,5 @@ The release feed of the updaters is specified in [update-index.md](update-index.
 0.7.x "Upload a save file" (OpenAPI 1.8.0, `protocol_version` stays 1). Added: handshake feature `saves_v4`; `uploadSaveFile` (`POST .../saves/{slot}/upload`): deliberate replacement of a slot's checkpoint with a file from outside the sync flow (for example a `.sav` from another emulator); it never creates a conflict, a stale `X-FrameBeam-Expected-Revision` returns 409 `save_conflict_stale`, an existing checkpoint is secured in the history first; `SaveSyncReason` `upload`, `SaveHistoryReason` `before_upload`; `save_updated` `reason` `upload`. The Hub web interface offers the same upload for admins.
 
 0.8 "Cores from the libretro buildbot" (OpenAPI 1.9.0, ADR 0020, `protocol_version` stays 1). Added: handshake feature `cores_v2`; optional `default_core_id` and `cores` (`SystemCore`: `core_id`, `display_name`, `version`, `license`, `experimental`, `required_hw_api`, `origin`, optional `build_date`) in `SystemInfo`; optional `origin` in `CorePackage`; core ids relaxed to `^[a-z0-9][a-z0-9_-]{0,63}$`. `preferred_core_id`, `expected_core_version` and `core_package_version` keep describing the default core for Players without `cores_v2`. Removed: `cores_index_v1`, `getCoresIndex`, `getCoresIndexSignature`. Packages from the buildbot carry no license file.
+
+0.9 "One installer" (OpenAPI 1.10.0, ADR 0021, `protocol_version` stays 1). Added: handshake feature `local_setup_v1`; loopback-only endpoints (other callers get 403, rate-limited like pairing): `GET /api/v1/local/status` (no auth: `admin_exists`, `network_sharing`, `import_dir`, `hub_version`), `POST /api/v1/local/setup` (no auth; creates the first admin and pairs the calling Player in one step, 409 when an admin exists), `POST /api/v1/local/pair` (no auth; pairs as an enabled admin with username and password, 401 otherwise), `PUT /api/v1/local/settings` (device token of an admin; `network_sharing`, `import_dir`; 400 `import_dir_unreadable`). Setup and pair answer with the credential payload of the normal pairing poll.

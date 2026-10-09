@@ -4,8 +4,16 @@ The FrameBeam Player (`client/`) connects to a Hub, keeps your library and saves
 
 ## Install
 
-- **Windows:** run the installer `framebeam-player-<version>-windows-x64-setup.exe` from the [GitHub releases](https://github.com/phabioo/framebeam/releases) (CI artifact `framebeam-player-windows-x64-setup`); the portable zip works too. Per-user install, no admin rights; the installer is unsigned (SmartScreen warning). Neither ships an emulator core: the Player downloads the core for a system from the Hub on first use. Installer details: [packaging.md](packaging.md).
+- **Windows:** run the installer from the [GitHub releases](https://github.com/phabioo/framebeam/releases): the MSI `framebeam.msi` (CI artifact `framebeam-windows-x64-msi`) or the `framebeam-player-<version>-windows-x64-setup.exe` that installs it; the portable zip works too. The default is a per-user Player install, no admin rights; an existing Inno install is replaced and its data kept. The installer is unsigned (SmartScreen warning). Neither ships an emulator core: the Player downloads the core for a system from the Hub on first use. Installer details: [packaging.md](packaging.md).
 - **Linux:** builds and runs for development ([development.md](../development.md)). Credentials are kept in memory only, so pair again after a restart.
+
+## Set up a Hub on this PC
+
+On the connection screen, "Set up a Hub on this PC" runs a Hub on the same computer without a pairing code ([ADR 0021](../adr/0021-one-windows-installer.md)):
+
+1. If no local Hub is installed, the Player downloads the MSI of its own version, checks size and SHA-256 and runs it elevated (UAC prompt) with the Hub feature. The Player then moves to Program Files; its data is copied once from the old portable folder and never overwritten.
+2. You choose an admin name and password; the Player creates the first admin and pairs over localhost. The certificate is trusted automatically only for `127.0.0.1` on the registered port. With an existing local Hub, "Connect" asks for an admin's credentials instead.
+3. Standalone mode: network sharing starts off, so the Hub listens only on this PC. Pick a ROM folder (the Hub's import folder; the Player asks for admin rights once to give the Hub service read access) and "Rescan folder" in the Library. Switch "Network sharing" on under Settings > Hubs ("This PC's Hub") or in the Hub web settings to let other Players connect. Cores come from the libretro buildbot through this Hub.
 
 ## Connect and pair
 
