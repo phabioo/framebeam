@@ -8,6 +8,7 @@
 #include <QGuiApplication>
 #include <QLocale>
 #include <QPointer>
+#include <QTimer>
 #include <QUrl>
 #include <QVariantMap>
 #include <algorithm>
@@ -34,6 +35,23 @@ SaveHistoryController::SaveHistoryController(const Env& env, QObject* parent) : 
     }
   });
   connect(env_.connection, &HubConnection::stateChanged, this, [this]() { refresh(); });
+  // Checkpoints uploaded while the game runs: the live saves view follows.
+  connect(env_.saves, &SaveSync::uploaded, this, [this](const QString& id, int) {
+    if (id == gameId_ && !busy_) {
+      refresh();
+    }
+  });
+}
+
+void SaveHistoryController::setLiveMode(bool on) {
+  if (liveMode_ != on) {
+    liveMode_ = on;
+    recomputeBlock();
+  }
+}
+
+bool SaveHistoryController::liveApply() const {
+  return liveMode_ && gameRunning() && env_.saves->liveApplyAvailable(gameId_, slot());
 }
 
 bool SaveHistoryController::slotsAvailable() const { return env_.saves->available(); }
@@ -113,7 +131,7 @@ void SaveHistoryController::recomputeBlock() {
   if (gameId_.isEmpty()) {
     why.clear();
   } else if (gameRunning()) {
-    why = tr("This game is running on this Player. Quit it to restore a version.");
+    why = liveApply() ? env_.saves->liveBlockReason(gameId_, slot()) : tr("This game is running on this Player. Quit it to restore a version.");
   } else if (env_.saves->available()) {
     why = env_.saves->pendingReason(gameId_, slot());
   }
@@ -162,6 +180,8 @@ void SaveHistoryController::setGame(const QString& gameId) {
   uploadRequest_.clear();
   deleteRequest_.clear();
   uploadFailure_.clear();
+  conflictOpen_ = conflictLoading_ = conflictBusy_ = false;
+  conflictInfo_.clear();
   current_.clear();
   slotVersionCounts_.clear();
   lastRefresh_ = QDateTime();
@@ -659,6 +679,111 @@ void SaveHistoryController::onSaveUpdated(const SaveUpdate& u, bool runningHere)
                   .arg(u.deviceName.isEmpty() ? (u.deviceId == QLatin1String("00000000-0000-0000-0000-000000000000") ? tr("Hub web interface") : tr("another device")) : u.deviceName);
     emit changed();
   }
+}
+
+void SaveHistoryController::openConflict() {
+  if (busy_ || gameId_.isEmpty() || !env_.saves->available()) {
+    return;
+  }
+  cancelRestore();
+  cancelDelete();
+  cancelUploadFile();
+  conflictOpen_ = true;
+  conflictLoading_ = true;
+  conflictInfo_.clear();
+  message_.clear();
+  emit changed();
+  const QString game = gameId_;
+  const QString slotName = slot();
+  QPointer<SaveHistoryController> self(this);
+  env_.saves->loadSlotConflict(game, slotName, env_.localFileName ? env_.localFileName(game) : QString(),
+                               [self, game, slotName](const SaveSync::SlotConflict& c) {
+                                 if (!self || self->gameId_ != game || !self->conflictOpen_) {
+                                   return;
+                                 }
+                                 using O = SaveSync::SlotConflict::Outcome;
+                                 self->conflictLoading_ = false;
+                                 if (c.kind != O::Found) {
+                                   self->conflictOpen_ = false;
+                                   self->setMessage(c.kind == O::None ? tr("The conflict was already resolved elsewhere. The list was refreshed.") : c.message,
+                                                    c.kind != O::None);
+                                   self->refresh();
+                                   return;
+                                 }
+                                 const SaveSync::ConflictView& v = c.view;
+                                 const QLocale loc;
+                                 self->conflictInfo_ = QVariantMap{
+                                     {QStringLiteral("slot"), slotName},
+                                     {QStringLiteral("local"),
+                                      QVariantMap{{QStringLiteral("device"), v.localDeviceName},
+                                                  {QStringLiteral("when"), v.localModified.isValid() ? formatWhen(v.localModified) : tr("no file")},
+                                                  {QStringLiteral("size"), c.localSize},
+                                                  {QStringLiteral("sizeText"), c.localExists ? loc.formattedDataSize(c.localSize) : QStringLiteral("–")},
+                                                  {QStringLiteral("exists"), c.localExists}}},
+                                     {QStringLiteral("hub"),
+                                      QVariantMap{{QStringLiteral("device"), v.conflict.hubDeviceName},
+                                                  {QStringLiteral("when"), formatWhen(v.conflict.hubCreatedAt)},
+                                                  {QStringLiteral("size"), c.hubSize},
+                                                  {QStringLiteral("sizeText"), c.hubSize > 0 ? loc.formattedDataSize(c.hubSize) : QStringLiteral("–")},
+                                                  {QStringLiteral("revisionText"), QStringLiteral("r%1").arg(v.conflict.hubRevision)}}}};
+                                 emit self->changed();
+                               });
+}
+
+void SaveHistoryController::closeConflict() {
+  if (conflictBusy_) {
+    return;
+  }
+  if (conflictOpen_) {
+    conflictOpen_ = false;
+    conflictLoading_ = false;
+    conflictInfo_.clear();
+    emit changed();
+  }
+}
+
+void SaveHistoryController::resolveConflict(const QString& action) {
+  if (!conflictOpen_ || conflictLoading_ || conflictBusy_ || busy_ || conflictInfo_.isEmpty()) {
+    return;
+  }
+  const bool useHub = action == QLatin1String("use_hub");
+  if (!useHub && action != QLatin1String("use_local")) {
+    return;
+  }
+  conflictBusy_ = true;
+  busy_ = true;
+  emit changed();
+  const QString game = gameId_;
+  const QString slotName = slot();
+  QPointer<SaveHistoryController> self(this);
+  env_.saves->resolveSlotConflict(
+      game, slotName, useHub ? SaveSync::Resolution::UseHub : SaveSync::Resolution::UseLocal,
+      env_.localFileName ? env_.localFileName(game) : QString(), [self, useHub](const SaveSync::RestoreResult& r) {
+        if (!self) {
+          return;
+        }
+        using O = SaveRestoreResult::Outcome;
+        self->conflictBusy_ = false;
+        self->busy_ = false;
+        if (r.ok()) {
+          self->conflictOpen_ = false;
+          self->conflictInfo_.clear();
+          const QString done = useHub ? tr("Conflict resolved: the Hub save is now current here. Your device's save was backed up locally first.")
+                                      : tr("Conflict resolved: this device's save is now the current save on the Hub.");
+          self->setMessage(r.message.isEmpty() ? done : done + QLatin1Char(' ') + r.message, false);
+        } else if (r.kind == O::Stale || r.kind == O::NotFound) {
+          self->conflictOpen_ = false;
+          self->conflictInfo_.clear();
+          self->setMessage(r.message, true);
+          if (r.kind == O::Stale) {
+            QTimer::singleShot(0, self, [self]() { self->openConflict(); });  // shows the new state of the Hub
+          }
+        } else {
+          self->setMessage(r.message, true);  // the panel stays open: try again or choose the other side
+        }
+        self->recomputeBlock();
+        self->refresh();
+      });
 }
 
 void SaveHistoryController::dismissMessage() {

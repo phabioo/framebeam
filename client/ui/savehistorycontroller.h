@@ -44,6 +44,16 @@ class SaveHistoryController : public QObject {
   // Pending delete confirmation: {} = none, else {version, versionText, label, slot}.
   Q_PROPERTY(QVariantMap deleteRequest READ deleteRequest NOTIFY changed)
   // A restore, delete or upload confirmation is open or an upload runs: "Play" is disabled (decision af).
+  // In the saves view inside the game: restore and upload may load the save into the running core (see SaveSync live hooks).
+  Q_PROPERTY(bool liveMode READ liveMode WRITE setLiveMode NOTIFY changed)
+  // liveMode and the running core can take a new save: restore / upload restart the game from that save.
+  Q_PROPERTY(bool liveApply READ liveApply NOTIFY changed)
+  // Inline conflict resolution (no game start): open, loading the Hub side, resolving, and both sides once loaded:
+  // {slot, local: {device, when, size, sizeText, exists}, hub: {device, when, size, sizeText, revisionText}}.
+  Q_PROPERTY(bool conflictOpen READ conflictOpen NOTIFY changed)
+  Q_PROPERTY(bool conflictLoading READ conflictLoading NOTIFY changed)
+  Q_PROPERTY(bool conflictBusy READ conflictBusy NOTIFY changed)
+  Q_PROPERTY(QVariantMap conflictInfo READ conflictInfo NOTIFY changed)
   Q_PROPERTY(bool confirmationOpen READ confirmationOpen NOTIFY changed)
   Q_PROPERTY(bool uploading READ uploading NOTIFY changed)
   // Last failed upload (retry possible): {} or {path, fileName}.
@@ -113,7 +123,16 @@ class SaveHistoryController : public QObject {
   QString lastSynced() const;
   bool canDeleteSnapshot() const;
   QVariantMap deleteRequest() const { return deleteRequest_; }
-  bool confirmationOpen() const { return !restoreRequest_.isEmpty() || !deleteRequest_.isEmpty() || !uploadRequest_.isEmpty() || uploading_; }
+  bool confirmationOpen() const {
+    return !restoreRequest_.isEmpty() || !deleteRequest_.isEmpty() || !uploadRequest_.isEmpty() || uploading_ || conflictOpen_;
+  }
+  bool liveMode() const { return liveMode_; }
+  void setLiveMode(bool on);
+  bool liveApply() const;
+  bool conflictOpen() const { return conflictOpen_; }
+  bool conflictLoading() const { return conflictLoading_; }
+  bool conflictBusy() const { return conflictBusy_; }
+  QVariantMap conflictInfo() const { return conflictInfo_; }
   bool uploading() const { return uploading_; }
   QVariantMap uploadFailure() const { return uploadFailure_; }
 
@@ -150,6 +169,11 @@ class SaveHistoryController : public QObject {
   Q_INVOKABLE void openSaveFolder();
   Q_INVOKABLE void createSnapshot(const QString& label);        // detail pane
   Q_INVOKABLE void createSnapshotInGame(const QString& label);  // running game: uploads a changed save first
+  // Save conflict of the slot, resolved here without starting the game: openConflict() reads both sides, then
+  // resolveConflict("use_local" | "use_hub"); "use_hub" makes a local backup of this device's save first.
+  Q_INVOKABLE void openConflict();
+  Q_INVOKABLE void closeConflict();
+  Q_INVOKABLE void resolveConflict(const QString& action);
   Q_INVOKABLE void dismissMessage();
   Q_INVOKABLE void dismissNotice();
 
@@ -187,6 +211,11 @@ class SaveHistoryController : public QObject {
   bool offline_ = false;
   bool uploading_ = false;
   bool lastBusy_ = false;
+  bool liveMode_ = false;
+  bool conflictOpen_ = false;
+  bool conflictLoading_ = false;
+  bool conflictBusy_ = false;
+  QVariantMap conflictInfo_;
 };
 
 }  // namespace framebeam::ui

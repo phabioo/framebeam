@@ -10,6 +10,7 @@
 #include <QMap>
 #include <QMutex>
 #include <QObject>
+#include <functional>
 #include <QWaitCondition>
 
 #include <atomic>
@@ -56,6 +57,13 @@ class EmulationRunner : public QObject {
   void pause();
   void resume();
   void reset();
+  // Runs `fn` on the emulation thread between two frames (also while paused) and waits for it (GUI thread). false: the
+  // thread is not running, stopped meanwhile, or did not get to it within `timeoutMs` (then `fn` never runs).
+  bool runOnEmuThread(std::function<void(EmulatorBackend&)> fn, int timeoutMs = 3000);
+  // Writes the battery save to its file now if it changed (blocking). Without it the file lags up to ~3 s.
+  bool flushSaveNow();
+  // Whether the running core's battery save memory has exactly `size` bytes (blocking).
+  bool saveMemoryAccepts(qint64 size);
   // Blocks until the emulation thread has finished and the core is unloaded; then stopped().
   void stop();
 

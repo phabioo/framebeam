@@ -51,6 +51,7 @@ class LibretroBackend final : public EmulatorBackend {
   // Battery save (RETRO_MEMORY_SAVE_RAM) <-> <save dir>/<game basename>.sav: loaded after the game loads,
   // written when changed (about every 3 s while running, on pause and before unloading), atomically.
   void flushSave() override;
+  qint64 saveMemorySize() const override;
   // GUI thread, before the emulation thread starts: creates the offscreen surface for hardware rendering.
   void prepareForStart() override;
 
@@ -139,6 +140,7 @@ class LibretroBackend final : public EmulatorBackend {
   QByteArray m_corePathUtf8;
   QByteArray m_gameData;  // lives until unloadGame (the core may hold pointers)
   QByteArray m_gamePathUtf8;
+  QString m_loadedPath;  // path of the loaded game (for the live save reload)
 
   std::unique_ptr<HwRenderContext> m_hw;
   // Core's hardware callbacks (copied from retro_hw_render_callback).

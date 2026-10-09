@@ -1,6 +1,7 @@
 #include "gamesession.h"
 
 #include <QDir>
+#include <QSaveFile>
 #include <QThread>
 
 #include "screenlayout.h"
@@ -29,6 +30,7 @@ void GameSession::setState(State s) {
 
 void GameSession::fail(const QString& msg) {
   error_ = msg;
+  restarting_ = false;
   const bool before = !startedEmitted_;
   teardown();
   setState(Failed);
@@ -38,17 +40,23 @@ void GameSession::fail(const QString& msg) {
   }
 }
 
-void GameSession::start(const LaunchConfig& config) {
+void GameSession::start(const LaunchConfig& config) { launch(config, false); }
+
+void GameSession::launch(const LaunchConfig& config, bool restart) {
   teardown();
+  config_ = config;
+  restarting_ = restart;
   setState(Starting);
   error_.clear();
   emit errorChanged();
-  frame_ = QImage();
-  frameNr_ = 0;
-  emit frameChanged();
-  startedEmitted_ = false;
-  title_ = config.title;
-  emit titleChanged();
+  if (!restart) {  // a restart keeps the last picture and the title: the game screen stays as it is
+    frame_ = QImage();
+    frameNr_ = 0;
+    emit frameChanged();
+    title_ = config.title;
+    emit titleChanged();
+  }
+  startedEmitted_ = restart;  // a failure after a restart is a runtime error of a game that was already running
   display_ = config.display;
   coreOptions_ = config.coreOptions;
   coreName_.clear();
@@ -77,7 +85,11 @@ void GameSession::start(const LaunchConfig& config) {
     }
     startedEmitted_ = true;
     setState(Running);
-    emit started();
+    if (restarting_) {
+      restarting_ = false;  // same game, same Session: no new "started" (save session, Session share stay as they are)
+    } else {
+      emit started();
+    }
   });
   connect(r, &EmulationRunner::startFailed, this, [this](const QString& e) { fail(e); });
   connect(r, &EmulationRunner::errorOccurred, this, [this](const QString& e) { fail(e); });
@@ -98,7 +110,7 @@ void GameSession::start(const LaunchConfig& config) {
     }
     if (s == EmulationRunner::State::Paused) {
       setState(Paused);
-    } else if (s == EmulationRunner::State::Running && startedEmitted_) {
+    } else if (s == EmulationRunner::State::Running && startedEmitted_ && !restarting_) {
       setState(Running);
     }
   });
@@ -209,7 +221,36 @@ void GameSession::reset() {
   }
 }
 
+bool GameSession::liveSaveAccepts(qint64 size) {
+  return runner_ && (state_ == Running || state_ == Paused) && runner_->saveMemoryAccepts(size);
+}
+
+void GameSession::flushLiveSave() {
+  if (runner_ && (state_ == Running || state_ == Paused)) {
+    runner_->flushSaveNow();
+  }
+}
+
+// A live save is a full game restart, the same path as Quit + Start: the running core is stopped (its normal stop flushes
+// the old save to the file), only then the new save is written, and the game is started again (prepareForStart on this
+// thread, fresh worker, core load, load game, load save). The core is never reloaded in place: unload_game + load_game
+// inside one retro_init (with GL context teardown) is not something cores like melonDS survive.
+bool GameSession::restartWithSave(const QString& saveFile, const QByteArray& data) {
+  if (!runner_ || !(state_ == Running || state_ == Paused) || saveFile.isEmpty() || config_.gamePath.isEmpty()) return false;
+  const LaunchConfig cfg = config_;
+  teardown();  // blocks until the core is unloaded and the old save is flushed
+  bool written = false;
+  {
+    QSaveFile f(saveFile);
+    written = f.open(QIODevice::WriteOnly) && f.write(data) == data.size() && f.commit();
+  }
+  if (!written) qWarning() << "Live save: the new save file could not be written, the game restarts with the old save";
+  launch(cfg, true);
+  return written;
+}
+
 void GameSession::stop() {
+  restarting_ = false;
   const bool wasActive = state_ != Idle;
   teardown();
   setState(Idle);

@@ -4,6 +4,7 @@
 #include <QTemporaryDir>
 #include <QtTest>
 
+#include "emulation_runner.h"
 #include "libretro_backend.h"
 
 #ifndef Q_OS_WIN
@@ -84,6 +85,41 @@ class SaveRamTest : public QObject {
     QCOMPARE(b.size(), 1);
     QCOMPARE(readFile(saveDir() + QLatin1Char('/') + b.first()), QByteArray("ABCDEFGHIJ"));
     QCOMPARE(readFile(save()).size(), 8);
+  }
+
+  // A live save is a full restart (GameSession::restartWithSave): stop flushes the old memory, the new file is written
+  // afterwards, a fresh runner and backend start the game and load the new file. The old memory must not come back.
+  void liveSaveIsAStopWriteStartRestart() {
+    writeFile(save(), QByteArray("ABCDEFGH"));
+    qputenv("FB_FAKE_SRAM_SIZE", "8");
+    qputenv("FB_FAKE_SRAM_DELAY_FRAMES", "0");
+    qputenv("FB_FAKE_SRAM_WRITE", "9");  // the "game" keeps writing 9 into byte 0 every frame
+    EmulationRunner::StartRequest req;
+    req.corePath = QStringLiteral(FB_FAKE_CORE_PATH);
+    req.gamePath = game();
+    req.systemDir = dir_.filePath(QStringLiteral("sys"));
+    req.saveDir = saveDir();
+    {
+      EmulationRunner runner(std::make_unique<LibretroBackend>());
+      QImage last;
+      connect(&runner, &EmulationRunner::frameReady, this, [&last](const QImage& img, quint64) { last = img; });
+      runner.start(req);
+      QTRY_VERIFY_WITH_TIMEOUT(runner.state() == EmulationRunner::State::Running && !last.isNull(), 5000);
+      QVERIFY(runner.saveMemoryAccepts(8));
+      QVERIFY(!runner.saveMemoryAccepts(9));
+      runner.stop();  // flushes the old memory ("\tBCDEFGH")
+    }
+    QCOMPARE(readFile(save()), QByteArray("\tBCDEFGH"));
+    writeFile(save(), QByteArray("12345678"));  // written only after the stop
+    {
+      EmulationRunner runner(std::make_unique<LibretroBackend>());
+      QImage last;
+      connect(&runner, &EmulationRunner::frameReady, this, [&last](const QImage& img, quint64) { last = img; });
+      runner.start(req);
+      QTRY_VERIFY_WITH_TIMEOUT(runner.state() == EmulationRunner::State::Running && !last.isNull(), 5000);
+            runner.stop();
+    }
+    QCOMPARE(readFile(save()), QByteArray("\t2345678"));  // only the game's own write on top of the new save
   }
 
   void unreadableFileIsNeverOverwritten() {

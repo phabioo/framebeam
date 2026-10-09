@@ -6,9 +6,16 @@ import FrameBeam.Player
 // Saves mode of the Library detail column (3c-3, 3c-4): back row, slot tabs or switcher, CURRENT bar, snapshot / upload
 // actions with inline confirmations, and the HISTORY timeline (SaveRow). Reuses SaveHistoryController for everything the
 // Hub does; the column stays 392 wide and Play / Play and share Session stay pinned below (DetailPane).
+//
+// Also used inside the game (GamePanel, inGame: true): the game keeps running; snapshots, history, delete, restore and
+// upload work live (restore / upload load the save into the running core and restart the game from it); slots cannot
+// be changed while the game runs. "Resolve conflict" opens the inline conflict resolution in both places (it never
+// starts the game).
 FocusScope {
     id: root
     required property PlayerController player
+    property bool inGame: false              // shown inside the game panel (live)
+    property string backTitle: ""            // "← <backTitle>"; default: the game title (Library)
     readonly property SaveHistoryController hist: player.saveHistory
     readonly property var game: player.selectedGame
     readonly property string syncKind: game.syncKind || "none"
@@ -24,12 +31,19 @@ FocusScope {
     property bool detailsOpen: false
     property bool pathPromptOpen: false
     property string newSlotError: ""
+    readonly property bool live: inGame && hist.liveApply   // restore / upload restart the running game from the save
     signal back()
 
     objectName: "savesView"
     readonly property bool historyAvailable: hist.available   // Hub advertises saves_v2 (history, restore, snapshots)
 
+    // Only the saves view inside the game may load a save into the running core; the Library view never touches it.
+    onInGameChanged: if (root.hist) root.hist.liveMode = root.inGame
+    Component.onCompleted: if (root.inGame) hist.liveMode = true
+    Component.onDestruction: if (root.inGame && root.hist) root.hist.liveMode = false
+
     function cancelAll() {
+        hist.closeConflict()
         hist.cancelRestore()
         hist.cancelDelete()
         hist.cancelUploadFile()
@@ -79,13 +93,62 @@ FocusScope {
     }
 
     Keys.onEscapePressed: (event) => {
-        if (hist.restoreRequest.version !== undefined) hist.cancelRestore()
+        if (hist.conflictOpen) hist.closeConflict()
+        else if (hist.restoreRequest.version !== undefined) hist.cancelRestore()
         else if (hist.deleteRequest.version !== undefined) hist.cancelDelete()
         else if (root.uploadConfirming) hist.cancelUploadFile()
         else if (root.newSlotOpen) root.newSlotOpen = false
         else if (root.snapshotOpen) root.snapshotOpen = false
         else root.back()
         event.accepted = true
+    }
+
+    // One side of the conflict: who saved it, when, how big.
+    component ConflictSide: Rectangle {
+        id: side
+        property string title: ""
+        property var info: ({})
+        Layout.fillWidth: true
+        Layout.minimumWidth: 0
+        implicitHeight: sideCol.implicitHeight + 20
+        radius: Theme.radius7
+        color: Theme.bg
+        ColumnLayout {
+            id: sideCol
+            anchors.fill: parent
+            anchors.margins: 10
+            anchors.leftMargin: 12
+            anchors.rightMargin: 12
+            spacing: 4
+            Eyebrow { text: side.title }
+            FbLabel {
+                objectName: side.objectName + "Device"
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                elide: Text.ElideRight
+                text: side.info.device || qsTr("unknown device")
+                font.pixelSize: Theme.fontSmall
+                font.weight: Font.Medium
+            }
+            FbLabel {
+                objectName: side.objectName + "When"
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                elide: Text.ElideRight
+                text: side.info.when || ""
+                color: Theme.textMeta
+                font.pixelSize: Theme.fontMeta
+            }
+            FbMono {
+                objectName: side.objectName + "Size"
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                elide: Text.ElideRight
+                text: (side.info.revisionText ? side.info.revisionText + " · " : "") + (side.info.sizeText || "")
+                color: Theme.text
+                font.pixelSize: Theme.fontMeta
+            }
+        }
     }
 
     Loader {
@@ -119,7 +182,7 @@ FocusScope {
                     id: backText
                     anchors.verticalCenter: parent.verticalCenter
                     width: parent.width
-                    text: "← " + (root.game.title || qsTr("Library"))
+                    text: "← " + (root.backTitle !== "" ? root.backTitle : (root.game.title || qsTr("Library")))
                     font.pixelSize: Theme.fontSmall
                     elide: Text.ElideRight
                     color: backHover.hovered || backButton.activeFocus ? Theme.text : Theme.textMuted
@@ -493,14 +556,16 @@ FocusScope {
                         anchors.margins: 10
                         anchors.leftMargin: 12
                         wrapMode: Text.WordWrap
-                        text: qsTr("%1 is running on this device. Restore and upload are possible after the game is closed. Snapshots still work.").arg(root.game.title || "")
+                        text: root.live ? qsTr("%1 keeps running. Snapshots and delete work live. Restore and upload restart it from that save. Slots cannot change while it runs.").arg(root.game.title || "")
+                                        : root.inGame ? qsTr("%1 keeps running. Snapshots still work. Restore, upload and slot changes are possible after the game is closed.").arg(root.game.title || "")
+                                                      : qsTr("%1 is running on this device. Restore and upload are possible after the game is closed. Snapshots still work.").arg(root.game.title || "")
                         color: Theme.accent
                         font.pixelSize: Theme.fontMeta
                     }
                 }
                 Rectangle {
                     objectName: "savesConflictBanner"
-                    visible: root.hist.online && root.conflict
+                    visible: root.hist.online && root.conflict && !root.hist.conflictOpen
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     implicitHeight: conflictCol.implicitHeight + 24
@@ -528,15 +593,110 @@ FocusScope {
                             implicitHeight: 32
                             font.pixelSize: Theme.fontSmall
                             text: qsTr("Resolve conflict")
-                            enabled: root.game.canPlay === true && !root.hist.confirmationOpen
-                            onClicked: root.player.playSelected()
+                            enabled: !root.hist.confirmationOpen && !root.hist.busy
+                            onClicked: root.hist.openConflict()
                         }
                         FbLabel {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
-                            text: qsTr("The conflict dialog opens when the game starts.")
+                            text: qsTr("Compare both versions here and choose one. The game does not start.")
                             color: Theme.textFaint
                             font.pixelSize: Theme.fontMeta
+                        }
+                    }
+                }
+                // Inline conflict resolution: this device vs the Hub
+                Rectangle {
+                    objectName: "conflictBox"
+                    visible: root.hist.conflictOpen
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    implicitHeight: resolveCol.implicitHeight + 28
+                    radius: Theme.radius9
+                    color: Theme.accentChipBg
+                    border.width: 1
+                    border.color: Theme.confirmBorder
+                    ColumnLayout {
+                        id: resolveCol
+                        anchors.fill: parent
+                        anchors.margins: 14
+                        spacing: 10
+                        Eyebrow { Layout.fillWidth: true; text: qsTr("▲ Resolve conflict · %1").arg(root.hist.slotLabel); color: Theme.warn }
+                        RowLayout {
+                            objectName: "conflictLoading"
+                            visible: root.hist.conflictLoading
+                            Layout.fillWidth: true
+                            spacing: 8
+                            FbSpinner { size: 14 }
+                            FbLabel {
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 0
+                                elide: Text.ElideRight
+                                text: qsTr("Loading both versions…")
+                                color: Theme.textSecondary
+                                font.pixelSize: Theme.fontMeta
+                            }
+                        }
+                        FbLabel {
+                            visible: !root.hist.conflictLoading
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            text: qsTr("This device and the Hub both changed “%1”. Choose which save becomes the current one. Nothing is deleted.").arg(root.hist.slotLabel)
+                            color: Theme.textSecondary
+                            font.pixelSize: Theme.fontMeta
+                        }
+                        ConflictSide {
+                            objectName: "conflictLocal"
+                            visible: !root.hist.conflictLoading
+                            title: qsTr("This device")
+                            info: root.hist.conflictInfo.local || ({})
+                        }
+                        ConflictSide {
+                            objectName: "conflictHub"
+                            visible: !root.hist.conflictLoading
+                            title: qsTr("Hub")
+                            info: root.hist.conflictInfo.hub || ({})
+                        }
+                        FbLabel {
+                            visible: !root.hist.conflictLoading
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            text: root.inGame
+                                  ? qsTr("“Use the Hub save” saves this device's copy as a local backup first and restarts the game from the Hub save. “Keep this device's save” uploads it as the new current version; the game keeps running.")
+                                  : qsTr("“Use the Hub save” saves this device's copy as a local backup first. “Keep this device's save” uploads it as the new current version. The game does not start.")
+                            color: Theme.textSecondary
+                            font.pixelSize: Theme.fontMeta
+                        }
+                        Flow {
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            spacing: 8
+                            layoutDirection: Qt.RightToLeft
+                            FbButton {
+                                objectName: "conflictKeepLocal"
+                                kind: "primary"
+                                implicitHeight: 32
+                                font.pixelSize: Theme.fontSmall
+                                text: qsTr("Keep this device's save")
+                                enabled: !root.hist.conflictLoading && !root.hist.conflictBusy && (root.hist.conflictInfo.local || ({})).exists === true
+                                onClicked: root.hist.resolveConflict("use_local")
+                            }
+                            FbButton {
+                                objectName: "conflictUseHub"
+                                implicitHeight: 32
+                                font.pixelSize: Theme.fontSmall
+                                text: qsTr("Use the Hub save")
+                                enabled: !root.hist.conflictLoading && !root.hist.conflictBusy
+                                onClicked: root.hist.resolveConflict("use_hub")
+                            }
+                            FbButton {
+                                objectName: "conflictCancel"
+                                implicitHeight: 32
+                                font.pixelSize: Theme.fontSmall
+                                text: qsTr("Cancel")
+                                enabled: !root.hist.conflictBusy
+                                onClicked: root.hist.closeConflict()
+                            }
                         }
                     }
                 }
@@ -834,11 +994,13 @@ FocusScope {
                             }
                         }
                         FbLabel {
+                            objectName: "uploadConfirmNote"
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
-                            text: root.hist.uploadRequest.currentText
-                                  ? qsTr("The current version is kept in the history as “Before upload”. A local backup is made first.")
-                                  : qsTr("A local backup is made first.")
+                            text: (root.hist.uploadRequest.currentText
+                                   ? qsTr("The current version is kept in the history as “Before upload”. A local backup is made first.")
+                                   : qsTr("A local backup is made first."))
+                                  + (root.live ? "\n" + qsTr("The game restarts from this save.") : "")
                             color: Theme.textSecondary
                             font.pixelSize: Theme.fontMeta
                         }
@@ -941,16 +1103,19 @@ FocusScope {
 
                 // HISTORY
                 RowLayout {
+                    id: historyHeader
                     objectName: "historyHeader"
                     visible: root.historyAvailable
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     Layout.topMargin: 2
                     spacing: 8
-                    Eyebrow { text: qsTr("History") }
+                    Eyebrow { id: historyEyebrow; text: qsTr("History") }
                     Item { Layout.fillWidth: true }
                     FbSegment {
                         objectName: "historyFilter"
+                        // Deterministic width: never wider than what the eyebrow leaves, so wide fonts shrink and elide the labels
+                        Layout.preferredWidth: Math.max(0, Math.min(implicitWidth, 200, body.width - historyEyebrow.implicitWidth - historyHeader.spacing))
                         Layout.maximumWidth: 200
                         Layout.minimumWidth: 0
                         segmentHeight: 22
@@ -1030,6 +1195,7 @@ FocusScope {
                             confirmBody: confirm === "delete"
                                          ? qsTr("Only this snapshot is removed. The current version and all other versions stay.")
                                          : qsTr("The current version %1 stays in the history as “Before restore”.").arg(root.hist.current.revisionText || "")
+                           + (root.live ? "\n" + qsTr("The game restarts from this save. A local backup is made first.") : "")
                             confirmOk: confirm === "delete" ? qsTr("Delete snapshot") : qsTr("Restore %1").arg(modelData.versionText)
                             onRestoreClicked: root.hist.requestRestore(modelData.version)
                             onDeleteClicked: root.hist.requestDelete(modelData.version)

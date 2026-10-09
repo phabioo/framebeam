@@ -296,6 +296,7 @@ bool LibretroBackend::loadGame(const QString& path, QString* error) {
   m_av.fps = av.timing.fps;
   m_av.sampleRate = av.timing.sample_rate;
   m_gameLoaded = true;
+  m_loadedPath = path;
 
   // Battery save: the core exposes it as memory, the frontend persists it (like RetroArch's .srm).
   m_saveFilePath.clear();
@@ -355,6 +356,12 @@ void LibretroBackend::flushSave() {
   if (f.open(QIODevice::WriteOnly) && f.write(now) == now.size() && f.commit()) {
     m_sramSnapshot = now;
   }
+}
+
+qint64 LibretroBackend::saveMemorySize() const {
+  if (!m_gameLoaded || m_saveFilePath.isEmpty() || !m_api->get_memory_data || !m_api->get_memory_size) return -1;
+  if (m_api->get_memory_data(RETRO_MEMORY_SAVE_RAM) == nullptr) return -1;
+  return static_cast<qint64>(m_api->get_memory_size(RETRO_MEMORY_SAVE_RAM));
 }
 
 void LibretroBackend::unloadGame() {

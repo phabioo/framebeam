@@ -115,6 +115,65 @@ class SaveSyncTest : public QObject {
     return failed.count() > 0 ? QStringLiteral("failed") : (conflict.count() > 0 ? QStringLiteral("conflict") : QStringLiteral("ready"));
   }
 
+  // ---- Conflicts outside the play flow, live save --------------------------------------------------------------------
+
+  // A conflict that is "decided later": local "local-offline" vs Hub "hub-2", the game is not running.
+  void makeOpenConflict() {
+    hub_->setHubSave(kGame, "hub-1");
+    QCOMPARE(start(), QStringLiteral("ready"));
+    writeFile(saveFile(), "local-offline");
+    hub_->setHubSave(kGame, "hub-2");
+    QCOMPARE(start(), QStringLiteral("conflict"));
+    QCOMPARE(resolve(SaveSync::Resolution::DecideLater), QStringLiteral("ready"));
+    QCOMPARE(sync_->kind(kGame), SaveSync::Kind::Conflict);
+  }
+  SaveSync::SlotConflict loadConflict() {
+    SaveSync::SlotConflict out;
+    bool done = false;
+    sync_->loadSlotConflict(kGame, QStringLiteral("default"), QStringLiteral("rom1.sav"), [&](const SaveSync::SlotConflict& c) { out = c; done = true; });
+    (void)QTest::qWaitFor([&]() { return done; }, 8000);
+    return out;
+  }
+  SaveSync::RestoreResult resolveHere(SaveSync::Resolution r) {
+    SaveSync::RestoreResult out;
+    bool done = false;
+    sync_->resolveSlotConflict(kGame, QStringLiteral("default"), r, QStringLiteral("rom1.sav"), [&](const SaveSync::RestoreResult& x) { out = x; done = true; });
+    (void)QTest::qWaitFor([&]() { return done; }, 8000);
+    return out;
+  }
+
+  struct LiveCore {  // fake running core: 12 bytes of save memory, `apply` writes the save file like the emulation thread would
+    int flushes = 0, applies = 0, resets = 0;
+    QByteArray applied;
+    qint64 size = 12;
+    bool applyOk = true;
+    QString file;
+  };
+  void installLiveCore(LiveCore* core) {
+    SaveSync::LiveHooks h;
+    h.flush = [core]() { ++core->flushes; };
+    h.accepts = [core](qint64 n) { return n == core->size; };
+    h.apply = [core](const QByteArray& d) {
+      ++core->applies;
+      if (!core->applyOk) {
+        return false;
+      }
+      core->applied = d;
+      writeFile(core->file, d);
+      ++core->resets;
+      return true;
+    };
+    sync_->setLiveHooks(std::move(h));
+  }
+  // A running game with a synced save of 12 bytes.
+  void startRunning(LiveCore* core) {
+    hub_->setHubSave(kGame, "hub-cp-1-xxx");  // 12 bytes
+    QCOMPARE(start(), QStringLiteral("ready"));
+    core->file = saveFile();
+    installLiveCore(core);
+    sync_->beginSession();
+  }
+
  private slots:
   void init() {
     noFeature_ = false;
@@ -639,6 +698,229 @@ class SaveSyncTest : public QObject {
     sync_->createSnapshot(kGame, QStringLiteral("nothing"), QString(), [&](const SaveSync::SnapshotResult& r) { res = r; done = true; });
     QTRY_VERIFY(done);
     QCOMPARE(res.kind, SaveSnapshotResult::Outcome::NotFound);
+  }
+
+  void conflictIsLoadedAndResolvedWithoutStartingTheGame_useHub() {
+    makeOpenConflict();
+    QSignalSpy ready(sync_.get(), &SaveSync::startReady);
+    QSignalSpy conflictSig(sync_.get(), &SaveSync::startConflict);
+    const SaveSync::SlotConflict c = loadConflict();
+    QCOMPARE(c.kind, SaveSync::SlotConflict::Outcome::Found);
+    QCOMPARE(c.view.conflict.hubRevision, 2);
+    QCOMPARE(c.view.conflict.hubDeviceName, QStringLiteral("Laptop Office"));
+    QVERIFY(c.localExists);
+    QCOMPARE(c.localSize, qint64(13));  // "local-offline"
+    QCOMPARE(c.hubSize, qint64(5));     // "hub-2"
+    QVERIFY(!c.view.localDeviceName.isEmpty() && c.view.localModified.isValid());
+    QCOMPARE(readFile(saveFile()), QByteArray("local-offline"));  // looking changes nothing
+
+    const SaveSync::RestoreResult r = resolveHere(SaveSync::Resolution::UseHub);
+    QVERIFY2(r.ok(), qPrintable(r.message));
+    QCOMPARE(readFile(saveFile()), QByteArray("hub-2"));
+    const QStringList backups = QDir(gdir()).entryList({QStringLiteral("rom1.sav.local-*.bak")});
+    QCOMPARE(backups.size(), 1);
+    QCOMPARE(readFile(gdir() + QLatin1Char('/') + backups.first()), QByteArray("local-offline"));
+    QCOMPARE(hub_->saves.value(kGame).conflicts.first().status, QStringLiteral("resolved_hub"));
+    const SyncState st = SaveStore::loadState(gdir());
+    QVERIFY(!st.pending && st.conflictId.isEmpty());
+    QCOMPARE(sync_->kind(kGame), SaveSync::Kind::Synced);
+    QCOMPARE(ready.count(), 0);  // the game start flow never ran
+    QCOMPARE(conflictSig.count(), 0);
+    QVERIFY(!sync_->sessionActive() && !sync_->hasPendingConflictDialog());
+    // Resolved: loading again finds none
+    QCOMPARE(loadConflict().kind, SaveSync::SlotConflict::Outcome::None);
+  }
+
+  void conflictIsResolvedWithoutStartingTheGame_useLocal() {
+    makeOpenConflict();
+    QSignalSpy ready(sync_.get(), &SaveSync::startReady);
+    const SaveSync::RestoreResult r = resolveHere(SaveSync::Resolution::UseLocal);
+    QVERIFY2(r.ok(), qPrintable(r.message));
+    QCOMPARE(hub_->saves.value(kGame).revision, 3);
+    QCOMPARE(hub_->saves.value(kGame).content, QByteArray("local-offline"));
+    QCOMPARE(readFile(saveFile()), QByteArray("local-offline"));
+    const SyncState st = SaveStore::loadState(gdir());
+    QVERIFY(!st.pending && st.conflictId.isEmpty());
+    QCOMPARE(st.baseRevision, 3);
+    QCOMPARE(sync_->kind(kGame), SaveSync::Kind::Synced);
+    QCOMPARE(ready.count(), 0);
+  }
+
+  void conflictResolutionAbortsOnBackupFailureAndStaleHub() {
+    makeOpenConflict();
+    sync_->setBackupHook([](const QString&, const QString&) { return QString(); });
+    SaveSync::RestoreResult r = resolveHere(SaveSync::Resolution::UseHub);
+    QVERIFY(!r.ok());
+    QCOMPARE(readFile(saveFile()), QByteArray("local-offline"));
+    QCOMPARE(hub_->saves.value(kGame).conflicts.first().status, QStringLiteral("open"));
+    QVERIFY(!SaveStore::loadState(gdir()).conflictId.isEmpty());
+    sync_->setBackupHook({});
+    // The Hub changes between "look" and "decide": stale, nothing changed, the caller loads the conflict again
+    hub_->setHubSave(kGame, "hub-3");
+    r = resolveHere(SaveSync::Resolution::UseLocal);
+    QCOMPARE(r.kind, SaveRestoreResult::Outcome::Stale);
+    QCOMPARE(hub_->saves.value(kGame).content, QByteArray("hub-3"));
+    QCOMPARE(readFile(saveFile()), QByteArray("local-offline"));
+  }
+
+  void conflictResolvedElsewhereClearsTheLocalMarker() {
+    makeOpenConflict();
+    hub_->saves[kGame].conflicts[0].status = QStringLiteral("resolved_hub");  // e.g. in the Hub web interface
+    QCOMPARE(loadConflict().kind, SaveSync::SlotConflict::Outcome::None);
+    QVERIFY(SaveStore::loadState(gdir()).conflictId.isEmpty());
+    QVERIFY(sync_->kind(kGame) != SaveSync::Kind::Conflict);
+    QCOMPARE(readFile(saveFile()), QByteArray("local-offline"));
+  }
+
+  void liveRestoreLoadsTheSaveIntoTheRunningCoreAfterBackup() {
+    LiveCore core;
+    startRunning(&core);
+    hub_->addHistory(kGame, QStringLiteral("default"), "hub-old-1234", QStringLiteral("session_end"));
+    QVERIFY(sync_->liveApplyAvailable(kGame, QStringLiteral("default")));
+    QVERIFY(sync_->liveBlockReason(kGame, QStringLiteral("default")).isEmpty());
+    // The game has progressed (unsynced): it is uploaded first and kept in the history, then the restore happens
+    writeFile(saveFile(), "play-newer-xx");
+    SaveSync::RestoreResult res;
+    bool done = false;
+    sync_->restoreVersion(kGame, QStringLiteral("default"), 1, 1, QStringLiteral("rom1.sav"), [&](const SaveSync::RestoreResult& r) { res = r; done = true; });
+    QTRY_VERIFY_WITH_TIMEOUT(done, 8000);
+    QVERIFY2(res.ok() && res.message.isEmpty() && res.localUpdated, qPrintable(res.message));
+    QVERIFY(core.flushes >= 1);
+    QCOMPARE(core.applies, 1);
+    QCOMPARE(core.applied, QByteArray("hub-old-1234"));
+    QCOMPARE(readFile(saveFile()), QByteArray("hub-old-1234"));
+    QCOMPARE(hub_->restoreCount, 1);
+    // the progress of the game is on the Hub (final upload + before_restore) and in a local backup
+    QCOMPARE(hub_->saves.value(kGame).history.last().reason, QStringLiteral("before_restore"));
+    QCOMPARE(hub_->saves.value(kGame).history.last().content, QByteArray("play-newer-xx"));
+    const QStringList backups = QDir(gdir()).entryList({QStringLiteral("*.restore-*.bak")});
+    QCOMPARE(backups.size(), 1);
+    QCOMPARE(readFile(gdir() + QLatin1Char('/') + backups.first()), QByteArray("play-newer-xx"));
+    const SyncState st = SaveStore::loadState(gdir());
+    QVERIFY(!st.pending);
+    QCOMPARE(st.baseRevision, 3);
+    QCOMPARE(st.lastSyncedSha256, SaveStore::sha256Of("hub-old-1234"));
+    // The restored file is not uploaded again as a "change"
+    const int putsBefore = puts();
+    QTest::qWait(600);
+    QCOMPARE(puts(), putsBefore);
+    QVERIFY(sync_->sessionActive());
+    QVERIFY(sync_->finalSyncBlocking(true));
+    QCOMPARE(hub_->saves.value(kGame).content, QByteArray("hub-old-1234"));
+  }
+
+  void liveRestoreRefusesWhenTheCoreCannotTakeTheSave() {
+    LiveCore core;
+    startRunning(&core);
+    hub_->addHistory(kGame, QStringLiteral("default"), "hub-old-other-size", QStringLiteral("session_end"));  // not 12 bytes
+    SaveSync::RestoreResult res;
+    bool done = false;
+    sync_->restoreVersion(kGame, QStringLiteral("default"), 1, 1, QStringLiteral("rom1.sav"), [&](const SaveSync::RestoreResult& r) { res = r; done = true; });
+    QTRY_VERIFY_WITH_TIMEOUT(done, 8000);
+    QCOMPARE(res.kind, SaveRestoreResult::Outcome::Blocked);
+    QVERIFY(res.message.contains(QStringLiteral("Quit the game")));
+    QCOMPARE(hub_->restoreCount, 0);  // nothing changed on the Hub
+    QCOMPARE(core.applies, 0);
+    QCOMPARE(readFile(saveFile()), QByteArray("hub-cp-1-xxx"));
+    // The core fails after the Hub restored: the local file stays, the message asks for a restart
+    hub_->addHistory(kGame, QStringLiteral("default"), "hub-old-1234", QStringLiteral("session_end"));
+    core.applyOk = false;
+    done = false;
+    sync_->restoreVersion(kGame, QStringLiteral("default"), 2, 1, QStringLiteral("rom1.sav"), [&](const SaveSync::RestoreResult& r) { res = r; done = true; });
+    QTRY_VERIFY_WITH_TIMEOUT(done, 8000);
+    QVERIFY(res.ok() && !res.localUpdated);
+    QVERIFY(res.message.contains(QStringLiteral("Quit the game and start it again")));
+    QCOMPARE(readFile(saveFile()), QByteArray("hub-cp-1-xxx"));
+    QVERIFY(sync_->finalSyncBlocking(true));
+  }
+
+  void liveRestoreIsBlockedByAnOpenConflict() {
+    LiveCore core;
+    startRunning(&core);
+    writeFile(saveFile(), "local-newer-x");
+    hub_->setHubSave(kGame, "hub-newer-xx");
+    QSignalSpy fin(sync_.get(), &SaveSync::finalSyncFinished);
+    sync_->finalSync(false);  // the checkpoint upload runs into a conflict
+    QTRY_COMPARE_WITH_TIMEOUT(fin.count(), 1, 8000);
+    QCOMPARE(sync_->kind(kGame), SaveSync::Kind::Conflict);
+    QVERIFY(!sync_->liveBlockReason(kGame, QStringLiteral("default")).isEmpty());
+    SaveSync::RestoreResult res;
+    bool done = false;
+    sync_->restoreVersion(kGame, QStringLiteral("default"), 1, 2, QStringLiteral("rom1.sav"), [&](const SaveSync::RestoreResult& r) { res = r; done = true; });
+    QTRY_VERIFY_WITH_TIMEOUT(done, 8000);
+    QCOMPARE(res.kind, SaveRestoreResult::Outcome::Blocked);
+    QCOMPARE(core.applies, 0);
+    // ... and is resolved in the game: "Use the Hub save" backs up the local save and loads the Hub save into the core
+    const SaveSync::SlotConflict c = loadConflict();
+    QCOMPARE(c.kind, SaveSync::SlotConflict::Outcome::Found);
+    QCOMPARE(c.localSize, qint64(13));
+    const SaveSync::RestoreResult r = resolveHere(SaveSync::Resolution::UseHub);
+    QVERIFY2(r.ok(), qPrintable(r.message));
+    QCOMPARE(core.applied, QByteArray("hub-newer-xx"));
+    QCOMPARE(readFile(saveFile()), QByteArray("hub-newer-xx"));
+    QCOMPARE(QDir(gdir()).entryList({QStringLiteral("rom1.sav.local-*.bak")}).size(), 1);
+    QCOMPARE(sync_->kind(kGame), SaveSync::Kind::Synced);
+    QVERIFY(sync_->sessionActive());
+    // Uploads are free again: the next change is a normal checkpoint on top of the resolved revision
+    const int putsBefore = puts();
+    writeFile(saveFile(), "play-after-xxx");
+    QVERIFY(sync_->finalSyncBlocking(true));
+    QCOMPARE(puts(), putsBefore + 1);
+    QCOMPARE(hub_->saves.value(kGame).content, QByteArray("play-after-xxx"));
+  }
+
+  void liveConflictKeepLocalNeedsNoCoreChange() {
+    LiveCore core;
+    startRunning(&core);
+    writeFile(saveFile(), "local-newer-x");
+    hub_->setHubSave(kGame, "hub-newer-xx");
+    QSignalSpy fin(sync_.get(), &SaveSync::finalSyncFinished);
+    sync_->finalSync(false);
+    QTRY_COMPARE_WITH_TIMEOUT(fin.count(), 1, 8000);
+    const SaveSync::RestoreResult r = resolveHere(SaveSync::Resolution::UseLocal);
+    QVERIFY2(r.ok(), qPrintable(r.message));
+    QCOMPARE(core.applies, 0);  // the running game already has this save
+    QCOMPARE(hub_->saves.value(kGame).content, QByteArray("local-newer-x"));
+    QCOMPARE(readFile(saveFile()), QByteArray("local-newer-x"));
+    QCOMPARE(sync_->kind(kGame), SaveSync::Kind::Synced);
+    QVERIFY(sync_->finalSyncBlocking(true));
+  }
+
+  void liveUploadLoadsTheFileIntoTheRunningCore() {
+    LiveCore core;
+    startRunning(&core);
+    const QString picked = dir_->filePath(QStringLiteral("picked.sav"));
+    writeFile(picked, "picked-12-byt");  // 13 bytes: the core takes 12 only
+    SaveSync::RestoreResult res;
+    bool done = false;
+    sync_->uploadSaveFile(kGame, QStringLiteral("default"), picked, 1, QStringLiteral("rom1.sav"), [&](const SaveSync::RestoreResult& r) { res = r; done = true; });
+    QTRY_VERIFY_WITH_TIMEOUT(done, 8000);
+    QCOMPARE(res.kind, SaveRestoreResult::Outcome::Blocked);
+    QCOMPARE(hub_->uploadCount, 0);
+    writeFile(picked, "picked-12-by");
+    done = false;
+    sync_->uploadSaveFile(kGame, QStringLiteral("default"), picked, 1, QStringLiteral("rom1.sav"), [&](const SaveSync::RestoreResult& r) { res = r; done = true; });
+    QTRY_VERIFY_WITH_TIMEOUT(done, 8000);
+    QVERIFY2(res.ok() && res.message.isEmpty(), qPrintable(res.message));
+    QCOMPARE(hub_->uploadCount, 1);
+    QCOMPARE(hub_->saves.value(kGame).content, QByteArray("picked-12-by"));
+    QCOMPARE(core.applied, QByteArray("picked-12-by"));
+    QCOMPARE(QDir(gdir()).entryList({QStringLiteral("*.upload-*.bak")}).size(), 1);
+    QVERIFY(!SaveStore::loadState(gdir()).pending);
+    QVERIFY(sync_->finalSyncBlocking(true));
+  }
+
+  void snapshotInGameFlushesTheCoreFirst() {
+    LiveCore core;
+    startRunning(&core);
+    writeFile(saveFile(), "play-1-xxxxxx");
+    SaveSync::SnapshotResult res;
+    bool done = false;
+    sync_->snapshotActive(QString(), [&](const SaveSync::SnapshotResult& r) { res = r; done = true; });
+    QTRY_VERIFY_WITH_TIMEOUT(done, 8000);
+    QVERIFY(res.ok());
+    QCOMPARE(core.flushes, 1);
+    QVERIFY(sync_->finalSyncBlocking(true));
   }
 
   void saveUpdatedPushIsReportedAndOwnDeviceIgnored() {
