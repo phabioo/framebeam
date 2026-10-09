@@ -297,10 +297,10 @@ func TestUpdateCoreKeepsOldBuildUntilNewIsCached(t *testing.T) {
 	if e.ExpectedCoreVersion != "2026.10.09" {
 		t.Fatalf("%+v", e)
 	}
-	if _, f, err := svc.OpenCoreFile(ctx, "desmume", "2026.10.09", "linux-x64", "desmume_libretro.so"); err != nil {
+	if f, _, err := svc.OpenCoreFile(ctx, "desmume", "2026.10.09", "linux-x64", "desmume_libretro.so"); err != nil {
 		t.Fatal(err)
 	} else {
-		_ = f
+		f.Close() // an open file cannot be deleted on Windows when the update drops the old build
 	}
 	// Fixed upstream: the update installs the new version and drops the old one.
 	bb.SetZip("windows-x64", "desmume", "2026-10-12", hubtest.MakeZip(t, map[string][]byte{"desmume_libretro.dll": newLib}))

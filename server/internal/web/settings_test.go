@@ -361,7 +361,7 @@ func TestNetworkResetValidatesResult(t *testing.T) {
 	status(t, postTok(c, tok, "/settings/network/public_host/reset", nil), 303)
 
 	// A base listen port that is occupied now cannot be restored.
-	busy, err := net.Listen("tcp", "127.0.0.1:0")
+	busy, err := net.Listen("tcp", ":0") // wildcard like the test bind: Windows lets a wildcard bind coexist with a loopback one
 	if err != nil {
 		t.Fatal(err)
 	}
