@@ -15,7 +15,10 @@ Button {
     property bool clickBusy: false
 
     implicitHeight: kind === "link" ? 28 : 40
-    implicitWidth: Math.max(kind === "link" ? 0 : 88, labelRow.implicitWidth + (kind === "link" ? 8 : 32))
+    property real hPadding: kind === "link" ? 8 : 32   // total horizontal padding around the label
+    // Natural label width: from the label's implicitWidth, never from its assigned (possibly capped) width.
+    readonly property real labelNaturalWidth: labelItem.implicitWidth + (control.working ? 20 : 0)
+    implicitWidth: Math.max(kind === "link" ? 0 : 88, labelNaturalWidth + hPadding)
     padding: 0
     // In a Flow/Row-like container the button never grows past the container (the label elides); layouts size it themselves.
     Binding {
@@ -40,7 +43,7 @@ Button {
     Timer { id: busyReset; interval: 1500; onTriggered: control.clickBusy = false }
 
     contentItem: Item {
-        implicitWidth: labelRow.implicitWidth
+        implicitWidth: control.labelNaturalWidth
         implicitHeight: labelRow.implicitHeight
         Row {
             id: labelRow
@@ -54,6 +57,7 @@ Button {
             }
             Text {
                 id: labelItem
+                objectName: "fbButtonLabel"
                 text: control.text
                 font: control.font
                 elide: Text.ElideRight
@@ -69,7 +73,7 @@ Button {
                     target: labelItem
                     property: "width"
                     when: control.parent && control.parent.flow !== undefined && control.parent.width > 0
-                    value: Math.min(labelItem.implicitWidth, Math.max(0, control.width - (control.kind === "link" ? 8 : 32) - (control.working ? 20 : 0)))
+                    value: Math.min(labelItem.implicitWidth, Math.max(0, control.width - control.hPadding - (control.working ? 20 : 0)))
                 }
             }
         }

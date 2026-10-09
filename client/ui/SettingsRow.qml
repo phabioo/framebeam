@@ -632,7 +632,8 @@ Item {
                     busy: modelData.busy === true
                     busyOnClick: modelData.busyOnClick === true
                     implicitHeight: Theme.settingsControlHeight
-                    implicitWidth: Math.min(contentItem.implicitWidth + 28, root.controlWidth)
+                    hPadding: 28
+                    implicitWidth: Math.min(labelNaturalWidth + hPadding, root.controlWidth)
                     font.pixelSize: Theme.fontSmall
                     text: modelData.text
                     onClicked: root.buttonClicked(modelData.name || "")

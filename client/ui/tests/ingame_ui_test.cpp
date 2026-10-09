@@ -212,6 +212,11 @@ class InGameUiTest : public QObject {
     startPreview(h, true);
     resize(h, 1440, 900);
     shot("3g-2-session-1440");
+    if (const int w = qEnvironmentVariableIntValue("FRAMEBEAM_SHOT_WIDTH"); w > 0 && w != 1440) {   // extra width, e.g. 1920
+      resize(h, w, 1080);
+      shot((QByteArray("3g-2-session-") + QByteArray::number(w)).constData());
+      resize(h, 1440, 900);
+    }
     // shared + Reset popover
     ctl->shareSession();
     QTRY_VERIFY_WITH_TIMEOUT(ctl->shared(), 8000);
@@ -264,6 +269,41 @@ class InGameUiTest : public QObject {
     QTRY_VERIFY(c->gameSession()->isPaused());
     QQuickTest::qWaitForPolish(h.window);
     shot("sidebar-now-running");
+  }
+
+  // Icons, labels and carets of the header controls sit on one centre line (Pause, Speed-up, "2× ▾", Reset, Session/Multiview, layout,
+  // Diagnostics, Fullscreen): within 1 px of each other and of the header's centre.
+  void headerIconsAndLabelsShareOneCentreLine() {
+    FakeHub hub(QStringLiteral("a"));
+    Harness h;
+    pair(hub, h, false);
+    startPreview(h, false);
+    QVERIFY(h.controller->gameSession()->fastForwardAvailable());
+    for (const QSize sz : {QSize(1920, 1080), QSize(1440, 900)}) {
+      resize(h, sz.width(), sz.height());
+      const qreal mid = rectOf(h, "gameHeader").center().y();
+      int checked = 0;
+      for (const char* name : {"pauseButton", "fastForwardButton", "speedValueButton", "resetButton", "layoutSwitch", "diagnosticsButton", "fullscreenButton"}) {
+        QQuickItem* btn = visibleItem(h, name);
+        if (btn == nullptr) continue;   // not shown at this size (Reset in compact, layout picker without layouts)
+        const QString tag = QStringLiteral("%1 at %2 px").arg(QString::fromLatin1(name)).arg(sz.width());
+        QVERIFY2(qAbs(sceneRect(btn).center().y() - mid) <= 1.0, qPrintable(tag + QStringLiteral(": button off the header centre")));
+        for (const char* part : {"iconItem", "labelText", "caretIcon"}) {
+          const auto items = btn->findChildren<QQuickItem*>(part);
+          for (QQuickItem* it : items) {
+            if (!it->isVisible() || it->width() <= 0) continue;
+            ++checked;
+            QVERIFY2(qAbs(sceneRect(it).center().y() - sceneRect(btn).center().y()) <= 1.0,
+                     qPrintable(tag + QStringLiteral(": %1 centre %2 vs button %3").arg(QString::fromLatin1(part)).arg(sceneRect(it).center().y()).arg(sceneRect(btn).center().y())));
+          }
+        }
+      }
+      QVERIFY2(checked >= 6, qPrintable(QStringLiteral("only %1 parts checked").arg(checked)));
+      // Session / Multiview switch labels
+      QQuickItem* seg = visibleItem(h, "viewSegment");
+      QVERIFY(seg != nullptr);
+      QVERIFY(qAbs(sceneRect(seg).center().y() - mid) <= 1.0);
+    }
   }
 
   void sessionHeaderZonesAndPanel() {

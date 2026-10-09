@@ -141,7 +141,6 @@ QtObject {
     readonly property int settingsControlWidth: 280
     readonly property int settingsResetWidth: 72
     readonly property int settingsControlHeight: 32
-    readonly property int settingsContentMax: 840
     readonly property int settingsNarrowBelow: 640   // below this row width the control moves under the text
 
     // Font size roles

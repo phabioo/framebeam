@@ -53,7 +53,7 @@ class ShellScreenshotsTest : public QObject {
   }
 
   static void size(Harness& h) {
-    h.window->resize(1440, 900);
+    h.window->resize(qEnvironmentVariableIntValue("FRAMEBEAM_SHOT_WIDTH") > 0 ? qEnvironmentVariableIntValue("FRAMEBEAM_SHOT_WIDTH") : 1440, 900);
     QTest::qWait(100);
   }
 
@@ -123,6 +123,13 @@ class ShellScreenshotsTest : public QObject {
     QTRY_VERIFY(h.item("optionToggle_framebeam.fullscreen_on_start") != nullptr);
     QVERIFY(h.click("optionToggle_framebeam.fullscreen_on_start"));
     shot(h, QStringLiteral("3e-emulation-defaults"));
+    // A system's core options (Nintendo DS): the list uses the full window width.
+    h.controller->showEmulation();
+    QTest::qWait(150);
+    if (h.click("systemCard_nds")) {
+      QTest::qWait(150);
+      shot(h, QStringLiteral("3e-emulation-nds"));
+    }
 
     h.controller->showControllers();
     QTest::qWait(150);
