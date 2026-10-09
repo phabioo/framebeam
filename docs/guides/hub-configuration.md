@@ -87,6 +87,15 @@ The Hub downloads cores RetroArch-style from the libretro buildbot (nightly chan
 
 Details: [ADR 0020](../adr/0020-cores-from-the-libretro-buildbot.md).
 
+## Windows (0.9, manual use)
+
+The Hub builds for Windows amd64 (`framebeam-hub-windows-amd64.exe`). The MSI that registers the services arrives with the next 0.9 package; until then the binary is for manual and test use.
+
+- Defaults: data `%ProgramData%\FrameBeam\Hub`, import dir `<data>\library-import`, update request dir `<data>\update-request`.
+- Service `FrameBeamHub`: when started by the Service Control Manager the Hub runs as a Windows service (planned account `NT SERVICE\FrameBeamHub`). A restart from the web interface re-runs the Hub in-process.
+- Logs: when running as a service to `<data>\logs\hub.log` (rotated at 10 MB, one old file kept).
+- Updates: service `FrameBeamHubUpdater` (LocalSystem), see [updates.md](updates.md).
+
 ## Data directory
 
 Default `/var/lib/framebeam`: `framebeam.db` (SQLite, metadata only), `saves/`, `firmware/<system>/`, `tls/`, `cores/`, `updates/`, and `backups/` (database backups before schema migrations, newest 5). ROMs, saves and firmware are files; they are never stored in SQLite.

@@ -16,7 +16,7 @@ Build, test, dependencies, CI and versioning. Agent workflow and briefs: [workfl
 make check            # Hub and Player checks, quiet (errors + summary only)
 make check-hub        # Hub only: gofmt, vet, staticcheck, tests, codegen freshness, Hub third-party notices, packaging checks
 make check-client     # Player only (preset via CLIENT_PRESET, default linux-debug)
-make build-hub        # server/dist/framebeam-hub-linux-{amd64,arm64} (HUB_VERSION, HUB_CHANNEL, HUB_COMMIT)
+make build-hub        # server/dist/framebeam-hub-linux-{amd64,arm64} and framebeam-hub-windows-amd64.exe (HUB_VERSION, HUB_CHANNEL, HUB_COMMIT)
 make package-hub-deb HUB_VERSION=...   # Hub .deb for amd64/arm64 in server/dist/ (after build-hub)
 make generate         # regenerate Go code from OpenAPI (oapi-codegen)
 make notices          # regenerate server/THIRD-PARTY-NOTICES.txt (needed after Go dependency bumps; make check-hub fails when stale)
@@ -57,6 +57,7 @@ Windows release builds use the `x64-windows-release` overlay triplet (Release-on
 - `.github/workflows/ci.yml`: Linux on every push; Windows on PRs against `main`, manually, and on pushes to `main` (primes the Windows vcpkg binary cache after merges, [ADR 0008](adr/0008-windows-ci-cache.md); cache misses still need a cold dependency build). The Windows job builds the layout launcher plus `bin\`, the zip and the installer and tests silent install and upgrade.
 - Every workflow job has `timeout-minutes` (Windows client and core builds 300, so a cold vcpkg cache still fits).
 - Linux apt steps go through `scripts/ci-apt-install.sh` (update limited to 120 s and install to 240 s per attempt, apt retries and network timeouts, 3 attempts) plus a 20 minute step `timeout-minutes`, so a hanging Ubuntu mirror cannot block CI for long.
+- Job `hub-windows` (windows-latest): `go vet`, `go test` and a version check of the Windows Hub binary; artifact `framebeam-hub-windows`. The release adds `framebeam-hub-<version>-windows-amd64.exe` to the index as platform `windows-amd64`, kind `binary`.
 - Changes that touch only `docs/*` or `*.md` files are detected as docs-only on branches and PRs; the Hub, Player and Windows jobs are skipped for them.
 - `.github/workflows/release.yml`: after a successful CI run on `main` it publishes the CI artifacts as GitHub prerelease `vX.Y.Z` (newest 5 beta prereleases kept, promoted releases never pruned) and adds Hub and Player to the signed `updates-index` release under channel `beta` (`framebeam-sign release-add`, secret `FRAMEBEAM_SIGNING_KEY`). The per-product index entries are stored as `index-hub.json` / `index-player.json` assets on the release. Pushing a `v*` tag builds nothing.
 - `.github/workflows/promote.yml` ("Promote to release", manual): see [guides/updates.md](guides/updates.md).
