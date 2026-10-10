@@ -1,6 +1,12 @@
 #include "core_options.h"
 
 #include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QSaveFile>
+#include <QDateTime>
+#include <QDebug>
+#include <QStringList>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -18,14 +24,70 @@ CoreProbe probeCore(const QString& corePath, const QString& systemDir, const QSt
     return p;
   }
   p.info = be.coreInfo();
-  // Cores like melonDS DS register their options only in retro_load_game: start the core once in no-game mode.
-  // A core that refuses that has still reported what it had before (options may then be empty).
-  QString ignored;
-  be.loadGame(QString(), &ignored);
+  // Cores like melonDS DS register their options only in retro_load_game: start the core once in no-game mode, but
+  // only if it declared SET_SUPPORT_NO_GAME (otherwise retro_load_game(NULL) may crash, e.g. Azahar). Options then
+  // come from what the core registered in retro_set_environment/retro_init. A core that refuses no-game mode has
+  // still reported what it had before (options may then be empty).
+  if (be.supportsNoGame()) {
+    QString ignored;
+    be.loadGame(QString(), &ignored);
+  }
   p.options = be.coreOptions();
   p.categories = be.coreOptionCategories();
   p.ok = true;
   be.unloadCore();
+  return p;
+}
+
+namespace {
+QString libraryKey(const QString& corePath) {
+  const QFileInfo fi(corePath);
+  return QStringLiteral("%1|%2|%3").arg(fi.absoluteFilePath()).arg(fi.size()).arg(fi.lastModified().toMSecsSinceEpoch());
+}
+QStringList readKeyList(const QString& file) {
+  QFile f(file);
+  if (!f.open(QIODevice::ReadOnly)) return {};
+  QStringList out;
+  for (const QJsonValue& v : QJsonDocument::fromJson(f.readAll()).array()) out.append(v.toString());
+  return out;
+}
+void writeKeyList(const QString& file, const QStringList& keys) {
+  QSaveFile f(file);
+  if (!f.open(QIODevice::WriteOnly)) return;
+  QJsonArray a;
+  for (const QString& k : keys) a.append(k);
+  f.write(QJsonDocument(a).toJson(QJsonDocument::Compact));
+  f.commit();
+}
+}  // namespace
+
+CoreProbe probeCoreGuarded(const QString& corePath, const QString& systemDir, const QString& probeDir) {
+  QDir().mkpath(probeDir);
+  const QString markerFile = QDir(probeDir).filePath(QStringLiteral("probe_running.json"));
+  const QString unsafeFile = QDir(probeDir).filePath(QStringLiteral("unsafe_cores.json"));
+  QStringList unsafe = readKeyList(unsafeFile);
+
+  // A marker that is still there means the previous probe never returned (crash): remember that library.
+  if (QFile::exists(markerFile)) {
+    const QStringList stale = readKeyList(markerFile);
+    for (const QString& k : stale) {
+      if (!unsafe.contains(k)) unsafe.append(k);
+      qWarning().noquote() << "Core probe crashed earlier, library will not be probed again:" << k.section(QLatin1Char('|'), 0, 0);
+    }
+    writeKeyList(unsafeFile, unsafe);
+    QFile::remove(markerFile);
+  }
+
+  const QString key = libraryKey(corePath);
+  if (unsafe.contains(key)) {
+    CoreProbe p;
+    p.error = QStringLiteral("Core crashed during an earlier probe; skipped");
+    return p;
+  }
+
+  writeKeyList(markerFile, {key});
+  const CoreProbe p = probeCore(corePath, systemDir, probeDir);
+  QFile::remove(markerFile);
   return p;
 }
 

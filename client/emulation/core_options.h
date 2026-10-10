@@ -24,6 +24,12 @@ struct CoreProbe {
 // (LibretroBackend): fails with an error while another one is loaded (e.g. a running game).
 CoreProbe probeCore(const QString& corePath, const QString& systemDir, const QString& saveDir);
 
+// probeCore with a crash guard for startup/download probes: a marker file (core path + size + mtime) in probeDir is
+// written before and removed after the probe. A marker found on a later call means the earlier probe never returned
+// (the core crashed the process): that library is stored in probeDir/unsafe_cores.json and never probed again
+// (returns ok=false like a failed probe; a changed library is probed again). probeDir also serves as save dir.
+CoreProbe probeCoreGuarded(const QString& corePath, const QString& systemDir, const QString& probeDir);
+
 // JSON cache of a probe (written by the caller after a successful probe, read when probing is not possible).
 QByteArray coreProbeToJson(const CoreProbe& probe);
 CoreProbe coreProbeFromJson(const QByteArray& json);

@@ -408,7 +408,7 @@ void PlayerController::refreshEmulationPage() {
     const emu::SystemManifest& m = *mp;
     const emu::CoreLocation loc = catalog_->locateCore(m);
     if (loc.found() && !session_.isActive()) {
-      const emu::CoreProbe probe = emu::probeCore(loc.path, catalog_->systemDir(), QDir(profiles_->baseDir()).filePath(QStringLiteral("probe")));
+      const emu::CoreProbe probe = emu::probeCoreGuarded(loc.path, catalog_->systemDir(), QDir(profiles_->baseDir()).filePath(QStringLiteral("probe")));
       if (probe.ok) {
         coreNames_.insert(m.coreId, probe.info.name);
         coreVersions_.insert(m.coreId, probe.info.version);
