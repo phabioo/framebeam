@@ -181,6 +181,7 @@ bool LibretroBackend::loadCore(const QString& libraryPath, QString* error) {
     m_categories.clear();
   }
 
+  m_supportsNoGame = false;
   a.set_environment(&LibretroBackend::environmentCb);
   a.set_video_refresh(&LibretroBackend::videoRefreshCb);
   a.set_audio_sample(&LibretroBackend::audioSampleCb);
@@ -229,6 +230,8 @@ bool LibretroBackend::loadGame(const QString& path, QString* error) {
     return false;
   };
   if (!m_coreLoaded) return fail(QStringLiteral("No core loaded"));
+  // Never call retro_load_game(NULL) on a core that did not declare SET_SUPPORT_NO_GAME (it may dereference it).
+  if (path.isEmpty() && !m_supportsNoGame) return fail(QStringLiteral("Core does not support starting without a game"));
   if (m_gameLoaded) unloadGame();
 
   // Empty path: no-game mode (retro_load_game(NULL)); only used to let a core register its options.
@@ -801,7 +804,9 @@ bool LibretroBackend::handleEnvironment(unsigned rawCmd, void* data) {
     case RETRO_ENVIRONMENT_GET_LOG_INTERFACE:
       static_cast<retro_log_callback*>(data)->log = &coreLog;
       return true;
-    case RETRO_ENVIRONMENT_SET_SUPPORT_NO_GAME: return true;
+    case RETRO_ENVIRONMENT_SET_SUPPORT_NO_GAME:
+      m_supportsNoGame = data != nullptr && *static_cast<const bool*>(data);
+      return true;
     case RETRO_ENVIRONMENT_SET_SERIALIZATION_QUIRKS: return true;
     case RETRO_ENVIRONMENT_SET_CONTENT_INFO_OVERRIDE: return true;
     case RETRO_ENVIRONMENT_SET_CONTROLLER_INFO: return true;

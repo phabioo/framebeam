@@ -55,6 +55,20 @@ if(BUILD_TESTING)
   target_compile_definitions(test_emulation_fast_forward PRIVATE FB_FAKE_CORE_PATH="$<TARGET_FILE:framebeam_fake_core>")
   add_dependencies(test_emulation_fast_forward framebeam_fake_core)
 
+  # Fake cores for the probe tests: with and without SET_SUPPORT_NO_GAME (the latter crashes on retro_load_game(NULL)).
+  foreach(variant IN ITEMS 0 1)
+    set(tgt framebeam_fake_nogame_core_${variant})
+    add_library(${tgt} MODULE tests/fake_nogame_core.cpp)
+    target_include_directories(${tgt} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_compile_definitions(${tgt} PRIVATE FB_DECLARE_NO_GAME=${variant})
+    set_target_properties(${tgt} PROPERTIES PREFIX "" OUTPUT_NAME ${tgt})
+  endforeach()
+  framebeam_add_test(emulation_core_probe tests/core_probe_test.cpp LIBS framebeam_emulation)
+  target_compile_definitions(test_emulation_core_probe PRIVATE
+    FB_FAKE_NOGAME_CORE_PATH="$<TARGET_FILE:framebeam_fake_nogame_core_0>"
+    FB_FAKE_NOGAME_DECLARED_CORE_PATH="$<TARGET_FILE:framebeam_fake_nogame_core_1>")
+  add_dependencies(test_emulation_core_probe framebeam_fake_nogame_core_0 framebeam_fake_nogame_core_1)
+
   # Fake libretro core with OpenGL hardware rendering + test (needs QGuiApplication and a GL 3.3 context; SKIP/77
   # without one, except on Linux CI where it must run). Runs on the offscreen QPA with GLX (under xvfb) or EGL.
   add_library(framebeam_fake_hw_core MODULE tests/fake_hw_core.cpp)

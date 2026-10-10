@@ -55,7 +55,7 @@ void CoreCatalog::probeCores() {
     }
     CoreInfo ci;
     ci.id = m.coreId;
-    const emu::CoreProbe probe = emu::probeCore(loc.path, systemDir(), QDir(profiles_->baseDir()).filePath(QStringLiteral("probe")));
+    const emu::CoreProbe probe = emu::probeCoreGuarded(loc.path, systemDir(), QDir(profiles_->baseDir()).filePath(QStringLiteral("probe")));
     if (probe.ok) {
       ci.version = probe.info.version;
       coreNames_.insert(m.coreId, probe.info.name);

@@ -35,6 +35,8 @@ class LibretroBackend final : public EmulatorBackend {
   bool loadCore(const QString& libraryPath, QString* error = nullptr) override;
   void unloadCore() override;
   bool isCoreLoaded() const override;
+  // True if the core declared RETRO_ENVIRONMENT_SET_SUPPORT_NO_GAME (reset by loadCore).
+  bool supportsNoGame() const { return m_supportsNoGame; }
   CoreInfo coreInfo() const override;
 
   void setSystemDirectory(const QString& path) override;
@@ -128,6 +130,7 @@ class LibretroBackend final : public EmulatorBackend {
   CoreInfo m_info;
   AvInfo m_av;
   bool m_coreLoaded = false;
+  bool m_supportsNoGame = false;  // core declared SET_SUPPORT_NO_GAME(true)
   bool m_gameLoaded = false;
   bool m_shutdownRequested = false;
 
