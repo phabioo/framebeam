@@ -37,7 +37,8 @@
     <WixVariable Id="WixUILicenseRtf" Value="$(LicenseRtf)" />
 
     <!-- ===== Public properties (Secure: they must reach the elevated server when a per-user UI elevates) ===== -->
-    <Property Id="INSTALL_PLAYER" Value="1" Secure="yes" />
+    <!-- Unset = default: install the Player (only INSTALL_PLAYER="0" removes it). Unset on purpose, see SetInstallPlayerOffOnUpgrade. -->
+    <Property Id="INSTALL_PLAYER" Secure="yes" />
     <Property Id="INSTALL_HUB" Secure="yes" />
     <!-- Not given: the port of the installed Hub (upgrade), else 8443 (see SetHubPortDefault). -->
     <Property Id="HUB_PORT" Secure="yes" />
@@ -68,6 +69,22 @@
                  Condition="NETWORK_SHARING=&quot;&quot; AND HUB_SHARING_OLD=&quot;true&quot;" />
     <SetProperty Id="NETWORK_SHARING" Action="SetSharingFromInstalledOff" Value="0" Before="SetNETWORK_SHARING" Sequence="execute"
                  Condition="NETWORK_SHARING=&quot;&quot; AND HUB_SHARING_OLD=&quot;false&quot;" />
+    <!-- Upgrading a Hub-only install (e.g. by the Hub updater, which passes only ALLUSERS=1): MigrateFeatureStates does not keep an
+         absent feature absent, so the Player would appear. Detect the installed product by its files (works for any earlier build):
+         Hub marker present, Player marker absent, nothing given explicitly -> INSTALL_PLAYER=0. A per-user or Player(+Hub) upgrade
+         is not affected (no Hub marker, or a Player marker). -->
+    <Property Id="OLD_HUB_MARKER">
+      <DirectorySearch Id="OldHubDir" Path="[ProgramFiles64Folder]FrameBeam\Hub" Depth="0">
+        <FileSearch Id="OldHubMarker" Name="framebeam-hub.msi-installed" />
+      </DirectorySearch>
+    </Property>
+    <Property Id="OLD_PLAYER_MARKER">
+      <DirectorySearch Id="OldPlayerDir" Path="[ProgramFiles64Folder]FrameBeam\Player" Depth="0">
+        <FileSearch Id="OldPlayerMarker" Name="framebeam-player.msi-installed" />
+      </DirectorySearch>
+    </Property>
+    <SetProperty Id="INSTALL_PLAYER" Action="SetInstallPlayerOffOnUpgrade" Value="0" Before="SetSharingFromInstalledOn" Sequence="execute"
+                 Condition="WIX_UPGRADE_DETECTED AND INSTALL_PLAYER=&quot;&quot; AND NOT ADDLOCAL AND OLD_HUB_MARKER AND NOT OLD_PLAYER_MARKER" />
     <!-- Network sharing default when not given: Hub only = on; Player and Hub = off (unset counts as off; the Player runs on the same PC). -->
     <SetProperty Id="NETWORK_SHARING" Value="1" Before="CostInitialize" Sequence="execute"
                  Condition="NETWORK_SHARING=&quot;&quot; AND INSTALL_PLAYER=&quot;0&quot;" />

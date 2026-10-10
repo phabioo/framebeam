@@ -43,8 +43,11 @@ function Show-Diagnostics {
     Write-Host '::endgroup::'
     Write-Host "::group::tail of $($script:lastLog)"; Get-Content $script:lastLog -Tail 80 | Out-Host; Write-Host '::endgroup::'
   }
-  foreach ($f in "$env:ProgramData\FrameBeam-remove-per-user.log.status.txt", "$env:ProgramData\FrameBeam-remove-per-user.log") {
-    if (Test-Path $f) { Write-Host "::group::$f"; Get-Content $f -Tail 60 | Out-Host; Write-Host '::endgroup::' }
+  # The detached removal of the per-user product logs to ProgramData; copy it next to the other logs (uploaded by CI, *.log).
+  foreach ($f in (Get-ChildItem "$env:ProgramData\FrameBeam-remove-per-user.log*" -ErrorAction SilentlyContinue)) {
+    $name = if ($f.Name -like '*.status.txt') { 'FrameBeam-remove-per-user.status.log' } else { $f.Name }
+    Copy-Item $f.FullName (Join-Path $work $name) -Force -ErrorAction SilentlyContinue
+    Write-Host "::group::$($f.FullName)"; Get-Content $f.FullName -Tail 60 | Out-Host; Write-Host '::endgroup::'
   }
   Write-Host '::group::framebeam_player.exe on this machine'
   foreach ($root in (Join-Path $env:LOCALAPPDATA 'Programs'), $env:ProgramFiles) {
