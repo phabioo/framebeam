@@ -173,9 +173,9 @@
     <!-- The assembled package: launcher framebeam_player.exe, THIRD-PARTY-NOTICE.txt, LICENSE.txt, licenses\ at the top,
          the real Player, Qt/vcpkg DLLs, plugins and qml in bin\. data\ is never part of the MSI (ADR 0004). -->
     <ComponentGroup Id="PlayerFiles" Directory="PLAYERDIR">
-      <Files Include="$(PackageDir)\**">
-        <Exclude Files="$(PackageDir)\data\**" />
-      </Files>
+      <!-- No Exclude for data\: with a missing excluded directory WiX drops ALL files of the harvest (WIX8601, zero files).
+           build-msi.ps1 guarantees that the package has no data\ and counts the harvested files after the build. -->
+      <Files Include="$(PackageDir)\**" />
     </ComponentGroup>
 
     <!-- Start menu shortcut (with the AUMID the executables use), install marker and folder of the install. -->

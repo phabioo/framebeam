@@ -63,6 +63,29 @@ wix build "$here\framebeam.wxs" -arch x64 -o $OutFile `
   -d "ProductVersion=$ProductVersion" -d "PackageDir=$PackageDir" -d "HubExe=$HubExe" -d "LicenseRtf=$rtf" `
   -d "IconFile=$here\..\..\client\app\icons\player.ico"
 if ($LASTEXITCODE -ne 0) { throw "wix build failed" }
+# Guard: the File table must hold every file of the package plus the Hub exe and the two markers (a wrong Files pattern or
+# Exclude silently harvests nothing, which once produced a 6 MB MSI without the Player).
+$expected = @(Get-ChildItem -LiteralPath $PackageDir -Recurse -File).Count + 3
+$wi = New-Object -ComObject WindowsInstaller.Installer
+$db = $wi.GetType().InvokeMember('OpenDatabase', 'InvokeMethod', $null, $wi, @($OutFile, 0))
+$view = $db.GetType().InvokeMember('OpenView', 'InvokeMethod', $null, $db, @('SELECT FileName FROM File'))
+$view.GetType().InvokeMember('Execute', 'InvokeMethod', $null, $view, $null) | Out-Null
+$names = New-Object System.Collections.Generic.List[string]
+while ($true) {
+  $rec = $view.GetType().InvokeMember('Fetch', 'InvokeMethod', $null, $view, $null)
+  if ($null -eq $rec) { break }
+  $n = $rec.GetType().InvokeMember('StringData', 'GetProperty', $null, $rec, @(1))
+  $names.Add(($n -split '\|')[-1])
+}
+$view.GetType().InvokeMember('Close', 'InvokeMethod', $null, $view, $null) | Out-Null
+[void][Runtime.InteropServices.Marshal]::ReleaseComObject($view); [void][Runtime.InteropServices.Marshal]::ReleaseComObject($db)
+Write-Host "MSI File table: $($names.Count) files (expected $expected)"
+if ($names.Count -ne $expected) { throw "MSI holds $($names.Count) files, expected $expected (package files + Hub exe + 2 markers)" }
+foreach ($need in 'framebeam_player.exe', 'framebeam-hub.exe', 'framebeam-player.msi-installed', 'framebeam-hub.msi-installed') {
+  if ($names -notcontains $need) { throw "MSI File table has no $need" }
+}
+if ((Get-Item $OutFile).Length -lt (Get-Item $HubExe).Length) { throw "MSI is smaller than the Hub exe alone" }
+
 # ICE validation: errors fail the build. Deliberately suppressed:
 #  ICE38/ICE64/ICE91  files (the Files harvest uses each file as key path) in the per-user profile of a per-user install.
 #  ICE57              components PlayerShell/PlayerDesktopShortcut: shortcuts in Programs/Desktop plus an HKMU key path. In a
