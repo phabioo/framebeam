@@ -28,7 +28,7 @@ Schema 1:
 ```
 
 - `product`: `hub` or `player`. `channel`: `stable` or `beta`. `notes_url` is optional.
-- Platforms and kinds: hub `linux-amd64`, `linux-arm64` with `deb` and `binary`; hub `windows-amd64` with `msi` and `binary`; player `windows-x64` with `installer`, `msi` and `zip`. `msi` is applied by `msiexec` through the Windows updater service (see [updates.md](../guides/updates.md)).
+- Platforms and kinds: hub `linux-amd64`, `linux-arm64` with `deb` and `binary`; hub `windows-amd64` with `msi` and `binary`; player `windows-x64` with `msi`, `installer` and `zip`. Hub `msi` is applied by `msiexec` through the Windows updater service with `ALLUSERS=1`. Player `msi` is preferred by the Player (launcher `--apply-msi-update`); `installer` is the small Inno shell that only installs the MSI, kept so older Players can update ([ADR 0021](../adr/0021-one-windows-installer.md), [updates.md](../guides/updates.md)).
 - Artifact URLs must be https (`file://` only when the index itself was loaded from `file://`, for tests). Integrity comes from size and SHA-256 in the signed index.
 - Unknown fields are ignored, an unknown schema is an error, invalid releases are skipped and reported, a duplicate (product, channel, version) rejects the whole index.
 - Versions are SemVer 2.0; a consumer picks the highest release of its product, channel, platform and kind that is strictly newer than the running version and protocol-compatible. Maintained with `framebeam-sign release-add` (newest 5 per product and channel).

@@ -361,6 +361,25 @@ Rectangle {
                         }
                     }
 
+                    // Own row (not in the header): a long label must never widen the settings column.
+                    FbButton {
+                        objectName: "settingsLocalHubButton"
+                        visible: root.player.localHub.available && !root.player.localHub.onThisPc
+                        Layout.alignment: Qt.AlignLeft
+                        Layout.minimumWidth: 0
+                        Layout.maximumWidth: content.width - Theme.settingsDotSlot
+                        kind: "link"
+                        text: qsTr("Set up a Hub on this PC")
+                        onClicked: { root.player.switchHub(); root.player.localHub.start() }
+                    }
+
+                    LocalHubCard {
+                        objectName: "localHubSettingsCard"
+                        player: root.player
+                        Layout.leftMargin: Theme.settingsDotSlot
+                        Layout.rightMargin: content.wide ? Theme.settingsResetWidth : 0
+                    }
+
                     Repeater {
                         model: root.player.hubs
                         delegate: Rectangle {

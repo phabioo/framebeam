@@ -32,17 +32,21 @@ var errNotImplemented = errors.New("httpapi: not implemented")
 
 // Server implements api.StrictServerInterface.
 type Server struct {
-	svc *hub.Service
-	log *slog.Logger
+	svc     *hub.Service
+	log     *slog.Logger
+	restart func()
 }
 
 // Register attaches the API routes (including the info endpoint and ROM download) to mux. The web interface
 // registers its routes separately (e.g. "/").
-func Register(mux *http.ServeMux, svc *hub.Service, log *slog.Logger) {
+func Register(mux *http.ServeMux, svc *hub.Service, log *slog.Logger, opts ...Option) {
 	if log == nil {
 		log = slog.Default()
 	}
 	s := &Server{svc: svc, log: log}
+	for _, o := range opts {
+		o(s)
+	}
 	strict := api.NewStrictHandlerWithOptions(s, []api.StrictMiddlewareFunc{s.authMiddleware}, api.StrictHTTPServerOptions{
 		RequestErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, _ error) {
 			writeError(w, http.StatusBadRequest, hub.CodeBadRequest, "Invalid request")
@@ -113,10 +117,13 @@ func (s *Server) authMiddleware(next api.StrictHandlerFunc, op string) api.Stric
 		ctx = context.WithValue(ctx, keyBearer, tok)
 		ctx = context.WithValue(ctx, keyRemoteIP, remoteIP(r))
 		ctx = hub.WithRequestHost(ctx, r.Host)
+		if isLocalOp(op) && !isLoopbackRemote(r) {
+			return nil, errNotLoopback
+		}
 		switch op {
 		case "UploadGame", "ListSystems", "RevokeSelf", "PostHandshake", "ListGames", "GetGame", "ConnectWebSocket",
 			"ListSaves", "GetSaveSlot", "PutSave", "DownloadSaveContent", "ListSaveHistory", "DownloadSaveHistoryContent", "ResolveSaveConflict",
-			"RestoreSaveHistoryVersion", "CreateSaveSnapshot", "DeleteSaveSnapshot", "UploadSaveFile",
+			"UpdateLocalSettings", "RestoreSaveHistoryVersion", "CreateSaveSnapshot", "DeleteSaveSnapshot", "UploadSaveFile",
 			"ListUsers", "GetCorePackage", "GetCorePackageFile", "ListSessions", "PublishSession", "GetSession", "UpdateSession", "EndSession", "InviteSessionUser",
 			"WithdrawSessionInvite", "DeclineSession", "JoinSession", "RemoveSessionViewer":
 			p, err := s.svc.Authenticate(ctx, tok)
@@ -136,7 +143,7 @@ func principal(ctx context.Context) hub.Principal {
 
 func httpStatus(c hub.Code) int {
 	switch c {
-	case hub.CodeBadRequest:
+	case hub.CodeBadRequest, hub.CodeImportDirUnreadable:
 		return http.StatusBadRequest
 	case hub.CodeUnauthorized, hub.CodeDeviceRevoked, hub.CodeInvalidCredentials, hub.CodeUserDisabled:
 		return http.StatusUnauthorized
@@ -273,7 +280,7 @@ func (s *Server) PostHandshake(ctx context.Context, req api.PostHandshakeRequest
 		return nil, err
 	}
 	features := []string{hub.FeatureSavesV1, hub.FeatureSessionsV1, hub.FeatureUsersV1, hub.FeatureFirmwareV1, hub.FeatureCoresV1,
-		hub.FeatureSavesV2, hub.FeatureCoresV2, hub.FeatureSavesV3, hub.FeatureSavesV4}
+		hub.FeatureSavesV2, hub.FeatureCoresV2, hub.FeatureSavesV3, hub.FeatureSavesV4, hub.FeatureLocalSetupV1}
 	if s.svc.TURNEnabled() {
 		features = append(features, hub.FeatureTURNV1)
 	}

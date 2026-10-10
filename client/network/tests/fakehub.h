@@ -86,6 +86,13 @@ class FakeHub : public QTcpServer {
   QStringList takenNames;                                // display names -> 409 display_name_taken (case-insensitive)
   bool rateLimitInvites = false;
   QJsonObject lastInviteBody;
+  // Local setup (local_setup_v1): /local/status, /local/setup, /local/pair, PUT /local/settings
+  bool localAdminExists = false;
+  bool localNetworkSharing = false;
+  QString localImportDir;
+  QJsonObject lastLocalBody;       // body of the last /local/setup or /local/pair
+  QJsonObject lastLocalSettings;   // body of the last PUT /local/settings
+  QString localImportDirError;     // non-empty: PUT import_dir answers 400 import_dir_unreadable with this message
   QJsonObject lastHandshakeBody;  // request body of the last POST /handshake
   bool userDisabled = false;                             // token endpoint answers 401 user_disabled
   bool uploadsAllowed = true;                            // false: POST /games -> 403 uploads_disabled

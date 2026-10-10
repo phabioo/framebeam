@@ -87,14 +87,17 @@ The Hub downloads cores RetroArch-style from the libretro buildbot (nightly chan
 
 Details: [ADR 0020](../adr/0020-cores-from-the-libretro-buildbot.md).
 
-## Windows (0.9, manual use)
+## Windows
 
-The Hub builds for Windows amd64 (`framebeam-hub-windows-amd64.exe`). The MSI that registers the services arrives with the next 0.9 package; until then the binary is for manual and test use.
+Install with the FrameBeam MSI (feature Hub; see [packaging.md](packaging.md)), usually through "Set up a Hub on this PC" in the Player, or manually: `msiexec /i framebeam.msi /qn ALLUSERS=1 INSTALL_HUB=1 INSTALL_PLAYER=0 HUB_PORT=8443 NETWORK_SHARING=1`. The binary `framebeam-hub-windows-amd64.exe` alone is for manual and test use. Decisions: [ADR 0021](../adr/0021-one-windows-installer.md).
 
-- Defaults: data `%ProgramData%\FrameBeam\Hub`, import dir `<data>\library-import`, update request dir `<data>\update-request`.
-- Service `FrameBeamHub`: when started by the Service Control Manager the Hub runs as a Windows service (planned account `NT SERVICE\FrameBeamHub`). A restart from the web interface re-runs the Hub in-process.
-- Logs: when running as a service to `<data>\logs\hub.log` (rotated at 10 MB, one old file kept).
+- Service `FrameBeamHub` runs as `NT SERVICE\FrameBeamHub` with `-listen :<port> -network-sharing=<true|false>` from the MSI properties. A restart from the web interface re-runs the Hub in-process.
+- Defaults: data `%ProgramData%\FrameBeam\Hub`, import dir `<data>\library-import`, update request dir `<data>\update-request`. Logs when running as a service: `<data>\logs\hub.log` (rotated at 10 MB, one old file kept).
 - Updates: service `FrameBeamHubUpdater` (LocalSystem), see [updates.md](updates.md).
+- `-network-sharing` (env `FRAMEBEAM_NETWORK_SHARING`, default `true`): initial value only; after the first start the stored setting wins. Off = the Hub listens only on 127.0.0.1 and ::1 (standalone mode, TURN off). Changing it restarts the server in-process.
+- Settings card (web Settings): "Network sharing" and "Import folder" are stored settings. `-library-import-dir` is only the initial value or fallback. The import folder must be an absolute, existing folder the Hub can read (else `import_dir_unreadable`).
+- `framebeam-hub grant-folder <path>` (Windows, run as administrator): gives `NT SERVICE\FrameBeamHub` read and list access (inherited) to a ROM folder outside the Hub's data directory. Other systems print "not supported" and exit 2.
+- Local API (`/api/v1/local/status|setup|pair|settings`, feature `local_setup_v1`): loopback only, admin credentials needed, used by the Player's "Set up a Hub on this PC". Five wrong passwords lock local pairing for a minute. See [protocol.md](../reference/protocol.md).
 
 ## Data directory
 

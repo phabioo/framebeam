@@ -88,6 +88,7 @@ jobs:
           cp "$art/framebeam-hub-linux/THIRD-PARTY-NOTICES.txt" "$rel/THIRD-PARTY-NOTICES-hub.txt"
           cp "$art/framebeam-player-windows-x64/framebeam-player-$version-windows-x64.zip" "$rel/"
           cp "$art/framebeam-player-windows-x64-setup/framebeam-player-$version-windows-x64-setup.exe" "$rel/"
+          cp "$art/framebeam-windows-x64-msi/framebeam-$version-windows-x64.msi" "$rel/"
           (cd "$rel" && sha256sum -- * > SHA256SUMS)
           cat "$rel/SHA256SUMS"
           {
@@ -151,10 +152,14 @@ jobs:
           h3="$(artifact linux-amd64 binary "framebeam-hub-$VERSION-linux-amd64")"
           h4="$(artifact linux-arm64 binary "framebeam-hub-$VERSION-linux-arm64")"
           h5="$(artifact windows-amd64 binary "framebeam-hub-$VERSION-windows-amd64.exe")"
+          # One MSI for both products: the Hub entry points to the same file (name, size, hash) as the Player entry.
+          h6="$(artifact windows-amd64 msi "framebeam-$VERSION-windows-x64.msi")"
+          # The installer is the Inno shell around the MSI (old Players only know "installer"; new ones prefer "msi").
+          p0="$(artifact windows-x64 msi "framebeam-$VERSION-windows-x64.msi")"
           p1="$(artifact windows-x64 installer "framebeam-player-$VERSION-windows-x64-setup.exe")"
           p2="$(artifact windows-x64 zip "framebeam-player-$VERSION-windows-x64.zip")"
-          hub_arts="$(jq -sc '.' <<<"$h1 $h2 $h3 $h4 $h5")"
-          player_arts="$(jq -sc '.' <<<"$p1 $p2")"
+          hub_arts="$(jq -sc '.' <<<"$h1 $h2 $h3 $h4 $h5 $h6")"
+          player_arts="$(jq -sc '.' <<<"$p0 $p1 $p2")"
           mk hub "$art/framebeam-hub-linux/hub-release-info.json" "$hub_arts" > "$out/hub.json"
           mk player "$art/framebeam-player-windows-x64/player-release-info.json" "$player_arts" > "$out/player.json"
           jq -c '{product, channel, version, artifacts: (.artifacts | length)}' "$out/hub.json" "$out/player.json"

@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
   title: FrameBeam Hub API
-  version: 1.9.0
+  version: 1.10.0
   description: |
-    HTTPS/JSON API of the FrameBeam Hub (phase 1; phase 3 adds save sync under `saves`, advertised by the handshake feature `saves_v1`; phase 4 adds Session sharing under `sessions` and the WSS endpoint, advertised by the handshake feature `sessions_v1`; phase 5 adds invite redemption under `users` (`users_v1`), user ROM uploads (`uploads_v1`, only advertised when the caller may upload) and the systems registry with firmware download under `systems` (`firmware_v1`); 0.2 adds core packages served by the Hub under `cores` (`cores_v1`); 0.4 adds relay credentials for Sessions over the internet (`turn_v1`, `turn_servers` in `hello_ack` and the join response), save comfort (`saves_v2`: restore, manual snapshots, history labels, the `save_updated` WSS message) and the signed core index for Player-side verification (`cores_index_v1`, `/api/v1/cores/index`, removed again in 0.8); 0.7 adds deleting manual snapshots (`saves_v3`) and the optional `user` in the handshake response; 0.8 adds uploading a save file from outside the sync flow (`saves_v4`, `POST /games/{game_id}/saves/{slot}/upload`); 0.8 also adds several cores per system from the libretro buildbot (`cores_v2`: `default_core_id` and `cores` in `SystemInfo`, core ids `^[a-z0-9][a-z0-9_-]{0,63}$`) and removes `cores_index_v1` and its endpoints `/api/v1/cores/index{,.sig}`). `protocol_version` is an integer (starting at 1),
+    HTTPS/JSON API of the FrameBeam Hub (phase 1; phase 3 adds save sync under `saves`, advertised by the handshake feature `saves_v1`; phase 4 adds Session sharing under `sessions` and the WSS endpoint, advertised by the handshake feature `sessions_v1`; phase 5 adds invite redemption under `users` (`users_v1`), user ROM uploads (`uploads_v1`, only advertised when the caller may upload) and the systems registry with firmware download under `systems` (`firmware_v1`); 0.2 adds core packages served by the Hub under `cores` (`cores_v1`); 0.4 adds relay credentials for Sessions over the internet (`turn_v1`, `turn_servers` in `hello_ack` and the join response), save comfort (`saves_v2`: restore, manual snapshots, history labels, the `save_updated` WSS message) and the signed core index for Player-side verification (`cores_index_v1`, `/api/v1/cores/index`, removed again in 0.8); 0.7 adds deleting manual snapshots (`saves_v3`) and the optional `user` in the handshake response; 0.8 adds uploading a save file from outside the sync flow (`saves_v4`, `POST /games/{game_id}/saves/{slot}/upload`); 0.8 also adds several cores per system from the libretro buildbot (`cores_v2`: `default_core_id` and `cores` in `SystemInfo`, core ids `^[a-z0-9][a-z0-9_-]{0,63}$`) and removes `cores_index_v1` and its endpoints `/api/v1/cores/index{,.sig}`); 0.9 adds the local setup endpoints under `local` for a Player on the same PC as the Hub (`local_setup_v1`, loopback callers only). `protocol_version` is an integer (starting at 1),
     separate from the hub/player product version. All paths carry the `/api/v1` prefix explicitly;
     only the info endpoint lives under `/.well-known/framebeam`.
     Compatibility: Player.protocol_version < Hub.min_protocol_version -> player_too_old;
@@ -15,6 +15,7 @@ security: []
 tags:
   - name: info
   - name: pairing
+  - name: local
   - name: auth
   - name: handshake
   - name: users
@@ -114,6 +115,136 @@ paths:
                   value: { status: denied }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/local/status:
+    get:
+      operationId: getLocalStatus
+      tags: [local]
+      summary: State of the local setup (`local_setup_v1`, loopback callers only)
+      description: |
+        For the Player on the same PC as the Hub. Every `/api/v1/local/*` endpoint answers 403 `forbidden` when the
+        TCP peer address is not a loopback address (`X-Forwarded-For` and similar headers are never trusted) and is
+        rate limited like pairing (429).
+      security: []
+      responses:
+        '200':
+          description: Status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LocalStatus' }
+              examples:
+                default:
+                  value: { admin_exists: false, network_sharing: false, import_dir: 'C:\ProgramData\FrameBeam\Hub\library-import', hub_version: 0.9.0 }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/local/setup:
+    post:
+      operationId: localSetup
+      tags: [local]
+      summary: Create the first admin and pair the calling Player as that admin (`local_setup_v1`, loopback only)
+      description: |
+        No admin approval: the first admin is created with the username rules and minimum password length of the
+        web setup page, and the calling device is registered for that admin. The response is the payload of an
+        approved pairing poll (the credential is delivered once). 409 `conflict` when an admin already exists.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LocalPairRequest' }
+            examples:
+              default:
+                value:
+                  username: admin
+                  password: PLACEHOLDER-PASSWORD
+                  device_name: Wohnzimmer-PC
+                  device_id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                  platform: windows
+                  arch: x86_64
+                  player_version: 0.9.0
+                  protocol_version: 1
+      responses:
+        '200':
+          description: Admin created, device paired
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PairingStatus' }
+              examples:
+                default:
+                  value:
+                    status: approved
+                    hub_id: 3f2b8c1e-5d4a-4b7e-9a10-0c1d2e3f4a5b
+                    user_id: u_placeholder_1
+                    device_credential: fbd_PLACEHOLDER_DEVICE_CREDENTIAL
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: An admin already exists
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: conflict, message: An admin already exists } } }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/local/pair:
+    post:
+      operationId: localPair
+      tags: [local]
+      summary: Pair the calling Player as an existing admin (`local_setup_v1`, loopback only)
+      description: |
+        No admin approval: the device is registered for the user when username and password belong to an enabled
+        admin, otherwise 401 `invalid_credentials`. Same body as `localSetup`, same response.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LocalPairRequest' }
+      responses:
+        '200':
+          description: Device paired
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PairingStatus' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/local/settings:
+    put:
+      operationId: updateLocalSettings
+      tags: [local]
+      summary: Change network sharing and the import folder (`local_setup_v1`, loopback only, admin device)
+      description: |
+        Needs the access token of a device of an admin user. Both values are persisted Hub settings. A change
+        restarts the server in-process shortly after the response (binding and the import folder are read at
+        startup). `import_dir` must be an absolute path of an existing directory the Hub can read, otherwise 400
+        `import_dir_unreadable`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LocalSettingsUpdate' }
+            examples:
+              default:
+                value: { network_sharing: true, import_dir: 'D:\Roms' }
+      responses:
+        '200':
+          description: The settings now stored
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LocalStatus' }
+        '400':
+          description: Invalid value; `import_dir_unreadable` when the folder is not usable
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: import_dir_unreadable, message: 'import_dir_unreadable: The import folder does not exist or is not a directory' } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/v1/invites/redeem:
     post:
       operationId: redeemInvite
@@ -281,7 +412,7 @@ paths:
                     min_protocol_version: 1
                     compatible: true
                     problems: []
-                    features: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1, cores_v1, turn_v1, saves_v2, saves_v3, saves_v4, cores_v2]
+                    features: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1, cores_v1, turn_v1, saves_v2, saves_v3, saves_v4, cores_v2, local_setup_v1]
                 core_missing:
                   description: Warning only, `compatible` stays true (launch allowed; the Player shows the problem)
                   value:
@@ -1552,7 +1683,7 @@ components:
   schemas:
     ErrorCode:
       type: string
-      enum: [bad_request, unauthorized, forbidden, not_found, conflict, rate_limited, internal, device_revoked, invalid_credentials, pairing_pending, pairing_denied, pairing_expired, player_too_old, hub_too_old, core_missing, core_version_mismatch, capability_missing, save_conflict, save_conflict_stale, save_not_snapshot, payload_too_large, session_not_found, session_forbidden, session_full, session_ended, invite_invalid, display_name_taken, user_disabled, uploads_disabled, core_package_not_found, core_file_not_available]
+      enum: [bad_request, unauthorized, forbidden, not_found, conflict, rate_limited, internal, device_revoked, invalid_credentials, pairing_pending, pairing_denied, pairing_expired, player_too_old, hub_too_old, core_missing, core_version_mismatch, capability_missing, save_conflict, save_conflict_stale, save_not_snapshot, payload_too_large, session_not_found, session_forbidden, session_full, session_ended, invite_invalid, display_name_taken, user_disabled, uploads_disabled, core_package_not_found, core_file_not_available, import_dir_unreadable]
     Error:
       type: object
       required: [error]
@@ -1599,6 +1730,31 @@ components:
         hub_id: { type: string, format: uuid, description: Only when approved (once) }
         user_id: { type: string, description: Hub-local user ID; only when approved }
         device_credential: { type: string, description: 'Prefix fbd_; only when approved, once' }
+    LocalStatus:
+      type: object
+      required: [admin_exists, network_sharing, import_dir, hub_version]
+      properties:
+        admin_exists: { type: boolean }
+        network_sharing: { type: boolean, description: 'false = the Hub listens on loopback only and the built-in TURN relay is off' }
+        import_dir: { type: string, description: Library import folder }
+        hub_version: { type: string }
+    LocalPairRequest:
+      type: object
+      required: [username, password, device_name, device_id, platform, arch, player_version, protocol_version]
+      properties:
+        username: { type: string }
+        password: { type: string }
+        device_name: { type: string }
+        device_id: { type: string, format: uuid }
+        platform: { type: string }
+        arch: { type: string }
+        player_version: { type: string }
+        protocol_version: { type: integer, minimum: 1 }
+    LocalSettingsUpdate:
+      type: object
+      properties:
+        network_sharing: { type: boolean }
+        import_dir: { type: string, description: Absolute path of an existing directory the Hub can read }
     TokenRequest:
       type: object
       required: [device_id, device_credential]
@@ -1787,7 +1943,7 @@ components:
           type: array
           description: Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = the Hub's embedded TURN server is on (`turn_servers` in `hello_ack` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`), `saves_v4` = uploading a save file into a slot (`POST /games/{game_id}/saves/{slot}/upload`), `cores_v2` = several cores per system (`default_core_id` and `cores` in `SystemInfo`; core ids follow `^[a-z0-9][a-z0-9_-]{0,63}$`). `cores_index_v1` (signed core index) existed in 0.4 to 0.7 and was removed in 0.8.
           items: { type: string }
-          example: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1, cores_v1, turn_v1, saves_v2, saves_v3, saves_v4, cores_v2]
+          example: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1, cores_v1, turn_v1, saves_v2, saves_v3, saves_v4, cores_v2, local_setup_v1]
         user:
           $ref: '#/components/schemas/HandshakeUser'
     HandshakeUser:

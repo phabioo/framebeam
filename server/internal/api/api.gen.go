@@ -100,6 +100,7 @@ const (
 	ErrorCodeDisplayNameTaken     ErrorCode = "display_name_taken"
 	ErrorCodeForbidden            ErrorCode = "forbidden"
 	ErrorCodeHubTooOld            ErrorCode = "hub_too_old"
+	ErrorCodeImportDirUnreadable  ErrorCode = "import_dir_unreadable"
 	ErrorCodeInternal             ErrorCode = "internal"
 	ErrorCodeInvalidCredentials   ErrorCode = "invalid_credentials"
 	ErrorCodeInviteInvalid        ErrorCode = "invite_invalid"
@@ -146,6 +147,8 @@ func (e ErrorCode) Valid() bool {
 	case ErrorCodeForbidden:
 		return true
 	case ErrorCodeHubTooOld:
+		return true
+	case ErrorCodeImportDirUnreadable:
 		return true
 	case ErrorCodeInternal:
 		return true
@@ -671,6 +674,37 @@ type InviteRedeemRequest struct {
 	ProtocolVersion int    `json:"protocol_version"`
 }
 
+// LocalPairRequest defines model for LocalPairRequest.
+type LocalPairRequest struct {
+	Arch            string             `json:"arch"`
+	DeviceId        openapi_types.UUID `json:"device_id"`
+	DeviceName      string             `json:"device_name"`
+	Password        string             `json:"password"`
+	Platform        string             `json:"platform"`
+	PlayerVersion   string             `json:"player_version"`
+	ProtocolVersion int                `json:"protocol_version"`
+	Username        string             `json:"username"`
+}
+
+// LocalSettingsUpdate defines model for LocalSettingsUpdate.
+type LocalSettingsUpdate struct {
+	// ImportDir Absolute path of an existing directory the Hub can read
+	ImportDir      *string `json:"import_dir,omitempty"`
+	NetworkSharing *bool   `json:"network_sharing,omitempty"`
+}
+
+// LocalStatus defines model for LocalStatus.
+type LocalStatus struct {
+	AdminExists bool   `json:"admin_exists"`
+	HubVersion  string `json:"hub_version"`
+
+	// ImportDir Library import folder
+	ImportDir string `json:"import_dir"`
+
+	// NetworkSharing false = the Hub listens on loopback only and the built-in TURN relay is off
+	NetworkSharing bool `json:"network_sharing"`
+}
+
 // PairingRequestAccepted defines model for PairingRequestAccepted.
 type PairingRequestAccepted struct {
 	// ExpiresIn Seconds
@@ -1138,6 +1172,15 @@ type PostHandshakeJSONRequestBody = HandshakeRequest
 
 // RedeemInviteJSONRequestBody defines body for RedeemInvite for application/json ContentType.
 type RedeemInviteJSONRequestBody = InviteRedeemRequest
+
+// LocalPairJSONRequestBody defines body for LocalPair for application/json ContentType.
+type LocalPairJSONRequestBody = LocalPairRequest
+
+// UpdateLocalSettingsJSONRequestBody defines body for UpdateLocalSettings for application/json ContentType.
+type UpdateLocalSettingsJSONRequestBody = LocalSettingsUpdate
+
+// LocalSetupJSONRequestBody defines body for LocalSetup for application/json ContentType.
+type LocalSetupJSONRequestBody = LocalPairRequest
 
 // CreatePairingRequestJSONRequestBody defines body for CreatePairingRequest for application/json ContentType.
 type CreatePairingRequestJSONRequestBody = PairingRequestCreate
@@ -1621,6 +1664,18 @@ type ServerInterface interface {
 	// Redeem an onboarding invite code (no auth)
 	// (POST /api/v1/invites/redeem)
 	RedeemInvite(w http.ResponseWriter, r *http.Request)
+	// Pair the calling Player as an existing admin (`local_setup_v1`, loopback only)
+	// (POST /api/v1/local/pair)
+	LocalPair(w http.ResponseWriter, r *http.Request)
+	// Change network sharing and the import folder (`local_setup_v1`, loopback only, admin device)
+	// (PUT /api/v1/local/settings)
+	UpdateLocalSettings(w http.ResponseWriter, r *http.Request)
+	// Create the first admin and pair the calling Player as that admin (`local_setup_v1`, loopback only)
+	// (POST /api/v1/local/setup)
+	LocalSetup(w http.ResponseWriter, r *http.Request)
+	// State of the local setup (`local_setup_v1`, loopback callers only)
+	// (GET /api/v1/local/status)
+	GetLocalStatus(w http.ResponseWriter, r *http.Request)
 	// Submit pairing request (admin decides allow/deny)
 	// (POST /api/v1/pairing/requests)
 	CreatePairingRequest(w http.ResponseWriter, r *http.Request)
@@ -2576,6 +2631,68 @@ func (siw *ServerInterfaceWrapper) RedeemInvite(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// LocalPair operation middleware
+func (siw *ServerInterfaceWrapper) LocalPair(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.LocalPair(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateLocalSettings operation middleware
+func (siw *ServerInterfaceWrapper) UpdateLocalSettings(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateLocalSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// LocalSetup operation middleware
+func (siw *ServerInterfaceWrapper) LocalSetup(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.LocalSetup(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetLocalStatus operation middleware
+func (siw *ServerInterfaceWrapper) GetLocalStatus(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetLocalStatus(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // CreatePairingRequest operation middleware
 func (siw *ServerInterfaceWrapper) CreatePairingRequest(w http.ResponseWriter, r *http.Request) {
 
@@ -3262,6 +3379,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/upload", wrapper.UploadSaveFile)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/handshake", wrapper.PostHandshake)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/invites/redeem", wrapper.RedeemInvite)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/local/pair", wrapper.LocalPair)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/local/settings", wrapper.UpdateLocalSettings)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/local/setup", wrapper.LocalSetup)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/local/status", wrapper.GetLocalStatus)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/pairing/requests", wrapper.CreatePairingRequest)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/pairing/requests/{request_id}", wrapper.GetPairingRequest)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/roms/{sha256}", wrapper.DownloadRom)
@@ -4743,6 +4864,289 @@ func (response RedeemInvite429JSONResponse) VisitRedeemInviteResponse(w http.Res
 	return err
 }
 
+type LocalPairRequestObject struct {
+	Body *LocalPairJSONRequestBody
+}
+
+type LocalPairResponseObject interface {
+	VisitLocalPairResponse(w http.ResponseWriter) error
+}
+
+type LocalPair200JSONResponse PairingStatus
+
+func (response LocalPair200JSONResponse) VisitLocalPairResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LocalPair400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response LocalPair400JSONResponse) VisitLocalPairResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LocalPair401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response LocalPair401JSONResponse) VisitLocalPairResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LocalPair403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response LocalPair403JSONResponse) VisitLocalPairResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LocalPair429JSONResponse struct{ RateLimitedJSONResponse }
+
+func (response LocalPair429JSONResponse) VisitLocalPairResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateLocalSettingsRequestObject struct {
+	Body *UpdateLocalSettingsJSONRequestBody
+}
+
+type UpdateLocalSettingsResponseObject interface {
+	VisitUpdateLocalSettingsResponse(w http.ResponseWriter) error
+}
+
+type UpdateLocalSettings200JSONResponse LocalStatus
+
+func (response UpdateLocalSettings200JSONResponse) VisitUpdateLocalSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateLocalSettings400JSONResponse Error
+
+func (response UpdateLocalSettings400JSONResponse) VisitUpdateLocalSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateLocalSettings401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response UpdateLocalSettings401JSONResponse) VisitUpdateLocalSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateLocalSettings403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response UpdateLocalSettings403JSONResponse) VisitUpdateLocalSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateLocalSettings429JSONResponse struct{ RateLimitedJSONResponse }
+
+func (response UpdateLocalSettings429JSONResponse) VisitUpdateLocalSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LocalSetupRequestObject struct {
+	Body *LocalSetupJSONRequestBody
+}
+
+type LocalSetupResponseObject interface {
+	VisitLocalSetupResponse(w http.ResponseWriter) error
+}
+
+type LocalSetup200JSONResponse PairingStatus
+
+func (response LocalSetup200JSONResponse) VisitLocalSetupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LocalSetup400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response LocalSetup400JSONResponse) VisitLocalSetupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LocalSetup403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response LocalSetup403JSONResponse) VisitLocalSetupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LocalSetup409JSONResponse Error
+
+func (response LocalSetup409JSONResponse) VisitLocalSetupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LocalSetup429JSONResponse struct{ RateLimitedJSONResponse }
+
+func (response LocalSetup429JSONResponse) VisitLocalSetupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetLocalStatusRequestObject struct {
+}
+
+type GetLocalStatusResponseObject interface {
+	VisitGetLocalStatusResponse(w http.ResponseWriter) error
+}
+
+type GetLocalStatus200JSONResponse LocalStatus
+
+func (response GetLocalStatus200JSONResponse) VisitGetLocalStatusResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetLocalStatus403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetLocalStatus403JSONResponse) VisitGetLocalStatusResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetLocalStatus429JSONResponse struct{ RateLimitedJSONResponse }
+
+func (response GetLocalStatus429JSONResponse) VisitGetLocalStatusResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type CreatePairingRequestRequestObject struct {
 	Body *CreatePairingRequestJSONRequestBody
 }
@@ -5998,6 +6402,18 @@ type StrictServerInterface interface {
 	// Redeem an onboarding invite code (no auth)
 	// (POST /api/v1/invites/redeem)
 	RedeemInvite(ctx context.Context, request RedeemInviteRequestObject) (RedeemInviteResponseObject, error)
+	// Pair the calling Player as an existing admin (`local_setup_v1`, loopback only)
+	// (POST /api/v1/local/pair)
+	LocalPair(ctx context.Context, request LocalPairRequestObject) (LocalPairResponseObject, error)
+	// Change network sharing and the import folder (`local_setup_v1`, loopback only, admin device)
+	// (PUT /api/v1/local/settings)
+	UpdateLocalSettings(ctx context.Context, request UpdateLocalSettingsRequestObject) (UpdateLocalSettingsResponseObject, error)
+	// Create the first admin and pair the calling Player as that admin (`local_setup_v1`, loopback only)
+	// (POST /api/v1/local/setup)
+	LocalSetup(ctx context.Context, request LocalSetupRequestObject) (LocalSetupResponseObject, error)
+	// State of the local setup (`local_setup_v1`, loopback callers only)
+	// (GET /api/v1/local/status)
+	GetLocalStatus(ctx context.Context, request GetLocalStatusRequestObject) (GetLocalStatusResponseObject, error)
 	// Submit pairing request (admin decides allow/deny)
 	// (POST /api/v1/pairing/requests)
 	CreatePairingRequest(ctx context.Context, request CreatePairingRequestRequestObject) (CreatePairingRequestResponseObject, error)
@@ -6657,6 +7073,123 @@ func (sh *strictHandler) RedeemInvite(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(RedeemInviteResponseObject); ok {
 		if err := validResponse.VisitRedeemInviteResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// LocalPair operation middleware
+func (sh *strictHandler) LocalPair(w http.ResponseWriter, r *http.Request) {
+	var request LocalPairRequestObject
+
+	var body LocalPairJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.LocalPair(ctx, request.(LocalPairRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "LocalPair")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(LocalPairResponseObject); ok {
+		if err := validResponse.VisitLocalPairResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateLocalSettings operation middleware
+func (sh *strictHandler) UpdateLocalSettings(w http.ResponseWriter, r *http.Request) {
+	var request UpdateLocalSettingsRequestObject
+
+	var body UpdateLocalSettingsJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateLocalSettings(ctx, request.(UpdateLocalSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateLocalSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateLocalSettingsResponseObject); ok {
+		if err := validResponse.VisitUpdateLocalSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// LocalSetup operation middleware
+func (sh *strictHandler) LocalSetup(w http.ResponseWriter, r *http.Request) {
+	var request LocalSetupRequestObject
+
+	var body LocalSetupJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.LocalSetup(ctx, request.(LocalSetupRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "LocalSetup")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(LocalSetupResponseObject); ok {
+		if err := validResponse.VisitLocalSetupResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetLocalStatus operation middleware
+func (sh *strictHandler) GetLocalStatus(w http.ResponseWriter, r *http.Request) {
+	var request GetLocalStatusRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetLocalStatus(ctx, request.(GetLocalStatusRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetLocalStatus")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetLocalStatusResponseObject); ok {
+		if err := validResponse.VisitGetLocalStatusResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

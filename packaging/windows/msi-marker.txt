@@ -1,0 +1,1 @@
+Marker file of the FrameBeam MSI. Its presence next to the program tells the updater that this install is owned by the MSI. Not a configuration file.

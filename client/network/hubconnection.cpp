@@ -397,6 +397,75 @@ void HubConnection::redeemInvite(const QString& code, const QString& displayName
   });
 }
 
+bool HubConnection::isLoopbackHub() const {
+  return http_ != nullptr && HubHttp::isLoopbackHost(http_->baseUrl().host());
+}
+
+void HubConnection::fetchLocalStatus(std::function<void(bool, const QJsonObject&, const QString&)> done) {
+  if (http_ == nullptr || !isLoopbackHub()) {
+    done(false, {}, QStringLiteral("not_local"));
+    return;
+  }
+  QNetworkReply* reply = http_->get(apiPath(QStringLiteral("/local/status")));
+  track(reply, [this, done = std::move(done)](const HttpResult& r) {
+    if (r.certMismatch) {
+      handleCommonFailure(r);
+      done(false, {}, QStringLiteral("certificate_changed"));
+      return;
+    }
+    done(r.ok(), r.json(), r.apiErrorMessage.isEmpty() ? r.errorString : r.apiErrorMessage);
+  });
+}
+
+void HubConnection::localSetup(const QString& username, const QString& password) {
+  localPairingRequest(QStringLiteral("/local/setup"), username, password);
+}
+
+void HubConnection::localPair(const QString& username, const QString& password) {
+  localPairingRequest(QStringLiteral("/local/pair"), username, password);
+}
+
+void HubConnection::localPairingRequest(const QString& path, const QString& username, const QString& password) {
+  if (state_ != State::NeedsPairing && state_ != State::Denied && state_ != State::Expired) {
+    return;
+  }
+  if (!isLoopbackHub()) {
+    errorCode_ = QStringLiteral("not_local");
+    errorMessage_.clear();
+    emit errorOccurred(errorCode_, errorMessage_);
+    return;
+  }
+  if (username.trimmed().isEmpty() || password.isEmpty()) {
+    errorCode_ = QStringLiteral("invalid_input");
+    errorMessage_.clear();
+    emit errorOccurred(errorCode_, errorMessage_);
+    return;
+  }
+  const QJsonObject body{{QStringLiteral("username"), username.trimmed()},
+                         {QStringLiteral("password"), password},
+                         {QStringLiteral("device_id"), profiles_->deviceId()},
+                         {QStringLiteral("device_name"), profiles_->deviceName()},
+                         {QStringLiteral("platform"), handshake_.platform},
+                         {QStringLiteral("arch"), handshake_.arch},
+                         {QStringLiteral("player_version"), handshake_.playerVersion},
+                         {QStringLiteral("protocol_version"), handshake_.protocolVersion}};
+  // The password is a secret: it is never logged.
+  QNetworkReply* reply = http_->postJson(apiPath(path), body);
+  track(reply, [this](const HttpResult& r) {
+    if (handleCommonFailure(r)) {
+      return;
+    }
+    if (r.status == 200 || r.status == 201) {
+      onPairingApproved(r.json());  // same payload as an approved pairing: credential stored once, token + handshake
+      return;
+    }
+    const QString code = r.apiErrorCode.isEmpty() ? QStringLiteral("local_setup_failed") : r.apiErrorCode;
+    errorCode_ = code;
+    errorMessage_ = r.apiErrorMessage;
+    emit errorOccurred(code, r.apiErrorMessage);  // state is kept
+  });
+}
+
 void HubConnection::cancelPairing() {
   if (state_ != State::AwaitingApproval) {
     return;

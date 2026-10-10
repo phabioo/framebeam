@@ -89,7 +89,8 @@ int main(int argc, char* argv[]) {
           "  --version-json       Print version, channel, commit and protocol versions as JSON and exit.\n"
           "  --smoke-test         Load QML and exit with code 0 (code 1 on QML warnings).\n"
           "  --data-dir <path>    Data directory (profiles, cache, saves) instead of the default.\n"
-          "  --dev-allow-http     Development only: also allow HTTP hubs outside localhost.\n");
+          "  --dev-allow-http     Development only: also allow HTTP hubs outside localhost.\n"
+          "  --setup-local-hub    Continue \"Set up a Hub on this PC\" (the installer starts the Player with it).\n");
       return 0;
     }
   }
@@ -116,6 +117,9 @@ int main(int argc, char* argv[]) {
                                    QStringLiteral("path"));
   const QCommandLineOption devHttp(QStringLiteral("dev-allow-http"),
                                    QStringLiteral("Development only: also allow HTTP hubs outside localhost."));
+  const QCommandLineOption setupLocalHub(QStringLiteral("setup-local-hub"),
+                                         QStringLiteral("Continue \"Set up a Hub on this PC\" after the Hub was installed."));
+  parser.addOption(setupLocalHub);
   parser.addOption(smoke);
   parser.addOption(dataDir);
   parser.addOption(devHttp);
@@ -170,5 +174,8 @@ int main(int argc, char* argv[]) {
     return g_qmlWarnings.load() > 0 ? 1 : rc;
   }
   controller.startup();
+  if (parser.isSet(setupLocalHub)) {
+    controller.localHub()->startAfterInstall();  // after the MSI installed the Hub: connect, create the admin, pair
+  }
   return app.exec();
 }

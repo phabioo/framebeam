@@ -27,7 +27,7 @@ What the Hub, the protocol and the Player do today, by area. Status by version: 
 
 **Protocol** (`protocol/`)
 
-- OpenAPI 3.0.3 for `/api/v1` and WSS message schemas; OpenAPI spec version 1.9.0, `protocol_version` is 1; handshake features `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1`, `firmware_v1`, `cores_v1`, `cores_v2`, `saves_v2`, `saves_v3`, `saves_v4`, `cores_index_v1` and, with TURN on, `turn_v1`. See [reference/protocol.md](reference/protocol.md).
+- OpenAPI 3.0.3 for `/api/v1` and WSS message schemas; OpenAPI spec version 1.10.0, `protocol_version` is 1; handshake features `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1`, `firmware_v1`, `cores_v1`, `cores_v2`, `saves_v2`, `saves_v3`, `saves_v4`, `cores_index_v1`, `local_setup_v1` and, with TURN on, `turn_v1`. See [reference/protocol.md](reference/protocol.md).
 
 **FrameBeam Player** (`client/`, [ADR 0003](adr/0003-player-phase2.md))
 
@@ -64,4 +64,4 @@ What the Hub, the protocol and the Player do today, by area. Status by version: 
 - Emulation page: core options per global/system level (locked options are hidden).
 - Controllers page: SDL3 gamepads, built-in and user profiles, remapping, input test.
 - Settings page: Appearance (Dark / Light / System).
-- Windows installer (Inno Setup; the MSI with WiX is planned in 0.9), CI artifact `framebeam-player-windows-x64-setup`.
+- Windows installer: one WiX MSI for Player, Hub or both (Hub as Windows service, "Set up a Hub on this PC", standalone mode), plus an Inno shell `setup.exe` for migrating old installs; CI artifacts `framebeam-windows-x64-msi`, `framebeam-player-windows-x64-setup` ([ADR 0021](adr/0021-one-windows-installer.md)).

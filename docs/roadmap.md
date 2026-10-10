@@ -32,7 +32,7 @@ Phase plan: [workflow.md](workflow.md#phase-plan).
 | 0.7.x | done in code | GPU-direct NVENC, hotkeys, background game, playtest UI revision | Shared Sessions on NVIDIA skip the readback ([ADR 0019](adr/0019-gpu-direct-nvenc.md)); configurable Player hotkeys; paused background game; UI changes after the friends playtest. |
 | 0.7.x | done | Hub admin gaps, save upload, hardening, license | Delete users and devices, Hub user name in the Player, upload a save file, hardened TURN relay and web port, GPL-3.0-or-later with CLA and notices. |
 | 0.8 | done in code | Cores from the libretro buildbot | Systems instead of fixed cores: the Hub downloads cores RetroArch-style from the libretro buildbot; admin installs, updates and removes them per system; Player chooses the core per system and game ([ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md)). |
-| 0.9 | in progress | One installer: Player, Hub or both | One Windows MSI (WiX) with the components Player, Hub or both; the Hub runs as a Windows service; "Set up a Hub on this PC" and a standalone mode like RetroArch. |
+| 0.9 | done in code | One installer: Player, Hub or both | One Windows MSI (WiX) with the features Player and Hub; the Hub runs as a Windows service; "Set up a Hub on this PC" and a standalone mode like RetroArch ([ADR 0021](adr/0021-one-windows-installer.md), proposed). Installer, upgrades and services verified only locally. |
 | 0.10 | planned | Second system: 3DS (Azahar) | The Azahar libretro core arrives as a buildbot core through 0.8 and runs on the OpenGL rendering from 0.5. |
 | 0.11 | planned | Metadata and artwork | Central game metadata and boxart in Hub and Player. |
 | 0.12 | planned | Linux and macOS Player | FrameBeam Player on Linux and macOS. |
@@ -227,17 +227,18 @@ Done in code. Decisions: [ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md
 
 ## 0.9 One installer: Player, Hub or both
 
-In progress (first package: Hub for Windows). Absorbs the former "Hub for Windows / Windows Server" milestone.
+Done in code ([ADR 0021](adr/0021-one-windows-installer.md), proposed). Absorbs the former "Hub for Windows / Windows Server" milestone. The installer, upgrades, services and the Inno migration are verified only locally by Fabio; CI tests silent install and upgrade.
 
-- One Windows installer as MSI built with the WiX Toolset (replaces Inno Setup) with the components Player, Hub or both.
-- "Set up a Hub on this PC" in the Player: starts the local Hub, creates the admin and pairs over localhost without a pairing code.
-- Standalone mode like RetroArch: the Player plus a Hub bound only to 127.0.0.1 with a local ROM folder (the existing import folder); network sharing can be switched on later. A Player that wants cores directly from the internet uses this local Hub (ADR 0020 D1).
-- Install scope: a Player-only install is per user; with the Hub it is per machine under Program Files, where Player data falls back to AppData (existing fallback, [ADR 0004](adr/0004-player-portable-data.md)), Hub data lives under ProgramData.
+- [x] Done in code: One Windows installer as MSI built with the WiX Toolset (replaces Inno Setup) with the features Player and Hub (`packaging/windows/framebeam.wxs`, local build `build-msi.ps1`).
+- [x] Done in code: "Set up a Hub on this PC" in the Player: installs the Hub (MSI of the Player's own version) if needed, creates the admin and pairs over localhost without a pairing code (local setup API, protocol 1.10.0, `local_setup_v1`).
+- [x] Done in code: Standalone mode like RetroArch: a Hub bound only to loopback (`-network-sharing`, off for Player plus Hub) with a local ROM folder (the import folder, now a stored setting, `grant-folder`); network sharing can be switched on later in the Hub settings or the Player. A Player that wants cores directly from the internet uses this local Hub (ADR 0020 D1).
+- [x] Done in code: Install scope: a Player-only install is per user; with the Hub it is per machine under Program Files, where Player data falls back to AppData (existing fallback, [ADR 0004](adr/0004-player-portable-data.md)) and is migrated once from the old portable folder; Hub data lives under ProgramData.
 - Rejected: MSIX. It needs a paid, trusted signing certificate, virtualizes the install directory so the portable `<exe-dir>/data` cannot work, limits services, and its own update mechanism conflicts with the FrameBeam updater.
-- [x] Done in code: Hub for Windows: Windows amd64 Hub build in CI and release (job `hub-windows`); runs as its own Windows service `FrameBeamHub`, never inside the Player process; update path via a LocalSystem updater service and artifact kind `msi` (the MSI that registers the services follows).
-- Migration of existing Inno installations (no bridge release): the first 0.9 releases keep publishing a small Inno `setup.exe` under kind `installer` that only installs the MSI silently, so older Players update normally. The MSI detects the Inno AppId `{6F0C2B7E-3D1A-4C55-9B8E-F4A1D2C37A60}` and uninstalls it silently, keeping `data\`. A Player-only install is per user in `%LOCALAPPDATA%\Programs\FrameBeam Player`; with the Hub it is one per-machine install, Player data is copied once and never overwritten (AppData fallback), Hub data under ProgramData. Credentials stay in the Credential Manager. The Pi Hub (.deb) is unaffected.
-- Hub installer part (data directory, port, firewall rules by the installer, admin setup); updates via the updater from 0.3.
-- Review paths, file permissions (instead of 0600) and certificate storage on Windows.
+- [x] Done in code: Hub for Windows: Windows amd64 Hub build in CI and release (job `hub-windows`); own Windows service `FrameBeamHub`, never inside the Player process; update path via a LocalSystem updater service and artifact kind `msi`; the MSI registers the services, ACLs, firewall rules and markers.
+- [x] Done in code: Migration of existing Inno installations (no bridge release): the release keeps publishing a small Inno `setup.exe` under kind `installer` that only installs the MSI silently, so older Players update normally. The MSI uninstalls the Inno install silently, keeping `data\`. Credentials stay in the Credential Manager. The Pi Hub (.deb) is unaffected.
+- [x] Done in code: Hub installer part (data directory, port, firewall rules by the installer, admin setup in the Player); updates via the updater from 0.3.
+- Open: Review paths, file permissions (instead of 0600) and certificate storage on Windows beyond the service ACLs.
+- Open: MSI and shell are unsigned; the shell is removed once old Players are no longer supported (no date).
 
 ## 0.10 Second system: Nintendo 3DS with Azahar
 

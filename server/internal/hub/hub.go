@@ -107,6 +107,8 @@ type Service struct {
 	turn   turnState
 	bus    eventBus
 
+	localMu     sync.Mutex // local setup defaults
+	localDef    LocalDefaults
 	redeemMu    sync.Mutex // invite redemption rate limits
 	redeemHits  map[string][]time.Time
 	redeemFails []time.Time

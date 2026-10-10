@@ -54,7 +54,7 @@ Windows release builds use the `x64-windows-release` overlay triplet (Release-on
 
 ## CI and releases
 
-- `.github/workflows/ci.yml`: Linux on every push; Windows on PRs against `main`, manually, and on pushes to `main` (primes the Windows vcpkg binary cache after merges, [ADR 0008](adr/0008-windows-ci-cache.md); cache misses still need a cold dependency build). The Windows job builds the layout launcher plus `bin\`, the zip and the installer and tests silent install and upgrade.
+- `.github/workflows/ci.yml`: Linux on every push; Windows on PRs against `main`, manually, and on pushes to `main` (primes the Windows vcpkg binary cache after merges, [ADR 0008](adr/0008-windows-ci-cache.md); cache misses still need a cold dependency build). The Windows job builds the layout launcher plus `bin\`, the zip, the MSI and the Inno shell and tests silent install and upgrade.
 - Every workflow job has `timeout-minutes` (Windows client and core builds 300, so a cold vcpkg cache still fits).
 - Linux apt steps go through `scripts/ci-apt-install.sh` (update limited to 120 s and install to 240 s per attempt, apt retries and network timeouts, 3 attempts) plus a 20 minute step `timeout-minutes`, so a hanging Ubuntu mirror cannot block CI for long.
 - Job `hub-windows` (windows-latest): `go vet`, `go test` and a version check of the Windows Hub binary; artifact `framebeam-hub-windows`. The release adds `framebeam-hub-<version>-windows-amd64.exe` to the index as platform `windows-amd64`, kind `binary`.
@@ -75,7 +75,7 @@ Windows release builds use the `x64-windows-release` overlay triplet (Release-on
 ## Hub package and installer builds
 
 - `make package-hub-deb`: via `packaging/linux/build-deb.sh --binary PATH --arch amd64|arm64 --version X.Y.Z[-pre] --out DIR` (dpkg-deb only; units and maintainer scripts in `packaging/linux/deb/`). `scripts/check.sh packaging` (part of `make check-hub`) checks control, contents, units, runs shellcheck (the packaging scripts fully, all `scripts/*.sh` and the SessionStart hook at warning level) and a smoke test of `install-hub.sh` with `FRAMEBEAM_INSTALL_ROOT`.
-- Windows installer (Inno Setup, per-user), built by ISCC in the Windows CI job: [guides/packaging.md](guides/packaging.md).
+- Windows installer (WiX MSI for Player and Hub plus an Inno shell, local build `packaging/windows/build-msi.ps1`), built in the Windows CI job: [guides/packaging.md](guides/packaging.md).
 
 ## Documentation checks
 

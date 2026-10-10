@@ -138,6 +138,8 @@ type netBody struct {
 	Listen, PublicHost, TURNPort, Relay, RelayIP netField
 	KeepRecent, KeepDaily, KeepWeekly, ICE       netField
 	TURNField                                    netField
+	Sharing, ImportDir                           netField
+	SharingOn                                    bool
 	TURNOn                                       bool
 	ICEList                                      []string
 	ICEAdd                                       string
@@ -377,6 +379,12 @@ func (s *Server) netBody(r *http.Request, sess *session, res settingsRes) (netBo
 	if res.FieldKey == config.NetICEServers {
 		nb.ICEAdd = res.Form.Get("url")
 	}
+	nb.Sharing, nb.ImportDir = field(config.NetSharing), field(config.NetImportDir)
+	nb.Sharing.EnvText = "on"
+	if !base.NetworkSharing {
+		nb.Sharing.EnvText = "off"
+	}
+	nb.SharingOn = desired.NetworkSharing
 	nb.TURNField = field(config.NetTURN)
 	nb.TURNField.EnvText = "off"
 	if base.TURN {
@@ -630,7 +638,7 @@ func (s *Server) settingsUpdatesInstall(w http.ResponseWriter, r *http.Request, 
 func netRaw(key string, form url.Values, cur *config.Config) (string, error) {
 	val := strings.TrimSpace(form.Get("value"))
 	switch key {
-	case config.NetTURN:
+	case config.NetTURN, config.NetSharing:
 		if form.Get("value") == "1" {
 			return "true", nil
 		}

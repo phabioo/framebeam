@@ -209,6 +209,28 @@
 </section>
 
 <section class="set-card">
+  <div class="eyebrow">Sharing &amp; import</div>
+  <div class="set-row">
+    <div><div class="label">Network sharing</div>
+      <div class="help">{{if .SharingOn}}Other devices on your network can reach this hub.{{else}}Only this PC can reach this hub (loopback) and the built-in TURN relay is off.{{end}} Changing it restarts the hub.</div>
+      {{template "net-src" .Sharing}}</div>
+    <form method="post" action="/settings/network/network_sharing" hx-post="/settings/network/network_sharing" hx-target="#settings-area" hx-swap="innerHTML">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <button class="switch{{if .SharingOn}} on{{end}}" type="submit" name="value" value="{{if .SharingOn}}0{{else}}1{{end}}" role="switch" aria-checked="{{if .SharingOn}}true{{else}}false{{end}}" aria-label="Network sharing"><span></span></button>
+    </form>
+  </div>
+  {{template "set-err" .Sharing.Err}}
+  <div class="set-row">
+    <div><div class="label">Import folder</div><div class="help">Absolute path of the folder “Rescan folder” in the Library imports ROMs from. The hub only reads it. Changing it restarts the hub.</div>{{template "net-src" .ImportDir}}</div>
+    <form method="post" action="/settings/network/import_dir" hx-post="/settings/network/import_dir" hx-trigger="change, submit" hx-target="#settings-area" hx-swap="innerHTML">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="text" name="value" value="{{.ImportDir.Value}}" class="host" aria-label="Import folder"{{if .ImportDir.Err}} aria-invalid="true"{{end}}>
+      <noscript><button class="btn small" type="submit">Save</button></noscript>
+    </form>
+  </div>
+  {{template "set-err" .ImportDir.Err}}
+</section>
+
+<section class="set-card">
   <div class="eyebrow">Listening &amp; public address</div>
   <div class="set-row">
     <div><div class="label">Listen port</div><div class="help">TCP port for Players and this web interface · changing it restarts the hub. Ports below 1024 need <span class="mono">install-hub.sh --port</span>.</div>{{template "net-src" .Listen}}</div>

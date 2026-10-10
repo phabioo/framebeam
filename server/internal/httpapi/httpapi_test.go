@@ -37,9 +37,21 @@ type env struct {
 
 func newEnv(t *testing.T, mod func(*hub.Options)) *env {
 	t.Helper()
+	e := newEnvNoAdmin(t, mod)
+	admin, err := e.svc.CreateAdmin(context.Background(), "admin", "secret-12345")
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.admin = admin
+	return e
+}
+
+// newEnvNoAdmin is a fresh Hub without any user.
+func newEnvNoAdmin(t *testing.T, mod func(*hub.Options), opts ...Option) *env {
+	t.Helper()
 	svc, clk := hubtest.New(t, mod)
 	mux := http.NewServeMux()
-	Register(mux, svc, nil)
+	Register(mux, svc, nil, opts...)
 	doc, err := openapi3.NewLoader().LoadFromFile(specPath)
 	if err != nil {
 		t.Fatal(err)
@@ -51,11 +63,7 @@ func newEnv(t *testing.T, mod func(*hub.Options)) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	admin, err := svc.CreateAdmin(context.Background(), "admin", "secret-12345")
-	if err != nil {
-		t.Fatal(err)
-	}
-	return &env{t: t, svc: svc, clk: clk, mux: mux, router: router, admin: admin, remote: "192.0.2.10:4000"}
+	return &env{t: t, svc: svc, clk: clk, mux: mux, router: router, remote: "192.0.2.10:4000"}
 }
 
 type opt struct {

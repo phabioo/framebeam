@@ -11,7 +11,10 @@ Rectangle {
     readonly property string phase: info.phase
     property bool inviteMode: false
     // Approval step is ready for input (request approval or redeem an invite)
-    readonly property bool canChoose: root.phase === "needsPairing" || root.phase === "denied" || root.phase === "expired"
+    // "Set up a Hub on this PC": the Hub on this PC pairs the Player with an admin sign-in instead of an approval.
+    readonly property var local: player.localHub
+    readonly property bool localForm: local.phase === "needsSetup" || local.phase === "needsSignIn" || local.phase === "working"
+    readonly property bool canChoose: !root.localForm && (root.phase === "needsPairing" || root.phase === "denied" || root.phase === "expired")
     color: Theme.bg
 
     Flickable {
@@ -34,7 +37,7 @@ Rectangle {
                 spacing: 6
                 Layout.bottomMargin: 8
                 FbLabel {
-                    text: qsTr("Add hub")
+                    text: root.localForm ? qsTr("Hub on this PC") : qsTr("Add hub")
                     font.pixelSize: Theme.fontHero
                     font.weight: Font.DemiBold
                     font.letterSpacing: -0.6
@@ -117,7 +120,7 @@ Rectangle {
                 id: approvalStep
                 Layout.fillWidth: true
                 objectName: "stepApproval"
-                title: qsTr("Approve device")
+                title: root.localForm ? qsTr("Sign in") : qsTr("Approve device")
                 stage: (root.phase === "trust" || !root.info.hubKnown) ? "pending" : "active"
 
                 FbSegment {
@@ -129,6 +132,13 @@ Rectangle {
                     ]
                     current: root.inviteMode ? "invite" : "request"
                     onPicked: value => root.inviteMode = (value === "invite")
+                }
+
+                LocalHubForm {
+                    objectName: "localHubForm"
+                    visible: root.localForm
+                    Layout.fillWidth: true
+                    player: root.player
                 }
 
                 ColumnLayout {
@@ -193,7 +203,7 @@ Rectangle {
                 }
 
                 FbLabel {
-                    visible: root.phase === "needsPairing" && !root.inviteMode
+                    visible: root.phase === "needsPairing" && !root.inviteMode && !root.localForm
                     Layout.fillWidth: true
                     text: qsTr("This device is not yet approved on the hub. The hub admin must confirm the request.")
                     color: Theme.textMuted
@@ -228,7 +238,7 @@ Rectangle {
                 }
 
                 GridLayout {
-                    visible: approvalStep.stage === "active"
+                    visible: approvalStep.stage === "active" && !root.localForm
                     columns: 2
                     columnSpacing: 12
                     rowSpacing: 6

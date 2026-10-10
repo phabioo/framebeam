@@ -14,13 +14,15 @@ How the Hub and the Windows Player update themselves, and how a beta is promoted
 
 - The unprivileged service `FrameBeamHub` only downloads and stages the `msi` and writes a request file to `<data>\update-request`. It never installs.
 - The service `FrameBeamHubUpdater` (LocalSystem) runs `framebeam-hub update watch` (polls every 5 s), re-verifies the signed index, copies the MSI to a private directory (`%ProgramData%\FrameBeam\HubUpdater`) and runs `msiexec /i <copy> /qn /norestart /l*v <log>`. The log is copied to `<data>\updates\msiexec.log`.
-- "Packaged" means the marker file `framebeam-hub.msi-installed` next to the executable. The MSI that installs the services, ACLs and marker arrives in the next 0.9 package; the standalone `.exe` cannot update itself and only shows the available version.
+- The updater passes `ALLUSERS=1` (per-machine product). "Packaged" means the marker file `framebeam-hub.msi-installed` next to the executable, which the MSI installs together with the services and ACLs ([packaging.md](packaging.md)); the standalone `.exe` cannot update itself and only shows the available version.
+- The MSI stops `FrameBeamHubUpdater` during an upgrade, so the updater cannot await its own msiexec run or copy the log; check the Hub version after the restart. Details: [ADR 0021](../adr/0021-one-windows-installer.md).
 
-## Player (Windows installer install)
+## Player (Windows MSI install)
 
 - Same check (10 s after start, then hourly on beta, daily on stable). Settings, section "Updates": channel and automatic install.
 - Stable shows a banner and installs after "Install and restart". Beta downloads in the background and applies at the next start, never during a game.
-- Portable zip and dev builds only show availability. The Windows installer is unsigned (SmartScreen warning).
+- The Player prefers the index kind `msi` and falls back to `installer` (the Inno shell). It updates itself when `framebeam-player.msi-installed` (or the old `unins000.exe`) is in its folder; the portable zip and dev builds only show availability. The MSI and shell are unsigned (SmartScreen warning).
+- Apply: the Player copies its launcher to a temp folder and starts it with `--apply-msi-update <msi> <scope>`. The copy waits until no Player runs, runs `msiexec /i <msi> /qn /norestart` with `MSIINSTALLPERUSER=1 ALLUSERS=2` (per user) or `ALLUSERS=1` (per machine, elevated, plus `INSTALL_HUB=1` when the Hub is installed), then starts the installed Player.
 - The Windows Player is a windowless (GUI-subsystem) app; no console opens on start.
 
 ## Channels
