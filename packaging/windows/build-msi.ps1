@@ -31,7 +31,10 @@ if (-not (Get-Command wix -ErrorAction SilentlyContinue)) {
 }
 $have = (wix --version) -replace '\+.*$', ''
 if ($have -ne $WixVersion) { throw "wix $have is installed, $WixVersion is pinned (dotnet tool update --global wix --version $WixVersion)" }
+# Skip extensions that are already installed in the pinned version (the script runs several times per CI job).
+$installed = @(wix extension list --global 2>$null | ForEach-Object { "$_" })
 foreach ($e in $Extensions) {
+  if (@($installed | Where-Object { $_.Contains($e) -and $_.Contains($WixVersion) }).Count -gt 0) { continue }
   wix extension add --global "$e/$WixVersion"
   if ($LASTEXITCODE -ne 0) { throw "wix extension add $e failed" }
 }

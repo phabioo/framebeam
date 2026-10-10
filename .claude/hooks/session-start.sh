@@ -46,7 +46,8 @@ else
 fi
 # Qt 6.4 packages (Ubuntu noble) + Xvfb + media dev packages (FFmpeg, Opus, OpenSSL for libdatachannel), only if one
 # is missing; core, libdatachannel and SDL3 builds deliberately not here (too long; scripts/check.sh builds libdatachannel and SDL3, no apt packages needed for SDL3).
-QT_PKGS="qt6-base-dev qt6-declarative-dev qt6-multimedia-dev qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts qml6-module-qtquick-window qml6-module-qtqml-workerscript qml6-module-qtquick-templates libgl-dev libgl1-mesa-dri libglx-mesa0 libegl1 libepoxy-dev xvfb libavcodec-dev libswscale-dev libopus-dev qt6-websockets-dev libssl-dev pkg-config"
+# The list is shared with CI: scripts/qt-packages.txt (one package per line, '#' comments).
+QT_PKGS="$(grep -vE '^[[:space:]]*(#|$)' "$ROOT/scripts/qt-packages.txt" | tr '\n' ' ')"
 missing=0
 for p in $QT_PKGS; do dpkg -s "$p" >/dev/null 2>&1 || missing=1; done
 if [ "$missing" = 1 ]; then

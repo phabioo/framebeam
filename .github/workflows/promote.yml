@@ -28,7 +28,7 @@ concurrency:
 jobs:
   promote:
     name: Promote beta to release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
       contents: write   # edit the release, upload the index
@@ -37,7 +37,7 @@ jobs:
       GH_REPO: ${{ github.repository }}
       IN_VERSION: ${{ inputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Resolve and validate the beta
         run: |
           set -euo pipefail
@@ -74,7 +74,7 @@ jobs:
               | .channel = "stable" | .published_at = $now' "$dl/index-$product.json" > "$dl/$product.json"
           done
           jq -c '{product, channel, version, artifacts: (.artifacts | length)}' "$dl/hub.json" "$dl/player.json"
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version-file: server/go.mod
           cache-dependency-path: server/go.sum
@@ -85,7 +85,7 @@ jobs:
       - name: Signing key is trusted by the Hub (before anything is published)
         env:
           FRAMEBEAM_SIGNING_KEY: ${{ secrets.FRAMEBEAM_SIGNING_KEY }}
-        run: scripts/check-core-signing-key.sh "$RUNNER_TEMP/bin/framebeam-sign"
+        run: scripts/check-signing-key.sh "$RUNNER_TEMP/bin/framebeam-sign"
       - name: Update the signed index
         env:
           # The seed exists only in the environment of this step; it is never echoed or written to disk.
