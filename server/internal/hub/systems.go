@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -269,6 +270,9 @@ func (s *Service) ProvideFirmware(ctx context.Context, systemID, fileID string, 
 	h := sha256.New()
 	// Read at most one byte more than the largest allowed size: anything bigger is rejected without buffering it.
 	size, err := io.Copy(io.MultiWriter(tmp, h), io.LimitReader(r, max+1))
+	if err == nil {
+		err = tmp.Sync()
+	}
 	if cerr := tmp.Close(); err == nil {
 		err = cerr
 	}
@@ -294,6 +298,8 @@ func (s *Service) ProvideFirmware(ctx context.Context, systemID, fileID string, 
 		return FirmwareFile{}, internal(err)
 	}
 	// Keep the old file as a backup until the metadata is updated, so file and DB never diverge.
+	s.fwMu.Lock()
+	defer s.fwMu.Unlock()
 	dst := s.firmwarePath(systemID, fileID)
 	bak := dst + ".bak"
 	hadOld := os.Rename(dst, bak) == nil
@@ -313,6 +319,7 @@ func (s *Service) ProvideFirmware(ctx context.Context, systemID, fileID string, 
 		}
 		return FirmwareFile{}, internal(err)
 	}
+	syncDir(filepath.Dir(dst))
 	if hadOld {
 		os.Remove(bak)
 	}
@@ -338,7 +345,7 @@ func (s *Service) RemoveFirmware(ctx context.Context, systemID, fileID string) (
 		return ErrNotFound
 	}
 	if err := os.Remove(s.firmwarePath(systemID, fileID)); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return internal(err)
+		slog.Warn("remove firmware: delete file failed", "system", systemID, "file", fileID, "err", err)
 	}
 	return nil
 }
@@ -462,34 +469,54 @@ type ClientReport struct {
 	ReportedAt time.Time
 }
 
-// ListClientReports returns the last report of each trusted device, evaluated against the system.
-func (s *Service) ListClientReports(ctx context.Context, e SystemEntry) ([]ClientReport, error) {
+// DeviceReports are the stored handshake reports of all trusted devices, loaded once and evaluated per system
+// with ClientReports.
+type DeviceReports struct {
+	rows     []deviceReportRow
+	minProto int
+}
+
+type deviceReportRow struct {
+	ClientReport
+	cores []CoreReport
+}
+
+// LoadDeviceReports reads the last report of each trusted device (one query, one decode per device).
+func (s *Service) LoadDeviceReports(ctx context.Context) (DeviceReports, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT d.id, d.name, r.platform, r.arch, r.player_version, r.protocol_version, r.cores, r.reported_at
 		FROM device_reports r JOIN devices d ON d.id = r.device_id WHERE d.status = 'trusted' ORDER BY d.name COLLATE NOCASE, d.id`)
 	if err != nil {
-		return nil, internal(err)
+		return DeviceReports{}, internal(err)
 	}
 	defer rows.Close()
-	minProto := s.Info().MinProtocolVersion
-	var out []ClientReport
+	out := DeviceReports{minProto: s.Info().MinProtocolVersion}
 	for rows.Next() {
-		var c ClientReport
+		var c deviceReportRow
 		var cores string
 		var at int64
 		if err := rows.Scan(&c.DeviceID, &c.DeviceName, &c.Platform, &c.Arch, &c.PlayerVersion, &c.ProtocolVersion, &cores, &at); err != nil {
-			return nil, internal(err)
+			return DeviceReports{}, internal(err)
 		}
 		c.ReportedAt = time.Unix(at, 0).UTC()
-		var reported []CoreReport
-		_ = json.Unmarshal([]byte(cores), &reported)
-		for _, cr := range reported {
+		_ = json.Unmarshal([]byte(cores), &c.cores)
+		out.rows = append(out.rows, c)
+	}
+	return out, rows.Err()
+}
+
+// ClientReports evaluates the loaded reports against one system.
+func (d DeviceReports) ClientReports(e SystemEntry) []ClientReport {
+	var out []ClientReport
+	for _, r := range d.rows {
+		c := r.ClientReport
+		for _, cr := range r.cores {
 			if cr.ID == e.CoreID {
 				c.CoreVersion = cr.Version
 			}
 		}
 		switch {
-		case c.ProtocolVersion < minProto:
-			c.Status, c.Expected = ClientPlayerTooOld, strconv.Itoa(minProto)
+		case c.ProtocolVersion < d.minProto:
+			c.Status, c.Expected = ClientPlayerTooOld, strconv.Itoa(d.minProto)
 		case c.CoreVersion == "":
 			c.Status = ClientCoreMissing
 		case e.ExpectedCoreVersion != "" && c.CoreVersion != e.ExpectedCoreVersion:
@@ -499,5 +526,14 @@ func (s *Service) ListClientReports(ctx context.Context, e SystemEntry) ([]Clien
 		}
 		out = append(out, c)
 	}
-	return out, rows.Err()
+	return out
+}
+
+// ListClientReports returns the last report of each trusted device, evaluated against the system.
+func (s *Service) ListClientReports(ctx context.Context, e SystemEntry) ([]ClientReport, error) {
+	d, err := s.LoadDeviceReports(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return d.ClientReports(e), nil
 }

@@ -147,6 +147,9 @@ func (s *Service) UploadSaveFile(ctx context.Context, in UploadSaveInput) (_ Sav
 	if err != nil && !errors.Is(err, ErrNotFound) {
 		return SaveSlot{}, err
 	}
+	if !exists && !ValidNewSlotName(sl) {
+		return SaveSlot{}, badRequest("Invalid slot name")
+	}
 	if exists && cur.SHA256 == sha { // idempotent
 		out, err := loadSlot(ctx, tx, u, g, sl)
 		if err != nil {
@@ -291,7 +294,7 @@ func (s *Service) CreateSaveSlot(ctx context.Context, userID, gameID, fromSlot, 
 	if !ValidSlotName(fromSlot) {
 		return SaveSlot{}, ErrNotFound
 	}
-	if !ValidSlotName(newSlot) {
+	if !ValidNewSlotName(newSlot) {
 		return SaveSlot{}, badRequest("Invalid slot name")
 	}
 	s.saveMu.Lock()

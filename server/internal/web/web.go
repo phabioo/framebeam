@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"embed"
+	"errors"
 	"html/template"
 	"io/fs"
 	"log/slog"
@@ -395,6 +396,10 @@ func (s *Server) guardWith(streamingUpload bool, f handlerFunc) http.HandlerFunc
 			return
 		}
 		ws, err := s.svc.LookupWebSession(r.Context(), c.Value)
+		if err != nil && !errors.Is(err, hub.ErrUnauthorized) { // e.g. a transient DB error: keep the cookie
+			s.fail(w, r, err)
+			return
+		}
 		if err != nil || ws.User.Role != hub.RoleAdmin { // the web interface is admin-only
 			s.clearSession(w)
 			s.redirect(w, r, "/login")
@@ -502,15 +507,18 @@ func (s *Server) checkPreCSRF(r *http.Request) bool {
 	return hub.TokenEqual(r.PostFormValue("_csrf"), c.Value)
 }
 
+// remoteIP is the client address for the login limiter. A loopback peer that forwards requests of other clients
+// (reverse proxy) gets a non-IP key: all proxied clients share one bucket and never count as local.
 func remoteIP(r *http.Request) string {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		return r.RemoteAddr
+		host = r.RemoteAddr
+	}
+	if ip := net.ParseIP(host); ip != nil && ip.IsLoopback() && !hub.IsLocalRequest(r) {
+		return "proxied"
 	}
 	return host
 }
 
-func isLoopback(r *http.Request) bool {
-	ip := net.ParseIP(remoteIP(r))
-	return ip != nil && ip.IsLoopback()
-}
+// isLoopback reports whether r comes from the machine the Hub runs on (see hub.IsLocalRequest).
+func isLoopback(r *http.Request) bool { return hub.IsLocalRequest(r) }

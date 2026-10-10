@@ -186,6 +186,18 @@ func TestSetupLoopbackOnly(t *testing.T) {
 		t.Fatal("admin created from remote")
 	}
 
+	// A loopback peer that forwards another client's request (reverse proxy) is not local.
+	for _, h := range []string{"X-Forwarded-For", "X-Real-IP", "Forwarded", "X-Forwarded-Host"} {
+		proxied := e.client()
+		hdr := map[string]string{h: "203.0.113.9"}
+		rec = proxied.get("/setup", hdr)
+		notContains(t, rec, `name="password"`)
+		status(t, proxied.postForm("/setup", url.Values{"username": {"x"}, "password": {"secret-12345"}, "password2": {"secret-12345"}, "_csrf": {"a"}}, hdr), 403)
+	}
+	if has, _ := e.svc.HasAdmin(bg); has {
+		t.Fatal("admin created through a proxy")
+	}
+
 	c := e.client()
 	rec = c.get("/setup", nil)
 	status(t, rec, 200)

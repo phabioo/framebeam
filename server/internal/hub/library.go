@@ -7,12 +7,14 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 )
@@ -102,7 +104,11 @@ func cleanText(v string, max int) string {
 	}, v)
 	v = strings.TrimSpace(v)
 	if len(v) > max {
-		v = strings.TrimSpace(v[:max])
+		cut := max
+		for cut > 0 && !utf8.RuneStart(v[cut]) { // never cut inside a multi-byte rune
+			cut--
+		}
+		v = strings.TrimSpace(v[:cut])
 	}
 	return v
 }
@@ -153,6 +159,9 @@ func (s *Service) AddROM(ctx context.Context, r io.Reader, filename, title, syst
 	defer os.Remove(tmpName) // no effect after a successful rename
 	h := sha256.New()
 	size, err := io.Copy(io.MultiWriter(tmp, h), r)
+	if err == nil {
+		err = tmp.Sync() // data must be durable before the rename makes it the ROM
+	}
 	if cerr := tmp.Close(); err == nil {
 		err = cerr
 	}
@@ -181,6 +190,7 @@ func (s *Service) AddROM(ctx context.Context, r io.Reader, filename, title, syst
 	if err := os.Rename(tmpName, dst); err != nil {
 		return Game{}, internal(err)
 	}
+	syncDir(filepath.Dir(dst))
 	g := Game{ID: uuid.NewString(), Title: title, System: system, ROMSHA256: sha, ROMSize: size, Filename: filename,
 		UploadedBy: uploadedBy, AddedAt: s.Now().Truncate(time.Second)}
 	if _, err := s.db.ExecContext(ctx, `INSERT INTO games(`+gameCols+`) VALUES (?,?,?,?,?,?,?,?)`,
@@ -271,8 +281,9 @@ func (s *Service) DeleteGame(ctx context.Context, id string) (err error) {
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM games WHERE id = ?`, g.ID); err != nil {
 		return internal(err)
 	}
+	// The row is gone; a blob that cannot be removed now (e.g. still streaming on Windows) is only logged.
 	if err := os.Remove(s.romPath(g.ROMSHA256)); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return internal(err)
+		slog.Warn("delete game: remove ROM file failed", "game_id", g.ID, "err", err)
 	}
 	return nil
 }

@@ -45,6 +45,15 @@ func TestLocalEndpointsRefuseNonLoopback(t *testing.T) {
 	}
 }
 
+func TestLocalEndpointsRefuseProxiedLoopback(t *testing.T) {
+	e := newEnv(t, nil)
+	e.remote = "127.0.0.1:4000"
+	for _, h := range []string{"X-Forwarded-For", "X-Real-IP", "Forwarded", "X-Forwarded-Host"} {
+		rec := e.do("POST", "/api/v1/local/pair", localBody("admin", "secret-12345"), opt{header: map[string]string{h: "203.0.113.9"}})
+		wantStatus(t, rec, 403, "")
+	}
+}
+
 func TestLocalSetupAndPair(t *testing.T) {
 	e := newEnvNoAdmin(t, nil)
 	e.remote = "127.0.0.1:5000"

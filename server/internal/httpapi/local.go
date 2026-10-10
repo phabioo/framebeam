@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"context"
-	"net"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -22,16 +21,8 @@ func WithRestart(f func()) Option { return func(s *Server) { s.restart = f } }
 
 var errNotLoopback = &hub.Error{Code: hub.CodeForbidden, Message: "Only available from the machine the FrameBeam Hub runs on"}
 
-// isLoopbackRemote reports whether the TCP peer address is a loopback address. Only RemoteAddr counts; headers such
-// as X-Forwarded-For are never trusted.
-func isLoopbackRemote(r *http.Request) bool {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		host = r.RemoteAddr
-	}
-	ip := net.ParseIP(host)
-	return ip != nil && ip.IsLoopback()
-}
+// isLoopbackRemote reports whether the request comes from the machine the Hub runs on (hub.IsLocalRequest).
+func isLoopbackRemote(r *http.Request) bool { return hub.IsLocalRequest(r) }
 
 func isLocalOp(op string) bool {
 	switch op {
