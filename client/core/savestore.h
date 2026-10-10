@@ -41,6 +41,13 @@ class SaveStore {
   static bool isValidSlotName(const QString& slot);
   static QString slotDir(const ProfileStore& profiles, const QString& hubId, const QString& userId, const QString& gameId,
                          const QString& slot);
+  // Short directory handed to cores that cannot cope with long paths (core profile save.short_dir, Windows MAX_PATH):
+  // <baseDir>/c/<first 16 hex of sha256("<hubId>/<userId>/<gameId>/<slot>")>. Empty for unsafe ids or an invalid slot.
+  static QString shortCoreDir(const ProfileStore& profiles, const QString& hubId, const QString& userId, const QString& gameId,
+                              const QString& slot);
+  // One-time best effort: moves <oldDir>/<subfolder> to <newDir>/<subfolder> if the old one exists and the new one does
+  // not (rename, else copy; the source is removed only after a complete copy). True if moved.
+  static bool migrateCoreSubfolder(const QString& oldDir, const QString& newDir, const QString& subfolder);
   static QString slotDirIn(const QString& gameDir, const QString& slot);
   // Slots with a local directory for this game ("default" first when its game dir has a sync.json or save file).
   static QStringList localSlots(const QString& gameDir);

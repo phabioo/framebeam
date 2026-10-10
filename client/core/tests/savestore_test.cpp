@@ -36,6 +36,40 @@ class SaveStoreTest : public QObject {
     QVERIFY(SaveStore::gameDir(ps, QStringLiteral("hub-a"), QString(), QStringLiteral("g1")).isEmpty());
   }
 
+  void shortCoreDirIsShortAndSeparated() {
+    QTemporaryDir tmp;
+    ProfileStore ps(tmp.path());
+    const auto d = [&](const char* h, const char* u, const char* g, const char* s) {
+      return SaveStore::shortCoreDir(ps, QString::fromLatin1(h), QString::fromLatin1(u), QString::fromLatin1(g), QString::fromLatin1(s));
+    };
+    const QString a = d("hub-a", "u1", "g1", "default");
+    QCOMPARE(a, d("hub-a", "u1", "g1", "default"));
+    QVERIFY(a.startsWith(QDir(tmp.path()).filePath(QStringLiteral("c/"))));
+    QCOMPARE(a.size(), QDir(tmp.path()).filePath(QStringLiteral("c/")).size() + 16);
+    QVERIFY(a != d("hub-b", "u1", "g1", "default") && a != d("hub-a", "u2", "g1", "default") &&
+            a != d("hub-a", "u1", "g2", "default") && a != d("hub-a", "u1", "g1", "boss"));
+    QVERIFY(d("hub-a", "../x", "g1", "default").isEmpty());
+    QVERIFY(d("hub-a", "u1", "g1", "Bad Slot").isEmpty());
+  }
+
+  void migrateCoreSubfolderMovesOnceAndNeverOverwrites() {
+    QTemporaryDir tmp;
+    const QString oldDir = tmp.filePath(QStringLiteral("old"));
+    const QString newDir = tmp.filePath(QStringLiteral("new"));
+    writeFile(oldDir + QStringLiteral("/Azahar/nand/a/b.bin"), "one");
+    writeFile(oldDir + QStringLiteral("/other.sav"), "keep");
+    QVERIFY(SaveStore::migrateCoreSubfolder(oldDir, newDir, QStringLiteral("Azahar")));
+    QCOMPARE(readFile(newDir + QStringLiteral("/Azahar/nand/a/b.bin")), QByteArray("one"));
+    QVERIFY(!QFileInfo::exists(oldDir + QStringLiteral("/Azahar")));
+    QCOMPARE(readFile(oldDir + QStringLiteral("/other.sav")), QByteArray("keep"));
+    // existing new dir is not overwritten
+    writeFile(oldDir + QStringLiteral("/Azahar/x.bin"), "late");
+    QVERIFY(!SaveStore::migrateCoreSubfolder(oldDir, newDir, QStringLiteral("Azahar")));
+    QVERIFY(QFileInfo::exists(oldDir + QStringLiteral("/Azahar/x.bin")));
+    QVERIFY(!QFileInfo::exists(newDir + QStringLiteral("/Azahar/x.bin")));
+    QCOMPARE(readFile(newDir + QStringLiteral("/Azahar/nand/a/b.bin")), QByteArray("one"));
+  }
+
   void stateRoundTripHasNoSecrets() {
     QTemporaryDir tmp;
     SyncState s;
