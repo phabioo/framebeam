@@ -76,7 +76,7 @@ func TestRenewCertRefusesOwnCert(t *testing.T) {
 func TestImportCores(t *testing.T) {
 	bb := hubtest.NewBuildbot(t)
 	bb.AddCore(t, hubtest.BuildbotCore{ID: "desmume", SystemID: "nds", Lib: bytes.Repeat([]byte{7}, 64)})
-	bb.AddCore(t, hubtest.BuildbotCore{ID: "azahar", SystemID: "3ds"})
+	bb.AddCore(t, hubtest.BuildbotCore{ID: "azahar", SystemID: "gba"})
 	in, data := t.TempDir(), t.TempDir()
 	bb.WriteImportDir(t, in)
 

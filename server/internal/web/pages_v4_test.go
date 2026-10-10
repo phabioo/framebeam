@@ -273,3 +273,22 @@ func TestSavesDeleteSnapshotAndNewSlotWeb(t *testing.T) {
 		t.Fatalf("location %q", location(rec))
 	}
 }
+
+func TestSystemsDefaultSelection(t *testing.T) {
+	bb := hubtest.NewBuildbot(t)
+	bb.AddCore(t, hubtest.BuildbotCore{ID: "desmume", SystemID: "nds", DisplayName: "Nintendo - DS (DeSmuME)"})
+	e := newEnvOpts(t, true, nil, func(o *hub.Options) { bb.Apply(o) })
+	c := e.client()
+	c.login()
+	if _, err := e.svc.RefreshCatalog(bg); err != nil {
+		t.Fatal(err)
+	}
+	// Nothing installed: the first system by id (3ds) is selected.
+	contains(t, c.get("/systems", nil), `id="systems-detail"`, "Nintendo 3DS")
+	notContains(t, c.get("/systems", nil), "ARM7 BIOS")
+	// A default core on nds: existing Hubs keep opening on NDS.
+	if _, err := e.svc.InstallCore(bg, "nds", "desmume"); err != nil {
+		t.Fatal(err)
+	}
+	contains(t, c.get("/systems", nil), "ARM7 BIOS")
+}

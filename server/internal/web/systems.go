@@ -283,7 +283,13 @@ func (s *Server) selectSystem(b *systemsBody, q url.Values) {
 		b.Systems = append(b.Systems, v)
 	}
 	if sel < 0 && len(all) > 0 {
-		sel = 0 // default: the first system of the registry (also while searching)
+		sel = 0 // default: the first system with an installed default core, else the first by id (also while searching)
+		for i := range all {
+			if all[i].CoreID != "" {
+				sel = i
+				break
+			}
+		}
 	}
 	for i := range b.Systems {
 		b.Systems[i].Href = systemsURL(b.Systems[i].ID, b.Tab, b.Query)

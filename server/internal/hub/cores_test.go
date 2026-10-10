@@ -23,7 +23,9 @@ func bbEnv(t *testing.T, mod func(*hub.Options)) (*hub.Service, *hubtest.Buildbo
 	bb.AddCore(t, hubtest.BuildbotCore{ID: "desmume", SystemID: "nds", DisplayName: "Nintendo - DS (DeSmuME)", License: "GPLv2", Date: "2026-10-09"})
 	bb.AddCore(t, hubtest.BuildbotCore{ID: "noods", SystemID: "nds", DisplayName: "Nintendo - DS (NooDS)", License: "GPLv3",
 		RequiredHWAPI: "OpenGL Core >= 3.2", Date: "2026-10-08", Platforms: []string{"linux-x64"}})
-	bb.AddCore(t, hubtest.BuildbotCore{ID: "azahar", SystemID: "3ds", DisplayName: "Nintendo - 3DS (Azahar)", Date: "2026-10-09"})
+	bb.AddCore(t, hubtest.BuildbotCore{ID: "azahar", SystemID: "3ds", DisplayName: "Nintendo - 3DS (Azahar)", License: "GPLv2+",
+		RequiredHWAPI: "OpenGL Core >= 3.3", Date: "2026-10-09",
+		Extensions: "3ds|3dsx|z3dsx|elf|axf|cci|zcci|cxi|zcxi|app"})
 	bb.AddCore(t, hubtest.BuildbotCore{ID: "nc-core", SystemID: "nds", DisplayName: "NC", License: "Non-commercial", Date: "2026-10-01"})
 	svc, _ := hubtest.New(t, func(o *hub.Options) {
 		bb.Apply(o)
@@ -402,8 +404,8 @@ func TestImportCores(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// azahar is a 3ds core: no supported system.
-	if sum.Installed != 3 || sum.Updated != 0 || sum.Unchanged != 0 || len(sum.Problems) != 1 || !strings.Contains(sum.Problems[0], "azahar") {
+	// azahar attaches to the 3ds system.
+	if sum.Installed != 4 || sum.Updated != 0 || sum.Unchanged != 0 || len(sum.Problems) != 0 {
 		t.Fatalf("%+v", sum)
 	}
 	if def, ids := installedIDs(t, svc); def != "desmume" || strings.Join(ids, ",") != "desmume,noods,nc-core" && strings.Join(ids, ",") != "desmume,nc-core,noods" {
@@ -415,7 +417,7 @@ func TestImportCores(t *testing.T) {
 	}
 	// Importing the same zips again changes nothing but the unchanged count.
 	sum, err = svc.ImportCores(ctx, dir)
-	if err != nil || sum.Unchanged != 3 || sum.Installed != 0 || sum.Updated != 0 {
+	if err != nil || sum.Unchanged != 4 || sum.Installed != 0 || sum.Updated != 0 {
 		t.Fatalf("%+v %v", sum, err)
 	}
 	if e, _ := svc.GetRegistryEntry(ctx, "nds"); e.ExpectedCoreVersion != "2026.10.09" {
@@ -475,5 +477,40 @@ func TestImportCoresSameDayNewBuildGetsSuffix(t *testing.T) {
 	}
 	if _, err := svc.GetCorePackage(ctx, "desmume", "2026.10.09", "linux-x64"); !errors.Is(err, hub.ErrCorePackageNotFound) {
 		t.Fatal("the replaced build is still known")
+	}
+}
+
+func TestRegistryListsThreeDS(t *testing.T) {
+	svc, _ := bbEnv(t, nil)
+	reg, err := svc.ListRegistry(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var e *hub.SystemEntry
+	for i := range reg {
+		if reg[i].ID == "3ds" {
+			e = &reg[i]
+		}
+	}
+	if e == nil || e.Name != "Nintendo 3DS" || e.FirmwareMode != hub.FirmwareBuiltin || len(e.Firmware) != 0 || len(e.Cores) != 0 || e.CoreID != "" ||
+		strings.Join(e.LibretroIDs, ",") != "3ds" || strings.Join(e.Extensions, " ") != ".3ds .cci .cxi .3dsx .zcci .zcxi .z3dsx" {
+		t.Fatalf("%+v", e)
+	}
+}
+
+func TestInstallAzaharAttachesTo3DS(t *testing.T) {
+	svc, _ := bbEnv(t, nil)
+	refresh(t, svc)
+	sc, err := svc.SystemCores(ctx, "3ds")
+	if err != nil || len(sc.Available) != 1 || sc.Available[0].CoreID != "azahar" || sc.Available[0].Experimental {
+		t.Fatalf("%v %+v", err, sc.Available)
+	}
+	ic, err := svc.InstallCore(ctx, "3ds", "azahar")
+	if err != nil || ic.RequiredHWAPI != "OpenGL Core >= 3.3" {
+		t.Fatalf("%v %+v", err, ic)
+	}
+	e, err := svc.GetRegistryEntry(ctx, "3ds")
+	if err != nil || e.CoreID != "azahar" || len(e.Cores) != 1 || e.Cores[0].RequiredHWAPI != "OpenGL Core >= 3.3" {
+		t.Fatalf("%v %+v", err, e)
 	}
 }

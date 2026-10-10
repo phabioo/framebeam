@@ -73,3 +73,33 @@ func TestImportFolder(t *testing.T) {
 		t.Fatal("missing dir must fail")
 	}
 }
+
+func TestImportThreeDSDummies(t *testing.T) {
+	svc, _, admin := newAdmin(t)
+	dir := t.TempDir()
+	for _, n := range []string{"a.3ds", "b.CCI", "c.cxi", "d.3dsx", "e.zcci", "f.zcxi", "g.z3dsx", "h.elf", "i.axf", "j.app"} {
+		if err := os.WriteFile(filepath.Join(dir, n), []byte("dummy-"+n), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	sum, err := svc.ImportFolder(ctx, dir, admin.ID, 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sum.Added != 7 || sum.Unsupported != 3 || len(sum.Failed) != 0 {
+		t.Fatalf("%+v", sum)
+	}
+	games, _ := svc.ListGames(ctx)
+	if len(games) != 7 {
+		t.Fatal(len(games))
+	}
+	for _, g := range games {
+		if g.System != "3ds" {
+			t.Fatalf("%+v", g)
+		}
+	}
+	g, err := svc.AddROM(ctx, bytes.NewReader([]byte("dummy-upload")), "up.3ds", "", "", admin.ID)
+	if err != nil || g.System != "3ds" {
+		t.Fatalf("%v %+v", err, g)
+	}
+}
