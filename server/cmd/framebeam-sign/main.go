@@ -179,6 +179,27 @@ func add(indexPath, pkgPath string, now func() time.Time) error {
 	return os.WriteFile(indexPath, append(b, '\n'), 0o644)
 }
 
+// addLegacyCompanions appends, per hub channel, the legacy companion of the newest regular release (see
+// updates.LegacyCompanion). rels must not contain companions.
+func addLegacyCompanions(rels []updates.Release) []updates.Release {
+	newest := map[string]updates.Release{}
+	for _, q := range rels {
+		if q.Product != updates.ProductHub {
+			continue
+		}
+		if cur, ok := newest[q.Channel]; !ok || updates.MustCompare(q.Version, cur.Version) > 0 {
+			newest[q.Channel] = q
+		}
+	}
+	for _, q := range newest {
+		if c, ok := updates.LegacyCompanion(q); ok {
+			rels = append(rels, c)
+		}
+	}
+	updates.SortReleases(rels)
+	return rels
+}
+
 // releaseAdd adds or replaces one release in the updates index (created when missing), keeps the newest keep
 // releases per (product, channel) by SemVer and writes deterministic JSON.
 func releaseAdd(indexPath, relPath string, keep int, allowFile bool, now func() time.Time) error {
@@ -219,9 +240,13 @@ func releaseAdd(indexPath, relPath string, keep int, allowFile bool, now func() 
 		if q.Product == r.Product && q.Channel == r.Channel && q.Version == r.Version {
 			continue // replaced
 		}
+		if q.Product == updates.ProductHub && updates.IsLegacyCompanion(q.Version) {
+			continue // regenerated below, not counted by keep
+		}
 		rels = append(rels, q)
 	}
 	idx.Releases = updates.Prune(append(rels, r), keep)
+	idx.Releases = addLegacyCompanions(idx.Releases)
 	idx.GeneratedAt = now().UTC().Truncate(time.Second)
 	b, err := updates.Marshal(idx)
 	if err != nil {

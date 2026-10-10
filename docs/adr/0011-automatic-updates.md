@@ -109,3 +109,7 @@ Decided by Fabio after 0.3 merged. The decisions above stay as accepted; where t
 ## Update 2026-10-08 (milestone numbering)
 
 Milestone numbers above 0.4 in this ADR use the numbering from before the roadmap renumbering of 2026-10-07: old 0.5/0.6/0.7/0.8/0.9/0.10 are now 0.6 (Player UI pass) / 0.7 (Hub UI pass) / 0.8 (3DS) / 0.9 (metadata) / 0.10 (Hub for Windows) / 0.11 (Linux and macOS Player); 0.5 is now OpenGL hardware rendering. See [roadmap.md](../roadmap.md).
+
+## Amendment 2026-10-10 (forward compatibility, legacy companion)
+
+Hubs <= 0.8.0 rejected a whole release when one artifact had an unknown platform or kind, so they skipped every release since 0.8.1 (which added `windows-amd64`) and reported "up to date". Consumers now drop such artifacts and keep the release; `framebeam-sign release-add` stays strict. For the old Hubs the signer adds a legacy companion entry `X.Y.Z-legacy` (only `linux-amd64`/`linux-arm64` `deb`/`binary`) per hub channel for the newest release; see [update-index.md](../reference/update-index.md).
