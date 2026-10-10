@@ -43,6 +43,9 @@ function Show-Diagnostics {
     Write-Host '::endgroup::'
     Write-Host "::group::tail of $($script:lastLog)"; Get-Content $script:lastLog -Tail 80 | Out-Host; Write-Host '::endgroup::'
   }
+  foreach ($f in "$env:ProgramData\FrameBeam-remove-per-user.log.status.txt", "$env:ProgramData\FrameBeam-remove-per-user.log") {
+    if (Test-Path $f) { Write-Host "::group::$f"; Get-Content $f -Tail 60 | Out-Host; Write-Host '::endgroup::' }
+  }
   Write-Host '::group::framebeam_player.exe on this machine'
   foreach ($root in (Join-Path $env:LOCALAPPDATA 'Programs'), $env:ProgramFiles) {
     Get-ChildItem -Path $root -Recurse -Filter framebeam_player.exe -ErrorAction SilentlyContinue | ForEach-Object FullName | Out-Host

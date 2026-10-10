@@ -681,7 +681,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: framebeam-msi-test-logs
-          path: ${{ runner.temp }}/fb-msi-test-*/*.log
+          path: |
+            ${{ runner.temp }}/fb-msi-test-*/*.log
+            C:/ProgramData/FrameBeam-remove-per-user.log*
           if-no-files-found: ignore
           retention-days: 7
       - uses: actions/upload-artifact@v4

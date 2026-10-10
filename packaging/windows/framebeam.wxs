@@ -104,11 +104,14 @@
     <SetProperty Id="RemoveInnoMachine" Value="[INNO_UNINSTALL_MACHINE] /VERYSILENT /SUPPRESSMSGBOXES /NORESTART" Before="RemoveInnoMachine" Sequence="execute"
                  Condition="NOT Installed AND ALLUSERS=1 AND INNO_UNINSTALL_MACHINE" />
 
-    <!-- Per-user MSI product (installing per machine): `msiexec /x <code> /qn`, impersonated. A nested msiexec started
-         while this installation holds the _MSIExecute mutex fails with 1618, so the removal is a detached process
-         that waits until this installation has finished (asyncNoWait, no result checked). -->
+    <!-- Per-user MSI product (installing per machine): `msiexec /x <code> /qn`, impersonated. A nested msiexec started while this
+         installation holds the _MSIExecute mutex fails with 1618, so the removal is a detached process (asyncNoWait, result not
+         checked) that RETRIES until Windows Installer is free: a fixed delay is not enough, copying the Player takes longer
+         than any short wait (the first version, `ping -n 15`, ran into 1618 and left the product behind). Exit 0/3010 = removed,
+         1605/1614 = already gone, 1618 (and anything else) = try again, 60 attempts 5 s apart. Logs for diagnosis:
+         %ProgramData%\FrameBeam-remove-per-user.log (msiexec /l*v) and ...status.txt (one line per attempt). -->
     <CustomAction Id="RemovePerUserProduct" Directory="TempFolder" Execute="deferred" Impersonate="yes" Return="asyncNoWait"
-                  ExeCommand="&quot;[System64Folder]cmd.exe&quot; /c ping -n 15 127.0.0.1 &gt;nul &amp; &quot;[System64Folder]msiexec.exe&quot; /x [PERUSER_PRODUCTCODE] /qn /norestart" />
+                  ExeCommand="&quot;[System64Folder]WindowsPowerShell\v1.0\powershell.exe&quot; -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -Command &quot;$c='[PERUSER_PRODUCTCODE]'; $l=Join-Path $env:ProgramData 'FrameBeam-remove-per-user.log'; $t=$l+'.status.txt'; for($i=1;$i -le 60;$i++){ Start-Sleep 5; $p=Start-Process msiexec.exe -ArgumentList @('/x',$c,'/qn','/norestart','/l*v',$l) -Wait -PassThru; Add-Content $t ('attempt '+$i+' exit '+$p.ExitCode); if(@(0,3010,1605,1614) -contains $p.ExitCode){break} }&quot;" />
 
     <InstallExecuteSequence>
       <Custom Action="RemoveInnoUser" After="InstallInitialize" Condition="NOT Installed AND INNO_UNINSTALL_USER" />
