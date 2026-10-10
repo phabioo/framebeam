@@ -201,6 +201,26 @@ class CoreCacheTest : public QObject {
     QVERIFY(!c.libraryPath(p.coreId, p.version, p.platform).isEmpty());
   }
 
+  void pruneKeepsNewestTwoAndTheOneInUse() {
+    QTemporaryDir dir;
+    CoreCache c(dir.path());
+    const QByteArray lib(512, 'l');
+    for (const char* v : {"2026.09.01", "2026.09.15", "2026.10.01", "2026.10.09"}) {
+      const CorePackageInfo p = makePackage(QString::fromLatin1(v), lib, QByteArray(8, 'x'));
+      QCOMPARE(c.store(p, p.files.at(0), lib), CoreCache::StoreResult::Ok);
+      QVERIFY(c.writePackage(p));
+    }
+    const QString platform = makePackage(QStringLiteral("1"), lib, QByteArray(8, 'x')).platform;
+    const QString core = makePackage(QStringLiteral("1"), lib, QByteArray(8, 'x')).coreId;
+    // in use = the oldest one (Hub pinned an older build): it survives next to the newest two
+    QCOMPARE(c.prune(core, platform, 2, QStringLiteral("2026.09.01")), 1);
+    QCOMPARE(c.versions(core, platform), (QStringList{"2026.10.09", "2026.10.01", "2026.09.01"}));
+    QVERIFY(!QFileInfo::exists(QDir(dir.path()).filePath(core + QStringLiteral("/2026.09.15"))));
+    QCOMPARE(c.prune(core, platform, 2, QStringLiteral("2026.10.09")), 1);
+    QCOMPARE(c.versions(core, platform), (QStringList{"2026.10.09", "2026.10.01"}));
+    QCOMPARE(c.prune(core, platform, 2, QStringLiteral("2026.10.09")), 0);
+  }
+
   void versionsNewestFirst() {
     QTemporaryDir dir;
     CoreCache c(dir.path());

@@ -168,6 +168,31 @@ QString CoreCache::libraryPath(const QString& coreId, const QString& version, co
   return filePath(coreId, version, platform, lib->name);
 }
 
+int CoreCache::prune(const QString& coreId, const QString& platform, int keepNewest, const QString& inUseVersion) const {
+  int removed = 0;
+  const QStringList vs = versions(coreId, platform);  // newest first
+  for (qsizetype i = std::max(keepNewest, 0); i < vs.size(); ++i) {
+    const QString& v = vs.at(i);
+    if (v == inUseVersion) continue;
+    const QString dir = packageDir(coreId, v, platform);
+    if (dir.isEmpty() || !QDir(dir).removeRecursively()) continue;
+    ++removed;
+    QDir(QDir(root_).filePath(coreId)).rmdir(v);  // only succeeds when no other platform is cached for that version
+  }
+  return removed;
+}
+
+QString CoreCache::libraryPathJustVerified(const QString& coreId, const QString& version, const QString& platform) const {
+  const auto pkg = readPackage(coreId, version, platform);
+  const CorePackageFile* lib = pkg ? pkg->library() : nullptr;
+  if (lib == nullptr) {
+    return {};
+  }
+  const QString p = filePath(coreId, version, platform, lib->name);
+  const QFileInfo fi(p);
+  return (!p.isEmpty() && fi.isFile() && fi.size() == lib->size) ? p : QString();
+}
+
 QStringList CoreCache::versions(const QString& coreId, const QString& platform) const {
   QStringList out;
   if (!isValidCoreId(coreId) || !isValidCorePlatform(platform)) {

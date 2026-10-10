@@ -15,6 +15,11 @@ if(WIN32)
   target_link_libraries(framebeam_player PRIVATE shell32)
   # Executable icon (Explorer/taskbar/shortcuts); the .rc is only compiled on Windows.
   target_sources(framebeam_player PRIVATE player.rc)
+  # Application manifest (longPathAware, UTF-8 active code page). MSVC: CMake merges a .manifest source into the linker's
+  # manifest (mt.exe); embedding it through the .rc as well would give a duplicate resource. Other toolchains: player.rc.
+  if(MSVC)
+    target_sources(framebeam_player PRIVATE framebeam.manifest)
+  endif()
 endif()
 
 if(BUILD_TESTING)

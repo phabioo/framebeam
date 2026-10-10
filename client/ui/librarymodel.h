@@ -110,6 +110,8 @@ class LibraryModel : public QAbstractListModel {
   void clear();
   void setStatus(const QString& romSha256, const RomStatus& status);
   void setSyncKind(const QString& gameId, const QString& kind);
+  // Applies many kinds (game id -> kind) with one rebuild.
+  void setSyncKinds(const QHash<QString, QString>& kinds);
   QString syncKind(const QString& gameId) const;
   static QString syncText(const QString& kind);
 

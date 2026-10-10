@@ -172,6 +172,9 @@ class SaveSync : public QObject {
     QString saveSource = QStringLiteral("auto");
     QString fileExtension;
     QString fileFormat;
+    // Core profile save.short_dir: the core gets SaveStore::shortCoreDir (Windows MAX_PATH); a core-created file
+    // (.dsv) is read and written there, the raw save and sync.json stay in the regular slot directory.
+    bool shortDir = false;
     bool valid() const { return !id.isEmpty() && !version.isEmpty(); }
   };
   // Start sync before the core loads. The core's save dir comes with startReady().
@@ -232,13 +235,14 @@ class SaveSync : public QObject {
     bool localOnly = false;  // saveSource "none": saves stay on this device, nothing is imported, uploaded or replaced
     bool exactSave = false;  // profiled core: only <rom>.sav is the save, never another file in the directory
     QString coreFileExt;     // core-managed save file next to it (".dsv"); empty = none
+    QString coreDir;         // directory the core gets when CoreRef::shortDir (the .dsv lives there); empty = a_.dir
     QString coreFileFormat;
     qint64 coreFileSize = -1;
     QDateTime coreFileMtime;
   };
 
   QString findLocalSave(QStringList* warnings = nullptr) const;
-  QString coreFilePath() const;
+  QString coreFilePath() const;  // below a_.coreDir (the directory the core gets), else a_.dir
   bool importCoreFile(bool backup, QString* error);  // core file -> raw .sav when it changed since the last export/import
   bool exportCoreFile(QString* error);               // raw .sav -> core file before the core starts
   bool pullCoreFile(bool force);                     // session: import, error reported once on a forced pull

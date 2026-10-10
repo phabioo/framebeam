@@ -459,6 +459,12 @@ func TestLastSeenUpdated(t *testing.T) {
 	e := newEnv(t, nil)
 	dev := uuid.NewString()
 	at := e.login(dev)
+	seen, _ := e.svc.GetDevice(context.Background(), dev)
+	e.clk.Advance(30 * time.Second) // within a minute: no write
+	e.do("GET", "/api/v1/games", nil, opt{token: at})
+	if d, _ := e.svc.GetDevice(context.Background(), dev); d.LastSeenAt == nil || !d.LastSeenAt.Equal(*seen.LastSeenAt) {
+		t.Fatalf("last_seen_at rewritten within a minute: %v", d.LastSeenAt)
+	}
 	e.clk.Advance(5 * time.Minute)
 	e.do("GET", "/api/v1/games", nil, opt{token: at})
 	d, _ := e.svc.GetDevice(context.Background(), dev)

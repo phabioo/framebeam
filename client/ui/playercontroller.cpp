@@ -9,6 +9,7 @@
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QLocale>
+#include <QPalette>
 #include <QRegularExpression>
 #include <QScopeGuard>
 #include <QStyleHints>
@@ -86,7 +87,13 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
       }
     });
   }
+#else
+  // Qt 6.4 has no color scheme API: "System" follows the application palette (window lightness).
+  if (QCoreApplication::instance() != nullptr) {
+    QCoreApplication::instance()->installEventFilter(this);
+  }
 #endif
+  progressClock_.start();
   connect(saves_.get(), &SaveSync::startReady, this,
           [this](const QString& gameId, const QString& saveDir, const QString& note) { starter_->onSaveReady(gameId, saveDir, note); });
   connect(saves_.get(), &SaveSync::startConflict, this, [this](const SaveSync::ConflictView& v) { starter_->onSaveConflict(v); });
@@ -279,6 +286,13 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   connect(downloader_.get(), &RomDownloader::statusChanged, this,
           [this](const QString& sha, const RomStatus& st) { onRomStatus(sha, st); });
   connect(downloader_.get(), &RomDownloader::progress, this, [this](const QString& sha, qint64 got, qint64 total) {
+    // One signal per network chunk: coalesce to ~10 Hz per ROM (the last chunk always passes).
+    const qint64 now = progressClock_.elapsed();
+    qint64& last = lastProgressMs_[sha];
+    if (got != total && last != 0 && now - last < 100) {
+      return;
+    }
+    last = now + 1;  // never 0, which marks "no update yet"
     RomStatus st;
     st.state = RomState::Downloading;
     st.receivedBytes = got;
@@ -329,6 +343,9 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     if (gameActive_ && session_.state() == GameSession::Paused) {
       saves_->finalSync(false);  // pause = immediate sync of a changed save
     }
+  });
+  connect(&session_, &GameSession::saveWriteFailed, this, [this]() {
+    if (history_) history_->showError(tr("The save file could not be written. Your latest progress may not be saved."));
   });
   connect(&session_, &GameSession::startFailed, this, [this](const QString& msg) {
     saves_->finalSync(true);
@@ -778,7 +795,17 @@ bool PlayerController::darkMode() const {
     return hints->colorScheme() != Qt::ColorScheme::Light;  // Unknown -> dark
   }
 #endif
-  return true;  // Qt 6.4: no color scheme API
+  return QGuiApplication::palette().color(QPalette::Window).lightness() < 128;  // Qt 6.4: derive from the palette
+}
+
+bool PlayerController::eventFilter(QObject* watched, QEvent* event) {
+#if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
+  if (event->type() == QEvent::ApplicationPaletteChange && watched == QCoreApplication::instance() &&
+      settings_->appearance() == PlayerSettings::Appearance::System) {
+    emit appearanceChanged();
+  }
+#endif
+  return QObject::eventFilter(watched, event);
 }
 
 void PlayerController::showLibrary() {
@@ -1007,9 +1034,16 @@ QString PlayerController::hubAddress() const { return trimmedScheme(conn_->addre
 void PlayerController::endRunningWork() {
   if (gameActive_) {
     setBackground(false);
+    sessions_->gameEnded();  // same order as quitGame(): Sessions end before the core goes
     session_.stop();
     saves_->finalSyncBlocking(true);
     gameActive_ = false;
+    phase_ = PlayPhase::None;
+    if (quitting_) {
+      quitting_ = false;
+      emit quittingChanged();
+    }
+    emit selectedGameChanged();
   }
 }
 
@@ -1080,9 +1114,11 @@ void PlayerController::onLibraryLoaded() {
     ids.append(g.id);
   }
   saves_->refreshKinds(ids);
+  QHash<QString, QString> kinds;
   for (const QString& id : ids) {
-    model_.setSyncKind(id, SaveSync::kindName(saves_->kind(id)));
+    kinds.insert(id, SaveSync::kindName(saves_->kind(id)));
   }
+  model_.setSyncKinds(kinds);
   libraryState_ = QStringLiteral("ready");
   libraryError_.clear();
   emit libraryStateChanged();
@@ -1110,6 +1146,20 @@ void PlayerController::selectGame(const QString& gameId) {
 
 void PlayerController::onRomStatus(const QString& sha, const RomStatus& st) {
   model_.setStatus(sha, st);
+  bool progressOnly = false;
+  if (st.state == RomState::Downloading) {
+    // The detail pane shows "Downloading n %": re-evaluate selectedGame only when the whole percent moved.
+    const int pct = st.totalBytes > 0 ? static_cast<int>(st.receivedBytes * 100 / st.totalBytes) : -1;
+    int& shown = shownPercent_[sha];
+    progressOnly = pct == shown;
+    shown = pct;
+  } else {
+    shownPercent_.remove(sha);
+    lastProgressMs_.remove(sha);
+  }
+  if (progressOnly) {
+    return;
+  }
   if (!pendingSha_.isEmpty() && pendingSha_ == sha && (st.state == RomState::HashMismatch || st.state == RomState::Failed)) {
     pendingSha_.clear();
     phase_ = PlayPhase::None;

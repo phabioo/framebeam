@@ -81,9 +81,10 @@ class EmulationRunner::Worker : public QThread {
       return;
     }
     const AvInfo av = be.avInfo();
-    const int rate = static_cast<int>(std::lround(av.sampleRate));
-    const double fps = av.fps > 1.0 ? av.fps : 60.0;
-    const auto period = std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>(1.0 / fps));
+    int rate = static_cast<int>(std::lround(av.sampleRate));
+    double fps = av.fps > 1.0 ? av.fps : 60.0;
+    double avFps = av.fps, avRate = av.sampleRate;  // raw values the backend reported (change detection)
+    auto period = std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>(1.0 / fps));
     if (m_req.speedUpOnStart && be.supportsFastForward()) m_owner->m_fastForward.store(true);
     emit m_owner->started(av, be.coreInfo());
     m_owner->setState(State::Running);
@@ -132,6 +133,17 @@ class EmulationRunner::Worker : public QThread {
         nextEmit += period;  // a schedule, not 'last + period': jitter must not skip a whole slot
         if (nextEmit < frameStart) nextEmit = frameStart + period;
         emit m_owner->frameReady(be.videoFrame(), be.frameCount());
+      }
+      {  // SET_SYSTEM_AV_INFO at runtime: follow new timing / sample rate (cheap compare, same thread)
+        const AvInfo cur = be.avInfo();
+        if (cur.fps != avFps || cur.sampleRate != avRate) {
+          avFps = cur.fps;
+          avRate = cur.sampleRate;
+          rate = static_cast<int>(std::lround(cur.sampleRate));
+          fps = cur.fps > 1.0 ? cur.fps : 60.0;
+          period = std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>(1.0 / fps));
+          audioPhase = 0.0;
+        }
       }
       const QByteArray pcm = be.takeAudio();  // always drained
       if (!pcm.isEmpty()) {
@@ -240,7 +252,11 @@ void EmulationRunner::reset() { if (m_worker) m_worker->requestReset(); }
 bool EmulationRunner::runOnEmuThread(std::function<void(EmulatorBackend&)> fn, int timeoutMs) {
   return m_worker && m_worker->runTask(std::move(fn), timeoutMs);
 }
-bool EmulationRunner::flushSaveNow() { return runOnEmuThread([](EmulatorBackend& be) { be.flushSave(); }); }
+bool EmulationRunner::flushSaveNow() {
+  bool written = false;
+  const bool ran = runOnEmuThread([&](EmulatorBackend& be) { written = be.flushSave(); });
+  return ran && written;
+}
 bool EmulationRunner::saveMemoryAccepts(qint64 size) {
   bool ok = false;
   const bool ran = runOnEmuThread([&](EmulatorBackend& be) { ok = size > 0 && be.saveMemorySize() == size; });

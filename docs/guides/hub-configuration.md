@@ -16,7 +16,7 @@ framebeam-hub update check|stage [-channel stable|beta]   # see updates.md
 
 On a systemd install use the script instead of calling the binary for `renew-cert` and `import-cores`: `sudo packaging/linux/install-hub.sh renew-cert` / `import-cores <dir>` (it uses the service's data dir and user and restarts the service where needed), see [hub-install.md](hub-install.md).
 
-Without an admin the Hub still starts; the web interface then redirects to `/setup` (the form is accepted from loopback clients only).
+Without an admin the Hub still starts; the web interface then redirects to `/setup` (the form is accepted from loopback clients only). A request counts as local only if it comes from loopback and carries none of `Forwarded`, `X-Forwarded-For`, `X-Real-IP`, `X-Forwarded-Host`; behind a reverse proxy that sets these headers, do the setup directly on the host (`setup-admin` or a direct loopback connection).
 
 ## Flags and environment
 

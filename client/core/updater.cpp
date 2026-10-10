@@ -135,11 +135,16 @@ std::optional<StagedUpdate> loadVerifiedStaged(const QString& baseDir, const QSt
     }
     if (!art) continue;
     const QString path = d.filePath(art->name);
-    if (!verifyArtifactFile(path, *art)) continue;
+    // Skip the (GUI thread) re-hash when size and mtime are what was recorded after the verified download; the
+    // launcher hashes the MSI again right before msiexec anyway (PC-3).
+    const QFileInfo fi(path);
+    const bool unchanged = fi.isFile() && fi.size() == art->size && staged.value(QLatin1String("size")).toInteger(-1) == fi.size() &&
+                           staged.value(QLatin1String("mtime_ms")).toInteger(-1) == fi.lastModified().toMSecsSinceEpoch();
+    if (!unchanged && !verifyArtifactFile(path, *art)) continue;
     if (!bestVer || SemVer::compare(*sv, *bestVer) > 0) {
       bestVer = sv;
       bestDir = name;
-      best = StagedUpdate{rel->version, path, rel->notesUrl};
+      best = StagedUpdate{rel->version, path, rel->notesUrl, art->sha256, art->size};
     }
   }
   for (const QString& name : dirs) {
@@ -201,7 +206,7 @@ void UpdateManager::fetchIndex(QNetworkAccessManager* nam, const QUrl& indexUrl,
 UpdateManager::UpdateManager(const Config& config, PlayerSettings* settings, QObject* parent)
     : QObject(parent), config_(config), settings_(settings) {
   indexUrl_ = config.indexUrl;
-  if (indexUrl_.isEmpty()) indexUrl_ = QString::fromLocal8Bit(qgetenv("FRAMEBEAM_PLAYER_UPDATE_INDEX_URL"));
+  if (indexUrl_.isEmpty()) indexUrl_ = qEnvironmentVariable("FRAMEBEAM_PLAYER_UPDATE_INDEX_URL");
   if (indexUrl_.isEmpty()) indexUrl_ = QLatin1String(kDefaultIndexUrl);
   if (config_.trustedKeys.isEmpty()) config_.trustedKeys = trustedKeysFromEnvironment();
   timer_.setSingleShot(true);
@@ -424,11 +429,17 @@ void UpdateManager::finishDownload(const QString& partPath) {
   const QDir dir = QFileInfo(partPath).absoluteDir();
   const QString finalPath = dir.filePath(art.name);
   QFile::remove(finalPath);
-  if (!QFile::rename(partPath, finalPath) ||
+  const bool renamed = QFile::rename(partPath, finalPath);
+  const QFileInfo finalInfo(finalPath);  // size + mtime of the verified file: loadVerifiedStaged skips the re-hash while they match
+  if (!renamed ||
       !writeFile(dir.filePath(QStringLiteral("index.json")), lastIndex_.indexBytes) ||
       !writeFile(dir.filePath(QStringLiteral("index.json.sig")), lastIndex_.sigBytes) ||
       !writeFile(dir.filePath(QStringLiteral("staged.json")),
-                 QJsonDocument(QJsonObject{{"version", selection_.release.version}, {"artifact", art.name}}).toJson())) {
+                 QJsonDocument(QJsonObject{{"version", selection_.release.version},
+                                           {"artifact", art.name},
+                                           {"size", finalInfo.size()},
+                                           {"mtime_ms", finalInfo.lastModified().toMSecsSinceEpoch()}})
+                     .toJson())) {
     setState(State::Error, tr("The update could not be staged."));
     return;
   }
@@ -507,7 +518,8 @@ void UpdateManager::apply(const StagedUpdate& staged) {
       return;
     }
     const MsiScope scope = detectMsiScope(directoryWritable(config_.installRoot), hubInstalledNear(config_.installRoot));
-    cmd = msiRelaunchCommand(launcher, staged.installerPath, scope, QDir(config_.installRoot).filePath(QLatin1String(kPlayerExeName)));
+    cmd = msiRelaunchCommand(launcher, staged.installerPath, scope, QDir(config_.installRoot).filePath(QLatin1String(kPlayerExeName)), {},
+                             staged.sha256, staged.size);
   } else {
     cmd = installerCommand(staged.installerPath, directoryWritable(config_.installRoot));
   }

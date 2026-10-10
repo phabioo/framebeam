@@ -92,6 +92,10 @@ class LocalHubTest : public QObject {
     const InstallerCommand c = msiRelaunchCommand(copy, "x.msi", MsiScope::SetupHub, "P/framebeam_player.exe", {"--setup-local-hub"});
     QCOMPARE(c.program, copy);
     QCOMPARE(c.args, (QStringList{"--apply-msi-update", "x.msi", "setup-hub", "P\\framebeam_player.exe", "--setup-local-hub"}));
+    // size + SHA-256 for the launcher's re-check right before msiexec (PC-3)
+    const QString sha(64, QLatin1Char('a'));
+    const InstallerCommand v = msiRelaunchCommand(copy, "x.msi", MsiScope::Machine, "P/framebeam_player.exe", {}, sha, 1234);
+    QCOMPARE(v.args, (QStringList{"--apply-msi-update", "--sha256", sha, "--size", "1234", "x.msi", "machine", "P\\framebeam_player.exe"}));
     // forward slashes would make msiexec fail with 1619
     const InstallerCommand w = msiRelaunchCommand(copy, "C:/Users/a/data/x.msi", MsiScope::User, "C:/Users/a/P/framebeam_player.exe");
     QCOMPARE(w.args[1], QStringLiteral("C:\\Users\\a\\data\\x.msi"));
@@ -183,6 +187,19 @@ class LocalHubTest : public QObject {
     const auto c = localhub::grantFolderCommand("C:/Hub", "D:/ROMs");
     QCOMPARE(c.args, (QStringList{"grant-folder", "D:/ROMs"}));
     QVERIFY(c.program.endsWith("framebeam-hub.exe"));
+  }
+
+  void staleSetupFoldersAreRemovedButFreshOnesStay() {
+    QTemporaryDir t;
+    QVERIFY(put(t.filePath("framebeam-hub-setup-a/FrameBeam.msi"), "dummy"));
+    QVERIFY(put(t.filePath("framebeam-hub-setup-b/FrameBeam.msi"), "dummy"));
+    QVERIFY(put(t.filePath("other-folder/keep.txt"), "dummy"));
+    QCOMPARE(HubSetupInstaller::cleanStaleTempDirs(t.path(), 24 * 3600), 0);  // just created: not older than a day
+    QVERIFY(QFileInfo::exists(t.filePath("framebeam-hub-setup-a/FrameBeam.msi")));
+    QCOMPARE(HubSetupInstaller::cleanStaleTempDirs(t.path(), -60), 2);  // everything counts as stale
+    QVERIFY(!QFileInfo::exists(t.filePath("framebeam-hub-setup-a")));
+    QVERIFY(!QFileInfo::exists(t.filePath("framebeam-hub-setup-b")));
+    QVERIFY(QFileInfo::exists(t.filePath("other-folder/keep.txt")));  // only our own folders
   }
 };
 

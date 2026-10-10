@@ -115,6 +115,10 @@ func (s *Server) systemsBodyData(r *http.Request) (systemsBody, error) {
 	if err != nil {
 		return systemsBody{}, err
 	}
+	devices, err := s.svc.LoadDeviceReports(r.Context()) // once for all systems
+	if err != nil {
+		return systemsBody{}, err
+	}
 	var b systemsBody
 	for _, e := range reg {
 		v := systemView{ID: e.ID, Name: e.Name, CoreID: e.CoreID, CoreName: e.CoreName, Expected: e.ExpectedCoreVersion,
@@ -177,11 +181,7 @@ func (s *Server) systemsBodyData(r *http.Request) (systemsBody, error) {
 			}
 			v.Firmware = append(v.Firmware, fv)
 		}
-		reports, err := s.svc.ListClientReports(r.Context(), e)
-		if err != nil {
-			return systemsBody{}, err
-		}
-		for _, c := range reports {
+		for _, c := range devices.ClientReports(e) {
 			cv := clientView{Device: c.DeviceName, Platform: c.Platform + "-" + c.Arch, Status: string(c.Status)}
 			if c.Status != hub.ClientCompatible {
 				v.ClientsBad++

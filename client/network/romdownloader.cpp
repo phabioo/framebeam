@@ -83,9 +83,13 @@ void RomDownloader::startValidation(const GameEntry& game, bool thenDownload) {
   v->watcher = std::make_unique<QFutureWatcher<QPair<bool, QString>>>();
   const QString path = cache_->finalPath(sha, v->ext);
   validations_.insert(sha, v);
-  connect(v->watcher.get(), &QFutureWatcher<QPair<bool, QString>>::finished, this, [this, v, sha]() {
+  // weak: the watcher is owned by the Validation, a shared capture would keep the pair alive forever (PC-4)
+  connect(v->watcher.get(), &QFutureWatcher<QPair<bool, QString>>::finished, this, [this, weak = std::weak_ptr<Validation>(v), sha]() {
+    const std::shared_ptr<Validation> v = weak.lock();
+    if (!v || !v->watcher) return;
     const auto res = v->watcher->result();
     validations_.remove(sha);
+    v->watcher.release()->deleteLater();  // not destroyed from inside its own finished emission
     if (res.first && res.second == sha) {
       cache_->markVerified(sha, v->ext);
       RomStatus s = makeStatus(RomState::Ready, v->game.romSize, v->game.romSize);
@@ -211,7 +215,10 @@ void RomDownloader::startRequest(Job* job) {
   const auto hash = job->hash;
   job->primeWatcher = std::make_unique<QFutureWatcher<bool>>();
   connect(job->primeWatcher.get(), &QFutureWatcher<bool>::finished, this, [this, job, sha]() {
+    const std::shared_ptr<Job> keep = jobs_.value(sha);  // finishJob() below drops the map's reference
+    if (!keep || keep.get() != job || !job->primeWatcher) return;
     const bool ok = job->primeWatcher->result();
+    job->primeWatcher.release()->deleteLater();  // not destroyed from inside its own finished emission
     job->priming = false;
     if (job->aborted) {
       finishJob(sha, makeStatus(RomState::DownloadNeeded, job->game.romSize, cache_->partSize(sha, job->ext)));

@@ -22,9 +22,23 @@ bool isCandidateName(const QString& name) {
 }
 }  // namespace
 
+bool SaveStore::isWindowsAliasName(const QString& name) {
+  if (name.endsWith(QLatin1Char('.')) || name.endsWith(QLatin1Char(' '))) {
+    return true;  // Windows strips these: "abc." is the directory "abc"
+  }
+  // Reserved device names, also with an extension ("nul.txt"), any case.
+  const QString stem = name.left(name.indexOf(QLatin1Char('.')) < 0 ? name.size() : name.indexOf(QLatin1Char('.'))).trimmed().toUpper();
+  static const QStringList reserved = {QStringLiteral("CON"), QStringLiteral("PRN"), QStringLiteral("AUX"), QStringLiteral("NUL")};
+  if (reserved.contains(stem)) {
+    return true;
+  }
+  return stem.size() == 4 && (stem.startsWith(QLatin1String("COM")) || stem.startsWith(QLatin1String("LPT"))) && stem.at(3) >= QLatin1Char('1') &&
+         stem.at(3) <= QLatin1Char('9');
+}
+
 bool SaveStore::isSafeId(const QString& id) {
   static const QRegularExpression re(QStringLiteral("^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"));
-  return re.match(id).hasMatch() && !id.contains(QStringLiteral(".."));
+  return re.match(id).hasMatch() && !id.contains(QStringLiteral("..")) && !isWindowsAliasName(id);
 }
 
 QString SaveStore::userSavesDir(const ProfileStore& profiles, const QString& hubId, const QString& userId) {
@@ -42,7 +56,7 @@ QString SaveStore::gameDir(const ProfileStore& profiles, const QString& hubId, c
 
 bool SaveStore::isValidSlotName(const QString& slot) {
   static const QRegularExpression re(QStringLiteral("\\A[a-z0-9_-]{1,32}\\z"));  // \z: no trailing newline (Go's $ semantics)
-  return re.match(slot).hasMatch();
+  return re.match(slot).hasMatch() && !isWindowsAliasName(slot);
 }
 
 QString SaveStore::slotDirIn(const QString& gameDir, const QString& slot) {
@@ -105,6 +119,38 @@ bool SaveStore::migrateCoreSubfolder(const QString& oldDir, const QString& newDi
   }
   QDir(from).removeRecursively();  // after a complete copy
   return true;
+}
+
+SaveStore::FileMove SaveStore::migrateCoreFile(const QString& oldDir, const QString& newDir, const QString& fileName) {
+  if (oldDir.isEmpty() || newDir.isEmpty() || fileName.isEmpty() || fileName.contains(QLatin1Char('/')) || fileName.contains(QLatin1Char('\\')) ||
+      QDir::cleanPath(oldDir) == QDir::cleanPath(newDir)) {
+    return FileMove::None;
+  }
+  const QString from = QDir(oldDir).filePath(fileName);
+  const QString to = QDir(newDir).filePath(fileName);
+  if (!QFileInfo(from).isFile()) {
+    return FileMove::None;
+  }
+  if (QFileInfo::exists(to)) {
+    return FileMove::KeptBoth;  // never overwrite; the source stays
+  }
+  QDir().mkpath(newDir);
+  if (QFile::rename(from, to)) {
+    return FileMove::Moved;
+  }
+  if (QFile::copy(from, to)) {
+    QFile::remove(from);  // after a complete copy
+    return FileMove::Moved;
+  }
+  QFile::remove(to);  // partial copy only; the source stays untouched
+  return FileMove::Failed;
+}
+
+bool SaveStore::exceedsLegacyPathLimit(const QString& dir, int longestNameChars, int limit) {
+  if (dir.isEmpty()) {
+    return false;
+  }
+  return QDir::toNativeSeparators(QDir(dir).absolutePath()).size() + 1 + longestNameChars > limit;
 }
 
 QStringList SaveStore::localSlots(const QString& gameDir) {

@@ -15,7 +15,7 @@ using Bindings = QMap<QString, QStringList>;  // FrameBeam input id -> tokens (s
 quint32 inputBit(const QString& inputId);  // 1 << inputIndex, 0 = unknown input
 // System profile nds: FrameBeam input mask -> libretro joypad mask.
 quint32 ndsLibretroMask(quint32 inputMask);
-// System profile 3ds: the nds buttons plus ZL = L2 (bit 12), ZR = R2 (bit 14), the circle pad and the C-stick, which the backend serves
+// System profile 3ds: the nds buttons plus ZL = L2 (bit 12), ZR = R2 (bit 13), the circle pad and the C-stick, which the backend serves
 // as RETRO_DEVICE_ANALOG (left / right stick) from the bits above the 16 joypad ids. In the nds profile the circle pad
 // inputs act as a second D-pad.
 constexpr quint32 kLibretroCStickUp = 1u << 16;

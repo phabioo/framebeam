@@ -315,9 +315,10 @@ void SaveHistoryController::refresh() {
 }
 
 void SaveHistoryController::selectSlot(const QString& slotName) {
-  if (gameId_.isEmpty() || gameRunning() || slotName == slot()) {
+  if (gameId_.isEmpty() || gameRunning() || slotName == slot() || conflictBusy_) {
     return;
   }
+  closeConflict();  // the panel shows one slot's details; it must not stay open over another slot
   if (!env_.saves->setSlot(gameId_, slotName)) {
     setMessage(tr("The slot could not be selected."), true);
     return;
@@ -411,11 +412,15 @@ void SaveHistoryController::restore(int version) {
   const QString slotName = slot();
   QPointer<SaveHistoryController> self(this);
   env_.saves->restoreVersion(game, slotName, version, currentRevision_, env_.localFileName ? env_.localFileName(game) : QString(),
-                             [self, version](const SaveSync::RestoreResult& r) {
+                             [self, version, game](const SaveSync::RestoreResult& r) {
                                if (!self) {
                                  return;
                                }
                                self->busy_ = false;
+                               if (self->gameId_ != game) {  // another game is selected now: no message or refresh for it
+                                 emit self->changed();
+                                 return;
+                               }
                                using O = SaveRestoreResult::Outcome;
                                if (r.ok()) {
                                  self->setMessage(r.message.isEmpty() ? tr("Version v%1 restored. It is now the current save.").arg(version)
@@ -468,12 +473,17 @@ void SaveHistoryController::confirmDelete() {
   busy_ = true;
   message_.clear();
   emit changed();
+  const QString game = gameId_;
   QPointer<SaveHistoryController> self(this);
-  env_.saves->api()->deleteSnapshot(gameId_, slot(), version, [self, version](const SaveApiResult& r) {
+  env_.saves->api()->deleteSnapshot(game, slot(), version, [self, version, game](const SaveApiResult& r) {
     if (!self) {
       return;
     }
     self->busy_ = false;
+    if (self->gameId_ != game) {
+      emit self->changed();
+      return;
+    }
     using K = SaveApiResult::Kind;
     if (r.ok()) {
       self->setMessage(tr("Snapshot v%1 deleted.").arg(version), false);
@@ -586,12 +596,16 @@ void SaveHistoryController::confirmUploadFile() {
   const QString slotName = slot();
   QPointer<SaveHistoryController> self(this);
   env_.saves->uploadSaveFile(game, slotName, path, currentRevision_, env_.localFileName ? env_.localFileName(game) : QString(),
-                             [self, fileName, path](const SaveSync::RestoreResult& r) {
+                             [self, fileName, path, game](const SaveSync::RestoreResult& r) {
                                if (!self) {
                                  return;
                                }
                                self->busy_ = false;
                                self->uploading_ = false;
+                               if (self->gameId_ != game) {
+                                 emit self->changed();
+                                 return;
+                               }
                                using O = SaveRestoreResult::Outcome;
                                if (!r.ok()) {
                                  self->uploadFailure_ = QVariantMap{{QStringLiteral("path"), path}, {QStringLiteral("fileName"), fileName}};
@@ -620,12 +634,17 @@ void SaveHistoryController::createSnapshot(const QString& label) {
   busy_ = true;
   message_.clear();
   emit changed();
+  const QString game = gameId_;
   QPointer<SaveHistoryController> self(this);
-  const auto done = [self](const SaveSnapshotResult& r) {
+  const auto done = [self, game](const SaveSnapshotResult& r) {
     if (!self) {
       return;
     }
     self->busy_ = false;
+    if (self->gameId_ != game) {
+      emit self->changed();
+      return;
+    }
     if (r.ok()) {
       self->setMessage(r.version.label.isEmpty() ? tr("Snapshot v%1 created.").arg(r.version.version)
                                                  : tr("Snapshot v%1 created: %2").arg(r.version.version).arg(r.version.label),
@@ -653,12 +672,17 @@ void SaveHistoryController::createSnapshotInGame(const QString& label) {
   busy_ = true;
   message_.clear();
   emit changed();
+  const QString game = gameId_;
   QPointer<SaveHistoryController> self(this);
-  env_.saves->snapshotActive(label.trimmed(), [self](const SaveSnapshotResult& r) {
+  env_.saves->snapshotActive(label.trimmed(), [self, game](const SaveSnapshotResult& r) {
     if (!self) {
       return;
     }
     self->busy_ = false;
+    if (self->gameId_ != game) {
+      emit self->changed();
+      return;
+    }
     if (r.ok()) {
       self->setMessage(r.version.label.isEmpty() ? tr("Snapshot v%1 created.").arg(r.version.version)
                                                  : tr("Snapshot v%1 created: %2").arg(r.version.version).arg(r.version.label),
@@ -698,7 +722,7 @@ void SaveHistoryController::openConflict() {
   QPointer<SaveHistoryController> self(this);
   env_.saves->loadSlotConflict(game, slotName, env_.localFileName ? env_.localFileName(game) : QString(),
                                [self, game, slotName](const SaveSync::SlotConflict& c) {
-                                 if (!self || self->gameId_ != game || !self->conflictOpen_) {
+                                 if (!self || self->gameId_ != game || self->slot() != slotName || !self->conflictOpen_) {
                                    return;
                                  }
                                  using O = SaveSync::SlotConflict::Outcome;
@@ -750,21 +774,29 @@ void SaveHistoryController::resolveConflict(const QString& action) {
   if (!useHub && action != QLatin1String("use_local")) {
     return;
   }
+  // The panel was loaded for one slot; never resolve another one than the user saw.
+  const QString slotName = conflictInfo_.value(QStringLiteral("slot")).toString();
+  if (slotName.isEmpty() || slotName != slot()) {
+    return;
+  }
   conflictBusy_ = true;
   busy_ = true;
   emit changed();
   const QString game = gameId_;
-  const QString slotName = slot();
   QPointer<SaveHistoryController> self(this);
   env_.saves->resolveSlotConflict(
       game, slotName, useHub ? SaveSync::Resolution::UseHub : SaveSync::Resolution::UseLocal,
-      env_.localFileName ? env_.localFileName(game) : QString(), [self, useHub](const SaveSync::RestoreResult& r) {
+      env_.localFileName ? env_.localFileName(game) : QString(), [self, useHub, game](const SaveSync::RestoreResult& r) {
         if (!self) {
           return;
         }
         using O = SaveRestoreResult::Outcome;
         self->conflictBusy_ = false;
         self->busy_ = false;
+        if (self->gameId_ != game) {  // setGame() already reset the panel; do not open a conflict for the other game
+          emit self->changed();
+          return;
+        }
         if (r.ok()) {
           self->conflictOpen_ = false;
           self->conflictInfo_.clear();

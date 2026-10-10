@@ -7,6 +7,7 @@ import (
 	"crypto/ed25519"
 	"database/sql"
 	"errors"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -94,6 +95,7 @@ type Service struct {
 
 	saveMu   sync.Mutex // serializes save uploads/resolutions (and content cleanup)
 	saveKeep saveRetention
+	fwMu     sync.Mutex // serializes ProvideFirmware (file swap + metadata upsert)
 	sess     sessionState
 	mu       sync.RWMutex
 	hubID    string
@@ -135,6 +137,19 @@ func Open(ctx context.Context, db *sql.DB, o Options) (*Service, error) {
 	s.sess.init(o)
 	s.cores.init(o)
 	s.initUpdates(o)
+	// No upload can be in flight while the Hub opens: drop staging leftovers of a crashed run.
+	tmpDir := filepath.Join(s.dataDir, "tmp")
+	if entries, err := os.ReadDir(tmpDir); err == nil {
+		for _, e := range entries {
+			os.RemoveAll(filepath.Join(tmpDir, e.Name()))
+		}
+	}
+	// A firmware backup left behind by a crash between the renames of ProvideFirmware is never read.
+	if baks, err := filepath.Glob(filepath.Join(s.dataDir, "firmware", "*", "*.bak")); err == nil {
+		for _, b := range baks {
+			os.Remove(b)
+		}
+	}
 	for _, d := range []string{"roms", "tmp"} {
 		if err := os.MkdirAll(filepath.Join(s.dataDir, d), 0o750); err != nil {
 			return nil, internal(err)
@@ -244,4 +259,26 @@ func ts(t sql.NullInt64) *time.Time {
 
 func isUnique(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed")
+}
+
+// proxyHeaders are the headers a reverse proxy sets on requests it forwards.
+var proxyHeaders = []string{"Forwarded", "X-Forwarded-For", "X-Real-IP", "X-Forwarded-Host"}
+
+// IsLocalRequest reports whether r comes from the machine the Hub runs on: the TCP peer is a loopback address and
+// the request carries no reverse-proxy header. Behind a proxy on the same host every client arrives from loopback,
+// so those requests are not local. The header values are never trusted, only their presence counts.
+func IsLocalRequest(r *http.Request) bool {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = r.RemoteAddr
+	}
+	if ip := net.ParseIP(host); ip == nil || !ip.IsLoopback() {
+		return false
+	}
+	for _, h := range proxyHeaders {
+		if len(r.Header.Values(h)) > 0 {
+			return false
+		}
+	}
+	return true
 }

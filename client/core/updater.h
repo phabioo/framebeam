@@ -36,6 +36,8 @@ struct StagedUpdate {
   QString version;
   QString installerPath;
   QString notesUrl;
+  QString sha256;   // of the installer, from the signed index (the launcher re-checks it before msiexec)
+  qint64 size = -1;
 };
 // Looks into <baseDir>/cache/updates/<version>/ (index.json, index.json.sig, staged.json, installer) and returns
 // the highest verified staged update; stale or invalid staging directories are removed.

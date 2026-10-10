@@ -240,6 +240,7 @@ class SessionController : public QObject {
   bool shared_ = false;
   std::shared_ptr<GpuEncodeBridge> gpu_;  // GPU-direct encoding of the own Session (ADR 0019); null = readback frames
   bool shareBusy_ = false;
+  quint64 shareGen_ = 0;  // bumped by closeShare; a publish answer from an older generation is discarded
   QString visibility_ = QStringLiteral("hub_users");
   SessionInfo own_;
   QList<ViewerJoined> pendingViewers_;

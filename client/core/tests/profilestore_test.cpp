@@ -26,6 +26,28 @@ class ProfileStoreTest : public QObject {
     QCOMPARE(again.deviceId(), id);
   }
 
+  void corruptProfilesAndDeviceFilesAreKeptNotOverwritten() {
+    QTemporaryDir dir;
+    {
+      QFile f(dir.filePath(QStringLiteral("profiles.json")));
+      QVERIFY(f.open(QIODevice::WriteOnly));
+      f.write("{\"profiles\": [ typo");
+    }
+    {
+      QFile f(dir.filePath(QStringLiteral("device.json")));
+      QVERIFY(f.open(QIODevice::WriteOnly));
+      f.write("not json");
+    }
+    ProfileStore s(dir.path());
+    QVERIFY(!QUuid::fromString(s.deviceId()).isNull());  // a new identity, but the old file is not lost
+    HubProfile p;
+    p.hubId = QStringLiteral("hub-1");
+    p.address = QStringLiteral("https://192.0.2.10:8443");
+    QVERIFY(s.upsertProfile(p));
+    QCOMPARE(QDir(dir.path()).entryList({QStringLiteral("profiles.json.corrupt-*")}, QDir::Files).size(), 1);
+    QCOMPARE(QDir(dir.path()).entryList({QStringLiteral("device.json.corrupt-*")}, QDir::Files).size(), 1);
+  }
+
   void profileRoundTripWithoutSecrets() {
     QTemporaryDir dir;
     HubProfile p;

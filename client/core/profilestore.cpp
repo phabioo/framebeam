@@ -1,6 +1,8 @@
 #include "profilestore.h"
 
+#include "fsutil.h"
 #include "installroot.h"
+#include "savestore.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -24,15 +26,7 @@ Q_LOGGING_CATEGORY(lcProfiles, "framebeam.profiles")
 
 namespace {
 
-QJsonObject readJsonFile(const QString& path) {
-  QFile f(path);
-  if (!f.open(QIODevice::ReadOnly)) {
-    return {};
-  }
-  QJsonParseError err;
-  const QJsonDocument doc = QJsonDocument::fromJson(f.readAll(), &err);
-  return err.error == QJsonParseError::NoError ? doc.object() : QJsonObject();
-}
+QJsonObject readJsonFile(const QString& path) { return fsutil::readJsonObject(path); }  // corrupt file: moved aside first
 
 bool writeJsonFile(const QString& path, const QJsonObject& obj) {
   QSaveFile f(path);
@@ -234,9 +228,8 @@ int ProfileStore::migratePortableData(const QStringList& sourceDirs, const QStri
 }
 
 QString ProfileStore::defaultBaseDir() {
-  const QByteArray env = qgetenv("FRAMEBEAM_DATA_DIR");
-  if (!env.isEmpty()) {
-    const QString dir = QString::fromLocal8Bit(env);
+  const QString dir = fsutil::envPath("FRAMEBEAM_DATA_DIR");
+  if (!dir.isEmpty()) {
     qCInfo(lcProfiles) << "Data directory (FRAMEBEAM_DATA_DIR):" << dir;
     return dir;
   }
@@ -250,7 +243,7 @@ QString ProfileStore::defaultBaseDir() {
 #ifdef Q_OS_WIN
     // Per-machine install (Program Files): take over the data of the old portable per-user / all-users install.
     const int moved = migratePortableData(
-        portableMigrationSources(QString::fromLocal8Bit(qgetenv("LOCALAPPDATA")), QString::fromLocal8Bit(qgetenv("ProgramFiles"))),
+        portableMigrationSources(fsutil::envPath("LOCALAPPDATA"), fsutil::envPath("ProgramFiles")),
         c.path);
     if (moved > 0) qCInfo(lcProfiles) << "Portable data taken over (" << moved << "files, source unchanged, ROM cache not migrated)";
 #endif
@@ -269,7 +262,7 @@ QString ProfileStore::defaultBaseDir() {
 
 bool ProfileStore::isValidHubId(const QString& hubId) {
   static const QRegularExpression re(QStringLiteral("^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"));
-  return re.match(hubId).hasMatch();
+  return re.match(hubId).hasMatch() && !SaveStore::isWindowsAliasName(hubId);
 }
 
 ProfileStore::ProfileStore(const QString& baseDir) : baseDir_(baseDir.isEmpty() ? defaultBaseDir() : baseDir) {

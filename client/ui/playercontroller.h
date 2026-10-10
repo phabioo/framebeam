@@ -3,6 +3,9 @@
 // QML UI. The QML screens only read properties (screen, hubs, pairing, selectedGame, ...) and
 // call actions; hub logic stays in network/ and core/.
 
+#include <QElapsedTimer>
+#include <QEvent>
+#include <QHash>
 #include <QList>
 #include <QObject>
 #include <QString>
@@ -166,6 +169,7 @@ class PlayerController : public QObject {
   QString appearance() const;
   void setAppearance(const QString& name);
   bool darkMode() const;
+  bool eventFilter(QObject* watched, QEvent* event) override;  // Qt < 6.5: palette changes drive the System appearance
   QVariantMap romCache() const;
   // Size limit in bytes (0 = unlimited); trims at once (never the running game or a file being downloaded).
   Q_INVOKABLE void setRomCacheLimit(double bytes);
@@ -346,6 +350,9 @@ class PlayerController : public QObject {
   QString selectedId_;
   QString startError_;
   QString pendingSha_;
+  QElapsedTimer progressClock_;           // ROM progress throttle
+  QHash<QString, qint64> lastProgressMs_;  // sha -> last accepted progress (clock ms + 1)
+  QHash<QString, int> shownPercent_;       // sha -> last percent that reached selectedGame
   PlayPhase phase_ = PlayPhase::None;
   bool gameActive_ = false;
   bool background_ = false;      // gameActive_ and paused behind the Library (input blocked)

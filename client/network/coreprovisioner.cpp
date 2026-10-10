@@ -127,12 +127,17 @@ void CoreProvisioner::next() {
       fail(QStringLiteral("download_failed"), QStringLiteral("cache write failed"));
       return;
     }
-    result_.libraryPath = cache_->libraryPath(pkg_.coreId, pkg_.version, pkg_.platform);
+    // Every file was just verified (fileValid / store) in this run: no third hash of a big library here.
+    result_.libraryPath = cache_->libraryPathJustVerified(pkg_.coreId, pkg_.version, pkg_.platform);
     if (result_.libraryPath.isEmpty()) {
       fail(QStringLiteral("download_failed"), QStringLiteral("cache verification failed"));
       return;
     }
     result_.ok = true;
+    // Keep the newest two versions per core plus the one in use; a failed delete never fails the launch.
+    if (const int n = cache_->prune(pkg_.coreId, pkg_.platform, 2, pkg_.version); n > 0) {
+      qCInfo(lcCores) << "pruned" << n << "old version(s) of" << pkg_.coreId;
+    }
     done();
     return;
   }

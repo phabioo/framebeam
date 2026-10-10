@@ -45,6 +45,26 @@ class RomCacheTest : public QObject {
     QVERIFY(!QFile::exists(path));
   }
 
+  void commitReplacesAnExistingFinalFileOnlyWithAGoodPart() {
+    QTemporaryDir dir;
+    RomCache c(dir.path());
+    const QByteArray rom = dummyRom();
+    const QString sha = shaOf(rom);
+    const QString ext = QStringLiteral("nds");
+    // a verified final file exists: a commit of the same verified content replaces it (Qt file API)
+    writeFile(c.finalPath(sha, ext), QByteArray("stale"));
+    writeFile(c.partPath(sha, ext), rom);
+    QVERIFY(c.verifyAndCommit(sha, ext) == RomCache::CommitResult::Ok);
+    QVERIFY(c.lookup(sha, ext, rom.size()));
+    // a bad part never replaces a good final file
+    writeFile(c.partPath(sha, ext), QByteArray("wrong"));
+    QVERIFY(c.verifyAndCommit(sha, ext) == RomCache::CommitResult::HashMismatch);
+    QVERIFY(c.lookup(sha, ext, rom.size()));
+    // commitVerified without a part: no change, no crash
+    QVERIFY(!c.commitVerified(sha, ext));
+    QVERIFY(c.lookup(sha, ext, rom.size()));
+  }
+
   void mismatchDeletesPart() {
     QTemporaryDir dir;
     RomCache c(dir.path());

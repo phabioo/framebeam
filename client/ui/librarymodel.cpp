@@ -510,13 +510,25 @@ void LibraryModel::clear() { setGames({}, {}); }
 
 void LibraryModel::setStatus(const QString& romSha256, const RomStatus& status) {
   bool any = false;
+  bool progressOnly = status.state == RomState::Downloading;
   for (int i = 0; i < items_.size(); ++i) {
     if (items_.at(i).game.romSha256 == romSha256) {
+      progressOnly = progressOnly && items_.at(i).status.state == RomState::Downloading;
       items_[i].status = status;
       any = true;
     }
   }
   if (!any) {
+    return;
+  }
+  if (progressOnly) {
+    // Only the byte counters moved: filter, order and group counts cannot change, so skip the rebuild and notify the
+    // roles that show progress.
+    for (int row = 0; row < visible_.size(); ++row) {
+      if (items_.at(visible_.at(row)).game.romSha256 == romSha256) {
+        emit dataChanged(index(row), index(row), {ProgressRole, StatusTextRole, TileTextRole});
+      }
+    }
     return;
   }
   const QList<int> before = visible_;
@@ -563,6 +575,26 @@ void LibraryModel::setSyncKind(const QString& gameId, const QString& kind) {
     }
     emit countChanged();
   }
+}
+
+void LibraryModel::setSyncKinds(const QHash<QString, QString>& kinds) {
+  bool changed = false;
+  for (Item& it : items_) {
+    const auto k = kinds.constFind(it.game.id);
+    if (k != kinds.cend() && it.sync != k.value()) {
+      it.sync = k.value();
+      changed = true;
+    }
+  }
+  if (!changed) {
+    return;
+  }
+  const QList<int> before = visible_;
+  rebuild();
+  if (before == visible_ && !visible_.isEmpty()) {
+    emit dataChanged(index(0), index(static_cast<int>(visible_.size()) - 1));
+  }
+  emit countChanged();
 }
 
 int LibraryModel::rowOfGame(const QString& gameId) const {

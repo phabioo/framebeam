@@ -109,6 +109,7 @@ class SaveHistoryController : public QObject {
   bool canUploadFile() const;
   static QStringList saveFileFilters();
   QVariantMap uploadRequest() const { return uploadRequest_; }
+  void showError(const QString& text) { setMessage(text, true); }  // non-blocking notice (game toast / Saves view)
   QString message() const { return message_; }
   bool messageIsError() const { return messageIsError_; }
   QString notice() const;

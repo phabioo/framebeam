@@ -8,18 +8,10 @@
 #include <QJsonObject>
 #include <QRegularExpression>
 #include <algorithm>
-#include <filesystem>
-#include <string>
-#include <system_error>
+
+#include "fsutil.h"
 
 namespace framebeam {
-
-namespace {
-std::filesystem::path toFsPath(const QString& p) {
-  const QByteArray u8 = p.toUtf8();
-  return std::filesystem::path(std::u8string(reinterpret_cast<const char8_t*>(u8.constData()), static_cast<size_t>(u8.size())));
-}
-}  // namespace
 
 RomCache::RomCache(const QString& dir) : dir_(dir) { QDir().mkpath(dir_); }
 
@@ -251,9 +243,8 @@ void RomCache::dropFinal(const QString& sha256, const QString& ext) const {
 }
 
 bool RomCache::commitVerified(const QString& sha256, const QString& ext) const {
-  std::error_code ec;
-  std::filesystem::rename(toFsPath(partPath(sha256, ext)), toFsPath(finalPath(sha256, ext)), ec);
-  if (ec) {
+  // Qt file API (long-path safe on Windows, unlike std::filesystem): the verified .part replaces the final file.
+  if (!fsutil::replaceFile(partPath(sha256, ext), finalPath(sha256, ext))) {
     return false;
   }
   writeSidecar(sha256, ext);
@@ -276,9 +267,7 @@ RomCache::CommitResult RomCache::verifyAndCommit(const QString& sha256, const QS
     discardPart(sha256, ext);
     return CommitResult::HashMismatch;
   }
-  std::error_code ec;
-  std::filesystem::rename(toFsPath(partPath(sha256, ext)), toFsPath(finalPath(sha256, ext)), ec);
-  if (ec) {
+  if (!fsutil::replaceFile(partPath(sha256, ext), finalPath(sha256, ext))) {
     return CommitResult::IoError;
   }
   writeSidecar(sha256, ext);
@@ -302,9 +291,8 @@ RomCache::CommitResult RomCache::adoptFile(const QString& srcPath, const QString
     QFile::remove(tmp);
     return r;
   };
-  std::error_code ec;
-  std::filesystem::copy_file(toFsPath(srcPath), toFsPath(tmp), std::filesystem::copy_options::overwrite_existing, ec);
-  if (ec) {
+  QFile::remove(tmp);  // leftover of an earlier attempt
+  if (!QFile::copy(srcPath, tmp)) {
     return fail(CommitResult::IoError);
   }
   QString actual;
@@ -317,8 +305,7 @@ RomCache::CommitResult RomCache::adoptFile(const QString& srcPath, const QString
   if (QFileInfo::exists(finalPath(sha256, ext))) {
     return fail(CommitResult::Ok);  // a download finished meanwhile
   }
-  std::filesystem::rename(toFsPath(tmp), toFsPath(finalPath(sha256, ext)), ec);
-  if (ec) {
+  if (!fsutil::replaceFile(tmp, finalPath(sha256, ext))) {
     return fail(CommitResult::IoError);
   }
   writeSidecar(sha256, ext);

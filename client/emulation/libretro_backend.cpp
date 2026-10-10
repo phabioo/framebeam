@@ -352,19 +352,30 @@ bool LibretroBackend::tryLoadSave() {
 
 QString LibretroBackend::backupStamp() { return QDateTime::currentDateTimeUtc().toString(QStringLiteral("yyyyMMdd-HHmmss-zzz")); }
 
-void LibretroBackend::flushSave() {
-  if (!m_gameLoaded || m_saveFilePath.isEmpty() || !m_api->get_memory_data || !m_api->get_memory_size) return;
-  if (m_savePendingLoad && !tryLoadSave()) return;  // never flush before an existing file was applied
-  if (m_saveBlocked) return;
+bool LibretroBackend::flushSave() {
+  if (!m_gameLoaded || m_saveFilePath.isEmpty() || !m_api->get_memory_data || !m_api->get_memory_size) return true;
+  if (m_savePendingLoad && !tryLoadSave()) return true;  // never flush before an existing file was applied
+  if (m_saveBlocked) return true;
   const void* mem = m_api->get_memory_data(RETRO_MEMORY_SAVE_RAM);
   const size_t size = m_api->get_memory_size(RETRO_MEMORY_SAVE_RAM);
-  if (mem == nullptr || size == 0) return;
+  if (mem == nullptr || size == 0) return true;
   const QByteArray now(static_cast<const char*>(mem), static_cast<qsizetype>(size));
-  if (now == m_sramSnapshot) return;
+  if (now == m_sramSnapshot) return true;
   QSaveFile f(m_saveFilePath);
-  if (f.open(QIODevice::WriteOnly) && f.write(now) == now.size() && f.commit()) {
-    m_sramSnapshot = now;
+  QString why;
+  if (f.open(QIODevice::WriteOnly)) {
+    if (f.write(now) == now.size() && f.commit()) {
+      m_sramSnapshot = now;
+      m_saveFailCount = 0;
+      return true;
+    }
   }
+  why = f.errorString();
+  // Retried every few seconds: log the first failure of a streak, then only every 20th attempt.
+  if (m_saveFailCount++ % 20 == 0) {
+    qCWarning(lcCore) << "Battery save could not be written:" << m_saveFilePath << "-" << why;
+  }
+  return false;
 }
 
 qint64 LibretroBackend::saveMemorySize() const {
@@ -837,7 +848,7 @@ bool LibretroBackend::handleEnvironment(unsigned rawCmd, void* data) {
       // bit 0 = video, bit 1 = audio: audio is always on; video only when the frame will be shown
       if (data) *static_cast<int*>(data) = m_videoWanted.load() ? 3 : 2;
       return true;
-    case RETRO_ENVIRONMENT_GET_TARGET_REFRESH_RATE & ~RETRO_ENVIRONMENT_EXPERIMENTAL: *static_cast<float*>(data) = static_cast<float>(m_av.fps); return true;
+    case RETRO_ENVIRONMENT_GET_TARGET_REFRESH_RATE & ~RETRO_ENVIRONMENT_EXPERIMENTAL: *static_cast<float*>(data) = static_cast<float>(m_av.fps > 1.0 ? m_av.fps : 60.0); return true;
     case RETRO_ENVIRONMENT_GET_LANGUAGE: *static_cast<unsigned*>(data) = RETRO_LANGUAGE_ENGLISH; return true;
     case RETRO_ENVIRONMENT_SET_GEOMETRY: {
       const auto* g = static_cast<const retro_game_geometry*>(data);

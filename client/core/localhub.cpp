@@ -24,7 +24,7 @@ Info detect() {
   const QByteArray env = qgetenv("FRAMEBEAM_LOCAL_HUB_PORT");
   if (!env.isEmpty()) {
     if (const auto p = parsePort(QString::fromLocal8Bit(env))) info.port = *p;
-    info.installDir = QString::fromLocal8Bit(qgetenv("FRAMEBEAM_LOCAL_HUB_DIR"));
+    info.installDir = qEnvironmentVariable("FRAMEBEAM_LOCAL_HUB_DIR");
     return info;
   }
 #ifdef Q_OS_WIN

@@ -202,6 +202,29 @@ void SaveSync::prepareStart(const QString& gameId, const QString& romPath, const
   if (core.valid() && core.saveSource == QLatin1String("core_file") && core.fileFormat == QLatin1String("desmume_dsv")) {
     a_.coreFileExt = core.fileExtension;
     a_.coreFileFormat = core.fileFormat;
+    if (core.shortDir) {
+      a_.coreDir = SaveStore::shortCoreDir(*profiles_, a_.hubId, a_.userId, gameId, a_.slot);
+      if (a_.coreDir.isEmpty()) {
+        failStart(gen, tr("The save directory for this game is unknown."));
+        return;
+      }
+      QDir().mkpath(a_.coreDir);
+      // One-time adoption of a .dsv the core wrote to the long directory earlier; never overwrites a file in the short one.
+      const QString name = SaveStore::expectedSaveName(romPath, a_.coreFileExt);
+      switch (SaveStore::migrateCoreFile(a_.dir, a_.coreDir, name)) {
+        case SaveStore::FileMove::Moved:
+          qCInfo(lcSaveSync) << "Core save file" << name << "moved to the short core directory";
+          break;
+        case SaveStore::FileMove::KeptBoth:
+          qCWarning(lcSaveSync) << "Core save file" << name << "exists in the old and the short core directory; the old one was kept untouched";
+          break;
+        case SaveStore::FileMove::Failed:
+          qCWarning(lcSaveSync) << "Core save file" << name << "could not be moved to the short core directory";
+          break;
+        case SaveStore::FileMove::None:
+          break;
+      }
+    }
   }
   a_.st = SaveStore::loadState(a_.dir);
   a_.st.slot = a_.slot;
@@ -259,7 +282,7 @@ QString SaveSync::findLocalSave(QStringList* warnings) const {
 }
 
 QString SaveSync::coreFilePath() const {
-  return a_.coreFileExt.isEmpty() ? QString() : QDir(a_.dir).filePath(a_.gameId.isEmpty() ? QString() : SaveStore::expectedSaveName(a_.romPath, a_.coreFileExt));
+  return a_.coreFileExt.isEmpty() ? QString() : QDir(a_.coreDir.isEmpty() ? a_.dir : a_.coreDir).filePath(a_.gameId.isEmpty() ? QString() : SaveStore::expectedSaveName(a_.romPath, a_.coreFileExt));
 }
 
 bool SaveSync::importCoreFile(bool backup, QString* error) {
@@ -354,7 +377,7 @@ void SaveSync::emitStartReady(const QString& note) {
     emit startFailed(a_.gameId, tr("The save cannot be prepared for the core (%1). The game was not started, so your save stays untouched.").arg(err));
     return;
   }
-  emit startReady(a_.gameId, a_.dir, a_.coreNote.isEmpty() ? note : (note.isEmpty() ? a_.coreNote : a_.coreNote + QLatin1Char(' ') + note));
+  emit startReady(a_.gameId, a_.coreDir.isEmpty() ? a_.dir : a_.coreDir, a_.coreNote.isEmpty() ? note : (note.isEmpty() ? a_.coreNote : a_.coreNote + QLatin1Char(' ') + note));
 }
 
 QString SaveSync::coreChangeLabel(const CoreRef& from, const CoreRef& to) {

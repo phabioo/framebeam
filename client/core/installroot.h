@@ -52,10 +52,13 @@ bool msiScopeNeedsElevation(MsiScope s);
 QStringList msiexecArguments(const QString& msiPath, MsiScope scope);
 // Copies <root>\framebeam_player.exe to a fresh folder below tempBase; returns the copy ("" + error on failure).
 QString copyLauncherToTemp(const QString& installRoot, const QString& tempBase, QString* error = nullptr);
-// <launcherCopy> --apply-msi-update <msi> <scope> <relaunchExe> [relaunchArgs...]: the copy waits until no Player
-// runs, runs msiexec (elevated for non-user scopes), starts relaunchExe with relaunchArgs and removes itself.
+// <launcherCopy> --apply-msi-update [--sha256 <hex> --size <n>] <msi> <scope> <relaunchExe> [relaunchArgs...]: the copy
+// waits until no Player runs, re-verifies size and SHA-256 of the MSI (refuses on mismatch, mandatory for elevated
+// scopes), runs msiexec (elevated for non-user scopes), starts relaunchExe with relaunchArgs and removes itself.
+// `sha256`/`size` are the values the Player verified against the signed update index (empty / < 0 = not passed).
 InstallerCommand msiRelaunchCommand(const QString& launcherCopy, const QString& msiPath, MsiScope scope,
-                                    const QString& relaunchExe, const QStringList& relaunchArgs = {});
+                                    const QString& relaunchExe, const QStringList& relaunchArgs = {},
+                                    const QString& sha256 = {}, qint64 size = -1);
 // Where the per-machine Player lives after "Set up a Hub on this PC" (<programFiles>\FrameBeam\Player).
 QString perMachinePlayerExe(const QString& programFilesDir);
 

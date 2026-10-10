@@ -108,8 +108,8 @@ class EmulatorBackend {
   virtual bool runFrame() = 0;
   virtual void reset() = 0;
   // Writes the game's battery save (if any) to the save directory when it changed. Called on pause and
-  // before unloading; default: nothing.
-  virtual void flushSave() {}
+  // before unloading; default: nothing. false = the file could not be written (a changed save is still unsaved).
+  virtual bool flushSave() { return true; }
   // Size of the core's battery save memory, -1 when unknown/none (emulation thread).
   virtual qint64 saveMemorySize() const { return -1; }
   // Called on the GUI thread right before the emulation thread starts (e.g. to create resources that only

@@ -1,4 +1,5 @@
 #include "controllerprofiles.h"
+#include "fsutil.h"
 
 #include <QDir>
 #include <QFile>
@@ -199,16 +200,10 @@ ControllerProfile ControllerProfiles::builtinProfile(const QString& kind) {
 ControllerProfiles::ControllerProfiles(const QString& baseDir)
     : path_(QDir(baseDir).filePath(QStringLiteral("settings/controllers.json"))) {
   for (const HotkeyDef& d : hotkeyDefs()) hotkeys_.insert(d.id, d.defaultKey);
-  QFile f(path_);
-  if (!f.open(QIODevice::ReadOnly)) {
+  raw_ = fsutil::readJsonObject(path_);  // a corrupt file is moved aside before anything can overwrite it
+  if (raw_.isEmpty()) {
     return;
   }
-  QJsonParseError err;
-  const QJsonDocument doc = QJsonDocument::fromJson(f.readAll(), &err);
-  if (err.error != QJsonParseError::NoError || !doc.isObject()) {
-    return;
-  }
-  raw_ = doc.object();
   for (const QJsonValue& v : raw_.value(QStringLiteral("profiles")).toArray()) {
     const QJsonObject o = v.toObject();
     ControllerProfile p;

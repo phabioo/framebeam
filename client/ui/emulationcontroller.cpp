@@ -198,7 +198,8 @@ void EmulationController::setCoreProbe(const QString& coreId, const emu::CorePro
   rebuild();
 }
 
-bool EmulationController::hasCoreProbe(const QString& coreId) const { return probes_.contains(coreId) && !probes_.value(coreId).options.isEmpty(); }
+// A successful probe counts as done even when the core reports no options (no re-probe, no cache rewrite).
+bool EmulationController::hasCoreProbe(const QString& coreId) const { return probes_.contains(coreId); }
 
 const emu::CoreProbe* EmulationController::coreProbe(const QString& coreId) const {
   const auto it = probes_.constFind(coreId);

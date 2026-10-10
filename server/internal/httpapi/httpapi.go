@@ -67,6 +67,11 @@ func Register(mux *http.ServeMux, svc *hub.Service, log *slog.Logger, opts ...Op
 					limit = hub.MaxROMBytes // streamed to disk, never buffered
 				}
 				r.Body = http.MaxBytesReader(w, r.Body, limit)
+				if isStreamRoute(r) {
+					rw, done := rollingWrite(w)
+					defer done()
+					w = rw
+				}
 				next.ServeHTTP(w, r)
 			})
 		}},
@@ -366,6 +371,8 @@ func (s *Server) downloadFirmware(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer f.Close()
+	w, done := rollingWrite(w)
+	defer done()
 	h := w.Header()
 	h.Set("Cache-Control", "private, no-cache")
 	h.Set("Content-Type", "application/octet-stream")
@@ -391,6 +398,8 @@ func (s *Server) downloadROM(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer f.Close()
+	w, done := rollingWrite(w)
+	defer done()
 	h := w.Header()
 	h.Set("Cache-Control", "private, max-age=0, must-revalidate")
 	h.Set("Content-Type", "application/octet-stream")

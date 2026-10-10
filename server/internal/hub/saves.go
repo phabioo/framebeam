@@ -78,6 +78,14 @@ var slotRe = regexp.MustCompile(fmt.Sprintf(`^[a-z0-9_-]{1,%d}$`, MaxSlotName))
 // ValidSlotName checks a slot name (pattern of the API: SaveSlotName).
 func ValidSlotName(s string) bool { return slotRe.MatchString(s) }
 
+// reservedSlotRe matches Windows reserved device names, which cannot be directory names there. They match the
+// API pattern, so existing slots stay readable; only the creation of new ones is refused. The pattern allows
+// no dot or space, so a trailing "." or " " cannot occur.
+var reservedSlotRe = regexp.MustCompile(`^(con|prn|aux|nul|com[1-9]|lpt[1-9])$`)
+
+// ValidNewSlotName is ValidSlotName plus the rule that a new slot must not use a Windows reserved device name.
+func ValidNewSlotName(s string) bool { return ValidSlotName(s) && !reservedSlotRe.MatchString(s) }
+
 // SaveCheckpoint is the current checkpoint of a slot ("Rev N").
 type SaveCheckpoint struct {
 	Revision   int
@@ -451,6 +459,9 @@ func (s *Service) PutSave(ctx context.Context, in PutSaveInput) (_ PutSaveResult
 	exists := err == nil
 	if err != nil && !errors.Is(err, ErrNotFound) {
 		return PutSaveResult{}, err
+	}
+	if !exists && !ValidNewSlotName(sl) {
+		return PutSaveResult{}, badRequest("Invalid slot name")
 	}
 	res := PutSaveResult{}
 	var dropSHA string // content of the replaced checkpoint, deleted after commit unless referenced

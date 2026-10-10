@@ -37,8 +37,17 @@ class CoreCache {
   std::optional<CorePackageInfo> readPackage(const QString& coreId, const QString& version, const QString& platform) const;
   // Library path of a complete, valid package; empty otherwise.
   QString libraryPath(const QString& coreId, const QString& version, const QString& platform) const;
+  // Like libraryPath() but without hashing: only for the caller that has just verified every file of this package
+  // itself (CoreProvisioner: fileValid() or store() of each file in the same run). Empty if package.json lacks a library
+  // or the file is missing / has the wrong size. A store() deliberately does not seed the hash memo: a freshly written
+  // file stays unmemoized until it has settled (see fileValid), so a same-tick rewrite is still caught.
+  QString libraryPathJustVerified(const QString& coreId, const QString& version, const QString& platform) const;
   // Cached versions with a package.json for this platform, newest first (validity of the files is not checked).
   QStringList versions(const QString& coreId, const QString& platform) const;
+  // Deletes cached versions of one core for this platform beyond the newest `keepNewest`, never `inUseVersion`.
+  // Best effort (a file still loaded on Windows cannot be deleted): failures are skipped, never reported as an error.
+  // Returns the number of version folders removed.
+  int prune(const QString& coreId, const QString& platform, int keepNewest, const QString& inUseVersion) const;
 
  // Tests only: how long a file must have been unchanged before its verified hash is memoized (default 2 s).
   void setMemoSettleMsForTest(qint64 ms) { memoSettleMs_ = ms; }

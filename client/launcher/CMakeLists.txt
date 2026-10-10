@@ -13,9 +13,11 @@ if(WIN32)
     MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
   target_compile_definitions(framebeam_player_launcher PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
   target_link_libraries(framebeam_player_launcher PRIVATE user32)
-  target_link_libraries(framebeam_player_launcher PRIVATE shell32)
+  target_link_libraries(framebeam_player_launcher PRIVATE shell32 bcrypt)
   framebeam_warnings(framebeam_player_launcher)
   if(MSVC)
+    # Same application manifest as the Player (longPathAware, UTF-8 active code page), merged by CMake into the linker's manifest.
+    target_sources(framebeam_player_launcher PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../app/framebeam.manifest)
     # Per-config subfolders of multi-config generators would hide the path above; keep it flat.
     foreach(cfg DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
       set_target_properties(framebeam_player_launcher PROPERTIES RUNTIME_OUTPUT_DIRECTORY_${cfg} ${CMAKE_BINARY_DIR}/launcher)

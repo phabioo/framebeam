@@ -1,4 +1,5 @@
 #include "playersettings.h"
+#include "fsutil.h"
 
 #include <QDir>
 #include <QFile>
@@ -29,14 +30,7 @@ constexpr const char* kSaveSlotsKey = "save_slots";  // { hub_id: { game_id: slo
 
 PlayerSettings::PlayerSettings(const QString& baseDir)
     : path_(QDir(baseDir).filePath(QStringLiteral("settings/player.json"))) {
-  QFile f(path_);
-  if (f.open(QIODevice::ReadOnly)) {
-    QJsonParseError err;
-    const QJsonDocument doc = QJsonDocument::fromJson(f.readAll(), &err);
-    if (err.error == QJsonParseError::NoError && doc.isObject()) {
-      raw_ = doc.object();
-    }
-  }
+  raw_ = fsutil::readJsonObject(path_);  // a corrupt file is moved aside before anything can overwrite it
   appearance_ = parseAppearance(raw_.value(QLatin1String(kAppearanceKey)).toString());
   const QString ch = raw_.value(QLatin1String(kUpdateChannelKey)).toString();
   if (ch == QLatin1String("stable") || ch == QLatin1String("beta")) {

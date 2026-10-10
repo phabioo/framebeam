@@ -131,7 +131,9 @@ class EncodeWorker {
     j.ns = ns;
     const int bpp = format == RawPixelFormat::Rgb565 ? 2 : 4;
     const size_t bytes = static_cast<size_t>(stride) * static_cast<size_t>(height - 1) + static_cast<size_t>(width) * bpp;
-    j.pixels.assign(data, data + bytes);  // copy outside the lock
+    j.pixels = acquireBuffer();  // reused buffer: no multi-MB malloc/free per frame on the producer thread
+    j.pixels.resize(bytes);
+    std::memcpy(j.pixels.data(), data, bytes);  // copy outside the queue lock
     insertVideo(std::move(j));
   }
 
@@ -184,6 +186,24 @@ class EncodeWorker {
   // the rest of this worker (failed, or switched off by the owner).
   enum class GpuState { Untried, Active, Off };
 
+  // Small free list of frame buffers shared between pushVideo() (producer) and the worker, which returns them after
+  // encoding or dropping a job. Own mutex, held only for a vector move.
+  static constexpr size_t kMaxFreeBuffers = 3;
+  std::vector<uint8_t> acquireBuffer() {
+    std::lock_guard<std::mutex> lock(poolMutex_);
+    if (freeBuffers_.empty()) return {};
+    std::vector<uint8_t> b = std::move(freeBuffers_.back());
+    freeBuffers_.pop_back();
+    return b;
+  }
+  void releaseBuffer(std::vector<uint8_t>&& b) {
+    if (b.capacity() == 0) return;
+    std::lock_guard<std::mutex> lock(poolMutex_);
+    if (freeBuffers_.size() < kMaxFreeBuffers) freeBuffers_.push_back(std::move(b));
+  }
+  std::mutex poolMutex_;
+  std::vector<std::vector<uint8_t>> freeBuffers_;
+
   // Bounded insert shared by both video job kinds. Dropped jobs are destroyed after the unlock (they may hold CUDA frames).
   void insertVideo(Job&& j) {
     std::vector<Job> dropped;
@@ -208,6 +228,7 @@ class EncodeWorker {
       }
     }
     cv_.notify_one();
+    for (Job& d : dropped) releaseBuffer(std::move(d.pixels));
   }
 
   void run() {
@@ -242,6 +263,7 @@ class EncodeWorker {
       } catch (const std::exception& e) {
         qCWarning(lcHost) << "Worker:" << e.what();
       }
+      releaseBuffer(std::move(j.pixels));
     }
     encoder_.close();
     gpuEncoder_.close();

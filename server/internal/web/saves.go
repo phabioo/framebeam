@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/phabioo/framebeam/server/internal/hub"
 )
@@ -570,16 +571,54 @@ func (s *Server) savesGet(w http.ResponseWriter, r *http.Request, sess *session)
 
 var unsafeName = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
 
-func (s *Server) downloadName(ctx context.Context, gameID, suffix string) string {
-	name := "save"
+// downloadNames returns the file name for a save download: an ASCII fallback for `filename=` and the original
+// title (cleaned for Windows file names) for `filename*`. A title without ASCII characters falls back to the
+// game id prefix so downloads of different games do not collide.
+func downloadNames(title, gameID, suffix string) (ascii, full string) {
+	base := strings.Trim(unsafeName.ReplaceAllString(title, "_"), "_.")
+	if base == "" || base == "save" {
+		base = "save"
+		if len(gameID) >= 8 {
+			base = gameID[:8]
+		}
+	}
+	ascii = base + "-" + suffix + ".sav"
+	// Keep the original title; drop what Windows and header syntax do not allow.
+	clean := strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) || strings.ContainsRune(`/\:*?"<>|`, r) {
+			return -1
+		}
+		return r
+	}, title)
+	if rs := []rune(clean); len(rs) > 100 {
+		clean = string(rs[:100])
+	}
+	clean = strings.TrimRight(strings.TrimSpace(clean), ". ")
+	if clean == "" {
+		return ascii, ascii
+	}
+	return ascii, clean + "-" + suffix + ".sav"
+}
+
+// contentDisposition builds an attachment header with the ASCII fallback and the RFC 5987 UTF-8 name.
+func contentDisposition(ascii, full string) string {
+	var b strings.Builder
+	for _, c := range []byte(full) {
+		if c < 0x80 && (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || strings.IndexByte("!#$&+-.^_`|~", c) >= 0) {
+			b.WriteByte(c)
+		} else {
+			fmt.Fprintf(&b, "%%%02X", c)
+		}
+	}
+	return `attachment; filename="` + ascii + `"; filename*=UTF-8''` + b.String()
+}
+
+func (s *Server) downloadName(ctx context.Context, gameID, suffix string) (ascii, full string) {
+	title := ""
 	if g, err := s.svc.GetGame(ctx, gameID); err == nil {
-		name = g.Title
+		title = g.Title
 	}
-	name = strings.Trim(unsafeName.ReplaceAllString(name, "_"), "_.")
-	if name == "" {
-		name = "save"
-	}
-	return name + "-" + suffix + ".sav"
+	return downloadNames(title, gameID, suffix)
 }
 
 func (s *Server) saveDownload(w http.ResponseWriter, r *http.Request, _ *session) {
@@ -590,7 +629,8 @@ func (s *Server) saveDownload(w http.ResponseWriter, r *http.Request, _ *session
 		return
 	}
 	defer f.Close()
-	s.serveSave(w, r, f, c.SHA256, s.downloadName(r.Context(), g, fmt.Sprintf("rev%d", c.Revision)), c.CreatedAt)
+	ascii, full := s.downloadName(r.Context(), g, fmt.Sprintf("rev%d", c.Revision))
+	s.serveSave(w, r, f, c.SHA256, ascii, full, c.CreatedAt)
 }
 
 func (s *Server) saveHistoryDownload(w http.ResponseWriter, r *http.Request, _ *session) {
@@ -606,15 +646,16 @@ func (s *Server) saveHistoryDownload(w http.ResponseWriter, r *http.Request, _ *
 		return
 	}
 	defer f.Close()
-	s.serveSave(w, r, f, v.SHA256, s.downloadName(r.Context(), g, fmt.Sprintf("v%d", v.Version)), v.CreatedAt)
+	ascii, full := s.downloadName(r.Context(), g, fmt.Sprintf("v%d", v.Version))
+	s.serveSave(w, r, f, v.SHA256, ascii, full, v.CreatedAt)
 }
 
-func (s *Server) serveSave(w http.ResponseWriter, r *http.Request, f http.File, sha, name string, mod time.Time) {
+func (s *Server) serveSave(w http.ResponseWriter, r *http.Request, f http.File, sha, ascii, full string, mod time.Time) {
 	h := w.Header()
 	h.Set("Content-Type", "application/octet-stream")
-	h.Set("Content-Disposition", `attachment; filename="`+name+`"`)
+	h.Set("Content-Disposition", contentDisposition(ascii, full))
 	h.Set("ETag", `"`+sha+`"`)
-	http.ServeContent(w, r, name, mod, f)
+	http.ServeContent(w, r, ascii, mod, f)
 }
 
 func (s *Server) downloadErr(w http.ResponseWriter, r *http.Request, err error) {

@@ -54,3 +54,6 @@ func (s *Service) ViewerGraceArmedForTest(viewerID string) bool {
 func (s *Service) SetRawSettingForTest(ctx context.Context, key, value string) error {
 	return s.setSetting(ctx, key, value)
 }
+
+// CleanTextForTest exposes cleanText.
+func CleanTextForTest(v string, max int) string { return cleanText(v, max) }

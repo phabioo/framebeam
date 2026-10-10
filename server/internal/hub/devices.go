@@ -33,6 +33,9 @@ type Device struct {
 	RevokedAt     *time.Time
 }
 
+// lastSeenWriteInterval is the minimum age (seconds) of the stored last_seen_at before Authenticate rewrites it.
+const lastSeenWriteInterval = 60
+
 const deviceCols = `id, user_id, name, platform, arch, player_version, status, created_at, last_seen_at, revoked_at`
 
 func scanDevice(r scanner) (Device, error) {
@@ -235,7 +238,7 @@ type Principal struct {
 }
 
 // Authenticate checks an access token on every use: valid, not expired, device trusted.
-// Updates last_seen_at. Errors: ErrUnauthorized, ErrDeviceRevoked.
+// Updates last_seen_at (at most once per minute). Errors: ErrUnauthorized, ErrDeviceRevoked.
 func (s *Service) Authenticate(ctx context.Context, token string) (Principal, error) {
 	if !strings.HasPrefix(token, auth.PrefixAccess) || len(token) > 256 {
 		return Principal{}, ErrUnauthorized
@@ -269,8 +272,11 @@ func (s *Service) Authenticate(ctx context.Context, token string) (Principal, er
 	p.Device.CreatedAt = time.Unix(dCreated, 0).UTC()
 	p.Device.LastSeenAt, p.Device.RevokedAt = ts(seen), ts(rev)
 	p.User.CreatedAt = time.Unix(uCreated, 0).UTC()
-	if _, err := s.db.ExecContext(ctx, `UPDATE devices SET last_seen_at = ? WHERE id = ?`, now.Unix(), p.Device.ID); err != nil {
-		return Principal{}, internal(err)
+	// Write at most once per minute: every commit serializes on the single DB connection.
+	if !seen.Valid || now.Unix()-seen.Int64 >= lastSeenWriteInterval {
+		if _, err := s.db.ExecContext(ctx, `UPDATE devices SET last_seen_at = ? WHERE id = ?`, now.Unix(), p.Device.ID); err != nil {
+			return Principal{}, internal(err)
+		}
 	}
 	t := now.UTC().Truncate(time.Second)
 	p.Device.LastSeenAt = &t
