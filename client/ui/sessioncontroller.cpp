@@ -37,7 +37,13 @@ SessionController::SessionController(HubConnection* conn, ProfileStore* profiles
 
   connect(&host_, &SessionHost::signalOut, &socket_, &HubSocket::sendSignal);
   connect(&host_, &SessionHost::errorOccurred, this, [this](const QString& m) { say(m, true); });
-  connect(&host_, &SessionHost::viewerConnected, this, [this]() { emit shareChanged(); });
+  connect(&host_, &SessionHost::viewerConnected, this, [this]() {
+    emit shareChanged();
+    // A paused game delivers no frameChanged, so the encoder would never start for the new viewer: push the current frame once.
+    if (shared_ && hasLocalGame()) {
+      host_.pushFrame(game_->frame());
+    }
+  });
   // GPU-direct encoding (ADR 0019) follows the encoder and the GPU input state; queued, so a bridge is never created or
   // dropped from inside the SessionHost call that changed the state.
   connect(&host_, &SessionHost::encoderRunningChanged, this, [this]() { updateGpuEncode(); }, Qt::QueuedConnection);
@@ -348,8 +354,21 @@ void SessionController::shareSession() {
     return;
   }
   shareBusy_ = true;
+  const quint64 gen = ++shareGen_;
   emit shareChanged();
-  api_.publish(gameId_, visibility_, [this](const SessionApiResult& r) {
+  api_.publish(gameId_, visibility_, [this, gen](const SessionApiResult& r) {
+    if (gen != shareGen_ || !hasLocalGame() || !socket_.isOpen()) {
+      // The attempt was cancelled (game quit, Hub lost, share closed) while the answer was in flight: do not adopt the
+      // Session, end it so the Hub does not keep a live Session without a game.
+      if (r.ok() && r.session) {
+        api_.end(r.session->sessionId, [](const SessionApiResult&) {});
+      }
+      if (gen == shareGen_) {
+        shareBusy_ = false;
+        emit shareChanged();
+      }
+      return;
+    }
     shareBusy_ = false;
     if (!r.ok() || !r.session) {
       pendingViewers_.clear();
@@ -399,6 +418,7 @@ void SessionController::updateGpuEncode() {
 
 void SessionController::closeShare(const QString& note) {
   const bool was = shared_ || shareBusy_;
+  ++shareGen_;  // invalidates a publish answer that is still in flight
   host_.close();
   shared_ = false;
   updateGpuEncode();  // drops the bridge, share size = empty
@@ -419,6 +439,9 @@ void SessionController::closeShare(const QString& note) {
 
 void SessionController::stopSharing() {
   if (!shared_) {
+    if (shareBusy_) {
+      closeShare(QString());  // the late publish answer ends the Session it created
+    }
     return;
   }
   const QString id = own_.sessionId;

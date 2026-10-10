@@ -187,6 +187,44 @@ class LibrarySortTest : public QObject {
     QCOMPARE(ids(m), (QStringList{"a2", "a3", "a5", "a1", "a4", "a6"}));
   }
 
+  void progressUpdatesDoNotRebuildTheModel() {
+    LibraryModel m;
+    fill(m);
+    const QString sha = m.game(QStringLiteral("a2"))->romSha256;
+    RomStatus d = st(RomState::Downloading);
+    d.totalBytes = 100;
+    d.receivedBytes = 10;
+    m.setStatus(sha, d);  // state change: may rebuild
+    QSignalSpy reset(&m, &QAbstractItemModel::modelReset);
+    QSignalSpy changed(&m, &QAbstractItemModel::dataChanged);
+    QSignalSpy count(&m, &LibraryModel::countChanged);
+    d.receivedBytes = 50;
+    m.setStatus(sha, d);  // progress only
+    QCOMPARE(reset.count(), 0);
+    QCOMPARE(count.count(), 0);
+    QCOMPARE(changed.count(), 1);
+    QVERIFY(changed.first().at(2).value<QList<int>>().contains(LibraryModel::ProgressRole));
+    const int row = m.rowOfGame(QStringLiteral("a2"));
+    QCOMPARE(m.data(m.index(row, 0), LibraryModel::ProgressRole).toDouble(), 0.5);
+  }
+
+  void setSyncKindsRebuildsOnce() {
+    LibraryModel m;
+    fill(m);
+    m.setReadyFirst(true);
+    QSignalSpy reset(&m, &QAbstractItemModel::modelReset);
+    QHash<QString, QString> kinds;
+    kinds.insert(QStringLiteral("a1"), QStringLiteral("pending"));
+    kinds.insert(QStringLiteral("a3"), QStringLiteral("pending"));
+    kinds.insert(QStringLiteral("a5"), QStringLiteral("synced"));
+    m.setSyncKinds(kinds);
+    QVERIFY(reset.count() <= 1);
+    QCOMPARE(m.syncKind(QStringLiteral("a1")), QStringLiteral("pending"));
+    QCOMPARE(m.syncKind(QStringLiteral("a5")), QStringLiteral("synced"));
+    QVERIFY(!m.isReady(QStringLiteral("a3")));
+    QCOMPARE(m.readyGroupCount(), 1);
+  }
+
   void groupProxySplitsTheModel() {
     LibraryModel m;
     fill(m);
