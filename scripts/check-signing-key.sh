@@ -10,7 +10,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SIGN="${1:?usage: check-signing-key.sh <framebeam-sign>}"
 KEYS_FILE="${FRAMEBEAM_KEYS_GO:-$ROOT/server/internal/corepkg/keys.go}"
 
-[ -n "${FRAMEBEAM_SIGNING_KEY:-}" ] || { echo "::error title=Signing key missing::Repository secret FRAMEBEAM_SIGNING_KEY is empty or not set." >&2; exit 1; }
+[ -n "${FRAMEBEAM_SIGNING_KEY:-}" ] || { echo "::error title=Signing key missing::Secret FRAMEBEAM_SIGNING_KEY of the environment release (main only) is empty or not set." >&2; exit 1; }
 
 pub="$("$SIGN" pubkey | sed -n 's/^public_key=//p' | head -n 1)"
 [ -n "$pub" ] || { echo "::error::could not derive the public key from FRAMEBEAM_SIGNING_KEY" >&2; exit 1; }

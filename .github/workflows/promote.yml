@@ -4,7 +4,7 @@ name: Promote to release
 # the stable release is exactly the beta prerelease vX.Y.Z (same commit, same files, same sha256). The workflow takes the
 # index descriptions that release.yml stored on the prerelease (index-hub.json, index-player.json), sets channel "stable"
 # and published_at to now, adds them to the signed updates index and only then turns the prerelease into the latest
-# release. The signing seed is the repository secret FRAMEBEAM_SIGNING_KEY; it is only in the environment of the signing step.
+# release. The signing seed is the secret FRAMEBEAM_SIGNING_KEY of the environment `release` (deployment branch: main only, so this workflow must be dispatched from main); it is only in the environment of the signing step.
 # Re-running for a version that is already released fails with a clear error; re-running after a failure in the middle is
 # harmless (the index entry is replaced, the release is still a prerelease until the last step).
 
@@ -30,6 +30,7 @@ jobs:
     name: Promote beta to release
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    environment: release
     permissions:
       contents: write   # edit the release, upload the index
     env:

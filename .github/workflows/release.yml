@@ -5,7 +5,7 @@ name: Release
 # No rebuild: the files are exactly what CI built and tested. ADR 0011.
 # The stable release is made by promote.yml from such a prerelease (same files, same number). To make that possible
 # the index descriptions are also uploaded to the prerelease (index-hub.json, index-player.json).
-# The signing seed is the repository secret FRAMEBEAM_SIGNING_KEY; it is only in the environment of the signing step.
+# The signing seed is the secret FRAMEBEAM_SIGNING_KEY of the environment `release` (deployment branch: main only); it is only in the environment of the signing step.
 
 on:
   workflow_run:
@@ -28,6 +28,7 @@ jobs:
       github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    environment: release
     permissions:
       contents: write   # create/delete releases, upload assets
       actions: read     # download the artifacts of the CI run
