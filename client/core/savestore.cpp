@@ -57,6 +57,56 @@ QString SaveStore::slotDir(const ProfileStore& profiles, const QString& hubId, c
   return slotDirIn(gameDir(profiles, hubId, userId, gameId), slot);
 }
 
+QString SaveStore::shortCoreDir(const ProfileStore& profiles, const QString& hubId, const QString& userId, const QString& gameId,
+                                const QString& slot) {
+  if (profiles.baseDir().isEmpty() || !isSafeId(hubId) || !isSafeId(userId) || !isSafeId(gameId) || !isValidSlotName(slot)) {
+    return {};
+  }
+  const QString key = QStringLiteral("%1/%2/%3/%4").arg(hubId, userId, gameId, slot);
+  return QDir(profiles.baseDir()).filePath(QStringLiteral("c/%1").arg(sha256Of(key.toUtf8()).left(16)));
+}
+
+namespace {
+bool copyTree(const QString& from, const QString& to) {
+  if (!QDir().mkpath(to)) {
+    return false;
+  }
+  const QDir src(from);
+  for (const QFileInfo& fi : src.entryInfoList(QDir::AllEntries | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System)) {
+    const QString dst = QDir(to).filePath(fi.fileName());
+    if (fi.isDir() && !fi.isSymLink()) {
+      if (!copyTree(fi.absoluteFilePath(), dst)) {
+        return false;
+      }
+    } else if (!QFile::copy(fi.absoluteFilePath(), dst)) {
+      return false;
+    }
+  }
+  return true;
+}
+}  // namespace
+
+bool SaveStore::migrateCoreSubfolder(const QString& oldDir, const QString& newDir, const QString& subfolder) {
+  if (oldDir.isEmpty() || newDir.isEmpty() || subfolder.isEmpty() || QDir::cleanPath(oldDir) == QDir::cleanPath(newDir)) {
+    return false;
+  }
+  const QString from = QDir(oldDir).filePath(subfolder);
+  const QString to = QDir(newDir).filePath(subfolder);
+  if (!QFileInfo(from).isDir() || QFileInfo::exists(to)) {
+    return false;
+  }
+  QDir().mkpath(newDir);
+  if (QDir().rename(from, to)) {
+    return true;
+  }
+  if (!copyTree(from, to)) {
+    QDir(to).removeRecursively();  // partial copy only; the source stays untouched
+    return false;
+  }
+  QDir(from).removeRecursively();  // after a complete copy
+  return true;
+}
+
 QStringList SaveStore::localSlots(const QString& gameDir) {
   QStringList out;
   if (gameDir.isEmpty()) {

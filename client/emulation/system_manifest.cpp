@@ -181,6 +181,11 @@ std::optional<CoreProfile> ManifestRegistry::parseProfile(const QByteArray& json
   p.saveSource = save.value(QLatin1String("source")).toString(p.saveSource);
   p.saveExtension = save.value(QLatin1String("extension")).toString(p.saveExtension);
   p.saveFormat = save.value(QLatin1String("format")).toString(p.saveFormat);
+  p.saveShortDir = save.value(QLatin1String("short_dir")).toBool(false);
+  p.saveShortDirSubfolder = save.value(QLatin1String("short_dir_subfolder")).toString();
+  if (p.saveShortDirSubfolder.contains(QLatin1Char('/')) || p.saveShortDirSubfolder.contains(QLatin1Char('\\')) || p.saveShortDirSubfolder == QLatin1String("..")) {
+    return fail(QStringLiteral("save: invalid short_dir_subfolder"));
+  }
   if ((p.saveSource != QLatin1String("save_ram") && p.saveSource != QLatin1String("core_file") && p.saveSource != QLatin1String("none")) || !p.saveExtension.startsWith(QLatin1Char('.')) ||
       p.saveExtension.contains(QLatin1Char('/')) || p.saveExtension.contains(QLatin1Char('\\')) || p.saveExtension.size() < 2) {
     return fail(QStringLiteral("save: invalid source or extension"));
@@ -240,6 +245,8 @@ std::optional<SystemManifest> ManifestRegistry::resolve(const QString& systemId,
     m.saveSource = p->saveSource;
     m.saveExtension = p->saveExtension;
     m.saveFormat = p->saveFormat;
+    m.saveShortDir = p->saveShortDir;
+    m.saveShortDirSubfolder = p->saveShortDirSubfolder;
     m.requiresHwRender = p->requiresHwRender;
     m.coreOptions = p->coreOptions;
     m.lockedCoreOptions = p->lockedCoreOptions;

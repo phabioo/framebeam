@@ -63,6 +63,9 @@ class ManifestTest : public QObject {
     QCOMPARE(p->libraryBasename, QStringLiteral("azahar_libretro"));
     QVERIFY(p->requiresHwRender);
     QCOMPARE(p->saveSource, QStringLiteral("none"));
+    QVERIFY(p->saveShortDir);
+    QCOMPARE(p->saveShortDirSubfolder, QStringLiteral("Azahar"));
+    QVERIFY(reg.resolve(QStringLiteral("3ds"), QStringLiteral("azahar"))->saveShortDir);
     QCOMPARE(p->coreOptions.value(QStringLiteral("citra_graphics_api")), QStringLiteral("OpenGL"));
     QCOMPARE(p->coreOptions.value(QStringLiteral("citra_layout_option")), QStringLiteral("default"));
     QCOMPARE(p->coreOptions.value(QStringLiteral("citra_swap_screen")), QStringLiteral("Top"));
@@ -124,6 +127,9 @@ class ManifestTest : public QObject {
     QCOMPARE(des->saveExtension, QStringLiteral(".dsv"));
     QCOMPARE(des->saveFormat, QStringLiteral("desmume_dsv"));
     QCOMPARE(mel->saveSource, QStringLiteral("save_ram"));
+    QVERIFY(!mel->saveShortDir);
+    QVERIFY(!des->saveShortDir);
+    QVERIFY(mel->saveShortDirSubfolder.isEmpty());
     QCOMPARE(mel->saveExtension, QStringLiteral(".sav"));
     QCOMPARE(mel->saveFormat, QStringLiteral("raw"));
     QCOMPARE(des->sysfileOption, QStringLiteral("desmume_use_external_bios"));

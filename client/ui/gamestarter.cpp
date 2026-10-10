@@ -1,4 +1,5 @@
 #include "gamestarter.h"
+#include "savestore.h"
 
 #include <QCoreApplication>
 #include <QDate>
@@ -277,6 +278,16 @@ void GameStarter::onSaveReady(const QString& gameId, const QString& saveDir, con
   cfg.gamePath = launchRom_;
   cfg.systemDir = catalog_->systemDir();
   cfg.saveDir = saveDir;
+  if (man->saveShortDir) {
+    // Core profile save.short_dir (Windows MAX_PATH): a short dir; adopt a tree written to the long dir earlier.
+    const QString shortDir = SaveStore::shortCoreDir(*profiles_, conn_->hubId(), conn_->hubUserId(), gameId, saves_->slotFor(gameId));
+    if (!shortDir.isEmpty()) {
+      if (!man->saveShortDirSubfolder.isEmpty()) {
+        SaveStore::migrateCoreSubfolder(saveDir, shortDir, man->saveShortDirSubfolder);
+      }
+      cfg.saveDir = shortDir;
+    }
+  }
   // Manifest defaults < user overrides (game > system/core > global) < firmware mode of the Hub (builtin | native +
   // files) < manifest-locked options (screen layout, OSD off; the render mode is a user choice, default software): FrameBeam stays in control of those.
   cfg.coreOptions = emu::launchCoreOptions(*man, emulation_->launchOverrides(man->systemId, launchGame_.id), fwOptions_);

@@ -76,6 +76,8 @@ struct SystemManifest {
   QString saveSource = QStringLiteral("auto");
   QString saveExtension = QStringLiteral(".sav");
   QString saveFormat = QStringLiteral("raw");
+  bool saveShortDir = false;  // core profile save.short_dir: the core gets SaveStore::shortCoreDir
+  QString saveShortDirSubfolder;  // core profile save.short_dir_subfolder
   bool requiresHwRender = false;  // core profile: OpenGL (Core) required, no software fallback (start fails with an error)
   QStringList extensions;  // lowercase, with dot
   FirmwareSpec firmware;
@@ -111,6 +113,11 @@ struct CoreProfile {
   QString saveSource = QStringLiteral("save_ram");
   QString saveExtension = QStringLiteral(".sav");
   QString saveFormat = QStringLiteral("raw");
+  // "save"."short_dir": the core builds deep trees below its save directory (Azahar: NAND/SD) and does not use
+  // long paths on Windows (MAX_PATH 260); the Player hands it a short, Hub/user/game/slot-separated directory
+  // (SaveStore::shortCoreDir) instead of the regular save directory.
+  bool saveShortDir = false;
+  QString saveShortDirSubfolder;  // "save"."short_dir_subfolder": core-created tree moved once from the old save dir (empty = none)
   bool requiresHwRender = false;  // "requires_hw_render": the core has no usable software mode (Azahar)
   QString sysfileOption;  // core option that switches built-in / external BIOS; empty = none
   QString sysfileNative = QStringLiteral("native");

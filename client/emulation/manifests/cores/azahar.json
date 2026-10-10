@@ -9,7 +9,9 @@
   "order": 0,
   "requires_hw_render": true,
   "save": {
-    "source": "none"
+    "source": "none",
+    "short_dir": true,
+    "short_dir_subfolder": "Azahar"
   },
   "core_options": {
     "citra_graphics_api": "OpenGL",
