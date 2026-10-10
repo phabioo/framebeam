@@ -109,6 +109,8 @@ switch ($Scenario) {
   'machine' {
     # An earlier per-user install with data: the per-machine install replaces the product, data\ stays where it is. Needs
     # a build with another product code (the removal never touches our own code).
+    # A stale log of an earlier step must not satisfy the waits below.
+    Remove-Item "$env:ProgramData\FrameBeam-remove-per-user.log*" -Force -ErrorAction SilentlyContinue
     if ($OldMsi) {
       Invoke-Msiexec @('/i', "`"$((Resolve-Path $OldMsi).Path)`"")
       if (-not (Get-UserProductCode)) { Fail 'per-user install did not record its product code' }
@@ -174,6 +176,17 @@ switch ($Scenario) {
     # The per-user product is removed in the background after this installation (nested msiexec is not possible).
     if ($OldMsi) {
       Wait-Until { -not (Get-UserProductCode) -and -not (Test-Path (Join-Path $userDir 'framebeam_player.exe')) } 120 'the per-user product to be removed'
+      # The product is gone from the registry before its uninstall has finished: wait for the detached removal to report success
+      # and for Windows Installer to be idle (otherwise the next msiexec fails with 1618).
+      $removeStatus = "$env:ProgramData\FrameBeam-remove-per-user.log.status.txt"
+      Wait-Until {
+        (Test-Path $removeStatus) -and ((Get-Content $removeStatus -Tail 1) -match 'exit (0|3010|1605|1614)\s*$')
+      } 120 'the detached removal of the per-user product to report success'
+      Wait-Until {
+        $m = $null
+        if (-not [Threading.Mutex]::TryOpenExisting('Global\_MSIExecute', [ref]$m)) { return $true }
+        try { if ($m.WaitOne(0)) { $m.ReleaseMutex(); return $true } else { return $false } } catch { return $false } finally { $m.Dispose() }
+      } 120 'Windows Installer to be idle (Global\_MSIExecute free)'
       Assert-Path (Join-Path $userDir 'data\keep-me') 'per-user data\keep-me'
     }
     # Upgrade with only ALLUSERS=1 (what the Hub updater passes): the installed feature set, port and sharing are kept.
