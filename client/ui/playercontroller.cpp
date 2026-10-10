@@ -344,6 +344,9 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
       saves_->finalSync(false);  // pause = immediate sync of a changed save
     }
   });
+  connect(&session_, &GameSession::saveWriteFailed, this, [this]() {
+    if (history_) history_->showError(tr("The save file could not be written. Your latest progress may not be saved."));
+  });
   connect(&session_, &GameSession::startFailed, this, [this](const QString& msg) {
     saves_->finalSync(true);
     phase_ = PlayPhase::None;

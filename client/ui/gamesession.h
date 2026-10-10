@@ -181,6 +181,7 @@ class GameSession : public QObject {
   void frameChanged();
   void started();                       // core and game are running
   void startFailed(const QString& msg);  // failed before the first frame
+  void saveWriteFailed();                // an explicit save flush failed: the save file may be stale
   void finished();                       // after stop()
   void audioChunk(const QByteArray& pcm, int sampleRate);  // core audio (int16 stereo), also while muted (Session share)
 

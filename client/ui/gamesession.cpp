@@ -231,7 +231,10 @@ bool GameSession::liveSaveAccepts(qint64 size) {
 
 void GameSession::flushLiveSave() {
   if (runner_ && (state_ == Running || state_ == Paused)) {
-    runner_->flushSaveNow();
+    if (!runner_->flushSaveNow()) {
+      qWarning() << "The battery save could not be written; the save file on disk may be stale";
+      emit saveWriteFailed();
+    }
   }
 }
 
