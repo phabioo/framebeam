@@ -285,4 +285,44 @@ RomCache::CommitResult RomCache::verifyAndCommit(const QString& sha256, const QS
   return CommitResult::Ok;
 }
 
+RomCache::CommitResult RomCache::adoptFile(const QString& srcPath, const QString& sha256, const QString& ext) const {
+  const QFileInfo src(srcPath);
+  if (!isValidSha256(sha256) || !src.isFile()) {
+    return CommitResult::IoError;
+  }
+  if (lookup(sha256, ext, src.size())) {
+    return CommitResult::Ok;
+  }
+  if (QFileInfo::exists(partPath(sha256, ext))) {
+    return CommitResult::IoError;  // a download of this ROM is in progress; never write into its .part
+  }
+  // Own temp name: not a ROM file name (entries()/trim ignore it) and not the download's resume path.
+  const QString tmp = finalPath(sha256, ext) + QStringLiteral(".adopt");
+  const auto fail = [&](CommitResult r) {
+    QFile::remove(tmp);
+    return r;
+  };
+  std::error_code ec;
+  std::filesystem::copy_file(toFsPath(srcPath), toFsPath(tmp), std::filesystem::copy_options::overwrite_existing, ec);
+  if (ec) {
+    return fail(CommitResult::IoError);
+  }
+  QString actual;
+  if (!sha256OfFile(tmp, &actual)) {
+    return fail(CommitResult::IoError);
+  }
+  if (actual != sha256) {
+    return fail(CommitResult::HashMismatch);
+  }
+  if (QFileInfo::exists(finalPath(sha256, ext))) {
+    return fail(CommitResult::Ok);  // a download finished meanwhile
+  }
+  std::filesystem::rename(toFsPath(tmp), toFsPath(finalPath(sha256, ext)), ec);
+  if (ec) {
+    return fail(CommitResult::IoError);
+  }
+  writeSidecar(sha256, ext);
+  return CommitResult::Ok;
+}
+
 }  // namespace framebeam

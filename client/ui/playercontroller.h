@@ -281,6 +281,7 @@ class PlayerController : public QObject {
   void updateScreen();
   void refreshEmulationPage();
   void refreshAttention();
+  void adoptUploadedRom(const QString& srcPath, const QString& sha256, const QString& romFilename);  // off-thread copy into the cache
   void trimRomCache();  // applies the size limit (LRU); called at start, after a ROM became ready, when a game ends
   void applyFrameBeamOptions();
   void onUploadFinished(const UploadResult& result);
@@ -332,6 +333,7 @@ class PlayerController : public QObject {
   QString page_ = QStringLiteral("library");  // page shown while connected: library | settings | emulation | controllers
   bool inviteBusy_ = false;
   QVariantMap upload_;
+  QString uploadSourcePath_;            // local file of the running upload; adopted into the ROM cache afterwards
   QString pendingSelectId_;             // select this game once the library reloaded (after an upload)
   QList<FirmwareProblem> fwProblems_;   // last validation problems (cleared by recheckFirmware/new registry)
   QMap<QString, QString> fwOptions_;    // firmware core options of the launch in progress
