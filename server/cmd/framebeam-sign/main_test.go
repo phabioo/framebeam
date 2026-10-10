@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -303,5 +304,69 @@ func TestReleaseAddDropsInvalidExistingReleases(t *testing.T) {
 	os.WriteFile(idxPath, []byte(`{"schema":99,"releases":[]}`), 0o644)
 	if err := runE(nil, "release-add", "-index", idxPath, "-release", relFile); err == nil {
 		t.Fatal("unknown schema must fail")
+	}
+}
+
+func TestReleaseAddLegacyCompanion(t *testing.T) {
+	dir := t.TempDir()
+	fixed := time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)
+	now := func() time.Time { return fixed }
+	idxPath := filepath.Join(dir, "idx.json")
+	relFile := filepath.Join(dir, "release.json")
+	art := func(plat, kind, name string) updates.Artifact {
+		return updates.Artifact{Platform: plat, Kind: kind, Name: name, Size: 5, SHA256: strings.Repeat("ab", 32), URL: "https://example.org/" + name}
+	}
+	add := func(product, channel, version string, keep int, arts ...updates.Artifact) {
+		t.Helper()
+		b, _ := json.Marshal(updates.Release{Product: product, Channel: channel, Version: version, PublishedAt: fixed,
+			ProtocolVersion: 1, MinProtocolVersion: 1, Artifacts: arts})
+		os.WriteFile(relFile, b, 0o644)
+		args := []string{"release-add", "-index", idxPath, "-release", relFile, "-keep", strconv.Itoa(keep)}
+		if err := run(args, func(string) string { return "" }, io.Discard, now); err != nil {
+			t.Fatal(err)
+		}
+	}
+	list := func() []string {
+		t.Helper()
+		data, _ := os.ReadFile(idxPath)
+		idx, errs := updates.ParseIndex(data)
+		if len(errs) != 0 {
+			t.Fatal(errs)
+		}
+		var got []string
+		for _, r := range idx.Releases {
+			got = append(got, r.Product+"/"+r.Channel+"/"+r.Version)
+		}
+		return got
+	}
+	full := func(v string) []updates.Artifact {
+		return []updates.Artifact{art("linux-amd64", "deb", "h"+v+".deb"), art("linux-arm64", "binary", "h"+v+"-arm"),
+			art("windows-amd64", "msi", "h"+v+".msi"), art("windows-amd64", "binary", "h"+v+".exe")}
+	}
+
+	add("hub", "stable", "0.9.0", 2, full("0.9.0")...)
+	if got := strings.Join(list(), ","); got != "hub/stable/0.9.0-legacy,hub/stable/0.9.0" {
+		t.Fatal(got)
+	}
+	data, _ := os.ReadFile(idxPath)
+	idx, _ := updates.ParseIndex(data)
+	if c := idx.Releases[0]; len(c.Artifacts) != 2 || c.Artifacts[0].Platform != "linux-amd64" || c.Artifacts[1].Platform != "linux-arm64" {
+		t.Fatalf("%+v", c.Artifacts)
+	}
+	// next version replaces the companion; companions do not count towards -keep
+	add("hub", "stable", "0.10.0", 2, full("0.10.0")...)
+	if got := strings.Join(list(), ","); got != "hub/stable/0.9.0,hub/stable/0.10.0-legacy,hub/stable/0.10.0" {
+		t.Fatal(got)
+	}
+	// linux-only release: no companion
+	add("hub", "stable", "0.11.0", 2, art("linux-amd64", "deb", "h.deb"))
+	if got := strings.Join(list(), ","); got != "hub/stable/0.10.0,hub/stable/0.11.0" {
+		t.Fatal(got)
+	}
+	// player release: none; beta channel gets its own
+	add("player", "stable", "0.9.0", 2, art("windows-x64", "installer", "p.exe"))
+	add("hub", "beta", "0.12.0", 2, full("0.12.0")...)
+	if got := strings.Join(list(), ","); got != "hub/beta/0.12.0-legacy,hub/beta/0.12.0,hub/stable/0.10.0,hub/stable/0.11.0,player/stable/0.9.0" {
+		t.Fatal(got)
 	}
 }

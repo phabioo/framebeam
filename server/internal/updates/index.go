@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -149,6 +150,7 @@ func ParseIndexOpts(data []byte, allowFile bool) (Index, []error) {
 	var errs []error
 	valid := idx.Releases[:0:0]
 	for _, r := range idx.Releases {
+		r = dropUnknownArtifacts(r)
 		if err := validateRelease(r, allowFile); err != nil {
 			errs = append(errs, &ReleaseError{r.Product, r.Channel, r.Version, err})
 			continue
@@ -157,6 +159,67 @@ func ParseIndexOpts(data []byte, allowFile bool) (Index, []error) {
 	}
 	idx.Releases = valid
 	return idx, errs
+}
+
+// dropUnknownArtifacts removes artifacts whose platform is unknown for the product or whose kind is not allowed
+// on it, so an index written for newer consumers stays readable (the consumer path only; ValidateRelease is
+// strict). A release left without artifacts then fails validation and is skipped.
+func dropUnknownArtifacts(r Release) Release {
+	kinds, ok := platformKinds[r.Product]
+	if !ok {
+		return r
+	}
+	var keep []Artifact
+	for _, a := range r.Artifacts {
+		if slices.Contains(kinds[a.Platform], a.Kind) {
+			keep = append(keep, a)
+		}
+	}
+	r.Artifacts = keep
+	return r
+}
+
+// legacyArtifact reports whether an artifact is understood by Hubs <= 0.8.0 (linux-amd64/arm64 deb/binary).
+func legacyArtifact(a Artifact) bool {
+	return (a.Platform == "linux-amd64" || a.Platform == "linux-arm64") && (a.Kind == KindDeb || a.Kind == KindBinary)
+}
+
+const legacySuffix = "-legacy"
+
+// IsLegacyCompanion reports whether version is a legacy companion entry (X.Y.Z-legacy, see LegacyCompanion).
+func IsLegacyCompanion(version string) bool {
+	base, ok := strings.CutSuffix(version, legacySuffix)
+	return ok && ValidSemVer(version) && !strings.ContainsAny(base, "-+")
+}
+
+// LegacyCompanion returns the companion entry of a hub release for Hubs <= 0.8.0, which reject a whole release
+// when it has an artifact of an unknown platform or kind (e.g. windows-amd64) and so skip every newer release.
+// The companion has version <X.Y.Z>-legacy and only the artifacts those Hubs understand; the deb inside is the
+// regular X.Y.Z, so after installing it they report X.Y.Z and are up to date. A prerelease (not build metadata)
+// is used because the Player's index parser keys duplicates on the version without build metadata. It sorts
+// just below X.Y.Z, so newer Hubs below X.Y.Z prefer X.Y.Z, and Windows Hubs never select it. ok is false when
+// no companion is needed: not a hub release, base version has a prerelease or build metadata, all artifacts are
+// legacy already, or there is no legacy deb.
+func LegacyCompanion(r Release) (Release, bool) {
+	if r.Product != ProductHub || strings.ContainsAny(r.Version, "-+") {
+		return Release{}, false
+	}
+	var legacy []Artifact
+	other, deb := false, false
+	for _, a := range r.Artifacts {
+		if legacyArtifact(a) {
+			legacy = append(legacy, a)
+			deb = deb || a.Kind == KindDeb
+		} else {
+			other = true
+		}
+	}
+	if !other || !deb {
+		return Release{}, false
+	}
+	r.Version += legacySuffix
+	r.Artifacts = legacy
+	return r, true
 }
 
 // ValidateRelease checks one release entry.

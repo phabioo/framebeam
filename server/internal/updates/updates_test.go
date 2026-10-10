@@ -559,3 +559,34 @@ func TestLegacyTestChannel(t *testing.T) {
 		t.Fatalf("test release skipped: %v %v", errs, idx.Releases)
 	}
 }
+
+func TestParseIndexDropsUnknownArtifacts(t *testing.T) {
+	mixed := rel("hub", "stable", "0.9.0",
+		art("linux-amd64", KindDeb, "a.deb"),
+		art("freebsd-amd64", KindBinary, "b.bin"), // unknown platform
+		art("linux-arm64", KindMSI, "c.msi"),      // kind not allowed on platform
+		art("windows-amd64", KindMSI, "d.msi"))
+	onlyUnknown := rel("hub", "stable", "0.10.0", art("freebsd-amd64", KindBinary, "e.bin"))
+	idx, errs := ParseIndex(indexJSON(t, 1, mixed, onlyUnknown))
+	if len(idx.Releases) != 1 || len(idx.Releases[0].Artifacts) != 2 || idx.Releases[0].Version != "0.9.0" {
+		t.Fatalf("%+v", idx.Releases)
+	}
+	if len(errs) != 1 || Fatal(errs) {
+		t.Fatalf("errs %v", errs)
+	}
+	var re *ReleaseError
+	if !errors.As(errs[0], &re) || re.Version != "0.10.0" {
+		t.Fatalf("%v", errs[0])
+	}
+	if err := ValidateRelease(mixed); err == nil {
+		t.Fatal("ValidateRelease must stay strict")
+	}
+}
+
+func TestLegacyCompanionHelpers(t *testing.T) {
+	for v, want := range map[string]bool{"0.9.0-legacy": true, "0.9.0": false, "0.9.0-beta.1-legacy": false, "0.9.0+legacy": false, "x-legacy": false} {
+		if IsLegacyCompanion(v) != want {
+			t.Errorf("%s: want %v", v, want)
+		}
+	}
+}
