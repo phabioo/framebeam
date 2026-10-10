@@ -36,7 +36,8 @@ HubConnection::HubConnection(ProfileStore* profiles, CredentialStore* credential
 
 HubConnection::~HubConnection() {
   ++gen_;
-  const auto replies = inflight_;
+  accessToken_.clear();  // aborted replies run their callbacks synchronously: authorizedGet/Send must refuse by then
+  const auto replies = std::exchange(inflight_, {});
   for (QNetworkReply* r : replies) {
     r->abort();
   }
@@ -84,17 +85,19 @@ void HubConnection::reset() {
   pollTimer_.stop();
   pollInFlight_ = false;
   refreshInFlight_ = false;
-  const auto replies = inflight_;
-  for (QNetworkReply* r : replies) {
-    r->abort();
-  }
-  inflight_.clear();
+  // Invalidate first, abort afterwards: abort() emits finished synchronously and the callbacks of authorized replies
+  // (SaveApi, RomDownloader, ...) may start new requests. With the token and http_ gone those return nullptr instead
+  // of creating replies that would be dropped without ever finishing.
   accessToken_.clear();
   pollToken_.clear();
   pairingRequestId_.clear();
-  if (http_ != nullptr) {
-    http_->deleteLater();
-    http_ = nullptr;
+  HubHttp* oldHttp = std::exchange(http_, nullptr);
+  const auto replies = std::exchange(inflight_, {});
+  for (QNetworkReply* r : replies) {
+    r->abort();
+  }
+  if (oldHttp != nullptr) {
+    oldHttp->deleteLater();
   }
   hubInfo_ = {};
   profile_.reset();
@@ -223,6 +226,15 @@ void HubConnection::onIdentified(const HttpResult& r) {
   observedFp_ = r.observedFingerprint;
   const bool tls = http_->baseUrl().scheme() == QLatin1String("https");
 
+  // A different hub answers than the one of the profile this identification started with.
+  if (profile_ && profile_->hubId != info->hubId) {
+    if (!pin_.isEmpty()) {
+      fail(State::Unreachable, QStringLiteral("hub_id_mismatch"),
+           QStringLiteral("A different hub responds at this address than the one in the profile"));
+      return;
+    }
+    profile_.reset();  // plain-HTTP profile: never reuse its credentialRef / user id for the other hub
+  }
   // Profile for this hub ID (e.g. changed address): its pin applies.
   if (pin_.isEmpty()) {
     if (const auto byId = profiles_->profile(info->hubId)) {
@@ -235,10 +247,6 @@ void HubConnection::onIdentified(const HttpResult& r) {
       }
       http_->setPinnedFingerprint(pin_);
     }
-  } else if (profile_ && profile_->hubId != info->hubId) {
-    fail(State::Unreachable, QStringLiteral("hub_id_mismatch"),
-         QStringLiteral("A different hub responds at this address than the one in the profile"));
-    return;
   }
 
   if (info->minProtocolVersion > handshake_.protocolVersion) {

@@ -4,6 +4,7 @@
 // runs msiexec elevated (ALLUSERS=1 INSTALL_HUB=1 NETWORK_SHARING=0) and starts the per-machine Player with
 // `--setup-local-hub`.
 
+#include <QDir>
 #include <QList>
 #include <QNetworkAccessManager>
 #include <QObject>
@@ -44,6 +45,9 @@ class HubSetupInstaller : public QObject {
 
   void start();
   void cancel();
+  // Removes <temp>/framebeam-hub-setup-* folders older than a day (a launched setup leaves its folder to the launcher
+  // copy, which removes it after msiexec; this catches what a crash or an old version left behind). Returns the count.
+  static int cleanStaleTempDirs(const QString& tempBase = QDir::tempPath(), qint64 maxAgeSecs = 24 * 3600);
 
  signals:
   void changed();
@@ -51,11 +55,13 @@ class HubSetupInstaller : public QObject {
 
  private:
   void fail(const QString& text);
+  void removeTempDir();  // the download folder this installer created itself (never a configured downloadDir)
   void onIndex(const FetchedIndex& fi);
   void download(const Artifact& art);
-  void launch(const QString& msiPath);
+  void launch(const QString& msiPath, const Artifact& art);
 
   Config config_;
+  QString tempDir_;  // <temp>/framebeam-hub-setup-<uuid> while we own it
   QNetworkAccessManager nam_;
   State state_ = State::Idle;
   QString error_;

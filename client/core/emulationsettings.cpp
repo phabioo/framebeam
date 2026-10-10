@@ -1,4 +1,5 @@
 #include "emulationsettings.h"
+#include "fsutil.h"
 
 #include <QDir>
 #include <QFile>
@@ -27,14 +28,7 @@ QMap<QString, QString> toMap(const QJsonObject& o) {
 
 EmulationSettings::EmulationSettings(const QString& baseDir)
     : path_(QDir(baseDir).filePath(QStringLiteral("settings/emulation.json"))) {
-  QFile f(path_);
-  if (f.open(QIODevice::ReadOnly)) {
-    QJsonParseError err;
-    const QJsonDocument doc = QJsonDocument::fromJson(f.readAll(), &err);
-    if (err.error == QJsonParseError::NoError && doc.isObject()) {
-      raw_ = doc.object();
-    }
-  }
+  raw_ = fsutil::readJsonObject(path_);  // a corrupt file is moved aside before anything can overwrite it
 }
 
 // The object that holds the key/value pairs of one level.

@@ -30,6 +30,9 @@ struct SyncState {
 class SaveStore {
  public:
   static bool isSafeId(const QString& id);
+  // Names Windows aliases or cannot create: trailing '.' or ' ', reserved device names (CON, PRN, AUX, NUL, COM1-9,
+  // LPT1-9, any case, also with an extension). Rejected for ids, slot names and Hub ids on every platform.
+  static bool isWindowsAliasName(const QString& name);
   // Empty if one of the IDs is invalid.
   static QString gameDir(const ProfileStore& profiles, const QString& hubId, const QString& userId, const QString& gameId);
   static QString userSavesDir(const ProfileStore& profiles, const QString& hubId, const QString& userId);
@@ -48,6 +51,12 @@ class SaveStore {
   // One-time best effort: moves <oldDir>/<subfolder> to <newDir>/<subfolder> if the old one exists and the new one does
   // not (rename, else copy; the source is removed only after a complete copy). True if moved.
   static bool migrateCoreSubfolder(const QString& oldDir, const QString& newDir, const QString& subfolder);
+  // One-time best effort for a single file written by a core (DeSmuME .dsv): <oldDir>/<fileName> -> <newDir>/<fileName>.
+  // Never overwrites: if the target exists the source stays (KeptBoth).
+  enum class FileMove { None, Moved, KeptBoth, Failed };
+  static FileMove migrateCoreFile(const QString& oldDir, const QString& newDir, const QString& fileName);
+  // True if <dir>/<name with longestNameChars characters> would exceed the narrow Windows limit (default 259), whatever the OS.
+  static bool exceedsLegacyPathLimit(const QString& dir, int longestNameChars, int limit = 259);
   static QString slotDirIn(const QString& gameDir, const QString& slot);
   // Slots with a local directory for this game ("default" first when its game dir has a sync.json or save file).
   static QStringList localSlots(const QString& gameDir);

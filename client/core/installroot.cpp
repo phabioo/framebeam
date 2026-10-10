@@ -110,10 +110,13 @@ QString copyLauncherToTemp(const QString& installRoot, const QString& tempBase, 
 }
 
 InstallerCommand msiRelaunchCommand(const QString& launcherCopy, const QString& msiPath, MsiScope scope,
-                                    const QString& relaunchExe, const QStringList& relaunchArgs) {
+                                    const QString& relaunchExe, const QStringList& relaunchArgs, const QString& sha256, qint64 size) {
   InstallerCommand c;
   c.program = launcherCopy;
-  c.args = {QStringLiteral("--apply-msi-update"), withBackslashes(msiPath), msiScopeName(scope), withBackslashes(relaunchExe)};
+  c.args = {QStringLiteral("--apply-msi-update")};
+  if (!sha256.isEmpty()) c.args << QStringLiteral("--sha256") << sha256;
+  if (size >= 0) c.args << QStringLiteral("--size") << QString::number(size);
+  c.args << withBackslashes(msiPath) << msiScopeName(scope) << withBackslashes(relaunchExe);
   c.args += relaunchArgs;
   return c;
 }

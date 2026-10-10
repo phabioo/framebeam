@@ -1,6 +1,7 @@
 #include "hubsetup.h"
 
 #include <QCoreApplication>
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -29,10 +30,10 @@ std::optional<Artifact> findOwnMsi(const Index& index, const QString& version, R
 }
 
 HubSetupInstaller::HubSetupInstaller(const Config& config, QObject* parent) : QObject(parent), config_(config) {
-  if (config_.indexUrl.isEmpty()) config_.indexUrl = QString::fromLocal8Bit(qgetenv("FRAMEBEAM_PLAYER_UPDATE_INDEX_URL"));
+  if (config_.indexUrl.isEmpty()) config_.indexUrl = qEnvironmentVariable("FRAMEBEAM_PLAYER_UPDATE_INDEX_URL");
   if (config_.indexUrl.isEmpty()) config_.indexUrl = QLatin1String(kDefaultIndexUrl);
   if (config_.trustedKeys.isEmpty()) config_.trustedKeys = trustedKeysFromEnvironment();
-  if (config_.programFilesDir.isEmpty()) config_.programFilesDir = QString::fromLocal8Bit(qgetenv("ProgramFiles"));
+  if (config_.programFilesDir.isEmpty()) config_.programFilesDir = qEnvironmentVariable("ProgramFiles");
   launcher_ = [](const QString& program, const QStringList& args) { return QProcess::startDetached(program, args); };
 }
 
@@ -40,13 +41,32 @@ void HubSetupInstaller::fail(const QString& text) {
   error_ = text;
   state_ = State::Failed;
   qCWarning(lcHubSetup) << "hub setup failed:" << text;
+  removeTempDir();
   emit changed();
+}
+
+void HubSetupInstaller::removeTempDir() {
+  if (tempDir_.isEmpty()) return;
+  if (!QDir(tempDir_).removeRecursively()) qCWarning(lcHubSetup) << "download folder not fully removed:" << tempDir_;
+  tempDir_.clear();
+}
+
+int HubSetupInstaller::cleanStaleTempDirs(const QString& tempBase, qint64 maxAgeSecs) {
+  int removed = 0;
+  const QDir base(tempBase);
+  const QDateTime limit = QDateTime::currentDateTime().addSecs(-maxAgeSecs);
+  for (const QFileInfo& fi : base.entryInfoList({QStringLiteral("framebeam-hub-setup-*")}, QDir::Dirs | QDir::NoDotAndDotDot)) {
+    if (fi.isSymLink() || fi.lastModified() >= limit) continue;
+    if (QDir(fi.absoluteFilePath()).removeRecursively()) ++removed;
+  }
+  return removed;
 }
 
 void HubSetupInstaller::cancel() {
   ++gen_;
   if (reply_) reply_->abort();
   if (state_ == State::Fetching || state_ == State::Downloading) {
+    removeTempDir();
     state_ = State::Idle;
     emit changed();
   }
@@ -56,6 +76,7 @@ void HubSetupInstaller::start() {
   if (state_ == State::Fetching || state_ == State::Downloading || state_ == State::Launching) return;
   error_.clear();
   progress_ = 0;
+  if (config_.downloadDir.isEmpty()) cleanStaleTempDirs();
   state_ = State::Fetching;
   emit changed();
   const quint64 gen = ++gen_;
@@ -88,7 +109,10 @@ void HubSetupInstaller::download(const Artifact& art) {
     return;
   }
   QString dir = config_.downloadDir;
-  if (dir.isEmpty()) dir = QDir::tempPath() + QStringLiteral("/framebeam-hub-setup-") + QUuid::createUuid().toString(QUuid::Id128);
+  if (dir.isEmpty()) {
+    dir = QDir::tempPath() + QStringLiteral("/framebeam-hub-setup-") + QUuid::createUuid().toString(QUuid::Id128);
+    tempDir_ = dir;
+  }
   if (!QDir().mkpath(dir)) {
     fail(tr("The download folder could not be created."));
     return;
@@ -152,11 +176,11 @@ void HubSetupInstaller::download(const Artifact& art) {
       fail(tr("The installer could not be saved."));
       return;
     }
-    launch(finalPath);
+    launch(finalPath, art);
   });
 }
 
-void HubSetupInstaller::launch(const QString& msiPath) {
+void HubSetupInstaller::launch(const QString& msiPath, const Artifact& art) {
   QString why;
   const QString launcher = copyLauncherToTemp(config_.installRoot, QDir::tempPath(), &why);
   if (launcher.isEmpty()) {
@@ -164,13 +188,15 @@ void HubSetupInstaller::launch(const QString& msiPath) {
     return;
   }
   const InstallerCommand cmd = msiRelaunchCommand(launcher, msiPath, MsiScope::SetupHub,
-                                                  perMachinePlayerExe(config_.programFilesDir), {QStringLiteral("--setup-local-hub")});
+                                                  perMachinePlayerExe(config_.programFilesDir), {QStringLiteral("--setup-local-hub")},
+                                                  art.sha256, art.size);
   state_ = State::Launching;
   emit changed();
   if (!launcher_(cmd.program, cmd.args)) {
     fail(tr("The installer could not be started."));
     return;
   }
+  tempDir_.clear();  // from here on the launcher copy removes the folder after msiexec
   emit quitRequested();
 }
 

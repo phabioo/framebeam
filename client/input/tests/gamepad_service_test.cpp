@@ -220,7 +220,7 @@ class GamepadServiceTest : public QObject {
 
   void threeDsProfileMapsShouldersTriggersAndSticks() {
     const auto bit = [](const char* id) { return inputBit(QString::fromLatin1(id)); };
-    constexpr quint32 kL2 = 1u << 12, kR2 = 1u << 14;
+    constexpr quint32 kL2 = 1u << 12, kR2 = 1u << 13;
     // 3ds: ZL/ZR = L2/R2, circle pad and C-stick on the analog bits, D-pad stays a D-pad.
     QCOMPARE(libretroMaskFor(QStringLiteral("3ds"), bit("zl") | bit("zr")), kL2 | kR2);
     QCOMPARE(libretroMaskFor(QStringLiteral("3ds"), bit("l") | bit("r") | bit("a")), kL | kR | kA);

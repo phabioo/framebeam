@@ -128,7 +128,8 @@ class ManifestTest : public QObject {
     QCOMPARE(des->saveFormat, QStringLiteral("desmume_dsv"));
     QCOMPARE(mel->saveSource, QStringLiteral("save_ram"));
     QVERIFY(!mel->saveShortDir);
-    QVERIFY(!des->saveShortDir);
+    QVERIFY(des->saveShortDir);  // core_file cores write their own file: short dir (Windows MAX_PATH)
+    QVERIFY(des->saveShortDirSubfolder.isEmpty());
     QVERIFY(mel->saveShortDirSubfolder.isEmpty());
     QCOMPARE(mel->saveExtension, QStringLiteral(".sav"));
     QCOMPARE(mel->saveFormat, QStringLiteral("raw"));

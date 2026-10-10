@@ -52,6 +52,58 @@ class SaveStoreTest : public QObject {
     QVERIFY(d("hub-a", "u1", "g1", "Bad Slot").isEmpty());
   }
 
+  void windowsAliasNamesAreRejected() {
+    for (const char* bad : {"con", "CON", "Nul", "aux", "prn", "com1", "COM9", "lpt3", "con.txt", "nul.x.y", "abc.", "abc "}) {
+      const QString n = QString::fromLatin1(bad);
+      QVERIFY2(SaveStore::isWindowsAliasName(n), bad);
+      QVERIFY2(!SaveStore::isSafeId(n), bad);
+    }
+    for (const char* ok : {"console", "com", "com10", "com0", "lpt", "abc", "a.b", "g-1_2", "nul1"}) {
+      QVERIFY2(!SaveStore::isWindowsAliasName(QString::fromLatin1(ok)), ok);
+    }
+    QVERIFY(SaveStore::isSafeId(QStringLiteral("c3a1d9f0-1111-2222-3333-444455556666")));
+    QVERIFY(!SaveStore::isValidSlotName(QStringLiteral("nul")));
+    QVERIFY(!SaveStore::isValidSlotName(QStringLiteral("com1")));
+    QVERIFY(SaveStore::isValidSlotName(QStringLiteral("boss-run")));
+    QVERIFY(SaveStore::isValidSlotName(QStringLiteral("default")));
+    QTemporaryDir tmp;
+    ProfileStore ps(tmp.path());
+    QVERIFY(!ProfileStore::isValidHubId(QStringLiteral("con")));
+    QVERIFY(!ProfileStore::isValidHubId(QStringLiteral("LPT1")));
+    QVERIFY(ProfileStore::isValidHubId(QStringLiteral("hub-a")));
+    QVERIFY(SaveStore::gameDir(ps, QStringLiteral("hub-a"), QStringLiteral("u1"), QStringLiteral("nul")).isEmpty());
+    QVERIFY(SaveStore::slotDir(ps, QStringLiteral("hub-a"), QStringLiteral("u1"), QStringLiteral("g1"), QStringLiteral("aux")).isEmpty());
+  }
+
+  void migrateCoreFileMovesOnceAndNeverOverwrites() {
+    QTemporaryDir tmp;
+    const QString oldDir = tmp.filePath(QStringLiteral("old"));
+    const QString newDir = tmp.filePath(QStringLiteral("new"));
+    const QString name = QStringLiteral("rom.dsv");
+    QCOMPARE(int(SaveStore::migrateCoreFile(oldDir, newDir, name)), int(SaveStore::FileMove::None));  // nothing to move
+    writeFile(oldDir + QStringLiteral("/rom.dsv"), "one");
+    writeFile(oldDir + QStringLiteral("/rom.sav"), "raw");
+    QCOMPARE(int(SaveStore::migrateCoreFile(oldDir, newDir, name)), int(SaveStore::FileMove::Moved));
+    QCOMPARE(readFile(newDir + QStringLiteral("/rom.dsv")), QByteArray("one"));
+    QVERIFY(!QFileInfo::exists(oldDir + QStringLiteral("/rom.dsv")));
+    QCOMPARE(readFile(oldDir + QStringLiteral("/rom.sav")), QByteArray("raw"));  // other files stay
+    // both exist: the target wins, the source is kept
+    writeFile(oldDir + QStringLiteral("/rom.dsv"), "late");
+    QCOMPARE(int(SaveStore::migrateCoreFile(oldDir, newDir, name)), int(SaveStore::FileMove::KeptBoth));
+    QCOMPARE(readFile(newDir + QStringLiteral("/rom.dsv")), QByteArray("one"));
+    QCOMPARE(readFile(oldDir + QStringLiteral("/rom.dsv")), QByteArray("late"));
+    QCOMPARE(int(SaveStore::migrateCoreFile(oldDir, oldDir, name)), int(SaveStore::FileMove::None));  // same directory
+    QCOMPARE(int(SaveStore::migrateCoreFile(oldDir, newDir, QStringLiteral("../x"))), int(SaveStore::FileMove::None));
+  }
+
+  void legacyPathLimitCheck() {
+    const QString dir = QStringLiteral("/a/b/c");
+    const int len = QDir::toNativeSeparators(QDir(dir).absolutePath()).size();
+    QVERIFY(!SaveStore::exceedsLegacyPathLimit(dir, 259 - len - 1));
+    QVERIFY(SaveStore::exceedsLegacyPathLimit(dir, 259 - len));
+    QVERIFY(!SaveStore::exceedsLegacyPathLimit(QString(), 1000));
+  }
+
   void migrateCoreSubfolderMovesOnceAndNeverOverwrites() {
     QTemporaryDir tmp;
     const QString oldDir = tmp.filePath(QStringLiteral("old"));

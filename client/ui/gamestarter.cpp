@@ -5,6 +5,7 @@
 #include <QDate>
 #include <QDir>
 #include <QFileInfo>
+#include <QLoggingCategory>
 #include <QRegularExpression>
 #include <QScopeGuard>
 #include <algorithm>
@@ -16,6 +17,8 @@
 #include "version.h"
 
 namespace framebeam::ui {
+
+Q_LOGGING_CATEGORY(lcGameStarter, "framebeam.gamestarter")
 
 GameStarter::GameStarter(const Deps& d, QObject* parent)
     : QObject(parent),
@@ -89,7 +92,7 @@ void GameStarter::onCoreFinished(const CoreResult& result) {
   if (phase_ != PlayPhase::Core) {
     return;
   }
-  const auto game = model_.game(selectedId_);
+  const auto game = model_.game(launchGame_.id);  // the game being started, not the current selection (PU-9)
   const emu::SystemManifest* man = game ? catalog_->manifestFor(*game) : nullptr;
   if (!game || man == nullptr || game->id != launchGame_.id) {
     phase_ = PlayPhase::None;
@@ -158,6 +161,7 @@ void GameStarter::continueStartAfterCore(const GameEntry& gameRef, const emu::Sy
 }
 
 void GameStarter::beginRomPhase(const GameEntry& game) {
+  launchGame_ = game;  // identifies the game for the ROM handler even when the selection changes meanwhile
   pendingSha_ = game.romSha256;
   phase_ = PlayPhase::Rom;
   emit selectedGameChanged();
@@ -168,7 +172,7 @@ void GameStarter::onFirmwareFinished(const FirmwareResult& result) {
   if (phase_ != PlayPhase::Firmware) {
     return;
   }
-  const auto game = model_.game(selectedId_);
+  const auto game = model_.game(launchGame_.id);  // the game being started, not the current selection (PU-9)
   const emu::SystemManifest* man = game ? catalog_->manifestFor(*game) : nullptr;
   if (!game || man == nullptr || game->id != launchGame_.id) {
     phase_ = PlayPhase::None;
@@ -213,7 +217,7 @@ void GameStarter::onRomReady(const QString& sha, const QString& path) {
   st.localPath = path;
   model_.setStatus(sha, st);
   for (const GameEntry& g : library_->games()) {
-    if (g.romSha256 == sha && g.id == selectedId_) {
+    if (g.romSha256 == sha && g.id == launchGame_.id) {
       launch(g, path);
       return;
     }
@@ -252,6 +256,7 @@ SaveSync::CoreRef GameStarter::coreRefFor(const emu::SystemManifest& man) const 
   ref.saveSource = man.saveSource;
   ref.fileExtension = man.saveExtension;
   ref.fileFormat = man.saveFormat;
+  ref.shortDir = man.saveShortDir;
   return ref;
 }
 
@@ -278,7 +283,7 @@ void GameStarter::onSaveReady(const QString& gameId, const QString& saveDir, con
   cfg.gamePath = launchRom_;
   cfg.systemDir = catalog_->systemDir();
   cfg.saveDir = saveDir;
-  if (man->saveShortDir) {
+  if (man->saveShortDir) {  // for core_file cores SaveSync already hands out this very directory
     // Core profile save.short_dir (Windows MAX_PATH): a short dir; adopt a tree written to the long dir earlier.
     const QString shortDir = SaveStore::shortCoreDir(*profiles_, conn_->hubId(), conn_->hubUserId(), gameId, saves_->slotFor(gameId));
     if (!shortDir.isEmpty()) {
@@ -288,6 +293,18 @@ void GameStarter::onSaveReady(const QString& gameId, const QString& saveDir, con
       cfg.saveDir = shortDir;
     }
   }
+#ifdef Q_OS_WIN
+  // Cores use narrow Windows APIs without the long-path prefix: warn before a file the core creates cannot be opened.
+  {
+    const int saveName = man->saveSource == QLatin1String("core_file") ? SaveStore::expectedSaveName(launchRom_, man->saveExtension).size() : 40;
+    if (SaveStore::exceedsLegacyPathLimit(cfg.saveDir, saveName)) {
+      qCWarning(lcGameStarter) << "Save directory plus core file name exceeds 259 characters; the core may not be able to persist saves:" << cfg.saveDir;
+    }
+    if (SaveStore::exceedsLegacyPathLimit(cfg.systemDir, 40)) {
+      qCWarning(lcGameStarter) << "System directory plus the longest firmware file name exceeds 259 characters; the core may not find its BIOS/firmware:" << cfg.systemDir;
+    }
+  }
+#endif
   // Manifest defaults < user overrides (game > system/core > global) < firmware mode of the Hub (builtin | native +
   // files) < manifest-locked options (screen layout, OSD off; the render mode is a user choice, default software): FrameBeam stays in control of those.
   cfg.coreOptions = emu::launchCoreOptions(*man, emulation_->launchOverrides(man->systemId, launchGame_.id), fwOptions_);

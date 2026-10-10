@@ -175,7 +175,7 @@ class Runner : public QObject {
 
   int updateCheck(const QStringList& opts) {
     QString channel = QString::fromUtf8(playerChannel().data(), static_cast<qsizetype>(playerChannel().size()));
-    QString indexUrl = QString::fromLocal8Bit(qgetenv("FRAMEBEAM_PLAYER_UPDATE_INDEX_URL"));
+    QString indexUrl = qEnvironmentVariable("FRAMEBEAM_PLAYER_UPDATE_INDEX_URL");
     QString current = QString::fromUtf8(playerVersion().data(), static_cast<qsizetype>(playerVersion().size()));
     std::optional<update::HubProtocol> hub;
     for (qsizetype i = 0; i < opts.size(); ++i) {

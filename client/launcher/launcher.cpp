@@ -4,6 +4,7 @@
 #include <windows.h>
 #include <shellapi.h>  // not part of windows.h under WIN32_LEAN_AND_MEAN
 #include <shobjidl.h>
+#include <bcrypt.h>
 
 #include <cwchar>
 #include <string>
@@ -13,6 +14,68 @@
 #include "msiupdate.h"
 
 namespace {
+
+// SHA-256 of the whole file behind `file` (Windows CNG, no extra dependency); lowercase hex, empty on any failure.
+std::wstring sha256HexOfFile(HANDLE file) {
+  std::wstring hex;
+  BCRYPT_ALG_HANDLE alg = nullptr;
+  BCRYPT_HASH_HANDLE hash = nullptr;
+  if (BCryptOpenAlgorithmProvider(&alg, BCRYPT_SHA256_ALGORITHM, nullptr, 0) < 0) return hex;
+  DWORD objLen = 0, got = 0;
+  if (BCryptGetProperty(alg, BCRYPT_OBJECT_LENGTH, reinterpret_cast<PUCHAR>(&objLen), sizeof(objLen), &got, 0) >= 0) {
+    std::vector<UCHAR> obj(objLen);
+    LARGE_INTEGER zero = {};
+    if (BCryptCreateHash(alg, &hash, obj.data(), objLen, nullptr, 0, 0) >= 0 && SetFilePointerEx(file, zero, nullptr, FILE_BEGIN)) {
+      std::vector<UCHAR> buf(1 << 20);
+      bool ok = true;
+      for (;;) {
+        DWORD n = 0;
+        if (!ReadFile(file, buf.data(), static_cast<DWORD>(buf.size()), &n, nullptr)) {
+          ok = false;
+          break;
+        }
+        if (n == 0) break;
+        if (BCryptHashData(hash, buf.data(), n, 0) < 0) {
+          ok = false;
+          break;
+        }
+      }
+      UCHAR digest[32] = {};
+      if (ok && BCryptFinishHash(hash, digest, sizeof(digest), 0) >= 0) {
+        static const wchar_t* kHex = L"0123456789abcdef";
+        for (UCHAR b : digest) {
+          hex += kHex[b >> 4];
+          hex += kHex[b & 15];
+        }
+      }
+    }
+  }
+  if (hash != nullptr) BCryptDestroyHash(hash);
+  BCryptCloseAlgorithmProvider(alg, 0);
+  return hex;
+}
+
+// PC-3: re-verifies the MSI the Player verified earlier (the file lies in a folder the user can write to, and an
+// elevated msiexec follows). Opens it read-only with FILE_SHARE_READ only, so nobody can write, rename or delete it
+// while we hold the handle (kept in *lock until msiexec ended). False = do not install.
+bool verifyAndLockMsi(const framebeam::launcher::MsiUpdateRequest& req, HANDLE* lock) {
+  using namespace framebeam::launcher;
+  if (!expectationComplete(req)) return false;
+  HANDLE h = CreateFileW(req.msi.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+  if (h == INVALID_HANDLE_VALUE) return false;
+  LARGE_INTEGER sz = {};
+  if (!GetFileSizeEx(h, &sz) || sz.QuadPart < 0) {
+    CloseHandle(h);
+    return false;
+  }
+  const std::wstring sha = sha256HexOfFile(h);
+  if (!msiMatches(req, static_cast<unsigned long long>(sz.QuadPart), sha)) {
+    CloseHandle(h);
+    return false;
+  }
+  *lock = h;
+  return true;
+}
 
 // --apply-msi-update (temporary copy of the launcher, see msiupdate.h): wait until no Player instance runs, run
 // msiexec (elevated unless per-user), start the Player again, delete this copy.
@@ -26,7 +89,12 @@ int applyMsiUpdate(const framebeam::launcher::MsiUpdateRequest& req) {
     Sleep(500);
   }
   DWORD code = 1;
-  const std::wstring params = msiexecParameters(req.msi, req.scope);
+  bool refused = false;
+  HANDLE lock = INVALID_HANDLE_VALUE;
+  if (verificationRequired(req) && !verifyAndLockMsi(req, &lock)) {
+    refused = true;  // size/SHA-256 differ from what the Player verified, or were not passed: install nothing
+  }
+  const std::wstring params = refused ? std::wstring() : msiexecParameters(req.msi, req.scope);
   wchar_t sys[MAX_PATH] = {};
   if (!params.empty() && GetSystemDirectoryW(sys, MAX_PATH) > 0) {
     const std::wstring msiexec = std::wstring(sys) + L"\\msiexec.exe";
@@ -56,7 +124,11 @@ int applyMsiUpdate(const framebeam::launcher::MsiUpdateRequest& req) {
       CloseHandle(proc);
     }
   }
-  if (code != 0 && code != 3010) {  // 3010 = success, restart required
+  if (lock != INVALID_HANDLE_VALUE) CloseHandle(lock);
+  if (refused) {
+    MessageBoxW(nullptr, L"The installer file does not match the verified update (it was changed or could not be checked). Nothing was installed.",
+                L"FrameBeam Player", MB_OK | MB_ICONERROR);
+  } else if (code != 0 && code != 3010) {  // 3010 = success, restart required
     wchar_t msg[256];
     _snwprintf_s(msg, _countof(msg), _TRUNCATE, L"The FrameBeam update could not be installed (code %lu).", code);
     MessageBoxW(nullptr, msg, L"FrameBeam Player", MB_OK | MB_ICONERROR);
@@ -81,6 +153,8 @@ int applyMsiUpdate(const framebeam::launcher::MsiUpdateRequest& req) {
     const size_t slash = dir.find_last_of(L"\\/");
     if (slash != std::wstring::npos) dir.resize(slash);
     std::wstring clean = L"cmd.exe /c ping -n 4 127.0.0.1 >nul & del /f /q \"" + std::wstring(self, n) + L"\" & rmdir \"" + dir + L"\"";
+    const std::wstring setupDir = setupDirToRemove(req);  // downloaded setup MSI of "Set up a Hub on this PC"
+    if (!setupDir.empty()) clean += L" & rd /s /q \"" + setupDir + L"\"";
     STARTUPINFOW si2 = {};
     si2.cb = sizeof(si2);
     PROCESS_INFORMATION pi2 = {};

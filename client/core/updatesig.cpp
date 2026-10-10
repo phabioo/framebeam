@@ -29,7 +29,7 @@ QList<QByteArray> parsePublicKeys(const QStringList& base64Keys, QString* error)
 
 QList<QByteArray> trustedKeysFromEnvironment() {
   QList<QByteArray> keys = defaultTrustedKeys();
-  const QString extra = QString::fromLocal8Bit(qgetenv("FRAMEBEAM_PLAYER_TRUST_KEYS"));
+  const QString extra = qEnvironmentVariable("FRAMEBEAM_PLAYER_TRUST_KEYS");
   if (!extra.isEmpty()) keys += parsePublicKeys(extra.split(QLatin1Char(','), Qt::SkipEmptyParts));
   return keys;
 }

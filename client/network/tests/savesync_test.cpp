@@ -1177,6 +1177,26 @@ class SaveSyncTest : public QObject {
     QCOMPARE(SaveStore::loadState(gdir()).lastSyncedSha256, SaveStore::sha256Of(dsRaw('b')));
   }
 
+  void desmumeShortDirHoldsTheDsvAndAdoptsTheOldOne() {
+    auto ref = desmumeRef();
+    ref.shortDir = true;
+    const QString shortDir = SaveStore::shortCoreDir(*profiles_, kHubId, kUser, kGame, QStringLiteral("default"));
+    QVERIFY(!shortDir.isEmpty());
+    // a .dsv the core wrote to the long directory before this version
+    writeFile(dsvFile(), *dsv::rawToDsv(dsRaw('z')));
+    QSignalSpy ready(sync_.get(), &SaveSync::startReady);
+    sync_->prepareStart(kGame, kRom, {QStringLiteral("rom1")}, ref);
+    QVERIFY(QTest::qWaitFor([&]() { return ready.count() > 0; }, 8000));
+    QCOMPARE(ready.at(0).at(1).toString(), shortDir);  // the core gets the short dir
+    QVERIFY(!QFileInfo::exists(dsvFile()));            // adopted once
+    QVERIFY(QFileInfo::exists(shortDir + QStringLiteral("/rom1.dsv")));
+    QCOMPARE(readFile(saveFile()), dsRaw('z'));  // the progress of the old .dsv was imported, not lost
+    sync_->beginSession();
+    writeFile(shortDir + QStringLiteral("/rom1.dsv"), *dsv::rawToDsv(dsRaw('b')));  // the fake core saves
+    QVERIFY(sync_->finalSyncBlocking(true));
+    QCOMPARE(hub_->saves.value(kGame).content, dsRaw('b'));
+  }
+
   void changesFromACrashedSessionAreImportedAtTheNextStart() {
     hub_->setHubSave(kGame, dsRaw('a'));
     QCOMPARE(startWith(desmumeRef()), QStringLiteral("ready"));
