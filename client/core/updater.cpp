@@ -465,8 +465,29 @@ bool UpdateManager::applyStagedAtStart() {
   if (!applySupported() || effectiveChannel() != Channel::Beta || !autoInstallSetting() || busy()) return false;
   const auto staged = loadVerifiedStaged(config_.baseDir, config_.currentVersion, config_.trustedKeys, allowFileUrls());
   if (!staged) return false;
+  if (hasAttemptRecord(*staged)) {
+    // We are still on the old version, so the earlier attempt failed: do not loop, leave the retry to the user.
+    qCWarning(lcUpdate) << "update to" << staged->version << "was attempted before and failed; not applying automatically";
+    lastError_ = QStringLiteral("previous automatic install attempt failed");
+    setState(State::Error, tr("The update to %1 could not be installed automatically. Install it from Settings or download the installer.")
+                               .arg(staged->version));
+    return false;
+  }
   apply(*staged);
   return state_ == State::Applying;
+}
+
+bool UpdateManager::hasAttemptRecord(const StagedUpdate& staged) const {
+  const QString dir = QFileInfo(staged.installerPath).absolutePath();
+  const QJsonObject o = QJsonDocument::fromJson(readFile(QDir(dir).filePath(QStringLiteral("attempted.json")), 4096)).object();
+  return o.value(QLatin1String("version")).toString() == staged.version;
+}
+
+void UpdateManager::recordAttempt(const StagedUpdate& staged) {
+  const QString dir = QFileInfo(staged.installerPath).absolutePath();
+  if (!writeFile(QDir(dir).filePath(QStringLiteral("attempted.json")), QJsonDocument(QJsonObject{{"version", staged.version}}).toJson())) {
+    qCWarning(lcUpdate) << "could not record the install attempt";
+  }
 }
 
 void UpdateManager::apply(const StagedUpdate& staged) {
@@ -490,6 +511,7 @@ void UpdateManager::apply(const StagedUpdate& staged) {
   } else {
     cmd = installerCommand(staged.installerPath, directoryWritable(config_.installRoot));
   }
+  recordAttempt(staged);
   qCInfo(lcUpdate) << "starting installer for" << staged.version;
   if (!launcher_(cmd.program, cmd.args)) {
     lastError_ = QStringLiteral("installer could not be started");

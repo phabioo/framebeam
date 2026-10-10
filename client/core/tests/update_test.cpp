@@ -409,6 +409,33 @@ class UpdateTest : public QObject {
     QCOMPARE(launched[0], staged);
     QVERIFY(launched[1].startsWith("/SILENT /SUPPRESSMSGBOXES /NORESTART /UPDATE /"));
   }
+  void managerDoesNotLoopAfterFailedAttempt() {
+    Env env;
+    env.publish("installer-bytes-0.3.1", "0.3.1-test.3");
+    framebeam::PlayerSettings settings(env.dir.filePath("data"));
+    settings.setUpdateChannel("beta");
+    int launches = 0;
+    auto mp = env.manager(settings);
+    mp->setLauncher([&](const QString&, const QStringList&) { ++launches; return true; });
+    mp->checkNow();
+    QTRY_COMPARE_WITH_TIMEOUT(mp->state(), UpdateManager::State::Ready, 5000);
+    QVERIFY(mp->applyStagedAtStart());  // first start: applied once
+    QCOMPARE(launches, 1);
+    const QString rec = QDir(stagingRoot(env.dir.filePath("data"))).filePath("0.3.1-test.3/attempted.json");
+    QVERIFY(QFileInfo::exists(rec));
+    // The installer failed, the old Player starts again (same baseDir/currentVersion): no second automatic attempt.
+    auto m2p = env.manager(settings);
+    UpdateManager& m2 = *m2p;
+    m2.setLauncher([&](const QString&, const QStringList&) { ++launches; return true; });
+    QVERIFY(!m2.applyStagedAtStart());
+    QCOMPARE(launches, 1);
+    QCOMPARE(m2.state(), UpdateManager::State::Error);
+    QVERIFY(m2.statusText().contains("could not be installed automatically"));
+    // A user click may still retry.
+    m2.installNow();
+    QCOMPARE(launches, 2);
+    QCOMPARE(m2.state(), UpdateManager::State::Applying);
+  }
   void managerBusyBlocksApply() {
     Env env;
     env.publish("installer-bytes", "0.3.1-test.3");

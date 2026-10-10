@@ -35,7 +35,11 @@ inline bool scopeNeedsElevation(const std::wstring& scope) { return scope != L"u
 // Command line parameters for msiexec.exe (without the program name); empty for an unknown scope.
 inline std::wstring msiexecParameters(const std::wstring& msi, const std::wstring& scope) {
   if (!isKnownScope(scope)) return {};
-  std::wstring p = L"/i \"" + msi + L"\" /qn /norestart";
+  std::wstring path = msi;
+  for (wchar_t& c : path) {
+    if (c == L'/') c = L'\\';  // msiexec fails with 1619 on forward slashes
+  }
+  std::wstring p = L"/i \"" + path + L"\" /qn /norestart";
   if (scope == L"user") {
     p += L" MSIINSTALLPERUSER=1 ALLUSERS=2";
   } else {
