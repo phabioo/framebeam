@@ -188,6 +188,15 @@ void SaveSync::prepareStart(const QString& gameId, const QString& romPath, const
     return;
   }
   QDir().mkpath(a_.dir);
+  if (core.saveSource == QLatin1String("none")) {
+    a_.localOnly = true;
+    QTimer::singleShot(0, this, [this, gen, gameId]() {
+      if (gen == gen_) {
+        emit startReady(gameId, a_.dir, localOnlyNote());
+      }
+    });
+    return;
+  }
   a_.expectedName = SaveStore::expectedSaveName(romPath);
   a_.exactSave = core.valid() && core.saveSource != QLatin1String("auto");
   if (core.valid() && core.saveSource == QLatin1String("core_file") && core.fileFormat == QLatin1String("desmume_dsv")) {
@@ -823,7 +832,7 @@ void SaveSync::resolveError(const QString& message, SaveRestoreResult::Outcome k
 // ---------------------------------------------------------------- Session: checkpoints and final sync
 
 void SaveSync::beginSession() {
-  if (a_.gameId.isEmpty()) {
+  if (a_.gameId.isEmpty() || a_.localOnly) {  // local-only: no sync session, no polling, no final upload
     return;
   }
   session_ = true;

@@ -144,6 +144,24 @@ class PlayerSettingsTest : public QObject {
     QCOMPARE(s.appearance(), A::Light);  // unrelated keys kept
   }
 
+  void romCacheLimitDefaultsTo20GbAndPersists() {
+    QTemporaryDir dir;
+    {
+      PlayerSettings s(dir.path());
+      QCOMPARE(s.romCacheLimitBytes(), qint64(20) * 1024 * 1024 * 1024);
+      QVERIFY(!s.setRomCacheLimitBytes(-1));
+      QCOMPARE(s.romCacheLimitBytes(), PlayerSettings::kDefaultRomCacheLimitBytes);
+      QVERIFY(s.setRomCacheLimitBytes(5ll * 1024 * 1024 * 1024));
+    }
+    {
+      PlayerSettings s(dir.path());
+      QCOMPARE(s.romCacheLimitBytes(), qint64(5) * 1024 * 1024 * 1024);
+      QVERIFY(s.setRomCacheLimitBytes(0));  // unlimited
+    }
+    PlayerSettings s(dir.path());
+    QCOMPARE(s.romCacheLimitBytes(), qint64(0));
+  }
+
   void lastPlayedIsSeparatedByHub() {
     QTemporaryDir dir;
     {

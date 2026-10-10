@@ -27,6 +27,18 @@ const QList<InputDef>& frameBeamInputs() {
       {QStringLiteral("down"), QStringLiteral("D-pad down"), QStringLiteral("D-PAD ▼")},
       {QStringLiteral("left"), QStringLiteral("D-pad left"), QStringLiteral("D-PAD ◀")},
       {QStringLiteral("right"), QStringLiteral("D-pad right"), QStringLiteral("D-PAD ▶")},
+      // Appended so that the bit indices of the inputs above stay the same. Used by the "3ds" system profile (ZL/ZR,
+      // C-stick); the DS profile ignores them.
+      {QStringLiteral("zl"), QStringLiteral("ZL"), QStringLiteral("ZL")},
+      {QStringLiteral("zr"), QStringLiteral("ZR"), QStringLiteral("ZR")},
+      {QStringLiteral("cup"), QStringLiteral("C-stick up"), QStringLiteral("C-STICK ▲")},
+      {QStringLiteral("cdown"), QStringLiteral("C-stick down"), QStringLiteral("C-STICK ▼")},
+      {QStringLiteral("cleft"), QStringLiteral("C-stick left"), QStringLiteral("C-STICK ◀")},
+      {QStringLiteral("cright"), QStringLiteral("C-stick right"), QStringLiteral("C-STICK ▶")},
+      {QStringLiteral("lup"), QStringLiteral("Circle pad up"), QStringLiteral("CIRCLE PAD ▲")},
+      {QStringLiteral("ldown"), QStringLiteral("Circle pad down"), QStringLiteral("CIRCLE PAD ▼")},
+      {QStringLiteral("lleft"), QStringLiteral("Circle pad left"), QStringLiteral("CIRCLE PAD ◀")},
+      {QStringLiteral("lright"), QStringLiteral("Circle pad right"), QStringLiteral("CIRCLE PAD ▶")},
   };
   return inputs;
 }
@@ -100,6 +112,10 @@ QString tokenLabel(const QString& token) {
       {QStringLiteral("leftx+"), QStringLiteral("Left stick ▶")},
       {QStringLiteral("lefty-"), QStringLiteral("Left stick ▲")},
       {QStringLiteral("lefty+"), QStringLiteral("Left stick ▼")},
+      {QStringLiteral("rightx-"), QStringLiteral("Right stick ◀")},
+      {QStringLiteral("rightx+"), QStringLiteral("Right stick ▶")},
+      {QStringLiteral("righty-"), QStringLiteral("Right stick ▲")},
+      {QStringLiteral("righty+"), QStringLiteral("Right stick ▼")},
   };
   if (isPadToken(token)) {
     const QString n = token.mid(4);
@@ -135,6 +151,16 @@ ControllerProfile ControllerProfiles::builtinProfile(const QString& kind) {
         {QStringLiteral("down"), {keyToken(Qt::Key_Down)}},
         {QStringLiteral("left"), {keyToken(Qt::Key_Left)}},
         {QStringLiteral("right"), {keyToken(Qt::Key_Right)}},
+        {QStringLiteral("zl"), {keyToken(Qt::Key_E)}},
+        {QStringLiteral("zr"), {keyToken(Qt::Key_R)}},
+        {QStringLiteral("cup"), {keyToken(Qt::Key_I)}},
+        {QStringLiteral("cdown"), {keyToken(Qt::Key_K)}},
+        {QStringLiteral("cleft"), {keyToken(Qt::Key_J)}},
+        {QStringLiteral("cright"), {keyToken(Qt::Key_L)}},
+        {QStringLiteral("lup"), {keyToken(Qt::Key_T)}},
+        {QStringLiteral("ldown"), {keyToken(Qt::Key_G)}},
+        {QStringLiteral("lleft"), {keyToken(Qt::Key_F)}},
+        {QStringLiteral("lright"), {keyToken(Qt::Key_H)}},
     };
   } else {
     p.id = QString::fromLatin1(kBuiltinGamepadId);
@@ -146,14 +172,25 @@ ControllerProfile ControllerProfiles::builtinProfile(const QString& kind) {
         {QStringLiteral("b"), {padToken(QStringLiteral("a"))}},
         {QStringLiteral("x"), {padToken(QStringLiteral("y"))}},
         {QStringLiteral("y"), {padToken(QStringLiteral("x"))}},
-        {QStringLiteral("l"), {padToken(QStringLiteral("leftshoulder")), padToken(QStringLiteral("lefttrigger"))}},
-        {QStringLiteral("r"), {padToken(QStringLiteral("rightshoulder")), padToken(QStringLiteral("righttrigger"))}},
+        {QStringLiteral("l"), {padToken(QStringLiteral("leftshoulder"))}},
+        {QStringLiteral("r"), {padToken(QStringLiteral("rightshoulder"))}},
+        {QStringLiteral("zl"), {padToken(QStringLiteral("lefttrigger"))}},
+        {QStringLiteral("zr"), {padToken(QStringLiteral("righttrigger"))}},
+        {QStringLiteral("cup"), {padToken(QStringLiteral("righty-"))}},
+        {QStringLiteral("cdown"), {padToken(QStringLiteral("righty+"))}},
+        {QStringLiteral("cleft"), {padToken(QStringLiteral("rightx-"))}},
+        {QStringLiteral("cright"), {padToken(QStringLiteral("rightx+"))}},
         {QStringLiteral("start"), {padToken(QStringLiteral("start"))}},
         {QStringLiteral("select"), {padToken(QStringLiteral("back"))}},
-        {QStringLiteral("up"), {padToken(QStringLiteral("dpup")), padToken(QStringLiteral("lefty-"))}},
-        {QStringLiteral("down"), {padToken(QStringLiteral("dpdown")), padToken(QStringLiteral("lefty+"))}},
-        {QStringLiteral("left"), {padToken(QStringLiteral("dpleft")), padToken(QStringLiteral("leftx-"))}},
-        {QStringLiteral("right"), {padToken(QStringLiteral("dpright")), padToken(QStringLiteral("leftx+"))}},
+        {QStringLiteral("up"), {padToken(QStringLiteral("dpup"))}},
+        {QStringLiteral("down"), {padToken(QStringLiteral("dpdown"))}},
+        {QStringLiteral("left"), {padToken(QStringLiteral("dpleft"))}},
+        {QStringLiteral("right"), {padToken(QStringLiteral("dpright"))}},
+        // The left stick is the circle pad; the DS profile folds it into the D-pad, so DS play is unchanged.
+        {QStringLiteral("lup"), {padToken(QStringLiteral("lefty-"))}},
+        {QStringLiteral("ldown"), {padToken(QStringLiteral("lefty+"))}},
+        {QStringLiteral("lleft"), {padToken(QStringLiteral("leftx-"))}},
+        {QStringLiteral("lright"), {padToken(QStringLiteral("leftx+"))}},
     };
   }
   return p;

@@ -103,6 +103,8 @@ class ControllersController : public QObject {
 
   // Qt::Key -> joypad mask of the keyboard profile (nds system profile applied); keys that are hotkeys are left out.
   QHash<int, quint32> keyboardMap() const;
+  // Manifest input profile of the running/starting game ("nds", "3ds"): gamepad P1 and keyboard map follow it.
+  void setInputProfile(const QString& profile);
 
   Q_INVOKABLE void selectDevice(const QString& key);
   Q_INVOKABLE void setLabelChoice(const QString& choice);  // "auto" | "xbox" | "playstation" | "generic"; gamepads only
@@ -161,6 +163,7 @@ class ControllersController : public QObject {
 
   ControllerProfiles profiles_;
   input::GamepadService pads_;
+  QString inputProfile_ = QStringLiteral("nds");
   QString selected_ = QStringLiteral("keyboard");
   QString listening_;
   QString note_;

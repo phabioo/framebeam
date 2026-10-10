@@ -49,6 +49,9 @@ class GamepadService : public QObject {
   void invalidateBindings();  // profile or assignment changed
 
   quint32 inputMask() const { return p1InputMask_; }        // FrameBeam inputs of P1
+  // Manifest input profile ("nds", "3ds") that maps the FrameBeam inputs to the libretro mask; applied at the next poll.
+  void setInputProfile(const QString& profile) { inputProfile_ = profile; }
+  QString inputProfile() const { return inputProfile_; }
   quint32 libretroMask() const { return p1Libretro_; }      // nds system profile applied
   quint32 inputMaskFor(int deviceId) const;                 // FrameBeam inputs of one device (input test)
   QSet<QString> pressedTokens(int deviceId) const;          // raw tokens currently active on one device
@@ -85,6 +88,7 @@ class GamepadService : public QObject {
   mutable QHash<QString, QHash<QString, quint32>> compiledByKey_;
   quint32 p1InputMask_ = 0;
   quint32 p1Libretro_ = 0;
+  QString inputProfile_ = QStringLiteral("nds");
   bool capturing_ = false;
   QSet<QString> captureBaseline_;
   bool sdlInited_ = false;

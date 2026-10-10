@@ -44,6 +44,8 @@ class RomDownloader : public QObject {
   RomStatus status(const GameEntry& game);
   void ensureRom(const GameEntry& game);    // hit -> romReady, otherwise download (resumes .part)
   void cancel(const QString& sha256);       // aborts, .part is kept
+  // Hashes of ROMs that are being downloaded or validated right now (never evicted from the cache).
+  QSet<QString> activeHashes() const;
 
  signals:
   void statusChanged(const QString& sha256, const framebeam::RomStatus& status);

@@ -7,6 +7,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QRegularExpression>
+#include <algorithm>
 #include <filesystem>
 #include <string>
 #include <system_error>
@@ -59,6 +60,7 @@ void RomCache::writeSidecar(const QString& sha256, const QString& ext) const {
   QJsonObject o;
   o.insert(QStringLiteral("size"), static_cast<double>(fi.size()));
   o.insert(QStringLiteral("mtime_ms"), static_cast<double>(fi.lastModified().toMSecsSinceEpoch()));
+  o.insert(QStringLiteral("last_used_ms"), static_cast<double>(QDateTime::currentMSecsSinceEpoch()));
   QFile f(finalPath(sha256, ext) + QStringLiteral(".ok"));
   if (f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
     f.write(QJsonDocument(o).toJson(QJsonDocument::Compact));
@@ -75,6 +77,124 @@ bool RomCache::sidecarMatches(const QString& sha256, const QString& ext) const {
   return o.contains(QStringLiteral("size")) && o.contains(QStringLiteral("mtime_ms")) &&
          static_cast<qint64>(o.value(QStringLiteral("size")).toDouble()) == fi.size() &&
          static_cast<qint64>(o.value(QStringLiteral("mtime_ms")).toDouble()) == fi.lastModified().toMSecsSinceEpoch();
+}
+
+namespace {
+bool isRomFileName(const QString& name, QString* sha, QString* ext) {
+  static const QRegularExpression re(QStringLiteral("^([0-9a-f]{64})\\.([a-z0-9]{1,8})$"));
+  const QRegularExpressionMatch m = re.match(name);
+  if (!m.hasMatch()) {
+    return false;
+  }
+  *sha = m.captured(1);
+  *ext = m.captured(2);
+  return true;
+}
+}  // namespace
+
+void RomCache::touch(const QString& sha256, const QString& ext, qint64 nowMs) const {
+  if (!isValidSha256(sha256)) {
+    return;
+  }
+  const QString path = finalPath(sha256, ext);
+  const QFileInfo fi(path);
+  if (!fi.isFile()) {
+    return;
+  }
+  QFile sc(path + QStringLiteral(".ok"));
+  QJsonObject o;
+  if (sc.open(QIODevice::ReadOnly)) {
+    o = QJsonDocument::fromJson(sc.readAll()).object();
+    sc.close();
+  }
+  if (!o.contains(QStringLiteral("size"))) {
+    return;  // not verified yet: the check writes the record (with the use time) itself
+  }
+  o.insert(QStringLiteral("last_used_ms"), static_cast<double>(nowMs > 0 ? nowMs : QDateTime::currentMSecsSinceEpoch()));
+  if (sc.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+    sc.write(QJsonDocument(o).toJson(QJsonDocument::Compact));
+  }
+}
+
+QList<RomCache::Entry> RomCache::entries() const {
+  QList<Entry> out;
+  const QFileInfoList files = QDir(dir_).entryInfoList(QDir::Files | QDir::NoDotAndDotDot);
+  for (const QFileInfo& fi : files) {
+    Entry e;
+    if (!isRomFileName(fi.fileName(), &e.sha256, &e.ext)) {
+      continue;
+    }
+    e.path = fi.absoluteFilePath();
+    e.size = fi.size();
+    e.lastUsedMs = fi.lastModified().toMSecsSinceEpoch();
+    QFile sc(e.path + QStringLiteral(".ok"));
+    if (sc.open(QIODevice::ReadOnly)) {
+      const QJsonObject o = QJsonDocument::fromJson(sc.readAll()).object();
+      if (o.contains(QStringLiteral("last_used_ms"))) {
+        e.lastUsedMs = static_cast<qint64>(o.value(QStringLiteral("last_used_ms")).toDouble());
+      }
+    }
+    out.append(e);
+  }
+  std::stable_sort(out.begin(), out.end(), [](const Entry& a, const Entry& b) {
+    return a.lastUsedMs != b.lastUsedMs ? a.lastUsedMs < b.lastUsedMs : a.sha256 < b.sha256;
+  });
+  return out;
+}
+
+qint64 RomCache::totalSize() const {
+  qint64 n = 0;
+  for (const Entry& e : entries()) n += e.size;
+  return n;
+}
+
+RomCache::TrimResult RomCache::trimToLimit(qint64 limitBytes, const QSet<QString>& protectedHashes) const {
+  TrimResult r;
+  const QList<Entry> list = entries();
+  qint64 total = 0;
+  for (const Entry& e : list) total += e.size;
+  for (const Entry& e : list) {
+    if (limitBytes <= 0 || total <= limitBytes) {
+      break;
+    }
+    if (protectedHashes.contains(e.sha256) || QFileInfo::exists(partPath(e.sha256, e.ext))) {
+      continue;
+    }
+    if (QFile::remove(e.path)) {
+      QFile::remove(e.path + QStringLiteral(".ok"));
+      total -= e.size;
+      r.freedBytes += e.size;
+      ++r.removedFiles;
+    }
+  }
+  r.remainingBytes = total;
+  return r;
+}
+
+qint64 RomCache::clearableSize(const QSet<QString>& protectedHashes) const {
+  qint64 n = 0;
+  for (const Entry& e : entries()) {
+    if (!protectedHashes.contains(e.sha256) && !QFileInfo::exists(partPath(e.sha256, e.ext))) n += e.size;
+  }
+  return n;
+}
+
+RomCache::TrimResult RomCache::clear(const QSet<QString>& protectedHashes) const {
+  TrimResult r;
+  for (const Entry& e : entries()) {
+    if (protectedHashes.contains(e.sha256) || QFileInfo::exists(partPath(e.sha256, e.ext))) {
+      r.remainingBytes += e.size;
+      continue;
+    }
+    if (QFile::remove(e.path)) {
+      QFile::remove(e.path + QStringLiteral(".ok"));
+      r.freedBytes += e.size;
+      ++r.removedFiles;
+    } else {
+      r.remainingBytes += e.size;
+    }
+  }
+  return r;
 }
 
 bool RomCache::lookup(const QString& sha256, const QString& ext, qint64 expectedSize, QString* pathOut) const {

@@ -22,6 +22,7 @@ constexpr const char* kDiagStreamingKey = "diagnostics_streaming_open";
 constexpr const char* kSessionVisibilityKey = "session_visibility";
 constexpr const char* kLibrarySortKey = "library_sort";
 constexpr const char* kLibraryReadyFirstKey = "library_ready_first";
+constexpr const char* kRomCacheLimitKey = "rom_cache_limit_bytes";
 constexpr const char* kLastPlayedKey = "last_played";  // { hub_id: { game_id: epoch ms } }
 constexpr const char* kSaveSlotsKey = "save_slots";  // { hub_id: { game_id: slot } }
 }
@@ -55,6 +56,9 @@ PlayerSettings::PlayerSettings(const QString& baseDir)
   const QString sort = raw_.value(QLatin1String(kLibrarySortKey)).toString();
   if (isValidLibrarySort(sort)) librarySort_ = sort;
   libraryReadyFirst_ = raw_.value(QLatin1String(kLibraryReadyFirstKey)).toBool(false);
+  if (const QJsonValue v = raw_.value(QLatin1String(kRomCacheLimitKey)); v.isDouble() && v.toDouble() >= 0) {
+    romCacheLimit_ = static_cast<qint64>(v.toDouble());
+  }
   const QString vis = raw_.value(QLatin1String(kSessionVisibilityKey)).toString();
   if (vis == QLatin1String("private") || vis == QLatin1String("hub_users") || vis == QLatin1String("invite_only")) {
     sessionVisibility_ = vis;
@@ -146,6 +150,13 @@ bool PlayerSettings::setLibrarySort(const QString& key) {
 bool PlayerSettings::setLibraryReadyFirst(bool on) {
   libraryReadyFirst_ = on;
   raw_.insert(QLatin1String(kLibraryReadyFirstKey), on);
+  return save();
+}
+
+bool PlayerSettings::setRomCacheLimitBytes(qint64 bytes) {
+  if (bytes < 0) return false;
+  romCacheLimit_ = bytes;
+  raw_.insert(QLatin1String(kRomCacheLimitKey), static_cast<double>(bytes));
   return save();
 }
 

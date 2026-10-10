@@ -26,6 +26,7 @@ var buildbotPlatforms = []struct{ ID, Dir, Suffix string }{
 // BuildbotCore describes a core of the fake buildbot. Lib is the dummy library content (never a real core).
 type BuildbotCore struct {
 	ID, SystemID, DisplayName, License, RequiredHWAPI string
+	Extensions                                        string   // supported_extensions of the info file, default "nds|bin"
 	Date                                              string   // build date YYYY-MM-DD for all platforms
 	Lib                                               []byte   // default: the core id repeated
 	Platforms                                         []string // default: all
@@ -110,13 +111,16 @@ func makeZip(files map[string][]byte) ([]byte, error) {
 }
 
 func infoText(c BuildbotCore) string {
+	if c.Extensions == "" {
+		c.Extensions = "nds|bin"
+	}
 	hw := ""
 	if c.RequiredHWAPI != "" {
 		hw = fmt.Sprintf("required_hw_api = %q\n", c.RequiredHWAPI)
 	}
-	return fmt.Sprintf("display_name = %q\ncorename = %q\nsystemid = %q\nlicense = %q\nsupported_extensions = \"nds|bin\"\n"+
+	return fmt.Sprintf("display_name = %q\ncorename = %q\nsystemid = %q\nlicense = %q\nsupported_extensions = %q\n"+
 		"display_version = \"Git\"\nfirmware_count = 1\nfirmware0_desc = \"BIOS for %s\"\nnotes = \"(!) Needs BIOS|Other note\"\n%s",
-		c.DisplayName, c.DisplayName, c.SystemID, c.License, c.ID, hw)
+		c.DisplayName, c.DisplayName, c.SystemID, c.License, c.Extensions, c.ID, hw)
 }
 
 // AddCore adds the core info and a one-file zip per platform. Defaults: display name = id, license GPLv2.

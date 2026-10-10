@@ -1,0 +1,38 @@
+{
+  "_source": "Option keys of the libretro Azahar core (upstream src/citra_libretro/core_settings.cpp). The core composes both screens itself in its default layout: 400x480, top 400x240 at (0,0), bottom 320x240 centred at (40,240).",
+  "core_id": "azahar",
+  "display_name": "Azahar",
+  "library_basename": "azahar_libretro",
+  "system_ids": [
+    "3ds"
+  ],
+  "order": 0,
+  "requires_hw_render": true,
+  "save": {
+    "source": "none"
+  },
+  "core_options": {
+    "citra_graphics_api": "OpenGL",
+    "citra_layout_option": "default",
+    "citra_swap_screen": "Top",
+    "citra_enable_touch_touchscreen": "enabled",
+    "citra_enable_mouse_touchscreen": "disabled",
+    "citra_analog_function": "c_stick",
+    "citra_use_libretro_save_path": "LibRetro Default"
+  },
+  "locked_core_options": [
+    "citra_graphics_api",
+    "citra_layout_option",
+    "citra_swap_screen",
+    "citra_swap_screen_mode",
+    "citra_large_screen_proportion",
+    "citra_enable_touch_touchscreen",
+    "citra_enable_mouse_touchscreen",
+    "citra_enable_touch_pointer_timeout",
+    "citra_analog_function",
+    "citra_use_libretro_save_path"
+  ],
+  "always_shown_core_options": [
+    "citra_resolution_factor"
+  ]
+}

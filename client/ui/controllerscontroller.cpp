@@ -277,9 +277,17 @@ QVariantList ControllersController::testCells() const {
   return cells;
 }
 
+void ControllersController::setInputProfile(const QString& profile) {
+  const QString p = profile.isEmpty() ? QStringLiteral("nds") : profile;
+  if (p == inputProfile_) return;
+  inputProfile_ = p;
+  pads_.setInputProfile(p);
+  emit keyboardMapChanged();
+}
+
 QHash<int, quint32> ControllersController::keyboardMap() const {
   const auto p = profiles_.find(profiles_.assignedProfileId(kKeyboard, kKeyboard));
-  QHash<int, quint32> map = input::ndsKeyMap(p ? p->bindings : ControllerProfiles::builtinProfile(kKeyboard).bindings);
+  QHash<int, quint32> map = input::keyMapFor(inputProfile_, p ? p->bindings : ControllerProfiles::builtinProfile(kKeyboard).bindings);
   for (auto it = map.begin(); it != map.end();) {  // a hotkey wins over the keyboard profile
     it = profiles_.hotkeyAction(it.key()).isEmpty() ? std::next(it) : map.erase(it);
   }

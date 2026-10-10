@@ -1015,6 +1015,33 @@ class SaveSyncTest : public QObject {
 
   // ---------------------------------------------------------------- ADR 0020 D7: save snapshot before a core change
 
+  void localOnlySaveSourceNeverTouchesTheHubOrTheFiles() {
+    // 3DS (saveSource "none"): the core's save tree lives in the game's save directory; nothing is synced, nothing is
+    // imported, replaced or deleted, even when the Hub holds a save for the same game id.
+    hub_->setHubSave(kGame, "hub-1");
+    const QString tree = gdir() + QStringLiteral("/default/sdmc/Nintendo 3DS/00000000/title.dat");
+    writeFile(tree, "dummy-3ds-tree");
+    writeFile(saveFile(), "stray-local-file");  // even a file named like a SAVE_RAM save stays untouched
+    const int requestsBefore = hub_->requests.size();
+    QSignalSpy ready(sync_.get(), &SaveSync::startReady);
+    SaveSync::CoreRef core{QStringLiteral("azahar"), QStringLiteral("2026.10.09")};
+    core.saveSource = QStringLiteral("none");
+    sync_->prepareStart(kGame, kRom, {QStringLiteral("rom1")}, core);
+    QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 8000);
+    QVERIFY(ready.at(0).at(2).toString().contains(QStringLiteral("not available for this system yet")));
+    QVERIFY(!ready.at(0).at(1).toString().isEmpty());  // the save directory is handed to the core
+    sync_->beginSession();
+    QVERIFY(!sync_->sessionActive());
+    QSignalSpy finished(sync_.get(), &SaveSync::finalSyncFinished);
+    sync_->finalSync(true);
+    QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 4000);
+    QVERIFY(finished.at(0).at(1).toBool());
+    QCOMPARE(hub_->requests.size(), requestsBefore);  // no request to the Hub at all
+    QCOMPARE(readFile(tree), QByteArray("dummy-3ds-tree"));
+    QCOMPARE(readFile(saveFile()), QByteArray("stray-local-file"));
+    QCOMPARE(puts(), 0);
+  }
+
   void firstStartWithACoreOnlyRecords() {
     hub_->setHubSave(kGame, "hub-1");
     QString text;

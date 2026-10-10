@@ -1,0 +1,43 @@
+{
+  "system_id": "3ds",
+  "display_name": "Nintendo 3DS",
+  "order": 200,
+  "extensions": [
+    ".3ds",
+    ".cci",
+    ".cxi",
+    ".3dsx",
+    ".zcci",
+    ".zcxi",
+    ".z3dsx"
+  ],
+  "firmware": {
+    "required": false,
+    "files": []
+  },
+  "input_profile": "3ds",
+  "display_profile": "dual_screen",
+  "labels": {
+    "input": "3DS",
+    "touch": "3DS touch"
+  },
+  "display": {
+    "layout": "vertical",
+    "gap": 0,
+    "screens": [
+      {
+        "id": "top",
+        "width": 400,
+        "height": 240,
+        "align": "center"
+      },
+      {
+        "id": "bottom",
+        "width": 320,
+        "height": 240,
+        "align": "center",
+        "touch": true
+      }
+    ]
+  }
+}

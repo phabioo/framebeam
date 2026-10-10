@@ -1,5 +1,8 @@
 #pragma once
 
+#include <QDateTime>
+#include <QList>
+#include <QSet>
 #include <QString>
 
 namespace framebeam {
@@ -33,6 +36,35 @@ class RomCache {
   // Blocking, validated hit (may hash the whole file; do not use on the UI thread).
   // Validated hit. A corrupted cache file (size/hash mismatch) is removed.
   bool lookup(const QString& sha256, const QString& ext, qint64 expectedSize, QString* pathOut = nullptr) const;
+
+  // ---- Size limit and cleanup (LRU by last use) ----
+  struct Entry {
+    QString sha256;
+    QString ext;
+    QString path;
+    qint64 size = 0;
+    qint64 lastUsedMs = 0;  // Unix ms; files without a record count as used at their modification time
+  };
+  struct TrimResult {
+    qint64 freedBytes = 0;
+    int removedFiles = 0;
+    qint64 remainingBytes = 0;  // finished ROM files left in the cache
+  };
+  static constexpr qint64 kDefaultLimitBytes = 20ll * 1024 * 1024 * 1024;  // 20 GB; 0 = unlimited
+
+  // Records "used now" (a hit or a start) so that the file is evicted last. A missing file is ignored.
+  void touch(const QString& sha256, const QString& ext, qint64 nowMs = 0) const;
+  // Finished ROM files (<sha256>.<ext>), least recently used first. .part files and sidecars are not listed.
+  QList<Entry> entries() const;
+  qint64 totalSize() const;
+  // Evicts least recently used files until the finished files fit `limitBytes` (<= 0: nothing is evicted).
+  // `protectedHashes` (the running game, files being downloaded) are never removed; a file with a .part next to it counts as
+  // being downloaded. Returns what was freed.
+  TrimResult trimToLimit(qint64 limitBytes, const QSet<QString>& protectedHashes = {}) const;
+  // Bytes a clear() would free right now (everything except protected files).
+  qint64 clearableSize(const QSet<QString>& protectedHashes = {}) const;
+  // Removes all finished ROM files except the protected ones (and those being downloaded).
+  TrimResult clear(const QSet<QString>& protectedHashes = {}) const;
 
   qint64 partSize(const QString& sha256, const QString& ext) const;
   void discardPart(const QString& sha256, const QString& ext) const;

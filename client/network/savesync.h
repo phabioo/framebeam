@@ -139,6 +139,9 @@ class SaveSync : public QObject {
   // WSS save_updated from the Hub (other device changed a checkpoint).
   void handleSaveUpdate(const SaveUpdate& update);
 
+  static QString localOnlyNote() {
+    return QObject::tr("Save sync is not available for this system yet. Saves stay on this device.");
+  }
   static QString unsupportedNote() { return QObject::tr("Hub does not support save sync"); }
   static QString kindName(Kind k);
 
@@ -161,7 +164,9 @@ class SaveSync : public QObject {
     QString id;
     QString version;
     // Save handling of the core's profile (SystemManifest::saveSource/saveExtension/saveFormat). "auto" (experimental
-    // core): sync the newest candidate file as before. "save_ram" / "core_file": exactly <rom>.sav is synced, never
+    // core): sync the newest candidate file as before. "none" (3DS: per-title trees in the core's virtual SD/NAND, no
+    // single save blob): local-only, the game's save directory is handed to the core and never touched, synced,
+    // deleted or overwritten; startReady() carries a note that sync is not available for this system yet. "save_ram" / "core_file": exactly <rom>.sav is synced, never
     // another file. "core_file" with format "desmume_dsv": the core's own <rom><extension> is converted around the
     // core (raw .sav <-> .dsv); the Hub only ever holds the raw save.
     QString saveSource = QStringLiteral("auto");
@@ -224,6 +229,7 @@ class SaveSync : public QObject {
     bool uploadedOnce = false, failedOnce = false;
     int finalRequested = 0;  // 0 none, 1 final, 2 final_session_end
     QString coreNote;        // one-time notice about a core change, prepended to the start note
+    bool localOnly = false;  // saveSource "none": saves stay on this device, nothing is imported, uploaded or replaced
     bool exactSave = false;  // profiled core: only <rom>.sav is the save, never another file in the directory
     QString coreFileExt;     // core-managed save file next to it (".dsv"); empty = none
     QString coreFileFormat;

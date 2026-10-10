@@ -31,7 +31,14 @@ class EmulationController : public QObject {
   Q_PROPERTY(QVariantList systems READ systems NOTIFY systemsChanged)
   Q_PROPERTY(QString selectedSystem READ selectedSystem NOTIFY selectionChanged)
   Q_PROPERTY(QVariantMap system READ system NOTIFY selectionChanged)  // card of the selected system, empty if none
-  Q_PROPERTY(QString level READ level WRITE setLevel NOTIFY levelChanged)  // "global" | "system"
+  Q_PROPERTY(QString level READ level WRITE setLevel NOTIFY levelChanged)  // "global" | "system" | "game"
+  // Per-game overrides: library games [{id, title, systemId, systemName, label, changedCount}], the picked game and its card
+  // (empty if none), number of games that carry overrides.
+  Q_PROPERTY(QVariantList games READ games NOTIFY gamesChanged)
+  Q_PROPERTY(QString selectedGame READ selectedGame NOTIFY gameSelectionChanged)
+  Q_PROPERTY(QVariantMap game READ game NOTIFY gameSelectionChanged)
+  Q_PROPERTY(bool gameSelected READ gameSelected NOTIFY levelChanged)
+  Q_PROPERTY(int gameOverrideCount READ gameOverrideCount NOTIFY gamesChanged)
   // [{id, title, subtitle, note, options:[{key, label, description, category, values:[{value,label}], value,
   //   valueLabel, isSet, origin, restart}]}]
   Q_PROPERTY(QVariantList groups READ groups NOTIFY groupsChanged)
@@ -66,6 +73,14 @@ class EmulationController : public QObject {
   void setLevel(const QString& level);
   QVariantList groups() const { return groups_; }
   bool defaultsSelected() const { return level_ == QLatin1String("global"); }
+  bool gameSelected() const { return level_ == QLatin1String("game"); }  // the page edits per-game overrides
+  QVariantList games() const;
+  QString selectedGame() const { return selectedGame_; }
+  QVariantMap game() const;
+  int gameOverrideCount() const;
+  // Filled by the PlayerController from the library: [{id, title, systemId}].
+  void setGames(const QVariantList& games);
+  Q_INVOKABLE void selectGame(const QString& gameId);
   int defaultsChangedCount() const;
   QStringList categories() const { return categories_; }
   QString categoryFilter() const { return categoryFilter_; }
@@ -104,6 +119,8 @@ class EmulationController : public QObject {
   void groupsChanged();
   void filterChanged();
   void gameRunningChanged();
+  void gamesChanged();
+  void gameSelectionChanged();  // the PlayerController makes sure the game's core options are known
   void frameBeamOptionsChanged();  // a "framebeam.*" value changed (the PlayerController applies it)
   void coreChoiceChanged();        // the core of a system was chosen or reset (the PlayerController refreshes the core state)
 
@@ -128,13 +145,17 @@ class EmulationController : public QObject {
   bool knownOption(const QString& key, QList<emu::CoreOptionValue>* values) const;
   EmulationSettings::Level levelEnum() const;
   QString defaultValueOf(const QString& key) const;  // default the current scope falls back to (without its own value)
-  QString scope() const { return level_ == QLatin1String("global") ? QString() : selected_; }
+  QString scope() const;
+  // Core of the edited game: its own choice when the system offers it, else the system's effective core.
+  QString effectiveCoreId() const;
 
   QString dataDir_;
   const emu::ManifestRegistry* manifests_;
   EmulationSettings settings_;
   QVariantList systems_;
   QString selected_;
+  QString selectedGame_;
+  QVariantList games_;
   QString level_ = QStringLiteral("system");
   QVariantList groups_;
   QHash<QString, emu::CoreProbe> probes_;  // core id -> options

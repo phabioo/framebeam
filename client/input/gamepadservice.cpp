@@ -159,6 +159,10 @@ QSet<QString> GamepadService::readTokens(Dev& d) const {
   axisOn(SDL_GAMEPAD_AXIS_LEFTX, padToken(QStringLiteral("leftx+")), true);
   axisOn(SDL_GAMEPAD_AXIS_LEFTY, padToken(QStringLiteral("lefty-")), false);
   axisOn(SDL_GAMEPAD_AXIS_LEFTY, padToken(QStringLiteral("lefty+")), true);
+  axisOn(SDL_GAMEPAD_AXIS_RIGHTX, padToken(QStringLiteral("rightx-")), false);
+  axisOn(SDL_GAMEPAD_AXIS_RIGHTX, padToken(QStringLiteral("rightx+")), true);
+  axisOn(SDL_GAMEPAD_AXIS_RIGHTY, padToken(QStringLiteral("righty-")), false);
+  axisOn(SDL_GAMEPAD_AXIS_RIGHTY, padToken(QStringLiteral("righty+")), true);
   return out;
 }
 
@@ -205,7 +209,7 @@ void GamepadService::poll() {
     emit stateChanged();
   }
   const quint32 inMask = devs_.isEmpty() ? 0u : inputMaskFor(devs_.first()->id);
-  const quint32 lr = ndsLibretroMask(inMask);
+  const quint32 lr = libretroMaskFor(inputProfile_, inMask);
   p1InputMask_ = inMask;
   if (lr != p1Libretro_) {
     p1Libretro_ = lr;

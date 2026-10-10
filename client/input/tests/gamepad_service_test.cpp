@@ -7,6 +7,7 @@
 
 #include "controllerprofiles.h"
 #include "gamepadservice.h"
+#include "inputmap.h"
 
 using namespace framebeam;
 using namespace framebeam::input;
@@ -215,6 +216,31 @@ class GamepadServiceTest : public QObject {
     pad.button(East, true);
     svc.poll();
     QCOMPARE(spy.count(), 2);
+  }
+
+  void threeDsProfileMapsShouldersTriggersAndSticks() {
+    const auto bit = [](const char* id) { return inputBit(QString::fromLatin1(id)); };
+    constexpr quint32 kL2 = 1u << 12, kR2 = 1u << 14;
+    // 3ds: ZL/ZR = L2/R2, circle pad and C-stick on the analog bits, D-pad stays a D-pad.
+    QCOMPARE(libretroMaskFor(QStringLiteral("3ds"), bit("zl") | bit("zr")), kL2 | kR2);
+    QCOMPARE(libretroMaskFor(QStringLiteral("3ds"), bit("l") | bit("r") | bit("a")), kL | kR | kA);
+    QCOMPARE(libretroMaskFor(QStringLiteral("3ds"), bit("up")), kUp);
+    QCOMPARE(libretroMaskFor(QStringLiteral("3ds"), bit("lup") | bit("lright")), kLibretroCirclePadUp | kLibretroCirclePadRight);
+    QCOMPARE(libretroMaskFor(QStringLiteral("3ds"), bit("cdown") | bit("cleft")), kLibretroCStickDown | kLibretroCStickLeft);
+    // nds: the circle pad inputs fold into the D-pad (left stick keeps working), ZL/ZR fold into L/R.
+    QCOMPARE(libretroMaskFor(QStringLiteral("nds"), bit("lup") | bit("lleft")), kUp | kLeft);
+    // ZL/ZR fold into L/R, the C-stick does not exist on the DS.
+    QCOMPARE(libretroMaskFor(QStringLiteral("nds"), bit("zl") | bit("zr") | bit("cup")), kL | kR);
+    QCOMPARE(libretroMaskFor(QString(), bit("l")), kL);  // unknown / empty profile = nds
+    // Appended inputs do not move the existing bit indices.
+    QCOMPARE(inputIndex(QStringLiteral("start")), 6);
+    QCOMPARE(inputIndex(QStringLiteral("right")), 11);
+    // Keyboard map follows the profile.
+    const Bindings b{{QStringLiteral("zl"), {keyToken(Qt::Key_E)}}, {QStringLiteral("lup"), {keyToken(Qt::Key_T)}}};
+    QCOMPARE(keyMapFor(QStringLiteral("3ds"), b).value(Qt::Key_E), kL2);
+    QCOMPARE(keyMapFor(QStringLiteral("3ds"), b).value(Qt::Key_T), kLibretroCirclePadUp);
+    QCOMPARE(keyMapFor(QStringLiteral("nds"), b).value(Qt::Key_E), kL);
+    QCOMPARE(keyMapFor(QStringLiteral("nds"), b).value(Qt::Key_T), kUp);
   }
 
   void unavailableWithoutSdlIsGraceful() {

@@ -120,7 +120,7 @@ func TestSystemsListsInstalledCoresAndDefault(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	got := get().Systems[0]
+	got := get().Systems[1] // systems are ordered by id: 3ds, nds
 	if got.DefaultCoreID == nil || *got.DefaultCoreID != "noods" || got.PreferredCoreID != "noods" || got.ExpectedCoreVersion == nil || *got.ExpectedCoreVersion != "2026.10.08" ||
 		got.CorePackageVersion == nil || *got.CorePackageVersion != "2026.10.08" || got.Cores == nil || len(*got.Cores) != 2 {
 		t.Fatalf("%+v", got)
@@ -137,7 +137,7 @@ func TestSystemsListsInstalledCoresAndDefault(t *testing.T) {
 	if err := s.svc.SetDefaultCore(ctx, "nds", "desmume"); err != nil {
 		t.Fatal(err)
 	}
-	got = get().Systems[0]
+	got = get().Systems[1] // systems are ordered by id: 3ds, nds
 	if *got.DefaultCoreID != "desmume" || got.PreferredCoreID != "desmume" || *got.CorePackageVersion != "2026.10.09" {
 		t.Fatalf("%+v", got)
 	}

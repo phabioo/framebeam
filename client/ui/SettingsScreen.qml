@@ -27,6 +27,7 @@ Rectangle {
         switch (name) {
         case "hubs": return secHubs
         case "appearance": return secAppearance
+        case "storage": return secStorage
         case "diagnostics": return secDiagnostics
         default: return secUpdates
         }
@@ -44,7 +45,7 @@ Rectangle {
         }
         const probe = flick.contentY + 80
         let best = "updates"
-        for (const n of ["updates", "hubs", "appearance", "diagnostics"]) {
+        for (const n of ["updates", "hubs", "appearance", "storage", "diagnostics"]) {
             if (sectionItem(n).y + content.y <= probe) {
                 best = n
             }
@@ -88,6 +89,7 @@ Rectangle {
                     { id: "updates", name: qsTr("Updates") },
                     { id: "hubs", name: qsTr("Hubs") },
                     { id: "appearance", name: qsTr("Appearance") },
+                    { id: "storage", name: qsTr("ROM cache") },
                     { id: "diagnostics", name: qsTr("Diagnostics") }
                 ]
                 delegate: ColumnItem {
@@ -109,6 +111,7 @@ Rectangle {
                                                                : qsTr("%1 saved").arg(root.savedHubs.length))
                               : sec.modelData.id === "appearance" ? (root.player.appearance === "light" ? qsTr("Light")
                                                                      : root.player.appearance === "system" ? qsTr("System") : qsTr("Dark"))
+                              : sec.modelData.id === "storage" ? qsTr("%1 of %2").arg(root.player.romCache.usedText).arg(root.player.romCache.limitText)
                               : qsTr("Logs and support")
                     }
                 }
@@ -642,6 +645,77 @@ Rectangle {
                         ]
                         current: root.player.appearance
                         onValuePicked: value => root.player.appearance = value
+                    }
+                }
+
+                // ------------------------------------------------------------------ ROM CACHE
+                ColumnLayout {
+                    id: secStorage
+                    objectName: "storageSection"
+                    Layout.fillWidth: true
+                    spacing: Theme.space12
+                    property bool confirmClear: false
+                    property string clearResult: ""
+                    Eyebrow { text: qsTr("ROM cache") }
+                    SettingsRow {
+                        objectName: "romCacheLimitRow"
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        resetMode: "none"
+                        label: qsTr("Size limit")
+                        meta: qsTr("Used: %1").arg(root.player.romCache.usedText)
+                        descriptionName: "romCacheLimitHint"
+                        description: qsTr("Downloaded games are kept on this device. When the limit is exceeded, the least recently played games are removed; the running game and downloads in progress are never removed. They are downloaded again when needed.")
+                        ctrl: "select"
+                        controlName: "romCacheLimitSelect"
+                        values: root.player.romCache.limitOptions
+                        current: String(root.player.romCache.limitBytes)
+                        onValuePicked: value => root.player.setRomCacheLimit(Number(value))
+                    }
+                    SettingsRow {
+                        objectName: "romCacheClearRow"
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        resetMode: "none"
+                        label: qsTr("Clear ROM cache")
+                        descriptionName: "romCacheClearHint"
+                        description: secStorage.clearResult !== "" ? secStorage.clearResult
+                                     : qsTr("Removes all downloaded games except the running one. Saves are not affected.")
+                        ctrl: "buttons"
+                        buttons: [{ name: "romCacheClear", text: qsTr("Clear…"), enabled: root.player.romCache.clearableBytes > 0 && !secStorage.confirmClear }]
+                        onButtonClicked: { secStorage.clearResult = ""; secStorage.confirmClear = true }
+                    }
+                    RowLayout {
+                        objectName: "romCacheClearConfirm"
+                        Layout.fillWidth: true
+                        spacing: Theme.space10
+                        visible: secStorage.confirmClear
+                        FbLabel {
+                            objectName: "romCacheClearConfirmText"
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: Theme.fontMeta
+                            color: Theme.text
+                            text: qsTr("Remove cached ROMs and free %1? Games are downloaded again when you play them. Saves are not deleted.").arg(root.player.romCache.clearableText)
+                        }
+                        FbButton {
+                            objectName: "romCacheClearCancel"
+                            implicitHeight: 32
+                            text: qsTr("Cancel")
+                            onClicked: secStorage.confirmClear = false
+                        }
+                        FbButton {
+                            objectName: "romCacheClearConfirmButton"
+                            implicitHeight: 32
+                            kind: "primary"
+                            text: qsTr("Clear cache")
+                            onClicked: {
+                                const r = root.player.clearRomCache()
+                                secStorage.confirmClear = false
+                                secStorage.clearResult = qsTr("Freed %1 (%n file(s) removed).", "", r.removedFiles).arg(r.freedText)
+                            }
+                        }
                     }
                 }
 

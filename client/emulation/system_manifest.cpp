@@ -56,7 +56,14 @@ QRect DisplayProfile::screenRect(int index) const {
     if (vertical) y += screens.at(i).height + gap;
     else x += screens.at(i).width + gap;
   }
-  return {x, y, screens.at(index).width, screens.at(index).height};
+  const ScreenSpec& s = screens.at(index);
+  const QSize fs = frameSize();
+  // Cross-axis alignment (screens of different width in a stack, different height side by side).
+  const int free = vertical ? fs.width() - s.width : fs.height() - s.height;
+  const int shift = s.align == QLatin1String("center") ? free / 2 : (s.align == QLatin1String("end") ? free : 0);
+  if (vertical) x += shift;
+  else y += shift;
+  return {x, y, s.width, s.height};
 }
 
 int DisplayProfile::touchScreenIndex() const {
@@ -118,6 +125,7 @@ std::optional<SystemManifest> ManifestRegistry::parse(const QByteArray& json, QS
     m.firmware.files.append(ff);
   }
 
+  m.order = o.value(QLatin1String("order")).toInt(100);
   m.inputProfile = o.value(QLatin1String("input_profile")).toString();
   m.displayProfile = o.value(QLatin1String("display_profile")).toString();
   const QJsonObject labels = o.value(QLatin1String("labels")).toObject();
@@ -131,7 +139,10 @@ std::optional<SystemManifest> ManifestRegistry::parse(const QByteArray& json, QS
     const QJsonObject s = v.toObject();
     ScreenSpec sp{s.value(QLatin1String("id")).toString(), s.value(QLatin1String("width")).toInt(),
                   s.value(QLatin1String("height")).toInt(), s.value(QLatin1String("touch")).toBool(false)};
+    sp.align = s.value(QLatin1String("align")).toString(QStringLiteral("start"));
     if (sp.width <= 0 || sp.height <= 0) return fail(QStringLiteral("display.screens: invalid size"));
+    if (sp.align != QLatin1String("start") && sp.align != QLatin1String("center") && sp.align != QLatin1String("end"))
+      return fail(QStringLiteral("display.screens: unknown align: ") + sp.align);
     m.display.screens.append(sp);
   }
   if (m.display.screens.isEmpty()) return fail(QStringLiteral("Missing required field: display.screens"));
@@ -165,11 +176,12 @@ std::optional<CoreProfile> ManifestRegistry::parseProfile(const QByteArray& json
   for (auto it = co.begin(); it != co.end(); ++it) p.coreOptions.insert(it.key(), it.value().toString());
   p.lockedCoreOptions = stringList(o.value(QLatin1String("locked_core_options")));
   p.alwaysShownCoreOptions = stringList(o.value(QLatin1String("always_shown_core_options")));
+  p.requiresHwRender = o.value(QLatin1String("requires_hw_render")).toBool(false);
   const QJsonObject save = o.value(QLatin1String("save")).toObject();
   p.saveSource = save.value(QLatin1String("source")).toString(p.saveSource);
   p.saveExtension = save.value(QLatin1String("extension")).toString(p.saveExtension);
   p.saveFormat = save.value(QLatin1String("format")).toString(p.saveFormat);
-  if ((p.saveSource != QLatin1String("save_ram") && p.saveSource != QLatin1String("core_file")) || !p.saveExtension.startsWith(QLatin1Char('.')) ||
+  if ((p.saveSource != QLatin1String("save_ram") && p.saveSource != QLatin1String("core_file") && p.saveSource != QLatin1String("none")) || !p.saveExtension.startsWith(QLatin1Char('.')) ||
       p.saveExtension.contains(QLatin1Char('/')) || p.saveExtension.contains(QLatin1Char('\\')) || p.saveExtension.size() < 2) {
     return fail(QStringLiteral("save: invalid source or extension"));
   }
@@ -228,6 +240,7 @@ std::optional<SystemManifest> ManifestRegistry::resolve(const QString& systemId,
     m.saveSource = p->saveSource;
     m.saveExtension = p->saveExtension;
     m.saveFormat = p->saveFormat;
+    m.requiresHwRender = p->requiresHwRender;
     m.coreOptions = p->coreOptions;
     m.lockedCoreOptions = p->lockedCoreOptions;
     m.alwaysShownCoreOptions = p->alwaysShownCoreOptions;
@@ -245,6 +258,14 @@ std::optional<SystemManifest> ManifestRegistry::resolve(const QString& systemId,
   m.experimental = true;
   m.display = DisplayProfile{QStringLiteral("single"), 0, {}};
   return m;
+}
+
+QList<SystemManifest> ManifestRegistry::all() const {
+  QList<SystemManifest> out = m_manifests;
+  std::stable_sort(out.begin(), out.end(), [](const SystemManifest& a, const SystemManifest& b) {
+    return a.order != b.order ? a.order < b.order : a.systemId < b.systemId;
+  });
+  return out;
 }
 
 bool ManifestRegistry::add(const SystemManifest& manifest, QString* error) {

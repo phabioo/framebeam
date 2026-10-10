@@ -7,7 +7,8 @@
 // Binding tokens (strings, stable in the file):
 //   gamepad:  "pad:<SDL gamepad button name>" (a b x y back guide start leftstick rightstick leftshoulder
 //             rightshoulder dpup dpdown dpleft dpright), "pad:lefttrigger" / "pad:righttrigger" (trigger as button),
-//             "pad:leftx-" "pad:leftx+" "pad:lefty-" "pad:lefty+" (left stick direction as a button; y- = up)
+//             "pad:leftx-" "pad:leftx+" "pad:lefty-" "pad:lefty+" (left stick direction as a button; y- = up),
+//             "pad:rightx-" "pad:rightx+" "pad:righty-" "pad:righty+" (right stick direction, same convention)
 //   keyboard: "key:<Qt::Key as a number>"
 // Names follow the position of the buttons (SDL): "pad:b" is the east button, i.e. "B" on an Xbox controller.
 

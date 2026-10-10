@@ -281,6 +281,7 @@ void GameStarter::onSaveReady(const QString& gameId, const QString& saveDir, con
   // files) < manifest-locked options (screen layout, OSD off; the render mode is a user choice, default software): FrameBeam stays in control of those.
   cfg.coreOptions = emu::launchCoreOptions(*man, emulation_->launchOverrides(man->systemId, launchGame_.id), fwOptions_);
   cfg.display = man->display;
+  cfg.requireHwRender = man->requiresHwRender;
   {
     const auto fb = [&](const char* key) { return emulation_->frameBeamValue(QString::fromLatin1(key), man->systemId, launchGame_.id); };
     cfg.speedUpRatio = fb(EmulationController::kSpeedUpRatioKey).toDouble();
@@ -289,6 +290,7 @@ void GameStarter::onSaveReady(const QString& gameId, const QString& saveDir, con
   }
   emit selectedGameChanged();
   emit gameLaunched(launchGame_.id);
+  emit systemInputSelected(man->inputProfile, man->inputLabel, man->touchLabel);
   session_.start(cfg);
 }
 

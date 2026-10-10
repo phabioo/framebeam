@@ -72,6 +72,7 @@ class EmulationRunner::Worker : public QThread {
     bool ok = be.loadCore(m_req.corePath, &err);
     if (ok) {
       for (auto it = m_req.coreOptions.cbegin(); it != m_req.coreOptions.cend(); ++it) be.setCoreOption(it.key(), it.value());
+      be.setRequireHwRender(m_req.requireHwRender);
       ok = be.loadGame(m_req.gamePath, &err);
     }
     if (!ok) {
