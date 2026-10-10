@@ -70,6 +70,11 @@ class RomCache {
   void discardPart(const QString& sha256, const QString& ext) const;
   // Checks the .part file; Ok: renamed atomically + sidecar. HashMismatch: .part deleted.
   CommitResult verifyAndCommit(const QString& sha256, const QString& ext) const;
+  // Adopts a local file (e.g. a just uploaded ROM) into the cache: copies it to <sha256>.<ext>.adopt (never the download's .part), verifies SHA-256, then renames atomically.
+  // Ok without copying when a valid cache file already exists. IoError when a download of the same ROM is running (.part exists).
+  // A stale .adopt after a crash is ignored by entries() and overwritten by the next adopt.
+  // Blocking (copies and hashes the whole file; do not use on the UI thread).
+  CommitResult adoptFile(const QString& srcPath, const QString& sha256, const QString& ext) const;
 
  private:
   void writeSidecar(const QString& sha256, const QString& ext) const;

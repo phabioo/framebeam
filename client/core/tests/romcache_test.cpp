@@ -55,6 +55,83 @@ class RomCacheTest : public QObject {
     QVERIFY(!QFile::exists(c.finalPath(sha, QStringLiteral("nds"))));
   }
 
+  void adoptFileCommitsAValidFile() {
+    QTemporaryDir dir;
+    QTemporaryDir srcDir;
+    RomCache c(dir.path());
+    const QByteArray rom = dummyRom();
+    const QString sha = shaOf(rom);
+    const QString src = srcDir.filePath(QStringLiteral("homebrew.nds"));
+    writeFile(src, rom);
+    QVERIFY(c.adoptFile(src, sha, QStringLiteral("nds")) == RomCache::CommitResult::Ok);
+    QVERIFY(QFile::exists(src));  // the source stays untouched
+    QVERIFY(!QFile::exists(c.partPath(sha, QStringLiteral("nds"))));
+    QVERIFY(c.lookup(sha, QStringLiteral("nds"), rom.size()));
+  }
+
+  void adoptFileWithWrongHashLeavesNothing() {
+    QTemporaryDir dir;
+    QTemporaryDir srcDir;
+    RomCache c(dir.path());
+    const QString sha = shaOf(dummyRom());
+    const QString src = srcDir.filePath(QStringLiteral("other.nds"));
+    writeFile(src, QByteArray("not the expected content"));
+    QVERIFY(c.adoptFile(src, sha, QStringLiteral("nds")) == RomCache::CommitResult::HashMismatch);
+    QVERIFY(!QFile::exists(c.finalPath(sha, QStringLiteral("nds"))));
+    QVERIFY(!QFile::exists(c.partPath(sha, QStringLiteral("nds"))));
+    QVERIFY(!QFile::exists(c.finalPath(sha, QStringLiteral("nds")) + QStringLiteral(".adopt")));
+    QVERIFY(c.adoptFile(srcDir.filePath(QStringLiteral("missing.nds")), sha, QStringLiteral("nds")) == RomCache::CommitResult::IoError);
+  }
+
+  void adoptFileLeavesARunningDownloadAlone() {
+    QTemporaryDir dir;
+    QTemporaryDir srcDir;
+    RomCache c(dir.path());
+    const QByteArray rom = dummyRom();
+    const QString sha = shaOf(rom);
+    writeFile(c.partPath(sha, QStringLiteral("nds")), rom.left(100));
+    const QString src = srcDir.filePath(QStringLiteral("homebrew.nds"));
+    writeFile(src, rom);
+    QVERIFY(c.adoptFile(src, sha, QStringLiteral("nds")) == RomCache::CommitResult::IoError);
+    QCOMPARE(c.partSize(sha, QStringLiteral("nds")), qint64(100));  // .part untouched
+    QVERIFY(!QFile::exists(c.finalPath(sha, QStringLiteral("nds")) + QStringLiteral(".adopt")));
+  }
+
+  void staleAdoptFileIsIgnoredAndReplaced() {
+    QTemporaryDir dir;
+    QTemporaryDir srcDir;
+    RomCache c(dir.path());
+    const QByteArray rom = dummyRom();
+    const QString sha = shaOf(rom);
+    const QString stale = c.finalPath(sha, QStringLiteral("nds")) + QStringLiteral(".adopt");
+    writeFile(stale, QByteArray("half written"));
+    QCOMPARE(c.entries().size(), 0);
+    QCOMPARE(c.totalSize(), qint64(0));
+    const QString src = srcDir.filePath(QStringLiteral("homebrew.nds"));
+    writeFile(src, rom);
+    QVERIFY(c.adoptFile(src, sha, QStringLiteral("nds")) == RomCache::CommitResult::Ok);
+    QVERIFY(!QFile::exists(stale));
+    QCOMPARE(c.entries().size(), 1);
+  }
+
+  void adoptFileKeepsAnExistingCacheFile() {
+    QTemporaryDir dir;
+    QTemporaryDir srcDir;
+    RomCache c(dir.path());
+    const QByteArray rom = dummyRom();
+    const QString sha = shaOf(rom);
+    writeFile(c.partPath(sha, QStringLiteral("nds")), rom);
+    QVERIFY(c.verifyAndCommit(sha, QStringLiteral("nds")) == RomCache::CommitResult::Ok);
+    const QString finalFile = c.finalPath(sha, QStringLiteral("nds"));
+    const QDateTime before = QFileInfo(finalFile).lastModified();
+    const QString src = srcDir.filePath(QStringLiteral("homebrew.nds"));
+    writeFile(src, rom);
+    QTest::qWait(20);
+    QVERIFY(c.adoptFile(src, sha, QStringLiteral("nds")) == RomCache::CommitResult::Ok);
+    QCOMPARE(QFileInfo(finalFile).lastModified(), before);  // not rewritten
+    QVERIFY(!QFile::exists(c.partPath(sha, QStringLiteral("nds"))));
+  }
+
   void corruptedCacheFileIsRejected() {
     QTemporaryDir dir;
     RomCache c(dir.path());

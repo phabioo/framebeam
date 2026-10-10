@@ -5,6 +5,7 @@
 #include <QDateTime>
 #include <QDesktopServices>
 #include <QDir>
+#include <QFutureWatcher>
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QLocale>
@@ -14,7 +15,9 @@
 #include <QSysInfo>
 #include <QTimer>
 #include <QUrl>
+#include <QtConcurrent>
 #include <algorithm>
+#include <utility>
 
 #include "core_options.h"
 #include "filelog.h"
@@ -896,6 +899,7 @@ void PlayerController::uploadRom(const QString& source) {
              {QStringLiteral("progress"), 0.0},
              {QStringLiteral("message"), QString()},
              {QStringLiteral("isError"), false}};
+  uploadSourcePath_ = path;
   emit uploadChanged();
   uploader_->upload(path);
 }
@@ -908,8 +912,30 @@ void PlayerController::dismissUploadMessage() {
   emit uploadChanged();
 }
 
+void PlayerController::adoptUploadedRom(const QString& srcPath, const QString& sha256, const QString& romFilename) {
+  if (!cache_ || srcPath.isEmpty() || !RomCache::isValidSha256(sha256)) return;
+  const QString ext = RomCache::extensionFromFilename(romFilename);
+  const RomCache cache = *cache_;  // copy: the worker must not touch the controller
+  auto* watcher = new QFutureWatcher<RomCache::CommitResult>(this);
+  connect(watcher, &QFutureWatcher<RomCache::CommitResult>::finished, this, [this, watcher, sha256, ext]() {
+    const RomCache::CommitResult res = watcher->result();
+    watcher->deleteLater();
+    if (res != RomCache::CommitResult::Ok) {
+      qInfo() << "Uploaded ROM was not adopted into the ROM cache (it downloads on first start)";
+      return;
+    }
+    if (!cache_) return;
+    cache_->touch(sha256, ext);  // newest entry, so the size limit does not evict it right away
+    trimRomCache();
+    emit romCacheChanged();
+    emit selectedGameChanged();  // "download needed" turns into "ready"
+  });
+  watcher->setFuture(QtConcurrent::run([cache, srcPath, sha256, ext]() { return cache.adoptFile(srcPath, sha256, ext); }));
+}
+
 void PlayerController::onUploadFinished(const UploadResult& r) {
   using K = UploadResult::Kind;
+  const QString srcPath = std::exchange(uploadSourcePath_, QString());
   QString message;
   bool isError = true;
   switch (r.kind) {
@@ -917,12 +943,16 @@ void PlayerController::onUploadFinished(const UploadResult& r) {
       message = tr("Uploaded “%1” to the Hub.").arg(r.game.title);
       isError = false;
       pendingSelectId_ = r.game.id;
+      adoptUploadedRom(srcPath, r.game.romSha256, r.game.romFilename);
       reloadLibrary();
       break;
     case K::Duplicate:
       message = tr("Already in the library.");
       isError = false;
       if (!r.existingGameId.isEmpty()) {
+        if (const auto existing = model_.game(r.existingGameId)) {
+          adoptUploadedRom(srcPath, existing->romSha256, existing->romFilename);  // hash is verified against the Hub's value
+        }
         if (model_.rowOfGame(r.existingGameId) >= 0) {
           selectGame(r.existingGameId);
         } else {
