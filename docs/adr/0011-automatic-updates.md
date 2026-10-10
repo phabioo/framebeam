@@ -36,7 +36,7 @@ Milestone 0.3 ([Roadmap](../roadmap.md)) lets a change on `main` reach the test 
 - `.github/workflows/release.yml` runs on `workflow_run` of a successful CI push on `main` or a `v*` tag and reuses that run's artifacts (no rebuild).
 - Stable: release `vX.Y.Z`, marked latest. Test: prerelease `v<X.Y.Z-test.N>` per main build, not latest; the workflow deletes test prereleases and tags (`v*-test.*` only) beyond the newest 5.
 - Assets: Hub `.deb` and raw binary per architecture, Player setup exe and portable zip, `SHA256SUMS`.
-- The workflow adds the releases to the index, signs, verifies against the compiled-in key and uploads (concurrency group `updates-release`). The secret `FRAMEBEAM_SIGNING_KEY` exists only in the signing step.
+- The workflow adds the releases to the index, signs, verifies against the compiled-in key and uploads (concurrency group `updates-release`). The secret `FRAMEBEAM_SIGNING_KEY` (environment `release`, main only) exists only in the signing step.
 - A stable release needs a deliberate tag push by Fabio; that is the confirmation on the publishing side.
 
 ### D4 Protocol compatibility
