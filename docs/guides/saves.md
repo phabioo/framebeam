@@ -10,6 +10,8 @@ The Hub keeps the central, versioned copy of every save; the Player syncs with i
 - Without a connection the game starts with the local save and the upload stays pending for the same Hub and user. Saves are never sent to another Hub.
 - Locations: Player `<data dir>/hubs/<hub_id>/users/<user_id>/saves/<game_id>/`; Hub `<data dir>/saves/` (files; SQLite holds metadata only).
 
+Local-only saves (0.10, [ADR 0022](../adr/0022-nintendo-3ds-with-azahar.md)): systems with save source `none` (Nintendo 3DS) skip all of this. Their data stays in the per-game save directory on the device, is never deleted or overwritten and is not synced to the Hub yet; syncing the SD/NAND tree is an open item.
+
 ## Conflicts
 
 If the Hub moved on in the meantime, the Hub never overwrites: it keeps the upload in history and opens a conflict. Decide in the Player dialog or on the Hub page "Saves":

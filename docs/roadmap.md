@@ -33,7 +33,7 @@ Phase plan: [workflow.md](workflow.md#phase-plan).
 | 0.7.x | done | Hub admin gaps, save upload, hardening, license | Delete users and devices, Hub user name in the Player, upload a save file, hardened TURN relay and web port, GPL-3.0-or-later with CLA and notices. |
 | 0.8 | done in code | Cores from the libretro buildbot | Systems instead of fixed cores: the Hub downloads cores RetroArch-style from the libretro buildbot; admin installs, updates and removes them per system; Player chooses the core per system and game ([ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md)). |
 | 0.9 | done in code | One installer: Player, Hub or both | One Windows MSI (WiX) with the features Player and Hub; the Hub runs as a Windows service; "Set up a Hub on this PC" and a standalone mode like RetroArch ([ADR 0021](adr/0021-one-windows-installer.md), proposed). Installer, upgrades and services verified only locally. |
-| 0.10 | planned | Second system: 3DS (Azahar) | The Azahar libretro core arrives as a buildbot core through 0.8 and runs on the OpenGL rendering from 0.5. |
+| 0.10 | done in code | Second system: 3DS (Azahar) | System `3ds` with the Azahar buildbot core on the OpenGL rendering; two-screen composition, local-only saves, game override UI, ROM cache limit ([ADR 0022](adr/0022-nintendo-3ds-with-azahar.md), proposed). Real Azahar run, performance and 3DS save sync open. |
 | 0.11 | planned | Metadata and artwork | Central game metadata and boxart in Hub and Player. |
 | 0.12 | planned | Linux and macOS Player | FrameBeam Player on Linux and macOS. |
 
@@ -251,8 +251,14 @@ Decided by Fabio on 2026-10-07: the second system is the Nintendo 3DS with the A
 - Performance: 3DS emulation needs a considerably faster CPU/GPU than DS; check on Fabio's devices whether play plus encoding fits.
 - It needs no installer changes: the Hub installs the core from the buildbot (0.8).
 - ~~Re-evaluate the core version check (warning vs. block, ADR 0007).~~ Decided in ADR 0017 D1.
-- Game override UI on the Emulation page.
-- ROM cache limit and cleanup.
+- [x] Done in code: Hub system `3ds` (migration 0010, no default core until the admin installs `azahar`; Systems page opens on the first system with an installed default core); Player manifests `systems/3ds.json` (400x240 + 320x240 touch, per-screen `align`, 400x480 frame) and `cores/azahar.json`; `requires_hw_render` (no OpenGL Core >= 3.3: clear error, no software fallback). [ADR 0022](adr/0022-nintendo-3ds-with-azahar.md).
+- [x] Done in code: 3DS saves are local-only (save source `none`), never deleted or overwritten, not synced to the Hub; the UI says so.
+- [x] Done in code: input profile `3ds` (ZL/ZR, circle pad, C-stick); built-in gamepad profile binds triggers to ZL/ZR and the left stick to the circle pad.
+- [x] Done in code: Game override UI on the Emulation page (per-game core, speed-up and core options, reset).
+- [x] Done in code: ROM cache limit (`rom_cache_limit_bytes`, default 20 GB, LRU) and "Clear ROM cache".
+- Open: sync of the 3DS SD/NAND tree with the Hub.
+- Open: Mii and other system files (not wired yet).
+- Open (Fabio, local): real Azahar run on the RTX 4080 (GL 3.3 core context), frame time including Session encoding, resolution factor, option values against the real core.
 - Core sourcing: superseded by [ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md) (0.8); the signed mirror, core list and weekly pin bumps of the 2026-10-07 plan are dropped.
 
 ## 0.11 Metadata and artwork
