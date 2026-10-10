@@ -23,6 +23,9 @@ struct ScreenSpec {
   int width = 0;
   int height = 0;
   bool touch = false;  // touch/pointer input goes to this screen
+  // Alignment across the layout axis when the screens differ in size: "start" (default: left in a vertical layout, top in
+  // a horizontal one), "center" or "end". Equal-sized screens are not affected.
+  QString align = QStringLiteral("start");
 };
 
 // Arrangement of the screens in the full frame delivered by the core.
@@ -61,6 +64,7 @@ struct FirmwareSpec {
 struct SystemManifest {
   QString systemId;
   QString displayName;
+  int order = 100;  // listing order of systems (lower first), then by system id; the Emulation page opens on the first
   // Effective core (empty on the system-only manifest returned by find()):
   QString coreId;
   QString coreDisplayName;  // shown when the core was not probed; defaults to coreId
@@ -72,6 +76,7 @@ struct SystemManifest {
   QString saveSource = QStringLiteral("auto");
   QString saveExtension = QStringLiteral(".sav");
   QString saveFormat = QStringLiteral("raw");
+  bool requiresHwRender = false;  // core profile: OpenGL (Core) required, no software fallback (start fails with an error)
   QStringList extensions;  // lowercase, with dot
   FirmwareSpec firmware;
   QString inputProfile;
@@ -99,11 +104,14 @@ struct CoreProfile {
   QStringList lockedCoreOptions;
   QStringList alwaysShownCoreOptions;
   // Where the cartridge save lives (ADR 0020 D7): "save_ram" = libretro SAVE_RAM, persisted by the Player as
-  // <rom basename><extension> (raw); "core_file" = the core manages its own file <rom basename><extension> in the
+  // <rom basename><extension> (raw); "none" = the core's saves are not a single file (e.g. 3DS: per-title trees in
+  // the core's virtual SD/NAND): they stay on this device in the game's save directory and are not synced (never
+  // uploaded, deleted or overwritten by the Player); "core_file" = the core manages its own file <rom basename><extension> in the
   // save directory in `saveFormat` ("desmume_dsv"); the Player converts around the core. The Hub stores raw saves only.
   QString saveSource = QStringLiteral("save_ram");
   QString saveExtension = QStringLiteral(".sav");
   QString saveFormat = QStringLiteral("raw");
+  bool requiresHwRender = false;  // "requires_hw_render": the core has no usable software mode (Azahar)
   QString sysfileOption;  // core option that switches built-in / external BIOS; empty = none
   QString sysfileNative = QStringLiteral("native");
   QString sysfileBuiltin = QStringLiteral("builtin");
@@ -124,7 +132,7 @@ class ManifestRegistry {
   bool add(const SystemManifest& manifest, QString* error = nullptr);
   bool addProfile(const CoreProfile& profile, QString* error = nullptr);
 
-  QList<SystemManifest> all() const { return m_manifests; }
+  QList<SystemManifest> all() const;  // sorted by order, then system id
   const SystemManifest* find(const QString& systemId) const;
   const SystemManifest* forExtension(const QString& ext) const;
 

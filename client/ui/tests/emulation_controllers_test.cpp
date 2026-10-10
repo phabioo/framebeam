@@ -10,6 +10,8 @@
 #include "controllerprofiles.h"
 #include "core_options.h"
 #include "fakehub.h"
+#include "profilestore.h"
+#include "romcache.h"
 #include "testsupport.h"
 
 using namespace framebeam;
@@ -727,6 +729,154 @@ class EmulationControllersTest : public QObject {
     QVERIFY(emu->system().value(QStringLiteral("coreNotice")).toString().isEmpty());
   }
 
+  void perGameOverridesOnTheEmulationPage() {
+    FakeHub hub(QStringLiteral("a"));
+    hub.features = {QStringLiteral("saves_v1"), QStringLiteral("firmware_v1"), QStringLiteral("cores_v1"), QStringLiteral("cores_v2")};
+    const auto core = [](const QString& id, const QString& name, const QString& date) {
+      return QJsonObject{{QStringLiteral("core_id"), id},   {QStringLiteral("display_name"), name},
+                         {QStringLiteral("version"), date},  {QStringLiteral("license"), QStringLiteral("GPLv3")},
+                         {QStringLiteral("experimental"), false}, {QStringLiteral("origin"), QStringLiteral("libretro-buildbot")},
+                         {QStringLiteral("build_date"), date}};
+    };
+    hub.systems = {{QStringLiteral("systems"),
+                    QJsonArray{QJsonObject{{QStringLiteral("id"), QStringLiteral("nds")},
+                                           {QStringLiteral("display_name"), QStringLiteral("Nintendo DS")},
+                                           {QStringLiteral("preferred_core_id"), QStringLiteral("melondsds")},
+                                           {QStringLiteral("default_core_id"), QStringLiteral("melondsds")},
+                                           {QStringLiteral("core_package_version"), QStringLiteral("2026.10.09")},
+                                           {QStringLiteral("cores"), QJsonArray{core(QStringLiteral("melondsds"), QStringLiteral("melonDS DS"), QStringLiteral("2026.10.09")),
+                                                                                core(QStringLiteral("desmume"), QStringLiteral("DeSmuME"), QStringLiteral("2026.10.08"))}},
+                                           {QStringLiteral("firmware_mode"), QStringLiteral("builtin")},
+                                           {QStringLiteral("firmware"), QJsonArray{}}}}}};
+    const QByteArray rom = QByteArray(2048, 'q') + "FRAMEBEAM-DUMMY";  // dummy file, no real ROM
+    hub.roms.insert(uitest::sha256Hex(rom), rom);
+    hub.games = QJsonObject{{QStringLiteral("games"), QJsonArray{uitest::gameJson(QStringLiteral("g1"), QStringLiteral("Lumen Drift"),
+                                                                                    uitest::sha256Hex(rom), rom.size())}}};
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    QTRY_VERIFY_WITH_TIMEOUT(h.controller->hubSystems()->state() == HubSystems::State::Ready, 8000);
+    h.controller->emulation()->setCoreProbe(QStringLiteral("melondsds"), fakeProbe(), false);
+    h.controller->showEmulation();
+    EmulationController* emu = h.controller->emulation();
+    const QString key = QString::fromLatin1(EmulationSettings::kCoreKey);
+    using L = EmulationSettings::Level;
+
+    // The old placeholder is gone; the card and the picker exist.
+    QVERIFY(h.item("gameOverridesCard") != nullptr);
+    QTRY_COMPARE_WITH_TIMEOUT(emu->games().size(), 1, 4000);
+    QCOMPARE(emu->games().first().toMap().value(QStringLiteral("systemId")).toString(), QStringLiteral("nds"));
+    QVERIFY(!visible(h, "gamePicker"));
+    emu->setLevel(QStringLiteral("game"));
+    QVERIFY(visible(h, "gamePicker"));
+    QVERIFY(visible(h, "gamePickerHint"));  // no game picked yet
+    QVERIFY(emu->groups().isEmpty());
+
+    // Pick the game: its system's core group appears; the core row offers "Use system default" first.
+    pick(h, "gameSelect", QStringLiteral("g1"));
+    QCOMPARE(emu->selectedGame(), QStringLiteral("g1"));
+    QVERIFY(!visible(h, "gamePickerHint"));
+    QVERIFY(h.item("optionSelect_framebeam.core") != nullptr);
+    QVariantMap coreRow;
+    for (const QVariant& g : emu->groups()) {
+      for (const QVariant& o : g.toMap().value(QStringLiteral("options")).toList()) {
+        if (o.toMap().value(QStringLiteral("key")).toString() == key) coreRow = o.toMap();
+      }
+    }
+    QCOMPARE(coreRow.value(QStringLiteral("values")).toList().first().toMap().value(QStringLiteral("label")).toString(), QStringLiteral("Use system default"));
+    QCOMPARE(coreRow.value(QStringLiteral("value")).toString(), QString());
+    QCOMPARE(coreRow.value(QStringLiteral("values")).toList().size(), 3);  // default + two cores
+
+    // Choose DeSmuME for this game only: stored at game level, not for the system.
+    pick(h, "optionSelect_framebeam.core", QStringLiteral("desmume"));
+    QCOMPARE(emu->settings()->value(L::Game, QStringLiteral("g1"), key), QStringLiteral("desmume"));
+    QVERIFY(!emu->settings()->hasValue(L::System, QStringLiteral("nds"), key));
+    QCOMPARE(emu->system().value(QStringLiteral("coreId")).toString(), QStringLiteral("melondsds"));  // the system is unchanged
+    QCOMPARE(emu->game().value(QStringLiteral("changedCount")).toInt(), 1);
+    QCOMPARE(emu->gameOverrideCount(), 1);
+    QCOMPARE(emu->changedCount(), 1);
+    QVERIFY(visible(h, "changedDot_framebeam.core"));
+
+    // A per-game FrameBeam option (speed-up) overrides system and global for this game only.
+    const QString ratio = QString::fromLatin1(EmulationController::kSpeedUpRatioKey);
+    pick(h, "optionSelect_framebeam.speedup_ratio", QStringLiteral("4"));
+    QCOMPARE(emu->frameBeamValue(ratio, QStringLiteral("nds"), QStringLiteral("g1")), QStringLiteral("4"));
+    QCOMPARE(emu->frameBeamValue(ratio, QStringLiteral("nds"), QString()), QStringLiteral("2"));
+    QCOMPARE(emu->changedCount(), 2);
+
+    // Reset to default: one option, then everything of the game.
+    emu->resetOption(key);
+    QVERIFY(!emu->settings()->hasValue(L::Game, QStringLiteral("g1"), key));
+    QCOMPARE(emu->changedCount(), 1);
+    QVERIFY(visible(h, "resetAllChanged"));
+    emu->resetAllChanged();
+    QVERIFY(emu->settings()->values(L::Game, QStringLiteral("g1")).isEmpty());
+    QCOMPARE(emu->gameOverrideCount(), 0);
+    // Choosing "Use system default" stores nothing.
+    pick(h, "optionSelect_framebeam.core", QStringLiteral("desmume"));
+    pick(h, "optionSelect_framebeam.core", QString());
+    QVERIFY(!emu->settings()->hasValue(L::Game, QStringLiteral("g1"), key));
+
+    // Back on a system: the game section stays out of the way.
+    emu->setLevel(QStringLiteral("system"));
+    QVERIFY(!visible(h, "gamePicker"));
+  }
+
+  void romCacheLimitAndClearOnTheSettingsPage() {
+    FakeHub hub(QStringLiteral("a"));
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    // Dummy files (no ROMs) in the cache: one old, one newer.
+    RomCache cache(h.controller->profileStore()->romCacheDir());
+    const auto add = [&](char fill, qint64 usedMs) {
+      const QByteArray d(4096, fill);
+      const QString sha = uitest::sha256Hex(d);
+      QFile f(cache.partPath(sha, QStringLiteral("3ds")));
+      if (!f.open(QIODevice::WriteOnly)) return QString();
+      f.write(d);
+      f.close();
+      if (cache.verifyAndCommit(sha, QStringLiteral("3ds")) != RomCache::CommitResult::Ok) return QString();
+      cache.touch(sha, QStringLiteral("3ds"), usedMs);
+      return sha;
+    };
+    const QString oldSha = add('a', 1000);
+    const QString newSha = add('b', 2000);
+    QVERIFY(!oldSha.isEmpty() && !newSha.isEmpty());
+
+    h.controller->showSettings();
+    QVERIFY(h.item("romCacheLimitSelect") != nullptr);
+    QVERIFY(h.item("romCacheClear") != nullptr);
+    QVariantMap rc = h.controller->romCache();
+    QCOMPARE(rc.value(QStringLiteral("limitBytes")).toDouble(), 20.0 * 1024 * 1024 * 1024);  // default 20 GB
+    QCOMPARE(rc.value(QStringLiteral("usedBytes")).toDouble(), 8192.0);
+    QCOMPARE(rc.value(QStringLiteral("files")).toInt(), 2);
+    QCOMPARE(rc.value(QStringLiteral("limitOptions")).toList().first().toMap().value(QStringLiteral("label")).toString(), QStringLiteral("Unlimited"));
+
+    // A tiny limit evicts the least recently used file first.
+    h.controller->setRomCacheLimit(5000);
+    QVERIFY(!QFile::exists(cache.finalPath(oldSha, QStringLiteral("3ds"))));
+    QVERIFY(QFile::exists(cache.finalPath(newSha, QStringLiteral("3ds"))));
+    // 0 = unlimited.
+    h.controller->setRomCacheLimit(0);
+    QCOMPARE(h.controller->romCache().value(QStringLiteral("limitBytes")).toDouble(), 0.0);
+    QCOMPARE(h.controller->romCache().value(QStringLiteral("limitText")).toString(), QStringLiteral("Unlimited"));
+
+    // Clear: the confirmation shows what is freed, nothing is removed until it is confirmed.
+    QCOMPARE(h.controller->romCache().value(QStringLiteral("clearableBytes")).toDouble(), 4096.0);
+    QVERIFY(h.click("romCacheClear"));
+    QTRY_VERIFY(visible(h, "romCacheClearConfirm"));
+    QVERIFY(text(h, "romCacheClearConfirmText").contains(h.controller->romCache().value(QStringLiteral("clearableText")).toString()));
+    QVERIFY(QFile::exists(cache.finalPath(newSha, QStringLiteral("3ds"))));
+    QVERIFY(h.click("romCacheClearConfirmButton"));
+    QVERIFY(!QFile::exists(cache.finalPath(newSha, QStringLiteral("3ds"))));
+    QTRY_VERIFY(!visible(h, "romCacheClearConfirm"));
+    QVERIFY(text(h, "romCacheClearHint").contains(QStringLiteral("Freed")));
+    QCOMPARE(h.controller->romCache().value(QStringLiteral("usedBytes")).toDouble(), 0.0);
+  }
+
   void coreMissingIsShown() {
     qunsetenv("FRAMEBEAM_MELONDS_DS_CORE");
     FakeHub hub(QStringLiteral("a"));
@@ -810,7 +960,8 @@ class EmulationControllersTest : public QObject {
     QCOMPARE(c->devices().size(), 2);  // Keyboard, Mouse
     QCOMPARE(c->selectedDevice(), QStringLiteral("keyboard"));
     QCOMPARE(text(h, "profilesLocalFooter"), QStringLiteral("Saved on this device only"));
-    QCOMPARE(c->rows().size(), 12);
+    QCOMPARE(c->rows().size(), 22);  // 12 DS inputs + ZL/ZR + C-stick + circle pad (3DS)
+    QVERIFY(!inputRow(h, QStringLiteral("zl")).isEmpty() && !inputRow(h, QStringLiteral("lup")).isEmpty() && !inputRow(h, QStringLiteral("cup")).isEmpty());
     QVERIFY(!c->supportsLid());  // no LID row: the nds profiles have no lid input
     QCOMPARE(inputRow(h, QStringLiteral("a")).value(QStringLiteral("binding")).toString(), QStringLiteral("X"));
     QCOMPARE(deviceRow(h, QStringLiteral("keyboard")).value(QStringLiteral("slot")).toString(), QStringLiteral("P1"));  // no pad yet
@@ -834,7 +985,7 @@ class EmulationControllersTest : public QObject {
     QCOMPARE(c->labelSet(), QStringLiteral("generic"));  // not an Xbox/PlayStation pad: names of the emulated system
     QCOMPARE(text(h, "mapText_a"), QStringLiteral("A"));       // NDS A on the east button, generic set = DS names
     QCOMPARE(inputRow(h, QStringLiteral("a")).value(QStringLiteral("binding")).toString(), QStringLiteral("B"));  // token label
-    QCOMPARE(text(h, "mapText_up"), QStringLiteral("D-pad · or left stick"));
+    QCOMPARE(text(h, "mapText_up"), QStringLiteral("D-pad"));
     // Built-in profiles are read-only.
     c->beginCapture(QStringLiteral("a"));
     QVERIFY(c->listening().isEmpty());
@@ -873,7 +1024,7 @@ class EmulationControllersTest : public QObject {
     c->gamepads()->poll();
     QVERIFY(c->listening().isEmpty());
     QCOMPARE(text(h, "mapText_a"), QStringLiteral("L"));   // left shoulder = DS "L" in the generic set
-    QCOMPARE(text(h, "mapText_l"), QStringLiteral("L2"));  // LT, taken away from L (a token drives one input)
+    QCOMPARE(text(h, "mapText_l"), QStringLiteral("Unassigned"));  // LB, taken away from L (a token drives one input)
     pad.button(LB, false);
     c->gamepads()->poll();
     pad.button(LB, true);  // remapped profile drives the game

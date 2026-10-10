@@ -62,6 +62,81 @@ QVariantList EmulationController::systems() const {
   return out;
 }
 
+QVariantList EmulationController::games() const {
+  QVariantList out;
+  for (const QVariant& v : games_) {
+    QVariantMap m = v.toMap();
+    QString sysName = m.value(QStringLiteral("systemId")).toString();
+    for (const QVariant& c : systems_) {
+      if (c.toMap().value(QStringLiteral("id")).toString() == m.value(QStringLiteral("systemId")).toString()) {
+        sysName = c.toMap().value(QStringLiteral("name")).toString();
+      }
+    }
+    m.insert(QStringLiteral("systemName"), sysName);
+    m.insert(QStringLiteral("label"), QStringLiteral("%1 · %2").arg(m.value(QStringLiteral("title")).toString(), sysName));
+    m.insert(QStringLiteral("changedCount"), static_cast<int>(settings_.values(Level::Game, m.value(QStringLiteral("id")).toString()).size()));
+    out.append(m);
+  }
+  return out;
+}
+
+QVariantMap EmulationController::game() const {
+  for (const QVariant& v : games()) {
+    if (v.toMap().value(QStringLiteral("id")).toString() == selectedGame_) return v.toMap();
+  }
+  return {};
+}
+
+int EmulationController::gameOverrideCount() const {
+  int n = 0;
+  for (const QVariant& v : games_) n += settings_.values(Level::Game, v.toMap().value(QStringLiteral("id")).toString()).isEmpty() ? 0 : 1;
+  return n;
+}
+
+void EmulationController::setGames(const QVariantList& games) {
+  if (games == games_) return;
+  games_ = games;
+  emit gamesChanged();
+  if (!selectedGame_.isEmpty() && game().isEmpty()) {  // the game left the library
+    selectedGame_.clear();
+    emit gameSelectionChanged();
+    rebuild();
+  }
+}
+
+void EmulationController::selectGame(const QString& gameId) {
+  if (gameId == selectedGame_) return;
+  const auto it = std::find_if(games_.cbegin(), games_.cend(), [&](const QVariant& v) { return v.toMap().value(QStringLiteral("id")).toString() == gameId; });
+  if (it == games_.cend()) return;
+  selectedGame_ = gameId;
+  const QString sys = it->toMap().value(QStringLiteral("systemId")).toString();
+  if (sys != selected_) {
+    selected_ = sys;
+    emit selectionChanged();
+  }
+  emit gameSelectionChanged();
+  const QString core = effectiveCoreId();
+  if (!core.isEmpty()) loadCoreCache(core);
+  rebuild();
+}
+
+QString EmulationController::scope() const {
+  if (level_ == QLatin1String("global")) return {};
+  return level_ == QLatin1String("game") ? selectedGame_ : selected_;
+}
+
+QString EmulationController::effectiveCoreId() const {
+  const QString systemCore = system().value(QStringLiteral("coreId")).toString();
+  if (level_ != QLatin1String("game") || selectedGame_.isEmpty()) return systemCore;
+  const QString chosen = settings_.value(Level::Game, selectedGame_, QString::fromLatin1(kCoreKey));
+  if (chosen.isEmpty()) return systemCore;
+  for (const QVariant& c : system().value(QStringLiteral("cores")).toList()) {
+    const QString id = c.toMap().value(QStringLiteral("id")).toString();
+    if (id == chosen || (manifests_ != nullptr && manifests_->canonicalCoreId(id) == manifests_->canonicalCoreId(chosen))) return id;
+  }
+  return systemCore;  // a core the Hub no longer serves is ignored (the notice names it)
+}
+
 int EmulationController::defaultsChangedCount() const { return static_cast<int>(settings_.values(Level::Global, QString()).size()); }
 
 QVariantMap EmulationController::system() const {
@@ -73,7 +148,7 @@ QVariantMap EmulationController::system() const {
 
 std::optional<emu::SystemManifest> EmulationController::selectedManifest() const {
   if (manifests_ == nullptr || selected_.isEmpty()) return std::nullopt;
-  const QString coreId = system().value(QStringLiteral("coreId")).toString();
+  const QString coreId = effectiveCoreId();
   if (!coreId.isEmpty()) {
     if (auto m = manifests_->resolve(selected_, coreId)) return m;
   }
@@ -95,6 +170,7 @@ void EmulationController::setSystems(const QVariantList& cards) {
     emit selectionChanged();
   }
   emit systemsChanged();
+  emit gamesChanged();
   rebuild();
 }
 
@@ -141,7 +217,7 @@ void EmulationController::loadCoreCache(const QString& coreId) {
 }
 
 void EmulationController::setLevel(const QString& level) {
-  if ((level != QLatin1String("global") && level != QLatin1String("system")) || level == level_) return;
+  if ((level != QLatin1String("global") && level != QLatin1String("system") && level != QLatin1String("game")) || level == level_) return;
   level_ = level;
   emit levelChanged();
   rebuild();
@@ -160,7 +236,9 @@ void EmulationController::selectSystem(const QString& id) {
   }
 }
 
-Level EmulationController::levelEnum() const { return level_ == QLatin1String("global") ? Level::Global : Level::System; }
+Level EmulationController::levelEnum() const {
+  return level_ == QLatin1String("global") ? Level::Global : (level_ == QLatin1String("game") ? Level::Game : Level::System);
+}
 
 QString EmulationController::frameBeamValue(const QString& key, const QString& systemId, const QString& gameId) const {
   QString def;
@@ -183,11 +261,12 @@ bool EmulationController::knownOption(const QString& key, QList<emu::CoreOptionV
   }
   if (level_ == QLatin1String("global")) return false;  // core keys are set per system/core
   if (key == QLatin1String(kCoreKey)) {
+    if (level_ == QLatin1String("game")) values->append({QString(), tr("Use system default")});
     for (const QVariant& c : system().value(QStringLiteral("cores")).toList()) {
       const QVariantMap cm = c.toMap();
       values->append({cm.value(QStringLiteral("id")).toString(), cm.value(QStringLiteral("label")).toString()});
     }
-    return !values->isEmpty();
+    return values->size() > (level_ == QLatin1String("game") ? 1 : 0);
   }
   const std::optional<emu::SystemManifest> manOpt = selectedManifest();
   const emu::SystemManifest* man = manOpt ? &*manOpt : nullptr;
@@ -207,7 +286,7 @@ QString EmulationController::defaultValueOf(const QString& key) const {
   for (const FbOption& o : frameBeamOptions()) {
     if (o.key == key) return o.defaultValue;
   }
-  if (key == QLatin1String(kCoreKey)) return system().value(QStringLiteral("defaultCoreId")).toString();
+  if (key == QLatin1String(kCoreKey)) return level_ == QLatin1String("game") ? QString() : system().value(QStringLiteral("defaultCoreId")).toString();
   const std::optional<emu::SystemManifest> manOpt = selectedManifest();
   const emu::SystemManifest* man = manOpt ? &*manOpt : nullptr;
   if (man == nullptr) return {};
@@ -218,6 +297,7 @@ QString EmulationController::defaultValueOf(const QString& key) const {
     }
   }
   // System level inherits a Global value if the file has one; otherwise manifest, then core default.
+  if (level_ == QLatin1String("game") && settings_.hasValue(Level::System, selected_, key)) return settings_.value(Level::System, selected_, key);
   if (!global && settings_.hasValue(Level::Global, QString(), key)) return settings_.value(Level::Global, QString(), key);
   const QString manifestDefault = man->coreOptions.value(key, QString());
   return manifestDefault.isNull() ? coreDefault : manifestDefault;
@@ -225,7 +305,7 @@ QString EmulationController::defaultValueOf(const QString& key) const {
 
 void EmulationController::setOption(const QString& key, const QString& value) {
   QList<emu::CoreOptionValue> values;
-  if (selected_.isEmpty() || !knownOption(key, &values)) return;
+  if (selected_.isEmpty() || (level_ == QLatin1String("game") && selectedGame_.isEmpty()) || !knownOption(key, &values)) return;
   const bool valid = std::any_of(values.cbegin(), values.cend(), [&](const emu::CoreOptionValue& v) { return v.value == value; });
   if (!valid) return;
   if (value == defaultValueOf(key)) {
@@ -236,21 +316,23 @@ void EmulationController::setOption(const QString& key, const QString& value) {
   }
   rebuild();
   emit systemsChanged();
+  emit gamesChanged();
   if (key.startsWith(QLatin1String("framebeam."))) emit frameBeamOptionsChanged();
   if (key == QLatin1String(kCoreKey)) emit coreChoiceChanged();
 }
 
 void EmulationController::resetOption(const QString& key) {
-  if (selected_.isEmpty()) return;
+  if (selected_.isEmpty() || (level_ == QLatin1String("game") && selectedGame_.isEmpty())) return;
   settings_.removeValue(levelEnum(), scope(), key);
   rebuild();
   emit systemsChanged();
+  emit gamesChanged();
   if (key.startsWith(QLatin1String("framebeam."))) emit frameBeamOptionsChanged();
   if (key == QLatin1String(kCoreKey)) emit coreChoiceChanged();
 }
 
 void EmulationController::resetAllChanged() {
-  if (selected_.isEmpty()) return;
+  if (selected_.isEmpty() || (level_ == QLatin1String("game") && selectedGame_.isEmpty())) return;
   bool fb = false;
   bool coreChanged = false;
   const QMap<QString, QString> vals = settings_.values(levelEnum(), scope());
@@ -262,6 +344,7 @@ void EmulationController::resetAllChanged() {
   restartTouched_ = false;
   rebuild();
   emit systemsChanged();
+  emit gamesChanged();
   if (fb) emit frameBeamOptionsChanged();
   if (coreChanged) emit coreChoiceChanged();
 }
@@ -287,12 +370,15 @@ QVariantMap EmulationController::row(const QString& key, const QString& label, c
   const Level lvl = levelEnum();
   const bool isSet = settings_.hasValue(lvl, scope(), key);
   // Value shown: what the level being edited yields (global: global > default; system: system > global > ... ).
-  const EmulationSettings::Resolved r = settings_.resolve(key, global ? QString() : selected_, QString(), manifestDefault, coreDefault);
+  const bool gameLvl = level_ == QLatin1String("game");
+  const EmulationSettings::Resolved r =
+      settings_.resolve(key, global ? QString() : selected_, gameLvl ? selectedGame_ : QString(), manifestDefault, coreDefault);
   QString origin;
   if (isSet) {
     origin = tr("set here");
   } else {
     switch (r.source) {
+      case Source::System: origin = tr("inherited · System"); break;
       case Source::Global: origin = tr("inherited · Global"); break;
       case Source::Manifest: origin = tr("inherited · FrameBeam default"); break;
       case Source::Core: origin = frameBeam ? (global ? tr("default") : tr("inherited · default")) : tr("inherited · core default"); break;
@@ -352,8 +438,9 @@ void EmulationController::rebuild() {
     }
     return out;
   };
-  if (!selected_.isEmpty()) {
+  if (!selected_.isEmpty() && !(level_ == QLatin1String("game") && selectedGame_.isEmpty())) {
     const bool global = level_ == QLatin1String("global");
+    const bool gameLvl = level_ == QLatin1String("game");
     if (global) {
       // Defaults: options that do not depend on a system.
       QVariantList fb;
@@ -372,9 +459,10 @@ void EmulationController::rebuild() {
     if (man != nullptr && !global) {
       const emu::CoreProbe* probe = coreProbe(man->coreId);
       QString coreName = probe != nullptr && !probe->info.name.isEmpty() ? probe->info.name : QString();
+      if (gameLvl && coreName.isEmpty()) coreName = man->coreDisplayName;
       for (const QVariant& v : systems_) {
         const QVariantMap m = v.toMap();
-        if (m.value(QStringLiteral("id")).toString() == selected_ && coreName.isEmpty()) coreName = m.value(QStringLiteral("coreName")).toString();
+        if (!gameLvl && m.value(QStringLiteral("id")).toString() == selected_ && coreName.isEmpty()) coreName = m.value(QStringLiteral("coreName")).toString();
       }
       QVariantList core;
       if (probe != nullptr) {
@@ -441,6 +529,18 @@ void EmulationController::rebuild() {
         } else if (!r.value(QStringLiteral("isSet")).toBool()) {
           r.insert(QStringLiteral("origin"), tr("Hub default"));
         }
+        if (gameLvl) {
+          // Per game: "Use system default" when the game has no choice of its own; the stored id is shown even when the Hub
+          // does not serve that core any more (listed as it is, never replaced silently).
+          const QString own = settings_.value(Level::Game, selectedGame_, QString::fromLatin1(kCoreKey));
+          if (own.isEmpty()) {
+            r.insert(QStringLiteral("value"), QString());
+            r.insert(QStringLiteral("valueLabel"), tr("Use system default"));
+            r.insert(QStringLiteral("origin"), tr("inherited · %1").arg(card.value(QStringLiteral("coreName")).toString()));
+          }
+          r.insert(QStringLiteral("description"),
+                   tr("The core that runs this game. \"Use system default\" follows the system's choice; the change applies the next time the game starts."));
+        }
         r.insert(QStringLiteral("restart"), false);
         fb.append(r);
       }
@@ -449,8 +549,8 @@ void EmulationController::rebuild() {
       }
       groups.prepend(QVariantMap{{QStringLiteral("id"), QStringLiteral("framebeam")},
                                 {QStringLiteral("title"), tr("FrameBeam")},
-                                {QStringLiteral("subtitle"), tr("Core and speed-up in the Player")},
-                                {QStringLiteral("note"), card.value(QStringLiteral("coreNotice")).toString()},
+                                {QStringLiteral("subtitle"), gameLvl ? tr("Core and speed-up for this game") : tr("Core and speed-up in the Player")},
+                                {QStringLiteral("note"), gameLvl ? QString() : card.value(QStringLiteral("coreNotice")).toString()},
                                 {QStringLiteral("options"), collect(fb)}});
     }
   }

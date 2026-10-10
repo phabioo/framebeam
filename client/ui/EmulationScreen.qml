@@ -56,7 +56,7 @@ Rectangle {
                     id: card
                     required property var modelData
                     objectName: "systemCard_" + modelData.id
-                    selected: !root.emu.defaultsSelected && modelData.id === root.emu.selectedSystem
+                    selected: !root.emu.defaultsSelected && !root.emu.gameSelected && modelData.id === root.emu.selectedSystem
                     onClicked: { root.emu.level = "system"; root.emu.selectSystem(card.modelData.id) }
                     RowLayout {
                         Layout.fillWidth: true
@@ -102,31 +102,33 @@ Rectangle {
                 }
             }
 
-            Item { Layout.fillHeight: true }
+            Eyebrow { text: qsTr("Per game"); Layout.leftMargin: 4; Layout.topMargin: Theme.space14; Layout.bottomMargin: Theme.space6 }
 
-            // Placeholder (dashed)
-            Rectangle {
-                Layout.fillWidth: true
-                implicitHeight: moreCol.implicitHeight + 24
-                radius: Theme.radius8
-                color: "transparent"
-                border.width: 1
-                border.color: Theme.borderInput
-                ColumnLayout {
-                    id: moreCol
-                    anchors.fill: parent
-                    anchors.margins: 12
-                    spacing: 3
-                    FbLabel { text: qsTr("Per-game settings"); color: Theme.textMuted; font.weight: Font.Medium }
+            ColumnItem {
+                objectName: "gameOverridesCard"
+                selected: root.emu.gameSelected
+                onClicked: root.emu.level = "game"
+                RowLayout {
+                    Layout.fillWidth: true
+                    FbLabel { Layout.fillWidth: true; text: qsTr("Game overrides"); font.weight: Font.DemiBold; elide: Text.ElideRight }
                     FbLabel {
-                        Layout.fillWidth: true
-                        text: qsTr("Coming later. Set from a game's page in the Library.")
-                        color: Theme.textFaint
-                        font.pixelSize: Theme.fontMeta
-                        wrapMode: Text.WordWrap
+                        objectName: "gameOverridesChanged"
+                        visible: root.emu.gameOverrideCount > 0
+                        text: qsTr("%n game(s)", "", root.emu.gameOverrideCount)
+                        font.pixelSize: Theme.fontMono
+                        color: Theme.accent
                     }
                 }
+                FbLabel {
+                    Layout.fillWidth: true
+                    text: qsTr("Core and options for a single game")
+                    color: Theme.textMuted
+                    font.pixelSize: Theme.fontMeta
+                    elide: Text.ElideRight
+                }
             }
+
+            Item { Layout.fillHeight: true }
         }
 
         // Main
@@ -159,6 +161,7 @@ Rectangle {
                             objectName: "emulationTitle"
                             Layout.fillWidth: true
                             text: root.emu.defaultsSelected ? qsTr("Defaults for all systems")
+                                  : root.emu.gameSelected ? (root.emu.selectedGame !== "" ? root.emu.game.title : qsTr("Game overrides"))
                                   : (root.emu.system.name !== undefined
                                      ? (root.emu.system.coreVersion !== ""
                                         ? qsTr("%1 · %2 %3").arg(root.emu.system.name).arg(root.emu.system.coreName).arg(root.emu.system.coreVersion)
@@ -173,7 +176,9 @@ Rectangle {
                             Layout.fillWidth: true
                             text: root.emu.defaultsSelected
                                   ? qsTr("Systems use these unless you change them there. Saved on this device only.")
-                                  : qsTr("Only options this core reports. Saved on this device only.")
+                                  : root.emu.gameSelected
+                                    ? qsTr("Only what you change here applies to this game; everything else follows the system. Saved on this device only.")
+                                    : qsTr("Only options this core reports. Saved on this device only.")
                             color: Theme.textMuted
                             font.pixelSize: Theme.fontSmall
                             wrapMode: Text.WordWrap
@@ -189,6 +194,47 @@ Rectangle {
                         placeholderText: qsTr("Search settings…")
                         text: root.emu.searchText
                         onTextChanged: root.emu.searchText = text
+                    }
+                }
+
+                // Per-game section: pick a game from the library.
+                ColumnLayout {
+                    objectName: "gamePicker"
+                    visible: root.emu.gameSelected
+                    Layout.fillWidth: true
+                    spacing: Theme.space8
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.space10
+                        FbLabel { text: qsTr("Game"); color: Theme.textMuted; font.pixelSize: Theme.fontSmall }
+                        FbSelect {
+                            id: gameSelect
+                            objectName: "gameSelect"
+                            Layout.fillWidth: true
+                            Layout.maximumWidth: 460
+                            enabled: root.emu.games.length > 0
+                            displayText: root.emu.selectedGame === "" ? qsTr("Pick a game…") : root.emu.game.label
+                            model: root.emu.games
+                            current: root.emu.selectedGame
+                            onPicked: value => root.emu.selectGame(value)
+                        }
+                        FbLabel {
+                            objectName: "gameChangedCount"
+                            visible: root.emu.selectedGame !== "" && root.emu.game.changedCount > 0
+                            text: qsTr("%1 changed").arg(root.emu.game.changedCount)
+                            font.pixelSize: Theme.fontMono
+                            color: Theme.accent
+                        }
+                    }
+                    FbLabel {
+                        objectName: "gamePickerHint"
+                        visible: root.emu.selectedGame === ""
+                        Layout.fillWidth: true
+                        text: root.emu.games.length > 0 ? qsTr("Choose a game to give it its own core or options. Games without changes follow their system.")
+                                                        : qsTr("No games in the library yet.")
+                        color: Theme.textMuted
+                        font.pixelSize: Theme.fontMeta
+                        wrapMode: Text.WordWrap
                     }
                 }
 

@@ -126,6 +126,7 @@ void GameSession::launch(const LaunchConfig& config, bool restart) {
   req.systemDir = config.systemDir;
   req.saveDir = config.saveDir;
   req.coreOptions = config.coreOptions;
+  req.requireHwRender = config.requireHwRender;
   req.speedUpRatio = config.speedUpRatio;
   req.speedUpOnStart = config.speedUpOnStart;
   req.speedUpAudio = config.speedUpAudio;

@@ -181,7 +181,7 @@ class ControllersGlyphsTest : public QObject {
     QCOMPARE(glyph(g("generic", "leftshoulder")), QStringLiteral("L"));
     QCOMPARE(glyph(g("generic", "start")), QStringLiteral("Start"));
     QCOMPARE(glyph(g("generic", "back")), QStringLiteral("Select"));
-    QCOMPARE(glyph(g("generic", "lefttrigger")), QStringLiteral("L2"));  // the DS has no trigger: physical name
+    QCOMPARE(glyph(g("generic", "lefttrigger")), QStringLiteral("ZL"));  // trigger = 3DS ZL in the built-in profile
     // Directions are arrows in every set.
     for (const char* set : {"xbox", "playstation", "generic"}) {
       QCOMPARE(glyph(g(set, "dpup")), QStringLiteral("up"));
@@ -218,7 +218,7 @@ class ControllersGlyphsTest : public QObject {
       for (int i = 0; i < span; ++i) used.insert({col + i, row});
     }
     QCOMPARE(ids.size(), 14);
-    QVERIFY(ids.contains(QStringLiteral("a")) && ids.contains(QStringLiteral("up")) && ids.contains(QStringLiteral("lt")));
+    QVERIFY(ids.contains(QStringLiteral("a")) && ids.contains(QStringLiteral("up")) && ids.contains(QStringLiteral("zl")));
     const auto glyphOf = [&](const QString& set, const QString& id) {
       for (const QVariant& v : inputTestCells(set)) {
         if (v.toMap().value(QStringLiteral("id")).toString() == id) return v.toMap().value(QStringLiteral("glyph")).toString();
@@ -229,7 +229,7 @@ class ControllersGlyphsTest : public QObject {
     QCOMPARE(glyphOf(QStringLiteral("playstation"), QStringLiteral("a")), QStringLiteral("circle"));
     QCOMPARE(glyphOf(QStringLiteral("generic"), QStringLiteral("a")), QStringLiteral("A"));
     QCOMPARE(glyphOf(QStringLiteral("keyboard"), QStringLiteral("a")), QStringLiteral("A"));  // keyboard: DS names
-    QCOMPARE(glyphOf(QStringLiteral("xbox"), QStringLiteral("lt")), QStringLiteral("LT"));
+    QCOMPARE(glyphOf(QStringLiteral("xbox"), QStringLiteral("zl")), QStringLiteral("LT"));
     QCOMPARE(glyphOf(QStringLiteral("playstation"), QStringLiteral("down")), QStringLiteral("down"));
   }
 
@@ -314,9 +314,9 @@ class ControllersGlyphsTest : public QObject {
     QCOMPARE(text(h, "mapText_a"), QStringLiteral("Circle"));
     QCOMPARE(tileGlyph(h, "a"), QStringLiteral("circle"));
     QCOMPARE(tileGlyph(h, "b"), QStringLiteral("cross"));
-    QCOMPARE(tileGlyph(h, "lt"), QStringLiteral("L2"));
+    QCOMPARE(tileGlyph(h, "zl"), QStringLiteral("L2"));
     QCOMPARE(fieldGlyph(h, "up"), QStringLiteral("up"));
-    QCOMPARE(text(h, "mapText_up"), QStringLiteral("D-pad · or left stick"));
+    QCOMPARE(text(h, "mapText_up"), QStringLiteral("D-pad"));
 
     // Override: Xbox.
     pick(h, "labelSetSelect", QStringLiteral("xbox"));
@@ -326,7 +326,7 @@ class ControllersGlyphsTest : public QObject {
     QCOMPARE(text(h, "testLabelsNote"), QStringLiteral("Labels: Xbox"));
     QCOMPARE(fieldGlyph(h, "a"), QStringLiteral("B"));
     QCOMPARE(fieldGlyph(h, "start"), QStringLiteral("Menu"));
-    QCOMPARE(text(h, "mapText_l"), QStringLiteral("Left bumper / Left trigger"));
+    QCOMPARE(text(h, "mapText_l"), QStringLiteral("Left bumper"));
     QCOMPARE(tileGlyph(h, "a"), QStringLiteral("B"));
     QCOMPARE(tileGlyph(h, "select"), QStringLiteral("View"));
     // Generic: DS names.
@@ -341,7 +341,7 @@ class ControllersGlyphsTest : public QObject {
     QCOMPARE(c->labelChoice(), QStringLiteral("auto"));
     QCOMPARE(h.item("labelSetSelect")->property("displayText").toString(), QStringLiteral("Auto (Xbox)"));
     QCOMPARE(fieldGlyph(h, "a"), QStringLiteral("B"));
-    QCOMPARE(text(h, "mapText_l"), QStringLiteral("Left bumper / Left trigger"));
+    QCOMPARE(text(h, "mapText_l"), QStringLiteral("Left bumper"));
 
     // Saved per physical device (GUID), survives a restart of the store; Auto removes the override again.
     const QString dsGuid = h.controller->controllers()->gamepads()->devices().at(0).key;

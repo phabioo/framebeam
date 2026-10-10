@@ -41,6 +41,7 @@ class EmulationRunner : public QObject {
     QString systemDir;
     QString saveDir;
     QMap<QString, QString> coreOptions;  // e.g. manifest defaults, set before the game starts
+    bool requireHwRender = false;        // core profile "requires_hw_render": start fails without an OpenGL context
     // Speed-up (fast-forward) settings: chosen speed, start sped up (if the core allows it), audio during speed-up.
     double speedUpRatio = kDefaultSpeedUpRatio;
     bool speedUpOnStart = false;

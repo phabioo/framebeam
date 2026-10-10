@@ -7,6 +7,7 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QGuiApplication>
+#include <QLocale>
 #include <QRegularExpression>
 #include <QScopeGuard>
 #include <QStyleHints>
@@ -42,6 +43,7 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   downloader_ = std::make_unique<RomDownloader>(conn_.get(), cache_.get());
   saves_ = std::make_unique<SaveSync>(conn_.get(), profiles_.get());
   settings_ = std::make_unique<PlayerSettings>(profiles_->baseDir());
+  trimRomCache();  // limit lowered while the Player was closed
   // Library sort and "Ready first" are saved per device (3c-2).
   model_.setSortKey(settings_->librarySort());
   model_.setReadyFirst(settings_->libraryReadyFirst());
@@ -119,7 +121,7 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     const QList<emu::SystemManifest> all = manifests_.all();
     for (const emu::SystemManifest& m : all) {
       const bool touch = std::any_of(m.display.screens.cbegin(), m.display.screens.cend(), [](const emu::ScreenSpec& s) { return s.touch; });
-      if (touch || &m == &all.last()) {
+      if ((touch && m.inputProfile == QLatin1String("nds")) || &m == &all.last()) {  // default until a game starts
         controllers_->setSystemLabels(m.inputLabel, m.touchLabel);
         break;
       }
@@ -142,6 +144,11 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     connect(starter_.get(), &GameStarter::saveConflictChanged, this, &PlayerController::saveConflictChanged);
     connect(starter_.get(), &GameStarter::coreStateRefreshRequested, this, &PlayerController::refreshCoreState);
     connect(starter_.get(), &GameStarter::gameLaunched, this, [this](const QString& gameId) { recordLastPlayed(gameId); });
+    connect(starter_.get(), &GameStarter::systemInputSelected, this,
+            [this](const QString& profile, const QString& inputLabel, const QString& touchLabel) {
+              controllers_->setSystemLabels(inputLabel, touchLabel);
+              controllers_->setInputProfile(profile);
+            });
   }
   if (options.probeCoreVersions) {
     catalog_->probeCores();
@@ -276,7 +283,10 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     onRomStatus(sha, st);
   });
   connect(downloader_.get(), &RomDownloader::romReady, this,
-          [this](const QString& sha, const QString& path) { starter_->onRomReady(sha, path); });
+          [this](const QString& sha, const QString& path) {
+            starter_->onRomReady(sha, path);
+            trimRomCache();  // the starting game is protected through its phase
+          });
 
   // Input: gamepad P1 and the keyboard profile are merged into the joypad mask of the game.
   session_.setKeyboardMap(controllers_->keyboardMap());
@@ -289,6 +299,7 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   session_.setGamepadMask(controllers_->gamepads()->libretroMask());
   connect(emulation_.get(), &EmulationController::frameBeamOptionsChanged, this, &PlayerController::applyFrameBeamOptions);
   // The core choice of a system changed: the new core's options, status and the game detail follow at once.
+  connect(emulation_.get(), &EmulationController::gameSelectionChanged, this, [this]() { refreshEmulationPage(); });
   connect(emulation_.get(), &EmulationController::coreChoiceChanged, this, [this]() {
     refreshEmulationPage();
     refreshAttention();
@@ -342,6 +353,10 @@ PlayerController::~PlayerController() { shutdown(); }
 void PlayerController::endGameContext() {
   setBackground(false);
   gameActive_ = false;
+  if (cache_ && !launchGame_.romSha256.isEmpty()) {
+    cache_->touch(launchGame_.romSha256, RomCache::extensionFromFilename(launchGame_.romFilename));  // LRU: last use = end of play
+  }
+  QTimer::singleShot(0, this, [this]() { trimRomCache(); });  // after the session state settled
   if (sessions_) {
     sessions_->gameEnded();  // ends a shared Session
   }
@@ -386,10 +401,9 @@ void PlayerController::refreshCoreState() {
 // Emulation page: system cards (core, readiness, firmware) and the core options (loaded once without a game or from
 // the cache of the last capture; not possible while a game runs because only one core can be loaded per process).
 void PlayerController::refreshEmulationPage() {
-  for (const emu::SystemManifest& sysManifest : manifests_.all()) {
-    const emu::SystemManifest* mp = catalog_->manifestForSystem(sysManifest.systemId);
+  const auto probeCore = [this](const emu::SystemManifest* mp) {
     if (mp == nullptr || mp->coreId.isEmpty() || emulation_->hasCoreProbe(mp->coreId)) {
-      continue;
+      return;
     }
     const emu::SystemManifest& m = *mp;
     const emu::CoreLocation loc = catalog_->locateCore(m);
@@ -399,10 +413,17 @@ void PlayerController::refreshEmulationPage() {
         coreNames_.insert(m.coreId, probe.info.name);
         coreVersions_.insert(m.coreId, probe.info.version);
         emulation_->setCoreProbe(m.coreId, probe, true);
-        continue;
+        return;
       }
     }
     emulation_->loadCoreCache(m.coreId);
+  };
+  for (const emu::SystemManifest& sysManifest : manifests_.all()) {
+    probeCore(catalog_->manifestForSystem(sysManifest.systemId));
+  }
+  // The core chosen for the game on the Emulation page (per-game override) may differ from the system's core.
+  if (const QString gameId = emulation_->selectedGame(); !gameId.isEmpty()) {
+    probeCore(catalog_->manifestForSystem(emulation_->game().value(QStringLiteral("systemId")).toString(), gameId));
   }
   emulation_->setSystems(catalog_->systemCards());
   emulation_->setGameRunning(session_.isActive());
@@ -659,6 +680,76 @@ void PlayerController::cancelPairing() { conn_->cancelPairing(); }
 void PlayerController::leavePairing() { conn_->disconnectFromHub(); }
 
 // ---------------------------------------------------------------- Settings, upload, warnings
+
+namespace {
+QString formatBytes(qint64 bytes) {
+  constexpr double kGiB = 1024.0 * 1024.0 * 1024.0;
+  if (bytes >= static_cast<qint64>(kGiB)) {
+    return QStringLiteral("%1 GB").arg(QLocale::c().toString(static_cast<double>(bytes) / kGiB, 'f', 1));
+  }
+  return LibraryModel::formatSize(bytes);
+}
+}  // namespace
+
+QSet<QString> PlayerController::protectedRomHashes() const {
+  QSet<QString> keep = downloader_ ? downloader_->activeHashes() : QSet<QString>();
+  if (!pendingSha_.isEmpty()) keep.insert(pendingSha_);
+  if (!launchGame_.romSha256.isEmpty() && (phase_ != PlayPhase::None || gameActive_ || session_.isActive())) keep.insert(launchGame_.romSha256);
+  return keep;
+}
+
+void PlayerController::trimRomCache() {
+  if (!cache_ || !settings_) return;
+  const RomCache::TrimResult r = cache_->trimToLimit(settings_->romCacheLimitBytes(), protectedRomHashes());
+  if (r.removedFiles > 0) {
+    qInfo() << "ROM cache trimmed:" << r.removedFiles << "file(s)," << r.freedBytes << "bytes freed";
+    emit romCacheChanged();
+    emit selectedGameChanged();  // a removed ROM turns "ready" back into "download needed"
+  }
+}
+
+QVariantMap PlayerController::romCache() const {
+  const qint64 limit = settings_->romCacheLimitBytes();
+  const qint64 used = cache_->totalSize();
+  const qint64 clearable = cache_->clearableSize(protectedRomHashes());
+  QVariantList options;
+  QList<qint64> values{0, 5, 10, 20, 50, 100, 200};
+  for (qint64& v : values) v = v * 1024 * 1024 * 1024;
+  if (!values.contains(limit)) {
+    values.append(limit);
+    std::sort(values.begin(), values.end());
+  }
+  for (qint64 v : std::as_const(values)) {
+    options.append(QVariantMap{{QStringLiteral("value"), QString::number(v)},
+                               {QStringLiteral("label"), v == 0 ? tr("Unlimited") : formatBytes(v)}});
+  }
+  return {{QStringLiteral("limitBytes"), static_cast<double>(limit)},
+          {QStringLiteral("limitText"), limit == 0 ? tr("Unlimited") : formatBytes(limit)},
+          {QStringLiteral("usedBytes"), static_cast<double>(used)},
+          {QStringLiteral("usedText"), formatBytes(used)},
+          {QStringLiteral("clearableBytes"), static_cast<double>(clearable)},
+          {QStringLiteral("clearableText"), formatBytes(clearable)},
+          {QStringLiteral("files"), static_cast<int>(cache_->entries().size())},
+          {QStringLiteral("limitOptions"), options}};
+}
+
+void PlayerController::setRomCacheLimit(double bytes) {
+  const qint64 b = bytes < 0 ? 0 : static_cast<qint64>(bytes);
+  if (!settings_->setRomCacheLimitBytes(b)) {
+    qWarning() << "Player settings could not be written";
+  }
+  trimRomCache();
+  emit romCacheChanged();
+}
+
+QVariantMap PlayerController::clearRomCache() {
+  const RomCache::TrimResult r = cache_->clear(protectedRomHashes());
+  emit romCacheChanged();
+  emit selectedGameChanged();
+  return {{QStringLiteral("freedBytes"), static_cast<double>(r.freedBytes)},
+          {QStringLiteral("freedText"), formatBytes(r.freedBytes)},
+          {QStringLiteral("removedFiles"), r.removedFiles}};
+}
 
 QString PlayerController::appearance() const { return PlayerSettings::appearanceName(settings_->appearance()); }
 
@@ -941,6 +1032,19 @@ void PlayerController::onLibraryLoaded() {
     model_.setSystemLabel(single ? label : QString());
   }
   refreshAttention();
+  {
+    // Games for the per-game section of the Emulation page.
+    QVariantList list;
+    for (const GameEntry& g : library_->games()) {
+      const emu::SystemManifest* man = catalog_->manifestFor(g);
+      if (man == nullptr) continue;
+      list.append(QVariantMap{{QStringLiteral("id"), g.id}, {QStringLiteral("title"), g.title}, {QStringLiteral("systemId"), man->systemId}});
+    }
+    std::sort(list.begin(), list.end(), [](const QVariant& a, const QVariant& b) {
+      return a.toMap().value(QStringLiteral("title")).toString().compare(b.toMap().value(QStringLiteral("title")).toString(), Qt::CaseInsensitive) < 0;
+    });
+    emulation_->setGames(list);
+  }
   QStringList ids;
   for (const GameEntry& g : library_->games()) {
     ids.append(g.id);

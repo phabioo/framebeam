@@ -60,6 +60,12 @@ class PlayerSettings {
   QHash<QString, qint64> lastPlayedAll(const QString& hubId) const;
   bool setLastPlayed(const QString& hubId, const QString& gameId, qint64 msecs);  // false: empty ids or not writable
 
+  // ROM cache size limit in bytes (default 20 GB, 0 = unlimited); finished ROM files beyond it are evicted least recently
+  // used first (core/romcache.h). Negative values are rejected.
+  static constexpr qint64 kDefaultRomCacheLimitBytes = 20ll * 1024 * 1024 * 1024;
+  qint64 romCacheLimitBytes() const { return romCacheLimit_; }
+  bool setRomCacheLimitBytes(qint64 bytes);
+
   // Visibility of the own shared Session: "private" | "hub_users" | "invite_only"; "" = not chosen yet (the caller's default).
   QString sessionVisibility() const { return sessionVisibility_; }
   bool setSessionVisibility(const QString& visibility);  // anything else is rejected (false)
@@ -79,6 +85,7 @@ class PlayerSettings {
   QString librarySort_ = QStringLiteral("name_asc");
   bool libraryReadyFirst_ = false;
   QString sessionVisibility_;
+  qint64 romCacheLimit_ = kDefaultRomCacheLimitBytes;
 };
 
 }  // namespace framebeam

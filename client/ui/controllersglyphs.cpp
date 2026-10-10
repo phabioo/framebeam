@@ -51,6 +51,8 @@ const Direction kDirections[] = {
     {"dpleft", "left", "D-pad", "dpad"},   {"dpright", "right", "D-pad", "dpad"},
     {"lefty-", "up", "Left stick", "stick"},   {"lefty+", "down", "Left stick", "stick"},
     {"leftx-", "left", "Left stick", "stick"}, {"leftx+", "right", "Left stick", "stick"},
+    {"righty-", "up", "Right stick", "rstick"},   {"righty+", "down", "Right stick", "rstick"},
+    {"rightx-", "left", "Right stick", "rstick"}, {"rightx+", "right", "Right stick", "rstick"},
 };
 
 // Generic name of a physical button: the label of the FrameBeam input that the built-in profile binds first to it.
@@ -165,10 +167,7 @@ QVariantList inputTestCells(const QString& setIn) {
       for (const Direction& d : kDirections) {
         if (sdl == QLatin1String(d.token)) g = QString::fromLatin1(d.glyph);
       }
-      // The left stick drives the D-pad inputs in the built-in profile: it lights the same cell.
-      for (const Direction& d : kDirections) {
-        if (QLatin1String(d.group) == QLatin1String("stick") && QLatin1String(d.glyph) == g) tokens.append(padToken(QString::fromLatin1(d.token)));
-      }
+      // The left stick is the circle pad (separate input), so it does not light the D-pad cells.
     } else {
       g = tokenGlyph(set, token).value(QStringLiteral("glyph")).toString();
     }

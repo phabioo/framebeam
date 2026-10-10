@@ -169,7 +169,10 @@ QVariantMap GameDetail::selectedGame() const {
     QString saveText;
     QString saveTone = QStringLiteral("neutral");
     QString saveHint;
-    if (conn_->state() == HubConnection::State::Connected && !saves_->hubSupportsSaves()) {
+    if (man != nullptr && man->saveSource == QLatin1String("none")) {
+      saveText = tr("Local only");
+      saveHint = SaveSync::localOnlyNote();
+    } else if (conn_->state() == HubConnection::State::Connected && !saves_->hubSupportsSaves()) {
       saveText = SaveSync::unsupportedNote();
     } else if (sk == QLatin1String("synced")) {
       saveText = tr("Synced");
@@ -206,7 +209,8 @@ QVariantMap GameDetail::selectedGame() const {
   list.append(checkItem(romReady ? tr("ROM verified from cache") : tr("Download and verify ROM"),
                         romReady ? QStringLiteral("done") : (phase_ == PlayPhase::Rom ? QStringLiteral("active") : QStringLiteral("pending")),
                         romReady ? QString() : romText));
-  list.append(checkItem(tr("Save checked with Hub"),
+  list.append(checkItem(man != nullptr && man->saveSource == QLatin1String("none")
+                            ? tr("Local save folder prepared") : tr("Save checked with Hub"),
                         phase_ == PlayPhase::Launching ? (saveReady_ ? QStringLiteral("done") : QStringLiteral("active")) : QStringLiteral("pending"),
                         saveNoteStart_));
   list.append(checkItem(tr("Core ready"),

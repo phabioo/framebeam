@@ -91,6 +91,10 @@ class EmulatorBackend {
   virtual void setSystemDirectory(const QString& path) = 0;
   virtual void setSaveDirectory(const QString& path) = 0;
 
+  // The core only works with hardware rendering (OpenGL Core >= 3.3, e.g. Azahar): loadGame() then fails with a clear
+  // error instead of letting the core run in an unusable software mode. Call BEFORE loadGame.
+  virtual void setRequireHwRender(bool required) { Q_UNUSED(required); }
+
   virtual bool loadGame(const QString& path, QString* error = nullptr) = 0;
   virtual void unloadGame() = 0;
   virtual bool isGameLoaded() const = 0;

@@ -79,6 +79,9 @@ class PlayerController : public QObject {
   Q_PROPERTY(framebeam::ui::GameSession* gameSession READ gameSession CONSTANT)
   // Appearance (Settings page), upload, core warnings
   Q_PROPERTY(QString appearance READ appearance WRITE setAppearance NOTIFY appearanceChanged)  // dark | light | system
+  // ROM cache (Settings): limitBytes (0 = unlimited), limitText, usedBytes, usedText, clearableBytes, clearableText, files,
+  // limitOptions [{value (bytes), label}].
+  Q_PROPERTY(QVariantMap romCache READ romCache NOTIFY romCacheChanged)
   Q_PROPERTY(bool darkMode READ darkMode NOTIFY appearanceChanged)  // effective palette (System resolved)
   Q_PROPERTY(bool canUpload READ canUpload NOTIFY hubChanged)       // handshake feature uploads_v1
   Q_PROPERTY(QVariantMap upload READ upload NOTIFY uploadChanged)   // active, fileName, progress, message, isError
@@ -163,6 +166,14 @@ class PlayerController : public QObject {
   QString appearance() const;
   void setAppearance(const QString& name);
   bool darkMode() const;
+  QVariantMap romCache() const;
+  // Size limit in bytes (0 = unlimited); trims at once (never the running game or a file being downloaded).
+  Q_INVOKABLE void setRomCacheLimit(double bytes);
+  // Removes all cached ROM files except the running game and files being downloaded. Returns freedBytes, freedText, removedFiles.
+  Q_INVOKABLE QVariantMap clearRomCache();
+  Q_INVOKABLE void refreshRomCache() { emit romCacheChanged(); }
+  // Hashes that must stay in the cache: the game that is starting/running/in the background and active downloads.
+  QSet<QString> protectedRomHashes() const;
   bool canUpload() const;
   QVariantMap upload() const { return upload_; }
   QStringList uploadFilters() const;
@@ -259,6 +270,7 @@ class PlayerController : public QObject {
   void startConfirmChanged();
   void saveConflictChanged();
   void appearanceChanged();
+  void romCacheChanged();
   void uploadChanged();
   void emulationSettingsChanged();
 
@@ -269,6 +281,7 @@ class PlayerController : public QObject {
   void updateScreen();
   void refreshEmulationPage();
   void refreshAttention();
+  void trimRomCache();  // applies the size limit (LRU); called at start, after a ROM became ready, when a game ends
   void applyFrameBeamOptions();
   void onUploadFinished(const UploadResult& result);
   QString friendlyError(const QString& code, const QString& message) const;

@@ -1,6 +1,8 @@
 #include "romdownloader.h"
 
+#include <QFileInfo>
 #include <QNetworkReply>
+#include <QSet>
 #include <QtConcurrent>
 #include <QRegularExpression>
 
@@ -109,6 +111,13 @@ void RomDownloader::startValidation(const GameEntry& game, bool thenDownload) {
   emit statusChanged(sha, makeStatus(RomState::Validating, game.romSize, game.romSize));
 }
 
+QSet<QString> RomDownloader::activeHashes() const {
+  QSet<QString> out;
+  for (auto it = jobs_.cbegin(); it != jobs_.cend(); ++it) out.insert(it.key());
+  for (auto it = validations_.cbegin(); it != validations_.cend(); ++it) out.insert(it.key());
+  return out;
+}
+
 void RomDownloader::finishJob(const QString& sha, const RomStatus& st) {
   jobs_.remove(sha);
   if (st.state == RomState::HashMismatch || st.state == RomState::Failed) {
@@ -118,6 +127,7 @@ void RomDownloader::finishJob(const QString& sha, const RomStatus& st) {
   }
   emit statusChanged(sha, st);
   if (st.state == RomState::Ready) {
+    cache_->touch(sha, QFileInfo(st.localPath).suffix());  // LRU: counts as used now
     emit romReady(sha, st.localPath);
   }
 }
@@ -137,6 +147,7 @@ void RomDownloader::ensureRom(const GameEntry& game) {
     case RomCache::Probe::Valid: {
       RomStatus s = makeStatus(RomState::Ready, game.romSize, game.romSize);
       s.localPath = cache_->finalPath(sha, ext);
+      cache_->touch(sha, ext);  // LRU: counts as used now
       emit statusChanged(sha, s);
       emit romReady(sha, s.localPath);
       return;

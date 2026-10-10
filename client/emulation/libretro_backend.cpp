@@ -280,6 +280,12 @@ bool LibretroBackend::loadGame(const QString& path, QString* error) {
     return fail(QStringLiteral("Core could not load the game"));
   }
 
+  if (m_requireHw && !m_hwActive) {
+    m_api->unload_game();
+    teardownHw();
+    return fail(QStringLiteral("This game needs hardware rendering (OpenGL Core 3.3 or newer), which is not available here. "
+                               "Update the graphics driver, or check that FRAMEBEAM_DISABLE_HW_RENDER is not set."));
+  }
   retro_system_av_info av{};
   m_api->get_system_av_info(&av);
   if (m_hwActive) {
@@ -669,6 +675,15 @@ int16_t LibretroBackend::inputStateCb(unsigned port, unsigned device, unsigned i
       if (id == RETRO_DEVICE_ID_JOYPAD_MASK) return static_cast<int16_t>(m & 0xFFFFu);
       return id < 16 ? static_cast<int16_t>((m >> id) & 1u) : 0;
     }
+    case RETRO_DEVICE_ANALOG: {
+      // Circle pad (left, mask bits 20..23) and C-stick (right, bits 16..19) of the "3ds" input profile: digital
+      // directions served as full deflection. Cores that read the D-pad as digital only never ask for this.
+      if (port > 1 || index > RETRO_DEVICE_INDEX_ANALOG_RIGHT || id > RETRO_DEVICE_ID_ANALOG_Y) return 0;
+      const quint32 m = in.joypad[port] >> (index == RETRO_DEVICE_INDEX_ANALOG_LEFT ? 20 : 16);
+      const int neg = id == RETRO_DEVICE_ID_ANALOG_X ? 2 : 0;  // left / up
+      const int pos = id == RETRO_DEVICE_ID_ANALOG_X ? 3 : 1;  // right / down  (bit order: up down left right)
+      return static_cast<int16_t>(((m >> pos) & 1u ? 0x7fff : 0) - ((m >> neg) & 1u ? 0x7fff : 0));
+    }
     case RETRO_DEVICE_POINTER: {
       if (port != 0 || index != 0) return 0;
       auto conv = [](double v) { return static_cast<int16_t>(std::lround((v * 2.0 - 1.0) * 0x7fff)); };
@@ -780,7 +795,7 @@ bool LibretroBackend::handleEnvironment(unsigned rawCmd, void* data) {
     }
     case RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS: return true;
     case RETRO_ENVIRONMENT_GET_INPUT_DEVICE_CAPABILITIES:
-      *static_cast<uint64_t*>(data) = (1ull << RETRO_DEVICE_JOYPAD) | (1ull << RETRO_DEVICE_POINTER);
+      *static_cast<uint64_t*>(data) = (1ull << RETRO_DEVICE_JOYPAD) | (1ull << RETRO_DEVICE_ANALOG) | (1ull << RETRO_DEVICE_POINTER);
       return true;
     case RETRO_ENVIRONMENT_GET_INPUT_BITMASKS & ~RETRO_ENVIRONMENT_EXPERIMENTAL: return true;
     case RETRO_ENVIRONMENT_GET_LOG_INTERFACE:

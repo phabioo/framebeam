@@ -34,6 +34,71 @@ class ManifestTest : public QObject {
     QVERIFY(nds->firmware.fileById(QStringLiteral("firmware")));
   }
 
+  void builtin3dsAndAzahar() {
+    ManifestRegistry reg;
+    QString err;
+    QVERIFY2(reg.loadBuiltin(&err), qPrintable(err));
+    const SystemManifest* s = reg.find(QStringLiteral("3ds"));
+    QVERIFY(s);
+    QCOMPARE(s->extensions, (QStringList{QStringLiteral(".3ds"), QStringLiteral(".cci"), QStringLiteral(".cxi"), QStringLiteral(".3dsx"),
+                                         QStringLiteral(".zcci"), QStringLiteral(".zcxi"), QStringLiteral(".z3dsx")}));
+    QVERIFY(reg.forExtension(QStringLiteral(".CCI")) == s);
+    QVERIFY(!s->firmware.required);
+    QVERIFY(s->firmware.files.isEmpty());
+    QCOMPARE(s->inputProfile, QStringLiteral("3ds"));
+    // Unequal widths: top 400x240 at (0,0), bottom 320x240 centred at (40,240), frame 400x480 like the core's default layout.
+    QCOMPARE(s->display.frameSize(), QSize(400, 480));
+    QCOMPARE(s->display.screenRect(0), QRect(0, 0, 400, 240));
+    QCOMPARE(s->display.screenRect(1), QRect(40, 240, 320, 240));
+    // Touch maps the bottom-screen rectangle only.
+    QCOMPARE(s->display.touchScreenIndex(), 1);
+    QCOMPARE(s->display.toFrameNormalized(1, {0.0, 0.0}), QPointF(40.0 / 400, 0.5));
+    QCOMPARE(s->display.toFrameNormalized(1, {1.0, 1.0}), QPointF(360.0 / 400, 1.0));
+    QCOMPARE(s->display.toFrameNormalized(1, {0.5, 0.5}), QPointF(0.5, 0.75));
+    // nds stays as it was (equal widths, default alignment).
+    QCOMPARE(reg.find(QStringLiteral("nds"))->display.screenRect(1), QRect(0, 192, 256, 192));
+
+    const CoreProfile* p = reg.profile(QStringLiteral("azahar"));
+    QVERIFY(p);
+    QCOMPARE(p->libraryBasename, QStringLiteral("azahar_libretro"));
+    QVERIFY(p->requiresHwRender);
+    QCOMPARE(p->saveSource, QStringLiteral("none"));
+    QCOMPARE(p->coreOptions.value(QStringLiteral("citra_graphics_api")), QStringLiteral("OpenGL"));
+    QCOMPARE(p->coreOptions.value(QStringLiteral("citra_layout_option")), QStringLiteral("default"));
+    QCOMPARE(p->coreOptions.value(QStringLiteral("citra_swap_screen")), QStringLiteral("Top"));
+    for (const char* k : {"citra_graphics_api", "citra_layout_option", "citra_swap_screen", "citra_swap_screen_mode", "citra_enable_touch_touchscreen"})
+      QVERIFY2(p->lockedCoreOptions.contains(QString::fromLatin1(k)), k);
+    QVERIFY(p->alwaysShownCoreOptions.contains(QStringLiteral("citra_resolution_factor")));
+    QVERIFY(!p->lockedCoreOptions.contains(QStringLiteral("citra_resolution_factor")));
+    QCOMPARE(reg.profilesForSystem(QStringLiteral("3ds")).size(), 1);
+    const auto eff = reg.resolve(QStringLiteral("3ds"), QStringLiteral("azahar"));
+    QVERIFY(eff);
+    QVERIFY(eff->requiresHwRender);
+    QCOMPARE(eff->saveSource, QStringLiteral("none"));
+    QVERIFY(!eff->experimental);
+    QVERIFY(!reg.resolve(QStringLiteral("nds"), QStringLiteral("melondsds"))->requiresHwRender);
+  }
+
+  void screenAlignment() {
+    QString err;
+    const auto m = ManifestRegistry::parse(
+        R"({"system_id":"x","display_name":"X","extensions":[".x"],"display":{"layout":"vertical","gap":4,"screens":[
+            {"id":"a","width":100,"height":50,"align":"end"},{"id":"b","width":60,"height":50,"align":"center","touch":true},
+            {"id":"c","width":20,"height":10}]}})", &err);
+    QVERIFY2(m, qPrintable(err));
+    QCOMPARE(m->display.frameSize(), QSize(100, 118));
+    QCOMPARE(m->display.screenRect(0), QRect(0, 0, 100, 50));   // widest: no shift
+    QCOMPARE(m->display.screenRect(1), QRect(20, 54, 60, 50));  // centred
+    QCOMPARE(m->display.screenRect(2), QRect(0, 108, 20, 10));  // default: start
+    const auto h = ManifestRegistry::parse(
+        R"({"system_id":"y","display_name":"Y","extensions":[".y"],"display":{"layout":"horizontal","screens":[
+            {"width":10,"height":40},{"width":10,"height":20,"align":"end"}]}})", &err);
+    QVERIFY2(h, qPrintable(err));
+    QCOMPARE(h->display.screenRect(1), QRect(10, 20, 10, 20));  // bottom-aligned side by side
+    QVERIFY(!ManifestRegistry::parse(
+        R"({"system_id":"x","display_name":"X","extensions":[".x"],"display":{"screens":[{"width":1,"height":1,"align":"middle"}]}})", &err));
+  }
+
   void coreProfilesAndAliases() {
     ManifestRegistry reg;
     QString err;
@@ -134,6 +199,11 @@ class ManifestTest : public QObject {
     QCOMPARE(p->sysfileNative, QStringLiteral("native"));
     QCOMPARE(p->fileOptions.value(QStringLiteral("firmware")), QStringLiteral("fo"));
     QVERIFY(!ManifestRegistry::parseProfile(R"({"core_id":"x","library_basename":"x","system_ids":["nds"],"save":{"source":"core_file","extension":"../x"}})", &err));
+    QVERIFY(!ManifestRegistry::parseProfile(R"({"core_id":"x","library_basename":"x","system_ids":["nds"],"save":{"source":"bogus"}})", &err));
+    const auto none = ManifestRegistry::parseProfile(R"({"core_id":"x","library_basename":"x","system_ids":["nds"],"save":{"source":"none"},"requires_hw_render":true})", &err);
+    QVERIFY2(none, qPrintable(err));
+    QCOMPARE(none->saveSource, QStringLiteral("none"));
+    QVERIFY(none->requiresHwRender);
     QVERIFY(!ManifestRegistry::parseProfile("not json", &err));
     QVERIFY(!ManifestRegistry::parseProfile(R"({"core_id":"x","system_ids":["nds"]})", &err));
     QVERIFY(err.contains(QStringLiteral("library_basename")));

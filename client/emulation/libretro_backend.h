@@ -40,6 +40,7 @@ class LibretroBackend final : public EmulatorBackend {
   void setSystemDirectory(const QString& path) override;
   void setSaveDirectory(const QString& path) override;
 
+  void setRequireHwRender(bool required) override { m_requireHw = required; }
   bool loadGame(const QString& path, QString* error = nullptr) override;
   void unloadGame() override;
   bool isGameLoaded() const override;
@@ -146,6 +147,7 @@ class LibretroBackend final : public EmulatorBackend {
   // Core's hardware callbacks (copied from retro_hw_render_callback).
   void (*m_hwContextReset)() = nullptr;
   void (*m_hwContextDestroy)() = nullptr;
+  bool m_requireHw = false;     // the core cannot run without a hardware context (loadGame fails otherwise)
   bool m_hwActive = false;      // SET_HW_RENDER accepted, context exists
   bool m_hwResetDone = false;   // context_reset called (context_destroy owed)
   bool m_hwBottomLeft = true;
