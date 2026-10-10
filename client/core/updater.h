@@ -128,6 +128,8 @@ class UpdateManager : public QObject {
   void startDownload(bool applyAfter);
   void finishDownload(const QString& partPath);
   void apply(const StagedUpdate& staged);
+  bool hasAttemptRecord(const StagedUpdate& staged) const;
+  void recordAttempt(const StagedUpdate& staged);
   bool allowFileUrls() const;
   void scheduleNext();
 

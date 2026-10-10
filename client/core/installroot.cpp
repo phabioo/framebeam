@@ -73,8 +73,11 @@ QString msiScopeName(MsiScope s) {
 
 bool msiScopeNeedsElevation(MsiScope s) { return s != MsiScope::User; }
 
+// msiexec and the launcher need backslash paths (forward slashes give error 1619); explicit so it also works on Linux.
+static QString withBackslashes(QString path) { return path.replace(QLatin1Char('/'), QLatin1Char('\\')); }
+
 QStringList msiexecArguments(const QString& msiPath, MsiScope scope) {
-  QStringList a{QStringLiteral("/i"), msiPath, QStringLiteral("/qn"), QStringLiteral("/norestart")};
+  QStringList a{QStringLiteral("/i"), withBackslashes(msiPath), QStringLiteral("/qn"), QStringLiteral("/norestart")};
   switch (scope) {
     case MsiScope::User:
       a << QStringLiteral("MSIINSTALLPERUSER=1") << QStringLiteral("ALLUSERS=2");
@@ -110,7 +113,7 @@ InstallerCommand msiRelaunchCommand(const QString& launcherCopy, const QString& 
                                     const QString& relaunchExe, const QStringList& relaunchArgs) {
   InstallerCommand c;
   c.program = launcherCopy;
-  c.args = {QStringLiteral("--apply-msi-update"), msiPath, msiScopeName(scope), relaunchExe};
+  c.args = {QStringLiteral("--apply-msi-update"), withBackslashes(msiPath), msiScopeName(scope), withBackslashes(relaunchExe)};
   c.args += relaunchArgs;
   return c;
 }

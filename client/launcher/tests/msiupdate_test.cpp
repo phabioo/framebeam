@@ -33,6 +33,7 @@ class MsiUpdateTest : public QObject {
     QVERIFY(msiexecParameters(L"a.msi", L"setup-hub") ==
             L"/i \"a.msi\" /qn /norestart ALLUSERS=1 INSTALL_HUB=1 NETWORK_SHARING=0");
     QVERIFY(msiexecParameters(L"a.msi", L"bogus").empty());
+    QVERIFY(msiexecParameters(L"C:/u/a b/x.msi", L"machine") == L"/i \"C:\\u\\a b\\x.msi\" /qn /norestart ALLUSERS=1");
   }
   void elevation() {
     QVERIFY(!scopeNeedsElevation(L"user"));

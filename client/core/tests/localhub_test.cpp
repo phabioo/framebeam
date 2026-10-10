@@ -45,7 +45,7 @@ class LocalHubTest : public QObject {
   Q_OBJECT
  private slots:
   void msiexecArgumentsPerScope() {
-    const QString m = QStringLiteral("C:/t/fb.msi");
+    const QString m = QStringLiteral("C:\\t\\fb.msi");  // msiexec gets backslashes (forward slashes are converted)
     QCOMPARE(msiexecArguments(m, MsiScope::User),
              (QStringList{"/i", m, "/qn", "/norestart", "MSIINSTALLPERUSER=1", "ALLUSERS=2"}));
     QCOMPARE(msiexecArguments(m, MsiScope::Machine), (QStringList{"/i", m, "/qn", "/norestart", "ALLUSERS=1"}));
@@ -91,7 +91,12 @@ class LocalHubTest : public QObject {
     QVERIFY(!copy.startsWith(t.filePath("root")));
     const InstallerCommand c = msiRelaunchCommand(copy, "x.msi", MsiScope::SetupHub, "P/framebeam_player.exe", {"--setup-local-hub"});
     QCOMPARE(c.program, copy);
-    QCOMPARE(c.args, (QStringList{"--apply-msi-update", "x.msi", "setup-hub", "P/framebeam_player.exe", "--setup-local-hub"}));
+    QCOMPARE(c.args, (QStringList{"--apply-msi-update", "x.msi", "setup-hub", "P\\framebeam_player.exe", "--setup-local-hub"}));
+    // forward slashes would make msiexec fail with 1619
+    const InstallerCommand w = msiRelaunchCommand(copy, "C:/Users/a/data/x.msi", MsiScope::User, "C:/Users/a/P/framebeam_player.exe");
+    QCOMPARE(w.args[1], QStringLiteral("C:\\Users\\a\\data\\x.msi"));
+    QCOMPARE(w.args[3], QStringLiteral("C:\\Users\\a\\P\\framebeam_player.exe"));
+    QCOMPARE(msiexecArguments("C:/a/x.msi", MsiScope::Machine)[1], QStringLiteral("C:\\a\\x.msi"));
     QVERIFY(perMachinePlayerExe("C:/Program Files").endsWith("FrameBeam/Player/framebeam_player.exe"));
   }
   void msiPreferredOverInstaller() {
