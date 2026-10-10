@@ -3,6 +3,6 @@ MELONDS_DS_TAG=v1.4.0
 MELONDS_DS_COMMIT=f394adbacb5722ee97c1b37c8064da9a25818310
 # Windows: official release asset (their build uses MSYS2/MinGW, not MSVC). The .ps1 looks up the asset
 # via the GitHub API; MELONDS_DS_WIN_ASSET is a regex for the name or, after the first run, the exact name.
-# On the first CI run, take the zip's SHA-256 from the error message of fetch-melonds-ds.ps1.
+# When bumping the pin, update TAG, COMMIT, ASSET name and SHA-256 together.
 MELONDS_DS_WIN_ASSET=melondsds_libretro-win32-x86_64-Release.zip
 MELONDS_DS_WIN_SHA256=f03af0318fee91a83880f438b369a1368fea6b5c1524a09dde849ca8fa68603f

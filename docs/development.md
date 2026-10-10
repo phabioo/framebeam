@@ -5,7 +5,7 @@ Build, test, dependencies, CI and versioning. Agent workflow and briefs: [workfl
 ## Prerequisites
 
 - **Hub:** Go >= 1.25 (per `server/go.mod`; CI uses the pinned toolchain go1.26.8).
-- **Player:** CMake >= 3.25, Ninja, a C++20 compiler and Qt >= 6.4 (not via vcpkg). Linux: apt (package list `QT_PKGS` in `.claude/hooks/session-start.sh`). Windows: Qt 6.8 LTS via install-qt-action with the modules `qtmultimedia` and `qtwebsockets`.
+- **Player:** CMake >= 3.25, Ninja, a C++20 compiler and Qt >= 6.4 (not via vcpkg). Linux: apt (package list `scripts/qt-packages.txt`, shared by CI and `.claude/hooks/session-start.sh`). Windows: Qt 6.8 LTS via install-qt-action with the modules `qtmultimedia` and `qtwebsockets`.
 - **Sessions** additionally need libdatachannel, FFmpeg and Opus (and OpenSSL for the update signature check): on Linux the media apt packages from the same list plus `make fetch-deps`; on Windows via vcpkg (`client/vcpkg.json`).
 - **Gamepads** need SDL3 >= 3.2: on Linux `make fetch-sdl3`; on Windows via vcpkg.
 - vcpkg (pinned) is bootstrapped once with `scripts/bootstrap-vcpkg.sh` into `$HOME/.cache/framebeam/vcpkg`; it is a prerequisite for the Player build.
@@ -38,7 +38,8 @@ make fetch-sdl3       # build SDL3 (pinned) and print the prefix
 | `scripts/fetch-libdatachannel.sh` | Builds libdatachannel (pin: `scripts/libdatachannel.pin`, media on, no own WebSocket) into `$HOME/.cache/framebeam/deps/libdatachannel/`, idempotent, prints the prefix (mandatory for the Player build) |
 | `scripts/fetch-sdl3.sh` | Builds SDL3 (pin: `scripts/sdl3.pin`, gamepad only, no video/audio) into `$HOME/.cache/framebeam/deps/sdl3/`, idempotent, prints the prefix. Windows: vcpkg port `sdl3` |
 | `scripts/check.sh <step>` | The quiet check steps behind the make targets |
-| `scripts/check-trusted-keys.sh`, `scripts/check-core-signing-key.sh` | Hub and Player embed the same release key; part of `make check-hub` |
+| `scripts/check-trusted-keys.sh` | Hub and Player embed the same release key; part of `make check-hub` |
+| `scripts/check-signing-key.sh` | Signing key from `FRAMEBEAM_SIGNING_KEY` is trusted by the Hub and signs a throwaway updates index; run by release.yml and promote.yml |
 
 Windows release builds use the `x64-windows-release` overlay triplet (Release-only dependency builds); the debug preset uses the standard `x64-windows` triplet.
 
@@ -54,10 +55,10 @@ Windows release builds use the `x64-windows-release` overlay triplet (Release-on
 
 ## CI and releases
 
-- `.github/workflows/ci.yml`: Linux on every push; Windows on PRs against `main`, manually, and on pushes to `main` (primes the Windows vcpkg binary cache after merges, [ADR 0008](adr/0008-windows-ci-cache.md); cache misses still need a cold dependency build). The Windows job builds the layout launcher plus `bin\`, the zip, the MSI and the Inno shell and tests silent install and upgrade.
-- Every workflow job has `timeout-minutes` (Windows client and core builds 300, so a cold vcpkg cache still fits).
+- `.github/workflows/ci.yml`: Linux on every push, pushes to `main` run it directly; pushes to other branches go through `ci-branch.yml`, which calls `ci.yml` unless the branch has an open PR (the PR run builds that commit; the lookup falls back to building on API errors; the first push that opens a branch still builds because the PR does not exist yet). The branch run's checks are named `CI (branch) / ...`, so they never collide with the required PR check names. Runs on `main` use one concurrency group per commit, so none is cancelled or replaced; other refs cancel older runs. Runners are pinned (`ubuntu-24.04`, `windows-2025-vs2026` with Visual Studio 2026). Windows on PRs against `main`, manually, and on pushes to `main` (primes the Windows vcpkg binary cache after merges, [ADR 0008](adr/0008-windows-ci-cache.md); cache misses still need a cold dependency build). The Windows job builds the layout launcher plus `bin\`, the zip, the MSI and the Inno shell and tests silent install and upgrade.
+- Every workflow job has `timeout-minutes` (Windows client 300, so a cold vcpkg cache still fits), and the long steps have their own (Windows Configure 240, Build 60, Test 30, MSI steps 15; Linux dependency builds 45-60, `Check Player` 60). The Linux Player job builds melonDS, libdatachannel and SDL3 in explicit steps and saves their caches right after, uses ccache (saved by `main` runs only), and the Hub job runs a pinned, checksum-verified actionlint through `make check-hub`. The Windows vcpkg binary cache is saved only when a run changed it. Dependabot (`.github/dependabot.yml`) proposes weekly updates for the actions and the Hub Go modules.
 - Linux apt steps go through `scripts/ci-apt-install.sh` (update limited to 120 s and install to 240 s per attempt, apt retries and network timeouts, 3 attempts) plus a 20 minute step `timeout-minutes`, so a hanging Ubuntu mirror cannot block CI for long.
-- Job `hub-windows` (windows-latest): `go vet`, `go test` and a version check of the Windows Hub binary; artifact `framebeam-hub-windows`. The release adds `framebeam-hub-<version>-windows-amd64.exe` to the index as platform `windows-amd64`, kind `binary`.
+- Job `hub-windows` (windows-2025-vs2026): `go vet`, `go test` and a version check of the Windows Hub binary; artifact `framebeam-hub-windows`. The release adds `framebeam-hub-<version>-windows-amd64.exe` to the index as platform `windows-amd64`, kind `binary`.
 - Changes that touch only `docs/*` or `*.md` files are detected as docs-only on branches and PRs; the Hub, Player and Windows jobs are skipped for them.
 - `.github/workflows/release.yml`: after a successful CI run on `main` it publishes the CI artifacts as GitHub prerelease `vX.Y.Z` (newest 5 beta prereleases kept, promoted releases never pruned) and adds Hub and Player to the signed `updates-index` release under channel `beta` (`framebeam-sign release-add`, secret `FRAMEBEAM_SIGNING_KEY`). The per-product index entries are stored as `index-hub.json` / `index-player.json` assets on the release. Pushing a `v*` tag builds nothing.
 - `.github/workflows/promote.yml` ("Promote to release", manual): see [guides/updates.md](guides/updates.md).
@@ -79,7 +80,7 @@ Windows release builds use the `x64-windows-release` overlay triplet (Release-on
 
 ## Documentation checks
 
-`scripts/check-doc-links.py [repo-root]` (stdlib only) checks relative links and heading anchors in all Markdown files and exits 1 on broken ones. It is not part of `make check` or CI.
+`scripts/check-doc-links.py [repo-root]` (stdlib only) checks relative links and heading anchors in all Markdown files and exits 1 on broken ones. It is not part of `make check`; CI runs it in the job `Detect docs-only changes`.
 
 ## Contributions
 

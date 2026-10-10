@@ -1,0 +1,25 @@
+# apt packages for the Player build on Ubuntu 24.04 (noble): Qt 6.4, Xvfb, media dev packages (FFmpeg, Opus, OpenSSL for
+# libdatachannel). One package per line; '#' lines and blank lines are ignored. Single source for CI (ci.yml) and the
+# cloud SessionStart hook (.claude/hooks/session-start.sh).
+ninja-build
+qt6-base-dev
+qt6-declarative-dev
+qt6-multimedia-dev
+qml6-module-qtquick
+qml6-module-qtquick-controls
+qml6-module-qtquick-layouts
+qml6-module-qtquick-window
+qml6-module-qtqml-workerscript
+qml6-module-qtquick-templates
+libgl-dev
+libgl1-mesa-dri
+libglx-mesa0
+libegl1
+libepoxy-dev
+xvfb
+libavcodec-dev
+libswscale-dev
+libopus-dev
+qt6-websockets-dev
+libssl-dev
+pkg-config

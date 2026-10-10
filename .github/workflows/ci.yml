@@ -2,14 +2,18 @@ name: CI
 
 on:
   push:
-    branches: ['**']
+    branches: [main]   # other branches: ci-branch.yml (calls this workflow unless the branch has an open PR)
   pull_request:
     branches: [main]
   workflow_dispatch:
+  workflow_call:
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  # Runs on main never cancel each other: a cancelled run would waste its reserved beta version number.
+  # main: one group per commit, so no run is cancelled or replaced by a newer pending run (GitHub keeps only one pending
+  # run per group; a shared group would drop the middle commit of two quick merges). The tag reservation in the version
+  # job copes with parallel main runs. Everything else: one group per ref, a newer push cancels the older run.
+  # When called from ci-branch.yml, github.workflow is "CI (branch)" and the group differs from the caller's own.
+  group: ci-${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
@@ -22,7 +26,7 @@ jobs:
   # a rebuild. Everything else (PRs, branches, manual runs) is VERSION-dev.<run>, channel dev, and publishes nothing.
   version:
     name: Version and channel
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: write   # reserve the version tag (push to main only)
@@ -32,7 +36,9 @@ jobs:
       channel: ${{ steps.v.outputs.channel }}
       commit: ${{ steps.v.outputs.commit }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false   # the token is passed explicitly (env) to the tag step only
       - name: Compute version and channel
         id: v
         env:
@@ -48,6 +54,11 @@ jobs:
           [[ "$floor" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::VERSION must be X.Y.Z, found '$floor'"; exit 1; }
           if [ "$EVENT" = push ] && [ "$REF" = refs/heads/main ]; then
             channel="beta"
+            # No persisted credentials: authenticate git (ls-remote) for this step through env-based config.
+            basic="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+            echo "::add-mask::$basic"
+            GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $basic"
+            export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0="http.https://github.com/.extraheader" GIT_CONFIG_VALUE_0
             for attempt in 1 2 3 4 5; do
               core="$(git ls-remote --tags origin 'refs/tags/v*' | scripts/next-beta-version.sh "$floor" "$SHA")"
               # Tag already on this commit (re-run) or reserved now; a lost race ("Reference already exists") recomputes.
@@ -76,12 +87,12 @@ jobs:
   # Always false for main (beta release, Windows cache priming per ADR 0008) and workflow_dispatch.
   changes:
     name: Detect docs-only changes
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
       docs_only: ${{ steps.d.outputs.docs_only }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Classify changed paths
@@ -134,25 +145,51 @@ jobs:
               printf -- '- %s\n' "${files[@]}"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Check documentation links
+        run: python3 -I scripts/check-doc-links.py
 
   hub:
     name: Hub (Go, Linux)
     # Skipped for docs-only changes (see job changes); a skipped job counts as passing for required checks.
     if: needs.changes.outputs.docs_only != 'true'
     needs: [version, changes]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
       HUB_VERSION: ${{ needs.version.outputs.version }}
       HUB_CHANNEL: ${{ needs.version.outputs.channel }}
       HUB_COMMIT: ${{ needs.version.outputs.commit }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        id: go
         with:
           go-version-file: server/go.mod
           cache-dependency-path: server/go.sum
+      - name: Install actionlint (pinned, checksum-verified)
+        # scripts/check.sh packaging lints the workflows when actionlint is on the PATH (it uses the runner's shellcheck).
+        env:
+          ACTIONLINT_VERSION: "1.7.12"
+          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8   # actionlint_1.7.12_linux_amd64.tar.gz
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/actionlint.tar.gz" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          echo "$ACTIONLINT_SHA256  $RUNNER_TEMP/actionlint.tar.gz" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/actionlint-bin"
+          tar -xzf "$RUNNER_TEMP/actionlint.tar.gz" -C "$RUNNER_TEMP/actionlint-bin" actionlint
+          echo "$RUNNER_TEMP/actionlint-bin" >> "$GITHUB_PATH"
+      - name: Staticcheck version
+        id: sc
+        run: echo "version=$(sed -n 's/^STATICCHECK_VERSION="\(.*\)"/\1/p' scripts/check.sh)" >> "$GITHUB_OUTPUT"
+      - name: Cache staticcheck binary
+        # scripts/check.sh only runs `go install` when the binary in GOBIN has another version.
+        uses: actions/cache@v6
+        with:
+          path: ~/go/bin/staticcheck
+          key: staticcheck-${{ runner.os }}-${{ runner.arch }}-${{ steps.sc.outputs.version }}-go${{ steps.go.outputs.go-version }}
       - name: Check Hub
+        timeout-minutes: 20
         run: make check-hub
       - name: Build Hub (linux amd64 + arm64, windows amd64) and .deb packages
         run: |
@@ -168,9 +205,10 @@ jobs:
           cp server/THIRD-PARTY-NOTICES.txt server/dist/THIRD-PARTY-NOTICES.txt
           ls -l server/dist
       - name: E2E Hub install and update (systemd)
+        timeout-minutes: 15
         # Real install on the runner: install-hub.sh, .deb migration, signed update round trip (uses sudo).
         run: scripts/e2e-hub-update.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: framebeam-hub-linux
           path: |
@@ -182,7 +220,7 @@ jobs:
             server/dist/THIRD-PARTY-NOTICES.txt
           if-no-files-found: error
           retention-days: 7
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: framebeam-hub-windows
           path: server/dist/framebeam-hub-windows-amd64.exe
@@ -195,7 +233,7 @@ jobs:
     # Not a required check unless the repository settings say so.
     if: needs.changes.outputs.docs_only != 'true' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main'))
     needs: [version, changes]
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     timeout-minutes: 30
     env:
       HUB_VERSION: ${{ needs.version.outputs.version }}
@@ -206,8 +244,8 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: server/go.mod
           cache-dependency-path: server/go.sum
@@ -233,75 +271,126 @@ jobs:
     # Skipped for docs-only changes (see job changes).
     if: needs.changes.outputs.docs_only != 'true'
     needs: [version, changes]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 150
     env:
       FRAMEBEAM_VERSION: ${{ needs.version.outputs.version }}
       FRAMEBEAM_CHANNEL: ${{ needs.version.outputs.channel }}
       FRAMEBEAM_COMMIT: ${{ needs.version.outputs.commit }}
       VCPKG_ROOT: ${{ github.workspace }}/.vcpkg
-      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.vcpkg-binary-cache
+      # The Linux manifest has no dependencies (all vcpkg.json entries are Windows-only): no binary cache needed.
+      VCPKG_BINARY_SOURCES: clear
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_MAXSIZE: 400M
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+      - name: Image key and week key
+        # ImageOS (ubuntu24) is set by the runner image; the key parts keep prefixes built on another image apart.
+        id: week
+        run: |
+          echo "image=${ImageOS:-unknown}-$(uname -m)" >> "$GITHUB_OUTPUT"
+          echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
       - name: Cache vcpkg checkout
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ env.VCPKG_ROOT }}
-          key: vcpkg-root-${{ runner.os }}-${{ hashFiles('scripts/bootstrap-vcpkg.sh', 'client/vcpkg.json') }}
-      - name: Cache vcpkg binary cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
-          key: vcpkg-bin-${{ runner.os }}-${{ hashFiles('client/vcpkg.json') }}
-          restore-keys: vcpkg-bin-${{ runner.os }}-
-      - name: Cache melonDS DS core
-        uses: actions/cache@v4
+          key: vcpkg-root-${{ runner.os }}-${{ steps.week.outputs.image }}-${{ hashFiles('scripts/bootstrap-vcpkg.sh', 'client/vcpkg.json') }}
+      # melonDS, libdatachannel and SDL3 are built in explicit steps below and saved right after, so a failing test run
+      # later does not throw away a long dependency build (a plain actions/cache step saves only when the job succeeds).
+      - name: Restore melonDS DS core
+        id: cache-melonds
+        uses: actions/cache/restore@v6
         with:
           path: ~/.cache/framebeam/cores/melondsds
-          key: melondsds-core-linux-${{ hashFiles('scripts/melonds-ds.pin', 'scripts/fetch-melonds-ds.sh') }}
-      - name: Week key for the buildbot core cache
-        id: week
-        run: echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+          key: melondsds-core-linux-${{ steps.week.outputs.image }}-${{ hashFiles('scripts/melonds-ds.pin', 'scripts/fetch-melonds-ds.sh') }}
       - name: Cache DeSmuME core (buildbot nightly)
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/framebeam/cores/buildbot
-          key: desmume-linux-${{ steps.week.outputs.week }}
-      - name: Cache libdatachannel
-        uses: actions/cache@v4
+          key: desmume-linux-${{ steps.week.outputs.image }}-${{ steps.week.outputs.week }}
+      - name: Restore libdatachannel
+        id: cache-ddc
+        uses: actions/cache/restore@v6
         with:
           path: ~/.cache/framebeam/deps/libdatachannel
-          key: libdatachannel-linux-${{ hashFiles('scripts/libdatachannel.pin', 'scripts/fetch-libdatachannel.sh') }}
-      - name: Cache SDL3
-        uses: actions/cache@v4
+          key: libdatachannel-linux-${{ steps.week.outputs.image }}-${{ hashFiles('scripts/libdatachannel.pin', 'scripts/fetch-libdatachannel.sh') }}
+      - name: Restore SDL3
+        id: cache-sdl3
+        uses: actions/cache/restore@v6
         with:
           path: ~/.cache/framebeam/deps/sdl3
-          key: sdl3-linux-${{ hashFiles('scripts/sdl3.pin', 'scripts/fetch-sdl3.sh') }}
+          key: sdl3-linux-${{ steps.week.outputs.image }}-${{ hashFiles('scripts/sdl3.pin', 'scripts/fetch-sdl3.sh') }}
+      - name: Restore ccache
+        id: cache-ccache
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ccache-linux-${{ steps.week.outputs.image }}-${{ github.sha }}
+          restore-keys: ccache-linux-${{ steps.week.outputs.image }}-
       - name: Provision tools and Qt 6.4
         timeout-minutes: 20
         run: |
-          mkdir -p "$VCPKG_DEFAULT_BINARY_CACHE"
-          scripts/ci-apt-install.sh ninja-build qt6-base-dev qt6-declarative-dev qt6-multimedia-dev \
-            qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
-            qml6-module-qtquick-window qml6-module-qtqml-workerscript qml6-module-qtquick-templates \
-            libgl-dev libgl1-mesa-dri libglx-mesa0 libegl1 libepoxy-dev xvfb libavcodec-dev libswscale-dev libopus-dev \
-            qt6-websockets-dev libssl-dev pkg-config
+          mapfile -t pkgs < <(grep -vE '^[[:space:]]*(#|$)' scripts/qt-packages.txt)
+          scripts/ci-apt-install.sh "${pkgs[@]}" ccache
       - name: Bootstrap vcpkg
+        timeout-minutes: 10
         run: scripts/bootstrap-vcpkg.sh
       - name: Fetch DeSmuME core (libretro buildbot, ADR 0020 D10)
+        timeout-minutes: 10
         # Fails with a clear error when the buildbot is unreachable or the CRC32 does not match.
         run: scripts/fetch-buildbot-core.sh desmume
+      - name: Build melonDS DS core
+        timeout-minutes: 60
+        run: make fetch-core
+      - name: Save melonDS DS core
+        if: steps.cache-melonds.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.cache/framebeam/cores/melondsds
+          key: ${{ steps.cache-melonds.outputs.cache-primary-key }}
+      - name: Build libdatachannel
+        timeout-minutes: 45
+        run: make fetch-deps
+      - name: Save libdatachannel
+        if: steps.cache-ddc.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.cache/framebeam/deps/libdatachannel
+          key: ${{ steps.cache-ddc.outputs.cache-primary-key }}
+      - name: Build SDL3
+        timeout-minutes: 45
+        run: make fetch-sdl3
+      - name: Save SDL3
+        if: steps.cache-sdl3.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.cache/framebeam/deps/sdl3
+          key: ${{ steps.cache-sdl3.outputs.cache-primary-key }}
       - name: Check Player
+        timeout-minutes: 60
         env:
           # The cores are always present in CI: a failed fetch or a skipped emulation_core* test fails the check.
           FRAMEBEAM_REQUIRE_CORES: "1"
+          CMAKE_C_COMPILER_LAUNCHER: ccache
+          CMAKE_CXX_COMPILER_LAUNCHER: ccache
         run: xvfb-run -a make check-client
+      - name: ccache statistics
+        if: always()
+        run: ccache -s | head -n 12 || true
+      - name: Save ccache
+        # Only main saves (one entry per merge); PR and branch runs restore it. Stale entries age out.
+        if: always() && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ steps.cache-ccache.outputs.cache-primary-key }}
       - name: Install Go for Hub E2E
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: server/go.mod
           cache-dependency-path: server/go.sum
       - name: E2E Player CLI against Hub
+        timeout-minutes: 20
         # The E2E script builds the Hub and framebeam-sign itself (go build), no extra build step needed.
         run: |
           scripts/e2e-player-hub.sh
@@ -313,7 +402,7 @@ jobs:
     # Also skipped for docs-only changes (see job changes).
     if: needs.changes.outputs.docs_only != 'true' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main'))
     needs: [version, changes]
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     timeout-minutes: 300
     env:
       FRAMEBEAM_VERSION: ${{ needs.version.outputs.version }}
@@ -322,13 +411,14 @@ jobs:
       VCPKG_ROOT: ${{ github.workspace }}\.vcpkg
       VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\.vcpkg-binary-cache
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Cache vcpkg checkout
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ env.VCPKG_ROOT }}
           key: vcpkg-root-${{ runner.os }}-${{ hashFiles('client/vcpkg.json') }}
       - name: Bootstrap vcpkg at baseline commit
+        timeout-minutes: 20
         shell: pwsh
         run: |
           # Own checkout instead of VCPKG_INSTALLATION_ROOT: the runner's copy is
@@ -345,7 +435,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "vcpkg bootstrap failed" }
           }
       - name: Cache melonDS DS core
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ github.workspace }}\.framebeam-cache\cores\melondsds
           key: melondsds-core-windows-${{ hashFiles('scripts/melonds-ds.pin', 'scripts/fetch-melonds-ds.ps1') }}
@@ -356,11 +446,12 @@ jobs:
           $d = (Get-Date).ToUniversalTime()
           "week=$([Globalization.ISOWeek]::GetYear($d))-$('{0:00}' -f [Globalization.ISOWeek]::GetWeekOfYear($d))" >> $env:GITHUB_OUTPUT
       - name: Cache DeSmuME core (buildbot nightly)
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ github.workspace }}\.framebeam-cache\cores\buildbot
           key: desmume-windows-${{ steps.week.outputs.week }}
       - name: Install Qt 6.8
+        timeout-minutes: 30
         uses: jurplel/install-qt-action@v4
         with:
           version: 6.8.*
@@ -400,7 +491,7 @@ jobs:
           "version=$version" >> $env:GITHUB_OUTPUT
       - name: Restore vcpkg binary cache
         id: vcpkg-binary-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
           # A unique key lets each configure save additional ABI entries after a partial restore.
@@ -408,21 +499,46 @@ jobs:
           restore-keys: |
             vcpkg-bin-${{ runner.os }}-x64-windows-release-msvc-${{ steps.vcpkg-toolchain.outputs.version }}-${{ hashFiles('client/vcpkg.json', 'client/CMakePresets.json', 'client/triplets/*.cmake') }}-
             vcpkg-bin-${{ runner.os }}-x64-windows-release-msvc-${{ steps.vcpkg-toolchain.outputs.version }}-
+      - name: Record vcpkg binary cache state (before)
+        id: vcpkg-before
+        shell: pwsh
+        run: |
+          $f = @(Get-ChildItem -Path $env:VCPKG_DEFAULT_BINARY_CACHE -Recurse -File -ErrorAction SilentlyContinue)
+          $size = ($f | Measure-Object -Property Length -Sum).Sum
+          "files=$($f.Count)" >> $env:GITHUB_OUTPUT
+          "bytes=$([int64]$size)" >> $env:GITHUB_OUTPUT
+          Write-Host "vcpkg binary cache before: $($f.Count) files, $([int64]$size) bytes"
       - name: Configure
+        timeout-minutes: 240
         working-directory: client
         run: cmake --preset windows-msvc-release "-DFRAMEBEAM_MELONDS_DS_CORE=${{ steps.core.outputs.dll }}" "-DFRAMEBEAM_DESMUME_CORE=${{ steps.desmume.outputs.dll }}" "-DFRAMEBEAM_VERSION=$env:FRAMEBEAM_VERSION" "-DFRAMEBEAM_CHANNEL=$env:FRAMEBEAM_CHANNEL" "-DFRAMEBEAM_COMMIT=$env:FRAMEBEAM_COMMIT"
       # Save the binary cache right after vcpkg install (part of configure), even if
-      # later steps fail, so a long FFmpeg build is never repeated.
+      # later steps fail, so a long FFmpeg build is never repeated. Only when this run added or changed entries
+      # (file count or total size differs from the restored state): an unchanged cache is not uploaded again, which keeps
+      # the repository cache quota free for useful entries. A push to main that restores an older prefix and builds the
+      # missing ports still saves (ADR 0008 cache priming).
+      - name: Record vcpkg binary cache state (after)
+        id: vcpkg-after
+        if: always() && steps.vcpkg-before.outcome == 'success'
+        shell: pwsh
+        run: |
+          $f = @(Get-ChildItem -Path $env:VCPKG_DEFAULT_BINARY_CACHE -Recurse -File -ErrorAction SilentlyContinue)
+          $size = [int64](($f | Measure-Object -Property Length -Sum).Sum)
+          $changed = ($f.Count -ne [int]'${{ steps.vcpkg-before.outputs.files }}') -or ($size -ne [int64]'${{ steps.vcpkg-before.outputs.bytes }}')
+          "changed=$("$changed".ToLower())" >> $env:GITHUB_OUTPUT
+          Write-Host "vcpkg binary cache after: $($f.Count) files, $size bytes, changed=$changed"
       - name: Save vcpkg binary cache
-        if: always() && steps.vcpkg-binary-cache.outputs.cache-primary-key != ''
-        uses: actions/cache/save@v4
+        if: always() && steps.vcpkg-binary-cache.outputs.cache-primary-key != '' && steps.vcpkg-after.outputs.changed == 'true'
+        uses: actions/cache/save@v6
         with:
           path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
           key: ${{ steps.vcpkg-binary-cache.outputs.cache-primary-key }}
       - name: Build
+        timeout-minutes: 60
         working-directory: client
         run: cmake --build --preset windows-msvc-release
       - name: Test
+        timeout-minutes: 30
         working-directory: client
         shell: pwsh
         env:
@@ -483,6 +599,7 @@ jobs:
           if (@($skipped | Where-Object { $_ -notmatch '\b(emulation_hw_render|emulation_core_gl|media_cuda_gl_capture|media_cuda_gl_hw|ui_gpu_encode)\b' }).Count -gt 0) { throw "Tests were skipped although the core should be present" }
           if ($skipped.Count -gt 0) { Write-Host "Note: GL tests skipped (no GL 3.3 context on this runner), allowed by ADR 0013 D6" }
       - name: Assemble package (windeployqt)
+        timeout-minutes: 15
         shell: pwsh
         run: |
           # Layout (spec 0.3 S6): the tiny launcher and the notice at the top, everything else in bin\.
@@ -539,6 +656,7 @@ jobs:
           }
           Write-Host "Bundled licenses: $((Get-ChildItem $lic.FullName | ForEach-Object Name) -join ', ')"
       - name: Package smoke check
+        timeout-minutes: 15
         shell: pwsh
         env:
           QT_QPA_PLATFORM: offscreen
@@ -602,7 +720,7 @@ jobs:
           $zip = "$env:GITHUB_WORKSPACE\dist\zip\framebeam-player-$($env:FRAMEBEAM_VERSION)-windows-x64.zip"
           Compress-Archive -Path $dist -DestinationPath $zip -CompressionLevel Optimal
           Get-Item $zip | Format-Table Name, Length
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: framebeam-player-windows-x64
           path: |
@@ -610,7 +728,7 @@ jobs:
             dist/zip/player-release-info.json
           if-no-files-found: error
           retention-days: 7
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version-file: server/go.mod
           cache-dependency-path: server/go.sum
@@ -629,6 +747,7 @@ jobs:
           ../dist/hub/framebeam-hub.exe version --json | tee ../dist/hub/hub-info.json
           grep -qF "\"version\":\"$FRAMEBEAM_VERSION\"" ../dist/hub/hub-info.json
       - name: Build MSI (WiX v5)
+        timeout-minutes: 30
         shell: pwsh
         env:
           CORE_VERSION: ${{ needs.version.outputs.core }}
@@ -647,11 +766,13 @@ jobs:
             -PackageDir "$env:GITHUB_WORKSPACE\dist\framebeam-player" -HubExe "$env:GITHUB_WORKSPACE\dist\hub\framebeam-hub.exe" `
             -OutFile "$env:GITHUB_WORKSPACE\dist\msi-upgrade\framebeam-upgrade.msi"
       - name: Build setup shell (Inno Setup)
+        timeout-minutes: 15
         shell: pwsh
         run: |
           $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
           if (-not (Test-Path $iscc)) {
-            choco install innosetup -y --no-progress
+            # Same version as the runner image ships (windows-2025 images: InnoSetup 6.7.1).
+            choco install innosetup --version 6.7.1 -y --no-progress
             if ($LASTEXITCODE -ne 0) { throw "choco install innosetup failed" }
           }
           if (-not (Test-Path $iscc)) { throw "ISCC.exe not found at $iscc" }
@@ -663,12 +784,15 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
           if (-not (Test-Path "dist\installer\$name.exe")) { throw "setup shell was not produced" }
       - name: MSI test (a) Player only, per user
+        timeout-minutes: 15
         shell: pwsh
         run: scripts\test-windows-msi.ps1 -Scenario user -Msi "dist\msi\framebeam-$($env:FRAMEBEAM_VERSION)-windows-x64.msi"
       - name: MSI test (b) Player and Hub, per machine
+        timeout-minutes: 15
         shell: pwsh
         run: scripts\test-windows-msi.ps1 -Scenario machine -Msi "dist\msi\framebeam-$($env:FRAMEBEAM_VERSION)-windows-x64.msi" -OldMsi dist\msi-old\framebeam-old.msi -UpgradeMsi dist\msi-upgrade\framebeam-upgrade.msi -Version $env:FRAMEBEAM_VERSION
       - name: MSI test (c) migration from the Inno installer
+        timeout-minutes: 15
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -678,19 +802,19 @@ jobs:
           scripts\test-windows-msi.ps1 -Scenario migrate -Msi "dist\msi\framebeam-$($env:FRAMEBEAM_VERSION)-windows-x64.msi" -Setup $setup
       - name: Upload MSI test logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: framebeam-msi-test-logs
           path: ${{ runner.temp }}/fb-msi-test-*/*.log
           if-no-files-found: ignore
           retention-days: 7
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: framebeam-windows-x64-msi
           path: dist/msi/framebeam-*-windows-x64.msi
           if-no-files-found: error
           retention-days: 7
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: framebeam-player-windows-x64-setup
           path: dist/installer/framebeam-player-*-windows-x64-setup.exe

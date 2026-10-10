@@ -2,6 +2,7 @@
 # Installs apt packages on a CI runner with bounded time: each attempt
 # is limited (update 120 s, install 240 s, max 6 min), apt retries/timeouts are set, and
 # up to 3 attempts are made so a hanging mirror cannot block a job for long.
+# A timed-out apt/dpkg is killed hard (timeout -k) and dpkg is repaired (dpkg --configure -a) before the next attempt.
 # Usage: scripts/ci-apt-install.sh <packages...>
 set -euo pipefail
 
@@ -14,8 +15,8 @@ opts=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Time
 attempts=3
 
 attempt_once() {
-  timeout 120 sudo apt-get update -qq "${opts[@]}" &&
-    timeout 240 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${opts[@]}" "$@"
+  timeout -k 10 120 sudo apt-get update -qq "${opts[@]}" &&
+    timeout -k 10 240 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${opts[@]}" "$@"
 }
 
 for ((i = 1; i <= attempts; i++)); do
@@ -24,6 +25,8 @@ for ((i = 1; i <= attempts; i++)); do
   fi
   echo "::warning::apt update/install failed (attempt ${i}/${attempts})"
   if [ "$i" -lt "$attempts" ]; then
+    # A killed apt may have left dpkg half-configured ("dpkg was interrupted"); without this the retries cannot succeed.
+    timeout -k 10 120 sudo DEBIAN_FRONTEND=noninteractive dpkg --configure -a || true
     sleep 10
   fi
 done
