@@ -106,9 +106,11 @@ struct CoreProfile {
   QStringList lockedCoreOptions;
   QStringList alwaysShownCoreOptions;
   // Where the cartridge save lives (ADR 0020 D7): "save_ram" = libretro SAVE_RAM, persisted by the Player as
-  // <rom basename><extension> (raw); "none" = the core's saves are not a single file (e.g. 3DS: per-title trees in
-  // the core's virtual SD/NAND): they stay on this device in the game's save directory and are not synced (never
-  // uploaded, deleted or overwritten by the Player); "core_file" = the core manages its own file <rom basename><extension> in the
+  // <rom basename><extension> (raw); "none" = the core's saves are not a single file and stay on this device in the
+  // game's save directory, not synced (never uploaded, deleted or overwritten by the Player); "core_tree" = the save
+  // data lives in a tree below the core's save directory (format "azahar_sdmc": the game's title data / extdata in the
+  // virtual SD card of Azahar, 3DS): the Player packs it into one deterministic tar archive that is the slot's raw save
+  // on the Hub (core/sdtree.h; nand, sysdata, shaders, cheats stay local); "core_file" = the core manages its own file <rom basename><extension> in the
   // save directory in `saveFormat` ("desmume_dsv"); the Player converts around the core. The Hub stores raw saves only.
   QString saveSource = QStringLiteral("save_ram");
   QString saveExtension = QStringLiteral(".sav");

@@ -13,6 +13,7 @@
 #include "hubconnection.h"
 #include "profilestore.h"
 #include "savesync.h"
+#include "sdtree.h"
 
 using namespace framebeam;
 using State = HubConnection::State;
@@ -1252,6 +1253,101 @@ class SaveSyncTest : public QObject {
     hub_->setHubSave(kGame, dsRaw('a'));
     QCOMPARE(startWith(melonRef()), QStringLiteral("ready"));
     QCOMPARE(readFile(saveFile()), dsRaw('a'));
+    QCOMPARE(puts(), 0);
+  }
+
+  // ---------------------------------------------------------------- ADR 0020 D7: Azahar SD tree (core_tree) <-> tar archive as raw save
+
+  static SaveSync::CoreRef azaharRef() {
+    SaveSync::CoreRef r{QStringLiteral("azahar"), QStringLiteral("2026.10.01")};
+    r.saveSource = QStringLiteral("core_tree");
+    r.fileExtension = QStringLiteral(".sav");
+    r.fileFormat = QStringLiteral("azahar_sdmc");
+    r.shortDir = true;
+    r.subfolder = QStringLiteral("Azahar");
+    return r;
+  }
+  QString treeRoot() const {
+    return SaveStore::shortCoreDir(*profiles_, kHubId, kUser, kGame, QStringLiteral("default")) + QStringLiteral("/Azahar");
+  }
+  static QString titleData(const QString& file) {
+    return QStringLiteral("/sdmc/Nintendo 3DS/0123456789ABCDEF0123456789ABCDEF/FEDCBA9876543210FEDCBA9876543210/title/00040000/00123400/data/00000001/") + file;
+  }
+  static void writeTree(const QString& root, const QByteArray& main) {
+    writeFile(root + titleData(QStringLiteral("main")), main);
+    writeFile(root + titleData(QStringLiteral(".metadata")), "meta");
+    writeFile(root + QStringLiteral("/nand/data/system.bin"), "nand-local");
+  }
+
+  void azaharExistingTreeIsUploadedAtStart() {
+    writeTree(treeRoot(), "tree-a");
+    QCOMPARE(startWith(azaharRef()), QStringLiteral("ready"));
+    const QByteArray tar = *sdtree::pack(treeRoot());
+    QVERIFY(!tar.isEmpty());
+    QCOMPARE(readFile(saveFile()), tar);
+    QCOMPARE(hub_->saves.value(kGame).content, tar);  // Hub bytes == sdtree::pack
+    QCOMPARE(readFile(treeRoot() + titleData(QStringLiteral("main"))), QByteArray("tree-a"));
+    QCOMPARE(readFile(treeRoot() + QStringLiteral("/nand/data/system.bin")), QByteArray("nand-local"));
+  }
+
+  void azaharTreeFromTheLongDirectoryIsAdopted() {
+    writeTree(gdir() + QStringLiteral("/Azahar"), "old-tree");  // written by the local-only mode
+    QCOMPARE(startWith(azaharRef()), QStringLiteral("ready"));
+    QVERIFY(!QFileInfo::exists(gdir() + QStringLiteral("/Azahar")));
+    QCOMPARE(readFile(treeRoot() + titleData(QStringLiteral("main"))), QByteArray("old-tree"));
+    QCOMPARE(hub_->saves.value(kGame).content, *sdtree::pack(treeRoot()));
+  }
+
+  void azaharNewerHubSaveReplacesTheTreeAfterABackup() {
+    writeTree(treeRoot(), "tree-a");
+    QCOMPARE(startWith(azaharRef()), QStringLiteral("ready"));  // uploaded: tree and Hub in sync
+    QTemporaryDir other;
+    writeTree(other.path(), "from-the-hub");
+    const QByteArray hubTar = *sdtree::pack(other.path());
+    const QByteArray localTar = *sdtree::pack(treeRoot());
+    hub_->setHubSave(kGame, hubTar);
+    QCOMPARE(startWith(azaharRef()), QStringLiteral("ready"));
+    QCOMPARE(readFile(treeRoot() + titleData(QStringLiteral("main"))), QByteArray("from-the-hub"));
+    QCOMPARE(readFile(treeRoot() + QStringLiteral("/nand/data/system.bin")), QByteArray("nand-local"));  // never touched
+    const QStringList baks = QDir(gdir()).entryList({QStringLiteral("rom1.sav.tree-*.bak")});
+    QCOMPARE(baks.size(), 1);
+    QCOMPARE(readFile(gdir() + QLatin1Char('/') + baks.at(0)), localTar);  // what the tree held before
+    QCOMPARE(readFile(saveFile()), hubTar);
+    // restarting changes nothing: no upload, no second backup
+    const int before = puts();
+    QCOMPARE(startWith(azaharRef()), QStringLiteral("ready"));
+    QCOMPARE(puts(), before);
+    QCOMPARE(QDir(gdir()).entryList({QStringLiteral("rom1.sav.tree-*.bak")}).size(), 1);
+  }
+
+  void azaharTreeChangesDuringTheSessionAreUploaded() {
+    writeTree(treeRoot(), "tree-a");
+    QCOMPARE(startWith(azaharRef()), QStringLiteral("ready"));
+    sync_->beginSession();
+    QVERIFY(!sync_->liveApplyAvailable(kGame, QStringLiteral("default")));
+    writeFile(treeRoot() + titleData(QStringLiteral("main")), "tree-b-longer");  // the core saves
+    QTRY_COMPARE_WITH_TIMEOUT(hub_->saves.value(kGame).content, *sdtree::pack(treeRoot()), 8000);  // found by the fingerprint poll
+    writeFile(treeRoot() + titleData(QStringLiteral("extra")), "more");
+    QVERIFY(sync_->finalSyncBlocking(true));
+    QCOMPARE(hub_->saves.value(kGame).content, *sdtree::pack(treeRoot()));
+    QCOMPARE(SaveStore::loadState(gdir()).lastSyncedSha256, SaveStore::sha256Of(hub_->saves.value(kGame).content));
+  }
+
+  void azaharInvalidHubBlobFailsTheStartAndLeavesTheTree() {
+    writeTree(treeRoot(), "tree-a");
+    QCOMPARE(startWith(azaharRef()), QStringLiteral("ready"));
+    const QByteArray before = *sdtree::pack(treeRoot());
+    hub_->setHubSave(kGame, QByteArray("this is not a tar archive"));
+    QString text;
+    QCOMPARE(startWith(azaharRef(), &text), QStringLiteral("failed"));
+    QVERIFY2(text.contains(QStringLiteral("cannot be prepared")), qPrintable(text));
+    QCOMPARE(*sdtree::pack(treeRoot()), before);
+    QCOMPARE(readFile(treeRoot() + QStringLiteral("/nand/data/system.bin")), QByteArray("nand-local"));
+  }
+
+  void azaharWithoutAnySaveStartsFresh() {
+    QCOMPARE(startWith(azaharRef()), QStringLiteral("ready"));
+    QVERIFY(!QFileInfo::exists(saveFile()));
     QCOMPARE(puts(), 0);
   }
 };

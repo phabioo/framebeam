@@ -10,7 +10,13 @@ The Hub keeps the central, versioned copy of every save; the Player syncs with i
 - Without a connection the game starts with the local save and the upload stays pending for the same Hub and user. Saves are never sent to another Hub.
 - Locations: Player `<data dir>/hubs/<hub_id>/users/<user_id>/saves/<game_id>/`; Hub `<data dir>/saves/` (files; SQLite holds metadata only).
 
-Local-only saves (0.10, [ADR 0022](../adr/0022-nintendo-3ds-with-azahar.md)): systems with save source `none` (Nintendo 3DS) skip all of this. Their data stays in the per-game save directory on the device, is never deleted or overwritten and is not synced to the Hub yet; syncing the SD/NAND tree is an open item.
+Save source `none` (no sync) exists for systems that keep their data local-only; no system uses it at the moment.
+
+Nintendo 3DS (Azahar, save source `core_tree`, format `azahar_sdmc`, [ADR 0022](../adr/0022-nintendo-3ds-with-azahar.md) D3 amendment): Azahar keeps a virtual SD/NAND tree in the per-slot short dir `<data>/c/<16 hex>/Azahar/`. The Player packs only the game's save data (`sdmc/Nintendo 3DS/<id0>/<id1>/title/<high>/<low>/data/**` and `.../extdata/**`) into one deterministic, uncompressed tar, which is the slot's save on the Hub (opaque, 64 MiB limit; revisions, history, snapshots, conflicts and restore as above). Never synced: `nand/`, `sysdata/`, `shaders/`, `cheats/`, installed content.
+- Like DeSmuME `.dsv`, the tar is imported from the tree at start, during play and at the final sync, and exported into the tree before the core starts.
+- Before the tree is replaced by a different Hub version, it is written as `<slot dir>/<rom>.sav.tree-<timestamp>.bak`. Unmanaged files are never touched; an invalid archive blocks the start and leaves the tree untouched.
+- Existing local-only 3DS saves are adopted and uploaded on the first start with the new Player.
+- Restore or upload while a 3DS game runs is not live: quit the game first. An uploaded file must be such a tar; it is validated at the next start.
 
 ## Conflicts
 

@@ -186,9 +186,13 @@ std::optional<CoreProfile> ManifestRegistry::parseProfile(const QByteArray& json
   if (p.saveShortDirSubfolder.contains(QLatin1Char('/')) || p.saveShortDirSubfolder.contains(QLatin1Char('\\')) || p.saveShortDirSubfolder == QLatin1String("..")) {
     return fail(QStringLiteral("save: invalid short_dir_subfolder"));
   }
-  if ((p.saveSource != QLatin1String("save_ram") && p.saveSource != QLatin1String("core_file") && p.saveSource != QLatin1String("none")) || !p.saveExtension.startsWith(QLatin1Char('.')) ||
+  if ((p.saveSource != QLatin1String("save_ram") && p.saveSource != QLatin1String("core_file") && p.saveSource != QLatin1String("core_tree") &&
+       p.saveSource != QLatin1String("none")) || !p.saveExtension.startsWith(QLatin1Char('.')) ||
       p.saveExtension.contains(QLatin1Char('/')) || p.saveExtension.contains(QLatin1Char('\\')) || p.saveExtension.size() < 2) {
     return fail(QStringLiteral("save: invalid source or extension"));
+  }
+  if (p.saveSource == QLatin1String("core_tree") && p.saveFormat != QLatin1String("azahar_sdmc")) {
+    return fail(QStringLiteral("save: core_tree needs format azahar_sdmc"));
   }
   const QJsonObject fw = o.value(QLatin1String("firmware")).toObject();
   p.sysfileOption = fw.value(QLatin1String("sysfile_option")).toString();

@@ -110,7 +110,8 @@ class SaveSync : public QObject {
   void setLiveHooks(LiveHooks hooks) { live_ = std::move(hooks); }
   // This game runs here with this slot and the core can take a new save.
   bool liveApplyAvailable(const QString& gameId, const QString& slot) const {
-    return isRunning(gameId, slot) && live_.apply && live_.accepts && (!live_.ready || live_.ready());
+    // Not for "core_tree" (Azahar): the save is a tree the running core owns, it is only replaced before the core starts.
+    return isRunning(gameId, slot) && a_.coreTree.isEmpty() && live_.apply && live_.accepts && (!live_.ready || live_.ready());
   }
   // Why restore / upload are off for a running game even though the core could take the save; empty = allowed.
   QString liveBlockReason(const QString& gameId, const QString& slot) const;
@@ -168,13 +169,17 @@ class SaveSync : public QObject {
     // single save blob): local-only, the game's save directory is handed to the core and never touched, synced,
     // deleted or overwritten; startReady() carries a note that sync is not available for this system yet. "save_ram" / "core_file": exactly <rom>.sav is synced, never
     // another file. "core_file" with format "desmume_dsv": the core's own <rom><extension> is converted around the
-    // core (raw .sav <-> .dsv); the Hub only ever holds the raw save.
+    // core (raw .sav <-> .dsv); the Hub only ever holds the raw save. "core_tree" with format "azahar_sdmc" (3DS): the
+    // game's save data in the core's virtual SD tree (core/sdtree.h) is packed into one deterministic tar archive that is
+    // the raw <rom>.sav the Hub holds; nand, sysdata, shaders, cheats stay local. "none" is still honored as above.
     QString saveSource = QStringLiteral("auto");
     QString fileExtension;
     QString fileFormat;
     // Core profile save.short_dir: the core gets SaveStore::shortCoreDir (Windows MAX_PATH); a core-created file
-    // (.dsv) is read and written there, the raw save and sync.json stay in the regular slot directory.
+    // (.dsv, or the "core_tree" tree) is read and written there, the raw save and sync.json stay in the regular slot directory.
     bool shortDir = false;
+    QString subfolder;  // "core_tree": directory below the core dir that holds the tree (profile save.short_dir_subfolder); also
+                        // adopted once from the slot directory into the short one
     bool valid() const { return !id.isEmpty() && !version.isEmpty(); }
   };
   // Start sync before the core loads. The core's save dir comes with startReady().
@@ -237,14 +242,18 @@ class SaveSync : public QObject {
     QString coreFileExt;     // core-managed save file next to it (".dsv"); empty = none
     QString coreDir;         // directory the core gets when CoreRef::shortDir (the .dsv lives there); empty = a_.dir
     QString coreFileFormat;
+    QString coreTree;        // "core_tree": root of the core's tree (core dir + subfolder); empty = no tree conversion
+    QString coreTreeFp;      // sdtree::fingerprint at the last observation
     qint64 coreFileSize = -1;
     QDateTime coreFileMtime;
   };
 
   QString findLocalSave(QStringList* warnings = nullptr) const;
   QString coreFilePath() const;  // below a_.coreDir (the directory the core gets), else a_.dir
-  bool importCoreFile(bool backup, QString* error);  // core file -> raw .sav when it changed since the last export/import
-  bool exportCoreFile(QString* error);               // raw .sav -> core file before the core starts
+  bool importCoreFile(bool backup, QString* error);  // core file / tree -> raw .sav when it changed since the last export/import
+  bool exportCoreFile(QString* error);               // raw .sav -> core file / tree before the core starts
+  bool importCoreTree(bool backup, QString* error);
+  bool exportCoreTree(QString* error);
   bool pullCoreFile(bool force);                     // session: import, error reported once on a forced pull
   void emitStartReady(const QString& note);
 

@@ -1,6 +1,7 @@
 #include "savesync.h"
 
 #include "dsvsave.h"
+#include "sdtree.h"
 
 #include <QDir>
 #include <QEventLoop>
@@ -199,8 +200,12 @@ void SaveSync::prepareStart(const QString& gameId, const QString& romPath, const
   }
   a_.expectedName = SaveStore::expectedSaveName(romPath);
   a_.exactSave = core.valid() && core.saveSource != QLatin1String("auto");
-  if (core.valid() && core.saveSource == QLatin1String("core_file") && core.fileFormat == QLatin1String("desmume_dsv")) {
-    a_.coreFileExt = core.fileExtension;
+  const bool dsvCore = core.valid() && core.saveSource == QLatin1String("core_file") && core.fileFormat == QLatin1String("desmume_dsv");
+  const bool treeCore = core.valid() && core.saveSource == QLatin1String("core_tree") && core.fileFormat == QLatin1String("azahar_sdmc");
+  if (dsvCore || treeCore) {
+    if (dsvCore) {
+      a_.coreFileExt = core.fileExtension;
+    }
     a_.coreFileFormat = core.fileFormat;
     if (core.shortDir) {
       a_.coreDir = SaveStore::shortCoreDir(*profiles_, a_.hubId, a_.userId, gameId, a_.slot);
@@ -209,31 +214,42 @@ void SaveSync::prepareStart(const QString& gameId, const QString& romPath, const
         return;
       }
       QDir().mkpath(a_.coreDir);
-      // One-time adoption of a .dsv the core wrote to the long directory earlier; never overwrites a file in the short one.
-      const QString name = SaveStore::expectedSaveName(romPath, a_.coreFileExt);
-      switch (SaveStore::migrateCoreFile(a_.dir, a_.coreDir, name)) {
-        case SaveStore::FileMove::Moved:
-          qCInfo(lcSaveSync) << "Core save file" << name << "moved to the short core directory";
-          break;
-        case SaveStore::FileMove::KeptBoth:
-          qCWarning(lcSaveSync) << "Core save file" << name << "exists in the old and the short core directory; the old one was kept untouched";
-          break;
-        case SaveStore::FileMove::Failed:
-          qCWarning(lcSaveSync) << "Core save file" << name << "could not be moved to the short core directory";
-          break;
-        case SaveStore::FileMove::None:
-          break;
+      if (treeCore) {
+        // One-time adoption of a tree the core (or the local-only mode) wrote to the long directory earlier; never overwrites.
+        if (SaveStore::migrateCoreSubfolder(a_.dir, a_.coreDir, core.subfolder)) {
+          qCInfo(lcSaveSync) << "Core save tree" << core.subfolder << "moved to the short core directory";
+        }
+      } else {
+        // One-time adoption of a .dsv the core wrote to the long directory earlier; never overwrites a file in the short one.
+        const QString name = SaveStore::expectedSaveName(romPath, a_.coreFileExt);
+        switch (SaveStore::migrateCoreFile(a_.dir, a_.coreDir, name)) {
+          case SaveStore::FileMove::Moved:
+            qCInfo(lcSaveSync) << "Core save file" << name << "moved to the short core directory";
+            break;
+          case SaveStore::FileMove::KeptBoth:
+            qCWarning(lcSaveSync) << "Core save file" << name << "exists in the old and the short core directory; the old one was kept untouched";
+            break;
+          case SaveStore::FileMove::Failed:
+            qCWarning(lcSaveSync) << "Core save file" << name << "could not be moved to the short core directory";
+            break;
+          case SaveStore::FileMove::None:
+            break;
+        }
       }
+    }
+    if (treeCore) {
+      const QString base = a_.coreDir.isEmpty() ? a_.dir : a_.coreDir;
+      a_.coreTree = core.subfolder.isEmpty() ? base : QDir(base).filePath(core.subfolder);
     }
   }
   a_.st = SaveStore::loadState(a_.dir);
   a_.st.slot = a_.slot;
-  if (!a_.coreFileExt.isEmpty()) {
+  if (!a_.coreFileExt.isEmpty() || !a_.coreTree.isEmpty()) {
     // The core's own save of the last session may hold progress the raw save does not have yet: bring it in first.
     QString err;
     if (!importCoreFile(true, &err)) {
       failStart(gen, tr("The save file %1 of %2 could not be read (%3). It was left untouched and the game was not started, so no progress is lost.")
-                         .arg(QFileInfo(coreFilePath()).fileName(), core.id, err));
+                         .arg(a_.coreTree.isEmpty() ? QFileInfo(coreFilePath()).fileName() : tr("save data"), core.id, err));
       return;
     }
   }
@@ -285,7 +301,82 @@ QString SaveSync::coreFilePath() const {
   return a_.coreFileExt.isEmpty() ? QString() : QDir(a_.coreDir.isEmpty() ? a_.dir : a_.coreDir).filePath(a_.gameId.isEmpty() ? QString() : SaveStore::expectedSaveName(a_.romPath, a_.coreFileExt));
 }
 
+static_assert(sdtree::kMaxTreeBytes == kMaxSaveBytes, "the save tree limit must equal the Hub's save size limit");
+
+bool SaveSync::importCoreTree(bool backup, QString* error) {
+  const auto tar = sdtree::pack(a_.coreTree, error);
+  if (!tar) {
+    return false;  // never upload a partial tree
+  }
+  if (tar->isEmpty()) {
+    return true;  // no save data in the tree (yet)
+  }
+  const QString sha = SaveStore::sha256Of(*tar);
+  if (sha == a_.st.coreFileSha256) {
+    return true;  // nothing new since the last export / import
+  }
+  const QString rawFile = QDir(a_.dir).filePath(a_.expectedName);
+  QFile cur(rawFile);
+  const bool same = cur.open(QIODevice::ReadOnly) && cur.readAll() == *tar;
+  cur.close();
+  if (!same) {
+    if (backup) {
+      SaveStore::backupFile(rawFile, QStringLiteral("core-file"));
+    }
+    if (!SaveStore::atomicWrite(rawFile, *tar)) {
+      *error = tr("the raw save could not be written");
+      return false;
+    }
+  }
+  a_.file = rawFile;
+  a_.st.coreFileSha256 = sha;
+  persist();
+  return true;
+}
+
+bool SaveSync::exportCoreTree(QString* error) {
+  const QString rawFile = QDir(a_.dir).filePath(a_.expectedName);
+  QFile in(rawFile);
+  if (!in.open(QIODevice::ReadOnly)) {
+    return true;  // no save yet: the core starts fresh
+  }
+  const QByteArray raw = in.readAll();
+  in.close();
+  const auto cur = sdtree::pack(a_.coreTree, error);
+  if (!cur) {
+    return false;
+  }
+  const QString rawSha = SaveStore::sha256Of(raw);
+  if (!cur->isEmpty() && SaveStore::sha256Of(*cur) == rawSha) {
+    a_.st.coreFileSha256 = rawSha;
+    persist();
+    return true;
+  }
+  if (!cur->isEmpty()) {  // the tree is about to be replaced: keep what is there
+    const QString stamp = QDateTime::currentDateTimeUtc().toString(QStringLiteral("yyyyMMdd-HHmmss-zzz"));
+    if (!SaveStore::atomicWrite(QStringLiteral("%1.tree-%2.bak").arg(rawFile, stamp), *cur)) {
+      *error = tr("the backup of the current save data could not be written");
+      return false;
+    }
+  }
+  if (!sdtree::unpack(raw, a_.coreTree, error)) {
+    return false;
+  }
+  // The archive may not be canonical (e.g. uploaded by another tool): remember what the tree really packs to.
+  const auto fresh = sdtree::pack(a_.coreTree, error);
+  if (!fresh) {
+    return false;
+  }
+  a_.st.coreFileSha256 = fresh->isEmpty() ? rawSha : SaveStore::sha256Of(*fresh);
+  a_.coreTreeFp = sdtree::fingerprint(a_.coreTree);
+  persist();
+  return true;
+}
+
 bool SaveSync::importCoreFile(bool backup, QString* error) {
+  if (!a_.coreTree.isEmpty()) {
+    return importCoreTree(backup, error);
+  }
   const QString path = coreFilePath();
   QFile in(path);
   if (path.isEmpty() || !in.exists()) {
@@ -325,6 +416,9 @@ bool SaveSync::importCoreFile(bool backup, QString* error) {
 }
 
 bool SaveSync::exportCoreFile(QString* error) {
+  if (!a_.coreTree.isEmpty()) {
+    return exportCoreTree(error);
+  }
   const QString path = coreFilePath();
   const QString rawFile = QDir(a_.dir).filePath(a_.expectedName);
   QFile in(rawFile);
@@ -347,6 +441,21 @@ bool SaveSync::exportCoreFile(QString* error) {
 }
 
 bool SaveSync::pullCoreFile(bool force) {
+  if (!a_.coreTree.isEmpty()) {
+    const QString fp = sdtree::fingerprint(a_.coreTree);
+    if (fp.isEmpty() || (!force && fp == a_.coreTreeFp)) {
+      return true;
+    }
+    a_.coreTreeFp = fp;
+    QString err;
+    if (importCoreTree(false, &err)) {
+      return true;
+    }
+    if (force) {
+      emit coreSaveProblem(a_.gameId, tr("The save data of the game could not be packed (%1). It stays on this device untouched and was not uploaded; your Hub save is unchanged.").arg(err));
+    }
+    return false;
+  }
   const QString path = coreFilePath();
   if (path.isEmpty()) {
     return true;
@@ -373,7 +482,7 @@ bool SaveSync::pullCoreFile(bool force) {
 
 void SaveSync::emitStartReady(const QString& note) {
   QString err;
-  if (!a_.coreFileExt.isEmpty() && !exportCoreFile(&err)) {
+  if ((!a_.coreFileExt.isEmpty() || !a_.coreTree.isEmpty()) && !exportCoreFile(&err)) {
     emit startFailed(a_.gameId, tr("The save cannot be prepared for the core (%1). The game was not started, so your save stays untouched.").arg(err));
     return;
   }
@@ -410,7 +519,9 @@ void SaveSync::failStart(quint64 gen, const QString& message) {
 // ADR 0020 D7: a save written by another core (or another build of it) is snapshotted on the Hub before the new core
 // touches it. Never risk a save silently: a failed snapshot blocks the start.
 void SaveSync::guardCoreChange(quint64 gen, const CoreRef& core) {
-  const CoreRef old{a_.st.writerCoreId, a_.st.writerCoreVersion};
+  CoreRef old;
+  old.id = a_.st.writerCoreId;
+  old.version = a_.st.writerCoreVersion;
   if (old.id.isEmpty()) {  // first start with this save directory: just record
     recordCore(core);
     continueStart(gen);
