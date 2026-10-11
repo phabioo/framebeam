@@ -25,7 +25,7 @@ struct Value {
 };
 
 // Reads the value at `idx` (deep copy). On failure returns false and sets `err` (e.g. "function values cannot be passed").
-bool readValue(lua_State* L, int idx, Value& out, std::string& err);
+bool readValue(lua_State* L, int idx, Value& out, std::string& err, int maxDepth = kMaxValueDepth, size_t maxBytes = kMaxValueBytes);
 // Pushes a deep copy of `v` (may raise a Lua memory error).
 void pushValue(lua_State* L, const Value& v);
 // Short single-line rendering for the console ("{a=1, b=\"x\"}"), at most `maxLen` characters.

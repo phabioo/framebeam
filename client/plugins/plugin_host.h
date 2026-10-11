@@ -2,12 +2,14 @@
 
 #include <QObject>
 #include <QStringList>
+#include <QVariant>
 #include <atomic>
 #include <memory>
 
 #include "manifest.h"
 #include "plugin_memory.h"
 #include "plugin_types.h"
+#include "plugin_ui.h"
 
 class QThread;
 
@@ -38,6 +40,18 @@ class PluginHost : public QObject {
   // Budgets for plugins started or reloaded afterwards.
   void setLimits(const HostLimits& limits);
 
+  // --- plugin UI (fb.ui), see plugin_ui.h ---
+  // An action of the UI (button, toggle, list row, toast action, hotkey ...): calls the plugin's fb.ui.on_action handler
+  // on the plugin thread with (action, value, slot). Ignored when the plugin has no handler or is not running.
+  void sendAction(const QString& pluginId, const QString& slot, const QString& action, const QVariant& value = QVariant());
+  // Host event with source plugin id "fb" (fb.events.on("fb", name, fn)); `targetPlugin` empty = all subscribers.
+  void postHostEvent(const QString& name, const QVariant& value, const QString& targetPlugin = QString());
+  // Removes the tree of `slot` from every plugin (the host clears "detail" when the shown game changes).
+  void clearSlot(const QString& slot);
+  UiPluginState uiState(const QString& pluginId) const;
+  QVariantMap uiTree(const QString& pluginId, const QString& slot) const;
+  QList<QVariantMap> takeToasts();
+
   QStringList pluginIds() const;
   ConsoleSnapshot consoleSnapshot(const QString& id) const;
 
@@ -45,6 +59,9 @@ class PluginHost : public QObject {
   void statusChanged(const QString& id);
   // Console data changed (log, events, watched rows); rate-limited to about 10 per second per plugin.
   void consoleChanged(const QString& id);
+  // UI data changed: `what` is a slot name, "@meta" (title, badge, dot, paused) or "@toast". Coalesced: at most one
+  // emission per slot about every 33 ms (30 updates per second).
+  void uiChanged(const QString& id, const QString& what);
 
  private:
   std::unique_ptr<ConsoleStore> m_store;

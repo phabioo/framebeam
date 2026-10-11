@@ -11,6 +11,7 @@
 #include "game_identity.h"
 #include "gamesession.h"
 #include "playersettings.h"
+#include "plugin_ui.h"
 
 namespace framebeam::ui {
 
@@ -72,12 +73,14 @@ PluginsController::PluginsController(PlayerSettings* settings, const QString& da
   connect(host_.get(), &plugins::PluginHost::statusChanged, this, [this](const QString& id) {
     onStatus(id);
     scheduleConsole();
+    rebuildPanelTabs();
   });
+  connect(host_.get(), &plugins::PluginHost::uiChanged, this, &PluginsController::onUiChanged);
   connect(manager_.get(), &plugins::PluginManager::pluginsChanged, this, &PluginsController::refreshPlugins);
   // A linked developer folder changed: reload that plugin while the game runs.
   connect(manager_.get(), &plugins::PluginManager::pluginChanged, this, [this](const QString& id) {
     refreshPlugins();
-    if (running_ && runningIds_.contains(id)) {
+    if ((running_ && runningIds_.contains(id)) || (shellRunning_ && shellIds_.contains(id))) {
       qCInfo(lcPlugins) << "plugin" << id << "reloading (files changed)";
       host_->reload(id);
     }
@@ -88,7 +91,7 @@ PluginsController::PluginsController(PlayerSettings* settings, const QString& da
       if (running_) adapter_->bind(session_->memoryWatch());
     });
     connect(session_, &GameSession::stateChanged, this, [this]() {
-      if (running_ && !session_->isActive()) gameStopped();
+      if (inGame_ && !session_->isActive()) gameStopped();
     });
   }
   refreshPlugins();
@@ -189,29 +192,43 @@ void PluginsController::refreshPlugins() {
         {QStringLiteral("hasProblems"), hasProblems},
         {QStringLiteral("problemsText"), problemsText},
         {QStringLiteral("canToggle"), !hasProblems},
+        {QStringLiteral("adds"), p.manifest.ui.addsText()},
     });
   }
   plugins_ = out;
   summary_ = list.isEmpty() ? tr("None installed") : (on > 0 ? tr("%1 on").arg(on) : tr("None on"));
+  updateImageSources();
   emit pluginsChanged();
+  updateShell();  // a toggle, install or Developer mode change can add or remove shell plugins
 }
 
 // ---------------------------------------------------------------- game lifecycle
 
 void PluginsController::gameStarted(const QString& system, const QString& romPath, const QString& sha256, const QString& title,
                                     const QString& language) {
-  if (running_) gameStopped();
+  if (inGame_ || running_) stopGame(false);
+  inGame_ = true;
+  language_ = language.isEmpty() ? QStringLiteral("en") : language;
+  if (shellRunning_) {  // the shell set gives way to the game set
+    host_->stop();
+    shellRunning_ = false;
+    shellIds_.clear();
+    shellSignature_.clear();
+  }
   plugins::GameContext ctx;
   ctx.system = system;
   ctx.code = emu::readGameIdentity(romPath, system).code;
   ctx.sha256 = sha256;
   ctx.title = title;
   ctx.romPath = romPath;
-  ctx.language = language.isEmpty() ? QStringLiteral("en") : language;
+  ctx.language = language_;
   const plugins::GameResolution res = manager_->resolveForGame(system, ctx.code);
   for (auto it = res.problems.begin(); it != res.problems.end(); ++it)
     qCInfo(lcPlugins) << "plugin" << it.key() << "not started:" << it.value().join(QStringLiteral("; "));
-  if (res.start.isEmpty()) return;
+  if (res.start.isEmpty()) {
+    rebuildUiModels();
+    return;
+  }
 
   runningIds_.clear();
   for (const plugins::PluginInfo& p : res.start) runningIds_ << p.manifest.id;
@@ -221,23 +238,69 @@ void PluginsController::gameStarted(const QString& system, const QString& romPat
   running_ = true;
   adapter_->bind(session_ != nullptr ? session_->memoryWatch() : nullptr);
   host_->start(ctx, adapter_, res.start);  // asynchronous: the game does not wait for the plugins
+  postInitialEvents();
+  rebuildUiModels();
   setConsoleAvailable(developerMode());
   scheduleConsole();
 }
 
-void PluginsController::gameStopped() {
-  if (!running_) return;
-  host_->stop();
-  adapter_->clear();
-  adapter_->bind(nullptr);
-  for (const QString& id : std::as_const(runningIds_)) qCInfo(lcPlugins) << "plugin" << id << "stopped";
-  running_ = false;
-  runningIds_.clear();
-  setConsoleAvailable(false);
-  if (!hasPreview_) {
-    console_.clear();
-    emit consoleChanged();
+void PluginsController::gameStopped() { stopGame(true); }
+
+void PluginsController::stopGame(bool restartShell) {
+  if (!inGame_ && !running_) return;
+  if (running_) {
+    host_->stop();
+    adapter_->clear();
+    adapter_->bind(nullptr);
+    for (const QString& id : std::as_const(runningIds_)) qCInfo(lcPlugins) << "plugin" << id << "stopped";
+    running_ = false;
+    runningIds_.clear();
+    setConsoleAvailable(false);
+    if (!hasPreview_) {
+      console_.clear();
+      emit consoleChanged();
+    }
   }
+  inGame_ = false;
+  mutedSession_.clear();
+  rebuildUiModels();
+  if (restartShell) updateShell();
+}
+
+// Shell context: while no game runs, the enabled plugins with ui.screen or ui.detail run with an empty game.
+void PluginsController::updateShell() {
+  if (inGame_) return;
+  const plugins::GameResolution res = manager_->resolveForShell();
+  QStringList ids;
+  QStringList sig;
+  for (const plugins::PluginInfo& p : res.start) {
+    ids << p.manifest.id;
+    sig << p.manifest.id + QLatin1Char('@') + p.manifest.version.toString() + QLatin1Char('@') + p.path;
+  }
+  const QString signature = sig.join(QLatin1Char('|'));
+  if (signature == shellSignature_ && shellRunning_ == !ids.isEmpty()) return;
+  shellSignature_ = signature;
+  shellIds_ = ids;
+  if (ids.isEmpty()) {
+    if (shellRunning_) host_->stop();
+    shellRunning_ = false;
+    rebuildUiModels();
+    return;
+  }
+  plugins::GameContext ctx;
+  ctx.shell = true;
+  ctx.language = language_;
+  shellRunning_ = true;
+  host_->start(ctx, nullptr, res.start);
+  postInitialEvents();
+  rebuildUiModels();
+}
+
+// Host events carry state, so a restarted plugin set gets the current values again.
+void PluginsController::postInitialEvents() {
+  if (!detailGame_.isEmpty()) host_->postHostEvent(QStringLiteral("detail.game"), detailGame_);
+  if (!tiles_.isEmpty()) host_->postHostEvent(QStringLiteral("tiles"), tiles_);
+  for (const QString& id : std::as_const(hudHidden_)) host_->postHostEvent(QStringLiteral("hud.visible"), false, id);
 }
 
 void PluginsController::onStatus(const QString& id) {
@@ -385,5 +448,236 @@ void PluginsController::setPreviewConsole(const QVariantMap& console) {
   setConsoleAvailable(hasPreview_);
   emit consoleChanged();
 }
+
+// ---------------------------------------------------------------- plugin UI (fb.ui)
+
+QStringList PluginsController::activeIds() const { return inGame_ ? runningIds_ : shellIds_; }
+
+void PluginsController::updateImageSources() {
+  QHash<QString, PluginImageSource> src;
+  for (const plugins::PluginInfo& p : manager_->list()) src.insert(p.manifest.id, PluginImageSource{p.cacheDir, p.path, p.manifest.assets});
+  imageSources_->set(src);
+}
+
+QVariantMap PluginsController::slotTree(const QString& pluginId, const QString& slot) const { return host_->uiTree(pluginId, slot); }
+
+void PluginsController::onUiChanged(const QString& id, const QString& what) {
+  if (what == QLatin1String("@toast")) {
+    collectToasts();
+    return;
+  }
+  if (!activeIds().contains(id)) return;
+  if (what == QLatin1String("@meta")) {
+    rebuildPanelTabs();
+    rebuildSidebar();
+    rebuildHud();
+    return;
+  }
+  emit slotChanged(id, what);
+  if (what == QLatin1String("hud")) rebuildHud();
+  else if (what == QLatin1String("detail")) rebuildDetail();
+  else if (what.startsWith(QLatin1String("tile:"))) emit tileStripsChanged();
+  else if (what == QLatin1String("panel") || what == QLatin1String("screen")) {
+    rebuildPanelTabs();
+    rebuildSidebar();
+  }
+}
+
+void PluginsController::rebuildUiModels() {
+  rebuildPanelTabs();
+  rebuildHud();
+  rebuildSidebar();
+  rebuildDetail();
+  rebuildHotkeys();
+  emit tileStripsChanged();
+}
+
+void PluginsController::rebuildPanelTabs() {
+  QVariantList out;
+  for (const QString& id : activeIds()) {
+    const auto info = manager_->info(id);
+    if (!info || !info->manifest.ui.panel) continue;
+    const plugins::UiPluginState st = host_->uiState(id);
+    const bool paused = st.paused || host_->consoleSnapshot(id).status == PluginStatus::Paused;
+    QString icon;
+    if (info->manifest.assets.contains(QStringLiteral("icon.png"))) icon = QStringLiteral("image://fbplugin/%1/asset/icon.png").arg(id);
+    out.append(QVariantMap{{QStringLiteral("pluginId"), id},
+                           {QStringLiteral("title"), st.titles.value(QStringLiteral("panel"), info->manifest.ui.panelTitle)},
+                           {QStringLiteral("icon"), icon},
+                           {QStringLiteral("origin"), info->origin},
+                           {QStringLiteral("dot"), paused ? QStringLiteral("paused") : st.dot},
+                           {QStringLiteral("paused"), paused}});
+  }
+  if (out == panelTabs_) return;
+  panelTabs_ = out;
+  emit panelTabsChanged();
+}
+
+void PluginsController::rebuildHud() {
+  QVariantList out;
+  for (const QString& id : activeIds()) {
+    const auto info = manager_->info(id);
+    if (!info || !info->manifest.ui.hud) continue;
+    const QVariantMap tree = host_->uiTree(id, QStringLiteral("hud"));
+    if (tree.isEmpty()) continue;
+    out.append(QVariantMap{{QStringLiteral("pluginId"), id},
+                           {QStringLiteral("corner"), hudCorner_.value(id, QStringLiteral("top-right"))},
+                           {QStringLiteral("hidden"), hudHidden_.contains(id)},
+                           {QStringLiteral("tree"), tree},
+                           {QStringLiteral("origin"), info->origin}});
+  }
+  hudWidgets_ = out;
+  emit hudWidgetsChanged();
+}
+
+void PluginsController::rebuildSidebar() {
+  QVariantList out;
+  for (const QString& id : activeIds()) {
+    const auto info = manager_->info(id);
+    if (!info || !info->manifest.ui.screen) continue;
+    const plugins::UiPluginState st = host_->uiState(id);
+    QString icon;
+    if (info->manifest.assets.contains(QStringLiteral("icon.png"))) icon = QStringLiteral("image://fbplugin/%1/asset/icon.png").arg(id);
+    out.append(QVariantMap{{QStringLiteral("pluginId"), id},
+                           {QStringLiteral("title"), st.titles.value(QStringLiteral("screen"), info->manifest.ui.screenTitle)},
+                           {QStringLiteral("icon"), icon},
+                           {QStringLiteral("badge"), st.badge},
+                           {QStringLiteral("origin"), info->origin}});
+  }
+  if (out == sidebarEntries_) return;
+  sidebarEntries_ = out;
+  emit sidebarEntriesChanged();
+}
+
+void PluginsController::rebuildDetail() {
+  QVariantList out;
+  for (const QString& id : activeIds()) {
+    const auto info = manager_->info(id);
+    if (!info || !info->manifest.ui.detail) continue;
+    const QVariantMap tree = host_->uiTree(id, QStringLiteral("detail"));
+    if (tree.isEmpty()) continue;
+    out.append(QVariantMap{{QStringLiteral("pluginId"), id}, {QStringLiteral("name"), info->manifest.name}, {QStringLiteral("tree"), tree}});
+  }
+  detailSections_ = out;
+  emit detailSectionsChanged();
+}
+
+void PluginsController::rebuildHotkeys() {
+  QVariantList out;
+  for (const QString& id : activeIds()) {
+    const auto info = manager_->info(id);
+    if (!info) continue;
+    for (const plugins::UiHotkey& hk : info->manifest.ui.hotkeys)
+      out.append(QVariantMap{{QStringLiteral("pluginId"), id}, {QStringLiteral("id"), hk.id}, {QStringLiteral("label"), hk.label}, {QStringLiteral("key"), hk.key}});
+  }
+  if (out == hotkeys_) return;
+  hotkeys_ = out;
+  emit hotkeysChanged();
+}
+
+QVariantList PluginsController::tileStrips(const QString& tileId) const {
+  QVariantList out;
+  const QString slot = QStringLiteral("tile:") + tileId;
+  for (const QString& id : activeIds()) {
+    const auto info = manager_->info(id);
+    if (!info || !info->manifest.ui.tile) continue;
+    const QVariantMap tree = host_->uiTree(id, slot);
+    if (!tree.isEmpty()) out.append(QVariantMap{{QStringLiteral("pluginId"), id}, {QStringLiteral("tree"), tree}});
+  }
+  return out;
+}
+
+void PluginsController::collectToasts() {
+  bool changed = false;
+  for (const QVariantMap& t : host_->takeToasts()) {
+    const QString id = t.value(QStringLiteral("pluginId")).toString();
+    if (mutedAlways_.contains(id) || mutedSession_.contains(id)) continue;
+    const auto info = manager_->info(id);
+    QVariantMap toast = t;
+    toast.insert(QStringLiteral("pluginName"), info ? info->manifest.name : id);
+    toast.insert(QStringLiteral("origin"), info ? info->origin : QStringLiteral("local"));
+    toasts_.append(toast);
+    while (toasts_.size() > 4) toasts_.removeFirst();
+    changed = true;
+  }
+  if (changed) emit toastsChanged();
+}
+
+void PluginsController::dismissToast(int toastId) {
+  for (int i = 0; i < toasts_.size(); ++i)
+    if (toasts_[i].toMap().value(QStringLiteral("toastId")).toInt() == toastId) {
+      toasts_.removeAt(i);
+      emit toastsChanged();
+      return;
+    }
+}
+
+void PluginsController::muteToasts(const QString& pluginId, const QString& mode) {
+  mutedSession_.remove(pluginId);
+  mutedAlways_.remove(pluginId);
+  if (mode == QLatin1String("session")) mutedSession_.insert(pluginId);
+  else if (mode == QLatin1String("always")) mutedAlways_.insert(pluginId);
+  else return;
+  QVariantList kept;
+  for (const QVariant& v : std::as_const(toasts_))
+    if (v.toMap().value(QStringLiteral("pluginId")).toString() != pluginId) kept.append(v);
+  if (kept.size() != toasts_.size()) {
+    toasts_ = kept;
+    emit toastsChanged();
+  }
+}
+
+void PluginsController::sendAction(const QString& pluginId, const QString& slot, const QString& action, const QVariant& value) {
+  if (!activeIds().contains(pluginId) || action.isEmpty()) return;
+  host_->sendAction(pluginId, slot, action, value);
+}
+
+void PluginsController::triggerHotkey(const QString& pluginId, const QString& hotkeyId) {
+  if (!activeIds().contains(pluginId)) return;
+  const auto info = manager_->info(pluginId);
+  if (!info) return;
+  for (const plugins::UiHotkey& hk : info->manifest.ui.hotkeys)
+    if (hk.id == hotkeyId) {
+      host_->sendAction(pluginId, QStringLiteral("hotkey"), hotkeyId, QVariant());
+      return;
+    }
+}
+
+void PluginsController::setDetailGame(const QString& system, const QString& code, const QString& sha256, const QString& title) {
+  QVariantMap g;
+  if (!system.isEmpty())
+    g = QVariantMap{{QStringLiteral("system"), system}, {QStringLiteral("code"), code}, {QStringLiteral("sha256"), sha256}, {QStringLiteral("title"), title}};
+  if (g == detailGame_) return;
+  detailGame_ = g;
+  host_->clearSlot(QStringLiteral("detail"));  // the host clears the section; the plugin sets a new one on the event
+  host_->postHostEvent(QStringLiteral("detail.game"), g.isEmpty() ? QVariant() : QVariant(g));
+}
+
+void PluginsController::setTiles(const QVariantList& tiles) {
+  if (tiles == tiles_) return;
+  tiles_ = tiles;
+  host_->postHostEvent(QStringLiteral("tiles"), tiles_);
+}
+
+void PluginsController::setHudCorner(const QString& pluginId, const QString& corner) {
+  static const QStringList ok = {QStringLiteral("top-left"), QStringLiteral("top-right"), QStringLiteral("bottom-left"), QStringLiteral("bottom-right")};
+  if (!ok.contains(corner) || hudCorner_.value(pluginId, QStringLiteral("top-right")) == corner) return;
+  hudCorner_.insert(pluginId, corner);
+  rebuildHud();
+}
+
+void PluginsController::hideHud(const QString& pluginId) {
+  if (hudHidden_.contains(pluginId)) return;
+  hudHidden_.insert(pluginId);
+  host_->postHostEvent(QStringLiteral("hud.visible"), false, pluginId);
+  rebuildHud();
+}
+
+void PluginsController::showHud(const QString& pluginId) {
+  if (!hudHidden_.remove(pluginId)) return;
+  host_->postHostEvent(QStringLiteral("hud.visible"), true, pluginId);
+  rebuildHud();
+}
+
 
 }  // namespace framebeam::ui

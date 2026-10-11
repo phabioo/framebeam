@@ -8,12 +8,14 @@
 #include <QJsonObject>
 #include <QRegularExpression>
 #include <QSaveFile>
+#include <algorithm>
 #include <map>
 
 #include "format_helpers.h"
 #include "lauxlib.h"
 #include "lua.h"
 #include "plugin_engine.h"
+#include "plugin_ui.h"
 
 namespace framebeam::plugins {
 
@@ -588,6 +590,129 @@ int cacheWrite(lua_State* L) {
   });
 }
 
+// ------------------------------------------------------------------ fb.ui (needs permission `ui`)
+
+QString checkSlot(lua_State* L, int idx) {
+  need(L, "ui");
+  const QString slot = QString::fromStdString(checkStr(L, idx));
+  if (!self(L)->info.manifest.ui.declaresSlot(slot)) luaL_error(L, "slot %s not declared in manifest", slot.toUtf8().constData());
+  return slot;
+}
+
+Value readUiArg(lua_State* L, int idx) {
+  Value v;
+  std::string err;
+  if (!readValue(L, idx, v, err, kUiReadDepth, kUiMaxBytes)) luaL_error(L, "ui tree: %s", err.c_str());
+  return v;
+}
+
+int uiSet(lua_State* L) {
+  const QString slot = checkSlot(L, 1);
+  luaL_checktype(L, 2, LUA_TTABLE);
+  const Value v = readUiArg(L, 2);
+  QVariantMap tree;
+  QString e;
+  if (!convertUiTree(v, tree, e)) luaL_error(L, "ui tree: %s", e.toUtf8().constData());
+  Plugin* p = self(L);
+  p->uiTrees[slot] = tree;
+  p->engine->store.ui.setTree(p->id(), slot, tree);
+  return 0;
+}
+
+int uiPatch(lua_State* L) {
+  const QString slot = checkSlot(L, 1);
+  const QString id = QString::fromStdString(checkStr(L, 2));
+  luaL_checktype(L, 3, LUA_TTABLE);
+  const Value props = readUiArg(L, 3);
+  Plugin* p = self(L);
+  auto it = p->uiTrees.find(slot);
+  if (it == p->uiTrees.end()) luaL_error(L, "ui tree: slot %s has no tree to patch (call fb.ui.set first)", slot.toUtf8().constData());
+  QVariantMap tree = it->second;
+  QString e;
+  if (!patchUiTree(tree, id, props, e)) luaL_error(L, "ui tree: %s", e.toUtf8().constData());
+  it->second = tree;
+  p->engine->store.ui.setTree(p->id(), slot, tree);
+  return 0;
+}
+
+int uiClear(lua_State* L) {
+  const QString slot = checkSlot(L, 1);
+  Plugin* p = self(L);
+  p->uiTrees.erase(slot);
+  p->engine->store.ui.clearSlot(p->id(), slot);
+  return 0;
+}
+
+int uiTitle(lua_State* L) {
+  const QString slot = checkSlot(L, 1);
+  if (slot != QLatin1String("panel") && slot != QLatin1String("screen")) luaL_error(L, "fb.ui.title only supports the slots panel and screen");
+  QString title;
+  if (!lua_isnil(L, 2)) {
+    title = QString::fromStdString(checkStr(L, 2));
+    if (title.isEmpty() || title.size() > 40) luaL_error(L, "title must be 1 to 40 characters");
+  }
+  Plugin* p = self(L);
+  p->engine->store.ui.setTitle(p->id(), slot, title);
+  return 0;
+}
+
+int uiBadge(lua_State* L) {
+  need(L, "ui");
+  int n = 0;
+  if (!lua_isnil(L, 1)) {
+    const lua_Number d = luaL_checknumber(L, 1);
+    n = d != d ? 0 : static_cast<int>((std::max)(0.0, (std::min)(999.0, d)));
+  }
+  Plugin* p = self(L);
+  p->engine->store.ui.setBadge(p->id(), n);
+  return 0;
+}
+
+int uiDot(lua_State* L) {
+  need(L, "ui");
+  QString kind;
+  if (!lua_isnil(L, 1)) {
+    kind = QString::fromStdString(checkStr(L, 1));
+    if (kind != QLatin1String("news")) luaL_error(L, "unknown dot kind '%s' (use \"news\" or nil)", kind.toUtf8().constData());
+  }
+  Plugin* p = self(L);
+  p->engine->store.ui.setDot(p->id(), kind);
+  return 0;
+}
+
+int uiNotify(lua_State* L) {
+  need(L, "ui");
+  luaL_checktype(L, 1, LUA_TTABLE);
+  const Value v = readUiArg(L, 1);
+  QVariantMap toast;
+  QString e;
+  if (!convertToast(v, toast, e)) luaL_error(L, "fb.ui.notify: %s", e.toUtf8().constData());
+  Plugin* p = self(L);
+  const auto now = std::chrono::steady_clock::now();
+  p->toastTokens = (std::min)(3.0, p->toastTokens + std::chrono::duration<double>(now - p->toastLast).count());
+  p->toastLast = now;
+  if (p->toastTokens < 1.0) {
+    p->engine->log(*p, LogLevel::Warn, "fb.ui.notify: dropped (at most one notification per second)");
+    lua_pushnil(L);
+    return 1;
+  }
+  p->toastTokens -= 1.0;
+  lua_pushinteger(L, p->engine->store.ui.addToast(p->id(), toast));
+  return 1;
+}
+
+int uiOnAction(lua_State* L) {
+  need(L, "ui");
+  Plugin* p = self(L);
+  if (p->actionRef != LUA_NOREF) luaL_unref(L, LUA_REGISTRYINDEX, p->actionRef);
+  p->actionRef = LUA_NOREF;
+  if (lua_isnil(L, 1)) return 0;
+  luaL_checktype(L, 1, LUA_TFUNCTION);
+  lua_pushvalue(L, 1);
+  p->actionRef = luaL_ref(L, LUA_REGISTRYINDEX);
+  return 0;
+}
+
 // ------------------------------------------------------------------ fb.i18n
 
 void flatten(const QString& prefix, const QJsonObject& o, QHash<QString, QString>& out) {
@@ -711,7 +836,7 @@ void registerFbApi(PluginEngine& engine, Plugin& p) {
   setStr(L, "code", g.code);
   setStr(L, "sha256", g.sha256);
   setStr(L, "title", g.title);
-  setStr(L, "language", g.language);
+  if (!g.shell) setStr(L, "language", g.language);
   lua_setfield(L, -2, "game");
 
   lua_newtable(L);  // fb.log
@@ -777,6 +902,17 @@ void registerFbApi(PluginEngine& engine, Plugin& p) {
   setFn(L, "write", cacheWrite);
   setFn(L, "exists", cacheExists);
   lua_setfield(L, -2, "cache");
+
+  lua_newtable(L);  // fb.ui
+  setFn(L, "set", uiSet);
+  setFn(L, "patch", uiPatch);
+  setFn(L, "clear", uiClear);
+  setFn(L, "title", uiTitle);
+  setFn(L, "badge", uiBadge);
+  setFn(L, "dot", uiDot);
+  setFn(L, "notify", uiNotify);
+  setFn(L, "on_action", uiOnAction);
+  lua_setfield(L, -2, "ui");
 
   lua_newtable(L);  // fb.i18n
   setFn(L, "t", i18nT);

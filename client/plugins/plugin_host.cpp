@@ -32,25 +32,50 @@ class HostWorker : public QObject {
     m_engine->start(ctx, mem, list, lim);
     m_timer->start();
     flushConsole(true);
+    flushUi(true);
   }
   void stop() {
     m_timer->stop();
     m_engine->stop();
     flushConsole(true);
+    flushUi(true);
   }
   void reload(const QString& id) {
     m_engine->reload(id);
     flushConsole(true);
+    flushUi(true);
+  }
+  void sendAction(const QString& id, const QString& slot, const QString& action, const Value& value) {
+    if (!m_engine) return;
+    m_engine->deliverAction(id, slot, action, value);
+    flushUi(false);
+  }
+  void hostEvent(const QString& name, const Value& value, const QString& target) {
+    if (m_engine) m_engine->postHostEvent(name, value, target);
+  }
+  void clearSlot(const QString& slot) {
+    if (!m_engine) return;
+    m_engine->clearSlotEverywhere(slot);
+    flushUi(true);
   }
 
  signals:
   void statusChanged(const QString& id);
   void consoleChanged(const QString& id);
+  void uiChanged(const QString& id, const QString& what);
 
  private:
   void onTimer() {
     m_engine->iterate();
     flushConsole(false);
+    flushUi(false);
+  }
+  // Dirty slots are emitted at most every 33 ms; everything written in between collapses into one emission.
+  void flushUi(bool force) {
+    const auto now = std::chrono::steady_clock::now();
+    if (!force && now - m_lastUiFlush < std::chrono::milliseconds(33)) return;
+    m_lastUiFlush = now;
+    for (const auto& d : m_store.ui.takeDirty()) emit uiChanged(d.first, d.second);
   }
   void flushConsole(bool force) {
     const auto now = std::chrono::steady_clock::now();
@@ -64,6 +89,7 @@ class HostWorker : public QObject {
   std::unique_ptr<PluginEngine> m_engine;
   QTimer* m_timer = nullptr;
   std::chrono::steady_clock::time_point m_lastFlush;
+  std::chrono::steady_clock::time_point m_lastUiFlush;
 };
 
 PluginHost::PluginHost(QObject* parent) : QObject(parent), m_store(std::make_unique<ConsoleStore>()) {
@@ -73,6 +99,7 @@ PluginHost::PluginHost(QObject* parent) : QObject(parent), m_store(std::make_uni
   m_worker->moveToThread(m_thread);
   connect(m_worker, &HostWorker::statusChanged, this, &PluginHost::statusChanged);
   connect(m_worker, &HostWorker::consoleChanged, this, &PluginHost::consoleChanged);
+  connect(m_worker, &HostWorker::uiChanged, this, &PluginHost::uiChanged);
   connect(m_thread, &QThread::finished, m_worker, &QObject::deleteLater);
   m_thread->start();
   QMetaObject::invokeMethod(m_worker, [w = m_worker] { w->initOnThread(); }, Qt::BlockingQueuedConnection);
@@ -104,6 +131,24 @@ void PluginHost::reload(const QString& id) {
 void PluginHost::setTickHz(int hz) { m_tickHz = std::clamp(hz, 1, 240); }
 
 void PluginHost::setLimits(const HostLimits& limits) { m_limits = limits; }
+
+void PluginHost::sendAction(const QString& pluginId, const QString& slot, const QString& action, const QVariant& value) {
+  const Value v = valueFromVariant(value);
+  QMetaObject::invokeMethod(m_worker, [w = m_worker, pluginId, slot, action, v] { w->sendAction(pluginId, slot, action, v); }, Qt::QueuedConnection);
+}
+
+void PluginHost::postHostEvent(const QString& name, const QVariant& value, const QString& targetPlugin) {
+  const Value v = valueFromVariant(value);
+  QMetaObject::invokeMethod(m_worker, [w = m_worker, name, v, targetPlugin] { w->hostEvent(name, v, targetPlugin); }, Qt::QueuedConnection);
+}
+
+void PluginHost::clearSlot(const QString& slot) {
+  QMetaObject::invokeMethod(m_worker, [w = m_worker, slot] { w->clearSlot(slot); }, Qt::QueuedConnection);
+}
+
+UiPluginState PluginHost::uiState(const QString& pluginId) const { return m_store->ui.state(pluginId); }
+QVariantMap PluginHost::uiTree(const QString& pluginId, const QString& slot) const { return m_store->ui.tree(pluginId, slot); }
+QList<QVariantMap> PluginHost::takeToasts() { return m_store->ui.takeToasts(); }
 
 QStringList PluginHost::pluginIds() const { return m_store->ids(); }
 
