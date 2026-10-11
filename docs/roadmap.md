@@ -1,6 +1,14 @@
 # Roadmap after the PoC
 
-The PoC (phases 0-5) is complete. From here on, work is planned as versions 0.1.1 to 0.13, each cut into one work package per thread/PR (see `docs/workflow.md`). The order was decided by Fabio on 2026-10-06; on 2026-10-07 he moved Sessions over the internet ahead of the UI passes (renumbered 0.4 to 0.6). On 2026-10-07 Fabio also moved OpenGL hardware rendering for the Player (all emulators/cores, not only 3DS) ahead of the UI passes as the new 0.5; the UI passes, 3DS and everything after shifted by one. ADRs written before 2026-10-07 use the old numbering: old 0.5/0.6/0.7/0.8/0.9/0.10 = new 0.6/0.7/0.8/0.9/0.10/0.11. On 2026-10-09 Fabio reordered the planned milestones again: cores come from the libretro buildbot first ([ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md), new 0.8) and one installer for Player, Hub or both follows (new 0.9, which absorbs the Hub-for-Windows milestone). Old (2026-10-07) 0.8 3DS / 0.9 Metadata and artwork / 0.10 Hub for Windows / 0.11 Linux and macOS Player = new 0.10 / 0.11 / 0.9 / 0.12. On 2026-10-11 Fabio added plugins as 0.11; Metadata and Linux/macOS moved to 0.12/0.13. ADRs and docs written before 2026-10-09 may still use the older numbers for these milestones (the "new" numbers above are those of 2026-10-09). Items marked open are not decided yet; decisions are recorded as ADRs in `docs/adr/`.
+The PoC (phases 0-5) is complete. From here on, work is planned as versions 0.1.1 to 0.15 and then 1.0, each cut into one work package per thread/PR (see `docs/workflow.md`). The order was decided by Fabio on 2026-10-06; on 2026-10-07 he moved Sessions over the internet ahead of the UI passes (renumbered 0.4 to 0.6). On 2026-10-07 Fabio also moved OpenGL hardware rendering for the Player (all emulators/cores, not only 3DS) ahead of the UI passes as the new 0.5; the UI passes, 3DS and everything after shifted by one. ADRs written before 2026-10-07 use the old numbering: old 0.5/0.6/0.7/0.8/0.9/0.10 = new 0.6/0.7/0.8/0.9/0.10/0.11. On 2026-10-09 Fabio reordered the planned milestones again: cores come from the libretro buildbot first ([ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md), new 0.8) and one installer for Player, Hub or both follows (new 0.9, which absorbs the Hub-for-Windows milestone). Old (2026-10-07) 0.8 3DS / 0.9 Metadata and artwork / 0.10 Hub for Windows / 0.11 Linux and macOS Player = new 0.10 / 0.11 / 0.9 / 0.12. On 2026-10-11 Fabio added plugins as 0.11; Metadata and Linux/macOS moved to 0.12/0.13. ADRs and docs written before 2026-10-09 may still use the older numbers for these milestones (the "new" numbers above are those of 2026-10-09). On 2026-10-11 Fabio renumbered again and fixed a goal for 1.0 (see "Goal 1.0"): 0.10.x (connections, small items) comes before new testers; 0.11 is the plugin runtime only, 0.12 Local ROMs, 0.13 GPU paths, 0.14 system template with GB/GBC/GBA, 0.15 UI gaps and Multiview, then the 1.0 test phase. Metadata and artwork and the Linux Player come after 1.0; macOS is dropped (Windows and Linux only). The sentence before about Metadata and Linux/macOS as 0.12/0.13 is therefore obsolete. Items marked open are not decided yet; decisions are recorded as ADRs in `docs/adr/`.
+
+## Goal 1.0
+
+Decided by Fabio on 2026-10-11: 1.0 is reached when a group of friends completes a SoulLink run in Pokémon Omega Ruby/Alpha Sapphire (3DS) over FrameBeam. For that, NDS and 3DS run cleanly, and the foundations and templates for further systems are clean, so a new system costs minimal effort.
+
+- Platforms: Windows and Linux only. macOS is dropped for Player and Hub. The Linux Player, metadata and artwork come after 1.0.
+- The plugins (`pokemon-core`, `soullink`) live in their own repositories and are independent of FrameBeam milestones; Fabio aims to have them ready for testing before 1.0. FrameBeam delivers the plugin runtime (0.11).
+- Test evening with friends: date open.
 
 ## PoC phases (history)
 
@@ -34,9 +42,14 @@ Phase plan: [workflow.md](workflow.md#phase-plan).
 | 0.8 | done in code | Cores from the libretro buildbot | Systems instead of fixed cores: the Hub downloads cores RetroArch-style from the libretro buildbot; admin installs, updates and removes them per system; Player chooses the core per system and game ([ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md)). |
 | 0.9 | done in code | One installer: Player, Hub or both | One Windows MSI (WiX) with the features Player and Hub; the Hub runs as a Windows service; "Set up a Hub on this PC" and a standalone mode like RetroArch ([ADR 0021](adr/0021-one-windows-installer.md), proposed). Installer, upgrades and services verified only locally. |
 | 0.10 | done in code | Second system: 3DS (Azahar) | System `3ds` with the Azahar buildbot core on the OpenGL rendering; two-screen composition, game override UI, ROM cache limit ([ADR 0022](adr/0022-nintendo-3ds-with-azahar.md), proposed). 3DS saves sync with the Hub (D3 amendment, 2026-10-11). Real Azahar run and performance open. |
-| 0.11 | in progress | Plugins and SoulLink | A plugin interface (Lua sandbox, UI building blocks, Hub runs) and the first game, Pokémon Omega Ruby/Alpha Sapphire on the 3DS, through official plugins ([ADR 0023](adr/0023-plugins.md), proposed; [design](architecture/12-plugins.md)). |
-| 0.12 | planned | Metadata and artwork | Central game metadata and boxart in Hub and Player. |
-| 0.13 | planned | Linux and macOS Player | FrameBeam Player on Linux and macOS. |
+| 0.10.x | planned | Connections and small items | Before new testers: direct WebRTC connections instead of TURN relay (STUN default, ICE logging, diagnostics), then small items (hotkeys, repo-scan leftovers, save slot actions, logs bundle, Inno shell removal). |
+| 0.11 | in progress | Plugin runtime | Packages 1 to 3: Player runtime (done in code), UI building blocks and slots, Hub plugins and runs with `.fbplugin`, signing and plugin index ([ADR 0023](adr/0023-plugins.md), proposed; [design](architecture/12-plugins.md)). The plugins themselves live in their own repositories. |
+| 0.12 | planned | Local ROMs | Play ROMs the user has locally, with an optional resumable upload to the Hub; no P2P transfer. |
+| 0.13 | planned | GPU paths | OpenGL to D3D11 bridge, zero-copy display, GPU-direct QSV and AMF. |
+| 0.14 | planned | System template, GB/GBC/GBA | Clean manifests and templates so a new system needs minimal work; GB, GBC and GBA (mGBA) as the proof. |
+| 0.15 | planned | UI gaps and Multiview | Remaining Hub web and Player design gaps; Multiview shows three Sessions side by side, a 2x2 grid only from the fourth. |
+| 1.0 | planned | Test phase | Test evening(s) with friends (date open), then the SoulLink run in Pokémon Omega Ruby/Alpha Sapphire. |
+| after 1.0 | planned | Metadata and artwork, Linux Player | Central game metadata and boxart; FrameBeam Player on Linux. No macOS. |
 
 ## 0.1.1 Finish the PoC
 
@@ -135,7 +148,7 @@ Implemented, see [ADR 0015](adr/0015-hub-ui-pass.md) (accepted).
 - [x] Done: Settings sub-pages Updates, General, Network, Security with per-field autosave (D3).
 - [x] Done: network settings form (Hub port, embedded TURN, public host, TURN port, relay range and IP, STUN servers, save retention). Decided by Fabio on 2026-10-07: web settings win; `hub.env` and flags only give the initial value (D4). Changes that need it are applied by a restart the Hub triggers itself, without root (D5). Ports below 1024 are refused on the web, use `install-hub.sh --port` (D6). Startup fallbacks keep the Hub reachable after a bad setting (D7). The TURN status and port forward list moved into Network; reachability is derived from the configuration (D8).
 - Open (left out of 0.7, remaining): thinned-out history marker, metadata actions, Library "of total" disk capacity, external TURN servers with login (only a STUN list), transport options "Custom cert/key" and "Reverse proxy". A reachability probe from outside is rejected (ADR 0015 D8: reachability is derived from the configuration). Core packages are listed per system since 0.8.
-- [x] Done (0.7.x follow-up): Hub Saves page "+ New slot" (new slot starts from the current version of the selected slot; web only, no API) and deleting a snapshot (inline confirmation; `DELETE /api/v1/games/{game_id}/saves/{slot}/history/{version}`, handshake feature `saves_v3`, OpenAPI 1.6.0, `protocol_version` unchanged). Renaming/deleting a slot stay open.
+- [x] Done (0.7.x follow-up): Hub Saves page "+ New slot" (new slot starts from the current version of the selected slot; web only, no API) and deleting a snapshot (inline confirmation; `DELETE /api/v1/games/{game_id}/saves/{slot}/history/{version}`, handshake feature `saves_v3`, OpenAPI 1.6.0, `protocol_version` unchanged). Renaming/deleting a slot stay open (0.10.x, together with blocking save upload while a session of that game runs).
 - [x] Done (0.7.x follow-up): Library "Rescan folder" (non-recursive import from `-library-import-dir`), invite "Copy link" (only in the creating response; public `/invite` page), "Player too old" marker in the Clients table, certificate "Renew now" (swap without restart; tlsutil writes key/cert atomically).
 
 ## 0.7.x Speed-up (fast-forward)
@@ -146,15 +159,15 @@ See [ADR 0018](adr/0018-player-speed-up.md) (accepted).
 - [x] Done: header button "Speed-up" ("»" when narrow) and a speed select in the Session panel (running game only) and indicator "Speed-up ×N"; hidden when the core inhibits it; stays usable while the Session is shared (viewers get the normal stream frame rate).
 - [x] Done: Emulation settings "Speed-up speed", "Speed-up on start" (default off) and "Audio during speed-up" (default on, resampled; off drops audio) with the global > system > game hierarchy.
 - [x] Done (0.7.x): the speed-up key is configurable in Controllers → Hotkeys.
-- Open: gamepad hotkey.
+- Open: gamepad hotkey (0.10.x).
 - [x] Done (0.7.x follow-up): hardware frames are scaled down on the GPU to the size the view (and, while shared, the stream) needs before the readback; diagnostics show "read back W×H", an honest readback mean and reads per second. melonDS DS ignores `GET_AUDIO_VIDEO_ENABLE`, so it still renders every frame during speed-up.
 
 ## 0.7.x Direct GPU display (zero-copy)
 
 Follow-up to ADR 0013 D3 (requested 2026-10-08 after speed-up stutter at 8× internal resolution).
 
-- Open: show hardware-rendered frames in the game view straight from the GPU (shared texture or interop with the Qt Quick scene graph, D3D11 on Windows), without the CPU readback and QImage upload; readback only while the Session is shared.
-- Open: an OpenGL to D3D11 bridge (WGL_NV_DX_interop2) for the core's texture, shared with the QSV and AMF paths of "GPU-direct hardware encoding"; today's readback stays the fallback.
+- Open (0.13): show hardware-rendered frames in the game view straight from the GPU (shared texture or interop with the Qt Quick scene graph, D3D11 on Windows), without the CPU readback and QImage upload; readback only while the Session is shared.
+- Open (0.13): an OpenGL to D3D11 bridge (WGL_NV_DX_interop2) for the core's texture, shared with the QSV and AMF paths of "GPU-direct hardware encoding"; today's readback stays the fallback.
 - Picture quality is unchanged (the frame is still downscaled to the window); the gain is CPU time and about one frame of latency.
 
 ## 0.7.x GPU-direct hardware encoding (NVENC first)
@@ -162,14 +175,14 @@ Follow-up to ADR 0013 D3 (requested 2026-10-08 after speed-up stutter at 8× int
 Requested 2026-10-09. Today a shared Session reads the frame back, converts it to YUV on the CPU and uploads it again to NVENC/QSV/AMF.
 
 - [x] Done: NVIDIA first ([ADR 0019](adr/0019-gpu-direct-nvenc.md)): the core's OpenGL texture goes to NVENC through CUDA-GL interop and FFmpeg CUDA hardware frames (NVENC takes RGB and converts on the GPU); no readback or CPU conversion while sharing. Verified by Fabio on 2026-10-11 on an RTX 4080 SUPER (driver 617.42): expected log order, correct picture, all lifecycle cases including two viewers; encode about 1.8 ms per frame at 1280x1920 against 3.6 ms per frame for readback at 1024x1536. Every failure still falls back to readback frames.
-- Open: QSV and AMF via the OpenGL to D3D11 bridge from "Direct GPU display".
+- Open (0.13): QSV and AMF via the OpenGL to D3D11 bridge from "Direct GPU display". Testers have unknown GPUs; Intel QSV via readback measured about 5-6 ms per frame on a tester's notebook (2026-10-11).
 - Software encoders, cores without hardware rendering and failed interop keep today's readback path. Verifiable only on real GPUs (CI has none).
 
 ## 0.7.x Hotkeys and controller profiles
 
 - [x] Done: Hotkeys tab in Controllers (3f): Player keyboard hotkeys for fullscreen (F11), diagnostics (F3), snapshot (F5) and speed-up (Space) are configurable, can be cleared and reset; Esc stays fixed (leave fullscreen, else pause). Stored locally in `settings/controllers.json` (`hotkeys`, only non-default entries); a key used by another hotkey is refused; a hotkey wins over the keyboard profile and is never sent to the core. Key hints in the game screen, diagnostics and Session panel follow the configured keys.
 - [x] Done: built-in controller profiles stay read-only; "Duplicate to edit" (and clicking a mapping of a built-in profile) creates a copy, assigns it to the device and starts editing it.
-- Open: gamepad hotkeys.
+- Open: gamepad hotkeys (0.10.x, same item).
 
 ## 0.7.x Background game
 
@@ -241,7 +254,7 @@ Done in code ([ADR 0021](adr/0021-one-windows-installer.md), proposed). Absorbs 
 - [x] Done in code: Migration of existing Inno installations (no bridge release): the release keeps publishing a small Inno `setup.exe` under kind `installer` that only installs the MSI silently, so older Players update normally. The MSI uninstalls the Inno install silently, keeping `data\`. Credentials stay in the Credential Manager. The Pi Hub (.deb) is unaffected.
 - [x] Done in code: Hub installer part (data directory, port, firewall rules by the installer, admin setup in the Player); updates via the updater from 0.3.
 - Open: Review paths, file permissions (instead of 0600) and certificate storage on Windows beyond the service ACLs.
-- Open: MSI and shell are unsigned; the shell is removed once old Players are no longer supported (no date).
+- Open: MSI and shell are unsigned. Decided by Fabio on 2026-10-11: the Inno shell (`setup.exe` wrapper that migrated old Inno installs) is removed now, since all test clients are on the MSI; open item in 0.10.x.
 
 ## 0.10 Second system: Nintendo 3DS with Azahar
 
@@ -261,46 +274,115 @@ Decided by Fabio on 2026-10-07: the second system is the Nintendo 3DS with the A
 - [x] Done in code: ROM cache limit (`rom_cache_limit_bytes`, default 20 GB, LRU) and "Clear ROM cache".
 - [x] Done in code (decided by Fabio on 2026-10-11): 3DS saves sync with the Hub (save source `core_tree`, format `azahar_sdmc`: deterministic tar of the game's save data and extdata; backup before tree replacement; local-only saves adopted on first start). [ADR 0022](adr/0022-nintendo-3ds-with-azahar.md) D3 amendment.
 - Open: Mii and other system files (not wired yet).
+- Decided by Fabio on 2026-10-11: the 3DS screen layouts are the same set as NDS. The 3DS system language is an existing Azahar core option (not locked in the manifest); it is only a check item for the test evening (1.0).
 - Open (Fabio, local): real Azahar run on the RTX 4080 (GL 3.3 core context), frame time including Session encoding, resolution factor, option values against the real core.
 - Core sourcing: superseded by [ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md) (0.8); the signed mirror, core list and weekly pin bumps of the 2026-10-07 plan are dropped.
 
-## 0.11 Plugins and SoulLink
+## 0.10.x Before new testers
 
-Package 1 (runtime in the Player) is done in code; packages 2 to 5 are planned, design only. Interface: [12-plugins.md](architecture/12-plugins.md); decisions: [ADR 0023](adr/0023-plugins.md) (proposed). FrameBeam stays a generic emulator Player; everything game-specific lives in plugins. Plugin-specific docs and roadmaps (SoulLink rules, per-game adapters) live in the plugin repositories, not here. The first target is Pokémon Omega Ruby/Alpha Sapphire on the 3DS.
+Decided by Fabio on 2026-10-11, in this order.
 
-- [x] Done in code: Package 1: Plugin runtime in the Player: vendored Lua 5.4.7 sandbox (64 MiB, 20M instructions / 500 ms per call), one state and budget per plugin, plugin thread, manifest, permissions, `requires`/`provides`, `RETRO_ENVIRONMENT_SET_MEMORY_MAPS` support in the libretro backend, memory snapshots over virtual addresses (default every frame), pointer following, ROM read API, native helpers (LZ10/LZ11, GARC, 3DS RomFS of decrypted NCCH/NCSD, CTR textures/BCLIM/ETC1 to PNG, PK6 decrypt/encrypt as `fb.codec`/`fb.rom.romfs`), install from a folder and linked dev folders with live reload, developer mode, Settings → Plugins and the in-game Plugin console. Tests with the test core (synthetic memory map with an encrypted Gen 6 party) and synthetic data. API: [guides/plugin-api.md](guides/plugin-api.md).
-- Remaining in package 1 (open): local check by Fabio that the real Azahar build exposes the memory map and covers ORAS data (Plugin console, MEMORY MAP section).
-- Not built yet (later packages): UI building blocks and slots (2), Hub plugins and runs, `.fbplugin` files, signing, plugin index (3), `memory.write`, `tool.exec`, settings schema, UI language (`GameContext.language` is "en").
+### 1. Connections (first)
+
+In the test of 2026-10-11 most WebRTC connections ran relayed over TURN. Cause found for one direction: the Hub's STUN list is empty by default and the embedded STUN is advertised under the request host (a LAN address for Players in the Hub's network), so those Players gathered no public server-reflexive candidate. Adding a public STUN server (stun.cloudflare.com:3478) to the Hub made that direction direct. The other direction (host on a mobile hotspot) stayed relayed even after both Players restarted with the new STUN list; most likely carrier-grade NAT with per-destination ports, where TURN is the expected path (not measured, the logs had no ICE data).
+
+- Open: public default STUN server (stun.cloudflare.com:3478) when the STUN list is empty.
+- Open: ICE logging per connection (gathered candidate types, selected pair).
+- Open: overlay and diagnostics show the connection type and the reason per viewer.
+- Open: running sessions pick up a changed ICE list.
+- Open: Cloudflare TURN (Realtime) as an optional TURN provider next to the embedded `pion/turn`: the Hub hands out short-lived Cloudflare TURN credentials (API token as a secret on the Hub host); moved out of "Later". Cloudflare Tunnel stays in "Later" to evaluate.
+- Open: confirm the relayed direction with the host on a mobile hotspot from the new ICE logging.
+
+### 2. Small items
+
+- Open: gamepad hotkeys (see "0.7.x Speed-up" and "0.7.x Hotkeys and controller profiles").
+- Open: speed-up frame loss for viewers.
+- Open: repo-scan leftovers: core probe off the GUI thread, virtualized library grid, save errors on stop.
+- Open: save slots rename and delete (Player and Hub); block save upload while a session of that game runs.
+- Open: invite link port fix.
+- Open: Hub library entries delete and rename (row actions, moved out of "Later").
+- Open: fix Dependabot PR #96.
+- Open: "Collect logs/diagnostics" bundle.
+- Open: the Player updates cores in the background without starting a game.
+- Open: remove the Inno shell (see 0.9) and its release/CI parts.
+
+## 0.11 Plugin runtime
+
+Packages 1 to 3 of the plugin work. Package 1 (runtime in the Player) is done in code; packages 2 and 3 are planned, design only. Interface: [12-plugins.md](architecture/12-plugins.md); decisions: [ADR 0023](adr/0023-plugins.md) (proposed). FrameBeam stays a generic emulator Player; everything game-specific lives in plugins.
+
+Decided by Fabio on 2026-10-11: this milestone is the runtime only. The plugins themselves (`pokemon-core`, `soullink`; the former packages 4 and 5: plugin repositories, template, first game) live in their own repositories and are independent of FrameBeam milestones; Fabio aims to have them ready for testing before 1.0. Plugin-specific docs and roadmaps (SoulLink rules, per-game adapters) live in the plugin repositories, not here. The plugin design standards ao-bf from the design handoff are accepted.
+
+- [x] Done in code: Package 1: Plugin runtime in the Player (PR #105): vendored Lua 5.4.7 sandbox (64 MiB, 20M instructions / 500 ms per call), one state and budget per plugin, plugin thread, manifest, permissions, `requires`/`provides`, `RETRO_ENVIRONMENT_SET_MEMORY_MAPS` support in the libretro backend, memory snapshots over virtual addresses (default every frame), pointer following, ROM read API, native helpers (LZ10/LZ11, GARC, 3DS RomFS of decrypted NCCH/NCSD, CTR textures/BCLIM/ETC1 to PNG, PK6 decrypt/encrypt as `fb.codec`/`fb.rom.romfs`), install from a folder and linked dev folders with live reload, developer mode, Settings → Plugins and the in-game Plugin console. Tests with the test core (synthetic memory map with an encrypted Gen 6 party) and synthetic data. API: [guides/plugin-api.md](guides/plugin-api.md).
+- Open: remaining in package 1: local check by Fabio that the real Azahar build exposes the memory map and covers ORAS data (Plugin console, MEMORY MAP section).
 - Package 2: UI building blocks and slots in the Player: declarative building blocks on the `Fb*` components, map view, slots (in-game tab, HUD, Multiview tile overlay, sidebar screen, game detail, Settings → Plugins, hotkeys, toasts), several plugins per slot. Design imported (2026-10-11): [design/plugins.md](design/plugins.md).
-- Package 3: Hub plugins and runs: plugin upload (marked unverified), delivery with SHA-256 pin, signed plugin index, runs with per-player state, append-only event log, limits, WSS messages, catch-up on `hello`, JS renderer for the building blocks in the Hub web UI.
-- Package 4: Plugin repositories: official plugins in their own repositories with signed `.fbplugin` releases and an entry in the plugin index; template repository.
-- Package 5: First game: Pokémon Omega Ruby/Alpha Sapphire (3DS) through the official plugins `pokemon-core` and `soullink`, including a playtest with a group.
+- Package 3: Hub plugins and runs: plugin upload (marked unverified), delivery with SHA-256 pin, `.fbplugin` files, signing, signed plugin index, runs with per-player state, append-only event log, limits, WSS messages, catch-up on `hello`, JS renderer for the building blocks in the Hub web UI.
+- Not built yet: `memory.write`, `tool.exec`, settings schema, UI language (`GameContext.language` is "en").
 - Open: the Azahar libretro build on the buildbot has to contain `SET_MEMORY_MAPS`, and the map built once at game load has to cover the game's data (checked locally by Fabio with the developer mode); otherwise a small upstream Azahar patch is needed.
 - Open: plugin API v1 surface (exact Lua API, building block catalog) is fixed in the design handoff and package 1.
-- Out of scope for this milestone: more games, cheats, editor, randomizer (see "Later").
+- Out of scope for this milestone: the plugins themselves, more games, cheats, editor, randomizer (see "Later").
 
-## 0.12 Metadata and artwork
+## 0.12 Local ROMs
+
+Decided by Fabio on 2026-10-11: before 1.0.
+
+- Open: play ROMs the user has locally (not in the Hub library), with the usual save sync.
+- Open: optional resumable upload of such a ROM to the Hub (chunked, resumable). The same chunked upload is a prerequisite of the Cloudflare Tunnel evaluation in "Later".
+- No P2P ROM transfer between Players.
+- Open: details (UI, library marker, interaction with the standalone mode of 0.9) are not designed yet.
+
+## 0.13 GPU paths
+
+Decided by Fabio on 2026-10-11. Testers have unknown GPUs; Intel QSV via readback measured about 5-6 ms per frame on a tester's notebook.
+
+- Open: OpenGL to D3D11 bridge (WGL_NV_DX_interop2).
+- Open: zero-copy display, see "0.7.x Direct GPU display (zero-copy)".
+- Open: GPU-direct QSV and AMF, see "0.7.x GPU-direct hardware encoding (NVENC first)". The readback path stays the fallback.
+- Verifiable only on real GPUs (CI has none).
+
+## 0.14 System template and GB/GBC/GBA
+
+Decided by Fabio on 2026-10-11: part of the 1.0 goal ("a new system costs minimal effort").
+
+- Open: clean manifests and templates (Hub system registry, Player system manifest and core profile, input profile, guide) so adding a system is mostly data.
+- Open: GB, GBC and GBA with mGBA as the proof of the template (moved out of "Later"). They are also needed for the Pokémon Gen 1-3 plugins.
+
+## 0.15 UI gaps and Multiview
+
+Decided by Fabio on 2026-10-11.
+
+- Open: remaining Hub web and Player design gaps (see the open items of 0.7 and [design/decisions.md](design/decisions.md)).
+- Open: Multiview shows three Sessions side by side; the 2x2 grid only from the fourth Session.
+
+## 1.0 Test phase
+
+- Open: test evening(s) with friends; date not set.
+- Open: checklist: installer (MSI), buildbot cores, Azahar, 3DS saves, 3DS system language (Azahar core option "3DS System Language"), internet Sessions.
+- Open: then the SoulLink run in Pokémon Omega Ruby/Alpha Sapphire (3DS) with the plugins from their repositories. Completing it is the 1.0 goal.
+
+## After 1.0
+
+### Metadata and artwork
 
 - Hub Metadata Service with provider abstraction, hash matching, overrides, artwork cache (`docs/architecture/11-metadata-future.md`).
 - Hub: Settings → Metadata, actions in the library entry. Player: boxart and basic data in Library and game view.
 
-## 0.13 Linux and macOS Player
+### Linux Player
 
-- Linux: Secret Service instead of in-memory credentials, package (AppImage or .deb/Flatpak), check gamepads and audio.
-- macOS: Keychain, app bundle/dmg, signing and notarization, VideoToolbox encoder, CI on a macOS runner.
-- Updater and core distribution for both platforms.
+- Secret Service instead of in-memory credentials, package (AppImage or .deb/Flatpak), check gamepads and audio.
+- Updater and core distribution for Linux (buildbot platform mapping, ADR 0020).
+- macOS is dropped (decided by Fabio on 2026-10-11): no Player, no Hub, no Keychain or notarization work.
 
 ## Later, only on demand
 
-- Save States, remote control/input for viewers, netplay, emulation settings sync, StandaloneBackend, Hub as a macOS service.
-- Further library features: row actions (delete, edit title), paging.
-- Remaining Nintendo systems from NES to GameCube/Wii (Fabio, 2026-10-07), as plain buildbot cores after 0.10, rendered with OpenGL first: NES, SNES, N64, GB/GBC, GBA, Virtual Boy (GB, GBC and GBA with mGBA are also needed for the Pokémon Gen 1-3 plugins, see below) and GameCube/Wii (Dolphin; the libretro port lags upstream). N64 and GameCube/Wii build on the hardware rendering from 0.5.
-- Plugin follow-ups (Fabio, 2026-10-11; plugin-specific plans live in the plugin repositories): more Pokémon generations for the official plugins, in the order Gen 7 (Sun/Moon, Ultra Sun/Ultra Moon), Gen 4/5 (NDS), Gen 3 and Gen 1/2 (the last two need the GB, GBC and GBA systems with mGBA); a Pokémon editor plugin and a cheats plugin (both need `memory.write`, which the API describes but the first release does not build); a randomizer plugin (tool plugin, signed official only, deferred, not dropped; until then randomized ROMs are made externally). Gen 8 (Switch) is out of scope: no libretro core.
+- Save States, remote control/input for viewers, netplay, emulation settings sync, StandaloneBackend.
+- Further library features: paging (row actions delete and rename are scheduled in 0.10.x).
+- Remaining Nintendo systems from NES to GameCube/Wii (Fabio, 2026-10-07), as plain buildbot cores after 0.10, rendered with OpenGL first: NES, SNES, N64, Virtual Boy (GB, GBC and GBA are scheduled in 0.14) and GameCube/Wii (Dolphin; the libretro port lags upstream). N64 and GameCube/Wii build on the hardware rendering from 0.5.
+- Plugin follow-ups (Fabio, 2026-10-11; plugin-specific plans live in the plugin repositories): more Pokémon generations for the official plugins, in the order Gen 7 (Sun/Moon, Ultra Sun/Ultra Moon), Gen 4/5 (NDS), Gen 3 and Gen 1/2 (the last two need the GB, GBC and GBA systems with mGBA from 0.14); a Pokémon editor plugin and a cheats plugin (both need `memory.write`, which the API describes but the first release does not build); a randomizer plugin (tool plugin, signed official only, deferred, not dropped; until then randomized ROMs are made externally). Gen 8 (Switch) is out of scope: no libretro core.
 - Afterwards Vulkan hardware rendering next to OpenGL (Fabio, 2026-10-07), so cores that offer both can be switched per core option in the Emulation settings.
 - Wii U deferred (Fabio, 2026-10-07): Cemu has no libretro core and would need the StandaloneBackend.
-- To evaluate (Fabio, 2026-10-07): Cloudflare in front of a self-hosted Hub, so no router port forwards are needed. The Hub itself stays self-hosted; running it on Workers/Pages would be a rewrite and is not planned.
-  - Cloudflare TURN (Realtime) as an optional TURN provider next to the embedded `pion/turn` from 0.4: the Hub hands out short-lived Cloudflare TURN credentials (API token as a secret on the Hub host). Removes the UDP forwards for 3478 and the relay range; costs only for relayed traffic.
-  - Cloudflare Tunnel (`cloudflared` on the Hub host) for HTTPS, API and WebSocket signaling. Prerequisites: a Player Hub profile mode that validates the certificate by hostname/CA instead of pinning (Cloudflare terminates TLS with rotating certificates), and chunked uploads in the Player, the Hub web uploader and the Hub API, because proxied requests are limited to 100 MB on the free plan while ROMs may be up to 4 GiB (otherwise large uploads have to happen locally). WebRTC media and TURN never go through the Tunnel (no raw UDP).
+- To evaluate (Fabio, 2026-10-07): Cloudflare Tunnel in front of a self-hosted Hub, so no router port forwards are needed. The Hub itself stays self-hosted; running it on Workers/Pages would be a rewrite and is not planned.
+  - Cloudflare TURN (Realtime) moved to 0.10.x (Connections) on 2026-10-11.
+  - Cloudflare Tunnel (`cloudflared` on the Hub host) for HTTPS, API and WebSocket signaling. Prerequisites: a Player Hub profile mode that validates the certificate by hostname/CA instead of pinning (Cloudflare terminates TLS with rotating certificates), and chunked uploads in the Player (the resumable upload of 0.12 is a start), the Hub web uploader and the Hub API, because proxied requests are limited to 100 MB on the free plan while ROMs may be up to 4 GiB (otherwise large uploads have to happen locally). WebRTC media and TURN never go through the Tunnel (no raw UDP).
   - Check Cloudflare's terms for large binary downloads through the proxy and the plan limits before deciding; record the decision as an ADR.
 
 ## Out of scope
@@ -314,3 +396,5 @@ Hosted emulation, friends list, public Session links, guest access, email/passwo
 - **Update channels:** decided on 2026-10-06: the pre-release channel (renamed from test to beta on 2026-10-07) updates automatically, the stable channel only after confirmation. Details and rollback proposal: [ADR 0011](adr/0011-automatic-updates.md). Numbering, "Promote to release" and the default channel changed on 2026-10-08: [ADR 0016](adr/0016-release-numbering-and-promotion.md).
 - **0.2:** decided in ADR 0010 (source, index, signing tooling, offline import, license file per package, cached cores stay usable without a Hub connection to GitHub). The FrameBeam release key exists since 2026-10-07.
 - **Core sourcing:** decided on 2026-10-09: libretro buildbot cores downloaded by the Hub, no FrameBeam mirror ([ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md), see 0.8). The 2026-10-07 mirror plan is dropped.
+- **1.0 goal, platforms and order:** decided by Fabio on 2026-10-11 (see "Goal 1.0"): SoulLink run in Pokémon Omega Ruby/Alpha Sapphire; Windows and Linux only, macOS dropped; Linux Player and metadata after 1.0; milestone order 0.10.x, 0.11 to 0.15, 1.0.
+- **Test evening:** date open.

@@ -180,7 +180,7 @@ Official plugin repositories (created 2026-10-11, no code yet, each with its own
 
 ### 16.13 Platforms
 
-Lua, the building blocks and the helper functions are platform-neutral and run with the Player on Windows now and Linux/macOS later (roadmap 0.13).
+Lua, the building blocks and the helper functions are platform-neutral and run with the Player on Windows now and on Linux with the Linux Player after 1.0 (roadmap; macOS dropped).
 
 ### 16.14 Testing
 
