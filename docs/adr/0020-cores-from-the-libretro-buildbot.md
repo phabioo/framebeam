@@ -38,7 +38,7 @@ ADR 0010 made FrameBeam's own signed GitHub releases the only core source, and t
 
 - The Hub's systems registry keeps the systems FrameBeam supports (`nds` today) with the libretro system ids that belong to them (`nds` → `nds`; later `3ds` → `3ds`).
 - Discovery: every core whose info file has a matching `systemid` and that has a build for at least one served platform is offered for that system. Shown per core: name, license, required graphics API (`required_hw_api`), firmware notes, supported extensions, build date, and whether FrameBeam has a core profile for it (D6).
-- The admin installs, updates and removes cores per system on "Systems & Cores" and picks the **default core** of the system. Installed = enabled for Players. Nothing installs or updates by itself; the Hub refreshes the catalog (info.zip and `.index-extended`) at start, every 24 h and via "Check source now", and shows "Update available" when the buildbot has a newer build. Updating keeps the old build until the new one is fully cached, then removes it.
+- The admin installs, updates and removes cores per system on "Systems & Cores" and picks the **default core** of the system. Installed = enabled for Players. (superseded for updates, see Update 2026-10-11: automatic core updates) Nothing installs or updates by itself; the Hub refreshes the catalog (info.zip and `.index-extended`) at start, every 24 h and via "Check source now", and shows "Update available" when the buildbot has a newer build. Updating keeps the old build until the new one is fully cached, then removes it.
 - Existing installations keep working: a `melonds_ds` package from the old signed source stays installed and stays the default until the admin installs or picks another core.
 
 ### D5 Protocol
@@ -79,14 +79,25 @@ ADR 0010 made FrameBeam's own signed GitHub releases the only core source, and t
 
 - **Signed FrameBeam mirror (ADR 0010, 0.8 plan of 2026-10-07):** constant maintenance per core and per update, plus GPL source archives for every mirrored binary.
 - **Players downloading from the buildbot themselves:** different Players would run different builds against the same central saves, and Players without internet access would have no cores. A Hub on the same PC covers the standalone case.
-- **Automatic core updates:** a nightly build changes daily; updates happen only by an admin action, so saves are never exposed to an unnoticed core change.
+- **Automatic core updates (superseded, see Update 2026-10-11: automatic core updates):** a nightly build changes daily; updates happen only by an admin action, so saves are never exposed to an unnoticed core change.
 
 ## Consequences
 
 - Adding a core for a supported system is an admin click; a core profile in the Player makes it a first-class core.
-- Trust in cores equals trust in the libretro buildbot over HTTPS, the same as for RetroArch users. A compromised buildbot build reaches a Hub only when its admin installs or updates.
+- Trust in cores equals trust in the libretro buildbot over HTTPS, the same as for RetroArch users. A compromised buildbot build reaches a Hub only when its admin installs or updates, or, since the automatic updates of Update 2026-10-11, when the Hub updates an installed core by itself (unless the admin switches that off).
 - The Hub needs HTTPS egress to `buildbot.libretro.com` (or `import-cores`).
 
 ## Update 2026-10-11
 
 Merge CI no longer downloads or builds real cores. The `*_testcore` tests run against the in-repo test core `framebeam_test_core`; the real-core tests skip there. Real melonDS DS and DeSmuME builds from the libretro buildbot are tested by the non-blocking workflow `cores-nightly.yml` (daily, Linux and Windows), which opens an issue on failure. `scripts/fetch-melonds-ds.*` and `scripts/melonds-ds.pin` are removed; melonDS DS is fetched with `scripts/fetch-buildbot-core.sh|ps1 melondsds` like DeSmuME.
+
+## Update 2026-10-11: automatic core updates
+
+Decided by Fabio on 2026-10-11. Supersedes "Nothing installs or updates by itself" (D4) and the rejected alternative "Automatic core updates" for updates of installed cores; installing a new core stays an admin action.
+
+- Setting `core_auto_update`, default on, toggle "Automatic updates" (On/Off) in the source panel of Systems & Cores. Turning it on triggers a check.
+- After every successful catalog refresh (start, every 24 h, "Check source now"), if the setting is on, the Hub updates every installed core that has a newer buildbot build.
+- Same safeguards as a manual Update: SHA-256 pinned at install, the old build is kept until the new one is fully cached and then removed.
+- A failing core does not stop the others; the last auto-update error is shown on Systems & Cores.
+- When off, the manual flow applies: "Update available" and the Update button.
+- Players get the new version from the Hub on the next game start as before; they never contact the buildbot. The core-change snapshot of D7 still protects saves.

@@ -42,6 +42,8 @@ type coreAvailView struct {
 type coreSourceView struct {
 	URL, LastCheck, LastSuccess, LastError string
 	Count                                  int
+	AutoUpdate                             bool
+	AutoUpdateError                        string
 }
 
 type systemView struct {
@@ -225,7 +227,8 @@ func (s *Server) systemsBodyData(r *http.Request) (systemsBody, error) {
 	if err != nil {
 		return systemsBody{}, err
 	}
-	b.Cores = coreSourceView{URL: src.BuildbotURL, LastCheck: "never", LastSuccess: "never", LastError: src.LastError, Count: src.Cores}
+	b.Cores = coreSourceView{URL: src.BuildbotURL, LastCheck: "never", LastSuccess: "never", LastError: src.LastError, Count: src.Cores,
+		AutoUpdate: src.AutoUpdate, AutoUpdateError: src.AutoUpdateError}
 	if src.LastCheck != nil {
 		b.Cores.LastCheck = ago(*src.LastCheck, now)
 	}
@@ -442,6 +445,20 @@ func (s *Server) coresSync(w http.ResponseWriter, r *http.Request, _ *session) {
 	to := "/systems?ok=coresync"
 	if sys := r.PostFormValue("sys"); sys != "" {
 		to = "/systems?sys=" + url.QueryEscape(sys) + "&tab=core&ok=coresync"
+	}
+	http.Redirect(w, r, to, http.StatusSeeOther)
+}
+
+// coresAutoUpdate switches the automatic core update on or off (field "on" = "1" or "0").
+func (s *Server) coresAutoUpdate(w http.ResponseWriter, r *http.Request, _ *session) {
+	on := r.PostFormValue("on") == "1"
+	if err := s.svc.SetCoreAutoUpdate(r.Context(), on); err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	to := "/systems?ok=coreautoupdate"
+	if sys := r.PostFormValue("sys"); sys != "" {
+		to = "/systems?sys=" + url.QueryEscape(sys) + "&tab=core&ok=coreautoupdate"
 	}
 	http.Redirect(w, r, to, http.StatusSeeOther)
 }
