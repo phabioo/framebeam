@@ -1,6 +1,6 @@
 # ADR 0021: One Windows installer (0.9)
 
-- Status: Proposed (decision pending Fabio's acceptance with the merge of the 0.9 PR)
+- Status: Proposed (merged 2026-10-10; acceptance follows Fabio's local test of installer, upgrades and services)
 - Date: 2026-10-09
 - Decided by: Fabio (milestone plan of 2026-10-09); implementation proposal by the orchestrator
 - Supersedes: the Inno Setup parts of [ADR 0007](0007-phase5.md) (installer script, D8 of the PoC) and [ADR 0011](0011-automatic-updates.md) (Player update by an Inno `setup.exe` with `/UPDATE`), see D9. The updater mechanics of ADR 0011 (signed index, size and SHA-256, root helper) stay.
