@@ -75,16 +75,17 @@ Item {
         ColumnLayout {
             spacing: Theme.gapPx(root.node.gap)
             Repeater {
-                model: root.kids
+                model: root.kids.length
                 delegate: PluginChild {
-                    required property var modelData
-                    node: modelData
+                    required property int index
+                    readonly property var kid: root.kids[index] || ({})
+                    node: kid
                     dark: root.dark
                     pluginId: root.pluginId
                     onAction: (a, v) => root.action(a, v)
-                    Layout.fillWidth: (root.node.align || "stretch") === "stretch" && root.stretches(modelData.type)
-                    Layout.fillHeight: modelData.type === "scroll" && !modelData.max_height
-                    Layout.alignment: (root.node.align || "stretch") === "stretch" ? (root.stretches(modelData.type) ? 0 : Qt.AlignLeft) : root.alignFlag(true)
+                    Layout.fillWidth: (root.node.align || "stretch") === "stretch" && root.stretches(kid.type)
+                    Layout.fillHeight: kid.type === "scroll" && !kid.max_height
+                    Layout.alignment: (root.node.align || "stretch") === "stretch" ? (root.stretches(kid.type) ? 0 : Qt.AlignLeft) : root.alignFlag(true)
                 }
             }
         }
@@ -94,10 +95,11 @@ Item {
         RowLayout {
             spacing: Theme.gapPx(root.node.gap)
             Repeater {
-                model: root.kids
+                model: root.kids.length
                 delegate: PluginChild {
-                    required property var modelData
-                    node: modelData
+                    required property int index
+                    readonly property var kid: root.kids[index] || ({})
+                    node: kid
                     dark: root.dark
                     pluginId: root.pluginId
                     onAction: (a, v) => root.action(a, v)
@@ -115,10 +117,11 @@ Item {
             columnSpacing: Theme.gapPx(root.node.gap)
             rowSpacing: Theme.gapPx(root.node.gap)
             Repeater {
-                model: root.kids
+                model: root.kids.length
                 delegate: PluginChild {
-                    required property var modelData
-                    node: modelData
+                    required property int index
+                    readonly property var kid: root.kids[index] || ({})
+                    node: kid
                     dark: root.dark
                     pluginId: root.pluginId
                     onAction: (a, v) => root.action(a, v)
@@ -225,10 +228,11 @@ Item {
                 width: flick.width
                 spacing: 8
                 Repeater {
-                    model: root.kids
+                    model: root.kids.length
                     delegate: PluginChild {
-                        required property var modelData
-                        node: modelData
+                        required property int index
+                        readonly property var kid: root.kids[index] || ({})
+                        node: kid
                         dark: root.dark
                         pluginId: root.pluginId
                         onAction: (a, v) => root.action(a, v)
@@ -296,10 +300,11 @@ Item {
                     }
                 }
                 Repeater {
-                    model: root.kids
+                    model: root.kids.length
                     delegate: PluginChild {
-                        required property var modelData
-                        node: modelData
+                        required property int index
+                        readonly property var kid: root.kids[index] || ({})
+                        node: kid
                         dark: root.dark
                         pluginId: root.pluginId
                         onAction: (a, v) => root.action(a, v)
@@ -343,10 +348,11 @@ Item {
                 }
             }
             Repeater {
-                model: root.kids
+                model: root.kids.length
                 delegate: PluginChild {
-                    required property var modelData
-                    node: modelData
+                    required property int index
+                    readonly property var kid: root.kids[index] || ({})
+                    node: kid
                     dark: root.dark
                     pluginId: root.pluginId
                     onAction: (a, v) => root.action(a, v)
@@ -417,10 +423,11 @@ Item {
                     }
                 }
                 Repeater {
-                    model: root.kids
+                    model: root.kids.length
                     delegate: PluginChild {
-                        required property var modelData
-                        node: modelData
+                        required property int index
+                        readonly property var kid: root.kids[index] || ({})
+                        node: kid
                         dark: root.dark
                         pluginId: root.pluginId
                         onAction: (a, v) => root.action(a, v)

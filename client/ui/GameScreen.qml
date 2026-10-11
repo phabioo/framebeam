@@ -315,6 +315,12 @@ Rectangle {
                     multi: root.multiMode && !root.fullscreen
                     tileBadges: root.tileBadges
                 }
+
+                // Plugin HUD widgets and notices (4e, 4g-2); stays in fullscreen, where the panel is hidden
+                PluginHudLayer {
+                    player: root.player
+                    onDetailsRequested: panel.openTab("console")
+                }
             }
 
             GamePanel {

@@ -46,12 +46,16 @@ class PluginsController : public QObject {
 
   // Plugin UI v1 (fb.ui). Models are rebuilt on the UI thread when the plugin thread delivers changes (coalesced to
   // about 30 updates per second and slot); the trees themselves are fetched with slotTree() on slotChanged().
-  // [{pluginId, title, icon, origin, dot, paused}]: in-game panel tabs of the running plugins that declare ui.panel.
+  // [{pluginId, name, title, icon, origin, dot, paused}]: in-game panel tabs of the running plugins that declare ui.panel.
   Q_PROPERTY(QVariantList panelTabs READ panelTabs NOTIFY panelTabsChanged)
-  // [{pluginId, corner, hidden, tree, origin}]: HUD widgets (ui.hud) that have a tree; corner = top-left | top-right |
-  // bottom-left | bottom-right (default top-right).
+  // [{pluginId, name, icon, corner, hidden, tree, origin}]: HUD widgets (ui.hud) that have a tree; corner = top-left |
+  // bottom-left | bottom-right (default bottom-left; the top-right corner belongs to the diagnostics overlay).
   Q_PROPERTY(QVariantList hudWidgets READ hudWidgets NOTIFY hudWidgetsChanged)
-  // [{toastId, pluginId, pluginName, tone, title, text, actions: [{label, action, value}], origin}], oldest first, at most 4.
+  // "Hide all HUD widgets" (persisted). The F4 / Ctrl+H keys that toggle it are bound elsewhere.
+  Q_PROPERTY(bool hudAllHidden READ hudAllHidden WRITE setHudAllHidden NOTIFY hudAllHiddenChanged)
+  // [{toastId, pluginId, pluginName, tone, title, text, actions: [{label, action, value}], origin, host}], oldest first, at
+  // most 10 (the UI shows the newest 3 and a pill for the rest). host = true: a notice of the Player itself ("FrameBeam
+  // plugin paused", toastId < 0, actions "restart" / "details").
   Q_PROPERTY(QVariantList toasts READ toasts NOTIFY toastsChanged)
   // [{pluginId, title, icon, badge, origin}]: sidebar entries under Library (ui.screen) of the running plugins.
   Q_PROPERTY(QVariantList sidebarEntries READ sidebarEntries NOTIFY sidebarEntriesChanged)
@@ -75,6 +79,8 @@ class PluginsController : public QObject {
 
   QVariantList panelTabs() const { return panelTabs_; }
   QVariantList hudWidgets() const { return hudWidgets_; }
+  bool hudAllHidden() const { return hudAllHidden_; }
+  void setHudAllHidden(bool hidden);
   QVariantList toasts() const { return toasts_; }
   QVariantList sidebarEntries() const { return sidebarEntries_; }
   QVariantList detailSections() const { return detailSections_; }
@@ -110,7 +116,7 @@ class PluginsController : public QObject {
 
   // Plugin UI.
   Q_INVOKABLE QVariantMap slotTree(const QString& pluginId, const QString& slot) const;
-  Q_INVOKABLE QVariantList tileStrips(const QString& tileId) const;  // [{pluginId, tree}]
+  Q_INVOKABLE QVariantList tileStrips(const QString& tileId) const;  // [{pluginId, name, icon, origin, tree}]
   // Forwards a UI action (button, toggle, select, list row, map marker, toast action slot "toast", hotkey slot "hotkey")
   // to the plugin's fb.ui.on_action handler.
   Q_INVOKABLE void sendAction(const QString& pluginId, const QString& slot, const QString& action, const QVariant& value = QVariant());
@@ -122,12 +128,19 @@ class PluginsController : public QObject {
   Q_INVOKABLE void hideHud(const QString& pluginId);
   Q_INVOKABLE void showHud(const QString& pluginId);
   Q_INVOKABLE void dismissToast(int toastId);
-  // mode: "session" (until the game ends), "always" (until Player restart) or "off".
+  // mode: "session" (until the game ends), "always" and "important" (only important notices pass; both persisted) or "off".
   Q_INVOKABLE void muteToasts(const QString& pluginId, const QString& mode);
+  Q_INVOKABLE QString toastMuteMode(const QString& pluginId) const;  // "" | "session" | "always" | "important"
+  // Small in-game marker for non-official plugins: "" (official), "Unverified" or "Local".
+  Q_INVOKABLE QString originMarker(const QString& origin) const;
   Q_INVOKABLE void triggerHotkey(const QString& pluginId, const QString& hotkeyId);
 
   // Tests and screenshots: shows `console` in the Plugin console without a running game; empty map removes it.
   void setPreviewConsole(const QVariantMap& console);
+  // Tests and screenshots: replaces the plugin UI models without running a plugin. Keys: panelTabs, hudWidgets, toasts,
+  // sidebarEntries (lists, as the properties), trees ({"<pluginId>|<slot>": tree}), tileStrips ({tileId: [{pluginId,
+  // tree}]}). An empty map leaves the preview. Actions are still reported by actionSent().
+  void setPreviewUi(const QVariantMap& ui);
 
  signals:
   void developerModeChanged();
@@ -142,6 +155,13 @@ class PluginsController : public QObject {
   void detailSectionsChanged();
   void hotkeysChanged();
   void tileStripsChanged();
+  void hudAllHiddenChanged();
+  // reloadPlugin() was called ("Restart plugin"); tests observe it.
+  void reloadRequested(const QString& pluginId);
+  // setTiles() with a changed list (tests observe the Multiview -> plugins hand-over).
+  void tilesSet(const QVariantList& tiles);
+  // Every sendAction() call (also without a running plugin): tests observe the UI -> plugin round trip with it.
+  void actionSent(const QString& pluginId, const QString& slot, const QString& action, const QVariant& value);
   // The tree of a slot was set, patched or cleared (fetch it with slotTree()).
   void slotChanged(const QString& pluginId, const QString& slot);
 
@@ -157,6 +177,9 @@ class PluginsController : public QObject {
   void rebuildDetail();
   void rebuildHotkeys();
   void collectToasts();
+  void addHostNotice(const QString& pluginId);
+  void applyPreviewHud();
+  QString pluginIconUrl(const QString& id) const;
   QStringList activeIds() const;
   void updateImageSources();
   void refreshPlugins();
@@ -180,6 +203,11 @@ class PluginsController : public QObject {
   QStringList shellIds_;
   QString shellSignature_;
   QString language_ = QStringLiteral("en");
+  bool hudAllHidden_ = false;
+  QSet<QString> mutedImportant_;
+  int hostToastId_ = 0;                       // host notices count down from -1
+  bool previewUi_ = false;
+  QVariantMap previewUiData_;
   QVariantList panelTabs_, hudWidgets_, toasts_, sidebarEntries_, detailSections_, hotkeys_;
   QHash<QString, QString> hudCorner_;
   QSet<QString> hudHidden_;

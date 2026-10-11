@@ -1,0 +1,710 @@
+// Plugin UI slots in the Player (0.11 package 2): sidebar entry + plugin screen, Settings > Plugins "Adds" lines, in-game
+// panel tabs (fitting, overflow, news / paused dots, actions, rail), HUD widgets (corners, max 4, menu, hide, persistence),
+// notices (stack of 3 + pill, auto-dismiss, mute, host notice) and the tile strips on remote Multiview tiles. The game is a
+// preview (no core); in-game plugin UI comes from PluginsController::setPreviewUi, the sidebar screen from a real homebrew
+// Lua plugin in the shell context. With FRAMEBEAM_SCREENSHOT_DIR=<dir> the views are also saved as PNGs (never checked in).
+#include <QDir>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QPainter>
+#include <QSignalSpy>
+#include <QtTest>
+
+#include "fakehub.h"
+#include "playersettings.h"
+#include "testsupport.h"
+
+using namespace framebeam;
+using namespace framebeam::ui;
+using uitest::Harness;
+
+namespace {
+
+void pair(Harness& h, FakeHub& hub) {
+  h.controller->addHub(hub.address());
+  QTRY_COMPARE_WITH_TIMEOUT(h.controller->connection()->state(), HubConnection::State::NeedsTrustConfirmation, 8000);
+  h.controller->confirmTrust();
+  QTRY_COMPARE_WITH_TIMEOUT(h.controller->connection()->state(), HubConnection::State::NeedsPairing, 8000);
+  h.controller->requestPairing();
+  QTRY_COMPARE_WITH_TIMEOUT(h.controller->screen(), QStringLiteral("library"), 8000);
+  QTRY_COMPARE_WITH_TIMEOUT(h.controller->sessions()->hubLink(), QStringLiteral("online"), 8000);
+}
+
+QJsonObject sessionObj(const QString& id, const QString& who, const QString& game) {
+  return {{QStringLiteral("session_id"), id},
+          {QStringLiteral("game_id"), QStringLiteral("t1")},
+          {QStringLiteral("game_title"), game},
+          {QStringLiteral("owner"), QJsonObject{{QStringLiteral("user_id"), QStringLiteral("u_") + who.toLower()},
+                                                {QStringLiteral("display_name"), who},
+                                                {QStringLiteral("device_name"), QStringLiteral("PC")}}},
+          {QStringLiteral("visibility"), QStringLiteral("hub_users")},
+          {QStringLiteral("created_at"), QDateTime::currentDateTimeUtc().addSecs(-600).toString(Qt::ISODate)},
+          {QStringLiteral("viewer_count"), 0},
+          {QStringLiteral("is_owner"), false},
+          {QStringLiteral("invited"), false}};
+}
+
+QImage fakeFrame(int scale, const QColor& tint) {
+  QImage img(256 * scale, 384 * scale, QImage::Format_RGB32);
+  QPainter p(&img);
+  p.scale(scale, scale);
+  QLinearGradient sky(0, 0, 0, 192);
+  sky.setColorAt(0, tint.lighter(150));
+  sky.setColorAt(1, tint.darker(160));
+  p.fillRect(QRect(0, 0, 256, 192), sky);
+  p.setPen(Qt::NoPen);
+  p.setBrush(tint.darker(220));
+  p.drawPolygon(QPolygon({QPoint(0, 192), QPoint(60, 110), QPoint(110, 150), QPoint(170, 90), QPoint(256, 192)}));
+  p.fillRect(QRect(0, 192, 256, 192), QColor(28, 34, 44));
+  p.setBrush(tint);
+  for (int i = 0; i < 3; ++i) p.drawRoundedRect(QRect(24, 212 + i * 52, 208, 40), 8, 8);
+  return img;
+}
+
+emu::DisplayProfile ndsProfile() {
+  emu::DisplayProfile p;
+  p.layout = QStringLiteral("vertical");
+  p.gap = 0;
+  p.screens = {{QStringLiteral("top"), 256, 192, false}, {QStringLiteral("bottom"), 256, 192, true}};
+  return p;
+}
+
+QVariantMap json(const char* text) {
+  QJsonParseError err;
+  const QJsonDocument d = QJsonDocument::fromJson(QByteArray(text), &err);
+  if (err.error != QJsonParseError::NoError) qFatal("bad test JSON: %s", qPrintable(err.errorString()));
+  return d.toVariant().toMap();
+}
+
+QVariantMap tabEntry(const QString& id, const QString& name, const QString& dot = {}, bool paused = false, const QString& origin = QStringLiteral("local")) {
+  return {{"pluginId", id}, {"name", name}, {"title", name}, {"icon", QString()}, {"origin", origin}, {"dot", dot}, {"paused", paused}};
+}
+
+QVariantMap hudEntry(const QString& id, const QString& name, const QString& corner, const QString& text, bool hidden = false) {
+  return {{"pluginId", id}, {"name", name}, {"icon", QString()}, {"corner", corner}, {"hidden", hidden}, {"origin", QStringLiteral("local")},
+          {"tree", QVariantMap{{"type", "text"}, {"text", text}, {"style", "meta"}}}};
+}
+
+QVariantMap toastEntry(int id, const QString& pluginId, const QString& name, const QString& tone, const QString& text,
+                       const QVariantList& actions = {}, bool host = false) {
+  return {{"toastId", id}, {"pluginId", pluginId}, {"pluginName", name}, {"tone", tone}, {"title", host ? QStringLiteral("plugin paused") : QString()},
+          {"text", text}, {"actions", actions}, {"origin", QStringLiteral("local")}, {"host", host}};
+}
+
+QVariantMap action(const QString& label, const QString& act, const QVariant& value = {}) {
+  return {{"label", label}, {"action", act}, {"value", value}};
+}
+
+QString writePlugin(const QString& parent, const QString& id, const QString& name, const QJsonObject& ui, const QString& lua) {
+  const QString dir = QDir(parent).filePath(id);
+  QDir().mkpath(dir);
+  QJsonObject m{{"id", id}, {"name", name}, {"version", "1.0.0"}, {"api", 1}, {"type", "script"}, {"entry", "main.lua"},
+                {"permissions", QJsonArray{"ui"}}, {"ui", ui}};
+  QFile mf(dir + "/manifest.json");
+  if (!mf.open(QIODevice::WriteOnly)) return {};
+  mf.write(QJsonDocument(m).toJson());
+  QFile lf(dir + "/main.lua");
+  if (!lf.open(QIODevice::WriteOnly)) return {};
+  lf.write(lua.toUtf8());
+  return dir;
+}
+
+const char* kRunsLua = R"LUA(
+  local n = 0
+  local function render()
+    fb.ui.set('screen', {type='column', gap=12, children={
+      {type='text', style='title', text='Ember & Tide'},
+      {type='card', title='Active run', eyebrow='Run', children={
+        {type='row', gap=8, children={{type='badge', text='Running', tone='ok'}, {type='text', style='meta', text='3 players'}}},
+        {type='bar', id='progress', value=0.6, label='Progress'}}},
+      {type='row', gap=8, children={
+        {type='button', id='btnInc', label='Count ' .. n, variant='primary', action='inc', value=n},
+        {type='button', label='Later', variant='quiet', action='later'}}},
+      {type='list', rows={
+        {id='r1', title='Route 1', sub='Rattata', meta='open', tone='info'},
+        {id='r2', title='Route 2', sub='Caught', meta='caught', tone='ok'},
+        {id='r3', title='Route 3', sub='Fainted', meta='dead', tone='neutral'}}}
+    }})
+  end
+  fb.ui.on_action(function(a, v, slot) if a == 'inc' then n = n + 1 render() end end)
+  fb.ui.badge(2)
+  render()
+)LUA";
+
+const char* kBoomLua = R"LUA(
+  fb.ui.set('screen', {type='text', text='about to fail'})
+  error('boom')
+)LUA";
+
+}  // namespace
+
+class PluginSlotsUiTest : public QObject {
+  Q_OBJECT
+
+  QString shotDir_;
+  QTemporaryDir src_;
+  FakeHub hub_{QStringLiteral("a")};
+  Harness h_;
+
+  PluginsController* pc() { return h_.controller->plugins(); }
+  void shot(const QString& name) {
+    if (shotDir_.isEmpty()) return;
+    QQuickTest::qWaitForPolish(h_.window);
+    QTest::qWait(400);
+    QDir().mkpath(shotDir_);
+    const QImage img = h_.window->grabWindow();
+    QVERIFY2(!img.isNull() && !uitest::isAllBlack(img), qPrintable(name));
+    QVERIFY(img.save(QDir(shotDir_).filePath(name + QStringLiteral(".png"))));
+  }
+  int visibleCount(const char* name) {
+    int n = 0;
+    for (QQuickItem* i : h_.items(name))
+      if (i->isVisible()) ++n;
+    return n;
+  }
+  QQuickItem* visibleItem(const char* name) {
+    for (QQuickItem* i : h_.items(name))
+      if (i->isVisible()) return i;
+    return nullptr;
+  }
+  QQuickItem* gameScreen() {
+    for (QQuickItem* i = h_.item("gameHeader"); i != nullptr; i = i->parentItem())
+      if (QString::fromLatin1(i->metaObject()->className()).startsWith(QLatin1String("GameScreen"))) return i;
+    return nullptr;
+  }
+  QQuickItem* layer() { return h_.item("pluginHudLayer"); }
+  QPointF center(QQuickItem* it) { return it->mapToScene(QPointF(it->width() / 2, it->height() / 2)); }
+  void hover(QQuickItem* it) {
+    QTest::mouseMove(h_.window, center(it).toPoint());
+    QTest::qWait(60);
+    QTest::mouseMove(h_.window, center(it).toPoint() + QPoint(1, 1));
+    QTest::qWait(60);
+  }
+  // Click on the center of a named descendant of a named item (several items share names like toastDismiss).
+  bool clickIn(const char* parentName, const char* childName) {
+    QQuickItem* p = h_.item(parentName);
+    if (p == nullptr) return false;
+    QQuickItem* c = Harness::findVisual(p, QString::fromLatin1(childName));
+    if (c == nullptr || !c->isVisible()) return false;
+    QQuickTest::qWaitForPolish(h_.window);
+    QTest::mouseClick(h_.window, Qt::LeftButton, Qt::NoModifier, center(c).toPoint());
+    return true;
+  }
+  // Scene position of a named item (-1 while it does not exist, e.g. between delegate rebuilds).
+  QPointF posOf(const char* name) {
+    QQuickItem* it = h_.item(name);
+    return it != nullptr && it->isVisible() ? it->mapToScene(QPointF(0, 0)) : QPointF(-1, -1);
+  }
+  static QString textOf(QQuickItem* it) {
+    if (it->property("text").isValid() && !it->property("text").toString().isEmpty()) return it->property("text").toString();
+    for (QQuickItem* c : it->childItems())
+      if (const QString t = textOf(c); !t.isEmpty()) return t;
+    return {};
+  }
+  PlayerSettings freshSettings() { return PlayerSettings(h_.controller->profileStore()->baseDir()); }
+
+ private slots:
+  void initTestCase() {
+    shotDir_ = qEnvironmentVariable("FRAMEBEAM_SCREENSHOT_DIR");
+    qunsetenv("FRAMEBEAM_MELONDS_DS_CORE");
+    uitest::installWarningCounter();
+    hub_.hubId = QStringLiteral("hub-slots");
+    hub_.name = QStringLiteral("Home");
+    hub_.decision = FakeHub::Decision::Approve;
+    hub_.features = {QStringLiteral("saves_v1"), QStringLiteral("sessions_v1")};
+    hub_.sessions.insert(QStringLiteral("s1"), sessionObj(QStringLiteral("s1"), QStringLiteral("Lena"), QStringLiteral("Harbor Rally")));
+    hub_.sessions.insert(QStringLiteral("s2"), sessionObj(QStringLiteral("s2"), QStringLiteral("Jonas"), QStringLiteral("Lumen Drift")));
+    hub_.sessions.insert(QStringLiteral("s3"), sessionObj(QStringLiteral("s3"), QStringLiteral("Mo"), QStringLiteral("Pixel Quest")));
+    QVERIFY(hub_.start());
+    QVERIFY(h_.start());
+    pair(h_, hub_);
+    h_.window->resize(1440, 900);
+    QTest::qWait(150);
+  }
+  void init() { uitest::warningCount() = 0; }
+  void cleanup() { QCOMPARE(uitest::warningCount().load(), 0); }
+
+  // ---------------------------------------------------------------- shell context: Settings > Plugins, sidebar
+
+  void settingsAddsLines() {
+    QVERIFY(!writePlugin(src_.path(), "net.test.runs", "Runs Plugin", QJsonObject{{"screen", QJsonObject{{"title", "Runs"}}}}, kRunsLua).isEmpty());
+    QVERIFY(!writePlugin(src_.path(), "net.test.tools", "Tools Plugin",
+                         QJsonObject{{"panel", QJsonObject{{"title", "Tools"}}}, {"hud", true}, {"tile", true}, {"detail", true},
+                                     {"hotkeys", QJsonArray{QJsonObject{{"id", "toggle-hud"}, {"label", "Toggle"}}}}},
+                         "fb.ui.set('panel', {type='text', text='x'})").isEmpty());
+    for (const char* id : {"net.test.runs", "net.test.tools"}) {
+      const auto r = pc()->manager()->installFromFolder(src_.filePath(QString::fromLatin1(id)));
+      QVERIFY2(r.ok, qPrintable(r.error));
+    }
+    QTRY_COMPARE(pc()->plugins().size(), 2);
+    h_.controller->showSettings();
+    QTest::qWait(150);
+    QVERIFY(h_.click("section_plugins"));
+    QTRY_VERIFY(h_.item("pluginRow_net.test.tools") != nullptr && h_.item("pluginRow_net.test.tools")->isVisible());
+    QStringList adds;
+    for (QQuickItem* i : h_.items("pluginAdds")) adds << i->property("text").toString();
+    adds.sort();
+    QCOMPARE(adds.size(), 2);
+    QCOMPARE(adds.at(0), QStringLiteral("Adds: Runs screen"));
+    QCOMPARE(adds.at(1), QStringLiteral("Adds: panel tab · HUD · tile strip · game detail · 1 hotkey"));
+    shot(QStringLiteral("slots-settings-plugins-adds"));
+  }
+
+  void sidebarEntryAndScreen() {
+    pc()->setPluginEnabled(QStringLiteral("net.test.runs"), true);
+    pc()->setDeveloperMode(true);
+    QTRY_COMPARE_WITH_TIMEOUT(pc()->sidebarEntries().size(), 1, 10000);
+    h_.controller->showLibrary();
+    QTRY_VERIFY(h_.item("navPlugin_net.test.runs") != nullptr && h_.item("navPlugin_net.test.runs")->isVisible());
+    QTRY_VERIFY(visibleItem("navPluginBadge") != nullptr);
+    QCOMPARE(textOf(visibleItem("navPluginBadge")), QStringLiteral("2"));
+    // The entry sits between Library and Emulation, indented.
+    QQuickItem* lib = h_.item("navLibrary");
+    QQuickItem* ent = h_.item("navPlugin_net.test.runs");
+    QQuickItem* emu = h_.item("navEmulation");
+    QVERIFY(lib->mapToScene(QPointF(0, 0)).y() < ent->mapToScene(QPointF(0, 0)).y());
+    QVERIFY(ent->mapToScene(QPointF(0, 0)).y() < emu->mapToScene(QPointF(0, 0)).y());
+
+    QVERIFY(h_.click("navPlugin_net.test.runs"));
+    QTRY_COMPARE(h_.controller->screen(), QStringLiteral("plugin"));
+    QCOMPARE(h_.controller->pluginPageId(), QStringLiteral("net.test.runs"));
+    QTRY_VERIFY(h_.item("plugin_btnInc") != nullptr && h_.item("plugin_btnInc")->isVisible());
+    QCOMPARE(h_.item("pluginScreenTitle")->property("text").toString(), QStringLiteral("Runs"));
+    QCOMPARE(h_.item("pluginScreenName")->property("text").toString(), QStringLiteral("Runs Plugin"));
+    QCOMPARE(h_.item("pluginScreenOrigin")->property("text").toString(), QStringLiteral("Local file"));
+    shot(QStringLiteral("slots-sidebar-screen-dark"));
+    h_.controller->setAppearance(QStringLiteral("light"));
+    shot(QStringLiteral("slots-sidebar-screen-light"));
+    h_.controller->setAppearance(QStringLiteral("dark"));
+
+    // Action round trip: button -> plugin thread -> new tree; the focused button survives the re-set (stable delegates).
+    QQuickItem* before = h_.item("plugin_btnInc");
+    QVERIFY(h_.click("plugin_btnInc"));
+    QTRY_COMPARE_WITH_TIMEOUT(pc()->slotTree("net.test.runs", "screen").value("children").toList().at(2).toMap().value("children").toList().at(0).toMap().value("label").toString(),
+                              QStringLiteral("Count 1"), 5000);
+    QTRY_COMPARE(h_.item("plugin_btnInc")->property("visible").toBool(), true);
+    QCOMPARE(h_.item("plugin_btnInc"), before);
+
+    // "Plugin settings" opens Settings > Plugins with the plugin's row highlighted.
+    QVERIFY(h_.click("pluginScreenSettings"));
+    QTRY_COMPARE(h_.controller->screen(), QStringLiteral("settings"));
+    QTRY_VERIFY(visibleItem("pluginRowHighlight") != nullptr);
+
+    // Turning the plugin off removes the entry; the plugin page falls back to the Library.
+    QVERIFY(h_.click("navPlugin_net.test.runs"));
+    QTRY_COMPARE(h_.controller->screen(), QStringLiteral("plugin"));
+    pc()->setPluginEnabled(QStringLiteral("net.test.runs"), false);
+    QTRY_COMPARE_WITH_TIMEOUT(pc()->sidebarEntries().size(), 0, 10000);
+    QTRY_COMPARE(h_.controller->screen(), QStringLiteral("library"));
+  }
+
+  void hostNoticeWhenPluginPauses() {
+    QVERIFY(!writePlugin(src_.path(), "net.test.boom", "Boom Plugin", QJsonObject{{"screen", QJsonObject{{"title", "Boom"}}}}, kBoomLua).isEmpty());
+    const auto r = pc()->manager()->installFromFolder(src_.filePath(QStringLiteral("net.test.boom")));
+    QVERIFY2(r.ok, qPrintable(r.error));
+    pc()->setPluginEnabled(QStringLiteral("net.test.boom"), true);
+    QTRY_VERIFY_WITH_TIMEOUT(!pc()->toasts().isEmpty(), 10000);
+    const QVariantMap t = pc()->toasts().last().toMap();
+    QVERIFY(t.value("host").toBool());
+    QVERIFY(t.value("toastId").toInt() < 0);
+    QCOMPARE(t.value("pluginName").toString(), QStringLiteral("FrameBeam"));
+    QVERIFY(t.value("text").toString().contains(QStringLiteral("Boom Plugin was paused")));
+    const QVariantList acts = t.value("actions").toList();
+    QCOMPARE(acts.at(0).toMap().value("action").toString(), QStringLiteral("restart"));
+    QCOMPARE(acts.size(), 2);  // developer mode is on: "Details" too
+    pc()->dismissToast(t.value("toastId").toInt());
+    pc()->setPluginEnabled(QStringLiteral("net.test.boom"), false);
+    QTRY_VERIFY_WITH_TIMEOUT(pc()->sidebarEntries().isEmpty(), 10000);
+    pc()->setPreviewUi({});  // leaves nothing behind
+    QCOMPARE(pc()->toasts().size(), 0);
+  }
+
+  // ---------------------------------------------------------------- in game
+
+  void startGame() {
+    GameSession* gs = h_.controller->gameSession();
+    gs->setPreview(QStringLiteral("Framebeam Test"), fakeFrame(1, QColor(60, 140, 200)), ndsProfile(), EmulationDiagnostics());
+    emit gs->started();
+    QTRY_COMPARE_WITH_TIMEOUT(h_.controller->screen(), QStringLiteral("game"), 8000);
+    h_.controller->sessions()->gameStarted(QStringLiteral("t1"), QStringLiteral("Framebeam Test"));
+    h_.controller->sessions()->setTab(QStringLiteral("session"));
+    QQuickItem* screen = gameScreen();
+    QVERIFY(screen != nullptr);
+    screen->setProperty("applyToWindow", false);
+    QQuickTest::qWaitForPolish(h_.window);
+    QVERIFY(layer() != nullptr);
+  }
+
+  void panelTabsFitAndOverflow() {
+    // No plugin tabs: no tab bar.
+    QVERIFY(!h_.item("panelTabBar")->isVisible());
+
+    // One plugin tab: labels for both; the panel content is the plugin's tree.
+    QVariantMap trees{{"net.test.a|panel", json(R"({"type":"column","gap":8,"children":[
+        {"type":"text","style":"title","text":"SoulLink"},
+        {"type":"card","title":"Team","eyebrow":"Run","children":[{"type":"text","text":"Max, Lena, Jonas"}]},
+        {"type":"button","id":"btnGo","label":"Go","variant":"primary","action":"go","value":7}]})")}};
+    pc()->setPreviewUi({{"panelTabs", QVariantList{tabEntry("net.test.a", "SoulLink", "news")}}, {"trees", trees}});
+    QTRY_VERIFY(h_.item("panelTabBar")->isVisible() && h_.item("panelTabBar")->width() > 100);
+    QTRY_VERIFY(h_.item("panelTab_plugin:net.test.a") != nullptr);
+    QVERIFY(h_.item("panelTab_game")->isVisible());
+    QVERIFY(h_.item("panelTab_plugin:net.test.a")->isVisible());
+    QCOMPARE(visibleCount("panelTabLabel"), 2);
+    QCOMPARE(visibleCount("tabDot"), 1);  // news dot
+    QVERIFY(h_.click("panelTab_plugin:net.test.a"));
+    QTRY_VERIFY(h_.item("gamePanelPlugin")->isVisible());
+    shot(QStringLiteral("slots-panel-2-tabs"));
+
+    // Action round trip: panel button -> sendAction(plugin, "panel", action, value).
+    QSignalSpy sent(pc(), &PluginsController::actionSent);
+    QTRY_VERIFY(h_.item("plugin_btnGo") != nullptr && h_.item("plugin_btnGo")->isVisible());
+    QVERIFY(h_.click("plugin_btnGo"));
+    QTRY_COMPARE(sent.size(), 1);
+    QCOMPARE(sent.at(0).at(0).toString(), QStringLiteral("net.test.a"));
+    QCOMPARE(sent.at(0).at(1).toString(), QStringLiteral("panel"));
+    QCOMPARE(sent.at(0).at(2).toString(), QStringLiteral("go"));
+    QCOMPARE(sent.at(0).at(3).toInt(), 7);
+
+    // Four tabs (Game + 3): only Game and the open tab keep their label; the others are icon-only.
+    pc()->setPreviewUi({{"panelTabs", QVariantList{tabEntry("net.test.a", "SoulLink", "news"), tabEntry("net.test.b", "Item Helper", {}, false, "hub"),
+                                                    tabEntry("net.test.c", "Party Editor")}},
+                        {"trees", trees}});
+    QTRY_COMPARE(visibleCount("panelTabLabel"), 2);  // Game + the open SoulLink tab
+    QVERIFY(!h_.item("panelTabOverflow")->isVisible());
+    QVERIFY(h_.click("panelTab_plugin:net.test.c"));
+    QTRY_COMPARE(visibleCount("panelTabLabel"), 2);  // Game + Party Editor now
+    shot(QStringLiteral("slots-panel-4-tabs"));
+
+    // Narrow window (320 px panel) with many tabs: the rest moves into "+n ▾".
+    h_.window->resize(1280, 800);
+    QVariantList many;
+    for (int i = 0; i < 9; ++i) many << tabEntry(QStringLiteral("net.test.p%1").arg(i), QStringLiteral("Plugin %1").arg(i), i == 8 ? QStringLiteral("news") : QString());
+    pc()->setPreviewUi({{"panelTabs", many}, {"trees", trees}});
+    QTRY_VERIFY(h_.item("panelTabOverflow")->isVisible());
+    int shownPlugins = 0;
+    for (int i = 0; i < 9; ++i) {
+      QQuickItem* it = h_.item(qPrintable(QStringLiteral("panelTab_plugin:net.test.p%1").arg(i)));
+      if (it != nullptr && it->isVisible()) ++shownPlugins;
+    }
+    QVERIFY(shownPlugins > 0 && shownPlugins < 9);
+    const QString overflowText = [&]() {
+      for (QQuickItem* c : h_.item("panelTabOverflow")->childItems())
+        if (c->property("text").isValid()) return c->property("text").toString();
+      return QString();
+    }();
+    QCOMPARE(overflowText, QStringLiteral("+%1 ▾").arg(9 - shownPlugins));
+    QVERIFY(h_.click("panelTabOverflow"));
+    const QString lastId = QStringLiteral("panelTabOverflowItem_plugin:net.test.p8");
+    QTRY_VERIFY(h_.item(qPrintable(lastId)) != nullptr && h_.item(qPrintable(lastId))->isVisible());
+    shot(QStringLiteral("slots-panel-overflow-1280"));
+    QVERIFY(h_.click(qPrintable(lastId)));
+    QTRY_VERIFY(h_.item("panelTab_plugin:net.test.p8")->isVisible());  // the picked tab is open and shown
+    QTRY_VERIFY(h_.item("gamePanelPlugin")->isVisible());
+    h_.window->resize(1440, 900);
+
+    // A paused plugin keeps its tree, dimmed, under the "Paused" banner; "Restart plugin" reloads it.
+    pc()->setPreviewUi({{"panelTabs", QVariantList{tabEntry("net.test.a", "SoulLink", "paused", true)}}, {"trees", trees}});
+    QVERIFY(h_.click("panelTab_plugin:net.test.a"));
+    QTRY_VERIFY(h_.item("pluginPausedBanner")->isVisible());
+    QCOMPARE(h_.item("pluginPanelBlock")->property("opacity").toDouble() < 1.0, true);
+    QCOMPARE(visibleCount("tabDot"), 1);
+    QSignalSpy reload(pc(), &PluginsController::reloadRequested);
+    QVERIFY(h_.click("pluginRestartButton"));
+    QCOMPARE(reload.size(), 1);
+    QCOMPARE(reload.at(0).at(0).toString(), QStringLiteral("net.test.a"));
+
+    // Collapsed rail: one icon per plugin tab; a click opens the panel on that tab.
+    pc()->setPreviewUi({{"panelTabs", QVariantList{tabEntry("net.test.a", "SoulLink"), tabEntry("net.test.b", "Item Helper", "news")}}, {"trees", trees}});
+    gameScreen()->setProperty("panelCollapsed", true);
+    QTRY_VERIFY(h_.item("panelRail")->isVisible());
+    QCOMPARE(visibleCount("panelRailTab_net.test.a"), 1);
+    QCOMPARE(visibleCount("panelRailTab_net.test.b"), 1);
+    QVERIFY(h_.click("panelRailTab_net.test.b"));
+    QTRY_COMPARE(gameScreen()->property("panelCollapsed").toBool(), false);
+    QTRY_VERIFY(h_.item("gamePanelPlugin")->isVisible());
+
+    // The tab disappears with its plugin: back to the Game tab.
+    pc()->setPreviewUi({{"panelTabs", QVariantList{tabEntry("net.test.a", "SoulLink")}}, {"trees", trees}});
+    QTRY_VERIFY(!h_.item("gamePanelPlugin")->isVisible());
+    pc()->setPreviewUi({});
+    QTRY_VERIFY(!h_.item("panelTabBar")->isVisible());
+  }
+
+  void hudCornersMaxAndMenu() {
+    QVariantList hud;
+    for (int i = 0; i < 5; ++i) hud << hudEntry(QStringLiteral("net.test.bl%1").arg(i), QStringLiteral("BL %1").arg(i), "bottom-left", QStringLiteral("Bottom left %1").arg(i));
+    hud << hudEntry("net.test.br", "BR", "bottom-right", "Bottom right widget");
+    hud << hudEntry("net.test.tl", "TL", "top-left", "Top left widget");
+    pc()->setPreviewUi({{"hudWidgets", hud}});
+    QTRY_VERIFY(h_.item("hudWidget_net.test.tl") != nullptr && h_.item("hudWidget_net.test.tl")->isVisible());
+    QQuickItem* lay = layer();
+    // At most 4 per corner (the 5th is not shown), max 240 wide, 16 from the edge, stack grows away from the corner.
+    QQuickItem* bl = h_.item("hudStack_bottom-left");
+    int shown = 0;
+    for (int i = 0; i < 5; ++i)
+      if (QQuickItem* w = h_.item(qPrintable(QStringLiteral("hudWidget_net.test.bl%1").arg(i))); w != nullptr && w->isVisible()) ++shown;
+    QCOMPARE(shown, 4);
+    QVERIFY(bl->isVisible());
+    QQuickItem* first = h_.item("hudWidget_net.test.bl0");
+    QQuickItem* second = h_.item("hudWidget_net.test.bl1");
+    QVERIFY(first->isVisible() && second->isVisible());
+    QTRY_VERIFY(second->mapToItem(lay, QPointF(0, 0)).y() < first->mapToItem(lay, QPointF(0, 0)).y());  // grows upwards
+    QCOMPARE(qRound(first->mapToItem(lay, QPointF(0, 0)).x()), 16);
+    QCOMPARE(qRound(lay->height() - (first->mapToItem(lay, QPointF(0, 0)).y() + first->height())), 16);
+    QVERIFY(first->width() <= 240);
+    QQuickItem* br = h_.item("hudWidget_net.test.br");
+    QCOMPARE(qRound(lay->width() - (br->mapToItem(lay, QPointF(0, 0)).x() + br->width())), 16);
+    QQuickItem* tl = h_.item("hudWidget_net.test.tl");
+    QCOMPARE(qRound(tl->mapToItem(lay, QPointF(0, 0)).y()), 16);
+    QCOMPARE(qRound(tl->mapToItem(lay, QPointF(0, 0)).x()), 16);
+
+    // Corner rules in the controller: top right is refused; the others persist.
+    pc()->setHudCorner(QStringLiteral("net.test.tl"), QStringLiteral("top-right"));
+    QCOMPARE(pc()->hudWidgets().last().toMap().value("corner").toString(), QStringLiteral("top-left"));
+    QVERIFY(!freshSettings().pluginHudCorners().contains(QStringLiteral("net.test.tl")));
+
+    // "⋯" menu on hover: move to a corner, hide, hide all.
+    hover(tl);
+    QTRY_VERIFY(visibleItem("hudMenuButton") != nullptr);
+    QVERIFY(h_.click("hudMenuButton"));
+    QTRY_VERIFY(h_.item("pluginMenu") != nullptr && h_.item("pluginMenu")->isVisible());
+    shot(QStringLiteral("slots-hud-menu"));
+    QVERIFY(h_.click("pluginMenuChoice_corner-bottom-right"));
+    QTRY_COMPARE(pc()->hudWidgets().last().toMap().value("corner").toString(), QStringLiteral("bottom-right"));
+    QCOMPARE(freshSettings().pluginHudCorners().value(QStringLiteral("net.test.tl")), QStringLiteral("bottom-right"));
+    QVERIFY(!h_.item("pluginMenu")->isVisible());
+    // Now two in the bottom-right stack: the moved one is the second, above the first.
+    QTRY_VERIFY(posOf("hudWidget_net.test.tl").x() > lay->width() / 2);
+
+    hover(h_.item("hudWidget_net.test.br"));
+    QTRY_VERIFY(visibleItem("hudMenuButton") != nullptr);
+    QVERIFY(h_.click("hudMenuButton"));
+    QTRY_VERIFY(h_.item("pluginMenu")->isVisible());
+    QVERIFY(h_.click("pluginMenuItem_hide"));
+    QTRY_VERIFY(posOf("hudWidget_net.test.br").x() < 0);
+    QVERIFY(freshSettings().pluginHudHidden().contains(QStringLiteral("net.test.br")));
+
+    shot(QStringLiteral("slots-hud-corners"));
+
+    // Hide all: widgets go, the 2 s hint shows and then disappears; the state persists.
+    lay->setProperty("hintMs", 400);
+    hover(h_.item("hudWidget_net.test.bl0"));
+    QTRY_VERIFY(visibleItem("hudMenuButton") != nullptr);
+    QVERIFY(h_.click("hudMenuButton"));
+    QTRY_VERIFY(h_.item("pluginMenu")->isVisible());
+    QVERIFY(h_.click("pluginMenuItem_hideAll"));
+    QTRY_VERIFY(pc()->hudAllHidden());
+    QVERIFY(freshSettings().pluginHudAllHidden());
+    QTRY_VERIFY(h_.item("hudHiddenHint")->isVisible());
+    QCOMPARE(textOf(h_.item("hudHiddenHint")), QStringLiteral("HUD hidden · F4 to show"));
+    QTRY_VERIFY(!h_.item("hudStack_bottom-left")->isVisible());
+    QTRY_VERIFY(!h_.item("hudHiddenHint")->isVisible());
+    pc()->setHudAllHidden(false);
+    QVERIFY(!freshSettings().pluginHudAllHidden());
+    QTRY_VERIFY(h_.item("hudStack_bottom-left")->isVisible());
+    pc()->showHud(QStringLiteral("net.test.br"));
+    QVERIFY(!freshSettings().pluginHudHidden().contains(QStringLiteral("net.test.br")));
+
+    // Fullscreen: widgets stay, the panel goes.
+    gameScreen()->setProperty("fullscreen", true);
+    QTRY_VERIFY(!h_.item("gamePanel")->isVisible());
+    QVERIFY(h_.item("hudWidget_net.test.bl0")->isVisible());
+    gameScreen()->setProperty("fullscreen", false);
+    pc()->setPreviewUi({});
+  }
+
+  void toastStackMuteAndHostNotice() {
+    QVariantList toasts;
+    toasts << toastEntry(1, "net.test.a", "SoulLink", "info", "Max caught a creature on Route 1.");
+    toasts << toastEntry(2, "net.test.a", "SoulLink", "important", "Lena's creature fainted. The link partner is marked as dead.",
+                         QVariantList{action("Open run", "open", "r1"), action("Undo death…", "undo", 3)});
+    toasts << toastEntry(3, "net.test.b", "Item Helper", "warning", "Bag data not found. Open the bag once in game.");
+    toasts << toastEntry(4, "net.test.b", "Item Helper", "warning", "Second warning");
+    toasts << toastEntry(5, "net.test.a", "SoulLink", "important", "Route 3 is now open.");
+    pc()->setPreviewUi({{"toasts", toasts}, {"hudWidgets", QVariantList{hudEntry("net.test.br", "BR", "bottom-right", "Bottom right widget")}}});
+    // Max 3 visible + the pill for the 2 earlier ones; newest at the bottom, above the bottom-right HUD stack.
+    QTRY_VERIFY(h_.item("toast_5") != nullptr && h_.item("toast_5")->isVisible());
+    QVERIFY(h_.item("toast_4")->isVisible() && h_.item("toast_3")->isVisible());
+    QVERIFY(!h_.item("toast_2")->isVisible() && !h_.item("toast_1")->isVisible());
+    QVERIFY(h_.item("toastPill")->isVisible());
+    QCOMPARE(textOf(h_.item("toastPill")), QStringLiteral("+2 earlier notices"));
+    QQuickItem* lay = layer();
+    QTRY_VERIFY(h_.item("toast_5")->mapToItem(lay, QPointF(0, 0)).y() > h_.item("toast_4")->mapToItem(lay, QPointF(0, 0)).y());
+    QCOMPARE(qRound(h_.item("toast_5")->width()), 390);
+    QTRY_VERIFY(h_.item("toast_5")->mapToItem(lay, QPointF(0, 0)).y() + h_.item("toast_5")->height() <=
+                h_.item("hudWidget_net.test.br")->mapToItem(lay, QPointF(0, 0)).y() - 8);
+    shot(QStringLiteral("slots-hud-toasts"));
+
+    // "×" dismisses the newest one; the pill shrinks and the earlier notice 2 comes back.
+    QVERIFY(clickIn("toast_5", "toastDismiss"));
+    QTRY_COMPARE(pc()->toasts().size(), 4);
+    QTRY_VERIFY(h_.item("toast_2")->isVisible());
+    QVERIFY(!h_.item("toast_5") || !h_.item("toast_5")->isVisible() || h_.items("toast_5").isEmpty());
+
+    // Actions go to sendAction(plugin, "toast", ...) and dismiss.
+    QSignalSpy sent(pc(), &PluginsController::actionSent);
+    QVERIFY(clickIn("toast_2", "toastAction_undo"));
+    QTRY_COMPARE(sent.size(), 1);
+    QCOMPARE(sent.at(0).at(1).toString(), QStringLiteral("toast"));
+    QCOMPARE(sent.at(0).at(2).toString(), QStringLiteral("undo"));
+    QCOMPARE(sent.at(0).at(3).toInt(), 3);
+    QTRY_COMPARE(pc()->toasts().size(), 3);
+
+    // Mute menu: "Mute <plugin>'s notices" drops that plugin's notices and persists; "Only important ones" keeps important ones.
+    QVERIFY(pc()->toastMuteMode(QStringLiteral("net.test.b")).isEmpty());
+    pc()->setPreviewUi({{"toasts", QVariantList{toastEntry(21, "net.test.b", "Item Helper", "warning", "Bag data not found. Open the bag once in game."),
+                                                 toastEntry(22, "net.test.c", "Party Editor", "important", "Edits are on hold.")}}});
+    QTRY_VERIFY(h_.item("toast_21") != nullptr && h_.item("toast_21")->isVisible());
+    QVERIFY(clickIn("toast_21", "toastMore"));
+    QTRY_VERIFY(h_.item("pluginMenu")->isVisible());
+    QCOMPARE(textOf(h_.item("pluginMenuItem_mute")), QStringLiteral("Mute Item Helper's notices"));
+    shot(QStringLiteral("slots-toast-menu"));
+    QVERIFY(h_.click("pluginMenuItem_mute"));
+    QTRY_COMPARE(pc()->toastMuteMode(QStringLiteral("net.test.b")), QStringLiteral("always"));
+    QCOMPARE(freshSettings().pluginToastMutes().value(QStringLiteral("net.test.b")), QStringLiteral("always"));
+    QTRY_COMPARE(pc()->toasts().size(), 1);
+    QCOMPARE(pc()->toasts().at(0).toMap().value("toastId").toInt(), 22);
+    QVERIFY(clickIn("toast_22", "toastMore"));
+    QTRY_VERIFY(h_.item("pluginMenu")->isVisible());
+    QVERIFY(h_.click("pluginMenuItem_important"));
+    QTRY_COMPARE(pc()->toastMuteMode(QStringLiteral("net.test.c")), QStringLiteral("important"));
+    QCOMPARE(freshSettings().pluginToastMutes().value(QStringLiteral("net.test.c")), QStringLiteral("important"));
+    QCOMPARE(pc()->toasts().size(), 1);  // the important notice stays
+    pc()->muteToasts(QStringLiteral("net.test.b"), QStringLiteral("off"));
+    pc()->muteToasts(QStringLiteral("net.test.c"), QStringLiteral("off"));
+    QVERIFY(freshSettings().pluginToastMutes().isEmpty());
+
+    // Info notices dismiss themselves; warning and important ones stay.
+    layer()->setProperty("infoTimeoutMs", 300);
+    pc()->setPreviewUi({{"toasts", QVariantList{toastEntry(11, "net.test.a", "SoulLink", "info", "Auto"), toastEntry(12, "net.test.a", "SoulLink", "warning", "Stays"),
+                                                 toastEntry(13, "net.test.a", "SoulLink", "important", "Stays too")}}});
+    QTRY_COMPARE_WITH_TIMEOUT(pc()->toasts().size(), 2, 4000);
+    QCOMPARE(pc()->toasts().at(0).toMap().value("toastId").toInt(), 12);
+    layer()->setProperty("infoTimeoutMs", 8000);
+
+    // Host notice "FrameBeam · plugin paused": Restart plugin reloads, Details opens the console tab.
+    pc()->setPreviewConsole(json(R"({"plugins":[{"id":"net.test.a","name":"A","status":"error","statusText":"Paused after an error"}],"selected":"net.test.a",
+                                     "status":"error","statusText":"Paused after an error","error":"boom","watched":[],"events":[],"log":[],"regions":[],"regionsText":""})"));
+    const QVariantList hostActs{action("Restart plugin", "restart", "net.test.a"), action("Details", "details", "net.test.a")};
+    pc()->setPreviewUi({{"toasts", QVariantList{toastEntry(-1, "net.test.a", "FrameBeam", "warning", "SoulLink was paused after an error. Your game keeps running.", hostActs, true)}}});
+    QTRY_VERIFY(h_.item("toast_-1") != nullptr && h_.item("toast_-1")->isVisible());
+    QVERIFY(!h_.item("toastMore")->isVisible());  // host notices are not mutable
+    QSignalSpy reload(pc(), &PluginsController::reloadRequested);
+    QVERIFY(h_.click("toastAction_details"));
+    QTRY_VERIFY(h_.item("gamePanelConsole")->isVisible());
+    QCOMPARE(pc()->toasts().size(), 0);
+    pc()->setPreviewUi({{"toasts", QVariantList{toastEntry(-2, "net.test.a", "FrameBeam", "warning", "SoulLink was paused after an error.", hostActs, true)}}});
+    QTRY_VERIFY(h_.item("toast_-2") != nullptr && h_.item("toast_-2")->isVisible());
+    QVERIFY(h_.click("toastAction_restart"));
+    QCOMPARE(reload.size(), 1);
+    pc()->setPreviewConsole({});
+    pc()->setPreviewUi({});
+  }
+
+  void tileStripsOnRemoteTiles() {
+    SessionController* ctl = h_.controller->sessions();
+    QSignalSpy tilesSet(pc(), &PluginsController::tilesSet);
+    ctl->watch(QStringLiteral("s1"));
+    QTRY_COMPARE_WITH_TIMEOUT(ctl->surfaceCount(), 2, 8000);
+    ctl->watch(QStringLiteral("s2"));
+    QTRY_COMPARE_WITH_TIMEOUT(ctl->surfaceCount(), 3, 8000);
+    ctl->watch(QStringLiteral("s3"));
+    QTRY_COMPARE_WITH_TIMEOUT(ctl->surfaceCount(), 4, 8000);
+    const QList<QPair<QString, QColor>> feeds{{"s1", QColor(200, 110, 60)}, {"s2", QColor(120, 90, 190)}, {"s3", QColor(70, 160, 110)}};
+    for (const auto& f : feeds) QMetaObject::invokeMethod(ctl->viewer(f.first), "frameReady", Qt::DirectConnection, Q_ARG(QImage, fakeFrame(1, f.second)));
+    ctl->setTab(QStringLiteral("multiview"));
+    ctl->setMultiviewMode(QStringLiteral("grid"));
+    QQuickTest::qWaitForPolish(h_.window);
+
+    // The visible remote tiles go to the plugins (never the own tile).
+    QTRY_VERIFY(!tilesSet.isEmpty());
+    const QVariantList tiles = tilesSet.last().at(0).toList();
+    QCOMPARE(tiles.size(), 3);
+    QStringList ids;
+    for (const QVariant& t : tiles) ids << t.toMap().value("id").toString();
+    ids.sort();
+    QCOMPARE(ids, (QStringList{"s1", "s2", "s3"}));
+    QCOMPARE(tiles.at(0).toMap().value("player").toString().isEmpty(), false);
+
+    QVariantMap trees;
+    QVariantMap strips;
+    auto strip = [&](const QString& who, const QString& place, const QString& status, int color) {
+      return json(QStringLiteral(R"({"type":"column","gap":8,"children":[
+        {"type":"row","gap":8,"children":[{"type":"avatar","initial":"%1","color":%4,"size":"s"},{"type":"text","style":"heading","text":"%2"},{"type":"text","style":"meta","text":"%3"}]},
+        {"type":"bar","value":0.7,"label":"Team health"},
+        {"type":"button","id":"btnJump","label":"Open run","variant":"secondary","action":"open","value":"%1"}]})").arg(who.left(1), place, status).arg(color).toUtf8().constData());
+    };
+    auto stripEntry = [&](const QString& pid, const QString& name, const QVariantMap& tree) {
+      return QVariantMap{{"pluginId", pid}, {"name", name}, {"icon", QString()}, {"origin", QStringLiteral("local")}, {"tree", tree}};
+    };
+    // s1 and s2 have a strip (s2 from two plugins), s3 none, the own tile never.
+    strips["s1"] = QVariantList{stripEntry("net.test.a", "SoulLink", strip("Lena", "Route 3", "· encounter", 2))};
+    strips["s2"] = QVariantList{stripEntry("net.test.a", "SoulLink", strip("Jonas", "Cave of Echoes", "· caught", 3)), stripEntry("net.test.b", "Item Helper", strip("Jonas", "Bag: 12 items", "", 3))};
+    strips["local"] = QVariantList{stripEntry("net.test.a", "SoulLink", strip("Max", "Route 1", "", 1))};
+    pc()->setPreviewUi({{"tileStrips", strips}});
+    QTRY_VERIFY(h_.item("tileStrip_s1") != nullptr && h_.item("tileStrip_s1")->isVisible());
+    QVERIFY(h_.item("tileStrip_s2")->isVisible());
+    QVERIFY(h_.items("tileStrip_s3").isEmpty() || !h_.item("tileStrip_s3")->isVisible());
+    QVERIFY(h_.items("tileStrip_local").isEmpty());  // never on the own tile
+    QCOMPARE(h_.item("tileStrip_s1")->height(), 20.0);
+    // 8 px right of the key badge.
+    QQuickItem* badge = h_.item("keyBadge_s1");
+    QQuickItem* st = h_.item("tileStrip_s1");
+    QCOMPARE(qRound(st->mapToScene(QPointF(0, 0)).x() - (badge->mapToScene(QPointF(0, 0)).x() + badge->width())), 8);
+    QVERIFY(st->mapToScene(QPointF(0, 0)).y() >= badge->mapToScene(QPointF(0, 0)).y() - 1);
+    // Collapsed: the first text row of the tree.
+    QCOMPARE(visibleItem("tileStripText") != nullptr, true);
+    QStringList texts;
+    for (QQuickItem* i : h_.items("tileStripText"))
+      if (i->isVisible()) texts << i->property("text").toString();
+    texts.sort();
+    QCOMPARE(texts, (QStringList{"Cave of Echoes", "Route 3"}));
+    // Two plugins on s2: the tile "⋯" menu picks the plugin.
+    QVERIFY(h_.items("tileStripMore_s1").isEmpty() || !h_.item("tileStripMore_s1")->isVisible());
+    QTest::mouseMove(h_.window, center(h_.item("tileStrip_s2")).toPoint());
+    QTRY_VERIFY(h_.item("tileStripMore_s2")->isVisible());
+    QVERIFY(h_.click("tileStripMore_s2"));
+    QTRY_VERIFY(h_.item("pluginMenu")->isVisible());
+    QVERIFY(h_.click("pluginMenuItem_net.test.b"));
+    QTRY_COMPARE(visibleCount("tileStripText"), 2);
+    texts.clear();
+    for (QQuickItem* i : h_.items("tileStripText"))
+      if (i->isVisible()) texts << i->property("text").toString();
+    texts.sort();
+    QCOMPARE(texts, (QStringList{"Bag: 12 items", "Route 3"}));
+    QTest::mouseMove(h_.window, QPoint(5, 5));
+
+    // Click expands (max 300 x 120); the action goes to the plugin with the tile slot; one expanded, the others collapsed.
+    QVERIFY(clickIn("tileStrip_s1", "tileStripHeader"));
+    QTRY_VERIFY(h_.item("tileStrip_s1")->property("expanded").toBool());
+    QTRY_VERIFY(Harness::findVisual(h_.item("tileStrip_s1"), QStringLiteral("tileStripBlock"))->isVisible());
+    QVERIFY(!h_.item("tileStrip_s2")->property("expanded").toBool());
+    QVERIFY(h_.item("tileStrip_s1")->width() <= 300 && h_.item("tileStrip_s1")->height() <= 120 && h_.item("tileStrip_s1")->height() > 20);
+    QCOMPARE(h_.item("tileStrip_s2")->height(), 20.0);
+    shot(QStringLiteral("slots-multiview-strips"));
+    QSignalSpy sent(pc(), &PluginsController::actionSent);
+    QVERIFY(h_.click("plugin_btnJump"));
+    QTRY_COMPARE(sent.size(), 1);
+    QVERIFY(sent.at(0).at(1).toString().startsWith(QStringLiteral("tile:s")));
+    QCOMPARE(sent.at(0).at(2).toString(), QStringLiteral("open"));
+    pc()->setPreviewUi({});
+    QTRY_VERIFY(h_.items("tileStrip_s1").isEmpty() || !h_.item("tileStrip_s1")->isVisible());
+  }
+
+  // "Notice settings…" opens Settings > Plugins; the game goes to the background (as for "Hotkeys…").
+  void noticeSettingsOpensPlugins() {
+    h_.controller->sessions()->setTab(QStringLiteral("session"));
+    pc()->setPreviewUi({{"toasts", QVariantList{toastEntry(7, "net.test.a", "SoulLink", "warning", "Something to look at.")}}});
+    QTRY_VERIFY(h_.item("toast_7") != nullptr && h_.item("toast_7")->isVisible());
+    QVERIFY(clickIn("toast_7", "toastMore"));
+    QTRY_VERIFY(h_.item("pluginMenu")->isVisible());
+    QSignalSpy requested(h_.controller.get(), &PlayerController::pluginSettingsRequested);
+    QVERIFY(h_.click("pluginMenuItem_settings"));
+    QTRY_COMPARE(requested.size(), 1);
+    QCOMPARE(requested.at(0).at(0).toString(), QString());
+    pc()->setPreviewUi({});
+  }
+};
+
+UITEST_MAIN(PluginSlotsUiTest)
+#include "plugin_slots_ui_test.moc"

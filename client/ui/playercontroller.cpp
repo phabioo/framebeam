@@ -48,6 +48,9 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   saves_ = std::make_unique<SaveSync>(conn_.get(), profiles_.get());
   settings_ = std::make_unique<PlayerSettings>(profiles_->baseDir());
   plugins_ = std::make_unique<PluginsController>(settings_.get(), profiles_->baseDir(), &session_);
+  connect(plugins_.get(), &PluginsController::sidebarEntriesChanged, this, [this]() {
+    if (page_ == QLatin1String("plugin")) showPluginScreen(pluginPageId_);  // the entry went away: back to the Library
+  });
   trimRomCache();  // limit lowered while the Player was closed
   // Library sort and "Ready first" are saved per device (3c-2).
   model_.setSortKey(settings_->librarySort());
@@ -842,6 +845,34 @@ void PlayerController::showControllers() {
   }
   page_ = QStringLiteral("controllers");
   updateScreen();
+}
+
+void PlayerController::showPluginScreen(const QString& pluginId) {
+  if (conn_->state() != HubConnection::State::Connected || (gameActive_ && !background_)) {
+    return;
+  }
+  bool known = false;
+  for (const QVariant& e : plugins_->sidebarEntries())
+    if (e.toMap().value(QStringLiteral("pluginId")).toString() == pluginId) known = true;
+  if (!known) {
+    showLibrary();
+    return;
+  }
+  if (pluginPageId_ != pluginId) {
+    pluginPageId_ = pluginId;
+    emit pluginPageChanged();
+  }
+  page_ = QStringLiteral("plugin");
+  updateScreen();
+}
+
+void PlayerController::showPluginSettings(const QString& pluginId) {
+  if (conn_->state() != HubConnection::State::Connected) {
+    return;
+  }
+  if (gameActive_ && !background_) leaveGameView();
+  showSettings();
+  emit pluginSettingsRequested(pluginId);
 }
 
 // System of the game being launched, else of the selected game, else of the first known system.

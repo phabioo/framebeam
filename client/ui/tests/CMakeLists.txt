@@ -161,6 +161,13 @@ framebeam_add_test(ui_plugins plugins_ui_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp 
 target_include_directories(test_ui_plugins PRIVATE ${FB_NETTEST_DIR})
 target_compile_definitions(test_ui_plugins PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
 
+# Plugin UI slots (sidebar entry + screen, Settings "Adds", panel tabs, HUD, notices, tile strips) in the preview game.
+# With FRAMEBEAM_SCREENSHOT_DIR it also saves PNGs for the review.
+framebeam_add_test(ui_plugin_slots plugin_slots_ui_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
+  LIBS ${FB_UI_TEST_LIBS})
+target_include_directories(test_ui_plugin_slots PRIVATE ${FB_NETTEST_DIR})
+target_compile_definitions(test_ui_plugin_slots PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
+
 # Plugin UI building blocks (PluginBlock / PluginMapView) in isolation: every block dark and light, actions, confirmation,
 # map selection / filter / clusters / keyboard. With FRAMEBEAM_SCREENSHOT_DIR it also saves PNGs for the review.
 framebeam_add_test(ui_plugin_blocks plugin_blocks_ui_test.cpp LIBS ${FB_UI_TEST_LIBS})

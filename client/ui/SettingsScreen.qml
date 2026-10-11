@@ -56,6 +56,16 @@ Rectangle {
         }
         root.currentSection = best
     }
+    // "Plugin settings" / "Notice settings…" of a plugin surface: scroll to Plugins, highlight the plugin's row.
+    Connections {
+        target: root.player
+        function onPluginSettingsRequested(pluginId: string) {
+            Qt.callLater(function () {
+                root.jumpTo("plugins")
+                secPlugins.highlightId = pluginId
+            })
+        }
+    }
     function updatesLine(): string {
         const u = root.updates
         if (u.updateAvailable) {

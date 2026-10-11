@@ -65,6 +65,14 @@ PluginsController::PluginsController(PlayerSettings* settings, const QString& da
   manager_->setDeveloperMode(settings_ != nullptr && settings_->developerMode());
   host_ = std::make_unique<plugins::PluginHost>();
   adapter_ = std::make_shared<MemoryWatchAdapter>();
+  if (settings_ != nullptr) {  // HUD placement and notice muting survive restarts
+    hudCorner_ = settings_->pluginHudCorners();
+    const QStringList hidden = settings_->pluginHudHidden();
+    hudHidden_ = QSet<QString>(hidden.begin(), hidden.end());
+    hudAllHidden_ = settings_->pluginHudAllHidden();
+    const QHash<QString, QString> mutes = settings_->pluginToastMutes();
+    for (auto it = mutes.begin(); it != mutes.end(); ++it) (it.value() == QLatin1String("important") ? mutedImportant_ : mutedAlways_).insert(it.key());
+  }
 
   consoleTimer_.setSingleShot(true);
   consoleTimer_.setInterval(100);  // console model: about 10 Hz at most
@@ -186,7 +194,8 @@ void PluginsController::refreshPlugins() {
         {QStringLiteral("name"), p.manifest.name},
         {QStringLiteral("version"), p.manifest.version.toString()},
         {QStringLiteral("origin"), p.origin},
-        {QStringLiteral("originText"), tr("Local file")},
+        {QStringLiteral("originText"), p.origin == QLatin1String("official") ? tr("✓ Official")
+                                       : p.origin == QLatin1String("hub") ? tr("! Hub upload · unverified") : tr("Local file")},
         {QStringLiteral("devLinked"), p.devLinked},
         {QStringLiteral("enabled"), p.enabled},
         {QStringLiteral("hasProblems"), hasProblems},
@@ -312,6 +321,7 @@ void PluginsController::onStatus(const QString& id) {
     qCInfo(lcPlugins) << "plugin" << id << "started";
   } else if (snap.status == PluginStatus::Paused) {
     qCWarning(lcPlugins) << "plugin" << id << "paused:" << snap.error.section(QLatin1Char('\n'), 0, 0);
+    addHostNotice(id);
   }
 }
 
@@ -402,7 +412,8 @@ void PluginsController::selectConsolePlugin(const QString& id) {
 }
 
 void PluginsController::reloadPlugin(const QString& id) {
-  if (!running_ || !runningIds_.contains(id)) return;
+  emit reloadRequested(id);
+  if (!((running_ && runningIds_.contains(id)) || (shellRunning_ && shellIds_.contains(id)))) return;
   qCInfo(lcPlugins) << "plugin" << id << "reloading";
   loggedStatus_.remove(id);
   host_->reload(id);
@@ -459,9 +470,44 @@ void PluginsController::updateImageSources() {
   imageSources_->set(src);
 }
 
-QVariantMap PluginsController::slotTree(const QString& pluginId, const QString& slot) const { return host_->uiTree(pluginId, slot); }
+QVariantMap PluginsController::slotTree(const QString& pluginId, const QString& slot) const {
+  if (previewUi_) return previewUiData_.value(QStringLiteral("trees")).toMap().value(pluginId + QLatin1Char('|') + slot).toMap();
+  return host_->uiTree(pluginId, slot);
+}
+
+QString PluginsController::pluginIconUrl(const QString& id) const {
+  const auto info = manager_->info(id);
+  if (info && info->manifest.assets.contains(QStringLiteral("icon.png"))) return QStringLiteral("image://fbplugin/%1/asset/icon.png").arg(id);
+  return {};
+}
+
+QString PluginsController::originMarker(const QString& origin) const {
+  if (origin == QLatin1String("official")) return {};
+  return origin == QLatin1String("hub") ? tr("Unverified") : tr("Local");
+}
+
+void PluginsController::setPreviewUi(const QVariantMap& ui) {
+  previewUi_ = !ui.isEmpty();
+  previewUiData_ = ui;
+  if (previewUi_) {
+    panelTabs_ = ui.value(QStringLiteral("panelTabs")).toList();
+    hudWidgets_ = ui.value(QStringLiteral("hudWidgets")).toList();
+    toasts_ = ui.value(QStringLiteral("toasts")).toList();
+    sidebarEntries_ = ui.value(QStringLiteral("sidebarEntries")).toList();
+    emit panelTabsChanged();
+    emit hudWidgetsChanged();
+    emit toastsChanged();
+    emit sidebarEntriesChanged();
+    emit tileStripsChanged();
+  } else {
+    toasts_.clear();
+    emit toastsChanged();
+    rebuildUiModels();
+  }
+}
 
 void PluginsController::onUiChanged(const QString& id, const QString& what) {
+  if (previewUi_) return;
   if (what == QLatin1String("@toast")) {
     collectToasts();
     return;
@@ -484,6 +530,7 @@ void PluginsController::onUiChanged(const QString& id, const QString& what) {
 }
 
 void PluginsController::rebuildUiModels() {
+  if (previewUi_) return;
   rebuildPanelTabs();
   rebuildHud();
   rebuildSidebar();
@@ -493,17 +540,17 @@ void PluginsController::rebuildUiModels() {
 }
 
 void PluginsController::rebuildPanelTabs() {
+  if (previewUi_) return;
   QVariantList out;
   for (const QString& id : activeIds()) {
     const auto info = manager_->info(id);
     if (!info || !info->manifest.ui.panel) continue;
     const plugins::UiPluginState st = host_->uiState(id);
     const bool paused = st.paused || host_->consoleSnapshot(id).status == PluginStatus::Paused;
-    QString icon;
-    if (info->manifest.assets.contains(QStringLiteral("icon.png"))) icon = QStringLiteral("image://fbplugin/%1/asset/icon.png").arg(id);
     out.append(QVariantMap{{QStringLiteral("pluginId"), id},
+                           {QStringLiteral("name"), info->manifest.name},
                            {QStringLiteral("title"), st.titles.value(QStringLiteral("panel"), info->manifest.ui.panelTitle)},
-                           {QStringLiteral("icon"), icon},
+                           {QStringLiteral("icon"), pluginIconUrl(id)},
                            {QStringLiteral("origin"), info->origin},
                            {QStringLiteral("dot"), paused ? QStringLiteral("paused") : st.dot},
                            {QStringLiteral("paused"), paused}});
@@ -514,6 +561,7 @@ void PluginsController::rebuildPanelTabs() {
 }
 
 void PluginsController::rebuildHud() {
+  if (previewUi_) return;
   QVariantList out;
   for (const QString& id : activeIds()) {
     const auto info = manager_->info(id);
@@ -521,7 +569,9 @@ void PluginsController::rebuildHud() {
     const QVariantMap tree = host_->uiTree(id, QStringLiteral("hud"));
     if (tree.isEmpty()) continue;
     out.append(QVariantMap{{QStringLiteral("pluginId"), id},
-                           {QStringLiteral("corner"), hudCorner_.value(id, QStringLiteral("top-right"))},
+                           {QStringLiteral("name"), info->manifest.name},
+                           {QStringLiteral("icon"), pluginIconUrl(id)},
+                           {QStringLiteral("corner"), hudCorner_.value(id, QStringLiteral("bottom-left"))},
                            {QStringLiteral("hidden"), hudHidden_.contains(id)},
                            {QStringLiteral("tree"), tree},
                            {QStringLiteral("origin"), info->origin}});
@@ -531,16 +581,16 @@ void PluginsController::rebuildHud() {
 }
 
 void PluginsController::rebuildSidebar() {
+  if (previewUi_) return;
   QVariantList out;
   for (const QString& id : activeIds()) {
     const auto info = manager_->info(id);
     if (!info || !info->manifest.ui.screen) continue;
     const plugins::UiPluginState st = host_->uiState(id);
-    QString icon;
-    if (info->manifest.assets.contains(QStringLiteral("icon.png"))) icon = QStringLiteral("image://fbplugin/%1/asset/icon.png").arg(id);
     out.append(QVariantMap{{QStringLiteral("pluginId"), id},
+                           {QStringLiteral("name"), info->manifest.name},
                            {QStringLiteral("title"), st.titles.value(QStringLiteral("screen"), info->manifest.ui.screenTitle)},
-                           {QStringLiteral("icon"), icon},
+                           {QStringLiteral("icon"), pluginIconUrl(id)},
                            {QStringLiteral("badge"), st.badge},
                            {QStringLiteral("origin"), info->origin}});
   }
@@ -550,6 +600,7 @@ void PluginsController::rebuildSidebar() {
 }
 
 void PluginsController::rebuildDetail() {
+  if (previewUi_) return;
   QVariantList out;
   for (const QString& id : activeIds()) {
     const auto info = manager_->info(id);
@@ -563,6 +614,7 @@ void PluginsController::rebuildDetail() {
 }
 
 void PluginsController::rebuildHotkeys() {
+  if (previewUi_) return;
   QVariantList out;
   for (const QString& id : activeIds()) {
     const auto info = manager_->info(id);
@@ -576,31 +628,57 @@ void PluginsController::rebuildHotkeys() {
 }
 
 QVariantList PluginsController::tileStrips(const QString& tileId) const {
+  if (previewUi_) return previewUiData_.value(QStringLiteral("tileStrips")).toMap().value(tileId).toList();
   QVariantList out;
   const QString slot = QStringLiteral("tile:") + tileId;
   for (const QString& id : activeIds()) {
     const auto info = manager_->info(id);
     if (!info || !info->manifest.ui.tile) continue;
     const QVariantMap tree = host_->uiTree(id, slot);
-    if (!tree.isEmpty()) out.append(QVariantMap{{QStringLiteral("pluginId"), id}, {QStringLiteral("tree"), tree}});
+    if (!tree.isEmpty())
+      out.append(QVariantMap{{QStringLiteral("pluginId"), id}, {QStringLiteral("name"), info->manifest.name}, {QStringLiteral("icon"), pluginIconUrl(id)},
+                             {QStringLiteral("origin"), info->origin}, {QStringLiteral("tree"), tree}});
   }
   return out;
 }
 
 void PluginsController::collectToasts() {
+  if (previewUi_) return;
   bool changed = false;
   for (const QVariantMap& t : host_->takeToasts()) {
     const QString id = t.value(QStringLiteral("pluginId")).toString();
     if (mutedAlways_.contains(id) || mutedSession_.contains(id)) continue;
+    if (mutedImportant_.contains(id) && t.value(QStringLiteral("tone")).toString() != QLatin1String("important")) continue;
     const auto info = manager_->info(id);
     QVariantMap toast = t;
     toast.insert(QStringLiteral("pluginName"), info ? info->manifest.name : id);
     toast.insert(QStringLiteral("origin"), info ? info->origin : QStringLiteral("local"));
     toasts_.append(toast);
-    while (toasts_.size() > 4) toasts_.removeFirst();
+    while (toasts_.size() > 10) toasts_.removeFirst();
     changed = true;
   }
   if (changed) emit toastsChanged();
+}
+
+// Host notice "FrameBeam · plugin paused" (not mutable: it is about the Player's own plugin handling).
+void PluginsController::addHostNotice(const QString& pluginId) {
+  if (previewUi_ || !activeIds().contains(pluginId)) return;
+  const auto info = manager_->info(pluginId);
+  if (!info) return;
+  QVariantList actions{QVariantMap{{QStringLiteral("label"), tr("Restart plugin")}, {QStringLiteral("action"), QStringLiteral("restart")}, {QStringLiteral("value"), pluginId}}};
+  if (developerMode())
+    actions.append(QVariantMap{{QStringLiteral("label"), tr("Details")}, {QStringLiteral("action"), QStringLiteral("details")}, {QStringLiteral("value"), pluginId}});
+  toasts_.append(QVariantMap{{QStringLiteral("toastId"), --hostToastId_},
+                             {QStringLiteral("host"), true},
+                             {QStringLiteral("pluginId"), pluginId},
+                             {QStringLiteral("pluginName"), tr("FrameBeam")},
+                             {QStringLiteral("tone"), QStringLiteral("warning")},
+                             {QStringLiteral("title"), tr("plugin paused")},
+                             {QStringLiteral("text"), tr("%1 was paused after an error. Your game keeps running.").arg(info->manifest.name)},
+                             {QStringLiteral("actions"), actions},
+                             {QStringLiteral("origin"), QStringLiteral("official")}});
+  while (toasts_.size() > 10) toasts_.removeFirst();
+  emit toastsChanged();
 }
 
 void PluginsController::dismissToast(int toastId) {
@@ -615,19 +693,41 @@ void PluginsController::dismissToast(int toastId) {
 void PluginsController::muteToasts(const QString& pluginId, const QString& mode) {
   mutedSession_.remove(pluginId);
   mutedAlways_.remove(pluginId);
+  mutedImportant_.remove(pluginId);
+  QString persisted;
   if (mode == QLatin1String("session")) mutedSession_.insert(pluginId);
-  else if (mode == QLatin1String("always")) mutedAlways_.insert(pluginId);
-  else return;
+  else if (mode == QLatin1String("always")) {
+    mutedAlways_.insert(pluginId);
+    persisted = mode;
+  } else if (mode == QLatin1String("important")) {
+    mutedImportant_.insert(pluginId);
+    persisted = mode;
+  } else if (mode != QLatin1String("off")) return;
+  if (settings_ != nullptr) settings_->setPluginToastMute(pluginId, persisted);
   QVariantList kept;
-  for (const QVariant& v : std::as_const(toasts_))
-    if (v.toMap().value(QStringLiteral("pluginId")).toString() != pluginId) kept.append(v);
+  for (const QVariant& v : std::as_const(toasts_)) {
+    const QVariantMap t = v.toMap();
+    if (t.value(QStringLiteral("host")).toBool() || t.value(QStringLiteral("pluginId")).toString() != pluginId) {
+      kept.append(v);
+    } else if (mode == QLatin1String("important") && t.value(QStringLiteral("tone")).toString() == QLatin1String("important")) {
+      kept.append(v);
+    }
+  }
   if (kept.size() != toasts_.size()) {
     toasts_ = kept;
     emit toastsChanged();
   }
 }
 
+QString PluginsController::toastMuteMode(const QString& pluginId) const {
+  if (mutedAlways_.contains(pluginId)) return QStringLiteral("always");
+  if (mutedImportant_.contains(pluginId)) return QStringLiteral("important");
+  if (mutedSession_.contains(pluginId)) return QStringLiteral("session");
+  return {};
+}
+
 void PluginsController::sendAction(const QString& pluginId, const QString& slot, const QString& action, const QVariant& value) {
+  emit actionSent(pluginId, slot, action, value);
   if (!activeIds().contains(pluginId) || action.isEmpty()) return;
   host_->sendAction(pluginId, slot, action, value);
 }
@@ -656,28 +756,56 @@ void PluginsController::setDetailGame(const QString& system, const QString& code
 void PluginsController::setTiles(const QVariantList& tiles) {
   if (tiles == tiles_) return;
   tiles_ = tiles;
+  emit tilesSet(tiles_);
   host_->postHostEvent(QStringLiteral("tiles"), tiles_);
 }
 
 void PluginsController::setHudCorner(const QString& pluginId, const QString& corner) {
-  static const QStringList ok = {QStringLiteral("top-left"), QStringLiteral("top-right"), QStringLiteral("bottom-left"), QStringLiteral("bottom-right")};
-  if (!ok.contains(corner) || hudCorner_.value(pluginId, QStringLiteral("top-right")) == corner) return;
+  // The top-right corner belongs to the diagnostics overlay.
+  static const QStringList ok = {QStringLiteral("top-left"), QStringLiteral("bottom-left"), QStringLiteral("bottom-right")};
+  if (!ok.contains(corner) || hudCorner_.value(pluginId, QStringLiteral("bottom-left")) == corner) return;
   hudCorner_.insert(pluginId, corner);
+  if (settings_ != nullptr) settings_->setPluginHudCorner(pluginId, corner);
   rebuildHud();
+  if (previewUi_) applyPreviewHud();
 }
 
 void PluginsController::hideHud(const QString& pluginId) {
   if (hudHidden_.contains(pluginId)) return;
   hudHidden_.insert(pluginId);
+  if (settings_ != nullptr) settings_->setPluginHudHidden(pluginId, true);
   host_->postHostEvent(QStringLiteral("hud.visible"), false, pluginId);
   rebuildHud();
+  if (previewUi_) applyPreviewHud();
 }
 
 void PluginsController::showHud(const QString& pluginId) {
   if (!hudHidden_.remove(pluginId)) return;
+  if (settings_ != nullptr) settings_->setPluginHudHidden(pluginId, false);
   host_->postHostEvent(QStringLiteral("hud.visible"), true, pluginId);
   rebuildHud();
+  if (previewUi_) applyPreviewHud();
 }
 
+void PluginsController::setHudAllHidden(bool hidden) {
+  if (hidden == hudAllHidden_) return;
+  hudAllHidden_ = hidden;
+  if (settings_ != nullptr) settings_->setPluginHudAllHidden(hidden);
+  emit hudAllHiddenChanged();
+}
+
+// Preview models carry corner/hidden in the entries; keep them in step with the setters above.
+void PluginsController::applyPreviewHud() {
+  QVariantList out;
+  for (const QVariant& v : std::as_const(hudWidgets_)) {
+    QVariantMap w = v.toMap();
+    const QString id = w.value(QStringLiteral("pluginId")).toString();
+    if (hudCorner_.contains(id)) w.insert(QStringLiteral("corner"), hudCorner_.value(id));
+    w.insert(QStringLiteral("hidden"), hudHidden_.contains(id));
+    out.append(w);
+  }
+  hudWidgets_ = out;
+  emit hudWidgetsChanged();
+}
 
 }  // namespace framebeam::ui
