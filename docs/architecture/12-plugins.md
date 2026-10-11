@@ -2,7 +2,7 @@
 
 ## 16. Plugin interface [Planned for 0.11 – not implemented]
 
-Status: design only. Decisions: [ADR 0023](../adr/0023-plugins.md) (proposed). Nothing here exists in code yet; where this file names code, it names today's extension points. Open items are marked **open**.
+Status: design only. Decisions: [ADR 0023](../adr/0023-plugins.md) (proposed). Screens and building-block sheet: [design/plugins.md](../design/plugins.md). Nothing here exists in code yet; where this file names code, it names today's extension points. Open items are marked **open**.
 
 Principle: FrameBeam stays a generic emulator Player. Everything game-specific (for example Pokémon SoulLink/Nuzlocke runs) lives in plugins. The Hub manages (plugins, run state), the Player emulates (reads memory, shows UI).
 
@@ -66,16 +66,16 @@ Core-side facts (3DS): see [ADR 0023](../adr/0023-plugins.md) context (Azahar ex
 |---|---|---|
 | `memory.read` | Read registered ranges | first release |
 | `rom.read` | Read the user's own game files at runtime (assets) | first release |
-| `ui` | Provide building-block trees for slots | first release |
+| `ui` | Provide building-block trees for slots, including notices (toasts) outside the game; no separate notice permission | first release |
 | `run.state` | Read/write per-player run state, append run events | first release |
 | `memory.write` | Write memory through a write queue | later (cheats, editor) |
 | `tool.exec` | Start an external program | later, signed official only |
 
-`memory.write`: all plugins' writes go through one queue applied on the emulation thread between two frames in a fixed order. If two plugins persistently set the same address, the Player shows the conflict instead of silently letting one win. Before the first write in a play session the Player takes a save snapshot (the Hub already versions saves). In a run, an active cheat writes a "cheat used" event to the run log, visible to all participants; the run decides whether cheats are allowed.
+`memory.write`: all plugins' writes go through one queue applied on the emulation thread between two frames in a fixed order. If two plugins persistently set the same address, the Player shows the conflict instead of silently letting one win. Before the first write in a play session the Player takes a save snapshot (the Hub already versions saves). The consent ("Change game memory") is asked once per game. In a run, every change is written to the run log that all participants see ("cheat used" event), and a run rule can forbid memory writes; the plugin then stays off in that run.
 
 Not planned: sending input, free network access.
 
-The Player shows name, origin (Official / Hub upload / local) and permissions before a plugin is switched on.
+The Player shows name, origin (Official / Hub upload / local) and permissions before a plugin is switched on. In-game surfaces (tab, HUD widget, tile strip, toast) show a small "Unverified" or "Local" marker on hover or focus for non-official plugins; Official shows none.
 
 ### 16.6 Manifest (sketch)
 
@@ -134,6 +134,8 @@ Slots:
 | Notifications | toasts |
 | Hub web: run page, game detail | Hub web UI (also usable as a browser source) |
 
+HUD corners: widgets stack in the bottom left, bottom right and top left; the top right is reserved for diagnostics. F4 hides all HUD widgets, Ctrl+H shows or hides one plugin's widget (expanding is a click or controller A). Remote Multiview tiles show one plugin strip; the user picks it when several plugins offer one. In-game views stay dark in both themes.
+
 Map view: a background image, markers at coordinates (player symbols in the player's colour, sprites, state), zoom and pan with mouse and controller, selection details and filters. Positions are at location or route level (map ID), not exact overworld position.
 
 ### 16.9 Assets
@@ -151,12 +153,12 @@ Decided 2026-10-11 (Fabio): the group plays German/EU releases first.
 
 ### 16.10 Distribution
 
-- Official plugins: one repository each, with a release workflow that builds a `.fbplugin` (zip with manifest, Lua, own assets) and signs it with the FrameBeam release key. A signed **plugin index** (like `updates-index`) lists them with versions and SHA-256; the Hub reads it and the admin installs or updates with one click. Signed plugins carry an "Official" badge.
+- Official plugins: one repository each, with a release workflow that builds a `.fbplugin` (zip with manifest, Lua, own assets) and signs it with the FrameBeam release key. A signed **plugin index** (like `updates-index`) lists them with versions and SHA-256; the Hub reads it and the admin installs or updates with one click. A plugin signed by FrameBeam is "Official" wherever it was installed from (index, Hub upload or file) and carries the badge; "Local" means an unsigned file and needs developer mode.
 - Hub upload: an admin uploads a plugin; it is available to all users of that Hub and marked "Unverified" unless signed; the admin confirms the permissions on upload. A Hub without internet works completely with uploads (like `import-cores`).
 - Local install: "Install plugin from file" in the Player for development; a developer mode reloads a plugin from a folder on change and shows a log console.
-- Runs: the Hub delivers the same plugin version to all participants; a locally installed copy is not enough.
+- Runs: the Hub delivers the same plugin version to all participants; a locally installed copy is not enough and never replaces the Hub version a run uses.
 
-Planned official repositories (not created yet, each with its own docs and roadmap): `framebeam-plugin-pokemon-core`, `framebeam-plugin-soullink`, `framebeam-plugin-pokemon-editor`, `framebeam-plugin-cheats`, `framebeam-plugin-template`.
+Official plugin repositories (created 2026-10-11, no code yet, each with its own docs and roadmap): `framebeam-plugin-pokemon-core`, `framebeam-plugin-soullink`, `framebeam-plugin-pokemon-editor`, `framebeam-plugin-cheats`, `framebeam-plugin-template`.
 
 ### 16.11 Hub: runs
 

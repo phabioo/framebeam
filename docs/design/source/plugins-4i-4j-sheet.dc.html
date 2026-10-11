@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#d9d8d4;font-family:'IBM Plex Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#1a7f96;text-decoration:none}a:hover{color:#0f5a6b;text-decoration:underline}
+</style>
+</helmet>
+
+<section style="padding:80px;display:flex;flex-direction:column;gap:40px">
+  <div style="display:flex;flex-direction:column;gap:8px;max-width:1440px">
+    <div style="padding:10px 14px;border-radius:8px;background:#fff7e0;border:1px solid #ead6a8;font-size:14px;color:#6b4600;max-width:1100px">Round 2 (11.10.2026): colors, versions and names are fixed here; artboards with layout changes (3DS screens, dialogs, sheet) are superseded by their <b>-2</b> versions in <a href="Plugins Round 2.dc.html">Plugins Round 2</a>.</div>
+    <div style="font:500 13px 'IBM Plex Mono',monospace;color:#5b5a56;letter-spacing:.04em">TURN 6 · PLUGIN PLATFORM · PART 3 OF 3 · HUB, RUNS, COMPONENTS, HANDOFF</div>
+    <div style="font-size:32px;font-weight:600;color:#1b1b1d">Hub plugin admin, runs as a FrameBeam object, and the building blocks plugins are made of</div>
+    <div style="font-size:15px;color:#3a3936;line-height:1.55;max-width:1100px">Back to <a href="FrameBeam Plugins 4a-4d.dc.html">4a–4d</a> · <a href="FrameBeam Plugins 4e-4h.dc.html">4e–4h</a>. SoulLink lives in <a href="SoulLink 5a-5i.dc.html">5a–5i</a> and <a href="SoulLink 5e-5g Run.dc.html">5e–5g</a>. Jump to <a href="#4-sheet">Components</a> · <a href="#4-handoff">Handoff</a>.</div>
+  </div>
+
+  <div style="font:500 13px 'IBM Plex Mono',monospace;color:#5b5a56;letter-spacing:.04em;border-top:1px solid #c4c3be;padding-top:16px">4ih · HUB WEB → PLUGINS (ADMIN)</div>
+  <div style="display:flex;flex-wrap:wrap;gap:64px;align-items:flex-start">
+    <div id="4ih" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;gap:10px"><span style="font:500 13px 'IBM Plex Mono',monospace;background:#1b1b1d;color:#f6f5f2;padding:4px 8px;border-radius:4px">4ih</span><span style="font-size:15px;color:#3a3936">Installed plugins + signed Official catalog · Item Helper selected · 1440 × 900</span></div>
+      <div data-screen-label="4ih Hub Plugins" style="width:1440px;height:900px;background:#f6f5f2;color:#1b1b1d;display:grid;grid-template-columns:232px minmax(0,1fr) 400px;overflow:hidden;border-radius:10px;box-shadow:0 30px 60px rgba(0,0,0,.25);font-size:13px">
+        <aside style="background:#efeee9;border-right:1px solid #e3e1dc;padding:24px 16px;display:flex;flex-direction:column;gap:28px">
+          <div style="display:flex;align-items:center;gap:10px;padding:0 8px"><dc-import name="framebeam-mark" concept="a" product="hub" tone="color-light" palette="signal" size="22" hint-size="22px,22px"></dc-import><div style="font-weight:600;font-size:16px">FrameBeam Hub</div></div>
+          <nav style="display:flex;flex-direction:column;gap:2px;font-size:14px"><sc-for list="{{ hubNavP }}" as="n" hint-placeholder-count="8"><div style="padding:9px 10px;border-radius:6px;background:{{ n.bg }};box-shadow:{{ n.ring }};font-weight:{{ n.fw }};color:{{ n.fg }};display:flex;justify-content:space-between">{{ n.l }}<span style="font-size:12px;color:#1a7f96;font-weight:500">{{ n.meta }}</span></div></sc-for></nav>
+          <div style="margin-top:auto;display:flex;flex-direction:column;gap:4px;padding:0 8px;font:400 12px 'IBM Plex Mono',monospace;color:#6b6a66"><span style="font:500 13px 'IBM Plex Sans',sans-serif;color:#1b1b1d;margin-bottom:6px">admin · Admin</span><span>Home · v0.11.0</span><span>hub.example.com</span></div>
+        </aside>
+        <main style="padding:28px 32px;display:flex;flex-direction:column;gap:18px;min-width:0;overflow:hidden">
+          <header style="display:flex;align-items:center;gap:12px"><div style="display:flex;flex-direction:column;gap:4px"><div style="font-size:26px;font-weight:600;letter-spacing:-.015em">Plugins</div><div style="color:#6b6a66">Players on this Hub can install what is listed here.</div></div><span style="margin-left:auto;height:36px;padding:0 14px;border-radius:7px;background:#3cbfd8;color:#161512;display:flex;align-items:center;font-weight:600">Upload plugin</span></header>
+          <div style="border-radius:10px;background:#fff;border:1px solid #e3e1dc;overflow:hidden">
+            <div style="display:grid;grid-template-columns:minmax(0,1.6fr) 150px minmax(0,1.3fr) 70px 90px;gap:12px;padding:9px 16px;font:500 11px 'IBM Plex Mono',monospace;color:#8a8984;letter-spacing:.06em;border-bottom:1px solid #e3e1dc"><span>PLUGIN</span><span>ORIGIN</span><span>PERMISSIONS</span><span>PLAYERS</span><span></span></div>
+            <sc-for list="{{ hubPlugins }}" as="p" hint-placeholder-count="4"><div style="display:grid;grid-template-columns:minmax(0,1.6fr) 150px minmax(0,1.3fr) 70px 90px;gap:12px;align-items:center;padding:10px 16px;border-bottom:1px solid #efeee9;background:{{ p.bg }}"><div style="display:flex;align-items:center;gap:10px;min-width:0"><span style="width:30px;height:30px;flex:none;border-radius:7px;background:#e9e8e4;display:grid;place-items:center;font:600 10px 'IBM Plex Mono',monospace">{{ p.mono }}</span><div style="display:flex;flex-direction:column;min-width:0"><span style="font-weight:600">{{ p.name }}</span><span style="font:400 11px 'IBM Plex Mono',monospace;color:#6b6a66">{{ p.ver }}</span></div></div><span><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:{{ p.bBg }};color:{{ p.bFg }};white-space:nowrap">{{ p.badge }}</span></span><span style="color:#55544f;font-size:12px">{{ p.perms }}</span><span style="font-family:'IBM Plex Mono',monospace">{{ p.n }}</span><span style="font-size:12px;font-weight:500;color:{{ p.actFg }};text-align:right">{{ p.act }}</span></div></sc-for>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px"><span style="font:500 11px 'IBM Plex Mono',monospace;color:#8a8984;letter-spacing:.08em">OFFICIAL CATALOG</span><span style="font-size:12px;color:#6b6a66">signed index · checked today 21:04</span><span style="margin-left:auto;width:220px;height:32px;box-sizing:border-box;border-radius:7px;background:#fff;border:1px solid #d9d7d1;display:flex;align-items:center;padding:0 12px;color:#8a8984">Search catalog…</span></div>
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
+            <sc-for list="{{ catalog }}" as="c" hint-placeholder-count="3"><div style="padding:14px;border-radius:10px;background:#fff;border:1px solid #e3e1dc;display:flex;flex-direction:column;gap:8px"><div style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:7px;background:#e9e8e4;display:grid;place-items:center;font:600 10px 'IBM Plex Mono',monospace">{{ c.mono }}</span><div style="display:flex;flex-direction:column"><span style="font-weight:600">{{ c.name }}</span><span style="font:400 11px 'IBM Plex Mono',monospace;color:#6b6a66">{{ c.ver }}</span></div></div><span style="font-size:12px;color:#55544f;line-height:1.45">{{ c.desc }}</span><div style="display:flex;align-items:center"><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:#ddf1f6;color:#1a7f96">✓ Official</span><span style="margin-left:auto;height:28px;padding:0 10px;border-radius:6px;border:1px solid {{ c.line }};background:{{ c.bg }};color:{{ c.fg }};display:flex;align-items:center;font-size:12px;font-weight:600">{{ c.act }}</span></div></div></sc-for>
+          </div>
+        </main>
+        <aside style="background:#fff;border-left:1px solid #e3e1dc;padding:24px;display:flex;flex-direction:column;gap:16px">
+          <div style="display:flex;gap:12px;align-items:center"><span style="width:44px;height:44px;border-radius:10px;background:#e9e8e4;display:grid;place-items:center;font:600 13px 'IBM Plex Mono',monospace">IH</span><div style="display:flex;flex-direction:column;gap:3px"><span style="font-size:18px;font-weight:600">Item Helper</span><span style="font:400 12px 'IBM Plex Mono',monospace;color:#6b6a66">0.3.2 · uploaded by Lena · 02.10.2026</span></div></div>
+          <div style="display:flex;gap:10px;padding:10px 12px;border-radius:8px;background:#f7ecd6;border:1px solid #ead6a8;color:#6b4600;line-height:1.5"><b>!</b><span>Not signed by FrameBeam. Players see “Hub upload · unverified” and a warning before turning it on.</span></div>
+          <div style="display:flex;flex-direction:column"><span style="font:500 11px 'IBM Plex Mono',monospace;color:#8a8984;letter-spacing:.08em;padding-bottom:6px">PERMISSIONS · CONFIRMED BY ADMIN</span><div style="padding:8px 0;border-top:1px solid #efeee9">Read game memory</div><div style="padding:8px 0;border-top:1px solid #efeee9">Show panels in game</div></div>
+          <div style="display:flex;flex-direction:column"><span style="font:500 11px 'IBM Plex Mono',monospace;color:#8a8984;letter-spacing:.08em;padding-bottom:6px">USED ON · 2 PLAYERS</span><div style="display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid #efeee9"><span>Max · Desktop-LivingRoom</span><span style="color:#2f7d4f">on</span></div><div style="display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid #efeee9"><span>Lena · Laptop-Lena</span><span style="color:#2f7d4f">on</span></div></div>
+          <div style="margin-top:auto;display:flex;flex-direction:column;gap:8px"><span style="height:38px;border-radius:8px;border:1px solid #cfcdc7;display:grid;place-items:center;font-weight:500">Download file</span><span style="height:38px;border-radius:8px;border:1px solid #efc9c2;color:#b5402f;display:grid;place-items:center;font-weight:600">Remove from Hub</span><span style="font-size:12px;color:#6b6a66;text-align:center">Players keep their copy until they uninstall it.</span></div>
+        </aside>
+      </div>
+    </div>
+    <div id="4ih-upload" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;gap:10px"><span style="font:500 13px 'IBM Plex Mono',monospace;background:#1b1b1d;color:#f6f5f2;padding:4px 8px;border-radius:4px">4ih · upload</span><span style="font-size:15px;color:#3a3936">Upload of an unverified plugin · admin confirms permissions</span></div>
+      <div data-screen-label="4ih Hub upload unverified" style="width:640px;height:640px;border-radius:10px;background:rgba(27,27,29,.5);display:grid;place-items:center;box-shadow:0 30px 60px rgba(0,0,0,.25);font-size:13px;color:#1b1b1d">
+        <div style="width:520px;padding:26px 28px;box-sizing:border-box;border-radius:12px;background:#fff;border:1px solid #e3e1dc;display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 11px 'IBM Plex Mono',monospace;color:#8a6a1a;letter-spacing:.08em">UPLOAD · NOT SIGNED</span><span style="font-size:20px;font-weight:600">Offer Run Notes 0.2.0 to Players?</span><span style="color:#55544f;line-height:1.5">FrameBeam has not checked this file. Players will see it as “Hub upload · unverified”.</span></div>
+          <div style="display:flex;flex-direction:column;gap:2px"><span style="color:#6b6a66;padding-bottom:4px">It asks to:</span><div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #efeee9"><span style="width:18px;height:18px;border-radius:4px;background:#3cbfd8;color:#161512;display:grid;place-items:center;font-size:11px;font-weight:700">✓</span>Show panels in game</div><div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #efeee9"><span style="width:18px;height:18px;border-radius:4px;background:#3cbfd8;color:#161512;display:grid;place-items:center;font-size:11px;font-weight:700">✓</span>Share run progress with your Hub</div><div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #efeee9"><span style="width:18px;height:18px;border-radius:4px;border:1.5px solid #cfcdc7;box-sizing:border-box"></span>Read game memory</div></div>
+          <span style="font-size:12px;color:#b5402f">Tick every permission to confirm you reviewed it.</span>
+          <div style="display:flex;justify-content:flex-end;gap:8px"><span style="height:40px;padding:0 16px;border-radius:8px;border:1px solid #cfcdc7;display:flex;align-items:center;font-size:14px">Cancel</span><span style="height:40px;padding:0 16px;border-radius:8px;background:#e9e8e4;color:#a3a29d;display:flex;align-items:center;font-size:14px;font-weight:600">Offer to Players</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="font:500 13px 'IBM Plex Mono',monospace;color:#5b5a56;letter-spacing:.04em;border-top:1px solid #c4c3be;padding-top:16px">4j · RUNS · A FRAMEBEAM OBJECT PLUGINS BUILD ON · PARTICIPANTS, PLUGIN, GAME PER PARTICIPANT, STATUS, EVENT LOG</div>
+  <div style="display:flex;flex-wrap:wrap;gap:64px;align-items:flex-start">
+    <div id="4j" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;gap:10px"><span style="font:500 13px 'IBM Plex Mono',monospace;background:#1b1b1d;color:#f6f5f2;padding:4px 8px;border-radius:4px">4j</span><span style="font-size:15px;color:#3a3936">Player · Runs · invite card (Join / Decline) · active and finished · 1440 × 900</span></div>
+      <div data-screen-label="4j Player Runs list" style="width:1440px;height:900px;background:#121315;color:#ecebe7;display:grid;grid-template-columns:232px minmax(0,1fr);overflow:hidden;border-radius:10px;box-shadow:0 30px 60px rgba(0,0,0,.25);font-size:13px">
+        <aside style="background:#0e0f10;border-right:1px solid #232428;display:flex;flex-direction:column;padding:24px 16px;gap:28px">
+          <div style="display:flex;align-items:center;gap:10px;padding:0 8px"><dc-import name="framebeam-mark" concept="a" product="player" palette="signal" size="22" hint-size="22px,22px"></dc-import><div style="font-weight:600;font-size:16px">FrameBeam Player</div></div>
+          <nav style="display:flex;flex-direction:column;gap:2px;font-size:14px"><div style="padding:9px 10px;color:#a3a3a8">Library</div><div style="padding:7px 10px 7px 22px;border-radius:6px;background:#1f2024;font-weight:500;display:flex;align-items:center;gap:8px"><span style="width:16px;height:16px;border-radius:4px;background:#232428;border:1px solid #2c2d32;font:600 8px/16px 'IBM Plex Mono',monospace;text-align:center">SL</span>Runs<span style="margin-left:auto;font-size:11px;font-weight:600;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#15262b;color:#3cbfd8;display:flex;align-items:center;justify-content:center;box-sizing:border-box">1</span></div><div style="padding:9px 10px;color:#a3a3a8">Emulation</div><div style="padding:9px 10px;color:#a3a3a8">Controllers</div><div style="padding:9px 10px;color:#a3a3a8">Settings</div></nav>
+        </aside>
+        <main style="padding:28px 32px;display:flex;flex-direction:column;gap:18px;min-width:0">
+          <header style="display:flex;align-items:center;gap:12px"><div style="font-size:26px;font-weight:600;letter-spacing:-.015em">Runs</div><span style="margin-left:auto;height:36px;padding:0 14px;border-radius:7px;background:#3cbfd8;color:#161512;display:flex;align-items:center;font-weight:600">Start a run</span></header>
+          <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:center;padding:14px 16px;border-radius:10px;background:#15262b;border:1px solid #1f4650">
+            <div style="display:flex;align-items:center;gap:12px"><span style="width:36px;height:36px;border-radius:50%;background:#f07ab8;color:#121315;display:grid;place-items:center;font-weight:700">L</span><div style="display:flex;flex-direction:column;gap:3px"><span style="font:500 11px 'IBM Plex Mono',monospace;color:#3cbfd8;letter-spacing:.08em">RUN INVITE</span><span style="font-size:15px;font-weight:600">Lena invites you to “Tide Hardcore” · Nuzlocke</span><span style="color:#a9cdd6">SoulLink &amp; Nuzlocke · you would play Coral Saga: Tide · 2 of 3 joined</span></div></div>
+            <div style="display:flex;gap:8px"><span style="height:36px;padding:0 14px;display:flex;align-items:center;color:#a9cdd6;font-weight:500">Decline</span><span style="height:36px;padding:0 16px;border-radius:7px;background:#3cbfd8;color:#161512;display:flex;align-items:center;font-weight:600">Join</span></div>
+          </div>
+          <div style="display:flex;flex-direction:column"><span style="font:500 11px 'IBM Plex Mono',monospace;color:#7d7d83;letter-spacing:.08em;padding-bottom:8px;border-bottom:1px solid #26272b">ACTIVE · 1</span>
+            <sc-for list="{{ runsActive }}" as="r" hint-placeholder-count="1"><div style="display:grid;grid-template-columns:minmax(0,1fr) 220px 120px 100px;gap:16px;align-items:center;padding:14px 0;border-bottom:1px solid #26272b"><div style="display:flex;flex-direction:column;gap:4px"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:15px;font-weight:600">{{ r.name }}</span><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:{{ r.sBg }};color:{{ r.sFg }}">{{ r.status }}</span></div><span style="color:#8e8e94">{{ r.sub }}</span></div><div style="display:flex;gap:4px"><sc-for list="{{ r.who }}" as="w" hint-placeholder-count="4"><span title="{{ w.n }}" style="width:24px;height:24px;border-radius:50%;background:{{ w.c }};color:#121315;display:grid;place-items:center;font-size:11px;font-weight:700">{{ w.i }}</span></sc-for></div><span style="color:#a3a3a8">{{ r.when }}</span><span style="text-align:right;font-weight:500">Open →</span></div></sc-for>
+          </div>
+          <div style="display:flex;flex-direction:column"><span style="font:500 11px 'IBM Plex Mono',monospace;color:#7d7d83;letter-spacing:.08em;padding-bottom:8px;border-bottom:1px solid #26272b">FINISHED · 2</span>
+            <sc-for list="{{ runsDone }}" as="r" hint-placeholder-count="2"><div style="display:grid;grid-template-columns:minmax(0,1fr) 220px 120px 100px;gap:16px;align-items:center;padding:14px 0;border-bottom:1px solid #26272b"><div style="display:flex;flex-direction:column;gap:4px"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:15px;font-weight:600">{{ r.name }}</span><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:{{ r.sBg }};color:{{ r.sFg }}">{{ r.status }}</span></div><span style="color:#8e8e94">{{ r.sub }}</span></div><div style="display:flex;gap:4px"><sc-for list="{{ r.who }}" as="w" hint-placeholder-count="2"><span title="{{ w.n }}" style="width:24px;height:24px;border-radius:50%;background:{{ w.c }};color:#121315;display:grid;place-items:center;font-size:11px;font-weight:700">{{ w.i }}</span></sc-for></div><span style="color:#a3a3a8">{{ r.when }}</span><span style="text-align:right;font-weight:500;color:#a3a3a8">View</span></div></sc-for>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <div id="4jh" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;gap:10px"><span style="font:500 13px 'IBM Plex Mono',monospace;background:#1b1b1d;color:#f6f5f2;padding:4px 8px;border-radius:4px">4jh</span><span style="font-size:15px;color:#3a3936">Hub web · Runs list + run detail frame · plugin content slot · event log · archive / delete</span></div>
+      <div data-screen-label="4jh Hub Runs" style="width:1440px;height:900px;background:#f6f5f2;color:#1b1b1d;display:grid;grid-template-columns:232px 320px minmax(0,1fr);overflow:hidden;border-radius:10px;box-shadow:0 30px 60px rgba(0,0,0,.25);font-size:13px">
+        <aside style="background:#efeee9;border-right:1px solid #e3e1dc;padding:24px 16px;display:flex;flex-direction:column;gap:28px">
+          <div style="display:flex;align-items:center;gap:10px;padding:0 8px"><dc-import name="framebeam-mark" concept="a" product="hub" tone="color-light" palette="signal" size="22" hint-size="22px,22px"></dc-import><div style="font-weight:600;font-size:16px">FrameBeam Hub</div></div>
+          <nav style="display:flex;flex-direction:column;gap:2px;font-size:14px"><sc-for list="{{ hubNavR }}" as="n" hint-placeholder-count="8"><div style="padding:9px 10px;border-radius:6px;background:{{ n.bg }};box-shadow:{{ n.ring }};font-weight:{{ n.fw }};color:{{ n.fg }};display:flex;justify-content:space-between">{{ n.l }}<span style="font-size:12px;color:#1a7f96;font-weight:500">{{ n.meta }}</span></div></sc-for></nav>
+        </aside>
+        <div style="background:#efeee9;border-right:1px solid #e3e1dc;padding:24px 14px;display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:center;padding:0 8px 8px"><span style="font:500 11px 'IBM Plex Mono',monospace;color:#8a8984;letter-spacing:.08em">RUNS · 3</span><span style="margin-left:auto;font-size:12px;color:#6b6a66">All ▾</span></div>
+          <sc-for list="{{ hubRuns }}" as="r" hint-placeholder-count="3"><div style="padding:11px 12px;border-radius:8px;background:{{ r.bg }};box-shadow:{{ r.ring }};display:flex;flex-direction:column;gap:4px"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:14px;font-weight:600">{{ r.name }}</span><span style="margin-left:auto;font-size:11px;font-weight:600;padding:2px 7px;border-radius:999px;background:{{ r.sBg }};color:{{ r.sFg }}">{{ r.status }}</span></div><span style="font-size:12px;color:#6b6a66">{{ r.sub }}</span></div></sc-for>
+        </div>
+        <main style="padding:24px 32px;display:flex;flex-direction:column;gap:16px;min-width:0;overflow:hidden">
+          <header style="display:flex;align-items:flex-start;gap:12px"><div style="display:flex;flex-direction:column;gap:5px"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:24px;font-weight:600;letter-spacing:-.01em">Ember &amp; Tide</span><span style="font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;background:#ddf1f6;color:#1a7f96">Active</span></div><span style="color:#6b6a66">Started by Max · 28.09.2026 · <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:14px;height:14px;border-radius:3px;background:#e9e8e4;font:600 6px/14px 'IBM Plex Mono',monospace;text-align:center">SL</span>SoulLink &amp; Nuzlocke 0.9.2</span></span></div><div style="margin-left:auto;display:flex;gap:8px"><span style="height:34px;padding:0 12px;border-radius:7px;border:1px solid #cfcdc7;display:flex;align-items:center;font-weight:500">Pause run</span><span style="height:34px;padding:0 12px;border-radius:7px;border:1px solid #cfcdc7;display:flex;align-items:center;font-weight:500">Archive</span><span style="height:34px;padding:0 12px;border-radius:7px;color:#b5402f;display:flex;align-items:center;font-weight:500">Delete…</span></div></header>
+          <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px"><sc-for list="{{ participants }}" as="p" hint-placeholder-count="4"><div style="padding:12px;border-radius:9px;background:#fff;border:1px solid #e3e1dc;display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:{{ p.c }};color:#fff;display:grid;place-items:center;font-weight:700">{{ p.i }}</span><div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-weight:600">{{ p.n }}</span><span style="font-size:12px;color:#6b6a66;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ p.game }}</span><span style="font-size:11px;color:{{ p.stFg }}">{{ p.st }}</span></div></div></sc-for></div>
+          <div style="display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:20px;flex:1;min-height:0">
+            <div style="border-radius:10px;border:1.5px dashed #cfcdc7;display:grid;place-items:center;color:#8a8984;text-align:center;line-height:1.6">Plugin content slot<br><span style="font:400 12px 'IBM Plex Mono',monospace">SoulLink fills this with the run board (5gh)</span></div>
+            <div style="display:flex;flex-direction:column;border-radius:10px;background:#fff;border:1px solid #e3e1dc;min-height:0;overflow:hidden">
+              <div style="display:flex;align-items:center;padding:12px 14px;border-bottom:1px solid #e3e1dc"><span style="font:500 11px 'IBM Plex Mono',monospace;color:#8a8984;letter-spacing:.08em">EVENT LOG · 214</span><span style="margin-left:auto;font-size:12px;color:#6b6a66">Export</span></div>
+              <sc-for list="{{ hubLog }}" as="e" hint-placeholder-count="7"><div style="display:grid;grid-template-columns:44px 8px minmax(0,1fr);gap:8px;align-items:start;padding:8px 14px;border-bottom:1px solid #efeee9;font-size:12px"><span style="font:400 11px 'IBM Plex Mono',monospace;color:#8a8984">{{ e.t }}</span><span style="width:8px;height:8px;border-radius:50%;background:{{ e.c }};margin-top:4px"></span><div style="display:flex;flex-direction:column;gap:1px"><span>{{ e.m }}</span><span style="font-size:11px;color:#8a8984">{{ e.src }}</span></div></div></sc-for>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <div id="4-sheet" style="font:500 13px 'IBM Plex Mono',monospace;color:#5b5a56;letter-spacing:.04em;border-top:1px solid #c4c3be;padding-top:16px">COMPONENT SHEET · PLUGIN BUILDING BLOCKS · DARK AND LIGHT · NORMAL AND CONTROLLER FOCUS</div>
+  <div style="display:flex;flex-direction:column;gap:40px">
+    <div data-screen-label="Sheet blocks dark"><dc-import name="block-sheet" hint-size="1520px,1700px"></dc-import></div>
+    <div data-screen-label="Sheet blocks light"><dc-import name="block-sheet" theme="light" hint-size="1520px,1700px"></dc-import></div>
+
+    <div data-screen-label="Sheet map view" style="width:1520px;padding:40px;box-sizing:border-box;background:#0b0b0c;border-radius:10px;color:#ecebe7;display:flex;flex-direction:column;gap:18px">
+      <div style="display:flex;align-items:baseline;gap:12px"><span style="font-size:20px;font-weight:600">Map view · fb.ui.map</span><span style="font:400 12px 'IBM Plex Mono',monospace;color:#8e8e94">background image (any aspect, fit to width) · markers in image coordinates · avatar, creature, cluster · legend · zoom / pan · popover · controller nav</span></div>
+      <div style="display:grid;grid-template-columns:repeat(2,720px);gap:24px">
+        <div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#8e8e94">Default · all players · Route 104 selected, popover above its marker</span><dc-import name="region-map" w="{{ 720 }}" h="{{ 440 }}" selected="r104" radius="8px" hint-size="720px,440px"></dc-import></div>
+        <div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#8e8e94">Zoomed out · markers cluster by area, count + top icon</span><dc-import name="region-map" w="{{ 720 }}" h="{{ 440 }}" state="cluster" selected="" radius="8px" hint-size="720px,440px"></dc-import></div>
+        <div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#8e8e94">Controller focus · Route 103 marker focused · hint bar</span><dc-import name="region-map" w="{{ 720 }}" h="{{ 440 }}" state="focus" selected="" radius="8px" hint-size="720px,440px"></dc-import></div>
+        <div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#8e8e94">Filter “Open routes” · done routes fade to 35 %</span><dc-import name="region-map" w="{{ 720 }}" h="{{ 440 }}" filter="open" selected="" radius="8px" hint-size="720px,440px"></dc-import></div>
+        <div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#8e8e94">Light · filter “Only me”</span><dc-import name="region-map" w="{{ 720 }}" h="{{ 440 }}" theme="light" filter="me" selected="" radius="8px" hint-size="720px,440px"></dc-import></div>
+        <div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#8e8e94">Loading · map not read yet</span><dc-import name="region-map" w="{{ 720 }}" h="{{ 440 }}" state="empty" radius="8px" hint-size="720px,440px"></dc-import></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px;font-size:12px;line-height:1.6;color:#c9c8c4">
+        <div><b style="color:#ecebe7">Markers</b><br>Avatar 26 circle in player color, 2px ring in the map’s bg, pointer down; two players on one spot fan out 14px. Route marker: chip with one 24×18 icon per player (owner dot), link-group number, “open” when empty.</div>
+        <div><b style="color:#ecebe7">Clusters</b><br>Below 60 % zoom, routes merge per area plugin-defined; chip shows count and the icon of the newest catch. Click zooms to the cluster.</div>
+        <div><b style="color:#ecebe7">Controls</b><br>Filters segment top left, zoom + / − / fit top right, legend bottom left (collapsible). Drag or right stick pans; wheel / LB RB zoom. Popover 300 wide, anchored 40px above the marker, flips below near the top edge.</div>
+        <div><b style="color:#ecebe7">Keyboard / controller</b><br>Tab or D-pad moves to the nearest marker in that direction; A / Enter opens the popover; B closes; Y opens filters. Focus ring = standard ring around the chip.</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="4-handoff" style="font:500 13px 'IBM Plex Mono',monospace;color:#5b5a56;letter-spacing:.04em;border-top:1px solid #c4c3be;padding-top:16px">HANDOFF · PLUGIN PLATFORM · FRAMEBEAM REPO → docs/design/</div>
+  <div style="display:grid;grid-template-columns:repeat(3,460px);gap:24px;align-items:start;color:#1b1b1d;font-size:13px;line-height:1.55">
+    <sc-for list="{{ handoff }}" as="h" hint-placeholder-count="9">
+      <div style="padding:22px 24px;border-radius:10px;background:#fff;border:1px solid #e3e1dc;display:flex;flex-direction:column;gap:10px"><div style="display:flex;gap:10px;align-items:center"><span style="font:500 12px 'IBM Plex Mono',monospace;background:#1b1b1d;color:#f6f5f2;padding:3px 7px;border-radius:4px">{{ h.id }}</span><b style="font-size:15px">{{ h.title }}</b></div>
+        <div><b>Purpose</b> · {{ h.purpose }}</div><div><b>States</b> · {{ h.states }}</div><div><b>Changed</b> · {{ h.changed }}</div><div style="color:#55544f"><b style="color:#1b1b1d">Open</b> · {{ h.open }}</div></div>
+    </sc-for>
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const nav = (on) => ['Library', 'Saves', 'Systems & Cores', 'Clients', 'Users', 'Plugins', 'Runs', 'Settings'].map(l => ({ l, meta: l === 'Plugins' && on !== 'Plugins' ? '' : l === 'Plugins' ? '1 update' : l === 'Runs' && on !== 'Runs' ? '1 active' : '', bg: l === on ? '#fff' : 'transparent', ring: l === on ? '0 0 0 1px #e3e1dc' : 'none', fw: l === on ? 500 : 400, fg: l === on ? '#1b1b1d' : '#55544f' }));
+    const off = { o: ['#ddf1f6', '#1a7f96', '✓ Official'], u: ['#f7ecd6', '#8a5a00', '! Unverified'] };
+    const CL = { Max: '#2f5fd0', Lena: '#b8327a', Jonas: '#4d7a14', Sam: '#6a4fc4' };
+    const CD = { Max: '#6f9cff', Lena: '#f07ab8', Jonas: '#a6d65a', Sam: '#b39cf5' };
+    const who = (names) => names.map(n => ({ n, i: n[0], c: CD[n] }));
+    return {
+      hubNavP: nav('Plugins'), hubNavR: nav('Runs'),
+      hubPlugins: [
+        { mono: 'CC', name: 'Creature Core', ver: '1.2.0', o: 'o', perms: 'Read game memory · Read game file', n: '4' },
+        { mono: 'SL', name: 'SoulLink & Nuzlocke', ver: '0.9.2 → 0.10.0', o: 'o', perms: 'Memory · Game file · Panels · Hub', n: '4', act: 'Update', actFg: '#1a7f96' },
+        { mono: 'IH', name: 'Item Helper', ver: '0.3.2', o: 'u', perms: 'Read game memory · Panels', n: '2', sel: true },
+        { mono: 'PE', name: 'Party Editor', ver: '1.0.0', o: 'o', perms: 'Change game memory · Panels', n: '0' }
+      ].map(p => ({ act: 'Details', actFg: '#55544f', ...p, bBg: off[p.o][0], bFg: off[p.o][1], badge: off[p.o][2], bg: p.sel ? '#f6fbfc' : 'transparent' })),
+      catalog: [
+        { mono: 'SL', name: 'SoulLink & Nuzlocke', ver: '0.10.0', desc: 'Run tracker for Nuzlocke and SoulLink runs.', act: 'Update', bg: '#3cbfd8', fg: '#161512', line: '#3cbfd8' },
+        { mono: 'SP', name: 'Speedrun Splits', ver: '1.1.0', desc: 'Split timer as a HUD widget, splits on the Hub.', act: 'Install', bg: 'transparent', fg: '#1b1b1d', line: '#cfcdc7' },
+        { mono: 'CC', name: 'Creature Core', ver: '1.2.0', desc: 'Shared creature data for Coral Saga games.', act: '✓ Installed', bg: 'transparent', fg: '#6b6a66', line: 'transparent' }
+      ],
+      runsActive: [{ name: 'Ember & Tide', status: 'Active', sBg: '#15262b', sFg: '#3cbfd8', sub: 'SoulLink · Coral Saga: Ember / Tide · Route 104 · 4 badges · 5 alive', who: who(['Max', 'Lena', 'Jonas', 'Sam']), when: 'today 22:41' }],
+      runsDone: [
+        { name: 'Summer Nuzlocke', status: 'Finished', sBg: '#17291f', sFg: '#6fd39a', sub: 'Nuzlocke · Coral Saga: Ember · champion · 9 deaths', who: who(['Max']), when: '14.08.2026' },
+        { name: 'Duo Try 1', status: 'Abandoned', sBg: '#232428', sFg: '#a3a3a8', sub: 'SoulLink · wiped on Route 110', who: who(['Max', 'Lena']), when: '02.07.2026' }
+      ],
+      hubRuns: [
+        { name: 'Ember & Tide', status: 'Active', sBg: '#ddf1f6', sFg: '#1a7f96', sub: 'SoulLink · 4 players · today 22:41', sel: true },
+        { name: 'Tide Hardcore', status: 'Starting', sBg: '#f7ecd6', sFg: '#8a5a00', sub: 'Nuzlocke · Lena · 2 of 3 joined' },
+        { name: 'Summer Nuzlocke', status: 'Finished', sBg: '#e2f3e8', sFg: '#2f7d4f', sub: 'Nuzlocke · Max · 14.08.2026' }
+      ].map(r => ({ ...r, bg: r.sel ? '#fff' : 'transparent', ring: r.sel ? '0 0 0 1px #e3e1dc' : 'none' })),
+      participants: [['Max', 'Coral Saga: Ember', 'playing · Route 104', '#2f7d4f'], ['Lena', 'Coral Saga: Tide', 'playing · Route 104', '#2f7d4f'], ['Jonas', 'Coral Saga: Ember', 'playing · Route 110', '#2f7d4f'], ['Sam', 'Coral Saga: Tide', 'offline · 1 h ago', '#8a8984']].map(([n, game, st, stFg]) => ({ n, i: n[0], c: CL[n], game, st, stFg })),
+      hubLog: [
+        ['22:41', 'Lena', 'Lena caught Tidepup on Route 104', 'automatic · Lena’s Player'],
+        ['22:39', 'Jonas', 'Jonas caught Voltwing on Route 110', 'automatic · Jonas’s Player'],
+        ['22:31', 'Sam', 'Sam’s encounter on Route 104 marked as missed', 'manual · Sam'],
+        ['22:12', 'Max', 'Link group 2 died: Fernfox fainted to Gym Leader', 'automatic · Max’s Player'],
+        ['21:58', 'Max', 'Undo death: Sprig (Mossling)', 'manual · Max · seen by all'],
+        ['21:40', 'Lena', 'Run resumed', 'Hub'],
+        ['21:02', 'Jonas', 'Jonas joined the run', 'Hub']
+      ].map(([t, w, m, src]) => ({ t, c: CL[w], m, src })),
+      handoff: [
+        { id: '4a', title: 'Settings → Plugins', purpose: 'See, turn on/off and update installed plugins; install from file; developer mode.', states: 'list · light · empty · blocked by dependency (toggle disabled, reason in text) · update chip.', changed: '3p-2 settings nav gets “Plugins” between Appearance and Diagnostics. Player sidebar gets plugin entries under Library (4f).', open: 'Should updates of Official plugins install automatically like Player updates, or always ask?' },
+        { id: '4b', title: 'Plugin detail', purpose: 'Everything about one plugin: what it does, permissions, scope, settings, hotkeys, data.', states: 'dark · light · update available · uninstall (confirm dialog).', changed: 'New. Settings render with SettingsRow controls from the schema; hotkeys also appear in Controllers → Hotkeys under the plugin’s name.', open: '“Only in runs” makes sense for run plugins only; hide the option for others?' },
+        { id: '4c', title: 'Permission dialog', purpose: 'Plain-language consent before a plugin runs or gets more power.', states: 'first turn-on · unverified (calm amber note) · update with new permission (NEW, others marked ALLOWED) · high risk “Change game memory” (danger, snapshot note).', changed: 'New. “Keep 0.9.2” keeps the old version until the user allows.', open: 'Should “Change game memory” be asked again per game, per session, or once? Drawn: per game.' },
+        { id: '4d', title: 'Install from file · Console', purpose: 'Local installs and plugin development.', states: 'choose · summary (unsigned, unmet dependency) · installed · console live · console error (Lua line + traceback).', changed: 'Console is a side panel tab, last, only with developer mode on.', open: 'File extension .fbplugin OK? Should the console also be a detachable window?' },
+        { id: '4e', title: 'In game: tabs, HUD, tiles, fullscreen', purpose: 'Plugins share space without hiding the game or each other.', states: '1 / 2 / 4 tabs · 1280 overflow · HUD stack + menu + all hidden · tile strip collapsed / expanded / focus · fullscreen.', changed: '3g-2 / 3r-2 side panel gets the tab bar on top; Game tab = old content unchanged. 3i-2 rail shows tab icons. 3y fullscreen keeps HUD; F4 hides all HUD.', open: 'F4 is free today; confirm. One strip per remote tile: OK to make the user pick when several plugins offer one?' },
+        { id: '4f · 4g', title: 'Sidebar screen · Notices', purpose: 'A plugin’s full screen; plugin toasts in FrameBeam’s stack.', states: 'sidebar entry + badge · empty frame · toast info / important / paused · mute menu.', changed: 'Toast stack: bottom right of the play area or window, newest at the bottom, max 3 visible, plugin name always on top line.', open: 'Max one sidebar entry per plugin; what if two plugins both want “Runs”?' },
+        { id: '4h', title: 'Game detail section', purpose: 'Show a plugin’s link to this game (runs) where people start games.', states: 'no run (only “Start a run…”) · 1 active run · several runs (list, max 3).', changed: '3c-2 detail column: plugin section under SAVE; status table gets a “Plugins” row; Play becomes “Play run · name” with “Play without run” when a run is active.', open: 'Does “Play without run” switch save slot automatically (run saves use their own slot)?' },
+        { id: '4ih', title: 'Hub → Plugins', purpose: 'Admin decides which plugins Players on this Hub can get.', states: 'installed table · catalog (Install / Update / Installed) · detail · unverified upload with per-permission ticks.', changed: 'Hub navigation gets Plugins and Runs between Users and Settings.', open: 'Can non-admins upload? Drawn: Lena uploaded, so “Users can upload” is a Hub setting.' },
+        { id: '4j · 4jh', title: 'Runs', purpose: 'A platform object plugins build on: participants, plugin, game each, status, event log.', states: 'invite (Join / Decline) · active · paused · finished · abandoned · starting (waiting for joins).', changed: 'New Player sidebar entry is provided by the plugin, but list, invite and log are FrameBeam. Hub run detail has a plugin content slot.', open: 'Who may delete a run: creator only, or any participant? Drawn: creator + admin.' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

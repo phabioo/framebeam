@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="position:relative;width:1440px;height:900px;background:{{ t.bg }};color:{{ t.text }};display:grid;grid-template-columns:232px 300px minmax(0,1fr);overflow:hidden;border-radius:10px;box-shadow:0 30px 60px rgba(0,0,0,.25);font-family:'IBM Plex Sans',system-ui,sans-serif">
+  <aside style="background:{{ t.side }};border-right:1px solid {{ t.line }};display:flex;flex-direction:column;padding:24px 16px;gap:28px">
+    <div style="display:flex;align-items:center;gap:10px;padding:0 8px"><dc-import name="framebeam-mark" concept="a" product="player" palette="signal" tone="{{ markTone }}" size="22" hint-size="22px,22px"></dc-import><div style="font-weight:600;font-size:16px">FrameBeam Player</div></div>
+    <nav style="display:flex;flex-direction:column;gap:2px;font-size:14px">
+      <div style="padding:9px 10px;color:{{ t.mut }}">Library</div>
+      <div style="padding:7px 10px 7px 22px;color:{{ t.mut }};display:flex;align-items:center;gap:8px"><span style="width:16px;height:16px;border-radius:4px;background:{{ t.chip }};border:1px solid {{ t.line }};font:600 8px/16px 'IBM Plex Mono',monospace;text-align:center;color:{{ t.text }}">SL</span>Runs</div>
+      <div style="padding:9px 10px;color:{{ t.mut }}">Emulation</div>
+      <div style="padding:9px 10px;color:{{ t.mut }}">Controllers</div>
+      <div style="padding:9px 10px;border-radius:6px;background:{{ t.sel }};box-shadow:{{ t.selRing }};font-weight:500">Settings</div>
+    </nav>
+  </aside>
+  <div style="background:{{ t.sub }};border-right:1px solid {{ t.line }};padding:28px 16px;display:flex;flex-direction:column;gap:6px">
+    <div style="font:500 11px 'IBM Plex Mono',monospace;color:{{ t.mut3 }};letter-spacing:.08em;padding:0 8px 8px">SETTINGS</div>
+    <div style="padding:11px 12px;display:flex;flex-direction:column;gap:3px"><span style="font-size:14px;font-weight:600">Updates</span><span style="font-size:12px;color:{{ t.mut2 }}">Up to date</span></div>
+    <div style="padding:11px 12px;display:flex;flex-direction:column;gap:3px"><span style="font-size:14px;font-weight:600">Hubs</span><span style="font-size:12px;color:{{ t.mut2 }}">1 saved · Home active</span></div>
+    <div style="padding:11px 12px;display:flex;flex-direction:column;gap:3px"><span style="font-size:14px;font-weight:600">Appearance</span><span style="font-size:12px;color:{{ t.mut2 }}">{{ themeName }}</span></div>
+    <div style="padding:11px 12px;border-radius:8px;display:flex;flex-direction:column;gap:3px;background:{{ t.sel }};box-shadow:0 0 0 1px {{ t.line2 }}"><span style="font-size:14px;font-weight:600">Plugins</span><span style="font-size:12px;color:{{ t.mut2 }}">{{ navMeta }}</span></div>
+    <div style="padding:11px 12px;display:flex;flex-direction:column;gap:3px"><span style="font-size:14px;font-weight:600">Diagnostics</span><span style="font-size:12px;color:{{ t.mut2 }}">Logs and support</span></div>
+    <div style="margin-top:auto;padding:12px;font:400 12px 'IBM Plex Mono',monospace;color:{{ t.mut3 }};line-height:1.7">Player 0.11.0<br>Plugin API v1</div>
+  </div>
+
+  <sc-if value="{{ isList }}" hint-placeholder-val="{{ true }}">
+    <main style="padding:28px 36px;display:flex;flex-direction:column;gap:20px;min-width:0;overflow:hidden">
+      <header style="display:flex;align-items:flex-start;gap:12px"><div style="display:flex;flex-direction:column;gap:4px"><div style="font-size:26px;font-weight:600;letter-spacing:-.015em">Plugins</div><div style="font-size:13px;color:{{ t.mut2 }}">Plugins add panels, HUD widgets and screens. If one fails it is paused; your game keeps running.</div></div><div style="margin-left:auto;height:36px;padding:0 14px;border-radius:7px;border:1px solid {{ t.btnLine }};display:flex;align-items:center;font-size:13px;font-weight:500;white-space:nowrap">Install from file…</div></header>
+      <div style="display:flex;flex-direction:column">
+        <div style="display:flex;align-items:center;padding-bottom:8px;border-bottom:1px solid {{ t.line }}"><span style="font:500 11px 'IBM Plex Mono',monospace;color:{{ t.mut3 }};letter-spacing:.08em">INSTALLED · 4</span><span style="margin-left:auto;font-size:12px;color:{{ t.mut2 }}">3 on · 1 update</span></div>
+        <sc-for list="{{ plugins }}" as="p" hint-placeholder-count="4">
+          <div style="display:grid;grid-template-columns:40px minmax(0,1fr) auto auto;gap:16px;align-items:start;padding:16px 0;border-bottom:1px solid {{ t.line }};opacity:{{ p.op }}">
+            <span style="width:40px;height:40px;border-radius:9px;background:{{ t.chip }};border:1px solid {{ t.line }};box-sizing:border-box;display:grid;place-items:center;font:600 13px 'IBM Plex Mono',monospace">{{ p.mono }}</span>
+            <div style="display:flex;flex-direction:column;gap:5px;min-width:0">
+              <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px"><span style="font-size:15px;font-weight:600">{{ p.name }}</span><span style="font:400 12px 'IBM Plex Mono',monospace;color:{{ t.mut2 }}">{{ p.ver }}</span><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:{{ p.bBg }};color:{{ p.bFg }};white-space:nowrap">{{ p.badge }}</span><sc-if value="{{ p.update }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;border:1px solid {{ t.accentLine }};color:{{ t.accentText }};white-space:nowrap">Update available · {{ p.update }}</span></sc-if></div>
+              <span style="font-size:13px;color:{{ t.mut }};line-height:1.45">{{ p.desc }}</span>
+              <div style="display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px"><span style="color:{{ p.depFg }}">{{ p.dep }}</span><span style="color:{{ t.mut3 }}">{{ p.adds }}</span></div>
+            </div>
+            <div style="height:40px;display:flex;align-items:center"><div style="width:40px;height:22px;border-radius:11px;position:relative;background:{{ p.tBg }};opacity:{{ p.tOp }}"><div style="position:absolute;top:3px;left:{{ p.knob }};width:16px;height:16px;border-radius:50%;background:#ffffff;box-shadow:0 1px 2px rgba(0,0,0,.2)"></div></div></div>
+            <div style="height:40px;display:flex;align-items:center;font-size:13px;font-weight:500;color:{{ t.mut }};white-space:nowrap">Details ›</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:grid;grid-template-columns:14px minmax(0,1fr) auto;gap:0;align-items:start;padding:4px 0 14px;border-bottom:1px solid {{ t.line }}"><span></span><div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:14px">Developer mode</span><span style="font-size:12px;color:{{ t.mut2 }}">Allows unsigned local plugins, adds the Plugin console tab in game and reloads plugins when their files change.</span></div><div style="width:40px;height:22px;border-radius:11px;position:relative;background:{{ t.toggleOff }};margin-top:4px"><div style="position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#ffffff"></div></div></div>
+      <div style="margin-top:auto;font-size:13px;color:{{ t.mut2 }}">More plugins: <span style="color:{{ t.accentText }};font-weight:500">hub.example.com → Plugins</span> · your Hub admin chooses what is offered.</div>
+    </main>
+  </sc-if>
+
+  <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+    <main style="padding:28px 36px;display:flex;flex-direction:column;gap:20px;min-width:0">
+      <header style="display:flex;flex-direction:column;gap:4px"><div style="font-size:26px;font-weight:600;letter-spacing:-.015em">Plugins</div><div style="font-size:13px;color:{{ t.mut2 }}">Saved on this device only</div></header>
+      <div style="flex:1;display:grid;place-items:center">
+        <div style="width:440px;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center">
+          <div style="display:grid;grid-template-columns:repeat(2,24px);gap:4px"><span style="height:24px;border-radius:6px;border:1.5px dashed {{ t.btnLine }}"></span><span style="height:24px;border-radius:6px;border:1.5px dashed {{ t.btnLine }}"></span><span style="height:24px;border-radius:6px;border:1.5px dashed {{ t.btnLine }}"></span><span style="height:24px;border-radius:6px;background:{{ t.accentBg }};border:1.5px solid {{ t.accentLine }};box-sizing:border-box"></span></div>
+          <div style="font-size:18px;font-weight:600">No plugins yet</div>
+          <div style="font-size:14px;color:{{ t.mut }};line-height:1.55;text-wrap:pretty">Plugins add run trackers, HUD widgets and helpers to your games. They look and behave like the rest of FrameBeam and never block the game.</div>
+          <div style="display:flex;gap:8px;margin-top:6px"><span style="height:40px;padding:0 16px;border-radius:8px;background:#3cbfd8;color:#161512;display:flex;align-items:center;font-size:14px;font-weight:600">Browse plugins on your Hub</span><span style="height:40px;padding:0 16px;border-radius:8px;border:1px solid {{ t.btnLine }};display:flex;align-items:center;font-size:14px;font-weight:500">Install from file…</span></div>
+          <div style="font:400 12px 'IBM Plex Mono',monospace;color:{{ t.mut3 }}">hub.example.com/plugins</div>
+        </div>
+      </div>
+    </main>
+  </sc-if>
+
+  <sc-if value="{{ isDetail }}" hint-placeholder-val="{{ false }}">
+    <main style="padding:24px 36px;display:flex;flex-direction:column;gap:18px;min-width:0;overflow:hidden">
+      <div style="font-size:13px;color:{{ t.mut }}">← Plugins</div>
+      <header style="display:flex;gap:16px;align-items:flex-start">
+        <span style="width:56px;height:56px;flex:none;border-radius:12px;background:{{ t.chip }};border:1px solid {{ t.line }};box-sizing:border-box;display:grid;place-items:center;font:600 17px 'IBM Plex Mono',monospace">SL</span>
+        <div style="display:flex;flex-direction:column;gap:5px;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-size:24px;font-weight:600;letter-spacing:-.01em">SoulLink &amp; Nuzlocke</span><span style="font:400 13px 'IBM Plex Mono',monospace;color:{{ t.mut2 }}">0.9.2</span><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:{{ t.accentBg }};color:{{ t.accentText }}">✓ Official</span></div>
+          <span style="font-size:13px;color:{{ t.mut }}">by FrameBeam Community · <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:{{ t.accentText }}">github.com/example/framebeam-plugin-soullink</span></span>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:8px;flex:none"><span style="height:36px;padding:0 14px;border-radius:7px;background:#3cbfd8;color:#161512;display:flex;align-items:center;font-size:13px;font-weight:600;white-space:nowrap">Update to 0.10.0</span></div>
+      </header>
+      <div style="display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:9px;background:{{ t.card }};border:1px solid {{ t.line }}">
+        <span style="font-size:14px;font-weight:500">Turn on</span>
+        <div style="display:flex;gap:2px;padding:3px;border-radius:7px;background:{{ t.segBg }};border:1px solid {{ t.line2 }};font-size:13px"><span style="padding:5px 12px;color:{{ t.mut }}">For all matching games</span><span style="padding:5px 12px;border-radius:5px;background:{{ t.segOn }};font-weight:500;box-shadow:{{ t.segShadow }}">Only in runs</span><span style="padding:5px 12px;color:{{ t.mut }}">Off</span></div>
+        <span style="font-size:12px;color:{{ t.mut2 }}">Active while you play a game that belongs to a run · 1 active run</span>
+      </div>
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:32px;min-height:0">
+        <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
+          <div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 11px 'IBM Plex Mono',monospace;color:{{ t.mut3 }};letter-spacing:.08em">WHAT IT DOES</span><span style="font-size:13px;line-height:1.55;color:{{ t.mut }};text-wrap:pretty">Tracks Nuzlocke and SoulLink runs: first encounters per route, deaths, linked catches between friends. Adds a side panel tab, a HUD widget, a strip on friends’ Multiview tiles and a Runs screen.</span></div>
+          <div style="display:flex;flex-direction:column">
+            <div style="display:flex;align-items:center;padding-bottom:8px;border-bottom:1px solid {{ t.line }}"><span style="font:500 11px 'IBM Plex Mono',monospace;color:{{ t.mut3 }};letter-spacing:.08em">PERMISSIONS · 4</span><span style="margin-left:auto;font-size:12px;color:{{ t.mut2 }}">Granted 02.10.2026</span></div>
+            <sc-for list="{{ perms }}" as="q" hint-placeholder-count="4"><div style="display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;padding:9px 0;border-bottom:1px solid {{ t.line }}"><span style="width:28px;height:28px;border-radius:7px;background:{{ t.chip }};display:grid;place-items:center;font:500 12px 'IBM Plex Mono',monospace;color:{{ t.mut }}">{{ q.g }}</span><div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:13px;font-weight:500">{{ q.label }}</span><span style="font-size:12px;color:{{ t.mut2 }}">{{ q.sub }}</span></div></div></sc-for>
+          </div>
+          <div style="display:flex;flex-direction:column">
+            <div style="display:flex;align-items:center;padding-bottom:8px;border-bottom:1px solid {{ t.line }}"><span style="font:500 11px 'IBM Plex Mono',monospace;color:{{ t.mut3 }};letter-spacing:.08em">SETTINGS</span><span style="margin-left:auto;font-size:12px;color:{{ t.mut2 }}">from the plugin’s settings schema</span></div>
+            <sc-for list="{{ sets }}" as="s" hint-placeholder-count="3"><div style="display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:16px;align-items:center;padding:10px 0;border-bottom:1px solid {{ t.line }}"><div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:13px">{{ s.label }}</span><span style="font-size:12px;color:{{ t.mut2 }}">{{ s.sub }}</span></div><div style="display:flex;justify-content:flex-end"><sc-if value="{{ s.isSel }}" hint-placeholder-val="{{ true }}"><div style="width:220px;box-sizing:border-box;height:32px;border-radius:6px;background:{{ t.field }};border:1px solid {{ t.line2 }};display:flex;align-items:center;padding:0 10px 0 12px;font-size:13px">{{ s.value }}<span style="margin-left:auto;color:{{ t.mut3 }};font-size:11px">▾</span></div></sc-if><sc-if value="{{ s.isTog }}" hint-placeholder-val="{{ false }}"><div style="width:40px;height:22px;border-radius:11px;position:relative;background:#3cbfd8"><div style="position:absolute;top:3px;left:21px;width:16px;height:16px;border-radius:50%;background:#ffffff"></div></div></sc-if></div></div></sc-for>
+            <span style="padding-top:10px;font-size:13px;font-weight:500;color:{{ t.accentText }}">All 14 settings →</span>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div style="padding:14px 16px;border-radius:9px;background:{{ t.card }};border:1px solid {{ t.line }};display:flex;flex-direction:column;gap:8px"><span style="font:500 11px 'IBM Plex Mono',monospace;color:{{ t.mut3 }};letter-spacing:.08em">WORKS WITH</span><span style="font-size:13px">Coral Saga: Ember · Coral Saga: Tide</span><span style="font-size:12px;color:{{ t.mut2 }}">Nintendo 3DS · Azahar · matched by game ID · 2 in your Library</span></div>
+          <div style="padding:14px 16px;border-radius:9px;background:{{ t.card }};border:1px solid {{ t.line }};display:flex;flex-direction:column;gap:8px"><span style="font:500 11px 'IBM Plex Mono',monospace;color:{{ t.mut3 }};letter-spacing:.08em">DEPENDS ON · USED BY</span><div style="display:flex;align-items:center;gap:8px;font-size:13px"><span style="width:20px;height:20px;border-radius:5px;background:{{ t.chip }};font:600 8px/20px 'IBM Plex Mono',monospace;text-align:center">CC</span>Creature Core 1.x<span style="margin-left:auto;font-size:12px;color:{{ t.ok }}">✓ 1.2.0 on</span></div><span style="font-size:12px;color:{{ t.mut2 }}">No other plugin uses SoulLink &amp; Nuzlocke.</span></div>
+          <div style="padding:14px 16px;border-radius:9px;background:{{ t.card }};border:1px solid {{ t.line }};display:flex;flex-direction:column;gap:8px"><div style="display:flex;align-items:center"><span style="font:500 11px 'IBM Plex Mono',monospace;color:{{ t.mut3 }};letter-spacing:.08em">HOTKEYS</span><span style="margin-left:auto;font-size:12px;font-weight:500;color:{{ t.accentText }}">Controllers → Hotkeys</span></div>
+            <sc-for list="{{ keys }}" as="k" hint-placeholder-count="3"><div style="display:flex;align-items:center;font-size:13px"><span>{{ k.label }}</span><span style="margin-left:auto;font:500 11px 'IBM Plex Mono',monospace;padding:2px 6px;border-radius:4px;border:1px solid {{ t.btnLine }};color:{{ t.mut }}">{{ k.key }}</span></div></sc-for></div>
+          <div style="padding:14px 16px;border-radius:9px;background:{{ t.card }};border:1px solid {{ t.line }};display:flex;flex-direction:column;gap:8px"><span style="font:500 11px 'IBM Plex Mono',monospace;color:{{ t.mut3 }};letter-spacing:.08em">DATA</span><div style="display:flex;align-items:center;font-size:13px"><span>Icons and map from your game file</span><span style="margin-left:auto;font:400 12px 'IBM Plex Mono',monospace;color:{{ t.mut2 }}">12.4 MB</span></div><div style="display:flex;align-items:center;font-size:13px"><span>Run data</span><span style="margin-left:auto;font-size:12px;color:{{ t.mut2 }}">on hub.example.com</span></div><span style="align-self:flex-start;height:30px;padding:0 12px;border-radius:7px;border:1px solid {{ t.btnLine }};display:flex;align-items:center;font-size:13px;font-weight:500">Clear cached icons</span></div>
+          <span style="font-size:13px;color:{{ t.danger }};font-weight:500">Uninstall plugin</span>
+        </div>
+      </div>
+    </main>
+  </sc-if>
+  <sc-if value="{{ isUninstall }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:{{ t.scrim }};display:grid;place-items:center;z-index:10">
+      <div style="width:500px;padding:26px 28px;box-sizing:border-box;border-radius:12px;background:{{ t.dlg }};border:1px solid {{ t.dangerLine }};box-shadow:0 40px 80px rgba(0,0,0,.45);display:flex;flex-direction:column;gap:14px;font-size:13px">
+        <div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 11px 'IBM Plex Mono',monospace;color:{{ t.danger }};letter-spacing:.08em">UNINSTALL PLUGIN</span><span style="font-size:20px;font-weight:600">Uninstall SoulLink &amp; Nuzlocke?</span><span style="font-size:14px;color:{{ t.mut }};line-height:1.5">Its panel tab, HUD widget, tile strip and Runs entry disappear.</span></div>
+        <div style="display:grid;grid-template-columns:16px minmax(0,1fr);gap:6px 8px;padding:12px 14px;border-radius:9px;background:{{ t.card }};border:1px solid {{ t.line }}"><span style="color:{{ t.mut3 }}">·</span><span>1 active run “Ember &amp; Tide” stays on hub.example.com. It is paused for you until you reinstall.</span><span style="color:{{ t.mut3 }}">·</span><span>Cached icons and map (12.4 MB) are deleted from this computer.</span><span style="color:{{ t.mut3 }}">·</span><span>Your save slots are not touched.</span></div>
+        <div style="display:flex;justify-content:flex-end;gap:8px"><span style="height:40px;padding:0 16px;border-radius:8px;border:1px solid {{ t.btnLine }};display:flex;align-items:center;font-size:14px">Cancel</span><span style="height:40px;padding:0 16px;border-radius:8px;background:{{ t.dangerFill }};color:#161512;display:flex;align-items:center;font-size:14px;font-weight:600">Uninstall</span></div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;dark&quot;,&quot;light&quot;],&quot;default&quot;:&quot;dark&quot;,&quot;tsType&quot;:&quot;'dark'|'light'&quot;},&quot;view&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;list&quot;,&quot;empty&quot;,&quot;detail&quot;,&quot;uninstall&quot;],&quot;default&quot;:&quot;list&quot;,&quot;tsType&quot;:&quot;'list'|'empty'|'detail'|'uninstall'&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const light = this.props.theme === 'light', view = this.props.view ?? 'list';
+    const t = light ? {
+      bg: '#f6f5f2', side: '#efeee9', sub: '#efeee9', card: '#ffffff', line: '#e3e1dc', line2: '#d9d7d1', text: '#1b1b1d', mut: '#55544f', mut2: '#6b6a66', mut3: '#8a8984',
+      accentText: '#1a7f96', accentBg: '#ddf1f6', accentLine: '#a9dbe6', ok: '#2f7d4f', warn: '#8a5a00', warnBg: '#f7ecd6', danger: '#b5402f', chip: '#e9e8e4', sel: '#ffffff', selRing: '0 0 0 1px #e3e1dc',
+      btnLine: '#cfcdc7', toggleOff: '#cfcdc7', segBg: '#efeee9', segOn: '#ffffff', segShadow: '0 0 0 1px #e3e1dc', field: '#ffffff', scrim: 'rgba(27,27,29,.45)', dlg: '#ffffff', dangerLine: '#efc9c2', dangerFill: '#e07a66'
+    } : {
+      bg: '#121315', side: '#0e0f10', sub: '#16171a', card: '#1a1b1e', line: '#26272b', line2: '#2c2d32', text: '#ecebe7', mut: '#a3a3a8', mut2: '#8e8e94', mut3: '#7d7d83',
+      accentText: '#3cbfd8', accentBg: '#15262b', accentLine: '#1f4650', ok: '#6fd39a', warn: '#e5b45a', warnBg: '#2a2414', danger: '#ef8a78', chip: '#232428', sel: '#1f2024', selRing: 'none',
+      btnLine: '#3a3b40', toggleOff: '#2c2d32', segBg: '#1a1b1e', segOn: '#2c2d32', segShadow: 'none', field: '#1a1b1e', scrim: 'rgba(5,5,6,.7)', dlg: '#16171a', dangerLine: '#4a2a24', dangerFill: '#ef8a78'
+    };
+    const off = { Official: [t.accentBg, t.accentText, '✓ Official'], Unverified: [t.warnBg, t.warn, '! Hub upload · unverified'], Local: [t.chip, t.mut, 'Local file'] };
+    const P = [
+      { mono: 'CC', name: 'Creature Core', ver: '1.2.0', o: 'Official', desc: 'Shared creature, route and party data for Coral Saga games. No screens of its own.', dep: 'Used by SoulLink & Nuzlocke, Item Helper', adds: 'Adds: data only', on: true },
+      { mono: 'SL', name: 'SoulLink & Nuzlocke', ver: '0.9.2', o: 'Official', update: '0.10.0', desc: 'Run tracker for Nuzlocke and SoulLink runs with friends.', dep: '✓ Needs Creature Core 1.x', adds: 'Adds: panel tab · HUD · tile strip · Runs screen', on: true },
+      { mono: 'IH', name: 'Item Helper', ver: '0.3.2', o: 'Unverified', desc: 'Shows held items and bag counts in a small HUD widget.', dep: '✓ Needs Creature Core 1.x', adds: 'Adds: HUD widget', on: true },
+      { mono: 'SC', name: 'Shiny Counter', ver: '0.1.0-dev', o: 'Local', desc: 'Counts encounters since the last shiny.', dep: '⊘ Needs Creature Core 2.x · you have 1.2.0', adds: 'Adds: HUD widget', on: false, blocked: true }
+    ].map(p => ({ ...p, bBg: off[p.o][0], bFg: off[p.o][1], badge: off[p.o][2], depFg: p.blocked ? t.text : (p.dep.startsWith('✓') ? t.ok : t.mut2), tBg: p.on ? '#3cbfd8' : t.toggleOff, knob: p.on ? '21px' : '3px', tOp: p.blocked ? .4 : 1, op: 1, update: p.update || '' }));
+    return {
+      t, markTone: light ? 'color-light' : undefined, themeName: light ? 'Light' : 'Dark', navMeta: view === 'empty' ? 'None installed' : '3 on · 1 update',
+      isList: view === 'list', isEmpty: view === 'empty', isDetail: view === 'detail' || view === 'uninstall', isUninstall: view === 'uninstall', plugins: P,
+      perms: [
+        { g: 'R', label: 'Read game memory', sub: 'To notice encounters, catches, faints and your location. It cannot change your game.' },
+        { g: 'F', label: 'Read your game file to show creature icons and the map', sub: 'Images stay on this computer.' },
+        { g: 'P', label: 'Show panels in game', sub: 'A side panel tab, a HUD widget and a strip on Multiview tiles.' },
+        { g: 'H', label: 'Share run progress with your Hub', sub: 'Run members on hub.example.com see your team, routes and deaths.' }
+      ],
+      sets: [
+        { label: 'Default mode for new runs', sub: 'Can be changed per run', value: 'SoulLink', isSel: true, isTog: false },
+        { label: 'HUD widget', sub: 'Location and encounter status over the game', isSel: false, isTog: true },
+        { label: 'Notices', sub: 'Toasts while you play', value: 'Important only', isSel: true, isTog: false }
+      ],
+      keys: [{ label: 'Show or hide HUD widget', key: 'Ctrl+H' }, { label: 'Encounter doesn’t count', key: 'Ctrl+D' }, { label: 'Open run', key: 'Ctrl+R' }]
+    };
+  }
+}
+</script>
+</body>
+</html>

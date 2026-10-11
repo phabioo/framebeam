@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#d9d8d4;font-family:'IBM Plex Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#1a7f96;text-decoration:none}a:hover{color:#0f5a6b;text-decoration:underline}
+</style>
+</helmet>
+
+<section style="padding:80px 80px 80px;display:flex;flex-direction:column;gap:40px">
+  <div style="display:flex;flex-direction:column;gap:8px;max-width:1440px">
+    <div style="padding:10px 14px;border-radius:8px;background:#fff7e0;border:1px solid #ead6a8;font-size:14px;color:#6b4600;max-width:1100px">Round 2 (11.10.2026): colors, versions and names are fixed here; artboards with layout changes (3DS screens, dialogs, sheet) are superseded by their <b>-2</b> versions in <a href="Plugins Round 2.dc.html">Plugins Round 2</a>.</div>
+    <div style="font:500 13px 'IBM Plex Mono',monospace;color:#5b5a56;letter-spacing:.04em">TURN 6 · PLUGIN PLATFORM · PART 1 OF 3 · 11.10.2026</div>
+    <div style="font-size:32px;font-weight:600;color:#1b1b1d">Plugins in Settings, plugin detail, permissions, install and developer console</div>
+    <div style="font-size:15px;color:#3a3936;line-height:1.55;text-wrap:pretty;max-width:1100px">Plugins never bring their own look: every plugin surface is built from FrameBeam blocks. Every plugin shows where it comes from: <b>✓ Official</b> (signed by FrameBeam), <b>! Hub upload · unverified</b>, or <b>Local file</b>. Permissions are listed in plain language before anything is turned on. Continue in <a href="FrameBeam Plugins 4e-4h.dc.html">4e–4h In game</a> and <a href="FrameBeam Plugins 4i-4j Sheet.dc.html">4i–4j, components and handoff</a>.</div>
+  </div>
+
+  <div style="font:500 13px 'IBM Plex Mono',monospace;color:#5b5a56;letter-spacing:.04em;border-top:1px solid #c4c3be;padding-top:16px">4a · PLAYER SETTINGS → PLUGINS · NEW ENTRY IN THE 3p-2 NAVIGATION</div>
+  <div style="display:flex;flex-wrap:wrap;gap:64px;align-items:flex-start">
+    <div id="4a" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;gap:10px"><span style="font:500 13px 'IBM Plex Mono',monospace;background:#1b1b1d;color:#f6f5f2;padding:4px 8px;border-radius:4px">4a</span><span style="font-size:15px;color:#3a3936">Plugins list · three on, one blocked by a dependency, one update · 1440 × 900</span></div>
+      <div data-screen-label="4a Settings Plugins dark"><dc-import name="plugin-settings-screen" view="list" hint-size="1440px,900px"></dc-import></div>
+    </div>
+    <div id="4a-light" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;gap:10px"><span style="font:500 13px 'IBM Plex Mono',monospace;background:#1b1b1d;color:#f6f5f2;padding:4px 8px;border-radius:4px">4a · light</span><span style="font-size:15px;color:#3a3936">Same screen, light theme</span></div>
+      <div data-screen-label="4a Settings Plugins light"><dc-import name="plugin-settings-screen" view="list" theme="light" hint-size="1440px,900px"></dc-import></div>
+    </div>
+    <div id="4a-empty" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;gap:10px"><span style="font:500 13px 'IBM Plex Mono',monospace;background:#1b1b1d;color:#f6f5f2;padding:4px 8px;border-radius:4px">4a · empty</span><span style="font-size:15px;color:#3a3936">No plugins installed · points to the Hub’s plugin page</span></div>
+      <div data-screen-label="4a Settings Plugins empty"><dc-import name="plugin-settings-screen" view="empty" hint-size="1440px,900px"></dc-import></div>
+    </div>
+  </div>
+
+  <div style="font:500 13px 'IBM Plex Mono',monospace;color:#5b5a56;letter-spacing:.04em;border-top:1px solid #c4c3be;padding-top:16px">4b · PLUGIN DETAIL</div>
+  <div style="display:flex;flex-wrap:wrap;gap:64px;align-items:flex-start">
+    <div id="4b" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;gap:10px"><span style="font:500 13px 'IBM Plex Mono',monospace;background:#1b1b1d;color:#f6f5f2;padding:4px 8px;border-radius:4px">4b</span><span style="font-size:15px;color:#3a3936">SoulLink &amp; Nuzlocke · “Only in runs” · settings from schema · hotkeys · data · 1440 × 900</span></div>
+      <div data-screen-label="4b Plugin detail dark"><dc-import name="plugin-settings-screen" view="detail" hint-size="1440px,900px"></dc-import></div>
+    </div>
+    <div id="4b-light" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;gap:10px"><span style="font:500 13px 'IBM Plex Mono',monospace;background:#1b1b1d;color:#f6f5f2;padding:4px 8px;border-radius:4px">4b · light</span><span style="font-size:15px;color:#3a3936">Same screen, light theme</span></div>
+      <div data-screen-label="4b Plugin detail light"><dc-import name="plugin-settings-screen" view="detail" theme="light" hint-size="1440px,900px"></dc-import></div>
+    </div>
+  </div>
+
+  <div style="font:500 13px 'IBM Plex Mono',monospace;color:#5b5a56;letter-spacing:.04em;border-top:1px solid #c4c3be;padding-top:16px">4c · PERMISSION DIALOG · FIRST TURN-ON, UNVERIFIED, NEW PERMISSION ON UPDATE, CHANGE GAME MEMORY</div>
+  <div style="display:flex;flex-wrap:wrap;gap:40px;align-items:flex-start">
+    <sc-for list="{{ dialogs }}" as="d" hint-placeholder-count="4">
+      <div id="{{ d.id }}" style="display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:center;gap:10px"><span style="font:500 13px 'IBM Plex Mono',monospace;background:#1b1b1d;color:#f6f5f2;padding:4px 8px;border-radius:4px">{{ d.id }}</span><span style="font-size:15px;color:#3a3936">{{ d.cap }}</span></div>
+        <div data-screen-label="{{ d.label }}" style="width:640px;height:760px;box-sizing:border-box;border-radius:10px;background:#08090a;display:grid;place-items:center;box-shadow:0 30px 60px rgba(0,0,0,.25);font-family:'IBM Plex Sans',sans-serif;color:#ecebe7">
+          <div style="width:540px;padding:26px 28px;box-sizing:border-box;border-radius:12px;background:#16171a;border:1px solid #2c2d32;box-shadow:0 40px 80px rgba(0,0,0,.6);display:flex;flex-direction:column;gap:16px">
+            <div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 11px 'IBM Plex Mono',monospace;color:{{ d.eyeFg }};letter-spacing:.08em">{{ d.eyebrow }}</span><span style="font-size:20px;font-weight:600;letter-spacing:-.01em;text-wrap:pretty">{{ d.title }}</span></div>
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:9px;background:#1a1b1e;border:1px solid #26272b"><span style="width:36px;height:36px;flex:none;border-radius:8px;background:#232428;display:grid;place-items:center;font:600 12px 'IBM Plex Mono',monospace">{{ d.mono }}</span><div style="display:flex;flex-direction:column;gap:3px;min-width:0"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-size:14px;font-weight:600">{{ d.name }}</span><span style="font:400 12px 'IBM Plex Mono',monospace;color:#8e8e94">{{ d.ver }}</span><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:{{ d.bBg }};color:{{ d.bFg }}">{{ d.badge }}</span></div><span style="font-size:12px;color:#8e8e94">{{ d.by }}</span></div></div>
+            <sc-if value="{{ d.warn }}" hint-placeholder-val="{{ false }}"><div style="display:flex;gap:10px;padding:10px 12px;border-radius:8px;background:#2a2414;border:1px solid #4a3d1c;font-size:13px;line-height:1.5;color:#e9d8b0"><span style="color:#e5b45a;font-weight:600">!</span><span>{{ d.warn }}</span></div></sc-if>
+            <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:13px;color:#a3a3a8;padding-bottom:6px">{{ d.lead }}</span>
+              <sc-for list="{{ d.perms }}" as="q" hint-placeholder-count="4">
+                <div style="display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:start;padding:8px 10px;margin:0 -10px;border-radius:8px;background:{{ q.bg }};border:1px solid {{ q.line }}"><span style="width:28px;height:28px;border-radius:7px;background:{{ q.gBg }};display:grid;place-items:center;font:500 12px 'IBM Plex Mono',monospace;color:{{ q.gFg }}">{{ q.g }}</span><div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:13px;font-weight:500;color:{{ q.fg }}">{{ q.label }}</span><span style="font-size:12px;line-height:1.45;color:#8e8e94">{{ q.sub }}</span></div><span style="font-size:10px;font-weight:600;letter-spacing:.06em;padding:2px 6px;border-radius:4px;background:{{ q.tagBg }};color:{{ q.tagFg }}">{{ q.tag }}</span></div>
+              </sc-for>
+            </div>
+            <sc-if value="{{ d.snap }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;background:#15262b;border:1px solid #1f4650;font-size:13px;color:#a9cdd6"><span style="width:8px;height:8px;background:#3cbfd8;transform:rotate(45deg);flex:none"></span>A save snapshot is made before the first change.</div></sc-if>
+            <div style="display:flex;align-items:center;gap:10px;font-size:13px"><span style="color:#8e8e94">Turn on</span><div style="height:30px;padding:0 10px 0 12px;border-radius:6px;background:#1a1b1e;border:1px solid #2c2d32;display:flex;align-items:center;gap:8px">{{ d.scope }}<span style="color:#7d7d83;font-size:11px">▾</span></div></div>
+            <div style="display:flex;align-items:center;gap:8px;padding-top:4px"><span style="font-size:12px;color:#7d7d83;flex:1;line-height:1.45">Review or take back permissions any time in Settings → Plugins.</span><span style="height:40px;padding:0 16px;border-radius:8px;border:1px solid #3a3b40;display:flex;align-items:center;font-size:14px;white-space:nowrap">{{ d.cancel }}</span><span style="height:40px;padding:0 16px;border-radius:8px;background:{{ d.okBg }};color:#161512;display:flex;align-items:center;font-size:14px;font-weight:600;white-space:nowrap">{{ d.ok }}</span></div>
+          </div>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="font:500 13px 'IBM Plex Mono',monospace;color:#5b5a56;letter-spacing:.04em;border-top:1px solid #c4c3be;padding-top:16px">4d · INSTALL FROM FILE → SUMMARY → INSTALLED</div>
+  <div style="display:flex;flex-wrap:wrap;gap:40px;align-items:flex-start">
+    <div id="4d-1" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;gap:10px"><span style="font:500 13px 'IBM Plex Mono',monospace;background:#1b1b1d;color:#f6f5f2;padding:4px 8px;border-radius:4px">4d-1</span><span style="font-size:15px;color:#3a3936">Choose a file · drop zone, opens the system picker</span></div>
+      <div data-screen-label="4d-1 Install choose file" style="width:640px;height:620px;border-radius:10px;background:#08090a;display:grid;place-items:center;box-shadow:0 30px 60px rgba(0,0,0,.25);color:#ecebe7">
+        <div style="width:520px;padding:26px 28px;box-sizing:border-box;border-radius:12px;background:#16171a;border:1px solid #2c2d32;display:flex;flex-direction:column;gap:16px">
+          <div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 11px 'IBM Plex Mono',monospace;color:#7d7d83;letter-spacing:.08em">INSTALL FROM FILE</span><span style="font-size:20px;font-weight:600">Choose a plugin file</span></div>
+          <div style="height:200px;border-radius:10px;border:1.5px dashed #3cbfd8;background:#14222a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px"><span style="font-size:14px;font-weight:500">Drop a .fbplugin file here</span><span style="font-size:13px;color:#a9cdd6">or</span><span style="height:34px;padding:0 14px;border-radius:7px;border:1px solid #2b5560;display:flex;align-items:center;font-size:13px;font-weight:500">Choose file…</span></div>
+          <span style="font-size:12px;color:#8e8e94;line-height:1.5">Installed plugins count as <b style="color:#c9c8c4">Local file</b>. Signed files are checked against FrameBeam’s key; unsigned files need Developer mode.</span>
+          <div style="display:flex;justify-content:flex-end;gap:8px"><span style="height:40px;padding:0 16px;border-radius:8px;border:1px solid #3a3b40;display:flex;align-items:center;font-size:14px">Cancel</span><span style="height:40px;padding:0 16px;border-radius:8px;background:#232428;color:#5e5e63;display:flex;align-items:center;font-size:14px;font-weight:600">Continue</span></div>
+        </div>
+      </div>
+    </div>
+    <div id="4d-2" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;gap:10px"><span style="font:500 13px 'IBM Plex Mono',monospace;background:#1b1b1d;color:#f6f5f2;padding:4px 8px;border-radius:4px">4d-2</span><span style="font-size:15px;color:#3a3936">Summary · read from the manifest before anything runs</span></div>
+      <div data-screen-label="4d-2 Install summary" style="width:640px;height:620px;border-radius:10px;background:#08090a;display:grid;place-items:center;box-shadow:0 30px 60px rgba(0,0,0,.25);color:#ecebe7">
+        <div style="width:520px;padding:26px 28px;box-sizing:border-box;border-radius:12px;background:#16171a;border:1px solid #2c2d32;display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 11px 'IBM Plex Mono',monospace;color:#7d7d83;letter-spacing:.08em">INSTALL FROM FILE</span><span style="font-size:20px;font-weight:600">Install Shiny Counter?</span></div>
+          <div style="display:grid;grid-template-columns:120px minmax(0,1fr);gap:8px 12px;font-size:13px;padding:12px 14px;border-radius:9px;background:#1a1b1e;border:1px solid #26272b">
+            <span style="color:#8e8e94">File</span><span style="font:400 12px 'IBM Plex Mono',monospace">shiny-counter-0.1.0.fbplugin</span>
+            <span style="color:#8e8e94">Version</span><span style="font-family:'IBM Plex Mono',monospace;font-size:12px">0.1.0-dev</span>
+            <span style="color:#8e8e94">Origin</span><span><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:#232428;color:#a3a3a8">Local file</span></span>
+            <span style="color:#8e8e94">Signature</span><span>None · allowed because Developer mode is on</span>
+            <span style="color:#8e8e94">Needs</span><span>Creature Core 2.x · <span style="color:#ef8a78">you have 1.2.0</span></span>
+            <span style="color:#8e8e94">Adds</span><span>HUD widget</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:13px;color:#a3a3a8">When turned on, it will be able to:</span><div style="display:flex;flex-direction:column;gap:4px;font-size:13px"><span>· Read game memory</span><span>· Show panels in game</span></div></div>
+          <span style="font-size:12px;color:#8e8e94;line-height:1.5">Installs turned off. It can’t be turned on until Creature Core 2.x is installed.</span>
+          <div style="display:flex;justify-content:flex-end;gap:8px"><span style="height:40px;padding:0 16px;border-radius:8px;border:1px solid #3a3b40;display:flex;align-items:center;font-size:14px">Cancel</span><span style="height:40px;padding:0 16px;border-radius:8px;background:#3cbfd8;color:#161512;display:flex;align-items:center;font-size:14px;font-weight:600">Install</span></div>
+        </div>
+      </div>
+    </div>
+    <div id="4d-3" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;gap:10px"><span style="font:500 13px 'IBM Plex Mono',monospace;background:#1b1b1d;color:#f6f5f2;padding:4px 8px;border-radius:4px">4d-3</span><span style="font-size:15px;color:#3a3936">Installed · turn on leads to the permission dialog (4c)</span></div>
+      <div data-screen-label="4d-3 Install done" style="width:640px;height:620px;border-radius:10px;background:#08090a;display:grid;place-items:center;box-shadow:0 30px 60px rgba(0,0,0,.25);color:#ecebe7">
+        <div style="width:520px;padding:26px 28px;box-sizing:border-box;border-radius:12px;background:#16171a;border:1px solid #2c2d32;display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 11px 'IBM Plex Mono',monospace;color:#6fd39a;letter-spacing:.08em">✓ INSTALLED</span><span style="font-size:20px;font-weight:600">Item Helper 0.3.2 is installed</span><span style="font-size:14px;color:#a3a3a8;line-height:1.5">It is off. Turning it on shows its permissions first.</span></div>
+          <div style="display:grid;grid-template-columns:16px minmax(0,1fr);gap:6px 8px;font-size:13px"><span style="color:#3cbfd8">✓</span><span>Signature checked · signed by FrameBeam</span><span style="color:#3cbfd8">✓</span><span>Creature Core 1.x found</span><span style="color:#3cbfd8">✓</span><span>Replaced the Hub version 0.3.1</span></div>
+          <div style="display:flex;justify-content:flex-end;gap:8px"><span style="height:40px;padding:0 16px;border-radius:8px;border:1px solid #3a3b40;display:flex;align-items:center;font-size:14px">Done</span><span style="height:40px;padding:0 16px;border-radius:8px;background:#3cbfd8;color:#161512;display:flex;align-items:center;font-size:14px;font-weight:600">Turn on…</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="font:500 13px 'IBM Plex Mono',monospace;color:#5b5a56;letter-spacing:.04em;border-top:1px solid #c4c3be;padding-top:16px">4d · DEVELOPER MODE · PLUGIN CONSOLE AS A SIDE PANEL TAB</div>
+  <div style="display:flex;flex-wrap:wrap;gap:64px;align-items:flex-start">
+    <div id="4d-console" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;gap:10px"><span style="font:500 13px 'IBM Plex Mono',monospace;background:#1b1b1d;color:#f6f5f2;padding:4px 8px;border-radius:4px">4d-4</span><span style="font-size:15px;color:#3a3936">Session · Console tab (developer mode only, always last) · watched values, events, log · 1440 × 900</span></div>
+      <div data-screen-label="4d-4 Plugin console" style="width:1440px;height:900px;background:#0b0b0c;color:#ecebe7;display:grid;grid-template-rows:56px minmax(0,1fr);grid-template-columns:minmax(0,1fr) 340px;overflow:hidden;border-radius:10px;box-shadow:0 30px 60px rgba(0,0,0,.25)">
+        <div style="grid-column:1/3;position:relative;z-index:5"><dc-import name="game-header" mode="session" share="not" title="Coral Saga: Ember" hint-size="100%,56px"></dc-import></div>
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:0"><div style="width:480px;height:360px;background:repeating-linear-gradient(135deg,#17181a 0 10px,#1b1c1f 10px 20px);display:grid;place-items:center;font:400 12px 'IBM Plex Mono',monospace;color:#6f6f75">top DS screen</div><div style="width:480px;height:360px;background:repeating-linear-gradient(135deg,#17181a 0 10px,#1b1c1f 10px 20px);display:grid;place-items:center;font:400 12px 'IBM Plex Mono',monospace;color:#6f6f75">bottom screen</div></div>
+        <div style="min-height:0;background:#111214;border-left:1px solid #1e1f22;display:flex;flex-direction:column;font-size:13px">
+          <div style="display:flex;align-items:stretch;height:44px;padding:0 12px;gap:2px;border-bottom:1px solid #1e1f22;flex:none">
+            <sc-for list="{{ consoleTabs }}" as="tb" hint-placeholder-count="4"><div style="display:flex;align-items:center;gap:6px;padding:0 9px;color:{{ tb.fg }};font-weight:{{ tb.fw }};box-shadow:{{ tb.bar }}"><sc-if value="{{ tb.icon }}" hint-placeholder-val="{{ true }}"><span style="width:18px;height:18px;border-radius:5px;background:#232428;font:600 8px/18px 'IBM Plex Mono',monospace;text-align:center;color:#c9c8c4">{{ tb.icon }}</span></sc-if>{{ tb.label }}</div></sc-for>
+          </div>
+          <div style="flex:1;min-height:0;display:flex;flex-direction:column;padding:16px 20px;gap:14px;overflow:hidden">
+            <div style="display:flex;align-items:center;gap:8px"><div style="flex:1;height:32px;padding:0 10px;border-radius:6px;background:#1a1b1e;border:1px solid #2c2d32;display:flex;align-items:center;gap:8px"><span style="width:7px;height:7px;border-radius:50%;background:#6fd39a"></span>SoulLink &amp; Nuzlocke<span style="margin-left:auto;font-size:11px;color:#7d7d83">▾</span></div><div title="Reload plugin · Ctrl+Shift+R" style="height:32px;padding:0 10px;border-radius:7px;border:1px solid #3a3b40;display:flex;align-items:center;gap:6px;font-weight:500">↻ Reload</div></div>
+            <div style="display:flex;flex-direction:column;gap:6px"><div style="display:flex;align-items:center"><span style="font:500 11px 'IBM Plex Mono',monospace;color:#7d7d83;letter-spacing:.08em">WATCHED · 4</span><span style="margin-left:auto;font-size:11px;color:#7d7d83">live · 60 Hz</span></div>
+              <div style="border-radius:8px;background:#16171a;border:1px solid #26272b;font:400 11px 'IBM Plex Mono',monospace">
+                <sc-for list="{{ watched }}" as="w" hint-placeholder-count="4"><div style="display:grid;grid-template-columns:86px 64px minmax(0,1fr);gap:8px;padding:6px 10px;border-bottom:1px solid #1e1f22"><span style="color:#7d7d83">{{ w.a }}</span><span style="color:{{ w.fg }}">{{ w.v }}</span><span style="color:#c9c8c4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ w.l }}</span></div></sc-for>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 11px 'IBM Plex Mono',monospace;color:#7d7d83;letter-spacing:.08em">EVENTS</span>
+              <sc-for list="{{ events }}" as="e" hint-placeholder-count="3"><div style="display:flex;align-items:center;gap:8px;font-size:12px"><span style="font:400 11px 'IBM Plex Mono',monospace;color:#7d7d83">{{ e.t }}</span><span style="font:500 11px 'IBM Plex Mono',monospace;padding:1px 6px;border-radius:4px;background:#15262b;color:#3cbfd8">{{ e.k }}</span><span style="color:#c9c8c4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ e.d }}</span></div></sc-for>
+            </div>
+            <div style="flex:1;min-height:0;display:flex;flex-direction:column;gap:6px"><div style="display:flex;align-items:center"><span style="font:500 11px 'IBM Plex Mono',monospace;color:#7d7d83;letter-spacing:.08em">LOG</span><span style="margin-left:auto;font-size:11px;color:#a3a3a8">Copy · Clear</span></div>
+              <div style="flex:1;min-height:0;border-radius:8px;background:#0b0b0c;border:1px solid #26272b;padding:8px 10px;font:400 11px/1.65 'IBM Plex Mono',monospace;overflow:hidden">
+                <sc-for list="{{ log }}" as="l" hint-placeholder-count="8"><div style="display:flex;gap:8px;white-space:nowrap"><span style="color:#5e5e63">{{ l.t }}</span><span style="color:{{ l.fg }};width:34px;flex:none">{{ l.lv }}</span><span style="color:#c9c8c4;overflow:hidden;text-overflow:ellipsis">{{ l.m }}</span></div></sc-for>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="4d-console-error" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;gap:10px"><span style="font:500 13px 'IBM Plex Mono',monospace;background:#1b1b1d;color:#f6f5f2;padding:4px 8px;border-radius:4px">4d-5</span><span style="font-size:15px;color:#3a3936">Console · error state · plugin paused, Lua error line</span></div>
+      <div data-screen-label="4d-5 Plugin console error" style="width:340px;height:844px;background:#111214;border-radius:10px;box-shadow:0 30px 60px rgba(0,0,0,.25);color:#ecebe7;display:flex;flex-direction:column;font-size:13px;overflow:hidden">
+        <div style="display:flex;align-items:stretch;height:44px;padding:0 12px;gap:2px;border-bottom:1px solid #1e1f22;flex:none">
+          <sc-for list="{{ consoleTabsErr }}" as="tb" hint-placeholder-count="4"><div style="display:flex;align-items:center;gap:6px;padding:0 9px;color:{{ tb.fg }};font-weight:{{ tb.fw }};box-shadow:{{ tb.bar }};position:relative"><sc-if value="{{ tb.icon }}" hint-placeholder-val="{{ true }}"><span style="width:18px;height:18px;border-radius:5px;background:#232428;font:600 8px/18px 'IBM Plex Mono',monospace;text-align:center;color:#c9c8c4">{{ tb.icon }}</span></sc-if>{{ tb.label }}<sc-if value="{{ tb.err }}" hint-placeholder-val="{{ false }}"><span style="width:6px;height:6px;border-radius:50%;background:#e5b45a"></span></sc-if></div></sc-for>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;padding:16px 20px;gap:14px">
+          <div style="display:flex;align-items:center;gap:8px"><div style="flex:1;height:32px;padding:0 10px;border-radius:6px;background:#1a1b1e;border:1px solid #2c2d32;display:flex;align-items:center;gap:8px"><span style="width:7px;height:7px;border-radius:50%;background:#e5b45a"></span>SoulLink &amp; Nuzlocke<span style="margin-left:auto;font-size:11px;color:#7d7d83">▾</span></div><div style="height:32px;padding:0 10px;border-radius:7px;background:#3cbfd8;color:#161512;display:flex;align-items:center;gap:6px;font-weight:600">↻ Reload</div></div>
+          <div style="padding:12px;border-radius:9px;background:#2a2414;border:1px solid #4a3d1c;display:flex;flex-direction:column;gap:8px"><span style="font-weight:600;color:#e9d8b0">Paused after an error · your game keeps running</span><span style="font:400 11px/1.6 'IBM Plex Mono',monospace;color:#e9d8b0;word-break:break-all">soullink/encounter.lua:42: attempt to index a nil value (field 'party')</span><div style="font:400 11px/1.6 'IBM Plex Mono',monospace;color:#a39a82;padding-top:6px;border-top:1px solid #4a3d1c">stack traceback:<br>  encounter.lua:42 in onBattleStart<br>  core/events.lua:118 in dispatch</div></div>
+          <span style="font-size:12px;color:#8e8e94;line-height:1.5">Panels from this plugin show “Paused”. Fix the file and Reload, or reload as is to try again. Saved with the log in Settings → Diagnostics.</span>
+          <div style="flex:1;border-radius:8px;background:#0b0b0c;border:1px solid #26272b;padding:8px 10px;font:400 11px/1.65 'IBM Plex Mono',monospace">
+            <div style="display:flex;gap:8px"><span style="color:#5e5e63">22:41:07</span><span style="color:#8e8e94;width:34px">info</span><span style="color:#c9c8c4">route changed → 104</span></div>
+            <div style="display:flex;gap:8px"><span style="color:#5e5e63">22:41:19</span><span style="color:#8e8e94;width:34px">info</span><span style="color:#c9c8c4">battle start · wild</span></div>
+            <div style="display:flex;gap:8px;background:#2a1a17;margin:0 -10px;padding:0 10px"><span style="color:#5e5e63">22:41:19</span><span style="color:#ef8a78;width:34px">error</span><span style="color:#f3c3b9">encounter.lua:42 nil 'party'</span></div>
+            <div style="display:flex;gap:8px"><span style="color:#5e5e63">22:41:19</span><span style="color:#e5b45a;width:34px">warn</span><span style="color:#c9c8c4">plugin paused by FrameBeam</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const perm = (g, label, sub, extra = {}) => ({ g, label, sub, bg: 'transparent', line: 'transparent', gBg: '#232428', gFg: '#a3a3a8', fg: '#ecebe7', tag: '', tagBg: 'transparent', tagFg: '#7d7d83', ...extra });
+    const base = [
+      perm('R', 'Read game memory', 'To notice encounters, catches, faints and your location. It cannot change your game.'),
+      perm('F', 'Read your game file to show creature icons and the map', 'Images stay on this computer.'),
+      perm('P', 'Show panels in game', 'A side panel tab, a HUD widget and a strip on Multiview tiles.')
+    ];
+    const hub = perm('H', 'Share run progress with your Hub', 'Run members on hub.example.com see your team, routes and deaths.');
+    const off = { o: ['#15262b', '#3cbfd8', '✓ Official'], u: ['#2a2414', '#e5b45a', '! Hub upload · unverified'], l: ['#232428', '#a3a3a8', 'Local file'] };
+    const dlg = (o) => ({ ...o, bBg: off[o.ob][0], bFg: off[o.ob][1], badge: off[o.ob][2], warn: o.warn || '', snap: !!o.snap, eyeFg: o.eyeFg || '#7d7d83', okBg: o.okBg || '#3cbfd8' });
+    const dim = (q) => ({ ...q, fg: '#a3a3a8', tag: 'ALLOWED', tagFg: '#7d7d83' });
+    return {
+      dialogs: [
+        dlg({ id: '4c-1', label: '4c-1 Permission first turn on', cap: 'First turn-on · Official', eyebrow: 'TURN ON PLUGIN', title: 'Turn on SoulLink & Nuzlocke?', mono: 'SL', name: 'SoulLink & Nuzlocke', ver: '0.9.2', ob: 'o', by: 'by FrameBeam Community · signed by FrameBeam', lead: 'It will be able to:', perms: [...base, hub], scope: 'Only in runs', cancel: 'Cancel', ok: 'Turn on' }),
+        dlg({ id: '4c-2', label: '4c-2 Permission unverified', cap: 'Unverified Hub upload · calm warning, same flow', eyebrow: 'TURN ON PLUGIN', title: 'Turn on Item Helper?', mono: 'IH', name: 'Item Helper', ver: '0.3.2', ob: 'u', by: 'uploaded by Lena to hub.example.com · 02.10.2026', warn: 'FrameBeam has not checked this plugin. Turn it on only if you trust Lena and where the file came from.', lead: 'It will be able to:', perms: [base[0], base[2]], scope: 'For all matching games', cancel: 'Cancel', ok: 'Turn on' }),
+        dlg({ id: '4c-3', label: '4c-3 Permission new on update', cap: 'Update asks for a new permission · new one highlighted', eyebrow: 'UPDATE · 0.9.2 → 0.10.0', title: 'SoulLink & Nuzlocke wants one more permission', mono: 'SL', name: 'SoulLink & Nuzlocke', ver: '0.10.0', ob: 'o', by: 'by FrameBeam Community · signed by FrameBeam', lead: 'The update adds:', perms: [perm('N', 'Show notices outside the game', 'Toasts in the Library when a run member’s creature dies.', { bg: '#15262b', line: '#1f4650', gBg: '#1f4650', gFg: '#3cbfd8', tag: 'NEW', tagBg: '#3cbfd8', tagFg: '#161512' }), ...[...base, hub].map(dim)], scope: 'Only in runs', cancel: 'Keep 0.9.2', ok: 'Update and allow' }),
+        dlg({ id: '4c-4', label: '4c-4 Permission change memory', cap: 'High-risk permission · Change game memory', eyebrow: 'HIGH-RISK PERMISSION', eyeFg: '#ef8a78', title: 'Let Party Editor change your game?', mono: 'PE', name: 'Party Editor', ver: '1.0.0', ob: 'o', by: 'by FrameBeam Community · signed by FrameBeam', lead: 'It will be able to:', perms: [perm('W', 'Change game memory', 'Used by cheats and editors: levels, items, money. A wrong change can break your save.', { bg: '#2a1a17', line: '#4a2a24', gBg: '#4a2a24', gFg: '#ef8a78', tag: 'HIGH RISK', tagBg: '#4a2a24', tagFg: '#ef8a78' }), base[0], base[2]], snap: true, scope: 'Ask in each game', cancel: 'Cancel', ok: 'Allow changes', okBg: '#ef8a78' })
+      ],
+      consoleTabs: [{ label: 'Game', icon: '', fg: '#a3a3a8', fw: 400, bar: 'none' }, { label: 'SoulLink', icon: 'SL', fg: '#a3a3a8', fw: 400, bar: 'none' }, { label: 'Items', icon: 'IH', fg: '#a3a3a8', fw: 400, bar: 'none' }, { label: 'Console', icon: '>_', fg: '#ecebe7', fw: 500, bar: 'inset 0 -2px 0 #3cbfd8' }],
+      consoleTabsErr: [{ label: 'Game', icon: '', fg: '#a3a3a8', fw: 400, bar: 'none' }, { label: 'SoulLink', icon: 'SL', fg: '#a3a3a8', fw: 400, bar: 'none', err: true }, { label: 'Items', icon: 'IH', fg: '#a3a3a8', fw: 400, bar: 'none' }, { label: 'Console', icon: '>_', fg: '#ecebe7', fw: 500, bar: 'inset 0 -2px 0 #3cbfd8' }],
+      watched: [{ a: '0x02234A10', v: '104', l: 'map.route', fg: '#ecebe7' }, { a: '0x0224C3F8', v: '1', l: 'battle.isWild', fg: '#3cbfd8' }, { a: '0x0224C410', v: '0x0187', l: 'battle.enemy.species', fg: '#ecebe7' }, { a: '0x02260120', v: '6', l: 'party.count', fg: '#ecebe7' }],
+      events: [{ t: '22:41:19', k: 'encounter', d: 'wild Tidepup · Route 104' }, { t: '22:39:02', k: 'catch', d: 'Mossling · Route 103' }, { t: '22:37:45', k: 'route', d: 'Route 103 → Route 104' }],
+      log: [
+        { t: '22:41:19', lv: 'info', m: 'first encounter on Route 104', fg: '#8e8e94' }, { t: '22:41:19', lv: 'info', m: 'hub.post run/4471 event #212', fg: '#8e8e94' },
+        { t: '22:41:02', lv: 'debug', m: 'party hash 9f2c → a110', fg: '#5e5e63' }, { t: '22:39:02', lv: 'info', m: 'link group 7 ← Max:Mossling', fg: '#8e8e94' },
+        { t: '22:39:01', lv: 'warn', m: 'nickname missing (rule: required)', fg: '#e5b45a' }, { t: '22:37:45', lv: 'info', m: 'route changed → 104', fg: '#8e8e94' },
+        { t: '22:36:10', lv: 'debug', m: 'icon cache hit 412/412', fg: '#5e5e63' }, { t: '22:35:58', lv: 'info', m: 'loaded 0.9.2 · api v1', fg: '#8e8e94' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
