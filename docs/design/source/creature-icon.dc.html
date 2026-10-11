@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div title="{{ tip }}" style="position:relative;width:{{ w }};height:{{ h }};flex:none;opacity:{{ op }};filter:{{ flt }}">
+  <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;inset:8%;border:1.5px dashed {{ dash }};border-radius:6px;box-sizing:border-box"></span></sc-if>
+  <sc-if value="{{ isBody }}" hint-placeholder-val="{{ true }}">
+    <sc-if value="{{ wings }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;left:4%;top:24%;width:30%;height:44%;background:{{ c2 }};border-radius:60% 20% 60% 40%"></span><span style="position:absolute;right:4%;top:24%;width:30%;height:44%;background:{{ c2 }};border-radius:20% 60% 40% 60%"></span></sc-if>
+    <sc-if value="{{ ears }}" hint-placeholder-val="{{ true }}"><span style="position:absolute;left:25%;top:4%;width:17%;height:30%;background:{{ c }};border-radius:50% 50% 10% 10%;transform:rotate(-14deg)"></span><span style="position:absolute;right:25%;top:4%;width:17%;height:30%;background:{{ c }};border-radius:50% 50% 10% 10%;transform:rotate(14deg)"></span></sc-if>
+    <sc-if value="{{ fin }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;left:42%;top:4%;width:16%;height:26%;background:{{ c2 }};border-radius:50% 50% 0 0"></span></sc-if>
+    <span style="position:absolute;left:{{ bx }};right:{{ bx }};top:{{ by }};bottom:6%;background:{{ c }};border-radius:{{ br }}"></span>
+    <span style="position:absolute;left:36%;right:36%;top:56%;bottom:12%;background:{{ c2 }};border-radius:50%;opacity:.85"></span>
+    <span style="position:absolute;left:35%;top:38%;width:8%;height:11%;background:#121315;border-radius:2px"></span><span style="position:absolute;right:35%;top:38%;width:8%;height:11%;background:#121315;border-radius:2px"></span>
+  </sc-if>
+  <sc-if value="{{ dead }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;right:0;bottom:0;width:12px;height:12px;border-radius:3px;background:#2c2d32;color:#ecebe7;font:600 9px/12px 'IBM Plex Mono',monospace;text-align:center">✕</span></sc-if>
+  <sc-if value="{{ hasOwner }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;left:0;bottom:0;width:7px;height:7px;border-radius:50%;background:{{ owner }};box-shadow:0 0 0 1.5px {{ ownerGap }}"></span></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:80,&quot;height&quot;:64},&quot;species&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Emberkit&quot;,&quot;Mossling&quot;,&quot;Tidepup&quot;,&quot;Voltwing&quot;,&quot;Pebblor&quot;,&quot;Glimmoth&quot;,&quot;Fernfox&quot;,&quot;Brinecrab&quot;,&quot;Duskowl&quot;,&quot;Cinderhog&quot;,&quot;Frostkit&quot;,&quot;Shellsprout&quot;],&quot;default&quot;:&quot;Emberkit&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;size&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;mini&quot;,&quot;box&quot;,&quot;sprite&quot;],&quot;default&quot;:&quot;box&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;state&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;alive&quot;,&quot;dead&quot;,&quot;missed&quot;,&quot;empty&quot;],&quot;default&quot;:&quot;alive&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;owner&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;light&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const p = this.props;
+    const S = {
+      Emberkit: ['#ef9a5a', '#f7c48f', 'cat'], Mossling: ['#79c46a', '#b4e2a0', 'round'], Tidepup: ['#5aa6e6', '#a6d2f4', 'fin'],
+      Voltwing: ['#e8c84a', '#f4e29a', 'wing'], Pebblor: ['#a8957c', '#cfc2ae', 'round'], Glimmoth: ['#c08ae6', '#e2c6f4', 'wing'],
+      Fernfox: ['#5fae6a', '#a7d9a0', 'cat'], Brinecrab: ['#e2776a', '#f2b2a6', 'round'], Duskowl: ['#8a86c8', '#c2bfe8', 'wing'],
+      Cinderhog: ['#d9734a', '#eeb08e', 'round'], Frostkit: ['#8fd0e0', '#d2eef4', 'cat'], Shellsprout: ['#9cc45a', '#d0e6a6', 'fin']
+    };
+    const sp = p.species ?? 'Emberkit', s = S[sp] || S.Emberkit, st = p.state ?? 'alive';
+    const sz = { mini: ['24px', '18px'], box: ['40px', '30px'], sprite: ['68px', '56px'] }[p.size ?? 'box'] || ['40px', '30px'];
+    const shape = s[2];
+    return {
+      w: sz[0], h: sz[1], c: s[0], c2: s[1], tip: sp + (st === 'dead' ? ' · dead' : st === 'missed' ? ' · missed' : ''),
+      isEmpty: st === 'empty' || st === 'missed', isBody: st !== 'empty' && st !== 'missed', dead: st === 'dead',
+      dash: p.light ? '#cfcdc7' : '#3a3b40',
+      op: st === 'dead' ? .55 : 1, flt: st === 'dead' ? 'grayscale(1)' : 'none',
+      ears: shape === 'cat', wings: shape === 'wing', fin: shape === 'fin',
+      bx: shape === 'wing' ? '26%' : '18%', by: shape === 'round' ? '16%' : '22%', br: shape === 'round' ? '50% 50% 42% 42%' : '44% 44% 38% 38%',
+      hasOwner: !!p.owner, owner: p.owner, ownerGap: p.light ? '#ffffff' : '#121315'
+    };
+  }
+}
+</script>
+</body>
+</html>

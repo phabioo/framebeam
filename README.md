@@ -23,7 +23,7 @@ All features: [docs/features.md](docs/features.md).
 
 A plugin interface is planned for 0.11 (design only, nothing implemented): sandboxed Lua plugins add game-specific features such as SoulLink/Nuzlocke runs without changing the generic Player. See [docs/architecture/12-plugins.md](docs/architecture/12-plugins.md) and [ADR 0023](docs/adr/0023-plugins.md).
 
-The official plugins will live in their own repositories under github.com/phabioo: `framebeam-plugin-pokemon-core`, `-soullink`, `-pokemon-editor`, `-cheats` and `-template`. They are not created yet; each carries its own docs and roadmap.
+The official plugins live in their own repositories under github.com/phabioo: [`framebeam-plugin-pokemon-core`](https://github.com/phabioo/framebeam-plugin-pokemon-core), [`-soullink`](https://github.com/phabioo/framebeam-plugin-soullink), [`-pokemon-editor`](https://github.com/phabioo/framebeam-plugin-pokemon-editor), [`-cheats`](https://github.com/phabioo/framebeam-plugin-cheats) and [`-template`](https://github.com/phabioo/framebeam-plugin-template). Each carries its own docs and roadmap; no plugin code exists yet.
 
 ## Quick start
 

@@ -1,6 +1,6 @@
 # Design tokens
 
-Extracted from `source/framebeam-designs-v3.dc.html` (only values that actually occur; the section "Additions of the revision handoff (2026-10-08)" at the end comes from `source/framebeam-designs-v4.dc.html`; roles are derived from usage, the source does not name tokens). Shared: fonts, accent, layout grid. The canvas chrome of the prototype page (background `#d9d8d4`, headings `#1b1b1d`/`#3a3936`/`#5b5a56`, links `#1a7f96`, hover `#0f5a6b`) is not UI and not listed. The old amber accent no longer occurs in the UI (the logo sheet canvas still carries the old amber link color; canvas only). Decisions on accent and warning color: `README.md`.
+Extracted from `source/framebeam-designs-v3.dc.html` (only values that actually occur; the section "Additions of the revision handoff (2026-10-08)" at the end comes from `source/framebeam-designs-v4.dc.html`; roles are derived from usage, the source does not name tokens). Shared: fonts, accent, layout grid. The canvas chrome of the prototype page (background `#d9d8d4`, headings `#1b1b1d`/`#3a3936`/`#5b5a56`, links `#1a7f96`, hover `#0f5a6b`) is not UI and not listed. The old amber accent no longer occurs in the UI (the logo sheet canvas still carries the old amber link color; canvas only). Decisions on accent and warning color: `decisions.md` (plugin states use amber since 2026-10-11, see the last section).
 
 ## Shared
 
@@ -61,7 +61,7 @@ Colors
 | Info/relay hint | Surface `#14222a`, border `#1a3238`, text `#a9cdd6` (icon `#3cbfd8`) |
 | Input error line | `#c4544a` |
 | Status ok | `#6fd39a` (surface `#17291f`) |
-| Status warn | `#3cbfd8` (surface `#15262b`); same value as the accent, intentionally |
+| Status warn | `#3cbfd8` (surface `#15262b`); same value as the accent, intentionally. Plugin states use the amber warning tone (additions of 2026-10-11) |
 | Status error | `#ef8a78` (surface `#2a1a17`, text on it `#e6d6d2`) |
 | Status neutral (e.g. "Local") | Text `#a3a3a8` on `#232428` |
 | Diagnostics overlay (3t-3y) | Surface `rgba(17,18,20,.94)`, border `#26272b`, section divider `#1e1f22`, section title mono 11/500 `#7d7d83` letter-spacing .08em, summary mono 11 `#8e8e94`; sparkline total `#3cbfd8` 1.25, emu `#6f6f75` 1, area `rgba(60,191,216,.14)`, 16.7 ms line dashed `#3a3b40`; "Fallback" pill and info box as above |
@@ -106,7 +106,7 @@ Colors
 | Primary button | Surface `#1b1b1d`, text `#f6f5f2` |
 | Accent (UI) | `#1a7f96`, hover `#0f5a6b`, chip surface `#ddf1f6`, border `#a6d9e6` (see Shared) |
 | Status ok | Text `#1f6a3f` on `#e2f1e7`; text "compatible" `#2a7a4c` |
-| Status warn | Text `#1a7f96` on `#ddf1f6`, border `#a6d9e6`, dark text `#0f5a6b`; same family as the accent, intentionally |
+| Status warn | Text `#1a7f96` on `#ddf1f6`, border `#a6d9e6`, dark text `#0f5a6b`; same family as the accent, intentionally. Plugin states use the amber warning tone (additions of 2026-10-11) |
 | Status error | Text `#b5402f` on `#fbe7e3` (pill); strong `#9b2f20` on `#f7dcd6` (counter, "Last install failed"); card `#fbf1ef`, border `#f0cfc8` |
 | Neutral badge (Revoked/Disabled/Inactive) | Surface `#ebeae5`, text `#55544f` |
 
@@ -165,6 +165,46 @@ Source `source/framebeam-designs-v4.dc.html` (handoff sections "Tokens", lines 3
 | Overlay backdrop (dialog on the Library) | `rgba(5,5,6,.7)`; dialog shadow `0 40px 80px rgba(0,0,0,.6)` |
 
 Changed marker size: SettingsRow draws the changed dot 6px in a reserved 14px slot (earlier 7px). Toggle in toolbars (Ready first): 32 x 18, knob 14.
+
+## Additions of the plugin handoff (2026-10-11)
+
+Source `source/plugins-round-2.dc.html` and `source/block-sheet.dc.html` (tone row, player colours); SoulLink-only HP values from the SoulLink components (not copied). Decisions: [decisions.md](decisions.md) items 6-9. All other colors are existing tokens. Plugins pick a tone, never a hex.
+
+Warning tone (amber), the exception to "cyan is also the warning color" for plugin states (unverified, paused, pending, manual, HP mid):
+
+| Role | Dark | Light |
+|---|---|---|
+| Text / icon | `#e5b45a` | `#8a5a00` |
+| Surface | `#2a2414` | `#f7ecd6` |
+| Line | `#4a3d1c` | `#ead6a8` |
+| Dark text on the surface (note body) | `#e9d8b0` | `#6b4600` |
+| Row surface of a hotkey conflict (3f-4) | `#1a1710` | - |
+| Marker "Unverified" in a toast | `#e5b45a` on `#4a3d1c` | - |
+
+Contrast (computed): dark `#e5b45a` on `#2a2414` 8.1:1; light `#8a5a00` on `#f7ecd6` 5.1:1.
+
+Tones of the component sheet (text on surface): info = existing accent (dark `#3cbfd8` on `#15262b`, light `#1a7f96` on `#ddf1f6`); ok dark `#6fd39a` on `#17291f`, light `#2f7d4f` on `#e2f3e8` (the Hub keeps `#1f6a3f` on `#e2f1e7` for its own pills); danger dark `#ef8a78` on `#2a1a17`, light `#b5402f` on `#f8e4e0` (line `#efc9c2`, fill `#e07a66`; the Hub keeps `#fbe7e3`). Light selection surface in plugin lists `#f6fbfc` / `#f2f9fb`.
+
+Player avatar colours (identity only; never status, not cyan, not near the danger red; light values at least 4.5:1 on `#f6f5f2`):
+
+| Player | Dark | Light | Contrast dark on `#121315` / light on `#f6f5f2` |
+|---|---|---|---|
+| Max (blue) | `#6f9cff` | `#2f5fd0` | 7.0 / 5.25 |
+| Lena (pink) | `#f07ab8` | `#b8327a` | 7.2 / 5.10 |
+| Jonas (lime) | `#a6d65a` | `#4d7a14` | 11.0 / 4.69 |
+| Sam (violet) | `#b39cf5` | `#6a4fc4` | 8.0 / 5.46 |
+
+Removed from round 1: `#f2967a`, `#c4572f`, `#5a8a1e`, and Max as the accent cyan.
+
+HP bar (4 high, radius 2, track `#26272b` dark / `#e3e1dc` light): by value above 50 % ok, 20-50 % warning, below 20 % danger. Dark `#6fd39a` / `#e5b45a` / `#ef8a78`; light (SoulLink panel and run screen) `#3f9e63` / `#c48a1a` / `#b5402f`.
+
+Dead creature: grey + ✕, 55 % opacity, never red. Missed: dashed outline `#3a3b40` (dark) / `#cfcdc7` (light). Owner dot ring `#121315` (dark) / `#fff` (light).
+
+HUD widget and tile strip (always dark): surface `rgba(17,18,20,.82)`, border `rgba(255,255,255,.08)`, radius 8, expanded strip `rgba(17,18,20,.94)` with border `#2c2d32`; toast shadow `0 18px 40px rgba(0,0,0,.5)`. Focus ring on the sheet: `0 0 0 2px <block surface>, 0 0 0 4px #3cbfd8` (light: surface `#fff`).
+
+Size sets of the building blocks: "ui" title 17/600, heading 15/600, body 13/400, meta 12, eyebrow mono 11 uppercase, value mono; "stream" (OBS and browser-source layouts, panels `rgba(12,13,14,.86)`) counter 44 mono, display 32, title 20, body 18, meta 16, eyebrow 13 mono.
+
+Illustration only (not tokens): map placeholder water `#0e1719` / land `#1a211d` (light `#d6e6ea` / `#eceee2`) and the placeholder creature fills in `creature-icon.dc.html`. Page notes of the handoff canvas (`#fff7e0`) and the SoulLink wizard text colour `#2f4b52` are not platform tokens.
 
 ## Mapping (note, not code)
 

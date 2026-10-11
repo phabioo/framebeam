@@ -13,6 +13,7 @@ Reading note: read only the necessary file or section. Open the source HTML only
 - `tokens.md`: colors, typography, spacing, radii, shadows, layout dimensions (Player dark, Hub light).
 - `player.md`: screens 3a-3i, 3p, 3r, 3t-3y and the revisions 3c-2 to 3c-5, 3e-2, 3f-2/3, 3g-2/3, 3h-2, 3i-2, 3p-2, 3r-2, 3t-2, 3x-2 plus the component specs (FrameBeam Player, Qt 6 QML).
 - `hub.md`: screens 3j-3o, 3q, 3s and the revision 3s-2/3 (FrameBeam Hub web interface, `html/template` + htmx).
+- `plugins.md`: plugin platform screens (4a-4j, 4ih, 4jh, 3f-4), building-block catalog, map view, HUD, tab and tile-strip specs (plugin handoff 2026-10-11; design only, plugin API v1 is not implemented).
 - `logo.md`: logo concept, tones, sizes, wordmark.
 - `decisions.md`: decisions, deviations from the architecture, open points per handoff round (incl. the defaults decided for the revision handoff of 2026-10-08).
 
@@ -74,6 +75,38 @@ Turn 3 inside v4 (the unchanged v3 screens) starts at line 1164 (3a); the v3 lin
 ### Component sheets
 
 Shared parts of the revision are real components (imported by the v4 file as `dc-import`, names renamed to the file names): `source/settings-row.dc.html` (SettingsRow), `source/save-row.dc.html` (SaveRow, dark and light), `source/pad-glyph.dc.html` (PadGlyph), `source/input-test.dc.html` (InputTest), `source/game-header.dc.html` (GameHeader), `source/game-panel.dc.html` (GamePanel), `source/diag-overlay.dc.html` (DiagOverlay), `source/support.js` (design runtime shared by all `.dc.html` files, not product code) and the existing `source/framebeam-mark.dc.html`. Sheets in v4: in-game components (GameHeader variants, anchored popovers, GamePanel, tiles and Now running) at lines 229-289; SettingsRow, core-agnostic options, SaveRow, sort and Ready first, D-pad and glyphs at lines 1001-1101. Specs per component: [player.md](player.md#components-revision-v4); new tokens: [tokens.md](tokens.md).
+
+### Plugin screens (2026-10-11)
+
+Claude Design handoff "Plugins + SoulLink" (round 1, then correction round 2; accepted by Fabio on 2026-10-11). Only the platform part is imported, the SoulLink screens (5a-5i) belong to the `framebeam-plugin-soullink` repository. Files in `source/`: `plugins-4a-4d.dc.html`, `plugins-4e-4h.dc.html`, `plugins-4i-4j-sheet.dc.html` (round 1), `plugins-round-2.dc.html` (round 2) and the components `plugin-settings-screen`, `block-sheet`, `region-map`, `creature-icon` (plus the existing `game-header`, `game-panel`, `diag-overlay`, `framebeam-mark`). **Ids with `-2` supersede the round-1 id**; round-1 artboards marked "reference only" still show DS screens or old wording. Specification: [plugins.md](plugins.md); decisions (items 6-19) and open points (ao-bf): [decisions.md](decisions.md); new tokens: [tokens.md](tokens.md). Mock values (3DS game "Coral Saga: Ember", creatures, players, plugins, `hub.example.com`, versions 0.11.0) are placeholders. Version: 0.11 (plugins), after plugin API v1.
+
+Lines refer to the file in the "File" column; the 3f-4 screen is in the Player controllers family (extends 3f-2).
+
+| Screen | Specification | Source (file, anchor, lines) | Version |
+|---|---|---|---|
+| 4a Settings Plugins (dark, light, empty) | [plugins.md](plugins.md#4a-settings-plugins) | `plugins-4a-4d`: `#4a` 30-33, `#4a-light` 34-37, `#4a-empty` 38-43 | 0.11 package 2 |
+| 4b Plugin detail (dark, light) | [plugins.md](plugins.md#4b-plugin-detail-4b-2-uninstall) | `plugins-4a-4d`: `#4b` 46-49, `#4b-light` 50-53 | 0.11 package 2 |
+| 4b-2 Uninstall confirmation | [plugins.md](plugins.md#4b-plugin-detail-4b-2-uninstall) | `plugins-round-2`: `#4b-2` 30-35 | 0.11 package 2 |
+| 4c-1, 4c-2 Permission dialog (first turn-on, unverified) | [plugins.md](plugins.md#4c-permission-dialog) | `plugins-4a-4d`: `#4c-1`..`#4c-4` template 58-79, data 191-194 | 0.11 package 2 |
+| 4c-3-2, 4c-4-2 Permission dialog (new permission, change game memory) | [plugins.md](plugins.md#4c-permission-dialog) | `plugins-round-2`: template 36-52, data 414-420; replaces 4c-3, 4c-4 | 0.11 package 2 |
+| 4d-1, 4d-2 Install from file | [plugins.md](plugins.md#4d-install-from-file-console) | `plugins-4a-4d`: `#4d-1` 82-92, `#4d-2` 93-111 | 0.11 package 2 |
+| 4d-3-2 Installed from file (Local) | [plugins.md](plugins.md#4d-install-from-file-console) | `plugins-round-2`: `#4d-3-2` 54-68; replaces 4d-3 | 0.11 package 2 |
+| 4d-4-2 Plugin console | [plugins.md](plugins.md#4d-install-from-file-console) | `plugins-round-2`: `#4d-4-2` 69-88; replaces 4d-console | 0.11 package 2 (developer mode) |
+| 4d-5 Console error | [plugins.md](plugins.md#4d-install-from-file-console) | `plugins-4a-4d`: `#4d-console-error` 154-173 | 0.11 package 2 |
+| 4e-1-2 to 4e-4-2 Side panel tabs (1 tab, HUD + diagnostics, 4 tabs, 1280 overflow) | [plugins.md](plugins.md#4e-in-game-tabs-hud-tile-strip-fullscreen) | `plugins-round-2`: `#4e-1-2` 91-102, `#4e-2-2` 103-121, `#4e-3-2` 122-135, `#4e-4-2` 136-148 | 0.11 package 2 |
+| 4e-5 HUD corners, menu, hidden | [plugins.md](plugins.md#4e-in-game-tabs-hud-tile-strip-fullscreen) | `plugins-4e-4h`: `#4e-hud` 109-136 | 0.11 package 2 |
+| 4e-6-2 Multiview tile strip, 4e-7 rings | [plugins.md](plugins.md#4e-in-game-tabs-hud-tile-strip-fullscreen) | `plugins-round-2`: `#4e-6-2` 149-168; `plugins-4e-4h`: `#4e-7` 168-183 | 0.11 package 2 |
+| 4e-8-2 Fullscreen HUD | [plugins.md](plugins.md#4e-in-game-tabs-hud-tile-strip-fullscreen) | `plugins-round-2`: `#4e-8-2` 169-180 | 0.11 package 2 |
+| 4f Plugin sidebar screen | [plugins.md](plugins.md#4f-plugin-sidebar-screen) | `plugins-4e-4h`: `#4f` 202-215 | 0.11 package 2 |
+| 4g-2 Notices (toast stack) | [plugins.md](plugins.md#4g-2-notices) | `plugins-round-2`: `#4g-2` 181-205 | 0.11 package 2 |
+| 4h-2 Game detail plugin section | [plugins.md](plugins.md#4h-2-game-detail-section) | `plugins-round-2`: `#4h-2` 206-231 | 0.11 package 2 |
+| 3f-4 Controllers Hotkeys (plugin groups) | [plugins.md](plugins.md#3f-4-controllers-hotkeys) | `plugins-round-2`: `#3f-4` 234-259 | 0.11 package 2 |
+| 4ih Hub Plugins, upload of an unverified plugin | [plugins.md](plugins.md#4ih-hub-plugins) | `plugins-4i-4j-sheet`: `#4ih` 30-56, `#4ih-upload` 58-70 | 0.11 package 3 |
+| 4j-2 Player Runs, 4jh-2 Hub Runs (paused) | [plugins.md](plugins.md#4j-2-player-runs-4jh-2-hub-runs) | `plugins-round-2`: `#4j-2` 262-277, `#4jh-2` 278-291; replaces 4j, 4jh | 0.11 package 3 |
+| r2-sheet Building blocks (dark, light, focus) | [plugins.md](plugins.md#building-blocks-component-sheet-r2-sheet) | `plugins-round-2`: `#r2-sheet` 389-395; `block-sheet.dc.html` | 0.11 package 2 |
+| Map view states | [plugins.md](plugins.md#map-view) | `plugins-4i-4j-sheet`: `#4-sheet` 122-145; `region-map.dc.html` | 0.11 package 2 |
+
+Reference only (superseded by `-2`): 4c-3, 4c-4, 4d-3, 4d-console, 4e-1, 4e-2, 4e-3, 4e-4, 4e-6, 4e-8, 4g, 4h, 4j, 4jh, the BlockSheet part of 4-sheet. The imported files still `dc-import` `SoulLinkPanel`, `RunScreen` and `HubRunWizard`, which are not copied (SoulLink repository). Plugin tokens (warning tone, player colours, HP bar, stream size set): [tokens.md](tokens.md#additions-of-the-plugin-handoff-2026-10-11).
 
 Phases per `../workflow.md` (phase plan); 0.4 and later are the versions of the roadmap (`../roadmap.md`). Borderline cases: 3o (reference only) phase 1 covered only Hub name, address, transport and certificate, admin account; appearance (dark/light) and "Allow users to upload games" phase 5 (requires users); these now live in 3q. 3m is phase 1 (Allow/Decline, Revoke); the assignment to an existing user (architecture 10) belongs to it as well, but requires created users (until phase 5 only admin). 3k and 3d both belong to phase 3, although 3k is a Hub page. 3l phase 5 (firmware path); nav badges of the Hub shell ("1 conflict", "2 issues", "1 request", Settings "1 update") follow the respective phases. The Hub shell (sidebar, page header, tables) is created with the first Hub page in phase 1. "UI in the 0.6/0.7 pass" means: the feature (protocol, storage, diagnostics) arrives in 0.4, the screen in the named UI pass.
 

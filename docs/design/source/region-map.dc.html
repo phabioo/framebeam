@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="position:relative;width:{{ wpx }};height:{{ hpx }};overflow:hidden;border-radius:{{ radius }};background:{{ t.water }};font-family:'IBM Plex Sans',system-ui,sans-serif;color:{{ t.text }};font-size:12px">
+  <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;display:grid;place-items:center;background:{{ t.emptyBg }}"><div style="display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;max-width:320px"><span style="width:22px;height:22px;border-radius:50%;border:2.5px solid {{ t.line }};border-top-color:#3cbfd8;box-sizing:border-box"></span><span style="font-size:14px;font-weight:600">Reading the map from your game file…</span><span style="font-size:12px;color:{{ t.mut }};line-height:1.5">Routes and catches are listed in the Routes tab meanwhile. The map image stays on this computer.</span></div></div>
+  </sc-if>
+  <sc-if value="{{ hasMap }}" hint-placeholder-val="{{ true }}">
+    <sc-for list="{{ land }}" as="l" hint-placeholder-count="5"><span style="position:absolute;left:{{ l.x }};top:{{ l.y }};width:{{ l.w }};height:{{ l.h }};border-radius:{{ l.r }};background:{{ t.land }};box-shadow:0 0 0 6px {{ t.coast }}"></span></sc-for>
+    <sc-for list="{{ peaks }}" as="k" hint-placeholder-count="2"><span style="position:absolute;left:{{ k.x }};top:{{ k.y }};width:{{ k.w }};height:{{ k.h }};border-radius:50%;background:{{ t.hill }}"></span></sc-for>
+    <sc-for list="{{ segs }}" as="s" hint-placeholder-count="10"><span style="position:absolute;left:{{ s.x }};top:{{ s.y }};width:{{ s.len }};height:0;border-top:3px dotted {{ t.path }};transform-origin:0 0;transform:rotate({{ s.a }})"></span></sc-for>
+    <sc-for list="{{ towns }}" as="tw" hint-placeholder-count="5"><div style="position:absolute;left:{{ tw.x }};top:{{ tw.y }};transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:3px;pointer-events:none"><span style="width:12px;height:12px;border-radius:3px;background:{{ t.town }};box-shadow:0 0 0 2px {{ t.townRing }}"></span><span style="font-size:11px;font-weight:600;color:{{ t.townFg }};white-space:nowrap;text-shadow:{{ t.halo }}">{{ tw.name }}</span></div></sc-for>
+    <div style="position:absolute;right:12px;bottom:10px;font:400 10px 'IBM Plex Mono',monospace;color:{{ t.mut }};opacity:.8">Marisol · map image from your game file</div>
+
+    <sc-if value="{{ showChips }}" hint-placeholder-val="{{ true }}">
+      <sc-for list="{{ routes }}" as="r" hint-placeholder-count="8">
+        <div style="position:absolute;left:{{ r.x }};top:{{ r.y }};transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:3px;opacity:{{ r.op }}">
+          <div style="display:flex;align-items:center;gap:2px;padding:3px;border-radius:7px;background:{{ t.chip }};border:1px solid {{ r.line }};box-shadow:{{ r.ring }}">
+            <sc-for list="{{ r.cells }}" as="c" hint-placeholder-count="4"><dc-import name="creature-icon" species="{{ c.sp }}" size="mini" state="{{ c.state }}" owner="{{ c.c }}" light="{{ light }}" hint-size="24px,18px"></dc-import></sc-for>
+            <sc-if value="{{ r.hasGroup }}" hint-placeholder-val="{{ false }}"><span style="font:600 9px 'IBM Plex Mono',monospace;color:{{ t.mut }};padding:0 3px">{{ r.group }}</span></sc-if>
+            <sc-if value="{{ r.open }}" hint-placeholder-val="{{ false }}"><span style="font-size:10px;font-weight:600;color:{{ t.accentText }};padding:0 5px">open</span></sc-if>
+          </div>
+          <span style="font-size:10px;font-weight:600;color:{{ t.routeFg }};white-space:nowrap;text-shadow:{{ t.halo }}">{{ r.name }}</span>
+        </div>
+      </sc-for>
+    </sc-if>
+    <sc-if value="{{ isCluster }}" hint-placeholder-val="{{ false }}">
+      <sc-for list="{{ clusters }}" as="c" hint-placeholder-count="3"><div style="position:absolute;left:{{ c.x }};top:{{ c.y }};transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:3px"><div style="display:flex;align-items:center;gap:6px;height:30px;padding:0 10px 0 4px;border-radius:999px;background:{{ t.chip }};border:1px solid {{ t.line }}"><dc-import name="creature-icon" species="{{ c.sp }}" size="mini" light="{{ light }}" hint-size="24px,18px"></dc-import><span style="font:600 12px 'IBM Plex Mono',monospace">{{ c.n }}</span></div><span style="font-size:10px;font-weight:600;color:{{ t.routeFg }};text-shadow:{{ t.halo }}">{{ c.label }}</span></div></sc-for>
+    </sc-if>
+
+    <sc-for list="{{ avatars }}" as="a" hint-placeholder-count="4"><div title="{{ a.who }} is here" style="position:absolute;left:{{ a.x }};top:{{ a.y }};transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center"><span style="width:26px;height:26px;border-radius:50%;background:{{ a.c }};color:#121315;display:grid;place-items:center;font-size:12px;font-weight:700;box-shadow:0 0 0 2px {{ t.avRing }},0 4px 10px rgba(0,0,0,.35)">{{ a.i }}</span><span style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid {{ a.c }}"></span></div></sc-for>
+
+    <sc-if value="{{ showFilters }}" hint-placeholder-val="{{ true }}">
+      <div style="position:absolute;top:12px;left:12px;display:flex;gap:2px;padding:3px;border-radius:8px;background:{{ t.panel }};border:1px solid {{ t.line }};font-size:12px"><sc-for list="{{ filters }}" as="f" hint-placeholder-count="3"><span style="padding:5px 10px;border-radius:5px;background:{{ f.bg }};color:{{ f.fg }};font-weight:{{ f.fw }}">{{ f.l }}</span></sc-for></div>
+      <div style="position:absolute;top:12px;right:12px;display:flex;flex-direction:column;border-radius:8px;background:{{ t.panel }};border:1px solid {{ t.line }};overflow:hidden"><span title="Zoom in · RB" style="width:32px;height:32px;display:grid;place-items:center;font-size:16px;border-bottom:1px solid {{ t.line }}">+</span><span title="Zoom out · LB" style="width:32px;height:32px;display:grid;place-items:center;font-size:16px;border-bottom:1px solid {{ t.line }}">−</span><span title="Fit map" style="width:32px;height:32px;display:grid;place-items:center;font-size:12px">⤢</span></div>
+      <div style="position:absolute;left:12px;bottom:12px;display:grid;grid-template-columns:auto auto;gap:6px 10px;align-items:center;padding:10px 12px;border-radius:8px;background:{{ t.panel }};border:1px solid {{ t.line }};font-size:11px;color:{{ t.mut }}">
+        <span style="width:16px;height:16px;border-radius:50%;background:{{ meC }};justify-self:center"></span><span>Player is here</span>
+        <dc-import name="creature-icon" species="Mossling" size="mini" owner="{{ meC }}" light="{{ light }}" hint-size="24px,18px"></dc-import><span>Caught · dot = owner</span>
+        <dc-import name="creature-icon" species="Mossling" size="mini" state="dead" light="{{ light }}" hint-size="24px,18px"></dc-import><span>Dead</span>
+        <dc-import name="creature-icon" species="Mossling" size="mini" state="missed" light="{{ light }}" hint-size="24px,18px"></dc-import><span>Missed</span>
+        <span style="font:600 9px 'IBM Plex Mono',monospace;justify-self:center">7</span><span>Link group</span>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ hasPop }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;left:{{ pop.x }};top:{{ pop.y }};width:300px;transform:translate(-50%,calc(-100% - 40px));z-index:5">
+        <div style="padding:12px;border-radius:10px;background:{{ t.pop }};border:1px solid {{ t.popLine }};box-shadow:0 18px 40px rgba(0,0,0,.35);display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:baseline;gap:8px"><span style="font-size:14px;font-weight:600">{{ pop.name }}</span><span style="font-size:11px;color:{{ t.mut }}">{{ pop.sub }}</span><span style="margin-left:auto;font-size:12px;font-weight:500;color:{{ t.accentText }}">Edit</span></div>
+          <div style="display:flex;flex-direction:column">
+            <sc-for list="{{ pop.rows }}" as="p" hint-placeholder-count="4"><div style="display:grid;grid-template-columns:8px 46px 24px minmax(0,1fr);gap:8px;align-items:center;padding:5px 0;border-top:1px solid {{ t.line }}"><span style="width:8px;height:8px;border-radius:50%;background:{{ p.c }}"></span><span style="font-weight:500">{{ p.who }}</span><dc-import name="creature-icon" species="{{ p.sp }}" size="mini" state="{{ p.state }}" light="{{ light }}" hint-size="24px,18px"></dc-import><span style="color:{{ p.fg }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ p.status }}</span></div></sc-for>
+          </div>
+          <span style="font-size:11px;color:{{ t.mut }}">{{ pop.foot }}</span>
+        </div>
+        <div style="width:12px;height:12px;margin:-7px auto 0;transform:rotate(45deg);background:{{ t.pop }};border-right:1px solid {{ t.popLine }};border-bottom:1px solid {{ t.popLine }}"></div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ isFocus }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;left:50%;bottom:12px;transform:translateX(-50%);display:flex;gap:12px;align-items:center;padding:6px 12px;border-radius:999px;background:{{ t.panel }};border:1px solid {{ t.line }};font-size:11px;color:{{ t.mut }};white-space:nowrap"><span><b style="color:{{ t.text }}">D-pad</b> next marker</span><span><b style="color:{{ t.text }}">A</b> open</span><span><b style="color:{{ t.text }}">Y</b> filters</span><span><b style="color:{{ t.text }}">LB / RB</b> zoom</span><span><b style="color:{{ t.text }}">Tab</b> keyboard</span></div></sc-if>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1000,&quot;height&quot;:640},&quot;w&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:1000,&quot;tsType&quot;:&quot;number&quot;},&quot;h&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:640,&quot;tsType&quot;:&quot;number&quot;},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;dark&quot;,&quot;light&quot;],&quot;default&quot;:&quot;dark&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;state&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;default&quot;,&quot;cluster&quot;,&quot;focus&quot;,&quot;empty&quot;],&quot;default&quot;:&quot;default&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;filter&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;all&quot;,&quot;me&quot;,&quot;open&quot;],&quot;default&quot;:&quot;all&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;selected&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;&quot;,&quot;r101&quot;,&quot;r103&quot;,&quot;r104&quot;,&quot;r121&quot;],&quot;default&quot;:&quot;r104&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;bare&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const p = this.props, W = p.w ?? 1000, H = p.h ?? 640, light = p.theme === 'light', st = p.state ?? 'default', filter = p.filter ?? 'all', sel = p.selected ?? '';
+    const t = light ? { water: '#d6e6ea', land: '#eceee2', coast: '#e3e8de', hill: '#dcdfcc', path: '#b9b39f', town: '#ffffff', townRing: '#8a8984', townFg: '#3a3936', routeFg: '#3a3936', halo: '0 0 3px #eceee2,0 0 3px #eceee2', chip: 'rgba(255,255,255,.94)', line: '#d9d7d1', panel: 'rgba(255,255,255,.96)', text: '#1b1b1d', mut: '#6b6a66', accentText: '#1a7f96', pop: '#ffffff', popLine: '#d9d7d1', avRing: '#ffffff', emptyBg: '#efeee9', segOn: '#e9e8e4' }
+      : { water: '#0e1719', land: '#1a211d', coast: '#151c19', hill: '#222a24', path: '#3c4740', town: '#c9c8c4', townRing: '#121315', townFg: '#c9c8c4', routeFg: '#a3a3a8', halo: '0 0 3px #0e1719,0 0 3px #0e1719', chip: 'rgba(17,18,20,.9)', line: '#2c2d32', panel: 'rgba(22,23,26,.95)', text: '#ecebe7', mut: '#8e8e94', accentText: '#3cbfd8', pop: '#1d1e22', popLine: '#34353a', avRing: '#121315', emptyBg: '#111214', segOn: '#2c2d32' };
+    const C = light ? { Max: '#2f5fd0', Lena: '#b8327a', Jonas: '#4d7a14', Sam: '#6a4fc4' } : { Max: '#6f9cff', Lena: '#f07ab8', Jonas: '#a6d65a', Sam: '#b39cf5' };
+    const px = (f, d) => Math.round(f * d) + 'px';
+    const P = { dw: [.12, .72], cb: [.3, .5], ap: [.62, .18], mc: [.72, .6], tw: [.88, .36], r101: [.2, .62], r102: [.22, .38], r103: [.42, .6], r104: [.47, .4], r110: [.56, .27], r112: [.8, .48], r118: [.82, .72], r121: [.48, .8] };
+    const segs = [['dw', 'r101'], ['r101', 'cb'], ['cb', 'r102'], ['cb', 'r103'], ['r103', 'r104'], ['r104', 'r110'], ['r110', 'ap'], ['r103', 'r121'], ['r103', 'mc'], ['mc', 'r112'], ['r112', 'tw'], ['mc', 'r118']].map(([a, b]) => {
+      const x1 = P[a][0] * W, y1 = P[a][1] * H, x2 = P[b][0] * W, y2 = P[b][1] * H;
+      return { x: Math.round(x1) + 'px', y: Math.round(y1) + 'px', len: Math.round(Math.hypot(x2 - x1, y2 - y1)) + 'px', a: Math.atan2(y2 - y1, x2 - x1) + 'rad' };
+    });
+    const R = [
+      ['r101', 'Route 101', 1, { Max: ['Emberkit', 'alive'], Lena: ['Brinecrab', 'alive'], Jonas: ['Pebblor', 'alive'], Sam: ['Fernfox', 'alive'] }],
+      ['r102', 'Route 102', 2, { Max: ['Fernfox', 'dead'], Lena: ['Brinecrab', 'dead'], Jonas: ['Duskowl', 'dead'], Sam: ['Mossling', 'dead'] }],
+      ['r103', 'Route 103', 3, { Max: ['Mossling', 'alive'], Lena: ['Tidepup', 'alive'], Jonas: ['Voltwing', 'alive'], Sam: ['Duskowl', 'alive'] }],
+      ['r104', 'Route 104', 0, { Max: null, Lena: ['Tidepup', 'alive'], Jonas: null, Sam: ['Tidepup', 'missed'] }],
+      ['r110', 'Route 110', 0, { Max: null, Lena: null, Jonas: ['Voltwing', 'alive'], Sam: null }],
+      ['r112', 'Route 112', 0, { Max: null, Lena: null, Jonas: null, Sam: null }],
+      ['r118', 'Route 118', 5, { Max: ['Pebblor', 'alive'], Lena: ['Cinderhog', 'alive'], Jonas: ['Mossling', 'alive'], Sam: ['Pebblor', 'alive'] }],
+      ['r121', 'Route 121', 0, { Max: ['Frostkit', 'missed'], Lena: ['Shellsprout', 'alive'], Jonas: ['Emberkit', 'alive'], Sam: ['Frostkit', 'alive'] }]
+    ];
+    const who = filter === 'me' ? ['Max'] : ['Max', 'Lena', 'Jonas', 'Sam'];
+    const routes = R.map(([id, name, g, c]) => {
+      const cells = who.filter(w => c[w]).map(w => ({ sp: c[w][0], state: c[w][1], c: C[w] }));
+      const meOpen = !c.Max, allOpen = who.every(w => !c[w]);
+      const dimmed = filter === 'open' && !meOpen;
+      const focused = st === 'focus' && id === 'r103', selected = sel === id;
+      return { id, name, x: px(P[id][0], W), y: px(P[id][1], H), cells, group: g, hasGroup: g > 0, open: cells.length === 0 || (filter === 'me' && meOpen), op: dimmed ? .35 : 1,
+        line: selected ? '#3cbfd8' : t.line, ring: focused ? '0 0 0 2px ' + t.water + ',0 0 0 4px #3cbfd8' : selected ? '0 0 0 1px #3cbfd8' : 'none' };
+    });
+    const sR = R.find(r => r[0] === sel);
+    const status = (cell) => !cell ? ['', 'no encounter yet', t.mut] : cell[1] === 'dead' ? [cell[0], cell[0] + ' · dead', t.mut] : cell[1] === 'missed' ? [cell[0], 'missed · ' + cell[0] + ' fled', t.mut] : [cell[0], cell[0] + ' · alive', t.text];
+    const pop = sR ? { x: px(P[sel][0], W), y: px(P[sel][1], H), name: sR[1], sub: sR[2] ? 'Link group ' + sR[2] : 'no link group yet', foot: sR[2] ? 'If one of these dies, the others die too.' : 'A link group forms when everyone has caught here or the route is closed.',
+      rows: ['Max', 'Lena', 'Jonas', 'Sam'].map(w => { const s = status(sR[3][w]); return { who: w, c: C[w], sp: s[0] || 'Mossling', state: !sR[3][w] ? 'empty' : sR[3][w][1], status: s[1], fg: s[2] }; }) } : null;
+    const A = [['Max', .47, .4, -14], ['Lena', .47, .4, 14], ['Jonas', .56, .27, 0], ['Sam', .62, .18, 0]].filter(a => filter !== 'me' || a[0] === 'Max');
+    return {
+      t, light, wpx: W + 'px', hpx: H + 'px', radius: p.radius ?? '0', isEmpty: st === 'empty', hasMap: st !== 'empty',
+      land: [[.04, .3, .5, .62, '48% 52% 40% 60%'], [.36, .1, .5, .62, '55% 45% 50% 50%'], [.6, .3, .38, .58, '40% 60% 55% 45%'], [.3, .58, .34, .34, '50%'], [.76, .1, .2, .3, '50% 50% 40% 60%']].map(([x, y, w, h, r]) => ({ x: px(x, W), y: px(y, H), w: px(w, W), h: px(h, H), r })),
+      peaks: [[.56, .1, .14, .16], [.24, .3, .1, .12]].map(([x, y, w, h]) => ({ x: px(x, W), y: px(y, H), w: px(w, W), h: px(h, H) })),
+      segs, towns: [['dw', 'Driftwood Town'], ['cb', 'Coral Bay'], ['ap', 'Ash Peak'], ['mc', 'Marisol City'], ['tw', 'Tidewater']].map(([k, name]) => ({ x: px(P[k][0], W), y: px(P[k][1], H), name })),
+      routes, showChips: st !== 'cluster', isCluster: st === 'cluster',
+      clusters: [{ x: px(.24, W), y: px(.52, H), n: '3', label: 'West · 3 routes', sp: 'Mossling' }, { x: px(.5, W), y: px(.44, H), n: '4', label: 'Centre · 4 routes', sp: 'Tidepup' }, { x: px(.8, W), y: px(.6, H), n: '2', label: 'East · 2 routes', sp: 'Glimmoth' }],
+      avatars: A.map(([w, x, y, dx]) => ({ who: w, i: w[0], c: C[w], x: Math.round(x * W + dx) + 'px', y: Math.round(y * H - 22) + 'px' })),
+      showFilters: !p.bare, filters: [['all', 'All players'], ['me', 'Only me'], ['open', 'Open routes']].map(([k, l]) => ({ l, bg: k === filter ? t.segOn : 'transparent', fg: k === filter ? t.text : t.mut, fw: k === filter ? 500 : 400 })),
+      meC: C.Max, hasPop: !!pop, pop: pop || { rows: [] }, isFocus: st === 'focus'
+    };
+  }
+}
+</script>
+</body>
+</html>

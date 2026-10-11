@@ -5,10 +5,31 @@ Decisions on the design handoff, deviations from the architecture and the open p
 ## Decisions (Fabio, 2026-10-07)
 
 1. Accent is Signal Cyan: `#3cbfd8` (Player dark) and `#1a7f96` (Hub light; hover `#0f5a6b`, selection `#eef8fa`, chip `#ddf1f6`, border `#a6d9e6`; Player chip surface `#15262b`). The old amber `#e9b44c` is gone ([tokens.md](tokens.md)).
-2. Cyan is intentionally also the warning color; there is no separate warning color. Warnings (conflict, hub too old, awaiting approval, relayed) therefore read as "needs attention", not as danger; errors keep their red.
+2. Cyan is intentionally also the warning color; there is no separate warning color. Warnings (conflict, hub too old, awaiting approval, relayed) therefore read as "needs attention", not as danger; errors keep their red. Amended 2026-10-11: plugin states use the amber warning tone (item 6); the built Player and Hub states stay as they are.
 3. 3q "Hub Settings revised" supersedes 3o. 3o stays in the source only as reference and is marked superseded in the table.
 4. Logo: concept 4a "Frame & Beam", palette "signal" ([logo.md](logo.md)).
 5. Requested by Fabio (2026-10-07), implemented in 0.6 per [ADR 0014](../adr/0014-player-ui-pass.md) (accepted): split the in-game diagnostics into emulator diagnostics and streaming diagnostics, shown separately. The handoff draws this as 3t-3y; Fabio accepted the design on 2026-10-08.
+
+## Decisions (Fabio, 2026-10-11, plugin handoff)
+
+Source: Claude Design handoff "Plugins + SoulLink" and its correction round 2, imported in [plugins.md](plugins.md). Design only; plugin API v1 is not implemented. Alignment with the architecture: [../architecture/12-plugins.md](../architecture/12-plugins.md) §16.
+
+6. Amber is the warning tone for plugin states (unverified, paused, pending, manual, HP mid), dark `#e5b45a` on `#2a2414`, light `#8a5a00` on `#f7ecd6` ([tokens.md](tokens.md)). It supersedes decision 2 ("cyan only") for those states; plugins pick the tone "warning", never a hex.
+7. Player colours (Max blue, Lena pink, Jonas lime, Sam violet) identify people only; they never carry status and are neither cyan nor near the danger red. Cyan stays for open, selection and focus.
+8. A death is grey + ✕ everywhere, never red. No red border flash; the emphasis is neutral (the HUD widget expands for 3 s, off with Reduce motion).
+9. In-game views (header, side panel, HUD, tiles, fullscreen) stay dark in both themes; the light theme applies to Library, Settings, the run screen and the Hub. The light variant of the SoulLink panel (5b) is removed.
+10. HUD widgets sit in three corners (bottom left, bottom right, top left); the top right is reserved for diagnostics.
+11. Remote Multiview tiles show one plugin strip; when several plugins offer one, the user picks it in the tile menu. Your own tile has none.
+12. Ctrl+H means one thing: show or hide this plugin's HUD widget. Expanding a widget is a click or controller A.
+13. F4 hides all HUD widgets. It is free today: the Player's default hotkeys are F3, F5, F11, Space and Esc (`client/core/controllerprofiles.cpp`).
+14. Notices outside the game are part of the permission `ui` ("Show panels in game"), not a permission of their own.
+15. "Change game memory" (`memory.write`) is asked once per game; every change is written to the run log that all players see; a run can forbid it.
+16. Origin: a plugin signed by FrameBeam is "Official" wherever it was installed from; "Local" means an unsigned file (needs Developer mode). A local copy never replaces the Hub version used by a run.
+17. In-game surfaces (tab tooltip, overflow row, HUD widget, toast, tile strip) show a small "Unverified" or "Local" marker on hover or focus for non-official plugins; Official shows none.
+18. The component sheet is the draft block catalog: anchored popover, segmented control, radio list, wizard stepper, avatar, HUD widget container, tile strip container, location status card were added to the blocks the screens use; every block has a controller-focus state; the stream size set (13-44) is separate from the ui set. The final catalog stays open (§16.8).
+19. Controllers → Hotkeys (3f-4) lists FrameBeam keys first, then one group per plugin with its origin badge; a conflicting plugin key stays unassigned and shows "Already used by …".
+
+Deviations from the architecture (plugin handoff), aligned in §16 in the same change: notices under `ui` (§16.5), `memory.write` consent per game, run log event and run rule (§16.5), origin rule (§16.10), HUD corners and F4 (§16.8). Not in §16 and still design only: the building blocks of item 18, the Hub status "Starting" and the paused run status (open points as, ar).
 
 ## Deviations from the architecture
 
@@ -79,3 +100,29 @@ am. 3s-2: the CURRENT bar and the upload result keep the checkpoint label "Rev {
 an. Blocked upload while a session of the game runs is not built; the Hub has no running-session check per game yet (open, 2026-10-08).
 
 Notes on the revision against the built state (not open questions): the drawn speed menu ends with "Unlimited" while the built set is 1.5×, 2×, 3×, 4×, 6×, 8× (ADR 0018) and the panel's speed select is removed in the new design; "jitter" in the multiview streaming lines is not measured today; keys 1-4 select tiles in the new multiview (v3: they moved the audio focus).
+
+Open points (plugin handoff 2026-10-11; source [plugins.md](plugins.md), review round 1 and check of round 2). Working defaults of the design (as drawn), not yet decided by Fabio; to be confirmed with plugin API v1 (ADR 0023 stays proposed). SoulLink-only questions (5a rules vote, 5b team row, 5e game without map, 5f approvals) are in the SoulLink repository.
+
+Hotkeys and rules new in round 2:
+
+ao. Reserved FrameBeam keys beyond F3, F4, F5, F11, Space, Esc: Alt+1 … Alt+9 (select panel tabs) and Ctrl+Shift+R (reload plugin, Developer mode) are drawn in 3f-4 and 4d-4-2. Default: reserved; ADR 0014 follow-up needed (keyboard forwarding to the core is still unspecified, points d and r).
+ap. "FrameBeam keys always win · plugins only suggest keys": a conflicting plugin key stays unassigned until the user chooses another (3f-4). 3f-4 also adds a device row "Mouse · 3DS touch". Default: as drawn.
+aq. Uninstalling a plugin pauses the user's own participation in an active run ("paused for you until you reinstall"); the run stays on the Hub (4b-2). Default: as drawn.
+ar. A paused run records no new events (events stay visible) and any member can pause ("paused by Lena"); Resume is available to members (4jh-2). Default: as drawn.
+as. The Hub run status "Starting" (warning tone) while players are still joining (4jh-2). Default: as drawn.
+at. Toasts: max 3 visible, the rest as "+1 earlier notice" (4g-2). Default: as drawn.
+au. 4d-3-2 "Which copy runs" selector: outside runs the user picks Local or Hub copy; a run always uses the Hub version, locked by the run (§16.10). Default: as drawn.
+av. Cyan also marks the "✓ Official" badge, the NEW tag and the source of important toasts; this is wider than "open, selection, focus" (the sheet's info tone adds "progress"). Default: as drawn; the warning tone and the origin text keep unverified distinct.
+
+Questions written into the designs (round 1), with the drawn default:
+
+aw. 4a: Official plugin updates install automatically or ask? Default: ask (update chip, "Update to 0.10.0").
+ax. 4b: hide "Only in runs" for plugins without runs? Default: yes, only run plugins offer it.
+ay. 4d: file extension `.fbplugin`. Default: as drawn.
+az. 4d: console as a detachable window? Default: no, side panel tab (last, Developer mode only).
+ba. 4f/4g: max one sidebar entry per plugin; what if two plugins both want "Runs"? Default: one entry per plugin, no merge rule drawn (open).
+bb. 4h: does "Play without run" switch the save slot? Default: run saves have their own slot "Run · <name>"; "Play without run" uses the normal slot (open: automatic switch).
+bc. 4ih: can non-admins upload? Default: a Hub setting "Users can upload" (Lena uploaded); the admin confirms the permissions.
+bd. 4j: who may delete a run? Default: creator and admin.
+be. Hub run page as a browser source (SoulLink 5gs): revocable token link versus Hub login. Default: token link as drawn; needs a security decision before it is built.
+bf. Toasts of a run event while in fullscreen (SoulLink 5h): shown by the plugin's Notices setting (all, important, deaths, off), not only as a HUD flash. Default: as drawn (4g-2 stack); open.
