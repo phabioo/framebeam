@@ -34,7 +34,7 @@ A flag wins over the environment variable. Under systemd the variables live in `
 | `-cloudflare-turn-key-id` | `FRAMEBEAM_CLOUDFLARE_TURN_KEY_ID` | none | Cloudflare Realtime TURN key (optional relay next to `-turn`) |
 | `-cloudflare-turn-token-file` | `FRAMEBEAM_CLOUDFLARE_TURN_TOKEN_FILE` | none | File holding the Cloudflare API token (alternative to the token variable) |
 | (env only) | `FRAMEBEAM_CLOUDFLARE_TURN_API_TOKEN` | none | Cloudflare API token; wins over the token file |
-| `-public-host` | `FRAMEBEAM_PUBLIC_HOST` | empty | DNS name or IPv4 of the Hub's public address |
+| `-public-host` | `FRAMEBEAM_PUBLIC_HOST` | empty | DNS name or IPv4 of the Hub's public address, optionally `host:port` (IPv6 in brackets, `[2001:db8::1]:8443`). The port is the external port a router forwards to the Hub; it is used for invite links and the Player address, while TURN/STUN URLs use only the host part with their own ports. Without a port, invite links use the Hub's listen port (nothing for 443) |
 | `-turn-port` | `FRAMEBEAM_TURN_PORT` | `3478` | TURN UDP and TCP port |
 | `-turn-relay-ports` | `FRAMEBEAM_TURN_RELAY_PORTS` | `49160-49199` | TURN UDP relay range `min-max` |
 | `-turn-relay-ip` | `FRAMEBEAM_TURN_RELAY_IP` | empty | Fixed public IPv4 for relayed addresses instead of resolving `-public-host` |
@@ -49,7 +49,7 @@ A flag wins over the environment variable. Under systemd the variables live in `
 | `-update-index-url` | `FRAMEBEAM_HUB_UPDATE_INDEX_URL` | FrameBeam's `updates-index` release | Signed updates index (https, or `file://` for tests) |
 | `-update-request-dir` | `FRAMEBEAM_HUB_UPDATE_REQUEST_DIR` | `/run/framebeam` | Directory of the update request file read by the root helper |
 
-`0` for a `-save-keep-*` rule means unlimited for that rule. Invalid combinations (for example `-turn` without `-public-host`, a `-public-host` containing `/` or spaces, a non-`stun:` ICE URL, a non-IPv4 `-turn-relay-ip`) stop the start with an error.
+`0` for a `-save-keep-*` rule means unlimited for that rule. Invalid combinations (for example `-turn` without `-public-host`, a `-public-host` that is not `host[:port]` (scheme, path, spaces, port outside 1 to 65535, IPv6 without brackets), a non-`stun:` ICE URL, a non-IPv4 `-turn-relay-ip`) stop the start with an error.
 
 ### TURN security
 
@@ -70,6 +70,8 @@ Recommendations for a home network:
 When the Hub's HTTPS port is forwarded too, the web login and the Player API are reachable from the internet. The Hub limits sign-in attempts per address (IPv6 per /64) and per username (addresses in the local network and addresses that signed in successfully in the last 30 days are exempt from the username limit), runs at most two password checks at once, requires a CSRF token on every form, applies a 30 s read deadline to ordinary requests and caps open connections at 512. Pairing requests, invite redemptions and WebSocket messages are rate limited. New passwords need at least 12 characters; use a long, unique admin password.
 
 ## Settings in the web interface
+
+Library page (admin): each row has Upload save, Rename (inline form, display title only, up to 200 bytes of UTF-8) and Delete (inline confirmation). Deleting removes the entry and the ROM file; saves of the game are kept and stay on the Saves page.
 
 Settings → Network edits port, embedded TURN, public host, TURN port, relay range and IP, STUN servers and save retention. These values live in the Hub database and win over flags and `hub.env`, which only give the initial values (reset per field to return to the `hub.env` value). Changes that need it are applied by a restart the Hub triggers itself (no root). The web form refuses ports below 1024; set those with `install-hub.sh --port` (a port saved in the web form still wins until reset). Startup fallbacks keep the Hub reachable after a bad setting. Decisions: [ADR 0015](../adr/0015-hub-ui-pass.md).
 

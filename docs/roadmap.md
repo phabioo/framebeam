@@ -299,8 +299,8 @@ In the test of 2026-10-11 most WebRTC connections ran relayed over TURN. Cause f
 - Open: speed-up frame loss for viewers.
 - Open: repo-scan leftovers: core probe off the GUI thread, virtualized library grid, save errors on stop.
 - Open: save slots rename and delete (Player and Hub); block save upload while a session of that game runs.
-- Open: invite link port fix.
-- Open: Hub library entries delete and rename (row actions, moved out of "Later").
+- [x] Done: invite link port fix: `-public-host` (env, Settings → Network) accepts an optional external port (`hub.example.org:8443`, IPv6 in brackets) that invite links and the Player address use; TURN/STUN keep the host part.
+- [x] Done: Hub library entries: Rename and Delete as row actions in the web UI (inline forms, admin only, web only, no API change); deleting keeps the saves.
 - Open: fix Dependabot PR #96.
 - Open: "Collect logs/diagnostics" bundle.
 - Open: the Player updates cores in the background without starting a game.
@@ -375,7 +375,7 @@ Decided by Fabio on 2026-10-11.
 ## Later, only on demand
 
 - Save States, remote control/input for viewers, netplay, emulation settings sync, StandaloneBackend.
-- Further library features: paging (row actions delete and rename are scheduled in 0.10.x).
+- Further library features: paging (row actions delete and rename are done in 0.10.x).
 - Remaining Nintendo systems from NES to GameCube/Wii (Fabio, 2026-10-07), as plain buildbot cores after 0.10, rendered with OpenGL first: NES, SNES, N64, Virtual Boy (GB, GBC and GBA are scheduled in 0.14) and GameCube/Wii (Dolphin; the libretro port lags upstream). N64 and GameCube/Wii build on the hardware rendering from 0.5.
 - Plugin follow-ups (Fabio, 2026-10-11; plugin-specific plans live in the plugin repositories): more Pokémon generations for the official plugins, in the order Gen 7 (Sun/Moon, Ultra Sun/Ultra Moon), Gen 4/5 (NDS), Gen 3 and Gen 1/2 (the last two need the GB, GBC and GBA systems with mGBA from 0.14); a Pokémon editor plugin and a cheats plugin (both need `memory.write`, which the API describes but the first release does not build); a randomizer plugin (tool plugin, signed official only, deferred, not dropped; until then randomized ROMs are made externally). Gen 8 (Switch) is out of scope: no libretro core.
 - Afterwards Vulkan hardware rendering next to OpenGL (Fabio, 2026-10-07), so cores that offer both can be switched per core option in the Emulation settings.

@@ -537,3 +537,5 @@ form.pin input { font-size: 12px; }
 .invite-link { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .invite-link input { width: 100%; padding: 6px 8px; border: 1px solid var(--border-input); border-radius: 6px; background: var(--surface); color: var(--text); font-size: 12px; }
 .steps { padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.row-panel td { padding: 4px 16px 14px; background: var(--surface); }
+.row-panel .confirm { max-width: 640px; }

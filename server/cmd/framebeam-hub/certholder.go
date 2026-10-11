@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/phabioo/framebeam/server/internal/config"
 	"github.com/phabioo/framebeam/server/internal/tlsutil"
 )
 
@@ -74,4 +75,14 @@ func publicPort(listen string) int {
 		return 0
 	}
 	return n
+}
+
+// publicAddress is the host and external port for user-facing Hub URLs (invite links): the host part of
+// -public-host, and the port given there (router forwards another external port) or else the listen port.
+func publicAddress(c config.Config) (string, int) {
+	port := publicPort(c.Listen)
+	if p := c.PublicHostPort(); p > 0 {
+		port = p
+	}
+	return c.PublicHostName(), port
 }

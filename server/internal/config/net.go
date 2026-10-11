@@ -367,10 +367,77 @@ func webPort(name string, p int) error {
 }
 
 func checkHost(h string) error {
-	if strings.ContainsAny(h, "/ :@?#") || len(h) > 253 {
-		return netErr("The public host must be a host name or IPv4 address without port or scheme, like hub.example.com")
+	if _, _, err := SplitPublicHost(h); err != nil {
+		return netErr("The public host must be a host name or IP address with an optional port, like hub.example.com or hub.example.com:8443 (no scheme or path)")
 	}
 	return nil
+}
+
+// SplitPublicHost splits a public host value "host" or "host:port" (IPv6 literals in brackets, "[::1]:8443")
+// into the host part (without brackets) and the external port (0: none given). The empty string is valid.
+func SplitPublicHost(v string) (host string, port int, err error) {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return "", 0, nil
+	}
+	if len(v) > 260 || strings.ContainsAny(v, "/ \t\r\n@?#\\") {
+		return "", 0, errors.New("invalid public host")
+	}
+	hostPart, portPart := v, ""
+	switch {
+	case strings.HasPrefix(v, "["):
+		end := strings.Index(v, "]")
+		if end < 0 {
+			return "", 0, errors.New("invalid public host")
+		}
+		host = v[1:end]
+		if ip := net.ParseIP(host); ip == nil || ip.To4() != nil {
+			return "", 0, errors.New("invalid IPv6 address")
+		}
+		rest := v[end+1:]
+		if rest == "" {
+			return host, 0, nil
+		}
+		if !strings.HasPrefix(rest, ":") {
+			return "", 0, errors.New("invalid public host")
+		}
+		portPart = rest[1:]
+		hostPart = ""
+	case strings.Count(v, ":") == 1:
+		i := strings.Index(v, ":")
+		hostPart, portPart = v[:i], v[i+1:]
+	case strings.Contains(v, ":"):
+		return "", 0, errors.New("IPv6 addresses need brackets")
+	}
+	if hostPart != "" {
+		if len(hostPart) > 253 {
+			return "", 0, errors.New("invalid public host")
+		}
+		host = hostPart
+	}
+	if host == "" {
+		return "", 0, errors.New("invalid public host")
+	}
+	if portPart != "" || strings.HasSuffix(v, ":") {
+		n, perr := strconv.Atoi(portPart)
+		if perr != nil || n < 1 || n > 65535 {
+			return "", 0, errors.New("invalid port")
+		}
+		port = n
+	}
+	return host, port, nil
+}
+
+// PublicHostName is the host part of PublicHost (what TURN/STUN URLs use).
+func (c Config) PublicHostName() string {
+	h, _, _ := SplitPublicHost(c.PublicHost)
+	return h
+}
+
+// PublicHostPort is the external port given in PublicHost, 0 when none.
+func (c Config) PublicHostPort() int {
+	_, p, _ := SplitPublicHost(c.PublicHost)
+	return p
 }
 
 // ValidateSTUNURL checks one external STUN server URL.
