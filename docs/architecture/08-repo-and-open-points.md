@@ -13,7 +13,7 @@ framebeam/
 ├── client/       # app, core, emulation, media, network, ui
 ├── server/
 ├── protocol/     # openapi, schemas
-├── packaging/    # windows, linux, macos
+├── packaging/    # windows, linux
 └── docs/
 ```
 
@@ -23,7 +23,7 @@ Still to be specified are the concrete encoder/decoder integration, API endpoint
 
 Planned, not part of the PoC (the PoC packaging stays Windows installer and systemd unit, see `docs/workflow.md`). Target: see `docs/roadmap.md` (updates are version 0.3, cores from the Hub 0.2).
 
-- **Installers:** per platform for both products. Player: Windows installer, Linux package, macOS app bundle/dmg. Hub: Linux packages including ARM64 (Raspberry Pi) with systemd unit; Windows/macOS service later.
+- **Installers:** per platform for both products. Player: Windows installer; Linux package after 1.0. Hub: Linux packages including ARM64 (Raspberry Pi) with systemd unit; Windows service since 0.9. macOS is dropped (decided by Fabio on 2026-10-11).
 - **Install layout (resolved by [ADR 0011](../adr/0011-automatic-updates.md) D7: launcher plus `bin\` subfolder, Hub as .deb):** the Player no longer ships as a loose folder of DLLs; runtime libraries live in a subfolder, not the top level. Player data stays in the portable data directory (ADR 0004).
 - **Integrated updater (Hub and Player):** checks for new FrameBeam releases (common release), shows the available version, downloads, verifies and applies only after user confirmation. Signing is mandatory: only packages with a valid signature from a trusted FrameBeam release key are applied (or, alternatively, a digest delivered over an independently authenticated channel); a hash from the same feed alone is never sufficient. Player/Hub compatibility is checked via the existing handshake (`protocol_version`).
 - **User content and migrations:** an update preserves user content (saves, ROMs, library, users, settings). The Hub runs embedded SQLite schema migrations on open; it backs up its database before applying an update that migrates the schema. Migrations are forward-only, so a binary rollback after a migration is only safe together with restoring that backup.

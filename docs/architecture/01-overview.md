@@ -5,7 +5,7 @@ Basis: architecture discussion "Concept for retro streaming".
 
 ## 1. Goal and basic principle
 
-FrameBeam combines a central ROM library and versioned saves with local emulation and the sharing of running Sessions. FrameBeam Player and FrameBeam Hub are meant to be lightweight, performant and usable long-term on Windows, Linux and macOS. Further emulators should be addable without a fundamental rework.
+FrameBeam combines a central ROM library and versioned saves with local emulation and the sharing of running Sessions. FrameBeam Player and FrameBeam Hub are meant to be lightweight, performant and usable long-term on Windows and Linux (macOS is not planned, decided by Fabio on 2026-10-11). Further emulators should be addable without a fundamental rework.
 
 > **The Hub manages. The Player emulates. Audio and video flow directly between Players wherever possible.**
 
