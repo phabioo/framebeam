@@ -225,7 +225,76 @@ func (s *Service) buildURL(p corePlatform, file string) string {
 
 // CoreSyncReport summarizes one catalog refresh.
 type CoreSyncReport struct {
-	Cores int // cores with at least one build
+	Cores         int           // cores with at least one build
+	Updated       []CoreUpdated // cores auto-updated after the refresh
+	UpdateErrors  []string      // per-core auto-update failures ("system/core: reason")
+	AutoUpdateRan bool          // auto-update was enabled and the refresh succeeded
+}
+
+// CoreUpdated is one core installed to a newer build by the automatic update.
+type CoreUpdated struct {
+	SystemID, CoreID, Version string
+}
+
+// CoreAutoUpdate reports whether newer buildbot builds are installed automatically after each catalog refresh
+// (default on).
+func (s *Service) CoreAutoUpdate(ctx context.Context) (bool, error) {
+	v, ok, err := s.getSetting(ctx, settingCoreAutoUpdate)
+	if err != nil {
+		return false, err
+	}
+	return !ok || v != "0", nil
+}
+
+// SetCoreAutoUpdate switches the automatic core update on or off. Turning it on kicks a sync so pending updates
+// apply promptly.
+func (s *Service) SetCoreAutoUpdate(ctx context.Context, on bool) (err error) {
+	defer s.publishOK(&err, TopicSystems)
+	v := "0"
+	if on {
+		v = "1"
+	}
+	if err := s.setSetting(ctx, settingCoreAutoUpdate, v); err != nil {
+		return err
+	}
+	if on {
+		s.TriggerCoreSync()
+	}
+	return nil
+}
+
+// autoUpdateCores updates every installed core that has a newer catalog build, with the UpdateCore safeguards.
+// One failing core does not stop the others; failures are recorded in the settings and returned in rep.
+func (s *Service) autoUpdateCores(ctx context.Context, rep *CoreSyncReport) {
+	entries, err := s.ListRegistry(ctx)
+	if err != nil {
+		rep.UpdateErrors = append(rep.UpdateErrors, "list systems: "+err.Error())
+	}
+	for _, e := range entries {
+		sc, err := s.SystemCores(ctx, e.ID)
+		if err != nil {
+			rep.UpdateErrors = append(rep.UpdateErrors, e.ID+": "+err.Error())
+			continue
+		}
+		for _, c := range sc.Installed {
+			if !c.UpdateAvailable || ctx.Err() != nil {
+				continue
+			}
+			ic, err := s.UpdateCore(ctx, e.ID, c.CoreID)
+			switch {
+			case err == nil:
+				rep.Updated = append(rep.Updated, CoreUpdated{SystemID: e.ID, CoreID: c.CoreID, Version: ic.Version})
+			case errors.Is(err, errUnchangedBuild):
+			default:
+				rep.UpdateErrors = append(rep.UpdateErrors, e.ID+"/"+c.CoreID+": "+err.Error())
+			}
+		}
+	}
+	msg := ""
+	if len(rep.UpdateErrors) > 0 {
+		msg = cleanText(strings.Join(rep.UpdateErrors, "; "), 500)
+	}
+	s.setCoreState(ctx, settingCoreAutoUpdateLastError, msg)
 }
 
 // RefreshCatalog fetches info.zip and the .index-extended of every served platform and replaces the catalog.
@@ -314,6 +383,12 @@ func (s *Service) RunCoreSync(ctx context.Context, every time.Duration, report f
 	defer t.Stop()
 	do := func() {
 		rep, err := s.RefreshCatalog(ctx)
+		if err == nil {
+			if on, gerr := s.CoreAutoUpdate(ctx); gerr == nil && on {
+				rep.AutoUpdateRan = true
+				s.autoUpdateCores(ctx, &rep)
+			}
+		}
 		if report != nil && ctx.Err() == nil {
 			report(rep, err)
 		}
