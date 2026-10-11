@@ -29,8 +29,11 @@ A flag wins over the environment variable. Under systemd the variables live in `
 | `-name` | `FRAMEBEAM_NAME` | empty | Hub name, first start only |
 | `-tls-cert`, `-tls-key` | `FRAMEBEAM_TLS_CERT`, `FRAMEBEAM_TLS_KEY` | empty | Own certificate and key (PEM), only together |
 | `-dev` | `FRAMEBEAM_DEV` | off | HTTP instead of HTTPS; excludes `-tls-cert` |
-| `-ice-servers` | `FRAMEBEAM_ICE_SERVERS` | none | Comma-separated `stun:` URLs; a LAN needs none |
+| `-ice-servers` | `FRAMEBEAM_ICE_SERVERS` | `stun:stun.cloudflare.com:3478` | Comma-separated `stun:` URLs; `none` = no external STUN |
 | `-turn` | `FRAMEBEAM_TURN` | off | Embedded STUN/TURN relay; needs `-public-host` |
+| `-cloudflare-turn-key-id` | `FRAMEBEAM_CLOUDFLARE_TURN_KEY_ID` | none | Cloudflare Realtime TURN key (optional relay next to `-turn`) |
+| `-cloudflare-turn-token-file` | `FRAMEBEAM_CLOUDFLARE_TURN_TOKEN_FILE` | none | File holding the Cloudflare API token (alternative to the token variable) |
+| (env only) | `FRAMEBEAM_CLOUDFLARE_TURN_API_TOKEN` | none | Cloudflare API token; wins over the token file |
 | `-public-host` | `FRAMEBEAM_PUBLIC_HOST` | empty | DNS name or IPv4 of the Hub's public address |
 | `-turn-port` | `FRAMEBEAM_TURN_PORT` | `3478` | TURN UDP and TCP port |
 | `-turn-relay-ports` | `FRAMEBEAM_TURN_RELAY_PORTS` | `49160-49199` | TURN UDP relay range `min-max` |
@@ -49,6 +52,10 @@ A flag wins over the environment variable. Under systemd the variables live in `
 `0` for a `-save-keep-*` rule means unlimited for that rule. Invalid combinations (for example `-turn` without `-public-host`, a `-public-host` containing `/` or spaces, a non-`stun:` ICE URL, a non-IPv4 `-turn-relay-ip`) stop the start with an error.
 
 ### TURN security
+
+**STUN and ICE updates.** Without a configured STUN list the Hub hands Players `stun:stun.cloudflare.com:3478`, so they learn their public address even when the Hub itself sits in a LAN. Set `-ice-servers none` (or "Use no external server" in Settings → Network) for a purely local setup; adding a server in Settings replaces the default. Whenever the effective ICE configuration changes (STUN list, embedded TURN on/off, Cloudflare credentials refreshed) the Hub sends every connected Player an `ice_update` message (feature `ice_update_v1`), so no reconnect is needed.
+
+**Cloudflare TURN (optional).** As a relay without port forwarding: create a TURN key in the Cloudflare dashboard (Realtime → TURN), set `FRAMEBEAM_CLOUDFLARE_TURN_KEY_ID` and put the key's API token in `FRAMEBEAM_CLOUDFLARE_TURN_API_TOKEN` or in a file readable only by the Hub (`-cloudflare-turn-token-file /etc/framebeam/cloudflare-turn.token`, mode 0600). The token is never accepted as a flag value, never logged, never written to the database or shown in Settings. The Hub requests 24 h credentials, refreshes them at half the TTL and offers them to Players in addition to the embedded TURN; URLs on port 53 are dropped. On errors it logs one warning per failure streak (without token or response body), retries with backoff and keeps the embedded TURN working. It stays off while Network sharing is off.
 
 With `-turn`, forwarding the TURN ports exposes only the TURN port (`-turn-port`, 3478 UDP and TCP by default) and the UDP relay range (`-turn-relay-ports`). The relay works only with short-lived (12 h) credentials that the Hub issues to paired, non-revoked devices; every TURN authentication re-checks the device. Relay targets in internal address ranges (private LAN, CGNAT, ULA, loopback, link-local and similar) are refused, except the address of a Player currently connected to the Hub, so a remote Player can still reach a Player in the Hub's LAN. Limits: UDP allocations only, at most 10 concurrent allocations per device and 64 concurrent TURN TCP connections. Decisions: [ADR 0012](../adr/0012-internet-sessions-and-save-comfort.md).
 

@@ -31,7 +31,7 @@ func requestRestart() {
 // (the hub.env value stays) and reported as an issue; if the result is contradictory the whole base is used.
 func effectiveConfig(base *config.Config, stored map[string]string, log *slog.Logger) (config.Config, []web.NetIssue) {
 	eff := *base
-	eff.ICEServers = append([]string(nil), base.ICEServers...)
+	eff.ICEServers = config.CloneICE(base.ICEServers)
 	var issues []web.NetIssue
 	for k, err := range eff.ApplyNet(stored) {
 		log.Error("saved network setting ignored", "setting", k, "err", err)
@@ -43,7 +43,7 @@ func effectiveConfig(base *config.Config, stored map[string]string, log *slog.Lo
 		issues = append(issues, web.NetIssue{Key: "", Value: "",
 			Message: fmt.Sprintf("The saved network settings are contradictory (%v). The hub uses the values from hub.env until you change them.", err)})
 		eff = *base
-		eff.ICEServers = append([]string(nil), base.ICEServers...)
+		eff.ICEServers = config.CloneICE(base.ICEServers)
 	}
 	return eff, issues
 }

@@ -87,8 +87,11 @@ class DiagnosticsModel : public QObject {
   // Viewer line 2: "Decoder h264 · H.264 · 3.9 Mbit/s · 59.7 fps"; missing values show "—" (older Players).
   static QString decoderLine(const QString& decoder, std::optional<double> kbps, std::optional<double> fps);
   // Line 3 of a viewer or remote host: "RTT 48 ms · Loss 0.4 % · via hub.example.com:3478" (via only when relayed).
+  // A relayed link appends the reason ("... · via hub.example.com:3478 · no STUN reachable on this side").
   static QString linkLine(std::optional<double> rttMs, std::optional<double> lossPercent, const QString& connectionType,
-                          const QString& turnEndpoint);
+                          const QString& turnEndpoint, RelayReason reason = RelayReason::None);
+  // Short reason for a relayed connection, empty for RelayReason::None.
+  static QString relayReasonText(RelayReason reason);
   // "host:port" of the first TURN URL ("turn:hub.example.com:3478?transport=udp"), empty if there is none.
   static QString turnEndpoint(const QList<TurnServer>& servers);
   static QVariantMap participant(const QString& name, const QString& role, const Pill& pill, const QString& line2, const QString& line3);

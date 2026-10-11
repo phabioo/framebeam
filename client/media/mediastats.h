@@ -4,6 +4,8 @@
 #include <QtGlobal>
 #include <optional>
 
+#include "connectionpath.h"
+
 namespace framebeam {
 
 // Diagnostics of one side of a Session (ADR 0006 D6). Plain struct; "unavailable" values are std::nullopt / empty.
@@ -13,6 +15,7 @@ struct ViewerLinkStats {
   QString state;  // new | connecting | connected | disconnected | failed | closed
   std::optional<double> rttMs;
   QString connectionType;  // "direct (host|srflx|prflx)" | "relay (udp|tcp)" | empty (unknown), see rtcutil.h
+  RelayReason relayReason = RelayReason::None;  // why the path is relayed (None when direct or unknown), see connectionpath.h
   // Host side: the latest rx report this viewer sent over fb-diag (ADR 0012 D5, 0.6 D7). hasReport = false until the
   // first one arrives; fps and decoder stay unset for Players that do not send them yet.
   bool hasReport = false;
@@ -35,6 +38,7 @@ struct SessionStats {
   std::optional<double> rttMs;                // nullopt: unavailable
   QString connectionType;        // selected candidate pair: "direct (host)" | "direct (srflx)" | "direct (prflx)" | "relay (udp)" |
                                  // "relay (tcp)" | empty (unknown). Host: the worst of its viewers (relay > srflx/prflx > host).
+  RelayReason relayReason = RelayReason::None;  // viewer: reason for a relayed path; host: see ViewerLinkStats per viewer
   double targetBitrateKbps = 0.0; // host: current AIMD target of the encoder (ADR 0012 D5), 0 while the encoder is off
   std::optional<double> packetLossPercent;    // viewer: from RTP sequence numbers; host: unavailable
   int viewers = 0;               // host: connected viewers

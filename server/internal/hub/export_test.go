@@ -62,3 +62,18 @@ func CleanTextForTest(v string, max int) string { return cleanText(v, max) }
 func CheckCoresForTest(reg []SystemEntry, cores []CoreReport) []Problem {
 	return checkCores(reg, cores)
 }
+
+// CloudflareTURNURLs returns the TURN URLs of the cached Cloudflare credentials (tests only).
+func (s *Service) CloudflareTURNURLs() []string {
+	_, c := s.cf.current()
+	if c == nil {
+		return nil
+	}
+	return c.URLs
+}
+
+// ICEServersFor returns the ice_servers a device would get (tests only).
+func (s *Service) ICEServersFor(reqHost, deviceID string) []string {
+	ice, _ := s.iceFor(reqHost, deviceID)
+	return ice
+}

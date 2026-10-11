@@ -611,7 +611,7 @@ type HandshakeRequest_Video struct {
 type HandshakeResponse struct {
 	Compatible bool `json:"compatible"`
 
-	// Features Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = the Hub's embedded TURN server is on (`turn_servers` in `hello_ack` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`), `saves_v4` = uploading a save file into a slot (`POST /games/{game_id}/saves/{slot}/upload`), `cores_v2` = several cores per system (`default_core_id` and `cores` in `SystemInfo`; core ids follow `^[a-z0-9][a-z0-9_-]{0,63}$`). `cores_index_v1` (signed core index) existed in 0.4 to 0.7 and was removed in 0.8.
+	// Features Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = at least one relay provider is on (the embedded TURN server and/or Cloudflare TURN; `turn_servers` in `hello_ack`, `ice_update` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`), `saves_v4` = uploading a save file into a slot (`POST /games/{game_id}/saves/{slot}/upload`), `cores_v2` = several cores per system (`default_core_id` and `cores` in `SystemInfo`; core ids follow `^[a-z0-9][a-z0-9_-]{0,63}$`), `ice_update_v1` = the Hub pushes the WSS message `ice_update` whenever its effective ICE configuration changes. `cores_index_v1` (signed core index) existed in 0.4 to 0.7 and was removed in 0.8.
 	Features           *[]string          `json:"features,omitempty"`
 	HubVersion         string             `json:"hub_version"`
 	MinProtocolVersion int                `json:"min_protocol_version"`
@@ -914,11 +914,11 @@ type SessionInviteInfoState string
 
 // SessionJoinResponse defines model for SessionJoinResponse.
 type SessionJoinResponse struct {
-	// IceServers `stun:` URLs from the Hub config (default empty: host candidates suffice on a LAN), plus the Hub's own STUN when TURN is on
+	// IceServers `stun:` URLs from the Hub config (default `stun:stun.cloudflare.com:3478`, empty with `-ice-servers none`), plus the Hub's own STUN when the embedded TURN server is on
 	IceServers  []string           `json:"ice_servers"`
 	Permissions SessionPermissions `json:"permissions"`
 
-	// TurnServers Optional relay credentials; present only when the Hub's TURN server is on (`turn_v1`)
+	// TurnServers Optional relay credentials from every active relay provider (embedded TURN and/or Cloudflare TURN); present only while a provider is on (`turn_v1`)
 	TurnServers *[]TurnServer      `json:"turn_servers,omitempty"`
 	ViewerId    openapi_types.UUID `json:"viewer_id"`
 }
@@ -1035,7 +1035,7 @@ type TokenResponse struct {
 // TokenResponseTokenType defines model for TokenResponse.TokenType.
 type TokenResponseTokenType string
 
-// TurnServer Short-lived relay credentials for the Hub's embedded TURN server (`turn_v1`, TURN REST API scheme).
+// TurnServer Short-lived relay credentials from a relay provider of the Hub (`turn_v1`), either the embedded TURN server (TURN REST API scheme) or Cloudflare TURN.
 type TurnServer struct {
 	Credential string    `json:"credential"`
 	ExpiresAt  time.Time `json:"expires_at"`

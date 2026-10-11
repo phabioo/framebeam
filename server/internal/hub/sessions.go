@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/phabioo/framebeam/server/internal/config"
 	"github.com/phabioo/framebeam/server/internal/turnsrv"
 )
 
@@ -105,7 +106,7 @@ type JoinResult struct {
 	Permissions ViewerPermissions
 	ICEServers  []string
 	// TURN holds relay credentials while the embedded TURN server is on.
-	TURN *turnsrv.Credentials
+	TURN []turnsrv.Credentials
 }
 
 // UserPresence is a user with online state (GET /users).
@@ -537,9 +538,8 @@ func (s *Service) JoinSession(ctx context.Context, p Principal, id string) (Join
 		"display_name": p.User.DisplayName, "device_name": p.Device.Name}
 	if oc := s.clientOf(before.ownerDeviceID); oc != nil {
 		// Fresh relay credentials for the owner (its hello_ack ones may have expired); host = the owner's WSS request host.
-		if _, creds := s.turnFor(oc.reqHost, before.ownerDeviceID); creds != nil {
-			joined["turn_servers"] = []map[string]any{{"urls": creds.URLs, "username": creds.Username, "credential": creds.Credential,
-				"expires_at": creds.ExpiresAt.UTC().Format(time.RFC3339)}}
+		if _, creds := s.relaysFor(oc.reqHost, before.ownerDeviceID); len(creds) > 0 {
+			joined["turn_servers"] = turnPayload(creds)
 		}
 	}
 	s.sendTo(before.ownerDeviceID, "viewer_joined", joined)
@@ -590,11 +590,12 @@ func (s *Service) UsersWithPresence(ctx context.Context) ([]UserPresence, error)
 	return out, nil
 }
 
-// ICEServers returns the configured stun: URLs (never nil).
+// ICEServers returns the effective external stun: URLs (never nil): the configured list, or the default STUN
+// server when none is configured; empty only for an explicit "none".
 func (s *Service) ICEServers() []string {
 	s.sess.iceMu.RLock()
 	defer s.sess.iceMu.RUnlock()
-	return append([]string{}, s.sess.ice...)
+	return config.EffectiveICE(s.sess.ice)
 }
 
 // ---- shared mutation helpers (caller holds sess.mu) ----

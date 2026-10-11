@@ -283,7 +283,7 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 
 	// Values from hub.env and flags; the values saved on the web interface (Settings > Network) win over them.
 	base := *cfg
-	base.ICEServers = append([]string(nil), cfg.ICEServers...)
+	base.ICEServers = config.CloneICE(cfg.ICEServers)
 
 	svc, closeFn, err := openService(ctx, cfg)
 	if err != nil {
@@ -336,6 +336,21 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 			eff.TURN = false
 		default:
 			return err
+		}
+	}
+
+	if cfg.CloudflareTURNKeyID != "" {
+		if !eff.NetworkSharing {
+			log.Info("Cloudflare TURN stays off while Network sharing is off")
+		} else {
+			token, err := cfg.CloudflareTURNToken(os.Getenv)
+			if err != nil {
+				log.Warn("Cloudflare TURN stays off: API token unavailable", "err", err)
+			} else {
+				svc.StartCloudflareTURN(ctx, hub.CloudflareTURNOptions{KeyID: cfg.CloudflareTURNKeyID, Token: token,
+					BaseURL: cfg.CloudflareTURNBaseURL, Log: log})
+				log.Info("Cloudflare TURN relay enabled", "key_id", cfg.CloudflareTURNKeyID)
+			}
 		}
 	}
 

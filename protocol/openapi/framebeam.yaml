@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
   title: FrameBeam Hub API
-  version: 1.10.0
+  version: 1.11.0
   description: |
-    HTTPS/JSON API of the FrameBeam Hub (phase 1; phase 3 adds save sync under `saves`, advertised by the handshake feature `saves_v1`; phase 4 adds Session sharing under `sessions` and the WSS endpoint, advertised by the handshake feature `sessions_v1`; phase 5 adds invite redemption under `users` (`users_v1`), user ROM uploads (`uploads_v1`, only advertised when the caller may upload) and the systems registry with firmware download under `systems` (`firmware_v1`); 0.2 adds core packages served by the Hub under `cores` (`cores_v1`); 0.4 adds relay credentials for Sessions over the internet (`turn_v1`, `turn_servers` in `hello_ack` and the join response), save comfort (`saves_v2`: restore, manual snapshots, history labels, the `save_updated` WSS message) and the signed core index for Player-side verification (`cores_index_v1`, `/api/v1/cores/index`, removed again in 0.8); 0.7 adds deleting manual snapshots (`saves_v3`) and the optional `user` in the handshake response; 0.8 adds uploading a save file from outside the sync flow (`saves_v4`, `POST /games/{game_id}/saves/{slot}/upload`); 0.8 also adds several cores per system from the libretro buildbot (`cores_v2`: `default_core_id` and `cores` in `SystemInfo`, core ids `^[a-z0-9][a-z0-9_-]{0,63}$`) and removes `cores_index_v1` and its endpoints `/api/v1/cores/index{,.sig}`); 0.9 adds the local setup endpoints under `local` for a Player on the same PC as the Hub (`local_setup_v1`, loopback callers only). `protocol_version` is an integer (starting at 1),
+    HTTPS/JSON API of the FrameBeam Hub (phase 1; phase 3 adds save sync under `saves`, advertised by the handshake feature `saves_v1`; phase 4 adds Session sharing under `sessions` and the WSS endpoint, advertised by the handshake feature `sessions_v1`; phase 5 adds invite redemption under `users` (`users_v1`), user ROM uploads (`uploads_v1`, only advertised when the caller may upload) and the systems registry with firmware download under `systems` (`firmware_v1`); 0.2 adds core packages served by the Hub under `cores` (`cores_v1`); 0.4 adds relay credentials for Sessions over the internet (`turn_v1`, `turn_servers` in `hello_ack` and the join response), save comfort (`saves_v2`: restore, manual snapshots, history labels, the `save_updated` WSS message) and the signed core index for Player-side verification (`cores_index_v1`, `/api/v1/cores/index`, removed again in 0.8); 0.7 adds deleting manual snapshots (`saves_v3`) and the optional `user` in the handshake response; 0.8 adds uploading a save file from outside the sync flow (`saves_v4`, `POST /games/{game_id}/saves/{slot}/upload`); 0.8 also adds several cores per system from the libretro buildbot (`cores_v2`: `default_core_id` and `cores` in `SystemInfo`, core ids `^[a-z0-9][a-z0-9_-]{0,63}$`) and removes `cores_index_v1` and its endpoints `/api/v1/cores/index{,.sig}`); 0.9 adds the local setup endpoints under `local` for a Player on the same PC as the Hub (`local_setup_v1`, loopback callers only); 0.10 adds the WSS message `ice_update` (`ice_update_v1`) so connected Players receive changed `ice_servers`/`turn_servers`, a default STUN list, and optional Cloudflare TURN next to the embedded TURN server. `protocol_version` is an integer (starting at 1),
     separate from the hub/player product version. All paths carry the `/api/v1` prefix explicitly;
     only the info endpoint lives under `/.well-known/framebeam`.
     Compatibility: Player.protocol_version < Hub.min_protocol_version -> player_too_old;
@@ -412,7 +412,7 @@ paths:
                     min_protocol_version: 1
                     compatible: true
                     problems: []
-                    features: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1, cores_v1, turn_v1, saves_v2, saves_v3, saves_v4, cores_v2, local_setup_v1]
+                    features: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1, cores_v1, turn_v1, saves_v2, saves_v3, saves_v4, cores_v2, local_setup_v1, ice_update_v1]
                 core_missing:
                   description: Warning only, `compatible` stays true (launch allowed; the Player shows the problem)
                   value:
@@ -1440,7 +1440,10 @@ paths:
         Upgrade to WebSocket with the access token as Bearer header. Messages are JSON text frames in the envelope
         `{type, id?, payload}`; every message type has a schema (`ws-<type>.schema.json`) and an example in
         `protocol/schemas/`. The first client message must be `hello`; the Hub answers `hello_ack` (features,
-        `ice_servers`). The Hub sends a WebSocket ping every 20 s. The connection stays valid until the device is revoked.
+        `ice_servers`, `turn_servers`). With `ice_update_v1` the Hub pushes `ice_update` (`ice_servers`, `turn_servers?`, the ICE part of
+        `hello_ack`) to every connected Player whenever its effective ICE configuration changes; the Player uses the new lists for
+        PeerConnections created afterwards. Message types: `hello`, `hello_ack`, `presence_update`, `session_update`, `save_updated`,
+        `session_ended`, `session_invite`, `viewer_joined`, `viewer_left`, `signal`, `ice_update`, `error`. The Hub sends a WebSocket ping every 20 s. The connection stays valid until the device is revoked.
       security:
         - bearerAuth: []
       responses:
@@ -1941,9 +1944,9 @@ components:
           items: { $ref: '#/components/schemas/HandshakeProblem' }
         features:
           type: array
-          description: Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = the Hub's embedded TURN server is on (`turn_servers` in `hello_ack` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`), `saves_v4` = uploading a save file into a slot (`POST /games/{game_id}/saves/{slot}/upload`), `cores_v2` = several cores per system (`default_core_id` and `cores` in `SystemInfo`; core ids follow `^[a-z0-9][a-z0-9_-]{0,63}$`). `cores_index_v1` (signed core index) existed in 0.4 to 0.7 and was removed in 0.8.
+          description: Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = at least one relay provider is on (the embedded TURN server and/or Cloudflare TURN; `turn_servers` in `hello_ack`, `ice_update` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`), `saves_v4` = uploading a save file into a slot (`POST /games/{game_id}/saves/{slot}/upload`), `cores_v2` = several cores per system (`default_core_id` and `cores` in `SystemInfo`; core ids follow `^[a-z0-9][a-z0-9_-]{0,63}$`), `ice_update_v1` = the Hub pushes the WSS message `ice_update` whenever its effective ICE configuration changes. `cores_index_v1` (signed core index) existed in 0.4 to 0.7 and was removed in 0.8.
           items: { type: string }
-          example: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1, cores_v1, turn_v1, saves_v2, saves_v3, saves_v4, cores_v2, local_setup_v1]
+          example: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1, cores_v1, turn_v1, saves_v2, saves_v3, saves_v4, cores_v2, local_setup_v1, ice_update_v1]
         user:
           $ref: '#/components/schemas/HandshakeUser'
     HandshakeUser:
@@ -2087,7 +2090,7 @@ components:
         label: { type: string, maxLength: 64 }
     TurnServer:
       type: object
-      description: Short-lived relay credentials for the Hub's embedded TURN server (`turn_v1`, TURN REST API scheme).
+      description: Short-lived relay credentials from a relay provider of the Hub (`turn_v1`), either the embedded TURN server (TURN REST API scheme) or Cloudflare TURN.
       required: [urls, username, credential, expires_at]
       properties:
         urls:
@@ -2180,11 +2183,11 @@ components:
         permissions: { $ref: '#/components/schemas/SessionPermissions' }
         ice_servers:
           type: array
-          description: '`stun:` URLs from the Hub config (default empty: host candidates suffice on a LAN), plus the Hub''s own STUN when TURN is on'
+          description: '`stun:` URLs from the Hub config (default `stun:stun.cloudflare.com:3478`, empty with `-ice-servers none`), plus the Hub''s own STUN when the embedded TURN server is on'
           items: { type: string }
         turn_servers:
           type: array
-          description: Optional relay credentials; present only when the Hub's TURN server is on (`turn_v1`)
+          description: Optional relay credentials from every active relay provider (embedded TURN and/or Cloudflare TURN); present only while a provider is on (`turn_v1`)
           items: { $ref: '#/components/schemas/TurnServer' }
     UserInfo:
       type: object

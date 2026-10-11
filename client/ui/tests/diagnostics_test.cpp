@@ -188,6 +188,16 @@ class DiagnosticsTest : public QObject {
     QCOMPARE(DiagnosticsModel::linkLine(48.0, 0.4, QStringLiteral("direct (host)"), QString()), QStringLiteral("RTT 48 ms · Loss 0.4 %"));
     QCOMPARE(DiagnosticsModel::linkLine(std::nullopt, std::nullopt, QStringLiteral("relay (udp)"), QStringLiteral("hub.example.com:3478")),
              QStringLiteral("RTT — · Loss — · via hub.example.com:3478"));
+    // A relayed link names the reason; direct links and RelayReason::None stay unchanged.
+    QCOMPARE(DiagnosticsModel::linkLine(10.0, 0.0, QStringLiteral("relay (udp)"), QStringLiteral("hub.example.com:3478"), RelayReason::NoLocalSrflx),
+             QStringLiteral("RTT 10 ms · Loss 0.0 % · via hub.example.com:3478 · no STUN reachable on this side"));
+    QCOMPARE(DiagnosticsModel::linkLine(10.0, 0.0, QStringLiteral("relay (tcp)"), QString(), RelayReason::Forced),
+             QStringLiteral("RTT 10 ms · Loss 0.0 % · relay forced"));
+    QCOMPARE(DiagnosticsModel::linkLine(10.0, 0.0, QStringLiteral("direct (srflx)"), QString(), RelayReason::DirectFailed),
+             QStringLiteral("RTT 10 ms · Loss 0.0 %"));
+    QVERIFY(DiagnosticsModel::relayReasonText(RelayReason::None).isEmpty());
+    QVERIFY(!DiagnosticsModel::relayReasonText(RelayReason::NoRemoteSrflx).isEmpty());
+    QVERIFY(!DiagnosticsModel::relayReasonText(RelayReason::DirectFailed).isEmpty());
     TurnServer t;
     t.urls = {QStringLiteral("turn:hub.example.com:3478?transport=udp")};
     QCOMPARE(DiagnosticsModel::turnEndpoint({t}), QStringLiteral("hub.example.com:3478"));
