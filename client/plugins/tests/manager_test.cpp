@@ -55,9 +55,11 @@ class ManagerTest : public QObject {
     f.write("-- v2");
     f.close();
     QVERIFY(m.installFromFolder(dir).ok);
-    QFile in(root.path() + "/installed/net.test.one/main.lua");
-    in.open(QIODevice::ReadOnly);
-    QCOMPARE(in.readAll(), QByteArray("-- v2"));
+    {  // closed before uninstall: an open file blocks removing the folder on Windows
+      QFile in(root.path() + "/installed/net.test.one/main.lua");
+      QVERIFY(in.open(QIODevice::ReadOnly));
+      QCOMPARE(in.readAll(), QByteArray("-- v2"));
+    }
     QVERIFY(m.list().first().enabled);
 
     QDir().mkpath(root.path() + "/cache/net.test.one");

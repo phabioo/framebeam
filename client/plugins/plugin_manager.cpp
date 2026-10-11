@@ -277,7 +277,12 @@ bool PluginManager::uninstall(const QString& id) {
   // Only plain ids below installed/ (an id from the UI must never walk out of it).
   if (id.contains(QLatin1Char('/')) || id.contains(QLatin1String("..")) || !fi.isDir()) return false;
   QDir(dest).removeRecursively();
-  QDir(m_root + QStringLiteral("/cache/") + id).removeRecursively();
+  if (QFileInfo::exists(dest)) {
+    // Something is still open or locked (Windows): do not report a half-removed plugin as uninstalled.
+    scan();
+    return false;
+  }
+  QDir(m_root + QStringLiteral("/cache/") + id).removeRecursively();  // a cache that cannot be removed does not block
   m_enabled.remove(id);
   scan();
   saveState();
