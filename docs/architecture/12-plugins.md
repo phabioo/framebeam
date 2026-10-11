@@ -1,8 +1,8 @@
-# Architecture: plugins (runtime implemented, rest planned)
+# Architecture: plugins (runtime and Player UI implemented, rest planned)
 
-## 16. Plugin interface [0.11: runtime implemented, rest planned]
+## 16. Plugin interface [0.11: runtime and Player UI implemented, rest planned]
 
-Status: package 1 (plugin runtime in the Player) is implemented; everything else here (UI building blocks and slots, Hub plugins and runs, `.fbplugin` files, signing, plugin index, `memory.write`, `tool.exec`, settings schema, UI language) is still design only. What the runtime implements today is described in [guides/plugin-api.md](../guides/plugin-api.md). Decisions: [ADR 0023](../adr/0023-plugins.md) (proposed). Screens and building-block sheet: [design/plugins.md](../design/plugins.md). Sections 16.3 (runtime), the memory rows of 16.2 and the local install are built; for the rest, where this file names code, it names today's extension points. Open items are marked **open**.
+Status: package 1 (plugin runtime in the Player) and package 2 (plugin UI in the Player: building blocks, map view, in-game tab, HUD, Multiview tile strip, sidebar screen, toasts, shell context) are implemented; still open in package 2 are the section in the game detail and plugin hotkeys. Everything else here (Hub plugins and runs, JS renderer in the Hub web UI, `.fbplugin` files, signing, plugin index, `memory.write`, `tool.exec`, settings schema, UI language) is still design only. What the runtime implements today is described in [guides/plugin-api.md](../guides/plugin-api.md). Decisions: [ADR 0023](../adr/0023-plugins.md) (proposed). Screens and building-block sheet: [design/plugins.md](../design/plugins.md). Sections 16.3 (runtime), the memory and UI rows of 16.2, the Player part of 16.8 and the local install are built; for the rest, where this file names code, it names today's extension points. Open items are marked **open**.
 
 Decided defaults of the runtime (package 1): plugins run only with developer mode on (Settings → Plugins); the only install paths are local folders (copy or linked dev folder with live reload), all unsigned; Lua 5.4.7 is vendored in `client/plugins/third_party/`; plugins resolve (`requires`/`provides`) once at game start; the plugin tick is limited to 30 Hz by default (`tickHz`); budgets per entry call are 20M instructions / 500 ms and 64 MiB per state.
 
@@ -41,7 +41,7 @@ Non-goals:
 | Hub channel | WSS envelope, `protocol/schemas/ws-envelope.schema.json` (`type` + `payload`) | No plugin messages | New message types for plugin/run state and events |
 | Peer channel | DataChannel `fb-diag` | Exists only while someone watches the Session | Not suitable for run state |
 | Distribution | Core distribution with SHA-256 pin ([ADR 0020](../adr/0020-cores-from-the-libretro-buildbot.md)); signed `updates-index`, `server/cmd/framebeam-sign` | Cores and updates | Reuse the pin and the signing for plugins |
-| UI | `client/ui/*.qml`, `Fb*` components, `Theme.qml`; Hub web: Go templates + htmx (`server/internal/web`) | No plugin slots | Slots, building-block renderer in Qt and in JS |
+| UI | `client/ui/*.qml`, `Fb*` components, `Theme.qml`; Hub web: Go templates + htmx (`server/internal/web`) | Implemented in the Player (package 2): `fb.ui`, validation in `client/plugins/plugin_ui.*`, `PluginsController`, `PluginBlock.qml`, `PluginMapView.qml`, `PluginImageProvider`; slots panel, HUD, tile strip, screen, toasts. [API guide](../guides/plugin-api.md#ui) | Open: game detail section and plugin hotkeys (later in package 2); JS renderer in the Hub web UI (package 3) |
 
 Core-side facts (3DS): see [ADR 0023](../adr/0023-plugins.md) context (Azahar exposes memory maps with virtual addresses; `retro_get_memory_data` returns NULL; `retro_cheat_set` is empty).
 
@@ -112,7 +112,7 @@ The Player shows name, origin (Official / Hub upload / local) and permissions be
 
 Plugins ship **no QML** (QML can run JavaScript and load native modules, which would void the sandbox and let the look drift). A plugin describes its UI as a tree of declarative building blocks; the Player renders it with its own `Fb*` components, and a small JS renderer in the Hub web UI draws the same tree. On state changes the plugin sends only the changed values.
 
-Building blocks v1 (catalog **open**, driven by the official plugins):
+Building blocks v1 (implemented in the Player; the exact catalog with props and limits is in the [API guide](../guides/plugin-api.md#ui); the list below is the design outline):
 
 - Layout: column, row, grid, tabs, scroll area, card
 - Content: text, label, chip/badge, icon, image/sprite, progress/HP bar, table/list
@@ -122,7 +122,7 @@ Building blocks v1 (catalog **open**, driven by the official plugins):
 
 A new building block needs a Player update; the `api` version keeps that clean. A second tier with signed plugin QML is conceivable only if the building blocks provably do not suffice.
 
-Slots:
+Slots (implemented in the Player except game detail section and hotkeys, which come later in package 2; the Hub web slots belong to package 3):
 
 | Slot | Where |
 |---|---|
@@ -136,7 +136,7 @@ Slots:
 | Notifications | toasts |
 | Hub web: run page, game detail | Hub web UI (also usable as a browser source) |
 
-HUD corners: widgets stack in the bottom left, bottom right and top left; the top right is reserved for diagnostics. F4 hides all HUD widgets, Ctrl+H shows or hides one plugin's widget (expanding is a click or controller A). Remote Multiview tiles show one plugin strip; the user picks it when several plugins offer one. In-game views stay dark in both themes.
+HUD corners: widgets stack in the bottom left (default), bottom right and top left; the top right is reserved for diagnostics. F4 hides all HUD widgets, Ctrl+H shows or hides one plugin's widget (the keys come later in package 2; the hide actions exist in the Player) (expanding is a click or controller A). Remote Multiview tiles show one plugin strip; the user picks it when several plugins offer one. In-game views stay dark in both themes.
 
 Map view: a background image, markers at coordinates (player symbols in the player's colour, sprites, state), zoom and pan with mouse and controller, selection details and filters. Positions are at location or route level (map ID), not exact overworld position.
 
