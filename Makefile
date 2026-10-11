@@ -25,8 +25,9 @@ generate:
 notices:
 	@scripts/check.sh notices
 
+# melonDS DS from the libretro nightly buildbot (ADR 0020 D10); prints the .so path.
 fetch-core:
-	@scripts/fetch-melonds-ds.sh
+	@scripts/fetch-buildbot-core.sh melondsds
 
 # DeSmuME from the libretro nightly buildbot (ADR 0020 D10); prints the .so path.
 fetch-desmume:

@@ -1,4 +1,4 @@
-// Game view with the real melonDS DS core and the homebrew test ROM (NEEDS_CORE: return code 77 without a core).
+// Game view with the real melonDS DS core and the homebrew test ROM (NEEDS_CORE: QSKIP without a core). Also built as ui_game_testcore against the FrameBeam test core.
 #include <QFile>
 #include <QQuickWindow>
 #include <QSignalSpy>
@@ -70,7 +70,7 @@ class GameTest : public QObject {
 
   void playTestRom() {
     if (qEnvironmentVariableIsEmpty("FRAMEBEAM_MELONDS_DS_CORE")) {
-      QSKIP("FRAMEBEAM_MELONDS_DS_CORE not set");
+      UITEST_SKIP_NO_CORE("FRAMEBEAM_MELONDS_DS_CORE not set");
     }
     uitest::installWarningCounter();
     QFile rom(QStringLiteral(FB_TEST_ROM_PATH));

@@ -1,4 +1,4 @@
-// Save sync in the UI with the real melonDS DS core and the homebrew test ROM (NEEDS_CORE: 77 without a core):
+// Save sync in the UI with the real melonDS DS core and the homebrew test ROM (NEEDS_CORE: QSKIP without a core; also built as ui_save_testcore against the FrameBeam test core):
 // conflict dialog (3d) with keyboard operation, decide later, Use Hub version, library state badge.
 #include <QFile>
 #include <QSignalSpy>
@@ -30,7 +30,7 @@ class SaveUiTest : public QObject {
  private slots:
   void conflictDialogAndLibraryState() {
     if (qEnvironmentVariableIsEmpty("FRAMEBEAM_MELONDS_DS_CORE")) {
-      QSKIP("FRAMEBEAM_MELONDS_DS_CORE not set");
+      UITEST_SKIP_NO_CORE("FRAMEBEAM_MELONDS_DS_CORE not set");
     }
     uitest::installWarningCounter();
     QFile rom(QStringLiteral(FB_TEST_ROM_PATH));

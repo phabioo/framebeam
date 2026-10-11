@@ -37,7 +37,7 @@ find_package(Qt6 6.4 REQUIRED COMPONENTS Core Concurrent Network Gui Quick Quick
 qt_standard_project_setup()
 set(CMAKE_AUTOMOC ON)
 
-# Path to the libretro core melonDS DS (.so/.dll), see scripts/fetch-melonds-ds.sh.
+# Path to the libretro core melonDS DS (.so/.dll), fetched from the libretro buildbot by `make fetch-core` (nightly workflow, ADR 0020).
 # Empty: everything builds, tests with NEEDS_CORE are skipped by ctest (SKIP), not failed.
 set(FRAMEBEAM_MELONDS_DS_CORE "" CACHE FILEPATH "Path to the melonDS DS core library (.so/.dll)")
 set(FRAMEBEAM_DESMUME_CORE "" CACHE FILEPATH "Path to the DeSmuME core library (.so/.dll); empty = DeSmuME tests are skipped")
@@ -57,9 +57,13 @@ endfunction()
 # NEEDS_CORE: passes FRAMEBEAM_MELONDS_DS_CORE as an environment variable; if the core is not set,
 # the test ends with return code 77 (= SKIP). The test itself must then return 77.
 # NEEDS_DESMUME_CORE: same with FRAMEBEAM_DESMUME_CORE.
+# TEST_CORE [TEST_CORE_FLAVOR <generic|melondsds|desmume>]: runs the test against the in-repo FrameBeam test core
+# (emulation/tests/test_core.cpp) instead of a real emulator: FRAMEBEAM_MELONDS_DS_CORE (flavor desmume:
+# FRAMEBEAM_DESMUME_CORE) points to it, so the product code finds it like a real core; never SKIPs; compiled with
+# FB_TEST_CORE=1. Merge-gating CI uses these variants, the real-core tests (NEEDS_*) run in the nightly workflow.
 set(FRAMEBEAM_TESTUTIL_DIR ${CMAKE_CURRENT_LIST_DIR}/testutil)
 function(framebeam_add_test name)
-  cmake_parse_arguments(ARG "NEEDS_CORE;NEEDS_DESMUME_CORE" "" "LIBS" ${ARGN})
+  cmake_parse_arguments(ARG "NEEDS_CORE;NEEDS_DESMUME_CORE;TEST_CORE" "TEST_CORE_FLAVOR" "LIBS" ${ARGN})
   if(NOT BUILD_TESTING)
     return()
   endif()
@@ -76,6 +80,20 @@ function(framebeam_add_test name)
   if(ARG_NEEDS_DESMUME_CORE)
     list(APPEND env "FRAMEBEAM_DESMUME_CORE=${FRAMEBEAM_DESMUME_CORE}")
     set_tests_properties(${name} PROPERTIES SKIP_RETURN_CODE 77)
+  endif()
+  if(ARG_TEST_CORE)
+    if(NOT ARG_TEST_CORE_FLAVOR)
+      set(ARG_TEST_CORE_FLAVOR melondsds)
+    endif()
+    add_dependencies(test_${name} framebeam_test_core)
+    target_compile_definitions(test_${name} PRIVATE FB_TEST_CORE=1)
+    if(ARG_TEST_CORE_FLAVOR STREQUAL "desmume")
+      list(APPEND env "FRAMEBEAM_DESMUME_CORE=$<TARGET_FILE:framebeam_test_core>")
+    else()
+      # Only the test core is visible to the product code: no DeSmuME next to it, even if the shell exports one.
+      list(APPEND env "FRAMEBEAM_MELONDS_DS_CORE=$<TARGET_FILE:framebeam_test_core>" "FRAMEBEAM_DESMUME_CORE=")
+    endif()
+    list(APPEND env "FB_TEST_CORE_FLAVOR=${ARG_TEST_CORE_FLAVOR}" "FRAMEBEAM_TEST_CORE=1")
   endif()
   set_tests_properties(${name} PROPERTIES ENVIRONMENT "${env}")
 endfunction()

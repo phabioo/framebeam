@@ -1,5 +1,5 @@
 // Emulation page (3e), settings hierarchy at launch, Controllers page (3f) with SDL virtual joysticks.
-// Offscreen, FakeHub, dummy bytes only. The tests with the real core QSKIP without FRAMEBEAM_MELONDS_DS_CORE.
+// Offscreen, FakeHub, dummy bytes only. The tests with the real core QSKIP without FRAMEBEAM_MELONDS_DS_CORE (ui_emulation_controllers_testcore runs them against the FrameBeam test core).
 #include <SDL3/SDL.h>
 
 #include <QQmlContext>
@@ -891,10 +891,11 @@ class EmulationControllersTest : public QObject {
     QVERIFY(!h.controller->emulation()->coreNote().isEmpty());
   }
 
-  // Options are captured with the real core (loaded without a game) and cached for the next start.
+  // Options are captured with the real core (loaded without a game) and cached for the next start. The _testcore variant
+  // runs it against the FrameBeam test core (melondsds flavor) instead.
   void realCoreOptionsAndCache() {
     const QString core = savedCoreEnv_;
-    if (core.isEmpty()) QSKIP("FRAMEBEAM_MELONDS_DS_CORE not set");
+    if (core.isEmpty()) UITEST_SKIP_NO_CORE("FRAMEBEAM_MELONDS_DS_CORE not set");
     qputenv("FRAMEBEAM_MELONDS_DS_CORE", core.toLocal8Bit());
     FakeHub hub(QStringLiteral("a"));
     QVERIFY(hub.start());
@@ -903,7 +904,11 @@ class EmulationControllersTest : public QObject {
     pair(h, hub);
     h.controller->showEmulation();
     QVERIFY(h.controller->emulation()->hasCoreProbe(QStringLiteral("melondsds")));
+#ifdef FB_TEST_CORE
+    QCOMPARE(text(h, "systemCore_nds").left(19), QStringLiteral("FrameBeam Test Core"));  // the core's own name (test core, melondsds flavor)
+#else
     QCOMPARE(text(h, "systemCore_nds").left(10), QStringLiteral("melonDS DS"));
+#endif
     QCOMPARE(text(h, "systemReady_nds"), QStringLiteral("Ready · included in the Player"));
     QVERIFY(h.item("optionRow_melonds_audio_interpolation") != nullptr);
     QVERIFY(h.item("optionRow_melonds_render_mode") != nullptr);

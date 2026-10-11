@@ -11,7 +11,7 @@ C++20/Qt 6 application: Hub profiles and pairing, library and ROM cache, local e
 ```sh
 scripts/bootstrap-vcpkg.sh                 # once
 make check-client                          # builds, fetches pinned deps, runs tests (CLIENT_PRESET, default linux-debug)
-make fetch-core                            # melonDS DS core; without it, core tests are skipped
+make fetch-core                            # melonDS DS core (libretro buildbot); without it, real-core tests are skipped, test-core tests always run
 client/build/linux-debug/app/framebeam_player [--data-dir <path>] [--dev-allow-http]
 ```
 
