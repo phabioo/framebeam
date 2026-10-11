@@ -6,7 +6,7 @@ FrameBeam is a self-hosted retro gaming platform. The **FrameBeam Hub** keeps yo
 
 ## Status
 
-Version 0.10 (Nintendo 3DS with Azahar as second system, [ADR 0022](docs/adr/0022-nintendo-3ds-with-azahar.md); one Windows installer since 0.9, [ADR 0021](docs/adr/0021-one-windows-installer.md); cores from the libretro buildbot since 0.8, [ADR 0020](docs/adr/0020-cores-from-the-libretro-buildbot.md)). The proof of concept (Nintendo DS with melonDS DS) is complete; Hub UI and Player UI have had their design passes (0.6, 0.7). Next on the [roadmap](docs/roadmap.md): game metadata, Linux and macOS Player. Windows Player and Linux Hub (Debian, Raspberry Pi) are the supported platforms (the Hub also runs as a Windows service since 0.9); real GPUs, drivers and networks are verified only locally.
+Version 0.10 (Nintendo 3DS with Azahar as second system, [ADR 0022](docs/adr/0022-nintendo-3ds-with-azahar.md); one Windows installer since 0.9, [ADR 0021](docs/adr/0021-one-windows-installer.md); cores from the libretro buildbot since 0.8, [ADR 0020](docs/adr/0020-cores-from-the-libretro-buildbot.md)). The proof of concept (Nintendo DS with melonDS DS) is complete; Hub UI and Player UI have had their design passes (0.6, 0.7). Next on the [roadmap](docs/roadmap.md): plugins (0.11, planned), game metadata, Linux and macOS Player. Windows Player and Linux Hub (Debian, Raspberry Pi) are the supported platforms (the Hub also runs as a Windows service since 0.9); real GPUs, drivers and networks are verified only locally.
 
 ## Highlights
 
@@ -18,6 +18,12 @@ Version 0.10 (Nintendo 3DS with Azahar as second system, [ADR 0022](docs/adr/002
 - **Self-updating:** signed releases, `stable` and `beta` channels, Debian package for the Hub, Windows installer for the Player.
 
 All features: [docs/features.md](docs/features.md).
+
+## Plugins
+
+A plugin interface is planned for 0.11 (design only, nothing implemented): sandboxed Lua plugins add game-specific features such as SoulLink/Nuzlocke runs without changing the generic Player. See [docs/architecture/12-plugins.md](docs/architecture/12-plugins.md) and [ADR 0023](docs/adr/0023-plugins.md).
+
+The official plugins will live in their own repositories under github.com/phabioo: `framebeam-plugin-pokemon-core`, `-soullink`, `-pokemon-editor`, `-cheats` and `-template`. They are not created yet; each carries its own docs and roadmap.
 
 ## Quick start
 

@@ -47,7 +47,10 @@ Start with the [root README](../README.md) for what FrameBeam is and a quick sta
   [0017 Player tech debt](adr/0017-player-tech-debt.md),
   [0018 Player speed-up](adr/0018-player-speed-up.md),
   [0019 GPU-direct NVENC encoding](adr/0019-gpu-direct-nvenc.md),
-  [0020 cores from the libretro buildbot](adr/0020-cores-from-the-libretro-buildbot.md)
+  [0020 cores from the libretro buildbot](adr/0020-cores-from-the-libretro-buildbot.md),
+  [0021 one Windows installer](adr/0021-one-windows-installer.md),
+  [0022 Nintendo 3DS with Azahar](adr/0022-nintendo-3ds-with-azahar.md),
+  [0023 plugins](adr/0023-plugins.md)
 
 ## Conventions
 

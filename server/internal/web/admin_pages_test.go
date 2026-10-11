@@ -465,6 +465,17 @@ func TestSystemsPageCores(t *testing.T) {
 		t.Fatalf("%d %q", rec.Code, location(rec))
 	}
 
+	// Automatic updates: on by default, with a toggle (CSRF, signed in); they are off for the manual flow below.
+	contains(t, c.get("/systems?sys=nds&tab=core", nil), "Automatic updates", "action=\"/cores/auto-update\"", "Turn off")
+	status(t, e.client().postForm("/cores/auto-update", url.Values{"on": {"0"}}, nil), 303)
+	if on, _ := e.svc.CoreAutoUpdate(bg); !on {
+		t.Fatal("toggle worked without a session")
+	}
+	rec = postTok(c, tok, "/cores/auto-update", url.Values{"on": {"0"}, "sys": {"nds"}})
+	if rec.Code != 303 || location(rec) != "/systems?sys=nds&tab=core&ok=coreautoupdate" {
+		t.Fatalf("%d %q", rec.Code, location(rec))
+	}
+	contains(t, c.get("/systems?sys=nds&tab=core", nil), "Turn on", "use Update per core")
 	// A newer upstream build: "Check source now" refreshes in the background, then Update is offered.
 	for _, p := range []string{"linux-x64", "windows-x64"} {
 		suffix := map[string]string{"linux-x64": ".so", "windows-x64": ".dll"}[p]

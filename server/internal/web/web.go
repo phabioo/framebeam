@@ -168,6 +168,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	h("POST /systems/{id}/firmware/{file}/pin", s.guard(s.firmwarePin))
 	h("POST /systems/{id}/firmware/{file}/remove", s.guard(s.firmwareRemove))
 	h("POST /cores/sync", s.guard(s.coresSync))
+	h("POST /cores/auto-update", s.guard(s.coresAutoUpdate))
 	h("GET /settings", s.guard(s.settingsGet))
 	h("GET /settings/{section}", s.guard(s.settingsGet))
 	h("POST /settings/network/restart", s.guard(s.settingsNetRestart))
@@ -231,35 +232,36 @@ type pageData struct {
 }
 
 var flashTexts = map[string]string{
-	"uploaded":      "ROM added to the library.",
-	"certrenewed":   "Certificate renewed. Every Player must confirm the new fingerprint on its next connection.",
-	"deleted":       "ROM deleted.",
-	"name":          "Hub name saved.",
-	"password":      "Password changed.",
-	"resolved":      "Conflict resolved.",
-	"restored":      "Version restored as the new current checkpoint. The previous checkpoint is in the history.",
-	"snapshot":      "Snapshot created.",
-	"snapdeleted":   "Snapshot deleted.",
-	"slotcreated":   "Slot created from the current version.",
-	"disabled":      "User disabled. Their devices are signed out and their Sessions ended.",
-	"enabled":       "User enabled.",
-	"userdeleted":   "User deleted, together with their devices, invites, saves and save history.",
-	"devdeleted":    "Device deleted.",
-	"revoked":       "Invite revoked.",
-	"appearance":    "Appearance saved.",
-	"uploads":       "Upload setting saved.",
-	"coreinstalled": "Core installed.",
-	"coreupdated":   "Core updated. The old build was removed.",
-	"coreremoved":   "Core removed.",
-	"coredefault":   "Default core changed.",
-	"fwmode":        "Firmware mode saved.",
-	"fwfile":        "Firmware file saved.",
-	"fwremoved":     "Firmware file removed.",
-	"fwpin":         "Expected SHA-256 saved.",
-	"coresync":      "Checking the libretro buildbot in the background. Reload the page in a moment.",
-	"updates":       "Update settings saved. Checking for updates in the background.",
-	"updatecheck":   "Checking for updates in the background. Reload the page in a moment.",
-	"updateinstall": "Update downloaded and verified. The Hub installs it and restarts in a moment; reload this page afterwards.",
+	"uploaded":       "ROM added to the library.",
+	"certrenewed":    "Certificate renewed. Every Player must confirm the new fingerprint on its next connection.",
+	"deleted":        "ROM deleted.",
+	"name":           "Hub name saved.",
+	"password":       "Password changed.",
+	"resolved":       "Conflict resolved.",
+	"restored":       "Version restored as the new current checkpoint. The previous checkpoint is in the history.",
+	"snapshot":       "Snapshot created.",
+	"snapdeleted":    "Snapshot deleted.",
+	"slotcreated":    "Slot created from the current version.",
+	"disabled":       "User disabled. Their devices are signed out and their Sessions ended.",
+	"enabled":        "User enabled.",
+	"userdeleted":    "User deleted, together with their devices, invites, saves and save history.",
+	"devdeleted":     "Device deleted.",
+	"revoked":        "Invite revoked.",
+	"appearance":     "Appearance saved.",
+	"uploads":        "Upload setting saved.",
+	"coreinstalled":  "Core installed.",
+	"coreupdated":    "Core updated. The old build was removed.",
+	"coreremoved":    "Core removed.",
+	"coredefault":    "Default core changed.",
+	"fwmode":         "Firmware mode saved.",
+	"fwfile":         "Firmware file saved.",
+	"fwremoved":      "Firmware file removed.",
+	"fwpin":          "Expected SHA-256 saved.",
+	"coreautoupdate": "Automatic core updates saved.",
+	"coresync":       "Checking the libretro buildbot in the background. Reload the page in a moment.",
+	"updates":        "Update settings saved. Checking for updates in the background.",
+	"updatecheck":    "Checking for updates in the background. Reload the page in a moment.",
+	"updateinstall":  "Update downloaded and verified. The Hub installs it and restarts in a moment; reload this page afterwards.",
 }
 
 var errTexts = map[string]string{
