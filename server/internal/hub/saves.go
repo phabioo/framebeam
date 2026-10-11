@@ -783,6 +783,12 @@ const FeatureSavesV3 = "saves_v3"
 // FeatureSavesV4 is the handshake feature flag for uploading a save file into a slot.
 const FeatureSavesV4 = "saves_v4"
 
+// FeatureSavesV5 is the handshake feature flag for renaming and deleting slots and the upload lock during a Session.
+const FeatureSavesV5 = "saves_v5"
+
+// DefaultSlot is the slot every Player uses unless the user picks another one. It cannot be renamed or deleted.
+const DefaultSlot = "default"
+
 // FeatureSavesV2 is the handshake feature flag for restore, snapshots, history labels and the save_updated push.
 const FeatureSavesV2 = "saves_v2"
 

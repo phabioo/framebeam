@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -49,6 +50,9 @@ func (s *Service) RestoreSaveVersion(ctx context.Context, in RestoreInput) (_ Sa
 	}
 	defer tx.Rollback()
 	u, g, sl := in.UserID, in.GameID, in.Slot
+	if err := s.checkNoSession(ctx, tx, u, g); err != nil { // a Session may have started while the body was staged
+		return SaveSlot{}, err
+	}
 	cur, err := loadCheckpoint(ctx, tx, u, g, sl)
 	if err != nil {
 		return SaveSlot{}, err
@@ -120,6 +124,9 @@ func (s *Service) UploadSaveFile(ctx context.Context, in UploadSaveInput) (_ Sav
 		return SaveSlot{}, badRequest("Invalid expected revision")
 	}
 	if _, err := s.GetGame(ctx, in.GameID); err != nil {
+		return SaveSlot{}, err
+	}
+	if err := s.checkNoSession(ctx, s.db, in.UserID, in.GameID); err != nil {
 		return SaveSlot{}, err
 	}
 	tmpName, sha, size, err := s.stageUpload(in.Body)
@@ -545,6 +552,11 @@ func (s *Service) RunSaveSweep(ctx context.Context, every time.Duration, onErr f
 // originating one (originDeviceID "" = all, e.g. a change made in the web interface). reason "" = the
 // checkpoint's own sync reason.
 func (s *Service) notifySaveUpdated(userID, originDeviceID, gameID, slot string, cp SaveCheckpoint, reason string) {
+	s.notifySaveUpdatedExtra(userID, originDeviceID, gameID, slot, cp, reason, "")
+}
+
+// notifySaveUpdatedExtra is notifySaveUpdated plus previous_slot (renamed slot: slot is the new name).
+func (s *Service) notifySaveUpdatedExtra(userID, originDeviceID, gameID, slot string, cp SaveCheckpoint, reason, previousSlot string) {
 	if reason == "" {
 		reason = cp.Reason
 	}
@@ -554,9 +566,177 @@ func (s *Service) notifySaveUpdated(userID, originDeviceID, gameID, slot string,
 	}
 	payload := map[string]any{"game_id": gameID, "slot": slot, "revision": cp.Revision, "sha256": cp.SHA256,
 		"device_id": devID, "device_name": cp.DeviceName, "reason": reason}
+	if previousSlot != "" {
+		payload["previous_slot"] = previousSlot
+	}
 	for _, c := range s.clients() {
 		if c.userID == userID && c.deviceID != originDeviceID {
 			c.sendMsg("save_updated", "", payload)
 		}
 	}
+}
+
+// SaveUpdated reasons for slot changes that are not a new checkpoint (feature saves_v5).
+const (
+	SaveReasonRenamed = "renamed"
+	SaveReasonDeleted = "deleted"
+)
+
+// SessionRunningFor reports whether an active Session of the user runs the game (a hosted Session, not a viewed one).
+func (s *Service) SessionRunningFor(ctx context.Context, userID, gameID string) (bool, error) {
+	err := s.checkNoSession(ctx, s.db, userID, gameID)
+	if errors.Is(err, ErrSessionRunning) {
+		return true, nil
+	}
+	return false, err
+}
+
+// checkNoSession returns ErrSessionRunning while an active Session of the user runs the game.
+func (s *Service) checkNoSession(ctx context.Context, q scanner2, userID, gameID string) error {
+	var n int
+	if err := q.QueryRowContext(ctx, `SELECT COUNT(*) FROM sessions WHERE ended_at IS NULL AND owner_user_id = ? AND game_id = ?`,
+		userID, gameID).Scan(&n); err != nil {
+		return internal(err)
+	}
+	if n > 0 {
+		return ErrSessionRunning
+	}
+	return nil
+}
+
+type scanner2 interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
+// RenameInput renames a slot (feature saves_v5). DeviceID is the caller's device or WebDeviceID(user).
+type RenameInput struct {
+	UserID, DeviceID, GameID, Slot, NewSlot string
+}
+
+// RenameSaveSlot gives a slot a new name; checkpoint, history and conflicts move with it, nothing is lost.
+// ErrNotFound for an unknown slot, ErrSaveSlotProtected for the default slot, ErrBadRequest for an invalid name (or
+// the same name), ErrSaveSlotExists if the name is taken, ErrSessionRunning while a Session of the game runs.
+// Other devices get save_updated (reason renamed, slot = the new name, previous_slot = the old one).
+func (s *Service) RenameSaveSlot(ctx context.Context, in RenameInput) (_ SaveSlot, err error) {
+	defer s.publishOK(&err, TopicSaves, TopicLibrary)
+	u, g, from, to := in.UserID, in.GameID, in.Slot, in.NewSlot
+	if !pathPartRe.MatchString(u) || !pathPartRe.MatchString(g) || !ValidSlotName(from) {
+		return SaveSlot{}, ErrNotFound
+	}
+	s.saveMu.Lock()
+	defer s.saveMu.Unlock()
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return SaveSlot{}, internal(err)
+	}
+	defer tx.Rollback()
+	if _, err := loadCheckpoint(ctx, tx, u, g, from); err != nil {
+		return SaveSlot{}, err
+	}
+	if from == DefaultSlot {
+		return SaveSlot{}, ErrSaveSlotProtected
+	}
+	if !ValidNewSlotName(to) || to == from {
+		return SaveSlot{}, badRequest("Invalid slot name")
+	}
+	if err := s.checkNoSession(ctx, tx, u, g); err != nil {
+		return SaveSlot{}, err
+	}
+	var n int
+	if err := tx.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM save_slots WHERE user_id = ?1 AND game_id = ?2 AND slot = ?3)
+		+ (SELECT COUNT(*) FROM save_history WHERE user_id = ?1 AND game_id = ?2 AND slot = ?3)
+		+ (SELECT COUNT(*) FROM save_conflicts WHERE user_id = ?1 AND game_id = ?2 AND slot = ?3)`, u, g, to).Scan(&n); err != nil {
+		return SaveSlot{}, internal(err)
+	}
+	oldDir, newDir := s.saveDir(u, g, from), s.saveDir(u, g, to)
+	_, statErr := os.Stat(newDir)
+	if n > 0 || statErr == nil { // never merge into leftovers
+		return SaveSlot{}, ErrSaveSlotExists
+	}
+	for _, t := range []string{"save_slots", "save_history", "save_conflicts"} {
+		if _, err := tx.ExecContext(ctx, `UPDATE `+t+` SET slot = ? WHERE user_id = ? AND game_id = ? AND slot = ?`, to, u, g, from); err != nil {
+			return SaveSlot{}, internal(err)
+		}
+	}
+	out, err := loadSlot(ctx, tx, u, g, to)
+	if err != nil {
+		return SaveSlot{}, err
+	}
+	moved := false
+	if err := os.Rename(oldDir, newDir); err == nil {
+		moved = true
+		syncDir(filepath.Dir(newDir))
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return SaveSlot{}, internal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		if moved {
+			os.Rename(newDir, oldDir)
+		}
+		return SaveSlot{}, internal(err)
+	}
+	slog.Info("save slot renamed", "user_id", u, "game_id", g, "from", from, "to", to, "revision", out.Current.Revision)
+	s.notifySaveUpdatedExtra(u, in.DeviceID, g, to, out.Current, SaveReasonRenamed, from)
+	return out, nil
+}
+
+// DeleteInput deletes a slot (feature saves_v5). ConfirmRevision must equal the current checkpoint revision.
+type DeleteInput struct {
+	UserID, DeviceID, GameID, Slot string
+	ConfirmRevision                int
+}
+
+// DeleteSaveSlot deletes a slot with its checkpoint, history, conflicts and content files for good (hard delete). The
+// caller must confirm the checkpoint revision it saw: a different revision returns ErrSaveConflictStale and nothing
+// is deleted, so newer progress is never lost unseen. ErrNotFound for an unknown slot, ErrSaveSlotProtected for the
+// default slot, ErrConflict while a conflict of the slot is open, ErrSessionRunning while a Session of the game
+// runs. Other devices get save_updated (reason deleted). The deletion is logged.
+func (s *Service) DeleteSaveSlot(ctx context.Context, in DeleteInput) (err error) {
+	defer s.publishOK(&err, TopicSaves, TopicLibrary)
+	u, g, sl := in.UserID, in.GameID, in.Slot
+	if !pathPartRe.MatchString(u) || !pathPartRe.MatchString(g) || !ValidSlotName(sl) {
+		return ErrNotFound
+	}
+	s.saveMu.Lock()
+	defer s.saveMu.Unlock()
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return internal(err)
+	}
+	defer tx.Rollback()
+	cur, err := loadCheckpoint(ctx, tx, u, g, sl)
+	if err != nil {
+		return err
+	}
+	if sl == DefaultSlot {
+		return ErrSaveSlotProtected
+	}
+	if err := s.checkNoSession(ctx, tx, u, g); err != nil {
+		return err
+	}
+	if in.ConfirmRevision != cur.Revision {
+		return ErrSaveConflictStale
+	}
+	var open int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM save_conflicts WHERE user_id = ? AND game_id = ? AND slot = ? AND status = 'open'`,
+		u, g, sl).Scan(&open); err != nil {
+		return internal(err)
+	}
+	if open > 0 {
+		return conflict("Resolve the open conflict of this slot first")
+	}
+	for _, t := range []string{"save_conflicts", "save_history", "save_slots"} {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM `+t+` WHERE user_id = ? AND game_id = ? AND slot = ?`, u, g, sl); err != nil {
+			return internal(err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return internal(err)
+	}
+	if err := os.RemoveAll(s.saveDir(u, g, sl)); err != nil {
+		slog.Warn("delete save slot: remove content failed", "user_id", u, "game_id", g, "slot", sl, "err", err)
+	}
+	slog.Info("save slot deleted", "user_id", u, "game_id", g, "slot", sl, "revision", cur.Revision, "device_id", in.DeviceID)
+	s.notifySaveUpdated(u, in.DeviceID, g, sl, cur, SaveReasonDeleted)
+	return nil
 }

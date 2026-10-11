@@ -539,3 +539,6 @@ form.pin input { font-size: 12px; }
 .steps { padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
 .row-panel td { padding: 4px 16px 14px; background: var(--surface); }
 .row-panel .confirm { max-width: 640px; }
+
+.slot-ops { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
