@@ -93,7 +93,7 @@ Milestone 0.3 ([Roadmap](../roadmap.md)) lets a change on `main` reach the test 
 - Test devices receive every `main` build.
 - `VERSION` must be bumped after each stable tag, otherwise later test builds sort below the release. (Superseded by [ADR 0016](0016-release-numbering-and-promotion.md): `VERSION` is only a floor, CI takes max(`VERSION`, highest tag + 1), no bump PR.)
 - The Windows installer stays unsigned (SmartScreen warning).
-- macOS and Linux Player and the Windows Hub follow later (0.9, 0.10; old numbering, see the numbering note below. Windows Hub: 0.9 with the one installer, ADR 0021; Linux/macOS Player: 0.13).
+- macOS and Linux Player and the Windows Hub follow later (0.9, 0.10; old numbering, see the numbering note below. Windows Hub: 0.9 with the one installer, ADR 0021; Linux Player: after 1.0; macOS dropped on 2026-10-11).
 - Open: rollback (D8), Player-side core signature check (0.4).
 
 ## Amendment 2026-10-07

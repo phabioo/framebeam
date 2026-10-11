@@ -71,6 +71,7 @@ Open: whether the buildbot build of Azahar contains this code, and whether the m
 ## Consequences
 
 - Large, staged work (see roadmap 0.11): runtime, UI building blocks, Hub plugins and runs, plugin repositories, first game. Metadata moves to 0.12, Linux and macOS Player to 0.13.
+- Update (2026-10-11, Fabio): renumbered. 0.11 is the plugin runtime only (packages 1 to 3); plugin repositories and the first game (old packages 4 and 5) live in their own repositories and are independent of FrameBeam milestones. 0.12 is Local ROMs; Metadata and the Linux Player come after 1.0; macOS is dropped. See [roadmap](../roadmap.md).
 - A new building block needs a Player update.
 - Plugins add maintenance load per game, language version and generation; the plugin repositories carry it, not the core.
 - Real-game behavior (memory map coverage, offsets, encounters) can only be verified locally by the maintainer; tests use synthetic data and the test core.
