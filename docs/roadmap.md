@@ -1,6 +1,6 @@
 # Roadmap after the PoC
 
-The PoC (phases 0-5) is complete. From here on, work is planned as versions 0.1.1 to 0.12, each cut into one work package per thread/PR (see `docs/workflow.md`). The order was decided by Fabio on 2026-10-06; on 2026-10-07 he moved Sessions over the internet ahead of the UI passes (renumbered 0.4 to 0.6). On 2026-10-07 Fabio also moved OpenGL hardware rendering for the Player (all emulators/cores, not only 3DS) ahead of the UI passes as the new 0.5; the UI passes, 3DS and everything after shifted by one. ADRs written before 2026-10-07 use the old numbering: old 0.5/0.6/0.7/0.8/0.9/0.10 = new 0.6/0.7/0.8/0.9/0.10/0.11. On 2026-10-09 Fabio reordered the planned milestones again: cores come from the libretro buildbot first ([ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md), new 0.8) and one installer for Player, Hub or both follows (new 0.9, which absorbs the Hub-for-Windows milestone). Old (2026-10-07) 0.8 3DS / 0.9 Metadata and artwork / 0.10 Hub for Windows / 0.11 Linux and macOS Player = new 0.10 / 0.11 / 0.9 / 0.12. ADRs and docs written before 2026-10-09 may still use the older numbers for these milestones. Items marked open are not decided yet; decisions are recorded as ADRs in `docs/adr/`.
+The PoC (phases 0-5) is complete. From here on, work is planned as versions 0.1.1 to 0.13, each cut into one work package per thread/PR (see `docs/workflow.md`). The order was decided by Fabio on 2026-10-06; on 2026-10-07 he moved Sessions over the internet ahead of the UI passes (renumbered 0.4 to 0.6). On 2026-10-07 Fabio also moved OpenGL hardware rendering for the Player (all emulators/cores, not only 3DS) ahead of the UI passes as the new 0.5; the UI passes, 3DS and everything after shifted by one. ADRs written before 2026-10-07 use the old numbering: old 0.5/0.6/0.7/0.8/0.9/0.10 = new 0.6/0.7/0.8/0.9/0.10/0.11. On 2026-10-09 Fabio reordered the planned milestones again: cores come from the libretro buildbot first ([ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md), new 0.8) and one installer for Player, Hub or both follows (new 0.9, which absorbs the Hub-for-Windows milestone). Old (2026-10-07) 0.8 3DS / 0.9 Metadata and artwork / 0.10 Hub for Windows / 0.11 Linux and macOS Player = new 0.10 / 0.11 / 0.9 / 0.12. On 2026-10-11 Fabio added plugins as 0.11; Metadata and Linux/macOS moved to 0.12/0.13. ADRs and docs written before 2026-10-09 may still use the older numbers for these milestones (the "new" numbers above are those of 2026-10-09). Items marked open are not decided yet; decisions are recorded as ADRs in `docs/adr/`.
 
 ## PoC phases (history)
 
@@ -34,8 +34,9 @@ Phase plan: [workflow.md](workflow.md#phase-plan).
 | 0.8 | done in code | Cores from the libretro buildbot | Systems instead of fixed cores: the Hub downloads cores RetroArch-style from the libretro buildbot; admin installs, updates and removes them per system; Player chooses the core per system and game ([ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md)). |
 | 0.9 | done in code | One installer: Player, Hub or both | One Windows MSI (WiX) with the features Player and Hub; the Hub runs as a Windows service; "Set up a Hub on this PC" and a standalone mode like RetroArch ([ADR 0021](adr/0021-one-windows-installer.md), proposed). Installer, upgrades and services verified only locally. |
 | 0.10 | done in code | Second system: 3DS (Azahar) | System `3ds` with the Azahar buildbot core on the OpenGL rendering; two-screen composition, local-only saves, game override UI, ROM cache limit ([ADR 0022](adr/0022-nintendo-3ds-with-azahar.md), proposed). Real Azahar run, performance and 3DS save sync open. |
-| 0.11 | planned | Metadata and artwork | Central game metadata and boxart in Hub and Player. |
-| 0.12 | planned | Linux and macOS Player | FrameBeam Player on Linux and macOS. |
+| 0.11 | planned | Plugins and SoulLink | A plugin interface (Lua sandbox, UI building blocks, Hub runs) and the first game, Pokémon Omega Ruby/Alpha Sapphire on the 3DS, through official plugins ([ADR 0023](adr/0023-plugins.md), proposed; [design](architecture/12-plugins.md)). |
+| 0.12 | planned | Metadata and artwork | Central game metadata and boxart in Hub and Player. |
+| 0.13 | planned | Linux and macOS Player | FrameBeam Player on Linux and macOS. |
 
 ## 0.1.1 Finish the PoC
 
@@ -261,12 +262,25 @@ Decided by Fabio on 2026-10-07: the second system is the Nintendo 3DS with the A
 - Open (Fabio, local): real Azahar run on the RTX 4080 (GL 3.3 core context), frame time including Session encoding, resolution factor, option values against the real core.
 - Core sourcing: superseded by [ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md) (0.8); the signed mirror, core list and weekly pin bumps of the 2026-10-07 plan are dropped.
 
-## 0.11 Metadata and artwork
+## 0.11 Plugins and SoulLink
+
+Planned, design only. Interface: [12-plugins.md](architecture/12-plugins.md); decisions: [ADR 0023](adr/0023-plugins.md) (proposed). FrameBeam stays a generic emulator Player; everything game-specific lives in plugins. Plugin-specific docs and roadmaps (SoulLink rules, per-game adapters) live in the plugin repositories, not here. The first target is Pokémon Omega Ruby/Alpha Sapphire on the 3DS.
+
+- Package 1: Plugin runtime in the Player: Lua 5.4 sandbox, one state and budget per plugin, plugin thread, manifest, permissions, `requires`/`provides`, `RETRO_ENVIRONMENT_SET_MEMORY_MAPS` support in the libretro backend, memory snapshots over virtual addresses, pointer following, ROM read API, native helper functions, local install, developer mode. Tests with the test core and synthetic data.
+- Package 2: UI building blocks and slots in the Player: declarative building blocks on the `Fb*` components, map view, slots (in-game tab, HUD, Multiview tile overlay, sidebar screen, game detail, Settings → Plugins, hotkeys, toasts), several plugins per slot. Starts after the design handoff.
+- Package 3: Hub plugins and runs: plugin upload (marked unverified), delivery with SHA-256 pin, signed plugin index, runs with per-player state, append-only event log, limits, WSS messages, catch-up on `hello`, JS renderer for the building blocks in the Hub web UI.
+- Package 4: Plugin repositories: official plugins in their own repositories with signed `.fbplugin` releases and an entry in the plugin index; template repository.
+- Package 5: First game: Pokémon Omega Ruby/Alpha Sapphire (3DS) through the official plugins `pokemon-core` and `soullink`, including a playtest with a group.
+- Open: the Azahar libretro build on the buildbot has to contain `SET_MEMORY_MAPS`, and the map built once at game load has to cover the game's data (checked locally by Fabio with the developer mode); otherwise a small upstream Azahar patch is needed.
+- Open: plugin API v1 surface (exact Lua API, building block catalog) is fixed in the design handoff and package 1.
+- Out of scope for this milestone: more games, cheats, editor, randomizer (see "Later").
+
+## 0.12 Metadata and artwork
 
 - Hub Metadata Service with provider abstraction, hash matching, overrides, artwork cache (`docs/architecture/11-metadata-future.md`).
 - Hub: Settings → Metadata, actions in the library entry. Player: boxart and basic data in Library and game view.
 
-## 0.12 Linux and macOS Player
+## 0.13 Linux and macOS Player
 
 - Linux: Secret Service instead of in-memory credentials, package (AppImage or .deb/Flatpak), check gamepads and audio.
 - macOS: Keychain, app bundle/dmg, signing and notarization, VideoToolbox encoder, CI on a macOS runner.
@@ -276,7 +290,8 @@ Decided by Fabio on 2026-10-07: the second system is the Nintendo 3DS with the A
 
 - Save States, remote control/input for viewers, netplay, emulation settings sync, StandaloneBackend, Hub as a macOS service.
 - Further library features: row actions (delete, edit title), paging.
-- Remaining Nintendo systems from NES to GameCube/Wii (Fabio, 2026-10-07), as plain buildbot cores after 0.10, rendered with OpenGL first: NES, SNES, N64, GB/GBC, GBA, Virtual Boy and GameCube/Wii (Dolphin; the libretro port lags upstream). N64 and GameCube/Wii build on the hardware rendering from 0.5.
+- Remaining Nintendo systems from NES to GameCube/Wii (Fabio, 2026-10-07), as plain buildbot cores after 0.10, rendered with OpenGL first: NES, SNES, N64, GB/GBC, GBA, Virtual Boy (GB, GBC and GBA with mGBA are also needed for the Pokémon Gen 1-3 plugins, see below) and GameCube/Wii (Dolphin; the libretro port lags upstream). N64 and GameCube/Wii build on the hardware rendering from 0.5.
+- Plugin follow-ups (Fabio, 2026-10-11; plugin-specific plans live in the plugin repositories): more Pokémon generations for the official plugins, in the order Gen 7 (Sun/Moon, Ultra Sun/Ultra Moon), Gen 4/5 (NDS), Gen 3 and Gen 1/2 (the last two need the GB, GBC and GBA systems with mGBA); a Pokémon editor plugin and a cheats plugin (both need `memory.write`, which the API describes but the first release does not build); a randomizer plugin (tool plugin, signed official only, deferred, not dropped; until then randomized ROMs are made externally). Gen 8 (Switch) is out of scope: no libretro core.
 - Afterwards Vulkan hardware rendering next to OpenGL (Fabio, 2026-10-07), so cores that offer both can be switched per core option in the Emulation settings.
 - Wii U deferred (Fabio, 2026-10-07): Cemu has no libretro core and would need the StandaloneBackend.
 - To evaluate (Fabio, 2026-10-07): Cloudflare in front of a self-hosted Hub, so no router port forwards are needed. The Hub itself stays self-hosted; running it on Workers/Pages would be a rewrite and is not planned.
