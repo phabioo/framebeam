@@ -213,10 +213,21 @@ func TestNetworkLiveSettings(t *testing.T) {
 	if got := e.svc.ICEServers(); len(got) != 1 || got[0] != "stun:other.example.com:3478" {
 		t.Fatalf("%v", got)
 	}
-	status(t, postTok(c, tok, "/settings/network/ice_servers/reset", nil), 303)
-	if got := e.svc.ICEServers(); len(got) != 0 {
-		t.Fatalf("%v", got)
+	status(t, postTok(c, tok, "/settings/network/ice_servers", url.Values{"op": {"remove"}, "url": {"stun:other.example.com:3478"}}), 303)
+	if got := e.svc.ICEServers(); len(got) != 1 || got[0] != config.DefaultSTUNServer {
+		t.Fatalf("removing the last entry must give the default: %v", got)
 	}
+	status(t, postTok(c, tok, "/settings/network/ice_servers", url.Values{"op": {"add"}, "url": {"stun:other.example.com:3478"}}), 303)
+	status(t, postTok(c, tok, "/settings/network/ice_servers/reset", nil), 303)
+	if got := e.svc.ICEServers(); len(got) != 1 || got[0] != config.DefaultSTUNServer {
+		t.Fatalf("reset must bring back the default: %v", got)
+	}
+	contains(t, c.get("/settings/network", nil), "stun:stun.cloudflare.com:3478", "Default")
+	status(t, postTok(c, tok, "/settings/network/ice_servers", url.Values{"op": {"none"}}), 303)
+	if got := e.svc.ICEServers(); got == nil || len(got) != 0 {
+		t.Fatalf("none: %#v", got)
+	}
+	contains(t, c.get("/settings/network", nil), "No external STUN server")
 	if *restarts != 0 {
 		t.Fatal("restart requested by a live setting")
 	}

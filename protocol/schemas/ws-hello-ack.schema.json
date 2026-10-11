@@ -38,7 +38,7 @@
         },
         "ice_servers": {
           "type": "array",
-          "description": "stun: URLs from Hub config plus the Hub's own STUN when TURN is on",
+          "description": "stun: URLs: the Hub's configured list (default stun:stun.cloudflare.com:3478, empty with -ice-servers none) plus the Hub's own STUN when the embedded TURN server is on",
           "items": {
             "type": "string",
             "pattern": "^stuns?:"
@@ -46,7 +46,7 @@
         },
         "turn_servers": {
           "type": "array",
-          "description": "Optional relay credentials; present only while the Hub's TURN server is on (feature turn_v1)",
+          "description": "Optional relay credentials from every active relay provider (the embedded TURN server and/or Cloudflare TURN); present only while a provider is on (feature turn_v1)",
           "items": {
             "type": "object",
             "required": [

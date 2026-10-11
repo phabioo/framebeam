@@ -266,6 +266,12 @@ void HubSocket::onTextMessage(const QString& text) {
     setState(State::Open);
     pingTimer_.start(pingIntervalMs_);
     emit helloAcked(hello_);
+  } else if (type == QLatin1String("ice_update")) {
+    // ice_update_v1: replaces the stored ICE/TURN config; connections created from now on use it, running ones stay as they are.
+    hello_.iceServers = strList(p.value(QStringLiteral("ice_servers")));
+    hello_.turnServers = parseTurnServers(p.value(QStringLiteral("turn_servers")));
+    qCInfo(lcSocket).noquote() << QStringLiteral("ICE servers updated: %1 stun, %2 turn").arg(hello_.iceServers.size()).arg(hello_.turnServers.size());
+    emit iceUpdated(hello_);
   } else if (type == QLatin1String("presence_update")) {
     emit presenceUpdated({str(p, "user_id"), str(p, "device_id"), str(p, "state"), str(p, "game_id")});
   } else if (type == QLatin1String("session_update") || type == QLatin1String("session_invite")) {

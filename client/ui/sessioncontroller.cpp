@@ -27,6 +27,7 @@ SessionController::SessionController(HubConnection* conn, ProfileStore* profiles
   connect(conn_, &HubConnection::stateChanged, this, &SessionController::onConnectionState);
   connect(&socket_, &HubSocket::stateChanged, this, [this]() { emit linkChanged(); });
   connect(&socket_, &HubSocket::helloAcked, this, &SessionController::onHelloAck);
+  connect(&socket_, &HubSocket::iceUpdated, this, [this](const HelloAck& ack) { host_.updateIceServers(ack.iceServers, ack.turnServers); });
   connect(&socket_, &HubSocket::sessionUpdated, this, &SessionController::onSessionUpdated);
   connect(&socket_, &HubSocket::sessionInvited, this, &SessionController::onSessionUpdated);
   connect(&socket_, &HubSocket::sessionEnded, this, &SessionController::onSessionEnded);
@@ -287,6 +288,7 @@ QVariantList SessionController::participants() const {
                            {QStringLiteral("status"), tr("watching")},
                            {QStringLiteral("connection"), linkByViewer_.value(v.viewerId).toMap().value(QStringLiteral("text"), tr("Connecting"))},
                            {QStringLiteral("connectionTone"), linkByViewer_.value(v.viewerId).toMap().value(QStringLiteral("tone"), QStringLiteral("neutral"))},
+                           {QStringLiteral("connectionReason"), linkByViewer_.value(v.viewerId).toMap().value(QStringLiteral("reason"))},
                            {QStringLiteral("action"), tr("Remove")}});
   }
   if (visibility_ == QLatin1String("invite_only")) {
@@ -1030,15 +1032,19 @@ void SessionController::updateLinks() {
     const QList<ViewerLinkStats> links = viewerLinks();
     for (const SessionViewerEntry& v : own_.viewers) {
       QString type;
+      RelayReason reason = RelayReason::None;
       for (const ViewerLinkStats& l : links) {
         if (l.viewerId == v.viewerId) {
           type = l.connectionType;
+          reason = l.relayReason;
         }
       }
       const DiagnosticsModel::Pill pill = DiagnosticsModel::connectionPill(type);
-      byViewer.insert(v.viewerId, QVariantMap{{QStringLiteral("text"), pill.text}, {QStringLiteral("tone"), pill.tone}});
+      const QString reasonText = DiagnosticsModel::relayReasonText(reason);
+      byViewer.insert(v.viewerId, QVariantMap{{QStringLiteral("text"), pill.text}, {QStringLiteral("tone"), pill.tone},
+                                              {QStringLiteral("reason"), reasonText}});
       if (DiagnosticsModel::isRelayed(type)) {
-        relayed << v.displayName;
+        relayed << (reasonText.isEmpty() ? v.displayName : QStringLiteral("%1 (%2)").arg(v.displayName, reasonText));
       }
     }
   }
@@ -1060,6 +1066,7 @@ void SessionController::updateLinks() {
     const DiagnosticsModel::Pill pill = DiagnosticsModel::connectionPill(st.connectionType);
     remoteLinks.insert(id, QVariantMap{{QStringLiteral("text"), pill.text},
                                        {QStringLiteral("tone"), pill.tone},
+                                       {QStringLiteral("reason"), DiagnosticsModel::relayReasonText(st.relayReason)},
                                        {QStringLiteral("rtt"), st.rttMs ? tr("%1 ms").arg(qRound(*st.rttMs)) : QString()}});
   }
   if (remoteLinks != surfaceLinks_) {
@@ -1108,7 +1115,7 @@ void SessionController::refreshDiagnostics() {
           viewerRows.append(DiagnosticsModel::participant(
               v.displayName, tr("viewer"), DiagnosticsModel::connectionPill(l.connectionType),
               DiagnosticsModel::decoderLine(l.reportDecoder, kbps, l.reportFps),
-              DiagnosticsModel::linkLine(l.rttMs, loss, l.connectionType, turn)));
+              DiagnosticsModel::linkLine(l.rttMs, loss, l.connectionType, turn, l.relayReason)));
         }
         people.append(DiagnosticsModel::participant(tr("You"), tr("host"), {tr("Local"), QStringLiteral("neutral")},
                                                     DiagnosticsModel::hostLine(local),
@@ -1131,7 +1138,7 @@ void SessionController::refreshDiagnostics() {
           {QStringLiteral("participants"),
            QVariantList{DiagnosticsModel::participant(who, tr("host"), DiagnosticsModel::connectionPill(st.connectionType),
                                                       DiagnosticsModel::decoderLine(st.decoderName, st.videoBitrateKbps, st.fps),
-                                                      DiagnosticsModel::linkLine(st.rttMs, loss, st.connectionType, turn))}}});
+                                                      DiagnosticsModel::linkLine(st.rttMs, loss, st.connectionType, turn, st.relayReason))}}});
     }
   }
   diagnostics_->setTiles(tiles);

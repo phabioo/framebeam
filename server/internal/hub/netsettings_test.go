@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/phabioo/framebeam/server/internal/config"
 	"github.com/phabioo/framebeam/server/internal/hub"
 	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
 )
@@ -65,8 +66,12 @@ func TestLiveRetentionAndICEServers(t *testing.T) {
 	if svc.ICEServers()[0] != "stun:b.example.com:3478" {
 		t.Fatal("ICEServers returned the internal slice")
 	}
-	svc.SetICEServers(nil)
-	if len(svc.ICEServers()) != 0 {
-		t.Fatal("not cleared")
+	svc.SetICEServers(nil) // not configured: the default STUN server
+	if got := svc.ICEServers(); len(got) != 1 || got[0] != config.DefaultSTUNServer {
+		t.Fatalf("default: %v", got)
+	}
+	svc.SetICEServers([]string{}) // explicitly none
+	if got := svc.ICEServers(); got == nil || len(got) != 0 {
+		t.Fatalf("none: %#v", got)
 	}
 }

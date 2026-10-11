@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "bitratecontroller.h"
+#include "rtcutil.h"
 #include "mediastats.h"
 #include "sessiontypes.h"
 #include "videoencoder.h"
@@ -66,6 +67,8 @@ class SessionHost : public QObject {
   // Session published: signaling and viewers refer to this id.
   // `turnServers`: relay credentials from hello_ack / the join response (ADR 0012 D3-D5).
   void open(const QString& sessionId, const QStringList& iceServers, const QList<TurnServer>& turnServers = {});
+  // `ice_update` from the Hub: PeerConnections created from now on use this config, running ones stay untouched.
+  void updateIceServers(const QStringList& iceServers, const QList<TurnServer>& turnServers);
   // ICE transport policy "relay" for the PeerConnections created from now on (default: FRAMEBEAM_FORCE_RELAY=1).
   void setForceRelay(bool force) { forceRelay_ = force; }
   bool forceRelay() const { return forceRelay_; }
@@ -133,10 +136,13 @@ class SessionHost : public QObject {
     bool remoteSet = false;
     bool connected = false;
     QString state = QStringLiteral("new");
+    IceTrace ice;  // candidate counts of this connection (UI thread)
   };
 
   void dropViewer(const QString& viewerId, const QString& reason);
   void onPcState(const QString& viewerId, int state);
+  void onLocalCandidateType(const QString& viewerId, int type);
+  void onGatheringComplete(const QString& viewerId);
   void startEncoder();
   void stopEncoder();
   void requestKeyframe();

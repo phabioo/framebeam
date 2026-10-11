@@ -286,11 +286,11 @@ Decided by Fabio on 2026-10-11, in this order.
 
 In the test of 2026-10-11 most WebRTC connections ran relayed over TURN. Cause found for one direction: the Hub's STUN list is empty by default and the embedded STUN is advertised under the request host (a LAN address for Players in the Hub's network), so those Players gathered no public server-reflexive candidate. Adding a public STUN server (stun.cloudflare.com:3478) to the Hub made that direction direct. The other direction (host on a mobile hotspot) stayed relayed even after both Players restarted with the new STUN list; most likely carrier-grade NAT with per-destination ports, where TURN is the expected path (not measured, the logs had no ICE data).
 
-- Open: public default STUN server (stun.cloudflare.com:3478) when the STUN list is empty.
-- Open: ICE logging per connection (gathered candidate types, selected pair).
-- Open: overlay and diagnostics show the connection type and the reason per viewer.
-- Open: running sessions pick up a changed ICE list.
-- Open: Cloudflare TURN (Realtime) as an optional TURN provider next to the embedded `pion/turn`: the Hub hands out short-lived Cloudflare TURN credentials (API token as a secret on the Hub host); moved out of "Later". Cloudflare Tunnel stays in "Later" to evaluate.
+- [x] Done in code: public default STUN server (`stun:stun.cloudflare.com:3478`) when no STUN URL is configured; `-ice-servers none` (or "Use no external server" in Settings → Network) switches it off.
+- [x] Done in code: ICE logging per connection on host and viewer (gathered candidates by type, remote candidates, selected pair, failures).
+- [x] Done in code: overlay and diagnostics show the connection type and, for a relayed path, the reason per viewer (forced, no STUN reachable here, other side has no public candidate, direct checks failed).
+- [x] Done in code: running Players pick up a changed ICE list through the WSS message `ice_update` (`ice_update_v1`); new connections use it, running ones stay.
+- [x] Done in code: Cloudflare TURN (Realtime) as an optional TURN provider next to the embedded `pion/turn`: the Hub hands out short-lived Cloudflare TURN credentials (API token as a secret on the Hub host); moved out of "Later". Cloudflare Tunnel stays in "Later" to evaluate.
 - Open: confirm the relayed direction with the host on a mobile hotspot from the new ICE logging.
 
 ### 2. Small items

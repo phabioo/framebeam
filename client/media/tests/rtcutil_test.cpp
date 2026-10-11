@@ -129,6 +129,53 @@ class RtcUtilTest : public QObject {
     QVERIFY(connectionTypeRank(QStringLiteral("direct (host)")) > connectionTypeRank(QString()));
   }
 
+  void relayReasonClassification() {
+    CandidateCounts withSrflx;
+    withSrflx.host = 2;
+    withSrflx.srflx = 1;
+    CandidateCounts hostOnly;
+    hostOnly.host = 1;
+    CandidateCounts relayOnly;
+    relayOnly.relay = 1;
+    const QString relayed = QStringLiteral("relay (udp)"), direct = QStringLiteral("direct (srflx)");
+
+    // Direct and unknown paths never carry a reason.
+    QCOMPARE(classifyRelayReason(direct, false, withSrflx, withSrflx), RelayReason::None);
+    QCOMPARE(classifyRelayReason(QString(), false, hostOnly, hostOnly), RelayReason::None);
+    QCOMPARE(classifyRelayReason(QStringLiteral("direct (host)"), true, hostOnly, hostOnly), RelayReason::None);
+    // Forced relay wins over everything else.
+    QCOMPARE(classifyRelayReason(relayed, true, relayOnly, relayOnly), RelayReason::Forced);
+    QCOMPARE(classifyRelayReason(QStringLiteral("relay (tcp)"), true, hostOnly, withSrflx), RelayReason::Forced);
+    // No local srflx before the remote side is looked at.
+    QCOMPARE(classifyRelayReason(relayed, false, hostOnly, withSrflx), RelayReason::NoLocalSrflx);
+    QCOMPARE(classifyRelayReason(relayed, false, hostOnly, hostOnly), RelayReason::NoLocalSrflx);
+    QCOMPARE(classifyRelayReason(relayed, false, CandidateCounts(), withSrflx), RelayReason::NoLocalSrflx);
+    // Remote offered none.
+    QCOMPARE(classifyRelayReason(relayed, false, withSrflx, hostOnly), RelayReason::NoRemoteSrflx);
+    // Both had srflx and the direct checks failed.
+    QCOMPARE(classifyRelayReason(relayed, false, withSrflx, withSrflx), RelayReason::DirectFailed);
+    QCOMPARE(classifyRelayReason(QStringLiteral("relay (tcp)"), false, withSrflx, withSrflx), RelayReason::DirectFailed);
+
+    QVERIFY(relayReasonToken(RelayReason::None).isEmpty());
+    QCOMPARE(relayReasonToken(RelayReason::DirectFailed), QStringLiteral("direct_failed"));
+  }
+
+  void candidateCounting() {
+    using T = rtc::Candidate::Type;
+    CandidateCounts c;
+    countCandidate(c, T::Host);
+    countCandidate(c, T::Host);
+    countCandidate(c, T::ServerReflexive);
+    countCandidate(c, T::PeerReflexive);
+    countCandidate(c, T::Relayed);
+    countCandidate(c, T::Unknown);
+    QCOMPARE(c.text(), QStringLiteral("host=2 srflx=1 prflx=1 relay=1"));
+    QCOMPARE(c.total(), 5);
+    const rtc::Candidate relay("candidate:1 1 UDP 100 198.51.100.7 49160 typ relay raddr 0.0.0.0 rport 0", "0");
+    QCOMPARE(describeCandidate(relay).left(5), QStringLiteral("relay"));
+    QVERIFY(describeCandidate(relay).endsWith(QStringLiteral("udp")));
+  }
+
   void encoderBitrateAtRuntime() {
     qputenv("FRAMEBEAM_H264_ENCODER", "libx264");
     VideoEncoder enc;

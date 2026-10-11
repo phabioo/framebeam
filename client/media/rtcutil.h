@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 
+#include "connectionpath.h"
 #include "sessiontypes.h"
 
 namespace framebeam {
@@ -101,6 +102,48 @@ inline QString connectionTypeOf(rtc::PeerConnection& pc, bool relayTcpOnly = fal
   }
   return connectionTypeOfCandidates(local, remote, relayTcpOnly, forcedRelay);
 }
+
+inline void countCandidate(CandidateCounts& counts, rtc::Candidate::Type t) {
+  using T = rtc::Candidate::Type;
+  switch (t) {
+    case T::Host: ++counts.host; break;
+    case T::ServerReflexive: ++counts.srflx; break;
+    case T::PeerReflexive: ++counts.prflx; break;
+    case T::Relayed: ++counts.relay; break;
+    default: break;
+  }
+}
+
+// "srflx 203.0.113.5:50000" / "relay 198.51.100.7:49160 (tcp)": type, address, port; "?" while unresolved. No credentials.
+inline QString describeCandidate(const rtc::Candidate& c) {
+  using T = rtc::Candidate::Type;
+  using X = rtc::Candidate::TransportType;
+  const char* type = c.type() == T::Host ? "host" : c.type() == T::ServerReflexive ? "srflx" : c.type() == T::PeerReflexive ? "prflx"
+                     : c.type() == T::Relayed ? "relay" : "unknown";
+  const X x = c.transportType();
+  const bool tcp = x == X::TcpActive || x == X::TcpPassive || x == X::TcpSo || x == X::TcpUnknown;
+  const auto addr = c.address();
+  const auto port = c.port();
+  return QStringLiteral("%1 %2:%3 %4")
+      .arg(QLatin1String(type), addr ? QString::fromStdString(*addr) : QStringLiteral("?"), port ? QString::number(*port) : QStringLiteral("?"),
+           tcp ? QStringLiteral("tcp") : QStringLiteral("udp"));
+}
+
+// "local srflx 1.2.3.4:5 udp <-> remote relay 5.6.7.8:9 udp"; empty while no pair is selected.
+inline QString selectedPairText(rtc::PeerConnection& pc) {
+  rtc::Candidate local, remote;
+  if (!pc.getSelectedCandidatePair(&local, &remote)) {
+    return {};
+  }
+  return QStringLiteral("local %1 <-> remote %2").arg(describeCandidate(local), describeCandidate(remote));
+}
+
+// ICE bookkeeping of one connection, owned by the Qt thread of its SessionHost/SessionViewer (callbacks post into it).
+struct IceTrace {
+  CandidateCounts local;
+  CandidateCounts remote;
+  bool gatheringComplete = false;
+};
 
 // Sort key for "worst" connection type over several links: relay > srflx/prflx > host > unknown.
 inline int connectionTypeRank(const QString& type) {

@@ -49,6 +49,7 @@ class HubSocket : public QObject {
  signals:
   void stateChanged(framebeam::HubSocket::State state);
   void helloAcked(const framebeam::HelloAck& ack);  // connection usable
+  void iceUpdated(const framebeam::HelloAck& ack);  // `ice_update` applied: ack.iceServers / ack.turnServers are the new config
   void presenceUpdated(const framebeam::PresenceUpdate& update);
   void sessionUpdated(const framebeam::SessionInfo& session);
   void sessionInvited(const framebeam::SessionInfo& session);
