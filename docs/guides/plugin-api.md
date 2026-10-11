@@ -97,6 +97,7 @@ Plugins read a **snapshot** that the emulation copies after frames. They registe
 - `fb.memory.watch(key, addr, len)` registers a range under a name of your choice (the same key replaces the range). `fb.memory.unwatch(key)` removes it.
 - `fb.memory.u8/u16/u32/u64/s8/s16/s32(addr)` read little-endian integers. `fb.memory.bytes(addr, len)` returns a string (`len` up to 4 MiB). `u64` wraps into the signed Lua integer range.
 - All reads return `nil` when the address is not in the latest snapshot. `fb.memory.frame()` returns the frame number of the latest snapshot or `nil` if there is none yet.
+- **Late memory maps:** a core may re-send its memory map while the game runs (for example when the game maps its heap later). The Player picks up the new regions at once: the console's MEMORY MAP section updates, and addresses that were unreadable become readable from the next snapshot on (ranges you already watch need no re-registration).
 - **Pointer following:** read a pointer, then watch the target. The target is readable from a later snapshot.
 
 ```lua

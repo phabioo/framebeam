@@ -206,7 +206,7 @@ bool LibretroBackend::loadCore(const QString& libraryPath, QString* error) {
 void LibretroBackend::unloadCore() {
   if (!m_coreLoaded) return;
   unloadGame();
-  m_memMap = MemoryMap();
+  m_memMap = MemoryMap(); ++m_memMapGen;
   m_api->deinit();
   teardownHw();
   m_lib.unload();
@@ -234,7 +234,7 @@ bool LibretroBackend::loadGame(const QString& path, QString* error) {
   // Never call retro_load_game(NULL) on a core that did not declare SET_SUPPORT_NO_GAME (it may dereference it).
   if (path.isEmpty() && !m_supportsNoGame) return fail(QStringLiteral("Core does not support starting without a game"));
   if (m_gameLoaded) unloadGame();
-  m_memMap = MemoryMap();  // set again by the core in retro_load_game
+  m_memMap = MemoryMap(); ++m_memMapGen;  // set again by the core in retro_load_game
 
   // Empty path: no-game mode (retro_load_game(NULL)); only used to let a core register its options.
   const bool noGame = path.isEmpty();
@@ -314,7 +314,7 @@ bool LibretroBackend::loadGame(const QString& path, QString* error) {
   if (m_memMap.empty() && m_api->get_memory_data && m_api->get_memory_size) {
     void* ram = m_api->get_memory_data(RETRO_MEMORY_SYSTEM_RAM);
     const size_t ramSize = m_api->get_memory_size(RETRO_MEMORY_SYSTEM_RAM);
-    if (ram && ramSize > 0) m_memMap = MemoryMap::fromBuffer(ram, ramSize, 0, "system_ram");
+    if (ram && ramSize > 0) { m_memMap = MemoryMap::fromBuffer(ram, ramSize, 0, "system_ram"); ++m_memMapGen; }
   }
 
   // Battery save: the core exposes it as memory, the frontend persists it (like RetroArch's .srm).
@@ -406,7 +406,7 @@ void LibretroBackend::unloadGame() {
   teardownHw();
   m_gameLoaded = false;
   m_gameData.clear();
-  m_memMap = MemoryMap();
+  m_memMap = MemoryMap(); ++m_memMapGen;
 }
 
 bool LibretroBackend::isGameLoaded() const { return m_gameLoaded; }
@@ -835,7 +835,11 @@ bool LibretroBackend::handleEnvironment(unsigned rawCmd, void* data) {
     case RETRO_ENVIRONMENT_SET_SUBSYSTEM_INFO: return true;
     case RETRO_ENVIRONMENT_SET_MEMORY_MAPS & ~RETRO_ENVIRONMENT_EXPERIMENTAL:
       // Plugin memory access: copy the descriptors; the core's buffers stay valid while the game is loaded.
-      if (data) m_memMap = MemoryMap(*static_cast<const retro_memory_map*>(data));
+      // May be called again during retro_run (core maps more memory later): the runner watches memoryMapGeneration().
+      if (data) {
+        m_memMap = MemoryMap(*static_cast<const retro_memory_map*>(data));
+        ++m_memMapGen;
+      }
       return data != nullptr;
     case RETRO_ENVIRONMENT_SET_FASTFORWARDING_OVERRIDE: {
       // Only inhibit_toggle matters: the user's chosen speed always wins over the core's ratio.

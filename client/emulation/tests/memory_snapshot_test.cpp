@@ -132,6 +132,69 @@ class MemorySnapshotTest : public QObject {
     be.unloadCore();
   }
 
+  // The test core re-sends SET_MEMORY_MAPS from retro_run at frame 30 with an extra "late" region: frame-exact on the backend.
+  void testCoreLateMapBackend() {
+    LibretroBackend be;
+    QString err;
+    be.setSystemDirectory(m_dir.filePath(QStringLiteral("system")));
+    be.setSaveDirectory(m_dir.filePath(QStringLiteral("save")));
+    const auto req = request();
+    QVERIFY2(be.loadCore(req.corePath, &err) && be.loadGame(req.gamePath, &err), qPrintable(err));
+    const uint64_t gen0 = be.memoryMapGeneration();
+    for (int i = 0; i < mem::kLateMapFrame - 1; ++i) QVERIFY(be.runFrame());
+    QCOMPARE(be.memoryMapGeneration(), gen0);
+    QCOMPARE(be.memoryMap()->regions().size(), size_t{2});
+    QVERIFY(!be.memoryMap()->resolve(mem::kLateAddr).ptr);
+    QVERIFY(be.runFrame());  // frame 30: the core re-sends the map
+    QVERIFY(be.memoryMapGeneration() > gen0);
+    const MemoryMap* mm = be.memoryMap();
+    QVERIFY(mm);
+    QCOMPARE(mm->regions().size(), size_t{3});
+    const auto s = mm->resolve(mem::kLateAddr);
+    QVERIFY(s.ptr);
+    QCOMPARE(s.len, mem::kLateSize);
+    be.unloadGame();
+    be.unloadCore();
+  }
+
+  // Runner + plugin-facing snapshots: the late address is unreadable first, then readable, and the published region list
+  // gains the region (memoryRegionsChanged).
+  void testCoreLateMapRunner() {
+    qputenv("FB_TEST_CORE_LATE_MAP_FRAME", "120");  // about 2 s at 60 fps: time to observe the state before
+    EmulationRunner runner(std::make_unique<LibretroBackend>());
+    QSignalSpy started(&runner, &EmulationRunner::started);
+    QSignalSpy changed(&runner, &EmulationRunner::memoryRegionsChanged);
+    auto watch = runner.memoryWatch();
+    watch->setRanges("late", {{mem::kHeapAddr, 0x20}, {mem::kLateAddr, 16}});
+    runner.start(request());
+    QTRY_COMPARE_WITH_TIMEOUT(started.count(), 1, 20000);
+    QTRY_VERIFY_WITH_TIMEOUT(watch->latest() != nullptr, 10000);
+    // Timing-independent "before": the worker publishes the regions, emits memoryRegionsChanged and only then captures
+    // the next snapshot (emulation_runner.cpp, after runFrame). So a snapshot and region list taken first, with the count
+    // still 0 when read afterwards, predate the re-send. If the machine stalled and it already fired, skip this part.
+    const auto beforeRegions = runner.memoryRegions();
+    const auto beforeSnap = watch->latest();
+    uint8_t b[4];
+    if (changed.count() == 0) {
+      QVERIFY(!beforeSnap->read(mem::kLateAddr, b, 4));  // not mapped yet
+      QCOMPARE(beforeRegions.size(), size_t{2});
+    } else {
+      QWARN("late map was re-sent before the 'before' state could be observed; skipping that part");
+    }
+
+    QTRY_COMPARE_WITH_TIMEOUT(changed.count(), 1, 20000);
+    const auto regions = runner.memoryRegions();
+    QCOMPARE(regions.size(), size_t{3});
+    QCOMPARE(QString::fromStdString(regions[2].addrspace), QStringLiteral("late"));
+    QCOMPARE(regions[2].start, mem::kLateAddr);
+    bool ok = false;
+    QTRY_VERIFY_WITH_TIMEOUT(watch->latest()->read(mem::kLateAddr, b, 4), 10000);
+    QCOMPARE(rd32(*watch->latest(), mem::kLateAddr, &ok), mem::kLateMagic);
+    QVERIFY(ok);
+    runner.stop();
+    qunsetenv("FB_TEST_CORE_LATE_MAP_FRAME");
+  }
+
   void testCoreSnapshots() {
     EmulationRunner runner(std::make_unique<LibretroBackend>());
     QSignalSpy started(&runner, &EmulationRunner::started);
@@ -145,7 +208,7 @@ class MemorySnapshotTest : public QObject {
     runner.start(request());
     QTRY_COMPARE_WITH_TIMEOUT(started.count(), 1, 20000);
     QCOMPARE(failed.count(), 0);
-    QCOMPARE(runner.memoryRegions().size(), size_t{2});
+    QVERIFY(runner.memoryRegions().size() >= 2);  // 3 once the test core re-sends its map at frame 30
     QCOMPARE(QString::fromStdString(runner.memoryRegions()[0].addrspace), QStringLiteral("heap"));
 
     QTRY_VERIFY_WITH_TIMEOUT(watch->latest() != nullptr, 10000);

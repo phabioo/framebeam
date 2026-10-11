@@ -58,6 +58,7 @@ class LibretroBackend final : public EmulatorBackend {
   // GUI thread, before the emulation thread starts: creates the offscreen surface for hardware rendering.
   void prepareForStart() override;
   const MemoryMap* memoryMap() const override { return m_memMap.empty() ? nullptr : &m_memMap; }
+  uint64_t memoryMapGeneration() const override { return m_memMapGen; }
 
   QImage videoFrame() const override;
   quint64 frameCount() const override;
@@ -146,6 +147,7 @@ class LibretroBackend final : public EmulatorBackend {
   QByteArray m_corePathUtf8;
   QByteArray m_gameData;  // lives until unloadGame (the core may hold pointers)
   QByteArray m_gamePathUtf8;
+  uint64_t m_memMapGen = 0;  // bumped on every replacement of m_memMap; emulation thread
   MemoryMap m_memMap;  // from SET_MEMORY_MAPS or the SYSTEM_RAM fallback; emulation thread
   QString m_loadedPath;  // path of the loaded game (for the live save reload)
 
