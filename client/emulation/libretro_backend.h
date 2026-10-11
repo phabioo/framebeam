@@ -168,7 +168,7 @@ class LibretroBackend final : public EmulatorBackend {
   std::atomic<bool> m_lastGpuCaptured{false};
   std::atomic<bool> m_videoWanted{true};
   static quint64 pack(const QSize& s) {
-    return (static_cast<quint64>(static_cast<quint32>(std::max(0, s.width()))) << 32) | static_cast<quint32>(std::max(0, s.height()));
+    return (static_cast<quint64>(static_cast<quint32>((std::max)(0, s.width()))) << 32) | static_cast<quint32>((std::max)(0, s.height()));
   }
   static QSize unpack(quint64 v) { return QSize(static_cast<int>(v >> 32), static_cast<int>(v & 0xFFFFFFFFu)); }
   std::atomic<quint64> m_readbackLimit{0};  // packed QSize (0 = none)

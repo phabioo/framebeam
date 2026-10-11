@@ -59,7 +59,7 @@ MemoryMap::Span MemoryMap::resolve(uint64_t addr) const {
     uint64_t avail = d.len - idx;
     if (d.disconnect != 0) {  // bytes stay contiguous only until the next disconnected address bit
       const uint64_t low = d.disconnect & (~d.disconnect + 1);
-      avail = std::min(avail, low - (addr & (low - 1)));
+      avail = (std::min)(avail, low - (addr & (low - 1)));
     }
     return {static_cast<uint8_t*>(d.ptr) + d.offset + idx, avail};
   }

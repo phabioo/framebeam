@@ -173,7 +173,7 @@ class EmulationRunner::Worker : public QThread {
       // Too far behind: resynchronize. At normal speed catch-up is limited to 2 frames, so a late frame never turns into
       // a long burst (average = target; the measured fps stays near it). Sped up, a coarse timer may oversleep by more than 5 short steps, which
       // would drop the catch-up and cap the speed, so the limit is at least 100 ms there.
-      const auto maxBehind = fast ? std::max<std::chrono::steady_clock::duration>(5 * step, std::chrono::milliseconds(100)) : 2 * step;
+      const auto maxBehind = fast ? (std::max<std::chrono::steady_clock::duration>)(5 * step, std::chrono::milliseconds(100)) : 2 * step;
       if (next < now - maxBehind) next = now;
       QMutexLocker l(&m_mutex);
       while (!m_stop && !m_paused && !m_reset && m_tasks.empty()) {
@@ -303,7 +303,7 @@ QByteArray EmulationRunner::resampleForSpeedUp(const QByteArray& pcm, double rat
   double pos = phase ? *phase : 0.0;
   while (pos < static_cast<double>(n)) {
     const qsizetype i = static_cast<qsizetype>(pos);
-    const qsizetype j = std::min<qsizetype>(i + 1, n - 1);
+    const qsizetype j = (std::min<qsizetype>)(i + 1, n - 1);
     const double f = pos - static_cast<double>(i);
     for (int ch = 0; ch < 2; ++ch) {
       const qint16 v = static_cast<qint16>(std::lround(in[2 * i + ch] * (1.0 - f) + in[2 * j + ch] * f));

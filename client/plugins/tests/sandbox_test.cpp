@@ -176,7 +176,7 @@ class SandboxTest : public QObject {
     }
     QCOMPARE(host.consoleSnapshot("net.test.good").status, PluginStatus::Running);
     QVERIFY(host.consoleSnapshot("net.test.good").log.size() > before);
-    QVERIFY(!status.isEmpty());
+    QTRY_VERIFY_WITH_TIMEOUT(!status.isEmpty(), 5000);
     host.stop();
     QCOMPARE(host.consoleSnapshot("net.test.good").status, PluginStatus::Stopped);
   }

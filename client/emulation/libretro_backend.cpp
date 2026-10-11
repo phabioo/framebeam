@@ -353,7 +353,7 @@ bool LibretroBackend::tryLoadSave() {
                           << "; keeping a backup before the first write";
         QFile::copy(m_saveFilePath, m_saveFilePath + QStringLiteral(".size-mismatch-") + backupStamp() + QStringLiteral(".bak"));
       }
-      std::memcpy(mem, data.constData(), std::min(static_cast<size_t>(data.size()), size));
+      std::memcpy(mem, data.constData(), (std::min)(static_cast<size_t>(data.size()), size));
     }
   }
   m_sramSnapshot = QByteArray(static_cast<const char*>(mem), static_cast<qsizetype>(size));

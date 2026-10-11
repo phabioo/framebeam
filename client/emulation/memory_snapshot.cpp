@@ -50,7 +50,7 @@ void MemoryWatchSet::rebuildLocked() {
     const uint64_t end = r.addr + r.len;
     if (!merged->empty() && r.addr <= merged->back().addr + merged->back().len) {  // overlapping or adjacent
       Merged& m = merged->back();
-      m.len = std::max(m.addr + m.len, end) - m.addr;
+      m.len = (std::max)(m.addr + m.len, end) - m.addr;
     } else {
       merged->push_back({r.addr, r.len});
     }
@@ -86,10 +86,10 @@ void MemoryWatchSet::capture(const MemoryMap& map, uint64_t frame) {
     while (addr < end) {
       const MemoryMap::Span s = map.resolve(addr);
       if (!s.ptr) {  // unmapped: skip ahead, those bytes stay invalid
-        addr = std::min(end, (addr / kUnmappedStep + 1) * kUnmappedStep);
+        addr = (std::min)(end, (addr / kUnmappedStep + 1) * kUnmappedStep);
         continue;
       }
-      const uint64_t n = std::min(s.len, end - addr);
+      const uint64_t n = (std::min)(s.len, end - addr);
       const size_t off = snap->m_data.size();
       snap->m_data.insert(snap->m_data.end(), s.ptr, s.ptr + n);
       if (!snap->m_segments.empty() && snap->m_segments.back().addr + snap->m_segments.back().len == addr) {

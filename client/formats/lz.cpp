@@ -34,7 +34,7 @@ Result lzDecompress(std::string_view in, size_t maxOut) {
         return r;
     }
     std::string out;
-    out.reserve(static_cast<size_t>(std::min<uint64_t>(size, 1u << 24)));
+    out.reserve(static_cast<size_t>((std::min<uint64_t>)(size, 1u << 24)));
     while (out.size() < size) {
         if (pos >= in.size()) {
             r.error = "LZ: truncated input";
@@ -90,7 +90,7 @@ Result lzDecompress(std::string_view in, size_t maxOut) {
                 r.error = "LZ: back-reference before start of output";
                 return r;
             }
-            len = static_cast<uint32_t>(std::min<uint64_t>(len, size - out.size()));
+            len = static_cast<uint32_t>((std::min<uint64_t>)(len, size - out.size()));
             for (uint32_t k = 0; k < len; ++k) out.push_back(out[out.size() - disp]);
         }
     }

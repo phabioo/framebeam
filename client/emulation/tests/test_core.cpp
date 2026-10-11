@@ -437,8 +437,8 @@ unsigned scaleFromOption() {
   const std::string v = getVar(scaleKey());
   if (v.empty()) return 1;
   const int n = std::atoi(v.c_str());  // "2" -> 2; "512x384" -> 512
-  if (v.find('x') != std::string::npos) return static_cast<unsigned>(std::max(1, n / tc::kWidth));
-  return static_cast<unsigned>(std::max(1, std::min(n, 8)));
+  if (v.find('x') != std::string::npos) return static_cast<unsigned>((std::max)(1, n / tc::kWidth));
+  return static_cast<unsigned>((std::max)(1, (std::min)(n, 8)));
 }
 
 // Synthetic memory for the plugin memory access tests; layout in test_core_layout.h (namespace mem).

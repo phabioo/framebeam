@@ -100,7 +100,7 @@ inline std::string makeGarc(const std::vector<std::vector<std::string>>& files, 
             put32(fatb, start);
             put32(fatb, static_cast<uint32_t>(data.size()));
             put32(fatb, static_cast<uint32_t>(s.size()));
-            largest = std::max(largest, static_cast<uint32_t>(s.size()));
+            largest = (std::max)(largest, static_cast<uint32_t>(s.size()));
         }
     }
     std::string fatoChunk = "OTAF";

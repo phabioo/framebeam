@@ -252,7 +252,7 @@ void PluginEngine::reload(const QString& id) {
 }
 
 void PluginEngine::deliverEvents() {
-  size_t n = std::min<size_t>(events.size(), 1000);
+  size_t n = (std::min<size_t>)(events.size(), 1000);
   while (n-- > 0 && !events.empty()) {
     QueuedEvent ev = std::move(events.front());
     events.pop_front();
@@ -281,7 +281,7 @@ void PluginEngine::tick() {
   if (!frame) return;
   const uint64_t gen = provider->generation();
   if (m_lastGen && *m_lastGen == gen) return;
-  const int hz = std::max(1, m_tickHz.load());
+  const int hz = (std::max)(1, m_tickHz.load());
   const auto now = Clock::now();
   if (m_lastTick != Clock::time_point() && now - m_lastTick < std::chrono::microseconds(1000000 / hz)) return;
   m_lastGen = gen;

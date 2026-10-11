@@ -100,7 +100,7 @@ class EmulationRunner : public QObject {
   // each successful runFrame (every snapshotInterval frames), only while the set is non-empty and the backend has a
   // memory map. Always non-null, lives as long as the runner.
   std::shared_ptr<MemoryWatchSet> memoryWatch() const { return m_memoryWatch; }
-  void setSnapshotInterval(int frames) { m_snapshotInterval.store(std::max(1, frames)); }
+  void setSnapshotInterval(int frames) { m_snapshotInterval.store((std::max)(1, frames)); }
   int snapshotInterval() const { return m_snapshotInterval.load(); }
   // The game's memory regions (thread-safe copy), taken after the game loaded; empty when none or not running.
   std::vector<MemoryMap::RegionInfo> memoryRegions() const;

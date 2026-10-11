@@ -481,7 +481,7 @@ class HostTest : public QObject {
     m_mem->setRam(0x08001A10, {0x07, 0, 0, 0});
     snapshots(3);
     QTRY_VERIFY_WITH_TIMEOUT(con().watched[0].value == "7", 5000);
-    QVERIFY(changed.count() >= 1);
+    QTRY_VERIFY_WITH_TIMEOUT(changed.count() >= 1, 5000);
     QCOMPARE(changed.first().first().toString(), QString("net.test.plugin"));
     // unwatch everything when stopped
     m_host->stop();
@@ -520,7 +520,7 @@ class HostTest : public QObject {
     waitRunning("net.test.plugin");
     QVERIFY(hasLog(con(), "fixed"));
     QVERIFY(con().error.isEmpty());
-    QVERIFY(status.count() >= 1);
+    QTRY_VERIFY_WITH_TIMEOUT(status.count() >= 1, 5000);
     // a manifest that became invalid pauses the plugin with a clear message
     QFile::remove(m_dir.path() + "/src/net.test.plugin/manifest.json");
     m_host->reload("net.test.plugin");

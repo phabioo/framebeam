@@ -350,7 +350,7 @@ void PluginsController::reloadSelected() { reloadPlugin(selected_); }
 void PluginsController::clearLog(const QString& id) {
   qint64 latest = QDateTime::currentMSecsSinceEpoch();
   if (running_)
-    for (const auto& l : host_->consoleSnapshot(id).log) latest = std::max(latest, l.timeMs);
+    for (const auto& l : host_->consoleSnapshot(id).log) latest = (std::max)(latest, l.timeMs);
   clearedAt_.insert(id, latest);
   if (hasPreview_) {
     auto c = preview_;
