@@ -108,6 +108,15 @@ bool CoreCatalog::coreUsable(const emu::SystemManifest& man, emu::CoreLocation* 
   return loc.source != QLatin1String("cache") || !coreCache_->libraryPath(loc.cacheCoreId.isEmpty() ? man.coreId : loc.cacheCoreId, loc.version, CoreCache::currentPlatform()).isEmpty();
 }
 
+bool CoreCatalog::coreInstalledLocally(const QString& coreIdOrAlias) const {
+  for (const emu::SystemManifest& sys : manifests_.all()) {
+    if (const auto m = manifests_.resolve(sys.systemId, coreIdOrAlias); m && !m->coreId.isEmpty() && coreUsable(*m)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 QString CoreCatalog::coreProblemText(const QString& reason) {
   if (reason == QLatin1String("incompatible")) return tr("Core incompatible");
   if (reason == QLatin1String("not_on_hub") || reason == QLatin1String("not_cached_on_hub")) return tr("Core missing");

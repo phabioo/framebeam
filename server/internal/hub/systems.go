@@ -402,27 +402,53 @@ type CoreReport struct {
 	Version string `json:"version"`
 }
 
-// checkCores compares the reported cores with the registry; both problems are warnings.
+// canonCoreID maps a core id to its canonical libretro id (legacy aliases resolved, ADR 0020 D3).
+func canonCoreID(id string) string {
+	if a, ok := legacyAliases[id]; ok {
+		return a
+	}
+	return id
+}
+
+// matchReportedCore finds the reported core that serves the system: the default core first, else any other installed
+// core of the system (the Player picks among the served cores). Ids are compared canonically on both sides. It returns
+// the report and the version the Hub serves for that core.
+func matchReportedCore(e SystemEntry, cores []CoreReport) (got *CoreReport, served string) {
+	find := func(id string) *CoreReport {
+		for i := range cores {
+			if canonCoreID(cores[i].ID) == canonCoreID(id) {
+				return &cores[i]
+			}
+		}
+		return nil
+	}
+	if got = find(e.CoreID); got != nil {
+		return got, e.ExpectedCoreVersion
+	}
+	for _, c := range e.Cores {
+		if got = find(c.CoreID); got != nil {
+			return got, c.Version
+		}
+	}
+	return nil, ""
+}
+
+// checkCores compares the reported cores with the registry; both problems are warnings. A system is fine when the
+// Player reports any core the Hub serves for it (default or not).
 func checkCores(reg []SystemEntry, cores []CoreReport) []Problem {
 	var out []Problem
 	for _, e := range reg {
 		if e.CoreID == "" {
 			continue // no core installed for the system: nothing to compare
 		}
-		var got *CoreReport
-		for i := range cores {
-			if cores[i].ID == e.CoreID {
-				got = &cores[i]
-				break
-			}
-		}
+		got, served := matchReportedCore(e, cores)
 		switch {
 		case got == nil:
 			out = append(out, Problem{Code: ProblemCoreMissing, CoreID: e.CoreID,
 				Detail: "Core " + e.CoreID + " (" + e.Name + ") is not installed"})
-		case e.ExpectedCoreVersion != "" && got.Version != e.ExpectedCoreVersion:
+		case served != "" && got.Version != served:
 			out = append(out, Problem{Code: ProblemCoreVersionMismatch, CoreID: e.CoreID,
-				Detail: "Core " + e.CoreID + " is version " + got.Version + ", " + e.ExpectedCoreVersion + " expected"})
+				Detail: "Core " + got.ID + " is version " + got.Version + ", " + served + " expected"})
 		}
 	}
 	return out
@@ -509,18 +535,17 @@ func (d DeviceReports) ClientReports(e SystemEntry) []ClientReport {
 	var out []ClientReport
 	for _, r := range d.rows {
 		c := r.ClientReport
-		for _, cr := range r.cores {
-			if cr.ID == e.CoreID {
-				c.CoreVersion = cr.Version
-			}
+		served := e.ExpectedCoreVersion
+		if got, sv := matchReportedCore(e, r.cores); got != nil && e.CoreID != "" {
+			c.CoreVersion, served = got.Version, sv
 		}
 		switch {
 		case c.ProtocolVersion < d.minProto:
 			c.Status, c.Expected = ClientPlayerTooOld, strconv.Itoa(d.minProto)
 		case c.CoreVersion == "":
 			c.Status = ClientCoreMissing
-		case e.ExpectedCoreVersion != "" && c.CoreVersion != e.ExpectedCoreVersion:
-			c.Status, c.Expected = ClientCoreMismatch, e.ExpectedCoreVersion
+		case served != "" && c.CoreVersion != served:
+			c.Status, c.Expected = ClientCoreMismatch, served
 		default:
 			c.Status = ClientCompatible
 		}

@@ -130,7 +130,7 @@ Lines 380-441. New. Updates, Hubs (with edit), Appearance, Diagnostics.
 ## 3g Player Session
 Lines 447-518. In game, Session shared, visibility "Invite only" with user selection; layout switch, fullscreen, save slot, diagnostics overlay (Emulation and Streaming, see 3t-3y).
 
-- Grid: rows 56 | 1fr; columns 1fr | 340; background `#0b0b0c`; no sidebar. Fullscreen: header and side panel are dropped, the play area fills the screen. The diagnostics overlay then follows 3y (Emulation only); the interactive 3g mock keeps Streaming visible in fullscreen, which is a mock gap, not the rule.
+- Grid: rows 56 | 1fr; columns 1fr | 340; background `#0b0b0c`; no sidebar. Fullscreen: header and side panel are dropped, the play area fills the screen. The diagnostics overlay then shows the same sections as windowed (Emulation and Streaming; changed from 3y "Emulation only" after a user report).
 - Header (across both columns, surface `#111214`, padding 0 20): "← Library", divider, game title "Lumen Drift" (15/600), pill "● Session shared · 1 watching" (ok); tab segment "Session" (active) | "Multiview" | "Diagnostics"; on the right (after a spacer):
   - Layout switch (segment, 13): "Stacked" | "Side by side" | "Top only", each with a mini icon (two 9 x 7 boxes with 1.5 border, laid out in a column or row; "Top only": second box at 25 % opacity). Default "Stacked". Open: does it change the default (README).
   - Fullscreen button (34 high, padding 0 12, radius 7, border `#3a3b40`, 13/500): square icon (12, dashed border) + "Fullscreen" + mono 11 "F11".
@@ -355,7 +355,7 @@ Lines 80-106 (`#3r-2`, Grid 2x2, own tile selected, picker open), 122-133 (`#3h-
 - Open: decisions.md (layout scope, input routing). Not drawn: behavior when a remote session ends (tile becomes empty?).
 
 ## 3t-2, 3x-2 Player Diagnostics revised
-Lines 55-66 (`#3t-2`, single game, overlay open) and 107-121 (`#3x-2`, multiview) in `framebeam-designs-v4.dc.html`. Supersede the placement and toggles of 3t-3y; the row content of 3t-3w (Software, OpenGL, Session, Fallback hint) is unchanged and not redrawn; 3y (fullscreen: Emulation only, chip "F3 Diagnostics") is unchanged.
+Lines 55-66 (`#3t-2`, single game, overlay open) and 107-121 (`#3x-2`, multiview) in `framebeam-designs-v4.dc.html`. Supersede the placement and toggles of 3t-3y; the row content of 3t-3w (Software, OpenGL, Session, Fallback hint) is unchanged and not redrawn; 3y keeps the chip "F3 Diagnostics" and the top-left position, but the fullscreen overlay shows Emulation and Streaming like windowed.
 
 - One toggle: the header button "Diagnostics F3" and F3 (the side-panel toggle and the "show / hide" footer are gone; the overlay footer reads "Hide diagnostics" + key badge "F3", the same label and key as the header). Open state shown on the header button (accent).
 - Position everywhere: top right of the play area, 16 under the header and 16 from the side panel, directly below its button; same in single game and multiview; no bottom bar in multiview.

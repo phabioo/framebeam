@@ -103,12 +103,13 @@ void GameStarter::onCoreFinished(const CoreResult& result) {
   if (result.ok) {
     coreProblems_.remove(man->coreId);
     // The core arrived after the handshake data was built: report it and fill the Emulation page on the next refresh.
-    const bool known = std::any_of(coreList_.cbegin(), coreList_.cend(), [&](const CoreInfo& c) { return c.id == man->coreId && !c.version.isEmpty(); });
-    if (!known && probeCoreVersions_) {
+    // A new or updated version: drop the old entry and report what the locator now picks (the Hub's version).
+    if (probeCoreVersions_) {
       coreList_.removeIf([&](const CoreInfo& c) { return c.id == man->coreId; });
       catalog_->probeCores();
       handshake_.cores = coreList_;
       conn_->setHandshakeInfo(handshake_);
+      conn_->resendHandshake();  // the Hub recomputes core_missing / core_version_mismatch
     }
     continueStartAfterCore(*game, *man);
     return;

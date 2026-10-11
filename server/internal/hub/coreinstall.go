@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -622,4 +623,117 @@ func (s *Service) SetDefaultCore(ctx context.Context, systemID, coreID string) (
 	}
 	_, err = s.db.ExecContext(ctx, `UPDATE systems SET default_core_id = ? WHERE id = ?`, coreID, systemID)
 	return internal2(err)
+}
+
+// removeLegacyCores deletes every core of the retired signed FrameBeam source (origin framebeam, ADR 0020): installed
+// rows, package rows and the stored files. A removed default core is replaced by another installed core of the system
+// (profiled first) or cleared. Idempotent; saves are never touched.
+func (s *Service) removeLegacyCores(ctx context.Context) error {
+	s.cores.mu.Lock()
+	defer s.cores.mu.Unlock()
+	profiled, err := s.profiledSet(ctx) // before the transaction: the pool may hold a single connection
+	if err != nil {
+		return err
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return internal(err)
+	}
+	defer tx.Rollback()
+	type sc struct{ sys, core string }
+	var legacy []sc
+	ids := map[string]bool{}
+	rows, err := tx.QueryContext(ctx, `SELECT system_id, core_id FROM system_cores WHERE origin = ?`, OriginLegacy)
+	if err != nil {
+		return internal(err)
+	}
+	for rows.Next() {
+		var x sc
+		if err := rows.Scan(&x.sys, &x.core); err != nil {
+			rows.Close()
+			return internal(err)
+		}
+		legacy = append(legacy, x)
+		ids[x.core] = true
+	}
+	rows.Close()
+	prows, err := tx.QueryContext(ctx, `SELECT DISTINCT core_id FROM core_packages WHERE origin = ?`, OriginLegacy)
+	if err != nil {
+		return internal(err)
+	}
+	for prows.Next() {
+		var id string
+		if err := prows.Scan(&id); err != nil {
+			prows.Close()
+			return internal(err)
+		}
+		ids[id] = true
+	}
+	prows.Close()
+	if len(legacy) == 0 && len(ids) == 0 {
+		return nil
+	}
+	for _, x := range legacy {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM system_cores WHERE system_id = ? AND core_id = ?`, x.sys, x.core); err != nil {
+			return internal(err)
+		}
+		var def sql.NullString
+		if err := tx.QueryRowContext(ctx, `SELECT default_core_id FROM systems WHERE id = ?`, x.sys).Scan(&def); err != nil {
+			return internal(err)
+		}
+		if def.Valid && def.String == x.core {
+			var next sql.NullString
+			crows, err := tx.QueryContext(ctx, `SELECT core_id FROM system_cores WHERE system_id = ? ORDER BY core_id`, x.sys)
+			if err != nil {
+				return internal(err)
+			}
+			for crows.Next() {
+				var id string
+				if err := crows.Scan(&id); err != nil {
+					crows.Close()
+					return internal(err)
+				}
+				if !next.Valid {
+					next = sql.NullString{String: id, Valid: true}
+				}
+				if isProfiled(profiled, id) {
+					next = sql.NullString{String: id, Valid: true}
+					break
+				}
+			}
+			crows.Close()
+			var v any
+			if next.Valid {
+				v = next.String
+			}
+			if _, err := tx.ExecContext(ctx, `UPDATE systems SET default_core_id = ? WHERE id = ?`, v, x.sys); err != nil {
+				return internal(err)
+			}
+		}
+		slog.Info("removed retired FrameBeam-source core", "system", x.sys, "core", x.core)
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM core_packages WHERE origin = ?`, OriginLegacy); err != nil {
+		return internal(err)
+	}
+	var wipe []string
+	for id := range ids {
+		var n int
+		if err := tx.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM core_packages WHERE core_id = ?)
+			+ (SELECT COUNT(*) FROM system_cores WHERE core_id = ?)`, id, id).Scan(&n); err != nil {
+			return internal(err)
+		}
+		if n == 0 {
+			wipe = append(wipe, id)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return internal(err)
+	}
+	for _, id := range wipe {
+		if id == "" || strings.ContainsAny(id, `/\`) || id == "." || id == ".." {
+			continue
+		}
+		os.RemoveAll(filepath.Join(s.dataDir, "cores", id))
+	}
+	return nil
 }

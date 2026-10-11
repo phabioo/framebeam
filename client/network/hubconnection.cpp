@@ -643,6 +643,23 @@ void HubConnection::scheduleRefresh(int expiresInSec) {
   refreshTimer_.start(std::max(100, lifetimeMs - marginMs));
 }
 
+void HubConnection::resendHandshake() {
+  if (state() != State::Connected || accessToken_.isEmpty()) {
+    return;
+  }
+  QNetworkReply* reply = http_->postJson(apiPath(QStringLiteral("/handshake")), handshake_.toJson(), accessToken_);
+  track(reply, [this](const HttpResult& r) {
+    if (r.status != 200) {
+      return;  // keep the previous problems; the next reconnect repeats the handshake
+    }
+    if (const auto res = parseHandshakeResult(r.json())) {
+      problems_ = res->problems;
+      features_ = res->features;
+      emit handshakeProblemsChanged();
+    }
+  });
+}
+
 void HubConnection::doHandshake() {
   QNetworkReply* reply = http_->postJson(apiPath(QStringLiteral("/handshake")), handshake_.toJson(), accessToken_);
   track(reply, [this](const HttpResult& r) {

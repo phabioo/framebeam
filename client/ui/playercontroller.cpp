@@ -170,6 +170,8 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   handshake_ = info;
   conn_->setHandshakeInfo(info);
 
+  connect(conn_.get(), &HubConnection::handshakeProblemsChanged, this, &PlayerController::hubChanged);
+
   sessions_ = std::make_unique<SessionController>(conn_.get(), profiles_.get(), &session_);
   sessions_->setPlayerSettings(settings_.get());  // diagnostics overlay states live in settings/player.json (0.6 D5)
   saves_->setSettings(settings_.get());
@@ -896,6 +898,11 @@ QVariantList PlayerController::coreWarnings() const {
   for (const HandshakeProblem& p : conn_->handshakeProblems()) {
     const bool missing = p.code == QLatin1String("core_missing");
     if (!missing && p.code != QLatin1String("core_version_mismatch")) {
+      continue;
+    }
+    // The handshake report is a snapshot from connect time (before a core was downloaded, or under an id the Hub
+    // does not alias): a core that is usable on this device is not "missing" here.
+    if (missing && catalog_->coreInstalledLocally(p.coreId)) {
       continue;
     }
     QString label = p.coreId;
