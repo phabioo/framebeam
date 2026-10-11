@@ -100,7 +100,7 @@ class PluginsE2eTest : public QObject {
     QSignalSpy started(&runner, &EmulationRunner::started);
     runner.start(request());
     QTRY_COMPARE_WITH_TIMEOUT(started.count(), 1, 20000);
-    QCOMPARE(runner.memoryRegions().size(), size_t{2});
+    QVERIFY(runner.memoryRegions().size() >= 2);  // 3 after the test core re-sends its map at frame 30
 
     auto adapter = std::make_shared<ui::MemoryWatchAdapter>(runner.memoryWatch());
     PluginInfo info;

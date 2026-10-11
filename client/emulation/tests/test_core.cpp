@@ -444,7 +444,8 @@ unsigned scaleFromOption() {
 // Synthetic memory for the plugin memory access tests; layout in test_core_layout.h (namespace mem).
 alignas(16) uint8_t g_heapMem[tc::mem::kRegionSize];
 alignas(16) uint8_t g_linearMem[tc::mem::kRegionSize];
-retro_memory_descriptor g_memDescs[2];
+alignas(16) uint8_t g_lateMem[tc::mem::kLateSize];
+retro_memory_descriptor g_memDescs[3];
 
 void putU32(uint8_t* p, uint32_t v) {
   for (int i = 0; i < 4; ++i) p[i] = static_cast<uint8_t>(v >> (8 * i));
@@ -478,6 +479,19 @@ void registerMemoryMap() {
   g_memDescs[1].len = tc::mem::kRegionSize;
   g_memDescs[1].addrspace = "linear";
   retro_memory_map map = {g_memDescs, 2};
+  if (g_env) g_env(RETRO_ENVIRONMENT_SET_MEMORY_MAPS, &map);
+}
+
+// Re-sends the map from retro_run with an additional "late" region (synthetic, like a core that maps memory later).
+void registerLateMemoryMap() {
+  std::memset(g_lateMem, 0, sizeof g_lateMem);
+  putU32(g_lateMem, tc::mem::kLateMagic);
+  g_memDescs[2] = {};
+  g_memDescs[2].ptr = g_lateMem;
+  g_memDescs[2].start = tc::mem::kLateAddr;
+  g_memDescs[2].len = tc::mem::kLateSize;
+  g_memDescs[2].addrspace = "late";
+  retro_memory_map map = {g_memDescs, 3};
   if (g_env) g_env(RETRO_ENVIRONMENT_SET_MEMORY_MAPS, &map);
 }
 }  // namespace
@@ -600,6 +614,8 @@ FB_EXPORT void retro_run() {
   if (g_env && g_env(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated) ++g_varUpdates;
   ++g_frames;
   putU32(g_heapMem + tc::mem::kFrameOff, static_cast<uint32_t>(g_frames));
+  if (const int lateFrame = envInt("FB_TEST_CORE_LATE_MAP_FRAME", tc::mem::kLateMapFrame); lateFrame > 0 && g_frames == lateFrame)
+    registerLateMemoryMap();
   pollInput();
   if (g_sramWrite >= 0 && g_frames > g_sramDelay && !g_sram.empty()) g_sram[0] = static_cast<uint8_t>(g_sramWrite);
   sendAudio(static_cast<unsigned>(std::lround(sampleRate() / fps())), sampleRate());
