@@ -8,6 +8,6 @@ A short tour for a Hub with two Players, using only homebrew ROMs or dummy files
 4. Hub, Systems & Cores: switch NDS to native firmware mode without files; the Player shows "Firmware required" / "Firmware missing".
 5. Upload your own BIOS/firmware dumps (`bios7.bin`, `bios9.bin`, `firmware.bin`; never in the repo) and launch.
 6. Connect a gamepad and remap it on Controllers.
-7. Install the Player via the `framebeam-player-windows-x64-setup` artifact.
+7. Install the Player via the `framebeam-windows-x64-msi` artifact.
 
 Keyboard defaults: see [player.md](player.md).

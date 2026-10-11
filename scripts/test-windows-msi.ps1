@@ -1,20 +1,15 @@
 <#
-  Install tests of the FrameBeam MSI and the Inno setup shell. Windows only, needs an elevated shell (CI runner). No ROMs or
+  Install tests of the FrameBeam MSI. Windows only, needs an elevated shell (CI runner). No ROMs or
   BIOS involved; only dummy files in data\.
     pwsh scripts/test-windows-msi.ps1 -Scenario user    -Msi dist\msi\framebeam-X-windows-x64.msi
     pwsh scripts/test-windows-msi.ps1 -Scenario machine -Msi ... -Version X.Y.Z
-    pwsh scripts/test-windows-msi.ps1 -Scenario migrate -Msi ... -Setup dist\installer\framebeam-player-X-windows-x64-setup.exe
   user:    Player only, per user (defaults): files, markers, Start menu shortcut, --version, uninstall keeps data\.
   machine: per-user Player first, then ALLUSERS=1 INSTALL_HUB=1 NETWORK_SHARING=0 HUB_PORT=18443: per-user product removed, both
            services, local API on loopback only, ACLs, markers, registry, uninstall removes the services.
-  migrate: newest released Inno setup (before the MSI existed) installed per user, then the shell setup over it with the old
-           updater's flags: Inno gone, MSI product present, data\ kept. Skipped with a warning when no such release is left.
-  GH_TOKEN and GH_REPO (or a git checkout of the repository) are needed for the migrate scenario (gh release ...).
 #>
 param(
-  [Parameter(Mandatory)] [ValidateSet('user', 'machine', 'migrate')] [string] $Scenario,
+  [Parameter(Mandatory)] [ValidateSet('user', 'machine')] [string] $Scenario,
   [Parameter(Mandatory)] [string] $Msi,
-  [string] $Setup,
   [string] $Version,
   # machine: an older build of the same MSI (other product code), installed per user first to test the switch to per machine.
   [string] $OldMsi,
@@ -29,7 +24,6 @@ New-Item -ItemType Directory -Force $work | Out-Null
 $userDir = Join-Path $env:LOCALAPPDATA 'Programs\FrameBeam Player'
 $machineDir = Join-Path $env:ProgramFiles 'FrameBeam'
 $userStartMenu = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\FrameBeam Player.lnk'
-$innoKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{6F0C2B7E-3D1A-4C55-9B8E-F4A1D2C37A60}_is1'
 $script:logN = 0
 
 $script:lastLog = $null
@@ -227,43 +221,6 @@ switch ($Scenario) {
     Assert-NoPath (Join-Path $hubDir 'framebeam-hub.exe') 'framebeam-hub.exe after uninstall'
     Assert-NoPath (Join-Path $playerDir 'framebeam_player.exe') 'Player after uninstall'
     Remove-Item -Recurse -Force $userDir -ErrorAction SilentlyContinue
-  }
-
-  'migrate' {
-    if (-not $Setup) { Fail '-Setup (the shell setup.exe) is required' }
-    $Setup = (Resolve-Path $Setup).Path
-    # Newest release that still ships the Inno setup: no MSI among its assets.
-    $old = $null
-    foreach ($r in (gh release list --limit 50 --exclude-drafts --json tagName | ConvertFrom-Json)) {
-      $assets = (gh release view $r.tagName --json assets | ConvertFrom-Json).assets.name
-      if ($assets -like 'framebeam-*-windows-x64.msi') { continue }
-      $name = $assets | Where-Object { $_ -like 'framebeam-player-*-windows-x64-setup.exe' } | Select-Object -First 1
-      if ($name) { $old = @{ tag = $r.tagName; name = $name }; break }
-    }
-    if (-not $old) { Write-Host '::warning::no release with an Inno Player setup left (all pruned), migration test skipped'; return }
-    Write-Host "Old Inno setup: $($old.name) of $($old.tag)"
-    gh release download $old.tag --pattern $old.name --dir $work --clobber
-    if ($LASTEXITCODE -ne 0) { Fail "download of $($old.name) failed" }
-    $oldSetup = Join-Path $work $old.name
-    $p = Start-Process $oldSetup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER' -Wait -PassThru
-    if ($p.ExitCode -ne 0) { Fail "old setup exited with $($p.ExitCode)" }
-    Assert-Path $innoKey 'Inno uninstall key (old install)'
-    Assert-Path (Join-Path $userDir 'unins000.exe') 'unins000.exe'
-    New-Item -ItemType Directory -Force (Join-Path $userDir 'data') | Out-Null
-    Set-Content (Join-Path $userDir 'data\keep-me') -Value 'keep-me'
-    # Exactly what the old Player's updater passes (without /UPDATE, which would start the GUI Player afterwards).
-    $p = Start-Process $Setup -ArgumentList '/SILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER' -Wait -PassThru
-    if ($p.ExitCode -ne 0) { Fail "shell setup exited with $($p.ExitCode)" }
-    Assert-NoPath $innoKey 'Inno uninstall key'
-    Assert-NoPath (Join-Path $userDir 'unins000.exe') 'unins000.exe'
-    $code = Get-UserProductCode
-    if (-not $code) { Fail 'MSI product (HKCU ProductCode) not present after the shell setup' }
-    Assert-PlayerFiles $userDir
-    Assert-Path (Join-Path $userDir 'data\keep-me') 'data\keep-me'
-    Assert-PlayerRuns $userDir
-    Invoke-Msiexec @('/x', $code)
-    Assert-Path (Join-Path $userDir 'data\keep-me') 'data\keep-me after uninstall'
-    Remove-Item -Recurse -Force $userDir
   }
 }
 Write-Host "Scenario '$Scenario' passed"

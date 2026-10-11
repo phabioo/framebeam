@@ -56,7 +56,7 @@ QByteArray signLine(const KeyPair& k, const QByteArray& msg) {
   return (QStringLiteral("ed25519 ") + keyId(k.pub) + QLatin1Char(' ') + QString::fromLatin1(sig.toBase64()) + QLatin1Char('\n')).toLatin1();
 }
 
-QJsonObject artifact(const QString& name, const QByteArray& data, const QString& url, const QString& kind = QStringLiteral("installer")) {
+QJsonObject artifact(const QString& name, const QByteArray& data, const QString& url, const QString& kind = QStringLiteral("msi")) {
   return {{"platform", "windows-x64"}, {"kind", kind}, {"name", name}, {"size", data.size()},
           {"sha256", QString::fromLatin1(QCryptographicHash::hash(data, QCryptographicHash::Sha256).toHex())}, {"url", url}};
 }
@@ -323,19 +323,8 @@ class UpdateTest : public QObject {
     QCOMPARE(installRootFor(t.filePath("app")), QDir(t.filePath("app")).absolutePath());
     QVERIFY(QDir().mkpath(t.filePath("app/tools")));
     QCOMPARE(installRootFor(t.filePath("app/tools")), QDir(t.filePath("app/tools")).absolutePath());
-    QVERIFY(!hasUninstaller(t.filePath("app")));
-    QVERIFY(writeBytes(t.filePath("app/unins000.exe"), "x"));
-    QVERIFY(hasUninstaller(t.filePath("app")));
     QVERIFY(directoryWritable(t.filePath("app")));
     QVERIFY(!directoryWritable(t.filePath("nope")));
-  }
-  void installerCommandLine() {
-    InstallerCommand c = installerCommand("C:/x/setup.exe", true);
-    QCOMPARE(c.program, QString("C:/x/setup.exe"));
-    QCOMPARE(c.args, (QStringList{"/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/UPDATE", "/CURRENTUSER"}));
-    c = installerCommand("C:/x/setup.exe", false);
-    QCOMPARE(c.args.last(), QString("/ALLUSERS"));
-    QVERIFY(!c.args.contains("/CURRENTUSER"));
   }
 
   // ---------------------------------------------------------------- settings
@@ -406,8 +395,10 @@ class UpdateTest : public QObject {
     QVERIFY(m2.applyStagedAtStart());
     QCOMPARE(quit2.count(), 1);
     QCOMPARE(launched.size(), 2);
-    QCOMPARE(launched[0], staged);
-    QVERIFY(launched[1].startsWith("/SILENT /SUPPRESSMSGBOXES /NORESTART /UPDATE /"));
+    QVERIFY(launched[0].endsWith("framebeam_player.exe"));  // temp copy of the launcher runs msiexec
+    QVERIFY(launched[0] != env.dir.filePath("framebeam_player.exe"));
+    QVERIFY(launched[1].startsWith("--apply-msi-update "));
+    QVERIFY(launched[1].contains(QString(staged).replace(QLatin1Char('/'), QLatin1Char('\\'))));  // msiexec wants backslashes
   }
   void managerDoesNotLoopAfterFailedAttempt() {
     Env env;
@@ -647,7 +638,8 @@ class UpdateTest : public QObject {
     void publish(const QByteArray& installer, const QString& version, qint64 sizeOverride = -1,
                  const QString& shaOverride = QString(), const QString& chan = QStringLiteral("beta")) {
       channel = chan;
-      installerName = "framebeam-player-" + version + "-windows-x64-setup.exe";
+      installerName = "framebeam-player-" + version + "-windows-x64.msi";
+      QVERIFY(writeBytes(dir.filePath("framebeam_player.exe"), "launcher"));  // copied to temp by apply()
       const QString path = dir.filePath(installerName);
       QVERIFY(writeBytes(path, installer));
       QJsonObject art = artifact(installerName, installer, QUrl::fromLocalFile(path).toString());

@@ -21,7 +21,7 @@ How the Hub and the Windows Player update themselves, and how a beta is promoted
 
 - Same check (10 s after start, then hourly on beta, daily on stable). Settings, section "Updates": channel and automatic install.
 - Stable shows a banner and installs after "Install and restart". Beta downloads in the background and applies at the next start, never during a game.
-- The Player prefers the index kind `msi` and falls back to `installer` (the Inno shell). It updates itself when `framebeam-player.msi-installed` (or the old `unins000.exe`) is in its folder; the portable zip and dev builds only show availability. The MSI and shell are unsigned (SmartScreen warning).
+- The Player installs the index kind `msi`. It updates itself when `framebeam-player.msi-installed` is in its folder; the portable zip and dev builds only show availability. The MSI is unsigned (SmartScreen warning).
 - Apply: the Player copies its launcher to a temp folder and starts it with `--apply-msi-update <msi> <scope>`. The copy waits until no Player runs, runs `msiexec /i <msi> /qn /norestart` with `MSIINSTALLPERUSER=1 ALLUSERS=2` (per user) or `ALLUSERS=1` (per machine, elevated, plus `INSTALL_HUB=1` when the Hub is installed), then starts the installed Player.
 - The Windows Player is a windowless (GUI-subsystem) app; no console opens on start.
 

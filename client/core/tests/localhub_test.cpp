@@ -68,7 +68,7 @@ class LocalHubTest : public QObject {
     QVERIFY(QDir().mkpath(root));
     QVERIFY(!canSelfUpdate(root));
     QVERIFY(put(root + "/unins000.exe", "x"));
-    QVERIFY(canSelfUpdate(root));
+    QVERIFY(!canSelfUpdate(root));  // only the MSI marker counts
     QVERIFY(QFile::remove(root + "/unins000.exe"));
     QVERIFY(put(root + "/framebeam-player.msi-installed", ""));
     QVERIFY(hasMsiMarker(root));
@@ -103,16 +103,17 @@ class LocalHubTest : public QObject {
     QCOMPARE(msiexecArguments("C:/a/x.msi", MsiScope::Machine)[1], QStringLiteral("C:\\a\\x.msi"));
     QVERIFY(perMachinePlayerExe("C:/Program Files").endsWith("FrameBeam/Player/framebeam_player.exe"));
   }
-  void msiPreferredOverInstaller() {
+  void msiSelectionAndTolerantParsing() {
+    // An index that still lists a legacy "installer" artifact next to the MSI parses; only the MSI is selected.
     const auto both = parseIndex(indexWith({art("installer", "setup.exe"), art("msi", "fb.msi")}));
     QVERIFY2(both.ok, qPrintable(both.error));
-    QCOMPARE(both.index.releases.first().preferredArtifact("windows-x64", "installer")->name, QStringLiteral("fb.msi"));
     SelectionInput in;
     in.channel = Channel::Stable;
     in.currentVersion = "0.9.0";
     QCOMPARE(selectRelease(both.index, in).artifact.kind, QStringLiteral("msi"));
     const auto old = parseIndex(indexWith({art("installer", "setup.exe")}));
-    QCOMPARE(selectRelease(old.index, in).artifact.kind, QStringLiteral("installer"));
+    QVERIFY(old.ok);
+    QVERIFY(selectRelease(old.index, in).status != Selection::Status::Available);  // no MSI: nothing to install
     const auto msiOnly = parseIndex(indexWith({art("msi", "fb.msi")}));
     QCOMPARE(selectRelease(msiOnly.index, in).status, Selection::Status::Available);
   }

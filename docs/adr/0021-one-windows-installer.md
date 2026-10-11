@@ -80,3 +80,5 @@ The Player installer was an Inno Setup script. 0.9 adds the Hub on Windows (its 
 - Windows CI builds the MSI and the shell and tests silent install, upgrade, markers and the Inno migration; the release publishes `msi`, `installer` and `zip`.
 - `framebeam-player.iss` is gone; `framebeam-setup-shell.iss` stays until old Players are no longer supported (open: no date).
 - Open: signing the MSI; a Hub-only installation UI beyond the MSI dialogs.
+
+- 2026-10-11: Inno shell removed, all test clients run the MSI. `framebeam-setup-shell.iss`, its CI build and migration test, the release asset and the `installer` index entry are gone, and so is the MSI's removal of Inno installs; the Player updates from the `msi` kind only. Older entries of this ADR describe the state before.
