@@ -10,6 +10,7 @@ framebeam-hub -dev -listen 127.0.0.1:8443 -data-dir /tmp/fb   # development: HTT
 framebeam-hub setup-admin -username <name>     # password as a single line from stdin; refused if an admin already exists
 framebeam-hub renew-cert [-data-dir <dir>]     # renew the self-generated certificate now (refused with own cert/key)
 framebeam-hub import-cores <dir>               # import libretro buildbot core zips offline
+framebeam-hub diagnostics <out.zip>            # write the diagnostics bundle without the web interface (see "Diagnostics bundle")
 framebeam-hub version [--json]                 # version info
 framebeam-hub update check|stage [-channel stable|beta]   # see updates.md
 ```
@@ -74,6 +75,22 @@ When the Hub's HTTPS port is forwarded too, the web login and the Player API are
 Library page (admin): each row has Upload save, Rename (inline form, display title only, up to 200 bytes of UTF-8) and Delete (inline confirmation). Deleting removes the entry and the ROM file; saves of the game are kept and stay on the Saves page.
 
 Settings → Network edits port, embedded TURN, public host, TURN port, relay range and IP, STUN servers and save retention. These values live in the Hub database and win over flags and `hub.env`, which only give the initial values (reset per field to return to the `hub.env` value). Changes that need it are applied by a restart the Hub triggers itself (no root). The web form refuses ports below 1024; set those with `install-hub.sh --port` (a port saved in the web form still wins until reset). Startup fallbacks keep the Hub reachable after a bad setting. Decisions: [ADR 0015](../adr/0015-hub-ui-pass.md).
+
+## Diagnostics bundle
+
+When something does not work, hand over one file instead of describing it: Settings → Diagnostics → "Download diagnostics bundle" (admin only; a form POST with the CSRF token, answered with `framebeam-hub-diagnostics-<UTC timestamp>.zip`). The bundle contains:
+
+| Entry | Content |
+|---|---|
+| `README.txt` | what is in the bundle and what was removed |
+| `hub-info.json` | Hub version, channel, commit, protocol; OS, architecture, uptime, free space of the data directory; effective network configuration (listen, public host, TLS, TURN on/off and ports, STUN list); core source state and installed cores per system with versions; counts (users, devices, games, running Sessions); paired Players with Player version, status, connected and last seen; feature list |
+| `logs/hub.log`, `logs/hub.log.1`, `logs/updater.log` ... | the Hub's log files in `<data-dir>/logs/` (Windows service), newest first, capped at about 50 MiB in total (the oldest file that does not fit is cut to its newest lines) |
+| `logs/recent.log` | the Hub's last 5000 log lines (at most 4 MiB) kept in memory since the start, so logs exist even without a log file or journal access (web bundle only) |
+| `logs/journal.txt` | Linux: the last 5000 lines of `journalctl -u framebeam-hub` when `journalctl` is available and the Hub user may read it |
+
+Everything in it passes a redaction pass: TURN secret and credentials (`username`/`credential`), tokens, passwords, invite codes, `Authorization` headers and session cookies are replaced by `[redacted]`. IP addresses and host names stay because connection problems cannot be debugged without them; the page says so ("contains IP addresses and host names, no passwords or tokens"). Redaction is pattern based: look through the files before you post them publicly.
+
+If the web interface does not come up, `framebeam-hub diagnostics out.zip [-data-dir <dir>]` writes the same layout from the command line (as the service user, for example `sudo -u framebeam framebeam-hub diagnostics /tmp/out.zip -data-dir /var/lib/framebeam`). It never opens the database, so a running Hub is not disturbed; `hub-info.json` then has `"mode": "offline"` and lacks cores, counts and Players, and the network values come from `hub.env`/flags, not the saved web settings. It refuses to overwrite an existing file.
 
 ## Certificate
 

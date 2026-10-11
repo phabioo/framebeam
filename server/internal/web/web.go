@@ -185,6 +185,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	h("POST /settings/name", s.guard(s.settingsName))
 	h("POST /settings/password", s.guard(s.settingsPassword))
 	h("POST /settings/security/renew-cert", s.guard(s.settingsRenewCert))
+	h("POST /settings/diagnostics/bundle", s.guard(s.settingsDiagBundle))
 }
 
 // secure sets security headers (no inline script/style) and prevents caching of pages.

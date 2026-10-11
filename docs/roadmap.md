@@ -302,7 +302,7 @@ In the test of 2026-10-11 most WebRTC connections ran relayed over TURN. Cause f
 - [x] Done: invite link port fix: `-public-host` (env, Settings → Network) accepts an optional external port (`hub.example.org:8443`, IPv6 in brackets) that invite links and the Player address use; TURN/STUN keep the host part.
 - [x] Done: Hub library entries: Rename and Delete as row actions in the web UI (inline forms, admin only, web only, no API change); deleting keeps the saves.
 - Open: fix Dependabot PR #96.
-- Open: "Collect logs/diagnostics" bundle.
+- Open: "Collect logs/diagnostics" bundle. Hub part done (Settings → Diagnostics and `framebeam-hub diagnostics <out.zip>`, see `docs/guides/hub-configuration.md`); the Player part follows.
 - Open: the Player updates cores in the background without starting a game.
 - [x] Done: remove the Inno shell (see 0.9) and its release/CI parts (shell script, CI build and migration test, release asset and `installer` index entry, Player `installer` fallback and `unins000.exe` detection).
 
