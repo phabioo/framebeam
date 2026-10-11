@@ -97,7 +97,7 @@ Lines 218-294. Rebuilt: defaults and per-system settings. Replaces the earlier l
   - Values of "Renderer" and "Internal resolution" come from the core and are not filtered by the Player (Fabio, 2026-10-07): melonDS DS v1.4.0 offers 1x to 8x via `melonds_opengl_resolution` and a "compute" renderer (needs GL 4.3); the 1× to 4× list above is illustrative.
   - Mock state: Renderer "OpenGL" and Internal resolution "3× (768×576)" changed, the rest default.
   - Game Boy Advance (example): "Color correction" (toggle), "Solar sensor level" (0 | 5 | 10). Super Nintendo (example): "Region" (Auto | NTSC | PAL), "Hi-res blending" (toggle).
-- "Renderer" and "Internal resolution" are available since 0.5 (OpenGL hardware rendering, ADR 0013 D5; they apply on next start); "Default Multiview" has no "Grid 2×2" option although 3r adds that mode; "DS screen layout" is the global default and the in-game layout switch (3g) applies only to the running game (decided by Fabio, 2026-10-07); where an inherited value comes from is no longer shown (README); views for "Firmware missing" (architecture: block launch) not drawn.
+- "Renderer" and "Internal resolution" are available since 0.5 (OpenGL hardware rendering, ADR 0013 D5; they apply on next start); "Default Multiview" offers "Grid 2×2" (ADR 0014 D13); "DS screen layout" is the global default and the in-game layout switch (3g) applies only to the running game (decided by Fabio, 2026-10-07); where an inherited value comes from is no longer shown (README); views for "Firmware missing" (architecture: block launch) not drawn.
 
 ## 3f Player Controllers
 Lines 300-374. Profiles, remapping, input test.

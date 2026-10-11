@@ -57,6 +57,6 @@ Fabio asked for SpeedUp/FastForward in the FrameBeam Player, visible when the em
 
 ## Consequences
 
-- The key becomes configurable in Controllers -> Hotkeys (separate work package); a gamepad hotkey also comes later. Both are open.
+- The key becomes configurable in Controllers -> Hotkeys (separate work package); a gamepad hotkey also comes later. Both are open. (Update 2026-10-11: the keyboard key is configurable in Controllers -> Hotkeys since 0.7.x, PR #59; only the gamepad hotkey is open.)
 - The speed-up key (default Space) is reserved by the Player like F3, F5 and F11 ([ADR 0014](0014-player-ui-pass.md) D4).
 - Three new Player settings keys under `framebeam.` (D5), controlled by FrameBeam and not core options.

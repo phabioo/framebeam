@@ -107,9 +107,9 @@ Choices made where this ADR was silent.
 ### Player
 
 - The encoder starts with the first frame after a viewer's PeerConnection is connected and stops with the last viewer.
-- Packet loss on the viewer is derived from RTP sequence numbers, n/a on the host. RTT is n/a (libdatachannel reports RTT only with an SCTP channel); follow-up.
+- Packet loss on the viewer is derived from RTP sequence numbers, n/a on the host. RTT is n/a (libdatachannel reports RTT only with an SCTP channel); follow-up (done: RTT comes from the `fb-diag` DataChannel, see the update notes at the end).
 - Viewers close their PeerConnection on the Hub's `viewer_left`/`session_ended`. Early offers are buffered until the join response.
-- Encoding runs on the UI thread (cheap at 256 x 384; to verify locally with the real core).
+- Encoding runs on the UI thread (cheap at 256 x 384; to verify locally with the real core). (Done later: encoding runs on a worker thread with a bounded queue, ADR 0009 D3.)
 - Each surface draws the combined DS frame.
 - No automatic rejoin after a failed PeerConnection.
 - Linux CI/cloud uses libx264, Windows libopenh264; hardware encoders untested.

@@ -120,7 +120,7 @@ Done in code (decisions: [ADR 0014](adr/0014-player-ui-pass.md), accepted); look
 Open in 0.6:
 
 - [x] Done (0.7.x): the sidebar shows the Hub user name from the handshake `user` (API 1.7.0) above the device name.
-- Per-game settings are still "coming later".
+- [x] Done (0.10, ADR 0022 D6): per-game settings (Game override on the Emulation page: core, speed-up, core options, reset).
 - [x] Done (0.7.x): Hotkeys tab (3f) and "Duplicate to edit" for built-in controller profiles, see "0.7.x Hotkeys and controller profiles".
 - [x] Done (0.7.x, ADR 0017 D3): `PlayerController` split into `CoreCatalog`, `GameDetail`, `HubPresenter` and `GameStarter`.
 - Verification of look and feel, GPU values and real sessions is done locally by Fabio.
@@ -134,7 +134,7 @@ Implemented, see [ADR 0015](adr/0015-hub-ui-pass.md) (accepted).
 - [x] Done: live updates without reload via an in-process event bus and Server-Sent Events; badges and affected tables refresh themselves, Clients polling removed (D2).
 - [x] Done: Settings sub-pages Updates, General, Network, Security with per-field autosave (D3).
 - [x] Done: network settings form (Hub port, embedded TURN, public host, TURN port, relay range and IP, STUN servers, save retention). Decided by Fabio on 2026-10-07: web settings win; `hub.env` and flags only give the initial value (D4). Changes that need it are applied by a restart the Hub triggers itself, without root (D5). Ports below 1024 are refused on the web, use `install-hub.sh --port` (D6). Startup fallbacks keep the Hub reachable after a bad setting (D7). The TURN status and port forward list moved into Network; reachability is derived from the configuration (D8).
-- Open (left out of 0.7, remaining): thinned-out history marker, metadata actions, Library "of total" disk capacity, external TURN servers with login (only a STUN list), reachability probe from outside, core packages not filtered per system, transport options "Custom cert/key" and "Reverse proxy".
+- Open (left out of 0.7, remaining): thinned-out history marker, metadata actions, Library "of total" disk capacity, external TURN servers with login (only a STUN list), transport options "Custom cert/key" and "Reverse proxy". A reachability probe from outside is rejected (ADR 0015 D8: reachability is derived from the configuration). Core packages are listed per system since 0.8.
 - [x] Done (0.7.x follow-up): Hub Saves page "+ New slot" (new slot starts from the current version of the selected slot; web only, no API) and deleting a snapshot (inline confirmation; `DELETE /api/v1/games/{game_id}/saves/{slot}/history/{version}`, handshake feature `saves_v3`, OpenAPI 1.6.0, `protocol_version` unchanged). Renaming/deleting a slot stay open.
 - [x] Done (0.7.x follow-up): Library "Rescan folder" (non-recursive import from `-library-import-dir`), invite "Copy link" (only in the creating response; public `/invite` page), "Player too old" marker in the Clients table, certificate "Renew now" (swap without restart; tlsutil writes key/cert atomically).
 
@@ -215,7 +215,7 @@ Design handoff of 2026-10-08 after a friends playtest, imported in [docs/design/
 Done in code. Decisions: [ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md) (accepted 2026-10-09). Supersedes the signed core mirror of 0.2 (ADR 0010 D1 to D3, D6) and the Player-side index check.
 
 - [x] Done: Systems instead of fixed cores: the Hub registry keeps the supported systems with their libretro system ids (migration 0009); every libretro core for a system that the buildbot provides is offered.
-- [x] Done: Hub downloads cores RetroArch-style from the libretro buildbot (catalog from `info.zip` and `.index-extended`, refreshed at start, every 24 h and on "Check source now"; flags `-core-buildbot-url`, `-core-info-url`). The admin installs, updates and removes cores per system on "Systems & Cores" (Cores tab) and picks the default core; SHA-256 pinned at install; versions `YYYY.MM.DD[.N]`; automatic updates were added on 2026-10-11 (see below); the expected-version selector is gone. A legacy `melonds_ds` package is adopted as installed default.
+- [x] Done: Hub downloads cores RetroArch-style from the libretro buildbot (catalog from `info.zip` and `.index-extended`, refreshed at start, every 24 h and on "Check source now"; flags `-core-buildbot-url`, `-core-info-url`). The admin installs, updates and removes cores per system on "Systems & Cores" (Cores tab) and picks the default core; SHA-256 pinned at install; versions `YYYY.MM.DD[.N]`; automatic updates were added on 2026-10-11 (see below); the expected-version selector is gone. Packages of the retired signed source (`melonds_ds`) are removed when the Hub starts (migration 0011 also replaces the old provisioning text); a system left without a core asks the admin to install one, and the handshake core check accepts any core the Hub serves for the system (legacy ids resolve via aliases).
 - [x] Done: Offline `framebeam-hub import-cores <dir>` with buildbot zips (`<dir>/<platform>/<core>_libretro.<suffix>.zip`, optional `info.zip` and `.index-extended`); `install-hub.sh import-cores` updated.
 - [x] Done: Protocol: handshake feature `cores_v2` (`default_core_id`, `cores` per system), OpenAPI 1.9.0, `protocol_version` stays 1; `cores_index_v1` and the signed core index endpoints are removed.
 - [x] Done: Player: system manifest and core profiles are split (`manifests/systems/nds.json`, `manifests/cores/{melondsds,desmume}.json`); cores without a profile are experimental; core choice game > system > Hub default with a "Core" select per system on the Emulation page; the signed core index check is removed (size and SHA-256 against the Hub stay).
@@ -224,7 +224,8 @@ Done in code. Decisions: [ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md
 - [x] Done: The signed core mirror (`cores.yml`, release `cores-index`) is retired; existing releases stay.
 - [x] Done in code: Automatic core updates (decided 2026-10-11, [ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md) update): setting `core_auto_update` (default on, toggle "Automatic updates" on Systems & Cores); after every successful catalog refresh the Hub updates installed cores with a newer build (same safeguards as a manual Update); a failing core does not stop the others, the last error is shown; when off, the manual Update button applies.
 - Open: The real buildbot download (catalog refresh and install against `buildbot.libretro.com`) is only exercised by CI, not by a local test.
-- Open: Game-level core choice has no UI yet; the Player reads and stores the setting, the Emulation page offers the system level only.
+- [x] Done (0.10, ADR 0022 D6): game-level core choice in the Game override UI on the Emulation page.
+- [x] Done: Player core warnings follow the local state (a core usable on this device is not reported missing; the handshake is resent after a core download or update) and the fullscreen diagnostics show Emulation and Streaming like windowed mode.
 - Open: Real play with DeSmuME and melonDS DS is verified by Fabio locally.
 
 ## 0.9 One installer: Player, Hub or both

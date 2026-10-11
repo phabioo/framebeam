@@ -24,7 +24,7 @@ Editing changes only host and port. `hubId`, pinned fingerprint, credential and 
 
 ### D4 Keys (open points d, r)
 
-F11 toggles fullscreen. Esc leaves fullscreen when fullscreen, otherwise keeps its current meaning (pause). F3 toggles the diagnostics overlay. F5 saves a snapshot. These keys are handled by the Player and never forwarded to the core. The Hotkeys tab of 3f is not built (open).
+F11 toggles fullscreen. Esc leaves fullscreen when fullscreen, otherwise keeps its current meaning (pause). F3 toggles the diagnostics overlay. F5 saves a snapshot. These keys are handled by the Player and never forwarded to the core. The Hotkeys tab of 3f is not built (open; built in 0.7.x, see the update note under Consequences).
 
 ### D5 Diagnostics persistence (open point s)
 
@@ -83,4 +83,5 @@ After a core download finishes (or the core cache changes), Library tiles and th
 - The host Player keeps the latest viewer report per viewer in memory; the Hub is unchanged and persists nothing new.
 - Open: the Player does not know the Hub user's display name (the sidebar shows the device name); per-game settings are still "coming later"; built-in controller profiles are read-only; the Hotkeys tab is not built.
 - Deferred without a milestone: the `PlayerController` split (moved from 0.1.1 to 0.6, not done in 0.6).
+- Update 2026-10-11: done since: the Hub user name in the sidebar (handshake `user`, API 1.7.0, 0.7.x); the Hotkeys tab (0.7.x, PR #59; D4 keys are now configurable); the game override UI for per-game settings (0.10, ADR 0022 D6); the `PlayerController` split (ADR 0017 D3). Built-in controller profiles stay read-only; "Duplicate to edit" creates an editable copy.
 - Verification of look and feel, GPU values and real sessions is done locally by Fabio.

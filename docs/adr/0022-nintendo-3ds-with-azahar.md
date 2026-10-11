@@ -1,6 +1,6 @@
 # ADR 0022: Nintendo 3DS with Azahar (0.10)
 
-- Status: proposed (decision pending Fabio's acceptance with the merge of the 0.10 PR)
+- Status: proposed (merged 2026-10-10; acceptance follows Fabio's local test with a real Azahar run)
 - Date: 2026-10-10
 - Deciders: Fabio (second system: 3DS with Azahar, 2026-10-07); implementation proposal by the orchestrator
 - Builds on: [ADR 0013](0013-opengl-hardware-rendering.md) (OpenGL hardware rendering), [ADR 0020](0020-cores-from-the-libretro-buildbot.md) (systems and buildbot cores)

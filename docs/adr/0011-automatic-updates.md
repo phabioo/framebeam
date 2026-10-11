@@ -1,6 +1,6 @@
 # ADR 0011: Automatic updates (0.3)
 
-- Status: accepted (Fabio, 2026-10-07, with the merge of the PR); Player Inno update path superseded in part by [ADR 0021](0021-one-windows-installer.md)
+- Status: accepted (Fabio, 2026-10-07, with the merge of the PR); Player Inno update path superseded in part by [ADR 0021](0021-one-windows-installer.md); version numbering and promotion superseded by [ADR 0016](0016-release-numbering-and-promotion.md) (see Amendment 2026-10-08)
 - Date: 2026-10-07
 - Decided by: Fabio (proposal by the orchestrator; accepted with the PR)
 - Amended 2026-10-08: version numbering, promotion and the default channel are superseded by [ADR 0016](0016-release-numbering-and-promotion.md); D1, D3 and the channel default in D5 below are the original decisions.
@@ -91,9 +91,9 @@ Milestone 0.3 ([Roadmap](../roadmap.md)) lets a change on `main` reach the test 
 
 - The Hub needs egress to github.com for updates; without it a cached `.deb` is installed manually.
 - Test devices receive every `main` build.
-- `VERSION` must be bumped after each stable tag, otherwise later test builds sort below the release.
+- `VERSION` must be bumped after each stable tag, otherwise later test builds sort below the release. (Superseded by [ADR 0016](0016-release-numbering-and-promotion.md): `VERSION` is only a floor, CI takes max(`VERSION`, highest tag + 1), no bump PR.)
 - The Windows installer stays unsigned (SmartScreen warning).
-- macOS and Linux Player and the Windows Hub follow later (0.9, 0.10).
+- macOS and Linux Player and the Windows Hub follow later (0.9, 0.10; old numbering, see the numbering note below. Windows Hub: 0.9 with the one installer, ADR 0021; Linux/macOS Player: 0.13).
 - Open: rollback (D8), Player-side core signature check (0.4).
 
 ## Amendment 2026-10-07
@@ -108,7 +108,7 @@ Decided by Fabio after 0.3 merged. The decisions above stay as accepted; where t
 
 ## Update 2026-10-08 (milestone numbering)
 
-Milestone numbers above 0.4 in this ADR use the numbering from before the roadmap renumbering of 2026-10-07: old 0.5/0.6/0.7/0.8/0.9/0.10 are now 0.6 (Player UI pass) / 0.7 (Hub UI pass) / 0.8 (3DS) / 0.9 (metadata) / 0.10 (Hub for Windows) / 0.11 (Linux and macOS Player); 0.5 is now OpenGL hardware rendering. See [roadmap.md](../roadmap.md).
+Milestone numbers above 0.4 in this ADR use the numbering from before the roadmap renumbering of 2026-10-07: old 0.5/0.6/0.7/0.8/0.9/0.10 are now 0.6 (Player UI pass) / 0.7 (Hub UI pass) / 0.8 (3DS) / 0.9 (metadata) / 0.10 (Hub for Windows) / 0.11 (Linux and macOS Player); 0.5 is now OpenGL hardware rendering. See [roadmap.md](../roadmap.md). Later renumbering (2026-10-09 and 2026-10-11): Hub for Windows is 0.9 (one installer), 3DS is 0.10, plugins 0.11, metadata 0.12, Linux and macOS Player 0.13.
 
 ## Amendment 2026-10-10 (forward compatibility, legacy companion)
 
