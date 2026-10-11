@@ -75,27 +75,34 @@ hub_deb() {
   done
 }
 CORE_PATH=""
-client_core() { CORE_PATH="$("$ROOT/scripts/fetch-melonds-ds.sh")" && [ -f "$CORE_PATH" ]; }
+client_core() { CORE_PATH="$("$ROOT/scripts/fetch-buildbot-core.sh" melondsds)" && [ -f "$CORE_PATH" ]; }
 DESMUME_PATH=""
 client_desmume() { DESMUME_PATH="$("$ROOT/scripts/fetch-buildbot-core.sh" desmume)" && [ -f "$DESMUME_PATH" ]; }
 DDC_PATH=""
 client_libdatachannel() { DDC_PATH="$("$ROOT/scripts/fetch-libdatachannel.sh")" && [ -d "$DDC_PATH" ]; }
 SDL3_PATH=""
 client_sdl3() { SDL3_PATH="$("$ROOT/scripts/fetch-sdl3.sh")" && [ -d "$SDL3_PATH" ]; }
-# ctest with the output of failed tests (QtTest FAIL!/QWARN/QFATAL with context) so the assertion is not lost.
+# FRAMEBEAM_CTEST_REGEX (optional): ctest -R filter. ctest with the output of failed tests (QtTest FAIL!/QWARN/QFATAL with context) so the assertion is not lost.
 client_test() {
   local p="$1" out rc=0
   out="$(mktemp)"
-  (cd "$ROOT/client" && ctest --preset "$p" --output-on-failure >"$out" 2>&1) || rc=$?
+  local -a sel=()
+  [ -z "${FRAMEBEAM_CTEST_REGEX:-}" ] || sel=(-R "$FRAMEBEAM_CTEST_REGEX")  # nightly: only the real-core tests
+  (cd "$ROOT/client" && ctest --preset "$p" --output-on-failure "${sel[@]}" >"$out" 2>&1) || rc=$?
   if [ "$rc" -ne 0 ]; then
     grep -E '^\s*[0-9]+/[0-9]+ Test\s+#[0-9]+: .*\*\*\*|tests failed|The following tests FAILED|^\s+[0-9]+ - ' "$out" | head -n 20
     echo "--- failed test output (FAIL!/QWARN/QFATAL, context) ---"
     grep -E -B2 -A4 'FAIL!|QFATAL|QWARN|Exception|Segmentation' "$out" | head -n 110
   fi
-  # CI (FRAMEBEAM_REQUIRE_CORES): the core tests must run, a skip counts as a failure.
+  # Nightly (FRAMEBEAM_REQUIRE_CORES): the real-core tests must run, a skip counts as a failure.
   if [ "$rc" -eq 0 ] && [ -n "${FRAMEBEAM_REQUIRE_CORES:-}" ] \
      && grep -E 'Test\s+#[0-9]+: emulation_core(_desmume)?\s.*(Skipped|Not Run)' "$out"; then
     echo "core test skipped although the cores are required (FRAMEBEAM_REQUIRE_CORES)"; rc=1
+  fi
+  # Merge CI (FRAMEBEAM_REQUIRE_TESTCORE): the in-repo test core tests must run (emulation_core_gl_testcore needs GL, which xvfb provides).
+  if [ "$rc" -eq 0 ] && [ -n "${FRAMEBEAM_REQUIRE_TESTCORE:-}" ] \
+     && grep -E 'Test\s+#[0-9]+: (emulation_test_core\S*|\S+_testcore)\s.*(Skipped|Not Run)' "$out"; then
+    echo "test-core test skipped (FRAMEBEAM_REQUIRE_TESTCORE)"; rc=1
   fi
   rm -f "$out"
   return "$rc"
@@ -114,17 +121,27 @@ client() {
   [ -z "${FRAMEBEAM_VERSION:-}" ] || core_arg+=("-DFRAMEBEAM_VERSION=$FRAMEBEAM_VERSION")
   [ -z "${FRAMEBEAM_CHANNEL:-}" ] || core_arg+=("-DFRAMEBEAM_CHANNEL=$FRAMEBEAM_CHANNEL")
   [ -z "${FRAMEBEAM_COMMIT:-}" ] || core_arg+=("-DFRAMEBEAM_COMMIT=$FRAMEBEAM_COMMIT")
-  # Core first (idempotent, cached); if it fails, tests with NEEDS_CORE run as SKIP.
-  step "client: core" client_core
-  [ -n "$CORE_PATH" ] && [ -f "$CORE_PATH" ] && core_arg+=("-DFRAMEBEAM_MELONDS_DS_CORE=$CORE_PATH")
-  # DeSmuME (nightly buildbot, ADR 0020 D10): offline = one warning, tests with NEEDS_DESMUME_CORE skip.
-  # FRAMEBEAM_REQUIRE_CORES=1 (CI): a failed fetch fails the check instead.
-  if client_desmume 2>/dev/null; then
-    core_arg+=("-DFRAMEBEAM_DESMUME_CORE=$DESMUME_PATH"); echo "ok  client: desmume core"
-  elif [ -n "${FRAMEBEAM_REQUIRE_CORES:-}" ]; then
-    echo "FAIL client: desmume core (buildbot fetch failed; FRAMEBEAM_REQUIRE_CORES is set)"; "$ROOT/scripts/fetch-buildbot-core.sh" desmume 2>&1 | tail -n 5; return 1
+  # Real cores come from the libretro buildbot (ADR 0020 D10). FRAMEBEAM_SKIP_CORES=1 (merge CI) fetches none: the *_testcore
+  # tests use the in-repo test core and the real-core tests skip. Otherwise (local, nightly) a failed fetch is a warning and the
+  # real-core tests skip; FRAMEBEAM_REQUIRE_CORES=1 (nightly) turns a failed fetch into a failure.
+  if [ -z "${FRAMEBEAM_SKIP_CORES:-}" ]; then
+    if client_core 2>/dev/null; then
+      core_arg+=("-DFRAMEBEAM_MELONDS_DS_CORE=$CORE_PATH"); echo "ok  client: melonDS DS core"
+    elif [ -n "${FRAMEBEAM_REQUIRE_CORES:-}" ]; then
+      echo "FAIL client: melonDS DS core (buildbot fetch failed; FRAMEBEAM_REQUIRE_CORES is set)"; "$ROOT/scripts/fetch-buildbot-core.sh" melondsds 2>&1 | tail -n 5; return 1
+    else
+      echo "warn client: melonDS DS core not fetched (buildbot unreachable?), its tests will be skipped"
+    fi
+    if client_desmume 2>/dev/null; then
+      core_arg+=("-DFRAMEBEAM_DESMUME_CORE=$DESMUME_PATH"); echo "ok  client: desmume core"
+    elif [ -n "${FRAMEBEAM_REQUIRE_CORES:-}" ]; then
+      echo "FAIL client: desmume core (buildbot fetch failed; FRAMEBEAM_REQUIRE_CORES is set)"; "$ROOT/scripts/fetch-buildbot-core.sh" desmume 2>&1 | tail -n 5; return 1
+    else
+      echo "warn client: desmume core not fetched (buildbot unreachable?), DeSmuME tests will be skipped"
+    fi
   else
-    echo "warn client: desmume core not fetched (buildbot unreachable?), DeSmuME tests will be skipped"
+    core_arg+=("-DFRAMEBEAM_MELONDS_DS_CORE=" "-DFRAMEBEAM_DESMUME_CORE=")  # clear paths cached by an earlier configure
+    echo "ok  client: real cores skipped (FRAMEBEAM_SKIP_CORES), test core only"
   fi
   step "client: configure" bash -c "cd '$ROOT/client' && cmake --preset $p ${core_arg[*]:-}"
   step "client: build"     bash -c "cd '$ROOT/client' && cmake --build --preset $p"
@@ -151,6 +168,7 @@ packaging_deb() {
       grep -q " $p\$" <<<"$listing" || { echo "$arch: $p missing from the package"; rc=1; }
     done
     # Nothing outside usr/bin, usr/share/doc/framebeam-hub and the unit directory: no data, no config.
+    if grep -qiE '_libretro\.|/cores(/|$)' <<<"$listing"; then echo "$arch: emulator cores must not be part of the package"; rc=1; fi
     if grep -E ' \./' <<<"$listing" | grep -vE ' \./(usr/(bin/(framebeam-hub)?|share/(doc/(framebeam-hub/(copyright|THIRD-PARTY-NOTICES\.txt)?)?)?)?|lib/(systemd/(system/(framebeam-hub[a-z.-]*)?)?)?)?$' | grep -q .; then
       echo "$arch: unexpected paths in the package"; rc=1
     fi

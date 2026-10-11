@@ -43,6 +43,7 @@ if(BUILD_TESTING)
   framebeam_add_test(emulation_firmware tests/firmware_test.cpp LIBS framebeam_emulation)
   framebeam_add_test(emulation_launch_options tests/launch_options_test.cpp LIBS framebeam_emulation)
   framebeam_add_test(emulation_core_options tests/core_options_test.cpp LIBS framebeam_emulation NEEDS_CORE)
+  framebeam_add_test(emulation_core_options_testcore tests/core_options_test.cpp LIBS framebeam_emulation TEST_CORE)
 
   # Fake libretro core (SAVE_RAM only) for the save persistence tests.
   add_library(framebeam_fake_core MODULE tests/fake_core.cpp)
@@ -79,6 +80,23 @@ if(BUILD_TESTING)
   add_dependencies(test_emulation_hw_render framebeam_fake_hw_core)
   set_tests_properties(emulation_hw_render PROPERTIES SKIP_RETURN_CODE 77)
 
+  # FrameBeam test core (libretro MODULE, test only: not installed, not packaged, not part of the Player). Merge-gating
+  # replacement for the real emulator cores in the tests below; see tests/test_core.cpp.
+  add_library(framebeam_test_core MODULE tests/test_core.cpp)
+  target_include_directories(framebeam_test_core PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/tests)
+  set_target_properties(framebeam_test_core PROPERTIES PREFIX "" OUTPUT_NAME framebeam_test_core)
+  framebeam_warnings(framebeam_test_core)
+  framebeam_add_test(emulation_test_core tests/test_core_test.cpp LIBS framebeam_emulation TEST_CORE TEST_CORE_FLAVOR generic)
+  target_include_directories(test_emulation_test_core PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tests)
+  target_compile_definitions(test_emulation_test_core PRIVATE FB_TEST_CORE_PATH="$<TARGET_FILE:framebeam_test_core>")
+  add_dependencies(test_emulation_test_core framebeam_test_rom)
+  target_compile_definitions(test_emulation_test_core PRIVATE FB_TEST_ROM_PATH="${FB_TEST_ROM}")
+
+  # Input mapping chain (FrameBeam input -> system profile -> libretro mask) ending in the test core, e.g. ZR -> R2.
+  framebeam_add_test(emulation_test_core_input tests/test_core_input_test.cpp LIBS framebeam_emulation framebeam_input framebeam_sdl3 TEST_CORE TEST_CORE_FLAVOR generic)
+  target_include_directories(test_emulation_test_core_input PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tests)
+  target_compile_definitions(test_emulation_test_core_input PRIVATE FB_TEST_CORE_PATH="$<TARGET_FILE:framebeam_test_core>")
+
   # With core (SKIP/77 without FRAMEBEAM_MELONDS_DS_CORE).
   framebeam_add_test(emulation_core tests/core_test.cpp LIBS framebeam_emulation NEEDS_CORE)
   target_compile_definitions(test_emulation_core PRIVATE FB_TEST_ROM_PATH="${FB_TEST_ROM}")
@@ -97,4 +115,21 @@ if(BUILD_TESTING)
   framebeam_add_test(emulation_core_gl tests/core_gl_test.cpp LIBS framebeam_emulation Qt6::Gui NEEDS_CORE)
   target_compile_definitions(test_emulation_core_gl PRIVATE FB_TEST_ROM_PATH="${FB_TEST_ROM}")
   add_dependencies(test_emulation_core_gl framebeam_test_rom)
+
+  # The same tests against the FrameBeam test core (flavors with the option keys of the product core profiles): always
+  # run, never SKIP (the GL one only without a GL 3.3 context). The real-core tests above run in the nightly workflow.
+  foreach(variant IN ITEMS core core_speed core_gl)
+    set(src tests/${variant}_test.cpp)
+    set(libs framebeam_emulation)
+    if(variant STREQUAL "core_gl")
+      list(APPEND libs Qt6::Gui)
+    endif()
+    framebeam_add_test(emulation_${variant}_testcore ${src} LIBS ${libs} TEST_CORE)
+    target_compile_definitions(test_emulation_${variant}_testcore PRIVATE FB_TEST_ROM_PATH="${FB_TEST_ROM}")
+    add_dependencies(test_emulation_${variant}_testcore framebeam_test_rom)
+  endforeach()
+  set_tests_properties(emulation_core_gl_testcore PROPERTIES SKIP_RETURN_CODE 77)
+  framebeam_add_test(emulation_core_desmume_testcore tests/core_desmume_test.cpp LIBS framebeam_emulation TEST_CORE TEST_CORE_FLAVOR desmume)
+  target_compile_definitions(test_emulation_core_desmume_testcore PRIVATE FB_TEST_ROM_PATH="${FB_TEST_ROM}")
+  add_dependencies(test_emulation_core_desmume_testcore framebeam_test_rom)
 endif()

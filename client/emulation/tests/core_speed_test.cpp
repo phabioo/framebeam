@@ -93,5 +93,13 @@ class CoreSpeedTest : public QObject {
   }
 };
 
-QTEST_MAIN(CoreSpeedTest)
+int main(int argc, char** argv) {
+  if (qEnvironmentVariableIsEmpty("FRAMEBEAM_MELONDS_DS_CORE")) {
+    std::puts("FRAMEBEAM_MELONDS_DS_CORE not set - test skipped");
+    return 77;
+  }
+  QCoreApplication app(argc, argv);
+  CoreSpeedTest t;
+  return QTest::qExec(&t, argc, argv);
+}
 #include "core_speed_test.moc"

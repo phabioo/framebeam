@@ -127,3 +127,29 @@ framebeam_add_test(ui_ingame ingame_ui_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${
   LIBS ${FB_UI_TEST_LIBS})
 target_include_directories(test_ui_ingame PRIVATE ${FB_NETTEST_DIR})
 target_compile_definitions(test_ui_ingame PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
+
+# The four tests that need a core, once more against the in-repo FrameBeam test core (emulation/tests/test_core.cpp, flavor
+# melondsds: option keys of the product profile). Same sources, own executables (the CI rerun step looks up
+# test_<ctest name>); they run the game / Session / save / options cases instead of SKIPping, so merge-gating CI needs no
+# real emulator. The NEEDS_CORE originals above stay for the nightly run with real cores.
+foreach(t IN ITEMS game save sessions emulation_controllers)
+  set(extra_libs "")
+  if(t STREQUAL "game")
+    set(src game_test.cpp)
+  elseif(t STREQUAL "save")
+    set(src save_ui_test.cpp)
+  elseif(t STREQUAL "sessions")
+    set(src sessions_ui_test.cpp)
+  else()
+    set(src emulation_controllers_test.cpp)
+    set(extra_libs framebeam_input framebeam_sdl3)
+  endif()
+  framebeam_add_test(ui_${t}_testcore ${src} ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
+    LIBS ${FB_UI_TEST_LIBS} ${extra_libs} TEST_CORE)
+  target_include_directories(test_ui_${t}_testcore PRIVATE ${FB_NETTEST_DIR})
+  target_compile_definitions(test_ui_${t}_testcore PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
+  if(NOT t STREQUAL "emulation_controllers")
+    target_compile_definitions(test_ui_${t}_testcore PRIVATE FB_TEST_ROM_PATH="${FB_ROM_DIR}/framebeam_test.nds")
+    add_dependencies(test_ui_${t}_testcore framebeam_test_rom)
+  endif()
+endforeach()

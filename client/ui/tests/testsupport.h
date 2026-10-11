@@ -121,6 +121,14 @@ inline void prepareProcess() {
 }
 
 // Custom main instead of QTEST_MAIN: unbuffered, console executable, "-v2" (every test function is reported).
+// A test that needs a core: QSKIP without one (real-core tests, nightly); in the *_testcore variants (FB_TEST_CORE, the
+// FrameBeam test core is always present) a missing precondition must fail instead of silently skipping.
+#ifdef FB_TEST_CORE
+#define UITEST_SKIP_NO_CORE(msg) QFAIL(msg)
+#else
+#define UITEST_SKIP_NO_CORE(msg) QSKIP(msg)
+#endif
+
 #define UITEST_MAIN(TestClass)                                  \
   int main(int argc, char** argv) {                             \
     uitest::prepareProcess();                                   \

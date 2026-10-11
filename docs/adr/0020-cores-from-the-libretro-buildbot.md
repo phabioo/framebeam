@@ -73,7 +73,7 @@ ADR 0010 made FrameBeam's own signed GitHub releases the only core source, and t
 ### D10 CI and repository
 
 - `.github/workflows/cores.yml` and the signed core index (release `cores-index`) are retired; the existing releases stay untouched so older Hubs keep working.
-- `scripts/fetch-melonds-ds.*` stay as the CI test dependency. CI additionally fetches DeSmuME from the buildbot (`scripts/fetch-buildbot-core.sh`, Linux and Windows) so the core tests run against both profiled cores.
+- (superseded, see Update 2026-10-11) `scripts/fetch-melonds-ds.*` stayed as the CI test dependency. CI additionally fetched DeSmuME from the buildbot (`scripts/fetch-buildbot-core.sh`, Linux and Windows) so the core tests run against both profiled cores.
 
 ## Rejected
 
@@ -86,3 +86,7 @@ ADR 0010 made FrameBeam's own signed GitHub releases the only core source, and t
 - Adding a core for a supported system is an admin click; a core profile in the Player makes it a first-class core.
 - Trust in cores equals trust in the libretro buildbot over HTTPS, the same as for RetroArch users. A compromised buildbot build reaches a Hub only when its admin installs or updates.
 - The Hub needs HTTPS egress to `buildbot.libretro.com` (or `import-cores`).
+
+## Update 2026-10-11
+
+Merge CI no longer downloads or builds real cores. The `*_testcore` tests run against the in-repo test core `framebeam_test_core`; the real-core tests skip there. Real melonDS DS and DeSmuME builds from the libretro buildbot are tested by the non-blocking workflow `cores-nightly.yml` (daily, Linux and Windows), which opens an issue on failure. `scripts/fetch-melonds-ds.*` and `scripts/melonds-ds.pin` are removed; melonDS DS is fetched with `scripts/fetch-buildbot-core.sh|ps1 melondsds` like DeSmuME.

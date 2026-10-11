@@ -21,7 +21,7 @@ How the FrameBeam Player (`client/`, C++20/Qt 6/QML) is built and what it does i
 - CMake >= 3.25, Ninja; vcpkg (`scripts/bootstrap-vcpkg.sh`) for further packages.
 - Media ([ADR 0006](../adr/0006-sessions-phase4.md)): Linux apt `libavcodec-dev libswscale-dev libopus-dev qt6-websockets-dev libssl-dev` plus libdatachannel from `scripts/fetch-libdatachannel.sh` (pinned, `scripts/libdatachannel.pin`); Windows vcpkg (`client/vcpkg.json`, platform windows; FFmpeg with `nvcodec`, `qsv`, `amf` since 0.1.1, [ADR 0009](../adr/0009-finish-poc.md)).
 - SDL3 >= 3.2, gamepad/joystick subsystem only (audio stays on Qt Multimedia; CMake target `framebeam_sdl3` in `input/`). Linux: pinned source build via `scripts/fetch-sdl3.sh` (`scripts/sdl3.pin`, no video/audio, no extra apt packages; Ubuntu 24.04 has no SDL3 package), found through `SDL3_ROOT`; Windows: vcpkg port `sdl3` without features (`client/vcpkg.json`). The `input_sdl3` test proves it links and runs headless with a virtual joystick.
-- melonDS DS core (pinned, `scripts/melonds-ds.pin`): `scripts/fetch-melonds-ds.sh` (Linux) or `.ps1` (Windows). DeSmuME (unpinned buildbot nightly): `scripts/fetch-buildbot-core.sh desmume` / `make fetch-desmume`; test path `FRAMEBEAM_DESMUME_CORE`. No core in the repository.
+- melonDS DS and DeSmuME (unpinned libretro buildbot nightlies, `melondsds` / `desmume`): `scripts/fetch-buildbot-core.sh|ps1 <core>` / `make fetch-core` / `make fetch-desmume`; test path `FRAMEBEAM_DESMUME_CORE`. No core in the repository.
 - Windows release builds use the `x64-windows-release` overlay triplet (x64, dynamic CRT and libraries, Release-only dependency builds); the debug preset continues to use the standard `x64-windows` triplet.
 
 ## Data storage

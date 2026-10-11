@@ -1,5 +1,5 @@
 // UI: sessions in the library, watching, Session panel, multiview, diagnostics (offscreen, FakeHub, no real network).
-// Tests with a running game need the DS core and the homebrew test ROM (QSKIP without FRAMEBEAM_MELONDS_DS_CORE).
+// Tests with a running game need the DS core and the homebrew test ROM (QSKIP without FRAMEBEAM_MELONDS_DS_CORE; ui_sessions_testcore runs them against the FrameBeam test core).
 #include <QFile>
 #include <QQmlContext>
 #include <QQmlProperty>
@@ -449,7 +449,7 @@ class SessionsUiTest : public QObject {
   // applied the PATCH and answered after the PATCH answer: it must not revert the visibility. Same for a ws update.
   void staleAnswerAfterPatchKeepsVisibility() {
     GameRig r;
-    if (!startGame(r, true)) QSKIP("core or test ROM not available");
+    if (!startGame(r, true)) UITEST_SKIP_NO_CORE("core or test ROM not available");
     Harness& h = r.h;
     FakeHub& hub = r.hub;
     SessionController* ctl = h.controller->sessions();
@@ -492,7 +492,7 @@ class SessionsUiTest : public QObject {
 
   void playAndShareThenPanelStates() {
     GameRig r;
-    if (!startGame(r, true)) QSKIP("core or test ROM not available");
+    if (!startGame(r, true)) UITEST_SKIP_NO_CORE("core or test ROM not available");
     Harness& h = r.h;
     FakeHub& hub = r.hub;
     SessionController* ctl = h.controller->sessions();
@@ -883,7 +883,7 @@ class SessionsUiTest : public QObject {
   // Local game plus up to three remote Sessions (needs the core).
   void multiviewWithLocalGameAndAudioFocus() {
     GameRig r;
-    if (!startGame(r, false)) QSKIP("core or test ROM not available");
+    if (!startGame(r, false)) UITEST_SKIP_NO_CORE("core or test ROM not available");
     Harness& h = r.h;
     SessionController* ctl = h.controller->sessions();
     GameSession* gs = h.controller->gameSession();
