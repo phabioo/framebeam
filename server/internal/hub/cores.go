@@ -42,6 +42,9 @@ const (
 	settingCoreLastCheck   = "core_source_last_check"
 	settingCoreLastSuccess = "core_source_last_success"
 	settingCoreLastError   = "core_source_last_error"
+
+	settingCoreAutoUpdate          = "core_auto_update"            // "0" = off; absent or anything else = on
+	settingCoreAutoUpdateLastError = "core_auto_update_last_error" // cleared by a clean auto-update run
 )
 
 const (
@@ -116,7 +119,9 @@ type CoreSourceStatus struct {
 	LastCheck            *time.Time
 	LastSuccess          *time.Time
 	LastError            string
-	Cores                int // cores with a build in the cached catalog
+	AutoUpdate           bool   // install newer buildbot builds after each catalog refresh
+	AutoUpdateError      string // errors of the last auto-update run, empty when clean
+	Cores                int    // cores with a build in the cached catalog
 }
 
 // CoreSource returns the state of the core source.
@@ -134,6 +139,12 @@ func (s *Service) CoreSource(ctx context.Context) (CoreSourceStatus, error) {
 	}
 	var err error
 	if st.LastError, _, err = s.getSetting(ctx, settingCoreLastError); err != nil {
+		return st, err
+	}
+	if st.AutoUpdate, err = s.CoreAutoUpdate(ctx); err != nil {
+		return st, err
+	}
+	if st.AutoUpdateError, _, err = s.getSetting(ctx, settingCoreAutoUpdateLastError); err != nil {
 		return st, err
 	}
 	s.cores.catMu.RLock()

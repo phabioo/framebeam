@@ -514,3 +514,113 @@ func TestInstallAzaharAttachesTo3DS(t *testing.T) {
 		t.Fatalf("%v %+v", err, e)
 	}
 }
+
+// syncOnce runs RunCoreSync until its first report.
+func syncOnce(t *testing.T, svc *hub.Service) (hub.CoreSyncReport, error) {
+	t.Helper()
+	c, cancel := context.WithCancel(ctx)
+	type res struct {
+		r   hub.CoreSyncReport
+		err error
+	}
+	ch := make(chan res, 4)
+	done := make(chan struct{})
+	go func() {
+		svc.RunCoreSync(c, time.Hour, func(r hub.CoreSyncReport, err error) { ch <- res{r, err} })
+		close(done)
+	}()
+	defer func() { cancel(); <-done }()
+	select {
+	case r := <-ch:
+		return r.r, r.err
+	case <-time.After(20 * time.Second):
+		t.Fatal("core sync did not report")
+	}
+	return hub.CoreSyncReport{}, nil
+}
+
+func newBuild(t *testing.T, bb *hubtest.Buildbot, coreID, date string) {
+	t.Helper()
+	for p, suffix := range map[string]string{"linux-x64": ".so", "windows-x64": ".dll"} {
+		bb.SetZip(p, coreID, date, hubtest.MakeZip(t, map[string][]byte{coreID + "_libretro" + suffix: []byte("newer " + date)}))
+	}
+}
+
+func TestCoreAutoUpdateOnAfterRefresh(t *testing.T) {
+	svc, bb := bbEnv(t, nil)
+	if on, err := svc.CoreAutoUpdate(ctx); err != nil || !on {
+		t.Fatalf("default: %v %v", on, err)
+	}
+	refresh(t, svc)
+	for _, id := range [][2]string{{"nds", "desmume"}, {"3ds", "azahar"}} {
+		if _, err := svc.InstallCore(ctx, id[0], id[1]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	newBuild(t, bb, "desmume", "2026-10-12")
+	rep, err := syncOnce(t, svc)
+	if err != nil || !rep.AutoUpdateRan || len(rep.Updated) != 1 || rep.Updated[0] != (hub.CoreUpdated{SystemID: "nds", CoreID: "desmume", Version: "2026.10.12"}) || len(rep.UpdateErrors) != 0 {
+		t.Fatalf("%+v %v", rep, err)
+	}
+	sc, _ := svc.SystemCores(ctx, "nds")
+	if len(sc.Installed) != 1 || sc.Installed[0].UpdateAvailable || sc.Installed[0].Version != "2026.10.12" {
+		t.Fatalf("%+v", sc.Installed)
+	}
+}
+
+func TestCoreAutoUpdateOffKeepsManualFlow(t *testing.T) {
+	svc, bb := bbEnv(t, nil)
+	refresh(t, svc)
+	if _, err := svc.InstallCore(ctx, "nds", "desmume"); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.SetCoreAutoUpdate(ctx, false); err != nil {
+		t.Fatal(err)
+	}
+	if on, _ := svc.CoreAutoUpdate(ctx); on {
+		t.Fatal("still on")
+	}
+	newBuild(t, bb, "desmume", "2026-10-12")
+	rep, err := syncOnce(t, svc)
+	if err != nil || rep.AutoUpdateRan || len(rep.Updated) != 0 {
+		t.Fatalf("%+v %v", rep, err)
+	}
+	sc, _ := svc.SystemCores(ctx, "nds")
+	if !sc.Installed[0].UpdateAvailable || sc.Installed[0].Version != "2026.10.09" {
+		t.Fatalf("%+v", sc.Installed)
+	}
+	if _, err := svc.UpdateCore(ctx, "nds", "desmume"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCoreAutoUpdateOneFailureDoesNotBlockOthers(t *testing.T) {
+	svc, bb := bbEnv(t, nil)
+	refresh(t, svc)
+	for _, id := range [][2]string{{"nds", "desmume"}, {"3ds", "azahar"}} {
+		if _, err := svc.InstallCore(ctx, id[0], id[1]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	newBuild(t, bb, "desmume", "2026-10-12")
+	newBuild(t, bb, "azahar", "2026-10-12")
+	bb.SetCRC("windows-x64", "desmume", "deadbeef")
+	rep, err := syncOnce(t, svc)
+	if err != nil || len(rep.Updated) != 1 || rep.Updated[0].CoreID != "azahar" || len(rep.UpdateErrors) != 1 || !strings.Contains(rep.UpdateErrors[0], "nds/desmume") {
+		t.Fatalf("%+v %v", rep, err)
+	}
+	src, _ := svc.CoreSource(ctx)
+	if !strings.Contains(src.AutoUpdateError, "desmume") {
+		t.Fatalf("error not recorded: %q", src.AutoUpdateError)
+	}
+	// Fixed upstream: the next run updates it and clears the error.
+	bb.SetCRC("windows-x64", "desmume", "")
+	newBuild(t, bb, "desmume", "2026-10-12")
+	rep, err = syncOnce(t, svc)
+	if err != nil || len(rep.Updated) != 1 || len(rep.UpdateErrors) != 0 {
+		t.Fatalf("%+v %v", rep, err)
+	}
+	if src, _ = svc.CoreSource(ctx); src.AutoUpdateError != "" || !src.AutoUpdate {
+		t.Fatalf("%+v", src)
+	}
+}

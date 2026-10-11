@@ -143,6 +143,15 @@
         <dt>Source</dt><dd class="mono">{{$.Body.Cores.URL}}</dd>
         <dt>Last check</dt><dd>{{$.Body.Cores.LastCheck}}{{if ne $.Body.Cores.LastSuccess "never"}} · last success {{$.Body.Cores.LastSuccess}}{{end}} · {{$.Body.Cores.Count}} core(s) in the catalog</dd>
         <dt>Last error</dt><dd>{{if $.Body.Cores.LastError}}<span class="status-err">{{$.Body.Cores.LastError}}</span>{{else}}none{{end}}</dd>
+        <dt>Automatic updates</dt><dd>{{if $.Body.Cores.AutoUpdate}}<span class="pill ok sm">On</span>{{else}}<span class="pill sm">Off</span>{{end}}
+          <form class="inline" method="post" action="/cores/auto-update">
+            <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+            <input type="hidden" name="sys" value="{{.ID}}">
+            <input type="hidden" name="on" value="{{if $.Body.Cores.AutoUpdate}}0{{else}}1{{end}}">
+            <button class="btn small" type="submit">{{if $.Body.Cores.AutoUpdate}}Turn off{{else}}Turn on{{end}}</button>
+          </form>
+          <div class="help">When on, the Hub installs newer buildbot builds of installed cores after each check. When off, use Update per core.</div></dd>
+        <dt>Last auto-update error</dt><dd>{{if $.Body.Cores.AutoUpdateError}}<span class="status-err">{{$.Body.Cores.AutoUpdateError}}</span>{{else}}none{{end}}</dd>
       </dl>
       <form class="inline" method="post" action="/cores/sync">
         <input type="hidden" name="_csrf" value="{{$.CSRF}}">

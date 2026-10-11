@@ -423,6 +423,12 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 				return
 			}
 			log.Info("core catalog refreshed", "cores", r.Cores)
+			for _, u := range r.Updated {
+				log.Info("core auto-updated", "system", u.SystemID, "core", u.CoreID, "version", u.Version)
+			}
+			for _, e := range r.UpdateErrors {
+				log.Warn("core auto-update failed", "err", e)
+			}
 		})
 	}()
 
