@@ -77,6 +77,8 @@ class CoreCatalog : public QObject {
   bool hubOffersCore(const emu::SystemManifest& man, QString* version = nullptr) const;
   // Located core is usable as is (a cached core must also pass the SHA-256 check).
   bool coreUsable(const emu::SystemManifest& man, emu::CoreLocation* loc = nullptr) const;
+  // True when the core (id or legacy alias) is located and usable on this device for any system (Hub warning filter).
+  bool coreInstalledLocally(const QString& coreIdOrAlias) const;
   // Core status text/tone/hint for the detail pane and the system cards.
   void coreStatus(const emu::SystemManifest& man, QString* text, QString* tone, QString* hint) const;
   static QString coreProblemText(const QString& reason);

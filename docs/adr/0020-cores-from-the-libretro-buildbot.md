@@ -39,7 +39,7 @@ ADR 0010 made FrameBeam's own signed GitHub releases the only core source, and t
 - The Hub's systems registry keeps the systems FrameBeam supports (`nds` today) with the libretro system ids that belong to them (`nds` → `nds`; later `3ds` → `3ds`).
 - Discovery: every core whose info file has a matching `systemid` and that has a build for at least one served platform is offered for that system. Shown per core: name, license, required graphics API (`required_hw_api`), firmware notes, supported extensions, build date, and whether FrameBeam has a core profile for it (D6).
 - The admin installs, updates and removes cores per system on "Systems & Cores" and picks the **default core** of the system. Installed = enabled for Players. (superseded for updates, see Update 2026-10-11: automatic core updates) Nothing installs or updates by itself; the Hub refreshes the catalog (info.zip and `.index-extended`) at start, every 24 h and via "Check source now", and shows "Update available" when the buildbot has a newer build. Updating keeps the old build until the new one is fully cached, then removes it.
-- Existing installations keep working: a `melonds_ds` package from the old signed source stays installed and stays the default until the admin installs or picks another core.
+- Packages from the old signed source (`melonds_ds`, origin `framebeam`) are removed when the Hub starts (amendment 2026-10); the admin installs a buildbot core instead. The id `melonds_ds` stays an alias of `melondsds` so Players reporting either id match in the handshake core check.
 
 ### D5 Protocol
 

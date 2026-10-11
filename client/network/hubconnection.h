@@ -52,6 +52,9 @@ class HubConnection : public QObject {
 
   // Handshake data (including cores); set before connecting.
   void setHandshakeInfo(const HandshakeInfo& info) { handshake_ = info; }
+  // Sends the current handshake data again on a connected session (e.g. after a core download changed the reported
+  // core versions) and replaces handshakeProblems(); handshakeProblemsChanged() follows. No-op when not connected.
+  void resendHandshake();
   void setPollIntervalMs(int ms) { pollIntervalMs_ = ms; }
 
   State state() const { return state_; }
@@ -123,6 +126,7 @@ class HubConnection : public QObject {
  signals:
   void stateChanged(framebeam::HubConnection::State state);
   void errorOccurred(const QString& code, const QString& message);
+  void handshakeProblemsChanged();
 
  private:
   using Handler = std::function<void(const HttpResult&)>;

@@ -338,6 +338,29 @@ class HubFeaturesUiTest : public QObject {
     uitest::saveShot(h.window, QStringLiteral("5-core-warning"));
   }
 
+  // core_missing for a core that exists on this device (stale snapshot or legacy id "melonds_ds") is not shown;
+  // for a core that really is missing it still is.
+  void coreMissingWarningIgnoredWhenCoreIsLocal() {
+    FakeHub hub(QStringLiteral("a"));
+    hub.handshakeExtra = QJsonObject{{QStringLiteral("problems"),
+                                      QJsonArray{QJsonObject{{QStringLiteral("code"), QStringLiteral("core_missing")},
+                                                             {QStringLiteral("detail"), QStringLiteral("Core melonds_ds is not installed")},
+                                                             {QStringLiteral("core_id"), QStringLiteral("melonds_ds")}}}}};
+    QVERIFY(hub.start());
+    qputenv("FRAMEBEAM_MELONDS_DS_CORE", QCoreApplication::applicationFilePath().toLocal8Bit());  // "found" core, never loaded
+    {
+      Harness h;
+      QVERIFY(h.start());
+      pair(h, hub);
+      QVERIFY(h.controller->coreWarnings().isEmpty());
+    }
+    qunsetenv("FRAMEBEAM_MELONDS_DS_CORE");
+    Harness h2;
+    QVERIFY(h2.start());
+    pair(h2, hub);
+    QCOMPARE(h2.controller->coreWarnings().size(), 1);
+  }
+
   // Sidebar user block: Hub user name above the device name; without `user` (older Hub) device name + "This device".
   void userBlockShowsHubUserName() {
     {

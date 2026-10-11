@@ -324,7 +324,7 @@ func TestRegistrySeed(t *testing.T) {
 	}
 	e := reg[1]
 	if e.ID != "nds" || e.CoreID != "" || e.ExpectedCoreVersion != "" || len(e.Cores) != 0 || strings.Join(e.LibretroIDs, ",") != "nds" || e.FirmwareMode != hub.FirmwareBuiltin ||
-		e.Provisioning != "Included in the Player" || strings.Join(e.Platforms, ",") != "windows-x86_64,linux-x86_64" {
+		e.Provisioning != "Installed by the admin" || strings.Join(e.Platforms, ",") != "windows-x86_64,linux-x86_64" {
 		t.Fatalf("%+v", e)
 	}
 	if len(e.Firmware) != 3 || e.Firmware[0].ID != "bios7" || e.Firmware[1].ID != "bios9" || e.Firmware[2].ID != "firmware" {

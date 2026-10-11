@@ -51,7 +51,7 @@ type systemView struct {
 	Available                                                     []coreAvailView
 	ID, Name, CoreID, CoreName, Expected, Provisioning, Platforms string
 	Extensions, InputProfile, DisplayProfile, Mode, LibretroIDs   string
-	Native                                                        bool
+	Native, NoCore                                                bool
 	Firmware                                                      []fwView
 	Clients                                                       []clientView
 	// List chip and summary chip (ready / firmware problems / clients that differ), tab counters.
@@ -126,7 +126,7 @@ func (s *Server) systemsBodyData(r *http.Request) (systemsBody, error) {
 		v := systemView{ID: e.ID, Name: e.Name, CoreID: e.CoreID, CoreName: e.CoreName, Expected: e.ExpectedCoreVersion,
 			Provisioning: e.Provisioning, Platforms: strings.Join(e.Platforms, ", "), Extensions: strings.Join(e.Extensions, ", "),
 			InputProfile: e.InputProfile, DisplayProfile: e.DisplayProfile, Mode: string(e.FirmwareMode),
-			Native: e.FirmwareMode == hub.FirmwareNative}
+			Native: e.FirmwareMode == hub.FirmwareNative, NoCore: e.CoreID == ""}
 		v.LibretroIDs = strings.Join(e.LibretroIDs, ", ")
 		sc, err := s.svc.SystemCores(r.Context(), e.ID)
 		if err != nil {
@@ -139,7 +139,7 @@ func (s *Server) systemsBodyData(r *http.Request) (systemsBody, error) {
 			if c.Origin == hub.OriginBuildbot {
 				cv.Origin = "libretro buildbot, nightly " + c.BuildDate
 			} else {
-				cv.Origin = "FrameBeam (retired signed source)"
+				cv.Origin = c.Origin
 			}
 			if cv.License == "" {
 				cv.License = "unknown"
@@ -241,6 +241,9 @@ func (s *Server) systemsBodyData(r *http.Request) (systemsBody, error) {
 // chips derives the list chip, the summary chip and the firmware hint of a system.
 func (v *systemView) chips() {
 	switch {
+	case v.NoCore:
+		v.ChipText, v.ChipClass = "No core", "error"
+		v.SummaryText, v.SummaryClass = "✕ No core installed · Players cannot start games", "error"
 	case v.FwBad > 0:
 		v.ChipText, v.ChipClass = plural(v.FwBad, "firmware", "firmware"), "error"
 		v.SummaryText, v.SummaryClass = fmt.Sprintf("✕ Not ready · %s missing or invalid", plural(v.FwBad, "file", "files")), "error"

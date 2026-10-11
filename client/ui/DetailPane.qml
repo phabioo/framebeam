@@ -251,6 +251,7 @@ Rectangle {
                             Layout.minimumWidth: 0
                             spacing: 12
                             Item {
+                                Layout.alignment: Qt.AlignTop
                                 Layout.preferredWidth: 18
                                 Layout.preferredHeight: 18
                                 Rectangle {
@@ -263,20 +264,24 @@ Rectangle {
                                     border.color: step.modelData.state === "active" ? Theme.accent : Theme.textDisabled
                                 }
                             }
-                            FbLabel {
+                            ColumnLayout {
                                 Layout.fillWidth: true
-                                text: step.modelData.label
-                                elide: Text.ElideRight
-                                Layout.minimumWidth: 60
-                                font.pixelSize: Theme.fontSmall
-                                color: step.modelData.state === "pending" ? Theme.textFaint : Theme.text
-                            }
-                            FbMono {
-                                visible: (step.modelData.meta || "") !== ""
-                                text: step.modelData.meta || ""
-                                elide: Text.ElideRight
-                                Layout.maximumWidth: 150
-                                font.pixelSize: Theme.fontMono
+                                Layout.minimumWidth: 0
+                                spacing: 2
+                                FbLabel {
+                                    Layout.fillWidth: true
+                                    text: step.modelData.label
+                                    wrapMode: Text.WordWrap
+                                    font.pixelSize: Theme.fontSmall
+                                    color: step.modelData.state === "pending" ? Theme.textFaint : Theme.text
+                                }
+                                FbMono {
+                                    visible: (step.modelData.meta || "") !== ""
+                                    Layout.fillWidth: true
+                                    text: step.modelData.meta || ""
+                                    wrapMode: Text.WordWrap
+                                    font.pixelSize: Theme.fontMono
+                                }
                             }
                         }
                     }

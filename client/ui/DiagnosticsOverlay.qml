@@ -5,7 +5,7 @@ import FrameBeam.Player
 // Diagnostics overlay (3t-2, 3x-2; fullscreen 3y): 340 wide, two collapsible sections. Emulation of the local game (core,
 // renderer, resolution, fps, frame time with sparkline, audio, fallback hint) and Streaming per participant. In the
 // Multiview (`multi`) Emulation shows your tile only and Streaming one block per tile Session, with the tile badges.
-// Fullscreen shows Emulation only (3y). Opened and closed by one toggle (header button, F3); section state is global
+// Fullscreen shows the same sections (3y). Opened and closed by one toggle (header button, F3); section state is global
 // (ADR 0014 D5, kept by the model). Positioned by the game screen: top right of the play area, 16 px from the edges.
 Rectangle {
     id: root
@@ -154,11 +154,9 @@ Rectangle {
             }
         }
 
-        // Streaming is not part of the fullscreen overlay (3y)
-        Rectangle { visible: !root.fullscreen; Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.gameBorder }
+        Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.gameBorder }
         DiagSection {
             objectName: "diagStreamingSection"
-            visible: !root.fullscreen
             Layout.fillWidth: true
             title: qsTr("STREAMING")
             summary: root.model.streamingSummary

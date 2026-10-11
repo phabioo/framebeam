@@ -175,7 +175,7 @@ func TestSystemsTabsAndListFragments(t *testing.T) {
 	}
 	rec = c.get("/systems", nil)
 	contains(t, rec, `class="pill warn lg"`, "▲ 1 client differ from the registry · launching stays allowed", `class="pill warn sm">1 client`)
-	notContains(t, rec, `pill error`)
+	notContains(t, rec, `pill error lg`) // the 3ds list chip ("No core") may be an error chip
 }
 
 func TestSavesDeleteSnapshotAndNewSlotWeb(t *testing.T) {

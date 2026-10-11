@@ -76,8 +76,8 @@ func TestAdminPagesAreAdminOnlyAndRender(t *testing.T) {
 	contains(t, c.get("/users", nil), `href="/users" class="active"`, "Onboarding invites", "Accounts apply only on this Hub")
 	// Systems & Cores: list | detail with tabs; the firmware tab is the default.
 	rec := c.get("/systems?sys=nds", nil)
-	contains(t, rec, `href="/systems" class="active"`, "Nintendo DS", "No core installed", "Included in the Player", "ARM7 BIOS", "ARM9 BIOS", "DS Firmware",
-		"Search systems…", "● Ready", `aria-selected="true"`, `id="systems-list"`, `id="systems-detail"`, "Provided by the admin")
+	contains(t, rec, `href="/systems" class="active"`, "Nintendo DS", "No core installed", "Installed by the admin", "ARM7 BIOS", "ARM9 BIOS", "DS Firmware",
+		"Search systems…", "Players cannot start Nintendo DS games until then", "No core", `aria-selected="true"`, `id="systems-list"`, `id="systems-detail"`, "Provided by the admin")
 	notContains(t, rec, "LATER", "Installed cores", "Reported by Players")
 	rec = c.get("/systems?sys=nds&tab=core", nil)
 	contains(t, rec, "windows-x86_64", "Installed cores", "Available from the libretro buildbot", "Check source now", "No core installed",
@@ -433,8 +433,8 @@ func TestSystemsPageCores(t *testing.T) {
 	rec := c.get("/systems?sys=nds&tab=core", nil)
 	contains(t, rec, bb.Server.URL+"/nightly", "Last error", "none", "Available from the libretro buildbot", "No core installed",
 		"Nintendo - DS (DeSmuME)", "GPLv2", "OpenGL Core &gt;= 3.2", "nightly 2026-10-08", "/systems/nds/cores/desmume/install", "/systems/nds/cores/noods/install",
-		"No FrameBeam profile", "Check source now", "3 core(s) in the catalog")
-	notContains(t, rec, "Azahar", "/cores/azahar/", "Update available")
+		"Check source now", "3 core(s) in the catalog")
+	notContains(t, rec, "Azahar", "/cores/azahar/", "Update available", "No FrameBeam profile")
 
 	// Install: redirect, the core is listed as installed default with its origin.
 	rec = postTok(c, tok, "/systems/nds/cores/desmume/install", nil)
@@ -448,7 +448,8 @@ func TestSystemsPageCores(t *testing.T) {
 	// The experimental core carries the badge once installed; Make default switches.
 	status(t, postTok(c, tok, "/systems/nds/cores/noods/install", nil), 303)
 	rec = c.get("/systems?sys=nds&tab=core", nil)
-	contains(t, rec, "No FrameBeam profile", "/systems/nds/cores/noods/default", "Graphics API: OpenGL Core &gt;= 3.2")
+	notContains(t, rec, "No FrameBeam profile")
+	contains(t, rec, "/systems/nds/cores/noods/default", "Graphics API: OpenGL Core &gt;= 3.2")
 	status(t, postTok(c, tok, "/systems/nds/cores/noods/default", nil), 303)
 	if entry, _ := e.svc.GetRegistryEntry(bg, "nds"); entry.CoreID != "noods" {
 		t.Fatalf("%+v", entry)

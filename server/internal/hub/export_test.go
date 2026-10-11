@@ -57,3 +57,8 @@ func (s *Service) SetRawSettingForTest(ctx context.Context, key, value string) e
 
 // CleanTextForTest exposes cleanText.
 func CleanTextForTest(v string, max int) string { return cleanText(v, max) }
+
+// CheckCoresForTest exposes the handshake core check.
+func CheckCoresForTest(reg []SystemEntry, cores []CoreReport) []Problem {
+	return checkCores(reg, cores)
+}
