@@ -285,8 +285,8 @@ func (s *Server) PostHandshake(ctx context.Context, req api.PostHandshakeRequest
 		return nil, err
 	}
 	features := []string{hub.FeatureSavesV1, hub.FeatureSessionsV1, hub.FeatureUsersV1, hub.FeatureFirmwareV1, hub.FeatureCoresV1,
-		hub.FeatureSavesV2, hub.FeatureCoresV2, hub.FeatureSavesV3, hub.FeatureSavesV4, hub.FeatureLocalSetupV1}
-	if s.svc.TURNEnabled() {
+		hub.FeatureSavesV2, hub.FeatureCoresV2, hub.FeatureSavesV3, hub.FeatureSavesV4, hub.FeatureLocalSetupV1, hub.FeatureICEUpdateV1}
+	if s.svc.RelayEnabled() {
 		features = append(features, hub.FeatureTURNV1)
 	}
 	if can, err := s.svc.CanUpload(ctx, principal(ctx).User); err != nil {

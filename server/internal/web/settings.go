@@ -143,6 +143,8 @@ type netBody struct {
 	TURNOn                                       bool
 	ICEList                                      []string
 	ICEAdd                                       string
+	ICEDefault                                   string
+	ICEIsDefault, ICENone                        bool
 	Pending                                      []string // labels of settings that need a restart
 	Issues                                       []string
 	ReachOK                                      bool
@@ -192,7 +194,7 @@ func (s *Server) netDesired(ctx context.Context) (config.Config, map[string]stri
 		return config.Config{}, nil, err
 	}
 	c := s.cfg.Net.Base
-	c.ICEServers = append([]string(nil), s.cfg.Net.Base.ICEServers...)
+	c.ICEServers = config.CloneICE(s.cfg.Net.Base.ICEServers)
 	c.ApplyNet(stored)
 	return c, stored, nil
 }
@@ -371,11 +373,17 @@ func (s *Server) netBody(r *http.Request, sess *session, res settingsRes) (netBo
 		nb.Relay.Min, nb.Relay.Max = res.Form.Get("min"), res.Form.Get("max")
 	}
 	nb.ICE = field(config.NetICEServers)
-	nb.ICE.EnvText = "none"
-	if len(base.ICEServers) > 0 {
-		nb.ICE.EnvText = strings.Join(base.ICEServers, ", ")
+	nb.ICE.EnvText = "default: " + config.DefaultSTUNServer
+	if base.ICEServers != nil {
+		nb.ICE.EnvText = "none"
+		if len(base.ICEServers) > 0 {
+			nb.ICE.EnvText = strings.Join(base.ICEServers, ", ")
+		}
 	}
 	nb.ICEList = desired.ICEServers
+	nb.ICEDefault = config.DefaultSTUNServer
+	nb.ICEIsDefault = desired.ICEServers == nil
+	nb.ICENone = desired.ICEServers != nil && len(desired.ICEServers) == 0
 	if res.FieldKey == config.NetICEServers {
 		nb.ICEAdd = res.Form.Get("url")
 	}
@@ -654,16 +662,21 @@ func netRaw(key string, form url.Values, cur *config.Config) (string, error) {
 		return min + "-" + max, nil
 	case config.NetICEServers:
 		u := strings.TrimSpace(form.Get("url"))
-		list := append([]string(nil), cur.ICEServers...)
+		list := config.CloneICE(cur.ICEServers)
 		switch form.Get("op") {
+		case "none":
+			list = []string{}
 		case "remove":
-			out := list[:0]
+			out := []string{}
 			for _, x := range list {
 				if x != u {
 					out = append(out, x)
 				}
 			}
 			list = out
+			if len(list) == 0 {
+				list = nil // last custom entry removed: the default applies; only the "none" button stores none
+			}
 		default:
 			if err := config.ValidateSTUNURL(u); err != nil {
 				return "", err
@@ -778,7 +791,7 @@ func (s *Server) settingsNetReset(w http.ResponseWriter, r *http.Request, sess *
 		}
 	}
 	cand := s.cfg.Net.Base
-	cand.ICEServers = append([]string(nil), s.cfg.Net.Base.ICEServers...)
+	cand.ICEServers = config.CloneICE(s.cfg.Net.Base.ICEServers)
 	cand.ApplyNet(rest)
 	if err := cand.ValidateNet(key); err != nil {
 		s.settingsDone(w, r, sess, "network", settingsRes{FieldKey: key, Msg: upper1(err.Error()), Form: r.PostForm}, true)

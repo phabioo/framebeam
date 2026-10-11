@@ -142,9 +142,11 @@ func (c *Config) NetValue(key string) string {
 }
 
 // EncodeICEServers is the stored form of the external STUN server list (a JSON array).
+// nil (not configured, the default STUN applies) is "null"; an empty list (explicitly none) is "none".
+// Legacy Hubs stored "[]" for "no URLs"; that now reads as the default, only the marker "none" means none.
 func EncodeICEServers(urls []string) string {
-	if urls == nil {
-		urls = []string{}
+	if urls != nil && len(urls) == 0 {
+		return "none"
 	}
 	b, _ := json.Marshal(urls)
 	return string(b)
@@ -152,9 +154,15 @@ func EncodeICEServers(urls []string) string {
 
 // DecodeICEServers parses the stored form.
 func DecodeICEServers(raw string) ([]string, error) {
+	if strings.TrimSpace(raw) == "none" {
+		return []string{}, nil
+	}
 	var out []string
 	if err := json.Unmarshal([]byte(raw), &out); err != nil {
 		return nil, fmt.Errorf("external STUN servers: %w", err)
+	}
+	if len(out) == 0 {
+		return nil, nil // "[]" / "null" (also stored by older Hubs): not configured, default applies
 	}
 	return out, nil
 }

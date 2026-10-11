@@ -19,15 +19,11 @@ QString installRootFor(const QString& exeDir) {
   return d.absolutePath();
 }
 
-bool hasUninstaller(const QString& installRoot) {
-  return !installRoot.isEmpty() && QFileInfo::exists(QDir(installRoot).filePath(QLatin1String(kUninstallerName)));
-}
-
 bool hasMsiMarker(const QString& installRoot) {
   return !installRoot.isEmpty() && QFileInfo::exists(QDir(installRoot).filePath(QLatin1String(kPlayerMsiMarker)));
 }
 
-bool canSelfUpdate(const QString& installRoot) { return hasUninstaller(installRoot) || hasMsiMarker(installRoot); }
+bool canSelfUpdate(const QString& installRoot) { return hasMsiMarker(installRoot); }
 
 bool hubInstalledNear(const QString& installRoot) {
   if (installRoot.isEmpty()) return false;
@@ -45,15 +41,6 @@ bool directoryWritable(const QString& dir) {
   if (!f.open(QIODevice::WriteOnly)) return false;
   f.close();
   return f.remove();
-}
-
-InstallerCommand installerCommand(const QString& setupPath, bool rootWritable) {
-  InstallerCommand c;
-  c.program = setupPath;
-  c.args = {QStringLiteral("/SILENT"), QStringLiteral("/SUPPRESSMSGBOXES"), QStringLiteral("/NORESTART"),
-            QStringLiteral("/UPDATE"),
-            rootWritable ? QStringLiteral("/CURRENTUSER") : QStringLiteral("/ALLUSERS")};
-  return c;
 }
 
 MsiScope detectMsiScope(bool rootWritable, bool hubInstalled) {

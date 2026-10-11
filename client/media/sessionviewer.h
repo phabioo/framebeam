@@ -13,6 +13,7 @@
 #include "bitratecontroller.h"
 #include "mediastats.h"
 #include "opuscodec.h"
+#include "rtcutil.h"
 #include "sessiontypes.h"
 #include "videodecoder.h"
 
@@ -48,6 +49,12 @@ class SessionViewer : public QObject {
   bool forceRelay() const { return forceRelay_; }
   // Leave / Session ended / viewer removed: closes the PeerConnection immediately.
   void close();
+  // `ice_update` from the Hub: the next PeerConnection of this object uses it (a running one stays untouched).
+  void updateIceServers(const QStringList& iceServers, const QList<TurnServer>& turnServers) {
+    iceServers_ = iceServers;
+    turnServers_ = turnServers;
+    relayTcpOnly_ = turnServersTcpOnly(turnServers);
+  }
   bool isOpen() const { return open_; }
   bool isConnected() const { return connected_; }
   QString viewerId() const { return viewerId_; }
@@ -75,6 +82,7 @@ class SessionViewer : public QObject {
 
  private:
   void onPcState(int state);
+  void onGatheringComplete();
   void onVideoFrame(QByteArray data);
   void onAudioFrame(QByteArray data);
   void updateStats();
@@ -91,6 +99,7 @@ class SessionViewer : public QObject {
   unsigned pcGen_ = 0;  // UI thread only; bumped by teardown()
   bool connected_ = false;
   bool remoteSet_ = false;
+  IceTrace ice_;  // candidate counts of the current PeerConnection
   QString pcState_ = QStringLiteral("new");
   QList<SessionSignal> pendingCandidates_;
   std::shared_ptr<ThreadBridge> bridge_;

@@ -52,7 +52,7 @@ type Options struct {
 	// ProtocolVersion/MinProtocolVersion override the constants (tests only); 0 = default.
 	ProtocolVersion    int
 	MinProtocolVersion int
-	// ICEServers are the stun: URLs delivered in hello_ack and the join response (default empty, ADR 0006 D4).
+	// ICEServers are the stun: URLs delivered in hello_ack and the join response (nil = config.DefaultSTUNServer, empty = none, ADR 0006 D4).
 	ICEServers []string
 	// OwnerGrace is how long a Session survives the owner's dropped WSS connection (default 30 s; injectable for tests).
 	OwnerGrace time.Duration
@@ -107,6 +107,7 @@ type Service struct {
 	upd    updateState
 	updCfg updateConfig
 	turn   turnState
+	cf     cloudflareState
 	bus    eventBus
 
 	localMu     sync.Mutex // local setup defaults

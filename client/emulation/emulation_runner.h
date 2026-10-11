@@ -102,7 +102,7 @@ class EmulationRunner : public QObject {
   std::shared_ptr<MemoryWatchSet> memoryWatch() const { return m_memoryWatch; }
   void setSnapshotInterval(int frames) { m_snapshotInterval.store((std::max)(1, frames)); }
   int snapshotInterval() const { return m_snapshotInterval.load(); }
-  // The game's memory regions (thread-safe copy), taken after the game loaded; empty when none or not running.
+  // The game's memory regions (thread-safe copy), taken after the game loaded and refreshed when the core re-sends its map (memoryRegionsChanged); empty when none or not running.
   std::vector<MemoryMap::RegionInfo> memoryRegions() const;
 
   // Diagnostics (thread-safe, cheap): measured frame timing of the emulation thread and how the core renders.
@@ -123,6 +123,8 @@ class EmulationRunner : public QObject {
   // The core shut itself down or runFrame failed; the thread winds down (then stop()).
   void errorOccurred(const QString& message);
   void stopped();
+  // The core re-sent its memory map while running; memoryRegions() now returns the new list.
+  void memoryRegionsChanged();
 
  private:
   class Worker;

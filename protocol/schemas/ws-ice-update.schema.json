@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://framebeam.invalid/schemas/ws-ice-update.schema.json",
+  "title": "ws-ice-update (Hub to Player, feature ice_update_v1)",
+  "type": "object",
+  "required": [
+    "type",
+    "payload"
+  ],
+  "properties": {
+    "type": {
+      "const": "ice_update"
+    },
+    "id": {
+      "type": "string"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "ice_servers"
+      ],
+      "description": "Same shape as the ICE part of hello_ack. Sent whenever the Hub's effective ICE configuration changes; replaces the previous lists for every PeerConnection created afterwards, running connections are not touched.",
+      "properties": {
+        "ice_servers": {
+          "type": "array",
+          "description": "Complete current list of stun: URLs (replaces the previous list)",
+          "items": {
+            "type": "string",
+            "pattern": "^stuns?:"
+          }
+        },
+        "turn_servers": {
+          "type": "array",
+          "description": "Complete current relay credentials (replaces the previous list); absent when no relay provider is on (feature turn_v1)",
+          "items": {
+            "type": "object",
+            "required": [
+              "urls",
+              "username",
+              "credential",
+              "expires_at"
+            ],
+            "properties": {
+              "urls": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^turns?:"
+                }
+              },
+              "username": {
+                "type": "string"
+              },
+              "credential": {
+                "type": "string"
+              },
+              "expires_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

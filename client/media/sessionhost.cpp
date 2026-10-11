@@ -594,6 +594,12 @@ void SessionHost::close() {
 
 // ---------------------------------------------------------------- viewers / signaling
 
+void SessionHost::updateIceServers(const QStringList& iceServers, const QList<TurnServer>& turnServers) {
+  iceServers_ = iceServers;
+  turnServers_ = turnServers;
+  relayTcpOnly_ = turnServersTcpOnly(turnServers);
+}
+
 void SessionHost::addViewer(const QString& viewerId, const QList<TurnServer>& turnServers) {
   if (!open_ || viewers_.contains(viewerId)) {
     return;
@@ -678,10 +684,17 @@ void SessionHost::addViewer(const QString& viewerId, const QList<TurnServer>& tu
       s.kind = QStringLiteral("candidate");
       s.candidate = QString::fromStdString(c.candidate());
       s.mid = QString::fromStdString(c.mid());
-      bridge->post([this, s]() mutable {
+      const int type = static_cast<int>(c.type());
+      bridge->post([this, s, id, type]() mutable {
+        onLocalCandidateType(id, type);
         s.sessionId = sessionId_;
         emit signalOut(s);
       });
+    }));
+    v.pc->onGatheringStateChange(guarded("onGatheringStateChange", [this, bridge, id](rtc::PeerConnection::GatheringState st) {
+      if (st == rtc::PeerConnection::GatheringState::Complete) {
+        bridge->post([this, id]() { onGatheringComplete(id); });
+      }
     }));
     v.pc->onStateChange(guarded("onStateChange", [this, bridge, id](rtc::PeerConnection::State st) {
       bridge->post([this, id, st]() { onPcState(id, static_cast<int>(st)); });
@@ -745,6 +758,19 @@ void SessionHost::dropViewer(const QString& viewerId, const QString& reason) {
   emit viewerClosed(viewerId, reason + QLatin1Char(':') + finalState);
 }
 
+void SessionHost::onLocalCandidateType(const QString& viewerId, int type) {
+  if (const auto it = viewers_.find(viewerId); it != viewers_.end()) {
+    countCandidate(it->ice.local, static_cast<rtc::Candidate::Type>(type));
+  }
+}
+
+void SessionHost::onGatheringComplete(const QString& viewerId) {
+  if (const auto it = viewers_.find(viewerId); it != viewers_.end()) {
+    it->ice.gatheringComplete = true;
+    qCInfo(lcHost).noquote() << QStringLiteral("ICE viewer %1: gathering complete, local %2").arg(viewerId, it->ice.local.text());
+  }
+}
+
 void SessionHost::onPcState(const QString& viewerId, int state) {
   auto it = viewers_.find(viewerId);
   if (it == viewers_.end()) {
@@ -754,9 +780,20 @@ void SessionHost::onPcState(const QString& viewerId, int state) {
   it->state = stateName(st);
   if (st == rtc::PeerConnection::State::Connected && !it->connected) {
     it->connected = true;
+    const QString type = it->pc ? connectionTypeOf(*it->pc, relayTcpOnly_, forceRelay_) : QString();
+    const RelayReason reason = classifyRelayReason(type, forceRelay_, it->ice.local, it->ice.remote);
+    qCInfo(lcHost).noquote() << QStringLiteral("ICE viewer %1: connected %2, pair %3, local %4, remote %5%6")
+                                    .arg(viewerId, type.isEmpty() ? QStringLiteral("(unknown)") : type,
+                                         it->pc ? selectedPairText(*it->pc) : QString(), it->ice.local.text(), it->ice.remote.text(),
+                                         reason == RelayReason::None ? QString() : QStringLiteral(", relay reason %1").arg(relayReasonToken(reason)));
     requestKeyframe();
     emit viewerConnected(viewerId);
   } else if (st == rtc::PeerConnection::State::Failed || st == rtc::PeerConnection::State::Closed) {
+    if (st == rtc::PeerConnection::State::Failed) {
+      qCInfo(lcHost).noquote() << QStringLiteral("ICE viewer %1: failed (%2 connected), local %3, remote %4")
+                                      .arg(viewerId, it->connected ? QStringLiteral("was") : QStringLiteral("never"), it->ice.local.text(),
+                                           it->ice.remote.text());
+    }
     dropViewer(viewerId, QStringLiteral("connection_") + it->state);
   }
 }
@@ -786,7 +823,9 @@ void SessionHost::onRxReport(const QString& viewerId, const RxReport& report) {
 
 void SessionHost::applyRemoteCandidate(Viewer& v, const SessionSignal& s) {
   try {
-    v.pc->addRemoteCandidate(rtc::Candidate(s.candidate.toStdString(), s.mid.toStdString()));
+    const rtc::Candidate cand(s.candidate.toStdString(), s.mid.toStdString());
+    countCandidate(v.ice.remote, cand.type());
+    v.pc->addRemoteCandidate(cand);
   } catch (const std::exception& e) {
     qCWarning(lcHost) << "Remote candidate rejected:" << e.what();
   }
@@ -1047,6 +1086,7 @@ void SessionHost::updateStats() {
     if (it->connected && it->pc) {
       l.rttMs = rttOf(*it->pc);
       l.connectionType = connectionTypeOf(*it->pc, relayTcpOnly_, forceRelay_);
+      l.relayReason = classifyRelayReason(l.connectionType, forceRelay_, it->ice.local, it->ice.remote);
     }
     if (l.rttMs && (!s.rttMs || *l.rttMs > *s.rttMs)) {
       s.rttMs = l.rttMs;

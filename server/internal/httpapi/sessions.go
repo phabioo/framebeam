@@ -120,8 +120,12 @@ func (s *Server) JoinSession(ctx context.Context, req api.JoinSessionRequestObje
 	}
 	out := api.JoinSession201JSONResponse{ViewerId: mustUUID(r.ViewerID), IceServers: r.ICEServers,
 		Permissions: api.SessionPermissions{ViewVideo: r.Permissions.ViewVideo, HearAudio: r.Permissions.HearAudio, SendInput: r.Permissions.SendInput}}
-	if r.TURN != nil {
-		out.TurnServers = &[]api.TurnServer{{Urls: r.TURN.URLs, Username: r.TURN.Username, Credential: r.TURN.Credential, ExpiresAt: r.TURN.ExpiresAt}}
+	if len(r.TURN) > 0 {
+		ts := make([]api.TurnServer, 0, len(r.TURN))
+		for _, t := range r.TURN {
+			ts = append(ts, api.TurnServer{Urls: t.URLs, Username: t.Username, Credential: t.Credential, ExpiresAt: t.ExpiresAt})
+		}
+		out.TurnServers = &ts
 	}
 	return out, nil
 }

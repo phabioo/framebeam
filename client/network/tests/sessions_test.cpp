@@ -273,6 +273,39 @@ class SessionsTest : public QObject {
     QCOMPARE(r.join->iceServers, QStringList{QStringLiteral("stun:stun.example.org:3478")});
   }
 
+  void iceUpdateReplacesStoredConfig() {
+    FakeHub hub(QStringLiteral("a"));
+    hub.features = {QStringLiteral("saves_v1"), QStringLiteral("sessions_v1"), QStringLiteral("ice_update_v1")};
+    QVERIFY(hub.start());
+    connectTo(hub);
+    HubSocket ws(conn_.get());
+    QSignalSpy acked(&ws, &HubSocket::helloAcked);
+    QSignalSpy updated(&ws, &HubSocket::iceUpdated);
+    ws.start();
+    QTRY_COMPARE_WITH_TIMEOUT(acked.count(), 1, 8000);
+    QVERIFY(ws.helloAck().turnServers.isEmpty());
+
+    hub.sendWs(QStringLiteral("ice_update"),
+               {{QStringLiteral("ice_servers"), QJsonArray{QStringLiteral("stun:stun2.example.org:3478")}},
+                {QStringLiteral("turn_servers"),
+                 QJsonArray{QJsonObject{{QStringLiteral("urls"), QJsonArray{QStringLiteral("turn:hub.example.org:3478?transport=udp")}},
+                                        {QStringLiteral("username"), QStringLiteral("300:dev")},
+                                        {QStringLiteral("credential"), QStringLiteral("c-300")},
+                                        {QStringLiteral("expires_at"), QStringLiteral("2026-10-08T12:00:00Z")}}}}});
+    QTRY_COMPARE_WITH_TIMEOUT(updated.count(), 1, 8000);
+    QCOMPARE(ws.helloAck().iceServers, QStringList{QStringLiteral("stun:stun2.example.org:3478")});
+    QCOMPARE(ws.helloAck().turnServers.size(), 1);
+    QCOMPARE(ws.helloAck().turnServers.first().username, QStringLiteral("300:dev"));
+    QVERIFY(ws.helloAck().features.contains(QStringLiteral("ice_update_v1")));  // rest of the hello_ack stays
+
+    // turn_servers is optional: absent means TURN is off now.
+    hub.sendWs(QStringLiteral("ice_update"), {{QStringLiteral("ice_servers"), QJsonArray{QStringLiteral("stun:stun3.example.org:3478")}}});
+    QTRY_COMPARE_WITH_TIMEOUT(updated.count(), 2, 8000);
+    QVERIFY(ws.helloAck().turnServers.isEmpty());
+    QCOMPARE(ws.helloAck().iceServers, QStringList{QStringLiteral("stun:stun3.example.org:3478")});
+    ws.stop();
+  }
+
   void reconnectsWithBackoffAndRenewsRejectedToken() {
     FakeHub hub(QStringLiteral("a"));
     QVERIFY(hub.start());

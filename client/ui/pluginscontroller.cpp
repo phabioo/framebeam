@@ -98,6 +98,7 @@ PluginsController::PluginsController(PlayerSettings* settings, const QString& da
     connect(session_, &GameSession::memoryWatchReplaced, this, [this]() {
       if (running_) adapter_->bind(session_->memoryWatch());
     });
+    connect(session_, &GameSession::memoryRegionsChanged, this, [this]() { scheduleConsole(); });
     connect(session_, &GameSession::stateChanged, this, [this]() {
       if (inGame_ && !session_->isActive()) gameStopped();
     });

@@ -2,6 +2,7 @@ package config
 
 import (
 	"flag"
+	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -194,5 +195,58 @@ func TestWindowsDefaults(t *testing.T) {
 	c = reg("windows", "-update-request-dir", "")
 	if c.Validate() == nil {
 		t.Fatal("explicit empty request dir accepted")
+	}
+}
+
+func TestICEServersDefaultAndNone(t *testing.T) {
+	if c := parse(t, nil); c.ICEServers != nil || len(EffectiveICE(c.ICEServers)) != 1 || EffectiveICE(c.ICEServers)[0] != DefaultSTUNServer {
+		t.Fatalf("unset must mean the default: %#v", c.ICEServers)
+	}
+	for _, c := range []*Config{parse(t, map[string]string{"FRAMEBEAM_ICE_SERVERS": "none"}), parse(t, nil, "-ice-servers", " None ")} {
+		if c.ICEServers == nil || len(c.ICEServers) != 0 || len(EffectiveICE(c.ICEServers)) != 0 || c.Validate() != nil {
+			t.Fatalf("none must be explicitly empty: %#v", c.ICEServers)
+		}
+		if got := CloneICE(c.ICEServers); got == nil {
+			t.Fatal("CloneICE lost the difference between none and default")
+		}
+	}
+	if EncodeICEServers(nil) != "null" || EncodeICEServers([]string{}) != "none" {
+		t.Fatal("stored forms must differ")
+	}
+	// Legacy stored values ("[]", "null") mean the default; only "none" is explicitly empty.
+	for _, legacy := range []string{"null", "[]"} {
+		if l, err := DecodeICEServers(legacy); err != nil || l != nil {
+			t.Fatal(legacy, l, err)
+		}
+	}
+	if l, err := DecodeICEServers("none"); err != nil || l == nil || len(l) != 0 {
+		t.Fatal(l, err)
+	}
+}
+
+func TestCloudflareTURNConfig(t *testing.T) {
+	c := parse(t, map[string]string{"FRAMEBEAM_CLOUDFLARE_TURN_KEY_ID": "abc-123"})
+	if c.CloudflareTURNKeyID != "abc-123" || c.Validate() != nil {
+		t.Fatalf("%+v", c)
+	}
+	if _, err := c.CloudflareTURNToken(func(string) string { return "" }); err == nil {
+		t.Fatal("token source missing must fail")
+	}
+	if tok, err := c.CloudflareTURNToken(func(k string) string {
+		if k == "FRAMEBEAM_CLOUDFLARE_TURN_API_TOKEN" {
+			return " tok "
+		}
+		return ""
+	}); err != nil || tok != "tok" {
+		t.Fatal(tok, err)
+	}
+	f := filepath.Join(t.TempDir(), "token")
+	os.WriteFile(f, []byte("filetok\n"), 0o600)
+	c = parse(t, nil, "-cloudflare-turn-key-id", "k", "-cloudflare-turn-token-file", f)
+	if tok, err := c.CloudflareTURNToken(func(string) string { return "" }); err != nil || tok != "filetok" {
+		t.Fatal(tok, err)
+	}
+	if parse(t, nil, "-cloudflare-turn-token-file", f).Validate() == nil || parse(t, nil, "-cloudflare-turn-key-id", "a/b").Validate() == nil {
+		t.Fatal("token file without key id and bad key id must fail")
 	}
 }

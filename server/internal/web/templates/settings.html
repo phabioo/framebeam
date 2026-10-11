@@ -298,7 +298,18 @@
 </section>
 
 <section class="set-card">
-  <div class="eyebrow">External STUN servers · optional</div>
+  <div class="eyebrow">External STUN servers</div>
+  {{if .ICEIsDefault}}
+  <div class="set-row">
+    <div><span class="value mono">{{.ICEDefault}}</span> <span class="pill">Default</span></div>
+    <form method="post" action="/settings/network/ice_servers" hx-post="/settings/network/ice_servers" hx-target="#settings-area" hx-swap="innerHTML">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="op" value="none">
+      <button class="btn small" type="submit">Use no external server</button>
+    </form>
+  </div>
+  {{else if .ICENone}}
+  <div class="set-row"><div class="help">No external STUN server. Players only learn their public address from the built-in relay.</div></div>
+  {{end}}
   {{range .ICEList}}
   <div class="set-row">
     <div><span class="value mono">{{.}}</span> <span class="pill">STUN</span></div>
@@ -311,12 +322,12 @@
   <div class="set-row">
     <form class="set-add" method="post" action="/settings/network/ice_servers" hx-post="/settings/network/ice_servers" hx-target="#settings-area" hx-swap="innerHTML">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="op" value="add">
-      <input type="text" name="url" value="{{.ICEAdd}}" placeholder="stun:stun.example.com:3478" class="host" aria-label="STUN server URL"{{if .ICE.Err}} aria-invalid="true"{{end}}>
+      <input type="text" name="url" value="{{.ICEAdd}}" placeholder="default: {{.ICEDefault}}" class="host" aria-label="STUN server URL"{{if .ICE.Err}} aria-invalid="true"{{end}}>
       <button class="btn small" type="submit">+ Add server</button>
     </form>
   </div>
   {{template "set-err" .ICE.Err}}
-  <div class="help">Offered to Players in addition to the built-in relay. Leave empty if the hub is reachable from the internet. Applies without a restart.{{if .ICE.Web}} {{template "net-src" .ICE}}{{end}}</div>
+  <div class="help">Offered to Players so they can find their public address, in addition to the built-in relay. Without an entry the default ({{.ICEDefault}}) is used; adding a server replaces it. Applies without a restart; connected Players are told at once.{{if .ICE.Web}} {{template "net-src" .ICE}}{{end}}</div>
 </section>
 
 <section class="set-card">

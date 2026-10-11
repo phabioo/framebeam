@@ -80,12 +80,14 @@ class EmulationRunner::Worker : public QThread {
       emit m_owner->startFailed(err);
       return;
     }
-    {
+    auto publishRegions = [&]() {
       std::vector<MemoryMap::RegionInfo> regions;
       if (const MemoryMap* mm = be.memoryMap()) regions = mm->regions();
       QMutexLocker rl(&m_owner->m_regionsMutex);
       m_owner->m_regions = std::move(regions);
-    }
+    };
+    publishRegions();
+    uint64_t memMapGen = be.memoryMapGeneration();
     const AvInfo av = be.avInfo();
     int rate = static_cast<int>(std::lround(av.sampleRate));
     double fps = av.fps > 1.0 ? av.fps : 60.0;
@@ -132,6 +134,11 @@ class EmulationRunner::Worker : public QThread {
       const bool frameOk = be.runFrame();
       const double frameMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - frameStart).count();
       if (frameOk) m_owner->m_timing.recordFrame(monotonicMs(), frameMs, be.lastReadbackMs(), be.lastGpuCopyMs(), be.lastGpuCaptured());
+      if (frameOk && be.memoryMapGeneration() != memMapGen) {  // the core re-sent SET_MEMORY_MAPS during retro_run
+        memMapGen = be.memoryMapGeneration();
+        publishRegions();
+        emit m_owner->memoryRegionsChanged();
+      }
       if (frameOk && !m_owner->m_memoryWatch->empty()) {  // no lock is held here: the core is not running
         if (++framesSinceSnapshot >= m_owner->m_snapshotInterval.load()) {
           framesSinceSnapshot = 0;

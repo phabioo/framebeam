@@ -36,4 +36,23 @@ LAN, internet with a router port forward (recommended, this page), or a VPN such
 
 Set `FRAMEBEAM_FORCE_RELAY=1` (CLI `--force-relay`) on a Player to force the relay path. The diagnostics show the connection type (direct / relay) and the target bitrate; the host adapts the encoder bitrate to the worst viewer (AIMD).
 
+## Reading the connection logs and reasons
+
+Host and viewer Players log one compact `info` line per connection (category `framebeam.sessionhost` on the host, `framebeam.sessionviewer` on the viewer; the connection is identified by viewer id or session id, no credentials are logged):
+
+- `ICE viewer <id>: gathering complete, local host=2 srflx=1 prflx=0 relay=1`: local candidates by type once gathering finished. `srflx=0` means no STUN server answered (or none is configured).
+- `ICE viewer <id>: connected relay (udp), pair local srflx 1.2.3.4:5000 udp <-> remote relay 5.6.7.8:49160 udp, local ..., remote ..., relay reason no_local_srflx`: the selected pair, both candidate counts (remote ones are those received over signaling) and, for a relayed path, the reason.
+- `ICE viewer <id>: failed (never connected), local ..., remote ...`: the connection failed; compare the counts.
+
+The host overlay (Diagnostics) shows type, RTT and reason per viewer, and a viewer sees its own connection the same way. A path is Relayed when either side of the selected pair is a relay candidate. Reasons:
+
+| Reason (log token) | Shown as | Meaning |
+|---|---|---|
+| `forced` | relay forced | `FRAMEBEAM_FORCE_RELAY=1` / `--force-relay` |
+| `no_local_srflx` | no STUN reachable on this side | this Player got no server-reflexive candidate: STUN blocked or not configured |
+| `no_remote_srflx` | other side has no public address | the other Player offered no server-reflexive candidate |
+| `direct_failed` | direct path blocked (NAT or firewall) | both sides had srflx candidates but the direct checks failed: likely symmetric or carrier-grade NAT, or a firewall |
+
+When the Hub changes its ICE/TURN servers it sends `ice_update` (feature `ice_update_v1`); the Player logs `ICE servers updated: N stun, M turn` and uses the new servers for connections created afterwards. Running connections stay untouched.
+
 Hub flags: `-turn`, `-public-host`, `-turn-port`, `-turn-relay-ports`, `-turn-relay-ip` (env `FRAMEBEAM_TURN*`, `FRAMEBEAM_PUBLIC_HOST`), see [hub-configuration.md](hub-configuration.md).

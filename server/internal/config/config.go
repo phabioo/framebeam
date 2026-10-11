@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -29,8 +30,16 @@ type Config struct {
 	TLSKey  string
 	// Dev allows HTTP instead of HTTPS (development and tests only).
 	Dev bool
-	// ICEServers are stun: URLs delivered to Players for Sessions (default empty: host candidates suffice on a LAN).
+	// ICEServers are stun: URLs delivered to Players for Sessions. nil = not configured: DefaultSTUNServer applies;
+	// an empty non-nil list ("none") = explicitly no external STUN. Copy with CloneICE to keep that difference.
 	ICEServers []string
+	// CloudflareTURNKeyID selects the optional Cloudflare Realtime TURN key (relay provider next to the embedded
+	// TURN server). The API token is never part of the Config: CloudflareTURNToken reads it from the environment
+	// or from CloudflareTURNTokenFile.
+	CloudflareTURNKeyID     string
+	CloudflareTURNTokenFile string
+	// CloudflareTURNBaseURL overrides the API base (tests only, no flag).
+	CloudflareTURNBaseURL string
 	// CoreBuildbotURL is the libretro buildbot nightly base URL (ADR 0020 D1), https only.
 	CoreBuildbotURL string
 	// CoreInfoURL is the libretro core info archive (info.zip), https only.
@@ -70,6 +79,52 @@ const (
 	DefaultCoreBuildbotURL = "https://buildbot.libretro.com/nightly"
 	DefaultCoreInfoURL     = "https://buildbot.libretro.com/assets/frontend/info.zip"
 )
+
+// DefaultSTUNServer is the STUN URL used when no external STUN server is configured.
+const DefaultSTUNServer = "stun:stun.cloudflare.com:3478"
+
+// CloneICE copies an ICE server list and keeps nil (default) distinct from empty (none).
+func CloneICE(l []string) []string {
+	if l == nil {
+		return nil
+	}
+	return append([]string{}, l...)
+}
+
+// EffectiveICE resolves a configured list: nil becomes the default STUN server, empty stays empty.
+func EffectiveICE(l []string) []string {
+	if l == nil {
+		return []string{DefaultSTUNServer}
+	}
+	return append([]string{}, l...)
+}
+
+// parseICE reads a comma-separated list; empty = not configured (nil), "none" = explicitly empty.
+func parseICE(s string) []string {
+	if strings.EqualFold(strings.TrimSpace(s), "none") {
+		return []string{}
+	}
+	return splitCSV(s)
+}
+
+// CloudflareTURNToken returns the Cloudflare TURN API token: the environment variable
+// FRAMEBEAM_CLOUDFLARE_TURN_API_TOKEN wins over the token file. Errors never contain the token.
+func (c *Config) CloudflareTURNToken(getenv func(string) string) (string, error) {
+	if v := strings.TrimSpace(getenv("FRAMEBEAM_CLOUDFLARE_TURN_API_TOKEN")); v != "" {
+		return v, nil
+	}
+	if c.CloudflareTURNTokenFile == "" {
+		return "", errors.New("cloudflare TURN needs the API token in FRAMEBEAM_CLOUDFLARE_TURN_API_TOKEN or -cloudflare-turn-token-file")
+	}
+	b, err := os.ReadFile(c.CloudflareTURNTokenFile)
+	if err != nil {
+		return "", fmt.Errorf("cloudflare-turn-token-file: %w", err)
+	}
+	if t := strings.TrimSpace(string(b)); t != "" {
+		return t, nil
+	}
+	return "", errors.New("cloudflare-turn-token-file is empty")
+}
 
 // Defaults of the TURN options.
 const (
@@ -125,7 +180,7 @@ func (l csvList) String() string {
 	return strings.Join(*l.v, ",")
 }
 
-func (l csvList) Set(s string) error { *l.v = splitCSV(s); return nil }
+func (l csvList) Set(s string) error { *l.v = parseICE(s); return nil }
 
 func splitCSV(s string) []string {
 	var out []string
@@ -196,8 +251,10 @@ func register(fs *flag.FlagSet, getenv func(string) string, goos string) *Config
 	fs.StringVar(&c.TLSCert, "tls-cert", env("TLS_CERT", ""), "TLS certificate (PEM) (FRAMEBEAM_TLS_CERT)")
 	fs.StringVar(&c.TLSKey, "tls-key", env("TLS_KEY", ""), "TLS key (PEM) (FRAMEBEAM_TLS_KEY)")
 	fs.BoolVar(&c.Dev, "dev", dev, "development mode: HTTP instead of HTTPS (FRAMEBEAM_DEV)")
-	c.ICEServers = splitCSV(getenv("FRAMEBEAM_ICE_SERVERS"))
-	fs.Var(csvList{&c.ICEServers}, "ice-servers", "comma-separated stun: URLs for Sessions, default none (FRAMEBEAM_ICE_SERVERS)")
+	c.ICEServers = parseICE(getenv("FRAMEBEAM_ICE_SERVERS"))
+	fs.Var(csvList{&c.ICEServers}, "ice-servers", "comma-separated stun: URLs for Sessions, default "+DefaultSTUNServer+", \"none\" = no external STUN (FRAMEBEAM_ICE_SERVERS)")
+	fs.StringVar(&c.CloudflareTURNKeyID, "cloudflare-turn-key-id", env("CLOUDFLARE_TURN_KEY_ID", ""), "Cloudflare Realtime TURN key ID, optional relay next to -turn; the API token comes from FRAMEBEAM_CLOUDFLARE_TURN_API_TOKEN or -cloudflare-turn-token-file (FRAMEBEAM_CLOUDFLARE_TURN_KEY_ID)")
+	fs.StringVar(&c.CloudflareTURNTokenFile, "cloudflare-turn-token-file", env("CLOUDFLARE_TURN_TOKEN_FILE", ""), "file holding the Cloudflare TURN API token (FRAMEBEAM_CLOUDFLARE_TURN_TOKEN_FILE)")
 	fs.StringVar(&c.CoreBuildbotURL, "core-buildbot-url", func() string {
 		if v := getenv("FRAMEBEAM_HUB_CORE_BUILDBOT_URL"); v != "" {
 			return v
@@ -286,6 +343,15 @@ func (c *Config) Validate() error {
 		if !strings.HasPrefix(u, "stun:") || len(u) == len("stun:") {
 			return fmt.Errorf("ice-servers: %q is not a stun: URL", u)
 		}
+	}
+	if c.CloudflareTURNKeyID != "" {
+		for _, r := range c.CloudflareTURNKeyID {
+			if (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') && (r < '0' || r > '9') && r != '-' && r != '_' {
+				return errors.New("cloudflare-turn-key-id contains invalid characters")
+			}
+		}
+	} else if c.CloudflareTURNTokenFile != "" {
+		return errors.New("-cloudflare-turn-token-file needs -cloudflare-turn-key-id")
 	}
 	if c.TURN {
 		if c.PublicHost == "" {

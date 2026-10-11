@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/phabioo/framebeam/server/internal/config"
 )
 
 // Realtime layer (ADR 0006 D3): the Hub-side protocol of the WSS endpoint, independent of the WebSocket
@@ -38,7 +40,7 @@ const presenceReserve = outBuffer / 2
 type sessionState struct {
 	mu    sync.Mutex // serializes Session mutations; lock order: mu, then rt.mu
 	iceMu sync.RWMutex
-	ice   []string // stun: URLs; guarded by iceMu (changed live from the web settings)
+	ice   []string // stun: URLs (nil = default STUN); guarded by iceMu (changed live from the web settings)
 	grace time.Duration
 
 	rt rtState
@@ -60,7 +62,7 @@ type rtState struct {
 }
 
 func (ss *sessionState) init(o Options) {
-	ss.ice = append([]string{}, o.ICEServers...)
+	ss.ice = config.CloneICE(o.ICEServers)
 	ss.grace = o.OwnerGrace
 	if ss.grace <= 0 {
 		ss.grace = DefaultOwnerGrace
@@ -434,10 +436,9 @@ func (c *Client) hello(env envelope) error {
 	}
 	ice, turn := c.svc.iceFor(c.reqHost, c.deviceID)
 	ack := map[string]any{"protocol_version": info.ProtocolVersion, "hub_version": info.HubVersion,
-		"features": []string{FeatureSavesV1, FeatureSavesV2, FeatureSessionsV1}, "ice_servers": ice}
-	if turn != nil {
-		ack["turn_servers"] = []map[string]any{{"urls": turn.URLs, "username": turn.Username, "credential": turn.Credential,
-			"expires_at": turn.ExpiresAt.UTC().Format(time.RFC3339)}}
+		"features": []string{FeatureSavesV1, FeatureSavesV2, FeatureSessionsV1, FeatureICEUpdateV1}, "ice_servers": ice}
+	if len(turn) > 0 {
+		ack["turn_servers"] = turnPayload(turn)
 	}
 	c.sendMsg("hello_ack", env.ID, ack)
 	c.svc.attach(c)

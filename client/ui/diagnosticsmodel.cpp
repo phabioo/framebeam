@@ -247,14 +247,28 @@ QString DiagnosticsModel::decoderLine(const QString& decoder, std::optional<doub
 }
 
 QString DiagnosticsModel::linkLine(std::optional<double> rttMs, std::optional<double> lossPercent, const QString& connectionType,
-                                   const QString& turnEndpoint) {
+                                   const QString& turnEndpoint, RelayReason reason) {
   QStringList parts;
   parts << (rttMs ? tr("RTT %1 ms").arg(qRound(*rttMs)) : tr("RTT —"));
   parts << (lossPercent ? tr("Loss %1 %").arg(fixed(*lossPercent, 1)) : tr("Loss —"));
   if (isRelayed(connectionType) && !turnEndpoint.isEmpty()) {
     parts << tr("via %1").arg(turnEndpoint);
   }
+  if (isRelayed(connectionType) && reason != RelayReason::None) {
+    parts << relayReasonText(reason);
+  }
   return parts.join(QStringLiteral(" · "));
+}
+
+QString DiagnosticsModel::relayReasonText(RelayReason reason) {
+  switch (reason) {
+    case RelayReason::Forced: return tr("relay forced");
+    case RelayReason::NoLocalSrflx: return tr("no STUN reachable on this side");
+    case RelayReason::NoRemoteSrflx: return tr("other side has no public address");
+    case RelayReason::DirectFailed: return tr("direct path blocked (NAT or firewall)");
+    case RelayReason::None: break;
+  }
+  return {};
 }
 
 QString DiagnosticsModel::turnEndpoint(const QList<TurnServer>& servers) {

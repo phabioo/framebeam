@@ -125,15 +125,8 @@ std::optional<StagedUpdate> loadVerifiedStaged(const QString& baseDir, const QSt
       }
     }
     if (rel == nullptr) continue;
-    std::optional<Artifact> art;
-    for (const char* kind : {kKindMsi, kKindInstaller}) {  // the staged artifact is whichever the index offers by that name
-      const auto a = rel->artifact(QLatin1String(kPlayerPlatform), QLatin1String(kind));
-      if (a && a->name == artifactName) {
-        art = a;
-        break;
-      }
-    }
-    if (!art) continue;
+    const auto art = rel->artifact(QLatin1String(kPlayerPlatform), QLatin1String(kKindMsi));
+    if (!art || art->name != artifactName) continue;
     const QString path = d.filePath(art->name);
     // Skip the (GUI thread) re-hash when size and mtime are what was recorded after the verified download; the
     // launcher hashes the MSI again right before msiexec anyway (PC-3).
@@ -506,23 +499,24 @@ void UpdateManager::apply(const StagedUpdate& staged) {
     setState(state_, tr("A game or Session is running. Finish it first, then install the update."));
     return;
   }
-  InstallerCommand cmd;
-  if (isMsiFile(staged.installerPath)) {
-    // MSI: a temp copy of the launcher runs msiexec (elevated for a per-machine install) after this Player exited,
-    // then starts the installed Player again.
-    QString why;
-    const QString launcher = copyLauncherToTemp(config_.installRoot, QDir::tempPath(), &why);
-    if (launcher.isEmpty()) {
-      lastError_ = why;
-      setState(State::Error, tr("The installer could not be started."));
-      return;
-    }
-    const MsiScope scope = detectMsiScope(directoryWritable(config_.installRoot), hubInstalledNear(config_.installRoot));
-    cmd = msiRelaunchCommand(launcher, staged.installerPath, scope, QDir(config_.installRoot).filePath(QLatin1String(kPlayerExeName)), {},
-                             staged.sha256, staged.size);
-  } else {
-    cmd = installerCommand(staged.installerPath, directoryWritable(config_.installRoot));
+  if (!isMsiFile(staged.installerPath)) {
+    lastError_ = QStringLiteral("staged update is not an MSI");
+    setState(State::Error, tr("The installer could not be started."));
+    return;
   }
+  // A temp copy of the launcher runs msiexec (elevated for a per-machine install) after this Player exited,
+  // then starts the installed Player again.
+  QString why;
+  const QString launcher = copyLauncherToTemp(config_.installRoot, QDir::tempPath(), &why);
+  if (launcher.isEmpty()) {
+    lastError_ = why;
+    setState(State::Error, tr("The installer could not be started."));
+    return;
+  }
+  const MsiScope scope = detectMsiScope(directoryWritable(config_.installRoot), hubInstalledNear(config_.installRoot));
+  const InstallerCommand cmd = msiRelaunchCommand(launcher, staged.installerPath, scope,
+                                                  QDir(config_.installRoot).filePath(QLatin1String(kPlayerExeName)), {},
+                                                  staged.sha256, staged.size);
   recordAttempt(staged);
   qCInfo(lcUpdate) << "starting installer for" << staged.version;
   if (!launcher_(cmd.program, cmd.args)) {

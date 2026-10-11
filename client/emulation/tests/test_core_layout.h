@@ -61,6 +61,15 @@ constexpr uint32_t kPartySlotSize = 260;
 constexpr uint8_t kSlotMarker = 0xA0;  // slot i, byte 0 (low byte of the unencrypted EC) = kSlotMarker + i
 constexpr uint32_t kSlotEcBase = 0x5A5A5A00;  // slot i EC = kSlotEcBase | (kSlotMarker + i)
 constexpr uint16_t kSpeciesBase = 1;          // slot i species (u16 at decrypted offset 0x08) = kSpeciesBase + i
+
+// Late map: at frame kLateMapFrame (FB_TEST_CORE_LATE_MAP_FRAME overrides, 0 = never) of every retro_run sequence the
+// core calls SET_MEMORY_MAPS again from retro_run with the two regions above plus
+//   "late"   at 0x0C000000 (kLateSize bytes): +0x00 u32 magic kLateMagic ("LATE").
+// Mimics a core that maps heap memory only after the game has started.
+constexpr uint64_t kLateAddr = 0x0C000000;
+constexpr uint64_t kLateSize = 0x1000;
+constexpr uint32_t kLateMagic = 0x4554414C;  // bytes "LATE"
+constexpr int kLateMapFrame = 30;
 }  // namespace mem
 
 constexpr uint32_t pixel(uint32_t value24) { return 0xFF000000u | (value24 & 0xFFFFFFu); }

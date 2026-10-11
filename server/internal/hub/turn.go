@@ -6,12 +6,16 @@ import (
 	"encoding/base64"
 	"errors"
 	"sync/atomic"
+	"time"
 
 	"github.com/phabioo/framebeam/server/internal/turnsrv"
 )
 
 // FeatureTURNV1 is announced in the handshake while the embedded TURN server is on (ADR 0012 D4).
 const FeatureTURNV1 = "turn_v1"
+
+// FeatureICEUpdateV1 is announced in the handshake: the Hub pushes ice_update when the ICE configuration changes.
+const FeatureICEUpdateV1 = "ice_update_v1"
 
 const settingTURNSecret = "turn_secret"
 
@@ -39,15 +43,20 @@ func requestHost(ctx context.Context) string {
 func (s *Service) SetTURN(t TURN) {
 	if t == nil {
 		s.turn.p.Store(nil)
-		return
+	} else {
+		s.turn.p.Store(&t)
 	}
-	s.turn.p.Store(&t)
+	s.PushICEUpdate()
 }
 
 // TURNEnabled reports whether the embedded TURN server is on.
 func (s *Service) TURNEnabled() bool { return s.turn.p.Load() != nil }
 
-// turnFor returns the stun: URL to add to ice_servers and the TURN credentials for the device; both empty when off.
+// RelayEnabled reports whether any relay provider is on (embedded TURN or Cloudflare TURN); turn_v1 is announced
+// while it is.
+func (s *Service) RelayEnabled() bool { return s.TURNEnabled() || s.cf.configured.Load() }
+
+// turnFor returns the embedded server's stun: URL and the TURN credentials for the device; both empty when off.
 func (s *Service) turnFor(reqHost, deviceID string) (stun string, creds *turnsrv.Credentials) {
 	p := s.turn.p.Load()
 	if p == nil {
@@ -57,14 +66,54 @@ func (s *Service) turnFor(reqHost, deviceID string) (stun string, creds *turnsrv
 	return (*p).STUNURL(reqHost), &c
 }
 
-// iceFor returns ice_servers (configured plus the embedded STUN URL) and the TURN credentials for a device.
-func (s *Service) iceFor(reqHost, deviceID string) ([]string, *turnsrv.Credentials) {
+// relaysFor returns the stun: URLs of the relay providers (embedded first) and all TURN credentials of the device.
+func (s *Service) relaysFor(reqHost, deviceID string) (stun []string, creds []turnsrv.Credentials) {
+	if u, c := s.turnFor(reqHost, deviceID); c != nil {
+		stun, creds = append(stun, u), append(creds, *c)
+	}
+	cfStun, cfCreds := s.cf.current()
+	stun = append(stun, cfStun...)
+	if cfCreds != nil {
+		creds = append(creds, *cfCreds)
+	}
+	return stun, creds
+}
+
+// iceFor returns ice_servers (configured, embedded and provider STUN URLs, without duplicates) and the TURN
+// credentials for a device.
+func (s *Service) iceFor(reqHost, deviceID string) ([]string, []turnsrv.Credentials) {
 	ice := s.ICEServers()
-	stun, creds := s.turnFor(reqHost, deviceID)
-	if stun != "" {
-		ice = append(ice, stun)
+	stun, creds := s.relaysFor(reqHost, deviceID)
+	for _, u := range stun {
+		if !contains(ice, u) {
+			ice = append(ice, u)
+		}
 	}
 	return ice, creds
+}
+
+// turnPayload is the turn_servers array of hello_ack, ice_update and viewer_joined.
+func turnPayload(creds []turnsrv.Credentials) []map[string]any {
+	out := make([]map[string]any, 0, len(creds))
+	for _, c := range creds {
+		out = append(out, map[string]any{"urls": c.URLs, "username": c.Username, "credential": c.Credential,
+			"expires_at": c.ExpiresAt.UTC().Format(time.RFC3339)})
+	}
+	return out
+}
+
+// PushICEUpdate sends every connected Player its current ICE configuration (ice_update, feature ice_update_v1),
+// computed per connection because embedded TURN credentials are per device. Called whenever the effective
+// configuration changes.
+func (s *Service) PushICEUpdate() {
+	for _, c := range s.clients() {
+		ice, turn := s.iceFor(c.reqHost, c.deviceID)
+		msg := map[string]any{"ice_servers": ice}
+		if len(turn) > 0 {
+			msg["turn_servers"] = turnPayload(turn)
+		}
+		c.sendMsg("ice_update", "", msg)
+	}
 }
 
 // TURNSecret returns the TURN credential secret (32 random bytes), creating it on first use. Never log it.

@@ -116,6 +116,8 @@ class EmulatorBackend {
   // The game's memory as device virtual addresses (SET_MEMORY_MAPS, or SYSTEM_RAM at 0 as fallback). Emulation thread
   // only, valid while the game is loaded and not across frames being run concurrently; nullptr = no memory access.
   virtual const MemoryMap* memoryMap() const { return nullptr; }
+  // Increments whenever memoryMap() was replaced (a core may re-send SET_MEMORY_MAPS during retro_run). Emulation thread.
+  virtual uint64_t memoryMapGeneration() const { return 0; }
   // Called on the GUI thread right before the emulation thread starts (e.g. to create resources that only
   // the GUI thread may create, such as an offscreen surface for hardware rendering).
   virtual void prepareForStart() {}

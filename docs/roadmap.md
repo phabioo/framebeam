@@ -42,7 +42,7 @@ Phase plan: [workflow.md](workflow.md#phase-plan).
 | 0.8 | done in code | Cores from the libretro buildbot | Systems instead of fixed cores: the Hub downloads cores RetroArch-style from the libretro buildbot; admin installs, updates and removes them per system; Player chooses the core per system and game ([ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md)). |
 | 0.9 | done in code | One installer: Player, Hub or both | One Windows MSI (WiX) with the features Player and Hub; the Hub runs as a Windows service; "Set up a Hub on this PC" and a standalone mode like RetroArch ([ADR 0021](adr/0021-one-windows-installer.md), proposed). Installer, upgrades and services verified only locally. |
 | 0.10 | done in code | Second system: 3DS (Azahar) | System `3ds` with the Azahar buildbot core on the OpenGL rendering; two-screen composition, game override UI, ROM cache limit ([ADR 0022](adr/0022-nintendo-3ds-with-azahar.md), proposed). 3DS saves sync with the Hub (D3 amendment, 2026-10-11). Real Azahar run and performance open. |
-| 0.10.x | planned | Connections and small items | Before new testers: direct WebRTC connections instead of TURN relay (STUN default, ICE logging, diagnostics), then small items (hotkeys, repo-scan leftovers, save slot actions, logs bundle, Inno shell removal). |
+| 0.10.x | planned | Connections and small items | Before new testers: direct WebRTC connections instead of TURN relay (STUN default, ICE logging, diagnostics), then small items (hotkeys, repo-scan leftovers, save slot actions, logs bundle, Inno shell removal (done)). |
 | 0.11 | in progress | Plugin runtime | Packages 1 to 3: Player runtime (done in code), UI building blocks and slots (done in code except game detail and hotkeys; draft, merged after 0.10.x), Hub plugins and runs with `.fbplugin`, signing and plugin index ([ADR 0023](adr/0023-plugins.md), proposed; [design](architecture/12-plugins.md)). The plugins themselves live in their own repositories. |
 | 0.12 | planned | Local ROMs | Play ROMs the user has locally, with an optional resumable upload to the Hub; no P2P transfer. |
 | 0.13 | planned | GPU paths | OpenGL to D3D11 bridge, zero-copy display, GPU-direct QSV and AMF. |
@@ -254,7 +254,7 @@ Done in code ([ADR 0021](adr/0021-one-windows-installer.md), proposed). Absorbs 
 - [x] Done in code: Migration of existing Inno installations (no bridge release): the release keeps publishing a small Inno `setup.exe` under kind `installer` that only installs the MSI silently, so older Players update normally. The MSI uninstalls the Inno install silently, keeping `data\`. Credentials stay in the Credential Manager. The Pi Hub (.deb) is unaffected.
 - [x] Done in code: Hub installer part (data directory, port, firewall rules by the installer, admin setup in the Player); updates via the updater from 0.3.
 - Open: Review paths, file permissions (instead of 0600) and certificate storage on Windows beyond the service ACLs.
-- Open: MSI and shell are unsigned. Decided by Fabio on 2026-10-11: the Inno shell (`setup.exe` wrapper that migrated old Inno installs) is removed now, since all test clients are on the MSI; open item in 0.10.x.
+- Open: the MSI is unsigned. Decided by Fabio on 2026-10-11: the Inno shell (`setup.exe` wrapper that migrated old Inno installs) is removed, since all test clients are on the MSI (done, see 0.10.x).
 
 ## 0.10 Second system: Nintendo 3DS with Azahar
 
@@ -286,11 +286,11 @@ Decided by Fabio on 2026-10-11, in this order.
 
 In the test of 2026-10-11 most WebRTC connections ran relayed over TURN. Cause found for one direction: the Hub's STUN list is empty by default and the embedded STUN is advertised under the request host (a LAN address for Players in the Hub's network), so those Players gathered no public server-reflexive candidate. Adding a public STUN server (stun.cloudflare.com:3478) to the Hub made that direction direct. The other direction (host on a mobile hotspot) stayed relayed even after both Players restarted with the new STUN list; most likely carrier-grade NAT with per-destination ports, where TURN is the expected path (not measured, the logs had no ICE data).
 
-- Open: public default STUN server (stun.cloudflare.com:3478) when the STUN list is empty.
-- Open: ICE logging per connection (gathered candidate types, selected pair).
-- Open: overlay and diagnostics show the connection type and the reason per viewer.
-- Open: running sessions pick up a changed ICE list.
-- Open: Cloudflare TURN (Realtime) as an optional TURN provider next to the embedded `pion/turn`: the Hub hands out short-lived Cloudflare TURN credentials (API token as a secret on the Hub host); moved out of "Later". Cloudflare Tunnel stays in "Later" to evaluate.
+- [x] Done in code: public default STUN server (`stun:stun.cloudflare.com:3478`) when no STUN URL is configured; `-ice-servers none` (or "Use no external server" in Settings → Network) switches it off.
+- [x] Done in code: ICE logging per connection on host and viewer (gathered candidates by type, remote candidates, selected pair, failures).
+- [x] Done in code: overlay and diagnostics show the connection type and, for a relayed path, the reason per viewer (forced, no STUN reachable here, other side has no public candidate, direct checks failed).
+- [x] Done in code: running Players pick up a changed ICE list through the WSS message `ice_update` (`ice_update_v1`); new connections use it, running ones stay.
+- [x] Done in code: Cloudflare TURN (Realtime) as an optional TURN provider next to the embedded `pion/turn`: the Hub hands out short-lived Cloudflare TURN credentials (API token as a secret on the Hub host); moved out of "Later". Cloudflare Tunnel stays in "Later" to evaluate.
 - Open: confirm the relayed direction with the host on a mobile hotspot from the new ICE logging.
 
 ### 2. Small items
@@ -304,7 +304,7 @@ In the test of 2026-10-11 most WebRTC connections ran relayed over TURN. Cause f
 - Open: fix Dependabot PR #96.
 - Open: "Collect logs/diagnostics" bundle.
 - Open: the Player updates cores in the background without starting a game.
-- Open: remove the Inno shell (see 0.9) and its release/CI parts.
+- [x] Done: remove the Inno shell (see 0.9) and its release/CI parts (shell script, CI build and migration test, release asset and `installer` index entry, Player `installer` fallback and `unins000.exe` detection).
 
 ## 0.11 Plugin runtime
 
@@ -313,12 +313,12 @@ Packages 1 to 3 of the plugin work. Package 1 (runtime in the Player) is done in
 Decided by Fabio on 2026-10-11: this milestone is the runtime only. The plugins themselves (`pokemon-core`, `soullink`; the former packages 4 and 5: plugin repositories, template, first game) live in their own repositories and are independent of FrameBeam milestones; Fabio aims to have them ready for testing before 1.0. Plugin-specific docs and roadmaps (SoulLink rules, per-game adapters) live in the plugin repositories, not here. The plugin design standards ao-bf from the design handoff are accepted.
 
 - [x] Done in code: Package 1: Plugin runtime in the Player (PR #105): vendored Lua 5.4.7 sandbox (64 MiB, 20M instructions / 500 ms per call), one state and budget per plugin, plugin thread, manifest, permissions, `requires`/`provides`, `RETRO_ENVIRONMENT_SET_MEMORY_MAPS` support in the libretro backend, memory snapshots over virtual addresses (default every frame), pointer following, ROM read API, native helpers (LZ10/LZ11, GARC, 3DS RomFS of decrypted NCCH/NCSD, CTR textures/BCLIM/ETC1 to PNG, PK6 decrypt/encrypt as `fb.codec`/`fb.rom.romfs`), install from a folder and linked dev folders with live reload, developer mode, Settings → Plugins and the in-game Plugin console. Tests with the test core (synthetic memory map with an encrypted Gen 6 party) and synthetic data. API: [guides/plugin-api.md](guides/plugin-api.md).
-- Open: remaining in package 1: local check by Fabio that the real Azahar build exposes the memory map and covers ORAS data (Plugin console, MEMORY MAP section).
+- [x] Done in code: the Player picks up a memory map that a core re-sends with `SET_MEMORY_MAPS` while the game runs (region list, Plugin console and plugin API follow the new map).
 - [x] Done in code (draft, merged after 0.10.x): Package 2: plugin UI in the Player: manifest field `ui`, permission `ui`, `fb.ui` (`set`, `patch`, `clear`, `title`, `badge`, `dot`, `notify`, `on_action`), host events from `fb` (`detail.game`, `tiles`, `hud.visible`), validated block catalog on the `Fb*` components with tones, sizes and player colours, map view, images from the plugin cache or assets (`image://fbplugin`), slots in-game tab, HUD (bottom-left, bottom-right, top-left), Multiview tile strip, own sidebar screen and toasts (burst 3, then 1 per second), shell context (plugins with `ui.screen` or `ui.detail` run without a game), several plugins per slot, Settings → Plugins shows what a plugin adds. API: [guides/plugin-api.md](guides/plugin-api.md#ui). Design: [design/plugins.md](design/plugins.md).
 - Open (later in package 2): the game detail section (`ui.detail` rendered in the game detail; the `detail.game` event is wired in the controller only) and plugin hotkeys (`ui.hotkeys` in Controllers → Hotkeys, Alt+1..9, F4, Ctrl+H).
 - Package 3: Hub plugins and runs: plugin upload (marked unverified), delivery with SHA-256 pin, `.fbplugin` files, signing, signed plugin index, runs with per-player state, append-only event log, limits, WSS messages, catch-up on `hello`, JS renderer for the building blocks in the Hub web UI.
 - Not built yet: `memory.write`, `tool.exec`, settings schema, UI language (`GameContext.language` is "en").
-- Open: the Azahar libretro build on the buildbot has to contain `SET_MEMORY_MAPS`, and the map built once at game load has to cover the game's data (checked locally by Fabio with the developer mode); otherwise a small upstream Azahar patch is needed.
+- Open: Azahar exposes game memory. Checked by Fabio on 2026-10-11 with Pokémon Moon and a probe plugin: the buildbot core sends `SET_MEMORY_MAPS` only once at game load, when only VRAM is mapped, so heap and linear heap are missing (the RomFS reads fine). A small upstream Azahar patch re-sends the map when the game maps memory; it is built and tested from Fabio's fork before it goes upstream.
 - Open: plugin API v1 surface (exact Lua API, building block catalog) is fixed in the design handoff and package 1.
 - Out of scope for this milestone: the plugins themselves, more games, cheats, editor, randomizer (see "Later").
 

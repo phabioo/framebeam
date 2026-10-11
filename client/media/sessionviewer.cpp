@@ -83,6 +83,7 @@ void SessionViewer::open(const QString& sessionId, const QString& viewerId, cons
   relayTcpOnly_ = turnServersTcpOnly(turnServers);
   open_ = true;
   remoteSet_ = false;
+  ice_ = IceTrace();
   pendingCandidates_.clear();
   totalFrames_ = totalAudioFrames_ = totalVideoBytes_ = totalAudioBytes_ = 0;
   lastFrames_ = lastVideoBytes_ = lastAudioBytes_ = 0;
@@ -201,16 +202,25 @@ void SessionViewer::handleSignal(const SessionSignal& s) {
           emit signalOut(out);
         });
       }));
-      pc_->onLocalCandidate(guarded("onLocalCandidate", [this, bridge](rtc::Candidate c) {
+      pc_->onLocalCandidate(guarded("onLocalCandidate", [this, bridge, gen](rtc::Candidate c) {
         SessionSignal out;
+        const rtc::Candidate::Type type = c.type();
         out.kind = QStringLiteral("candidate");
         out.candidate = QString::fromStdString(c.candidate());
         out.mid = QString::fromStdString(c.mid());
-        bridge->post([this, out]() mutable {
+        bridge->post([this, out, type, gen]() mutable {
+          if (gen == pcGen_) countCandidate(ice_.local, type);
           out.sessionId = sessionId_;
           out.viewerId = viewerId_;
           emit signalOut(out);
         });
+      }));
+      pc_->onGatheringStateChange(guarded("onGatheringStateChange", [this, bridge, gen](rtc::PeerConnection::GatheringState st) {
+        if (st == rtc::PeerConnection::GatheringState::Complete) {
+          bridge->post([this, gen]() {
+            if (gen == pcGen_) onGatheringComplete();
+          });
+        }
       }));
       pc_->onStateChange(guarded("onStateChange", [this, bridge](rtc::PeerConnection::State st) {
         bridge->post([this, st]() { onPcState(static_cast<int>(st)); });
@@ -233,11 +243,18 @@ void SessionViewer::handleSignal(const SessionSignal& s) {
         pendingCandidates_.append(s);
         return;
       }
-      pc_->addRemoteCandidate(rtc::Candidate(s.candidate.toStdString(), s.mid.toStdString()));
+      const rtc::Candidate cand(s.candidate.toStdString(), s.mid.toStdString());
+      countCandidate(ice_.remote, cand.type());
+      pc_->addRemoteCandidate(cand);
     }
   } catch (const std::exception& e) {
     emit errorOccurred(QStringLiteral("Signal: ") + QString::fromUtf8(e.what()));
   }
+}
+
+void SessionViewer::onGatheringComplete() {
+  ice_.gatheringComplete = true;
+  qCInfo(lcViewer).noquote() << QStringLiteral("ICE session %1: gathering complete, local %2").arg(sessionId_, ice_.local.text());
 }
 
 void SessionViewer::onPcState(int state) {
@@ -250,11 +267,22 @@ void SessionViewer::onPcState(int state) {
   if (st == rtc::PeerConnection::State::Connected) {
     if (!connected_) {
       connected_ = true;
+      const QString type = connectionTypeOf(*pc_, relayTcpOnly_, forceRelay_);
+      const RelayReason reason = classifyRelayReason(type, forceRelay_, ice_.local, ice_.remote);
+      qCInfo(lcViewer).noquote() << QStringLiteral("ICE session %1: connected %2, pair %3, local %4, remote %5%6")
+                                        .arg(sessionId_, type.isEmpty() ? QStringLiteral("(unknown)") : type, selectedPairText(*pc_),
+                                             ice_.local.text(), ice_.remote.text(),
+                                             reason == RelayReason::None ? QString() : QStringLiteral(", relay reason %1").arg(relayReasonToken(reason)));
       emit connectedChanged(true);
       requestKeyframe();
     }
   } else if (st == rtc::PeerConnection::State::Failed || st == rtc::PeerConnection::State::Closed ||
              st == rtc::PeerConnection::State::Disconnected) {
+    if (st == rtc::PeerConnection::State::Failed) {
+      qCInfo(lcViewer).noquote() << QStringLiteral("ICE session %1: failed (%2 connected), local %3, remote %4")
+                                        .arg(sessionId_, connected_ ? QStringLiteral("was") : QStringLiteral("never"), ice_.local.text(),
+                                             ice_.remote.text());
+    }
     if (connected_) {
       connected_ = false;
       emit connectedChanged(false);
@@ -367,6 +395,7 @@ void SessionViewer::updateStats() {
   if (connected_ && pc_) {
     s.rttMs = rttOf(*pc_);
     s.connectionType = connectionTypeOf(*pc_, relayTcpOnly_, forceRelay_);
+    s.relayReason = classifyRelayReason(s.connectionType, forceRelay_, ice_.local, ice_.remote);
   }
   if (videoSession_) {
     s.packetLossPercent = videoSession_->lossPercent();
@@ -374,6 +403,7 @@ void SessionViewer::updateStats() {
   s.viewers = 1;
   link_.rttMs = s.rttMs;
   link_.connectionType = s.connectionType;
+  link_.relayReason = s.relayReason;
   stats_ = s;
   sendRxReport(s.videoBitrateKbps, s.fps);
 }

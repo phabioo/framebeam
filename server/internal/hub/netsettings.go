@@ -2,7 +2,10 @@ package hub
 
 import (
 	"context"
+	"slices"
 	"strings"
+
+	"github.com/phabioo/framebeam/server/internal/config"
 )
 
 // Network settings saved on the web interface (Settings > Network). Each value is its own row in the settings
@@ -74,10 +77,14 @@ func (s *Service) SaveRetention() (recent, daily, weekly int) {
 	return s.saveKeep.recent, s.saveKeep.daily, s.saveKeep.weekly
 }
 
-// SetICEServers replaces the external stun: URLs handed to Players without a restart. Sessions already running
-// keep what they were given.
+// SetICEServers replaces the external stun: URLs handed to Players without a restart (nil = default STUN server,
+// empty = none). Sessions already running keep what they were given; connected Players get an ice_update.
 func (s *Service) SetICEServers(urls []string) {
 	s.sess.iceMu.Lock()
-	s.sess.ice = append([]string{}, urls...)
+	changed := !slices.Equal(config.EffectiveICE(s.sess.ice), config.EffectiveICE(urls))
+	s.sess.ice = config.CloneICE(urls)
 	s.sess.iceMu.Unlock()
+	if changed {
+		s.PushICEUpdate()
+	}
 }
