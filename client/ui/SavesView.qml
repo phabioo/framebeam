@@ -8,8 +8,8 @@ import FrameBeam.Player
 // Hub does; the column stays 392 wide and Play / Play and share Session stay pinned below (DetailPane).
 //
 // Also used inside the game (GamePanel, inGame: true): the game keeps running; snapshots, history, delete, restore and
-// upload work live (restore / upload load the save into the running core and restart the game from it); slots cannot
-// be changed while the game runs. "Resolve conflict" opens the inline conflict resolution in both places (it never
+// upload work live (they load the save into the running core and restart the game from it; upload not while the game is
+// shared as a Session); slot changes (select, rename, delete) are blocked while the game runs. "Resolve conflict" opens the inline conflict resolution in both places (it never
 // starts the game).
 FocusScope {
     id: root
@@ -27,6 +27,9 @@ FocusScope {
     readonly property bool uploadFailed: hist.uploadFailure.path !== undefined && !hist.uploading && !uploadConfirming
     property string filter: "all"            // "all" | "snapshots"
     property bool newSlotOpen: false
+    property bool renameOpen: false
+    property string renameError: ""
+    readonly property bool slotDeleteConfirming: hist.slotDeleteRequest.slot !== undefined
     property bool snapshotOpen: false
     property bool detailsOpen: false
     property bool pathPromptOpen: false
@@ -47,8 +50,10 @@ FocusScope {
         hist.cancelRestore()
         hist.cancelDelete()
         hist.cancelUploadFile()
+        hist.cancelDeleteSlot()
         hist.dismissUploadFailure()
         root.newSlotOpen = false
+        root.renameOpen = false
         root.snapshotOpen = false
         root.detailsOpen = false
         root.pathPromptOpen = false
@@ -75,6 +80,13 @@ FocusScope {
             root.newSlotOpen = false
         }
     }
+    function renameSlot() {
+        root.renameError = hist.renameSlot(renameField.text)
+        if (root.renameError === "") {
+            renameField.text = ""
+            root.renameOpen = false
+        }
+    }
     function join(parts) { return parts.filter(p => p !== undefined && p !== "").join(" · ") }
 
     readonly property var rows: {
@@ -97,6 +109,8 @@ FocusScope {
         else if (hist.restoreRequest.version !== undefined) hist.cancelRestore()
         else if (hist.deleteRequest.version !== undefined) hist.cancelDelete()
         else if (root.uploadConfirming) hist.cancelUploadFile()
+        else if (root.slotDeleteConfirming) hist.cancelDeleteSlot()
+        else if (root.renameOpen) root.renameOpen = false
         else if (root.newSlotOpen) root.newSlotOpen = false
         else if (root.snapshotOpen) root.snapshotOpen = false
         else root.back()
@@ -515,6 +529,158 @@ FocusScope {
                     }
                 }
 
+                // Rename / delete the selected slot (saves_v5; never the main slot)
+                Flow {
+                    objectName: "slotManageRow"
+                    visible: root.hist.slotManageAvailable && !root.newSlotOpen && !root.renameOpen && !root.slotDeleteConfirming
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    spacing: 8
+                    FbButton {
+                        objectName: "slotRenameButton"
+                        kind: "link"
+                        implicitHeight: 28
+                        font.pixelSize: Theme.fontSmall
+                        font.weight: Font.Medium
+                        text: qsTr("Rename slot")
+                        enabled: root.hist.slotManageBlockReason === ""
+                        onClicked: { root.renameError = ""; renameField.text = root.hist.slot; root.renameOpen = true; Qt.callLater(() => { renameField.forceActiveFocus(); renameField.selectAll() }) }
+                    }
+                    FbButton {
+                        objectName: "slotDeleteButton"
+                        kind: "link"
+                        implicitHeight: 28
+                        font.pixelSize: Theme.fontSmall
+                        font.weight: Font.Medium
+                        text: qsTr("Delete slot…")
+                        enabled: root.hist.slotManageBlockReason === ""
+                        onClicked: root.hist.requestDeleteSlot()
+                    }
+                }
+                FbLabel {
+                    objectName: "slotManageHint"
+                    visible: root.hist.slotManageAvailable && root.hist.slotManageBlockReason !== "" && !root.newSlotOpen && !root.renameOpen && !root.slotDeleteConfirming
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: root.hist.slotManageBlockReason
+                    color: Theme.textFaint
+                    font.pixelSize: Theme.fontMeta
+                }
+
+                // Rename slot (inline)
+                ColumnLayout {
+                    objectName: "renameSlotRow"
+                    visible: root.renameOpen
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    spacing: 8
+                    FbField {
+                        id: renameField
+                        objectName: "renameSlotField"
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        Layout.preferredWidth: 1
+                        implicitHeight: 34
+                        placeholderText: qsTr("new-slot-name")
+                        maximumLength: 64
+                        onTextChanged: root.renameError = ""
+                        onAccepted: root.renameSlot()
+                    }
+                    FbLabel {
+                        objectName: "renameSlotError"
+                        visible: root.renameError !== ""
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        text: root.renameError
+                        color: Theme.error
+                        font.pixelSize: Theme.fontMeta
+                    }
+                    FbLabel {
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        text: qsTr("The save and its history keep their content. Your other devices pick up the new name.")
+                        color: Theme.textMeta
+                        font.pixelSize: Theme.fontMeta
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        spacing: 8
+                        Item { Layout.fillWidth: true }
+                        FbButton { objectName: "renameSlotCancel"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: root.renameOpen = false }
+                        FbButton { objectName: "renameSlotConfirm"; kind: "primary"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Rename slot"); onClicked: root.renameSlot() }
+                    }
+                }
+
+                // Delete slot confirmation: names the latest checkpoint
+                Rectangle {
+                    objectName: "slotDeleteBox"
+                    visible: root.slotDeleteConfirming
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    implicitHeight: slotDeleteCol.implicitHeight + 28
+                    radius: Theme.radius9
+                    color: Theme.errorBg
+                    border.width: 1
+                    border.color: Theme.dangerBorder
+                    ColumnLayout {
+                        id: slotDeleteCol
+                        anchors.fill: parent
+                        anchors.margins: 14
+                        spacing: 10
+                        FbLabel {
+                            objectName: "slotDeleteTitle"
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            text: qsTr("Delete slot “%1”?").arg(root.hist.slotDeleteRequest.slotLabel || "")
+                            color: Theme.error
+                            font.pixelSize: Theme.fontBody
+                            font.weight: Font.DemiBold
+                        }
+                        FbLabel {
+                            objectName: "slotDeleteLatest"
+                            visible: root.hist.slotDeleteRequest.onHub === true
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            text: qsTr("Latest save: %1").arg(root.join([root.hist.slotDeleteRequest.revisionText, root.hist.slotDeleteRequest.when, root.hist.slotDeleteRequest.device]))
+                            color: Theme.text
+                            font.pixelSize: Theme.fontSmall
+                        }
+                        FbLabel {
+                            objectName: "slotDeleteNote"
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            text: root.hist.slotDeleteRequest.onHub === true
+                                  ? qsTr("The slot is deleted for good on the Hub with its whole history (%1 versions), and the copy on this device is removed. This cannot be undone. If the save changed since this page was shown, nothing is deleted.").arg(root.hist.slotDeleteRequest.versionCount || 0)
+                                  : qsTr("This slot exists only on this device. Its local save is removed. This cannot be undone.")
+                            color: Theme.textSecondary
+                            font.pixelSize: Theme.fontMeta
+                        }
+                        Flow {
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            spacing: 8
+                            layoutDirection: Qt.RightToLeft
+                            Rectangle {
+                                objectName: "slotDeleteConfirm"
+                                height: 32
+                                width: slotDeleteOkText.implicitWidth + 24
+                                radius: Theme.radius6
+                                color: Theme.error
+                                opacity: slotDeleteOkTap.pressed ? 0.8 : 1
+                                activeFocusOnTab: true
+                                Accessible.role: Accessible.Button
+                                Accessible.name: slotDeleteOkText.text
+                                Text { id: slotDeleteOkText; anchors.centerIn: parent; text: qsTr("Delete slot"); font.pixelSize: Theme.fontSmall; font.weight: Font.DemiBold; color: Theme.textOnAccent }
+                                HoverHandler { cursorShape: Qt.PointingHandCursor }
+                                TapHandler { id: slotDeleteOkTap; onTapped: root.hist.confirmDeleteSlot() }
+                                Keys.onPressed: (event) => { if (event.key === Qt.Key_Space || event.key === Qt.Key_Return) { root.hist.confirmDeleteSlot(); event.accepted = true } }
+                            }
+                            FbButton { objectName: "slotDeleteCancel"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: root.hist.cancelDeleteSlot() }
+                        }
+                    }
+                }
+
                 // Banners: Hub offline, game running, save conflict, pending sync
                 Rectangle {
                     objectName: "savesOfflineBanner"
@@ -556,8 +722,8 @@ FocusScope {
                         anchors.margins: 10
                         anchors.leftMargin: 12
                         wrapMode: Text.WordWrap
-                        text: root.live ? qsTr("%1 keeps running. Snapshots and delete work live. Restore and upload restart it from that save. Slots cannot change while it runs.").arg(root.game.title || "")
-                                        : root.inGame ? qsTr("%1 keeps running. Snapshots still work. Restore, upload and slot changes are possible after the game is closed.").arg(root.game.title || "")
+                        text: root.live ? qsTr("%1 keeps running. Snapshots and delete work live. Restore and upload restart it from that save. Rename and delete of slots are possible after the game is closed.").arg(root.game.title || "")
+                                        : root.inGame ? qsTr("%1 keeps running. Snapshots still work. Restore, upload and slot changes (rename, delete) are possible after the game is closed.").arg(root.game.title || "")
                                                       : qsTr("%1 is running on this device. Restore and upload are possible after the game is closed. Snapshots still work.").arg(root.game.title || "")
                         color: Theme.accent
                         font.pixelSize: Theme.fontMeta
@@ -856,9 +1022,18 @@ FocusScope {
                         font.pixelSize: Theme.fontSmall
                         font.weight: Font.Medium
                         text: root.pathPromptOpen ? qsTr("Choose") : qsTr("Upload save file…")
-                        enabled: root.hist.restoreBlockReason === "" && !root.hist.busy && root.hist.online && root.hist.canUploadFile
+                        enabled: root.hist.restoreBlockReason === "" && !root.hist.busy && root.hist.online && root.hist.canUploadFile && root.hist.uploadBlockReason === ""
                         onClicked: root.openUpload()
                     }
+                }
+                FbLabel {
+                    objectName: "uploadBlockHint"
+                    visible: root.hist.online && root.hist.uploadBlockReason !== ""
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: root.hist.uploadBlockReason
+                    color: Theme.textFaint
+                    font.pixelSize: Theme.fontMeta
                 }
                 FbField {
                     id: uploadPath

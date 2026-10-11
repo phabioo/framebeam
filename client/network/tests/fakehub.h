@@ -126,6 +126,9 @@ class FakeHub : public QTcpServer {
   qint64 uploadLimit = 64LL * 1024 * 1024;  // 413 above this
   int deleteCount = 0;   // snapshot deletions that succeeded
   int restoreCount = 0;  // restore requests that succeeded
+  int renameCount = 0;       // slot renames that succeeded (saves_v5)
+  int slotDeleteCount = 0;   // slot deletions that succeeded (saves_v5)
+  QStringList sessionRunningGames;  // game ids with a running Session: upload / rename / delete -> 409 session_running
   int failSaveRequests = 0;                          // next N save requests answer 503
   QString callerDeviceId;                            // device_id of the last token request
   // Simulates another device that uploaded a new checkpoint.

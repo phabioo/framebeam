@@ -71,9 +71,9 @@ Rectangle {
                 implicitHeight: 24
                 font.pixelSize: Theme.fontSmall
                 font.weight: Font.Medium
-                text: root.noSaves ? (root.hist.canUploadFile ? qsTr("Upload save file…") : qsTr("Manage saves →"))
+                text: root.noSaves ? (root.hist.canUploadFile && root.hist.uploadBlockReason === "" ? qsTr("Upload save file…") : qsTr("Manage saves →"))
                       : root.offline ? qsTr("View saves →") : qsTr("Manage saves →")
-                onClicked: root.noSaves && root.hist.canUploadFile ? root.uploadRequested() : root.manage()
+                onClicked: root.noSaves && root.hist.canUploadFile && root.hist.uploadBlockReason === "" ? root.uploadRequested() : root.manage()
             }
         }
 

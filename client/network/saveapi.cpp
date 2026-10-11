@@ -99,6 +99,7 @@ std::optional<SaveUpdate> parseSaveUpdate(const QJsonObject& p) {
   u.deviceId = str(p, "device_id");
   u.deviceName = str(p, "device_name");
   u.reason = str(p, "reason");
+  u.previousSlot = str(p, "previous_slot");
   if (u.gameId.isEmpty() || u.slot.isEmpty() || u.revision < 1) {
     return std::nullopt;
   }
@@ -149,8 +150,10 @@ void SaveApi::run(QNetworkReply* reply, Expect expect, Callback cb) {
       if (r.apiErrorCode == QLatin1String("save_conflict")) {
         res.conflict = parseSaveConflict(r.json().value(QStringLiteral("conflict")).toObject());
         res.kind = res.conflict ? K::Conflict : K::BadResponse;
+      } else if (r.apiErrorCode.isEmpty() || r.apiErrorCode == QLatin1String("save_conflict_stale")) {
+        res.kind = K::Stale;
       } else {
-        res.kind = K::Stale;  // save_conflict_stale
+        res.kind = K::Rejected;  // save_slot_exists, save_slot_protected, session_running, conflict, ...
       }
     } else if (!r.ok()) {
       res.kind = K::Rejected;
@@ -315,6 +318,29 @@ void SaveApi::uploadFile(const QString& gameId, const QString& slot, const QByte
     return;
   }
   run(reply, Expect::Resolve, std::move(cb));  // answer: the SaveSlot after the upload
+}
+
+void SaveApi::renameSlot(const QString& gameId, const QString& slot, const QString& newName, Callback cb) {
+  const QByteArray body = QJsonDocument(QJsonObject{{QStringLiteral("name"), newName}}).toJson(QJsonDocument::Compact);
+  QNetworkReply* reply =
+      conn_ ? conn_->authorizedSend("POST", slotPath(gameId, slot) + QStringLiteral("/rename"), body, {}, "application/json") : nullptr;
+  if (reply == nullptr) {
+    immediate(SaveApiResult::Kind::Offline, QStringLiteral("not_connected"), std::move(cb));
+    return;
+  }
+  run(reply, Expect::Slot, std::move(cb));
+}
+
+void SaveApi::deleteSlot(const QString& gameId, const QString& slot, int confirmRevision, Callback cb) {
+  QNetworkReply* reply =
+      conn_ ? conn_->authorizedSend("DELETE", slotPath(gameId, slot) + QStringLiteral("?confirm_revision=%1").arg(confirmRevision),
+                                    QByteArray())
+            : nullptr;
+  if (reply == nullptr) {
+    immediate(SaveApiResult::Kind::Offline, QStringLiteral("not_connected"), std::move(cb));
+    return;
+  }
+  run(reply, Expect::None, std::move(cb));
 }
 
 void SaveApi::deleteSnapshot(const QString& gameId, const QString& slot, int version, Callback cb) {

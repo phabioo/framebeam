@@ -73,6 +73,10 @@ bool SaveSync::hubSupportsSavesV3() const {
   return hubSupportsSavesV2() && conn_->hubHasFeature(QString::fromLatin1(kSavesV3Feature));
 }
 
+bool SaveSync::hubSupportsSavesV5() const {
+  return hubSupportsSavesV2() && conn_->hubHasFeature(QString::fromLatin1(kSavesV5Feature));
+}
+
 bool SaveSync::hubSupportsSavesV4() const {
   return hubSupportsSavesV2() && conn_->hubHasFeature(QString::fromLatin1(kSavesV4Feature));
 }
@@ -1460,6 +1464,10 @@ void SaveSync::uploadSaveFile(const QString& gameId, const QString& slot, const 
     finish(RK::Failed, tr("The Hub does not support uploading save files."));
     return;
   }
+  if (const QString why = uploadBlockReason(gameId); !why.isEmpty()) {
+    finish(RK::Blocked, why);
+    return;
+  }
   if (liveApplyAvailable(gameId, slot)) {
     uploadSaveFileLive(gameId, slot, filePath, expectedRevision, cb);
     return;
@@ -1512,7 +1520,9 @@ void SaveSync::uploadSaveFile(const QString& gameId, const QString& slot, const 
         cb({RK::Offline, tr("Hub not reachable. Nothing was changed."), 0, false});
         return;
       default:
-        if (r.errorCode == QLatin1String("payload_too_large")) {
+        if (r.errorCode == QLatin1String("session_running")) {
+          cb({RK::Blocked, tr("A Session of this game is running. Upload the save file after it ends. Nothing was uploaded."), 0, false});
+        } else if (r.errorCode == QLatin1String("payload_too_large")) {
           cb({RK::Failed, tr("The file is too large for the Hub (limit %1 MiB). Nothing was uploaded.").arg(kMaxSaveBytes / (1024 * 1024)), 0, false});
         } else {
           cb({RK::Failed, tr("The file could not be uploaded (%1). Nothing was changed.").arg(r.errorCode.isEmpty() ? QString::number(r.status) : r.errorCode),
@@ -1772,6 +1782,10 @@ void SaveSync::uploadSaveFileLive(const QString& gameId, const QString& slot, co
           done({RK::Offline, tr("Hub not reachable. Nothing was changed."), 0, false});
           return;
         default:
+          if (r.errorCode == QLatin1String("session_running")) {
+            done({RK::Blocked, tr("A Session of this game is running. Upload the save file after it ends. Nothing was uploaded."), 0, false});
+            return;
+          }
           done({RK::Failed, tr("The file could not be uploaded (%1). Nothing was changed.").arg(r.errorCode.isEmpty() ? QString::number(r.status) : r.errorCode),
                 0, false});
           return;
@@ -2008,11 +2022,290 @@ void SaveSync::snapshotActive(const QString& label, SnapshotCallback cb) {
   finalSync(false);  // existing final-sync path: uploads a changed save immediately
 }
 
+// ---------------------------------------------------------------- Rename and delete slots (saves_v5)
+
+namespace {
+QString whoText(const SaveUpdate& u) {
+  if (!u.deviceName.isEmpty()) {
+    return u.deviceName;
+  }
+  return u.deviceId == QLatin1String("00000000-0000-0000-0000-000000000000") ? QObject::tr("the Hub web interface")
+                                                                              : QObject::tr("another device");
+}
+
+// Moves a directory out of the way (never overwrites or deletes it): <dir>.replaced-<timestamp>.
+bool moveAside(const QString& dir) {
+  const QString aside = dir + QStringLiteral(".replaced-") + QDateTime::currentDateTimeUtc().toString(QStringLiteral("yyyyMMddHHmmsszzz"));
+  return QDir().rename(dir, aside);
+}
+
+bool moveDir(const QString& src, const QString& dst) {
+  if (!QFileInfo::exists(src)) {
+    return true;
+  }
+  if (QFileInfo::exists(dst) && !moveAside(dst)) {
+    return false;
+  }
+  QDir().mkpath(QFileInfo(dst).absolutePath());
+  return QDir().rename(src, dst);
+}
+}  // namespace
+
+QString SaveSync::moveLocalSlot(const QString& gameId, const QString& from, const QString& to) {
+  const QString src = slotDirFor(gameId, from);
+  const QString dst = slotDirFor(gameId, to);
+  if (src.isEmpty() || dst.isEmpty() || src == dst) {
+    return {};
+  }
+  QString error;
+  if (!moveDir(src, dst)) {
+    error = tr("The local folder of slot \"%1\" could not be moved to \"%2\". It stays under the old name.").arg(from, to);
+  } else if (QFileInfo::exists(SaveStore::stateFilePath(dst))) {
+    SyncState st = SaveStore::loadState(dst);
+    if (st.slot != to) {
+      st.slot = to;
+      SaveStore::saveState(dst, st);
+    }
+  }
+  if (error.isEmpty()) {
+    // Cores with a short save directory (Windows MAX_PATH) key it by slot name: move that one, too.
+    const QString shortSrc = SaveStore::shortCoreDir(*profiles_, conn_->hubId(), conn_->hubUserId(), gameId, from);
+    const QString shortDst = SaveStore::shortCoreDir(*profiles_, conn_->hubId(), conn_->hubUserId(), gameId, to);
+    if (!shortSrc.isEmpty() && !shortDst.isEmpty() && !moveDir(shortSrc, shortDst)) {
+      error = tr("The core files of slot \"%1\" could not be moved to \"%2\".").arg(from, to);
+    }
+  }
+  if (slotFor(gameId) == from && error.isEmpty()) {
+    setSlot(gameId, to);
+  } else {
+    refreshKinds({gameId});
+  }
+  return error;
+}
+
+void SaveSync::removeLocalSlot(const QString& gameId, const QString& slot) {
+  if (slot == QLatin1String("default")) {
+    return;  // the main slot is never removed
+  }
+  for (const QString& dir : {slotDirFor(gameId, slot), SaveStore::shortCoreDir(*profiles_, conn_->hubId(), conn_->hubUserId(), gameId, slot)}) {
+    if (!dir.isEmpty() && QFileInfo(dir).isDir() && !QFileInfo(dir).isSymLink()) {
+      QDir(dir).removeRecursively();
+    }
+  }
+  if (slotFor(gameId) == slot) {
+    setSlot(gameId, QStringLiteral("default"));
+  } else {
+    refreshKinds({gameId});
+  }
+}
+
+QString SaveSync::uploadBlockReason(const QString& gameId) const {
+  if (isRunning(gameId) && shared_ && shared_(gameId)) {
+    return tr("This game is shared as a Session. Upload the save file after the Session ends.");
+  }
+  return {};
+}
+
+QString SaveSync::slotChangeBlockReason(const QString& gameId, const QString& slot) const {
+  if (slot == QLatin1String("default")) {
+    return tr("The main slot cannot be renamed or deleted.");
+  }
+  if (isRunning(gameId)) {
+    return tr("This game is running on this Player. Quit it first.");
+  }
+  return {};
+}
+
+void SaveSync::renameSlot(const QString& gameId, const QString& slot, const QString& newName, SlotChangeCallback cb) {
+  using SO = SlotChangeResult::Outcome;
+  const auto finish = [this, cb](SO kind, const QString& message) {
+    QTimer::singleShot(0, this, [cb, kind, message]() { cb({kind, message}); });
+  };
+  if (!hubSupportsSavesV5() || !available()) {
+    finish(SO::Failed, tr("The Hub does not support renaming slots."));
+    return;
+  }
+  if (const QString why = slotChangeBlockReason(gameId, slot); !why.isEmpty()) {
+    finish(slot == QLatin1String("default") ? SO::Protected : SO::Blocked, why);
+    return;
+  }
+  if (!SaveStore::isValidSlotName(newName)) {
+    finish(SO::Failed, tr("Use lowercase letters, digits, - and _ only (at most 32 characters)."));
+    return;
+  }
+  if (newName == slot) {
+    finish(SO::Failed, tr("The slot already has this name."));
+    return;
+  }
+  const QString hubId = conn_->hubId();
+  api_.renameSlot(gameId, slot, newName, [=, this](const SaveApiResult& r) {
+    using K = SaveApiResult::Kind;
+    if (!sameHub(hubId)) {
+      cb({SO::Failed, tr("The Hub connection changed. Nothing was renamed.")});
+      return;
+    }
+    if (r.ok()) {
+      if (isRunning(gameId)) {  // the game started while the request was in flight: the files stay where the core uses them
+        cb({SO::Ok, tr("Renamed on the Hub. The local copy keeps the old name until the game is closed.")});
+        return;
+      }
+      cb({SO::Ok, moveLocalSlot(gameId, slot, newName)});
+      return;
+    }
+    if (r.kind == K::NotFound) {
+      const QString dir = slotDirFor(gameId, slot);
+      if (!dir.isEmpty() && QFileInfo::exists(dir)) {  // a slot that was never uploaded exists only on this device
+        cb({SO::Ok, moveLocalSlot(gameId, slot, newName)});
+        return;
+      }
+      cb({SO::NotFound, tr("The slot was not found on the Hub. The list was refreshed.")});
+      return;
+    }
+    if (r.kind == K::Offline) {
+      cb({SO::Offline, tr("Hub not reachable. Nothing was renamed.")});
+      return;
+    }
+    if (r.errorCode == QLatin1String("save_slot_exists")) {
+      cb({SO::Exists, tr("A slot named \"%1\" already exists.").arg(newName)});
+    } else if (r.errorCode == QLatin1String("save_slot_protected")) {
+      cb({SO::Protected, tr("The main slot cannot be renamed or deleted.")});
+    } else if (r.errorCode == QLatin1String("session_running")) {
+      cb({SO::SessionRunning, tr("A Session of this game is running. Rename the slot after it ends. Nothing was changed.")});
+    } else {
+      cb({SO::Failed, tr("The Hub refused the new name (%1). Nothing was changed.").arg(r.errorCode.isEmpty() ? QString::number(r.status) : r.errorCode)});
+    }
+  });
+}
+
+void SaveSync::deleteSlot(const QString& gameId, const QString& slot, int confirmRevision, SlotChangeCallback cb) {
+  using SO = SlotChangeResult::Outcome;
+  const auto finish = [this, cb](SO kind, const QString& message) {
+    QTimer::singleShot(0, this, [cb, kind, message]() { cb({kind, message}); });
+  };
+  if (!hubSupportsSavesV5() || !available()) {
+    finish(SO::Failed, tr("The Hub does not support deleting slots."));
+    return;
+  }
+  if (const QString why = slotChangeBlockReason(gameId, slot); !why.isEmpty()) {
+    finish(slot == QLatin1String("default") ? SO::Protected : SO::Blocked, why);
+    return;
+  }
+  // Unsynced progress on this device is never deleted along with the slot.
+  if (const QString why = pendingReason(gameId, slot); !why.isEmpty()) {
+    finish(SO::Blocked, why + QLatin1Char(' ') + tr("Nothing was deleted."));
+    return;
+  }
+  const QString hubId = conn_->hubId();
+  const auto onResult = [=, this](const SaveApiResult& r) {
+    using K = SaveApiResult::Kind;
+    if (!sameHub(hubId)) {
+      cb({SO::Failed, tr("The Hub connection changed. Nothing was deleted.")});
+      return;
+    }
+    if (isRunning(gameId, slot)) {  // started meanwhile: keep the files the core uses
+      cb({SO::Ok, tr("Deleted on the Hub. The local copy was kept because the game is running.")});
+      return;
+    }
+    if (r.ok()) {
+      removeLocalSlot(gameId, slot);
+      cb({SO::Ok, QString()});
+    } else if (r.kind == K::NotFound) {
+      removeLocalSlot(gameId, slot);
+      cb({SO::Ok, tr("The slot was already gone on the Hub. The local copy was removed.")});
+    } else if (r.kind == K::Stale) {
+      cb({SO::Stale, tr("The save changed on the Hub in the meantime. Nothing was deleted. The list was refreshed; check it and decide again.")});
+    } else if (r.kind == K::Offline) {
+      cb({SO::Offline, tr("Hub not reachable. Nothing was deleted.")});
+    } else if (r.errorCode == QLatin1String("session_running")) {
+      cb({SO::SessionRunning, tr("A Session of this game is running. Delete the slot after it ends. Nothing was deleted.")});
+    } else if (r.errorCode == QLatin1String("conflict")) {
+      cb({SO::Conflict, tr("This slot has an open save conflict. Resolve it first. Nothing was deleted.")});
+    } else if (r.errorCode == QLatin1String("save_slot_protected")) {
+      cb({SO::Protected, tr("The main slot cannot be renamed or deleted.")});
+    } else {
+      cb({SO::Failed, tr("The Hub refused to delete the slot (%1). Nothing was deleted.").arg(r.errorCode.isEmpty() ? QString::number(r.status) : r.errorCode)});
+    }
+  };
+  if (confirmRevision > 0) {
+    api_.deleteSlot(gameId, slot, confirmRevision, onResult);
+    return;
+  }
+  // No revision seen: only a slot that does not exist on the Hub (created here, never uploaded) is removed, device only.
+  api_.getSlot(gameId, slot, [=, this](const SaveApiResult& r) {
+    using K = SaveApiResult::Kind;
+    if (r.kind == K::NotFound && sameHub(hubId)) {
+      onResult(r);
+    } else if (r.ok()) {
+      cb({SO::Stale, tr("The save changed on the Hub in the meantime. Nothing was deleted. The list was refreshed; check it and decide again.")});
+    } else {
+      onResult(r);
+    }
+  });
+}
+
+void SaveSync::handleSlotRenamedElsewhere(const SaveUpdate& u) {
+  const QString from = u.previousSlot;
+  const QString to = u.slot;
+  if (from.isEmpty() || from == QLatin1String("default") || !SaveStore::isValidSlotName(from) || !SaveStore::isValidSlotName(to) || from == to) {
+    emit slotChangedElsewhere(u, QString(), false);
+    return;
+  }
+  QString msg = tr("Slot \"%1\" was renamed to \"%2\" on %3.").arg(from, to, whoText(u));
+  bool warn = false;
+  if (isRunning(u.gameId, from)) {
+    msg += QLatin1Char(' ') + tr("This game is running with the old name. This device keeps its local copy until you quit.");
+    warn = true;
+  } else if (QFileInfo::exists(slotDirFor(u.gameId, from))) {
+    if (!pendingReason(u.gameId, from).isEmpty()) {
+      msg += QLatin1Char(' ') + tr("This device has unsynced changes in \"%1\". They were kept there and not uploaded.").arg(from);
+      warn = true;
+    } else if (const QString err = moveLocalSlot(u.gameId, from, to); !err.isEmpty()) {
+      msg += QLatin1Char(' ') + err;
+      warn = true;
+    }
+  } else if (slotFor(u.gameId) == from) {
+    setSlot(u.gameId, to);  // nothing stored here: only the selection follows
+  }
+  emit slotChangedElsewhere(u, msg, warn);
+}
+
+void SaveSync::handleSlotDeletedElsewhere(const SaveUpdate& u) {
+  const QString slot = u.slot;
+  if (slot == QLatin1String("default") || !SaveStore::isValidSlotName(slot)) {
+    emit slotChangedElsewhere(u, QString(), false);
+    return;
+  }
+  QString msg = tr("Slot \"%1\" was deleted on %2.").arg(slot, whoText(u));
+  bool warn = false;
+  if (isRunning(u.gameId, slot)) {
+    msg += QLatin1Char(' ') + tr("This game is running with it. This device keeps its local copy; the next upload creates the slot again.");
+    warn = true;
+  } else if (QFileInfo::exists(slotDirFor(u.gameId, slot))) {
+    if (!pendingReason(u.gameId, slot).isEmpty()) {
+      msg += QLatin1Char(' ') + tr("This device has unsynced changes in it, so the local copy was kept. Selecting the slot uploads it again.");
+      warn = true;
+    } else {
+      removeLocalSlot(u.gameId, slot);
+    }
+  } else if (slotFor(u.gameId) == slot) {
+    setSlot(u.gameId, QStringLiteral("default"));
+  }
+  emit slotChangedElsewhere(u, msg, warn);
+}
+
 void SaveSync::handleSaveUpdate(const SaveUpdate& u) {
   // The Hub web interface reports the nil UUID with device_name "Hub web interface": never "this device".
   const bool nilDevice = u.deviceId == QLatin1String("00000000-0000-0000-0000-000000000000");
   if (!nilDevice && !conn_->deviceId().isEmpty() && u.deviceId == conn_->deviceId()) {
     return;  // our own change
+  }
+  if (u.reason == QLatin1String("renamed")) {
+    handleSlotRenamedElsewhere(u);
+    return;
+  }
+  if (u.reason == QLatin1String("deleted")) {
+    handleSlotDeletedElsewhere(u);
+    return;
   }
   emit saveChangedElsewhere(u, isRunning(u.gameId, u.slot));
 }
