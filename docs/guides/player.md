@@ -44,9 +44,17 @@ After a Hub certificate change (renewal) the Hub card shows the stored and the p
 
 Saves sync automatically; see [saves.md](saves.md). Sharing and watching: [sessions-over-the-internet.md](sessions-over-the-internet.md).
 
+## Plugins (developer mode)
+
+Plugin runtime of 0.11 ([API reference](plugin-api.md), [design](../architecture/12-plugins.md)); plugins have no on-screen UI yet.
+
+- Settings → Plugins: turn on "Developer mode". Plugins (all unsigned, local) run only while it is on and are resolved once when a game starts.
+- "Install from folder…" copies a plugin folder (with `manifest.json`) into `<data>/plugins/installed/`; "Link folder for development…" runs the plugin straight from your folder and reloads it when you save a file. The list has an on/off switch and Uninstall per plugin.
+- Plugin console: a tab in the running game (developer mode only) with watched values, events, log and the core's memory map regions; Ctrl+Shift+R reloads the plugins. A plugin that fails or exceeds its budget is paused alone; the game keeps running.
+
 ## Data directory
 
-The ROM cache, `profiles.json`, `device.json`, `hubs/<id>/users/<user_id>/saves/<game_id>/`, `system/` and settings are stored portable by default in `<directory of the executable>/data`, provided a real write test succeeds there. Otherwise the Player falls back to AppData (`QStandardPaths::AppDataLocation`) and logs a note, for example when installed under Program Files. On the first portable start existing AppData data is copied once (nothing is moved, deleted or overwritten; `device_id` is preserved; the ROM cache is re-downloaded). Credentials stay in the OS credential store. `--data-dir <path>` or `FRAMEBEAM_DATA_DIR` take precedence ([ADR 0004](../adr/0004-player-portable-data.md)).
+The ROM cache, `profiles.json`, `device.json`, `hubs/<id>/users/<user_id>/saves/<game_id>/`, `system/` and settings are stored portable by default in `<directory of the executable>/data` (plugins in `plugins/`), provided a real write test succeeds there. Otherwise the Player falls back to AppData (`QStandardPaths::AppDataLocation`) and logs a note, for example when installed under Program Files. On the first portable start existing AppData data is copied once (nothing is moved, deleted or overwritten; `device_id` is preserved; the ROM cache is re-downloaded). Credentials stay in the OS credential store. `--data-dir <path>` or `FRAMEBEAM_DATA_DIR` take precedence ([ADR 0004](../adr/0004-player-portable-data.md)).
 
 ## Command line and environment
 

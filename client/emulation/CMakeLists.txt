@@ -8,7 +8,10 @@ add_library(framebeam_emulation STATIC
   system_manifest.cpp
   firmware_materializer.cpp
   core_options.cpp
-  hw_render.cpp)
+  hw_render.cpp
+  memory_map.cpp
+  memory_snapshot.cpp
+  game_identity.cpp)
 qt_add_resources(framebeam_emulation framebeam_manifests
   PREFIX "/framebeam/emulation"
   FILES manifests/systems/nds.json manifests/systems/3ds.json manifests/cores/melondsds.json manifests/cores/desmume.json manifests/cores/azahar.json)
@@ -44,6 +47,10 @@ if(BUILD_TESTING)
   framebeam_add_test(emulation_launch_options tests/launch_options_test.cpp LIBS framebeam_emulation)
   framebeam_add_test(emulation_core_options tests/core_options_test.cpp LIBS framebeam_emulation NEEDS_CORE)
   framebeam_add_test(emulation_core_options_testcore tests/core_options_test.cpp LIBS framebeam_emulation TEST_CORE)
+
+  # Plugin memory access: pure map/identity tests, and snapshots against the test core's synthetic memory map.
+  framebeam_add_test(emulation_memory_map tests/memory_map_test.cpp LIBS framebeam_emulation)
+  framebeam_add_test(emulation_game_identity tests/game_identity_test.cpp LIBS framebeam_emulation)
 
   # Fake libretro core (SAVE_RAM only) for the save persistence tests.
   add_library(framebeam_fake_core MODULE tests/fake_core.cpp)
@@ -83,7 +90,7 @@ if(BUILD_TESTING)
   # FrameBeam test core (libretro MODULE, test only: not installed, not packaged, not part of the Player). Merge-gating
   # replacement for the real emulator cores in the tests below; see tests/test_core.cpp.
   add_library(framebeam_test_core MODULE tests/test_core.cpp)
-  target_include_directories(framebeam_test_core PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/tests)
+  target_include_directories(framebeam_test_core PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/tests ${FRAMEBEAM_TESTUTIL_DIR})
   set_target_properties(framebeam_test_core PROPERTIES PREFIX "" OUTPUT_NAME framebeam_test_core)
   framebeam_warnings(framebeam_test_core)
   framebeam_add_test(emulation_test_core tests/test_core_test.cpp LIBS framebeam_emulation TEST_CORE TEST_CORE_FLAVOR generic)
@@ -132,4 +139,9 @@ if(BUILD_TESTING)
   framebeam_add_test(emulation_core_desmume_testcore tests/core_desmume_test.cpp LIBS framebeam_emulation TEST_CORE TEST_CORE_FLAVOR desmume)
   target_compile_definitions(test_emulation_core_desmume_testcore PRIVATE FB_TEST_ROM_PATH="${FB_TEST_ROM}")
   add_dependencies(test_emulation_core_desmume_testcore framebeam_test_rom)
+
+  framebeam_add_test(emulation_memory_snapshot_testcore tests/memory_snapshot_test.cpp LIBS framebeam_emulation TEST_CORE)
+  target_include_directories(test_emulation_memory_snapshot_testcore PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tests)
+  target_compile_definitions(test_emulation_memory_snapshot_testcore PRIVATE FB_TEST_ROM_PATH="${FB_TEST_ROM}")
+  add_dependencies(test_emulation_memory_snapshot_testcore framebeam_test_rom)
 endif()

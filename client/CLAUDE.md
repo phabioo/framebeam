@@ -30,4 +30,5 @@ Details only as needed from `docs/architecture/` (index: `docs/architecture/READ
 
 ## Build targets (ADR 0003, 0006, 0007)
 - Targets: `framebeam_core` (core/ + network/ sources), `framebeam_emulation`, `framebeam_input` + `framebeam_sdl3` (input/), `framebeam_media` + `framebeam_audioutil` + `framebeam_media_deps` (media/), `framebeam_ui` (static lib, QML module `FrameBeam.Player`), executables `framebeam_player` (app/) and `framebeam_player_cli` (network/cli/). Qt >= 6.4, 6.4 API only, not via vcpkg.
+- Plugins (0.11, `docs/guides/plugin-api.md`): `framebeam_lua` + `framebeam_plugins` (`client/plugins/`, vendored Lua 5.4.7) and `framebeam_formats` (`client/formats/`, fb.codec/fb.rom helpers); plugin data under `<data>/plugins` (`installed/`, `cache/`, `state.json`).
 - Core path: CMake variable/environment `FRAMEBEAM_MELONDS_DS_CORE` (`FRAMEBEAM_DESMUME_CORE` for DeSmuME, test `emulation_core_desmume`); empty = tests with `NEEDS_CORE` are skipped. Never check in a core, ROM or BIOS.

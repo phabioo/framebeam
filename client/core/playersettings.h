@@ -66,6 +66,10 @@ class PlayerSettings {
   qint64 romCacheLimitBytes() const { return romCacheLimit_; }
   bool setRomCacheLimitBytes(qint64 bytes);
 
+  // Plugin developer mode (settings -> Plugins): allows unsigned local plugins, shows the Plugin console in game. Default off.
+  bool developerMode() const { return developerMode_; }
+  bool setDeveloperMode(bool on);
+
   // Visibility of the own shared Session: "private" | "hub_users" | "invite_only"; "" = not chosen yet (the caller's default).
   QString sessionVisibility() const { return sessionVisibility_; }
   bool setSessionVisibility(const QString& visibility);  // anything else is rejected (false)
@@ -85,6 +89,7 @@ class PlayerSettings {
   QString librarySort_ = QStringLiteral("name_asc");
   bool libraryReadyFirst_ = false;
   QString sessionVisibility_;
+  bool developerMode_ = false;
   qint64 romCacheLimit_ = kDefaultRomCacheLimitBytes;
 };
 

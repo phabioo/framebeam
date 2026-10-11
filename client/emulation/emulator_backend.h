@@ -17,6 +17,7 @@
 #include <memory>
 
 #include "gpu_encode_target.h"
+#include "memory_map.h"
 
 namespace framebeam::emu {
 
@@ -112,6 +113,9 @@ class EmulatorBackend {
   virtual bool flushSave() { return true; }
   // Size of the core's battery save memory, -1 when unknown/none (emulation thread).
   virtual qint64 saveMemorySize() const { return -1; }
+  // The game's memory as device virtual addresses (SET_MEMORY_MAPS, or SYSTEM_RAM at 0 as fallback). Emulation thread
+  // only, valid while the game is loaded and not across frames being run concurrently; nullptr = no memory access.
+  virtual const MemoryMap* memoryMap() const { return nullptr; }
   // Called on the GUI thread right before the emulation thread starts (e.g. to create resources that only
   // the GUI thread may create, such as an offscreen surface for hardware rendering).
   virtual void prepareForStart() {}

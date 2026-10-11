@@ -1,6 +1,6 @@
 # ADR 0023: Plugins (0.11)
 
-- Status: proposed (design only; nothing implemented)
+- Status: proposed (D1 and D2 are implemented in the runtime package, 0.11 package 1; the rest is design only)
 - Date: 2026-10-11
 - Deciders: Fabio (plugins as 0.11, 2026-10-11); proposal by the orchestrator
 - Builds on: [ADR 0013](0013-opengl-hardware-rendering.md), [ADR 0020](0020-cores-from-the-libretro-buildbot.md) (SHA-256 pin, buildbot cores), [ADR 0022](0022-nintendo-3ds-with-azahar.md) (3DS with Azahar). Interface description: [12-plugins.md](../architecture/12-plugins.md).

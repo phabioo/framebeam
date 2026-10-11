@@ -31,6 +31,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "synth_formats.h"
 #include "test_core_layout.h"
 #include "third_party/libretro/libretro.h"
 
@@ -439,6 +440,46 @@ unsigned scaleFromOption() {
   if (v.find('x') != std::string::npos) return static_cast<unsigned>(std::max(1, n / tc::kWidth));
   return static_cast<unsigned>(std::max(1, std::min(n, 8)));
 }
+
+// Synthetic memory for the plugin memory access tests; layout in test_core_layout.h (namespace mem).
+alignas(16) uint8_t g_heapMem[tc::mem::kRegionSize];
+alignas(16) uint8_t g_linearMem[tc::mem::kRegionSize];
+retro_memory_descriptor g_memDescs[2];
+
+void putU32(uint8_t* p, uint32_t v) {
+  for (int i = 0; i < 4; ++i) p[i] = static_cast<uint8_t>(v >> (8 * i));
+}
+
+// Fills the party block (linear heap at kPartyAddr): slot count, then kPartySlots synthetic encrypted PK6 party
+// structures (testutil/synth_formats.h, valid checksum). Slot i: species kSpeciesBase + i, encryption constant
+// kSlotEcBase | (kSlotMarker + i), so byte 0 of every slot is still the marker.
+void fillParty(uint8_t* block) {
+  putU32(block, tc::mem::kPartySlots);
+  for (uint32_t i = 0; i < tc::mem::kPartySlots; ++i) {
+    const uint32_t ec = tc::mem::kSlotEcBase | (tc::mem::kSlotMarker + i);
+    const auto pk = framebeam::synth::makePk6(ec, static_cast<uint16_t>(tc::mem::kSpeciesBase + i), true, 100 + i);
+    std::memcpy(block + 4 + i * tc::mem::kPartySlotSize, pk.encrypted.data(), tc::mem::kPartySlotSize);
+  }
+}
+
+void registerMemoryMap() {
+  std::memset(g_heapMem, 0, sizeof g_heapMem);
+  std::memset(g_linearMem, 0, sizeof g_linearMem);
+  putU32(g_heapMem + tc::mem::kMagicOff, tc::mem::kMagic);
+  putU32(g_heapMem + tc::mem::kPartyPtrOff, tc::mem::kPartyAddr);
+  fillParty(g_linearMem + (tc::mem::kPartyAddr - tc::mem::kLinearAddr));
+  std::memset(g_memDescs, 0, sizeof g_memDescs);
+  g_memDescs[0].ptr = g_heapMem;
+  g_memDescs[0].start = tc::mem::kHeapAddr;
+  g_memDescs[0].len = tc::mem::kRegionSize;
+  g_memDescs[0].addrspace = "heap";
+  g_memDescs[1].ptr = g_linearMem;
+  g_memDescs[1].start = tc::mem::kLinearAddr;
+  g_memDescs[1].len = tc::mem::kRegionSize;
+  g_memDescs[1].addrspace = "linear";
+  retro_memory_map map = {g_memDescs, 2};
+  if (g_env) g_env(RETRO_ENVIRONMENT_SET_MEMORY_MAPS, &map);
+}
 }  // namespace
 
 // ----------------------------------------------------------------------------------------------- libretro API
@@ -546,6 +587,7 @@ FB_EXPORT bool retro_load_game(const retro_game_info* info) {
     g_hw = g_env && g_env(RETRO_ENVIRONMENT_SET_HW_RENDER, &g_hwCb);
     if (!g_hw) g_scale = 1;
   }
+  registerMemoryMap();
   ++g_loads;
   g_gameLoaded = true;
   return true;
@@ -557,6 +599,7 @@ FB_EXPORT void retro_run() {
   bool updated = false;
   if (g_env && g_env(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated) ++g_varUpdates;
   ++g_frames;
+  putU32(g_heapMem + tc::mem::kFrameOff, static_cast<uint32_t>(g_frames));
   pollInput();
   if (g_sramWrite >= 0 && g_frames > g_sramDelay && !g_sram.empty()) g_sram[0] = static_cast<uint8_t>(g_sramWrite);
   sendAudio(static_cast<unsigned>(std::lround(sampleRate() / fps())), sampleRate());

@@ -26,6 +26,9 @@ Rectangle {
     readonly property string shareText: ctl.shared ? qsTr("Shared · %1 watching").arg(ctl.viewerCount) : qsTr("Not shared")
     // "Manage saves" opens the saves view (SavesView, the one of the Library) inside the panel; the game keeps running.
     property bool savesOpen: false
+    // Tabs of the panel: "game" | "console" (Plugin console, Developer mode only, last tab; docs/design/plugins.md 4d-4-2).
+    property string panelTab: "game"
+    readonly property bool consoleTab: panelTab === "console" && root.localTile && root.player.plugins.consoleAvailable
     signal collapseToggled()
     signal savesClosed()
     signal selectLocalRequested()
@@ -34,6 +37,10 @@ Rectangle {
         if (!root.savesOpen) return
         root.savesOpen = false
         root.savesClosed()
+    }
+    Connections {
+        target: root.player.plugins
+        function onConsoleAvailableChanged() { if (!root.player.plugins.consoleAvailable) root.panelTab = "game" }
     }
     // Gone with the game, or when another tile is selected.
     onLocalTileChanged: if (!localTile) root.savesOpen = false
@@ -156,12 +163,80 @@ Rectangle {
             }
         }
 
+        // Tab bar: only while the Plugin console exists (Developer mode and plugins running for this game)
+        Rectangle {
+            objectName: "panelTabBar"
+            Layout.fillWidth: true
+            visible: root.localTile && !root.savesOpen && root.player.plugins.consoleAvailable
+            implicitHeight: 44
+            color: "transparent"
+            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.gameBorder }
+            Row {
+                anchors.fill: parent
+                anchors.leftMargin: 12
+                anchors.rightMargin: 12
+                spacing: 2
+                Repeater {
+                    model: [
+                        { id: "game", name: qsTr("Game"), mark: "" },
+                        { id: "console", name: qsTr("Plugin console"), mark: ">_" }
+                    ]
+                    delegate: Item {
+                        id: tabItem
+                        required property var modelData
+                        objectName: "panelTab_" + modelData.id
+                        readonly property bool open: root.panelTab === modelData.id
+                        height: 44
+                        width: tabRow.implicitWidth + 18
+                        Row {
+                            id: tabRow
+                            anchors.centerIn: parent
+                            spacing: 6
+                            FbMono {
+                                visible: tabItem.modelData.mark !== ""
+                                text: tabItem.modelData.mark
+                                font.pixelSize: 12
+                                color: tabItem.open ? Theme.gameText : Theme.gameTextMuted
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                            FbLabel {
+                                text: tabItem.modelData.name
+                                font.pixelSize: 13
+                                font.weight: tabItem.open ? Font.Medium : Font.Normal
+                                color: tabItem.open ? Theme.gameText : Theme.gameTextMuted
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                        }
+                        Rectangle { visible: tabItem.open; anchors.bottom: parent.bottom; width: parent.width; height: 2; color: Theme.gameAccent }
+                        TapHandler { onTapped: root.panelTab = tabItem.modelData.id }
+                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                    }
+                }
+            }
+        }
+
+        // ---- Plugin console tab ----
+        Item {
+            id: consoleBox
+            objectName: "gamePanelConsole"
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.minimumWidth: 0
+            visible: root.consoleTab && !root.savesOpen
+            clip: true
+            Loader {
+                anchors.fill: parent
+                active: consoleBox.visible
+                sourceComponent: PluginConsole { player: root.player }
+            }
+        }
+
         // ---- your game ----
         Flickable {
             id: flick
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: root.localTile && !root.savesOpen
+            visible: root.localTile && !root.savesOpen && !root.consoleTab
             contentWidth: width
             contentHeight: col.implicitHeight + 40
             clip: true

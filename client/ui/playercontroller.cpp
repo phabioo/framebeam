@@ -47,6 +47,7 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   downloader_ = std::make_unique<RomDownloader>(conn_.get(), cache_.get());
   saves_ = std::make_unique<SaveSync>(conn_.get(), profiles_.get());
   settings_ = std::make_unique<PlayerSettings>(profiles_->baseDir());
+  plugins_ = std::make_unique<PluginsController>(settings_.get(), profiles_->baseDir(), &session_);
   trimRomCache();  // limit lowered while the Player was closed
   // Library sort and "Ready first" are saved per device (3c-2).
   model_.setSortKey(settings_->librarySort());
@@ -335,6 +336,8 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     gameActive_ = true;
     gameStartedMs_ = QDateTime::currentMSecsSinceEpoch();
     sessions_->gameStarted(launchGame_.id, launchGame_.title);
+    // Plugins start asynchronously after the game: they never delay it, failures only show in the console and the log.
+    plugins_->gameStarted(launchGame_.system, launchRom_, launchGame_.romSha256, launchGame_.title);
     if (shareOnStart_) {
       shareOnStart_ = false;
       sessions_->shareSession();
