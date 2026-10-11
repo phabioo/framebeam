@@ -289,12 +289,13 @@ std::optional<QByteArray> pack(const QString& root, QString* error) {
   return out;
 }
 
-bool unpack(const QByteArray& tar, const QString& root, QString* error) {
+namespace {
+bool run(const QByteArray& tar, const QString& root, QString* error, bool apply) {
   const auto fail = [&](const QString& msg) {
     setError(error, msg);
     return false;
   };
-  if (root.isEmpty()) {
+  if (apply && root.isEmpty()) {
     return fail(QStringLiteral("no target directory"));
   }
   if (tar.size() % kBlock != 0) {
@@ -401,6 +402,9 @@ bool unpack(const QByteArray& tar, const QString& root, QString* error) {
     }
   }
   // targets must be creatable: no symlink or foreign file in the way, no directory in place of a file
+  if (!apply) {
+    return true;
+  }
   const QDir rootDir(root);
   for (const Parsed& f : files) {
     const QStringList c = f.rel.split(QLatin1Char('/'));
@@ -444,6 +448,10 @@ bool unpack(const QByteArray& tar, const QString& root, QString* error) {
   }
   return true;
 }
+}  // namespace
+
+bool unpack(const QByteArray& tar, const QString& root, QString* error) { return run(tar, root, error, true); }
+bool validate(const QByteArray& tar, QString* error) { return run(tar, QString(), error, false); }
 
 QString fingerprint(const QString& root) {
   const std::vector<Entry> files = listManaged(root);

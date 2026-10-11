@@ -862,7 +862,7 @@ void SaveSync::resolveConflict(Resolution res) {
       fail(cr);
       return;
     }
-    if (resolveLive_ && !(live_.accepts && live_.accepts(cr.content.size()))) {
+    if (resolveLive_ && !liveAccepts(cr.content.size(), &cr.content)) {
       resolveError(tr("The running game cannot load this save. Nothing was changed; quit the game and resolve the conflict at the next start."));
       return;
     }
@@ -904,9 +904,47 @@ void SaveSync::resolveConflict(Resolution res) {
   });
 }
 
+bool SaveSync::liveAccepts(qint64 size, const QByteArray* data) const {
+  if (a_.coreTree.isEmpty()) {
+    return live_.accepts && live_.accepts(size);
+  }
+  if (!live_.restartWith) {
+    return false;
+  }
+  return data == nullptr || sdtree::validate(*data);  // history entries: validated again when the content arrives
+}
+
+bool SaveSync::liveApplyData(const QByteArray& data) {
+  if (a_.coreTree.isEmpty()) {
+    return live_.apply && live_.apply(data);
+  }
+  if (!live_.restartWith) {
+    return false;
+  }
+  // Runs after the stop: the core has flushed the tree. Nothing may be lost: current tree -> raw save, new raw save,
+  // backup of the tree + unpack (export).
+  return live_.restartWith([this, data]() {
+    QString err;
+    if (!importCoreTree(false, &err)) {
+      qCWarning(lcSaveSync) << "Live save: the current save data could not be packed:" << err;
+      return false;
+    }
+    const QString rawFile = QDir(a_.dir).filePath(a_.expectedName);
+    if (!SaveStore::atomicWrite(rawFile, data)) {
+      return false;
+    }
+    a_.file = rawFile;
+    if (!exportCoreTree(&err)) {
+      qCWarning(lcSaveSync) << "Live save: the save data could not be written to the tree:" << err;
+      return false;
+    }
+    return true;
+  });
+}
+
 bool SaveSync::writeResolvedSave(const QByteArray& data) {
   if (resolveLive_) {
-    return live_.apply && live_.apply(data);  // the emulation thread writes memory and file, then resets the core
+    return liveApplyData(data);  // the emulation thread writes memory and file, then resets the core
   }
   return SaveStore::atomicWrite(a_.file, data);
 }
@@ -1572,7 +1610,7 @@ SaveSync::RestoreResult SaveSync::applyLiveContent(const QByteArray& data, int n
   out.kind = RK::Ok;
   out.revision = newRevision;
   const QString quitHint = tr("Quit the game and start it again to use it.");
-  if (!live_.accepts || !live_.accepts(data.size())) {
+  if (!liveAccepts(data.size(), &data)) {
     out.message = tr("Done on the Hub, but the running game cannot load this save. %1").arg(quitHint);
     return out;
   }
@@ -1583,7 +1621,7 @@ SaveSync::RestoreResult SaveSync::applyLiveContent(const QByteArray& data, int n
       return out;
     }
   }
-  if (!live_.apply || !live_.apply(data)) {
+  if (!liveApplyData(data)) {
     out.message = tr("Done on the Hub, but the running game could not load the save. %1").arg(quitHint);
     return out;
   }
@@ -1620,7 +1658,7 @@ void SaveSync::restoreVersionLive(const QString& gameId, const QString& slot, in
       cb({RK::NotFound, tr("That version no longer exists on the Hub."), 0, false});
       return;
     }
-    if (hr.ok() && !(live_.accepts && live_.accepts(size))) {
+    if (hr.ok() && !liveAccepts(size, nullptr)) {
       cb({RK::Blocked, tr("The running game cannot load this version. Quit the game to restore it."), 0, false});
       return;
     }
@@ -1701,7 +1739,7 @@ void SaveSync::uploadSaveFileLive(const QString& gameId, const QString& slot, co
   }
   const QByteArray data = in.readAll();
   in.close();
-  if (!(live_.accepts && live_.accepts(data.size()))) {
+  if (!liveAccepts(data.size(), &data)) {
     fail(RK::Blocked, tr("The running game cannot load a save of this size. Quit the game to upload it."));
     return;
   }

@@ -1,4 +1,6 @@
 #pragma once
+
+#include <functional>
 // GameSession: a local emulation session (EmulationRunner + AudioOutput) for the game view.
 // Holds the last frame, the keyboard state and the display profile for touch conversion.
 
@@ -157,6 +159,8 @@ class GameSession : public QObject {
   // Blocks until the old core is unloaded; the new core starts asynchronously (state Starting, then Running; no new started()).
   // false = the file could not be written or the game could not be restarted (the game then runs with the old save).
   bool restartWithSave(const QString& saveFile, const QByteArray& data);
+  // Same restart for saves that are more than one file (3DS tree): `writer` runs between the stop and the start.
+  bool restartWith(const std::function<bool()>& writer);
 
   // Input (UI thread). Returns true if the key is mapped.
   bool keyEvent(int qtKey, bool pressed);

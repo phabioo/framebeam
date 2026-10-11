@@ -16,7 +16,7 @@ Nintendo 3DS (Azahar, save source `core_tree`, format `azahar_sdmc`, [ADR 0022](
 - Like DeSmuME `.dsv`, the tar is imported from the tree at start, during play and at the final sync, and exported into the tree before the core starts.
 - Before the tree is replaced by a different Hub version, it is written as `<slot dir>/<rom>.sav.tree-<timestamp>.bak`. Unmanaged files are never touched; an invalid archive blocks the start and leaves the tree untouched.
 - Existing local-only 3DS saves are adopted and uploaded on the first start with the new Player.
-- Restore or upload while a 3DS game runs is not live: quit the game first. An uploaded file must be such a tar; it is validated at the next start.
+- Restore, upload and conflict resolution while a 3DS game runs restart the game with the new save (as for NDS); the archive is validated first and refused if invalid. The current save data is backed up as `<rom>.sav.tree-<time>.bak`. An uploaded file must be such a tar.
 
 ## Conflicts
 

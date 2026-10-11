@@ -106,12 +106,16 @@ class SaveSync : public QObject {
     std::function<void()> flush;                          // the core's battery save is written to the save file
     std::function<bool(qint64)> accepts;                  // the core's battery save memory has exactly this size
     std::function<bool(const QByteArray&)> apply;         // replaces the battery save by reloading the game from the new file
+    // Stops the game, runs the writer (false = the game restarts with the old data), starts it again ("core_tree": the
+    // save is a tree, no single file or size to hand over).
+    std::function<bool(std::function<bool()>)> restartWith;
   };
   void setLiveHooks(LiveHooks hooks) { live_ = std::move(hooks); }
   // This game runs here with this slot and the core can take a new save.
   bool liveApplyAvailable(const QString& gameId, const QString& slot) const {
-    // Not for "core_tree" (Azahar): the save is a tree the running core owns, it is only replaced before the core starts.
-    return isRunning(gameId, slot) && a_.coreTree.isEmpty() && live_.apply && live_.accepts && (!live_.ready || live_.ready());
+    // "core_tree" (Azahar) needs restartWith (no size check); everything else apply + accepts.
+    const bool hooks = a_.coreTree.isEmpty() ? (live_.apply && live_.accepts) : static_cast<bool>(live_.restartWith);
+    return isRunning(gameId, slot) && hooks && (!live_.ready || live_.ready());
   }
   // Why restore / upload are off for a running game even though the core could take the save; empty = allowed.
   QString liveBlockReason(const QString& gameId, const QString& slot) const;
@@ -253,6 +257,9 @@ class SaveSync : public QObject {
   bool importCoreFile(bool backup, QString* error);  // core file / tree -> raw .sav when it changed since the last export/import
   bool exportCoreFile(QString* error);               // raw .sav -> core file / tree before the core starts
   bool importCoreTree(bool backup, QString* error);
+  // Live size/content check before anything changes: size via hook (files) or archive validation (tree).
+  bool liveAccepts(qint64 size, const QByteArray* data) const;
+  bool liveApplyData(const QByteArray& data);  // the running core takes the new raw save (file hook or tree restart)
   bool exportCoreTree(QString* error);
   bool pullCoreFile(bool force);                     // session: import, error reported once on a forced pull
   void emitStartReady(const QString& note);

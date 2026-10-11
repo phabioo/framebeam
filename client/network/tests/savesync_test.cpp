@@ -1350,6 +1350,76 @@ class SaveSyncTest : public QObject {
     QVERIFY(!QFileInfo::exists(saveFile()));
     QCOMPARE(puts(), 0);
   }
+
+ private:
+  struct TreeHooks {
+    int restarts = 0, flushes = 0;
+  };
+  void installTreeHooks(TreeHooks* th) {
+    SaveSync::LiveHooks h;
+    h.flush = [th]() { ++th->flushes; };
+    h.restartWith = [th](std::function<bool()> writer) {  // stop, write, start: the fake core owns no files
+      ++th->restarts;
+      return writer();
+    };
+    sync_->setLiveHooks(std::move(h));
+  }
+  SaveSync::RestoreResult uploadLive(const QString& file) {
+    SaveSync::RestoreResult res;
+    bool done = false;
+    sync_->uploadSaveFile(kGame, QStringLiteral("default"), file, SaveStore::loadState(gdir()).baseRevision, QStringLiteral("rom1.sav"),
+                          [&](const SaveSync::RestoreResult& r) { res = r; done = true; });
+    (void)QTest::qWaitFor([&]() { return done; }, 8000);
+    return res;
+  }
+
+ private slots:
+  void azaharLiveUploadRestartsTheGameWithTheNewTree() {
+    writeTree(treeRoot(), "tree-a");
+    QCOMPARE(startWith(azaharRef()), QStringLiteral("ready"));
+    sync_->beginSession();
+    TreeHooks th;
+    installTreeHooks(&th);
+    QVERIFY(sync_->liveApplyAvailable(kGame, QStringLiteral("default")));
+    writeFile(treeRoot() + titleData(QStringLiteral("main")), "tree-a-played");  // progress since the last upload
+    QTemporaryDir other;
+    writeTree(other.path(), "picked-tree");
+    const QByteArray pickedTar = *sdtree::pack(other.path());
+    const QString picked = QDir(dir_->path()).filePath(QStringLiteral("picked.sav"));
+    writeFile(picked, pickedTar);
+    const SaveSync::RestoreResult res = uploadLive(picked);
+    QVERIFY2(res.ok(), qPrintable(res.message));
+    QVERIFY(res.localUpdated);
+    QCOMPARE(th.restarts, 1);
+    QCOMPARE(readFile(treeRoot() + titleData(QStringLiteral("main"))), QByteArray("picked-tree"));
+    QCOMPARE(readFile(treeRoot() + QStringLiteral("/nand/data/system.bin")), QByteArray("nand-local"));
+    QCOMPARE(QDir(gdir()).entryList({QStringLiteral("rom1.sav.tree-*.bak")}).size(), 1);
+    QCOMPARE(readFile(saveFile()), pickedTar);
+    QCOMPARE(hub_->saves.value(kGame).content, pickedTar);
+    const int before = puts();
+    QTest::qWait(400);  // several polls: the restored save is not a new change
+    QCOMPARE(puts(), before);
+    QVERIFY(sync_->finalSyncBlocking(true));
+    QCOMPARE(puts(), before);
+    QCOMPARE(hub_->saves.value(kGame).content, pickedTar);
+  }
+
+  void azaharLiveUploadOfAnInvalidArchiveIsRefused() {
+    writeTree(treeRoot(), "tree-a");
+    QCOMPARE(startWith(azaharRef()), QStringLiteral("ready"));
+    sync_->beginSession();
+    TreeHooks th;
+    installTreeHooks(&th);
+    const QByteArray before = *sdtree::pack(treeRoot());
+    const QString junk = QDir(dir_->path()).filePath(QStringLiteral("junk.sav"));
+    writeFile(junk, "not a tar archive, just some bytes");
+    const SaveSync::RestoreResult res = uploadLive(junk);
+    QVERIFY(!res.ok());
+    QCOMPARE(th.restarts, 0);
+    QCOMPARE(*sdtree::pack(treeRoot()), before);
+    QCOMPARE(hub_->saves.value(kGame).content, before);
+    QVERIFY(QDir(gdir()).entryList({QStringLiteral("rom1.sav.tree-*.bak")}).isEmpty());
+  }
 };
 
 QTEST_GUILESS_MAIN(SaveSyncTest)

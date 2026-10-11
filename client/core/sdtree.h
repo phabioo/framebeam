@@ -33,6 +33,10 @@ std::optional<QByteArray> pack(const QString& root, QString* error = nullptr);
 // archive and writes every file atomically.
 bool unpack(const QByteArray& tar, const QString& root, QString* error = nullptr);
 
+// The parse and validation part of unpack() alone: true if unpack() would accept this archive's content (nothing is
+// read from or written to disk).
+bool validate(const QByteArray& tar, QString* error = nullptr);
+
 // Cheap hash of (path, size, mtime) of the managed files, for polling. Empty when there are none.
 QString fingerprint(const QString& root);
 
