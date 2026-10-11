@@ -63,7 +63,7 @@ What the Hub, the protocol and the Player do today, by area. Status by version: 
 - Firmware path for NDS: in native mode the Player fetches your firmware files from the Hub and shows "Firmware required" / "Firmware missing" instead of launching without them.
 - Cores come from the Hub: the Player downloads the core for a system on demand (size and SHA-256 checked) into `cache/cores/<core-id>/<version>/<platform>/`; installers ship no cores. CLI: `fetch-core <system-id>`.
 - Emulation page: core options per global/system/game level (game > system > global; locked options are hidden); per game: core choice, speed-up, reset (0.10).
-- Nintendo 3DS in the Player (0.10): Azahar with two screens (400x240 top, 320x240 bottom touch, composed into a 400x480 frame), OpenGL Core >= 3.3 required (no software fallback, clear error), input profile `3ds` (ZL/ZR, circle pad, C-stick). 3DS saves are local-only (save source `none`) and not synced to the Hub yet.
+- Nintendo 3DS in the Player (0.10): Azahar with two screens (400x240 top, 320x240 bottom touch, composed into a 400x480 frame), OpenGL Core >= 3.3 required (no software fallback, clear error), input profile `3ds` (ZL/ZR, circle pad, C-stick). 3DS saves sync with the Hub (save source `core_tree`, format `azahar_sdmc`: the game's save data and extdata as one tar; ADR 0022 D3 amendment).
 - ROM cache limit (0.10): Settings → `rom_cache_limit_bytes` (default 20 GB, 0 = unlimited), LRU by last use; "Clear ROM cache" with confirmation.
 - Controllers page: SDL3 gamepads, built-in and user profiles, remapping, input test.
 - Settings page: Appearance (Dark / Light / System).

@@ -243,15 +243,21 @@ void GameSession::flushLiveSave() {
 // thread, fresh worker, core load, load game, load save). The core is never reloaded in place: unload_game + load_game
 // inside one retro_init (with GL context teardown) is not something cores like melonDS survive.
 bool GameSession::restartWithSave(const QString& saveFile, const QByteArray& data) {
-  if (!runner_ || !(state_ == Running || state_ == Paused) || saveFile.isEmpty() || config_.gamePath.isEmpty()) return false;
+  if (saveFile.isEmpty()) return false;
+  return restartWith([&]() {
+    QSaveFile f(saveFile);
+    const bool written = f.open(QIODevice::WriteOnly) && f.write(data) == data.size() && f.commit();
+    if (!written) qWarning() << "Live save: the new save file could not be written, the game restarts with the old save";
+    return written;
+  });
+}
+
+// `writer` runs between the stop (old save flushed) and the start; false = the game restarts with the old data.
+bool GameSession::restartWith(const std::function<bool()>& writer) {
+  if (!runner_ || !(state_ == Running || state_ == Paused) || config_.gamePath.isEmpty() || !writer) return false;
   const LaunchConfig cfg = config_;
   teardown();  // blocks until the core is unloaded and the old save is flushed
-  bool written = false;
-  {
-    QSaveFile f(saveFile);
-    written = f.open(QIODevice::WriteOnly) && f.write(data) == data.size() && f.commit();
-  }
-  if (!written) qWarning() << "Live save: the new save file could not be written, the game restarts with the old save";
+  const bool written = writer();
   launch(cfg, true);
   return written;
 }

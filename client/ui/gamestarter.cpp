@@ -258,6 +258,7 @@ SaveSync::CoreRef GameStarter::coreRefFor(const emu::SystemManifest& man) const 
   ref.fileExtension = man.saveExtension;
   ref.fileFormat = man.saveFormat;
   ref.shortDir = man.saveShortDir;
+  ref.subfolder = man.saveShortDirSubfolder;
   return ref;
 }
 
@@ -284,7 +285,7 @@ void GameStarter::onSaveReady(const QString& gameId, const QString& saveDir, con
   cfg.gamePath = launchRom_;
   cfg.systemDir = catalog_->systemDir();
   cfg.saveDir = saveDir;
-  if (man->saveShortDir) {  // for core_file cores SaveSync already hands out this very directory
+  if (man->saveShortDir) {  // for core_file / core_tree cores SaveSync already hands out this very directory
     // Core profile save.short_dir (Windows MAX_PATH): a short dir; adopt a tree written to the long dir earlier.
     const QString shortDir = SaveStore::shortCoreDir(*profiles_, conn_->hubId(), conn_->hubUserId(), gameId, saves_->slotFor(gameId));
     if (!shortDir.isEmpty()) {

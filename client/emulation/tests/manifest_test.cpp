@@ -62,7 +62,8 @@ class ManifestTest : public QObject {
     QVERIFY(p);
     QCOMPARE(p->libraryBasename, QStringLiteral("azahar_libretro"));
     QVERIFY(p->requiresHwRender);
-    QCOMPARE(p->saveSource, QStringLiteral("none"));
+    QCOMPARE(p->saveSource, QStringLiteral("core_tree"));
+    QCOMPARE(p->saveFormat, QStringLiteral("azahar_sdmc"));
     QVERIFY(p->saveShortDir);
     QCOMPARE(p->saveShortDirSubfolder, QStringLiteral("Azahar"));
     QVERIFY(reg.resolve(QStringLiteral("3ds"), QStringLiteral("azahar"))->saveShortDir);
@@ -77,7 +78,8 @@ class ManifestTest : public QObject {
     const auto eff = reg.resolve(QStringLiteral("3ds"), QStringLiteral("azahar"));
     QVERIFY(eff);
     QVERIFY(eff->requiresHwRender);
-    QCOMPARE(eff->saveSource, QStringLiteral("none"));
+    QCOMPARE(eff->saveSource, QStringLiteral("core_tree"));
+    QCOMPARE(eff->saveFormat, QStringLiteral("azahar_sdmc"));
     QVERIFY(!eff->experimental);
     QVERIFY(!reg.resolve(QStringLiteral("nds"), QStringLiteral("melondsds"))->requiresHwRender);
   }
@@ -207,6 +209,13 @@ class ManifestTest : public QObject {
     QCOMPARE(p->fileOptions.value(QStringLiteral("firmware")), QStringLiteral("fo"));
     QVERIFY(!ManifestRegistry::parseProfile(R"({"core_id":"x","library_basename":"x","system_ids":["nds"],"save":{"source":"core_file","extension":"../x"}})", &err));
     QVERIFY(!ManifestRegistry::parseProfile(R"({"core_id":"x","library_basename":"x","system_ids":["nds"],"save":{"source":"bogus"}})", &err));
+    // core_tree is valid only with format azahar_sdmc
+    QVERIFY(!ManifestRegistry::parseProfile(R"({"core_id":"x","library_basename":"x","system_ids":["nds"],"save":{"source":"core_tree"}})", &err));
+    QVERIFY(err.contains(QStringLiteral("azahar_sdmc")));
+    QVERIFY(!ManifestRegistry::parseProfile(R"({"core_id":"x","library_basename":"x","system_ids":["nds"],"save":{"source":"core_tree","format":"desmume_dsv"}})", &err));
+    const auto tree = ManifestRegistry::parseProfile(R"({"core_id":"x","library_basename":"x","system_ids":["nds"],"save":{"source":"core_tree","format":"azahar_sdmc"}})", &err);
+    QVERIFY2(tree, qPrintable(err));
+    QCOMPARE(tree->saveSource, QStringLiteral("core_tree"));
     const auto none = ManifestRegistry::parseProfile(R"({"core_id":"x","library_basename":"x","system_ids":["nds"],"save":{"source":"none"},"requires_hw_render":true})", &err);
     QVERIFY2(none, qPrintable(err));
     QCOMPARE(none->saveSource, QStringLiteral("none"));
