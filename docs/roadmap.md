@@ -42,7 +42,7 @@ Phase plan: [workflow.md](workflow.md#phase-plan).
 | 0.8 | done in code | Cores from the libretro buildbot | Systems instead of fixed cores: the Hub downloads cores RetroArch-style from the libretro buildbot; admin installs, updates and removes them per system; Player chooses the core per system and game ([ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md)). |
 | 0.9 | done in code | One installer: Player, Hub or both | One Windows MSI (WiX) with the features Player and Hub; the Hub runs as a Windows service; "Set up a Hub on this PC" and a standalone mode like RetroArch ([ADR 0021](adr/0021-one-windows-installer.md), proposed). Installer, upgrades and services verified only locally. |
 | 0.10 | done in code | Second system: 3DS (Azahar) | System `3ds` with the Azahar buildbot core on the OpenGL rendering; two-screen composition, game override UI, ROM cache limit ([ADR 0022](adr/0022-nintendo-3ds-with-azahar.md), proposed). 3DS saves sync with the Hub (D3 amendment, 2026-10-11). Real Azahar run and performance open. |
-| 0.10.x | planned | Connections and small items | Before new testers: direct WebRTC connections instead of TURN relay (STUN default, ICE logging, diagnostics), then small items (hotkeys, repo-scan leftovers, save slot actions, logs bundle, Inno shell removal). |
+| 0.10.x | planned | Connections and small items | Before new testers: direct WebRTC connections instead of TURN relay (STUN default, ICE logging, diagnostics), then small items (hotkeys, repo-scan leftovers, save slot actions, logs bundle, Inno shell removal (done)). |
 | 0.11 | in progress | Plugin runtime | Packages 1 to 3: Player runtime (done in code), UI building blocks and slots, Hub plugins and runs with `.fbplugin`, signing and plugin index ([ADR 0023](adr/0023-plugins.md), proposed; [design](architecture/12-plugins.md)). The plugins themselves live in their own repositories. |
 | 0.12 | planned | Local ROMs | Play ROMs the user has locally, with an optional resumable upload to the Hub; no P2P transfer. |
 | 0.13 | planned | GPU paths | OpenGL to D3D11 bridge, zero-copy display, GPU-direct QSV and AMF. |
@@ -254,7 +254,7 @@ Done in code ([ADR 0021](adr/0021-one-windows-installer.md), proposed). Absorbs 
 - [x] Done in code: Migration of existing Inno installations (no bridge release): the release keeps publishing a small Inno `setup.exe` under kind `installer` that only installs the MSI silently, so older Players update normally. The MSI uninstalls the Inno install silently, keeping `data\`. Credentials stay in the Credential Manager. The Pi Hub (.deb) is unaffected.
 - [x] Done in code: Hub installer part (data directory, port, firewall rules by the installer, admin setup in the Player); updates via the updater from 0.3.
 - Open: Review paths, file permissions (instead of 0600) and certificate storage on Windows beyond the service ACLs.
-- Open: MSI and shell are unsigned. Decided by Fabio on 2026-10-11: the Inno shell (`setup.exe` wrapper that migrated old Inno installs) is removed now, since all test clients are on the MSI; open item in 0.10.x.
+- Open: the MSI is unsigned. Decided by Fabio on 2026-10-11: the Inno shell (`setup.exe` wrapper that migrated old Inno installs) is removed, since all test clients are on the MSI (done, see 0.10.x).
 
 ## 0.10 Second system: Nintendo 3DS with Azahar
 
@@ -304,7 +304,7 @@ In the test of 2026-10-11 most WebRTC connections ran relayed over TURN. Cause f
 - Open: fix Dependabot PR #96.
 - Open: "Collect logs/diagnostics" bundle.
 - Open: the Player updates cores in the background without starting a game.
-- Open: remove the Inno shell (see 0.9) and its release/CI parts.
+- [x] Done: remove the Inno shell (see 0.9) and its release/CI parts (shell script, CI build and migration test, release asset and `installer` index entry, Player `installer` fallback and `unins000.exe` detection).
 
 ## 0.11 Plugin runtime
 

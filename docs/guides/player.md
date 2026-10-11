@@ -4,7 +4,7 @@ The FrameBeam Player (`client/`) connects to a Hub, keeps your library and saves
 
 ## Install
 
-- **Windows:** run the installer from the [GitHub releases](https://github.com/phabioo/framebeam/releases): the MSI `framebeam.msi` (CI artifact `framebeam-windows-x64-msi`) or the `framebeam-player-<version>-windows-x64-setup.exe` that installs it; the portable zip works too. The default is a per-user Player install, no admin rights; an existing Inno install is replaced and its data kept. The installer is unsigned (SmartScreen warning). Neither ships an emulator core: the Player downloads the core for a system from the Hub on first use. Installer details: [packaging.md](packaging.md).
+- **Windows:** run the installer from the [GitHub releases](https://github.com/phabioo/framebeam/releases): the MSI `framebeam.msi` (CI artifact `framebeam-windows-x64-msi`); the portable zip works too. The default is a per-user Player install, no admin rights. The installer is unsigned (SmartScreen warning). Neither ships an emulator core: the Player downloads the core for a system from the Hub on first use. Installer details: [packaging.md](packaging.md).
 - **Linux:** builds and runs for development ([development.md](../development.md)). Credentials are kept in memory only, so pair again after a restart.
 
 ## Set up a Hub on this PC

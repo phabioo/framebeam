@@ -68,4 +68,4 @@ What the Hub, the protocol and the Player do today, by area. Status by version: 
 - ROM cache limit (0.10): Settings → `rom_cache_limit_bytes` (default 20 GB, 0 = unlimited), LRU by last use; "Clear ROM cache" with confirmation.
 - Controllers page: SDL3 gamepads, built-in and user profiles, remapping, input test.
 - Settings page: Appearance (Dark / Light / System).
-- Windows installer: one WiX MSI for Player, Hub or both (Hub as Windows service, "Set up a Hub on this PC", standalone mode), plus an Inno shell `setup.exe` for migrating old installs; CI artifacts `framebeam-windows-x64-msi`, `framebeam-player-windows-x64-setup` ([ADR 0021](adr/0021-one-windows-installer.md)).
+- Windows installer: one WiX MSI for Player, Hub or both (Hub as Windows service, "Set up a Hub on this PC", standalone mode); CI artifact `framebeam-windows-x64-msi` ([ADR 0021](adr/0021-one-windows-installer.md)).

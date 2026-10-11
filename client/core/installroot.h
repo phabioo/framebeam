@@ -2,7 +2,7 @@
 // Install layout of the Windows Player (spec 0.3 S6):
 //   {app}\framebeam_player.exe        tiny launcher (launcher/), starts bin\framebeam_player.exe
 //   {app}\bin\framebeam_player.exe    the real Player (+ DLLs, Qt plugins, qml)
-//   {app}\data\                       portable data (ADR 0004), {app}\unins000.exe = installed via the installer
+//   {app}\data\                       portable data (ADR 0004), {app}\framebeam-player.msi-installed = installed via the MSI
 
 #include <QString>
 #include <QStringList>
@@ -10,7 +10,6 @@
 namespace framebeam::update {
 
 inline constexpr const char* kPlayerExeName = "framebeam_player.exe";
-inline constexpr const char* kUninstallerName = "unins000.exe";
 
 // When the executable's directory is named "bin" and its parent contains framebeam_player.exe, the install
 // root is the parent; otherwise the executable's directory itself (flat/portable layout, Linux, dev builds).
@@ -19,11 +18,9 @@ QString installRootFor(const QString& exeDir);
 inline constexpr const char* kPlayerMsiMarker = "framebeam-player.msi-installed";  // next to the launcher (MSI install)
 inline constexpr const char* kHubMsiMarker = "framebeam-hub.msi-installed";        // next to framebeam-hub.exe
 
-// The root contains the installer's uninstaller (Inno install).
-bool hasUninstaller(const QString& installRoot);
 // The root contains the MSI marker of the Player feature.
 bool hasMsiMarker(const QString& installRoot);
-// Only an installed copy (Inno uninstaller or MSI marker) may update itself.
+// Only an installed copy (MSI marker) may update itself.
 bool canSelfUpdate(const QString& installRoot);
 // The per-machine MSI installs the Hub as a sibling of the Player directory (<ProgramFiles>\FrameBeam\{Player,Hub}).
 bool hubInstalledNear(const QString& installRoot);
@@ -35,8 +32,6 @@ struct InstallerCommand {
   QString program;
   QStringList args;
 };
-// <setup> /SILENT /SUPPRESSMSGBOXES /NORESTART /UPDATE  plus /ALLUSERS (root not writable, UAC) or /CURRENTUSER.
-InstallerCommand installerCommand(const QString& setupPath, bool rootWritable);
 
 // ---- MSI updates (0.9). msiexec arguments are built here (and mirrored in launcher/msiupdate.h, which has no Qt).
 enum class MsiScope {

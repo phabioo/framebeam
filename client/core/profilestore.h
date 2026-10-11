@@ -42,8 +42,8 @@ class ProfileStore {
   // profiles.json yet. Returns the number of copied files.
   static int migrateLegacyData(const QString& legacyDir, const QString& newDir);
   // 0.9 "One installer": a per-machine Player cannot write next to its program, so its data lives in newDir (AppData).
-  // Candidate folders of the old portable data: <localAppData>\\Programs\\FrameBeam Player\\data (per-user Inno/MSI
-  // install) and <programFiles>\\FrameBeam Player\\data (old all-users Inno install). Empty arguments are skipped.
+  // Candidate folders of the old portable data: <localAppData>\\Programs\\FrameBeam Player\\data (per-user MSI
+  // install) and <programFiles>\\FrameBeam Player\\data (old all-users install). Empty arguments are skipped.
   static QStringList portableMigrationSources(const QString& localAppData, const QString& programFiles);
   // Copies the first source that holds Player data (profiles.json, device.json or hubs/) into newDir once: never
   // overwrites an existing file, skips cache/, never touches the source. Completion marker `.migrated-from-portable`
