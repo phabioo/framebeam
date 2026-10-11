@@ -182,9 +182,9 @@ class PluginBlocksUiTest : public QObject {
     page_->setParentItem(win_->contentItem());
     sheet_ = page_->property("block").value<QQuickItem*>();
     QVERIFY(sheet_ != nullptr);
-    win_->resize(width, std::max(300, static_cast<int>(page_->height())));
+    win_->resize(width, (std::max)(300, static_cast<int>(page_->height())));
     settle();
-    win_->resize(width, std::max(300, static_cast<int>(page_->height())));
+    win_->resize(width, (std::max)(300, static_cast<int>(page_->height())));
     settle();
   }
   void clickItem(QQuickItem* it) {
