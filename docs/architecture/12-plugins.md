@@ -140,6 +140,15 @@ Map view: a background image, markers at coordinates (player symbols in the play
 
 Game artwork (sprites, icons, region maps) belongs to the rights holders. It is **never** in any repository. A plugin extracts it at runtime from the user's own game files with `rom.read` and the native helpers and stores it in a local plugin cache. Repositories hold only facts the project records itself (for example location tables and map coordinates). Falling back to user-supplied asset packs is possible but not the default.
 
+### 16.9a Languages and i18n
+
+Decided 2026-10-11 (Fabio): the group plays German/EU releases first.
+
+- Plugins support all language versions of a game where feasible, at least German and English.
+- Names of species, moves, items and locations are read from the game at runtime, so they follow the game's language; plugins do not ship name tables.
+- Plugin UI strings come from i18n files (`i18n/`): English is the source, German the first translation.
+- 3DS: EU 3DS cartridges contain several languages, and the game language follows the emulated console's system language. Azahar offers the core option "3DS System Language" (Citra language setting). FrameBeam must let the user set it (per-game override or a 3DS default); **open:** the exact setting and where it lives. Game plugins such as `pokemon-core` must detect the active language from the game instead of assuming it.
+
 ### 16.10 Distribution
 
 - Official plugins: one repository each, with a release workflow that builds a `.fbplugin` (zip with manifest, Lua, own assets) and signs it with the FrameBeam release key. A signed **plugin index** (like `updates-index`) lists them with versions and SHA-256; the Hub reads it and the admin installs or updates with one click. Signed plugins carry an "Official" badge.

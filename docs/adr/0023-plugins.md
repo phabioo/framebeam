@@ -63,6 +63,11 @@ Open: whether the buildbot build of Azahar contains this code, and whether the m
 
 - The manifest field `api` versions the interface; unknown versions are rejected with a clear message. `protocol_version` impact is decided with the Hub work package (open).
 
+### D11 Languages and i18n
+
+- The group plays German/EU releases; plugins support all language versions of a game where feasible, at least German and English. Game names (species, moves, locations) are read from the game at runtime and follow its language; plugin UI strings use i18n files (English source, German first translation) (Fabio, 2026-10-11).
+- 3DS: EU cartridges hold several languages and the game language follows the emulated console's system language. Azahar offers the core option "3DS System Language"; FrameBeam must let the user set it (per-game override or 3DS default), and `pokemon-core` detects the active language rather than assuming it. Open: where the setting lives.
+
 ## Consequences
 
 - Large, staged work (see roadmap 0.11): runtime, UI building blocks, Hub plugins and runs, plugin repositories, first game. Metadata moves to 0.12, Linux and macOS Player to 0.13.
