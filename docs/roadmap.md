@@ -159,7 +159,7 @@ See [ADR 0018](adr/0018-player-speed-up.md) (accepted).
 - [x] Done: header button "Speed-up" ("»" when narrow) and a speed select in the Session panel (running game only) and indicator "Speed-up ×N"; hidden when the core inhibits it; stays usable while the Session is shared (viewers get the normal stream frame rate).
 - [x] Done: Emulation settings "Speed-up speed", "Speed-up on start" (default off) and "Audio during speed-up" (default on, resampled; off drops audio) with the global > system > game hierarchy.
 - [x] Done (0.7.x): the speed-up key is configurable in Controllers → Hotkeys.
-- Open: gamepad hotkey (0.10.x).
+- [x] Done (0.10.x): gamepad hotkeys, see "0.7.x Hotkeys and controller profiles".
 - [x] Done (0.7.x follow-up): hardware frames are scaled down on the GPU to the size the view (and, while shared, the stream) needs before the readback; diagnostics show "read back W×H", an honest readback mean and reads per second. melonDS DS ignores `GET_AUDIO_VIDEO_ENABLE`, so it still renders every frame during speed-up.
 
 ## 0.7.x Direct GPU display (zero-copy)
@@ -182,7 +182,7 @@ Requested 2026-10-09. Today a shared Session reads the frame back, converts it t
 
 - [x] Done: Hotkeys tab in Controllers (3f): Player keyboard hotkeys for fullscreen (F11), diagnostics (F3), snapshot (F5) and speed-up (Space) are configurable, can be cleared and reset; Esc stays fixed (leave fullscreen, else pause). Stored locally in `settings/controllers.json` (`hotkeys`, only non-default entries); a key used by another hotkey is refused; a hotkey wins over the keyboard profile and is never sent to the core. Key hints in the game screen, diagnostics and Session panel follow the configured keys.
 - [x] Done: built-in controller profiles stay read-only; "Duplicate to edit" (and clicking a mapping of a built-in profile) creates a copy, assigns it to the device and starts editing it.
-- Open: gamepad hotkeys (0.10.x, same item).
+- [x] Done (0.10.x): gamepad hotkeys: hotkey button (default Select) plus a button, configurable per action in Controllers → Hotkeys, see [guides/player.md](guides/player.md).
 
 ## 0.7.x Background game
 
@@ -295,7 +295,7 @@ In the test of 2026-10-11 most WebRTC connections ran relayed over TURN. Cause f
 
 ### 2. Small items
 
-- Open: gamepad hotkeys (see "0.7.x Speed-up" and "0.7.x Hotkeys and controller profiles").
+- [x] Done: gamepad hotkeys: each Player hotkey has an optional gamepad binding next to its key (Controllers → Hotkeys, "Gamepad" column): the hotkey button (default Select, configurable) held plus a button; defaults Select+RB speed-up, Select+LB snapshot, Select+R3 diagnostics, fullscreen unbound (there is no pause action, so Select+Start stays unbound). A single button without the hotkey button can be bound too. The combo button never reaches the core, the hotkey button still does; P1 only. Stored in `settings/controllers.json` (`padHotkeys`, `padHotkeyModifier`, only non-default entries). Hints show the gamepad combo while a gamepad was the last input used. Not tried with a real gamepad yet (SDL virtual joysticks only).
 - Open: speed-up frame loss for viewers.
 - Open: repo-scan leftovers: core probe off the GUI thread, virtualized library grid, save errors on stop.
 - Open: save slots rename and delete (Player and Hub); block save upload while a session of that game runs.

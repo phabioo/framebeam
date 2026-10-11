@@ -45,14 +45,23 @@ QString keyToken(int qtKey);
 std::optional<int> keyFromToken(const QString& token);
 QString tokenLabel(const QString& token);  // "B", "LB", "Left stick ◀", "Return", ...
 
-// Player hotkeys (keyboard only, global, never forwarded to the core; stored in controllers.json under "hotkeys" as
+// Player hotkeys (global, never forwarded to the core; stored in controllers.json under "hotkeys" as
 // {actionId: "key:<Qt::Key>" | "none"}, only non-default entries). One entry per action: a later action is one more line
 // in hotkeyDefs(). Esc is fixed (leave fullscreen, else pause), not an action and never assignable.
+// Gamepad hotkeys (P1) are stored separately under "padHotkeys" ({actionId: binding | "none"}, only non-default) and
+// "padHotkeyModifier" (token, default pad:back). A binding is "pad:<button>" (modifier held + button) or
+// "solo:pad:<button>" (the button alone); "" = unassigned.
 struct HotkeyDef {
   QString id;       // "fullscreen"
   QString label;    // shown in the Hotkeys table
   int defaultKey;   // Qt::Key
+  QString defaultPad = {};  // default gamepad binding, "" = none
 };
+QString padHotkeyToken(const QString& binding);  // "solo:pad:x" / "pad:x" -> "pad:x"
+bool padHotkeySolo(const QString& binding);
+QString padHotkeyBinding(const QString& token, bool solo);
+// Short label for hints: "Select+RB", "R3", ... (the modifier token is only used for non-solo bindings).
+QString padHotkeyLabel(const QString& binding, const QString& modifierToken);
 const QList<HotkeyDef>& hotkeyDefs();
 int hotkeyIndex(const QString& id);  // -1 = unknown
 
@@ -88,7 +97,19 @@ class ControllerProfiles {
   bool resetHotkeys();
   QString hotkeyAction(int qtKey) const;      // action id the key triggers, empty = none (Esc is not an action)
   QMap<QString, int> hotkeys() const { return hotkeys_; }  // effective key per action id (0 = unassigned)
-  int hotkeysChangedCount() const;
+  int hotkeysChangedCount() const;  // keyboard + gamepad hotkeys and the modifier that differ from the default
+
+  // Gamepad hotkeys (P1). setPadHotkey rejects a token used by another action, the modifier, "guide", non-pad tokens.
+  QString padHotkey(const QString& actionId) const;  // effective binding, "" = unassigned
+  bool setPadHotkey(const QString& actionId, const QString& binding);
+  bool clearPadHotkey(const QString& actionId);
+  bool resetPadHotkey(const QString& actionId);
+  QString padHotkeyAction(const QString& token) const;  // action bound to this button (any mode), empty = none
+  QMap<QString, QString> padHotkeys() const { return padHotkeys_; }
+  QString padHotkeyModifier() const { return padModifier_; }
+  bool setPadHotkeyModifier(const QString& token);  // rejects a token used by an action
+  bool resetPadHotkeyModifier();
+  bool padHotkeyModifierChanged() const;
 
   // Device assignment: deviceKey = gamepad GUID string or kKeyboardDevice. Falls back to the built-in profile of
   // the kind when nothing (valid) is assigned.
@@ -110,6 +131,8 @@ class ControllerProfiles {
   QMap<QString, QString> assignments_;
   QMap<QString, QString> labelSets_;  // device key -> override (Auto = absent)
   QMap<QString, int> hotkeys_;  // effective key per action id, all actions present
+  QMap<QString, QString> padHotkeys_;  // effective gamepad binding per action id, all actions present
+  QString padModifier_;
 };
 
 }  // namespace framebeam

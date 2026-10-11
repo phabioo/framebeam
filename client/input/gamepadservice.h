@@ -17,6 +17,7 @@
 #include <functional>
 
 #include "inputmap.h"
+#include "padhotkeys.h"
 #include "padtype.h"
 
 namespace framebeam::input {
@@ -56,6 +57,10 @@ class GamepadService : public QObject {
   quint32 inputMaskFor(int deviceId) const;                 // FrameBeam inputs of one device (input test)
   QSet<QString> pressedTokens(int deviceId) const;          // raw tokens currently active on one device
 
+  // Gamepad hotkeys of P1 (see padhotkeys.h): a fired combo/solo button is not part of libretroMask()/inputMask()
+  // (hotkeyTriggered fires once per press); nothing fires while a capture runs. inputMaskFor() (input test) is unaffected.
+  void setPadHotkeys(const QString& modifierToken, const QList<PadHotkeyBinding>& bindings);
+
   // Capture: the next newly pressed token (button, D-pad, trigger or stick direction) of any pad is reported once.
   void startCapture();
   void cancelCapture();
@@ -69,6 +74,7 @@ class GamepadService : public QObject {
   void stateChanged();                          // pressed tokens of any device changed (input test)
   void libretroMaskChanged(quint32 mask);       // P1 mask (nds system profile) changed
   void captured(const QString& token, int deviceId);
+  void hotkeyTriggered(const QString& action);  // gamepad hotkey of P1
 
  private:
   struct Dev;
@@ -77,6 +83,7 @@ class GamepadService : public QObject {
   void openDevice(int id);
   void closeDevice(int id);
   void refreshSlots();
+  quint32 maskFor(const Dev& d, const QSet<QString>& hidden) const;
   QSet<QString> readTokens(Dev& d) const;
   const QHash<QString, quint32>& compiled(const Dev& d) const;
 
@@ -89,6 +96,7 @@ class GamepadService : public QObject {
   quint32 p1InputMask_ = 0;
   quint32 p1Libretro_ = 0;
   QString inputProfile_ = QStringLiteral("nds");
+  PadHotkeyDetector hotkeys_;
   bool capturing_ = false;
   QSet<QString> captureBaseline_;
   bool sdlInited_ = false;

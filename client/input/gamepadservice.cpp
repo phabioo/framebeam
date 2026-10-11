@@ -178,6 +178,7 @@ void GamepadService::poll() {
   }
   SDL_UpdateGamepads();
 
+  const bool wasCapturing = capturing_;
   bool changed = false;
   for (Dev* d : std::as_const(devs_)) {
     const QSet<QString> now = readTokens(*d);
@@ -208,7 +209,18 @@ void GamepadService::poll() {
   if (changed) {
     emit stateChanged();
   }
-  const quint32 inMask = devs_.isEmpty() ? 0u : inputMaskFor(devs_.first()->id);
+  QSet<QString> hidden;
+  if (devs_.isEmpty()) {
+    hotkeys_.reset();
+  } else {
+    // While (or right after) a capture the detector only tracks the state: the buttons that were just bound must not fire.
+    const QStringList fired = hotkeys_.update(devs_.first()->pressed);
+    if (!wasCapturing && !capturing_) {
+      hidden = hotkeys_.suppressed();
+      for (const QString& a : fired) emit hotkeyTriggered(a);
+    }
+  }
+  const quint32 inMask = devs_.isEmpty() ? 0u : maskFor(*devs_.first(), hidden);
   const quint32 lr = libretroMaskFor(inputProfile_, inMask);
   p1InputMask_ = inMask;
   if (lr != p1Libretro_) {
@@ -217,13 +229,22 @@ void GamepadService::poll() {
   }
 }
 
+quint32 GamepadService::maskFor(const Dev& d, const QSet<QString>& hidden) const {
+  const QHash<QString, quint32>& c = compiled(d);
+  quint32 m = 0;
+  for (const QString& t : d.pressed) {
+    if (!hidden.contains(t)) m |= c.value(t, 0u);
+  }
+  return m;
+}
+
 quint32 GamepadService::inputMaskFor(int deviceId) const {
   const Dev* d = find(deviceId);
-  if (d == nullptr) return 0;
-  const QHash<QString, quint32>& c = compiled(*d);
-  quint32 m = 0;
-  for (const QString& t : d->pressed) m |= c.value(t, 0u);
-  return m;
+  return d == nullptr ? 0u : maskFor(*d, {});
+}
+
+void GamepadService::setPadHotkeys(const QString& modifierToken, const QList<PadHotkeyBinding>& bindings) {
+  hotkeys_.setBindings(modifierToken, bindings);
 }
 
 QSet<QString> GamepadService::pressedTokens(int deviceId) const {

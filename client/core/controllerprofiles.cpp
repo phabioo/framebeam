@@ -54,10 +54,10 @@ int inputIndex(const QString& id) {
 
 const QList<HotkeyDef>& hotkeyDefs() {
   static const QList<HotkeyDef> defs = {
-      {QStringLiteral("fullscreen"), QStringLiteral("Toggle fullscreen"), Qt::Key_F11},
-      {QStringLiteral("diagnostics"), QStringLiteral("Diagnostics overlay"), Qt::Key_F3},
-      {QStringLiteral("snapshot"), QStringLiteral("Save snapshot"), Qt::Key_F5},
-      {QStringLiteral("speedup"), QStringLiteral("Speed-up"), Qt::Key_Space},
+      {QStringLiteral("fullscreen"), QStringLiteral("Toggle fullscreen"), Qt::Key_F11, QString()},
+      {QStringLiteral("diagnostics"), QStringLiteral("Diagnostics overlay"), Qt::Key_F3, QStringLiteral("pad:rightstick")},
+      {QStringLiteral("snapshot"), QStringLiteral("Save snapshot"), Qt::Key_F5, QStringLiteral("pad:leftshoulder")},
+      {QStringLiteral("speedup"), QStringLiteral("Speed-up"), Qt::Key_Space, QStringLiteral("pad:rightshoulder")},
   };
   return defs;
 }
@@ -68,6 +68,32 @@ int hotkeyIndex(const QString& id) {
     if (d.at(i).id == id) return i;
   }
   return -1;
+}
+
+namespace {
+const QString kSoloPrefix = QStringLiteral("solo:");
+const QString kDefaultPadModifier = QStringLiteral("pad:back");
+bool validPadToken(const QString& t) { return isPadToken(t) && t.size() > 4 && t != QLatin1String("pad:guide"); }
+bool validPadBinding(const QString& b) { return validPadToken(padHotkeyToken(b)); }
+}  // namespace
+
+QString padHotkeyToken(const QString& binding) { return binding.startsWith(kSoloPrefix) ? binding.mid(kSoloPrefix.size()) : binding; }
+bool padHotkeySolo(const QString& binding) { return binding.startsWith(kSoloPrefix); }
+QString padHotkeyBinding(const QString& token, bool solo) { return solo ? kSoloPrefix + token : token; }
+
+QString padHotkeyLabel(const QString& binding, const QString& modifierToken) {
+  if (binding.isEmpty()) return {};
+  const auto shortName = [](const QString& token) {
+    static const QMap<QString, QString> kShort = {
+        {QStringLiteral("pad:back"), QStringLiteral("Select")},
+        {QStringLiteral("pad:start"), QStringLiteral("Start")},
+        {QStringLiteral("pad:leftstick"), QStringLiteral("L3")},
+        {QStringLiteral("pad:rightstick"), QStringLiteral("R3")},
+    };
+    return kShort.value(token, tokenLabel(token));
+  };
+  const QString btn = shortName(padHotkeyToken(binding));
+  return padHotkeySolo(binding) ? btn : shortName(modifierToken) + QStringLiteral("+") + btn;
 }
 
 QString padToken(const QString& sdlName) { return QStringLiteral("pad:") + sdlName; }
@@ -199,7 +225,11 @@ ControllerProfile ControllerProfiles::builtinProfile(const QString& kind) {
 
 ControllerProfiles::ControllerProfiles(const QString& baseDir)
     : path_(QDir(baseDir).filePath(QStringLiteral("settings/controllers.json"))) {
-  for (const HotkeyDef& d : hotkeyDefs()) hotkeys_.insert(d.id, d.defaultKey);
+  for (const HotkeyDef& d : hotkeyDefs()) {
+    hotkeys_.insert(d.id, d.defaultKey);
+    padHotkeys_.insert(d.id, d.defaultPad);
+  }
+  padModifier_ = kDefaultPadModifier;
   raw_ = fsutil::readJsonObject(path_);  // a corrupt file is moved aside before anything can overwrite it
   if (raw_.isEmpty()) {
     return;
@@ -262,6 +292,27 @@ ControllerProfiles::ControllerProfiles(const QString& baseDir)
   for (const HotkeyDef& d : hotkeyDefs()) {
     if (!chosen.contains(d.id) && seen.contains(hotkeys_.value(d.id))) hotkeys_.insert(d.id, 0);
   }
+  // Gamepad hotkeys: same rules (an invalid or conflicting entry falls back to the default, a default that clashes is unassigned).
+  const QString mod = raw_.value(QStringLiteral("padHotkeyModifier")).toString();
+  if (validPadToken(mod)) padModifier_ = mod;
+  const QJsonObject ph = raw_.value(QStringLiteral("padHotkeys")).toObject();
+  QSet<QString> padTaken{padModifier_};
+  QMap<QString, QString> padChosen;
+  for (const HotkeyDef& d : hotkeyDefs()) {
+    const QJsonValue v = ph.value(d.id);
+    if (!v.isString()) continue;
+    if (v.toString() == QLatin1String("none")) {
+      padChosen.insert(d.id, QString());
+    } else if (validPadBinding(v.toString()) && !padTaken.contains(padHotkeyToken(v.toString()))) {
+      padTaken.insert(padHotkeyToken(v.toString()));
+      padChosen.insert(d.id, v.toString());
+    }
+  }
+  for (const HotkeyDef& d : hotkeyDefs()) {
+    QString b = padChosen.contains(d.id) ? padChosen.value(d.id) : d.defaultPad;
+    if (!padChosen.contains(d.id) && !b.isEmpty() && padTaken.contains(padHotkeyToken(b))) b.clear();
+    padHotkeys_.insert(d.id, b);
+  }
 }
 
 int ControllerProfiles::hotkey(const QString& actionId) const { return hotkeys_.value(actionId, 0); }
@@ -300,14 +351,78 @@ bool ControllerProfiles::resetHotkey(const QString& actionId) {
 }
 
 bool ControllerProfiles::resetHotkeys() {
-  for (const HotkeyDef& d : hotkeyDefs()) hotkeys_.insert(d.id, d.defaultKey);
+  for (const HotkeyDef& d : hotkeyDefs()) {
+    hotkeys_.insert(d.id, d.defaultKey);
+    padHotkeys_.insert(d.id, d.defaultPad);
+  }
+  padModifier_ = kDefaultPadModifier;
   return save();
 }
 
 int ControllerProfiles::hotkeysChangedCount() const {
-  int n = 0;
-  for (const HotkeyDef& d : hotkeyDefs()) n += hotkeys_.value(d.id) != d.defaultKey ? 1 : 0;
+  int n = padModifier_ != kDefaultPadModifier ? 1 : 0;
+  for (const HotkeyDef& d : hotkeyDefs()) {
+    n += hotkeys_.value(d.id) != d.defaultKey ? 1 : 0;
+    n += padHotkeys_.value(d.id) != d.defaultPad ? 1 : 0;
+  }
   return n;
+}
+
+QString ControllerProfiles::padHotkey(const QString& actionId) const { return padHotkeys_.value(actionId); }
+
+QString ControllerProfiles::padHotkeyAction(const QString& token) const {
+  if (token.isEmpty()) return {};
+  for (const HotkeyDef& d : hotkeyDefs()) {
+    if (padHotkeyToken(padHotkeys_.value(d.id)) == token) return d.id;
+  }
+  return {};
+}
+
+bool ControllerProfiles::setPadHotkey(const QString& actionId, const QString& binding) {
+  if (hotkeyIndex(actionId) < 0 || !validPadBinding(binding)) return false;
+  const QString token = padHotkeyToken(binding);
+  if (token == padModifier_) return false;
+  const QString owner = padHotkeyAction(token);
+  if (!owner.isEmpty() && owner != actionId) return false;
+  padHotkeys_.insert(actionId, binding);
+  return save();
+}
+
+bool ControllerProfiles::clearPadHotkey(const QString& actionId) {
+  if (hotkeyIndex(actionId) < 0) return false;
+  padHotkeys_.insert(actionId, QString());
+  return save();
+}
+
+bool ControllerProfiles::resetPadHotkey(const QString& actionId) {
+  const int i = hotkeyIndex(actionId);
+  if (i < 0) return false;
+  const QString def = hotkeyDefs().at(i).defaultPad;
+  // The default may be held by another action or be the modifier meanwhile: the other action is unassigned and the
+  // modifier falls back to its default (the reset of this action wins).
+  if (!def.isEmpty()) {
+    const QString owner = padHotkeyAction(padHotkeyToken(def));
+    if (!owner.isEmpty() && owner != actionId) padHotkeys_.insert(owner, QString());
+    if (padModifier_ == padHotkeyToken(def)) padModifier_ = kDefaultPadModifier;
+  }
+  padHotkeys_.insert(actionId, def);
+  return save();
+}
+
+bool ControllerProfiles::setPadHotkeyModifier(const QString& token) {
+  if (!validPadToken(token) || !padHotkeyAction(token).isEmpty()) return false;
+  padModifier_ = token;
+  return save();
+}
+
+bool ControllerProfiles::padHotkeyModifierChanged() const { return padModifier_ != kDefaultPadModifier; }
+
+bool ControllerProfiles::resetPadHotkeyModifier() {
+  // The default modifier may be held by an action meanwhile: that action is unassigned.
+  const QString owner = padHotkeyAction(kDefaultPadModifier);
+  if (!owner.isEmpty()) padHotkeys_.insert(owner, QString());
+  padModifier_ = kDefaultPadModifier;
+  return save();
 }
 
 QList<ControllerProfile> ControllerProfiles::all() const {
@@ -467,6 +582,21 @@ bool ControllerProfiles::save() const {
     root.remove(QStringLiteral("hotkeys"));
   } else {
     root.insert(QStringLiteral("hotkeys"), hk);
+  }
+  QJsonObject ph;
+  for (const HotkeyDef& d : hotkeyDefs()) {
+    const QString b = padHotkeys_.value(d.id, d.defaultPad);
+    if (b != d.defaultPad) ph.insert(d.id, b.isEmpty() ? QStringLiteral("none") : b);
+  }
+  if (ph.isEmpty()) {
+    root.remove(QStringLiteral("padHotkeys"));
+  } else {
+    root.insert(QStringLiteral("padHotkeys"), ph);
+  }
+  if (padModifier_ == kDefaultPadModifier) {
+    root.remove(QStringLiteral("padHotkeyModifier"));
+  } else {
+    root.insert(QStringLiteral("padHotkeyModifier"), padModifier_);
   }
   QSaveFile f(path_);
   if (!f.open(QIODevice::WriteOnly)) {
