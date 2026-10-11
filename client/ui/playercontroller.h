@@ -34,6 +34,7 @@
 #include "hubsystems.h"
 #include "librarymodel.h"
 #include "playphase.h"
+#include "pluginscontroller.h"
 #include "playersettings.h"
 #include "romcache.h"
 #include "romdownloader.h"
@@ -100,6 +101,8 @@ class PlayerController : public QObject {
   Q_PROPERTY(framebeam::ui::UpdatesController* updates READ updates CONSTANT)
   // "Set up a Hub on this PC" (connection screen, pairing form, Settings > Hubs)
   Q_PROPERTY(framebeam::ui::LocalHubController* localHub READ localHub CONSTANT)
+  // Plugins (Settings > Plugins, Plugin console tab of the game panel)
+  Q_PROPERTY(framebeam::ui::PluginsController* plugins READ plugins CONSTANT)
   // Save slot picker, history/restore, snapshots, "save changed elsewhere" notice (ADR 0012 D7)
   Q_PROPERTY(framebeam::ui::SaveHistoryController* saveHistory READ saveHistory CONSTANT)
   // Log file path (empty when file logging is not active) and "open folder" (Settings)
@@ -154,6 +157,7 @@ class PlayerController : public QObject {
   SessionController* sessions() { return sessions_.get(); }
   UpdatesController* updates() { return updates_.get(); }
   LocalHubController* localHub() { return localHub_.get(); }
+  PluginsController* plugins() { return plugins_.get(); }
   SaveHistoryController* saveHistory() { return history_.get(); }
   QString logFile() const;
   QString deviceName() const;
@@ -319,6 +323,7 @@ class PlayerController : public QObject {
   std::unique_ptr<SessionController> sessions_;
   std::unique_ptr<UpdatesController> updates_;
   std::unique_ptr<LocalHubController> localHub_;
+  std::unique_ptr<PluginsController> plugins_;  // after settings_ and session_: destroyed before them
   std::unique_ptr<SaveHistoryController> history_;  // after saves_/conn_: destroyed first
   std::unique_ptr<EmulationController> emulation_;
   std::unique_ptr<ControllersController> controllers_;

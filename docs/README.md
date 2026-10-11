@@ -12,6 +12,7 @@ Start with the [root README](../README.md) for what FrameBeam is and a quick sta
 - [Updates and releases](guides/updates.md): channels, automatic updates, promoting a beta to a release, rollback
 - [Packaging](guides/packaging.md): Windows installer, Hub package
 - [Walkthrough](guides/walkthrough.md): try the main features
+- [Plugin API](guides/plugin-api.md): Lua API for Player plugins (0.11 runtime), developer mode
 
 ## Reference
 

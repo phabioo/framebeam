@@ -31,6 +31,8 @@ qt_add_qml_module(framebeam_ui
     updatescontroller.h updatescontroller.cpp
     savehistorycontroller.h savehistorycontroller.cpp
     localhubcontroller.h localhubcontroller.cpp
+    pluginruntime.h pluginruntime.cpp
+    pluginscontroller.h pluginscontroller.cpp
   QML_FILES
     Main.qml
     Theme.qml
@@ -93,9 +95,12 @@ qt_add_qml_module(framebeam_ui
     LocalHubForm.qml
     LocalHubCard.qml
     LocalFolderDialog.qml
+    PluginFolderDialog.qml
+    PluginsSection.qml
+    PluginConsole.qml
 )
 target_include_directories(framebeam_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(framebeam_ui PUBLIC framebeam_core framebeam_input framebeam_audioutil framebeam_media framebeam_emulation Qt6::Quick Qt6::QuickControls2 Qt6::Multimedia)
+target_link_libraries(framebeam_ui PUBLIC framebeam_core framebeam_input framebeam_audioutil framebeam_media framebeam_emulation framebeam_plugins framebeam_formats Qt6::Quick Qt6::QuickControls2 Qt6::Multimedia)
 framebeam_warnings(framebeam_ui)
 
 if(BUILD_TESTING)

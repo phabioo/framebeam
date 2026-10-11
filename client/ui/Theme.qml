@@ -105,6 +105,17 @@ QtObject {
     readonly property color rowHover: dark ? "#17181b" : "#f3f2ee"
     readonly property color borderGroup: dark ? "#34353a" : "#d9d7d1"
 
+    // Plugin warning tone (amber; tokens.md "Additions of the plugin handoff"): unverified, paused, problems, warn log lines.
+    readonly property color pluginWarn: dark ? "#e5b45a" : "#8a5a00"
+    readonly property color pluginWarnBg: dark ? "#2a2414" : "#f7ecd6"
+    readonly property color pluginWarnLine: dark ? "#4a3d1c" : "#ead6a8"
+    readonly property color pluginWarnText: dark ? "#e9d8b0" : "#6b4600"
+    // Same tone inside the game view, which stays dark in both themes.
+    readonly property color gamePluginWarn: "#e5b45a"
+    readonly property color gamePluginWarnBg: "#2a2414"
+    readonly property color gamePluginWarnLine: "#4a3d1c"
+    readonly property color gamePluginWarnText: "#e9d8b0"
+
     // Radii (tokens.md): 4, 5 (segment), 6, 7 (input, button), 8 (card, primary button), 9, 10 (Hub card), 11 (toggle), 12 (dialog),
     // 16 (filter chip).
     readonly property int radius4: 4

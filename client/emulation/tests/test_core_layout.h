@@ -40,5 +40,28 @@ enum DataIndex : int {
   DataCount
 };
 
+// Memory map the test core registers with SET_MEMORY_MAPS at retro_load_game (3DS-like virtual addresses), for the
+// plugin memory access tests. Two descriptors, each its own zeroed 1 MiB buffer, little-endian values:
+//   "heap"   at 0x08000000: +0x00 u32 magic kMagic ("FBMM"), +0x04 u32 frame counter (frames since load, updated in
+//                           every retro_run), +0x10 u32 virtual address of the party block (kPartyAddr).
+//   "linear" at 0x14000000: party block at 0x14000100: u32 slot count (kPartySlots), then kPartySlots slots of
+//                           kPartySlotSize bytes. fillParty() in test_core.cpp writes the block: each slot is a synthetic
+//                           encrypted PK6 party structure (makePk6, valid checksum), species kSpeciesBase + slot.
+namespace mem {
+constexpr uint64_t kHeapAddr = 0x08000000;
+constexpr uint64_t kLinearAddr = 0x14000000;
+constexpr uint64_t kRegionSize = 0x100000;  // 1 MiB each
+constexpr uint32_t kMagic = 0x4D4D4246;     // bytes "FBMM"
+constexpr uint64_t kMagicOff = 0x0;
+constexpr uint64_t kFrameOff = 0x4;
+constexpr uint64_t kPartyPtrOff = 0x10;
+constexpr uint32_t kPartyAddr = 0x14000100;
+constexpr uint32_t kPartySlots = 6;
+constexpr uint32_t kPartySlotSize = 260;
+constexpr uint8_t kSlotMarker = 0xA0;  // slot i, byte 0 (low byte of the unencrypted EC) = kSlotMarker + i
+constexpr uint32_t kSlotEcBase = 0x5A5A5A00;  // slot i EC = kSlotEcBase | (kSlotMarker + i)
+constexpr uint16_t kSpeciesBase = 1;          // slot i species (u16 at decrypted offset 0x08) = kSpeciesBase + i
+}  // namespace mem
+
 constexpr uint32_t pixel(uint32_t value24) { return 0xFF000000u | (value24 & 0xFFFFFFu); }
 }  // namespace framebeam::testcore

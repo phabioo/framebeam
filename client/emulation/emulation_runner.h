@@ -13,11 +13,14 @@
 #include <functional>
 #include <QWaitCondition>
 
+#include <algorithm>
 #include <atomic>
 #include <memory>
+#include <vector>
 
 #include "emulator_backend.h"
 #include "frame_stats.h"
+#include "memory_snapshot.h"
 
 namespace framebeam::emu {
 
@@ -93,6 +96,15 @@ class EmulationRunner : public QObject {
   void setSpeedUpAudio(bool on) { m_speedUpAudio.store(on); }
   bool speedUpAudio() const { return m_speedUpAudio.load(); }
 
+  // Plugin memory access: ranges registered here are copied into immutable snapshots on the emulation thread after
+  // each successful runFrame (every snapshotInterval frames), only while the set is non-empty and the backend has a
+  // memory map. Always non-null, lives as long as the runner.
+  std::shared_ptr<MemoryWatchSet> memoryWatch() const { return m_memoryWatch; }
+  void setSnapshotInterval(int frames) { m_snapshotInterval.store((std::max)(1, frames)); }
+  int snapshotInterval() const { return m_snapshotInterval.load(); }
+  // The game's memory regions (thread-safe copy), taken after the game loaded; empty when none or not running.
+  std::vector<MemoryMap::RegionInfo> memoryRegions() const;
+
   // Diagnostics (thread-safe, cheap): measured frame timing of the emulation thread and how the core renders.
   FrameTimingStats::Snapshot timing() const;
   RenderInfo renderInfo() const { return m_backend->renderInfo(); }
@@ -123,6 +135,10 @@ class EmulationRunner : public QObject {
   std::atomic<bool> m_fastForward{false};
   std::atomic<double> m_ratio{kDefaultSpeedUpRatio};
   std::atomic<bool> m_speedUpAudio{true};
+  std::shared_ptr<MemoryWatchSet> m_memoryWatch = std::make_shared<MemoryWatchSet>();
+  std::atomic<int> m_snapshotInterval{1};
+  mutable QMutex m_regionsMutex;
+  std::vector<MemoryMap::RegionInfo> m_regions;
 };
 
 }  // namespace framebeam::emu

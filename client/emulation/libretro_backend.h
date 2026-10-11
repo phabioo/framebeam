@@ -57,6 +57,7 @@ class LibretroBackend final : public EmulatorBackend {
   qint64 saveMemorySize() const override;
   // GUI thread, before the emulation thread starts: creates the offscreen surface for hardware rendering.
   void prepareForStart() override;
+  const MemoryMap* memoryMap() const override { return m_memMap.empty() ? nullptr : &m_memMap; }
 
   QImage videoFrame() const override;
   quint64 frameCount() const override;
@@ -145,6 +146,7 @@ class LibretroBackend final : public EmulatorBackend {
   QByteArray m_corePathUtf8;
   QByteArray m_gameData;  // lives until unloadGame (the core may hold pointers)
   QByteArray m_gamePathUtf8;
+  MemoryMap m_memMap;  // from SET_MEMORY_MAPS or the SYSTEM_RAM fallback; emulation thread
   QString m_loadedPath;  // path of the loaded game (for the live save reload)
 
   std::unique_ptr<HwRenderContext> m_hw;
@@ -166,7 +168,7 @@ class LibretroBackend final : public EmulatorBackend {
   std::atomic<bool> m_lastGpuCaptured{false};
   std::atomic<bool> m_videoWanted{true};
   static quint64 pack(const QSize& s) {
-    return (static_cast<quint64>(static_cast<quint32>(std::max(0, s.width()))) << 32) | static_cast<quint32>(std::max(0, s.height()));
+    return (static_cast<quint64>(static_cast<quint32>((std::max)(0, s.width()))) << 32) | static_cast<quint32>((std::max)(0, s.height()));
   }
   static QSize unpack(quint64 v) { return QSize(static_cast<int>(v >> 32), static_cast<int>(v & 0xFFFFFFFFu)); }
   std::atomic<quint64> m_readbackLimit{0};  // packed QSize (0 = none)

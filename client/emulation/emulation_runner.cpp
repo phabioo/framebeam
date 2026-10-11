@@ -80,6 +80,12 @@ class EmulationRunner::Worker : public QThread {
       emit m_owner->startFailed(err);
       return;
     }
+    {
+      std::vector<MemoryMap::RegionInfo> regions;
+      if (const MemoryMap* mm = be.memoryMap()) regions = mm->regions();
+      QMutexLocker rl(&m_owner->m_regionsMutex);
+      m_owner->m_regions = std::move(regions);
+    }
     const AvInfo av = be.avInfo();
     int rate = static_cast<int>(std::lround(av.sampleRate));
     double fps = av.fps > 1.0 ? av.fps : 60.0;
@@ -94,6 +100,7 @@ class EmulationRunner::Worker : public QThread {
     bool wasPaused = false;
     bool wasFast = false;
     double audioPhase = 0.0;
+    int framesSinceSnapshot = 1 << 30;  // first frame after a watch is registered is captured at once
     while (true) {
       {
         QMutexLocker l(&m_mutex);
@@ -125,6 +132,12 @@ class EmulationRunner::Worker : public QThread {
       const bool frameOk = be.runFrame();
       const double frameMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - frameStart).count();
       if (frameOk) m_owner->m_timing.recordFrame(monotonicMs(), frameMs, be.lastReadbackMs(), be.lastGpuCopyMs(), be.lastGpuCaptured());
+      if (frameOk && !m_owner->m_memoryWatch->empty()) {  // no lock is held here: the core is not running
+        if (++framesSinceSnapshot >= m_owner->m_snapshotInterval.load()) {
+          framesSinceSnapshot = 0;
+          if (const MemoryMap* mm = be.memoryMap()) m_owner->m_memoryWatch->capture(*mm, be.frameCount());
+        }
+      }
       if (!frameOk) {
         emit m_owner->errorOccurred(QStringLiteral("Core stopped execution"));
         break;
@@ -160,7 +173,7 @@ class EmulationRunner::Worker : public QThread {
       // Too far behind: resynchronize. At normal speed catch-up is limited to 2 frames, so a late frame never turns into
       // a long burst (average = target; the measured fps stays near it). Sped up, a coarse timer may oversleep by more than 5 short steps, which
       // would drop the catch-up and cap the speed, so the limit is at least 100 ms there.
-      const auto maxBehind = fast ? std::max<std::chrono::steady_clock::duration>(5 * step, std::chrono::milliseconds(100)) : 2 * step;
+      const auto maxBehind = fast ? (std::max<std::chrono::steady_clock::duration>)(5 * step, std::chrono::milliseconds(100)) : 2 * step;
       if (next < now - maxBehind) next = now;
       QMutexLocker l(&m_mutex);
       while (!m_stop && !m_paused && !m_reset && m_tasks.empty()) {
@@ -176,6 +189,10 @@ class EmulationRunner::Worker : public QThread {
       QMutexLocker l(&m_mutex);
       m_exited = true;  // waiting callers give up
       m_doneCond.wakeAll();
+    }
+    {
+      QMutexLocker rl(&m_owner->m_regionsMutex);
+      m_owner->m_regions.clear();
     }
     be.unloadGame();
     be.unloadCore();
@@ -286,7 +303,7 @@ QByteArray EmulationRunner::resampleForSpeedUp(const QByteArray& pcm, double rat
   double pos = phase ? *phase : 0.0;
   while (pos < static_cast<double>(n)) {
     const qsizetype i = static_cast<qsizetype>(pos);
-    const qsizetype j = std::min<qsizetype>(i + 1, n - 1);
+    const qsizetype j = (std::min<qsizetype>)(i + 1, n - 1);
     const double f = pos - static_cast<double>(i);
     for (int ch = 0; ch < 2; ++ch) {
       const qint16 v = static_cast<qint16>(std::lround(in[2 * i + ch] * (1.0 - f) + in[2 * j + ch] * f));
@@ -305,6 +322,11 @@ void EmulationRunner::stop() {
   m_worker.reset();
   setState(State::Idle);
   emit stopped();
+}
+
+std::vector<MemoryMap::RegionInfo> EmulationRunner::memoryRegions() const {
+  QMutexLocker l(&m_regionsMutex);
+  return m_regions;
 }
 
 FrameTimingStats::Snapshot EmulationRunner::timing() const { return m_timing.snapshot(monotonicMs()); }

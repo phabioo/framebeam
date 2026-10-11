@@ -28,6 +28,7 @@ Rectangle {
         case "hubs": return secHubs
         case "appearance": return secAppearance
         case "storage": return secStorage
+        case "plugins": return secPlugins
         case "diagnostics": return secDiagnostics
         default: return secUpdates
         }
@@ -45,7 +46,7 @@ Rectangle {
         }
         const probe = flick.contentY + 80
         let best = "updates"
-        for (const n of ["updates", "hubs", "appearance", "storage", "diagnostics"]) {
+        for (const n of ["updates", "hubs", "appearance", "storage", "plugins", "diagnostics"]) {
             if (sectionItem(n).y + content.y <= probe) {
                 best = n
             }
@@ -90,6 +91,7 @@ Rectangle {
                     { id: "hubs", name: qsTr("Hubs") },
                     { id: "appearance", name: qsTr("Appearance") },
                     { id: "storage", name: qsTr("ROM cache") },
+                    { id: "plugins", name: qsTr("Plugins") },
                     { id: "diagnostics", name: qsTr("Diagnostics") }
                 ]
                 delegate: ColumnItem {
@@ -112,6 +114,7 @@ Rectangle {
                               : sec.modelData.id === "appearance" ? (root.player.appearance === "light" ? qsTr("Light")
                                                                      : root.player.appearance === "system" ? qsTr("System") : qsTr("Dark"))
                               : sec.modelData.id === "storage" ? qsTr("%1 of %2").arg(root.player.romCache.usedText).arg(root.player.romCache.limitText)
+                              : sec.modelData.id === "plugins" ? root.player.plugins.summary
                               : qsTr("Logs and support")
                     }
                 }
@@ -717,6 +720,14 @@ Rectangle {
                             }
                         }
                     }
+                }
+
+                // ------------------------------------------------------------------ PLUGINS
+                PluginsSection {
+                    id: secPlugins
+                    objectName: "pluginsSection"
+                    Layout.fillWidth: true
+                    player: root.player
                 }
 
                 // ------------------------------------------------------------------ DIAGNOSTICS

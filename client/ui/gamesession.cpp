@@ -72,6 +72,7 @@ void GameSession::launch(const LaunchConfig& config, bool restart) {
 
   runner_ = std::make_unique<EmulationRunner>(std::make_unique<emu::LibretroBackend>());
   runner_->setReadbackLimit(limit_);
+  if (restart) emit memoryWatchReplaced();
   if (gpuTarget_) {
     runner_->setGpuEncodeTarget(gpuTarget_);  // applied by the emulation thread at its first frame
   }

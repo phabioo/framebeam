@@ -145,6 +145,12 @@ class GameSession : public QObject {
 
   void start(const LaunchConfig& config);
 
+  // Plugins: the memory watch set of the running core (null without a runner) and the memory regions the core exposes
+  // (empty without a game or memory map). A live-save restart creates a new runner: memoryWatchReplaced() then fires so the
+  // plugin memory adapter can attach to the new set.
+  std::shared_ptr<emu::MemoryWatchSet> memoryWatch() const { return runner_ ? runner_->memoryWatch() : nullptr; }
+  std::vector<emu::MemoryMap::RegionInfo> memoryRegions() const { return runner_ ? runner_->memoryRegions() : std::vector<emu::MemoryMap::RegionInfo>(); }
+
   Q_INVOKABLE void pause();
   Q_INVOKABLE void resume();
   Q_INVOKABLE void togglePause();
@@ -187,6 +193,7 @@ class GameSession : public QObject {
   void startFailed(const QString& msg);  // failed before the first frame
   void saveWriteFailed();                // an explicit save flush failed: the save file may be stale
   void finished();                       // after stop()
+  void memoryWatchReplaced();            // a new runner (live-save restart) has a new memory watch set
   void audioChunk(const QByteArray& pcm, int sampleRate);  // core audio (int16 stereo), also while muted (Session share)
 
  private:

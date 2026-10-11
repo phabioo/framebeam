@@ -18,6 +18,7 @@ constexpr const char* kUpdateChannelKey = "update_channel";
 constexpr const char* kUpdateChannelDefaultKey = "update_channel_default";
 constexpr const char* kUpdateAutoKey = "update_auto_install";
 constexpr const char* kDiagOpenKey = "diagnostics_open";
+constexpr const char* kDeveloperModeKey = "developer_mode";
 constexpr const char* kDiagEmulationKey = "diagnostics_emulation_open";
 constexpr const char* kDiagStreamingKey = "diagnostics_streaming_open";
 constexpr const char* kSessionVisibilityKey = "session_visibility";
@@ -45,6 +46,7 @@ PlayerSettings::PlayerSettings(const QString& baseDir)
     updateAutoInstall_ = raw_.value(QLatin1String(kUpdateAutoKey)).toBool();
   }
   diagOpen_ = raw_.value(QLatin1String(kDiagOpenKey)).toBool(false);
+  developerMode_ = raw_.value(QLatin1String(kDeveloperModeKey)).toBool(false);
   diagEmulationOpen_ = raw_.value(QLatin1String(kDiagEmulationKey)).toBool(true);
   diagStreamingOpen_ = raw_.value(QLatin1String(kDiagStreamingKey)).toBool(true);
   const QString sort = raw_.value(QLatin1String(kLibrarySortKey)).toString();
@@ -112,6 +114,12 @@ bool PlayerSettings::setUpdateAutoInstall(bool on) {
 bool PlayerSettings::setDiagnosticsOpen(bool open) {
   diagOpen_ = open;
   raw_.insert(QLatin1String(kDiagOpenKey), open);
+  return save();
+}
+
+bool PlayerSettings::setDeveloperMode(bool on) {
+  developerMode_ = on;
+  raw_.insert(QLatin1String(kDeveloperModeKey), on);
   return save();
 }
 

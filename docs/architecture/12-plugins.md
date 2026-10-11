@@ -1,8 +1,10 @@
-# Architecture: plugins (planned)
+# Architecture: plugins (runtime implemented, rest planned)
 
-## 16. Plugin interface [Planned for 0.11 – not implemented]
+## 16. Plugin interface [0.11: runtime implemented, rest planned]
 
-Status: design only. Decisions: [ADR 0023](../adr/0023-plugins.md) (proposed). Screens and building-block sheet: [design/plugins.md](../design/plugins.md). Nothing here exists in code yet; where this file names code, it names today's extension points. Open items are marked **open**.
+Status: package 1 (plugin runtime in the Player) is implemented; everything else here (UI building blocks and slots, Hub plugins and runs, `.fbplugin` files, signing, plugin index, `memory.write`, `tool.exec`, settings schema, UI language) is still design only. What the runtime implements today is described in [guides/plugin-api.md](../guides/plugin-api.md). Decisions: [ADR 0023](../adr/0023-plugins.md) (proposed). Screens and building-block sheet: [design/plugins.md](../design/plugins.md). Sections 16.3 (runtime), the memory rows of 16.2 and the local install are built; for the rest, where this file names code, it names today's extension points. Open items are marked **open**.
+
+Decided defaults of the runtime (package 1): plugins run only with developer mode on (Settings → Plugins); the only install paths are local folders (copy or linked dev folder with live reload), all unsigned; Lua 5.4.7 is vendored in `client/plugins/third_party/`; plugins resolve (`requires`/`provides`) once at game start; the plugin tick is limited to 30 Hz by default (`tickHz`); budgets per entry call are 20M instructions / 500 ms and 64 MiB per state.
 
 Principle: FrameBeam stays a generic emulator Player. Everything game-specific (for example Pokémon SoulLink/Nuzlocke runs) lives in plugins. The Hub manages (plugins, run state), the Player emulates (reads memory, shows UI).
 
@@ -31,10 +33,10 @@ Non-goals:
 
 | Area | Where | Today | Needed |
 |---|---|---|---|
-| Memory | `client/emulation/libretro_backend.cpp` | Resolves `retro_get_memory_data/size`, uses only `RETRO_MEMORY_SAVE_RAM`; rejects `RETRO_ENVIRONMENT_SET_MEMORY_MAPS` (~line 825) | Accept memory maps, expose system RAM and mapped regions through a new method on the backend interface |
-| Backend interface | `client/emulation/emulator_backend.h` (`EmulatorBackend`) | No memory access | Read access by virtual address |
-| Threading | `EmulationRunner` | Memory is valid only on the emulation thread | Snapshot copy after `runFrame()` every N frames; the plugin thread works on the copy |
-| Game start | `GameStarter::launch` in `client/ui/gamestarter.cpp` | Knows game, ROM path, SHA-256 | Also provide the header game code (GB/GBA header, NDS game code, 3DS title ID) |
+| Memory | `client/emulation/libretro_backend.cpp`, `memory_map.h` | Implemented: accepts `RETRO_ENVIRONMENT_SET_MEMORY_MAPS`; descriptors with `select` 0 match by address range; fallback when a core gives no map: `RETRO_MEMORY_SYSTEM_RAM` mapped at address 0. `RETRO_MEMORY_SAVE_RAM` is used as before | Open: whether the buildbot Azahar build exposes the map and covers ORAS data (local check with the Plugin console) |
+| Backend interface | `client/emulation/emulator_backend.h` (`EmulatorBackend`) | Implemented: memory map access and watch set (`MemoryWatchSet`, `MemorySnapshot` in `memory_snapshot.h`) | - |
+| Threading | `EmulationRunner` | Implemented: merged watched ranges are copied after `runFrame()` every N frames (default every frame; limits 4 MiB per range, 16 MiB per tick); the plugin thread works on the copy | - |
+| Game start | `GameStarter::launch` in `client/ui/gamestarter.cpp` | Implemented: `game_identity.h` provides the NDS game code and the 3DS title ID | Open: GB/GBA header code (needs those systems) |
 | Saves | keyed by `romSha256` (`gamestarter.cpp`) | A changed ROM (for example externally randomized) gets its own saves | Unchanged; "never overwrite saves silently" stays |
 | Hub channel | WSS envelope, `protocol/schemas/ws-envelope.schema.json` (`type` + `payload`) | No plugin messages | New message types for plugin/run state and events |
 | Peer channel | DataChannel `fb-diag` | Exists only while someone watches the Session | Not suitable for run state |
