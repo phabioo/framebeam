@@ -218,10 +218,20 @@ class PluginsRuntimeUiTest : public QObject {
     QVERIFY(PluginImageProvider::resolve(src, "p/cache/icons/25.jpg", &err).isEmpty());
     QVERIFY(PluginImageProvider::resolve(src, "p/other/icons/25.png", &err).isEmpty());
     QVERIFY(PluginImageProvider::resolve(src, "p/cache/missing.png", &err).isEmpty());
+#ifndef Q_OS_WIN  // QFile::link makes a .lnk shortcut on Windows, not a symlink; the provider never follows .lnk files
     if (linked) {
       QVERIFY(PluginImageProvider::resolve(src, "p/cache/link.png", &err).isEmpty());
       QVERIFY2(err.contains("leaves the plugin folder"), qPrintable(err));
     }
+#else
+    // A .lnk shortcut is just a file of non-PNG bytes: it is never followed and loading it fails as "not a PNG".
+    if (linked) {
+      const QString lnk = cache + "/link.png.lnk";
+      QVERIFY(QFileInfo::exists(lnk));
+      QVERIFY(PluginImageProvider::loadPng(lnk, &err).isNull());
+      QVERIFY(!err.isEmpty());
+    }
+#endif
 
     const QImage img = PluginImageProvider::loadPng(cache + "/icons/25.png", &err);
     QCOMPARE(img.size(), QSize(8, 6));

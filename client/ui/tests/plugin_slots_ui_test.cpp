@@ -259,11 +259,13 @@ class PluginSlotsUiTest : public QObject {
     QTRY_VERIFY(visibleItem("navPluginBadge") != nullptr);
     QCOMPARE(textOf(visibleItem("navPluginBadge")), QStringLiteral("2"));
     // The entry sits between Library and Emulation, indented.
-    QQuickItem* lib = h_.item("navLibrary");
-    QQuickItem* ent = h_.item("navPlugin_net.test.runs");
-    QQuickItem* emu = h_.item("navEmulation");
-    QVERIFY(lib->mapToScene(QPointF(0, 0)).y() < ent->mapToScene(QPointF(0, 0)).y());
-    QVERIFY(ent->mapToScene(QPointF(0, 0)).y() < emu->mapToScene(QPointF(0, 0)).y());
+    QQuickItem* lib = visibleItem("navLibrary");
+    QQuickItem* ent = visibleItem("navPlugin_net.test.runs");
+    QQuickItem* emu = visibleItem("navEmulation");
+    QVERIFY(lib != nullptr && ent != nullptr && emu != nullptr);
+    QQuickTest::qWaitForPolish(h_.window);
+    QTRY_VERIFY(lib->mapToScene(QPointF(0, 0)).y() < ent->mapToScene(QPointF(0, 0)).y());
+    QTRY_VERIFY(ent->mapToScene(QPointF(0, 0)).y() < emu->mapToScene(QPointF(0, 0)).y());
 
     QVERIFY(h_.click("navPlugin_net.test.runs"));
     QTRY_COMPARE(h_.controller->screen(), QStringLiteral("plugin"));
@@ -299,6 +301,10 @@ class PluginSlotsUiTest : public QObject {
   }
 
   void hostNoticeWhenPluginPauses() {
+    // Isolation: nothing of the previous test may still run (the shell set restarts asynchronously).
+    for (const QVariant& p : pc()->plugins()) pc()->setPluginEnabled(p.toMap().value("id").toString(), false);
+    QTRY_VERIFY_WITH_TIMEOUT(pc()->sidebarEntries().isEmpty() && !pc()->shellRunning(), 10000);
+    pc()->setPreviewUi({});
     QVERIFY(!writePlugin(src_.path(), "net.test.boom", "Boom Plugin", QJsonObject{{"screen", QJsonObject{{"title", "Boom"}}}}, kBoomLua).isEmpty());
     const auto r = pc()->manager()->installFromFolder(src_.filePath(QStringLiteral("net.test.boom")));
     QVERIFY2(r.ok, qPrintable(r.error));
@@ -314,7 +320,7 @@ class PluginSlotsUiTest : public QObject {
     QCOMPARE(acts.size(), 2);  // developer mode is on: "Details" too
     pc()->dismissToast(t.value("toastId").toInt());
     pc()->setPluginEnabled(QStringLiteral("net.test.boom"), false);
-    QTRY_VERIFY_WITH_TIMEOUT(pc()->sidebarEntries().isEmpty(), 10000);
+    QTRY_VERIFY_WITH_TIMEOUT(pc()->sidebarEntries().isEmpty() && !pc()->shellRunning(), 10000);
     pc()->setPreviewUi({});  // leaves nothing behind
     QCOMPARE(pc()->toasts().size(), 0);
   }
@@ -337,7 +343,8 @@ class PluginSlotsUiTest : public QObject {
 
   void panelTabsFitAndOverflow() {
     // No plugin tabs: no tab bar.
-    QVERIFY(!h_.item("panelTabBar")->isVisible());
+    QVERIFY(pc()->panelTabs().isEmpty() && !pc()->consoleAvailable());
+    QTRY_VERIFY(!h_.item("panelTabBar")->isVisible());
 
     // One plugin tab: labels for both; the panel content is the plugin's tree.
     QVariantMap trees{{"net.test.a|panel", json(R"({"type":"column","gap":8,"children":[
