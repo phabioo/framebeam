@@ -913,6 +913,7 @@ void SessionHost::startEncoder() {
       });
   keyframePending_ = false;  // a fresh encoder starts with a keyframe anyway
   lastEncodeNs_ = 0;
+  lastStampNs_ = 0;
   clock_.restart();
   statsClock_.restart();
   lastStatFrames_ = lastStatVideoBytes_ = lastStatAudioBytes_ = 0;
@@ -940,22 +941,22 @@ void SessionHost::stopEncoder() {
   emit encoderRunningChanged(false);
 }
 
-void SessionHost::pushFrame(const QImage& image) {
+void SessionHost::pushFrame(const QImage& image, qint64 lateNs) {
   if (!open_ || viewers_.isEmpty() || image.isNull()) {
     return;
   }
   if (image.format() == QImage::Format_RGB32 || image.format() == QImage::Format_ARGB32 ||
       image.format() == QImage::Format_ARGB32_Premultiplied) {
-    pushFrame(image.constBits(), image.width(), image.height(), static_cast<int>(image.bytesPerLine()), RawPixelFormat::Xrgb8888);
+    pushFrame(image.constBits(), image.width(), image.height(), static_cast<int>(image.bytesPerLine()), RawPixelFormat::Xrgb8888, lateNs);
   } else if (image.format() == QImage::Format_RGB16) {
-    pushFrame(image.constBits(), image.width(), image.height(), static_cast<int>(image.bytesPerLine()), RawPixelFormat::Rgb565);
+    pushFrame(image.constBits(), image.width(), image.height(), static_cast<int>(image.bytesPerLine()), RawPixelFormat::Rgb565, lateNs);
   } else {
     const QImage conv = image.convertToFormat(QImage::Format_RGB32);
-    pushFrame(conv.constBits(), conv.width(), conv.height(), static_cast<int>(conv.bytesPerLine()), RawPixelFormat::Xrgb8888);
+    pushFrame(conv.constBits(), conv.width(), conv.height(), static_cast<int>(conv.bytesPerLine()), RawPixelFormat::Xrgb8888, lateNs);
   }
 }
 
-void SessionHost::pushFrame(const uint8_t* data, int width, int height, int stride, RawPixelFormat format) {
+void SessionHost::pushFrame(const uint8_t* data, int width, int height, int stride, RawPixelFormat format, qint64 lateNs) {
   if (!open_ || viewers_.isEmpty() || encoderFailed_ || data == nullptr || width <= 0 || height <= 0) {
     return;  // encoding only while somebody watches
   }
@@ -988,12 +989,13 @@ void SessionHost::pushFrame(const uint8_t* data, int width, int height, int stri
     keyframePending_ = false;
     worker_->requestKeyframe();
   }
-  worker_->pushVideo(data, width, height, stride, format, nowNs);  // copies; encoding happens on the worker thread
+  lastStampNs_ = streamTimestamp(nowNs, lateNs, lastStampNs_);
+  worker_->pushVideo(data, width, height, stride, format, lastStampNs_);  // copies; encoding happens on the worker thread
 }
 
 // ---------------------------------------------------------------- GPU-direct input (ADR 0019)
 
-void SessionHost::pushGpuFrame(std::shared_ptr<AVFrame> frame) {
+void SessionHost::pushGpuFrame(std::shared_ptr<AVFrame> frame, qint64 lateNs) {
   if (!frame || !open_ || !encoderRunning_ || !worker_ || encoderFailed_ || gpuInputOff_ || !gpuConfigured_) {
     return;  // never starts the encoder: only readback frames do
   }
@@ -1009,7 +1011,8 @@ void SessionHost::pushGpuFrame(std::shared_ptr<AVFrame> frame) {
     keyframePending_ = false;
     worker_->requestKeyframe();
   }
-  worker_->pushGpuVideo(std::move(frame), nowNs);
+  lastStampNs_ = streamTimestamp(nowNs, lateNs, lastStampNs_);
+  worker_->pushGpuVideo(std::move(frame), lastStampNs_);
 }
 
 bool SessionHost::gpuInputAllowed() const {

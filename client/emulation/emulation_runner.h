@@ -116,7 +116,9 @@ class EmulationRunner : public QObject {
   void started(const framebeam::emu::AvInfo& av, const framebeam::emu::CoreInfo& core);
   void startFailed(const QString& error);
   // Frame in QImage::Format_RGB32 (XRGB8888); implicitly shared, do not modify.
-  void frameReady(const QImage& frame, quint64 frameNumber);
+  // lateNs: during speed-up how long after its base-rate slot the frame is delivered (0 at normal speed); the Session
+  // backdates its timestamp by it so the stream stays evenly spaced.
+  void frameReady(const QImage& frame, quint64 frameNumber, qint64 lateNs);
   // Interleaved stereo int16, native endian; sampleRate in Hz (from the core).
   void audioReady(const QByteArray& pcm, int sampleRate);
   void stateChanged(framebeam::emu::EmulationRunner::State state);

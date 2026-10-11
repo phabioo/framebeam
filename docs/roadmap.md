@@ -296,7 +296,7 @@ In the test of 2026-10-11 most WebRTC connections ran relayed over TURN. Cause f
 ### 2. Small items
 
 - [x] Done: gamepad hotkeys: each Player hotkey has an optional gamepad binding next to its key (Controllers → Hotkeys, "Gamepad" column): the hotkey button (default Select, configurable) held plus a button; defaults Select+RB speed-up, Select+LB snapshot, Select+R3 diagnostics, fullscreen unbound (there is no pause action, so Select+Start stays unbound). A single button without the hotkey button can be bound too. The combo button never reaches the core, the hotkey button still does; P1 only. Stored in `settings/controllers.json` (`padHotkeys`, `padHotkeyModifier`, only non-default entries). Hints show the gamepad combo while a gamepad was the last input used. Not tried with a real gamepad yet (SDL virtual joysticks only).
-- Open: speed-up frame loss for viewers.
+- [x] Done in code: speed-up frame loss for viewers: during speed-up the Session gets evenly spaced base-rate frames with wall-clock timestamps backdated to the base-rate slot (`FramePacer`, ADR 0018 amendment 2026-10-11).
 - Open: repo-scan leftovers: core probe off the GUI thread, virtualized library grid, save errors on stop.
 - Open: save slots rename and delete (Player and Hub); block save upload while a session of that game runs.
 - [x] Done: invite link port fix: `-public-host` (env, Settings → Network) accepts an optional external port (`hub.example.org:8443`, IPv6 in brackets) that invite links and the Player address use; TURN/STUN keep the host part.

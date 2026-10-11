@@ -64,6 +64,7 @@ framebeam_add_test(media_opus_depacketizer tests/opusdepacketizer_test.cpp LIBS 
 framebeam_add_test(media_loopback tests/loopback_test.cpp LIBS framebeam_media)
 framebeam_add_test(media_bitrate tests/bitratecontroller_test.cpp LIBS framebeam_media)
 framebeam_add_test(media_rtcutil tests/rtcutil_test.cpp LIBS framebeam_media)
+framebeam_add_test(media_stream_timestamp tests/stream_timestamp_test.cpp LIBS framebeam_media)
 
 # GPU-direct encoding (ADR 0019): CUDA driver loader, CudaGlCapture and the CUDA input of VideoEncoder.
 # media_cuda: pure (loader, error codes, encoder helpers). media_cuda_gl_capture: the real CudaGlCapture on a fake CUDA
