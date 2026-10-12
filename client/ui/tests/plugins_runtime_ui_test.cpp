@@ -225,9 +225,12 @@ class PluginsRuntimeUiTest : public QObject {
     }
 #else
     // A .lnk shortcut is just a file of non-PNG bytes: it is never followed and loading it fails as "not a PNG".
-    if (linked) {
-      const QString lnk = cache + "/link.png.lnk";
-      QVERIFY(QFileInfo::exists(lnk));
+    {
+      const QString lnk = cache + "/shortcut.png";
+      QFile f(lnk);
+      QVERIFY(f.open(QIODevice::WriteOnly));
+      f.write(QByteArray("L\0\0\0\x01\x14\x02\0", 8));  // .lnk header bytes
+      f.close();
       QVERIFY(PluginImageProvider::loadPng(lnk, &err).isNull());
       QVERIFY(!err.isEmpty());
     }
