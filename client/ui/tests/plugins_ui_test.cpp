@@ -7,11 +7,13 @@
 #include <QtTest>
 
 #include "fakehub.h"
+#include "fbplugin_testutil.h"
 #include "testsupport.h"
 
 using namespace framebeam;
 using namespace framebeam::ui;
 using uitest::Harness;
+using namespace framebeam::plugins::testutil;
 
 namespace {
 
@@ -253,6 +255,178 @@ class PluginsUiTest : public QObject {
     pc->setPreviewConsole({});
     QTRY_VERIFY(h.item("panelTabBar") == nullptr || !h.item("panelTabBar")->isVisible());
     QVERIFY(h.item("sharingBlock") != nullptr && h.item("sharingBlock")->isVisible());
+  }
+
+  // Hub delivery in Settings > Plugins: browse, install (official and unverified), origin pills, the warning before an
+  // unverified plugin is turned on, local files, a failed download. Synthetic plugin files only.
+  void hubPluginsAndOrigins() {
+    const TestKey key = fixedTestKey();
+    FakeHub hub(QStringLiteral("a"));
+    hub.hubId = QStringLiteral("hub-pl2");
+    hub.name = QStringLiteral("Home");
+    hub.decision = FakeHub::Decision::Approve;
+    hub.features = {QStringLiteral("saves_v1"), QStringLiteral("plugins_v1")};
+    const auto offer = [&hub](const FbSpec& spec, const QByteArray& served = {}) {
+      const QByteArray file = makeFbPlugin(spec);
+      hub.pluginList.append(QJsonObject{{"plugin_id", spec.id}, {"version", spec.version}, {"name", spec.name}, {"description", "Does a thing"},
+                                        {"api", 1}, {"origin", spec.sign ? "official" : "unverified"}, {"sha256", sha256Hex(file)},
+                                        {"size", file.size()}, {"permissions", QJsonArray::fromStringList(spec.permissions)},
+                                        {"created_at", "2026-10-12T10:00:00Z"}});
+      hub.pluginFiles.insert(spec.id + "/" + spec.version, served.isNull() ? file : served);
+    };
+    FbSpec official;
+    official.id = "net.example.official";
+    official.name = "Official Tracker";
+    official.sign = true;
+    official.permissions = {"memory.read", "ui"};
+    FbSpec community;
+    community.id = "net.example.community";
+    community.name = "Community Helper";
+    community.permissions = {"memory.read", "run.state"};
+    FbSpec broken;
+    broken.id = "net.example.broken";
+    broken.name = "Broken Download";
+    FbSpec brokenServed = broken;
+    brokenServed.lua = "fb.log.info('HELLO')\n";  // same length: the size check passes, the SHA-256 pin does not
+    offer(official);
+    offer(community);
+    offer(broken, makeFbPlugin(brokenServed));
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    PluginsController* pc = h.controller->plugins();
+    pc->manager()->setTrustedKeys({key.pub});
+    QTRY_VERIFY_WITH_TIMEOUT(pc->hubSupported(), 8000);
+    QTRY_COMPARE_WITH_TIMEOUT(pc->hubPlugins().size(), 3, 8000);
+
+    gotoPlugins(h);
+    QVERIFY(h.item("pluginBrowseButton")->isVisible());
+    QVERIFY(!h.item("hubPluginsPanel")->isVisible());
+    QVERIFY(h.click("pluginBrowseButton"));
+    QTRY_VERIFY(h.item("hubPluginsPanel")->isVisible());
+    QTRY_VERIFY(h.item("hubPluginRow_net.example.official") != nullptr);
+    QCOMPARE(h.item("hubPluginsTitle")->property("text").toString(), QStringLiteral("On your Hub · 3"));
+    QStringList pills;
+    for (QQuickItem* i : h.items("hubPluginOrigin")) pills << i->property("text").toString();
+    QVERIFY(pills.contains(QStringLiteral("✓ Official")));
+    QVERIFY(pills.contains(QStringLiteral("! Hub upload · unverified")));
+    shot(h, QStringLiteral("4a-plugins-hub-browse"));
+    h.controller->setAppearance(QStringLiteral("light"));
+    shot(h, QStringLiteral("4a-plugins-hub-browse-light"));
+    h.controller->setAppearance(QStringLiteral("dark"));
+
+    // Install the official one (first row): it needs no Developer mode and stays off until turned on.
+    QVERIFY(!pc->developerMode());
+    QVERIFY(h.click("hubPluginInstall"));
+    QTRY_VERIFY_WITH_TIMEOUT(pc->plugins().size() == 1, 8000);
+    QVERIFY2(!pc->messageIsError(), qPrintable(pc->message()));
+    QVERIFY(pc->message().startsWith(QStringLiteral("Installed Official Tracker 1.0.0 from your Hub")));
+    QVariantMap row = pc->plugins().value(0).toMap();
+    QCOMPARE(row.value("origin").toString(), QStringLiteral("official"));
+    QCOMPARE(row.value("originText").toString(), QStringLiteral("✓ Official"));
+    QVERIFY(!row.value("enabled").toBool());
+    QVERIFY(row.value("canToggle").toBool());
+    QVERIFY(row.value("problemsText").toString().isEmpty());  // runs without Developer mode
+    QVERIFY(!row.value("needsConfirm").toBool());
+    QTRY_COMPARE(pc->hubPlugins().value(0).toMap().value("state").toString(), QStringLiteral("installed"));
+    QCOMPARE(pc->hubPlugins().value(1).toMap().value("state").toString(), QStringLiteral("install"));
+    QTRY_COMPARE(h.item("pluginOrigin")->property("text").toString(), QStringLiteral("✓ Official"));
+    pc->setPluginEnabled(QStringLiteral("net.example.official"), true);
+    QVERIFY(pc->plugins().value(0).toMap().value("enabled").toBool());
+    QCOMPARE(h.item("sectionStatus_plugins")->property("text").toString(), QStringLiteral("1 on"));
+    // Remove it again so that the next row is the only toggle on the screen.
+    pc->uninstall(QStringLiteral("net.example.official"));
+    QTRY_COMPARE(pc->plugins().size(), 0);
+
+    // The unverified Hub upload: pill, warning before it is turned on, still no Developer mode needed.
+    pc->installHubPlugin(QStringLiteral("net.example.community"), QStringLiteral("1.0.0"));
+    QTRY_VERIFY_WITH_TIMEOUT(pc->plugins().size() == 1, 8000);
+    QVERIFY(pc->message().contains(QStringLiteral("FrameBeam has not checked this plugin")));
+    row = pc->plugins().value(0).toMap();
+    QCOMPARE(row.value("origin").toString(), QStringLiteral("unverified"));
+    QCOMPARE(row.value("originText").toString(), QStringLiteral("! Hub upload · unverified"));
+    QVERIFY(row.value("needsConfirm").toBool());
+    QVERIFY(row.value("problemsText").toString().isEmpty());
+    QCOMPARE(row.value("permissionsText").toString(), QStringLiteral("Read game memory · Share run progress with your Hub"));
+    QTRY_VERIFY(h.item("pluginToggle") != nullptr && h.item("pluginToggle")->isVisible());
+    QVERIFY(h.click("pluginToggle"));
+    QTRY_VERIFY(h.item("pluginEnableConfirm")->isVisible());
+    QVERIFY(h.item("pluginUnverifiedWarning")->property("text").toString().startsWith(QStringLiteral("FrameBeam has not checked this plugin")));
+    QVERIFY(h.item("pluginEnablePermissions")->property("text").toString().contains(QStringLiteral("Read game memory")));
+    QVERIFY(!pc->plugins().value(0).toMap().value("enabled").toBool());
+    QVERIFY(!h.item("pluginToggle")->property("checked").toBool());
+    shot(h, QStringLiteral("4c-plugins-unverified-warning"));
+    h.controller->setAppearance(QStringLiteral("light"));
+    shot(h, QStringLiteral("4c-plugins-unverified-warning-light"));
+    h.controller->setAppearance(QStringLiteral("dark"));
+    QVERIFY(h.click("pluginEnableCancel"));
+    QTRY_VERIFY(!h.item("pluginEnableConfirm")->isVisible());
+    QVERIFY(!pc->plugins().value(0).toMap().value("enabled").toBool());
+    QVERIFY(h.click("pluginToggle"));
+    QTRY_VERIFY(h.item("pluginEnableConfirm")->isVisible());
+    QVERIFY(h.click("pluginEnableConfirmButton"));
+    QTRY_VERIFY(pc->plugins().value(0).toMap().value("enabled").toBool());
+    QTRY_VERIFY(!h.item("pluginEnableConfirm")->isVisible());
+
+    // A download that does not match the pin installs nothing and says so.
+    pc->installHubPlugin(QStringLiteral("net.example.broken"), QStringLiteral("1.0.0"));
+    QTRY_VERIFY_WITH_TIMEOUT(pc->messageIsError(), 8000);
+    QVERIFY2(pc->message().contains(QStringLiteral("does not match")), qPrintable(pc->message()));
+    QCOMPARE(pc->plugins().size(), 1);
+    QVERIFY(!QFileInfo::exists(h.controller->profileStore()->baseDir() + "/plugins/hub/net.example.broken"));
+    for (const QVariant& v : pc->hubPlugins())
+      if (v.toMap().value("id").toString() == QLatin1String("net.example.broken")) QCOMPARE(v.toMap().value("state").toString(), QStringLiteral("install"));
+
+    // A local .fbplugin: unsigned = Local file, needs Developer mode; signed = Official, needs none.
+    FbSpec localSpec;
+    localSpec.id = "net.example.localfile";
+    localSpec.name = "Local Thing";
+    const QString localFile = src_.filePath("local.fbplugin");
+    {
+      QFile f(localFile);
+      QVERIFY(f.open(QIODevice::WriteOnly));
+      f.write(makeFbPlugin(localSpec));
+    }
+    pc->installFromPath(QUrl::fromLocalFile(localFile).toString());
+    QVERIFY2(!pc->messageIsError(), qPrintable(pc->message()));
+    QVERIFY(pc->message().contains(QStringLiteral("Developer mode")));
+    QCOMPARE(pc->plugins().size(), 2);
+    QVariantMap local;
+    for (const QVariant& v : pc->plugins())
+      if (v.toMap().value("id").toString() == QLatin1String("net.example.localfile")) local = v.toMap();
+    QCOMPARE(local.value("origin").toString(), QStringLiteral("local"));
+    QCOMPARE(local.value("originText").toString(), QStringLiteral("Local file"));
+    QCOMPARE(local.value("problemsText").toString(), QStringLiteral("Runs only while Developer mode is on"));
+    FbSpec signedSpec;
+    signedSpec.id = "net.example.signedfile";
+    signedSpec.name = "Signed Thing";
+    signedSpec.sign = true;
+    const QString signedFile = src_.filePath("signed.fbplugin");
+    {
+      QFile f(signedFile);
+      QVERIFY(f.open(QIODevice::WriteOnly));
+      f.write(makeFbPlugin(signedSpec));
+    }
+    pc->installFromPath(signedFile);
+    QVERIFY2(!pc->messageIsError(), qPrintable(pc->message()));
+    QVERIFY(!pc->message().contains(QStringLiteral("Developer mode")));
+    for (const QVariant& v : pc->plugins())
+      if (v.toMap().value("id").toString() == QLatin1String("net.example.signedfile")) {
+        QCOMPARE(v.toMap().value("origin").toString(), QStringLiteral("official"));
+        QVERIFY(v.toMap().value("problemsText").toString().isEmpty());
+      }
+    // not a plugin file
+    const QString junk = src_.filePath("junk.fbplugin");
+    {
+      QFile f(junk);
+      QVERIFY(f.open(QIODevice::WriteOnly));
+      f.write("nope");
+    }
+    pc->installFromPath(junk);
+    QVERIFY(pc->messageIsError());
+    QCOMPARE(pc->plugins().size(), 3);
+    shot(h, QStringLiteral("4a-plugins-origins"));
   }
 };
 

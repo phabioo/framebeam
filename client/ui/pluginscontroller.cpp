@@ -3,6 +3,7 @@
 #include <QClipboard>
 #include <QDateTime>
 #include <QDir>
+#include <QFileInfo>
 #include <QGuiApplication>
 #include <QLoggingCategory>
 #include <QUrl>
@@ -10,7 +11,9 @@
 
 #include "game_identity.h"
 #include "gamesession.h"
+#include "hubconnection.h"
 #include "playersettings.h"
+#include "semver.h"
 
 namespace framebeam::ui {
 
@@ -56,12 +59,60 @@ QString statusText(const QString& key) {
   return PluginsController::tr("Stopped");
 }
 
+QString originText(const QString& origin) {
+  if (origin == QLatin1String("official")) return PluginsController::tr("✓ Official");
+  if (origin == QLatin1String("unverified")) return PluginsController::tr("! Hub upload · unverified");
+  return PluginsController::tr("Local file");
+}
+
+// Plain-language permission (docs/design/plugins.md 4b), the manifest names stay in the plugin API reference.
+QString permissionLabel(const QString& p) {
+  if (p == QLatin1String("memory.read")) return PluginsController::tr("Read game memory");
+  if (p == QLatin1String("rom.read")) return PluginsController::tr("Read your game file");
+  if (p == QLatin1String("ui")) return PluginsController::tr("Show panels in game");
+  if (p == QLatin1String("run.state")) return PluginsController::tr("Share run progress with your Hub");
+  if (p == QLatin1String("memory.write")) return PluginsController::tr("Change game memory");
+  return p;
+}
+
+QString permissionsText(const QStringList& perms) {
+  QStringList out;
+  for (const QString& p : perms) out << permissionLabel(p);
+  return out.isEmpty() ? PluginsController::tr("No special permissions") : out.join(QStringLiteral(" · "));
+}
+
+QString sizeText(qint64 bytes) {
+  if (bytes <= 0) return {};
+  if (bytes < 1024 * 1024) return PluginsController::tr("%1 KB").arg((bytes / 1024 > 0 ? bytes / 1024 : qint64(1)));
+  return PluginsController::tr("%1 MB").arg(static_cast<double>(bytes) / (1024.0 * 1024.0), 0, 'f', 1);
+}
+
+int compareVersionText(const QString& a, const QString& b) {
+  const auto sa = update::SemVer::parse(a);
+  const auto sb = update::SemVer::parse(b);
+  if (!sa || !sb) return 0;
+  return update::SemVer::compare(*sa, *sb);
+}
+
 }  // namespace
 
-PluginsController::PluginsController(PlayerSettings* settings, const QString& dataDir, GameSession* session, QObject* parent)
+PluginsController::PluginsController(PlayerSettings* settings, const QString& dataDir, GameSession* session, HubConnection* connection,
+                                     QObject* parent)
     : QObject(parent), settings_(settings), session_(session) {
   manager_ = std::make_unique<plugins::PluginManager>(QDir(dataDir).filePath(QStringLiteral("plugins")));
   manager_->setDeveloperMode(settings_ != nullptr && settings_->developerMode());
+  if (connection != nullptr) {
+    hubClient_ = std::make_unique<PluginHubClient>(connection);
+    delivery_ = std::make_unique<plugins::PluginDelivery>(manager_.get(), hubClient_.get());
+    connect(delivery_.get(), &plugins::PluginDelivery::finished, this, &PluginsController::onDelivered);
+    connect(hubClient_.get(), &PluginHubClient::stateChanged, this, [this]() {
+      rebuildHubPlugins();
+      refreshPlugins();  // "update available" chips
+    });
+    connect(connection, &HubConnection::stateChanged, this, [this](HubConnection::State s) {
+      if (s == HubConnection::State::Connected) refreshHubPlugins();
+    });
+  }
   host_ = std::make_unique<plugins::PluginHost>();
   adapter_ = std::make_shared<MemoryWatchAdapter>();
 
@@ -129,17 +180,124 @@ void PluginsController::dismissMessage() {
   if (!message_.isEmpty()) setMessage(QString(), false);
 }
 
+void PluginsController::reportInstall(const plugins::InstallResult& r, bool fromFolder) {
+  if (!r.ok) {
+    setMessage(tr("Could not install: %1").arg(r.error), true);
+    return;
+  }
+  const auto info = manager_->info(r.id);
+  const QString name = info ? info->manifest.name : r.id;
+  QString text;
+  if (fromFolder) {
+    text = tr("Installed %1. It is off until you turn it on.").arg(name);
+  } else if (r.origin == QLatin1String("official")) {
+    text = tr("Installed %1 (Official, signed by FrameBeam). It is off until you turn it on.").arg(name);
+  } else {
+    text = tr("Installed %1 as a local file. It is off until you turn it on.").arg(name);
+  }
+  if (r.origin == QLatin1String("local") && !manager_->developerMode()) text += QLatin1Char(' ') + tr("It runs only while Developer mode is on.");
+  if (!r.signatureNote.isEmpty()) text += QLatin1Char(' ') + tr("The signature of this file is not valid, so it is not treated as Official.");
+  if (!r.addedPermissions.isEmpty())
+    text += QLatin1Char(' ') + tr("It asks for new permissions (%1) and was turned off.").arg(permissionsText(r.addedPermissions));
+  setMessage(text, false);
+}
+
 void PluginsController::installFromFolder(const QString& pathOrUrl) {
   const QString path = localPath(pathOrUrl);
   if (path.isEmpty()) return;
-  const auto r = manager_->installFromFolder(path);
+  reportInstall(manager_->installFromFolder(path), true);
+  refreshPlugins();
+}
+
+void PluginsController::installFromPath(const QString& pathOrUrl) {
+  const QString path = localPath(pathOrUrl);
+  if (path.isEmpty()) return;
+  const bool isFolder = QFileInfo(path).isDir();
+  reportInstall(manager_->installFromPath(path), isFolder);
+  refreshPlugins();
+}
+
+const HubPluginInfo* PluginsController::newestOffer(const QString& id) const {
+  const HubPluginInfo* best = nullptr;
+  if (hubClient_ == nullptr) return nullptr;
+  for (const HubPluginInfo& p : hubClient_->plugins())
+    if (p.id == id && (best == nullptr || compareVersionText(p.version, best->version) > 0)) best = &p;
+  return best;
+}
+
+QString PluginsController::hubStatus() const {
+  if (hubClient_ == nullptr) return QStringLiteral("idle");
+  switch (hubClient_->state()) {
+    case PluginHubClient::State::Idle: return QStringLiteral("idle");
+    case PluginHubClient::State::Loading: return QStringLiteral("loading");
+    case PluginHubClient::State::Ready: return QStringLiteral("ready");
+    case PluginHubClient::State::Failed: return QStringLiteral("failed");
+  }
+  return QStringLiteral("idle");
+}
+
+void PluginsController::refreshHubPlugins() {
+  if (hubClient_ != nullptr) hubClient_->refresh();
+}
+
+void PluginsController::installHubPlugin(const QString& id, const QString& version) {
+  if (delivery_ == nullptr || !hubBusyId_.isEmpty()) return;
+  hubBusyId_ = id;
+  rebuildHubPlugins();
+  delivery_->install(id, version);
+}
+
+void PluginsController::onDelivered(const plugins::DeliveryResult& r) {
+  hubBusyId_.clear();
   if (r.ok) {
     const auto info = manager_->info(r.id);
-    setMessage(tr("Installed %1. It is off until you turn it on.").arg(info ? info->manifest.name : r.id), false);
+    QString text = tr("Installed %1 %2 from your Hub. It is off until you turn it on.").arg(info ? info->manifest.name : r.id, r.version);
+    if (r.origin == QLatin1String("unverified")) text += QLatin1Char(' ') + tr("FrameBeam has not checked this plugin.");
+    if (!r.signatureNote.isEmpty()) text += QLatin1Char(' ') + tr("Its signature is not valid, so it is not treated as Official.");
+    if (!r.addedPermissions.isEmpty())
+      text += QLatin1Char(' ') + tr("It asks for new permissions (%1) and was turned off.").arg(permissionsText(r.addedPermissions));
+    setMessage(text, false);
   } else {
-    setMessage(tr("Could not install: %1").arg(r.error), true);
+    setMessage(r.error, true);
   }
   refreshPlugins();
+  rebuildHubPlugins();
+}
+
+void PluginsController::rebuildHubPlugins() {
+  QVariantList out;
+  if (hubClient_ != nullptr && hubClient_->supported()) {
+    QStringList seen;
+    for (const HubPluginInfo& p : hubClient_->plugins()) {
+      if (seen.contains(p.id)) continue;
+      seen << p.id;
+      const HubPluginInfo* best = newestOffer(p.id);
+      if (best == nullptr) continue;
+      QString state = QStringLiteral("install");
+      QString installedVersion;
+      for (const plugins::PluginInfo& c : manager_->hubCopies()) {
+        if (c.manifest.id != best->id) continue;
+        if (installedVersion.isEmpty() || compareVersionText(c.manifest.version.toString(), installedVersion) > 0) installedVersion = c.manifest.version.toString();
+      }
+      if (!manager_->hubCopyDir(best->id, best->version, best->sha256).isEmpty()) state = QStringLiteral("installed");
+      else if (!installedVersion.isEmpty()) state = QStringLiteral("update");
+      if (hubBusyId_ == best->id) state = QStringLiteral("busy");
+      out.append(QVariantMap{
+          {QStringLiteral("id"), best->id},
+          {QStringLiteral("name"), best->name},
+          {QStringLiteral("version"), best->version},
+          {QStringLiteral("description"), best->description},
+          {QStringLiteral("origin"), best->origin},
+          {QStringLiteral("originText"), originText(best->origin)},
+          {QStringLiteral("permissionsText"), permissionsText(best->permissions)},
+          {QStringLiteral("sizeText"), sizeText(best->size)},
+          {QStringLiteral("state"), state},
+          {QStringLiteral("installedVersion"), installedVersion},
+      });
+    }
+  }
+  hubPlugins_ = out;
+  emit hubPluginsChanged();
 }
 
 void PluginsController::linkDevFolder(const QString& pathOrUrl) {
@@ -171,29 +329,47 @@ void PluginsController::setPluginEnabled(const QString& id, bool enabled) {
 void PluginsController::refreshPlugins() {
   QVariantList out;
   int on = 0;
+  int updates = 0;
   const auto list = manager_->list();
   for (const plugins::PluginInfo& p : list) {
     QStringList problems = p.problems;
     const bool hasProblems = !problems.isEmpty();
     if (!hasProblems && p.enabled) ++on;
-    if (!hasProblems && !manager_->developerMode()) problems << tr("Runs only while Developer mode is on");
+    const bool isLocal = p.origin == QLatin1String("local");
+    if (!hasProblems && isLocal && !manager_->developerMode()) problems << tr("Runs only while Developer mode is on");
     QString problemsText = problems.join(QStringLiteral(" · "));
     if (!problemsText.isEmpty()) problemsText[0] = problemsText[0].toUpper();
+    QString updateVersion;
+    if (hubClient_ != nullptr && hubClient_->supported()) {
+      if (const HubPluginInfo* offer = newestOffer(p.manifest.id); offer != nullptr && compareVersionText(offer->version, p.manifest.version.toString()) > 0) {
+        updateVersion = offer->version;
+        ++updates;
+      }
+    }
     out.append(QVariantMap{
         {QStringLiteral("id"), p.manifest.id},
         {QStringLiteral("name"), p.manifest.name},
         {QStringLiteral("version"), p.manifest.version.toString()},
         {QStringLiteral("origin"), p.origin},
-        {QStringLiteral("originText"), tr("Local file")},
+        {QStringLiteral("originText"), originText(p.origin)},
         {QStringLiteral("devLinked"), p.devLinked},
+        {QStringLiteral("hubCopy"), p.hubCopy},
         {QStringLiteral("enabled"), p.enabled},
         {QStringLiteral("hasProblems"), hasProblems},
         {QStringLiteral("problemsText"), problemsText},
         {QStringLiteral("canToggle"), !hasProblems},
+        {QStringLiteral("needsConfirm"), p.origin == QLatin1String("unverified")},
+        {QStringLiteral("permissionsText"), permissionsText(p.manifest.permissions)},
+        {QStringLiteral("updateVersion"), updateVersion},
     });
   }
   plugins_ = out;
-  summary_ = list.isEmpty() ? tr("None installed") : (on > 0 ? tr("%1 on").arg(on) : tr("None on"));
+  if (list.isEmpty()) {
+    summary_ = tr("None installed");
+  } else {
+    summary_ = on > 0 ? tr("%1 on").arg(on) : tr("None on");
+    if (updates > 0) summary_ += QStringLiteral(" · ") + (updates == 1 ? tr("1 update") : tr("%1 updates").arg(updates));
+  }
   emit pluginsChanged();
 }
 

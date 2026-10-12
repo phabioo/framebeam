@@ -52,7 +52,7 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   downloader_ = std::make_unique<RomDownloader>(conn_.get(), cache_.get());
   saves_ = std::make_unique<SaveSync>(conn_.get(), profiles_.get());
   settings_ = std::make_unique<PlayerSettings>(profiles_->baseDir());
-  plugins_ = std::make_unique<PluginsController>(settings_.get(), profiles_->baseDir(), &session_);
+  plugins_ = std::make_unique<PluginsController>(settings_.get(), profiles_->baseDir(), &session_, conn_.get());
   trimRomCache();  // limit lowered while the Player was closed
   // Library sort and "Ready first" are saved per device (3c-2).
   model_.setSortKey(settings_->librarySort());

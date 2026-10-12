@@ -109,6 +109,12 @@ class FakeHub : public QTcpServer {
   QMap<QString, QJsonObject> corePackages;
   QMap<QString, QByteArray> coreFiles;
   int coreFileDownloads = 0;
+  // Plugins (plugins_v1): GET /plugins answers {"plugins": pluginList}; files "<id>/<version>" -> bytes (missing: 404).
+  QJsonArray pluginList;
+  QMap<QString, QByteArray> pluginFiles;
+  int pluginFileDownloads = 0;
+  int pluginListRequests = 0;
+  bool pluginListFails = false;  // GET /plugins answers 500
   int corePackageRequests = 0;
   int count(const QString& pathPrefix, const QByteArray& method) const;
 

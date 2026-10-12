@@ -370,6 +370,23 @@ void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
     } else {
       respondError(sock, 404, QStringLiteral("not_found"));
     }
+  } else if (req.method == "GET" && req.path == QLatin1String("/api/v1/plugins")) {
+    ++pluginListRequests;
+    if (pluginListFails) {
+      respondError(sock, 500, QStringLiteral("internal"));
+      return;
+    }
+    respond(sock, 200, json({{QStringLiteral("plugins"), pluginList}}));
+  } else if (req.method == "GET" && req.path.startsWith(QLatin1String("/api/v1/plugins/")) && req.path.endsWith(QLatin1String("/file"))) {
+    // /api/v1/plugins/<id>/<version>/file
+    const QStringList parts = req.path.mid(16).split(QLatin1Char('/'));
+    const QString key = parts.size() == 3 ? parts.at(0) + QLatin1Char('/') + parts.at(1) : QString();
+    if (key.isEmpty() || !pluginFiles.contains(key)) {
+      respondError(sock, 404, QStringLiteral("plugin_not_found"));
+      return;
+    }
+    ++pluginFileDownloads;
+    respond(sock, 200, pluginFiles.value(key), "application/zip");
   } else if (req.method == "GET" && req.path == QLatin1String("/api/v1/systems")) {
     respond(sock, 200, json(systems));
   } else if (req.method == "GET" && req.path.startsWith(QLatin1String("/api/v1/systems/"))) {

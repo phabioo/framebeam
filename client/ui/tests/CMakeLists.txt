@@ -158,7 +158,7 @@ endforeach()
 # FRAMEBEAM_SCREENSHOT_DIR it also saves PNGs for the review.
 framebeam_add_test(ui_plugins plugins_ui_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
   LIBS ${FB_UI_TEST_LIBS})
-target_include_directories(test_ui_plugins PRIVATE ${FB_NETTEST_DIR})
+target_include_directories(test_ui_plugins PRIVATE ${FB_NETTEST_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../../plugins/tests)
 target_compile_definitions(test_ui_plugins PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
 
 # Plugins end to end against the FrameBeam test core: EmulationRunner + memory adapter + PluginHost + fb.codec.pk6_decrypt.
