@@ -321,7 +321,8 @@ func toAPIGame(g hub.Game) (api.Game, error) {
 		return api.Game{}, err
 	}
 	return api.Game{Id: id, Title: g.Title, System: g.System, UploadedBy: g.UploadedBy, AddedAt: g.AddedAt,
-		Rom: api.RomInfo{Sha256: g.ROMSHA256, Size: g.ROMSize, Filename: g.Filename}}, nil
+		Rom:      api.RomInfo{Sha256: g.ROMSHA256, Size: g.ROMSize, Filename: g.Filename},
+		GameCode: &g.GameCode, GameCodeKind: (*api.GameGameCodeKind)(&g.GameCodeKind)}, nil
 }
 
 func (s *Server) ListGames(ctx context.Context, _ api.ListGamesRequestObject) (api.ListGamesResponseObject, error) {

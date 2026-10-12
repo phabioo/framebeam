@@ -184,6 +184,7 @@ func Open(ctx context.Context, db *sql.DB, o Options) (*Service, error) {
 	if err := s.removeLegacyCores(ctx); err != nil {
 		return nil, err
 	}
+	s.BackfillGameCodes(ctx) // header reads only; failures are logged, never fatal
 	s.recoverSessions(ctx)
 	return s, nil
 }

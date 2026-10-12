@@ -19,6 +19,7 @@
       "required": [
         "run_id",
         "user_id",
+        "plugin_id",
         "state_rev",
         "state"
       ],
@@ -28,6 +29,9 @@
           "format": "uuid"
         },
         "user_id": {
+          "type": "string"
+        },
+        "plugin_id": {
           "type": "string"
         },
         "state_rev": {

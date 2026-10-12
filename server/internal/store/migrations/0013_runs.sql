@@ -1,5 +1,5 @@
 -- 0.11 Runs (ADR 0023 D9/D10): a run is a shared object plugins build on. The Hub stores shape only (settings,
--- per-participant state, board trees and event payloads are opaque JSON) and never runs plugin code.
+-- per-participant per-plugin state, board trees and event payloads are opaque JSON) and never runs plugin code.
 
 CREATE TABLE runs (
     id         TEXT PRIMARY KEY,
@@ -38,12 +38,21 @@ CREATE TABLE run_participants (
     -- 0-7 in join order; NULL until the user joined for the first time, kept when leaving.
     color            INTEGER,
     invited_at       INTEGER NOT NULL,
-    state            TEXT NOT NULL DEFAULT '{}',
-    state_rev        INTEGER NOT NULL DEFAULT 0,
-    state_updated_at INTEGER,
     PRIMARY KEY (run_id, user_id)
 );
 CREATE INDEX run_participants_user ON run_participants(user_id);
+
+-- State per participant and plugin (opaque JSON, own revision per plugin). A missing row means state {} with rev 0.
+CREATE TABLE run_states (
+    run_id     TEXT NOT NULL,
+    user_id    TEXT NOT NULL,
+    plugin_id  TEXT NOT NULL,
+    state      TEXT NOT NULL,
+    rev        INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (run_id, user_id, plugin_id),
+    FOREIGN KEY (run_id, user_id) REFERENCES run_participants(run_id, user_id) ON DELETE CASCADE
+);
 
 -- Append-only log. client_id makes appends idempotent; seq is per run.
 CREATE TABLE run_events (

@@ -85,9 +85,7 @@
           "status",
           "game_id",
           "color",
-          "state",
-          "state_rev",
-          "state_updated_at"
+          "states"
         ],
         "properties": {
           "user_id": {
@@ -121,20 +119,31 @@
             "maximum": 7,
             "description": "Player colour in join order; null until the first join"
           },
-          "state": {
+          "states": {
             "type": "object",
-            "description": "Opaque to the Hub (at most 64 KiB)"
-          },
-          "state_rev": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "state_updated_at": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "format": "date-time"
+            "description": "State per plugin id; only plugins that have a row",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "state",
+                "state_rev",
+                "updated_at"
+              ],
+              "properties": {
+                "state": {
+                  "type": "object",
+                  "description": "Opaque to the Hub (at most 64 KiB)"
+                },
+                "state_rev": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
           }
         }
       }

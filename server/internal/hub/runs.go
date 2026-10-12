@@ -17,7 +17,7 @@ import (
 )
 
 // Runs (0.11, ADR 0023 D9/D10, docs/architecture/12-plugins.md 16.11): a run is a shared object that plugins build
-// on: participants with a game and a JSON state each, an append-only event log and a board tree per plugin.
+// on: participants with a game and a JSON state per plugin each, an append-only event log and a board tree per plugin.
 // The Hub validates only shape and size and never runs plugin code. Run data never goes to another Hub.
 
 // FeatureRunsV1 is the handshake feature flag for the runs REST API and the run_* WSS messages.
@@ -111,16 +111,21 @@ type RunPlugin struct {
 // RunPluginRef is a plugin version requested at creation.
 type RunPluginRef struct{ PluginID, Version string }
 
-// RunParticipant is one participant of a run with the state they published.
+// RunPluginState is the state one participant published for one plugin of the run.
+type RunPluginState struct {
+	State     json.RawMessage `json:"state"`
+	StateRev  int64           `json:"state_rev"`
+	UpdatedAt time.Time       `json:"updated_at"`
+}
+
+// RunParticipant is one participant of a run with the states they published (per plugin id; only plugins with a row).
 type RunParticipant struct {
-	UserID         string          `json:"user_id"`
-	UserName       string          `json:"user_name"`
-	Status         string          `json:"status"`
-	GameID         *string         `json:"game_id"`
-	Color          *int            `json:"color"`
-	State          json.RawMessage `json:"state"`
-	StateRev       int64           `json:"state_rev"`
-	StateUpdatedAt *time.Time      `json:"state_updated_at"`
+	UserID   string                    `json:"user_id"`
+	UserName string                    `json:"user_name"`
+	Status   string                    `json:"status"`
+	GameID   *string                   `json:"game_id"`
+	Color    *int                      `json:"color"`
+	States   map[string]RunPluginState `json:"states"`
 }
 
 // Run is the run object as REST and WSS carry it (archived is web only and not part of the wire format).
@@ -341,8 +346,8 @@ func runUsers(ctx context.Context, q dbq, runID string, joinedOnly bool) ([]stri
 	return out, rows.Err()
 }
 
-// loadRun reads a run with plugins and participants. withState false leaves out the participants' state bodies
-// (state is "{}"; state_rev stays real): only for the admin list.
+// loadRun reads a run with plugins and participants. withState false leaves out the participants' states
+// (states is empty): only for the admin list.
 func loadRun(ctx context.Context, q dbq, id string, withState bool) (Run, error) {
 	var r Run
 	var created, updated int64
@@ -374,11 +379,7 @@ func loadRun(ctx context.Context, q dbq, id string, withState bool) (Run, error)
 	if err := rows.Err(); err != nil {
 		return Run{}, internal(err)
 	}
-	stateCol := `p.state`
-	if !withState {
-		stateCol = `'{}'`
-	}
-	rows, err = q.QueryContext(ctx, `SELECT p.user_id, u.display_name, p.status, p.game_id, p.color, `+stateCol+`, p.state_rev, p.state_updated_at
+	rows, err = q.QueryContext(ctx, `SELECT p.user_id, u.display_name, p.status, p.game_id, p.color
 		FROM run_participants p JOIN users u ON u.id = p.user_id WHERE p.run_id = ? ORDER BY p.invited_at, p.rowid`, id)
 	if err != nil {
 		return Run{}, internal(err)
@@ -388,9 +389,8 @@ func loadRun(ctx context.Context, q dbq, id string, withState bool) (Run, error)
 	for rows.Next() {
 		var p RunParticipant
 		var game sql.NullString
-		var color, upd sql.NullInt64
-		var state string
-		if err := rows.Scan(&p.UserID, &p.UserName, &p.Status, &game, &color, &state, &p.StateRev, &upd); err != nil {
+		var color sql.NullInt64
+		if err := rows.Scan(&p.UserID, &p.UserName, &p.Status, &game, &color); err != nil {
 			return Run{}, internal(err)
 		}
 		if game.Valid {
@@ -400,9 +400,32 @@ func loadRun(ctx context.Context, q dbq, id string, withState bool) (Run, error)
 			c := int(color.Int64)
 			p.Color = &c
 		}
-		p.State = json.RawMessage(state)
-		p.StateUpdatedAt = ts(upd)
+		p.States = map[string]RunPluginState{}
 		r.Participants = append(r.Participants, p)
+	}
+	if err := rows.Err(); err != nil {
+		return Run{}, internal(err)
+	}
+	rows.Close()
+	if !withState {
+		return r, nil
+	}
+	rows, err = q.QueryContext(ctx, `SELECT user_id, plugin_id, state, rev, updated_at FROM run_states WHERE run_id = ?`, id)
+	if err != nil {
+		return Run{}, internal(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var uid, pid, state string
+		var rev, upd int64
+		if err := rows.Scan(&uid, &pid, &state, &rev, &upd); err != nil {
+			return Run{}, internal(err)
+		}
+		for i := range r.Participants {
+			if r.Participants[i].UserID == uid {
+				r.Participants[i].States[pid] = RunPluginState{State: json.RawMessage(state), StateRev: rev, UpdatedAt: unixTime(upd)}
+			}
+		}
 	}
 	return r, rows.Err()
 }
@@ -517,7 +540,7 @@ func (s *Service) pushRunEvents(ctx context.Context, runID string, evs []RunEven
 }
 
 // pushRunState sends run_state to the joined participants' connections except the writing device.
-func (s *Service) pushRunState(ctx context.Context, runID, userID, deviceID string, rev int64, state json.RawMessage) {
+func (s *Service) pushRunState(ctx context.Context, runID, userID, pluginID, deviceID string, rev int64, state json.RawMessage) {
 	joined, err := runUsers(ctx, s.db, runID, true)
 	if err != nil {
 		return
@@ -526,7 +549,7 @@ func (s *Service) pushRunState(ctx context.Context, runID, userID, deviceID stri
 	for _, u := range joined {
 		users[u] = true
 	}
-	msg := encode("run_state", "", map[string]any{"run_id": runID, "user_id": userID, "state_rev": rev, "state": state})
+	msg := encode("run_state", "", map[string]any{"run_id": runID, "user_id": userID, "plugin_id": pluginID, "state_rev": rev, "state": state})
 	for _, c := range s.clients() {
 		if users[c.userID] && c.deviceID != deviceID {
 			c.sendRun(msg)
@@ -1024,9 +1047,10 @@ func (s *Service) setRunStatus(ctx context.Context, actorID, runID, to string, a
 
 // ---- state, events, boards ----
 
-// PutRunState replaces the caller's own state if baseRev is the current state_rev. A different base returns the
-// current state as conflict (and nil error) so the caller can merge and retry.
-func (s *Service) PutRunState(ctx context.Context, userID, deviceID, runID string, baseRev int64, state json.RawMessage) (int64, *RunStateConflict, error) {
+// PutRunState replaces the caller's own state of one plugin of the run if baseRev is that plugin state's current
+// state_rev (0 when none was written). A different base returns the current state as conflict (and nil error) so the
+// caller can merge and retry.
+func (s *Service) PutRunState(ctx context.Context, userID, deviceID, runID, pluginID string, baseRev int64, state json.RawMessage) (int64, *RunStateConflict, error) {
 	s.runs.mu.Lock()
 	defer s.runs.mu.Unlock()
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -1036,6 +1060,13 @@ func (s *Service) PutRunState(ctx context.Context, userID, deviceID, runID strin
 	defer tx.Rollback()
 	if err := joinedParticipant(ctx, tx, runID, userID); err != nil {
 		return 0, nil, err
+	}
+	var np int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM run_plugins WHERE run_id = ? AND plugin_id = ?`, runID, pluginID).Scan(&np); err != nil {
+		return 0, nil, internal(err)
+	}
+	if np == 0 {
+		return 0, nil, ErrNotFound
 	}
 	if !s.runAllow("state", runID, userID, runStateRate, runStateBurst) {
 		return 0, nil, errRunRate
@@ -1051,22 +1082,24 @@ func (s *Service) PutRunState(ctx context.Context, userID, deviceID, runID strin
 		return 0, nil, err
 	}
 	var cur int64
-	var curState string
-	if err := tx.QueryRowContext(ctx, `SELECT state_rev, state FROM run_participants WHERE run_id = ? AND user_id = ?`, runID, userID).Scan(&cur, &curState); err != nil {
+	curState := "{}"
+	err = tx.QueryRowContext(ctx, `SELECT rev, state FROM run_states WHERE run_id = ? AND user_id = ? AND plugin_id = ?`, runID, userID, pluginID).Scan(&cur, &curState)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return 0, nil, internal(err)
 	}
 	if cur != baseRev {
 		return 0, &RunStateConflict{StateRev: cur, State: json.RawMessage(curState)}, nil
 	}
 	now := s.now().UTC()
-	if _, err := tx.ExecContext(ctx, `UPDATE run_participants SET state = ?, state_rev = ?, state_updated_at = ? WHERE run_id = ? AND user_id = ?`,
-		string(body), cur+1, now.Unix(), runID, userID); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO run_states(run_id, user_id, plugin_id, state, rev, updated_at) VALUES (?, ?, ?, ?, ?, ?)
+		ON CONFLICT(run_id, user_id, plugin_id) DO UPDATE SET state = excluded.state, rev = excluded.rev, updated_at = excluded.updated_at`,
+		runID, userID, pluginID, string(body), cur+1, now.Unix()); err != nil {
 		return 0, nil, internal(err)
 	}
 	if err := tx.Commit(); err != nil {
 		return 0, nil, internal(err)
 	}
-	s.pushRunState(ctx, runID, userID, deviceID, cur+1, body)
+	s.pushRunState(ctx, runID, userID, pluginID, deviceID, cur+1, body)
 	s.Publish(TopicRuns)
 	return cur + 1, nil, nil
 }

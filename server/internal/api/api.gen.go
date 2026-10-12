@@ -231,6 +231,27 @@ func (e FirmwareMode) Valid() bool {
 	}
 }
 
+// Defines values for GameGameCodeKind.
+const (
+	Empty       GameGameCodeKind = ""
+	N3dsTitleid GameGameCodeKind = "3ds-titleid"
+	NdsGamecode GameGameCodeKind = "nds-gamecode"
+)
+
+// Valid indicates whether the value is a known member of the GameGameCodeKind enum.
+func (e GameGameCodeKind) Valid() bool {
+	switch e {
+	case Empty:
+		return true
+	case N3dsTitleid:
+		return true
+	case NdsGamecode:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for HandshakeProblemCode.
 const (
 	HandshakeProblemCodeCapabilityMissing   HandshakeProblemCode = "capability_missing"
@@ -702,15 +723,24 @@ type FirmwareMode string
 
 // Game defines model for Game.
 type Game struct {
-	AddedAt time.Time          `json:"added_at"`
-	Id      openapi_types.UUID `json:"id"`
-	Rom     RomInfo            `json:"rom"`
-	System  string             `json:"system"`
-	Title   string             `json:"title"`
+	AddedAt time.Time `json:"added_at"`
+
+	// GameCode Identity read from the ROM header on upload/import: 4-character NDS game code or 16 uppercase hex digits (3DS program ID); empty when unknown or unreadable. Absent on Hubs before 1.16.0.
+	GameCode *string `json:"game_code,omitempty"`
+
+	// GameCodeKind Kind of `game_code`; empty when unknown
+	GameCodeKind *GameGameCodeKind  `json:"game_code_kind,omitempty"`
+	Id           openapi_types.UUID `json:"id"`
+	Rom          RomInfo            `json:"rom"`
+	System       string             `json:"system"`
+	Title        string             `json:"title"`
 
 	// UploadedBy Hub-local user ID
 	UploadedBy string `json:"uploaded_by"`
 }
+
+// GameGameCodeKind Kind of `game_code`; empty when unknown
+type GameGameCodeKind string
 
 // HandshakeProblem defines model for HandshakeProblem.
 type HandshakeProblem struct {
@@ -1058,13 +1088,11 @@ type RunParticipant struct {
 	// GameId Hub library game; set on join
 	GameId *openapi_types.UUID `json:"game_id"`
 
-	// State An opaque JSON object the Hub stores byte-exact and never interprets.
-	State          RunJsonObject        `json:"state"`
-	StateRev       int64                `json:"state_rev"`
-	StateUpdatedAt *time.Time           `json:"state_updated_at"`
-	Status         RunParticipantStatus `json:"status"`
-	UserId         string               `json:"user_id"`
-	UserName       string               `json:"user_name"`
+	// States State per plugin id; only plugins that have a row (a missing plugin means state `{}` with revision 0)
+	States   map[string]RunPluginState `json:"states"`
+	Status   RunParticipantStatus      `json:"status"`
+	UserId   string                    `json:"user_id"`
+	UserName string                    `json:"user_name"`
 }
 
 // RunParticipantStatus defines model for RunParticipant.Status.
@@ -1083,6 +1111,14 @@ type RunPlugin struct {
 type RunPluginRef struct {
 	PluginId string `json:"plugin_id"`
 	Version  string `json:"version"`
+}
+
+// RunPluginState defines model for RunPluginState.
+type RunPluginState struct {
+	// State An opaque JSON object the Hub stores byte-exact and never interprets.
+	State     RunJsonObject `json:"state"`
+	StateRev  int64         `json:"state_rev"`
+	UpdatedAt time.Time     `json:"updated_at"`
 }
 
 // RunStateConflictError Error body of the state 409. `state_rev` and `state` are present with `state_conflict` and carry the current values.
@@ -2141,7 +2177,7 @@ type ServerInterface interface {
 	// Create a run (the caller joins with `game_id`, status `starting`)
 	// (POST /api/v1/runs)
 	CreateRun(w http.ResponseWriter, r *http.Request)
-	// One run with every participant's state (participants of any status only; others get 404)
+	// One run with every participant's per-plugin states (participants of any status only; others get 404)
 	// (GET /api/v1/runs/{run_id})
 	GetRun(w http.ResponseWriter, r *http.Request, runId RunId)
 	// Publish the plugin's board (building-block tree, at most 64 KiB) for the Hub web run page
@@ -2165,9 +2201,9 @@ type ServerInterface interface {
 	// Leave a run the caller joined (leaving again is a no-op); colour and state stay
 	// (POST /api/v1/runs/{run_id}/leave)
 	LeaveRun(w http.ResponseWriter, r *http.Request, runId RunId)
-	// Replace the caller's own state (JSON object, at most 64 KiB) against a base revision
-	// (PUT /api/v1/runs/{run_id}/state)
-	PutRunState(w http.ResponseWriter, r *http.Request, runId RunId)
+	// Replace the caller's own state of one plugin (JSON object, at most 64 KiB) against a base revision
+	// (PUT /api/v1/runs/{run_id}/state/{plugin_id})
+	PutRunState(w http.ResponseWriter, r *http.Request, runId RunId, pluginId string)
 	// Change the run status
 	// (POST /api/v1/runs/{run_id}/status)
 	SetRunStatus(w http.ResponseWriter, r *http.Request, runId RunId)
@@ -3813,6 +3849,15 @@ func (siw *ServerInterfaceWrapper) PutRunState(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// ------------- Path parameter "plugin_id" -------------
+	var pluginId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "plugin_id", r.PathValue("plugin_id"), &pluginId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "plugin_id", Err: err})
+		return
+	}
+
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
@@ -3820,7 +3865,7 @@ func (siw *ServerInterfaceWrapper) PutRunState(w http.ResponseWriter, r *http.Re
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.PutRunState(w, r, runId)
+		siw.Handler.PutRunState(w, r, runId, pluginId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4467,7 +4512,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/runs/{run_id}/invite", wrapper.InviteRun)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/runs/{run_id}/join", wrapper.JoinRun)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/runs/{run_id}/leave", wrapper.LeaveRun)
-	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/runs/{run_id}/state", wrapper.PutRunState)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/runs/{run_id}/state/{plugin_id}", wrapper.PutRunState)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/runs/{run_id}/status", wrapper.SetRunStatus)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/saves", wrapper.ListSaves)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/sessions", wrapper.ListSessions)
@@ -7532,8 +7577,9 @@ func (response LeaveRun409JSONResponse) VisitLeaveRunResponse(w http.ResponseWri
 }
 
 type PutRunStateRequestObject struct {
-	RunId RunId `json:"run_id"`
-	Body  *PutRunStateJSONRequestBody
+	RunId    RunId  `json:"run_id"`
+	PluginId string `json:"plugin_id"`
+	Body     *PutRunStateJSONRequestBody
 }
 
 type PutRunStateResponseObject interface {
@@ -8816,7 +8862,7 @@ type StrictServerInterface interface {
 	// Create a run (the caller joins with `game_id`, status `starting`)
 	// (POST /api/v1/runs)
 	CreateRun(ctx context.Context, request CreateRunRequestObject) (CreateRunResponseObject, error)
-	// One run with every participant's state (participants of any status only; others get 404)
+	// One run with every participant's per-plugin states (participants of any status only; others get 404)
 	// (GET /api/v1/runs/{run_id})
 	GetRun(ctx context.Context, request GetRunRequestObject) (GetRunResponseObject, error)
 	// Publish the plugin's board (building-block tree, at most 64 KiB) for the Hub web run page
@@ -8840,8 +8886,8 @@ type StrictServerInterface interface {
 	// Leave a run the caller joined (leaving again is a no-op); colour and state stay
 	// (POST /api/v1/runs/{run_id}/leave)
 	LeaveRun(ctx context.Context, request LeaveRunRequestObject) (LeaveRunResponseObject, error)
-	// Replace the caller's own state (JSON object, at most 64 KiB) against a base revision
-	// (PUT /api/v1/runs/{run_id}/state)
+	// Replace the caller's own state of one plugin (JSON object, at most 64 KiB) against a base revision
+	// (PUT /api/v1/runs/{run_id}/state/{plugin_id})
 	PutRunState(ctx context.Context, request PutRunStateRequestObject) (PutRunStateResponseObject, error)
 	// Change the run status
 	// (POST /api/v1/runs/{run_id}/status)
@@ -10112,10 +10158,11 @@ func (sh *strictHandler) LeaveRun(w http.ResponseWriter, r *http.Request, runId 
 }
 
 // PutRunState operation middleware
-func (sh *strictHandler) PutRunState(w http.ResponseWriter, r *http.Request, runId RunId) {
+func (sh *strictHandler) PutRunState(w http.ResponseWriter, r *http.Request, runId RunId, pluginId string) {
 	var request PutRunStateRequestObject
 
 	request.RunId = runId
+	request.PluginId = pluginId
 
 	var body PutRunStateJSONRequestBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {

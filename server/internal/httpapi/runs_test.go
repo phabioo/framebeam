@@ -54,13 +54,16 @@ func newRunEnv(t *testing.T) *runEnv {
 }
 
 type partResp struct {
-	UserID   string          `json:"user_id"`
-	UserName string          `json:"user_name"`
-	Status   string          `json:"status"`
-	GameID   *string         `json:"game_id"`
-	Color    *int            `json:"color"`
-	State    json.RawMessage `json:"state"`
-	StateRev int64           `json:"state_rev"`
+	UserID   string  `json:"user_id"`
+	UserName string  `json:"user_name"`
+	Status   string  `json:"status"`
+	GameID   *string `json:"game_id"`
+	Color    *int    `json:"color"`
+	States   map[string]struct {
+		State     json.RawMessage `json:"state"`
+		StateRev  int64           `json:"state_rev"`
+		UpdatedAt string          `json:"updated_at"`
+	} `json:"states"`
 }
 
 type runResp struct {
@@ -163,7 +166,12 @@ func (r *runEnv) events(d dev, id string, after int64) []eventResp {
 
 func (r *runEnv) putState(d dev, id string, base int64, state any) *httptest.ResponseRecorder {
 	r.t.Helper()
-	return r.api(d, "PUT", "/api/v1/runs/"+id+"/state", map[string]any{"base_rev": base, "state": state})
+	return r.putStateFor(d, id, pluginA, base, state)
+}
+
+func (r *runEnv) putStateFor(d dev, id, plugin string, base int64, state any) *httptest.ResponseRecorder {
+	r.t.Helper()
+	return r.api(d, "PUT", "/api/v1/runs/"+id+"/state/"+plugin, map[string]any{"base_rev": base, "state": state})
 }
 
 func (r *runEnv) putBoard(d dev, id, plugin string, tree any) *httptest.ResponseRecorder {
@@ -188,7 +196,7 @@ func TestRunCreateAndVisibility(t *testing.T) {
 		t.Fatalf("%s %+v", run.Settings, run.Participants)
 	}
 	c := run.part(r.admin.ID)
-	if c.Status != "joined" || c.Color == nil || *c.Color != 0 || c.GameID == nil || *c.GameID != r.game.ID || string(c.State) != "{}" || c.StateRev != 0 {
+	if c.Status != "joined" || c.Color == nil || *c.Color != 0 || c.GameID == nil || *c.GameID != r.game.ID || len(c.States) != 0 {
 		t.Fatalf("creator %+v", c)
 	}
 	if an := run.part(r.anna.ID); an.Status != "invited" || an.Color != nil || an.GameID != nil || an.UserName != "Anna" {
@@ -440,10 +448,10 @@ func TestRunStateRevisionsAndLimits(t *testing.T) {
 	wantStatus(t, r.putState(d1, id, 2, map[string]any{}), 409, "state_conflict") // base ahead of the Hub
 	wantStatus(t, r.putState(d1, id, 1, map[string]any{"team": []any{"two"}}), 200, "")
 	got := r.get(a1, id)
-	if p := got.part(r.admin.ID); p.StateRev != 2 || string(p.State) != `{"team":["two"]}` {
+	if p := got.part(r.admin.ID).States[pluginA]; p.StateRev != 2 || string(p.State) != `{"team":["two"]}` || p.UpdatedAt == "" {
 		t.Fatalf("%+v", p)
 	}
-	if p := got.part(r.anna.ID); p.StateRev != 0 || string(p.State) != "{}" {
+	if p := got.part(r.anna.ID); len(p.States) != 0 { // a missing row means state {} with revision 0
 		t.Fatalf("anna %+v", p)
 	}
 
@@ -452,13 +460,13 @@ func TestRunStateRevisionsAndLimits(t *testing.T) {
 	r.mustJoin(a1, id)
 	wantStatus(t, r.putState(a1, id, 0, map[string]any{"mine": true}), 200, "")
 	// Shape and size: not an object -> 400; over 64 KiB -> 413.
-	wantStatus(t, r.do("PUT", "/api/v1/runs/"+id+"/state", map[string]any{"base_rev": 2, "state": []any{1}}, opt{token: d1.tok, raw: true}), 400, "bad_request")
-	wantStatus(t, r.do("PUT", "/api/v1/runs/"+id+"/state", map[string]any{"base_rev": 2}, opt{token: d1.tok, raw: true}), 400, "bad_request")
+	wantStatus(t, r.do("PUT", "/api/v1/runs/"+id+"/state/"+pluginA, map[string]any{"base_rev": 2, "state": []any{1}}, opt{token: d1.tok, raw: true}), 400, "bad_request")
+	wantStatus(t, r.do("PUT", "/api/v1/runs/"+id+"/state/"+pluginA, map[string]any{"base_rev": 2}, opt{token: d1.tok, raw: true}), 400, "bad_request")
 	wantStatus(t, r.putState(d1, id, 2, map[string]any{"pad": strings.Repeat("x", 64<<10)}), 413, "too_large")
 	// The Hub keeps opaque numbers exactly.
-	rec = r.do("PUT", "/api/v1/runs/"+id+"/state", nil, opt{token: d1.tok, ctype: "application/json", data: []byte(`{"base_rev":2,"state":{"id":9007199254740993,"f":0.10}}`)})
+	rec = r.do("PUT", "/api/v1/runs/"+id+"/state/"+pluginA, nil, opt{token: d1.tok, ctype: "application/json", data: []byte(`{"base_rev":2,"state":{"id":9007199254740993,"f":0.10}}`)})
 	wantStatus(t, rec, 200, "")
-	if p := r.get(d1, id).part(r.admin.ID); string(p.State) != `{"id":9007199254740993,"f":0.10}` {
+	if p := r.get(d1, id).part(r.admin.ID).States[pluginA]; string(p.State) != `{"id":9007199254740993,"f":0.10}` {
 		t.Fatalf("state %s", p.State)
 	}
 
@@ -473,6 +481,50 @@ func TestRunStateRevisionsAndLimits(t *testing.T) {
 		wantStatus(t, r.putState(d1, run2.RunID, i, map[string]any{"i": i}), 200, "")
 	}
 	wantStatus(t, r.putState(d1, run2.RunID, 24, map[string]any{}), 429, "rate_limited")
+}
+
+func TestRunStatePerPlugin(t *testing.T) {
+	r := newRunEnv(t)
+	d1, a1 := r.device(r.admin.ID, "Desktop"), r.device(r.anna.ID, "Anna PC")
+	body := r.createBody("Two", r.anna.ID)
+	body["plugins"] = []any{map[string]any{"plugin_id": pluginA, "version": "1.0.0"}, map[string]any{"plugin_id": pluginB, "version": "2.1.0"}}
+	rec := r.api(d1, "POST", "/api/v1/runs", body)
+	wantStatus(t, rec, 201, "")
+	id := decode[runResp](t, rec).RunID
+
+	// Independent revisions per plugin.
+	wantStatus(t, r.putStateFor(d1, id, pluginA, 0, map[string]any{"a": 1}), 200, "")
+	wantStatus(t, r.putStateFor(d1, id, pluginA, 1, map[string]any{"a": 2}), 200, "")
+	rec = r.putStateFor(d1, id, pluginB, 0, map[string]any{"b": 1})
+	wantStatus(t, rec, 200, "")
+	if rev := decode[struct {
+		StateRev int64 `json:"state_rev"`
+	}](t, rec).StateRev; rev != 1 {
+		t.Fatalf("rev %d", rev)
+	}
+	// Conflict carries the current state of that plugin only.
+	rec = r.putStateFor(d1, id, pluginB, 0, map[string]any{"b": 2})
+	wantStatus(t, rec, 409, "state_conflict")
+	conf := decode[struct {
+		StateRev int64           `json:"state_rev"`
+		State    json.RawMessage `json:"state"`
+	}](t, rec)
+	if conf.StateRev != 1 || string(conf.State) != `{"b":1}` {
+		t.Fatalf("%+v", conf)
+	}
+	st := r.get(d1, id).part(r.admin.ID).States
+	if len(st) != 2 || st[pluginA].StateRev != 2 || string(st[pluginA].State) != `{"a":2}` || st[pluginB].StateRev != 1 || string(st[pluginB].State) != `{"b":1}` {
+		t.Fatalf("%+v", st)
+	}
+	// A plugin that is not part of the run -> 404; an invited user cannot write.
+	wantStatus(t, r.putStateFor(d1, id, pluginC, 0, map[string]any{}), 404, "not_found")
+	wantStatus(t, r.putStateFor(a1, id, pluginA, 0, map[string]any{}), 403, "forbidden")
+
+	// The rate limit counts all plugins together (burst 20, the clock is frozen); 4 tokens were used above.
+	for i := 0; i < 16; i++ {
+		wantStatus(t, r.putStateFor(d1, id, []string{pluginA, pluginB}[i%2], 99, map[string]any{}), 409, "state_conflict")
+	}
+	wantStatus(t, r.putStateFor(d1, id, pluginA, 2, map[string]any{}), 429, "rate_limited")
 }
 
 func TestRunPausedRefusesWrites(t *testing.T) {
@@ -807,11 +859,12 @@ func TestRunWSFanOut(t *testing.T) {
 		var p struct {
 			RunID    string          `json:"run_id"`
 			UserID   string          `json:"user_id"`
+			PluginID string          `json:"plugin_id"`
 			StateRev int64           `json:"state_rev"`
 			State    json.RawMessage `json:"state"`
 		}
 		json.Unmarshal(m.Payload, &p)
-		if p.RunID != id || p.UserID != r.admin.ID || p.StateRev != 1 || string(p.State) != `{"team":[1]}` {
+		if p.RunID != id || p.UserID != r.admin.ID || p.PluginID != pluginA || p.StateRev != 1 || string(p.State) != `{"team":[1]}` {
 			t.Fatalf("%+v %s", p, p.State)
 		}
 	}
@@ -912,7 +965,7 @@ func TestRunWSCatchUpAfterHello(t *testing.T) {
 		}
 		return isRunUpdated(id, "")(m)
 	}))
-	if up.LastSeq != 8 || string(up.part(r.admin.ID).State) != `{"v":1}` {
+	if up.LastSeq != 8 || string(up.part(r.admin.ID).States[pluginA].State) != `{"v":1}` {
 		t.Fatalf("%+v", up)
 	}
 	for want := int64(4); want <= 8; want++ {

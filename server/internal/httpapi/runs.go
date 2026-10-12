@@ -157,7 +157,7 @@ func (s *Server) PutRunState(ctx context.Context, req api.PutRunStateRequestObje
 		return nil, hub.ErrBadRequest
 	}
 	p := principal(ctx)
-	rev, conflict, err := s.svc.PutRunState(ctx, p.User.ID, p.Device.ID, req.RunId.String(), req.Body.BaseRev, json.RawMessage(req.Body.State))
+	rev, conflict, err := s.svc.PutRunState(ctx, p.User.ID, p.Device.ID, req.RunId.String(), req.PluginId, req.Body.BaseRev, json.RawMessage(req.Body.State))
 	if err != nil {
 		return nil, err
 	}
