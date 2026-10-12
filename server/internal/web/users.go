@@ -149,18 +149,20 @@ func (s *Server) renderUsersOpts(w http.ResponseWriter, r *http.Request, sess *s
 			b.Active = append(b.Active, v)
 			continue
 		case hub.InviteRedeemed:
-			v.Label = "redeemed"
-			v.Meta = "redeemed by " + i.RedeemedBy
+			v.Label, v.Meta = "redeemed", "Redeemed"
+			if i.RedeemedBy != "" {
+				v.Meta = "Redeemed by " + i.RedeemedBy
+			}
 			if i.RedeemedAt != nil {
 				v.At = when(*i.RedeemedAt, now)
 			}
 		case hub.InviteRevoked:
-			v.Label, v.Meta = "revoked", "revoked"
+			v.Label, v.Meta = "revoked", "Revoked"
 			if i.RevokedAt != nil {
 				v.At = when(*i.RevokedAt, now)
 			}
 		default:
-			v.Label, v.Meta = "expired", "expired"
+			v.Label, v.Meta = "expired", "Expired"
 			v.At = when(i.ExpiresAt, now)
 		}
 		if history++; history <= 10 {

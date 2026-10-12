@@ -6,15 +6,15 @@
 <meta name="htmx-config" content='{"includeIndicatorStyles":false,"allowEval":false,"allowScriptTags":false}'>
 <title>{{.Title}} · FrameBeam Hub</title>
 <link rel="icon" href="data:,">
-<link rel="stylesheet" href="/static/app.css">
-<script src="/static/htmx.min.js" defer></script>
-<script src="/static/app.js" defer></script>
-<script src="/static/dropzone.js" defer></script>
-<script src="/static/settings.js" defer></script>
-<script src="/static/invite.js" defer></script>
-<script src="/static/libupload.js" defer></script>
-<script src="/static/plugin-blocks.js" defer></script>
-<script src="/static/plugins.js" defer></script>
+<link rel="stylesheet" href="{{asset "app.css"}}">
+<script src="{{asset "htmx.min.js"}}" defer></script>
+<script src="{{asset "app.js"}}" defer></script>
+<script src="{{asset "dropzone.js"}}" defer></script>
+<script src="{{asset "settings.js"}}" defer></script>
+<script src="{{asset "invite.js"}}" defer></script>
+<script src="{{asset "libupload.js"}}" defer></script>
+<script src="{{asset "plugin-blocks.js"}}" defer></script>
+<script src="{{asset "plugins.js"}}" defer></script>
 </head>
 {{end}}
 {{/* A formatted time (format.go When): list text with the full timestamp as tooltip. */}}

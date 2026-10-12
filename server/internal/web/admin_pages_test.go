@@ -171,7 +171,8 @@ func TestUsersPageInvitesAndDisable(t *testing.T) {
 		t.Fatal(err)
 	}
 	rec = c.get("/users", nil)
-	contains(t, rec, "redeemed by Lena", "Lena", "Disable user", "Active")
+	contains(t, rec, "Redeemed by Lena", "Lena", "Disable user", "Active", `class="btn primary invite-jump" href="#invites"`)
+	notContains(t, rec, "redeemed redeemed", "redeemed by Lena")
 	notContains(t, rec, code2)
 
 	// Disable / enable; admins and the own account are protected.
