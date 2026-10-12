@@ -91,7 +91,7 @@
   {{if .Body.History}}
   <div class="eyebrow">History</div>
   <ul class="history">
-    {{range .Body.History}}<li><span class="mono">{{.Label}}</span> <span class="help">{{.Meta}} · {{template "when" .At}}</span></li>{{end}}
+    {{range .Body.History}}<li><span class="help">{{.Meta}} · {{template "when" .At}}</span></li>{{end}}
   </ul>
   {{end}}
 </div>{{end}}
@@ -101,7 +101,7 @@
   <div class="page-head"><div><h1>Users</h1><p class="sub">Accounts on this Hub. Users sign in with a paired device, not a password.</p></div>
     <div class="head-actions">
       <a class="btn" href="/users?create=1" hx-get="/users?create=1" hx-target="#users-table" hx-swap="outerHTML">Create user</a>
-      <a class="btn primary" href="#invites">Invite</a>
+      <a class="btn primary invite-jump" href="#invites">Invite</a>
     </div>
   </div>
   {{template "users-table" .}}

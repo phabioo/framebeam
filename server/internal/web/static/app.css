@@ -418,6 +418,7 @@ table.list tr.muted td { color: var(--text-faint); }
 .users-main { padding: 32px 40px; min-width: 0; }
 .users-side { background: var(--surface-soft); border-left: 1px solid var(--border); padding: 32px 28px; display: flex; flex-direction: column; gap: 18px; }
 .users-side h2 { font-size: 18px; font-weight: 600; }
+.invite-jump { display: none; }
 .invite-form { display: flex; flex-direction: column; gap: 12px; }
 .check { display: flex; gap: 8px; align-items: center; font-size: 13px; font-weight: 500; }
 .invite { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; }
@@ -448,7 +449,7 @@ table.list td form { display: inline; }
 .tabs.flush { padding: 0 10px; }
 .tabpanel { padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 14px; }
 .tabpanel .empty { padding: 20px; }
-.tabpanel table.list { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.tabpanel table.list { border: 1px solid var(--border); border-radius: 8px; }
 .sys-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
 .sys-cols > div { display: flex; flex-direction: column; gap: 12px; }
 .cache { display: flex; flex-direction: column; gap: 12px; padding-top: 18px; border-top: 1px solid var(--row-sep); }
@@ -737,6 +738,7 @@ table.list tr.selected { background: var(--accent-sel); box-shadow: inset 3px 0 
 
 /* ================= Round 3 (0.14): shared Hub components ================= */
 .card { overflow: visible; }
+.card.events-scroll { overflow-y: auto; overflow-x: hidden; }
 .nowrap { white-space: nowrap; }
 .ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
 .hide-sm { }
@@ -783,8 +785,8 @@ table.list td.c-title { font-size: 14px; }
 table.list tr:first-child td { border-top: 0; }
 .card > table.list thead th:first-child, .tabpanel > table.list thead th:first-child { border-top-left-radius: 9px; }
 .card > table.list thead th:last-child, .tabpanel > table.list thead th:last-child { border-top-right-radius: 9px; }
-.card > table.list tbody tr:last-child td:first-child { border-bottom-left-radius: 9px; }
-.card > table.list tbody tr:last-child td:last-child { border-bottom-right-radius: 9px; }
+.card > table.list tbody tr:last-child td:first-child, .tabpanel > table.list tbody tr:last-child td:first-child { border-bottom-left-radius: 9px; }
+.card > table.list tbody tr:last-child td:last-child, .tabpanel > table.list tbody tr:last-child td:last-child { border-bottom-right-radius: 9px; }
 .tabpanel > table.list { border: 1px solid var(--border); border-radius: 8px; }
 table.list thead th, table.list thead + tbody tr:first-child td { }
 table.list tbody tr:first-child td { border-top: 1px solid var(--row-sep); }
@@ -1027,6 +1029,7 @@ details.menu > summary.pill.pick::-webkit-details-marker { display: none; }
 @media (max-width: 1023px) {
   .users { grid-template-columns: minmax(0, 1fr); margin: calc(-1 * var(--pad-y)) calc(-1 * var(--pad-x)); }
   .users-side { border-left: 0; border-top: 1px solid var(--border); padding: 24px; }
+  .invite-jump { display: inline-flex; }
 }
 @media (max-width: 719px) {
   .users-main { padding: 16px; }

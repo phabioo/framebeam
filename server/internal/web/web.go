@@ -93,7 +93,7 @@ func New(svc *hub.Service, cfg Config, log *slog.Logger) (*Server, error) {
 	s := &Server{svc: svc, cfg: cfg, log: log, tmpl: map[string]*template.Template{}, done: make(chan struct{}),
 		login: newLimiter(svc.Now), verifySem: make(chan struct{}, maxConcurrentVerify)}
 	for _, p := range []string{"login", "setup", "invite", "library", "saves", "clients", "settings", "users", "systems", "confirm", "plugins", "runs"} {
-		t, err := template.New(p).ParseFS(templatesFS, "templates/layout.html", "templates/"+p+".html")
+		t, err := template.New(p).Funcs(template.FuncMap{"asset": assetURL}).ParseFS(templatesFS, "templates/layout.html", "templates/"+p+".html")
 		if err != nil {
 			return nil, err
 		}
@@ -111,7 +111,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	sub, _ := fs.Sub(staticFS, "static")
 	static := http.StripPrefix("/static/", http.FileServerFS(sub))
 	mux.Handle("GET /static/", secure(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", "public, max-age=3600")
+		w.Header().Set("Cache-Control", staticCacheControl(r))
 		static.ServeHTTP(w, r)
 	})))
 	h := func(pattern string, f http.HandlerFunc) { mux.Handle(pattern, secure(f)) }
