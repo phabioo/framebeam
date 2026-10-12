@@ -4,6 +4,7 @@
 // "Start a run" dialog and "Play run", which first makes sure the exact Hub copy of every plugin of the run is on this
 // device and then asks the PlayerController to start the participant's game with the run context.
 #include <QAbstractItemModel>
+#include <QMap>
 #include <QObject>
 #include <QStringList>
 #include <QTimer>
@@ -18,6 +19,20 @@
 #include "runclient.h"
 
 namespace framebeam::ui {
+
+// The plugins of a run that is being started: the picked ones (newest version the Hub offers) plus the plugins they
+// require, transitively (newest offered version that satisfies every range). `error` is set when a requirement cannot be met.
+struct StartIncluded {
+  HubPluginInfo info;
+  QStringList neededBy;  // display names, sorted
+};
+struct StartResolution {
+  QList<HubPluginInfo> picked;
+  QList<StartIncluded> included;
+  QString error;
+  int total() const { return static_cast<int>(picked.size() + included.size()); }
+};
+StartResolution resolveStartPlugins(const QList<HubPluginInfo>& offered, const QStringList& pickedIds);
 
 class RunsController : public QObject {
   Q_OBJECT
@@ -39,6 +54,10 @@ class RunsController : public QObject {
   // canPause, canResume, canFinish, canAbandon, canLeave, canInvite, mine: bool, over: bool, note}.
   Q_PROPERTY(QString openRunId READ openRunId NOTIFY detailChanged)
   Q_PROPERTY(QVariantMap detail READ detail NOTIFY detailChanged)
+  // Plugin content of the opened run (slot "run", PluginsController::runSections): "" | "loading" (copies are fetched or the
+  // plugins start) | "error"; runViewText says what is going on or wrong.
+  Q_PROPERTY(QString runViewState READ runViewState NOTIFY runViewChanged)
+  Q_PROPERTY(QString runViewText READ runViewText NOTIFY runViewChanged)
   Q_PROPERTY(QAbstractItemModel* participants READ participants CONSTANT)  // {userId, name, color, gameTitle, statusText, me}
   Q_PROPERTY(QAbstractItemModel* events READ events CONSTANT)              // {seq, timeText, author, text, sourceText}
   Q_PROPERTY(QString message READ message NOTIFY messageChanged)
@@ -56,6 +75,11 @@ class RunsController : public QObject {
   // Start a run dialog.
   Q_PROPERTY(QAbstractItemModel* startPlugins READ startPlugins CONSTANT)  // {id, name, version, description, origin, originText, permissionsText, checked}
   Q_PROPERTY(QAbstractItemModel* startUsers READ startUsers CONSTANT)      // {id, name, online, checked}
+  // Plugins the picked ones need, included automatically: {id, name, version, text}.
+  Q_PROPERTY(QAbstractItemModel* startIncluded READ startIncluded CONSTANT)
+  // The "Rules" section (empty = hidden): one header row per plugin with run settings, then one row per setting:
+  // {rowId, kind: header|setting, pluginId, title, key, widget: toggle|segments|select, label, hint, value, options: [{value, label}]}.
+  Q_PROPERTY(QAbstractItemModel* startRules READ startRules CONSTANT)
   Q_PROPERTY(QString startError READ startError NOTIFY startStateChanged)
   Q_PROPERTY(bool startBusy READ startBusy NOTIFY startStateChanged)
   Q_PROPERTY(bool startUsersLoading READ startUsersLoading NOTIFY startStateChanged)
@@ -76,6 +100,8 @@ class RunsController : public QObject {
   QString activeTitle() const { return activeTitle_; }
   int finishedCount() const { return finished_.count(); }
   QString openRunId() const { return openRunId_; }
+  QString runViewState() const { return runViewState_; }
+  QString runViewText() const { return runViewText_; }
   QVariantMap detail() const { return detail_; }
   QAbstractItemModel* participants() { return &participants_; }
   QAbstractItemModel* events() { return &events_; }
@@ -85,6 +111,8 @@ class RunsController : public QObject {
   QString busyText() const { return busyText_; }
   QAbstractItemModel* games() { return &games_; }
   QAbstractItemModel* startPlugins() { return &startPlugins_; }
+  QAbstractItemModel* startIncluded() { return &startIncluded_; }
+  QAbstractItemModel* startRules() { return &startRules_; }
   QAbstractItemModel* startUsers() { return &startUsers_; }
   QString startError() const { return startError_; }
   bool startBusy() const { return startBusy_; }
@@ -113,6 +141,8 @@ class RunsController : public QObject {
   // Start a run (and invite more players into an open run).
   Q_INVOKABLE void beginStart();  // loads the users and the offered plugins
   Q_INVOKABLE void toggleStartPlugin(const QString& pluginId);
+  // Sets one run rule of the Start dialog (bool for a toggle, the option value for an enum); unknown keys and values are ignored.
+  Q_INVOKABLE void setStartRule(const QString& pluginId, const QString& key, const QVariant& value);
   Q_INVOKABLE void toggleStartUser(const QString& userId);
   Q_INVOKABLE void startRun(const QString& name, const QString& gameId);
   Q_INVOKABLE void inviteSelected(const QString& runId);
@@ -122,6 +152,7 @@ class RunsController : public QObject {
   void availableChanged();
   void runsChanged();
   void detailChanged();
+  void runViewChanged();
   void messageChanged();
   void busyChanged();
   void startStateChanged();
@@ -136,6 +167,8 @@ class RunsController : public QObject {
   void rebuild();
   void rebuildDetail();
   void rebuildEvents();
+  void syncRunView();  // starts/stops the run view plugins for the opened run (PluginsController::startRunView)
+  void setRunViewState(const QString& state, const QString& text);
   void rebuildStartPlugins();
   void rebuildStartUsers();
   void setMessage(const QString& text, bool error);
@@ -151,6 +184,7 @@ class RunsController : public QObject {
   void ensureCopies(const RunInfo& run, std::function<void(bool ok, const QString& error)> done);
   // The `games` patterns of every plugin of the run ({system, codes?}); a plugin without patterns is no constraint.
   QList<QJsonArray> gamePatternsFor(const RunInfo* run) const;
+  StartResolution currentStartResolution() const;
   QList<QJsonArray> startGamePatterns() const;  // same for the plugins ticked in the Start dialog (newest offered version)
   int fillGames(const QList<QJsonArray>& patterns);
   void refreshGames();  // re-fills `games` for the last prepareGames() call (library or plugin list arrived later)
@@ -176,6 +210,10 @@ class RunsController : public QObject {
   KeyedRowsModel games_{{QStringLiteral("id"), QStringLiteral("title"), QStringLiteral("system"), QStringLiteral("hint")}, QStringLiteral("id")};
   KeyedRowsModel startPlugins_{{QStringLiteral("id"), QStringLiteral("name"), QStringLiteral("version"), QStringLiteral("description"), QStringLiteral("origin"), QStringLiteral("originText"), QStringLiteral("permissionsText"), QStringLiteral("checked")},
                                QStringLiteral("id")};
+  KeyedRowsModel startIncluded_{{QStringLiteral("id"), QStringLiteral("name"), QStringLiteral("version"), QStringLiteral("text")}, QStringLiteral("id")};
+  KeyedRowsModel startRules_{{QStringLiteral("rowId"), QStringLiteral("kind"), QStringLiteral("pluginId"), QStringLiteral("title"), QStringLiteral("key"), QStringLiteral("widget"),
+                              QStringLiteral("label"), QStringLiteral("hint"), QStringLiteral("value"), QStringLiteral("options")},
+                             QStringLiteral("rowId")};
   KeyedRowsModel startUsers_{{QStringLiteral("id"), QStringLiteral("name"), QStringLiteral("online"), QStringLiteral("checked")}, QStringLiteral("id")};
 
   QString activeTitle_;
@@ -189,6 +227,8 @@ class RunsController : public QObject {
   bool startBusy_ = false;
   bool startUsersLoading_ = false;
   QSet<QString> startPluginIds_;
+  QMap<QString, QVariantMap> startRuleValues_;  // plugin id -> {setting key -> value} the creator changed
+  bool startResolveError_ = false;              // startError_ comes from the requires resolution
   QSet<QString> startUserIds_;
   QList<HubUser> users_;
   bool rebuildQueued_ = false;
@@ -196,6 +236,11 @@ class RunsController : public QObject {
   bool joinUnverified_ = false;
   KeyedRowsModel joinPlugins_{{QStringLiteral("id"), QStringLiteral("name"), QStringLiteral("version"), QStringLiteral("origin"), QStringLiteral("originText"), QStringLiteral("permissionsText")}, QStringLiteral("id")};
   quint64 playGen_ = 0;
+  quint64 viewGen_ = 0;
+  QString viewKey_;  // run id + pins of the run view being fetched or running
+  bool viewFetching_ = false;
+  QString runViewState_;
+  QString runViewText_;
 };
 
 }  // namespace framebeam::ui

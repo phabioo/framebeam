@@ -280,6 +280,40 @@ class RunApiTest : public QObject {
     QVERIFY2(hasLog(con(), "args ok"), con().error.toUtf8().constData());
   }
 
+  // Run view: shell context (no game) with the read-only wrapper: reads and callbacks work, writes return nil + message.
+  void runViewIsReadOnly() {
+    connectHub();
+    PluginSpec s;
+    s.permissions = {QStringLiteral("run.state"), QStringLiteral("ui")};
+    s.ui = QJsonObject{{"run", QJsonObject{{"title", "Board"}}}};
+    s.lua = R"LUA(
+      local c = fb.run.current()
+      assert(c.view == true and c.name == "Test run" and c.me == "u_test_1")
+      assert(next(fb.game) == nil or fb.game.title == nil)
+      local ok, e1 = fb.run.setState({hp = 1})
+      local id, e2 = fb.run.event{type = "test.x", text = "no"}
+      local b, e3 = fb.run.setBoard({type = "text", text = "no"})
+      assert(ok == nil and e1 == "read only outside the game", tostring(e1))
+      assert(id == nil and e2 == "read only outside the game", tostring(e2))
+      assert(b == nil and e3 == "read only outside the game", tostring(e3))
+      assert(next(fb.run.state()) == nil and #fb.run.events(0, 10) >= 1)
+      local seen = 0
+      fb.run.on("event", function(e) seen = seen + 1 fb.ui.set("run", {type = "text", text = "events:" .. seen .. ":" .. e.type}) end)
+      fb.ui.set("run", {type = "text", text = "view:" .. tostring(c.view)})
+    )LUA";
+    const QString dir = writePlugin(dir_->filePath(QStringLiteral("src")), s);
+    GameContext ctx;
+    ctx.shell = true;
+    ctx.run = std::make_shared<ReadOnlyRunBridge>(RunSessionBridge::create(client_.get(), runId_));
+    host_->start(ctx, nullptr, {infoFor(dir, dir_->filePath(QStringLiteral("cache")))});
+    QTRY_VERIFY_WITH_TIMEOUT(host_->consoleSnapshot(kId).status == PluginStatus::Running, 10000);
+    QCOMPARE(host_->uiTree(kId, "run").value("text").toString(), QStringLiteral("view:true"));
+    hub_->addRunEvent(runId_, QStringLiteral("test.hit"), QStringLiteral("Ouch"), kOther, kId);
+    QTRY_COMPARE_WITH_TIMEOUT(host_->uiTree(kId, "run").value("text").toString(), QStringLiteral("events:1:test.hit"), 8000);
+    QVERIFY(hub_->runStatePuts.isEmpty() && hub_->runEventPosts.isEmpty() && !hub_->runBoards.contains(runId_ + "/" + kId));
+    QCOMPARE(con().status, PluginStatus::Running);
+  }
+
   void boardIsLimitedToOnePerSecond() {
     connectHub();
     startPlugin(R"LUA(

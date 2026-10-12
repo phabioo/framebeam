@@ -10,6 +10,7 @@
 
 #include "fakehub.h"
 #include "fbplugin_testutil.h"
+#include "runscontroller.h"
 #include "runtypes.h"
 #include "testsupport.h"
 
@@ -239,6 +240,90 @@ class RunsUiTest : public QObject {
     QTRY_COMPARE_WITH_TIMEOUT(runs->finishedCount(), 1, 8000);
   }
 
+  // Run view: the run detail shows the "run" slot of the run's ui.run plugins (pinned Hub copies, read-only fb.run) for a
+  // participant; opening another run, closing the detail or an invited-only run shows nothing.
+  void runViewInDetail() {
+    FakeHub hub(QStringLiteral("a"));
+    hub.hubId = QStringLiteral("hub-runview");
+    hub.name = QStringLiteral("Home");
+    hub.decision = FakeHub::Decision::Approve;
+    hub.features = {QStringLiteral("saves_v1"), QStringLiteral("plugins_v1"), QStringLiteral("runs_v1"), QStringLiteral("sessions_v1")};
+    FbSpec spec;
+    spec.id = kPluginId;
+    spec.name = "Run Notes";
+    spec.permissions = {"run.state", "ui"};
+    spec.ui = QJsonObject{{"run", QJsonObject{{"title", "Board"}}}};
+    spec.lua = "local c = fb.run.current()\n"
+               "local ok, err = fb.run.setState({a = 1})\n"
+               "fb.ui.set('run', {type = 'text', text = 'view=' .. tostring(c.view) .. ' ' .. tostring(c.name) .. ' ' .. tostring(err)})\n";
+    const QByteArray file = makeFbPlugin(spec);
+    const QString sha = sha256Hex(file);
+    hub.pluginList.append(QJsonObject{{"plugin_id", spec.id}, {"version", spec.version}, {"name", spec.name}, {"description", "Notes for runs"}, {"api", 1},
+                                      {"origin", "unverified"}, {"sha256", sha}, {"size", file.size()}, {"permissions", QJsonArray{"run.state", "ui"}},
+                                      {"created_at", "2026-10-12T10:00:00Z"}});
+    hub.pluginFiles.insert(spec.id + "/" + spec.version, file);
+    const QJsonArray refs{QJsonObject{{"plugin_id", spec.id}, {"version", spec.version}, {"sha256", sha}}};
+    // Mine (creator, joined) and one I am only invited to.
+    const QString mine = hub.makeRun(QStringLiteral("Mine"), {hub.runsMe, QStringLiteral("u_lena")}, hub.runsMe, refs).value("run_id").toString();
+    const QString invited = hub.makeRun(QStringLiteral("Invited"), {QStringLiteral("u_lena"), hub.runsMe}, QStringLiteral("u_lena"), refs).value("run_id").toString();
+    QVERIFY(hub.start());
+
+    Harness h;
+    QVERIFY(h.start());
+    h.window->resize(1440, 900);
+    pair(h, hub);
+    RunsController* runs = h.controller->runs();
+    PluginsController* pc = h.controller->plugins();
+    QTRY_VERIFY_WITH_TIMEOUT(runs->loaded(), 8000);
+    QTRY_COMPARE_WITH_TIMEOUT(pc->hubPlugins().size(), 1, 8000);
+
+    QVERIFY(h.click("navRuns"));
+    QTRY_COMPARE_WITH_TIMEOUT(h.controller->screen(), QStringLiteral("runs"), 8000);
+
+    // An invited-only run does not start the plugins.
+    runs->openRun(invited);
+    QTest::qWait(300);
+    QVERIFY(pc->runViewPluginIds().isEmpty());
+    QVERIFY(pc->runSections().isEmpty());
+    QVERIFY(pc->manager()->hubCopyDir(spec.id, spec.version, sha).isEmpty());
+
+    // My run: the copy is fetched, the plugin runs read-only and its "run" tree reaches the model.
+    runs->openRun(mine);
+    QTRY_VERIFY_WITH_TIMEOUT(!pc->manager()->hubCopyDir(spec.id, spec.version, sha).isEmpty(), 8000);
+    QTRY_COMPARE_WITH_TIMEOUT(pc->runSections().size(), 1, 10000);
+    QCOMPARE(pc->runViewId(), mine);
+    QCOMPARE(runs->runViewState(), QString());
+    QTRY_VERIFY_WITH_TIMEOUT(!pc->runSections().at(0).toMap().value("tree").toMap().isEmpty(), 10000);
+    const QVariantMap sec = pc->runSections().at(0).toMap();
+    QCOMPARE(sec.value("title").toString(), QStringLiteral("Board"));
+    QCOMPARE(sec.value("tree").toMap().value("text").toString(), QStringLiteral("view=true Mine read only outside the game"));
+    QTRY_VERIFY(h.item("pluginRunSection") != nullptr && h.item("pluginRunSection")->isVisible());
+    QTRY_VERIFY(h.item(("pluginRun_" + spec.id).toUtf8().constData()) != nullptr);
+    QVERIFY(hub.runStatePuts.isEmpty());
+
+    // Rebuilding the same detail does not restart the plugin.
+    const auto log0 = pc->host()->consoleSnapshot(spec.id).log.size();
+    runs->openRun(mine);
+    QTest::qWait(300);
+    QCOMPARE(pc->host()->consoleSnapshot(spec.id).log.size(), log0);
+    QCOMPARE(pc->runSections().size(), 1);
+
+    // Back to the list: the plugins stop.
+    runs->closeRun();
+    QVERIFY(pc->runViewPluginIds().isEmpty());
+    QVERIFY(pc->runSections().isEmpty());
+    QVERIFY(pc->runViewId().isEmpty());
+    // Opening it again after a game would restart it: a game start ends the view, the end of the game brings it back.
+    runs->openRun(mine);
+    QTRY_COMPARE_WITH_TIMEOUT(pc->runSections().size(), 1, 10000);
+    pc->gameStarted(QStringLiteral("nds"), QStringLiteral("/nonexistent/missing.nds"), QStringLiteral("abc"), QStringLiteral("Homebrew"));
+    QVERIFY(pc->runSections().isEmpty());
+    QVERIFY(pc->runViewId().isEmpty());
+    pc->gameStopped();
+    QTRY_COMPARE_WITH_TIMEOUT(pc->runSections().size(), 1, 10000);
+    QCOMPARE(pc->runViewId(), mine);
+  }
+
   void entryHiddenWithoutRunsAndPlugin() {
     FakeHub hub(QStringLiteral("a"));
     hub.hubId = QStringLiteral("hub-empty");
@@ -410,6 +495,207 @@ class RunsUiTest : public QObject {
     QCOMPARE(h.item("runJoinGames")->property("selectedId").toString(), QStringLiteral("user-choice"));
   }
 
+  static framebeam::HubPluginInfo hubInfo(const QString& id, const QString& version, const QString& name, const QJsonObject& requires_ = {}) {
+    QJsonObject o{{"plugin_id", id}, {"version", version}, {"name", name}, {"origin", "unverified"}, {"sha256", QString(64, QLatin1Char('c'))},
+                  {"permissions", QJsonArray{"run.state"}}, {"requires", requires_}};
+    return *framebeam::parseHubPluginInfo(o);
+  }
+
+  // Requires: newest fitting version, transitive, deduplicated; missing and conflicting ranges give a start error.
+  void resolveStartPluginsRules() {
+    using framebeam::ui::resolveStartPlugins;
+    const QList<framebeam::HubPluginInfo> offered{
+        hubInfo("net.t.soul", "1.0.0", "SoulLink", {{"net.t.core", "^0.1"}, {"net.t.base", "*"}}),
+        hubInfo("net.t.nuz", "1.0.0", "Nuzlocke", {{"net.t.core", "^0.1"}}),
+        hubInfo("net.t.core", "0.1.0", "Core"), hubInfo("net.t.core", "0.1.7", "Core", {{"net.t.base", "^1.0"}}), hubInfo("net.t.core", "0.2.0", "Core"),
+        hubInfo("net.t.base", "1.0.0", "Base"), hubInfo("net.t.base", "1.4.0", "Base"), hubInfo("net.t.base", "2.0.0", "Base"),
+        hubInfo("net.t.strict", "1.0.0", "Strict", {{"net.t.core", "^0.2"}}),
+        hubInfo("net.t.lost", "1.0.0", "Lost", {{"net.t.gone", "^1"}})};
+    auto r = resolveStartPlugins(offered, {"net.t.soul", "net.t.nuz"});
+    QVERIFY2(r.error.isEmpty(), qPrintable(r.error));
+    QCOMPARE(r.picked.size(), 2);
+    QCOMPARE(r.included.size(), 2);  // core (once) and base (transitive, also needed by core 0.1.7)
+    QCOMPARE(r.included.at(0).info.id, QString("net.t.base"));
+    QCOMPARE(r.included.at(0).info.version, QString("1.4.0"));  // soul says "*", core 0.1.7 says ^1.0: the newest that fits both
+    QCOMPARE(r.included.at(1).info.version, QString("0.1.7"));
+    QCOMPARE(r.included.at(1).neededBy, (QStringList{"Nuzlocke", "SoulLink"}));  // once, with both reasons
+    QCOMPARE(r.total(), 4);
+  }
+  void resolveStartPluginsNarrowing() {
+    using framebeam::ui::resolveStartPlugins;
+    const QList<framebeam::HubPluginInfo> offered{
+        hubInfo("net.t.soul", "1.0.0", "SoulLink", {{"net.t.core", "^0.1"}}),
+        hubInfo("net.t.core", "0.1.0", "Core"), hubInfo("net.t.core", "0.1.7", "Core", {{"net.t.base", "^1.0"}}), hubInfo("net.t.core", "0.2.0", "Core"),
+        hubInfo("net.t.base", "1.0.0", "Base"), hubInfo("net.t.base", "1.4.0", "Base"), hubInfo("net.t.base", "2.0.0", "Base")};
+    auto r = resolveStartPlugins(offered, {"net.t.soul"});
+    QVERIFY2(r.error.isEmpty(), qPrintable(r.error));
+    QCOMPARE(r.included.size(), 2);
+    QCOMPARE(r.included.at(0).info.id, QString("net.t.base"));
+    QCOMPARE(r.included.at(0).info.version, QString("1.4.0"));
+    QCOMPARE(r.included.at(0).neededBy, QStringList{"Core"});
+    QCOMPARE(r.included.at(1).info.id, QString("net.t.core"));
+    QCOMPARE(r.included.at(1).info.version, QString("0.1.7"));  // newest satisfying ^0.1
+    QCOMPARE(r.included.at(1).neededBy, QStringList{"SoulLink"});
+  }
+  void resolveStartPluginsErrors() {
+    using framebeam::ui::resolveStartPlugins;
+    const QList<framebeam::HubPluginInfo> offered{
+        hubInfo("net.t.soul", "1.0.0", "SoulLink & Nuzlocke", {{"net.t.core", "^0.1"}}), hubInfo("net.t.core", "0.2.0", "Pokémon Core"),
+        hubInfo("net.t.strict", "1.0.0", "Strict", {{"net.t.core", "^0.2"}}), hubInfo("net.t.lost", "1.0.0", "Lost", {{"net.t.gone", "^1"}}),
+        hubInfo("net.t.bad", "1.0.0", "Bad", {{"net.t.core", "huh"}})};
+    QCOMPARE(resolveStartPlugins(offered, {"net.t.soul"}).error, QString("SoulLink & Nuzlocke needs Pokémon Core ^0.1, which this Hub does not offer."));
+    QCOMPARE(resolveStartPlugins(offered, {"net.t.lost"}).error, QString("Lost needs net.t.gone ^1, which this Hub does not offer."));
+    const QString conflict = resolveStartPlugins(offered, {"net.t.soul", "net.t.strict"}).error;
+    QVERIFY2(conflict.contains("SoulLink & Nuzlocke needs Pokémon Core ^0.1") && conflict.contains("Strict needs Pokémon Core ^0.2"), qPrintable(conflict));
+    QVERIFY(resolveStartPlugins(offered, {"net.t.bad"}).error.contains("not valid"));
+    QVERIFY(resolveStartPlugins(offered, {"net.t.strict"}).error.isEmpty());
+  }
+
+  // Start dialog: rules from run_settings, required plugins included automatically, settings and pins sent to the Hub.
+  void startDialogRulesAndRequires() {
+    FakeHub hub(QStringLiteral("a"));
+    hub.hubId = QStringLiteral("hub-rules");
+    hub.decision = FakeHub::Decision::Approve;
+    hub.features = {QStringLiteral("saves_v1"), QStringLiteral("plugins_v1"), QStringLiteral("runs_v1"), QStringLiteral("sessions_v1")};
+    hub.games = QJsonObject{{"games", QJsonArray{QJsonObject{{"id", kGameId}, {"title", "Quest"}, {"system", "nds"}, {"code", "ABCD"},
+                                                             {"rom", QJsonObject{{"sha256", QString(64, QLatin1Char('b'))}, {"size", 4096}, {"filename", "q.nds"}}},
+                                                             {"added_at", "2026-01-01T12:00:00Z"}}}}};
+    hub.fakeUsers = QJsonArray{QJsonObject{{"id", "u_test_1"}, {"display_name", "Tester"}, {"online", true}}};
+    const auto entry = [&](const QString& id, const QString& ver, const QString& name, const QJsonArray& perms, const QJsonObject& req, const QJsonArray& rules,
+                           const QJsonArray& games) {
+      // The packages the run will pin are served for real (the run view fetches them once the run is created).
+      QString sha(64, QLatin1Char('c'));
+      qint64 size = 10;
+      if (id != QLatin1String("net.test.core") || ver == QLatin1String("0.1.4")) {
+        FbSpec fs;
+        fs.id = id;
+        fs.version = ver;
+        fs.name = name;
+        fs.permissions = {};
+        for (const QJsonValue& pv : perms) fs.permissions << pv.toString();
+        for (auto rq = req.begin(); rq != req.end(); ++rq) fs.requires_.insert(rq.key(), rq.value());
+        const QByteArray file = makeFbPlugin(fs);
+        sha = sha256Hex(file);
+        size = file.size();
+        hub.pluginFiles.insert(id + "/" + ver, file);
+      }
+      QJsonObject o{{"plugin_id", id}, {"version", ver}, {"name", name}, {"description", ""}, {"api", 1}, {"origin", "unverified"},
+                    {"sha256", sha}, {"size", size}, {"permissions", perms}, {"requires", req}, {"games", games},
+                    {"created_at", "2026-10-12T10:00:00Z"}};
+      if (!rules.isEmpty()) {
+        o.insert("run_settings", rules);
+        o.insert("run_settings_strings", QJsonObject{{"en", QJsonObject{{"r.mode", "Mode"}, {"r.mode.hint", "How the run is played"}, {"r.soul", "SoulLink"}, {"r.dupes", "Dupes clause"}}}});
+      }
+      hub.pluginList.append(o);
+    };
+    const QJsonArray rules{
+        QJsonObject{{"key", "mode"}, {"type", "enum"}, {"label", "r.mode"}, {"hint", "r.mode.hint"}, {"default", "soullink"},
+                    {"options", QJsonArray{QJsonObject{{"value", "soullink"}, {"label", "r.soul"}}, QJsonObject{{"value", "nuzlocke"}, {"label", "nuz.missing"}}}}},
+        QJsonObject{{"key", "rules.dupes_clause"}, {"type", "boolean"}, {"label", "r.dupes"}, {"default", true}}};
+    entry("net.test.soul", "1.0.0", "SoulLink", {"run.state"}, {{"net.test.core", "^0.1"}}, rules, {QJsonObject{{"system", "nds"}, {"codes", QJsonArray{"ABC*"}}}});
+    entry("net.test.core", "0.1.0", "Core", {"memory.read"}, {}, {}, {QJsonObject{{"system", "nds"}, {"codes", QJsonArray{"AB??"}}}});
+    entry("net.test.core", "0.1.4", "Core", {"memory.read"}, {}, {}, {QJsonObject{{"system", "nds"}, {"codes", QJsonArray{"AB??"}}}});
+    entry("net.test.core", "0.2.0", "Core", {"memory.read"}, {}, {}, {});
+    entry("net.test.plain", "1.0.0", "Plain", {"run.state"}, {}, {}, {});
+    {
+      QJsonObject run = hub.makeRun(QStringLiteral("Existing"), {hub.runsMe}, hub.runsMe,
+                                    QJsonArray{QJsonObject{{"plugin_id", "net.test.plain"}, {"version", "1.0.0"}, {"sha256", QString(64, QLatin1Char('c'))}}});
+      hub.runs.insert(run.value("run_id").toString(), run);  // makes the Runs entry show
+    }
+    QVERIFY(hub.start());
+
+    Harness h;
+    QVERIFY(h.start());
+    h.window->resize(1440, 900);
+    pair(h, hub);
+    RunsController* runs = h.controller->runs();
+    QTRY_VERIFY_WITH_TIMEOUT(runs->loaded(), 8000);
+    QTRY_COMPARE_WITH_TIMEOUT(h.controller->plugins()->hubPlugins().size(), 3, 8000);
+    QTRY_VERIFY_WITH_TIMEOUT(runs->available(), 8000);
+    QVERIFY(h.click("navRuns"));
+    QTRY_VERIFY(h.item("runsStartButton") != nullptr);
+    QVERIFY(h.click("runsStartButton"));
+    QTRY_VERIFY(popupOpen(h, "runStartDialog"));
+    QTRY_COMPARE_WITH_TIMEOUT(runs->startPlugins()->rowCount(), 2, 8000);  // soul and plain; core has no run.state
+    QCOMPARE(runs->startRules()->rowCount(), 0);
+    QCOMPARE(runs->startIncluded()->rowCount(), 0);
+
+    runs->toggleStartPlugin(QStringLiteral("net.test.plain"));
+    QCOMPARE(runs->startRules()->rowCount(), 0);  // no run_settings: no Rules section
+    runs->toggleStartPlugin(QStringLiteral("net.test.plain"));
+    runs->toggleStartPlugin(QStringLiteral("net.test.soul"));
+    QCOMPARE(runs->startIncluded()->rowCount(), 1);
+    const QVariantMap inc = static_cast<framebeam::ui::KeyedRowsModel*>(runs->startIncluded())->get(0);
+    QCOMPARE(inc.value("text").toString(), QString("Included: Core 0.1.4 · needed by SoulLink"));
+    QCOMPARE(runs->startRules()->rowCount(), 3);  // header + 2 settings
+    auto* rulesModel = static_cast<framebeam::ui::KeyedRowsModel*>(runs->startRules());
+    QCOMPARE(rulesModel->get(0).value("title").toString(), QString("SoulLink"));
+    QCOMPARE(rulesModel->get(1).value("label").toString(), QString("Mode"));
+    QCOMPARE(rulesModel->get(1).value("hint").toString(), QString("How the run is played"));
+    QCOMPARE(rulesModel->get(1).value("widget").toString(), QString("segments"));
+    QCOMPARE(rulesModel->get(1).value("value").toString(), QString("soullink"));
+    QCOMPARE(rulesModel->get(1).value("options").toList().at(1).toMap().value("label").toString(), QString("nuz.missing"));  // unknown key: the key itself
+    QCOMPARE(rulesModel->get(2).value("widget").toString(), QString("toggle"));
+    QCOMPARE(rulesModel->get(2).value("value").toBool(), true);
+
+    // The dialog shows the section, the group header and the included line.
+    QTRY_VERIFY(h.item("runRulesTitle") != nullptr && h.item("runRulesTitle")->isVisible());
+    QTRY_VERIFY(h.item("runIncluded_net.test.core") != nullptr && h.item("runIncluded_net.test.core")->isVisible());
+    QCOMPARE(h.item("runIncluded_net.test.core")->property("text").toString(), inc.value("text").toString());
+    QTRY_VERIFY(h.item("runRulesHeader_net.test.soul") != nullptr && h.item("runRulesHeader_net.test.soul")->isVisible());
+    QTRY_VERIFY(h.item("runRule_net.test.soul_rules.dupes_clause") != nullptr && h.item("runRule_net.test.soul_rules.dupes_clause")->isVisible());
+    QVERIFY(h.click("runRule_net.test.soul_rules.dupes_clause"));  // the toggle in the dialog
+    QCOMPARE(rulesModel->get(2).value("value").toBool(), false);
+    QVERIFY(h.click("runRule_net.test.soul_rules.dupes_clause"));
+    QCOMPARE(rulesModel->get(2).value("value").toBool(), true);
+    runs->setStartRule(QStringLiteral("net.test.soul"), QStringLiteral("mode"), QStringLiteral("bogus"));  // not an option: ignored
+    QCOMPARE(rulesModel->get(1).value("value").toString(), QString("soullink"));
+    runs->setStartRule(QStringLiteral("net.test.soul"), QStringLiteral("mode"), QStringLiteral("nuzlocke"));
+    runs->setStartRule(QStringLiteral("net.test.soul"), QStringLiteral("rules.dupes_clause"), false);
+    QCOMPARE(rulesModel->get(1).value("value").toString(), QString("nuzlocke"));
+    QCOMPARE(rulesModel->get(2).value("value").toBool(), false);
+
+    // Game filter takes part with the included plugin (AB?? and ABC*): ABCD fits.
+    QTRY_COMPARE_WITH_TIMEOUT(runs->games()->rowCount(), 1, 8000);
+    runs->startRun(QStringLiteral("Rules Run"), kGameId);
+    QTRY_VERIFY_WITH_TIMEOUT(hub.runs.size() == 2, 8000);
+    QCOMPARE(hub.lastRunBody.value("settings").toObject(),
+             (QJsonObject{{"net.test.soul", QJsonObject{{"mode", "nuzlocke"}, {"rules", QJsonObject{{"dupes_clause", false}}}}}}));
+    const QJsonArray pins = hub.lastRunBody.value("plugins").toArray();
+    QCOMPARE(pins.size(), 2);
+    QStringList got;
+    for (const QJsonValue& v : pins) got << v.toObject().value("plugin_id").toString() + "@" + v.toObject().value("version").toString();
+    got.sort();
+    QCOMPARE(got, (QStringList{"net.test.core@0.1.4", "net.test.soul@1.0.0"}));
+  }
+
+  // A requirement the Hub cannot satisfy blocks the start with a clear error.
+  void startDialogRequiresMissing() {
+    FakeHub hub(QStringLiteral("a"));
+    hub.hubId = QStringLiteral("hub-req-missing");
+    hub.decision = FakeHub::Decision::Approve;
+    hub.features = {QStringLiteral("saves_v1"), QStringLiteral("plugins_v1"), QStringLiteral("runs_v1"), QStringLiteral("sessions_v1")};
+    hub.fakeUsers = QJsonArray{QJsonObject{{"id", "u_test_1"}, {"display_name", "Tester"}, {"online", true}}};
+    hub.pluginList.append(QJsonObject{{"plugin_id", "net.test.soul"}, {"version", "1.0.0"}, {"name", "SoulLink"}, {"description", ""}, {"api", 1},
+                                      {"origin", "unverified"}, {"sha256", QString(64, QLatin1Char('c'))}, {"size", 10},
+                                      {"permissions", QJsonArray{"run.state"}}, {"requires", QJsonObject{{"net.test.core", "^0.1"}}},
+                                      {"created_at", "2026-10-12T10:00:00Z"}});
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    RunsController* runs = h.controller->runs();
+    QTRY_COMPARE_WITH_TIMEOUT(h.controller->plugins()->hubPlugins().size(), 1, 8000);
+    runs->beginStart();
+    QTRY_COMPARE_WITH_TIMEOUT(runs->startPlugins()->rowCount(), 1, 8000);
+    runs->toggleStartPlugin(QStringLiteral("net.test.soul"));
+    QCOMPARE(runs->startError(), QString("SoulLink needs net.test.core ^0.1, which this Hub does not offer."));
+    runs->startRun(QStringLiteral("X"), QStringLiteral("g"));
+    QCOMPARE(runs->startError(), QString("SoulLink needs net.test.core ^0.1, which this Hub does not offer."));
+    QVERIFY(hub.runs.isEmpty());
+    runs->toggleStartPlugin(QStringLiteral("net.test.soul"));  // unpicked: the error goes away
+    QCOMPARE(runs->startError(), QString());
+  }
 };
 
 QTEST_MAIN(RunsUiTest)

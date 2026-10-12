@@ -7,6 +7,7 @@
 #include <optional>
 #include <utility>
 
+#include "pluginhub.h"
 #include "semver.h"
 
 // Plugin manifest (manifest.json, docs/architecture/12-plugins.md 16.6). Pure parsing/validation, no Lua.
@@ -56,10 +57,12 @@ struct UiDecl {
   bool screen = false;
   QString screenTitle;
   bool detail = false;
+  bool run = false;  // slot "run": the run detail view (Runs screen, outside a game)
+  QString runTitle;
   QList<UiHotkey> hotkeys;
 
-  bool any() const { return panel || hud || tile || screen || detail || !hotkeys.isEmpty(); }
-  // "panel", "hud", "screen", "detail" or "tile:<tileId>" (needs `tile`).
+  bool any() const { return panel || hud || tile || screen || detail || run || !hotkeys.isEmpty(); }
+  // "panel", "hud", "screen", "detail", "run" or "tile:<tileId>" (needs `tile`).
   bool declaresSlot(const QString& slot) const;
   // "Adds: panel tab · HUD · tile strip · <screen title> screen · game detail · n hotkeys"; empty when nothing.
   QString addsText() const;
@@ -81,6 +84,7 @@ struct Manifest {
   QStringList assets;
   QJsonObject settings;            // raw, schema not interpreted yet
   UiDecl ui;                       // optional field "ui"
+  QList<RunSetting> runSettings;   // optional field "run_settings": the run rules the creator sets in "Start a run"
 
   bool matchesGame(const QString& system, const QString& code) const;
   bool hasPermission(const QString& p) const { return permissions.contains(p); }

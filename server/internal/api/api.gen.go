@@ -375,6 +375,24 @@ func (e PluginOrigin) Valid() bool {
 	}
 }
 
+// Defines values for PluginRunSettingType.
+const (
+	Boolean PluginRunSettingType = "boolean"
+	Enum    PluginRunSettingType = "enum"
+)
+
+// Valid indicates whether the value is a known member of the PluginRunSettingType enum.
+func (e PluginRunSettingType) Valid() bool {
+	switch e {
+	case Boolean:
+		return true
+	case Enum:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RunEventSource.
 const (
 	RunEventSourceAutomatic RunEventSource = "automatic"
@@ -975,9 +993,17 @@ type PluginInfo struct {
 
 	// Requires Plugin id to version range, from the manifest
 	Requires map[string]string `json:"requires"`
-	Sha256   string            `json:"sha256"`
-	Size     int64             `json:"size"`
-	Version  string            `json:"version"`
+
+	// RunSettings Validated manifest field `run_settings`; absent when the manifest has none. Absent on Hubs before 1.17.0.
+	RunSettings *[]PluginRunSetting `json:"run_settings,omitempty"`
+
+	// RunSettingsStrings Language (file name of `i18n/<lang>.json`, e.g. `en`, `de`, `pt-BR`) to i18n key to text, holding only the
+	// keys `run_settings` references (labels, hints, option labels). A key missing in a language is absent.
+	// Absent together with `run_settings`.
+	RunSettingsStrings *map[string]map[string]string `json:"run_settings_strings,omitempty"`
+	Sha256             string                        `json:"sha256"`
+	Size               int64                         `json:"size"`
+	Version            string                        `json:"version"`
 }
 
 // PluginList defines model for PluginList.
@@ -987,6 +1013,48 @@ type PluginList struct {
 
 // PluginOrigin `official` = valid signature of a trusted FrameBeam key; `unverified` = unsigned (or not verifiable), offered by the Hub admin.
 type PluginOrigin string
+
+// PluginRunSetting One rule of the manifest field `run_settings`, shown in the Player's "Start a run" dialog. The Player sends
+// the chosen values as `settings[<plugin_id>]` when it creates a run, nested by the key segments: keys `mode`
+// and `rules.dupes_clause` become `{"mode": "soullink", "rules": {"dupes_clause": true}}`.
+type PluginRunSetting struct {
+	// Default A boolean for type `boolean`, one of the option values (string) for type `enum`.
+	Default PluginRunSetting_Default `json:"default"`
+
+	// Hint Optional i18n key
+	Hint *string `json:"hint,omitempty"`
+
+	// Key One or two dot-separated segments, each `^[a-z][a-z0-9_]{0,31}$`; unique within the plugin, never a segment prefix of another key.
+	Key string `json:"key"`
+
+	// Label i18n key, see `run_settings_strings`
+	Label string `json:"label"`
+
+	// Options Only for type `enum`.
+	Options *[]PluginRunSettingOption `json:"options,omitempty"`
+	Type    PluginRunSettingType      `json:"type"`
+}
+
+// PluginRunSettingDefault0 defines model for .
+type PluginRunSettingDefault0 = bool
+
+// PluginRunSettingDefault1 defines model for .
+type PluginRunSettingDefault1 = string
+
+// PluginRunSetting_Default A boolean for type `boolean`, one of the option values (string) for type `enum`.
+type PluginRunSetting_Default struct {
+	union json.RawMessage
+}
+
+// PluginRunSettingType defines model for PluginRunSetting.Type.
+type PluginRunSettingType string
+
+// PluginRunSettingOption defines model for PluginRunSettingOption.
+type PluginRunSettingOption struct {
+	// Label i18n key, see `run_settings_strings`
+	Label string `json:"label"`
+	Value string `json:"value"`
+}
 
 // RegisterGameRequest defines model for RegisterGameRequest.
 type RegisterGameRequest struct {
@@ -2159,6 +2227,68 @@ func (a HandshakeRequest_Video) MarshalJSON() ([]byte, error) {
 		}
 	}
 	return json.Marshal(object)
+}
+
+// AsPluginRunSettingDefault0 returns the union data inside the PluginRunSetting_Default as a PluginRunSettingDefault0
+func (t PluginRunSetting_Default) AsPluginRunSettingDefault0() (PluginRunSettingDefault0, error) {
+	var body PluginRunSettingDefault0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromPluginRunSettingDefault0 overwrites any union data inside the PluginRunSetting_Default as the provided PluginRunSettingDefault0
+func (t *PluginRunSetting_Default) FromPluginRunSettingDefault0(v PluginRunSettingDefault0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergePluginRunSettingDefault0 performs a merge with any union data inside the PluginRunSetting_Default, using the provided PluginRunSettingDefault0
+func (t *PluginRunSetting_Default) MergePluginRunSettingDefault0(v PluginRunSettingDefault0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsPluginRunSettingDefault1 returns the union data inside the PluginRunSetting_Default as a PluginRunSettingDefault1
+func (t PluginRunSetting_Default) AsPluginRunSettingDefault1() (PluginRunSettingDefault1, error) {
+	var body PluginRunSettingDefault1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromPluginRunSettingDefault1 overwrites any union data inside the PluginRunSetting_Default as the provided PluginRunSettingDefault1
+func (t *PluginRunSetting_Default) FromPluginRunSettingDefault1(v PluginRunSettingDefault1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergePluginRunSettingDefault1 performs a merge with any union data inside the PluginRunSetting_Default, using the provided PluginRunSettingDefault1
+func (t *PluginRunSetting_Default) MergePluginRunSettingDefault1(v PluginRunSettingDefault1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t PluginRunSetting_Default) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *PluginRunSetting_Default) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
 }
 
 // ServerInterface represents all server handlers.

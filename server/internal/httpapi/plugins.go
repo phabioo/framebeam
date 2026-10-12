@@ -38,6 +38,34 @@ func pluginInfo(p hub.Plugin) api.PluginInfo {
 		}
 		info.Games = append(info.Games, api.PluginGame{System: g.System, Codes: codes})
 	}
+	if len(m.RunSettings) > 0 {
+		rs := make([]api.PluginRunSetting, 0, len(m.RunSettings))
+		for _, r := range m.RunSettings {
+			e := api.PluginRunSetting{Key: r.Key, Type: api.PluginRunSettingType(r.Type), Label: r.Label}
+			if r.Hint != "" {
+				e.Hint = ptr(r.Hint)
+			}
+			switch d := r.Default.(type) {
+			case bool:
+				_ = e.Default.FromPluginRunSettingDefault0(d)
+			case string:
+				_ = e.Default.FromPluginRunSettingDefault1(d)
+			}
+			if len(r.Options) > 0 {
+				opts := make([]api.PluginRunSettingOption, 0, len(r.Options))
+				for _, o := range r.Options {
+					opts = append(opts, api.PluginRunSettingOption{Value: o.Value, Label: o.Label})
+				}
+				e.Options = &opts
+			}
+			rs = append(rs, e)
+		}
+		strs := p.RunSettingsStrings
+		if strs == nil {
+			strs = map[string]map[string]string{}
+		}
+		info.RunSettings, info.RunSettingsStrings = &rs, &strs
+	}
 	return info
 }
 

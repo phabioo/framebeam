@@ -192,6 +192,7 @@ target_include_directories(test_plugins_e2e_testcore PRIVATE ${CMAKE_CURRENT_SOU
 
 # Plugin UI runtime in the PluginsController (shell context, models, actions, toasts) and the image://fbplugin rules.
 framebeam_add_test(ui_plugins_runtime plugins_runtime_ui_test.cpp LIBS framebeam_ui framebeam_core framebeam_emulation framebeam_plugins Qt6::Quick)
+target_include_directories(test_ui_plugins_runtime PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../plugins/tests)
 
 # Runs screen: sidebar entry, invite/join, detail, Start a run, Play run (fake Hub, synthetic plugin).
 framebeam_add_test(ui_runs runs_ui_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h

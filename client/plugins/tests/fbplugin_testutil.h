@@ -168,11 +168,15 @@ struct FbSpec {
   bool sign = false;
   TestKey key = fixedTestKey();
   QString entry = QStringLiteral("main.lua");
+  QJsonObject ui;  // manifest field "ui" (needs the permission "ui")
+  QJsonObject requires_;  // manifest field "requires" (plugin id -> version range)
 };
 
 inline QMap<QString, QByteArray> fbFiles(const FbSpec& s) {
   QJsonObject m{{"id", s.id}, {"name", s.name.isEmpty() ? s.id : s.name}, {"version", s.version}, {"api", 1}, {"type", "script"}, {"entry", s.entry},
                 {"permissions", QJsonArray::fromStringList(s.permissions)}};
+  if (!s.ui.isEmpty()) m["ui"] = s.ui;
+  if (!s.requires_.isEmpty()) m["requires"] = s.requires_;
   QMap<QString, QByteArray> files = s.extra;
   files.insert(QStringLiteral("manifest.json"), QJsonDocument(m).toJson());
   files.insert(s.entry, s.lua.toUtf8());

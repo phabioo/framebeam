@@ -6,6 +6,7 @@
 #include <QJsonObject>
 #include <QList>
 #include <QString>
+#include <memory>
 
 #include "plugin_value.h"
 
@@ -39,6 +40,29 @@ class RunBridge {
   virtual QString setBoard(const QString& pluginId, const QJsonObject& tree) = 0;
 
   virtual QList<RunNotification> takeNotifications() = 0;
+};
+
+// fb.run for plugins that run in the run view (Runs screen, outside a game): reads and notifications come from `inner`, current()
+// has the extra field view = true, every write is refused with a message (no Lua error), like in a paused run.
+class ReadOnlyRunBridge : public RunBridge {
+ public:
+  explicit ReadOnlyRunBridge(std::shared_ptr<RunBridge> inner) : inner_(std::move(inner)) {}
+  QJsonObject current() const override {
+    QJsonObject c = inner_->current();
+    if (!c.isEmpty()) c.insert(QStringLiteral("view"), true);
+    return c;
+  }
+  QJsonObject stateOf(const QString& userId, const QString& pluginId, bool* found) const override { return inner_->stateOf(userId, pluginId, found); }
+  QJsonObject states(const QString& pluginId) const override { return inner_->states(pluginId); }
+  QJsonArray events(qint64 afterSeq, int limit) const override { return inner_->events(afterSeq, limit); }
+  QString setState(const QString&, const QJsonObject&) override { return refusal(); }
+  QString postEvent(const QString&, const QString&, const QString&, const QString&, const QJsonObject&, QString*) override { return refusal(); }
+  QString setBoard(const QString&, const QJsonObject&) override { return refusal(); }
+  QList<RunNotification> takeNotifications() override { return inner_->takeNotifications(); }
+
+ private:
+  static QString refusal() { return QStringLiteral("read only outside the game"); }
+  std::shared_ptr<RunBridge> inner_;
 };
 
 // Lua value <-> JSON. Tables whose keys are 1..n become arrays (an empty nested table too), others objects with string

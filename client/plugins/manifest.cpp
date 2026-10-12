@@ -78,7 +78,7 @@ QString parseUi(const QJsonValue& v, UiDecl& ui) {
   if (!v.isObject()) return QStringLiteral("manifest field 'ui' must be an object");
   const QJsonObject o = v.toObject();
   static const QStringList known = {QStringLiteral("panel"), QStringLiteral("hud"), QStringLiteral("tile"), QStringLiteral("screen"),
-                                    QStringLiteral("detail"), QStringLiteral("hotkeys")};
+                                    QStringLiteral("detail"), QStringLiteral("run"), QStringLiteral("hotkeys")};
   for (auto it = o.begin(); it != o.end(); ++it)
     if (!known.contains(it.key())) return QStringLiteral("ui: unknown key '%1'").arg(it.key());
   auto flag = [&](const char* key, bool& out) -> QString {
@@ -95,6 +95,10 @@ QString parseUi(const QJsonValue& v, UiDecl& ui) {
   if (o.contains(QLatin1String("screen")) && !o.value(QLatin1String("screen")).isNull()) {
     if (const QString e = parseTitleObject(o.value(QLatin1String("screen")), "screen", ui.screenTitle); !e.isEmpty()) return e;
     ui.screen = true;
+  }
+  if (o.contains(QLatin1String("run")) && !o.value(QLatin1String("run")).isNull()) {
+    if (const QString e = parseTitleObject(o.value(QLatin1String("run")), "run", ui.runTitle); !e.isEmpty()) return e;
+    ui.run = true;
   }
   if (QString e = flag("hud", ui.hud); !e.isEmpty()) return e;
   if (QString e = flag("tile", ui.tile); !e.isEmpty()) return e;
@@ -246,6 +250,7 @@ bool UiDecl::declaresSlot(const QString& slot) const {
   if (slot == QLatin1String("hud")) return hud;
   if (slot == QLatin1String("screen")) return screen;
   if (slot == QLatin1String("detail")) return detail;
+  if (slot == QLatin1String("run")) return run;
   if (slot.startsWith(QLatin1String("tile:"))) return tile && validUiId(slot.mid(5));
   return false;
 }
@@ -257,6 +262,7 @@ QString UiDecl::addsText() const {
   if (tile) parts << QStringLiteral("tile strip");
   if (screen) parts << QStringLiteral("%1 screen").arg(screenTitle);
   if (detail) parts << QStringLiteral("game detail");
+  if (run) parts << QStringLiteral("run view");
   if (!hotkeys.isEmpty()) parts << QStringLiteral("%1 hotkey%2").arg(hotkeys.size()).arg(hotkeys.size() == 1 ? QString() : QStringLiteral("s"));
   return parts.isEmpty() ? QString() : QStringLiteral("Adds: ") + parts.join(QStringLiteral(" · "));
 }
@@ -408,6 +414,10 @@ ManifestResult parseManifest(const QByteArray& json, const QString& pluginDir) {
     if (!sv.isObject()) return fail(QStringLiteral("manifest field 'settings' must be an object"));
     m.settings = sv.toObject();
   }
+
+  const QJsonValue rsV = o.value(QLatin1String("run_settings"));
+  if (!rsV.isUndefined() && !rsV.isNull())
+    if (const QString e = parseRunSettings(rsV, m.runSettings); !e.isEmpty()) return fail(e);
 
   const QJsonValue uiV = o.value(QLatin1String("ui"));
   if (!uiV.isUndefined() && !uiV.isNull()) {

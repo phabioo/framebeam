@@ -129,6 +129,7 @@ qt_add_qml_module(framebeam_ui
     PluginChild.qml
     PluginBlock.qml
     PluginDetailSection.qml
+    PluginRunSection.qml
     PluginTabIcon.qml
     PluginMenu.qml
     PluginPanelContent.qml

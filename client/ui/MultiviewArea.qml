@@ -46,7 +46,7 @@ Item {
         for (var i = 0; i < o.length; ++i) {
             if (o[i] === "local") continue
             var si = info[o[i]] || ({})
-            r.push({ id: o[i], player: si.who || "", game: si.game || "" })
+            r.push({ id: o[i], player: si.who || "", game: si.game || "", user_id: si.userId || "" })
         }
         return r
     }

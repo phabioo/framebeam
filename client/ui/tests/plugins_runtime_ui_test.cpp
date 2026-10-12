@@ -10,6 +10,7 @@
 #include <QTemporaryDir>
 #include <QtTest>
 
+#include "fbplugin_testutil.h"
 #include "pluginimageprovider.h"
 #include "pluginscontroller.h"
 
@@ -43,6 +44,35 @@ const char* kShellLua = R"LUA(
   fb.events.on('fb', 'hud.visible', function(v) fb.ui.set('hud', {type='text', text='visible=' .. tostring(v)}) end)
   fb.events.on('fb', 'tiles', function(t) fb.ui.set('tile:' .. t[1].id, {type='text', text=t[1].player}) end)
   fb.ui.notify{ text='hello', actions={ {label='Go', action='go'} } }
+)LUA";
+
+// fb.run of the run view: reads from a fixed run, every write attempt is counted (the controller must wrap it read-only).
+class FakeRunBridge : public framebeam::plugins::RunBridge {
+ public:
+  QJsonObject current() const override {
+    return {{"id", "run-1"}, {"name", "Tide Hardcore"}, {"status", "active"}, {"me", "u1"}, {"plugins", QJsonArray()}, {"participants", QJsonArray()}};
+  }
+  QJsonObject stateOf(const QString&, const QString&, bool* found) const override {
+    *found = true;
+    return {{"hp", 4}};
+  }
+  QJsonObject states(const QString&) const override { return {{"u1", QJsonObject{{"hp", 4}}}}; }
+  QJsonArray events(qint64, int) const override { return {}; }
+  QString setState(const QString&, const QJsonObject&) override { ++writes; return {}; }
+  QString postEvent(const QString&, const QString&, const QString&, const QString&, const QJsonObject&, QString*) override { ++writes; return {}; }
+  QString setBoard(const QString&, const QJsonObject&) override { ++writes; return {}; }
+  QList<framebeam::plugins::RunNotification> takeNotifications() override { return {}; }
+  std::atomic<int> writes{0};
+};
+
+const char* kRunViewLua = R"LUA(
+  fb.log.info('boot')
+  local c = fb.run.current()
+  local ok, err = fb.run.setState({hp = 1})
+  local id, err2 = fb.run.event{type = 'x.y'}
+  local hp = fb.run.state().hp
+  fb.ui.set('run', {type = 'text', text = 'view=' .. tostring(c.view) .. ' hp=' .. tostring(hp) .. ' ' .. tostring(err) .. ' ' .. tostring(err2) .. ' game=' .. tostring(fb.game.title)})
+  fb.ui.on_action(function(a, v, slot) fb.ui.set('run', {type = 'text', text = 'act:' .. a .. ':' .. slot}) end)
 )LUA";
 
 }  // namespace
@@ -163,6 +193,110 @@ class PluginsRuntimeUiTest : public QObject {
     m_pc->setDeveloperMode(false);
     QVERIFY(!m_pc->shellRunning());
     QTRY_COMPARE(m_pc->sidebarEntries().size(), 0);
+  }
+
+  // ---------------------------------------------------------------- run view
+
+  void installHubCopy(const QString& id, const QString& version, const QJsonObject& ui, const QStringList& perms, const QString& lua,
+                      QString* sha, const QJsonObject& requires_ = {}) {
+    framebeam::plugins::testutil::FbSpec spec;
+    spec.id = id;
+    spec.version = version;
+    spec.permissions = perms;
+    spec.ui = ui;
+    spec.lua = lua;
+    const QByteArray file = framebeam::plugins::testutil::makeFbPlugin(spec);
+    *sha = framebeam::plugins::testutil::sha256Hex(file);
+    const auto r = m_pc->manager()->installHubCopy(file, id, version, *sha);
+    QVERIFY2(r.ok, qPrintable(r.error));
+  }
+
+  void runViewSet() {
+    // A local shell plugin, and a plugin that is in both sets (local screen plugin + pinned Hub copy with ui.run).
+    writePlugin(m_src.path(), "net.test.shell", {{"ui", QJsonObject{{"screen", QJsonObject{{"title", "Runs"}}}}}}, "fb.ui.set('screen', {type='text', text='shell'})");
+    writePlugin(m_src.path(), "net.test.both", {{"ui", QJsonObject{{"screen", QJsonObject{{"title", "Both"}}}}}},
+                "fb.log.info('local') fb.ui.set('screen', {type='text', text='local both'})");
+    install("net.test.shell");
+    install("net.test.both");
+    m_pc->setDeveloperMode(true);
+    m_pc->setPluginEnabled("net.test.shell", true);
+    m_pc->setPluginEnabled("net.test.both", true);
+    QCOMPARE(m_pc->shellPluginIds(), (QStringList{"net.test.both", "net.test.shell"}));
+
+    QString shaRun, shaBoth, shaPlain;
+    installHubCopy("net.test.runonly", "1.2.0", QJsonObject{{"run", QJsonObject{{"title", "Board"}}}}, {"ui", "run.state"}, kRunViewLua, &shaRun);
+    installHubCopy("net.test.both", "2.0.0", QJsonObject{{"run", QJsonObject{{"title", "Both run"}}}, {"screen", QJsonObject{{"title", "Both"}}}},
+                   {"ui", "run.state"}, kRunViewLua, &shaBoth);
+    installHubCopy("net.test.plain", "1.0.0", QJsonObject{}, {"run.state"}, "fb.log.info('plain')", &shaPlain);
+
+    auto bridge = std::make_shared<FakeRunBridge>();
+    RunLaunch launch;
+    launch.bridge = bridge;
+    launch.pins = {{"net.test.runonly", "1.2.0", shaRun}, {"net.test.both", "2.0.0", shaBoth}, {"net.test.plain", "1.0.0", shaPlain}};
+
+    QSignalSpy sections(m_pc.get(), &PluginsController::runSectionsChanged);
+    m_pc->startRunView(launch, "RUN-1");
+    QCOMPARE(m_pc->runViewId(), QStringLiteral("run-1"));
+    // Only the run's ui.run plugins start; the one that is in both sets runs once (as the run view instance).
+    QCOMPARE(m_pc->runViewPluginIds(), (QStringList{"net.test.both", "net.test.runonly"}));
+    QCOMPARE(m_pc->shellPluginIds(), (QStringList{"net.test.both", "net.test.shell"}));
+    QTRY_COMPARE_WITH_TIMEOUT(m_pc->runSections().size(), 2, 10000);
+    QVERIFY(!sections.isEmpty());
+    QTRY_VERIFY_WITH_TIMEOUT(m_pc->slotTree("net.test.runonly", "run").value("text").toString().startsWith("view=true"), 10000);
+    const QString text = m_pc->slotTree("net.test.runonly", "run").value("text").toString();
+    QCOMPARE(text, QStringLiteral("view=true hp=4 read only outside the game read only outside the game game=nil"));
+    QCOMPARE(bridge->writes.load(), 0);
+    const QVariantMap sec = m_pc->runSections().at(1).toMap();
+    QCOMPARE(sec.value("pluginId").toString(), QStringLiteral("net.test.runonly"));
+    QCOMPARE(sec.value("title").toString(), QStringLiteral("Board"));
+    QCOMPARE(m_pc->runSections().at(0).toMap().value("title").toString(), QStringLiteral("Both run"));
+    // Not part of the run view: the plugin without ui.run; the local copy of the plugin that is in both sets.
+    QTRY_VERIFY_WITH_TIMEOUT(!m_pc->host()->consoleSnapshot("net.test.both").log.isEmpty(), 10000);
+    for (const auto& l : m_pc->host()->consoleSnapshot("net.test.both").log) QVERIFY(l.text != QLatin1String("local"));
+    QVERIFY(m_pc->host()->consoleSnapshot("net.test.plain").log.isEmpty());
+    // The sidebar still lists the screen plugins of the shell set (the run-only plugin has no screen).
+    QTRY_COMPARE_WITH_TIMEOUT(m_pc->sidebarEntries().size(), 2, 10000);
+
+    // The "run" slot takes UI actions.
+    m_pc->sendAction("net.test.runonly", "run", "go", 1);
+    QTRY_COMPARE(m_pc->slotTree("net.test.runonly", "run").value("text").toString(), QStringLiteral("act:go:run"));
+
+    // The same run again keeps the running plugins (no restart).
+    auto bootCount = [&] {
+      int n = 0;
+      for (const auto& l : m_pc->host()->consoleSnapshot("net.test.runonly").log) n += l.text == QLatin1String("boot");
+      return n;
+    };
+    QCOMPARE(bootCount(), 1);
+    m_pc->startRunView(launch, "run-1");
+    QTest::qWait(200);
+    QCOMPARE(bootCount(), 1);
+    QCOMPARE(m_pc->slotTree("net.test.runonly", "run").value("text").toString(), QStringLiteral("act:go:run"));
+
+    // Closing the detail stops the set and restores the normal shell set (the local copy of the shared plugin again).
+    m_pc->stopRunView();
+    QVERIFY(m_pc->runViewPluginIds().isEmpty());
+    QVERIFY(m_pc->runSections().isEmpty());
+    QVERIFY(m_pc->shellRunning());
+    QCOMPARE(m_pc->shellPluginIds(), (QStringList{"net.test.both", "net.test.shell"}));
+    QTRY_VERIFY_WITH_TIMEOUT(m_pc->slotTree("net.test.runonly", "run").isEmpty(), 10000);
+    QTRY_COMPARE_WITH_TIMEOUT(m_pc->slotTree("net.test.both", "screen").value("text").toString(), QStringLiteral("local both"), 10000);
+
+    // A game start ends the run view; it does not come back by itself, and the run view cannot start during a game.
+    m_pc->startRunView(launch, "run-1");
+    QTRY_COMPARE_WITH_TIMEOUT(m_pc->runSections().size(), 2, 10000);
+    QSignalSpy inGame(m_pc.get(), &PluginsController::inGameChanged);
+    m_pc->gameStarted("nds", m_src.path() + "/missing.nds", "abc", "Homebrew");
+    QCOMPARE(inGame.size(), 1);
+    QVERIFY(m_pc->inGame());
+    QVERIFY(m_pc->runViewPluginIds().isEmpty());
+    QVERIFY(m_pc->runSections().isEmpty());
+    QVERIFY(m_pc->runViewId().isEmpty());
+    m_pc->startRunView(launch, "run-1");
+    QVERIFY(m_pc->runViewId().isEmpty());
+    m_pc->gameStopped();
+    QVERIFY(m_pc->runSections().isEmpty());
+    QCOMPARE(m_pc->shellPluginIds(), (QStringList{"net.test.both", "net.test.shell"}));
   }
 
   void toastMuting() {

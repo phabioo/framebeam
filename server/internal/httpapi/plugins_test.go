@@ -3,6 +3,8 @@ package httpapi
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -105,5 +107,66 @@ func TestPluginsAPI(t *testing.T) {
 	rec = s.do("GET", "/api/v1/plugins", nil, opt{token: d.tok})
 	if list = decode[struct{ Plugins []pluginT }](t, rec).Plugins; len(list) != 1 {
 		t.Fatalf("%+v", list)
+	}
+}
+
+func TestPluginsAPIRunSettings(t *testing.T) {
+	s := newSessEnv(t, func(o *hub.Options) { o.CoreTrustKeys = hubtest.PluginKeys() })
+	ctx := context.Background()
+	d := s.device(s.anna.ID, "Anna PC")
+	rs := []map[string]any{
+		{"key": "mode", "type": "enum", "label": "run.mode", "hint": "run.mode_hint", "default": "soullink",
+			"options": []map[string]any{{"value": "nuzlocke", "label": "run.mode.nuzlocke"}, {"value": "soullink", "label": "run.mode.soullink"}}},
+		{"key": "rules.first_encounter_only", "type": "boolean", "label": "rules.first", "default": true, "ignored_field": 1},
+	}
+	data := hubtest.PluginZipWith(t, "net.example.soul", "1.0.0", nil, map[string]any{"run_settings": rs}, map[string]string{
+		"i18n/en.json": `{"run":{"mode":"Mode","mode_hint":"Pick one","mode.nuzlocke":"Nuzlocke","mode.soullink":"SoulLink"},"rules.first":"First encounter only","other":"x"}`,
+		"i18n/de.json": `{"run.mode":"Modus","rules.first":"Nur erste Begegnung"}`,
+	})
+	plain := hubtest.PluginZip(t, "net.example.plain", "1.0.0", nil, nil)
+	for _, b := range [][]byte{data, plain} {
+		st, err := s.svc.StagePluginUpload(ctx, bytes.NewReader(b))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.svc.OfferStagedPlugin(ctx, st.StageID, st.Permissions, s.admin.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for i := 0; i < 2; i++ { // second pass is served from the in-memory cache
+		rec := s.do("GET", "/api/v1/plugins", nil, opt{token: d.tok})
+		wantStatus(t, rec, 200, "")
+		list := decode[struct{ Plugins []map[string]any }](t, rec).Plugins
+		if len(list) != 2 {
+			t.Fatalf("%v", list)
+		}
+		plainE, soul := list[0], list[1]
+		if _, ok := plainE["run_settings"]; ok {
+			t.Fatalf("plain plugin has run_settings: %v", plainE)
+		}
+		if _, ok := plainE["run_settings_strings"]; ok {
+			t.Fatalf("plain plugin has run_settings_strings: %v", plainE)
+		}
+		eq := func(name string, got any, want string) {
+			t.Helper()
+			var w any
+			if err := json.Unmarshal([]byte(want), &w); err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(got, w) {
+				g, _ := json.Marshal(got)
+				t.Fatalf("%s\n got %s\nwant %s", name, g, want)
+			}
+		}
+		eq("run_settings", soul["run_settings"], `[{"key":"mode","type":"enum","label":"run.mode","hint":"run.mode_hint","default":"soullink","options":[{"value":"nuzlocke","label":"run.mode.nuzlocke"},{"value":"soullink","label":"run.mode.soullink"}]},`+
+			`{"key":"rules.first_encounter_only","type":"boolean","label":"rules.first","default":true}]`)
+		eq("run_settings_strings", soul["run_settings_strings"], `{"de":{"rules.first":"Nur erste Begegnung","run.mode":"Modus"},"en":{"rules.first":"First encounter only","run.mode":"Mode","run.mode.nuzlocke":"Nuzlocke","run.mode.soullink":"SoulLink","run.mode_hint":"Pick one"}}`)
+	}
+
+	// An invalid schema is rejected at upload.
+	bad := hubtest.PluginZipWith(t, "net.example.bad", "1.0.0", nil, map[string]any{"run_settings": []map[string]any{
+		{"key": "a", "type": "boolean", "label": "l", "default": "yes"}}}, nil)
+	if _, err := s.svc.StagePluginUpload(ctx, bytes.NewReader(bad)); err == nil || !strings.Contains(err.Error(), "run_settings[0].default") {
+		t.Fatalf("err %v", err)
 	}
 }

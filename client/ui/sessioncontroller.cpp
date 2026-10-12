@@ -867,6 +867,7 @@ QVariantMap SessionController::surfaceInfo() const {
   for (const auto& r : remotes_) {
     out.insert(r->info.sessionId, QVariantMap{{QStringLiteral("kind"), QStringLiteral("remote")},
                                               {QStringLiteral("who"), r->info.owner.displayName},
+                                              {QStringLiteral("userId"), r->info.owner.userId},
                                               {QStringLiteral("game"), r->info.gameTitle},
                                               {QStringLiteral("visibility"), visibilityLabel(r->info.visibility)},
                                               {QStringLiteral("since"), r->info.createdAt},
