@@ -38,9 +38,17 @@ class ShellLayoutTest : public QObject {
                                               .arg(QLatin1String(when)).arg(t.x()).arg(t.y()).arg(t.width()).arg(t.height()).arg(u.x()).arg(u.y()).arg(u.width()).arg(u.height())));
     QVERIFY2(!t.intersects(s), when);
     QVERIFY2(!s.intersects(u), when);
-    // One row: same vertical band, title left, search left of the button, button at the right edge of the column.
-    QVERIFY2(t.right() <= s.left() + 0.5 && s.right() <= u.left() + 0.5, when);
+    // Title and button always share the first row; search sits between them, or wrapped on its own line below.
     QVERIFY2(qAbs(t.center().y() - u.center().y()) < 4, when);
+    QVERIFY2(t.right() <= u.left() + 0.5, when);
+    if (s.top() >= t.bottom() - 0.5) {
+      QVERIFY2(s.top() >= u.bottom() - 0.5, when);
+    } else {
+      QVERIFY2(qAbs(t.center().y() - s.center().y()) < 4, when);
+      QVERIFY2(t.right() <= s.left() + 0.5 && s.right() <= u.left() + 0.5, when);
+    }
+    QVERIFY2(s.width() >= 100, when);
+    QVERIFY2(u.right() <= rectOf(h.item("libraryHeader")).right() + 0.5, when);
   }
 
   static void checkUserBlock(Harness& h, const char* when) {
@@ -86,6 +94,33 @@ class ShellLayoutTest : public QObject {
       h.window->resize(w, 800);
       QTest::qWait(100);
       checkLibraryHeader(h, qPrintable(QStringLiteral("width %1").arg(w)));
+    }
+  }
+
+  // Windows renders the same pixel sizes wider (Qt 6.8 / MSVC): widen the header texts and require no overlap at
+  // 960 px and at the window minimum.
+  void wideFontHasNoOverlap() {
+    FakeHub hub(QStringLiteral("a"));
+    hub.features = QStringList{QStringLiteral("saves_v1"), QStringLiteral("uploads_v1")};
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    h.window->resize(1280, 800);
+    pairWithUploadsAndUser(h, hub);
+    QTest::qWait(200);
+    for (const char* name : {"libraryTitle", "uploadButton"}) {
+      QQuickItem* it = h.item(name);
+      QVERIFY(it != nullptr);
+      QFont f = it->property("font").value<QFont>();
+      f.setPixelSize(f.pixelSize() * 3 / 2);
+      f.setLetterSpacing(QFont::AbsoluteSpacing, 3);
+      it->setProperty("font", f);
+    }
+    const int minW = int(h.window->minimumWidth());
+    for (const int w : {1280, 960, minW}) {
+      h.window->resize(w, 800);
+      QTest::qWait(100);
+      checkLibraryHeader(h, qPrintable(QStringLiteral("wide font, width %1").arg(w)));
     }
   }
 

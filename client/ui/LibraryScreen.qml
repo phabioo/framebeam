@@ -56,21 +56,27 @@ Rectangle {
             width: Math.max(0, Math.min(parent.width - 64, Theme.gridMaxWidth))
             spacing: 16
 
-            // Header (3c-6): title, search and "Upload ROM" in one row. Anchors, not a RowLayout: "Upload ROM" appears
-            // when the handshake reports uploads, usually after the first layout, and a layout that learns late about a
-            // newly visible item left it on top of the title (P8). Anchors follow visibility changes immediately.
+            // Header (3c-6): title, search and "Upload ROM" in one row while they fit, plain anchors (no RowLayout:
+            // "Upload ROM" appears when the handshake reports uploads, usually after the first layout; anchors follow
+            // visibility changes immediately, P8). The title keeps its implicit width and elides only when it cannot
+            // share a row with the button; search shrinks first (down to searchMin) and then wraps onto its own line.
             Item {
                 id: header
                 objectName: "libraryHeader"
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
-                implicitHeight: 36
                 readonly property bool uploadShown: root.player.canUpload
+                readonly property int searchMin: 140
+                readonly property real buttonSpace: uploadShown ? uploadButton.implicitWidth + Theme.space12 : 0
+                readonly property bool wrapped: width < libraryTitle.implicitWidth + Theme.space16 + searchMin + buttonSpace
+                implicitHeight: wrapped ? 36 + Theme.space8 + 36 : 36
                 FbLabel {
                     id: libraryTitle
                     objectName: "libraryTitle"
                     anchors.left: parent.left
-                    anchors.verticalCenter: parent.verticalCenter
+                    y: (36 - height) / 2
+                    width: Math.max(0, Math.min(implicitWidth, header.width - header.buttonSpace))
+                    elide: Text.ElideRight
                     text: qsTr("Library")
                     font.pixelSize: Theme.fontPage
                     font.weight: Font.DemiBold
@@ -81,7 +87,7 @@ Rectangle {
                     objectName: "uploadButton"
                     visible: header.uploadShown
                     anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
+                    y: 0
                     enabled: !root.player.upload.active
                     implicitHeight: 36
                     text: qsTr("Upload ROM")
@@ -90,12 +96,13 @@ Rectangle {
                 FbField {
                     id: search
                     objectName: "searchField"
-                    anchors.right: header.uploadShown ? uploadButton.left : parent.right
-                    anchors.rightMargin: header.uploadShown ? Theme.space12 : 0
-                    anchors.verticalCenter: parent.verticalCenter
-                    // Never wider than the room the title leaves; 220 at 1280, 280 on a wide window.
-                    width: Math.max(0, Math.min(header.width >= 1400 ? 280 : 220,
-                                                header.width - libraryTitle.implicitWidth - Theme.space16 - (header.uploadShown ? uploadButton.width + Theme.space12 : 0)))
+                    x: header.wrapped ? 0 : header.width - header.buttonSpace - width
+                    y: header.wrapped ? 36 + Theme.space8 : 0
+                    // 220 at 1280, 280 on a wide window; shrinks to the room the title and button leave; full width
+                    // when wrapped onto its own line.
+                    width: header.wrapped ? header.width
+                                          : Math.max(header.searchMin, Math.min(header.width >= 1400 ? 280 : 220,
+                                                header.width - libraryTitle.implicitWidth - Theme.space16 - header.buttonSpace))
                     implicitHeight: 36
                     font.family: Qt.application.font.family
                     font.pixelSize: Theme.fontSmall
