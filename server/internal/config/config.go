@@ -64,7 +64,8 @@ type Config struct {
 	NetworkSharing bool
 	// TURN switches on the embedded STUN/TURN server (ADR 0012 D2); it needs PublicHost.
 	TURN bool
-	// PublicHost is the DNS name (or IPv4) of the Hub's public address.
+	// PublicHost is the DNS name (or IPv4) of the Hub's public address, optionally with an external port
+	// ("hub.example.org:8443", IPv6 "[::1]:8443"); see SplitPublicHost, PublicHostName, PublicHostPort.
 	PublicHost string
 	// TURNPort is the UDP and TCP port of the TURN server (default 3478).
 	TURNPort int
@@ -304,7 +305,7 @@ func register(fs *flag.FlagSet, getenv func(string) string, goos string) *Config
 	fs.BoolVar(&c.NetworkSharing, "network-sharing", sharing, "other devices may reach the Hub; false = loopback only, no TURN; initial value, the saved setting wins (FRAMEBEAM_NETWORK_SHARING)")
 	turn, _ := strconv.ParseBool(getenv("FRAMEBEAM_TURN"))
 	fs.BoolVar(&c.TURN, "turn", turn, "embedded STUN/TURN server for Sessions over the internet, needs -public-host (FRAMEBEAM_TURN)")
-	fs.StringVar(&c.PublicHost, "public-host", env("PUBLIC_HOST", ""), "DNS name or IPv4 of the Hub's public address, required with -turn (FRAMEBEAM_PUBLIC_HOST)")
+	fs.StringVar(&c.PublicHost, "public-host", env("PUBLIC_HOST", ""), "DNS name or IPv4 of the Hub's public address, optionally host:port when the router forwards a different external port (IPv6 in brackets); required with -turn (FRAMEBEAM_PUBLIC_HOST)")
 	turnPort := DefaultTURNPort
 	if v, err := strconv.Atoi(getenv("FRAMEBEAM_TURN_PORT")); err == nil {
 		turnPort = v
@@ -353,12 +354,12 @@ func (c *Config) Validate() error {
 	} else if c.CloudflareTURNTokenFile != "" {
 		return errors.New("-cloudflare-turn-token-file needs -cloudflare-turn-key-id")
 	}
+	if _, _, err := SplitPublicHost(c.PublicHost); err != nil {
+		return errors.New("public-host must be a host name or IP address with an optional port (host[:port], IPv6 in brackets)")
+	}
 	if c.TURN {
 		if c.PublicHost == "" {
 			return errors.New("-turn needs -public-host")
-		}
-		if strings.ContainsAny(c.PublicHost, "/ ") {
-			return errors.New("public-host must be a host name or IP address")
 		}
 		if c.TURNPort < 1 || c.TURNPort > 65535 {
 			return errors.New("turn-port must be between 1 and 65535")

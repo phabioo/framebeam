@@ -108,12 +108,12 @@ func startTURN(ctx context.Context, cfg *config.Config, svc *hub.Service, log *s
 	if err != nil {
 		return nil, err
 	}
-	ts, err := turnsrv.Start(ctx, turnsrv.Config{PublicHost: cfg.PublicHost, Port: cfg.TURNPort, RelayMin: lo, RelayMax: hi,
+	ts, err := turnsrv.Start(ctx, turnsrv.Config{PublicHost: cfg.PublicHostName(), Port: cfg.TURNPort, RelayMin: lo, RelayMax: hi,
 		RelayIP: net.ParseIP(cfg.TURNRelayIP), Secret: secret, DeviceOK: svc.DeviceActive, LANPeerOK: svc.ConnectedPlayerIP, Log: log})
 	if err != nil {
 		return nil, err
 	}
-	log.Info("TURN server started", "public_host", cfg.PublicHost, "port", ts.Port(), "relay_ports", cfg.TURNRelayPorts)
+	log.Info("TURN server started", "public_host", cfg.PublicHostName(), "port", ts.Port(), "relay_ports", cfg.TURNRelayPorts)
 	return ts, nil
 }
 
@@ -402,7 +402,7 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	}
 	webCfg.Listen = eff.Listen
 	webCfg.ImportDir = importDir
-	webCfg.PublicHost, webCfg.PublicPort = eff.PublicHost, publicPort(eff.Listen)
+	webCfg.PublicHost, webCfg.PublicPort = publicAddress(eff)
 	webCfg.Net = web.NetConfig{Base: base, Running: eff, Issues: issues, RequestRestart: requestRestart}
 
 	webSrv, err := web.New(svc, webCfg, log)

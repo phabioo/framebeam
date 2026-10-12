@@ -271,7 +271,33 @@ func (s *Service) OpenROM(ctx context.Context, sha string) (*os.File, Game, erro
 	return f, g, nil
 }
 
-// DeleteGame removes the entry and the ROM file.
+// MaxGameTitle is the maximum length of a library title in bytes.
+const MaxGameTitle = 200
+
+// RenameGame changes the display title of a library entry. The ROM file, its hash and all saves stay as they
+// are. The title must be valid UTF-8 and not empty after removing control characters; it is cut to MaxGameTitle.
+func (s *Service) RenameGame(ctx context.Context, id, title string) (_ Game, err error) {
+	defer s.publishOK(&err, TopicLibrary)
+	if !utf8.ValidString(title) {
+		return Game{}, badRequest("The title must be valid UTF-8 text")
+	}
+	title = cleanText(title, MaxGameTitle)
+	if title == "" {
+		return Game{}, badRequest("The title must not be empty")
+	}
+	g, err := s.GetGame(ctx, id)
+	if err != nil {
+		return Game{}, err
+	}
+	if _, err := s.db.ExecContext(ctx, `UPDATE games SET title = ? WHERE id = ?`, title, g.ID); err != nil {
+		return Game{}, internal(err)
+	}
+	g.Title = title
+	return g, nil
+}
+
+// DeleteGame removes the entry and the ROM file. Saves of the game are never touched (no foreign key,
+// 0002_saves.sql): they stay and remain reachable on the Saves page.
 func (s *Service) DeleteGame(ctx context.Context, id string) (err error) {
 	defer s.publishOK(&err, TopicLibrary)
 	g, err := s.GetGame(ctx, id)

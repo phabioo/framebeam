@@ -134,6 +134,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	h("GET /library", s.guard(s.libraryGet))
 	h("POST /library/upload", s.guardUpload(s.libraryUpload))
 	h("POST /library/rescan", s.guard(s.libraryRescan))
+	h("POST /library/{id}/rename", s.guard(s.libraryRename))
 	h("POST /library/{id}/delete", s.guard(s.libraryDelete))
 	h("GET /saves", s.guard(s.savesGet))
 	h("GET /saves/{user}/{game}/{slot}", s.guard(s.savesGet))
@@ -235,6 +236,7 @@ var flashTexts = map[string]string{
 	"uploaded":       "ROM added to the library.",
 	"certrenewed":    "Certificate renewed. Every Player must confirm the new fingerprint on its next connection.",
 	"deleted":        "ROM deleted.",
+	"renamed":        "Title changed.",
 	"name":           "Hub name saved.",
 	"password":       "Password changed.",
 	"resolved":       "Conflict resolved.",

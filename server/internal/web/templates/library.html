@@ -4,6 +4,30 @@
 {{define "library-region"}}<div id="library-results" hx-get="{{.RefreshURL}}" hx-trigger="fb:library from:body" hx-swap="outerHTML">
 {{template "library-table" .}}
 </div>{{end}}
+{{define "library-filter-qs"}}{{if .System}}&amp;system={{.System}}{{end}}{{if .Query}}&amp;q={{.Query}}{{end}}{{end}}
+{{define "library-panel"}}{{$r := .}}{{if eq $r.Panel "rename"}}<div class="confirm" role="group" aria-label="Rename">
+  <div class="confirm-title">Rename “{{$r.Title}}”</div>
+  <p class="help">Only the display title changes. The ROM file and the saves stay as they are.</p>
+  <form class="inline" method="post" action="/library/{{$r.ID}}/rename" hx-post="/library/{{$r.ID}}/rename" hx-target="#library-results" hx-swap="outerHTML">
+    <input type="hidden" name="_csrf" value="{{$r.CSRF}}"><input type="hidden" name="system" value="{{$r.FSystem}}"><input type="hidden" name="q" value="{{$r.FQuery}}">
+    <label class="field">Title <input type="text" name="title" value="{{$r.PanelTitle}}" maxlength="200" required autocomplete="off" autofocus aria-label="Title"{{if $r.PanelErr}} aria-invalid="true"{{end}}></label>
+    {{if $r.PanelErr}}<p class="help error-line" role="alert">{{$r.PanelErr}}</p>{{end}}
+    <div class="actions">
+      <a class="btn small" href="{{$r.CancelHref}}" hx-get="{{$r.CancelHref}}" hx-target="#library-results" hx-swap="outerHTML">Cancel</a>
+      <button class="btn small primary" type="submit">Save title</button>
+    </div>
+  </form>
+</div>{{else}}<div class="confirm" role="group" aria-label="Delete">
+  <div class="confirm-title">Delete “{{$r.Title}}” from the library?</div>
+  <p class="help">The ROM file is removed from this hub.{{if $r.Saves}} The {{$r.Saves}} {{if eq $r.Saves 1}}save slot is{{else}}save slots are{{end}} kept and stay on the Saves page.{{else}} There are no saves for this game.{{end}}</p>
+  <form class="inline" method="post" action="/library/{{$r.ID}}/delete" hx-post="/library/{{$r.ID}}/delete" hx-target="#library-results" hx-swap="outerHTML">
+    <input type="hidden" name="_csrf" value="{{$r.CSRF}}"><input type="hidden" name="system" value="{{$r.FSystem}}"><input type="hidden" name="q" value="{{$r.FQuery}}">
+    <div class="actions">
+      <a class="btn small" href="{{$r.CancelHref}}" hx-get="{{$r.CancelHref}}" hx-target="#library-results" hx-swap="outerHTML">Cancel</a>
+      <button class="btn small danger" type="submit">Delete ROM</button>
+    </div>
+  </form>
+</div>{{end}}{{end}}
 {{define "library-table"}}
 {{if .Rows}}
 <div class="card"><table class="list lib">
@@ -17,8 +41,11 @@
     <td class="mono" title="{{.SHA}}">{{.ShortSHA}}</td>
     <td>{{.Uploader}} · {{.Added}}</td>
     <td><span class="mono">{{.Saves}}</span>{{if .Conflict}} <span class="warn-mark">▲ Conflict</span>{{end}}</td>
-    <td class="actions-cell"><a class="btn-link" href="{{.UploadHref}}">Upload save</a> <button class="btn-link" type="button" hx-post="/library/{{.ID}}/delete" hx-include="#filter-form" hx-confirm="Really delete “{{.Title}}” and its ROM file?" hx-target="#library-results" hx-swap="outerHTML">Delete</button></td>
+    <td class="actions-cell"><a class="btn-link" href="{{.UploadHref}}">Upload save</a>
+      <a class="btn-link" href="/library?rename={{.ID}}{{template "library-filter-qs" $}}" hx-get="/library?rename={{.ID}}{{template "library-filter-qs" $}}" hx-target="#library-results" hx-swap="outerHTML">Rename</a>
+      <a class="btn-link" href="/library?delete={{.ID}}{{template "library-filter-qs" $}}" hx-get="/library?delete={{.ID}}{{template "library-filter-qs" $}}" hx-target="#library-results" hx-swap="outerHTML">Delete</a></td>
   </tr>
+  {{if .Panel}}<tr class="row-panel"><td colspan="7">{{template "library-panel" .}}</td></tr>{{end}}
   {{end}}
   </tbody>
 </table></div>

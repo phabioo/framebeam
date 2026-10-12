@@ -17,6 +17,17 @@ type libRow struct {
 	Saves                                                            int
 	Conflict                                                         bool
 	UploadHref                                                       string // the slot detail of the signed-in user with the upload panel open
+	// Panel is "" (row closed), "rename" or "delete": the inline panel under the row.
+	Panel string
+	// PanelTitle is the value of the rename field; PanelErr the refusal shown in the panel.
+	PanelTitle, PanelErr string
+	// CSRF, System and Query feed the hidden fields of the panel forms; CancelHref reloads the list without the panel.
+	CSRF, FSystem, FQuery, CancelHref string
+}
+
+// libPanel selects the inline panel of one row for libraryBody.
+type libPanel struct {
+	ID, Kind, Title, Err string
 }
 
 // uploadHref opens the upload panel of the user's slot (a game without a save of the user starts the slot "default").
@@ -44,9 +55,11 @@ type libBody struct {
 	ImportDir string
 	// RefreshURL is the URL the live region reloads itself from (keeps the current filter).
 	RefreshURL string
+	// FilterQS is the current filter as "&system=..&q=.." for the row action links.
+	FilterQS string
 }
 
-func (s *Server) libraryBody(ctx context.Context, viewer, system, q string) (libBody, error) {
+func (s *Server) libraryBody(ctx context.Context, viewer, system, q string, panel libPanel, csrf string) (libBody, error) {
 	games, err := s.svc.ListGames(ctx)
 	if err != nil {
 		return libBody{}, err
@@ -89,6 +102,7 @@ func (s *Server) libraryBody(ctx context.Context, viewer, system, q string) (lib
 	}
 	if len(f) > 0 {
 		b.RefreshURL += "?" + f.Encode()
+		b.FilterQS = "&" + f.Encode()
 	}
 	if st.FreeBytes == 0 {
 		b.Free = "– "
@@ -107,9 +121,18 @@ func (s *Server) libraryBody(ctx context.Context, viewer, system, q string) (lib
 		if up == "" {
 			up = "–"
 		}
-		b.Rows = append(b.Rows, libRow{ID: g.ID, Title: g.Title, Initial: initial(g.Title), System: g.System,
+		row := libRow{ID: g.ID, Title: g.Title, Initial: initial(g.Title), System: g.System,
 			Size: humanBytes(g.ROMSize), SHA: g.ROMSHA256, ShortSHA: shortHash(g.ROMSHA256), Uploader: up,
-			Added: g.AddedAt.Local().Format("02.01."), Saves: saves[g.ID], Conflict: conflicts[g.ID], UploadHref: uploadHref(viewer, g.ID, own[g.ID])})
+			Added: g.AddedAt.Local().Format("02.01."), Saves: saves[g.ID], Conflict: conflicts[g.ID], UploadHref: uploadHref(viewer, g.ID, own[g.ID])}
+		if panel.ID == g.ID && (panel.Kind == "rename" || panel.Kind == "delete") {
+			row.Panel, row.PanelErr = panel.Kind, panel.Err
+			row.CSRF, row.FSystem, row.FQuery, row.CancelHref = csrf, system, q, b.RefreshURL
+			row.PanelTitle = g.Title
+			if panel.Title != "" {
+				row.PanelTitle = panel.Title
+			}
+		}
+		b.Rows = append(b.Rows, row)
 	}
 	systems, err := s.svc.Systems(ctx)
 	if err != nil {
@@ -126,7 +149,11 @@ func (s *Server) renderLibrary(w http.ResponseWriter, r *http.Request, sess *ses
 }
 
 func (s *Server) renderLibraryFlash(w http.ResponseWriter, r *http.Request, sess *session, status int, system, q, flash, errMsg string) {
-	body, err := s.libraryBody(r.Context(), sess.User.ID, system, q)
+	s.renderLibraryPanel(w, r, sess, status, system, q, flash, errMsg, libPanel{})
+}
+
+func (s *Server) renderLibraryPanel(w http.ResponseWriter, r *http.Request, sess *session, status int, system, q, flash, errMsg string, panel libPanel) {
+	body, err := s.libraryBody(r.Context(), sess.User.ID, system, q, panel, sess.CSRFToken)
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -145,7 +172,38 @@ func (s *Server) renderLibraryFlash(w http.ResponseWriter, r *http.Request, sess
 }
 
 func (s *Server) libraryGet(w http.ResponseWriter, r *http.Request, sess *session) {
-	s.renderLibrary(w, r, sess, http.StatusOK, r.URL.Query().Get("system"), r.URL.Query().Get("q"), "")
+	qv := r.URL.Query()
+	panel := libPanel{}
+	switch {
+	case qv.Get("rename") != "":
+		panel = libPanel{ID: qv.Get("rename"), Kind: "rename"}
+	case qv.Get("delete") != "":
+		panel = libPanel{ID: qv.Get("delete"), Kind: "delete"}
+	}
+	s.renderLibraryPanel(w, r, sess, http.StatusOK, qv.Get("system"), qv.Get("q"), "", "", panel)
+}
+
+// libraryRename changes the display title (admin only). A refused title keeps the inline form open with the reason.
+func (s *Server) libraryRename(w http.ResponseWriter, r *http.Request, sess *session) {
+	id, system, q := r.PathValue("id"), r.PostFormValue("system"), r.PostFormValue("q")
+	title := r.PostFormValue("title")
+	_, err := s.svc.RenameGame(r.Context(), id, title)
+	var he *hub.Error
+	switch {
+	case err == nil, errors.Is(err, hub.ErrNotFound):
+		if r.Header.Get("HX-Request") != "true" {
+			http.Redirect(w, r, "/library?ok=renamed", http.StatusSeeOther)
+			return
+		}
+		r.Header.Set("HX-Target", "library-results")
+		s.renderLibraryPanel(w, r, sess, http.StatusOK, system, q, "Title changed.", "", libPanel{})
+	case errors.As(err, &he) && he.Code == hub.CodeBadRequest:
+		r.Header.Set("HX-Target", "library-results")
+		s.renderLibraryPanel(w, r, sess, http.StatusBadRequest, system, q, "", "",
+			libPanel{ID: id, Kind: "rename", Title: title, Err: he.Message + "."})
+	default:
+		s.fail(w, r, err)
+	}
 }
 
 func readField(p io.Reader) string {

@@ -121,6 +121,13 @@ func TestInviteLinkUsesPublicHost(t *testing.T) {
 	tok2 := c2.login()
 	rec = postTok(c2, tok2, "/users/invites", nil)
 	contains(t, rec, `data-copy-link="https://hub.example.org/invite#`)
+
+	// IPv6 literal: brackets come back around the host.
+	e3 := newEnv(t, true, func(c *Config) { c.UseTLS, c.PublicHost, c.PublicPort = true, "2001:db8::1", 8443 })
+	c3 := e3.client()
+	tok3 := c3.login()
+	rec = postTok(c3, tok3, "/users/invites", nil)
+	contains(t, rec, `data-copy-link="https://[2001:db8::1]:8443/invite#`)
 }
 
 func TestInviteLandingPublic(t *testing.T) {

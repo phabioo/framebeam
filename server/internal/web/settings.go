@@ -294,14 +294,17 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, sess *se
 	s.render(w, status, "settings", "layout", d)
 }
 
-// playerAddress is the address Players use: the public host if set (with the listen port), otherwise the host
+// playerAddress is the address Players use: the public host if set (with its external port, else the listen port), otherwise the host
 // the admin used to open this page.
 func (s *Server) playerAddress(r *http.Request, nb netBody) string {
 	port := s.cfg.Net.Running.ListenPort()
 	if s.cfg.Net.Running.Listen == "" {
 		return r.Host
 	}
-	if h := strings.TrimSpace(nb.PublicHost.Value); h != "" {
+	if h, ep, err := config.SplitPublicHost(nb.PublicHost.Value); err == nil && h != "" {
+		if ep > 0 {
+			port = ep
+		}
 		return net.JoinHostPort(h, strconv.Itoa(port))
 	}
 	return r.Host
