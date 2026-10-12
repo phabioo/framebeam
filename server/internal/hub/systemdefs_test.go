@@ -42,6 +42,7 @@ func TestValidateSystemDefs(t *testing.T) {
 		"no ext":    func(d *systemDef) { d.Extensions = nil },
 		"no libret": func(d *systemDef) { d.LibretroIDs = nil },
 		"core id":   func(d *systemDef) { d.ProfiledCores = []string{"Bad/Core"} },
+		"identity":  func(d *systemDef) { d.Identity = "bogus" },
 		"fw":        func(d *systemDef) { d.Firmware = []firmwareDef{{ID: "a", DisplayName: "A"}} },
 	}
 	for name, mod := range bad {
@@ -264,6 +265,7 @@ func TestHubSystemsMatchPlayerManifests(t *testing.T) {
 	for _, d := range defs {
 		var m struct {
 			SystemID    string   `json:"system_id"`
+			Identity    string   `json:"identity"`
 			DisplayName string   `json:"display_name"`
 			Extensions  []string `json:"extensions"`
 			Firmware    struct {
@@ -271,6 +273,9 @@ func TestHubSystemsMatchPlayerManifests(t *testing.T) {
 			} `json:"firmware"`
 		}
 		if read(filepath.Join(root, "systems", d.ID+".json"), &m) {
+			if m.Identity != d.Identity {
+				t.Errorf("%s: identity differs: %q vs %q", d.ID, m.Identity, d.Identity)
+			}
 			if m.SystemID != d.ID || m.DisplayName != d.DisplayName {
 				t.Errorf("%s: system_id/display_name differ: %q %q", d.ID, m.SystemID, m.DisplayName)
 			}

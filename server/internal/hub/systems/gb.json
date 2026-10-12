@@ -10,5 +10,6 @@
   "firmware": [
     {"id": "gb_bios", "display_name": "Game Boy boot ROM", "file": "gb_bios.bin", "sizes": [256]}
   ],
+  "identity": "gb_header",
   "profiled_cores": ["mgba", "gambatte"]
 }

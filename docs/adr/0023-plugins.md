@@ -1,6 +1,6 @@
 # ADR 0023: Plugins (0.11)
 
-- Status: proposed (D1 and D2 are implemented in the runtime package, 0.11 package 1; the rest is design only)
+- Status: proposed (D1 and D2 are implemented in 0.11 package 1, D6 in package 2, D8 to D10 on the Hub side and in the Player's plugin delivery in package 3; the Player side of runs is implemented; the rest is design only)
 - Date: 2026-10-11
 - Deciders: Fabio (plugins as 0.11, 2026-10-11); proposal by the orchestrator
 - Builds on: [ADR 0013](0013-opengl-hardware-rendering.md), [ADR 0020](0020-cores-from-the-libretro-buildbot.md) (SHA-256 pin, buildbot cores), [ADR 0022](0022-nintendo-3ds-with-azahar.md) (3DS with Azahar). Interface description: [12-plugins.md](../architecture/12-plugins.md).
@@ -53,15 +53,17 @@ Open: whether the buildbot build of Azahar contains this code, and whether the m
 ### D8 Distribution
 
 - Official plugins: own repositories, signed `.fbplugin` releases (FrameBeam release key), signed plugin index in the style of `updates-index` (tool `framebeam-sign`), SHA-256 pin as for cores. Hub admin upload (marked "Unverified" unless signed, permissions confirmed by the admin) and local install from file with a developer mode. Run participants get the same plugin version from the Hub.
+- Implementation (package 3): `.fbplugin` is a zip with an optional `SIGNATURE.json` (SHA-256 per file, Ed25519 signature, same trusted keys as `updates-index`), identical validation in Hub and Player; origins `official`, `unverified`, `local`. Hub store under `<data-dir>/plugins/`, REST `GET /api/v1/plugins` and `.../{plugin_id}/{version}/file` (feature `plugins_v1`), `framebeam-hub import-plugins`, `framebeam-sign plugin-sign` / `plugin-add`. Chosen defaults: the plugin index URL defaults to the official index (release `plugin-index` of the FrameBeam repository, published by the workflow "Publish plugin", decided 2026-10-12); `-plugin-index-url none` turns it off for offline Hubs; upload is admin-only (open point: whether non-admins may upload); the admin must tick every requested permission before "Offer to Players"; the same id and version with a different file is rejected. Details: [12-plugins.md](../architecture/12-plugins.md#1610-distribution).
 - Planned official repositories: `framebeam-plugin-pokemon-core`, `-soullink`, `-pokemon-editor`, `-cheats`, `-template`. Plugin-specific docs and roadmaps live there, not in the FrameBeam repository.
 
 ### D9 Hub runs
 
-- Run object with participants, per-player state (JSON) and an append-only event log, with size and rate limits. WSS fan-out over the existing envelope, catch-up on `hello`. The Hub validates shape and size and executes no plugin code. Data never leaves the Hub.
+- Run object with participants, per-player, per-plugin state (JSON) and an append-only event log, with size and rate limits. WSS fan-out over the existing envelope, catch-up on `hello`. The Hub validates shape and size and executes no plugin code. Data never leaves the Hub.
+- Implementation (package 3, Hub side): runs with status, participants (at most 8), per-player state per plugin of the run (64 KiB each, own revision per plugin, `PUT /runs/{run_id}/state/{plugin_id}`), event log (280-character text, 4 KiB payload, 50 000 events, idempotent by `client_id`), per-plugin boards (64 KiB), token-bucket rate limits, REST under `/api/v1/runs` (feature `runs_v1`), WSS `run_updated`, `run_state`, `run_event` and catch-up through the optional `runs` field of `hello`. The Hub web run page is read-only and admin-only; the JS renderer is `static/plugin-blocks.js`. Implementation (package 3, Player side): `RunClient` (REST, WSS, persisted `hello` catch-up cache, event dedup by `client_id`, state coalesced to 4/s, board 1/s), Lua `fb.run` (permission `run.state`, only in a run) and the Runs screen; "Play run" uses the exact Hub copies of the run's plugin versions and the save slot `run-<first 8 hex of run_id>`. The Hub reads a game code (NDS game code, 3DS program ID) from the ROM header of library games on upload/import and at start, and the game picker matches the plugin's `games` patterns against it (games without a known code stay selectable with a hint). Details: [12-plugins.md](../architecture/12-plugins.md#1611-hub-runs).
 
 ### D10 Versioning
 
-- The manifest field `api` versions the interface; unknown versions are rejected with a clear message. `protocol_version` impact is decided with the Hub work package (open).
+- The manifest field `api` versions the interface; unknown versions are rejected with a clear message. Decided with package 3: `protocol_version` stays 1; the additions are advertised as handshake features `plugins_v1` and `runs_v1` (OpenAPI 1.14.0 and 1.15.0, additive).
 
 ### D11 Languages and i18n
 

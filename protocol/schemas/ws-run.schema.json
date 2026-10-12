@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://framebeam.invalid/schemas/ws-run.schema.json",
+  "title": "Run object (as REST Run, shared by run_updated)",
+  "type": "object",
+  "required": [
+    "run_id",
+    "name",
+    "status",
+    "created_by",
+    "created_at",
+    "updated_at",
+    "status_by",
+    "settings",
+    "plugins",
+    "participants",
+    "last_seq"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": [
+        "starting",
+        "active",
+        "paused",
+        "finished",
+        "abandoned"
+      ]
+    },
+    "created_by": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status_by": {
+      "type": "string"
+    },
+    "settings": {
+      "type": "object",
+      "description": "Opaque to the Hub (plugin run rules)"
+    },
+    "plugins": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "plugin_id",
+          "version",
+          "sha256"
+        ],
+        "properties": {
+          "plugin_id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    },
+    "participants": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "user_id",
+          "user_name",
+          "status",
+          "game_id",
+          "color",
+          "states"
+        ],
+        "properties": {
+          "user_id": {
+            "type": "string"
+          },
+          "user_name": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "invited",
+              "joined",
+              "declined",
+              "left"
+            ]
+          },
+          "game_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Hub library game; set on join"
+          },
+          "color": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 7,
+            "description": "Player colour in join order; null until the first join"
+          },
+          "states": {
+            "type": "object",
+            "description": "State per plugin id; only plugins that have a row",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "state",
+                "state_rev",
+                "updated_at"
+              ],
+              "properties": {
+                "state": {
+                  "type": "object",
+                  "description": "Opaque to the Hub (at most 64 KiB)"
+                },
+                "state_rev": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "last_seq": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

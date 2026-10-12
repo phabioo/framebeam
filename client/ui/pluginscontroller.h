@@ -14,12 +14,16 @@
 #include <QtQml/qqmlregistration.h>
 #include <memory>
 
+#include "plugin_delivery.h"
 #include "plugin_host.h"
 #include "plugin_manager.h"
+#include "run_bridge.h"
+#include "pluginhub.h"
 #include "pluginimageprovider.h"
 #include "pluginruntime.h"
 
 namespace framebeam {
+class HubConnection;
 class PlayerSettings;
 namespace emu {
 class ManifestRegistry;
@@ -30,6 +34,12 @@ namespace framebeam::ui {
 
 class GameSession;
 
+// A game started in a run: exactly these Hub copies run, with fb.run backed by `bridge`.
+struct RunLaunch {
+  std::shared_ptr<plugins::RunBridge> bridge;
+  QList<plugins::RunPluginPin> pins;
+};
+
 class PluginsController : public QObject {
   Q_OBJECT
   QML_ELEMENT
@@ -37,9 +47,17 @@ class PluginsController : public QObject {
 
   // Developer mode (persisted in PlayerSettings, applied to the manager).
   Q_PROPERTY(bool developerMode READ developerMode WRITE setDeveloperMode NOTIFY developerModeChanged)
-  // Installed plugins: [{id, name, version, origin, originText, problemsText, hasProblems, enabled, devLinked, canToggle}]
+  // Installed plugins: [{id, name, version, origin ("official"|"unverified"|"local"), originText ("✓ Official" | "! Hub upload ·
+  //  unverified" | "Local file"), problemsText, hasProblems, enabled, devLinked, hubCopy, canToggle, needsConfirm (unverified: the
+  //  warning comes before turning it on), permissionsText, updateVersion ("" when none)}]
   Q_PROPERTY(QVariantList plugins READ plugins NOTIFY pluginsChanged)
-  Q_PROPERTY(QString summary READ summary NOTIFY pluginsChanged)  // settings column line: "None installed" | "2 on" | "No plugin on"
+  Q_PROPERTY(QString summary READ summary NOTIFY pluginsChanged)  // settings column line: "None installed" | "2 on · 1 update" | "None on"
+  // Plugins the Hub offers (feature plugins_v1): the newest offered version of every plugin, [{id, name, version,
+  // description, origin, originText, permissionsText, sizeText, state ("install"|"update"|"installed"|"busy"), installedVersion}].
+  Q_PROPERTY(bool hubSupported READ hubSupported NOTIFY hubPluginsChanged)
+  Q_PROPERTY(QVariantList hubPlugins READ hubPlugins NOTIFY hubPluginsChanged)
+  Q_PROPERTY(QString hubStatus READ hubStatus NOTIFY hubPluginsChanged)  // idle | loading | ready | failed
+  Q_PROPERTY(QString hubError READ hubError NOTIFY hubPluginsChanged)
   Q_PROPERTY(QString message READ message NOTIFY messageChanged)  // result of the last install / link
   Q_PROPERTY(bool messageIsError READ messageIsError NOTIFY messageChanged)
   // Plugin console (in-game tab): only while developer mode is on and plugins run for the game.
@@ -76,7 +94,9 @@ class PluginsController : public QObject {
   Q_PROPERTY(QString hotkeyNote READ hotkeyNote NOTIFY hotkeysChanged)            // "Already used by <owner>" after a rejected key
  public:
   // dataDir = ProfileStore::baseDir(); the plugins live in <dataDir>/plugins.
-  PluginsController(PlayerSettings* settings, const QString& dataDir, GameSession* session, QObject* parent = nullptr);
+  // `connection` = the active Hub (plugin list and downloads); nullptr = no Hub features (tests).
+  PluginsController(PlayerSettings* settings, const QString& dataDir, GameSession* session, HubConnection* connection = nullptr,
+                    QObject* parent = nullptr);
   ~PluginsController() override;
 
   // System manifests (the game identity reader is the manifest's "identity"); without them no game code is read.
@@ -114,16 +134,34 @@ class PluginsController : public QObject {
 
   plugins::PluginManager* manager() { return manager_.get(); }
   plugins::PluginHost* host() { return host_.get(); }
+  // Hub delivery: ensureHubCopy(id, version, sha256, cb) gives the runs the exact Hub copy of a plugin version.
+  plugins::PluginDelivery* delivery() { return delivery_.get(); }
+  PluginHubClient* hubClient() { return hubClient_.get(); }
+  bool hubSupported() const { return hubClient_ != nullptr && hubClient_->supported(); }
+  // Some installed plugin (any copy, also Hub copies) asks for the permission run.state: the Runs entry is worth showing.
+  bool hasRunPlugin() const;
+  // The Hub offer of one plugin version as a row {id, name, version, origin, originText, permissionsText}; empty when the Hub does not list it.
+  QVariantMap hubOffer(const QString& pluginId, const QString& version) const;
+  QVariantList hubPlugins() const { return hubPlugins_; }
+  QString hubStatus() const;
+  QString hubError() const { return hubClient_ != nullptr ? hubClient_->errorMessage() : QString(); }
 
   // A game runs (GameSession::started): resolves the plugins for it and starts them. `language` = Player UI language.
   void gameStarted(const QString& system, const QString& romPath, const QString& sha256, const QString& title,
-                   const QString& language = QStringLiteral("en"));
+                   const QString& language = QStringLiteral("en"), const RunLaunch& run = {});
   // The game ended or failed: stops all plugins.
   void gameStopped();
   bool pluginsRunning() const { return running_; }
 
-  // Settings -> Plugins. Paths may be file:// URLs (folder dialog).
+  // Settings -> Plugins. Paths may be file:// URLs (file or folder dialog).
   Q_INVOKABLE void installFromFolder(const QString& pathOrUrl);
+  // A .fbplugin file or a plugin folder, whichever the path is. Signed (valid FrameBeam key) = Official, otherwise a local
+  // plugin that needs Developer mode.
+  Q_INVOKABLE void installFromPath(const QString& pathOrUrl);
+  // Asks the Hub for its plugin list (no-op without plugins_v1).
+  Q_INVOKABLE void refreshHubPlugins();
+  // Downloads, checks (SHA-256 pin, zip rules, signature) and installs an offered version; it stays off until turned on.
+  Q_INVOKABLE void installHubPlugin(const QString& id, const QString& version);
   Q_INVOKABLE void linkDevFolder(const QString& pathOrUrl);
   Q_INVOKABLE void uninstall(const QString& id);
   Q_INVOKABLE void setPluginEnabled(const QString& id, bool enabled);
@@ -180,6 +218,7 @@ class PluginsController : public QObject {
  signals:
   void developerModeChanged();
   void pluginsChanged();
+  void hubPluginsChanged();
   void messageChanged();
   void consoleAvailableChanged();
   void consoleChanged();
@@ -221,6 +260,10 @@ class PluginsController : public QObject {
   QStringList activeIds() const;
   void updateImageSources();
   void refreshPlugins();
+  void rebuildHubPlugins();
+  void onDelivered(const plugins::DeliveryResult& r);
+  void reportInstall(const plugins::InstallResult& r, bool fromFolder);
+  const HubPluginInfo* newestOffer(const QString& id) const;
   void scheduleConsole();
   void rebuildConsole();
   void onStatus(const QString& id);
@@ -235,6 +278,10 @@ class PluginsController : public QObject {
   QString identityReader(const QString& system) const;
   std::unique_ptr<plugins::PluginManager> manager_;
   std::unique_ptr<plugins::PluginHost> host_;
+  std::unique_ptr<PluginHubClient> hubClient_;
+  std::unique_ptr<plugins::PluginDelivery> delivery_;
+  QVariantList hubPlugins_;
+  QString hubBusyId_;
   std::shared_ptr<MemoryWatchAdapter> adapter_;
   QTimer consoleTimer_;
   bool running_ = false;                      // plugins of the running game are started

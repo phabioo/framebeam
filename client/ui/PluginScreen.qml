@@ -88,7 +88,7 @@ Rectangle {
                         FbPill {
                             objectName: "pluginScreenOrigin"
                             small: true
-                            tone: root.entry.origin === "official" ? "ok" : (root.entry.origin === "hub" ? "warn" : "neutral")
+                            tone: root.entry.origin === "official" ? "ok" : (root.entry.origin === "unverified" ? "warn" : "neutral")
                             text: root.info.originText || qsTr("Local file")
                         }
                     }

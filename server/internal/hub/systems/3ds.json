@@ -8,5 +8,6 @@
   "input_profile": "3ds",
   "display_profile": "dual_screen",
   "firmware": [],
+  "identity": "3ds_ncsd",
   "profiled_cores": ["azahar"]
 }

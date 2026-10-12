@@ -34,6 +34,8 @@ qt_add_qml_module(framebeam_ui
     localhubcontroller.h localhubcontroller.cpp
     pluginruntime.h pluginruntime.cpp
     pluginscontroller.h pluginscontroller.cpp
+    keyedrowsmodel.h keyedrowsmodel.cpp
+    runscontroller.h runscontroller.cpp
     pluginimageprovider.h pluginimageprovider.cpp
   QML_FILES
     Main.qml
@@ -99,8 +101,19 @@ qt_add_qml_module(framebeam_ui
     LocalHubForm.qml
     LocalHubCard.qml
     LocalFolderDialog.qml
+    LibraryFolderDialog.qml
+    LibraryFoldersSection.qml
     PluginFolderDialog.qml
+    PluginFileDialog.qml
+    PluginOriginPill.qml
     PluginsSection.qml
+    RunsScreen.qml
+    RunAvatars.qml
+    RunCheckRow.qml
+    UnverifiedNote.qml
+    GamePickList.qml
+    RunJoinDialog.qml
+    RunStartDialog.qml
     PluginConsole.qml
     PluginFocusable.qml
     PluginImage.qml

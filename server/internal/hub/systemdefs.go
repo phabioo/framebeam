@@ -34,7 +34,10 @@ type systemDef struct {
 	InputProfile   string        `json:"input_profile"`
 	DisplayProfile string        `json:"display_profile"`
 	Firmware       []firmwareDef `json:"firmware"`
-	ProfiledCores  []string      `json:"profiled_cores"`
+	// Identity names the header format the game identity is read from (nds_header, 3ds_ncsd, gb_header,
+	// gba_header); empty = the system has no identity.
+	Identity      string   `json:"identity"`
+	ProfiledCores []string `json:"profiled_cores"`
 }
 
 // firmwareDef is a firmware/BIOS file of a system. File (the file name the core expects) is not stored in the
@@ -124,6 +127,9 @@ func validateSystemDefs(defs []systemDef) error {
 					return fmt.Errorf("system %q: firmware %q: invalid size", d.ID, f.ID)
 				}
 			}
+		}
+		if _, ok := identityReaders[d.Identity]; d.Identity != "" && !ok {
+			return fmt.Errorf("system %q: unknown identity %q", d.ID, d.Identity)
 		}
 		for _, c := range d.ProfiledCores {
 			if !ValidCoreID(c) {

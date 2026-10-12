@@ -54,7 +54,7 @@ class LibraryModel : public QAbstractListModel {
     MonogramRole,     // up to two initials
     RomShaRole,
     RomSizeRole,
-    StateKindRole,    // ready | download | validating | downloading | mismatch | failed | unknown
+    StateKindRole,    // ready | download | validating | downloading | mismatch | failed | missing | unknown
     StatusTextRole,   // e.g. "Download needed · 128 MB"
     StatusToneRole,   // ok | neutral | warn | error
     ProgressRole,     // 0..1, only meaningful for downloading
@@ -64,7 +64,8 @@ class LibraryModel : public QAbstractListModel {
     TileToneRole,     // ok | neutral | warn | error
     NeedsAttentionRole,  // bool, see attentionOf()
     ReadyGroupRole,      // bool: "ready" for Ready first (ROM ready, no attention, save sync not pending)
-    AddedTextRole        // "DD.MM.YYYY" (Hub added_at, local time); empty if unknown
+    AddedTextRole,       // "DD.MM.YYYY" (Hub added_at, local time); empty if unknown
+    OnHubRole            // bool: a file of the game is stored on the Hub (false = local-only game, "Local" pill)
   };
   Q_ENUM(Roles)
 

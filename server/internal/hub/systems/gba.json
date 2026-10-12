@@ -10,5 +10,6 @@
   "firmware": [
     {"id": "gba_bios", "display_name": "Game Boy Advance BIOS", "file": "gba_bios.bin", "sizes": [16384]}
   ],
+  "identity": "gba_header",
   "profiled_cores": ["mgba"]
 }

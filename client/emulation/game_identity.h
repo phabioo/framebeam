@@ -8,11 +8,11 @@ namespace framebeam::emu {
 struct GameIdentity {
   QString code;  // NDS/GBA: 4-character game code; 3DS: program ID as 16 uppercase hex digits; GB/GBC: the header title; empty when unknown
   QString kind;  // "nds-gamecode", "3ds-titleid", "gba-gamecode" or "gb-title"; empty when unknown
-  // GBA and GB/GBC only (empty / -1 otherwise): header title, maker code (GBA: 2 characters; GB: new licensee code, or the
-  // old licensee byte as 2 hex digits) and the mask ROM version byte.
+  int version = -1;  // ROM version: NDS header byte 0x1E; 3DS NCCH u16 at NCCH+0x112; GBA byte 0xBC; GB/GBC byte 0x14C; -1 when unknown
+  // GBA and GB/GBC only (empty otherwise): header title and maker code (GBA: 2 characters; GB: new licensee code, or the
+  // old licensee byte as 2 hex digits).
   QString title;
   QString maker;
-  int version = -1;
 };
 
 // Names a manifest can give in "identity".

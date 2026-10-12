@@ -81,6 +81,9 @@ type Options struct {
 	// SaveKeepRecent, SaveKeepDaily and SaveKeepWeekly are the history retention rules (ADR 0012 D7): newest versions,
 	// days and weeks to keep one version of. 0 = unlimited for that rule (SaveKeepRecent 0 = no thinning at all).
 	SaveKeepRecent, SaveKeepDaily, SaveKeepWeekly int
+	// PluginIndexURL is the signed plugin index (https or file://; empty = no index, the Hub binary passes "none" as empty), fetched with CoreHTTPClient and
+	// verified with CoreTrustKeys.
+	PluginIndexURL string
 }
 
 // Service is the service layer. Times are stored in SQLite as Unix seconds (UTC).
@@ -105,17 +108,22 @@ type Service struct {
 
 	cores  coreState
 	upd    updateState
+	plug   pluginState
 	updCfg updateConfig
 	turn   turnState
 	cf     cloudflareState
 	ext    externalState
 	bus    eventBus
+	runs   runState
 
 	localMu     sync.Mutex // local setup defaults
 	localDef    LocalDefaults
 	redeemMu    sync.Mutex // invite redemption rate limits
 	redeemHits  map[string][]time.Time
 	redeemFails []time.Time
+
+	upMu   sync.Mutex // resumable uploads: sessions with a chunk in flight
+	upBusy map[string]bool
 }
 
 // Open initializes the service on a migrated database and creates the hub identity and
@@ -139,10 +147,17 @@ func Open(ctx context.Context, db *sql.DB, o Options) (*Service, error) {
 	s.sess.init(o)
 	s.cores.init(o)
 	s.initUpdates(o)
+	s.initPlugins(o)
+	// The plugin store is the run plugin catalog, and a version used by a running run cannot be removed.
+	s.SetPluginCatalog(s)
+	s.SetPluginInUseCheck(s.RunsUsingPluginVersion)
 	// No upload can be in flight while the Hub opens: drop staging leftovers of a crashed run.
 	tmpDir := filepath.Join(s.dataDir, "tmp")
 	if entries, err := os.ReadDir(tmpDir); err == nil {
 		for _, e := range entries {
+			if e.Name() == "uploads" {
+				continue // resumable upload sessions survive restarts (CleanupUploads removes the idle ones)
+			}
 			os.RemoveAll(filepath.Join(tmpDir, e.Name()))
 		}
 	}
@@ -178,6 +193,8 @@ func Open(ctx context.Context, db *sql.DB, o Options) (*Service, error) {
 	if err := s.removeLegacyCores(ctx); err != nil {
 		return nil, err
 	}
+	s.BackfillGameCodes(ctx) // header reads only; failures are logged, never fatal
+	s.BackfillGameVersions(ctx)
 	s.recoverSessions(ctx)
 	return s, nil
 }
@@ -220,7 +237,7 @@ func (s *Service) SetHubName(ctx context.Context, name string) error {
 	return nil
 }
 
-// Cleanup removes expired access tokens, web sessions and old pairing requests.
+// Cleanup removes expired access tokens, web sessions, old pairing requests and idle upload sessions.
 func (s *Service) Cleanup(ctx context.Context) error {
 	now := s.now().Unix()
 	for _, q := range []struct {
@@ -238,7 +255,7 @@ func (s *Service) Cleanup(ctx context.Context) error {
 			return internal(err)
 		}
 	}
-	return nil
+	return s.CleanupUploads(ctx)
 }
 
 // RunCleanup calls Cleanup periodically until ctx ends. Errors go to onErr (may be nil).

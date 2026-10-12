@@ -158,7 +158,7 @@ endforeach()
 # FRAMEBEAM_SCREENSHOT_DIR it also saves PNGs for the review.
 framebeam_add_test(ui_plugins plugins_ui_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
   LIBS ${FB_UI_TEST_LIBS})
-target_include_directories(test_ui_plugins PRIVATE ${FB_NETTEST_DIR})
+target_include_directories(test_ui_plugins PRIVATE ${FB_NETTEST_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../../plugins/tests)
 target_compile_definitions(test_ui_plugins PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
 
 # Plugin UI slots (sidebar entry + screen, Settings "Adds", panel tabs, HUD, notices, tile strips) in the preview game.
@@ -192,3 +192,9 @@ target_include_directories(test_plugins_e2e_testcore PRIVATE ${CMAKE_CURRENT_SOU
 
 # Plugin UI runtime in the PluginsController (shell context, models, actions, toasts) and the image://fbplugin rules.
 framebeam_add_test(ui_plugins_runtime plugins_runtime_ui_test.cpp LIBS framebeam_ui framebeam_core framebeam_emulation framebeam_plugins Qt6::Quick)
+
+# Runs screen: sidebar entry, invite/join, detail, Start a run, Play run (fake Hub, synthetic plugin).
+framebeam_add_test(ui_runs runs_ui_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
+  LIBS ${FB_UI_TEST_LIBS})
+target_include_directories(test_ui_runs PRIVATE ${FB_NETTEST_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../../plugins/tests)
+target_compile_definitions(test_ui_runs PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")

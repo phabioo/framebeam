@@ -1,0 +1,141 @@
+name: Publish plugin
+
+# Publishes the official signed plugin index (release "plugin-index" of this repo): optionally takes the *.fbplugin
+# file(s) of a release of an official plugin repo, signs them with the release key, adds them to plugin-index.json,
+# signs the index and uploads everything. Without inputs it only re-signs and publishes the existing (or an empty)
+# index. Hubs read https://github.com/phabioo/framebeam/releases/download/plugin-index/plugin-index.json by default.
+# The signing seed is the secret FRAMEBEAM_SIGNING_KEY of the environment `release` (dispatch from main); it is only in
+# the environment of the signing steps. Private plugin repos: set the secret PLUGIN_REPOS_TOKEN (PAT, read access).
+
+on:
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: 'Plugin repo, e.g. phabioo/framebeam-plugin-pokemon-core (empty = only re-sign the index)'
+        required: false
+        default: ''
+        type: string
+      tag:
+        description: 'Release tag in that repo, e.g. v0.1.0'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+# One index update at a time (read-modify-write on the index release); a running publish is never cancelled.
+concurrency:
+  group: plugin-index
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish plugin and update the index
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: release
+    permissions:
+      contents: write   # create the index release, upload assets
+    env:
+      GH_REPO: ${{ github.repository }}
+      INPUT_REPO: ${{ inputs.repo }}
+      INPUT_TAG: ${{ inputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      - name: Validate inputs
+        run: |
+          set -euo pipefail
+          if [ -n "$INPUT_REPO" ] || [ -n "$INPUT_TAG" ]; then
+            if [ -z "$INPUT_REPO" ] || [ -z "$INPUT_TAG" ]; then
+              echo "::error::repo and tag must be given together"
+              exit 1
+            fi
+            [[ "$INPUT_REPO" =~ ^phabioo/framebeam-plugin-[a-z0-9-]+$ ]] || { echo "::error::repo must match phabioo/framebeam-plugin-<name>"; exit 1; }
+            [[ "$INPUT_TAG" =~ ^v?[0-9A-Za-z._-]+$ ]] || { echo "::error::invalid tag"; exit 1; }
+          fi
+      - name: Build framebeam-sign
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          (cd server && CGO_ENABLED=0 go build -o "$RUNNER_TEMP/bin/framebeam-sign" ./cmd/framebeam-sign)
+      - name: Signing key is trusted by the Hub (before anything is published)
+        env:
+          FRAMEBEAM_SIGNING_KEY: ${{ secrets.FRAMEBEAM_SIGNING_KEY }}
+        run: scripts/check-signing-key.sh "$RUNNER_TEMP/bin/framebeam-sign"
+      - name: Fetch the current index
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/plugin-index"
+          rm -rf "$work"; mkdir -p "$work"
+          # Only a real "release not found" may start from an empty index; any other gh error stops the job so the
+          # index is never replaced by an empty one.
+          rc=0
+          assets="$(gh release view plugin-index --json assets --jq '.assets[].name' 2>"$work/gh-err.txt")" || rc=$?
+          if [ "$rc" -ne 0 ]; then
+            grep -qi 'release not found' "$work/gh-err.txt" || { echo "::error::could not read the plugin-index release: $(head -c 300 "$work/gh-err.txt")"; exit 1; }
+            echo "RELEASE_EXISTS=false" >> "$GITHUB_ENV"
+            assets=""
+          else
+            echo "RELEASE_EXISTS=true" >> "$GITHUB_ENV"
+          fi
+          if grep -qx plugin-index.json <<<"$assets"; then
+            gh release download plugin-index --pattern plugin-index.json --dir "$work"
+          else
+            jq -n --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '{format: 1, generated_at: $now, plugins: []}' > "$work/plugin-index.json"
+          fi
+      - name: Create the index release when missing
+        if: env.RELEASE_EXISTS == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create plugin-index --title "FrameBeam plugin index" \
+            --notes 'Signed index of official FrameBeam plugins (plugin-index.json + .sig) and the signed .fbplugin files. Read by FrameBeam Hubs; updated by the workflow "Publish plugin".' \
+            --prerelease --latest=false
+      - name: Download, sign and add the plugin
+        if: inputs.repo != '' && inputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SRC_TOKEN: ${{ secrets.PLUGIN_REPOS_TOKEN }}
+          FRAMEBEAM_SIGNING_KEY: ${{ secrets.FRAMEBEAM_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/plugin-index"
+          sign="$RUNNER_TEMP/bin/framebeam-sign"
+          src="$RUNNER_TEMP/plugin-src"
+          rm -rf "$src"; mkdir -p "$src"
+          # The token for the plugin repo: the PAT when set, else the workflow token.
+          GH_TOKEN="${SRC_TOKEN:-$GH_TOKEN}" gh release download "$INPUT_TAG" --repo "$INPUT_REPO" --pattern '*.fbplugin' --dir "$src"
+          shopt -s nullglob
+          files=("$src"/*.fbplugin)
+          [ "${#files[@]}" -gt 0 ] || { echo "::error::release $INPUT_TAG of $INPUT_REPO has no .fbplugin asset"; exit 1; }
+          for f in "${files[@]}"; do
+            id="$(unzip -p "$f" manifest.json | jq -r '.id')"
+            version="$(unzip -p "$f" manifest.json | jq -r '.version')"
+            [[ "$id" =~ ^[a-z0-9-]+(\.[a-z0-9-]+)+$ ]] || { echo "::error::unexpected plugin id in $(basename "$f")"; exit 1; }
+            [[ "$version" =~ ^[0-9A-Za-z.+-]+$ ]] || { echo "::error::unexpected plugin version in $(basename "$f")"; exit 1; }
+            out="$work/$id-$version.fbplugin"
+            "$sign" plugin-sign -in "$f" -out "$out"
+            "$sign" plugin-add -index "$work/plugin-index.json" -plugin "$out" \
+              -url "https://github.com/$GH_REPO/releases/download/plugin-index/$id-$version.fbplugin"
+            gh release upload plugin-index "$out" --clobber
+          done
+      - name: Sign and publish the index
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FRAMEBEAM_SIGNING_KEY: ${{ secrets.FRAMEBEAM_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/plugin-index"
+          sign="$RUNNER_TEMP/bin/framebeam-sign"
+          "$sign" sign -index "$work/plugin-index.json" -out "$work/plugin-index.json.sig"
+          pub="$("$sign" pubkey | sed -n 's/^public_key=//p' | head -n 1)"
+          [ -n "$pub" ] || { echo "::error::could not derive the public key"; exit 1; }
+          "$sign" verify -index "$work/plugin-index.json" -sig "$work/plugin-index.json.sig" -pub "$pub"
+          jq -r '.plugins[] | "\(.id) \(.version)"' "$work/plugin-index.json"
+          gh release upload plugin-index "$work/plugin-index.json" "$work/plugin-index.json.sig" --clobber

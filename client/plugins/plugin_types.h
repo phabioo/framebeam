@@ -2,8 +2,10 @@
 
 #include <QList>
 #include <QString>
+#include <memory>
 
 #include "lua_sandbox.h"
+#include "run_bridge.h"
 
 namespace framebeam::plugins {
 
@@ -18,6 +20,7 @@ struct GameContext {
   QString romPath;   // game file for fb.rom (rom.read)
   QString language;  // game language for fb.i18n, e.g. "de", "en", "de-DE"
   bool shell = false;  // shell context: no game runs; fb.game is an empty table, memory/rom reads return nil
+  std::shared_ptr<RunBridge> run;  // the game was started in a run: fb.run exists (permission run.state); null = no fb.run
 };
 
 struct HostLimits {

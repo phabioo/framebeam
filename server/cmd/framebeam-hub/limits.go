@@ -14,6 +14,8 @@ const (
 	requestReadTimeout = 30 * time.Second
 	// uploadReadTimeout is the generous bound for the streaming upload routes (ROMs up to 4 GiB).
 	uploadReadTimeout = 2 * time.Hour
+	// uploadChunkReadTimeout bounds reading one upload chunk (64 MiB; a 1 Mbit/s uplink needs about 9 minutes).
+	uploadChunkReadTimeout = 15 * time.Minute
 	// maxConns caps concurrent connections on the listener.
 	maxConns = 512
 )
@@ -22,6 +24,9 @@ var (
 	apiSaveUploadPath = regexp.MustCompile(`^/api/v1/games/[^/]+/saves/[^/]+/upload$`)
 	webSaveUploadPath = regexp.MustCompile(`^/saves/[^/]+/[^/]+/[^/]+/upload$`)
 	webFirmwareUpload = regexp.MustCompile(`^/systems/[^/]+/firmware/[^/]+/upload$`)
+	// Resumable ROM upload chunks (at most 64 MiB each).
+	apiUploadChunkPath = regexp.MustCompile(`^/api/v1/uploads/[^/]+$`)
+	webUploadChunkPath = regexp.MustCompile(`^/library/uploads/[^/]+/chunk$`)
 )
 
 // readTimeoutFor returns the read deadline for a request: 0 means none (long-lived streams), otherwise the
@@ -34,6 +39,8 @@ func readTimeoutFor(r *http.Request) time.Duration {
 	case r.Method == http.MethodPost && (p == "/api/v1/games" || p == "/library/upload" ||
 		apiSaveUploadPath.MatchString(p) || webSaveUploadPath.MatchString(p) || webFirmwareUpload.MatchString(p)):
 		return uploadReadTimeout
+	case (r.Method == http.MethodPut && apiUploadChunkPath.MatchString(p)) || (r.Method == http.MethodPost && webUploadChunkPath.MatchString(p)):
+		return uploadChunkReadTimeout
 	case r.Method == http.MethodPut && strings.HasPrefix(p, "/api/v1/games/") && strings.Contains(p, "/saves/"):
 		return uploadReadTimeout
 	}

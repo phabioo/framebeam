@@ -111,6 +111,7 @@ const (
 	ErrorCodePayloadTooLarge      ErrorCode = "payload_too_large"
 	ErrorCodePlayerTooOld         ErrorCode = "player_too_old"
 	ErrorCodeRateLimited          ErrorCode = "rate_limited"
+	ErrorCodeRunNotActive         ErrorCode = "run_not_active"
 	ErrorCodeSaveConflict         ErrorCode = "save_conflict"
 	ErrorCodeSaveConflictStale    ErrorCode = "save_conflict_stale"
 	ErrorCodeSaveNotSnapshot      ErrorCode = "save_not_snapshot"
@@ -121,6 +122,8 @@ const (
 	ErrorCodeSessionFull          ErrorCode = "session_full"
 	ErrorCodeSessionNotFound      ErrorCode = "session_not_found"
 	ErrorCodeSessionRunning       ErrorCode = "session_running"
+	ErrorCodeStateConflict        ErrorCode = "state_conflict"
+	ErrorCodeTooLarge             ErrorCode = "too_large"
 	ErrorCodeUnauthorized         ErrorCode = "unauthorized"
 	ErrorCodeUploadsDisabled      ErrorCode = "uploads_disabled"
 	ErrorCodeUserDisabled         ErrorCode = "user_disabled"
@@ -173,6 +176,8 @@ func (e ErrorCode) Valid() bool {
 		return true
 	case ErrorCodeRateLimited:
 		return true
+	case ErrorCodeRunNotActive:
+		return true
 	case ErrorCodeSaveConflict:
 		return true
 	case ErrorCodeSaveConflictStale:
@@ -192,6 +197,10 @@ func (e ErrorCode) Valid() bool {
 	case ErrorCodeSessionNotFound:
 		return true
 	case ErrorCodeSessionRunning:
+		return true
+	case ErrorCodeStateConflict:
+		return true
+	case ErrorCodeTooLarge:
 		return true
 	case ErrorCodeUnauthorized:
 		return true
@@ -216,6 +225,33 @@ func (e FirmwareMode) Valid() bool {
 	case Builtin:
 		return true
 	case Native:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GameGameCodeKind.
+const (
+	Empty       GameGameCodeKind = ""
+	GbTitle     GameGameCodeKind = "gb-title"
+	GbaGamecode GameGameCodeKind = "gba-gamecode"
+	N3dsTitleid GameGameCodeKind = "3ds-titleid"
+	NdsGamecode GameGameCodeKind = "nds-gamecode"
+)
+
+// Valid indicates whether the value is a known member of the GameGameCodeKind enum.
+func (e GameGameCodeKind) Valid() bool {
+	switch e {
+	case Empty:
+		return true
+	case GbTitle:
+		return true
+	case GbaGamecode:
+		return true
+	case N3dsTitleid:
+		return true
+	case NdsGamecode:
 		return true
 	default:
 		return false
@@ -315,6 +351,138 @@ func (e PairingStatusStatus) Valid() bool {
 	case PairingStatusStatusExpired:
 		return true
 	case PairingStatusStatusPending:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PluginOrigin.
+const (
+	Official   PluginOrigin = "official"
+	Unverified PluginOrigin = "unverified"
+)
+
+// Valid indicates whether the value is a known member of the PluginOrigin enum.
+func (e PluginOrigin) Valid() bool {
+	switch e {
+	case Official:
+		return true
+	case Unverified:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RunEventSource.
+const (
+	RunEventSourceAutomatic RunEventSource = "automatic"
+	RunEventSourceHub       RunEventSource = "hub"
+	RunEventSourceManual    RunEventSource = "manual"
+)
+
+// Valid indicates whether the value is a known member of the RunEventSource enum.
+func (e RunEventSource) Valid() bool {
+	switch e {
+	case RunEventSourceAutomatic:
+		return true
+	case RunEventSourceHub:
+		return true
+	case RunEventSourceManual:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RunEventRequestSource.
+const (
+	RunEventRequestSourceAutomatic RunEventRequestSource = "automatic"
+	RunEventRequestSourceManual    RunEventRequestSource = "manual"
+)
+
+// Valid indicates whether the value is a known member of the RunEventRequestSource enum.
+func (e RunEventRequestSource) Valid() bool {
+	switch e {
+	case RunEventRequestSourceAutomatic:
+		return true
+	case RunEventRequestSourceManual:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RunParticipantStatus.
+const (
+	RunParticipantStatusDeclined RunParticipantStatus = "declined"
+	RunParticipantStatusInvited  RunParticipantStatus = "invited"
+	RunParticipantStatusJoined   RunParticipantStatus = "joined"
+	RunParticipantStatusLeft     RunParticipantStatus = "left"
+)
+
+// Valid indicates whether the value is a known member of the RunParticipantStatus enum.
+func (e RunParticipantStatus) Valid() bool {
+	switch e {
+	case RunParticipantStatusDeclined:
+		return true
+	case RunParticipantStatusInvited:
+		return true
+	case RunParticipantStatusJoined:
+		return true
+	case RunParticipantStatusLeft:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RunStatus.
+const (
+	RunStatusAbandoned RunStatus = "abandoned"
+	RunStatusActive    RunStatus = "active"
+	RunStatusFinished  RunStatus = "finished"
+	RunStatusPaused    RunStatus = "paused"
+	RunStatusStarting  RunStatus = "starting"
+)
+
+// Valid indicates whether the value is a known member of the RunStatus enum.
+func (e RunStatus) Valid() bool {
+	switch e {
+	case RunStatusAbandoned:
+		return true
+	case RunStatusActive:
+		return true
+	case RunStatusFinished:
+		return true
+	case RunStatusPaused:
+		return true
+	case RunStatusStarting:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RunStatusRequestStatus.
+const (
+	RunStatusRequestStatusAbandoned RunStatusRequestStatus = "abandoned"
+	RunStatusRequestStatusActive    RunStatusRequestStatus = "active"
+	RunStatusRequestStatusFinished  RunStatusRequestStatus = "finished"
+	RunStatusRequestStatusPaused    RunStatusRequestStatus = "paused"
+)
+
+// Valid indicates whether the value is a known member of the RunStatusRequestStatus enum.
+func (e RunStatusRequestStatus) Valid() bool {
+	switch e {
+	case RunStatusRequestStatusAbandoned:
+		return true
+	case RunStatusRequestStatusActive:
+		return true
+	case RunStatusRequestStatusFinished:
+		return true
+	case RunStatusRequestStatusPaused:
 		return true
 	default:
 		return false
@@ -422,19 +590,19 @@ func (e SaveSyncReason) Valid() bool {
 
 // Defines values for SessionInviteInfoState.
 const (
-	Declined SessionInviteInfoState = "declined"
-	Invited  SessionInviteInfoState = "invited"
-	Joined   SessionInviteInfoState = "joined"
+	SessionInviteInfoStateDeclined SessionInviteInfoState = "declined"
+	SessionInviteInfoStateInvited  SessionInviteInfoState = "invited"
+	SessionInviteInfoStateJoined   SessionInviteInfoState = "joined"
 )
 
 // Valid indicates whether the value is a known member of the SessionInviteInfoState enum.
 func (e SessionInviteInfoState) Valid() bool {
 	switch e {
-	case Declined:
+	case SessionInviteInfoStateDeclined:
 		return true
-	case Invited:
+	case SessionInviteInfoStateInvited:
 		return true
-	case Joined:
+	case SessionInviteInfoStateJoined:
 		return true
 	default:
 		return false
@@ -520,6 +688,17 @@ type CorePackageFileRole string
 // CorePlatform defines model for CorePlatform.
 type CorePlatform string
 
+// CreateUploadRequest defines model for CreateUploadRequest.
+type CreateUploadRequest struct {
+	Filename string `json:"filename"`
+
+	// Sha256 Optional. When given, it is checked after the last chunk and a stored file with this hash is refused up front (409).
+	Sha256 *string `json:"sha256,omitempty"`
+	Size   int64   `json:"size"`
+	System *string `json:"system,omitempty"`
+	Title  *string `json:"title,omitempty"`
+}
+
 // DuplicateGameError defines model for DuplicateGameError.
 type DuplicateGameError struct {
 	Error struct {
@@ -561,15 +740,35 @@ type FirmwareMode string
 
 // Game defines model for Game.
 type Game struct {
-	AddedAt time.Time          `json:"added_at"`
-	Id      openapi_types.UUID `json:"id"`
-	Rom     RomInfo            `json:"rom"`
-	System  string             `json:"system"`
-	Title   string             `json:"title"`
+	AddedAt time.Time `json:"added_at"`
+
+	// GameCode Identity read from the ROM header on upload/import: 4-character NDS or GBA game code, 16 uppercase hex digits (3DS program ID) or the Game Boy header title (1 to 16 printable ASCII characters); the kind is `game_code_kind`; empty when unknown or unreadable. Absent on Hubs before 1.16.0.
+	GameCode *string `json:"game_code,omitempty"`
+
+	// GameCodeKind Kind of `game_code`; empty when unknown. `gba-gamecode`: 4-character GBA game code; `gb-title`: Game Boy / Game Boy Color header title (only with a valid header checksum).
+	GameCodeKind *GameGameCodeKind `json:"game_code_kind,omitempty"`
+
+	// GameVersion ROM version of the identity: NDS header byte 0x1E, 3DS NCCH version, GBA byte 0xBC, Game Boy byte 0x14C. Absent when unknown (`local_roms_v1`).
+	GameVersion *int               `json:"game_version,omitempty"`
+	Id          openapi_types.UUID `json:"id"`
+
+	// OnHub At least one file of the game is stored on the Hub (`local_roms_v1`; absent on older Hubs, then true). A game that is not on the Hub is only visible to the users who registered a file of it.
+	OnHub *bool `json:"on_hub,omitempty"`
+
+	// Rom A file stored on the Hub if the game has one, else the primary file.
+	Rom RomInfo `json:"rom"`
+
+	// Roms All known files of the game, the primary file first (`local_roms_v1`). Different dumps of the same identity are files of one game.
+	Roms   *[]RomInfo `json:"roms,omitempty"`
+	System string     `json:"system"`
+	Title  string     `json:"title"`
 
 	// UploadedBy Hub-local user ID
 	UploadedBy string `json:"uploaded_by"`
 }
+
+// GameGameCodeKind Kind of `game_code`; empty when unknown. `gba-gamecode`: 4-character GBA game code; `gb-title`: Game Boy / Game Boy Color header title (only with a valid header checksum).
+type GameGameCodeKind string
 
 // HandshakeProblem defines model for HandshakeProblem.
 type HandshakeProblem struct {
@@ -620,7 +819,7 @@ type HandshakeRequest_Video struct {
 type HandshakeResponse struct {
 	Compatible bool `json:"compatible"`
 
-	// Features Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = at least one relay provider is on (the embedded TURN server and/or Cloudflare TURN; `turn_servers` in `hello_ack`, `ice_update` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`), `saves_v4` = uploading a save file into a slot (`POST /games/{game_id}/saves/{slot}/upload`), `saves_v5` = renaming a slot (`POST /games/{game_id}/saves/{slot}/rename`), deleting a slot (`DELETE /games/{game_id}/saves/{slot}`), `save_updated` reasons `renamed` and `deleted`, and 409 `session_running` on `saves_v4` uploads while a Session of the game runs, `cores_v2` = several cores per system (`default_core_id` and `cores` in `SystemInfo`; core ids follow `^[a-z0-9][a-z0-9_-]{0,63}$`), `ice_update_v1` = the Hub pushes the WSS message `ice_update` whenever its effective ICE configuration changes. `cores_index_v1` (signed core index) existed in 0.4 to 0.7 and was removed in 0.8.
+	// Features Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = at least one relay provider is on (the embedded TURN server and/or Cloudflare TURN; `turn_servers` in `hello_ack`, `ice_update` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`), `saves_v4` = uploading a save file into a slot (`POST /games/{game_id}/saves/{slot}/upload`), `saves_v5` = renaming a slot (`POST /games/{game_id}/saves/{slot}/rename`), deleting a slot (`DELETE /games/{game_id}/saves/{slot}`), `save_updated` reasons `renamed` and `deleted`, and 409 `session_running` on `saves_v4` uploads while a Session of the game runs, `cores_v2` = several cores per system (`default_core_id` and `cores` in `SystemInfo`; core ids follow `^[a-z0-9][a-z0-9_-]{0,63}$`), `ice_update_v1` = the Hub pushes the WSS message `ice_update` whenever its effective ICE configuration changes, `plugins_v1` = plugin list and download (`GET /plugins`, `GET /plugins/{plugin_id}/{version}/file`), `runs_v1` = runs, `local_roms_v1` = local-only games and resumable uploads (`POST /games/register`, `DELETE /games/{game_id}/registration`, `/uploads`; `stored`, `on_hub`, `roms`, `game_version`; `GET /roms/{sha256}` serves stored files only). `cores_index_v1` (signed core index) existed in 0.4 to 0.7 and was removed in 0.8.
 	Features           *[]string          `json:"features,omitempty"`
 	HubVersion         string             `json:"hub_version"`
 	MinProtocolVersion int                `json:"min_protocol_version"`
@@ -754,12 +953,259 @@ type PairingStatus struct {
 // PairingStatusStatus defines model for PairingStatus.Status.
 type PairingStatusStatus string
 
+// PluginGame defines model for PluginGame.
+type PluginGame struct {
+	Codes  []string `json:"codes"`
+	System string   `json:"system"`
+}
+
+// PluginInfo defines model for PluginInfo.
+type PluginInfo struct {
+	Api         int          `json:"api"`
+	CreatedAt   time.Time    `json:"created_at"`
+	Description string       `json:"description"`
+	Games       []PluginGame `json:"games"`
+	Name        string       `json:"name"`
+
+	// Origin `official` = valid signature of a trusted FrameBeam key; `unverified` = unsigned (or not verifiable), offered by the Hub admin.
+	Origin      PluginOrigin `json:"origin"`
+	Permissions []string     `json:"permissions"`
+	PluginId    string       `json:"plugin_id"`
+	Provides    []string     `json:"provides"`
+
+	// Requires Plugin id to version range, from the manifest
+	Requires map[string]string `json:"requires"`
+	Sha256   string            `json:"sha256"`
+	Size     int64             `json:"size"`
+	Version  string            `json:"version"`
+}
+
+// PluginList defines model for PluginList.
+type PluginList struct {
+	Plugins []PluginInfo `json:"plugins"`
+}
+
+// PluginOrigin `official` = valid signature of a trusted FrameBeam key; `unverified` = unsigned (or not verifiable), offered by the Hub admin.
+type PluginOrigin string
+
+// RegisterGameRequest defines model for RegisterGameRequest.
+type RegisterGameRequest struct {
+	Filename string `json:"filename"`
+
+	// GameCode Identity read from the ROM header by the Player (same format as `Game.game_code`). Ignored when it does not fit the system.
+	GameCode *string `json:"game_code,omitempty"`
+
+	// GameVersion ROM version read by the Player; only used together with `game_code`.
+	GameVersion *int   `json:"game_version,omitempty"`
+	Sha256      string `json:"sha256"`
+	Size        int64  `json:"size"`
+
+	// System System ID; derived from the file extension when omitted.
+	System *string `json:"system,omitempty"`
+
+	// Title Default is the file name without extension
+	Title *string `json:"title,omitempty"`
+}
+
 // RomInfo defines model for RomInfo.
 type RomInfo struct {
 	Filename string `json:"filename"`
 	Sha256   string `json:"sha256"`
 	Size     int64  `json:"size"`
+
+	// Stored The file is stored on the Hub and downloadable via `GET /roms/{sha256}`; false = only registered by a Player (`local_roms_v1`; absent on older Hubs, then true).
+	Stored *bool `json:"stored,omitempty"`
 }
+
+// Run defines model for Run.
+type Run struct {
+	CreatedAt time.Time `json:"created_at"`
+
+	// CreatedBy User id of the creator
+	CreatedBy    string             `json:"created_by"`
+	LastSeq      int64              `json:"last_seq"`
+	Name         string             `json:"name"`
+	Participants []RunParticipant   `json:"participants"`
+	Plugins      []RunPlugin        `json:"plugins"`
+	RunId        openapi_types.UUID `json:"run_id"`
+
+	// Settings An opaque JSON object the Hub stores byte-exact and never interprets.
+	Settings RunJsonObject `json:"settings"`
+	Status   RunStatus     `json:"status"`
+
+	// StatusBy User id (a participant or the Hub admin) who set the last status
+	StatusBy  string    `json:"status_by"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// RunBoardRequest defines model for RunBoardRequest.
+type RunBoardRequest struct {
+	// Tree An opaque JSON object the Hub stores byte-exact and never interprets.
+	Tree RunJsonObject `json:"tree"`
+}
+
+// RunBoardResult defines model for RunBoardResult.
+type RunBoardResult struct {
+	Rev int64 `json:"rev"`
+}
+
+// RunCreateRequest defines model for RunCreateRequest.
+type RunCreateRequest struct {
+	GameId        openapi_types.UUID `json:"game_id"`
+	InviteUserIds *[]string          `json:"invite_user_ids,omitempty"`
+	Name          string             `json:"name"`
+	Plugins       []RunPluginRef     `json:"plugins"`
+
+	// Settings An opaque JSON object the Hub stores byte-exact and never interprets.
+	Settings *RunJsonObject `json:"settings,omitempty"`
+}
+
+// RunEvent defines model for RunEvent.
+type RunEvent struct {
+	ClientId  openapi_types.UUID `json:"client_id"`
+	CreatedAt time.Time          `json:"created_at"`
+	DeviceId  *string            `json:"device_id"`
+
+	// Payload An opaque JSON object the Hub stores byte-exact and never interprets.
+	Payload  RunJsonObject `json:"payload"`
+	PluginId *string       `json:"plugin_id"`
+
+	// Seq Per run, from 1, gapless
+	Seq    int64          `json:"seq"`
+	Source RunEventSource `json:"source"`
+	Text   string         `json:"text"`
+
+	// Type Hub events: `run.created`, `run.joined`, `run.declined`, `run.invited`, `run.left`, `run.status`
+	Type string `json:"type"`
+
+	// UserId null for Hub events (who it is about is in the payload)
+	UserId   *string `json:"user_id"`
+	UserName string  `json:"user_name"`
+}
+
+// RunEventSource defines model for RunEvent.Source.
+type RunEventSource string
+
+// RunEventList defines model for RunEventList.
+type RunEventList struct {
+	Events  []RunEvent `json:"events"`
+	LastSeq int64      `json:"last_seq"`
+}
+
+// RunEventRequest defines model for RunEventRequest.
+type RunEventRequest struct {
+	ClientId openapi_types.UUID `json:"client_id"`
+
+	// Payload An opaque JSON object the Hub stores byte-exact and never interprets.
+	Payload  *RunJsonObject        `json:"payload,omitempty"`
+	PluginId string                `json:"plugin_id"`
+	Source   RunEventRequestSource `json:"source"`
+	Text     *string               `json:"text,omitempty"`
+	Type     string                `json:"type"`
+}
+
+// RunEventRequestSource defines model for RunEventRequest.Source.
+type RunEventRequestSource string
+
+// RunEventResult defines model for RunEventResult.
+type RunEventResult struct {
+	Seq int64 `json:"seq"`
+}
+
+// RunInviteRequest defines model for RunInviteRequest.
+type RunInviteRequest struct {
+	UserIds []string `json:"user_ids"`
+}
+
+// RunJoinRequest defines model for RunJoinRequest.
+type RunJoinRequest struct {
+	GameId openapi_types.UUID `json:"game_id"`
+}
+
+// RunJsonObject An opaque JSON object the Hub stores byte-exact and never interprets.
+type RunJsonObject = json.RawMessage
+
+// RunList defines model for RunList.
+type RunList struct {
+	Runs []Run `json:"runs"`
+}
+
+// RunParticipant defines model for RunParticipant.
+type RunParticipant struct {
+	// Color Player colour in join order; null until the first join
+	Color *int `json:"color"`
+
+	// GameId Hub library game; set on join
+	GameId *openapi_types.UUID `json:"game_id"`
+
+	// States State per plugin id; only plugins that have a row (a missing plugin means state `{}` with revision 0)
+	States   map[string]RunPluginState `json:"states"`
+	Status   RunParticipantStatus      `json:"status"`
+	UserId   string                    `json:"user_id"`
+	UserName string                    `json:"user_name"`
+}
+
+// RunParticipantStatus defines model for RunParticipant.Status.
+type RunParticipantStatus string
+
+// RunPlugin defines model for RunPlugin.
+type RunPlugin struct {
+	PluginId string `json:"plugin_id"`
+
+	// Sha256 SHA-256 of the .fbplugin the Hub offered when the run was created
+	Sha256  string `json:"sha256"`
+	Version string `json:"version"`
+}
+
+// RunPluginRef defines model for RunPluginRef.
+type RunPluginRef struct {
+	PluginId string `json:"plugin_id"`
+	Version  string `json:"version"`
+}
+
+// RunPluginState defines model for RunPluginState.
+type RunPluginState struct {
+	// State An opaque JSON object the Hub stores byte-exact and never interprets.
+	State     RunJsonObject `json:"state"`
+	StateRev  int64         `json:"state_rev"`
+	UpdatedAt time.Time     `json:"updated_at"`
+}
+
+// RunStateConflictError Error body of the state 409. `state_rev` and `state` are present with `state_conflict` and carry the current values.
+type RunStateConflictError struct {
+	Error struct {
+		Code    ErrorCode `json:"code"`
+		Message string    `json:"message"`
+	} `json:"error"`
+
+	// State An opaque JSON object the Hub stores byte-exact and never interprets.
+	State    *RunJsonObject `json:"state,omitempty"`
+	StateRev *int64         `json:"state_rev,omitempty"`
+}
+
+// RunStateRequest defines model for RunStateRequest.
+type RunStateRequest struct {
+	BaseRev int64 `json:"base_rev"`
+
+	// State An opaque JSON object the Hub stores byte-exact and never interprets.
+	State RunJsonObject `json:"state"`
+}
+
+// RunStateResponse defines model for RunStateResponse.
+type RunStateResponse struct {
+	StateRev int64 `json:"state_rev"`
+}
+
+// RunStatus defines model for RunStatus.
+type RunStatus string
+
+// RunStatusRequest defines model for RunStatusRequest.
+type RunStatusRequest struct {
+	Status RunStatusRequestStatus `json:"status"`
+}
+
+// RunStatusRequestStatus defines model for RunStatusRequest.Status.
+type RunStatusRequestStatus string
 
 // SaveCheckpoint Current checkpoint of a slot (one opaque blob).
 type SaveCheckpoint struct {
@@ -1064,6 +1510,30 @@ type TurnServer struct {
 	Username string   `json:"username"`
 }
 
+// UploadProgress defines model for UploadProgress.
+type UploadProgress struct {
+	// Game Set by the chunk that completes the upload.
+	Game   *Game `json:"game,omitempty"`
+	Offset int64 `json:"offset"`
+}
+
+// UploadSession defines model for UploadSession.
+type UploadSession struct {
+	// ChunkSize Largest chunk the Hub accepts (64 MiB)
+	ChunkSize int64 `json:"chunk_size"`
+
+	// Offset Bytes received so far; the next chunk starts here
+	Offset   int64              `json:"offset"`
+	UploadId openapi_types.UUID `json:"upload_id"`
+}
+
+// UploadStatus defines model for UploadStatus.
+type UploadStatus struct {
+	Offset   int64              `json:"offset"`
+	Size     int64              `json:"size"`
+	UploadId openapi_types.UUID `json:"upload_id"`
+}
+
 // UserInfo defines model for UserInfo.
 type UserInfo struct {
 	DisplayName string `json:"display_name"`
@@ -1084,6 +1554,18 @@ type CoreVersion = string
 
 // GameId defines model for GameId.
 type GameId = openapi_types.UUID
+
+// PluginId defines model for PluginId.
+type PluginId = string
+
+// PluginVersion defines model for PluginVersion.
+type PluginVersion = string
+
+// RunId defines model for RunId.
+type RunId = openapi_types.UUID
+
+// RunPluginId defines model for RunPluginId.
+type RunPluginId = string
 
 // SaveSlotName defines model for SaveSlotName.
 type SaveSlotName = string
@@ -1115,6 +1597,9 @@ type NotFound = Error
 // RateLimited defines model for RateLimited.
 type RateLimited = Error
 
+// RunConflict defines model for RunConflict.
+type RunConflict = Error
+
 // SessionEnded defines model for SessionEnded.
 type SessionEnded = Error
 
@@ -1126,6 +1611,9 @@ type SessionFullOrCapability = Error
 
 // SessionNotFound defines model for SessionNotFound.
 type SessionNotFound = Error
+
+// TooLarge defines model for TooLarge.
+type TooLarge = Error
 
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = Error
@@ -1175,13 +1663,32 @@ type UploadSaveFileParams struct {
 	XFrameBeamContentSHA256 string `json:"X-FrameBeam-Content-SHA256"`
 }
 
+// GetPluginFileParams defines parameters for GetPluginFile.
+type GetPluginFileParams struct {
+	IfNoneMatch *string `json:"If-None-Match,omitempty"`
+}
+
 // DownloadRomParams defines parameters for DownloadRom.
 type DownloadRomParams struct {
 	Range *string `json:"Range,omitempty"`
 }
 
+// ListRunEventsParams defines parameters for ListRunEvents.
+type ListRunEventsParams struct {
+	After *int64 `form:"after,omitempty" json:"after,omitempty"`
+	Limit *int   `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// PutUploadChunkParams defines parameters for PutUploadChunk.
+type PutUploadChunkParams struct {
+	ContentRange string `json:"Content-Range"`
+}
+
 // CreateAccessTokenJSONRequestBody defines body for CreateAccessToken for application/json ContentType.
 type CreateAccessTokenJSONRequestBody = TokenRequest
+
+// RegisterGameJSONRequestBody defines body for RegisterGame for application/json ContentType.
+type RegisterGameJSONRequestBody = RegisterGameRequest
 
 // ResolveSaveConflictJSONRequestBody defines body for ResolveSaveConflict for application/json ContentType.
 type ResolveSaveConflictJSONRequestBody = SaveResolveRequest
@@ -1213,11 +1720,35 @@ type LocalSetupJSONRequestBody = LocalPairRequest
 // CreatePairingRequestJSONRequestBody defines body for CreatePairingRequest for application/json ContentType.
 type CreatePairingRequestJSONRequestBody = PairingRequestCreate
 
+// CreateRunJSONRequestBody defines body for CreateRun for application/json ContentType.
+type CreateRunJSONRequestBody = RunCreateRequest
+
+// PutRunBoardJSONRequestBody defines body for PutRunBoard for application/json ContentType.
+type PutRunBoardJSONRequestBody = RunBoardRequest
+
+// AppendRunEventJSONRequestBody defines body for AppendRunEvent for application/json ContentType.
+type AppendRunEventJSONRequestBody = RunEventRequest
+
+// InviteRunJSONRequestBody defines body for InviteRun for application/json ContentType.
+type InviteRunJSONRequestBody = RunInviteRequest
+
+// JoinRunJSONRequestBody defines body for JoinRun for application/json ContentType.
+type JoinRunJSONRequestBody = RunJoinRequest
+
+// PutRunStateJSONRequestBody defines body for PutRunState for application/json ContentType.
+type PutRunStateJSONRequestBody = RunStateRequest
+
+// SetRunStatusJSONRequestBody defines body for SetRunStatus for application/json ContentType.
+type SetRunStatusJSONRequestBody = RunStatusRequest
+
 // PublishSessionJSONRequestBody defines body for PublishSession for application/json ContentType.
 type PublishSessionJSONRequestBody = SessionPublishRequest
 
 // UpdateSessionJSONRequestBody defines body for UpdateSession for application/json ContentType.
 type UpdateSessionJSONRequestBody = SessionUpdateRequest
+
+// CreateUploadJSONRequestBody defines body for CreateUpload for application/json ContentType.
+type CreateUploadJSONRequestBody = CreateUploadRequest
 
 // Getter for additional properties for HandshakeRequest. Returns the specified
 // element and whether it was found
@@ -1653,9 +2184,15 @@ type ServerInterface interface {
 	// Upload a ROM (admin, or users when the Hub allows user uploads)
 	// (POST /api/v1/games)
 	UploadGame(w http.ResponseWriter, r *http.Request, params UploadGameParams)
+	// Register a ROM file that exists only on the caller's device (`local_roms_v1`)
+	// (POST /api/v1/games/register)
+	RegisterGame(w http.ResponseWriter, r *http.Request)
 	// Single game
 	// (GET /api/v1/games/{game_id})
 	GetGame(w http.ResponseWriter, r *http.Request, gameId openapi_types.UUID)
+	// Remove the caller's local registrations for a game (`local_roms_v1`)
+	// (DELETE /api/v1/games/{game_id}/registration)
+	DeleteGameRegistration(w http.ResponseWriter, r *http.Request, gameId openapi_types.UUID)
 	// Delete a slot with its whole history (`saves_v5`)
 	// (DELETE /api/v1/games/{game_id}/saves/{slot})
 	DeleteSaveSlot(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName, params DeleteSaveSlotParams)
@@ -1716,9 +2253,51 @@ type ServerInterface interface {
 	// Poll pairing request status (bearer = poll_token)
 	// (GET /api/v1/pairing/requests/{request_id})
 	GetPairingRequest(w http.ResponseWriter, r *http.Request, requestId openapi_types.UUID)
-	// ROM download (range support). Upload only via the admin web interface.
+	// Plugin versions this Hub offers to Players (`plugins_v1`, any trusted device)
+	// (GET /api/v1/plugins)
+	ListPlugins(w http.ResponseWriter, r *http.Request)
+	// Download the `.fbplugin` file of an offered plugin version (`plugins_v1`, any trusted device)
+	// (GET /api/v1/plugins/{plugin_id}/{version}/file)
+	GetPluginFile(w http.ResponseWriter, r *http.Request, pluginId PluginId, version PluginVersion, params GetPluginFileParams)
+	// ROM download (range support). Only files stored on the Hub (`stored`); a file that is only registered as local is 404.
 	// (GET /api/v1/roms/{sha256})
 	DownloadRom(w http.ResponseWriter, r *http.Request, sha256 string, params DownloadRomParams)
+	// Runs the caller participates in (any participant status, not archived), most recently changed first
+	// (GET /api/v1/runs)
+	ListRuns(w http.ResponseWriter, r *http.Request)
+	// Create a run (the caller joins with `game_id`, status `starting`)
+	// (POST /api/v1/runs)
+	CreateRun(w http.ResponseWriter, r *http.Request)
+	// One run with every participant's per-plugin states (participants of any status only; others get 404)
+	// (GET /api/v1/runs/{run_id})
+	GetRun(w http.ResponseWriter, r *http.Request, runId RunId)
+	// Publish the plugin's board (building-block tree, at most 64 KiB) for the Hub web run page
+	// (PUT /api/v1/runs/{run_id}/boards/{plugin_id})
+	PutRunBoard(w http.ResponseWriter, r *http.Request, runId RunId, pluginId RunPluginId)
+	// Decline the invite (only from invited; declining again is a no-op)
+	// (POST /api/v1/runs/{run_id}/decline)
+	DeclineRun(w http.ResponseWriter, r *http.Request, runId RunId)
+	// Events with seq greater than `after`, in order (participants of any status)
+	// (GET /api/v1/runs/{run_id}/events)
+	ListRunEvents(w http.ResponseWriter, r *http.Request, runId RunId, params ListRunEventsParams)
+	// Append an event to the log (joined participants)
+	// (POST /api/v1/runs/{run_id}/events)
+	AppendRunEvent(w http.ResponseWriter, r *http.Request, runId RunId)
+	// Invite more users (any joined participant, while the run is starting, active or paused)
+	// (POST /api/v1/runs/{run_id}/invite)
+	InviteRun(w http.ResponseWriter, r *http.Request, runId RunId)
+	// Join with a library game (from invited, declined or left); the same game again is a no-op
+	// (POST /api/v1/runs/{run_id}/join)
+	JoinRun(w http.ResponseWriter, r *http.Request, runId RunId)
+	// Leave a run the caller joined (leaving again is a no-op); colour and state stay
+	// (POST /api/v1/runs/{run_id}/leave)
+	LeaveRun(w http.ResponseWriter, r *http.Request, runId RunId)
+	// Replace the caller's own state of one plugin (JSON object, at most 64 KiB) against a base revision
+	// (PUT /api/v1/runs/{run_id}/state/{plugin_id})
+	PutRunState(w http.ResponseWriter, r *http.Request, runId RunId, pluginId string)
+	// Change the run status
+	// (POST /api/v1/runs/{run_id}/status)
+	SetRunStatus(w http.ResponseWriter, r *http.Request, runId RunId)
 	// Save slots of the authenticated device's user
 	// (GET /api/v1/saves)
 	ListSaves(w http.ResponseWriter, r *http.Request)
@@ -1758,6 +2337,18 @@ type ServerInterface interface {
 	// Download a firmware file (any trusted device; never logged)
 	// (GET /api/v1/systems/{system_id}/firmware/{file_id})
 	GetFirmwareFile(w http.ResponseWriter, r *http.Request, systemId string, fileId string)
+	// Start or resume a resumable ROM upload (`local_roms_v1`)
+	// (POST /api/v1/uploads)
+	CreateUpload(w http.ResponseWriter, r *http.Request)
+	// Abort an upload session (`local_roms_v1`)
+	// (DELETE /api/v1/uploads/{upload_id})
+	DeleteUpload(w http.ResponseWriter, r *http.Request, uploadId openapi_types.UUID)
+	// State of an upload session (`local_roms_v1`)
+	// (GET /api/v1/uploads/{upload_id})
+	GetUpload(w http.ResponseWriter, r *http.Request, uploadId openapi_types.UUID)
+	// Upload one chunk (`local_roms_v1`)
+	// (PUT /api/v1/uploads/{upload_id})
+	PutUploadChunk(w http.ResponseWriter, r *http.Request, uploadId openapi_types.UUID, params PutUploadChunkParams)
 	// Users of this Hub (for the invite field)
 	// (GET /api/v1/users)
 	ListUsers(w http.ResponseWriter, r *http.Request)
@@ -2028,6 +2619,26 @@ func (siw *ServerInterfaceWrapper) UploadGame(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// RegisterGame operation middleware
+func (siw *ServerInterfaceWrapper) RegisterGame(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RegisterGame(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetGame operation middleware
 func (siw *ServerInterfaceWrapper) GetGame(w http.ResponseWriter, r *http.Request) {
 
@@ -2051,6 +2662,38 @@ func (siw *ServerInterfaceWrapper) GetGame(w http.ResponseWriter, r *http.Reques
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetGame(w, r, gameId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteGameRegistration operation middleware
+func (siw *ServerInterfaceWrapper) DeleteGameRegistration(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "game_id" -------------
+	var gameId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "game_id", r.PathValue("game_id"), &gameId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "game_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteGameRegistration(w, r, gameId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2871,6 +3514,91 @@ func (siw *ServerInterfaceWrapper) GetPairingRequest(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// ListPlugins operation middleware
+func (siw *ServerInterfaceWrapper) ListPlugins(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPlugins(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetPluginFile operation middleware
+func (siw *ServerInterfaceWrapper) GetPluginFile(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "plugin_id" -------------
+	var pluginId PluginId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "plugin_id", r.PathValue("plugin_id"), &pluginId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "plugin_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "version" -------------
+	var version PluginVersion
+
+	err = runtime.BindStyledParameterWithOptions("simple", "version", r.PathValue("version"), &version, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "version", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetPluginFileParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-None-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-None-Match")]; found {
+		var IfNoneMatch string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-None-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-None-Match", valueList[0], &IfNoneMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-None-Match", Err: err})
+			return
+		}
+
+		params.IfNoneMatch = &IfNoneMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPluginFile(w, r, pluginId, version, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // DownloadRom operation middleware
 func (siw *ServerInterfaceWrapper) DownloadRom(w http.ResponseWriter, r *http.Request) {
 
@@ -2918,6 +3646,413 @@ func (siw *ServerInterfaceWrapper) DownloadRom(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.DownloadRom(w, r, sha256, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListRuns operation middleware
+func (siw *ServerInterfaceWrapper) ListRuns(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListRuns(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateRun operation middleware
+func (siw *ServerInterfaceWrapper) CreateRun(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateRun(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetRun operation middleware
+func (siw *ServerInterfaceWrapper) GetRun(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "run_id" -------------
+	var runId RunId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "run_id", r.PathValue("run_id"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "run_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetRun(w, r, runId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutRunBoard operation middleware
+func (siw *ServerInterfaceWrapper) PutRunBoard(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "run_id" -------------
+	var runId RunId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "run_id", r.PathValue("run_id"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "run_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "plugin_id" -------------
+	var pluginId RunPluginId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "plugin_id", r.PathValue("plugin_id"), &pluginId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "plugin_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutRunBoard(w, r, runId, pluginId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeclineRun operation middleware
+func (siw *ServerInterfaceWrapper) DeclineRun(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "run_id" -------------
+	var runId RunId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "run_id", r.PathValue("run_id"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "run_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeclineRun(w, r, runId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListRunEvents operation middleware
+func (siw *ServerInterfaceWrapper) ListRunEvents(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "run_id" -------------
+	var runId RunId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "run_id", r.PathValue("run_id"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "run_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListRunEventsParams
+
+	// ------------- Optional query parameter "after" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "after", r.URL.Query(), &params.After, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "after"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "after", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListRunEvents(w, r, runId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AppendRunEvent operation middleware
+func (siw *ServerInterfaceWrapper) AppendRunEvent(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "run_id" -------------
+	var runId RunId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "run_id", r.PathValue("run_id"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "run_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AppendRunEvent(w, r, runId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// InviteRun operation middleware
+func (siw *ServerInterfaceWrapper) InviteRun(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "run_id" -------------
+	var runId RunId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "run_id", r.PathValue("run_id"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "run_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.InviteRun(w, r, runId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// JoinRun operation middleware
+func (siw *ServerInterfaceWrapper) JoinRun(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "run_id" -------------
+	var runId RunId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "run_id", r.PathValue("run_id"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "run_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.JoinRun(w, r, runId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// LeaveRun operation middleware
+func (siw *ServerInterfaceWrapper) LeaveRun(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "run_id" -------------
+	var runId RunId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "run_id", r.PathValue("run_id"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "run_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.LeaveRun(w, r, runId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutRunState operation middleware
+func (siw *ServerInterfaceWrapper) PutRunState(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "run_id" -------------
+	var runId RunId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "run_id", r.PathValue("run_id"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "run_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "plugin_id" -------------
+	var pluginId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "plugin_id", r.PathValue("plugin_id"), &pluginId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "plugin_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutRunState(w, r, runId, pluginId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetRunStatus operation middleware
+func (siw *ServerInterfaceWrapper) SetRunStatus(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "run_id" -------------
+	var runId RunId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "run_id", r.PathValue("run_id"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "run_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetRunStatus(w, r, runId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -3331,6 +4466,150 @@ func (siw *ServerInterfaceWrapper) GetFirmwareFile(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// CreateUpload operation middleware
+func (siw *ServerInterfaceWrapper) CreateUpload(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateUpload(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteUpload operation middleware
+func (siw *ServerInterfaceWrapper) DeleteUpload(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "upload_id" -------------
+	var uploadId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "upload_id", r.PathValue("upload_id"), &uploadId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "upload_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteUpload(w, r, uploadId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetUpload operation middleware
+func (siw *ServerInterfaceWrapper) GetUpload(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "upload_id" -------------
+	var uploadId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "upload_id", r.PathValue("upload_id"), &uploadId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "upload_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetUpload(w, r, uploadId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutUploadChunk operation middleware
+func (siw *ServerInterfaceWrapper) PutUploadChunk(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "upload_id" -------------
+	var uploadId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "upload_id", r.PathValue("upload_id"), &uploadId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "upload_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PutUploadChunkParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "Content-Range" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Content-Range")]; found {
+		var ContentRange string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Content-Range", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Content-Range", valueList[0], &ContentRange, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Content-Range", Err: err})
+			return
+		}
+
+		params.ContentRange = ContentRange
+
+	} else {
+		err := fmt.Errorf("Header parameter Content-Range is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "Content-Range", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutUploadChunk(w, r, uploadId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListUsers operation middleware
 func (siw *ServerInterfaceWrapper) ListUsers(w http.ResponseWriter, r *http.Request) {
 
@@ -3498,7 +4777,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/cores/{core_id}/packages/{version}/{platform}/files/{name}", wrapper.GetCorePackageFile)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/games", wrapper.ListGames)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/games", wrapper.UploadGame)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/games/register", wrapper.RegisterGame)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/games/{game_id}", wrapper.GetGame)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/games/{game_id}/registration", wrapper.DeleteGameRegistration)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}", wrapper.DeleteSaveSlot)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}", wrapper.GetSaveSlot)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}", wrapper.PutSave)
@@ -3519,7 +4800,21 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/local/status", wrapper.GetLocalStatus)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/pairing/requests", wrapper.CreatePairingRequest)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/pairing/requests/{request_id}", wrapper.GetPairingRequest)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/plugins", wrapper.ListPlugins)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/plugins/{plugin_id}/{version}/file", wrapper.GetPluginFile)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/roms/{sha256}", wrapper.DownloadRom)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/runs", wrapper.ListRuns)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/runs", wrapper.CreateRun)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/runs/{run_id}", wrapper.GetRun)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/runs/{run_id}/boards/{plugin_id}", wrapper.PutRunBoard)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/runs/{run_id}/decline", wrapper.DeclineRun)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/runs/{run_id}/events", wrapper.ListRunEvents)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/runs/{run_id}/events", wrapper.AppendRunEvent)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/runs/{run_id}/invite", wrapper.InviteRun)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/runs/{run_id}/join", wrapper.JoinRun)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/runs/{run_id}/leave", wrapper.LeaveRun)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/runs/{run_id}/state/{plugin_id}", wrapper.PutRunState)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/runs/{run_id}/status", wrapper.SetRunStatus)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/saves", wrapper.ListSaves)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/sessions", wrapper.ListSessions)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/sessions", wrapper.PublishSession)
@@ -3533,6 +4828,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/sessions/{session_id}/viewers/{viewer_id}", wrapper.RemoveSessionViewer)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/systems", wrapper.ListSystems)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/systems/{system_id}/firmware/{file_id}", wrapper.GetFirmwareFile)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/uploads", wrapper.CreateUpload)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/uploads/{upload_id}", wrapper.DeleteUpload)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/uploads/{upload_id}", wrapper.GetUpload)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/uploads/{upload_id}", wrapper.PutUploadChunk)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/users", wrapper.ListUsers)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/ws", wrapper.ConnectWebSocket)
 
@@ -3553,6 +4852,8 @@ type NotFoundJSONResponse Error
 
 type RateLimitedJSONResponse Error
 
+type RunConflictJSONResponse Error
+
 type SessionEndedJSONResponse Error
 
 type SessionForbiddenJSONResponse Error
@@ -3560,6 +4861,8 @@ type SessionForbiddenJSONResponse Error
 type SessionFullOrCapabilityJSONResponse Error
 
 type SessionNotFoundJSONResponse Error
+
+type TooLargeJSONResponse Error
 
 type UnauthorizedJSONResponse Error
 
@@ -3937,6 +5240,70 @@ func (response UploadGame413JSONResponse) VisitUploadGameResponse(w http.Respons
 	return err
 }
 
+type RegisterGameRequestObject struct {
+	Body *RegisterGameJSONRequestBody
+}
+
+type RegisterGameResponseObject interface {
+	VisitRegisterGameResponse(w http.ResponseWriter) error
+}
+
+type RegisterGame200JSONResponse Game
+
+func (response RegisterGame200JSONResponse) VisitRegisterGameResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RegisterGame201JSONResponse Game
+
+func (response RegisterGame201JSONResponse) VisitRegisterGameResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RegisterGame400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response RegisterGame400JSONResponse) VisitRegisterGameResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RegisterGame401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response RegisterGame401JSONResponse) VisitRegisterGameResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetGameRequestObject struct {
 	GameId openapi_types.UUID `json:"game_id"`
 }
@@ -3976,6 +5343,50 @@ func (response GetGame401JSONResponse) VisitGetGameResponse(w http.ResponseWrite
 type GetGame404JSONResponse struct{ NotFoundJSONResponse }
 
 func (response GetGame404JSONResponse) VisitGetGameResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteGameRegistrationRequestObject struct {
+	GameId openapi_types.UUID `json:"game_id"`
+}
+
+type DeleteGameRegistrationResponseObject interface {
+	VisitDeleteGameRegistrationResponse(w http.ResponseWriter) error
+}
+
+type DeleteGameRegistration204Response struct {
+}
+
+func (response DeleteGameRegistration204Response) VisitDeleteGameRegistrationResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteGameRegistration401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DeleteGameRegistration401JSONResponse) VisitDeleteGameRegistrationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteGameRegistration404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DeleteGameRegistration404JSONResponse) VisitDeleteGameRegistrationResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -5563,6 +6974,127 @@ func (response GetPairingRequest404JSONResponse) VisitGetPairingRequestResponse(
 	return err
 }
 
+type ListPluginsRequestObject struct {
+}
+
+type ListPluginsResponseObject interface {
+	VisitListPluginsResponse(w http.ResponseWriter) error
+}
+
+type ListPlugins200JSONResponse PluginList
+
+func (response ListPlugins200JSONResponse) VisitListPluginsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPlugins401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListPlugins401JSONResponse) VisitListPluginsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPluginFileRequestObject struct {
+	PluginId PluginId      `json:"plugin_id"`
+	Version  PluginVersion `json:"version"`
+	Params   GetPluginFileParams
+}
+
+type GetPluginFileResponseObject interface {
+	VisitGetPluginFileResponse(w http.ResponseWriter) error
+}
+
+type GetPluginFile200ResponseHeaders struct {
+	ContentLength *int64
+	ETag          *string
+}
+
+type GetPluginFile200ApplicationzipResponse struct {
+	Body          io.Reader
+	Headers       GetPluginFile200ResponseHeaders
+	ContentLength int64
+}
+
+func (response GetPluginFile200ApplicationzipResponse) VisitGetPluginFileResponse(w http.ResponseWriter) error {
+
+	w.Header().Set("Content-Type", "application/zip")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	if response.Headers.ContentLength != nil {
+		w.Header().Set("Content-Length", fmt.Sprint(*response.Headers.ContentLength))
+	}
+	if response.Headers.ETag != nil {
+		w.Header().Set("ETag", fmt.Sprint(*response.Headers.ETag))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type GetPluginFile304ResponseHeaders struct {
+	ETag *string
+}
+
+type GetPluginFile304Response struct {
+	Headers GetPluginFile304ResponseHeaders
+}
+
+func (response GetPluginFile304Response) VisitGetPluginFileResponse(w http.ResponseWriter) error {
+	if response.Headers.ETag != nil {
+		w.Header().Set("ETag", fmt.Sprint(*response.Headers.ETag))
+	}
+	w.WriteHeader(304)
+	return nil
+}
+
+type GetPluginFile401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetPluginFile401JSONResponse) VisitGetPluginFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPluginFile404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetPluginFile404JSONResponse) VisitGetPluginFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type DownloadRomRequestObject struct {
 	Sha256 string `json:"sha256"`
 	Params DownloadRomParams
@@ -5682,6 +7214,992 @@ func (response DownloadRom416JSONResponse) VisitDownloadRomResponse(w http.Respo
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(416)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListRunsRequestObject struct {
+}
+
+type ListRunsResponseObject interface {
+	VisitListRunsResponse(w http.ResponseWriter) error
+}
+
+type ListRuns200JSONResponse RunList
+
+func (response ListRuns200JSONResponse) VisitListRunsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListRuns401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListRuns401JSONResponse) VisitListRunsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateRunRequestObject struct {
+	Body *CreateRunJSONRequestBody
+}
+
+type CreateRunResponseObject interface {
+	VisitCreateRunResponse(w http.ResponseWriter) error
+}
+
+type CreateRun201JSONResponse Run
+
+func (response CreateRun201JSONResponse) VisitCreateRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateRun400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response CreateRun400JSONResponse) VisitCreateRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateRun401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response CreateRun401JSONResponse) VisitCreateRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateRun413JSONResponse struct{ TooLargeJSONResponse }
+
+func (response CreateRun413JSONResponse) VisitCreateRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(413)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetRunRequestObject struct {
+	RunId RunId `json:"run_id"`
+}
+
+type GetRunResponseObject interface {
+	VisitGetRunResponse(w http.ResponseWriter) error
+}
+
+type GetRun200JSONResponse Run
+
+func (response GetRun200JSONResponse) VisitGetRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetRun401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetRun401JSONResponse) VisitGetRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetRun404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetRun404JSONResponse) VisitGetRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutRunBoardRequestObject struct {
+	RunId    RunId       `json:"run_id"`
+	PluginId RunPluginId `json:"plugin_id"`
+	Body     *PutRunBoardJSONRequestBody
+}
+
+type PutRunBoardResponseObject interface {
+	VisitPutRunBoardResponse(w http.ResponseWriter) error
+}
+
+type PutRunBoard200JSONResponse RunBoardResult
+
+func (response PutRunBoard200JSONResponse) VisitPutRunBoardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutRunBoard400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response PutRunBoard400JSONResponse) VisitPutRunBoardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutRunBoard401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response PutRunBoard401JSONResponse) VisitPutRunBoardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutRunBoard403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response PutRunBoard403JSONResponse) VisitPutRunBoardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutRunBoard404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response PutRunBoard404JSONResponse) VisitPutRunBoardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutRunBoard409JSONResponse struct{ RunConflictJSONResponse }
+
+func (response PutRunBoard409JSONResponse) VisitPutRunBoardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutRunBoard413JSONResponse struct{ TooLargeJSONResponse }
+
+func (response PutRunBoard413JSONResponse) VisitPutRunBoardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(413)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutRunBoard429JSONResponse struct{ RateLimitedJSONResponse }
+
+func (response PutRunBoard429JSONResponse) VisitPutRunBoardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeclineRunRequestObject struct {
+	RunId RunId `json:"run_id"`
+}
+
+type DeclineRunResponseObject interface {
+	VisitDeclineRunResponse(w http.ResponseWriter) error
+}
+
+type DeclineRun200JSONResponse Run
+
+func (response DeclineRun200JSONResponse) VisitDeclineRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeclineRun401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DeclineRun401JSONResponse) VisitDeclineRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeclineRun404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DeclineRun404JSONResponse) VisitDeclineRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeclineRun409JSONResponse struct{ RunConflictJSONResponse }
+
+func (response DeclineRun409JSONResponse) VisitDeclineRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListRunEventsRequestObject struct {
+	RunId  RunId `json:"run_id"`
+	Params ListRunEventsParams
+}
+
+type ListRunEventsResponseObject interface {
+	VisitListRunEventsResponse(w http.ResponseWriter) error
+}
+
+type ListRunEvents200JSONResponse RunEventList
+
+func (response ListRunEvents200JSONResponse) VisitListRunEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListRunEvents400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response ListRunEvents400JSONResponse) VisitListRunEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListRunEvents401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListRunEvents401JSONResponse) VisitListRunEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListRunEvents404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ListRunEvents404JSONResponse) VisitListRunEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AppendRunEventRequestObject struct {
+	RunId RunId `json:"run_id"`
+	Body  *AppendRunEventJSONRequestBody
+}
+
+type AppendRunEventResponseObject interface {
+	VisitAppendRunEventResponse(w http.ResponseWriter) error
+}
+
+type AppendRunEvent200JSONResponse RunEventResult
+
+func (response AppendRunEvent200JSONResponse) VisitAppendRunEventResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AppendRunEvent201JSONResponse RunEventResult
+
+func (response AppendRunEvent201JSONResponse) VisitAppendRunEventResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AppendRunEvent400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response AppendRunEvent400JSONResponse) VisitAppendRunEventResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AppendRunEvent401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response AppendRunEvent401JSONResponse) VisitAppendRunEventResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AppendRunEvent403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response AppendRunEvent403JSONResponse) VisitAppendRunEventResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AppendRunEvent404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AppendRunEvent404JSONResponse) VisitAppendRunEventResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AppendRunEvent409JSONResponse struct{ RunConflictJSONResponse }
+
+func (response AppendRunEvent409JSONResponse) VisitAppendRunEventResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AppendRunEvent413JSONResponse struct{ TooLargeJSONResponse }
+
+func (response AppendRunEvent413JSONResponse) VisitAppendRunEventResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(413)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AppendRunEvent429JSONResponse struct{ RateLimitedJSONResponse }
+
+func (response AppendRunEvent429JSONResponse) VisitAppendRunEventResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type InviteRunRequestObject struct {
+	RunId RunId `json:"run_id"`
+	Body  *InviteRunJSONRequestBody
+}
+
+type InviteRunResponseObject interface {
+	VisitInviteRunResponse(w http.ResponseWriter) error
+}
+
+type InviteRun200JSONResponse Run
+
+func (response InviteRun200JSONResponse) VisitInviteRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type InviteRun400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response InviteRun400JSONResponse) VisitInviteRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type InviteRun401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response InviteRun401JSONResponse) VisitInviteRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type InviteRun403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response InviteRun403JSONResponse) VisitInviteRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type InviteRun404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response InviteRun404JSONResponse) VisitInviteRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type InviteRun409JSONResponse struct{ RunConflictJSONResponse }
+
+func (response InviteRun409JSONResponse) VisitInviteRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type JoinRunRequestObject struct {
+	RunId RunId `json:"run_id"`
+	Body  *JoinRunJSONRequestBody
+}
+
+type JoinRunResponseObject interface {
+	VisitJoinRunResponse(w http.ResponseWriter) error
+}
+
+type JoinRun200JSONResponse Run
+
+func (response JoinRun200JSONResponse) VisitJoinRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type JoinRun400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response JoinRun400JSONResponse) VisitJoinRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type JoinRun401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response JoinRun401JSONResponse) VisitJoinRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type JoinRun404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response JoinRun404JSONResponse) VisitJoinRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type JoinRun409JSONResponse struct{ RunConflictJSONResponse }
+
+func (response JoinRun409JSONResponse) VisitJoinRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LeaveRunRequestObject struct {
+	RunId RunId `json:"run_id"`
+}
+
+type LeaveRunResponseObject interface {
+	VisitLeaveRunResponse(w http.ResponseWriter) error
+}
+
+type LeaveRun200JSONResponse Run
+
+func (response LeaveRun200JSONResponse) VisitLeaveRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LeaveRun401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response LeaveRun401JSONResponse) VisitLeaveRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LeaveRun404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response LeaveRun404JSONResponse) VisitLeaveRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LeaveRun409JSONResponse struct{ RunConflictJSONResponse }
+
+func (response LeaveRun409JSONResponse) VisitLeaveRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutRunStateRequestObject struct {
+	RunId    RunId  `json:"run_id"`
+	PluginId string `json:"plugin_id"`
+	Body     *PutRunStateJSONRequestBody
+}
+
+type PutRunStateResponseObject interface {
+	VisitPutRunStateResponse(w http.ResponseWriter) error
+}
+
+type PutRunState200JSONResponse RunStateResponse
+
+func (response PutRunState200JSONResponse) VisitPutRunStateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutRunState400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response PutRunState400JSONResponse) VisitPutRunStateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutRunState401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response PutRunState401JSONResponse) VisitPutRunStateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutRunState403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response PutRunState403JSONResponse) VisitPutRunStateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutRunState404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response PutRunState404JSONResponse) VisitPutRunStateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutRunState409JSONResponse RunStateConflictError
+
+func (response PutRunState409JSONResponse) VisitPutRunStateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutRunState413JSONResponse struct{ TooLargeJSONResponse }
+
+func (response PutRunState413JSONResponse) VisitPutRunStateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(413)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutRunState429JSONResponse struct{ RateLimitedJSONResponse }
+
+func (response PutRunState429JSONResponse) VisitPutRunStateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetRunStatusRequestObject struct {
+	RunId RunId `json:"run_id"`
+	Body  *SetRunStatusJSONRequestBody
+}
+
+type SetRunStatusResponseObject interface {
+	VisitSetRunStatusResponse(w http.ResponseWriter) error
+}
+
+type SetRunStatus200JSONResponse Run
+
+func (response SetRunStatus200JSONResponse) VisitSetRunStatusResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetRunStatus400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response SetRunStatus400JSONResponse) VisitSetRunStatusResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetRunStatus401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response SetRunStatus401JSONResponse) VisitSetRunStatusResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetRunStatus403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response SetRunStatus403JSONResponse) VisitSetRunStatusResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetRunStatus404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response SetRunStatus404JSONResponse) VisitSetRunStatusResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetRunStatus409JSONResponse struct{ RunConflictJSONResponse }
+
+func (response SetRunStatus409JSONResponse) VisitSetRunStatusResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -6592,6 +9110,300 @@ func (response GetFirmwareFile404JSONResponse) VisitGetFirmwareFileResponse(w ht
 	return err
 }
 
+type CreateUploadRequestObject struct {
+	Body *CreateUploadJSONRequestBody
+}
+
+type CreateUploadResponseObject interface {
+	VisitCreateUploadResponse(w http.ResponseWriter) error
+}
+
+type CreateUpload201JSONResponse UploadSession
+
+func (response CreateUpload201JSONResponse) VisitCreateUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateUpload400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response CreateUpload400JSONResponse) VisitCreateUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateUpload401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response CreateUpload401JSONResponse) VisitCreateUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateUpload403JSONResponse Error
+
+func (response CreateUpload403JSONResponse) VisitCreateUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateUpload409JSONResponse DuplicateGameError
+
+func (response CreateUpload409JSONResponse) VisitCreateUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateUpload413JSONResponse Error
+
+func (response CreateUpload413JSONResponse) VisitCreateUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(413)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateUpload429JSONResponse struct{ RateLimitedJSONResponse }
+
+func (response CreateUpload429JSONResponse) VisitCreateUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteUploadRequestObject struct {
+	UploadId openapi_types.UUID `json:"upload_id"`
+}
+
+type DeleteUploadResponseObject interface {
+	VisitDeleteUploadResponse(w http.ResponseWriter) error
+}
+
+type DeleteUpload204Response struct {
+}
+
+func (response DeleteUpload204Response) VisitDeleteUploadResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteUpload401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DeleteUpload401JSONResponse) VisitDeleteUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteUpload404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DeleteUpload404JSONResponse) VisitDeleteUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetUploadRequestObject struct {
+	UploadId openapi_types.UUID `json:"upload_id"`
+}
+
+type GetUploadResponseObject interface {
+	VisitGetUploadResponse(w http.ResponseWriter) error
+}
+
+type GetUpload200JSONResponse UploadStatus
+
+func (response GetUpload200JSONResponse) VisitGetUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetUpload401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetUpload401JSONResponse) VisitGetUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetUpload404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetUpload404JSONResponse) VisitGetUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutUploadChunkRequestObject struct {
+	UploadId openapi_types.UUID `json:"upload_id"`
+	Params   PutUploadChunkParams
+	Body     io.Reader
+}
+
+type PutUploadChunkResponseObject interface {
+	VisitPutUploadChunkResponse(w http.ResponseWriter) error
+}
+
+type PutUploadChunk200JSONResponse UploadProgress
+
+func (response PutUploadChunk200JSONResponse) VisitPutUploadChunkResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutUploadChunk400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response PutUploadChunk400JSONResponse) VisitPutUploadChunkResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutUploadChunk401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response PutUploadChunk401JSONResponse) VisitPutUploadChunkResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutUploadChunk404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response PutUploadChunk404JSONResponse) VisitPutUploadChunkResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutUploadChunk409JSONResponse Error
+
+func (response PutUploadChunk409JSONResponse) VisitPutUploadChunkResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutUploadChunk413JSONResponse Error
+
+func (response PutUploadChunk413JSONResponse) VisitPutUploadChunkResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(413)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListUsersRequestObject struct {
 }
 
@@ -6679,9 +9491,15 @@ type StrictServerInterface interface {
 	// Upload a ROM (admin, or users when the Hub allows user uploads)
 	// (POST /api/v1/games)
 	UploadGame(ctx context.Context, request UploadGameRequestObject) (UploadGameResponseObject, error)
+	// Register a ROM file that exists only on the caller's device (`local_roms_v1`)
+	// (POST /api/v1/games/register)
+	RegisterGame(ctx context.Context, request RegisterGameRequestObject) (RegisterGameResponseObject, error)
 	// Single game
 	// (GET /api/v1/games/{game_id})
 	GetGame(ctx context.Context, request GetGameRequestObject) (GetGameResponseObject, error)
+	// Remove the caller's local registrations for a game (`local_roms_v1`)
+	// (DELETE /api/v1/games/{game_id}/registration)
+	DeleteGameRegistration(ctx context.Context, request DeleteGameRegistrationRequestObject) (DeleteGameRegistrationResponseObject, error)
 	// Delete a slot with its whole history (`saves_v5`)
 	// (DELETE /api/v1/games/{game_id}/saves/{slot})
 	DeleteSaveSlot(ctx context.Context, request DeleteSaveSlotRequestObject) (DeleteSaveSlotResponseObject, error)
@@ -6742,9 +9560,51 @@ type StrictServerInterface interface {
 	// Poll pairing request status (bearer = poll_token)
 	// (GET /api/v1/pairing/requests/{request_id})
 	GetPairingRequest(ctx context.Context, request GetPairingRequestRequestObject) (GetPairingRequestResponseObject, error)
-	// ROM download (range support). Upload only via the admin web interface.
+	// Plugin versions this Hub offers to Players (`plugins_v1`, any trusted device)
+	// (GET /api/v1/plugins)
+	ListPlugins(ctx context.Context, request ListPluginsRequestObject) (ListPluginsResponseObject, error)
+	// Download the `.fbplugin` file of an offered plugin version (`plugins_v1`, any trusted device)
+	// (GET /api/v1/plugins/{plugin_id}/{version}/file)
+	GetPluginFile(ctx context.Context, request GetPluginFileRequestObject) (GetPluginFileResponseObject, error)
+	// ROM download (range support). Only files stored on the Hub (`stored`); a file that is only registered as local is 404.
 	// (GET /api/v1/roms/{sha256})
 	DownloadRom(ctx context.Context, request DownloadRomRequestObject) (DownloadRomResponseObject, error)
+	// Runs the caller participates in (any participant status, not archived), most recently changed first
+	// (GET /api/v1/runs)
+	ListRuns(ctx context.Context, request ListRunsRequestObject) (ListRunsResponseObject, error)
+	// Create a run (the caller joins with `game_id`, status `starting`)
+	// (POST /api/v1/runs)
+	CreateRun(ctx context.Context, request CreateRunRequestObject) (CreateRunResponseObject, error)
+	// One run with every participant's per-plugin states (participants of any status only; others get 404)
+	// (GET /api/v1/runs/{run_id})
+	GetRun(ctx context.Context, request GetRunRequestObject) (GetRunResponseObject, error)
+	// Publish the plugin's board (building-block tree, at most 64 KiB) for the Hub web run page
+	// (PUT /api/v1/runs/{run_id}/boards/{plugin_id})
+	PutRunBoard(ctx context.Context, request PutRunBoardRequestObject) (PutRunBoardResponseObject, error)
+	// Decline the invite (only from invited; declining again is a no-op)
+	// (POST /api/v1/runs/{run_id}/decline)
+	DeclineRun(ctx context.Context, request DeclineRunRequestObject) (DeclineRunResponseObject, error)
+	// Events with seq greater than `after`, in order (participants of any status)
+	// (GET /api/v1/runs/{run_id}/events)
+	ListRunEvents(ctx context.Context, request ListRunEventsRequestObject) (ListRunEventsResponseObject, error)
+	// Append an event to the log (joined participants)
+	// (POST /api/v1/runs/{run_id}/events)
+	AppendRunEvent(ctx context.Context, request AppendRunEventRequestObject) (AppendRunEventResponseObject, error)
+	// Invite more users (any joined participant, while the run is starting, active or paused)
+	// (POST /api/v1/runs/{run_id}/invite)
+	InviteRun(ctx context.Context, request InviteRunRequestObject) (InviteRunResponseObject, error)
+	// Join with a library game (from invited, declined or left); the same game again is a no-op
+	// (POST /api/v1/runs/{run_id}/join)
+	JoinRun(ctx context.Context, request JoinRunRequestObject) (JoinRunResponseObject, error)
+	// Leave a run the caller joined (leaving again is a no-op); colour and state stay
+	// (POST /api/v1/runs/{run_id}/leave)
+	LeaveRun(ctx context.Context, request LeaveRunRequestObject) (LeaveRunResponseObject, error)
+	// Replace the caller's own state of one plugin (JSON object, at most 64 KiB) against a base revision
+	// (PUT /api/v1/runs/{run_id}/state/{plugin_id})
+	PutRunState(ctx context.Context, request PutRunStateRequestObject) (PutRunStateResponseObject, error)
+	// Change the run status
+	// (POST /api/v1/runs/{run_id}/status)
+	SetRunStatus(ctx context.Context, request SetRunStatusRequestObject) (SetRunStatusResponseObject, error)
 	// Save slots of the authenticated device's user
 	// (GET /api/v1/saves)
 	ListSaves(ctx context.Context, request ListSavesRequestObject) (ListSavesResponseObject, error)
@@ -6784,6 +9644,18 @@ type StrictServerInterface interface {
 	// Download a firmware file (any trusted device; never logged)
 	// (GET /api/v1/systems/{system_id}/firmware/{file_id})
 	GetFirmwareFile(ctx context.Context, request GetFirmwareFileRequestObject) (GetFirmwareFileResponseObject, error)
+	// Start or resume a resumable ROM upload (`local_roms_v1`)
+	// (POST /api/v1/uploads)
+	CreateUpload(ctx context.Context, request CreateUploadRequestObject) (CreateUploadResponseObject, error)
+	// Abort an upload session (`local_roms_v1`)
+	// (DELETE /api/v1/uploads/{upload_id})
+	DeleteUpload(ctx context.Context, request DeleteUploadRequestObject) (DeleteUploadResponseObject, error)
+	// State of an upload session (`local_roms_v1`)
+	// (GET /api/v1/uploads/{upload_id})
+	GetUpload(ctx context.Context, request GetUploadRequestObject) (GetUploadResponseObject, error)
+	// Upload one chunk (`local_roms_v1`)
+	// (PUT /api/v1/uploads/{upload_id})
+	PutUploadChunk(ctx context.Context, request PutUploadChunkRequestObject) (PutUploadChunkResponseObject, error)
 	// Users of this Hub (for the invite field)
 	// (GET /api/v1/users)
 	ListUsers(ctx context.Context, request ListUsersRequestObject) (ListUsersResponseObject, error)
@@ -7010,6 +9882,37 @@ func (sh *strictHandler) UploadGame(w http.ResponseWriter, r *http.Request, para
 	}
 }
 
+// RegisterGame operation middleware
+func (sh *strictHandler) RegisterGame(w http.ResponseWriter, r *http.Request) {
+	var request RegisterGameRequestObject
+
+	var body RegisterGameJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RegisterGame(ctx, request.(RegisterGameRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RegisterGame")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RegisterGameResponseObject); ok {
+		if err := validResponse.VisitRegisterGameResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetGame operation middleware
 func (sh *strictHandler) GetGame(w http.ResponseWriter, r *http.Request, gameId openapi_types.UUID) {
 	var request GetGameRequestObject
@@ -7029,6 +9932,32 @@ func (sh *strictHandler) GetGame(w http.ResponseWriter, r *http.Request, gameId 
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetGameResponseObject); ok {
 		if err := validResponse.VisitGetGameResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteGameRegistration operation middleware
+func (sh *strictHandler) DeleteGameRegistration(w http.ResponseWriter, r *http.Request, gameId openapi_types.UUID) {
+	var request DeleteGameRegistrationRequestObject
+
+	request.GameId = gameId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteGameRegistration(ctx, request.(DeleteGameRegistrationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteGameRegistration")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteGameRegistrationResponseObject); ok {
+		if err := validResponse.VisitDeleteGameRegistrationResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -7638,6 +10567,58 @@ func (sh *strictHandler) GetPairingRequest(w http.ResponseWriter, r *http.Reques
 	}
 }
 
+// ListPlugins operation middleware
+func (sh *strictHandler) ListPlugins(w http.ResponseWriter, r *http.Request) {
+	var request ListPluginsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListPlugins(ctx, request.(ListPluginsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListPlugins")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListPluginsResponseObject); ok {
+		if err := validResponse.VisitListPluginsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetPluginFile operation middleware
+func (sh *strictHandler) GetPluginFile(w http.ResponseWriter, r *http.Request, pluginId PluginId, version PluginVersion, params GetPluginFileParams) {
+	var request GetPluginFileRequestObject
+
+	request.PluginId = pluginId
+	request.Version = version
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetPluginFile(ctx, request.(GetPluginFileRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetPluginFile")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetPluginFileResponseObject); ok {
+		if err := validResponse.VisitGetPluginFileResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // DownloadRom operation middleware
 func (sh *strictHandler) DownloadRom(w http.ResponseWriter, r *http.Request, sha256 string, params DownloadRomParams) {
 	var request DownloadRomRequestObject
@@ -7658,6 +10639,366 @@ func (sh *strictHandler) DownloadRom(w http.ResponseWriter, r *http.Request, sha
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(DownloadRomResponseObject); ok {
 		if err := validResponse.VisitDownloadRomResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListRuns operation middleware
+func (sh *strictHandler) ListRuns(w http.ResponseWriter, r *http.Request) {
+	var request ListRunsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListRuns(ctx, request.(ListRunsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListRuns")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListRunsResponseObject); ok {
+		if err := validResponse.VisitListRunsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateRun operation middleware
+func (sh *strictHandler) CreateRun(w http.ResponseWriter, r *http.Request) {
+	var request CreateRunRequestObject
+
+	var body CreateRunJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateRun(ctx, request.(CreateRunRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateRun")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateRunResponseObject); ok {
+		if err := validResponse.VisitCreateRunResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetRun operation middleware
+func (sh *strictHandler) GetRun(w http.ResponseWriter, r *http.Request, runId RunId) {
+	var request GetRunRequestObject
+
+	request.RunId = runId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetRun(ctx, request.(GetRunRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetRun")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetRunResponseObject); ok {
+		if err := validResponse.VisitGetRunResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutRunBoard operation middleware
+func (sh *strictHandler) PutRunBoard(w http.ResponseWriter, r *http.Request, runId RunId, pluginId RunPluginId) {
+	var request PutRunBoardRequestObject
+
+	request.RunId = runId
+	request.PluginId = pluginId
+
+	var body PutRunBoardJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutRunBoard(ctx, request.(PutRunBoardRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutRunBoard")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutRunBoardResponseObject); ok {
+		if err := validResponse.VisitPutRunBoardResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeclineRun operation middleware
+func (sh *strictHandler) DeclineRun(w http.ResponseWriter, r *http.Request, runId RunId) {
+	var request DeclineRunRequestObject
+
+	request.RunId = runId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeclineRun(ctx, request.(DeclineRunRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeclineRun")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeclineRunResponseObject); ok {
+		if err := validResponse.VisitDeclineRunResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListRunEvents operation middleware
+func (sh *strictHandler) ListRunEvents(w http.ResponseWriter, r *http.Request, runId RunId, params ListRunEventsParams) {
+	var request ListRunEventsRequestObject
+
+	request.RunId = runId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListRunEvents(ctx, request.(ListRunEventsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListRunEvents")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListRunEventsResponseObject); ok {
+		if err := validResponse.VisitListRunEventsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AppendRunEvent operation middleware
+func (sh *strictHandler) AppendRunEvent(w http.ResponseWriter, r *http.Request, runId RunId) {
+	var request AppendRunEventRequestObject
+
+	request.RunId = runId
+
+	var body AppendRunEventJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AppendRunEvent(ctx, request.(AppendRunEventRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AppendRunEvent")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AppendRunEventResponseObject); ok {
+		if err := validResponse.VisitAppendRunEventResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// InviteRun operation middleware
+func (sh *strictHandler) InviteRun(w http.ResponseWriter, r *http.Request, runId RunId) {
+	var request InviteRunRequestObject
+
+	request.RunId = runId
+
+	var body InviteRunJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.InviteRun(ctx, request.(InviteRunRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "InviteRun")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(InviteRunResponseObject); ok {
+		if err := validResponse.VisitInviteRunResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// JoinRun operation middleware
+func (sh *strictHandler) JoinRun(w http.ResponseWriter, r *http.Request, runId RunId) {
+	var request JoinRunRequestObject
+
+	request.RunId = runId
+
+	var body JoinRunJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.JoinRun(ctx, request.(JoinRunRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "JoinRun")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(JoinRunResponseObject); ok {
+		if err := validResponse.VisitJoinRunResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// LeaveRun operation middleware
+func (sh *strictHandler) LeaveRun(w http.ResponseWriter, r *http.Request, runId RunId) {
+	var request LeaveRunRequestObject
+
+	request.RunId = runId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.LeaveRun(ctx, request.(LeaveRunRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "LeaveRun")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(LeaveRunResponseObject); ok {
+		if err := validResponse.VisitLeaveRunResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutRunState operation middleware
+func (sh *strictHandler) PutRunState(w http.ResponseWriter, r *http.Request, runId RunId, pluginId string) {
+	var request PutRunStateRequestObject
+
+	request.RunId = runId
+	request.PluginId = pluginId
+
+	var body PutRunStateJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutRunState(ctx, request.(PutRunStateRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutRunState")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutRunStateResponseObject); ok {
+		if err := validResponse.VisitPutRunStateResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetRunStatus operation middleware
+func (sh *strictHandler) SetRunStatus(w http.ResponseWriter, r *http.Request, runId RunId) {
+	var request SetRunStatusRequestObject
+
+	request.RunId = runId
+
+	var body SetRunStatusJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetRunStatus(ctx, request.(SetRunStatusRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetRunStatus")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetRunStatusResponseObject); ok {
+		if err := validResponse.VisitSetRunStatusResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -8006,6 +11347,118 @@ func (sh *strictHandler) GetFirmwareFile(w http.ResponseWriter, r *http.Request,
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetFirmwareFileResponseObject); ok {
 		if err := validResponse.VisitGetFirmwareFileResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateUpload operation middleware
+func (sh *strictHandler) CreateUpload(w http.ResponseWriter, r *http.Request) {
+	var request CreateUploadRequestObject
+
+	var body CreateUploadJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateUpload(ctx, request.(CreateUploadRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateUpload")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateUploadResponseObject); ok {
+		if err := validResponse.VisitCreateUploadResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteUpload operation middleware
+func (sh *strictHandler) DeleteUpload(w http.ResponseWriter, r *http.Request, uploadId openapi_types.UUID) {
+	var request DeleteUploadRequestObject
+
+	request.UploadId = uploadId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteUpload(ctx, request.(DeleteUploadRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteUpload")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteUploadResponseObject); ok {
+		if err := validResponse.VisitDeleteUploadResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetUpload operation middleware
+func (sh *strictHandler) GetUpload(w http.ResponseWriter, r *http.Request, uploadId openapi_types.UUID) {
+	var request GetUploadRequestObject
+
+	request.UploadId = uploadId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetUpload(ctx, request.(GetUploadRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetUpload")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetUploadResponseObject); ok {
+		if err := validResponse.VisitGetUploadResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutUploadChunk operation middleware
+func (sh *strictHandler) PutUploadChunk(w http.ResponseWriter, r *http.Request, uploadId openapi_types.UUID, params PutUploadChunkParams) {
+	var request PutUploadChunkRequestObject
+
+	request.UploadId = uploadId
+	request.Params = params
+
+	request.Body = r.Body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutUploadChunk(ctx, request.(PutUploadChunkRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutUploadChunk")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutUploadChunkResponseObject); ok {
+		if err := validResponse.VisitPutUploadChunkResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

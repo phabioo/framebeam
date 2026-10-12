@@ -12,5 +12,6 @@
     {"id": "bios9", "display_name": "ARM9 BIOS", "file": "bios9.bin", "sizes": [4096]},
     {"id": "firmware", "display_name": "DS Firmware", "file": "firmware.bin", "sizes": [131072, 262144, 524288]}
   ],
+  "identity": "nds_header",
   "profiled_cores": ["melondsds", "desmume"]
 }

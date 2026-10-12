@@ -11,12 +11,11 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 	"unicode"
 	"unicode/utf8"
-
-	"github.com/google/uuid"
 )
 
 // System is a known game system (library view of the registry, see systems.go).
@@ -69,6 +68,23 @@ type Game struct {
 	Filename   string
 	UploadedBy string
 	AddedAt    time.Time
+	// GameCode and GameCodeKind: identity read from the ROM header ("" when unknown or unreadable).
+	GameCode     string
+	GameCodeKind string
+	// GameVersion is the ROM version of the identity (nil = unknown).
+	GameVersion *int
+	// ROMs are all known files of the game (primary first); OnHub is true when at least one is stored on the Hub.
+	// ROMSHA256/ROMSize/Filename describe a stored file if there is one, else the primary file.
+	ROMs  []ROMFile
+	OnHub bool
+}
+
+// ROMFile is one known file of a game. Stored files are on the Hub; the others are only registered by their owners.
+type ROMFile struct {
+	SHA256, Filename, AddedBy string
+	Size                      int64
+	Stored                    bool
+	AddedAt                   time.Time
 }
 
 // MaxROMBytes is the upload limit for ROMs (4 GiB), shared by the web interface and the API.
@@ -83,13 +99,21 @@ func (s *Service) romPath(sha string) string {
 	return filepath.Join(s.dataDir, "roms", sha[:2], sha)
 }
 
-const gameCols = `id, title, system, rom_sha256, rom_size, filename, uploaded_by, added_at`
+const gameCols = `id, title, system, rom_sha256, rom_size, filename, uploaded_by, added_at, game_code, game_code_kind, game_version`
 
 func scanGame(r scanner) (Game, error) {
 	var g Game
 	var added int64
-	if err := r.Scan(&g.ID, &g.Title, &g.System, &g.ROMSHA256, &g.ROMSize, &g.Filename, &g.UploadedBy, &added); err != nil {
+	var ver sql.NullInt64
+	if err := r.Scan(&g.ID, &g.Title, &g.System, &g.ROMSHA256, &g.ROMSize, &g.Filename, &g.UploadedBy, &added, &g.GameCode, &g.GameCodeKind, &ver); err != nil {
 		return Game{}, err
+	}
+	if ver.Valid {
+		v := int(ver.Int64)
+		g.GameVersion = &v
+	}
+	if g.GameCodeKind == gameCodeNone {
+		g.GameCodeKind = ""
 	}
 	g.AddedAt = time.Unix(added, 0).UTC()
 	return g, nil
@@ -171,37 +195,9 @@ func (s *Service) AddROM(ctx context.Context, r io.Reader, filename, title, syst
 	if size == 0 {
 		return Game{}, badRequest("ROM file is empty")
 	}
-	sha := hex.EncodeToString(h.Sum(nil))
-
-	var exists int
-	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM games WHERE rom_sha256 = ?`, sha).Scan(&exists); err != nil {
-		return Game{}, internal(err)
-	}
-	if exists > 0 {
-		return Game{}, s.duplicateROM(ctx, sha)
-	}
-	dst := s.romPath(sha)
-	if err := os.MkdirAll(filepath.Dir(dst), 0o750); err != nil {
-		return Game{}, internal(err)
-	}
-	if err := os.Chmod(tmpName, 0o640); err != nil {
-		return Game{}, internal(err)
-	}
-	if err := os.Rename(tmpName, dst); err != nil {
-		return Game{}, internal(err)
-	}
-	syncDir(filepath.Dir(dst))
-	g := Game{ID: uuid.NewString(), Title: title, System: system, ROMSHA256: sha, ROMSize: size, Filename: filename,
-		UploadedBy: uploadedBy, AddedAt: s.Now().Truncate(time.Second)}
-	if _, err := s.db.ExecContext(ctx, `INSERT INTO games(`+gameCols+`) VALUES (?,?,?,?,?,?,?,?)`,
-		g.ID, g.Title, g.System, g.ROMSHA256, g.ROMSize, g.Filename, g.UploadedBy, g.AddedAt.Unix()); err != nil {
-		if isUnique(err) { // parallel upload of the same ROM: the file belongs to the other entry
-			return Game{}, s.duplicateROM(ctx, sha)
-		}
-		os.Remove(dst)
-		return Game{}, internal(err)
-	}
-	return g, nil
+	code, kind, ver := ReadGameIdentityVersion(tmpName, system)
+	return s.commitStored(ctx, tmpName, romMeta{sha: hex.EncodeToString(h.Sum(nil)), size: size, filename: filename,
+		title: title, system: system, addedBy: uploadedBy, code: code, kind: kind, version: ver})
 }
 
 // duplicateROM builds the conflict error for a ROM that is already in the library (with the existing game ID).
@@ -213,32 +209,132 @@ func (s *Service) duplicateROM(ctx context.Context, sha string) error {
 	return e
 }
 
-// ListGames returns the library sorted by title.
+// ListGames returns the whole library (all games, also local-only ones) sorted by title. The API lists
+// ListGamesFor instead.
 func (s *Service) ListGames(ctx context.Context) ([]Game, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT `+gameCols+` FROM games ORDER BY title COLLATE NOCASE, added_at`)
+	return s.queryGames(ctx, ``)
+}
+
+// ListGamesFor returns the games visible to a user: games with a file stored on the Hub, and games for which the
+// user registered a local file.
+func (s *Service) ListGamesFor(ctx context.Context, userID string) ([]Game, error) {
+	return s.queryGames(ctx, visibleWhere, userID)
+}
+
+// visibleWhere selects the games visible to the user bound to its single placeholder.
+const visibleWhere = `WHERE EXISTS (SELECT 1 FROM game_roms r WHERE r.game_id = games.id AND r.stored = 1)
+	OR EXISTS (SELECT 1 FROM game_roms r JOIN rom_owners o ON o.sha256 = r.sha256 WHERE r.game_id = games.id AND o.user_id = ?)`
+
+func (s *Service) queryGames(ctx context.Context, where string, args ...any) ([]Game, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT `+gameCols+` FROM games `+where+` ORDER BY title COLLATE NOCASE, added_at`, args...)
 	if err != nil {
 		return nil, internal(err)
 	}
-	defer rows.Close()
 	out := []Game{}
 	for rows.Next() {
 		g, err := scanGame(rows)
 		if err != nil {
+			rows.Close()
 			return nil, internal(err)
 		}
 		out = append(out, g)
 	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, internal(err)
+	}
+	files, err := s.loadROMs(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+	for i := range out {
+		applyROMs(&out[i], files[out[i].ID])
+	}
+	return out, nil
+}
+
+// loadROMs returns the files of one game, or of all games when gameID is empty (primary file first is applied by
+// applyROMs).
+func (s *Service) loadROMs(ctx context.Context, gameID string) (map[string][]ROMFile, error) {
+	q := `SELECT game_id, sha256, size, filename, stored, added_by, added_at FROM game_roms`
+	var args []any
+	if gameID != "" {
+		q += ` WHERE game_id = ?`
+		args = append(args, gameID)
+	}
+	rows, err := s.db.QueryContext(ctx, q+` ORDER BY added_at, sha256`, args...)
+	if err != nil {
+		return nil, internal(err)
+	}
+	defer rows.Close()
+	out := map[string][]ROMFile{}
+	for rows.Next() {
+		var id string
+		var f ROMFile
+		var stored, added int64
+		if err := rows.Scan(&id, &f.SHA256, &f.Size, &f.Filename, &stored, &f.AddedBy, &added); err != nil {
+			return nil, internal(err)
+		}
+		f.Stored, f.AddedAt = stored != 0, time.Unix(added, 0).UTC()
+		out[id] = append(out[id], f)
+	}
 	return out, rows.Err()
 }
 
-// GetGame returns a game by ID.
+// applyROMs sets ROMs (primary file first), OnHub and the ROM* fields (a stored file if any, else the primary).
+func applyROMs(g *Game, files []ROMFile) {
+	sort.SliceStable(files, func(i, j int) bool {
+		return files[i].SHA256 == g.ROMSHA256 && files[j].SHA256 != g.ROMSHA256
+	})
+	g.ROMs = files
+	if g.ROMs == nil {
+		g.ROMs = []ROMFile{}
+	}
+	for _, f := range files {
+		if f.Stored {
+			g.OnHub = true
+			g.ROMSHA256, g.ROMSize, g.Filename = f.SHA256, f.Size, f.Filename
+			return
+		}
+	}
+}
+
+// GetGame returns a game by ID (not filtered by visibility; for internal use and the admin web interface).
 func (s *Service) GetGame(ctx context.Context, id string) (Game, error) {
 	return s.oneGame(ctx, `id = ?`, id)
 }
 
-// GetGameByHash returns a game by ROM SHA-256.
+// GetGameFor returns a game by ID when it is visible to the user (else ErrNotFound).
+func (s *Service) GetGameFor(ctx context.Context, userID, id string) (Game, error) {
+	g, err := s.GetGame(ctx, id)
+	if err != nil {
+		return Game{}, err
+	}
+	if g.OnHub {
+		return g, nil
+	}
+	var n int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM game_roms r JOIN rom_owners o ON o.sha256 = r.sha256
+		WHERE r.game_id = ? AND o.user_id = ?`, id, userID).Scan(&n); err != nil {
+		return Game{}, internal(err)
+	}
+	if n == 0 {
+		return Game{}, ErrNotFound
+	}
+	return g, nil
+}
+
+// GetGameByHash returns the game that knows a ROM file with this SHA-256 (stored or only registered).
 func (s *Service) GetGameByHash(ctx context.Context, sha string) (Game, error) {
-	return s.oneGame(ctx, `rom_sha256 = ?`, sha)
+	var id string
+	err := s.db.QueryRowContext(ctx, `SELECT game_id FROM game_roms WHERE sha256 = ?`, sha).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Game{}, ErrNotFound
+	}
+	if err != nil {
+		return Game{}, internal(err)
+	}
+	return s.GetGame(ctx, id)
 }
 
 func (s *Service) oneGame(ctx context.Context, where string, arg string) (Game, error) {
@@ -249,17 +345,36 @@ func (s *Service) oneGame(ctx context.Context, where string, arg string) (Game, 
 	if err != nil {
 		return Game{}, internal(err)
 	}
+	files, err := s.loadROMs(ctx, g.ID)
+	if err != nil {
+		return Game{}, err
+	}
+	applyROMs(&g, files[g.ID])
 	return g, nil
 }
 
-// OpenROM opens the ROM file for a hash; the caller closes it.
+// OpenROM opens a ROM file stored on the Hub; the caller closes it. A file that is only registered as local is
+// not found. The returned game describes that file.
 func (s *Service) OpenROM(ctx context.Context, sha string) (*os.File, Game, error) {
 	if !ValidSHA256(sha) {
 		return nil, Game{}, ErrNotFound
 	}
-	g, err := s.GetGameByHash(ctx, sha)
+	var id string
+	err := s.db.QueryRowContext(ctx, `SELECT game_id FROM game_roms WHERE sha256 = ? AND stored = 1`, sha).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, Game{}, ErrNotFound
+	}
+	if err != nil {
+		return nil, Game{}, internal(err)
+	}
+	g, err := s.GetGame(ctx, id)
 	if err != nil {
 		return nil, Game{}, err
+	}
+	for _, f := range g.ROMs {
+		if f.SHA256 == sha {
+			g.ROMSHA256, g.ROMSize, g.Filename, g.AddedAt = f.SHA256, f.Size, f.Filename, f.AddedAt
+		}
 	}
 	f, err := os.Open(s.romPath(sha))
 	if errors.Is(err, os.ErrNotExist) {
@@ -296,8 +411,9 @@ func (s *Service) RenameGame(ctx context.Context, id, title string) (_ Game, err
 	return g, nil
 }
 
-// DeleteGame removes the entry and the ROM file. Saves of the game are never touched (no foreign key,
-// 0002_saves.sql): they stay and remain reachable on the Saves page.
+// DeleteGame removes the entry and all its ROM files stored on the Hub (registrations of local files go with the
+// entry). Saves of the game are never touched (no foreign key, 0002_saves.sql): they stay and remain reachable on
+// the Saves page.
 func (s *Service) DeleteGame(ctx context.Context, id string) (err error) {
 	defer s.publishOK(&err, TopicLibrary)
 	g, err := s.GetGame(ctx, id)
@@ -307,9 +423,14 @@ func (s *Service) DeleteGame(ctx context.Context, id string) (err error) {
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM games WHERE id = ?`, g.ID); err != nil {
 		return internal(err)
 	}
-	// The row is gone; a blob that cannot be removed now (e.g. still streaming on Windows) is only logged.
-	if err := os.Remove(s.romPath(g.ROMSHA256)); err != nil && !errors.Is(err, os.ErrNotExist) {
-		slog.Warn("delete game: remove ROM file failed", "game_id", g.ID, "err", err)
+	// The rows are gone; a blob that cannot be removed now (e.g. still streaming on Windows) is only logged.
+	for _, f := range g.ROMs {
+		if !f.Stored || !ValidSHA256(f.SHA256) {
+			continue
+		}
+		if err := os.Remove(s.romPath(f.SHA256)); err != nil && !errors.Is(err, os.ErrNotExist) {
+			slog.Warn("delete game: remove ROM file failed", "game_id", g.ID, "err", err)
+		}
 	}
 	return nil
 }
@@ -325,7 +446,7 @@ type StorageStats struct {
 // Storage returns storage usage (sum of rom_size, free space).
 func (s *Service) Storage(ctx context.Context) (StorageStats, error) {
 	var st StorageStats
-	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*), COALESCE(SUM(rom_size),0) FROM games`).Scan(&st.GameCount, &st.ROMBytes); err != nil {
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*), COALESCE(SUM(size),0) FROM game_roms WHERE stored = 1`).Scan(&st.GameCount, &st.ROMBytes); err != nil {
 		return StorageStats{}, internal(err)
 	}
 	st.FreeBytes = freeBytes(s.dataDir)

@@ -20,7 +20,8 @@ enum class RomState {
   Validating,      // SHA-256 check in progress (off-thread): cache file without a valid sidecar or .part resume
   Downloading,     // progress received/total
   HashMismatch,    // download does not match the expected SHA-256; .part deleted
-  Failed           // network/hub error; .part is kept for resuming
+  Failed,          // network/hub error; .part is kept for resuming
+  Missing          // 0.12: the Hub does not hold the file (local-only game) and no local file is known on this device
 };
 
 struct RomStatus {

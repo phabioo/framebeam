@@ -260,6 +260,69 @@ Rectangle {
                     text: qsTr("Check firmware again")
                     onClicked: root.player.recheckFirmware()
                 }
+                // Local-only game (0.12): the file stays on a Player until it is uploaded.
+                ColumnLayout {
+                    objectName: "localOnlyBox"
+                    visible: root.game.localOnly === true && !root.running
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    spacing: 8
+                    Eyebrow { text: qsTr("Local game") }
+                    FbLabel {
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        Layout.preferredWidth: 1
+                        wrapMode: Text.Wrap
+                        lineHeight: 1.3
+                        color: Theme.textMeta
+                        font.pixelSize: Theme.fontMeta
+                        text: root.game.localFile === true
+                              ? qsTr("Only you see this game. Its file stays on this device until you upload it to the Hub.")
+                              : qsTr("Only you see this game. Its file is not on this device and not on the Hub.")
+                    }
+                    FbLabel {
+                        objectName: "localUploadStatus"
+                        visible: root.player.upload.gameId === root.game.id && (root.player.upload.active || root.player.upload.message !== "")
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        Layout.preferredWidth: 1
+                        wrapMode: Text.Wrap
+                        font.pixelSize: Theme.fontMeta
+                        color: root.player.upload.isError ? Theme.errorText : Theme.text
+                        text: root.player.upload.active
+                              ? qsTr("Uploading · %1 %").arg(Math.round(root.player.upload.progress * 100))
+                              : root.player.upload.message
+                    }
+                    Rectangle {
+                        objectName: "localUploadProgress"
+                        visible: root.player.upload.active && root.player.upload.gameId === root.game.id
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 4
+                        radius: 2
+                        color: Theme.surfaceRaised
+                        Rectangle {
+                            height: parent.height
+                            radius: 2
+                            width: parent.width * root.player.upload.progress
+                            color: Theme.accent
+                        }
+                    }
+                    FbButton {
+                        objectName: "uploadToHubButton"
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        text: qsTr("Upload to Hub")
+                        enabled: root.player.canUpload && root.game.localFile === true && !root.player.upload.active
+                        onClicked: root.player.uploadGameToHub(root.game.id)
+                    }
+                    FbButton {
+                        objectName: "removeFromLibraryButton"
+                        kind: "link"
+                        text: qsTr("Remove from library")
+                        enabled: !root.player.upload.active
+                        onClicked: root.player.removeFromLibrary(root.game.id)
+                    }
+                }
                 // Start checklist
                 ColumnLayout {
                     objectName: "startChecklist"

@@ -332,7 +332,7 @@ func (s *Service) PublishSession(ctx context.Context, p Principal, gameID string
 	if !vis.Valid() {
 		return Session{}, badRequest("visibility must be private, hub_users or invite_only")
 	}
-	g, err := s.GetGame(ctx, gameID)
+	g, err := s.GetGameFor(ctx, p.User.ID, gameID)
 	if err != nil {
 		return Session{}, err
 	}

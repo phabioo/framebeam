@@ -1,0 +1,107 @@
+{{define "plugin-review"}}{{$rv := .Body.Review}}<div class="modal-backdrop">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="plugin-review-title">
+    <form class="modal-body" method="post" action="/plugins/offer" data-plugin-review>
+      <input type="hidden" name="_csrf" value="{{.CSRF}}">
+      <input type="hidden" name="stage" value="{{$rv.Stage}}">
+      <div class="stack-s">
+        <span class="eyebrow">{{if $rv.Official}}Upload · signed by FrameBeam{{else if $rv.Signed}}Upload · signature not valid{{else}}Upload · not signed{{end}}</span>
+        <h2 id="plugin-review-title">{{$rv.Heading}}</h2>
+        <p class="help">{{$rv.OriginLine}}</p>
+      </div>
+      {{if $rv.Notice}}<p class="help warn" role="status">{{$rv.Notice}}</p>{{end}}
+      {{if $rv.Perms}}
+      <fieldset class="perm-list"><legend class="help">It asks to:</legend>
+        {{range $rv.Perms}}<label class="check perm"><input type="checkbox" name="perm" value="{{.ID}}"> <span>{{.Label}}</span></label>{{end}}
+      </fieldset>
+      <p class="help warn">Tick every permission to confirm you reviewed it.</p>
+      {{else}}<p class="help">It asks for no permissions.</p>{{end}}
+      {{if $rv.Err}}<p class="help error-line" role="alert">{{$rv.Err}}</p>{{end}}
+      <div class="actions">
+        <button class="btn" type="submit" formaction="/plugins/discard" formnovalidate>Cancel</button>
+        {{if $rv.CanOffer}}<button class="btn primary" type="submit" data-offer>Offer to Players</button>{{end}}
+      </div>
+    </form>
+  </div>
+</div>{{end}}
+{{define "plugin-detail"}}{{$d := .Body.Sel}}<aside class="plugins-side" aria-label="Plugin details">
+  <div class="plugin-head"><span class="tile big" aria-hidden="true">{{$d.Mono}}</span><div class="stack-s"><h2>{{$d.Name}}</h2><span class="mono">{{$d.Meta}}</span></div></div>
+  <div><span class="pill {{$d.OriginClass}}">{{$d.OriginLabel}}</span></div>
+  {{if $d.Unverified}}<p class="notice-warn"><b>!</b> Not signed by FrameBeam. Players see “Hub upload · unverified” and a warning before turning it on.</p>{{end}}
+  {{if $d.Description}}<p>{{$d.Description}}</p>{{end}}
+  <div class="stack-s">
+    <span class="eyebrow">{{$d.PermsTitle}}</span>
+    {{range $d.Perms}}<div class="side-row">{{.Label}}</div>{{else}}<div class="side-row help">No permissions</div>{{end}}
+  </div>
+  <div class="stack-s">
+    <span class="eyebrow">File</span>
+    <div class="side-row"><span class="help">Size</span><span class="mono">{{$d.Size}}</span></div>
+    <div class="side-row"><span class="help">SHA-256</span><span class="mono wrap">{{$d.SHA256}}</span></div>
+    {{if $d.Provides}}<div class="side-row"><span class="help">Provides</span><span class="mono wrap">{{$d.Provides}}</span></div>{{end}}
+    {{if $d.Requires}}<div class="side-row"><span class="help">Needs</span><span class="mono wrap">{{$d.Requires}}</span></div>{{end}}
+  </div>
+  <div class="side-actions">
+    <a class="btn" href="{{$d.DownloadHref}}">Download file</a>
+    <a class="btn danger-outline" href="{{$d.RemoveHref}}">Remove from Hub</a>
+    <span class="help">Players keep their copy until they uninstall it.</span>
+  </div>
+</aside>{{end}}
+{{define "content"}}
+<div class="plugins{{if .Body.Sel}} has-sel{{end}}">
+<div class="plugins-main stack">
+  <div class="page-head"><div><h1>Plugins</h1><p class="sub">Players on this Hub can install what is listed here.</p></div>
+    <details class="upload"{{if .Body.UploadOpen}} open{{end}}>
+      <summary class="btn primary">Upload plugin</summary>
+      <form class="upload-form" method="post" action="/plugins/upload" enctype="multipart/form-data">
+        <input type="hidden" name="_csrf" value="{{.CSRF}}">
+        <label class="field">Plugin file (.fbplugin, up to 32 MiB)<input type="file" name="file" accept=".fbplugin,.zip" required></label>
+        <button class="btn primary" type="submit">Upload</button>
+        <p class="help">You review the name, the origin and the requested permissions before anything is offered to Players.</p>
+      </form>
+    </details>
+  </div>
+  {{if .Body.Review}}{{template "plugin-review" .}}{{end}}
+  <div class="card"><table class="list">
+    <thead><tr><th>Plugin</th><th>Origin</th><th>Permissions</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
+    <tbody>
+    {{range .Body.Rows}}
+    <tr{{if .Selected}} class="selected" aria-current="true"{{end}}>
+      <td><div class="cell-title"><span class="tile" aria-hidden="true">{{.Mono}}</span><div class="stack-s"><a class="row-link" href="{{.Href}}">{{.Name}}</a><span class="mono">{{.Version}}</span></div></div></td>
+      <td><span class="pill sm {{.OriginClass}}">{{.OriginLabel}}</span></td>
+      <td class="help">{{.Perms}}</td>
+      <td class="actions-cell"><a class="btn-link plain" href="{{.Href}}">Details</a></td>
+    </tr>
+    {{else}}
+    <tr><td colspan="4" class="help">No plugins are offered yet. Upload a .fbplugin file{{if .Body.Catalog.Configured}} or install one from the catalog below{{end}}.</td></tr>
+    {{end}}
+    </tbody>
+  </table></div>
+  <div class="catalog-head">
+    <span class="eyebrow">Official catalog</span>
+    {{if .Body.Catalog.CheckedLine}}<span class="help">{{.Body.Catalog.CheckedLine}}</span>{{end}}
+    {{if .Body.Catalog.Configured}}<form class="push-right" method="post" action="/plugins/index/refresh"><input type="hidden" name="_csrf" value="{{.CSRF}}"><button class="btn small" type="submit">Check now</button></form>{{end}}
+  </div>
+  {{if not .Body.Catalog.Configured}}
+  <p class="help">No plugin index is configured on this Hub (it is turned off with <span class="mono">-plugin-index-url none</span>). Set <span class="mono">-plugin-index-url</span> (<span class="mono">FRAMEBEAM_PLUGIN_INDEX_URL</span>) to a URL to list plugins here, or upload files or use <span class="mono">framebeam-hub import-plugins</span> on a Hub without internet.</p>
+  {{else}}
+  {{if .Body.Catalog.LastErr}}<p class="help error-line" role="alert">The last check failed: {{.Body.Catalog.LastErr}}</p>{{end}}
+  {{if .Body.Catalog.Cards}}
+  <div class="catalog">
+    {{range .Body.Catalog.Cards}}
+    <div class="catalog-card">
+      <div class="cell-title"><span class="tile" aria-hidden="true">{{.Mono}}</span><div class="stack-s"><b>{{.Name}}</b><span class="mono">{{.Version}}</span></div></div>
+      <p class="help">{{.Description}}</p>
+      <div class="catalog-foot">
+        <span class="pill sm ok">✓ Official</span>
+        {{if .Installed}}<span class="pill sm">Installed</span>
+        {{else}}<form class="push-right" method="post" action="/plugins/index/install"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="version" value="{{.Version}}">
+          <button class="btn small{{if .Install}} primary{{end}}" type="submit">{{if .Update}}Update{{else}}Install{{end}}</button></form>{{end}}
+      </div>
+    </div>
+    {{end}}
+  </div>
+  {{else if .Body.Catalog.NoCatalogYet}}<p class="help">The catalog is empty{{if not .Body.Catalog.LastErr}} or has not been loaded yet{{end}}.</p>{{end}}
+  {{end}}
+</div>
+{{if .Body.Sel}}{{template "plugin-detail" .}}{{end}}
+</div>
+{{end}}

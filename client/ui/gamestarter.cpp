@@ -48,7 +48,8 @@ GameStarter::GameStarter(const Deps& d, QObject* parent)
       coreList_(d.coreList),
       handshake_(d.handshake),
       conflict_(d.conflict),
-      probeCoreVersions_(d.probeCoreVersions) {}
+      probeCoreVersions_(d.probeCoreVersions),
+      romSource_(d.romSource) {}
 
 void GameStarter::startSelected(bool share) {
   shareOnStart_ = false;
@@ -161,6 +162,21 @@ void GameStarter::continueStartAfterCore(const GameEntry& gameRef, const emu::Sy
 void GameStarter::beginRomPhase(const GameEntry& game) {
   launchGame_ = game;  // identifies the game for the ROM handler even when the selection changes meanwhile
   pendingSha_ = game.romSha256;
+  const RomSourceChoice src = romSource_ ? romSource_(game) : RomSourceChoice{game.onHub ? RomSource::Download : RomSource::Missing, {}};
+  if (src.source == RomSource::Local) {
+    // Start directly from the library folder: no copy into the ROM cache.
+    pendingSha_.clear();
+    launch(game, src.localPath);
+    return;
+  }
+  if (src.source == RomSource::Missing) {
+    pendingSha_.clear();
+    phase_ = PlayPhase::None;
+    shareOnStart_ = false;
+    startError_ = tr("File missing on this device. Add the folder with this game's ROM under Settings > Library folders, or upload it to the Hub from a device that has it. The game was not started.");
+    emit selectedGameChanged();
+    return;
+  }
   phase_ = PlayPhase::Rom;
   emit selectedGameChanged();
   downloader_->ensureRom(game);

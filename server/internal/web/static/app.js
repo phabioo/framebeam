@@ -1,12 +1,12 @@
 // FrameBeam Hub web shell: live updates over Server-Sent Events.
-// The server sends "event: <topic>" (clients, saves, library, systems, users, updates, badges);
+// The server sends "event: <topic>" (clients, saves, library, systems, users, updates, runs, badges);
 // each is forwarded as an htmx trigger "fb:<topic>" on <body>. Regions refresh themselves with
 // hx-get="<fragment url>" hx-trigger="fb:<topic> from:body" hx-swap="outerHTML".
 (function () {
   "use strict";
   if (!document.getElementById("nav")) return; // login/setup pages have no shell
   if (typeof EventSource === "undefined") return;
-  var topics = ["clients", "saves", "library", "systems", "users", "updates", "badges"];
+  var topics = ["clients", "saves", "library", "systems", "users", "updates", "runs", "badges"];
   var src = null, delay = 5000, timer = null;
   function connect() {
     src = new EventSource("/events");

@@ -146,6 +146,8 @@ void PluginEngine::releaseState(Plugin& p) {
   p.devWatches.clear();
   p.lastRows.clear();
   p.actionRef = LUA_NOREF;
+  p.runSubs.clear();
+  p.hasBoardPending = false;
   p.uiTrees.clear();
   syncWatches(p);
 }
@@ -359,7 +361,62 @@ void PluginEngine::updateWatched() {
   }
 }
 
+// fb.run: hands what happened in the run to the subscribed plugins, and sends boards that waited for the 1/s limit.
+void PluginEngine::pollRun() {
+  if (!ctx.run) return;
+  const auto now = Clock::now();
+  for (auto& pp : m_plugins) {
+    Plugin& p = *pp;
+    if (p.hasBoardPending && now - p.boardLast >= std::chrono::milliseconds(1000)) {
+      p.hasBoardPending = false;
+      p.boardLast = now;
+      const QString e = ctx.run->setBoard(p.id(), p.boardPending);
+      if (!e.isEmpty()) log(p, LogLevel::Warn, "fb.run.setBoard: " + e.toStdString());
+    }
+  }
+  for (const RunNotification& n : ctx.run->takeNotifications()) {
+    const std::string kind = n.kind.toStdString();
+    const Value data = valueFromJson(n.data);
+    for (auto& pp : m_plugins) {
+      Plugin& p = *pp;
+      if (p.status != PluginStatus::Running) continue;
+      std::vector<int> refs;
+      for (const RunSub& s : p.runSubs)
+        if (s.kind == kind) refs.push_back(s.ref);
+      for (int ref : refs) {
+        callRef(p, ref, [&](lua_State* L) {
+          // event: (event); state: (user_id, state, plugin_id); status: (status, previous); participants: (list)
+          const auto field = [&](const char* name) {
+            for (size_t i = 0; i < data.keys.size(); ++i)
+              if (data.keys[i].type == Value::Type::String && data.keys[i].s == name) return data.vals[i];
+            return Value();
+          };
+          if (kind == "state") {
+            pushValue(L, field("user_id"));
+            pushValue(L, field("state"));
+            pushValue(L, field("plugin_id"));
+            return 3;
+          }
+          if (kind == "status") {
+            pushValue(L, field("status"));
+            pushValue(L, field("previous"));
+            return 2;
+          }
+          if (kind == "participants") {
+            pushValue(L, field("participants"));
+            return 1;
+          }
+          pushValue(L, data);
+          return 1;
+        });
+        if (p.status != PluginStatus::Running) break;
+      }
+    }
+  }
+}
+
 void PluginEngine::iterate() {
+  pollRun();
   deliverEvents();
   tick();
   updateWatched();

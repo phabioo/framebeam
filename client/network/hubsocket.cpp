@@ -206,7 +206,12 @@ void HubSocket::onSocketError() {
 void HubSocket::onConnected() {
   lastTrafficMs_ = nowMs();
   const QString deviceId = conn_ ? conn_->deviceId() : QString();
-  send(QStringLiteral("hello"), {{QStringLiteral("protocol_version"), kProtocolVersion}, {QStringLiteral("device_id"), deviceId}});
+  QJsonObject hello{{QStringLiteral("protocol_version"), kProtocolVersion}, {QStringLiteral("device_id"), deviceId}};
+  if (helloRuns_) {
+    const QJsonArray runs = helloRuns_();  // runs_v1: last seen seq per run (catch-up after hello_ack)
+    if (!runs.isEmpty()) hello.insert(QStringLiteral("runs"), runs);
+  }
+  send(QStringLiteral("hello"), hello);
   helloTimer_.start(10000);
 }
 
@@ -297,6 +302,12 @@ void HubSocket::onTextMessage(const QString& text) {
     if (const auto u = parseSaveUpdate(p)) {
       emit saveUpdated(*u);
     }
+  } else if (type == QLatin1String("run_updated")) {
+    emit runUpdated(p.value(QStringLiteral("run")).toObject());
+  } else if (type == QLatin1String("run_state")) {
+    emit runStateReceived(p);
+  } else if (type == QLatin1String("run_event")) {
+    emit runEventReceived(p);
   } else if (type == QLatin1String("error")) {
     emit hubError(str(p, "code"), str(p, "message"));
   } else {

@@ -4,7 +4,7 @@ How the FrameBeam Hub (`server/`, Go, SQLite) is built and behaves. Running it: 
 
 ## Code layout
 
-Layout of `internal/`: `api` (generated from OpenAPI via `make generate`, oapi-codegen), `config`, `store` (SQLite, migrations 0001-0009, backup before migrating an existing DB), `auth` (Argon2id, tokens), `tlsutil`, `updates` (signed updates index, SemVer, selection, staging, root apply helper), `hub` (service layer for the API and web interface), `httpapi` (OpenAPI implementation incl. the WSS endpoint in `ws.go`; tests validate against `protocol/openapi/framebeam.yaml`), `version`, `web`.
+Layout of `internal/`: `api` (generated from OpenAPI via `make generate`, oapi-codegen), `config`, `store` (SQLite, embedded SQL migrations 0001-0016, backup before migrating an existing DB), `auth` (Argon2id, tokens), `tlsutil`, `updates` (signed updates index, SemVer, selection, staging, root apply helper), `hub` (service layer for the API and web interface), `httpapi` (OpenAPI implementation incl. the WSS endpoint in `ws.go`; tests validate against `protocol/openapi/framebeam.yaml`), `version`, `web`.
 
 Web interface (`internal/web`, `html/template` + htmx via `embed`, no external resources): setup, login (cookie `fb_session`, admins only), Library, Saves, Systems & Cores, Clients, Users, Settings. htmx 2.0.4 (0BSD) lives unmodified at `internal/web/static/htmx.min.js`. ROM upload limit: `web.DefaultMaxUploadBytes` (4 GiB). For the internet-facing hardening (CSRF on multipart forms, login and pairing limits, `__Host-` cookies with TLS, minimum password length 12 via `hub.MinPasswordLen`, read deadlines, 512 connection cap, TURN relay limits) see [hub-configuration.md](../guides/hub-configuration.md#turn-security).
 

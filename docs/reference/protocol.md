@@ -5,7 +5,7 @@ Shared protocol definition for Hub and Player: `protocol/openapi/framebeam.yaml`
 - Current `protocol_version`: **1** (integer, separate from product versions). Hub and Player each report `protocol_version` and `min_protocol_version`.
 - Compatibility: `Player.protocol_version < Hub.min_protocol_version` -> `player_too_old`; `Hub.protocol_version < Player.min_protocol_version` -> `hub_too_old`.
 - Error format: `{"error": {"code": <enum>, "message": string}}`. Auth: Bearer (`fba_` access token, 15 min, `fbd_` device credential, `fbp_` poll token).
-- Current OpenAPI spec version: 1.13.0 (history per milestone below). Handshake features: `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1` (only advertised when the caller may upload), `firmware_v1`, `cores_v1`, `turn_v1` (only while a relay provider is on: embedded TURN, Cloudflare TURN and/or an external TURN server), `saves_v2`, `saves_v3`, `saves_v4`, `saves_v5`, `cores_v2`, `local_setup_v1`, `ice_update_v1`; `cores_index_v1` existed in 0.4 to 0.7 and was removed in 0.8.
+- Current OpenAPI spec version: 1.18.0 (history per milestone below). Handshake features: `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1` (only advertised when the caller may upload), `firmware_v1`, `cores_v1`, `turn_v1` (only while a relay provider is on: embedded TURN, Cloudflare TURN and/or an external TURN server), `saves_v2`, `saves_v3`, `saves_v4`, `saves_v5`, `cores_v2`, `local_setup_v1`, `ice_update_v1`, `plugins_v1`, `runs_v1`, `local_roms_v1`; `cores_index_v1` existed in 0.4 to 0.7 and was removed in 0.8.
 
 | Method | Path | Auth | operationId |
 |---|---|---|---|
@@ -48,10 +48,30 @@ Shared protocol definition for Hub and Player: `protocol/openapi/framebeam.yaml`
 | POST | `/api/v1/local/pair` | none, loopback only | localPair (enabled admin credentials, else 401) |
 | PUT | `/api/v1/local/settings` | Bearer (admin), loopback only | updateLocalSettings |
 | POST | `/api/v1/games` | Bearer | uploadGame (raw body, 403 `uploads_disabled`) |
+| POST | `/api/v1/games/register` | Bearer | registerGame (`{sha256, size, filename, system?, title?, game_code?, game_version?}`; match by sha256, else identity, else a new local-only game; 201 new game, 200 existing; `local_roms_v1`) |
+| DELETE | `/api/v1/games/{game_id}/registration` | Bearer | deleteGameRegistration (the caller's local registrations; 204; the game and its saves stay; `local_roms_v1`) |
+| POST | `/api/v1/uploads` | Bearer | createUpload (`{filename, size, sha256?, title?, system?}` -> 201 `{upload_id, offset, chunk_size}`; returns the open session of the same user for the same sha256 or file name and size; 409 `existing_game_id` for a stored sha256; same permission as uploadGame; `local_roms_v1`) |
+| GET | `/api/v1/uploads/{upload_id}` | Bearer | getUpload (`{upload_id, offset, size}`) |
+| PUT | `/api/v1/uploads/{upload_id}` | Bearer | putUploadChunk (raw body, `Content-Range: bytes a-b/total`, `a` = offset else 409, chunk at most 64 MiB; the completing chunk answers `{offset, game}`) |
+| DELETE | `/api/v1/uploads/{upload_id}` | Bearer | deleteUpload (abort; 204) |
 | GET | `/api/v1/systems` | Bearer | listSystems |
 | GET | `/api/v1/systems/{system_id}/firmware/{file_id}` | Bearer | getFirmwareFile (ETag) |
 | GET | `/api/v1/cores/{core_id}/packages/{version}/{platform}` | Bearer | getCorePackage |
 | GET | `/api/v1/cores/{core_id}/packages/{version}/{platform}/files/{name}` | Bearer | getCorePackageFile (ETag, 304) |
+| GET | `/api/v1/plugins` | Bearer | listPlugins (`{plugins:[PluginInfo]}`, every offered version; `plugins_v1`) |
+| GET | `/api/v1/plugins/{plugin_id}/{version}/file` | Bearer | getPluginFile (`application/zip`, ETag = SHA-256, 404 unknown; `plugins_v1`) |
+| GET | `/api/v1/runs` | Bearer | listRuns (runs the caller participates in, not archived; `runs_v1`) |
+| POST | `/api/v1/runs` | Bearer | createRun (`{name, plugins, game_id, invite_user_ids, settings}`, 201 Run, creator joined, status `starting`; 413 `too_large`) |
+| GET | `/api/v1/runs/{run_id}` | Bearer | getRun (with every participant's per-plugin `states`; 404 for non-participants) |
+| POST | `/api/v1/runs/{run_id}/join` | Bearer | joinRun (`{game_id}`) |
+| POST | `/api/v1/runs/{run_id}/invite` | Bearer | inviteRun (`{user_ids}`, any joined participant; 409 above 8 participants) |
+| POST | `/api/v1/runs/{run_id}/decline` | Bearer | declineRun |
+| POST | `/api/v1/runs/{run_id}/leave` | Bearer | leaveRun |
+| POST | `/api/v1/runs/{run_id}/status` | Bearer | setRunStatus (`{status}`; 403 wrong user, 409 `conflict` for other transitions) |
+| PUT | `/api/v1/runs/{run_id}/state/{plugin_id}` | Bearer | putRunState (`{base_rev, state}`, own state of one plugin of the run, 404 for a plugin not in the run, 409 `state_conflict` with the current `state_rev` and `state` of that plugin, 409 `run_not_active`, 413 `too_large`, 429 `rate_limited`) |
+| POST | `/api/v1/runs/{run_id}/events` | Bearer | appendRunEvent (`{client_id, plugin_id, source, type, text, payload}`, 201 `{seq}`, 200 for a repeated `client_id`) |
+| GET | `/api/v1/runs/{run_id}/events` | Bearer | listRunEvents (`after`, `limit` 1 to 500, default 200; `{events, last_seq}`) |
+| PUT | `/api/v1/runs/{run_id}/boards/{plugin_id}` | Bearer | putRunBoard (`{tree}`, at most 64 KiB, `{rev}`) |
 | GET | `/api/v1/ws` | Bearer | connectWebSocket (WSS upgrade, documentation only) |
 
 Phase 3 (OpenAPI 1.1.0, handshake feature `saves_v1`, `protocol_version` stays 1). Error codes added: `save_conflict` (409), `save_conflict_stale` (409), `payload_too_large` (413). Rules: ADR 0005.
@@ -66,7 +86,7 @@ Envelope `{type, id?, payload}` (JSON text frames); schema `schemas/ws-<type>.sc
 
 | Type | Direction | Purpose |
 |---|---|---|
-| `hello` | Player -> Hub | `{protocol_version, device_id}`, first message |
+| `hello` | Player -> Hub | `{protocol_version, device_id, runs?}`, first message; optional `runs: [{run_id, last_seq}]` (feature `runs_v1`) is the last event seq the Player saw per run |
 | `hello_ack` | Hub -> Player | `{protocol_version, hub_version, features, ice_servers, turn_servers?}` (`turn_servers` only while a relay provider is on, feature `turn_v1`; `ice_servers` defaults to `stun:stun.cloudflare.com:3478`, empty with `-ice-servers none`) |
 | `ice_update` | Hub -> Player | `{ice_servers, turn_servers?}` same shape as the ICE part of `hello_ack`; sent to every connected Player when the Hub's effective ICE configuration changes (STUN list, embedded TURN on/off or public host, refreshed Cloudflare TURN credentials; feature `ice_update_v1`); replaces the old lists for PeerConnections created afterwards, running connections are not touched |
 | `presence_update` | both | Player: `{state: online\|in_game, game_id?}`; Hub: plus `user_id`, `device_id`, state may be `offline` |
@@ -77,6 +97,9 @@ Envelope `{type, id?, payload}` (JSON text frames); schema `schemas/ws-<type>.sc
 | `viewer_joined` | Hub -> owner device | `{session_id, viewer_id, display_name, device_name, turn_servers?}` (`turn_servers`: fresh relay credentials for the owner while TURN is on) |
 | `viewer_left` | Hub -> owner and viewer device | `{session_id, viewer_id, reason: left\|removed\|revoked\|disconnected}` |
 | `signal` | both | `{session_id, viewer_id, kind: offer\|answer\|candidate, sdp?, candidate?, mid?}` relayed unchanged between owner device and the authorized viewer's device |
+| `run_updated` | Hub -> Player | `{run}` full run incl. the participants' per-plugin `states`, to every participant (all statuses) after create, invite, join, decline, leave, status change and in the catch-up (feature `runs_v1`) |
+| `run_state` | Hub -> Player | `{run_id, user_id, plugin_id, state_rev, state}` to the other joined participants and the writer's other devices |
+| `run_event` | Hub -> Player | `{run_id, event}` to every joined participant's connections; the author's own device dedups by `client_id` |
 | `error` | Hub -> Player | `{code, message}`, `id` echoes the request |
 
 0.2 "Cores from the Hub" (OpenAPI 1.4.0, handshake feature `cores_v1`, `protocol_version` stays 1). Added: `getCorePackage`, `getCorePackageFile` (ETag = SHA-256, `If-None-Match` 304), optional nullable `SystemInfo.core_package_version`. Error codes added: `core_package_not_found` (404), `core_file_not_available` (404).
@@ -100,3 +123,13 @@ The release feed of the updaters is specified in [update-index.md](update-index.
 0.10.x "Rename and delete save slots" (OpenAPI 1.12.0, `protocol_version` stays 1). Added: handshake feature `saves_v5`; `renameSaveSlot` (`POST .../saves/{slot}/rename`, body `{name}`, 200 SaveSlot) and `deleteSaveSlot` (`DELETE .../saves/{slot}?confirm_revision=N`, 204); error codes `save_slot_exists` (now in the `ErrorCode` enum, was already sent by the Hub), `save_slot_protected` and `session_running`; `save_updated` reasons `renamed` and `deleted` plus the optional payload field `previous_slot`; `uploadSaveFile` returns 409 `session_running` while an active Session of the calling user runs the game. The `default` slot can be neither renamed nor deleted. Rename and delete are also refused with `session_running` during a Session of the game. Deleting is a hard delete (no undo) that needs the matching `confirm_revision`, so a stale client cannot remove newer progress; the Hub logs it.
 
 0.10.x "External TURN servers" (OpenAPI 1.13.0, `protocol_version` stays 1). Changed: `TurnServer.expires_at` is optional. The Hub sends it for every short-lived credential (embedded TURN, Cloudflare, external TURN in shared-secret mode) and omits it for the static username and password of an external TURN server. `turn_servers` (hello_ack, join response, `viewer_joined`, `ice_update`) may now hold entries of several providers at once. A Player that ignores `expires_at` (the FrameBeam Player does) needs no change.
+
+0.11 "Hub plugins" (OpenAPI 1.14.0, ADR 0023, `protocol_version` stays 1). Added: handshake feature `plugins_v1`; `listPlugins` (`GET /api/v1/plugins`, `PluginInfo`) and `getPluginFile` (`GET /api/v1/plugins/{plugin_id}/{version}/file`, ETag = SHA-256). `PluginInfo.origin` is `official` or `unverified`.
+
+0.11 "Hub runs" (OpenAPI 1.15.0, ADR 0023, `protocol_version` stays 1). Added: handshake feature `runs_v1`; the run endpoints above (tag `runs`); optional `runs` in the WSS `hello`; WSS messages `run_updated`, `run_state`, `run_event` (schemas `ws-run-updated`, `ws-run-state`, `ws-run-event`, shared `ws-run`, `ws-run-event-entry`). Error codes added: `run_not_active` (409), `state_conflict` (409), `too_large` (413), `rate_limited` (429). Run catch-up after `hello`: `run_updated` for every non-archived run of the user, then `run_event`s with `seq > last_seq` for the listed runs, at most 500 per run (more missing: none sent, the Player pages with `GET .../events`). Limits: [12-plugins.md](../architecture/12-plugins.md#1611-hub-runs).
+
+0.11 "Per-plugin run state and game codes" (OpenAPI 1.16.0, ADR 0023, `protocol_version` stays 1, no new feature; amends 1.15.0, which only dev builds had). Changed: `PUT /runs/{run_id}/state` is replaced by `PUT /runs/{run_id}/state/{plugin_id}` (one state and revision per participant and plugin; 404 for a plugin not in the run); the Run participant loses `state`, `state_rev`, `state_updated_at` and gets `states` (plugin id -> `{state, state_rev, updated_at}`); the WSS `run_state` payload gains `plugin_id`. Added: `game_code` and `game_code_kind` (`''`, `nds-gamecode`, `3ds-titleid`) on `Game`, read by the Hub from the ROM header.
+
+0.12 "Local ROMs" (OpenAPI 1.17.0, `protocol_version` stays 1). Added: handshake feature `local_roms_v1`; `registerGame`, `deleteGameRegistration`, `createUpload`, `getUpload`, `putUploadChunk`, `deleteUpload` (tag `library`); `RomInfo.stored`; `Game.on_hub`, `Game.roms` (all known files, primary first) and `Game.game_version` (NDS header byte 0x1E, 3DS NCCH version; absent when unknown). `Game.rom` is a stored file if the game has one, else the primary file. A game is one identity: (system, `game_code`, `game_version`) with a non-empty code; other dumps of it are further files of the same game (saves stay on one `game_id`). Visibility: `GET /games` and `GET /games/{id}` return games with a file stored on the Hub plus local-only games the caller registered a file of; `GET /roms/{sha256}` serves stored files only (404 otherwise). Upload sessions keep the SHA-256 state, expire after 7 idle days and finish on the last chunk (hash check, then stored file of the game with that sha256, extra file of the identity match, or a new game). Details: `docs/architecture/` (library) and the 0.12 plan.
+
+0.13 "Game Boy and GBA systems" (OpenAPI 1.18.0, `protocol_version` stays 1, no new feature). Changed: `Game.game_code_kind` also has `gba-gamecode` (4-character code at 0xAC) and `gb-title` (header title at 0x134, only with a valid header checksum) for the systems `gb`, `gbc` and `gba`; `game_version` is the GBA byte 0xBC or the Game Boy byte 0x14C. Same rules as the Player (`client/emulation/game_identity.cpp`).

@@ -7,6 +7,7 @@
 #include <QFileInfo>
 #include <QUrl>
 #include <QUrlQuery>
+#include <QUuid>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QSslConfiguration>
@@ -311,6 +312,10 @@ void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
   } else if (req.path == QLatin1String("/api/v1/sessions") || req.path.startsWith(QLatin1String("/api/v1/sessions/")) ||
              req.path == QLatin1String("/api/v1/users")) {
     handleSessions(sock, req);
+  } else if (req.path == QLatin1String("/api/v1/runs") || req.path.startsWith(QLatin1String("/api/v1/runs/"))) {
+    handleRuns(sock, req);
+  } else if (handleLocalRoms(sock, req)) {
+    // answered
   } else if (req.path == QLatin1String("/api/v1/saves") || req.path.startsWith(QLatin1String("/api/v1/games/"))) {
     handleSaves(sock, req);
   } else if (req.method == "GET" && req.path == QLatin1String("/api/v1/games")) {
@@ -372,6 +377,23 @@ void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
     } else {
       respondError(sock, 404, QStringLiteral("not_found"));
     }
+  } else if (req.method == "GET" && req.path == QLatin1String("/api/v1/plugins")) {
+    ++pluginListRequests;
+    if (pluginListFails) {
+      respondError(sock, 500, QStringLiteral("internal"));
+      return;
+    }
+    respond(sock, 200, json({{QStringLiteral("plugins"), pluginList}}));
+  } else if (req.method == "GET" && req.path.startsWith(QLatin1String("/api/v1/plugins/")) && req.path.endsWith(QLatin1String("/file"))) {
+    // /api/v1/plugins/<id>/<version>/file
+    const QStringList parts = req.path.mid(16).split(QLatin1Char('/'));
+    const QString key = parts.size() == 3 ? parts.at(0) + QLatin1Char('/') + parts.at(1) : QString();
+    if (key.isEmpty() || !pluginFiles.contains(key)) {
+      respondError(sock, 404, QStringLiteral("plugin_not_found"));
+      return;
+    }
+    ++pluginFileDownloads;
+    respond(sock, 200, pluginFiles.value(key), "application/zip");
   } else if (req.method == "GET" && req.path == QLatin1String("/api/v1/systems")) {
     respond(sock, 200, json(systems));
   } else if (req.method == "GET" && req.path.startsWith(QLatin1String("/api/v1/systems/"))) {
@@ -489,6 +511,161 @@ QJsonObject FakeHub::conflictJson(const QString& key, const FakeSlot&, const Fak
                        {QStringLiteral("device_name"), c.securedDeviceName},
                        {QStringLiteral("created_at"), QStringLiteral("2026-01-01T12:05:00Z")}}},
           {QStringLiteral("created_at"), QStringLiteral("2026-01-01T12:05:00Z")}};
+}
+
+bool FakeHub::handleLocalRoms(QSslSocket* sock, const FakeRequest& req) {
+  const auto json = [](const QJsonObject& o) { return QJsonDocument(o).toJson(QJsonDocument::Compact); };
+  const QString P = QStringLiteral("/api/v1/");
+  const auto gameWithSha = [this](const QString& sha) {
+    for (const QJsonValue& v : games.value(QStringLiteral("games")).toArray()) {
+      for (const QJsonValue& r : v.toObject().value(QStringLiteral("roms")).toArray()) {
+        if (r.toObject().value(QStringLiteral("sha256")).toString() == sha) return v.toObject();
+      }
+      if (v.toObject().value(QStringLiteral("rom")).toObject().value(QStringLiteral("sha256")).toString() == sha) return v.toObject();
+    }
+    return QJsonObject();
+  };
+  if (req.method == "POST" && req.path == P + QStringLiteral("games/register")) {
+    const QJsonObject body = QJsonDocument::fromJson(req.body).object();
+    registerBodies.append(body);
+    const QString sha = body.value(QStringLiteral("sha256")).toString();
+    const QJsonObject existing = gameWithSha(sha);
+    if (!existing.isEmpty()) {
+      respond(sock, 200, json(existing));
+      return true;
+    }
+    const QJsonObject rom{{QStringLiteral("sha256"), sha},
+                          {QStringLiteral("size"), body.value(QStringLiteral("size"))},
+                          {QStringLiteral("filename"), body.value(QStringLiteral("filename"))},
+                          {QStringLiteral("stored"), false}};
+    QJsonObject game{{QStringLiteral("id"), QStringLiteral("reg-%1").arg(registerBodies.size())},
+                     {QStringLiteral("title"), QFileInfo(body.value(QStringLiteral("filename")).toString()).completeBaseName()},
+                     {QStringLiteral("system"), body.value(QStringLiteral("system")).toString(QStringLiteral("nds"))},
+                     {QStringLiteral("rom"), rom},
+                     {QStringLiteral("roms"), QJsonArray{rom}},
+                     {QStringLiteral("on_hub"), false},
+                     {QStringLiteral("uploaded_by"), QStringLiteral("u_test_1")},
+                     {QStringLiteral("added_at"), QStringLiteral("2026-01-01T12:00:00Z")}};
+    if (body.contains(QStringLiteral("game_code"))) game.insert(QStringLiteral("game_code"), body.value(QStringLiteral("game_code")));
+    if (body.contains(QStringLiteral("game_version"))) game.insert(QStringLiteral("game_version"), body.value(QStringLiteral("game_version")));
+    QJsonArray list = games.value(QStringLiteral("games")).toArray();
+    list.append(game);
+    games.insert(QStringLiteral("games"), list);
+    respond(sock, 201, json(game));
+    return true;
+  }
+  if (req.method == "DELETE" && req.path.startsWith(P + QStringLiteral("games/")) && req.path.endsWith(QLatin1String("/registration"))) {
+    const QString id = req.path.mid((P + QStringLiteral("games/")).size()).section(QLatin1Char('/'), 0, 0);
+    unregisteredGames.append(id);
+    QJsonArray out;
+    for (const QJsonValue& v : games.value(QStringLiteral("games")).toArray()) {
+      if (v.toObject().value(QStringLiteral("id")).toString() != id) out.append(v);
+    }
+    games.insert(QStringLiteral("games"), out);
+    respond(sock, 204, {});
+    return true;
+  }
+  if (req.path == P + QStringLiteral("uploads") && req.method == "POST") {
+    const QJsonObject body = QJsonDocument::fromJson(req.body).object();
+    const QString sha = body.value(QStringLiteral("sha256")).toString();
+    const QJsonObject stored = gameWithSha(sha);
+    if (!stored.isEmpty() && stored.value(QStringLiteral("on_hub")).toBool(true)) {
+      respond(sock, 409, json({{QStringLiteral("error"), QJsonObject{{QStringLiteral("code"), QStringLiteral("conflict")}}},
+                               {QStringLiteral("existing_game_id"), stored.value(QStringLiteral("id")).toString()}}));
+      return true;
+    }
+    for (const ResumableUpload& u : std::as_const(uploadSessions)) {
+      if (u.sha256 == sha) {
+        respond(sock, 201, json({{QStringLiteral("upload_id"), u.id}, {QStringLiteral("offset"), u.data.size()}, {QStringLiteral("chunk_size"), uploadChunkSize}}));
+        return true;
+      }
+    }
+    ResumableUpload u;
+    u.id = QStringLiteral("up%1").arg(++uploadSessionsCreated);
+    u.filename = body.value(QStringLiteral("filename")).toString();
+    u.title = body.value(QStringLiteral("title")).toString();
+    u.system = body.value(QStringLiteral("system")).toString();
+    u.sha256 = sha;
+    u.size = body.value(QStringLiteral("size")).toVariant().toLongLong();
+    uploadSessions.insert(u.id, u);
+    respond(sock, 201, json({{QStringLiteral("upload_id"), u.id}, {QStringLiteral("offset"), 0}, {QStringLiteral("chunk_size"), uploadChunkSize}}));
+    return true;
+  }
+  if (req.path.startsWith(P + QStringLiteral("uploads/"))) {
+    const QString id = req.path.mid((P + QStringLiteral("uploads/")).size());
+    if (!uploadSessions.contains(id)) {
+      respondError(sock, 404, QStringLiteral("not_found"));
+      return true;
+    }
+    ResumableUpload& u = uploadSessions[id];
+    if (req.method == "GET") {
+      respond(sock, 200, json({{QStringLiteral("upload_id"), id}, {QStringLiteral("offset"), u.data.size()}, {QStringLiteral("size"), u.size}}));
+      return true;
+    }
+    if (req.method == "DELETE") {
+      uploadSessions.remove(id);
+      respond(sock, 204, {});
+      return true;
+    }
+    if (req.method == "PUT") {
+      const QString range = QString::fromLatin1(req.headers.value(QStringLiteral("content-range")));
+      putRanges.append(range);
+      if (failPutNumber == putRanges.size()) {
+        respondError(sock, 503, QStringLiteral("internal"));
+        return true;
+      }
+      // "bytes a-b/total"
+      const QString spec = range.mid(6);
+      const qint64 a = spec.section(QLatin1Char('-'), 0, 0).toLongLong();
+      if (a != u.data.size()) {
+        respond(sock, 409, json({{QStringLiteral("error"), QJsonObject{{QStringLiteral("code"), QStringLiteral("offset_mismatch")}}}, {QStringLiteral("offset"), u.data.size()}}));
+        return true;
+      }
+      u.data.append(req.body);
+      if (u.data.size() < u.size) {
+        respond(sock, 200, json({{QStringLiteral("offset"), u.data.size()}}));
+        return true;
+      }
+      const QString sha = QString::fromLatin1(QCryptographicHash::hash(u.data, QCryptographicHash::Sha256).toHex());
+      if (sha != u.sha256) {
+        respondError(sock, 400, QStringLiteral("hash_mismatch"));
+        return true;
+      }
+      roms.insert(sha, u.data);
+      QJsonObject rom{{QStringLiteral("sha256"), sha}, {QStringLiteral("size"), u.size}, {QStringLiteral("filename"), u.filename}, {QStringLiteral("stored"), true}};
+      QJsonObject game = gameWithSha(sha);
+      QJsonArray list;
+      bool replaced = false;
+      for (const QJsonValue& v : games.value(QStringLiteral("games")).toArray()) {
+        if (!game.isEmpty() && v.toObject().value(QStringLiteral("id")) == game.value(QStringLiteral("id"))) {
+          game.insert(QStringLiteral("rom"), rom);
+          game.insert(QStringLiteral("roms"), QJsonArray{rom});
+          game.insert(QStringLiteral("on_hub"), true);  // same game_id as the local-only game
+          list.append(game);
+          replaced = true;
+        } else {
+          list.append(v);
+        }
+      }
+      if (!replaced) {
+        game = QJsonObject{{QStringLiteral("id"), QStringLiteral("new-%1").arg(id)},
+                           {QStringLiteral("title"), u.title.isEmpty() ? QFileInfo(u.filename).completeBaseName() : u.title},
+                           {QStringLiteral("system"), u.system.isEmpty() ? QStringLiteral("nds") : u.system},
+                           {QStringLiteral("rom"), rom},
+                           {QStringLiteral("roms"), QJsonArray{rom}},
+                           {QStringLiteral("on_hub"), true},
+                           {QStringLiteral("uploaded_by"), QStringLiteral("u_test_1")},
+                           {QStringLiteral("added_at"), QStringLiteral("2026-01-01T12:00:00Z")}};
+        list.append(game);
+      }
+      games.insert(QStringLiteral("games"), list);
+      const qint64 total = u.size;
+      uploadSessions.remove(id);
+      respond(sock, 200, json({{QStringLiteral("offset"), total}, {QStringLiteral("game"), game}}));
+      return true;
+    }
+  }
+  return false;
 }
 
 void FakeHub::handleSaves(QSslSocket* sock, const FakeRequest& req) {
@@ -947,6 +1124,7 @@ void FakeHub::onWsData(QSslSocket* sock) {
         }
         const QJsonObject ack{{QStringLiteral("type"), QStringLiteral("hello_ack")}, {QStringLiteral("payload"), ackPayload}};
         wsWrite(sock, 0x1, QJsonDocument(ack).toJson(QJsonDocument::Compact));
+        sendRunCatchUp(sock, env.value(QStringLiteral("payload")).toObject());
       }
     }
   }
@@ -978,5 +1156,294 @@ void FakeHub::closeWsClients() {
   const QList<QSslSocket*> list = wsClients_;
   for (QSslSocket* c : list) {
     c->abort();
+  }
+}
+
+// ------------------------------------------------------------------ runs (runs_v1)
+
+QString FakeHub::makeUuid() { return QUuid::createUuid().toString(QUuid::WithoutBraces); }
+
+namespace {
+QString nowIso() { return QStringLiteral("2026-10-12T10:00:00Z"); }
+}  // namespace
+
+qint64 FakeHub::addRunEvent(const QString& runId, const QString& type, const QString& text, const QString& userId, const QString& pluginId,
+                            const QString& clientId, bool push) {
+  QList<QJsonObject>& list = runEvents[runId];
+  const qint64 seq = list.isEmpty() ? 1 : static_cast<qint64>(list.last().value(QStringLiteral("seq")).toDouble()) + 1;
+  QString userName;
+  QJsonObject runObj = runs.value(runId);
+  for (const QJsonValue& v : runObj.value(QStringLiteral("participants")).toArray())
+    if (v.toObject().value(QStringLiteral("user_id")).toString() == userId) userName = v.toObject().value(QStringLiteral("user_name")).toString();
+  const auto nullable = [](const QString& s) { return s.isEmpty() ? QJsonValue(QJsonValue::Null) : QJsonValue(s); };
+  const QJsonObject e{{QStringLiteral("seq"), static_cast<double>(seq)},
+                      {QStringLiteral("created_at"), nowIso()},
+                      {QStringLiteral("user_id"), nullable(userId)},
+                      {QStringLiteral("user_name"), userName},
+                      {QStringLiteral("device_id"), userId.isEmpty() ? QJsonValue(QJsonValue::Null) : QJsonValue(QStringLiteral("dev-1"))},
+                      {QStringLiteral("plugin_id"), nullable(pluginId)},
+                      {QStringLiteral("source"), userId.isEmpty() ? QStringLiteral("hub") : QStringLiteral("automatic")},
+                      {QStringLiteral("type"), type},
+                      {QStringLiteral("text"), text},
+                      {QStringLiteral("payload"), QJsonObject()},
+                      {QStringLiteral("client_id"), clientId.isEmpty() ? makeUuid() : clientId}};
+  list.append(e);
+  runObj.insert(QStringLiteral("last_seq"), static_cast<double>(seq));
+  runs.insert(runId, runObj);
+  if (push) sendWs(QStringLiteral("run_event"), {{QStringLiteral("run_id"), runId}, {QStringLiteral("event"), e}});
+  return seq;
+}
+
+void FakeHub::pushRun(const QString& runId) {
+  if (runs.contains(runId)) sendWs(QStringLiteral("run_updated"), {{QStringLiteral("run"), runs.value(runId)}});
+}
+
+QJsonObject FakeHub::makeRun(const QString& name, const QStringList& userIds, const QString& creator, const QJsonArray& plugins) {
+  QJsonArray parts;
+  int color = 0;
+  for (const QString& u : userIds) {
+    const bool joined = u == creator;
+    parts.append(QJsonObject{{QStringLiteral("user_id"), u},
+                             {QStringLiteral("user_name"), u == runsMe ? runsMeName : u},
+                             {QStringLiteral("status"), joined ? QStringLiteral("joined") : QStringLiteral("invited")},
+                             {QStringLiteral("game_id"), joined ? QJsonValue(QStringLiteral("00000000-0000-4000-8000-000000000001")) : QJsonValue(QJsonValue::Null)},
+                             {QStringLiteral("color"), joined ? QJsonValue(color++) : QJsonValue(QJsonValue::Null)},
+                             {QStringLiteral("states"), QJsonObject()}});
+  }
+  const QString id = makeUuid();
+  const QJsonObject run{{QStringLiteral("run_id"), id},
+                        {QStringLiteral("name"), name},
+                        {QStringLiteral("status"), QStringLiteral("starting")},
+                        {QStringLiteral("created_by"), creator},
+                        {QStringLiteral("created_at"), nowIso()},
+                        {QStringLiteral("updated_at"), nowIso()},
+                        {QStringLiteral("status_by"), creator},
+                        {QStringLiteral("settings"), QJsonObject()},
+                        {QStringLiteral("plugins"), plugins},
+                        {QStringLiteral("participants"), parts},
+                        {QStringLiteral("last_seq"), 0}};
+  runs.insert(id, run);
+  addRunEvent(id, QStringLiteral("run.created"), name, {}, {}, {}, false);
+  return runs.value(id);
+}
+
+void FakeHub::sendRunCatchUp(QSslSocket* sock, const QJsonObject& hello) {
+  if (!features.contains(QStringLiteral("runs_v1"))) return;
+  const auto write = [&](const QString& type, const QJsonObject& payload) {
+    wsWrite(sock, 0x1, QJsonDocument(QJsonObject{{QStringLiteral("type"), type}, {QStringLiteral("payload"), payload}}).toJson(QJsonDocument::Compact));
+  };
+  QMap<QString, qint64> listed;
+  for (const QJsonValue& v : hello.value(QStringLiteral("runs")).toArray())
+    listed.insert(v.toObject().value(QStringLiteral("run_id")).toString(), static_cast<qint64>(v.toObject().value(QStringLiteral("last_seq")).toDouble()));
+  for (auto it = runs.begin(); it != runs.end(); ++it) write(QStringLiteral("run_updated"), {{QStringLiteral("run"), it.value()}});
+  for (auto it = listed.begin(); it != listed.end(); ++it) {
+    QList<QJsonObject> missing;
+    for (const QJsonObject& e : runEvents.value(it.key()))
+      if (static_cast<qint64>(e.value(QStringLiteral("seq")).toDouble()) > it.value()) missing.append(e);
+    if (static_cast<int>(missing.size()) > runHelloCatchUpMax) continue;
+    for (const QJsonObject& e : missing) write(QStringLiteral("run_event"), {{QStringLiteral("run_id"), it.key()}, {QStringLiteral("event"), e}});
+  }
+}
+
+void FakeHub::handleRuns(QSslSocket* sock, const FakeRequest& req) {
+  const auto json = [](const QJsonObject& o) { return QJsonDocument(o).toJson(QJsonDocument::Compact); };
+  const QJsonObject body = QJsonDocument::fromJson(req.body).object();
+  const QString full = req.path.mid(QStringLiteral("/api/v1/runs").size());
+  const int q = full.indexOf(QLatin1Char('?'));
+  const QUrlQuery query(q >= 0 ? full.mid(q + 1) : QString());
+  const QStringList parts = (q >= 0 ? full.left(q) : full).split(QLatin1Char('/'), Qt::SkipEmptyParts);
+
+  if (runFailNext > 0) {
+    --runFailNext;
+    respondError(sock, runFailStatus, QStringLiteral("internal"));
+    return;
+  }
+  if (parts.isEmpty()) {
+    if (req.method == "GET") {
+      QJsonArray arr;
+      for (const QJsonObject& r : std::as_const(runs)) arr.append(r);
+      respond(sock, 200, json({{QStringLiteral("runs"), arr}}));
+    } else if (req.method == "POST") {
+      lastRunBody = body;
+      QStringList users{runsMe};
+      for (const QJsonValue& v : body.value(QStringLiteral("invite_user_ids")).toArray()) users << v.toString();
+      QJsonArray plugins;
+      for (const QJsonValue& v : body.value(QStringLiteral("plugins")).toArray()) {
+        const QString pid = v.toObject().value(QStringLiteral("plugin_id")).toString();
+        const QString ver = v.toObject().value(QStringLiteral("version")).toString();
+        QString sha(64, QLatin1Char('0'));
+        for (const QJsonValue& pv : std::as_const(pluginList))
+          if (pv.toObject().value(QStringLiteral("plugin_id")).toString() == pid && pv.toObject().value(QStringLiteral("version")).toString() == ver)
+            sha = pv.toObject().value(QStringLiteral("sha256")).toString();
+        plugins.append(QJsonObject{{QStringLiteral("plugin_id"), pid}, {QStringLiteral("version"), ver}, {QStringLiteral("sha256"), sha}});
+      }
+      QJsonObject run = makeRun(body.value(QStringLiteral("name")).toString(), users, runsMe, plugins);
+      run.insert(QStringLiteral("settings"), body.value(QStringLiteral("settings")).toObject());
+      QJsonArray ps = run.value(QStringLiteral("participants")).toArray();
+      QJsonObject me = ps.at(0).toObject();
+      me.insert(QStringLiteral("game_id"), body.value(QStringLiteral("game_id")).toString());
+      ps.replace(0, me);
+      run.insert(QStringLiteral("participants"), ps);
+      const QString id = run.value(QStringLiteral("run_id")).toString();
+      runs.insert(id, run);
+      pushRun(id);
+      respond(sock, 201, json(runs.value(id)));
+    } else {
+      respondError(sock, 405, QStringLiteral("method_not_allowed"));
+    }
+    return;
+  }
+  const QString runId = parts.at(0);
+  if (!runs.contains(runId)) {
+    respondError(sock, 404, QStringLiteral("not_found"));
+    return;
+  }
+  QJsonObject run = runs.value(runId);
+  const QString sub = parts.value(1);
+  const auto myIndex = [&]() {
+    const QJsonArray ps = run.value(QStringLiteral("participants")).toArray();
+    for (int i = 0; i < ps.size(); ++i)
+      if (ps.at(i).toObject().value(QStringLiteral("user_id")).toString() == runsMe) return i;
+    return -1;
+  };
+  const auto updateMe = [&](const std::function<void(QJsonObject&)>& f) {
+    QJsonArray ps = run.value(QStringLiteral("participants")).toArray();
+    const int i = myIndex();
+    QJsonObject me = ps.at(i).toObject();
+    f(me);
+    ps.replace(i, me);
+    run.insert(QStringLiteral("participants"), ps);
+  };
+  const QString status = run.value(QStringLiteral("status")).toString();
+  const bool writable = status == QLatin1String("starting") || status == QLatin1String("active");
+  if (sub.isEmpty() && req.method == "GET") {
+    respond(sock, 200, json(run));
+  } else if (sub == QLatin1String("join") && req.method == "POST") {
+    lastRunBody = body;
+    if (myIndex() < 0) {
+      respondError(sock, 404, QStringLiteral("not_found"));
+      return;
+    }
+    int color = 0;
+    for (const QJsonValue& v : run.value(QStringLiteral("participants")).toArray())
+      if (v.toObject().value(QStringLiteral("status")).toString() == QLatin1String("joined")) ++color;
+    updateMe([&](QJsonObject& me) {
+      me.insert(QStringLiteral("status"), QStringLiteral("joined"));
+      me.insert(QStringLiteral("game_id"), body.value(QStringLiteral("game_id")).toString());
+      me.insert(QStringLiteral("color"), color);
+    });
+    runs.insert(runId, run);
+    addRunEvent(runId, QStringLiteral("run.joined"), runsMeName);
+    pushRun(runId);
+    respond(sock, 200, json(runs.value(runId)));
+  } else if ((sub == QLatin1String("decline") || sub == QLatin1String("leave")) && req.method == "POST") {
+    updateMe([&](QJsonObject& me) { me.insert(QStringLiteral("status"), sub == QLatin1String("decline") ? QStringLiteral("declined") : QStringLiteral("left")); });
+    runs.insert(runId, run);
+    addRunEvent(runId, sub == QLatin1String("decline") ? QStringLiteral("run.declined") : QStringLiteral("run.left"), runsMeName);
+    pushRun(runId);
+    respond(sock, 200, json(runs.value(runId)));
+  } else if (sub == QLatin1String("invite") && req.method == "POST") {
+    lastRunBody = body;
+    QJsonArray ps = run.value(QStringLiteral("participants")).toArray();
+    for (const QJsonValue& v : body.value(QStringLiteral("user_ids")).toArray())
+      ps.append(QJsonObject{{QStringLiteral("user_id"), v.toString()}, {QStringLiteral("user_name"), v.toString()}, {QStringLiteral("status"), QStringLiteral("invited")},
+                            {QStringLiteral("game_id"), QJsonValue(QJsonValue::Null)}, {QStringLiteral("color"), QJsonValue(QJsonValue::Null)},
+                            {QStringLiteral("states"), QJsonObject()}});
+    run.insert(QStringLiteral("participants"), ps);
+    runs.insert(runId, run);
+    pushRun(runId);
+    respond(sock, 200, json(run));
+  } else if (sub == QLatin1String("status") && req.method == "POST") {
+    lastRunBody = body;
+    const QString to = body.value(QStringLiteral("status")).toString();
+    const bool ok = (to == QLatin1String("active") && (status == QLatin1String("starting") || status == QLatin1String("paused"))) ||
+                    (to == QLatin1String("paused") && status == QLatin1String("active")) ||
+                    ((to == QLatin1String("finished") || to == QLatin1String("abandoned")) &&
+                     (status == QLatin1String("starting") || status == QLatin1String("active") || status == QLatin1String("paused")));
+    if (!ok) {
+      respondError(sock, 409, QStringLiteral("conflict"));
+      return;
+    }
+    run.insert(QStringLiteral("status"), to);
+    run.insert(QStringLiteral("status_by"), runsMe);
+    runs.insert(runId, run);
+    addRunEvent(runId, QStringLiteral("run.status"), to);
+    pushRun(runId);
+    respond(sock, 200, json(runs.value(runId)));
+  } else if (sub == QLatin1String("state") && req.method == "PUT" && parts.size() == 3) {
+    const QString pluginId = parts.value(2);
+    lastRunBody = body;
+    QJsonObject logged = body;
+    logged.insert(QStringLiteral("plugin_id"), pluginId);
+    runStatePuts.append(logged);
+    if (!writable) {
+      respondError(sock, 409, QStringLiteral("run_not_active"));
+      return;
+    }
+    const auto stateOf = [&](const QJsonObject& me) { return me.value(QStringLiteral("states")).toObject().value(pluginId).toObject(); };
+    if (runStateConflicts > 0) {
+      --runStateConflicts;
+      const QJsonObject me = run.value(QStringLiteral("participants")).toArray().at(myIndex()).toObject();
+      respond(sock, 409, json({{QStringLiteral("error"), QJsonObject{{QStringLiteral("code"), QStringLiteral("state_conflict")}, {QStringLiteral("message"), QStringLiteral("base_rev")}}},
+                               {QStringLiteral("state_rev"), static_cast<double>(runConflictRev)},
+                               {QStringLiteral("state"), stateOf(me).value(QStringLiteral("state")).toObject()}}));
+      return;
+    }
+    qint64 rev = 0;
+    updateMe([&](QJsonObject& me) {
+      QJsonObject all = me.value(QStringLiteral("states")).toObject();
+      const QJsonObject cur = all.value(pluginId).toObject();
+      rev = (std::max)(static_cast<qint64>(cur.value(QStringLiteral("state_rev")).toDouble()), static_cast<qint64>(body.value(QStringLiteral("base_rev")).toDouble())) + 1;
+      all.insert(pluginId, QJsonObject{{QStringLiteral("state"), body.value(QStringLiteral("state")).toObject()},
+                                       {QStringLiteral("state_rev"), static_cast<double>(rev)},
+                                       {QStringLiteral("updated_at"), QStringLiteral("2026-10-12T10:00:00Z")}});
+      me.insert(QStringLiteral("states"), all);
+    });
+    runs.insert(runId, run);
+    respond(sock, 200, json({{QStringLiteral("state_rev"), static_cast<double>(rev)}}));
+  } else if (sub == QLatin1String("events") && req.method == "POST") {
+    runEventPosts.append(body);
+    if (!writable) {
+      respondError(sock, 409, QStringLiteral("run_not_active"));
+      return;
+    }
+    const QString clientId = body.value(QStringLiteral("client_id")).toString();
+    for (const QJsonObject& e : runEvents.value(runId)) {
+      if (e.value(QStringLiteral("client_id")).toString() == clientId) {
+        respond(sock, 200, json({{QStringLiteral("seq"), e.value(QStringLiteral("seq"))}}));
+        return;
+      }
+    }
+    const qint64 seq = addRunEvent(runId, body.value(QStringLiteral("type")).toString(), body.value(QStringLiteral("text")).toString(), runsMe,
+                                   body.value(QStringLiteral("plugin_id")).toString(), clientId);
+    QJsonObject& stored = runEvents[runId].last();
+    stored.insert(QStringLiteral("source"), body.value(QStringLiteral("source")).toString());
+    stored.insert(QStringLiteral("payload"), body.value(QStringLiteral("payload")).toObject());
+    if (runEventDropResponses > 0) {
+      --runEventDropResponses;
+      sock->abort();
+      return;
+    }
+    respond(sock, 201, json({{QStringLiteral("seq"), static_cast<double>(seq)}}));
+  } else if (sub == QLatin1String("events") && req.method == "GET") {
+    const qint64 after = query.queryItemValue(QStringLiteral("after")).toLongLong();
+    const int limit = query.hasQueryItem(QStringLiteral("limit")) ? query.queryItemValue(QStringLiteral("limit")).toInt() : 200;
+    QJsonArray arr;
+    for (const QJsonObject& e : runEvents.value(runId)) {
+      if (static_cast<qint64>(e.value(QStringLiteral("seq")).toDouble()) <= after) continue;
+      if (arr.size() >= limit) break;
+      arr.append(e);
+    }
+    respond(sock, 200, json({{QStringLiteral("events"), arr}, {QStringLiteral("last_seq"), run.value(QStringLiteral("last_seq"))}}));
+  } else if (sub == QLatin1String("boards") && req.method == "PUT" && parts.size() == 3) {
+    ++runBoardPuts;
+    if (!writable) {
+      respondError(sock, 409, QStringLiteral("run_not_active"));
+      return;
+    }
+    runBoards.insert(runId + QLatin1Char('/') + parts.at(2), body.value(QStringLiteral("tree")).toObject());
+    respond(sock, 200, json({{QStringLiteral("rev"), runBoardPuts}}));
+  } else {
+    respondError(sock, 404, QStringLiteral("not_found"));
   }
 }

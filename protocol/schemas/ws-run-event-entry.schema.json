@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://framebeam.invalid/schemas/ws-run-event-entry.schema.json",
+  "title": "Run event (as REST RunEvent, shared by run_event)",
+  "type": "object",
+  "required": [
+    "seq",
+    "created_at",
+    "user_id",
+    "user_name",
+    "device_id",
+    "plugin_id",
+    "source",
+    "type",
+    "text",
+    "payload",
+    "client_id"
+  ],
+  "properties": {
+    "seq": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "user_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "null for Hub events (who it is about is in the payload)"
+    },
+    "user_name": {
+      "type": "string"
+    },
+    "device_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "plugin_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "source": {
+      "enum": [
+        "automatic",
+        "manual",
+        "hub"
+      ]
+    },
+    "type": {
+      "type": "string",
+      "pattern": "^[a-z0-9_.-]{1,64}$"
+    },
+    "text": {
+      "type": "string"
+    },
+    "payload": {
+      "type": "object",
+      "description": "Opaque to the Hub (at most 4 KiB)"
+    },
+    "client_id": {
+      "type": "string",
+      "format": "uuid"
+    }
+  }
+}

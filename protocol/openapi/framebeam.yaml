@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
   title: FrameBeam Hub API
-  version: 1.13.0
+  version: 1.18.0
   description: |
-    HTTPS/JSON API of the FrameBeam Hub (phase 1; phase 3 adds save sync under `saves`, advertised by the handshake feature `saves_v1`; phase 4 adds Session sharing under `sessions` and the WSS endpoint, advertised by the handshake feature `sessions_v1`; phase 5 adds invite redemption under `users` (`users_v1`), user ROM uploads (`uploads_v1`, only advertised when the caller may upload) and the systems registry with firmware download under `systems` (`firmware_v1`); 0.2 adds core packages served by the Hub under `cores` (`cores_v1`); 0.4 adds relay credentials for Sessions over the internet (`turn_v1`, `turn_servers` in `hello_ack` and the join response), save comfort (`saves_v2`: restore, manual snapshots, history labels, the `save_updated` WSS message) and the signed core index for Player-side verification (`cores_index_v1`, `/api/v1/cores/index`, removed again in 0.8); 0.7 adds deleting manual snapshots (`saves_v3`) and the optional `user` in the handshake response; 0.8 adds uploading a save file from outside the sync flow (`saves_v4`, `POST /games/{game_id}/saves/{slot}/upload`); 0.8 also adds several cores per system from the libretro buildbot (`cores_v2`: `default_core_id` and `cores` in `SystemInfo`, core ids `^[a-z0-9][a-z0-9_-]{0,63}$`) and removes `cores_index_v1` and its endpoints `/api/v1/cores/index{,.sig}`); 0.9 adds the local setup endpoints under `local` for a Player on the same PC as the Hub (`local_setup_v1`, loopback callers only); 0.10 adds the WSS message `ice_update` (`ice_update_v1`) so connected Players receive changed `ice_servers`/`turn_servers`, a default STUN list, and optional Cloudflare TURN next to the embedded TURN server; 0.10.x also adds renaming and deleting save slots and the upload lock during a Session (`saves_v5`). `protocol_version` is an integer (starting at 1),
+    HTTPS/JSON API of the FrameBeam Hub (phase 1; phase 3 adds save sync under `saves`, advertised by the handshake feature `saves_v1`; phase 4 adds Session sharing under `sessions` and the WSS endpoint, advertised by the handshake feature `sessions_v1`; phase 5 adds invite redemption under `users` (`users_v1`), user ROM uploads (`uploads_v1`, only advertised when the caller may upload) and the systems registry with firmware download under `systems` (`firmware_v1`); 0.2 adds core packages served by the Hub under `cores` (`cores_v1`); 0.4 adds relay credentials for Sessions over the internet (`turn_v1`, `turn_servers` in `hello_ack` and the join response), save comfort (`saves_v2`: restore, manual snapshots, history labels, the `save_updated` WSS message) and the signed core index for Player-side verification (`cores_index_v1`, `/api/v1/cores/index`, removed again in 0.8); 0.7 adds deleting manual snapshots (`saves_v3`) and the optional `user` in the handshake response; 0.8 adds uploading a save file from outside the sync flow (`saves_v4`, `POST /games/{game_id}/saves/{slot}/upload`); 0.8 also adds several cores per system from the libretro buildbot (`cores_v2`: `default_core_id` and `cores` in `SystemInfo`, core ids `^[a-z0-9][a-z0-9_-]{0,63}$`) and removes `cores_index_v1` and its endpoints `/api/v1/cores/index{,.sig}`); 0.9 adds the local setup endpoints under `local` for a Player on the same PC as the Hub (`local_setup_v1`, loopback callers only); 0.10 adds the WSS message `ice_update` (`ice_update_v1`) so connected Players receive changed `ice_servers`/`turn_servers`, a default STUN list, and optional Cloudflare TURN next to the embedded TURN server; 0.10.x also adds renaming and deleting save slots and the upload lock during a Session (`saves_v5`); 0.11 adds the plugin list and download under `plugins` (`plugins_v1`); 0.11 also adds runs under `runs` (`runs_v1`: run objects with per-participant, per-plugin state, an append-only event log and boards, the WSS messages `run_updated`, `run_state` and `run_event`, and the optional `runs` list in `hello` for catch-up); 0.12 adds local ROMs (`local_roms_v1`: games that exist only on Player devices, `POST /games/register`, `DELETE /games/{game_id}/registration`, resumable uploads under `uploads`, `stored`/`on_hub`/`roms` and `game_version` in the game objects, visibility of local-only games). `protocol_version` is an integer (starting at 1),
     separate from the hub/player product version. All paths carry the `/api/v1` prefix explicitly;
     only the info endpoint lives under `/.well-known/framebeam`.
     Compatibility: Player.protocol_version < Hub.min_protocol_version -> player_too_old;
@@ -22,8 +22,10 @@ tags:
   - name: library
   - name: systems
   - name: cores
+  - name: plugins
   - name: saves
   - name: sessions
+  - name: runs
   - name: ws
 paths:
   /.well-known/framebeam:
@@ -412,7 +414,7 @@ paths:
                     min_protocol_version: 1
                     compatible: true
                     problems: []
-                    features: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1, cores_v1, turn_v1, saves_v2, saves_v3, saves_v4, saves_v5, cores_v2, local_setup_v1, ice_update_v1]
+                    features: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1, cores_v1, turn_v1, saves_v2, saves_v3, saves_v4, saves_v5, cores_v2, local_setup_v1, ice_update_v1, plugins_v1, runs_v1, local_roms_v1]
                 core_missing:
                   description: Warning only, `compatible` stays true (launch allowed; the Player shows the problem)
                   value:
@@ -543,11 +545,182 @@ paths:
                   $ref: '#/components/examples/GameExample'
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/games/register:
+    post:
+      operationId: registerGame
+      tags: [library]
+      summary: Register a ROM file that exists only on the caller's device (`local_roms_v1`)
+      description: |
+        The Hub never receives the file. Match by `sha256` (a known file), else by identity (same system, `game_code`
+        and `game_version`: an extra file of that game), else a local-only game is created. The caller becomes owner
+        of the file. A local-only game is visible to its owners; once a file of it is stored on the Hub (an upload),
+        it is visible to everyone. Any authenticated user may register.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterGameRequest' }
+            examples:
+              default:
+                value:
+                  sha256: '0000000000000000000000000000000000000000000000000000000000000000'
+                  size: 4096
+                  filename: demo.nds
+                  game_code: ABCD
+                  game_version: 0
+      responses:
+        '200':
+          description: The file belongs to an existing game
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Game' }
+        '201':
+          description: A new local-only game was created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Game' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/games/{game_id}/registration:
+    delete:
+      operationId: deleteGameRegistration
+      tags: [library]
+      summary: Remove the caller's local registrations for a game (`local_roms_v1`)
+      description: The game, its other files and its saves stay.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: game_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Registrations removed (also when there were none) }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/uploads:
+    post:
+      operationId: createUpload
+      tags: [library]
+      summary: Start or resume a resumable ROM upload (`local_roms_v1`)
+      description: |
+        Same permission as `uploadGame` (admin, or users when the Hub allows user uploads; otherwise 403
+        `uploads_disabled`), same 4 GiB limit. An open session of the same user with the same `sha256` (or the same
+        `filename` and `size`) is returned for resume. A `sha256` that is already stored on the Hub is a 409 with
+        `existing_game_id`. Sessions untouched for 7 days are removed.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateUploadRequest' }
+      responses:
+        '201':
+          description: Upload session (new or resumed)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UploadSession' }
+              examples:
+                default: { value: { upload_id: 3f1c2b4a-5d6e-4f70-8a91-b2c3d4e5f607, offset: 0, chunk_size: 67108864 } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: Uploads are not allowed for this user
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409':
+          description: This ROM is already stored on the Hub; `existing_game_id` names the game
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DuplicateGameError' }
+        '413':
+          description: Size exceeds the upload limit (4 GiB)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/uploads/{upload_id}:
+    parameters:
+      - name: upload_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getUpload
+      tags: [library]
+      summary: State of an upload session (`local_roms_v1`)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Session state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UploadStatus' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: putUploadChunk
+      tags: [library]
+      summary: Upload one chunk (`local_roms_v1`)
+      description: |
+        Raw body with `Content-Range: bytes a-b/total`. `a` must equal the session's `offset` (else 409; read the
+        offset with `GET`), the chunk is at most 64 MiB and `total` is the announced size. The Hub keeps the SHA-256
+        state, so the chunk that completes the file finishes without re-reading it: the hash is checked (when
+        announced; mismatch is a 400 and the session is dropped), then the file becomes a stored file of the game with
+        that SHA-256 (the `game_id` of a local-only game is unchanged), else an extra file of the game with the same
+        identity, else a new game. The finishing response carries `game`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: Content-Range
+          in: header
+          required: true
+          schema: { type: string, pattern: '^bytes [0-9]+-[0-9]+/[0-9]+$' }
+          example: 'bytes 0-67108863/134217728'
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        '200':
+          description: Chunk stored
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UploadProgress' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: The chunk does not start at the current offset, another chunk is in flight, or the ROM was stored meanwhile (`existing_game_id`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '413':
+          description: Chunk exceeds 64 MiB
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    delete:
+      operationId: deleteUpload
+      tags: [library]
+      summary: Abort an upload session (`local_roms_v1`)
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Session and data removed }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/v1/roms/{sha256}:
     get:
       operationId: downloadRom
       tags: [library]
-      summary: ROM download (range support). Upload only via the admin web interface.
+      summary: ROM download (range support). Only files stored on the Hub (`stored`); a file that is only registered as local is 404.
       security:
         - bearerAuth: []
       parameters:
@@ -721,6 +894,73 @@ paths:
             ETag: { schema: { type: string } }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/CoreFileNotAvailable' }
+  /api/v1/plugins:
+    get:
+      operationId: listPlugins
+      tags: [plugins]
+      summary: Plugin versions this Hub offers to Players (`plugins_v1`, any trusted device)
+      description: |
+        Every offered version of every plugin, ordered by `plugin_id` and SemVer (oldest first). `origin` is `official`
+        (valid FrameBeam signature) or `unverified` (unsigned, offered by the admin). `requires`, `provides` and
+        `games` are copied from the manifest and empty when absent. `sha256` is the digest of the file served by
+        `getPluginFile`; the Player pins it.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Offered plugin versions
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PluginList' }
+              examples:
+                default:
+                  value:
+                    plugins:
+                      - plugin_id: net.example.tracker
+                        version: 1.2.0
+                        name: Tracker
+                        description: Tracks things
+                        api: 1
+                        origin: official
+                        sha256: '3333333333333333333333333333333333333333333333333333333333333333'
+                        size: 12345
+                        permissions: [memory.read, ui]
+                        requires: { net.example.base: ^1.0 }
+                        provides: [tracker.state]
+                        games: [{ system: nds, codes: ['IPK*'] }]
+                        created_at: '2026-10-12T08:00:00Z'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/plugins/{plugin_id}/{version}/file:
+    parameters:
+      - $ref: '#/components/parameters/PluginId'
+      - $ref: '#/components/parameters/PluginVersion'
+    get:
+      operationId: getPluginFile
+      tags: [plugins]
+      summary: Download the `.fbplugin` file of an offered plugin version (`plugins_v1`, any trusted device)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: If-None-Match
+          in: header
+          required: false
+          schema: { type: string }
+          example: '"3333333333333333333333333333333333333333333333333333333333333333"'
+      responses:
+        '200':
+          description: The zip file (`ETag` = `"<sha256>"` as listed)
+          headers:
+            ETag: { schema: { type: string }, description: 'Strong ETag = content SHA-256', example: '"3333333333333333333333333333333333333333333333333333333333333333"' }
+            Content-Length: { schema: { type: integer, format: int64 } }
+          content:
+            application/zip:
+              schema: { type: string, format: binary }
+        '304':
+          description: Not modified (`If-None-Match` matches the ETag)
+          headers:
+            ETag: { schema: { type: string } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/v1/saves:
     get:
       operationId: listSaves
@@ -1515,6 +1755,315 @@ paths:
         '403': { $ref: '#/components/responses/SessionForbidden' }
         '404': { $ref: '#/components/responses/SessionNotFound' }
         '410': { $ref: '#/components/responses/SessionEnded' }
+  /api/v1/runs:
+    get:
+      operationId: listRuns
+      tags: [runs]
+      summary: Runs the caller participates in (any participant status, not archived), most recently changed first
+      description: |
+        Feature `runs_v1`. Every run includes the per-plugin states of every participant (the same object as `GET /runs/{run_id}`).
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Runs
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RunList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      operationId: createRun
+      tags: [runs]
+      summary: Create a run (the caller joins with `game_id`, status `starting`)
+      description: |
+        Every plugin version must be offered by this Hub (400 otherwise). `invite_user_ids` are users of this Hub;
+        the creator plus the invited users are at most 8. `settings` is an opaque JSON object of at most 16 KiB
+        (413 `too_large`). Invited users receive `run_updated`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RunCreateRequest' }
+      responses:
+        '201':
+          description: Run created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Run' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+  /api/v1/runs/{run_id}:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+    get:
+      operationId: getRun
+      tags: [runs]
+      summary: One run with every participant's per-plugin states (participants of any status only; others get 404)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The run
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Run' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/runs/{run_id}/join:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+    post:
+      operationId: joinRun
+      tags: [runs]
+      summary: Join with a library game (from invited, declined or left); the same game again is a no-op
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RunJoinRequest' }
+      responses:
+        '200':
+          description: The run
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Run' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/RunConflict' }
+  /api/v1/runs/{run_id}/invite:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+    post:
+      operationId: inviteRun
+      tags: [runs]
+      summary: Invite more users (any joined participant, while the run is starting, active or paused)
+      description: |
+        Users who are already invited or joined are skipped; users who declined or left are invited again. Unknown
+        or disabled users are a 400. More than 8 participants in total are a 409. Appends the Hub event `run.invited`
+        and sends `run_updated`. If nobody is newly invited the run is returned unchanged and nothing is appended.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RunInviteRequest' }
+      responses:
+        '200':
+          description: The run
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Run' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/RunConflict' }
+  /api/v1/runs/{run_id}/decline:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+    post:
+      operationId: declineRun
+      tags: [runs]
+      summary: Decline the invite (only from invited; declining again is a no-op)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The run
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Run' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/RunConflict' }
+  /api/v1/runs/{run_id}/leave:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+    post:
+      operationId: leaveRun
+      tags: [runs]
+      summary: Leave a run the caller joined (leaving again is a no-op); colour and state stay
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The run
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Run' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/RunConflict' }
+  /api/v1/runs/{run_id}/status:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+    post:
+      operationId: setRunStatus
+      tags: [runs]
+      summary: Change the run status
+      description: |
+        `active`: from `starting` by the creator, from `paused` by any joined participant. `paused`: from `active`,
+        any joined participant. `finished` or `abandoned`: the creator, from any run that is not over. Other
+        transitions are 409 `conflict`; the right transition by the wrong user is 403. The Hub appends a `run.status` event.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RunStatusRequest' }
+      responses:
+        '200':
+          description: The run
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Run' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/RunConflict' }
+  /api/v1/runs/{run_id}/state/{plugin_id}:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+      - name: plugin_id
+        in: path
+        required: true
+        schema: { type: string }
+    put:
+      operationId: putRunState
+      tags: [runs]
+      summary: Replace the caller's own state of one plugin (JSON object, at most 64 KiB) against a base revision
+      description: |
+        Each participant has one state object per plugin of the run, each with its own revision. `plugin_id` must be a
+        plugin of the run (404 `not_found`). `base_rev` must equal the current `state_rev` of that plugin (0 when none
+        was written yet), otherwise 409 `state_conflict` with the current `state_rev` and `state`. Joined participants
+        only (403 otherwise). Starting and active runs only (409 `run_not_active`). Rate limit 4/s, burst 20 per
+        participant (all plugins together; 429 `rate_limited`).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RunStateRequest' }
+      responses:
+        '200':
+          description: State stored
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RunStateResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: '`state_conflict` (carries the current state) or `run_not_active`'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RunStateConflictError' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/runs/{run_id}/events:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+    post:
+      operationId: appendRunEvent
+      tags: [runs]
+      summary: Append an event to the log (joined participants)
+      description: |
+        `client_id` makes the call idempotent: the same `client_id` again returns 200 with the original `seq`.
+        `plugin_id` must be a plugin of the run. Starting and active runs only (409 `run_not_active`); at most
+        50 000 events per run (409 `conflict`). Rate limit 2/s, burst 30 per participant (429 `rate_limited`).
+        Payload at most 4 KiB (413 `too_large`).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RunEventRequest' }
+      responses:
+        '200':
+          description: The event already existed (same `client_id`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RunEventResult' }
+        '201':
+          description: Event appended
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RunEventResult' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/RunConflict' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    get:
+      operationId: listRunEvents
+      tags: [runs]
+      summary: Events with seq greater than `after`, in order (participants of any status)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: after
+          in: query
+          required: false
+          schema: { type: integer, format: int64, minimum: 0, default: 0 }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 500, default: 200 }
+      responses:
+        '200':
+          description: Events and the run's current `last_seq`
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RunEventList' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/runs/{run_id}/boards/{plugin_id}:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+      - $ref: '#/components/parameters/RunPluginId'
+    put:
+      operationId: putRunBoard
+      tags: [runs]
+      summary: Publish the plugin's board (building-block tree, at most 64 KiB) for the Hub web run page
+      description: |
+        Joined participants only (403 otherwise); the plugin must be a plugin of the run (404). Starting and active runs
+        only (409 `run_not_active`). Rate limit 1/s, burst 5 per participant (429 `rate_limited`). The Hub checks the
+        shape (a JSON object) and the size, not the building blocks.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RunBoardRequest' }
+      responses:
+        '200':
+          description: Board stored
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RunBoardResult' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/RunConflict' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/v1/ws:
     get:
       operationId: connectWebSocket
@@ -1527,7 +2076,7 @@ paths:
         `ice_servers`, `turn_servers`). With `ice_update_v1` the Hub pushes `ice_update` (`ice_servers`, `turn_servers?`, the ICE part of
         `hello_ack`) to every connected Player whenever its effective ICE configuration changes; the Player uses the new lists for
         PeerConnections created afterwards. Message types: `hello`, `hello_ack`, `presence_update`, `session_update`, `save_updated`,
-        `session_ended`, `session_invite`, `viewer_joined`, `viewer_left`, `signal`, `ice_update`, `error`. The Hub sends a WebSocket ping every 20 s. The connection stays valid until the device is revoked.
+        `session_ended`, `session_invite`, `viewer_joined`, `viewer_left`, `signal`, `ice_update`, `run_updated`, `run_state`, `run_event`, `error`. With `runs_v1` the optional `hello` field `runs` (`[{run_id, last_seq}]`, the last event the Player saw per run) triggers the run catch-up after `hello_ack`: `run_updated` for every non-archived run the user participates in, then, for the listed runs the user joined, the `run_event`s with `seq` > `last_seq`, at most 500 per run (none when more are missing; page with `GET /runs/{run_id}/events`). The Hub sends a WebSocket ping every 20 s. The connection stays valid until the device is revoked.
       security:
         - bearerAuth: []
       responses:
@@ -1556,6 +2105,18 @@ components:
       required: true
       schema: { type: string, pattern: '^[0-9A-Za-z][0-9A-Za-z.+_-]{0,63}$' }
       example: 1.4.0
+    PluginId:
+      name: plugin_id
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[a-z0-9-]+(\.[a-z0-9-]+)+$', maxLength: 128 }
+      example: net.example.tracker
+    PluginVersion:
+      name: version
+      in: path
+      required: true
+      schema: { type: string, maxLength: 128 }
+      example: 1.2.0
     CorePlatform:
       name: platform
       in: path
@@ -1587,6 +2148,18 @@ components:
       description: Slot name; always `default` in the PoC.
       schema: { type: string, pattern: '^[a-z0-9_-]{1,32}$' }
       example: default
+    RunId:
+      name: run_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+      example: 6f1d2c3b-4a5e-4b6c-8d7e-9f0a1b2c3d4e
+    RunPluginId:
+      name: plugin_id
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[a-z0-9-]+(\.[a-z0-9-]+)+$', maxLength: 128 }
+      example: net.example.runnotes
   examples:
     SaveConflictValue:
       value:
@@ -1759,6 +2332,20 @@ components:
           schema: { $ref: '#/components/schemas/Error' }
           examples:
             default: { value: { error: { code: capability_missing, message: Device cannot encode H.264 } } }
+    RunConflict:
+      description: 'Conflict: `run_not_active` (paused, finished or abandoned runs refuse writes), `conflict` (transition not allowed, event limit, already joined with another game)'
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            run_not_active: { value: { error: { code: run_not_active, message: The run is not active (paused, finished or abandoned) } } }
+    TooLarge:
+      description: A JSON object is larger than its limit (settings 16 KiB, state 64 KiB, event payload 4 KiB, board 64 KiB)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            default: { value: { error: { code: too_large, message: state is larger than 64 KiB } } }
     SessionFullOrCapability:
       description: Session full, or the device lacks H.264 decode
       content:
@@ -1770,7 +2357,7 @@ components:
   schemas:
     ErrorCode:
       type: string
-      enum: [bad_request, unauthorized, forbidden, not_found, conflict, rate_limited, internal, device_revoked, invalid_credentials, pairing_pending, pairing_denied, pairing_expired, player_too_old, hub_too_old, core_missing, core_version_mismatch, capability_missing, save_conflict, save_conflict_stale, save_not_snapshot, save_slot_exists, save_slot_protected, session_running, payload_too_large, session_not_found, session_forbidden, session_full, session_ended, invite_invalid, display_name_taken, user_disabled, uploads_disabled, core_package_not_found, core_file_not_available, import_dir_unreadable]
+      enum: [bad_request, unauthorized, forbidden, not_found, conflict, rate_limited, internal, device_revoked, invalid_credentials, pairing_pending, pairing_denied, pairing_expired, player_too_old, hub_too_old, core_missing, core_version_mismatch, capability_missing, save_conflict, save_conflict_stale, save_not_snapshot, save_slot_exists, save_slot_protected, session_running, payload_too_large, session_not_found, session_forbidden, session_full, session_ended, invite_invalid, display_name_taken, user_disabled, uploads_disabled, core_package_not_found, core_file_not_available, import_dir_unreadable, run_not_active, state_conflict, too_large]
     Error:
       type: object
       required: [error]
@@ -1963,6 +2550,43 @@ components:
         files:
           type: array
           items: { $ref: '#/components/schemas/CorePackageFile' }
+    PluginOrigin:
+      type: string
+      enum: [official, unverified]
+      description: '`official` = valid signature of a trusted FrameBeam key; `unverified` = unsigned (or not verifiable), offered by the Hub admin.'
+    PluginGame:
+      type: object
+      required: [system, codes]
+      properties:
+        system: { type: string }
+        codes: { type: array, items: { type: string } }
+    PluginInfo:
+      type: object
+      required: [plugin_id, version, name, description, api, origin, sha256, size, permissions, requires, provides, games, created_at]
+      properties:
+        plugin_id: { type: string }
+        version: { type: string }
+        name: { type: string }
+        description: { type: string }
+        api: { type: integer, example: 1 }
+        origin: { $ref: '#/components/schemas/PluginOrigin' }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        size: { type: integer, format: int64 }
+        permissions: { type: array, items: { type: string } }
+        requires:
+          type: object
+          description: Plugin id to version range, from the manifest
+          additionalProperties: { type: string }
+        provides: { type: array, items: { type: string } }
+        games: { type: array, items: { $ref: '#/components/schemas/PluginGame' } }
+        created_at: { type: string, format: date-time }
+    PluginList:
+      type: object
+      required: [plugins]
+      properties:
+        plugins:
+          type: array
+          items: { $ref: '#/components/schemas/PluginInfo' }
     CorePlatform:
       type: string
       enum: [windows-x64, linux-x64, linux-arm64, macos-x64, macos-arm64]
@@ -2028,9 +2652,9 @@ components:
           items: { $ref: '#/components/schemas/HandshakeProblem' }
         features:
           type: array
-          description: Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = at least one relay provider is on (the embedded TURN server and/or Cloudflare TURN; `turn_servers` in `hello_ack`, `ice_update` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`), `saves_v4` = uploading a save file into a slot (`POST /games/{game_id}/saves/{slot}/upload`), `saves_v5` = renaming a slot (`POST /games/{game_id}/saves/{slot}/rename`), deleting a slot (`DELETE /games/{game_id}/saves/{slot}`), `save_updated` reasons `renamed` and `deleted`, and 409 `session_running` on `saves_v4` uploads while a Session of the game runs, `cores_v2` = several cores per system (`default_core_id` and `cores` in `SystemInfo`; core ids follow `^[a-z0-9][a-z0-9_-]{0,63}$`), `ice_update_v1` = the Hub pushes the WSS message `ice_update` whenever its effective ICE configuration changes. `cores_index_v1` (signed core index) existed in 0.4 to 0.7 and was removed in 0.8.
+          description: Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = at least one relay provider is on (the embedded TURN server and/or Cloudflare TURN; `turn_servers` in `hello_ack`, `ice_update` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`), `saves_v4` = uploading a save file into a slot (`POST /games/{game_id}/saves/{slot}/upload`), `saves_v5` = renaming a slot (`POST /games/{game_id}/saves/{slot}/rename`), deleting a slot (`DELETE /games/{game_id}/saves/{slot}`), `save_updated` reasons `renamed` and `deleted`, and 409 `session_running` on `saves_v4` uploads while a Session of the game runs, `cores_v2` = several cores per system (`default_core_id` and `cores` in `SystemInfo`; core ids follow `^[a-z0-9][a-z0-9_-]{0,63}$`), `ice_update_v1` = the Hub pushes the WSS message `ice_update` whenever its effective ICE configuration changes, `plugins_v1` = plugin list and download (`GET /plugins`, `GET /plugins/{plugin_id}/{version}/file`), `runs_v1` = runs, `local_roms_v1` = local-only games and resumable uploads (`POST /games/register`, `DELETE /games/{game_id}/registration`, `/uploads`; `stored`, `on_hub`, `roms`, `game_version`; `GET /roms/{sha256}` serves stored files only). `cores_index_v1` (signed core index) existed in 0.4 to 0.7 and was removed in 0.8.
           items: { type: string }
-          example: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1, cores_v1, turn_v1, saves_v2, saves_v3, saves_v4, saves_v5, cores_v2, local_setup_v1, ice_update_v1]
+          example: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1, cores_v1, turn_v1, saves_v2, saves_v3, saves_v4, saves_v5, cores_v2, local_setup_v1, ice_update_v1, plugins_v1, runs_v1, local_roms_v1]
         user:
           $ref: '#/components/schemas/HandshakeUser'
     HandshakeUser:
@@ -2048,6 +2672,47 @@ components:
         sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
         size: { type: integer, format: int64 }
         filename: { type: string }
+        stored: { type: boolean, description: 'The file is stored on the Hub and downloadable via `GET /roms/{sha256}`; false = only registered by a Player (`local_roms_v1`; absent on older Hubs, then true).' }
+    RegisterGameRequest:
+      type: object
+      required: [sha256, size, filename]
+      properties:
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        size: { type: integer, format: int64, minimum: 1 }
+        filename: { type: string, minLength: 1, maxLength: 255 }
+        system: { type: string, description: 'System ID; derived from the file extension when omitted.' }
+        title: { type: string, maxLength: 200, description: Default is the file name without extension }
+        game_code: { type: string, description: 'Identity read from the ROM header by the Player (same format as `Game.game_code`). Ignored when it does not fit the system.' }
+        game_version: { type: integer, minimum: 0, description: 'ROM version read by the Player; only used together with `game_code`.' }
+    CreateUploadRequest:
+      type: object
+      required: [filename, size]
+      properties:
+        filename: { type: string, minLength: 1, maxLength: 255 }
+        size: { type: integer, format: int64, minimum: 1, maximum: 4294967296 }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$', description: 'Optional. When given, it is checked after the last chunk and a stored file with this hash is refused up front (409).' }
+        title: { type: string, maxLength: 200 }
+        system: { type: string }
+    UploadSession:
+      type: object
+      required: [upload_id, offset, chunk_size]
+      properties:
+        upload_id: { type: string, format: uuid }
+        offset: { type: integer, format: int64, minimum: 0, description: Bytes received so far; the next chunk starts here }
+        chunk_size: { type: integer, format: int64, description: 'Largest chunk the Hub accepts (64 MiB)' }
+    UploadStatus:
+      type: object
+      required: [upload_id, offset, size]
+      properties:
+        upload_id: { type: string, format: uuid }
+        offset: { type: integer, format: int64, minimum: 0 }
+        size: { type: integer, format: int64 }
+    UploadProgress:
+      type: object
+      required: [offset]
+      properties:
+        offset: { type: integer, format: int64, minimum: 0 }
+        game: { allOf: [ { $ref: '#/components/schemas/Game' } ], description: 'Set by the chunk that completes the upload.' }
     Game:
       type: object
       required: [id, title, system, rom, uploaded_by, added_at]
@@ -2055,9 +2720,14 @@ components:
         id: { type: string, format: uuid }
         title: { type: string }
         system: { type: string, example: nds }
-        rom: { $ref: '#/components/schemas/RomInfo' }
+        rom: { allOf: [ { $ref: '#/components/schemas/RomInfo' } ], description: 'A file stored on the Hub if the game has one, else the primary file.' }
+        on_hub: { type: boolean, description: 'At least one file of the game is stored on the Hub (`local_roms_v1`; absent on older Hubs, then true). A game that is not on the Hub is only visible to the users who registered a file of it.' }
+        roms: { type: array, items: { $ref: '#/components/schemas/RomInfo' }, description: 'All known files of the game, the primary file first (`local_roms_v1`). Different dumps of the same identity are files of one game.' }
+        game_version: { type: integer, minimum: 0, description: 'ROM version of the identity: NDS header byte 0x1E, 3DS NCCH version, GBA byte 0xBC, Game Boy byte 0x14C. Absent when unknown (`local_roms_v1`).' }
         uploaded_by: { type: string, description: Hub-local user ID }
         added_at: { type: string, format: date-time }
+        game_code: { type: string, description: 'Identity read from the ROM header on upload/import: 4-character NDS or GBA game code, 16 uppercase hex digits (3DS program ID) or the Game Boy header title (1 to 16 printable ASCII characters); the kind is `game_code_kind`; empty when unknown or unreadable. Absent on Hubs before 1.16.0.' }
+        game_code_kind: { type: string, enum: ['', nds-gamecode, 3ds-titleid, gba-gamecode, gb-title], description: 'Kind of `game_code`; empty when unknown. `gba-gamecode`: 4-character GBA game code; `gb-title`: Game Boy / Game Boy Color header title (only with a valid header checksum).' }
     SaveSyncReason:
       type: string
       enum: [checkpoint, final, final_session_end, restore, upload]
@@ -2299,3 +2969,180 @@ components:
         users:
           type: array
           items: { $ref: '#/components/schemas/UserInfo' }
+    RunJsonObject:
+      type: object
+      description: An opaque JSON object the Hub stores byte-exact and never interprets.
+      additionalProperties: true
+      x-go-type: json.RawMessage
+    RunStatus:
+      type: string
+      enum: [starting, active, paused, finished, abandoned]
+    RunPluginRef:
+      type: object
+      required: [plugin_id, version]
+      properties:
+        plugin_id: { type: string, pattern: '^[a-z0-9-]+(\.[a-z0-9-]+)+$', maxLength: 128 }
+        version: { type: string, minLength: 1, maxLength: 64 }
+    RunPlugin:
+      type: object
+      required: [plugin_id, version, sha256]
+      properties:
+        plugin_id: { type: string }
+        version: { type: string }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$', description: SHA-256 of the .fbplugin the Hub offered when the run was created }
+    RunParticipant:
+      type: object
+      required: [user_id, user_name, status, game_id, color, states]
+      properties:
+        user_id: { type: string }
+        user_name: { type: string }
+        status: { type: string, enum: [invited, joined, declined, left] }
+        game_id: { type: string, format: uuid, nullable: true, description: Hub library game; set on join }
+        color: { type: integer, minimum: 0, maximum: 7, nullable: true, description: Player colour in join order; null until the first join }
+        states:
+          type: object
+          description: State per plugin id; only plugins that have a row (a missing plugin means state `{}` with revision 0)
+          additionalProperties: { $ref: '#/components/schemas/RunPluginState' }
+    RunPluginState:
+      type: object
+      required: [state, state_rev, updated_at]
+      properties:
+        state: { $ref: '#/components/schemas/RunJsonObject' }
+        state_rev: { type: integer, format: int64, minimum: 1 }
+        updated_at: { type: string, format: date-time }
+    Run:
+      type: object
+      required: [run_id, name, status, created_by, created_at, updated_at, status_by, settings, plugins, participants, last_seq]
+      properties:
+        run_id: { type: string, format: uuid }
+        name: { type: string, minLength: 1, maxLength: 64 }
+        status: { $ref: '#/components/schemas/RunStatus' }
+        created_by: { type: string, description: User id of the creator }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        status_by: { type: string, description: User id (a participant or the Hub admin) who set the last status }
+        settings: { $ref: '#/components/schemas/RunJsonObject' }
+        plugins:
+          type: array
+          minItems: 1
+          maxItems: 8
+          items: { $ref: '#/components/schemas/RunPlugin' }
+        participants:
+          type: array
+          maxItems: 8
+          items: { $ref: '#/components/schemas/RunParticipant' }
+        last_seq: { type: integer, format: int64, minimum: 0 }
+    RunList:
+      type: object
+      required: [runs]
+      properties:
+        runs:
+          type: array
+          items: { $ref: '#/components/schemas/Run' }
+    RunCreateRequest:
+      type: object
+      required: [name, plugins, game_id]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 64 }
+        plugins:
+          type: array
+          minItems: 1
+          maxItems: 8
+          items: { $ref: '#/components/schemas/RunPluginRef' }
+        game_id: { type: string, format: uuid }
+        invite_user_ids:
+          type: array
+          maxItems: 7
+          items: { type: string, minLength: 1, maxLength: 64 }
+        settings: { $ref: '#/components/schemas/RunJsonObject' }
+    RunJoinRequest:
+      type: object
+      required: [game_id]
+      properties:
+        game_id: { type: string, format: uuid }
+    RunInviteRequest:
+      type: object
+      required: [user_ids]
+      properties:
+        user_ids:
+          type: array
+          minItems: 1
+          maxItems: 8
+          items: { type: string, minLength: 1, maxLength: 64 }
+    RunStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [active, paused, finished, abandoned] }
+    RunStateRequest:
+      type: object
+      required: [base_rev, state]
+      properties:
+        base_rev: { type: integer, format: int64, minimum: 0 }
+        state: { $ref: '#/components/schemas/RunJsonObject' }
+    RunStateResponse:
+      type: object
+      required: [state_rev]
+      properties:
+        state_rev: { type: integer, format: int64, minimum: 1 }
+    RunStateConflictError:
+      type: object
+      description: Error body of the state 409. `state_rev` and `state` are present with `state_conflict` and carry the current values.
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { $ref: '#/components/schemas/ErrorCode' }
+            message: { type: string }
+        state_rev: { type: integer, format: int64, minimum: 0 }
+        state: { $ref: '#/components/schemas/RunJsonObject' }
+    RunEvent:
+      type: object
+      required: [seq, created_at, user_id, user_name, device_id, plugin_id, source, type, text, payload, client_id]
+      properties:
+        seq: { type: integer, format: int64, minimum: 1, description: 'Per run, from 1, gapless' }
+        created_at: { type: string, format: date-time }
+        user_id: { type: string, nullable: true, description: null for Hub events (who it is about is in the payload) }
+        user_name: { type: string }
+        device_id: { type: string, nullable: true }
+        plugin_id: { type: string, nullable: true }
+        source: { type: string, enum: [automatic, manual, hub] }
+        type: { type: string, pattern: '^[a-z0-9_.-]{1,64}$', description: 'Hub events: `run.created`, `run.joined`, `run.declined`, `run.invited`, `run.left`, `run.status`' }
+        text: { type: string, maxLength: 280 }
+        payload: { $ref: '#/components/schemas/RunJsonObject' }
+        client_id: { type: string, format: uuid }
+    RunEventRequest:
+      type: object
+      required: [client_id, plugin_id, source, type]
+      properties:
+        client_id: { type: string, format: uuid }
+        plugin_id: { type: string, pattern: '^[a-z0-9-]+(\.[a-z0-9-]+)+$', maxLength: 128 }
+        source: { type: string, enum: [automatic, manual] }
+        type: { type: string, pattern: '^[a-z0-9_.-]{1,64}$' }
+        text: { type: string, maxLength: 280, default: '' }
+        payload: { $ref: '#/components/schemas/RunJsonObject' }
+    RunEventResult:
+      type: object
+      required: [seq]
+      properties:
+        seq: { type: integer, format: int64, minimum: 1 }
+    RunEventList:
+      type: object
+      required: [events, last_seq]
+      properties:
+        events:
+          type: array
+          items: { $ref: '#/components/schemas/RunEvent' }
+        last_seq: { type: integer, format: int64, minimum: 0 }
+    RunBoardRequest:
+      type: object
+      required: [tree]
+      properties:
+        tree: { $ref: '#/components/schemas/RunJsonObject' }
+    RunBoardResult:
+      type: object
+      required: [rev]
+      properties:
+        rev: { type: integer, format: int64, minimum: 1 }

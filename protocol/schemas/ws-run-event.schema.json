@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://framebeam.invalid/schemas/ws-run-event.schema.json",
+  "title": "ws-run-event (Hub to every joined participant's connections, the author's included, and during catch-up after hello; the Player dedups by client_id or seq; feature runs_v1)",
+  "type": "object",
+  "required": [
+    "type",
+    "payload"
+  ],
+  "properties": {
+    "type": {
+      "const": "run_event"
+    },
+    "id": {
+      "type": "string"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "run_id",
+        "event"
+      ],
+      "properties": {
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "event": {
+          "$ref": "ws-run-event-entry.schema.json"
+        }
+      }
+    }
+  }
+}

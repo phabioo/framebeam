@@ -45,7 +45,7 @@ A plugin is a folder with a `manifest.json`, a Lua entry file and optional `i18n
 | `memory.read` | `fb.memory.*`, `fb.dev.watch` | available |
 | `rom.read` | `fb.rom.*` | available |
 | `ui` | `fb.ui.*` and the manifest field `ui` (declarative UI blocks, toasts) | available |
-| `run.state` | per-player run state and run events | **coming in a later package** |
+| `run.state` | `fb.run.*` (per-player run state, run events, run board) | available |
 
 Calling a function without its permission raises the Lua error `permission <p> not granted`. Everything else (`fb.log`, `fb.events`, `fb.provide`/`fb.call`, `fb.cache`, `fb.i18n`, `fb.clock`, `fb.on_tick`) needs no permission.
 
@@ -393,11 +393,54 @@ end)
 
 ### Run state
 
-**Coming in a later package:** run state (`run.state`).
+Permission `run.state`. `fb.run` exists only when the game was started with "Play run" from the Runs screen (a run needs a Hub with `runs_v1`); otherwise it is `nil`, so check `if fb.run then`. The run's plugins are the exact Hub copies pinned by the run, so all participants run the same versions.
+
+| Function | Meaning |
+|---|---|
+| `fb.run.current()` | `{id, name, status, me, settings, plugins = {...}, participants = {{user_id, name, color, status, game_id}, ...}}` from the Player's cache. |
+| `fb.run.state([user_id [, plugin_id]])` / `fb.run.states([plugin_id])` | One participant's state object for a plugin of the run (defaults: the own user and the calling plugin; `nil` if none yet) / table `user_id -> state` for that plugin (default: the calling plugin). Another plugin's state of the same run may be read (read-only), for example state published by another run plugin. Updated live; no network call. |
+| `fb.run.setState(tbl)` | Replaces the calling plugin's state object of the own participant (JSON-able table, at most 64 KiB per plugin). Coalesced per plugin to at most 4 sends per second: the latest value wins. On `409 state_conflict` the Player adopts the Hub revision of that plugin and sends the latest value again. |
+| `fb.run.event{type=, text=, payload=, source=}` | Posts a run event (`type` required, `text` at most 280 characters, `payload` an object of at most 4 KiB, `source` `"automatic"` (default) or `"manual"`). Returns the `client_id` (a UUID); the Player queues the event and retries it idempotently until the Hub confirms it (at most 2 per second). |
+| `fb.run.events(after_seq, limit)` | Events from the local cache, ascending by `seq` (limit 1 to 500, default 100). Missed events are paged from the Hub after a reconnect. |
+| `fb.run.on(kind, fn)` | Callbacks on the plugin thread like ticks (at most 16): `"event"` `fn(event)` (own and other participants' events), `"state"` `fn(user_id, state, plugin_id)` (every plugin's state change, own writes included), `"status"` `fn(status, previous)`, `"participants"` `fn(list)`. |
+| `fb.run.setBoard(tree)` | Sets the plugin's board for the Hub run board. `tree` is checked with the same validator as `fb.ui` blocks (64 KiB at most); at most 1 per second (the latest tree is sent after the pause). |
+
+Rules:
+
+- Writes (`setState`, `event`, `setBoard`) are accepted while the run is `starting` or `active`. In `paused`, `finished` or `abandoned` they are refused locally and return `nil, "message"` instead of raising, so a paused run never pauses the plugin. Reads keep working.
+- Bad arguments (not a table, too large, unknown field) raise a Lua error as everywhere else in the API.
+- Every plugin of the run has its own state object per participant, each with its own revision on the Hub (`PUT /runs/{run_id}/state/{plugin_id}`). `setState` replaces only the calling plugin's object; plugins never overwrite each other's state. The Player keeps the states per (user, plugin) in its run cache.
+- Join and Start dialogs list the library games that every plugin of the run accepts: the system must match a `games` entry of the plugin and, when the entry has `codes`, the Hub's game code (`game_code`, same identity as `fb.game.code`) must match one of the globs (`*`, `?`, case-insensitive). A game whose code the Hub does not know stays selectable after the matching ones with the hint "Game not recognized"; a known code that matches nothing is not listed.
+- The Hub may refuse a write (`403`, `409 run_not_active`, `413`, `429`); the Player drops the value and logs it. Nothing is retried except events (idempotent by `client_id`) and the latest state after a conflict.
+- Saves of a run go to the slot `run-<first 8 hex of the run id>`; the normal save slot of the game is untouched.
+
+## Installing plugins and origins
+
+A plugin reaches the Player in three ways, and the Player always shows where it came from (Settings -> Plugins):
+
+| Origin | Pill | How | Runs |
+|---|---|---|---|
+| `official` | "✓ Official" | signed by the FrameBeam release key, from the Hub, a `.fbplugin` file or the plugin index | always |
+| `unverified` | "! Hub upload · unverified" | unsigned, offered by the Hub (an admin uploaded it) | always; the Player warns before it is turned on |
+| `local` | "Local file" | unsigned `.fbplugin` file or plugin folder on this device | only while Developer mode is on |
+
+- **From the Hub:** "Browse plugins on your Hub" lists what the Hub offers (REST `GET /plugins`, handshake feature `plugins_v1`). Install or Update downloads the file with the SHA-256 from the list as a pin: a file that does not match is rejected and nothing is installed; a network error leaves the previous state. The file is checked like any `.fbplugin` (below) and stored as a Hub copy under `<data>/plugins/hub/<id>/<version>/` (several versions side by side, `origin.json` written by the Player). A new install is turned off. An update that asks for permissions the previous version did not have is turned off.
+- **From a file:** "Install from file..." takes a `.fbplugin` (or a plugin folder). A valid FrameBeam signature makes it Official, otherwise it is Local. It is copied to `<data>/plugins/installed/<id>/`. A SIGNATURE.json or `origin.json` inside a folder is never trusted.
+- **Outside runs** one copy per plugin id is active: a linked developer folder, else the installed file/folder, else the newest Hub copy. A run uses exactly the Hub version of the run (`PluginDelivery::ensureHubCopy(id, version, sha256)` downloads it when missing); a local copy never replaces it.
+
+### `.fbplugin` file
+
+A zip (stored or deflated) with `manifest.json` at the root, the entry file, assets and i18n as in a plugin folder, and an optional `SIGNATURE.json`. Limits, identical in Hub and Player: file <= 32 MiB, sum of unpacked sizes <= 64 MiB, <= 2000 entries; names are relative paths with `/`, no leading `/`, no `\`, no drive letter or `:`, no `.` or `..` or empty segment, <= 255 bytes, no duplicates ignoring case, no symbolic links (directory entries are ignored); `manifest.json` valid, `api` 1, entry file present. Not a valid zip, encrypted entries, zip64 and multi-part archives are rejected.
+
+```json
+{ "format": 1, "files": { "<path>": "<sha256 hex>", ... }, "signature": "<base64 Ed25519 signature>" }
+```
+
+`files` lists exactly every file except `SIGNATURE.json`. The signed message is `"framebeam-plugin-v1\n"` followed by `"<sha256>  <path>\n"` for every file sorted by path (UTF-8 byte order). A signature that does not verify against the trusted key is reported as invalid and never counts as Official.
 
 ## Developer mode
 
-Plugins that are not signed ("Local file") only run while **Developer mode** is on. In Developer mode you can:
+Plugins that are not signed ("Local file") only run while **Developer mode** is on; Official and Hub-offered plugins need no Developer mode. In Developer mode you can:
 
 - install a plugin from a folder (the Player copies it),
 - link a folder (`linkDevFolder`): the plugin runs straight from your folder, and saving a file reloads it after about 300 ms,

@@ -59,7 +59,7 @@ class PluginHotkeysUiTest : public QObject {
              QVariantList{hotkeyPlugin("net.test.a", "SoulLink & Nuzlocke", "official",
                                        {hotkeyDecl("toggle-hud", "Show or hide HUD widget", "Ctrl+H"), hotkeyDecl("team", "Open team", "Ctrl+D"),
                                         hotkeyDecl("reload", "Reload run", "Ctrl+R")}),
-                          hotkeyPlugin("net.test.b", "Item Helper", "hub",
+                          hotkeyPlugin("net.test.b", "Item Helper", "unverified",
                                        {hotkeyDecl("peek", "Peek bag", "Ctrl+H"), hotkeyDecl("fs", "Quick save", "F11"), hotkeyDecl("bag", "Open bag", "F8")})}}};
   }
 

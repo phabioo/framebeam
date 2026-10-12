@@ -10,6 +10,7 @@ framebeam-hub -dev -listen 127.0.0.1:8443 -data-dir /tmp/fb   # development: HTT
 framebeam-hub setup-admin -username <name>     # password as a single line from stdin; refused if an admin already exists
 framebeam-hub renew-cert [-data-dir <dir>]     # renew the self-generated certificate now (refused with own cert/key)
 framebeam-hub import-cores <dir>               # import libretro buildbot core zips offline
+framebeam-hub import-plugins <dir>             # offer every *.fbplugin file of a folder to Players (offline, see "Plugins")
 framebeam-hub diagnostics <out.zip>            # write the diagnostics bundle without the web interface (see "Diagnostics bundle")
 framebeam-hub version [--json]                 # version info
 framebeam-hub update check|stage [-channel stable|beta]   # see updates.md
@@ -50,6 +51,7 @@ A flag wins over the environment variable. Under systemd the variables live in `
 | `-core-index-url` | `FRAMEBEAM_HUB_CORE_INDEX_URL` | none | Deprecated and ignored since 0.8 (the signed core index was retired) |
 | `-core-trust-key` | `FRAMEBEAM_HUB_CORE_TRUST_KEYS` | none | Extra trusted Ed25519 public key (base64) for the updates index only (cores are not signed); flag repeatable, env comma-separated |
 | `-update-index-url` | `FRAMEBEAM_HUB_UPDATE_INDEX_URL` | FrameBeam's `updates-index` release | Signed updates index (https, or `file://` for tests) |
+| `-plugin-index-url` | `FRAMEBEAM_PLUGIN_INDEX_URL` | FrameBeam's `plugin-index` release | Signed plugin index `plugin-index.json` (+ `.sig` next to it), https or `file://`; `none` (or empty) turns the index off for offline Hubs, the Plugins page then has no catalog. Checked at start, every 24 h and with "Check now"; a failure is shown on the page and never stops the Hub. Trusted keys are the same as for the updates index (`-core-trust-key`) |
 | `-update-request-dir` | `FRAMEBEAM_HUB_UPDATE_REQUEST_DIR` | `/run/framebeam` | Directory of the update request file read by the root helper |
 
 `0` for a `-save-keep-*` rule means unlimited for that rule. Invalid combinations (for example `-turn` without `-public-host`, a `-public-host` that is not `host[:port]` (scheme, path, spaces, port outside 1 to 65535, IPv6 without brackets), a non-`stun:` ICE URL, a non-IPv4 `-turn-relay-ip`) stop the start with an error.
@@ -127,6 +129,10 @@ The certificate's SHA-256 fingerprint is printed to the log at startup (`journal
 - A renewed certificate has a new fingerprint, which Players must confirm ([ADR 0009](../adr/0009-finish-poc.md)); see [player.md](player.md).
 - On a systemd install do not call `framebeam-hub renew-cert` directly: another user or `-data-dir` renews a different certificate, and root would create files the service cannot read. Use `install-hub.sh renew-cert`.
 
+## Resumable ROM uploads
+
+Players and the web Library upload ROMs in chunks (Player up to 64 MiB, web 8 MiB). Unfinished uploads are kept in `<data>/tmp/uploads/<id>` and removed after 7 days without activity; at most 16 open uploads per user, 4 GiB per file. Reading one chunk has its own deadline (15 minutes); the old one-shot upload routes may take up to 2 hours. No flag configures these values. See [local ROMs](local-roms.md).
+
 ## Core packages
 
 The Hub downloads cores RetroArch-style from the libretro buildbot (nightly channel) and serves them to Players; Players never contact the buildbot. The catalog comes from the libretro core info archive (`info.zip`) and the buildbot's `.index-extended`; it is refreshed at start, every 24 h and on "Check source now" on Systems & Cores. Installing a core is always an admin action. With "Automatic updates" (On by default, toggle in the source panel of Systems & Cores) the Hub updates every installed core that has a newer build after each catalog refresh; turning it on triggers a check. A failing core does not stop the others, and the last auto-update error is shown on Systems & Cores. When off, updates are manual (see below).
@@ -139,6 +145,16 @@ The Hub downloads cores RetroArch-style from the libretro buildbot (nightly chan
 - Hubs upgraded from 0.7: packages from the retired signed source (origin `framebeam`, e.g. `melonds_ds`) are removed on start (database rows and stored files; one info log line per core; saves are untouched). A removed default core is replaced by another installed core of the system, else the system has no core and the Systems page asks the admin to install one from the libretro buildbot (`import-cores` on an offline Hub). Players cannot start games of a system without a core.
 
 Details: [ADR 0020](../adr/0020-cores-from-the-libretro-buildbot.md).
+
+## Plugins
+
+Plugins (0.11, [ADR 0023](../adr/0023-plugins.md)) are `.fbplugin` files (zip with `manifest.json`, Lua code and assets, at most 32 MiB packed, 64 MiB unpacked, 2000 entries; optional `SIGNATURE.json`). The Hub stores them under `<data-dir>/plugins/<plugin_id>/<version>.fbplugin` (metadata in the database) and offers every stored version to all Players (`GET /api/v1/plugins`, handshake feature `plugins_v1`). The Hub never runs plugin code.
+
+- Origin: `official` when `SIGNATURE.json` lists exactly the files of the zip and carries a valid Ed25519 signature of a trusted key (the FrameBeam release key plus `-core-trust-key`); otherwise `unverified` (a present but invalid signature is reported as such and never counts as official).
+- Plugins page (admin): table of the offered versions, detail with permissions, download and remove. Upload shows name, version, origin and one tick per requested permission; "Offer to Players" works only with every tick set (checked on the server). The same id and version with a different file is refused; remove the old version first. Removal keeps the copies Players already installed and is refused (409) while a run that is not finished or abandoned uses the version.
+- Official catalog: the page lists the signed official plugin index (default, `-plugin-index-url`; `none` disables it) with Install / Update. Install downloads the file, checks size and SHA-256 against the signed index and the embedded signature against the trusted keys, and stores it as `official` (source `index`).
+- Offline: `framebeam-hub import-plugins <dir>` offers every `*.fbplugin` file directly in `<dir>` (source `import`; running the command is the confirmation of the permissions; unsigned files become `unverified`). Run it as the service user with the service's `-data-dir`.
+- Publishing (see [plugin-publishing.md](plugin-publishing.md)): `framebeam-sign plugin-sign -in x.fbplugin -out signed.fbplugin` (seed from `FRAMEBEAM_SIGNING_KEY`), `framebeam-sign plugin-add -index plugin-index.json -plugin signed.fbplugin -url https://.../signed.fbplugin` (refuses unsigned plugins), then `framebeam-sign sign -index plugin-index.json` writes `plugin-index.json.sig`.
 
 ## Windows
 
