@@ -13,6 +13,7 @@ Start with the [root README](../README.md) for what FrameBeam is and a quick sta
 - [Updates and releases](guides/updates.md): channels, automatic updates, promoting a beta to a release, rollback
 - [Packaging](guides/packaging.md): Windows installer, Hub package
 - [Walkthrough](guides/walkthrough.md): try the main features
+- [Local ROMs](guides/local-roms.md): library folders, upload to the Hub, what others see
 - [Plugin API](guides/plugin-api.md): Lua API for Player plugins (0.11 runtime), developer mode
 - [Publishing an official plugin](guides/plugin-publishing.md): sign a `.fbplugin`, add it to the plugin index
 
@@ -53,7 +54,8 @@ Start with the [root README](../README.md) for what FrameBeam is and a quick sta
   [0020 cores from the libretro buildbot](adr/0020-cores-from-the-libretro-buildbot.md),
   [0021 one Windows installer](adr/0021-one-windows-installer.md),
   [0022 Nintendo 3DS with Azahar](adr/0022-nintendo-3ds-with-azahar.md),
-  [0023 plugins](adr/0023-plugins.md)
+  [0023 plugins](adr/0023-plugins.md),
+  [0025 local ROMs](adr/0025-local-roms.md)
 
 ## Conventions
 

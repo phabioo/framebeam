@@ -31,3 +31,7 @@ Server save ──────────────────────�
 ```
 
 ROMs are not read over a network file system during emulation. Repeated launches of a cached ROM need no further ROM transfer. Cache limit, cleanup and download error handling are still to be defined.
+
+### Local ROMs and resumable upload (0.12)
+
+Step 2 and 3 above are extended by [ADR 0025](../adr/0025-local-roms.md): the Player first looks for a local file of any ROM of the game in its library folders (hash cache by path + size + mtime) and starts it from there; then the ROM cache; then a download when the game has a file stored on the Hub. Files are registered with `POST /api/v1/games/register`; a game with no stored file is visible only to the users who registered one. Uploads to the Hub are resumable (`/api/v1/uploads`, 64 MiB chunks, persisted SHA-256 state, sessions expire after 7 idle days). There is no ROM transfer between Players.

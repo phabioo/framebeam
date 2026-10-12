@@ -129,6 +129,10 @@ The certificate's SHA-256 fingerprint is printed to the log at startup (`journal
 - A renewed certificate has a new fingerprint, which Players must confirm ([ADR 0009](../adr/0009-finish-poc.md)); see [player.md](player.md).
 - On a systemd install do not call `framebeam-hub renew-cert` directly: another user or `-data-dir` renews a different certificate, and root would create files the service cannot read. Use `install-hub.sh renew-cert`.
 
+## Resumable ROM uploads
+
+Players and the web Library upload ROMs in chunks (Player up to 64 MiB, web 8 MiB). Unfinished uploads are kept in `<data>/tmp/uploads/<id>` and removed after 7 days without activity; at most 16 open uploads per user, 4 GiB per file. Reading one chunk has its own deadline (15 minutes); the old one-shot upload routes may take up to 2 hours. No flag configures these values. See [local ROMs](local-roms.md).
+
 ## Core packages
 
 The Hub downloads cores RetroArch-style from the libretro buildbot (nightly channel) and serves them to Players; Players never contact the buildbot. The catalog comes from the libretro core info archive (`info.zip`) and the buildbot's `.index-extended`; it is refreshed at start, every 24 h and on "Check source now" on Systems & Cores. Installing a core is always an admin action. With "Automatic updates" (On by default, toggle in the source panel of Systems & Cores) the Hub updates every installed core that has a newer build after each catalog refresh; turning it on triggers a check. A failing core does not stop the others, and the last auto-update error is shown on Systems & Cores. When off, updates are manual (see below).
