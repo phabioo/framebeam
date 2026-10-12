@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/phabioo/framebeam/server/internal/config"
+	"github.com/phabioo/framebeam/server/internal/diag"
 	"github.com/phabioo/framebeam/server/internal/hub"
 	"github.com/phabioo/framebeam/server/internal/tlsutil"
 	"github.com/phabioo/framebeam/server/internal/turnsrv"
@@ -58,6 +59,7 @@ var settingsSections = []struct{ ID, Title, Subtitle string }{
 	{"general", "General", "How the hub appears to Players and users"},
 	{"network", "Network", "Ports, public address and relay for Players outside your network"},
 	{"security", "Security", "Transport, certificate and the admin account"},
+	{"diagnostics", "Diagnostics", "One file with logs and settings to hand over when something does not work"},
 }
 
 // settingsFlash holds the success texts of the settings pages that are not in the shared flash table.
@@ -337,6 +339,8 @@ func (s *Server) settingsNav(current string, st hub.UpdateStatus, updErr error, 
 			if len(nb.Pending) > 0 {
 				it.Status, it.Level = "Restart required", "warn"
 			}
+		case "diagnostics":
+			it.Status = "Download bundle"
 		case "security":
 			if s.cfg.UseTLS {
 				it.Status, it.Level = "HTTPS active · admin", "ok"
@@ -865,5 +869,26 @@ func turnForwards(listen string, st turnsrv.Status) []string {
 		"TCP " + hubPort + " (Hub, HTTPS/WSS)",
 		fmt.Sprintf("UDP and TCP %d (STUN/TURN)", st.Port),
 		fmt.Sprintf("UDP %d-%d (relay)", st.RelayMin, st.RelayMax),
+	}
+}
+
+// settingsDiagBundle streams the diagnostics bundle (zip). POST with CSRF token like every action; the response is
+// a download, so the form is a plain browser form, not an htmx swap.
+func (s *Server) settingsDiagBundle(w http.ResponseWriter, r *http.Request, sess *session) {
+	o := diag.Options{Config: s.cfg.Net.Running}
+	info, err := diag.Collect(r.Context(), s.svc, o)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	name := diag.FileName(time.Now())
+	h := w.Header()
+	h.Set("Content-Type", "application/zip")
+	h.Set("Content-Disposition", `attachment; filename="`+name+`"`)
+	h.Set("Cache-Control", "no-store")
+	s.log.Info("diagnostics bundle downloaded", "file", name, "user", sess.User.Username)
+	if err := diag.Write(r.Context(), w, info, o); err != nil {
+		// The status line is gone; the client sees a truncated zip.
+		s.log.Warn("diagnostics bundle aborted", "err", err)
 	}
 }

@@ -48,6 +48,33 @@ type cloudflareState struct {
 	mu         sync.RWMutex
 	stun       []string
 	creds      *turnsrv.Credentials
+	keyID      string
+	lastAt     time.Time // last refresh attempt (zero: none yet)
+	lastErr    string    // empty: the last attempt succeeded
+}
+
+// CloudflareStatus is the Cloudflare TURN state for diagnostics. It never holds the API token.
+type CloudflareStatus struct {
+	Configured  bool
+	KeyID       string // as configured; the caller shortens it
+	LastAttempt time.Time
+	LastError   string // empty: ok
+}
+
+// CloudflareStatus reports whether the Cloudflare TURN provider runs and how its last credential refresh ended.
+func (s *Service) CloudflareStatus() CloudflareStatus {
+	s.cf.mu.RLock()
+	defer s.cf.mu.RUnlock()
+	return CloudflareStatus{Configured: s.cf.configured.Load(), KeyID: s.cf.keyID, LastAttempt: s.cf.lastAt, LastError: s.cf.lastErr}
+}
+
+func (c *cloudflareState) record(at time.Time, err error) {
+	c.mu.Lock()
+	c.lastAt, c.lastErr = at, ""
+	if err != nil {
+		c.lastErr = err.Error()
+	}
+	c.mu.Unlock()
 }
 
 // current returns copies of the cached STUN URLs and credentials (nil while there are none).
@@ -89,6 +116,9 @@ func (s *Service) StartCloudflareTURN(ctx context.Context, o CloudflareTURNOptio
 	if o.RetryMax < o.RetryMin {
 		o.RetryMax = max(10*time.Minute, o.RetryMin)
 	}
+	s.cf.mu.Lock()
+	s.cf.keyID = o.KeyID
+	s.cf.mu.Unlock()
 	s.cf.configured.Store(true)
 	go func() {
 		defer s.cf.configured.Store(false)
@@ -101,6 +131,9 @@ func (s *Service) cloudflareLoop(ctx context.Context, o CloudflareTURNOptions) {
 	for {
 		var wait time.Duration
 		stun, creds, err := fetchCloudflare(ctx, o, s.now())
+		if ctx.Err() == nil {
+			s.cf.record(s.now(), err)
+		}
 		switch {
 		case ctx.Err() != nil:
 			return

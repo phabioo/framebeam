@@ -69,6 +69,7 @@ class HubConnection : public QObject {
   QList<HandshakeProblem> handshakeProblems() const { return problems_; }
   // Feature flags advertised by the hub in the handshake (e.g. "saves_v1"); empty until Connected.
   bool hubHasFeature(const QString& feature) const { return features_.contains(feature); }
+  QStringList hubFeatures() const { return features_; }
   QString hubId() const { return hubInfo_.hubId; }
   QString hubUserId() const { return profile_ ? profile_->hubUserId : QString(); }
   QString userDisplayName() const { return profile_ ? profile_->userDisplayName : QString(); }

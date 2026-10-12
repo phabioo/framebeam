@@ -33,6 +33,9 @@ class VideoEncoder {
 
   // Preference per ADR 0006 D5.
   static QStringList preferredEncoders();
+  // Of the default candidates (h264_nvenc, h264_qsv, h264_amf, libopenh264, libx264) the ones this FFmpeg build contains.
+  // Present does not mean the hardware works; the encoder actually opened is reported by the Session (diagnostics).
+  static QStringList availableEncoders();
 
   // ADR 0019: GPU-direct input is configured: FRAMEBEAM_DISABLE_GPU_ENCODE != "1" and FRAMEBEAM_H264_ENCODER unset (a
   // forced encoder, also h264_nvenc, keeps the readback path so both paths can be compared). *why: reason when false,

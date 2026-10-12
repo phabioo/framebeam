@@ -6,10 +6,13 @@
 #include <QDesktopServices>
 #include <QDir>
 #include <QFutureWatcher>
+#include <QJsonArray>
+#include <QStandardPaths>
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QLocale>
 #include <QPalette>
+#include <QProcess>
 #include <QRegularExpression>
 #include <QScopeGuard>
 #include <QStyleHints>
@@ -21,6 +24,8 @@
 #include <utility>
 
 #include "core_options.h"
+#include "diagbundle.h"
+#include "videoencoder.h"
 #include "filelog.h"
 #include "firmware_materializer.h"
 #include "installroot.h"
@@ -473,6 +478,103 @@ QString PlayerController::platformText() const {
 void PlayerController::openLogFolder() {
   const QString p = filelog::path();
   if (!p.isEmpty()) QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(p).absolutePath()));
+}
+
+// ---- Collect logs ----
+
+namespace {
+QString localPathOf(const QString& pathOrUrl) {
+  const QUrl u(pathOrUrl);
+  return u.isLocalFile() ? u.toLocalFile() : pathOrUrl;
+}
+}  // namespace
+
+QString PlayerController::diagnosticsFileName() const { return diag::fileName(QDateTime::currentDateTimeUtc()); }
+
+QString PlayerController::diagnosticsFolderUrl() const {
+  for (const auto loc : {QStandardPaths::DesktopLocation, QStandardPaths::DownloadLocation, QStandardPaths::HomeLocation}) {
+    const QString dir = QStandardPaths::writableLocation(loc);
+    if (!dir.isEmpty() && QFileInfo(dir).isDir()) return QUrl::fromLocalFile(dir).toString();
+  }
+  return {};
+}
+
+QJsonObject PlayerController::diagnosticsInfo() const {
+  QJsonObject info = diag::offlineInfo(profiles_->baseDir());
+  info.insert(QStringLiteral("mode"), QStringLiteral("running"));
+
+  // Hubs: saved profiles; the connected one with its handshake data. No tokens, no credential references.
+  QJsonArray hubs;
+  const bool connected = conn_->state() == HubConnection::State::Connected;
+  for (const HubProfile& p : profiles_->profiles()) {
+    const bool current = connected && conn_->hubId() == p.hubId;
+    QJsonArray features;
+    if (current) {
+      for (const QString& f : conn_->hubFeatures()) features.append(f);
+    }
+    hubs.append(QJsonObject{{QStringLiteral("name"), p.name},
+                            {QStringLiteral("address"), p.address},
+                            {QStringLiteral("hub_version"), current ? conn_->hubInfo().hubVersion : QString()},
+                            {QStringLiteral("connected"), current},
+                            {QStringLiteral("last_connected"), p.lastConnected.isValid() ? p.lastConnected.toUTC().toString(Qt::ISODate) : QString()},
+                            {QStringLiteral("features"), features}});
+  }
+  info.insert(QStringLiteral("hubs"), hubs);
+
+  QJsonObject emu = info.value(QStringLiteral("emulation")).toObject();
+  QJsonArray cores;
+  for (const CoreInfo& c : coreList_) cores.append(QJsonObject{{QStringLiteral("core"), c.id}, {QStringLiteral("version"), c.version}});
+  if (!cores.isEmpty()) emu.insert(QStringLiteral("cores"), cores);
+  info.insert(QStringLiteral("emulation"), emu);
+
+  QJsonObject media = info.value(QStringLiteral("media")).toObject();
+  QJsonArray enc;
+  for (const QString& e : VideoEncoder::availableEncoders()) enc.append(e);
+  media.insert(QStringLiteral("encoders_available"), enc);
+  media.insert(QStringLiteral("encoder_last_chosen"), sessions_ ? sessions_->host()->encoderName() : QString());
+  info.insert(QStringLiteral("media"), media);
+
+  QJsonArray pads;
+  if (controllers_) {
+    for (const QVariant& v : controllers_->devices()) {
+      const QVariantMap m = v.toMap();
+      pads.append(QJsonObject{{QStringLiteral("name"), m.value(QStringLiteral("name")).toString()},
+                              {QStringLiteral("kind"), m.value(QStringLiteral("kind")).toString()}});
+    }
+  }
+  info.insert(QStringLiteral("controllers"), QJsonObject{{QStringLiteral("connected"), pads}});
+  return info;
+}
+
+void PlayerController::collectDiagnostics(const QString& pathOrUrl) {
+  const QString out = localPathOf(pathOrUrl);
+  if (collectingDiagnostics_ || out.isEmpty()) return;
+  collectingDiagnostics_ = true;
+  emit collectingDiagnosticsChanged();
+  const QJsonObject info = diagnosticsInfo();
+  const QString dataDir = profiles_->baseDir();
+  auto* watcher = new QFutureWatcher<QString>(this);
+  connect(watcher, &QFutureWatcher<QString>::finished, this, [this, watcher, out]() {
+    const QString err = watcher->result();
+    watcher->deleteLater();
+    collectingDiagnostics_ = false;
+    emit collectingDiagnosticsChanged();
+    emit diagnosticsCollected(err.isEmpty(), out, err);
+  });
+  watcher->setFuture(QtConcurrent::run([info, dataDir, out]() {
+    QString err;
+    return diag::writeBundle(out, info, dataDir, {}, &err) ? QString() : (err.isEmpty() ? QStringLiteral("unknown error") : err);
+  }));
+}
+
+void PlayerController::showInFolder(const QString& pathOrUrl) {
+  const QString p = localPathOf(pathOrUrl);
+  if (p.isEmpty()) return;
+#ifdef Q_OS_WIN
+  QProcess::startDetached(QStringLiteral("explorer.exe"), {QStringLiteral("/select,"), QDir::toNativeSeparators(p)});
+#else
+  QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(p).absolutePath()));
+#endif
 }
 
 bool PlayerController::sessionBusy() const {

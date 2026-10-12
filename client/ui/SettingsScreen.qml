@@ -10,6 +10,8 @@ Rectangle {
     required property PlayerController player
     readonly property var updates: root.player.updates
     property string currentSection: "updates"
+    property string collectMessage: ""
+    property string collectedPath: ""
     property string editingHubId: ""
     color: Theme.bg
 
@@ -763,6 +765,57 @@ Rectangle {
                         Timer { id: copied; interval: 1500 }
                     }
                     TextEdit { id: clip; visible: false }
+                    SettingsRow {
+                        objectName: "collectLogsRow"
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        resetMode: "none"
+                        label: qsTr("Collect logs")
+                        descriptionName: "collectLogsStatus"
+                        description: root.collectMessage !== "" ? root.collectMessage
+                            : root.player.collectingDiagnostics ? qsTr("Collecting…")
+                            : qsTr("Packs the logs and system information into one zip file to send along with a bug report. Contains IP addresses and host names, no passwords or tokens.")
+                        ctrl: "buttons"
+                        buttons: [
+                            { name: "collectLogs", text: qsTr("Collect logs…"), visible: !root.player.collectingDiagnostics },
+                            { name: "collectShow", text: qsTr("Show in folder"), visible: root.collectedPath !== "" }
+                        ]
+                        onButtonClicked: name => {
+                            if (name === "collectLogs") {
+                                collectDialog.open()
+                            } else if (name === "collectShow") {
+                                root.player.showInFolder(root.collectedPath)
+                            }
+                        }
+                    }
+                    Loader {
+                        id: collectDialog
+                        active: false
+                        source: "CollectLogsDialog.qml"
+                        function open() {
+                            if (item) {
+                                item.prepare()
+                                item.open()
+                            } else {
+                                active = true
+                            }
+                        }
+                        onLoaded: {
+                            item.player = root.player
+                            item.prepare()
+                            item.open()
+                        }
+                        onStatusChanged: if (status === Loader.Error) {
+                            root.collectMessage = qsTr("The file dialog is not available in this installation.")
+                        }
+                    }
+                    Connections {
+                        target: root.player
+                        function onDiagnosticsCollected(ok, path, message) {
+                            root.collectedPath = ok ? path : ""
+                            root.collectMessage = ok ? qsTr("Saved %1").arg(path) : qsTr("Could not save the bundle: %1").arg(message)
+                        }
+                    }
                 }
             }
         }
