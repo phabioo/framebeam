@@ -11,6 +11,7 @@
 <script src="/static/app.js" defer></script>
 <script src="/static/settings.js" defer></script>
 <script src="/static/invite.js" defer></script>
+<script src="/static/plugins.js" defer></script>
 </head>
 {{end}}
 {{define "flash"}}{{if .Flash}}<div class="alert ok" role="status">{{.Flash}}</div>{{end}}{{if .Error}}<div class="alert error" role="alert">{{.Error}}</div>{{end}}{{end}}
@@ -25,6 +26,7 @@
       <a href="/systems"{{if eq .Nav "systems"}} class="active" aria-current="page"{{end}} hx-get="/systems" hx-target="#main" hx-push-url="true">Systems &amp; Cores{{if .Firmware}}<span class="badge error">{{.Firmware}} {{if eq .Firmware 1}}issue{{else}}issues{{end}}</span>{{end}}</a>
       <a href="/clients"{{if eq .Nav "clients"}} class="active" aria-current="page"{{end}} hx-get="/clients" hx-target="#main" hx-push-url="true">Clients{{if .Pending}}<span class="badge">{{.Pending}} {{if eq .Pending 1}}request{{else}}requests{{end}}</span>{{end}}</a>
       <a href="/users"{{if eq .Nav "users"}} class="active" aria-current="page"{{end}} hx-get="/users" hx-target="#main" hx-push-url="true">Users</a>
+      <a href="/plugins"{{if eq .Nav "plugins"}} class="active" aria-current="page"{{end}} hx-get="/plugins" hx-target="#main" hx-push-url="true">Plugins</a>
       <a href="/settings"{{if eq .Nav "settings"}} class="active" aria-current="page"{{end}} hx-get="/settings" hx-target="#main" hx-push-url="true">Settings{{if .UpdateAvailable}}<span class="badge">update</span>{{end}}</a>
 {{end}}
 {{define "nav"}}    <nav class="nav" id="nav" aria-label="Main navigation" hx-get="/nav-fragment" hx-trigger="fb:badges from:body" hx-target="this" hx-swap="outerHTML" hx-disinherit="hx-swap hx-target">{{template "nav-inner" .}}    </nav>{{end}}

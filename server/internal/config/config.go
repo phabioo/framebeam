@@ -55,6 +55,8 @@ type Config struct {
 	CoreTrustKeys []string
 	// UpdateIndexURL is the signed updates index (default updates.DefaultIndexURL; https or file://).
 	UpdateIndexURL string
+	// PluginIndexURL is the signed plugin index (https or file://); empty = no index (the default).
+	PluginIndexURL string
 	// UpdateRequestDir is where the update request file is created (default /run/framebeam; Windows <data-dir>\update-request).
 	UpdateRequestDir string
 	// SaveKeepRecent, SaveKeepDaily, SaveKeepWeekly are the save history retention rules (ADR 0012 D7):
@@ -284,6 +286,12 @@ func register(fs *flag.FlagSet, getenv func(string) string, goos string) *Config
 		}
 		return updates.DefaultIndexURL
 	}(), "URL of the signed updates index, https or file:// (FRAMEBEAM_HUB_UPDATE_INDEX_URL)")
+	fs.StringVar(&c.PluginIndexURL, "plugin-index-url", func() string {
+		if v := getenv("FRAMEBEAM_PLUGIN_INDEX_URL"); v != "" {
+			return v
+		}
+		return getenv("FRAMEBEAM_HUB_PLUGIN_INDEX_URL")
+	}(), "URL of the signed plugin index, https or file://; empty = no index (FRAMEBEAM_PLUGIN_INDEX_URL)")
 	intEnv := func(key string, def int) int {
 		if n, err := strconv.Atoi(strings.TrimSpace(getenv("FRAMEBEAM_" + key))); err == nil {
 			return n
@@ -388,6 +396,11 @@ func (c *Config) Validate() error {
 	}
 	if err := updates.ValidateIndexURL(c.UpdateIndexURL); err != nil {
 		return fmt.Errorf("update-index-url: %w", err)
+	}
+	if c.PluginIndexURL != "" {
+		if err := updates.ValidateIndexURL(c.PluginIndexURL); err != nil {
+			return fmt.Errorf("plugin-index-url: %w", err)
+		}
 	}
 	if c.SaveKeepRecent < 0 || c.SaveKeepDaily < 0 || c.SaveKeepWeekly < 0 {
 		return errors.New("save-keep-recent, save-keep-daily and save-keep-weekly must not be negative")
