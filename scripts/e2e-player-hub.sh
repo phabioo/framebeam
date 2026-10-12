@@ -64,7 +64,7 @@ printf '%s\n' "$PW" | "$TMP/framebeam-hub" setup-admin -username admin >"$TMP/se
 ok "core: import-cores"
 PORT="$(python3 -c 'import socket;s=socket.socket();s.bind(("127.0.0.1",0));print(s.getsockname()[1])')"
 ADDR="127.0.0.1:$PORT"
-"$TMP/framebeam-hub" -listen "$ADDR" -core-buildbot-url "https://127.0.0.1:1/nightly" >"$TMP/hub.log" 2>&1 &
+"$TMP/framebeam-hub" -listen "$ADDR" -plugin-index-url none -core-buildbot-url "https://127.0.0.1:1/nightly" >"$TMP/hub.log" 2>&1 &
 HUB_PID=$!
 wait_for 15 curl -fsk "https://$ADDR/.well-known/framebeam" || die "hub start" "$TMP/hub.log"
 ok "hub start $ADDR"

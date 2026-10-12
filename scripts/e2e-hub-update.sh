@@ -119,6 +119,7 @@ $SUDO install -m 0644 "$WORK/updates-index.json" "$WORK/updates-index.json.sig" 
 {
   echo "FRAMEBEAM_HUB_UPDATE_INDEX_URL=file://$SHARE/updates-index.json"
   echo "FRAMEBEAM_HUB_CORE_TRUST_KEYS=$PUB"
+  echo "FRAMEBEAM_PLUGIN_INDEX_URL=none"
 } | $SUDO tee -a /etc/framebeam/hub.env >/dev/null
 $SUDO systemctl restart framebeam-hub
 wait_api || fail "Hub does not answer after the restart with the update settings"

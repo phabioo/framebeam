@@ -96,7 +96,7 @@ func openService(ctx context.Context, cfg *config.Config) (*hub.Service, func(),
 	svc, err := hub.Open(ctx, db, hub.Options{DataDir: cfg.DataDir, Name: cfg.Name, HubVersion: version.String(), ICEServers: cfg.ICEServers,
 		CoreBuildbotURL: cfg.CoreBuildbotURL, CoreInfoURL: cfg.CoreInfoURL, CoreTrustKeys: keys,
 		SaveKeepRecent: cfg.SaveKeepRecent, SaveKeepDaily: cfg.SaveKeepDaily, SaveKeepWeekly: cfg.SaveKeepWeekly,
-		UpdateIndexURL: cfg.UpdateIndexURL, PluginIndexURL: cfg.PluginIndexURL, UpdateRequestDir: cfg.UpdateRequestDir, UpdateChannel: version.Channel})
+		UpdateIndexURL: cfg.UpdateIndexURL, PluginIndexURL: cfg.PluginIndex(), UpdateRequestDir: cfg.UpdateRequestDir, UpdateChannel: version.Channel})
 	if err != nil {
 		db.Close()
 		return nil, nil, err
@@ -546,7 +546,7 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		})
 	}()
 
-	// Plugin index: in the background like the core sync, never blocks or fails startup; no URL = no index.
+	// Plugin index: in the background like the core sync, never blocks or fails startup; "none" = no index.
 	plugDone := make(chan struct{})
 	go func() {
 		defer close(plugDone)

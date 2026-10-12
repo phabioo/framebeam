@@ -55,7 +55,8 @@ type Config struct {
 	CoreTrustKeys []string
 	// UpdateIndexURL is the signed updates index (default updates.DefaultIndexURL; https or file://).
 	UpdateIndexURL string
-	// PluginIndexURL is the signed plugin index (https or file://); empty = no index (the default).
+	// PluginIndexURL is the signed plugin index (default updates.DefaultPluginIndexURL; https or file://); "none" or
+	// empty = no index (offline Hubs). Use PluginIndex for the effective value.
 	PluginIndexURL string
 	// UpdateRequestDir is where the update request file is created (default /run/framebeam; Windows <data-dir>\update-request).
 	UpdateRequestDir string
@@ -290,8 +291,11 @@ func register(fs *flag.FlagSet, getenv func(string) string, goos string) *Config
 		if v := getenv("FRAMEBEAM_PLUGIN_INDEX_URL"); v != "" {
 			return v
 		}
-		return getenv("FRAMEBEAM_HUB_PLUGIN_INDEX_URL")
-	}(), "URL of the signed plugin index, https or file://; empty = no index (FRAMEBEAM_PLUGIN_INDEX_URL)")
+		if v := getenv("FRAMEBEAM_HUB_PLUGIN_INDEX_URL"); v != "" {
+			return v
+		}
+		return updates.DefaultPluginIndexURL
+	}(), "URL of the signed plugin index, https or file://; none = no index, for offline Hubs (FRAMEBEAM_PLUGIN_INDEX_URL)")
 	intEnv := func(key string, def int) int {
 		if n, err := strconv.Atoi(strings.TrimSpace(getenv("FRAMEBEAM_" + key))); err == nil {
 			return n
@@ -327,6 +331,15 @@ func register(fs *flag.FlagSet, getenv func(string) string, goos string) *Config
 	fs.StringVar(&c.TURNRelayPorts, "turn-relay-ports", env("TURN_RELAY_PORTS", DefaultTURNRelayPorts), "TURN UDP relay port range min-max (FRAMEBEAM_TURN_RELAY_PORTS)")
 	fs.StringVar(&c.TURNRelayIP, "turn-relay-ip", env("TURN_RELAY_IP", ""), "fixed public IPv4 for relayed addresses instead of resolving -public-host (FRAMEBEAM_TURN_RELAY_IP)")
 	return c
+}
+
+// PluginIndex returns the effective plugin index URL: empty when the index is disabled ("none" or empty).
+func (c *Config) PluginIndex() string {
+	u := strings.TrimSpace(c.PluginIndexURL)
+	if strings.EqualFold(u, "none") {
+		return ""
+	}
+	return u
 }
 
 // ImportDir returns the library import folder: the configured one, else <data-dir>/library-import.
@@ -397,8 +410,8 @@ func (c *Config) Validate() error {
 	if err := updates.ValidateIndexURL(c.UpdateIndexURL); err != nil {
 		return fmt.Errorf("update-index-url: %w", err)
 	}
-	if c.PluginIndexURL != "" {
-		if err := updates.ValidateIndexURL(c.PluginIndexURL); err != nil {
+	if u := c.PluginIndex(); u != "" {
+		if err := updates.ValidateIndexURL(u); err != nil {
 			return fmt.Errorf("plugin-index-url: %w", err)
 		}
 	}
