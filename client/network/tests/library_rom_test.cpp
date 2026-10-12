@@ -211,9 +211,12 @@ class LibraryRomTest : public QObject {
       QVERIFY(f.open(QIODevice::ReadWrite));
       f.seek(100);
       f.write("X");  // same size, different content
+      QVERIFY(f.flush());  // else the buffered write lands on close and resets the mtime set below
       f.setFileTime(QDateTime::currentDateTime().addSecs(30), QFileDevice::FileModificationTime);
     }
-    QVERIFY(dl_->status(g).state == RomState::Validating);  // hashing runs off-thread
+    // Hashing runs off-thread and may already be done here, so Validating is not asserted.
+    // The invariant: the changed file is never reported as Ready, neither now nor later.
+    QVERIFY(dl_->status(g).state != RomState::Ready);
     QVERIFY(waitNotValidating(g));
     QVERIFY(dl_->status(g).state == RomState::DownloadNeeded);
     QVERIFY(!QFile::exists(path));
@@ -244,6 +247,7 @@ class LibraryRomTest : public QObject {
       QVERIFY(f.open(QIODevice::ReadWrite));
       f.seek(5);
       f.write("X");
+      QVERIFY(f.flush());
       f.setFileTime(QDateTime::currentDateTime().addSecs(30), QFileDevice::FileModificationTime);
     }
     dl_->ensureRom(g);

@@ -1,6 +1,7 @@
 #include "fakehub.h"
 
 #include <QCryptographicHash>
+#include <QDeadlineTimer>
 
 #include <QFile>
 #include <QFileInfo>
@@ -120,6 +121,7 @@ void FakeHub::incomingConnection(qintptr descriptor) {
     }
     req.body = buffer->mid(headEnd + 4, static_cast<qsizetype>(len));
     buffer->clear();
+    req.arrivalMs = QDeadlineTimer::current().deadlineNSecs() / 1000000;
     requests.append(req);
     handle(sock, req);
   });
