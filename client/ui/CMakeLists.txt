@@ -100,6 +100,8 @@ qt_add_qml_module(framebeam_ui
     LocalHubCard.qml
     LocalFolderDialog.qml
     PluginFolderDialog.qml
+    PluginFileDialog.qml
+    PluginOriginPill.qml
     PluginsSection.qml
     PluginConsole.qml
     PluginFocusable.qml

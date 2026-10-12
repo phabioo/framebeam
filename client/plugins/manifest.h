@@ -101,7 +101,9 @@ ManifestResult loadManifest(const QString& dir);
 // A plugin as known to the manager and handed to the host.
 struct PluginInfo {
   Manifest manifest;
-  QString origin = QStringLiteral("local");  // "local" = unsigned local file
+  QString origin = QStringLiteral("local");  // "official" (valid FrameBeam signature) | "unverified" (unsigned Hub copy) | "local"
+  bool hubCopy = false;                      // installed under hub/<id>/<version> (delivered by the Hub)
+  QString sha256;                            // hub copy: SHA-256 of the .fbplugin file it was installed from
   QString path;                              // directory the plugin runs from
   QString cacheDir;                          // per-plugin cache directory (created on demand)
   bool enabled = false;

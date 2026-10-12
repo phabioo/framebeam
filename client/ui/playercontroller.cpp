@@ -52,7 +52,7 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   downloader_ = std::make_unique<RomDownloader>(conn_.get(), cache_.get());
   saves_ = std::make_unique<SaveSync>(conn_.get(), profiles_.get());
   settings_ = std::make_unique<PlayerSettings>(profiles_->baseDir());
-  plugins_ = std::make_unique<PluginsController>(settings_.get(), profiles_->baseDir(), &session_);
+  plugins_ = std::make_unique<PluginsController>(settings_.get(), profiles_->baseDir(), &session_, conn_.get());
   connect(plugins_.get(), &PluginsController::sidebarEntriesChanged, this, [this]() {
     if (page_ == QLatin1String("plugin")) showPluginScreen(pluginPageId_);  // the entry went away: back to the Library
   });
