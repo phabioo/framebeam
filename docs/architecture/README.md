@@ -13,7 +13,7 @@ Draft 0.1, the design basis of the PoC. The PoC (phases 0-5) is implemented; whe
 - `09-ui-and-navigation.md` – product terms, navigation, presentation – section 9
 - `10-identity-pairing-tls.md` – roles, Hub profiles, pairing, TLS, switching Hubs – section 14
 - `11-metadata-future.md` – central game metadata and artwork (future) – section 15
-- `12-plugins.md` – plugin interface (planned, 0.11): Lua runtime, permissions, UI building blocks, distribution, Hub runs
+- `12-plugins.md` – plugin interface (0.11, mostly built): Lua runtime, permissions, UI building blocks, distribution, Hub runs
 
 Design specification of the UI screens: `../design/README.md`.
 
@@ -34,4 +34,4 @@ Planned work after the PoC: `../roadmap.md`.
 | `09-ui-and-navigation.md` | ADR 0006, 0007, 0009, 0014, 0015 | Diagnostics is a tab in game and collapsible (ADR 0006 D6). Settings → Hubs (switch, remove with confirmation, auto-connect) exists since 0.1.1 (ADR 0009 D6) in addition to the connection screen; since 0.6 Hubs can also be edited (host, port) and diagnostics are split into Emulation and Streaming sections, opened by the tab or F3 (ADR 0014). Hub web UI since 0.7 (ADR 0015): fragment navigation, live updates over SSE, Settings sub-pages with network settings stored in the Hub database. |
 | `10-identity-pairing-tls.md` | ADR 0002, 0003, 0007, 0009 | Pairing requests expire after 10 min; invite redemption `POST /api/v1/invites/redeem`, invite expiry 15 min / 1 h / 24 h (ADR 0007 D1). Credential store: Windows Credential Manager; Linux in memory only (open; Secret Service is part of the Linux Player after 1.0; macOS dropped on 2026-10-11). A pairing-code alternative is not implemented. Since 0.1.1 the Hub renews its own self-signed certificate (30 days before expiry) and the Player offers a two-step confirmed pin change; a changed fingerprint still blocks until confirmed (ADR 0009 D1, D2). |
 | `11-metadata-future.md` | none | Future, unchanged; planned after 1.0 (renumbered 2026-10-11). |
-| `12-plugins.md` | ADR 0023 (proposed) | Package 1 (Player runtime) implemented; packages 2 and 3 design only; 0.11 is the plugin runtime (ADR 0023 is proposed). Design specs: `../design/plugins.md`. |
+| `12-plugins.md` | ADR 0023 (proposed) | Packages 1 and 2 (Player runtime and UI) and the Hub side of package 3 (plugins, `.fbplugin`, signing, plugin index, runs) and Player runs implemented; 0.11 is the plugin runtime (ADR 0023 is proposed). Design specs: `../design/plugins.md`. |

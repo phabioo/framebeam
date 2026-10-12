@@ -4,13 +4,17 @@
 #include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
+#include <QCryptographicHash>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QRegularExpression>
 #include <QSaveFile>
 #include <algorithm>
 #include <utility>
 #include <functional>
 #include <set>
+
+#include "updatesig.h"
 
 namespace framebeam::plugins {
 
@@ -41,9 +45,63 @@ QString copyTree(const QString& src, const QString& dst, qint64& bytes, int& fil
   return {};
 }
 
+const QString kOriginFile = QStringLiteral("origin.json");
+
+struct OriginInfo {
+  QString origin;  // "official" | "unverified" | "local" | empty when unreadable
+  QString sha256;
+};
+
+OriginInfo readOrigin(const QString& dir) {
+  QFile f(QDir(dir).filePath(kOriginFile));
+  if (!f.open(QIODevice::ReadOnly)) return {};
+  const QJsonObject o = QJsonDocument::fromJson(f.read(64 * 1024)).object();
+  OriginInfo i;
+  i.origin = o.value(QLatin1String("origin")).toString();
+  i.sha256 = o.value(QLatin1String("sha256")).toString().toLower();
+  if (i.origin != QLatin1String("official") && i.origin != QLatin1String("unverified") && i.origin != QLatin1String("local")) i.origin.clear();
+  return i;
+}
+
+// Written by the Player after the checks (and over anything a plugin or folder brought along under that name).
+bool writeOrigin(const QString& dir, const QString& origin, const QString& sha256, const QString& source) {
+  QJsonObject o{{QStringLiteral("origin"), origin}, {QStringLiteral("source"), source}};
+  if (!sha256.isEmpty()) o.insert(QStringLiteral("sha256"), sha256);
+  QSaveFile f(QDir(dir).filePath(kOriginFile));
+  if (!f.open(QIODevice::WriteOnly)) return false;
+  f.write(QJsonDocument(o).toJson(QJsonDocument::Indented));
+  return f.commit();
+}
+
+// SemVer text without build metadata; empty when it is not a valid version. Also the folder name below hub/<id>/.
+QString normVersion(const QString& v) {
+  const auto sv = SemVer::parse(v.trimmed());
+  return sv ? sv->toString() : QString();
+}
+
+bool validPluginId(const QString& id) {
+  static const QRegularExpression re(QStringLiteral("^[a-z0-9-]+(\\.[a-z0-9-]+)+$"));
+  return re.match(id).hasMatch();
+}
+
+// Puts `tmp` in place of `dest`; the previous `dest` is restored when the move fails.
+bool swapIn(const QString& tmp, const QString& dest) {
+  const QFileInfo di(dest);
+  const QString old = di.absolutePath() + QStringLiteral("/.old-") + di.fileName();
+  QDir(old).removeRecursively();
+  if (di.exists() && !QDir().rename(dest, old)) return false;
+  if (!QDir().rename(tmp, dest)) {
+    if (QFileInfo::exists(old)) QDir().rename(old, dest);
+    return false;
+  }
+  QDir(old).removeRecursively();
+  return true;
+}
+
 }  // namespace
 
-PluginManager::PluginManager(const QString& rootDir, QObject* parent) : QObject(parent), m_root(QDir::cleanPath(rootDir)) {
+PluginManager::PluginManager(const QString& rootDir, QObject* parent)
+    : QObject(parent), m_root(QDir::cleanPath(rootDir)), m_keys(update::trustedKeysFromEnvironment()) {
   m_debounce.setSingleShot(true);
   m_debounce.setInterval(300);
   connect(&m_debounce, &QTimer::timeout, this, &PluginManager::flushChanged);
@@ -100,18 +158,50 @@ PluginManager::Entry PluginManager::makeEntry(const QString& dir, const QString&
 
 void PluginManager::scan() {
   m_entries.clear();
+  m_hub.clear();
   const QDir inst(m_root + QStringLiteral("/installed"));
   const QFileInfoList dirs = inst.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
   for (const QFileInfo& d : dirs) {
     if (d.fileName().startsWith(QLatin1Char('.'))) continue;
     Entry e = makeEntry(d.absoluteFilePath(), d.fileName(), false);
+    if (readOrigin(d.absoluteFilePath()).origin == QLatin1String("official")) e.info.origin = QStringLiteral("official");
     m_entries.insert(e.info.manifest.id, e);
+  }
+  scanHub();
+  // Outside runs: an installed copy beats a Hub copy; of several Hub copies the newest version is active.
+  for (auto it = m_hub.begin(); it != m_hub.end(); ++it) {
+    if (m_entries.contains(it.key()) || it->isEmpty()) continue;
+    const Entry* best = nullptr;
+    for (auto v = it->begin(); v != it->end(); ++v)
+      if (best == nullptr || SemVer::compare(v->info.manifest.version, best->info.manifest.version) > 0) best = &v.value();
+    m_entries.insert(it.key(), *best);
   }
   for (auto it = m_linked.begin(); it != m_linked.end(); ++it) {
     Entry e = makeEntry(it.value(), it.key(), true);
     m_entries.insert(e.info.manifest.id, e);  // a linked folder overrides an installed copy of the same id
   }
   refreshWatcher();
+}
+
+void PluginManager::scanHub() {
+  const QDir hub(m_root + QStringLiteral("/hub"));
+  const QFileInfoList ids = hub.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
+  for (const QFileInfo& idDir : ids) {
+    if (idDir.fileName().startsWith(QLatin1Char('.')) || !validPluginId(idDir.fileName())) continue;
+    const QFileInfoList vers = QDir(idDir.absoluteFilePath()).entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
+    for (const QFileInfo& vDir : vers) {
+      if (vDir.fileName().startsWith(QLatin1Char('.'))) continue;
+      Entry e = makeEntry(vDir.absoluteFilePath(), idDir.fileName(), false);
+      const OriginInfo o = readOrigin(vDir.absoluteFilePath());
+      // Anything that is not exactly what the Player installed (id/version of the folder, readable origin) is ignored.
+      if (!e.valid || e.info.manifest.id != idDir.fileName() || normVersion(e.info.manifest.version.toString()) != vDir.fileName()) continue;
+      if ((o.origin != QLatin1String("official") && o.origin != QLatin1String("unverified")) || o.sha256.size() != 64) continue;
+      e.info.origin = o.origin;
+      e.info.hubCopy = true;
+      e.info.sha256 = o.sha256;
+      m_hub[idDir.fileName()].insert(vDir.fileName(), e);
+    }
+  }
 }
 
 void PluginManager::computeDependencyProblems(QMap<QString, QStringList>& out) const {
@@ -231,8 +321,12 @@ InstallResult PluginManager::installFromFolder(const QString& srcDir) {
     r.error = e2;
     return r;
   }
-  QDir(dest).removeRecursively();
-  if (!QDir().rename(tmp, dest)) {
+  if (!writeOrigin(tmp, QStringLiteral("local"), QString(), QStringLiteral("folder"))) {
+    QDir(tmp).removeRecursively();
+    r.error = QStringLiteral("cannot write the plugin's origin");
+    return r;
+  }
+  if (!swapIn(tmp, dest)) {
     QDir(tmp).removeRecursively();
     r.error = QStringLiteral("cannot move the plugin into place");
     return r;
@@ -240,8 +334,134 @@ InstallResult PluginManager::installFromFolder(const QString& srcDir) {
   scan();
   saveState();
   r.ok = true;
+  r.version = m.manifest.version.toString();
+  r.origin = QStringLiteral("local");
   emit pluginsChanged();
   return r;
+}
+
+InstallResult PluginManager::installPackage(const FbPluginPackage& pkg, const QString& dest, const QString& tmp, const QString& origin,
+                                            const QString& sourceSha, const QString& signatureNote) {
+  InstallResult r;
+  r.id = pkg.manifest.id;
+  const bool hadPrev = m_entries.contains(r.id);
+  const QStringList prevPerms = hadPrev ? m_entries.value(r.id).info.manifest.permissions : QStringList();
+  QDir(tmp).removeRecursively();
+  QDir().mkpath(QFileInfo(tmp).absolutePath());
+  QDir().mkpath(QFileInfo(dest).absolutePath());
+  QString err;
+  if (!extractFbPlugin(pkg, tmp, &err)) {
+    QDir(tmp).removeRecursively();
+    r.error = err;
+    return r;
+  }
+  if (const ManifestResult chk = loadManifest(tmp); !chk.ok) {  // the unpacked copy must be valid too
+    QDir(tmp).removeRecursively();
+    r.error = chk.error;
+    return r;
+  }
+  const bool fromHub = !sourceSha.isEmpty();
+  if (!writeOrigin(tmp, origin, sourceSha, fromHub ? QStringLiteral("hub") : QStringLiteral("file"))) {
+    QDir(tmp).removeRecursively();
+    r.error = QStringLiteral("cannot write the plugin's origin");
+    return r;
+  }
+  if (!swapIn(tmp, dest)) {
+    QDir(tmp).removeRecursively();
+    r.error = QStringLiteral("cannot move the plugin into place");
+    return r;
+  }
+  scan();
+  // An update that asks for permissions the replaced copy did not have is turned off until the user turns it on again.
+  if (hadPrev && m_enabled.value(r.id, false) && QDir::cleanPath(m_entries.value(r.id).info.path) == QDir::cleanPath(dest)) {
+    for (const QString& p : pkg.manifest.permissions)
+      if (!prevPerms.contains(p)) r.addedPermissions << p;
+    if (!r.addedPermissions.isEmpty()) {
+      m_enabled.insert(r.id, false);
+      scan();
+    }
+  }
+  saveState();
+  r.ok = true;
+  r.version = pkg.manifest.version.toString();
+  r.origin = origin;
+  r.signatureNote = signatureNote;
+  emit pluginsChanged();
+  return r;
+}
+
+InstallResult PluginManager::installFromFile(const QString& fbpluginPath) {
+  InstallResult r;
+  QFile f(fbpluginPath);
+  if (!f.exists()) {
+    r.error = QStringLiteral("%1 does not exist").arg(fbpluginPath);
+    return r;
+  }
+  if (f.size() > kFbPluginMaxFileBytes) {
+    r.error = QStringLiteral("the plugin file is larger than %1 MiB").arg(kFbPluginMaxFileBytes >> 20);
+    return r;
+  }
+  if (!f.open(QIODevice::ReadOnly)) {
+    r.error = QStringLiteral("cannot read %1").arg(fbpluginPath);
+    return r;
+  }
+  const FbPluginResult pr = readFbPlugin(f.readAll(), m_keys);
+  if (!pr.ok) {
+    r.error = pr.error;
+    return r;
+  }
+  const QString id = pr.package.manifest.id;
+  const QString origin = pr.package.official() ? QStringLiteral("official") : QStringLiteral("local");
+  const QString note = pr.package.signature == SignatureState::Invalid ? pr.package.signatureError : QString();
+  return installPackage(pr.package, m_root + QStringLiteral("/installed/") + id, m_root + QStringLiteral("/installed/.tmp-") + id, origin, QString(), note);
+}
+
+InstallResult PluginManager::installFromPath(const QString& path) {
+  return QFileInfo(path).isDir() ? installFromFolder(path) : installFromFile(path);
+}
+
+InstallResult PluginManager::installHubCopy(const QByteArray& fbplugin, const QString& pluginId, const QString& version, const QString& sha256) {
+  InstallResult r;
+  r.id = pluginId;
+  const QString nv = normVersion(version);
+  const QString pin = sha256.toLower();
+  if (!validPluginId(pluginId) || nv.isEmpty()) {
+    r.error = QStringLiteral("invalid plugin id or version from the Hub");
+    return r;
+  }
+  if (QString::fromLatin1(QCryptographicHash::hash(fbplugin, QCryptographicHash::Sha256).toHex()) != pin) {
+    r.error = QStringLiteral("the downloaded file does not match the SHA-256 the Hub announced");
+    return r;
+  }
+  const FbPluginResult pr = readFbPlugin(fbplugin, m_keys);
+  if (!pr.ok) {
+    r.error = pr.error;
+    return r;
+  }
+  if (pr.package.manifest.id != pluginId || pr.package.manifest.version.toString() != nv) {
+    r.error = QStringLiteral("the file is %1 %2, not %3 %4").arg(pr.package.manifest.id, pr.package.manifest.version.toString(), pluginId, nv);
+    return r;
+  }
+  const QString origin = pr.package.official() ? QStringLiteral("official") : QStringLiteral("unverified");
+  const QString note = pr.package.signature == SignatureState::Invalid ? pr.package.signatureError : QString();
+  return installPackage(pr.package, m_root + QStringLiteral("/hub/") + pluginId + QLatin1Char('/') + nv,
+                        m_root + QStringLiteral("/hub/.tmp-") + pluginId + QLatin1Char('-') + nv, origin, pin, note);
+}
+
+QString PluginManager::hubCopyDir(const QString& pluginId, const QString& version, const QString& sha256) const {
+  const QString nv = normVersion(version);
+  const auto idIt = m_hub.constFind(pluginId);
+  if (nv.isEmpty() || idIt == m_hub.constEnd()) return {};
+  const auto vIt = idIt->constFind(nv);
+  if (vIt == idIt->constEnd() || !vIt->valid || vIt->info.sha256 != sha256.toLower() || !QFileInfo(vIt->info.path).isDir()) return {};
+  return vIt->info.path;
+}
+
+QList<PluginInfo> PluginManager::hubCopies() const {
+  QList<PluginInfo> out;
+  for (auto it = m_hub.begin(); it != m_hub.end(); ++it)
+    for (auto v = it->begin(); v != it->end(); ++v) out.append(v->info);
+  return out;
 }
 
 InstallResult PluginManager::linkDevFolder(const QString& srcDir) {
@@ -272,16 +492,21 @@ bool PluginManager::uninstall(const QString& id) {
     emit pluginsChanged();
     return true;
   }
-  const QString dest = m_root + QStringLiteral("/installed/") + id;
-  const QFileInfo fi(dest);
-  // Only plain ids below installed/ (an id from the UI must never walk out of it).
-  if (id.contains(QLatin1Char('/')) || id.contains(QLatin1String("..")) || !fi.isDir()) return false;
-  QDir(dest).removeRecursively();
-  if (QFileInfo::exists(dest)) {
-    // Something is still open or locked (Windows): do not report a half-removed plugin as uninstalled.
-    scan();
-    return false;
+  // Only plain ids below installed/ and hub/ (an id from the UI must never walk out of them).
+  if (id.contains(QLatin1Char('/')) || id.contains(QLatin1Char('\\')) || id.contains(QLatin1String(".."))) return false;
+  bool any = false;
+  for (const QString& sub : {QStringLiteral("/installed/"), QStringLiteral("/hub/")}) {
+    const QString dest = m_root + sub + id;
+    if (!QFileInfo(dest).isDir()) continue;
+    QDir(dest).removeRecursively();
+    if (QFileInfo::exists(dest)) {
+      // Something is still open or locked (Windows): do not report a half-removed plugin as uninstalled.
+      scan();
+      return false;
+    }
+    any = true;
   }
+  if (!any) return false;
   QDir(m_root + QStringLiteral("/cache/") + id).removeRecursively();  // a cache that cannot be removed does not block
   m_enabled.remove(id);
   scan();
@@ -310,6 +535,65 @@ void PluginManager::setDeveloperMode(bool on) {
 
 GameResolution PluginManager::resolveForGame(const QString& system, const QString& code) const {
   return resolveWhere([&](const Manifest& m) { return m.matchesGame(system, code); });
+}
+
+GameResolution PluginManager::resolveForRun(const QList<RunPluginPin>& pins) const {
+  GameResolution res;
+  QMap<QString, PluginInfo> infos;
+  for (const RunPluginPin& pin : pins) {
+    const QString dir = hubCopyDir(pin.id, pin.version, pin.sha256);
+    if (dir.isEmpty()) {
+      res.problems[pin.id] << QStringLiteral("the Hub copy %1 of this run is not on this device").arg(pin.version);
+      continue;
+    }
+    PluginInfo i = m_hub.value(pin.id).value(normVersion(pin.version)).info;
+    i.enabled = true;  // the run decides, not the toggle of Settings -> Plugins
+    infos.insert(pin.id, i);
+  }
+  QSet<QString> blocked;
+  bool changed = true;
+  while (changed) {
+    changed = false;
+    for (auto it = infos.begin(); it != infos.end(); ++it) {
+      if (blocked.contains(it.key())) continue;
+      for (const Dependency& d : it->manifest.dependencies) {
+        const auto dep = infos.constFind(d.id);
+        QString why;
+        if (dep == infos.constEnd() || blocked.contains(d.id)) {
+          why = QStringLiteral("needs %1, which is not part of this run or cannot start").arg(d.id);
+        } else if (!d.range.matches(dep->manifest.version)) {
+          why = QStringLiteral("needs %1 %2 · the run has %3").arg(d.id, d.range.text, dep->manifest.version.toString());
+        }
+        if (!why.isEmpty()) {
+          blocked.insert(it.key());
+          res.problems[it.key()] << why;
+          changed = true;
+          break;
+        }
+      }
+    }
+  }
+  QSet<QString> done;
+  QSet<QString> visiting;
+  std::function<void(const QString&)> visit = [&](const QString& id) {
+    if (done.contains(id) || blocked.contains(id) || !infos.contains(id)) return;
+    if (visiting.contains(id)) {  // dependency cycle
+      blocked.insert(id);
+      res.problems[id] << QStringLiteral("dependency cycle");
+      return;
+    }
+    visiting.insert(id);
+    QStringList deps;
+    for (const Dependency& d : infos[id].manifest.dependencies) deps << d.id;
+    deps.sort();
+    for (const QString& d : std::as_const(deps)) visit(d);
+    visiting.remove(id);
+    if (blocked.contains(id) || done.contains(id)) return;
+    done.insert(id);
+    res.start.append(infos[id]);
+  };
+  for (auto it = infos.begin(); it != infos.end(); ++it) visit(it.key());
+  return res;
 }
 
 GameResolution PluginManager::resolveForShell() const {
@@ -343,7 +627,7 @@ GameResolution PluginManager::resolveWhere(const std::function<bool(const Manife
   std::set<QString> blocked;
   for (const QString& id : std::as_const(members)) {
     QStringList reasons = problems.value(id);
-    if (!m_devMode) reasons << QStringLiteral("unsigned local plugin: turn on Developer mode to run it");
+    if (!m_devMode && m_entries[id].info.origin == QLatin1String("local")) reasons << QStringLiteral("unsigned local plugin: turn on Developer mode to run it");
     if (!reasons.isEmpty()) {
       blocked.insert(id);
       res.problems[id] = reasons;

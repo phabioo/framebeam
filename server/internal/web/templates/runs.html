@@ -1,0 +1,87 @@
+{{define "runs-view"}}<div id="runs-view" class="runs" hx-get="{{.Body.Self}}" hx-trigger="fb:runs from:body" hx-swap="outerHTML">
+  <aside class="runs-list" aria-label="Runs">
+    <div class="eyebrow">Runs · {{len .Body.Items}}</div>
+    <nav class="runs-filter" aria-label="Filter">
+      {{range .Body.Filters}}<a href="{{.URL}}"{{if .On}} class="on" aria-current="true"{{end}}>{{.Label}}</a>{{end}}
+    </nav>
+    {{range .Body.Items}}
+    <a class="runs-item{{if .Selected}} sel{{end}}" href="{{.URL}}"{{if .Selected}} aria-current="page"{{end}}>
+      <span class="runs-item-head"><span class="runs-item-name">{{.Name}}</span><span class="pill sm {{.StatusClass}}">{{.StatusLabel}}</span></span>
+      <span class="help">{{.Sub}}</span>
+      <span class="row-actions">{{range .Avatars}}<span class="avatar {{.Class}}" title="{{.Title}}" aria-label="{{.Title}}">{{.Initial}}</span>{{end}}</span>
+    </a>
+    {{else}}
+    <p class="help">No runs in this view.</p>
+    {{end}}
+  </aside>
+  <section class="runs-detail">
+    {{with .Body.Detail}}
+    <div class="page-head">
+      <div><h1>{{.Name}} <span class="pill lg {{.StatusClass}}">{{.StatusLabel}}</span></h1><p class="sub">{{.Subline}}</p></div>
+      <div class="head-actions">
+        {{if .CanPause}}<form method="post" action="/runs/{{.ID}}/pause"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn" type="submit">Pause run</button></form>{{end}}
+        {{if .CanResume}}<form method="post" action="/runs/{{.ID}}/resume"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn primary" type="submit">Resume run</button></form>{{end}}
+        {{if .CanArchive}}{{if .Archived}}<form method="post" action="/runs/{{.ID}}/unarchive"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn" type="submit">Unarchive</button></form>{{else}}<form method="post" action="/runs/{{.ID}}/archive"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn" type="submit">Archive</button></form>{{end}}{{end}}
+        <a class="btn" href="/runs/{{.ID}}/delete">Delete…</a>
+      </div>
+    </div>
+
+    <div class="stack">
+      <div class="eyebrow">Participants · {{len .Participants}}</div>
+      <div class="card"><table class="list">
+        <thead><tr><th>Player</th><th>Game</th><th>Status</th></tr></thead>
+        <tbody>
+        {{range .Participants}}
+        <tr>
+          <td><div class="cell-title"><span class="avatar {{.ColorClass}}" aria-hidden="true">{{.Initial}}</span><span>{{.Name}}</span></div></td>
+          <td>{{if .Game}}{{.Game}}{{else}}—{{end}}</td>
+          <td><span class="pill sm {{.StatusClass}}">{{.Status}}</span></td>
+        </tr>
+        {{end}}
+        </tbody>
+      </table></div>
+    </div>
+
+    <div class="stack">
+      <div class="eyebrow">Plugin content</div>
+      {{if .Paused}}<div class="runs-banner" role="status">Paused. Events are still visible, no new ones are recorded.</div>{{end}}
+      {{range .Boards}}
+      <div class="runs-board">
+        <div class="plugin-board-head"><span class="strong">{{.Plugin}}</span>{{if .Meta}}<span class="help">{{.Meta}}</span>{{end}}</div>
+        {{if .Empty}}<div class="plugin-board"><p class="help">This plugin has not published a board yet. It appears when a participant's Player shows the run.</p></div>
+        {{else}}<div class="plugin-board" data-tree="{{.JSON}}"><noscript>The board needs JavaScript.</noscript></div>{{end}}
+      </div>
+      {{end}}
+    </div>
+
+    <div class="stack">
+      <div class="page-head">
+        <div class="eyebrow">Event log · {{.EventTotal}}</div>
+        <a class="btn small" href="/runs/{{.ID}}/export">Export (JSON)</a>
+      </div>
+      <div class="card events-scroll"><table class="list">
+        <thead><tr><th>Time</th><th>Author</th><th>Event</th><th>Source</th></tr></thead>
+        <tbody>
+        {{range .Events}}
+        <tr>
+          <td class="mono event-time">{{.Time}}</td>
+          <td>{{.Author}}</td>
+          <td>{{.Text}}</td>
+          <td class="event-source">{{.Source}}</td>
+        </tr>
+        {{else}}
+        <tr><td colspan="4" class="help">No events yet.</td></tr>
+        {{end}}
+        </tbody>
+      </table></div>
+      {{if gt .EventTotal 100}}<p class="help">The latest 100 of {{.EventTotal}} events are shown. The export contains all of them.</p>{{end}}
+    </div>
+    {{else}}
+    <div class="empty">
+      <h1>No run selected</h1>
+      <p class="sub">Runs are started in the Player. They appear here with their participants, the plugin content and the event log.</p>
+    </div>
+    {{end}}
+  </section>
+</div>{{end}}
+{{define "content"}}{{template "runs-view" .}}{{end}}

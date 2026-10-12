@@ -1,10 +1,12 @@
 #pragma once
 
+#include <QJsonArray>
 #include <QJsonObject>
 #include <QObject>
 #include <QPointer>
 #include <QString>
 #include <QTimer>
+#include <functional>
 #include <memory>
 
 #include "hubconnection.h"
@@ -36,6 +38,9 @@ class HubSocket : public QObject {
   bool isOpen() const { return state_ == State::Open; }
   const HelloAck& helloAck() const { return hello_; }
 
+  // runs_v1: provider of the `runs` array of the next hello ([{run_id, last_seq}]); empty array = field omitted.
+  void setHelloRunsProvider(std::function<QJsonArray()> provider) { helloRuns_ = std::move(provider); }
+
   void sendSignal(const SessionSignal& s);
   void sendPresence(const QString& state, const QString& gameId = {});
 
@@ -58,6 +63,10 @@ class HubSocket : public QObject {
   void viewerLeft(const framebeam::ViewerLeft& viewer);
   void signalReceived(const framebeam::SessionSignal& signal);
   void saveUpdated(const framebeam::SaveUpdate& update);  // saves_v2: a slot checkpoint changed on another device
+  // runs_v1: raw payloads, parsed by the RunClient.
+  void runUpdated(const QJsonObject& run);
+  void runStateReceived(const QJsonObject& payload);  // {run_id, user_id, state_rev, state}
+  void runEventReceived(const QJsonObject& payload);  // {run_id, event}
   void hubError(const QString& code, const QString& message);  // `error` message of the Hub
   void connectionError(const QString& code, const QString& message);  // transport: unreachable, certificate_changed, ...
 
@@ -79,6 +88,7 @@ class HubSocket : public QObject {
   bool wanted_ = false;
   bool certMismatch_ = false;
   HelloAck hello_;
+  std::function<QJsonArray()> helloRuns_;
   QTimer reconnectTimer_;
   QTimer pingTimer_;
   QTimer helloTimer_;

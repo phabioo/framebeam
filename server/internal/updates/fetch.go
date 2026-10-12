@@ -192,20 +192,31 @@ func (s Source) LoadIndex(ctx context.Context, keys []ed25519.PublicKey) (*Fetch
 
 // download streams the artifact to w, enforcing the signed size, and returns the SHA-256 (hex).
 func (s Source) download(ctx context.Context, a Artifact, w io.Writer) (string, error) {
+	return s.Download(ctx, a.URL, a.Size, s.IsFile(), w)
+}
+
+// Fetch reads a small document (an index and its signature) of at most limit bytes from raw (https or file://).
+func (s Source) Fetch(ctx context.Context, raw string, limit int64) ([]byte, error) {
+	return s.fetch(ctx, raw, limit)
+}
+
+// Download streams raw (https; file:// only when allowFile) to w, enforcing the exact size, and returns the
+// SHA-256 (hex) of the bytes.
+func (s Source) Download(ctx context.Context, raw string, size int64, allowFile bool, w io.Writer) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, downloadTimeout)
 	defer cancel()
-	rc, err := s.open(ctx, a.URL, s.IsFile())
+	rc, err := s.open(ctx, raw, allowFile)
 	if err != nil {
 		return "", err
 	}
 	defer rc.Close()
 	h := sha256.New()
-	n, err := io.Copy(io.MultiWriter(w, h), io.LimitReader(rc, a.Size+1))
+	n, err := io.Copy(io.MultiWriter(w, h), io.LimitReader(rc, size+1))
 	if err != nil {
 		return "", err
 	}
-	if n != a.Size {
-		return "", fmt.Errorf("size mismatch: got %d bytes, index says %d", n, a.Size)
+	if n != size {
+		return "", fmt.Errorf("size mismatch: got %d bytes, index says %d", n, size)
 	}
 	return hex.EncodeToString(h.Sum(nil)), nil
 }

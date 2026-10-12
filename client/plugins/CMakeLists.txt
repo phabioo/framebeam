@@ -21,7 +21,7 @@ endif()
 set_target_properties(framebeam_lua PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_library(framebeam_plugins STATIC manifest.cpp plugin_value.cpp lua_sandbox.cpp plugin_engine.cpp plugin_ui.cpp plugin_api.cpp
-  plugin_host.cpp plugin_manager.cpp)
+  plugin_host.cpp plugin_manager.cpp fbplugin.cpp plugin_delivery.cpp run_bridge.cpp run_session_bridge.cpp)
 target_include_directories(framebeam_plugins PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_features(framebeam_plugins PUBLIC cxx_std_20)
 target_link_libraries(framebeam_plugins PUBLIC framebeam_lua framebeam_core framebeam_formats Qt6::Core)
@@ -32,3 +32,16 @@ framebeam_add_test(plugins_sandbox tests/sandbox_test.cpp LIBS framebeam_plugins
 framebeam_add_test(plugins_manager tests/manager_test.cpp LIBS framebeam_plugins)
 framebeam_add_test(plugins_host tests/host_test.cpp LIBS framebeam_plugins)
 framebeam_add_test(plugins_ui tests/ui_test.cpp LIBS framebeam_plugins)
+
+# .fbplugin reading and signature, Hub delivery (against the fake Hub of network/tests).
+framebeam_add_test(plugins_fbplugin tests/fbplugin_test.cpp LIBS framebeam_plugins)
+target_compile_definitions(test_plugins_fbplugin PRIVATE FB_PLUGIN_TESTDATA="${CMAKE_CURRENT_SOURCE_DIR}/tests/testdata")
+get_filename_component(FB_NETTEST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../network/tests" ABSOLUTE)
+framebeam_add_test(plugins_delivery tests/delivery_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h LIBS framebeam_plugins)
+target_include_directories(test_plugins_delivery PRIVATE ${FB_NETTEST_DIR})
+target_compile_definitions(test_plugins_delivery PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
+
+# fb.run against the real RunClient + RunSessionBridge + fake Hub.
+framebeam_add_test(plugins_run tests/run_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h LIBS framebeam_plugins)
+target_include_directories(test_plugins_run PRIVATE ${FB_NETTEST_DIR})
+target_compile_definitions(test_plugins_run PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")

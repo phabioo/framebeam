@@ -69,6 +69,9 @@ type Game struct {
 	Filename   string
 	UploadedBy string
 	AddedAt    time.Time
+	// GameCode and GameCodeKind: identity read from the ROM header ("" when unknown or unreadable).
+	GameCode     string
+	GameCodeKind string
 }
 
 // MaxROMBytes is the upload limit for ROMs (4 GiB), shared by the web interface and the API.
@@ -83,13 +86,16 @@ func (s *Service) romPath(sha string) string {
 	return filepath.Join(s.dataDir, "roms", sha[:2], sha)
 }
 
-const gameCols = `id, title, system, rom_sha256, rom_size, filename, uploaded_by, added_at`
+const gameCols = `id, title, system, rom_sha256, rom_size, filename, uploaded_by, added_at, game_code, game_code_kind`
 
 func scanGame(r scanner) (Game, error) {
 	var g Game
 	var added int64
-	if err := r.Scan(&g.ID, &g.Title, &g.System, &g.ROMSHA256, &g.ROMSize, &g.Filename, &g.UploadedBy, &added); err != nil {
+	if err := r.Scan(&g.ID, &g.Title, &g.System, &g.ROMSHA256, &g.ROMSize, &g.Filename, &g.UploadedBy, &added, &g.GameCode, &g.GameCodeKind); err != nil {
 		return Game{}, err
+	}
+	if g.GameCodeKind == gameCodeNone {
+		g.GameCodeKind = ""
 	}
 	g.AddedAt = time.Unix(added, 0).UTC()
 	return g, nil
@@ -171,6 +177,7 @@ func (s *Service) AddROM(ctx context.Context, r io.Reader, filename, title, syst
 	if size == 0 {
 		return Game{}, badRequest("ROM file is empty")
 	}
+	code, kind := ReadGameIdentity(tmpName, system)
 	sha := hex.EncodeToString(h.Sum(nil))
 
 	var exists int
@@ -192,9 +199,13 @@ func (s *Service) AddROM(ctx context.Context, r io.Reader, filename, title, syst
 	}
 	syncDir(filepath.Dir(dst))
 	g := Game{ID: uuid.NewString(), Title: title, System: system, ROMSHA256: sha, ROMSize: size, Filename: filename,
-		UploadedBy: uploadedBy, AddedAt: s.Now().Truncate(time.Second)}
-	if _, err := s.db.ExecContext(ctx, `INSERT INTO games(`+gameCols+`) VALUES (?,?,?,?,?,?,?,?)`,
-		g.ID, g.Title, g.System, g.ROMSHA256, g.ROMSize, g.Filename, g.UploadedBy, g.AddedAt.Unix()); err != nil {
+		UploadedBy: uploadedBy, AddedAt: s.Now().Truncate(time.Second), GameCode: code, GameCodeKind: kind}
+	storedKind := kind
+	if storedKind == "" {
+		storedKind = gameCodeNone // header read, nothing found: the start-up backfill does not retry
+	}
+	if _, err := s.db.ExecContext(ctx, `INSERT INTO games(`+gameCols+`) VALUES (?,?,?,?,?,?,?,?,?,?)`,
+		g.ID, g.Title, g.System, g.ROMSHA256, g.ROMSize, g.Filename, g.UploadedBy, g.AddedAt.Unix(), code, storedKind); err != nil {
 		if isUnique(err) { // parallel upload of the same ROM: the file belongs to the other entry
 			return Game{}, s.duplicateROM(ctx, sha)
 		}

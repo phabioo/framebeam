@@ -4,6 +4,7 @@ package hubtest
 
 import (
 	"context"
+	"database/sql"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -29,7 +30,14 @@ func (c *Clock) Advance(d time.Duration) { c.mu.Lock(); c.t = c.t.Add(d); c.mu.U
 // New creates a service on a temporary data directory. mod may adjust the options.
 func New(t *testing.T, mod func(*hub.Options)) (*hub.Service, *Clock) {
 	t.Helper()
-	dir := t.TempDir()
+	svc, clk, _ := OpenIn(t, t.TempDir(), mod)
+	return svc, clk
+}
+
+// OpenIn opens (or reopens) a service on the data directory dir, like New, and also returns the database so a test
+// can prepare rows and open the same directory again (Hub restart). The database is closed when the test ends.
+func OpenIn(t *testing.T, dir string, mod func(*hub.Options)) (*hub.Service, *Clock, *sql.DB) {
+	t.Helper()
 	db, err := store.Open(filepath.Join(dir, "framebeam.db"))
 	if err != nil {
 		t.Fatal(err)
@@ -45,5 +53,5 @@ func New(t *testing.T, mod func(*hub.Options)) (*hub.Service, *Clock) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return svc, clk
+	return svc, clk, db
 }

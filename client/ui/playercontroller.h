@@ -36,6 +36,7 @@
 #include "librarymodel.h"
 #include "playphase.h"
 #include "pluginscontroller.h"
+#include "runscontroller.h"
 #include "playersettings.h"
 #include "romcache.h"
 #include "romdownloader.h"
@@ -110,6 +111,7 @@ class PlayerController : public QObject {
   Q_PROPERTY(framebeam::ui::LocalHubController* localHub READ localHub CONSTANT)
   // Plugins (Settings > Plugins, Plugin console tab of the game panel)
   Q_PROPERTY(framebeam::ui::PluginsController* plugins READ plugins CONSTANT)
+  Q_PROPERTY(framebeam::ui::RunsController* runs READ runs CONSTANT)
   // Save slot picker, history/restore, snapshots, "save changed elsewhere" notice (ADR 0012 D7)
   Q_PROPERTY(framebeam::ui::SaveHistoryController* saveHistory READ saveHistory CONSTANT)
   // Log file path (empty when file logging is not active) and "open folder" (Settings)
@@ -166,6 +168,7 @@ class PlayerController : public QObject {
   UpdatesController* updates() { return updates_.get(); }
   LocalHubController* localHub() { return localHub_.get(); }
   PluginsController* plugins() { return plugins_.get(); }
+  RunsController* runs() { return runs_.get(); }
   SaveHistoryController* saveHistory() { return history_.get(); }
   QString logFile() const;
   QString deviceName() const;
@@ -272,6 +275,7 @@ class PlayerController : public QObject {
   Q_INVOKABLE void showControllers();
   // Sidebar entry of a plugin (4f); falls back to the Library when the plugin no longer offers a screen.
   Q_INVOKABLE void showPluginScreen(const QString& pluginId);
+  Q_INVOKABLE void showRuns();  // Runs screen (docs/design/plugins.md 4j-2)
   // "Plugin settings" / "Notice settings…": Settings -> Plugins (pluginId highlights its row; empty = the section only).
   Q_INVOKABLE void showPluginSettings(const QString& pluginId = QString());
   // "Upload ROM": source = local path or file:// URL (from the file dialog). Streamed; progress in upload.
@@ -361,6 +365,18 @@ class PlayerController : public QObject {
   std::unique_ptr<UpdatesController> updates_;
   std::unique_ptr<LocalHubController> localHub_;
   std::unique_ptr<PluginsController> plugins_;  // after settings_ and session_: destroyed before them
+  std::unique_ptr<RunClient> runClient_;        // after sessions_ (the Hub socket) and plugins_
+  std::unique_ptr<RunsController> runs_;
+  // "Play run": the game starts with the run context and the run's save slot; the chosen slot is restored afterwards.
+  struct RunStart {
+    QString runId;
+    QString gameId;
+    QString previousSlot;
+    bool pending() const { return !runId.isEmpty(); }
+  };
+  RunStart runStart_;
+  void startRunGame(const QString& runId, const QString& gameId);
+  void finishRunStart();  // the run's game is over (or never started): the game's own slot is selected again
   std::unique_ptr<SaveHistoryController> history_;  // after saves_/conn_: destroyed first
   std::unique_ptr<EmulationController> emulation_;
   std::unique_ptr<ControllersController> controllers_;

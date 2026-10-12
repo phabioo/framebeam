@@ -14,6 +14,7 @@ import (
 
 type libRow struct {
 	ID, Title, Initial, System, Size, SHA, ShortSHA, Uploader, Added string
+	GameCode                                                         string // identity read from the ROM header, "" when unknown
 	Saves                                                            int
 	Conflict                                                         bool
 	UploadHref                                                       string // the slot detail of the signed-in user with the upload panel open
@@ -123,7 +124,7 @@ func (s *Server) libraryBody(ctx context.Context, viewer, system, q string, pane
 		}
 		row := libRow{ID: g.ID, Title: g.Title, Initial: initial(g.Title), System: g.System,
 			Size: humanBytes(g.ROMSize), SHA: g.ROMSHA256, ShortSHA: shortHash(g.ROMSHA256), Uploader: up,
-			Added: g.AddedAt.Local().Format("02.01."), Saves: saves[g.ID], Conflict: conflicts[g.ID], UploadHref: uploadHref(viewer, g.ID, own[g.ID])}
+			Added: g.AddedAt.Local().Format("02.01."), GameCode: g.GameCode, Saves: saves[g.ID], Conflict: conflicts[g.ID], UploadHref: uploadHref(viewer, g.ID, own[g.ID])}
 		if panel.ID == g.ID && (panel.Kind == "rename" || panel.Kind == "delete") {
 			row.Panel, row.PanelErr = panel.Kind, panel.Err
 			row.CSRF, row.FSystem, row.FQuery, row.CancelHref = csrf, system, q, b.RefreshURL

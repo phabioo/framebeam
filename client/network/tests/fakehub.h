@@ -111,6 +111,12 @@ class FakeHub : public QTcpServer {
   QMap<QString, QJsonObject> corePackages;
   QMap<QString, QByteArray> coreFiles;
   int coreFileDownloads = 0;
+  // Plugins (plugins_v1): GET /plugins answers {"plugins": pluginList}; files "<id>/<version>" -> bytes (missing: 404).
+  QJsonArray pluginList;
+  QMap<QString, QByteArray> pluginFiles;
+  int pluginFileDownloads = 0;
+  int pluginListRequests = 0;
+  bool pluginListFails = false;  // GET /plugins answers 500
   int corePackageRequests = 0;
   int count(const QString& pathPrefix, const QByteArray& method) const;
 
@@ -157,6 +163,30 @@ class FakeHub : public QTcpServer {
   void releaseHeldSessionGets(const QString& visibilityOverride = {});
   void closeWsClients();                                         // drops the connections (reconnect tests)
 
+  // Runs (runs_v1): in-memory REST + WSS model. Tests seed `runs` (Run JSON as served) and `runEvents`, or let the
+  // routes create them. The caller is `runsMe`.
+  QString runsMe = QStringLiteral("u_test_1");
+  QString runsMeName = QStringLiteral("Tester");
+  QMap<QString, QJsonObject> runs;               // run_id -> Run JSON
+  QMap<QString, QList<QJsonObject>> runEvents;   // run_id -> events, ascending, seq from 1
+  QMap<QString, QJsonObject> runBoards;          // "<run_id>/<plugin_id>" -> tree
+  int runStateConflicts = 0;                     // next N state PUTs answer 409 state_conflict
+  qint64 runConflictRev = 7;                     // the state_rev such a 409 reports
+  int runEventDropResponses = 0;                 // next N event POSTs are stored but the connection is dropped unanswered
+  int runFailNext = 0;                           // next N run requests answer runFailStatus
+  int runFailStatus = 503;
+  int runHelloCatchUpMax = 500;                  // more missing events than this: none are sent after hello
+  QJsonObject lastRunBody;                       // body of the last run POST/PUT
+  QList<QJsonObject> runStatePuts;               // bodies of the state PUTs (accepted or answered 409)
+  QList<QJsonObject> runEventPosts;              // bodies of every event POST (also retried ones)
+  int runBoardPuts = 0;
+  static QString makeUuid();
+  // Appends an event (Hub event when userId is empty) and pushes run_event to the WSS clients; returns the seq.
+  qint64 addRunEvent(const QString& runId, const QString& type, const QString& text, const QString& userId = {},
+                     const QString& pluginId = {}, const QString& clientId = {}, bool push = true);
+  void pushRun(const QString& runId);            // run_updated to the WSS clients
+  QJsonObject makeRun(const QString& name, const QStringList& userIds, const QString& creator, const QJsonArray& plugins = {});
+
   // Observation
   QList<FakeRequest> requests;
   int count(const QString& pathPrefix) const;
@@ -181,6 +211,8 @@ class FakeHub : public QTcpServer {
   void respondError(QSslSocket* sock, int status, const QString& code);
   void handleSaves(QSslSocket* sock, const FakeRequest& req);
   void handleSessions(QSslSocket* sock, const FakeRequest& req);
+  void handleRuns(QSslSocket* sock, const FakeRequest& req);
+  void sendRunCatchUp(QSslSocket* sock, const QJsonObject& hello);
   void upgradeWs(QSslSocket* sock, const FakeRequest& req);
   void onWsData(QSslSocket* sock);
   void wsWrite(QSslSocket* sock, quint8 opcode, const QByteArray& payload);

@@ -1,8 +1,8 @@
-# Architecture: plugins (runtime and Player UI implemented, rest planned)
+# Architecture: plugins (runtime, Player UI, Hub plugins, Hub runs and Player runs implemented)
 
-## 16. Plugin interface [0.11: runtime and Player UI implemented, rest planned]
+## 16. Plugin interface [0.11: runtime, Player UI, Hub plugins, Hub runs and Player runs implemented]
 
-Status: package 1 (plugin runtime in the Player) and package 2 (plugin UI in the Player: building blocks, map view, in-game tab, HUD, Multiview tile strip, sidebar screen, toasts, game detail section, shell context, hotkeys) are implemented. Everything else here (Hub plugins and runs, JS renderer in the Hub web UI, `.fbplugin` files, signing, plugin index, `memory.write`, `tool.exec`, settings schema, UI language) is still design only. What the runtime implements today is described in [guides/plugin-api.md](../guides/plugin-api.md). Decisions: [ADR 0023](../adr/0023-plugins.md) (proposed). Screens and building-block sheet: [design/plugins.md](../design/plugins.md). Sections 16.3 (runtime), the memory and UI rows of 16.2, the Player part of 16.8 and the local install are built; for the rest, where this file names code, it names today's extension points. Open items are marked **open**.
+Status: package 1 (plugin runtime in the Player), package 2 (plugin UI in the Player: building blocks, map view, in-game tab, HUD, Multiview tile strip, sidebar screen, toasts, game detail section, shell context, hotkeys) and package 3 on the Hub side (plugin store and delivery, `.fbplugin` files with `SIGNATURE.json`, signed plugin index, runs with REST and WSS, Hub web pages Plugins and Runs with the JS renderer) plus the Player side of plugin delivery (install from the Hub and from files) are implemented. The Player side of runs (`fb.run` Lua API, Runs screen) is implemented. Still design only: `memory.write`, `tool.exec`, settings schema, UI language. What the runtime implements today is described in [guides/plugin-api.md](../guides/plugin-api.md). Decisions: [ADR 0023](../adr/0023-plugins.md) (proposed). Screens and building-block sheet: [design/plugins.md](../design/plugins.md). Where this file names code, it names what is built or today's extension points. Open items are marked **open**.
 
 Decided defaults of the runtime (package 1): plugins run only with developer mode on (Settings → Plugins); the only install paths are local folders (copy or linked dev folder with live reload), all unsigned; Lua 5.4.7 is vendored in `client/plugins/third_party/`; plugins resolve (`requires`/`provides`) once at game start; the plugin tick is limited to 30 Hz by default (`tickHz`); budgets per entry call are 20M instructions / 500 ms and 64 MiB per state.
 
@@ -38,10 +38,10 @@ Non-goals:
 | Threading | `EmulationRunner` | Implemented: merged watched ranges are copied after `runFrame()` every N frames (default every frame; limits 4 MiB per range, 16 MiB per tick); the plugin thread works on the copy | - |
 | Game start | `GameStarter::launch` in `client/ui/gamestarter.cpp` | Implemented: `game_identity.h` provides the NDS game code and the 3DS title ID | Open: GB/GBA header code (needs those systems) |
 | Saves | keyed by `romSha256` (`gamestarter.cpp`) | A changed ROM (for example externally randomized) gets its own saves | Unchanged; "never overwrite saves silently" stays |
-| Hub channel | WSS envelope, `protocol/schemas/ws-envelope.schema.json` (`type` + `payload`) | No plugin messages | New message types for plugin/run state and events |
+| Hub channel | WSS envelope, `protocol/schemas/ws-envelope.schema.json` (`type` + `payload`) | Implemented (package 3): `run_updated`, `run_state`, `run_event`, optional `runs` in `hello` (feature `runs_v1`) | - |
 | Peer channel | DataChannel `fb-diag` | Exists only while someone watches the Session | Not suitable for run state |
-| Distribution | Core distribution with SHA-256 pin ([ADR 0020](../adr/0020-cores-from-the-libretro-buildbot.md)); signed `updates-index`, `server/cmd/framebeam-sign` | Cores and updates | Reuse the pin and the signing for plugins |
-| UI | `client/ui/*.qml`, `Fb*` components, `Theme.qml`; Hub web: Go templates + htmx (`server/internal/web`) | Implemented in the Player (package 2): `fb.ui`, validation in `client/plugins/plugin_ui.*`, `PluginsController`, `PluginBlock.qml`, `PluginMapView.qml`, `PluginImageProvider`; slots panel, HUD, tile strip, screen, game detail, toasts. [API guide](../guides/plugin-api.md#ui) | Open: JS renderer in the Hub web UI (package 3) |
+| Distribution | Core distribution with SHA-256 pin ([ADR 0020](../adr/0020-cores-from-the-libretro-buildbot.md)); signed `updates-index`, `server/cmd/framebeam-sign` | Cores, updates, plugins | Implemented (package 3): `.fbplugin` signature and plugin index reuse the updates-index key and `framebeam-sign` (16.10) |
+| UI | `client/ui/*.qml`, `Fb*` components, `Theme.qml`; Hub web: Go templates + htmx (`server/internal/web`) | Implemented in the Player (package 2): `fb.ui`, validation in `client/plugins/plugin_ui.*`, `PluginsController`, `PluginBlock.qml`, `PluginMapView.qml`, `PluginImageProvider`; slots panel, HUD, tile strip, screen, game detail, toasts. [API guide](../guides/plugin-api.md#ui) | Implemented in the Hub web UI (package 3): `server/internal/web/static/plugin-blocks.js` renders the same tree read-only |
 
 Core-side facts (3DS): see [ADR 0023](../adr/0023-plugins.md) context (Azahar exposes memory maps with virtual addresses; `retro_get_memory_data` returns NULL; `retro_cheat_set` is empty).
 
@@ -77,7 +77,7 @@ Core-side facts (3DS): see [ADR 0023](../adr/0023-plugins.md) context (Azahar ex
 
 Not planned: sending input, free network access.
 
-The Player shows name, origin (Official / Hub upload / local) and permissions before a plugin is switched on. In-game surfaces (tab, HUD widget, tile strip, toast) show a small "Unverified" or "Local" marker on hover or focus for non-official plugins; Official shows none.
+The Player shows name, origin (Official / Unverified / Local) and permissions before a plugin is switched on. In-game surfaces (tab, HUD widget, tile strip, toast) show a small "Unverified" or "Local" marker on hover or focus for non-official plugins; Official shows none.
 
 ### 16.6 Manifest (sketch)
 
@@ -122,7 +122,7 @@ Building blocks v1 (implemented in the Player; the exact catalog with props and 
 
 A new building block needs a Player update; the `api` version keeps that clean. A second tier with signed plugin QML is conceivable only if the building blocks provably do not suffice.
 
-Slots (implemented in the Player; the Hub web slots belong to package 3):
+Slots (implemented in the Player; the Hub web run page is built, see 16.11):
 
 | Slot | Where |
 |---|---|
@@ -155,19 +155,57 @@ Decided 2026-10-11 (Fabio): the group plays German/EU releases first.
 
 ### 16.10 Distribution
 
-- Official plugins: one repository each, with a release workflow that builds a `.fbplugin` (zip with manifest, Lua, own assets) and signs it with the FrameBeam release key. A signed **plugin index** (like `updates-index`) lists them with versions and SHA-256; the Hub reads it and the admin installs or updates with one click. A plugin signed by FrameBeam is "Official" wherever it was installed from (index, Hub upload or file) and carries the badge; "Local" means an unsigned file and needs developer mode.
-- Hub upload: an admin uploads a plugin; it is available to all users of that Hub and marked "Unverified" unless signed; the admin confirms the permissions on upload. A Hub without internet works completely with uploads (like `import-cores`).
-- Local install: "Install plugin from file" in the Player for development; a developer mode reloads a plugin from a folder on change and shows a log console.
-- Runs: the Hub delivers the same plugin version to all participants; a locally installed copy is not enough and never replaces the Hub version a run uses.
+Built in package 3 (Hub) and in the Player's delivery part.
+
+**`.fbplugin` file.** A zip (deflate or store) with `manifest.json` at the root (the Player manifest format, [API guide](../guides/plugin-api.md)), the entry file, assets and i18n as in a plugin folder, and an optional `SIGNATURE.json`. Hub (`server/internal/pluginpkg`) and Player (`client/plugins/fbplugin.*`) validate identically:
+
+- compressed file at most 32 MiB, sum of uncompressed sizes at most 64 MiB, at most 2000 entries;
+- every name is a relative path with `/` separators: no leading `/`, no `\`, no drive letter, no `.` or `..` segment, no empty segment, at most 255 bytes, no duplicate names (case-insensitive), no symlink entries; directory entries are ignored;
+- `manifest.json` parses, `api` is 1, `id`, `version` and `entry` are valid and the entry file exists.
+
+**`SIGNATURE.json`:** `{ "format": 1, "files": { "<path>": "<sha256 hex>" }, "signature": "<base64 Ed25519>" }`. `files` lists exactly every non-directory entry except `SIGNATURE.json` with the lowercase hex SHA-256 of its content. The signed message is the UTF-8 text `framebeam-plugin-v1\n` followed by one line `<sha256>  <path>\n` (two spaces) per file, sorted by path in byte order. The key is checked against the same trusted keys as the updates index (Hub: release key plus `-core-trust-key`; Player: the compiled-in release key). A missing signature leaves the plugin unsigned; an invalid one is reported as invalid and never counts as official.
+
+**Origins.** `official`: valid FrameBeam signature, wherever it was installed from (index, Hub upload, file). `unverified`: unsigned, offered by the Hub. `local`: unsigned file or folder on this device; only `local` plugins need developer mode in the Player.
+
+**Plugin index.** `plugin-index.json` (`format` 1, `generated_at`, `plugins[]` with `id`, `name`, `version`, `api`, `description`, `permissions`, `url`, `sha256`, `size`) plus a detached `plugin-index.json.sig` in the scheme of `updates-index`. `framebeam-sign plugin-sign` adds the signature to a `.fbplugin`, `plugin-add` puts a signed file into the index (it refuses unsigned files), `sign -index` writes the `.sig` ([publishing guide](../guides/plugin-publishing.md)). Hub flag `-plugin-index-url` / `FRAMEBEAM_PLUGIN_INDEX_URL` (https or `file://`); the default is empty, so a Hub without it has no catalog. The index is read at start, every 24 h and with "Check now"; a failure is shown on the Plugins page and never stops the Hub. Install and Update on the Plugins page download the file, check size and SHA-256 against the signed index and the embedded signature, and store it as `official` (source `index`). Official plugins come from their own repositories whose release workflow builds and signs the `.fbplugin`.
+
+**Hub plugin store.** Files live under `<data-dir>/plugins/<id>/<version>.fbplugin`, metadata in the table `plugins` (migration `0012_plugins`). Every stored version is offered to all Players of the Hub:
+
+- `GET /api/v1/plugins` (device token, feature `plugins_v1`): `PluginInfo` per version: `plugin_id`, `version`, `name`, `description`, `api`, `origin`, `sha256`, `size`, `permissions`, `requires`, `provides`, `games`, `created_at`.
+- `GET /api/v1/plugins/{plugin_id}/{version}/file`: the zip bytes, `Content-Type: application/zip`, `ETag` = SHA-256; 404 when unknown.
+- Admin upload in the Hub web UI (admin only; **open:** whether non-admins may upload): the Hub validates the file and shows name, version, origin and one tick per requested permission; "Offer to Players" works only with every tick set (checked on the server). The same id and version with a different SHA-256 is rejected; remove the old version first.
+- Offline: `framebeam-hub import-plugins <dir>` offers every `*.fbplugin` of a folder (source `import`), like `import-cores`; a Hub without internet works completely with uploads and imports.
+- Remove: deletes file and row, refused with 409 while a run that is not `finished` or `abandoned` uses that version. Copies Players already installed stay.
+
+**Player.** "Browse plugins on your Hub" lists the offered plugins; Install downloads the file with the list's SHA-256 as pin (a mismatch installs nothing), validates it as above and stores a Hub copy under `<plugins-root>/hub/<id>/<version>/` with `origin.json`. "Install plugin from file": signed files become `official` without developer mode, unsigned ones `local` (developer mode). The developer mode also reloads a plugin from a folder on change and shows a log console.
+
+**Runs** use exactly the plugin versions the run pins (id, version, SHA-256); a locally installed copy is not enough and never replaces the Hub version a run uses.
 
 Official plugin repositories (created 2026-10-11, no code yet, each with its own docs and roadmap): `framebeam-plugin-pokemon-core`, `framebeam-plugin-soullink`, `framebeam-plugin-pokemon-editor`, `framebeam-plugin-cheats`, `framebeam-plugin-template`.
 
 ### 16.11 Hub: runs
 
-- **Run** object: name, plugins with versions, participants (Hub users, invited as for Sessions), game or variant per participant, status.
-- Per-player **state** (JSON) and an **append-only event log**, with size and rate limits. The plugin computes rules in the Player from the shared state; the Hub validates only shape and size and executes no plugin code.
-- Fan-out over WSS to all connected participants; on `hello` a participant who was offline receives the current state and missing events.
-- Data stays on the user's Hub and never goes to another Hub (as for saves).
+Hub side built in package 3 (`server/internal/hub/runs.go`, `server/internal/httpapi/runs.go`, migration `0013_runs`; feature `runs_v1`, OpenAPI 1.16.0). Player side built too: `RunClient` (`client/network/runclient.*`), Lua `fb.run` (permission `run.state`, only when the game is started in a run; [plugin-api.md](../guides/plugin-api.md)) and the Runs screen in the Player. Each participant has one state object per plugin of the run, each with its own revision (migration `0013_runs`, table `run_states`); the game picker matches the plugin's `games` patterns against the game code the Hub reads from the ROM header (migration `0014_game_codes`, see below).
+
+**Data model.**
+
+- **Run:** `run_id` (uuid), `name` (1 to 64 characters), `status` (`starting`, `active`, `paused`, `finished`, `abandoned`), `archived` (web only), `created_by`, `created_at`, `updated_at`, `status_by`, `settings` (JSON object up to 16 KiB, opaque to the Hub: the plugin's run rules), `plugins` (1 to 8 of `{plugin_id, version, sha256}`, each an offered plugin version at creation), `last_seq`, `participants`.
+- **Participant:** `user_id`, `user_name`, `status` (`invited`, `joined`, `declined`, `left`), `game_id` (a Hub library game, set on join; the creator joins on create), `color` (0 to 7, in join order), `states` (object `plugin_id` -> `{state, state_rev, updated_at}`, only for plugins that have a row; `state` is a JSON object up to 64 KiB per plugin, a missing plugin means `{}` with revision 0, `state_rev` starts at 1 with the first write). At most 8 participants.
+- **Event** (append-only): `seq` (per run from 1, gapless), `created_at`, `user_id`, `user_name`, `device_id`, `plugin_id` (the last three null for Hub events), `source` (`automatic`, `manual`, `hub`), `type` (`^[a-z0-9_.-]{1,64}$`), `text` (up to 280 characters), `payload` (JSON object up to 4 KiB), `client_id` (uuid, unique per run, makes appending idempotent). The Hub appends `hub` events itself: `run.created`, `run.invited`, `run.joined`, `run.declined`, `run.left`, `run.status`. At most 50 000 events per run.
+- **Board:** per run and plugin a building-block tree (JSON object up to 64 KiB) that a joined participant's Player publishes for the Hub web run page; `rev`, `updated_by`, `updated_at`.
+
+The plugin computes the rules in the Player from the shared state; the Hub validates only shape and size and executes no plugin code. Run data stays on the user's Hub and never goes to another Hub (as for saves).
+
+**Limits.** Per participant token buckets: events 2/s burst 30, state writes 4/s burst 20 (all plugins of a participant together), board writes 1/s burst 5; exceeded: 429 `rate_limited`. `starting` and `active` runs accept events, state and board writes; `paused`, `finished` and `abandoned` refuse them with 409 `run_not_active`. Too large: 413 `too_large`; wrong shape: 400.
+
+**REST** (device token; only participants of any status see a run, others get 404): `GET /runs` (not archived), `POST /runs` (name, plugins, `game_id`, `invite_user_ids`, `settings`; 201, creator joined, status `starting`), `GET /runs/{run_id}`, `POST .../join` (`game_id`), `.../invite` (any joined participant while the run is not over; more than 8 participants: 409), `.../decline`, `.../leave`, `.../status`, `PUT .../state/{plugin_id}` (`base_rev`, `state`; own state of that plugin only, which must be a plugin of the run, else 404; a different `base_rev` returns 409 `state_conflict` with the current `state_rev` and `state` of that plugin), `POST .../events` (201 `{seq}`, the same `client_id` again 200 with the original `seq`), `GET .../events?after=<seq>&limit=<1..500, default 200>`, `PUT .../boards/{plugin_id}` (joined participant, plugin must be in the run). Status transitions: `active` from `starting` by the creator and from `paused` by any joined participant; `paused` from `active` by any joined participant; `finished` or `abandoned` by the creator; other transitions 409 `conflict`, the right transition by the wrong user 403. Users to invite come from `GET /users`. Details: [protocol reference](../reference/protocol.md).
+
+**WSS.** `run_updated` `{run}` to every participant (all statuses) after create, invite, join, decline, leave and status change; `run_state` `{run_id, user_id, plugin_id, state_rev, state}` to the other joined participants and the writer's other devices; `run_event` `{run_id, event}` to every joined participant's connections. Catch-up: `hello` may carry `runs: [{run_id, last_seq}]`. After `hello_ack` the Hub sends `run_updated` (full, with states) for every non-archived run of the user, then for the listed runs the missed `run_event`s with `seq > last_seq`, at most 500 per run; when more are missing it sends none and the Player pages with `GET .../events`. Runs not listed get only `run_updated`.
+
+**Game codes and the game picker.** The Hub reads the identity of a library game from the ROM header (header bytes only, no full read): the NDS 4-character game code at 0x0C (4 printable ASCII bytes), or the 3DS program ID as 16 uppercase hex digits from a `.3ds`/`.cci` (NCSD, first partition's NCCH) or a bare `.cxi` (NCCH), the same rules as the Player (`game_identity.cpp`). It does this on every ROM upload and folder import, and once at Hub start for games that were never tried (one log line; a game without a readable identity is marked as tried and not read again). ROMs are stored as uploaded, so a compressed or encrypted dump (for example `.zcci`) has no readable header and keeps an empty code. `GET /games` and `GET /games/{game_id}` carry `game_code` and `game_code_kind` (`nds-gamecode`, `3ds-titleid` or empty). The Player's Start and Join dialogs list a game when its system matches one of the plugin's `games[].system` and either the pattern has no `codes` or the `game_code` matches one of the `codes` globs (`*`, `?`, case-insensitive); every plugin of the run must accept the game. A game with an empty `game_code` stays selectable when its system matches (sorted after the matching games, hint "Game not recognized"); a known code that matches no pattern is not listed. At game start the Player still reads the identity from the local file.
+
+**Hub web.** The pages Plugins and Runs are admin-only. Runs: list, detail with status actions (Pause/Resume, Archive, Delete), participants, the board of each plugin drawn by the JS renderer `static/plugin-blocks.js` (no framework, no external fetch, plugin strings only as text, images only `data:image/png;base64`; interactive blocks disabled, unknown block types shown as "Unsupported block"; a "Paused" banner) and the event log with a JSON export. The Hub board is read-only.
+
 - **Deferred:** randomizer plugin (tool plugin; would run in the run creator's Player and upload only a patch as a variant of the base game). Until then, randomized ROMs are made externally; they get their own hash and therefore their own saves.
 
 ### 16.12 Security and trust model

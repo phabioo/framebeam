@@ -35,7 +35,7 @@
   <tbody>
   {{range .Rows}}
   <tr>
-    <td><div class="cell-title"><span class="cover" aria-hidden="true">{{.Initial}}</span><span>{{.Title}}</span></div></td>
+    <td><div class="cell-title"><span class="cover" aria-hidden="true">{{.Initial}}</span><span>{{.Title}}</span></div>{{if .GameCode}}<div class="sub mono">Game code {{.GameCode}}</div>{{end}}</td>
     <td class="mono">{{.System}}</td>
     <td class="mono">{{.Size}}</td>
     <td class="mono" title="{{.SHA}}">{{.ShortSHA}}</td>

@@ -14,6 +14,7 @@ Start with the [root README](../README.md) for what FrameBeam is and a quick sta
 - [Packaging](guides/packaging.md): Windows installer, Hub package
 - [Walkthrough](guides/walkthrough.md): try the main features
 - [Plugin API](guides/plugin-api.md): Lua API for Player plugins (0.11 runtime), developer mode
+- [Publishing an official plugin](guides/plugin-publishing.md): sign a `.fbplugin`, add it to the plugin index
 
 ## Reference
 

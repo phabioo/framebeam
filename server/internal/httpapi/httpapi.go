@@ -77,7 +77,7 @@ func Register(mux *http.ServeMux, svc *hub.Service, log *slog.Logger, opts ...Op
 		}},
 		ErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
 			var ip *api.InvalidParamFormatError
-			if errors.As(err, &ip) && ip.ParamName != "confirm_revision" { // e.g. no UUID in the path: does not exist
+			if errors.As(err, &ip) && ip.ParamName != "confirm_revision" && ip.ParamName != "after" && ip.ParamName != "limit" { // e.g. no UUID in the path: does not exist
 				writeError(w, http.StatusNotFound, hub.CodeNotFound, "Not found")
 				return
 			}
@@ -130,7 +130,8 @@ func (s *Server) authMiddleware(next api.StrictHandlerFunc, op string) api.Stric
 			"ListSaves", "GetSaveSlot", "PutSave", "DownloadSaveContent", "ListSaveHistory", "DownloadSaveHistoryContent", "ResolveSaveConflict",
 			"UpdateLocalSettings", "RestoreSaveHistoryVersion", "CreateSaveSnapshot", "DeleteSaveSnapshot", "UploadSaveFile", "RenameSaveSlot", "DeleteSaveSlot",
 			"ListUsers", "GetCorePackage", "GetCorePackageFile", "ListSessions", "PublishSession", "GetSession", "UpdateSession", "EndSession", "InviteSessionUser",
-			"WithdrawSessionInvite", "DeclineSession", "JoinSession", "RemoveSessionViewer":
+			"WithdrawSessionInvite", "DeclineSession", "JoinSession", "RemoveSessionViewer", "ListPlugins", "GetPluginFile",
+			"ListRuns", "CreateRun", "GetRun", "JoinRun", "DeclineRun", "LeaveRun", "InviteRun", "SetRunStatus", "PutRunState", "AppendRunEvent", "ListRunEvents", "PutRunBoard":
 			p, err := s.svc.Authenticate(ctx, tok)
 			if err != nil {
 				return nil, err
@@ -162,6 +163,10 @@ func httpStatus(c hub.Code) int {
 		return http.StatusNotFound
 	case hub.CodeSessionEnded:
 		return http.StatusGone
+	case hub.CodeRunNotActive, hub.CodeStateConflict:
+		return http.StatusConflict
+	case hub.CodeTooLarge:
+		return http.StatusRequestEntityTooLarge
 	case hub.CodeConflict, hub.CodePairingExpired, hub.CodeSaveConflict, hub.CodeSaveConflictStale,
 		hub.CodeSessionFull, hub.CodeCapabilityMissing, hub.CodeDisplayNameTaken,
 		hub.CodeSaveNotSnapshot, hub.CodeSaveSlotExists, hub.CodeSessionRunning, hub.CodeSaveSlotProtected:
@@ -316,7 +321,8 @@ func toAPIGame(g hub.Game) (api.Game, error) {
 		return api.Game{}, err
 	}
 	return api.Game{Id: id, Title: g.Title, System: g.System, UploadedBy: g.UploadedBy, AddedAt: g.AddedAt,
-		Rom: api.RomInfo{Sha256: g.ROMSHA256, Size: g.ROMSize, Filename: g.Filename}}, nil
+		Rom:      api.RomInfo{Sha256: g.ROMSHA256, Size: g.ROMSize, Filename: g.Filename},
+		GameCode: &g.GameCode, GameCodeKind: (*api.GameGameCodeKind)(&g.GameCodeKind)}, nil
 }
 
 func (s *Server) ListGames(ctx context.Context, _ api.ListGamesRequestObject) (api.ListGamesResponseObject, error) {

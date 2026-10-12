@@ -713,6 +713,147 @@ int uiOnAction(lua_State* L) {
   return 0;
 }
 
+
+// ------------------------------------------------------------------ fb.run (permission run.state)
+
+RunBridge* runBridge(lua_State* L) {
+  need(L, "run.state");
+  return self(L)->engine->ctx.run.get();
+}
+
+Value fieldOf(const Value& t, const char* name) {
+  for (size_t i = 0; i < t.keys.size(); ++i)
+    if (t.keys[i].type == Value::Type::String && t.keys[i].s == name) return t.vals[i];
+  return Value();
+}
+
+int pushRefusal(lua_State* L, const QString& why) {
+  lua_pushnil(L);
+  const QByteArray u = why.toUtf8();
+  lua_pushlstring(L, u.constData(), static_cast<size_t>(u.size()));
+  return 2;
+}
+
+int runCurrent(lua_State* L) {
+  const QJsonObject c = runBridge(L)->current();
+  if (c.isEmpty()) {
+    lua_pushnil(L);
+    return 1;
+  }
+  pushValue(L, valueFromJson(c));
+  return 1;
+}
+
+// fb.run.state([user_id [, plugin_id]]): defaults are the own user and the calling plugin.
+int runState(lua_State* L) {
+  RunBridge* b = runBridge(L);
+  const QString user = lua_isnoneornil(L, 1) ? b->current().value(QStringLiteral("me")).toString() : QString::fromStdString(checkStr(L, 1));
+  const QString plugin = lua_isnoneornil(L, 2) ? self(L)->id() : QString::fromStdString(checkStr(L, 2));
+  bool found = false;
+  const QJsonObject st = b->stateOf(user, plugin, &found);
+  if (!found) {
+    lua_pushnil(L);
+    return 1;
+  }
+  pushValue(L, valueFromJson(st));
+  return 1;
+}
+
+// fb.run.states([plugin_id]): {user_id = state} of that plugin (default: the calling plugin).
+int runStates(lua_State* L) {
+  RunBridge* b = runBridge(L);
+  const QString plugin = lua_isnoneornil(L, 1) ? self(L)->id() : QString::fromStdString(checkStr(L, 1));
+  pushValue(L, valueFromJson(b->states(plugin)));
+  return 1;
+}
+
+// fb.run.setState(tbl): replaces the calling plugin's state of the own participant. Coalesced per plugin: the bridge keeps
+// the latest value and the RunClient sends at most 4 writes per second for each plugin.
+int runSetState(lua_State* L) {
+  RunBridge* b = runBridge(L);
+  luaL_checktype(L, 1, LUA_TTABLE);
+  Value v;
+  std::string err;
+  if (!readValue(L, 1, v, err)) luaL_error(L, "fb.run.setState: %s", err.c_str());
+  QJsonObject o;
+  QString e;
+  if (!jsonObjectFromValue(v, o, e)) luaL_error(L, "fb.run.setState: %s", e.toUtf8().constData());
+  e = b->setState(self(L)->id(), o);
+  if (!e.isEmpty()) return pushRefusal(L, e);
+  lua_pushboolean(L, 1);
+  return 1;
+}
+
+int runEvent(lua_State* L) {
+  RunBridge* b = runBridge(L);
+  luaL_checktype(L, 1, LUA_TTABLE);
+  Value v;
+  std::string err;
+  if (!readValue(L, 1, v, err)) luaL_error(L, "fb.run.event: %s", err.c_str());
+  const Value type = fieldOf(v, "type");
+  const Value text = fieldOf(v, "text");
+  const Value payload = fieldOf(v, "payload");
+  const Value source = fieldOf(v, "source");
+  if (type.type != Value::Type::String) luaL_error(L, "fb.run.event: type must be a string");
+  if (text.type != Value::Type::Nil && text.type != Value::Type::String) luaL_error(L, "fb.run.event: text must be a string");
+  if (source.type != Value::Type::Nil && source.type != Value::Type::String) luaL_error(L, "fb.run.event: source must be \"automatic\" or \"manual\"");
+  QJsonObject po;
+  QString e;
+  if (payload.type != Value::Type::Nil && !jsonObjectFromValue(payload, po, e)) luaL_error(L, "fb.run.event: payload: %s", e.toUtf8().constData());
+  QString clientId;
+  e = b->postEvent(self(L)->id(), source.type == Value::Type::Nil ? QStringLiteral("automatic") : QString::fromStdString(source.s),
+                   QString::fromStdString(type.s), QString::fromStdString(text.s), po, &clientId);
+  if (!e.isEmpty()) return pushRefusal(L, e);
+  const QByteArray u = clientId.toUtf8();
+  lua_pushlstring(L, u.constData(), static_cast<size_t>(u.size()));
+  return 1;
+}
+
+int runEvents(lua_State* L) {
+  RunBridge* b = runBridge(L);
+  const lua_Integer after = luaL_optinteger(L, 1, 0);
+  const lua_Integer limit = luaL_optinteger(L, 2, 100);
+  if (limit < 1 || limit > 500) luaL_error(L, "fb.run.events: limit must be 1 to 500");
+  pushValue(L, valueFromJson(b->events(static_cast<qint64>(after), static_cast<int>(limit))));
+  return 1;
+}
+
+int runOn(lua_State* L) {
+  runBridge(L);
+  Plugin* p = self(L);
+  const std::string kind = checkStr(L, 1);
+  if (kind != "event" && kind != "state" && kind != "status" && kind != "participants")
+    luaL_error(L, "fb.run.on: unknown kind '%s' (use \"event\", \"state\", \"status\" or \"participants\")", kind.c_str());
+  luaL_checktype(L, 2, LUA_TFUNCTION);
+  if (p->runSubs.size() >= 16) luaL_error(L, "too many fb.run.on callbacks (max 16)");
+  lua_pushvalue(L, 2);
+  p->runSubs.push_back({kind, luaL_ref(L, LUA_REGISTRYINDEX)});
+  return 0;
+}
+
+int runSetBoard(lua_State* L) {
+  RunBridge* b = runBridge(L);
+  luaL_checktype(L, 1, LUA_TTABLE);
+  const Value v = readUiArg(L, 1);
+  QVariantMap tree;
+  QString e;
+  if (!convertUiTree(v, tree, e)) luaL_error(L, "ui tree: %s", e.toUtf8().constData());
+  const QJsonObject json = QJsonObject::fromVariantMap(tree);
+  Plugin* p = self(L);
+  const auto now = std::chrono::steady_clock::now();
+  if (now - p->boardLast >= std::chrono::milliseconds(1000)) {
+    p->boardLast = now;
+    p->hasBoardPending = false;
+    e = b->setBoard(p->id(), json);
+    if (!e.isEmpty()) return pushRefusal(L, e);
+  } else {
+    p->boardPending = json;  // at most one board per second: the latest tree goes out when the second is over
+    p->hasBoardPending = true;
+  }
+  lua_pushboolean(L, 1);
+  return 1;
+}
+
 // ------------------------------------------------------------------ fb.i18n
 
 void flatten(const QString& prefix, const QJsonObject& o, QHash<QString, QString>& out) {
@@ -917,6 +1058,19 @@ void registerFbApi(PluginEngine& engine, Plugin& p) {
   lua_newtable(L);  // fb.i18n
   setFn(L, "t", i18nT);
   lua_setfield(L, -2, "i18n");
+
+  if (g.run) {
+    lua_newtable(L);  // fb.run (only when the game was started in a run)
+    setFn(L, "current", runCurrent);
+    setFn(L, "state", runState);
+    setFn(L, "states", runStates);
+    setFn(L, "setState", runSetState);
+    setFn(L, "event", runEvent);
+    setFn(L, "events", runEvents);
+    setFn(L, "on", runOn);
+    setFn(L, "setBoard", runSetBoard);
+    lua_setfield(L, -2, "run");
+  }
 
   setFn(L, "clock", clockFn);
   lua_setglobal(L, "fb");

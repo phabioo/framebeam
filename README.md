@@ -21,7 +21,7 @@ All features: [docs/features.md](docs/features.md).
 
 ## Plugins
 
-Plugin runtime (0.11): the plugin runtime in the Player is implemented (sandboxed Lua, local folder install, developer mode only); UI slots, Hub runs and signed distribution are still planned. Sandboxed Lua plugins add game-specific features such as SoulLink/Nuzlocke runs without changing the generic Player. See [docs/guides/plugin-api.md](docs/guides/plugin-api.md), [docs/architecture/12-plugins.md](docs/architecture/12-plugins.md) and [ADR 0023](docs/adr/0023-plugins.md).
+Plugin runtime (0.11): the plugin runtime in the Player is implemented (sandboxed Lua, local folder install, developer mode only); UI slots, Hub plugins and runs (with the Player's Runs screen) and signed distribution are implemented. Sandboxed Lua plugins add game-specific features such as SoulLink/Nuzlocke runs without changing the generic Player. See [docs/guides/plugin-api.md](docs/guides/plugin-api.md), [docs/architecture/12-plugins.md](docs/architecture/12-plugins.md) and [ADR 0023](docs/adr/0023-plugins.md).
 
 The official plugins live in their own repositories under github.com/phabioo: [`framebeam-plugin-pokemon-core`](https://github.com/phabioo/framebeam-plugin-pokemon-core), [`-soullink`](https://github.com/phabioo/framebeam-plugin-soullink), [`-pokemon-editor`](https://github.com/phabioo/framebeam-plugin-pokemon-editor), [`-cheats`](https://github.com/phabioo/framebeam-plugin-cheats) and [`-template`](https://github.com/phabioo/framebeam-plugin-template). Each carries its own docs and roadmap; no official plugin code exists yet.
 

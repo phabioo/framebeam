@@ -298,6 +298,7 @@ func TestPairingFlowTokenLibraryDownloadRevoke(t *testing.T) {
 	wantStatus(t, empty, 200, "")
 	rom := make([]byte, 4096)
 	rand.Read(rom)
+	rom[0x0C] = 0 // NUL is not printable ASCII: never a valid NDS game code
 	g, err := e.svc.AddROM(context.Background(), bytes.NewReader(rom), "demo.nds", "Homebrew Demo", "", e.admin.ID)
 	if err != nil {
 		t.Fatal(err)
@@ -305,6 +306,13 @@ func TestPairingFlowTokenLibraryDownloadRevoke(t *testing.T) {
 	list := decode[struct{ Games []map[string]any }](t, e.do("GET", "/api/v1/games", nil, opt{token: at}))
 	if len(list.Games) != 1 || list.Games[0]["id"] != g.ID {
 		t.Fatalf("%+v", list)
+	}
+	// The game code fields are always present (empty when the header has no identity: random bytes here).
+	if c, ok := list.Games[0]["game_code"]; !ok || c != "" {
+		t.Fatalf("game_code %v", list.Games[0])
+	}
+	if k, ok := list.Games[0]["game_code_kind"]; !ok || k != "" {
+		t.Fatalf("game_code_kind %v", list.Games[0])
 	}
 	wantStatus(t, e.do("GET", "/api/v1/games/"+g.ID, nil, opt{token: at}), 200, "")
 	wantStatus(t, e.do("GET", "/api/v1/games/"+uuid.NewString(), nil, opt{token: at}), 404, "not_found")

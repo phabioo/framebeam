@@ -2,6 +2,7 @@
 #include <QTemporaryDir>
 #include <QtTest>
 
+#include "fbplugin_testutil.h"
 #include "plugin_manager.h"
 #include "plugin_test_util.h"
 
@@ -231,6 +232,173 @@ class ManagerTest : public QObject {
     QVERIFY(m.uninstall("net.test.dev"));
     QVERIFY(m.list().isEmpty());
     QVERIFY(QFileInfo(dir + "/main.lua").isFile());
+  }
+
+  // ---- .fbplugin files and origins (contract sections 1, 2, 7)
+
+  static QString writeFile(const QString& path, const QByteArray& bytes) {
+    QFile f(path);
+    if (!f.open(QIODevice::WriteOnly)) return {};
+    f.write(bytes);
+    return path;
+  }
+
+  void officialFileRunsWithoutDeveloperMode() {
+    QTemporaryDir root, src;
+    PluginManager m(root.path());
+    const TestKey key = fixedTestKey();
+    m.setTrustedKeys({key.pub});
+    FbSpec s;
+    s.id = "net.test.official";
+    s.sign = true;
+    const InstallResult r = m.installFromFile(writeFile(src.filePath("o.fbplugin"), makeFbPlugin(s)));
+    QVERIFY2(r.ok, qPrintable(r.error));
+    QCOMPARE(r.origin, QString("official"));
+    QCOMPARE(r.id, QString("net.test.official"));
+    QVERIFY(!m.list().first().enabled);  // a new install is off
+    QCOMPARE(m.list().first().origin, QString("official"));
+    QVERIFY(!m.list().first().hubCopy);
+    QVERIFY(m.setEnabled("net.test.official", true));
+    QVERIFY(!m.developerMode());
+    QCOMPARE(ids(m.resolveForGame("nds", "ABCD")), QStringList{"net.test.official"});
+    // the origin survives a restart
+    PluginManager again(root.path());
+    QCOMPARE(again.list().first().origin, QString("official"));
+  }
+
+  void unsignedFileIsLocalAndNeedsDeveloperMode() {
+    QTemporaryDir root, src;
+    PluginManager m(root.path());
+    m.setTrustedKeys({fixedTestKey().pub});
+    FbSpec s;
+    s.id = "net.test.unsigned";
+    const InstallResult r = m.installFromFile(writeFile(src.filePath("u.fbplugin"), makeFbPlugin(s)));
+    QVERIFY2(r.ok, qPrintable(r.error));
+    QCOMPARE(r.origin, QString("local"));
+    QVERIFY(m.setEnabled("net.test.unsigned", true));
+    const GameResolution blocked = m.resolveForGame("nds", "ABCD");
+    QVERIFY(blocked.start.isEmpty());
+    QVERIFY(blocked.problems.value("net.test.unsigned").join(" ").contains("Developer mode"));
+    m.setDeveloperMode(true);
+    QCOMPARE(ids(m.resolveForGame("nds", "ABCD")), QStringList{"net.test.unsigned"});
+  }
+
+  void invalidSignatureIsNeverOfficial() {
+    QTemporaryDir root, src;
+    PluginManager m(root.path());
+    m.setTrustedKeys({fixedTestKey().pub});
+    FbSpec s;
+    s.id = "net.test.badsig";
+    s.sign = true;
+    s.key = fixedTestKey(3);
+    const InstallResult r = m.installFromFile(writeFile(src.filePath("b.fbplugin"), makeFbPlugin(s)));
+    QVERIFY2(r.ok, qPrintable(r.error));
+    QCOMPARE(r.origin, QString("local"));
+    QVERIFY(!r.signatureNote.isEmpty());
+    QCOMPARE(m.list().first().origin, QString("local"));
+  }
+
+  void fileOriginCannotBeForgedByTheArchive() {
+    QTemporaryDir root, src;
+    PluginManager m(root.path());
+    FbSpec s;
+    s.id = "net.test.forged";
+    s.extra["origin.json"] = R"({"origin":"official","sha256":"x"})";
+    QVERIFY(m.installFromFile(writeFile(src.filePath("f.fbplugin"), makeFbPlugin(s))).ok);
+    QCOMPARE(m.list().first().origin, QString("local"));
+    // and a folder that brings an origin.json (or a SIGNATURE.json) along is local as well
+    PluginSpec ps;
+    ps.id = "net.test.folder";
+    ps.files["origin.json"] = R"({"origin":"official"})";
+    ps.files["SIGNATURE.json"] = R"({"format":1})";
+    QVERIFY(m.installFromFolder(writePlugin(src.path(), ps)).ok);
+    QCOMPARE(m.info("net.test.folder")->origin, QString("local"));
+  }
+
+  void installFromPathPicksFolderOrFile() {
+    QTemporaryDir root, src;
+    PluginManager m(root.path());
+    PluginSpec ps;
+    ps.id = "net.test.folder";
+    QVERIFY(m.installFromPath(writePlugin(src.path(), ps)).ok);
+    FbSpec s;
+    s.id = "net.test.file";
+    QVERIFY(m.installFromPath(writeFile(src.filePath("x.fbplugin"), makeFbPlugin(s))).ok);
+    QCOMPARE(m.list().size(), 2);
+    const InstallResult bad = m.installFromPath(writeFile(src.filePath("junk.fbplugin"), "junk"));
+    QVERIFY(!bad.ok);
+    QVERIFY(!m.installFromPath(src.filePath("missing.fbplugin")).ok);
+    QCOMPARE(m.list().size(), 2);
+    QVERIFY(!QFileInfo::exists(root.path() + "/installed/.tmp-net.test.file"));
+  }
+
+  void hubCopiesNeedNoDeveloperMode() {
+    QTemporaryDir root;
+    PluginManager m(root.path());
+    FbSpec s;
+    s.id = "net.test.hub";
+    const QByteArray file = makeFbPlugin(s);
+    const InstallResult r = m.installHubCopy(file, "net.test.hub", "1.0.0", sha256Hex(file));
+    QVERIFY2(r.ok, qPrintable(r.error));
+    QCOMPARE(r.origin, QString("unverified"));
+    QVERIFY(m.setEnabled("net.test.hub", true));
+    QCOMPARE(ids(m.resolveForGame("nds", "ABCD")), QStringList{"net.test.hub"});
+    QCOMPARE(m.hubCopyDir("net.test.hub", "1.0.0", sha256Hex(file)), root.path() + "/hub/net.test.hub/1.0.0");
+    QVERIFY(m.hubCopyDir("net.test.hub", "1.0.0", QString(64, 'f')).isEmpty());  // other file with that version
+    QVERIFY(m.hubCopyDir("net.test.hub", "1.0.1", sha256Hex(file)).isEmpty());
+    QVERIFY(m.hubCopyDir("net.test.hub", "bad", sha256Hex(file)).isEmpty());
+  }
+
+  void hubCopyRejectsWrongPinAndLeavesNothing() {
+    QTemporaryDir root;
+    PluginManager m(root.path());
+    FbSpec s;
+    s.id = "net.test.hub";
+    const QByteArray file = makeFbPlugin(s);
+    const InstallResult r = m.installHubCopy(file, "net.test.hub", "1.0.0", QString(64, 'a'));
+    QVERIFY(!r.ok);
+    QVERIFY(r.error.contains("SHA-256"));
+    QVERIFY(!QFileInfo::exists(root.path() + "/hub"));
+    QVERIFY(m.list().isEmpty());
+    QVERIFY(!m.installHubCopy(file, "../x", "1.0.0", sha256Hex(file)).ok);
+    QVERIFY(!m.installHubCopy(file, "net.test.hub", "../1.0.0", sha256Hex(file)).ok);
+    QVERIFY(!QFileInfo::exists(root.path() + "/hub"));
+  }
+
+  void tamperedHubCopyOnDiskIsIgnored() {
+    QTemporaryDir root;
+    FbSpec s;
+    s.id = "net.test.hub";
+    const QByteArray file = makeFbPlugin(s);
+    {
+      PluginManager m(root.path());
+      QVERIFY(m.installHubCopy(file, "net.test.hub", "1.0.0", sha256Hex(file)).ok);
+    }
+    QFile::remove(root.path() + "/hub/net.test.hub/1.0.0/origin.json");
+    PluginManager m2(root.path());
+    QVERIFY(m2.list().isEmpty());
+    QVERIFY(m2.hubCopyDir("net.test.hub", "1.0.0", sha256Hex(file)).isEmpty());
+  }
+
+  void installedCopyBeatsHubCopyOutsideRuns() {
+    QTemporaryDir root, src;
+    PluginManager m(root.path());
+    FbSpec s;
+    s.id = "net.test.both";
+    s.version = "2.0.0";
+    const QByteArray file = makeFbPlugin(s);
+    QVERIFY(m.installHubCopy(file, "net.test.both", "2.0.0", sha256Hex(file)).ok);
+    PluginSpec ps;
+    ps.id = "net.test.both";
+    ps.version = "1.0.0";
+    QVERIFY(m.installFromFolder(writePlugin(src.path(), ps)).ok);
+    QCOMPARE(m.list().size(), 1);
+    QCOMPARE(m.list().first().origin, QString("local"));  // the local copy is the one outside runs ...
+    QCOMPARE(m.list().first().manifest.version.toString(), QString("1.0.0"));
+    QVERIFY(!m.hubCopyDir("net.test.both", "2.0.0", sha256Hex(file)).isEmpty());  // ... and never replaces the Hub copy
+    QVERIFY(m.uninstall("net.test.both"));  // removes every copy of that plugin
+    QVERIFY(m.list().isEmpty());
+    QVERIFY(m.hubCopies().isEmpty());
   }
 };
 
