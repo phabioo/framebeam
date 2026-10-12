@@ -27,6 +27,24 @@ std::optional<GameEntry> HubLibrary::gameByRomSha(const QString& sha256) const {
   return std::nullopt;
 }
 
+std::optional<GameEntry> HubLibrary::gameByAnyRomSha(const QString& sha256) const {
+  for (const GameEntry& g : games_) {
+    if (g.hasRom(sha256)) {
+      return g;
+    }
+  }
+  return std::nullopt;
+}
+
+std::optional<GameEntry> HubLibrary::gameById(const QString& id) const {
+  for (const GameEntry& g : games_) {
+    if (g.id == id) {
+      return g;
+    }
+  }
+  return std::nullopt;
+}
+
 void HubLibrary::reload() {
   QNetworkReply* reply = conn_ ? conn_->authorizedGet(QStringLiteral("/games")) : nullptr;
   if (reply == nullptr) {

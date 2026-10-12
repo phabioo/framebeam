@@ -32,6 +32,7 @@ constexpr const char* kSessionVisibilityKey = "session_visibility";
 constexpr const char* kLibrarySortKey = "library_sort";
 constexpr const char* kLibraryReadyFirstKey = "library_ready_first";
 constexpr const char* kRomCacheLimitKey = "rom_cache_limit_bytes";
+constexpr const char* kLibraryFoldersKey = "library_folders";
 constexpr const char* kLastPlayedKey = "last_played";  // { hub_id: { game_id: epoch ms } }
 constexpr const char* kSaveSlotsKey = "save_slots";  // { hub_id: { game_id: slot } }
 }
@@ -62,6 +63,10 @@ PlayerSettings::PlayerSettings(const QString& baseDir)
   libraryReadyFirst_ = raw_.value(QLatin1String(kLibraryReadyFirstKey)).toBool(false);
   if (const QJsonValue v = raw_.value(QLatin1String(kRomCacheLimitKey)); v.isDouble() && v.toDouble() >= 0) {
     romCacheLimit_ = static_cast<qint64>(v.toDouble());
+  }
+  for (const QJsonValue& v : raw_.value(QLatin1String(kLibraryFoldersKey)).toArray()) {
+    const QString f = QDir::cleanPath(v.toString());
+    if (QDir::isAbsolutePath(f) && !libraryFolders_.contains(f)) libraryFolders_.append(f);
   }
   const QString vis = raw_.value(QLatin1String(kSessionVisibilityKey)).toString();
   if (vis == QLatin1String("private") || vis == QLatin1String("hub_users") || vis == QLatin1String("invite_only")) {
@@ -160,6 +165,18 @@ bool PlayerSettings::setLibrarySort(const QString& key) {
 bool PlayerSettings::setLibraryReadyFirst(bool on) {
   libraryReadyFirst_ = on;
   raw_.insert(QLatin1String(kLibraryReadyFirstKey), on);
+  return save();
+}
+
+bool PlayerSettings::setLibraryFolders(const QStringList& folders) {
+  QStringList clean;
+  for (const QString& raw : folders) {
+    if (raw.trimmed().isEmpty() || !QDir::isAbsolutePath(raw)) return false;
+    const QString f = QDir::cleanPath(raw);
+    if (!clean.contains(f)) clean.append(f);
+  }
+  libraryFolders_ = clean;
+  raw_.insert(QLatin1String(kLibraryFoldersKey), QJsonArray::fromStringList(clean));
   return save();
 }
 

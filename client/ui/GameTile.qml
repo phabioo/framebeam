@@ -12,6 +12,7 @@ Item {
     required property string tileText
     required property string tileTone
     required property real progress
+    required property bool onHub          // false: local-only game (file stays on a Player), shows the "Local" pill
     required property string addedText   // "DD.MM.YYYY" from the Hub; shown as "Added ..." with a date sort
     property bool showAdded: false
     property bool selected: false
@@ -89,6 +90,26 @@ Item {
                     font.weight: Font.DemiBold
                     color: Theme.accent
                 }
+            }
+        }
+        // "Local" pill (0.12): the game's file is not stored on the Hub.
+        Rectangle {
+            objectName: "tileLocalPill"
+            visible: !tile.onHub
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            anchors.margins: 10
+            height: 22
+            width: Math.min(parent.width - 20, localText.implicitWidth + 16)
+            radius: Theme.radiusPill
+            color: Theme.neutralPillBg
+            Text {
+                id: localText
+                anchors.centerIn: parent
+                text: qsTr("Local")
+                font.pixelSize: Theme.fontMono
+                font.weight: Font.DemiBold
+                color: Theme.textMuted
             }
         }
         Rectangle {

@@ -63,6 +63,32 @@ void fill(LibraryModel& m) {
 class LibrarySortTest : public QObject {
   Q_OBJECT
  private slots:
+  void localOnlyGameShowsLocalAndMissingStates() {
+    LibraryModel m;
+    GameEntry local = game(QStringLiteral("b1"), QStringLiteral("Local Game"), 100, QStringLiteral("nds"), QString());
+    local.onHub = false;
+    GameEntry hub = game(QStringLiteral("b2"), QStringLiteral("Hub Game"), 100, QStringLiteral("nds"), QString());
+    m.setGames({local, hub}, [](const GameEntry& g) {
+      return g.onHub ? st(RomState::DownloadNeeded) : st(RomState::Missing);  // not on this device
+    });
+    QCOMPARE(m.rowCount(), 2);
+    const auto row = [&](const QString& id) {
+      for (int i = 0; i < m.rowCount(); ++i)
+        if (m.data(m.index(i, 0), LibraryModel::GameIdRole).toString() == id) return i;
+      return -1;
+    };
+    const int l = row(QStringLiteral("b1")), h = row(QStringLiteral("b2"));
+    QVERIFY(!m.data(m.index(l, 0), LibraryModel::OnHubRole).toBool());
+    QVERIFY(m.data(m.index(h, 0), LibraryModel::OnHubRole).toBool());
+    QCOMPARE(m.data(m.index(l, 0), LibraryModel::StateKindRole).toString(), QStringLiteral("missing"));
+    QVERIFY(m.data(m.index(l, 0), LibraryModel::TileTextRole).toString().contains(QStringLiteral("missing")));
+    QVERIFY(m.data(m.index(l, 0), LibraryModel::NeedsAttentionRole).toBool());
+    // The local file shows up (folder scan): the same game turns ready and keeps the Local state
+    m.setGames({local, hub}, [](const GameEntry& g) { return g.onHub ? st(RomState::DownloadNeeded) : st(RomState::Ready); });
+    QCOMPARE(m.data(m.index(row(QStringLiteral("b1")), 0), LibraryModel::StateKindRole).toString(), QStringLiteral("ready"));
+    QVERIFY(!m.data(m.index(row(QStringLiteral("b1")), 0), LibraryModel::OnHubRole).toBool());
+  }
+
   void defaultIsNameAscending() {
     LibraryModel m;
     fill(m);

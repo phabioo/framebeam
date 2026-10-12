@@ -67,6 +67,11 @@ class PlayerSettings {
   qint64 romCacheLimitBytes() const { return romCacheLimit_; }
   bool setRomCacheLimitBytes(qint64 bytes);
 
+  // Library folders (0.12): folders scanned for local ROM files, per device. Stored as absolute, cleaned paths without
+  // duplicates; relative or empty entries are rejected.
+  QStringList libraryFolders() const { return libraryFolders_; }
+  bool setLibraryFolders(const QStringList& folders);  // false: invalid entry or not writable (nothing changes)
+
   // Plugin developer mode (settings -> Plugins): allows unsigned local plugins, shows the Plugin console in game. Default off.
   bool developerMode() const { return developerMode_; }
   bool setDeveloperMode(bool on);
@@ -105,6 +110,7 @@ class PlayerSettings {
   QString librarySort_ = QStringLiteral("name_asc");
   bool libraryReadyFirst_ = false;
   QString sessionVisibility_;
+  QStringList libraryFolders_;
   bool developerMode_ = false;
   bool pluginHudAllHidden_ = false;
   qint64 romCacheLimit_ = kDefaultRomCacheLimitBytes;

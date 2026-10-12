@@ -200,7 +200,7 @@ func TestUploadPermissionMatrix(t *testing.T) {
 	if !has(features(adminDev), "uploads_v1") {
 		t.Fatalf("%v", features(adminDev))
 	}
-	rom := []byte("homebrew-dummy-rom-one")
+	rom := []byte("homebrew-dummy-ROM-one")
 	wantStatus(t, s.upload(userDev.tok, "filename=u.nds", rom), 403, "uploads_disabled")
 	rec := s.upload(adminDev.tok, "filename=a.nds&title=Admin%20Game", []byte("homebrew-dummy-rom-admin"))
 	wantStatus(t, rec, 201, "")

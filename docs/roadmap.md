@@ -44,7 +44,7 @@ Phase plan: [workflow.md](workflow.md#phase-plan).
 | 0.10 | done in code | Second system: 3DS (Azahar) | System `3ds` with the Azahar buildbot core on the OpenGL rendering; two-screen composition, game override UI, ROM cache limit ([ADR 0022](adr/0022-nintendo-3ds-with-azahar.md), proposed). 3DS saves sync with the Hub (D3 amendment, 2026-10-11). Real Azahar run and performance open. |
 | 0.10.x | done in code | Connections and small items | Before new testers: direct WebRTC connections instead of TURN relay (STUN default, ICE logging, diagnostics, Cloudflare TURN, external TURN servers), then small items (gamepad hotkeys, repo-scan leftovers, save slot actions, logs bundle, background core updates, Inno shell removed). Open: relayed direction on a mobile hotspot, Library loading speed with many games. |
 | 0.11 | in progress | Plugin runtime | Packages 1 to 3: Player runtime (done in code), UI building blocks and slots (done in code), Hub plugins and runs with `.fbplugin`, signing and plugin index (done in code, including Player runs) ([ADR 0023](adr/0023-plugins.md), proposed; [design](architecture/12-plugins.md)). The plugins themselves live in their own repositories. |
-| 0.12 | planned | Local ROMs | Play ROMs the user has locally, with an optional resumable upload to the Hub; no P2P transfer. |
+| 0.12 | done in code | Local ROMs | Play ROMs from Player library folders with the usual save sync; games merge by identity (system, game code, version); local-only games are visible to their owners; optional resumable upload to the Hub (Player and web); no P2P ([ADR 0025](adr/0025-local-roms.md)). OpenAPI 1.17.0, `local_roms_v1`. |
 | 0.13 | planned | System template, GB/GBC/GBA | Clean manifests and templates so a new system needs minimal work; GB, GBC and GBA (mGBA) as the proof. |
 | 0.14 | planned | UI gaps and Multiview | Remaining Hub web and Player design gaps; Multiview shows three Sessions side by side, a 2x2 grid only from the fourth. |
 | 0.15 | planned | GPU paths | OpenGL to D3D11 bridge, zero-copy display, GPU-direct QSV and AMF. |
@@ -333,12 +333,13 @@ Decided by Fabio on 2026-10-11: this milestone is the runtime only. The plugins 
 
 ## 0.12 Local ROMs
 
-Decided by Fabio on 2026-10-11: before 1.0.
+Decided by Fabio on 2026-10-10 and 2026-10-12 (before 1.0; owner-only visibility, merge by game identity, no P2P). Decisions: [ADR 0025](adr/0025-local-roms.md). Guide: [guides/local-roms.md](guides/local-roms.md).
 
-- Open: play ROMs the user has locally (not in the Hub library), with the usual save sync.
-- Open: optional resumable upload of such a ROM to the Hub (chunked, resumable). The same chunked upload is a prerequisite of the Cloudflare Tunnel evaluation in "Later".
+- [x] Done in code: Hub: several ROM files per game (`game_roms`, `rom_owners`, migration 0015), identity merge (system + game code + version; hash-only fallback for files without a readable header such as `.zcci`), visibility (owners until a file is stored; admins see all with a "Local only" badge), `POST /api/v1/games/register`, `DELETE /api/v1/games/{id}/registration`, `Game.on_hub`/`roms`/`game_version`, `RomInfo.stored`. OpenAPI 1.17.0, feature `local_roms_v1`, `protocol_version` stays 1.
+- [x] Done in code: resumable uploads: `POST/GET/PUT/DELETE /api/v1/uploads` (64 MiB chunks, persisted SHA-256 state, 7-day janitor), web upload with 8 MiB chunks and multipart fallback; the old `POST /api/v1/games` stays.
+- [x] Done in code: Player: Settings → Library folders (scan, hash cache by path + size + mtime, game code from NDS/3DS headers, registration), launch from the folder without a cache copy, "Local" and "Missing" markers, "Upload to Hub" queue that survives restarts, "Upload ROM" via the resumable API.
 - No P2P ROM transfer between Players.
-- Open: details (UI, library marker, interaction with the standalone mode of 0.9) are not designed yet.
+- Open: automatic cleanup of local-only games without owners (admins can delete them); a real-Hub test with a 4 GiB file over a slow uplink. The chunked upload is a prerequisite of the Cloudflare Tunnel evaluation in "Later".
 
 ## 0.13 System template and GB/GBC/GBA
 

@@ -682,6 +682,17 @@ type CorePackageFileRole string
 // CorePlatform defines model for CorePlatform.
 type CorePlatform string
 
+// CreateUploadRequest defines model for CreateUploadRequest.
+type CreateUploadRequest struct {
+	Filename string `json:"filename"`
+
+	// Sha256 Optional. When given, it is checked after the last chunk and a stored file with this hash is refused up front (409).
+	Sha256 *string `json:"sha256,omitempty"`
+	Size   int64   `json:"size"`
+	System *string `json:"system,omitempty"`
+	Title  *string `json:"title,omitempty"`
+}
+
 // DuplicateGameError defines model for DuplicateGameError.
 type DuplicateGameError struct {
 	Error struct {
@@ -729,11 +740,22 @@ type Game struct {
 	GameCode *string `json:"game_code,omitempty"`
 
 	// GameCodeKind Kind of `game_code`; empty when unknown
-	GameCodeKind *GameGameCodeKind  `json:"game_code_kind,omitempty"`
-	Id           openapi_types.UUID `json:"id"`
-	Rom          RomInfo            `json:"rom"`
-	System       string             `json:"system"`
-	Title        string             `json:"title"`
+	GameCodeKind *GameGameCodeKind `json:"game_code_kind,omitempty"`
+
+	// GameVersion ROM version of the identity: NDS header byte 0x1E, 3DS NCCH version. Absent when unknown (`local_roms_v1`).
+	GameVersion *int               `json:"game_version,omitempty"`
+	Id          openapi_types.UUID `json:"id"`
+
+	// OnHub At least one file of the game is stored on the Hub (`local_roms_v1`; absent on older Hubs, then true). A game that is not on the Hub is only visible to the users who registered a file of it.
+	OnHub *bool `json:"on_hub,omitempty"`
+
+	// Rom A file stored on the Hub if the game has one, else the primary file.
+	Rom RomInfo `json:"rom"`
+
+	// Roms All known files of the game, the primary file first (`local_roms_v1`). Different dumps of the same identity are files of one game.
+	Roms   *[]RomInfo `json:"roms,omitempty"`
+	System string     `json:"system"`
+	Title  string     `json:"title"`
 
 	// UploadedBy Hub-local user ID
 	UploadedBy string `json:"uploaded_by"`
@@ -791,7 +813,7 @@ type HandshakeRequest_Video struct {
 type HandshakeResponse struct {
 	Compatible bool `json:"compatible"`
 
-	// Features Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = at least one relay provider is on (the embedded TURN server and/or Cloudflare TURN; `turn_servers` in `hello_ack`, `ice_update` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`), `saves_v4` = uploading a save file into a slot (`POST /games/{game_id}/saves/{slot}/upload`), `saves_v5` = renaming a slot (`POST /games/{game_id}/saves/{slot}/rename`), deleting a slot (`DELETE /games/{game_id}/saves/{slot}`), `save_updated` reasons `renamed` and `deleted`, and 409 `session_running` on `saves_v4` uploads while a Session of the game runs, `cores_v2` = several cores per system (`default_core_id` and `cores` in `SystemInfo`; core ids follow `^[a-z0-9][a-z0-9_-]{0,63}$`), `ice_update_v1` = the Hub pushes the WSS message `ice_update` whenever its effective ICE configuration changes, `plugins_v1` = plugin list and download (`GET /plugins`, `GET /plugins/{plugin_id}/{version}/file`). `cores_index_v1` (signed core index) existed in 0.4 to 0.7 and was removed in 0.8.
+	// Features Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = at least one relay provider is on (the embedded TURN server and/or Cloudflare TURN; `turn_servers` in `hello_ack`, `ice_update` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`), `saves_v4` = uploading a save file into a slot (`POST /games/{game_id}/saves/{slot}/upload`), `saves_v5` = renaming a slot (`POST /games/{game_id}/saves/{slot}/rename`), deleting a slot (`DELETE /games/{game_id}/saves/{slot}`), `save_updated` reasons `renamed` and `deleted`, and 409 `session_running` on `saves_v4` uploads while a Session of the game runs, `cores_v2` = several cores per system (`default_core_id` and `cores` in `SystemInfo`; core ids follow `^[a-z0-9][a-z0-9_-]{0,63}$`), `ice_update_v1` = the Hub pushes the WSS message `ice_update` whenever its effective ICE configuration changes, `plugins_v1` = plugin list and download (`GET /plugins`, `GET /plugins/{plugin_id}/{version}/file`), `runs_v1` = runs, `local_roms_v1` = local-only games and resumable uploads (`POST /games/register`, `DELETE /games/{game_id}/registration`, `/uploads`; `stored`, `on_hub`, `roms`, `game_version`; `GET /roms/{sha256}` serves stored files only). `cores_index_v1` (signed core index) existed in 0.4 to 0.7 and was removed in 0.8.
 	Features           *[]string          `json:"features,omitempty"`
 	HubVersion         string             `json:"hub_version"`
 	MinProtocolVersion int                `json:"min_protocol_version"`
@@ -960,11 +982,33 @@ type PluginList struct {
 // PluginOrigin `official` = valid signature of a trusted FrameBeam key; `unverified` = unsigned (or not verifiable), offered by the Hub admin.
 type PluginOrigin string
 
+// RegisterGameRequest defines model for RegisterGameRequest.
+type RegisterGameRequest struct {
+	Filename string `json:"filename"`
+
+	// GameCode Identity read from the ROM header by the Player (same format as `Game.game_code`). Ignored when it does not fit the system.
+	GameCode *string `json:"game_code,omitempty"`
+
+	// GameVersion ROM version read by the Player; only used together with `game_code`.
+	GameVersion *int   `json:"game_version,omitempty"`
+	Sha256      string `json:"sha256"`
+	Size        int64  `json:"size"`
+
+	// System System ID; derived from the file extension when omitted.
+	System *string `json:"system,omitempty"`
+
+	// Title Default is the file name without extension
+	Title *string `json:"title,omitempty"`
+}
+
 // RomInfo defines model for RomInfo.
 type RomInfo struct {
 	Filename string `json:"filename"`
 	Sha256   string `json:"sha256"`
 	Size     int64  `json:"size"`
+
+	// Stored The file is stored on the Hub and downloadable via `GET /roms/{sha256}`; false = only registered by a Player (`local_roms_v1`; absent on older Hubs, then true).
+	Stored *bool `json:"stored,omitempty"`
 }
 
 // Run defines model for Run.
@@ -1460,6 +1504,30 @@ type TurnServer struct {
 	Username string   `json:"username"`
 }
 
+// UploadProgress defines model for UploadProgress.
+type UploadProgress struct {
+	// Game Set by the chunk that completes the upload.
+	Game   *Game `json:"game,omitempty"`
+	Offset int64 `json:"offset"`
+}
+
+// UploadSession defines model for UploadSession.
+type UploadSession struct {
+	// ChunkSize Largest chunk the Hub accepts (64 MiB)
+	ChunkSize int64 `json:"chunk_size"`
+
+	// Offset Bytes received so far; the next chunk starts here
+	Offset   int64              `json:"offset"`
+	UploadId openapi_types.UUID `json:"upload_id"`
+}
+
+// UploadStatus defines model for UploadStatus.
+type UploadStatus struct {
+	Offset   int64              `json:"offset"`
+	Size     int64              `json:"size"`
+	UploadId openapi_types.UUID `json:"upload_id"`
+}
+
 // UserInfo defines model for UserInfo.
 type UserInfo struct {
 	DisplayName string `json:"display_name"`
@@ -1605,8 +1673,16 @@ type ListRunEventsParams struct {
 	Limit *int   `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// PutUploadChunkParams defines parameters for PutUploadChunk.
+type PutUploadChunkParams struct {
+	ContentRange string `json:"Content-Range"`
+}
+
 // CreateAccessTokenJSONRequestBody defines body for CreateAccessToken for application/json ContentType.
 type CreateAccessTokenJSONRequestBody = TokenRequest
+
+// RegisterGameJSONRequestBody defines body for RegisterGame for application/json ContentType.
+type RegisterGameJSONRequestBody = RegisterGameRequest
 
 // ResolveSaveConflictJSONRequestBody defines body for ResolveSaveConflict for application/json ContentType.
 type ResolveSaveConflictJSONRequestBody = SaveResolveRequest
@@ -1664,6 +1740,9 @@ type PublishSessionJSONRequestBody = SessionPublishRequest
 
 // UpdateSessionJSONRequestBody defines body for UpdateSession for application/json ContentType.
 type UpdateSessionJSONRequestBody = SessionUpdateRequest
+
+// CreateUploadJSONRequestBody defines body for CreateUpload for application/json ContentType.
+type CreateUploadJSONRequestBody = CreateUploadRequest
 
 // Getter for additional properties for HandshakeRequest. Returns the specified
 // element and whether it was found
@@ -2099,9 +2178,15 @@ type ServerInterface interface {
 	// Upload a ROM (admin, or users when the Hub allows user uploads)
 	// (POST /api/v1/games)
 	UploadGame(w http.ResponseWriter, r *http.Request, params UploadGameParams)
+	// Register a ROM file that exists only on the caller's device (`local_roms_v1`)
+	// (POST /api/v1/games/register)
+	RegisterGame(w http.ResponseWriter, r *http.Request)
 	// Single game
 	// (GET /api/v1/games/{game_id})
 	GetGame(w http.ResponseWriter, r *http.Request, gameId openapi_types.UUID)
+	// Remove the caller's local registrations for a game (`local_roms_v1`)
+	// (DELETE /api/v1/games/{game_id}/registration)
+	DeleteGameRegistration(w http.ResponseWriter, r *http.Request, gameId openapi_types.UUID)
 	// Delete a slot with its whole history (`saves_v5`)
 	// (DELETE /api/v1/games/{game_id}/saves/{slot})
 	DeleteSaveSlot(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName, params DeleteSaveSlotParams)
@@ -2168,7 +2253,7 @@ type ServerInterface interface {
 	// Download the `.fbplugin` file of an offered plugin version (`plugins_v1`, any trusted device)
 	// (GET /api/v1/plugins/{plugin_id}/{version}/file)
 	GetPluginFile(w http.ResponseWriter, r *http.Request, pluginId PluginId, version PluginVersion, params GetPluginFileParams)
-	// ROM download (range support). Upload only via the admin web interface.
+	// ROM download (range support). Only files stored on the Hub (`stored`); a file that is only registered as local is 404.
 	// (GET /api/v1/roms/{sha256})
 	DownloadRom(w http.ResponseWriter, r *http.Request, sha256 string, params DownloadRomParams)
 	// Runs the caller participates in (any participant status, not archived), most recently changed first
@@ -2246,6 +2331,18 @@ type ServerInterface interface {
 	// Download a firmware file (any trusted device; never logged)
 	// (GET /api/v1/systems/{system_id}/firmware/{file_id})
 	GetFirmwareFile(w http.ResponseWriter, r *http.Request, systemId string, fileId string)
+	// Start or resume a resumable ROM upload (`local_roms_v1`)
+	// (POST /api/v1/uploads)
+	CreateUpload(w http.ResponseWriter, r *http.Request)
+	// Abort an upload session (`local_roms_v1`)
+	// (DELETE /api/v1/uploads/{upload_id})
+	DeleteUpload(w http.ResponseWriter, r *http.Request, uploadId openapi_types.UUID)
+	// State of an upload session (`local_roms_v1`)
+	// (GET /api/v1/uploads/{upload_id})
+	GetUpload(w http.ResponseWriter, r *http.Request, uploadId openapi_types.UUID)
+	// Upload one chunk (`local_roms_v1`)
+	// (PUT /api/v1/uploads/{upload_id})
+	PutUploadChunk(w http.ResponseWriter, r *http.Request, uploadId openapi_types.UUID, params PutUploadChunkParams)
 	// Users of this Hub (for the invite field)
 	// (GET /api/v1/users)
 	ListUsers(w http.ResponseWriter, r *http.Request)
@@ -2516,6 +2613,26 @@ func (siw *ServerInterfaceWrapper) UploadGame(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// RegisterGame operation middleware
+func (siw *ServerInterfaceWrapper) RegisterGame(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RegisterGame(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetGame operation middleware
 func (siw *ServerInterfaceWrapper) GetGame(w http.ResponseWriter, r *http.Request) {
 
@@ -2539,6 +2656,38 @@ func (siw *ServerInterfaceWrapper) GetGame(w http.ResponseWriter, r *http.Reques
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetGame(w, r, gameId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteGameRegistration operation middleware
+func (siw *ServerInterfaceWrapper) DeleteGameRegistration(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "game_id" -------------
+	var gameId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "game_id", r.PathValue("game_id"), &gameId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "game_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteGameRegistration(w, r, gameId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4311,6 +4460,150 @@ func (siw *ServerInterfaceWrapper) GetFirmwareFile(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// CreateUpload operation middleware
+func (siw *ServerInterfaceWrapper) CreateUpload(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateUpload(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteUpload operation middleware
+func (siw *ServerInterfaceWrapper) DeleteUpload(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "upload_id" -------------
+	var uploadId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "upload_id", r.PathValue("upload_id"), &uploadId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "upload_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteUpload(w, r, uploadId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetUpload operation middleware
+func (siw *ServerInterfaceWrapper) GetUpload(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "upload_id" -------------
+	var uploadId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "upload_id", r.PathValue("upload_id"), &uploadId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "upload_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetUpload(w, r, uploadId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutUploadChunk operation middleware
+func (siw *ServerInterfaceWrapper) PutUploadChunk(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "upload_id" -------------
+	var uploadId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "upload_id", r.PathValue("upload_id"), &uploadId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "upload_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PutUploadChunkParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "Content-Range" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Content-Range")]; found {
+		var ContentRange string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Content-Range", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Content-Range", valueList[0], &ContentRange, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Content-Range", Err: err})
+			return
+		}
+
+		params.ContentRange = ContentRange
+
+	} else {
+		err := fmt.Errorf("Header parameter Content-Range is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "Content-Range", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutUploadChunk(w, r, uploadId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListUsers operation middleware
 func (siw *ServerInterfaceWrapper) ListUsers(w http.ResponseWriter, r *http.Request) {
 
@@ -4478,7 +4771,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/cores/{core_id}/packages/{version}/{platform}/files/{name}", wrapper.GetCorePackageFile)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/games", wrapper.ListGames)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/games", wrapper.UploadGame)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/games/register", wrapper.RegisterGame)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/games/{game_id}", wrapper.GetGame)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/games/{game_id}/registration", wrapper.DeleteGameRegistration)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}", wrapper.DeleteSaveSlot)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}", wrapper.GetSaveSlot)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}", wrapper.PutSave)
@@ -4527,6 +4822,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/sessions/{session_id}/viewers/{viewer_id}", wrapper.RemoveSessionViewer)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/systems", wrapper.ListSystems)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/systems/{system_id}/firmware/{file_id}", wrapper.GetFirmwareFile)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/uploads", wrapper.CreateUpload)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/uploads/{upload_id}", wrapper.DeleteUpload)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/uploads/{upload_id}", wrapper.GetUpload)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/uploads/{upload_id}", wrapper.PutUploadChunk)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/users", wrapper.ListUsers)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/ws", wrapper.ConnectWebSocket)
 
@@ -4935,6 +5234,70 @@ func (response UploadGame413JSONResponse) VisitUploadGameResponse(w http.Respons
 	return err
 }
 
+type RegisterGameRequestObject struct {
+	Body *RegisterGameJSONRequestBody
+}
+
+type RegisterGameResponseObject interface {
+	VisitRegisterGameResponse(w http.ResponseWriter) error
+}
+
+type RegisterGame200JSONResponse Game
+
+func (response RegisterGame200JSONResponse) VisitRegisterGameResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RegisterGame201JSONResponse Game
+
+func (response RegisterGame201JSONResponse) VisitRegisterGameResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RegisterGame400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response RegisterGame400JSONResponse) VisitRegisterGameResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RegisterGame401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response RegisterGame401JSONResponse) VisitRegisterGameResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetGameRequestObject struct {
 	GameId openapi_types.UUID `json:"game_id"`
 }
@@ -4974,6 +5337,50 @@ func (response GetGame401JSONResponse) VisitGetGameResponse(w http.ResponseWrite
 type GetGame404JSONResponse struct{ NotFoundJSONResponse }
 
 func (response GetGame404JSONResponse) VisitGetGameResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteGameRegistrationRequestObject struct {
+	GameId openapi_types.UUID `json:"game_id"`
+}
+
+type DeleteGameRegistrationResponseObject interface {
+	VisitDeleteGameRegistrationResponse(w http.ResponseWriter) error
+}
+
+type DeleteGameRegistration204Response struct {
+}
+
+func (response DeleteGameRegistration204Response) VisitDeleteGameRegistrationResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteGameRegistration401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DeleteGameRegistration401JSONResponse) VisitDeleteGameRegistrationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteGameRegistration404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DeleteGameRegistration404JSONResponse) VisitDeleteGameRegistrationResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -8697,6 +9104,300 @@ func (response GetFirmwareFile404JSONResponse) VisitGetFirmwareFileResponse(w ht
 	return err
 }
 
+type CreateUploadRequestObject struct {
+	Body *CreateUploadJSONRequestBody
+}
+
+type CreateUploadResponseObject interface {
+	VisitCreateUploadResponse(w http.ResponseWriter) error
+}
+
+type CreateUpload201JSONResponse UploadSession
+
+func (response CreateUpload201JSONResponse) VisitCreateUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateUpload400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response CreateUpload400JSONResponse) VisitCreateUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateUpload401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response CreateUpload401JSONResponse) VisitCreateUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateUpload403JSONResponse Error
+
+func (response CreateUpload403JSONResponse) VisitCreateUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateUpload409JSONResponse DuplicateGameError
+
+func (response CreateUpload409JSONResponse) VisitCreateUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateUpload413JSONResponse Error
+
+func (response CreateUpload413JSONResponse) VisitCreateUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(413)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateUpload429JSONResponse struct{ RateLimitedJSONResponse }
+
+func (response CreateUpload429JSONResponse) VisitCreateUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteUploadRequestObject struct {
+	UploadId openapi_types.UUID `json:"upload_id"`
+}
+
+type DeleteUploadResponseObject interface {
+	VisitDeleteUploadResponse(w http.ResponseWriter) error
+}
+
+type DeleteUpload204Response struct {
+}
+
+func (response DeleteUpload204Response) VisitDeleteUploadResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteUpload401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DeleteUpload401JSONResponse) VisitDeleteUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteUpload404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DeleteUpload404JSONResponse) VisitDeleteUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetUploadRequestObject struct {
+	UploadId openapi_types.UUID `json:"upload_id"`
+}
+
+type GetUploadResponseObject interface {
+	VisitGetUploadResponse(w http.ResponseWriter) error
+}
+
+type GetUpload200JSONResponse UploadStatus
+
+func (response GetUpload200JSONResponse) VisitGetUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetUpload401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetUpload401JSONResponse) VisitGetUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetUpload404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetUpload404JSONResponse) VisitGetUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutUploadChunkRequestObject struct {
+	UploadId openapi_types.UUID `json:"upload_id"`
+	Params   PutUploadChunkParams
+	Body     io.Reader
+}
+
+type PutUploadChunkResponseObject interface {
+	VisitPutUploadChunkResponse(w http.ResponseWriter) error
+}
+
+type PutUploadChunk200JSONResponse UploadProgress
+
+func (response PutUploadChunk200JSONResponse) VisitPutUploadChunkResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutUploadChunk400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response PutUploadChunk400JSONResponse) VisitPutUploadChunkResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutUploadChunk401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response PutUploadChunk401JSONResponse) VisitPutUploadChunkResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutUploadChunk404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response PutUploadChunk404JSONResponse) VisitPutUploadChunkResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutUploadChunk409JSONResponse Error
+
+func (response PutUploadChunk409JSONResponse) VisitPutUploadChunkResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutUploadChunk413JSONResponse Error
+
+func (response PutUploadChunk413JSONResponse) VisitPutUploadChunkResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(413)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListUsersRequestObject struct {
 }
 
@@ -8784,9 +9485,15 @@ type StrictServerInterface interface {
 	// Upload a ROM (admin, or users when the Hub allows user uploads)
 	// (POST /api/v1/games)
 	UploadGame(ctx context.Context, request UploadGameRequestObject) (UploadGameResponseObject, error)
+	// Register a ROM file that exists only on the caller's device (`local_roms_v1`)
+	// (POST /api/v1/games/register)
+	RegisterGame(ctx context.Context, request RegisterGameRequestObject) (RegisterGameResponseObject, error)
 	// Single game
 	// (GET /api/v1/games/{game_id})
 	GetGame(ctx context.Context, request GetGameRequestObject) (GetGameResponseObject, error)
+	// Remove the caller's local registrations for a game (`local_roms_v1`)
+	// (DELETE /api/v1/games/{game_id}/registration)
+	DeleteGameRegistration(ctx context.Context, request DeleteGameRegistrationRequestObject) (DeleteGameRegistrationResponseObject, error)
 	// Delete a slot with its whole history (`saves_v5`)
 	// (DELETE /api/v1/games/{game_id}/saves/{slot})
 	DeleteSaveSlot(ctx context.Context, request DeleteSaveSlotRequestObject) (DeleteSaveSlotResponseObject, error)
@@ -8853,7 +9560,7 @@ type StrictServerInterface interface {
 	// Download the `.fbplugin` file of an offered plugin version (`plugins_v1`, any trusted device)
 	// (GET /api/v1/plugins/{plugin_id}/{version}/file)
 	GetPluginFile(ctx context.Context, request GetPluginFileRequestObject) (GetPluginFileResponseObject, error)
-	// ROM download (range support). Upload only via the admin web interface.
+	// ROM download (range support). Only files stored on the Hub (`stored`); a file that is only registered as local is 404.
 	// (GET /api/v1/roms/{sha256})
 	DownloadRom(ctx context.Context, request DownloadRomRequestObject) (DownloadRomResponseObject, error)
 	// Runs the caller participates in (any participant status, not archived), most recently changed first
@@ -8931,6 +9638,18 @@ type StrictServerInterface interface {
 	// Download a firmware file (any trusted device; never logged)
 	// (GET /api/v1/systems/{system_id}/firmware/{file_id})
 	GetFirmwareFile(ctx context.Context, request GetFirmwareFileRequestObject) (GetFirmwareFileResponseObject, error)
+	// Start or resume a resumable ROM upload (`local_roms_v1`)
+	// (POST /api/v1/uploads)
+	CreateUpload(ctx context.Context, request CreateUploadRequestObject) (CreateUploadResponseObject, error)
+	// Abort an upload session (`local_roms_v1`)
+	// (DELETE /api/v1/uploads/{upload_id})
+	DeleteUpload(ctx context.Context, request DeleteUploadRequestObject) (DeleteUploadResponseObject, error)
+	// State of an upload session (`local_roms_v1`)
+	// (GET /api/v1/uploads/{upload_id})
+	GetUpload(ctx context.Context, request GetUploadRequestObject) (GetUploadResponseObject, error)
+	// Upload one chunk (`local_roms_v1`)
+	// (PUT /api/v1/uploads/{upload_id})
+	PutUploadChunk(ctx context.Context, request PutUploadChunkRequestObject) (PutUploadChunkResponseObject, error)
 	// Users of this Hub (for the invite field)
 	// (GET /api/v1/users)
 	ListUsers(ctx context.Context, request ListUsersRequestObject) (ListUsersResponseObject, error)
@@ -9157,6 +9876,37 @@ func (sh *strictHandler) UploadGame(w http.ResponseWriter, r *http.Request, para
 	}
 }
 
+// RegisterGame operation middleware
+func (sh *strictHandler) RegisterGame(w http.ResponseWriter, r *http.Request) {
+	var request RegisterGameRequestObject
+
+	var body RegisterGameJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RegisterGame(ctx, request.(RegisterGameRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RegisterGame")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RegisterGameResponseObject); ok {
+		if err := validResponse.VisitRegisterGameResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetGame operation middleware
 func (sh *strictHandler) GetGame(w http.ResponseWriter, r *http.Request, gameId openapi_types.UUID) {
 	var request GetGameRequestObject
@@ -9176,6 +9926,32 @@ func (sh *strictHandler) GetGame(w http.ResponseWriter, r *http.Request, gameId 
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetGameResponseObject); ok {
 		if err := validResponse.VisitGetGameResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteGameRegistration operation middleware
+func (sh *strictHandler) DeleteGameRegistration(w http.ResponseWriter, r *http.Request, gameId openapi_types.UUID) {
+	var request DeleteGameRegistrationRequestObject
+
+	request.GameId = gameId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteGameRegistration(ctx, request.(DeleteGameRegistrationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteGameRegistration")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteGameRegistrationResponseObject); ok {
+		if err := validResponse.VisitDeleteGameRegistrationResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -10565,6 +11341,118 @@ func (sh *strictHandler) GetFirmwareFile(w http.ResponseWriter, r *http.Request,
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetFirmwareFileResponseObject); ok {
 		if err := validResponse.VisitGetFirmwareFileResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateUpload operation middleware
+func (sh *strictHandler) CreateUpload(w http.ResponseWriter, r *http.Request) {
+	var request CreateUploadRequestObject
+
+	var body CreateUploadJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateUpload(ctx, request.(CreateUploadRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateUpload")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateUploadResponseObject); ok {
+		if err := validResponse.VisitCreateUploadResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteUpload operation middleware
+func (sh *strictHandler) DeleteUpload(w http.ResponseWriter, r *http.Request, uploadId openapi_types.UUID) {
+	var request DeleteUploadRequestObject
+
+	request.UploadId = uploadId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteUpload(ctx, request.(DeleteUploadRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteUpload")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteUploadResponseObject); ok {
+		if err := validResponse.VisitDeleteUploadResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetUpload operation middleware
+func (sh *strictHandler) GetUpload(w http.ResponseWriter, r *http.Request, uploadId openapi_types.UUID) {
+	var request GetUploadRequestObject
+
+	request.UploadId = uploadId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetUpload(ctx, request.(GetUploadRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetUpload")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetUploadResponseObject); ok {
+		if err := validResponse.VisitGetUploadResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutUploadChunk operation middleware
+func (sh *strictHandler) PutUploadChunk(w http.ResponseWriter, r *http.Request, uploadId openapi_types.UUID, params PutUploadChunkParams) {
+	var request PutUploadChunkRequestObject
+
+	request.UploadId = uploadId
+	request.Params = params
+
+	request.Body = r.Body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutUploadChunk(ctx, request.(PutUploadChunkRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutUploadChunk")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutUploadChunkResponseObject); ok {
+		if err := validResponse.VisitPutUploadChunkResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

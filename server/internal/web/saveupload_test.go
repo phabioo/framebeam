@@ -167,7 +167,7 @@ func TestSaveUploadOtherSlotAndNewSlotWeb(t *testing.T) {
 	}
 
 	// A game without a save: the Library link opens the panel for a new slot "default".
-	g2, _ := f.e.svc.AddROM(bg, bytes.NewReader([]byte("homebrew-dummy-rom-2")), "two.nds", "Two", "", f.adminID)
+	g2, _ := f.e.svc.AddROM(bg, bytes.NewReader([]byte("homebrew-dummy-ROM-2")), "two.nds", "Two", "", f.adminID)
 	lib := f.c.get("/library", nil)
 	contains(t, lib, `href="`+f.base+`?upload=1"`, `href="/saves/`+f.adminID+`/`+g2.ID+`/default?upload=1"`, "Upload save")
 	notContains(t, lib, `href="/saves?upload=`)
