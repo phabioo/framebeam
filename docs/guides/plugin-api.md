@@ -216,7 +216,7 @@ Needs the permission `ui` and the matching manifest field `ui`. A plugin ships n
 | `hud` | `hud` | HUD widget over the game picture (one per plugin) |
 | `tile` | `tile:<tileId>` | Strip on a friend's Multiview tile |
 | `screen` | `screen` | Own sidebar screen under Library |
-| `detail` | `detail` | Section in the game detail (**coming later in package 2**) |
+| `detail` | `detail` | Section in the game detail (Library), below SAVE |
 | `hotkeys` | - | Entries in Controllers → Hotkeys (**coming later in package 2**) |
 
 - `title`: 1 to 40 characters. `hotkeys`: at most 16; `id` is `[a-z0-9-]{1,32}` and unique, `label` 1 to 60 characters, `key` is an optional portable key sequence (one combo).
@@ -256,7 +256,7 @@ Subscribe with `fb.events.on("fb", name, fn)`; `fn(value, "fb", name)`.
 
 | Event | Value |
 |---|---|
-| `detail.game` | `{ system, code, sha256, title }` when the game detail shows a game, `nil` for none. The host clears the `detail` slot on every change; the plugin sets a new tree. Posted by the Player once the `detail` slot is rendered (**coming later in package 2**). |
+| `detail.game` | `{ system, code, sha256, title }` when the game detail shows a game, `nil` for none. The host clears the `detail` slot on every change; the plugin sets a new tree. Posted when the selected game in the Library changes. The game code is known only once the game file is cached, so plugins whose `games` entry has code globs match a game from then on. |
 | `tiles` | Array of `{ id, player, game }` for the visible remote Multiview tiles; `id` is stable for a session and is the `<tileId>` of `tile:<tileId>`. |
 | `hud.visible` | `true` or `false` when the user shows or hides this plugin's HUD widget. |
 

@@ -3,6 +3,7 @@
 #include <QClipboard>
 #include <QDateTime>
 #include <QDir>
+#include <QFileInfo>
 #include <QGuiApplication>
 #include <QLoggingCategory>
 #include <QUrl>
@@ -608,7 +609,7 @@ void PluginsController::rebuildDetail() {
     if (!info || !info->manifest.ui.detail) continue;
     const QVariantMap tree = host_->uiTree(id, QStringLiteral("detail"));
     if (tree.isEmpty()) continue;
-    out.append(QVariantMap{{QStringLiteral("pluginId"), id}, {QStringLiteral("name"), info->manifest.name}, {QStringLiteral("tree"), tree}});
+    out.append(QVariantMap{{QStringLiteral("pluginId"), id}, {QStringLiteral("name"), info->manifest.name}, {QStringLiteral("origin"), info->origin}, {QStringLiteral("tree"), tree}});
   }
   detailSections_ = out;
   emit detailSectionsChanged();
@@ -752,6 +753,19 @@ void PluginsController::setDetailGame(const QString& system, const QString& code
   detailGame_ = g;
   host_->clearSlot(QStringLiteral("detail"));  // the host clears the section; the plugin sets a new one on the event
   host_->postHostEvent(QStringLiteral("detail.game"), g.isEmpty() ? QVariant() : QVariant(g));
+}
+
+QVariantList PluginsController::pluginsForGame(const QString& system, const QString& code) const {
+  QVariantList out;
+  if (system.isEmpty()) return out;
+  for (const plugins::PluginInfo& p : manager_->list())
+    if (p.enabled && p.problems.isEmpty() && manager_->developerMode() && p.manifest.matchesGame(system, code))
+      out.append(QVariantMap{{QStringLiteral("id"), p.manifest.id}, {QStringLiteral("name"), p.manifest.name}, {QStringLiteral("origin"), p.origin}});
+  return out;
+}
+
+QString PluginsController::gameCode(const QString& system, const QString& romPath) const {
+  return romPath.isEmpty() || !QFileInfo::exists(romPath) ? QString() : emu::readGameIdentity(romPath, system).code;
 }
 
 void PluginsController::setTiles(const QVariantList& tiles) {

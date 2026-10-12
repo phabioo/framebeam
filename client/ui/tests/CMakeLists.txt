@@ -168,6 +168,12 @@ framebeam_add_test(ui_plugin_slots plugin_slots_ui_test.cpp ${FB_NETTEST_DIR}/fa
 target_include_directories(test_ui_plugin_slots PRIVATE ${FB_NETTEST_DIR})
 target_compile_definitions(test_ui_plugin_slots PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
 
+# Plugin game detail section + "Plugins" status row in the Library detail column (real Lua plugin in the shell context).
+framebeam_add_test(ui_plugin_detail plugin_detail_ui_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
+  LIBS ${FB_UI_TEST_LIBS})
+target_include_directories(test_ui_plugin_detail PRIVATE ${FB_NETTEST_DIR})
+target_compile_definitions(test_ui_plugin_detail PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
+
 # Plugin UI building blocks (PluginBlock / PluginMapView) in isolation: every block dark and light, actions, confirmation,
 # map selection / filter / clusters / keyboard. With FRAMEBEAM_SCREENSHOT_DIR it also saves PNGs for the review.
 framebeam_add_test(ui_plugin_blocks plugin_blocks_ui_test.cpp LIBS ${FB_UI_TEST_LIBS})
