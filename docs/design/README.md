@@ -10,12 +10,12 @@ Language note: the source texts are English throughout (the earlier German texts
 
 Reading note: read only the necessary file or section. Open the source HTML only for details in the given line range (lines = screen container from `data-screen-label` to the end; anchors `#3x` = block ID in the source). The screens appear in the source in this order: 3a-3f, 3p, 3g, 3h, 3r, 3i, 3t-3y, 3j, 3k, 3s, 3l, 3m, 3n, 3o, 3q.
 
-- `tokens.md`: colors, typography, spacing, radii, shadows, layout dimensions (Player dark, Hub light).
-- `player.md`: screens 3a-3i, 3p, 3r, 3t-3y and the revisions 3c-2 to 3c-5, 3e-2, 3f-2/3, 3g-2/3, 3h-2, 3i-2, 3p-2, 3r-2, 3t-2, 3x-2 plus the component specs (FrameBeam Player, Qt 6 QML).
-- `hub.md`: screens 3j-3o, 3q, 3s and the revision 3s-2/3 (FrameBeam Hub web interface, `html/template` + htmx).
-- `plugins.md`: plugin platform screens (4a-4j, 4ih, 4jh, 3f-4), building-block catalog, map view, HUD, tab and tile-strip specs (plugin handoff 2026-10-11; design only, plugin API v1 is not implemented).
+- `tokens.md`: colors (plus the additions of Round 3), typography, spacing, radii, shadows, layout dimensions (Player dark, Hub light).
+- `player.md`: screens 3a-3i, 3p, 3r, 3t-3y and the revisions 3c-2 to 3c-5, 3e-2, 3f-2/3, 3g-2/3, 3h-2, 3i-2, 3p-2, 3r-2, 3t-2, 3x-2, the Round 3 screens 3a-3, 3c-6, 3c-7, 3p-3, 3e-3, 3f-4, 3r-3, 3h-3, 3i-3, 3y-2 (2026-10-12) plus the component specs (FrameBeam Player, Qt 6 QML).
+- `hub.md`: screens 3j-3o, 3q, 3s the revision 3s-2/3 and the Round 3 screens 3l-2 to 3l-4, 3j-2, 3s-4, 3m-2, 3n-2, 3q-2 (FrameBeam Hub web interface, `html/template` + htmx).
+- `plugins.md`: plugin platform screens (4a-4j, 4ih, 4jh, 3f-4), building-block catalog, map view, HUD, tab and tile-strip specs (plugin handoff 2026-10-11; design only, plugin API v1 is not implemented), plus 4a-3, 4a-4, 4f-3, 4j-3, 4i-3 and 4jh-3 of Round 3.
 - `logo.md`: logo concept, tones, sizes, wordmark.
-- `decisions.md`: decisions, deviations from the architecture, open points per handoff round (incl. the defaults decided for the revision handoff of 2026-10-08).
+- `decisions.md`: decisions (incl. Round 3: decisions 20-23, open points bg-bk), deviations from the architecture, open points per handoff round (incl. the defaults decided for the revision handoff of 2026-10-08).
 
 ## Screens
 
@@ -72,9 +72,42 @@ Lines refer to `source/framebeam-designs-v4.dc.html`; anchors `#id` are block ID
 
 Turn 3 inside v4 (the unchanged v3 screens) starts at line 1164 (3a); the v3 line ranges in the table above refer to `framebeam-designs-v3.dc.html` and stay correct for that file.
 
+### Round 3 screens (2026-10-12, 0.14 UI gaps and Multiview)
+
+Claude Design handoff "Round 3", answering the 0.14 UI scan (finding IDs H = Hub, P = Player, D = design gap). Files in `source/`: `round-3-hub.dc.html` (479 lines), `round-3-player-a.dc.html` (289), `round-3-player-b.dc.html` (253), the sheet `round-3-sheet.dc.html` (cross-cutting rules 0-2, per-screen handoff table, new tokens, open questions in its script) and the nav components `hub-nav.dc.html` and `player-nav.dc.html`. Anchors `#id` are block IDs; the "Fixes" column repeats the sheet's handoff table. The older sections stay valid for everything Round 3 does not change and carry a "superseded" line. Decisions 20-23 and open points bg-bk: [decisions.md](decisions.md#decisions-fabio-2026-10-12-round-3-014-ui-gaps-and-multiview); new tokens: [tokens.md](tokens.md#additions-of-round-3-2026-10-12). The existing copies of v4, the plugin sheets and the components were re-imported from this handoff; after renaming the `dc-import` names they are identical to the earlier copies.
+
+| Screen | Specification | Source (file, anchor, lines) | Fixes | Revises |
+|---|---|---|---|---|
+| 3l-2 Systems and Cores, Cores tab, auto-update | [hub.md](hub.md#3l-2-hub-systems-and-cores-round-3) | `round-3-hub`: `#3l-2` 21-68 | H1 H2 H5 H6 H8 | 3l |
+| 3l-3 Firmware tab, no firmware needed | [hub.md](hub.md#3l-3-hub-systems-and-cores-no-firmware-round-3) | `round-3-hub`: `#3l-3` 69-91 | H3 H4 | 3l |
+| 3l-4 Firmware files, drop zone, pin | [hub.md](hub.md#3l-4-hub-systems-and-cores-firmware-files-round-3) | `round-3-hub`: `#3l-4` 92-124 | H7 D4 | 3l |
+| 3j-2 Library (+ 390, dialogs) | [hub.md](hub.md#3j-2-hub-library-round-3) | `round-3-hub`: `#3j-2` 125-156, `#3j-2-390` 157-171, `#hub-states` 419-433 | H10 H11 H12 H13 H14 D1 D2 | 3j |
+| 3s-4 Saves | [hub.md](hub.md#3s-4-hub-saves-round-3) | `round-3-hub`: `#3s-4` 172-197 | H15 H16 H17 H18 D3 | 3s, 3k |
+| 3m-2 Clients (+ 390) | [hub.md](hub.md#3m-2-hub-clients-round-3) | `round-3-hub`: `#3m-2` 198-221, `#3m-2-390` 222-235 | H19 H20 H22 D5 | 3m |
+| 3n-2 Users | [hub.md](hub.md#3n-2-hub-users-round-3) | `round-3-hub`: `#3n-2` 236-265 | H21 D5 | 3n |
+| 3q-2 Settings (Network, Security dark, pages) | [hub.md](hub.md#3q-2-hub-settings-round-3) | `round-3-hub`: `#3q-2` 266-307, `#3q-2-dark` 308-331, `#3q-2-pages` 332-358 | H9 H32-H38 D6 | 3q |
+| 4i-3 Hub Plugins | [plugins.md](plugins.md#4i-3-hub-plugins-round-3) | `round-3-hub`: `#4i-3` 359-391 | H23-H26 | 4ih |
+| 4jh-3 Hub Run detail | [plugins.md](plugins.md#4jh-3-hub-run-detail-round-3) | `round-3-hub`: `#4jh-3` 392-418 | H27-H31 | 4jh-2 |
+| 3a-3 Connect, Pair again | [player.md](player.md#3a-3-player-connect-round-3) | `round-3-player-a`: `#3a-3` 21-40 | P2 P6 | 3a |
+| 3c-6 Library (1280, 3840) | [player.md](player.md#3c-6-player-library-round-3) | `round-3-player-a`: `#3c-6` 41-67, `#3c-6-4k` 68-83 | P7 P8-P11 P13 | 3c-2, 3c-5 |
+| 3c-7 Library detail column variants | [player.md](player.md#3c-7-player-library-detail-column-round-3) | `round-3-player-a`: `#3c-7` 84-104 | P12-P14 | 3c-2 |
+| 3p-3 Settings (Updates, Hubs, folders) | [player.md](player.md#3p-3-player-settings-round-3) | `round-3-player-a`: `#3p-3` 105-134 | P1-P5 P16 P18 | 3p-2 |
+| 4a-3 Settings Plugins (+ dialogs) | [plugins.md](plugins.md#4a-3-settings-plugins-round-3) | `round-3-player-a`: `#4a-3` 135-156, `#4a-3-dialogs` 179-190 | P19-P22 | 4a |
+| 4a-4 Plugin detail sheet | [plugins.md](plugins.md#4a-4-plugin-detail-round-3) | `round-3-player-a`: `#4a-4` 157-178 | D16 P21 P22 | 4b |
+| 4f-3 SoulLink screen under Runs | [plugins.md](plugins.md#4f-3-plugin-sidebar-screen-round-3) | `round-3-player-a`: `#4f-3` 191-203 | P23 P28 | 4f |
+| 4j-3 Player Run detail (+ join dialog) | [plugins.md](plugins.md#4j-3-player-run-detail-round-3) | `round-3-player-a`: `#4j-3` 204-230, `#4j-3-join` 231-247 | P24-P27 | 4j-2 |
+| 3e-3 Emulation | [player.md](player.md#3e-3-player-emulation-round-3) | `round-3-player-b`: `#3e-3` 21-42, `#3e-3-rows` 43-49 | P30-P32 D9 | 3e-2 |
+| 3f-4 Controllers (Buttons, Hotkeys) | [player.md](player.md#3f-4-player-controllers-round-3) | `round-3-player-b`: `#3f-4` 50-83, `#3f-4-hotkeys` 84-99 | P33-P36 D11 | 3f-2, 3f-4 (plugins) |
+| 3r-3 Multiview, 2/3/4 Sessions at 1440 and 1280 | [player.md](player.md#3r-3-player-multiview-round-3) | `round-3-player-b`: `#3r-3-2` `#3r-3-3` `#3r-3-4` `#3r-3-2s` `#3r-3-3s` `#3r-3-4s`, template 100-136, data 239-245 | P38 P41 P43 P44 D18 D20 (P37) | 3r-2, 3h-2 |
+| 3h-3 Session, diagnostics docked | [player.md](player.md#3h-3-player-session-round-3) | `round-3-player-b`: `#3h-3` 137-157 | P40 P41 P45-P47 | 3g-2, 3t-2 |
+| 3i-3 PiP | [player.md](player.md#3i-3-player-pip-round-3) | `round-3-player-b`: `#3i-3` 158-178 | P42 D20 | 3i-2 |
+| 3y-2 Fullscreen, paused | [player.md](player.md#3y-2-player-fullscreen-paused-round-3) | `round-3-player-b`: `#3y-2` 179-190 | P34 P39 | 3y |
+
+Not drawn separately: Player Settings at 3840 (follows 3p-3, decision bi). Reference only and not copied: the SoulLink artboards (5a-5i, 5e-5g, `SoulLinkPanel`, `RunScreen`, `HubRunWizard`) belong to the `framebeam-plugin-soullink` repository.
+
 ### Component sheets
 
-Shared parts of the revision are real components (imported by the v4 file as `dc-import`, names renamed to the file names): `source/settings-row.dc.html` (SettingsRow), `source/save-row.dc.html` (SaveRow, dark and light), `source/pad-glyph.dc.html` (PadGlyph), `source/input-test.dc.html` (InputTest), `source/game-header.dc.html` (GameHeader), `source/game-panel.dc.html` (GamePanel), `source/diag-overlay.dc.html` (DiagOverlay), `source/support.js` (design runtime shared by all `.dc.html` files, not product code) and the existing `source/framebeam-mark.dc.html`. Sheets in v4: in-game components (GameHeader variants, anchored popovers, GamePanel, tiles and Now running) at lines 229-289; SettingsRow, core-agnostic options, SaveRow, sort and Ready first, D-pad and glyphs at lines 1001-1101. Specs per component: [player.md](player.md#components-revision-v4); new tokens: [tokens.md](tokens.md).
+Shared parts of the revision are real components (imported by the v4 file as `dc-import`, names renamed to the file names): `source/settings-row.dc.html` (SettingsRow), `source/save-row.dc.html` (SaveRow, dark and light), `source/pad-glyph.dc.html` (PadGlyph), `source/input-test.dc.html` (InputTest), `source/hub-nav.dc.html` and `source/player-nav.dc.html` (sidebars of Round 3), `source/game-header.dc.html` (GameHeader), `source/game-panel.dc.html` (GamePanel), `source/diag-overlay.dc.html` (DiagOverlay), `source/support.js` (design runtime shared by all `.dc.html` files, not product code) and the existing `source/framebeam-mark.dc.html`. Sheets in v4: in-game components (GameHeader variants, anchored popovers, GamePanel, tiles and Now running) at lines 229-289; SettingsRow, core-agnostic options, SaveRow, sort and Ready first, D-pad and glyphs at lines 1001-1101. Specs per component: [player.md](player.md#components-revision-v4); new tokens: [tokens.md](tokens.md).
 
 ### Plugin screens (2026-10-11)
 

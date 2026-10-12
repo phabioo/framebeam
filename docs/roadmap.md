@@ -357,9 +357,12 @@ Decided by Fabio on 2026-10-11 (moved from 0.14 to 0.13 on 2026-10-12): part of 
 
 Decided by Fabio on 2026-10-11; moved from 0.15 to 0.14 on 2026-10-12.
 
-- Open: remaining Hub web and Player design gaps (see the open items of 0.7 and [design/decisions.md](design/decisions.md)).
-- Open (Fabio, 2026-10-12): review and clean up the Hub web and Player UI as a whole: some screens look off and UI elements overlap.
-- Open: Multiview shows three Sessions side by side; the 2x2 grid only from the fourth Session.
+Design: Claude Design handoff "Round 3" (2026-10-12), imported in [design/](design/README.md#round-3-screens-2026-10-12-014-ui-gaps-and-multiview); decisions 20-23 and open points bg-bk in [design/decisions.md](design/decisions.md); ADR: [0026](adr/0026-ui-gaps-and-multiview.md). Work packages (one thread/PR each):
+
+- [x] Design import: Round 3 sources, specifications, tokens and decisions in `docs/design/` (this PR).
+- [ ] Hub pass: Systems and Cores (3l-2 to 3l-4), Library (3j-2), Saves (3s-4), Clients (3m-2), Users (3n-2), Settings (3q-2), Plugins and Runs (4i-3, 4jh-3); cross-cutting rules (dates, row actions, pills, add-to-list, cards below 720 px).
+- [ ] Player library, settings, plugins and runs pass: Connect (3a-3), Library (3c-6, 3c-7), Settings (3p-3), Emulation (3e-3), Controllers and hotkeys (3f-4), Plugins (4a-3, 4a-4), SoulLink screen and Runs (4f-3, 4j-3); 880 px and 1680 px content widths.
+- [ ] Player in-game and Multiview pass: Row for 2-3 Sessions and Grid 2x2 from 4 (3r-3), docked diagnostics (3h-3), PiP (3i-3), pause overlay and fullscreen (3y-2: Esc always pauses, F11 toggles fullscreen), paused state signalled to viewers ("Paused by <name>"), one selection style, Add popover below the toolbar. Needs a follow-up ADR for the changed Esc role (ADR 0014 D4) and the Multiview layout names (D13).
 
 ## 0.15 GPU paths
 

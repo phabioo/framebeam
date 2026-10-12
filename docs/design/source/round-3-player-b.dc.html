@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>body{margin:0;background:#2b2c30;font-family:'IBM Plex Sans',sans-serif}a{color:#3cbfd8}a:hover{color:#7fd8e8}</style>
+</helmet>
+<section style="padding:64px;display:flex;flex-direction:column;gap:24px">
+<div style="font-size:32px;font-weight:600;color:#ececea">Round 3 · Player · Emulation, Controllers, In game, Multiview</div>
+<div style="font-size:15px;color:#b8b8bc;max-width:960px">Esc decision: <b style="color:#ececea;font-weight:500">Esc always pauses</b> and opens the pause overlay, in a window and in fullscreen. The overlay has “Resume” and “Leave fullscreen”. F11 toggles fullscreen. Multiview layout “Side by side” is renamed <b style="color:#ececea;font-weight:500">“Row”</b>; “Side by side” stays the DS screen layout.</div>
+<div style="display:flex;flex-wrap:wrap;gap:72px;align-items:flex-start">
+
+<!-- 3e-3 -->
+<div id="3e-3" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px">3e-3</span><span style="font-size:15px;color:#ececea">Emulation · per system, no core chosen yet, firmware only where needed (P30–P32, D9)</span></div>
+<div style="width:1440px;height:900px;display:flex;background:#121315;overflow:hidden;color:#ececea">
+<dc-import name="player-nav" active="Emulation" hint-size="232px,100%"></dc-import>
+<div style="width:300px;flex:none;background:#17181b;border-right:1px solid #24252a;padding:28px 16px;box-sizing:border-box;display:flex;flex-direction:column;gap:4px">
+  <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#9a9a9f;padding:0 8px 8px">EMULATION</div>
+  <div style="padding:10px 12px;border-radius:8px"><div style="font-size:14px;font-weight:500">Defaults</div><div style="font-size:12px;color:#9a9a9f">Apply to every system · 1 changed</div></div>
+  <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#9a9a9f;padding:14px 8px 6px">SYSTEMS</div>
+  <sc-for list="{{ esys }}" as="s" hint-placeholder-count="5"><div style="padding:10px 12px;border-radius:8px;background:{{ s.bg }}"><div style="font-size:14px;font-weight:500">{{ s.n }}</div><div style="font-size:12px;color:#9a9a9f">{{ s.c }}</div><div style="font-size:12px;color:{{ s.fc }};display:{{ s.fd }}">{{ s.f }}</div></div></sc-for>
+</div>
+<div style="flex:1;min-width:0;padding:28px 36px"><div style="max-width:880px;display:flex;flex-direction:column;gap:2px">
+  <div style="display:flex;align-items:center"><div style="flex:1"><div style="font-size:28px;font-weight:600">Nintendo DS</div><div style="font-size:13px;color:#9a9a9f">Saved on this device only</div></div><span style="font-size:13px;color:#9a9a9f">Reset all to default</span></div>
+  <div style="height:16px"></div>
+  <sc-for list="{{ erows }}" as="r" hint-placeholder-count="6"><div style="display:flex;gap:24px;align-items:center;padding:12px 0;border-bottom:1px solid #24252a">
+    <div style="flex:1"><div style="font-size:14px;font-weight:500">{{ r.t }}</div><div style="font-size:12px;color:{{ r.dc }}">{{ r.d }}</div></div>
+    <div style="width:280px;display:flex;justify-content:flex-end"><span style="width:100%;box-sizing:border-box;font-size:13px;padding:7px 12px;border:1px solid {{ r.cb }};border-radius:8px;color:{{ r.cc }}">{{ r.v }}</span></div>
+    <span style="width:60px;text-align:right;font-size:12px;color:{{ r.rc }}">{{ r.r }}</span>
+  </div></sc-for>
+  <div style="font-size:12px;color:#9a9a9f;margin-top:12px">Core options appear after the core loaded once. Per-game settings are under Library → game → ⋯.</div>
+</div></div></div></div>
+
+<!-- 3e-3 rows -->
+<div id="3e-3-rows" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px">3e-3</span><span style="font-size:15px;color:#ececea">Other systems · rows that differ</span></div>
+<div style="width:880px;background:#121315;padding:24px 32px;box-sizing:border-box;color:#ececea;display:flex;flex-direction:column">
+  <sc-for list="{{ erows2 }}" as="r" hint-placeholder-count="4"><div style="display:flex;gap:24px;align-items:center;padding:12px 0;border-bottom:1px solid #24252a"><span style="width:120px;font:500 11px 'IBM Plex Mono';color:#3cbfd8">{{ r.ctx }}</span><div style="flex:1"><div style="font-size:14px;font-weight:500">{{ r.t }}</div><div style="font-size:12px;color:#9a9a9f">{{ r.d }}</div></div><span style="width:240px;box-sizing:border-box;font-size:13px;padding:7px 12px;border:1px solid #34353a;border-radius:8px">{{ r.v }}</span></div></sc-for>
+</div></div>
+
+<!-- 3f-4 -->
+<div id="3f-4" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px">3f-4</span><span style="font-size:15px;color:#ececea">Controllers · system selector, 3DS buttons with circle pad, profile actions (P33, D11)</span></div>
+<div style="width:1440px;height:900px;display:flex;background:#121315;overflow:hidden;color:#ececea">
+<dc-import name="player-nav" active="Controllers" hint-size="232px,100%"></dc-import>
+<div style="width:300px;flex:none;background:#17181b;border-right:1px solid #24252a;padding:28px 16px;box-sizing:border-box;display:flex;flex-direction:column;gap:4px">
+  <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#9a9a9f;padding:0 8px 8px">DEVICES</div>
+  <div style="padding:10px 12px;border-radius:8px;background:#24252a"><div style="font-size:14px;font-weight:500">Gamepad · Xbox layout</div><div style="font-size:12px;color:#5fd28a">● Connected · P1</div></div>
+  <div style="padding:10px 12px;border-radius:8px"><div style="font-size:14px;font-weight:500">Keyboard</div><div style="font-size:12px;color:#5fd28a">● Connected</div></div>
+  <div style="padding:10px 12px;border-radius:8px"><div style="font-size:14px;font-weight:500">Mouse</div><div style="font-size:12px;color:#9a9a9f">Touch screen for DS and 3DS</div></div>
+</div>
+<div style="flex:1;min-width:0;padding:28px 36px;display:flex;gap:32px">
+<div style="flex:1;max-width:620px;display:flex;flex-direction:column;gap:12px">
+  <div style="font-size:28px;font-weight:600">Gamepad</div>
+  <div style="display:flex;gap:6px;border-bottom:1px solid #24252a;font-size:14px"><span style="padding:8px 4px;border-bottom:2px solid #3cbfd8">Buttons</span><span style="padding:8px 4px;color:#9a9a9f;margin-left:14px">Hotkeys</span></div>
+  <div style="display:flex;gap:12px;align-items:center"><span style="font-size:13px;width:70px">Profile</span><span style="flex:1;font-size:13px;padding:7px 12px;border:1px solid #34353a;border-radius:8px">My 3DS layout ▾</span><span style="font-size:13px;padding:7px 12px;border:1px solid #34353a;border-radius:8px">Rename</span><span style="font-size:14px;padding:6px 10px;border:1px solid #34353a;border-radius:8px">⋯</span></div>
+  <div style="display:flex;gap:12px;align-items:center"><span style="font-size:13px;width:70px">System</span><div style="display:flex;background:#1b1c1f;border:1px solid #2a2b30;border-radius:8px;padding:3px;font-size:13px"><sc-for list="{{ sysSeg }}" as="s" hint-placeholder-count="5"><span style="padding:5px 14px;border-radius:6px;background:{{ s.bg }};color:{{ s.c }}">{{ s.l }}</span></sc-for></div></div>
+  <div style="display:flex;flex-direction:column">
+    <sc-for list="{{ map3ds }}" as="m" hint-placeholder-count="10"><div style="display:flex;gap:12px;align-items:center;padding:6px 0;border-bottom:1px solid #1f2024;font-size:13px"><span style="width:150px">{{ m.b }}</span><span style="flex:1;font:12px 'IBM Plex Mono';padding:4px 10px;border:1px solid #2a2b30;border-radius:6px;background:#17181b">{{ m.k }}</span><span style="width:60px;text-align:right;font-size:12px;color:#7a7a80">Default</span></div></sc-for>
+  </div>
+</div>
+<div style="width:300px;flex:none;display:flex;flex-direction:column;gap:12px">
+  <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#9a9a9f">INPUT TEST · 3DS</div>
+  <div style="display:flex;justify-content:space-between"><sc-for list="{{ shoulders }}" as="s" hint-placeholder-count="4"><span style="font-size:12px;padding:6px 10px;border:1px solid #34353a;border-radius:7px;background:{{ s.bg }}">{{ s.l }}</span></sc-for></div>
+  <div style="display:flex;gap:20px;align-items:center;justify-content:center;padding:10px 0">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div style="width:72px;height:72px;border-radius:50%;border:1px solid #34353a;position:relative"><div style="position:absolute;left:38px;top:16px;width:22px;height:22px;border-radius:50%;background:#3cbfd8"></div></div><span style="font-size:11px;color:#9a9a9f">Circle pad · x 0.42 y −0.61</span></div>
+    <div style="display:grid;grid-template-columns:repeat(3,26px);grid-template-rows:repeat(3,26px);gap:4px"><span></span><span style="border:1px solid #34353a;border-radius:6px;font-size:11px;display:flex;align-items:center;justify-content:center">X</span><span></span><span style="border:1px solid #34353a;border-radius:6px;font-size:11px;display:flex;align-items:center;justify-content:center">Y</span><span></span><span style="border:1px solid #3cbfd8;background:#16242a;border-radius:6px;font-size:11px;display:flex;align-items:center;justify-content:center">A</span><span></span><span style="border:1px solid #34353a;border-radius:6px;font-size:11px;display:flex;align-items:center;justify-content:center">B</span><span></span></div>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;font-size:12px;color:#9a9a9f"><div style="width:40px;height:40px;border-radius:50%;border:1px solid #34353a"></div>C-stick · centered</div>
+  <div style="border:1px solid #2a2b30;border-radius:8px;height:120px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#9a9a9f">Bottom screen · mouse = stylus</div>
+  <div style="font-size:12px;color:#9a9a9f;line-height:18px">DS shows no ZL, ZR or sticks. GB and GBC show A, B, Start, Select and D-pad only. GBA adds L and R.</div>
+</div>
+</div></div></div>
+
+<!-- 3f-4 hotkeys -->
+<div id="3f-4-hotkeys" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px">3f-4</span><span style="font-size:15px;color:#ececea">Hotkeys · no truncation, aligned conflicts, gamepad for every row, Esc row (P34–P36)</span></div>
+<div style="width:900px;background:#121315;padding:28px 36px;box-sizing:border-box;color:#ececea;display:flex;flex-direction:column">
+  <div style="display:grid;grid-template-columns:minmax(0,1fr) 150px 170px 70px;gap:12px;font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#9a9a9f;padding:0 12px 8px"><span>ACTION</span><span>KEY</span><span>GAMEPAD</span><span></span></div>
+  <sc-for list="{{ hk }}" as="h" hint-placeholder-count="12">
+    <div style="display:{{ h.gd }};justify-content:space-between;padding:14px 12px 6px;font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#9a9a9f;border-bottom:1px solid #24252a"><span>{{ h.g }}</span><span style="color:{{ h.gc }}">{{ h.gn }}</span></div>
+    <div style="display:{{ h.rd }};flex-direction:column;padding:8px 12px;border-bottom:1px solid #1f2024;background:{{ h.bg }};border-left:2px solid {{ h.bl }}">
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) 150px 170px 70px;gap:12px;align-items:center;font-size:13px"><span>{{ h.a }}</span><span style="font:12px 'IBM Plex Mono';padding:5px 10px;border:1px solid {{ h.kb }};border-radius:6px;white-space:nowrap;color:{{ h.kc }}">{{ h.k }}</span><span style="font:12px 'IBM Plex Mono';padding:5px 10px;border:1px solid #2a2b30;border-radius:6px;white-space:nowrap;color:{{ h.pc }}">{{ h.p }}</span><span style="font-size:12px;color:#7a7a80;text-align:right">{{ h.s }}</span></div>
+      <div style="font-size:12px;color:#e5b45a;margin-top:4px;display:{{ h.cd }}">{{ h.c }}</div>
+    </div>
+  </sc-for>
+  <div style="font-size:12px;color:#9a9a9f;margin-top:14px">Gamepad hotkeys: hold Select, then press the second button. They are never sent to the game.</div>
+</div></div>
+
+<!-- 3r-3 grid of session counts -->
+<sc-for list="{{ mv }}" as="v" hint-placeholder-count="5">
+<div id="{{ v.id }}" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px">3r-3</span><span style="font-size:15px;color:#ececea">{{ v.cap }}</span></div>
+<div style="width:{{ v.w }};height:{{ v.h }};display:flex;flex-direction:column;background:#0b0b0c;overflow:hidden;color:#ececea;position:relative">
+  <div style="height:56px;flex:none;display:flex;align-items:center;gap:12px;padding:0 16px;background:#121315;border-bottom:1px solid #24252a;font-size:13px">
+    <span style="color:#9a9a9f">← Library</span><span style="font-size:15px;font-weight:600">Multiview</span>
+    <div style="display:flex;background:#1b1c1f;border-radius:8px;padding:3px"><sc-for list="{{ v.lay }}" as="l" hint-placeholder-count="3"><span style="padding:5px 12px;border-radius:6px;background:{{ l.bg }};color:{{ l.c }};white-space:nowrap">{{ l.l }}</span></sc-for></div>
+    <span style="flex:1"></span>
+    <span style="padding:6px 12px;border:1px solid #2a2b30;border-radius:8px;white-space:nowrap">❚❚ Pause</span><span style="padding:6px 12px;border:1px solid #2a2b30;border-radius:8px;white-space:nowrap">↺ Reset</span>
+    <span style="padding:6px 12px;border:1px solid #2a2b30;border-radius:8px;white-space:nowrap">+ Add · {{ v.n }}/4</span>
+    <span style="padding:6px 10px;border:1px solid #2a2b30;border-radius:8px;font-family:'IBM Plex Mono';font-size:11px">F3</span><span style="padding:6px 10px;border:1px solid #2a2b30;border-radius:8px;font-family:'IBM Plex Mono';font-size:11px">F11</span>
+  </div>
+  <div style="flex:1;display:flex;min-height:0">
+    <div style="flex:1;min-width:0;padding:16px;display:grid;grid-template-columns:{{ v.cols }};grid-auto-rows:minmax(0,1fr);gap:12px">
+      <sc-for list="{{ v.tiles }}" as="t" hint-placeholder-count="3">
+      <div style="border-radius:10px;background:#121315;border:2px solid {{ t.bd }};display:flex;flex-direction:column;padding:10px;gap:8px;min-height:0;position:relative">
+        <div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;position:relative">
+          <div style="height:100%;max-width:100%;aspect-ratio:{{ t.ar }};display:flex;flex-direction:column;gap:3px;opacity:{{ t.op }}"><div style="flex:1;background:{{ t.c1 }};border-radius:2px"></div><div style="flex:{{ t.f2 }};background:{{ t.c2 }};border-radius:2px"></div></div>
+          <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:{{ t.od }};flex-direction:column;align-items:center;gap:4px;padding:10px 16px;border-radius:10px;background:rgba(18,19,21,.88);border:1px solid #34353a;white-space:nowrap"><span style="font-size:14px;font-weight:600">{{ t.ov }}</span><span style="font-size:12px;color:#9a9a9f">{{ t.ovs }}</span></div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;font-size:13px;white-space:nowrap"><span style="font:11px 'IBM Plex Mono';padding:1px 6px;border-radius:4px;background:#26272b">{{ t.i }}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis">{{ t.name }}</span><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:{{ t.pbg }};color:{{ t.pfg }};display:{{ t.pd }}">{{ t.pill }}</span></div>
+      </div>
+      </sc-for>
+    </div>
+    <div style="width:{{ v.pw }};flex:none;background:#121315;border-left:1px solid #24252a;padding:20px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px">
+      <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#9a9a9f">TILE 2 · WATCHING</div>
+      <div style="font-size:16px;font-weight:600">Lena · Harbor Rally</div>
+      <span style="align-self:flex-start;font-size:12px;padding:2px 9px;border-radius:10px;background:#26272b;color:#d0d0d4">❚❚ Paused by Lena · 1 min</span>
+      <div style="padding:9px;border:1px solid #34353a;border-radius:8px;text-align:center;font-size:13px">♪ Audio here</div>
+      <div style="padding:9px;border:1px solid #34353a;border-radius:8px;text-align:center;font-size:13px">Remove from Multiview</div>
+      <div style="font-size:12px;color:#9a9a9f;line-height:17px">You only watch and listen. Lena’s picture stays frozen until she resumes.</div>
+    </div>
+  </div>
+  <div style="position:absolute;right:{{ v.popr }};top:60px;width:300px;background:#1f2024;border:1px solid #34353a;border-radius:10px;box-shadow:0 12px 30px rgba(0,0,0,.6);padding:12px;display:{{ v.popd }};flex-direction:column;gap:8px;font-size:13px"><div style="display:flex;justify-content:space-between"><b style="font-weight:600">Running sessions</b><span style="color:#9a9a9f;font-size:12px">{{ v.n }} of 4 tiles</span></div><div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid #2a2b30"><span>Sam · Meadow Courier<br><span style="color:#9a9a9f;font-size:12px">GB · for 4 min</span></span><span style="padding:4px 12px;border-radius:7px;background:#3cbfd8;color:#0d1214;font-weight:600">Add</span></div><div style="color:#9a9a9f;font-size:12px">Opens below the toolbar; never covers the panel header.</div></div>
+</div></div>
+</sc-for>
+
+<!-- 3h-3 -->
+<div id="3h-3" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px">3h-3</span><span style="font-size:15px;color:#ececea">Session · diagnostics docked in the panel, plugin tab icons, “1 widget hidden” above the game edge (P40, P41, P45)</span></div>
+<div style="width:1440px;height:900px;display:flex;flex-direction:column;background:#0b0b0c;overflow:hidden;color:#ececea">
+  <div style="height:56px;flex:none;display:flex;align-items:center;gap:12px;padding:0 16px;background:#121315;border-bottom:1px solid #24252a;font-size:13px"><span style="color:#9a9a9f">← Library</span><span style="font-size:15px;font-weight:600">Lumen Drift</span><span style="font-size:12px;padding:2px 9px;border-radius:10px;background:#16291d;color:#5fd28a">● Shared · 2 watching</span><span style="flex:1"></span><span style="padding:6px 12px;border:1px solid #2a2b30;border-radius:8px">❚❚ Pause</span><span style="padding:6px 12px;border:1px solid #2a2b30;border-radius:8px">↺ Reset</span><div style="display:flex;background:#1b1c1f;border-radius:8px;padding:3px"><span style="padding:5px 12px;border-radius:6px;background:#2e2f34">Session</span><span style="padding:5px 12px;color:#9a9a9f">Multiview</span></div><span style="padding:6px 12px;border:1px solid #3cbfd8;border-radius:8px;color:#3cbfd8">Diagnostics F3</span><span style="padding:6px 12px;border:1px solid #2a2b30;border-radius:8px">Fullscreen F11</span></div>
+  <div style="flex:1;display:flex;min-height:0">
+    <div style="flex:1;display:flex;align-items:center;justify-content:center;position:relative">
+      <div style="height:780px;aspect-ratio:4/6;display:flex;flex-direction:column;gap:4px"><div style="flex:1;background:#2c5a7a"></div><div style="flex:1;background:#1c2b3a"></div></div>
+      <span style="position:absolute;left:50%;bottom:62px;transform:translateX(-50%);font-size:12px;padding:4px 10px;border-radius:12px;background:#1f2024;border:1px solid #34353a">1 widget hidden · Show</span>
+      <div style="position:absolute;left:16px;top:16px;display:flex;gap:6px;align-items:center;font-size:12px;padding:6px 10px;border-radius:8px;background:rgba(18,19,21,.9);border:1px solid #2a2b30"><span style="width:7px;height:7px;border-radius:50%;background:#f07ab8"></span>Route 3 · 2 alive</div>
+    </div>
+    <div style="width:360px;flex:none;background:#121315;border-left:1px solid #24252a;display:flex;flex-direction:column">
+      <div style="display:flex;gap:4px;padding:10px 12px;border-bottom:1px solid #24252a;font-size:13px;align-items:center"><span style="padding:6px 10px;border-radius:6px;background:#24252a">Game</span><span title="SoulLink & Nuzlocke" style="padding:5px 9px;border-radius:6px;border:1px solid #2a2b30">⛓</span><span title="Pokémon Core" style="padding:5px 9px;border-radius:6px;border:1px solid #2a2b30">◉</span><span style="padding:6px 10px;border-radius:6px;background:#16242a;color:#3cbfd8">Diagnostics</span></div>
+      <div style="padding:16px 20px;display:flex;flex-direction:column;gap:8px;font:12px 'IBM Plex Mono'">
+        <sc-for list="{{ diag }}" as="d" hint-placeholder-count="8"><div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#9a9a9f">{{ d.k }}</span><span style="text-align:right">{{ d.v }}</span></div></sc-for>
+        <div style="font-family:'IBM Plex Sans';font-size:12px;color:#9a9a9f;margin-top:8px">Docked as a panel tab so it never covers the game or remote tiles. F3 opens and closes it.</div>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+<!-- 3i-3 -->
+<div id="3i-3" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px">3i-3</span><span style="font-size:15px;color:#ececea">PiP · inside the frame, corner snap, size steps, audio, paused remote (P42, D20)</span></div>
+<div style="width:1440px;height:900px;display:flex;flex-direction:column;background:#0b0b0c;overflow:hidden;color:#ececea">
+  <div style="height:56px;flex:none;display:flex;align-items:center;gap:12px;padding:0 16px;background:#121315;border-bottom:1px solid #24252a;font-size:13px"><span style="color:#9a9a9f">← Library</span><span style="font-size:15px;font-weight:600">Multiview</span><div style="display:flex;background:#1b1c1f;border-radius:8px;padding:3px"><span style="padding:5px 12px;border-radius:6px;background:#2e2f34">PiP</span><span style="padding:5px 12px;color:#9a9a9f">Row</span><span style="padding:5px 12px;color:#6a6a70">Grid 2×2 · from 4</span></div><span style="flex:1"></span><span style="padding:6px 12px;border:1px solid #2a2b30;border-radius:8px">❚❚ Pause</span><span style="padding:6px 12px;border:1px solid #2a2b30;border-radius:8px">↺ Reset</span></div>
+  <div style="flex:1;display:flex;min-height:0">
+    <div style="flex:1;margin:16px;border-radius:10px;border:2px solid #3cbfd8;background:#121315;position:relative;display:flex;align-items:center;justify-content:center">
+      <div style="height:760px;aspect-ratio:4/6;display:flex;flex-direction:column;gap:4px"><div style="flex:1;background:#2c5a7a"></div><div style="flex:1;background:#1c2b3a"></div></div>
+      <div style="position:absolute;left:12px;bottom:10px;font-size:13px">You · Lumen Drift</div>
+      <div style="position:absolute;right:16px;bottom:16px;width:240px;background:#17181b;border:1px solid #34353a;border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:6px;box-shadow:0 8px 24px rgba(0,0,0,.5)">
+        <div style="display:flex;gap:4px;font-size:12px;align-items:center"><span style="font:11px 'IBM Plex Mono';padding:1px 6px;border-radius:4px;background:#26272b">2</span><span style="flex:1"></span><span style="padding:2px 7px;border:1px solid #34353a;border-radius:5px">S</span><span style="padding:2px 7px;border:1px solid #3cbfd8;border-radius:5px;color:#3cbfd8">M</span><span style="padding:2px 7px;border:1px solid #34353a;border-radius:5px">L</span><span style="padding:2px 7px;border:1px solid #34353a;border-radius:5px">♪</span><span style="padding:2px 7px;border:1px solid #34353a;border-radius:5px">⇄</span><span style="padding:2px 7px;border:1px solid #34353a;border-radius:5px">✕</span></div>
+        <div style="position:relative;aspect-ratio:3/2;background:#7a4a2a;opacity:.55;border-radius:3px"></div>
+        <div style="position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);font-size:12px;font-weight:600;padding:4px 10px;border-radius:8px;background:rgba(18,19,21,.9);white-space:nowrap">❚❚ Paused by Lena</div>
+        <div style="font-size:12px">Lena · Orbit Gardens</div>
+      </div>
+      <sc-for list="{{ corners }}" as="c" hint-placeholder-count="3"><div style="position:absolute;left:{{ c.l }};top:{{ c.t }};right:{{ c.r }};bottom:{{ c.b }};width:60px;height:40px;border:1.5px dashed #3a3b40;border-radius:6px"></div></sc-for>
+      <div style="position:absolute;left:16px;top:12px;font-size:12px;color:#9a9a9f">Drag to snap to a corner · S / M / L size</div>
+    </div>
+  </div>
+</div></div>
+
+<!-- 3y-2 -->
+<div id="3y-2" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px">3y-2</span><span style="font-size:15px;color:#ececea">Fullscreen · paused with Esc · toolbar with Resume and Leave fullscreen (P34, P39)</span></div>
+<div style="width:1440px;height:900px;background:#000;overflow:hidden;color:#ececea;position:relative;display:flex;align-items:center;justify-content:center">
+  <div style="height:860px;aspect-ratio:4/6;display:flex;flex-direction:column;gap:4px;opacity:.45"><div style="flex:1;background:#2c5a7a"></div><div style="flex:1;background:#1c2b3a"></div></div>
+  <div style="position:absolute;top:20px;left:50%;transform:translateX(-50%);display:flex;gap:10px;align-items:center;padding:8px 10px;background:#17181b;border:1px solid #2a2b30;border-radius:10px;font-size:13px;white-space:nowrap"><span style="font-weight:600;padding:0 6px">Lumen Drift</span><span style="padding:6px 12px;border-radius:7px;background:#3cbfd8;color:#0d1214;font-weight:600">▶ Resume <span style="font:11px 'IBM Plex Mono'">Esc</span></span><div style="display:flex;background:#1b1c1f;border-radius:7px;padding:2px"><span style="padding:4px 10px;border-radius:5px;background:#2e2f34">Stacked</span><span style="padding:4px 10px;color:#9a9a9f">Side by side</span><span style="padding:4px 10px;color:#9a9a9f">Top only</span></div><span style="padding:6px 12px;border:1px solid #34353a;border-radius:7px">Leave fullscreen <span style="font:11px 'IBM Plex Mono';color:#9a9a9f">F11</span></span></div>
+  <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:10px;padding:24px 32px;background:rgba(18,19,21,.92);border:1px solid #34353a;border-radius:14px;width:380px;text-align:center">
+    <div style="font-size:22px;font-weight:600">Paused</div>
+    <div style="font-size:13px;color:#9a9a9f">Viewers see “Paused by Max”. Saved to “Main” · today 18:52</div>
+    <div style="display:flex;gap:8px;width:100%"><span style="flex:1;padding:10px;border-radius:8px;background:#3cbfd8;color:#0d1214;font-weight:600">Resume</span><span style="flex:1;padding:10px;border-radius:8px;border:1px solid #34353a">Leave fullscreen</span></div>
+    <div style="font-size:12px;color:#7a7a80">Esc or Resume continues · F11 leaves fullscreen</div>
+  </div>
+</div></div>
+
+</div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const esys = [['Game Boy','mGBA · from Hub',''],['Game Boy Color','Gambatte · from Hub',''],['Game Boy Advance','mGBA · from Hub',''],['Nintendo DS','No core chosen yet','Firmware optional','#9a9a9f',1],['Nintendo 3DS','Azahar · from Hub','']]
+      .map(([n,c,f,fc,sel])=>({n,c,f,fc:fc||'#9a9a9f',fd:f?'block':'none',bg:sel?'#24252a':'transparent'}));
+    const erows = [
+      ['Core','No core chosen yet · picked on first start. Home Hub offers melonDS DS and DeSmuME.','Choose a core ▾','#3cbfd8','#ececea',''],
+      ['Firmware','Only shown because melonDS DS can use files. Built-in works for most games.','Built-in ▾','#34353a','#ececea','Default'],
+      ['Firmware files','Native mode needs bios7, bios9 and firmware from the Hub.','▲ bios9.bin missing on Hub','#4a3f22','#e5b45a',''],
+      ['Screen layout','Overrides Defaults for DS games.','Use default (Stacked) ▾','#34353a','#ececea','Default'],
+      ['Speed-up speed','How fast the game runs while speed-up is on.','2× ▾','#34353a','#ececea','Default'],
+      ['Audio during speed-up','Plays sound at a higher pitch while sped up.','On','#34353a','#ececea','Reset']
+    ].map(([t,d,v,cb,cc,r])=>({t,d,dc:'#9a9a9f',v,cb,cc,r,rc:r==='Reset'?'#3cbfd8':'#7a7a80'}));
+    const erows2 = [['3DS · Azahar','System language','Language the 3DS reports to games.','English ▾'],['3DS · Azahar','Firmware','No firmware needed for this core. Row not shown.','—'],['GB · mGBA','Firmware','No firmware row; mGBA needs none for GB.','—'],['Defaults','DS and 3DS screen layout','Stacked, Side by side or Top only. Systems can override.','Stacked ▾']]
+      .map(([ctx,t,d,v])=>({ctx,t,d,v}));
+    const sysSeg = ['GB','GBC','GBA','DS','3DS'].map(l=>({l,bg:l==='3DS'?'#2e2f34':'transparent',c:l==='3DS'?'#ececea':'#9a9a9f'}));
+    const map3ds = [['A','Button A'],['B','Button B'],['X','Button X'],['Y','Button Y'],['L / R','LB / RB'],['ZL / ZR','LT / RT'],['Start / Select','Menu / View'],['D-pad','D-pad'],['Circle pad','Left stick · dead zone 12 %'],['C-stick','Right stick'],['Home','not set']].map(([b,k])=>({b,k}));
+    const shoulders = [['ZL'],['L'],['R',1],['ZR']].map(([l,a])=>({l,bg:a?'#16242a':'transparent'}));
+    const H = [
+      {g:'FRAMEBEAM',gn:'always wins'},
+      {a:'Pause / pause overlay',k:'Esc',p:'Select + Start',s:'Fixed'},
+      {a:'Toggle fullscreen',k:'F11',p:'Select + Y',s:'Default'},
+      {a:'Diagnostics',k:'F3',p:'Select + R3',s:'Default'},
+      {a:'Save snapshot',k:'Press a key…',p:'Select + LB',s:'',edit:1},
+      {a:'Speed-up',k:'Space',p:'Select + RB',s:'Default'},
+      {a:'Show or hide all HUD widgets',k:'F4',p:'Select + L3',s:'Default'},
+      {a:'Panel tabs',k:'Alt+1 – Alt+9',p:'not set',s:'Fixed'},
+      {g:'SOULLINK & NUZLOCKE',gn:'3 keys'},
+      {a:'Show or hide HUD widget',k:'Ctrl+H',p:'not set',s:'Default'},
+      {a:'Open team',k:'Ctrl+D',p:'not set',s:'Default'},
+      {g:'ITEM HELPER · LOCAL',gn:'2 conflicts',gc:'#e5b45a'},
+      {a:'Peek bag',k:'Ctrl+H',p:'not set',s:'Unassigned',c:'Already used by SoulLink & Nuzlocke → Show or hide HUD widget. Pick another key.'},
+      {a:'Quick save',k:'F11',p:'not set',s:'Unassigned',c:'Already used by Toggle fullscreen. FrameBeam keys always win.'}];
+    const hk = H.map(h=>h.g?{gd:'flex',rd:'none',g:h.g,gn:h.gn,gc:h.gc||'#9a9a9f',a:'',k:'',p:'',s:'',c:'',cd:'none',bg:'',bl:'transparent',kb:'',kc:'',pc:''}
+      :{gd:'none',rd:'flex',g:'',gn:'',gc:'',a:h.a,k:h.k,p:h.p,s:h.s,c:h.c||'',cd:h.c?'block':'none',bg:h.c?'#1d1a12':'transparent',bl:h.c?'#e5b45a':'transparent',kb:h.edit?'#3cbfd8':h.c?'#4a3f22':'#2a2b30',kc:h.edit?'#3cbfd8':h.c?'#e5b45a':'#ececea',pc:h.p==='not set'?'#6a6a70':'#ececea'});
+    const ds = (c1,c2)=>({ar:'4/6',c1,c2,f2:1});
+    const gba = (c)=>({ar:'3/2',c1:c,c2:'transparent',f2:0});
+    const tile = (i,name,g,o={}) => ({i,name,...g,bd:o.sel?'#3cbfd8':'#24252a',op:o.ov?'.45':'1',od:o.ov?'flex':'none',ov:o.ov||'',ovs:o.ovs||'',pill:o.pill||'',pd:o.pill?'inline':'none',pbg:o.pbg||'#26272b',pfg:o.pfg||'#d0d0d4'});
+    const you = tile('1','You · Lumen Drift',ds('#2c5a7a','#1c2b3a'),{sel:1,pill:'♪ Audio',pbg:'#16242a',pfg:'#3cbfd8'});
+    const lena = tile('2','Lena · Harbor Rally',ds('#7a4a2a','#3a2a1e'),{ov:'❚❚ Paused by Lena',ovs:'Frozen picture · resumes here',pill:'Paused'});
+    const jonas = tile('3','Jonas · Orbit Gardens',gba('#4a3a7a'),{ov:'Jonas’s game is loading',ovs:'Connecting · 3 s'});
+    const sam = tile('4','Sam · Meadow Courier',gba('#2a6a4a'),{ov:'Session ended',ovs:'Sam quit at 18:58 · Remove tile'});
+    const lay = (n) => [['PiP'],['Row',1],['Grid 2×2',0,n<4]].map(([l,a,dis])=>({l:dis?l+' · from 4':l,bg:a?'#2e2f34':'transparent',c:a?'#ececea':dis?'#6a6a70':'#9a9a9f'}));
+    const lay4 = [['PiP'],['Row'],['Grid 2×2',1]].map(([l,a])=>({l,bg:a?'#2e2f34':'transparent',c:a?'#ececea':'#9a9a9f'}));
+    const mv = [
+      {id:'3r-3-2',cap:'2 Sessions · Row · 1440 · paused remote tile (D20)',w:'1440px',h:'900px',n:2,lay:lay(2),cols:'1fr 1fr',tiles:[you,lena],pw:'300px',popd:'none',popr:'0'},
+      {id:'3r-3-3',cap:'3 Sessions · Row (two DS + one GBA) · 1440 · Add popover below toolbar (P38, P41)',w:'1440px',h:'900px',n:3,lay:lay(3),cols:'1fr 1fr 1.25fr',tiles:[you,lena,jonas],pw:'300px',popd:'flex',popr:'320px'},
+      {id:'3r-3-4',cap:'4 Sessions · Grid 2×2 · 1440 · loading and ended tiles',w:'1440px',h:'900px',n:4,lay:lay4,cols:'1fr 1fr',tiles:[you,lena,jonas,sam],pw:'300px',popd:'none',popr:'0'},
+      {id:'3r-3-2s',cap:'2 Sessions · 1280 × 800 · Reset stays visible (P44)',w:'1280px',h:'800px',n:2,lay:lay(2),cols:'1fr 1fr',tiles:[you,lena],pw:'260px',popd:'none',popr:'0'},
+      {id:'3r-3-3s',cap:'3 Sessions · 1280 × 800',w:'1280px',h:'800px',n:3,lay:lay(3),cols:'1fr 1fr 1.25fr',tiles:[you,lena,jonas],pw:'260px',popd:'none',popr:'0'},
+      {id:'3r-3-4s',cap:'4 Sessions · 1280 × 800',w:'1280px',h:'800px',n:4,lay:lay4,cols:'1fr 1fr',tiles:[you,lena,jonas,sam],pw:'260px',popd:'none',popr:'0'}];
+    const diag = [['Core','melonDS DS 2026.10.09'],['Renderer','OpenGL 4.6 · 3×'],['FPS','59.8 / 59.83'],['Frame','5.1 ms · emu 3.7'],['Audio','84 ms · 0 underruns'],['Encoder','h264_nvenc · 6.0 Mbit/s'],['Lena','Direct · RTT 18 ms · 0.4 %'],['Jonas','Relayed (TURN) · RTT 74 ms']].map(([k,v])=>({k,v}));
+    const corners = [['16px','40px','auto','auto'],['auto','40px','16px','auto'],['16px','auto','auto','16px']].map(([l,t,r,b])=>({l,t,r,b}));
+    return { esys, erows, erows2, sysSeg, map3ds, shoulders, hk, mv, diag, corners };
+  }
+}
+</script>
+</body>
+</html>

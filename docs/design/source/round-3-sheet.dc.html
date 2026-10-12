@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>body{margin:0;background:#d9d7d0;font-family:'IBM Plex Sans',sans-serif}a{color:#1a7f96}a:hover{color:#125f70}</style>
+</helmet>
+<section style="padding:64px;display:flex;flex-direction:column;gap:32px;color:#1d1d1b">
+<div id="0-2" style="display:flex;flex-direction:column;gap:16px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px">0-2</span><span style="font-size:24px;font-weight:600">Cross-cutting rules</span></div>
+  <div style="font-size:14px;color:#55544f">Screens: <a href="Round 3 Hub.dc.html">Hub</a> · <a href="Round 3 Player A.dc.html">Player A</a> · <a href="Round 3 Player B.dc.html">Player B</a></div>
+  <div style="width:1440px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px">
+    <sc-for list="{{ rules }}" as="r" hint-placeholder-count="7"><div style="background:#fff;border:1px solid #e4e2dc;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:10px">
+      <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65">{{ r.ids }}</div>
+      <div style="font-size:17px;font-weight:600">{{ r.t }}</div>
+      <sc-for list="{{ r.rows }}" as="x" hint-placeholder-count="3"><div style="display:grid;grid-template-columns:130px minmax(0,1fr);gap:12px;font-size:13px;border-top:1px solid #efede8;padding-top:8px"><span style="color:#6b6a65">{{ x.k }}</span><span style="font-family:{{ x.f }}">{{ x.v }}</span></div></sc-for>
+    </div></sc-for>
+  </div>
+  <div style="width:1440px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px">
+    <div style="background:#fff;border:1px solid #e4e2dc;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:10px"><div style="font:500 11px 'IBM Plex Mono';color:#6b6a65">ROW ACTIONS · HUB</div><div style="display:flex;gap:6px;justify-content:flex-end"><span style="font-size:13px;padding:5px 10px;border:1px solid #d9d7d0;border-radius:7px">Upload save</span><span style="font-size:14px;padding:4px 9px;border:1px solid #1a7f96;border-radius:7px">⋯</span></div><div style="align-self:flex-end;width:190px;border:1px solid #e4e2dc;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:4px;font-size:13px"><div style="padding:7px 10px">Rename</div><div style="padding:7px 10px">Download ROM</div><div style="height:1px;background:#efede8;margin:4px 0"></div><div style="padding:7px 10px;color:#b3261e">Delete game…</div></div></div>
+    <div style="background:#fff;border:1px solid #e4e2dc;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:10px"><div style="font:500 11px 'IBM Plex Mono';color:#6b6a65">ORIGIN PILLS · BOTH APPS</div><div style="display:flex;gap:8px;flex-wrap:wrap"><span style="font-size:11px;font-weight:500;padding:2px 8px;border-radius:10px;background:#f7ecd6;color:#8a5a00">Hub upload · unverified</span><span style="font-size:11px;font-weight:500;padding:2px 8px;border-radius:10px;background:#2a2414;color:#e5b45a">Hub upload · unverified</span><span style="font-size:11px;font-weight:500;padding:2px 8px;border-radius:10px;background:#ebe9e3;color:#55544f">Local file</span></div><div style="font-size:12px;color:#6b6a65;line-height:17px">Amber = needs your judgment. Cyan = information/in progress (Starting, update available). Green = ok. Grey = neutral/off. Red = destructive text only.</div></div>
+    <div style="background:#fff;border:1px solid #e4e2dc;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:10px"><div style="font:500 11px 'IBM Plex Mono';color:#6b6a65">ADD TO A LIST</div><div style="display:flex;gap:8px;align-items:center;border:1px solid #efede8;border-radius:8px;padding:8px 10px;font:12px 'IBM Plex Mono'"><span style="flex:1">stun:stun.example.com:3478</span><span style="font-family:'IBM Plex Sans';padding:2px 7px;border:1px solid #d9d7d0;border-radius:5px">⋯</span></div><div style="display:flex;gap:8px"><div style="flex:1;height:32px;border:1px solid #d9d7d0;border-radius:7px;font:12px 'IBM Plex Mono';color:#8d8b85;display:flex;align-items:center;padding:0 10px">stun:host:port</div><span style="font-size:13px;padding:6px 12px;border:1px solid #d9d7d0;border-radius:7px">Add</span></div><div style="font-size:12px;color:#6b6a65">Inline field + “Add” under the list. Library folders use “+ Add folder…” in the section header because they open a system picker.</div></div>
+    <div style="background:#fff;border:1px solid #e4e2dc;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:10px"><div style="font:500 11px 'IBM Plex Mono';color:#6b6a65">TABLE → CARDS AT 390</div><div style="border:1px solid #e4e2dc;border-radius:10px;padding:10px;display:flex;gap:10px;align-items:center"><div style="width:32px;height:32px;border-radius:6px;background:#ebe9e3;display:flex;align-items:center;justify-content:center;font-weight:600;color:#55544f">H</div><div style="flex:1"><div style="font-size:14px">Harbor Rally</div><div style="font-size:12px;color:#6b6a65">Nintendo DS · 12 KB · 15 Oct</div></div><span style="padding:4px 9px;border:1px solid #d9d7d0;border-radius:7px">⋯</span></div><div style="font-size:12px;color:#6b6a65">Below 720 px every Hub table: title, one meta line (2–3 key values), status pill if any, ⋯ menu holding all row actions.</div></div>
+  </div>
+</div>
+
+<div id="handoff" style="display:flex;flex-direction:column;gap:16px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px">Handoff</span><span style="font-size:24px;font-weight:600">Per screen</span></div>
+  <div style="width:1440px;background:#fff;border:1px solid #e4e2dc;border-radius:12px;overflow:hidden">
+    <div style="display:grid;grid-template-columns:110px minmax(0,1.6fr) minmax(0,1.3fr) 150px;gap:16px;padding:12px 20px;background:#faf9f6;font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65"><span>SCREEN</span><span>WHAT CHANGED</span><span>GRID · TYPE · SPACING</span><span>FIXES</span></div>
+    <sc-for list="{{ handoff }}" as="h" hint-placeholder-count="20"><div style="display:grid;grid-template-columns:110px minmax(0,1.6fr) minmax(0,1.3fr) 150px;gap:16px;padding:12px 20px;border-top:1px solid #efede8;font-size:13px;line-height:19px"><a href="{{ h.href }}" style="font:500 13px 'IBM Plex Mono'">{{ h.id }}</a><span>{{ h.c }}</span><span style="color:#55544f">{{ h.g }}</span><span style="font-family:'IBM Plex Mono';font-size:12px;color:#6b6a65">{{ h.f }}</span></div></sc-for>
+  </div>
+  <div style="width:1440px;display:grid;grid-template-columns:1fr 1fr;gap:20px">
+    <div style="background:#fff;border:1px solid #e4e2dc;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:8px"><div style="font-size:17px;font-weight:600">New tokens (unavoidable)</div><sc-for list="{{ tokens }}" as="t" hint-placeholder-count="4"><div style="display:flex;gap:10px;align-items:center;font-size:13px"><span style="width:18px;height:18px;border-radius:4px;background:{{ t.hex }};border:1px solid #d9d7d0"></span><span style="font-family:'IBM Plex Mono';width:180px">{{ t.n }} {{ t.hex }}</span><span style="color:#55544f">{{ t.u }}</span></div></sc-for></div>
+    <div style="background:#fff;border:1px solid #e4e2dc;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:8px"><div style="font-size:17px;font-weight:600">Open questions</div><sc-for list="{{ open }}" as="q" hint-placeholder-count="5"><div style="font-size:13px;line-height:19px;border-top:1px solid #efede8;padding-top:8px">{{ q }}</div></sc-for></div>
+  </div>
+</div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const S="'IBM Plex Sans'", M="'IBM Plex Mono'";
+    const r = (rows)=>rows.map(([k,v,m])=>({k,v,f:m?M:S}));
+    const rules = [
+      {ids:'H12 · P25',t:'Dates and times',rows:r([['< 1 min','just now'],['< 1 h','5 min ago'],['today','today 18:52'],['yesterday','yesterday 18:52'],['this year','16 Oct'],['other year','3 Mar 2025'],['tooltip','16 Oct 2026, 18:52:07'],['never','seconds in lists']])},
+      {ids:'H11 · H20',t:'Row actions',rows:r([['Visible','one secondary action (bordered button)'],['More','⋯ menu, 30 × 30 px, last column'],['Destructive','red text, last group after a divider, ends with “…”'],['Confirm','dialog names the object and the consequence; red primary']])},
+      {ids:'H23',t:'Origin and warning pills',rows:r([['Unverified','amber · “Hub upload · unverified”'],['Local','grey · “Local file”'],['Official','no pill'],['Size','11 px / 500 · 2 × 8 px · radius 10']])},
+      {ids:'H35 · H7 · P16',t:'Add an item to a list',rows:r([['Text items','inline field(s) + “Add” below the list'],['Files','dashed drop zone + “Choose file…”'],['Folders','“+ Add folder…” right-aligned with row controls'],['Empty','default value shown as a dashed row']])},
+      {ids:'P7 · P25',t:'Content width',rows:r([['Settings, Runs','max 880 px, left-aligned'],['Library grid','max 1680 px, left-aligned'],['Detail column','340 px fixed'],['Control column','280 px, right edge of every SettingsRow']])},
+      {ids:'P11',t:'Plurals and counts',rows:r([['Copy','1 folder · 3 game files · 2 cores'],['Count once','in the chip “All · 10”, not again as “10 games”'],['Never','“(s)”, “0 folder(s)”']])},
+      {ids:'H10 · H22',t:'Responsive Hub',rows:r([['≥ 1024','sidebar 232 + table'],['720–1023','sidebar collapses to ☰'],['< 720','table becomes cards; page padding 16'],['Phone','primary action stays visible, rest in ⋯']])}];
+    const h = (id,href,c,g,f)=>({id,href,c,g,f});
+    const HB='Round 3 Hub.dc.html#', PA='Round 3 Player A.dc.html#', PB='Round 3 Player B.dc.html#';
+    const handoff = [
+      h('3l-2',HB+'3l-2','Global auto-update toggle above the system list; per-system segment “Use Hub default (On) · On · Off”; core table with Updates column (Auto / Off · pinned) and ⋯; tabs Cores → Firmware → Clients; system order GB, GBC, GBA, DS, 3DS with status pills; buildbot copy.','1280 canvas · list 300 · table cols 1.6fr/120/190/1.2fr/120, nowrap version · title 28/600, row 14, meta 12','H1 H2 H6 H8'),
+      h('3l-3',HB+'3l-3','Firmware tab shows “No firmware needed for this core” for Azahar; no Built-in/Native toggle.','empty state centred, 40 px icon, 16/500 + 13 body','H3 H4'),
+      h('3l-4',HB+'3l-4','Firmware rows: provided file with ⋯ (Remove file… red), drop zone, pin field explained.','row padding 14 × 16, pin field 300 px','H7 D4'),
+      h('3j-2',HB+'3j-2','Upload save + ⋯ per row; local-only row at 52 px with amber meta; sort; Load more; scan progress card; Added column with new dates.','cols 1fr/110/90/140/90/170 · row 52 · chips 13','H11 H13 H14 D1'),
+      h('3j-2 · 390',HB+'3j-2-390','Stacked cards, chips scroll horizontally, Upload stays visible.','390 · padding 16 · card 12','H10'),
+      h('3s-4',HB+'3s-4','Slot “Main”; one Current (v6); v7 snapshot shows only ◆ Snapshot; Create snapshot opens label field; search; restore disabled with reason banner; conflict in amber.','second column 300 · history row 10 × 18','H15 H16 H17 D3'),
+      h('3m-2',HB+'3m-2','Online column; pending request with Approve/Deny; rename inline; Revoked and Denied grey pills; revoke in ⋯ with confirmation.','cols 1.4fr/100/150/90/160/110/120','H19 H20 D5'),
+      h('3n-2',HB+'3n-2','Create user + Invite in header; role dropdown pill; ⋯ with Make admin/Disable/Delete; invite panel uses segment + styled checkbox.','right panel 300','H21 D5'),
+      h('3q-2',HB+'3q-2','Saves retention moved to its own page; Cloudflare TURN “Off” pill; inputs 360 px; path middle-ellipsis + Copy; TURN/STUN add pattern; Updates Off|Stable|Beta; Theme default System; Security certificate card, no second Sign out; Diagnostics button one line; dark variant.','settings nav 300 · cards 16 × 20','H9 H32–H38 D6'),
+      h('4i-3',HB+'4i-3','Monograms from letters (PC, SN); amber origin; Needs / Used by lines; catalog status line + error variant; Remove from Hub in ⋯.','detail panel 400','H23–H26'),
+      h('4jh-3',HB+'4jh-3','Start now primary; Pause/Finish/Archive/Delete in ⋯; waiting banner with Start without Sam; Resend + ⋯ Remove invite; board title falls back to plugin name; log without Author/Source columns; 4 filter chips + “Show archived”.','list 300 · log cols 120/1fr/180','H27–H31'),
+      h('3a-3',PA+'3a-3','One host:port field; “Pair again” heading and copy for a known Hub that lost pairing.','form 520 centred · field 44','P2 P6'),
+      h('3c-6',PA+'3c-6','Title, search and Upload ROM in one row; count only in chip; one dismissible core notice grouped by core; Local and “Local · on Hub” badges; sidebar user on two lines; 3840 frame with 1680 max grid.','1280 canvas · detail 340 · grid 3 cols at 1280, 7 at 3840','P7 P8–P11 P13'),
+      h('3c-7',PA+'3c-7','Detail variants: local file checklist, Hub-matched local copy, Hub-offline error with reason under disabled button, plugin section above START (collapsible).','340 × 800 · buttons pinned to bottom','P12–P14'),
+      h('3p-3',PA+'3p-3','Updates segment Off|Stable|Beta; status card in row width; “+ Add hub” aligned with 280 control column; Connect automatically inside active Hub card; Pair again state; edit with one field; library folders as rows with Rescan/Remove, scanning and missing-drive states.','content max 880 · control col 280','P1–P5 P16 P18'),
+      h('4a-3',PA+'4a-3','Installed first with update button, Available on Home Hub below; dependency, turn-on-both, empty (“Home Hub offers 2 plugins”) and error dialogs.','row 58 · toggle in control column','P19–P22'),
+      h('4a-4',PA+'4a-4','Plugin detail sheet: on/off as the one primary, origin, permissions, settings (schema 5i), Needs/Adds, Uninstall in ⋯.','sheet 460','D16 P21 P22'),
+      h('4f-3',PA+'4f-3','SoulLink screen nested under Runs (decision ba); offers Harbor Nuzlocke with Open run; empty state.','max 880','P23 P28'),
+      h('4j-3',PA+'4j-3','Play primary, Invite secondary, state actions in ⋯ (Abandon red); Starting pill cyan without ▲; plugin board; log with actor; join dialog title and missing-game reason.','max 880 · dialog 460','P24–P27'),
+      h('3e-3',PB+'3e-3','“No core chosen yet · picked on first start”; firmware rows only for cores that use them; firmware-missing row; per-game card removed; one Reset style (text link); DS layout in Defaults; 3DS language.','max 880 · control 280','P30–P32 D9'),
+      h('3f-4',PB+'3f-4','System selector with only that system’s buttons; 3DS circle pad and C-stick test; profile Rename + ⋯; hotkeys table with full values, aligned conflicts, gamepad column, Esc row.','hotkey cols 1fr/150/170/70','P33–P36 D11'),
+      h('3r-3',PB+'3r-3-2','2/3/4 Sessions at 1440 and 1280; Row for 2–3, Grid from 4; “Paused by Lena” on frozen tile; loading and ended tiles; Add popover below the toolbar; one selection style (2 px cyan).','tile gap 12 · panel 300 / 260','P38 P41 P43 P44 D18 D20'),
+      h('3h-3',PB+'3h-3','Diagnostics docked as panel tab; plugin tab icons with names on hover; “1 widget hidden” above the game edge.','panel 360','P40 P45–P47'),
+      h('3i-3',PB+'3i-3','PiP inside the frame, corner snap targets, S/M/L sizes, audio and swap, paused remote.','PiP 240 at M','P42 D20'),
+      h('3y-2',PB+'3y-2','Fullscreen toolbar with Resume and Leave fullscreen; paused card copy matches Esc decision.','toolbar centred top 20','P34 P39')];
+    const tokens = [['amber-surface-light','#fff7e6','Hub inline warning banners'],['amber-line-light','#ecd9ae','border of those banners'],['amber-row-dark','#1d1a12','hotkey conflict rows'],['neutral-pill-dark','#26272b','Local / Paused pills in the Player']].map(([n,hex,u])=>({n,hex,u}));
+    const open = ['Which statuses count as “Needs attention” on a system: only missing required firmware, or also an update?','Should the Hub offer “Start without Sam” to any participant or only the run creator?','Player Settings at 3840 is not drawn separately; it follows the 880 px rule shown in 3p-3. Draw it if you want it reviewed.','Is “Row” the right name for the Multiview layout, or do you prefer “Columns”?','Gamepad defaults for hotkeys (Select + …) need a check against plugin hotkeys that also use Select.'];
+    return { rules, handoff, tokens, open };
+  }
+}
+</script>
+</body>
+</html>

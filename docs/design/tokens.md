@@ -206,6 +206,23 @@ Size sets of the building blocks: "ui" title 17/600, heading 15/600, body 13/400
 
 Illustration only (not tokens): map placeholder water `#0e1719` / land `#1a211d` (light `#d6e6ea` / `#eceee2`) and the placeholder creature fills in `creature-icon.dc.html`. Page notes of the handoff canvas (`#fff7e0`) and the SoulLink wizard text colour `#2f4b52` are not platform tokens.
 
+## Additions of Round 3 (2026-10-12)
+
+Source `source/round-3-sheet.dc.html` (card "New tokens (unavoidable)"; decision 23 in [decisions.md](decisions.md)). All other colors are existing tokens.
+
+| Token | Value | Use |
+|---|---|---|
+| amber-surface-light | `#fff7e6` | Hub inline warning banners (restore-blocked banner in 3s-4, catalog error line in 4i-3) |
+| amber-line-light | `#ecd9ae` | border of those banners and of the conflict banner in 3s-4 (white surface) |
+| amber-row-dark | `#1d1a12` | hotkey conflict rows in the Player (3f-4; left bar and key border use the amber warning tone `#e5b45a` / `#4a3f22`) |
+| neutral-pill-dark | `#26272b` | "Local" and "Paused" pills in the Player (text `#d0d0d4`) |
+
+Values in use that are not new: amber pill light `#f7ecd6` / `#8a5a00`, amber pill dark `#2a2414` / `#e5b45a`, neutral pill light `#ebe9e3` / `#55544f`, green pill light `#e1f0e4` / `#1e6b3a`, cyan info pill light `#e3f1f4` / `#1a7f96`, danger text `#b3261e` (menus and confirmations only), accent pill dark `#16242a` / `#3cbfd8` ("Local · on Hub", "Audio here"), ready pill dark `#16291d` / `#5fd28a`.
+
+Tile selection in Multiview is one style, a 2px `#3cbfd8` border (finding P43); this replaces the white outline `#ecebe7` of the revision table above. Hotkey conflict rows (3f-4): surface amber-row-dark, left bar `#e5b45a`, key border `#4a3f22`.
+
+Pill color rules: decision 23 (amber = needs your judgment, cyan = information or in progress, green ok, grey neutral or off, red destructive text only). Pill size 11/500, padding 2 x 8, radius 10 (list and detail pills); the 12/600 radius-999 status pill of the common shell stays for table status columns.
+
 ## Mapping (note, not code)
 
 - Player (QML): one theme singleton with the roles above as properties; dark/light switching (architecture 09) via two palettes with the same role names. A light Player palette is not designed in the source; `Theme.qml` carries one derived from the Hub tokens (ADR 0007 D7).

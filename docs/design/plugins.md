@@ -34,6 +34,8 @@ Reused existing components: `game-header`, `game-panel`, `diag-overlay`, `frameb
 
 Still valid and not redrawn: 4a, 4a-light, 4a-empty, 4b, 4b-light, 4c-1, 4c-2, 4d-1, 4d-2, 4d-console-error, 4e-hud (4e-5), 4e-7, 4f, 4ih, 4ih-upload. (SoulLink: 5a-1 to 5a-5, 5b-states, 5h, 5i, 5e-team, 5e-grave, 5gh, 5gs, 5gs-narrow.) The round-1 files carry a banner and the colour, version and name fixes in place; their layout is superseded as listed.
 
+**Round 3 (2026-10-12) supersedes parts of rounds 1 and 2** for 4a, 4b (detail as sheet), 4f, 4h-2 (placement), 3f-4 (layout), 4ih, 4j-2 and 4jh-2; see [Round 3](#round-3-2026-10-12) below and the one-line notes in each older section. Files: `round-3-player-a.dc.html`, `round-3-hub.dc.html` (with `player-nav.dc.html`, `hub-nav.dc.html`) and the sheet `round-3-sheet.dc.html`. Older sections stay valid for everything Round 3 does not redraw.
+
 Reading note: line ranges are artboard containers without the caption; anchors `#id` are block IDs. Dialog artboards 4c-x come from `sc-for` templates; the range is the template, the data (`dlg(...)` / `dialogs`) is at the lines given.
 
 ## Common rules
@@ -46,6 +48,7 @@ Reading note: line ranges are artboard containers without the caption; anchors `
 - Hotkeys: F3 diagnostics, F4 hide all HUD widgets, F5 snapshot, F11 fullscreen, Space speed-up, Esc pause or leave fullscreen are FrameBeam's (ADR 0014 D4, ADR 0018). Drawn and not yet specified in the code: Alt+1 … Alt+9 panel tabs, Ctrl+Shift+R reload plugin (developer mode) (open point ao). Plugin keys are suggestions; FrameBeam keys win (open point ap).
 
 ## 4a Settings Plugins
+Superseded in part by [4a-3](#4a-3-settings-plugins-round-3) (Round 3: installed first, Available on Home Hub below, update button, dialogs).
 Source `plugins-4a-4d.dc.html`: `#4a` 30-33, `#4a-light` 34-37, `#4a-empty` 38-43; component `plugin-settings-screen.dc.html` (`view="list"`, `"empty"`). 1440 x 900, dark and light. Still valid (round 2 changed only data: Player 0.11.0, 3DS, colours).
 
 - Purpose: see, switch on/off and update installed plugins, install from file, Developer mode.
@@ -57,6 +60,7 @@ Source `plugins-4a-4d.dc.html`: `#4a` 30-33, `#4a-light` 34-37, `#4a-empty` 38-4
 - Open: automatic updates of Official plugins (open point aw).
 
 ## 4b Plugin detail, 4b-2 Uninstall
+Superseded in part by [4a-4](#4a-4-plugin-detail-round-3) (Round 3: detail as a sheet, one primary).
 Source `plugins-4a-4d.dc.html` `#4b` 46-49, `#4b-light` 50-53; `plugins-round-2.dc.html` `#4b-2` 30-35; component `plugin-settings-screen.dc.html` (`view="detail"`, `"uninstall"`).
 
 - Header: "← Plugins", icon chip, name, version, origin pill, author line ("by FrameBeam Community · github.com/example/framebeam-plugin-soullink"), buttons "Update to 0.10.0" (when available) and the switch "Turn on". Scope select next to it: "For all matching games" | "Only in runs" | "Off" (the "Only in runs" option appears only for plugins that provide runs; Item Helper offers "For all matching games", open point ax). Subline "Active while you play a game that belongs to a run · 1 active run".
@@ -102,6 +106,7 @@ Source `plugins-round-2.dc.html`: `#4e-1-2` 91-102, `#4e-2-2` 103-121, `#4e-3-2`
 - Click or A expands it (max 300 x 120, over the top screen, header strip with "▴"); the tile stays selectable around it. One strip per tile: when several plugins offer one, the user picks it in the tile's "⋯" menu (decisions item 11).
 
 ## 4f Plugin sidebar screen
+Superseded in part by [4f-3](#4f-3-plugin-sidebar-screen-round-3) (nested under Runs, offers the active run).
 Source `plugins-4e-4h.dc.html` `#4f` 202-215 (valid). A plugin entry sits indented under Library with its icon (16, radius 4) and a count badge (min 18 x 18, radius 9, 11/600, `#15262b`/`#3cbfd8`) the plugin reports (e.g. run invites). One entry per plugin (open point ba). The screen frame: title row ("Runs", icon, plugin name with ✓ Official, "Plugin settings"), content area full width, scrolls vertically, built only from FrameBeam blocks.
 
 ## 4g-2 Notices
@@ -112,9 +117,11 @@ Source `plugins-round-2.dc.html` `#4g-2` 181-205 (supersedes 4g). Notices belong
 - Mute menu (250 wide, surface `#1d1e22`, border `#34353a`, items 30 high): "Mute Item Helper's notices", "Only important ones", "Notice settings…".
 
 ## 4h-2 Game detail section
+Placement superseded in part by [player.md 3c-7](player.md#3c-7-player-library-detail-column-round-3) (collapsible plugin section above START, no clipping).
 Source `plugins-round-2.dc.html` `#4h-2` 206-231 (supersedes 4h). Revises 3c-2 detail column. 3DS chips on the library tiles; detail "Nintendo 3DS · Azahar", status table with ROM, Core ("✓ Azahar · ready") and a new row "Plugins · 3 on · Creature Core, SoulLink, Item Helper". Section under SAVE: save row "Run · Ember & Tide · v31 · yesterday 23:10 · this device · ✓ Synced" (run saves have their own slot), then the plugin section "RUNS WITH THIS GAME · 1 ACTIVE" (run card: name, status pill, plugin and players, "Open →", "Start a run…"; several runs as a list, max 3). Play becomes "Play run · Ember & Tide" with "Play without run" next to it. Open: whether "Play without run" switches the save slot (open point bb).
 
 ## 3f-4 Controllers Hotkeys
+Layout superseded by [player.md 3f-4 (Round 3)](player.md#3f-4-player-controllers-round-3) (full values, aligned conflicts, gamepad column, Esc row, system selector); the plugin groups and conflict rules below stay.
 Source `plugins-round-2.dc.html` `#3f-4` 234-259. Extends v4 3f-2 (columns 232 | 300 | flex | 340): device list adds "Mouse · Connected · 3DS touch" (open point ap).
 
 - Banner line "FrameBeam keys always win · plugins only suggest keys". Tabs "Buttons" | "Hotkeys" and the search "Search hotkeys…".
@@ -122,6 +129,7 @@ Source `plugins-round-2.dc.html` `#3f-4` 234-259. Extends v4 3f-2 (columns 232 |
 - Row: label, key (mono), "Default" or action ("Choose a key", underlined). Conflict row: surface `#1a1710`, border `#4a3d1c` (warning), key shown "Ctrl+H · not active" in amber, note "Already used by SoulLink & Nuzlocke. Unassigned until you choose." The key stays unassigned until the user picks another (open point ap).
 
 ## 4ih Hub plugins
+Superseded in part by [4i-3](#4i-3-hub-plugins-round-3) (Round 3: monograms, amber origin, Needs / Used by, catalog status).
 Source `plugins-4i-4j-sheet.dc.html` `#4ih` 30-56, `#4ih-upload` 58-70 (valid). Hub shell as 3j with nav Library, Saves, Systems & Cores, Clients, Users, Plugins, Runs, Settings (Plugins meta "1 update", Runs "1 active"); footer "Home · v0.11.0 · hub.example.com".
 
 - Title "Plugins", help "Players on this Hub can install what is listed here.", button "Upload plugin". Table PLUGIN | ORIGIN | PERMISSIONS | PLAYERS with row action Details or Update; selected row `#f6fbfc`.
@@ -130,12 +138,65 @@ Source `plugins-4i-4j-sheet.dc.html` `#4ih` 30-56, `#4ih-upload` 58-70 (valid). 
 - Upload dialog (4ih-upload, canvas 640 x 640, backdrop `rgba(27,27,29,.5)`): "Offer Run Notes 0.2.0 to Players?", "FrameBeam has not checked this file.", every requested permission has a tick the admin must set ("Tick every permission to confirm you reviewed it."), buttons Cancel and "Offer to Players". Open: whether non-admins may upload (open point bc).
 
 ## 4j-2 Player Runs, 4jh-2 Hub Runs
+Superseded in part by [4j-3](#4j-3-player-run-detail-round-3) and [4jh-3](#4jh-3-hub-run-detail-round-3) (Round 3: one primary action, state actions in the menu, "Starting" in cyan).
 Source `plugins-round-2.dc.html` `#4j-2` 262-277, `#4jh-2` 278-291 (supersede 4j, 4jh; round 1 `plugins-4i-4j-sheet.dc.html` `#4j` 73-95, `#4jh` 96-121). A run is a FrameBeam object plugins build on: participants, plugin, a game each, status, event log. The Player sidebar entry is provided by the plugin ("Runs", with the count of invites), list, invite and log belong to FrameBeam. The Hub run detail has a plugin content slot (run board, 5gh).
 
 - Player (4j-2): title "Runs" + "Start a run"; invite card "RUN INVITE" ("Lena invites you to "Tide Hardcore" · Nuzlocke", plugin and your game, "2 of 3 joined") with Decline and Join; groups "ACTIVE · 1 · PAUSED · 1" and "FINISHED · 2". Run row: name, status pill, sub line, participant avatars (player colours), time, "Open →" or "View".
 - Status pills: Active (info), Paused (warning), Starting (warning, Hub), Finished (ok), Abandoned (neutral).
 - Hub (4jh-2): runs list column 320 ("RUNS · 4", filter "All ▾"), detail with header "Summer Duo · Paused", "Paused by Lena · 09.10.2026 · SoulLink & Nuzlocke 0.9.2 · events still visible, no new ones recorded", buttons "Resume run", Archive, "Delete…"; participants table (avatar, name, game, status); plugin content slot with a "Paused" banner; EVENT LOG · n (time, author, text, source "automatic · Lena's Player" / "manual · Sam" / "Hub", "Export"). Active run: "Pause run" instead of "Resume run".
 - Rules drawn (open points ar, as): any member can pause ("paused by Lena"), a paused run records no new events, status "Starting" while players are still joining. Who may delete a run: creator and admin (open point bd).
+
+## Round 3 (2026-10-12)
+
+Source `source/round-3-player-a.dc.html` (4a-3, 4a-4, 4f-3, 4j-3) and `source/round-3-hub.dc.html` (4i-3, 4jh-3); rules in `source/round-3-sheet.dc.html` (0-2, handoff table) and decisions 20-23 in [decisions.md](decisions.md). Finding IDs (H, P, D) are those of the 0.14 UI scan. Design only; plugin API v1 is not implemented. The Player screens use the page rules of [player.md](player.md#round-3-2026-10-12) (880 px content, 280 px control column), the Hub screens those of [hub.md](hub.md#round-3-2026-10-12). Pill colors per decision 23: "Hub upload · unverified" is amber everywhere (Hub list and detail, Player Settings, SoulLink screen; finding H23), "Local file" grey, Official has no pill, "Starting" and "update available" are cyan (information, no ▲). Mock plugins are "Pokémon Core 0.3.1", "SoulLink & Nuzlocke 0.3.2", "Run Notes 1.0.0".
+
+### 4a-3 Settings Plugins (Round 3)
+Source: `source/round-3-player-a.dc.html#4a-3` (135-156), `#4a-3-dialogs` (179-190). Fixes P19, P20, P21, P22.
+
+- Settings nav as in 3p-3 with the entry "Plugins" ("2 installed · 1 update"). Content max 880; header "Plugins" with "If a plugin fails it is paused; your game keeps running."
+- INSTALLED · 2 with the header action "Install from file…". Rows (58 high, toggle in the 280 control column): monogram, name 14/500 + version, amber pill "Hub upload · unverified" (none for Official), meta line ("Used by SoulLink & Nuzlocke · Read game memory, Read the game file"; "Needs Pokémon Core · Show panels in game, Share run progress"), a visible "Update to 0.3.2" button where an update exists, toggle, chevron "›" opening 4a-4. Every row has a meta line, so heights are equal (P21; Pokémon Core needs a short description in its manifest, finding PL2).
+- AVAILABLE ON HOME HUB · 1 below, header right "Checked 2 min ago · Refresh": row "RN · Run Notes · 1.0.0 · Hub upload · unverified · Can: Share run progress with your Hub · 6 KB" with one button "Install". Installed plugins are not listed twice (P21). Footer "Developer mode and local folders: Developer settings".
+- Dialogs (4 cards): "Install SoulLink & Nuzlocke?" — "Hub upload · unverified. It can show panels in game and share run progress with your Hub." with a checked box "Also install Pokémon Core 0.3.1 · needed by SoulLink & Nuzlocke", buttons "Cancel", "Install both" (P20); "Turn on SoulLink & Nuzlocke?" — "It needs Pokémon Core, which is off. Both turn on; Pokémon Core reads game memory." buttons "Cancel", "Turn on both"; empty "No plugins installed" — "Home Hub offers 2 plugins: Pokémon Core and SoulLink & Nuzlocke. They are listed below under Available on Home Hub." button "Show available" (P19); error "Could not reach Home Hub" — "Available plugins could not be loaded. Installed plugins keep working." button "Retry". Raw plugin ids never appear in user text.
+
+### 4a-4 Plugin detail (Round 3)
+Source: `#4a-4` (157-178). Fixes P21, P22, D16.
+
+- A second-column sheet (460 wide) over the plugin list; header "‹ Plugins" and "✕". Title block: monogram, "SoulLink & Nuzlocke", "0.3.2 · up to date · from Home Hub".
+- One primary control: the on/off toggle with the line "Pokémon Core is on too (needed)". Origin: amber pill "Hub upload · unverified" + "Not checked by FrameBeam. Uploaded by Max."
+- PERMISSIONS: "Show panels in game", "Share run progress with your Hub". SETTINGS (plugin schema, see SoulLink 5i): rows "Show HUD widget — On", "Encounter rule — First per route ▾", "Duplicate clause — On". RELATIONS: "Needs Pokémon Core · 0.3 or newer · installed 0.3.1"; "Adds: panel tab · HUD widget · tile strip · SoulLink screen · 3 hotkeys".
+- Footer: "Installed 14 Oct · 33 KB", button "Hotkeys…", "⋯" holding "Uninstall…" (red, with confirmation, 4b-2); note "⋯ holds “Uninstall…” (red, with confirmation). Run data stays on the Hub."
+
+### 4f-3 Plugin sidebar screen (Round 3)
+Source: `#4f-3` (191-203). Fixes P23, P28; open point ba.
+
+- The plugin entry "SoulLink" is nested under Runs in the nav (indent 30), so it no longer collides with the built-in Runs entry. Header: monogram, "SoulLink", "SoulLink & Nuzlocke 0.3.2", amber pill, link "Plugin settings". Max 880.
+- "YOUR RUNS · 1": row "Harbor Nuzlocke" + cyan pill "Starting", "Harbor Rally · waiting for Sam · created today 07:12", button "Open run"; note "The run board, map and team open in game when you play Harbor Rally from this run." Empty state: "No SoulLink runs yet. Start a run with SoulLink & Nuzlocke in Runs." with "Go to Runs".
+
+### 4j-3 Player Run detail (Round 3)
+Source: `#4j-3` (204-230), join dialog `#4j-3-join` (231-247). Fixes P24, P25, P26, P27.
+
+- Content max 880. "‹ Runs"; title "Harbor Nuzlocke" + cyan pill "Starting" (no ▲); "Created by Max · today 07:12 · SoulLink & Nuzlocke 0.3.2". Actions: primary "Play Harbor Rally", secondary "Invite players", "⋯" with state actions "Start run now", "Finish run…", "Abandon run…" (red). No five-button row.
+- PLAYERS · 2: avatar in the player color, name ("Max (you)", "Sam"), game ("Harbor Rally", "—"), status ("Joined" green, "Invited" grey).
+- BOARD · "from SoulLink & Nuzlocke": the plugin's `ui.run` board: stats "Deaths 0 · Routes 1 / 35 · Badges 2", table ROUTE | MAX | SAM | LINK (e.g. "Route 101 · Spark · not joined · Open"). Falls back to the plugin name when the board has no title (H31).
+- EVENT LOG · 3: time per the date rule ("today 09:02", full value in the tooltip, no seconds, P25), text "Max resent the invite to Sam", source/actor ("Hub", "Desktop-LivingRoom").
+- Join dialog (460): title "Join “Tide Hardcore”?" (no nested quotes, P26), "Lena invited you · today 10:00 · 1 of 2 joined", "Run Notes 1.0.0 · Share run progress with your Hub" + amber pill, YOUR GAME card: with the game "● Paper Wizards · Nintendo DS · in your library" and "Join" enabled; without it "Tide & Lantern is not in your library · This run needs Tide & Lantern (Game Boy)." in amber, "Join" disabled and the reason "Join is off until you have the game. Ask a Hub admin to upload it, or add a library folder that contains it." (P27); buttons "Cancel", "Join".
+
+### 4i-3 Hub Plugins (Round 3)
+Source: `source/round-3-hub.dc.html#4i-3` (359-391). Fixes H23, H24, H25, H26.
+
+- Header "Plugins" 28/600, "Players on this Hub can install what is listed here.", button "Upload plugin". Rows: monogram built from letters ("PC", "SN"; non-letter words such as "&" are skipped, H24), name + version, amber pill "Hub upload · unverified", meta "Used by SoulLink & Nuzlocke · Read game memory, Read the game file" / "Needs Pokémon Core · Show panels in game, Share run progress with your Hub" (H25), button "Details". Selected row: surface `#f2f8f9` + left bar.
+- Catalog status line below the list: "Official catalog · signed · checked today 17:52 · 0 plugins" + "Check now" (one statement, not "checked" and "empty or not loaded" at once, H26); error variant in place of it (amber banner): "▲ Could not load the catalog · <catalog host> did not answer · today 17:52" + "Retry".
+- Detail panel (400): "SN · SoulLink & Nuzlocke · 0.3.2 · uploaded by Max · 16 Oct", amber pill, "Not signed by FrameBeam. Players see “Hub upload · unverified” and a warning before they turn it on."; NEEDS "PC · Pokémon Core 0.3 or newer · ✓ on this Hub"; PERMISSIONS · CONFIRMED BY ADMIN ("Show panels in game", "Share run progress with your Hub"); FILE "Size 33.9 KB · SHA-256 fdbb86…5f73 · Copy"; actions "Download file" and "⋯" holding "Remove from Hub…" (red, confirmation); note "Players keep their copy until they uninstall it."
+
+### 4jh-3 Hub Run detail (Round 3)
+Source: `#4jh-3` (392-418). Fixes H27, H28, H29, H30, H31.
+
+- List column 300: header "RUNS · 2", filter chips on one line "All | Active | Paused | Finished" plus a separate toggle "Show archived · 1" (H30); items: run name, cyan pill "Starting", meta ("1 of 2 joined · today 07:12").
+- Detail head: "Harbor Nuzlocke" + cyan pill "Starting", "Created by Max · today 07:12 · SoulLink & Nuzlocke 0.3.2"; actions "Export JSON" (secondary), "Start now" (primary), "⋯" with "Pause · after start", "Finish run…", "Archive", divider, "Delete run…" (red) (H28).
+- Waiting banner: "Waiting for Sam to join · 1 of 2 joined · invited 2 h ago" + "Resend invite" and "Start without Sam" (run creator and admins, decision bh) (H27).
+- PARTICIPANTS · 2: avatar, name, game ("Harbor Rally", "—"), status pill ("Joined" green, "Invited" grey), for an invited member "Resend" and "⋯" (holds "Remove invite").
+- BOARD · "SoulLink & Nuzlocke · no board title set, plugin name used" (H31); empty "No board yet. It appears after a participant’s Player opens the run."
+- EVENT LOG · 3, columns `120 minmax(0,1fr) 180` (time, event, source/device); no "Author" and "Source" columns that repeat "Hub"; time per the date rule, tooltip with the full value, no seconds (H29).
 
 ## Building blocks (component sheet `r2-sheet`)
 Source `plugins-round-2.dc.html` `#r2-sheet` 389-395, component `block-sheet.dc.html` (dark and light), supersedes the BlockSheet part of `4-sheet`. Normal state on the left, controller focus on the right. Reference only for the catalog: §16.8 lists the building blocks as open; the sheet is the draft the official plugins were drawn with. The prefix `fb.ui.*` in the sheet is drawing text, not API.

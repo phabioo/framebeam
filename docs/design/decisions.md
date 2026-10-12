@@ -31,6 +31,22 @@ Source: Claude Design handoff "Plugins + SoulLink" and its correction round 2, i
 
 Deviations from the architecture (plugin handoff), aligned in §16 in the same change: notices under `ui` (§16.5), `memory.write` consent per game, run log event and run rule (§16.5), origin rule (§16.10), HUD corners and F4 (§16.8). Not in §16 and still design only: the building blocks of item 18, the Hub status "Starting" and the paused run status (open points as, ar).
 
+## Decisions (Fabio, 2026-10-12, Round 3: 0.14 UI gaps and Multiview)
+
+Source: Claude Design handoff "Round 3" (`source/round-3-hub.dc.html`, `round-3-player-a.dc.html`, `round-3-player-b.dc.html`, sheet `round-3-sheet.dc.html`), answering the 0.14 UI scan (finding IDs H1.., P1.., D1..; the sheet's handoff table maps every artboard to its IDs). Specification: [hub.md](hub.md), [player.md](player.md), [plugins.md](plugins.md); new tokens: [tokens.md](tokens.md#additions-of-round-3-2026-10-12).
+
+20. Viewers see that a game is paused. This overrides open point v (2026-10-08, "not shown to viewers"): the frozen remote tile shows "Paused by <name>" in side by side (Row), Grid, PiP and fullscreen; the owner's own tile shows no such label. Needs a pause signal from the host to its viewers (finding P37; the paused state is local-only today).
+21. Esc always pauses and opens the pause overlay, in a window and in fullscreen (finding P34). The overlay has "Resume" and "Leave fullscreen"; F11 toggles fullscreen and is the only key that leaves fullscreen. This replaces the fixed role in [ADR 0014](../adr/0014-player-ui-pass.md) D4 ("leave fullscreen, else pause") and refines open points d and u; the ADR text is not edited here, a follow-up ADR in the FrameBeam repository is needed before the Player changes. Gamepad: Select + Start pauses (3f-4).
+22. The Multiview layout "Side by side" is renamed "Row": Row for 2-3 Sessions, Grid 2x2 from 4 Sessions, PiP unchanged (finding P38). "Side by side" stays the name of the DS screen layout (Stacked | Side by side | Top only). This supersedes in part open point l and [ADR 0014](../adr/0014-player-ui-pass.md) D13 (Default Multiview offers PiP, Side-by-Side and Grid 2x2) and the roadmap wording "2x2 from three"; the Default Multiview options become PiP, Row, Grid 2x2. The ADR body is not edited here (no supersession field in its format); a "superseded in part by" note is proposed to the FrameBeam repository.
+23. Cross-cutting rules of the Round 3 sheet (`round-3-sheet.dc.html`, artboard 0-2); they apply to every Hub and Player screen:
+    - Dates and times (H12, P25): under 1 minute "just now"; under 1 hour "5 min ago"; today "today 18:52"; yesterday "yesterday 18:52"; this year "16 Oct"; other years "3 Mar 2025"; tooltip with the full value "16 Oct 2026, 18:52:07"; seconds never in lists.
+    - Row actions (H11, H20): at most one visible secondary action (bordered button); everything else in a "⋯" menu (30 x 30 px, last column); destructive items in red text, last group after a divider, label ends with "…"; the confirmation dialog names the object and the consequence and has a red primary button.
+    - Pill colors (H23): amber = needs your judgment (unverified, conflict, missing); cyan = information or in progress (Starting, update available); green = ok; grey = neutral or off; red = destructive text only (menus, confirmations), never a status pill. Origin pills: "Hub upload · unverified" amber, "Local file" grey, Official has no pill; size 11/500, padding 2 x 8, radius 10. This extends decision 6 (amber for plugin states) to the built Hub and Player and refines decision 2 (cyan was also the warning color): cyan no longer marks anything that needs a decision.
+    - Add an item to a list (H35, H7, P16): text items use inline field(s) plus an "Add" button under the list; files use a dashed drop zone plus "Choose file…"; folders use "+ Add folder…" in the section header, right-aligned with the row controls (it opens a system picker); an empty list shows the default value as a dashed row.
+    - Content widths (P7, P25): Settings and Runs max 880 px, left-aligned; Library grid max 1680 px, left-aligned; detail column 340 px fixed; control column of every SettingsRow 280 px at the right edge. Empty space at 3840 is intentional.
+    - Plurals and counts (P11): "1 folder · 3 game files · 2 cores"; a count appears once (chip "All · 10", not again as "10 games"); never "(s)" or "0 folder(s)".
+    - Responsive Hub (H10, H22): 1024 px and wider sidebar 232 + table; 720-1023 the sidebar collapses to "☰"; below 720 every table becomes cards (title, one meta line with 2-3 key values, status pill if any, "⋯" menu with all row actions) and the page padding is 16; on a phone the primary action stays visible, the rest sits in "⋯".
+
 ## Deviations from the architecture
 
 Noted against the architecture; the status after the PoC is given per item. Checked against `09-ui-and-navigation.md`, `03-saves.md` and `10-identity-pairing-tls.md`; other files not read (points there: unclear).
@@ -75,8 +91,8 @@ Open points (revision handoff 2026-10-08, after a friends playtest; source `sour
 
 In-game (Turn 5):
 
-u. Esc: pauses as today; no second Esc to the Library (default, 2026-10-08). Esc keeps its fixed role from ADR 0014 D4 (leave fullscreen, else pause).
-v. The paused state is not shown to viewers specially; they see the frozen picture (default, 2026-10-08).
+u. Esc: pauses as today; no second Esc to the Library (default, 2026-10-08). Esc keeps its fixed role from ADR 0014 D4 (leave fullscreen, else pause). (Refined 2026-10-12, decision 21: Esc always pauses and opens the pause overlay, also in fullscreen.)
+v. The paused state is not shown to viewers specially; they see the frozen picture (default, 2026-10-08). (Overridden 2026-10-12, decision 20: viewers see "Paused by <name>".)
 w. The Multiview layout switch applies to all tiles (as decided 2026-10-07, item a); in the Session view the layout switch applies to this game only. The drawn state is correct (default, 2026-10-08).
 x. Selecting a remote tile in Multiview does not route controller input; input always goes to your game (default, 2026-10-08).
 y. Diagnostics section open/collapsed state (Emulation, Streaming) stays global, not per view (ADR 0014 D5; default, 2026-10-08).
@@ -126,3 +142,19 @@ bc. 4ih: can non-admins upload? Default: a Hub setting "Users can upload" (Lena 
 bd. 4j: who may delete a run? Default: creator and admin.
 be. Hub run page as a browser source (SoulLink 5gs): revocable token link versus Hub login. Default: token link as drawn; needs a security decision before it is built.
 bf. Toasts of a run event while in fullscreen (SoulLink 5h): shown by the plugin's Notices setting (all, important, deaths, off), not only as a HUD flash. Default: as drawn (4g-2 stack); open.
+
+Open points (Round 3 sheet, 2026-10-12; source `source/round-3-sheet.dc.html`, script `open`). The sheet asks five questions; the working defaults below were decided by the orchestrator on 2026-10-12 and Fabio can still overrule them.
+
+bg. "Needs attention" on a system (Hub badge and pill, finding H1-H4 family) means missing required firmware or no core installed. An available core update is cyan information only ("1 update"), never "Needs attention" (default, 2026-10-12).
+bh. "Start without <name>" in the waiting banner of a run (4jh-3): offered to the run creator and to admins, not to every participant (default, 2026-10-12).
+bi. Player Settings at 3840 is not drawn separately; it follows the 880 px rule of 3p-3 (default, 2026-10-12).
+bj. The Multiview layout name stays "Row" (not "Columns"; default, 2026-10-12, decision 22).
+bk. Gamepad hotkeys: plugin hotkeys get no gamepad default ("not set"); FrameBeam's own gamepad hotkeys use Select + one button (Select + Start pause, Select + Y fullscreen, Select + R3 diagnostics, Select + LB snapshot, Select + RB speed-up, Select + L3 hide HUD widgets). Conflicts between a plugin key and a FrameBeam key stay shown as in 3f-4 (default, 2026-10-12). Select + button is never sent to the game.
+
+Notes on Round 3 against the built state (not open questions):
+
+- 4f-3 draws the SoulLink screen nested under Runs, one sidebar entry per plugin; this is the drawn answer to open point ba (a collision with the built-in "Runs" entry, finding P28). Not decided beyond the drawing.
+- 3e-3 and 3l-2 follow the Hub behavior since 0.13 (no core preselected, finding P31); 3l-2 assumes a per-system and per-core setting for automatic core updates on top of the global `core_auto_update`. Backend for the per-system and per-core values is not built (finding H2).
+- 3s-4: the slot is displayed as "Main" everywhere (H15); the stored slot name stays unchanged (decided 2026-10-12).
+- 3a-3: the "Connect automatically on startup" toggle moves right into the control column like Settings (finding P4 fixed also for 3a-3; Fabio's rule "one look", 2026-10-12). The drawing still shows it left.
+- 3q-2 moves the save retention settings from Network to its own page "Saves" (H33).

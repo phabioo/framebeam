@@ -1,6 +1,7 @@
 # ADR 0014: Player UI pass (0.6)
 
 - Status: accepted (diagnostics design 3t-3y accepted by Fabio on 2026-10-08)
+- Superseded in part by [ADR 0026](0026-ui-gaps-and-multiview.md) (D4 Esc, D13 Default Multiview).
 - Date: 2026-10-07
 - Decided by: Fabio (proposal by the orchestrator; open design points answered with defaults, accepted with the merge)
 

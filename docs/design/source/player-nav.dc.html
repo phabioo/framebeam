@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="width:232px;height:100%;flex:none;box-sizing:border-box;background:#16171a;border-right:1px solid #24252a;display:flex;flex-direction:column;padding:24px 16px 20px;font-family:'IBM Plex Sans',sans-serif;color:#ececea">
+  <div style="display:flex;align-items:center;gap:10px;padding:0 4px 24px;font-size:16px;font-weight:600"><div style="width:20px;height:20px;border:1.5px solid #ececea;border-radius:5px;box-sizing:border-box;display:flex;align-items:center;justify-content:center"><div style="width:8px;height:6px;background:#3cbfd8;border-radius:1px"></div></div>FrameBeam Player</div>
+  <div style="display:flex;flex-direction:column;gap:4px">
+    <sc-for list="{{ items }}" as="it" hint-placeholder-count="5">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 10px;padding-left:{{ it.pl }};border-radius:8px;font-size:14px;background:{{ it.bg }};color:{{ it.fg }}"><span style="white-space:nowrap">{{ it.label }}</span><span style="font-size:11px;color:#3cbfd8;font-family:'IBM Plex Mono',monospace">{{ it.badge }}</span></div>
+    </sc-for>
+  </div>
+  <div style="flex:1"></div>
+  <div title="hub.example.com:8443" style="border:1px solid #2a2b30;background:#1b1c1f;border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:4px">
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:14px"><span style="display:flex;align-items:center;gap:8px"><span style="width:7px;height:7px;border-radius:50%;background:{{ dot }}"></span>Home Hub</span><span style="font-size:12px;color:#9a9a9f">Switch</span></div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#9a9a9f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">hub.example.com:8443</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;padding:14px 4px 0">
+    <div style="width:28px;height:28px;border-radius:50%;background:#6f9cff;color:#0d1214;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:none">M</div>
+    <div style="display:flex;flex-direction:column;min-width:0"><span style="font-size:13px;line-height:16px">Max</span><span style="font-size:12px;line-height:16px;color:#9a9a9f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Desktop-LivingRoom</span></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:232,&quot;height&quot;:900},&quot;active&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Library&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;plugin&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;offline&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const active = this.props.active ?? 'Library';
+    const list = [['Library'],['Runs','1'],['Emulation'],['Controllers'],['Settings']];
+    if (this.props.plugin) list.splice(2,0,[this.props.plugin,'',true]);
+    const items = list.map(([l,b,sub]) => ({label:l,badge:b||'',pl:sub?'30px':'10px',bg:l===active?'#24252a':'transparent',fg:l===active?'#ececea':'#9a9a9f'}));
+    return { items, dot: this.props.offline ? '#8d8b85' : '#5fd28a' };
+  }
+}
+</script>
+</body>
+</html>
