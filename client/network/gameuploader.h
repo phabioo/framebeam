@@ -50,7 +50,7 @@ class GameUploader : public QObject {
   // the active Hub. Without a provider nothing is persisted.
   void setStateFileProvider(std::function<QString()> provider) { stateFile_ = std::move(provider); }
   static constexpr qint64 kDefaultChunk = 8ll * 1024 * 1024;
-  static constexpr qint64 kMaxChunk = 64ll * 1024 * 1024;
+  static constexpr qint64 kMaxChunk = 16ll * 1024 * 1024;  // client cap (the Hub allows 64 MiB and proposes it)
   bool resumable() const;  // the connected Hub offers local_roms_v1
 
  signals:
