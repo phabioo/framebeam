@@ -292,6 +292,7 @@ In the test of 2026-10-11 most WebRTC connections ran relayed over TURN. Cause f
 - [x] Done in code: running Players pick up a changed ICE list through the WSS message `ice_update` (`ice_update_v1`); new connections use it, running ones stay.
 - [x] Done in code: Cloudflare TURN (Realtime) as an optional TURN provider next to the embedded `pion/turn`: the Hub hands out short-lived Cloudflare TURN credentials (API token as a secret on the Hub host); moved out of "Later". Cloudflare Tunnel stays in "Later" to evaluate.
 - Open: confirm the relayed direction with the host on a mobile hotspot from the new ICE logging.
+- Open (Fabio, 2026-10-12): external TURN servers (any provider, with login) configurable in the Hub web interface, as a follow-up to the provider-neutral TURN configuration through environment and secret file.
 
 ### 2. Small items
 
@@ -352,6 +353,7 @@ Decided by Fabio on 2026-10-11: part of the 1.0 goal ("a new system costs minima
 Decided by Fabio on 2026-10-11.
 
 - Open: remaining Hub web and Player design gaps (see the open items of 0.7 and [design/decisions.md](design/decisions.md)).
+- Open (Fabio, 2026-10-12): review and clean up the Hub web and Player UI as a whole: some screens look off and UI elements overlap.
 - Open: Multiview shows three Sessions side by side; the 2x2 grid only from the fourth Session.
 
 ## 1.0 Test phase
