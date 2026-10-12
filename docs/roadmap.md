@@ -304,7 +304,7 @@ In the test of 2026-10-11 most WebRTC connections ran relayed over TURN. Cause f
 - [x] Done: Hub library entries: Rename and Delete as row actions in the web UI (inline forms, admin only, web only, no API change); deleting keeps the saves.
 - Open: fix Dependabot PR #96.
 - [x] Done in code: "Collect logs/diagnostics" bundle (Hub and Player). Hub: Settings → Diagnostics and `framebeam-hub diagnostics <out.zip>` (`docs/guides/hub-configuration.md`). Player: Settings → Diagnostics → "Collect logs…" (save dialog, zip built off the GUI thread, "Show in folder") and `framebeam_player --collect-logs <out.zip>`; same layout (`player-info.json`, redacted `logs/`, 50 MiB cap), see `docs/guides/player.md`.
-- Open: the Player updates cores in the background without starting a game.
+- [x] Done in code: The Player updates cores in the background without starting a game (`CoreUpdater`, `network/coreupdater.*`): after the handshake it compares the Hub's core list with its cache, downloads newer builds (size and SHA-256 checked), never touches a core in use, re-probes updated cores asynchronously (`CoreProber`) and resends the handshake; progress shows on the Emulation page.
 - [x] Done: remove the Inno shell (see 0.9) and its release/CI parts (shell script, CI build and migration test, release asset and `installer` index entry, Player `installer` fallback and `unins000.exe` detection).
 
 ## 0.11 Plugin runtime

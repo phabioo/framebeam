@@ -13,6 +13,7 @@ target_sources(framebeam_core PRIVATE
   hubsystems.cpp
   firmwareprovisioner.cpp
   coreprovisioner.cpp
+  coreupdater.cpp
   corechoice.cpp
   gameuploader.cpp
 )
@@ -33,9 +34,10 @@ framebeam_add_test(network_savesync tests/savesync_test.cpp ${FB_FAKEHUB} LIBS f
 framebeam_add_test(network_sessions tests/sessions_test.cpp ${FB_FAKEHUB} LIBS framebeam_core)
 framebeam_add_test(network_hub_features tests/hub_features_test.cpp ${FB_FAKEHUB} LIBS framebeam_core)
 framebeam_add_test(network_coreprovisioner tests/coreprovisioner_test.cpp ${FB_FAKEHUB} LIBS framebeam_core)
+framebeam_add_test(network_coreupdater tests/coreupdater_test.cpp ${FB_FAKEHUB} LIBS framebeam_core)
 framebeam_add_test(network_corechoice tests/corechoice_test.cpp LIBS framebeam_core)
 if(BUILD_TESTING)
-  foreach(t network_hub_flow network_library_rom network_savesync network_sessions network_hub_features network_coreprovisioner)
+  foreach(t network_hub_flow network_library_rom network_savesync network_sessions network_hub_features network_coreprovisioner network_coreupdater)
     target_compile_definitions(test_${t} PRIVATE FB_TEST_DATA_DIR="${FB_TESTDATA_DIR}")
   endforeach()
 endif()

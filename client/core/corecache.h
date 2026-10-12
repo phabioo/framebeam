@@ -47,7 +47,9 @@ class CoreCache {
   // Deletes cached versions of one core for this platform beyond the newest `keepNewest`, never `inUseVersion`.
   // Best effort (a file still loaded on Windows cannot be deleted): failures are skipped, never reported as an error.
   // Returns the number of version folders removed.
-  int prune(const QString& coreId, const QString& platform, int keepNewest, const QString& inUseVersion) const;
+  // `alsoKeepVersion` protects a second version (a running game's core while a newer one was staged).
+  int prune(const QString& coreId, const QString& platform, int keepNewest, const QString& inUseVersion,
+            const QString& alsoKeepVersion = QString()) const;
 
  // Tests only: how long a file must have been unchanged before its verified hash is memoized (default 2 s).
   void setMemoSettleMsForTest(qint64 ms) { memoSettleMs_ = ms; }
