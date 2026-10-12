@@ -137,6 +137,14 @@ bool isValidCoreVersion(const QString& v);  // ^[0-9A-Za-z][0-9A-Za-z.+_-]{0,63}
 bool isValidCorePlatform(const QString& p);
 bool isValidCoreFileName(const QString& n);  // ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$, no ".."
 
+// One known file of a game (Hub `roms[]`, 0.12 local_roms_v1).
+struct RomFileEntry {
+  QString sha256;
+  qint64 size = 0;
+  QString filename;
+  bool stored = true;  // false: registered by a Player as a local file, the Hub does not hold the bytes
+};
+
 struct GameEntry {
   QString id;
   QString title;
@@ -146,6 +154,14 @@ struct GameEntry {
   QString romFilename;
   QString uploadedBy;
   QString addedAt;
+  // local_roms_v1. A Hub without it sends none of these: onHub = true, roms = the one primary file.
+  bool onHub = true;               // at least one file is stored on the Hub (downloadable)
+  QList<RomFileEntry> roms;        // every known file incl. the primary one
+  QString gameCode;                // NDS: 4 characters, 3DS: 16 uppercase hex digits; empty = unknown
+  int gameVersion = -1;            // -1 = unknown
+
+  // True if `sha256` is one of the game's files (primary or additional).
+  bool hasRom(const QString& sha256) const;
 };
 std::optional<GameEntry> parseGame(const QJsonObject& obj);
 

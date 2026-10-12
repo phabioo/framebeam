@@ -66,6 +66,9 @@ func Register(mux *http.ServeMux, svc *hub.Service, log *slog.Logger, opts ...Op
 				if r.Method == http.MethodPost && r.URL.Path == "/api/v1/games" {
 					limit = hub.MaxROMBytes // streamed to disk, never buffered
 				}
+				if r.Method == http.MethodPut && strings.HasPrefix(r.URL.Path, "/api/v1/uploads/") {
+					limit = hub.UploadChunkBytes + 1 // one chunk; the service answers 413 for a larger Content-Range
+				}
 				r.Body = http.MaxBytesReader(w, r.Body, limit)
 				if isStreamRoute(r) {
 					rw, done := rollingWrite(w)
@@ -131,6 +134,7 @@ func (s *Server) authMiddleware(next api.StrictHandlerFunc, op string) api.Stric
 			"UpdateLocalSettings", "RestoreSaveHistoryVersion", "CreateSaveSnapshot", "DeleteSaveSnapshot", "UploadSaveFile", "RenameSaveSlot", "DeleteSaveSlot",
 			"ListUsers", "GetCorePackage", "GetCorePackageFile", "ListSessions", "PublishSession", "GetSession", "UpdateSession", "EndSession", "InviteSessionUser",
 			"WithdrawSessionInvite", "DeclineSession", "JoinSession", "RemoveSessionViewer", "ListPlugins", "GetPluginFile",
+			"RegisterGame", "DeleteGameRegistration", "CreateUpload", "GetUpload", "PutUploadChunk", "DeleteUpload",
 			"ListRuns", "CreateRun", "GetRun", "JoinRun", "DeclineRun", "LeaveRun", "InviteRun", "SetRunStatus", "PutRunState", "AppendRunEvent", "ListRunEvents", "PutRunBoard":
 			p, err := s.svc.Authenticate(ctx, tok)
 			if err != nil {
@@ -193,6 +197,17 @@ func writeError(w http.ResponseWriter, status int, code hub.Code, msg string) {
 func (s *Server) writeErr(w http.ResponseWriter, r *http.Request, err error) {
 	var he *hub.Error
 	switch {
+	case errors.As(err, &he) && he.ExistingGameID != "" && he.Code == hub.CodeConflict:
+		// a ROM that is already stored: name the existing game (DuplicateGameError)
+		if id, perr := uuid.Parse(he.ExistingGameID); perr == nil {
+			var out api.DuplicateGameError
+			out.Error.Code, out.Error.Message, out.ExistingGameId = api.ErrorCode(he.Code), he.Message, id
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
+			json.NewEncoder(w).Encode(out)
+			return
+		}
+		writeError(w, httpStatus(he.Code), he.Code, he.Message)
 	case errors.As(err, &he):
 		writeError(w, httpStatus(he.Code), he.Code, he.Message)
 	case errors.Is(err, errNotImplemented):
@@ -320,13 +335,22 @@ func toAPIGame(g hub.Game) (api.Game, error) {
 	if err != nil {
 		return api.Game{}, err
 	}
+	onHub := g.OnHub
+	roms := make([]api.RomInfo, 0, len(g.ROMs))
+	for _, f := range g.ROMs {
+		stored := f.Stored
+		roms = append(roms, api.RomInfo{Sha256: f.SHA256, Size: f.Size, Filename: f.Filename, Stored: &stored})
+	}
+	rom := api.RomInfo{Sha256: g.ROMSHA256, Size: g.ROMSize, Filename: g.Filename, Stored: &onHub}
 	return api.Game{Id: id, Title: g.Title, System: g.System, UploadedBy: g.UploadedBy, AddedAt: g.AddedAt,
-		Rom:      api.RomInfo{Sha256: g.ROMSHA256, Size: g.ROMSize, Filename: g.Filename},
+		Rom: rom, OnHub: &onHub, Roms: &roms, GameVersion: g.GameVersion,
 		GameCode: &g.GameCode, GameCodeKind: (*api.GameGameCodeKind)(&g.GameCodeKind)}, nil
 }
 
+// ListGames lists the games visible to the caller: games with a file on the Hub and local-only games the caller
+// registered a file of.
 func (s *Server) ListGames(ctx context.Context, _ api.ListGamesRequestObject) (api.ListGamesResponseObject, error) {
-	gs, err := s.svc.ListGames(ctx)
+	gs, err := s.svc.ListGamesFor(ctx, principal(ctx).User.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -342,7 +366,7 @@ func (s *Server) ListGames(ctx context.Context, _ api.ListGamesRequestObject) (a
 }
 
 func (s *Server) GetGame(ctx context.Context, req api.GetGameRequestObject) (api.GetGameResponseObject, error) {
-	g, err := s.svc.GetGame(ctx, req.GameId.String())
+	g, err := s.svc.GetGameFor(ctx, principal(ctx).User.ID, req.GameId.String())
 	if err != nil {
 		return nil, err
 	}

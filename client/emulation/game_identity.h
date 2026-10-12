@@ -8,6 +8,7 @@ namespace framebeam::emu {
 struct GameIdentity {
   QString code;  // NDS: 4-character game code; 3DS: program ID as 16 uppercase hex digits; empty when unknown
   QString kind;  // "nds-gamecode" or "3ds-titleid"; empty when unknown
+  int version = -1;  // ROM version: NDS header byte 0x1E; 3DS NCCH u16 at NCCH+0x112; -1 when unknown
 };
 
 // system: "nds" or "3ds". Unknown system, unreadable or invalid file -> empty identity.

@@ -607,7 +607,7 @@ func (s *Service) CreateRun(ctx context.Context, in CreateRunInput) (_ Run, err 
 		}
 		plugins = append(plugins, RunPlugin{PluginID: p.PluginID, Version: p.Version, SHA256: sha})
 	}
-	if _, err := s.GetGame(ctx, in.GameID); err != nil {
+	if _, err := s.GetGameFor(ctx, in.UserID, in.GameID); err != nil {
 		if errors.Is(err, ErrNotFound) {
 			return Run{}, badRequest("Unknown game")
 		}
@@ -761,7 +761,7 @@ func (s *Service) ListRunEvents(ctx context.Context, userID, runID string, after
 // is a no-op; with another game it is a conflict.
 func (s *Service) JoinRun(ctx context.Context, userID, runID, gameID string) (_ Run, err error) {
 	defer s.publishOK(&err, TopicRuns)
-	if _, err := s.GetGame(ctx, gameID); err != nil {
+	if _, err := s.GetGameFor(ctx, userID, gameID); err != nil {
 		if errors.Is(err, ErrNotFound) {
 			return Run{}, badRequest("Unknown game")
 		}

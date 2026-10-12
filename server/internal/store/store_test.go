@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -17,7 +18,7 @@ func TestOpenMigrateIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 	v, _ := SchemaVersion(db)
-	if v != 14 {
+	if v != 15 {
 		t.Fatalf("version %d", v)
 	}
 	var fk int
@@ -31,7 +32,7 @@ func TestOpenMigrateIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	if v, _ := SchemaVersion(db); v != 14 {
+	if v, _ := SchemaVersion(db); v != 15 {
 		t.Fatalf("version after restart %d", v)
 	}
 	if _, err := db.Exec(`INSERT INTO devices(id,user_id,name,platform,arch,player_version,credential_hash,status,created_at) VALUES('d','nouser','n','p','a','v','h','trusted',1)`); err == nil {
@@ -94,12 +95,12 @@ func TestBackupBeforeMigration(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	if v, _ := SchemaVersion(db); v != 14 {
+	if v, _ := SchemaVersion(db); v != 15 {
 		t.Fatalf("version %d", v)
 	}
 	bdir := filepath.Join(dir, "backups")
 	got := backupFiles(t, bdir)
-	if len(got) != 1 || got[0] != "hub-3-to-14-20261007T123045Z.db" {
+	if len(got) != 1 || got[0] != "hub-3-to-15-20261007T123045Z.db" {
 		t.Fatalf("backups: %v", got)
 	}
 	bk := rawDB(t, filepath.Join(bdir, got[0]))
@@ -263,3 +264,60 @@ func TestMigration0009WithoutLegacyPackagesInstallsNothing(t *testing.T) {
 		t.Fatalf("%d %v", n, def)
 	}
 }
+
+// Migration 0015 (local ROMs): every existing game becomes a stored file of itself; the version column stays NULL.
+func TestMigration0015ExistingGames(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "framebeam.db")
+	raw := rawDB(t, p)
+	if err := migrate(raw, "", 14); err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range []string{
+		`INSERT INTO users(id, username, display_name, role, created_at) VALUES ('u1', 'admin', 'admin', 'admin', 1)`,
+		`INSERT INTO games(id, title, system, rom_sha256, rom_size, filename, uploaded_by, added_at, game_code, game_code_kind)
+			VALUES ('g1', 'One', 'nds', '` + strings.Repeat("a", 64) + `', 10, 'one.nds', 'u1', 5, 'ABCD', 'nds-gamecode')`,
+		`INSERT INTO games(id, title, system, rom_sha256, rom_size, filename, uploaded_by, added_at, game_code, game_code_kind)
+			VALUES ('g2', 'Two', 'nds', '` + strings.Repeat("b", 64) + `', 20, 'two.nds', 'u1', 6, '', '')`,
+	} {
+		if _, err := raw.Exec(q); err != nil {
+			t.Fatalf("%v: %s", err, q)
+		}
+	}
+	raw.Close()
+
+	db, err := Open(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	rows, err := db.Query(`SELECT game_id, sha256, size, filename, stored, added_by, added_at FROM game_roms ORDER BY game_id`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var got []string
+	for rows.Next() {
+		var g, sha, fn, by string
+		var size, stored, at int64
+		if err := rows.Scan(&g, &sha, &size, &fn, &stored, &by, &at); err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, strings.Join([]string{g, sha[:2], fn, by}, "/")+"/"+itoa(size)+"/"+itoa(stored)+"/"+itoa(at))
+	}
+	want := []string{"g1/aa/one.nds/u1/10/1/5", "g2/bb/two.nds/u1/20/1/6"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("game_roms %v, want %v", got, want)
+	}
+	var nullVersions int
+	db.QueryRow(`SELECT COUNT(*) FROM games WHERE game_version IS NULL`).Scan(&nullVersions)
+	if nullVersions != 2 {
+		t.Fatalf("game_version must stay NULL for existing games, got %d NULL", nullVersions)
+	}
+	var owners int
+	db.QueryRow(`SELECT COUNT(*) FROM rom_owners`).Scan(&owners)
+	if owners != 0 {
+		t.Fatalf("rom_owners %d", owners)
+	}
+}
+
+func itoa(n int64) string { return strconv.FormatInt(n, 10) }

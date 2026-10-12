@@ -33,9 +33,11 @@ class GameIdentityTest : public QObject {
   void nds() {
     QByteArray b(0x200, '\0');
     put(b, 0x0C, "ABCD");
+    put(b, 0x1E, le(3, 1));
     const auto id = readGameIdentity(write("a.nds", b), "nds");
     QCOMPARE(id.code, QStringLiteral("ABCD"));
     QCOMPARE(id.kind, QStringLiteral("nds-gamecode"));
+    QCOMPARE(id.version, 3);
   }
 
   void ndsInvalid() {
@@ -48,7 +50,9 @@ class GameIdentityTest : public QObject {
     QByteArray b(0x200, '\0');
     put(b, 0x100, "NCCH");
     put(b, 0x118, le(0x0004000000123400ull, 8));
+    put(b, 0x112, le(0x0102, 2));
     const auto id = readGameIdentity(write("a.cxi", b), "3ds");
+    QCOMPARE(id.version, 0x0102);
     QCOMPARE(id.code, QStringLiteral("0004000000123400"));
     QCOMPARE(id.kind, QStringLiteral("3ds-titleid"));
   }

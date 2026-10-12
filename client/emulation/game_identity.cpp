@@ -18,10 +18,11 @@ quint64 le64(const char* p) { return le32(p) | (static_cast<quint64>(le32(p + 4)
 
 GameIdentity ndsIdentity(QFile& f) {
   char code[4];
-  if (!readAt(f, 0x0C, code, 4)) return {};
+  char ver = 0;
+  if (!readAt(f, 0x0C, code, 4) || !readAt(f, 0x1E, &ver, 1)) return {};
   for (char c : code)
     if (c < 0x20 || c > 0x7E) return {};  // printable ASCII only
-  return {QString::fromLatin1(code, 4), QStringLiteral("nds-gamecode")};
+  return {QString::fromLatin1(code, 4), QStringLiteral("nds-gamecode"), static_cast<unsigned char>(ver)};
 }
 
 GameIdentity ncchIdentity(QFile& f, qint64 base) {
@@ -29,7 +30,9 @@ GameIdentity ncchIdentity(QFile& f, qint64 base) {
   if (!readAt(f, base, hdr, sizeof hdr)) return {};
   if (memcmp(hdr + 0x100, "NCCH", 4) != 0) return {};
   const quint64 id = le64(hdr + 0x118);
-  return {QStringLiteral("%1").arg(id, 16, 16, QLatin1Char('0')).toUpper(), QStringLiteral("3ds-titleid")};
+  const auto* u = reinterpret_cast<const unsigned char*>(hdr);
+  const int version = u[0x112] | (u[0x113] << 8);
+  return {QStringLiteral("%1").arg(id, 16, 16, QLatin1Char('0')).toUpper(), QStringLiteral("3ds-titleid"), version};
 }
 
 GameIdentity threeDsIdentity(QFile& f) {

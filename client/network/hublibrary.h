@@ -19,7 +19,9 @@ class HubLibrary : public QObject {
   void reload();
   bool isLoading() const { return loading_; }
   const QList<GameEntry>& games() const { return games_; }
-  std::optional<GameEntry> gameByRomSha(const QString& sha256) const;
+  std::optional<GameEntry> gameByRomSha(const QString& sha256) const;  // primary file
+  std::optional<GameEntry> gameByAnyRomSha(const QString& sha256) const;  // any known file of the game (roms[])
+  std::optional<GameEntry> gameById(const QString& id) const;
   int skippedEntries() const { return skipped_; }  // invalid hub entries
 
  signals:

@@ -118,6 +118,20 @@ class FakeHub : public QTcpServer {
   int corePackageRequests = 0;
   int count(const QString& pathPrefix, const QByteArray& method) const;
 
+  // Local ROMs (local_roms_v1): POST /games/register, DELETE /games/{id}/registration, resumable /uploads.
+  struct ResumableUpload {
+    QString id, filename, title, system, sha256;
+    qint64 size = 0;
+    QByteArray data;  // received so far
+  };
+  QList<QJsonObject> registerBodies;           // bodies of POST /games/register
+  QStringList unregisteredGames;               // game ids of DELETE /games/{id}/registration
+  QMap<QString, ResumableUpload> uploadSessions;
+  QStringList putRanges;                       // Content-Range headers of every PUT, in order
+  qint64 uploadChunkSize = 1024;               // chunk_size announced to the Player
+  int failPutNumber = -1;                      // the Nth (1-based) chunk PUT answers 503 and is not stored
+  int uploadSessionsCreated = 0;
+
   // Saves (saves_v1)
   QStringList features{QStringLiteral("saves_v1")};  // handshake features
   // game_id -> slot "default"; other slots under the key "<game_id>/<slot>" (slotKey()).
@@ -208,6 +222,7 @@ class FakeHub : public QTcpServer {
                const QList<QPair<QByteArray, QByteArray>>& extra = {}, qint64 truncateAt = -1);
   void respondError(QSslSocket* sock, int status, const QString& code);
   void handleSaves(QSslSocket* sock, const FakeRequest& req);
+  bool handleLocalRoms(QSslSocket* sock, const FakeRequest& req);
   void handleSessions(QSslSocket* sock, const FakeRequest& req);
   void handleRuns(QSslSocket* sock, const FakeRequest& req);
   void sendRunCatchUp(QSslSocket* sock, const QJsonObject& hello);

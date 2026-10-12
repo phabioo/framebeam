@@ -15,6 +15,9 @@ import (
 type libRow struct {
 	ID, Title, Initial, System, Size, SHA, ShortSHA, Uploader, Added string
 	GameCode                                                         string // identity read from the ROM header, "" when unknown
+	LocalOnly                                                        bool   // no file of the game is stored on the Hub
+	Files                                                            int    // known files of the game
+	Owners                                                           string // users who registered a file as local
 	Saves                                                            int
 	Conflict                                                         bool
 	UploadHref                                                       string // the slot detail of the signed-in user with the upload panel open
@@ -73,6 +76,10 @@ func (s *Server) libraryBody(ctx context.Context, viewer, system, q string, pane
 	for _, u := range users {
 		names[u.ID] = u.Username
 	}
+	owners, err := s.svc.GameOwners(ctx)
+	if err != nil {
+		return libBody{}, err
+	}
 	st, err := s.svc.Storage(ctx)
 	if err != nil {
 		return libBody{}, err
@@ -115,16 +122,22 @@ func (s *Server) libraryBody(ctx context.Context, viewer, system, q string, pane
 		if system != "" && g.System != system {
 			continue
 		}
-		if needle != "" && !strings.Contains(strings.ToLower(g.Title), needle) && !strings.Contains(g.ROMSHA256, needle) {
+		if needle != "" && !strings.Contains(strings.ToLower(g.Title), needle) && !gameHasHash(g, needle) {
 			continue
 		}
 		up := names[g.UploadedBy]
 		if up == "" {
 			up = "–"
 		}
+		var on []string
+		for _, id := range owners[g.ID] {
+			if n := names[id]; n != "" {
+				on = append(on, n)
+			}
+		}
 		row := libRow{ID: g.ID, Title: g.Title, Initial: initial(g.Title), System: g.System,
 			Size: humanBytes(g.ROMSize), SHA: g.ROMSHA256, ShortSHA: shortHash(g.ROMSHA256), Uploader: up,
-			Added: g.AddedAt.Local().Format("02.01."), GameCode: g.GameCode, Saves: saves[g.ID], Conflict: conflicts[g.ID], UploadHref: uploadHref(viewer, g.ID, own[g.ID])}
+			Added: g.AddedAt.Local().Format("02.01."), GameCode: g.GameCode, LocalOnly: !g.OnHub, Files: len(g.ROMs), Owners: strings.Join(on, ", "), Saves: saves[g.ID], Conflict: conflicts[g.ID], UploadHref: uploadHref(viewer, g.ID, own[g.ID])}
 		if panel.ID == g.ID && (panel.Kind == "rename" || panel.Kind == "delete") {
 			row.Panel, row.PanelErr = panel.Kind, panel.Err
 			row.CSRF, row.FSystem, row.FQuery, row.CancelHref = csrf, system, q, b.RefreshURL
@@ -143,6 +156,19 @@ func (s *Server) libraryBody(ctx context.Context, viewer, system, q string, pane
 		b.Systems = append(b.Systems, sysOpt{ID: sys.ID, Name: sys.Name, Count: counts[sys.ID]})
 	}
 	return b, nil
+}
+
+// gameHasHash reports whether the (lowercase) needle is part of the SHA-256 of any file of the game.
+func gameHasHash(g hub.Game, needle string) bool {
+	if strings.Contains(g.ROMSHA256, needle) {
+		return true
+	}
+	for _, f := range g.ROMs {
+		if strings.Contains(f.SHA256, needle) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Server) renderLibrary(w http.ResponseWriter, r *http.Request, sess *session, status int, system, q, errMsg string) {
