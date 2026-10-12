@@ -20,7 +20,7 @@ Lines 816-864. Phase 1 (library, ROM upload/download).
 - Filter row: pills "All systems · 42" (active, dark), "Nintendo DS · 42"; on the right search field 260 "Search title or hash…".
 - Table, columns `2.2fr | 70 | 90 | 150 | 150 | 130`: TITLE (cover placeholder 34 + title 500), SYSTEM (mono "nds"), SIZE (mono), SHA-256 (mono, shortened "1b7e…04c9"), UPLOADED BY ("{user} · {DD.MM}"), SAVES (mono number + "▲ Conflict" in warn on conflict).
 - Mock (9 rows, script from line 1433): among others "Clocktower Kids" 64.0 MB 3 saves; "Harbor Rally" 32.0 MB 6 saves with conflict marker; "Velvet Arcade" uploaded by "lena · 03.10", otherwise "admin".
-- Open: row actions (delete, metadata; architecture 09 names metadata actions in the library entry, later), upload dialog, scan progress, error states (hash/duplicate), paging not drawn.
+- Implemented: row actions "Rename" (inline form, display title only) and "Delete" (inline confirmation naming that saves are kept) next to "Upload save", as fragment swaps. Open: further metadata actions (architecture 09 names metadata actions in the library entry, later), upload dialog, scan progress, error states (hash/duplicate), paging not drawn.
 
 ## 3k Hub Saves
 Lines 870-954. Phase 3; slots and snapshot markers: 0.4 features, UI in the 0.7 Hub UI pass. Conflict next to the version history, per slot.

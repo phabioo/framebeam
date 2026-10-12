@@ -112,6 +112,21 @@ func TestNetworkSettingsPrecedenceResetAndPending(t *testing.T) {
 	notContains(t, rec, "<html")
 }
 
+func TestNetworkSettingsPublicHostWithPort(t *testing.T) {
+	e, _ := netEnv(t, nil)
+	c := e.client()
+	tok := c.login()
+	status(t, postTok(c, tok, "/settings/network/public_host", url.Values{"value": {"hub.example.com:18443"}}), 303)
+	ov, _ := e.svc.NetOverrides(bg)
+	if ov[config.NetPublicHost] != "hub.example.com:18443" {
+		t.Fatalf("%v", ov)
+	}
+	status(t, postTok(c, tok, "/settings/network/public_host", url.Values{"value": {"[2001:db8::1]:18443"}}), 303)
+	contains(t, c.get("/settings/network", nil), `value="[2001:db8::1]:18443"`)
+	// "Address for Players" on the General page uses the external port, not the listen port.
+	contains(t, c.get("/settings/general", nil), `data-copy="[2001:db8::1]:18443"`)
+}
+
 func TestNetworkSettingsValidation(t *testing.T) {
 	e, _ := netEnv(t, nil)
 	c := e.client()
@@ -141,7 +156,8 @@ func TestNetworkSettingsValidation(t *testing.T) {
 		{"range contains listen port", config.NetRelayPorts, url.Values{"min": {"8000"}, "max": {"8500"}}, "listen port"},
 		{"range not numbers", config.NetRelayPorts, url.Values{"min": {"a"}, "max": {"b"}}, "number"},
 		{"turn without public host", config.NetTURN, url.Values{"value": {"1"}}, "needs a public host"},
-		{"host with port", config.NetPublicHost, url.Values{"value": {"hub.example.com:8443"}}, "without port"},
+		{"host with bad port", config.NetPublicHost, url.Values{"value": {"hub.example.com:99999"}}, "optional port"},
+		{"host ipv6 without brackets", config.NetPublicHost, url.Values{"value": {"2001:db8::1"}}, "optional port"},
 		{"relay ip v6", config.NetRelayIP, url.Values{"value": {"::1"}}, "IPv4"},
 		{"relay ip junk", config.NetRelayIP, url.Values{"value": {"1.2.3"}}, "IPv4"},
 		{"stun scheme", config.NetICEServers, url.Values{"op": {"add"}, "url": {"http://x.example.com"}}, "stun: URL"},

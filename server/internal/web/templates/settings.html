@@ -241,9 +241,9 @@
   </div>
   {{template "set-err" .Listen.Err}}
   <div class="set-row">
-    <div><div class="label">Public address for Players</div><div class="help">Handed to Players outside your network. Forward the listen port on your router to the hub.</div>{{template "net-src" .PublicHost}}</div>
+    <div><div class="label">Public address for Players</div><div class="help">Handed to Players outside your network. Forward the listen port on your router to the hub. If the router uses a different external port, add it (hub.example.com:8443); it is used for invite links.</div>{{template "net-src" .PublicHost}}</div>
     <form method="post" action="/settings/network/public_host" hx-post="/settings/network/public_host" hx-trigger="change, submit" hx-target="#settings-area" hx-swap="innerHTML">
-      <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="text" name="value" value="{{.PublicHost.Value}}" placeholder="hub.example.com" class="host" aria-label="Public host"{{if .PublicHost.Err}} aria-invalid="true"{{end}}>
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="text" name="value" value="{{.PublicHost.Value}}" placeholder="hub.example.com or hub.example.com:8443" class="host" aria-label="Public host"{{if .PublicHost.Err}} aria-invalid="true"{{end}}>
       <noscript><button class="btn small" type="submit">Save</button></noscript>
     </form>
   </div>

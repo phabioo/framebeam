@@ -121,6 +121,85 @@ class ControllerProfilesTest : public QObject {
     QCOMPARE(p.hotkeysChangedCount(), 0);
   }
 
+  void padHotkeyDefaultsConflictsAndRoundTrip() {
+    QTemporaryDir dir;
+    {
+      ControllerProfiles p(dir.path());
+      QCOMPARE(p.padHotkeyModifier(), QStringLiteral("pad:back"));
+      QCOMPARE(p.padHotkey(QStringLiteral("speedup")), QStringLiteral("pad:rightshoulder"));
+      QCOMPARE(p.padHotkey(QStringLiteral("snapshot")), QStringLiteral("pad:leftshoulder"));
+      QCOMPARE(p.padHotkey(QStringLiteral("diagnostics")), QStringLiteral("pad:rightstick"));
+      QCOMPARE(p.padHotkey(QStringLiteral("fullscreen")), QString());
+      QCOMPARE(p.hotkeysChangedCount(), 0);
+      QCOMPARE(padHotkeyLabel(p.padHotkey(QStringLiteral("speedup")), p.padHotkeyModifier()), QStringLiteral("Select+RB"));
+      QCOMPARE(padHotkeyLabel(p.padHotkey(QStringLiteral("diagnostics")), p.padHotkeyModifier()), QStringLiteral("Select+R3"));
+      QCOMPARE(padHotkeyLabel(QStringLiteral("solo:pad:paddle1"), p.padHotkeyModifier()), tokenLabel(QStringLiteral("pad:paddle1")));
+      QVERIFY(!QFile::exists(p.filePath()));
+
+      QVERIFY(!p.setPadHotkey(QStringLiteral("fullscreen"), QStringLiteral("pad:rightshoulder")));   // used by speed-up
+      QVERIFY(!p.setPadHotkey(QStringLiteral("fullscreen"), QStringLiteral("solo:pad:rightshoulder")));
+      QVERIFY(!p.setPadHotkey(QStringLiteral("fullscreen"), QStringLiteral("pad:back")));            // the hotkey button
+      QVERIFY(!p.setPadHotkey(QStringLiteral("fullscreen"), QStringLiteral("pad:guide")));
+      QVERIFY(!p.setPadHotkey(QStringLiteral("fullscreen"), QStringLiteral("key:65")));
+      QVERIFY(!p.setPadHotkey(QStringLiteral("nope"), QStringLiteral("pad:a")));
+      QVERIFY(!p.setPadHotkeyModifier(QStringLiteral("pad:leftshoulder")));                          // used by snapshot
+      QVERIFY(p.setPadHotkey(QStringLiteral("fullscreen"), QStringLiteral("solo:pad:paddle1")));
+      QCOMPARE(p.padHotkeyAction(QStringLiteral("pad:paddle1")), QStringLiteral("fullscreen"));
+      QVERIFY(p.clearPadHotkey(QStringLiteral("snapshot")));
+      QVERIFY(p.setPadHotkeyModifier(QStringLiteral("pad:start")));
+      QCOMPARE(p.hotkeysChangedCount(), 3);
+      QVERIFY(!p.setPadHotkey(QStringLiteral("snapshot"), QStringLiteral("pad:start")));
+    }
+    {
+      // Only non-default entries are written; the keyboard hotkeys are untouched.
+      QFile f(dir.path() + QStringLiteral("/settings/controllers.json"));
+      QVERIFY(f.open(QIODevice::ReadOnly));
+      const QJsonObject o = QJsonDocument::fromJson(f.readAll()).object();
+      QVERIFY(!o.contains(QStringLiteral("hotkeys")));
+      QCOMPARE(o.value(QStringLiteral("padHotkeys")).toObject().size(), 2);
+      QCOMPARE(o.value(QStringLiteral("padHotkeys")).toObject().value(QStringLiteral("snapshot")).toString(), QStringLiteral("none"));
+      QCOMPARE(o.value(QStringLiteral("padHotkeyModifier")).toString(), QStringLiteral("pad:start"));
+    }
+    ControllerProfiles p(dir.path());
+    QCOMPARE(p.padHotkeyModifier(), QStringLiteral("pad:start"));
+    QCOMPARE(p.padHotkey(QStringLiteral("fullscreen")), QStringLiteral("solo:pad:paddle1"));
+    QCOMPARE(p.padHotkey(QStringLiteral("snapshot")), QString());
+    QCOMPARE(p.padHotkey(QStringLiteral("speedup")), QStringLiteral("pad:rightshoulder"));
+    QVERIFY(p.resetPadHotkey(QStringLiteral("snapshot")));
+    QCOMPARE(p.padHotkey(QStringLiteral("snapshot")), QStringLiteral("pad:leftshoulder"));
+    QVERIFY(p.resetPadHotkeyModifier());
+    QVERIFY(p.resetHotkeys());
+    QCOMPARE(p.hotkeysChangedCount(), 0);
+    QCOMPARE(p.padHotkey(QStringLiteral("fullscreen")), QString());
+  }
+
+  void padHotkeysOldFilesAndBrokenEntries() {
+    QTemporaryDir dir;
+    QDir().mkpath(dir.path() + QStringLiteral("/settings"));
+    QFile f(dir.path() + QStringLiteral("/settings/controllers.json"));
+    QVERIFY(f.open(QIODevice::WriteOnly));
+    // An existing file without the gamepad keys keeps its keyboard hotkeys and gets the gamepad defaults.
+    f.write(R"({"hotkeys": {"fullscreen": "key:16777273"}})");
+    f.close();
+    {
+      ControllerProfiles p(dir.path());
+      QCOMPARE(p.hotkey(QStringLiteral("fullscreen")), int(Qt::Key_F10));
+      QCOMPARE(p.padHotkey(QStringLiteral("speedup")), QStringLiteral("pad:rightshoulder"));
+      QCOMPARE(p.padHotkeyModifier(), QStringLiteral("pad:back"));
+    }
+    QVERIFY(f.open(QIODevice::WriteOnly));
+    // Broken / conflicting entries: invalid values and duplicates fall back; an explicit choice wins over a clashing default.
+    f.write(R"({"padHotkeyModifier": "key:1", "padHotkeys": {"fullscreen": "pad:leftshoulder", "diagnostics": "pad:guide",
+               "speedup": "pad:back", "snapshot": 7, "future": "pad:a"}})");
+    f.close();
+    ControllerProfiles p(dir.path());
+    QCOMPARE(p.padHotkeyModifier(), QStringLiteral("pad:back"));
+    QCOMPARE(p.padHotkey(QStringLiteral("fullscreen")), QStringLiteral("pad:leftshoulder"));
+    QCOMPARE(p.padHotkey(QStringLiteral("snapshot")), QString());                                 // default clashes with fullscreen
+    QCOMPARE(p.padHotkey(QStringLiteral("diagnostics")), QStringLiteral("pad:rightstick"));       // guide is invalid
+    QCOMPARE(p.padHotkey(QStringLiteral("speedup")), QStringLiteral("pad:rightshoulder"));        // the modifier is not an action button
+  }
+
   void hotkeysPersistAndUnknownKeysSurvive() {
     QTemporaryDir dir;
     QDir().mkpath(dir.path() + QStringLiteral("/settings"));

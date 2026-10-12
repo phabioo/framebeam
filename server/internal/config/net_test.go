@@ -112,8 +112,9 @@ func TestValidateNet(t *testing.T) {
 		{"turn with host", withHost, NetTURN, "true", ""},
 		{"turn off needs nothing", baseCfg(), NetTURN, "false", ""},
 		{"empty host while TURN on", func() Config { c := withHost; c.TURN = true; return c }(), NetPublicHost, "", "public host"},
-		{"host with port", baseCfg(), NetPublicHost, "hub.example.com:8443", "without port"},
-		{"host with scheme", baseCfg(), NetPublicHost, "https://hub.example.com", "without port or scheme"},
+		{"host with port", baseCfg(), NetPublicHost, "hub.example.com:8443", ""},
+		{"host with bad port", baseCfg(), NetPublicHost, "hub.example.com:0", "optional port"},
+		{"host with scheme", baseCfg(), NetPublicHost, "https://hub.example.com", "no scheme or path"},
 		{"host ok", baseCfg(), NetPublicHost, "hub.example.com", ""},
 		{"relay ip ok", baseCfg(), NetRelayIP, "203.0.113.10", ""},
 		{"relay ip empty", baseCfg(), NetRelayIP, "", ""},
@@ -179,5 +180,53 @@ func TestNetSharingAndImportDir(t *testing.T) {
 		if err := CheckImportDir(d); err == nil {
 			t.Fatalf("%q accepted", d)
 		}
+	}
+}
+
+func TestSplitPublicHost(t *testing.T) {
+	for _, tc := range []struct {
+		in   string
+		host string
+		port int
+		bad  bool
+	}{
+		{"", "", 0, false},
+		{"hub.example.org", "hub.example.org", 0, false},
+		{" hub.example.org:8443 ", "hub.example.org", 8443, false},
+		{"203.0.113.7:443", "203.0.113.7", 443, false},
+		{"[2001:db8::1]", "2001:db8::1", 0, false},
+		{"[2001:db8::1]:8443", "2001:db8::1", 8443, false},
+		{"2001:db8::1", "", 0, true}, // IPv6 needs brackets
+		{"[2001:db8::1", "", 0, true},
+		{"[2001:db8::1]x", "", 0, true},
+		{"hub.example.org:", "", 0, true},
+		{"hub.example.org:0", "", 0, true},
+		{"hub.example.org:70000", "", 0, true},
+		{"hub.example.org:abc", "", 0, true},
+		{":8443", "", 0, true},
+		{"https://hub.example.org", "", 0, true},
+		{"hub.example.org/path", "", 0, true},
+		{"hub example.org", "", 0, true},
+		{"user@hub.example.org", "", 0, true},
+	} {
+		h, p, err := SplitPublicHost(tc.in)
+		if (err != nil) != tc.bad || h != tc.host || p != tc.port {
+			t.Errorf("SplitPublicHost(%q) = %q, %d, %v; want %q, %d, bad=%v", tc.in, h, p, err, tc.host, tc.port, tc.bad)
+		}
+	}
+	c := Config{PublicHost: "hub.example.org:8443"}
+	if c.PublicHostName() != "hub.example.org" || c.PublicHostPort() != 8443 {
+		t.Fatal("Config helpers")
+	}
+	bad := baseCfg()
+	bad.PublicHost = "hub.example.org:99999"
+	if err := bad.ValidateNet(NetPublicHost); err == nil {
+		t.Fatal("bad port accepted by ValidateNet")
+	}
+	ok := baseCfg()
+	ok.PublicHost = "hub.example.org:8443"
+	ok.TURN = true
+	if err := ok.ValidateNet(NetPublicHost); err != nil {
+		t.Fatal(err)
 	}
 }

@@ -170,7 +170,7 @@ Rectangle {
             color: Theme.gameMeta
             HoverHandler { id: diaHover }
             ToolTip.visible: diaHover.hovered
-            ToolTip.text: qsTr("Save snapshot · %1").arg(root.player.controllers.hotkeyLabels.snapshot)
+            ToolTip.text: qsTr("Save snapshot · %1").arg(root.player.controllers.hotkeyHints.snapshot)
         }
         // One icon per plugin tab; a click opens the panel on that tab (3i-2, 4e)
         Repeater {
@@ -800,7 +800,7 @@ Rectangle {
                         look: "outlined"
                         iconKind: "diamond"
                         text: root.saves.busy ? qsTr("Saving snapshot…") : qsTr("Save snapshot")
-                        hint: root.player.controllers.hotkeyLabels.snapshot
+                        hint: root.player.controllers.hotkeyHints.snapshot
                         enabled: root.saves.available && !root.saves.busy
                         onClicked: root.saves.createSnapshotInGame("")
                     }

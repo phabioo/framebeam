@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/phabioo/framebeam/server/internal/config"
 	"github.com/phabioo/framebeam/server/internal/tlsutil"
 )
 
@@ -69,6 +70,24 @@ func TestPublicPort(t *testing.T) {
 	for in, want := range map[string]int{":8443": 8443, "0.0.0.0:443": 0, "bad": 0, ":0": 0} {
 		if got := publicPort(in); got != want {
 			t.Errorf("%q: %d want %d", in, got, want)
+		}
+	}
+}
+
+func TestPublicAddress(t *testing.T) {
+	for _, tc := range []struct {
+		listen, public, host string
+		port                 int
+	}{
+		{"0.0.0.0:9443", "hub.example.org", "hub.example.org", 9443},
+		{"0.0.0.0:8443", "hub.example.org:18443", "hub.example.org", 18443},
+		{"0.0.0.0:443", "hub.example.org", "hub.example.org", 0},
+		{"0.0.0.0:8443", "[2001:db8::1]:443", "2001:db8::1", 443},
+		{"0.0.0.0:8443", "", "", 8443},
+	} {
+		h, p := publicAddress(config.Config{Listen: tc.listen, PublicHost: tc.public})
+		if h != tc.host || p != tc.port {
+			t.Errorf("publicAddress(%q, %q) = %q, %d; want %q, %d", tc.listen, tc.public, h, p, tc.host, tc.port)
 		}
 	}
 }

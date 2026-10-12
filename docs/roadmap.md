@@ -159,7 +159,7 @@ See [ADR 0018](adr/0018-player-speed-up.md) (accepted).
 - [x] Done: header button "Speed-up" ("»" when narrow) and a speed select in the Session panel (running game only) and indicator "Speed-up ×N"; hidden when the core inhibits it; stays usable while the Session is shared (viewers get the normal stream frame rate).
 - [x] Done: Emulation settings "Speed-up speed", "Speed-up on start" (default off) and "Audio during speed-up" (default on, resampled; off drops audio) with the global > system > game hierarchy.
 - [x] Done (0.7.x): the speed-up key is configurable in Controllers → Hotkeys.
-- Open: gamepad hotkey (0.10.x).
+- [x] Done (0.10.x): gamepad hotkeys, see "0.7.x Hotkeys and controller profiles".
 - [x] Done (0.7.x follow-up): hardware frames are scaled down on the GPU to the size the view (and, while shared, the stream) needs before the readback; diagnostics show "read back W×H", an honest readback mean and reads per second. melonDS DS ignores `GET_AUDIO_VIDEO_ENABLE`, so it still renders every frame during speed-up.
 
 ## 0.7.x Direct GPU display (zero-copy)
@@ -182,7 +182,7 @@ Requested 2026-10-09. Today a shared Session reads the frame back, converts it t
 
 - [x] Done: Hotkeys tab in Controllers (3f): Player keyboard hotkeys for fullscreen (F11), diagnostics (F3), snapshot (F5) and speed-up (Space) are configurable, can be cleared and reset; Esc stays fixed (leave fullscreen, else pause). Stored locally in `settings/controllers.json` (`hotkeys`, only non-default entries); a key used by another hotkey is refused; a hotkey wins over the keyboard profile and is never sent to the core. Key hints in the game screen, diagnostics and Session panel follow the configured keys.
 - [x] Done: built-in controller profiles stay read-only; "Duplicate to edit" (and clicking a mapping of a built-in profile) creates a copy, assigns it to the device and starts editing it.
-- Open: gamepad hotkeys (0.10.x, same item).
+- [x] Done (0.10.x): gamepad hotkeys: hotkey button (default Select) plus a button, configurable per action in Controllers → Hotkeys, see [guides/player.md](guides/player.md).
 
 ## 0.7.x Background game
 
@@ -295,12 +295,12 @@ In the test of 2026-10-11 most WebRTC connections ran relayed over TURN. Cause f
 
 ### 2. Small items
 
-- Open: gamepad hotkeys (see "0.7.x Speed-up" and "0.7.x Hotkeys and controller profiles").
+- [x] Done: gamepad hotkeys: each Player hotkey has an optional gamepad binding next to its key (Controllers → Hotkeys, "Gamepad" column): the hotkey button (default Select, configurable) held plus a button; defaults Select+RB speed-up, Select+LB snapshot, Select+R3 diagnostics, fullscreen unbound (there is no pause action, so Select+Start stays unbound). A single button without the hotkey button can be bound too. The combo button never reaches the core, the hotkey button still does; P1 only. Stored in `settings/controllers.json` (`padHotkeys`, `padHotkeyModifier`, only non-default entries). Hints show the gamepad combo while a gamepad was the last input used. Not tried with a real gamepad yet (SDL virtual joysticks only).
 - Open: speed-up frame loss for viewers.
 - Open: repo-scan leftovers: core probe off the GUI thread, virtualized library grid, save errors on stop.
 - Open: save slots rename and delete (Player and Hub); block save upload while a session of that game runs.
-- Open: invite link port fix.
-- Open: Hub library entries delete and rename (row actions, moved out of "Later").
+- [x] Done: invite link port fix: `-public-host` (env, Settings → Network) accepts an optional external port (`hub.example.org:8443`, IPv6 in brackets) that invite links and the Player address use; TURN/STUN keep the host part.
+- [x] Done: Hub library entries: Rename and Delete as row actions in the web UI (inline forms, admin only, web only, no API change); deleting keeps the saves.
 - Open: fix Dependabot PR #96.
 - Open: "Collect logs/diagnostics" bundle.
 - Open: the Player updates cores in the background without starting a game.
@@ -376,7 +376,7 @@ Decided by Fabio on 2026-10-11.
 ## Later, only on demand
 
 - Save States, remote control/input for viewers, netplay, emulation settings sync, StandaloneBackend.
-- Further library features: paging (row actions delete and rename are scheduled in 0.10.x).
+- Further library features: paging (row actions delete and rename are done in 0.10.x).
 - Remaining Nintendo systems from NES to GameCube/Wii (Fabio, 2026-10-07), as plain buildbot cores after 0.10, rendered with OpenGL first: NES, SNES, N64, Virtual Boy (GB, GBC and GBA are scheduled in 0.14) and GameCube/Wii (Dolphin; the libretro port lags upstream). N64 and GameCube/Wii build on the hardware rendering from 0.5.
 - Plugin follow-ups (Fabio, 2026-10-11; plugin-specific plans live in the plugin repositories): more Pokémon generations for the official plugins, in the order Gen 7 (Sun/Moon, Ultra Sun/Ultra Moon), Gen 4/5 (NDS), Gen 3 and Gen 1/2 (the last two need the GB, GBC and GBA systems with mGBA from 0.14); a Pokémon editor plugin and a cheats plugin (both need `memory.write`, which the API describes but the first release does not build); a randomizer plugin (tool plugin, signed official only, deferred, not dropped; until then randomized ROMs are made externally). Gen 8 (Switch) is out of scope: no libretro core.
 - Afterwards Vulkan hardware rendering next to OpenGL (Fabio, 2026-10-07), so cores that offer both can be switched per core option in the Emulation settings.

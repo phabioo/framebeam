@@ -1091,12 +1091,18 @@ class EmulationControllersTest : public QObject {
     QVERIFY(!visible(h, "hotkeysInfo"));
     QVERIFY(h.click("tabHotkeys"));
     QVERIFY(visible(h, "hotkeysInfo"));
-    QCOMPARE(text(h, "hotkeysInfo"), QStringLiteral("Player hotkeys work on the keyboard and are never sent to the game."));
+    QCOMPARE(text(h, "hotkeysInfo"), QStringLiteral("Player hotkeys work on the keyboard and on a gamepad (hold the hotkey button, then press another one) and are never sent to the game."));
     QCOMPARE(c->hotkeyRows().size(), 5);  // four actions + the fixed Esc row
     QCOMPARE(text(h, "hotkeyText_fullscreen"), QStringLiteral("F11"));
     QCOMPARE(text(h, "hotkeyText_diagnostics"), QStringLiteral("F3"));
     QCOMPARE(text(h, "hotkeyText_snapshot"), QStringLiteral("F5"));
     QCOMPARE(text(h, "hotkeyText_escape"), QStringLiteral("Esc"));
+    QCOMPARE(text(h, "hotkeyPadText_fullscreen"), QStringLiteral("not set"));
+    QCOMPARE(text(h, "hotkeyPadText_diagnostics"), QStringLiteral("Select+R3"));
+    QCOMPARE(text(h, "hotkeyPadText_snapshot"), QStringLiteral("Select+LB"));
+    QCOMPARE(text(h, "hotkeyPadText_speedup"), QStringLiteral("Select+RB"));
+    QCOMPARE(text(h, "padModifierText"), QStringLiteral("Select"));
+    QVERIFY(!visible(h, "hotkeyPadField_escape"));
     QVERIFY(!visible(h, "resetChanged"));
     // The fixed Esc row cannot be captured.
     QVERIFY(h.click("hotkeyField_escape"));
@@ -1184,6 +1190,120 @@ class EmulationControllersTest : public QObject {
     QVERIFY(h.click("tabButtons"));
     QVERIFY(!visible(h, "hotkeysInfo"));
     QVERIFY(visible(h, "mapField_a"));
+  }
+
+  void controllersGamepadHotkeys() {
+    FakeHub hub(QStringLiteral("a"));
+    QVERIFY(hub.start());
+    Harness h;
+    h.gamepads = true;
+    QVERIFY(h.start());
+    pair(h, hub);
+    ControllersController* c = h.controller->controllers();
+    QVERIFY2(c->gamepadAvailable(), qPrintable(c->gamepadNote()));
+    GameSession* s = h.controller->gameSession();
+    h.controller->showControllers();
+    h.window->resize(940, 800);
+    QTest::qWait(100);
+    QVERIFY(h.click("tabHotkeys"));
+    VirtualPad pad("FrameBeam Hotkey Pad");
+    QVERIFY(pad.js != nullptr);
+    c->gamepads()->poll();
+    const auto poll = [&]() { c->gamepads()->poll(); QTest::qWait(1); };
+    const auto storedPad = [&](const QString& action) {
+      ControllerProfiles reread(h.controller->profileStore()->baseDir());
+      return reread.padHotkey(action);
+    };
+    const auto rowPad = [&](const QString& action) {
+      for (const QVariant& v : c->hotkeyRows()) {
+        if (v.toMap().value(QStringLiteral("action")).toString() == action) return v.toMap().value(QStringLiteral("pad")).toString();
+      }
+      return QString();
+    };
+
+    // Capture: the hotkey button alone waits for the second button, a used button is rejected, a free one is taken as combo.
+    QVERIFY(h.click("hotkeyPadField_fullscreen"));
+    QCOMPARE(c->padHotkeyListening(), QStringLiteral("fullscreen"));
+    QCOMPARE(text(h, "hotkeyPadText_fullscreen"), QStringLiteral("Press a button…"));
+    pad.button(Back, true);
+    poll();
+    QCOMPARE(c->padHotkeyListening(), QStringLiteral("fullscreen"));
+    pad.button(LB, true);  // used by Save snapshot
+    poll();
+    QCOMPARE(c->hotkeyNote(), QStringLiteral("Already used by Save snapshot"));
+    QVERIFY(visible(h, "hotkeyNote"));
+    QCOMPARE(c->padHotkeyListening(), QStringLiteral("fullscreen"));
+    pad.button(LB, false);
+    poll();
+    pad.button(North, true);
+    poll();
+    QVERIFY(c->padHotkeyListening().isEmpty());
+    QCOMPARE(storedPad(QStringLiteral("fullscreen")), QStringLiteral("pad:y"));
+    QCOMPARE(text(h, "hotkeyPadText_fullscreen"), QStringLiteral("Select+Y"));
+    QVERIFY(visible(h, "hotkeyChangedDot_fullscreen"));
+    QCOMPARE(c->hotkeysChangedCount(), 1);
+    pad.button(North, false);
+    pad.button(Back, false);
+    poll();
+
+    // A button pressed alone becomes a solo binding; Esc cancels; clear / reset.
+    QVERIFY(h.click("hotkeyPadField_diagnostics"));
+    QTest::keyClick(h.window, Qt::Key_Escape);
+    QVERIFY(c->padHotkeyListening().isEmpty());
+    QCOMPARE(rowPad(QStringLiteral("diagnostics")), QStringLiteral("Select+R3"));
+    QVERIFY(h.click("hotkeyPadField_diagnostics"));
+    pad.button(Start, true);
+    poll();
+    QCOMPARE(storedPad(QStringLiteral("diagnostics")), QStringLiteral("solo:pad:start"));
+    QCOMPARE(text(h, "hotkeyPadText_diagnostics"), QStringLiteral("Start"));
+    pad.button(Start, false);
+    poll();
+    QVERIFY(h.click("hotkeyPadClear_diagnostics"));
+    QCOMPARE(text(h, "hotkeyPadText_diagnostics"), QStringLiteral("not set"));
+    QVERIFY(h.click("hotkeyReset_diagnostics"));
+    QCOMPARE(text(h, "hotkeyPadText_diagnostics"), QStringLiteral("Select+R3"));
+    {
+      ControllerProfiles reread(h.controller->profileStore()->baseDir());
+      QCOMPARE(reread.padHotkey(QStringLiteral("fullscreen")), QStringLiteral("pad:y"));
+    }
+
+    // Change the hotkey button: Start; the combos follow.
+    QVERIFY(h.click("padModifierField"));
+    QCOMPARE(c->padHotkeyListening(), QStringLiteral("modifier"));
+    pad.button(Start, true);
+    poll();
+    pad.button(Start, false);
+    poll();
+    QCOMPARE(text(h, "padModifierText"), QStringLiteral("Start"));
+    QCOMPARE(text(h, "hotkeyPadText_speedup"), QStringLiteral("Start+RB"));
+    QVERIFY(visible(h, "padModifierReset"));
+    QVERIFY(h.click("padModifierReset"));
+    QCOMPARE(text(h, "padModifierText"), QStringLiteral("Select"));
+
+    // In play: the combo fires once, RB never reaches the core, Select still does; the hint follows the last input.
+    QSignalSpy fired(c, &ControllersController::padHotkeyTriggered);
+    c->noteKeyboardInput();
+    QCOMPARE(c->hotkeyHints().value(QStringLiteral("speedup")).toString(), QStringLiteral("Space"));
+    pad.button(Back, true);
+    poll();
+    pad.button(RB, true);
+    poll();
+    poll();
+    QCOMPARE(fired.count(), 1);
+    QCOMPARE(fired.first().first().toString(), QStringLiteral("speedup"));
+    QCOMPARE(s->joypadMask(), 1u << 2);  // Select only
+    QCOMPARE(c->hotkeyHints().value(QStringLiteral("speedup")).toString(), QStringLiteral("Select+RB"));
+    pad.button(RB, false);
+    pad.button(Back, false);
+    poll();
+    QCOMPARE(s->joypadMask(), 0u);
+    c->noteKeyboardInput();
+    QCOMPARE(c->hotkeyHints().value(QStringLiteral("speedup")).toString(), QStringLiteral("Space"));
+
+    // Reset all brings back keyboard keys and gamepad buttons.
+    QVERIFY(h.click("resetChanged"));
+    QCOMPARE(c->hotkeysChangedCount(), 0);
+    QCOMPARE(text(h, "hotkeyPadText_fullscreen"), QStringLiteral("not set"));
   }
 
   void controllersDuplicateToEdit() {
