@@ -2,7 +2,7 @@
 
 ## 16. Plugin interface [0.11: runtime and Player UI implemented, rest planned]
 
-Status: package 1 (plugin runtime in the Player) and package 2 (plugin UI in the Player: building blocks, map view, in-game tab, HUD, Multiview tile strip, sidebar screen, toasts, game detail section, shell context) are implemented; still open in package 2 are plugin hotkeys. Everything else here (Hub plugins and runs, JS renderer in the Hub web UI, `.fbplugin` files, signing, plugin index, `memory.write`, `tool.exec`, settings schema, UI language) is still design only. What the runtime implements today is described in [guides/plugin-api.md](../guides/plugin-api.md). Decisions: [ADR 0023](../adr/0023-plugins.md) (proposed). Screens and building-block sheet: [design/plugins.md](../design/plugins.md). Sections 16.3 (runtime), the memory and UI rows of 16.2, the Player part of 16.8 and the local install are built; for the rest, where this file names code, it names today's extension points. Open items are marked **open**.
+Status: package 1 (plugin runtime in the Player) and package 2 (plugin UI in the Player: building blocks, map view, in-game tab, HUD, Multiview tile strip, sidebar screen, toasts, game detail section, shell context, hotkeys) are implemented. Everything else here (Hub plugins and runs, JS renderer in the Hub web UI, `.fbplugin` files, signing, plugin index, `memory.write`, `tool.exec`, settings schema, UI language) is still design only. What the runtime implements today is described in [guides/plugin-api.md](../guides/plugin-api.md). Decisions: [ADR 0023](../adr/0023-plugins.md) (proposed). Screens and building-block sheet: [design/plugins.md](../design/plugins.md). Sections 16.3 (runtime), the memory and UI rows of 16.2, the Player part of 16.8 and the local install are built; for the rest, where this file names code, it names today's extension points. Open items are marked **open**.
 
 Decided defaults of the runtime (package 1): plugins run only with developer mode on (Settings → Plugins); the only install paths are local folders (copy or linked dev folder with live reload), all unsigned; Lua 5.4.7 is vendored in `client/plugins/third_party/`; plugins resolve (`requires`/`provides`) once at game start; the plugin tick is limited to 30 Hz by default (`tickHz`); budgets per entry call are 20M instructions / 500 ms and 64 MiB per state.
 
@@ -41,7 +41,7 @@ Non-goals:
 | Hub channel | WSS envelope, `protocol/schemas/ws-envelope.schema.json` (`type` + `payload`) | No plugin messages | New message types for plugin/run state and events |
 | Peer channel | DataChannel `fb-diag` | Exists only while someone watches the Session | Not suitable for run state |
 | Distribution | Core distribution with SHA-256 pin ([ADR 0020](../adr/0020-cores-from-the-libretro-buildbot.md)); signed `updates-index`, `server/cmd/framebeam-sign` | Cores and updates | Reuse the pin and the signing for plugins |
-| UI | `client/ui/*.qml`, `Fb*` components, `Theme.qml`; Hub web: Go templates + htmx (`server/internal/web`) | Implemented in the Player (package 2): `fb.ui`, validation in `client/plugins/plugin_ui.*`, `PluginsController`, `PluginBlock.qml`, `PluginMapView.qml`, `PluginImageProvider`; slots panel, HUD, tile strip, screen, game detail, toasts. [API guide](../guides/plugin-api.md#ui) | Open: plugin hotkeys (later in package 2); JS renderer in the Hub web UI (package 3) |
+| UI | `client/ui/*.qml`, `Fb*` components, `Theme.qml`; Hub web: Go templates + htmx (`server/internal/web`) | Implemented in the Player (package 2): `fb.ui`, validation in `client/plugins/plugin_ui.*`, `PluginsController`, `PluginBlock.qml`, `PluginMapView.qml`, `PluginImageProvider`; slots panel, HUD, tile strip, screen, game detail, toasts. [API guide](../guides/plugin-api.md#ui) | Open: JS renderer in the Hub web UI (package 3) |
 
 Core-side facts (3DS): see [ADR 0023](../adr/0023-plugins.md) context (Azahar exposes memory maps with virtual addresses; `retro_get_memory_data` returns NULL; `retro_cheat_set` is empty).
 
@@ -105,7 +105,7 @@ The Player shows name, origin (Official / Hub upload / local) and permissions be
 - Isolation: own state, memory and compute budget per plugin.
 - Load order: `requires` first; cycles and missing or incompatible versions are reported on activation.
 - Cooperation: `provides` exposes an interface for other plugins; calls between plugins are messages through the Player, not shared Lua memory. Events can be subscribed to by permitted plugins.
-- UI: several plugins in one slot get tabs (side panel), are stacked (HUD, tile overlay) or listed separately (sidebar, settings, hotkeys). Hotkey conflicts are reported by the Hotkeys tab as today.
+- UI: several plugins in one slot get tabs (side panel), are stacked (HUD, tile overlay) or listed separately (sidebar, settings, hotkeys). Hotkey conflicts are shown in the Hotkeys tab: FrameBeam keys win, then the earlier plugin; a losing key is inactive.
 - Management: Settings → Plugins lists version, origin, permissions, dependencies and a switch per plugin, per game and per run.
 
 ### 16.8 UI
@@ -122,7 +122,7 @@ Building blocks v1 (implemented in the Player; the exact catalog with props and 
 
 A new building block needs a Player update; the `api` version keeps that clean. A second tier with signed plugin QML is conceivable only if the building blocks provably do not suffice.
 
-Slots (implemented in the Player except hotkeys, which come later in package 2; the Hub web slots belong to package 3):
+Slots (implemented in the Player; the Hub web slots belong to package 3):
 
 | Slot | Where |
 |---|---|

@@ -4,6 +4,7 @@
 // Plugin console tab of the game panel (docs/design/plugins.md 4a, 4d). Plugin failures never block or slow the game:
 // they only show in the console and the Player log.
 #include <QHash>
+#include <QMap>
 #include <QObject>
 #include <QSet>
 #include <QStringList>
@@ -63,6 +64,13 @@ class PluginsController : public QObject {
   Q_PROPERTY(QVariantList detailSections READ detailSections NOTIFY detailSectionsChanged)
   // [{pluginId, id, label, key}]: hotkeys declared by the running plugins.
   Q_PROPERTY(QVariantList hotkeys READ hotkeys NOTIFY hotkeysChanged)
+  // Controllers > Hotkeys: one group per enabled plugin that declares hotkeys (list order):
+  // [{pluginId, name, origin, originText, count, conflicts, rows: [{pluginId, id, label, key, keyText, set, active, changed,
+  // listening, note}]}]. key = effective key ("" = unassigned); keyText = what the field shows ("Ctrl+H", "Ctrl+H · not
+  // active", "not set"); note = "Already used by <owner>. Unassigned until you choose." on a conflict row.
+  Q_PROPERTY(QVariantList hotkeyGroups READ hotkeyGroups NOTIFY hotkeysChanged)
+  Q_PROPERTY(QString hotkeyListening READ hotkeyListening NOTIFY hotkeysChanged)  // "<pluginId>/<hotkeyId>" waiting for a key
+  Q_PROPERTY(QString hotkeyNote READ hotkeyNote NOTIFY hotkeysChanged)            // "Already used by <owner>" after a rejected key
  public:
   // dataDir = ProfileStore::baseDir(); the plugins live in <dataDir>/plugins.
   PluginsController(PlayerSettings* settings, const QString& dataDir, GameSession* session, QObject* parent = nullptr);
@@ -85,6 +93,13 @@ class PluginsController : public QObject {
   QVariantList sidebarEntries() const { return sidebarEntries_; }
   QVariantList detailSections() const { return detailSections_; }
   QVariantList hotkeys() const { return hotkeys_; }
+  QVariantList hotkeyGroups() const { return hotkeyGroups_; }
+  QString hotkeyListening() const { return hotkeyListening_; }
+  QString hotkeyNote() const { return hotkeyNote_; }
+  // Key combinations (Qt::Key | modifiers) of the plugin hotkeys that fire now (running, not in conflict).
+  QSet<int> activeHotkeyCombos() const { return activeCombos_; }
+  // FrameBeam keys that always win: combination (Qt::Key | modifiers) -> label of the owner. Set by the PlayerController.
+  void setReservedKeys(const QMap<int, QString>& reserved);
   // Registry behind image://fbplugin (see pluginimageprovider.h).
   std::shared_ptr<PluginImageSources> imageSources() const { return imageSources_; }
   // Plugins running in the shell context (no game), in start order.
@@ -138,6 +153,16 @@ class PluginsController : public QObject {
   // Small in-game marker for non-official plugins: "" (official), "Unverified" or "Local".
   Q_INVOKABLE QString originMarker(const QString& origin) const;
   Q_INVOKABLE void triggerHotkey(const QString& pluginId, const QString& hotkeyId);
+  // A key press in the game: runs the active plugin hotkey with this key (action slot "hotkey"); false = none.
+  // Key text of the plugin's hotkey when it is assigned and not in conflict, else empty.
+  Q_INVOKABLE QString activeHotkeyKey(const QString& pluginId, const QString& hotkeyId) const;
+  Q_INVOKABLE bool triggerHotkeyKey(int qtKey, int modifiers);
+  // Controllers > Hotkeys of the plugin groups (keyboard only). The captured key replaces the declared one (persisted).
+  Q_INVOKABLE void beginHotkeyCapture(const QString& pluginId, const QString& hotkeyId);
+  Q_INVOKABLE void cancelHotkeyCapture();
+  Q_INVOKABLE bool captureHotkey(int qtKey, int modifiers);  // true = the key was consumed (capture active)
+  Q_INVOKABLE void clearHotkey(const QString& pluginId, const QString& hotkeyId);  // unassigned
+  Q_INVOKABLE void resetHotkey(const QString& pluginId, const QString& hotkeyId);  // back to the declared key
 
   // Tests and screenshots: shows `console` in the Plugin console without a running game; empty map removes it.
   void setPreviewConsole(const QVariantMap& console);
@@ -158,6 +183,7 @@ class PluginsController : public QObject {
   void sidebarEntriesChanged();
   void detailSectionsChanged();
   void hotkeysChanged();
+  void activeHotkeyCombosChanged();
   void tileStripsChanged();
   void hudAllHiddenChanged();
   // reloadPlugin() was called ("Restart plugin"); tests observe it.
@@ -180,6 +206,8 @@ class PluginsController : public QObject {
   void rebuildSidebar();
   void rebuildDetail();
   void rebuildHotkeys();
+  QVariantList declaredHotkeyPlugins() const;  // [{pluginId, name, origin, hotkeys: [{id, label, key}]}]
+  void setHotkeyOverride(const QString& pluginId, const QString& hotkeyId, const QString& key);
   void collectToasts();
   void addHostNotice(const QString& pluginId);
   void applyPreviewHud();
@@ -212,7 +240,13 @@ class PluginsController : public QObject {
   int hostToastId_ = 0;                       // host notices count down from -1
   bool previewUi_ = false;
   QVariantMap previewUiData_;
-  QVariantList panelTabs_, hudWidgets_, toasts_, sidebarEntries_, detailSections_, hotkeys_;
+  QVariantList panelTabs_, hudWidgets_, toasts_, sidebarEntries_, detailSections_, hotkeys_, hotkeyGroups_;
+  QSet<int> activeCombos_;
+  QHash<int, QStringList> takenBy_;          // combo -> ["<pluginId>/<hotkeyId>", plugin name] (no conflict)
+  QHash<int, QStringList> comboTarget_;      // combo -> [pluginId, hotkeyId] of the running plugins
+  QMap<int, QString> reservedKeys_;
+  QHash<QString, QString> hotkeyOverrides_;   // "<pluginId>/<hotkeyId>" -> key | "none"
+  QString hotkeyListening_, hotkeyNote_;
   QHash<QString, QString> hudCorner_;
   QSet<QString> hudHidden_;
   QSet<QString> mutedSession_, mutedAlways_;

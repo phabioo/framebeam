@@ -108,6 +108,9 @@ class ControllersController : public QObject {
   QString hotkeyNote() const { return hotkeyNote_; }
   QVariantMap hotkeyLabels() const;
   QSet<int> hotkeyKeys() const;  // assigned hotkey keys (Esc not included)
+  // FrameBeam keys that plugin hotkeys can never use: combination (Qt::Key | modifiers) -> label of the owner. The hotkeys,
+  // Esc, F4 (hide all HUD widgets) and Alt+1 ... Alt+9 (panel tabs).
+  QMap<int, QString> reservedKeyOwners() const;
   QString padHotkeyListening() const { return padHotkeyListening_; }
   QString padHotkeyModifier() const;
   bool padHotkeyModifierChanged() const { return profiles_.padHotkeyModifierChanged(); }

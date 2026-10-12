@@ -59,6 +59,35 @@ Item {
         onMenuRequested: (entry, anchor) => root.openHudMenu(entry, anchor)
     }
 
+    // Hidden widgets can always be shown again: this pill (bottom centre) opens a menu with "Show <plugin> widget" and
+    // "Show all HUD widgets" while at least one widget or the whole HUD is hidden.
+    readonly property var hiddenWidgets: {
+        var out = [], w = plugins.hudWidgets
+        for (var i = 0; i < w.length; ++i) if (w[i].hidden) out.push(w[i])
+        return out
+    }
+    Rectangle {
+        id: restorePill
+        objectName: "hudRestoreButton"
+        visible: !root.hudShown || root.hiddenWidgets.length > 0
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: root.height - 16 - height
+        width: restoreLabel.implicitWidth + 24
+        height: 28
+        radius: 14
+        color: Qt.rgba(17 / 255, 18 / 255, 20 / 255, 0.85)
+        opacity: restoreHover.hovered || (menu.open && menu.anchorItem === restorePill) ? 1 : 0.6
+        FbLabel {
+            id: restoreLabel
+            anchors.centerIn: parent
+            text: (!root.hudShown ? qsTr("HUD hidden") : qsTr("%n widget(s) hidden", "", root.hiddenWidgets.length)) + " ▾"
+            font.pixelSize: 12
+            color: Theme.gameBadgeText
+        }
+        HoverHandler { id: restoreHover; cursorShape: Qt.PointingHandCursor }
+        TapHandler { onTapped: root.openRestoreMenu(restorePill) }
+    }
+
     // "HUD hidden · F4 to show" for 2 s after Hide all
     Timer { id: hintTimer; interval: root.hintMs }
     Connections {
@@ -172,13 +201,30 @@ Item {
         menu.menuWidth = 250
         var c = entry.corner
         menu.items = [
-            { id: "hide", text: qsTr("Hide this widget"), trailing: "Ctrl+H" },
+            { id: "hide", text: qsTr("Hide this widget"), trailing: plugins.activeHotkeyKey(entry.pluginId, "toggle-hud") },
             { id: "corner", text: qsTr("Move to corner"), choices: [
                 { id: "corner-bottom-left", glyph: "↙", tip: qsTr("Bottom left"), checked: c === "bottom-left" },
                 { id: "corner-bottom-right", glyph: "↘", tip: qsTr("Bottom right"), checked: c === "bottom-right" },
                 { id: "corner-top-left", glyph: "↖", tip: qsTr("Top left"), checked: c === "top-left" } ] },
             { id: "hideAll", text: qsTr("Hide all HUD widgets"), trailing: "F4", divider: true }
-        ]
+        ].concat(showEntries())
+        menu.anchorItem = anchor
+        menu.open = true
+    }
+    // "Show <plugin> widget" for every hidden widget.
+    function showEntries() {
+        var out = [], h = root.hiddenWidgets
+        for (var i = 0; i < h.length; ++i) out.push({ id: "show:" + h[i].pluginId, text: qsTr("Show %1 widget").arg(h[i].name || h[i].pluginId) })
+        return out
+    }
+    function openRestoreMenu(anchor) {
+        menuEntry = null
+        menuKind = "restore"
+        menu.above = true
+        menu.menuWidth = 250
+        var items = root.hudShown ? [{ id: "hideAll", text: qsTr("Hide all HUD widgets"), trailing: "F4" }]
+                                  : [{ id: "showAll", text: qsTr("Show all HUD widgets"), trailing: "F4" }]
+        menu.items = items.concat(showEntries())
         menu.anchorItem = anchor
         menu.open = true
     }
@@ -202,6 +248,9 @@ Item {
         onPicked: (id) => {
             open = false
             var e = root.menuEntry
+            if (id.indexOf("show:") === 0) { root.plugins.showHud(id.substring(5)); return }
+            if (id === "showAll") { root.plugins.hudAllHidden = false; return }
+            if (root.menuKind === "restore") { if (id === "hideAll") root.plugins.hudAllHidden = true; return }
             if (!e) return
             if (root.menuKind === "hud") {
                 if (id === "hide") root.plugins.hideHud(e.pluginId)

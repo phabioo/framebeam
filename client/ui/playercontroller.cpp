@@ -316,8 +316,22 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   session_.setKeyboardMap(controllers_->keyboardMap());
   connect(controllers_.get(), &ControllersController::keyboardMapChanged, this,
           [this]() { session_.setKeyboardMap(controllers_->keyboardMap()); });
-  session_.setHotkeyKeys(controllers_->hotkeyKeys());
-  connect(controllers_.get(), &ControllersController::hotkeysChanged, this, [this]() { session_.setHotkeyKeys(controllers_->hotkeyKeys()); });
+  // F4 (hide all HUD widgets) is a fixed Player key like Esc.
+  session_.setHotkeyKeys(controllers_->hotkeyKeys() | QSet<int>{Qt::Key_F4});
+  connect(controllers_.get(), &ControllersController::hotkeysChanged, this, [this]() {
+    session_.setHotkeyKeys(controllers_->hotkeyKeys() | QSet<int>{Qt::Key_F4});
+    plugins_->setReservedKeys(controllers_->reservedKeyOwners());
+    if (!controllers_->hotkeyListening().isEmpty() || !controllers_->padHotkeyListening().isEmpty()) plugins_->cancelHotkeyCapture();
+  });
+  // Plugin hotkeys that fire and Alt+1 ... Alt+9 (panel tabs) never reach the core.
+  const auto syncCombos = [this]() {
+    QSet<int> combos = plugins_->activeHotkeyCombos();
+    for (int n = 1; n <= 9; ++n) combos.insert(int(Qt::Key_0) + n + int(Qt::AltModifier));
+    session_.setReservedCombos(combos);
+  };
+  connect(plugins_.get(), &PluginsController::activeHotkeyCombosChanged, this, syncCombos);
+  plugins_->setReservedKeys(controllers_->reservedKeyOwners());
+  syncCombos();
   connect(controllers_.get(), &ControllersController::libretroMaskChanged, this,
           [this](quint32 mask) { session_.setGamepadMask(mask); });
   session_.setGamepadMask(controllers_->gamepads()->libretroMask());

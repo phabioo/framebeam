@@ -5,6 +5,8 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QGuiApplication>
+#include <QKeyCombination>
+#include <QKeySequence>
 #include <QLoggingCategory>
 #include <QUrl>
 #include <algorithm>
@@ -35,6 +37,22 @@ QString levelName(LogLevel l) {
     case LogLevel::Error: return QStringLiteral("error");
   }
   return QStringLiteral("info");
+}
+
+constexpr Qt::KeyboardModifiers kComboMods = Qt::ControlModifier | Qt::ShiftModifier | Qt::AltModifier | Qt::MetaModifier;
+
+// Portable key text ("Ctrl+H") -> Qt::Key | modifiers; 0 = empty or not a single combination.
+int comboFromText(const QString& text) {
+  if (text.isEmpty() || text == QLatin1String("none")) return 0;
+  const QKeySequence seq = QKeySequence::fromString(text, QKeySequence::PortableText);
+  if (seq.count() != 1) return 0;
+  const QKeyCombination kc = seq[0];
+  if (kc.key() == Qt::Key_unknown || kc.key() == Qt::Key(0)) return 0;
+  return int(kc.key()) | int(kc.keyboardModifiers() & kComboMods);
+}
+
+QString textFromCombo(int combo) {
+  return QKeySequence(QKeyCombination::fromCombined(combo)).toString(QKeySequence::PortableText);
 }
 
 QString timeText(qint64 ms) { return QDateTime::fromMSecsSinceEpoch(ms).toString(QStringLiteral("HH:mm:ss.zzz")); }
@@ -71,6 +89,7 @@ PluginsController::PluginsController(PlayerSettings* settings, const QString& da
     const QStringList hidden = settings_->pluginHudHidden();
     hudHidden_ = QSet<QString>(hidden.begin(), hidden.end());
     hudAllHidden_ = settings_->pluginHudAllHidden();
+    hotkeyOverrides_ = settings_->pluginHotkeyOverrides();
     const QHash<QString, QString> mutes = settings_->pluginToastMutes();
     for (auto it = mutes.begin(); it != mutes.end(); ++it) (it.value() == QLatin1String("important") ? mutedImportant_ : mutedAlways_).insert(it.key());
   }
@@ -210,6 +229,7 @@ void PluginsController::refreshPlugins() {
   summary_ = list.isEmpty() ? tr("None installed") : (on > 0 ? tr("%1 on").arg(on) : tr("None on"));
   updateImageSources();
   emit pluginsChanged();
+  rebuildHotkeys();
   updateShell();  // a toggle, install or Developer mode change can add or remove shell plugins
 }
 
@@ -501,6 +521,7 @@ void PluginsController::setPreviewUi(const QVariantMap& ui) {
     emit toastsChanged();
     emit sidebarEntriesChanged();
     emit tileStripsChanged();
+    rebuildHotkeys();
   } else {
     toasts_.clear();
     emit toastsChanged();
@@ -615,17 +636,186 @@ void PluginsController::rebuildDetail() {
   emit detailSectionsChanged();
 }
 
-void PluginsController::rebuildHotkeys() {
-  if (previewUi_) return;
+QVariantList PluginsController::declaredHotkeyPlugins() const {
+  if (previewUi_) return previewUiData_.value(QStringLiteral("hotkeyPlugins")).toList();
   QVariantList out;
-  for (const QString& id : activeIds()) {
-    const auto info = manager_->info(id);
-    if (!info) continue;
-    for (const plugins::UiHotkey& hk : info->manifest.ui.hotkeys)
-      out.append(QVariantMap{{QStringLiteral("pluginId"), id}, {QStringLiteral("id"), hk.id}, {QStringLiteral("label"), hk.label}, {QStringLiteral("key"), hk.key}});
+  if (!manager_->developerMode()) return out;
+  for (const plugins::PluginInfo& p : manager_->list()) {
+    if (!p.enabled || !p.problems.isEmpty() || p.manifest.ui.hotkeys.isEmpty()) continue;
+    QVariantList hks;
+    for (const plugins::UiHotkey& hk : p.manifest.ui.hotkeys)
+      hks.append(QVariantMap{{QStringLiteral("id"), hk.id}, {QStringLiteral("label"), hk.label}, {QStringLiteral("key"), hk.key}});
+    out.append(QVariantMap{{QStringLiteral("pluginId"), p.manifest.id}, {QStringLiteral("name"), p.manifest.name},
+                           {QStringLiteral("origin"), p.origin}, {QStringLiteral("hotkeys"), hks}});
   }
-  if (out == hotkeys_) return;
-  hotkeys_ = out;
+  return out;
+}
+
+void PluginsController::rebuildHotkeys() {
+  bool changed = false;
+  if (!previewUi_) {  // hotkeys of the running plugins
+    QVariantList out;
+    for (const QString& id : activeIds()) {
+      const auto info = manager_->info(id);
+      if (!info) continue;
+      for (const plugins::UiHotkey& hk : info->manifest.ui.hotkeys)
+        out.append(QVariantMap{{QStringLiteral("pluginId"), id}, {QStringLiteral("id"), hk.id}, {QStringLiteral("label"), hk.label}, {QStringLiteral("key"), hk.key}});
+    }
+    if (out != hotkeys_) {
+      hotkeys_ = out;
+      changed = true;
+    }
+  }
+
+  // Groups for Controllers > Hotkeys. FrameBeam keys always win, then the earlier plugin; a key in conflict is not active
+  // until the user chooses another one.
+  QVariantList groups;
+  QSet<int> active;
+  QHash<int, QStringList> taken, target;
+  const QStringList running = activeIds();
+  for (const QVariant& pv : declaredHotkeyPlugins()) {
+    const QVariantMap plugin = pv.toMap();
+    const QString pid = plugin.value(QStringLiteral("pluginId")).toString();
+    const QString name = plugin.value(QStringLiteral("name")).toString();
+    QVariantList rows;
+    int conflicts = 0;
+    for (const QVariant& hv : plugin.value(QStringLiteral("hotkeys")).toList()) {
+      const QVariantMap hk = hv.toMap();
+      const QString id = hk.value(QStringLiteral("id")).toString();
+      const QString ov = hotkeyOverrides_.value(pid + QLatin1Char('/') + id);
+      const QString eff = ov.isEmpty() ? hk.value(QStringLiteral("key")).toString() : (ov == QLatin1String("none") ? QString() : ov);
+      const int combo = comboFromText(eff);
+      QString owner;
+      if (combo != 0) {
+        if (reservedKeys_.contains(combo)) owner = reservedKeys_.value(combo);
+        else if (taken.contains(combo)) owner = taken.value(combo).at(1);
+      }
+      const bool ok = combo != 0 && owner.isEmpty();
+      if (ok) {
+        taken.insert(combo, {pid + QLatin1Char('/') + id, name});
+        if (previewUi_ || running.contains(pid)) {
+          active.insert(combo);
+          target.insert(combo, {pid, id});
+        }
+      }
+      if (!owner.isEmpty()) ++conflicts;
+      const QString text = combo != 0 ? textFromCombo(combo) : QString();
+      rows.append(QVariantMap{
+          {QStringLiteral("pluginId"), pid},
+          {QStringLiteral("id"), id},
+          {QStringLiteral("label"), hk.value(QStringLiteral("label")).toString()},
+          {QStringLiteral("key"), text},
+          {QStringLiteral("keyText"), text.isEmpty() ? tr("not set") : (owner.isEmpty() ? text : tr("%1 · not active").arg(text))},
+          {QStringLiteral("set"), !text.isEmpty()},
+          {QStringLiteral("active"), ok},
+          {QStringLiteral("conflict"), !owner.isEmpty()},
+          {QStringLiteral("changed"), !ov.isEmpty()},
+          {QStringLiteral("listening"), hotkeyListening_ == pid + QLatin1Char('/') + id},
+          {QStringLiteral("note"), owner.isEmpty() ? QString() : tr("Already used by %1. Unassigned until you choose.").arg(owner)}});
+    }
+    const QString origin = plugin.value(QStringLiteral("origin")).toString();
+    groups.append(QVariantMap{{QStringLiteral("pluginId"), pid},
+                              {QStringLiteral("name"), name},
+                              {QStringLiteral("origin"), origin},
+                              {QStringLiteral("marker"), originMarker(origin)},
+                              {QStringLiteral("count"), rows.size()},
+                              {QStringLiteral("conflicts"), conflicts},
+                              {QStringLiteral("rows"), rows}});
+  }
+  if (groups != hotkeyGroups_) {
+    hotkeyGroups_ = groups;
+    changed = true;
+  }
+  takenBy_ = taken;
+  comboTarget_ = target;
+  if (changed) emit hotkeysChanged();
+  if (active != activeCombos_) {
+    activeCombos_ = active;
+    emit activeHotkeyCombosChanged();
+  }
+}
+
+void PluginsController::setReservedKeys(const QMap<int, QString>& reserved) {
+  if (reserved == reservedKeys_) return;
+  reservedKeys_ = reserved;
+  rebuildHotkeys();
+}
+
+void PluginsController::setHotkeyOverride(const QString& pluginId, const QString& hotkeyId, const QString& key) {
+  QString declared;
+  for (const QVariant& pv : declaredHotkeyPlugins()) {
+    const QVariantMap p = pv.toMap();
+    if (p.value(QStringLiteral("pluginId")).toString() != pluginId) continue;
+    for (const QVariant& hv : p.value(QStringLiteral("hotkeys")).toList())
+      if (hv.toMap().value(QStringLiteral("id")).toString() == hotkeyId) declared = hv.toMap().value(QStringLiteral("key")).toString();
+  }
+  QString stored = key;
+  if (key == QLatin1String("none") ? comboFromText(declared) == 0 : (!key.isEmpty() && comboFromText(key) == comboFromText(declared))) stored.clear();
+  const QString k = pluginId + QLatin1Char('/') + hotkeyId;
+  if (stored.isEmpty()) hotkeyOverrides_.remove(k);
+  else hotkeyOverrides_.insert(k, stored);
+  if (settings_ != nullptr) settings_->setPluginHotkeyOverride(pluginId, hotkeyId, stored);
+  rebuildHotkeys();
+}
+
+void PluginsController::beginHotkeyCapture(const QString& pluginId, const QString& hotkeyId) {
+  const QString k = pluginId + QLatin1Char('/') + hotkeyId;
+  bool known = false;
+  for (const QVariant& gv : std::as_const(hotkeyGroups_))
+    for (const QVariant& rv : gv.toMap().value(QStringLiteral("rows")).toList())
+      if (rv.toMap().value(QStringLiteral("pluginId")).toString() == pluginId && rv.toMap().value(QStringLiteral("id")).toString() == hotkeyId) known = true;
+  if (!known) return;
+  hotkeyListening_ = k;
+  hotkeyNote_.clear();
+  rebuildHotkeys();
+  emit hotkeysChanged();
+}
+
+void PluginsController::cancelHotkeyCapture() {
+  if (hotkeyListening_.isEmpty() && hotkeyNote_.isEmpty()) return;
+  hotkeyListening_.clear();
+  hotkeyNote_.clear();
+  rebuildHotkeys();
+  emit hotkeysChanged();
+}
+
+bool PluginsController::captureHotkey(int qtKey, int modifiers) {
+  if (hotkeyListening_.isEmpty()) return false;
+  if (qtKey == Qt::Key_Escape) {
+    cancelHotkeyCapture();
+    return true;
+  }
+  if (qtKey == 0 || qtKey == Qt::Key_unknown || qtKey == Qt::Key_Shift || qtKey == Qt::Key_Control || qtKey == Qt::Key_Alt ||
+      qtKey == Qt::Key_Meta || qtKey == Qt::Key_AltGr)
+    return true;
+  const int combo = qtKey | int(Qt::KeyboardModifiers::fromInt(modifiers) & kComboMods);
+  QString owner = reservedKeys_.value(combo);
+  if (owner.isEmpty() && takenBy_.contains(combo) && takenBy_.value(combo).at(0) != hotkeyListening_) owner = takenBy_.value(combo).at(1);
+  if (!owner.isEmpty()) {
+    hotkeyNote_ = tr("Already used by %1").arg(owner);  // the field keeps listening
+    emit hotkeysChanged();
+    return true;
+  }
+  const int slash = hotkeyListening_.indexOf(QLatin1Char('/'));
+  const QString pid = hotkeyListening_.left(slash), id = hotkeyListening_.mid(slash + 1);
+  hotkeyListening_.clear();
+  hotkeyNote_.clear();
+  setHotkeyOverride(pid, id, textFromCombo(combo));
+  emit hotkeysChanged();
+  return true;
+}
+
+void PluginsController::clearHotkey(const QString& pluginId, const QString& hotkeyId) {
+  hotkeyListening_.clear();
+  hotkeyNote_.clear();
+  setHotkeyOverride(pluginId, hotkeyId, QStringLiteral("none"));
+  emit hotkeysChanged();
+}
+
+void PluginsController::resetHotkey(const QString& pluginId, const QString& hotkeyId) {
+  hotkeyListening_.clear();
+  hotkeyNote_.clear();
+  setHotkeyOverride(pluginId, hotkeyId, QString());
   emit hotkeysChanged();
 }
 
@@ -735,14 +925,38 @@ void PluginsController::sendAction(const QString& pluginId, const QString& slot,
 }
 
 void PluginsController::triggerHotkey(const QString& pluginId, const QString& hotkeyId) {
-  if (!activeIds().contains(pluginId)) return;
-  const auto info = manager_->info(pluginId);
-  if (!info) return;
-  for (const plugins::UiHotkey& hk : info->manifest.ui.hotkeys)
-    if (hk.id == hotkeyId) {
-      host_->sendAction(pluginId, QStringLiteral("hotkey"), hotkeyId, QVariant());
-      return;
+  bool known = false;
+  if (previewUi_) {
+    for (const QVariant& pv : declaredHotkeyPlugins()) {
+      const QVariantMap p = pv.toMap();
+      if (p.value(QStringLiteral("pluginId")).toString() != pluginId) continue;
+      for (const QVariant& hv : p.value(QStringLiteral("hotkeys")).toList())
+        if (hv.toMap().value(QStringLiteral("id")).toString() == hotkeyId) known = true;
     }
+  } else if (activeIds().contains(pluginId)) {
+    if (const auto info = manager_->info(pluginId))
+      for (const plugins::UiHotkey& hk : info->manifest.ui.hotkeys)
+        if (hk.id == hotkeyId) known = true;
+  }
+  if (known) sendAction(pluginId, QStringLiteral("hotkey"), hotkeyId);  // on_action(id, nil, "hotkey")
+}
+
+QString PluginsController::activeHotkeyKey(const QString& pluginId, const QString& hotkeyId) const {
+  for (const QVariant& gv : hotkeyGroups_)
+    for (const QVariant& rv : gv.toMap().value(QStringLiteral("rows")).toList()) {
+      const QVariantMap r = rv.toMap();
+      if (r.value(QStringLiteral("pluginId")).toString() == pluginId && r.value(QStringLiteral("id")).toString() == hotkeyId && r.value(QStringLiteral("active")).toBool())
+        return r.value(QStringLiteral("key")).toString();
+    }
+  return {};
+}
+
+bool PluginsController::triggerHotkeyKey(int qtKey, int modifiers) {
+  const int combo = qtKey | int(Qt::KeyboardModifiers::fromInt(modifiers) & kComboMods);
+  const QStringList t = comboTarget_.value(combo);
+  if (t.size() != 2) return false;
+  triggerHotkey(t.at(0), t.at(1));
+  return true;
 }
 
 void PluginsController::setDetailGame(const QString& system, const QString& code, const QString& sha256, const QString& title) {

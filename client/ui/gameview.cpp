@@ -233,7 +233,7 @@ void GameView::keyPressEvent(QKeyEvent* e) {
     e->accept();
     return;
   }
-  if (session_ && session_->keyEvent(e->key(), true)) {
+  if (session_ && session_->keyEvent(e->key(), true, e->modifiers())) {
     e->accept();
     return;
   }
@@ -245,7 +245,7 @@ void GameView::keyReleaseEvent(QKeyEvent* e) {
     e->accept();
     return;
   }
-  if (session_ && session_->keyEvent(e->key(), false)) {
+  if (session_ && session_->keyEvent(e->key(), false, e->modifiers())) {
     e->accept();
     return;
   }

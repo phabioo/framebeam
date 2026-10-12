@@ -85,6 +85,13 @@ Rectangle {
         root.panelTab = id
         if (root.collapsed) root.collapseToggled()
     }
+    // Alt+1 ... Alt+9: tab n of the tab bar (Game, the plugin tabs, the Plugin console); false = no such tab.
+    function openTabNumber(n) {
+        var t = root.tabEntries
+        if (n < 1 || n > t.length || !root.localTile) return false
+        root.openTab(t[n - 1].id)
+        return true
+    }
     function originMarker(origin) { return root.plugins.originMarker(origin) }
     signal collapseToggled()
     signal savesClosed()

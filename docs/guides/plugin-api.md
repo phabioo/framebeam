@@ -217,9 +217,9 @@ Needs the permission `ui` and the matching manifest field `ui`. A plugin ships n
 | `tile` | `tile:<tileId>` | Strip on a friend's Multiview tile |
 | `screen` | `screen` | Own sidebar screen under Library |
 | `detail` | `detail` | Section in the game detail (Library), below SAVE |
-| `hotkeys` | - | Entries in Controllers → Hotkeys (**coming later in package 2**) |
+| `hotkeys` | - | Entries in Controllers → Hotkeys, see [Hotkeys](#hotkeys) |
 
-- `title`: 1 to 40 characters. `hotkeys`: at most 16; `id` is `[a-z0-9-]{1,32}` and unique, `label` 1 to 60 characters, `key` is an optional portable key sequence (one combo).
+- `title`: 1 to 40 characters. `hotkeys`: at most 16; `id` is `[a-z0-9-]{1,32}` and unique, `label` 1 to 60 characters, `key` is an optional portable key sequence (`QKeySequence` text, one combo). The key is a suggestion; the user can change it.
 - Unknown keys are errors. Declaring `ui` without the permission `ui` is a manifest error: "field `ui` needs permission `ui`".
 - Settings → Plugins shows what a plugin adds, for example "Adds: panel tab · HUD · tile strip · Runs screen · game detail · 1 hotkey".
 
@@ -244,7 +244,7 @@ All functions raise `permission ui not granted` without the permission. A slot m
   - buttons, toggles (`value` = new boolean), selects and segmented controls (`value` = chosen option value), tab switches (`value` = 1-based index), text fields on Enter (`value` = text), clickable cards, stats, chips, list and table rows (the row's `value`), empty-state buttons;
   - map selection and filter changes (`value` = `{ kind = "route"|"player", id = ... }` or `{ kind = "filter", value = "all"|"me"|"open" }`);
   - toast buttons (`slot` = `"toast"`);
-  - plugin hotkeys (`slot` = `"hotkey"`, `action` = hotkey id; **coming later in package 2**).
+  - plugin hotkeys (`slot` = `"hotkey"`, `action` = hotkey id, `value` = `nil`).
 
   `fb.ui.on_action(nil)` removes the handler. Blocks without their own `value` send `nil` unless stated above.
 
@@ -323,9 +323,17 @@ Marker ids are strings (`[A-Za-z0-9_.-]{1,64}`) or non-negative integers; coordi
 
 `src` (and `image` of list rows, `src` of map icons) is `cache:<path>` for a file in the plugin's cache (`fb.cache.write`) or `asset:<path>` for a file declared in the manifest `assets`. Paths use `A-Z a-z 0-9 . _ - /`, no `..`, no leading `/`, up to 200 characters. Only PNG files are served. The Player rejects files above 8 MiB, images above 4096x4096, paths that leave the folder (including through symlinks) and undeclared assets. Convert game textures to PNG with `fb.codec.png` and cache them.
 
+#### Hotkeys
+
+- Controllers → Hotkeys shows a FRAMEBEAM group first (these keys always win), then one group per enabled plugin that declares hotkeys, ordered by plugin id, each with an origin marker and its key count. The user can choose a key, clear it or reset it to the declared default.
+- Overrides are stored locally in the Player settings (`plugin_hotkeys`): `"<pluginId>/<hotkeyId>"` → key text, `"none"` = unassigned.
+- Conflicts: FrameBeam keys win (configured FrameBeam hotkeys, Esc, F4, Alt+1 to Alt+9), then the earlier plugin. A losing key is not active; it is shown as "<key> · not active" in amber with "Already used by <owner>. Unassigned until you choose."
+- In a game, an active plugin key calls the plugin's `fb.ui.on_action` handler as `fn(id, nil, "hotkey")`. Keys do not fire while a text field has focus or on auto-repeat. Plugin keys and Alt+n are not passed to the core.
+- Alt+1 to Alt+9 open panel tab n.
+
 #### HUD, toasts and tile strips
 
-- HUD widgets stack in the bottom left (default), bottom right or top left; the top right belongs to the diagnostics overlay. At most 4 widgets per corner are shown. The user can move or hide a widget, and hide all HUD widgets (F4 and Ctrl+H are bound elsewhere, **coming later in package 2**).
+- HUD widgets stack in the bottom left (default), bottom right or top left; the top right belongs to the diagnostics overlay. At most 4 widgets per corner are shown. The user can move or hide a widget, and hide all HUD widgets with F4. While widgets are hidden, a pill at the bottom of the game view offers "Show <plugin> widget" per hidden widget and Show/Hide all.
 - Toasts appear at the bottom right.
 - A remote Multiview tile shows one plugin strip (20 px high). The strip uses the first text row of the tree. Tile content usually comes with runs (package 3).
 

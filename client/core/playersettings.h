@@ -79,6 +79,10 @@ class PlayerSettings {
   bool setPluginHudHidden(const QString& pluginId, bool hidden);
   bool pluginHudAllHidden() const { return pluginHudAllHidden_; }
   bool setPluginHudAllHidden(bool hidden);
+  // Plugin hotkey choices of the user (Controllers > Hotkeys), keyed by plugin id + hotkey id: a portable key text
+  // ("Ctrl+H"), or "none" = unassigned. An empty key removes the entry (back to the key the manifest declares).
+  QHash<QString, QString> pluginHotkeyOverrides() const;  // "<pluginId>/<hotkeyId>" -> key | "none"
+  bool setPluginHotkeyOverride(const QString& pluginId, const QString& hotkeyId, const QString& key);
   QHash<QString, QString> pluginToastMutes() const;
   bool setPluginToastMute(const QString& pluginId, const QString& mode);
 

@@ -126,9 +126,31 @@ Rectangle {
         // Gamepad hotkeys (P1): the buttons are already kept away from the core by the GamepadService.
         function onPadHotkeyTriggered(action) { if (root.visible) root.runHotkey(action) }
     }
+    // A text field of a plugin panel has the focus: plugin keys, Alt+n and F4 are typing, not hotkeys.
+    function textFieldFocused() {
+        var f = root.Window.activeFocusItem
+        return !!f && ("cursorPosition" in f)
+    }
+    // Plugin hotkeys, Alt+1 ... Alt+9 (panel tab n) and F4 (hide or show all HUD widgets); true = the key was used.
+    function runExtraHotkey(e) {
+        if (root.textFieldFocused()) return false
+        if (e.isAutoRepeat) return false
+        if (root.player.plugins.triggerHotkeyKey(e.key, e.modifiers)) return true
+        var mods = e.modifiers & (Qt.ControlModifier | Qt.ShiftModifier | Qt.AltModifier | Qt.MetaModifier)
+        if (mods === Qt.AltModifier && e.key >= Qt.Key_1 && e.key <= Qt.Key_9) {
+            if (!root.fullscreen) panel.openTabNumber(e.key - Qt.Key_0)
+            return true
+        }
+        if (e.key === Qt.Key_F4 && mods === Qt.NoModifier) {
+            root.player.plugins.hudAllHidden = !root.player.plugins.hudAllHidden
+            return true
+        }
+        return false
+    }
     Keys.onPressed: (e) => {
         if (!root.visible) return   // game in the background: hotkeys do not act on it from other screens
         root.player.controllers.noteKeyboardInput()
+        if (root.runExtraHotkey(e)) { e.accepted = true; return }
         var action = root.player.controllers.hotkeyAction(e.key)
         if (action !== "") {
             if (!(action === "speedup" && e.isAutoRepeat)) root.runHotkey(action)

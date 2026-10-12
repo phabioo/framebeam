@@ -7,6 +7,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QPainter>
+#include <QQuickWindow>
 #include <QSignalSpy>
 #include <QtTest>
 
@@ -94,6 +95,12 @@ QVariantMap toastEntry(int id, const QString& pluginId, const QString& name, con
 QVariantMap action(const QString& label, const QString& act, const QVariant& value = {}) {
   return {{"label", label}, {"action", act}, {"value", value}};
 }
+
+QVariantMap hotkeyPlugin(const QString& id, const QString& name, const QString& origin, const QVariantList& hotkeys) {
+  return {{"pluginId", id}, {"name", name}, {"origin", origin}, {"hotkeys", hotkeys}};
+}
+
+QVariantMap hotkeyDecl(const QString& id, const QString& label, const QString& key) { return {{"id", id}, {"label", label}, {"key", key}}; }
 
 QString writePlugin(const QString& parent, const QString& id, const QString& name, const QJsonObject& ui, const QString& lua) {
   const QString dir = QDir(parent).filePath(id);
@@ -696,6 +703,123 @@ class PluginSlotsUiTest : public QObject {
     QCOMPARE(sent.at(0).at(2).toString(), QStringLiteral("open"));
     pc()->setPreviewUi({});
     QTRY_VERIFY(h_.items("tileStrip_s1").isEmpty() || !h_.item("tileStrip_s1")->isVisible());
+  }
+
+  // ---------------------------------------------------------------- plugin hotkeys (Controllers > Hotkeys, keys in game)
+
+  QVariantMap hotkeyUi() {
+    return {{"panelTabs", QVariantList{tabEntry("net.test.a", "SoulLink", "", false, "official"), tabEntry("net.test.b", "Item Helper", "", false, "hub")}},
+            {"hudWidgets", QVariantList{hudEntry("net.test.a", "SoulLink", "bottom-left", "Team")}},
+            {"hotkeyPlugins",
+             QVariantList{hotkeyPlugin("net.test.a", "SoulLink & Nuzlocke", "official",
+                                       {hotkeyDecl("toggle-hud", "Show or hide HUD widget", "Ctrl+H"), hotkeyDecl("team", "Open team", "Ctrl+D"),
+                                        hotkeyDecl("reload", "Reload run", "Ctrl+R")}),
+                          hotkeyPlugin("net.test.b", "Item Helper", "hub",
+                                       {hotkeyDecl("peek", "Peek bag", "Ctrl+H"), hotkeyDecl("fs", "Quick save", "F11"), hotkeyDecl("bag", "Open bag", "F8")})}}};
+  }
+
+  void hotkeysInGame() {
+    h_.controller->sessions()->leaveWatch();  // back to the own tile (the Multiview test left remote tiles open)
+    h_.controller->sessions()->setTab(QStringLiteral("session"));
+    QTRY_VERIFY(!h_.controller->sessions()->watching());
+    QQuickItem* screen = gameScreen();
+    QVERIFY(screen != nullptr);
+    QTRY_VERIFY(screen->isVisible());
+    QTRY_VERIFY(layer() != nullptr && layer()->isVisible());
+    screen->forceActiveFocus();
+    pc()->setHudAllHidden(false);
+    pc()->setPreviewUi(hotkeyUi());
+    // Item Helper's Ctrl+H is in conflict (not active); the user picks Ctrl+K (persisted, see the Controllers test).
+    QVERIFY(!pc()->activeHotkeyCombos().contains(int(Qt::Key_K) | int(Qt::ControlModifier)));
+    pc()->beginHotkeyCapture(QStringLiteral("net.test.b"), QStringLiteral("peek"));
+    QVERIFY(pc()->captureHotkey(Qt::Key_K, Qt::ControlModifier));
+    QCOMPARE(freshSettings().pluginHotkeyOverrides().value("net.test.b/peek"), QStringLiteral("Ctrl+K"));
+    QSignalSpy sent(pc(), &PluginsController::actionSent);
+
+    // Active plugin key -> on_action(id, nil, "hotkey").
+    QTest::keyClick(h_.window, Qt::Key_H, Qt::ControlModifier);
+    QTRY_COMPARE(sent.size(), 1);
+    QCOMPARE(sent.at(0).at(0).toString(), QStringLiteral("net.test.a"));
+    QCOMPARE(sent.at(0).at(1).toString(), QStringLiteral("hotkey"));
+    QCOMPARE(sent.at(0).at(2).toString(), QStringLiteral("toggle-hud"));
+    QVERIFY(!sent.at(0).at(3).isValid());
+    QTest::keyClick(h_.window, Qt::Key_K, Qt::ControlModifier);  // the user's own key for Item Helper
+    QTRY_COMPARE(sent.size(), 2);
+    QCOMPARE(sent.at(1).at(0).toString(), QStringLiteral("net.test.b"));
+    QCOMPARE(sent.at(1).at(2).toString(), QStringLiteral("peek"));
+    QTest::keyClick(h_.window, Qt::Key_F8);
+    QTRY_COMPARE(sent.size(), 3);
+    QCOMPARE(sent.at(2).at(2).toString(), QStringLiteral("bag"));
+    QTest::keyClick(h_.window, Qt::Key_H);  // without Ctrl: not a hotkey
+    QTest::keyClick(h_.window, Qt::Key_F, Qt::ControlModifier);
+    QTest::qWait(50);
+    QCOMPARE(sent.size(), 3);
+
+    // The core never sees an active plugin key (GameSession keeps the combination), a plain H still goes through.
+    GameSession* gs = h_.controller->gameSession();
+    gs->setKeyboardMap({{Qt::Key_H, 1u << 8}});
+    QVERIFY(!gs->keyEvent(Qt::Key_H, true, Qt::ControlModifier));
+    QVERIFY(gs->keyEvent(Qt::Key_H, true, Qt::NoModifier));
+    gs->keyEvent(Qt::Key_H, false, Qt::NoModifier);
+    gs->setKeyboardMap(h_.controller->controllers()->keyboardMap());
+
+    // Alt+n selects panel tab n (Game, SoulLink, Item Helper); a missing tab changes nothing.
+    QTest::keyClick(h_.window, Qt::Key_2, Qt::AltModifier);
+    QTRY_VERIFY(h_.item("gamePanelPlugin")->isVisible());
+    QTRY_VERIFY(h_.item("panelTab_plugin:net.test.a")->property("open").toBool());
+    QTest::keyClick(h_.window, Qt::Key_3, Qt::AltModifier);
+    QTRY_VERIFY(h_.item("panelTab_plugin:net.test.b")->property("open").toBool());
+    QTest::keyClick(h_.window, Qt::Key_9, Qt::AltModifier);
+    QTest::qWait(50);
+    QVERIFY(h_.item("panelTab_plugin:net.test.b")->property("open").toBool());
+    QTest::keyClick(h_.window, Qt::Key_1, Qt::AltModifier);
+    QTRY_VERIFY(!h_.item("gamePanelPlugin")->isVisible());
+    QCOMPARE(sent.size(), 3);  // none of these reached a plugin
+
+    // F4 toggles "Hide all HUD widgets".
+    QVERIFY(!pc()->hudAllHidden());
+    QTest::keyClick(h_.window, Qt::Key_F4);
+    QTRY_VERIFY(pc()->hudAllHidden());
+    QVERIFY(freshSettings().pluginHudAllHidden());
+    QTest::keyClick(h_.window, Qt::Key_F4);
+    QTRY_VERIFY(!pc()->hudAllHidden());
+    pc()->resetHotkey(QStringLiteral("net.test.b"), QStringLiteral("peek"));
+    QVERIFY(freshSettings().pluginHotkeyOverrides().isEmpty());
+    pc()->setPreviewUi({});
+  }
+
+  void hiddenHudWidgetsCanBeShownAgain() {
+    pc()->setHudAllHidden(false);
+    pc()->setPreviewUi(hotkeyUi());
+    QTRY_VERIFY(h_.item("hudWidget_net.test.a") != nullptr && h_.item("hudWidget_net.test.a")->isVisible());
+    QVERIFY(!h_.item("hudRestoreButton")->isVisible());
+
+    // One widget hidden: the pill offers "Show <plugin> widget".
+    pc()->hideHud(QStringLiteral("net.test.a"));
+    QTRY_VERIFY(h_.item("hudRestoreButton")->isVisible());
+    QCOMPARE(textOf(h_.item("hudRestoreButton")), QStringLiteral("1 widget(s) hidden ▾"));
+    QVERIFY(h_.click("hudRestoreButton"));
+    QTRY_VERIFY(h_.item("pluginMenu")->isVisible());
+    QCOMPARE(textOf(h_.item("pluginMenuItem_show:net.test.a")), QStringLiteral("Show SoulLink widget"));
+    QVERIFY(h_.item("pluginMenuItem_hideAll") != nullptr);
+    QCOMPARE(pc()->activeHotkeyKey(QStringLiteral("net.test.a"), QStringLiteral("toggle-hud")), QStringLiteral("Ctrl+H"));
+    QCOMPARE(pc()->activeHotkeyKey(QStringLiteral("net.test.b"), QStringLiteral("peek")), QString());
+    QVERIFY(h_.click("pluginMenuItem_show:net.test.a"));
+    QTRY_VERIFY(!pc()->hudWidgets().first().toMap().value("hidden").toBool());
+    QTRY_VERIFY(!h_.item("hudRestoreButton")->isVisible());
+    QTRY_VERIFY(h_.item("hudWidget_net.test.a")->isVisible());
+
+    // Everything hidden (F4 or "Hide all"): the pill stays and offers "Show all HUD widgets".
+    pc()->setHudAllHidden(true);
+    QTRY_VERIFY(h_.item("hudRestoreButton")->isVisible());
+    QCOMPARE(textOf(h_.item("hudRestoreButton")), QStringLiteral("HUD hidden ▾"));
+    QVERIFY(h_.click("hudRestoreButton"));
+    QTRY_VERIFY(h_.item("pluginMenu")->isVisible());
+    QVERIFY(h_.click("pluginMenuItem_showAll"));
+    QTRY_VERIFY(!pc()->hudAllHidden());
+    QTRY_VERIFY(!h_.item("hudRestoreButton")->isVisible());
+
+    pc()->setPreviewUi({});
   }
 
   // "Notice settings…" opens Settings > Plugins; the game goes to the background (as for "Hotkeys…").

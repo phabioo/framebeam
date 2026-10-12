@@ -392,8 +392,12 @@ void GameSession::setPreview(const QString& title, const QImage& frame, const em
   emit frameChanged();
 }
 
-bool GameSession::keyEvent(int qtKey, bool pressed) {
-  if (inputBlocked_ || isReservedKey(qtKey)) {
+int GameSession::comboOf(int qtKey, Qt::KeyboardModifiers mods) {
+  return qtKey | int(mods & (Qt::ControlModifier | Qt::ShiftModifier | Qt::AltModifier | Qt::MetaModifier));
+}
+
+bool GameSession::keyEvent(int qtKey, bool pressed, Qt::KeyboardModifiers mods) {
+  if (inputBlocked_ || isReservedKey(qtKey) || (!reservedCombos_.isEmpty() && reservedCombos_.contains(comboOf(qtKey, mods)))) {
     return false;
   }
   const bool mapped = pressed ? keys_.press(qtKey) : keys_.release(qtKey);
