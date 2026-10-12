@@ -86,3 +86,42 @@ func TestExternalTURNInHelloAckJoinAndICEUpdate(t *testing.T) {
 		t.Fatal("join response holds the shared secret")
 	}
 }
+
+// A list saved in the web interface replaces the flag list for connected Players (ice_update) and new connections
+// (hello_ack) without a restart.
+func TestSavedExternalTURNListAppliesWithoutRestart(t *testing.T) {
+	s := newSessEnv(t, func(o *hub.Options) { o.ICEServers = []string{"stun:stun.example.org:3478"} })
+	a1 := s.device(s.admin.ID, "Desktop")
+	c1 := s.dial(a1)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	s.svc.StartExternalTURN(ctx, []hub.ExternalTURN{{Name: "flag", Mode: hub.ExternalTURNStatic, Username: "flag-user",
+		Password: "flag-pw-0123456789", URLs: []string{"turn:flag.example.org:3478"}}}, hub.ExternalTURNOptions{Refresh: time.Hour})
+
+	if err := s.svc.SaveExternalTURN(ctx, hub.ExternalTURNInput{Name: "web", Mode: hub.ExternalTURNStatic, Username: "web-user",
+		Secret: "web-pw-0123456789", URLs: []string{"turn:web.example.org:3478"}}); err != nil {
+		t.Fatal(err)
+	}
+	// The flag server is now a saved entry without stored secret (still resolved from the flags); delete it.
+	if err := s.svc.DeleteExternalTURN(ctx, "flag"); err != nil {
+		t.Fatal(err)
+	}
+	only := func(ts []turnEntry) bool {
+		return len(ts) == 1 && ts[0].Username == "web-user" && ts[0].Credential == "web-pw-0123456789" && ts[0].Urls[0] == "turn:web.example.org:3478"
+	}
+	c1.awaitWhere("ice_update", func(m wsMsg) bool {
+		var p struct {
+			TurnServers []turnEntry `json:"turn_servers"`
+		}
+		return json.Unmarshal(m.Payload, &p) == nil && only(p.TurnServers)
+	})
+	c2 := s.dialRaw(a1)
+	c2.send("hello", map[string]any{"protocol_version": 1, "device_id": a1.id})
+	var ack struct {
+		TurnServers []turnEntry `json:"turn_servers"`
+	}
+	json.Unmarshal(c2.await("hello_ack").Payload, &ack)
+	if !only(ack.TurnServers) {
+		t.Fatalf("hello_ack: %+v", ack.TurnServers)
+	}
+}

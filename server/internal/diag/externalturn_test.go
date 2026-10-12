@@ -60,3 +60,32 @@ func TestBundleExternalTURNWithoutSecrets(t *testing.T) {
 		t.Errorf("external_turn: %v", ext)
 	}
 }
+
+func TestBundleExternalTURNShowsWebSettingsSourceWithoutSecrets(t *testing.T) {
+	const secret = "saved-secret-0123456789"
+	svc, _ := hubtest.New(t, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	svc.StartExternalTURN(ctx, nil, hub.ExternalTURNOptions{})
+	if err := svc.SaveExternalTURN(ctx, hub.ExternalTURNInput{Name: "web", Mode: "secret", Secret: secret, URLs: []string{"turn:turn.example.org:3478"}}); err != nil {
+		t.Fatal(err)
+	}
+	o := Options{Config: config.Config{DataDir: t.TempDir()}, LogDir: t.TempDir(), NoJournal: true}
+	info, err := Collect(ctx, svc, o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := info.Network.ExternalTURN
+	if e == nil || e.Source != "web" || !e.Active || len(e.Servers) != 1 || !e.Servers[0].SecretSet {
+		t.Fatalf("%+v", e)
+	}
+	var buf bytes.Buffer
+	if err := Write(ctx, &buf, info, o); err != nil {
+		t.Fatal(err)
+	}
+	for name, c := range readZip(t, buf.Bytes()) {
+		if strings.Contains(c, secret) {
+			t.Errorf("%s contains the saved secret", name)
+		}
+	}
+}

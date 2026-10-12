@@ -101,10 +101,8 @@ func parseExternalTURN(raw string, n int) (ExternalTURNSpec, error) {
 		}
 		switch k {
 		case "name":
-			for _, r := range v {
-				if (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') && (r < '0' || r > '9') && r != '-' && r != '_' && r != '.' {
-					return sp, errors.New("name may only contain letters, digits, '-', '_' and '.'")
-				}
+			if err := ValidateExternalTURNName(v); err != nil {
+				return sp, err
 			}
 			sp.Name = v
 		case "mode":
@@ -146,6 +144,22 @@ func parseExternalTURN(raw string, n int) (ExternalTURNSpec, error) {
 	}
 	return sp, nil
 }
+
+// ValidateExternalTURNName checks the label of an external TURN server (flag and web interface).
+func ValidateExternalTURNName(v string) error {
+	if v == "" || len(v) > 64 {
+		return errors.New("name must be 1 to 64 characters")
+	}
+	for _, r := range v {
+		if (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') && (r < '0' || r > '9') && r != '-' && r != '_' && r != '.' {
+			return errors.New("name may only contain letters, digits, '-', '_' and '.'")
+		}
+	}
+	return nil
+}
+
+// ValidateTURNURL checks one external TURN URL (flag and web interface).
+func ValidateTURNURL(u string) error { return checkTURNURL(u) }
 
 // checkTURNURL accepts turn:/turns: host[:port] with an optional ?transport=udp|tcp.
 func checkTURNURL(u string) error {

@@ -64,10 +64,11 @@ var settingsSections = []struct{ ID, Title, Subtitle string }{
 
 // settingsFlash holds the success texts of the settings pages that are not in the shared flash table.
 var settingsFlash = map[string]string{
-	"netsaved":   "Network setting saved.",
-	"netreset":   "Reset to the hub.env value.",
-	"namesaved":  "Hub name saved.",
-	"restarting": "The hub is restarting.",
+	"netsaved":     "Network setting saved.",
+	"extturnsaved": "External TURN servers saved. New joins and connected Players use them now.",
+	"netreset":     "Reset to the hub.env value.",
+	"namesaved":    "Hub name saved.",
+	"restarting":   "The hub is restarting.",
 }
 
 // settingsQuiet lists the success keys of autosaving fields: the saved indicator is enough, no banner.
@@ -120,6 +121,11 @@ type extTURNRow struct {
 	Name, Mode string
 	URLs       string
 	SecretSet  bool
+	// Edit form: the secret is write-only and never part of the row.
+	FormName, ModeKey, URLsText, Username string
+	CSRF, Original                        string // edit form: token and the name being edited (empty: add)
+	Err                                   string
+	Open                                  bool // the edit form is open (after a rejected input)
 }
 
 type turnBody struct {
@@ -160,6 +166,8 @@ type netBody struct {
 	ReachTitle, ReachText                        string
 	TURN                                         turnBody
 	External                                     []extTURNRow
+	ExtAdd                                       extTURNRow // the "add server" form (Name empty)
+	ExtFromWeb, ExtActive                        bool
 	Cloudflare                                   bool
 	Restarting                                   *restartBody
 	CanRestart                                   bool
@@ -465,12 +473,25 @@ func (s *Server) netBody(r *http.Request, sess *session, res settingsRes) (netBo
 			nb.TURN.ResolvedAt = st.ResolvedAt.Local().Format("2006-01-02 15:04")
 		}
 	}
+	nb.ExtFromWeb, nb.ExtActive = s.svc.ExternalTURNSource() == hub.ExternalTURNFromWeb, s.svc.ExternalTURNActive()
+	nb.ExtAdd = extTURNRow{ModeKey: hub.ExternalTURNSecret, CSRF: sess.CSRFToken}
+	extForm := res.FieldKey == "external-turn" && res.Form != nil
+	if extForm && res.Form.Get("original") == "" {
+		nb.ExtAdd = extTURNRow{FormName: res.Form.Get("name"), ModeKey: res.Form.Get("mode"), URLsText: res.Form.Get("urls"),
+			Username: res.Form.Get("username"), Err: res.Msg, CSRF: sess.CSRFToken}
+	}
 	for _, e := range s.svc.ExternalTURNStatus() {
 		mode := "static username and password"
 		if e.Mode == hub.ExternalTURNSecret {
 			mode = "shared secret (time-limited credentials)"
 		}
-		nb.External = append(nb.External, extTURNRow{Name: e.Name, Mode: mode, URLs: strings.Join(e.URLs, ", "), SecretSet: e.SecretSet})
+		row := extTURNRow{Name: e.Name, Mode: mode, URLs: strings.Join(e.URLs, ", "), SecretSet: e.SecretSet,
+			ModeKey: e.Mode, URLsText: strings.Join(e.URLs, "\n"), Username: e.Username, FormName: e.Name, CSRF: sess.CSRFToken, Original: e.Name}
+		if extForm && res.Form.Get("original") == e.Name { // show the rejected input in the edit form
+			row.FormName, row.ModeKey, row.URLsText, row.Username = res.Form.Get("name"), res.Form.Get("mode"), res.Form.Get("urls"), res.Form.Get("username")
+			row.Err, row.Open = res.Msg, true
+		}
+		nb.External = append(nb.External, row)
 	}
 	nb.Cloudflare = s.svc.CloudflareStatus().Configured
 	nb.Restarting = res.Restarting
@@ -793,6 +814,64 @@ func (s *Server) settingsNetSave(w http.ResponseWriter, r *http.Request, sess *s
 		return
 	}
 	s.settingsDone(w, r, sess, "network", settingsRes{OK: "netsaved"}, false)
+}
+
+// splitTURNURLs splits the URL field (one per line; commas and spaces also separate).
+func splitTURNURLs(v string) []string {
+	return strings.FieldsFunc(v, func(r rune) bool { return r == '\n' || r == '\r' || r == ',' || r == ' ' || r == '\t' })
+}
+
+// settingsExternalTURNSave adds or edits one external TURN server. The secret field is write-only: empty keeps the
+// stored value, "clear_secret" removes it. Nothing of it is logged or rendered back.
+func (s *Server) settingsExternalTURNSave(w http.ResponseWriter, r *http.Request, sess *session) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
+	in := hub.ExternalTURNInput{Original: strings.TrimSpace(r.PostFormValue("original")), Name: r.PostFormValue("name"),
+		Mode: r.PostFormValue("mode"), URLs: splitTURNURLs(r.PostFormValue("urls")), Username: r.PostFormValue("username"),
+		Secret: r.PostFormValue("secret"), ClearSecret: r.PostFormValue("clear_secret") == "1"}
+	if err := s.svc.SaveExternalTURN(r.Context(), in); err != nil {
+		var he *hub.Error
+		if errors.As(err, &he) {
+			form := url.Values{}
+			for k, v := range r.PostForm {
+				if k != "secret" { // never hand the secret back to the renderer
+					form[k] = v
+				}
+			}
+			s.settingsDone(w, r, sess, "network", settingsRes{FieldKey: "external-turn", Msg: he.Message + ".", Form: form}, true)
+			return
+		}
+		s.fail(w, r, err)
+		return
+	}
+	s.log.Info("external TURN server saved from Settings", "name", strings.TrimSpace(in.Name), "admin", sess.User.Username)
+	s.settingsDone(w, r, sess, "network", settingsRes{OK: "extturnsaved"}, false)
+}
+
+func (s *Server) settingsExternalTURNDelete(w http.ResponseWriter, r *http.Request, sess *session) {
+	name := r.PostFormValue("name")
+	if err := s.svc.DeleteExternalTURN(r.Context(), name); err != nil {
+		var he *hub.Error
+		if errors.As(err, &he) {
+			s.settingsDone(w, r, sess, "network", settingsRes{Err: he.Message + "."}, true)
+			return
+		}
+		s.fail(w, r, err)
+		return
+	}
+	s.log.Info("external TURN server removed from Settings", "name", name, "admin", sess.User.Username)
+	s.settingsDone(w, r, sess, "network", settingsRes{OK: "extturnsaved"}, false)
+}
+
+// settingsExternalTURNReset drops the saved list: the -turn-external flags/hub.env apply again.
+func (s *Server) settingsExternalTURNReset(w http.ResponseWriter, r *http.Request, sess *session) {
+	if err := s.svc.ResetExternalTURN(r.Context()); err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	s.settingsDone(w, r, sess, "network", settingsRes{OK: "extturnsaved"}, false)
 }
 
 // settingsNetReset deletes the saved value: hub.env/flags apply again.

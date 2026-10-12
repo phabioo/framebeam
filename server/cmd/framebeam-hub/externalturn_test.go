@@ -28,7 +28,7 @@ func TestExternalTURNServersNeverLogSecrets(t *testing.T) {
 	}
 	var buf bytes.Buffer
 	got := externalTURNServers(cfg, specs, slog.New(slog.NewTextHandler(&buf, nil)))
-	if len(got) != 2 || got[0].Mode != hub.ExternalTURNSecret || got[0].Secret != "env-secret-0123456789" ||
+	if len(got) != 3 || got[2].Name != "broken" || got[2].Secret != "" || got[2].Password != "" || got[0].Mode != hub.ExternalTURNSecret || got[0].Secret != "env-secret-0123456789" ||
 		got[1].Mode != hub.ExternalTURNStatic || got[1].Username != "turn-user-0123" || got[1].Password != "file-password-0123456789" {
 		t.Fatalf("%+v", got)
 	}

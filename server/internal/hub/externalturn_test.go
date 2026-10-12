@@ -66,3 +66,99 @@ func TestExternalTURNStopsWithContext(t *testing.T) {
 	cancel()
 	waitFor(t, "stopped", func() bool { return !svc.RelayEnabled() })
 }
+
+func startExt(t *testing.T, flags []hub.ExternalTURN) (*hub.Service, context.Context) {
+	t.Helper()
+	svc, _ := hubtest.New(t, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	svc.StartExternalTURN(ctx, flags, hub.ExternalTURNOptions{Refresh: time.Hour})
+	return svc, ctx
+}
+
+func TestSavedExternalTURNOverridesFlagsAndKeepsFlagSecrets(t *testing.T) {
+	flag := hub.ExternalTURN{Name: "vps", Mode: hub.ExternalTURNSecret, Secret: extSecret, URLs: []string{"turn:turn.example.org:3478"}}
+	svc, ctx := startExt(t, []hub.ExternalTURN{flag})
+	if svc.ExternalTURNSource() != hub.ExternalTURNFromFlags || len(svc.ExternalCredentialsForTest("d")) != 1 {
+		t.Fatal("flags must apply while nothing is saved")
+	}
+	// First edit seeds the saved list from the flags; the env/file secret keeps working for the entry.
+	if err := svc.SaveExternalTURN(ctx, hub.ExternalTURNInput{Original: "vps", Name: "vps-renamed", Mode: "secret",
+		URLs: []string{"turns:turn.example.org:5349?transport=tcp"}}); err != nil {
+		t.Fatal(err)
+	}
+	if svc.ExternalTURNSource() != hub.ExternalTURNFromWeb {
+		t.Fatal("saved list must win")
+	}
+	got := svc.ExternalCredentialsForTest("dev-1")
+	if len(got) != 1 || got[0].URLs[0] != "turns:turn.example.org:5349?transport=tcp" || got[0].Credential != "RyUulBRhnlPj0a8byYb0cMeD0ho=" {
+		t.Fatalf("flag secret lost after edit: %+v", got)
+	}
+	// Add: needs a secret; edit with empty secret keeps the stored one; clear removes it and stops using the server.
+	if err := svc.SaveExternalTURN(ctx, hub.ExternalTURNInput{Name: "prov", Mode: "static", Username: "u", URLs: []string{"turn:p.example.org"}}); err == nil {
+		t.Fatal("add without password accepted")
+	}
+	if err := svc.SaveExternalTURN(ctx, hub.ExternalTURNInput{Name: "prov", Mode: "static", Username: "u", Secret: "pw-1", URLs: []string{"turn:p.example.org"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.SaveExternalTURN(ctx, hub.ExternalTURNInput{Original: "prov", Name: "prov", Mode: "static", Username: "u2", URLs: []string{"turn:p.example.org"}}); err != nil {
+		t.Fatal(err)
+	}
+	if c := svc.ExternalCredentialsForTest("d"); len(c) != 2 || c[1].Username != "u2" || c[1].Credential != "pw-1" {
+		t.Fatalf("%+v", c)
+	}
+	if err := svc.SaveExternalTURN(ctx, hub.ExternalTURNInput{Original: "prov", Name: "prov", Mode: "static", Username: "u2", URLs: []string{"turn:p.example.org"}, ClearSecret: true}); err != nil {
+		t.Fatal(err)
+	}
+	if c := svc.ExternalCredentialsForTest("d"); len(c) != 1 {
+		t.Fatalf("server without secret must not be used: %+v", c)
+	}
+	if st := svc.ExternalTURNStatus(); len(st) != 2 || st[1].SecretSet {
+		t.Fatalf("%+v", st)
+	}
+	// Reset: flags apply again.
+	if err := svc.ResetExternalTURN(ctx); err != nil || svc.ExternalTURNSource() != hub.ExternalTURNFromFlags || len(svc.ExternalTURNStatus()) != 1 {
+		t.Fatalf("reset: %v", err)
+	}
+}
+
+func TestSaveExternalTURNValidation(t *testing.T) {
+	svc, ctx := startExt(t, nil)
+	ok := hub.ExternalTURNInput{Name: "a", Mode: "secret", Secret: "s", URLs: []string{"turn:turn.example.org:3478"}}
+	if err := svc.SaveExternalTURN(ctx, ok); err != nil {
+		t.Fatal(err)
+	}
+	bad := map[string]func(*hub.ExternalTURNInput){
+		"url scheme":  func(i *hub.ExternalTURNInput) { i.URLs = []string{"http://turn.example.org"} },
+		"url query":   func(i *hub.ExternalTURNInput) { i.URLs = []string{"turn:turn.example.org?transport=sctp"} },
+		"no urls":     func(i *hub.ExternalTURNInput) { i.URLs = nil },
+		"name":        func(i *hub.ExternalTURNInput) { i.Name = "a b" },
+		"duplicate":   func(i *hub.ExternalTURNInput) { i.Name = "a" },
+		"mode":        func(i *hub.ExternalTURNInput) { i.Mode = "oauth" },
+		"static user": func(i *hub.ExternalTURNInput) { i.Name, i.Mode = "b", "static" },
+		"newline":     func(i *hub.ExternalTURNInput) { i.Name, i.Secret = "b", "x\ny" },
+	}
+	for what, mod := range bad {
+		in := ok
+		mod(&in)
+		if err := svc.SaveExternalTURN(ctx, in); err == nil {
+			t.Errorf("%s accepted", what)
+		}
+	}
+	if len(svc.ExternalTURNStatus()) != 1 {
+		t.Fatalf("%+v", svc.ExternalTURNStatus())
+	}
+}
+
+func TestSavedExternalTURNOffWhileDisabled(t *testing.T) {
+	svc, _ := hubtest.New(t, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	svc.StartExternalTURN(ctx, nil, hub.ExternalTURNOptions{Disabled: true})
+	if err := svc.SaveExternalTURN(ctx, hub.ExternalTURNInput{Name: "a", Mode: "secret", Secret: "s", URLs: []string{"turn:turn.example.org"}}); err != nil {
+		t.Fatal(err)
+	}
+	if svc.RelayEnabled() || svc.ExternalTURNActive() || len(svc.ExternalTURNStatus()) != 1 {
+		t.Fatal("configured but must not be handed out while disabled")
+	}
+}
