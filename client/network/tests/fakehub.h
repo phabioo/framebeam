@@ -4,6 +4,7 @@
 // Test code only; tokens/credentials are dummy values.
 
 #include <QByteArray>
+#include <QElapsedTimer>
 #include <QHash>
 #include <QJsonArray>
 #include <QJsonObject>
@@ -50,6 +51,7 @@ struct FakeRequest {
   QString path;
   QHash<QString, QByteArray> headers;  // names lowercase
   QByteArray body;
+  qint64 arrivalMs = 0;  // monotonic ms (QElapsedTimer clock) when the request was complete
 };
 
 class FakeHub : public QTcpServer {

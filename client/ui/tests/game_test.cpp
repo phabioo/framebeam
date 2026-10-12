@@ -92,7 +92,8 @@ class GameTest : public QObject {
     Harness h;
     QVERIFY(h.start(/*probeCores=*/true));
     // Core version for the handshake came from the core info (or: only core_id, empty version).
-    QCOMPARE(h.controller->handshakeCores().size(), 1);
+    // The probe runs on a worker thread (CoreCatalog::probeCores): wait for it, it can finish after the window is exposed.
+    QTRY_COMPARE_WITH_TIMEOUT(h.controller->handshakeCores().size(), 1, 15000);
     QCOMPARE(h.controller->handshakeCores().at(0).id, QStringLiteral("melondsds"));
     QVERIFY2(!h.controller->handshakeCores().at(0).version.isEmpty(), "Core version not determined");
 

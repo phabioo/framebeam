@@ -546,19 +546,25 @@ class SaveSyncTest : public QObject {
     QTest::qWait(20);
     QCOMPARE(puts(), 0);  // debounce not over yet
     QTRY_COMPARE_WITH_TIMEOUT(puts(), 1, 3000);
-    QElapsedTimer sinceFirstUpload;  // started after the upload happened: real elapsed >= measured
-    sinceFirstUpload.start();
     QCOMPARE(lastPutReason(), QByteArray("checkpoint"));
     QCOMPARE(hub_->saves.value(kGame).content, QByteArray("play-1"));
-    // Next change: only after the minimum interval (500 ms since the last upload)
+    // Next change: only after the minimum interval (500 ms since the last upload). Measured on
+    // the Hub's clock (request arrival times), not on the test's polling clock, so a slow
+    // runner cannot make the check racy.
     writeFile(saveFile(), "play-22");
-    QTest::qWait(250);
-    // On a slow runner the interval may already have passed; the second upload is then
-    // legitimate, so assert "still 1" only while safely below the 500 ms interval.
-    if (sinceFirstUpload.elapsed() < 400) {
-      QCOMPARE(puts(), 1);
-    }
     QTRY_COMPARE_WITH_TIMEOUT(puts(), 2, 3000);
+    QList<qint64> putArrivals;
+    for (const FakeRequest& r : hub_->requests) {
+      if (r.method == "PUT") {
+        putArrivals.append(r.arrivalMs);
+      }
+    }
+    QCOMPARE(putArrivals.size(), 2);
+    // 500 ms minimum interval; the first request may arrive slightly after SaveSync took its
+    // timestamp, so allow 50 ms of slack.
+    QVERIFY2(putArrivals.at(1) - putArrivals.at(0) >= 450,
+             qPrintable(QStringLiteral("gap between uploads was %1 ms").arg(putArrivals.at(1) - putArrivals.at(0))));
+    QCOMPARE(hub_->saves.value(kGame).content, QByteArray("play-22"));
     // Same content again (new mtime, same hash): no upload
     writeFile(saveFile(), "play-22");
     QTest::qWait(900);

@@ -1,6 +1,6 @@
 # Roadmap after the PoC
 
-The PoC (phases 0-5) is complete. From here on, work is planned as versions 0.1.1 to 0.15 and then 1.0, each cut into one work package per thread/PR (see `docs/workflow.md`). The order was decided by Fabio on 2026-10-06; on 2026-10-07 he moved Sessions over the internet ahead of the UI passes (renumbered 0.4 to 0.6). On 2026-10-07 Fabio also moved OpenGL hardware rendering for the Player (all emulators/cores, not only 3DS) ahead of the UI passes as the new 0.5; the UI passes, 3DS and everything after shifted by one. ADRs written before 2026-10-07 use the old numbering: old 0.5/0.6/0.7/0.8/0.9/0.10 = new 0.6/0.7/0.8/0.9/0.10/0.11. On 2026-10-09 Fabio reordered the planned milestones again: cores come from the libretro buildbot first ([ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md), new 0.8) and one installer for Player, Hub or both follows (new 0.9, which absorbs the Hub-for-Windows milestone). Old (2026-10-07) 0.8 3DS / 0.9 Metadata and artwork / 0.10 Hub for Windows / 0.11 Linux and macOS Player = new 0.10 / 0.11 / 0.9 / 0.12. On 2026-10-11 Fabio added plugins as 0.11; Metadata and Linux/macOS moved to 0.12/0.13. ADRs and docs written before 2026-10-09 may still use the older numbers for these milestones (the "new" numbers above are those of 2026-10-09). On 2026-10-11 Fabio renumbered again and fixed a goal for 1.0 (see "Goal 1.0"): 0.10.x (connections, small items) comes before new testers; 0.11 is the plugin runtime only, 0.12 Local ROMs, 0.13 GPU paths, 0.14 system template with GB/GBC/GBA, 0.15 UI gaps and Multiview, then the 1.0 test phase. Metadata and artwork and the Linux Player come after 1.0; macOS is dropped (Windows and Linux only). The sentence before about Metadata and Linux/macOS as 0.12/0.13 is therefore obsolete. Items marked open are not decided yet; decisions are recorded as ADRs in `docs/adr/`.
+The PoC (phases 0-5) is complete. From here on, work is planned as versions 0.1.1 to 0.15 and then 1.0, each cut into one work package per thread/PR (see `docs/workflow.md`). The order was decided by Fabio on 2026-10-06; on 2026-10-07 he moved Sessions over the internet ahead of the UI passes (renumbered 0.4 to 0.6). On 2026-10-07 Fabio also moved OpenGL hardware rendering for the Player (all emulators/cores, not only 3DS) ahead of the UI passes as the new 0.5; the UI passes, 3DS and everything after shifted by one. ADRs written before 2026-10-07 use the old numbering: old 0.5/0.6/0.7/0.8/0.9/0.10 = new 0.6/0.7/0.8/0.9/0.10/0.11. On 2026-10-09 Fabio reordered the planned milestones again: cores come from the libretro buildbot first ([ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md), new 0.8) and one installer for Player, Hub or both follows (new 0.9, which absorbs the Hub-for-Windows milestone). Old (2026-10-07) 0.8 3DS / 0.9 Metadata and artwork / 0.10 Hub for Windows / 0.11 Linux and macOS Player = new 0.10 / 0.11 / 0.9 / 0.12. On 2026-10-11 Fabio added plugins as 0.11; Metadata and Linux/macOS moved to 0.12/0.13. ADRs and docs written before 2026-10-09 may still use the older numbers for these milestones (the "new" numbers above are those of 2026-10-09). On 2026-10-11 Fabio renumbered again and fixed a goal for 1.0 (see "Goal 1.0"): 0.10.x (connections, small items) comes before new testers; 0.11 is the plugin runtime only, 0.12 Local ROMs, 0.13 GPU paths, 0.14 system template with GB/GBC/GBA, 0.15 UI gaps and Multiview, then the 1.0 test phase. Metadata and artwork and the Linux Player come after 1.0; macOS is dropped (Windows and Linux only). The sentence before about Metadata and Linux/macOS as 0.12/0.13 is therefore obsolete. On 2026-10-12 Fabio reordered 0.13 to 0.15: 0.13 system template with GB/GBC/GBA, 0.14 UI gaps and Multiview, 0.15 GPU paths (2026-10-11 numbers 0.13/0.14/0.15 = now 0.15/0.13/0.14); 0.12 Local ROMs stays. Items marked open are not decided yet; decisions are recorded as ADRs in `docs/adr/`.
 
 ## Goal 1.0
 
@@ -45,9 +45,9 @@ Phase plan: [workflow.md](workflow.md#phase-plan).
 | 0.10.x | done in code | Connections and small items | Before new testers: direct WebRTC connections instead of TURN relay (STUN default, ICE logging, diagnostics, Cloudflare TURN, external TURN servers), then small items (gamepad hotkeys, repo-scan leftovers, save slot actions, logs bundle, background core updates, Inno shell removed). Open: relayed direction on a mobile hotspot, Library loading speed with many games. |
 | 0.11 | in progress | Plugin runtime | Packages 1 to 3: Player runtime (done in code), UI building blocks and slots (done in code), Hub plugins and runs with `.fbplugin`, signing and plugin index (done in code, including Player runs) ([ADR 0023](adr/0023-plugins.md), proposed; [design](architecture/12-plugins.md)). The plugins themselves live in their own repositories. |
 | 0.12 | planned | Local ROMs | Play ROMs the user has locally, with an optional resumable upload to the Hub; no P2P transfer. |
-| 0.13 | planned | GPU paths | OpenGL to D3D11 bridge, zero-copy display, GPU-direct QSV and AMF. |
-| 0.14 | planned | System template, GB/GBC/GBA | Clean manifests and templates so a new system needs minimal work; GB, GBC and GBA (mGBA) as the proof. |
-| 0.15 | planned | UI gaps and Multiview | Remaining Hub web and Player design gaps; Multiview shows three Sessions side by side, a 2x2 grid only from the fourth. |
+| 0.13 | planned | System template, GB/GBC/GBA | Clean manifests and templates so a new system needs minimal work; GB, GBC and GBA (mGBA) as the proof. |
+| 0.14 | planned | UI gaps and Multiview | Remaining Hub web and Player design gaps; Multiview shows three Sessions side by side, a 2x2 grid only from the fourth. |
+| 0.15 | planned | GPU paths | OpenGL to D3D11 bridge, zero-copy display, GPU-direct QSV and AMF. |
 | 1.0 | planned | Test phase | Test evening(s) with friends (date open), then the SoulLink run in Pokémon Omega Ruby/Alpha Sapphire. |
 | after 1.0 | planned | Metadata and artwork, Linux Player | Central game metadata and boxart; FrameBeam Player on Linux. No macOS. |
 
@@ -166,8 +166,8 @@ See [ADR 0018](adr/0018-player-speed-up.md) (accepted).
 
 Follow-up to ADR 0013 D3 (requested 2026-10-08 after speed-up stutter at 8× internal resolution).
 
-- Open (0.13): show hardware-rendered frames in the game view straight from the GPU (shared texture or interop with the Qt Quick scene graph, D3D11 on Windows), without the CPU readback and QImage upload; readback only while the Session is shared.
-- Open (0.13): an OpenGL to D3D11 bridge (WGL_NV_DX_interop2) for the core's texture, shared with the QSV and AMF paths of "GPU-direct hardware encoding"; today's readback stays the fallback.
+- Open (0.15): show hardware-rendered frames in the game view straight from the GPU (shared texture or interop with the Qt Quick scene graph, D3D11 on Windows), without the CPU readback and QImage upload; readback only while the Session is shared.
+- Open (0.15): an OpenGL to D3D11 bridge (WGL_NV_DX_interop2) for the core's texture, shared with the QSV and AMF paths of "GPU-direct hardware encoding"; today's readback stays the fallback.
 - Picture quality is unchanged (the frame is still downscaled to the window); the gain is CPU time and about one frame of latency.
 
 ## 0.7.x GPU-direct hardware encoding (NVENC first)
@@ -175,7 +175,7 @@ Follow-up to ADR 0013 D3 (requested 2026-10-08 after speed-up stutter at 8× int
 Requested 2026-10-09. Today a shared Session reads the frame back, converts it to YUV on the CPU and uploads it again to NVENC/QSV/AMF.
 
 - [x] Done: NVIDIA first ([ADR 0019](adr/0019-gpu-direct-nvenc.md)): the core's OpenGL texture goes to NVENC through CUDA-GL interop and FFmpeg CUDA hardware frames (NVENC takes RGB and converts on the GPU); no readback or CPU conversion while sharing. Verified by Fabio on 2026-10-11 on an RTX 4080 SUPER (driver 617.42): expected log order, correct picture, all lifecycle cases including two viewers; encode about 1.8 ms per frame at 1280x1920 against 3.6 ms per frame for readback at 1024x1536. Every failure still falls back to readback frames.
-- Open (0.13): QSV and AMF via the OpenGL to D3D11 bridge from "Direct GPU display". Testers have unknown GPUs; Intel QSV via readback measured about 5-6 ms per frame on a tester's notebook (2026-10-11).
+- Open (0.15): QSV and AMF via the OpenGL to D3D11 bridge from "Direct GPU display". Testers have unknown GPUs; Intel QSV via readback measured about 5-6 ms per frame on a tester's notebook (2026-10-11).
 - Software encoders, cores without hardware rendering and failed interop keep today's readback path. Verifiable only on real GPUs (CI has none).
 
 ## 0.7.x Hotkeys and controller profiles
@@ -340,29 +340,29 @@ Decided by Fabio on 2026-10-11: before 1.0.
 - No P2P ROM transfer between Players.
 - Open: details (UI, library marker, interaction with the standalone mode of 0.9) are not designed yet.
 
-## 0.13 GPU paths
+## 0.13 System template and GB/GBC/GBA
 
-Decided by Fabio on 2026-10-11. Testers have unknown GPUs; Intel QSV via readback measured about 5-6 ms per frame on a tester's notebook.
+Decided by Fabio on 2026-10-11 (moved from 0.14 to 0.13 on 2026-10-12): part of the 1.0 goal ("a new system costs minimal effort").
+
+- Open: clean manifests and templates (Hub system registry, Player system manifest and core profile, input profile, guide) so adding a system is mostly data.
+- Open: GB, GBC and GBA with mGBA as the proof of the template (moved out of "Later"). They are also needed for the Pokémon Gen 1-3 plugins.
+
+## 0.14 UI gaps and Multiview
+
+Decided by Fabio on 2026-10-11; moved from 0.15 to 0.14 on 2026-10-12.
+
+- Open: remaining Hub web and Player design gaps (see the open items of 0.7 and [design/decisions.md](design/decisions.md)).
+- Open (Fabio, 2026-10-12): review and clean up the Hub web and Player UI as a whole: some screens look off and UI elements overlap.
+- Open: Multiview shows three Sessions side by side; the 2x2 grid only from the fourth Session.
+
+## 0.15 GPU paths
+
+Decided by Fabio on 2026-10-11; moved from 0.13 to 0.15 on 2026-10-12. Testers have unknown GPUs; Intel QSV via readback measured about 5-6 ms per frame on a tester's notebook.
 
 - Open: OpenGL to D3D11 bridge (WGL_NV_DX_interop2).
 - Open: zero-copy display, see "0.7.x Direct GPU display (zero-copy)".
 - Open: GPU-direct QSV and AMF, see "0.7.x GPU-direct hardware encoding (NVENC first)". The readback path stays the fallback.
 - Verifiable only on real GPUs (CI has none).
-
-## 0.14 System template and GB/GBC/GBA
-
-Decided by Fabio on 2026-10-11: part of the 1.0 goal ("a new system costs minimal effort").
-
-- Open: clean manifests and templates (Hub system registry, Player system manifest and core profile, input profile, guide) so adding a system is mostly data.
-- Open: GB, GBC and GBA with mGBA as the proof of the template (moved out of "Later"). They are also needed for the Pokémon Gen 1-3 plugins.
-
-## 0.15 UI gaps and Multiview
-
-Decided by Fabio on 2026-10-11.
-
-- Open: remaining Hub web and Player design gaps (see the open items of 0.7 and [design/decisions.md](design/decisions.md)).
-- Open (Fabio, 2026-10-12): review and clean up the Hub web and Player UI as a whole: some screens look off and UI elements overlap.
-- Open: Multiview shows three Sessions side by side; the 2x2 grid only from the fourth Session.
 
 ## 1.0 Test phase
 
@@ -387,8 +387,8 @@ Decided by Fabio on 2026-10-11.
 
 - Save States, remote control/input for viewers, netplay, emulation settings sync, StandaloneBackend.
 - Further library features: paging (row actions delete and rename are done in 0.10.x).
-- Remaining Nintendo systems from NES to GameCube/Wii (Fabio, 2026-10-07), as plain buildbot cores after 0.10, rendered with OpenGL first: NES, SNES, N64, Virtual Boy (GB, GBC and GBA are scheduled in 0.14) and GameCube/Wii (Dolphin; the libretro port lags upstream). N64 and GameCube/Wii build on the hardware rendering from 0.5.
-- Plugin follow-ups (Fabio, 2026-10-11; plugin-specific plans live in the plugin repositories): more Pokémon generations for the official plugins, in the order Gen 7 (Sun/Moon, Ultra Sun/Ultra Moon), Gen 4/5 (NDS), Gen 3 and Gen 1/2 (the last two need the GB, GBC and GBA systems with mGBA from 0.14); a Pokémon editor plugin and a cheats plugin (both need `memory.write`, which the API describes but the first release does not build); a randomizer plugin (tool plugin, signed official only, deferred, not dropped; until then randomized ROMs are made externally). Gen 8 (Switch) is out of scope: no libretro core.
+- Remaining Nintendo systems from NES to GameCube/Wii (Fabio, 2026-10-07), as plain buildbot cores after 0.10, rendered with OpenGL first: NES, SNES, N64, Virtual Boy (GB, GBC and GBA are scheduled in 0.13) and GameCube/Wii (Dolphin; the libretro port lags upstream). N64 and GameCube/Wii build on the hardware rendering from 0.5.
+- Plugin follow-ups (Fabio, 2026-10-11; plugin-specific plans live in the plugin repositories): more Pokémon generations for the official plugins, in the order Gen 7 (Sun/Moon, Ultra Sun/Ultra Moon), Gen 4/5 (NDS), Gen 3 and Gen 1/2 (the last two need the GB, GBC and GBA systems with mGBA from 0.13); a Pokémon editor plugin and a cheats plugin (both need `memory.write`, which the API describes but the first release does not build); a randomizer plugin (tool plugin, signed official only, deferred, not dropped; until then randomized ROMs are made externally). Gen 8 (Switch) is out of scope: no libretro core.
 - Afterwards Vulkan hardware rendering next to OpenGL (Fabio, 2026-10-07), so cores that offer both can be switched per core option in the Emulation settings.
 - Wii U deferred (Fabio, 2026-10-07): Cemu has no libretro core and would need the StandaloneBackend.
 - To evaluate (Fabio, 2026-10-07): Cloudflare Tunnel in front of a self-hosted Hub, so no router port forwards are needed. The Hub itself stays self-hosted; running it on Workers/Pages would be a rewrite and is not planned.
@@ -407,5 +407,5 @@ Hosted emulation, friends list, public Session links, guest access, email/passwo
 - **Update channels:** decided on 2026-10-06: the pre-release channel (renamed from test to beta on 2026-10-07) updates automatically, the stable channel only after confirmation. Details and rollback proposal: [ADR 0011](adr/0011-automatic-updates.md). Numbering, "Promote to release" and the default channel changed on 2026-10-08: [ADR 0016](adr/0016-release-numbering-and-promotion.md).
 - **0.2:** decided in ADR 0010 (source, index, signing tooling, offline import, license file per package, cached cores stay usable without a Hub connection to GitHub). The FrameBeam release key exists since 2026-10-07.
 - **Core sourcing:** decided on 2026-10-09: libretro buildbot cores downloaded by the Hub, no FrameBeam mirror ([ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md), see 0.8). The 2026-10-07 mirror plan is dropped.
-- **1.0 goal, platforms and order:** decided by Fabio on 2026-10-11 (see "Goal 1.0"): SoulLink run in Pokémon Omega Ruby/Alpha Sapphire; Windows and Linux only, macOS dropped; Linux Player and metadata after 1.0; milestone order 0.10.x, 0.11 to 0.15, 1.0.
+- **1.0 goal, platforms and order:** decided by Fabio on 2026-10-11 (see "Goal 1.0"): SoulLink run in Pokémon Omega Ruby/Alpha Sapphire; Windows and Linux only, macOS dropped; Linux Player and metadata after 1.0; milestone order 0.10.x, 0.11 to 0.15, 1.0; on 2026-10-12 Fabio reordered 0.13 to 0.15 (system template, UI gaps and Multiview, GPU paths).
 - **Test evening:** date open.
