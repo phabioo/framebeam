@@ -123,6 +123,13 @@ class UiTest : public QObject {
     QCOMPARE(u.hotkeys[0].key, QStringLiteral("Ctrl+H"));
     QCOMPARE(u.addsText(), QStringLiteral("Adds: panel tab · HUD · tile strip · Runs screen · game detail · 1 hotkey"));
     QVERIFY(u.declaresSlot("panel") && u.declaresSlot("tile:t1") && !u.declaresSlot("tile:bad id") && !u.declaresSlot("other"));
+    // ui.run: the plugin's content in the run detail view
+    const ManifestResult rv = parseManifest(manifestJson(QJsonObject{{"run", QJsonObject{{"title", "Run board"}}}, {"detail", true}}));
+    QVERIFY2(rv.ok, qPrintable(rv.error));
+    QVERIFY(rv.manifest.ui.run && rv.manifest.ui.any() && rv.manifest.ui.declaresSlot("run"));
+    QCOMPARE(rv.manifest.ui.runTitle, QStringLiteral("Run board"));
+    QCOMPARE(rv.manifest.ui.addsText(), QStringLiteral("Adds: game detail · run view"));
+    QVERIFY(!u.declaresSlot("run"));
     const ManifestResult none = parseManifest(manifestJson(QJsonValue(QJsonValue::Undefined)));
     QVERIFY(none.ok);
     QVERIFY(!none.manifest.ui.any());
@@ -140,6 +147,10 @@ class UiTest : public QObject {
     QVERIFY(err(QJsonObject{{"panel", true}}).contains("ui.panel must be an object"));
     QVERIFY(err(QJsonObject{{"panel", QJsonObject{}}}).contains("ui.panel.title is required"));
     QVERIFY(err(QJsonObject{{"screen", QJsonObject{{"title", QString(41, 'x')}}}}).contains("ui.screen.title must be 1 to 40 characters"));
+    QVERIFY(err(QJsonObject{{"run", true}}).contains("ui.run must be an object"));
+    QVERIFY(err(QJsonObject{{"run", QJsonObject{}}}).contains("ui.run.title is required"));
+    QVERIFY(err(QJsonObject{{"run", QJsonObject{{"title", QString(41, 'x')}}}}).contains("ui.run.title must be 1 to 40 characters"));
+    QVERIFY(err(QJsonObject{{"run", QJsonObject{{"title", "x"}, {"icon", "y"}}}}).contains("ui.run: unknown key 'icon'"));
     QVERIFY(err(QJsonObject{{"hud", "yes"}}).contains("ui.hud must be true or false"));
     QVERIFY(err(QJsonValue(5)).contains("'ui' must be an object"));
     auto hot = [](const QJsonObject& h) { return QJsonObject{{"hotkeys", QJsonArray{h}}}; };

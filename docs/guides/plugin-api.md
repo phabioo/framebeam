@@ -20,6 +20,11 @@ A plugin is a folder with a `manifest.json`, a Lua entry file and optional `i18n
   "permissions": ["memory.read", "rom.read"],
   "entry": "main.lua",
   "assets": ["icons/"],
+  "run_settings": [
+    { "key": "mode", "type": "enum", "label": "rs.mode", "default": "soullink",
+      "options": [ { "value": "nuzlocke", "label": "rs.mode.nuzlocke" }, { "value": "soullink", "label": "rs.mode.soullink" } ] },
+    { "key": "rules.dupes_clause", "type": "boolean", "label": "rs.dupes", "hint": "rs.dupes.hint", "default": true }
+  ],
   "settings": {}
 }
 ```
@@ -36,6 +41,7 @@ A plugin is a folder with a `manifest.json`, a Lua entry file and optional `i18n
 | `permissions` | `memory.read`, `rom.read`, `ui`, `run.state`. `memory.write` and `tool.exec` are rejected ("permission `<p>` is not available yet"), unknown names are errors. |
 | `entry` | Relative path of the `.lua` entry file inside the plugin folder (no `..`, must exist). |
 | `assets` | Relative paths of bundled files or folders. |
+| `run_settings` | Optional run rules form, see [Run settings](#run-settings). |
 | `settings` | Kept as raw JSON; the schema is not defined yet. |
 
 ## Permissions
@@ -206,6 +212,7 @@ Needs the permission `ui` and the matching manifest field `ui`. A plugin ships n
   "tile":   true,
   "screen": { "title": "Runs" },
   "detail": true,
+  "run":    { "title": "Rules" },
   "hotkeys": [ { "id": "toggle-hud", "label": "Show or hide HUD widget", "key": "Ctrl+H" } ]
 }
 ```
@@ -217,23 +224,25 @@ Needs the permission `ui` and the matching manifest field `ui`. A plugin ships n
 | `tile` | `tile:<tileId>` | Strip on a friend's Multiview tile |
 | `screen` | `screen` | Own sidebar screen under Library |
 | `detail` | `detail` | Section in the game detail (Library), below SAVE |
+| `run` | `run` | Section in the run detail (Runs screen), between participants and event log; one header per plugin. Runs in the run view, see below |
 | `hotkeys` | - | Entries in Controllers → Hotkeys, see [Hotkeys](#hotkeys) |
 
 - `title`: 1 to 40 characters. `hotkeys`: at most 16; `id` is `[a-z0-9-]{1,32}` and unique, `label` 1 to 60 characters, `key` is an optional portable key sequence (`QKeySequence` text, one combo). The key is a suggestion; the user can change it.
 - Unknown keys are errors. Declaring `ui` without the permission `ui` is a manifest error: "field `ui` needs permission `ui`".
-- Settings → Plugins shows what a plugin adds, for example "Adds: panel tab · HUD · tile strip · Runs screen · game detail · 1 hotkey".
+- Settings → Plugins shows what a plugin adds, for example "Adds: panel tab · HUD · tile strip · Runs screen · game detail · run view · 1 hotkey".
 
 #### When plugins run
 
 - In a game: as before, the plugins for the game start with it.
 - **Shell context:** while no game runs, every enabled plugin that declares `ui.screen` or `ui.detail` runs with an empty game: `fb.game` has no `language` and its other fields are empty, memory reads return `nil`, `fb.rom.*` returns `nil`. Plugins it requires run too. Starting a game stops the shell set and starts the game set; ending the game restarts the shell set. Turning a plugin or Developer mode on or off re-evaluates the shell set.
+- **Run view:** while a run is open in the detail of the Runs screen, the user is its creator or has joined, and no game runs, the run's plugins that declare `ui.run` (plus the plugins they require) run in the shell context as the exact Hub copies pinned by the run; missing copies are fetched like for "Play run". They get a read-only `fb.run` for that run (see [Run state](#run-state)). A plugin that is in both the shell set and the run view set runs once, as the run view instance. Opening or closing the run view restarts the shell plugins; while it is open, the other shell plugins with `run.state` also see that read-only `fb.run`. Starting a game stops the run view set; it comes back when the game ends and the detail is still open.
 - A paused plugin keeps its last trees, shown dimmed.
 
 #### `fb.ui`
 
 All functions raise `permission ui not granted` without the permission. A slot must be declared in the manifest, otherwise `slot <s> not declared in manifest`.
 
-- `fb.ui.set(slot, tree)` replaces the tree of a slot. `slot` is `"panel"`, `"hud"`, `"screen"`, `"detail"` or `"tile:<tileId>"` (`<tileId>` as `[A-Za-z0-9_.-]{1,64}`, needs `ui.tile`). `tree` is one block. An invalid tree raises a Lua error with a path, for example `ui tree: children[2].type: unknown block "foo"`.
+- `fb.ui.set(slot, tree)` replaces the tree of a slot. `slot` is `"panel"`, `"hud"`, `"screen"`, `"detail"`, `"run"` or `"tile:<tileId>"` (`<tileId>` as `[A-Za-z0-9_.-]{1,64}`, needs `ui.tile`). `tree` is one block. An invalid tree raises a Lua error with a path, for example `ui tree: children[2].type: unknown block "foo"`.
 - `fb.ui.patch(slot, id, props)` merges `props` into the block with that `id` in the current tree, so you send only changed values. Errors: no tree in the slot yet, unknown `id`, `type`/`id`/`children` in `props`, invalid props. A prop cannot be removed with patch (a `nil` value does not exist in a Lua table); set it to an empty or neutral value or use `set`.
 - `fb.ui.clear(slot)` removes the tree.
 - `fb.ui.title(slot, text)` overrides the declared title (slots `panel` and `screen` only; 1 to 40 characters; `nil` restores the declared title).
@@ -257,7 +266,7 @@ Subscribe with `fb.events.on("fb", name, fn)`; `fn(value, "fb", name)`.
 | Event | Value |
 |---|---|
 | `detail.game` | `{ system, code, sha256, title }` when the game detail shows a game, `nil` for none. The host clears the `detail` slot on every change; the plugin sets a new tree. Posted when the selected game in the Library changes. The game code is known only once the game file is cached, so plugins whose `games` entry has code globs match a game from then on. |
-| `tiles` | Array of `{ id, player, game }` for the visible remote Multiview tiles; `id` is stable for a session and is the `<tileId>` of `tile:<tileId>`. |
+| `tiles` | Array of `{ id, player, user_id, game }` for the visible remote Multiview tiles; `user_id` is the remote player's Hub user id, an empty string when unknown; `id` is stable for a session and is the `<tileId>` of `tile:<tileId>`. |
 | `hud.visible` | `true` or `false` when the user shows or hides this plugin's HUD widget. |
 
 #### Blocks
@@ -393,7 +402,7 @@ end)
 
 ### Run state
 
-Permission `run.state`. `fb.run` exists only when the game was started with "Play run" from the Runs screen (a run needs a Hub with `runs_v1`); otherwise it is `nil`, so check `if fb.run then`. The run's plugins are the exact Hub copies pinned by the run, so all participants run the same versions.
+Permission `run.state`. `fb.run` exists only when the game was started with "Play run" from the Runs screen (a run needs a Hub with `runs_v1`) or in the [run view](#when-plugins-run) (read-only, see below); otherwise it is `nil`, so check `if fb.run then`. The run's plugins are the exact Hub copies pinned by the run, so all participants run the same versions.
 
 | Function | Meaning |
 |---|---|
@@ -407,12 +416,31 @@ Permission `run.state`. `fb.run` exists only when the game was started with "Pla
 
 Rules:
 
+- Run view: `fb.run.current()` has `view = true`; reads and `fb.run.on` work; `setState`, `event` and `setBoard` return `nil, "read only outside the game"`.
 - Writes (`setState`, `event`, `setBoard`) are accepted while the run is `starting` or `active`. In `paused`, `finished` or `abandoned` they are refused locally and return `nil, "message"` instead of raising, so a paused run never pauses the plugin. Reads keep working.
 - Bad arguments (not a table, too large, unknown field) raise a Lua error as everywhere else in the API.
 - Every plugin of the run has its own state object per participant, each with its own revision on the Hub (`PUT /runs/{run_id}/state/{plugin_id}`). `setState` replaces only the calling plugin's object; plugins never overwrite each other's state. The Player keeps the states per (user, plugin) in its run cache.
 - Join and Start dialogs list the library games that every plugin of the run accepts: the system must match a `games` entry of the plugin and, when the entry has `codes`, the Hub's game code (`game_code`, same identity as `fb.game.code`) must match one of the globs (`*`, `?`, case-insensitive). A game whose code the Hub does not know stays selectable after the matching ones with the hint "Game not recognized"; a known code that matches nothing is not listed.
 - The Hub may refuse a write (`403`, `409 run_not_active`, `413`, `429`); the Player drops the value and logs it. Nothing is retried except events (idempotent by `client_id`) and the latest state after a conflict.
+- Required plugins: the Start dialog adds the `requires` of the picked plugins automatically (newest Hub-offered version that fits, transitive), shown as "Included: <name> <version> · needed by <name>". They need no `run.state` permission, count toward the 8-plugin limit and take part in the game filter. A missing or conflicting requirement blocks the start with a message.
 - Saves of a run go to the slot `run-<first 8 hex of the run id>`; the normal save slot of the game is untouched.
+
+### Run settings
+
+Manifest field `run_settings` (optional, 1 to 32 entries) declares the rules a plugin wants when a run is started. Player and Hub enforce the same rules; violations are manifest errors, unknown fields inside an entry are ignored.
+
+| Field | Rules |
+|---|---|
+| `key` | 1 or 2 dot-separated segments, each `^[a-z][a-z0-9_]{0,31}$`. Unique; no key is a segment-prefix of another (`rules` and `rules.dupes_clause` conflict). |
+| `type` | `"boolean"` or `"enum"`. |
+| `label`, `hint` | i18n keys `^[A-Za-z0-9_.-]{1,64}$`, looked up in the plugin's i18n files. `hint` is optional. |
+| `default` | Required: a boolean, or an option `value` for `enum`. |
+| `options` | `enum` only, 2 to 8 of `{ value, label }`; `value`s are unique and follow the `key` segment pattern; `label` is an i18n key. |
+
+- The Hub plugin list carries `run_settings` and `run_settings_strings` (`{ lang: { key: text } }`, only the referenced keys; OpenAPI 1.17.0).
+- The Player's "Start a run" dialog shows a Rules section per plugin: boolean as toggle, enum with up to 3 options as segments, more as select. Label language: Player language (always `en` today), then `en`, then the key.
+- Every entry is sent as run settings `settings[<plugin_id>]`, nested by key segments. The keys `mode` and `rules.dupes_clause` give `{ "<plugin_id>": { "mode": "soullink", "rules": { "dupes_clause": true } } }`. Plugins without `run_settings` get no member.
+- Plugins read them with `fb.run.current().settings[<own plugin id>]`. The raw manifest `settings` field is unchanged (schema still undefined).
 
 ## Installing plugins and origins
 

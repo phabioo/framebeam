@@ -46,6 +46,7 @@ RunsController::RunsController(RunClient* client, PluginsController* plugins, Hu
   connect(plugins, &PluginsController::pluginsChanged, this, &RunsController::scheduleRebuild);
   connect(plugins, &PluginsController::hubPluginsChanged, this, &RunsController::scheduleRebuild);
   connect(library, &HubLibrary::loaded, this, &RunsController::scheduleRebuild);
+  connect(plugins, &PluginsController::inGameChanged, this, [this] { syncRunView(); });  // a game starts / ends: stop / restart the run view
   // The game picker follows late arrivals: the library or the Hub's plugin list may load after the dialog opened.
   connect(library, &HubLibrary::loaded, this, &RunsController::refreshGames);
   connect(plugins, &PluginsController::hubPluginsChanged, this, &RunsController::refreshGames);
@@ -276,6 +277,62 @@ void RunsController::rebuildDetail() {
     emit detailChanged();
   }
   rebuildEvents();
+  syncRunView();
+}
+
+// Run view: while a run is shown in detail, the user takes part and no game runs, the plugins of the run that declare ui.run run
+// in the shell context (read-only fb.run). The exact pinned copies are fetched first when they are missing (joining was the consent).
+void RunsController::setRunViewState(const QString& state, const QString& text) {
+  if (runViewState_ == state && runViewText_ == text) return;
+  runViewState_ = state;
+  runViewText_ = text;
+  emit runViewChanged();
+}
+
+void RunsController::syncRunView() {
+  const auto run = openRunId_.isEmpty() ? std::nullopt : client_->run(openRunId_);
+  const QString me = client_->myUserId();
+  const RunParticipant* mine = run ? run->participant(me) : nullptr;
+  const bool takesPart = run && (run->createdBy == me || (mine != nullptr && mine->status == QLatin1String("joined")));
+  if (!takesPart || run->plugins.isEmpty() || plugins_->inGame() || plugins_->delivery() == nullptr) {
+    ++viewGen_;
+    viewKey_.clear();
+    viewFetching_ = false;
+    plugins_->stopRunView();
+    setRunViewState({}, {});
+    return;
+  }
+  QStringList sig;
+  for (const RunPluginRef& p : run->plugins) sig << p.pluginId + QLatin1Char('@') + p.version + QLatin1Char('@') + p.sha256;
+  const QString key = run->runId + QLatin1Char('|') + sig.join(QLatin1Char(','));
+  if (key == viewKey_ && (viewFetching_ || plugins_->runViewId() == run->runId.toLower())) return;  // same run again: nothing to restart
+  viewKey_ = key;
+  const quint64 gen = ++viewGen_;
+  bool missing = false;
+  for (const RunPluginRef& p : run->plugins)
+    if (plugins_->manager()->hubCopyDir(p.pluginId, p.version, p.sha256).isEmpty()) missing = true;
+  const auto start = [this, runId = run->runId, gen]() {
+    if (gen != viewGen_) return;
+    viewFetching_ = false;
+    plugins_->startRunView(launchFor(runId), runId);
+    setRunViewState({}, {});
+  };
+  if (!missing) {
+    start();
+    return;
+  }
+  viewFetching_ = true;
+  setRunViewState(QStringLiteral("loading"), tr("Getting the plugins of this run from the Hub…"));
+  ensureCopies(*run, [this, gen, start](bool ok, const QString& error) {
+    if (gen != viewGen_) return;
+    setBusy(false);
+    if (!ok) {
+      viewFetching_ = false;
+      setRunViewState(QStringLiteral("error"), error);
+      return;
+    }
+    start();
+  });
 }
 
 void RunsController::rebuildEvents() {

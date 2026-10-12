@@ -408,6 +408,9 @@ void RunClient::applyRun(const RunInfo& incoming) {
     it = runs_.insert(incoming.runId, d);
   }
   RunData& d = **it;
+  // The Hub's answers can overtake each other (a GET /runs sent earlier may arrive after the answer to a join or a pushed
+  // run_updated): every change of a run adds an event, so a snapshot with a lower last_seq than the known one is stale.
+  if (!isNew && incoming.lastSeq < d.info.lastSeq) return;
   RunInfo next = incoming;
   if (isNew) {
     // States from the disk cache fill in what the Hub's answer does not carry newer (revisions only ever grow).

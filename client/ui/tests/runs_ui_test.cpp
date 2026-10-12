@@ -240,6 +240,90 @@ class RunsUiTest : public QObject {
     QTRY_COMPARE_WITH_TIMEOUT(runs->finishedCount(), 1, 8000);
   }
 
+  // Run view: the run detail shows the "run" slot of the run's ui.run plugins (pinned Hub copies, read-only fb.run) for a
+  // participant; opening another run, closing the detail or an invited-only run shows nothing.
+  void runViewInDetail() {
+    FakeHub hub(QStringLiteral("a"));
+    hub.hubId = QStringLiteral("hub-runview");
+    hub.name = QStringLiteral("Home");
+    hub.decision = FakeHub::Decision::Approve;
+    hub.features = {QStringLiteral("saves_v1"), QStringLiteral("plugins_v1"), QStringLiteral("runs_v1"), QStringLiteral("sessions_v1")};
+    FbSpec spec;
+    spec.id = kPluginId;
+    spec.name = "Run Notes";
+    spec.permissions = {"run.state", "ui"};
+    spec.ui = QJsonObject{{"run", QJsonObject{{"title", "Board"}}}};
+    spec.lua = "local c = fb.run.current()\n"
+               "local ok, err = fb.run.setState({a = 1})\n"
+               "fb.ui.set('run', {type = 'text', text = 'view=' .. tostring(c.view) .. ' ' .. tostring(c.name) .. ' ' .. tostring(err)})\n";
+    const QByteArray file = makeFbPlugin(spec);
+    const QString sha = sha256Hex(file);
+    hub.pluginList.append(QJsonObject{{"plugin_id", spec.id}, {"version", spec.version}, {"name", spec.name}, {"description", "Notes for runs"}, {"api", 1},
+                                      {"origin", "unverified"}, {"sha256", sha}, {"size", file.size()}, {"permissions", QJsonArray{"run.state", "ui"}},
+                                      {"created_at", "2026-10-12T10:00:00Z"}});
+    hub.pluginFiles.insert(spec.id + "/" + spec.version, file);
+    const QJsonArray refs{QJsonObject{{"plugin_id", spec.id}, {"version", spec.version}, {"sha256", sha}}};
+    // Mine (creator, joined) and one I am only invited to.
+    const QString mine = hub.makeRun(QStringLiteral("Mine"), {hub.runsMe, QStringLiteral("u_lena")}, hub.runsMe, refs).value("run_id").toString();
+    const QString invited = hub.makeRun(QStringLiteral("Invited"), {QStringLiteral("u_lena"), hub.runsMe}, QStringLiteral("u_lena"), refs).value("run_id").toString();
+    QVERIFY(hub.start());
+
+    Harness h;
+    QVERIFY(h.start());
+    h.window->resize(1440, 900);
+    pair(h, hub);
+    RunsController* runs = h.controller->runs();
+    PluginsController* pc = h.controller->plugins();
+    QTRY_VERIFY_WITH_TIMEOUT(runs->loaded(), 8000);
+    QTRY_COMPARE_WITH_TIMEOUT(pc->hubPlugins().size(), 1, 8000);
+
+    QVERIFY(h.click("navRuns"));
+    QTRY_COMPARE_WITH_TIMEOUT(h.controller->screen(), QStringLiteral("runs"), 8000);
+
+    // An invited-only run does not start the plugins.
+    runs->openRun(invited);
+    QTest::qWait(300);
+    QVERIFY(pc->runViewPluginIds().isEmpty());
+    QVERIFY(pc->runSections().isEmpty());
+    QVERIFY(pc->manager()->hubCopyDir(spec.id, spec.version, sha).isEmpty());
+
+    // My run: the copy is fetched, the plugin runs read-only and its "run" tree reaches the model.
+    runs->openRun(mine);
+    QTRY_VERIFY_WITH_TIMEOUT(!pc->manager()->hubCopyDir(spec.id, spec.version, sha).isEmpty(), 8000);
+    QTRY_COMPARE_WITH_TIMEOUT(pc->runSections().size(), 1, 10000);
+    QCOMPARE(pc->runViewId(), mine);
+    QCOMPARE(runs->runViewState(), QString());
+    QTRY_VERIFY_WITH_TIMEOUT(!pc->runSections().at(0).toMap().value("tree").toMap().isEmpty(), 10000);
+    const QVariantMap sec = pc->runSections().at(0).toMap();
+    QCOMPARE(sec.value("title").toString(), QStringLiteral("Board"));
+    QCOMPARE(sec.value("tree").toMap().value("text").toString(), QStringLiteral("view=true Mine read only outside the game"));
+    QTRY_VERIFY(h.item("pluginRunSection") != nullptr && h.item("pluginRunSection")->isVisible());
+    QTRY_VERIFY(h.item(("pluginRun_" + spec.id).toUtf8().constData()) != nullptr);
+    QVERIFY(hub.runStatePuts.isEmpty());
+
+    // Rebuilding the same detail does not restart the plugin.
+    const auto log0 = pc->host()->consoleSnapshot(spec.id).log.size();
+    runs->openRun(mine);
+    QTest::qWait(300);
+    QCOMPARE(pc->host()->consoleSnapshot(spec.id).log.size(), log0);
+    QCOMPARE(pc->runSections().size(), 1);
+
+    // Back to the list: the plugins stop.
+    runs->closeRun();
+    QVERIFY(pc->runViewPluginIds().isEmpty());
+    QVERIFY(pc->runSections().isEmpty());
+    QVERIFY(pc->runViewId().isEmpty());
+    // Opening it again after a game would restart it: a game start ends the view, the end of the game brings it back.
+    runs->openRun(mine);
+    QTRY_COMPARE_WITH_TIMEOUT(pc->runSections().size(), 1, 10000);
+    pc->gameStarted(QStringLiteral("nds"), QStringLiteral("/nonexistent/missing.nds"), QStringLiteral("abc"), QStringLiteral("Homebrew"));
+    QVERIFY(pc->runSections().isEmpty());
+    QVERIFY(pc->runViewId().isEmpty());
+    pc->gameStopped();
+    QTRY_COMPARE_WITH_TIMEOUT(pc->runSections().size(), 1, 10000);
+    QCOMPARE(pc->runViewId(), mine);
+  }
+
   void entryHiddenWithoutRunsAndPlugin() {
     FakeHub hub(QStringLiteral("a"));
     hub.hubId = QStringLiteral("hub-empty");
@@ -479,8 +563,24 @@ class RunsUiTest : public QObject {
     hub.fakeUsers = QJsonArray{QJsonObject{{"id", "u_test_1"}, {"display_name", "Tester"}, {"online", true}}};
     const auto entry = [&](const QString& id, const QString& ver, const QString& name, const QJsonArray& perms, const QJsonObject& req, const QJsonArray& rules,
                            const QJsonArray& games) {
+      // The packages the run will pin are served for real (the run view fetches them once the run is created).
+      QString sha(64, QLatin1Char('c'));
+      qint64 size = 10;
+      if (id != QLatin1String("net.test.core") || ver == QLatin1String("0.1.4")) {
+        FbSpec fs;
+        fs.id = id;
+        fs.version = ver;
+        fs.name = name;
+        fs.permissions = {};
+        for (const QJsonValue& pv : perms) fs.permissions << pv.toString();
+        for (auto rq = req.begin(); rq != req.end(); ++rq) fs.requires_.insert(rq.key(), rq.value());
+        const QByteArray file = makeFbPlugin(fs);
+        sha = sha256Hex(file);
+        size = file.size();
+        hub.pluginFiles.insert(id + "/" + ver, file);
+      }
       QJsonObject o{{"plugin_id", id}, {"version", ver}, {"name", name}, {"description", ""}, {"api", 1}, {"origin", "unverified"},
-                    {"sha256", QString(64, QLatin1Char('c'))}, {"size", 10}, {"permissions", perms}, {"requires", req}, {"games", games},
+                    {"sha256", sha}, {"size", size}, {"permissions", perms}, {"requires", req}, {"games", games},
                     {"created_at", "2026-10-12T10:00:00Z"}};
       if (!rules.isEmpty()) {
         o.insert("run_settings", rules);

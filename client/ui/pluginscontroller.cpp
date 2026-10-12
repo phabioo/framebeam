@@ -436,12 +436,22 @@ void PluginsController::gameStarted(const QString& system, const QString& romPat
   if (inGame_ || running_) stopGame(false);
   inGame_ = true;
   language_ = language.isEmpty() ? QStringLiteral("en") : language;
-  if (shellRunning_) {  // the shell set gives way to the game set
+  if (shellRunning_) {  // the shell set (and the run view) gives way to the game set
     host_->stop();
     shellRunning_ = false;
     shellIds_.clear();
     shellSignature_.clear();
   }
+  runViewActive_ = false;
+  runViewId_.clear();
+  runViewKey_.clear();
+  runViewPins_.clear();
+  runViewBridge_.reset();
+  runViewIds_.clear();
+  runViewInfos_.clear();
+  runViewProblems_.clear();
+  rebuildRunSections();
+  emit inGameChanged();
   plugins::GameContext ctx;
   ctx.system = system;
   ctx.code = emu::readGameIdentity(romPath, system).code;
@@ -493,23 +503,72 @@ void PluginsController::stopGame(bool restartShell) {
   mutedSession_.clear();
   rebuildUiModels();
   if (restartShell) updateShell();
+  emit inGameChanged();
 }
 
-// Shell context: while no game runs, the enabled plugins with ui.screen or ui.detail run with an empty game.
+// Shell context: while no game runs, the enabled plugins with ui.screen or ui.detail run with an empty game. While the Runs
+// screen shows a run (run view), the run's pinned plugins with ui.run (plus what they require) join them in the same host,
+// with a read-only fb.run; a plugin that is in both sets runs once, as the run view instance.
 void PluginsController::updateShell() {
   if (inGame_) return;
   const plugins::GameResolution res = manager_->resolveForShell();
+  QList<plugins::PluginInfo> start;
+  QStringList rvOrder;
+  QMap<QString, plugins::PluginInfo> rvInfos;
+  QString rvProblems;
+  if (runViewActive_) {
+    const plugins::GameResolution rv = manager_->resolveForRun(runViewPins_);
+    QMap<QString, plugins::PluginInfo> byId;
+    QStringList queue;
+    for (const plugins::PluginInfo& p : rv.start) {
+      byId.insert(p.manifest.id, p);
+      if (p.manifest.ui.run) queue << p.manifest.id;
+    }
+    QSet<QString> want;
+    while (!queue.isEmpty()) {
+      const QString id = queue.takeFirst();
+      if (want.contains(id)) continue;
+      want.insert(id);
+      for (const plugins::Dependency& d : byId.value(id).manifest.dependencies)
+        if (byId.contains(d.id)) queue << d.id;
+    }
+    for (const plugins::PluginInfo& p : rv.start) {
+      if (!want.contains(p.manifest.id)) continue;
+      start.append(p);
+      rvOrder << p.manifest.id;
+      rvInfos.insert(p.manifest.id, p);
+    }
+    QStringList lines;
+    for (auto it = rv.problems.begin(); it != rv.problems.end(); ++it)
+      for (const plugins::PluginInfo& c : manager_->hubCopies())
+        if (c.manifest.id == it.key() && c.manifest.ui.run) {
+          lines << QStringLiteral("%1: %2").arg(c.manifest.name, it.value().join(QStringLiteral("; ")));
+          break;
+        }
+    rvProblems = lines.join(QLatin1Char('\n'));
+  }
   QStringList ids;
   QStringList sig;
   for (const plugins::PluginInfo& p : res.start) {
     ids << p.manifest.id;
-    sig << p.manifest.id + QLatin1Char('@') + p.manifest.version.toString() + QLatin1Char('@') + p.path;
+    if (!rvInfos.contains(p.manifest.id)) start.append(p);
   }
+  for (const plugins::PluginInfo& p : std::as_const(start))
+    sig << p.manifest.id + QLatin1Char('@') + p.manifest.version.toString() + QLatin1Char('@') + p.path;
+  if (!rvOrder.isEmpty()) sig << QStringLiteral("run:") + runViewKey_;
   const QString signature = sig.join(QLatin1Char('|'));
-  if (signature == shellSignature_ && shellRunning_ == !ids.isEmpty()) return;
+  const bool rvChanged = rvOrder != runViewIds_ || rvProblems != runViewProblems_;
+  runViewIds_ = rvOrder;
+  runViewInfos_ = rvInfos;
+  runViewProblems_ = rvProblems;
+  if (signature == shellSignature_ && shellRunning_ == !start.isEmpty()) {
+    if (rvChanged) rebuildRunSections();
+    return;
+  }
   shellSignature_ = signature;
   shellIds_ = ids;
-  if (ids.isEmpty()) {
+  updateImageSources();
+  if (start.isEmpty()) {
     if (shellRunning_) host_->stop();
     shellRunning_ = false;
     rebuildUiModels();
@@ -518,10 +577,45 @@ void PluginsController::updateShell() {
   plugins::GameContext ctx;
   ctx.shell = true;
   ctx.language = language_;
+  if (!rvOrder.isEmpty()) ctx.run = runViewBridge_;
   shellRunning_ = true;
-  host_->start(ctx, nullptr, res.start);
+  host_->start(ctx, nullptr, start);
   postInitialEvents();
   rebuildUiModels();
+}
+
+void PluginsController::startRunView(const RunLaunch& run, const QString& runId) {
+  if (inGame_ || !run.bridge) return;
+  QStringList sig;
+  for (const plugins::RunPluginPin& p : run.pins) sig << p.id + QLatin1Char('@') + p.version + QLatin1Char('@') + p.sha256;
+  const QString key = runId.toLower() + QLatin1Char('|') + sig.join(QLatin1Char(','));
+  if (runViewActive_ && key == runViewKey_) return;  // the same run again: keep the running plugins
+  runViewActive_ = true;
+  runViewId_ = runId.toLower();
+  runViewKey_ = key;
+  runViewPins_ = run.pins;
+  runViewBridge_ = std::make_shared<plugins::ReadOnlyRunBridge>(run.bridge);
+  updateShell();
+}
+
+void PluginsController::stopRunView() {
+  if (!runViewActive_) return;
+  runViewActive_ = false;
+  runViewId_.clear();
+  runViewKey_.clear();
+  runViewPins_.clear();
+  runViewBridge_.reset();
+  updateShell();  // restores the normal shell set
+  runViewIds_.clear();
+  runViewInfos_.clear();
+  runViewProblems_.clear();
+  rebuildRunSections();
+}
+
+std::optional<plugins::PluginInfo> PluginsController::infoFor(const QString& id) const {
+  const auto it = runViewInfos_.constFind(id);
+  if (it != runViewInfos_.constEnd()) return it.value();
+  return manager_->info(id);
 }
 
 // Host events carry state, so a restarted plugin set gets the current values again.
@@ -571,7 +665,7 @@ void PluginsController::rebuildConsole() {
   if (hasPreview_ || !running_ || !developerMode()) return;
   QVariantList plist;
   for (const QString& id : std::as_const(runningIds_)) {
-    const auto info = manager_->info(id);
+    const auto info = infoFor(id);
     const QString key = statusKey(host_->consoleSnapshot(id));
     plist.append(QVariantMap{{QStringLiteral("id"), id},
                              {QStringLiteral("name"), info ? info->manifest.name : id},
@@ -632,7 +726,7 @@ void PluginsController::selectConsolePlugin(const QString& id) {
 
 void PluginsController::reloadPlugin(const QString& id) {
   emit reloadRequested(id);
-  if (!((running_ && runningIds_.contains(id)) || (shellRunning_ && shellIds_.contains(id)))) return;
+  if (!((running_ && runningIds_.contains(id)) || (shellRunning_ && (shellIds_.contains(id) || runViewIds_.contains(id))))) return;
   qCInfo(lcPlugins) << "plugin" << id << "reloading";
   loggedStatus_.remove(id);
   host_->reload(id);
@@ -686,6 +780,7 @@ QStringList PluginsController::activeIds() const { return inGame_ ? runningIds_ 
 void PluginsController::updateImageSources() {
   QHash<QString, PluginImageSource> src;
   for (const plugins::PluginInfo& p : manager_->list()) src.insert(p.manifest.id, PluginImageSource{p.cacheDir, p.path, p.manifest.assets});
+  for (const plugins::PluginInfo& p : std::as_const(runViewInfos_)) src.insert(p.manifest.id, PluginImageSource{p.cacheDir, p.path, p.manifest.assets});
   imageSources_->set(src);
 }
 
@@ -695,7 +790,7 @@ QVariantMap PluginsController::slotTree(const QString& pluginId, const QString& 
 }
 
 QString PluginsController::pluginIconUrl(const QString& id) const {
-  const auto info = manager_->info(id);
+  const auto info = infoFor(id);
   if (info && info->manifest.assets.contains(QStringLiteral("icon.png"))) return QStringLiteral("image://fbplugin/%1/asset/icon.png").arg(id);
   return {};
 }
@@ -732,14 +827,16 @@ void PluginsController::onUiChanged(const QString& id, const QString& what) {
     collectToasts();
     return;
   }
-  if (!activeIds().contains(id)) return;
+  if (!activeIds().contains(id) && !runViewIds_.contains(id)) return;
   if (what == QLatin1String("@meta")) {
     rebuildPanelTabs();
     rebuildSidebar();
     rebuildHud();
+    rebuildRunSections();
     return;
   }
   emit slotChanged(id, what);
+  if (what == QLatin1String("run")) rebuildRunSections();
   if (what == QLatin1String("hud")) rebuildHud();
   else if (what == QLatin1String("detail")) rebuildDetail();
   else if (what.startsWith(QLatin1String("tile:"))) emit tileStripsChanged();
@@ -755,6 +852,7 @@ void PluginsController::rebuildUiModels() {
   rebuildHud();
   rebuildSidebar();
   rebuildDetail();
+  rebuildRunSections();
   rebuildHotkeys();
   emit tileStripsChanged();
 }
@@ -763,7 +861,7 @@ void PluginsController::rebuildPanelTabs() {
   if (previewUi_) return;
   QVariantList out;
   for (const QString& id : activeIds()) {
-    const auto info = manager_->info(id);
+    const auto info = infoFor(id);
     if (!info || !info->manifest.ui.panel) continue;
     const plugins::UiPluginState st = host_->uiState(id);
     const bool paused = st.paused || host_->consoleSnapshot(id).status == PluginStatus::Paused;
@@ -784,7 +882,7 @@ void PluginsController::rebuildHud() {
   if (previewUi_) return;
   QVariantList out;
   for (const QString& id : activeIds()) {
-    const auto info = manager_->info(id);
+    const auto info = infoFor(id);
     if (!info || !info->manifest.ui.hud) continue;
     const QVariantMap tree = host_->uiTree(id, QStringLiteral("hud"));
     if (tree.isEmpty()) continue;
@@ -804,7 +902,7 @@ void PluginsController::rebuildSidebar() {
   if (previewUi_) return;
   QVariantList out;
   for (const QString& id : activeIds()) {
-    const auto info = manager_->info(id);
+    const auto info = infoFor(id);
     if (!info || !info->manifest.ui.screen) continue;
     const plugins::UiPluginState st = host_->uiState(id);
     out.append(QVariantMap{{QStringLiteral("pluginId"), id},
@@ -823,7 +921,7 @@ void PluginsController::rebuildDetail() {
   if (previewUi_) return;
   QVariantList out;
   for (const QString& id : activeIds()) {
-    const auto info = manager_->info(id);
+    const auto info = infoFor(id);
     if (!info || !info->manifest.ui.detail) continue;
     const QVariantMap tree = host_->uiTree(id, QStringLiteral("detail"));
     if (tree.isEmpty()) continue;
@@ -831,6 +929,29 @@ void PluginsController::rebuildDetail() {
   }
   detailSections_ = out;
   emit detailSectionsChanged();
+}
+
+void PluginsController::rebuildRunSections() {
+  if (previewUi_) return;
+  QVariantList out;
+  for (const QString& id : std::as_const(runViewIds_)) {
+    const auto info = infoFor(id);
+    if (!info || !info->manifest.ui.run) continue;
+    const QVariantMap tree = host_->uiTree(id, QStringLiteral("run"));
+    const PluginStatus status = host_->consoleSnapshot(id).status;
+    const bool paused = host_->uiState(id).paused || status == PluginStatus::Paused;
+    out.append(QVariantMap{{QStringLiteral("pluginId"), id},
+                           {QStringLiteral("name"), info->manifest.name},
+                           {QStringLiteral("title"), info->manifest.ui.runTitle},
+                           {QStringLiteral("origin"), info->origin},
+                           {QStringLiteral("tree"), tree},
+                           {QStringLiteral("paused"), paused},
+                           {QStringLiteral("loading"), tree.isEmpty() && !paused && status == PluginStatus::Loading}});
+  }
+  if (out == runSections_ && runViewProblems_ == lastRunProblems_) return;
+  runSections_ = out;
+  lastRunProblems_ = runViewProblems_;
+  emit runSectionsChanged();
 }
 
 QVariantList PluginsController::declaredHotkeyPlugins() const {
@@ -853,7 +974,7 @@ void PluginsController::rebuildHotkeys() {
   if (!previewUi_) {  // hotkeys of the running plugins
     QVariantList out;
     for (const QString& id : activeIds()) {
-      const auto info = manager_->info(id);
+      const auto info = infoFor(id);
       if (!info) continue;
       for (const plugins::UiHotkey& hk : info->manifest.ui.hotkeys)
         out.append(QVariantMap{{QStringLiteral("pluginId"), id}, {QStringLiteral("id"), hk.id}, {QStringLiteral("label"), hk.label}, {QStringLiteral("key"), hk.key}});
@@ -1021,7 +1142,7 @@ QVariantList PluginsController::tileStrips(const QString& tileId) const {
   QVariantList out;
   const QString slot = QStringLiteral("tile:") + tileId;
   for (const QString& id : activeIds()) {
-    const auto info = manager_->info(id);
+    const auto info = infoFor(id);
     if (!info || !info->manifest.ui.tile) continue;
     const QVariantMap tree = host_->uiTree(id, slot);
     if (!tree.isEmpty())
@@ -1038,7 +1159,7 @@ void PluginsController::collectToasts() {
     const QString id = t.value(QStringLiteral("pluginId")).toString();
     if (mutedAlways_.contains(id) || mutedSession_.contains(id)) continue;
     if (mutedImportant_.contains(id) && t.value(QStringLiteral("tone")).toString() != QLatin1String("important")) continue;
-    const auto info = manager_->info(id);
+    const auto info = infoFor(id);
     QVariantMap toast = t;
     toast.insert(QStringLiteral("pluginName"), info ? info->manifest.name : id);
     toast.insert(QStringLiteral("origin"), info ? info->origin : QStringLiteral("local"));
@@ -1052,7 +1173,7 @@ void PluginsController::collectToasts() {
 // Host notice "FrameBeam · plugin paused" (not mutable: it is about the Player's own plugin handling).
 void PluginsController::addHostNotice(const QString& pluginId) {
   if (previewUi_ || !activeIds().contains(pluginId)) return;
-  const auto info = manager_->info(pluginId);
+  const auto info = infoFor(pluginId);
   if (!info) return;
   QVariantList actions{QVariantMap{{QStringLiteral("label"), tr("Restart plugin")}, {QStringLiteral("action"), QStringLiteral("restart")}, {QStringLiteral("value"), pluginId}}};
   if (developerMode())
@@ -1117,7 +1238,7 @@ QString PluginsController::toastMuteMode(const QString& pluginId) const {
 
 void PluginsController::sendAction(const QString& pluginId, const QString& slot, const QString& action, const QVariant& value) {
   emit actionSent(pluginId, slot, action, value);
-  if (!activeIds().contains(pluginId) || action.isEmpty()) return;
+  if ((!activeIds().contains(pluginId) && !runViewIds_.contains(pluginId)) || action.isEmpty()) return;
   host_->sendAction(pluginId, slot, action, value);
 }
 
@@ -1131,7 +1252,7 @@ void PluginsController::triggerHotkey(const QString& pluginId, const QString& ho
         if (hv.toMap().value(QStringLiteral("id")).toString() == hotkeyId) known = true;
     }
   } else if (activeIds().contains(pluginId)) {
-    if (const auto info = manager_->info(pluginId))
+    if (const auto info = infoFor(pluginId))
       for (const plugins::UiHotkey& hk : info->manifest.ui.hotkeys)
         if (hk.id == hotkeyId) known = true;
   }

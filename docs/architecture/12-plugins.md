@@ -94,11 +94,12 @@ The Player shows name, origin (Official / Unverified / Local) and permissions be
   "permissions": ["memory.read", "rom.read", "ui", "run.state"],
   "entry": "main.lua",
   "assets": ["icons/", "i18n/"],
+  "run_settings": [ { "key": "mode", "type": "boolean", "label": "rs.mode", "default": true } ],
   "settings": { }
 }
 ```
 
-`api` versions the interface; a plugin with an unknown API version is rejected with a clear message instead of being half-loaded. `settings` holds a schema from which the settings page is generated. **Open:** the exact schema, the Lua API and the building-block catalog are fixed in the design handoff and the runtime work package.
+`run_settings` (implemented) declares the rules form of the "Start a run" dialog; the values travel in the run's `settings[<plugin_id>]` ([guide](../guides/plugin-api.md#run-settings)). `api` versions the interface; a plugin with an unknown API version is rejected with a clear message instead of being half-loaded. `settings` holds a schema from which the settings page is generated. **Open:** the exact schema, the Lua API and the building-block catalog are fixed in the design handoff and the runtime work package.
 
 ### 16.7 Several plugins at once
 
@@ -131,12 +132,13 @@ Slots (implemented in the Player; the Hub web run page is built, see 16.11):
 | Multiview tile overlay | on a friend's tile |
 | Own sidebar screen | like Library/Settings |
 | Section in game detail | `DetailPane` |
+| Section in run detail (`ui.run`, run view) | Runs screen, between participants and event log; plugins run read-only outside the game ([guide](../guides/plugin-api.md#when-plugins-run)) |
 | Settings page | Settings → Plugins |
 | Hotkeys | Controllers → Hotkeys |
 | Notifications | toasts |
 | Hub web: run page, game detail | Hub web UI (also usable as a browser source) |
 
-HUD corners: widgets stack in the bottom left (default), bottom right and top left; the top right is reserved for diagnostics. F4 hides all HUD widgets, Ctrl+H shows or hides one plugin's widget (the keys come later in package 2; the hide actions exist in the Player) (expanding is a click or controller A). Remote Multiview tiles show one plugin strip; the user picks it when several plugins offer one. In-game views stay dark in both themes.
+HUD corners: widgets stack in the bottom left (default), bottom right and top left; the top right is reserved for diagnostics. F4 hides all HUD widgets, Ctrl+H shows or hides one plugin's widget (the keys come later in package 2; the hide actions exist in the Player) (expanding is a click or controller A). A run's `requires` are included automatically when the run is started. Remote Multiview tiles show one plugin strip; the user picks it when several plugins offer one. In-game views stay dark in both themes.
 
 Map view: a background image, markers at coordinates (player symbols in the player's colour, sprites, state), zoom and pan with mouse and controller, selection details and filters. Positions are at location or route level (map ID), not exact overworld position.
 

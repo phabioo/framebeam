@@ -57,10 +57,12 @@ struct UiDecl {
   bool screen = false;
   QString screenTitle;
   bool detail = false;
+  bool run = false;  // slot "run": the run detail view (Runs screen, outside a game)
+  QString runTitle;
   QList<UiHotkey> hotkeys;
 
-  bool any() const { return panel || hud || tile || screen || detail || !hotkeys.isEmpty(); }
-  // "panel", "hud", "screen", "detail" or "tile:<tileId>" (needs `tile`).
+  bool any() const { return panel || hud || tile || screen || detail || run || !hotkeys.isEmpty(); }
+  // "panel", "hud", "screen", "detail", "run" or "tile:<tileId>" (needs `tile`).
   bool declaresSlot(const QString& slot) const;
   // "Adds: panel tab · HUD · tile strip · <screen title> screen · game detail · n hotkeys"; empty when nothing.
   QString addsText() const;

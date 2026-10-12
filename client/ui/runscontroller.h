@@ -54,6 +54,10 @@ class RunsController : public QObject {
   // canPause, canResume, canFinish, canAbandon, canLeave, canInvite, mine: bool, over: bool, note}.
   Q_PROPERTY(QString openRunId READ openRunId NOTIFY detailChanged)
   Q_PROPERTY(QVariantMap detail READ detail NOTIFY detailChanged)
+  // Plugin content of the opened run (slot "run", PluginsController::runSections): "" | "loading" (copies are fetched or the
+  // plugins start) | "error"; runViewText says what is going on or wrong.
+  Q_PROPERTY(QString runViewState READ runViewState NOTIFY runViewChanged)
+  Q_PROPERTY(QString runViewText READ runViewText NOTIFY runViewChanged)
   Q_PROPERTY(QAbstractItemModel* participants READ participants CONSTANT)  // {userId, name, color, gameTitle, statusText, me}
   Q_PROPERTY(QAbstractItemModel* events READ events CONSTANT)              // {seq, timeText, author, text, sourceText}
   Q_PROPERTY(QString message READ message NOTIFY messageChanged)
@@ -96,6 +100,8 @@ class RunsController : public QObject {
   QString activeTitle() const { return activeTitle_; }
   int finishedCount() const { return finished_.count(); }
   QString openRunId() const { return openRunId_; }
+  QString runViewState() const { return runViewState_; }
+  QString runViewText() const { return runViewText_; }
   QVariantMap detail() const { return detail_; }
   QAbstractItemModel* participants() { return &participants_; }
   QAbstractItemModel* events() { return &events_; }
@@ -146,6 +152,7 @@ class RunsController : public QObject {
   void availableChanged();
   void runsChanged();
   void detailChanged();
+  void runViewChanged();
   void messageChanged();
   void busyChanged();
   void startStateChanged();
@@ -160,6 +167,8 @@ class RunsController : public QObject {
   void rebuild();
   void rebuildDetail();
   void rebuildEvents();
+  void syncRunView();  // starts/stops the run view plugins for the opened run (PluginsController::startRunView)
+  void setRunViewState(const QString& state, const QString& text);
   void rebuildStartPlugins();
   void rebuildStartUsers();
   void setMessage(const QString& text, bool error);
@@ -227,6 +236,11 @@ class RunsController : public QObject {
   bool joinUnverified_ = false;
   KeyedRowsModel joinPlugins_{{QStringLiteral("id"), QStringLiteral("name"), QStringLiteral("version"), QStringLiteral("origin"), QStringLiteral("originText"), QStringLiteral("permissionsText")}, QStringLiteral("id")};
   quint64 playGen_ = 0;
+  quint64 viewGen_ = 0;
+  QString viewKey_;  // run id + pins of the run view being fetched or running
+  bool viewFetching_ = false;
+  QString runViewState_;
+  QString runViewText_;
 };
 
 }  // namespace framebeam::ui

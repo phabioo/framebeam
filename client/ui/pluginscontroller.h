@@ -13,6 +13,7 @@
 #include <QVariantMap>
 #include <QtQml/qqmlregistration.h>
 #include <memory>
+#include <optional>
 
 #include "plugin_delivery.h"
 #include "plugin_host.h"
@@ -48,6 +49,11 @@ class PluginsController : public QObject {
   //  unverified" | "Local file"), problemsText, hasProblems, enabled, devLinked, hubCopy, canToggle, needsConfirm (unverified: the
   //  warning comes before turning it on), permissionsText, updateVersion ("" when none)}]
   Q_PROPERTY(QVariantList plugins READ plugins NOTIFY pluginsChanged)
+  // Run view (Runs screen, outside a game): one entry per plugin of the shown run that declares ui.run, in start order:
+  // [{pluginId, name, title, origin, tree ({} until the plugin sets its "run" slot), paused, loading}].
+  Q_PROPERTY(QVariantList runSections READ runSections NOTIFY runSectionsChanged)
+  // Why plugins of the run view did not start ("" = fine), e.g. "Run Notes: needs x, which is not part of this run ...".
+  Q_PROPERTY(QString runViewProblems READ runViewProblems NOTIFY runSectionsChanged)
   Q_PROPERTY(QString summary READ summary NOTIFY pluginsChanged)  // settings column line: "None installed" | "2 on · 1 update" | "None on"
   // Plugins the Hub offers (feature plugins_v1): the newest offered version of every plugin, [{id, name, version,
   // description, origin, originText, permissionsText, sizeText, state ("install"|"update"|"installed"|"busy"), installedVersion}].
@@ -125,6 +131,18 @@ class PluginsController : public QObject {
   // Plugins running in the shell context (no game), in start order.
   QStringList shellPluginIds() const { return shellIds_; }
   bool shellRunning() const { return shellRunning_; }
+  // Run view: while the Runs screen shows a run (and no game runs) the plugins of the run that declare ui.run run next to the
+  // shell set, as the exact pinned Hub copies (resolveForRun), in the shell context with a read-only fb.run bound to
+  // `run.bridge` (current().view == true; writes are refused). Calling it again for the same run and pins keeps the running
+  // plugins; another run replaces them. A plugin that is in the shell set too runs once, as the run view instance.
+  // gameStarted() ends the run view (inGameChanged() tells the Runs screen to start it again after the game).
+  void startRunView(const RunLaunch& run, const QString& runId);
+  void stopRunView();
+  QString runViewId() const { return runViewId_; }
+  QStringList runViewPluginIds() const { return runViewIds_; }
+  QVariantList runSections() const { return runSections_; }
+  QString runViewProblems() const { return runViewProblems_; }
+  bool inGame() const { return inGame_; }
 
   plugins::PluginManager* manager() { return manager_.get(); }
   plugins::PluginHost* host() { return host_.get(); }
@@ -221,6 +239,9 @@ class PluginsController : public QObject {
   void toastsChanged();
   void sidebarEntriesChanged();
   void detailSectionsChanged();
+  void runSectionsChanged();
+  // A game started or ended (plugins or not).
+  void inGameChanged();
   void hotkeysChanged();
   void activeHotkeyCombosChanged();
   void tileStripsChanged();
@@ -244,6 +265,8 @@ class PluginsController : public QObject {
   void rebuildHud();
   void rebuildSidebar();
   void rebuildDetail();
+  void rebuildRunSections();
+  std::optional<plugins::PluginInfo> infoFor(const QString& id) const;  // the run view instance first, then the installed plugin
   void rebuildHotkeys();
   QVariantList declaredHotkeyPlugins() const;  // [{pluginId, name, origin, hotkeys: [{id, label, key}]}]
   void setHotkeyOverride(const QString& pluginId, const QString& hotkeyId, const QString& key);
@@ -281,6 +304,17 @@ class PluginsController : public QObject {
   bool shellRunning_ = false;
   QStringList shellIds_;
   QString shellSignature_;
+  // Run view (see startRunView).
+  bool runViewActive_ = false;
+  QString runViewId_;
+  QString runViewKey_;                                  // run id + pins: the same key keeps the running plugins
+  QList<plugins::RunPluginPin> runViewPins_;
+  std::shared_ptr<plugins::RunBridge> runViewBridge_;   // read-only wrapper
+  QStringList runViewIds_;                              // started for the run view, start order
+  QMap<QString, plugins::PluginInfo> runViewInfos_;
+  QString runViewProblems_;
+  QVariantList runSections_;
+  QString lastRunProblems_;
   QString language_ = QStringLiteral("en");
   bool hudAllHidden_ = false;
   QSet<QString> mutedImportant_;

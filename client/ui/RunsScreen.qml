@@ -418,6 +418,8 @@ Rectangle {
                         }
                     }
 
+                    PluginRunSection { Layout.fillWidth: true; player: root.player }
+
                     Eyebrow { objectName: "runEventsTitle"; text: qsTr("Event log · %1").arg(root.runs.events.count) }
                     Rectangle {
                         Layout.fillWidth: true
