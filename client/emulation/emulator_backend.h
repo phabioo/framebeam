@@ -111,6 +111,9 @@ class EmulatorBackend {
   // Writes the game's battery save (if any) to the save directory when it changed. Called on pause and
   // before unloading; default: nothing. false = the file could not be written (a changed save is still unsaved).
   virtual bool flushSave() { return true; }
+  // Why the last flushSave failed (file name and reason); empty when the last flush succeeded (still readable after
+  // unloadGame, so the owner can report a failed final write). Any thread once the emulation thread has finished.
+  virtual QString lastSaveError() const { return {}; }
   // Size of the core's battery save memory, -1 when unknown/none (emulation thread).
   virtual qint64 saveMemorySize() const { return -1; }
   // The game's memory as device virtual addresses (SET_MEMORY_MAPS, or SYSTEM_RAM at 0 as fallback). Emulation thread

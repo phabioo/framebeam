@@ -384,6 +384,21 @@ Rectangle {
                     }
                 }
 
+                RowLayout {
+                    visible: root.emu.coreProbing
+                    objectName: "coreProbingNote"
+                    Layout.fillWidth: true
+                    spacing: Theme.space10
+                    FbSpinner { size: 14; color: Theme.accent }
+                    FbLabel {
+                        Layout.fillWidth: true
+                        text: qsTr("Reading the core's options ...")
+                        color: Theme.textMuted
+                        font.pixelSize: Theme.fontMeta
+                        wrapMode: Text.WordWrap
+                    }
+                }
+
                 FbLabel {
                     visible: root.emu.gameRunning
                     objectName: "gameRunningNote"

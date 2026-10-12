@@ -194,12 +194,15 @@ class GameSession : public QObject {
   void started();                       // core and game are running
   void startFailed(const QString& msg);  // failed before the first frame
   void saveWriteFailed();                // an explicit save flush failed: the save file may be stale
+  void stopSaveFailed(const QString& reason);  // the final battery save write at stop failed: the latest progress may be lost
   void finished();                       // after stop()
   void memoryRegionsChanged();           // the core re-sent its memory map: memoryRegions() changed
   void memoryWatchReplaced();            // a new runner (live-save restart) has a new memory watch set
   void audioChunk(const QByteArray& pcm, int sampleRate);  // core audio (int16 stereo), also while muted (Session share)
 
  private:
+  void reportStopSaveError();
+  QString stopSaveError_;  // set by teardown() when the final save write failed
   void setState(State s);
   void launch(const LaunchConfig& config, bool restart);
   void fail(const QString& msg);

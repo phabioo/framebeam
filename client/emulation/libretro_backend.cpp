@@ -4,6 +4,7 @@
 #include <QDir>
 #include <QFile>
 #include <QSaveFile>
+#include <QThread>
 #include <QFileInfo>
 #include <QLoggingCategory>
 
@@ -377,10 +378,12 @@ bool LibretroBackend::flushSave() {
     if (f.write(now) == now.size() && f.commit()) {
       m_sramSnapshot = now;
       m_saveFailCount = 0;
+      m_lastSaveError.clear();
       return true;
     }
   }
   why = f.errorString();
+  m_lastSaveError = QStringLiteral("%1: %2").arg(QFileInfo(m_saveFilePath).fileName(), why);
   // Retried every few seconds: log the first failure of a streak, then only every 20th attempt.
   if (m_saveFailCount++ % 20 == 0) {
     qCWarning(lcCore) << "Battery save could not be written:" << m_saveFilePath << "-" << why;
@@ -396,7 +399,12 @@ qint64 LibretroBackend::saveMemorySize() const {
 
 void LibretroBackend::unloadGame() {
   if (!m_gameLoaded) return;
-  flushSave();
+  // The last write of the session: one retry after a short pause (a virus scanner or sync client may hold the file
+  // briefly); a persistent failure stays in lastSaveError() for the owner to report.
+  if (!flushSave()) {
+    QThread::msleep(250);
+    flushSave();
+  }
   if (m_hwActive) {
     m_hw->makeCurrent();
     if (m_hwResetDone && m_hwContextDestroy) m_hwContextDestroy();

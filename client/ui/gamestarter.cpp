@@ -106,10 +106,7 @@ void GameStarter::onCoreFinished(const CoreResult& result) {
     // A new or updated version: drop the old entry and report what the locator now picks (the Hub's version).
     if (probeCoreVersions_) {
       coreList_.removeIf([&](const CoreInfo& c) { return c.id == man->coreId; });
-      catalog_->probeCores();
-      handshake_.cores = coreList_;
-      conn_->setHandshakeInfo(handshake_);
-      conn_->resendHandshake();  // the Hub recomputes core_missing / core_version_mismatch
+      catalog_->probeCores();  // async; PlayerController resends the handshake when the probe is done
     }
     continueStartAfterCore(*game, *man);
     return;
@@ -228,6 +225,20 @@ void GameStarter::onRomReady(const QString& sha, const QString& path) {
 }
 
 void GameStarter::launch(const GameEntry& game, const QString& romPath) {
+  // Only one core can be loaded per process: wait until a running core probe (worker thread) is done.
+  if (catalog_->probeBusy()) {
+    phase_ = PlayPhase::Launching;
+    launchGame_ = game;
+    emit selectedGameChanged();
+    connect(catalog_, &CoreCatalog::coresProbed, this,
+            [this, game, romPath]() {
+              if (phase_ == PlayPhase::Launching && launchGame_.id == game.id && !catalog_->probeBusy()) {
+                launch(game, romPath);
+              }
+            },
+            Qt::SingleShotConnection);
+    return;
+  }
   const emu::SystemManifest* man = catalog_->manifestFor(game);
   if (man == nullptr || profiles_->hubDir(conn_->hubInfo().hubId).isEmpty()) {
     phase_ = PlayPhase::None;

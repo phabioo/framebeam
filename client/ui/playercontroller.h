@@ -88,6 +88,8 @@ class PlayerController : public QObject {
   Q_PROPERTY(QVariantMap romCache READ romCache NOTIFY romCacheChanged)
   Q_PROPERTY(bool darkMode READ darkMode NOTIFY appearanceChanged)  // effective palette (System resolved)
   Q_PROPERTY(bool canUpload READ canUpload NOTIFY hubChanged)       // handshake feature uploads_v1
+  // The final save write at "stop game" failed (disk full, file locked): shown as a banner in the Library until dismissed.
+  Q_PROPERTY(QString stopSaveError READ stopSaveError NOTIFY stopSaveErrorChanged)
   Q_PROPERTY(QVariantMap upload READ upload NOTIFY uploadChanged)   // active, fileName, progress, message, isError
   Q_PROPERTY(QStringList uploadFilters READ uploadFilters CONSTANT)
   Q_PROPERTY(QVariantList coreWarnings READ coreWarnings NOTIFY hubChanged)  // core_missing / core_version_mismatch
@@ -264,6 +266,8 @@ class PlayerController : public QObject {
   // "Upload ROM": source = local path or file:// URL (from the file dialog). Streamed; progress in upload.
   Q_INVOKABLE void uploadRom(const QString& source);
   Q_INVOKABLE void dismissUploadMessage();
+  QString stopSaveError() const { return stopSaveError_; }
+  Q_INVOKABLE void dismissStopSaveError();
   // Detail pane "Check again": reloads the systems registry (firmware status) after the admin changed something.
   Q_INVOKABLE void recheckFirmware();
   // Game view
@@ -288,6 +292,7 @@ class PlayerController : public QObject {
   void appearanceChanged();
   void romCacheChanged();
   void uploadChanged();
+  void stopSaveErrorChanged();
   void emulationSettingsChanged();
   void collectingDiagnosticsChanged();
   void diagnosticsCollected(bool ok, const QString& path, const QString& message);
@@ -366,6 +371,7 @@ class PlayerController : public QObject {
   QString libraryError_;
   QString selectedId_;
   QString startError_;
+  QString stopSaveError_;
   QString pendingSha_;
   QElapsedTimer progressClock_;           // ROM progress throttle
   QHash<QString, qint64> lastProgressMs_;  // sha -> last accepted progress (clock ms + 1)

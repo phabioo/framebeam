@@ -5,10 +5,14 @@
 #include <QQmlContext>
 #include <QQmlProperty>
 #include <QSignalSpy>
+#include <QSemaphore>
+#include <QThread>
 #include <QtTest>
+#include <atomic>
 
 #include "controllerprofiles.h"
 #include "core_options.h"
+#include "coreprober.h"
 #include "fakehub.h"
 #include "profilestore.h"
 #include "romcache.h"
@@ -111,6 +115,24 @@ QJsonObject ndsSystem(const QString& mode, const QJsonArray& files) {
                                   {QStringLiteral("firmware_mode"), mode},
                                   {QStringLiteral("firmware"), files}}}}};
 }
+
+// Probe stand-in for the CoreProber tests: counts calls, notes whether one ran on the GUI thread and waits for the test.
+std::atomic<int> g_probeCalls{0};
+std::atomic<bool> g_probeOnGuiThread{false};
+QSemaphore g_probeGate;
+emu::CoreProbe gatedProbe(const QString&, const QString&, const QString&) {
+  ++g_probeCalls;
+  if (QThread::currentThread() == QCoreApplication::instance()->thread()) g_probeOnGuiThread = true;
+  g_probeGate.acquire();
+  emu::CoreProbe p = fakeProbe();
+  p.info.version = QStringLiteral("9.9.9");
+  return p;
+}
+
+// Releases the probe gate when a test leaves early, so a blocked worker never hangs the teardown.
+struct ProbeGateRelease {
+  ~ProbeGateRelease() { g_probeGate.release(16); }
+};
 
 // SDL virtual gamepad (default mapping: buttons a b x y back guide start ls rs lb rb dpup dpdown dpleft dpright).
 enum Btn { South = 0, East, West, North, Back, Guide, Start, LS, RS, LB, RB, DUp, DDown, DLeft, DRight };
@@ -230,8 +252,74 @@ class EmulationControllersTest : public QObject {
     qputenv("FRAMEBEAM_MELONDS_DS_CORE", QCoreApplication::applicationFilePath().toLocal8Bit());
   }
   void cleanup() {
+    CoreProber::setProbeFunctionForTest(nullptr);
+    g_probeGate.acquire(g_probeGate.available());
     QCOMPARE(uitest::warningCount().load(), 0);
     if (savedCoreEnv_.isEmpty()) qunsetenv("FRAMEBEAM_MELONDS_DS_CORE"); else qputenv("FRAMEBEAM_MELONDS_DS_CORE", savedCoreEnv_);
+  }
+
+  // ------------------------------------------------------------------ Core probe off the GUI thread
+
+  // The startup probe (handshake core list) and the Emulation page share one probe per library; it runs on a worker, the
+  // page shows a loading row meanwhile, and the handshake core list follows when the probe is done.
+  void coreProbeRunsOffTheGuiThread() {
+    g_probeCalls = 0;
+    g_probeOnGuiThread = false;
+    CoreProber::setProbeFunctionForTest(&gatedProbe);
+    FakeHub hub(QStringLiteral("a"));
+    QVERIFY(hub.start());
+    Harness h;
+    ProbeGateRelease gateGuard;  // destroyed before the Harness
+    QVERIFY(h.start(true));  // queues the startup probe; it blocks on the gate
+    pair(h, hub);  // the GUI thread stays responsive while the probe is stuck
+    h.controller->showEmulation();
+    QTRY_VERIFY_WITH_TIMEOUT(g_probeCalls.load() >= 1, 3000);
+    QVERIFY(visible(h, "coreProbingNote"));
+    QVERIFY(h.controller->emulation()->coreProbing());
+    QVERIFY(!h.controller->emulation()->hasCoreProbe(QStringLiteral("melondsds")));
+    QTest::qWait(150);
+    QCOMPARE(g_probeCalls.load(), 1);  // refreshes on the page do not start the same library twice
+    g_probeGate.release();
+    QTRY_VERIFY_WITH_TIMEOUT(h.controller->emulation()->hasCoreProbe(QStringLiteral("melondsds")), 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(!visible(h, "coreProbingNote"), 3000);
+    QVERIFY(!h.controller->emulation()->coreProbing());
+    QVERIFY(h.item("optionRow_melonds_audio_interpolation") != nullptr);
+    QCOMPARE(g_probeCalls.load(), 1);
+    QVERIFY(!g_probeOnGuiThread.load());
+    // The handshake core list is sent after the probe (version from the core info).
+    QTRY_VERIFY_WITH_TIMEOUT(
+        [&]() {
+          for (const QJsonValue& v : hub.lastHandshakeBody.value(QStringLiteral("cores")).toArray()) {
+            if (v.toObject().value(QStringLiteral("id")).toString() == QLatin1String("melondsds")) {
+              return v.toObject().value(QStringLiteral("version")).toString() == QLatin1String("9.9.9");
+            }
+          }
+          return false;
+        }(),
+        5000);
+  }
+
+  // The prober serves one library once, one at a time, and tells every requester.
+  void coreProberDeduplicatesAndSerializes() {
+    g_probeCalls = 0;
+    CoreProber::setProbeFunctionForTest(&gatedProbe);
+    CoreProber prober;
+    ProbeGateRelease gateGuard;  // destroyed before the prober
+    QStringList got;
+    connect(&prober, &CoreProber::probed, &prober, [&got](const QString& id, const QString&, const emu::CoreProbe& p) { got << id + QLatin1Char(':') + p.info.version; });
+    QSignalSpy idle(&prober, &CoreProber::idle);
+    QVERIFY(prober.request(QStringLiteral("a"), QStringLiteral("/x/a.so"), QString(), QString()));
+    QVERIFY(!prober.request(QStringLiteral("a2"), QStringLiteral("/x/a.so"), QString(), QString()));  // same library: shared
+    QVERIFY(prober.request(QStringLiteral("b"), QStringLiteral("/x/b.so"), QString(), QString()));
+    QVERIFY(prober.busy());
+    QTRY_COMPARE_WITH_TIMEOUT(g_probeCalls.load(), 1, 3000);
+    QTest::qWait(100);
+    QCOMPARE(g_probeCalls.load(), 1);  // b waits: one core at a time
+    g_probeGate.release(2);
+    QTRY_COMPARE_WITH_TIMEOUT(idle.count(), 1, 5000);
+    QCOMPARE(g_probeCalls.load(), 2);
+    QCOMPARE(got, (QStringList{"a:9.9.9", "a2:9.9.9", "b:9.9.9"}));
+    QVERIFY(!prober.busy());
   }
 
   // ------------------------------------------------------------------ Emulation (3e)
