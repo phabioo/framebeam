@@ -388,6 +388,8 @@ jobs:
       FRAMEBEAM_COMMIT: ${{ needs.version.outputs.commit }}
       VCPKG_ROOT: ${{ github.workspace }}\.vcpkg
       VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\.vcpkg-binary-cache
+      CCACHE_DIR: ${{ github.workspace }}\.ccache
+      CCACHE_MAXSIZE: 600M
     steps:
       - uses: actions/checkout@v7
       - name: Cache vcpkg checkout
@@ -432,6 +434,30 @@ jobs:
           $version = (Get-Item (Get-Command cl.exe).Source).VersionInfo.ProductVersion
           if (-not $version) { throw "MSVC compiler version is missing" }
           "version=$version" >> $env:GITHUB_OUTPUT
+      - name: Install ccache (pinned, checksum-verified)
+        # Compiler cache for the Player's own sources (the Release build has no /Zi debug info, which ccache cannot cache).
+        id: ccache
+        shell: pwsh
+        env:
+          CCACHE_VERSION: "4.13.4"
+          CCACHE_SHA256: 12e8958ef3fc1fecceb650d46e4db5d0855c778312c70eedd3a2da344fd0a698   # ccache-4.13.4-windows-x86_64.zip
+        run: |
+          $zip = "$env:RUNNER_TEMP\ccache.zip"
+          Invoke-WebRequest -Uri "https://github.com/ccache/ccache/releases/download/v$env:CCACHE_VERSION/ccache-$env:CCACHE_VERSION-windows-x86_64.zip" -OutFile $zip
+          $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash
+          if ($hash -ne $env:CCACHE_SHA256) { throw "ccache checksum mismatch: $hash" }
+          Expand-Archive $zip -DestinationPath $env:RUNNER_TEMP -Force
+          $exe = "$env:RUNNER_TEMP\ccache-$env:CCACHE_VERSION-windows-x86_64\ccache.exe"
+          if (-not (Test-Path $exe)) { throw "ccache.exe not found in the archive" }
+          & $exe --version | Select-Object -First 1
+          "path=$exe" >> $env:GITHUB_OUTPUT
+      - name: Restore ccache
+        id: cache-ccache
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ccache-windows-msvc-${{ steps.vcpkg-toolchain.outputs.version }}-${{ github.sha }}
+          restore-keys: ccache-windows-msvc-${{ steps.vcpkg-toolchain.outputs.version }}-
       - name: Restore vcpkg binary cache
         id: vcpkg-binary-cache
         uses: actions/cache/restore@v6
@@ -454,7 +480,12 @@ jobs:
       - name: Configure
         timeout-minutes: 240
         working-directory: client
-        run: cmake --preset windows-msvc-release "-DFRAMEBEAM_VERSION=$env:FRAMEBEAM_VERSION" "-DFRAMEBEAM_CHANNEL=$env:FRAMEBEAM_CHANNEL" "-DFRAMEBEAM_COMMIT=$env:FRAMEBEAM_COMMIT"
+        env:
+          CCACHE_EXE: ${{ steps.ccache.outputs.path }}
+        # The launcher is a cache variable of this project only; vcpkg builds its ports in their own CMake runs.
+        run: >-
+          cmake --preset windows-msvc-release "-DFRAMEBEAM_VERSION=$env:FRAMEBEAM_VERSION" "-DFRAMEBEAM_CHANNEL=$env:FRAMEBEAM_CHANNEL"
+          "-DFRAMEBEAM_COMMIT=$env:FRAMEBEAM_COMMIT" "-DCMAKE_C_COMPILER_LAUNCHER=$env:CCACHE_EXE" "-DCMAKE_CXX_COMPILER_LAUNCHER=$env:CCACHE_EXE"
       # Save the binary cache right after vcpkg install (part of configure), even if
       # later steps fail, so a long FFmpeg build is never repeated. Only when this run added or changed entries
       # (file count or total size differs from the restored state): an unchanged cache is not uploaded again, which keeps
@@ -479,7 +510,23 @@ jobs:
       - name: Build
         timeout-minutes: 60
         working-directory: client
+        env:
+          # The MSVC version instead of cl.exe's mtime: the cache stays valid across runner VMs with the same toolchain.
+          CCACHE_COMPILERCHECK: string:${{ steps.vcpkg-toolchain.outputs.version }}
         run: cmake --build --preset windows-msvc-release
+      - name: ccache statistics
+        if: always() && steps.ccache.outcome == 'success'
+        shell: pwsh
+        env:
+          CCACHE_EXE: ${{ steps.ccache.outputs.path }}
+        run: '& $env:CCACHE_EXE -s'
+      - name: Save ccache
+        # As on Linux: only main saves (one entry per merge), PR and branch runs restore it.
+        if: always() && github.ref == 'refs/heads/main' && steps.cache-ccache.outputs.cache-primary-key != ''
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ steps.cache-ccache.outputs.cache-primary-key }}
       - name: Test
         timeout-minutes: 30
         working-directory: client
@@ -490,8 +537,8 @@ jobs:
           FRAMEBEAM_TEST_LOG_DIR: ${{ github.workspace }}\testlogs
         run: |
           # Merge CI uses the in-repo test core only: the real-core tests skip (cores-nightly.yml runs them), every other
-          # skip, in particular any *_testcore test, is an error (allowlist below).
-          ctest --preset windows-msvc-release 2>&1 | Tee-Object -FilePath ctest.log
+          # skip, in particular any *_testcore test, is an error (allowlist below). Tests run in parallel (own temp dirs, port 0).
+          ctest --preset windows-msvc-release -j $env:NUMBER_OF_PROCESSORS 2>&1 | Tee-Object -FilePath ctest.log
           if ($LASTEXITCODE -ne 0) {
             # Re-run every failed test exe directly: QtTest output goes to a file (survives a crash) and to the
             # console, followed by the files and the exit code (0xC0000005 = access violation, 3/4 = abort/terminate).
@@ -702,16 +749,19 @@ jobs:
           CORE_VERSION: ${{ needs.version.outputs.core }}
         run: |
           # ProductVersion must be numeric: X.Y.Z plus the run number as 4th field (ignored by Windows Installer's upgrade logic).
+          # Compression: the published beta MSI (push to main) keeps the release setting high; dev builds use mszip and the two
+          # test-only MSIs none, which binds in a fraction of the time (high LZX over the whole package takes over a minute each).
+          $level = if ($env:FRAMEBEAM_CHANNEL -eq 'beta') { 'high' } else { 'mszip' }
           $msi = "$env:GITHUB_WORKSPACE\dist\msi\framebeam-$($env:FRAMEBEAM_VERSION)-windows-x64.msi"
-          packaging\windows\build-msi.ps1 -ProductVersion "$env:CORE_VERSION.${{ github.run_number }}" `
+          packaging\windows\build-msi.ps1 -ProductVersion "$env:CORE_VERSION.${{ github.run_number }}" -CompressionLevel $level `
             -PackageDir "$env:GITHUB_WORKSPACE\dist\framebeam-player" -HubExe "$env:GITHUB_WORKSPACE\dist\hub\framebeam-hub.exe" -OutFile $msi
           if (-not (Test-Path $msi)) { throw "MSI was not produced" }
           # An older build of the same product (other product code) for the per-user -> per-machine switch test.
-          packaging\windows\build-msi.ps1 -ProductVersion "0.0.1.0" `
+          packaging\windows\build-msi.ps1 -ProductVersion "0.0.1.0" -CompressionLevel none `
             -PackageDir "$env:GITHUB_WORKSPACE\dist\framebeam-player" -HubExe "$env:GITHUB_WORKSPACE\dist\hub\framebeam-hub.exe" `
             -OutFile "$env:GITHUB_WORKSPACE\dist\msi-old\framebeam-old.msi"
           # Same version, new product code: an upgrade of the main MSI (as the Hub updater runs it).
-          packaging\windows\build-msi.ps1 -ProductVersion "$env:CORE_VERSION.${{ github.run_number }}" `
+          packaging\windows\build-msi.ps1 -ProductVersion "$env:CORE_VERSION.${{ github.run_number }}" -CompressionLevel none `
             -PackageDir "$env:GITHUB_WORKSPACE\dist\framebeam-player" -HubExe "$env:GITHUB_WORKSPACE\dist\hub\framebeam-hub.exe" `
             -OutFile "$env:GITHUB_WORKSPACE\dist\msi-upgrade\framebeam-upgrade.msi"
       - name: MSI test (a) Player only, per user

@@ -40,4 +40,6 @@ if(BUILD_TESTING)
   foreach(t network_hub_flow network_library_rom network_savesync network_sessions network_hub_features network_coreprovisioner network_coreupdater)
     target_compile_definitions(test_${t} PRIVATE FB_TEST_DATA_DIR="${FB_TESTDATA_DIR}")
   endforeach()
+  # The longest test (about 110 s on Windows CI) starts first under ctest -j: a fresh CI build has no cost data.
+  set_tests_properties(network_savesync PROPERTIES COST 1000)
 endif()
