@@ -13,7 +13,7 @@ The server manages Session metadata, visibility and presence and mediates connec
 
 Direct P2P connections form the basis. Since 0.4 ([ADR 0012](../adr/0012-internet-sessions-and-save-comfort.md)) the Hub can embed an optional STUN/TURN relay (off by default, `-turn` / `-public-host`) for connections that NAT or firewalls prevent. A relay is an additional media path; the Hub still only manages and signals. Supported setups: LAN (host candidates), internet with port forwarding and the embedded relay, and VPN; no external TURN server.
 
-- ICE: the Hub hands out `ice_servers` (`stun:` URLs from `-ice-servers`, plus its own STUN with TURN on) and `turn_servers` with short-lived credentials (12 h, TURN REST scheme) in `hello_ack` and the join response. Players prefer the join response and fall back to `hello_ack`.
+- ICE: the Hub hands out `ice_servers` (`stun:` URLs from `-ice-servers`, plus its own STUN with TURN on) and `turn_servers` in `hello_ack` and the join response: credentials of every active relay provider (embedded TURN, Cloudflare TURN, external TURN servers; 12 h TURN REST scheme or provider-specific, static for an external server in static mode). Players prefer the join response and fall back to `hello_ack`.
 - Diagnostics show the connection type per PeerConnection (direct host/srflx/prflx or relay udp/tcp).
 - Bitrate adaptation: the viewer reports loss and received kbit/s over `fb-diag`; the host adapts the single encoder to the worst viewer (AIMD, 300-4000 kbit/s, start 2000).
 

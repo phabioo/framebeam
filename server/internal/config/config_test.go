@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -248,5 +249,87 @@ func TestCloudflareTURNConfig(t *testing.T) {
 	}
 	if parse(t, nil, "-cloudflare-turn-token-file", f).Validate() == nil || parse(t, nil, "-cloudflare-turn-key-id", "a/b").Validate() == nil {
 		t.Fatal("token file without key id and bad key id must fail")
+	}
+}
+
+func TestExternalTURNFlagAndEnv(t *testing.T) {
+	fs := flag.NewFlagSet("t", flag.ContinueOnError)
+	env := map[string]string{"FRAMEBEAM_TURN_EXTERNAL": "urls=turn:env.example.org:3478"}
+	c := Register(fs, func(k string) string { return env[k] })
+	if err := fs.Parse([]string{
+		"-turn-external", "name=vps;urls=turn:turn.example.org:3478?transport=udp,turns:turn.example.org:5349?transport=tcp;secret-file=/etc/framebeam/turn.secret",
+		"-turn-external", "mode=static;username=u1;urls=turn:turn2.example.org:3478;password-file=/etc/framebeam/pw"}); err != nil {
+		t.Fatal(err)
+	}
+	specs, err := c.ExternalTURNSpecs()
+	if err != nil || len(specs) != 2 { // the flag replaces the environment value
+		t.Fatalf("%v %+v", err, specs)
+	}
+	if s := specs[0]; s.Name != "vps" || s.Mode != ExternalModeSecret || len(s.URLs) != 2 || s.SecretFile != "/etc/framebeam/turn.secret" {
+		t.Errorf("%+v", s)
+	}
+	if s := specs[1]; s.Name != "external-2" || s.Mode != ExternalModeStatic || s.Username != "u1" || s.PasswordFile != "/etc/framebeam/pw" {
+		t.Errorf("%+v", s)
+	}
+	// Environment only.
+	fs = flag.NewFlagSet("t", flag.ContinueOnError)
+	c = Register(fs, func(k string) string { return env[k] })
+	fs.Parse(nil)
+	if specs, err := c.ExternalTURNSpecs(); err != nil || len(specs) != 1 || specs[0].Name != "external-1" {
+		t.Fatalf("%v %+v", err, specs)
+	}
+}
+
+func TestExternalTURNInvalid(t *testing.T) {
+	for _, v := range []string{
+		"mode=secret",                                    // no urls
+		"urls=stun:turn.example.org:3478",                // not turn:
+		"urls=turn:user:pw@turn.example.org:3478",        // credentials in the URL
+		"urls=turn:turn.example.org:3478?transport=sctp", // transport
+		"urls=turn:turn.example.org:3478;mode=static",    // static without username
+		"urls=turn:turn.example.org:3478;mode=secret;username=u",
+		"urls=turn:turn.example.org:3478;mode=static;username=u;secret-file=/x",
+		"urls=turn:turn.example.org:3478;mode=other",
+		"urls=turn:turn.example.org:3478;secret=abc", // the secret itself is never a field
+		"urls=turn:turn.example.org:3478;name=a b",
+	} {
+		c := Config{TURNExternal: []string{v}}
+		if _, err := c.ExternalTURNSpecs(); err == nil {
+			t.Errorf("%q accepted", v)
+		} else if strings.Contains(v, "secret=abc") && strings.Contains(err.Error(), "abc") {
+			t.Errorf("error repeats the value: %v", err)
+		}
+	}
+	c := Config{TURNExternal: []string{"name=a;urls=turn:a.example.org:3478", "name=a;urls=turn:b.example.org:3478"}}
+	if _, err := c.ExternalTURNSpecs(); err == nil {
+		t.Error("duplicate name accepted")
+	}
+}
+
+func TestExternalTURNSecretSources(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "secret")
+	os.WriteFile(file, []byte("file-secret-0123\n"), 0o600)
+	c := Config{}
+	sp := ExternalTURNSpec{Name: "vps", Mode: ExternalModeSecret, SecretFile: file}
+	if v, err := c.ExternalTURNSecret(sp, 1, func(string) string { return "" }); err != nil || v != "file-secret-0123" {
+		t.Fatalf("%q %v", v, err)
+	}
+	get := func(k string) string {
+		if k == "FRAMEBEAM_TURN_EXTERNAL_2_SECRET" {
+			return " env-secret-0123 "
+		}
+		return ""
+	}
+	if v, err := c.ExternalTURNSecret(sp, 2, get); err != nil || v != "env-secret-0123" {
+		t.Fatalf("env wins: %q %v", v, err)
+	}
+	st := ExternalTURNSpec{Name: "p", Mode: ExternalModeStatic}
+	if _, err := c.ExternalTURNSecret(st, 1, func(string) string { return "" }); err == nil || !strings.Contains(err.Error(), "FRAMEBEAM_TURN_EXTERNAL_1_PASSWORD") {
+		t.Fatalf("%v", err)
+	}
+	os.WriteFile(file, []byte("\n"), 0o600)
+	if _, err := c.ExternalTURNSecret(sp, 1, func(string) string { return "" }); err == nil {
+		t.Fatal("empty file accepted")
 	}
 }

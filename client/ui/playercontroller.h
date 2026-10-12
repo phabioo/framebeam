@@ -22,6 +22,7 @@
 #include "firmwarecache.h"
 #include "corecache.h"
 #include "coreprovisioner.h"
+#include "coreupdater.h"
 #include "firmwareprovisioner.h"
 #include "corecatalog.h"
 #include "gamedetail.h"
@@ -94,6 +95,8 @@ class PlayerController : public QObject {
   Q_PROPERTY(QString stopSaveError READ stopSaveError NOTIFY stopSaveErrorChanged)
   Q_PROPERTY(QVariantMap upload READ upload NOTIFY uploadChanged)   // active, fileName, progress, message, isError
   Q_PROPERTY(QStringList uploadFilters READ uploadFilters CONSTANT)
+  // Background core updates (quiet indicator on the Emulation page): active, text ("Updating X to V"), lastText ("Updated X to V")
+  Q_PROPERTY(QVariantMap coreUpdate READ coreUpdate NOTIFY coreUpdateChanged)
   Q_PROPERTY(QVariantList coreWarnings READ coreWarnings NOTIFY hubChanged)  // core_missing / core_version_mismatch
   // Emulation page (3e), Controllers page (3f), applied settings
   Q_PROPERTY(framebeam::ui::EmulationController* emulation READ emulation CONSTANT)
@@ -190,6 +193,7 @@ class PlayerController : public QObject {
   QSet<QString> protectedRomHashes() const;
   bool canUpload() const;
   QVariantMap upload() const { return upload_; }
+  QVariantMap coreUpdate() const;
   QStringList uploadFilters() const;
   QVariantList coreWarnings() const;
   QVariantMap saveConflict() const { return conflict_; }
@@ -303,6 +307,7 @@ class PlayerController : public QObject {
   void romCacheChanged();
   void uploadChanged();
   void stopSaveErrorChanged();
+  void coreUpdateChanged();
   void emulationSettingsChanged();
   void collectingDiagnosticsChanged();
   void diagnosticsCollected(bool ok, const QString& path, const QString& message);
@@ -336,6 +341,12 @@ class PlayerController : public QObject {
   std::unique_ptr<FirmwareProvisioner> provisioner_;
   std::unique_ptr<CoreCache> coreCache_;
   std::unique_ptr<CoreProvisioner> coreProv_;
+  std::unique_ptr<CoreUpdater> coreUpdater_;  // background updates of cores that are already cached
+  QTimer* systemsTimer_ = nullptr;           // re-reads the Hub's systems / cores info (at most every 30 min)
+  QSet<QString> coreReprobe_;                 // updated cores whose version is reported to the Hub once no game is running
+  bool probeCoreVersions_ = true;
+  void reprobeUpdatedCores();
+  void cancelBackgroundUpdateForSelected();
   QMap<QString, QString> coreProblems_;  // core_id -> last provisioning problem reason (cleared with a fresh registry)
   HandshakeInfo handshake_;
   std::unique_ptr<GameUploader> uploader_;

@@ -525,6 +525,17 @@ form.pin input { font-size: 12px; }
 .set-pw[open] summary { margin-bottom: 8px; }
 .set-pw .pw-form { max-width: 360px; border-top: 0; padding-top: 4px; }
 .set-add { width: 100%; }
+/* External TURN server add/edit form: stacked fields, label above input */
+.ext-details { display: block; }
+.ext-details > summary { cursor: pointer; font-size: 14px; font-weight: 500; }
+.ext-details[open] > summary { margin-bottom: 10px; }
+.set-row form.ext-turn-form { flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 12px; max-width: 520px; min-width: 0; box-sizing: border-box; }
+.ext-field { min-width: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 500; }
+.ext-field input.host, .ext-field textarea.host, .ext-field select { width: 100%; max-width: 100%; box-sizing: border-box; }
+.ext-field textarea.host { min-height: 4.5em; resize: vertical; padding: 8px 10px; border: 1px solid var(--border-input); border-radius: 7px; background: var(--surface-soft); color: var(--text); font-size: 12px; min-width: 0; }
+.ext-field .help { font-weight: 400; }
+.ext-check { display: flex; gap: 8px; align-items: center; font-size: 13px; }
+.ext-turn-form .btn { align-self: flex-start; }
 @media (max-width: 800px) {
   .set { grid-template-columns: 1fr; margin: -20px -16px -20px; }
   .set-nav { border-right: 0; border-bottom: 1px solid var(--border); padding: 20px 16px; }

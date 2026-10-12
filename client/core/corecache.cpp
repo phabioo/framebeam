@@ -168,12 +168,13 @@ QString CoreCache::libraryPath(const QString& coreId, const QString& version, co
   return filePath(coreId, version, platform, lib->name);
 }
 
-int CoreCache::prune(const QString& coreId, const QString& platform, int keepNewest, const QString& inUseVersion) const {
+int CoreCache::prune(const QString& coreId, const QString& platform, int keepNewest, const QString& inUseVersion,
+                     const QString& alsoKeepVersion) const {
   int removed = 0;
   const QStringList vs = versions(coreId, platform);  // newest first
   for (qsizetype i = std::max(keepNewest, 0); i < vs.size(); ++i) {
     const QString& v = vs.at(i);
-    if (v == inUseVersion) continue;
+    if (v == inUseVersion || (!alsoKeepVersion.isEmpty() && v == alsoKeepVersion)) continue;
     const QString dir = packageDir(coreId, v, platform);
     if (dir.isEmpty() || !QDir(dir).removeRecursively()) continue;
     ++removed;

@@ -6,13 +6,13 @@ FrameBeam is a self-hosted retro gaming platform. The **FrameBeam Hub** keeps yo
 
 ## Status
 
-Version 0.10 (Nintendo 3DS with Azahar as second system, [ADR 0022](docs/adr/0022-nintendo-3ds-with-azahar.md); one Windows installer since 0.9, [ADR 0021](docs/adr/0021-one-windows-installer.md); cores from the libretro buildbot since 0.8, [ADR 0020](docs/adr/0020-cores-from-the-libretro-buildbot.md)). The proof of concept (Nintendo DS with melonDS DS) is complete; Hub UI and Player UI have had their design passes (0.6, 0.7). Next on the [roadmap](docs/roadmap.md) to 1.0 (a SoulLink run with friends in Pokémon Omega Ruby/Alpha Sapphire): connection fixes and small items (0.10.x), plugin runtime (0.11, Player part done), local ROMs (0.12), GPU paths (0.13), system template with GB/GBC/GBA (0.14), UI gaps and Multiview (0.15). Metadata and a Linux Player come after 1.0; macOS is dropped. Windows Player and Linux Hub (Debian, Raspberry Pi) are the supported platforms (the Hub also runs as a Windows service since 0.9); real GPUs, drivers and networks are verified only locally.
+Version 0.10.x (connections and small items before new testers: public default STUN, ICE logging and connection type per viewer, optional Cloudflare TURN or any external TURN server such as coturn on a VPS (editable in the Hub web interface), gamepad hotkeys, save slot rename/delete, "Collect logs" bundle, background core updates; Nintendo 3DS with Azahar as second system, [ADR 0022](docs/adr/0022-nintendo-3ds-with-azahar.md); one Windows installer since 0.9, [ADR 0021](docs/adr/0021-one-windows-installer.md); cores from the libretro buildbot since 0.8, [ADR 0020](docs/adr/0020-cores-from-the-libretro-buildbot.md)). The proof of concept (Nintendo DS with melonDS DS) is complete; Hub UI and Player UI have had their design passes (0.6, 0.7). Next on the [roadmap](docs/roadmap.md) to 1.0 (a SoulLink run with friends in Pokémon Omega Ruby/Alpha Sapphire): plugin runtime (0.11, Player part done), local ROMs (0.12), GPU paths (0.13), system template with GB/GBC/GBA (0.14), UI gaps and Multiview (0.15). Metadata and a Linux Player come after 1.0; macOS is dropped. Windows Player and Linux Hub (Debian, Raspberry Pi) are the supported platforms (the Hub also runs as a Windows service since 0.9); real GPUs, drivers and networks are verified only locally.
 
 ## Highlights
 
 - **One library, many devices:** the Hub serves ROMs to Players with a hash-verified cache; pairing needs an admin's approval or an invite code.
 - **Saves that never get lost:** versioned checkpoints, conflicts are never overwritten silently, history, restore and snapshots ([how saves work](docs/guides/saves.md)).
-- **Share a running game:** Sessions with Private / Hub users / Invite only visibility, multiview with up to 4 surfaces, direct WebRTC with an optional relay on the Hub for Players outside your LAN.
+- **Share a running game:** Sessions with Private / Hub users / Invite only visibility, multiview with up to 4 surfaces, direct WebRTC (public STUN by default) with an optional relay on the Hub for Players outside your LAN.
 - **Cores from the Hub:** installers ship no emulator cores; since 0.8 the Hub downloads cores from the libretro buildbot on the admin's request and keeps them updated ([ADR 0020](docs/adr/0020-cores-from-the-libretro-buildbot.md)) and serves them to Players, which choose the core per system and game.
 - **OpenGL rendering, gamepads, firmware handling** for DS (firmware files are yours; FrameBeam never ships them).
 - **Self-updating:** signed releases, `stable` and `beta` channels, Debian package for the Hub, Windows installer for the Player.
@@ -35,7 +35,7 @@ sudo apt install ./framebeam-hub_<version>_arm64.deb
 
 Create the admin account and open `https://<hub-address>:8443/`. Other Linux systems, ports and options: [Hub installation](docs/guides/hub-install.md), [Hub configuration](docs/guides/hub-configuration.md).
 
-**2. Install the Player** (Windows): run the MSI (or the setup `.exe` that installs it) from the releases; "Set up a Hub on this PC" in the Player installs a local Hub. It ships no emulator core; the Player downloads it from the Hub on first use. See [Using the Player](docs/guides/player.md).
+**2. Install the Player** (Windows): run the MSI from the releases; "Set up a Hub on this PC" in the Player installs a local Hub. It ships no emulator core; the Player downloads it from the Hub on first use. See [Using the Player](docs/guides/player.md).
 
 **3. Pair:** start the Player, enter the Hub address, compare the certificate fingerprint with the Hub's and confirm, then allow the new device on the Hub's Clients page (or redeem an invite code from the Users page).
 
