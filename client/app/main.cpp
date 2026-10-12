@@ -1,4 +1,7 @@
 #include <QCommandLineParser>
+#include <QCoreApplication>
+#include <QDir>
+#include <QFileInfo>
 #include <QGuiApplication>
 #include <QIcon>
 #include <QQmlApplicationEngine>
@@ -16,7 +19,9 @@
 #include <shobjidl.h>
 #endif
 
+#include "diagbundle.h"
 #include "filelog.h"
+#include "profilestore.h"
 #include "playercontroller.h"
 #include "version.h"
 
@@ -67,6 +72,29 @@ HANDLE g_instanceMutex = nullptr;
 void holdInstanceMutex() { g_instanceMutex = CreateMutexW(nullptr, FALSE, L"FrameBeamPlayer"); }
 #endif
 
+// `--collect-logs <out.zip> [--data-dir <path>]`: writes the diagnostics bundle without the GUI (also when the Player
+// does not start). Offline: reads the data directory only, never connects to a Hub. Refuses to overwrite a file.
+int collectLogsCli(int argc, char* argv[], const QString& out) {
+  QCoreApplication app(argc, argv);
+  QCoreApplication::setApplicationName(QStringLiteral("FrameBeam Player"));
+  QString dataDir;
+  for (int i = 1; i + 1 < argc; ++i) {
+    if (std::strcmp(argv[i], "--data-dir") == 0) dataDir = QString::fromLocal8Bit(argv[i + 1]);
+  }
+  if (dataDir.isEmpty()) dataDir = framebeam::ProfileStore::defaultBaseDir();
+  if (QFileInfo::exists(out)) {
+    printToStdout("framebeam_player: " + out.toStdString() + " already exists, not overwriting\n");
+    return 1;
+  }
+  QString err;
+  if (!framebeam::diag::writeBundle(out, framebeam::diag::offlineInfo(dataDir), dataDir, {}, &err)) {
+    printToStdout("framebeam_player: could not write the bundle: " + err.toStdString() + "\n");
+    return 1;
+  }
+  printToStdout("Diagnostics bundle written to " + QDir::toNativeSeparators(out).toStdString() + "\n");
+  return 0;
+}
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
@@ -82,12 +110,20 @@ int main(int argc, char* argv[]) {
       printToStdout("FrameBeam Player " + std::string(framebeam::playerVersion()) + "\n");
       return 0;
     }
+    if (std::strcmp(argv[i], "--collect-logs") == 0) {
+      if (i + 1 >= argc) {
+        printToStdout("framebeam_player: --collect-logs needs an output file (<out.zip>)\n");
+        return 2;
+      }
+      return collectLogsCli(argc, argv, QString::fromLocal8Bit(argv[i + 1]));
+    }
     if (std::strcmp(argv[i], "--help") == 0 || std::strcmp(argv[i], "-h") == 0 || std::strcmp(argv[i], "-?") == 0) {
       printToStdout(
           "Usage: framebeam_player [options]\n"
           "  --version            Print the version and exit.\n"
           "  --version-json       Print version, channel, commit and protocol versions as JSON and exit.\n"
           "  --smoke-test         Load QML and exit with code 0 (code 1 on QML warnings).\n"
+          "  --collect-logs <out.zip>  Write the diagnostics bundle (logs, system info; no passwords or tokens) and exit.\n"
           "  --data-dir <path>    Data directory (profiles, cache, saves) instead of the default.\n"
           "  --dev-allow-http     Development only: also allow HTTP hubs outside localhost.\n"
           "  --setup-local-hub    Continue \"Set up a Hub on this PC\" (the installer starts the Player with it).\n");

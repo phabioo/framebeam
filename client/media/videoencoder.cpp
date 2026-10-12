@@ -54,6 +54,16 @@ QStringList VideoEncoder::preferredEncoders() {
           QStringLiteral("libx264")};
 }
 
+QStringList VideoEncoder::availableEncoders() {
+  QStringList out;
+  for (const char* n : {"h264_nvenc", "h264_qsv", "h264_amf", "libopenh264", "libx264"}) {
+    if (avcodec_find_encoder_by_name(n) != nullptr) {
+      out.append(QString::fromLatin1(n));
+    }
+  }
+  return out;
+}
+
 bool VideoEncoder::gpuInputConfigured(QString* why) {
   const auto no = [why](const QString& reason) {
     if (why) {

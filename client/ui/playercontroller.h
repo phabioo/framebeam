@@ -166,6 +166,7 @@ class PlayerController : public QObject {
   QString platformText() const;
   // A game or a watched Session is running (updates are never applied then).
   bool sessionBusy() const;
+  bool collectingDiagnostics() const { return collectingDiagnostics_; }
   EmulationController* emulation() { return emulation_.get(); }
   ControllersController* controllers() { return controllers_.get(); }
   bool fullscreenOnStart() const;
@@ -251,6 +252,13 @@ class PlayerController : public QObject {
   Q_INVOKABLE void showLibrary();
   Q_INVOKABLE void showSettings();
   Q_INVOKABLE void openLogFolder();
+  // "Collect logs" (Settings -> Diagnostics): diagnostics bundle zip (core/diagbundle.h). The info is gathered here, the
+  // zip is built off the GUI thread; diagnosticsCollected() reports the result.
+  Q_INVOKABLE QString diagnosticsFileName() const;     // framebeam-player-diagnostics-<UTC timestamp>.zip
+  Q_INVOKABLE QString diagnosticsFolderUrl() const;    // Desktop or Downloads (file URL) for the save dialog
+  Q_INVOKABLE void collectDiagnostics(const QString& pathOrUrl);
+  Q_INVOKABLE void showInFolder(const QString& pathOrUrl);
+  Q_PROPERTY(bool collectingDiagnostics READ collectingDiagnostics NOTIFY collectingDiagnosticsChanged)
   Q_INVOKABLE void showEmulation();
   Q_INVOKABLE void showControllers();
   // "Upload ROM": source = local path or file:// URL (from the file dialog). Streamed; progress in upload.
@@ -281,6 +289,8 @@ class PlayerController : public QObject {
   void romCacheChanged();
   void uploadChanged();
   void emulationSettingsChanged();
+  void collectingDiagnosticsChanged();
+  void diagnosticsCollected(bool ok, const QString& path, const QString& message);
 
  private:
   void onConnectionState(HubConnection::State s);
@@ -295,6 +305,7 @@ class PlayerController : public QObject {
   void onUploadFinished(const UploadResult& result);
   QString friendlyError(const QString& code, const QString& message) const;
   void endRunningWork();
+  QJsonObject diagnosticsInfo() const;
 
   Options options_;
   std::unique_ptr<ProfileStore> profiles_;
@@ -332,6 +343,7 @@ class PlayerController : public QObject {
   std::unique_ptr<GameDetail> detail_;
   std::unique_ptr<HubPresenter> hubPresenter_;
   std::unique_ptr<GameStarter> starter_;
+  bool collectingDiagnostics_ = false;
   bool shareOnStart_ = false;
   QTimer* liveTimer_ = nullptr;     // periodic quiet refresh of the Library and the core state while it is shown
   bool quietRefresh_ = false;       // the running library reload is the periodic one (no "loading" state, errors ignored)
