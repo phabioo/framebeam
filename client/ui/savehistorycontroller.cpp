@@ -394,6 +394,14 @@ QString SaveHistoryController::createSlot(const QString& name) {
   if (!err.isEmpty()) {
     return err;
   }
+  // A new slot has no version on the Hub until its first save, so it would vanish from the picker as soon as another
+  // slot is selected. Persist it locally as an (empty) slot directory; SaveStore::localSlots() lists it from then on.
+  if (!gameId_.isEmpty() && env_.saves->available() && name != slot()) {
+    const QString dir = env_.saves->slotDirFor(gameId_, name);
+    if (dir.isEmpty() || !QDir().mkpath(dir)) {
+      return tr("The slot could not be created.");
+    }
+  }
   selectSlot(name);
   return {};
 }
