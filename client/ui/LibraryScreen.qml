@@ -37,27 +37,51 @@ Rectangle {
             player: root.player
         }
 
-        ColumnLayout {
-            // The list area takes what the sidebar and the detail pane leave and shrinks first (wide fonts): its
-            // content minimum must not push the detail pane past the window edge.
+        // The list area takes what the sidebar and the detail pane leave and shrinks first (wide fonts): its content
+        // minimum must not push the detail pane past the window edge. The content stops at Theme.gridMaxWidth (1680 +
+        // margins), left-aligned; on a 4K screen the space between it and the detail column stays empty (P7).
+        Item {
             Layout.fillWidth: true
             Layout.minimumWidth: 0
             Layout.preferredWidth: 1
             Layout.fillHeight: true
-            Layout.margins: 28
-            Layout.leftMargin: 32
-            Layout.rightMargin: 32
+
+        ColumnLayout {
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            anchors.topMargin: 28
+            anchors.bottomMargin: 28
+            anchors.leftMargin: 32
+            width: Math.max(0, Math.min(parent.width - 64, Theme.gridMaxWidth))
             spacing: 16
 
-            RowLayout {
+            // Header (3c-6): title, search and "Upload ROM" in one row. Anchors, not a RowLayout: "Upload ROM" appears
+            // when the handshake reports uploads, usually after the first layout, and a layout that learns late about a
+            // newly visible item left it on top of the title (P8). Anchors follow visibility changes immediately.
+            Item {
+                id: header
+                objectName: "libraryHeader"
                 Layout.fillWidth: true
-                Layout.minimumWidth: 0   // the header's content minimum must never widen the whole column
-                spacing: 12
-                FbLabel { text: qsTr("Library"); font.pixelSize: 26; font.weight: Font.DemiBold; font.letterSpacing: -0.4 }
-                Item { Layout.fillWidth: true }
+                Layout.minimumWidth: 0
+                implicitHeight: 36
+                readonly property bool uploadShown: root.player.canUpload
+                FbLabel {
+                    id: libraryTitle
+                    objectName: "libraryTitle"
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: qsTr("Library")
+                    font.pixelSize: Theme.fontPage
+                    font.weight: Font.DemiBold
+                    font.letterSpacing: -0.4
+                }
                 FbButton {
+                    id: uploadButton
                     objectName: "uploadButton"
-                    visible: root.player.canUpload
+                    visible: header.uploadShown
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
                     enabled: !root.player.upload.active
                     implicitHeight: 36
                     text: qsTr("Upload ROM")
@@ -66,10 +90,12 @@ Rectangle {
                 FbField {
                     id: search
                     objectName: "searchField"
-                    implicitWidth: 240
-                    Layout.fillWidth: true
-                    Layout.maximumWidth: 240
-                    Layout.minimumWidth: 0
+                    anchors.right: header.uploadShown ? uploadButton.left : parent.right
+                    anchors.rightMargin: header.uploadShown ? Theme.space12 : 0
+                    anchors.verticalCenter: parent.verticalCenter
+                    // Never wider than the room the title leaves; 220 at 1280, 280 on a wide window.
+                    width: Math.max(0, Math.min(header.width >= 1400 ? 280 : 220,
+                                                header.width - libraryTitle.implicitWidth - Theme.space16 - (header.uploadShown ? uploadButton.width + Theme.space12 : 0)))
                     implicitHeight: 36
                     font.family: Qt.application.font.family
                     font.pixelSize: Theme.fontSmall
@@ -78,53 +104,35 @@ Rectangle {
                 }
             }
 
-            // Filter chips with counts (3c, D14); combined with the search field.
-            RowLayout {
-                objectName: "filterChips"
-                Layout.fillWidth: true
-                Layout.minimumWidth: 0   // a narrow column must not be widened by the chips (it would widen every sibling)
-                spacing: Theme.space8
-                Repeater {
-                    model: [
-                        { name: "filterAll", value: "all", label: qsTr("All"), badge: false },
-                        { name: "filterReady", value: "ready", label: qsTr("Ready"), badge: false },
-                        { name: "filterAttention", value: "attention", label: qsTr("Needs attention"), badge: true },
-                        { name: "filterDownload", value: "download", label: qsTr("Not downloaded"), badge: false }
-                    ]
-                    delegate: FbChip {
-                        required property var modelData
-                        objectName: modelData.name
-                        text: modelData.label
-                        count: root.player.library.counts[modelData.value]
-                        badgeAccent: modelData.badge
-                        active: root.player.library.filter === modelData.value
-                        onClicked: root.player.library.filter = modelData.value
-                    }
-                }
-                Item { Layout.fillWidth: true }
-            }
-
-            // Toolbar (3c-2): count of the current result, sort select, "Ready first". Wraps to two lines in a narrow column.
+            // Filter chips with counts ("All · 10"), sort and "Ready first" on the same row; they wrap under the chips in a
+            // narrow column (3c-6). The count of the result is not repeated as text (P11).
             Item {
                 id: toolbar
                 objectName: "libraryToolbar"
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
-                readonly property bool narrow: width < countLabel.implicitWidth + controls.implicitWidth + 24
-                implicitHeight: (narrow ? 32 + 8 + 32 : 32) + 12
-                Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.borderSidebar }
-                FbLabel {
-                    id: countLabel
-                    objectName: "libraryCount"
-                    anchors.left: parent.left
-                    anchors.right: toolbar.narrow ? parent.right : controls.left
-                    anchors.rightMargin: 12
-                    height: 32
-                    verticalAlignment: Text.AlignVCenter
-                    color: Theme.textMeta
-                    font.pixelSize: Theme.fontSmall
-                    elide: Text.ElideRight
-                    text: root.player.library.countText
+                readonly property bool narrow: width < chipRow.implicitWidth + controls.implicitWidth + 24
+                implicitHeight: narrow ? 32 + 8 + 32 : 32
+                Row {
+                    id: chipRow
+                    objectName: "filterChips"
+                    spacing: Theme.space8
+                    Repeater {
+                        model: [
+                            { name: "filterAll", value: "all", label: qsTr("All") },
+                            { name: "filterReady", value: "ready", label: qsTr("Ready") },
+                            { name: "filterAttention", value: "attention", label: qsTr("Needs attention") },
+                            { name: "filterDownload", value: "download", label: qsTr("Not downloaded") }
+                        ]
+                        delegate: FbChip {
+                            required property var modelData
+                            objectName: modelData.name
+                            text: modelData.label
+                            count: root.player.library.counts[modelData.value]
+                            active: root.player.library.filter === modelData.value
+                            onClicked: root.player.library.filter = modelData.value
+                        }
+                    }
                 }
                 Row {
                     id: controls
@@ -188,28 +196,59 @@ Rectangle {
                     }
                 }
             }
+            // "3 of 10 games": only while a chip or the search narrows the list; the unfiltered count lives in "All · 10".
+            FbLabel {
+                id: countLabel
+                objectName: "libraryCount"
+                readonly property bool narrowed: root.player.library.filter !== "all" || root.player.library.filterText.trim() !== ""
+                visible: narrowed
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                Layout.preferredHeight: visible ? implicitHeight : 0
+                color: Theme.textMeta
+                font.pixelSize: Theme.fontSmall
+                elide: Text.ElideRight
+                text: root.player.library.countText
+            }
 
-            // Core warnings from the handshake (non-blocking)
+            // Core notices (3c-6): one dismissible notice for the cores the Hub delivers at the first start (grouped by core),
+            // one for cores that cannot be delivered, one per version mismatch. Part of the column, not pinned over the grid.
             Repeater {
                 model: root.player.coreWarnings
                 delegate: Rectangle {
                     id: warn
                     required property var modelData
                     objectName: "coreWarning"
+                    readonly property bool info: modelData.tone === "info"
+                    readonly property bool dismissible: modelData.code === "core_download"
                     Layout.fillWidth: true
-                    implicitHeight: warnText.implicitHeight + 20
+                    implicitHeight: warnRow.implicitHeight + 20
                     radius: 8
-                    color: Theme.warnBg
-                    FbLabel {
-                        id: warnText
+                    color: warn.info ? Theme.infoBg : Theme.warnBg
+                    border.width: 1
+                    border.color: warn.info ? Theme.infoBorder : Theme.accentBorder
+                    RowLayout {
+                        id: warnRow
                         anchors.fill: parent
                         anchors.margins: 10
-                        anchors.leftMargin: 12
-                        wrapMode: Text.WordWrap
-                        verticalAlignment: Text.AlignVCenter
-                        text: warn.modelData.text
-                        color: Theme.warn
-                        font.pixelSize: Theme.fontSmall
+                        anchors.leftMargin: 14
+                        spacing: Theme.space12
+                        FbLabel {
+                            id: warnText
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            wrapMode: Text.WordWrap
+                            text: warn.modelData.text
+                            color: warn.info ? Theme.infoText : Theme.warn
+                            font.pixelSize: Theme.fontSmall
+                        }
+                        FbButton {
+                            objectName: "coreWarningDismiss"
+                            visible: warn.dismissible
+                            kind: "link"
+                            text: qsTr("Dismiss")
+                            onClicked: root.player.dismissCoreNotice(warn.modelData.code)
+                        }
                     }
                 }
             }
@@ -366,8 +405,10 @@ Rectangle {
                     boundsBehavior: Flickable.StopAtBounds
                     ScrollBar.vertical: ScrollBar { }
 
-                    readonly property int columns: Math.max(2, Math.floor((width - 4) / 170))
-                    readonly property int cellW: Math.floor((width - 4) / columns)
+                    // The grid stops at Theme.gridMaxWidth (1680), left-aligned; the detail column keeps its width.
+                    readonly property int gridW: Math.min(Theme.gridMaxWidth, width - 4)
+                    readonly property int columns: Math.max(2, Math.floor(gridW / 170))
+                    readonly property int cellW: Math.floor(gridW / columns)
                     readonly property bool dated: root.player.library.sortKey === "added_desc" || root.player.library.sortKey === "added_asc"
                     readonly property int cellH: cellW + 62 + 10 + (dated ? 16 : 0)
 
@@ -375,7 +416,7 @@ Rectangle {
                         id: gridColumn
                         x: 4
                         y: 4
-                        width: gridScroll.width - 4
+                        width: Math.min(Theme.gridMaxWidth, gridScroll.width - 4)
                         spacing: 6
 
                         GameGrid {
@@ -495,10 +536,11 @@ Rectangle {
                 }
             }
         }
+        }
 
         DetailPane {
             Layout.fillHeight: true
-            Layout.preferredWidth: 392
+            Layout.preferredWidth: Theme.detailWidth
             player: root.player
         }
     }

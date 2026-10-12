@@ -10,6 +10,8 @@ Rectangle {
     readonly property var info: player.pairing
     readonly property string phase: info.phase
     property bool inviteMode: false
+    // A Hub this device knew (it connected before) that no longer has this device's pairing.
+    readonly property bool pairAgain: info.pairAgain === true
     // Approval step is ready for input (request approval or redeem an invite)
     // "Set up a Hub on this PC": the Hub on this PC pairs the Player with an admin sign-in instead of an approval.
     readonly property var local: player.localHub
@@ -36,11 +38,29 @@ Rectangle {
             ColumnLayout {
                 spacing: 6
                 Layout.bottomMargin: 8
+                Eyebrow {
+                    objectName: "pairingEyebrow"
+                    visible: root.pairAgain
+                    text: qsTr("%1 · pairing lost").arg((root.info.hubName || "").toUpperCase())
+                }
                 FbLabel {
-                    text: root.localForm ? qsTr("Hub on this PC") : qsTr("Add hub")
+                    objectName: "pairingTitle"
+                    // A known Hub that lost its pairing says "Pair again" (P2); a new address is "Add hub".
+                    text: root.localForm ? qsTr("Hub on this PC") : (root.pairAgain ? qsTr("Pair again") : qsTr("Add hub"))
                     font.pixelSize: Theme.fontHero
                     font.weight: Font.DemiBold
                     font.letterSpacing: -0.6
+                }
+                FbLabel {
+                    objectName: "pairingBody"
+                    visible: root.pairAgain && !root.localForm
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: Theme.textMuted
+                    font.pixelSize: Theme.fontBody
+                    lineHeight: 1.4
+                    text: qsTr("%1 no longer knows this device. Its admin may have revoked it. Pair again to get a new approval; your local saves are kept.")
+                              .arg(root.info.hubName || qsTr("The Hub"))
                 }
                 FbMono { text: root.info.address; color: Theme.textMuted; font.pixelSize: 13 }
             }
@@ -260,7 +280,7 @@ Rectangle {
                         visible: root.canChoose && !root.inviteMode
                         kind: "primary"
                         busyOnClick: true
-                        text: root.phase === "needsPairing" ? qsTr("Request approval") : qsTr("Request again")
+                        text: root.pairAgain && root.phase === "needsPairing" ? qsTr("Pair again") : (root.phase === "needsPairing" ? qsTr("Request approval") : qsTr("Request again"))
                         onClicked: root.player.requestPairing()
                     }
                     FbButton {

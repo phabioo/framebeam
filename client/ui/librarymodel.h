@@ -65,7 +65,8 @@ class LibraryModel : public QAbstractListModel {
     NeedsAttentionRole,  // bool, see attentionOf()
     ReadyGroupRole,      // bool: "ready" for Ready first (ROM ready, no attention, save sync not pending)
     AddedTextRole,       // "DD.MM.YYYY" (Hub added_at, local time); empty if unknown
-    OnHubRole            // bool: a file of the game is stored on the Hub (false = local-only game, "Local" pill)
+    OnHubRole,           // bool: a file of the game is stored on the Hub (false = local-only game, "Local" pill)
+    LocalFileRole        // bool: the game starts from a local file of a library folder (with OnHub: "Local · on Hub")
   };
   Q_ENUM(Roles)
 

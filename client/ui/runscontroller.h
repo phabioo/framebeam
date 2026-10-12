@@ -125,6 +125,8 @@ class RunsController : public QObject {
 
   Q_INVOKABLE void refresh();
   Q_INVOKABLE void openRun(const QString& runId);
+  // Open runs (not over, I take part) that use `pluginId`: [{runId, name, statusText, tone, subText}] for the plugin's screen (4f-3).
+  Q_INVOKABLE QVariantList runsOfPlugin(const QString& pluginId) const;
   Q_INVOKABLE void closeRun();
   // Fills `games` with the library games that fit the run's plugins (empty runId: the plugins ticked in the Start dialog, or
   // every game when none is ticked); returns the count. A game fits when every plugin accepts its system and game code;
@@ -195,7 +197,7 @@ class RunsController : public QObject {
   PluginsController* plugins_;
   HubLibrary* library_;
   QPointer<HubConnection> conn_;
-  KeyedRowsModel invites_{{QStringLiteral("runId"), QStringLiteral("headline"), QStringLiteral("subText"), QStringLiteral("joinedText")}, QStringLiteral("runId")};
+  KeyedRowsModel invites_{{QStringLiteral("runId"), QStringLiteral("headline"), QStringLiteral("subText"), QStringLiteral("joinedText"), QStringLiteral("name"), QStringLiteral("inviteLine")}, QStringLiteral("runId")};
   static QStringList runRoles() {
     return {QStringLiteral("runId"),  QStringLiteral("name"),     QStringLiteral("status"),  QStringLiteral("statusText"), QStringLiteral("tone"),
             QStringLiteral("subText"), QStringLiteral("timeText"), QStringLiteral("action"), QStringLiteral("participants")};
@@ -205,7 +207,7 @@ class RunsController : public QObject {
   KeyedRowsModel participants_{{QStringLiteral("userId"), QStringLiteral("name"), QStringLiteral("color"), QStringLiteral("gameTitle"), QStringLiteral("statusText"),
                                 QStringLiteral("me")},
                                QStringLiteral("userId")};
-  KeyedRowsModel events_{{QStringLiteral("seq"), QStringLiteral("timeText"), QStringLiteral("author"), QStringLiteral("text"), QStringLiteral("sourceText")},
+  KeyedRowsModel events_{{QStringLiteral("seq"), QStringLiteral("timeText"), QStringLiteral("fullTimeText"), QStringLiteral("author"), QStringLiteral("text"), QStringLiteral("sourceText")},
                          QStringLiteral("seq")};
   KeyedRowsModel games_{{QStringLiteral("id"), QStringLiteral("title"), QStringLiteral("system"), QStringLiteral("hint")}, QStringLiteral("id")};
   KeyedRowsModel startPlugins_{{QStringLiteral("id"), QStringLiteral("name"), QStringLiteral("version"), QStringLiteral("description"), QStringLiteral("origin"), QStringLiteral("originText"), QStringLiteral("permissionsText"), QStringLiteral("checked")},

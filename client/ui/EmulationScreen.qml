@@ -160,7 +160,7 @@ Rectangle {
                 id: content
                 x: 36
                 y: 28
-                width: flick.width - 72   // grows with the window; descriptions are capped per row (SettingsRow)
+                width: Math.min(Theme.contentMaxWidth, flick.width - 72)   // grows with the window; descriptions are capped per row (SettingsRow)
                 spacing: 20
 
                 RowLayout {

@@ -63,6 +63,23 @@ class RunsUiTest : public QObject {
     return o != nullptr && o->property("visible").toBool();
   }
 
+  // The run actions live in the "⋯" menu (4j-3): probe whether an item exists, or choose it.
+  static bool menuHas(Harness& h, const char* name) {
+    if (h.item("runMenu") == nullptr || !h.item("runMenu")->isVisible() || !h.click("runMenu")) return false;
+    QTest::qWait(120);
+    const QByteArray item = QByteArray("runMenu_") + name;
+    QQuickItem* it = h.item(item.constData());
+    const bool has = it != nullptr && it->isVisible();
+    h.click("runMenu");  // closes it again
+    QTest::qWait(120);
+    return has;
+  }
+  static bool menuPick(Harness& h, const char* name) {
+    if (!h.click("runMenu")) return false;
+    QTest::qWait(120);
+    return h.click((QByteArray("runMenu_") + name).constData());
+  }
+
   void runsFlow() {
     FakeHub hub(QStringLiteral("a"));
     hub.hubId = QStringLiteral("hub-runs");
@@ -121,7 +138,7 @@ class RunsUiTest : public QObject {
     QVERIFY(h.click("navRuns"));
     QTRY_COMPARE_WITH_TIMEOUT(h.controller->screen(), QStringLiteral("runs"), 8000);
     QTRY_VERIFY(h.item(("runInvite_" + runId).toUtf8().constData()) != nullptr);
-    QCOMPARE(h.item("runInviteHeadline")->property("text").toString(), QStringLiteral("Lena invites you to \"Tide Hardcore\""));
+    QCOMPARE(h.item("runInviteHeadline")->property("text").toString(), QStringLiteral("Lena invites you to \u201CTide Hardcore\u201D"));
     shot(h, QStringLiteral("4j-runs-invite"));
     h.controller->setAppearance(QStringLiteral("light"));
     shot(h, QStringLiteral("4j-runs-invite-light"));
@@ -134,12 +151,14 @@ class RunsUiTest : public QObject {
     // Every plugin of the run is listed with name, version, origin pill, permissions and the unverified warning.
     QCOMPARE(runs->joinPlugins()->rowCount(), 1);
     QTRY_VERIFY(h.item(("runJoinPlugin_" + spec.id).toUtf8().constData()) != nullptr);
-    QCOMPARE(h.item("runJoinPluginOrigin")->property("text").toString(), QStringLiteral("! Hub upload · unverified"));
+    QCOMPARE(h.item("runJoinPluginOrigin")->property("text").toString(), QStringLiteral("Hub upload · unverified"));
     QVERIFY(runs->joinUnverified());
     QTRY_VERIFY(h.item("runJoinUnverified") != nullptr && h.item("runJoinUnverified")->isVisible());
     QCOMPARE(h.item("runJoinUnverified")->property("text").toString(), runs->unverifiedWarning());
     QVERIFY(runs->unverifiedWarning().startsWith(QStringLiteral("FrameBeam has not checked this plugin.")));
-    shot(h, QStringLiteral("4j-runs-join"));
+    QVERIFY(h.item("runJoinLine")->property("text").toString().startsWith(QStringLiteral("Lena invited you · ")));  // no nested quotes (P26)
+    QVERIFY(!h.item("runJoinWhy")->isVisible());  // a fitting game exists, so Join is possible (P27)
+    shot(h, QStringLiteral("4j-3-join"));
     QVERIFY(!h.item("runJoinConfirm")->isEnabled() || runs->games()->rowCount() == 1);
     QVERIFY(h.click(("runGame_" + kGameId).toUtf8().constData()));
     QVERIFY(h.click("runJoinConfirm"));
@@ -154,25 +173,31 @@ class RunsUiTest : public QObject {
     QTRY_COMPARE_WITH_TIMEOUT(runs->participants()->rowCount(), 2, 8000);
     QTRY_VERIFY_WITH_TIMEOUT(runs->events()->rowCount() >= 2, 8000);  // run.created + run.joined, written by the Hub
     QVERIFY(h.item("runParticipant_u_lena") != nullptr);
-    shot(h, QStringLiteral("4j-runs-detail"));
+    shot(h, QStringLiteral("4j-3-run-detail"));
+    // 4f-3: the plugin's sidebar screen lists the open runs that use it, with "Open run".
+    {
+      const QVariantList rows = runs->runsOfPlugin(kPluginId);
+      QCOMPARE(rows.size(), 1);
+      QCOMPARE(rows.first().toMap().value("name").toString(), QStringLiteral("Tide Hardcore"));
+      QVERIFY(rows.first().toMap().value("subText").toString().contains(QStringLiteral("created ")));
+      QVERIFY(runs->runsOfPlugin(QStringLiteral("net.example.other")).isEmpty());
+    }
 
     // Status: the creator starts the run; any member can pause and resume it.
-    QVERIFY(h.item("runStart") == nullptr || !h.item("runStart")->isVisible());  // not the creator
+    QVERIFY(!menuHas(h, "start"));  // not the creator
     {
       QJsonObject r = hub.runs.value(runId);
       r.insert("status", "active");
       hub.runs.insert(runId, r);
       hub.pushRun(runId);
     }
-    QTRY_VERIFY(h.item("runPause") != nullptr && h.item("runPause")->isVisible());
-    QTRY_VERIFY(h.item("runPause")->isEnabled());
-    QVERIFY(h.click("runPause"));
+    QTRY_VERIFY(menuHas(h, "pause"));
+    QVERIFY(menuPick(h, "pause"));
     QTRY_COMPARE_WITH_TIMEOUT(hub.runs.value(runId).value("status").toString(), QStringLiteral("paused"), 8000);
-    QTRY_VERIFY(h.item("runResume") != nullptr && h.item("runResume")->isVisible());
+    QTRY_VERIFY(menuHas(h, "resume"));
     QVERIFY(h.item("runDetailLine")->property("text").toString().startsWith(QStringLiteral("Paused by")));
-    shot(h, QStringLiteral("4j-runs-detail-paused"));
-    QTRY_VERIFY(h.item("runResume") != nullptr && h.item("runResume")->isEnabled());
-    QVERIFY(h.click("runResume"));
+    shot(h, QStringLiteral("4j-3-run-detail-paused"));
+    QVERIFY(menuPick(h, "resume"));
     QTRY_COMPARE_WITH_TIMEOUT(hub.runs.value(runId).value("status").toString(), QStringLiteral("active"), 8000);
 
     // Play run: the Hub copy of every plugin is prepared, then the game starts with the run's save slot.
@@ -213,7 +238,7 @@ class RunsUiTest : public QObject {
     QVERIFY(h.click(("runPlugin_" + kPluginId).toUtf8().constData()));
     QVERIFY(runs->startUnverified());
     QTRY_VERIFY(h.item("runStartUnverified") != nullptr && h.item("runStartUnverified")->isVisible());
-    QCOMPARE(h.item("runPluginOrigin")->property("text").toString(), QStringLiteral("! Hub upload · unverified"));
+    QCOMPARE(h.item("runPluginOrigin")->property("text").toString(), QStringLiteral("Hub upload · unverified"));
     QVERIFY(h.click("runUser_u_lena"));
     QVERIFY(h.click(("runGame_" + kGameId).toUtf8().constData()));
     QVERIFY(h.click("runStartConfirm"));
@@ -222,19 +247,18 @@ class RunsUiTest : public QObject {
     QCOMPARE(hub.lastRunBody.value("invite_user_ids").toArray().size(), 1);
     QCOMPARE(hub.lastRunBody.value("game_id").toString(), kGameId);
     QTRY_VERIFY_WITH_TIMEOUT(!runs->openRunId().isEmpty() && runs->openRunId() != runId, 8000);  // the new run opens
-    QTRY_VERIFY(h.item("runStart") != nullptr && h.item("runStart")->isVisible());               // creator of a starting run
-    QTRY_VERIFY(h.item("runStart") != nullptr && h.item("runStart")->isEnabled());
-    QVERIFY(h.click("runStart"));
+    QTRY_VERIFY(menuHas(h, "start"));  // creator of a starting run
+    QVERIFY(menuPick(h, "start"));
     QTRY_VERIFY_WITH_TIMEOUT(hub.runs.value(runs->openRunId()).value("status").toString() == QLatin1String("active"), 8000);
 
     // Finishing asks first and ends the run for everyone.
-    QTRY_VERIFY(h.item("runFinish") != nullptr && h.item("runFinish")->isEnabled());
-    QVERIFY(h.click("runFinish"));
+    QTRY_VERIFY(menuHas(h, "finish"));
+    QVERIFY(menuPick(h, "finish"));
     QTRY_VERIFY(popupOpen(h, "runConfirmDialog"));
     QCOMPARE(h.item("runConfirmTitle")->property("text").toString(), QStringLiteral("Finish this run?"));
     QVERIFY(h.click("runConfirmOk"));
     QTRY_VERIFY_WITH_TIMEOUT(hub.runs.value(runs->openRunId()).value("status").toString() == QLatin1String("finished"), 8000);
-    QTRY_VERIFY(h.item("runPause") == nullptr || !h.item("runPause")->isVisible());
+    QTRY_VERIFY(h.item("runMenu") == nullptr || !h.item("runMenu")->isVisible() || !menuHas(h, "pause"));
     QCOMPARE(runs->detail().value("over").toBool(), true);
     runs->closeRun();
     QTRY_COMPARE_WITH_TIMEOUT(runs->finishedCount(), 1, 8000);

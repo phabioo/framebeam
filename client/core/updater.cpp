@@ -211,7 +211,8 @@ UpdateManager::UpdateManager(const Config& config, PlayerSettings* settings, QOb
 }
 
 Channel UpdateManager::effectiveChannel() const {
-  if (const auto c = parseChannel(settings_->updateChannel()); c && *c != Channel::Off) return *c;
+  // The user's choice wins, "off" included (Settings: Off | Stable | Beta).
+  if (const auto c = parseChannel(settings_->updateChannel()); c) return *c;
   // A beta build follows the resolved default (stable once its own version was promoted); dev/stable builds do not.
   const Channel compiled = channelFromCompiled(config_.compiledChannel);
   if (compiled == Channel::Beta) {

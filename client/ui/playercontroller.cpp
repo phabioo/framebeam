@@ -1,4 +1,5 @@
 #include "playercontroller.h"
+#include "timeformat.h"
 
 #include <QCoreApplication>
 #include <QDate>
@@ -72,7 +73,14 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
                     {QStringLiteral("text"), cancelled ? tr("Scan cancelled.")
                                              : count == 0 ? tr("No game files found in the library folders.")
                                                           : tr("%n game file(s) found.", nullptr, count)}};
+    if (!cancelled) {
+      const QDateTime now = QDateTime::currentDateTime();
+      for (const QString& f : settings_->libraryFolders())
+        if (QFileInfo(f).isDir()) folderScanned_.insert(f, now);   // an unplugged drive keeps its old time
+      saveFolderScans();
+    }
     emit libraryScanChanged();
+    emit libraryFolderInfoChanged();
     if (cancelled) return;
     ignoredRoms_.intersect([this]() {
       QSet<QString> present;
@@ -115,6 +123,7 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   connect(plugins_.get(), &PluginsController::sidebarEntriesChanged, this, [this]() {
     if (page_ == QLatin1String("plugin")) showPluginScreen(pluginPageId_);  // the entry went away: back to the Library
   });
+  loadFolderScans();
   trimRomCache();  // limit lowered while the Player was closed
   // Library sort and "Ready first" are saved per device (3c-2).
   model_.setSortKey(settings_->librarySort());
@@ -1205,13 +1214,37 @@ QStringList PlayerController::uploadFilters() const {
 
 QVariantList PlayerController::hubs() const { return hubPresenter_->hubs(); }
 QVariantMap PlayerController::pairing() const { return hubPresenter_->pairing(); }
+QString PlayerController::whenText(const QString& iso) const { return TimeFormat::whenIso(iso); }
+QString PlayerController::fullTimeText(const QString& iso) const { return TimeFormat::fullIso(iso); }
 QString PlayerController::formatFingerprint(const QString& fp) { return HubPresenter::formatFingerprint(fp); }
 QString PlayerController::platformLabel(const QString& platform, const QString& arch) {
   return HubPresenter::platformLabel(platform, arch);
 }
 
 QVariantList PlayerController::coreWarnings() const {
-  QVariantList list;
+  // One entry per kind, not per system and core (round 3, P10): cores the Hub delivers at the first start are one
+  // dismissible notice, grouped by core ("mGBA (GB, GBC, GBA) · Azahar (3DS)"); a core the Hub cannot deliver and that
+  // is not on this device is a real problem (grouped as well); a version mismatch is listed once per core.
+  struct CoreRef {
+    QString id;
+    QString label;
+    QStringList systems;
+  };
+  QList<CoreRef> download;
+  QList<CoreRef> unavailable;
+  QVariantList mismatches;
+  QSet<QString> seen;
+  const auto refFor = [this](const HandshakeProblem& p) {
+    CoreRef r;
+    r.id = p.coreId;
+    r.label = p.coreId;
+    if (const emu::CoreProfile* prof = manifests_.profile(p.coreId)) {
+      r.label = coreNames_.value(p.coreId, prof->displayName);
+      for (const QString& sys : prof->systemIds) r.systems << sys.toUpper();
+    }
+    if (r.label.isEmpty()) r.label = tr("Core");
+    return r;
+  };
   for (const HandshakeProblem& p : conn_->handshakeProblems()) {
     const bool missing = p.code == QLatin1String("core_missing");
     if (!missing && p.code != QLatin1String("core_version_mismatch")) {
@@ -1222,22 +1255,57 @@ QVariantList PlayerController::coreWarnings() const {
     if (missing && catalog_->coreInstalledLocally(p.coreId)) {
       continue;
     }
-    QString label = p.coreId;
+    const QString key = p.code + QLatin1Char('|') + p.coreId;
+    if (seen.contains(key)) continue;
+    seen.insert(key);
+    const CoreRef ref = refFor(p);
+    if (!missing) {
+      mismatches.append(QVariantMap{{QStringLiteral("code"), p.code},
+                                    {QStringLiteral("coreId"), p.coreId},
+                                    {QStringLiteral("text"), tr("%1 has a different version than this Hub expects. Games can still start, "
+                                                                "but may behave differently.").arg(ref.label)},
+                                    {QStringLiteral("detail"), p.detail}});
+      continue;
+    }
+    bool offered = false;
     if (const emu::CoreProfile* prof = manifests_.profile(p.coreId)) {
-      label = coreNames_.value(p.coreId, prof->displayName);
+      for (const QString& sys : prof->systemIds) {
+        if (const emu::SystemManifest* man = catalog_->manifestForSystem(sys)) offered = offered || catalog_->hubOffersCore(*man);
+      }
     }
-    if (label.isEmpty()) {
-      label = tr("Core");
-    }
-    const QString text = missing ? tr("%1 was not found on this device. Games for its system cannot start here.").arg(label)
-                                 : tr("%1 has a different version than this Hub expects. Games can still start, "
-                                      "but may behave differently.").arg(label);
-    list.append(QVariantMap{{QStringLiteral("code"), p.code},
-                            {QStringLiteral("coreId"), p.coreId},
-                            {QStringLiteral("text"), text},
-                            {QStringLiteral("detail"), p.detail}});
+    (offered ? download : unavailable).append(ref);
   }
+  const auto describe = [](const QList<CoreRef>& cores) {
+    QStringList parts;
+    for (const CoreRef& c : cores) parts << (c.systems.isEmpty() ? c.label : QStringLiteral("%1 (%2)").arg(c.label, c.systems.join(QStringLiteral(", "))));
+    return parts.join(QStringLiteral(" · "));
+  };
+  QVariantList list;
+  if (!download.isEmpty() && !dismissedCoreNotices_.contains(QStringLiteral("core_download"))) {
+    const QString hub = hubName().isEmpty() ? tr("the Hub") : hubName();
+    list.append(QVariantMap{{QStringLiteral("code"), QStringLiteral("core_download")},
+                            {QStringLiteral("coreId"), download.first().id},
+                            {QStringLiteral("tone"), QStringLiteral("info")},
+                            {QStringLiteral("text"), tr("%1 download from %2 on first start: %3")
+                                                         .arg(download.size() == 1 ? tr("1 core") : tr("%1 cores").arg(download.size()), hub, describe(download))},
+                            {QStringLiteral("detail"), QString()}});
+  }
+  if (!unavailable.isEmpty()) {
+    list.append(QVariantMap{{QStringLiteral("code"), QStringLiteral("core_missing")},
+                            {QStringLiteral("coreId"), unavailable.first().id},
+                            {QStringLiteral("tone"), QStringLiteral("warn")},
+                            {QStringLiteral("text"), tr("Not on this device and not offered by the Hub: %1. Games for these systems cannot start here.")
+                                                         .arg(describe(unavailable))},
+                            {QStringLiteral("detail"), QString()}});
+  }
+  for (const QVariant& m : mismatches) list.append(m);
   return list;
+}
+
+void PlayerController::dismissCoreNotice(const QString& code) {
+  if (code != QLatin1String("core_download") || dismissedCoreNotices_.contains(code)) return;
+  dismissedCoreNotices_.insert(code);
+  emit hubChanged();
 }
 
 void PlayerController::uploadRom(const QString& source) {
@@ -1297,6 +1365,66 @@ void PlayerController::adoptUploadedRom(const QString& srcPath, const QString& s
 
 QStringList PlayerController::libraryFolders() const { return settings_->libraryFolders(); }
 
+namespace {
+bool pathInFolder(const QString& file, const QString& folder) {
+#ifdef Q_OS_WIN
+  const Qt::CaseSensitivity cs = Qt::CaseInsensitive;
+#else
+  const Qt::CaseSensitivity cs = Qt::CaseSensitive;
+#endif
+  QString f = QDir::fromNativeSeparators(folder);
+  if (!f.endsWith(QLatin1Char('/'))) f += QLatin1Char('/');
+  return QDir::fromNativeSeparators(file).startsWith(f, cs);
+}
+}  // namespace
+
+QVariantList PlayerController::libraryFolderInfo() const {
+  QVariantList list;
+  const bool scanning = localRoms_ && localRoms_->scanning();
+  for (const QString& f : settings_->libraryFolders()) {
+    int count = 0;
+    for (const LocalRomFile& file : localRoms_->files())
+      if (pathInFolder(file.path, f)) ++count;
+    const QDateTime when = folderScanned_.value(f);
+    const bool exists = QFileInfo(f).isDir();
+    list.append(QVariantMap{{QStringLiteral("path"), f},
+                            {QStringLiteral("exists"), exists},
+                            {QStringLiteral("count"), count},
+                            {QStringLiteral("scanning"), scanning && exists},
+                            {QStringLiteral("scannedText"), when.isValid() ? TimeFormat::when(when) : QString()},
+                            {QStringLiteral("scannedFull"), TimeFormat::full(when)}});
+  }
+  return list;
+}
+
+int PlayerController::libraryGameCount() const {
+  int n = 0;
+  for (const QString& f : settings_->libraryFolders())
+    for (const LocalRomFile& file : localRoms_->files())
+      if (pathInFolder(file.path, f)) ++n;
+  return n;
+}
+
+void PlayerController::loadFolderScans() {
+  QFile f(QDir(profiles_->baseDir()).filePath(QStringLiteral("cache/library-folders.json")));
+  if (!f.open(QIODevice::ReadOnly)) return;
+  const QJsonObject o = QJsonDocument::fromJson(f.readAll()).object();
+  for (auto it = o.begin(); it != o.end(); ++it) {
+    const QDateTime t = QDateTime::fromString(it.value().toString(), Qt::ISODate);
+    if (t.isValid()) folderScanned_.insert(it.key(), t);
+  }
+}
+
+void PlayerController::saveFolderScans() const {
+  QJsonObject o;
+  for (auto it = folderScanned_.begin(); it != folderScanned_.end(); ++it) o.insert(it.key(), it.value().toUTC().toString(Qt::ISODate));
+  QDir().mkpath(QDir(profiles_->baseDir()).filePath(QStringLiteral("cache")));
+  QSaveFile f(QDir(profiles_->baseDir()).filePath(QStringLiteral("cache/library-folders.json")));
+  if (!f.open(QIODevice::WriteOnly)) return;
+  f.write(QJsonDocument(o).toJson(QJsonDocument::Compact));
+  f.commit();
+}
+
 bool PlayerController::canRegisterLocalRoms() const { return registrar_ && registrar_->supported(); }
 
 RomSourceChoice PlayerController::romSourceOf(const GameEntry& game) const {
@@ -1312,6 +1440,7 @@ RomStatus PlayerController::romStatusOf(const GameEntry& game) {
     case RomSource::Local:
       st.state = RomState::Ready;
       st.localPath = src.localPath;
+      st.fromLibraryFolder = true;
       st.totalBytes = game.romSize;
       return st;
     case RomSource::Missing:
@@ -1362,6 +1491,7 @@ void PlayerController::startLibraryScan() {
                   {QStringLiteral("isError"), false},
                   {QStringLiteral("text"), tr("Scanning…")}};
   emit libraryScanChanged();
+  emit libraryFolderInfoChanged();
 }
 
 void PlayerController::registerLocalFiles() {
@@ -1379,6 +1509,7 @@ void PlayerController::addLibraryFolder(const QString& source) {
   folders.append(path);
   if (!settings_->setLibraryFolders(folders)) return;
   emit libraryFoldersChanged();
+  emit libraryFolderInfoChanged();
   startLibraryScan();
 }
 
@@ -1386,8 +1517,15 @@ void PlayerController::removeLibraryFolder(const QString& path) {
   QStringList folders = settings_->libraryFolders();
   if (!folders.removeOne(QDir::cleanPath(path))) return;
   if (!settings_->setLibraryFolders(folders)) return;
+  folderScanned_.remove(QDir::cleanPath(path));
+  saveFolderScans();
   emit libraryFoldersChanged();
+  emit libraryFolderInfoChanged();
   startLibraryScan();
+}
+
+void PlayerController::stopLibraryScan() {
+  if (localRoms_ && localRoms_->scanning()) localRoms_->cancelScan();
 }
 
 void PlayerController::rescanLibrary() {

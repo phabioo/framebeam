@@ -91,6 +91,18 @@ framebeam_add_test(ui_screenshots_shell screenshots_shell_test.cpp ${FB_NETTEST_
 target_include_directories(test_ui_screenshots_shell PRIVATE ${FB_NETTEST_DIR})
 target_compile_definitions(test_ui_screenshots_shell PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
 
+# Round 3 Player A artboards (3a-3, 3c-6, 3c-7, 3p-3); skipped without FRAMEBEAM_SCREENSHOT_DIR.
+framebeam_add_test(ui_screenshots_player_a screenshots_player_a_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
+  LIBS ${FB_UI_TEST_LIBS})
+target_include_directories(test_ui_screenshots_player_a PRIVATE ${FB_NETTEST_DIR})
+target_compile_definitions(test_ui_screenshots_player_a PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
+
+# First-load layout of the shell (round 3 P8, P9): no overlap of the Library header and the sidebar user block.
+framebeam_add_test(ui_shell_layout shell_layout_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
+  LIBS ${FB_UI_TEST_LIBS})
+target_include_directories(test_ui_shell_layout PRIVATE ${FB_NETTEST_DIR})
+target_compile_definitions(test_ui_shell_layout PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
+
 # Screen layouts (0.6 D12) and the diagnostics model (0.6 D5-D11): pure logic, no Qt Quick.
 framebeam_add_test(ui_screenlayout screenlayout_test.cpp LIBS framebeam_ui framebeam_core framebeam_emulation)
 framebeam_add_test(ui_diagnostics diagnostics_test.cpp LIBS framebeam_ui framebeam_core framebeam_emulation)

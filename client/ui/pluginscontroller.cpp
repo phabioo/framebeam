@@ -1,5 +1,7 @@
 #include "pluginscontroller.h"
 
+#include <QRegularExpression>
+
 #include <QClipboard>
 #include <QDateTime>
 #include <QDir>
@@ -81,7 +83,7 @@ QString statusText(const QString& key) {
 
 QString originText(const QString& origin) {
   if (origin == QLatin1String("official")) return PluginsController::tr("✓ Official");
-  if (origin == QLatin1String("unverified")) return PluginsController::tr("! Hub upload · unverified");
+  if (origin == QLatin1String("unverified")) return PluginsController::tr("Hub upload · unverified");
   return PluginsController::tr("Local file");
 }
 
@@ -93,6 +95,20 @@ QString permissionLabel(const QString& p) {
   if (p == QLatin1String("run.state")) return PluginsController::tr("Share run progress with your Hub");
   if (p == QLatin1String("memory.write")) return PluginsController::tr("Change game memory");
   return p;
+}
+
+// "^0.3" / ">=0.3" -> "0.3 or newer", "*" -> "", an exact or "~" range stays as written.
+QString rangeLabel(const QString& r) {
+  if (r == QLatin1String("*")) return {};
+  if (r.startsWith(QLatin1Char('^'))) return PluginsController::tr("%1 or newer").arg(r.mid(1));
+  if (r.startsWith(QLatin1String(">="))) return PluginsController::tr("%1 or newer").arg(r.mid(2));
+  return r;
+}
+
+QStringList permissionLabels(const QStringList& perms) {
+  QStringList out;
+  for (const QString& p : perms) out << permissionLabel(p);
+  return out;
 }
 
 QString permissionsText(const QStringList& perms) {
@@ -278,8 +294,31 @@ void PluginsController::installHubPlugin(const QString& id, const QString& versi
   delivery_->install(id, version);
 }
 
+void PluginsController::installHubPluginWithDependencies(const QString& id, const QString& version) {
+  if (delivery_ == nullptr || !hubBusyId_.isEmpty()) return;
+  const HubPluginInfo* offer = newestOffer(id);
+  QList<QPair<QString, QString>> queue;
+  if (offer != nullptr) {
+    for (auto it = offer->requires_.begin(); it != offer->requires_.end(); ++it) {
+      if (manager_->info(it.key()).has_value()) continue;
+      if (const HubPluginInfo* dep = newestOffer(it.key()); dep != nullptr) queue.append({dep->id, dep->version});
+    }
+  }
+  queue.append({id, version});
+  const auto first = queue.takeFirst();
+  installQueue_ = queue;
+  installHubPlugin(first.first, first.second);
+}
+
 void PluginsController::onDelivered(const plugins::DeliveryResult& r) {
   hubBusyId_.clear();
+  if (!r.ok) installQueue_.clear();
+  if (r.ok && !installQueue_.isEmpty()) {
+    const auto next = installQueue_.takeFirst();
+    refreshPlugins();
+    installHubPlugin(next.first, next.second);
+    return;
+  }
   if (r.ok) {
     const auto info = manager_->info(r.id);
     QString text = tr("Installed %1 %2 from your Hub. It is off until you turn it on.").arg(info ? info->manifest.name : r.id, r.version);
@@ -313,6 +352,13 @@ void PluginsController::rebuildHubPlugins() {
       if (!manager_->hubCopyDir(best->id, best->version, best->sha256).isEmpty()) state = QStringLiteral("installed");
       else if (!installedVersion.isEmpty()) state = QStringLiteral("update");
       if (hubBusyId_ == best->id) state = QStringLiteral("busy");
+      // Required plugins that are not installed yet and that the Hub offers: "Also install Pokémon Core 0.3.1".
+      QVariantList needsInstall;
+      for (auto rit = best->requires_.begin(); rit != best->requires_.end(); ++rit) {
+        if (manager_->info(rit.key()).has_value()) continue;
+        if (const HubPluginInfo* dep = newestOffer(rit.key()); dep != nullptr)
+          needsInstall.append(QVariantMap{{QStringLiteral("id"), dep->id}, {QStringLiteral("name"), dep->name}, {QStringLiteral("version"), dep->version}});
+      }
       out.append(QVariantMap{
           {QStringLiteral("id"), best->id},
           {QStringLiteral("name"), best->name},
@@ -324,6 +370,7 @@ void PluginsController::rebuildHubPlugins() {
           {QStringLiteral("sizeText"), sizeText(best->size)},
           {QStringLiteral("state"), state},
           {QStringLiteral("installedVersion"), installedVersion},
+          {QStringLiteral("needsInstall"), needsInstall},
       });
     }
   }
@@ -351,6 +398,24 @@ void PluginsController::uninstall(const QString& id) {
 }
 
 void PluginsController::setPluginEnabled(const QString& id, bool enabled) {
+  // A plugin and the plugins it needs turn on together, so the toggles and the log agree (P20): without this the
+  // dependency was started for the dependent while its own toggle still showed off.
+  if (enabled) {
+    QStringList todo{id};
+    QStringList seen;
+    while (!todo.isEmpty()) {
+      const QString cur = todo.takeFirst();
+      if (seen.contains(cur)) continue;
+      seen << cur;
+      const auto info = manager_->info(cur);
+      if (!info) continue;
+      for (const plugins::Dependency& d : info->manifest.dependencies) {
+        const auto dep = manager_->info(d.id);
+        if (dep && !dep->enabled) manager_->setEnabled(d.id, true);
+        todo << d.id;
+      }
+    }
+  }
   if (!manager_->setEnabled(id, enabled)) {
     setMessage(tr("This plugin cannot be turned on until its problems are fixed."), true);
   }
@@ -368,8 +433,40 @@ void PluginsController::refreshPlugins() {
     if (!hasProblems && p.enabled) ++on;
     const bool isLocal = p.origin == QLatin1String("local");
     if (!hasProblems && isLocal && !manager_->developerMode()) problems << tr("Runs only while Developer mode is on");
+    // "needs net.framebeam.pokemon-core, not installed" -> "needs Pokémon Core, not installed" (the Hub's name when it offers it).
+    for (QString& pr : problems) {
+      static const QRegularExpression notInstalled(QStringLiteral("^needs (\\S+), not installed$"));
+      const auto m = notInstalled.match(pr);
+      if (!m.hasMatch()) continue;
+      const HubPluginInfo* offer = newestOffer(m.captured(1));
+      pr = offer != nullptr ? tr("needs %1, which is not installed").arg(offer->name) : tr("needs another plugin (%1) that is not installed").arg(m.captured(1));
+    }
     QString problemsText = problems.join(QStringLiteral(" · "));
     if (!problemsText.isEmpty()) problemsText[0] = problemsText[0].toUpper();
+    // Relations for the row subtitle and the detail sheet.
+    QStringList needsNames;
+    QStringList needsLines;
+    QStringList depsOff;
+    for (const plugins::Dependency& d : p.manifest.dependencies) {
+      const auto dep = manager_->info(d.id);
+      const QString depName = dep ? dep->manifest.name : (newestOffer(d.id) != nullptr ? newestOffer(d.id)->name : d.id);
+      needsNames << depName;
+      const QString range = rangeLabel(d.range.text);
+      const QString need = range.isEmpty() ? depName : depName + QLatin1Char(' ') + range;
+      needsLines << (dep ? tr("Needs %1 · installed %2").arg(need, dep->manifest.version.toString()) : tr("Needs %1 · not installed").arg(need));
+      if (dep && !dep->enabled) depsOff << depName;
+    }
+    QStringList usedBy;
+    for (const plugins::PluginInfo& o : list)
+      for (const plugins::Dependency& d : o.manifest.dependencies)
+        if (d.id == p.manifest.id) usedBy << o.manifest.name;
+    QString subtitle;
+    if (!usedBy.isEmpty()) subtitle = tr("Used by %1").arg(usedBy.join(QStringLiteral(", ")));
+    else if (!needsNames.isEmpty()) subtitle = tr("Needs %1").arg(needsNames.join(QStringLiteral(", ")));
+    {
+      const QString perms = permissionsText(p.manifest.permissions);
+      subtitle = subtitle.isEmpty() ? perms : subtitle + QStringLiteral(" · ") + perms;
+    }
     QString updateVersion;
     if (hubClient_ != nullptr && hubClient_->supported()) {
       if (const HubPluginInfo* offer = newestOffer(p.manifest.id); offer != nullptr && compareVersionText(offer->version, p.manifest.version.toString()) > 0) {
@@ -393,14 +490,21 @@ void PluginsController::refreshPlugins() {
         {QStringLiteral("permissionsText"), permissionsText(p.manifest.permissions)},
         {QStringLiteral("updateVersion"), updateVersion},
         {QStringLiteral("adds"), p.manifest.ui.addsText()},
+        {QStringLiteral("subtitle"), subtitle},
+        {QStringLiteral("needsLines"), needsLines},
+        {QStringLiteral("depsOff"), depsOff},
+        {QStringLiteral("usedBy"), usedBy},
+        {QStringLiteral("permissionList"), permissionLabels(p.manifest.permissions)},
     });
   }
   plugins_ = out;
   if (list.isEmpty()) {
     summary_ = tr("None installed");
   } else {
-    summary_ = on > 0 ? tr("%1 on").arg(on) : tr("None on");
+    // "2 installed · 1 on", or "2 installed · 1 update" when updates exist (round 3 sheet).
+    summary_ = tr("%1 installed").arg(list.size());
     if (updates > 0) summary_ += QStringLiteral(" · ") + (updates == 1 ? tr("1 update") : tr("%1 updates").arg(updates));
+    else summary_ += QStringLiteral(" · ") + (on > 0 ? tr("%1 on").arg(on) : tr("none on"));
   }
   updateImageSources();
   emit pluginsChanged();
@@ -870,7 +974,7 @@ void PluginsController::rebuildPanelTabs() {
                            {QStringLiteral("name"), info->manifest.name},
                            {QStringLiteral("title"), st.titles.value(QStringLiteral("panel"), info->manifest.ui.panelTitle)},
                            {QStringLiteral("icon"), pluginIconUrl(id)},
-                           {QStringLiteral("origin"), info->origin},
+                           {QStringLiteral("origin"), info->origin}, {QStringLiteral("originText"), originText(info->origin)},
                            {QStringLiteral("dot"), paused ? QStringLiteral("paused") : st.dot},
                            {QStringLiteral("paused"), paused}});
   }
@@ -893,7 +997,7 @@ void PluginsController::rebuildHud() {
                            {QStringLiteral("corner"), hudCorner_.value(id, QStringLiteral("bottom-left"))},
                            {QStringLiteral("hidden"), hudHidden_.contains(id)},
                            {QStringLiteral("tree"), tree},
-                           {QStringLiteral("origin"), info->origin}});
+                           {QStringLiteral("origin"), info->origin}, {QStringLiteral("originText"), originText(info->origin)}});
   }
   hudWidgets_ = out;
   emit hudWidgetsChanged();
@@ -906,12 +1010,17 @@ void PluginsController::rebuildSidebar() {
     const auto info = infoFor(id);
     if (!info || !info->manifest.ui.screen) continue;
     const plugins::UiPluginState st = host_->uiState(id);
+    // A title that collides with a built-in sidebar entry ("Runs", "Library", ...) is shown as the plugin name (decision ba, 4f-3).
+    QString title = st.titles.value(QStringLiteral("screen"), info->manifest.ui.screenTitle);
+    static const QStringList builtIn{QStringLiteral("library"), QStringLiteral("runs"), QStringLiteral("emulation"),
+                                     QStringLiteral("controllers"), QStringLiteral("settings")};
+    if (builtIn.contains(title.trimmed().toLower())) title = info->manifest.name;
     out.append(QVariantMap{{QStringLiteral("pluginId"), id},
                            {QStringLiteral("name"), info->manifest.name},
-                           {QStringLiteral("title"), st.titles.value(QStringLiteral("screen"), info->manifest.ui.screenTitle)},
+                           {QStringLiteral("title"), title},
                            {QStringLiteral("icon"), pluginIconUrl(id)},
                            {QStringLiteral("badge"), st.badge},
-                           {QStringLiteral("origin"), info->origin}});
+                           {QStringLiteral("origin"), info->origin}, {QStringLiteral("originText"), originText(info->origin)}});
   }
   if (out == sidebarEntries_) return;
   sidebarEntries_ = out;
@@ -926,7 +1035,7 @@ void PluginsController::rebuildDetail() {
     if (!info || !info->manifest.ui.detail) continue;
     const QVariantMap tree = host_->uiTree(id, QStringLiteral("detail"));
     if (tree.isEmpty()) continue;
-    out.append(QVariantMap{{QStringLiteral("pluginId"), id}, {QStringLiteral("name"), info->manifest.name}, {QStringLiteral("origin"), info->origin}, {QStringLiteral("tree"), tree}});
+    out.append(QVariantMap{{QStringLiteral("pluginId"), id}, {QStringLiteral("name"), info->manifest.name}, {QStringLiteral("origin"), info->origin}, {QStringLiteral("originText"), originText(info->origin)}, {QStringLiteral("tree"), tree}});
   }
   detailSections_ = out;
   emit detailSectionsChanged();
@@ -944,7 +1053,7 @@ void PluginsController::rebuildRunSections() {
     out.append(QVariantMap{{QStringLiteral("pluginId"), id},
                            {QStringLiteral("name"), info->manifest.name},
                            {QStringLiteral("title"), info->manifest.ui.runTitle},
-                           {QStringLiteral("origin"), info->origin},
+                           {QStringLiteral("origin"), info->origin}, {QStringLiteral("originText"), originText(info->origin)},
                            {QStringLiteral("tree"), tree},
                            {QStringLiteral("paused"), paused},
                            {QStringLiteral("loading"), tree.isEmpty() && !paused && status == PluginStatus::Loading}});
@@ -1148,7 +1257,7 @@ QVariantList PluginsController::tileStrips(const QString& tileId) const {
     const QVariantMap tree = host_->uiTree(id, slot);
     if (!tree.isEmpty())
       out.append(QVariantMap{{QStringLiteral("pluginId"), id}, {QStringLiteral("name"), info->manifest.name}, {QStringLiteral("icon"), pluginIconUrl(id)},
-                             {QStringLiteral("origin"), info->origin}, {QStringLiteral("tree"), tree}});
+                             {QStringLiteral("origin"), info->origin}, {QStringLiteral("originText"), originText(info->origin)}, {QStringLiteral("tree"), tree}});
   }
   return out;
 }

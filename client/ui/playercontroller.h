@@ -102,6 +102,10 @@ class PlayerController : public QObject {
   // Local ROMs (0.12): library folders of this device and the state of the folder scan: {active, done, total, text, isError}.
   Q_PROPERTY(QStringList libraryFolders READ libraryFolders NOTIFY libraryFoldersChanged)
   Q_PROPERTY(QVariantMap libraryScan READ libraryScan NOTIFY libraryScanChanged)
+  // One row per library folder (Settings): [{path, exists, count (game files found in it), scannedText ("5 min ago", "" = not
+  // scanned yet), scannedFull, scanning}] and the number of game files over all folders.
+  Q_PROPERTY(QVariantList libraryFolderInfo READ libraryFolderInfo NOTIFY libraryFolderInfoChanged)
+  Q_PROPERTY(int libraryGameCount READ libraryGameCount NOTIFY libraryFolderInfoChanged)
   Q_PROPERTY(bool canRegisterLocalRoms READ canRegisterLocalRoms NOTIFY hubChanged)  // handshake feature local_roms_v1
   // Background core updates (quiet indicator on the Emulation page): active, text ("Updating X to V"), lastText ("Updated X to V")
   Q_PROPERTY(QVariantMap coreUpdate READ coreUpdate NOTIFY coreUpdateChanged)
@@ -205,6 +209,8 @@ class PlayerController : public QObject {
   QVariantMap upload() const { return upload_; }
   QStringList libraryFolders() const;
   QVariantMap libraryScan() const { return libraryScan_; }
+  QVariantList libraryFolderInfo() const;
+  int libraryGameCount() const;
   bool canRegisterLocalRoms() const;
   LocalRomIndex* localRomIndex() { return localRoms_.get(); }
   RomRegistrar* romRegistrar() { return registrar_.get(); }
@@ -231,6 +237,9 @@ class PlayerController : public QObject {
   FirmwareCache* firmwareCache() { return fwCache_.get(); }
 
   static QString formatFingerprint(const QString& fp);
+  // Date/time helper of every list (timeformat.h): "5 min ago", "today 18:52", "16 Oct"; the full text is for tooltips.
+  Q_INVOKABLE QString whenText(const QString& iso) const;
+  Q_INVOKABLE QString fullTimeText(const QString& iso) const;
   static QString platformLabel(const QString& platform, const QString& arch);
 
   // 3a / 3b
@@ -293,12 +302,14 @@ class PlayerController : public QObject {
   // "Plugin settings" / "Notice settings…": Settings -> Plugins (pluginId highlights its row; empty = the section only).
   Q_INVOKABLE void showPluginSettings(const QString& pluginId = QString());
   // "Upload ROM": source = local path or file:// URL (from the file dialog). Streamed; progress in upload.
+  Q_INVOKABLE void dismissCoreNotice(const QString& code);
   Q_INVOKABLE void uploadRom(const QString& source);
   Q_INVOKABLE void dismissUploadMessage();
   // Library folders (Settings): source = folder path or file:// URL. Adding/removing rescans; files are registered with the Hub.
   Q_INVOKABLE void addLibraryFolder(const QString& source);
   Q_INVOKABLE void removeLibraryFolder(const QString& path);
   Q_INVOKABLE void rescanLibrary();
+  Q_INVOKABLE void stopLibraryScan();
   // DetailPane: uploads the local file of a local-only game (resumable); the game id stays the same.
   Q_INVOKABLE void uploadGameToHub(const QString& gameId);
   // DetailPane: removes the local registration of a local-only game (the game and its saves stay on the Hub).
@@ -334,6 +345,7 @@ class PlayerController : public QObject {
   void uploadChanged();
   void libraryFoldersChanged();
   void libraryScanChanged();
+  void libraryFolderInfoChanged();
   void stopSaveErrorChanged();
   void coreUpdateChanged();
   void emulationSettingsChanged();
@@ -432,6 +444,10 @@ class PlayerController : public QObject {
   std::unique_ptr<RomRegistrar> registrar_;
   QVariantMap libraryScan_{{QStringLiteral("active"), false}, {QStringLiteral("done"), 0}, {QStringLiteral("total"), 0},
                            {QStringLiteral("text"), QString()}, {QStringLiteral("isError"), false}};
+  QHash<QString, QDateTime> folderScanned_;  // library folder -> end of its last complete scan (saved in cache/library-folders.json)
+  void loadFolderScans();
+  void saveFolderScans() const;
+  QSet<QString> dismissedCoreNotices_;  // "core_download" dismissed for this session
   QSet<QString> ignoredRoms_;        // sha256 of files the user removed from the library (until the file is gone)
   QSet<QString> failedRegistrations_;  // not retried within this connection
   bool scanRequested_ = false;       // a scan was started for the current connection

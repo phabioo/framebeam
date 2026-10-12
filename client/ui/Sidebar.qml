@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import FrameBeam.Player
 
@@ -132,7 +133,7 @@ Rectangle {
                 HoverHandler { id: runsHover; cursorShape: Qt.PointingHandCursor }
                 TapHandler { onTapped: root.player.showRuns() }
             }
-            // Plugin screens (4f): one entry per plugin, indented under Library
+            // Plugin screens (4f): one entry per plugin, nested (indented) under the built-in entry they belong to
             Repeater {
                 model: root.player.plugins.sidebarEntries
                 delegate: Rectangle {
@@ -147,7 +148,7 @@ Rectangle {
                     Behavior on color { ColorAnimation { duration: Theme.durFast } }
                     RowLayout {
                         anchors.fill: parent
-                        anchors.leftMargin: 22
+                        anchors.leftMargin: 30   // nested under the built-in entry above (decision ba, 4f-3)
                         anchors.rightMargin: 10
                         spacing: 8
                         PluginTabIcon {
@@ -323,10 +324,15 @@ Rectangle {
                     }
                 }
                 FbMono {
+                    objectName: "hubCardAddress"
                     Layout.fillWidth: true
-                    text: qsTr("%1 · active hub").arg(root.player.hubAddress)
+                    text: root.player.hubAddress
                     font.pixelSize: Theme.fontMono
                     elide: Text.ElideMiddle
+                    HoverHandler { id: addrHover }
+                    ToolTip.visible: addrHover.hovered && truncated
+                    ToolTip.text: root.player.hubAddress
+                    ToolTip.delay: 400
                 }
             }
         }
@@ -353,17 +359,20 @@ Rectangle {
                     color: Theme.textSecondary
                 }
             }
+            // Two lines, always both present (round 3, P9): the Hub user name (or the device name) on top, the device name
+            // (or "This device") below. The labels are never shown or hidden, only their text changes, so a user name that
+            // arrives after the first layout cannot be drawn over the device line.
             ColumnLayout {
                 Layout.fillWidth: true
+                Layout.minimumWidth: 0
                 spacing: 0
-                // With a Hub user name: name on top, device name below. Older Hubs: device name + "This device".
+                readonly property bool hasUser: root.player.userName !== ""
                 FbLabel {
                     id: userNameLabel
                     objectName: "userName"
-                    visible: root.player.userName !== ""
                     Layout.fillWidth: true
-                    Layout.preferredHeight: visible ? implicitHeight : 0
-                    text: root.player.userName
+                    Layout.minimumWidth: 0
+                    text: parent.hasUser ? root.player.userName : root.player.deviceName
                     font.pixelSize: Theme.fontSmall
                     font.weight: Font.Medium
                     elide: Text.ElideRight
@@ -371,16 +380,8 @@ Rectangle {
                 FbLabel {
                     objectName: "userDevice"
                     Layout.fillWidth: true
-                    text: root.player.deviceName
-                    font.pixelSize: userNameLabel.visible ? Theme.fontMeta : Theme.fontSmall
-                    font.weight: userNameLabel.visible ? Font.Normal : Font.Medium
-                    color: userNameLabel.visible ? Theme.textMeta : Theme.text
-                    elide: Text.ElideRight
-                }
-                FbLabel {
-                    visible: !userNameLabel.visible
-                    Layout.fillWidth: true
-                    text: qsTr("This device")
+                    Layout.minimumWidth: 0
+                    text: parent.hasUser ? root.player.deviceName : qsTr("This device")
                     font.pixelSize: Theme.fontMeta
                     color: Theme.textMeta
                     elide: Text.ElideRight

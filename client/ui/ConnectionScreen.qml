@@ -20,23 +20,39 @@ Rectangle {
 
         ColumnLayout {
             id: column
-            width: Math.min(620, flick.width - 32)
+            width: Math.min(520, flick.width - 32)
             x: (flick.width - width) / 2
             y: Math.max(32, (flick.height - implicitHeight) / 2)
             spacing: 28
 
             ColumnLayout {
-                spacing: 18
+                Layout.fillWidth: true
+                spacing: 14
                 RowLayout {
+                    Layout.bottomMargin: 10
                     spacing: 10
                     Logo { size: 22 }
                     FbLabel { text: qsTr("FrameBeam Player"); font.pixelSize: 16; font.weight: Font.DemiBold }
                 }
+                Eyebrow {
+                    objectName: "connectEyebrow"
+                    text: root.player.hubs.length === 0 ? qsTr("First start") : qsTr("Connect")
+                }
                 FbLabel {
-                    text: qsTr("Connect to a hub")
+                    objectName: "connectTitle"
+                    text: qsTr("Connect to a Hub")
                     font.pixelSize: Theme.fontHero
                     font.weight: Font.DemiBold
                     font.letterSpacing: -0.6
+                }
+                FbLabel {
+                    objectName: "connectBody"
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: Theme.textMuted
+                    font.pixelSize: Theme.fontBody
+                    lineHeight: 1.4
+                    text: qsTr("Enter the address of your FrameBeam Hub. You find it in the Hub under Settings → General.")
                 }
             }
 
@@ -58,7 +74,7 @@ Rectangle {
                 }
                 FbLabel {
                     visible: root.player.hubs.length === 0
-                    text: qsTr("No hub saved yet. Enter the address of your FrameBeam Hub below.")
+                    text: qsTr("No Hub saved yet.")
                     color: Theme.textMuted
                     font.pixelSize: Theme.fontSmall
                     wrapMode: Text.WordWrap
@@ -69,6 +85,7 @@ Rectangle {
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 8
+                FbLabel { text: qsTr("Hub address"); font.pixelSize: Theme.fontSmall; font.weight: Font.Medium }
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 10
@@ -76,7 +93,7 @@ Rectangle {
                         id: addressField
                         objectName: "addressField"
                         Layout.fillWidth: true
-                        placeholderText: qsTr("Hub address, e.g. hub.local:8443")
+                        placeholderText: qsTr("hub.example.com:8443")
                         inputMethodHints: Qt.ImhUrlCharactersOnly | Qt.ImhNoPredictiveText
                         onAccepted: addButton.clicked()
                     }
@@ -85,9 +102,17 @@ Rectangle {
                         objectName: "addButton"
                         implicitHeight: 44
                         busyOnClick: true
-                        text: qsTr("Add hub")
+                        kind: "primary"
+                        text: qsTr("Connect")
                         onClicked: root.player.addHub(addressField.text)
                     }
+                }
+                FbLabel {
+                    objectName: "connectHint"
+                    visible: root.player.connectionNotice === ""
+                    text: qsTr("host:port, without https://")
+                    color: Theme.textMuted
+                    font.pixelSize: Theme.fontMeta
                 }
                 FbLabel {
                     visible: root.player.connectionNotice !== ""
@@ -174,7 +199,7 @@ Rectangle {
                     id: autoToggle
                     objectName: "autoConnectToggle"
                     Layout.fillWidth: true
-                    text: qsTr("Connect automatically to the last used hub on startup")
+                    text: qsTr("Connect automatically on startup")
                     checked: root.player.autoConnect
                     onToggled: root.player.autoConnect = checked
                 }

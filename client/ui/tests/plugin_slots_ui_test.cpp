@@ -248,8 +248,17 @@ class PluginSlotsUiTest : public QObject {
     QTest::qWait(150);
     QVERIFY(h_.click("section_plugins"));
     QTRY_VERIFY(h_.item("pluginRow_net.test.tools") != nullptr && h_.item("pluginRow_net.test.tools")->isVisible());
+    // The "Adds:" line lives in the detail sheet of each plugin (4a-4).
     QStringList adds;
-    for (QQuickItem* i : h_.items("pluginAdds")) adds << i->property("text").toString();
+    for (const char* id : {"net.test.runs", "net.test.tools"}) {
+      QQuickItem* row = h_.item(QByteArray("pluginRow_") + id);
+      QVERIFY(row != nullptr);
+      QVERIFY(h_.click((QByteArray("pluginRow_") + id).constData()));
+      QTRY_VERIFY(h_.item("pluginAdds") != nullptr && h_.item("pluginAdds")->isVisible());
+      adds << h_.item("pluginAdds")->property("text").toString();
+      QVERIFY(h_.click("pluginDetailClose"));
+      QTest::qWait(150);
+    }
     adds.sort();
     QCOMPARE(adds.size(), 2);
     QCOMPARE(adds.at(0), QStringLiteral("Adds: Runs screen"));
@@ -278,12 +287,12 @@ class PluginSlotsUiTest : public QObject {
     QTRY_COMPARE(h_.controller->screen(), QStringLiteral("plugin"));
     QCOMPARE(h_.controller->pluginPageId(), QStringLiteral("net.test.runs"));
     QTRY_VERIFY(h_.item("plugin_btnInc") != nullptr && h_.item("plugin_btnInc")->isVisible());
-    QCOMPARE(h_.item("pluginScreenTitle")->property("text").toString(), QStringLiteral("Runs"));
+    QCOMPARE(h_.item("pluginScreenTitle")->property("text").toString(), QStringLiteral("Runs Plugin"));  // collides with the built-in Runs
     QCOMPARE(h_.item("pluginScreenName")->property("text").toString(), QStringLiteral("Runs Plugin"));
     QCOMPARE(h_.item("pluginScreenOrigin")->property("text").toString(), QStringLiteral("Local file"));
-    shot(QStringLiteral("slots-sidebar-screen-dark"));
+    shot(QStringLiteral("4f-3-sidebar-screen-dark"));
     h_.controller->setAppearance(QStringLiteral("light"));
-    shot(QStringLiteral("slots-sidebar-screen-light"));
+    shot(QStringLiteral("4f-3-sidebar-screen-light"));
     h_.controller->setAppearance(QStringLiteral("dark"));
 
     // Action round trip: button -> plugin thread -> new tree; the focused button survives the re-set (stable delegates).

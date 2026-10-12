@@ -10,6 +10,7 @@ qt_add_qml_module(framebeam_ui
   OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/FrameBeam/Player
   SOURCES
     inputmapping.h inputmapping.cpp
+    timeformat.h timeformat.cpp
     screenlayout.h screenlayout.cpp
     diagnosticsmodel.h diagnosticsmodel.cpp
     emulationcontroller.h emulationcontroller.cpp
@@ -54,6 +55,7 @@ qt_add_qml_module(framebeam_ui
     StatusDot.qml
     Eyebrow.qml
     HubCard.qml
+    MoreMenu.qml
     StepCard.qml
     ConnectionScreen.qml
     PairingScreen.qml
@@ -129,6 +131,7 @@ qt_add_qml_module(framebeam_ui
     PluginChild.qml
     PluginBlock.qml
     PluginDetailSection.qml
+    PluginDetailSheet.qml
     PluginRunSection.qml
     PluginTabIcon.qml
     PluginMenu.qml

@@ -1,4 +1,5 @@
 #include "gamestarter.h"
+#include "timeformat.h"
 #include "savestore.h"
 
 #include <QCoreApplication>
@@ -351,14 +352,7 @@ void GameStarter::onSaveReady(const QString& gameId, const QString& saveDir, con
   session_.start(cfg);
 }
 
-QString GameStarter::formatWhen(const QDateTime& when) {
-  if (!when.isValid()) {
-    return tr("unknown time");
-  }
-  const QDateTime local = when.toLocalTime();
-  return local.date() == QDate::currentDate() ? tr("today, %1").arg(local.toString(QStringLiteral("HH:mm")))
-                                              : local.toString(QStringLiteral("yyyy-MM-dd HH:mm"));
-}
+QString GameStarter::formatWhen(const QDateTime& when) { return TimeFormat::when(when); }
 
 void GameStarter::onSaveConflict(const SaveSync::ConflictView& v) {
   const SaveConflictInfo& c = v.conflict;

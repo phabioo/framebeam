@@ -1,4 +1,5 @@
 #include "hubpresenter.h"
+#include "timeformat.h"
 
 #include <QCoreApplication>
 #include <QDate>
@@ -39,8 +40,14 @@ QVariantMap HubPresenter::hubCard(const HubProfile& p) const {
     m.insert(QStringLiteral("port"), port > 0 ? QString::number(port) : QStringLiteral("8443"));
   }
   m.insert(QStringLiteral("isLast"), p.hubId == profiles_->lastHubId());
-  const QString last = p.lastConnected.isValid() ? tr("last %1").arg(p.lastConnected.toLocalTime().toString(QStringLiteral("yyyy-MM-dd HH:mm")))
-                                                 : tr("never connected");
+  const bool lost = p.credentialRef.isEmpty() && p.lastConnected.isValid();   // connected before, pairing gone
+  m.insert(QStringLiteral("pairingLost"), lost);
+  const QString lastWhen = p.lastConnected.isValid() ? TimeFormat::when(p.lastConnected) : QString();
+  m.insert(QStringLiteral("lastConnectedText"), lastWhen);
+  m.insert(QStringLiteral("lastConnectedFull"), TimeFormat::full(p.lastConnected));
+  const bool connectedNow = conn_->state() == S::Connected && (conn_->address() == p.address || (conn_->profile() && conn_->profile()->hubId == p.hubId));
+  const QString last = !p.lastConnected.isValid() ? tr("never connected")
+                       : connectedNow ? tr("since %1").arg(lastWhen) : tr("last %1").arg(lastWhen);
   m.insert(QStringLiteral("detail"), trimmedScheme(p.address) + QStringLiteral(" · ") + last);
 
   const bool current = conn_->state() != S::Disconnected &&
@@ -173,6 +180,10 @@ QVariantMap HubPresenter::pairing() const {
   m.insert(QStringLiteral("hubVersion"), hi.hubVersion);
   m.insert(QStringLiteral("protocol"), hi.protocolVersion);
   m.insert(QStringLiteral("hubKnown"), !hi.hubId.isEmpty());
+  // "Pair again": this Hub was connected before (a saved profile with a last connection) and its pairing is gone.
+  m.insert(QStringLiteral("pairAgain"), conn_->profile().has_value() && conn_->profile()->lastConnected.isValid() &&
+                                            (phase == QLatin1String("needsPairing") || phase == QLatin1String("awaiting") ||
+                                             phase == QLatin1String("denied") || phase == QLatin1String("expired")));
   m.insert(QStringLiteral("tls"), tls);
   m.insert(QStringLiteral("fingerprint"), formatFingerprint(fp));
   m.insert(QStringLiteral("deviceName"), profiles_->deviceName());
