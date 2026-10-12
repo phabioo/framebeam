@@ -45,7 +45,7 @@ Phase plan: [workflow.md](workflow.md#phase-plan).
 | 0.10.x | done in code | Connections and small items | Before new testers: direct WebRTC connections instead of TURN relay (STUN default, ICE logging, diagnostics, Cloudflare TURN, external TURN servers), then small items (gamepad hotkeys, repo-scan leftovers, save slot actions, logs bundle, background core updates, Inno shell removed). Open: relayed direction on a mobile hotspot, Library loading speed with many games. |
 | 0.11 | in progress | Plugin runtime | Packages 1 to 3: Player runtime (done in code), UI building blocks and slots (done in code), Hub plugins and runs with `.fbplugin`, signing and plugin index ([ADR 0023](adr/0023-plugins.md), proposed; [design](architecture/12-plugins.md)). The plugins themselves live in their own repositories. |
 | 0.12 | planned | Local ROMs | Play ROMs the user has locally, with an optional resumable upload to the Hub; no P2P transfer. |
-| 0.13 | planned | System template, GB/GBC/GBA | Clean manifests and templates so a new system needs minimal work; GB, GBC and GBA (mGBA) as the proof. |
+| 0.13 | done in code (real cores mGBA and Gambatte and real games verified only locally) | System template, GB/GBC/GBA | Systems are data: one JSON on the Hub, one manifest on the Player, optional core profile; [guide](guides/adding-a-system.md), [ADR 0024](adr/0024-system-template-and-game-boy.md). GB, GBC and GBA (mGBA, Gambatte) as the proof. |
 | 0.14 | planned | UI gaps and Multiview | Remaining Hub web and Player design gaps; Multiview shows three Sessions side by side, a 2x2 grid only from the fourth. |
 | 0.15 | planned | GPU paths | OpenGL to D3D11 bridge, zero-copy display, GPU-direct QSV and AMF. |
 | 1.0 | planned | Test phase | Test evening(s) with friends (date open), then the SoulLink run in Pokémon Omega Ruby/Alpha Sapphire. |
@@ -339,8 +339,12 @@ Decided by Fabio on 2026-10-11: before 1.0.
 
 Decided by Fabio on 2026-10-11 (moved from 0.14 to 0.13 on 2026-10-12): part of the 1.0 goal ("a new system costs minimal effort").
 
-- Open: clean manifests and templates (Hub system registry, Player system manifest and core profile, input profile, guide) so adding a system is mostly data.
-- Open: GB, GBC and GBA with mGBA as the proof of the template (moved out of "Later"). They are also needed for the Pokémon Gen 1-3 plugins.
+- [x] Done: data-driven Hub system registry ([ADR 0024](adr/0024-system-template-and-game-boy.md) D1): one embedded JSON per system in `server/internal/hub/systems/`, validated at load and reconciled into SQLite at start (admin state untouched); no SQL migration per system. A Go test cross-checks the Hub definitions against the Player manifests.
+- [x] Done: Player system manifest carries `input` (map and labels), `identity` and `display.layout`; input tables are registered from the manifests, systems sharing an `input_profile` must have identical maps, manifests are globbed by CMake (D2).
+- [x] Done: GB, GBC and GBA as the proof (moved out of "Later"; also needed for the Pokémon Gen 1-3 plugins): systems `gb`, `gbc`, `gba`, core discovery by `systemid` and extensions (mGBA is offered for all three, gpSP only for GBA, Gambatte/SameBoy only for GB/GBC), shared cores are one installed build (D3, D4). Game identity for plugins: `gba-gamecode`, `gb-title` (D6).
+- [x] Done (Fabio, 2026-10-12): no default core on the Hub; the Player ships profiles for mGBA (`gb`, `gbc`, `gba`) and Gambatte (`gb`, `gbc`); other cores run as experimental (D5).
+- [x] Done: guide [Adding a system](guides/adding-a-system.md).
+- Open (verified only locally): real mGBA and Gambatte cores from the buildbot, real games, saves (`.sav`), BIOS switch behaviour and the GB/GBC/GBA input on keyboard and gamepad. CI uses the test core and synthetic data only.
 
 ## 0.14 UI gaps and Multiview
 
