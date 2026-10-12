@@ -1,9 +1,12 @@
-// Command framebeam-sign creates and signs the core index and the updates index of FrameBeam.
+// Command framebeam-sign creates and signs the core index, the updates index and the plugin index of FrameBeam and
+// signs .fbplugin files.
 //
 //	framebeam-sign keygen -out <seed-file>
 //	framebeam-sign add -index <cores-index.json> -package <package.json>
 //	framebeam-sign release-add -index <updates-index.json> -release <release.json> [-keep 5]
-//	framebeam-sign sign -index <cores-index.json|updates-index.json> [-out <file>.sig]   (seed from env FRAMEBEAM_SIGNING_KEY)
+//	framebeam-sign plugin-sign -in <x.fbplugin> -out <y.fbplugin>      (adds/replaces SIGNATURE.json; seed from env FRAMEBEAM_SIGNING_KEY)
+//	framebeam-sign plugin-add -index <plugin-index.json> -plugin <signed.fbplugin> -url <https url>
+//	framebeam-sign sign -index <cores-index.json|updates-index.json|plugin-index.json> [-out <file>.sig]   (seed from env FRAMEBEAM_SIGNING_KEY)
 //	framebeam-sign verify -index <file> -sig <file> -pub <base64 public key>
 //	framebeam-sign pubkey                                             (seed from env FRAMEBEAM_SIGNING_KEY)
 //
@@ -23,6 +26,7 @@ import (
 	"time"
 
 	"github.com/phabioo/framebeam/server/internal/corepkg"
+	"github.com/phabioo/framebeam/server/internal/pluginpkg"
 	"github.com/phabioo/framebeam/server/internal/updates"
 )
 
@@ -40,7 +44,7 @@ func main() {
 
 func run(args []string, getenv func(string) string, out io.Writer, now func() time.Time) error {
 	if len(args) == 0 {
-		return errors.New("usage: framebeam-sign keygen|add|release-add|sign|verify|pubkey [flags]")
+		return errors.New("usage: framebeam-sign keygen|add|release-add|plugin-sign|plugin-add|sign|verify|pubkey [flags]")
 	}
 	fs := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	switch args[0] {
@@ -66,8 +70,24 @@ func run(args []string, getenv func(string) string, out io.Writer, now func() ti
 			return err
 		}
 		return releaseAdd(*idx, *rel, *keep, *allowFile, now)
+	case "plugin-sign":
+		in := fs.String("in", "", "input .fbplugin")
+		o := fs.String("out", "", "output .fbplugin (may equal -in)")
+		if err := fs.Parse(args[1:]); err != nil {
+			return err
+		}
+		return pluginSign(*in, *o, getenv)
+	case "plugin-add":
+		idx := fs.String("index", "", "plugin-index.json (created when missing)")
+		pl := fs.String("plugin", "", "signed .fbplugin")
+		u := fs.String("url", "", "https URL where the file will be published")
+		allowFile := fs.Bool("allow-file-urls", false, "accept a file:// -url (tests only; default https only)")
+		if err := fs.Parse(args[1:]); err != nil {
+			return err
+		}
+		return pluginAdd(*idx, *pl, *u, *allowFile, getenv, now)
 	case "sign":
-		idx := fs.String("index", "", "cores-index.json or updates-index.json (detected by content)")
+		idx := fs.String("index", "", "cores-index.json, updates-index.json or plugin-index.json (detected by content)")
 		o := fs.String("out", "", "signature file (default <index>.sig)")
 		allowFile := fs.Bool("allow-file-urls", false, "accept file:// artifact URLs in an updates index (tests only)")
 		if err := fs.Parse(args[1:]); err != nil {
@@ -270,7 +290,11 @@ func sign(indexPath, outPath string, allowFile bool, getenv func(string) string)
 	if err != nil {
 		return err
 	}
-	if updates.LooksLikeUpdatesIndex(data) {
+	if pluginpkg.LooksLikeIndex(data) {
+		if _, errs := pluginpkg.ParseIndex(data, allowFile); len(errs) > 0 {
+			return fmt.Errorf("plugin index is invalid: %w", errs[0])
+		}
+	} else if updates.LooksLikeUpdatesIndex(data) {
 		if _, errs := updates.ParseIndexOpts(data, allowFile); len(errs) > 0 {
 			return fmt.Errorf("updates index is invalid: %w", errs[0])
 		}
