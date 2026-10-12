@@ -49,11 +49,8 @@ func TestLayoutUsesVersionedAssets(t *testing.T) {
 
 // The row menu (.menu-pop) is absolutely positioned inside the table; overflow hidden on it would clip the menu.
 func TestTabpanelTableDoesNotClipRowMenu(t *testing.T) {
-	data, err := staticFS.ReadFile("static/app.css")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, line := range strings.Split(string(data), "\n") {
+	css := appCSS(t)
+	for _, line := range strings.Split(css, "\n") {
 		if strings.HasPrefix(line, ".tabpanel table.list {") && strings.Contains(line, "overflow") {
 			t.Fatalf("rule clips the row menu: %s", line)
 		}
@@ -62,11 +59,7 @@ func TestTabpanelTableDoesNotClipRowMenu(t *testing.T) {
 
 // The header "Invite" jump link only shows where the Invites panel stacks below the table.
 func TestInviteJumpLinkOnlyWhenPanelStacks(t *testing.T) {
-	data, err := staticFS.ReadFile("static/app.css")
-	if err != nil {
-		t.Fatal(err)
-	}
-	css := string(data)
+	css := appCSS(t)
 	if !strings.Contains(css, ".invite-jump { display: none; }") {
 		t.Fatal("invite-jump is not hidden by default")
 	}
@@ -78,11 +71,26 @@ func TestInviteJumpLinkOnlyWhenPanelStacks(t *testing.T) {
 
 // Round 3 sets .card to overflow visible; the event log card must still scroll inside its box.
 func TestEventsScrollOverridesCardOverflow(t *testing.T) {
+	css := appCSS(t)
+	if !strings.Contains(css, ".card.events-scroll { overflow-y: auto;") {
+		t.Fatal("missing .card.events-scroll override")
+	}
+}
+
+// appCSS returns app.css with LF line endings (a Windows checkout may contain CRLF).
+func appCSS(t *testing.T) string {
+	t.Helper()
 	data, err := staticFS.ReadFile("static/app.css")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(data), ".card.events-scroll { overflow-y: auto;") {
-		t.Fatal("missing .card.events-scroll override")
+	return normalizeNewlines(string(data))
+}
+
+func normalizeNewlines(s string) string { return strings.ReplaceAll(s, "\r\n", "\n") }
+
+func TestNormalizeNewlines(t *testing.T) {
+	if got := normalizeNewlines("a {\r\n  b\r\n}"); got != "a {\n  b\n}" {
+		t.Fatalf("got %q", got)
 	}
 }
