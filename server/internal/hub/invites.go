@@ -29,7 +29,7 @@ const (
 )
 
 // InviteTTLs are the selectable invite lifetimes (Users page).
-var InviteTTLs = []time.Duration{15 * time.Minute, time.Hour, 24 * time.Hour}
+var InviteTTLs = []time.Duration{15 * time.Minute, time.Hour, 24 * time.Hour, 7 * 24 * time.Hour}
 
 // DefaultInviteTTL is the preselected lifetime.
 const DefaultInviteTTL = time.Hour
@@ -59,6 +59,8 @@ type Invite struct {
 	RevokedAt       *time.Time
 	// RedeemedBy is the display name of the user created by the redemption.
 	RedeemedBy string
+	// ForUser is the display name of the user a pairing code is bound to ("" for an onboarding invite).
+	ForUser string
 }
 
 // newInviteCode creates a code of the form FB-XXXX-XXXX.
@@ -112,7 +114,7 @@ func (s *Service) CreateInvite(ctx context.Context, createdBy string, ttl time.D
 		valid = valid || t == ttl
 	}
 	if !valid {
-		return Invite{}, "", badRequest("Expiry must be 15 minutes, 1 hour or 24 hours")
+		return Invite{}, "", badRequest("Expiry must be 15 minutes, 1 hour, 24 hours or 7 days")
 	}
 	code, err := newInviteCode()
 	if err != nil {
@@ -150,8 +152,8 @@ func (s *Service) RevokeInvite(ctx context.Context, id string) (err error) {
 
 // ListInvites returns the invites, newest first (at most limit; 0 = all).
 func (s *Service) ListInvites(ctx context.Context, limit int) ([]Invite, error) {
-	q := `SELECT i.id, i.authorize_device, i.status, i.created_at, i.expires_at, i.redeemed_at, i.revoked_at, COALESCE(u.display_name,'')
-		FROM invites i LEFT JOIN users u ON u.id = i.redeemed_by ORDER BY i.created_at DESC, i.rowid DESC`
+	q := `SELECT i.id, i.authorize_device, i.status, i.created_at, i.expires_at, i.redeemed_at, i.revoked_at, COALESCE(u.display_name,''), COALESCE(f.display_name,'')
+		FROM invites i LEFT JOIN users u ON u.id = i.redeemed_by LEFT JOIN users f ON f.id = i.for_user_id ORDER BY i.created_at DESC, i.rowid DESC`
 	var args []any
 	if limit > 0 {
 		q += ` LIMIT ?`
@@ -169,7 +171,7 @@ func (s *Service) ListInvites(ctx context.Context, limit int) ([]Invite, error) 
 		var auth int
 		var created, exp int64
 		var red, rev sql.NullInt64
-		if err := rows.Scan(&i.ID, &auth, &i.Status, &created, &exp, &red, &rev, &i.RedeemedBy); err != nil {
+		if err := rows.Scan(&i.ID, &auth, &i.Status, &created, &exp, &red, &rev, &i.RedeemedBy, &i.ForUser); err != nil {
 			return nil, internal(err)
 		}
 		i.AuthorizeDevice = auth == 1
@@ -316,21 +318,22 @@ func (s *Service) RedeemInvite(ctx context.Context, in RedeemInput) (_ RedeemRes
 
 	// Compare against every open invite in constant time (no early exit, no lookup by the secret).
 	want := []byte(hashInviteCode(code))
-	rows, err := tx.QueryContext(ctx, `SELECT id, code_hash, authorize_device FROM invites WHERE status = 'active' AND expires_at > ?`, now.Unix())
+	rows, err := tx.QueryContext(ctx, `SELECT id, code_hash, authorize_device, for_user_id FROM invites WHERE status = 'active' AND expires_at > ?`, now.Unix())
 	if err != nil {
 		return RedeemResult{}, internal(err)
 	}
-	var inviteID string
+	var inviteID, forUser string
 	var authorize bool
 	for rows.Next() {
 		var id, hash string
 		var auth int
-		if err := rows.Scan(&id, &hash, &auth); err != nil {
+		var fu sql.NullString
+		if err := rows.Scan(&id, &hash, &auth, &fu); err != nil {
 			rows.Close()
 			return RedeemResult{}, internal(err)
 		}
 		if code != "" && subtle.ConstantTimeCompare([]byte(hash), want) == 1 {
-			inviteID, authorize = id, auth == 1
+			inviteID, authorize, forUser = id, auth == 1, fu.String
 		}
 	}
 	rows.Close()
@@ -352,32 +355,47 @@ func (s *Service) RedeemInvite(ctx context.Context, in RedeemInput) (_ RedeemRes
 		return RedeemResult{}, ErrInviteInvalid
 	}
 
-	var taken int
-	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE display_name = ? COLLATE NOCASE`, name).Scan(&taken); err != nil {
-		return RedeemResult{}, internal(err)
-	}
-	if taken > 0 {
-		return RedeemResult{}, ErrDisplayNameTaken
-	}
-	base := slugUsername(name)
-	username := base
-	for i := 2; ; i++ {
-		var n int
-		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE username = ? COLLATE NOCASE`, username).Scan(&n); err != nil {
+	var userID string
+	if forUser != "" {
+		// An invite created together with a user (Users > Create user): the code pairs a device with that user.
+		// The display name the Player sends is ignored; a disabled or deleted user cannot be paired.
+		var disabled sql.NullInt64
+		if err := tx.QueryRowContext(ctx, `SELECT disabled_at FROM users WHERE id = ?`, forUser).Scan(&disabled); err != nil || disabled.Valid {
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				return RedeemResult{}, internal(err)
+			}
+			s.noteRedeemFailure()
+			return RedeemResult{}, ErrInviteInvalid
+		}
+		userID = forUser
+	} else {
+		var taken int
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE display_name = ? COLLATE NOCASE`, name).Scan(&taken); err != nil {
 			return RedeemResult{}, internal(err)
 		}
-		if n == 0 {
-			break
-		}
-		username = base + "-" + strconv.Itoa(i)
-	}
-	userID := newUserID()
-	if _, err := tx.ExecContext(ctx, `INSERT INTO users(id, username, display_name, role, password_hash, created_at) VALUES (?,?,?, 'user', NULL, ?)`,
-		userID, username, name, now.Unix()); err != nil {
-		if isUnique(err) {
+		if taken > 0 {
 			return RedeemResult{}, ErrDisplayNameTaken
 		}
-		return RedeemResult{}, internal(err)
+		base := slugUsername(name)
+		username := base
+		for i := 2; ; i++ {
+			var n int
+			if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE username = ? COLLATE NOCASE`, username).Scan(&n); err != nil {
+				return RedeemResult{}, internal(err)
+			}
+			if n == 0 {
+				break
+			}
+			username = base + "-" + strconv.Itoa(i)
+		}
+		userID = newUserID()
+		if _, err := tx.ExecContext(ctx, `INSERT INTO users(id, username, display_name, role, password_hash, created_at) VALUES (?,?,?, 'user', NULL, ?)`,
+			userID, username, name, now.Unix()); err != nil {
+			if isUnique(err) {
+				return RedeemResult{}, ErrDisplayNameTaken
+			}
+			return RedeemResult{}, internal(err)
+		}
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE invites SET redeemed_by = ? WHERE id = ?`, userID, inviteID); err != nil {
 		return RedeemResult{}, internal(err)

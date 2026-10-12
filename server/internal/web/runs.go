@@ -40,23 +40,40 @@ type runItem struct {
 }
 
 type partView struct {
-	Name, Initial, ColorClass, Game, Status, StatusClass string
+	ID, Name, Initial, ColorClass, Game, Status, StatusClass string
+	Invited                                                  bool // waiting for the invitation: Resend and Remove invite
 }
 
 type boardView struct {
-	Plugin, Meta, JSON string
-	Empty              bool
+	Plugin, Title, Note, Meta, JSON string
+	Empty, ShowNote                 bool
 }
 
 type eventView struct {
-	Time, Author, Text, Source, Seq string
-	Hub                             bool
+	Time   When
+	Text   string
+	Source string // empty for the Hub's own events
+	Seq    string
+	Hub    bool
+}
+
+// waitView is the banner of a run that is still starting while someone has not joined.
+type waitView struct {
+	Names     string // "Sam" or "Sam and Lena"
+	Joined    int
+	Total     int
+	Invited   When
+	StartWith string // button text: "Start without Sam"
+	Many      bool
 }
 
 type runDetail struct {
 	ID, Name, StatusLabel, StatusClass, Subline string
 	Paused, Archived                            bool
 	CanPause, CanResume, CanArchive             bool
+	CanStart, CanFinish                         bool
+	HasSource                                   bool
+	Waiting                                     *waitView
 	Participants                                []partView
 	Boards                                      []boardView
 	Events                                      []eventView
@@ -64,19 +81,23 @@ type runDetail struct {
 }
 
 type runsBody struct {
-	Self    string
-	Filters []runFilter
-	Items   []runItem
-	Detail  *runDetail
+	Self          string
+	ArchivedCount int
+	ArchivedOn    bool
+	ArchivedURL   string
+	Filters       []runFilter
+	Items         []runItem
+	Detail        *runDetail
 }
 
 var runStatusLabels = map[string]string{
 	hub.RunStarting: "Starting", hub.RunActive: "Active", hub.RunPaused: "Paused", hub.RunFinished: "Finished", hub.RunAbandoned: "Abandoned",
 }
 
-// runStatusClass: Active is info (cyan), Paused and Starting warning (amber), Finished ok, Abandoned neutral.
+// runStatusClasses: Starting and Active are info (cyan, in progress), Paused needs judgment (amber), Finished ok,
+// Abandoned neutral.
 var runStatusClasses = map[string]string{
-	hub.RunStarting: "amber", hub.RunActive: "warn", hub.RunPaused: "amber", hub.RunFinished: "ok", hub.RunAbandoned: "",
+	hub.RunStarting: "info", hub.RunActive: "info", hub.RunPaused: "amber", hub.RunFinished: "ok", hub.RunAbandoned: "",
 }
 
 var participantLabels = map[string]string{
@@ -84,7 +105,7 @@ var participantLabels = map[string]string{
 }
 
 var runFilters = []struct{ Key, Label string }{
-	{"all", "All"}, {"active", "Active"}, {"paused", "Paused"}, {"finished", "Finished"}, {"archived", "Archived"},
+	{"all", "All"}, {"active", "Active"}, {"paused", "Paused"}, {"finished", "Finished"},
 }
 
 func runMatches(filter string, r hub.Run) bool {
@@ -128,7 +149,7 @@ func (s *Server) runsDetail(w http.ResponseWriter, r *http.Request, sess *sessio
 func (s *Server) renderRuns(w http.ResponseWriter, r *http.Request, sess *session, selectedID string) {
 	ctx := r.Context()
 	filter := r.URL.Query().Get("filter")
-	if !slices.ContainsFunc(runFilters, func(f struct{ Key, Label string }) bool { return f.Key == filter }) {
+	if filter != "archived" && !slices.ContainsFunc(runFilters, func(f struct{ Key, Label string }) bool { return f.Key == filter }) {
 		filter = "all"
 	}
 	all, err := s.svc.ListRunsAdmin(ctx, true)
@@ -146,7 +167,11 @@ func (s *Server) renderRuns(w http.ResponseWriter, r *http.Request, sess *sessio
 		titles[g.ID] = g.Title
 	}
 	var shown []hub.Run
+	archived := 0
 	for _, run := range all {
+		if run.Archived {
+			archived++
+		}
 		if runMatches(filter, run) {
 			shown = append(shown, run)
 		}
@@ -161,15 +186,23 @@ func (s *Server) renderRuns(w http.ResponseWriter, r *http.Request, sess *sessio
 			body.Self += "?filter=" + url.QueryEscape(filter)
 		}
 	}
-	for _, f := range runFilters {
+	filterURL := func(key string) string {
 		u := "/runs"
 		if selectedID != "" {
 			u = "/runs/" + selectedID
 		}
-		if f.Key != "all" {
-			u += "?filter=" + url.QueryEscape(f.Key)
+		if key != "all" {
+			u += "?filter=" + url.QueryEscape(key)
 		}
-		body.Filters = append(body.Filters, runFilter{Key: f.Key, Label: f.Label, On: f.Key == filter, URL: u})
+		return u
+	}
+	for _, f := range runFilters {
+		body.Filters = append(body.Filters, runFilter{Key: f.Key, Label: f.Label, On: f.Key == filter, URL: filterURL(f.Key)})
+	}
+	body.ArchivedCount, body.ArchivedOn = archived, filter == "archived"
+	body.ArchivedURL = filterURL("archived")
+	if body.ArchivedOn {
+		body.ArchivedURL = filterURL("all")
 	}
 	for _, run := range shown {
 		it := runItem{ID: run.ID, Name: run.Name, StatusLabel: runStatusLabels[run.Status], StatusClass: runStatusClasses[run.Status],
@@ -181,7 +214,7 @@ func (s *Server) renderRuns(w http.ResponseWriter, r *http.Request, sess *sessio
 			}
 			it.Avatars = append(it.Avatars, avatarView{Initial: initial(p.UserName), Class: playerClass(p.Color), Title: p.UserName})
 		}
-		it.Sub = fmt.Sprintf("%d of %d joined · %s", joined, len(run.Participants), run.UpdatedAt.Local().Format("02.01.2006"))
+		it.Sub = fmt.Sprintf("%d of %d joined · %s", joined, len(run.Participants), when(run.UpdatedAt, s.svc.Now()).Text)
 		body.Items = append(body.Items, it)
 	}
 	if selectedID != "" {
@@ -229,7 +262,9 @@ func (s *Server) runDetail(r *http.Request, run hub.Run, titles map[string]strin
 	}
 	det := &runDetail{ID: run.ID, Name: run.Name, StatusLabel: runStatusLabels[run.Status], StatusClass: runStatusClasses[run.Status],
 		Paused: run.Status == hub.RunPaused, Archived: run.Archived,
-		CanPause: run.Status == hub.RunActive, CanResume: run.Status == hub.RunPaused, CanArchive: run.Finished()}
+		CanPause: run.Status == hub.RunActive, CanResume: run.Status == hub.RunPaused, CanArchive: run.Finished(),
+		CanStart: run.Status == hub.RunStarting, CanFinish: !run.Finished()}
+	now := s.svc.Now()
 	var plugins []string
 	for _, p := range run.Plugins {
 		plugins = append(plugins, s.pluginLabel(ctx, p.PluginID, p.Version))
@@ -243,16 +278,31 @@ func (s *Server) runDetail(r *http.Request, run hub.Run, titles map[string]strin
 	default:
 		parts = append(parts, "Created by "+nameOf(run.CreatedBy))
 	}
-	parts = append(parts, run.UpdatedAt.Local().Format("02.01.2006"), strings.Join(plugins, " & "))
+	parts = append(parts, when(run.UpdatedAt, now).Text, strings.Join(plugins, " & "))
 	if det.Paused {
 		parts = append(parts, "events still visible, no new ones recorded")
 	}
 	det.Subline = strings.Join(parts, " · ")
 
+	invitedAt, err := s.svc.RunInviteTimes(ctx, run.ID)
+	if err != nil {
+		return nil, err
+	}
+	var waiting []string
+	var oldest time.Time
+	joined := 0
 	for _, p := range run.Participants {
-		pv := partView{Name: p.UserName, Initial: initial(p.UserName), ColorClass: playerClass(p.Color), Status: participantLabels[p.Status]}
-		if p.Status == hub.ParticipantJoined {
+		pv := partView{ID: p.UserID, Name: p.UserName, Initial: initial(p.UserName), ColorClass: playerClass(p.Color), Status: participantLabels[p.Status]}
+		switch p.Status {
+		case hub.ParticipantJoined:
 			pv.StatusClass = "ok"
+			joined++
+		case hub.ParticipantInvited:
+			pv.StatusClass, pv.Invited = "amber", !run.Finished()
+			waiting = append(waiting, p.UserName)
+			if at := invitedAt[p.UserID]; oldest.IsZero() || (!at.IsZero() && at.Before(oldest)) {
+				oldest = at
+			}
 		}
 		if p.GameID != nil {
 			pv.Game = titles[*p.GameID]
@@ -261,6 +311,19 @@ func (s *Server) runDetail(r *http.Request, run hub.Run, titles map[string]strin
 			}
 		}
 		det.Participants = append(det.Participants, pv)
+	}
+
+	if run.Status == hub.RunStarting && len(waiting) > 0 {
+		names := strings.Join(waiting, ", ")
+		if n := len(waiting); n > 1 {
+			names = strings.Join(waiting[:n-1], ", ") + " and " + waiting[n-1]
+		}
+		w := &waitView{Names: names, Joined: joined, Total: len(run.Participants), Invited: when(oldest, now), Many: len(waiting) > 1}
+		w.StartWith = "Start without " + waiting[0]
+		if w.Many {
+			w.StartWith = fmt.Sprintf("Start without %d players", len(waiting))
+		}
+		det.Waiting = w
 	}
 
 	boards, err := s.svc.RunBoards(ctx, run.ID)
@@ -273,10 +336,14 @@ func (s *Server) runDetail(r *http.Request, run hub.Run, titles map[string]strin
 	}
 	for _, p := range run.Plugins {
 		bv := boardView{Plugin: s.pluginLabel(ctx, p.PluginID, p.Version), Empty: true}
+		bv.Title = s.pluginName(ctx, p.PluginID, p.Version)
 		if b, ok := byPlugin[p.PluginID]; ok {
 			bv.Empty = false
 			bv.JSON = string(b.Tree) // html/template escapes it for the data-tree attribute
-			bv.Meta = "Updated " + b.UpdatedAt.Local().Format("02.01.2006 15:04")
+			if t := boardTitle(b.Tree); t != "" {
+				bv.Title, bv.Note, bv.ShowNote = t, bv.Plugin, true
+			}
+			bv.Meta = "Updated " + when(b.UpdatedAt, now).Text
 			if b.UpdatedBy != "" {
 				bv.Meta += " by " + b.UpdatedBy + "'s Player"
 			}
@@ -291,19 +358,20 @@ func (s *Server) runDetail(r *http.Request, run hub.Run, titles map[string]strin
 		return nil, err
 	}
 	for i := len(evs) - 1; i >= 0; i-- { // newest first
-		det.Events = append(det.Events, eventRow(evs[i]))
+		det.Events = append(det.Events, eventRow(evs[i], now))
+		if det.Events[len(det.Events)-1].Source != "" {
+			det.HasSource = true
+		}
 	}
 	return det, nil
 }
 
-func eventRow(e hub.RunEvent) eventView {
-	v := eventView{Time: e.CreatedAt.Local().Format("02.01. 15:04:05"), Seq: fmt.Sprint(e.Seq), Hub: e.Source == hub.EventHub}
-	if v.Hub {
-		v.Author, v.Source = "Hub", "Hub"
+func eventRow(e hub.RunEvent, now time.Time) eventView {
+	v := eventView{Time: when(e.CreatedAt, now), Seq: fmt.Sprint(e.Seq), Hub: e.Source == hub.EventHub}
+	if v.Hub { // the text names the actor; the Hub needs no author and no source column
 		v.Text = hubEventText(e)
 		return v
 	}
-	v.Author = e.UserName
 	v.Text = e.Text
 	if v.Text == "" {
 		v.Text = e.Type
@@ -314,6 +382,15 @@ func eventRow(e hub.RunEvent) eventView {
 		v.Source = "manual · " + e.UserName
 	}
 	return v
+}
+
+// boardTitle is the title the plugin put on the root of its board ("" when it set none).
+func boardTitle(tree json.RawMessage) string {
+	var root struct {
+		Title string `json:"title"`
+	}
+	_ = json.Unmarshal(tree, &root)
+	return strings.TrimSpace(root.Title)
 }
 
 // hubEventText words the events the Hub itself appends (the payload says who it is about).
@@ -340,6 +417,18 @@ func hubEventText(e hub.RunEvent) string {
 		return who + " invited " + invitedNames(e.Payload)
 	case "run.left":
 		return who + " left"
+	case "run.invite_removed", "run.invite_resent":
+		var t struct {
+			Target string `json:"target_user_name"`
+		}
+		_ = json.Unmarshal(e.Payload, &t)
+		if t.Target == "" {
+			t.Target = "a player"
+		}
+		if e.Type == "run.invite_removed" {
+			return who + " removed the invite of " + t.Target
+		}
+		return who + " sent the invite to " + t.Target + " again"
 	case "run.status":
 		by := p.ByUserName
 		if by == "" {
@@ -466,11 +555,14 @@ func (s *Server) runExport(w http.ResponseWriter, r *http.Request, sess *session
 // pluginLabel is "Display name version" from the plugin store; the plugin id replaces the name when the store
 // does not hold the version (removed or never offered by this Hub).
 func (s *Server) pluginLabel(ctx context.Context, id, version string) string {
-	name := id
+	return s.pluginName(ctx, id, version) + " " + version
+}
+
+func (s *Server) pluginName(ctx context.Context, id, version string) string {
 	if p, err := s.svc.GetPlugin(ctx, id, version); err == nil && p.Name != "" {
-		name = p.Name
+		return p.Name
 	}
-	return name + " " + version
+	return id
 }
 
 // invitedNames lists the users a run.invited event names.

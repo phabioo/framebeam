@@ -1,15 +1,41 @@
-{{define "library-sub"}}{{.Count}} {{if eq .Count 1}}ROM{{else}}ROMs{{end}} · {{.Used}} used · {{.Free}} free{{end}}
+{{define "library-sub"}}{{.Used}} used · {{.Free}} free{{end}}
 {{define "library-results"}}<p id="library-sub" class="sub" hx-swap-oob="true">{{template "library-sub" .Body}}</p>
+{{template "library-toolbar-oob" .Body}}
 {{template "library-region" .Body}}{{end}}
+{{define "library-chips"}}<div id="library-chips" class="chips"{{if .OOB}} hx-swap-oob="true"{{end}}>
+  <a class="chip-f{{if not .System}} on{{end}}" href="{{.AllHref}}" hx-get="{{.AllHref}}" hx-target="#library-results" hx-swap="outerHTML"{{if not .System}} aria-current="true"{{end}}>All · {{.Count}}</a>
+  {{range .Systems}}<a class="chip-f{{if .Active}} on{{end}}" href="{{.Href}}" hx-get="{{.Href}}" hx-target="#library-results" hx-swap="outerHTML"{{if .Active}} aria-current="true"{{end}}>{{.Name}} · {{.Count}}</a>{{end}}
+</div>{{end}}
+{{define "library-sort"}}<details class="menu left" id="library-sort"{{if .OOB}} hx-swap-oob="true"{{end}}>
+  <summary class="btn sort-btn" aria-label="Sort order"><span class="desk-only">Sort:&nbsp;</span>{{.SortLabel}} ▾</summary>
+  <div class="menu-pop">
+    {{range .Sorts}}<a class="mi{{if .Active}} on{{end}}" href="{{.Href}}" hx-get="{{.Href}}" hx-target="#library-results" hx-swap="outerHTML">{{.Label}}</a>{{end}}
+  </div>
+</details>{{end}}
+{{define "library-toolbar-oob"}}{{template "library-chips" .}}{{template "library-sort" .}}{{end}}
 {{define "library-region"}}<div id="library-results" hx-get="{{.RefreshURL}}" hx-trigger="fb:library from:body" hx-swap="outerHTML">
+{{template "library-scan" .}}
 {{template "library-table" .}}
 </div>{{end}}
-{{define "library-filter-qs"}}{{if .System}}&amp;system={{.System}}{{end}}{{if .Query}}&amp;q={{.Query}}{{end}}{{end}}
+{{define "library-scan"}}{{if .Scan.Running}}
+<div class="card scan" role="status">
+  <div class="scan-line">
+    <span class="strong">Scanning import folder</span>
+    <span class="help">{{.Scan.Done}} of {{.Scan.Total}} files · {{.Scan.Added}} new {{if eq .Scan.Added 1}}game{{else}}games{{end}} so far</span>
+    <span class="grow"></span>
+    <span class="mono help scan-path" title="{{.Scan.FullPath}}">{{.Scan.Path}}</span>
+    <button class="btn sm" type="button" data-copy-link="{{.Scan.FullPath}}">Copy path</button>
+  </div>
+  <progress class="scan-bar" max="100" value="{{.Scan.Percent}}" aria-label="Scan progress"></progress>
+</div>
+{{else if .Scan.Result}}
+<div class="banner" role="status">{{.Scan.Result}}{{if .Scan.ResultErr}} {{.Scan.ResultErr}}{{end}}{{if .Scan.ResultWarn}}<div>{{.Scan.ResultWarn}}</div>{{end}}</div>
+{{end}}{{end}}
 {{define "library-panel"}}{{$r := .}}{{if eq $r.Panel "rename"}}<div class="confirm" role="group" aria-label="Rename">
   <div class="confirm-title">Rename “{{$r.Title}}”</div>
   <p class="help">Only the display title changes. The ROM file and the saves stay as they are.</p>
   <form class="inline" method="post" action="/library/{{$r.ID}}/rename" hx-post="/library/{{$r.ID}}/rename" hx-target="#library-results" hx-swap="outerHTML">
-    <input type="hidden" name="_csrf" value="{{$r.CSRF}}"><input type="hidden" name="system" value="{{$r.FSystem}}"><input type="hidden" name="q" value="{{$r.FQuery}}">
+    <input type="hidden" name="_csrf" value="{{$r.CSRF}}"><input type="hidden" name="system" value="{{$r.FSystem}}"><input type="hidden" name="q" value="{{$r.FQuery}}"><input type="hidden" name="sort" value="{{$r.FSort}}"><input type="hidden" name="n" value="{{$r.FLimit}}">
     <label class="field">Title <input type="text" name="title" value="{{$r.PanelTitle}}" maxlength="200" required autocomplete="off" autofocus aria-label="Title"{{if $r.PanelErr}} aria-invalid="true"{{end}}></label>
     {{if $r.PanelErr}}<p class="help error-line" role="alert">{{$r.PanelErr}}</p>{{end}}
     <div class="actions">
@@ -17,71 +43,110 @@
       <button class="btn small primary" type="submit">Save title</button>
     </div>
   </form>
+</div>{{else if eq $r.Panel "details"}}<div class="confirm" role="group" aria-label="Details">
+  <div class="confirm-title">{{$r.Title}}</div>
+  <dl class="kv">
+    <dt>System</dt><dd>{{$r.System}}</dd>
+    {{if $r.GameCode}}<dt>Game code</dt><dd class="mono">{{$r.GameCode}}</dd>{{end}}
+    <dt>Files</dt><dd>{{$r.Files}}</dd>
+    <dt>SHA-256</dt><dd class="mono">{{if $r.SHA}}{{$r.SHA}}{{else}}–{{end}}</dd>
+    <dt>Added</dt><dd>{{template "when" $r.Added}} · {{$r.Uploader}}</dd>
+    {{if $r.Owners}}<dt>Local files</dt><dd>{{$r.Owners}}</dd>{{end}}
+  </dl>
+  {{if $r.LocalOnly}}<p class="help">The file stays on the Player. The Hub only knows this game and its saves.</p>{{end}}
+  <div class="actions"><a class="btn small" href="{{$r.CancelHref}}" hx-get="{{$r.CancelHref}}" hx-target="#library-results" hx-swap="outerHTML">Close</a></div>
 </div>{{else}}<div class="confirm" role="group" aria-label="Delete">
   <div class="confirm-title">Delete “{{$r.Title}}” from the library?</div>
-  <p class="help">The ROM file is removed from this hub.{{if $r.Saves}} The {{$r.Saves}} {{if eq $r.Saves 1}}save slot is{{else}}save slots are{{end}} kept and stay on the Saves page.{{else}} There are no saves for this game.{{end}}</p>
+  <p class="help">The ROM file is removed from this Hub.{{if $r.Saves}} The {{$r.Saves}} {{if eq $r.Saves 1}}save slot is{{else}}save slots are{{end}} kept and stay on the Saves page.{{else}} There are no saves for this game.{{end}}</p>
   <form class="inline" method="post" action="/library/{{$r.ID}}/delete" hx-post="/library/{{$r.ID}}/delete" hx-target="#library-results" hx-swap="outerHTML">
-    <input type="hidden" name="_csrf" value="{{$r.CSRF}}"><input type="hidden" name="system" value="{{$r.FSystem}}"><input type="hidden" name="q" value="{{$r.FQuery}}">
+    <input type="hidden" name="_csrf" value="{{$r.CSRF}}"><input type="hidden" name="system" value="{{$r.FSystem}}"><input type="hidden" name="q" value="{{$r.FQuery}}"><input type="hidden" name="sort" value="{{$r.FSort}}"><input type="hidden" name="n" value="{{$r.FLimit}}">
     <div class="actions">
       <a class="btn small" href="{{$r.CancelHref}}" hx-get="{{$r.CancelHref}}" hx-target="#library-results" hx-swap="outerHTML">Cancel</a>
-      <button class="btn small danger" type="submit">Delete ROM</button>
+      <button class="btn small danger" type="submit">Delete game</button>
     </div>
   </form>
 </div>{{end}}{{end}}
 {{define "library-table"}}
 {{if .Rows}}
-<div class="card"><table class="list lib">
-  <thead><tr><th>Title</th><th>System</th><th>Size</th><th>SHA-256</th><th>Uploaded by</th><th>Saves</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
+<div class="card flush"><table class="list lib cards">
+  <thead><tr><th>Title</th><th>System</th><th>Size</th><th>Added</th><th>Saves</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
   <tbody>
   {{range .Rows}}
   <tr>
-    <td><div class="cell-title"><span class="cover" aria-hidden="true">{{.Initial}}</span><span>{{.Title}}</span>{{if .LocalOnly}} <span class="pill" title="No file of this game is stored on the Hub">Local only</span>{{end}}</div>{{if .GameCode}}<div class="sub mono">Game code {{.GameCode}}</div>{{end}}{{if gt .Files 1}}<div class="sub">{{.Files}} files</div>{{end}}{{if .Owners}}<div class="sub">Local files: {{.Owners}}</div>{{end}}</td>
-    <td class="mono">{{.System}}</td>
-    <td class="mono">{{.Size}}</td>
-    <td class="mono" title="{{.SHA}}">{{.ShortSHA}}</td>
-    <td>{{.Uploader}} · {{.Added}}</td>
-    <td><span class="mono">{{.Saves}}</span>{{if .Conflict}} <span class="warn-mark">▲ Conflict</span>{{end}}</td>
-    <td class="actions-cell"><a class="btn-link" href="{{.UploadHref}}">Upload save</a>
-      <a class="btn-link" href="/library?rename={{.ID}}{{template "library-filter-qs" $}}" hx-get="/library?rename={{.ID}}{{template "library-filter-qs" $}}" hx-target="#library-results" hx-swap="outerHTML">Rename</a>
-      <a class="btn-link" href="/library?delete={{.ID}}{{template "library-filter-qs" $}}" hx-get="/library?delete={{.ID}}{{template "library-filter-qs" $}}" hx-target="#library-results" hx-swap="outerHTML">Delete</a></td>
+    <td class="c-title"><div class="cell-title"><span class="cover" aria-hidden="true">{{.Initial}}</span><span class="cell-text"><span class="cell-name">{{.Title}}</span>{{if .LocalLine}}<span class="local-line">{{.LocalLine}}</span>{{end}}{{if gt .Files 1}}<span class="sub hide-xs">{{.Files}} files</span>{{end}}</span></div></td>
+    <td class="hide-sm">{{.System}}</td>
+    <td class="mono hide-sm">{{.Size}}</td>
+    <td class="hide-sm">{{template "when" .Added}}</td>
+    <td class="c-saves"><span class="mono">{{.Saves}}</span>{{if .Conflict}} <span class="pill amber sm">▲ Conflict</span>{{end}}</td>
+    <td class="c-act">
+      <div class="ract">
+        {{if .LocalOnly}}<a class="btn small desk-only" href="/library?details={{.ID}}{{template "library-filter-qs" $}}" hx-get="/library?details={{.ID}}{{template "library-filter-qs" $}}" hx-target="#library-results" hx-swap="outerHTML">Details</a>{{else}}<a class="btn small desk-only" href="{{.UploadHref}}">Upload save</a>{{end}}
+        <details class="menu">
+          <summary class="more" aria-label="More actions for {{.Title}}">⋯</summary>
+          <div class="menu-pop">
+            {{if .LocalOnly}}<a class="mi mob-only" href="/library?details={{.ID}}{{template "library-filter-qs" $}}" hx-get="/library?details={{.ID}}{{template "library-filter-qs" $}}" hx-target="#library-results" hx-swap="outerHTML">Details</a>{{else}}<a class="mi mob-only" href="{{.UploadHref}}">Upload save</a>{{end}}
+            <a class="mi" href="/library?rename={{.ID}}{{template "library-filter-qs" $}}" hx-get="/library?rename={{.ID}}{{template "library-filter-qs" $}}" hx-target="#library-results" hx-swap="outerHTML">Rename</a>
+            {{if not .LocalOnly}}<a class="mi" href="/library/download/{{.ID}}">Download ROM</a>{{end}}
+            {{if .SHA}}<button class="mi" type="button" data-copy-link="{{.SHA}}">Copy SHA-256</button>{{end}}
+            <div class="msep"></div>
+            <a class="mi danger" href="/library?delete={{.ID}}{{template "library-filter-qs" $}}" hx-get="/library?delete={{.ID}}{{template "library-filter-qs" $}}" hx-target="#library-results" hx-swap="outerHTML">Delete game…</a>
+          </div>
+        </details>
+      </div>
+    </td>
+    <td class="c-meta">{{.Meta}}{{if .Saves}} · {{.Saves}} {{if eq .Saves 1}}save{{else}}saves{{end}}{{end}}</td>
   </tr>
-  {{if .Panel}}<tr class="row-panel"><td colspan="7">{{template "library-panel" .}}</td></tr>{{end}}
+  {{if .Panel}}<tr class="row-panel"><td colspan="6">{{template "library-panel" .}}</td></tr>{{end}}
   {{end}}
   </tbody>
-</table></div>
+</table>
+<div class="more-line"><span>Showing {{.Shown}} of {{.Total}}</span>{{if .LoadMore}}<a class="btn small" href="{{.MoreHref}}" hx-get="{{.MoreHref}}" hx-target="#library-results" hx-swap="outerHTML">Load {{.LoadMore}} more</a>{{end}}</div>
+</div>
 {{else}}
-<div class="card"><p class="empty">{{if .Filtered}}No ROMs found.{{else}}No ROMs in the library yet. Upload the first ROM{{if $.ImportDir}} or copy ROM files into <span class="mono">{{$.ImportDir}}</span> and use "Rescan folder"{{end}}.{{end}}</p></div>
+<div class="card"><p class="empty">{{if .Filtered}}No ROMs found. Clear the search or pick another system.{{else}}No ROMs in the library yet. Upload the first ROM{{if $.ImportDir}} or copy ROM files into the import folder and use “Rescan folder”{{end}}.{{end}}</p></div>
 {{end}}
 {{end}}
+{{define "library-filter-qs"}}{{with $.FilterQS}}{{.}}{{end}}{{end}}
 {{define "content"}}
 <div class="page-head">
   <div><h1>Library</h1><p id="library-sub" class="sub">{{template "library-sub" .Body}}</p></div>
   <div class="head-actions">
   {{if .Body.ImportDir}}
-  <form method="post" action="/library/rescan">
+  <form class="desk-only" method="post" action="/library/rescan">
     <input type="hidden" name="_csrf" value="{{.CSRF}}">
     <button class="btn" type="submit" title="Imports ROM files from {{.Body.ImportDir}}. Files there are only read, never moved or deleted.">Rescan folder</button>
   </form>
   {{end}}
   <details class="upload"{{if .Error}} open{{end}}>
-    <summary class="btn primary">Upload ROM</summary>
-    <form class="upload-form" method="post" action="/library/upload" enctype="multipart/form-data" data-resumable-upload data-csrf="{{.CSRF}}" data-chunk="8388608">
+    <summary class="btn primary"><span class="desk-only">Upload ROM</span><span class="mob-only">Upload</span></summary>
+    <form class="upload-form drop-panel" method="post" action="/library/upload" enctype="multipart/form-data" data-resumable-upload data-drop data-csrf="{{.CSRF}}" data-chunk="8388608">
       <input type="hidden" name="_csrf" value="{{.CSRF}}">
       <label class="field">Title<input type="text" name="title" maxlength="200" placeholder="Default: file name"></label>
       <label class="field">System<select name="system"><option value="">Detect from file extension</option>{{range .Body.Systems}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select></label>
-      <label class="field">ROM file<input type="file" name="file" required></label>
+      <div class="drop-in">
+        <span class="drop-text">Drop a ROM here, or</span>
+        <span class="drop-name"></span>
+        <label class="btn small">Choose file…<input class="visually-hidden" type="file" name="file" required aria-label="ROM file"></label>
+      </div>
       <button class="btn primary" type="submit">Upload</button>
       <div class="upload-progress" data-upload-status hidden><progress max="100" value="0" aria-label="Upload progress"></progress> <span data-upload-text></span></div>
     </form>
   </details>
+  {{if .Body.ImportDir}}
+  <details class="menu mob-only">
+    <summary class="more" aria-label="More actions">⋯</summary>
+    <div class="menu-pop"><form method="post" action="/library/rescan"><input type="hidden" name="_csrf" value="{{.CSRF}}"><button class="mi" type="submit">Rescan folder</button></form></div>
+  </details>
+  {{end}}
   </div>
 </div>
-{{if .Body.ImportDir}}<p class="help">Import folder: <span class="mono">{{.Body.ImportDir}}</span> · "Rescan folder" adds new ROM files from it; files there are only read, never moved or deleted.</p>{{end}}
-<form id="filter-form" class="filters" hx-get="/library" hx-target="#library-results" hx-swap="outerHTML" hx-trigger="change, input delay:250ms from:#q">
-  <label class="filter-pill"><input type="radio" name="system" value=""{{if not .Body.System}} checked{{end}}><span>All systems · {{.Body.Count}}</span></label>
-  {{range .Body.Systems}}<label class="filter-pill"><input type="radio" name="system" value="{{.ID}}"{{if eq $.Body.System .ID}} checked{{end}}><span>{{.Name}} · {{.Count}}</span></label>{{end}}
-  <span class="spacer"></span>
-  <input id="q" class="search" type="search" name="q" value="{{.Body.Query}}" placeholder="Search title or hash…" aria-label="Search title or hash">
-</form>
+<div class="lib-toolbar">
+  {{template "library-chips" .Body}}
+  <form class="lib-search" role="search" hx-get="/library" hx-target="#library-results" hx-swap="outerHTML" hx-trigger="input delay:250ms from:#q, submit">
+    <input type="hidden" name="system" value="{{.Body.System}}"><input type="hidden" name="sort" value="{{.Body.Sort}}">
+    <input id="q" class="search" type="search" name="q" value="{{.Body.Query}}" placeholder="Search title or hash" aria-label="Search title or hash">
+  </form>
+  {{template "library-sort" .Body}}
+</div>
 {{template "library-region" .Body}}
 {{end}}

@@ -78,13 +78,13 @@ func TestRunsPageListDetailAndActions(t *testing.T) {
 	rec := c.get("/runs", nil)
 	status(t, rec, 200)
 	contains(t, rec, "Runs · 1", "Summer Duo", "Starting", "1 of 2 joined", `class="runs-item sel"`, "Participants · 2", "Lumen Drift", "Joined", "Invited",
-		"Plugin content", "net.example.board 1.0.0", "has not published a board yet", "Event log · 2", "Run created by admin", "admin joined", "Export (JSON)",
+		"Plugin content", "net.example.board 1.0.0", "No board yet", "Event log · 2", "Run created by admin", "admin joined", "Export JSON", "Start now", "Waiting for", "Anna", "Resend invite", "Start without Anna",
 		`hx-trigger="fb:runs from:body"`, `id="runs-view"`, "/static/plugin-blocks.js", `href="/runs"`)
-	notContains(t, rec, "Pause run", "Resume run", ">Archive<", "Stream", "<no value>")
+	notContains(t, rec, `action="/runs/`+f.run.ID+`/pause"`, "Resume run", ">Archive<", "Stream", "<no value>", "Author")
 	if inlineRe.MatchString(rec.Body.String()) {
 		t.Fatalf("inline script/style: %s", inlineRe.FindString(rec.Body.String()))
 	}
-	contains(t, c.get("/runs/"+f.run.ID, nil), "Summer Duo", "Delete…")
+	contains(t, c.get("/runs/"+f.run.ID, nil), "Summer Duo", "Delete run…")
 	status(t, c.get("/runs/00000000-0000-4000-8000-000000000000", nil), 303)
 	if l := location(c.get("/runs/nope", nil)); l != "/runs?err=norun" {
 		t.Fatalf("%s", l)
@@ -109,7 +109,7 @@ func TestRunsPageListDetailAndActions(t *testing.T) {
 	}
 	rec = c.get("/runs/"+f.run.ID+"?ok=runpaused", nil)
 	contains(t, rec, "Resume run", "Paused", "Paused by admin", "events still visible, no new ones recorded", `role="status"`, "Run paused.", "admin paused the run")
-	notContains(t, rec, "Pause run")
+	notContains(t, rec, `action="/runs/`+f.run.ID+`/pause"`)
 	// A paused run refuses writes from Players (409 run_not_active) while it is paused.
 	if _, _, err := f.svc.AppendRunEvent(bg, hub.AppendRunEventInput{UserID: f.admin.ID, DeviceID: "d", RunID: f.run.ID,
 		ClientID: "6f1d2c3b-4a5e-4b6c-8d7e-9f0a1b2c3d4e", PluginID: "net.example.board", Source: "manual", Type: "x"}); err == nil {
@@ -134,7 +134,7 @@ func TestRunsPageListDetailAndActions(t *testing.T) {
 	}
 	rec = c.get("/runs", nil)
 	contains(t, rec, "Finished", "Archive", "Finished by admin")
-	notContains(t, rec, "Pause run", "Resume run")
+	notContains(t, rec, `action="/runs/`+f.run.ID+`/pause"`, "Resume run")
 	f.post("/runs/" + f.run.ID + "/archive")
 	rec = c.get("/runs", nil)
 	contains(t, rec, "Runs · 0", "No runs in this view.", "No run selected")

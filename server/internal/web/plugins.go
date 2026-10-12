@@ -2,11 +2,13 @@ package web
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/phabioo/framebeam/server/internal/hub"
 	"github.com/phabioo/framebeam/server/internal/pluginpkg"
@@ -51,13 +53,23 @@ type pluginRow struct {
 	ID, Version, Name, Mono, Href string
 	OriginLabel, OriginClass      string
 	Perms                         string
+	Rel                           string // "Needs X · permissions" / "Used by Y · permissions"
 	Selected                      bool
+}
+
+// needView is one dependency in the detail panel.
+type needView struct {
+	Name, Mono, Range string
+	Present           bool
 }
 
 type pluginDetail struct {
 	pluginRow
 	Meta, SHA256, Size, Description, Provides, Requires string
 	Unverified                                          bool
+	Needs                                               []needView
+	UsedBy                                              []string
+	ShortSHA                                            string
 	Perms                                               []permView
 	PermsTitle                                          string
 	DownloadHref, RemoveHref                            string
@@ -73,7 +85,10 @@ type catalogView struct {
 	Configured   bool
 	LastErr      string
 	Cards        []catalogCard
-	CheckedLine  string
+	CheckedLine  string // "signed · checked today 17:52 · 2 plugins"
+	CheckedTitle string
+	Failed       bool // the last check failed: the error variant of the status line
+	ErrLine      string
 	NoCatalogYet bool
 }
 
@@ -101,9 +116,9 @@ func originLabel(p hub.Plugin) (label, class string) {
 	case p.Origin == hub.PluginOriginOfficial:
 		return "✓ Official", "ok"
 	case p.Source == hub.PluginSourceImport:
-		return "Hub import · unverified", "warn"
+		return "Hub import · unverified", "amber"
 	}
-	return "Hub upload · unverified", "warn"
+	return "Hub upload · unverified", "amber"
 }
 
 func pluginHref(id, version string) string {
@@ -116,17 +131,42 @@ func toRow(p hub.Plugin) pluginRow {
 		OriginLabel: l, OriginClass: c, Perms: permSummary(p.Permissions())}
 }
 
-// monogram is the two-letter tile of a plugin: initials of the first two words, else the first two letters.
+// monogram is the two-letter tile of a plugin: initials of the first two words that contain a letter or digit
+// ("SoulLink & Nuzlocke" is "SN"), else the first two letters of the name.
 func monogram(name string) string {
-	f := strings.Fields(name)
-	if len(f) >= 2 {
-		return initial(f[0]) + initial(f[1])
+	var words []string
+	for _, w := range strings.Fields(name) {
+		if strings.IndexFunc(w, func(r rune) bool { return unicode.IsLetter(r) || unicode.IsDigit(r) }) >= 0 {
+			words = append(words, w)
+		}
 	}
-	r := []rune(strings.ToUpper(name))
+	if len(words) >= 2 {
+		return initial(words[0]) + initial(words[1])
+	}
+	var r []rune
+	for _, c := range strings.ToUpper(name) {
+		if unicode.IsLetter(c) || unicode.IsDigit(c) {
+			r = append(r, c)
+		}
+	}
 	if len(r) >= 2 {
 		return string(r[:2])
 	}
 	return initial(name)
+}
+
+// rangeText turns a manifest version range into words: "^0.3" and ">=0.3" read "0.3 or newer".
+func rangeText(r string) string {
+	r = strings.TrimSpace(r)
+	for _, p := range []string{"^", ">=", "~"} {
+		if strings.HasPrefix(r, p) {
+			return strings.TrimSpace(strings.TrimPrefix(r, p)) + " or newer"
+		}
+	}
+	if r == "" || r == "*" {
+		return "any version"
+	}
+	return r
 }
 
 type pluginsOpts struct {
@@ -150,6 +190,40 @@ func (s *Server) renderPlugins(w http.ResponseWriter, r *http.Request, sess *ses
 		return
 	}
 	b := pluginsBody{Review: o.review, UploadOpen: o.uploadOpen}
+	// Dependencies between the installed plugins: the newest version of each plugin id speaks for it.
+	newest := map[string]hub.Plugin{}
+	for _, p := range ps { // oldest first: the last one wins
+		newest[p.PluginID] = p
+	}
+	usedBy := map[string][]string{}
+	for _, p := range newest {
+		for id := range p.Manifest.Requires {
+			usedBy[id] = append(usedBy[id], p.Name)
+		}
+	}
+	for _, l := range usedBy {
+		sort.Strings(l)
+	}
+	relOf := func(p hub.Plugin) string {
+		var parts []string
+		var needs []string
+		for id := range p.Manifest.Requires {
+			if n, ok := newest[id]; ok {
+				needs = append(needs, n.Name)
+			} else {
+				needs = append(needs, id)
+			}
+		}
+		sort.Strings(needs)
+		if len(needs) > 0 {
+			parts = append(parts, "Needs "+strings.Join(needs, ", "))
+		}
+		if u := usedBy[p.PluginID]; len(u) > 0 {
+			parts = append(parts, "Used by "+strings.Join(u, ", "))
+		}
+		parts = append(parts, permSummary(p.Permissions()))
+		return strings.Join(parts, " · ")
+	}
 	// Newest version first within a plugin.
 	sort.SliceStable(ps, func(i, j int) bool { return ps[i].PluginID < ps[j].PluginID })
 	for i := 0; i < len(ps); {
@@ -159,6 +233,7 @@ func (s *Server) renderPlugins(w http.ResponseWriter, r *http.Request, sess *ses
 		}
 		for k := j - 1; k >= i; k-- { // ListPlugins is oldest first
 			row := toRow(ps[k])
+			row.Rel = relOf(ps[k])
 			row.Selected = o.sel != nil && o.sel.PluginID == ps[k].PluginID && o.sel.Version == ps[k].Version
 			b.Rows = append(b.Rows, row)
 		}
@@ -173,7 +248,7 @@ func (s *Server) renderPlugins(w http.ResponseWriter, r *http.Request, sess *ses
 		if d.Unverified {
 			d.PermsTitle = "Permissions · confirmed by admin"
 		}
-		date := p.CreatedAt.Local().Format("02.01.2006")
+		date := when(p.CreatedAt, s.svc.Now()).Text
 		switch {
 		case p.Source == hub.PluginSourceIndex:
 			d.Meta = p.Version + " · from the plugin index · " + date
@@ -185,21 +260,40 @@ func (s *Server) renderPlugins(w http.ResponseWriter, r *http.Request, sess *ses
 			d.Meta = p.Version + " · uploaded · " + date
 		}
 		d.Provides = strings.Join(p.Manifest.Provides, ", ")
-		var req []string
-		for id, rng := range p.Manifest.Requires {
-			req = append(req, id+" "+rng)
+		var ids []string
+		for id := range p.Manifest.Requires {
+			ids = append(ids, id)
 		}
-		sort.Strings(req)
-		d.Requires = strings.Join(req, ", ")
+		sort.Strings(ids)
+		for _, id := range ids {
+			n := needView{Name: id, Mono: monogram(id), Range: rangeText(p.Manifest.Requires[id])}
+			if o, ok := newest[id]; ok {
+				n.Name, n.Mono, n.Present = o.Name, monogram(o.Name), true
+			}
+			d.Needs = append(d.Needs, n)
+		}
+		d.UsedBy = usedBy[p.PluginID]
+		d.ShortSHA = shortHash(p.SHA256)
 		b.Sel = d
 	}
 	b.Catalog = catalogView{Configured: st.Configured, LastErr: st.LastError}
 	if st.LastCheck != nil {
-		b.Catalog.CheckedLine = "signed index · checked " + lastSeen(st.LastCheck, s.svc.Now())
+		w := whenPtr(st.LastCheck, s.svc.Now())
+		b.Catalog.CheckedTitle = w.Title
+		if st.LastError != "" {
+			b.Catalog.Failed = true
+			b.Catalog.ErrLine = "Could not load the catalog · " + strings.TrimSuffix(st.LastError, ".") + " · " + w.Text
+		} else {
+			b.Catalog.CheckedLine = fmt.Sprintf("signed · checked %s · %s", w.Text, plural(len(st.Catalog), "plugin", "plugins"))
+		}
 	} else if st.Configured {
 		b.Catalog.CheckedLine = "not checked yet"
+		if st.LastError != "" {
+			b.Catalog.Failed = true
+			b.Catalog.ErrLine = "Could not load the catalog · " + strings.TrimSuffix(st.LastError, ".")
+		}
 	}
-	b.Catalog.NoCatalogYet = st.Configured && len(st.Catalog) == 0
+	b.Catalog.NoCatalogYet = false
 	for _, c := range st.Catalog {
 		b.Catalog.Cards = append(b.Catalog.Cards, catalogCard{ID: c.ID, Version: c.Version, Name: c.Name, Mono: monogram(c.Name), Description: c.Description,
 			State: c.State, InstalledVersion: c.InstalledVersion, Install: c.State == hub.CatalogInstall, Update: c.State == hub.CatalogUpdate,

@@ -134,9 +134,9 @@ func TestLibraryShowsLocalOnlyGames(t *testing.T) {
 
 	rec := c.get("/library", nil)
 	status(t, rec, http.StatusOK)
-	contains(t, rec, "Only Local", "Local only", "Local files: anna", "Stored Game", "data-resumable-upload", "/static/libupload.js")
-	if n := strings.Count(rec.Body.String(), "Local only"); n != 1 {
-		t.Fatalf("badge count %d (the stored game must not carry it)", n)
+	contains(t, rec, "Only Local", "Only on Anna · not uploaded", "Details", "Stored Game", "data-resumable-upload", "/static/libupload.js")
+	if n := strings.Count(rec.Body.String(), "not uploaded"); n != 1 {
+		t.Fatalf("local-only line count %d (the stored game must not carry it)", n)
 	}
 	// A stored second file turns it into a normal game with two files.
 	if _, err := e.svc.AddROM(bg, bytes.NewReader(dump("two")), "two.nds", "", "", admin.ID); err != nil {
@@ -144,7 +144,7 @@ func TestLibraryShowsLocalOnlyGames(t *testing.T) {
 	}
 	rec = c.get("/library", nil)
 	contains(t, rec, "Only Local", "2 files")
-	notContains(t, rec, "Local only")
+	notContains(t, rec, "not uploaded")
 	_ = g
 	_ = stored
 	// Deleting the game in the web removes it with all its files.

@@ -479,6 +479,7 @@ func (s *Service) attach(c *Client) {
 	c.mu.Lock()
 	c.ready, c.registered = true, true
 	c.mu.Unlock()
+	s.Publish(TopicClients) // the Clients page shows who is online
 	if old != nil {
 		old.closeWith(CloseCodePolicy, "replaced by a newer connection")
 	}
@@ -608,6 +609,7 @@ func (c *Client) Disconnect() {
 	if !current { // replaced by a newer connection: the device stays online
 		return
 	}
+	s.Publish(TopicClients)
 	ctx := context.Background()
 	s.sess.mu.Lock()
 	defer s.sess.mu.Unlock()

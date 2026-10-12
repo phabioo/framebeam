@@ -38,8 +38,12 @@ type InstalledCore struct {
 	Default, Experimental                                                  bool
 	UpdateAvailable                                                        bool
 	UpdateDate                                                             string // upstream date when UpdateAvailable
-	Platforms                                                              []string
-	Notes                                                                  []string
+	// AutoUpdate is the per-core setting: "" follows the system, CoreAutoUpdateOff pins the core (never updated
+	// automatically). AutoUpdateEffective is the resulting behavior after the Hub default and the system override.
+	AutoUpdate          string
+	AutoUpdateEffective bool
+	Platforms           []string
+	Notes               []string
 }
 
 // AvailableCore is a core of the buildbot catalog that fits a system and is not installed.
@@ -107,8 +111,12 @@ func (s *Service) loadInstalledCores(ctx context.Context, systemID string) (map[
 	if err := prows.Err(); err != nil {
 		return nil, internal(err)
 	}
+	globalAuto, err := s.CoreAutoUpdate(ctx)
+	if err != nil {
+		return nil, err
+	}
 	rows, err := s.db.QueryContext(ctx, `SELECT c.system_id, c.core_id, c.version, c.installed_at, c.origin, c.display_name, c.license,
-		c.required_hw_api, c.build_date, c.crc32, c.info, COALESCE(s.default_core_id,'') = c.core_id
+		c.required_hw_api, c.build_date, c.crc32, c.info, COALESCE(s.default_core_id,'') = c.core_id, c.auto_update, s.core_auto_update
 		FROM system_cores c JOIN systems s ON s.id = c.system_id WHERE (? = '' OR c.system_id = ?) ORDER BY c.system_id, c.core_id`, systemID, systemID)
 	if err != nil {
 		return nil, internal(err)
@@ -118,11 +126,12 @@ func (s *Service) loadInstalledCores(ctx context.Context, systemID string) (map[
 	for rows.Next() {
 		var c InstalledCore
 		var at int64
-		var info string
+		var info, sysAuto string
 		if err := rows.Scan(&c.SystemID, &c.CoreID, &c.Version, &at, &c.Origin, &c.DisplayName, &c.License, &c.RequiredHWAPI,
-			&c.BuildDate, &c.CRC32, &info, &c.Default); err != nil {
+			&c.BuildDate, &c.CRC32, &info, &c.Default, &c.AutoUpdate, &sysAuto); err != nil {
 			return nil, internal(err)
 		}
+		c.AutoUpdateEffective = effectiveAutoUpdate(globalAuto, sysAuto, c.AutoUpdate)
 		c.InstalledAt = time.Unix(at, 0).UTC()
 		c.Experimental = !isProfiled(profiled, c.CoreID)
 		c.Platforms = plat[[2]string{c.CoreID, c.Version}]

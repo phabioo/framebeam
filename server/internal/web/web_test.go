@@ -373,12 +373,19 @@ func TestUploadListAPIDeleteAndErrors(t *testing.T) {
 	}
 	rec = c.get("/library?ok=uploaded", nil)
 	status(t, rec, 200)
-	contains(t, rec, "My Game", "nds", "ROM added to the library.", "1 ROM")
+	contains(t, rec, "My Game", "nds", "ROM added to the library.", "used ·")
 	gs, _ := e.svc.ListGames(bg)
 	if len(gs) != 1 || gs[0].System != "nds" || gs[0].ROMSize != 3000 {
 		t.Fatalf("%+v", gs)
 	}
-	contains(t, rec, `title="`+gs[0].ROMSHA256+`"`, shortHash(gs[0].ROMSHA256))
+	contains(t, rec, `data-copy-link="`+gs[0].ROMSHA256+`"`, "/library/download/"+gs[0].ID)
+	// The ROM can be downloaded by the admin only.
+	dl := c.get("/library/download/"+gs[0].ID, nil)
+	status(t, dl, 200)
+	if !bytes.Equal(dl.Body.Bytes(), rom) {
+		t.Fatal("downloaded ROM differs")
+	}
+	status(t, c.get("/library/download/nope", nil), 404)
 
 	// visible and downloadable via API
 	api := e.client()
@@ -404,7 +411,7 @@ func TestUploadListAPIDeleteAndErrors(t *testing.T) {
 	// duplicate, too large, no file, wrong extension
 	rec = c.upload(tok, nil, "copy.nds", rom)
 	status(t, rec, 409)
-	contains(t, rec, "already in the library")
+	contains(t, rec, "same SHA-256 as My Game", "Nothing was added")
 	status(t, c.upload(tok, nil, "large.nds", randomBytes(50000)), 413)
 	status(t, c.upload(tok, nil, "x.bin", randomBytes(100)), 400)
 	if g2, _ := e.svc.ListGames(bg); len(g2) != 1 {
@@ -415,7 +422,7 @@ func TestUploadListAPIDeleteAndErrors(t *testing.T) {
 	rec = c.postForm("/library/"+gs[0].ID+"/delete", url.Values{"q": {""}, "system": {""}},
 		map[string]string{"X-CSRF-Token": tok, "HX-Request": "true", "HX-Target": "library-results"})
 	status(t, rec, 200)
-	contains(t, rec, "No ROMs in the library yet", "0 ROMs")
+	contains(t, rec, "No ROMs in the library yet")
 	notContains(t, rec, "<html")
 	if g3, _ := e.svc.ListGames(bg); len(g3) != 0 {
 		t.Fatal("not deleted")
@@ -446,7 +453,7 @@ func TestSearchAndFilterFragment(t *testing.T) {
 	contains(t, rec, "No ROMs found.")
 	// without htmx header: full page with filter
 	rec = c.get("/library?q=beta", nil)
-	contains(t, rec, "<html", "Beta Racer", `value="beta"`, "All systems", "Nintendo DS · 2")
+	contains(t, rec, "<html", "Beta Racer", `value="beta"`, "All · 2", "Nintendo DS · 2")
 	notContains(t, rec, "Alpha Quest")
 }
 
@@ -470,7 +477,7 @@ func TestClientsAllowDenyRevoke(t *testing.T) {
 	pr := pending(t, e, dev)
 	rec := c.get("/clients", nil)
 	status(t, rec, 200)
-	contains(t, rec, "Lena Gaming PC", "Pending Requests · 1", "windows x86_64", "Player 0.1.0", "just now", "1 request")
+	contains(t, rec, "Lena Gaming PC", "Pending requests · 1", "windows x86_64", "Player 0.1.0", "just now", "1 request")
 	admin, _ := e.svc.VerifyPassword(bg, "admin", "secret-12345")
 
 	// Allow with an invalid user: message, nothing happens
@@ -492,7 +499,7 @@ func TestClientsAllowDenyRevoke(t *testing.T) {
 	contains(t, c.postForm("/clients/requests/"+pr.RequestID+"/allow", url.Values{"user_id": {admin.ID}}, hdr), "no longer open")
 
 	rec = c.get("/clients", nil)
-	contains(t, rec, "Trusted", "Revoke access", "Lena Gaming PC", "admin")
+	contains(t, rec, "Trusted", "Revoke access…", "Lena Gaming PC", "admin", "Copy device ID", "Online")
 	notContains(t, rec, "1 request")
 
 	at, err := e.svc.IssueAccessToken(bg, dev, res.DeviceCredential)
@@ -532,7 +539,7 @@ func TestSettingsNameAndPassword(t *testing.T) {
 	tok := c.login()
 	rec := c.get("/settings/security", nil)
 	status(t, rec, 200)
-	contains(t, rec, "Test-Hub", "HTTPS", "AA:BB:CC", "Self-generated", "Admins only", "Sign out", "Change password", "2036-10-0")
+	contains(t, rec, "Test-Hub", "HTTPS", "AA:BB:CC", "Self-generated", "Admins only", "Sign out", "Change password", "5 Oct 2036", "Self-signed certificate")
 	contains(t, c.get("/settings/general", nil), "Test-Hub", "Address for Players")
 
 	rec = c.postForm("/settings/name", url.Values{"name": {"Living-Room-Hub"}, "_csrf": {tok}}, nil)
@@ -684,12 +691,14 @@ func TestSavesPage(t *testing.T) {
 	// List: conflict first, badge, detail with both sides and the actions; no Restore.
 	rec = c.get("/saves", nil)
 	status(t, rec, http.StatusOK)
-	contains(t, rec, "Harbor Rally", "▲ Conflict · unresolved", "1 conflict</span>", "Current checkpoint", "Rev 2", "Laptop Office",
-		"▲ Conflict: upload is based on Rev 1, current is Rev 2", "Current checkpoint on the Hub", "Secured upload · sync pending",
+	contains(t, rec, "Harbor Rally", "▲ 1 conflict", "Current checkpoint", "Laptop Office",
+		"▲ Conflict: v2 is based on Rev 1, the current version is v1", "Current checkpoint on the Hub", "Secured upload · sync pending",
 		"Desktop Living Room", shortHash(sha(hubSave)), shortHash(sha(localSave)),
 		"Use Hub version", "Adopt local save as new current version", "Keep both, decide later", "Download",
 		`name="expected_revision" value="2"`, `hx-confirm=`, base+"/conflicts/"+r.Conflict.ID+"/resolve", "✓ Current", "Session end", "Conflict upload",
-		"Restore", base+"?confirm="+strconv.Itoa(r.Conflict.Secured.Version), "Create snapshot", base+"/snapshots")
+		"Restore", base+"?confirm="+strconv.Itoa(r.Conflict.Secured.Version), "Create snapshot", base+"?snap=1")
+	notContains(t, rec, `name="label"`) // the label field opens on demand
+	contains(t, c.get(base+"?snap=1", nil), `name="label"`, `action="`+base+`/snapshots"`, "Snapshots are never removed by retention")
 	// Detail by path, unknown slot is 404.
 	status(t, c.get(base, nil), http.StatusOK)
 	status(t, c.get("/saves/"+adminID+"/"+g.ID+"/nope", nil), http.StatusNotFound)
@@ -742,7 +751,7 @@ func TestSavesPage(t *testing.T) {
 	}
 	rec = c.get(base+"?ok=resolved", nil)
 	status(t, rec, http.StatusOK)
-	contains(t, rec, "Conflict resolved.", "Rev 3", "Desktop Living Room", "Synced · today", "Session end", "Conflict upload")
+	contains(t, rec, "Conflict resolved.", "Rev 3", "Desktop Living Room", "Synced · just now", "Session end", "Conflict upload")
 	notContains(t, rec, "Use Hub version", "conflict</span>")
 	// Resolving again: stale.
 	rec = c.postForm(resolve, url.Values{"resolution": {"use_hub"}, "expected_revision": {"3"}, "_csrf": {tok}}, nil)

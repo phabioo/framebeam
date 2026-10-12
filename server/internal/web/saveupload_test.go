@@ -48,7 +48,7 @@ func TestSaveUploadPanelWeb(t *testing.T) {
 
 	// Closed: the CURRENT bar has the Download link and one "Upload save" button, no panel, no standalone form.
 	rec := f.c.get(f.base, nil)
-	contains(t, rec, "CURRENT", `href="`+f.base+`/download"`, `href="`+f.base+`?upload=1"`, "Upload save ▾", `<span class="mono">Rev 1</span>`)
+	contains(t, rec, "CURRENT", `href="`+f.base+`/download"`, `href="`+f.base+`?upload=1"`, "Upload save…", `<span class="mono">Rev 1</span>`)
 	notContains(t, rec, `class="upl-panel"`, `action="/saves/upload"`, "Upload save file", `class="upload upload-inline"`)
 	if strings.Count(rec.Body.String(), "Upload save") != 1 {
 		t.Fatalf("Upload save appears %d times", strings.Count(rec.Body.String(), "Upload save"))
@@ -56,9 +56,9 @@ func TestSaveUploadPanelWeb(t *testing.T) {
 
 	// Open: the panel with drop zone (file input), own slot select, note and both buttons; it keeps the htmx refresh off.
 	rec = f.c.get(f.base+"?upload=1", nil)
-	contains(t, rec, `class="cur-card open"`, "Upload save ▴", `class="upl-panel"`, `action="`+f.base+`/upload"`, `enctype="multipart/form-data"`,
+	contains(t, rec, `class="cur-card open"`, "Upload save…", `aria-expanded="true"`, `class="upl-panel"`, `action="`+f.base+`/upload"`, `enctype="multipart/form-data"`,
 		`hx-encoding="multipart/form-data"`, `type="file" name="file" required`, `name="rev.default" value="1"`,
-		`<option value="default" selected>default</option>`, "Into slot",
+		`<option value="default" selected>Main</option>`, "Into slot",
 		"The current version Rev 1 stays in the history as “Before upload”.", ">Cancel</a>", "Upload as new current version")
 	notContains(t, rec, `class="save-detail" hx-get=`)
 	// htmx: the fragment alone.
@@ -103,7 +103,7 @@ func TestSaveUploadResultsWeb(t *testing.T) {
 	rec := post(f.fields(nil), "other.sav", []byte("from another emulator"), hx)
 	status(t, rec, http.StatusOK)
 	contains(t, rec, `id="save-detail"`, "✓ Uploaded as Rev 2.", "Rev 1 is in the history as “Before upload”. Players get Rev 2 on their next start.",
-		"Undo: restore v", `<span class="mono">Rev 2</span>`, "Uploaded", "Hub web interface · admin", "Before upload", "Upload save ▾", `hx-swap-oob="true"`)
+		"Undo: restore v", `<span class="mono">Rev 2</span>`, "Uploaded", "Hub web interface · admin", "Before upload", "Upload save…", `hx-swap-oob="true"`)
 	notContains(t, rec, `class="upl-panel"`, "<!doctype")
 	if rec.Header().Get("HX-Push-Url") != f.base+"?up=ok" {
 		t.Fatalf("push url %q", rec.Header().Get("HX-Push-Url"))
@@ -155,7 +155,7 @@ func TestSaveUploadOtherSlotAndNewSlotWeb(t *testing.T) {
 		t.Fatal(err)
 	}
 	rec := f.c.get(f.base+"?upload=1", nil)
-	contains(t, rec, `<option value="default" selected>default</option>`, `<option value="speedrun">speedrun</option>`, `name="rev.speedrun" value="1"`)
+	contains(t, rec, `<option value="default" selected>Main</option>`, `<option value="speedrun">speedrun</option>`, `name="rev.speedrun" value="1"`)
 
 	// Into another slot (rev of that slot): the response shows that slot.
 	sp := "/saves/" + f.adminID + "/" + f.game + "/speedrun"

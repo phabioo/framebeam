@@ -18,7 +18,7 @@ func TestOpenMigrateIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 	v, _ := SchemaVersion(db)
-	if v != 16 {
+	if v != 17 {
 		t.Fatalf("version %d", v)
 	}
 	var fk int
@@ -32,7 +32,7 @@ func TestOpenMigrateIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	if v, _ := SchemaVersion(db); v != 16 {
+	if v, _ := SchemaVersion(db); v != 17 {
 		t.Fatalf("version after restart %d", v)
 	}
 	if _, err := db.Exec(`INSERT INTO devices(id,user_id,name,platform,arch,player_version,credential_hash,status,created_at) VALUES('d','nouser','n','p','a','v','h','trusted',1)`); err == nil {
@@ -95,12 +95,12 @@ func TestBackupBeforeMigration(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	if v, _ := SchemaVersion(db); v != 16 {
+	if v, _ := SchemaVersion(db); v != 17 {
 		t.Fatalf("version %d", v)
 	}
 	bdir := filepath.Join(dir, "backups")
 	got := backupFiles(t, bdir)
-	if len(got) != 1 || got[0] != "hub-3-to-16-20261007T123045Z.db" {
+	if len(got) != 1 || got[0] != "hub-3-to-17-20261007T123045Z.db" {
 		t.Fatalf("backups: %v", got)
 	}
 	bk := rawDB(t, filepath.Join(bdir, got[0]))
@@ -321,3 +321,38 @@ func TestMigration0015ExistingGames(t *testing.T) {
 }
 
 func itoa(n int64) string { return strconv.FormatInt(n, 10) }
+
+func TestMigration0017ExistingRowsGetDefaults(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "framebeam.db")
+	raw := rawDB(t, p)
+	if err := migrate(raw, "", 16); err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range []string{
+		`INSERT INTO users(id, username, display_name, role, created_at) VALUES ('u1', 'admin', 'admin', 'admin', 1)`,
+		`INSERT INTO system_cores(system_id, core_id, version, installed_at, origin, display_name, license) VALUES ('nds', 'testcore', '1', 1, 'import', 'Test core', 'GPL')`,
+		`INSERT INTO invites(id, code_hash, authorize_device, status, created_by, created_at, expires_at) VALUES ('i1', 'hash1', 1, 'active', 'u1', 1, 2)`,
+	} {
+		if _, err := raw.Exec(q); err != nil {
+			t.Fatalf("%v: %s", err, q)
+		}
+	}
+	raw.Close()
+
+	db, err := Open(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	var sys, core string
+	var forUser sql.NullString
+	if err := db.QueryRow(`SELECT COALESCE((SELECT MIN(core_auto_update) FROM systems), 'none')`).Scan(&sys); err != nil || sys != "" {
+		t.Fatalf("systems.core_auto_update %q (%v): existing systems follow the Hub default", sys, err)
+	}
+	if err := db.QueryRow(`SELECT auto_update FROM system_cores WHERE core_id = 'testcore'`).Scan(&core); err != nil || core != "" {
+		t.Fatalf("system_cores.auto_update %q (%v): existing cores follow the system", core, err)
+	}
+	if err := db.QueryRow(`SELECT for_user_id FROM invites WHERE id = 'i1'`).Scan(&forUser); err != nil || forUser.Valid {
+		t.Fatalf("invites.for_user_id %v (%v): existing invites create a new user", forUser, err)
+	}
+}

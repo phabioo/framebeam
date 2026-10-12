@@ -263,7 +263,86 @@ func (s *Service) SetCoreAutoUpdate(ctx context.Context, on bool) (err error) {
 	return nil
 }
 
-// autoUpdateCores updates every installed core that has a newer catalog build, with the UpdateCore safeguards.
+// Per-system override of the automatic core update (systems.core_auto_update) and per-core pin (system_cores.auto_update).
+const (
+	SystemAutoDefault = ""    // use the Hub default
+	SystemAutoOn      = "on"  // update this system's cores, whatever the Hub default says
+	SystemAutoOff     = "off" // never update this system's cores automatically
+	CoreAutoFollow    = ""    // follow the system
+	CoreAutoOff       = "off" // pinned: this core is never updated automatically
+)
+
+// effectiveAutoUpdate resolves the Hub default, the system override and the per-core pin.
+func effectiveAutoUpdate(global bool, system, core string) bool {
+	if core == CoreAutoOff {
+		return false
+	}
+	switch system {
+	case SystemAutoOn:
+		return true
+	case SystemAutoOff:
+		return false
+	}
+	return global
+}
+
+// SetSystemCoreAutoUpdate sets the per-system override: SystemAutoDefault, SystemAutoOn or SystemAutoOff.
+// Turning updates on kicks a sync so pending updates apply promptly.
+func (s *Service) SetSystemCoreAutoUpdate(ctx context.Context, systemID, mode string) (err error) {
+	defer s.publishOK(&err, TopicSystems)
+	switch mode {
+	case SystemAutoDefault, SystemAutoOn, SystemAutoOff:
+	default:
+		return badRequest("unknown automatic update mode")
+	}
+	res, err := s.db.ExecContext(ctx, `UPDATE systems SET core_auto_update = ? WHERE id = ?`, mode, systemID)
+	if err != nil {
+		return internal(err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	if mode == SystemAutoOn {
+		s.TriggerCoreSync()
+	}
+	return nil
+}
+
+// SetCoreAutoUpdatePin pins an installed core (never updated automatically) or lets it follow its system again.
+func (s *Service) SetCoreAutoUpdatePin(ctx context.Context, systemID, coreID string, pinned bool) (err error) {
+	defer s.publishOK(&err, TopicSystems)
+	v := CoreAutoFollow
+	if pinned {
+		v = CoreAutoOff
+	}
+	res, err := s.db.ExecContext(ctx, `UPDATE system_cores SET auto_update = ? WHERE system_id = ? AND core_id = ?`, v, systemID, coreID)
+	if err != nil {
+		return internal(err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	if !pinned {
+		s.TriggerCoreSync()
+	}
+	return nil
+}
+
+// autoUpdateWanted reports whether any core can be updated automatically: the Hub default is on or a system
+// overrides it to on.
+func (s *Service) autoUpdateWanted(ctx context.Context) bool {
+	if on, err := s.CoreAutoUpdate(ctx); err == nil && on {
+		return true
+	}
+	var n int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM systems WHERE core_auto_update = 'on'`).Scan(&n); err == nil && n > 0 {
+		return true
+	}
+	return false
+}
+
+// autoUpdateCores updates every installed core that has a newer catalog build and whose effective automatic
+// update (Hub default, system override, per-core pin) is on, with the UpdateCore safeguards.
 // One failing core does not stop the others; failures are recorded in the settings and returned in rep.
 func (s *Service) autoUpdateCores(ctx context.Context, rep *CoreSyncReport) {
 	entries, err := s.ListRegistry(ctx)
@@ -277,7 +356,7 @@ func (s *Service) autoUpdateCores(ctx context.Context, rep *CoreSyncReport) {
 			continue
 		}
 		for _, c := range sc.Installed {
-			if !c.UpdateAvailable || ctx.Err() != nil {
+			if !c.UpdateAvailable || !c.AutoUpdateEffective || ctx.Err() != nil {
 				continue
 			}
 			ic, err := s.UpdateCore(ctx, e.ID, c.CoreID)
@@ -384,7 +463,7 @@ func (s *Service) RunCoreSync(ctx context.Context, every time.Duration, report f
 	do := func() {
 		rep, err := s.RefreshCatalog(ctx)
 		if err == nil {
-			if on, gerr := s.CoreAutoUpdate(ctx); gerr == nil && on {
+			if s.autoUpdateWanted(ctx) {
 				rep.AutoUpdateRan = true
 				s.autoUpdateCores(ctx, &rep)
 			}

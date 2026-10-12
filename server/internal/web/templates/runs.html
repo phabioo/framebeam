@@ -13,29 +13,59 @@
     {{else}}
     <p class="help">No runs in this view.</p>
     {{end}}
+    {{if or .Body.ArchivedCount .Body.ArchivedOn}}<a class="runs-archived" href="{{.Body.ArchivedURL}}">{{if .Body.ArchivedOn}}Hide archived{{else}}Show archived · {{.Body.ArchivedCount}}{{end}}</a>{{end}}
   </aside>
   <section class="runs-detail">
     {{with .Body.Detail}}
     <div class="page-head">
       <div><h1>{{.Name}} <span class="pill lg {{.StatusClass}}">{{.StatusLabel}}</span></h1><p class="sub">{{.Subline}}</p></div>
       <div class="head-actions">
-        {{if .CanPause}}<form method="post" action="/runs/{{.ID}}/pause"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn" type="submit">Pause run</button></form>{{end}}
+        <a class="btn" href="/runs/{{.ID}}/export">Export JSON</a>
+        {{if .CanStart}}<form method="post" action="/runs/{{.ID}}/start"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn primary" type="submit">Start now</button></form>{{end}}
         {{if .CanResume}}<form method="post" action="/runs/{{.ID}}/resume"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn primary" type="submit">Resume run</button></form>{{end}}
-        {{if .CanArchive}}{{if .Archived}}<form method="post" action="/runs/{{.ID}}/unarchive"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn" type="submit">Unarchive</button></form>{{else}}<form method="post" action="/runs/{{.ID}}/archive"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn" type="submit">Archive</button></form>{{end}}{{end}}
-        <a class="btn" href="/runs/{{.ID}}/delete">Delete…</a>
+        <details class="menu">
+          <summary class="more" aria-label="More actions for this run">⋯</summary>
+          <div class="menu-pop">
+            {{if .CanPause}}<form method="post" action="/runs/{{.ID}}/pause"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="mi" type="submit">Pause run</button></form>
+            {{else if .CanResume}}<span class="mi off">Pause run <span class="help">· paused</span></span>
+            {{else}}<span class="mi off">Pause run <span class="help">· {{if .CanStart}}after start{{else}}run is over{{end}}</span></span>{{end}}
+            {{if .CanFinish}}<a class="mi" href="/runs/{{.ID}}/finish">Finish run…</a>{{else}}<span class="mi off">Finish run… <span class="help">· already over</span></span>{{end}}
+            {{if .CanArchive}}{{if .Archived}}<form method="post" action="/runs/{{.ID}}/unarchive"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="mi" type="submit">Unarchive</button></form>{{else}}<form method="post" action="/runs/{{.ID}}/archive"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="mi" type="submit">Archive</button></form>{{end}}
+            {{else}}<span class="mi off">Archive <span class="help">· after finish</span></span>{{end}}
+            <div class="msep"></div>
+            <a class="mi danger" href="/runs/{{.ID}}/delete">Delete run…</a>
+          </div>
+        </details>
       </div>
     </div>
 
+    {{with .Waiting}}
+    <div class="runs-wait" role="status">
+      <div>Waiting for <b>{{.Names}}</b> to join · {{.Joined}} of {{.Total}} joined · invited <span title="{{.Invited.Title}}">{{.Invited.Text}}</span></div>
+      <div class="ract">
+        <form method="post" action="/runs/{{$.Body.Detail.ID}}/resend"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn small" type="submit">Resend invite</button></form>
+        <form method="post" action="/runs/{{$.Body.Detail.ID}}/start-without"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn small primary" type="submit">{{.StartWith}}</button></form>
+      </div>
+    </div>
+    {{end}}
+
     <div class="stack">
       <div class="eyebrow">Participants · {{len .Participants}}</div>
-      <div class="card"><table class="list">
-        <thead><tr><th>Player</th><th>Game</th><th>Status</th></tr></thead>
+      <div class="card flush"><table class="list cards">
+        <thead><tr><th>Player</th><th>Game</th><th>Status</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
         <tbody>
         {{range .Participants}}
         <tr>
-          <td><div class="cell-title"><span class="avatar {{.ColorClass}}" aria-hidden="true">{{.Initial}}</span><span>{{.Name}}</span></div></td>
-          <td>{{if .Game}}{{.Game}}{{else}}—{{end}}</td>
-          <td><span class="pill sm {{.StatusClass}}">{{.Status}}</span></td>
+          <td class="c-title"><div class="cell-title"><span class="avatar {{.ColorClass}}" aria-hidden="true">{{.Initial}}</span><span>{{.Name}}</span></div></td>
+          <td class="hide-sm">{{if .Game}}{{.Game}}{{else}}—{{end}}</td>
+          <td class="c-pill"><span class="pill sm {{.StatusClass}}">{{.Status}}</span></td>
+          <td class="c-act">{{if .Invited}}
+            <div class="ract">
+              <form method="post" action="/runs/{{$.Body.Detail.ID}}/invites/{{.ID}}/resend"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn small" type="submit">Resend</button></form>
+              <details class="menu"><summary class="more" aria-label="More actions for {{.Name}}">⋯</summary>
+                <div class="menu-pop"><a class="mi danger" href="/runs/{{$.Body.Detail.ID}}/invites/{{.ID}}/remove">Remove invite…</a></div></details>
+            </div>{{end}}</td>
+          <td class="c-meta">{{if .Game}}{{.Game}}{{else}}No game yet{{end}}</td>
         </tr>
         {{end}}
         </tbody>
@@ -47,30 +77,26 @@
       {{if .Paused}}<div class="runs-banner" role="status">Paused. Events are still visible, no new ones are recorded.</div>{{end}}
       {{range .Boards}}
       <div class="runs-board">
-        <div class="plugin-board-head"><span class="strong">{{.Plugin}}</span>{{if .Meta}}<span class="help">{{.Meta}}</span>{{end}}</div>
-        {{if .Empty}}<div class="plugin-board"><p class="help">This plugin has not published a board yet. It appears when a participant's Player shows the run.</p></div>
+        <div class="plugin-board-head"><span class="eyebrow">Board</span><span class="strong">{{.Title}}</span>{{if .ShowNote}}<span class="help">· {{.Note}}</span>{{end}}{{if .Meta}}<span class="help push-right">{{.Meta}}</span>{{end}}</div>
+        {{if .Empty}}<div class="plugin-board"><p class="help">No board yet. It appears after a participant’s Player opens the run.</p></div>
         {{else}}<div class="plugin-board" data-tree="{{.JSON}}"><noscript>The board needs JavaScript.</noscript></div>{{end}}
       </div>
       {{end}}
     </div>
 
     <div class="stack">
-      <div class="page-head">
-        <div class="eyebrow">Event log · {{.EventTotal}}</div>
-        <a class="btn small" href="/runs/{{.ID}}/export">Export (JSON)</a>
-      </div>
-      <div class="card events-scroll"><table class="list">
-        <thead><tr><th>Time</th><th>Author</th><th>Event</th><th>Source</th></tr></thead>
+      <div class="eyebrow">Event log · {{.EventTotal}}</div>
+      <div class="card events-scroll"><table class="list events">
+        <thead><tr><th>Time</th><th>Event</th>{{if .HasSource}}<th class="hide-sm">Source</th>{{end}}</tr></thead>
         <tbody>
         {{range .Events}}
         <tr>
-          <td class="mono event-time">{{.Time}}</td>
-          <td>{{.Author}}</td>
+          <td class="event-time"><span title="{{.Time.Title}}">{{.Time.Text}}</span></td>
           <td>{{.Text}}</td>
-          <td class="event-source">{{.Source}}</td>
+          {{if $.Body.Detail.HasSource}}<td class="event-source hide-sm">{{.Source}}</td>{{end}}
         </tr>
         {{else}}
-        <tr><td colspan="4" class="help">No events yet.</td></tr>
+        <tr><td colspan="3" class="help">No events yet.</td></tr>
         {{end}}
         </tbody>
       </table></div>

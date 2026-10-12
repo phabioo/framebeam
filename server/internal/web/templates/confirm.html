@@ -2,12 +2,13 @@
 <div class="confirm stack">
   <div class="page-head"><div><h1>{{.Body.Heading}}</h1><p class="sub">{{.Body.Intro}}</p></div></div>
   <div class="card confirm-card">
-    <ul class="confirm-list">{{range .Body.Removes}}<li>{{.}}</li>{{end}}</ul>
+    {{if .Body.Removes}}<ul class="confirm-list">{{range .Body.Removes}}<li>{{.}}</li>{{end}}</ul>{{end}}
     {{if .Body.Note}}<p class="help">{{.Body.Note}}</p>{{end}}
-    <form class="confirm-actions" method="post" action="{{.Body.Action}}">
+    <form class="confirm-actions{{if .Body.Password}} with-field{{end}}" method="post" action="{{.Body.Action}}">
       <input type="hidden" name="_csrf" value="{{.CSRF}}">
+      {{if .Body.Password}}<label class="field">New password<input type="password" name="password" required minlength="{{.Body.PasswordMin}}" autocomplete="new-password" autofocus></label>{{end}}
       <a class="btn" href="{{.Body.Cancel}}">Cancel</a>
-      <button class="btn danger" type="submit">{{.Body.Button}}</button>
+      <button class="btn {{if .Body.Safe}}primary{{else}}danger{{end}}" type="submit">{{.Body.Button}}</button>
     </form>
   </div>
 </div>

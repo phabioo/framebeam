@@ -224,7 +224,7 @@ func TestPluginCatalogWeb(t *testing.T) {
 		t.Fatalf("%d %q", rec.Code, location(rec))
 	}
 	rec = c.get("/plugins?ok=pluginindex", nil)
-	contains(t, rec, "Plugin catalog checked.", "Plugin net.example.cat", "✓ Official", "signed index · checked", `action="/plugins/index/install"`, ">Install</button>")
+	contains(t, rec, "Plugin catalog checked.", "Plugin net.example.cat", "✓ Official", "signed · checked", "1 plugin", `action="/plugins/index/install"`, ">Install</button>")
 	rec = c.postForm("/plugins/index/install", url.Values{"_csrf": {tok}, "id": {"net.example.cat"}, "version": {"1.0.0"}}, nil)
 	if location(rec) != "/plugins/net.example.cat/1.0.0?ok=plugininstalled" {
 		t.Fatalf("%d %q", rec.Code, location(rec))
@@ -246,7 +246,7 @@ func TestPluginCatalogWeb(t *testing.T) {
 		t.Fatalf("%d %q", rec.Code, location(rec))
 	}
 	rec = c.get("/plugins?err=indexfailed", nil)
-	contains(t, rec, "The last check failed:", "The plugin index could not be checked.", ">Update</button>")
+	contains(t, rec, "Could not load the catalog", "The plugin index could not be checked", "Retry", ">Update</button>")
 
 	// Unknown version / missing index.
 	rec = c.postForm("/plugins/index/install", url.Values{"_csrf": {tok}, "id": {"net.example.cat"}, "version": {"9.9.9"}}, nil)
@@ -259,4 +259,40 @@ func TestPluginCatalogWeb(t *testing.T) {
 	if rec = c2.postForm("/plugins/index/refresh", url.Values{"_csrf": {tok2}}, nil); location(rec) != "/plugins?err=noindex" {
 		t.Fatalf("%d %q", rec.Code, location(rec))
 	}
+}
+
+func TestMonogram(t *testing.T) {
+	for in, want := range map[string]string{
+		"SoulLink & Nuzlocke": "SN", "Pokémon Core": "PC", "Cheats": "CH", "& Solo": "SO", "Plugin net.example.a": "PN", "7 Days": "7D", "": "?",
+	} {
+		if got := monogram(in); got != want {
+			t.Errorf("monogram(%q) = %q, want %q", in, got, want)
+		}
+	}
+	if rangeText("^0.3") != "0.3 or newer" || rangeText(">=1.2") != "1.2 or newer" || rangeText("*") != "any version" {
+		t.Fatal("rangeText")
+	}
+}
+
+func TestPluginsListNeedsUsedByAndOrigin(t *testing.T) {
+	_, c, tok := pluginEnv(t, "")
+	base := hubtest.PluginZipWith(t, "net.example.base", "1.0.0", nil, map[string]any{"name": "Core Base", "requires": map[string]string{}}, nil)
+	user := hubtest.PluginZipWith(t, "net.example.user", "0.3.2", []string{"ui"}, map[string]any{"name": "Soul & Link"}, nil)
+	for _, z := range [][]byte{base, user} {
+		stage := uploadPlugin(c, tok, z)
+		if stage == "" {
+			t.Fatal("no stage")
+		}
+		rec := c.postForm("/plugins/offer", url.Values{"_csrf": {tok}, "stage": {stage}, "perm": {"ui"}}, nil)
+		if rec.Code != http.StatusSeeOther {
+			t.Fatalf("offer %d: %.300s", rec.Code, rec.Body.String())
+		}
+	}
+	rec := c.get("/plugins", nil)
+	contains(t, rec, ">SL<", "Used by Soul &amp; Link", "Needs Core Base", `class="pill sm amber"`)
+	notContains(t, rec, `pill sm warn`, "(s)")
+	rec = c.get("/plugins/net.example.user/0.3.2", nil)
+	contains(t, rec, "Core Base 1.0 or newer", "✓ on this Hub", "Remove from Hub…", "Copy")
+	rec = c.get("/plugins/net.example.base/1.0.0", nil)
+	contains(t, rec, "Used by", "Soul &amp; Link")
 }

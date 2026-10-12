@@ -194,6 +194,34 @@ func (s *Service) ListPendingRequests(ctx context.Context) ([]PairingRequest, er
 	return out, rows.Err()
 }
 
+// ListDeniedRequests returns requests the admin denied in the last 30 days (newest first, at most limit), for the
+// Clients page. The device never connected, so it has no device entry.
+func (s *Service) ListDeniedRequests(ctx context.Context, limit int) ([]PairingRequest, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT id, device_id, device_name, platform, arch, player_version, protocol_version,
+		remote_addr, status, COALESCE(user_id,''), created_at, expires_at
+		FROM pairing_requests WHERE status = 'denied' AND created_at > ? ORDER BY created_at DESC LIMIT ?`,
+		s.now().AddDate(0, 0, -30).Unix(), limit)
+	if err != nil {
+		return nil, internal(err)
+	}
+	defer rows.Close()
+	var out []PairingRequest
+	for rows.Next() {
+		var r PairingRequest
+		var c, e int64
+		if err := rows.Scan(&r.ID, &r.DeviceID, &r.DeviceName, &r.Platform, &r.Arch, &r.PlayerVersion, &r.ProtocolVersion,
+			&r.RemoteAddr, &r.Status, &r.UserID, &c, &e); err != nil {
+			return nil, internal(err)
+		}
+		r.CreatedAt, r.ExpiresAt = time.Unix(c, 0).UTC(), time.Unix(e, 0).UTC()
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
 // ApprovePairing allows an open request and assigns it to the user userID (admin).
 // The device is registered only on the first poll; the deadline is extended to 10 min from now.
 func (s *Service) ApprovePairing(ctx context.Context, requestID, userID string) (err error) {

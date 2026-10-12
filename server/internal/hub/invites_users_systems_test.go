@@ -577,8 +577,8 @@ func TestSettingsAndUploadPermission(t *testing.T) {
 	if ok, _ := svc.CanUpload(ctx, user); !ok {
 		t.Fatal("user while on")
 	}
-	if a, _ := svc.Appearance(ctx); a != hub.AppearanceLight {
-		t.Fatal(a)
+	if a, _ := svc.Appearance(ctx); a != hub.AppearanceSystem {
+		t.Fatal("default must be system, got", a)
 	}
 	for _, m := range []string{"dark", "system", "light"} {
 		if err := svc.SetAppearance(ctx, m); err != nil {

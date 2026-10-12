@@ -73,15 +73,15 @@ func TestAdminPagesAreAdminOnlyAndRender(t *testing.T) {
 			t.Fatalf("%s: inline script/style", p)
 		}
 	}
-	contains(t, c.get("/users", nil), `href="/users" class="active"`, "Onboarding invites", "Accounts apply only on this Hub")
-	// Systems & Cores: list | detail with tabs; the firmware tab is the default.
+	contains(t, c.get("/users", nil), `href="/users" class="active"`, "Onboarding invites", "Accounts on this Hub")
+	// Systems & Cores: list | detail with tabs; the cores tab is the default.
 	rec := c.get("/systems?sys=nds", nil)
-	contains(t, rec, `href="/systems" class="active"`, "Nintendo DS", "No core installed", "Installed by the admin", "ARM7 BIOS", "ARM9 BIOS", "DS Firmware",
-		"Search systems…", "Players cannot start Nintendo DS games until then", "No core", `aria-selected="true"`, `id="systems-list"`, `id="systems-detail"`, "Provided by the admin")
-	notContains(t, rec, "LATER", "Installed cores", "Reported by Players")
-	rec = c.get("/systems?sys=nds&tab=core", nil)
-	contains(t, rec, "windows-x86_64", "Installed cores", "Available from the libretro buildbot", "Check source now", "No core installed",
-		"No further cores known for this system", "Libretro system", "File extensions", "3 files · see the Firmware tab")
+	contains(t, rec, `href="/systems" class="active"`, "Nintendo DS", "No core installed", "Automatic core updates",
+		"Players cannot start Nintendo DS games until then", "Needs attention", `aria-selected="true"`, `id="systems-list"`, `id="systems-detail"`,
+		"System details", "windows-x86_64", "Libretro system", "File extensions", "Check now", "No further cores known for this system")
+	notContains(t, rec, "LATER", "Reported by Players", "Search systems", "core(s)")
+	rec = c.get("/systems?sys=nds&tab=firmware", nil)
+	contains(t, rec, "ARM7 BIOS", "ARM9 BIOS", "DS Firmware", "Choose file…")
 	contains(t, c.get("/systems?sys=nds&tab=clients", nil), "Reported by Players", "No client has reported yet")
 }
 
@@ -109,7 +109,7 @@ func TestAdminPagesCSRF(t *testing.T) {
 	if _, err := e.svc.GetUser(bg, u.ID); err != nil {
 		t.Fatal("deleted despite missing CSRF")
 	}
-	if a, _ := e.svc.Appearance(bg); a != hub.AppearanceLight {
+	if a, _ := e.svc.Appearance(bg); a != hub.AppearanceSystem {
 		t.Fatal("appearance changed despite missing CSRF")
 	}
 	if invs, _ := e.svc.ListInvites(bg, 0); len(invs) != 0 {
@@ -139,7 +139,7 @@ func TestUsersPageInvitesAndDisable(t *testing.T) {
 	contains(t, rec, "expires in 1", "Shown once")
 	rec = c.get("/users", nil)
 	notContains(t, rec, code)
-	contains(t, rec, "First device needs admin approval", "Revoke")
+	contains(t, rec, "first device needs approval", "Revoke invite…", "Open · 1")
 	invs, _ := e.svc.ListInvites(bg, 0)
 	if len(invs) != 1 || invs[0].AuthorizeDevice || invs[0].ExpiresAt.Sub(invs[0].CreatedAt) != 15*time.Minute {
 		t.Fatalf("%+v", invs)
@@ -171,7 +171,7 @@ func TestUsersPageInvitesAndDisable(t *testing.T) {
 		t.Fatal(err)
 	}
 	rec = c.get("/users", nil)
-	contains(t, rec, "redeemed by Lena", "Lena", "Disable", "Active")
+	contains(t, rec, "redeemed by Lena", "Lena", "Disable user", "Active")
 	notContains(t, rec, code2)
 
 	// Disable / enable; admins and the own account are protected.
@@ -180,7 +180,7 @@ func TestUsersPageInvitesAndDisable(t *testing.T) {
 		t.Fatal("not disabled")
 	}
 	rec = c.get("/users", nil)
-	contains(t, rec, "Disabled", "Enable", "Disabled users cannot sign in on any device. Saves and uploads are preserved.")
+	contains(t, rec, "Disabled", "Enable user", "Disabled users cannot sign in on any device; their saves stay.")
 	if rec := postTok(c, tok, "/users/"+admin.ID+"/disable", nil); location(rec) != "/users?err=admin" {
 		t.Fatalf("%q", location(rec))
 	}
@@ -215,7 +215,7 @@ func TestClientsAssignUserDefaults(t *testing.T) {
 	}
 	plain := pending(t, e, uuid.NewString())
 	rec := c.get("/clients", nil)
-	contains(t, rec, "Assign user", "Jonas PC")
+	contains(t, rec, "Assign to", "Jonas PC")
 	// Pre-assigned request: its user is selected; a plain request defaults to the admin.
 	sel := regexp.MustCompile(`<option value="([^"]+)" selected>`).FindAllStringSubmatch(rec.Body.String(), -1)
 	if len(sel) != 2 {
@@ -247,11 +247,11 @@ func TestClientsAssignUserDefaults(t *testing.T) {
 func TestSettingsAppearanceAndUploadToggle(t *testing.T) {
 	e := newEnv(t, true, nil)
 	anon := e.client()
-	contains(t, anon.get("/login", nil), `data-theme="light"`)
+	contains(t, anon.get("/login", nil), `data-theme="system"`)
 	c := e.client()
 	tok := c.login()
 	rec := c.get("/settings/general", nil)
-	contains(t, rec, `data-theme="light"`, "Appearance", "Applies to this web interface", "Allow users to upload games", "Inactive",
+	contains(t, rec, `data-theme="system"`, "Appearance", "Applies to this web interface", "Allow users to upload games", "Inactive",
 		"Currently only admins can upload ROMs.")
 	// Dark: stored as Hub setting and applied to every page, including login/setup for visitors.
 	status(t, postTok(c, tok, "/settings/appearance", url.Values{"mode": {"dark"}}), 303)
@@ -291,14 +291,14 @@ func TestSystemsPageFirmwareFlow(t *testing.T) {
 	c := e.client()
 	tok := c.login()
 	admin, _ := e.svc.VerifyPassword(bg, "admin", "secret-12345")
-	notContains(t, c.get("/systems?sys=nds", nil), "issues</span>") // no badge in builtin mode
+	notContains(t, c.get("/systems?sys=nds&tab=firmware", nil), "issues</span>") // no badge in builtin mode
 
 	// Switch to native: all three files are required and missing -> badge on every page.
 	status(t, postTok(c, tok, "/systems/nds/firmware-mode", url.Values{"mode": {"native"}}), 303)
 	rec := c.get("/library", nil)
 	contains(t, rec, `class="badge error">3 issues</span>`)
-	rec = c.get("/systems?sys=nds", nil)
-	contains(t, rec, "○ Missing", "required", "Provide")
+	rec = c.get("/systems?sys=nds&tab=firmware", nil)
+	contains(t, rec, "Missing", "Choose file…", "Upload")
 	rec = postTok(c, tok, "/systems/nds/firmware-mode", url.Values{"mode": {"bad"}})
 	status(t, rec, 400)
 
@@ -312,18 +312,18 @@ func TestSystemsPageFirmwareFlow(t *testing.T) {
 	if rec.Code != 303 || location(rec) != "/systems?sys=nds&tab=firmware&ok=fwfile" {
 		t.Fatalf("%d %q %.200s", rec.Code, location(rec), rec.Body.String())
 	}
-	rec = c.get("/systems?sys=nds&ok=fwfile", nil)
-	contains(t, rec, "✓ Valid", "Replace", "Remove", "Firmware file saved.", `>2 issues</span>`)
+	rec = c.get("/systems?sys=nds&tab=firmware&ok=fwfile", nil)
+	contains(t, rec, "Provided", "Replace", "Remove file…", "Firmware file saved.", `>2 issues</span>`)
 	if b := rec.Body.String(); strings.Contains(b, string(dummy7[:64])) {
 		t.Fatal("firmware bytes in the page")
 	}
 	// Pin a differing hash: mismatch pill, badge 3; clear it again.
 	status(t, postTok(c, tok, "/systems/nds/firmware/bios7/pin", url.Values{"sha256": {strings.Repeat("A", 64)}}), 303)
-	rec = c.get("/systems?sys=nds", nil)
-	contains(t, rec, "✕ Hash mismatch", `>3 issues</span>`, strings.Repeat("a", 4)+"…")
+	rec = c.get("/systems?sys=nds&tab=firmware", nil)
+	contains(t, rec, "Hash mismatch", `>3 issues</span>`, strings.Repeat("a", 4))
 	status(t, postTok(c, tok, "/systems/nds/firmware/bios7/pin", url.Values{"sha256": {"nothex"}}), 400)
 	status(t, postTok(c, tok, "/systems/nds/firmware/bios7/pin", url.Values{"sha256": {""}}), 303)
-	contains(t, c.get("/systems?sys=nds", nil), "✓ Valid")
+	contains(t, c.get("/systems?sys=nds&tab=firmware", nil), "Provided")
 	// Remove.
 	status(t, postTok(c, tok, "/systems/nds/firmware/bios7/remove", nil), 303)
 	if rec := postTok(c, tok, "/systems/nds/firmware/bios7/remove", nil); location(rec) != "/systems?sys=nds&tab=firmware&err=nofile" {
@@ -357,17 +357,17 @@ func TestSystemsPageFirmwareFlow(t *testing.T) {
 	}
 	hs("2026.10.01")
 	rec = c.get("/systems?sys=nds", nil)
-	contains(t, rec, "3 firmware", "✕ Not ready · 3 files missing or invalid", `<span class="count warn">1</span>`)
+	contains(t, rec, "Needs attention · 3 firmware files missing or invalid", `<span class="count">3</span>`, `<span class="count">1</span>`)
 	rec = c.get("/systems?sys=nds&tab=clients", nil)
-	contains(t, rec, "Lena&#39;s gaming PC", "Player 0.1.0 · Nintendo - DS (DeSmuME) 2026.10.01", "▲ Core version mismatch · 2026.10.09 expected", "launching stays allowed")
-	notContains(t, rec, "✕ Core version mismatch") // a core mismatch only warns (ADR 0007 D3)
+	contains(t, rec, "Lena&#39;s gaming PC", "Player 0.1.0 · Nintendo - DS (DeSmuME) 2026.10.01", "Core version mismatch · 2026.10.09 expected", "launching stays allowed")
+	notContains(t, rec, `pill error`) // a core mismatch only warns (ADR 0007 D3)
 	hs("2026.10.09")
-	contains(t, c.get("/systems?sys=nds&tab=clients", nil), "● compatible")
+	contains(t, c.get("/systems?sys=nds&tab=clients", nil), "Compatible")
 	if _, err := e.svc.Handshake(bg, dev, hub.HandshakeInput{Platform: "windows", Arch: "x86_64", PlayerVersion: "0.1.0",
 		ProtocolVersion: 1, MinProtocolVersion: 1, Cores: &[]hub.CoreReport{}}); err != nil {
 		t.Fatal(err)
 	}
-	contains(t, c.get("/systems?sys=nds&tab=clients", nil), "▲ Core missing", "not installed")
+	contains(t, c.get("/systems?sys=nds&tab=clients", nil), "Core missing", "not installed")
 }
 
 func TestSettingsCertificateExpiryWarning(t *testing.T) {
@@ -431,9 +431,9 @@ func TestSystemsPageCores(t *testing.T) {
 
 	// Nothing installed: the catalog cores of the system are offered, other systems' cores are not.
 	rec := c.get("/systems?sys=nds&tab=core", nil)
-	contains(t, rec, bb.Server.URL+"/nightly", "Last error", "none", "Available from the libretro buildbot", "No core installed",
+	contains(t, rec, strings.TrimPrefix(bb.Server.URL, "https://")+"/nightly", "Available, not installed", "No core installed",
 		"Nintendo - DS (DeSmuME)", "GPLv2", "OpenGL Core &gt;= 3.2", "nightly 2026-10-08", "/systems/nds/cores/desmume/install", "/systems/nds/cores/noods/install",
-		"Check source now", "3 core(s) in the catalog")
+		"Check now", "2 cores for this system")
 	notContains(t, rec, "Azahar", "/cores/azahar/", "Update available", "No FrameBeam profile")
 
 	// Install: redirect, the core is listed as installed default with its origin.
@@ -442,14 +442,14 @@ func TestSystemsPageCores(t *testing.T) {
 		t.Fatalf("%d %q", rec.Code, location(rec))
 	}
 	rec = c.get("/systems?sys=nds&tab=core&ok=coreinstalled", nil)
-	contains(t, rec, "Core installed.", "Installed cores", "2026.10.09", "libretro buildbot, nightly 2026-10-09", "Default", "/systems/nds/cores/desmume/remove",
-		"Nintendo - DS (DeSmuME) 2026.10.09")
+	contains(t, rec, "Core installed.", "2026.10.09", "Buildbot", "build 2026-10-09", "Default", "/systems/nds/cores/desmume/remove",
+		"Nintendo - DS (DeSmuME)")
 	notContains(t, rec, "/cores/desmume/install", "/cores/desmume/default", "Update available") // the only core is the default
 	// The experimental core carries the badge once installed; Make default switches.
 	status(t, postTok(c, tok, "/systems/nds/cores/noods/install", nil), 303)
 	rec = c.get("/systems?sys=nds&tab=core", nil)
 	notContains(t, rec, "No FrameBeam profile")
-	contains(t, rec, "/systems/nds/cores/noods/default", "Graphics API: OpenGL Core &gt;= 3.2")
+	contains(t, rec, "/systems/nds/cores/noods/default", "OpenGL Core &gt;= 3.2")
 	status(t, postTok(c, tok, "/systems/nds/cores/noods/default", nil), 303)
 	if entry, _ := e.svc.GetRegistryEntry(bg, "nds"); entry.CoreID != "noods" {
 		t.Fatalf("%+v", entry)
@@ -467,7 +467,7 @@ func TestSystemsPageCores(t *testing.T) {
 	}
 
 	// Automatic updates: on by default, with a toggle (CSRF, signed in); they are off for the manual flow below.
-	contains(t, c.get("/systems?sys=nds&tab=core", nil), "Automatic updates", "action=\"/cores/auto-update\"", "Turn off")
+	contains(t, c.get("/systems?sys=nds&tab=core", nil), "Automatic core updates", "action=\"/cores/auto-update\"", `aria-checked="true"`)
 	status(t, e.client().postForm("/cores/auto-update", url.Values{"on": {"0"}}, nil), 303)
 	if on, _ := e.svc.CoreAutoUpdate(bg); !on {
 		t.Fatal("toggle worked without a session")
@@ -476,7 +476,7 @@ func TestSystemsPageCores(t *testing.T) {
 	if rec.Code != 303 || location(rec) != "/systems?sys=nds&tab=core&ok=coreautoupdate" {
 		t.Fatalf("%d %q", rec.Code, location(rec))
 	}
-	contains(t, c.get("/systems?sys=nds&tab=core", nil), "Turn on", "use Update per core")
+	contains(t, c.get("/systems?sys=nds&tab=core", nil), `aria-checked="false"`, "Use Hub default (Off)")
 	// A newer upstream build: "Check source now" refreshes in the background, then Update is offered.
 	for _, p := range []string{"linux-x64", "windows-x64"} {
 		suffix := map[string]string{"linux-x64": ".so", "windows-x64": ".dll"}[p]
@@ -488,13 +488,13 @@ func TestSystemsPageCores(t *testing.T) {
 		t.Fatalf("%d %q", rec.Code, location(rec))
 	}
 	wait(func() bool { return runs.Load() > n })
-	contains(t, c.get("/systems?sys=nds&tab=core&ok=coresync", nil), "Checking the libretro buildbot", "Update available · 2026-10-12", "/systems/nds/cores/desmume/update")
+	contains(t, c.get("/systems?sys=nds&tab=core&ok=coresync", nil), "Checking the libretro buildbot", "2026-10-12", "/systems/nds/cores/desmume/update")
 	status(t, e.client().postForm("/cores/sync", url.Values{}, nil), 303) // not signed in: redirect to login, no sync
 	rec = postTok(c, tok, "/systems/nds/cores/desmume/update", nil)
 	if rec.Code != 303 || location(rec) != "/systems?sys=nds&tab=core&ok=coreupdated" {
 		t.Fatalf("%d %q", rec.Code, location(rec))
 	}
-	contains(t, c.get("/systems?sys=nds&tab=core", nil), "2026.10.12", "nightly 2026-10-12")
+	contains(t, c.get("/systems?sys=nds&tab=core", nil), "2026.10.12", "build 2026-10-12")
 	notContains(t, c.get("/systems?sys=nds&tab=core", nil), "Update available")
 
 	// Remove the default: the other core takes over; a failing source shows its error.
@@ -506,7 +506,7 @@ func TestSystemsPageCores(t *testing.T) {
 	n = runs.Load()
 	status(t, postTok(c, tok, "/cores/sync", nil), 303)
 	wait(func() bool { return runs.Load() > n })
-	contains(t, c.get("/systems?sys=nds&tab=core&ok=coresync", nil), "Last error", "HTTP 503", "Nintendo - DS (NooDS)") // the old catalog stays
+	contains(t, c.get("/systems?sys=nds&tab=core&ok=coresync", nil), "Could not refresh the core catalog. The previous catalog stays.", "HTTP 503", "Nintendo - DS (NooDS)") // the old catalog stays
 }
 
 // ---- Settings: Updates ----

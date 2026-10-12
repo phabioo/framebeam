@@ -46,8 +46,8 @@ func TestSavesSlotsFragmentsAndRestoreConfirmation(t *testing.T) {
 	// Full page: one list entry per game with the slot count, slot tabs, retention box with the real rules, "+ New slot" on the tabs.
 	rec := c.get(base, nil)
 	status(t, rec, 200)
-	contains(t, rec, "Synced · today", "2 slots", "✓ Synced", `role="tablist"`, `aria-selected="true"`, "trial", "1 version", "2 versions",
-		"◆ Snapshot", "“before the lighthouse”", "Retention", "newest 7", "each day for 14 days", "each week for 6 weeks",
+	contains(t, rec, "Synced · just now", "2 slots", "✓ Synced", "Main", `role="tablist"`, `aria-selected="true"`, "trial", "1 version", "2 versions",
+		"◆ Snapshot", "“before the lighthouse”", "HISTORY · ", "Retention", "newest 7", "each day for 14 days", "each week for 6 weeks",
 		`hx-trigger="fb:saves from:body"`, `id="saves-list"`, `id="save-detail"`, `aria-current="page"`)
 	contains(t, rec, "+ New slot", `id="newslot-form"`)
 	notContains(t, rec, "▲ Conflict", "New slot for")
@@ -55,7 +55,7 @@ func TestSavesSlotsFragmentsAndRestoreConfirmation(t *testing.T) {
 	// Slot switch (htmx target #save-detail): the detail region plus the list as out-of-band part.
 	rec = c.get(trial, hxHdr("save-detail"))
 	status(t, rec, 200)
-	contains(t, rec, `id="save-detail"`, `hx-get="`+trial+`"`, `id="saves-list"`, `hx-swap-oob="true"`, "Session end", "Rev 1")
+	contains(t, rec, `id="save-detail"`, `hx-get="`+trial+`"`, `id="saves-list"`, `hx-swap-oob="true"`, "Session end", "CURRENT")
 	notContains(t, rec, "<html", "<aside", "before the lighthouse")
 	// The list alone.
 	rec = c.get(base, hxHdr("saves-list"))
@@ -72,7 +72,7 @@ func TestSavesSlotsFragmentsAndRestoreConfirmation(t *testing.T) {
 	// Restore confirmation: a fragment under the row, then the POST; Cancel answers an empty body.
 	rec = c.get(base+"?confirm=1", hxHdr("confirm-v1"))
 	status(t, rec, 200)
-	contains(t, rec, "Restore v1 as the current version of “default”?", `hx-post="`+base+`/history/1/restore"`, `name="expected_revision" value="2"`,
+	contains(t, rec, "Restore v1 as the current version of “Main”?", `hx-post="`+base+`/history/1/restore"`, `name="expected_revision" value="2"`,
 		"Restore v1", "Cancel", "nothing is overwritten")
 	notContains(t, rec, "<html", `id="save-detail"`)
 	rec = c.get(base+"?confirm=1&cancel=1", hxHdr("confirm-v1"))
@@ -82,7 +82,7 @@ func TestSavesSlotsFragmentsAndRestoreConfirmation(t *testing.T) {
 	}
 	status(t, c.get(base+"?confirm=99", hxHdr("confirm-v99")), 404)
 	// Without htmx the confirmation is part of the page.
-	contains(t, c.get(base+"?confirm=1", nil), "Restore v1 as the current version of “default”?", `id="confirm-v1"`)
+	contains(t, c.get(base+"?confirm=1", nil), "Restore v1 as the current version of “Main”?", `id="confirm-v1"`)
 	notContains(t, c.get(base, nil), "as the current version of")
 	// The current version offers no restore.
 	cur, _ := e.svc.ListSaveHistory(bg, adminID, g.ID, "default")
@@ -104,7 +104,7 @@ func TestLibrarySavesColumnAndLiveRegion(t *testing.T) {
 		t.Fatal("expected a conflict")
 	}
 	rec := c.get("/library", nil)
-	contains(t, rec, "Saves", "▲ Conflict", `hx-trigger="fb:library from:body"`, `id="library-results"`, "All systems · 2", `hx-swap="outerHTML"`)
+	contains(t, rec, "Saves", "▲ Conflict", `hx-trigger="fb:library from:body"`, `id="library-results"`, "All · 2", `hx-swap="outerHTML"`)
 	// The region reloads itself with the current filter and returns only the region (plus the subtitle).
 	rec = c.get("/library?q=harbor&system=nds", hxHdr("library-results"))
 	status(t, rec, 200)
@@ -123,10 +123,10 @@ func TestClientsAndUsersLiveRegions(t *testing.T) {
 	pending(t, e, uuid.NewString())
 	rec := c.get("/clients", hxHdr("clients-body"))
 	status(t, rec, 200)
-	contains(t, rec, `id="clients-body"`, `hx-get="/clients"`, `hx-trigger="fb:clients from:body"`, "Decline", "▲ Awaiting approval", "Lena Gaming PC")
+	contains(t, rec, `id="clients-body"`, `hx-get="/clients"`, `hx-trigger="fb:clients from:body"`, "Deny", "Approve", "Lena Gaming PC")
 	notContains(t, rec, "<html", "<aside", "every 15s")
 	// A sidebar navigation (target #main) returns the page, not the fragment.
-	contains(t, c.get("/clients", map[string]string{"HX-Request": "true", "HX-Target": "main"}), "Devices allowed to access this hub")
+	contains(t, c.get("/clients", map[string]string{"HX-Request": "true", "HX-Target": "main"}), "Devices allowed to reach this Hub")
 
 	rec = c.get("/users", hxHdr("users-table"))
 	status(t, rec, 200)
@@ -135,7 +135,7 @@ func TestClientsAndUsersLiveRegions(t *testing.T) {
 	postTok(c, c.csrf(), "/users/invites", url.Values{"expiry": {"1h"}, "authorize": {"1"}})
 	rec = c.get("/users", hxHdr("users-invites"))
 	status(t, rec, 200)
-	contains(t, rec, `id="users-invites"`, `hx-trigger="fb:users from:body"`, "Active", "Revoke")
+	contains(t, rec, `id="users-invites"`, `hx-trigger="fb:users from:body"`, "Open · 1", "Revoke invite…")
 	notContains(t, rec, "<html", `id="users-table"`, "Create invite")
 }
 
@@ -156,15 +156,9 @@ func TestSystemsTabsAndListFragments(t *testing.T) {
 	status(t, rec, 200)
 	contains(t, rec, `id="systems-detail"`, `hx-trigger="fb:systems from:body"`, `hx-get="/systems?sys=nds&amp;tab=clients"`, "Reported by Players",
 		`id="systems-list"`, `hx-swap-oob="true"`, `aria-current="true"`)
-	notContains(t, rec, "<html", "<aside", "Installed cores")
+	notContains(t, rec, "<html", "<aside", "System details")
 	rec = c.get("/systems?sys=nds&tab=core", hxHdr("systems-detail"))
-	contains(t, rec, "Installed cores", "Display profile", "Input profile")
-	// Search: only the list region; the selection stays the one of the page URL.
-	rec = c.get("/systems?q=zzz", map[string]string{"HX-Request": "true", "HX-Target": "systems-list", "HX-Current-URL": "http://hub/systems?sys=nds&tab=core"})
-	status(t, rec, 200)
-	contains(t, rec, `id="systems-list"`, "No systems found.", `hx-get="/systems?q=zzz&amp;sys=nds&amp;tab=core"`)
-	notContains(t, rec, "<html", `id="systems-detail"`)
-	contains(t, c.get("/systems?q=nintendo", hxHdr("systems-list")), "Nintendo DS")
+	contains(t, rec, "System details", "Display profile", "Input profile", "desmume")
 	// Core differences only warn (ADR 0007 D3): the summary of a system with a differing client is warn colored and allows launching.
 	users, _ := e.svc.ListUsers(bg)
 	dev := pairTestDevice(t, e, users[0].ID, "Lena PC")
@@ -173,9 +167,8 @@ func TestSystemsTabsAndListFragments(t *testing.T) {
 		MinProtocolVersion: 1, Cores: &cores}); err != nil {
 		t.Fatal(err)
 	}
-	rec = c.get("/systems", nil)
-	contains(t, rec, `class="pill warn lg"`, "▲ 1 client differ from the registry · launching stays allowed", `class="pill warn sm">1 client`)
-	notContains(t, rec, `pill error lg`) // the 3ds list chip ("No core") may be an error chip
+	rec = c.get("/systems?sys=nds&tab=clients", nil)
+	contains(t, rec, `class="pill amber">`, "Lena PC")
 }
 
 func TestSavesDeleteSnapshotAndNewSlotWeb(t *testing.T) {
@@ -201,7 +194,7 @@ func TestSavesDeleteSnapshotAndNewSlotWeb(t *testing.T) {
 
 	// Delete is offered on snapshots only.
 	rec := c.get(base, nil)
-	if n := strings.Count(rec.Body.String(), ">Delete</a>"); n != 2 {
+	if n := strings.Count(rec.Body.String(), ">Delete snapshot…</a>"); n != 2 {
 		t.Fatalf("%d Delete actions", n)
 	}
 	// Inline confirmation: fragment under the row, with and without label; Cancel answers an empty body.
@@ -238,7 +231,7 @@ func TestSavesDeleteSnapshotAndNewSlotWeb(t *testing.T) {
 	// New slot: the form as a fragment (and inline on the full page), Cancel answers an empty body.
 	rec = c.get(base+"?newslot=1", hxHdr("newslot-form"))
 	status(t, rec, 200)
-	contains(t, rec, "New slot for “Lumen Drift”", "Starts from the current version of “default”. Players can pick the slot in the game details.",
+	contains(t, rec, "New slot for “Lumen Drift”", "Starts from the current version of “Main”. Players can pick the slot in the game details.",
 		`name="name"`, `placeholder="Speedrun"`, "up to 32 characters", `hx-post="`+base+`/slots"`, "Cancel", "Create slot")
 	notContains(t, rec, "<html")
 	contains(t, c.get(base+"?newslot=1", nil), "New slot for “Lumen Drift”", `id="newslot-form"`)
@@ -265,7 +258,7 @@ func TestSavesDeleteSnapshotAndNewSlotWeb(t *testing.T) {
 		t.Fatalf("HX-Redirect %q", rec.Header().Get("HX-Redirect"))
 	}
 	rec = c.get(next+"?ok=slotcreated", nil)
-	contains(t, rec, "Slot created from the current version.", "Rev 1", "Hub web interface", "From “default”", "◆ Snapshot", "2 slots")
+	contains(t, rec, "Slot created from the current version.", "CURRENT", "Hub web interface", "From “default”", "◆ Snapshot", "2 slots")
 	// A second creation without htmx redirects (303) to the new tab.
 	rec = c.postForm(slots, url.Values{"name": {"second"}, "_csrf": {tok}}, nil)
 	status(t, rec, http.StatusSeeOther)
@@ -283,12 +276,12 @@ func TestSystemsDefaultSelection(t *testing.T) {
 	if _, err := e.svc.RefreshCatalog(bg); err != nil {
 		t.Fatal(err)
 	}
-	// Nothing installed: the first system by id (3ds) is selected.
-	contains(t, c.get("/systems", nil), `id="systems-detail"`, "Nintendo 3DS")
-	notContains(t, c.get("/systems", nil), "ARM7 BIOS")
-	// A default core on nds: existing Hubs keep opening on NDS.
+	// Nothing installed: every system needs attention, the first in family order (Game Boy) is selected.
+	contains(t, c.get("/systems", nil), `id="systems-detail"`, "<h2>Game Boy ")
+	// A system with an installed core and nothing else to do is not preferred over one that needs attention.
 	if _, err := e.svc.InstallCore(bg, "nds", "desmume"); err != nil {
 		t.Fatal(err)
 	}
-	contains(t, c.get("/systems", nil), "ARM7 BIOS")
+	contains(t, c.get("/systems", nil), "<h2>Game Boy ")
+	contains(t, c.get("/systems?sys=nds&tab=firmware", nil), "ARM7 BIOS")
 }

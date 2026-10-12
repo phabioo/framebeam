@@ -1,50 +1,123 @@
-{{define "users-table"}}<div id="users-table" class="stack" hx-get="/users" hx-trigger="fb:users from:body" hx-swap="outerHTML">
-  <div class="card"><table class="list">
+{{define "users-table"}}<div id="users-table" class="stack"{{if not .Body.Editing}} hx-get="/users" hx-trigger="fb:users from:body" hx-swap="outerHTML"{{end}}>
+  {{if .Body.UserCode}}{{with .Body.UserCode}}
+  <div class="card code-card" role="status">
+    <div class="code-head"><span class="strong">{{.Title}}</span><span class="help">{{.Meta}}</span></div>
+    <div class="invite-code">{{.Code}}</div>
+    <div class="invite-link">
+      <button class="btn small" type="button" data-copy-link="{{.Link}}">Copy link</button>
+      <input class="mono" type="text" readonly hidden data-copy-fallback value="{{.Link}}" aria-label="Pairing link">
+    </div>
+    <div class="help">Shown once. {{.Sub}} Only a hash of the code is stored, so it cannot be displayed again.</div>
+  </div>{{end}}{{end}}
+  {{if .Body.Create}}
+  <div class="card create-card" id="create-user" role="group" aria-label="Create user">
+    <form method="post" action="/users/create" hx-post="/users/create" hx-target="#users-table" hx-swap="outerHTML">
+      <input type="hidden" name="_csrf" value="{{.CSRF}}">
+      <div class="strong">Create user</div>
+      <p class="help">The user pairs a device with a one-time code you hand over. The code is shown once after creating.</p>
+      <label class="field">Name<input type="text" name="name" value="{{.Body.CreateName}}" maxlength="64" required autocomplete="off" autofocus placeholder="Sam"{{if .Body.CreateErr}} aria-invalid="true"{{end}}></label>
+      {{if .Body.CreateErr}}<p class="help error-line" role="alert">{{.Body.CreateErr}}</p>{{end}}
+      <p class="help">Role: User. You can make them an admin later.</p>
+      <div class="actions"><a class="btn small" href="/users" hx-get="/users" hx-target="#users-table" hx-swap="outerHTML">Cancel</a><button class="btn small primary" type="submit">Create user</button></div>
+    </form>
+  </div>
+  {{end}}
+  <div class="card flush"><table class="list users-list cards">
     <thead><tr><th>Name</th><th>Role</th><th>Devices</th><th>Created</th><th>Status</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
     <tbody>
     {{range .Body.Users}}
     <tr{{if .Disabled}} class="muted"{{end}}>
-      <td><div class="cell-title"><span class="avatar" aria-hidden="true">{{.Initial}}</span><span>{{.Name}}</span></div></td>
-      <td>{{.Role}}</td>
-      <td class="mono">{{.Devices}}</td>
-      <td>{{.Created}}</td>
-      <td>{{if .Disabled}}<span class="pill">Disabled</span>{{else}}<span class="pill ok">Active</span>{{end}}</td>
-      <td>{{if .Admin}}—{{else}}<div class="row-actions">{{if .Disabled}}<form method="post" action="/users/{{.ID}}/enable"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn-link plain" type="submit">Enable</button></form>{{else}}<form method="post" action="/users/{{.ID}}/disable"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn-link" type="submit">Disable</button></form>{{end}}<a class="btn-link" href="/users/{{.ID}}/delete">Delete</a></div>{{end}}</td>
+      <td class="c-title">{{if .Rename}}
+        <form class="rename-form" method="post" action="/users/{{.ID}}/rename">
+          <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+          <input type="text" name="name" value="{{.Name}}" maxlength="64" required autofocus autocomplete="off" aria-label="Display name"{{if $.Body.RenameErr}} aria-invalid="true"{{end}}>
+          <button class="btn small primary" type="submit">Save</button>
+          <a class="snap-cancel" href="/users">Cancel</a>
+        </form>{{if $.Body.RenameErr}}<p class="help error-line" role="alert">{{$.Body.RenameErr}}</p>{{end}}
+      {{else}}<div class="cell-title"><span class="avatar" aria-hidden="true">{{.Initial}}</span><span>{{.Name}}</span>{{if .Self}}<span class="help">(you)</span>{{end}}</div>{{end}}</td>
+      <td class="hide-sm">{{if .Self}}<span class="pill info">{{.Role}}</span>{{else}}
+        <details class="menu left">
+          <summary class="pill pick{{if .Admin}} info{{end}}" aria-label="Role of {{.Name}}">{{.Role}} ▾</summary>
+          <div class="menu-pop">
+            {{if .Admin}}<form method="post" action="/users/{{.ID}}/role"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="role" value="user"><button class="mi" type="submit">User</button></form><span class="mi on">Admin</span>
+            {{else}}<span class="mi on">User</span>{{if not .Disabled}}<a class="mi" href="/users/{{.ID}}/admin">Admin</a>{{end}}{{end}}
+          </div>
+        </details>{{end}}</td>
+      <td class="mono hide-sm">{{.Devices}}</td>
+      <td class="hide-sm">{{template "when" .Created}}</td>
+      <td class="c-pill"><span class="pill{{if .StatusClass}} {{.StatusClass}}{{end}}">{{.Status}}</span></td>
+      <td class="c-act">
+        {{if .Self}}<span class="help">—</span>{{else}}
+        <div class="ract">
+          <a class="btn small desk-only" href="/users?rename={{.ID}}" hx-get="/users?rename={{.ID}}" hx-target="#users-table" hx-swap="outerHTML">Rename</a>
+          <details class="menu">
+            <summary class="more" aria-label="More actions for {{.Name}}">⋯</summary>
+            <div class="menu-pop">
+              <a class="mi mob-only" href="/users?rename={{.ID}}">Rename</a>
+              {{if .Admin}}<form method="post" action="/users/{{.ID}}/role"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="role" value="user"><button class="mi" type="submit">Make regular user</button></form>
+              {{else}}
+              {{if not .Disabled}}<a class="mi" href="/users/{{.ID}}/admin">Make admin</a>
+              <form method="post" action="/users/{{.ID}}/code"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="mi" type="submit">New pairing code</button></form>{{end}}
+              {{if .Disabled}}<form method="post" action="/users/{{.ID}}/enable"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="mi" type="submit">Enable user</button></form>
+              {{else}}<form method="post" action="/users/{{.ID}}/disable"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="mi" type="submit">Disable user</button></form>{{end}}
+              <div class="msep"></div>
+              <a class="mi danger" href="/users/{{.ID}}/delete">Delete user…</a>
+              {{end}}
+            </div>
+          </details>
+        </div>{{end}}
+      </td>
+      <td class="c-meta">{{.Role}} · {{.Devices}} {{if eq .Devices 1}}device{{else}}devices{{end}} · {{.Created.Text}}</td>
     </tr>
     {{end}}
     </tbody>
   </table></div>
-  <p class="foot-note">Disabled users cannot sign in on any device. Saves and uploads are preserved. Deleting a user removes their devices, invites and saves for good.</p>
+  <p class="foot-note">Disabled users cannot sign in on any device; their saves stay. Deleting a user removes their devices, invites and saves for good.</p>
 </div>{{end}}
 {{define "users-invites"}}<div id="users-invites" class="stack" hx-get="/users" hx-trigger="fb:users from:body" hx-swap="outerHTML">
+  {{if .Body.Active}}<div class="eyebrow">Open · {{len .Body.Active}}</div>{{end}}
   {{range .Body.Active}}
-  <div class="invite">
-    <div class="invite-head"><span class="pill ok">{{.Label}}</span><span class="help warn">{{.Meta}}</span></div>
-    <div class="help">{{if .Authorize}}Authorizes the first device directly{{else}}First device needs admin approval{{end}} · Single use</div>
-    <form method="post" action="/users/invites/{{.ID}}/revoke"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn-link" type="submit">Revoke</button></form>
+  <div class="invite-row">
+    <div class="invite-row-head"><span class="strong">{{.Title}}</span><span class="help">{{.Meta}}</span></div>
+    <div class="help">Single use · {{if .Authorize}}approves first device{{else}}first device needs approval{{end}}</div>
+    <div class="ract left">
+      <details class="menu">
+        <summary class="more" aria-label="More actions for this invite">⋯</summary>
+        <div class="menu-pop"><a class="mi danger" href="/users/invites/{{.ID}}/revoke">Revoke invite…</a></div>
+      </details>
+    </div>
   </div>
   {{end}}
   {{if .Body.History}}
   <div class="eyebrow">History</div>
   <ul class="history">
-    {{range .Body.History}}<li><span class="mono">Invite</span> <span class="help">{{.Meta}}</span></li>{{end}}
+    {{range .Body.History}}<li><span class="mono">{{.Label}}</span> <span class="help">{{.Meta}} · {{template "when" .At}}</span></li>{{end}}
   </ul>
   {{end}}
 </div>{{end}}
 {{define "content"}}
 <div class="users">
 <div class="users-main stack">
-  <div class="page-head"><div><h1>Users</h1><p class="sub">Accounts apply only on this Hub. Normal users have no password.</p></div></div>
+  <div class="page-head"><div><h1>Users</h1><p class="sub">Accounts on this Hub. Users sign in with a paired device, not a password.</p></div>
+    <div class="head-actions">
+      <a class="btn" href="/users?create=1" hx-get="/users?create=1" hx-target="#users-table" hx-swap="outerHTML">Create user</a>
+      <a class="btn primary" href="#invites">Invite</a>
+    </div>
+  </div>
   {{template "users-table" .}}
 </div>
-<aside class="users-side" aria-label="Onboarding invites">
-  <h2>Onboarding invites</h2>
-  <p class="help">The invited person redeems the code in the Player and chooses a display name. This is not a Session invite.</p>
+<aside class="users-side" id="invites" aria-label="Onboarding invites">
+  <h2>Invites</h2>
+  <p class="help">The invited person enters the code in the Player and picks a display name. Not a Session invite.</p>
   <form class="invite-form" method="post" action="/users/invites">
     <input type="hidden" name="_csrf" value="{{.CSRF}}">
-    <label class="field">Expires after<select name="expiry">{{range .Body.TTLs}}<option value="{{.Value}}"{{if .Default}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
-    <label class="check"><input type="checkbox" name="authorize" value="1" checked> Authorize first device directly</label>
-    <button class="btn primary" type="submit">Create invite</button>
+    <div class="field"><span class="field-label" id="expiry-label">Expires after</span>
+      <div class="seg-radio" role="radiogroup" aria-labelledby="expiry-label">
+        {{range .Body.TTLs}}<label><input type="radio" name="expiry" value="{{.Value}}"{{if .Default}} checked{{end}}><span>{{.Label}}</span></label>{{end}}
+      </div>
+    </div>
+    <label class="check-card"><input type="checkbox" name="authorize" value="1" checked><span class="check-box" aria-hidden="true">✓</span><span class="check-text"><span class="strong">Approve the first device directly</span><span class="help">No pending request for that device</span></span></label>
+    <button class="btn primary block" type="submit">Create invite</button>
   </form>
   {{if .Body.NewCode}}
   <div class="invite new" role="status">

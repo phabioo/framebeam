@@ -140,6 +140,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	h("POST /library/uploads/{id}/abort", s.guard(s.uploadAbort))
 	h("POST /library/{id}/rename", s.guard(s.libraryRename))
 	h("POST /library/{id}/delete", s.guard(s.libraryDelete))
+	h("GET /library/download/{id}", s.guard(s.libraryDownload))
 	h("GET /saves", s.guard(s.savesGet))
 	h("GET /saves/{user}/{game}/{slot}", s.guard(s.savesGet))
 	h("GET /saves/{user}/{game}/{slot}/download", s.guard(s.saveDownload))
@@ -155,12 +156,21 @@ func (s *Server) Register(mux *http.ServeMux) {
 	h("GET /clients", s.guard(s.clientsGet))
 	h("POST /clients/requests/{id}/allow", s.guard(s.clientAllow))
 	h("POST /clients/requests/{id}/deny", s.guard(s.clientDeny))
+	h("GET /clients/devices/{id}/revoke", s.guard(s.clientRevokeConfirm))
 	h("POST /clients/devices/{id}/revoke", s.guard(s.clientRevoke))
+	h("POST /clients/devices/{id}/rename", s.guard(s.clientRename))
 	h("GET /clients/devices/{id}/delete", s.guard(s.clientDeleteConfirm))
 	h("POST /clients/devices/{id}/delete", s.guard(s.clientDelete))
 	h("GET /users", s.guard(s.usersGet))
+	h("POST /users/create", s.guard(s.userCreate))
 	h("POST /users/invites", s.guard(s.inviteCreate))
+	h("GET /users/invites/{id}/revoke", s.guard(s.inviteRevokeConfirm))
 	h("POST /users/invites/{id}/revoke", s.guard(s.inviteRevoke))
+	h("POST /users/{id}/rename", s.guard(s.userRename))
+	h("POST /users/{id}/code", s.guard(s.userCodeNew))
+	h("POST /users/{id}/role", s.guard(s.userRoleUser))
+	h("GET /users/{id}/admin", s.guard(s.userAdminForm))
+	h("POST /users/{id}/admin", s.guard(s.userAdmin))
 	h("POST /users/{id}/disable", s.guard(s.userDisable))
 	h("POST /users/{id}/enable", s.guard(s.userEnable))
 	h("GET /users/{id}/delete", s.guard(s.userDeleteConfirm))
@@ -178,11 +188,16 @@ func (s *Server) Register(mux *http.ServeMux) {
 	h("GET /systems", s.guard(s.systemsGet))
 	h("POST /systems/{id}/cores/{core}/install", s.guard(s.coreInstall))
 	h("POST /systems/{id}/cores/{core}/update", s.guard(s.coreUpdate))
+	h("GET /systems/{id}/cores/{core}/remove", s.guard(s.coreRemoveConfirm))
 	h("POST /systems/{id}/cores/{core}/remove", s.guard(s.coreRemove))
+	h("POST /systems/{id}/cores/{core}/auto-update", s.guard(s.coreAutoUpdate))
+	h("POST /systems/{id}/auto-update", s.guard(s.systemAutoUpdate))
 	h("POST /systems/{id}/cores/{core}/default", s.guard(s.coreDefault))
 	h("POST /systems/{id}/firmware-mode", s.guard(s.systemFirmwareMode))
 	h("POST /systems/{id}/firmware/{file}/upload", s.guardUpload(s.firmwareUpload))
 	h("POST /systems/{id}/firmware/{file}/pin", s.guard(s.firmwarePin))
+	h("GET /systems/{id}/firmware/{file}/remove", s.guard(s.firmwareRemoveConfirm))
+	h("GET /systems/{id}/firmware/{file}/download", s.guard(s.firmwareDownload))
 	h("POST /systems/{id}/firmware/{file}/remove", s.guard(s.firmwareRemove))
 	h("POST /cores/sync", s.guard(s.coresSync))
 	h("POST /cores/auto-update", s.guard(s.coresAutoUpdate))
@@ -192,6 +207,14 @@ func (s *Server) Register(mux *http.ServeMux) {
 	h("POST /runs/{id}/resume", s.guard(s.runStatusAction(hub.RunActive, "runresumed")))
 	h("POST /runs/{id}/archive", s.guard(s.runArchiveAction(true, "runarchived")))
 	h("POST /runs/{id}/unarchive", s.guard(s.runArchiveAction(false, "rununarchived")))
+	h("POST /runs/{id}/start", s.guard(s.runStart(false, "runstarted")))
+	h("POST /runs/{id}/start-without", s.guard(s.runStart(true, "runstarted")))
+	h("GET /runs/{id}/finish", s.guard(s.runFinishConfirm))
+	h("POST /runs/{id}/finish", s.guard(s.runFinish))
+	h("POST /runs/{id}/resend", s.guard(s.runResendAll))
+	h("POST /runs/{id}/invites/{uid}/resend", s.guard(s.runResendInvite))
+	h("GET /runs/{id}/invites/{uid}/remove", s.guard(s.runRemoveInviteConfirm))
+	h("POST /runs/{id}/invites/{uid}/remove", s.guard(s.runRemoveInvite))
 	h("GET /runs/{id}/export", s.guard(s.runExport))
 	h("GET /runs/{id}/delete", s.guard(s.runDeleteConfirm))
 	h("POST /runs/{id}/delete", s.guard(s.runDelete))
@@ -264,6 +287,11 @@ type pageData struct {
 
 var flashTexts = map[string]string{
 	"uploaded":        "ROM added to the library.",
+	"rescan":          "Scanning the import folder.",
+	"userrenamed":     "User renamed.",
+	"userrole":        "Role changed.",
+	"devrevoked":      "Access revoked.",
+	"devrenamed":      "Device renamed.",
 	"certrenewed":     "Certificate renewed. Every Player must confirm the new fingerprint on its next connection.",
 	"deleted":         "ROM deleted.",
 	"renamed":         "Title changed.",
@@ -301,6 +329,10 @@ var flashTexts = map[string]string{
 	"plugininstalled": "Plugin installed. Players on this Hub can now install it.",
 	"runpaused":       "Run paused. No new events are recorded until it is resumed.",
 	"runresumed":      "Run resumed.",
+	"runstarted":      "Run started.",
+	"runfinished":     "Run finished.",
+	"invitesent":      "Invite sent again.",
+	"inviteremoved":   "Invite removed.",
 	"runarchived":     "Run archived. Players no longer list it.",
 	"rununarchived":   "Run unarchived.",
 	"rundeleted":      "Run deleted.",
@@ -321,6 +353,7 @@ var errTexts = map[string]string{
 	"admin":            "Admins cannot be disabled or deleted.",
 	"nodevice":         "Device not found.",
 	"nouser":           "User not found.",
+	"rolekept":         "The role cannot be changed: the last admin and your own account stay admins, and a disabled user cannot become one.",
 	"noinvite":         "The invite is no longer active.",
 	"renewfailed":      "The certificate could not be renewed. The previous certificate stays active; see the Hub log.",
 	"renewunsupported": "This Hub cannot renew its certificate here (own certificate or plain HTTP).",

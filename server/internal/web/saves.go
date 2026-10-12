@@ -25,18 +25,21 @@ type saveRow struct {
 }
 
 type saveCheckpointView struct {
-	Rev                  int
-	Device, When, Reason string
-	Size, ShortHash      string
-	DownloadHref         string
+	Rev             int
+	Label           string // "v6" when the current checkpoint has a history version, else "Rev 6"
+	Device, Reason  string
+	At              When
+	Size, ShortHash string
+	DownloadHref    string
 }
 
 type saveSideView struct {
-	Label, Heading, Device, When, Base, ShortHash string
+	Label, Heading, Device, Base, ShortHash string
+	At                                      When
 }
 
 type saveConflictView struct {
-	Title       string
+	Title, Note string
 	Hub, Local  saveSideView
 	ResolveHref string
 	ExpectedRev int
@@ -46,7 +49,8 @@ type saveConflictView struct {
 // saveHistoryView is one row of the history timeline. Kind is "current", "snapshot" or "" (other).
 type saveHistoryView struct {
 	Version      int
-	Device, Meta string
+	Device, Meta string // Meta is the reason line without the date (the date is At)
+	At           When
 	Current      bool
 	Snapshot     bool
 	Kind         string
@@ -62,18 +66,22 @@ type saveHistoryView struct {
 	DeleteOpen   bool   // the delete confirmation is shown under this row
 	ExpectedRev  int    // current revision the restore is based on
 	Slot         string
+	SlotLabel    string
+	Blocked      string // why Restore is disabled ("" = possible)
+	Menu         bool   // the row has a menu (snapshots: delete)
 }
 
 // saveTabView is a slot tab.
 type saveTabView struct {
-	Name, Href, Meta string
-	Selected         bool
-	Conflict         bool
+	Name, Label, Href, Meta string
+	Selected                bool
+	Conflict                bool
 }
 
 type saveDetailView struct {
 	Title, User, System string
 	Conflict            bool // any slot of the game has an open conflict
+	ConflictN           int  // open conflicts of all slots of the game
 	Tabs                []saveTabView
 	Slot                string
 	SnapshotHref        string
@@ -82,6 +90,12 @@ type saveDetailView struct {
 	Conflicts           []saveConflictView
 	History             []saveHistoryView
 	HistoryEmpty        string
+	Running             string // banner: restore is not possible while a Session of this game runs ("" = none)
+	SnapOpen            bool   // the snapshot label field is open
+	SnapOpenHref        string
+	SnapCloseHref       string
+	SlotLabel           string
+	HistoryCount        int
 	Snapshots           bool // filter "Snapshots" active
 	AllHref, SnapHref   string
 	Confirm             int // version whose restore confirmation is open (0 = none)
@@ -128,6 +142,7 @@ type uploadView struct {
 
 type uploadSlot struct {
 	Name     string
+	Label    string
 	Rev      int
 	Selected bool
 }
@@ -142,14 +157,17 @@ type uploadResult struct {
 
 // newSlotView is the inline "New slot" form. Error is set when a submit was refused.
 type newSlotView struct {
-	Game, From, Value, Error     string
-	PostHref, CancelHref, Cancel string
-	Max                          int
+	Game, From, FromLabel, Value, Error string
+	PostHref, CancelHref, Cancel        string
+	Max                                 int
 }
 
 type savesBody struct {
 	Users      []userOpt
 	UserFilter string
+	Query      string // search text for games and users
+	Total      int    // games in the list before the search
+	Filtered   bool   // a search or user filter is active
 	Rows       []saveRow
 	Detail     *saveDetailView
 	// ListURL is the URL the list region reloads itself from; OOB marks the list as an out-of-band part of a detail fragment.
@@ -175,29 +193,31 @@ var historyReasonLabels = map[string]string{
 	hub.HistoryBeforeUpload:     "Before upload",
 }
 
-// stamp formats a time as "today 19:10", "yesterday 18:05", "10-03 21:12" or "2025-10-03 21:12".
-func stamp(t, now time.Time) string {
-	lt, ln := t.Local(), now.Local()
-	switch {
-	case lt.Format("2006-01-02") == ln.Format("2006-01-02"):
-		return "today " + lt.Format("15:04")
-	case lt.AddDate(0, 0, 1).Format("2006-01-02") == ln.Format("2006-01-02"):
-		return "yesterday " + lt.Format("15:04")
-	case lt.Year() == ln.Year():
-		return lt.Format("01-02 15:04")
+// slotLabel is the display name of a slot: the Player calls the default slot "Main" (the API name stays "default").
+func slotLabel(name string) string {
+	if name == hub.DefaultSlot {
+		return "Main"
 	}
-	return lt.Format("2006-01-02 15:04")
+	return name
 }
 
 func saveHref(userID, gameID, slot string) string {
 	return "/saves/" + url.PathEscape(userID) + "/" + url.PathEscape(gameID) + "/" + url.PathEscape(slot)
 }
 
-// savesURL builds a Saves URL: path plus the user filter, the history filter and an open restore confirmation.
-func savesURL(path, user, hist string, confirm int) string {
+// sfilt is the list filter of the Saves page: one user and a search text for games and users.
+type sfilt struct{ User, Q string }
+
+func (f sfilt) empty() bool { return f.User == "" && f.Q == "" }
+
+// savesURL builds a Saves URL: path plus the list filter, the history filter and an open restore confirmation.
+func savesURL(path string, f sfilt, hist string, confirm int) string {
 	v := url.Values{}
-	if user != "" {
-		v.Set("user", user)
+	if f.User != "" {
+		v.Set("user", f.User)
+	}
+	if f.Q != "" {
+		v.Set("q", f.Q)
 	}
 	if hist != "" {
 		v.Set("hist", hist)
@@ -220,8 +240,8 @@ func withParam(u, k, v string) string {
 	return u + sep + url.QueryEscape(k) + "=" + url.QueryEscape(v)
 }
 
-func cancelParam(user, hist string) string {
-	if user == "" && hist == "" {
+func cancelParam(f sfilt, hist string) string {
+	if f.empty() && hist == "" {
 		return "?cancel=1"
 	}
 	return "&cancel=1"
@@ -260,7 +280,7 @@ func webDeviceLabel(name, id string, names map[string]string) string {
 func (s *Server) savesBody(r *http.Request, nf *newSlotView, viewer string) (savesBody, error) {
 	ctx := r.Context()
 	q := r.URL.Query()
-	filter, hist := q.Get("user"), q.Get("hist")
+	filter, hist := sfilt{User: q.Get("user"), Q: strings.TrimSpace(q.Get("q"))}, q.Get("hist")
 	if hist != "snapshots" {
 		hist = ""
 	}
@@ -270,7 +290,7 @@ func (s *Server) savesBody(r *http.Request, nf *newSlotView, viewer string) (sav
 	if err != nil {
 		return savesBody{}, err
 	}
-	b := savesBody{UserFilter: filter, ListURL: savesURL(r.URL.Path, filter, "", 0)}
+	b := savesBody{UserFilter: filter.User, Query: filter.Q, ListURL: savesURL(r.URL.Path, filter, "", 0)}
 	for _, u := range users {
 		b.Users = append(b.Users, userOpt{u.ID, u.DisplayName})
 	}
@@ -278,7 +298,7 @@ func (s *Server) savesBody(r *http.Request, nf *newSlotView, viewer string) (sav
 	for _, u := range users {
 		names[u.ID] = u.DisplayName
 	}
-	rows, err := s.svc.ListSaveSlots(ctx, filter)
+	rows, err := s.svc.ListSaveSlots(ctx, filter.User)
 	if err != nil {
 		return savesBody{}, err
 	}
@@ -294,6 +314,19 @@ func (s *Server) savesBody(r *http.Request, nf *newSlotView, viewer string) (sav
 			groups = append(groups, g)
 		}
 		g.slots = append(g.slots, row)
+	}
+	b.Total = len(groups)
+	b.Filtered = !filter.empty()
+	if needle := strings.ToLower(filter.Q); needle != "" {
+		kept := groups[:0:0]
+		for _, g := range groups {
+			f0 := g.slots[0]
+			if strings.Contains(strings.ToLower(f0.GameTitle), needle) || strings.Contains(strings.ToLower(f0.Username), needle) ||
+				strings.Contains(strings.ToLower(names[g.user]), needle) {
+				kept = append(kept, g)
+			}
+		}
+		groups = kept
 	}
 	selUser, selGame, selSlot := r.PathValue("user"), r.PathValue("game"), r.PathValue("slot")
 	var sel *saveGroup
@@ -332,9 +365,9 @@ func (s *Server) savesBody(r *http.Request, nf *newSlotView, viewer string) (sav
 		v := saveRow{Href: savesURL(saveHref(g.user, g.game, first.Slot), filter, "", 0), Title: first.GameTitle, Initial: initial(first.GameTitle),
 			Conflict: conflicts > 0, Selected: sel == g}
 		if conflicts > 0 {
-			v.Line = plural(conflicts, "conflict", "conflicts")
+			v.Line = "▲ " + plural(conflicts, "conflict", "conflicts")
 		} else {
-			v.Line = "Synced · " + stamp(latest, now)
+			v.Line = "Synced · " + ago(latest, now)
 			if len(g.slots) > 1 {
 				v.Line += fmt.Sprintf(" · %d slots", len(g.slots))
 			}
@@ -419,10 +452,10 @@ func uploadResultFor(q url.Values, cur hub.SaveCheckpoint, hist []hub.SaveVersio
 	return nil
 }
 
-func (s *Server) saveDetail(r *http.Request, grp *saveGroup, slotName, filter, hist string, confirm, del int, nf *newSlotView, now time.Time, viewer string, names map[string]string) (*saveDetailView, error) {
+func (s *Server) saveDetail(r *http.Request, grp *saveGroup, slotName string, filter sfilt, hist string, confirm, del int, nf *newSlotView, now time.Time, viewer string, names map[string]string) (*saveDetailView, error) {
 	ctx := r.Context()
 	first := grp.slots[0]
-	d := &saveDetailView{Title: first.GameTitle, User: first.Username, Slot: slotName, Snapshots: hist == "snapshots", Retention: s.retentionText()}
+	d := &saveDetailView{Title: first.GameTitle, User: first.Username, Slot: slotName, SlotLabel: slotLabel(slotName), Snapshots: hist == "snapshots", Retention: s.retentionText()}
 	if g, err := s.svc.GetGame(ctx, grp.game); err == nil {
 		d.System = g.System
 		if systems, err := s.svc.Systems(ctx); err == nil {
@@ -442,11 +475,12 @@ func (s *Server) saveDetail(r *http.Request, grp *saveGroup, slotName, filter, h
 		if sl.Slot == slotName {
 			selHist = h
 		}
-		t := saveTabView{Name: sl.Slot, Href: savesURL(saveHref(grp.user, grp.game, sl.Slot), filter, "", 0), Selected: sl.Slot == slotName,
+		t := saveTabView{Name: sl.Slot, Label: slotLabel(sl.Slot), Href: savesURL(saveHref(grp.user, grp.game, sl.Slot), filter, "", 0), Selected: sl.Slot == slotName,
 			Conflict: sl.OpenConflictCount > 0, Meta: plural(len(h), "version", "versions")}
 		if t.Conflict {
 			t.Meta = plural(sl.OpenConflictCount, "conflict", "conflicts")
 			d.Conflict = true
+			d.ConflictN += sl.OpenConflictCount
 		}
 		d.Tabs = append(d.Tabs, t)
 	}
@@ -457,30 +491,61 @@ func (s *Server) saveDetail(r *http.Request, grp *saveGroup, slotName, filter, h
 	href := saveHref(grp.user, grp.game, slotName)
 	d.RefreshURL = savesURL(href, filter, hist, 0)
 	d.NewSlotAsk = withParam(savesURL(href, filter, "", 0), "newslot", "1")
-	running, err := s.svc.SessionRunningFor(ctx, grp.user, grp.game)
+	rs, running, err := s.svc.RunningSessionFor(ctx, grp.user, grp.game)
 	if err != nil {
 		return nil, err
+	}
+	blocked := ""
+	if running {
+		blocked = "Not possible while " + rs.DeviceName + " is playing"
+		d.Running = "Restore not possible while a Session of this game is running · " + rs.DeviceName + " is playing " + first.GameTitle + " since " + fmtWhen(rs.Since, now).Text
 	}
 	q := r.URL.Query()
 	d.Up = uploadView{Can: grp.user == viewer, Running: running, Open: !running && (q.Get("upload") != "" || uploadFailed(q)), Action: href + "/upload",
 		OpenHref: withParam(savesURL(href, filter, hist, 0), "upload", "1"), CloseHref: savesURL(href, filter, hist, 0), Version: slot.Current.Revision}
 	for _, sl := range grp.slots {
-		d.Up.Slots = append(d.Up.Slots, uploadSlot{Name: sl.Slot, Rev: sl.Current.Revision, Selected: sl.Slot == slotName})
+		d.Up.Slots = append(d.Up.Slots, uploadSlot{Name: sl.Slot, Label: slotLabel(sl.Slot), Rev: sl.Current.Revision, Selected: sl.Slot == slotName})
 	}
 	if nf != nil {
-		nf.Game, nf.From, nf.Max = d.Title, slotName, hub.MaxSlotName
+		nf.Game, nf.From, nf.FromLabel, nf.Max = d.Title, slotName, slotLabel(slotName), hub.MaxSlotName
 		nf.PostHref = href + "/slots"
 		nf.CancelHref = savesURL(href, filter, hist, 0)
 		nf.Cancel = withParam(nf.CancelHref, "cancel", "1")
 		d.NewSlot = nf
 	}
 	d.AllHref, d.SnapHref = savesURL(href, filter, "", 0), savesURL(href, filter, "snapshots", 0)
+	d.SnapOpenHref, d.SnapCloseHref = withParam(savesURL(href, filter, hist, 0), "snap", "1"), savesURL(href, filter, hist, 0)
+	if !running && q.Get("snap") != "" {
+		d.SnapOpen = true
+		d.RefreshURL = withParam(d.RefreshURL, "snap", "1")
+	}
 	cur := slot.Current
 	d.SnapshotHref, d.ExpectedRev = href+"/snapshots", cur.Revision
-	d.Current = saveCheckpointView{Rev: cur.Revision, Device: webDeviceLabel(cur.DeviceName, cur.DeviceID, names), When: stamp(cur.CreatedAt, now), Reason: syncReasonLabels[cur.Reason],
-		Size: humanBytes(cur.Size), ShortHash: shortHash(cur.SHA256), DownloadHref: href + "/download"}
+	d.Current = saveCheckpointView{Rev: cur.Revision, Label: fmt.Sprintf("Rev %d", cur.Revision), Device: webDeviceLabel(cur.DeviceName, cur.DeviceID, names),
+		At: when(cur.CreatedAt, now), Reason: syncReasonLabels[cur.Reason], Size: humanBytes(cur.Size), ShortHash: shortHash(cur.SHA256), DownloadHref: href + "/download"}
+	// History versions by revision: the Current marker belongs to exactly one version (a snapshot of the
+	// current checkpoint has the same revision; the original version wins), and conflicts name versions, not revisions.
+	verOfRev := map[int]int{}
+	for _, v := range selHist { // newest first
+		if v.Reason == hub.HistoryConflictUpload {
+			continue
+		}
+		if have, ok := verOfRev[v.Revision]; !ok || (v.Reason != hub.HistoryManualSnapshot && snapshotVersion(selHist, have)) {
+			verOfRev[v.Revision] = v.Version
+		}
+	}
+	currentVersion := verOfRev[cur.Revision]
+	if currentVersion > 0 {
+		d.Current.Label = fmt.Sprintf("v%d", currentVersion)
+	}
+	revLabel := func(rev int) string {
+		if v := verOfRev[rev]; v > 0 {
+			return fmt.Sprintf("v%d", v)
+		}
+		return fmt.Sprintf("Rev %d", rev)
+	}
 	if slotName != hub.DefaultSlot {
-		o := slotOpsView{Show: true, Running: running, Max: hub.MaxSlotName, Rev: cur.Revision, When: stamp(cur.CreatedAt, now),
+		o := slotOpsView{Show: true, Running: running, Max: hub.MaxSlotName, Rev: cur.Revision, When: ago(cur.CreatedAt, now),
 			Device: webDeviceLabel(cur.DeviceName, cur.DeviceID, names), Size: humanBytes(cur.Size), Versions: len(selHist),
 			CancelHref: savesURL(href, filter, hist, 0), RenameHref: href + "/rename", DeleteHref: href + "/delete",
 			RenameAsk: withParam(savesURL(href, filter, hist, 0), "rename", "1"), DeleteAsk: withParam(savesURL(href, filter, hist, 0), "delslot", "1")}
@@ -497,31 +562,34 @@ func (s *Server) saveDetail(r *http.Request, grp *saveGroup, slotName, filter, h
 	}
 	for _, c := range slot.OpenConflicts {
 		d.Conflicts = append(d.Conflicts, saveConflictView{
-			Title: fmt.Sprintf("▲ Conflict: upload is based on Rev %d, current is Rev %d", c.Secured.BaseRevision, c.Hub.Revision),
-			Hub: saveSideView{Label: "Current checkpoint on the Hub", Heading: fmt.Sprintf("Rev %d", c.Hub.Revision), Device: c.Hub.DeviceName,
-				When: stamp(c.Hub.CreatedAt, now), Base: "–", ShortHash: shortHash(c.Hub.SHA256)},
+			Title: fmt.Sprintf("▲ Conflict: v%d is based on %s, the current version is %s", c.Secured.Version, revLabel(c.Secured.BaseRevision), revLabel(c.Hub.Revision)),
+			Note:  "Both are kept in the history. Nothing is overwritten until you choose.",
+			Hub: saveSideView{Label: "Current checkpoint on the Hub", Heading: revLabel(c.Hub.Revision), Device: c.Hub.DeviceName,
+				At: when(c.Hub.CreatedAt, now), Base: "–", ShortHash: shortHash(c.Hub.SHA256)},
 			Local: saveSideView{Label: "Secured upload · sync pending", Heading: fmt.Sprintf("Local save (v%d)", c.Secured.Version), Device: c.Secured.DeviceName,
-				When: stamp(c.Secured.CreatedAt, now), Base: fmt.Sprintf("Rev %d", c.Secured.BaseRevision), ShortHash: shortHash(c.Secured.SHA256)},
+				At: when(c.Secured.CreatedAt, now), Base: revLabel(c.Secured.BaseRevision), ShortHash: shortHash(c.Secured.SHA256)},
 			ResolveHref: href + "/conflicts/" + url.PathEscape(c.ID) + "/resolve", ExpectedRev: c.Hub.Revision, KeepHref: savesURL(href, filter, hist, 0),
 		})
 	}
 	for _, v := range selHist {
-		meta := stamp(v.CreatedAt, now) + " · " + historyReasonLabels[v.Reason]
-		if v.Reason == hub.HistoryConflictUpload && v.BaseRevision != nil {
-			meta += fmt.Sprintf(" · based on Rev %d", *v.BaseRevision)
-		} else {
-			meta += fmt.Sprintf(" · Rev %d", v.Revision)
+		meta := historyReasonLabels[v.Reason]
+		switch {
+		case v.Reason == hub.HistoryConflictUpload && v.BaseRevision != nil:
+			meta += " · based on " + revLabel(*v.BaseRevision)
+		case v.Reason == hub.HistoryManualSnapshot:
+			meta = "Manual snapshot of " + revLabel(v.Revision)
 		}
 		vs := strconv.Itoa(v.Version)
-		hv := saveHistoryView{Version: v.Version, Device: webDeviceLabel(v.DeviceName, v.DeviceID, names), Meta: meta,
-			Current:      v.Reason != hub.HistoryConflictUpload && v.Revision == cur.Revision,
+		hv := saveHistoryView{Version: v.Version, Device: webDeviceLabel(v.DeviceName, v.DeviceID, names), Meta: meta, At: when(v.CreatedAt, now),
+			Current:      v.Version == currentVersion,
 			Snapshot:     v.Reason == hub.HistoryManualSnapshot,
 			DownloadHref: href + "/history/" + vs + "/download",
 			RestoreHref:  href + "/history/" + vs + "/restore",
 			ConfirmHref:  savesURL(href, filter, hist, v.Version),
 			DeleteHref:   href + "/history/" + vs + "/delete",
 			DeleteAsk:    withParam(savesURL(href, filter, hist, 0), "delete", vs),
-			CancelHref:   savesURL(href, filter, hist, 0), CancelXHR: savesURL(href, filter, hist, 0) + cancelParam(filter, hist), ExpectedRev: cur.Revision, Slot: slotName}
+			CancelHref:   savesURL(href, filter, hist, 0), CancelXHR: savesURL(href, filter, hist, 0) + cancelParam(filter, hist), ExpectedRev: cur.Revision, Slot: slotName, SlotLabel: slotLabel(slotName), Blocked: blocked}
+		hv.Menu = hv.Snapshot
 		switch {
 		case hv.Current:
 			hv.Kind = "current"
@@ -555,6 +623,7 @@ func (s *Server) saveDetail(r *http.Request, grp *saveGroup, slotName, filter, h
 			d.RefreshURL = withParam(d.RefreshURL, "upload", "1")
 		}
 	}
+	d.HistoryCount = len(selHist)
 	d.HistoryEmpty = "No history versions yet."
 	if d.Snapshots {
 		d.HistoryEmpty = "No snapshots yet."
@@ -1043,4 +1112,14 @@ func (s *Server) saveDeleteSlot(w http.ResponseWriter, r *http.Request, sess *se
 	default:
 		s.fail(w, r, err)
 	}
+}
+
+// snapshotVersion reports whether the history version is a manual snapshot.
+func snapshotVersion(hist []hub.SaveVersion, version int) bool {
+	for _, v := range hist {
+		if v.Version == version {
+			return v.Reason == hub.HistoryManualSnapshot
+		}
+	}
+	return false
 }
