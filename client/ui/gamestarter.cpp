@@ -347,7 +347,7 @@ void GameStarter::onSaveReady(const QString& gameId, const QString& saveDir, con
   }
   emit selectedGameChanged();
   emit gameLaunched(launchGame_.id);
-  emit systemInputSelected(man->inputProfile, man->inputLabel, man->touchLabel);
+  emit systemInputSelected(man->inputProfile, man->inputLabel, man->display.touchScreenIndex() >= 0 ? man->touchLabel : QString());
   session_.start(cfg);
 }
 

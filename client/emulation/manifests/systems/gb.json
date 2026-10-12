@@ -1,0 +1,56 @@
+{
+  "system_id": "gb",
+  "display_name": "Game Boy",
+  "order": 300,
+  "extensions": [
+    ".gb"
+  ],
+  "firmware": {
+    "required": false,
+    "files": [
+      {
+        "id": "gb_bios",
+        "name": "gb_bios.bin"
+      }
+    ]
+  },
+  "input_profile": "gb",
+  "input": {
+    "map": {
+      "a": "a",
+      "b": "b",
+      "start": "start",
+      "select": "select",
+      "up": "up",
+      "down": "down",
+      "left": "left",
+      "right": "right",
+      "lup": "up",
+      "ldown": "down",
+      "lleft": "left",
+      "lright": "right"
+    },
+    "labels": {
+      "lup": "D-PAD ▲ (2nd)",
+      "ldown": "D-PAD ▼ (2nd)",
+      "lleft": "D-PAD ◀ (2nd)",
+      "lright": "D-PAD ▶ (2nd)"
+    }
+  },
+  "display_profile": "single_screen",
+  "identity": "gb_header",
+  "labels": {
+    "input": "GB"
+  },
+  "display": {
+    "layout": "single",
+    "gap": 0,
+    "screens": [
+      {
+        "id": "main",
+        "width": 160,
+        "height": 144
+      }
+    ]
+  }
+}

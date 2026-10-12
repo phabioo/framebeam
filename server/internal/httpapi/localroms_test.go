@@ -1,11 +1,13 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -181,4 +183,38 @@ func contains(l []string, v string) bool {
 		}
 	}
 	return false
+}
+
+// A gba and a gb game with an identity pass the response validation against the OpenAPI spec (the new kinds).
+func TestGameBoyIdentityOverHTTP(t *testing.T) {
+	s := newSessEnv(t, nil)
+	ctx := context.Background()
+	d := s.device(s.admin.ID, "Admin PC")
+	gba := make([]byte, 0x100)
+	copy(gba[0xAC:], "ABCE")
+	gba[0xBC] = 2
+	gb := make([]byte, 0x150)
+	copy(gb[0x134:], "SYNTH")
+	var sum byte
+	for i := 0x134; i <= 0x14C; i++ {
+		sum = sum - gb[i] - 1
+	}
+	gb[0x14D] = sum
+	for name, rom := range map[string][]byte{"a.gba": gba, "b.gb": gb} {
+		if _, err := s.svc.AddROM(ctx, bytes.NewReader(rom), name, "", "", s.admin.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	rec := s.do("GET", "/api/v1/games", nil, opt{token: d.tok})
+	wantStatus(t, rec, 200, "")
+	got := map[string]string{}
+	for _, g := range decode[struct{ Games []map[string]any }](t, rec).Games {
+		got[g["game_code_kind"].(string)] = g["game_code"].(string)
+	}
+	if got["gba-gamecode"] != "ABCE" || got["gb-title"] != "SYNTH" {
+		t.Fatalf("%v", got)
+	}
+	// Registration with a Game Boy title from the Player.
+	body := map[string]any{"sha256": strings.Repeat("ab", 32), "size": 100, "filename": "c.gbc", "game_code": "LONGTITLE12", "game_version": 1}
+	wantStatus(t, s.do("POST", "/api/v1/games/register", body, opt{token: d.tok}), 201, "")
 }

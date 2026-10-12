@@ -1,5 +1,7 @@
 #include "system_manifest.h"
 
+#include "inputmap.h"
+
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -128,6 +130,15 @@ std::optional<SystemManifest> ManifestRegistry::parse(const QByteArray& json, QS
   m.order = o.value(QLatin1String("order")).toInt(100);
   m.inputProfile = o.value(QLatin1String("input_profile")).toString();
   m.displayProfile = o.value(QLatin1String("display_profile")).toString();
+  m.identity = o.value(QLatin1String("identity")).toString();
+  const QJsonObject in = o.value(QLatin1String("input")).toObject();
+  for (const bool labels : {false, true}) {
+    const QJsonObject obj = in.value(QLatin1String(labels ? "labels" : "map")).toObject();
+    for (auto it = obj.begin(); it != obj.end(); ++it) {
+      if (!it.value().isString() || it.value().toString().isEmpty()) return fail(QStringLiteral("input: invalid value for ") + it.key());
+      (labels ? m.inputLabels : m.inputMap).insert(it.key(), it.value().toString());
+    }
+  }
   const QJsonObject labels = o.value(QLatin1String("labels")).toObject();
   m.inputLabel = labels.value(QLatin1String("input")).toString(m.displayName);
   m.touchLabel = labels.value(QLatin1String("touch")).toString(QStringLiteral("Touch"));
@@ -284,6 +295,17 @@ bool ManifestRegistry::add(const SystemManifest& manifest, QString* error) {
     if (error) *error = QStringLiteral("Duplicate system_id: ") + manifest.systemId;
     return false;
   }
+  if (!manifest.inputProfile.isEmpty()) {
+    for (const SystemManifest& o : m_manifests) {
+      if (o.inputProfile == manifest.inputProfile && (o.inputMap != manifest.inputMap || o.inputLabels != manifest.inputLabels)) {
+        if (error) *error = QStringLiteral("Conflicting input maps for input_profile ") + manifest.inputProfile + QStringLiteral(" (") + o.systemId + QStringLiteral(")");
+        return false;
+      }
+    }
+  }
+  // Every path that loads manifests (builtin, directory, add) fills the input tables of the input library.
+  if (!manifest.inputProfile.isEmpty() && !input::registerInputProfile(manifest.inputProfile, manifest.inputMap, manifest.inputLabels, error))
+    return false;
   m_manifests.append(manifest);
   return true;
 }

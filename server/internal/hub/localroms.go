@@ -33,11 +33,8 @@ func nullInt(v *int) sql.NullInt64 {
 
 // gameCodeKindFor returns the identity kind a system's game code has ("" = the system has no identity).
 func gameCodeKindFor(system string) string {
-	switch system {
-	case "nds":
-		return GameCodeNDS
-	case "3ds":
-		return Game3DS
+	if r, ok := identityFor(system); ok {
+		return r.kind
 	}
 	return ""
 }
@@ -45,7 +42,7 @@ func gameCodeKindFor(system string) string {
 // validGameCode checks a client-supplied game code against the format of its kind.
 func validGameCode(kind, code string) bool {
 	switch kind {
-	case GameCodeNDS:
+	case GameCodeNDS, GameCodeGBA:
 		if len(code) != 4 {
 			return false
 		}
@@ -55,6 +52,9 @@ func validGameCode(kind, code string) bool {
 			}
 		}
 		return true
+	case GameTitleGB:
+		// Header title: 1..16 printable ASCII characters, trimmed (the Player shows other bytes as '?').
+		return code != "" && len(code) <= 16 && printableASCII([]byte(code)) && code == strings.TrimSpace(code)
 	case Game3DS:
 		if len(code) != 16 {
 			return false

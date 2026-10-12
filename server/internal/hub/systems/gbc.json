@@ -1,0 +1,15 @@
+{
+  "id": "gbc",
+  "display_name": "Game Boy Color",
+  "extensions": [".gbc"],
+  "libretro_ids": ["game_boy", "game_boy_color", "game_boy_advance"],
+  "platforms": ["windows-x86_64", "linux-x86_64"],
+  "provisioning": "Installed by the admin",
+  "input_profile": "gb",
+  "display_profile": "single_screen",
+  "firmware": [
+    {"id": "gbc_bios", "display_name": "Game Boy Color boot ROM", "file": "gbc_bios.bin", "sizes": [2304]}
+  ],
+  "identity": "gb_header",
+  "profiled_cores": ["mgba", "gambatte"]
+}

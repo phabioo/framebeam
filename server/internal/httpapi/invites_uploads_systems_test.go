@@ -275,7 +275,7 @@ func TestSystemsAndFirmwareAPI(t *testing.T) {
 			SHA256   *string `json:"sha256"`
 		} `json:"firmware"`
 	}
-	list := func() sys { // the nds entry (3ds is the second system, without firmware)
+	list := func() sys { // the nds entry (ordered by id: 3ds, gb, gba, gbc, nds)
 		rec := s.do("GET", "/api/v1/systems", nil, opt{token: d.tok})
 		wantStatus(t, rec, 200, "")
 		l := decode[struct {
@@ -284,10 +284,10 @@ func TestSystemsAndFirmwareAPI(t *testing.T) {
 				sys
 			}
 		}](t, rec).Systems
-		if len(l) != 2 || l[0].ID != "3ds" || l[0].FirmwareMode != "builtin" || len(l[0].Firmware) != 0 || l[1].ID != "nds" {
+		if len(l) != 5 || l[0].ID != "3ds" || l[0].FirmwareMode != "builtin" || len(l[0].Firmware) != 0 || l[4].ID != "nds" {
 			t.Fatalf("%+v", l)
 		}
-		return l[1].sys
+		return l[4].sys
 	}
 	nds := list()
 	if nds.FirmwareMode != "builtin" || nds.PreferredCoreID != "" || nds.ExpectedCoreVersion != nil || len(nds.Firmware) != 3 {

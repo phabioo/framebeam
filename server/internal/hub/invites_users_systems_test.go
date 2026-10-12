@@ -319,10 +319,10 @@ func sum(b []byte) string { h := sha256.Sum256(b); return hex.EncodeToString(h[:
 func TestRegistrySeed(t *testing.T) {
 	svc, _, _ := newAdmin(t)
 	reg, err := svc.ListRegistry(ctx)
-	if err != nil || len(reg) != 2 || reg[0].ID != "3ds" {
+	if err != nil || len(reg) != 5 || reg[0].ID != "3ds" || reg[1].ID != "gb" || reg[2].ID != "gba" || reg[3].ID != "gbc" {
 		t.Fatalf("%v %+v", err, reg)
 	}
-	e := reg[1]
+	e := reg[4]
 	if e.ID != "nds" || e.CoreID != "" || e.ExpectedCoreVersion != "" || len(e.Cores) != 0 || strings.Join(e.LibretroIDs, ",") != "nds" || e.FirmwareMode != hub.FirmwareBuiltin ||
 		e.Provisioning != "Installed by the admin" || strings.Join(e.Platforms, ",") != "windows-x86_64,linux-x86_64" {
 		t.Fatalf("%+v", e)

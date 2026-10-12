@@ -12,6 +12,8 @@ The Hub keeps the central, versioned copy of every save; the Player syncs with i
 
 Save source `none` (no sync) exists for systems that keep their data local-only; no system uses it at the moment.
 
+Game Boy, Game Boy Color and Game Boy Advance saves are the core's `SAVE_RAM` as `<game>.sav`, handled like melonDS DS.
+
 Nintendo 3DS (Azahar, save source `core_tree`, format `azahar_sdmc`, [ADR 0022](../adr/0022-nintendo-3ds-with-azahar.md) D3 amendment): Azahar keeps a virtual SD/NAND tree in the per-slot short dir `<data>/c/<16 hex>/Azahar/`. The Player packs only the game's save data (`sdmc/Nintendo 3DS/<id0>/<id1>/title/<high>/<low>/data/**` and `.../extdata/**`) into one deterministic, uncompressed tar, which is the slot's save on the Hub (opaque, 64 MiB limit; revisions, history, snapshots, conflicts and restore as above). Never synced: `nand/`, `sysdata/`, `shaders/`, `cheats/`, installed content.
 - Like DeSmuME `.dsv`, the tar is imported from the tree at start, during play and at the final sync, and exported into the tree before the core starts.
 - Before the tree is replaced by a different Hub version, it is written as `<slot dir>/<rom>.sav.tree-<timestamp>.bak`. Unmanaged files are never touched; an invalid archive blocks the start and leaves the tree untouched.

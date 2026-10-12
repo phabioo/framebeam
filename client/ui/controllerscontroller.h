@@ -59,6 +59,7 @@ class ControllersController : public QObject {
   // System-specific labels from the system manifest (column header, touch input name).
   Q_PROPERTY(QString systemLabel READ systemLabel NOTIFY labelsChanged)
   Q_PROPERTY(QString touchLabel READ touchLabel NOTIFY labelsChanged)
+  Q_PROPERTY(bool hasTouch READ hasTouch NOTIFY labelsChanged)  // the current system has a touch screen
   // Input test: ids of the FrameBeam inputs that are active on the selected device.
   Q_PROPERTY(QStringList activeInputs READ activeInputs NOTIFY testChanged)
   // Button labels (glyph sets, design 3f-2/3f-3). labelChoice = saved choice of the selected gamepad ("auto" | "xbox" |
@@ -100,7 +101,8 @@ class ControllersController : public QObject {
   QVariantList testCells() const;
   QString systemLabel() const { return systemLabel_; }
   QString touchLabel() const { return touchLabel_; }
-  void setSystemLabels(const QString& systemLabel, const QString& touchLabel);
+  bool hasTouch() const { return !touchLabel_.isEmpty(); }
+  void setSystemLabels(const QString& systemLabel, const QString& touchLabel);  // empty touchLabel = no touch screen: no Mouse device
 
   QVariantList hotkeyRows() const;
   int hotkeysChangedCount() const { return profiles_.hotkeysChangedCount(); }
@@ -116,9 +118,9 @@ class ControllersController : public QObject {
   bool padHotkeyModifierChanged() const { return profiles_.padHotkeyModifierChanged(); }
   QVariantMap hotkeyHints() const;
 
-  // Qt::Key -> joypad mask of the keyboard profile (nds system profile applied); keys that are hotkeys are left out.
+  // Qt::Key -> joypad mask of the keyboard profile (input profile of the system applied); keys that are hotkeys are left out.
   QHash<int, quint32> keyboardMap() const;
-  // Manifest input profile of the running/starting game ("nds", "3ds"): gamepad P1 and keyboard map follow it.
+  // Manifest input profile of the running/starting game: gamepad P1 and keyboard map follow it.
   void setInputProfile(const QString& profile);
 
   Q_INVOKABLE void selectDevice(const QString& key);
@@ -188,7 +190,7 @@ class ControllersController : public QObject {
 
   ControllerProfiles profiles_;
   input::GamepadService pads_;
-  QString inputProfile_ = QStringLiteral("nds");
+  QString inputProfile_;  // manifest input profile; empty until the first manifest or game sets it
   QString selected_ = QStringLiteral("keyboard");
   QString listening_;
   QString note_;

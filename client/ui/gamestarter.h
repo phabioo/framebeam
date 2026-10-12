@@ -84,7 +84,7 @@ class GameStarter : public QObject {
   void coreStateRefreshRequested();
   // The game is about to start on this Player (after the start sync): "last played" is recorded.
   void gameLaunched(const QString& gameId);
-  // The system about to start: input profile ("nds", "3ds") and the short labels of its input / touch columns.
+  // The system about to start: input profile and the short labels of its input / touch columns (touch label empty = the system has no touch screen).
   void systemInputSelected(const QString& inputProfile, const QString& inputLabel, const QString& touchLabel);
 
  private:

@@ -2,6 +2,9 @@
 
 #include "controllerprofiles.h"
 
+#include <mutex>
+#include <shared_mutex>
+
 namespace framebeam::input {
 
 quint32 inputBit(const QString& inputId) {
@@ -10,64 +13,98 @@ quint32 inputBit(const QString& inputId) {
 }
 
 namespace {
-// RETRO_DEVICE_ID_JOYPAD_*: B=0 Y=1 SELECT=2 START=3 UP=4 DOWN=5 LEFT=6 RIGHT=7 A=8 X=9 L=10 R=11 L2=12 R2=13 L3=14 R3=15
-const QHash<QString, quint32>& baseBits() {
-  static const QHash<QString, quint32> ids = {
-      {QStringLiteral("b"), 1u << 0},      {QStringLiteral("y"), 1u << 1},     {QStringLiteral("select"), 1u << 2},
-      {QStringLiteral("start"), 1u << 3},  {QStringLiteral("up"), 1u << 4},    {QStringLiteral("down"), 1u << 5},
-      {QStringLiteral("left"), 1u << 6},   {QStringLiteral("right"), 1u << 7}, {QStringLiteral("a"), 1u << 8},
-      {QStringLiteral("x"), 1u << 9},      {QStringLiteral("l"), 1u << 10},    {QStringLiteral("r"), 1u << 11},
-  };
-  return ids;
-}
-// nds: the DS has no circle pad, so it acts as a second D-pad (the left stick of the built-in gamepad profile).
-const QHash<QString, quint32>& ndsBits() {
-  static const QHash<QString, quint32> ids = [] {
-    QHash<QString, quint32> h = baseBits();
-    h.insert(QStringLiteral("zl"), 1u << 10);  // ... and ZL/ZR into L/R (the built-in gamepad binds the triggers to them)
-    h.insert(QStringLiteral("zr"), 1u << 11);
-    h.insert(QStringLiteral("lup"), 1u << 4);
-    h.insert(QStringLiteral("ldown"), 1u << 5);
-    h.insert(QStringLiteral("lleft"), 1u << 6);
-    h.insert(QStringLiteral("lright"), 1u << 7);
-    return h;
-  }();
-  return ids;
-}
-// 3ds: separate D-pad and circle pad (left analog), ZL/ZR = L2/R2, C-stick = right analog.
-const QHash<QString, quint32>& threeDsBits() {
-  static const QHash<QString, quint32> ids = [] {
-    QHash<QString, quint32> h = baseBits();
-    h.insert(QStringLiteral("zl"), 1u << 12);
-    h.insert(QStringLiteral("zr"), 1u << 13);
-    h.insert(QStringLiteral("cup"), kLibretroCStickUp);
-    h.insert(QStringLiteral("cdown"), kLibretroCStickDown);
-    h.insert(QStringLiteral("cleft"), kLibretroCStickLeft);
-    h.insert(QStringLiteral("cright"), kLibretroCStickRight);
-    h.insert(QStringLiteral("lup"), kLibretroCirclePadUp);
-    h.insert(QStringLiteral("ldown"), kLibretroCirclePadDown);
-    h.insert(QStringLiteral("lleft"), kLibretroCirclePadLeft);
-    h.insert(QStringLiteral("lright"), kLibretroCirclePadRight);
-    return h;
-  }();
-  return ids;
-}
+struct ProfileTable {
+  QMap<QString, QString> map;     // as registered (conflict check)
+  QMap<QString, QString> labels;
+  QHash<QString, quint32> bits;   // input id -> libretro bits
+};
 
-quint32 mapMask(const QHash<QString, quint32>& table, quint32 inputMask) {
-  quint32 out = 0;
-  const auto& inputs = frameBeamInputs();
-  for (int i = 0; i < inputs.size(); ++i) {
-    if ((inputMask & (1u << i)) != 0) out |= table.value(inputs.at(i).id, 0u);
-  }
-  return out;
+std::shared_mutex& tablesMutex() {
+  static std::shared_mutex m;
+  return m;
+}
+QHash<QString, ProfileTable>& tables() {
+  static QHash<QString, ProfileTable> t;
+  return t;
+}
+// Caller holds the lock.
+const ProfileTable* tableFor(const QString& profile) {
+  const auto it = tables().constFind(profile);
+  if (it != tables().cend()) return &it.value();
+  const auto nds = tables().constFind(QStringLiteral("nds"));
+  return nds != tables().cend() ? &nds.value() : nullptr;
 }
 }  // namespace
 
-quint32 ndsLibretroMask(quint32 inputMask) { return mapMask(ndsBits(), inputMask); }
-quint32 threeDsLibretroMask(quint32 inputMask) { return mapMask(threeDsBits(), inputMask); }
+quint32 libretroTargetBit(const QString& target) {
+  // RETRO_DEVICE_ID_JOYPAD_*: B=0 Y=1 SELECT=2 START=3 UP=4 DOWN=5 LEFT=6 RIGHT=7 A=8 X=9 L=10 R=11 L2=12 R2=13 L3=14 R3=15
+  static const QHash<QString, quint32> ids = [] {
+    QHash<QString, quint32> h;
+    const char* joypad[] = {"b", "y", "select", "start", "up", "down", "left", "right", "a", "x", "l", "r", "l2", "r2", "l3", "r3"};
+    for (int i = 0; i < 16; ++i) h.insert(QLatin1String(joypad[i]), 1u << i);
+    const char* dirs[] = {"_up", "_down", "_left", "_right"};
+    for (int i = 0; i < 4; ++i) {
+      h.insert(QStringLiteral("c_stick") + QLatin1String(dirs[i]), 1u << (16 + i));
+      h.insert(QStringLiteral("circle_pad") + QLatin1String(dirs[i]), 1u << (20 + i));
+    }
+    return h;
+  }();
+  return ids.value(target, 0u);
+}
+
+bool registerInputProfile(const QString& profile, const QMap<QString, QString>& map, const QMap<QString, QString>& labels,
+                          QString* error) {
+  auto fail = [&](const QString& m) {
+    if (error) *error = m;
+    return false;
+  };
+  if (profile.isEmpty()) return fail(QStringLiteral("input profile: empty name"));
+  ProfileTable t;
+  t.map = map;
+  t.labels = labels;
+  for (auto it = map.cbegin(); it != map.cend(); ++it) {
+    if (inputIndex(it.key()) < 0) return fail(QStringLiteral("input.map: unknown input ") + it.key());
+    const quint32 bit = libretroTargetBit(it.value());
+    if (bit == 0) return fail(QStringLiteral("input.map: unknown target ") + it.value());
+    t.bits.insert(it.key(), bit);
+  }
+  std::unique_lock lock(tablesMutex());
+  const auto old = tables().constFind(profile);
+  if (old != tables().cend()) {
+    if (old->map == t.map && old->labels == t.labels) return true;
+    return fail(QStringLiteral("input profile ") + profile + QStringLiteral(": conflicting maps"));
+  }
+  tables().insert(profile, t);
+  return true;
+}
+
+void clearInputProfiles() {
+  std::unique_lock lock(tablesMutex());
+  tables().clear();
+}
+
+bool inputProfileMaps(const QString& profile, const QString& inputId) {
+  std::shared_lock lock(tablesMutex());
+  const ProfileTable* t = tableFor(profile);
+  return t && t->bits.contains(inputId);
+}
+
+QString inputProfileLabel(const QString& profile, const QString& inputId) {
+  std::shared_lock lock(tablesMutex());
+  const ProfileTable* t = tableFor(profile);
+  return t ? t->labels.value(inputId) : QString();
+}
 
 quint32 libretroMaskFor(const QString& inputProfile, quint32 inputMask) {
-  return inputProfile == QLatin1String("3ds") ? threeDsLibretroMask(inputMask) : ndsLibretroMask(inputMask);
+  std::shared_lock lock(tablesMutex());
+  const ProfileTable* t = tableFor(inputProfile);
+  if (!t) return 0;
+  quint32 out = 0;
+  const auto& inputs = frameBeamInputs();
+  for (int i = 0; i < inputs.size(); ++i) {
+    if ((inputMask & (1u << i)) != 0) out |= t->bits.value(inputs.at(i).id, 0u);
+  }
+  return out;
 }
 
 QHash<QString, quint32> compileBindings(const Bindings& bindings) {
@@ -79,8 +116,6 @@ QHash<QString, quint32> compileBindings(const Bindings& bindings) {
   }
   return out;
 }
-
-QHash<int, quint32> ndsKeyMap(const Bindings& bindings) { return keyMapFor(QStringLiteral("nds"), bindings); }
 
 QHash<int, quint32> keyMapFor(const QString& inputProfile, const Bindings& bindings) {
   QHash<int, quint32> out;

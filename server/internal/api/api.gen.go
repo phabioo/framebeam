@@ -234,6 +234,8 @@ func (e FirmwareMode) Valid() bool {
 // Defines values for GameGameCodeKind.
 const (
 	Empty       GameGameCodeKind = ""
+	GbTitle     GameGameCodeKind = "gb-title"
+	GbaGamecode GameGameCodeKind = "gba-gamecode"
 	N3dsTitleid GameGameCodeKind = "3ds-titleid"
 	NdsGamecode GameGameCodeKind = "nds-gamecode"
 )
@@ -242,6 +244,10 @@ const (
 func (e GameGameCodeKind) Valid() bool {
 	switch e {
 	case Empty:
+		return true
+	case GbTitle:
+		return true
+	case GbaGamecode:
 		return true
 	case N3dsTitleid:
 		return true
@@ -736,13 +742,13 @@ type FirmwareMode string
 type Game struct {
 	AddedAt time.Time `json:"added_at"`
 
-	// GameCode Identity read from the ROM header on upload/import: 4-character NDS game code or 16 uppercase hex digits (3DS program ID); empty when unknown or unreadable. Absent on Hubs before 1.16.0.
+	// GameCode Identity read from the ROM header on upload/import: 4-character NDS or GBA game code, 16 uppercase hex digits (3DS program ID) or the Game Boy header title (1 to 16 printable ASCII characters); the kind is `game_code_kind`; empty when unknown or unreadable. Absent on Hubs before 1.16.0.
 	GameCode *string `json:"game_code,omitempty"`
 
-	// GameCodeKind Kind of `game_code`; empty when unknown
+	// GameCodeKind Kind of `game_code`; empty when unknown. `gba-gamecode`: 4-character GBA game code; `gb-title`: Game Boy / Game Boy Color header title (only with a valid header checksum).
 	GameCodeKind *GameGameCodeKind `json:"game_code_kind,omitempty"`
 
-	// GameVersion ROM version of the identity: NDS header byte 0x1E, 3DS NCCH version. Absent when unknown (`local_roms_v1`).
+	// GameVersion ROM version of the identity: NDS header byte 0x1E, 3DS NCCH version, GBA byte 0xBC, Game Boy byte 0x14C. Absent when unknown (`local_roms_v1`).
 	GameVersion *int               `json:"game_version,omitempty"`
 	Id          openapi_types.UUID `json:"id"`
 
@@ -761,7 +767,7 @@ type Game struct {
 	UploadedBy string `json:"uploaded_by"`
 }
 
-// GameGameCodeKind Kind of `game_code`; empty when unknown
+// GameGameCodeKind Kind of `game_code`; empty when unknown. `gba-gamecode`: 4-character GBA game code; `gb-title`: Game Boy / Game Boy Color header title (only with a valid header checksum).
 type GameGameCodeKind string
 
 // HandshakeProblem defines model for HandshakeProblem.

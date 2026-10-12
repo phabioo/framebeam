@@ -167,7 +167,7 @@ func (s *Service) SystemCores(ctx context.Context, systemID string) (SystemCores
 		}
 	}
 	for _, c := range s.catalogCores() {
-		if have[c.ID] || !e.matchesSystemID(c.SystemID) || len(c.Builds) == 0 {
+		if have[c.ID] || !e.matchesCore(c.coreInfo) || len(c.Builds) == 0 {
 			continue
 		}
 		a := AvailableCore{CoreID: c.ID, DisplayName: c.DisplayName, License: c.License, RequiredHWAPI: c.RequiredHWAPI,
@@ -339,6 +339,35 @@ func extractLibrary(zipPath, want, suffix, dst string, maxBytes int64) (size int
 	return n, hex.EncodeToString(h.Sum(nil)), fmt.Sprintf("%08x", ch.Sum32()), nil
 }
 
+// dropUnreferencedVersions deletes the package rows of a core whose version no system_cores row uses and returns
+// those versions (their cache directories are removed after the commit).
+func dropUnreferencedVersions(ctx context.Context, tx *sql.Tx, coreID string) ([]string, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT DISTINCT version FROM core_packages WHERE core_id = ?
+		AND version NOT IN (SELECT version FROM system_cores WHERE core_id = ?)`, coreID, coreID)
+	if err != nil {
+		return nil, err
+	}
+	var vs []string
+	for rows.Next() {
+		var v string
+		if err := rows.Scan(&v); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		vs = append(vs, v)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	for _, v := range vs {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM core_packages WHERE core_id = ? AND version = ?`, coreID, v); err != nil {
+			return nil, err
+		}
+	}
+	return vs, nil
+}
+
 func (s *Service) packageVersionExists(ctx context.Context, coreID, version string) (bool, error) {
 	var n int
 	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM core_packages WHERE core_id = ? AND version = ?`, coreID, version).Scan(&n)
@@ -424,6 +453,7 @@ func (s *Service) installCore(ctx context.Context, e SystemEntry, info coreInfo,
 	}
 	now := s.now().Unix()
 	infoJSON, _ := json.Marshal(info)
+	var stale []string
 	err = func() error {
 		tx, err := s.db.BeginTx(ctx, nil)
 		if err != nil {
@@ -451,10 +481,15 @@ func (s *Service) installCore(ctx context.Context, e SystemEntry, info coreInfo,
 		if _, err := tx.ExecContext(ctx, `UPDATE systems SET default_core_id = ? WHERE id = ? AND (default_core_id IS NULL OR default_core_id = '')`, info.ID, e.ID); err != nil {
 			return err
 		}
-		if oldVersion != "" && oldVersion != version {
-			if _, err := tx.ExecContext(ctx, `DELETE FROM core_packages WHERE core_id = ? AND version = ?`, info.ID, oldVersion); err != nil {
-				return err
-			}
+		// One build per core (ADR 0020 D3): every system that has the core moves to the new version, and package
+		// versions that no system references anymore are dropped.
+		if _, err := tx.ExecContext(ctx, `UPDATE system_cores SET version = ?, installed_at = ?, origin = ?, display_name = ?, license = ?,
+			required_hw_api = ?, build_date = ?, crc32 = ?, info = ? WHERE core_id = ?`,
+			version, now, OriginBuildbot, info.DisplayName, info.License, info.RequiredHWAPI, newest, crcText, string(infoJSON), info.ID); err != nil {
+			return err
+		}
+		if stale, err = dropUnreferencedVersions(ctx, tx, info.ID); err != nil {
+			return err
 		}
 		return tx.Commit()
 	}()
@@ -462,8 +497,8 @@ func (s *Service) installCore(ctx context.Context, e SystemEntry, info coreInfo,
 		cleanup()
 		return zero, internal(err)
 	}
-	if oldVersion != "" && oldVersion != version {
-		os.RemoveAll(filepath.Join(s.dataDir, "cores", info.ID, oldVersion))
+	for _, v := range stale {
+		os.RemoveAll(filepath.Join(s.dataDir, "cores", info.ID, v))
 	}
 	m, err := s.loadInstalledCores(ctx, e.ID)
 	if err != nil {
@@ -489,7 +524,7 @@ func (s *Service) coreForInstall(ctx context.Context, systemID, coreID string) (
 	if !ok {
 		return e, c, badRequest("The core %s is not in the buildbot catalog. Check the source first", coreID)
 	}
-	if !e.matchesSystemID(c.SystemID) {
+	if !e.matchesCore(c.coreInfo) {
 		return e, c, badRequest("The core %s is not a core for %s", coreID, e.Name)
 	}
 	return e, c, nil
@@ -526,6 +561,26 @@ func (s *Service) InstallCore(ctx context.Context, systemID, coreID string) (_ I
 	}
 	if _, ok := e.installed(coreID); ok {
 		return InstalledCore{}, badRequest("%s is already installed. Use Update", c.DisplayName)
+	}
+	// Already installed for another system: reuse that build (all systems run one build per core).
+	var src string
+	err = s.db.QueryRowContext(ctx, `SELECT system_id FROM system_cores WHERE core_id = ? ORDER BY system_id LIMIT 1`, coreID).Scan(&src)
+	if err == nil {
+		if _, err := s.attachCore(ctx, e, src, coreID); err != nil {
+			return InstalledCore{}, err
+		}
+		m, err := s.loadInstalledCores(ctx, e.ID)
+		if err != nil {
+			return InstalledCore{}, err
+		}
+		for _, ic := range m[e.ID] {
+			if ic.CoreID == coreID {
+				return ic, nil
+			}
+		}
+		return InstalledCore{}, ErrNotFound
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return InstalledCore{}, internal(err)
 	}
 	return s.installCore(ctx, e, c.coreInfo, s.catalogSources(c), false)
 }
@@ -571,14 +626,9 @@ func (s *Service) RemoveCore(ctx context.Context, systemID, coreID string) (err 
 	if _, err := tx.ExecContext(ctx, `DELETE FROM system_cores WHERE system_id = ? AND core_id = ?`, systemID, coreID); err != nil {
 		return internal(err)
 	}
-	var others int
-	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM system_cores WHERE core_id = ?`, coreID).Scan(&others); err != nil {
+	stale, err := dropUnreferencedVersions(ctx, tx, coreID)
+	if err != nil {
 		return internal(err)
-	}
-	if others == 0 {
-		if _, err := tx.ExecContext(ctx, `DELETE FROM core_packages WHERE core_id = ?`, coreID); err != nil {
-			return internal(err)
-		}
 	}
 	if e.CoreID == coreID {
 		next := ""
@@ -605,9 +655,10 @@ func (s *Service) RemoveCore(ctx context.Context, systemID, coreID string) (err 
 	if err := tx.Commit(); err != nil {
 		return internal(err)
 	}
-	if others == 0 {
-		os.RemoveAll(filepath.Join(s.dataDir, "cores", coreID))
+	for _, v := range stale {
+		os.RemoveAll(filepath.Join(s.dataDir, "cores", coreID, v))
 	}
+	os.Remove(filepath.Join(s.dataDir, "cores", coreID)) // only succeeds when empty
 	return nil
 }
 

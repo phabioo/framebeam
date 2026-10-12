@@ -30,8 +30,116 @@ class ManifestTest : public QObject {
     QCOMPARE(nds->display.toFrameNormalized(1, {0.5, 0.5}), QPointF(0.5, 0.75));
     QVERIFY(nds->supportsExtension(QStringLiteral("NDS")));
     QVERIFY(reg.forExtension(QStringLiteral(".nds")) == nds);
-    QVERIFY(!reg.forExtension(QStringLiteral(".gba")));
+    QVERIFY(!reg.forExtension(QStringLiteral(".xyz")));
     QVERIFY(nds->firmware.fileById(QStringLiteral("firmware")));
+  }
+
+  void builtinGameBoySystems() {
+    ManifestRegistry reg;
+    QString err;
+    QVERIFY2(reg.loadBuiltin(&err), qPrintable(err));
+    struct Expect { const char* id; const char* name; int order; const char* ext; QSize size; const char* profile; const char* label; const char* fw; const char* identity; };
+    for (const Expect& e : {Expect{"gb", "Game Boy", 300, ".gb", QSize(160, 144), "gb", "GB", "gb_bios", "gb_header"},
+                            Expect{"gbc", "Game Boy Color", 310, ".gbc", QSize(160, 144), "gb", "GBC", "gbc_bios", "gb_header"},
+                            Expect{"gba", "Game Boy Advance", 320, ".gba", QSize(240, 160), "gba", "GBA", "gba_bios", "gba_header"}}) {
+      const SystemManifest* m = reg.find(QString::fromLatin1(e.id));
+      QVERIFY2(m, e.id);
+      QCOMPARE(m->displayName, QString::fromLatin1(e.name));
+      QCOMPARE(m->order, e.order);
+      QCOMPARE(m->extensions, QStringList{QString::fromLatin1(e.ext)});
+      QCOMPARE(m->display.layout, QStringLiteral("single"));
+      QCOMPARE(m->display.screens.size(), 1);
+      QCOMPARE(m->display.frameSize(), e.size);
+      QCOMPARE(m->display.touchScreenIndex(), -1);
+      QCOMPARE(m->displayProfile, QStringLiteral("single_screen"));
+      QCOMPARE(m->inputProfile, QString::fromLatin1(e.profile));
+      QCOMPARE(m->inputLabel, QString::fromLatin1(e.label));
+      QCOMPARE(m->identity, QString::fromLatin1(e.identity));
+      QVERIFY(!m->firmware.required);
+      QCOMPARE(m->firmware.files.size(), 1);
+      QCOMPARE(m->firmware.files.first().id, QString::fromLatin1(e.fw));
+      QCOMPARE(m->firmware.files.first().name, QString::fromLatin1(e.fw) + QStringLiteral(".bin"));
+      QVERIFY(!m->inputMap.isEmpty());
+      QCOMPARE(reg.forExtension(QString::fromLatin1(e.ext)), m);
+    }
+    // gb and gbc share one input map; gba adds the shoulder buttons.
+    QCOMPARE(reg.find(QStringLiteral("gb"))->inputMap, reg.find(QStringLiteral("gbc"))->inputMap);
+    QVERIFY(!reg.find(QStringLiteral("gb"))->inputMap.contains(QStringLiteral("l")));
+    QCOMPARE(reg.find(QStringLiteral("gba"))->inputMap.value(QStringLiteral("zl")), QStringLiteral("l"));
+    QCOMPARE(reg.find(QStringLiteral("gb"))->inputMap.value(QStringLiteral("lup")), QStringLiteral("up"));
+    // Listing order: the first system stays the DS.
+    QCOMPARE(reg.all().first().systemId, QStringLiteral("nds"));
+    QCOMPARE(reg.find(QStringLiteral("nds"))->identity, QStringLiteral("nds_header"));
+    QCOMPARE(reg.find(QStringLiteral("3ds"))->identity, QStringLiteral("3ds_ncsd"));
+  }
+
+  void builtinMgbaAndGambatte() {
+    ManifestRegistry reg;
+    QString err;
+    QVERIFY2(reg.loadBuiltin(&err), qPrintable(err));
+    const CoreProfile* mgba = reg.profile(QStringLiteral("mgba"));
+    QVERIFY(mgba);
+    QCOMPARE(mgba->displayName, QStringLiteral("mGBA"));
+    QCOMPARE(mgba->libraryBasename, QStringLiteral("mgba_libretro"));
+    QCOMPARE(mgba->systemIds, (QStringList{"gb", "gbc", "gba"}));
+    QCOMPARE(mgba->order, 0);
+    QCOMPARE(mgba->saveSource, QStringLiteral("save_ram"));
+    QCOMPARE(mgba->saveExtension, QStringLiteral(".sav"));
+    QCOMPARE(mgba->sysfileOption, QStringLiteral("mgba_use_bios"));
+    QCOMPARE(mgba->sysfileNative, QStringLiteral("ON"));
+    QCOMPARE(mgba->sysfileBuiltin, QStringLiteral("OFF"));
+    QCOMPARE(mgba->coreOptions.value(QStringLiteral("mgba_sgb_borders")), QStringLiteral("OFF"));
+    QCOMPARE(mgba->coreOptions.value(QStringLiteral("mgba_skip_bios")), QStringLiteral("OFF"));
+    QCOMPARE(mgba->lockedCoreOptions, QStringList{QStringLiteral("mgba_sgb_borders")});
+    QCOMPARE(mgba->alwaysShownCoreOptions, QStringList{QStringLiteral("mgba_color_correction")});
+
+    const CoreProfile* gam = reg.profile(QStringLiteral("gambatte"));
+    QVERIFY(gam);
+    QCOMPARE(gam->displayName, QStringLiteral("Gambatte"));
+    QCOMPARE(gam->libraryBasename, QStringLiteral("gambatte_libretro"));
+    QCOMPARE(gam->systemIds, (QStringList{"gb", "gbc"}));
+    QCOMPARE(gam->order, 10);
+    QCOMPARE(gam->sysfileOption, QStringLiteral("gambatte_gb_bootloader"));
+    QCOMPARE(gam->sysfileNative, QStringLiteral("enabled"));
+    QCOMPARE(gam->sysfileBuiltin, QStringLiteral("disabled"));
+    QCOMPARE(gam->coreOptions.value(QStringLiteral("gambatte_gb_link_mode")), QStringLiteral("Not Connected"));
+    QCOMPARE(gam->coreOptions.value(QStringLiteral("gambatte_show_gb_link_settings")), QStringLiteral("disabled"));
+    QCOMPARE(gam->lockedCoreOptions.size(), 2 + 1 + 12);
+    QVERIFY(gam->lockedCoreOptions.contains(QStringLiteral("gambatte_gb_link_network_port")));
+    QVERIFY(gam->lockedCoreOptions.contains(QStringLiteral("gambatte_gb_link_network_server_ip_12")));
+    QCOMPARE(gam->alwaysShownCoreOptions, QStringList{QStringLiteral("gambatte_gb_colorization")});
+
+    // Core choice per system: mGBA first for all three, Gambatte only for the Game Boy systems.
+    QCOMPARE(reg.profilesForSystem(QStringLiteral("gba")).size(), 1);
+    QCOMPARE(reg.profilesForSystem(QStringLiteral("gb")).first().coreId, QStringLiteral("mgba"));
+    QCOMPARE(reg.profilesForSystem(QStringLiteral("gbc")).size(), 2);
+    const auto eff = reg.resolve(QStringLiteral("gba"), QStringLiteral("mgba"));
+    QVERIFY(eff);
+    QVERIFY(!eff->experimental);
+    QCOMPARE(eff->display.frameSize(), QSize(240, 160));
+    QCOMPARE(eff->firmware.sysfileOption, QStringLiteral("mgba_use_bios"));
+    QVERIFY(!reg.resolve(QStringLiteral("gba"), QStringLiteral("gambatte"))->coreOptions.contains(QStringLiteral("gambatte_gb_link_mode")));
+  }
+
+  void conflictingInputMapsAreALoadError() {
+    ManifestRegistry reg;
+    const auto a = ManifestRegistry::parse(R"({"system_id":"a","display_name":"A","extensions":[".a"],"input_profile":"p",
+      "input":{"map":{"a":"a"}},"display":{"screens":[{"id":"m","width":8,"height":8}]}})");
+    auto b = *a;
+    b.systemId = QStringLiteral("b");
+    QVERIFY(a);
+    QVERIFY(reg.add(*a));
+    QVERIFY(reg.add(b));  // same profile, identical map
+    auto c = b;
+    c.systemId = QStringLiteral("c");
+    c.inputMap.insert(QStringLiteral("b"), QStringLiteral("b"));
+    QString err;
+    QVERIFY(!reg.add(c, &err));
+    QVERIFY(err.contains(QStringLiteral("input_profile p")));
+    c.inputProfile = QStringLiteral("q");  // another profile name is fine
+    QVERIFY(reg.add(c));
+    QVERIFY(!ManifestRegistry::parse(R"({"system_id":"a","display_name":"A","extensions":[".a"],"input":{"map":{"a":""}},
+      "display":{"screens":[{"id":"m","width":8,"height":8}]}})", &err));
   }
 
   void builtin3dsAndAzahar() {
@@ -140,7 +248,7 @@ class ManifestTest : public QObject {
     QCOMPARE(des->sysfileBuiltin, QStringLiteral("disabled"));
 
     QCOMPARE(reg.profilesForSystem(QStringLiteral("nds")).size(), 2);
-    QVERIFY(reg.profilesForSystem(QStringLiteral("gba")).isEmpty());
+    QVERIFY(reg.profilesForSystem(QStringLiteral("xyz")).isEmpty());
   }
 
   void resolveProfiledCore() {
@@ -167,7 +275,7 @@ class ManifestTest : public QObject {
     QVERIFY(d);
     QCOMPARE(d->display.frameSize(), QSize(256, 384));
     QCOMPARE(d->firmware.sysfileOption, QStringLiteral("desmume_use_external_bios"));
-    QVERIFY(!reg.resolve(QStringLiteral("gba"), QStringLiteral("melondsds")));
+    QVERIFY(!reg.resolve(QStringLiteral("xyz"), QStringLiteral("melondsds")));
   }
 
   void unknownCoreIsExperimental() {
@@ -193,7 +301,7 @@ class ManifestTest : public QObject {
     CoreProfile p;
     p.coreId = QStringLiteral("other-core");
     p.libraryBasename = QStringLiteral("other_libretro");
-    p.systemIds = {QStringLiteral("gba")};
+    p.systemIds = {QStringLiteral("xyz")};
     QVERIFY(reg2.addProfile(p));
     QVERIFY(!reg2.addProfile(p));  // duplicate
   }

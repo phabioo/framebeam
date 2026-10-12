@@ -2,6 +2,8 @@
 
 ## 6. Extensibility for further emulators
 
+Since 0.13 a new system is mostly data (Hub JSON, Player manifest, optional core profile), see [Adding a system](../guides/adding-a-system.md) and [ADR 0024](../adr/0024-system-template-and-game-boy.md); mGBA and Gambatte exist for Game Boy, Game Boy Color and Game Boy Advance.
+
 FrameBeam is not coupled directly to melonDS. The common emulator interface separates application logic and UI from the respective backend:
 
 ```text
@@ -25,6 +27,8 @@ The Hub validates expected metadata and hashes according to system/core requirem
 
 
 ## 10. Systems & Cores: registry and package provisioning
+
+Since 0.13 the system registry is data-driven: one embedded JSON per system on the Hub (`server/internal/hub/systems/<id>.json`), reconciled into SQLite at start without touching admin state; core discovery matches the core info `systemid` and `supported_extensions` ([ADR 0024](../adr/0024-system-template-and-game-boy.md), [guide](../guides/adding-a-system.md)). The Hub preselects no core.
 
 The Hub page **"Systems & Cores"** is retained. It manages the system registry and core registry: system ID, installed cores and the default core, core ID and supported platforms (until 0.7 also an expected version, retired by ADR 0020). The Hub never runs cores.
 

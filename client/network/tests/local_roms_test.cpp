@@ -190,7 +190,7 @@ class LocalRomsTest : public QObject {
     opt.folders = {dir_->filePath(QStringLiteral("roms"))};
     opt.extensionToSystem = {{QStringLiteral(".nds"), QStringLiteral("nds")}};
     opt.identity = [](const QString& path, const QString& system) {
-      const auto id = emu::readGameIdentity(path, system);
+      const auto id = emu::readGameIdentity(path, system == QLatin1String("nds") ? QStringLiteral("nds_header") : QString());  // test-only mapping
       return LocalRomIdentity{id.code, id.version};
     };
     QSignalSpy scanned(&index, &LocalRomIndex::scanFinished);

@@ -26,7 +26,7 @@ var buildbotPlatforms = []struct{ ID, Dir, Suffix string }{
 // BuildbotCore describes a core of the fake buildbot. Lib is the dummy library content (never a real core).
 type BuildbotCore struct {
 	ID, SystemID, DisplayName, License, RequiredHWAPI string
-	Extensions                                        string   // supported_extensions of the info file, default "nds|bin"
+	Extensions                                        string   // supported_extensions of the info file, default by system ("nds|bin" for nds)
 	Date                                              string   // build date YYYY-MM-DD for all platforms
 	Lib                                               []byte   // default: the core id repeated
 	Platforms                                         []string // default: all
@@ -65,6 +65,15 @@ func (b *Buildbot) Apply(o *hub.Options) {
 	o.CoreBuildbotURL = b.Server.URL + "/nightly"
 	o.CoreInfoURL = b.Server.URL + "/assets/frontend/info.zip"
 	o.CoreHTTPClient = b.Server.Client()
+}
+
+// ZipHits is the number of requests the zip of a core has received for a platform.
+func (b *Buildbot) ZipHits(platform, coreID string) int {
+	u := b.ZipURL(platform, coreID)
+	path := strings.TrimPrefix(u, b.Server.URL)
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.Hits[path]
 }
 
 // ZipURL is the URL of a core zip.
@@ -112,7 +121,16 @@ func makeZip(files map[string][]byte) ([]byte, error) {
 
 func infoText(c BuildbotCore) string {
 	if c.Extensions == "" {
-		c.Extensions = "nds|bin"
+		switch c.SystemID {
+		case "3ds":
+			c.Extensions = "3ds|3dsx|cci|cxi"
+		case "game_boy", "game_boy_color":
+			c.Extensions = "gb|gbc"
+		case "game_boy_advance":
+			c.Extensions = "gba"
+		default:
+			c.Extensions = "nds|bin"
+		}
 	}
 	hw := ""
 	if c.RequiredHWAPI != "" {

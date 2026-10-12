@@ -15,6 +15,7 @@
 #include "gamesession.h"
 #include "hubconnection.h"
 #include "playersettings.h"
+#include "system_manifest.h"
 #include "semver.h"
 #include "plugin_ui.h"
 
@@ -444,7 +445,7 @@ void PluginsController::gameStarted(const QString& system, const QString& romPat
   }
   plugins::GameContext ctx;
   ctx.system = system;
-  ctx.code = emu::readGameIdentity(romPath, system).code;
+  ctx.code = emu::readGameIdentity(romPath, identityReader(system)).code;
   ctx.sha256 = sha256;
   ctx.title = title;
   ctx.romPath = romPath;
@@ -1175,8 +1176,13 @@ QVariantList PluginsController::pluginsForGame(const QString& system, const QStr
   return out;
 }
 
+QString PluginsController::identityReader(const QString& system) const {
+  const emu::SystemManifest* m = manifests_ ? manifests_->find(system) : nullptr;
+  return m ? m->identity : QString();
+}
+
 QString PluginsController::gameCode(const QString& system, const QString& romPath) const {
-  return romPath.isEmpty() || !QFileInfo::exists(romPath) ? QString() : emu::readGameIdentity(romPath, system).code;
+  return romPath.isEmpty() || !QFileInfo::exists(romPath) ? QString() : emu::readGameIdentity(romPath, identityReader(system)).code;
 }
 
 void PluginsController::setTiles(const QVariantList& tiles) {
