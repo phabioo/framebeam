@@ -1,5 +1,7 @@
 #include "emulation_runner.h"
 
+#include "frame_pacer.h"
+
 #include <QDeadlineTimer>
 #include <QThread>
 
@@ -98,7 +100,12 @@ class EmulationRunner::Worker : public QThread {
     m_owner->setState(State::Running);
 
     auto next = std::chrono::steady_clock::now();
-    auto nextEmit = next;  // fast-forward: when the UI wants its next frame (base fps schedule)
+    // Fast-forward: which emulated frames the UI/Session gets (base fps schedule, see FramePacer).
+    const auto ticks = [](std::chrono::steady_clock::time_point t) {
+      return static_cast<int64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(t.time_since_epoch()).count());
+    };
+    FramePacer pacer;
+    pacer.reset(ticks(next));
     bool wasPaused = false;
     bool wasFast = false;
     double audioPhase = 0.0;
@@ -121,7 +128,7 @@ class EmulationRunner::Worker : public QThread {
         wasFast = fast;
         be.setFastForwarding(fast, m_owner->fastForwardRatio());
         next = std::chrono::steady_clock::now();
-        nextEmit = next;
+        pacer.reset(ticks(next));
         audioPhase = 0.0;
       }
       const double ratio = fast ? m_owner->fastForwardRatio() : 1.0;
@@ -129,7 +136,7 @@ class EmulationRunner::Worker : public QThread {
       const auto step = fast ? std::chrono::duration_cast<std::chrono::steady_clock::duration>(period / ratio) : period;
       const auto frameStart = std::chrono::steady_clock::now();
       // Fast-forward: the UI sees at most the base fps, so only those frames need video (readback/conversion).
-      const bool wantVideo = !fast || frameStart >= nextEmit;
+      const bool wantVideo = !fast || pacer.wantsFrame(ticks(frameStart));
       be.setVideoWanted(wantVideo);
       const bool frameOk = be.runFrame();
       const double frameMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - frameStart).count();
@@ -150,9 +157,12 @@ class EmulationRunner::Worker : public QThread {
         break;
       }
       if (wantVideo) {
-        nextEmit += period;  // a schedule, not 'last + period': jitter must not skip a whole slot
-        if (nextEmit < frameStart) nextEmit = frameStart + period;
-        emit m_owner->frameReady(be.videoFrame(), be.frameCount());
+        qint64 lateNs = 0;
+        if (fast) {
+          lateNs = pacer.delivered(ticks(frameStart), ticks(std::chrono::steady_clock::now()),
+                                   std::chrono::duration_cast<std::chrono::nanoseconds>(period).count());
+        }
+        emit m_owner->frameReady(be.videoFrame(), be.frameCount(), lateNs);
       }
       {  // SET_SYSTEM_AV_INFO at runtime: follow new timing / sample rate (cheap compare, same thread)
         const AvInfo cur = be.avInfo();

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>
+
 #include <QByteArray>
 #include <QElapsedTimer>
 #include <QHash>
@@ -86,15 +88,21 @@ class SessionHost : public QObject {
 
   // Video: raw libretro frame (XRGB8888/RGB565, stride in bytes) or a QImage (any format, converted). The first
   // frame after a viewer joined fixes the encoder resolution; a size change reopens the encoder.
-  void pushFrame(const uint8_t* data, int width, int height, int stride, RawPixelFormat format);
-  void pushFrame(const QImage& image);
+  // lateNs (speed-up, 0 otherwise): how long after its base-rate slot the frame was delivered; the frame is stamped
+  // that much earlier, so the stream keeps evenly spaced wall-clock timestamps at the base rate (streamTimestamp()).
+  void pushFrame(const uint8_t* data, int width, int height, int stride, RawPixelFormat format, qint64 lateNs = 0);
+  void pushFrame(const QImage& image, qint64 lateNs = 0);
+  // Timestamp of a frame arriving at nowNs that is lateNs behind its slot; strictly after the previous stamp.
+  static qint64 streamTimestamp(qint64 nowNs, qint64 lateNs, qint64 lastStampNs) {
+    return std::max<qint64>(nowNs - std::max<qint64>(lateNs, 0), lastStampNs + 1);
+  }
   // Audio: interleaved int16 stereo at the core rate (any rate), e.g. straight from the emulation callback.
   void pushAudio(const QByteArray& pcm, int sampleRate);
 
   // GPU-direct input (ADR 0019): one CUDA frame (AV_PIX_FMT_CUDA, sw_format RGB0) of the local game. Never starts the
   // encoder (readback frames do); ignored unless the encoder runs and GPU input is not off for this Session. Does not
   // look at the driver or the caps (tests push fake frames).
-  void pushGpuFrame(std::shared_ptr<AVFrame> frame);
+  void pushGpuFrame(std::shared_ptr<AVFrame> frame, qint64 lateNs = 0);
   // GPU input may be tried in this Session: open, not off, configured (no kill switch, no forced encoder), no pinned
   // encoder order, CUDA usable in this process, FFmpeg feeds h264_nvenc with CUDA frames and the encoder opens here.
   bool gpuInputAllowed() const;
@@ -172,7 +180,8 @@ class SessionHost : public QObject {
   unsigned workerGen_ = 0;
   bool keyframePending_ = false;
   QElapsedTimer clock_;
-  qint64 lastEncodeNs_ = 0;
+  qint64 lastEncodeNs_ = 0;  // arrival of the last frame taken (drop test)
+  qint64 lastStampNs_ = 0;   // its stream timestamp
 
   // GPU-direct input (ADR 0019). Atomic where stats()/gpuInputActive() may be read from other threads.
   std::atomic<bool> gpuActive_{false};       // the worker confirmed GPU mode

@@ -34,6 +34,7 @@
 {{else if eq .Body.Section "general"}}{{template "set-general" .}}
 {{else if eq .Body.Section "network"}}{{template "set-network" .}}
 {{else if eq .Body.Section "security"}}{{template "set-security" .}}
+{{else if eq .Body.Section "diagnostics"}}{{template "set-diagnostics" .}}
 {{end}}
 {{end}}
 
@@ -359,6 +360,22 @@
   {{template "set-err" .KeepWeekly.Err}}
 </section>
 {{end}}
+{{end}}
+
+{{/* ---- Diagnostics ---- */}}
+{{define "set-diagnostics"}}
+<section class="set-card">
+  <div class="eyebrow">Diagnostics bundle</div>
+  <div class="set-row">
+    <div><div class="label">Download diagnostics bundle</div>
+      <div class="help">One zip file with the hub's log files, its version, platform, network settings, installed cores, counts and the paired Players. Hand it over when something does not work.</div>
+      <div class="help">It contains IP addresses and host names, no passwords or tokens: the TURN secret and credentials, tokens, invite codes, Authorization headers and session cookies are removed. Look through the files before you share them.</div></div>
+    <form method="post" action="/settings/diagnostics/bundle">
+      <input type="hidden" name="_csrf" value="{{.CSRF}}">
+      <button class="btn small primary" type="submit">Download bundle</button>
+    </form>
+  </div>
+</section>
 {{end}}
 
 {{/* ---- Security ---- */}}

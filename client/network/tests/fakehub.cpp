@@ -509,7 +509,8 @@ void FakeHub::handleSaves(QSslSocket* sock, const FakeRequest& req) {
     return;
   }
   // /api/v1/games/{id}/saves/{slot}[/content|/conflicts/{cid}/resolve]
-  const QStringList parts = req.path.split(QLatin1Char('/'), Qt::SkipEmptyParts);
+  const QString query = req.path.section(QLatin1Char('?'), 1);
+  const QStringList parts = req.path.section(QLatin1Char('?'), 0, 0).split(QLatin1Char('/'), Qt::SkipEmptyParts);
   if (parts.size() < 6 || parts.at(4) != QLatin1String("saves")) {
     respondError(sock, 404, QStringLiteral("not_found"));
     return;
@@ -518,7 +519,56 @@ void FakeHub::handleSaves(QSslSocket* sock, const FakeRequest& req) {
   const QString slotName = parts.at(5);
   const QString key = slotKey(gameId, slotName);
   const bool exists = saves.contains(key) && saves.value(key).revision > 0;
-  if (parts.size() == 6 && req.method == "GET") {
+  const bool sessionRunning = sessionRunningGames.contains(gameId);
+  if (parts.size() == 7 && parts.at(6) == QLatin1String("rename") && req.method == "POST") {
+    const QString newName = QJsonDocument::fromJson(req.body).object().value(QStringLiteral("name")).toString();
+    const QString newKey = slotKey(gameId, newName);
+    if (slotName == QLatin1String("default")) {
+      respondError(sock, 409, QStringLiteral("save_slot_protected"));
+    } else if (newName.isEmpty() || newName == slotName) {
+      respondError(sock, 400, QStringLiteral("bad_request"));
+    } else if (!exists) {
+      respondError(sock, 404, QStringLiteral("not_found"));
+    } else if (saves.contains(newKey) && saves.value(newKey).revision > 0) {
+      respondError(sock, 409, QStringLiteral("save_slot_exists"));
+    } else if (sessionRunning) {
+      respondError(sock, 409, QStringLiteral("session_running"));
+    } else {
+      saves.insert(newKey, saves.take(key));
+      ++renameCount;
+      respond(sock, 200, json(slotJson(newKey, saves.value(newKey))));
+    }
+  } else if (parts.size() == 6 && req.method == "DELETE") {
+    int confirm = -1;
+    for (const QString& kv : query.split(QLatin1Char('&'), Qt::SkipEmptyParts)) {
+      if (kv.startsWith(QLatin1String("confirm_revision="))) {
+        confirm = kv.mid(17).toInt();
+      }
+    }
+    if (slotName == QLatin1String("default")) {
+      respondError(sock, 409, QStringLiteral("save_slot_protected"));
+    } else if (confirm < 0) {
+      respondError(sock, 400, QStringLiteral("bad_request"));
+    } else if (!exists) {
+      respondError(sock, 404, QStringLiteral("not_found"));
+    } else if (sessionRunning) {
+      respondError(sock, 409, QStringLiteral("session_running"));
+    } else if (confirm != saves.value(key).revision) {
+      respondError(sock, 409, QStringLiteral("save_conflict_stale"));
+    } else {
+      bool open = false;
+      for (const FakeConflict& c : saves.value(key).conflicts) {
+        open = open || c.status == QLatin1String("open");
+      }
+      if (open) {
+        respondError(sock, 409, QStringLiteral("conflict"));
+      } else {
+        saves.remove(key);
+        ++slotDeleteCount;
+        respond(sock, 204, {});
+      }
+    }
+  } else if (parts.size() == 6 && req.method == "GET") {
     exists ? respond(sock, 200, json(slotJson(key, saves.value(key)))) : respondError(sock, 404, QStringLiteral("not_found"));
   } else if (parts.size() == 7 && parts.at(6) == QLatin1String("content") && req.method == "GET") {
     if (!exists) {
@@ -608,6 +658,10 @@ void FakeHub::handleSaves(QSslSocket* sock, const FakeRequest& req) {
     const QString actual = QString::fromLatin1(QCryptographicHash::hash(req.body, QCryptographicHash::Sha256).toHex());
     if (req.body.isEmpty() || actual != sha256Hdr) {
       respondError(sock, 400, QStringLiteral("bad_request"));
+      return;
+    }
+    if (sessionRunning) {
+      respondError(sock, 409, QStringLiteral("session_running"));
       return;
     }
     FakeSlot& s = saves[key];

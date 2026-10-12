@@ -5,7 +5,8 @@
 //	framebeam-hub grant-folder <path>          Windows: let the Hub service account read a folder (needs administrator)
 //	framebeam-hub renew-cert                   renew the self-generated TLS certificate now and exit
 //	framebeam-hub import-cores <dir>           import libretro buildbot core zips from a directory (offline) and exit
-//	framebeam-hub version [--json]             print the version (JSON: product, version, channel, commit, protocol versions)
+//	framebeam-hub diagnostics <out.zip>        write the diagnostics bundle (logs, configuration; no database access) and exit
+//	framebeam-hub version [--json]            print the version (JSON: product, version, channel, commit, protocol versions)
 //	framebeam-hub update check [-channel c]    print the update selection as JSON
 //	framebeam-hub update stage [-channel c]    check, download, verify and stage the update, create the request file
 //	framebeam-hub update apply-staged          root helper of the update unit: verify and install the staged .deb (Windows: .msi)
@@ -56,6 +57,8 @@ func main() {
 		err = runRenewCert(args[1:], os.Stdout)
 	} else if len(args) > 0 && args[0] == "import-cores" {
 		err = runImportCores(args[1:], os.Stdout)
+	} else if len(args) > 0 && args[0] == "diagnostics" {
+		err = runDiagnostics(args[1:], os.Stdout)
 	} else if len(args) > 0 && args[0] == "version" {
 		err = runVersion(args[1:], os.Stdout)
 	} else if len(args) > 0 && args[0] == "update" {

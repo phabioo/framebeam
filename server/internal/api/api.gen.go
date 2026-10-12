@@ -114,10 +114,13 @@ const (
 	ErrorCodeSaveConflict         ErrorCode = "save_conflict"
 	ErrorCodeSaveConflictStale    ErrorCode = "save_conflict_stale"
 	ErrorCodeSaveNotSnapshot      ErrorCode = "save_not_snapshot"
+	ErrorCodeSaveSlotExists       ErrorCode = "save_slot_exists"
+	ErrorCodeSaveSlotProtected    ErrorCode = "save_slot_protected"
 	ErrorCodeSessionEnded         ErrorCode = "session_ended"
 	ErrorCodeSessionForbidden     ErrorCode = "session_forbidden"
 	ErrorCodeSessionFull          ErrorCode = "session_full"
 	ErrorCodeSessionNotFound      ErrorCode = "session_not_found"
+	ErrorCodeSessionRunning       ErrorCode = "session_running"
 	ErrorCodeUnauthorized         ErrorCode = "unauthorized"
 	ErrorCodeUploadsDisabled      ErrorCode = "uploads_disabled"
 	ErrorCodeUserDisabled         ErrorCode = "user_disabled"
@@ -176,6 +179,10 @@ func (e ErrorCode) Valid() bool {
 		return true
 	case ErrorCodeSaveNotSnapshot:
 		return true
+	case ErrorCodeSaveSlotExists:
+		return true
+	case ErrorCodeSaveSlotProtected:
+		return true
 	case ErrorCodeSessionEnded:
 		return true
 	case ErrorCodeSessionForbidden:
@@ -183,6 +190,8 @@ func (e ErrorCode) Valid() bool {
 	case ErrorCodeSessionFull:
 		return true
 	case ErrorCodeSessionNotFound:
+		return true
+	case ErrorCodeSessionRunning:
 		return true
 	case ErrorCodeUnauthorized:
 		return true
@@ -611,7 +620,7 @@ type HandshakeRequest_Video struct {
 type HandshakeResponse struct {
 	Compatible bool `json:"compatible"`
 
-	// Features Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = at least one relay provider is on (the embedded TURN server and/or Cloudflare TURN; `turn_servers` in `hello_ack`, `ice_update` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`), `saves_v4` = uploading a save file into a slot (`POST /games/{game_id}/saves/{slot}/upload`), `cores_v2` = several cores per system (`default_core_id` and `cores` in `SystemInfo`; core ids follow `^[a-z0-9][a-z0-9_-]{0,63}$`), `ice_update_v1` = the Hub pushes the WSS message `ice_update` whenever its effective ICE configuration changes. `cores_index_v1` (signed core index) existed in 0.4 to 0.7 and was removed in 0.8.
+	// Features Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = at least one relay provider is on (the embedded TURN server and/or Cloudflare TURN; `turn_servers` in `hello_ack`, `ice_update` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`), `saves_v4` = uploading a save file into a slot (`POST /games/{game_id}/saves/{slot}/upload`), `saves_v5` = renaming a slot (`POST /games/{game_id}/saves/{slot}/rename`), deleting a slot (`DELETE /games/{game_id}/saves/{slot}`), `save_updated` reasons `renamed` and `deleted`, and 409 `session_running` on `saves_v4` uploads while a Session of the game runs, `cores_v2` = several cores per system (`default_core_id` and `cores` in `SystemInfo`; core ids follow `^[a-z0-9][a-z0-9_-]{0,63}$`), `ice_update_v1` = the Hub pushes the WSS message `ice_update` whenever its effective ICE configuration changes. `cores_index_v1` (signed core index) existed in 0.4 to 0.7 and was removed in 0.8.
 	Features           *[]string          `json:"features,omitempty"`
 	HubVersion         string             `json:"hub_version"`
 	MinProtocolVersion int                `json:"min_protocol_version"`
@@ -856,6 +865,11 @@ type SaveSlot struct {
 	GameId        openapi_types.UUID `json:"game_id"`
 	OpenConflicts []SaveConflict     `json:"open_conflicts"`
 	Slot          string             `json:"slot"`
+}
+
+// SaveSlotRenameRequest defines model for SaveSlotRenameRequest.
+type SaveSlotRenameRequest struct {
+	Name string `json:"name"`
 }
 
 // SaveSlotSummary defines model for SaveSlotSummary.
@@ -1131,6 +1145,12 @@ type UploadGameParams struct {
 	Title *string `form:"title,omitempty" json:"title,omitempty"`
 }
 
+// DeleteSaveSlotParams defines parameters for DeleteSaveSlot.
+type DeleteSaveSlotParams struct {
+	// ConfirmRevision Current checkpoint revision the caller saw.
+	ConfirmRevision int `form:"confirm_revision" json:"confirm_revision"`
+}
+
 // PutSaveParams defines parameters for PutSave.
 type PutSaveParams struct {
 	// XFrameBeamBaseRevision Checkpoint revision the upload is based on; 0 = the Player had no Hub save.
@@ -1163,6 +1183,9 @@ type ResolveSaveConflictJSONRequestBody = SaveResolveRequest
 
 // RestoreSaveHistoryVersionJSONRequestBody defines body for RestoreSaveHistoryVersion for application/json ContentType.
 type RestoreSaveHistoryVersionJSONRequestBody = SaveRestoreRequest
+
+// RenameSaveSlotJSONRequestBody defines body for RenameSaveSlot for application/json ContentType.
+type RenameSaveSlotJSONRequestBody = SaveSlotRenameRequest
 
 // CreateSaveSnapshotJSONRequestBody defines body for CreateSaveSnapshot for application/json ContentType.
 type CreateSaveSnapshotJSONRequestBody = SaveSnapshotRequest
@@ -1628,6 +1651,9 @@ type ServerInterface interface {
 	// Single game
 	// (GET /api/v1/games/{game_id})
 	GetGame(w http.ResponseWriter, r *http.Request, gameId openapi_types.UUID)
+	// Delete a slot with its whole history (`saves_v5`)
+	// (DELETE /api/v1/games/{game_id}/saves/{slot})
+	DeleteSaveSlot(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName, params DeleteSaveSlotParams)
 	// Current checkpoint metadata and open conflicts of a slot
 	// (GET /api/v1/games/{game_id}/saves/{slot})
 	GetSaveSlot(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName)
@@ -1652,6 +1678,9 @@ type ServerInterface interface {
 	// Restore a history version as the new checkpoint (`saves_v2`)
 	// (POST /api/v1/games/{game_id}/saves/{slot}/history/{version}/restore)
 	RestoreSaveHistoryVersion(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName, version int)
+	// Rename a slot (`saves_v5`)
+	// (POST /api/v1/games/{game_id}/saves/{slot}/rename)
+	RenameSaveSlot(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName)
 	// Create a manual snapshot of the current checkpoint (`saves_v2`)
 	// (POST /api/v1/games/{game_id}/saves/{slot}/snapshots)
 	CreateSaveSnapshot(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName)
@@ -2017,6 +2046,63 @@ func (siw *ServerInterfaceWrapper) GetGame(w http.ResponseWriter, r *http.Reques
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetGame(w, r, gameId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteSaveSlot operation middleware
+func (siw *ServerInterfaceWrapper) DeleteSaveSlot(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "game_id" -------------
+	var gameId GameId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "game_id", r.PathValue("game_id"), &gameId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "game_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "slot" -------------
+	var slot SaveSlotName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slot", r.PathValue("slot"), &slot, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slot", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteSaveSlotParams
+
+	// ------------- Required query parameter "confirm_revision" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "confirm_revision", r.URL.Query(), &params.ConfirmRevision, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "confirm_revision"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "confirm_revision", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteSaveSlot(w, r, gameId, slot, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2455,6 +2541,47 @@ func (siw *ServerInterfaceWrapper) RestoreSaveHistoryVersion(w http.ResponseWrit
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RestoreSaveHistoryVersion(w, r, gameId, slot, version)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RenameSaveSlot operation middleware
+func (siw *ServerInterfaceWrapper) RenameSaveSlot(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "game_id" -------------
+	var gameId GameId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "game_id", r.PathValue("game_id"), &gameId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "game_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "slot" -------------
+	var slot SaveSlotName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slot", r.PathValue("slot"), &slot, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slot", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RenameSaveSlot(w, r, gameId, slot)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -3367,6 +3494,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/games", wrapper.ListGames)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/games", wrapper.UploadGame)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/games/{game_id}", wrapper.GetGame)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}", wrapper.DeleteSaveSlot)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}", wrapper.GetSaveSlot)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}", wrapper.PutSave)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/conflicts/{conflict_id}/resolve", wrapper.ResolveSaveConflict)
@@ -3375,6 +3503,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/history/{version}", wrapper.DeleteSaveSnapshot)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/history/{version}/content", wrapper.DownloadSaveHistoryContent)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/history/{version}/restore", wrapper.RestoreSaveHistoryVersion)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/rename", wrapper.RenameSaveSlot)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/snapshots", wrapper.CreateSaveSnapshot)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/upload", wrapper.UploadSaveFile)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/handshake", wrapper.PostHandshake)
@@ -3849,6 +3978,94 @@ func (response GetGame404JSONResponse) VisitGetGameResponse(w http.ResponseWrite
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteSaveSlotRequestObject struct {
+	GameId GameId       `json:"game_id"`
+	Slot   SaveSlotName `json:"slot"`
+	Params DeleteSaveSlotParams
+}
+
+type DeleteSaveSlotResponseObject interface {
+	VisitDeleteSaveSlotResponse(w http.ResponseWriter) error
+}
+
+type DeleteSaveSlot204Response struct {
+}
+
+func (response DeleteSaveSlot204Response) VisitDeleteSaveSlotResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteSaveSlot400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response DeleteSaveSlot400JSONResponse) VisitDeleteSaveSlotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteSaveSlot401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DeleteSaveSlot401JSONResponse) VisitDeleteSaveSlotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteSaveSlot403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response DeleteSaveSlot403JSONResponse) VisitDeleteSaveSlotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteSaveSlot404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DeleteSaveSlot404JSONResponse) VisitDeleteSaveSlotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteSaveSlot409JSONResponse Error
+
+func (response DeleteSaveSlot409JSONResponse) VisitDeleteSaveSlotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -4522,6 +4739,100 @@ func (response RestoreSaveHistoryVersion404JSONResponse) VisitRestoreSaveHistory
 type RestoreSaveHistoryVersion409JSONResponse Error
 
 func (response RestoreSaveHistoryVersion409JSONResponse) VisitRestoreSaveHistoryVersionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RenameSaveSlotRequestObject struct {
+	GameId GameId       `json:"game_id"`
+	Slot   SaveSlotName `json:"slot"`
+	Body   *RenameSaveSlotJSONRequestBody
+}
+
+type RenameSaveSlotResponseObject interface {
+	VisitRenameSaveSlotResponse(w http.ResponseWriter) error
+}
+
+type RenameSaveSlot200JSONResponse SaveSlot
+
+func (response RenameSaveSlot200JSONResponse) VisitRenameSaveSlotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RenameSaveSlot400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response RenameSaveSlot400JSONResponse) VisitRenameSaveSlotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RenameSaveSlot401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response RenameSaveSlot401JSONResponse) VisitRenameSaveSlotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RenameSaveSlot403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response RenameSaveSlot403JSONResponse) VisitRenameSaveSlotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RenameSaveSlot404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response RenameSaveSlot404JSONResponse) VisitRenameSaveSlotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RenameSaveSlot409JSONResponse Error
+
+func (response RenameSaveSlot409JSONResponse) VisitRenameSaveSlotResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -6366,6 +6677,9 @@ type StrictServerInterface interface {
 	// Single game
 	// (GET /api/v1/games/{game_id})
 	GetGame(ctx context.Context, request GetGameRequestObject) (GetGameResponseObject, error)
+	// Delete a slot with its whole history (`saves_v5`)
+	// (DELETE /api/v1/games/{game_id}/saves/{slot})
+	DeleteSaveSlot(ctx context.Context, request DeleteSaveSlotRequestObject) (DeleteSaveSlotResponseObject, error)
 	// Current checkpoint metadata and open conflicts of a slot
 	// (GET /api/v1/games/{game_id}/saves/{slot})
 	GetSaveSlot(ctx context.Context, request GetSaveSlotRequestObject) (GetSaveSlotResponseObject, error)
@@ -6390,6 +6704,9 @@ type StrictServerInterface interface {
 	// Restore a history version as the new checkpoint (`saves_v2`)
 	// (POST /api/v1/games/{game_id}/saves/{slot}/history/{version}/restore)
 	RestoreSaveHistoryVersion(ctx context.Context, request RestoreSaveHistoryVersionRequestObject) (RestoreSaveHistoryVersionResponseObject, error)
+	// Rename a slot (`saves_v5`)
+	// (POST /api/v1/games/{game_id}/saves/{slot}/rename)
+	RenameSaveSlot(ctx context.Context, request RenameSaveSlotRequestObject) (RenameSaveSlotResponseObject, error)
 	// Create a manual snapshot of the current checkpoint (`saves_v2`)
 	// (POST /api/v1/games/{game_id}/saves/{slot}/snapshots)
 	CreateSaveSnapshot(ctx context.Context, request CreateSaveSnapshotRequestObject) (CreateSaveSnapshotResponseObject, error)
@@ -6714,6 +7031,34 @@ func (sh *strictHandler) GetGame(w http.ResponseWriter, r *http.Request, gameId 
 	}
 }
 
+// DeleteSaveSlot operation middleware
+func (sh *strictHandler) DeleteSaveSlot(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName, params DeleteSaveSlotParams) {
+	var request DeleteSaveSlotRequestObject
+
+	request.GameId = gameId
+	request.Slot = slot
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteSaveSlot(ctx, request.(DeleteSaveSlotRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteSaveSlot")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteSaveSlotResponseObject); ok {
+		if err := validResponse.VisitDeleteSaveSlotResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetSaveSlot operation middleware
 func (sh *strictHandler) GetSaveSlot(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName) {
 	var request GetSaveSlotRequestObject
@@ -6944,6 +7289,40 @@ func (sh *strictHandler) RestoreSaveHistoryVersion(w http.ResponseWriter, r *htt
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(RestoreSaveHistoryVersionResponseObject); ok {
 		if err := validResponse.VisitRestoreSaveHistoryVersionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RenameSaveSlot operation middleware
+func (sh *strictHandler) RenameSaveSlot(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName) {
+	var request RenameSaveSlotRequestObject
+
+	request.GameId = gameId
+	request.Slot = slot
+
+	var body RenameSaveSlotJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RenameSaveSlot(ctx, request.(RenameSaveSlotRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RenameSaveSlot")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RenameSaveSlotResponseObject); ok {
+		if err := validResponse.VisitRenameSaveSlotResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

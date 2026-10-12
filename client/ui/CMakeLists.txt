@@ -93,6 +93,7 @@ qt_add_qml_module(framebeam_ui
     SaveRow.qml
     SortControl.qml
     SaveFileDialog.qml
+    CollectLogsDialog.qml
     LocalHubForm.qml
     LocalHubCard.qml
     LocalFolderDialog.qml

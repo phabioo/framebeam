@@ -22,7 +22,7 @@ using S = HubConnection::State;
 namespace {
 const QString kHubId = QStringLiteral("hub-lib");
 const QStringList kAllFeatures{QStringLiteral("saves_v1"), QStringLiteral("saves_v2"), QStringLiteral("saves_v3"),
-                               QStringLiteral("saves_v4"), QStringLiteral("sessions_v1")};
+                               QStringLiteral("saves_v4"), QStringLiteral("saves_v5"), QStringLiteral("sessions_v1")};
 }  // namespace
 
 class LibrarySavesUiTest : public QObject {
@@ -615,6 +615,187 @@ class LibrarySavesUiTest : public QObject {
     QVERIFY(h.item("snapshotButton")->isEnabled());      // snapshots still work (decision ae)
     uitest::saveShot(h.window, QStringLiteral("library-saves-running"));
     checkInColumn(h, {"savesRunningBanner", "snapshotButton", "currentBar", "playButton"});
+  }
+
+
+  // Rename and delete the selected slot (saves_v5): hidden for the main slot, inline rename, delete with confirmation.
+  void renameAndDeleteSlotActions() {
+    FakeHub hub(QStringLiteral("a"));
+    oneGame(hub);
+    hub.setHubSave(QStringLiteral("g1"), "cp-1");
+    FakeSlot boss;
+    boss.revision = 3;
+    boss.content = "boss-save";
+    boss.deviceId = QStringLiteral("other-device");
+    boss.deviceName = QStringLiteral("Laptop Office");
+    hub.saves.insert(FakeHub::slotKey(QStringLiteral("g1"), QStringLiteral("boss")), boss);
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    SaveHistoryController* hist = h.controller->saveHistory();
+    QTRY_VERIFY_WITH_TIMEOUT(hist->available() && !hist->loading(), 8000);
+    openSavesView(h);
+    // The main slot has neither action
+    QVERIFY(!hist->slotManageAvailable());
+    QVERIFY(!shown(h, "slotManageRow"));
+    QVERIFY(hist->renameSlot(QStringLiteral("x")).size() > 0);
+    // A named slot has both
+    hist->selectSlot(QStringLiteral("boss"));
+    QTRY_VERIFY_WITH_TIMEOUT(hist->slotManageAvailable() && !hist->loading() && hist->current().value(QStringLiteral("revision")).toInt() == 3, 8000);
+    QTRY_VERIFY(shown(h, "slotManageRow"));
+    QVERIFY(h.item("slotRenameButton")->isEnabled() && h.item("slotDeleteButton")->isEnabled());
+    QVERIFY(!shown(h, "slotManageHint"));
+    uitest::saveShot(h.window, QStringLiteral("library-slot-manage"));
+    checkInColumn(h, {"slotManageRow", "slotRenameButton", "slotDeleteButton"});
+
+    // Rename: validation first, then the Hub renames, the selection follows
+    QVERIFY(h.click("slotRenameButton"));
+    QTRY_VERIFY(shown(h, "renameSlotRow"));
+    QVERIFY(!shown(h, "slotManageRow"));
+    h.item("renameSlotField")->setProperty("text", QStringLiteral("Bad Name"));
+    QVERIFY(h.click("renameSlotConfirm"));
+    QTRY_VERIFY(shown(h, "renameSlotError"));
+    QCOMPARE(hub.renameCount, 0);
+    uitest::saveShot(h.window, QStringLiteral("library-slot-rename"));
+    checkInColumn(h, {"renameSlotRow", "renameSlotField", "renameSlotError", "renameSlotCancel", "renameSlotConfirm"});
+    h.item("renameSlotField")->setProperty("text", QStringLiteral("default"));  // an existing name
+    QVERIFY(h.click("renameSlotConfirm"));
+    QTRY_VERIFY(shown(h, "renameSlotError"));
+    QVERIFY(h.click("renameSlotCancel"));
+    QTRY_VERIFY(!shown(h, "renameSlotRow"));
+    QVERIFY(h.click("slotRenameButton"));
+    QTRY_VERIFY(shown(h, "renameSlotField"));
+    h.item("renameSlotField")->setProperty("text", QStringLiteral("final"));
+    QVERIFY(h.click("renameSlotConfirm"));
+    QTRY_COMPARE_WITH_TIMEOUT(hub.renameCount, 1, 8000);
+    QTRY_COMPARE_WITH_TIMEOUT(hist->slot(), QStringLiteral("final"), 8000);
+    QTRY_VERIFY_WITH_TIMEOUT(hist->message().contains(QStringLiteral("renamed")), 8000);
+    QVERIFY(!hist->messageIsError());
+    QTRY_VERIFY_WITH_TIMEOUT(hist->current().value(QStringLiteral("revision")).toInt() == 3 && !hist->loading(), 8000);
+    QVERIFY(hub.saves.contains(FakeHub::slotKey(QStringLiteral("g1"), QStringLiteral("final"))));
+
+    // Delete: confirmation names the latest checkpoint; cancel changes nothing
+    QTRY_VERIFY(shown(h, "slotDeleteButton"));
+    QVERIFY(h.click("slotDeleteButton"));
+    QTRY_VERIFY(shown(h, "slotDeleteBox"));
+    QVERIFY(confirming(h));  // Play is off meanwhile
+    QVERIFY(textOf(h, "slotDeleteTitle").contains(QStringLiteral("final")));
+    QVERIFY(textOf(h, "slotDeleteLatest").contains(QStringLiteral("r3")));
+    QVERIFY(textOf(h, "slotDeleteLatest").contains(QStringLiteral("Laptop Office")));
+    QVERIFY(textOf(h, "slotDeleteNote").contains(QStringLiteral("cannot be undone")));
+    uitest::saveShot(h.window, QStringLiteral("library-slot-delete-confirm"));
+    checkInColumn(h, {"slotDeleteBox", "slotDeleteTitle", "slotDeleteLatest", "slotDeleteNote", "slotDeleteCancel", "slotDeleteConfirm"});
+    widenFonts(h, 1.4);
+    checkInColumn(h, {"slotDeleteBox", "slotDeleteTitle", "slotDeleteLatest", "slotDeleteNote", "slotDeleteCancel", "slotDeleteConfirm"});
+    QVERIFY(h.click("slotDeleteCancel"));
+    QTRY_VERIFY(!shown(h, "slotDeleteBox"));
+    QVERIFY(!confirming(h));
+    QCOMPARE(hub.slotDeleteCount, 0);
+
+    // The Hub moved on behind our back: nothing is deleted (stale revision), the user is told
+    QVERIFY(h.click("slotDeleteButton"));
+    QTRY_VERIFY(shown(h, "slotDeleteConfirm"));
+    hub.saves[FakeHub::slotKey(QStringLiteral("g1"), QStringLiteral("final"))].revision = 4;
+    QVERIFY(h.click("slotDeleteConfirm"));
+    QTRY_VERIFY_WITH_TIMEOUT(hist->messageIsError() && hist->message().contains(QStringLiteral("changed on the Hub")), 8000);
+    QCOMPARE(hub.slotDeleteCount, 0);
+    QCOMPARE(hist->slot(), QStringLiteral("final"));
+
+    // Confirmed: the slot is gone, the game uses the main slot again
+    QTRY_VERIFY_WITH_TIMEOUT(hist->current().value(QStringLiteral("revision")).toInt() == 4 && !hist->loading(), 8000);
+    QVERIFY(h.click("slotDeleteButton"));
+    QTRY_VERIFY(shown(h, "slotDeleteConfirm"));
+    QVERIFY(h.click("slotDeleteConfirm"));
+    QTRY_COMPARE_WITH_TIMEOUT(hub.slotDeleteCount, 1, 8000);
+    QTRY_COMPARE_WITH_TIMEOUT(hist->slot(), QStringLiteral("default"), 8000);
+    QVERIFY(!hub.saves.contains(FakeHub::slotKey(QStringLiteral("g1"), QStringLiteral("final"))));
+    QTRY_VERIFY_WITH_TIMEOUT(hist->message().contains(QStringLiteral("deleted")), 8000);
+    QTRY_VERIFY(!shown(h, "slotManageRow"));
+  }
+
+  void slotActionsAreDisabledWhileTheGameRuns() {
+    FakeHub hub(QStringLiteral("a"));
+    oneGame(hub);
+    hub.setHubSave(QStringLiteral("g1"), "cp-1");
+    FakeSlot boss;
+    boss.revision = 3;
+    boss.content = "boss-save";
+    hub.saves.insert(FakeHub::slotKey(QStringLiteral("g1"), QStringLiteral("boss")), boss);
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    PlayerController* c = h.controller.get();
+    SaveHistoryController* hist = c->saveHistory();
+    QTRY_VERIFY_WITH_TIMEOUT(hist->available() && !hist->loading(), 8000);
+    hist->selectSlot(QStringLiteral("boss"));
+    QTRY_VERIFY_WITH_TIMEOUT(hist->slotManageAvailable() && !hist->loading(), 8000);
+    // A preview game stands for the running game
+    c->selectGame(QStringLiteral("g1"));
+    c->adoptPreviewGame(QStringLiteral("g1"));
+    QImage frame(256, 384, QImage::Format_RGB32);
+    frame.fill(QColor(40, 90, 140));
+    c->gameSession()->setPreview(QStringLiteral("Preview"), frame, emu::DisplayProfile(), EmulationDiagnostics());
+    emit c->gameSession()->started();
+    QTRY_COMPARE_WITH_TIMEOUT(c->screen(), QStringLiteral("game"), 8000);
+    c->leaveGameView();
+    QTRY_VERIFY(hist->gameRunning());
+    openSavesView(h);
+    QTRY_VERIFY(shown(h, "slotManageRow"));
+    QTRY_VERIFY(!h.item("slotRenameButton")->isEnabled());
+    QVERIFY(!h.item("slotDeleteButton")->isEnabled());
+    QTRY_VERIFY(shown(h, "slotManageHint"));
+    QVERIFY(textOf(h, "slotManageHint").contains(QStringLiteral("running")));
+    QVERIFY(!hist->slotManageBlockReason().isEmpty());
+    uitest::saveShot(h.window, QStringLiteral("library-slot-manage-running"));
+    checkInColumn(h, {"slotManageRow", "slotRenameButton", "slotDeleteButton", "slotManageHint"});
+    // The API refuses too, whatever the buttons do
+    QVERIFY(!hist->renameSlot(QStringLiteral("other")).isEmpty());
+    hist->requestDeleteSlot();
+    QVERIFY(hist->slotDeleteRequest().isEmpty());
+    QCOMPARE(hub.renameCount, 0);
+    QCOMPARE(hub.slotDeleteCount, 0);
+    QCOMPARE(hub.uploadCount, 0);
+  }
+
+  void renamedAndDeletedPushesUpdateTheOpenSavesView() {
+    FakeHub hub(QStringLiteral("a"));
+    oneGame(hub);
+    hub.setHubSave(QStringLiteral("g1"), "cp-1");
+    FakeSlot boss;
+    boss.revision = 3;
+    boss.content = "boss-save";
+    hub.saves.insert(FakeHub::slotKey(QStringLiteral("g1"), QStringLiteral("boss")), boss);
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    SaveHistoryController* hist = h.controller->saveHistory();
+    QTRY_VERIFY_WITH_TIMEOUT(hist->available() && !hist->loading(), 8000);
+    hist->selectSlot(QStringLiteral("boss"));
+    QTRY_VERIFY_WITH_TIMEOUT(hist->slotManageAvailable() && !hist->loading(), 8000);
+    QTRY_VERIFY_WITH_TIMEOUT(hub.wsOpen() > 0, 8000);
+    // Another device renames it: the Hub state moves, the push arrives
+    hub.saves.insert(FakeHub::slotKey(QStringLiteral("g1"), QStringLiteral("final")), hub.saves.take(FakeHub::slotKey(QStringLiteral("g1"), QStringLiteral("boss"))));
+    hub.sendWs(QStringLiteral("save_updated"),
+               QJsonObject{{QStringLiteral("game_id"), QStringLiteral("g1")}, {QStringLiteral("slot"), QStringLiteral("final")},
+                           {QStringLiteral("previous_slot"), QStringLiteral("boss")}, {QStringLiteral("revision"), 3},
+                           {QStringLiteral("sha256"), QString(64, QLatin1Char('a'))}, {QStringLiteral("device_id"), QStringLiteral("other-device")},
+                           {QStringLiteral("device_name"), QStringLiteral("Laptop Office")}, {QStringLiteral("reason"), QStringLiteral("renamed")}});
+    QTRY_COMPARE_WITH_TIMEOUT(hist->slot(), QStringLiteral("final"), 8000);
+    QTRY_VERIFY_WITH_TIMEOUT(hist->message().contains(QStringLiteral("renamed to \"final\"")), 8000);
+    QTRY_VERIFY_WITH_TIMEOUT(hist->current().value(QStringLiteral("revision")).toInt() == 3 && !hist->loading(), 8000);
+    // ... and deletes it
+    hub.saves.remove(FakeHub::slotKey(QStringLiteral("g1"), QStringLiteral("final")));
+    hub.sendWs(QStringLiteral("save_updated"),
+               QJsonObject{{QStringLiteral("game_id"), QStringLiteral("g1")}, {QStringLiteral("slot"), QStringLiteral("final")},
+                           {QStringLiteral("revision"), 3}, {QStringLiteral("sha256"), QString(64, QLatin1Char('a'))},
+                           {QStringLiteral("device_id"), QStringLiteral("other-device")}, {QStringLiteral("device_name"), QStringLiteral("Laptop Office")},
+                           {QStringLiteral("reason"), QStringLiteral("deleted")}});
+    QTRY_COMPARE_WITH_TIMEOUT(hist->slot(), QStringLiteral("default"), 8000);
+    QTRY_VERIFY_WITH_TIMEOUT(hist->message().contains(QStringLiteral("deleted")), 8000);
+    QTRY_VERIFY_WITH_TIMEOUT(hist->current().value(QStringLiteral("revision")).toInt() == 2 || hist->current().value(QStringLiteral("revision")).toInt() == 1, 8000);
   }
 
   // "Resolve conflict" opens the inline resolution; it never starts the game (3c-4 follow-up).

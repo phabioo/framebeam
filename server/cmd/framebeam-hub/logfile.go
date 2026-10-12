@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/phabioo/framebeam/server/internal/diag"
 )
 
 // logFileMax is the size at which the log file is rotated: hub.log and hub.log.1 (about 20 MB in total).
@@ -114,5 +116,6 @@ func newLogger(path string) (*slog.Logger, func()) {
 			fmt.Fprintln(os.Stderr, "cannot open log file, logging to stderr:", err)
 		}
 	}
-	return slog.New(slog.NewTextHandler(out, nil)), closeFn
+	// The diagnostics bundle includes the most recent lines from memory (redacted on export).
+	return slog.New(slog.NewTextHandler(io.MultiWriter(out, diag.Recent), nil)), closeFn
 }

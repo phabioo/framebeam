@@ -145,6 +145,8 @@ func (s *Server) Register(mux *http.ServeMux) {
 	h("POST /saves/{user}/{game}/{slot}/snapshots", s.guard(s.saveSnapshot))
 	h("POST /saves/{user}/{game}/{slot}/history/{version}/delete", s.guard(s.saveDeleteSnapshot))
 	h("POST /saves/{user}/{game}/{slot}/slots", s.guard(s.saveNewSlot))
+	h("POST /saves/{user}/{game}/{slot}/rename", s.guard(s.saveRenameSlot))
+	h("POST /saves/{user}/{game}/{slot}/delete", s.guard(s.saveDeleteSlot))
 	h("POST /saves/{user}/{game}/{slot}/upload", s.guardUpload(s.saveUpload))
 	h("GET /clients", s.guard(s.clientsGet))
 	h("POST /clients/requests/{id}/allow", s.guard(s.clientAllow))
@@ -183,6 +185,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	h("POST /settings/name", s.guard(s.settingsName))
 	h("POST /settings/password", s.guard(s.settingsPassword))
 	h("POST /settings/security/renew-cert", s.guard(s.settingsRenewCert))
+	h("POST /settings/diagnostics/bundle", s.guard(s.settingsDiagBundle))
 }
 
 // secure sets security headers (no inline script/style) and prevents caching of pages.
@@ -244,6 +247,8 @@ var flashTexts = map[string]string{
 	"snapshot":       "Snapshot created.",
 	"snapdeleted":    "Snapshot deleted.",
 	"slotcreated":    "Slot created from the current version.",
+	"slotrenamed":    "Slot renamed. History and conflicts moved with it.",
+	"slotdeleted":    "Slot deleted.",
 	"disabled":       "User disabled. Their devices are signed out and their Sessions ended.",
 	"enabled":        "User enabled.",
 	"userdeleted":    "User deleted, together with their devices, invites, saves and save history.",
@@ -272,6 +277,10 @@ var errTexts = map[string]string{
 	"toolarge":         "The save file is too large (maximum 64 MiB).",
 	"emptyfile":        "Please select a save file that is not empty.",
 	"slotname":         "Use lowercase letters, digits, - and _ (up to 32 characters) for the slot name.",
+	"slotexists":       "A slot with this name already exists.",
+	"slotprotected":    "The default slot cannot be renamed or deleted.",
+	"running":          "A Session of this game is running. End it first; slots cannot be uploaded to, renamed or deleted meanwhile.",
+	"openconflict":     "Resolve the open conflict of this slot first.",
 	"nogame":           "Game not found.",
 	"admin":            "Admins cannot be disabled or deleted.",
 	"nodevice":         "Device not found.",

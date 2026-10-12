@@ -53,6 +53,19 @@ Plugin runtime of 0.11 ([API reference](plugin-api.md), [design](../architecture
 - "Install from folder…" copies a plugin folder (with `manifest.json`) into `<data>/plugins/installed/`; "Link folder for development…" runs the plugin straight from your folder and reloads it when you save a file. The list has an on/off switch and Uninstall per plugin.
 - Plugin console: a tab in the running game (developer mode only) with watched values, events, log and the core's memory map regions; Ctrl+Shift+R reloads the plugins. A plugin that fails or exceeds its budget is paused alone; the game keeps running.
 
+## Collect logs
+
+When something does not work, hand over one file instead of describing it: Settings → Diagnostics → "Collect logs…" opens a save dialog (default name `framebeam-player-diagnostics-<UTC timestamp>.zip` in Desktop or Downloads) and writes the bundle in the background; "Show in folder" then opens its folder. Without the window (for example when the Player does not start): `framebeam_player --collect-logs out.zip [--data-dir <path>]` (offline, reads only the data directory, refuses to overwrite an existing file). Same layout as the Hub bundle ([hub-configuration.md](hub-configuration.md)):
+
+| Entry | Content |
+|---|---|
+| `README.txt` | what is in the bundle and what was removed |
+| `player-info.json` | `info_version` 1, time; Player version, channel, commit, protocol; OS, architecture, CPU threads, Qt version, data directory, portable or not, free space; saved Hubs with name, address, Hub version, connected and features (no tokens); cores per system with versions, hardware rendering on/off; available H.264 encoders and the one last used for sharing; connected gamepads; non-secret settings (update channel, automatic install, developer mode, ROM cache limit, force relay, GPU encode switch) |
+| `logs/player.log`, `logs/player.1.log` ... | the Player's log files in `<data>/logs/`, newest first, capped at 50 MiB in total (the oldest file that does not fit is cut to its newest lines at a line boundary, marked with `[older content cut: size cap of the bundle]`) |
+| `logs/plugins/...` | plugin console logs, when they exist on disk in `<data>/logs/plugins/` |
+
+Redacted before packing: credentials, device tokens, TURN `username`/`credential`, invite codes, `Authorization`/`Bearer` values and cookies become `[redacted]`. IP addresses and host names stay (needed for connection problems). Redaction is pattern based: look through the files before you share them.
+
 ## Data directory
 
 The ROM cache, `profiles.json`, `device.json`, `hubs/<id>/users/<user_id>/saves/<game_id>/`, `system/` and settings are stored portable by default in `<directory of the executable>/data` (plugins in `plugins/`), provided a real write test succeeds there. Otherwise the Player falls back to AppData (`QStandardPaths::AppDataLocation`) and logs a note, for example when installed under Program Files. On the first portable start existing AppData data is copied once (nothing is moved, deleted or overwritten; `device_id` is preserved; the ROM cache is re-downloaded). Credentials stay in the OS credential store. `--data-dir <path>` or `FRAMEBEAM_DATA_DIR` take precedence ([ADR 0004](../adr/0004-player-portable-data.md)).
@@ -60,7 +73,7 @@ The ROM cache, `profiles.json`, `device.json`, `hubs/<id>/users/<user_id>/saves/
 ## Command line and environment
 
 ```sh
-framebeam_player [--data-dir <path>] [--dev-allow-http] [--version | --version-json] [--help]
+framebeam_player [--data-dir <path>] [--dev-allow-http] [--collect-logs <out.zip>] [--version | --version-json] [--help]
 framebeam_player_cli <command> ...            # run without arguments for the usage text
 ```
 

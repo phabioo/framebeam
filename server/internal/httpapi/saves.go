@@ -180,3 +180,28 @@ func (s *Server) UploadSaveFile(ctx context.Context, req api.UploadSaveFileReque
 	}
 	return api.UploadSaveFile200JSONResponse(toAPISlot(sl)), nil
 }
+
+func (s *Server) RenameSaveSlot(ctx context.Context, req api.RenameSaveSlotRequestObject) (api.RenameSaveSlotResponseObject, error) {
+	if req.Body == nil {
+		return nil, hub.ErrBadRequest
+	}
+	p := principal(ctx)
+	sl, err := s.svc.RenameSaveSlot(ctx, hub.RenameInput{UserID: p.User.ID, DeviceID: p.Device.ID, GameID: req.GameId.String(),
+		Slot: req.Slot, NewSlot: req.Body.Name})
+	if err != nil {
+		return nil, err
+	}
+	return api.RenameSaveSlot200JSONResponse(toAPISlot(sl)), nil
+}
+
+func (s *Server) DeleteSaveSlot(ctx context.Context, req api.DeleteSaveSlotRequestObject) (api.DeleteSaveSlotResponseObject, error) {
+	if req.Params.ConfirmRevision < 1 {
+		return nil, hub.ErrBadRequest
+	}
+	p := principal(ctx)
+	if err := s.svc.DeleteSaveSlot(ctx, hub.DeleteInput{UserID: p.User.ID, DeviceID: p.Device.ID, GameID: req.GameId.String(),
+		Slot: req.Slot, ConfirmRevision: req.Params.ConfirmRevision}); err != nil {
+		return nil, err
+	}
+	return api.DeleteSaveSlot204Response{}, nil
+}

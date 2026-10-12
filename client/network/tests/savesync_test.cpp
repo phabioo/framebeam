@@ -47,6 +47,7 @@ class SaveSyncTest : public QObject {
   std::unique_ptr<SaveSync> sync_;
   bool noFeature_ = false;
   bool noV4_ = false;
+  bool noV5_ = false;
 
   QString gdir() const { return SaveStore::gameDir(*profiles_, kHubId, kUser, kGame); }
   QString saveFile() const { return gdir() + QStringLiteral("/rom1.sav"); }
@@ -74,6 +75,9 @@ class SaveSyncTest : public QObject {
     hub_->features = {QStringLiteral("saves_v1"), QStringLiteral("saves_v2")};
     if (!noV4_) {
       hub_->features.append(QStringLiteral("saves_v4"));
+    }
+    if (!noV5_) {
+      hub_->features.append(QStringLiteral("saves_v5"));
     }
     if (noFeature_) {
       hub_->features.clear();
@@ -118,6 +122,54 @@ class SaveSyncTest : public QObject {
       *text = failed.count() > 0 ? failed.at(0).at(1).toString() : (ready.count() > 0 ? ready.at(0).at(2).toString() : QString());
     }
     return failed.count() > 0 ? QStringLiteral("failed") : (conflict.count() > 0 ? QStringLiteral("conflict") : (ready.count() > 0 ? QStringLiteral("ready") : QString()));
+  }
+
+  // ---- saves_v5 helpers ----
+  QString slotDir(const QString& slot) const { return sync_->slotDirFor(kGame, slot); }
+  // A slot on the Hub (revision rev) and optionally its local copy; synced = the local file equals the Hub content.
+  void makeSlot(const QString& slot, const QByteArray& hubContent, int rev, bool local, bool synced, const QByteArray& localContent = {}) {
+    FakeSlot fs;
+    fs.revision = rev;
+    fs.content = hubContent;
+    fs.deviceId = QStringLiteral("other-device");
+    fs.deviceName = QStringLiteral("Laptop Office");
+    hub_->saves.insert(FakeHub::slotKey(kGame, slot), fs);
+    if (local) {
+      const QByteArray content = localContent.isEmpty() ? hubContent : localContent;
+      writeFile(slotDir(slot) + QStringLiteral("/rom1.sav"), content);
+      SyncState st;
+      st.slot = slot;
+      st.baseRevision = rev;
+      st.lastSyncedSha256 = SaveStore::sha256Of(hubContent);
+      st.pending = !synced;
+      QVERIFY(SaveStore::saveState(slotDir(slot), st));
+    }
+  }
+  SaveSync::SlotChangeResult renameSlot(const QString& slot, const QString& name) {
+    SaveSync::SlotChangeResult res;
+    bool done = false;
+    sync_->renameSlot(kGame, slot, name, [&](const SaveSync::SlotChangeResult& r) { res = r; done = true; });
+    (void)QTest::qWaitFor([&]() { return done; }, 8000);
+    return res;
+  }
+  SaveSync::SlotChangeResult deleteSlot(const QString& slot, int revision) {
+    SaveSync::SlotChangeResult res;
+    bool done = false;
+    sync_->deleteSlot(kGame, slot, revision, [&](const SaveSync::SlotChangeResult& r) { res = r; done = true; });
+    (void)QTest::qWaitFor([&]() { return done; }, 8000);
+    return res;
+  }
+  static SaveUpdate slotUpdate(const QString& reason, const QString& slot, const QString& previous = QString()) {
+    SaveUpdate u;
+    u.gameId = kGame;
+    u.slot = slot;
+    u.previousSlot = previous;
+    u.revision = 2;
+    u.sha256 = QString(64, QLatin1Char('a'));
+    u.deviceId = QStringLiteral("other-device");
+    u.deviceName = QStringLiteral("Laptop");
+    u.reason = reason;
+    return u;
   }
   int snapshotsOnHub() const {
     int n = 0;
@@ -200,6 +252,7 @@ class SaveSyncTest : public QObject {
   void init() {
     noFeature_ = false;
     noV4_ = false;
+    noV5_ = false;
     qRegisterMetaType<framebeam::SaveSync::Kind>();
     connectAll();
   }
@@ -932,6 +985,31 @@ class SaveSyncTest : public QObject {
     QVERIFY(sync_->finalSyncBlocking(true));
   }
 
+  void liveUploadIsBlockedWhileTheGameIsShared() {
+    LiveCore core;
+    startRunning(&core);
+    sync_->setSharedCheck([](const QString& id) { return id == kGame; });
+    const QString picked = dir_->filePath(QStringLiteral("picked.sav"));
+    writeFile(picked, "picked-12-by");
+    QVERIFY(!sync_->uploadBlockReason(kGame).isEmpty());
+    SaveSync::RestoreResult res;
+    bool done = false;
+    sync_->uploadSaveFile(kGame, QStringLiteral("default"), picked, 1, QStringLiteral("rom1.sav"), [&](const SaveSync::RestoreResult& r) { res = r; done = true; });
+    QTRY_VERIFY_WITH_TIMEOUT(done, 8000);
+    QCOMPARE(res.kind, SaveRestoreResult::Outcome::Blocked);
+    QVERIFY(res.message.contains(QStringLiteral("Session")));
+    QCOMPARE(hub_->uploadCount, 0);
+    QVERIFY(core.applied.isEmpty());
+    sync_->setSharedCheck({});  // not shared any more: the same upload works live
+    QVERIFY(sync_->uploadBlockReason(kGame).isEmpty());
+    done = false;
+    sync_->uploadSaveFile(kGame, QStringLiteral("default"), picked, 1, QStringLiteral("rom1.sav"), [&](const SaveSync::RestoreResult& r) { res = r; done = true; });
+    QTRY_VERIFY_WITH_TIMEOUT(done, 8000);
+    QVERIFY2(res.ok(), qPrintable(res.message));
+    QCOMPARE(core.applied, QByteArray("picked-12-by"));
+    QVERIFY(sync_->finalSyncBlocking(true));
+  }
+
   void snapshotInGameFlushesTheCoreFirst() {
     LiveCore core;
     startRunning(&core);
@@ -974,6 +1052,274 @@ class SaveSyncTest : public QObject {
     sync_->handleSaveUpdate(u);
     QCOMPARE(spy.count(), 3);  // own device ignored
     QVERIFY(sync_->finalSyncBlocking(true));
+  }
+
+  void renameSlotMovesTheLocalSlotWithUnsyncedData() {
+    PlayerSettings settings(dir_->path());
+    sync_->setSettings(&settings);
+    makeSlot(QStringLiteral("boss"), "hub-boss", 2, true, false, "local-progress");
+    QVERIFY(sync_->setSlot(kGame, QStringLiteral("boss")));
+    QVERIFY(sync_->hubSupportsSavesV5());
+    const SaveSync::SlotChangeResult res = renameSlot(QStringLiteral("boss"), QStringLiteral("final"));
+    QVERIFY2(res.ok(), qPrintable(res.message));
+    QVERIFY(res.message.isEmpty());
+    QCOMPARE(hub_->renameCount, 1);
+    QVERIFY(!hub_->saves.contains(FakeHub::slotKey(kGame, QStringLiteral("boss"))));
+    QCOMPARE(hub_->saves.value(FakeHub::slotKey(kGame, QStringLiteral("final"))).content, QByteArray("hub-boss"));
+    QVERIFY(!QFileInfo::exists(slotDir(QStringLiteral("boss"))));
+    QCOMPARE(readFile(slotDir(QStringLiteral("final")) + QStringLiteral("/rom1.sav")), QByteArray("local-progress"));
+    const SyncState st = SaveStore::loadState(slotDir(QStringLiteral("final")));
+    QCOMPARE(st.slot, QStringLiteral("final"));
+    QVERIFY(st.pending);                   // the unsynced change travels with the slot
+    QCOMPARE(st.baseRevision, 2);
+    QCOMPARE(sync_->slotFor(kGame), QStringLiteral("final"));
+    QCOMPARE(PlayerSettings(dir_->path()).saveSlot(kHubId, kGame), QStringLiteral("final"));
+    QCOMPARE(sync_->kind(kGame), SaveSync::Kind::Pending);
+  }
+
+  void renameSlotSetsAsideAStaleLocalFolderOfTheNewName() {
+    makeSlot(QStringLiteral("boss"), "hub-boss", 1, true, true);
+    writeFile(slotDir(QStringLiteral("old")) + QStringLiteral("/rom1.sav"), "stale-old");  // local leftover, not on the Hub
+    const SaveSync::SlotChangeResult res = renameSlot(QStringLiteral("boss"), QStringLiteral("old"));
+    QVERIFY2(res.ok(), qPrintable(res.message));
+    QCOMPARE(readFile(slotDir(QStringLiteral("old")) + QStringLiteral("/rom1.sav")), QByteArray("hub-boss"));
+    const QStringList aside = QDir(QFileInfo(slotDir(QStringLiteral("old"))).absolutePath()).entryList({QStringLiteral("old.replaced-*")}, QDir::Dirs);
+    QCOMPARE(aside.size(), 1);  // nothing was overwritten or deleted
+    QCOMPARE(readFile(QFileInfo(slotDir(QStringLiteral("old"))).absolutePath() + QLatin1Char('/') + aside.first() + QStringLiteral("/rom1.sav")),
+             QByteArray("stale-old"));
+  }
+
+  void renameSlotOfALocalOnlySlotRenamesLocally() {
+    writeFile(slotDir(QStringLiteral("scratch")) + QStringLiteral("/rom1.sav"), "only-here");  // never uploaded: 404 on the Hub
+    const SaveSync::SlotChangeResult res = renameSlot(QStringLiteral("scratch"), QStringLiteral("kept"));
+    QVERIFY2(res.ok(), qPrintable(res.message));
+    QCOMPARE(hub_->renameCount, 0);
+    QCOMPARE(readFile(slotDir(QStringLiteral("kept")) + QStringLiteral("/rom1.sav")), QByteArray("only-here"));
+    QVERIFY(!QFileInfo::exists(slotDir(QStringLiteral("scratch"))));
+  }
+
+  void renameSlotErrorsAreMappedAndNothingMoves() {
+    using SO = SaveSync::SlotChangeResult::Outcome;
+    makeSlot(QStringLiteral("boss"), "hub-boss", 1, true, true);
+    makeSlot(QStringLiteral("taken"), "hub-taken", 1, false, true);
+    SaveSync::SlotChangeResult res = renameSlot(QStringLiteral("boss"), QStringLiteral("taken"));
+    QCOMPARE(res.kind, SO::Exists);
+    QVERIFY(res.message.contains(QStringLiteral("already exists")));
+    res = renameSlot(QStringLiteral("default"), QStringLiteral("x"));
+    QCOMPARE(res.kind, SO::Protected);
+    res = renameSlot(QStringLiteral("boss"), QStringLiteral("Bad Name"));
+    QCOMPARE(res.kind, SO::Failed);
+    res = renameSlot(QStringLiteral("boss"), QStringLiteral("con"));  // Windows reserved name
+    QCOMPARE(res.kind, SO::Failed);
+    const int requestsBefore = hub_->count(QStringLiteral("/api/v1/games/"), "POST");
+    hub_->sessionRunningGames.append(kGame);
+    res = renameSlot(QStringLiteral("boss"), QStringLiteral("fresh"));
+    QCOMPARE(res.kind, SO::SessionRunning);
+    QVERIFY(res.message.contains(QStringLiteral("Session")));
+    QCOMPARE(hub_->renameCount, 0);
+    QVERIFY(QFileInfo::exists(slotDir(QStringLiteral("boss"))));
+    QVERIFY(hub_->count(QStringLiteral("/api/v1/games/"), "POST") > requestsBefore);
+    hub_->sessionRunningGames.clear();
+    hub_->failSaveRequests = 1;
+    res = renameSlot(QStringLiteral("boss"), QStringLiteral("fresh"));
+    QCOMPARE(res.kind, SO::Offline);
+    QVERIFY(QFileInfo::exists(slotDir(QStringLiteral("boss"))));
+  }
+
+  void renameAndDeleteAreBlockedWhileTheGameRunsHere() {
+    using SO = SaveSync::SlotChangeResult::Outcome;
+    makeSlot(QStringLiteral("boss"), "hub-boss", 1, true, true);
+    QCOMPARE(start(), QStringLiteral("ready"));
+    sync_->beginSession();
+    const int before = hub_->requests.size();
+    QCOMPARE(renameSlot(QStringLiteral("boss"), QStringLiteral("fresh")).kind, SO::Blocked);
+    QCOMPARE(deleteSlot(QStringLiteral("boss"), 1).kind, SO::Blocked);
+    QCOMPARE(hub_->requests.size(), before);  // refused before any request
+    QVERIFY(sync_->finalSyncBlocking(true));
+  }
+
+  void renameNeedsSavesV5() {
+    cleanup();
+    noV5_ = true;
+    connectAll();
+    QVERIFY(!sync_->hubSupportsSavesV5());
+    makeSlot(QStringLiteral("boss"), "hub-boss", 1, true, true);
+    const int before = hub_->requests.size();
+    QVERIFY(!renameSlot(QStringLiteral("boss"), QStringLiteral("fresh")).ok());
+    QVERIFY(!deleteSlot(QStringLiteral("boss"), 1).ok());
+    QCOMPARE(hub_->requests.size(), before);
+    QVERIFY(QFileInfo::exists(slotDir(QStringLiteral("boss"))));
+  }
+
+  void deleteSlotRemovesTheLocalCopyAfterTheHubConfirmed() {
+    PlayerSettings settings(dir_->path());
+    sync_->setSettings(&settings);
+    makeSlot(QStringLiteral("boss"), "hub-boss", 3, true, true);
+    QVERIFY(sync_->setSlot(kGame, QStringLiteral("boss")));
+    const SaveSync::SlotChangeResult res = deleteSlot(QStringLiteral("boss"), 3);
+    QVERIFY2(res.ok(), qPrintable(res.message));
+    QCOMPARE(hub_->slotDeleteCount, 1);
+    QVERIFY(!hub_->saves.contains(FakeHub::slotKey(kGame, QStringLiteral("boss"))));
+    QVERIFY(!QFileInfo::exists(slotDir(QStringLiteral("boss"))));
+    QCOMPARE(sync_->slotFor(kGame), QStringLiteral("default"));
+    QCOMPARE(PlayerSettings(dir_->path()).saveSlot(kHubId, kGame), QStringLiteral("default"));
+    bool sawDelete = false;
+    for (const FakeRequest& r : hub_->requests) {
+      sawDelete = sawDelete || (r.method == "DELETE" && r.path.endsWith(QStringLiteral("/saves/boss?confirm_revision=3")));
+    }
+    QVERIFY(sawDelete);
+  }
+
+  void deleteSlotWithAStaleRevisionKeepsEverything() {
+    using SO = SaveSync::SlotChangeResult::Outcome;
+    makeSlot(QStringLiteral("boss"), "hub-boss", 4, true, true);
+    const SaveSync::SlotChangeResult res = deleteSlot(QStringLiteral("boss"), 3);  // the user saw r3, the Hub is at r4
+    QCOMPARE(res.kind, SO::Stale);
+    QCOMPARE(hub_->slotDeleteCount, 0);
+    QVERIFY(hub_->saves.contains(FakeHub::slotKey(kGame, QStringLiteral("boss"))));
+    QCOMPARE(readFile(slotDir(QStringLiteral("boss")) + QStringLiteral("/rom1.sav")), QByteArray("hub-boss"));
+  }
+
+  void deleteSlotRefusalsKeepTheLocalCopy() {
+    using SO = SaveSync::SlotChangeResult::Outcome;
+    makeSlot(QStringLiteral("boss"), "hub-boss", 1, true, true);
+    hub_->sessionRunningGames.append(kGame);
+    QCOMPARE(deleteSlot(QStringLiteral("boss"), 1).kind, SO::SessionRunning);
+    hub_->sessionRunningGames.clear();
+    FakeConflict c;
+    c.id = QStringLiteral("c1");
+    hub_->saves[FakeHub::slotKey(kGame, QStringLiteral("boss"))].conflicts.append(c);
+    SaveSync::SlotChangeResult res = deleteSlot(QStringLiteral("boss"), 1);
+    QVERIFY(res.kind == SO::Blocked || res.kind == SO::Conflict);  // the local conflict marker or the Hub refuses
+    QCOMPARE(deleteSlot(QStringLiteral("default"), 1).kind, SO::Protected);
+    QCOMPARE(hub_->slotDeleteCount, 0);
+    QVERIFY(hub_->saves.contains(FakeHub::slotKey(kGame, QStringLiteral("boss"))));
+    QVERIFY(QFileInfo::exists(slotDir(QStringLiteral("boss")) + QStringLiteral("/rom1.sav")));
+  }
+
+  void deleteSlotWithUnsyncedLocalChangesIsRefusedBeforeAnyRequest() {
+    using SO = SaveSync::SlotChangeResult::Outcome;
+    makeSlot(QStringLiteral("boss"), "hub-boss", 1, true, false, "local-progress");
+    const int before = hub_->requests.size();
+    const SaveSync::SlotChangeResult res = deleteSlot(QStringLiteral("boss"), 1);
+    QCOMPARE(res.kind, SO::Blocked);
+    QVERIFY(res.message.contains(QStringLiteral("not uploaded")));
+    QCOMPARE(hub_->requests.size(), before);
+    QCOMPARE(readFile(slotDir(QStringLiteral("boss")) + QStringLiteral("/rom1.sav")), QByteArray("local-progress"));
+  }
+
+  void deleteSlotThatIsOnlyLocalRemovesItAndOneOnTheHubIsNotTouchedWithoutARevision() {
+    using SO = SaveSync::SlotChangeResult::Outcome;
+    writeFile(slotDir(QStringLiteral("scratch")) + QStringLiteral("/rom1.sav"), "only-here");
+    SyncState st;
+    st.slot = QStringLiteral("scratch");
+    st.lastSyncedSha256 = SaveStore::sha256Of("only-here");
+    QVERIFY(SaveStore::saveState(slotDir(QStringLiteral("scratch")), st));
+    QVERIFY(deleteSlot(QStringLiteral("scratch"), 0).ok());
+    QVERIFY(!QFileInfo::exists(slotDir(QStringLiteral("scratch"))));
+    makeSlot(QStringLiteral("boss"), "hub-boss", 1, true, true);
+    QCOMPARE(deleteSlot(QStringLiteral("boss"), 0).kind, SO::Stale);  // it is on the Hub: a revision is required
+    QCOMPARE(hub_->slotDeleteCount, 0);
+    QVERIFY(QFileInfo::exists(slotDir(QStringLiteral("boss"))));
+  }
+
+  void renamedPushMovesACleanLocalSlotAndTheSelection() {
+    makeSlot(QStringLiteral("boss"), "hub-boss", 1, true, true);
+    QVERIFY(sync_->setSlot(kGame, QStringLiteral("boss")));
+    QSignalSpy changed(sync_.get(), &SaveSync::slotChangedElsewhere);
+    QSignalSpy plain(sync_.get(), &SaveSync::saveChangedElsewhere);
+    sync_->handleSaveUpdate(slotUpdate(QStringLiteral("renamed"), QStringLiteral("final"), QStringLiteral("boss")));
+    QCOMPARE(changed.count(), 1);
+    QCOMPARE(plain.count(), 0);
+    QVERIFY(!changed.at(0).at(2).toBool());
+    QVERIFY(changed.at(0).at(1).toString().contains(QStringLiteral("renamed")));
+    QVERIFY(!QFileInfo::exists(slotDir(QStringLiteral("boss"))));
+    QCOMPARE(readFile(slotDir(QStringLiteral("final")) + QStringLiteral("/rom1.sav")), QByteArray("hub-boss"));
+    QCOMPARE(SaveStore::loadState(slotDir(QStringLiteral("final"))).slot, QStringLiteral("final"));
+    QCOMPARE(sync_->slotFor(kGame), QStringLiteral("final"));
+  }
+
+  void renamedPushKeepsUnsyncedLocalProgressAndSaysSo() {
+    makeSlot(QStringLiteral("boss"), "hub-boss", 1, true, false, "local-progress");
+    QVERIFY(sync_->setSlot(kGame, QStringLiteral("boss")));
+    QSignalSpy changed(sync_.get(), &SaveSync::slotChangedElsewhere);
+    sync_->handleSaveUpdate(slotUpdate(QStringLiteral("renamed"), QStringLiteral("final"), QStringLiteral("boss")));
+    QCOMPARE(changed.count(), 1);
+    QVERIFY(changed.at(0).at(2).toBool());  // warning
+    QVERIFY(changed.at(0).at(1).toString().contains(QStringLiteral("unsynced")));
+    QCOMPARE(readFile(slotDir(QStringLiteral("boss")) + QStringLiteral("/rom1.sav")), QByteArray("local-progress"));
+    QVERIFY(!QFileInfo::exists(slotDir(QStringLiteral("final"))));
+    QCOMPARE(sync_->slotFor(kGame), QStringLiteral("boss"));
+  }
+
+  void renamedPushOfTheRunningSlotChangesNothingLocally() {
+    makeSlot(QStringLiteral("boss"), "hub-boss", 1, true, true);
+    QVERIFY(sync_->setSlot(kGame, QStringLiteral("boss")));
+    QCOMPARE(start(), QStringLiteral("ready"));
+    sync_->beginSession();
+    QSignalSpy changed(sync_.get(), &SaveSync::slotChangedElsewhere);
+    sync_->handleSaveUpdate(slotUpdate(QStringLiteral("renamed"), QStringLiteral("final"), QStringLiteral("boss")));
+    QCOMPARE(changed.count(), 1);
+    QVERIFY(changed.at(0).at(2).toBool());
+    QVERIFY(QFileInfo::exists(slotDir(QStringLiteral("boss"))));
+    QVERIFY(!QFileInfo::exists(slotDir(QStringLiteral("final"))));
+    QCOMPARE(sync_->slotFor(kGame), QStringLiteral("boss"));
+    QVERIFY(sync_->finalSyncBlocking(true));
+  }
+
+  void deletedPushRemovesACleanLocalSlotAndFallsBackToDefault() {
+    makeSlot(QStringLiteral("boss"), "hub-boss", 1, true, true);
+    QVERIFY(sync_->setSlot(kGame, QStringLiteral("boss")));
+    QSignalSpy changed(sync_.get(), &SaveSync::slotChangedElsewhere);
+    sync_->handleSaveUpdate(slotUpdate(QStringLiteral("deleted"), QStringLiteral("boss")));
+    QCOMPARE(changed.count(), 1);
+    QVERIFY(!changed.at(0).at(2).toBool());
+    QVERIFY(!QFileInfo::exists(slotDir(QStringLiteral("boss"))));
+    QCOMPARE(sync_->slotFor(kGame), QStringLiteral("default"));
+  }
+
+  void deletedPushKeepsUnsyncedLocalProgress() {
+    makeSlot(QStringLiteral("boss"), "hub-boss", 1, true, false, "local-progress");
+    QVERIFY(sync_->setSlot(kGame, QStringLiteral("boss")));
+    QSignalSpy changed(sync_.get(), &SaveSync::slotChangedElsewhere);
+    sync_->handleSaveUpdate(slotUpdate(QStringLiteral("deleted"), QStringLiteral("boss")));
+    QCOMPARE(changed.count(), 1);
+    QVERIFY(changed.at(0).at(2).toBool());
+    QVERIFY(changed.at(0).at(1).toString().contains(QStringLiteral("kept")));
+    QCOMPARE(readFile(slotDir(QStringLiteral("boss")) + QStringLiteral("/rom1.sav")), QByteArray("local-progress"));
+    // The main slot is never touched by a (malformed) deleted push
+    sync_->handleSaveUpdate(slotUpdate(QStringLiteral("deleted"), QStringLiteral("default")));
+    QCOMPARE(changed.count(), 2);
+    QVERIFY(changed.at(1).at(1).toString().isEmpty());
+  }
+
+  void uploadFileIsBlockedWhileTheGameRunsHere() {
+    hub_->setHubSave(kGame, "cp-1");
+    QCOMPARE(start(), QStringLiteral("ready"));
+    sync_->beginSession();
+    const QString picked = QDir(dir_->path()).filePath(QStringLiteral("picked.sav"));
+    writeFile(picked, "picked");
+    SaveSync::RestoreResult res;
+    bool done = false;
+    sync_->uploadSaveFile(kGame, QStringLiteral("default"), picked, 1, QStringLiteral("rom1.sav"), [&](const SaveSync::RestoreResult& r) { res = r; done = true; });
+    QTRY_VERIFY_WITH_TIMEOUT(done, 8000);
+    QCOMPARE(res.kind, SaveRestoreResult::Outcome::Blocked);
+    QCOMPARE(hub_->uploadCount, 0);
+    QVERIFY(sync_->finalSyncBlocking(true));
+  }
+
+  void uploadFileDuringASessionIsRefusedByTheHub() {
+    hub_->setHubSave(kGame, "cp-1");
+    hub_->sessionRunningGames.append(kGame);
+    const QString picked = QDir(dir_->path()).filePath(QStringLiteral("picked.sav"));
+    writeFile(picked, "picked");
+    SaveSync::RestoreResult res;
+    bool done = false;
+    sync_->uploadSaveFile(kGame, QStringLiteral("default"), picked, 1, QStringLiteral("rom1.sav"), [&](const SaveSync::RestoreResult& r) { res = r; done = true; });
+    QTRY_VERIFY_WITH_TIMEOUT(done, 8000);
+    QCOMPARE(res.kind, SaveRestoreResult::Outcome::Blocked);
+    QVERIFY(res.message.contains(QStringLiteral("Session")));
+    QCOMPARE(hub_->uploadCount, 0);
   }
 
   void slotSelectionIsPersistedAndUsedBySync() {
