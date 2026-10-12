@@ -98,7 +98,9 @@ class RunsController : public QObject {
   Q_INVOKABLE void refresh();
   Q_INVOKABLE void openRun(const QString& runId);
   Q_INVOKABLE void closeRun();
-  // Fills `games` with the library games that fit the run's plugins (empty runId: every game); returns the count.
+  // Fills `games` with the library games that fit the run's plugins (empty runId: the plugins ticked in the Start dialog, or
+  // every game when none is ticked); returns the count. A game fits when every plugin accepts its system and game code;
+  // games without a known code stay in the list after the matching ones with the hint "Game not recognized".
   Q_INVOKABLE int prepareGames(const QString& runId);
   Q_INVOKABLE void joinRun(const QString& runId, const QString& gameId);
   Q_INVOKABLE void declineRun(const QString& runId);
@@ -147,7 +149,13 @@ class RunsController : public QObject {
   QString timeText(const QString& iso) const;
   QVariantMap rowFor(const RunInfo& run) const;
   void ensureCopies(const RunInfo& run, std::function<void(bool ok, const QString& error)> done);
-  QStringList gameSystemsFor(const RunInfo* run) const;  // empty = no constraint
+  // The `games` patterns of every plugin of the run ({system, codes?}); a plugin without patterns is no constraint.
+  QList<QJsonArray> gamePatternsFor(const RunInfo* run) const;
+  QList<QJsonArray> startGamePatterns() const;  // same for the plugins ticked in the Start dialog (newest offered version)
+  int fillGames(const QList<QJsonArray>& patterns);
+  void refreshGames();  // re-fills `games` for the last prepareGames() call (library or plugin list arrived later)
+  bool gamesPrepared_ = false;
+  QString gamesFor_;
 
   QPointer<RunClient> client_;
   PluginsController* plugins_;
@@ -165,7 +173,7 @@ class RunsController : public QObject {
                                QStringLiteral("userId")};
   KeyedRowsModel events_{{QStringLiteral("seq"), QStringLiteral("timeText"), QStringLiteral("author"), QStringLiteral("text"), QStringLiteral("sourceText")},
                          QStringLiteral("seq")};
-  KeyedRowsModel games_{{QStringLiteral("id"), QStringLiteral("title"), QStringLiteral("system")}, QStringLiteral("id")};
+  KeyedRowsModel games_{{QStringLiteral("id"), QStringLiteral("title"), QStringLiteral("system"), QStringLiteral("hint")}, QStringLiteral("id")};
   KeyedRowsModel startPlugins_{{QStringLiteral("id"), QStringLiteral("name"), QStringLiteral("version"), QStringLiteral("description"), QStringLiteral("origin"), QStringLiteral("originText"), QStringLiteral("permissionsText"), QStringLiteral("checked")},
                                QStringLiteral("id")};
   KeyedRowsModel startUsers_{{QStringLiteral("id"), QStringLiteral("name"), QStringLiteral("online"), QStringLiteral("checked")}, QStringLiteral("id")};

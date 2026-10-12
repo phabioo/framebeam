@@ -11,7 +11,7 @@
 
 namespace framebeam::plugins {
 
-// Something the plugins subscribed to with fb.run.on: kind "event" (data = event), "state" (data = {user_id, state}),
+// Something the plugins subscribed to with fb.run.on: kind "event" (data = event), "state" (data = {user_id, plugin_id, state}),
 // "status" (data = {status, previous}) or "participants" (data = {participants}).
 struct RunNotification {
   QString kind;
@@ -25,13 +25,15 @@ class RunBridge {
 
   // {id, name, status, me, settings, plugins:[{id, version}], participants:[{user_id, name, color, status, game_id}]}.
   virtual QJsonObject current() const = 0;
-  virtual QJsonObject stateOf(const QString& userId, bool* found) const = 0;
-  virtual QJsonObject states() const = 0;  // {user_id: state}
+  // State of a participant for a plugin of the run (any plugin's state may be read); *found = false when there is none.
+  virtual QJsonObject stateOf(const QString& userId, const QString& pluginId, bool* found) const = 0;
+  virtual QJsonObject states(const QString& pluginId) const = 0;  // {user_id: state} for that plugin
   // Cached events with seq > afterSeq as {seq, time, user_id, user_name, plugin_id, source, type, text, payload, client_id}.
   virtual QJsonArray events(qint64 afterSeq, int limit) const = 0;
 
   // Writes: "" = accepted, otherwise why the write was refused (run not starting/active, not joined, too large ...).
-  virtual QString setState(const QJsonObject& state) = 0;
+  // Replaces the own state of the given plugin (the calling plugin; plugins write only their own state).
+  virtual QString setState(const QString& pluginId, const QJsonObject& state) = 0;
   virtual QString postEvent(const QString& pluginId, const QString& source, const QString& type, const QString& text, const QJsonObject& payload,
                             QString* clientId) = 0;
   virtual QString setBoard(const QString& pluginId, const QJsonObject& tree) = 0;

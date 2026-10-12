@@ -36,12 +36,12 @@ using RunCallback = std::function<void(const RunResult&)>;
 // Runs of the active Hub (feature runs_v1, 0.11 package 3 contract section 5): REST calls, the run_updated / run_state /
 // run_event messages of the WSS, catch-up after reconnect (hello `runs` with the last seen seq per run, paging through
 // GET .../events when the Hub sent nothing), and writes with the limits of the Hub:
-//  - own state: coalesced (at most 4 writes per second), a 409 state_conflict adopts the Hub's revision and re-sends the
-//    latest local value;
+//  - own state, per plugin of the run (PUT .../state/{plugin_id}): coalesced per plugin (at most 4 writes per second each),
+//    a 409 state_conflict adopts the Hub's revision of that plugin and re-sends the latest local value;
 //  - events: queued with a uuid client_id, sent in order and retried on network errors / 5xx / 429 (idempotent through
 //    the client_id);
 //  - board: coalesced to at most 1 write per second.
-// A small per-run cache (last seen seq + recent events) lives in <dataDir>/runs/<hub id>/<user id>/<run id>.json.
+// A small per-run cache (last seen seq + recent events + states per user and plugin) lives in <dataDir>/runs/<hub id>/<user id>/<run id>.json.
 // Writes are refused locally with a clear message when the run is not starting or active. Single-threaded (UI thread).
 class RunClient : public QObject {
   Q_OBJECT
@@ -71,9 +71,12 @@ class RunClient : public QObject {
   void loadUsers(std::function<void(bool ok, const QList<HubUser>& users, const QString& error)> cb);  // GET /users
 
   // --- writes of the running game (fb.run); return an error text ("" = accepted) ---
-  // Own state: replaces the whole state object. Refused when I have not joined or the run does not accept writes.
-  QString setOwnState(const QString& runId, const QJsonObject& state);
-  QJsonObject ownState(const QString& runId) const;  // the latest local value
+  // Own state of one plugin: replaces that plugin's whole state object. Refused when I have not joined, the plugin is
+  // not part of the run or the run does not accept writes.
+  QString setOwnState(const QString& runId, const QString& pluginId, const QJsonObject& state);
+  QJsonObject ownState(const QString& runId, const QString& pluginId) const;  // the latest local value
+  // State of any participant for a plugin (nullopt when there is none); my own unsent value counts.
+  std::optional<QJsonObject> participantState(const QString& runId, const QString& userId, const QString& pluginId) const;
   // Queues an event (plugin_id, source "automatic" | "manual", type [a-z0-9_.-]{1,64}, text <= 280, payload <= 4 KiB).
   // *clientId: a uuid to use as the idempotency key (empty or null = a new one); on return the id that was used.
   QString postEvent(const QString& runId, const QString& pluginId, const QString& source, const QString& type, const QString& text,
@@ -101,7 +104,7 @@ class RunClient : public QObject {
   void runChanged(const QString& runId);               // run_updated / REST answer applied
   void statusChanged(const QString& runId, const QString& status);
   void participantsChanged(const QString& runId);      // joins, leaves, invites, colours
-  void stateChanged(const QString& runId, const QString& userId);  // a participant's state changed
+  void stateChanged(const QString& runId, const QString& userId, const QString& pluginId);  // one plugin's state of a participant changed
   void eventAdded(const QString& runId, const framebeam::RunEvent& event);
   // A queued write was dropped for good: kind = "state" | "event" | "board".
   void writeFailed(const QString& runId, const QString& kind, const QString& code, const QString& message);
@@ -118,6 +121,14 @@ class RunClient : public QObject {
     qint64 lastSendMs = 0;
     int failures = 0;
   };
+  struct OwnState {
+    QJsonObject desired;
+    bool dirty = false;
+    bool inFlight = false;
+    bool timerScheduled = false;
+    qint64 lastSendMs = 0;
+    int failures = 0;
+  };
   struct RunData {
     RunInfo info;
     qint64 lastSeq = 0;   // highest contiguous event seq seen
@@ -127,13 +138,8 @@ class RunClient : public QObject {
     bool paging = false;
     bool catchUpScheduled = false;
     bool cacheDirty = false;
-    // own state
-    QJsonObject desired;
-    bool stateDirty = false;
-    bool stateInFlight = false;
-    bool stateTimerScheduled = false;
-    qint64 stateLastSendMs = 0;
-    int stateFailures = 0;
+    // own state by plugin id
+    std::map<QString, OwnState> own;
     // events
     QList<PendingEvent> queue;
     bool eventInFlight = false;
@@ -159,7 +165,7 @@ class RunClient : public QObject {
   void noteSeq(RunData& d, qint64 seq);
   void scheduleCatchUp(const QString& runId);
   void pageEvents(const QString& runId, int pagesLeft);
-  void flushState(const QString& runId);
+  void flushState(const QString& runId, const QString& pluginId);
   void flushEvents(const QString& runId);
   void flushBoards(const QString& runId);
   int retryDelayMs(int failures) const;
@@ -175,6 +181,7 @@ class RunClient : public QObject {
   QHash<QString, std::shared_ptr<RunData>> runs_;
   QHash<QString, qint64> cachedSeq_;      // from disk: run id -> last seq (runs not in memory yet)
   QHash<QString, QList<RunEvent>> cachedEvents_;
+  QHash<QString, QJsonObject> cachedStates_;  // run id -> {user id: {plugin id: {state, state_rev}}}
   QString cacheOwner_;                    // "<hub>/<user>" the disk cache was loaded for
   bool loaded_ = false;
   quint64 gen_ = 0;

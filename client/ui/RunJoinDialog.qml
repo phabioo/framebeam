@@ -28,6 +28,16 @@ Popup {
         root.open()
     }
 
+    // The library or the Hub's plugin list may arrive after the dialog opened: a single fitting game is picked then, too,
+    // but never over a choice the user made.
+    Connections {
+        target: root.runs.games
+        function onModelReset() {
+            if (root.opened && picker.selectedId === "" && root.runs.games.count === 1)
+                picker.selectedId = root.runs.games.get(0).id
+        }
+    }
+
     background: Rectangle {
         radius: Theme.radius12
         color: Theme.popupBg

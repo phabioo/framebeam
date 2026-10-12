@@ -154,10 +154,11 @@ struct GameEntry {
   QString romFilename;
   QString uploadedBy;
   QString addedAt;
+  QString gameCode;      // "" = the Hub does not know the code (older Hub, encrypted dump, unreadable header)
+  QString gameCodeKind;  // "" | "nds-gamecode" | "3ds-titleid"
   // local_roms_v1. A Hub without it sends none of these: onHub = true, roms = the one primary file.
   bool onHub = true;               // at least one file is stored on the Hub (downloadable)
   QList<RomFileEntry> roms;        // every known file incl. the primary one
-  QString gameCode;                // NDS: 4 characters, 3DS: 16 uppercase hex digits; empty = unknown
   int gameVersion = -1;            // -1 = unknown
 
   // True if `sha256` is one of the game's files (primary or additional).

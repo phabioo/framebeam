@@ -1206,9 +1206,7 @@ QJsonObject FakeHub::makeRun(const QString& name, const QStringList& userIds, co
                              {QStringLiteral("status"), joined ? QStringLiteral("joined") : QStringLiteral("invited")},
                              {QStringLiteral("game_id"), joined ? QJsonValue(QStringLiteral("00000000-0000-4000-8000-000000000001")) : QJsonValue(QJsonValue::Null)},
                              {QStringLiteral("color"), joined ? QJsonValue(color++) : QJsonValue(QJsonValue::Null)},
-                             {QStringLiteral("state"), QJsonObject()},
-                             {QStringLiteral("state_rev"), 0},
-                             {QStringLiteral("state_updated_at"), QJsonValue(QJsonValue::Null)}});
+                             {QStringLiteral("states"), QJsonObject()}});
   }
   const QString id = makeUuid();
   const QJsonObject run{{QStringLiteral("run_id"), id},
@@ -1348,7 +1346,7 @@ void FakeHub::handleRuns(QSslSocket* sock, const FakeRequest& req) {
     for (const QJsonValue& v : body.value(QStringLiteral("user_ids")).toArray())
       ps.append(QJsonObject{{QStringLiteral("user_id"), v.toString()}, {QStringLiteral("user_name"), v.toString()}, {QStringLiteral("status"), QStringLiteral("invited")},
                             {QStringLiteral("game_id"), QJsonValue(QJsonValue::Null)}, {QStringLiteral("color"), QJsonValue(QJsonValue::Null)},
-                            {QStringLiteral("state"), QJsonObject()}, {QStringLiteral("state_rev"), 0}, {QStringLiteral("state_updated_at"), QJsonValue(QJsonValue::Null)}});
+                            {QStringLiteral("states"), QJsonObject()}});
     run.insert(QStringLiteral("participants"), ps);
     runs.insert(runId, run);
     pushRun(runId);
@@ -1370,26 +1368,34 @@ void FakeHub::handleRuns(QSslSocket* sock, const FakeRequest& req) {
     addRunEvent(runId, QStringLiteral("run.status"), to);
     pushRun(runId);
     respond(sock, 200, json(runs.value(runId)));
-  } else if (sub == QLatin1String("state") && req.method == "PUT") {
+  } else if (sub == QLatin1String("state") && req.method == "PUT" && parts.size() == 3) {
+    const QString pluginId = parts.value(2);
     lastRunBody = body;
-    runStatePuts.append(body);
+    QJsonObject logged = body;
+    logged.insert(QStringLiteral("plugin_id"), pluginId);
+    runStatePuts.append(logged);
     if (!writable) {
       respondError(sock, 409, QStringLiteral("run_not_active"));
       return;
     }
+    const auto stateOf = [&](const QJsonObject& me) { return me.value(QStringLiteral("states")).toObject().value(pluginId).toObject(); };
     if (runStateConflicts > 0) {
       --runStateConflicts;
-      QJsonObject me = run.value(QStringLiteral("participants")).toArray().at(myIndex()).toObject();
+      const QJsonObject me = run.value(QStringLiteral("participants")).toArray().at(myIndex()).toObject();
       respond(sock, 409, json({{QStringLiteral("error"), QJsonObject{{QStringLiteral("code"), QStringLiteral("state_conflict")}, {QStringLiteral("message"), QStringLiteral("base_rev")}}},
                                {QStringLiteral("state_rev"), static_cast<double>(runConflictRev)},
-                               {QStringLiteral("state"), me.value(QStringLiteral("state")).toObject()}}));
+                               {QStringLiteral("state"), stateOf(me).value(QStringLiteral("state")).toObject()}}));
       return;
     }
     qint64 rev = 0;
     updateMe([&](QJsonObject& me) {
-      rev = (std::max)(static_cast<qint64>(me.value(QStringLiteral("state_rev")).toDouble()), static_cast<qint64>(body.value(QStringLiteral("base_rev")).toDouble())) + 1;
-      me.insert(QStringLiteral("state"), body.value(QStringLiteral("state")).toObject());
-      me.insert(QStringLiteral("state_rev"), static_cast<double>(rev));
+      QJsonObject all = me.value(QStringLiteral("states")).toObject();
+      const QJsonObject cur = all.value(pluginId).toObject();
+      rev = (std::max)(static_cast<qint64>(cur.value(QStringLiteral("state_rev")).toDouble()), static_cast<qint64>(body.value(QStringLiteral("base_rev")).toDouble())) + 1;
+      all.insert(pluginId, QJsonObject{{QStringLiteral("state"), body.value(QStringLiteral("state")).toObject()},
+                                       {QStringLiteral("state_rev"), static_cast<double>(rev)},
+                                       {QStringLiteral("updated_at"), QStringLiteral("2026-10-12T10:00:00Z")}});
+      me.insert(QStringLiteral("states"), all);
     });
     runs.insert(runId, run);
     respond(sock, 200, json({{QStringLiteral("state_rev"), static_cast<double>(rev)}}));

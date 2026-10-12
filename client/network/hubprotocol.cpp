@@ -274,10 +274,11 @@ std::optional<GameEntry> parseGame(const QJsonObject& obj) {
   g.romFilename = rom.value(QStringLiteral("filename")).toString();
   g.uploadedBy = obj.value(QStringLiteral("uploaded_by")).toString();
   g.addedAt = obj.value(QStringLiteral("added_at")).toString();
+  g.gameCode = obj.value(QStringLiteral("game_code")).toString();
+  g.gameCodeKind = obj.value(QStringLiteral("game_code_kind")).toString();
   if (g.id.isEmpty() || !RomCache::isValidSha256(g.romSha256) || g.romSize < 0) {
     return std::nullopt;
   }
-  g.gameCode = obj.value(QStringLiteral("game_code")).toString();
   g.gameVersion = obj.value(QStringLiteral("game_version")).isDouble() ? obj.value(QStringLiteral("game_version")).toInt(-1) : -1;
   const bool primaryStored = rom.value(QStringLiteral("stored")).toBool(true);
   g.onHub = obj.value(QStringLiteral("on_hub")).toBool(true);
