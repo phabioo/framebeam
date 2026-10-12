@@ -58,6 +58,7 @@ var settingsSections = []struct{ ID, Title, Subtitle string }{
 	{"updates", "Updates", "Versions, channel and automatic installs for this hub"},
 	{"general", "General", "How the hub appears to Players and users"},
 	{"network", "Network", "Ports, public address and relay for Players outside your network"},
+	{"saves", "Saves", "How many older versions of each save the hub keeps"},
 	{"security", "Security", "Transport, certificate and the admin account"},
 	{"diagnostics", "Diagnostics", "One file with logs and settings to hand over when something does not work"},
 }
@@ -91,6 +92,7 @@ type settingsBody struct {
 	TLS                     bool
 	Fingerprint, CertSource string
 	CertNotAfter            string
+	CertNotAfterTitle       string
 	CertExpiresSoon         bool
 	CertSelfGenerated       bool
 	CanRenewCert            bool
@@ -107,9 +109,9 @@ type navItem struct {
 
 type updatesBody struct {
 	hub.UpdateStatus
-	LastCheckText string
-	LastResultAt  string
-	CadenceText   string // "checks every hour" ... or ""
+	LastCheckAt  When
+	LastResultAt When
+	CadenceText  string // "checks every hour" ... or ""
 	// OffOption: the channel "Off" is offered (development builds).
 	OffOption bool
 	Channel   string // select value: stable, beta or "" (development default)
@@ -186,6 +188,7 @@ type settingsRes struct {
 	PollUpdates    bool
 	Restarting     *restartBody
 	NoticeOverride string
+	Edit           string // external TURN server whose edit form is open
 }
 
 // ---- rendering ----
@@ -243,7 +246,7 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, sess *se
 	fp, notAfter := s.certInfo()
 	b.TLS, b.Fingerprint, b.CertSource, b.MinPassword = s.cfg.UseTLS, fp, s.cfg.CertSource, hub.MinPasswordLen
 	if !notAfter.IsZero() {
-		b.CertNotAfter = notAfter.Local().Format("2006-01-02")
+		b.CertNotAfter, b.CertNotAfterTitle = notAfter.Local().Format("2 Jan 2006"), notAfter.Local().Format("2 Jan 2006, 15:04:05")
 		b.CertExpiresSoon = tlsutil.ExpiresSoon(notAfter, time.Now())
 	}
 	b.CertSelfGenerated = s.cfg.CertSource == "Self-generated"
@@ -254,7 +257,7 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, sess *se
 	// Updates.
 	updStatus, updErr := s.svc.UpdateStatus(ctx)
 	if updErr == nil {
-		b.Updates = updatesBody{UpdateStatus: updStatus, LastCheckText: "never",
+		b.Updates = updatesBody{UpdateStatus: updStatus, LastCheckAt: When{Text: "never"},
 			OffOption: updStatus.Settings.CompiledChannel != "stable" && updStatus.Settings.CompiledChannel != "beta"}
 		if updStatus.Settings.ChannelIsSet || !b.Updates.OffOption {
 			b.Updates.Channel = updStatus.Settings.Channel
@@ -266,10 +269,10 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, sess *se
 			b.Updates.CadenceText = "checks every 24 hours"
 		}
 		if updStatus.LastCheck != nil {
-			b.Updates.LastCheckText = updStatus.LastCheck.Local().Format("2006-01-02 15:04")
+			b.Updates.LastCheckAt = fmtWhen(*updStatus.LastCheck, time.Now())
 		}
 		if updStatus.LastResult != nil {
-			b.Updates.LastResultAt = updStatus.LastResult.Time.Local().Format("2006-01-02 15:04")
+			b.Updates.LastResultAt = fmtWhen(updStatus.LastResult.Time, time.Now())
 		}
 	} else {
 		b.Updates.Err = true
@@ -335,20 +338,24 @@ func (s *Server) settingsNav(current string, st hub.UpdateStatus, updErr error, 
 		it := navItem{ID: sec.ID, Title: sec.Title, Selected: sec.ID == current, Level: "muted"}
 		switch sec.ID {
 		case "updates":
+			ch := upper1(st.Settings.Channel)
 			switch {
 			case updErr != nil:
 				it.Status = "Status unavailable"
 			case st.Available != nil:
-				it.Status, it.Level = "Update available · "+st.Available.Version, "warn"
+				it.Status, it.Level = "Update available · "+st.Available.Version, "info"
 			case st.Disabled != "":
 				it.Status = "Updates off"
 			default:
-				it.Status, it.Level = "Up to date · "+st.Settings.Channel, "ok"
+				it.Status, it.Level = ch+" · up to date", "ok"
 			}
 		case "general":
-			it.Status = "Name, address, theme, uploads"
+			it.Status = "Name, theme, uploads"
 		case "network":
-			it.Status = nb.ReachTitle
+			it.Status = "Public · TURN relay " + strings.ToLower(onOff(nb.TURNOn))
+			if nb.PublicHost.Value == "" {
+				it.Status = "Local network · TURN relay " + strings.ToLower(onOff(nb.TURNOn))
+			}
 			it.Level = "warn"
 			if nb.ReachOK {
 				it.Level = "ok"
@@ -356,18 +363,40 @@ func (s *Server) settingsNav(current string, st hub.UpdateStatus, updErr error, 
 			if len(nb.Pending) > 0 {
 				it.Status, it.Level = "Restart required", "warn"
 			}
+		case "saves":
+			it.Status = fmt.Sprintf("Keep %s · %s days · %s weeks", retentionText(nb.KeepRecent.Value), retentionText(nb.KeepDaily.Value), retentionText(nb.KeepWeekly.Value))
 		case "diagnostics":
 			it.Status = "Download bundle"
 		case "security":
-			if s.cfg.UseTLS {
-				it.Status, it.Level = "HTTPS active · admin", "ok"
-			} else {
-				it.Status, it.Level = "HTTP (dev mode) · admin", "warn"
+			switch {
+			case !s.cfg.UseTLS:
+				it.Status, it.Level = "HTTP (dev mode)", "warn"
+			case s.cfg.CertSource == "Self-generated":
+				it.Status, it.Level = "Self-signed certificate", "ok"
+			default:
+				it.Status, it.Level = "Own certificate", "ok"
 			}
 		}
 		items = append(items, it)
 	}
 	return items
+}
+
+// retentionText shows a retention value in the section column: 0 means unlimited.
+func retentionText(v string) string {
+	if v == "" || v == "0" {
+		return "all"
+	}
+	return v
+}
+
+// netSection is the settings section a network key lives in.
+func netSection(key string) string {
+	switch key {
+	case config.NetKeepRecent, config.NetKeepDaily, config.NetKeepWeekly:
+		return "saves"
+	}
+	return "network"
 }
 
 // netBody assembles the Network section from the effective configuration and the saved values.
@@ -470,7 +499,7 @@ func (s *Server) netBody(r *http.Request, sess *session, res settingsRes) (netBo
 		nb.TURN = turnBody{On: true, PublicHost: st.PublicHost, RelayIP: st.RelayIP, Fixed: st.Fixed, Port: st.Port,
 			RelayMin: st.RelayMin, RelayMax: st.RelayMax, Allocations: st.Allocations, Forwards: turnForwards(run.Listen, st)}
 		if !st.ResolvedAt.IsZero() {
-			nb.TURN.ResolvedAt = st.ResolvedAt.Local().Format("2006-01-02 15:04")
+			nb.TURN.ResolvedAt = fmtWhen(st.ResolvedAt, time.Now()).Text
 		}
 	}
 	nb.ExtFromWeb, nb.ExtActive = s.svc.ExternalTURNSource() == hub.ExternalTURNFromWeb, s.svc.ExternalTURNActive()
@@ -491,6 +520,9 @@ func (s *Server) netBody(r *http.Request, sess *session, res settingsRes) (netBo
 			row.FormName, row.ModeKey, row.URLsText, row.Username = res.Form.Get("name"), res.Form.Get("mode"), res.Form.Get("urls"), res.Form.Get("username")
 			row.Err, row.Open = res.Msg, true
 		}
+		if res.Edit != "" && res.Edit == e.Name {
+			row.Open = true
+		}
 		nb.External = append(nb.External, row)
 	}
 	nb.Cloudflare = s.svc.CloudflareStatus().Configured
@@ -509,7 +541,7 @@ func (s *Server) settingsGet(w http.ResponseWriter, r *http.Request, sess *sessi
 		http.NotFound(w, r)
 		return
 	}
-	s.renderSettings(w, r, sess, http.StatusOK, section, settingsRes{OK: r.URL.Query().Get("ok"), Err: errTexts[r.URL.Query().Get("err")]})
+	s.renderSettings(w, r, sess, http.StatusOK, section, settingsRes{OK: r.URL.Query().Get("ok"), Err: errTexts[r.URL.Query().Get("err")], Edit: r.URL.Query().Get("edit")})
 }
 
 // settingsDone ends a settings action. Success: HTMX requests get the re-rendered section, others a redirect to
@@ -777,7 +809,7 @@ func (s *Server) settingsNetSave(w http.ResponseWriter, r *http.Request, sess *s
 		return
 	}
 	fail := func(msg string) {
-		s.settingsDone(w, r, sess, "network", settingsRes{FieldKey: key, Msg: upper1(msg), Form: r.PostForm}, true)
+		s.settingsDone(w, r, sess, netSection(key), settingsRes{FieldKey: key, Msg: upper1(msg), Form: r.PostForm}, true)
 	}
 	cand, _, err := s.netDesired(r.Context())
 	if err != nil {
@@ -813,7 +845,7 @@ func (s *Server) settingsNetSave(w http.ResponseWriter, r *http.Request, sess *s
 		s.fail(w, r, err)
 		return
 	}
-	s.settingsDone(w, r, sess, "network", settingsRes{OK: "netsaved"}, false)
+	s.settingsDone(w, r, sess, netSection(key), settingsRes{OK: "netsaved"}, false)
 }
 
 // splitTURNURLs splits the URL field (one per line; commas and spaces also separate).
@@ -897,14 +929,14 @@ func (s *Server) settingsNetReset(w http.ResponseWriter, r *http.Request, sess *
 	cand.ICEServers = config.CloneICE(s.cfg.Net.Base.ICEServers)
 	cand.ApplyNet(rest)
 	if err := cand.ValidateNet(key); err != nil {
-		s.settingsDone(w, r, sess, "network", settingsRes{FieldKey: key, Msg: upper1(err.Error()), Form: r.PostForm}, true)
+		s.settingsDone(w, r, sess, netSection(key), settingsRes{FieldKey: key, Msg: upper1(err.Error()), Form: r.PostForm}, true)
 		return
 	}
 	if key == config.NetListenPort && cand.ListenPort() != s.cfg.Net.Running.ListenPort() {
 		addr := config.ListenWithPort(s.cfg.Net.Running.Listen, cand.ListenPort())
 		if err := s.testBind(addr); err != nil {
 			s.log.Info("listen port test bind failed", "addr", addr, "err", err)
-			s.settingsDone(w, r, sess, "network", settingsRes{FieldKey: key, Msg: fmt.Sprintf("Port %d is in use", cand.ListenPort()), Form: r.PostForm}, true)
+			s.settingsDone(w, r, sess, netSection(key), settingsRes{FieldKey: key, Msg: fmt.Sprintf("Port %d is in use", cand.ListenPort()), Form: r.PostForm}, true)
 			return
 		}
 	}
@@ -916,7 +948,7 @@ func (s *Server) settingsNetReset(w http.ResponseWriter, r *http.Request, sess *
 		s.fail(w, r, err)
 		return
 	}
-	s.settingsDone(w, r, sess, "network", settingsRes{OK: "netreset"}, false)
+	s.settingsDone(w, r, sess, netSection(key), settingsRes{OK: "netreset"}, false)
 }
 
 // settingsNetRestart asks the process to restart (graceful shutdown, then re-exec). The response is rendered

@@ -60,17 +60,18 @@ func (s *Service) CanUpload(ctx context.Context, u User) (bool, error) {
 	return s.AllowUserUploads(ctx)
 }
 
-// Appearance returns the web interface mode (light, dark, system; default light).
+// Appearance returns the web interface mode (light, dark, system). Without a stored choice (new installs, or a
+// value this version does not know) it is system: the page follows prefers-color-scheme of the browser.
 func (s *Service) Appearance(ctx context.Context) (string, error) {
 	v, ok, err := s.getSetting(ctx, settingAppearance)
 	if err != nil || !ok {
-		return AppearanceLight, err
+		return AppearanceSystem, err
 	}
 	switch v {
-	case AppearanceDark, AppearanceSystem:
+	case AppearanceDark, AppearanceLight:
 		return v, nil
 	}
-	return AppearanceLight, nil
+	return AppearanceSystem, nil
 }
 
 // SetAppearance stores the web interface mode.

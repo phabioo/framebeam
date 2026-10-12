@@ -966,19 +966,26 @@ func (s *Service) changeMembership(ctx context.Context, userID, runID string,
 
 // SetRunStatus changes the status of a run as a participant (see the transition table in setRunStatus).
 func (s *Service) SetRunStatus(ctx context.Context, userID, runID, status string) (Run, error) {
-	return s.setRunStatus(ctx, userID, runID, status, false)
+	return s.setRunStatus(ctx, userID, runID, status, false, false)
 }
 
-// SetRunStatusAdmin changes the status as the Hub admin (web interface): only pause and resume, without being a
-// participant.
+// SetRunStatusAdmin changes the status as the Hub admin (web interface), without being a participant: pause,
+// resume, start (from "starting") and finish or abandon a run that is not over.
 func (s *Service) SetRunStatusAdmin(ctx context.Context, adminID, runID, status string) (Run, error) {
-	return s.setRunStatus(ctx, adminID, runID, status, true)
+	return s.setRunStatus(ctx, adminID, runID, status, true, false)
+}
+
+// StartRunAdmin starts a run that is still "starting" as the Hub admin (web interface "Start now"). With
+// withoutInvited, participants who are only invited and have not joined are removed first ("Start without Sam"),
+// in the same transaction as the status change.
+func (s *Service) StartRunAdmin(ctx context.Context, adminID, runID string, withoutInvited bool) (Run, error) {
+	return s.setRunStatus(ctx, adminID, runID, RunActive, true, withoutInvited)
 }
 
 // setRunStatus applies the transitions of the contract: active (from starting by the creator, from paused by any
 // joined participant), paused (from active, any joined participant), finished|abandoned (creator, from any run that
 // is not over). Other transitions are conflicts; a wrong actor is forbidden.
-func (s *Service) setRunStatus(ctx context.Context, actorID, runID, to string, admin bool) (_ Run, err error) {
+func (s *Service) setRunStatus(ctx context.Context, actorID, runID, to string, admin, dropInvited bool) (_ Run, err error) {
 	defer s.publishOK(&err, TopicRuns)
 	switch to {
 	case RunActive, RunPaused, RunFinished, RunAbandoned:
@@ -1012,11 +1019,11 @@ func (s *Service) setRunStatus(ctx context.Context, actorID, runID, to string, a
 	var allowed, valid bool
 	switch {
 	case to == RunActive && from == RunStarting:
-		valid, allowed = true, creator && !admin
+		valid, allowed = true, creator || admin
 	case to == RunActive && from == RunPaused, to == RunPaused && from == RunActive:
 		valid, allowed = true, joined
 	case (to == RunFinished || to == RunAbandoned) && !run.Finished():
-		valid, allowed = true, creator && !admin
+		valid, allowed = true, creator || admin
 	}
 	if !valid {
 		return Run{}, conflict("The run cannot change from " + from + " to " + to)
@@ -1025,6 +1032,23 @@ func (s *Service) setRunStatus(ctx context.Context, actorID, runID, to string, a
 		return Run{}, &Error{Code: CodeForbidden, Message: "Not allowed to change the run to " + to}
 	}
 	now := s.now().UTC()
+	var evs []RunEvent
+	if dropInvited {
+		for _, p := range run.Participants {
+			if p.Status != ParticipantInvited {
+				continue
+			}
+			if _, err := tx.ExecContext(ctx, `DELETE FROM run_participants WHERE run_id = ? AND user_id = ? AND status = 'invited'`, runID, p.UserID); err != nil {
+				return Run{}, internal(err)
+			}
+			de, err := insertEvent(ctx, tx, runID, hubEvent("run.invite_removed", map[string]any{
+				"user_id": actorID, "user_name": actorName, "target_user_id": p.UserID, "target_user_name": p.UserName}), now)
+			if err != nil {
+				return Run{}, err
+			}
+			evs = append(evs, de)
+		}
+	}
 	if _, err := tx.ExecContext(ctx, `UPDATE runs SET status = ?, status_by = ?, updated_at = ? WHERE id = ?`, to, actorID, now.Unix(), runID); err != nil {
 		return Run{}, internal(err)
 	}
@@ -1033,6 +1057,7 @@ func (s *Service) setRunStatus(ctx context.Context, actorID, runID, to string, a
 	if err != nil {
 		return Run{}, err
 	}
+	evs = append(evs, ev)
 	if err := tx.Commit(); err != nil {
 		return Run{}, internal(err)
 	}
@@ -1041,7 +1066,7 @@ func (s *Service) setRunStatus(ctx context.Context, actorID, runID, to string, a
 		return Run{}, err
 	}
 	s.pushRunUpdated(run)
-	s.pushRunEvents(ctx, runID, []RunEvent{ev})
+	s.pushRunEvents(ctx, runID, evs)
 	return run, nil
 }
 

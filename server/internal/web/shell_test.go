@@ -54,7 +54,8 @@ func TestNavFragment(t *testing.T) {
 	rec := c.get("/nav-fragment", map[string]string{"HX-Request": "true", "HX-Current-URL": "http://hub/saves/u/g/0"})
 	status(t, rec, 200)
 	contains(t, rec, `<nav class="nav" id="nav"`, `fb:badges from:body`)
-	notContains(t, rec, "<html", "hx-swap-oob")
+	contains(t, rec, `id="topbar-badge" hx-swap-oob="outerHTML"`)
+	notContains(t, rec, "<html")
 	if !strings.Contains(rec.Body.String(), `class="active" aria-current="page" hx-get="/saves"`) {
 		t.Fatalf("saves not active: %s", rec.Body.String())
 	}

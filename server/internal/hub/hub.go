@@ -106,6 +106,7 @@ type Service struct {
 	dummyO   sync.Once
 	dummy    string
 
+	scan   scanState
 	cores  coreState
 	upd    updateState
 	plug   pluginState

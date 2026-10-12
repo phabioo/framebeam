@@ -39,38 +39,48 @@ func initial(title string) string {
 	return "?"
 }
 
-// ago formats "2 min ago" relative to now.
-func ago(t, now time.Time) string {
-	d := now.Sub(t)
-	switch {
-	case d < time.Minute:
-		return "just now"
-	case d < time.Hour:
-		return fmt.Sprintf("%d min ago", int(d.Minutes()))
-	case d < 48*time.Hour:
-		return fmt.Sprintf("%d h ago", int(d.Hours()))
-	}
-	return t.Format("2006-01-02")
-}
+// When is a formatted point in time: Text for lists, Title for the tooltip (full timestamp).
+type When struct{ Text, Title string }
 
-// lastSeen formats "last active": just now / today HH:MM / yesterday / MM-DD / YYYY-MM-DD.
-func lastSeen(t *time.Time, now time.Time) string {
-	if t == nil {
-		return "never"
+// fmtWhen is the one date/time helper of the Hub (design sheet 0-2): "just now", "5 min ago", "today 18:52",
+// "yesterday 18:52", "16 Oct", "3 Mar 2025". The tooltip holds the full timestamp. Lists never show seconds.
+func fmtWhen(t, now time.Time) When {
+	if t.IsZero() {
+		return When{Text: "never"}
 	}
 	lt, ln := t.Local(), now.Local()
-	if ln.Sub(lt) < time.Minute {
-		return "just now"
-	}
-	y, m, d := ln.Date()
+	w := When{Title: lt.Format("2 Jan 2006, 15:04:05")}
+	d := ln.Sub(lt)
 	ty, tm, td := lt.Date()
+	y, m, dd := ln.Date()
+	yy, ym, yd := ln.AddDate(0, 0, -1).Date()
 	switch {
-	case ty == y && tm == m && td == d:
-		return "today " + lt.Format("15:04")
-	case lt.AddDate(0, 0, 1).Format("2006-01-02") == ln.Format("2006-01-02"):
-		return "yesterday"
+	case d < time.Minute: // also future timestamps (clock skew)
+		w.Text = "just now"
+	case d < time.Hour:
+		w.Text = fmt.Sprintf("%d min ago", int(d.Minutes()))
+	case ty == y && tm == m && td == dd:
+		w.Text = "today " + lt.Format("15:04")
+	case ty == yy && tm == ym && td == yd:
+		w.Text = "yesterday " + lt.Format("15:04")
 	case ty == y:
-		return lt.Format("01-02")
+		w.Text = lt.Format("2 Jan")
+	default:
+		w.Text = lt.Format("2 Jan 2006")
 	}
-	return lt.Format("2006-01-02")
+	return w
 }
+
+// when formats t with fmtWhen; the zero time gives Text "never".
+func when(t, now time.Time) When { return fmtWhen(t, now) }
+
+// whenPtr is when for an optional time; nil gives Text "never".
+func whenPtr(t *time.Time, now time.Time) When {
+	if t == nil {
+		return When{Text: "never"}
+	}
+	return fmtWhen(*t, now)
+}
+
+// ago returns the list text of fmtWhen (kept for call sites that need only a string).
+func ago(t, now time.Time) string { return fmtWhen(t, now).Text }

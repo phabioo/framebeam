@@ -77,8 +77,11 @@ func TestNetworkSettingsPrecedenceResetAndPending(t *testing.T) {
 	tok := c.login()
 	rec := c.get("/settings/network", nil)
 	contains(t, rec, "From hub.env / flags", "Only in local network", "a public host and the built-in TURN relay", `value="8443"`, `value="3478"`,
-		`value="49160"`, `value="49199"`, `name="value" value="20"`)
-	notContains(t, rec, "Restart required to apply", "Set on the web interface")
+		`value="49160"`, `value="49199"`)
+	notContains(t, rec, "Restart required to apply", "Set on the web interface", "Keep newest versions")
+	// Retention lives in its own Saves section; the section column carries the numbers.
+	rec = c.get("/settings/saves", nil)
+	contains(t, rec, "Keep newest versions", `name="value" value="20"`, "Keep 20 · 30 days · 26 weeks")
 
 	// A value saved on the web wins and needs a restart for the TURN port.
 	rec = postTok(c, tok, "/settings/network/turn_port", url.Values{"value": {"3500"}})
@@ -211,10 +214,15 @@ func TestNetworkLiveSettings(t *testing.T) {
 	if _, d, _ := e.svc.SaveRetention(); d != 0 {
 		t.Fatal(d)
 	}
-	rec := c.get("/settings/network", nil)
+	rec := c.get("/settings/saves", nil)
 	notContains(t, rec, "Restart required to apply")
+	contains(t, rec, "Keep 3 · all days · 26 weeks")
 	// Reset: back to the hub.env value, live again.
-	status(t, postTok(c, tok, "/settings/network/save_keep_recent/reset", nil), 303)
+	rec = postTok(c, tok, "/settings/network/save_keep_recent/reset", nil)
+	status(t, rec, 303)
+	if location(rec) != "/settings/saves?ok=netreset" {
+		t.Fatal(location(rec))
+	}
 	if r, _, _ := e.svc.SaveRetention(); r != 20 {
 		t.Fatal(r)
 	}
@@ -342,8 +350,7 @@ func TestNetworkReachabilityWithTURN(t *testing.T) {
 	rec := c.get("/settings/network", nil)
 	contains(t, rec, "Prepared for the internet", "hub.example.com", "203.0.113.10", "active allocations", "UDP 49160-49199 (relay)", "Port forwards on the router")
 	notContains(t, rec, "Only in local network", "Check again")
-	contains(t, rec, "Prepared for the internet") // also in the section column
-	if !strings.Contains(c.get("/settings/updates", nil).Body.String(), "Prepared for the internet") {
+	if !strings.Contains(c.get("/settings/updates", nil).Body.String(), "Public · TURN relay on") {
 		t.Fatal("section column lacks the network status")
 	}
 }
@@ -452,8 +459,9 @@ func TestExternalTURNWebAddEditDelete(t *testing.T) {
 		"urls": {"turn:turn2.example.org:3478"}})
 	status(t, rec, 303)
 	page := c.get("/settings/network?ok=extturnsaved", nil)
-	contains(t, page, "External TURN servers saved", "turn.example.org:5349", "prov", "secret set", "password set", "saved here and replaces", "turn-user-1")
+	contains(t, page, "External TURN servers saved", "turn.example.org:5349", "prov", "secret set", "password set", "saved here and replaces", "Delete server…")
 	notContains(t, page, secret, pw)
+	contains(t, c.get("/settings/network?edit=prov", nil), "turn-user-1", "Save</button>")
 	if e.svc.ExternalTURNSource() != hub.ExternalTURNFromWeb || !e.svc.RelayEnabled() {
 		t.Fatal("saved servers not active")
 	}

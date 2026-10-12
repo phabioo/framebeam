@@ -18,7 +18,7 @@ func TestLibraryRenameRow(t *testing.T) {
 	hx := map[string]string{"X-CSRF-Token": tok, "HX-Request": "true", "HX-Target": "library-results"}
 
 	// Row actions and the inline form (fragment and full page).
-	contains(t, c.get("/library", nil), `>Rename</a>`, `>Delete</a>`)
+	contains(t, c.get("/library", nil), `>Rename</a>`, `>Delete game…</a>`, `>Upload save</a>`, "Copy SHA-256", "/library/download/"+g.ID)
 	rec := c.get("/library?rename="+g.ID+"&q=lumen", map[string]string{"HX-Request": "true", "HX-Target": "library-results"})
 	status(t, rec, 200)
 	contains(t, rec, `action="/library/`+g.ID+`/rename"`, `name="title" value="Lumen Drift"`, `name="q" value="lumen"`, "Save title", `name="_csrf"`)
@@ -70,7 +70,7 @@ func TestLibraryDeleteRowKeepsSaves(t *testing.T) {
 	// Without saves.
 	rec := c.get("/library?delete="+g.ID, map[string]string{"HX-Request": "true", "HX-Target": "library-results"})
 	status(t, rec, 200)
-	contains(t, rec, "Delete “Lumen Drift” from the library?", "There are no saves", "Delete ROM", `action="/library/`+g.ID+`/delete"`)
+	contains(t, rec, "Delete “Lumen Drift” from the library?", "There are no saves", "Delete game", `action="/library/`+g.ID+`/delete"`)
 	notContains(t, rec, "hx-confirm")
 
 	// With saves: the text says they are kept, and they are.

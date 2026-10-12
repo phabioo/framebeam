@@ -9,7 +9,7 @@
   {{else if eq .Kind "error"}}<p class="upl-error" role="alert">✕ {{.Text}}</p>{{end}}{{end}}
   {{if not (and .Up.Result (eq .Up.Result.Kind "same"))}}
   <div class="upl-slot"><label for="upl-slot">Into slot</label>
-    <select id="upl-slot" name="slot">{{range .Up.Slots}}<option value="{{.Name}}"{{if .Selected}} selected{{end}}>{{.Name}}</option>{{end}}</select></div>
+    <select id="upl-slot" name="slot">{{range .Up.Slots}}<option value="{{.Name}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</select></div>
   <div class="upl-file"><label for="upl-file">File</label>
     <input id="upl-file" type="file" name="file" required aria-describedby="upl-hint"><span id="upl-hint" class="help">Drop the save file here or choose a file.</span></div>
   <div class="upl-foot">
@@ -32,12 +32,16 @@
   </a></li>
   {{end}}
 </ul>
+{{else if .Body.Query}}
+<div class="empty-state slim"><div class="empty-title">No saves for “{{.Body.Query}}”</div>
+  <p class="empty-text">No game or user matches your search.</p>
+  <a class="btn small" href="/saves" hx-get="/saves" hx-target="#saves-root" hx-select="#saves-root" hx-swap="outerHTML" hx-push-url="true">Clear search</a></div>
 {{else}}
 <p class="empty">No saves yet.</p>
 {{end}}
 </div>{{end}}
 {{define "restore-card"}}<div class="confirm" role="group" aria-label="Confirm restore of v{{.Version}}">
-  <div class="confirm-title">Restore v{{.Version}} as the current version of “{{.Slot}}”?</div>
+  <div class="confirm-title">Restore v{{.Version}} as the current version of “{{.SlotLabel}}”?</div>
   <p class="help">The current checkpoint (Rev {{.ExpectedRev}}) stays in the history. Restoring creates a new checkpoint; nothing is overwritten.</p>
   <form class="inline" method="post" action="{{.RestoreHref}}" hx-post="{{.RestoreHref}}">
     <input type="hidden" name="expected_revision" value="{{.ExpectedRev}}">
@@ -55,7 +59,7 @@
 </div>{{end}}
 {{define "newslot-card"}}<div class="confirm newslot" role="group" aria-label="New slot">
   <div class="confirm-title">New slot for “{{.Game}}”</div>
-  <p class="help">Starts from the current version of “{{.From}}”. Players can pick the slot in the game details.</p>
+  <p class="help">Starts from the current version of “{{.FromLabel}}”. Players can pick the slot in the game details.</p>
   <form class="inline" method="post" action="{{.PostHref}}" hx-post="{{.PostHref}}" hx-target="#newslot-form" hx-swap="innerHTML">
     <label class="field">Slot name <input type="text" name="name" value="{{.Value}}" placeholder="Speedrun" maxlength="{{.Max}}" required autocomplete="off" autofocus aria-describedby="newslot-hint"{{if .Error}} aria-invalid="true"{{end}}></label>
     <p id="newslot-hint" class="help">Lowercase letters, digits, - and _ (up to {{.Max}} characters), for example speedrun.</p>
@@ -102,19 +106,21 @@
 {{define "saves-detail-fragment"}}{{template "saves-detail" .Body.Detail}}{{template "saves-list" .}}{{end}}
 {{define "saves-detail"}}
 {{with .}}
-<div id="save-detail" class="save-detail"{{if not (or .Up.Open .Ops.RenameOpen .Ops.DeleteOpen)}} hx-get="{{.RefreshURL}}" hx-trigger="fb:saves from:body" hx-swap="outerHTML"{{end}}>
+<div id="save-detail" class="save-detail"{{if not (or .Up.Open .Ops.RenameOpen .Ops.DeleteOpen .SnapOpen)}} hx-get="{{.RefreshURL}}" hx-trigger="fb:saves from:body" hx-swap="outerHTML"{{end}}>
 <header class="save-head">
   <div><h2>{{.Title}}</h2><p class="sub">{{.User}}{{if .System}} · {{.System}}{{end}}</p></div>
-  {{if .Empty}}<span class="pill lg">No save yet</span>{{else if .Conflict}}<span class="pill warn lg">▲ Conflict · unresolved</span>{{else}}<span class="pill ok lg">✓ Synced</span>{{end}}
+  {{if .Empty}}<span class="pill lg">No save yet</span>{{else if .Conflict}}<span class="pill amber lg">▲ {{.ConflictN}} {{if eq .ConflictN 1}}conflict{{else}}conflicts{{end}}</span>{{else}}<span class="pill ok lg">✓ Synced</span>{{end}}
 </header>
 {{if not .Empty}}
 <div class="tabs" role="tablist" aria-label="Slots">
-  {{range .Tabs}}<a role="tab" class="tab{{if .Selected}} selected{{end}}" aria-selected="{{if .Selected}}true{{else}}false{{end}}" href="{{.Href}}" hx-get="{{.Href}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true">{{.Name}} <span class="tab-meta{{if .Conflict}} warn{{end}}">{{.Meta}}</span></a>{{end}}
+  {{range .Tabs}}<a role="tab" class="tab{{if .Selected}} selected{{end}}" aria-selected="{{if .Selected}}true{{else}}false{{end}}" href="{{.Href}}" hx-get="{{.Href}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true">{{.Label}} <span class="tab-meta{{if .Conflict}} warn{{end}}">{{.Meta}}</span></a>{{end}}
+  <span class="tabs-fill"></span>
   <a class="tab tab-new" href="{{.NewSlotAsk}}" hx-get="{{.NewSlotAsk}}" hx-target="#newslot-form" hx-swap="innerHTML">+ New slot</a>
 </div>
 <div id="newslot-form">{{with .NewSlot}}{{template "newslot-card" .}}{{end}}</div>
 {{with .Ops}}{{if .Show}}{{template "slot-ops" .}}{{end}}{{end}}
 {{end}}
+{{if .Running}}<div class="banner" role="status">{{.Running}}</div>{{end}}
 {{if .Up.Result}}{{if ne .Up.Result.Kind "same"}}{{if ne .Up.Result.Kind "error"}}
 <div class="upl-result ok" role="status"><span class="upl-strong">{{.Up.Result.Text}}</span> <span>{{.Up.Result.Sub}}</span>
   {{if .Up.Result.UndoHref}}<form class="inline" method="post" action="{{.Up.Result.UndoHref}}" hx-post="{{.Up.Result.UndoHref}}"><input type="hidden" name="expected_revision" value="{{.Up.Result.ExpectedRev}}"><button class="btn-link" type="submit">{{.Up.Result.UndoLabel}}</button></form>{{end}}
@@ -122,40 +128,51 @@
 {{if .Empty}}
 <div class="cur-card open">{{template "upload-panel" .}}</div>
 {{else}}
-<div class="cur-card{{if .Up.Open}} open{{end}}">
+<div class="cur-card{{if or .Up.Open .SnapOpen}} open{{end}}">
   <div class="cur-bar">
     <span class="cur-eyebrow">CURRENT</span>
-    <span><span class="mono">Rev {{.Current.Rev}}</span> · {{.Current.When}} · {{.Current.Device}} · {{.Current.Reason}}
+    <span class="cur-text"><span class="cur-line"><span class="mono">{{.Current.Label}}</span> · {{.Current.Device}} · {{.Current.Reason}} · {{template "when" .Current.At}}</span>
       <span class="help mono cur-meta">{{.Current.Size}} · {{.Current.ShortHash}}</span></span>
-    <a class="btn-link plain" href="{{.Current.DownloadHref}}">Download</a>
-    {{if .Up.Can}}{{if .Up.Running}}<button class="btn upl-toggle" type="button" disabled aria-describedby="upl-running">Upload save ▾</button><span id="upl-running" class="help">A Session of this game is running. Upload after it ends.</span>
-    {{else if .Up.Open}}<a class="btn upl-toggle on" href="{{.Up.CloseHref}}" hx-get="{{.Up.CloseHref}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true" aria-expanded="true">Upload save ▴</a>
-    {{else}}<a class="btn upl-toggle" href="{{.Up.OpenHref}}" hx-get="{{.Up.OpenHref}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true" aria-expanded="false">Upload save ▾</a>{{end}}{{end}}
+    <span class="cur-actions">
+    <a class="btn small" href="{{.Current.DownloadHref}}">Download</a>
+    {{if .Up.Can}}{{if .Up.Running}}<button class="btn small upl-toggle" type="button" disabled aria-describedby="upl-running" title="A Session of this game is running">Upload save…</button>
+    {{else if .Up.Open}}<a class="btn small upl-toggle on" href="{{.Up.CloseHref}}" hx-get="{{.Up.CloseHref}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true" aria-expanded="true">Upload save…</a>
+    {{else}}<a class="btn small upl-toggle" href="{{.Up.OpenHref}}" hx-get="{{.Up.OpenHref}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true" aria-expanded="false">Upload save…</a>{{end}}{{end}}
+    {{if .SnapOpen}}<a class="btn small accent on" href="{{.SnapCloseHref}}" hx-get="{{.SnapCloseHref}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true" aria-expanded="true">Create snapshot</a>
+    {{else}}<a class="btn small accent" href="{{.SnapOpenHref}}" hx-get="{{.SnapOpenHref}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true" aria-expanded="false">Create snapshot</a>{{end}}
+    </span>
   </div>
+  {{if .Up.Running}}<span id="upl-running" class="visually-hidden">A Session of this game is running. Upload after it ends.</span>{{end}}
+  {{if .SnapOpen}}
+  <form class="snap-row" method="post" action="{{.SnapshotHref}}" hx-post="{{.SnapshotHref}}" hx-target="#save-detail" hx-swap="outerHTML">
+    <input type="text" name="label" maxlength="64" aria-label="Snapshot label" placeholder="Label (optional)" autocomplete="off" autofocus>
+    <button class="btn small primary" type="submit">Create</button>
+    <a class="snap-cancel" href="{{.SnapCloseHref}}" hx-get="{{.SnapCloseHref}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true">Cancel</a>
+    <span class="help">Label optional. Snapshots are never removed by retention.</span>
+  </form>
+  {{end}}
   {{if and .Up.Can .Up.Open}}{{template "upload-panel" .}}{{end}}
 </div>
 {{end}}
 {{if not .Empty}}
-<form class="save-snapshot" method="post" action="{{.SnapshotHref}}" hx-post="{{.SnapshotHref}}">
-  <label>Snapshot label (optional): <input type="text" name="label" maxlength="64" aria-label="Snapshot label" autocomplete="off"></label>
-  <button class="btn" type="submit">Create snapshot</button>
-</form>
-{{end}}
-{{if not .Empty}}
 {{range .Conflicts}}
-<section class="conflict" aria-label="Save conflict">
-  <h3>{{.Title}}</h3>
+<details class="conflict-card" id="conflict-card" open>
+  <summary>
+    <span class="cf-text"><span class="cf-title">{{.Title}}</span><span class="cf-note">{{.Note}}</span></span>
+    <span class="btn small">Compare and resolve</span>
+  </summary>
+  <section class="conflict" aria-label="Save conflict">
   <p>Both contents are preserved and secured in the history before resolution.</p>
   <div class="compare">
     <div class="side">
       <div class="eyebrow">{{.Hub.Label}}</div>
       <div class="side-title">{{.Hub.Heading}}</div>
-      <dl><dt>Device</dt><dd>{{.Hub.Device}}</dd><dt>Time</dt><dd>{{.Hub.When}}</dd><dt>Base revision</dt><dd>{{.Hub.Base}}</dd><dt>Content hash</dt><dd class="mono">{{.Hub.ShortHash}}</dd></dl>
+      <dl><dt>Device</dt><dd>{{.Hub.Device}}</dd><dt>Time</dt><dd>{{template "when" .Hub.At}}</dd><dt>Base revision</dt><dd>{{.Hub.Base}}</dd><dt>Content hash</dt><dd class="mono">{{.Hub.ShortHash}}</dd></dl>
     </div>
     <div class="side">
       <div class="eyebrow">{{.Local.Label}}</div>
       <div class="side-title">{{.Local.Heading}}</div>
-      <dl><dt>Device</dt><dd>{{.Local.Device}}</dd><dt>Time</dt><dd>{{.Local.When}}</dd><dt>Base revision</dt><dd>{{.Local.Base}}</dd><dt>Content hash</dt><dd class="mono">{{.Local.ShortHash}}</dd></dl>
+      <dl><dt>Device</dt><dd>{{.Local.Device}}</dd><dt>Time</dt><dd>{{template "when" .Local.At}}</dd><dt>Base revision</dt><dd>{{.Local.Base}}</dd><dt>Content hash</dt><dd class="mono">{{.Local.ShortHash}}</dd></dl>
     </div>
   </div>
   <div class="actions">
@@ -169,10 +186,11 @@
     </form>
     <a class="btn primary" href="{{.KeepHref}}">Keep both, decide later</a>
   </div>
-</section>
+  </section>
+</details>
 {{end}}
 <div class="hist-head">
-  <div class="eyebrow">History · permanent versions</div>
+  <div class="eyebrow">HISTORY · {{.HistoryCount}} {{if eq .HistoryCount 1}}VERSION{{else}}VERSIONS{{end}}</div>
   <div class="segment filter" role="group" aria-label="History filter">
     <a class="seg{{if not .Snapshots}} on{{end}}" href="{{.AllHref}}" hx-get="{{.AllHref}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true"{{if not .Snapshots}} aria-current="true"{{end}}>All</a>
     <a class="seg{{if .Snapshots}} on{{end}}" href="{{.SnapHref}}" hx-get="{{.SnapHref}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true"{{if .Snapshots}} aria-current="true"{{end}}>Snapshots</a>
@@ -183,10 +201,11 @@
   {{range .History}}
   <li class="{{.Kind}}">
     <span class="node" aria-hidden="true"></span>
-    <div class="tl-text"><div><span class="mono">v{{.Version}}</span> <strong>{{.Device}}</strong>{{if .Snapshot}} <span class="chip">◆ Snapshot</span>{{end}}{{if .Current}} <span class="pill ok sm">✓ Current</span>{{end}}{{if .Label}} <span class="snap-label">“{{.Label}}”</span>{{end}}</div><div class="help">{{.Meta}}</div></div>
+    <div class="tl-text"><div class="tl-title"><span class="mono ver">v{{.Version}}</span> <strong>{{.Device}}</strong>{{if .Snapshot}} <span class="pill info sm">◆ Snapshot</span>{{end}}{{if .Current}} <span class="pill ok sm">✓ Current</span>{{end}}{{if .Label}} <span class="snap-label">“{{.Label}}”</span>{{end}}</div><div class="help">{{.Meta}} · {{template "when" .At}}</div></div>
     <div class="tl-actions"><a class="btn-link plain" href="{{.DownloadHref}}">Download</a>
-    {{if not .Current}}<a class="btn small" href="{{.ConfirmHref}}" hx-get="{{.ConfirmHref}}" hx-target="#confirm-v{{.Version}}" hx-swap="innerHTML">Restore</a>{{end}}
-    {{if .Snapshot}}<a class="btn small" href="{{.DeleteAsk}}" hx-get="{{.DeleteAsk}}" hx-target="#confirm-v{{.Version}}" hx-swap="innerHTML">Delete</a>{{end}}</div>
+    {{if not .Current}}{{if .Blocked}}<span class="btn small disabled" aria-disabled="true" title="{{.Blocked}}">Restore</span>{{else}}<a class="btn small" href="{{.ConfirmHref}}" hx-get="{{.ConfirmHref}}" hx-target="#confirm-v{{.Version}}" hx-swap="innerHTML">Restore</a>{{end}}{{end}}
+    {{if .Menu}}<details class="menu"><summary class="more" aria-label="More actions for v{{.Version}}">⋯</summary><div class="menu-pop">
+      <a class="mi danger" href="{{.DeleteAsk}}" hx-get="{{.DeleteAsk}}" hx-target="#confirm-v{{.Version}}" hx-swap="innerHTML">Delete snapshot…</a></div></details>{{end}}</div>
     <div id="confirm-v{{.Version}}" class="tl-confirm">{{if .Open}}{{template "restore-card" .}}{{else if .DeleteOpen}}{{template "delete-card" .}}{{end}}</div>
   </li>
   {{end}}
@@ -203,8 +222,9 @@
 <div id="saves-root" class="saves">
   <section class="saves-list" aria-label="Saves">
     <h1>Saves</h1>
-    <form class="save-filter" method="get" action="/saves" hx-get="/saves" hx-trigger="change" hx-target="#saves-root" hx-select="#saves-root" hx-swap="outerHTML" hx-push-url="true">
-      <label>User: <select name="user" aria-label="Filter by user"><option value="">All users</option>{{range .Body.Users}}<option value="{{.ID}}"{{if eq $.Body.UserFilter .ID}} selected{{end}}>{{.DisplayName}}</option>{{end}}</select></label>
+    <form class="save-filter" method="get" action="/saves" role="search" hx-get="/saves" hx-trigger="change, input delay:300ms from:#saves-q, submit" hx-target="#saves-list" hx-select="#saves-list" hx-swap="outerHTML">
+      <input id="saves-q" class="search" type="search" name="q" value="{{.Body.Query}}" placeholder="Search games or users" aria-label="Search games or users" autocomplete="off">
+      <select name="user" aria-label="Filter by user"><option value="">All users</option>{{range .Body.Users}}<option value="{{.ID}}"{{if eq $.Body.UserFilter .ID}} selected{{end}}>{{.DisplayName}}</option>{{end}}</select>
       <noscript><button class="btn small" type="submit">Apply</button></noscript>
     </form>
     {{template "saves-list" .}}

@@ -33,6 +33,7 @@
 {{if eq .Body.Section "updates"}}{{template "set-updates" .}}
 {{else if eq .Body.Section "general"}}{{template "set-general" .}}
 {{else if eq .Body.Section "network"}}{{template "set-network" .}}
+{{else if eq .Body.Section "saves"}}{{template "set-saves" .}}
 {{else if eq .Body.Section "security"}}{{template "set-security" .}}
 {{else if eq .Body.Section "diagnostics"}}{{template "set-diagnostics" .}}
 {{end}}
@@ -53,7 +54,7 @@
   <label class="ext-field">Secret or password <input type="password" name="secret" value="" class="host" autocomplete="new-password" placeholder="{{if .Original}}{{if .SecretSet}}set: leave empty to keep{{else}}not set{{end}}{{end}}" aria-label="Secret or password"></label>
   {{if .Original}}<label class="ext-check"><input type="checkbox" name="clear_secret" value="1"> Clear the stored secret or password</label>{{end}}
   {{template "set-err" .Err}}
-  <button class="btn small" type="submit">{{if .Original}}Save server{{else}}Add server{{end}}</button>
+  <button class="btn small" type="submit">{{if .Original}}Save{{else}}Add{{end}}</button>
 </form>
 {{end}}
 
@@ -66,7 +67,7 @@
 {{if .Available}}
 <section class="set-card set-update">
   <div class="set-update-main">
-    <span class="chip warn">▲ Update available</span>
+    <span class="chip info">▲ Update available</span>
     <div class="set-update-ver"><span class="mono-lg">{{.Available.Version}}</span> <span class="pill">{{.Available.Channel}}</span></div>
     <div class="help">Installed: {{.CurrentVersion}}{{if .ActiveSessions}} · a Session is running, automatic install waits until it ends{{else}} · no Session running{{end}}{{if .Available.Breaking}}{{else}} · all recent Players compatible{{end}}</div>
     {{if .Available.Breaking}}<div class="help warn">{{.Available.Warning}}</div>{{end}}
@@ -101,7 +102,7 @@
 {{if .Staged}}<section class="set-card"><div class="help">Staged: {{.Staged.Version}}{{if .RequestPending}} (waiting for the installer){{end}}</div></section>{{end}}
 {{if .LastResult}}{{if not .LastResult.OK}}
 <section class="set-card set-fail">
-  <div><span class="chip err">✕ Last install failed</span> <span class="help">{{.LastResultAt}} · {{.LastResult.Message}}</span></div>
+  <div><span class="chip err">✕ Last install failed</span> <span class="help" title="{{.LastResultAt.Title}}">{{.LastResultAt.Text}} · {{.LastResult.Message}}</span></div>
   <div class="mono">{{.LastResult.Version}}</div>
   {{if and .Available .Packaged}}
   <form method="post" action="/settings/updates/install" hx-post="/settings/updates/install" hx-confirm="Install {{.Available.Version}} now? The Hub restarts and Sessions end.">
@@ -134,7 +135,7 @@
   </div>
   <div class="set-row">
     <div><div class="label">Last checked</div>
-      <div class="help">{{.LastCheckText}}{{if .CadenceText}} · {{.CadenceText}}{{end}}</div>
+      <div class="help" title="{{.LastCheckAt.Title}}">{{.LastCheckAt.Text}}{{if .CadenceText}} · {{.CadenceText}}{{end}}</div>
       {{if .LastError}}<div class="help status-err">{{.LastError}}</div>{{end}}</div>
     <form method="post" action="/settings/updates/check" hx-post="/settings/updates/check" hx-target="#settings-area" hx-swap="innerHTML" hx-disabled-elt="find button">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}">
@@ -143,7 +144,7 @@
   </div>
   <div class="set-row">
     <div><div class="label">Installed version</div>
-      <div class="help">{{if .LastResult}}{{if .LastResult.OK}}Last successful install: {{.LastResultAt}} ({{.LastResult.Version}}){{else}}Default channel: {{.Settings.DefaultChannel}} (build: {{.Settings.CompiledChannel}}){{end}}{{else}}Default channel: {{.Settings.DefaultChannel}} (build: {{.Settings.CompiledChannel}}){{end}}</div></div>
+      <div class="help">{{if .LastResult}}{{if .LastResult.OK}}Last successful install: <span title="{{.LastResultAt.Title}}">{{.LastResultAt.Text}}</span> ({{.LastResult.Version}}){{else}}Default channel: {{.Settings.DefaultChannel}} (build: {{.Settings.CompiledChannel}}){{end}}{{else}}Default channel: {{.Settings.DefaultChannel}} (build: {{.Settings.CompiledChannel}}){{end}}</div></div>
     <div class="value mono">{{.CurrentVersion}}</div>
   </div>
 </section>
@@ -242,7 +243,8 @@
   <div class="set-row">
     <div><div class="label">Import folder</div><div class="help">Absolute path of the folder “Rescan folder” in the Library imports ROMs from. The hub only reads it. Changing it restarts the hub.</div>{{template "net-src" .ImportDir}}</div>
     <form method="post" action="/settings/network/import_dir" hx-post="/settings/network/import_dir" hx-trigger="change, submit" hx-target="#settings-area" hx-swap="innerHTML">
-      <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="text" name="value" value="{{.ImportDir.Value}}" class="host" aria-label="Import folder"{{if .ImportDir.Err}} aria-invalid="true"{{end}}>
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="text" name="value" value="{{.ImportDir.Value}}" class="host" title="{{.ImportDir.Value}}" aria-label="Import folder"{{if .ImportDir.Err}} aria-invalid="true"{{end}}>
+      {{if .ImportDir.Value}}<button class="btn small" type="button" data-copy="{{.ImportDir.Value}}">Copy</button>{{end}}
       <noscript><button class="btn small" type="submit">Save</button></noscript>
     </form>
   </div>
@@ -262,7 +264,7 @@
   <div class="set-row">
     <div><div class="label">Public address for Players</div><div class="help">Handed to Players outside your network. Forward the listen port on your router to the hub. If the router uses a different external port, add it (hub.example.com:8443); it is used for invite links.</div>{{template "net-src" .PublicHost}}</div>
     <form method="post" action="/settings/network/public_host" hx-post="/settings/network/public_host" hx-trigger="change, submit" hx-target="#settings-area" hx-swap="innerHTML">
-      <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="text" name="value" value="{{.PublicHost.Value}}" placeholder="hub.example.com or hub.example.com:8443" class="host" aria-label="Public host"{{if .PublicHost.Err}} aria-invalid="true"{{end}}>
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="text" name="value" value="{{.PublicHost.Value}}" placeholder="hub.example.com:8443" class="host" title="{{.PublicHost.Value}}" aria-label="Public host"{{if .PublicHost.Err}} aria-invalid="true"{{end}}>
       <noscript><button class="btn small" type="submit">Save</button></noscript>
     </form>
   </div>
@@ -316,7 +318,7 @@
   {{end}}{{end}}
   <div class="set-row"><div><div class="label">Cloudflare TURN</div>
     <div class="help">Set with hub flags or environment variables, not here; the token never appears on this page. See hub-configuration.md (TURN).</div></div>
-    <div class="value">{{if .Cloudflare}}on{{else}}off{{end}}</div></div>
+    <span class="pill nowrap{{if .Cloudflare}} ok{{end}}">{{if .Cloudflare}}On{{else}}Off{{end}}</span></div>
 </section>
 
 <section class="set-card" id="external-turn">
@@ -328,20 +330,24 @@
     {{if .ExtFromWeb}}<form method="post" action="/settings/network/external-turn/reset" hx-post="/settings/network/external-turn/reset" hx-target="#settings-area" hx-swap="innerHTML" hx-confirm="Discard the list saved here and use the hub flags again?">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn small" type="submit">Use hub flags again</button></form>{{end}}</div>
   {{range .External}}
-  <div class="set-row"><div><span class="mono">{{.Name}}</span> <span class="pill">{{if eq .ModeKey "secret"}}shared secret{{else}}static{{end}}</span>
-    <div class="help mono">{{.URLs}}</div>
+  <div class="set-row ext-row"><div><span class="mono strong">{{.Name}}</span> <span class="pill">{{if eq .ModeKey "secret"}}shared secret{{else}}static{{end}}</span>
+    <div class="help mono ext-urls">{{.URLs}}</div>
     <div class="help">{{.Mode}} · {{if .SecretSet}}{{if eq .ModeKey "secret"}}secret{{else}}password{{end}} set{{else}}not set (server not used){{end}}</div></div>
-    <form method="post" action="/settings/network/external-turn/delete" hx-post="/settings/network/external-turn/delete" hx-target="#settings-area" hx-swap="innerHTML" hx-confirm="Remove this TURN server?">
-      <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="name" value="{{.Name}}"><button class="btn small" type="submit">Delete</button></form></div>
-  <details class="set-row ext-details"{{if .Open}} open{{end}}><summary>Edit {{.Name}}</summary>
-    {{template "ext-turn-form" .}}
-  </details>
+    <div class="ract">
+      <a class="btn small" href="/settings/network?edit={{.Name}}#external-turn" hx-get="/settings/network?edit={{.Name}}" hx-target="#settings-area" hx-swap="innerHTML">Edit</a>
+      <details class="menu">
+        <summary class="more" aria-label="More actions for {{.Name}}">⋯</summary>
+        <div class="menu-pop"><form method="post" action="/settings/network/external-turn/delete" hx-post="/settings/network/external-turn/delete" hx-target="#settings-area" hx-swap="innerHTML" hx-confirm="Remove the TURN server {{.Name}}?">
+          <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="name" value="{{.Name}}"><button class="mi danger" type="submit">Delete server…</button></form></div>
+      </details>
+    </div></div>
+  {{if .Open}}<div class="set-row ext-edit">{{template "ext-turn-form" .}}</div>{{end}}
   {{else}}
   <div class="set-row"><div class="help">No external TURN server.</div></div>
   {{end}}
-  <details class="set-row ext-details"{{if .ExtAdd.Err}} open{{end}}><summary>+ Add server</summary>
-    {{template "ext-turn-form" .ExtAdd}}
-  </details>
+  <div class="set-row ext-edit">
+    <div class="ext-add"><div class="label">Add server</div>{{template "ext-turn-form" .ExtAdd}}</div>
+  </div>
 </section>
 
 <section class="set-card">
@@ -351,7 +357,7 @@
     <div><span class="value mono">{{.ICEDefault}}</span> <span class="pill">Default</span></div>
     <form method="post" action="/settings/network/ice_servers" hx-post="/settings/network/ice_servers" hx-target="#settings-area" hx-swap="innerHTML">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="op" value="none">
-      <button class="btn small" type="submit">Use no external server</button>
+      <div class="ract"><details class="menu"><summary class="more" aria-label="More actions for the default server">⋯</summary><div class="menu-pop"><button class="mi" type="submit">Use no external server</button></div></details></div>
     </form>
   </div>
   {{else if .ICENone}}
@@ -362,7 +368,7 @@
     <div><span class="value mono">{{.}}</span> <span class="pill">STUN</span></div>
     <form method="post" action="/settings/network/ice_servers" hx-post="/settings/network/ice_servers" hx-target="#settings-area" hx-swap="innerHTML">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="op" value="remove"><input type="hidden" name="url" value="{{.}}">
-      <button class="btn small" type="submit">Remove</button>
+      <div class="ract"><details class="menu"><summary class="more" aria-label="More actions for {{.}}">⋯</summary><div class="menu-pop"><button class="mi danger" type="submit">Remove server…</button></div></details></div>
     </form>
   </div>
   {{end}}
@@ -370,13 +376,19 @@
     <form class="set-add" method="post" action="/settings/network/ice_servers" hx-post="/settings/network/ice_servers" hx-target="#settings-area" hx-swap="innerHTML">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="op" value="add">
       <input type="text" name="url" value="{{.ICEAdd}}" placeholder="default: {{.ICEDefault}}" class="host" aria-label="STUN server URL"{{if .ICE.Err}} aria-invalid="true"{{end}}>
-      <button class="btn small" type="submit">+ Add server</button>
+      <button class="btn small" type="submit">Add</button>
     </form>
   </div>
   {{template "set-err" .ICE.Err}}
   <div class="help">Offered to Players so they can find their public address, in addition to the built-in relay. Without an entry the default ({{.ICEDefault}}) is used; adding a server replaces it. Applies without a restart; connected Players are told at once.{{if .ICE.Web}} {{template "net-src" .ICE}}{{end}}</div>
 </section>
 
+{{end}}
+{{end}}
+
+{{/* ---- Saves ---- */}}
+{{define "set-saves"}}
+{{with .Body.Net}}
 <section class="set-card">
   <div class="eyebrow">Save history</div>
   <div class="help">How many older versions of each save the hub keeps. 0 = unlimited. Applies without a restart; manual snapshots and open conflicts are never removed.</div>
@@ -418,7 +430,7 @@
       <div class="help">It contains IP addresses and host names, no passwords or tokens: the TURN secret and credentials, tokens, invite codes, Authorization headers and session cookies are removed. Look through the files before you share them.</div></div>
     <form method="post" action="/settings/diagnostics/bundle">
       <input type="hidden" name="_csrf" value="{{.CSRF}}">
-      <button class="btn small primary" type="submit">Download bundle</button>
+      <button class="btn small primary nowrap" type="submit">Download bundle</button>
     </form>
   </div>
 </section>
@@ -430,12 +442,12 @@
   <div class="eyebrow">Transport &amp; certificate</div>
   <div class="set-row">
     <div><div class="label">Transport</div><div class="help">HTTPS / WSS. Plain HTTP is only available in dev mode.</div></div>
-    <span class="pill{{if .Body.TLS}} ok{{end}}">{{if .Body.TLS}}✓ HTTPS{{else}}HTTP (dev mode){{end}}</span>
+    <span class="pill nowrap{{if .Body.TLS}} ok{{else}} amber{{end}}">{{if .Body.TLS}}✓ HTTPS{{else}}HTTP (dev mode){{end}}</span>
   </div>
   {{if .Body.TLS}}
   <div class="set-row">
     <div><div class="label">Certificate</div>
-      <div class="help">{{.Body.CertSource}}{{if .Body.CertNotAfter}} · valid until {{.Body.CertNotAfter}}{{end}}</div>
+      <div class="help">{{.Body.CertSource}}{{if .Body.CertNotAfter}} · valid until <span title="{{.Body.CertNotAfterTitle}}">{{.Body.CertNotAfter}}</span>{{end}}</div>
       <div class="help">{{if .Body.CanRenewCert}}Renews automatically at startup when it expires within 30 days, or now with "Renew now". The previous pair is kept as <span class="mono">*.prev</span> in the data directory.{{else if .Body.CertSelfGenerated}}Renews automatically at startup when it expires within 30 days, or now with <span class="mono">framebeam-hub renew-cert</span> followed by a restart.{{else}}Your own certificate is never renewed by the hub. Renew it where it comes from.{{end}}</div></div>
     {{if .Body.CertExpiresSoon}}<span class="badge error">Expires within 30 days</span>{{end}}
   </div>
@@ -459,10 +471,7 @@
 <section class="set-card">
   <div class="eyebrow">Admin account</div>
   <div class="set-row">
-    <div><div class="label">{{.User}}</div><div class="help">Web login with username and password</div></div>
-    <div class="set-actions">
-      <form method="post" action="/logout"><input type="hidden" name="_csrf" value="{{.CSRF}}"><button class="btn small" type="submit">Sign out</button></form>
-    </div>
+    <div><div class="label">{{.User}}</div><div class="help">Web login with username and password · sign out from the sidebar</div></div>
   </div>
   <details class="set-pw"{{if eq .Body.FieldKey "password"}} open{{end}}>
     <summary class="btn small">Change password</summary>

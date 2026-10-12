@@ -71,7 +71,7 @@ func TestSaveSlotDeleteWeb(t *testing.T) {
 
 	// The inline confirmation names the latest checkpoint and what goes with it.
 	rec := f.c.get(run+"?delslot=1", nil)
-	contains(t, rec, "Delete this slot?", "The latest checkpoint is Rev 1 from today", "1 history version", `action="`+run+`/delete"`,
+	contains(t, rec, "Delete this slot?", "The latest checkpoint is Rev 1 from just now", "1 history version", `action="`+run+`/delete"`,
 		`name="expected_revision" value="1"`, "Delete slot and history", "cannot be undone")
 	notContains(t, rec, `class="save-detail" hx-get=`)
 
@@ -117,7 +117,7 @@ func TestSaveSlotAndUploadBlockedBySessionWeb(t *testing.T) {
 
 	// Upload button disabled with a hint; rename/delete disabled; the panel URL shows no form.
 	rec := f.c.get(f.base, nil)
-	contains(t, rec, `<button class="btn upl-toggle" type="button" disabled`, "A Session of this game is running. Upload after it ends.")
+	contains(t, rec, `<button class="btn small upl-toggle" type="button" disabled`, "A Session of this game is running. Upload after it ends.")
 	notContains(t, rec, `href="`+f.base+`?upload=1"`)
 	rec = f.c.get(f.base+"?upload=1", nil)
 	notContains(t, rec, `class="upl-panel"`, `type="file"`)

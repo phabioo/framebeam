@@ -59,6 +59,8 @@ type FirmwareFile struct {
 	// Pinned is the admin-pinned expected SHA-256 (empty = none).
 	Pinned string
 	State  FirmwareState
+	// ProvidedAt is when the admin provided the file (zero when absent).
+	ProvidedAt time.Time
 }
 
 // SystemEntry is a registry entry: system, installed cores and default core, provisioning and firmware.
@@ -81,6 +83,9 @@ type SystemEntry struct {
 	DisplayProfile string
 	FirmwareMode   FirmwareMode
 	Firmware       []FirmwareFile
+	// AutoUpdate is the per-system override of the Hub default for automatic core updates: SystemAutoDefault ("" ),
+	// SystemAutoOn or SystemAutoOff.
+	AutoUpdate string
 }
 
 func splitList(v string) []string {
@@ -100,7 +105,7 @@ func (s *Service) firmwarePath(systemID, fileID string) string {
 // ListRegistry returns all registry entries with their firmware files and states.
 func (s *Service) ListRegistry(ctx context.Context) ([]SystemEntry, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT id, display_name, extensions, libretro_ids, COALESCE(default_core_id,''),
-		platforms, provisioning, input_profile, display_profile, firmware_mode FROM systems ORDER BY id`)
+		platforms, provisioning, input_profile, display_profile, firmware_mode, core_auto_update FROM systems ORDER BY id`)
 	if err != nil {
 		return nil, internal(err)
 	}
@@ -109,7 +114,7 @@ func (s *Service) ListRegistry(ctx context.Context) ([]SystemEntry, error) {
 		var e SystemEntry
 		var ext, plat, libretro string
 		if err := rows.Scan(&e.ID, &e.Name, &ext, &libretro, &e.CoreID, &plat, &e.Provisioning,
-			&e.InputProfile, &e.DisplayProfile, &e.FirmwareMode); err != nil {
+			&e.InputProfile, &e.DisplayProfile, &e.FirmwareMode, &e.AutoUpdate); err != nil {
 			rows.Close()
 			return nil, internal(err)
 		}
@@ -160,7 +165,7 @@ func (s *Service) GetRegistryEntry(ctx context.Context, systemID string) (System
 
 func (s *Service) systemFirmware(ctx context.Context, systemID string, mode FirmwareMode) ([]FirmwareFile, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT d.file_id, d.display_name, d.sizes, COALESCE(f.sha256,''), COALESCE(f.size,0), f.sha256 IS NOT NULL,
-		COALESCE(p.sha256,'') FROM firmware_defs d
+		COALESCE(p.sha256,''), COALESCE(f.uploaded_at,0) FROM firmware_defs d
 		LEFT JOIN firmware_files f ON f.system_id = d.system_id AND f.file_id = d.file_id
 		LEFT JOIN firmware_pins p ON p.system_id = d.system_id AND p.file_id = d.file_id
 		WHERE d.system_id = ? ORDER BY d.sort, d.file_id`, systemID)
@@ -172,8 +177,12 @@ func (s *Service) systemFirmware(ctx context.Context, systemID string, mode Firm
 	for rows.Next() {
 		var f FirmwareFile
 		var sizes string
-		if err := rows.Scan(&f.ID, &f.DisplayName, &sizes, &f.SHA256, &f.Size, &f.Present, &f.Pinned); err != nil {
+		var at int64
+		if err := rows.Scan(&f.ID, &f.DisplayName, &sizes, &f.SHA256, &f.Size, &f.Present, &f.Pinned, &at); err != nil {
 			return nil, internal(err)
+		}
+		if at > 0 {
+			f.ProvidedAt = time.Unix(at, 0).UTC()
 		}
 		for _, p := range splitList(sizes) {
 			if n, err := strconv.ParseInt(p, 10, 64); err == nil {

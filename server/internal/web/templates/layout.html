@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="/static/app.css">
 <script src="/static/htmx.min.js" defer></script>
 <script src="/static/app.js" defer></script>
+<script src="/static/dropzone.js" defer></script>
 <script src="/static/settings.js" defer></script>
 <script src="/static/invite.js" defer></script>
 <script src="/static/libupload.js" defer></script>
@@ -16,6 +17,8 @@
 <script src="/static/plugins.js" defer></script>
 </head>
 {{end}}
+{{/* A formatted time (format.go When): list text with the full timestamp as tooltip. */}}
+{{define "when"}}<span title="{{.Title}}">{{.Text}}</span>{{end}}
 {{define "flash"}}{{if .Flash}}<div class="alert ok" role="status">{{.Flash}}</div>{{end}}{{if .Error}}<div class="alert error" role="alert">{{.Error}}</div>{{end}}{{end}}
 {{define "main"}}
     {{template "flash" .}}
@@ -33,14 +36,19 @@
       <a href="/settings"{{if eq .Nav "settings"}} class="active" aria-current="page"{{end}} hx-get="/settings" hx-target="#main" hx-push-url="true">Settings{{if .UpdateAvailable}}<span class="badge">update</span>{{end}}</a>
 {{end}}
 {{define "nav"}}    <nav class="nav" id="nav" aria-label="Main navigation" hx-get="/nav-fragment" hx-trigger="fb:badges from:body" hx-target="this" hx-swap="outerHTML" hx-disinherit="hx-swap hx-target">{{template "nav-inner" .}}    </nav>{{end}}
-{{define "nav-fragment"}}{{template "nav" .}}{{end}}
+{{/* Badge in the top bar (below 1024 px the sidebar is collapsed): the most urgent count, refreshed out of band with the nav. */}}
+{{define "topbar-badge-inner"}}{{if .Conflicts}}{{.Conflicts}} {{if eq .Conflicts 1}}conflict{{else}}conflicts{{end}}{{else if .Pending}}{{.Pending}} {{if eq .Pending 1}}request{{else}}requests{{end}}{{else if .Firmware}}{{.Firmware}} {{if eq .Firmware 1}}issue{{else}}issues{{end}}{{end}}{{end}}
+{{define "topbar-badge"}}<span class="badge" id="topbar-badge">{{template "topbar-badge-inner" .}}</span>{{end}}
+{{define "topbar-badge-oob"}}<span class="badge" id="topbar-badge" hx-swap-oob="outerHTML">{{template "topbar-badge-inner" .}}</span>{{end}}
+{{define "nav-fragment"}}{{template "nav" .}}{{template "topbar-badge-oob" .}}{{end}}
 {{/* Response of a sidebar navigation: main content plus out-of-band nav and title. */}}
 {{define "main-swap"}}{{template "main" .}}<title>{{.Title}} · FrameBeam Hub</title>
-<nav class="nav" id="nav" aria-label="Main navigation" hx-get="/nav-fragment" hx-trigger="fb:badges from:body" hx-target="this" hx-swap="outerHTML" hx-disinherit="hx-swap hx-target" hx-swap-oob="outerHTML">{{template "nav-inner" .}}</nav>{{end}}
+<nav class="nav" id="nav" aria-label="Main navigation" hx-get="/nav-fragment" hx-trigger="fb:badges from:body" hx-target="this" hx-swap="outerHTML" hx-disinherit="hx-swap hx-target" hx-swap-oob="outerHTML">{{template "nav-inner" .}}</nav>{{template "topbar-badge-oob" .}}{{end}}
 {{define "layout"}}{{template "head" .}}
 <body hx-headers='{"X-CSRF-Token": "{{.CSRF}}"}'>
-<div class="shell">
-  <aside class="sidebar">
+<div class="shell" id="shell">
+  <header class="topbar"><button class="nav-toggle" type="button" aria-controls="sidebar" aria-expanded="false" aria-label="Menu">☰</button><span class="topbar-title">FrameBeam Hub</span>{{template "topbar-badge" .}}</header>
+  <aside class="sidebar" id="sidebar">
     <div class="logo"><span class="logo-mark"></span>FrameBeam Hub</div>
     {{template "nav" .}}
     <div class="sidebar-foot">

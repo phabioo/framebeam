@@ -185,7 +185,7 @@ func TestClientsPlayerTooOld(t *testing.T) {
 		j := strings.Index(body[i:], "</tr>")
 		return body[i : i+j]
 	}
-	if !strings.Contains(row("Old Laptop"), "pill error") || strings.Contains(row("New Desktop"), "too old") {
+	if !strings.Contains(row("Old Laptop"), "too old") || strings.Contains(row("New Desktop"), "too old") {
 		t.Fatal("wrong rows marked")
 	}
 }
@@ -211,10 +211,13 @@ func TestLibraryRescan(t *testing.T) {
 	if _, err := e.svc.AddROM(bg, bytes.NewReader([]byte("dummy-beta-rom")), "beta-existing.nds", "Beta Existing", "", users[0].ID); err != nil {
 		t.Fatal(err)
 	}
-	contains(t, c.get("/library", nil), "Rescan folder", dir)
+	contains(t, c.get("/library", nil), "Rescan folder", `title="Imports ROM files from `+dir)
 
 	rec := postTok(c, tok, "/library/rescan", nil)
-	status(t, rec, 200)
+	status(t, rec, 303)
+	waitScan(t, e)
+	rec = c.get("/library?ok=rescan", nil)
+	contains(t, rec, "Scanning the import folder.")
 	// alpha added; copy-of-alpha and beta already present; readme unsupported; empty failed.
 	contains(t, rec, "1 added, 2 already in the library, 1 unsupported, 1 failed", "empty.nds", "alpha")
 	games, _ := e.svc.ListGames(bg)
@@ -230,8 +233,53 @@ func TestLibraryRescan(t *testing.T) {
 		t.Fatal("source modified")
 	}
 	// Second scan adds nothing.
-	rec = postTok(c, tok, "/library/rescan", nil)
-	contains(t, rec, "0 added, 3 already in the library")
+	status(t, postTok(c, tok, "/library/rescan", nil), 303)
+	waitScan(t, e)
+	contains(t, c.get("/library", nil), "0 added, 3 already in the library")
+}
+
+// waitScan waits until the background folder scan has finished.
+func waitScan(t *testing.T, e *env) {
+	t.Helper()
+	for i := 0; i < 500; i++ {
+		if p := e.svc.ScanProgress(); !p.Running && p.Finished {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("scan did not finish")
+}
+
+// A running scan shows the progress card with the shortened path and a way to copy it.
+func TestLibraryScanProgressCard(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "deep", "er", "library-import")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	e := newEnv(t, true, func(c *Config) { c.ImportDir = dir })
+	c := e.client()
+	c.login()
+	if !e.svc.BeginScan() {
+		t.Fatal("scan slot busy")
+	}
+	rec := c.get("/library", nil)
+	contains(t, rec, "Scanning import folder", "0 of 0 files", "Copy path", `data-copy-link="`+dir+`"`, `class="scan-bar"`)
+	e.svc.EndScan(hub.ImportSummary{Added: 2}, nil)
+	rec = c.get("/library", nil)
+	contains(t, rec, "Rescan finished: 2 added")
+	notContains(t, rec, "Scanning import folder")
+}
+
+func TestMiddleEllipsis(t *testing.T) {
+	for in, want := range map[string]string{
+		"/srv/library": "/srv/library",
+		"/srv/framebeam/data/imports/library-import": "/srv/framebeam/…/library-import",
+		"/a/b/c": "/a/b/c",
+	} {
+		if got := middleEllipsis(in); got != want {
+			t.Errorf("%q: %q want %q", in, got, want)
+		}
+	}
 }
 
 func TestLibraryRescanMissingOrUnconfigured(t *testing.T) {
