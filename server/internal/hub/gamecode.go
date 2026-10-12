@@ -18,7 +18,7 @@ const (
 )
 
 // ReadGameIdentity reads the identity of a ROM file from its header, following the Player
-// (client/emulation/game_identity.cpp): an NDS 4-character game code ([A-Z0-9]) at 0x0C, or the 3DS program ID as
+// (client/emulation/game_identity.cpp): an NDS 4-character game code (4 printable ASCII bytes, 0x20..0x7E) at 0x0C, or the 3DS program ID as
 // 16 uppercase hex digits from a .3ds/.cci (NCSD, first partition's NCCH) or a bare .cxi (NCCH). Only header bytes
 // are read. Anything unreadable, encrypted or compressed without the magic, or of another system gives "", "".
 func ReadGameIdentity(path, system string) (code, kind string) {
@@ -54,7 +54,7 @@ func ndsIdentity(f *os.File) (string, string) {
 		return "", ""
 	}
 	for _, c := range b {
-		if (c < 'A' || c > 'Z') && (c < '0' || c > '9') {
+		if c < 0x20 || c > 0x7E {
 			return "", ""
 		}
 	}

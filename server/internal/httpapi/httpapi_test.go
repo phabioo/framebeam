@@ -298,7 +298,7 @@ func TestPairingFlowTokenLibraryDownloadRevoke(t *testing.T) {
 	wantStatus(t, empty, 200, "")
 	rom := make([]byte, 4096)
 	rand.Read(rom)
-	rom[0x0C] = 0 // never a valid NDS game code
+	rom[0x0C] = 0 // NUL is not printable ASCII: never a valid NDS game code
 	g, err := e.svc.AddROM(context.Background(), bytes.NewReader(rom), "demo.nds", "Homebrew Demo", "", e.admin.ID)
 	if err != nil {
 		t.Fatal(err)

@@ -61,8 +61,12 @@ func TestReadGameIdentity(t *testing.T) {
 	if c, k := id("n.nds", ndsROM("A1B2"), "nds"); c != "A1B2" || k != "nds-gamecode" {
 		t.Fatalf("nds digits %q %q", c, k)
 	}
-	// Invalid NDS: NUL bytes, lower case, other characters, file shorter than the code.
-	for _, bad := range [][]byte{make([]byte, 0x200), ndsROM("abcd"), ndsROM("AB D"), ndsROM("AB\x7f\x80"), bytes.Repeat([]byte("x"), 8)} {
+	// Printable ASCII is accepted (as in the Player), including lower case and spaces.
+	if c, k := id("p.nds", ndsROM("ab D"), "nds"); c != "ab D" || k != "nds-gamecode" {
+		t.Fatalf("printable %q %q", c, k)
+	}
+	// Invalid NDS: NUL bytes, control and non-ASCII bytes, file shorter than the code.
+	for _, bad := range [][]byte{make([]byte, 0x200), ndsROM("AB\x00D"), ndsROM("AB\x7f\x80"), ndsROM("AB\x1fD"), bytes.Repeat([]byte("x"), 8)} {
 		if c, k := id("b.nds", bad, "nds"); c != "" || k != "" {
 			t.Fatalf("invalid nds %q %q", c, k)
 		}
