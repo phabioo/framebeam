@@ -41,20 +41,22 @@
 {{define "set-err"}}{{if .}}<div class="set-err" role="alert">{{.}}</div>{{end}}{{end}}
 
 {{define "ext-turn-form"}}
-<form class="set-add" method="post" action="/settings/network/external-turn" hx-post="/settings/network/external-turn" hx-target="#settings-area" hx-swap="innerHTML" autocomplete="off">
+<form class="set-add ext-turn-form" method="post" action="/settings/network/external-turn" hx-post="/settings/network/external-turn" hx-target="#settings-area" hx-swap="innerHTML" autocomplete="off">
   <input type="hidden" name="_csrf" value="{{.CSRF}}"><input type="hidden" name="original" value="{{.Original}}">
-  <label>Name <input type="text" name="name" value="{{.FormName}}" maxlength="64" required placeholder="vps" class="host" aria-label="Name"></label>
-  <label>URLs (one per line) <textarea name="urls" rows="3" required class="host" placeholder="turn:turn.example.org:3478?transport=udp" aria-label="TURN URLs">{{.URLsText}}</textarea></label>
-  <label>Mode <select name="mode" aria-label="Mode">
+  <label class="ext-field">Name <input type="text" name="name" value="{{.FormName}}" maxlength="64" required placeholder="vps" class="host" aria-label="Name"></label>
+  <label class="ext-field">URLs (one per line) <textarea name="urls" rows="3" required class="host mono" placeholder="turn:turn.example.org:3478?transport=udp" aria-label="TURN URLs">{{.URLsText}}</textarea></label>
+  <label class="ext-field">Mode <select name="mode" aria-label="Mode">
     <option value="secret"{{if ne .ModeKey "static"}} selected{{end}}>Shared secret (coturn use-auth-secret)</option>
-    <option value="static"{{if eq .ModeKey "static"}} selected{{end}}>Static username and password</option></select></label>
-  <label>Username (static mode) <input type="text" name="username" value="{{.Username}}" class="host" aria-label="Username"></label>
-  <label>Secret or password <input type="password" name="secret" value="" class="host" autocomplete="new-password" placeholder="{{if .Original}}{{if .SecretSet}}set: leave empty to keep{{else}}not set{{end}}{{end}}" aria-label="Secret or password"></label>
-  {{if .Original}}<label><input type="checkbox" name="clear_secret" value="1"> Clear the stored secret or password</label>{{end}}
+    <option value="static"{{if eq .ModeKey "static"}} selected{{end}}>Static username and password</option></select>
+    <span class="help">Shared secret: the hub derives short-lived credentials, leave the username empty. Static: the username and password below are sent as they are.</span></label>
+  <label class="ext-field">Username (static mode) <input type="text" name="username" value="{{.Username}}" class="host" aria-label="Username"></label>
+  <label class="ext-field">Secret or password <input type="password" name="secret" value="" class="host" autocomplete="new-password" placeholder="{{if .Original}}{{if .SecretSet}}set: leave empty to keep{{else}}not set{{end}}{{end}}" aria-label="Secret or password"></label>
+  {{if .Original}}<label class="ext-check"><input type="checkbox" name="clear_secret" value="1"> Clear the stored secret or password</label>{{end}}
   {{template "set-err" .Err}}
-  <button class="btn small" type="submit">{{if .Original}}Save{{else}}+ Add server{{end}}</button>
+  <button class="btn small" type="submit">{{if .Original}}Save server{{else}}Add server{{end}}</button>
 </form>
 {{end}}
+
 
 {{/* ---- Updates ---- */}}
 {{define "set-updates"}}
@@ -331,13 +333,13 @@
     <div class="help">{{.Mode}} · {{if .SecretSet}}{{if eq .ModeKey "secret"}}secret{{else}}password{{end}} set{{else}}not set (server not used){{end}}</div></div>
     <form method="post" action="/settings/network/external-turn/delete" hx-post="/settings/network/external-turn/delete" hx-target="#settings-area" hx-swap="innerHTML" hx-confirm="Remove this TURN server?">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="name" value="{{.Name}}"><button class="btn small" type="submit">Delete</button></form></div>
-  <details class="set-row"{{if .Open}} open{{end}}><summary>Edit {{.Name}}</summary>
+  <details class="set-row ext-details"{{if .Open}} open{{end}}><summary>Edit {{.Name}}</summary>
     {{template "ext-turn-form" .}}
   </details>
   {{else}}
   <div class="set-row"><div class="help">No external TURN server.</div></div>
   {{end}}
-  <details class="set-row"{{if .ExtAdd.Err}} open{{end}}><summary>+ Add server</summary>
+  <details class="set-row ext-details"{{if .ExtAdd.Err}} open{{end}}><summary>+ Add server</summary>
     {{template "ext-turn-form" .ExtAdd}}
   </details>
 </section>
