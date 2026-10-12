@@ -83,12 +83,15 @@ client_libdatachannel() { DDC_PATH="$("$ROOT/scripts/fetch-libdatachannel.sh")" 
 SDL3_PATH=""
 client_sdl3() { SDL3_PATH="$("$ROOT/scripts/fetch-sdl3.sh")" && [ -d "$SDL3_PATH" ]; }
 # FRAMEBEAM_CTEST_REGEX (optional): ctest -R filter. ctest with the output of failed tests (QtTest FAIL!/QWARN/QFATAL with context) so the assertion is not lost.
+# Tests run in parallel (CTEST_PARALLEL_LEVEL, default: number of CPUs); every test uses its own temporary directories and
+# fake Hub port, CTEST_PARALLEL_LEVEL=1 restores the serial run.
 client_test() {
   local p="$1" out rc=0
   out="$(mktemp)"
   local -a sel=()
   [ -z "${FRAMEBEAM_CTEST_REGEX:-}" ] || sel=(-R "$FRAMEBEAM_CTEST_REGEX")  # nightly: only the real-core tests
-  (cd "$ROOT/client" && ctest --preset "$p" --output-on-failure "${sel[@]}" >"$out" 2>&1) || rc=$?
+  local jobs="${CTEST_PARALLEL_LEVEL:-$(nproc 2>/dev/null || echo 2)}"
+  (cd "$ROOT/client" && ctest --preset "$p" --output-on-failure -j "$jobs" "${sel[@]}" >"$out" 2>&1) || rc=$?
   if [ "$rc" -ne 0 ]; then
     grep -E '^\s*[0-9]+/[0-9]+ Test\s+#[0-9]+: .*\*\*\*|tests failed|The following tests FAILED|^\s+[0-9]+ - ' "$out" | head -n 20
     echo "--- failed test output (FAIL!/QWARN/QFATAL, context) ---"

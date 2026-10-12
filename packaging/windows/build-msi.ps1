@@ -3,12 +3,14 @@
     pwsh packaging\windows\build-msi.ps1 -ProductVersion 0.9.0.123 -PackageDir dist\framebeam-player -HubExe dist\hub\framebeam-hub.exe -OutFile dist\msi\framebeam-0.9.0-windows-x64.msi
   -ProductVersion must be numeric a.b.c[.d] (MSI compares only the first three fields). Installs the pinned WiX dotnet tool and
   its extensions when missing. Assumes the .NET SDK (6+) is on PATH (preinstalled on the GitHub windows runners).
+  -CompressionLevel (default high, the release setting): cab compression; none/mszip build much faster (CI test MSIs).
 #>
 param(
   [Parameter(Mandatory)] [string] $ProductVersion,
   [Parameter(Mandatory)] [string] $PackageDir,
   [Parameter(Mandatory)] [string] $HubExe,
-  [Parameter(Mandatory)] [string] $OutFile
+  [Parameter(Mandatory)] [string] $OutFile,
+  [ValidateSet('none', 'low', 'medium', 'high', 'mszip')] [string] $CompressionLevel = 'high'
 )
 $ErrorActionPreference = 'Stop'
 # Pinned: tool and extensions must be the same version.
@@ -64,7 +66,7 @@ New-Item -ItemType Directory -Force (Split-Path -Parent $OutFile) | Out-Null
 wix build "$here\framebeam.wxs" -arch x64 -o $OutFile `
   -ext WixToolset.Util.wixext -ext WixToolset.Firewall.wixext -ext WixToolset.UI.wixext `
   -d "ProductVersion=$ProductVersion" -d "PackageDir=$PackageDir" -d "HubExe=$HubExe" -d "LicenseRtf=$rtf" `
-  -d "IconFile=$here\..\..\client\app\icons\player.ico"
+  -d "IconFile=$here\..\..\client\app\icons\player.ico" -d "CompressionLevel=$CompressionLevel"
 if ($LASTEXITCODE -ne 0) { throw "wix build failed" }
 # Guard: the File table must hold every file of the package plus the Hub exe and the two markers (a wrong Files pattern or
 # Exclude silently harvests nothing, which once produced a 6 MB MSI without the Player).
