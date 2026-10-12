@@ -23,6 +23,30 @@ Rectangle {
         return ""
     }
 
+    ListModel { id: hubIds }
+    function hubById(id: string): var {
+        const l = root.player.hubs
+        for (let i = 0; i < l.length; ++i) if (l[i].hubId === id) return l[i]
+        return ({ hubId: id, saved: false, connected: false, name: "", host: "", port: "" })
+    }
+    function syncHubs() {
+        const l = root.player.hubs
+        const ids = []
+        for (let i = 0; i < l.length; ++i) ids.push(l[i].hubId)
+        for (let j = hubIds.count - 1; j >= 0; --j) if (ids.indexOf(hubIds.get(j).hid) < 0) hubIds.remove(j)
+        for (let k = 0; k < ids.length; ++k) {
+            let at = -1
+            for (let m = 0; m < hubIds.count; ++m) if (hubIds.get(m).hid === ids[k]) { at = m; break }
+            if (at < 0) hubIds.insert(k, { hid: ids[k] })
+            else if (at !== k) hubIds.move(at, k, 1)
+        }
+    }
+    Component.onCompleted: syncHubs()
+    Connections {
+        target: root.player
+        function onHubsChanged() { root.syncHubs() }
+    }
+
     function sectionItem(name: string): Item {
         switch (name) {
         case "hubs": return secHubs
@@ -397,11 +421,14 @@ Rectangle {
                     }
 
                     Repeater {
-                        model: root.player.hubs
+                        model: hubIds
                         delegate: Rectangle {
                             id: hubRow
-                            required property var modelData
+                            required property string hid
                             required property int index
+                            // Looked up by id: the rows are not rebuilt when the hub list changes (a delegate with nested
+                            // layouts that is destroyed while the page resizes crashed Qt 6.4 under load).
+                            readonly property var modelData: root.hubById(hid)
                             property bool confirmRemove: false
                             readonly property bool editing: root.editingHubId === modelData.hubId && modelData.hubId !== ""
                             visible: modelData.saved
