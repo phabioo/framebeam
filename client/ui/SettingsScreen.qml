@@ -388,11 +388,39 @@ Rectangle {
                         Layout.rightMargin: content.wide ? Theme.settingsResetWidth : 0
                     }
 
+                    // Stable model keyed by hub id: hubsChanged updates rows in place instead of rebuilding every delegate
+                    // (a JS-array model recreates the nested Layouts on each change; Qt 6.4 crashes in
+                    // QQuickGridLayoutBase::rearrange when that happens while the layouts are being polished).
+                    ListModel {
+                        id: hubsModel
+                        dynamicRoles: true
+                        function sync(list) {
+                            for (var i = 0; i < list.length; i++) {
+                                var found = -1
+                                for (var j = i; j < count; j++) {
+                                    if (get(j).hubId === list[i].hubId) { found = j; break }
+                                }
+                                if (found < 0) insert(i, list[i])
+                                else {
+                                    if (found !== i) move(found, i, 1)
+                                    set(i, list[i])
+                                }
+                            }
+                            if (count > list.length) remove(list.length, count - list.length)
+                        }
+                    }
+                    Connections {
+                        target: root.player
+                        function onHubsChanged() { hubsModel.sync(root.player.hubs) }
+                    }
+                    Component.onCompleted: hubsModel.sync(root.player.hubs)
+
                     Repeater {
-                        model: root.player.hubs
+                        model: hubsModel
                         delegate: Rectangle {
                             id: hubRow
-                            required property var modelData
+                            required property var model
+                            readonly property var modelData: model
                             required property int index
                             property bool confirmRemove: false
                             readonly property bool editing: root.editingHubId === modelData.hubId && modelData.hubId !== ""

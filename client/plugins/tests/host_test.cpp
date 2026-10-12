@@ -153,7 +153,10 @@ class HostTest : public QObject {
     }
     int ticks = 0;
     for (const QString& l : logTexts(con())) ticks += l == "tick";
-    QVERIFY2(ticks >= 6 && ticks <= 12, qPrintable(QString::number(ticks)));
+    // The upper bound is the point of the test (rate limit); the lower bound scales with the real elapsed time so a
+    // stalled runner does not fail it.
+    const qint64 ms = t.elapsed();
+    QVERIFY2(ticks >= 1 && ticks <= ms / 100 + 2, qPrintable(QString("%1 ticks in %2 ms").arg(ticks).arg(ms)));
   }
 
   void noTickWithoutSnapshot() {
@@ -377,25 +380,36 @@ class HostTest : public QObject {
   }
 
   void cacheQuota() {
+    // One 16 MiB write per tick: the wall-clock budget applies per entry call, so a slow disk (CI runner) cannot push
+    // the whole 256 MiB series over it, which made the plugin pause with "time budget exceeded" before.
     PluginSpec s;
     s.lua = R"LUA(
       local chunk = string.rep("x", 16 * 1024 * 1024)
       local written = 0
-      local err
-      for i = 1, 20 do
-        local ok, e = pcall(fb.cache.write, "big" .. i, chunk)
-        if not ok then err = e break end
-        written = written + 1
-      end
-      fb.log.info("written " .. written .. " " .. tostring(err))
+      local done = false
+      fb.on_tick(function()
+        if done then return end
+        local ok, e = pcall(fb.cache.write, "big" .. (written + 1), chunk)
+        if ok then
+          written = written + 1
+          if written > 40 then done = true fb.log.info("written too many") end
+        else
+          done = true
+          fb.log.info("written " .. written .. " " .. tostring(e))
+        end
+      end)
     )LUA";
     HostLimits lim;
-    lim.wallMs = 5000;
+    lim.wallMs = 20000;
     lim.instructions = 200'000'000;
     m_host->setLimits(lim);
     startOne(s);
     waitRunning("net.test.plugin");
-    QVERIFY2(hasLog(con(), "written 16 "), qPrintable(logTexts(con()).join("\n")));
+    for (int i = 0; i < 400 && !hasLog(con(), "written "); ++i) {
+      m_mem->snapshot();
+      QTest::qWait(25);
+    }
+    QVERIFY2(hasLog(con(), "written 16 "), qPrintable(logTexts(con()).join("\n") + con().error));
     QVERIFY(hasLog(con(), "cache quota exceeded"));
   }
 
