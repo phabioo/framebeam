@@ -108,14 +108,10 @@ class RunsUiTest : public QObject {
     PluginsController* pc = h.controller->plugins();
     QVERIFY(runs != nullptr);
 
-    // No plugin with run.state installed: no Runs entry (the Hub announces runs_v1).
+    // No plugin with run.state is installed, but there is an invite: the Runs entry shows (runs_v1) with the invite count.
     QTRY_VERIFY_WITH_TIMEOUT(runs->loaded(), 8000);
-    QVERIFY(!runs->available());
-    QVERIFY(h.item("navRuns") == nullptr || !h.item("navRuns")->isVisible());
-
-    // Installing a plugin that asks for run.state brings the entry, with the invite count.
+    QVERIFY(!pc->hasRunPlugin());
     QTRY_COMPARE_WITH_TIMEOUT(pc->hubPlugins().size(), 1, 8000);
-    pc->installHubPlugin(spec.id, spec.version);
     QTRY_VERIFY_WITH_TIMEOUT(runs->available(), 8000);
     QTRY_VERIFY_WITH_TIMEOUT(h.item("navRuns") != nullptr && h.item("navRuns")->isVisible(), 8000);
     QCOMPARE(runs->pendingInvites(), 1);
@@ -134,12 +130,24 @@ class RunsUiTest : public QObject {
     QVERIFY(h.click("runInviteJoin"));
     QTRY_VERIFY(popupOpen(h, "runJoinDialog"));
     QTRY_COMPARE_WITH_TIMEOUT(runs->games()->rowCount(), 1, 8000);
+    // Every plugin of the run is listed with name, version, origin pill, permissions and the unverified warning.
+    QCOMPARE(runs->joinPlugins()->rowCount(), 1);
+    QTRY_VERIFY(h.item(("runJoinPlugin_" + spec.id).toUtf8().constData()) != nullptr);
+    QCOMPARE(h.item("runJoinPluginOrigin")->property("text").toString(), QStringLiteral("! Hub upload · unverified"));
+    QVERIFY(runs->joinUnverified());
+    QTRY_VERIFY(h.item("runJoinUnverified") != nullptr && h.item("runJoinUnverified")->isVisible());
+    QCOMPARE(h.item("runJoinUnverified")->property("text").toString(), runs->unverifiedWarning());
+    QVERIFY(runs->unverifiedWarning().startsWith(QStringLiteral("FrameBeam has not checked this plugin.")));
+    shot(h, QStringLiteral("4j-runs-join"));
     QVERIFY(!h.item("runJoinConfirm")->isEnabled() || runs->games()->rowCount() == 1);
     QVERIFY(h.click(("runGame_" + kGameId).toUtf8().constData()));
     QVERIFY(h.click("runJoinConfirm"));
     QTRY_VERIFY_WITH_TIMEOUT(runs->openRunId() == runId, 8000);
     QCOMPARE(hub.lastRunBody.value("game_id").toString(), kGameId);
-    QCOMPARE(runs->pendingInvites(), 0);
+    QTRY_COMPARE_WITH_TIMEOUT(runs->pendingInvites(), 0, 8000);
+    // Joining is the consent: the Hub copy of the plugin is fetched without a further question.
+    QTRY_VERIFY_WITH_TIMEOUT(!pc->manager()->hubCopyDir(spec.id, spec.version, sha).isEmpty(), 8000);
+    QTRY_VERIFY_WITH_TIMEOUT(!runs->busy(), 8000);
     QTRY_VERIFY(h.item("runPlay") != nullptr && h.item("runPlay")->isVisible());
     QCOMPARE(h.item("runDetailName")->property("text").toString(), QStringLiteral("Tide Hardcore"));
     QTRY_COMPARE_WITH_TIMEOUT(runs->participants()->rowCount(), 2, 8000);
@@ -197,10 +205,14 @@ class RunsUiTest : public QObject {
     QTRY_COMPARE_WITH_TIMEOUT(runs->startPlugins()->rowCount(), 1, 8000);
     QTRY_COMPARE_WITH_TIMEOUT(runs->startUsers()->rowCount(), 1, 8000);  // not myself
     h.item("runNameField")->setProperty("text", QStringLiteral("Summer Duo"));
+    QVERIFY(h.item("runStartUnverified") == nullptr || !h.item("runStartUnverified")->isVisible());  // nothing picked yet
     shot(h, QStringLiteral("4j-runs-start"));
     QVERIFY(h.click("runStartConfirm"));  // nothing picked yet
     QTRY_VERIFY(!runs->startError().isEmpty());
     QVERIFY(h.click(("runPlugin_" + kPluginId).toUtf8().constData()));
+    QVERIFY(runs->startUnverified());
+    QTRY_VERIFY(h.item("runStartUnverified") != nullptr && h.item("runStartUnverified")->isVisible());
+    QCOMPARE(h.item("runPluginOrigin")->property("text").toString(), QStringLiteral("! Hub upload · unverified"));
     QVERIFY(h.click("runUser_u_lena"));
     QVERIFY(h.click(("runGame_" + kGameId).toUtf8().constData()));
     QVERIFY(h.click("runStartConfirm"));
@@ -225,6 +237,20 @@ class RunsUiTest : public QObject {
     QCOMPARE(runs->detail().value("over").toBool(), true);
     runs->closeRun();
     QTRY_COMPARE_WITH_TIMEOUT(runs->finishedCount(), 1, 8000);
+  }
+
+  void entryHiddenWithoutRunsAndPlugin() {
+    FakeHub hub(QStringLiteral("a"));
+    hub.hubId = QStringLiteral("hub-empty");
+    hub.decision = FakeHub::Decision::Approve;
+    hub.features = {QStringLiteral("saves_v1"), QStringLiteral("plugins_v1"), QStringLiteral("runs_v1"), QStringLiteral("sessions_v1")};
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    QTRY_VERIFY_WITH_TIMEOUT(h.controller->runs()->loaded(), 8000);
+    QVERIFY(!h.controller->runs()->available());  // runs_v1, but no run, no invite and no run plugin
+    QVERIFY(h.item("navRuns") == nullptr || !h.item("navRuns")->isVisible());
   }
 
   void entryStaysHiddenWithoutHubSupport() {

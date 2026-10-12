@@ -409,6 +409,20 @@ void PluginsController::refreshPlugins() {
 
 // ---------------------------------------------------------------- game lifecycle
 
+QVariantMap PluginsController::hubOffer(const QString& pluginId, const QString& version) const {
+  if (hubClient_ == nullptr) return {};
+  for (const HubPluginInfo& p : hubClient_->plugins()) {
+    if (p.id != pluginId || p.version != version) continue;
+    return {{QStringLiteral("id"), p.id},
+            {QStringLiteral("name"), p.name},
+            {QStringLiteral("version"), p.version},
+            {QStringLiteral("origin"), p.origin},
+            {QStringLiteral("originText"), originText(p.origin)},
+            {QStringLiteral("permissionsText"), permissionsText(p.permissions)}};
+  }
+  return {};
+}
+
 bool PluginsController::hasRunPlugin() const {
   for (const plugins::PluginInfo& p : manager_->list())
     if (p.manifest.hasPermission(QStringLiteral("run.state"))) return true;

@@ -9,6 +9,9 @@ Rectangle {
     property string sub: ""
     property bool checked: false
     property bool radio: false
+    property string pillOrigin: ""   // plugin rows: official | unverified | local, with its text
+    property string pillText: ""
+    property string detail: ""       // plugin rows: "It will be able to: ..."
     signal toggled()
     Layout.fillWidth: true
     implicitHeight: col.implicitHeight + 16
@@ -45,17 +48,35 @@ Rectangle {
             id: col
             Layout.fillWidth: true
             spacing: 1
-            FbLabel {
+            RowLayout {
                 Layout.fillWidth: true
-                text: root.title
-                elide: Text.ElideRight
-                font.weight: Font.Medium
+                spacing: 8
+                FbLabel {
+                    Layout.fillWidth: true
+                    text: root.title
+                    elide: Text.ElideRight
+                    font.weight: Font.Medium
+                }
+                PluginOriginPill {
+                    objectName: "runPluginOrigin"
+                    visible: root.pillText !== ""
+                    origin: root.pillOrigin
+                    text: root.pillText
+                }
             }
             FbLabel {
                 Layout.fillWidth: true
                 visible: root.sub !== ""
                 text: root.sub
                 elide: Text.ElideRight
+                color: Theme.textMuted
+                font.pixelSize: Theme.fontMeta
+            }
+            FbLabel {
+                Layout.fillWidth: true
+                visible: root.detail !== ""
+                text: root.detail
+                wrapMode: Text.WordWrap
                 color: Theme.textMuted
                 font.pixelSize: Theme.fontMeta
             }

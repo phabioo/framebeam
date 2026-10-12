@@ -24,7 +24,7 @@ class RunsController : public QObject {
   QML_ELEMENT
   QML_UNCREATABLE("Provided by the PlayerController")
 
-  // The sidebar entry is shown: the Hub offers runs (runs_v1) and an installed plugin asks for run.state.
+  // The sidebar entry is shown: the Hub offers runs (runs_v1) and an installed plugin asks for run.state, or the user has a run or an invite.
   Q_PROPERTY(bool available READ available NOTIFY availableChanged)
   Q_PROPERTY(int pendingInvites READ pendingInvites NOTIFY runsChanged)  // sidebar badge
   Q_PROPERTY(bool loaded READ loaded NOTIFY runsChanged)                 // the list from the Hub arrived
@@ -47,8 +47,14 @@ class RunsController : public QObject {
   Q_PROPERTY(QString busyText READ busyText NOTIFY busyChanged)
   // Games of the library the participant may bring: {id, title, system}; refilled by prepareGames().
   Q_PROPERTY(QAbstractItemModel* games READ games CONSTANT)
+  // Plugins of the run to join, {id, name, version, origin, originText, permissionsText}; joinUnverified = one of them is
+  // unverified (the dialog then shows unverifiedWarning; joining counts as the consent to run it).
+  Q_PROPERTY(QAbstractItemModel* joinPlugins READ joinPlugins CONSTANT)
+  Q_PROPERTY(bool joinUnverified READ joinUnverified NOTIFY joinPluginsChanged)
+  Q_PROPERTY(bool startUnverified READ startUnverified NOTIFY startStateChanged)  // a picked plugin of the start dialog is unverified
+  Q_PROPERTY(QString unverifiedWarning READ unverifiedWarning CONSTANT)
   // Start a run dialog.
-  Q_PROPERTY(QAbstractItemModel* startPlugins READ startPlugins CONSTANT)  // {id, name, version, description, checked}
+  Q_PROPERTY(QAbstractItemModel* startPlugins READ startPlugins CONSTANT)  // {id, name, version, description, origin, originText, permissionsText, checked}
   Q_PROPERTY(QAbstractItemModel* startUsers READ startUsers CONSTANT)      // {id, name, online, checked}
   Q_PROPERTY(QString startError READ startError NOTIFY startStateChanged)
   Q_PROPERTY(bool startBusy READ startBusy NOTIFY startStateChanged)
@@ -58,6 +64,10 @@ class RunsController : public QObject {
   RunsController(RunClient* client, PluginsController* plugins, HubLibrary* library, HubConnection* connection, QObject* parent = nullptr);
 
   bool available() const;
+  QAbstractItemModel* joinPlugins() { return &joinPlugins_; }
+  bool joinUnverified() const { return joinUnverified_; }
+  bool startUnverified() const;
+  QString unverifiedWarning() const;
   int pendingInvites() const { return client_->pendingInviteCount(); }
   bool loaded() const { return client_->loaded(); }
   QAbstractItemModel* invites() { return &invites_; }
@@ -113,6 +123,7 @@ class RunsController : public QObject {
   void messageChanged();
   void busyChanged();
   void startStateChanged();
+  void joinPluginsChanged();
   // Everything for the run is ready: start `gameId` with the run context (PlayerController).
   void launchRequested(const QString& runId, const QString& gameId);
   // A run was created (the Start dialog closes and the detail opens).
@@ -155,7 +166,7 @@ class RunsController : public QObject {
   KeyedRowsModel events_{{QStringLiteral("seq"), QStringLiteral("timeText"), QStringLiteral("author"), QStringLiteral("text"), QStringLiteral("sourceText")},
                          QStringLiteral("seq")};
   KeyedRowsModel games_{{QStringLiteral("id"), QStringLiteral("title"), QStringLiteral("system")}, QStringLiteral("id")};
-  KeyedRowsModel startPlugins_{{QStringLiteral("id"), QStringLiteral("name"), QStringLiteral("version"), QStringLiteral("description"), QStringLiteral("checked")},
+  KeyedRowsModel startPlugins_{{QStringLiteral("id"), QStringLiteral("name"), QStringLiteral("version"), QStringLiteral("description"), QStringLiteral("origin"), QStringLiteral("originText"), QStringLiteral("permissionsText"), QStringLiteral("checked")},
                                QStringLiteral("id")};
   KeyedRowsModel startUsers_{{QStringLiteral("id"), QStringLiteral("name"), QStringLiteral("online"), QStringLiteral("checked")}, QStringLiteral("id")};
 
@@ -174,6 +185,8 @@ class RunsController : public QObject {
   QList<HubUser> users_;
   bool rebuildQueued_ = false;
   bool lastAvailable_ = false;
+  bool joinUnverified_ = false;
+  KeyedRowsModel joinPlugins_{{QStringLiteral("id"), QStringLiteral("name"), QStringLiteral("version"), QStringLiteral("origin"), QStringLiteral("originText"), QStringLiteral("permissionsText")}, QStringLiteral("id")};
   quint64 playGen_ = 0;
 };
 

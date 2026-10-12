@@ -107,9 +107,18 @@ Popup {
                         objectName: "runPlugin_" + plugRow.model.id
                         title: plugRow.model.name + " " + plugRow.model.version
                         sub: plugRow.model.description
+                        pillOrigin: plugRow.model.origin
+                        pillText: plugRow.model.originText
+                        detail: plugRow.model.permissionsText !== "" ? qsTr("It will be able to: %1").arg(plugRow.model.permissionsText) : ""
                         checked: plugRow.model.checked
                         onToggled: root.runs.toggleStartPlugin(plugRow.model.id)
                     }
+                }
+                UnverifiedNote {
+                    objectName: "runStartUnverified"
+                    visible: !root.inviting && root.runs.startUnverified
+                    text: root.runs.unverifiedWarning
+                    Layout.fillWidth: true
                 }
 
                 Eyebrow { text: qsTr("Players") }

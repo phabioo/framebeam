@@ -108,6 +108,7 @@ qt_add_qml_module(framebeam_ui
     RunsScreen.qml
     RunAvatars.qml
     RunCheckRow.qml
+    UnverifiedNote.qml
     GamePickList.qml
     RunJoinDialog.qml
     RunStartDialog.qml

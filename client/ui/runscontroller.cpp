@@ -48,7 +48,19 @@ RunsController::RunsController(RunClient* client, PluginsController* plugins, Hu
   rebuild();
 }
 
-bool RunsController::available() const { return client_ && client_->supported() && plugins_->hasRunPlugin(); }
+bool RunsController::available() const {
+  return client_ && client_->supported() && (plugins_->hasRunPlugin() || !client_->runs().isEmpty());
+}
+
+QString RunsController::unverifiedWarning() const {
+  return tr("FrameBeam has not checked this plugin. Turn it on only if you trust the admin of your Hub and where the file came from.");
+}
+
+bool RunsController::startUnverified() const {
+  for (const QVariantMap& row : startPlugins_.rows())
+    if (row.value(QStringLiteral("checked")).toBool() && row.value(QStringLiteral("origin")).toString() == QLatin1String("unverified")) return true;
+  return false;
+}
 
 void RunsController::refresh() {
   if (client_->supported()) client_->refresh();
@@ -342,6 +354,26 @@ QStringList RunsController::gameSystemsFor(const RunInfo* run) const {
 int RunsController::prepareGames(const QString& runId) {
   const auto run = runId.isEmpty() ? std::nullopt : client_->run(runId.toLower());
   const QStringList systems = gameSystemsFor(run ? &*run : nullptr);
+  QList<QVariantMap> pluginRows;
+  bool unverified = false;
+  if (run) {
+    for (const RunPluginRef& ref : run->plugins) {
+      QVariantMap row = plugins_->hubOffer(ref.pluginId, ref.version);
+      if (row.isEmpty()) {  // not listed by the Hub any more: shown as unchecked
+        row = {{QStringLiteral("id"), ref.pluginId},
+               {QStringLiteral("name"), pluginName(ref.pluginId)},
+               {QStringLiteral("version"), ref.version},
+               {QStringLiteral("origin"), QStringLiteral("unverified")},
+               {QStringLiteral("originText"), tr("! Hub upload · unverified")},
+               {QStringLiteral("permissionsText"), tr("Share run progress with your Hub")}};
+      }
+      if (row.value(QStringLiteral("origin")).toString() == QLatin1String("unverified")) unverified = true;
+      pluginRows.append(row);
+    }
+  }
+  joinPlugins_.setRows(pluginRows);
+  if (joinUnverified_ != unverified) joinUnverified_ = unverified;
+  emit joinPluginsChanged();
   QList<QVariantMap> rows;
   for (const GameEntry& g : library_->games()) {
     if (!systems.isEmpty() && !systems.contains(g.system)) continue;
@@ -486,9 +518,13 @@ void RunsController::rebuildStartPlugins() {
                    {QStringLiteral("name"), (*it)->name},
                    {QStringLiteral("version"), (*it)->version},
                    {QStringLiteral("description"), (*it)->description},
+                   {QStringLiteral("origin"), plugins_->hubOffer(it.key(), (*it)->version).value(QStringLiteral("origin"))},
+                   {QStringLiteral("originText"), plugins_->hubOffer(it.key(), (*it)->version).value(QStringLiteral("originText"))},
+                   {QStringLiteral("permissionsText"), plugins_->hubOffer(it.key(), (*it)->version).value(QStringLiteral("permissionsText"))},
                    {QStringLiteral("checked"), startPluginIds_.contains(it.key())}});
   }
   startPlugins_.setRows(rows);
+  emit startStateChanged();
 }
 
 void RunsController::rebuildStartUsers() {

@@ -51,6 +51,45 @@ Popup {
             font.pixelSize: Theme.fontSmall
             wrapMode: Text.WordWrap
         }
+        Eyebrow { text: qsTr("Plugins of this run") }
+        Repeater {
+            model: root.runs.joinPlugins
+            delegate: ColumnLayout {
+                id: jp
+                required property var model
+                objectName: "runJoinPlugin_" + jp.model.id
+                Layout.fillWidth: true
+                spacing: 2
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    FbLabel {
+                        Layout.fillWidth: true
+                        text: jp.model.name + " " + jp.model.version
+                        elide: Text.ElideRight
+                        font.weight: Font.Medium
+                    }
+                    PluginOriginPill {
+                        objectName: "runJoinPluginOrigin"
+                        origin: jp.model.origin
+                        text: jp.model.originText
+                    }
+                }
+                FbLabel {
+                    Layout.fillWidth: true
+                    text: qsTr("It will be able to: %1").arg(jp.model.permissionsText)
+                    wrapMode: Text.WordWrap
+                    color: Theme.textMuted
+                    font.pixelSize: Theme.fontMeta
+                }
+            }
+        }
+        UnverifiedNote {
+            objectName: "runJoinUnverified"
+            visible: root.runs.joinUnverified
+            text: root.runs.unverifiedWarning
+            Layout.fillWidth: true
+        }
         GamePickList {
             id: picker
             objectName: "runJoinGames"

@@ -134,6 +134,8 @@ class PluginsController : public QObject {
   bool hubSupported() const { return hubClient_ != nullptr && hubClient_->supported(); }
   // Some installed plugin (any copy, also Hub copies) asks for the permission run.state: the Runs entry is worth showing.
   bool hasRunPlugin() const;
+  // The Hub offer of one plugin version as a row {id, name, version, origin, originText, permissionsText}; empty when the Hub does not list it.
+  QVariantMap hubOffer(const QString& pluginId, const QString& version) const;
   QVariantList hubPlugins() const { return hubPlugins_; }
   QString hubStatus() const;
   QString hubError() const { return hubClient_ != nullptr ? hubClient_->errorMessage() : QString(); }
