@@ -174,6 +174,13 @@ void EmulationController::setSystems(const QVariantList& cards) {
   rebuild();
 }
 
+void EmulationController::setCoreProbing(bool probing) {
+  if (coreProbing_ == probing) return;
+  coreProbing_ = probing;
+  emit coreProbingChanged();
+  rebuild();
+}
+
 void EmulationController::setGameRunning(bool running) {
   if (gameRunning_ == running) return;
   gameRunning_ = running;
@@ -488,7 +495,9 @@ void EmulationController::rebuild() {
           }
         }
       }
-      if (probe == nullptr || probe->options.isEmpty()) {
+      if ((probe == nullptr || probe->options.isEmpty()) && coreProbing_) {
+        coreNote_.clear();  // the page shows the loading row instead
+      } else if (probe == nullptr || probe->options.isEmpty()) {
         coreNote_ = tr("The core has not reported its options yet. They appear after the core was loaded once; "
                        "the Player does that when it can (not while a game is running).");
       }

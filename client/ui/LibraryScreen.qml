@@ -280,6 +280,31 @@ Rectangle {
                 }
             }
 
+            // The final save write at "stop game" failed: shown until dismissed (the Hub copy is not touched).
+            Rectangle {
+                objectName: "stopSaveError"
+                Layout.fillWidth: true
+                visible: root.player.stopSaveError !== ""
+                implicitHeight: stopSaveText.implicitHeight + 20
+                radius: 8
+                color: Theme.errorBg
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.margins: 10
+                    anchors.leftMargin: 12
+                    spacing: 10
+                    FbLabel {
+                        id: stopSaveText
+                        Layout.fillWidth: true
+                        text: root.player.stopSaveError
+                        wrapMode: Text.WordWrap
+                        color: Theme.errorText
+                        font.pixelSize: Theme.fontSmall
+                    }
+                    FbButton { objectName: "stopSaveErrorDismiss"; kind: "link"; text: qsTr("Dismiss"); onClicked: root.player.dismissStopSaveError() }
+                }
+            }
+
             Rectangle {
                 objectName: "hubLinkBanner"
                 Layout.fillWidth: true
@@ -353,25 +378,18 @@ Rectangle {
                         width: gridScroll.width - 4
                         spacing: 6
 
-                        GridView {
+                        GameGrid {
                             id: grid
                             objectName: "gameGrid"
                             width: parent.width
-                            height: contentHeight
-                            interactive: false
+                            scroller: gridScroll
                             cellWidth: gridScroll.cellW
                             cellHeight: gridScroll.cellH
                             model: LibraryGroupModel { library: root.player.library; group: root.player.library.grouped ? 0 : -1 }
-                            add: Transition { NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.durList } }
-                            displaced: Transition { NumberAnimation { properties: "x,y"; duration: Theme.durList; easing.type: Easing.OutCubic } }
-                            delegate: GameTile {
-                                width: grid.cellWidth
-                                height: grid.cellHeight
-                                showAdded: gridScroll.dated
-                                selected: gameId === root.player.selectedGameId
-                                running: root.player.backgroundGame.id === gameId
-                                onClicked: root.player.selectGame(gameId)
-                            }
+                            showAdded: gridScroll.dated
+                            selectedId: root.player.selectedGameId || ""
+                            runningId: root.player.backgroundGame.id || ""
+                            onTileClicked: (gameId) => root.player.selectGame(gameId)
                         }
 
                         // Group divider: "NOT READY · n · same sort" (only when both groups have games).
@@ -389,25 +407,20 @@ Rectangle {
                             Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.borderCard }
                         }
 
-                        GridView {
+                        GameGrid {
                             id: gridRest
                             objectName: "gameGridNotReady"
                             visible: root.player.library.grouped
                             width: parent.width
-                            height: visible ? contentHeight : 0
-                            interactive: false
+                            height: visible ? implicitHeight : 0
+                            scroller: gridScroll
                             cellWidth: gridScroll.cellW
                             cellHeight: gridScroll.cellH
                             model: LibraryGroupModel { library: root.player.library; group: 1 }
-                            displaced: Transition { NumberAnimation { properties: "x,y"; duration: Theme.durList; easing.type: Easing.OutCubic } }
-                            delegate: GameTile {
-                                width: gridRest.cellWidth
-                                height: gridRest.cellHeight
-                                showAdded: gridScroll.dated
-                                selected: gameId === root.player.selectedGameId
-                                running: root.player.backgroundGame.id === gameId
-                                onClicked: root.player.selectGame(gameId)
-                            }
+                            showAdded: gridScroll.dated
+                            selectedId: root.player.selectedGameId || ""
+                            runningId: root.player.backgroundGame.id || ""
+                            onTileClicked: (gameId) => root.player.selectGame(gameId)
                         }
                     }
                 }

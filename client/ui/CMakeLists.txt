@@ -23,6 +23,7 @@ qt_add_qml_module(framebeam_ui
     playercontroller.h playercontroller.cpp
     playphase.h
     corecatalog.h corecatalog.cpp
+    coreprober.h coreprober.cpp
     gamedetail.h gamedetail.cpp
     hubpresenter.h hubpresenter.cpp
     gamestarter.h gamestarter.cpp
@@ -58,6 +59,7 @@ qt_add_qml_module(framebeam_ui
     GameTile.qml
     DetailPane.qml
     LibraryScreen.qml
+    GameGrid.qml
     GameScreen.qml
     SettingsScreen.qml
     ConflictDialog.qml

@@ -31,14 +31,27 @@ CoreCatalog::CoreCatalog(const Deps& d, QObject* parent)
       coreProblems_(d.coreProblems),
       fwProblems_(d.fwProblems),
       phase_(d.phase),
-      launchGame_(d.launchGame) {}
+      launchGame_(d.launchGame) {
+  connect(&prober_, &CoreProber::probed, this, [this](const QString& coreId, const QString&, const emu::CoreProbe& probe) { applyProbe(coreId, probe); });
+  connect(&prober_, &CoreProber::idle, this, &CoreCatalog::coresProbed);
+}
 
 QString CoreCatalog::systemDirIn(const QString& baseDir) { return QDir(baseDir).filePath(QStringLiteral("system")); }
 
+namespace {
+QString libraryKeyOf(const QString& path) {
+  const QFileInfo fi(path);
+  return QStringLiteral("%1|%2|%3").arg(fi.absoluteFilePath()).arg(fi.size()).arg(fi.lastModified().toMSecsSinceEpoch());
+}
+}  // namespace
+
 void CoreCatalog::probeCores() {
-  // Pragmatic: the core version is only available in the core info after loadCore(). We load the core once
-  // without a game (that also yields its options for the Emulation page), read name/version and unload it again.
+  // The core version is only available in the core info after loadCore(). A worker thread loads each core once
+  // without a game (that also yields its options for the Emulation page), reads name/version and unloads it again.
   // If that fails, we report only the core_id (empty version) instead of guessing.
+  if (phase_ == PlayPhase::Launching) {
+    return;  // a game is about to load its core; the next call after the game picks the list up
+  }
   for (const emu::SystemManifest& sys : manifests_.all()) {
     const emu::SystemManifest* mp = manifestForSystem(sys.systemId);
     if (mp == nullptr || mp->coreId.isEmpty()) {
@@ -50,20 +63,54 @@ void CoreCatalog::probeCores() {
       continue;
     }
     const bool known = std::any_of(coreList_.cbegin(), coreList_.cend(), [&](const CoreInfo& c) { return c.id == m.coreId; });
-    if (known) {
+    if (known || listIds_.contains(m.coreId)) {
       continue;
     }
-    CoreInfo ci;
-    ci.id = m.coreId;
-    const emu::CoreProbe probe = emu::probeCoreGuarded(loc.path, systemDir(), QDir(profiles_->baseDir()).filePath(QStringLiteral("probe")));
-    if (probe.ok) {
-      ci.version = probe.info.version;
-      coreNames_.insert(m.coreId, probe.info.name);
-      coreVersions_.insert(m.coreId, probe.info.version);
-      emulation_->setCoreProbe(m.coreId, probe, true);
-    }
-    coreList_.append(ci);
+    listIds_.insert(m.coreId);
+    probingIds_.insert(m.coreId);
+    prober_.request(m.coreId, loc.path, systemDir(), QDir(profiles_->baseDir()).filePath(QStringLiteral("probe")));
   }
+}
+
+bool CoreCatalog::probeCoreOptions(const emu::SystemManifest& man) {
+  if (man.coreId.isEmpty() || phase_ == PlayPhase::Launching || probingIds_.contains(man.coreId)) {
+    return false;
+  }
+  const emu::CoreLocation loc = locateCore(man);
+  if (!loc.found()) {
+    return false;
+  }
+  const QString key = libraryKeyOf(loc.path);
+  if (attempted_.contains(key)) {
+    return false;
+  }
+  attempted_.insert(key);
+  probingIds_.insert(man.coreId);
+  prober_.request(man.coreId, loc.path, systemDir(), QDir(profiles_->baseDir()).filePath(QStringLiteral("probe")));
+  return true;
+}
+
+void CoreCatalog::applyProbe(const QString& coreId, const emu::CoreProbe& probe) {
+  probingIds_.remove(coreId);
+  if (probe.ok) {
+    coreNames_.insert(coreId, probe.info.name);
+    coreVersions_.insert(coreId, probe.info.version);
+    emulation_->setCoreProbe(coreId, probe, true);
+  } else {
+    emulation_->loadCoreCache(coreId);
+  }
+  if (listIds_.remove(coreId)) {
+    const bool known = std::any_of(coreList_.cbegin(), coreList_.cend(), [&](const CoreInfo& c) { return c.id == coreId; });
+    if (!known) {
+      CoreInfo ci;
+      ci.id = coreId;
+      if (probe.ok) {
+        ci.version = probe.info.version;
+      }
+      coreList_.append(ci);
+    }
+  }
+  emit coreProbed(coreId);
 }
 
 emu::CoreLocation CoreCatalog::locateCore(const emu::SystemManifest& man) const {

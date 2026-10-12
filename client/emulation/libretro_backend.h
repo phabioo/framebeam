@@ -54,6 +54,7 @@ class LibretroBackend final : public EmulatorBackend {
   // Battery save (RETRO_MEMORY_SAVE_RAM) <-> <save dir>/<game basename>.sav: loaded after the game loads,
   // written when changed (about every 3 s while running, on pause and before unloading), atomically.
   bool flushSave() override;
+  QString lastSaveError() const override { return m_lastSaveError; }
   qint64 saveMemorySize() const override;
   // GUI thread, before the emulation thread starts: creates the offscreen surface for hardware rendering.
   void prepareForStart() override;
@@ -142,6 +143,7 @@ class LibretroBackend final : public EmulatorBackend {
   QByteArray m_sramSnapshot;  // content last loaded/written
   unsigned m_framesSinceFlush = 0;
   bool m_savePendingLoad = false;  // save memory not yet exposed / file not yet applied
+  QString m_lastSaveError;          // empty = the last flush succeeded
   int m_saveFailCount = 0;         // consecutive failed flushes (log rate limit)
   bool m_saveBlocked = false;      // existing file unreadable: never written
   QByteArray m_corePathUtf8;

@@ -337,6 +337,7 @@ void EmulationRunner::stop() {
   m_worker->requestStop();
   m_worker->wait();
   m_worker.reset();
+  m_finalSaveError = m_backend->lastSaveError();
   setState(State::Idle);
   emit stopped();
 }

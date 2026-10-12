@@ -25,28 +25,15 @@ Rectangle {
         return ""
     }
 
-    ListModel { id: hubIds }
-    function hubById(id: string): var {
-        const l = root.player.hubs
-        for (let i = 0; i < l.length; ++i) if (l[i].hubId === id) return l[i]
-        return ({ hubId: id, saved: false, connected: false, name: "", host: "", port: "" })
-    }
-    function syncHubs() {
-        const l = root.player.hubs
-        const ids = []
-        for (let i = 0; i < l.length; ++i) ids.push(l[i].hubId)
-        for (let j = hubIds.count - 1; j >= 0; --j) if (ids.indexOf(hubIds.get(j).hid) < 0) hubIds.remove(j)
-        for (let k = 0; k < ids.length; ++k) {
-            let at = -1
-            for (let m = 0; m < hubIds.count; ++m) if (hubIds.get(m).hid === ids[k]) { at = m; break }
-            if (at < 0) hubIds.insert(k, { hid: ids[k] })
-            else if (at !== k) hubIds.move(at, k, 1)
-        }
-    }
-    Component.onCompleted: syncHubs()
+    // "Plugin settings" / "Notice settings…" of a plugin surface: scroll to Plugins, highlight the plugin's row.
     Connections {
         target: root.player
-        function onHubsChanged() { root.syncHubs() }
+        function onPluginSettingsRequested(pluginId: string) {
+            Qt.callLater(function () {
+                root.jumpTo("plugins")
+                secPlugins.highlightId = pluginId
+            })
+        }
     }
 
     function sectionItem(name: string): Item {
@@ -81,16 +68,6 @@ Rectangle {
             best = "diagnostics"
         }
         root.currentSection = best
-    }
-    // "Plugin settings" / "Notice settings…" of a plugin surface: scroll to Plugins, highlight the plugin's row.
-    Connections {
-        target: root.player
-        function onPluginSettingsRequested(pluginId: string) {
-            Qt.callLater(function () {
-                root.jumpTo("plugins")
-                secPlugins.highlightId = pluginId
-            })
-        }
     }
     function updatesLine(): string {
         const u = root.updates
@@ -422,15 +399,40 @@ Rectangle {
                         Layout.rightMargin: content.wide ? Theme.settingsResetWidth : 0
                     }
 
+                    // Stable model keyed by hub id: hubsChanged updates rows in place instead of rebuilding every delegate
+                    // (a JS-array model recreates the nested Layouts on each change; Qt 6.4 crashes in
+                    // QQuickGridLayoutBase::rearrange when that happens while the layouts are being polished).
+                    ListModel {
+                        id: hubsModel
+                        dynamicRoles: true
+                        function sync(list) {
+                            for (var i = 0; i < list.length; i++) {
+                                var found = -1
+                                for (var j = i; j < count; j++) {
+                                    if (get(j).hubId === list[i].hubId) { found = j; break }
+                                }
+                                if (found < 0) insert(i, list[i])
+                                else {
+                                    if (found !== i) move(found, i, 1)
+                                    set(i, list[i])
+                                }
+                            }
+                            if (count > list.length) remove(list.length, count - list.length)
+                        }
+                    }
+                    Connections {
+                        target: root.player
+                        function onHubsChanged() { hubsModel.sync(root.player.hubs) }
+                    }
+                    Component.onCompleted: hubsModel.sync(root.player.hubs)
+
                     Repeater {
-                        model: hubIds
+                        model: hubsModel
                         delegate: Rectangle {
                             id: hubRow
-                            required property string hid
+                            required property var model
+                            readonly property var modelData: model
                             required property int index
-                            // Looked up by id: the rows are not rebuilt when the hub list changes (a delegate with nested
-                            // layouts that is destroyed while the page resizes crashed Qt 6.4 under load).
-                            readonly property var modelData: root.hubById(hid)
                             property bool confirmRemove: false
                             readonly property bool editing: root.editingHubId === modelData.hubId && modelData.hubId !== ""
                             visible: modelData.saved

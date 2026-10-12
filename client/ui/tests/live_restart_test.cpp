@@ -1,4 +1,5 @@
 // GameSession::restartWithSave with the fake core (SAVE_RAM only, no ROM): a live save is a full restart of the game.
+#include <QDir>
 #include <QFile>
 #include <QSignalSpy>
 #include <QTemporaryDir>
@@ -85,6 +86,25 @@ class LiveRestartTest : public QObject {
     QTRY_COMPARE_WITH_TIMEOUT(gs.state(), GameSession::Running, 5000);
     gs.stop();
     QCOMPARE(readFile(save()), QByteArray("\tbcdefgh"));
+  }
+
+  void stopReportsAFailedFinalSaveWrite() {
+    GameSession gs;
+    QSignalSpy failedSave(&gs, &GameSession::stopSaveFailed);
+    gs.start(config());
+    QTRY_COMPARE_WITH_TIMEOUT(gs.state(), GameSession::Running, 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(gs.hasFrame(), 5000);
+    QDir(saveDir()).removeRecursively();  // the final write at stop cannot succeed any more
+    gs.stop();
+    QCOMPARE(failedSave.count(), 1);
+    QVERIFY(failedSave.first().first().toString().contains(QStringLiteral("game.sav")));
+    QVERIFY(QDir().mkpath(saveDir()));
+    // A good stop reports nothing.
+    gs.start(config());
+    QTRY_COMPARE_WITH_TIMEOUT(gs.state(), GameSession::Running, 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(gs.hasFrame(), 5000);
+    gs.stop();
+    QCOMPARE(failedSave.count(), 1);
   }
 
   void unwritableFileRestartsWithTheOldSave() {

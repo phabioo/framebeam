@@ -33,6 +33,7 @@ void GameSession::fail(const QString& msg) {
   restarting_ = false;
   const bool before = !startedEmitted_;
   teardown();
+  reportStopSaveError();
   setState(Failed);
   emit errorChanged();
   if (before) {
@@ -141,6 +142,7 @@ void GameSession::teardown() {
   if (runner_) {
     runner_->disconnect(this);
     runner_->stop();  // unloading the game detaches the GPU encode target (GL current); gpuTarget_ stays for a restart
+    stopSaveError_ = runner_->finalSaveError();
     runner_.reset();
   }
   audio_.stop();
@@ -260,15 +262,26 @@ bool GameSession::restartWith(const std::function<bool()>& writer) {
   if (!runner_ || !(state_ == Running || state_ == Paused) || config_.gamePath.isEmpty() || !writer) return false;
   const LaunchConfig cfg = config_;
   teardown();  // blocks until the core is unloaded and the old save is flushed
+  stopSaveError_.clear();  // the writer replaces the file with the live save on purpose
   const bool written = writer();
   launch(cfg, true);
   return written;
+}
+
+// A failed final save write is reported once, after the core is unloaded (the owner shows it in the Library).
+void GameSession::reportStopSaveError() {
+  if (stopSaveError_.isEmpty()) return;
+  const QString why = stopSaveError_;
+  stopSaveError_.clear();
+  qWarning().noquote() << "The battery save could not be written at stop:" << why;
+  emit stopSaveFailed(why);
 }
 
 void GameSession::stop() {
   restarting_ = false;
   const bool wasActive = state_ != Idle;
   teardown();
+  reportStopSaveError();
   setState(Idle);
   if (wasActive) {
     emit finished();

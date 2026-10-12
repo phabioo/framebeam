@@ -178,6 +178,28 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   applyMediaCapabilities(&info);  // h264_encode/h264_decode/encoders as libavcodec can really open them
   handshake_ = info;
   conn_->setHandshakeInfo(info);
+  // The core probes run on a worker: the handshake carries the core list once they are done (a changed list is resent).
+  connect(catalog_.get(), &CoreCatalog::coresProbed, this, [this]() {
+    const auto same = [](const QList<CoreInfo>& a, const QList<CoreInfo>& b) {
+      if (a.size() != b.size()) return false;
+      for (int i = 0; i < a.size(); ++i) {
+        if (a[i].id != b[i].id || a[i].version != b[i].version) return false;
+      }
+      return true;
+    };
+    if (!same(handshake_.cores, coreList_)) {
+      handshake_.cores = coreList_;
+      conn_->setHandshakeInfo(handshake_);
+      conn_->resendHandshake();  // the Hub recomputes core_missing / core_version_mismatch
+    }
+  });
+  connect(catalog_.get(), &CoreCatalog::coreProbed, this, [this]() {
+    if (!session_.isActive()) {
+      refreshEmulationPage();
+    }
+    refreshAttention();
+    emit selectedGameChanged();
+  });
 
   connect(conn_.get(), &HubConnection::handshakeProblemsChanged, this, &PlayerController::hubChanged);
 
@@ -378,6 +400,13 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   connect(&session_, &GameSession::saveWriteFailed, this, [this]() {
     if (history_) history_->showError(tr("The save file could not be written. Your latest progress may not be saved."));
   });
+  connect(&session_, &GameSession::stopSaveFailed, this, [this](const QString& reason) {
+    const QString title = launchGame_.title;
+    stopSaveError_ = title.isEmpty() ? tr("The save file could not be written when the game stopped (%1). Your latest progress may not be saved.").arg(reason)
+                                     : tr("The save file of %1 could not be written when the game stopped (%2). Your latest progress may not be saved.")
+                                           .arg(title, reason);
+    emit stopSaveErrorChanged();
+  });
   connect(&session_, &GameSession::startFailed, this, [this](const QString& msg) {
     saves_->finalSync(true);
     phase_ = PlayPhase::None;
@@ -452,22 +481,15 @@ void PlayerController::refreshCoreState() {
 // Emulation page: system cards (core, readiness, firmware) and the core options (loaded once without a game or from
 // the cache of the last capture; not possible while a game runs because only one core can be loaded per process).
 void PlayerController::refreshEmulationPage() {
+  // The probe runs on a worker thread (CoreProber); the page shows a loading state and refreshes when the result arrives.
   const auto probeCore = [this](const emu::SystemManifest* mp) {
     if (mp == nullptr || mp->coreId.isEmpty() || emulation_->hasCoreProbe(mp->coreId)) {
       return;
     }
-    const emu::SystemManifest& m = *mp;
-    const emu::CoreLocation loc = catalog_->locateCore(m);
-    if (loc.found() && !session_.isActive()) {
-      const emu::CoreProbe probe = emu::probeCoreGuarded(loc.path, catalog_->systemDir(), QDir(profiles_->baseDir()).filePath(QStringLiteral("probe")));
-      if (probe.ok) {
-        coreNames_.insert(m.coreId, probe.info.name);
-        coreVersions_.insert(m.coreId, probe.info.version);
-        emulation_->setCoreProbe(m.coreId, probe, true);
-        return;
-      }
+    if (!session_.isActive() && (catalog_->probing(mp->coreId) || catalog_->probeCoreOptions(*mp))) {
+      return;
     }
-    emulation_->loadCoreCache(m.coreId);
+    emulation_->loadCoreCache(mp->coreId);
   };
   for (const emu::SystemManifest& sysManifest : manifests_.all()) {
     probeCore(catalog_->manifestForSystem(sysManifest.systemId));
@@ -478,6 +500,7 @@ void PlayerController::refreshEmulationPage() {
   }
   emulation_->setSystems(catalog_->systemCards());
   emulation_->setGameRunning(session_.isActive());
+  emulation_->setCoreProbing(catalog_->probeBusy());
 }
 
 // ---------------------------------------------------------------- Navigation
@@ -1090,6 +1113,14 @@ void PlayerController::uploadRom(const QString& source) {
   uploadSourcePath_ = path;
   emit uploadChanged();
   uploader_->upload(path);
+}
+
+void PlayerController::dismissStopSaveError() {
+  if (stopSaveError_.isEmpty()) {
+    return;
+  }
+  stopSaveError_.clear();
+  emit stopSaveErrorChanged();
 }
 
 void PlayerController::dismissUploadMessage() {
