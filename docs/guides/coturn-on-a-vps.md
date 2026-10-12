@@ -62,13 +62,15 @@ Example with ufw: `sudo ufw allow 3478 && sudo ufw allow 5349/tcp && sudo ufw al
 
 ## 5. Tell the Hub
 
-On the Hub (`/etc/framebeam/hub.env` or the service environment):
+Easiest: in the Hub web interface open Settings → Network → External TURN servers → "+ Add server", enter a name, the URLs (one per line, for example `turn:turn.example.org:3478?transport=udp`), mode "Shared secret" and the `static-auth-secret` from `turnserver.conf`. It applies at once, no restart; the secret is write-only and never shown again. A list saved there replaces the flags below.
+
+Alternatively on the Hub (`/etc/framebeam/hub.env` or the service environment), as the initial value:
 
 ```
 FRAMEBEAM_TURN_EXTERNAL="name=vps;urls=turn:turn.example.org:3478?transport=udp,turn:turn.example.org:3478?transport=tcp,turns:turn.example.org:5349?transport=tcp;secret-file=/etc/framebeam/turn-vps.secret"
 ```
 
-Leave out the `turns:` URL without TLS. Restart the Hub. Settings → Network now lists the server under "Other relay providers". You can keep `-turn` on as well; Players then get both and ICE picks a working path. For a provider that only gives a fixed login use `mode=static;username=...;password-file=...` instead (see [hub-configuration.md](hub-configuration.md)).
+Leave out the `turns:` URL without TLS. Restart the Hub after editing `hub.env` (not needed for the web interface). Settings → Network lists the server under "External TURN servers". You can keep `-turn` on as well; Players then get both and ICE picks a working path. For a provider that only gives a fixed login use `mode=static;username=...;password-file=...` instead (see [hub-configuration.md](hub-configuration.md)).
 
 ## 6. Check
 

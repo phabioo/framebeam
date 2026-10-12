@@ -292,6 +292,7 @@ In the test of 2026-10-11 most WebRTC connections ran relayed over TURN. Cause f
 - [x] Done in code: running Players pick up a changed ICE list through the WSS message `ice_update` (`ice_update_v1`); new connections use it, running ones stay.
 - [x] Done in code: Cloudflare TURN (Realtime) as an optional TURN provider next to the embedded `pion/turn`: the Hub hands out short-lived Cloudflare TURN credentials (API token as a secret on the Hub host); moved out of "Later". Cloudflare Tunnel stays in "Later" to evaluate.
 - [x] Done in code: external TURN servers (static or shared-secret credentials): `-turn-external` (own coturn on a VPS or a third-party provider, several at once next to the embedded TURN and Cloudflare TURN), secrets only from env/file, listed in Settings → Network and the diagnostics bundle (`network.external_turn`); OpenAPI 1.13.0 (`expires_at` optional), ADR 0012 amendment 2026-10-12, guide [coturn-on-a-vps.md](guides/coturn-on-a-vps.md).
+- [x] Done in code: external TURN editable in the Hub web interface (Settings → Network: add, edit, delete by an admin; saved list wins over `-turn-external`, write-only secrets in the Hub database, applies without restart, diagnostics show `source`); guides updated, ADR 0012 amendment line.
 - Open: confirm the relayed direction with the host on a mobile hotspot from the new ICE logging.
 - Open (Fabio, 2026-10-12): external TURN servers (any provider, with login) configurable in the Hub web interface, as a follow-up to the provider-neutral TURN configuration through environment and secret file.
 

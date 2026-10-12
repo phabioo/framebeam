@@ -206,7 +206,7 @@ func Collect(ctx context.Context, svc *hub.Service, o Options) (Info, error) {
 	info.Network.TURNRunning = &turn
 	info.Features = hub.BaseFeatures()
 	info.Network.Cloudflare = cloudflareInfo(svc.CloudflareStatus())
-	info.Network.ExternalTURN = externalTURNInfo(svc.ExternalTURNStatus())
+	info.Network.ExternalTURN = externalTURNInfo(svc.ExternalTURNStatus(), svc.ExternalTURNSource(), svc.ExternalTURNActive())
 	if svc.RelayEnabled() {
 		info.Features = append(info.Features, hub.FeatureTURNV1)
 	}
@@ -443,6 +443,8 @@ func journal(ctx context.Context, max int64) []byte {
 // shared secret (only whether one is set).
 type ExternalTURNInfo struct {
 	Configured bool                 `json:"configured"`
+	Source     string               `json:"source"` // "web" (saved in Settings, replaces the flags) or "flags" (-turn-external)
+	Active     bool                 `json:"active"` // handed to Players (false while Network sharing is off)
 	Servers    []ExternalTURNServer `json:"servers,omitempty"`
 }
 
@@ -454,8 +456,8 @@ type ExternalTURNServer struct {
 	SecretSet bool     `json:"auth_configured"` // the diagnostics redaction would blank a key named *secret*
 }
 
-func externalTURNInfo(st []hub.ExternalTURNStatus) *ExternalTURNInfo {
-	info := &ExternalTURNInfo{Configured: len(st) > 0}
+func externalTURNInfo(st []hub.ExternalTURNStatus, source string, active bool) *ExternalTURNInfo {
+	info := &ExternalTURNInfo{Configured: len(st) > 0, Source: source, Active: active}
 	for _, e := range st {
 		info.Servers = append(info.Servers, ExternalTURNServer{Name: e.Name, Mode: e.Mode, URLs: e.URLs, SecretSet: e.SecretSet})
 	}
