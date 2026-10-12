@@ -7,8 +7,10 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/phabioo/framebeam/server/internal/config"
+	"github.com/phabioo/framebeam/server/internal/hub"
 	"github.com/phabioo/framebeam/server/internal/turnsrv"
 )
 
@@ -406,5 +408,97 @@ func TestNetworkResetValidatesResult(t *testing.T) {
 	contains(t, rec, "Port "+strconv.Itoa(bp)+" is in use")
 	if ov, _ := e2.svc.NetOverrides(bg); ov[config.NetListenPort] == "" {
 		t.Fatalf("override removed: %v", ov)
+	}
+}
+
+func TestNetworkPageListsExternalTURNWithoutSecrets(t *testing.T) {
+	e, _ := netEnv(t, nil)
+	c := e.client()
+	c.login()
+	contains(t, c.get("/settings/network", nil), "No external TURN server.", "Cloudflare TURN")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	e.svc.StartExternalTURN(ctx, []hub.ExternalTURN{
+		{Name: "vps", Mode: hub.ExternalTURNSecret, Secret: "web-secret-0123456789", URLs: []string{"turn:turn.example.org:3478?transport=udp", "turns:turn.example.org:5349?transport=tcp"}},
+		{Name: "provider", Mode: hub.ExternalTURNStatic, Username: "web-user-0123", Password: "web-pw-0123456789", URLs: []string{"turn:turn2.example.org:3478"}},
+	}, hub.ExternalTURNOptions{})
+	rec := c.get("/settings/network", nil)
+	contains(t, rec, "turn:turn.example.org:3478?transport=udp", "turns:turn.example.org:5349?transport=tcp", "turn2.example.org", "shared secret", "static username and password", "secret set", "password set", "hub flags")
+	notContains(t, rec, "web-secret-0123456789", "web-pw-0123456789")
+}
+
+func TestExternalTURNWebAddEditDelete(t *testing.T) {
+	e, _ := netEnv(t, nil)
+	c := e.client()
+	tok := c.login()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	e.svc.StartExternalTURN(ctx, nil, hub.ExternalTURNOptions{Refresh: time.Hour})
+	const secret, pw = "added-secret-0123456789", "added-pw-0123456789"
+
+	// Invalid input is rejected with a message next to the form and nothing is saved; the secret is not echoed.
+	rec := postTok(c, tok, "/settings/network/external-turn", url.Values{"name": {"vps"}, "mode": {"secret"}, "secret": {secret}, "urls": {"http://turn.example.org"}})
+	status(t, rec, 400)
+	contains(t, rec, "not a turn: or turns: URL")
+	notContains(t, rec, secret)
+	if len(e.svc.ExternalTURNStatus()) != 0 {
+		t.Fatal("invalid server saved")
+	}
+
+	rec = postTok(c, tok, "/settings/network/external-turn", url.Values{"name": {"vps"}, "mode": {"secret"}, "secret": {secret},
+		"urls": {"turn:turn.example.org:3478?transport=udp\nturns:turn.example.org:5349?transport=tcp"}})
+	status(t, rec, 303)
+	rec = postTok(c, tok, "/settings/network/external-turn", url.Values{"name": {"prov"}, "mode": {"static"}, "username": {"turn-user-1"}, "secret": {pw},
+		"urls": {"turn:turn2.example.org:3478"}})
+	status(t, rec, 303)
+	page := c.get("/settings/network?ok=extturnsaved", nil)
+	contains(t, page, "External TURN servers saved", "turn.example.org:5349", "prov", "secret set", "password set", "saved here and replaces", "turn-user-1")
+	notContains(t, page, secret, pw)
+	if e.svc.ExternalTURNSource() != hub.ExternalTURNFromWeb || !e.svc.RelayEnabled() {
+		t.Fatal("saved servers not active")
+	}
+
+	// Edit with an empty secret keeps the stored one (the new URL applies).
+	status(t, postTok(c, tok, "/settings/network/external-turn", url.Values{"original": {"vps"}, "name": {"vps"}, "mode": {"secret"}, "secret": {""},
+		"urls": {"turn:turn3.example.org:3478"}}), 303)
+	st := e.svc.ExternalTURNStatus()
+	if len(st) != 2 || !st[0].SecretSet || st[0].URLs[0] != "turn:turn3.example.org:3478" {
+		t.Fatalf("%+v", st)
+	}
+	// A rejected edit re-opens that form with the attempted values, still without the secret.
+	rec = postTok(c, tok, "/settings/network/external-turn", url.Values{"original": {"vps"}, "name": {"vps"}, "mode": {"secret"}, "secret": {"new-" + secret},
+		"urls": {"ftp://x"}})
+	status(t, rec, 400)
+	contains(t, rec, "ftp://x", "not a turn: or turns: URL")
+	notContains(t, rec, secret)
+
+	// Delete.
+	status(t, postTok(c, tok, "/settings/network/external-turn/delete", url.Values{"name": {"prov"}}), 303)
+	if st = e.svc.ExternalTURNStatus(); len(st) != 1 || st[0].Name != "vps" {
+		t.Fatalf("%+v", st)
+	}
+	// Reset drops the saved list.
+	status(t, postTok(c, tok, "/settings/network/external-turn/reset", nil), 303)
+	if e.svc.ExternalTURNSource() != hub.ExternalTURNFromFlags || len(e.svc.ExternalTURNStatus()) != 0 {
+		t.Fatal("reset")
+	}
+}
+
+func TestExternalTURNWebNeedsCSRFAndAdmin(t *testing.T) {
+	e, _ := netEnv(t, nil)
+	c := e.client()
+	c.login()
+	form := url.Values{"name": {"vps"}, "mode": {"secret"}, "secret": {"s"}, "urls": {"turn:turn.example.org"}}
+	for _, p := range []string{"/settings/network/external-turn", "/settings/network/external-turn/delete", "/settings/network/external-turn/reset"} {
+		form.Set("_csrf", "wrong")
+		status(t, c.postForm(p, form, nil), 403)
+	}
+	if len(e.svc.ExternalTURNStatus()) != 0 {
+		t.Fatal("saved without CSRF token")
+	}
+	anon := e.client()
+	form.Set("_csrf", "x")
+	if rec := anon.postForm("/settings/network/external-turn", form, nil); rec.Code == 200 || rec.Code == 303 && !strings.Contains(location(rec), "login") {
+		t.Fatalf("anonymous request not refused: %d %s", rec.Code, location(rec))
 	}
 }

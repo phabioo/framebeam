@@ -108,6 +108,7 @@ type Service struct {
 	updCfg updateConfig
 	turn   turnState
 	cf     cloudflareState
+	ext    externalState
 	bus    eventBus
 
 	localMu     sync.Mutex // local setup defaults

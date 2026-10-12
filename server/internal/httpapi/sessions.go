@@ -123,7 +123,12 @@ func (s *Server) JoinSession(ctx context.Context, req api.JoinSessionRequestObje
 	if len(r.TURN) > 0 {
 		ts := make([]api.TurnServer, 0, len(r.TURN))
 		for _, t := range r.TURN {
-			ts = append(ts, api.TurnServer{Urls: t.URLs, Username: t.Username, Credential: t.Credential, ExpiresAt: t.ExpiresAt})
+			ts1 := api.TurnServer{Urls: t.URLs, Username: t.Username, Credential: t.Credential}
+			if !t.ExpiresAt.IsZero() {
+				exp := t.ExpiresAt
+				ts1.ExpiresAt = &exp
+			}
+			ts = append(ts, ts1)
 		}
 		out.TurnServers = &ts
 	}

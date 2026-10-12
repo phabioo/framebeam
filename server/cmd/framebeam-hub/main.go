@@ -101,6 +101,29 @@ func openService(ctx context.Context, cfg *config.Config) (*hub.Service, func(),
 	return svc, func() { db.Close() }, nil
 }
 
+// externalTURNServers reads the secrets of the configured external TURN servers (environment or file). A server
+// whose secret is unavailable is kept without a secret (shown as "no secret", not handed to Players) with a
+// warning, so that it can be completed in Settings; secrets are never logged.
+func externalTURNServers(cfg *config.Config, specs []config.ExternalTURNSpec, log *slog.Logger) []hub.ExternalTURN {
+	var out []hub.ExternalTURN
+	for i, sp := range specs {
+		secret, err := cfg.ExternalTURNSecret(sp, i+1, os.Getenv)
+		if err != nil {
+			log.Warn("external TURN server stays off: secret unavailable", "name", sp.Name, "err", err)
+			secret = ""
+		}
+		p := hub.ExternalTURN{Name: sp.Name, URLs: sp.URLs, Mode: hub.ExternalTURNSecret, Secret: secret}
+		if sp.Mode == config.ExternalModeStatic {
+			p = hub.ExternalTURN{Name: sp.Name, URLs: sp.URLs, Mode: hub.ExternalTURNStatic, Username: sp.Username, Password: secret}
+		}
+		out = append(out, p)
+		if secret != "" {
+			log.Info("external TURN server configured", "name", sp.Name, "mode", p.Mode, "urls", sp.URLs)
+		}
+	}
+	return out
+}
+
 // startTURN starts the embedded STUN/TURN server (ADR 0012); it stops with Close on Hub shutdown.
 func startTURN(ctx context.Context, cfg *config.Config, svc *hub.Service, log *slog.Logger) (*turnsrv.Server, error) {
 	secret, err := svc.TURNSecret(ctx)
@@ -356,6 +379,14 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 			}
 		}
 	}
+
+	// External TURN: the list saved in Settings wins over -turn-external; the service always starts so that the
+	// web interface can edit it. While Network sharing is off the servers are configured but not handed out.
+	specs, _ := cfg.ExternalTURNSpecs()
+	if !eff.NetworkSharing && (len(specs) > 0) {
+		log.Info("external TURN servers stay off while Network sharing is off")
+	}
+	svc.StartExternalTURN(ctx, externalTURNServers(cfg, specs, log), hub.ExternalTURNOptions{Disabled: !eff.NetworkSharing})
 
 	var tlsConf *tls.Config
 	if cfg.UseTLS() {

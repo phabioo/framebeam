@@ -42,7 +42,7 @@ Phase plan: [workflow.md](workflow.md#phase-plan).
 | 0.8 | done in code | Cores from the libretro buildbot | Systems instead of fixed cores: the Hub downloads cores RetroArch-style from the libretro buildbot; admin installs, updates and removes them per system; Player chooses the core per system and game ([ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md)). |
 | 0.9 | done in code | One installer: Player, Hub or both | One Windows MSI (WiX) with the features Player and Hub; the Hub runs as a Windows service; "Set up a Hub on this PC" and a standalone mode like RetroArch ([ADR 0021](adr/0021-one-windows-installer.md), proposed). Installer, upgrades and services verified only locally. |
 | 0.10 | done in code | Second system: 3DS (Azahar) | System `3ds` with the Azahar buildbot core on the OpenGL rendering; two-screen composition, game override UI, ROM cache limit ([ADR 0022](adr/0022-nintendo-3ds-with-azahar.md), proposed). 3DS saves sync with the Hub (D3 amendment, 2026-10-11). Real Azahar run and performance open. |
-| 0.10.x | planned | Connections and small items | Before new testers: direct WebRTC connections instead of TURN relay (STUN default, ICE logging, diagnostics), then small items (hotkeys, repo-scan leftovers, save slot actions, logs bundle, Inno shell removal (done)). |
+| 0.10.x | done in code | Connections and small items | Before new testers: direct WebRTC connections instead of TURN relay (STUN default, ICE logging, diagnostics, Cloudflare TURN, external TURN servers), then small items (gamepad hotkeys, repo-scan leftovers, save slot actions, logs bundle, background core updates, Inno shell removed). Open: relayed direction on a mobile hotspot, Library loading speed with many games. |
 | 0.11 | in progress | Plugin runtime | Packages 1 to 3: Player runtime (done in code), UI building blocks and slots (done in code; draft, merged after 0.10.x), Hub plugins and runs with `.fbplugin`, signing and plugin index ([ADR 0023](adr/0023-plugins.md), proposed; [design](architecture/12-plugins.md)). The plugins themselves live in their own repositories. |
 | 0.12 | planned | Local ROMs | Play ROMs the user has locally, with an optional resumable upload to the Hub; no P2P transfer. |
 | 0.13 | planned | GPU paths | OpenGL to D3D11 bridge, zero-copy display, GPU-direct QSV and AMF. |
@@ -147,7 +147,7 @@ Implemented, see [ADR 0015](adr/0015-hub-ui-pass.md) (accepted).
 - [x] Done: live updates without reload via an in-process event bus and Server-Sent Events; badges and affected tables refresh themselves, Clients polling removed (D2).
 - [x] Done: Settings sub-pages Updates, General, Network, Security with per-field autosave (D3).
 - [x] Done: network settings form (Hub port, embedded TURN, public host, TURN port, relay range and IP, STUN servers, save retention). Decided by Fabio on 2026-10-07: web settings win; `hub.env` and flags only give the initial value (D4). Changes that need it are applied by a restart the Hub triggers itself, without root (D5). Ports below 1024 are refused on the web, use `install-hub.sh --port` (D6). Startup fallbacks keep the Hub reachable after a bad setting (D7). The TURN status and port forward list moved into Network; reachability is derived from the configuration (D8).
-- Open (left out of 0.7, remaining): thinned-out history marker, metadata actions, Library "of total" disk capacity, external TURN servers with login (only a STUN list), transport options "Custom cert/key" and "Reverse proxy". A reachability probe from outside is rejected (ADR 0015 D8: reachability is derived from the configuration). Core packages are listed per system since 0.8.
+- Open (left out of 0.7, remaining): thinned-out history marker, metadata actions, Library "of total" disk capacity, external TURN servers with login (only a STUN list; done in 0.10.x, see Connections), transport options "Custom cert/key" and "Reverse proxy". A reachability probe from outside is rejected (ADR 0015 D8: reachability is derived from the configuration). Core packages are listed per system since 0.8.
 - [x] Done (0.7.x follow-up): Hub Saves page "+ New slot" (new slot starts from the current version of the selected slot; web only, no API) and deleting a snapshot (inline confirmation; `DELETE /api/v1/games/{game_id}/saves/{slot}/history/{version}`, handshake feature `saves_v3`, OpenAPI 1.6.0, `protocol_version` unchanged). Renaming/deleting a slot stay open (0.10.x, together with blocking save upload while a session of that game runs).
 - [x] Done (0.7.x follow-up): Library "Rescan folder" (non-recursive import from `-library-import-dir`), invite "Copy link" (only in the creating response; public `/invite` page), "Player too old" marker in the Clients table, certificate "Renew now" (swap without restart; tlsutil writes key/cert atomically).
 
@@ -291,7 +291,10 @@ In the test of 2026-10-11 most WebRTC connections ran relayed over TURN. Cause f
 - [x] Done in code: overlay and diagnostics show the connection type and, for a relayed path, the reason per viewer (forced, no STUN reachable here, other side has no public candidate, direct checks failed).
 - [x] Done in code: running Players pick up a changed ICE list through the WSS message `ice_update` (`ice_update_v1`); new connections use it, running ones stay.
 - [x] Done in code: Cloudflare TURN (Realtime) as an optional TURN provider next to the embedded `pion/turn`: the Hub hands out short-lived Cloudflare TURN credentials (API token as a secret on the Hub host); moved out of "Later". Cloudflare Tunnel stays in "Later" to evaluate.
+- [x] Done in code: external TURN servers (static or shared-secret credentials): `-turn-external` (own coturn on a VPS or a third-party provider, several at once next to the embedded TURN and Cloudflare TURN), secrets only from env/file, listed in Settings → Network and the diagnostics bundle (`network.external_turn`); OpenAPI 1.13.0 (`expires_at` optional), ADR 0012 amendment 2026-10-12, guide [coturn-on-a-vps.md](guides/coturn-on-a-vps.md).
+- [x] Done in code: external TURN editable in the Hub web interface (Settings → Network: add, edit, delete by an admin; saved list wins over `-turn-external`, write-only secrets in the Hub database, applies without restart, diagnostics show `source`); guides updated, ADR 0012 amendment line.
 - Open: confirm the relayed direction with the host on a mobile hotspot from the new ICE logging.
+- Open (Fabio, 2026-10-12): external TURN servers (any provider, with login) configurable in the Hub web interface, as a follow-up to the provider-neutral TURN configuration through environment and secret file.
 
 ### 2. Small items
 
@@ -302,9 +305,9 @@ In the test of 2026-10-11 most WebRTC connections ran relayed over TURN. Cause f
 - [x] Done in code: save slots rename and delete (Hub and Player, `saves_v5`, OpenAPI 1.12.0) and block save upload while a session of that game runs. Hub: Saves page Rename/Delete, upload lock (`session_running`). Player: Rename slot / Delete slot… in the saves view (confirmation with the latest checkpoint, `confirm_revision`), local slot moved or removed only after the Hub confirmed, `save_updated` `renamed`/`deleted` handled without losing unsynced local data, rename and delete blocked while the game runs on this Player, save file upload blocked while that game is shared as a Session (live upload for an unshared running game stays).
 - [x] Done: invite link port fix: `-public-host` (env, Settings → Network) accepts an optional external port (`hub.example.org:8443`, IPv6 in brackets) that invite links and the Player address use; TURN/STUN keep the host part.
 - [x] Done: Hub library entries: Rename and Delete as row actions in the web UI (inline forms, admin only, web only, no API change); deleting keeps the saves.
-- Open: fix Dependabot PR #96.
+- [x] Done: Go dependency updates (Dependabot PR #96).
 - [x] Done in code: "Collect logs/diagnostics" bundle (Hub and Player). Hub: Settings → Diagnostics and `framebeam-hub diagnostics <out.zip>` (`docs/guides/hub-configuration.md`). Player: Settings → Diagnostics → "Collect logs…" (save dialog, zip built off the GUI thread, "Show in folder") and `framebeam_player --collect-logs <out.zip>`; same layout (`player-info.json`, redacted `logs/`, 50 MiB cap), see `docs/guides/player.md`.
-- Open: the Player updates cores in the background without starting a game.
+- [x] Done in code: The Player updates cores in the background without starting a game (`CoreUpdater`, `network/coreupdater.*`): after the handshake it compares the Hub's core list with its cache, downloads newer builds (size and SHA-256 checked), never touches a core in use, re-probes updated cores asynchronously (`CoreProber`) and resends the handshake; progress shows on the Emulation page.
 - [x] Done: remove the Inno shell (see 0.9) and its release/CI parts (shell script, CI build and migration test, release asset and `installer` index entry, Player `installer` fallback and `unins000.exe` detection).
 
 ## 0.11 Plugin runtime
@@ -353,6 +356,7 @@ Decided by Fabio on 2026-10-11: part of the 1.0 goal ("a new system costs minima
 Decided by Fabio on 2026-10-11.
 
 - Open: remaining Hub web and Player design gaps (see the open items of 0.7 and [design/decisions.md](design/decisions.md)).
+- Open (Fabio, 2026-10-12): review and clean up the Hub web and Player UI as a whole: some screens look off and UI elements overlap.
 - Open: Multiview shows three Sessions side by side; the 2x2 grid only from the fourth Session.
 
 ## 1.0 Test phase

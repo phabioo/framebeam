@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: FrameBeam Hub API
-  version: 1.12.0
+  version: 1.13.0
   description: |
     HTTPS/JSON API of the FrameBeam Hub (phase 1; phase 3 adds save sync under `saves`, advertised by the handshake feature `saves_v1`; phase 4 adds Session sharing under `sessions` and the WSS endpoint, advertised by the handshake feature `sessions_v1`; phase 5 adds invite redemption under `users` (`users_v1`), user ROM uploads (`uploads_v1`, only advertised when the caller may upload) and the systems registry with firmware download under `systems` (`firmware_v1`); 0.2 adds core packages served by the Hub under `cores` (`cores_v1`); 0.4 adds relay credentials for Sessions over the internet (`turn_v1`, `turn_servers` in `hello_ack` and the join response), save comfort (`saves_v2`: restore, manual snapshots, history labels, the `save_updated` WSS message) and the signed core index for Player-side verification (`cores_index_v1`, `/api/v1/cores/index`, removed again in 0.8); 0.7 adds deleting manual snapshots (`saves_v3`) and the optional `user` in the handshake response; 0.8 adds uploading a save file from outside the sync flow (`saves_v4`, `POST /games/{game_id}/saves/{slot}/upload`); 0.8 also adds several cores per system from the libretro buildbot (`cores_v2`: `default_core_id` and `cores` in `SystemInfo`, core ids `^[a-z0-9][a-z0-9_-]{0,63}$`) and removes `cores_index_v1` and its endpoints `/api/v1/cores/index{,.sig}`); 0.9 adds the local setup endpoints under `local` for a Player on the same PC as the Hub (`local_setup_v1`, loopback callers only); 0.10 adds the WSS message `ice_update` (`ice_update_v1`) so connected Players receive changed `ice_servers`/`turn_servers`, a default STUN list, and optional Cloudflare TURN next to the embedded TURN server; 0.10.x also adds renaming and deleting save slots and the upload lock during a Session (`saves_v5`). `protocol_version` is an integer (starting at 1),
     separate from the hub/player product version. All paths carry the `/api/v1` prefix explicitly;
@@ -2179,8 +2179,12 @@ components:
         label: { type: string, maxLength: 64 }
     TurnServer:
       type: object
-      description: Short-lived relay credentials from a relay provider of the Hub (`turn_v1`), either the embedded TURN server (TURN REST API scheme) or Cloudflare TURN.
-      required: [urls, username, credential, expires_at]
+      description: |
+        Relay credentials from a relay provider of the Hub (`turn_v1`): the embedded TURN server (TURN REST API scheme),
+        Cloudflare TURN or an external TURN server configured by the admin. Credentials are short-lived (`expires_at`)
+        except the static username and password of an external TURN server, which have no `expires_at`. The Hub may
+        send several entries; a Player offers all of them to ICE.
+      required: [urls, username, credential]
       properties:
         urls:
           type: array
@@ -2189,7 +2193,10 @@ components:
           example: ['turn:hub.example.org:3478?transport=udp', 'turn:hub.example.org:3478?transport=tcp']
         username: { type: string }
         credential: { type: string }
-        expires_at: { type: string, format: date-time }
+        expires_at:
+          type: string
+          format: date-time
+          description: End of validity; absent for static credentials that do not expire.
     SessionVisibility:
       type: string
       enum: [private, hub_users, invite_only]

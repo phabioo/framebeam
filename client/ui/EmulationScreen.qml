@@ -50,6 +50,19 @@ Rectangle {
 
             Eyebrow { text: qsTr("Systems"); Layout.leftMargin: 4; Layout.topMargin: Theme.space14; Layout.bottomMargin: Theme.space6 }
 
+            // Quiet indicator of the background core update (no dialog): progress row, else the last result.
+            FbLabel {
+                objectName: "coreUpdateRow"
+                Layout.fillWidth: true
+                Layout.leftMargin: 4
+                Layout.bottomMargin: Theme.space6
+                visible: text !== ""
+                text: root.player.coreUpdate.active ? root.player.coreUpdate.text : root.player.coreUpdate.lastText
+                color: Theme.textMuted
+                font.pixelSize: Theme.fontMeta
+                elide: Text.ElideRight
+            }
+
             Repeater {
                 model: root.emu.systems
                 delegate: ColumnItem {

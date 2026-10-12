@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QPointer>
 #include <QStringList>
+#include <functional>
 
 #include "corecache.h"
 #include "hubconnection.h"
@@ -39,6 +40,10 @@ class CoreProvisioner : public QObject {
   QString platform() const { return platform_; }
 
   bool busy() const { return busy_; }
+  // Aborts a running prepare() without a finished() signal (files already valid stay cached; a later prepare resumes).
+  void cancel();
+  // Version of a core that a running game has loaded: pruning never removes it (it stays until the game stops).
+  void setProtectedVersionProvider(std::function<QString(const QString& coreId)> fn) { protectedVersion_ = std::move(fn); }
   // version = SystemCore::version of the chosen core. Result via finished().
   void prepare(const QString& coreId, const QString& version);
 
@@ -57,6 +62,7 @@ class CoreProvisioner : public QObject {
   CoreCache* cache_;
   QString platform_;
   bool busy_ = false;
+  std::function<QString(const QString&)> protectedVersion_;
   quint64 generation_ = 0;
   CoreResult result_;
   CorePackageInfo pkg_;

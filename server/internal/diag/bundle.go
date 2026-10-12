@@ -118,19 +118,20 @@ type SysInfo struct {
 }
 
 type NetInfo struct {
-	Listen         string          `json:"listen"`
-	ListenPort     int             `json:"listen_port"`
-	PublicHost     string          `json:"public_host,omitempty"`
-	TLS            bool            `json:"tls"`
-	DevMode        bool            `json:"dev_mode"`
-	NetworkSharing bool            `json:"network_sharing"`
-	TURNConfigured bool            `json:"turn_configured"`
-	TURNRunning    *bool           `json:"turn_running,omitempty"` // service
-	TURNPort       int             `json:"turn_port,omitempty"`
-	TURNRelayPorts string          `json:"turn_relay_ports,omitempty"`
-	TURNRelayIP    string          `json:"turn_relay_ip,omitempty"`
-	Cloudflare     *CloudflareInfo `json:"cloudflare_turn,omitempty"` // service
-	ICEServers     []string        `json:"ice_servers"`
+	Listen         string            `json:"listen"`
+	ListenPort     int               `json:"listen_port"`
+	PublicHost     string            `json:"public_host,omitempty"`
+	TLS            bool              `json:"tls"`
+	DevMode        bool              `json:"dev_mode"`
+	NetworkSharing bool              `json:"network_sharing"`
+	TURNConfigured bool              `json:"turn_configured"`
+	TURNRunning    *bool             `json:"turn_running,omitempty"` // service
+	TURNPort       int               `json:"turn_port,omitempty"`
+	TURNRelayPorts string            `json:"turn_relay_ports,omitempty"`
+	TURNRelayIP    string            `json:"turn_relay_ip,omitempty"`
+	Cloudflare     *CloudflareInfo   `json:"cloudflare_turn,omitempty"` // service
+	ExternalTURN   *ExternalTURNInfo `json:"external_turn,omitempty"`   // service
+	ICEServers     []string          `json:"ice_servers"`
 	// Secrets (the TURN secret, TURN credentials, tokens) are never part of the bundle.
 }
 
@@ -205,6 +206,7 @@ func Collect(ctx context.Context, svc *hub.Service, o Options) (Info, error) {
 	info.Network.TURNRunning = &turn
 	info.Features = hub.BaseFeatures()
 	info.Network.Cloudflare = cloudflareInfo(svc.CloudflareStatus())
+	info.Network.ExternalTURN = externalTURNInfo(svc.ExternalTURNStatus(), svc.ExternalTURNSource(), svc.ExternalTURNActive())
 	if svc.RelayEnabled() {
 		info.Features = append(info.Features, hub.FeatureTURNV1)
 	}
@@ -435,6 +437,31 @@ func journal(ctx context.Context, max int64) []byte {
 		}
 	}
 	return []byte(strings.TrimRight(string(out), "\n") + "\n")
+}
+
+// ExternalTURNInfo lists the external TURN servers in hub-info.json: URLs and credential mode, never a password or
+// shared secret (only whether one is set).
+type ExternalTURNInfo struct {
+	Configured bool                 `json:"configured"`
+	Source     string               `json:"source"` // "web" (saved in Settings, replaces the flags) or "flags" (-turn-external)
+	Active     bool                 `json:"active"` // handed to Players (false while Network sharing is off)
+	Servers    []ExternalTURNServer `json:"servers,omitempty"`
+}
+
+// ExternalTURNServer is one external TURN server in hub-info.json.
+type ExternalTURNServer struct {
+	Name      string   `json:"name"`
+	Mode      string   `json:"mode"` // "secret" (shared secret, TURN REST API) or "static"
+	URLs      []string `json:"urls"`
+	SecretSet bool     `json:"auth_configured"` // the diagnostics redaction would blank a key named *secret*
+}
+
+func externalTURNInfo(st []hub.ExternalTURNStatus, source string, active bool) *ExternalTURNInfo {
+	info := &ExternalTURNInfo{Configured: len(st) > 0, Source: source, Active: active}
+	for _, e := range st {
+		info.Servers = append(info.Servers, ExternalTURNServer{Name: e.Name, Mode: e.Mode, URLs: e.URLs, SecretSet: e.SecretSet})
+	}
+	return info
 }
 
 // CloudflareInfo is the Cloudflare TURN provider status in hub-info.json. The API token is never part of it and

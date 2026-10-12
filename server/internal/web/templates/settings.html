@@ -40,6 +40,22 @@
 
 {{define "set-err"}}{{if .}}<div class="set-err" role="alert">{{.}}</div>{{end}}{{end}}
 
+{{define "ext-turn-form"}}
+<form class="set-add" method="post" action="/settings/network/external-turn" hx-post="/settings/network/external-turn" hx-target="#settings-area" hx-swap="innerHTML" autocomplete="off">
+  <input type="hidden" name="_csrf" value="{{.CSRF}}"><input type="hidden" name="original" value="{{.Original}}">
+  <label>Name <input type="text" name="name" value="{{.FormName}}" maxlength="64" required placeholder="vps" class="host" aria-label="Name"></label>
+  <label>URLs (one per line) <textarea name="urls" rows="3" required class="host" placeholder="turn:turn.example.org:3478?transport=udp" aria-label="TURN URLs">{{.URLsText}}</textarea></label>
+  <label>Mode <select name="mode" aria-label="Mode">
+    <option value="secret"{{if ne .ModeKey "static"}} selected{{end}}>Shared secret (coturn use-auth-secret)</option>
+    <option value="static"{{if eq .ModeKey "static"}} selected{{end}}>Static username and password</option></select></label>
+  <label>Username (static mode) <input type="text" name="username" value="{{.Username}}" class="host" aria-label="Username"></label>
+  <label>Secret or password <input type="password" name="secret" value="" class="host" autocomplete="new-password" placeholder="{{if .Original}}{{if .SecretSet}}set: leave empty to keep{{else}}not set{{end}}{{end}}" aria-label="Secret or password"></label>
+  {{if .Original}}<label><input type="checkbox" name="clear_secret" value="1"> Clear the stored secret or password</label>{{end}}
+  {{template "set-err" .Err}}
+  <button class="btn small" type="submit">{{if .Original}}Save{{else}}+ Add server{{end}}</button>
+</form>
+{{end}}
+
 {{/* ---- Updates ---- */}}
 {{define "set-updates"}}
 {{with .Body.Updates}}
@@ -296,6 +312,34 @@
     <div class="help">Forward these to this hub’s host; the hub does not configure the router.</div>
     <ul class="help">{{range .Forwards}}<li>{{.}}</li>{{end}}</ul></div></div>
   {{end}}{{end}}
+  <div class="set-row"><div><div class="label">Cloudflare TURN</div>
+    <div class="help">Set with hub flags or environment variables, not here; the token never appears on this page. See hub-configuration.md (TURN).</div></div>
+    <div class="value">{{if .Cloudflare}}on{{else}}off{{end}}</div></div>
+</section>
+
+<section class="set-card" id="external-turn">
+  <div class="eyebrow">External TURN servers</div>
+  <div class="set-row"><div>
+    <div class="help">Your own coturn on a VPS or a TURN provider, for Players that cannot connect directly. Changes apply at once to new joins and to connected Players; no restart. Secrets and passwords are write-only: they are stored on this hub and never shown again.
+      {{if .ExtFromWeb}}This list is saved here and replaces the <span class="mono">-turn-external</span> flags.{{else}}Showing the list from the hub flags (<span class="mono">-turn-external</span>); saving a change here stores the list and it takes over.{{end}}
+      {{if not .ExtActive}} Currently off: Network sharing is off.{{end}}</div></div>
+    {{if .ExtFromWeb}}<form method="post" action="/settings/network/external-turn/reset" hx-post="/settings/network/external-turn/reset" hx-target="#settings-area" hx-swap="innerHTML" hx-confirm="Discard the list saved here and use the hub flags again?">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn small" type="submit">Use hub flags again</button></form>{{end}}</div>
+  {{range .External}}
+  <div class="set-row"><div><span class="mono">{{.Name}}</span> <span class="pill">{{if eq .ModeKey "secret"}}shared secret{{else}}static{{end}}</span>
+    <div class="help mono">{{.URLs}}</div>
+    <div class="help">{{.Mode}} · {{if .SecretSet}}{{if eq .ModeKey "secret"}}secret{{else}}password{{end}} set{{else}}not set (server not used){{end}}</div></div>
+    <form method="post" action="/settings/network/external-turn/delete" hx-post="/settings/network/external-turn/delete" hx-target="#settings-area" hx-swap="innerHTML" hx-confirm="Remove this TURN server?">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="name" value="{{.Name}}"><button class="btn small" type="submit">Delete</button></form></div>
+  <details class="set-row"{{if .Open}} open{{end}}><summary>Edit {{.Name}}</summary>
+    {{template "ext-turn-form" .}}
+  </details>
+  {{else}}
+  <div class="set-row"><div class="help">No external TURN server.</div></div>
+  {{end}}
+  <details class="set-row"{{if .ExtAdd.Err}} open{{end}}><summary>+ Add server</summary>
+    {{template "ext-turn-form" .ExtAdd}}
+  </details>
 </section>
 
 <section class="set-card">
