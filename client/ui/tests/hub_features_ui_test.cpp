@@ -398,7 +398,8 @@ class HubFeaturesUiTest : public QObject {
     Harness h;
     QVERIFY(h.start(/*probeCores=*/true));
     qunsetenv("FRAMEBEAM_MELONDS_DS_CORE");
-    QCOMPARE(h.controller->handshakeCores().size(), 1);
+    // The probe runs on a worker thread (CoreCatalog::probeCores): wait for it, it can finish after the window is exposed.
+    QTRY_COMPARE_WITH_TIMEOUT(h.controller->handshakeCores().size(), 1, 15000);
     QCOMPARE(h.controller->handshakeCores().first().id, QStringLiteral("melondsds"));
   }
 
