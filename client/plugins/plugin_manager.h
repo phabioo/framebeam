@@ -22,6 +22,13 @@ struct InstallResult {
   QStringList addedPermissions;   // an update asks for permissions the replaced copy did not have: the plugin was turned off
 };
 
+// A plugin version of a run (the Hub's pin: id, version, SHA-256 of the .fbplugin).
+struct RunPluginPin {
+  QString id;
+  QString version;
+  QString sha256;
+};
+
 // Plugins to start for one game, in start order (dependencies first), and why other plugins were left out.
 struct GameResolution {
   QList<PluginInfo> start;
@@ -75,6 +82,10 @@ class PluginManager : public QObject {
   // Enabled plugins whose games match, plus (transitively) the plugins they require, in start order. Plugins with
   // problems are listed in `problems` and not started, nor are plugins that depend on them.
   GameResolution resolveForGame(const QString& system, const QString& code) const;
+  // A game started in a run: exactly the Hub copies the run pins (id + version + SHA-256), in start order, whatever is
+  // enabled, linked or installed locally. A pin whose Hub copy is not on this device, or whose dependency is not part of
+  // the run, is listed in `problems` and not started.
+  GameResolution resolveForRun(const QList<RunPluginPin>& pins) const;
   // Shell context (no game runs): enabled plugins that declare ui.screen or ui.detail, plus what they require.
   GameResolution resolveForShell() const;
 

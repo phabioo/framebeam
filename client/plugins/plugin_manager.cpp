@@ -537,6 +537,65 @@ GameResolution PluginManager::resolveForGame(const QString& system, const QStrin
   return resolveWhere([&](const Manifest& m) { return m.matchesGame(system, code); });
 }
 
+GameResolution PluginManager::resolveForRun(const QList<RunPluginPin>& pins) const {
+  GameResolution res;
+  QMap<QString, PluginInfo> infos;
+  for (const RunPluginPin& pin : pins) {
+    const QString dir = hubCopyDir(pin.id, pin.version, pin.sha256);
+    if (dir.isEmpty()) {
+      res.problems[pin.id] << QStringLiteral("the Hub copy %1 of this run is not on this device").arg(pin.version);
+      continue;
+    }
+    PluginInfo i = m_hub.value(pin.id).value(normVersion(pin.version)).info;
+    i.enabled = true;  // the run decides, not the toggle of Settings -> Plugins
+    infos.insert(pin.id, i);
+  }
+  QSet<QString> blocked;
+  bool changed = true;
+  while (changed) {
+    changed = false;
+    for (auto it = infos.begin(); it != infos.end(); ++it) {
+      if (blocked.contains(it.key())) continue;
+      for (const Dependency& d : it->manifest.dependencies) {
+        const auto dep = infos.constFind(d.id);
+        QString why;
+        if (dep == infos.constEnd() || blocked.contains(d.id)) {
+          why = QStringLiteral("needs %1, which is not part of this run or cannot start").arg(d.id);
+        } else if (!d.range.matches(dep->manifest.version)) {
+          why = QStringLiteral("needs %1 %2 · the run has %3").arg(d.id, d.range.text, dep->manifest.version.toString());
+        }
+        if (!why.isEmpty()) {
+          blocked.insert(it.key());
+          res.problems[it.key()] << why;
+          changed = true;
+          break;
+        }
+      }
+    }
+  }
+  QSet<QString> done;
+  QSet<QString> visiting;
+  std::function<void(const QString&)> visit = [&](const QString& id) {
+    if (done.contains(id) || blocked.contains(id) || !infos.contains(id)) return;
+    if (visiting.contains(id)) {  // dependency cycle
+      blocked.insert(id);
+      res.problems[id] << QStringLiteral("dependency cycle");
+      return;
+    }
+    visiting.insert(id);
+    QStringList deps;
+    for (const Dependency& d : infos[id].manifest.dependencies) deps << d.id;
+    deps.sort();
+    for (const QString& d : std::as_const(deps)) visit(d);
+    visiting.remove(id);
+    if (blocked.contains(id) || done.contains(id)) return;
+    done.insert(id);
+    res.start.append(infos[id]);
+  };
+  for (auto it = infos.begin(); it != infos.end(); ++it) visit(it.key());
+  return res;
+}
+
 GameResolution PluginManager::resolveForShell() const {
   return resolveWhere([](const Manifest& m) { return m.ui.screen || m.ui.detail; });
 }

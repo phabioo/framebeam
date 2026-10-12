@@ -1,0 +1,48 @@
+#pragma once
+// fb.run (permission run.state): the plugin thread's view of the run the game was started in. The plugin thread never
+// touches the network: reads come from a snapshot, writes are handed to the UI thread. Implemented by
+// RunSessionBridge (production) and by fakes in tests.
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QList>
+#include <QString>
+
+#include "plugin_value.h"
+
+namespace framebeam::plugins {
+
+// Something the plugins subscribed to with fb.run.on: kind "event" (data = event), "state" (data = {user_id, state}),
+// "status" (data = {status, previous}) or "participants" (data = {participants}).
+struct RunNotification {
+  QString kind;
+  QJsonObject data;
+};
+
+// All methods are called from the plugin thread and must be thread-safe.
+class RunBridge {
+ public:
+  virtual ~RunBridge() = default;
+
+  // {id, name, status, me, settings, plugins:[{id, version}], participants:[{user_id, name, color, status, game_id}]}.
+  virtual QJsonObject current() const = 0;
+  virtual QJsonObject stateOf(const QString& userId, bool* found) const = 0;
+  virtual QJsonObject states() const = 0;  // {user_id: state}
+  // Cached events with seq > afterSeq as {seq, time, user_id, user_name, plugin_id, source, type, text, payload, client_id}.
+  virtual QJsonArray events(qint64 afterSeq, int limit) const = 0;
+
+  // Writes: "" = accepted, otherwise why the write was refused (run not starting/active, not joined, too large ...).
+  virtual QString setState(const QJsonObject& state) = 0;
+  virtual QString postEvent(const QString& pluginId, const QString& source, const QString& type, const QString& text, const QJsonObject& payload,
+                            QString* clientId) = 0;
+  virtual QString setBoard(const QString& pluginId, const QJsonObject& tree) = 0;
+
+  virtual QList<RunNotification> takeNotifications() = 0;
+};
+
+// Lua value <-> JSON. Tables whose keys are 1..n become arrays (an empty nested table too), others objects with string
+// keys. Fails (err) for NaN/inf, non-string/non-integer keys and for too deep nesting.
+Value valueFromJson(const QJsonValue& v, int depth = 0);
+bool jsonFromValue(const Value& v, QJsonValue& out, QString& err, int depth = 0);
+bool jsonObjectFromValue(const Value& v, QJsonObject& out, QString& err);  // the value must be a table; empty = {}
+
+}  // namespace framebeam::plugins

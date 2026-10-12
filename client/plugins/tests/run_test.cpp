@@ -1,0 +1,265 @@
+// fb.run (permission run.state): the Lua API against the real RunClient + RunSessionBridge + fake Hub, plus the cases
+// without a run and without the permission. Synthetic plugins only.
+#include <QJsonArray>
+#include <QSignalSpy>
+#include <QTemporaryDir>
+#include <QtTest>
+#include <memory>
+
+#include "credentialstore.h"
+#include "fakehub.h"
+#include "hubconnection.h"
+#include "hubsocket.h"
+#include "plugin_host.h"
+#include "plugin_manager.h"
+#include "plugin_test_util.h"
+#include "profilestore.h"
+#include "run_session_bridge.h"
+#include "runclient.h"
+
+using namespace framebeam;
+using namespace framebeam::plugins;
+using namespace framebeam::plugins::testutil;
+using State = HubConnection::State;
+
+namespace {
+const QString kId = QStringLiteral("net.test.plugin");
+const QString kOther = QStringLiteral("u_other_1");
+bool hasLog(const ConsoleSnapshot& c, const QString& needle) {
+  for (const LogLine& l : c.log)
+    if (l.text.contains(needle)) return true;
+  return false;
+}
+}  // namespace
+
+class RunApiTest : public QObject {
+  Q_OBJECT
+  std::unique_ptr<QTemporaryDir> dir_;
+  std::unique_ptr<ProfileStore> profiles_;
+  std::unique_ptr<MemoryCredentialStore> creds_;
+  std::unique_ptr<FakeHub> hub_;
+  std::unique_ptr<HubConnection> conn_;
+  std::unique_ptr<HubSocket> socket_;
+  std::unique_ptr<RunClient> client_;
+  std::unique_ptr<PluginHost> host_;
+  std::shared_ptr<FakeMemoryProvider> mem_;
+  QString runId_;
+
+  void connectHub(const QString& status = QStringLiteral("active")) {
+    dir_ = std::make_unique<QTemporaryDir>();
+    profiles_ = std::make_unique<ProfileStore>(dir_->filePath(QStringLiteral("data")));
+    creds_ = std::make_unique<MemoryCredentialStore>();
+    hub_ = std::make_unique<FakeHub>(QStringLiteral("a"));
+    hub_->features = {QStringLiteral("saves_v1"), QStringLiteral("runs_v1")};
+    QVERIFY(hub_->start());
+    conn_ = std::make_unique<HubConnection>(profiles_.get(), creds_.get());
+    conn_->setPollIntervalMs(50);
+    conn_->connectToAddress(hub_->address());
+    QTRY_VERIFY_WITH_TIMEOUT(conn_->state() == State::NeedsTrustConfirmation, 8000);
+    conn_->confirmTrust();
+    QTRY_VERIFY_WITH_TIMEOUT(conn_->state() == State::NeedsPairing, 8000);
+    hub_->decision = FakeHub::Decision::Approve;
+    conn_->requestPairing();
+    QTRY_VERIFY_WITH_TIMEOUT(conn_->state() == State::Connected, 8000);
+
+    QJsonObject r = hub_->makeRun(QStringLiteral("Test run"), {hub_->runsMe, kOther}, hub_->runsMe,
+                                  QJsonArray{QJsonObject{{"plugin_id", kId}, {"version", "1.0.0"}, {"sha256", QString(64, QLatin1Char('a'))}}});
+    runId_ = r.value("run_id").toString();
+    r.insert("status", status);
+    r.insert("settings", QJsonObject{{"hardcore", true}});
+    hub_->runs.insert(runId_, r);
+
+    socket_ = std::make_unique<HubSocket>(conn_.get());
+    client_ = std::make_unique<RunClient>(conn_.get(), socket_.get(), dir_->filePath(QStringLiteral("runs-data")));
+    client_->setStateIntervalMs(60);
+    client_->setBoardIntervalMs(100);
+    client_->setRetryBaseMs(40);
+    client_->setCatchUpDelayMs(60);
+    socket_->start();
+    QTRY_VERIFY_WITH_TIMEOUT(client_->run(runId_).has_value() && client_->lastSeq(runId_) >= 1, 8000);
+    host_ = std::make_unique<PluginHost>();
+    mem_ = std::make_shared<FakeMemoryProvider>();
+  }
+
+  void startPlugin(const QString& lua, const QStringList& perms = {QStringLiteral("run.state")}, bool inRun = true) {
+    PluginSpec s;
+    s.permissions = perms;
+    s.lua = lua;
+    const QString dir = writePlugin(dir_->filePath(QStringLiteral("src")), s);
+    GameContext ctx{"nds", "ABCD", "abc123", "Test Game", "", "en"};
+    if (inRun) ctx.run = RunSessionBridge::create(client_.get(), runId_);
+    host_->start(ctx, mem_, {infoFor(dir, dir_->filePath(QStringLiteral("cache")))});
+    QTRY_VERIFY_WITH_TIMEOUT(host_->consoleSnapshot(kId).status != PluginStatus::Loading, 10000);
+  }
+
+  ConsoleSnapshot con() const { return host_->consoleSnapshot(kId); }
+
+ private slots:
+  void cleanup() {
+    host_.reset();
+    client_.reset();
+    socket_.reset();
+    conn_.reset();
+    hub_.reset();
+    creds_.reset();
+    profiles_.reset();
+    dir_.reset();
+  }
+
+  void absentOutsideRuns() {
+    connectHub();
+    startPlugin(R"LUA( assert(fb.run == nil) fb.log.info("no run") )LUA", {QStringLiteral("run.state")}, false);
+    QCOMPARE(con().status, PluginStatus::Running);
+    QVERIFY(hasLog(con(), "no run"));
+  }
+
+  void needsPermission() {
+    connectHub();
+    startPlugin(R"LUA(
+      local ok, err = pcall(fb.run.current)
+      assert(not ok and tostring(err):find("permission run.state"), tostring(err))
+      fb.log.info("denied")
+    )LUA",
+                {});
+    QCOMPARE(con().status, PluginStatus::Running);
+    QVERIFY(hasLog(con(), "denied"));
+  }
+
+  void currentStateAndEvents() {
+    connectHub();
+    hub_->addRunEvent(runId_, QStringLiteral("test.old"), QStringLiteral("old"), kOther, kId, {}, false);
+    QJsonObject r = hub_->runs.value(runId_);
+    hub_->runs.insert(runId_, r);
+    hub_->pushRun(runId_);
+    QTRY_VERIFY_WITH_TIMEOUT(client_->lastSeq(runId_) == 2, 8000);
+    startPlugin(R"LUA(
+      local c = fb.run.current()
+      assert(c.name == "Test run" and c.status == "active", c.status)
+      assert(c.me == "u_test_1")
+      assert(c.settings.hardcore == true)
+      assert(#c.plugins == 1 and c.plugins[1].id == "net.test.plugin" and c.plugins[1].version == "1.0.0")
+      assert(#c.participants == 2 and c.participants[1].user_id == "u_test_1" and c.participants[1].status == "joined")
+      assert(c.participants[1].color == 0 and c.participants[2].color == nil)
+      assert(next(fb.run.state()) == nil)
+      assert(fb.run.state("nobody") == nil)
+      local evs = fb.run.events(0, 10)
+      assert(#evs == 2 and evs[1].type == "run.created" and evs[2].type == "test.old" and evs[2].user_id == "u_other_1", #evs)
+      assert(#fb.run.events(1, 10) == 1 and #fb.run.events(0, 1) == 1)
+      fb.log.info("read ok")
+    )LUA");
+    QCOMPARE(con().status, PluginStatus::Running);
+    QVERIFY2(hasLog(con(), "read ok"), con().error.toUtf8().constData());
+  }
+
+  void writesReachTheHub() {
+    connectHub();
+    startPlugin(R"LUA(
+      assert(fb.run.setState({hp = 5, party = {"a", "b"}}) == true)
+      assert(fb.run.state().hp == 5, "own write is visible at once")
+      assert(fb.run.states()["u_test_1"].party[2] == "b")
+      local id = fb.run.event{type = "test.caught", text = "Caught it", payload = {species = 25, shiny = false}, source = "manual"}
+      assert(type(id) == "string" and #id == 36, tostring(id))
+      assert(fb.run.setBoard({type = "text", text = "Board"}) == true)
+      fb.log.info("wrote")
+    )LUA");
+    QVERIFY2(hasLog(con(), "wrote"), con().error.toUtf8().constData());
+    QTRY_VERIFY_WITH_TIMEOUT(!hub_->runStatePuts.isEmpty(), 8000);
+    const QJsonObject st = hub_->runStatePuts.last().value("state").toObject();
+    QCOMPARE(st.value("hp").toInt(), 5);
+    QCOMPARE(st.value("party").toArray().size(), 2);
+    QTRY_VERIFY_WITH_TIMEOUT(!hub_->runEventPosts.isEmpty(), 8000);
+    const QJsonObject ev = hub_->runEventPosts.last();
+    QCOMPARE(ev.value("plugin_id").toString(), kId);
+    QCOMPARE(ev.value("source").toString(), QStringLiteral("manual"));
+    QCOMPARE(ev.value("type").toString(), QStringLiteral("test.caught"));
+    QCOMPARE(ev.value("payload").toObject().value("species").toInt(), 25);
+    QTRY_VERIFY_WITH_TIMEOUT(hub_->runBoards.contains(runId_ + "/" + kId), 8000);
+    QCOMPARE(hub_->runBoards.value(runId_ + "/" + kId).value("type").toString(), QStringLiteral("text"));
+  }
+
+  void callbacksRunOnThePluginThread() {
+    connectHub();
+    startPlugin(R"LUA(
+      local got = {events = 0, states = 0, status = 0, parts = 0}
+      fb.run.on("event", function(e) got.events = got.events + 1 got.lastEvent = e.type got.lastText = e.text end)
+      fb.run.on("state", function(user, st) got.states = got.states + 1 got.user = user got.hp = st.hp end)
+      fb.run.on("status", function(s, prev) got.status = got.status + 1 got.s = s got.prev = prev end)
+      fb.run.on("participants", function(list) got.parts = got.parts + 1 got.n = #list end)
+      fb.on_tick(function()
+        if got.events > 0 and got.states > 0 and got.status > 0 and got.parts > 0 and not got.done then
+          got.done = true
+          fb.log.info(string.format("callbacks e=%s:%s st=%s:%d s=%s<-%s n=%d", got.lastEvent, got.lastText, got.user, got.hp, got.s, got.prev, got.n))
+        end
+      end)
+    )LUA");
+    QCOMPARE(con().status, PluginStatus::Running);
+    hub_->addRunEvent(runId_, QStringLiteral("test.hit"), QStringLiteral("Ouch"), kOther, kId);
+    hub_->sendWs(QStringLiteral("run_state"), {{"run_id", runId_}, {"user_id", kOther}, {"state_rev", 1}, {"state", QJsonObject{{"hp", 9}}}});
+    QJsonObject r = hub_->runs.value(runId_);
+    r.insert("status", "paused");
+    QJsonArray ps = r.value("participants").toArray();
+    QJsonObject p2 = ps.at(1).toObject();
+    p2.insert("status", "joined");
+    p2.insert("color", 1);
+    ps.replace(1, p2);
+    r.insert("participants", ps);
+    hub_->runs.insert(runId_, r);
+    hub_->pushRun(runId_);
+    for (int i = 0; i < 40 && !hasLog(con(), "callbacks"); ++i) {
+      mem_->snapshot();
+      QTest::qWait(50);
+    }
+    QString all;
+    for (const LogLine& l : con().log) all += l.text + "\n";
+    QVERIFY2(hasLog(con(), "callbacks e=test.hit:Ouch st=u_other_1:9 s=paused<-active n=2"), qPrintable(con().error + "\n" + all));
+  }
+
+  void refusedWhenPausedAndAfterwardsFine() {
+    connectHub(QStringLiteral("paused"));
+    startPlugin(R"LUA(
+      local ok, err = fb.run.setState({a = 1})
+      assert(ok == nil and err:find("paused"), tostring(err))
+      local id, err2 = fb.run.event{type = "test.x"}
+      assert(id == nil and err2:find("paused"), tostring(err2))
+      local ok3, err3 = fb.run.setBoard({type = "text", text = "x"})
+      assert(ok3 == nil and err3:find("paused"), tostring(err3))
+      fb.log.info("refused")
+    )LUA");
+    QCOMPARE(con().status, PluginStatus::Running);
+    QVERIFY2(hasLog(con(), "refused"), con().error.toUtf8().constData());
+    QTest::qWait(200);
+    QVERIFY(hub_->runStatePuts.isEmpty() && hub_->runEventPosts.isEmpty() && hub_->runBoardPuts == 0);
+  }
+
+  void badArgumentsRaiseButWritesNeverPauseOnRefusal() {
+    connectHub();
+    startPlugin(R"LUA(
+      assert(not pcall(fb.run.event, {text = "no type"}))
+      assert(not pcall(fb.run.event, {type = 5}))
+      assert(not pcall(fb.run.setState, {1, 2, 3}))          -- a list is not a state object
+      assert(not pcall(fb.run.setState, "text"))
+      assert(not pcall(fb.run.setBoard, {type = "nonsense"}))
+      assert(not pcall(fb.run.on, "bogus", function() end))
+      local id, err = fb.run.event{type = "Bad Type"}         -- refused by the client: no crash
+      fb.log.info("args ok")
+    )LUA");
+    QCOMPARE(con().status, PluginStatus::Running);
+    QVERIFY2(hasLog(con(), "args ok"), con().error.toUtf8().constData());
+  }
+
+  void boardIsLimitedToOnePerSecond() {
+    connectHub();
+    startPlugin(R"LUA(
+      for i = 1, 10 do assert(fb.run.setBoard({type = "text", text = "v" .. i})) end
+      fb.log.info("sent")
+    )LUA");
+    QVERIFY2(hasLog(con(), "sent"), con().error.toUtf8().constData());
+    // the first goes out at once, the last one follows once the second is over
+    QTRY_VERIFY_WITH_TIMEOUT(hub_->runBoards.contains(runId_ + "/" + kId), 8000);
+    QTRY_COMPARE_WITH_TIMEOUT(hub_->runBoards.value(runId_ + "/" + kId).value("text").toString(), QStringLiteral("v10"), 8000);
+    QVERIFY(hub_->runBoardPuts <= 3);
+  }
+};
+
+QTEST_MAIN(RunApiTest)
+#include "run_test.moc"

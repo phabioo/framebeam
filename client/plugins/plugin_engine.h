@@ -59,6 +59,11 @@ struct EventSub {
   int ref = 0;
 };
 
+struct RunSub {
+  std::string kind;  // event | state | status | participants
+  int ref = 0;
+};
+
 struct Plugin {
   PluginInfo info;
   PluginEngine* engine = nullptr;
@@ -74,6 +79,10 @@ struct Plugin {
   qint64 cacheBytes = -1;
   QList<WatchedRow> lastRows;
   int actionRef = -2;                         // fb.ui.on_action handler (LUA_NOREF)
+  std::vector<RunSub> runSubs;                // fb.run.on callbacks
+  QJsonObject boardPending;                   // fb.run.setBoard: latest tree waiting for the 1/s limit
+  bool hasBoardPending = false;
+  std::chrono::steady_clock::time_point boardLast;
   std::map<QString, QVariantMap> uiTrees;     // slot -> current tree (for fb.ui.patch)
   double toastTokens = 3;                     // notify rate limit: burst 3, one per second sustained
   std::chrono::steady_clock::time_point toastLast = std::chrono::steady_clock::now();
@@ -124,6 +133,7 @@ class PluginEngine {
   void setStatus(Plugin& p, PluginStatus s, const QString& error = QString());
   void deliverEvents();
   void tick();
+  void pollRun();
   void updateWatched();
 
   const std::atomic<int>& m_tickHz;
