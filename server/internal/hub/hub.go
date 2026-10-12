@@ -81,7 +81,7 @@ type Options struct {
 	// SaveKeepRecent, SaveKeepDaily and SaveKeepWeekly are the history retention rules (ADR 0012 D7): newest versions,
 	// days and weeks to keep one version of. 0 = unlimited for that rule (SaveKeepRecent 0 = no thinning at all).
 	SaveKeepRecent, SaveKeepDaily, SaveKeepWeekly int
-	// PluginIndexURL is the signed plugin index (https or file://; empty = no index), fetched with CoreHTTPClient and
+	// PluginIndexURL is the signed plugin index (https or file://; empty = no index, the Hub binary passes "none" as empty), fetched with CoreHTTPClient and
 	// verified with CoreTrustKeys.
 	PluginIndexURL string
 }

@@ -104,7 +104,7 @@ run_round() {
   local port
   port="$(free_port)"
   ADDR="127.0.0.1:$port"
-  "$TMP/framebeam-hub" -listen "$ADDR" "$@" >"$hublog" 2>&1 &
+  "$TMP/framebeam-hub" -listen "$ADDR" -plugin-index-url none "$@" >"$hublog" 2>&1 &
   HUB_PID=$!
   wait_for 15 curl -fsk "https://$ADDR/.well-known/framebeam" || die "hub start" "$hublog"
   ok "hub build + start $ADDR"

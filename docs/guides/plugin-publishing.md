@@ -22,6 +22,16 @@ An official plugin is a `.fbplugin` file (zip with `manifest.json` at the root) 
    Writes `plugin-index.json.sig` next to the index (same scheme as the updates index).
 5. **Publish** the signed `.fbplugin` at the URL from step 3, and `plugin-index.json` plus `plugin-index.json.sig` side by side at one location.
 
-A Hub admin then sets `-plugin-index-url` (env `FRAMEBEAM_PLUGIN_INDEX_URL`, https or `file://`, for example `https://hub.example.com/plugin-index.json`) and installs the plugin from the Plugins page. The default is empty: without it the Hub has no catalog, and signed or unsigned files can still be uploaded or imported with `framebeam-hub import-plugins <dir>`.
+For a self-hosted index, a Hub admin sets `-plugin-index-url` (env `FRAMEBEAM_PLUGIN_INDEX_URL`, https or `file://`, for example `https://hub.example.com/plugin-index.json`) and installs the plugin from the Plugins page. Without a setting every Hub uses the official index (see below); the value `none` turns the index off for offline Hubs, and signed or unsigned files can still be uploaded or imported with `framebeam-hub import-plugins <dir>`.
 
-Checks: the Hub accepts the signature only for the release key or a key given with `-core-trust-key`; a file that fails validation or whose SHA-256 differs from the index is not installed. The index URL of the official plugins is not decided yet (**open**).
+Checks: the Hub accepts the signature only for the release key or a key given with `-core-trust-key`; a file that fails validation or whose SHA-256 differs from the index is not installed.
+
+## Official index
+
+Hubs read the official index by default: `https://github.com/phabioo/framebeam/releases/download/plugin-index/plugin-index.json` (+ `.sig`), the release `plugin-index` of the FrameBeam repository (a prerelease, never the latest FrameBeam release). It is published by the manual workflow "Publish plugin" (`.github/workflows/plugin-index.yml`, environment `release`, secret `FRAMEBEAM_SIGNING_KEY`):
+
+1. Release the plugin in its own repository (`phabioo/framebeam-plugin-<name>`) with the `.fbplugin` file as a release asset.
+2. Run "Publish plugin" with `repo` (for example `phabioo/framebeam-plugin-pokemon-core`) and `tag` (the release tag). The workflow downloads the `*.fbplugin` assets (secret `PLUGIN_REPOS_TOKEN`, a read-only PAT, when set, otherwise the workflow token; needed for private plugin repos), signs each with the release key, uploads it as `<plugin-id>-<version>.fbplugin` to the `plugin-index` release (versions never overwrite each other), adds it with `plugin-add`, then signs and uploads `plugin-index.json` and `plugin-index.json.sig`.
+3. Without inputs the workflow only re-signs and publishes the existing index (an empty one when none exists yet).
+
+Hubs pick up the change at their next check (every 24 h) or with "Check now".
