@@ -35,6 +35,22 @@ SaveHistoryController::SaveHistoryController(const Env& env, QObject* parent) : 
     }
   });
   connect(env_.connection, &HubConnection::stateChanged, this, [this]() { refresh(); });
+  // Another device renamed or deleted a slot: SaveSync already handled the local copy; show the outcome.
+  connect(env_.saves, &SaveSync::slotChangedElsewhere, this, [this](const SaveUpdate& u, const QString& message, bool warning) {
+    if (u.gameId != gameId_) {
+      return;
+    }
+    history_.clear();
+    current_.clear();
+    currentRevision_ = 0;
+    slotVersionCounts_.clear();
+    slotDeleteRequest_.clear();
+    if (!message.isEmpty()) {
+      setMessage(message, warning);
+    }
+    recomputeBlock();
+    refresh();
+  });
   // Checkpoints uploaded while the game runs: the live saves view follows.
   connect(env_.saves, &SaveSync::uploaded, this, [this](const QString& id, int) {
     if (id == gameId_ && !busy_) {
@@ -136,6 +152,9 @@ void SaveHistoryController::recomputeBlock() {
     why = env_.saves->pendingReason(gameId_, slot());
   }
   lastBusy_ = gameRunning();
+  if (lastBusy_) {
+    slotDeleteRequest_.clear();  // rename and delete need the game closed
+  }
   blockReason_ = why;
   if (!why.isEmpty()) {
     restoreRequest_.clear();
@@ -150,6 +169,26 @@ bool SaveHistoryController::canSnapshot() const {
 
 bool SaveHistoryController::canUploadFile() const {
   return available() && env_.saves->hubSupportsSavesV4() && !busy_;
+}
+
+bool SaveHistoryController::slotManageAvailable() const {
+  return available() && env_.saves->hubSupportsSavesV5() && slot() != QLatin1String("default");
+}
+
+QString SaveHistoryController::slotManageBlockReason() const {
+  if (!slotManageAvailable()) {
+    return {};
+  }
+  if (gameRunning()) {
+    return tr("This game is running on this Player. Quit it to rename or delete a slot.");
+  }
+  if (!online()) {
+    return tr("Hub offline. Renaming and deleting a slot needs the Hub.");
+  }
+  if (busy_) {
+    return tr("Wait until the current action has finished.");
+  }
+  return {};
 }
 
 QStringList SaveHistoryController::saveFileFilters() {
@@ -179,6 +218,7 @@ void SaveHistoryController::setGame(const QString& gameId) {
   restoreRequest_.clear();
   uploadRequest_.clear();
   deleteRequest_.clear();
+  slotDeleteRequest_.clear();
   uploadFailure_.clear();
   conflictOpen_ = conflictLoading_ = conflictBusy_ = false;
   conflictInfo_.clear();
@@ -326,6 +366,7 @@ void SaveHistoryController::selectSlot(const QString& slotName) {
   history_.clear();
   current_.clear();
   deleteRequest_.clear();
+  slotDeleteRequest_.clear();
   currentRevision_ = 0;
   message_.clear();
   recomputeBlock();
@@ -355,6 +396,125 @@ QString SaveHistoryController::createSlot(const QString& name) {
   }
   selectSlot(name);
   return {};
+}
+
+QString SaveHistoryController::renameSlot(const QString& name) {
+  if (!slotManageAvailable()) {
+    return tr("The Hub does not support renaming slots.");
+  }
+  if (const QString why = slotManageBlockReason(); !why.isEmpty()) {
+    return why;
+  }
+  const QString err = validateSlotName(name);
+  if (!err.isEmpty()) {
+    return err;
+  }
+  if (name == slot()) {
+    return tr("The slot already has this name.");
+  }
+  for (const QVariant& o : slotOptions()) {
+    if (o.toMap().value(QStringLiteral("value")).toString() == name) {
+      return tr("A slot named \"%1\" already exists.").arg(name);
+    }
+  }
+  cancelRestore();
+  cancelDelete();
+  cancelUploadFile();
+  slotDeleteRequest_.clear();
+  busy_ = true;
+  message_.clear();
+  emit changed();
+  const QString game = gameId_;
+  const QString old = slot();
+  QPointer<SaveHistoryController> self(this);
+  env_.saves->renameSlot(game, old, name, [self, game, old, name](const SaveSync::SlotChangeResult& r) {
+    if (!self) {
+      return;
+    }
+    self->busy_ = false;
+    if (self->gameId_ != game) {
+      emit self->changed();
+      return;
+    }
+    if (r.ok()) {
+      self->history_.clear();
+      self->current_.clear();
+      self->currentRevision_ = 0;
+      self->slotVersionCounts_.clear();
+      self->setMessage(r.message.isEmpty() ? tr("Slot \"%1\" renamed to \"%2\".").arg(old, name) : r.message, !r.message.isEmpty());
+    } else {
+      self->setMessage(r.message, true);
+    }
+    self->recomputeBlock();
+    self->refresh();
+  });
+  return {};
+}
+
+void SaveHistoryController::requestDeleteSlot() {
+  if (!slotManageAvailable() || !slotManageBlockReason().isEmpty()) {
+    return;
+  }
+  cancelRestore();
+  cancelDelete();
+  cancelUploadFile();
+  const bool onHub = currentRevision_ > 0 && !current_.isEmpty();
+  slotDeleteRevision_ = onHub ? currentRevision_ : 0;
+  slotDeleteRequest_ = QVariantMap{{QStringLiteral("slot"), slot()},
+                                   {QStringLiteral("slotLabel"), slotLabel()},
+                                   {QStringLiteral("onHub"), onHub},
+                                   {QStringLiteral("revisionText"), current_.value(QStringLiteral("revisionText")).toString()},
+                                   {QStringLiteral("when"), current_.value(QStringLiteral("when")).toString()},
+                                   {QStringLiteral("device"), current_.value(QStringLiteral("device")).toString()},
+                                   {QStringLiteral("versionCount"), versionCount()}};
+  message_.clear();
+  emit changed();
+}
+
+void SaveHistoryController::cancelDeleteSlot() {
+  if (!slotDeleteRequest_.isEmpty()) {
+    slotDeleteRequest_.clear();
+    emit changed();
+  }
+}
+
+void SaveHistoryController::confirmDeleteSlot() {
+  if (slotDeleteRequest_.isEmpty()) {
+    return;
+  }
+  const int revision = slotDeleteRevision_;
+  const QString name = slotDeleteRequest_.value(QStringLiteral("slot")).toString();
+  slotDeleteRequest_.clear();
+  if (!slotManageAvailable() || !slotManageBlockReason().isEmpty() || name != slot()) {
+    emit changed();
+    return;
+  }
+  busy_ = true;
+  message_.clear();
+  emit changed();
+  const QString game = gameId_;
+  QPointer<SaveHistoryController> self(this);
+  env_.saves->deleteSlot(game, name, revision, [self, game, name](const SaveSync::SlotChangeResult& r) {
+    if (!self) {
+      return;
+    }
+    self->busy_ = false;
+    if (self->gameId_ != game) {
+      emit self->changed();
+      return;
+    }
+    if (r.ok()) {
+      self->history_.clear();
+      self->current_.clear();
+      self->currentRevision_ = 0;
+      self->slotVersionCounts_.clear();
+      self->setMessage(r.message.isEmpty() ? tr("Slot \"%1\" deleted. The game uses the main slot now.").arg(name) : r.message, !r.message.isEmpty());
+    } else {
+      self->setMessage(r.message, true);
+    }
+    self->recomputeBlock();
+    self->refresh();
+  });
 }
 
 void SaveHistoryController::requestRestore(int version) {
@@ -533,6 +693,10 @@ void SaveHistoryController::requestUploadFile(const QString& source) {
   if (!canUploadFile()) {
     return;
   }
+  if (const QString why = uploadBlockReason(); !why.isEmpty()) {
+    setMessage(why, true);
+    return;
+  }
   recomputeBlock();
   if (!blockReason_.isEmpty()) {
     setMessage(blockReason_, true);
@@ -581,6 +745,10 @@ void SaveHistoryController::confirmUploadFile() {
   uploadRequest_.clear();
   if (busy_ || !canUploadFile()) {
     emit changed();
+    return;
+  }
+  if (const QString why = uploadBlockReason(); !why.isEmpty()) {
+    setMessage(why, true);
     return;
   }
   recomputeBlock();

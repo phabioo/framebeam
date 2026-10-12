@@ -78,6 +78,12 @@ class SaveHistoryController : public QObject {
   Q_PROPERTY(QStringList saveFileFilters READ saveFileFilters CONSTANT)
   // Pending upload confirmation: {} = none, else {path, fileName, size, sizeText, slot, gameTitle}.
   Q_PROPERTY(QVariantMap uploadRequest READ uploadRequest NOTIFY changed)
+  // saves_v5: rename / delete the selected slot (never "default"). `slotManageAvailable`: the actions exist (Hub supports
+  // them, signed in, not the main slot); `slotManageBlockReason`: why they are disabled right now (empty = allowed).
+  Q_PROPERTY(QString uploadBlockReason READ uploadBlockReason NOTIFY changed)  // upload off although supported (shared Session)
+  Q_PROPERTY(bool slotManageAvailable READ slotManageAvailable NOTIFY changed)
+  Q_PROPERTY(QString slotManageBlockReason READ slotManageBlockReason NOTIFY changed)
+  Q_PROPERTY(QVariantMap slotDeleteRequest READ slotDeleteRequest NOTIFY changed)  // {slot, slotLabel, revisionText, when, device, onHub}
   Q_PROPERTY(QString message READ message NOTIFY changed)
   Q_PROPERTY(bool messageIsError READ messageIsError NOTIFY changed)
   // Pending restore confirmation: {} = none, else {version, versionText, label, reasonText, device, when, slot, gameTitle}.
@@ -107,6 +113,10 @@ class SaveHistoryController : public QObject {
   QString restoreBlockReason() const;
   bool canSnapshot() const;
   bool canUploadFile() const;
+  QString uploadBlockReason() const { return gameId_.isEmpty() ? QString() : env_.saves->uploadBlockReason(gameId_); }
+  bool slotManageAvailable() const;
+  QString slotManageBlockReason() const;
+  QVariantMap slotDeleteRequest() const { return slotDeleteRequest_; }
   static QStringList saveFileFilters();
   QVariantMap uploadRequest() const { return uploadRequest_; }
   void showError(const QString& text) { setMessage(text, true); }  // non-blocking notice (game toast / Saves view)
@@ -125,7 +135,8 @@ class SaveHistoryController : public QObject {
   bool canDeleteSnapshot() const;
   QVariantMap deleteRequest() const { return deleteRequest_; }
   bool confirmationOpen() const {
-    return !restoreRequest_.isEmpty() || !deleteRequest_.isEmpty() || !uploadRequest_.isEmpty() || uploading_ || conflictOpen_;
+    return !restoreRequest_.isEmpty() || !deleteRequest_.isEmpty() || !uploadRequest_.isEmpty() || uploading_ || conflictOpen_ ||
+           !slotDeleteRequest_.isEmpty();
   }
   bool liveMode() const { return liveMode_; }
   void setLiveMode(bool on);
@@ -149,6 +160,12 @@ class SaveHistoryController : public QObject {
   // "New slot": empty string = created and selected, otherwise the validation error.
   Q_INVOKABLE QString createSlot(const QString& name);
   Q_INVOKABLE QString validateSlotName(const QString& name) const;  // empty = valid
+  // Rename the selected slot: empty string = started (the result arrives as `message`), otherwise the validation error.
+  Q_INVOKABLE QString renameSlot(const QString& name);
+  // Delete the selected slot (hard delete on the Hub, no undo) with confirmation data: the latest checkpoint.
+  Q_INVOKABLE void requestDeleteSlot();
+  Q_INVOKABLE void confirmDeleteSlot();
+  Q_INVOKABLE void cancelDeleteSlot();
   // Restore with confirmation: requestRestore() opens the dialog data, confirmRestore() runs it, cancelRestore() closes it.
   Q_INVOKABLE void requestRestore(int version);
   Q_INVOKABLE void confirmRestore();
@@ -205,6 +222,8 @@ class SaveHistoryController : public QObject {
   QVariantMap restoreRequest_;
   QVariantMap uploadRequest_;
   QVariantMap deleteRequest_;
+  QVariantMap slotDeleteRequest_;
+  int slotDeleteRevision_ = 0;
   QVariantMap uploadFailure_;
   QVariantMap current_;
   QHash<QString, int> slotVersionCounts_;  // slot -> versions (history + current) of the other slots

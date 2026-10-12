@@ -187,6 +187,9 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     saves_->setLiveHooks(std::move(hooks));
   }
   {
+    saves_->setSharedCheck([this](const QString& id) {
+      return sessions_ && sessions_->shared() && (launchGame_.id.isEmpty() || launchGame_.id == id);
+    });
     SaveHistoryController::Env env;
     env.saves = saves_.get();
     env.connection = conn_.get();

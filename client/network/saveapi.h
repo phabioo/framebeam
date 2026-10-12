@@ -18,6 +18,7 @@ inline constexpr const char* kSavesFeature = "saves_v1";
 inline constexpr const char* kSavesV2Feature = "saves_v2";  // restore, snapshots, history labels, save_updated (0.4)
 inline constexpr const char* kSavesV3Feature = "saves_v3";  // deleting manual snapshots
 inline constexpr const char* kSavesV4Feature = "saves_v4";  // upload of a local save file as the current checkpoint
+inline constexpr const char* kSavesV5Feature = "saves_v5";  // rename and delete slots, upload lock during a Session
 inline constexpr qint64 kMaxSaveBytes = 64LL * 1024 * 1024;
 
 struct SaveCheckpoint {
@@ -52,7 +53,8 @@ struct SaveUpdate {
   QString sha256;
   QString deviceId;
   QString deviceName;
-  QString reason;
+  QString reason;        // checkpoint | final | ... | renamed | deleted (saves_v5)
+  QString previousSlot;  // reason "renamed": the old slot name (`slot` is the new one)
 };
 std::optional<SaveUpdate> parseSaveUpdate(const QJsonObject& payload);
 
@@ -96,7 +98,7 @@ struct SaveApiResult {
     Ok,
     NotFound,    // 404
     Conflict,    // 409 save_conflict (upload secured, `conflict` set)
-    Stale,       // 409 save_conflict_stale
+    Stale,       // 409 save_conflict_stale (or a 409 without a code)
     Offline,     // no connection, 5xx, 429, token problem: retry later
     Rejected,    // other 4xx (400, 403, 413 ...): retrying does not help
     BadResponse  // malformed or verification failed
@@ -138,6 +140,12 @@ class SaveApi : public QObject {
   void deleteSnapshot(const QString& gameId, const QString& slot, int version, Callback cb);
   // saves_v4: POST .../upload; `expectedRevision` 0 = the slot does not exist on the Hub yet. Answer: the new SaveSlot.
   void uploadFile(const QString& gameId, const QString& slot, const QByteArray& data, int expectedRevision, Callback cb);
+  // saves_v5: POST .../rename {"name"}; answer: the SaveSlot under the new name. Errors (kind Rejected, errorCode set):
+  // save_slot_exists, save_slot_protected, session_running; bad_request; NotFound.
+  void renameSlot(const QString& gameId, const QString& slot, const QString& newName, Callback cb);
+  // saves_v5: DELETE ...?confirm_revision=N (hard delete); answer 204. Stale = `save_conflict_stale` (nothing deleted);
+  // Rejected with errorCode save_slot_protected, session_running or conflict (open conflict).
+  void deleteSlot(const QString& gameId, const QString& slot, int confirmRevision, Callback cb);
 
  private:
   enum class Expect { Slot, SlotList, Content, Put, Resolve, History, Snapshot, None };

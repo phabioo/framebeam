@@ -49,15 +49,22 @@
         "device_name": {
           "type": "string"
         },
+        "previous_slot": {
+          "description": "Only with reason renamed (saves_v5): the old name; slot is the new one",
+          "type": "string",
+          "pattern": "^[a-z0-9_-]{1,32}$"
+        },
         "reason": {
-          "description": "SaveSyncReason of the new checkpoint, or conflict_resolution when a conflict resolution (use_local) changed it",
+          "description": "SaveSyncReason of the new checkpoint, or conflict_resolution when a conflict resolution (use_local) changed it; renamed: the slot got a new name (previous_slot), the checkpoint is unchanged; deleted: the slot is gone (revision and sha256 are those of the deleted checkpoint) (renamed and deleted: saves_v5)",
           "enum": [
             "checkpoint",
             "final",
             "final_session_end",
             "restore",
             "upload",
-            "conflict_resolution"
+            "conflict_resolution",
+            "renamed",
+            "deleted"
           ]
         }
       }

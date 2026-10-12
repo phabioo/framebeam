@@ -77,7 +77,7 @@ func Register(mux *http.ServeMux, svc *hub.Service, log *slog.Logger, opts ...Op
 		}},
 		ErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
 			var ip *api.InvalidParamFormatError
-			if errors.As(err, &ip) { // e.g. no UUID in the path: does not exist
+			if errors.As(err, &ip) && ip.ParamName != "confirm_revision" { // e.g. no UUID in the path: does not exist
 				writeError(w, http.StatusNotFound, hub.CodeNotFound, "Not found")
 				return
 			}
@@ -128,7 +128,7 @@ func (s *Server) authMiddleware(next api.StrictHandlerFunc, op string) api.Stric
 		switch op {
 		case "UploadGame", "ListSystems", "RevokeSelf", "PostHandshake", "ListGames", "GetGame", "ConnectWebSocket",
 			"ListSaves", "GetSaveSlot", "PutSave", "DownloadSaveContent", "ListSaveHistory", "DownloadSaveHistoryContent", "ResolveSaveConflict",
-			"UpdateLocalSettings", "RestoreSaveHistoryVersion", "CreateSaveSnapshot", "DeleteSaveSnapshot", "UploadSaveFile",
+			"UpdateLocalSettings", "RestoreSaveHistoryVersion", "CreateSaveSnapshot", "DeleteSaveSnapshot", "UploadSaveFile", "RenameSaveSlot", "DeleteSaveSlot",
 			"ListUsers", "GetCorePackage", "GetCorePackageFile", "ListSessions", "PublishSession", "GetSession", "UpdateSession", "EndSession", "InviteSessionUser",
 			"WithdrawSessionInvite", "DeclineSession", "JoinSession", "RemoveSessionViewer":
 			p, err := s.svc.Authenticate(ctx, tok)
@@ -164,7 +164,7 @@ func httpStatus(c hub.Code) int {
 		return http.StatusGone
 	case hub.CodeConflict, hub.CodePairingExpired, hub.CodeSaveConflict, hub.CodeSaveConflictStale,
 		hub.CodeSessionFull, hub.CodeCapabilityMissing, hub.CodeDisplayNameTaken,
-		hub.CodeSaveNotSnapshot, hub.CodeSaveSlotExists:
+		hub.CodeSaveNotSnapshot, hub.CodeSaveSlotExists, hub.CodeSessionRunning, hub.CodeSaveSlotProtected:
 		return http.StatusConflict
 	case hub.CodePayloadTooLarge:
 		return http.StatusRequestEntityTooLarge
@@ -285,7 +285,7 @@ func (s *Server) PostHandshake(ctx context.Context, req api.PostHandshakeRequest
 		return nil, err
 	}
 	features := []string{hub.FeatureSavesV1, hub.FeatureSessionsV1, hub.FeatureUsersV1, hub.FeatureFirmwareV1, hub.FeatureCoresV1,
-		hub.FeatureSavesV2, hub.FeatureCoresV2, hub.FeatureSavesV3, hub.FeatureSavesV4, hub.FeatureLocalSetupV1, hub.FeatureICEUpdateV1}
+		hub.FeatureSavesV2, hub.FeatureCoresV2, hub.FeatureSavesV3, hub.FeatureSavesV4, hub.FeatureSavesV5, hub.FeatureLocalSetupV1, hub.FeatureICEUpdateV1}
 	if s.svc.RelayEnabled() {
 		features = append(features, hub.FeatureTURNV1)
 	}

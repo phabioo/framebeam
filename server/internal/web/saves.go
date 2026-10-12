@@ -90,13 +90,33 @@ type saveDetailView struct {
 	NewSlotAsk          string // GET: the inline "New slot" form
 	NewSlot             *newSlotView
 	CSRF                string // token for the multipart upload form
-	Empty               bool   // the user has no save for this game yet: only the upload panel is shown
+	Ops                 slotOpsView
+	Empty               bool // the user has no save for this game yet: only the upload panel is shown
 	Up                  uploadView
+}
+
+// slotOpsView is the Rename and Delete row actions of the selected slot (not offered for the default slot).
+type slotOpsView struct {
+	Show               bool
+	Running            bool // a Session of the game runs: the actions are disabled
+	RenameOpen         bool
+	DeleteOpen         bool
+	RenameAsk          string // GET: the slot with the rename form open
+	DeleteAsk          string // GET: the slot with the delete confirmation open
+	CancelHref         string
+	RenameHref         string // POST
+	DeleteHref         string // POST
+	Value              string // prefilled new name
+	Max                int
+	Rev                int
+	When, Device, Size string // the latest checkpoint the delete confirmation names
+	Versions           int    // history versions that go with the slot
 }
 
 // uploadView is the upload action of the CURRENT bar: the button, the inline panel and the last result.
 type uploadView struct {
 	Can       bool   // the viewer owns the slot (admins cannot upload into another user's slot)
+	Running   bool   // a Session of this game runs: the button is disabled with a hint
 	Open      bool   // the panel is expanded
 	OpenHref  string // GET: the slot with the panel open (fragment with htmx, page without)
 	CloseHref string
@@ -225,6 +245,7 @@ var uploadErrTexts = map[string]string{
 	"stale":     "The slot changed in the meantime. Reload the page and upload again.",
 	"toolarge":  "The save file is too large (maximum 64 MiB).",
 	"emptyfile": "Please select a save file that is not empty.",
+	"running":   "A Session of this game is running. Upload the save file after it ends.",
 }
 
 // webDeviceLabel names the device of a change; changes made in the web interface carry the user.
@@ -333,8 +354,12 @@ func (s *Server) savesBody(r *http.Request, nf *newSlotView, viewer string) (sav
 		// No save of this game yet (opened from the Library): only the upload panel, which creates the slot.
 		if g, err := s.svc.GetGame(ctx, selGame); err == nil {
 			href := saveHref(selUser, selGame, selSlot)
+			running, err := s.svc.SessionRunningFor(ctx, selUser, selGame)
+			if err != nil {
+				return savesBody{}, err
+			}
 			b.Detail = &saveDetailView{Title: g.Title, User: names[selUser], Slot: selSlot, Empty: true, RefreshURL: href + "?upload=1",
-				Up: uploadView{Can: true, Open: true, Action: href + "/upload", Slots: []uploadSlot{{Name: selSlot, Selected: true}},
+				Up: uploadView{Can: true, Running: running, Open: true, Action: href + "/upload", Slots: []uploadSlot{{Name: selSlot, Selected: true}},
 					Result: uploadResultFor(q, hub.SaveCheckpoint{}, nil, "")}}
 		}
 	}
@@ -432,8 +457,12 @@ func (s *Server) saveDetail(r *http.Request, grp *saveGroup, slotName, filter, h
 	href := saveHref(grp.user, grp.game, slotName)
 	d.RefreshURL = savesURL(href, filter, hist, 0)
 	d.NewSlotAsk = withParam(savesURL(href, filter, "", 0), "newslot", "1")
+	running, err := s.svc.SessionRunningFor(ctx, grp.user, grp.game)
+	if err != nil {
+		return nil, err
+	}
 	q := r.URL.Query()
-	d.Up = uploadView{Can: grp.user == viewer, Open: q.Get("upload") != "" || uploadFailed(q), Action: href + "/upload",
+	d.Up = uploadView{Can: grp.user == viewer, Running: running, Open: !running && (q.Get("upload") != "" || uploadFailed(q)), Action: href + "/upload",
 		OpenHref: withParam(savesURL(href, filter, hist, 0), "upload", "1"), CloseHref: savesURL(href, filter, hist, 0), Version: slot.Current.Revision}
 	for _, sl := range grp.slots {
 		d.Up.Slots = append(d.Up.Slots, uploadSlot{Name: sl.Slot, Rev: sl.Current.Revision, Selected: sl.Slot == slotName})
@@ -450,6 +479,22 @@ func (s *Server) saveDetail(r *http.Request, grp *saveGroup, slotName, filter, h
 	d.SnapshotHref, d.ExpectedRev = href+"/snapshots", cur.Revision
 	d.Current = saveCheckpointView{Rev: cur.Revision, Device: webDeviceLabel(cur.DeviceName, cur.DeviceID, names), When: stamp(cur.CreatedAt, now), Reason: syncReasonLabels[cur.Reason],
 		Size: humanBytes(cur.Size), ShortHash: shortHash(cur.SHA256), DownloadHref: href + "/download"}
+	if slotName != hub.DefaultSlot {
+		o := slotOpsView{Show: true, Running: running, Max: hub.MaxSlotName, Rev: cur.Revision, When: stamp(cur.CreatedAt, now),
+			Device: webDeviceLabel(cur.DeviceName, cur.DeviceID, names), Size: humanBytes(cur.Size), Versions: len(selHist),
+			CancelHref: savesURL(href, filter, hist, 0), RenameHref: href + "/rename", DeleteHref: href + "/delete",
+			RenameAsk: withParam(savesURL(href, filter, hist, 0), "rename", "1"), DeleteAsk: withParam(savesURL(href, filter, hist, 0), "delslot", "1")}
+		if !running {
+			if q.Get("rename") != "" {
+				o.RenameOpen, o.Value = true, q.Get("name")
+				d.RefreshURL = withParam(d.RefreshURL, "rename", "1")
+			} else if q.Get("delslot") != "" {
+				o.DeleteOpen = true
+				d.RefreshURL = withParam(d.RefreshURL, "delslot", "1")
+			}
+		}
+		d.Ops = o
+	}
 	for _, c := range slot.OpenConflicts {
 		d.Conflicts = append(d.Conflicts, saveConflictView{
 			Title: fmt.Sprintf("▲ Conflict: upload is based on Rev %d, current is Rev %d", c.Secured.BaseRevision, c.Hub.Revision),
@@ -854,6 +899,8 @@ func uploadErrKey(err error) string {
 	switch {
 	case errors.Is(err, hub.ErrSaveConflictStale):
 		return "stale"
+	case errors.Is(err, hub.ErrSessionRunning):
+		return "running"
 	case errors.Is(err, hub.ErrPayloadTooLarge), errors.As(err, &mbe):
 		return "toolarge"
 	case errors.Is(err, hub.ErrBadRequest):
@@ -942,4 +989,58 @@ func (s *Server) saveUpload(w http.ResponseWriter, r *http.Request, sess *sessio
 	d.Fragment, d.Body = true, body
 	w.Header().Set("HX-Push-Url", to)
 	s.render(w, http.StatusOK, "saves", "saves-detail-fragment", d)
+}
+
+// saveRenameSlot renames the slot in the path. A refused name shows the form again with the error.
+func (s *Server) saveRenameSlot(w http.ResponseWriter, r *http.Request, sess *session) {
+	u, g, from := r.PathValue("user"), r.PathValue("game"), r.PathValue("slot")
+	name := strings.TrimSpace(r.PostFormValue("name"))
+	_, err := s.svc.RenameSaveSlot(r.Context(), hub.RenameInput{UserID: u, DeviceID: hub.WebDeviceID(sess.User.ID), GameID: g, Slot: from, NewSlot: name})
+	back := func(key string) {
+		s.redirect(w, r, withParam(withParam(saveHref(u, g, from)+"?err="+key, "rename", "1"), "name", name))
+	}
+	switch {
+	case err == nil:
+		s.redirect(w, r, saveHref(u, g, name)+"?ok=slotrenamed")
+	case errors.Is(err, hub.ErrNotFound):
+		http.NotFound(w, r)
+	case errors.Is(err, hub.ErrSaveSlotProtected):
+		s.redirect(w, r, saveHref(u, g, from)+"?err=slotprotected")
+	case errors.Is(err, hub.ErrSessionRunning):
+		s.redirect(w, r, saveHref(u, g, from)+"?err=running")
+	case errors.Is(err, hub.ErrSaveSlotExists):
+		back("slotexists")
+	case errors.Is(err, hub.ErrBadRequest):
+		back("slotname")
+	default:
+		s.fail(w, r, err)
+	}
+}
+
+// saveDeleteSlot deletes the slot in the path after the inline confirmation (expected_revision = the checkpoint the page showed).
+func (s *Server) saveDeleteSlot(w http.ResponseWriter, r *http.Request, sess *session) {
+	u, g, sl := r.PathValue("user"), r.PathValue("game"), r.PathValue("slot")
+	exp, err := strconv.Atoi(r.PostFormValue("expected_revision"))
+	if err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+	err = s.svc.DeleteSaveSlot(r.Context(), hub.DeleteInput{UserID: u, DeviceID: hub.WebDeviceID(sess.User.ID), GameID: g, Slot: sl, ConfirmRevision: exp})
+	here := saveHref(u, g, sl)
+	switch {
+	case err == nil:
+		s.redirect(w, r, "/saves?ok=slotdeleted")
+	case errors.Is(err, hub.ErrNotFound):
+		http.NotFound(w, r)
+	case errors.Is(err, hub.ErrSaveSlotProtected):
+		s.redirect(w, r, here+"?err=slotprotected")
+	case errors.Is(err, hub.ErrSessionRunning):
+		s.redirect(w, r, here+"?err=running")
+	case errors.Is(err, hub.ErrSaveConflictStale):
+		s.redirect(w, r, here+"?err=stale")
+	case errors.Is(err, hub.ErrConflict):
+		s.redirect(w, r, here+"?err=openconflict")
+	default:
+		s.fail(w, r, err)
+	}
 }

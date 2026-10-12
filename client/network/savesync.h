@@ -32,6 +32,14 @@ struct SaveSnapshotResult {
   bool ok() const { return kind == Outcome::Ok; }
 };
 
+// Result of renaming or deleting a slot (saves_v5). `message` is user-facing; on Ok only a warning (empty = none).
+struct SaveSlotChangeResult {
+  enum class Outcome { Ok, Blocked, Stale, NotFound, Exists, Protected, SessionRunning, Conflict, Offline, Failed };
+  Outcome kind = Outcome::Failed;
+  QString message;
+  bool ok() const { return kind == Outcome::Ok; }
+};
+
 // Save sync state machine of the Player (docs: ADR 0005 / D4). One active game at a time.
 // Flow: prepareStart() -> startReady() | startConflict() -> (resolveConflict() -> startReady()) ->
 // beginSession() (auto checkpoints) -> finalSync() on pause/stop/exit.
@@ -69,6 +77,8 @@ class SaveSync : public QObject {
   using SnapshotResult = SaveSnapshotResult;
   using RestoreCallback = std::function<void(const RestoreResult&)>;
   using SnapshotCallback = std::function<void(const SnapshotResult&)>;
+  using SlotChangeResult = SaveSlotChangeResult;
+  using SlotChangeCallback = std::function<void(const SlotChangeResult&)>;
 
   // Slot choice per game and Hub profile (ADR 0012 D7), kept in the Player settings (without settings: in memory).
   void setSettings(PlayerSettings* settings) { settings_ = settings; }
@@ -82,6 +92,8 @@ class SaveSync : public QObject {
   bool hubSupportsSavesV3() const;
   // Hub advertises saves_v4 (upload of a local save file).
   bool hubSupportsSavesV4() const;
+  // Hub advertises saves_v5 (rename and delete slots, upload lock during a Session).
+  bool hubSupportsSavesV5() const;
 
   // The game runs (or its Session just ended) with this slot on this Player.
   bool isRunning(const QString& gameId, const QString& slot = QString()) const {
@@ -95,7 +107,17 @@ class SaveSync : public QObject {
   // local save of the slot becomes the new checkpoint (download); `localFileName` names the file if none exists yet.
   void restoreVersion(const QString& gameId, const QString& slot, int version, int expectedRevision, const QString& localFileName,
                       RestoreCallback cb);
+  // saves_v5: rename / delete a slot (never "default"; refused while the game runs on this Player). Rename moves the
+  // local slot (save folder, core folder, sync.json, selection) after the Hub confirmed; unsynced local data moves along.
+  // Delete is refused when the slot has unsynced local changes; the local copy is removed only after the Hub confirmed
+  // (204), and a selected slot falls back to "default". `confirmRevision` is the checkpoint revision the user saw
+  // (0 = the slot is not on the Hub: only then the local-only slot is removed).
+  void renameSlot(const QString& gameId, const QString& slot, const QString& newName, SlotChangeCallback cb);
+  void deleteSlot(const QString& gameId, const QString& slot, int confirmRevision, SlotChangeCallback cb);
+  // Why rename / delete are off for this slot on this Player (default slot, game running); empty = allowed.
+  QString slotChangeBlockReason(const QString& gameId, const QString& slot) const;
   // saves_v4: make a local file the Hub's current save of the slot (and the local save). Same block rules as restore;
+  // for a running game the core loads the file live; refused while the game is shared as a Session (setSharedCheck);
   // the file must be non-empty and at most kMaxSaveBytes. `expectedRevision` 0 = no save on the Hub yet.
   void uploadSaveFile(const QString& gameId, const QString& slot, const QString& filePath, int expectedRevision,
                       const QString& localFileName, RestoreCallback cb);
@@ -111,6 +133,11 @@ class SaveSync : public QObject {
     std::function<bool(std::function<bool()>)> restartWith;
   };
   void setLiveHooks(LiveHooks hooks) { live_ = std::move(hooks); }
+  // Set by the Player: this game is currently shared as a Session (upload of a save file is blocked then; the Hub
+  // would refuse with session_running as well).
+  void setSharedCheck(std::function<bool(const QString&)> check) { shared_ = std::move(check); }
+  // Why a save file cannot be uploaded to this game now (shared as a Session); empty = allowed.
+  QString uploadBlockReason(const QString& gameId) const;
   // This game runs here with this slot and the core can take a new save.
   bool liveApplyAvailable(const QString& gameId, const QString& slot) const {
     // "core_tree" (Azahar) needs restartWith (no size check); everything else apply + accepts.
@@ -223,6 +250,9 @@ class SaveSync : public QObject {
   void uploaded(const QString& gameId, int revision);  // after every accepted upload (tests/diagnostics)
   // save_updated from another device; runningHere = this game runs on this Player with that slot (next upload conflicts).
   void saveChangedElsewhere(const framebeam::SaveUpdate& update, bool runningHere);
+  // save_updated "renamed" / "deleted" from another device, after the local slot was handled (moved, removed, or kept
+  // because it is running or has unsynced changes). `message` is a user-facing notice (empty = nothing to say).
+  void slotChangedElsewhere(const framebeam::SaveUpdate& update, const QString& message, bool warning);
 
  private:
   enum class UploadOutcome { Clean, Uploaded, Conflict, Offline, Failed };
@@ -289,6 +319,10 @@ class SaveSync : public QObject {
   void resyncActiveFile();
   void restoreVersionLive(const QString& gameId, const QString& slot, int version, int expectedRevision, RestoreCallback cb);
   void uploadSaveFileLive(const QString& gameId, const QString& slot, const QString& filePath, int expectedRevision, RestoreCallback cb);
+  QString moveLocalSlot(const QString& gameId, const QString& from, const QString& to);  // empty = ok, else a warning
+  void removeLocalSlot(const QString& gameId, const QString& slot);
+  void handleSlotRenamedElsewhere(const SaveUpdate& u);
+  void handleSlotDeletedElsewhere(const SaveUpdate& u);
   // Flush, upload a changed save (final-sync path), then `next(ok, revisionToExpect, message)`; liveOp_ stays set on ok.
   void livePrelude(const QString& gameId, const QString& slot, int expectedRevision,
                    std::function<void(bool, int, const QString&)> next);
@@ -316,6 +350,7 @@ class SaveSync : public QObject {
   bool dialogOpen_ = false;
   bool session_ = false;
   LiveHooks live_;
+  std::function<bool(const QString&)> shared_;
   bool liveOp_ = false;                     // a live restore / upload runs: no checkpoint uploads meanwhile
   RestoreCallback resolveCb_;               // set while a resolution from the saves view runs
   bool resolveLive_ = false;                // ... for the running game (a_ is its session state)

@@ -1,4 +1,5 @@
 {{define "upload-panel"}}
+{{if .Up.Running}}<p class="upl-error" role="status">A Session of this game is running. Upload the save file after it ends.</p>{{else}}
 <form class="upl-panel" method="post" action="{{.Up.Action}}" enctype="multipart/form-data" hx-post="{{.Up.Action}}" hx-encoding="multipart/form-data" hx-target="#save-detail" hx-swap="outerHTML">
   <input type="hidden" name="_csrf" value="{{.CSRF}}">
   {{range .Up.Slots}}<input type="hidden" name="rev.{{.Name}}" value="{{.Rev}}">{{end}}
@@ -18,6 +19,7 @@
   </div>
   {{end}}
 </form>
+{{end}}
 {{end}}
 {{define "saves-list"}}<div id="saves-list" class="saves-listbox" hx-get="{{.Body.ListURL}}" hx-trigger="fb:saves from:body" hx-swap="outerHTML"{{if .Body.OOB}} hx-swap-oob="true"{{end}}>
 {{if .Body.Rows}}
@@ -64,12 +66,43 @@
     </div>
   </form>
 </div>{{end}}
+{{define "slot-ops"}}
+<div class="slot-ops" role="group" aria-label="Slot actions">
+  {{if .Running}}<span class="help">A Session of this game is running. Renaming and deleting slots is possible after it ends.</span>
+  <button class="btn small" type="button" disabled>Rename slot</button> <button class="btn small" type="button" disabled>Delete slot</button>
+  {{else}}
+  <a class="btn small" href="{{.RenameAsk}}" hx-get="{{.RenameAsk}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true">Rename slot</a>
+  <a class="btn small" href="{{.DeleteAsk}}" hx-get="{{.DeleteAsk}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true">Delete slot</a>
+  {{end}}
+</div>
+{{if .RenameOpen}}<div class="confirm newslot" role="group" aria-label="Rename slot">
+  <div class="confirm-title">Rename this slot</div>
+  <p class="help">Checkpoint, history and conflicts move with the slot. Players pick up the new name on their next sync.</p>
+  <form class="inline" method="post" action="{{.RenameHref}}" hx-post="{{.RenameHref}}" hx-target="#save-detail" hx-swap="outerHTML">
+    <label class="field">New name <input type="text" name="name" value="{{.Value}}" maxlength="{{.Max}}" required autocomplete="off" autofocus aria-describedby="rename-hint"></label>
+    <p id="rename-hint" class="help">Lowercase letters, digits, - and _ (up to {{.Max}} characters).</p>
+    <div class="actions">
+      <a class="btn small" href="{{.CancelHref}}" hx-get="{{.CancelHref}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true">Cancel</a>
+      <button class="btn small primary" type="submit">Rename slot</button>
+    </div>
+  </form>
+</div>{{end}}
+{{if .DeleteOpen}}<div class="confirm" role="group" aria-label="Confirm deletion of the slot">
+  <div class="confirm-title">Delete this slot?</div>
+  <p class="help">The latest checkpoint is Rev {{.Rev}} from {{.When}} ({{.Device}}, {{.Size}}), with {{.Versions}} history {{if eq .Versions 1}}version{{else}}versions{{end}}. The slot, its checkpoint and its whole history are removed for good; this cannot be undone. If the slot changed in the meantime, nothing is deleted.</p>
+  <form class="inline" method="post" action="{{.DeleteHref}}" hx-post="{{.DeleteHref}}">
+    <input type="hidden" name="expected_revision" value="{{.Rev}}">
+    <a class="btn small" href="{{.CancelHref}}" hx-get="{{.CancelHref}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true">Cancel</a>
+    <button class="btn small danger" type="submit">Delete slot and history</button>
+  </form>
+</div>{{end}}
+{{end}}
 {{define "newslot-fragment"}}{{with .Body.Detail}}{{with .NewSlot}}{{template "newslot-card" .}}{{end}}{{end}}{{end}}
 {{define "restore-confirm"}}{{range .Body.Detail.History}}{{if .Open}}{{template "restore-card" .}}{{else if .DeleteOpen}}{{template "delete-card" .}}{{end}}{{end}}{{end}}
 {{define "saves-detail-fragment"}}{{template "saves-detail" .Body.Detail}}{{template "saves-list" .}}{{end}}
 {{define "saves-detail"}}
 {{with .}}
-<div id="save-detail" class="save-detail"{{if not .Up.Open}} hx-get="{{.RefreshURL}}" hx-trigger="fb:saves from:body" hx-swap="outerHTML"{{end}}>
+<div id="save-detail" class="save-detail"{{if not (or .Up.Open .Ops.RenameOpen .Ops.DeleteOpen)}} hx-get="{{.RefreshURL}}" hx-trigger="fb:saves from:body" hx-swap="outerHTML"{{end}}>
 <header class="save-head">
   <div><h2>{{.Title}}</h2><p class="sub">{{.User}}{{if .System}} · {{.System}}{{end}}</p></div>
   {{if .Empty}}<span class="pill lg">No save yet</span>{{else if .Conflict}}<span class="pill warn lg">▲ Conflict · unresolved</span>{{else}}<span class="pill ok lg">✓ Synced</span>{{end}}
@@ -80,6 +113,7 @@
   <a class="tab tab-new" href="{{.NewSlotAsk}}" hx-get="{{.NewSlotAsk}}" hx-target="#newslot-form" hx-swap="innerHTML">+ New slot</a>
 </div>
 <div id="newslot-form">{{with .NewSlot}}{{template "newslot-card" .}}{{end}}</div>
+{{with .Ops}}{{if .Show}}{{template "slot-ops" .}}{{end}}{{end}}
 {{end}}
 {{if .Up.Result}}{{if ne .Up.Result.Kind "same"}}{{if ne .Up.Result.Kind "error"}}
 <div class="upl-result ok" role="status"><span class="upl-strong">{{.Up.Result.Text}}</span> <span>{{.Up.Result.Sub}}</span>
@@ -94,7 +128,8 @@
     <span><span class="mono">Rev {{.Current.Rev}}</span> · {{.Current.When}} · {{.Current.Device}} · {{.Current.Reason}}
       <span class="help mono cur-meta">{{.Current.Size}} · {{.Current.ShortHash}}</span></span>
     <a class="btn-link plain" href="{{.Current.DownloadHref}}">Download</a>
-    {{if .Up.Can}}{{if .Up.Open}}<a class="btn upl-toggle on" href="{{.Up.CloseHref}}" hx-get="{{.Up.CloseHref}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true" aria-expanded="true">Upload save ▴</a>
+    {{if .Up.Can}}{{if .Up.Running}}<button class="btn upl-toggle" type="button" disabled aria-describedby="upl-running">Upload save ▾</button><span id="upl-running" class="help">A Session of this game is running. Upload after it ends.</span>
+    {{else if .Up.Open}}<a class="btn upl-toggle on" href="{{.Up.CloseHref}}" hx-get="{{.Up.CloseHref}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true" aria-expanded="true">Upload save ▴</a>
     {{else}}<a class="btn upl-toggle" href="{{.Up.OpenHref}}" hx-get="{{.Up.OpenHref}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true" aria-expanded="false">Upload save ▾</a>{{end}}{{end}}
   </div>
   {{if and .Up.Can .Up.Open}}{{template "upload-panel" .}}{{end}}
