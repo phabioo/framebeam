@@ -6,6 +6,8 @@
 #include <QGuiApplication>
 #include <QQmlContext>
 #include <QQmlProperty>
+#include <QQuickItem>
+#include <QQuickView>
 #include <QTemporaryDir>
 #include <QtTest>
 
@@ -1056,6 +1058,127 @@ class LibrarySavesUiTest : public QObject {
       QVERIFY(h.click("savesBack"));
     }
     h.window->resize(1280, 800);
+  }
+  // ---- Virtualized grid: a very large Library only instantiates the tiles around the viewport -----------------------
+  // GameGrid in a Flickable over a synthetic model of 5000 games (no Hub: only the grid is measured).
+  void largeLibraryCreatesOnlyVisibleTiles() {
+    constexpr int kGames = 5000;
+    QTemporaryDir dir;
+    QFile qml(dir.filePath(QStringLiteral("GridHost.qml")));
+    QVERIFY(qml.open(QIODevice::WriteOnly));
+    qml.write(R"(import QtQuick
+import FrameBeam.Player
+Item {
+    id: root
+    width: 1200
+    height: 700
+    property alias grid: grid
+    property alias flick: flick
+    Flickable {
+        id: flick
+        anchors.fill: parent
+        clip: true
+        contentWidth: width
+        contentHeight: column.implicitHeight + 8
+        Column {
+            id: column
+            x: 4
+            y: 4
+            width: flick.width - 4
+            GameGrid {
+                id: grid
+                objectName: "gameGrid"
+                width: parent.width
+                scroller: flick
+                cellWidth: 170
+                cellHeight: 236
+                model: ListModel { id: games }
+                selectedId: "g3"
+                runningId: "g4"
+            }
+        }
+    }
+    function fill(n) {
+        for (let i = 0; i < n; ++i) {
+            games.append({gameId: "g" + i, title: "Homebrew " + i, system: "nds", monogram: "H", stateKind: "ready",
+                          tileText: "Ready", tileTone: "ok", progress: 0, addedText: ""})
+        }
+    }
+    function clear() { games.clear() }
+}
+)");
+    qml.close();
+    QQuickView view;
+    view.engine()->addImportPath(QStringLiteral("qrc:/qt/qml"));
+    view.setSource(QUrl::fromLocalFile(qml.fileName()));
+    QVERIFY2(view.status() == QQuickView::Ready, "GridHost.qml did not load");
+    view.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&view));
+    QQuickItem* host = view.rootObject();
+    QElapsedTimer timer;
+    timer.start();
+    QVERIFY(QMetaObject::invokeMethod(host, "fill", Q_ARG(QVariant, kGames)));
+    QQuickTest::qWaitForPolish(&view);
+    QObject* grid = host->property("grid").value<QObject*>();
+    QObject* flick = host->property("flick").value<QObject*>();
+    QVERIFY(grid != nullptr && flick != nullptr);
+    const auto created = [&]() { return grid->property("createdCount").toInt(); };
+    const auto alive = [&]() { return grid->property("alive").toInt(); };
+    const auto tile = [&](int i) {
+      QVariant t;
+      QMetaObject::invokeMethod(grid, "tileFor", Q_RETURN_ARG(QVariant, t), Q_ARG(QVariant, QStringLiteral("g%1").arg(i)));
+      return t.value<QObject*>();
+    };
+    qInfo() << "5000 games: grid filled in" << timer.elapsed() << "ms," << created() << "tiles created";
+    QCOMPARE(grid->property("count").toInt(), kGames);
+    QVERIFY2(created() > 0 && created() <= 80, qPrintable(QStringLiteral("created %1 tiles").arg(created())));
+    QVERIFY(alive() <= 80);
+    // Selection and "running" state reach the tiles that exist.
+    QVERIFY(tile(3) != nullptr && tile(3)->property("selected").toBool() && !tile(3)->property("running").toBool());
+    QVERIFY(tile(4) != nullptr && tile(4)->property("running").toBool());
+    QVERIFY(tile(2) != nullptr && !tile(2)->property("selected").toBool());
+    QVERIFY(tile(kGames - 1) == nullptr);
+    // The scroll range covers every row.
+    const qreal contentHeight = flick->property("contentHeight").toReal();
+    QVERIFY(contentHeight > 236.0 * (kGames / 8.0));
+    // Scrolling to the end creates the last tiles and recycles the first ones; the live count stays small.
+    flick->setProperty("contentY", contentHeight - view.height());
+    QTRY_VERIFY_WITH_TIMEOUT(tile(kGames - 1) != nullptr, 3000);
+    QVERIFY(tile(0) == nullptr);
+    QVERIFY(alive() <= 80);
+    // Scrolling through the list in steps only creates what comes into view.
+    for (qreal y = 0; y < contentHeight; y += contentHeight / 40) {
+      flick->setProperty("contentY", y);
+      QTest::qWait(0);
+    }
+    QVERIFY(alive() <= 80);
+    QVERIFY2(created() < 3000, qPrintable(QStringLiteral("created %1 tiles in total").arg(created())));
+    // Back at the top the first tiles exist again.
+    flick->setProperty("contentY", 0);
+    QTRY_VERIFY_WITH_TIMEOUT(tile(0) != nullptr, 3000);
+    // An emptied model leaves no tiles.
+    QVERIFY(QMetaObject::invokeMethod(host, "clear"));
+    QTRY_COMPARE_WITH_TIMEOUT(grid->property("count").toInt(), 0, 3000);
+    QTRY_COMPARE_WITH_TIMEOUT(alive(), 0, 3000);
+  }
+
+  // ---- Save errors on stop -------------------------------------------------------------------------------------------
+  void stopSaveErrorBannerIsShownAndDismissed() {
+    FakeHub hub(QStringLiteral("a"));
+    oneGame(hub);
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    QVERIFY(!shown(h, "stopSaveError"));
+    emit h.controller->gameSession()->stopSaveFailed(QStringLiteral("game.sav: No space left on device"));
+    QTRY_VERIFY_WITH_TIMEOUT(shown(h, "stopSaveError"), 3000);
+    QVERIFY(h.controller->stopSaveError().contains(QStringLiteral("No space left on device")));
+    QVERIFY(h.controller->stopSaveError().contains(QStringLiteral("progress may not be saved")));
+    uitest::saveShot(h.window, QStringLiteral("library-stop-save-error"));
+    QVERIFY(h.click("stopSaveErrorDismiss"));
+    QTRY_VERIFY_WITH_TIMEOUT(!shown(h, "stopSaveError"), 3000);
+    QVERIFY(h.controller->stopSaveError().isEmpty());
   }
 };
 

@@ -52,6 +52,7 @@ class EmulationController : public QObject {
   Q_PROPERTY(int changedCount READ changedCount NOTIFY groupsChanged)    // options of the current scope that differ from their default
   Q_PROPERTY(bool restartHint READ restartHint NOTIFY groupsChanged)    // a changed option applies only after the next game start
   Q_PROPERTY(bool gameRunning READ gameRunning NOTIFY gameRunningChanged)
+  Q_PROPERTY(bool coreProbing READ coreProbing NOTIFY coreProbingChanged)  // a core is being read for its options (worker thread)
   Q_PROPERTY(int lockedCount READ lockedCount NOTIFY groupsChanged)  // options of the core that FrameBeam controls
   Q_PROPERTY(QString coreNote READ coreNote NOTIFY groupsChanged)    // why the core group is empty, else empty
 
@@ -90,6 +91,8 @@ class EmulationController : public QObject {
   int changedCount() const { return changedCount_; }
   bool restartHint() const { return restartHint_; }
   bool gameRunning() const { return gameRunning_; }
+  bool coreProbing() const { return coreProbing_; }
+  void setCoreProbing(bool probing);
   int lockedCount() const { return lockedCount_; }
   QString coreNote() const { return coreNote_; }
 
@@ -119,6 +122,7 @@ class EmulationController : public QObject {
   void groupsChanged();
   void filterChanged();
   void gameRunningChanged();
+  void coreProbingChanged();
   void gamesChanged();
   void gameSelectionChanged();  // the PlayerController makes sure the game's core options are known
   void frameBeamOptionsChanged();  // a "framebeam.*" value changed (the PlayerController applies it)
@@ -160,6 +164,7 @@ class EmulationController : public QObject {
   QVariantList groups_;
   QHash<QString, emu::CoreProbe> probes_;  // core id -> options
   bool gameRunning_ = false;
+  bool coreProbing_ = false;
   QStringList categories_;
   QString categoryFilter_;
   QString searchText_;

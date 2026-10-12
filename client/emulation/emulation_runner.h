@@ -70,6 +70,8 @@ class EmulationRunner : public QObject {
   bool saveMemoryAccepts(qint64 size);
   // Blocks until the emulation thread has finished and the core is unloaded; then stopped().
   void stop();
+  // After stop(): why the final battery save write failed (progress may be lost); empty = saved or nothing to save.
+  QString finalSaveError() const { return m_finalSaveError; }
 
   // thread-safe, take effect on the next frame
   void setJoypadState(unsigned port, quint32 buttonMask);
@@ -133,6 +135,7 @@ class EmulationRunner : public QObject {
   void setState(State s);
 
   std::unique_ptr<EmulatorBackend> m_backend;
+  QString m_finalSaveError;
   std::unique_ptr<Worker> m_worker;
   std::atomic<State> m_state{State::Idle};
   FrameTimingStats m_timing;

@@ -6,6 +6,7 @@
 #include <QList>
 #include <QMap>
 #include <QObject>
+#include <QSet>
 #include <QString>
 #include <QStringList>
 #include <QVariantList>
@@ -14,6 +15,7 @@
 
 #include "core_locator.h"
 #include "corechoice.h"
+#include "coreprober.h"
 #include "corecache.h"
 #include "coreprovisioner.h"
 #include "emulationcontroller.h"
@@ -55,10 +57,25 @@ class CoreCatalog : public QObject {
 
   explicit CoreCatalog(const Deps& d, QObject* parent = nullptr);
 
+ signals:
+  void coreProbed(const QString& coreId);  // one core's probe result was applied
+  void coresProbed();                       // the queue ran empty (handshake core list is up to date)
+
+ public:
+
   // `<base>/system` (cores' system directory and firmware cache); usable before a CoreCatalog exists.
   static QString systemDirIn(const QString& baseDir);
 
+  // Asynchronous (CoreProber worker thread): requests a probe of every located core that is not in the core list yet.
+  // Results are applied on the GUI thread (core list, names, versions, EmulationController probe); `coresProbed` follows
+  // when the last queued probe is done. Not while a game is being started (only one core can be loaded per process).
   void probeCores();
+  // Probes one core for the Emulation page options (not twice concurrently, not again after an attempt on the same
+  // library); false = nothing queued. On failure the options cache is loaded instead. `coreProbed` follows each result.
+  bool probeCoreOptions(const emu::SystemManifest& man);
+  bool probeBusy() const { return prober_.busy(); }
+  bool probing(const QString& coreId) const { return probingIds_.contains(coreId); }
+  CoreProber& prober() { return prober_; }
   // Effective core of a system (and game): game > system > Hub default, among the cores the Hub serves (ADR 0020 D6).
   // Without Hub data (offline): the stored choice, else the first profiled core that is available locally.
   CoreChoice choiceFor(const QString& systemId, const QString& gameId = QString()) const;
@@ -94,6 +111,8 @@ class CoreCatalog : public QObject {
   QString systemDir() const;
 
  private:
+  void applyProbe(const QString& coreId, const emu::CoreProbe& probe);
+
   HubConnection* conn_;
   ProfileStore* profiles_;
   HubSystems* systems_;
@@ -108,6 +127,10 @@ class CoreCatalog : public QObject {
   const QList<FirmwareProblem>& fwProblems_;
   const PlayPhase& phase_;
   const GameEntry& launchGame_;
+  CoreProber prober_;
+  QSet<QString> probingIds_;  // core ids with a queued / running probe
+  QSet<QString> attempted_;   // library keys (path|size|mtime) probed this run (a failed probe is not repeated)
+  QSet<QString> listIds_;     // core ids requested by probeCores(): get a core list entry when their result arrives
   mutable std::map<QString, emu::SystemManifest> effective_;
 };
 

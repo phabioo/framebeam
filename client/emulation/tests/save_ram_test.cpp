@@ -102,7 +102,7 @@ class SaveRamTest : public QObject {
     {
       EmulationRunner runner(std::make_unique<LibretroBackend>());
       QImage last;
-      connect(&runner, &EmulationRunner::frameReady, this, [&last](const QImage& img, quint64) { last = img; });
+      connect(&runner, &EmulationRunner::frameReady, &runner, [&last](const QImage& img, quint64) { last = img; });
       runner.start(req);
       QTRY_VERIFY_WITH_TIMEOUT(runner.state() == EmulationRunner::State::Running && !last.isNull(), 5000);
       QVERIFY(runner.saveMemoryAccepts(8));
@@ -114,12 +114,45 @@ class SaveRamTest : public QObject {
     {
       EmulationRunner runner(std::make_unique<LibretroBackend>());
       QImage last;
-      connect(&runner, &EmulationRunner::frameReady, this, [&last](const QImage& img, quint64) { last = img; });
+      connect(&runner, &EmulationRunner::frameReady, &runner, [&last](const QImage& img, quint64) { last = img; });
       runner.start(req);
       QTRY_VERIFY_WITH_TIMEOUT(runner.state() == EmulationRunner::State::Running && !last.isNull(), 5000);
             runner.stop();
     }
     QCOMPARE(readFile(save()), QByteArray("\t2345678"));  // only the game's own write on top of the new save
+  }
+
+  // The final write at stop can fail (disk full, file locked): the runner reports it after stop(), a good stop reports nothing.
+  void failedFinalWriteIsReportedAfterStop() {
+    qputenv("FB_FAKE_SRAM_SIZE", "8");
+    qputenv("FB_FAKE_SRAM_DELAY_FRAMES", "0");
+    qputenv("FB_FAKE_SRAM_WRITE", "9");
+    EmulationRunner::StartRequest req;
+    req.corePath = QStringLiteral(FB_FAKE_CORE_PATH);
+    req.gamePath = game();
+    req.systemDir = dir_.filePath(QStringLiteral("sys"));
+    req.saveDir = saveDir();
+    {
+      EmulationRunner runner(std::make_unique<LibretroBackend>());
+      QImage last;
+      connect(&runner, &EmulationRunner::frameReady, &runner, [&last](const QImage& img, quint64) { last = img; });
+      runner.start(req);
+      QTRY_VERIFY_WITH_TIMEOUT(runner.state() == EmulationRunner::State::Running && !last.isNull(), 5000);
+      runner.stop();
+      QVERIFY(runner.finalSaveError().isEmpty());
+      QVERIFY(QFile::exists(save()));
+    }
+    QVERIFY(QFile::remove(save()));
+    {
+      EmulationRunner runner(std::make_unique<LibretroBackend>());
+      QImage last;
+      connect(&runner, &EmulationRunner::frameReady, &runner, [&last](const QImage& img, quint64) { last = img; });
+      runner.start(req);
+      QTRY_VERIFY_WITH_TIMEOUT(runner.state() == EmulationRunner::State::Running && !last.isNull(), 5000);
+      QDir(saveDir()).removeRecursively();  // the target directory is gone: the final write cannot succeed
+      runner.stop();
+      QVERIFY(runner.finalSaveError().contains(QStringLiteral("game.sav")));
+    }
   }
 
   void unreadableFileIsNeverOverwritten() {
