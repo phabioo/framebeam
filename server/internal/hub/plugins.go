@@ -161,8 +161,18 @@ func (s *Service) GetPlugin(ctx context.Context, id, version string) (Plugin, er
 	return p, nil
 }
 
-func (s *Service) pluginPath(id, version string) string {
-	return filepath.Join(s.dataDir, "plugins", id, version+".fbplugin")
+// pluginPath builds the on-disk path of an offered version and refuses anything that is not a valid id and version
+// or that would leave <dataDir>/plugins.
+func (s *Service) pluginPath(id, version string) (string, error) {
+	if !safePluginRef(id, version) {
+		return "", errors.New("invalid plugin reference")
+	}
+	base := filepath.Join(s.dataDir, "plugins")
+	p := filepath.Clean(filepath.Join(base, id, version+".fbplugin"))
+	if !strings.HasPrefix(p, base+string(filepath.Separator)) {
+		return "", errors.New("plugin path escapes the plugin directory")
+	}
+	return p, nil
 }
 
 // safePluginRef guards the file system path: only ids and versions that pass the manifest rules map to files.
@@ -179,7 +189,11 @@ func (s *Service) OpenPluginFile(ctx context.Context, id, version string) (*os.F
 	if err != nil {
 		return nil, p, err
 	}
-	f, err := os.Open(s.pluginPath(id, version))
+	path, err := s.pluginPath(id, version)
+	if err != nil {
+		return nil, p, pluginErrNotFound()
+	}
+	f, err := os.Open(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, p, pluginErrNotFound()
 	}
@@ -213,11 +227,14 @@ func (s *Service) storePlugin(ctx context.Context, p *pluginpkg.Package, source,
 	if s.pluginVerdict(p).Official() {
 		origin = PluginOriginOfficial
 	}
-	dir := filepath.Join(s.dataDir, "plugins", m.ID)
-	if err := os.MkdirAll(dir, 0o750); err != nil {
+	path, err := s.pluginPath(m.ID, m.Version)
+	if err != nil {
+		return Plugin{}, false, badRequest("The plugin id or version is not valid.")
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return Plugin{}, false, internal(err)
 	}
-	if err := writeFileAtomic(s.pluginPath(m.ID, m.Version), p.Data()); err != nil {
+	if err := writeFileAtomic(path, p.Data()); err != nil {
 		return Plugin{}, false, internal(err)
 	}
 	desc := strings.TrimSpace(m.Description)
@@ -231,7 +248,7 @@ func (s *Service) storePlugin(ctx context.Context, p *pluginpkg.Package, source,
 	_, err = s.db.ExecContext(ctx, `INSERT INTO plugins(plugin_id, version, name, description, api, manifest, sha256, size, origin, source, uploaded_by, created_at)
 		VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`, m.ID, m.Version, m.Name, desc, m.API, string(p.RawManifest), sum, len(p.Data()), origin, source, by, s.now().Unix())
 	if err != nil {
-		os.Remove(s.pluginPath(m.ID, m.Version))
+		os.Remove(path)
 		return Plugin{}, false, internal(err)
 	}
 	pl, err := s.GetPlugin(ctx, m.ID, m.Version)
@@ -257,8 +274,10 @@ func (s *Service) RemovePlugin(ctx context.Context, id, version string) error {
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM plugins WHERE plugin_id = ? AND version = ?`, id, version); err != nil {
 		return internal(err)
 	}
-	os.Remove(s.pluginPath(id, version))
-	os.Remove(filepath.Join(s.dataDir, "plugins", id)) // only when empty
+	if path, err := s.pluginPath(id, version); err == nil {
+		os.Remove(path)
+		os.Remove(filepath.Dir(path)) // only when empty
+	}
 	return nil
 }
 

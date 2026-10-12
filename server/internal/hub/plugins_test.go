@@ -313,7 +313,7 @@ func TestPluginIndexRejections(t *testing.T) {
 		if err := svc.RefreshPluginIndex(ctx); err != nil {
 			t.Fatal(err)
 		}
-		file := filepath.Join(dir, "net.example.a-1.0.0.fbplugin")
+		file := filepath.Join(dir, "plugin-0.fbplugin")
 		// Same size, other content: SHA-256 pin fails.
 		changed := bytes.Replace(good, []byte("manifest.json"), []byte("manifesT.json"), 1)
 		os.WriteFile(file, changed, 0o644)

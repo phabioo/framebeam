@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -82,12 +83,12 @@ func SignPlugin(t testing.TB, data []byte) []byte {
 func PluginIndex(t testing.TB, dir string, badSig bool, signedFiles ...[]byte) string {
 	t.Helper()
 	idx := pluginpkg.Index{Format: pluginpkg.IndexFormat, GeneratedAt: time.Date(2026, 10, 12, 0, 0, 0, 0, time.UTC)}
-	for _, data := range signedFiles {
+	for i, data := range signedFiles {
 		p, err := pluginpkg.Open(data)
 		if err != nil {
 			t.Fatal(err)
 		}
-		name := filepath.Join(dir, p.Manifest.ID+"-"+p.Manifest.Version+".fbplugin")
+		name := filepath.Join(dir, fmt.Sprintf("plugin-%d.fbplugin", i))
 		if err := os.WriteFile(name, data, 0o644); err != nil {
 			t.Fatal(err)
 		}
