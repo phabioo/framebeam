@@ -296,6 +296,13 @@
     <div class="help">Forward these to this hub’s host; the hub does not configure the router.</div>
     <ul class="help">{{range .Forwards}}<li>{{.}}</li>{{end}}</ul></div></div>
   {{end}}{{end}}
+  <div class="set-row"><div><div class="label">Other relay providers</div>
+    <div class="help">Set with hub flags or environment variables, not here; secrets and passwords never appear on this page. See hub-configuration.md (TURN).</div>
+    <ul class="help">
+      <li>Cloudflare TURN: {{if .Cloudflare}}on{{else}}off{{end}}</li>
+      {{range .External}}<li><span class="mono">{{.Name}}</span>: {{.URLs}} · {{.Mode}} · {{if .SecretSet}}secret configured{{else}}no secret{{end}}</li>
+      {{else}}<li>External TURN servers: none</li>{{end}}
+    </ul></div></div>
 </section>
 
 <section class="set-card">

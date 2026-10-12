@@ -52,9 +52,11 @@ func (s *Service) SetTURN(t TURN) {
 // TURNEnabled reports whether the embedded TURN server is on.
 func (s *Service) TURNEnabled() bool { return s.turn.p.Load() != nil }
 
-// RelayEnabled reports whether any relay provider is on (embedded TURN or Cloudflare TURN); turn_v1 is announced
-// while it is.
-func (s *Service) RelayEnabled() bool { return s.TURNEnabled() || s.cf.configured.Load() }
+// RelayEnabled reports whether any relay provider is on (embedded TURN, Cloudflare TURN or an external TURN
+// server); turn_v1 is announced while it is.
+func (s *Service) RelayEnabled() bool {
+	return s.TURNEnabled() || s.cf.configured.Load() || len(s.ext.list()) > 0
+}
 
 // turnFor returns the embedded server's stun: URL and the TURN credentials for the device; both empty when off.
 func (s *Service) turnFor(reqHost, deviceID string) (stun string, creds *turnsrv.Credentials) {
@@ -66,7 +68,8 @@ func (s *Service) turnFor(reqHost, deviceID string) (stun string, creds *turnsrv
 	return (*p).STUNURL(reqHost), &c
 }
 
-// relaysFor returns the stun: URLs of the relay providers (embedded first) and all TURN credentials of the device.
+// relaysFor returns the stun: URLs of the relay providers (embedded first, then Cloudflare, then the external TURN
+// servers) and all TURN credentials of the device.
 func (s *Service) relaysFor(reqHost, deviceID string) (stun []string, creds []turnsrv.Credentials) {
 	if u, c := s.turnFor(reqHost, deviceID); c != nil {
 		stun, creds = append(stun, u), append(creds, *c)
@@ -76,6 +79,7 @@ func (s *Service) relaysFor(reqHost, deviceID string) (stun []string, creds []tu
 	if cfCreds != nil {
 		creds = append(creds, *cfCreds)
 	}
+	creds = append(creds, s.externalFor(deviceID)...)
 	return stun, creds
 }
 
@@ -96,8 +100,11 @@ func (s *Service) iceFor(reqHost, deviceID string) ([]string, []turnsrv.Credenti
 func turnPayload(creds []turnsrv.Credentials) []map[string]any {
 	out := make([]map[string]any, 0, len(creds))
 	for _, c := range creds {
-		out = append(out, map[string]any{"urls": c.URLs, "username": c.Username, "credential": c.Credential,
-			"expires_at": c.ExpiresAt.UTC().Format(time.RFC3339)})
+		m := map[string]any{"urls": c.URLs, "username": c.Username, "credential": c.Credential}
+		if !c.ExpiresAt.IsZero() { // static credentials of an external TURN server do not expire
+			m["expires_at"] = c.ExpiresAt.UTC().Format(time.RFC3339)
+		}
+		out = append(out, m)
 	}
 	return out
 }

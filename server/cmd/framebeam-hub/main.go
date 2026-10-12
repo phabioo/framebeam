@@ -101,6 +101,26 @@ func openService(ctx context.Context, cfg *config.Config) (*hub.Service, func(),
 	return svc, func() { db.Close() }, nil
 }
 
+// externalTURNServers reads the secrets of the configured external TURN servers (environment or file). A server
+// whose secret is unavailable stays off with a warning; secrets are never logged.
+func externalTURNServers(cfg *config.Config, specs []config.ExternalTURNSpec, log *slog.Logger) []hub.ExternalTURN {
+	var out []hub.ExternalTURN
+	for i, sp := range specs {
+		secret, err := cfg.ExternalTURNSecret(sp, i+1, os.Getenv)
+		if err != nil {
+			log.Warn("external TURN server stays off: secret unavailable", "name", sp.Name, "err", err)
+			continue
+		}
+		p := hub.ExternalTURN{Name: sp.Name, URLs: sp.URLs, Mode: hub.ExternalTURNSecret, Secret: secret}
+		if sp.Mode == config.ExternalModeStatic {
+			p = hub.ExternalTURN{Name: sp.Name, URLs: sp.URLs, Mode: hub.ExternalTURNStatic, Username: sp.Username, Password: secret}
+		}
+		out = append(out, p)
+		log.Info("external TURN server enabled", "name", sp.Name, "mode", p.Mode, "urls", sp.URLs)
+	}
+	return out
+}
+
 // startTURN starts the embedded STUN/TURN server (ADR 0012); it stops with Close on Hub shutdown.
 func startTURN(ctx context.Context, cfg *config.Config, svc *hub.Service, log *slog.Logger) (*turnsrv.Server, error) {
 	secret, err := svc.TURNSecret(ctx)
@@ -354,6 +374,14 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 					BaseURL: cfg.CloudflareTURNBaseURL, Log: log})
 				log.Info("Cloudflare TURN relay enabled", "key_id", cfg.CloudflareTURNKeyID)
 			}
+		}
+	}
+
+	if specs, _ := cfg.ExternalTURNSpecs(); len(specs) > 0 {
+		if !eff.NetworkSharing {
+			log.Info("external TURN servers stay off while Network sharing is off")
+		} else if ext := externalTURNServers(cfg, specs, log); len(ext) > 0 {
+			svc.StartExternalTURN(ctx, ext, hub.ExternalTURNOptions{})
 		}
 	}
 

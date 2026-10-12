@@ -24,7 +24,7 @@ type Credentials struct {
 	URLs       []string
 	Username   string
 	Credential string
-	ExpiresAt  time.Time
+	ExpiresAt  time.Time // zero: does not expire (static credentials of an external TURN server)
 }
 
 // password is base64(HMAC-SHA1(secret, username)).

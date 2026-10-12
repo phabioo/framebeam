@@ -40,6 +40,9 @@ type Config struct {
 	CloudflareTURNTokenFile string
 	// CloudflareTURNBaseURL overrides the API base (tests only, no flag).
 	CloudflareTURNBaseURL string
+	// TURNExternal are the raw -turn-external values (external TURN servers); see ExternalTURNSpecs. They hold no
+	// secret: the shared secret or password comes from the environment or a file (ExternalTURNSecret).
+	TURNExternal []string
 	// CoreBuildbotURL is the libretro buildbot nightly base URL (ADR 0020 D1), https only.
 	CoreBuildbotURL string
 	// CoreInfoURL is the libretro core info archive (info.zip), https only.
@@ -256,6 +259,8 @@ func register(fs *flag.FlagSet, getenv func(string) string, goos string) *Config
 	fs.Var(csvList{&c.ICEServers}, "ice-servers", "comma-separated stun: URLs for Sessions, default "+DefaultSTUNServer+", \"none\" = no external STUN (FRAMEBEAM_ICE_SERVERS)")
 	fs.StringVar(&c.CloudflareTURNKeyID, "cloudflare-turn-key-id", env("CLOUDFLARE_TURN_KEY_ID", ""), "Cloudflare Realtime TURN key ID, optional relay next to -turn; the API token comes from FRAMEBEAM_CLOUDFLARE_TURN_API_TOKEN or -cloudflare-turn-token-file (FRAMEBEAM_CLOUDFLARE_TURN_KEY_ID)")
 	fs.StringVar(&c.CloudflareTURNTokenFile, "cloudflare-turn-token-file", env("CLOUDFLARE_TURN_TOKEN_FILE", ""), "file holding the Cloudflare TURN API token (FRAMEBEAM_CLOUDFLARE_TURN_TOKEN_FILE)")
+	c.TURNExternal = splitLines(getenv("FRAMEBEAM_TURN_EXTERNAL"))
+	fs.Var(&externalList{v: &c.TURNExternal}, "turn-external", "external TURN server, repeatable: mode=secret|static;urls=turn:turn.example.org:3478?transport=udp,...;secret-file=<path> (static: username=<user>;password-file=<path>); secrets also via FRAMEBEAM_TURN_EXTERNAL_<n>_SECRET/_PASSWORD (FRAMEBEAM_TURN_EXTERNAL, one server per line)")
 	fs.StringVar(&c.CoreBuildbotURL, "core-buildbot-url", func() string {
 		if v := getenv("FRAMEBEAM_HUB_CORE_BUILDBOT_URL"); v != "" {
 			return v
@@ -353,6 +358,9 @@ func (c *Config) Validate() error {
 		}
 	} else if c.CloudflareTURNTokenFile != "" {
 		return errors.New("-cloudflare-turn-token-file needs -cloudflare-turn-key-id")
+	}
+	if _, err := c.ExternalTURNSpecs(); err != nil {
+		return err
 	}
 	if _, _, err := SplitPublicHost(c.PublicHost); err != nil {
 		return errors.New("public-host must be a host name or IP address with an optional port (host[:port], IPv6 in brackets)")

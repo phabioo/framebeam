@@ -20,7 +20,7 @@ The save model (`docs/architecture/03-saves.md`) left retention, restore, manual
 | Internet with port forwarding (recommended) | public IPv4 at the Hub's router (no CGNAT/DS-Lite), a DNS name for it (DynDNS), forwards for the Hub port (TCP), TURN port 3478 (UDP and TCP) and the relay range (UDP), embedded TURN switched on | direct (STUN) when possible, else relayed by the Hub |
 | VPN (WireGuard, Tailscale, ...) | Players pair with the Hub's VPN address | host candidates over the VPN |
 
-An external TURN server (for example coturn) is not supported in 0.4; `-ice-servers` keeps accepting `stun:` URLs only.
+An external TURN server (for example coturn) is not supported in 0.4; `-ice-servers` keeps accepting `stun:` URLs only. (Superseded for relays by the amendment of 2026-10-12 below.)
 
 ### D2 Embedded STUN/TURN server
 
@@ -95,3 +95,12 @@ An external TURN server (for example coturn) is not supported in 0.4; `-ice-serv
 - **Core index:** served from `<data>/cores/index.json` and `index.json.sig`, written after verification and a successful apply on sync/import, and served byte-exact. The Player verifies on every `prepare()` (also with all files cached); a 404 or a failure marks the core "untrusted".
 - **Player saves:** slot `default` keeps the existing directory; other slots live in `<game dir>/slots/<slot>/`. The slot choice is stored per Hub profile and game in `player.json` (`save_slots`). Restore is blocked while the game runs, with a pending or conflict state, or when the local file differs from the last synced hash; the replaced local file is kept as `.restore-*.bak`. The CLI always uses `default`.
 - **Player media:** ICE/TURN lists in the join response win; `hello_ack` is the fallback when they are empty. libjuice reports relayed candidates as UDP, so "relay (tcp)" is shown only when the transport says so or only TCP TURN URLs were offered. libdatachannel takes at most 2 TURN servers. libx264 changes the bitrate at runtime; other encoders are reopened with a keyframe (at most every 5 s). The CLI prints `CONNECTION <type>`; `STATS` link values use underscores.
+
+## Amendment 2026-10-12: provider-neutral relay
+
+D1 ("no external TURN server") no longer holds. The relay is provider-neutral: besides the embedded TURN server (`-turn`) and Cloudflare TURN, the admin can add any number of standard external TURN servers (`-turn-external`, [hub-configuration.md](../guides/hub-configuration.md)): an own coturn on a VPS ([coturn-on-a-vps.md](../guides/coturn-on-a-vps.md)) or a third-party provider.
+
+- Per server one of two credential modes: shared secret (TURN REST API, as the embedded TURN: username `<expiry>:<device-id>`, password `base64(HMAC-SHA1(secret, username))`, 12 h, renewed by `ice_update` every 6 h) or a static username and password.
+- All active providers go into `turn_servers`; `turn_v1` means any relay provider is on. The Player needs no change: it already offers every `turn_servers` entry to ICE and ignores `expires_at`. OpenAPI 1.13.0 makes `TurnServer.expires_at` optional (absent for static credentials).
+- Secrets and passwords come from the environment or files only, are never stored in the database, never logged and never shown (Settings, diagnostics `network.external_turn`).
+- `-ice-servers` still accepts `stun:` URLs only. D2 to D7 (embedded TURN, per-device credentials, limits, save retention) are unchanged.
