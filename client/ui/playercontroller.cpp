@@ -238,6 +238,12 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
 
   sessions_ = std::make_unique<SessionController>(conn_.get(), profiles_.get(), &session_);
   sessions_->setPlayerSettings(settings_.get());  // diagnostics overlay states live in settings/player.json (0.6 D5)
+  runClient_ = std::make_unique<RunClient>(conn_.get(), sessions_->socket(), profiles_->baseDir());
+  runs_ = std::make_unique<RunsController>(runClient_.get(), plugins_.get(), library_.get(), conn_.get());
+  connect(runs_.get(), &RunsController::launchRequested, this, &PlayerController::startRunGame);
+  connect(runs_.get(), &RunsController::availableChanged, this, [this]() {
+    if (page_ == QLatin1String("runs") && !runs_->available()) showLibrary();  // the entry went away
+  });
   saves_->setSettings(settings_.get());
   {
     // Saves view inside the game: restore / upload / "use the Hub save" load the save into the running core.
@@ -417,7 +423,8 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     gameStartedMs_ = QDateTime::currentMSecsSinceEpoch();
     sessions_->gameStarted(launchGame_.id, launchGame_.title);
     // Plugins start asynchronously after the game: they never delay it, failures only show in the console and the log.
-    plugins_->gameStarted(launchGame_.system, launchRom_, launchGame_.romSha256, launchGame_.title);
+    plugins_->gameStarted(launchGame_.system, launchRom_, launchGame_.romSha256, launchGame_.title, QStringLiteral("en"),
+                          runStart_.pending() && runStart_.gameId == launchGame_.id ? runs_->launchFor(runStart_.runId) : RunLaunch());
     if (shareOnStart_) {
       shareOnStart_ = false;
       sessions_->shareSession();
@@ -466,6 +473,7 @@ PlayerController::~PlayerController() { shutdown(); }
 void PlayerController::endGameContext() {
   setBackground(false);
   gameActive_ = false;
+  finishRunStart();
   if (cache_ && !launchGame_.romSha256.isEmpty()) {
     cache_->touch(launchGame_.romSha256, RomCache::extensionFromFilename(launchGame_.romFilename));  // LRU: last use = end of play
   }
@@ -1300,6 +1308,7 @@ void PlayerController::endRunningWork() {
     saves_->finalSyncBlocking(true);
     gameActive_ = false;
     phase_ = PlayPhase::None;
+    finishRunStart();
     if (quitting_) {
       quitting_ = false;
       emit quittingChanged();
@@ -1435,6 +1444,7 @@ void PlayerController::onRomStatus(const QString& sha, const RomStatus& st) {
 }
 
 void PlayerController::playSelected() {
+  if (runStart_.pending() && !gameActive_ && phase_ == PlayPhase::None) finishRunStart();  // a run start that never got going
   if (background_) {
     if (selectedId_ == backgroundId_) {
       resumeGame();
@@ -1538,6 +1548,7 @@ void PlayerController::confirmQuitAndStart() {
 }
 
 void PlayerController::playAndShareSelected() {
+  if (runStart_.pending() && !gameActive_ && phase_ == PlayPhase::None) finishRunStart();
   if (background_) {
     if (selectedId_ == backgroundId_) {
       resumeGame();
@@ -1599,8 +1610,42 @@ void PlayerController::quitGame() {
   saves_->finalSync(true);
   gameActive_ = false;
   phase_ = PlayPhase::None;
+  finishRunStart();
   updateScreen();
   emit selectedGameChanged();
+}
+
+// ---------------------------------------------------------------- Runs
+
+void PlayerController::showRuns() {
+  if (conn_->state() != HubConnection::State::Connected || (gameActive_ && !background_) || !runs_->available()) {
+    return;
+  }
+  runs_->refresh();
+  page_ = QStringLiteral("runs");
+  updateScreen();
+}
+
+void PlayerController::startRunGame(const QString& runId, const QString& gameId) {
+  if (background_ || gameActive_ || session_.isActive() || phase_ != PlayPhase::None) {
+    return;  // a game is running or starting: the Runs screen is not reachable then, nothing to do
+  }
+  finishRunStart();
+  runStart_ = {runId, gameId, saves_->slotFor(gameId)};
+  // The run keeps its own saves: slot run-<first 8 hex of the run id>, never the game's default slot.
+  if (!saves_->setSlot(gameId, runSaveSlot(runId))) {
+    runStart_ = {};
+    return;
+  }
+  selectGame(gameId);
+  cancelBackgroundUpdateForSelected();
+  starter_->startSelected(false);
+}
+
+void PlayerController::finishRunStart() {
+  if (!runStart_.pending()) return;
+  const RunStart rs = std::exchange(runStart_, {});
+  if (!saves_->isRunning(rs.gameId)) saves_->setSlot(rs.gameId, rs.previousSlot);
 }
 
 }  // namespace framebeam::ui

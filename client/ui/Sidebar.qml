@@ -96,6 +96,42 @@ Rectangle {
                 model: [{ label: qsTr("Library"), name: "navLibrary", target: "library" }]
                 delegate: navComp
             }
+            // Runs (4j-2): shown when the Hub offers runs and an installed plugin asks for run.state; badge = open invites.
+            Rectangle {
+                id: runsItem
+                objectName: "navRuns"
+                visible: root.player.runs.available
+                readonly property bool active: root.player.screen === "runs"
+                Layout.fillWidth: true
+                implicitHeight: 38
+                radius: Theme.radius6
+                color: runsItem.active ? Theme.surfaceRaised : (runsHover.hovered ? Theme.surface : "transparent")
+                Behavior on color { ColorAnimation { duration: Theme.durFast } }
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: 10
+                    anchors.rightMargin: 10
+                    FbLabel {
+                        Layout.fillWidth: true
+                        text: qsTr("Runs")
+                        font.weight: runsItem.active ? Font.Medium : Font.Normal
+                        color: runsItem.active ? Theme.text : (runsHover.hovered ? Theme.textSecondary : Theme.textMuted)
+                    }
+                    Rectangle {
+                        objectName: "navRunsBadge"
+                        visible: root.player.runs.pendingInvites > 0
+                        Layout.preferredWidth: Math.max(18, runsBadgeText.implicitWidth + 10)
+                        Layout.preferredHeight: 18
+                        radius: 9
+                        color: Theme.accentChipBg
+                        FbLabel { id: runsBadgeText; anchors.centerIn: parent; text: root.player.runs.pendingInvites; font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.accent }
+                    }
+                }
+                Accessible.role: Accessible.Button
+                Accessible.name: qsTr("Runs")
+                HoverHandler { id: runsHover; cursorShape: Qt.PointingHandCursor }
+                TapHandler { onTapped: root.player.showRuns() }
+            }
             // Plugin screens (4f): one entry per plugin, indented under Library
             Repeater {
                 model: root.player.plugins.sidebarEntries

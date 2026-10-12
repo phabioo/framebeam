@@ -17,6 +17,7 @@
 #include "plugin_delivery.h"
 #include "plugin_host.h"
 #include "plugin_manager.h"
+#include "run_bridge.h"
 #include "pluginhub.h"
 #include "pluginimageprovider.h"
 #include "pluginruntime.h"
@@ -29,6 +30,12 @@ class PlayerSettings;
 namespace framebeam::ui {
 
 class GameSession;
+
+// A game started in a run: exactly these Hub copies run, with fb.run backed by `bridge`.
+struct RunLaunch {
+  std::shared_ptr<plugins::RunBridge> bridge;
+  QList<plugins::RunPluginPin> pins;
+};
 
 class PluginsController : public QObject {
   Q_OBJECT
@@ -125,13 +132,15 @@ class PluginsController : public QObject {
   plugins::PluginDelivery* delivery() { return delivery_.get(); }
   PluginHubClient* hubClient() { return hubClient_.get(); }
   bool hubSupported() const { return hubClient_ != nullptr && hubClient_->supported(); }
+  // Some installed plugin (any copy, also Hub copies) asks for the permission run.state: the Runs entry is worth showing.
+  bool hasRunPlugin() const;
   QVariantList hubPlugins() const { return hubPlugins_; }
   QString hubStatus() const;
   QString hubError() const { return hubClient_ != nullptr ? hubClient_->errorMessage() : QString(); }
 
   // A game runs (GameSession::started): resolves the plugins for it and starts them. `language` = Player UI language.
   void gameStarted(const QString& system, const QString& romPath, const QString& sha256, const QString& title,
-                   const QString& language = QStringLiteral("en"));
+                   const QString& language = QStringLiteral("en"), const RunLaunch& run = {});
   // The game ended or failed: stops all plugins.
   void gameStopped();
   bool pluginsRunning() const { return running_; }

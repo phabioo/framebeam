@@ -409,8 +409,16 @@ void PluginsController::refreshPlugins() {
 
 // ---------------------------------------------------------------- game lifecycle
 
+bool PluginsController::hasRunPlugin() const {
+  for (const plugins::PluginInfo& p : manager_->list())
+    if (p.manifest.hasPermission(QStringLiteral("run.state"))) return true;
+  for (const plugins::PluginInfo& p : manager_->hubCopies())
+    if (p.manifest.hasPermission(QStringLiteral("run.state"))) return true;
+  return false;
+}
+
 void PluginsController::gameStarted(const QString& system, const QString& romPath, const QString& sha256, const QString& title,
-                                    const QString& language) {
+                                    const QString& language, const RunLaunch& run) {
   if (inGame_ || running_) stopGame(false);
   inGame_ = true;
   language_ = language.isEmpty() ? QStringLiteral("en") : language;
@@ -427,7 +435,8 @@ void PluginsController::gameStarted(const QString& system, const QString& romPat
   ctx.title = title;
   ctx.romPath = romPath;
   ctx.language = language_;
-  const plugins::GameResolution res = manager_->resolveForGame(system, ctx.code);
+  ctx.run = run.bridge;
+  const plugins::GameResolution res = run.bridge ? manager_->resolveForRun(run.pins) : manager_->resolveForGame(system, ctx.code);
   for (auto it = res.problems.begin(); it != res.problems.end(); ++it)
     qCInfo(lcPlugins) << "plugin" << it.key() << "not started:" << it.value().join(QStringLiteral("; "));
   if (res.start.isEmpty()) {
