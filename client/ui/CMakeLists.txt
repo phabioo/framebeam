@@ -101,6 +101,8 @@ qt_add_qml_module(framebeam_ui
     LocalHubForm.qml
     LocalHubCard.qml
     LocalFolderDialog.qml
+    LibraryFolderDialog.qml
+    LibraryFoldersSection.qml
     PluginFolderDialog.qml
     PluginFileDialog.qml
     PluginOriginPill.qml

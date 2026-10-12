@@ -1,0 +1,31 @@
+{
+  "_source": "Option keys and values from libretro/mgba src/platform/libretro/libretro_core_options.h. mgba_sgb_borders ON would change the frame to 256x224 (Super Game Boy border), so it is locked to OFF.",
+  "core_id": "mgba",
+  "display_name": "mGBA",
+  "library_basename": "mgba_libretro",
+  "system_ids": [
+    "gb",
+    "gbc",
+    "gba"
+  ],
+  "order": 0,
+  "save": {
+    "source": "save_ram",
+    "extension": ".sav"
+  },
+  "firmware": {
+    "sysfile_option": "mgba_use_bios",
+    "sysfile_native": "ON",
+    "sysfile_builtin": "OFF"
+  },
+  "core_options": {
+    "mgba_sgb_borders": "OFF",
+    "mgba_skip_bios": "OFF"
+  },
+  "locked_core_options": [
+    "mgba_sgb_borders"
+  ],
+  "always_shown_core_options": [
+    "mgba_color_correction"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "id": "nds",
+  "display_name": "Nintendo DS",
+  "extensions": [".nds"],
+  "libretro_ids": ["nds"],
+  "platforms": ["windows-x86_64", "linux-x86_64"],
+  "provisioning": "Installed by the admin",
+  "input_profile": "nds",
+  "display_profile": "dual_screen",
+  "firmware": [
+    {"id": "bios7", "display_name": "ARM7 BIOS", "file": "bios7.bin", "sizes": [16384]},
+    {"id": "bios9", "display_name": "ARM9 BIOS", "file": "bios9.bin", "sizes": [4096]},
+    {"id": "firmware", "display_name": "DS Firmware", "file": "firmware.bin", "sizes": [131072, 262144, 524288]}
+  ],
+  "identity": "nds_header",
+  "profiled_cores": ["melondsds", "desmume"]
+}

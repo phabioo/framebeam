@@ -26,6 +26,9 @@
 namespace framebeam {
 class HubConnection;
 class PlayerSettings;
+namespace emu {
+class ManifestRegistry;
+}
 }
 
 namespace framebeam::ui {
@@ -101,6 +104,9 @@ class PluginsController : public QObject {
   PluginsController(PlayerSettings* settings, const QString& dataDir, GameSession* session, HubConnection* connection = nullptr,
                     QObject* parent = nullptr);
   ~PluginsController() override;
+
+  // System manifests (the game identity reader is the manifest's "identity"); without them no game code is read.
+  void setManifests(const emu::ManifestRegistry* manifests) { manifests_ = manifests; }
 
   bool developerMode() const;
   void setDeveloperMode(bool on);
@@ -291,6 +297,8 @@ class PluginsController : public QObject {
 
   PlayerSettings* settings_;
   GameSession* session_;
+  const emu::ManifestRegistry* manifests_ = nullptr;
+  QString identityReader(const QString& system) const;
   std::unique_ptr<plugins::PluginManager> manager_;
   std::unique_ptr<plugins::PluginHost> host_;
   std::unique_ptr<PluginHubClient> hubClient_;

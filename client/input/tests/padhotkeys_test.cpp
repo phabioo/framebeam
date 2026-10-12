@@ -6,7 +6,9 @@
 #include <QtTest>
 
 #include "gamepadservice.h"
+#include "inputmap.h"
 #include "padhotkeys.h"
+#include "system_manifest.h"
 
 using namespace framebeam;
 using namespace framebeam::input;
@@ -100,6 +102,10 @@ class PadHotkeysTest : public QObject {
 class PadHotkeysServiceTest : public QObject {
   Q_OBJECT
  private slots:
+  void initTestCase() {  // loading the manifests registers the input tables
+    framebeam::emu::ManifestRegistry reg;
+    QVERIFY(reg.loadBuiltin());
+  }
   void comboNeverReachesTheCore() {
     GamepadService svc;
     QVERIFY2(svc.start(0), qPrintable(svc.error()));

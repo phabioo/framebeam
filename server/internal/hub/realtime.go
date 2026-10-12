@@ -440,7 +440,7 @@ func (c *Client) hello(env envelope) error {
 	}
 	ice, turn := c.svc.iceFor(c.reqHost, c.deviceID)
 	ack := map[string]any{"protocol_version": info.ProtocolVersion, "hub_version": info.HubVersion,
-		"features": []string{FeatureSavesV1, FeatureSavesV2, FeatureSessionsV1, FeatureICEUpdateV1, FeatureRunsV1}, "ice_servers": ice}
+		"features": []string{FeatureSavesV1, FeatureSavesV2, FeatureSessionsV1, FeatureICEUpdateV1, FeatureRunsV1, FeatureLocalROMsV1}, "ice_servers": ice}
 	if len(turn) > 0 {
 		ack["turn_servers"] = turnPayload(turn)
 	}

@@ -68,9 +68,20 @@ QVariantMap GameDetail::selectedGame() const {
   // ROM row
   QString romText;
   QString romTone = QStringLiteral("neutral");
-  if (kind == QLatin1String("ready")) {
+  const bool fromLibraryFolder = kind == QLatin1String("ready") && !st.localPath.isEmpty() && !st.localPath.startsWith(cache_->dir());
+  m.insert(QStringLiteral("onHub"), game->onHub);
+  m.insert(QStringLiteral("localOnly"), !game->onHub);
+  m.insert(QStringLiteral("localFile"), fromLibraryFolder);
+  m.insert(QStringLiteral("localPath"), fromLibraryFolder ? st.localPath : QString());
+  if (kind == QLatin1String("ready") && fromLibraryFolder) {
+    romText = game->onHub ? tr("Local file · starts from your library folder") : tr("Local file · not on the Hub");
+    romTone = QStringLiteral("ok");
+  } else if (kind == QLatin1String("ready")) {
     romText = tr("Cached locally · verified");
     romTone = QStringLiteral("ok");
+  } else if (kind == QLatin1String("missing")) {
+    romText = tr("File missing on this device");
+    romTone = QStringLiteral("warn");
   } else if (kind == QLatin1String("download")) {
     romText = tr("Download needed · %1").arg(LibraryModel::formatSize(game->romSize));
   } else if (kind == QLatin1String("downloading")) {
@@ -207,7 +218,8 @@ QVariantMap GameDetail::selectedGame() const {
                                                              : (fwOk ? QStringLiteral("pending") : QStringLiteral("error"))),
                           QString()));
   }
-  list.append(checkItem(romReady ? tr("ROM verified from cache") : tr("Download and verify ROM"),
+  list.append(checkItem(fromLibraryFolder ? tr("ROM found in library folder")
+                                           : romReady ? tr("ROM verified from cache") : tr("Download and verify ROM"),
                         romReady ? QStringLiteral("done") : (phase_ == PlayPhase::Rom ? QStringLiteral("active") : QStringLiteral("pending")),
                         romReady ? QString() : romText));
   list.append(checkItem(man != nullptr && man->saveSource == QLatin1String("none")
@@ -226,7 +238,7 @@ QVariantMap GameDetail::selectedGame() const {
   m.insert(QStringLiteral("error"), error);
   m.insert(QStringLiteral("busy"), busy);
   m.insert(QStringLiteral("canPlay"), !busy && man != nullptr && (coreOk || coreProvisionable) && fwOk && kind != QLatin1String("validating") &&
-                                          kind != QLatin1String("downloading") && kind != QLatin1String("unknown") && !fwChecking);
+                                          kind != QLatin1String("downloading") && kind != QLatin1String("unknown") && kind != QLatin1String("missing") && !fwChecking);
   QString label = tr("Play");
   if (busy) {
     label = phase_ == PlayPhase::Launching ? tr("Starting…")

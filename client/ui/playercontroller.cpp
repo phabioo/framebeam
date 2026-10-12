@@ -7,6 +7,9 @@
 #include <QDir>
 #include <QFutureWatcher>
 #include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QSaveFile>
 #include <QStandardPaths>
 #include <QFileInfo>
 #include <QGuiApplication>
@@ -30,6 +33,7 @@
 #include "firmware_materializer.h"
 #include "installroot.h"
 #include "libretro_backend.h"
+#include "game_identity.h"
 #include "mediacaps.h"
 #include "semver.h"
 #include "version.h"
@@ -52,6 +56,61 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   downloader_ = std::make_unique<RomDownloader>(conn_.get(), cache_.get());
   saves_ = std::make_unique<SaveSync>(conn_.get(), profiles_.get());
   settings_ = std::make_unique<PlayerSettings>(profiles_->baseDir());
+  localRoms_ = std::make_unique<LocalRomIndex>(QDir(profiles_->baseDir()).filePath(QStringLiteral("cache/local-roms.json")));
+  registrar_ = std::make_unique<RomRegistrar>(conn_.get());
+  connect(localRoms_.get(), &LocalRomIndex::scanProgress, this, [this](int done, int total) {
+    libraryScan_.insert(QStringLiteral("done"), done);
+    libraryScan_.insert(QStringLiteral("total"), total);
+    emit libraryScanChanged();
+  });
+  connect(localRoms_.get(), &LocalRomIndex::scanFinished, this, [this](int count, int hashed, bool cancelled) {
+    Q_UNUSED(hashed)
+    libraryScan_ = {{QStringLiteral("active"), false},
+                    {QStringLiteral("done"), count},
+                    {QStringLiteral("total"), count},
+                    {QStringLiteral("isError"), false},
+                    {QStringLiteral("text"), cancelled ? tr("Scan cancelled.")
+                                             : count == 0 ? tr("No game files found in the library folders.")
+                                                          : tr("%n game file(s) found.", nullptr, count)}};
+    emit libraryScanChanged();
+    if (cancelled) return;
+    ignoredRoms_.intersect([this]() {
+      QSet<QString> present;
+      for (const LocalRomFile& f : localRoms_->files()) present.insert(f.sha256);
+      return present;
+    }());
+    saveIgnoredRoms();
+    refreshRomStatuses();
+    if (libraryState_ == QLatin1String("ready")) registerLocalFiles();
+  });
+  connect(registrar_.get(), &RomRegistrar::registered, this, [this](const RegisterOutcome& o) {
+    if (!o.ok) failedRegistrations_.insert(o.sha256);
+  });
+  connect(registrar_.get(), &RomRegistrar::batchFinished, this, [this](int ok, int failed) {
+    if (failed > 0) {
+      libraryScan_.insert(QStringLiteral("text"), tr("%n file(s) could not be registered with the Hub.", nullptr, failed));
+      libraryScan_.insert(QStringLiteral("isError"), true);
+      emit libraryScanChanged();
+    }
+    if (ok > 0) {
+      quietRefresh_ = true;
+      library_->reload();
+    }
+  });
+  connect(registrar_.get(), &RomRegistrar::unregistered, this, [this](const QString& gameId, bool ok, const QString& message) {
+    if (!ok) {
+      startError_ = tr("The game could not be removed from the library: %1").arg(message);
+      emit selectedGameChanged();
+      return;
+    }
+    if (const auto g = library_->gameById(gameId)) {
+      for (const RomFileEntry& r : g->roms) {
+        if (!localRoms_->filesFor(r.sha256).isEmpty()) ignoredRoms_.insert(r.sha256);
+      }
+      saveIgnoredRoms();
+    }
+    reloadLibrary();
+  });
   plugins_ = std::make_unique<PluginsController>(settings_.get(), profiles_->baseDir(), &session_, conn_.get());
   connect(plugins_.get(), &PluginsController::sidebarEntriesChanged, this, [this]() {
     if (page_ == QLatin1String("plugin")) showPluginScreen(pluginPageId_);  // the entry went away: back to the Library
@@ -121,6 +180,10 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     emit uploadChanged();
   });
   connect(uploader_.get(), &GameUploader::finished, this, &PlayerController::onUploadFinished);
+  uploader_->setStateFileProvider([this]() {
+    const QString dir = profiles_->hubDir(conn_->hubInfo().hubId);
+    return dir.isEmpty() ? QString() : QDir(dir).filePath(QStringLiteral("uploads.json"));
+  });
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
   if (QGuiApplication::styleHints() != nullptr) {
     connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, this, [this]() {
@@ -168,16 +231,12 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   emulation_ = std::make_unique<EmulationController>(profiles_->baseDir(), &manifests_);
   controllers_ = std::make_unique<ControllersController>(profiles_->baseDir());
   controllers_->start(options.enableGamepads, options.gamepadPollMs);
-  {
-    // System-specific labels of the Controllers page come from the first manifest with a touch screen.
-    const QList<emu::SystemManifest> all = manifests_.all();
-    for (const emu::SystemManifest& m : all) {
-      const bool touch = std::any_of(m.display.screens.cbegin(), m.display.screens.cend(), [](const emu::ScreenSpec& s) { return s.touch; });
-      if ((touch && m.inputProfile == QLatin1String("nds")) || &m == &all.last()) {  // default until a game starts
-        controllers_->setSystemLabels(m.inputLabel, m.touchLabel);
-        break;
-      }
-    }
+  plugins_->setManifests(&manifests_);
+  if (const QList<emu::SystemManifest> all = manifests_.all(); !all.isEmpty()) {
+    // Default until a game starts: the first system in listing order.
+    const emu::SystemManifest& first = all.first();
+    controllers_->setSystemLabels(first.inputLabel, first.display.touchScreenIndex() >= 0 ? first.touchLabel : QString());
+    controllers_->setInputProfile(all.first().inputProfile);
   }
   {
     CoreCatalog::Deps cd{conn_.get(), profiles_.get(), systems_.get(), coreCache_.get(), emulation_.get(), manifests_, locator_,
@@ -190,7 +249,8 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     GameStarter::Deps sd{conn_.get(), profiles_.get(), saves_.get(), coreProv_.get(), provisioner_.get(), downloader_.get(),
                          library_.get(), emulation_.get(), catalog_.get(), model_, session_, selectedId_, phase_, launchGame_,
                          launchRom_, saveReady_, saveNoteStart_, startError_, pendingSha_, fwOptions_, shareOnStart_, fwProblems_,
-                         coreProblems_, coreList_, handshake_, conflict_, options.probeCoreVersions};
+                         coreProblems_, coreList_, handshake_, conflict_, options.probeCoreVersions,
+                         [this](const GameEntry& g) { return romSourceOf(g); }};
     starter_ = std::make_unique<GameStarter>(sd);
     connect(starter_.get(), &GameStarter::selectedGameChanged, this, &PlayerController::selectedGameChanged);
     connect(starter_.get(), &GameStarter::saveConflictChanged, this, &PlayerController::saveConflictChanged);
@@ -741,6 +801,9 @@ void PlayerController::onConnectionState(HubConnection::State s) {
   if (s != S::Connected) {
     page_ = QStringLiteral("library");
     fwProblems_.clear();
+    scanRequested_ = false;
+    failedRegistrations_.clear();
+    ignoredRoms_.clear();
   }
 
   if (s == S::NeedsTrustConfirmation || s == S::NeedsPairing || s == S::AwaitingApproval || s == S::Denied ||
@@ -1229,6 +1292,167 @@ void PlayerController::adoptUploadedRom(const QString& srcPath, const QString& s
   watcher->setFuture(QtConcurrent::run([cache, srcPath, sha256, ext]() { return cache.adoptFile(srcPath, sha256, ext); }));
 }
 
+
+// ---------------------------------------------------------------- Local ROMs (0.12)
+
+QStringList PlayerController::libraryFolders() const { return settings_->libraryFolders(); }
+
+bool PlayerController::canRegisterLocalRoms() const { return registrar_ && registrar_->supported(); }
+
+RomSourceChoice PlayerController::romSourceOf(const GameEntry& game) const {
+  const QString ext = RomCache::extensionFromFilename(game.romFilename);
+  const bool cacheHas = cache_ && cache_->probe(game.romSha256, ext, game.romSize) != RomCache::Probe::Missing;
+  return chooseRomSource(game, [this](const QString& sha) { return localRoms_->pathForSha(sha); }, cacheHas);
+}
+
+RomStatus PlayerController::romStatusOf(const GameEntry& game) {
+  const RomSourceChoice src = romSourceOf(game);
+  RomStatus st;
+  switch (src.source) {
+    case RomSource::Local:
+      st.state = RomState::Ready;
+      st.localPath = src.localPath;
+      st.totalBytes = game.romSize;
+      return st;
+    case RomSource::Missing:
+      st.state = RomState::Missing;
+      st.totalBytes = game.romSize;
+      return st;
+    default:
+      return downloader_->status(game);
+  }
+}
+
+void PlayerController::refreshRomStatuses() {
+  model_.setGames(library_->games(), [this](const GameEntry& g) { return romStatusOf(g); });
+  refreshAttention();
+  emit selectedGameChanged();
+}
+
+void PlayerController::startLibraryScan() {
+  if (localRoms_->scanning()) {
+    // Folders changed during a scan: cancel it and start over once it ended.
+    localRoms_->cancelScan();
+    connect(localRoms_.get(), &LocalRomIndex::scanFinished, this, [this]() { startLibraryScan(); }, Qt::SingleShotConnection);
+    return;
+  }
+  const QStringList folders = settings_->libraryFolders();
+  if (folders.isEmpty()) {
+    localRoms_->clear();
+    libraryScan_ = {{QStringLiteral("active"), false}, {QStringLiteral("text"), QString()}, {QStringLiteral("isError"), false}};
+    emit libraryScanChanged();
+    refreshRomStatuses();
+    return;
+  }
+  LocalScanOptions opt;
+  opt.folders = folders;
+  QHash<QString, QString> readers;  // system id -> identity reader of its manifest (the scan runs on a worker thread)
+  for (const emu::SystemManifest& m : manifests_.all()) {
+    for (const QString& e : m.extensions) opt.extensionToSystem.insert(e.toLower(), m.systemId);
+    readers.insert(m.systemId, m.identity);
+  }
+  opt.identity = [readers](const QString& path, const QString& system) {
+    const emu::GameIdentity id = emu::readGameIdentity(path, readers.value(system));
+    return LocalRomIdentity{id.code, id.version};
+  };
+  if (!localRoms_->rescan(opt)) return;  // a scan runs: it picks up the current folders on the next rescan
+  libraryScan_ = {{QStringLiteral("active"), true},
+                  {QStringLiteral("done"), 0},
+                  {QStringLiteral("total"), 0},
+                  {QStringLiteral("isError"), false},
+                  {QStringLiteral("text"), tr("Scanning…")}};
+  emit libraryScanChanged();
+}
+
+void PlayerController::registerLocalFiles() {
+  if (!registrar_->supported() || registrar_->busy()) return;
+  QList<LocalRomFile> todo = RomRegistrar::filesToRegister(localRoms_->files(), library_->games(), ignoredRoms_);
+  todo.removeIf([this](const LocalRomFile& f) { return failedRegistrations_.contains(f.sha256); });
+  if (!todo.isEmpty()) registrar_->registerFiles(todo);
+}
+
+void PlayerController::addLibraryFolder(const QString& source) {
+  const QString path = QDir::cleanPath(source.startsWith(QLatin1String("file:")) ? QUrl(source).toLocalFile() : source);
+  if (path.isEmpty() || !QFileInfo(path).isDir()) return;
+  QStringList folders = settings_->libraryFolders();
+  if (folders.contains(path)) return;
+  folders.append(path);
+  if (!settings_->setLibraryFolders(folders)) return;
+  emit libraryFoldersChanged();
+  startLibraryScan();
+}
+
+void PlayerController::removeLibraryFolder(const QString& path) {
+  QStringList folders = settings_->libraryFolders();
+  if (!folders.removeOne(QDir::cleanPath(path))) return;
+  if (!settings_->setLibraryFolders(folders)) return;
+  emit libraryFoldersChanged();
+  startLibraryScan();
+}
+
+void PlayerController::rescanLibrary() {
+  failedRegistrations_.clear();
+  startLibraryScan();
+}
+
+QString PlayerController::localRomStatePath() const {
+  const QString dir = profiles_->hubDir(conn_->hubInfo().hubId);
+  return dir.isEmpty() ? QString() : QDir(dir).filePath(QStringLiteral("local_roms.json"));
+}
+
+void PlayerController::loadIgnoredRoms() {
+  ignoredRoms_.clear();
+  QFile f(localRomStatePath());
+  if (localRomStatePath().isEmpty() || !f.open(QIODevice::ReadOnly)) return;
+  for (const QJsonValue& v : QJsonDocument::fromJson(f.readAll()).object().value(QStringLiteral("ignored")).toArray()) {
+    ignoredRoms_.insert(v.toString());
+  }
+}
+
+void PlayerController::saveIgnoredRoms() const {
+  const QString path = localRomStatePath();
+  if (path.isEmpty()) return;
+  QJsonArray arr;
+  for (const QString& s : ignoredRoms_) arr.append(s);
+  QSaveFile f(path);
+  if (!f.open(QIODevice::WriteOnly)) return;
+  f.write(QJsonDocument(QJsonObject{{QStringLiteral("ignored"), arr}}).toJson(QJsonDocument::Compact));
+  f.commit();
+}
+
+void PlayerController::uploadGameToHub(const QString& gameId) {
+  const auto game = model_.game(gameId);
+  if (!game || game->onHub || !canUpload() || uploader_->busy()) return;
+  LocalRomFile local;
+  for (const RomFileEntry& r : game->roms) {
+    const QList<LocalRomFile> files = localRoms_->filesFor(r.sha256);
+    if (!files.isEmpty() && !localRoms_->pathForSha(r.sha256).isEmpty()) {
+      local = files.first();
+      break;
+    }
+  }
+  if (local.path.isEmpty()) {
+    startError_ = tr("File missing on this device. The game cannot be uploaded from here.");
+    emit selectedGameChanged();
+    return;
+  }
+  upload_ = {{QStringLiteral("active"), true},
+             {QStringLiteral("gameId"), gameId},
+             {QStringLiteral("fileName"), QFileInfo(local.path).fileName()},
+             {QStringLiteral("progress"), 0.0},
+             {QStringLiteral("message"), QString()},
+             {QStringLiteral("isError"), false}};
+  uploadSourcePath_ = local.path;
+  emit uploadChanged();
+  uploader_->upload(local.path, QString(), local.sha256, local.system);
+}
+
+void PlayerController::removeFromLibrary(const QString& gameId) {
+  const auto game = model_.game(gameId);
+  if (!game || game->onHub || !registrar_) return;
+  registrar_->unregisterGame(gameId);
+}
+
 void PlayerController::onUploadFinished(const UploadResult& r) {
   using K = UploadResult::Kind;
   const QString srcPath = std::exchange(uploadSourcePath_, QString());
@@ -1348,8 +1572,15 @@ void PlayerController::reloadLibrary() {
 
 void PlayerController::onLibraryLoaded() {
   quietRefresh_ = false;
+  if (!scanRequested_) {
+    scanRequested_ = true;
+    loadIgnoredRoms();
+    startLibraryScan();
+  } else if (!localRoms_->scanning()) {
+    registerLocalFiles();  // e.g. the Hub connection came back after the scan
+  }
   model_.setLastPlayed(settings_->lastPlayedAll(conn_->hubInfo().hubId));
-  model_.setGames(library_->games(), [this](const GameEntry& g) { return downloader_->status(g); });
+  model_.setGames(library_->games(), [this](const GameEntry& g) { return romStatusOf(g); });
   {
     // "42 games · Nintendo DS": the system name shows only when all games share one system.
     QString label;

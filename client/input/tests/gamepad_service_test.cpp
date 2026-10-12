@@ -8,6 +8,7 @@
 #include "controllerprofiles.h"
 #include "gamepadservice.h"
 #include "inputmap.h"
+#include "system_manifest.h"
 
 using namespace framebeam;
 using namespace framebeam::input;
@@ -49,6 +50,12 @@ struct VirtualPad {
 class GamepadServiceTest : public QObject {
   Q_OBJECT
  private slots:
+  void initTestCase() {
+    // Loading the system manifests registers the input tables.
+    framebeam::emu::ManifestRegistry reg;
+    QVERIFY(reg.loadBuiltin());
+  }
+
   void hotplugSlotsAndDefaultMapping() {
     GamepadService svc;
     QVERIFY2(svc.start(0), qPrintable(svc.error()));

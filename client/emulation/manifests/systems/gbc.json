@@ -1,0 +1,56 @@
+{
+  "system_id": "gbc",
+  "display_name": "Game Boy Color",
+  "order": 310,
+  "extensions": [
+    ".gbc"
+  ],
+  "firmware": {
+    "required": false,
+    "files": [
+      {
+        "id": "gbc_bios",
+        "name": "gbc_bios.bin"
+      }
+    ]
+  },
+  "input_profile": "gb",
+  "input": {
+    "map": {
+      "a": "a",
+      "b": "b",
+      "start": "start",
+      "select": "select",
+      "up": "up",
+      "down": "down",
+      "left": "left",
+      "right": "right",
+      "lup": "up",
+      "ldown": "down",
+      "lleft": "left",
+      "lright": "right"
+    },
+    "labels": {
+      "lup": "D-PAD ▲ (2nd)",
+      "ldown": "D-PAD ▼ (2nd)",
+      "lleft": "D-PAD ◀ (2nd)",
+      "lright": "D-PAD ▶ (2nd)"
+    }
+  },
+  "display_profile": "single_screen",
+  "identity": "gb_header",
+  "labels": {
+    "input": "GBC"
+  },
+  "display": {
+    "layout": "single",
+    "gap": 0,
+    "screens": [
+      {
+        "id": "main",
+        "width": 160,
+        "height": 144
+      }
+    ]
+  }
+}

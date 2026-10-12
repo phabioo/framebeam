@@ -1116,9 +1116,10 @@ Rectangle {
                     }
                     }
 
-                    Eyebrow { text: root.ctl.touchLabel; Layout.topMargin: 10; Layout.minimumWidth: 0; Layout.maximumWidth: Theme.inputTestWidth - 48 }
+                    Eyebrow { visible: root.ctl.hasTouch; text: root.ctl.touchLabel; Layout.topMargin: 10; Layout.minimumWidth: 0; Layout.maximumWidth: Theme.inputTestWidth - 48 }
                     Rectangle {
                         objectName: "touchBox"
+                        visible: root.ctl.hasTouch
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         implicitHeight: 150
@@ -1134,6 +1135,7 @@ Rectangle {
                         }
                     }
                     FbLabel {
+                        visible: root.ctl.hasTouch
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         wrapMode: Text.WordWrap

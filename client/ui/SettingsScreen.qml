@@ -40,6 +40,7 @@ Rectangle {
         switch (name) {
         case "hubs": return secHubs
         case "appearance": return secAppearance
+        case "library": return secLibrary
         case "storage": return secStorage
         case "plugins": return secPlugins
         case "diagnostics": return secDiagnostics
@@ -59,7 +60,7 @@ Rectangle {
         }
         const probe = flick.contentY + 80
         let best = "updates"
-        for (const n of ["updates", "hubs", "appearance", "storage", "plugins", "diagnostics"]) {
+        for (const n of ["updates", "hubs", "appearance", "library", "storage", "plugins", "diagnostics"]) {
             if (sectionItem(n).y + content.y <= probe) {
                 best = n
             }
@@ -103,6 +104,7 @@ Rectangle {
                     { id: "updates", name: qsTr("Updates") },
                     { id: "hubs", name: qsTr("Hubs") },
                     { id: "appearance", name: qsTr("Appearance") },
+                    { id: "library", name: qsTr("Library folders") },
                     { id: "storage", name: qsTr("ROM cache") },
                     { id: "plugins", name: qsTr("Plugins") },
                     { id: "diagnostics", name: qsTr("Diagnostics") }
@@ -126,6 +128,7 @@ Rectangle {
                                                                : qsTr("%1 saved").arg(root.savedHubs.length))
                               : sec.modelData.id === "appearance" ? (root.player.appearance === "light" ? qsTr("Light")
                                                                      : root.player.appearance === "system" ? qsTr("System") : qsTr("Dark"))
+                              : sec.modelData.id === "library" ? qsTr("%n folder(s)", "", root.player.libraryFolders.length)
                               : sec.modelData.id === "storage" ? qsTr("%1 of %2").arg(root.player.romCache.usedText).arg(root.player.romCache.limitText)
                               : sec.modelData.id === "plugins" ? root.player.plugins.summary
                               : qsTr("Logs and support")
@@ -690,6 +693,14 @@ Rectangle {
                         current: root.player.appearance
                         onValuePicked: value => root.player.appearance = value
                     }
+                }
+
+                // ------------------------------------------------------------------ LIBRARY FOLDERS
+                LibraryFoldersSection {
+                    id: secLibrary
+                    objectName: "libraryFoldersSection"
+                    Layout.fillWidth: true
+                    player: root.player
                 }
 
                 // ------------------------------------------------------------------ ROM CACHE

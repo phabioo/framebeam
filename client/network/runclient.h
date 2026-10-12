@@ -131,6 +131,7 @@ class RunClient : public QObject {
   };
   struct RunData {
     RunInfo info;
+    quint64 appliedSerial = 0;  // applySerial_ when this run was last updated (guards against stale list answers)
     qint64 lastSeq = 0;   // highest contiguous event seq seen
     qint64 knownSeq = 0;  // highest seq the Hub is known to have
     QList<RunEvent> events;
@@ -148,6 +149,7 @@ class RunClient : public QObject {
     std::map<QString, Board> boards;
   };
 
+  quint64 applySerial_ = 0;
   RunData* data(const QString& runId);
   const RunData* data(const QString& runId) const;
   void onConnectionState(HubConnection::State s);

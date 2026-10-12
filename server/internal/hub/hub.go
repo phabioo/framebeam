@@ -121,6 +121,9 @@ type Service struct {
 	redeemMu    sync.Mutex // invite redemption rate limits
 	redeemHits  map[string][]time.Time
 	redeemFails []time.Time
+
+	upMu   sync.Mutex // resumable uploads: sessions with a chunk in flight
+	upBusy map[string]bool
 }
 
 // Open initializes the service on a migrated database and creates the hub identity and
@@ -152,6 +155,9 @@ func Open(ctx context.Context, db *sql.DB, o Options) (*Service, error) {
 	tmpDir := filepath.Join(s.dataDir, "tmp")
 	if entries, err := os.ReadDir(tmpDir); err == nil {
 		for _, e := range entries {
+			if e.Name() == "uploads" {
+				continue // resumable upload sessions survive restarts (CleanupUploads removes the idle ones)
+			}
 			os.RemoveAll(filepath.Join(tmpDir, e.Name()))
 		}
 	}
@@ -165,6 +171,9 @@ func Open(ctx context.Context, db *sql.DB, o Options) (*Service, error) {
 		if err := os.MkdirAll(filepath.Join(s.dataDir, d), 0o750); err != nil {
 			return nil, internal(err)
 		}
+	}
+	if err := reconcileSystems(ctx, db); err != nil {
+		return nil, internal(err)
 	}
 	err := db.QueryRowContext(ctx, `SELECT id, name FROM hub LIMIT 1`).Scan(&s.hubID, &s.name)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -185,6 +194,7 @@ func Open(ctx context.Context, db *sql.DB, o Options) (*Service, error) {
 		return nil, err
 	}
 	s.BackfillGameCodes(ctx) // header reads only; failures are logged, never fatal
+	s.BackfillGameVersions(ctx)
 	s.recoverSessions(ctx)
 	return s, nil
 }
@@ -227,7 +237,7 @@ func (s *Service) SetHubName(ctx context.Context, name string) error {
 	return nil
 }
 
-// Cleanup removes expired access tokens, web sessions and old pairing requests.
+// Cleanup removes expired access tokens, web sessions, old pairing requests and idle upload sessions.
 func (s *Service) Cleanup(ctx context.Context) error {
 	now := s.now().Unix()
 	for _, q := range []struct {
@@ -245,7 +255,7 @@ func (s *Service) Cleanup(ctx context.Context) error {
 			return internal(err)
 		}
 	}
-	return nil
+	return s.CleanupUploads(ctx)
 }
 
 // RunCleanup calls Cleanup periodically until ctx ends. Errors go to onErr (may be nil).

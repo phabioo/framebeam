@@ -309,7 +309,10 @@ void RunClient::sendRun(const QByteArray& method, const QString& path, const std
 
 void RunClient::refresh() {
   if (!supported()) return;
-  send("GET", QStringLiteral("/runs"), std::nullopt, [this](const HttpResult& r) {
+  // The answer is a snapshot from the time the Hub served it: a run that was updated here meanwhile (join / leave
+  // answer, run_updated push) is newer and is neither overwritten nor dropped by it.
+  const quint64 started = applySerial_;
+  send("GET", QStringLiteral("/runs"), std::nullopt, [this, started](const HttpResult& r) {
     if (!r.ok()) {
       qCWarning(lcRuns) << "list failed:" << messageOf(r);
       return;
@@ -318,12 +321,14 @@ void RunClient::refresh() {
     for (const QJsonValue& v : r.json().value(QStringLiteral("runs")).toArray()) {
       if (const auto run = parseRun(v.toObject())) {
         seen.insert(run->runId);
+        const RunData* known = data(run->runId);
+        if (known != nullptr && known->appliedSerial > started) continue;  // updated after this list was served
         applyRun(*run);
       }
     }
     bool removed = false;
     for (auto it = runs_.begin(); it != runs_.end();) {
-      if (!seen.contains(it.key())) {
+      if (!seen.contains(it.key()) && (*it)->appliedSerial <= started) {
         it = runs_.erase(it);
         removed = true;
       } else {
@@ -333,7 +338,7 @@ void RunClient::refresh() {
     // Caches of runs that no longer exist for this user (archived, removed) go away.
     const QString dir = cacheDir();
     for (auto it = cachedSeq_.begin(); it != cachedSeq_.end();) {
-      if (!seen.contains(it.key())) {
+      if (!seen.contains(it.key()) && !runs_.contains(it.key())) {
         if (!dir.isEmpty()) QFile::remove(dir + QLatin1Char('/') + it.key() + QStringLiteral(".json"));
         cachedEvents_.remove(it.key());
         cachedStates_.remove(it.key());
@@ -408,9 +413,6 @@ void RunClient::applyRun(const RunInfo& incoming) {
     it = runs_.insert(incoming.runId, d);
   }
   RunData& d = **it;
-  // The Hub's answers can overtake each other (a GET /runs sent earlier may arrive after the answer to a join or a pushed
-  // run_updated): every change of a run adds an event, so a snapshot with a lower last_seq than the known one is stale.
-  if (!isNew && incoming.lastSeq < d.info.lastSeq) return;
   RunInfo next = incoming;
   if (isNew) {
     // States from the disk cache fill in what the Hub's answer does not carry newer (revisions only ever grow).
@@ -457,6 +459,7 @@ void RunClient::applyRun(const RunInfo& incoming) {
         if (!it2->state.isEmpty()) stateChangedFor << qMakePair(p.userId, it2.key());
   }
   d.info = next;
+  d.appliedSerial = ++applySerial_;
   d.knownSeq = (std::max)(d.knownSeq, next.lastSeq);
 
   bool partsChanged = old.participants.size() != next.participants.size();

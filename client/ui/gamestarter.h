@@ -10,6 +10,7 @@
 #include <QStringList>
 #include <QVariantList>
 #include <QVariantMap>
+#include <functional>
 
 #include "core_locator.h"
 #include "corecache.h"
@@ -25,6 +26,7 @@
 #include "playphase.h"
 #include "romcache.h"
 #include "romdownloader.h"
+#include "romsource.h"
 #include "savesync.h"
 #include "system_manifest.h"
 #include "corecatalog.h"
@@ -63,6 +65,7 @@ class GameStarter : public QObject {
     HandshakeInfo& handshake;
     QVariantMap& conflict;
     bool probeCoreVersions;
+    std::function<RomSourceChoice(const GameEntry&)> romSource;  // library folder / cache / download / missing
   };
 
   explicit GameStarter(const Deps& d, QObject* parent = nullptr);
@@ -81,7 +84,7 @@ class GameStarter : public QObject {
   void coreStateRefreshRequested();
   // The game is about to start on this Player (after the start sync): "last played" is recorded.
   void gameLaunched(const QString& gameId);
-  // The system about to start: input profile ("nds", "3ds") and the short labels of its input / touch columns.
+  // The system about to start: input profile and the short labels of its input / touch columns (touch label empty = the system has no touch screen).
   void systemInputSelected(const QString& inputProfile, const QString& inputLabel, const QString& touchLabel);
 
  private:
@@ -119,6 +122,7 @@ class GameStarter : public QObject {
   HandshakeInfo& handshake_;
   QVariantMap& conflict_;
   bool probeCoreVersions_;
+  std::function<RomSourceChoice(const GameEntry&)> romSource_;
 };
 
 }  // namespace framebeam::ui

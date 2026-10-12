@@ -82,6 +82,15 @@ struct SystemManifest {
   QStringList extensions;  // lowercase, with dot
   FirmwareSpec firmware;
   QString inputProfile;
+  // "input": {"map": {...}, "labels": {...}}: FrameBeam input id -> libretro target (names: input/inputmap.h), and optional
+  // per-input texts for the Controllers page. Systems with the same input_profile must carry identical maps (the registry
+  // refuses a conflict); the input library tables are registered from these by the UI layer.
+  QMap<QString, QString> inputMap;
+  QMap<QString, QString> inputLabels;
+  // Registering a manifest (ManifestRegistry::add) also registers its input profile in the input library (input/inputmap.h).
+  // "identity": reader of the game file header for plugins (game_identity.h): "nds_header", "3ds_ncsd", "gb_header",
+  // "gba_header"; empty = none.
+  QString identity;
   QString displayProfile;
   // Short UI labels from the manifest ("labels" object): input column header and the pointer/touch input.
   QString inputLabel;  // e.g. "NDS"; defaults to displayName

@@ -1,6 +1,6 @@
 # framebeam_core: Player core without GUI (core/ + network/). Add sources here and in ../network.
 add_library(framebeam_core STATIC version.cpp credentialstore.cpp profilestore.cpp romcache.cpp savestore.cpp playersettings.cpp firmwarecache.cpp corecache.cpp dsvsave.cpp sdtree.cpp emulationsettings.cpp controllerprofiles.cpp
-  filelog.cpp diagbundle.cpp semver.cpp updateindex.cpp updatesig.cpp installroot.cpp updater.cpp localhub.cpp hubsetup.cpp fsutil.cpp)
+  filelog.cpp diagbundle.cpp semver.cpp updateindex.cpp updatesig.cpp installroot.cpp updater.cpp localhub.cpp hubsetup.cpp fsutil.cpp localromindex.cpp)
 target_include_directories(framebeam_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_features(framebeam_core PUBLIC cxx_std_20)
 target_link_libraries(framebeam_core PUBLIC Qt6::Core Qt6::Concurrent Qt6::Network OpenSSL::Crypto)
@@ -27,6 +27,7 @@ framebeam_add_test(core_filelog tests/filelog_test.cpp LIBS framebeam_core)
 framebeam_add_test(core_diagbundle tests/diagbundle_test.cpp LIBS framebeam_core)
 framebeam_add_test(core_update tests/update_test.cpp LIBS framebeam_core)
 framebeam_add_test(core_localhub tests/localhub_test.cpp LIBS framebeam_core)
+framebeam_add_test(core_localromindex tests/localromindex_test.cpp LIBS framebeam_core)
 framebeam_add_test(core_fsutil tests/fsutil_test.cpp LIBS framebeam_core)
 if(WIN32)
   # Writes/reads/deletes a dummy value in the Windows Credential Manager (Windows CI only).

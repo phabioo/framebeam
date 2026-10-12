@@ -120,6 +120,8 @@ void ControllersController::setSystemLabels(const QString& systemLabel, const QS
   if (systemLabel_ == systemLabel && touchLabel_ == touchLabel) return;
   systemLabel_ = systemLabel;
   touchLabel_ = touchLabel;
+  if (touchLabel_.isEmpty() && selected_ == kMouse) selected_.clear();  // the Mouse row is hidden: pick another device
+  ensureSelection();
   emit labelsChanged();
   emit devicesChanged();
 }
@@ -146,6 +148,7 @@ QVariantList ControllersController::devices() const {
                        {QStringLiteral("connected"), true},
                        {QStringLiteral("status"), tr("Connected")},
                        {QStringLiteral("profile"), kb ? kb->name : QString()}});
+  if (!touchLabel_.isEmpty())  // no touch screen (gb, gba): no Mouse row
   l.append(QVariantMap{{QStringLiteral("key"), kMouse},
                        {QStringLiteral("kind"), kMouse},
                        {QStringLiteral("name"), tr("Mouse")},
@@ -193,6 +196,9 @@ QVariantList ControllersController::rows() const {
   const ControllerProfile def = ControllerProfiles::builtinProfile(p->kind);
   const QString set = labelSet();
   for (const InputDef& in : frameBeamInputs()) {
+    if (!input::inputProfileMaps(inputProfile_, in.id)) continue;  // the Controllers page lists what the system maps
+    const QString profileLabel = input::inputProfileLabel(inputProfile_, in.id);
+    const QString target = profileLabel.isEmpty() ? in.targetLabel : profileLabel;
     const QStringList tokens = p->bindings.value(in.id);
     const bool changed = !p->builtin && tokens != def.bindings.value(in.id);
     QStringList labels;
@@ -200,7 +206,7 @@ QVariantList ControllersController::rows() const {
     const QVariantMap d = describeBinding(set, tokens);
     l.append(QVariantMap{{QStringLiteral("input"), in.id},
                          {QStringLiteral("label"), in.label},
-                         {QStringLiteral("target"), in.ndsTarget},
+                         {QStringLiteral("target"), target},
                          {QStringLiteral("binding"), labels.isEmpty() ? tr("Unassigned") : labels.join(QStringLiteral(" / "))},
                          {QStringLiteral("glyphs"), d.value(QStringLiteral("glyphs"))},
                          {QStringLiteral("bindingName"), labels.isEmpty() ? tr("Unassigned") : d.value(QStringLiteral("name"))},
@@ -315,10 +321,10 @@ QVariantList ControllersController::testCells() const {
 }
 
 void ControllersController::setInputProfile(const QString& profile) {
-  const QString p = profile.isEmpty() ? QStringLiteral("nds") : profile;
-  if (p == inputProfile_) return;
-  inputProfile_ = p;
-  pads_.setInputProfile(p);
+  if (profile == inputProfile_) return;
+  inputProfile_ = profile;
+  pads_.setInputProfile(profile);
+  emit rowsChanged();
   emit keyboardMapChanged();
 }
 

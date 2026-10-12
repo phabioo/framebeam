@@ -134,6 +134,10 @@ func (s *Server) Register(mux *http.ServeMux) {
 	h("GET /library", s.guard(s.libraryGet))
 	h("POST /library/upload", s.guardUpload(s.libraryUpload))
 	h("POST /library/rescan", s.guard(s.libraryRescan))
+	h("POST /library/uploads", s.guard(s.uploadCreate))
+	h("GET /library/uploads/{id}", s.guard(s.uploadStatus))
+	h("POST /library/uploads/{id}/chunk", s.guardChunk(s.uploadChunk))
+	h("POST /library/uploads/{id}/abort", s.guard(s.uploadAbort))
 	h("POST /library/{id}/rename", s.guard(s.libraryRename))
 	h("POST /library/{id}/delete", s.guard(s.libraryDelete))
 	h("GET /saves", s.guard(s.savesGet))
@@ -434,7 +438,15 @@ func (s *Server) guard(f handlerFunc) http.HandlerFunc { return s.guardWith(fals
 // the CSRF check of a multipart body to the handler, which verifies _csrf before it reads the file part.
 func (s *Server) guardUpload(f handlerFunc) http.HandlerFunc { return s.guardWith(true, f) }
 
+// guardChunk is the guard for the raw-body chunk route of the resumable ROM upload: a POST must carry the token
+// in X-CSRF-Token (the body is binary and is read by the handler, never parsed as a form).
+func (s *Server) guardChunk(f handlerFunc) http.HandlerFunc { return s.guardCore(false, true, f) }
+
 func (s *Server) guardWith(streamingUpload bool, f handlerFunc) http.HandlerFunc {
+	return s.guardCore(streamingUpload, false, f)
+}
+
+func (s *Server) guardCore(streamingUpload, rawBody bool, f handlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if has, err := s.svc.HasAdmin(r.Context()); err != nil {
 			s.fail(w, r, err)
@@ -459,7 +471,12 @@ func (s *Server) guardWith(streamingUpload bool, f handlerFunc) http.HandlerFunc
 			return
 		}
 		sess := &session{ws}
-		if r.Method == http.MethodPost {
+		if r.Method == http.MethodPost && rawBody {
+			if !hub.TokenEqual(r.Header.Get("X-CSRF-Token"), ws.CSRFToken) {
+				http.Error(w, "CSRF check failed", http.StatusForbidden)
+				return
+			}
+		} else if r.Method == http.MethodPost {
 			multipart := strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data")
 			if multipart && streamingUpload {
 				// Streaming upload: the handler checks _csrf (before the file) or the header.

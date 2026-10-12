@@ -279,7 +279,37 @@ std::optional<GameEntry> parseGame(const QJsonObject& obj) {
   if (g.id.isEmpty() || !RomCache::isValidSha256(g.romSha256) || g.romSize < 0) {
     return std::nullopt;
   }
+  g.gameVersion = obj.value(QStringLiteral("game_version")).isDouble() ? obj.value(QStringLiteral("game_version")).toInt(-1) : -1;
+  const bool primaryStored = rom.value(QStringLiteral("stored")).toBool(true);
+  g.onHub = obj.value(QStringLiteral("on_hub")).toBool(true);
+  const QJsonValue romsVal = obj.value(QStringLiteral("roms"));
+  if (romsVal.isArray()) {
+    for (const QJsonValue& v : romsVal.toArray()) {
+      const QJsonObject o = v.toObject();
+      RomFileEntry e;
+      e.sha256 = o.value(QStringLiteral("sha256")).toString();
+      e.size = o.value(QStringLiteral("size")).toVariant().toLongLong();
+      e.filename = o.value(QStringLiteral("filename")).toString();
+      e.stored = o.value(QStringLiteral("stored")).toBool(true);
+      if (RomCache::isValidSha256(e.sha256) && e.size >= 0) g.roms.append(e);
+    }
+  }
+  if (g.roms.isEmpty()) {
+    g.roms.append({g.romSha256, g.romSize, g.romFilename, primaryStored});
+  }
+  if (!obj.contains(QStringLiteral("on_hub"))) {
+    g.onHub = true;  // older Hub: every game is on the Hub
+    for (RomFileEntry& e : g.roms) e.stored = true;
+  }
   return g;
+}
+
+bool GameEntry::hasRom(const QString& sha256) const {
+  if (sha256 == romSha256) return true;
+  for (const RomFileEntry& e : roms) {
+    if (e.sha256 == sha256) return true;
+  }
+  return false;
 }
 
 }  // namespace framebeam

@@ -101,7 +101,7 @@ func TestReadGameIdentity(t *testing.T) {
 		t.Fatalf("nomagic %q %q", c, k)
 	}
 	// Another system, missing file, empty path.
-	if c, k := id("c.bin", bytes.Repeat([]byte("A"), 0x200), "gba"); c != "" || k != "" {
+	if c, k := id("c.bin", bytes.Repeat([]byte("A"), 0x200), "psx"); c != "" || k != "" {
 		t.Fatalf("gba %q %q", c, k)
 	}
 	if c, k := hub.ReadGameIdentity(filepath.Join(t.TempDir(), "missing.nds"), "nds"); c != "" || k != "" {
@@ -201,5 +201,98 @@ func TestBackfillGameCodes(t *testing.T) {
 	b2, _ := svc2.GetGame(ctx, bad.ID)
 	if b2.GameCode != "" || b2.GameCodeKind != "" {
 		t.Fatalf("%+v", b2)
+	}
+}
+
+// Ports the GBA and GB cases of client/emulation/tests/game_identity_test.cpp (same synthetic headers).
+func gbRom(title string, cgb, oldLicensee byte, newLicensee string, version byte, goodChecksum bool) []byte {
+	b := make([]byte, 0x150)
+	copy(b[0x134:], title)
+	b[0x143] = cgb
+	copy(b[0x144:], newLicensee)
+	b[0x14B] = oldLicensee
+	b[0x14C] = version
+	var sum byte
+	for i := 0x134; i <= 0x14C; i++ {
+		sum = sum - b[i] - 1
+	}
+	if !goodChecksum {
+		sum++
+	}
+	b[0x14D] = sum
+	return b
+}
+
+func TestReadGameIdentityGBAAndGB(t *testing.T) {
+	id := func(name string, data []byte, system string) (string, string, *int) {
+		return hub.ReadGameIdentityVersion(writeTemp(t, name, data), system)
+	}
+	check := func(what string, c, k string, v *int, wantC, wantK string, wantV int) {
+		t.Helper()
+		if c != wantC || k != wantK || v == nil || *v != wantV {
+			t.Fatalf("%s: %q %q %v", what, c, k, v)
+		}
+	}
+	gba := make([]byte, 0x100)
+	copy(gba[0xA0:], "SYNTH TITLE")
+	copy(gba[0xAC:], "ABCE")
+	copy(gba[0xB0:], "01")
+	gba[0xBC] = 3
+	c, k, v := id("a.gba", gba, "gba")
+	check("gba", c, k, v, "ABCE", "gba-gamecode", 3)
+	if c, k, _ := id("zero.gba", make([]byte, 0x100), "gba"); c != "" || k != "" {
+		t.Fatalf("gba zero %q %q", c, k)
+	}
+	if c, k, _ := id("short.gba", bytes.Repeat([]byte("A"), 0x80), "gba"); c != "" || k != "" {
+		t.Fatalf("gba short %q %q", c, k)
+	}
+	c, k, v = id("a.gb", gbRom("SYNTHGAMEABCDE", 0x00, 0x33, "AB", 2, true), "gb")
+	check("gb", c, k, v, "SYNTHGAMEABCDE", "gb-title", 2)
+	c, k, v = id("b.gb", gbRom("SYNTH", 0x00, 0x01, "ZZ", 0, true), "gb")
+	check("gb short title", c, k, v, "SYNTH", "gb-title", 0)
+	// gbc uses the same reader; with the CGB flag the title is 11 bytes.
+	c, k, v = id("a.gbc", gbRom("LONGTITLE12ABCD", 0x80, 0x33, "01", 1, true), "gbc")
+	check("gbc", c, k, v, "LONGTITLE12", "gb-title", 1)
+	if c, _, _ := id("b.gbc", gbRom("LONGTITLE12ABCD", 0xC0, 0x33, "01", 1, true), "gbc"); c != "LONGTITLE12" {
+		t.Fatalf("gbc c0 %q", c)
+	}
+	for name, data := range map[string][]byte{"checksum": gbRom("SYNTH", 0, 0, "00", 0, false), "empty title": make([]byte, 0x150), "short": bytes.Repeat([]byte("x"), 0x100)} {
+		if c, k, _ := id("bad.gb", data, "gb"); c != "" || k != "" {
+			t.Fatalf("%s: %q %q", name, c, k)
+		}
+	}
+}
+
+func TestBackfillGameCodesGameBoy(t *testing.T) {
+	dir := t.TempDir()
+	svc, _, db := hubtest.OpenIn(t, dir, nil)
+	admin, err := svc.CreateAdmin(ctx, "admin", "secret-12345")
+	if err != nil {
+		t.Fatal(err)
+	}
+	gba := make([]byte, 0x100)
+	copy(gba[0xAC:], "ABCE")
+	gba[0xBC] = 2
+	a, err := svc.AddROM(ctx, bytes.NewReader(gba), "a.gba", "", "", admin.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := svc.AddROM(ctx, bytes.NewReader(gbRom("SYNTH", 0, 0, "00", 5, true)), "b.gb", "", "", admin.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Games that were marked unreadable before gb/gba had an identity (migration 0016 resets them to "").
+	if _, err := db.Exec(`UPDATE games SET game_code = '', game_code_kind = '', game_version = NULL`); err != nil {
+		t.Fatal(err)
+	}
+	if filled, _ := svc.BackfillGameCodes(ctx); filled != 2 {
+		t.Fatalf("filled %d", filled)
+	}
+	svc.BackfillGameVersions(ctx)
+	ga, _ := svc.GetGame(ctx, a.ID)
+	gb, _ := svc.GetGame(ctx, b.ID)
+	if ga.GameCode != "ABCE" || ga.GameCodeKind != "gba-gamecode" || ga.GameVersion == nil || *ga.GameVersion != 2 ||
+		gb.GameCode != "SYNTH" || gb.GameCodeKind != "gb-title" || gb.GameVersion == nil || *gb.GameVersion != 5 {
+		t.Fatalf("%+v %+v", ga, gb)
 	}
 }

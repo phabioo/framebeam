@@ -29,6 +29,9 @@
 #include "gamesession.h"
 #include "gamestarter.h"
 #include "gameuploader.h"
+#include "localromindex.h"
+#include "romregistrar.h"
+#include "romsource.h"
 #include "hubconnection.h"
 #include "hublibrary.h"
 #include "hubpresenter.h"
@@ -96,6 +99,10 @@ class PlayerController : public QObject {
   Q_PROPERTY(QString stopSaveError READ stopSaveError NOTIFY stopSaveErrorChanged)
   Q_PROPERTY(QVariantMap upload READ upload NOTIFY uploadChanged)   // active, fileName, progress, message, isError
   Q_PROPERTY(QStringList uploadFilters READ uploadFilters CONSTANT)
+  // Local ROMs (0.12): library folders of this device and the state of the folder scan: {active, done, total, text, isError}.
+  Q_PROPERTY(QStringList libraryFolders READ libraryFolders NOTIFY libraryFoldersChanged)
+  Q_PROPERTY(QVariantMap libraryScan READ libraryScan NOTIFY libraryScanChanged)
+  Q_PROPERTY(bool canRegisterLocalRoms READ canRegisterLocalRoms NOTIFY hubChanged)  // handshake feature local_roms_v1
   // Background core updates (quiet indicator on the Emulation page): active, text ("Updating X to V"), lastText ("Updated X to V")
   Q_PROPERTY(QVariantMap coreUpdate READ coreUpdate NOTIFY coreUpdateChanged)
   Q_PROPERTY(QVariantList coreWarnings READ coreWarnings NOTIFY hubChanged)  // core_missing / core_version_mismatch
@@ -196,6 +203,13 @@ class PlayerController : public QObject {
   QSet<QString> protectedRomHashes() const;
   bool canUpload() const;
   QVariantMap upload() const { return upload_; }
+  QStringList libraryFolders() const;
+  QVariantMap libraryScan() const { return libraryScan_; }
+  bool canRegisterLocalRoms() const;
+  LocalRomIndex* localRomIndex() { return localRoms_.get(); }
+  RomRegistrar* romRegistrar() { return registrar_.get(); }
+  // Where the ROM of a game comes from right now (library folder, cache, download, missing).
+  RomSourceChoice romSourceOf(const GameEntry& game) const;
   QVariantMap coreUpdate() const;
   QStringList uploadFilters() const;
   QVariantList coreWarnings() const;
@@ -281,6 +295,14 @@ class PlayerController : public QObject {
   // "Upload ROM": source = local path or file:// URL (from the file dialog). Streamed; progress in upload.
   Q_INVOKABLE void uploadRom(const QString& source);
   Q_INVOKABLE void dismissUploadMessage();
+  // Library folders (Settings): source = folder path or file:// URL. Adding/removing rescans; files are registered with the Hub.
+  Q_INVOKABLE void addLibraryFolder(const QString& source);
+  Q_INVOKABLE void removeLibraryFolder(const QString& path);
+  Q_INVOKABLE void rescanLibrary();
+  // DetailPane: uploads the local file of a local-only game (resumable); the game id stays the same.
+  Q_INVOKABLE void uploadGameToHub(const QString& gameId);
+  // DetailPane: removes the local registration of a local-only game (the game and its saves stay on the Hub).
+  Q_INVOKABLE void removeFromLibrary(const QString& gameId);
   QString stopSaveError() const { return stopSaveError_; }
   Q_INVOKABLE void dismissStopSaveError();
   // Detail pane "Check again": reloads the systems registry (firmware status) after the admin changed something.
@@ -310,6 +332,8 @@ class PlayerController : public QObject {
   void appearanceChanged();
   void romCacheChanged();
   void uploadChanged();
+  void libraryFoldersChanged();
+  void libraryScanChanged();
   void stopSaveErrorChanged();
   void coreUpdateChanged();
   void emulationSettingsChanged();
@@ -327,6 +351,13 @@ class PlayerController : public QObject {
   void trimRomCache();  // applies the size limit (LRU); called at start, after a ROM became ready, when a game ends
   void applyFrameBeamOptions();
   void onUploadFinished(const UploadResult& result);
+  void startLibraryScan();
+  void registerLocalFiles();      // files of the folders the Hub does not know yet
+  void refreshRomStatuses();      // after the local index changed
+  RomStatus romStatusOf(const GameEntry& game);
+  QString localRomStatePath() const;
+  void loadIgnoredRoms();
+  void saveIgnoredRoms() const;
   QString friendlyError(const QString& code, const QString& message) const;
   void endRunningWork();
   QJsonObject diagnosticsInfo() const;
@@ -397,6 +428,13 @@ class PlayerController : public QObject {
   QString pluginPageId_;
   bool inviteBusy_ = false;
   QVariantMap upload_;
+  std::unique_ptr<LocalRomIndex> localRoms_;
+  std::unique_ptr<RomRegistrar> registrar_;
+  QVariantMap libraryScan_{{QStringLiteral("active"), false}, {QStringLiteral("done"), 0}, {QStringLiteral("total"), 0},
+                           {QStringLiteral("text"), QString()}, {QStringLiteral("isError"), false}};
+  QSet<QString> ignoredRoms_;        // sha256 of files the user removed from the library (until the file is gone)
+  QSet<QString> failedRegistrations_;  // not retried within this connection
+  bool scanRequested_ = false;       // a scan was started for the current connection
   QString uploadSourcePath_;            // local file of the running upload; adopted into the ROM cache afterwards
   QString pendingSelectId_;             // select this game once the library reloaded (after an upload)
   QList<FirmwareProblem> fwProblems_;   // last validation problems (cleared by recheckFirmware/new registry)

@@ -22,11 +22,11 @@
 
 namespace framebeam {
 
-// FrameBeam inputs (uniform across devices); the system profile (nds) maps them to the libretro joypad.
+// FrameBeam inputs (uniform across devices); the input profile of the system manifest maps them to the libretro mask.
 struct InputDef {
   QString id;         // "a", "b", ..., "up"
   QString label;      // shown in the mapping table
-  QString ndsTarget;  // target in the nds system profile (shown in the table)
+  QString targetLabel;  // default text of the "System button" column; the manifest "input"."labels" can override it per profile
 };
 const QList<InputDef>& frameBeamInputs();
 int inputIndex(const QString& id);  // position in frameBeamInputs(), -1 = unknown; bit index of input masks

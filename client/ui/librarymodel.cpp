@@ -50,7 +50,7 @@ QHash<int, QByteArray> LibraryModel::roleNames() const {
           {StateKindRole, "stateKind"}, {StatusTextRole, "statusText"}, {StatusToneRole, "statusTone"},
           {ProgressRole, "progress"}, {SyncKindRole, "syncKind"}, {SyncTextRole, "syncText"},
           {TileTextRole, "tileText"}, {TileToneRole, "tileTone"}, {NeedsAttentionRole, "needsAttention"},
-          {ReadyGroupRole, "readyGroup"}, {AddedTextRole, "addedText"}};
+          {ReadyGroupRole, "readyGroup"}, {AddedTextRole, "addedText"}, {OnHubRole, "onHub"}};
 }
 
 QString LibraryModel::formatSize(qint64 bytes) {
@@ -85,6 +85,7 @@ QString LibraryModel::stateKind(RomState s) {
     case RomState::Downloading: return QStringLiteral("downloading");
     case RomState::HashMismatch: return QStringLiteral("mismatch");
     case RomState::Failed: return QStringLiteral("failed");
+    case RomState::Missing: return QStringLiteral("missing");
     default: break;
   }
   // Validating and future states: treat as neutral ("Verifying…").
@@ -109,6 +110,7 @@ QVariant LibraryModel::data(const QModelIndex& index, int role) const {
     case SyncTextRole: return syncText(it.sync);
     case NeedsAttentionRole: return categoryOf(it) == Category::Attention;
     case ReadyGroupRole: return inReadyGroup(it);
+    case OnHubRole: return it.game.onHub;
     case AddedTextRole:
       return it.addedMs > 0 ? QVariant(QDateTime::fromMSecsSinceEpoch(it.addedMs).toLocalTime().toString(QStringLiteral("dd.MM.yyyy"))) : QVariant(QString());
     case TileToneRole:
@@ -119,6 +121,9 @@ QVariant LibraryModel::data(const QModelIndex& index, int role) const {
       if (kind == QLatin1String("mismatch")) {
         text = tr("✕ Hash mismatch · reload");
         tone = QStringLiteral("error");
+      } else if (kind == QLatin1String("missing")) {
+        text = tr("▲ File missing on this device");
+        tone = QStringLiteral("warn");
       } else if (it.sync == QLatin1String("conflict")) {
         text = tr("▲ Save conflict");
         tone = QStringLiteral("warn");
@@ -150,6 +155,7 @@ QVariant LibraryModel::data(const QModelIndex& index, int role) const {
     case StatusToneRole:
       if (kind == QLatin1String("ready")) return QStringLiteral("ok");
       if (kind == QLatin1String("mismatch") || kind == QLatin1String("failed")) return QStringLiteral("error");
+      if (kind == QLatin1String("missing")) return QStringLiteral("warn");
       return QStringLiteral("neutral");
     case StatusTextRole: {
       if (kind == QLatin1String("ready")) return tr("Ready");
@@ -163,6 +169,7 @@ QVariant LibraryModel::data(const QModelIndex& index, int role) const {
         return tr("Downloading %1 %").arg(qBound(0, pct, 100));
       }
       if (kind == QLatin1String("mismatch")) return tr("Hash mismatch · reload");
+      if (kind == QLatin1String("missing")) return tr("File missing on this device");
       if (kind == QLatin1String("failed")) return tr("Download failed · retry");
       return tr("Verifying…");
     }
@@ -172,6 +179,7 @@ QVariant LibraryModel::data(const QModelIndex& index, int role) const {
 
 QString LibraryModel::attentionOf(const Item& it) {
   if (it.status.state == RomState::HashMismatch) return tr("Hash mismatch");
+  if (it.status.state == RomState::Missing) return tr("File missing on this device");
   if (it.sync == QLatin1String("conflict")) return tr("Save conflict");
   return it.attention;
 }
