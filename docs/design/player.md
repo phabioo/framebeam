@@ -14,6 +14,7 @@ Revision handoff of 2026-10-08 (after a friends playtest): the sections 3c-2 to 
 - In game (3g, 3h, 3r, 3i, 3t-3y) the sidebar is dropped; instead a 56px header (see there). The status pill component (`● Ready`, `▲`, `✕`) is specified in `tokens.md`.
 
 ## 3a Player Connection
+Superseded in part by [3a-3](#3a-3-player-connect-round-3) (Round 3: one host:port field, Pair again).
 Lines 31-53. Start/connection screen before the main navigation.
 
 - Purpose: stored Hubs, connection status, add Hub, connect.
@@ -233,6 +234,7 @@ Lines 772-780. New. Multiview side by side (tiles with 320 x 240 screens), heade
 - Collapsed summaries: "Tile 1 · 59.83 fps · 9.4 ms", "3 participants · 1 relayed".
 
 ## 3y Player Fullscreen Diagnostics
+Esc behavior superseded by [3y-2](#3y-2-player-fullscreen-paused-round-3) (Esc pauses, also in fullscreen).
 Lines 784-810. New. Fullscreen, Emulation diagnostics shown, F3 toggles.
 
 - No header and no panels; the common overlay floats top left (350) over the game; Streaming is omitted. Hint at the bottom center: "Toolbar appears when you move the mouse to the top · F3 diagnostics".
@@ -240,6 +242,7 @@ Lines 784-810. New. Fullscreen, Emulation diagnostics shown, F3 toggles.
 - Phase of 3t-3y: 0.6 Player UI pass; the values need new measurements. Open: README m-t.
 
 ## 3c-2 Player Library revised
+Superseded in part by [3c-6](#3c-6-player-library-round-3) and [3c-7](#3c-7-player-library-detail-column-round-3) (Round 3: header row, core notice, Local badges, detail variants, 3840 width).
 Lines 330-407 in `framebeam-designs-v4.dc.html` (`#3c-2`); 1280 variant 408-492 (`#3c-2-1280`); empty result 493-534 (`#3c-2-empty`). Supersedes 3c. Sort, Ready first and the compact SAVE summary; mock core version 1.4.0.
 
 - Grid: sidebar 232 | main flexible | detail column 392. Main padding 28 32 (1280: 24 28); rows header, chips, toolbar and tiles with gap 16.
@@ -291,6 +294,7 @@ Lines 573-611 in `framebeam-designs-v4.dc.html` (`#3c-4`), 1280 x 800. Shown in 
 - After confirming: steps as under 3c-3 (local backup, file check, sending); the timeline then shows a new current version with reason "Uploaded" and the replaced one with reason "Before upload" (SaveRow). Uploads join retention like session ends.
 
 ## 3c-5 Player Library with a running game
+Header row and core notice follow [3c-6](#3c-6-player-library-round-3).
 Lines 164-208 in `framebeam-designs-v4.dc.html` (`#3c-5`); dialog 209-228 (`#3c-5-dialog`). Changes vs 3c-2: "← Library" in game pauses and keeps the game loaded; the Library shows the running game.
 
 - "Now running" strip in the sidebar above the Hub switcher card (spec under Components), on every page (Library, Emulation, Controllers, Settings).
@@ -301,6 +305,7 @@ Lines 164-208 in `framebeam-designs-v4.dc.html` (`#3c-5`); dialog 209-228 (`#3c-
 - Open: decisions.md (idle auto-quit and hub disconnect: default no auto-quit).
 
 ## 3e-2 Player Emulation revised
+Superseded in part by [3e-3](#3e-3-player-emulation-round-3) (Round 3: no preselected core, firmware only where needed, one Reset style).
 Lines 720-748 in `framebeam-designs-v4.dc.html` (`#3e-2`); 1280 variant 749-776. Supersedes the option rows of 3e (one row component); shell, second column and chips as in 3e.
 
 - Second column (300): "EMULATION", item "Defaults" ("Apply to every system"), "SYSTEMS", item "Nintendo DS" with "2 changed" (11, `#3cbfd8`), "melonDS DS · 1.4.0" and "● Ready · core from the hub" (12, ok green); selected as in 3e; bottom dashed card "Per-game settings" / "Coming later. Set from a game’s page in the Library."
@@ -311,6 +316,7 @@ Lines 720-748 in `framebeam-designs-v4.dc.html` (`#3e-2`); 1280 variant 749-776.
 - 1280: the label column shrinks, the control column stays 280.
 
 ## 3p-2 Player Settings revised
+Superseded in part by [3p-3](#3p-3-player-settings-round-3) (Round 3: Updates segment, Hub rows, library folders, 880 px width).
 Lines 777-814 in `framebeam-designs-v4.dc.html` (`#3p-2`). Supersedes the rows of 3p; all four sections use SettingsRow, controls end on the same x as in 3e-2.
 
 - Shell as 3p: sidebar | section column 300 ("Updates" "Up to date", "Hubs" "1 saved · Home active", "Appearance" "Dark", "Diagnostics" "Logs and support"; bottom mono "Player 0.7.12" / "Windows x86-64 · Protocol v1") | main (padding 28 36, gap 20); title "Settings", sub "Saved on this device only". Reset column stays empty (72) so the controls line up with Emulation.
@@ -321,6 +327,7 @@ Lines 777-814 in `framebeam-designs-v4.dc.html` (`#3p-2`). Supersedes the rows o
 - Read-only value row (sheet): "Version" as mono 13 `#c9c8c4`, description "Windows x86-64 · Protocol v1"; no Copy button (default, decisions.md).
 
 ## 3f-2, 3f-3 Player Controllers revised
+Superseded in part by [3f-4 (Round 3)](#3f-4-player-controllers-round-3) (system selector, 3DS test, hotkeys table).
 Lines 818-864 (`#3f-2`, Xbox) and 865-919 (`#3f-3`, DualSense) in `framebeam-designs-v4.dc.html`. Supersedes 3f; shell and device list as in 3f (columns 232 | 300 | flex | 340).
 
 - Main (padding 28 32, gap 18) header: device name 26/600 over the pill "● Connected · P1"; on the right two labelled selects (label 11 `#7d7d83` above, 34 high, radius 7, surface `#1a1b1e`, border `#2c2d32`): new "Button labels" (170, "Auto (Xbox)" / "Auto (PlayStation)") and "Profile" (180, "Standard Gamepad").
@@ -332,6 +339,7 @@ Lines 818-864 (`#3f-2`, Xbox) and 865-919 (`#3f-3`, DualSense) in `framebeam-des
 - Keyboard device: glyph chips show key names (X Z S A Q W 1 3 Shift Enter for the DS layout). Monochrome only; no PlayStation shape colours, no Xbox letter colours.
 
 ## 3g-2, 3g-3 Player Session revised
+Esc and fullscreen behavior superseded by decision 21 ([3y-2](#3y-2-player-fullscreen-paused-round-3)); docked diagnostics by [3h-3](#3h-3-player-session-round-3).
 Lines 37-45 (`#3g-2`, not shared, Private), 46-54 (`#3g-3`, shared, Invite only, "2 watching", Reset popover open, speed-up on) and 67-79 (`#3g-2-1280`, 1280 x 800, compact header, "⋯" menu open) in `framebeam-designs-v4.dc.html`. Supersedes 3g.
 
 - Grid: rows 56 | 1fr, columns flexible | 340 (1280: 320); background `#0b0b0c`. Header = GameHeader (mode session), side panel = GamePanel (kind own); both specified under Components. Play area: two DS screens 480 x 360 (stacked) centered, as in 3g; the diagnostics overlay (3t-2) floats top right of the play area.
@@ -344,6 +352,7 @@ Lines 37-45 (`#3g-2`, not shared, Private), 46-54 (`#3g-3`, shared, Invite only,
 - Open: decisions.md (Esc, paused state for viewers). Phase: UI of the 0.7.x revision; the functions (speed-up, hotkeys, saves) exist, see roadmap.
 
 ## 3r-2, 3h-2, 3i-2 Player Multiview revised
+Superseded in part by [3r-3](#3r-3-player-multiview-round-3), [3h-3](#3h-3-player-session-round-3) and [3i-3](#3i-3-player-pip-round-3) (Round 3: layout "Row" instead of "Side by side", Grid 2x2 only from 4 Sessions, paused remote tile, single selection style, Add popover). Wherever this section says "Side by side" for the Multiview layout, read "Row" (decision 22).
 Lines 80-106 (`#3r-2`, Grid 2x2, own tile selected, picker open), 122-133 (`#3h-2`, Side by side, Lena's tile selected, own game paused), 134-147 (`#3i-2`, PiP, panel collapsed) and 148-163 (`#3r-2-1280`, 1280 x 800) in `framebeam-designs-v4.dc.html`. Supersede 3r, 3h and 3i.
 
 - Same GameHeader as the Session view (mode multiview): Context "Multiview" + mode segment "PiP" | "Side by side" | "Grid 2×2"; your game's controls stay, labelled "YOUR GAME" with its share state; "+ Add · n/4" owns the tile count and anchors the Running sessions popover (it never opens on its own; empty tiles open it too); the layout button says "All tiles" and applies to all tiles. The v3 mode segment/bottom diagnostics bar and the "Add to multiview" header button are gone.
@@ -355,6 +364,7 @@ Lines 80-106 (`#3r-2`, Grid 2x2, own tile selected, picker open), 122-133 (`#3h-
 - Open: decisions.md (layout scope, input routing). Not drawn: behavior when a remote session ends (tile becomes empty?).
 
 ## 3t-2, 3x-2 Player Diagnostics revised
+Placement superseded in part by [3h-3](#3h-3-player-session-round-3): diagnostics are docked as a panel tab and no longer cover the game or remote tiles.
 Lines 55-66 (`#3t-2`, single game, overlay open) and 107-121 (`#3x-2`, multiview) in `framebeam-designs-v4.dc.html`. Supersede the placement and toggles of 3t-3y; the row content of 3t-3w (Software, OpenGL, Session, Fallback hint) is unchanged and not redrawn; 3y keeps the chip "F3 Diagnostics" and the top-left position, but the fullscreen overlay shows Emulation and Streaming like windowed.
 
 - One toggle: the header button "Diagnostics F3" and F3 (the side-panel toggle and the "show / hide" footer are gone; the overlay footer reads "Hide diagnostics" + key badge "F3", the same label and key as the header). Open state shown on the header button (accent).
@@ -363,6 +373,95 @@ Lines 55-66 (`#3t-2`, single game, overlay open) and 107-121 (`#3x-2`, multiview
 - 3x-2: the same 340 overlay with a block per tile; Emulation shows your tile only ("Only your tile is emulated on this device."), Streaming one block per remote tile, badges 1-4 match the tile keys; summaries "tile 1 · 59.8 fps", "2 tiles · 1 relayed".
 - New in the mock vs the measured values: "jitter" in the Streaming lines is not measured today (open); the GPU line uses the placeholder "Example GPU · driver 1.2.3".
 - Open: decisions.md (state per view or global: global, ADR 0014 D5).
+
+## Round 3 (2026-10-12)
+
+Source `source/round-3-player-a.dc.html` (289 lines: 3a-3, 3c-6, 3c-7, 3p-3, 4a-3, 4a-4, 4f-3, 4j-3) and `source/round-3-player-b.dc.html` (253 lines: 3e-3, 3f-4, 3r-3, 3h-3, 3i-3, 3y-2), dark theme; rules in `source/round-3-sheet.dc.html` (0-2, handoff table) and decisions 20-23 in [decisions.md](decisions.md); new tokens: [tokens.md](tokens.md#additions-of-round-3-2026-10-12). Finding IDs (P = Player, D = design gap) are those of the 0.14 UI scan. The plugin screens 4a-3, 4a-4, 4f-3 and 4j-3 are specified in [plugins.md](plugins.md). Unchanged parts stay as in the older section of the same screen. Player nav (`source/player-nav.dc.html`, props `active`, `plugin`, `offline`): sidebar 232, surface `#16171a`, order Library, Runs (accent mono badge, mock "1"), plugin screen entry (only while a plugin offers one, indented 30, directly under Runs, see 4f-3), Emulation, Controllers, Settings; Hub card (surface `#1b1c1f`, radius 10, padding 12: status dot, name, "Switch", mono 11 address with ellipsis and the full address as tooltip); user block below it on two lines (name 13; device name 12 `#9a9a9f`, ellipsis) with the avatar 28 (P3, P9). Content widths: Settings and Runs max 880 px, Library grid max 1680 px, both left-aligned (decision 23, P7); detail column 340; SettingsRow control column 280. Mock names (Max, Lena, Home Hub, hosts under `example.com`, folders under `D:\Games`) are illustrative.
+
+### 3a-3 Player Connect (Round 3)
+Source: `source/round-3-player-a.dc.html#3a-3` (21-40), two states side by side. Fixes P2, P6.
+
+- Form centred, 520 wide, title 32/600, body 14/20, input 44 high (radius 8, mono 14); one field "Hub address" with the value as `host:port` (hint "host:port, without https://", 12 `#9a9a9f`); Hub edit in Settings uses the same single field (3p-3). Below a divider the toggle (36 x 20) with the label "Connect automatically on startup"; the drawing shows the toggle left of the label; the rule is toggle right in the control column like Settings (finding P4 fixed also here, ADR 0026 D5). Footer line (mono 12): "This device: Desktop-LivingRoom · Player 0.14.0 · Windows x86-64".
+- First start: eyebrow "FIRST START", title "Connect to a Hub", body "Enter the address of your FrameBeam Hub. You find it in the Hub under Settings → General.", field with accent border, button "Connect".
+- Pairing lost (known Hub): eyebrow "HOME HUB · PAIRING LOST", title "Pair again", body "Home Hub no longer knows this device. Its admin may have revoked it. Pair again to get a new approval; your local saves are kept.", the address is shown read-only (grey), button "Pair again", hint (amber) "The Hub admin approves the request under Clients." (replaces the wrong heading "Add hub").
+
+### 3c-6 Player Library (Round 3)
+Source: `#3c-6` (41-67, 1280 x 800), `#3c-6-4k` (68-83, 3840 x 2160 shown at 50 %). Fixes P7, P8, P9, P10, P11, P13 (with 3c-7).
+
+- Header is one row (title, search, "Upload ROM") so that "Upload ROM" can no longer overlap the title on first load (P8). Title "Library" 26/600; search field and the button as in 3c-2.
+- Chips carry the only count: "All · 10", "Ready · 3", "Needs attention · 1", "Not downloaded · 6"; no extra "10 games" (P11). Toolbar: "Sort: Name ▾", toggle "Ready first". "Needs attention" follows decision bg (missing required firmware or no core; an available update is not attention).
+- Core notice: one dismissible line, grouped by core, instead of one banner per system (P10): "2 cores download from Home Hub on first start: mGBA (GB, GBC, GBA) · Azahar (3DS)" + "Dismiss". Drawn as an inline strip above the grid (surface `#16242a`, border `#23414a`, radius 8, padding 10 14, 13px, "Dismiss" grey); the core names are 500.
+- Tiles: mono system label ("NDS", "GBC", "GBA", "GB", "3DS"), monogram, title, status line: "↓ Download · 12 KB" (grey), "Core downloads at start" (grey), "● Ready" (green `#5fd28a`), "▲ Save conflict" (amber `#e5b45a`). Badges for local files: "Local" (grey pill `#26272b`) for a file only on this device, "Local · on Hub" (accent pill `#16242a` / `#3cbfd8`) for a local copy whose hash matches a Hub game. Selection: 2px `#3cbfd8`.
+- Grid 3 columns at 1280 (detail column 340), 7 columns at 3840; the grid stops at 1680 px and stays left-aligned, the detail column keeps 340 px, the empty space to the right is intentional (P7). Detail column: see 3c-7.
+
+### 3c-7 Player Library detail column (Round 3)
+Source: `#3c-7` (84-104), four variants, each 340 x 800 with the buttons pinned to the bottom. Fixes P12, P13, P14.
+
+- Common: caption (mono 11), status pill, title 22/600, "Nintendo DS · melonDS DS" 13, fact table (ROM, Core, Firmware, File, Matches, On the Hub), START checklist (dot ok green `#5fd28a`, error amber `#e5b45a`, pending hollow), primary button (48, accent), secondary row (outline buttons).
+- Local file, not on the Hub (pill "Local"): facts File (path), Core "mGBA · ready", On the Hub "Not uploaded"; checklist "Local file found · 12 KB · hash checked", "Core ready · mGBA <version>", "Save checked with Hub · No save yet", "Emulator starting"; "Play"; secondary "Upload to Hub", "Remove from library" (an outline button like the others, not plain text; P12).
+- Local copy of a Hub game (pill "Local · on Hub"): facts File, Matches "Hub ROM 8e33…a8c8", Core; checklist "Local file found · same hash as the Hub", "Core ready", "Save checked with Hub · Main · synced today 17:40", "Emulator starting"; "Play"; secondary "Play and share", "Remove from library".
+- Error, Hub offline (pill "Needs attention", amber): facts ROM "Local file · 1.0 GB", Core "Azahar · not on this device" (amber), Home Hub "Offline since 18:02" (amber); checklist "Core ready · Azahar must download from Home Hub" with an amber dot; the primary "Download and play" is disabled (`#26272b`, text `#6a6a70`) with the reason directly below: "Home Hub is offline, so Azahar cannot download. Try again when the Hub is back."; secondary "Retry connection", "Hub settings" (P13).
+- With plugin section (pill "Ready to play", green): a collapsible section above START ("POKÉMON CORE · Collapse ▴ · Party 4 · Box 12 · Badges 2"); the checklist and the buttons stay inside 340 x 800, no clipped "Emulator starting", no empty badge above the title (P14); secondary "Play and share", "Manage saves".
+
+### 3p-3 Player Settings (Round 3)
+Source: `#3p-3` (105-134), 1440 x 1280, nav column as in 3p-2 (subtitles "0.14.0 · Stable", "2 saved · Home Hub active", "Dark", "2 folders · 15 games", "1 KB of 20 GB", "2 installed · 2 on", "Logs and support"). Fixes P1-P5, P16, P18 (as drawn also P6 and P17); at 3840 the content follows the 880 px rule (decision bi).
+
+- Content max 880, left-aligned; header "Settings" with "Saved on this device only" once (no duplicate, P17).
+- UPDATES: status card in row width ("Player 0.14.0 is up to date" / "Stable channel · checked today 17:52"); "Update channel" with the segment "Off | Stable | Beta" and help "Stable: tested releases. Beta: earlier, less tested." (P5); "Install updates automatically" "Never while a game is running."
+- HUBS · 2: section header with "+ Add hub" right-aligned with the 280 control column (P1). Active card "Home Hub" with "● Connected · active", "hub.example.com:8443 · since today 17:40", buttons "Edit", "⋯"; "Connect automatically on startup" ("Uses this Hub when the Player starts.") sits inside the active Hub card. Second card "Lena’s Hub": pill "Pairing lost" (amber), "lena.example.net:8443 · last 3 Oct", button "Pair again". Edit panel "EDIT · HOME HUB": one field "Address" (`host:port`, no separate port field, P6), "Cancel", "Save", help "host:port, without https://. If the Hub shows a different certificate, the Player asks you to compare it." The long address is no longer cut in the sidebar Hub card (P3).
+- LIBRARY FOLDERS · 2: header action "+ Add folder…"; description "The Player finds games in these folders and starts them from there. It tells Home Hub which games you have; the files stay on this device." (full text, no "More" link on short texts, P18). Folder rows (card rows): path with middle ellipsis (full path as tooltip), meta line, row action, "Remove": "D:\Games\GB" "12 games · scanned 5 min ago" "Rescan"; a long path "D:\Games\Archive\Nintendo…\DS-and-3DS" "Scanning · 41 of 120 files" (cyan) "Stop scan"; "E:\Retro" "Drive not found · last scanned 3 Oct" (amber) "Rescan". Footer "Remove only takes the folder off the list. Your files are not deleted." Plurals per decision 23 (P16).
+
+### 3e-3 Player Emulation (Round 3)
+Source: `source/round-3-player-b.dc.html#3e-3` (21-42), `#3e-3-rows` (43-49). Fixes P30, P31, P32, D9.
+
+- Left list: Defaults ("Apply to every system · 1 changed") and SYSTEMS with core line and a firmware line only where it applies: "Game Boy · mGBA · from Hub", "Game Boy Color · Gambatte · from Hub", "Game Boy Advance · mGBA · from Hub", "Nintendo DS · No core chosen yet" + "Firmware optional", "Nintendo 3DS · Azahar · from Hub" (no preselected core since 0.13, P31).
+- Detail "Nintendo DS" (title 28/600, "Saved on this device only" 13, text link "Reset all to default" 13 `#9a9a9f` on the right; one Reset style, a plain text link, P32). Rows (SettingsRow: padding 12 0, gap 24, control 280 with padding 7 12 and radius 8, a 60 px right column holds "Reset" in accent `#3cbfd8` for a changed value or "Default" in grey `#7a7a80`; content max 880, padding 28 36):
+  - "Core": "No core chosen yet · picked on first start. Home Hub offers melonDS DS and DeSmuME." control "Choose a core ▾" (accent border).
+  - "Firmware" (only for cores that can use files): "Only shown because melonDS DS can use files. Built-in works for most games." "Built-in ▾".
+  - "Firmware files": "Native mode needs <ARM7 BIOS>, <ARM9 BIOS> and firmware from the Hub." control amber "▲ <file> missing on Hub".
+  - "Screen layout": "Overrides Defaults for DS games." "Use default (Stacked) ▾".
+  - "Speed-up speed": "How fast the game runs while speed-up is on." "2× ▾"; "Audio during speed-up": "Plays sound at a higher pitch while sped up." toggle "On" with "Reset".
+  - Hint "Core options appear after the core loaded once. Per-game settings are under Library → game → ⋯." (accent link style, P32). The per-game card is removed.
+- `#3e-3-rows`: rows that differ per system: 3DS · Azahar "System language" ("Language the 3DS reports to games.", "English ▾"; Azahar core option "3DS System Language"); 3DS · Azahar and GB · mGBA have no Firmware row ("No firmware needed for this core. Row not shown."; P30); Defaults has "DS and 3DS screen layout" ("Stacked, Side by side or Top only. Systems can override.", "Stacked ▾").
+
+### 3f-4 Player Controllers (Round 3)
+Source: `#3f-4` (50-83) Buttons, `#3f-4-hotkeys` (84-99) Hotkeys. Fixes P33, P34, P35, P36, D11. Supersedes the layout of the plugin round's 3f-4 ([plugins.md](plugins.md#3f-4-controllers-hotkeys)); its plugin groups stay.
+
+- Left column DEVICES: "Gamepad · Xbox layout" "● Connected · P1"; "Keyboard" "● Connected"; "Mouse" "Touch screen for DS and 3DS". Tabs "Buttons | Hotkeys"; "Profile" select ("My 3DS layout ▾") + "Rename" + "⋯" (profile actions).
+- Buttons: segment "System" GB | GBC | GBA | DS | 3DS shows only that system's buttons (P33): 3DS list A, B, X, Y, L / R, ZL / ZR, Start / Select, D-pad, Circle pad ("Left stick · dead zone 12 %"), C-stick ("Right stick"), Home ("not set"), each with its key and "Default". Note: "DS shows no ZL, ZR or sticks. GB and GBC show A, B, Start, Select and D-pad only. GBA adds L and R."
+- INPUT TEST · 3DS: shoulder row ZL, L, R, ZR (active `#16242a`); "Circle pad · x 0.42 y −0.61" with a live position; X Y A B cluster; "C-stick · centered"; "Bottom screen · mouse = stylus".
+- Hotkeys table (`#3f-4-hotkeys`), columns `1fr 150 170 70` (ACTION | KEY | GAMEPAD | state), all values shown in full without ellipsis (P35). Groups: FRAMEBEAM ("always wins"): Pause / pause overlay Esc · Select + Start · Fixed; Toggle fullscreen F11 · Select + Y; Diagnostics F3 · Select + R3; Save snapshot (editing: "Press a key…", accent ring) · Select + LB; Speed-up Space · Select + RB; Show or hide all HUD widgets F4 · Select + L3; Panel tabs Alt+1 – Alt+9 · not set · Fixed. Plugin groups: "SOULLINK & NUZLOCKE · 3 keys" (Show or hide HUD widget Ctrl+H, Open team Ctrl+D; gamepad "not set"), "ITEM HELPER · LOCAL · 2 conflicts" (amber). Conflict rows (surface `#1d1a12`, left bar and key border amber): "Peek bag Ctrl+H → Unassigned · Already used by SoulLink & Nuzlocke → Show or hide HUD widget. Pick another key."; "Quick save F11 → Unassigned · Already used by Toggle fullscreen. FrameBeam keys always win." The note sits aligned under the key column (P35).
+- Footer: "Gamepad hotkeys: hold Select, then press the second button. They are never sent to the game." Plugin hotkeys have no gamepad default (decision bk); every FrameBeam row has a gamepad column and an Esc row (P34, P36).
+
+### 3r-3 Player Multiview (Round 3)
+Source: `#3r-3-2`, `#3r-3-3`, `#3r-3-4` (1440 x 900), `#3r-3-2s`, `#3r-3-3s`, `#3r-3-4s` (1280 x 800), template and data at lines 100-136 and 239-245. Fixes P38, P41, P43, P44, D18, D20 (and P37, decision 20).
+
+- Header (56, game header): "← Library", "Multiview", layout segment "PiP | Row | Grid 2×2" (for fewer than 4 Sessions "Grid 2×2 · from 4" is shown disabled, `#6a6a70`), "❚❚ Pause", "↺ Reset" (stays visible at 1280, P44), "+ Add · n/4", "F3", "F11".
+- Layouts: 2 Sessions Row (columns `1fr 1fr`); 3 Sessions Row (`1fr 1fr 1.25fr`: two DS tiles and one GBA tile, the wider cell for the landscape tile); 4 Sessions Grid 2×2 (`1fr 1fr`). Never a Grid with an empty fourth slot (P38, roadmap 0.14). Area padding 16, tile gap 12; right panel 300 (1280: 260).
+- Tile: radius 10, surface `#121315`, padding 10, gap 8, border 2px; selected tile border 2px `#3cbfd8`, others `#24252a`: the one selection style (P43). Info row: index chip (mono 11, `#26272b`), name ("You · Lumen Drift"), pill (11, radius 10: "♪ Audio" accent `#16242a` / `#3cbfd8`, "Paused" neutral `#26272b` / `#d0d0d4`).
+- Remote tile states (picture at opacity .45, centred card rgba(18,19,21,.88), border `#34353a`, radius 10, padding 10 16, title 14/600 + sub 12 `#9a9a9f`): paused "❚❚ Paused by Lena" / "Frozen picture · resumes here" (decision 20); loading "Jonas’s game is loading" / "Connecting · 3 s"; ended "Session ended" / "Sam quit at 18:58 · Remove tile".
+- Right panel for a selected remote tile: eyebrow "TILE 2 · WATCHING", "Lena · Harbor Rally", status "❚❚ Paused by Lena · 1 min", button "♪ Audio here", "Remove from Multiview", note "You only watch and listen. Lena’s picture stays frozen until she resumes." (decision x: input never goes to a remote tile).
+- Add popover (`#3r-3-3`): opens below the toolbar, never over the panel header (P41): "Running sessions · n of 4 tiles", row "Sam · Meadow Courier · GB · for 4 min" + "Add", help "Opens below the toolbar; never covers the panel header." The "+4" tab overflow popover follows the same rule (plugins.md 4e).
+
+### 3h-3 Player Session (Round 3)
+Source: `#3h-3` (137-157), 1440 x 900, panel 360. Fixes P40, P41, P45 (artboard caption) and P46, P47 (sheet range P45-P47; the tile strip and map legend are specified in [plugins.md](plugins.md)).
+
+- Header: "← Library", "Lumen Drift", "● Shared · 2 watching", "❚❚ Pause", "↺ Reset", segment "Session | Multiview", "Diagnostics F3", "Fullscreen F11".
+- Diagnostics docked as a tab of the side panel (tabs: Game, plugin icons "⛓" and "◉" with the plugin name on hover or focus, Diagnostics); never an overlay over the game frame or the remote tiles. Rows (mono key/value): Core "melonDS DS 2026.10.09", Renderer "OpenGL 4.6 · 3×", FPS "59.8 / 59.83", Frame "5.1 ms · emu 3.7", Audio "84 ms · 0 underruns", Encoder "<encoder> · 6.0 Mbit/s", viewer lines "Lena · Direct · RTT 18 ms · 0.4 %", "Jonas · Relayed (TURN) · RTT 74 ms". Footer "Docked as a panel tab so it never covers the game or remote tiles. F3 opens and closes it."
+- HUD: "1 widget hidden · Show" is a pill (12, `#1f2024`, border `#34353a`) above the game's bottom edge (bottom offset 62), not on it (P45); HUD widget top left "Route 3 · 2 alive" (16, 16).
+
+### 3i-3 Player PiP (Round 3)
+Source: `#3i-3` (158-178), 1440 x 900. Fixes P42, D20.
+
+- Header as 3r-3, layout "PiP" active. The main tile is inset by 16 inside the frame (border 2px `#3cbfd8`, caption "You · Lumen Drift" bottom left); the PiP tile (240 wide at M, surface `#17181b`, border `#34353a`, radius 10, padding 8, shadow `0 8px 24px rgba(0,0,0,.5)`) sits inside the main tile and no longer overlaps its border.
+- PiP controls row: index chip, size steps "S | M | L" (active M, accent), "♪" audio, "⇄" swap, "✕" remove. Corner snap targets: dashed 60 x 40 areas (`#3a3b40`) in three corners while dragging, hint "Drag to snap to a corner · S / M / L size". Paused remote: picture dimmed and "❚❚ Paused by Lena" centred on the PiP picture; caption "Lena · Orbit Gardens".
+
+### 3y-2 Player Fullscreen, paused (Round 3)
+Source: `#3y-2` (179-190), 1440 x 900. Fixes P34, P39; decisions 20, 21.
+
+- Black frame, game dimmed to .45. Toolbar centred at top 20 (surface `#17181b`, border `#2a2b30`, radius 10, padding 8 10, 13px, nowrap): game name (600), primary "▶ Resume Esc" (accent, mono 11 key), layout segment "Stacked | Side by side | Top only", button "Leave fullscreen F11".
+- Pause card centred (380 wide, padding 24 32, radius 14, surface rgba(18,19,21,.92), border `#34353a`): "Paused" 22/600; "Viewers see “Paused by Max”. Saved to “Main” · today 18:52" (13, `#9a9a9f`; the first sentence only while the game is shared); buttons "Resume" (accent) and "Leave fullscreen" (outline); hint "Esc or Resume continues · F11 leaves fullscreen" (12, `#7a7a80`).
+- Behavior (decision 21): Esc pauses in a window and in fullscreen and opens this overlay; a second Esc or "Resume" continues; F11 toggles fullscreen. The diagnostics section of 3y stays for the unpaused fullscreen.
 
 ## Components (revision v4)
 Component sources are the `.dc.html` files in `source/` (README, "Component sheets"). Values below are taken from them and from the sheets.

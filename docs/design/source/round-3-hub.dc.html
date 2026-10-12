@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>body{margin:0;background:#d9d7d0;font-family:'IBM Plex Sans',sans-serif}a{color:#1a7f96}a:hover{color:#125f70}</style>
+</helmet>
+<section style="padding:64px;display:flex;flex-direction:column;gap:24px">
+<div style="font-size:32px;font-weight:600;color:#1d1d1b">Round 3 · Hub consistency pass</div>
+<div style="font-size:15px;color:#55544f;max-width:900px">Hub light 1440 × 900 unless noted. Rules from <a href="Round 3 Sheet.dc.html">0-2</a> apply: dates (“today 18:52”, “16 Oct”), one visible row action + ⋯, red only in menus/confirmations, amber for unverified and warnings.</div>
+<div style="display:flex;flex-wrap:wrap;gap:72px;align-items:flex-start">
+
+<!-- 3l-2 -->
+<div id="3l-2" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px">3l-2</span><span style="font-size:15px;color:#1d1d1b">Systems &amp; Cores · Cores tab · auto updates · 1280 × 800</span></div>
+<div style="width:1280px;height:800px;display:flex;background:#f5f4f0;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.12)">
+<dc-import name="hub-nav" active="Systems &amp; Cores" hint-size="232px,100%"></dc-import>
+<div style="flex:1;min-width:0;padding:32px 40px;display:flex;flex-direction:column;gap:20px;color:#1d1d1b">
+  <div><div style="font-size:28px;font-weight:600">Systems &amp; Cores</div><div style="font-size:14px;color:#6b6a65;margin-top:4px">Which core each system uses and which files it needs. Players download cores from this Hub.</div></div>
+  <div style="display:flex;gap:20px;min-height:0;flex:1">
+    <div style="width:300px;flex:none;display:flex;flex-direction:column;gap:12px">
+      <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:14px 16px;display:flex;gap:12px;align-items:center">
+        <div style="flex:1"><div style="font-size:14px;font-weight:500">Automatic core updates</div><div style="font-size:12px;color:#6b6a65;margin-top:2px">Hub default for all systems</div></div>
+        <div style="width:36px;height:20px;border-radius:10px;background:#1a7f96;position:relative;flex:none"><div style="position:absolute;right:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#fff"></div></div>
+      </div>
+      <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;overflow:hidden">
+        <sc-for list="{{ systems }}" as="s" hint-placeholder-count="5">
+          <div style="display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid #efede8;background:{{ s.bg }};box-shadow:{{ s.sh }}">
+            <div style="flex:1;min-width:0"><div style="font-size:14px">{{ s.name }}</div><div style="font-size:12px;color:#6b6a65">{{ s.core }}</div></div>
+            <span style="font-size:11px;font-weight:500;padding:2px 8px;border-radius:10px;white-space:nowrap;background:{{ s.pbg }};color:{{ s.pfg }}">{{ s.status }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="font-size:12px;color:#6b6a65;line-height:17px">Ordered by family and generation. Systems come from the system templates bundled with the Hub.</div>
+    </div>
+    <div style="flex:1;min-width:0;background:#fff;border:1px solid #e4e2dc;border-radius:10px;display:flex;flex-direction:column">
+      <div style="padding:20px 24px 0;display:flex;justify-content:space-between"><div><div style="font-size:20px;font-weight:600">Nintendo DS <span style="font:500 12px 'IBM Plex Mono';color:#6b6a65">nds</span></div><div style="font-size:13px;color:#6b6a65;margin-top:2px">Default core: melonDS DS</div></div><span style="align-self:flex-start;font-size:12px;font-weight:500;padding:3px 10px;border-radius:12px;background:#e3f1f4;color:#1a7f96">1 update available</span></div>
+      <div style="display:flex;gap:24px;padding:16px 24px 0;border-bottom:1px solid #e4e2dc;font-size:14px"><span style="padding-bottom:10px;border-bottom:2px solid #1d1d1b;font-weight:500">Cores</span><span style="color:#6b6a65">Firmware</span><span style="color:#6b6a65">Clients</span></div>
+      <div style="padding:20px 24px;display:flex;flex-direction:column;gap:18px">
+        <div style="display:flex;align-items:center;gap:16px"><div style="flex:1"><div style="font-size:14px;font-weight:500">Automatic core updates</div><div style="font-size:12px;color:#6b6a65;margin-top:2px">Installs newer buildbot builds after each check. A core can override this below.</div></div>
+          <div style="display:flex;background:#efede8;border-radius:8px;padding:3px;font-size:13px;flex:none"><span style="padding:5px 12px;border-radius:6px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.1)">Use Hub default (On)</span><span style="padding:5px 12px;color:#55544f">On</span><span style="padding:5px 12px;color:#55544f">Off</span></div></div>
+        <div style="border:1px solid #e4e2dc;border-radius:8px;overflow:hidden">
+          <div style="display:grid;grid-template-columns:minmax(0,1.6fr) 120px 190px minmax(0,1.2fr) 120px;gap:12px;padding:10px 16px;background:#faf9f6;font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65"><span>CORE</span><span>VERSION</span><span>UPDATES</span><span>ORIGIN</span><span></span></div>
+          <sc-for list="{{ cores }}" as="k" hint-placeholder-count="2">
+            <div style="display:grid;grid-template-columns:minmax(0,1.6fr) 120px 190px minmax(0,1.2fr) 120px;gap:12px;padding:12px 16px;border-top:1px solid #efede8;align-items:center;font-size:13px">
+              <div style="min-width:0"><div style="display:flex;gap:6px;align-items:center;white-space:nowrap"><span style="font-weight:500;font-size:14px">{{ k.name }}</span><span style="font-size:11px;padding:1px 6px;border-radius:8px;background:#e1f0e4;color:#1e6b3a;display:{{ k.defd }}">Default</span></div><div style="font-size:12px;color:#6b6a65">{{ k.note }}</div></div>
+              <span title="{{ k.build }}" style="font-family:'IBM Plex Mono';white-space:nowrap">{{ k.ver }}</span>
+              <div style="display:flex;flex-direction:column;gap:2px"><span style="align-self:flex-start;white-space:nowrap;font-size:12px;padding:2px 8px;border-radius:10px;background:{{ k.ubg }};color:{{ k.ufg }}">{{ k.upd }} ▾</span><span style="font-size:11px;color:#6b6a65">{{ k.usub }}</span></div>
+              <span style="color:#55544f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">libretro buildbot · nightly</span>
+              <div style="display:flex;gap:6px;justify-content:flex-end"><span style="font-size:13px;padding:5px 10px;border:1px solid #d9d7d0;border-radius:7px;display:{{ k.btn }}">Update</span><span style="font-size:14px;padding:4px 9px;border:1px solid #d9d7d0;border-radius:7px">⋯</span></div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;align-items:center;gap:16px;padding-top:4px"><div style="flex:1;font-size:13px;color:#55544f">Source <span style="font-family:'IBM Plex Mono'">buildbot.libretro.com/nightly</span> · checked 16 min ago · 3 cores for this system</div><span style="font-size:13px;padding:6px 12px;border:1px solid #d9d7d0;border-radius:7px">Check now</span></div>
+        <div style="font-size:12px;color:#6b6a65;border-top:1px solid #efede8;padding-top:14px">Available, not installed: <span style="color:#1d1d1b">melonDS (standalone port) 2026.10.10</span> · <a>Install</a></div>
+      </div>
+    </div>
+  </div>
+</div></div></div>
+
+<!-- 3l-3 -->
+<div id="3l-3" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px">3l-3</span><span style="font-size:15px;color:#1d1d1b">3DS · Firmware tab · no firmware needed (H3, H4)</span></div>
+<div style="width:1440px;height:900px;display:flex;background:#f5f4f0;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.12)">
+<dc-import name="hub-nav" active="Systems &amp; Cores" hint-size="232px,100%"></dc-import>
+<div style="flex:1;padding:32px 40px;display:flex;flex-direction:column;gap:20px;color:#1d1d1b">
+  <div><div style="font-size:28px;font-weight:600">Systems &amp; Cores</div><div style="font-size:14px;color:#6b6a65;margin-top:4px">Which core each system uses and which files it needs. Players download cores from this Hub.</div></div>
+  <div style="display:flex;gap:20px">
+    <div style="width:300px;flex:none;background:#fff;border:1px solid #e4e2dc;border-radius:10px;overflow:hidden;align-self:flex-start">
+      <sc-for list="{{ systems3 }}" as="s" hint-placeholder-count="5"><div style="display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid #efede8;background:{{ s.bg }};box-shadow:{{ s.sh }}"><div style="flex:1"><div style="font-size:14px">{{ s.name }}</div><div style="font-size:12px;color:#6b6a65">{{ s.core }}</div></div><span style="font-size:11px;font-weight:500;padding:2px 8px;border-radius:10px;background:{{ s.pbg }};color:{{ s.pfg }}">{{ s.status }}</span></div></sc-for>
+    </div>
+    <div style="flex:1;background:#fff;border:1px solid #e4e2dc;border-radius:10px;align-self:flex-start">
+      <div style="padding:20px 24px 0"><div style="font-size:20px;font-weight:600">Nintendo 3DS <span style="font:500 12px 'IBM Plex Mono';color:#6b6a65">3ds</span></div><div style="font-size:13px;color:#6b6a65;margin-top:2px">Default core: Azahar</div></div>
+      <div style="display:flex;gap:24px;padding:16px 24px 0;border-bottom:1px solid #e4e2dc;font-size:14px"><span style="color:#6b6a65">Cores</span><span style="padding-bottom:10px;border-bottom:2px solid #1d1d1b;font-weight:500">Firmware</span><span style="color:#6b6a65">Clients</span></div>
+      <div style="padding:56px 24px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center">
+        <div style="width:40px;height:40px;border-radius:50%;background:#e1f0e4;color:#1e6b3a;display:flex;align-items:center;justify-content:center;font-size:18px">✓</div>
+        <div style="font-size:16px;font-weight:500">No firmware needed for this core</div>
+        <div style="font-size:13px;color:#6b6a65;max-width:440px;line-height:19px">Azahar runs Nintendo 3DS games without BIOS or firmware files. If a system’s core needs files, they appear here.</div>
+      </div>
+    </div>
+  </div>
+</div></div></div>
+
+<!-- 3l-4 -->
+<div id="3l-4" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px">3l-4</span><span style="font-size:15px;color:#1d1d1b">DS · Firmware tab · drop zone, pin, remove with confirmation (H7, D4)</span></div>
+<div style="width:1440px;height:900px;display:flex;background:#f5f4f0;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.12)">
+<dc-import name="hub-nav" active="Systems &amp; Cores" hint-size="232px,100%"></dc-import>
+<div style="flex:1;padding:32px 40px;display:flex;flex-direction:column;gap:20px;color:#1d1d1b">
+  <div><div style="font-size:28px;font-weight:600">Systems &amp; Cores</div><div style="font-size:14px;color:#6b6a65;margin-top:4px">Which core each system uses and which files it needs. Players download cores from this Hub.</div></div>
+  <div style="display:flex;gap:20px">
+    <div style="width:300px;flex:none;background:#fff;border:1px solid #e4e2dc;border-radius:10px;overflow:hidden;align-self:flex-start">
+      <sc-for list="{{ systems }}" as="s" hint-placeholder-count="5"><div style="display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid #efede8;background:{{ s.bg }};box-shadow:{{ s.sh }}"><div style="flex:1"><div style="font-size:14px">{{ s.name }}</div><div style="font-size:12px;color:#6b6a65">{{ s.core }}</div></div><span style="font-size:11px;font-weight:500;padding:2px 8px;border-radius:10px;background:{{ s.pbg }};color:{{ s.pfg }}">{{ s.status }}</span></div></sc-for>
+    </div>
+    <div style="flex:1;background:#fff;border:1px solid #e4e2dc;border-radius:10px;align-self:flex-start;position:relative">
+      <div style="padding:20px 24px 0"><div style="font-size:20px;font-weight:600">Nintendo DS <span style="font:500 12px 'IBM Plex Mono';color:#6b6a65">nds</span></div><div style="font-size:13px;color:#6b6a65;margin-top:2px">Default core: melonDS DS</div></div>
+      <div style="display:flex;gap:24px;padding:16px 24px 0;border-bottom:1px solid #e4e2dc;font-size:14px"><span style="color:#6b6a65">Cores</span><span style="padding-bottom:10px;border-bottom:2px solid #1d1d1b;font-weight:500">Firmware</span><span style="color:#6b6a65">Clients</span></div>
+      <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px">
+        <div style="font-size:13px;color:#55544f;line-height:19px">melonDS DS runs with its built-in firmware. These files are optional: provide them to boot the DS menu or for games that check them. Files are checked against the SHA-256 in the system template.</div>
+        <div style="border:1px solid #e4e2dc;border-radius:8px;padding:14px 16px;display:flex;gap:16px;align-items:center">
+          <div style="flex:1"><div style="font-size:14px;font-weight:500">ARM7 BIOS <span style="font:400 12px 'IBM Plex Mono';color:#6b6a65">bios7.bin · 16 KB</span></div><div style="font:400 12px 'IBM Plex Mono';color:#6b6a65;margin-top:3px">sha256 24f6…9d1e · matches pin</div></div>
+          <span style="font-size:12px;padding:2px 8px;border-radius:10px;background:#e1f0e4;color:#1e6b3a">Provided · today 17:40</span>
+          <span style="font-size:13px;padding:5px 10px;border:1px solid #d9d7d0;border-radius:7px">Replace</span><span style="font-size:14px;padding:4px 9px;border:1px solid #1a7f96;border-radius:7px;box-shadow:0 0 0 3px #e3f1f4">⋯</span>
+        </div>
+        <div style="border:1px solid #e4e2dc;border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;gap:16px;align-items:center"><div style="flex:1"><div style="font-size:14px;font-weight:500">ARM9 BIOS <span style="font:400 12px 'IBM Plex Mono';color:#6b6a65">bios9.bin · 4 KB</span></div></div><span style="font-size:12px;padding:2px 8px;border-radius:10px;background:#ebe9e3;color:#55544f">Optional · not provided</span></div>
+          <div style="border:1.5px dashed #c9c6be;border-radius:8px;padding:18px;display:flex;gap:14px;align-items:center;background:#faf9f6"><div style="flex:1;font-size:13px;color:#55544f">Drop <span style="font-family:'IBM Plex Mono'">bios9.bin</span> here, or</div><span style="font-size:13px;padding:6px 12px;border:1px solid #d9d7d0;border-radius:7px;background:#fff">Choose file…</span></div>
+          <div style="display:flex;gap:10px;align-items:flex-start"><div style="flex:1"><div style="font-size:13px;font-weight:500">Pin a SHA-256 <span style="color:#6b6a65;font-weight:400">· optional</span></div><div style="font-size:12px;color:#6b6a65;margin-top:2px">Only a file with exactly this hash is accepted. Leave empty to accept the hash in the system template.</div></div><div style="width:300px;height:32px;border:1px solid #d9d7d0;border-radius:7px;font:12px 'IBM Plex Mono';color:#8d8b85;display:flex;align-items:center;padding:0 10px;box-sizing:border-box">64 hex characters</div><span style="font-size:13px;padding:6px 12px;border:1px solid #d9d7d0;border-radius:7px">Pin</span></div>
+        </div>
+        <div style="border:1px solid #e4e2dc;border-radius:8px;padding:14px 16px;display:flex;gap:16px;align-items:center"><div style="flex:1"><div style="font-size:14px;font-weight:500">DS firmware <span style="font:400 12px 'IBM Plex Mono';color:#6b6a65">firmware.bin · 256 KB</span></div><div style="font-size:12px;color:#6b6a65;margin-top:3px">Optional · not provided</div></div><span style="font-size:13px;padding:5px 10px;border:1px solid #d9d7d0;border-radius:7px">Provide file…</span></div>
+      </div>
+      <div style="position:absolute;right:24px;top:196px;width:220px;background:#fff;border:1px solid #e4e2dc;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.14);padding:4px;font-size:13px"><div style="padding:8px 10px">Download file</div><div style="padding:8px 10px">Copy SHA-256</div><div style="height:1px;background:#efede8;margin:4px 0"></div><div style="padding:8px 10px;color:#b3261e">Remove file…</div></div>
+    </div>
+  </div>
+</div></div></div>
+
+<!-- 3j-2 -->
+<div id="3j-2" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px">3j-2</span><span style="font-size:15px;color:#1d1d1b">Library · row menu, local-only row, sort, load more, scan progress (H11, H13, H14, D1)</span></div>
+<div style="width:1440px;height:900px;display:flex;background:#f5f4f0;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.12)">
+<dc-import name="hub-nav" active="Library" hint-size="232px,100%"></dc-import>
+<div style="flex:1;min-width:0;padding:32px 40px;display:flex;flex-direction:column;gap:16px;color:#1d1d1b;position:relative">
+  <div style="display:flex;align-items:flex-start;gap:16px"><div style="flex:1"><div style="font-size:28px;font-weight:600">Library</div><div style="font-size:14px;color:#6b6a65;margin-top:4px">96 KB used · 21.3 GB free</div></div><span style="font-size:14px;padding:8px 14px;border:1px solid #d9d7d0;border-radius:8px;background:#fff">Rescan folder</span><span style="font-size:14px;padding:8px 14px;border-radius:8px;background:#1d1d1b;color:#fff">Upload ROM</span></div>
+  <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:12px 16px;display:flex;flex-direction:column;gap:8px">
+    <div style="display:flex;gap:12px;align-items:center;font-size:13px"><span style="font-weight:500">Scanning import folder</span><span style="color:#6b6a65">142 of 310 files · 3 new games so far</span><span style="flex:1"></span><span style="font:12px 'IBM Plex Mono';color:#6b6a65">/srv/framebeam/…/library-import</span><span style="font-size:12px;padding:3px 8px;border:1px solid #d9d7d0;border-radius:6px">Copy path</span></div>
+    <div style="height:4px;background:#efede8;border-radius:2px"><div style="width:46%;height:100%;background:#1a7f96;border-radius:2px"></div></div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <sc-for list="{{ chips }}" as="ch" hint-placeholder-count="6"><span style="font-size:13px;padding:6px 12px;border-radius:16px;border:1px solid {{ ch.bd }};background:{{ ch.bg }};color:{{ ch.fg }}">{{ ch.l }}</span></sc-for>
+    <span style="flex:1"></span>
+    <div style="width:240px;height:34px;border:1px solid #d9d7d0;border-radius:8px;background:#fff;font-size:13px;color:#8d8b85;display:flex;align-items:center;padding:0 12px;box-sizing:border-box">Search title or hash</div>
+    <span style="font-size:13px;padding:7px 12px;border:1px solid #d9d7d0;border-radius:8px;background:#fff;white-space:nowrap">Sort: Name ▾</span>
+  </div>
+  <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;overflow:hidden">
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) 110px 90px 140px 90px 170px;gap:12px;padding:10px 20px;background:#faf9f6;font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65"><span>TITLE</span><span>SYSTEM</span><span>SIZE</span><span>ADDED</span><span>SAVES</span><span></span></div>
+    <sc-for list="{{ roms }}" as="r" hint-placeholder-count="9">
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) 110px 90px 140px 90px 170px;gap:12px;padding:0 20px;height:52px;border-top:1px solid #efede8;align-items:center;font-size:13px;background:{{ r.rowbg }}">
+        <div style="display:flex;gap:12px;align-items:center;min-width:0"><div style="width:30px;height:30px;border-radius:5px;background:#ebe9e3;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#55544f;flex:none">{{ r.m }}</div><div style="min-width:0"><div style="font-size:14px;white-space:nowrap">{{ r.t }}</div><div style="font-size:12px;color:#8a5a00;display:{{ r.locd }}">{{ r.loc }}</div></div></div>
+        <span>{{ r.sys }}</span><span style="font-family:'IBM Plex Mono';font-size:12px">{{ r.size }}</span><span title="{{ r.full }}">{{ r.added }}</span>
+        <span style="display:flex;gap:6px;align-items:center">{{ r.saves }}<span style="font-size:11px;padding:1px 6px;border-radius:8px;background:#f7ecd6;color:#8a5a00;display:{{ r.cfd }}">▲ Conflict</span></span>
+        <div style="display:flex;gap:6px;justify-content:flex-end"><span style="font-size:13px;padding:5px 10px;border:1px solid #d9d7d0;border-radius:7px;white-space:nowrap">{{ r.act }}</span><span style="font-size:14px;padding:4px 9px;border:1px solid {{ r.mbd }};border-radius:7px">⋯</span></div>
+      </div>
+    </sc-for>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 20px;border-top:1px solid #efede8;font-size:13px;color:#6b6a65"><span>Showing 9 of 48</span><span style="padding:6px 14px;border:1px solid #d9d7d0;border-radius:7px;color:#1d1d1b">Load 25 more</span></div>
+  </div>
+  <div style="position:absolute;right:40px;top:520px;width:200px;background:#fff;border:1px solid #e4e2dc;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.14);padding:4px;font-size:13px"><div style="padding:8px 10px">Rename</div><div style="padding:8px 10px">Download ROM</div><div style="padding:8px 10px">Copy SHA-256</div><div style="height:1px;background:#efede8;margin:4px 0"></div><div style="padding:8px 10px;color:#b3261e">Delete game…</div></div>
+</div></div></div>
+
+<!-- 3j-2 390 -->
+<div id="3j-2-390" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px">3j-2</span><span style="font-size:15px;color:#1d1d1b">390 px (H10)</span></div>
+<div style="width:390px;height:900px;background:#f5f4f0;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.12);display:flex;flex-direction:column;color:#1d1d1b">
+  <div style="height:52px;flex:none;display:flex;align-items:center;gap:12px;padding:0 16px;background:#efeee9;border-bottom:1px solid #e2e0da"><span style="font-size:18px">☰</span><span style="font-weight:600;flex:1">FrameBeam Hub</span><span style="font-size:12px;color:#8a5a00">1 conflict</span></div>
+  <div style="padding:20px 16px;display:flex;flex-direction:column;gap:12px">
+    <div style="display:flex;align-items:center"><div style="flex:1"><div style="font-size:24px;font-weight:600">Library</div><div style="font-size:13px;color:#6b6a65">96 KB used · 21.3 GB free</div></div><span style="font-size:14px;padding:8px 12px;border-radius:8px;background:#1d1d1b;color:#fff">Upload</span><span style="font-size:14px;padding:6px 10px;margin-left:6px;border:1px solid #d9d7d0;border-radius:8px">⋯</span></div>
+    <div style="display:flex;gap:8px;overflow:hidden"><sc-for list="{{ chips }}" as="ch" hint-placeholder-count="4"><span style="font-size:13px;padding:6px 12px;border-radius:16px;white-space:nowrap;border:1px solid {{ ch.bd }};background:{{ ch.bg }};color:{{ ch.fg }}">{{ ch.l }}</span></sc-for></div>
+    <div style="display:flex;gap:8px"><div style="flex:1;height:36px;border:1px solid #d9d7d0;border-radius:8px;background:#fff;font-size:13px;color:#8d8b85;display:flex;align-items:center;padding:0 12px">Search</div><span style="font-size:13px;padding:8px 10px;border:1px solid #d9d7d0;border-radius:8px;background:#fff">Name ▾</span></div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <sc-for list="{{ romsM }}" as="r" hint-placeholder-count="6"><div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:12px;display:flex;gap:12px;align-items:center"><div style="width:36px;height:36px;border-radius:6px;background:#ebe9e3;display:flex;align-items:center;justify-content:center;font-weight:600;color:#55544f;flex:none">{{ r.m }}</div><div style="flex:1;min-width:0"><div style="font-size:15px">{{ r.t }}</div><div style="font-size:12px;color:#6b6a65">{{ r.meta }}</div><div style="font-size:12px;color:#8a5a00;display:{{ r.locd }}">{{ r.loc }}</div></div><span style="font-size:16px;padding:6px 10px;border:1px solid #d9d7d0;border-radius:8px">⋯</span></div></sc-for>
+    </div>
+  </div>
+</div></div>
+
+<!-- 3s-4 -->
+<div id="3s-4" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px">3s-4</span><span style="font-size:15px;color:#1d1d1b">Saves · “Main”, one Current, snapshot on demand, restore blocked (H15, H16, H17, D3)</span></div>
+<div style="width:1440px;height:900px;display:flex;background:#f5f4f0;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.12)">
+<dc-import name="hub-nav" active="Saves" hint-size="232px,100%"></dc-import>
+<div style="width:300px;flex:none;background:#faf9f6;border-right:1px solid #e2e0da;padding:28px 20px;display:flex;flex-direction:column;gap:12px;box-sizing:border-box;color:#1d1d1b">
+  <div style="font-size:22px;font-weight:600">Saves</div>
+  <div style="height:34px;border:1px solid #d9d7d0;border-radius:8px;background:#fff;font-size:13px;color:#8d8b85;display:flex;align-items:center;padding:0 12px">Search games or users</div>
+  <span style="align-self:flex-start;font-size:13px;padding:5px 10px;border:1px solid #d9d7d0;border-radius:8px;background:#fff">All users ▾</span>
+  <sc-for list="{{ saveList }}" as="s" hint-placeholder-count="4"><div style="display:flex;gap:10px;padding:10px;border-radius:8px;background:{{ s.bg }};box-shadow:{{ s.sh }}"><div style="width:30px;height:30px;border-radius:5px;background:#ebe9e3;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#55544f;flex:none">{{ s.m }}</div><div><div style="font-size:14px">{{ s.t }} <span style="color:#6b6a65">· {{ s.u }}</span></div><div style="font-size:12px;color:{{ s.c }}">{{ s.st }}</div></div></div></sc-for>
+</div>
+<div style="flex:1;min-width:0;padding:28px 40px;display:flex;flex-direction:column;gap:16px;color:#1d1d1b">
+  <div style="display:flex;align-items:flex-start"><div style="flex:1"><div style="font-size:28px;font-weight:600">Lumen Drift</div><div style="font-size:14px;color:#6b6a65">Max · Nintendo DS</div></div><span style="font-size:12px;font-weight:500;padding:4px 10px;border-radius:12px;background:#f7ecd6;color:#8a5a00">▲ 1 conflict</span></div>
+  <div style="display:flex;gap:24px;border-bottom:1px solid #e2e0da;font-size:14px"><span style="padding-bottom:10px;border-bottom:2px solid #1d1d1b;font-weight:500">Main <span style="font-size:12px;color:#8a5a00;font-weight:400">1 conflict</span></span><span style="color:#6b6a65">Speedrun <span style="font-size:12px">1 version</span></span><span style="flex:1"></span><span style="color:#1a7f96;font-size:13px">+ New slot</span></div>
+  <div style="background:#fff7e6;border:1px solid #ecd9ae;border-radius:8px;padding:10px 14px;font-size:13px;color:#8a5a00">Restore not possible while a Session of this game is running · Lena-PC is playing Lumen Drift since 18:40</div>
+  <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:14px 18px;display:flex;flex-direction:column;gap:12px">
+    <div style="display:flex;gap:16px;align-items:center"><span style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65">CURRENT</span><div style="flex:1"><div style="font-size:14px">v6 · Laptop-Office · Session end · <span title="14 Oct 2026, 18:52:07">14 Oct 18:52</span></div><div style="font:12px 'IBM Plex Mono';color:#6b6a65">512 KB · 1fc1…726d</div></div><span style="font-size:13px;padding:6px 12px;border:1px solid #d9d7d0;border-radius:7px">Download</span><span style="font-size:13px;padding:6px 12px;border:1px solid #d9d7d0;border-radius:7px">Upload save…</span><span style="font-size:13px;padding:6px 12px;border:1px solid #1a7f96;border-radius:7px;color:#1a7f96">Create snapshot</span></div>
+    <div style="display:flex;gap:10px;align-items:center;border-top:1px solid #efede8;padding-top:12px"><div style="width:320px;height:32px;border:1px solid #1a7f96;border-radius:7px;box-shadow:0 0 0 3px #e3f1f4;font-size:13px;display:flex;align-items:center;padding:0 10px;box-sizing:border-box">Before the lighthouse</div><span style="font-size:13px;padding:6px 12px;border-radius:7px;background:#1d1d1b;color:#fff">Create</span><span style="font-size:13px;color:#6b6a65">Cancel</span><span style="font-size:12px;color:#6b6a65">Label optional. Snapshots are never removed by retention.</span></div>
+  </div>
+  <div style="background:#fff;border:1px solid #ecd9ae;border-radius:10px;padding:14px 18px;display:flex;gap:16px;align-items:center"><div style="flex:1"><div style="font-size:14px;font-weight:500;color:#8a5a00">▲ Conflict: v8 is based on v5, the current version is v6</div><div style="font-size:13px;color:#55544f">Both are kept in the history. Nothing is overwritten until you choose.</div></div><span style="font-size:13px;padding:6px 12px;border:1px solid #d9d7d0;border-radius:7px">Compare and resolve</span></div>
+  <div style="display:flex;align-items:center"><span style="flex:1;font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65">HISTORY · 8 VERSIONS</span><div style="display:flex;background:#efede8;border-radius:7px;padding:2px;font-size:12px"><span style="padding:3px 10px;border-radius:5px;background:#fff">All</span><span style="padding:3px 10px;color:#55544f">Snapshots</span></div></div>
+  <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;overflow:hidden">
+    <sc-for list="{{ hist }}" as="h" hint-placeholder-count="5"><div style="display:flex;gap:14px;align-items:center;padding:10px 18px;border-bottom:1px solid #efede8"><div style="width:12px;height:12px;border-radius:50%;border:2px solid {{ h.dot }};background:{{ h.fill }};flex:none"></div><div style="flex:1"><div style="font-size:14px;display:flex;gap:8px;align-items:center"><span style="font-family:'IBM Plex Mono';font-size:12px;color:#6b6a65">{{ h.v }}</span>{{ h.dev }}<span style="font-size:11px;padding:1px 7px;border-radius:8px;background:{{ h.bbg }};color:{{ h.bfg }};display:{{ h.bd }}">{{ h.badge }}</span><span style="font-style:italic;color:#55544f">{{ h.label }}</span></div><div style="font-size:12px;color:#6b6a65">{{ h.meta }}</div></div><span style="font-size:13px;color:#1a7f96">Download</span><span title="Not possible while Lena-PC is playing" style="font-size:13px;padding:5px 10px;border:1px solid #e4e2dc;border-radius:7px;color:#b5b3ac;display:{{ h.rd }}">Restore</span><span style="font-size:14px;padding:4px 9px;border:1px solid #d9d7d0;border-radius:7px">⋯</span></div></sc-for>
+  </div>
+</div></div></div>
+
+<!-- 3m-2 -->
+<div id="3m-2" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px">3m-2</span><span style="font-size:15px;color:#1d1d1b">Clients · online column, pending request, rename, revoked/denied, revoke in menu (H19, H20, D5)</span></div>
+<div style="width:1440px;height:900px;display:flex;background:#f5f4f0;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.12)">
+<dc-import name="hub-nav" active="Clients" hint-size="232px,100%"></dc-import>
+<div style="flex:1;padding:32px 40px;display:flex;flex-direction:column;gap:16px;color:#1d1d1b;position:relative">
+  <div><div style="font-size:28px;font-weight:600">Clients</div><div style="font-size:14px;color:#6b6a65;margin-top:4px">Devices allowed to reach this Hub</div></div>
+  <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65;margin-top:8px">PENDING REQUESTS · 1</div>
+  <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:14px 20px;display:flex;gap:16px;align-items:center"><div style="flex:1"><div style="font-size:14px;font-weight:500">Sam on Lena-PC</div><div style="font-size:12px;color:#6b6a65">windows x86_64 · Player 0.14.0 · requested 5 min ago · code <span style="font-family:'IBM Plex Mono'">7K-4QD</span></div></div><span style="font-size:13px;padding:6px 14px;border:1px solid #d9d7d0;border-radius:7px">Deny</span><span style="font-size:13px;padding:6px 14px;border-radius:7px;background:#1d1d1b;color:#fff">Approve</span></div>
+  <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65;margin-top:8px">DEVICES · 5</div>
+  <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;overflow:hidden">
+    <div style="display:grid;grid-template-columns:minmax(0,1.4fr) 100px 150px 90px 160px 110px 120px;gap:12px;padding:10px 20px;background:#faf9f6;font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65"><span>DEVICE</span><span>USER</span><span>PLATFORM</span><span>PLAYER</span><span>ONLINE</span><span>STATUS</span><span></span></div>
+    <sc-for list="{{ clients }}" as="d" hint-placeholder-count="5"><div style="display:grid;grid-template-columns:minmax(0,1.4fr) 100px 150px 90px 160px 110px 120px;gap:12px;padding:0 20px;height:52px;border-top:1px solid #efede8;align-items:center;font-size:13px">
+      <div style="min-width:0"><span style="font-size:14px;display:{{ d.nd }}">{{ d.n }}</span><div style="display:{{ d.ed }};gap:6px;align-items:center"><div style="width:180px;height:30px;border:1px solid #1a7f96;box-shadow:0 0 0 3px #e3f1f4;border-radius:7px;display:flex;align-items:center;padding:0 8px;box-sizing:border-box;font-size:13px">Living room PC</div><span style="font-size:12px;padding:5px 10px;border-radius:6px;background:#1d1d1b;color:#fff">Save</span><span style="font-size:12px;color:#6b6a65">Cancel</span></div></div>
+      <span>{{ d.u }}</span><span style="font:12px 'IBM Plex Mono'">windows x86_64</span><span style="font:12px 'IBM Plex Mono'">{{ d.v }}</span>
+      <span style="display:flex;gap:6px;align-items:center;color:{{ d.oc }}"><span style="width:7px;height:7px;border-radius:50%;background:{{ d.od }}"></span>{{ d.on }}</span>
+      <span style="justify-self:start;font-size:11px;font-weight:500;padding:2px 8px;border-radius:10px;background:{{ d.sbg }};color:{{ d.sfg }}">{{ d.st }}</span>
+      <div style="display:flex;gap:6px;justify-content:flex-end"><span style="font-size:13px;padding:5px 10px;border:1px solid #d9d7d0;border-radius:7px">{{ d.act }}</span><span style="font-size:14px;padding:4px 9px;border:1px solid {{ d.mbd }};border-radius:7px">⋯</span></div>
+    </div></sc-for>
+  </div>
+  <div style="font-size:12px;color:#6b6a65">Revoking ends access at once, also for tokens that are still valid. Saves stay on the Hub.</div>
+  <div style="position:absolute;right:40px;top:468px;width:200px;background:#fff;border:1px solid #e4e2dc;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.14);padding:4px;font-size:13px"><div style="padding:8px 10px">Rename</div><div style="padding:8px 10px">Copy device ID</div><div style="height:1px;background:#efede8;margin:4px 0"></div><div style="padding:8px 10px;color:#b3261e">Revoke access…</div><div style="padding:8px 10px;color:#b3261e">Delete device…</div></div>
+</div></div></div>
+
+<!-- 3m-2 390 -->
+<div id="3m-2-390" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px">3m-2</span><span style="font-size:15px;color:#1d1d1b">390 px (H22)</span></div>
+<div style="width:390px;height:900px;background:#f5f4f0;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.12);display:flex;flex-direction:column;color:#1d1d1b">
+  <div style="height:52px;flex:none;display:flex;align-items:center;gap:12px;padding:0 16px;background:#efeee9;border-bottom:1px solid #e2e0da"><span style="font-size:18px">☰</span><span style="font-weight:600;flex:1">FrameBeam Hub</span><span style="font-size:12px;color:#8a5a00">1 conflict</span></div>
+  <div style="padding:20px 16px;display:flex;flex-direction:column;gap:12px">
+    <div style="font-size:24px;font-weight:600">Clients</div>
+    <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65">PENDING · 1</div>
+    <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:10px"><div><div style="font-size:15px">Sam on Lena-PC</div><div style="font-size:12px;color:#6b6a65">requested 5 min ago · code 7K-4QD</div></div><div style="display:flex;gap:8px"><span style="flex:1;text-align:center;font-size:14px;padding:9px;border:1px solid #d9d7d0;border-radius:8px">Deny</span><span style="flex:1;text-align:center;font-size:14px;padding:9px;border-radius:8px;background:#1d1d1b;color:#fff">Approve</span></div></div>
+    <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65">DEVICES · 5</div>
+    <sc-for list="{{ clients }}" as="d" hint-placeholder-count="5"><div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:12px;display:flex;gap:12px;align-items:center"><div style="flex:1;min-width:0"><div style="font-size:15px">{{ d.n }}</div><div style="font-size:12px;color:#6b6a65">{{ d.u }} · <span style="color:{{ d.oc }}">{{ d.on }}</span></div></div><span style="font-size:11px;font-weight:500;padding:2px 8px;border-radius:10px;background:{{ d.sbg }};color:{{ d.sfg }}">{{ d.st }}</span><span style="font-size:16px;padding:6px 10px;border:1px solid #d9d7d0;border-radius:8px">⋯</span></div></sc-for>
+  </div>
+</div></div>
+
+<!-- 3n-2 -->
+<div id="3n-2" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px">3n-2</span><span style="font-size:15px;color:#1d1d1b">Users · Create user + Invite, role pill, styled controls (H21, D5)</span></div>
+<div style="width:1440px;height:900px;display:flex;background:#f5f4f0;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.12)">
+<dc-import name="hub-nav" active="Users" hint-size="232px,100%"></dc-import>
+<div style="flex:1;padding:32px 40px;display:flex;flex-direction:column;gap:16px;color:#1d1d1b;position:relative">
+  <div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1"><div style="font-size:28px;font-weight:600">Users</div><div style="font-size:14px;color:#6b6a65;margin-top:4px">Accounts on this Hub. Users sign in with a paired device, not a password.</div></div><span style="font-size:14px;padding:8px 14px;border:1px solid #d9d7d0;border-radius:8px;background:#fff">Create user</span><span style="font-size:14px;padding:8px 14px;border-radius:8px;background:#1d1d1b;color:#fff">Invite</span></div>
+  <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;overflow:hidden">
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) 130px 90px 120px 100px 120px;gap:12px;padding:10px 20px;background:#faf9f6;font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65"><span>NAME</span><span>ROLE</span><span>DEVICES</span><span>CREATED</span><span>STATUS</span><span></span></div>
+    <sc-for list="{{ users }}" as="u" hint-placeholder-count="4"><div style="display:grid;grid-template-columns:minmax(0,1fr) 130px 90px 120px 100px 120px;gap:12px;padding:0 20px;height:52px;border-top:1px solid #efede8;align-items:center;font-size:13px">
+      <div style="display:flex;gap:10px;align-items:center"><div style="width:26px;height:26px;border-radius:50%;background:{{ u.col }};color:#0d1214;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">{{ u.i }}</div><span style="font-size:14px">{{ u.n }}</span><span style="font-size:12px;color:#6b6a65">{{ u.you }}</span></div>
+      <span style="justify-self:start;font-size:13px;padding:4px 10px;border:1px solid #d9d7d0;border-radius:7px">{{ u.role }} ▾</span><span>{{ u.d }}</span><span title="12 Oct 2026, 09:14">12 Oct</span>
+      <span style="justify-self:start;font-size:11px;font-weight:500;padding:2px 8px;border-radius:10px;background:{{ u.sbg }};color:{{ u.sfg }}">{{ u.st }}</span>
+      <div style="display:flex;gap:6px;justify-content:flex-end"><span style="font-size:13px;padding:5px 10px;border:1px solid #d9d7d0;border-radius:7px">Rename</span><span style="font-size:14px;padding:4px 9px;border:1px solid {{ u.mbd }};border-radius:7px;display:{{ u.md }}">⋯</span></div>
+    </div></sc-for>
+  </div>
+  <div style="font-size:12px;color:#6b6a65">Disabled users cannot sign in on any device; their saves stay. Deleting a user removes their devices, invites and saves for good.</div>
+  <div style="position:absolute;right:40px;top:304px;width:200px;background:#fff;border:1px solid #e4e2dc;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.14);padding:4px;font-size:13px"><div style="padding:8px 10px">Make admin</div><div style="padding:8px 10px">Disable user</div><div style="height:1px;background:#efede8;margin:4px 0"></div><div style="padding:8px 10px;color:#b3261e">Delete user…</div></div>
+</div>
+<div style="width:300px;flex:none;background:#fff;border-left:1px solid #e2e0da;padding:28px 24px;box-sizing:border-box;display:flex;flex-direction:column;gap:14px;color:#1d1d1b">
+  <div style="font-size:18px;font-weight:600">Invites</div>
+  <div style="font-size:13px;color:#6b6a65;line-height:18px">The invited person enters the code in the Player and picks a display name. Not a Session invite.</div>
+  <div style="font-size:13px;font-weight:500">Expires after</div>
+  <div style="display:flex;background:#efede8;border-radius:8px;padding:3px;font-size:13px"><span style="flex:1;text-align:center;padding:5px;border-radius:6px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.1)">1 hour</span><span style="flex:1;text-align:center;padding:5px;color:#55544f">24 hours</span><span style="flex:1;text-align:center;padding:5px;color:#55544f">7 days</span></div>
+  <div style="display:flex;gap:10px;align-items:flex-start"><div style="width:16px;height:16px;border-radius:4px;background:#1a7f96;color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;flex:none;margin-top:1px">✓</div><div><div style="font-size:13px">Approve the first device directly</div><div style="font-size:12px;color:#6b6a65">No pending request for that device</div></div></div>
+  <div style="text-align:center;font-size:14px;padding:9px;border-radius:8px;background:#1d1d1b;color:#fff">Create invite</div>
+  <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65;margin-top:6px">OPEN · 1</div>
+  <div style="border:1px solid #e4e2dc;border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:6px"><div style="display:flex;justify-content:space-between;align-items:center"><span style="font:500 14px 'IBM Plex Mono'">QX7-22M</span><span style="font-size:12px;color:#6b6a65">expires in 23 h</span></div><div style="font-size:12px;color:#6b6a65">Single use · approves first device</div><div style="display:flex;gap:6px;margin-top:4px"><span style="font-size:12px;padding:4px 10px;border:1px solid #d9d7d0;border-radius:6px">Copy</span><span style="font-size:12px;padding:4px 9px;border:1px solid #d9d7d0;border-radius:6px">⋯</span></div></div>
+</div></div></div>
+
+<!-- 3q-2 network light -->
+<div id="3q-2" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px">3q-2</span><span style="font-size:15px;color:#1d1d1b">Settings · Network (light) · 1440 × 1240 (H32, H34, H35)</span></div>
+<div style="width:1440px;height:1240px;display:flex;background:#f5f4f0;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.12)">
+<dc-import name="hub-nav" active="Settings" hint-size="232px,100%"></dc-import>
+<div style="width:300px;flex:none;background:#faf9f6;border-right:1px solid #e2e0da;padding:28px 20px;box-sizing:border-box;display:flex;flex-direction:column;gap:6px;color:#1d1d1b">
+  <div style="font-size:13px;color:#6b6a65;padding:0 4px 8px">Settings</div>
+  <sc-for list="{{ setNav }}" as="n" hint-placeholder-count="6"><div style="padding:10px 12px;border-radius:8px;background:{{ n.bg }};border:1px solid {{ n.bd }}"><div style="font-size:14px">{{ n.t }}</div><div style="font-size:12px;color:#6b6a65">{{ n.s }}</div></div></sc-for>
+  <div style="font-size:12px;color:#6b6a65;padding:10px 4px">Changes save automatically. Admins only.</div>
+</div>
+<div style="flex:1;min-width:0;padding:28px 40px;display:flex;flex-direction:column;gap:16px;color:#1d1d1b">
+  <div style="display:flex"><div style="flex:1"><div style="font-size:28px;font-weight:600">Network</div><div style="font-size:14px;color:#6b6a65">Ports, public address and relay for Players outside your network</div></div><span style="font-size:13px;color:#1e6b3a">✓ All changes saved</span></div>
+  <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:16px 20px;display:flex;flex-direction:column;gap:14px">
+    <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65">SHARING &amp; IMPORT</div>
+    <div style="display:flex;gap:24px;align-items:center"><div style="flex:1"><div style="font-size:14px;font-weight:500">Network sharing</div><div style="font-size:12px;color:#6b6a65">Other devices on your network can reach this Hub. Changing it restarts the Hub.</div></div><div style="width:36px;height:20px;border-radius:10px;background:#1a7f96;position:relative"><div style="position:absolute;right:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#fff"></div></div></div>
+    <div style="display:flex;gap:24px;align-items:center;border-top:1px solid #efede8;padding-top:14px"><div style="flex:1"><div style="font-size:14px;font-weight:500">Import folder</div><div style="font-size:12px;color:#6b6a65">“Rescan folder” in the Library imports from here. The Hub only reads it. Changing it restarts the Hub.</div></div><div title="/srv/framebeam/hubdata/library-import" style="width:360px;height:34px;border:1px solid #d9d7d0;border-radius:7px;font:12px 'IBM Plex Mono';display:flex;align-items:center;padding:0 10px;box-sizing:border-box">/srv/framebeam/…/library-import</div><span style="font-size:13px;padding:6px 12px;border:1px solid #d9d7d0;border-radius:7px">Copy</span></div>
+  </div>
+  <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:16px 20px;display:flex;flex-direction:column;gap:14px">
+    <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65">LISTENING &amp; PUBLIC ADDRESS</div>
+    <div style="display:flex;gap:24px;align-items:center"><div style="flex:1"><div style="font-size:14px;font-weight:500">Listen port</div><div style="font-size:12px;color:#6b6a65">TCP port for Players and this web interface. Changing it restarts the Hub.</div></div><div style="width:360px;height:34px;border:1px solid #d9d7d0;border-radius:7px;font:13px 'IBM Plex Mono';display:flex;align-items:center;padding:0 10px;box-sizing:border-box">8443</div></div>
+    <div style="display:flex;gap:24px;align-items:center;border-top:1px solid #efede8;padding-top:14px"><div style="flex:1"><div style="font-size:14px;font-weight:500">Public address for Players</div><div style="font-size:12px;color:#6b6a65">host:port given to Players outside your network and used in invite links.</div></div><div style="width:360px;height:34px;border:1px solid #d9d7d0;border-radius:7px;font:13px 'IBM Plex Mono';color:#8d8b85;display:flex;align-items:center;padding:0 10px;box-sizing:border-box">hub.example.com:8443</div></div>
+  </div>
+  <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:16px 20px;display:flex;flex-direction:column;gap:14px">
+    <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65">RELAY · TURN</div>
+    <div style="display:flex;gap:24px;align-items:center"><div style="flex:1"><div style="font-size:14px;font-weight:500">Built-in TURN relay</div><div style="font-size:12px;color:#6b6a65">For Players that cannot connect directly. Needs a public address.</div></div><div style="width:36px;height:20px;border-radius:10px;background:#d9d7d0;position:relative"><div style="position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#fff"></div></div></div>
+    <div style="display:flex;gap:24px;align-items:center;border-top:1px solid #efede8;padding-top:14px"><div style="flex:1"><div style="font-size:14px;font-weight:500">Relay ports · UDP</div><div style="font-size:12px;color:#6b6a65">Forward the whole range as UDP to the Hub. At most 1000 ports.</div></div><div style="width:160px;height:34px;border:1px solid #d9d7d0;border-radius:7px;font:13px 'IBM Plex Mono';display:flex;align-items:center;padding:0 10px;box-sizing:border-box">49160</div><span style="color:#6b6a65">–</span><div style="width:160px;height:34px;border:1px solid #d9d7d0;border-radius:7px;font:13px 'IBM Plex Mono';display:flex;align-items:center;padding:0 10px;box-sizing:border-box">49199</div></div>
+    <div style="display:flex;gap:24px;align-items:center;border-top:1px solid #efede8;padding-top:14px"><div style="flex:1"><div style="font-size:14px;font-weight:500">Cloudflare TURN</div><div style="font-size:12px;color:#6b6a65">Set with Hub flags or environment variables. The token never appears here.</div></div><span style="font-size:12px;font-weight:500;padding:2px 10px;border-radius:10px;background:#ebe9e3;color:#55544f;white-space:nowrap">Off</span></div>
+  </div>
+  <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:16px 20px;display:flex;flex-direction:column;gap:12px">
+    <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65">EXTERNAL TURN SERVERS · 1</div>
+    <div style="font-size:12px;color:#6b6a65">Your own coturn or a TURN provider. Applies without a restart. Secrets are write-only.</div>
+    <div style="display:flex;gap:16px;align-items:center;border:1px solid #efede8;border-radius:8px;padding:10px 14px"><span style="flex:1;font:13px 'IBM Plex Mono'">turns:relay.example.com:5349 · user max</span><span style="font-size:13px;padding:5px 10px;border:1px solid #d9d7d0;border-radius:7px">Edit</span><span style="font-size:14px;padding:4px 9px;border:1px solid #d9d7d0;border-radius:7px">⋯</span></div>
+    <div style="display:flex;gap:8px"><div style="flex:1;height:34px;border:1px solid #d9d7d0;border-radius:7px;font:13px 'IBM Plex Mono';color:#8d8b85;display:flex;align-items:center;padding:0 10px">turn:host:port</div><div style="width:160px;height:34px;border:1px solid #d9d7d0;border-radius:7px;font-size:13px;color:#8d8b85;display:flex;align-items:center;padding:0 10px">Username</div><div style="width:160px;height:34px;border:1px solid #d9d7d0;border-radius:7px;font-size:13px;color:#8d8b85;display:flex;align-items:center;padding:0 10px">Secret</div><span style="font-size:13px;padding:7px 14px;border:1px solid #d9d7d0;border-radius:7px">Add</span></div>
+  </div>
+  <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:16px 20px;display:flex;flex-direction:column;gap:12px">
+    <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65">EXTERNAL STUN SERVERS · 0</div>
+    <div style="font-size:12px;color:#6b6a65">Without an entry, <span style="font-family:'IBM Plex Mono'">stun.cloudflare.com:3478</span> is used. Adding a server replaces it.</div>
+    <div style="display:flex;gap:16px;align-items:center;border:1px dashed #d9d7d0;border-radius:8px;padding:10px 14px;color:#6b6a65;font-size:13px"><span style="flex:1;font-family:'IBM Plex Mono'">stun:stun.cloudflare.com:3478</span><span style="font-size:11px;padding:1px 7px;border-radius:8px;background:#ebe9e3">Default</span></div>
+    <div style="display:flex;gap:8px"><div style="flex:1;height:34px;border:1px solid #d9d7d0;border-radius:7px;font:13px 'IBM Plex Mono';color:#8d8b85;display:flex;align-items:center;padding:0 10px">stun:host:port</div><span style="font-size:13px;padding:7px 14px;border:1px solid #d9d7d0;border-radius:7px">Add</span></div>
+  </div>
+</div></div></div>
+
+<!-- 3q-2 dark security -->
+<div id="3q-2-dark" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px">3q-2</span><span style="font-size:15px;color:#1d1d1b">Settings · Security (dark) · certificate card, one Sign out (H37, D6)</span></div>
+<div style="width:1440px;height:900px;display:flex;background:#141517;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.12)">
+<dc-import name="hub-nav" active="Settings" dark="{{ true }}" hint-size="232px,100%"></dc-import>
+<div style="width:300px;flex:none;background:#17181b;border-right:1px solid #2a2b2f;padding:28px 20px;box-sizing:border-box;display:flex;flex-direction:column;gap:6px;color:#ececea">
+  <div style="font-size:13px;color:#a3a29d;padding:0 4px 8px">Settings</div>
+  <sc-for list="{{ setNavD }}" as="n" hint-placeholder-count="6"><div style="padding:10px 12px;border-radius:8px;background:{{ n.bg }};border:1px solid {{ n.bd }}"><div style="font-size:14px">{{ n.t }}</div><div style="font-size:12px;color:#a3a29d">{{ n.s }}</div></div></sc-for>
+</div>
+<div style="flex:1;padding:28px 40px;display:flex;flex-direction:column;gap:16px;color:#ececea">
+  <div style="display:flex"><div style="flex:1"><div style="font-size:28px;font-weight:600">Security</div><div style="font-size:14px;color:#a3a29d">Transport, certificate and the admin password</div></div><span style="font-size:13px;color:#5fd28a">✓ All changes saved</span></div>
+  <div style="background:#1c1d20;border:1px solid #2a2b2f;border-radius:10px;padding:16px 20px;display:flex;flex-direction:column;gap:14px">
+    <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#a3a29d">CERTIFICATE</div>
+    <div style="display:flex;gap:16px;align-items:center"><div style="flex:1"><div style="font-size:14px;font-weight:500">HTTPS · self-signed certificate</div><div style="font-size:12px;color:#a3a29d">Players pin this fingerprint when they pair. Replace it with your own certificate or put the Hub behind a reverse proxy.</div></div><span style="font-size:12px;font-weight:500;padding:2px 10px;border-radius:10px;background:#2a2414;color:#e5b45a">Self-signed</span></div>
+    <div style="display:grid;grid-template-columns:160px minmax(0,1fr);gap:8px 16px;font-size:13px;border-top:1px solid #2a2b2f;padding-top:14px"><span style="color:#a3a29d">Fingerprint</span><span style="display:flex;gap:10px;align-items:center"><span style="font-family:'IBM Plex Mono'">SHA-256 4F:1A:9C:…:E2:07</span><span style="font-size:12px;padding:3px 8px;border:1px solid #34353a;border-radius:6px">Copy</span></span><span style="color:#a3a29d">Valid until</span><span title="12 Oct 2027, 09:00">12 Oct 2027</span><span style="color:#a3a29d">Issued for</span><span style="font-family:'IBM Plex Mono'">hub.example.com</span></div>
+    <div style="display:flex;gap:8px"><div style="display:flex;background:#25262a;border-radius:8px;padding:3px;font-size:13px"><span style="padding:5px 12px;border-radius:6px;background:#34353a">Self-signed</span><span style="padding:5px 12px;color:#a3a29d">Own certificate</span><span style="padding:5px 12px;color:#a3a29d">Reverse proxy</span></div></div>
+  </div>
+  <div style="background:#1c1d20;border:1px solid #2a2b2f;border-radius:10px;padding:16px 20px;display:flex;flex-direction:column;gap:14px">
+    <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#a3a29d">ADMIN PASSWORD</div>
+    <div style="display:flex;gap:16px;align-items:center"><div style="flex:1"><div style="font-size:14px;font-weight:500">Max</div><div style="font-size:12px;color:#a3a29d">Web sign-in with username and password · changed 12 Oct</div></div><span style="font-size:13px;padding:6px 12px;border:1px solid #34353a;border-radius:7px">Change password</span></div>
+  </div>
+  <div style="font-size:12px;color:#a3a29d">Sign out lives in the sidebar only.</div>
+</div></div></div>
+
+<!-- 3q-2 other pages -->
+<div id="3q-2-pages" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px">3q-2</span><span style="font-size:15px;color:#1d1d1b">Settings content columns · Updates, General, Saves (new), Diagnostics (H9, H33, H36, H38)</span></div>
+<div style="width:1440px;display:grid;grid-template-columns:1fr 1fr;gap:24px;padding:32px;box-sizing:border-box;background:#f5f4f0;box-shadow:0 2px 16px rgba(0,0,0,.12);color:#1d1d1b">
+  <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:16px 20px;display:flex;flex-direction:column;gap:14px">
+    <div style="font-size:20px;font-weight:600">Updates</div>
+    <div style="border:1px solid #efede8;border-radius:8px;padding:12px 14px;font-size:13px"><b style="font-weight:500">Hub 0.14.0 is up to date</b><div style="color:#6b6a65">Stable channel · checked today 17:52</div></div>
+    <div style="display:flex;gap:16px;align-items:center"><div style="flex:1"><div style="font-size:14px;font-weight:500">Update channel</div><div style="font-size:12px;color:#6b6a65">Stable: tested releases. Beta: earlier, less tested.</div></div><div style="display:flex;background:#efede8;border-radius:8px;padding:3px;font-size:13px"><span style="padding:5px 12px;color:#55544f">Off</span><span style="padding:5px 12px;border-radius:6px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.1)">Stable</span><span style="padding:5px 12px;color:#55544f">Beta</span></div></div>
+    <div style="display:flex;gap:16px;align-items:center;border-top:1px solid #efede8;padding-top:14px"><div style="flex:1"><div style="font-size:14px;font-weight:500">Install automatically</div><div style="font-size:12px;color:#6b6a65">Only when no Session is running and paired Players stay compatible.</div></div><div style="width:36px;height:20px;border-radius:10px;background:#d9d7d0;position:relative"><div style="position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#fff"></div></div></div>
+  </div>
+  <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:16px 20px;display:flex;flex-direction:column;gap:14px">
+    <div style="font-size:20px;font-weight:600">General</div>
+    <div style="display:flex;gap:16px;align-items:center"><div style="flex:1"><div style="font-size:14px;font-weight:500">Hub name</div><div style="font-size:12px;color:#6b6a65">Shown to Players when they connect</div></div><div style="width:240px;height:34px;border:1px solid #d9d7d0;border-radius:7px;font-size:13px;display:flex;align-items:center;padding:0 10px;box-sizing:border-box">Home Hub</div></div>
+    <div style="display:flex;gap:16px;align-items:center;border-top:1px solid #efede8;padding-top:14px"><div style="flex:1"><div style="font-size:14px;font-weight:500">Theme</div><div style="font-size:12px;color:#6b6a65">System follows the browser until you pick Light or Dark.</div></div><div style="display:flex;background:#efede8;border-radius:8px;padding:3px;font-size:13px"><span style="padding:5px 12px;border-radius:6px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.1)">System</span><span style="padding:5px 12px;color:#55544f">Light</span><span style="padding:5px 12px;color:#55544f">Dark</span></div></div>
+    <div style="display:flex;gap:16px;align-items:center;border-top:1px solid #efede8;padding-top:14px"><div style="flex:1"><div style="font-size:14px;font-weight:500">Allow users to upload games</div><div style="font-size:12px;color:#6b6a65">Off: only admins upload ROMs.</div></div><div style="width:36px;height:20px;border-radius:10px;background:#d9d7d0;position:relative"><div style="position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#fff"></div></div></div>
+  </div>
+  <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:16px 20px;display:flex;flex-direction:column;gap:14px">
+    <div style="font-size:20px;font-weight:600">Saves <span style="font-size:12px;font-weight:400;color:#6b6a65">· moved from Network</span></div>
+    <div style="font-size:12px;color:#6b6a65">How many older versions of each slot the Hub keeps. Snapshots and versions in an open conflict are never removed.</div>
+    <sc-for list="{{ retention }}" as="r" hint-placeholder-count="3"><div style="display:flex;gap:16px;align-items:center;border-top:1px solid #efede8;padding-top:12px"><div style="flex:1"><div style="font-size:14px;font-weight:500">{{ r.t }}</div><div style="font-size:12px;color:#6b6a65">{{ r.s }}</div></div><div style="width:90px;height:34px;border:1px solid #d9d7d0;border-radius:7px;font:13px 'IBM Plex Mono';display:flex;align-items:center;padding:0 10px;box-sizing:border-box">{{ r.v }}</div></div></sc-for>
+  </div>
+  <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:16px 20px;display:flex;flex-direction:column;gap:14px;align-self:start">
+    <div style="font-size:20px;font-weight:600">Diagnostics</div>
+    <div style="display:flex;gap:16px;align-items:center"><div style="flex:1"><div style="font-size:14px;font-weight:500">Diagnostics bundle</div><div style="font-size:12px;color:#6b6a65;line-height:17px">One zip with logs, version, network settings, installed cores and paired Players. Contains IP addresses and host names; passwords, tokens and TURN secrets are removed.</div></div><span style="font-size:13px;padding:7px 14px;border-radius:7px;background:#1d1d1b;color:#fff;white-space:nowrap">Download bundle</span></div>
+  </div>
+</div></div>
+
+<!-- 4i-3 -->
+<div id="4i-3" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px">4i-3</span><span style="font-size:15px;color:#1d1d1b">Plugins · monograms, amber origin, needs/used by, catalog status (H23–H26)</span></div>
+<div style="width:1440px;height:900px;display:flex;background:#f5f4f0;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.12)">
+<dc-import name="hub-nav" active="Plugins" hint-size="232px,100%"></dc-import>
+<div style="flex:1;min-width:0;padding:32px 40px;display:flex;flex-direction:column;gap:16px;color:#1d1d1b">
+  <div style="display:flex;align-items:flex-start"><div style="flex:1"><div style="font-size:28px;font-weight:600">Plugins</div><div style="font-size:14px;color:#6b6a65;margin-top:4px">Players on this Hub can install what is listed here.</div></div><span style="font-size:14px;padding:8px 14px;border-radius:8px;background:#1d1d1b;color:#fff">Upload plugin</span></div>
+  <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;overflow:hidden">
+    <sc-for list="{{ plugins }}" as="p" hint-placeholder-count="2"><div style="display:flex;gap:14px;align-items:center;padding:14px 20px;border-bottom:1px solid #efede8;background:{{ p.bg }};box-shadow:{{ p.sh }}">
+      <div style="width:36px;height:36px;border-radius:8px;background:#ebe9e3;display:flex;align-items:center;justify-content:center;font:600 13px 'IBM Plex Mono';color:#55544f;flex:none">{{ p.m }}</div>
+      <div style="flex:1;min-width:0"><div style="display:flex;gap:8px;align-items:center"><span style="font-size:14px;font-weight:500">{{ p.n }}</span><span style="font:12px 'IBM Plex Mono';color:#6b6a65">{{ p.v }}</span><span style="font-size:11px;font-weight:500;padding:2px 8px;border-radius:10px;background:#f7ecd6;color:#8a5a00">Hub upload · unverified</span></div><div style="font-size:12px;color:#6b6a65;margin-top:2px">{{ p.rel }}</div></div>
+      <span style="font-size:13px;color:#1a7f96">Details</span>
+    </div></sc-for>
+  </div>
+  <div style="display:flex;gap:12px;align-items:center;font-size:13px"><span style="width:7px;height:7px;border-radius:50%;background:#1e6b3a"></span><span>Official catalog · signed · checked today 17:52 · 0 plugins</span><span style="flex:1"></span><span style="padding:6px 12px;border:1px solid #d9d7d0;border-radius:7px">Check now</span></div>
+  <div style="display:flex;gap:12px;align-items:center;font-size:13px;color:#8a5a00;background:#fff7e6;border:1px solid #ecd9ae;border-radius:8px;padding:8px 12px"><span>▲ Could not load the catalog · catalog.framebeam.net did not answer · today 17:52</span><span style="flex:1"></span><span style="color:#1d1d1b;padding:4px 10px;border:1px solid #d9d7d0;border-radius:6px;background:#fff">Retry</span></div>
+  <div style="font-size:12px;color:#6b6a65">Error variant of the same line, shown in place of the status above.</div>
+</div>
+<div style="width:400px;flex:none;background:#fff;border-left:1px solid #e2e0da;padding:28px 24px;box-sizing:border-box;display:flex;flex-direction:column;gap:14px;color:#1d1d1b">
+  <div style="display:flex;gap:12px;align-items:center"><div style="width:44px;height:44px;border-radius:9px;background:#ebe9e3;display:flex;align-items:center;justify-content:center;font:600 15px 'IBM Plex Mono';color:#55544f">SN</div><div><div style="font-size:18px;font-weight:600">SoulLink &amp; Nuzlocke</div><div style="font:12px 'IBM Plex Mono';color:#6b6a65">0.3.2 · uploaded by Max · 16 Oct</div></div></div>
+  <span style="align-self:flex-start;font-size:11px;font-weight:500;padding:2px 8px;border-radius:10px;background:#f7ecd6;color:#8a5a00">Hub upload · unverified</span>
+  <div style="font-size:13px;color:#55544f;line-height:19px">Not signed by FrameBeam. Players see “Hub upload · unverified” and a warning before they turn it on.</div>
+  <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65;margin-top:6px">NEEDS</div>
+  <div style="display:flex;gap:10px;align-items:center;font-size:14px"><div style="width:26px;height:26px;border-radius:6px;background:#ebe9e3;display:flex;align-items:center;justify-content:center;font:600 11px 'IBM Plex Mono';color:#55544f">PC</div>Pokémon Core 0.3 or newer<span style="flex:1"></span><span style="font-size:12px;color:#1e6b3a">✓ on this Hub</span></div>
+  <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65;margin-top:6px">PERMISSIONS · CONFIRMED BY ADMIN</div>
+  <div style="font-size:14px;border-bottom:1px solid #efede8;padding-bottom:8px">Show panels in game</div><div style="font-size:14px;border-bottom:1px solid #efede8;padding-bottom:8px">Share run progress with your Hub</div>
+  <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65;margin-top:6px">FILE</div>
+  <div style="display:grid;grid-template-columns:80px minmax(0,1fr);gap:6px 12px;font-size:13px"><span style="color:#6b6a65">Size</span><span>33.9 KB</span><span style="color:#6b6a65">SHA-256</span><span style="font:12px 'IBM Plex Mono';display:flex;gap:8px">fdbb86…5f73<span style="color:#1a7f96;font-family:'IBM Plex Sans'">Copy</span></span></div>
+  <div style="flex:1"></div>
+  <div style="display:flex;gap:8px"><span style="flex:1;text-align:center;font-size:14px;padding:9px;border:1px solid #d9d7d0;border-radius:8px">Download file</span><span style="font-size:15px;padding:7px 12px;border:1px solid #d9d7d0;border-radius:8px">⋯</span></div>
+  <div style="font-size:12px;color:#6b6a65;text-align:center">⋯ holds “Remove from Hub…”. Players keep their copy until they uninstall it.</div>
+</div></div></div>
+
+<!-- 4jh-3 -->
+<div id="4jh-3" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px">4jh-3</span><span style="font-size:15px;color:#1d1d1b">Run detail · state actions, waiting for Sam, invite actions, log without repeated Hub columns (H27–H31)</span></div>
+<div style="width:1440px;height:900px;display:flex;background:#f5f4f0;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.12)">
+<dc-import name="hub-nav" active="Runs" hint-size="232px,100%"></dc-import>
+<div style="width:300px;flex:none;background:#faf9f6;border-right:1px solid #e2e0da;padding:28px 20px;box-sizing:border-box;display:flex;flex-direction:column;gap:10px;color:#1d1d1b">
+  <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65">RUNS · 2</div>
+  <div style="display:flex;gap:6px"><span style="font-size:12px;padding:4px 10px;border-radius:14px;background:#1d1d1b;color:#fff">All</span><span style="font-size:12px;padding:4px 10px;border-radius:14px;border:1px solid #d9d7d0">Active</span><span style="font-size:12px;padding:4px 10px;border-radius:14px;border:1px solid #d9d7d0">Paused</span><span style="font-size:12px;padding:4px 10px;border-radius:14px;border:1px solid #d9d7d0">Finished</span></div>
+  <sc-for list="{{ runs }}" as="r" hint-placeholder-count="2"><div style="background:{{ r.bg }};border:1px solid {{ r.bd }};border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:4px"><div style="display:flex;justify-content:space-between"><span style="font-size:14px;font-weight:500">{{ r.t }}</span><span style="font-size:11px;padding:1px 8px;border-radius:10px;background:#e3f1f4;color:#1a7f96">Starting</span></div><div style="font-size:12px;color:#6b6a65">{{ r.m }}</div></div></sc-for>
+  <div style="font-size:13px;color:#1a7f96;padding:4px 2px">Show archived · 1</div>
+</div>
+<div style="flex:1;min-width:0;padding:28px 40px;display:flex;flex-direction:column;gap:14px;color:#1d1d1b;position:relative">
+  <div style="display:flex;align-items:flex-start;gap:8px"><div style="flex:1"><div style="display:flex;gap:10px;align-items:center"><span style="font-size:28px;font-weight:600">Harbor Nuzlocke</span><span style="font-size:12px;font-weight:500;padding:3px 10px;border-radius:12px;background:#e3f1f4;color:#1a7f96">Starting</span></div><div style="font-size:14px;color:#6b6a65;margin-top:2px">Created by Max · today 07:12 · SoulLink &amp; Nuzlocke 0.3.2</div></div><span style="font-size:14px;padding:8px 14px;border:1px solid #d9d7d0;border-radius:8px;background:#fff">Export JSON</span><span style="font-size:14px;padding:8px 14px;border-radius:8px;background:#1d1d1b;color:#fff">Start now</span><span style="font-size:15px;padding:6px 11px;border:1px solid #1a7f96;border-radius:8px;background:#fff;box-shadow:0 0 0 3px #e3f1f4">⋯</span></div>
+  <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:12px 16px;display:flex;gap:14px;align-items:center"><div style="flex:1;font-size:14px">Waiting for <b style="font-weight:500">Sam</b> to join · 1 of 2 joined · invited 2 h ago</div><span style="font-size:13px;padding:6px 12px;border:1px solid #d9d7d0;border-radius:7px">Resend invite</span><span style="font-size:13px;padding:6px 12px;border:1px solid #d9d7d0;border-radius:7px">Start without Sam</span></div>
+  <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65;margin-top:4px">PARTICIPANTS · 2</div>
+  <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;overflow:hidden">
+    <sc-for list="{{ parts }}" as="p" hint-placeholder-count="2"><div style="display:grid;grid-template-columns:minmax(0,1fr) 200px 120px 200px;gap:12px;padding:0 20px;height:52px;border-bottom:1px solid #efede8;align-items:center;font-size:13px"><div style="display:flex;gap:10px;align-items:center"><div style="width:26px;height:26px;border-radius:50%;background:{{ p.col }};font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;color:#0d1214">{{ p.i }}</div><span style="font-size:14px">{{ p.n }}</span></div><span>{{ p.g }}</span><span style="justify-self:start;font-size:11px;font-weight:500;padding:2px 8px;border-radius:10px;background:{{ p.sbg }};color:{{ p.sfg }}">{{ p.st }}</span><div style="display:{{ p.ad }};gap:6px;justify-content:flex-end"><span style="font-size:13px;padding:5px 10px;border:1px solid #d9d7d0;border-radius:7px">Resend</span><span style="font-size:14px;padding:4px 9px;border:1px solid #d9d7d0;border-radius:7px">⋯</span></div></div></sc-for>
+  </div>
+  <div style="display:flex;align-items:baseline;gap:8px;margin-top:4px"><span style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65">BOARD</span><span style="font-size:13px">SoulLink &amp; Nuzlocke</span><span style="font-size:12px;color:#6b6a65">· no board title set, plugin name used</span></div>
+  <div style="background:#fff;border:1px dashed #d9d7d0;border-radius:10px;padding:18px 20px;font-size:13px;color:#6b6a65">No board yet. It appears after a participant’s Player opens the run.</div>
+  <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65;margin-top:4px">EVENT LOG · 3</div>
+  <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;overflow:hidden">
+    <sc-for list="{{ log }}" as="l" hint-placeholder-count="3"><div style="display:grid;grid-template-columns:120px minmax(0,1fr) 180px;gap:12px;padding:10px 20px;border-bottom:1px solid #efede8;font-size:13px"><span title="{{ l.full }}" style="color:#6b6a65">{{ l.t }}</span><span>{{ l.e }}</span><span style="color:#6b6a65;text-align:right">{{ l.src }}</span></div></sc-for>
+  </div>
+  <div style="position:absolute;right:40px;top:76px;width:200px;background:#fff;border:1px solid #e4e2dc;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.14);padding:4px;font-size:13px"><div style="padding:8px 10px;color:#b5b3ac">Pause <span style="font-size:11px">· after start</span></div><div style="padding:8px 10px">Finish run…</div><div style="padding:8px 10px">Archive</div><div style="height:1px;background:#efede8;margin:4px 0"></div><div style="padding:8px 10px;color:#b3261e">Delete run…</div></div>
+</div></div></div>
+
+<!-- states -->
+<div id="hub-states" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px">Hub states</span><span style="font-size:15px;color:#1d1d1b">Dialogs and empty/error states for 3j-2, 3s-4, 3m-2, 3n-2, 4jh-3 (D1, D2, D5)</span></div>
+<div style="width:1440px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;padding:32px;box-sizing:border-box;background:#e9e7e1;box-shadow:0 2px 16px rgba(0,0,0,.12);color:#1d1d1b">
+  <sc-for list="{{ dialogs }}" as="d" hint-placeholder-count="6"><div style="background:#fff;border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.14);padding:20px;display:flex;flex-direction:column;gap:12px">
+    <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65">{{ d.id }}</div>
+    <div style="font-size:17px;font-weight:600">{{ d.t }}</div>
+    <div style="font-size:13px;color:#55544f;line-height:19px">{{ d.b }}</div>
+    <div style="display:{{ d.pd }};height:6px;background:#efede8;border-radius:3px"><div style="width:62%;height:100%;background:#1a7f96;border-radius:3px"></div></div>
+    <div style="font-size:12px;color:{{ d.nc }}">{{ d.note }}</div>
+    <div style="display:flex;gap:8px;justify-content:flex-end"><span style="font-size:13px;padding:7px 14px;border:1px solid #d9d7d0;border-radius:7px">{{ d.a2 }}</span><span style="font-size:13px;padding:7px 14px;border-radius:7px;background:{{ d.pbg }};color:#fff">{{ d.a1 }}</span></div>
+  </div></sc-for>
+</div></div>
+
+</div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const P = { ok:['#e1f0e4','#1e6b3a'], info:['#e3f1f4','#1a7f96'], amb:['#f7ecd6','#8a5a00'], neu:['#ebe9e3','#55544f'] };
+    const sys = (sel) => [['Game Boy','mGBA','Ready','ok'],['Game Boy Color','Gambatte','Ready','ok'],['Game Boy Advance','mGBA','Ready','ok'],['Nintendo DS','melonDS DS · DeSmuME','1 update','info'],['Nintendo 3DS','Azahar','Ready','ok']]
+      .map(([name,core,status,t]) => ({name,core,status,pbg:P[t][0],pfg:P[t][1],bg:name===sel?'#f2f8f9':'#fff',sh:name===sel?'inset 3px 0 0 #1a7f96':'none'}));
+    const systems = sys('Nintendo DS'); const systems3 = sys('Nintendo 3DS');
+    const cores = [
+      {name:'melonDS DS',defd:'inline',note:'OpenGL 3.3 or software',ver:'2026.10.09',build:'build 2026-10-09 · nightly',upd:'Auto',usub:'follows system (On)',ubg:P.ok[0],ufg:P.ok[1],btn:'none'},
+      {name:'DeSmuME',defd:'none',note:'Software renderer',ver:'2026.10.02',build:'build 2026-10-02 · nightly',upd:'Off · pinned',usub:'2026.10.11 available',ubg:P.amb[0],ufg:P.amb[1],btn:'inline'}];
+    const chips = [['All · 48',1],['Game Boy · 6'],['Game Boy Color · 4'],['Game Boy Advance · 9'],['Nintendo DS · 21'],['Nintendo 3DS · 8']]
+      .map(([l,a]) => ({l,bg:a?'#1d1d1b':'#fff',fg:a?'#fff':'#1d1d1b',bd:a?'#1d1d1b':'#d9d7d0'}));
+    const R = [['C','Clocktower Kids','Nintendo DS','12 KB','today 09:14','0'],['C','Copper Courier','Game Boy Color','12 KB','today 09:14','0'],['C','Coral Saga: Ember','Nintendo 3DS','1.0 GB','today 08:02','0','Only on Lena-PC · not uploaded'],['H','Harbor Rally','Nintendo DS','12 KB','15 Oct','1'],['L','Lumen Drift','Nintendo DS','12 KB','15 Oct','2','',1],['M','Meadow Courier','Game Boy','8 KB','12 Oct','0'],['O','Orbit Gardens','Game Boy Advance','12 KB','12 Oct','1'],['P','Paper Wizards','Nintendo DS','12 KB','12 Oct','1'],['P','Pocket Comet','Game Boy','8 KB','3 Mar 2025','0']];
+    const roms = R.map(([m,t,sys,size,added,saves,loc,cf],i) => ({m,t,sys,size,added,full:added+' · 09:14:22',saves,loc:loc||'',locd:loc?'block':'none',cfd:cf?'inline':'none',act:loc?'Details':'Upload save',rowbg:i===6?'#f7f6f2':'#fff',mbd:i===6?'#1a7f96':'#d9d7d0'}));
+    const romsM = R.slice(0,7).map(([m,t,sys,size,added,saves,loc]) => ({m,t,meta:sys+' · '+size+' · '+added,loc:loc||'',locd:loc?'block':'none'}));
+    const saveList = [['L','Lumen Drift','Max','▲ 1 conflict','#8a5a00',1],['P','Paper Wizards','Lena','Synced · today 00:52','#1e6b3a'],['O','Orbit Gardens','Max','Synced · 15 Oct','#1e6b3a'],['H','Harbor Rally','Max','Synced · 15 Oct','#1e6b3a']]
+      .map(([m,t,u,st,c,s]) => ({m,t,u,st,c,bg:s?'#eef6f8':'transparent',sh:s?'inset 3px 0 0 #1a7f96':'none'}));
+    const H = [['v8','Laptop-Office','Conflict upload · based on v5 · 14 Oct 23:52','▲ Conflict','amb'],['v7','Laptop-Office','Manual snapshot of v6 · 14 Oct 23:50','◆ Snapshot','info','“Before the lighthouse”'],['v6','Laptop-Office','Session end · 14 Oct 18:52','✓ Current','ok'],['v5','Desktop-LivingRoom','Session end · 14 Oct 13:52'],['v4','Laptop-Office','Session end · 14 Oct 08:52']];
+    const hist = H.map(([v,dev,meta,badge,t,label]) => ({v,dev,meta,badge:badge||'',bd:badge?'inline':'none',bbg:t?P[t][0]:'',bfg:t?P[t][1]:'',label:label||'',dot:t==='ok'?'#1a7f96':'#c9c6be',fill:t==='ok'?'#1a7f96':'#fff',rd:t==='ok'?'none':'inline'}));
+    const clients = [['Desktop-LivingRoom','Max','0.14.0','Online now','ok','Trusted','ok'],['Laptop-Office','Max','0.14.0','2 h ago','','Trusted','ok',1],['Lena-PC','Lena','0.14.0','Online now','ok','Trusted','ok'],['Jonas-Laptop','Jonas','0.13.4','3 Oct','','Revoked','neu'],['Sam-Tablet','Sam','0.13.4','Never connected','','Denied','neu']]
+      .map(([n,u,v,on,o,st,s,ed],i) => ({n,u,v,on,oc:o?'#1e6b3a':'#6b6a65',od:o?'#1e6b3a':'#c9c6be',st,sbg:P[s][0],sfg:P[s][1],nd:ed?'none':'inline',ed:ed?'flex':'none',act:st==='Trusted'?'Rename':'Details',mbd:i===2?'#1a7f96':'#d9d7d0'}));
+    const users = [['M','Max','Admin','2','(you)','#6f9cff'],['L','Lena','User','1','','#f07ab8'],['J','Jonas','User','1','','#a6d65a'],['S','Sam','User','0','','#b39cf5','Disabled']]
+      .map(([i,n,role,d,you,col,st],k) => ({i,n,role,d,you,col,st:st||'Active',sbg:st?P.neu[0]:P.ok[0],sfg:st?P.neu[1]:P.ok[1],md:you?'none':'inline',mbd:k===2?'#1a7f96':'#d9d7d0'}));
+    const nav = (dark) => [['Updates','Stable · up to date'],['General','Name, theme, uploads'],['Network','Public · TURN relay off'],['Saves','Keep 20 · 30 days · 26 weeks'],['Security','Self-signed certificate'],['Diagnostics','Download bundle']]
+      .map(([t,s]) => { const a = dark ? t==='Security' : t==='Network'; return {t,s,bg:a?(dark?'#20343a':'#e3f1f4'):(dark?'#1c1d20':'#fff'),bd:a?(dark?'#2c5560':'#b9dde5'):(dark?'#2a2b2f':'#e4e2dc')}; });
+    const retention = [['Keep newest versions','Per slot','20'],['Keep daily versions','Days of which the newest version is kept','30'],['Keep weekly versions','Weeks of which the newest version is kept','26']].map(([t,s,v])=>({t,s,v}));
+    const plugins = [['PC','Pokémon Core','0.3.1','Used by SoulLink & Nuzlocke · Read game memory, Read the game file'],['SN','SoulLink & Nuzlocke','0.3.2','Needs Pokémon Core · Show panels in game, Share run progress with your Hub',1]]
+      .map(([m,n,v,rel,s]) => ({m,n,v,rel,bg:s?'#f2f8f9':'#fff',sh:s?'inset 3px 0 0 #1a7f96':'none'}));
+    const runs = [['Harbor Nuzlocke','1 of 2 joined · today 07:12',1],['Coral Saga SoulLink','2 of 3 joined · today 05:52']].map(([t,m,s])=>({t,m,bg:s?'#f2f8f9':'#fff',bd:s?'#b9dde5':'#e4e2dc'}));
+    const parts = [['M','Max','Harbor Rally','Joined','ok','#6f9cff'],['S','Sam','—','Invited','neu','#b39cf5',1]].map(([i,n,g,st,s,col,a])=>({i,n,g,st,sbg:P[s][0],sfg:P[s][1],col,ad:a?'flex':'none'}));
+    const log = [['today 09:02','Max resent the invite to Sam',''],['today 07:12','Max joined with Harbor Rally','via Desktop-LivingRoom'],['today 07:12','Max created the run','']].map(([t,e,src])=>({t,e,src,full:'16 Oct 2026, '+t.slice(6)+':33'}));
+    const dialogs = [
+      ['3J-2 · UPLOAD','Uploading Tide & Lantern','tide-lantern.gb · 8 KB of 13 KB · checking hash after upload','','#1d1d1b','Hide','Cancel upload','block','#6b6a65'],
+      ['3J-2 · DUPLICATE','Already in the library','harbor-rally-copy.nds has the same SHA-256 as Harbor Rally. Nothing was added.','8e33…a8c8','#6b6a65','Close','Open Harbor Rally','none','#6b6a65'],
+      ['3J-2 · ERROR','Not a supported game file','archive.zip holds 3 files. Upload one ROM per file, or unpack it first.','.gb .gbc .gba .nds .3ds .cci .cxi','#6b6a65','Close','Choose another file','none','#b3261e'],
+      ['3M-2 · REVOKE','Revoke access for Laptop-Office?','Max’s Laptop-Office loses access at once, also with tokens that are still valid. Saves stay on the Hub. The device can ask again later.','','#b3261e','Cancel','Revoke access','none','#6b6a65'],
+      ['3N-2 · CREATE USER','Create user','Name: Sam · Role: User. The user pairs a device with a one-time code you hand over.','Code shown once after creating','#1d1d1b','Cancel','Create user','none','#6b6a65'],
+      ['3S-4 · EMPTY','No saves for “Tide”','No game or user matches your search.','','#1d1d1b','','Clear search','none','#6b6a65']
+    ].map(([id,t,b,note,pbg,a2,a1,pd,nc]) => ({id,t,b,note,pbg,a2:a2||'Close',a1,pd,nc}));
+    return { systems, systems3, cores, chips, roms, romsM, saveList, hist, clients, users, setNav:nav(false), setNavD:nav(true), retention, plugins, runs, parts, log, dialogs };
+  }
+}
+</script>
+</body>
+</html>

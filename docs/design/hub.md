@@ -13,6 +13,7 @@ Source: `source/framebeam-designs-v3.dc.html`, line ranges per screen = screen c
 - Second-column pattern (3k, 3s list; 3q sections): surface `#faf9f7`, right border `#e3e1dc`, padding 28 20 (3q) or 32 20 (lists); selected item surface `#eef8fa` with a left bar `inset 3px 0 0 #3cbfd8` (3q: unselected items `#fff`).
 
 ## 3j Hub Library
+Superseded in part by [3j-2](#3j-2-hub-library-round-3) (Round 3: row actions, sort, paging, scan progress, dates, 390 px).
 Lines 816-864. Phase 1 (library, ROM upload/download).
 
 - Layout: sidebar | main (padding 32 40, gap 24); Library active.
@@ -39,6 +40,7 @@ Lines 870-954. Phase 3; slots and snapshot markers: 0.4 features, UI in the 0.7 
 - Open: empty state without conflict (3s shows the synced state), revision numbering "Rev 41" (checkpoint) vs "v6" (history) is separate by ADR 0005.
 
 ## 3s Hub Saves Slots
+Superseded in part by [3s-4](#3s-4-hub-saves-round-3) (Round 3: one Current, snapshot on demand, search, restore blocked).
 Lines 960-1018. New. Slots per game, snapshots in the history, restore with confirmation, retention. Phase: slots, snapshots, restore, retention are 0.4 features, UI in the 0.7 Hub UI pass.
 
 - Grid and list as 3k (Saves active); selected game Lumen Drift ("Synced · today 18:42 · 2 slots").
@@ -65,6 +67,7 @@ Lines 924-963 (`#3s-2`, panel open), 964-990 (`#3s-3`, after upload) and 991-100
 - Admins cannot upload into another user's slot (default, decisions.md).
 
 ## 3l Hub Systems and Cores
+Superseded by [3l-2 to 3l-4](#3l-2-hub-systems-and-cores-round-3) (Round 3: tab order, firmware tab, auto-update, system order, copy).
 Lines 1024-1132. Rebuilt: system list with detail and tabs. Phase 5; rebuilt in the 0.7 Hub UI pass. Registry, compatibility, firmware.
 
 - Layout: sidebar | main (padding 28 40, gap 24). Title "Systems & Cores", subtitle "Which core each system uses and which files it needs. The hub does not run cores." Content grid `300 | 1fr`, gap 20.
@@ -77,6 +80,7 @@ Lines 1024-1132. Rebuilt: system list with detail and tabs. Phase 5; rebuilt in 
 - Open: file upload dialog, removing a firmware file, the nav badge count ("2 issues" in the mock equals the two firmware rows; clients are not included in the mock count), further systems, how the 0.7 pass shows core packages (ADR 0010).
 
 ## 3m Hub Clients
+Superseded in part by [3m-2](#3m-2-hub-clients-round-3) (Round 3: online column, pending request, rename, menu).
 Lines 1138-1174. Phase 1 (pairing Allow/Decline, Revoke).
 
 - Layout: sidebar | main (padding 32 40, gap 26). Title "Clients", subtitle "Devices allowed to access this hub".
@@ -89,6 +93,7 @@ Lines 1138-1174. Phase 1 (pairing Allow/Decline, Revoke).
 - Open: confirmation dialog for revoking, denied state, renaming, reinstating a revoked device, certificate/compatibility errors per client (only in 3l) not drawn.
 
 ## 3n Hub Users
+Superseded in part by [3n-2](#3n-2-hub-users-round-3) (Round 3: create user, invite panel, role pill, menu).
 Lines 1180-1217. Phase 5. Hub-local accounts and onboarding invites.
 
 - Grid: sidebar | main | side panel 420 (surface `#faf9f7`, left border, padding 32 28, gap 18).
@@ -111,6 +116,7 @@ Lines 1223-1251. Superseded by 3q (decision 2026-10-07); kept in the source as r
 - What 3q does differently: sub-pages instead of two columns, autosave, update section, network section. Not carried into 3q: the segment "Custom cert/key" / "Reverse Proxy" (open, README), the "Metadata" placeholder.
 
 ## 3q Hub Settings revised
+Superseded in part by [3q-2](#3q-2-hub-settings-round-3) (Round 3: Saves page, Network and Security cards, theme default, copy).
 Lines 1257-1356. New; supersedes 3o. Sections Updates, General, Network, Security as sub-pages, autosave. Phase: 0.7 Hub UI pass; the Network section (public address, built-in relay) is a 0.4 feature, UI in the 0.7 pass. Updates exist since 0.3.
 
 - Grid: sidebar (Settings active, badge "1 update") 232 | section column 280 | content. Section column (surface `#faf9f7`, border right, padding 28 20): title "Settings" (13/500); items with name and a status line with a colored dot: "Updates" "Update available · 0.4.0" (warn), "General" "Name, address, theme, uploads" (muted), "Network" "Only in local network" (warn) or "Reachable from the internet" (ok), "Security" "HTTPS active · admin" (ok). Selected: surface `#eef8fa` + left bar `#3cbfd8`, others `#fff`. Footer text: "Changes save automatically. Admins only." In the mock, "Network" is selected by default.
@@ -127,3 +133,84 @@ Lines 1257-1356. New; supersedes 3o. Sections Updates, General, Network, Securit
   - EXTERNAL STUN / TURN SERVERS · OPTIONAL with "+ Add server": rows URL (mono) + type ("STUN", "TURN · with login") + "Remove" (mock "stun:stun.example.com:3478", "turn:turn.example.com:3478"); note "Offered to Players in addition to the built-in relay. Leave empty if the hub is reachable from the internet."
 - Security (subtitle "Transport, certificate and the admin account"): TRANSPORT & CERTIFICATE: "Transport" ("HTTPS / WSS. Plain HTTP is only available in dev mode.", pill "✓ HTTPS"); "Certificate" ("Self-generated · valid until 07.10.2036 · renews automatically 30 days before expiry", button "Renew now"); "Fingerprint · SHA-256" (mono, two lines, placeholder value "AA:BB:CC:…"; "Players compare this on first connect. After a renewal they must confirm the new value.", button "Copy"). ADMIN ACCOUNT: "admin" ("Web login with username and password · signed in since today 14:02"), buttons "Change password" (opens an inline form) and "Sign out"; form fields "Current password", "New password · min. 12 characters", "Repeat new password", button "Save password". Implemented: "Renew now" (self-generated certificate only) asks for inline confirmation, renews and swaps the certificate without a restart; new TLS handshakes get the new certificate and Players confirm the new fingerprint.
 - Open: "Custom cert/key" and "Reverse Proxy" transport options (in 3o, not in 3q); how autosave reports errors (e.g. invalid port, port in use); whether the relay port range is configurable; texts about certificate renewal are not checked against the implementation (README).
+
+## Round 3 (2026-10-12)
+
+Source `source/round-3-hub.dc.html` (479 lines; artboards 1440 x 900 light unless noted), rules in `source/round-3-sheet.dc.html` (0-2, handoff table) and decisions 20-23 in [decisions.md](decisions.md). Finding IDs (H = Hub, D = design gap) are those of the 0.14 UI scan. Everything not listed here stays as in the older section of the same screen. Hub nav (`source/hub-nav.dc.html`, props `active`, `dark`): Library, Saves, Systems & Cores, Clients, Users, Plugins, Runs, Settings (item padding 9 10, 14px); only Saves carries a badge ("1 conflict", amber); footer "Max · Admin" 13, mono 11 "Home Hub · 0.14.0", button "Sign out" (13, padding 6 12, border, radius 7). The Plugins and Runs entries are new here (see [plugins.md](plugins.md)). Mock names (Max, Lena, Jonas, Sam, Home Hub, hosts under `example.com`) are illustrative. Shared rules: dates, row actions ("⋯" 30 x 30), pills, add-to-list, table to cards below 720 px (decision 23).
+
+### 3l-2 Hub Systems and Cores (Round 3)
+Source: `source/round-3-hub.dc.html#3l-2` (21-68), 1280 x 800. Fixes H1, H2, H5, H6, H8 (and H3 with 3l-3).
+
+- Header: title 28/600, subtitle "Which core each system uses and which files it needs. Players download cores from this Hub." (the registry hint of 3l is gone, H6). Content grid list 300 | detail, as in 3l.
+- Above the list a card "Automatic core updates · Hub default for all systems" with a toggle (global setting `core_auto_update`; replaces the stacked "On/Off" pill plus "Turn on/off" button, H1).
+- System list order: Game Boy, Game Boy Color, Game Boy Advance, Nintendo DS, Nintendo 3DS (family and generation, H5). Row: name 14 + core names 12 ("melonDS DS · DeSmuME"), status pill: "Ready" green; "1 update" cyan (an update is information, decision bg). Hint under the list: "Ordered by family and generation. Systems come from the system templates bundled with the Hub."
+- Detail head: name 20/600, id mono ("nds"), line "Default core: melonDS DS", pill "1 update available" (cyan). Tabs in this order: Cores | Firmware | Clients (the Cores tab opens first, H3).
+- Per-system auto-update row: label "Automatic core updates", help "Installs newer buildbot builds after each check. A core can override this below.", segment "Use Hub default (On) | On | Off".
+- Core table (card, columns `minmax(0,1.6fr) 120 190 minmax(0,1.2fr) 120`; headers mono 11 CORE | VERSION | UPDATES | ORIGIN; row 14, meta 12; version cell does not wrap, the build goes on its own line "build 2026-10-09 · nightly", H8). Rows: "melonDS DS" with tag "Default" and note "OpenGL 3.3 or software", version "2026.10.09", Updates "Auto ▾" + sub "follows system (On)" (green pill); "DeSmuME", note "Software renderer", "2026.10.02", Updates "Off · pinned ▾" + sub "2026.10.11 available" (amber pill) and the visible row action "Update"; origin "libretro buildbot · nightly"; "⋯" in the last column. Values drawn for the Updates select: "Auto" (follows the system) and "Off · pinned"; the complete option list is open (H2: setting per system and per core).
+- Footer line: "Source buildbot.libretro.com/nightly · checked 16 min ago · 3 cores for this system · Check now"; second line "Available, not installed: melonDS (standalone port) 2026.10.10 · Install".
+
+### 3l-3 Hub Systems and Cores, no firmware (Round 3)
+Source: `#3l-3` (69-91), 3DS selected. Fixes H3, H4.
+
+- System "Nintendo 3DS", id "3ds", "Default core: Azahar", tabs Cores | Firmware | Clients. The Firmware tab shows an empty state centred in the card: icon "✓" 40, title "No firmware needed for this core" 16/500, body 13 "Azahar runs Nintendo 3DS games without BIOS or firmware files. If a system’s core needs files, they appear here." There is no Built-in/Native toggle. Systems always open on the Cores tab, also those without firmware (Game Boy family, 3DS).
+
+### 3l-4 Hub Systems and Cores, firmware files (Round 3)
+Source: `#3l-4` (92-124), Nintendo DS Firmware tab. Fixes H7, D4 (firmware upload dialog and remove, previously undecided).
+
+- Intro (13): "melonDS DS runs with its built-in firmware. These files are optional: provide them to boot the DS menu or for games that check them. Files are checked against the SHA-256 in the system template."
+- File rows (card rows, padding 14 16): name 14/500 + file name and size in mono ("ARM7 BIOS", "ARM9 BIOS", "DS firmware"; sizes 16 KB, 4 KB, 256 KB as in the template). Provided: "sha256 24f6…9d1e · matches pin", "Provided · today 17:40", row action "Replace", "⋯" holds Download file, Copy SHA-256, divider, "Remove file…" (red; the confirmation names the file and the consequence). Not provided: "Optional · not provided" and a dashed drop zone "Drop <file> here, or Choose file…" (the raw browser file input is gone, H7); the DS firmware row offers the button "Provide file…".
+- Pin field below the rows: "Pin a SHA-256 · optional" with "Only a file with exactly this hash is accepted. Leave empty to accept the hash in the system template."; input 300 wide, mono placeholder "64 hex characters", button "Pin".
+- No real BIOS or firmware files belong in the repo or in tests; the drop zone and pin are only drawn.
+
+### 3j-2 Hub Library (Round 3)
+Source: `#3j-2` (125-156), `#3j-2-390` (157-171), dialogs in `#hub-states` (419-433). Fixes H10, H11, H12, H13, H14, D1 (and D2 for the local-only marker and import folder).
+
+- Header: title "Library" 28/600, subtitle "96 KB used · 21.3 GB free" 14; buttons 14px, padding 8 14, radius 8: "Rescan folder" (outline) and "Upload ROM" (dark `#1d1d1b`, white text).
+- Scan progress card (shown while a scan runs): "Scanning import folder" + "142 of 310 files · 3 new games so far", progress bar 6 high (`#1a7f96` on `#efede8`), mono path "/srv/framebeam/…/library-import" + "Copy path". The import path appears only here, not on every local-only row (H13).
+- Toolbar: system chips ("All · 48", "Game Boy · 6", "Game Boy Color · 4", "Game Boy Advance · 9", "Nintendo DS · 21", "Nintendo 3DS · 8"; active = dark fill `#1d1d1b`, 13px), search "Search title or hash", sort select "Sort: Name ▾".
+- Table columns `1fr 110 90 140 90 170` (TITLE | SYSTEM | SIZE | ADDED | SAVES), row 52 high, monogram tile 32. Added uses the date rule ("today 09:14", "15 Oct", "3 Mar 2025"; full value `16 Oct 2026, 09:14:22` as tooltip, H12). Saves cell: count + pill "▲ Conflict" (amber) where one exists. Row action column: one visible secondary button ("Upload save"; "Details" on a local-only row) + "⋯" (30 x 30).
+- "⋯" menu (190 wide): Rename, Download ROM, Copy SHA-256, divider, "Delete game…" (red). The red text links of 3j are gone (H11).
+- Local-only row (a game that exists only on a Player, e.g. "Coral Saga: Ember"): same 52 px height; meta line amber "Only on Lena-PC · not uploaded" (H13).
+- Footer: "Showing 9 of 48" + button "Load 25 more" (H14, paging in steps of 25).
+- States (`#hub-states`, cards 3 columns): upload progress ("Uploading Tide & Lantern", "tide-lantern.gb · 8 KB of 13 KB · checking hash after upload", buttons "Hide", "Cancel upload"); duplicate ("Already in the library", "harbor-rally-copy.nds has the same SHA-256 as Harbor Rally. Nothing was added.", mono hash "8e33…a8c8", "Close", "Open Harbor Rally"); unsupported file ("Not a supported game file", "archive.zip holds 3 files. Upload one ROM per file, or unpack it first.", extensions ".gb .gbc .gba .nds .3ds .cci .cxi" in red 12, "Close", "Choose another file"). Dialog: radius 12, padding 20, title 17/600, body 13/19.
+- 390 px (`#3j-2-390`, phone frame): bar "☰ FrameBeam Hub" with "1 conflict" (amber); title row "Library" + "Upload" (stays visible) + "⋯" (holds the remaining header actions); chips scroll horizontally; search + "Name ▾"; cards (padding 16, card padding 12, radius 10): monogram 32, title 14, meta "Nintendo DS · 12 KB · today 09:14" 12, "⋯". Fixes H10.
+
+### 3s-4 Hub Saves (Round 3)
+Source: `#3s-4` (172-197), empty state in `#hub-states`. Fixes H15, H16, H17, H18, D3.
+
+- Grid: list 300 | detail. List: search "Search games or users" + select "All users ▾" (H18); items with monogram, game, "· Max", status "▲ 1 conflict" (amber) or "Synced · today 00:52" / "Synced · 15 Oct" (green). Selected: surface `#eef6f8` + left bar `#1a7f96`.
+- Detail head: "Lumen Drift", "Max · Nintendo DS", amber pill "▲ 1 conflict". Slot tabs use the Player name "Main" (H15): "Main · 1 conflict", "Speedrun · 1 version", "+ New slot". Under the tabs an amber banner (surface `#fff7e6`, border `#ecd9ae`): "Restore not possible while a Session of this game is running · Lena-PC is playing Lumen Drift since 18:40".
+- CURRENT bar (padding 14 18): eyebrow "CURRENT", "v6 · Laptop-Office · Session end · 14 Oct 18:52" "512 KB · 1fc1…726d" mono, actions "Download", "Upload save…", "Create snapshot". Only the newest version carries "✓ Current" (green); a snapshot row (v7) shows only "◆ Snapshot" (cyan) and its label, never a second Current (H16).
+- "Create snapshot" opens the label field in a row under the bar (field 320 x 32, accent ring, "Before the lighthouse", buttons "Create", "Cancel"; hint "Label optional. Snapshots are never removed by retention."). The field is not permanently visible (H17).
+- Conflict card (white, border `#ecd9ae`, radius 10, padding 14 18): "▲ Conflict: v8 is based on v5, the current version is v6" (amber 14/500), "Both are kept in the history. Nothing is overwritten until you choose." + button "Compare and resolve".
+- History: eyebrow "HISTORY · 8 VERSIONS", filter "All | Snapshots"; row (padding 10 18): rail dot (Current filled `#1a7f96`, others hollow `#c9c6be`), "v7", device, badge, label in quotes, meta ("Manual snapshot of v6 · 14 Oct 23:50"), actions "Download", "Restore" (disabled with the reason banner above while a Session runs), "⋯". Numbering: "v{n}" in the history, "Rev {n}" only for the upload checkpoint (decision am stays open).
+- Empty search: title "No saves for “Tide”", body "No game or user matches your search.", action "Clear search".
+
+### 3m-2 Hub Clients (Round 3)
+Source: `#3m-2` (198-221), `#3m-2-390` (222-235), revoke dialog in `#hub-states`. Fixes H19, H20, H22, D5.
+
+- Header "Clients", subtitle "Devices allowed to reach this Hub". Section "PENDING REQUESTS · 1": card with "Sam on Lena-PC", "windows x86_64 · Player 0.14.0 · requested 5 min ago · code" + mono code "7K-4QD", buttons "Deny" (secondary) and "Approve" (primary dark).
+- Section "DEVICES · 5", columns `1.4fr 100 150 90 160 110 120` (DEVICE | USER | PLATFORM | PLAYER | ONLINE | STATUS | actions). ONLINE: dot + "Online now" (green) or "2 h ago" / "3 Oct" / "Never connected" (grey); never "Last active: never" for a connected device (H19). Status pills: "Trusted" green, "Revoked" and "Denied" grey (not red). Row action: "Rename" for trusted devices, "Details" for revoked/denied, plus "⋯" with Rename, Copy device ID, divider, "Revoke access…", "Delete device…" (red, H20). Rename is inline: input "Living room PC" with "Save" / "Cancel".
+- Revoke dialog: title "Revoke access for Laptop-Office?"; body "Max’s Laptop-Office loses access at once, also with tokens that are still valid. Saves stay on the Hub. The device can ask again later."; buttons "Cancel", "Revoke access" (red). Table footnote: "Revoking ends access at once, also for tokens that are still valid. Saves stay on the Hub."
+- 390 px: cards "Name / User · platform / Online / status pill / ⋯"; pending request card with "Deny" and "Approve" (H22).
+
+### 3n-2 Hub Users (Round 3)
+Source: `#3n-2` (236-265), create dialog in `#hub-states`. Fixes H21, D5.
+
+- Header buttons "Create user" and "Invite" (new: users can be created, H21). Subtitle "Accounts on this Hub. Users sign in with a paired device, not a password."
+- Table `NAME | ROLE | DEVICES | CREATED | STATUS` + actions: avatar in the player color, name, "(you)"; ROLE is a pill dropdown "Admin ▾" / "User ▾" (no native select); status pills "Active" green, "Disabled" grey; row action "Rename" + "⋯" with Make admin, Disable user, divider, "Delete user…" (red); no "⋯" on your own row. Footnote: "Disabled users cannot sign in on any device; their saves stay. Deleting a user removes their devices, invites and saves for good."
+- Right panel "Invites" (300 wide): "The invited person enters the code in the Player and picks a display name. Not a Session invite."; "Expires after" segment "1 hour | 24 hours | 7 days"; styled checkbox "Approve the first device directly" with hint "No pending request for that device"; button "Create invite"; list "OPEN · 1" with mono code "QX7-22M", "expires in 23 h", "Single use · approves first device", "Copy", "⋯".
+- Create dialog: title "Create user"; body "Name: Sam · Role: User. The user pairs a device with a one-time code you hand over."; note "Code shown once after creating"; buttons "Cancel", "Create user".
+
+### 3q-2 Hub Settings (Round 3)
+Source: `#3q-2` (266-307, Network, light 1440 x 1240), `#3q-2-dark` (308-331, Security, dark), `#3q-2-pages` (332-358, columns for Updates, General, Saves, Diagnostics). Fixes H9, H32, H33, H34, H35, H36, H37, H38, D6.
+
+- Section column 300 (cards 16 x 20; title 14/500 + 12 summary): Updates "Stable · up to date"; General "Name, theme, uploads"; Network "Public · TURN relay off"; Saves "Keep 20 · 30 days · 26 weeks" (new page); Security "Self-signed certificate"; Diagnostics "Download bundle". Note under the list: "Changes save automatically. Admins only." Active card: surface `#e3f1f4`, border `#b9dde5` (dark `#20343a` / `#2c5560`). Header status right: "✓ All changes saved".
+- Rows follow SettingsRow (control column right). Text inputs are 360 px wide; paths and addresses show a middle ellipsis and a "Copy" button instead of truncating (H34).
+- Network sections (eyebrow mono 11): SHARING & IMPORT (Network sharing toggle 36 x 20, "Other devices on your network can reach this Hub. Changing it restarts the Hub."; Import folder with copy "“Rescan folder” in the Library imports from here. The Hub only reads it. Changing it restarts the Hub."), LISTENING & PUBLIC ADDRESS (Listen port 8443; Public address for Players "host:port given to Players outside your network and used in invite links."), RELAY · TURN (Built-in TURN relay toggle "For Players that cannot connect directly. Needs a public address."; Relay ports · UDP "Forward the whole range as UDP to the Hub. At most 1000 ports." with three fields 49160 – 49199; Cloudflare TURN "Set with Hub flags or environment variables. The token never appears here." value pill "Off" grey in a column wide enough for one line, H32).
+- EXTERNAL TURN SERVERS · 1 ("Your own coturn or a TURN provider. Applies without a restart. Secrets are write-only."): list rows "turns:relay.example.com:5349 · user max" with "Edit" and "⋯"; below the list the add row: fields `turn:host:port`, "Username", "Secret", button "Add". EXTERNAL STUN SERVERS · 0: "Without an entry, stun.cloudflare.com:3478 is used. Adding a server replaces it." default row dashed "stun:stun.cloudflare.com:3478 · Default", add row `stun:host:port` + "Add". One pattern for both (H35, decision 23).
+- Security (dark): card "CERTIFICATE": "HTTPS · self-signed certificate" + pill "Self-signed", text "Players pin this fingerprint when they pair. Replace it with your own certificate or put the Hub behind a reverse proxy."; facts Fingerprint "SHA-256 4F:1A:9C:…:E2:07" + "Copy", Valid until "12 Oct 2027", Issued for "hub.example.com"; segment "Self-signed | Own certificate | Reverse proxy". Card "ADMIN PASSWORD": "Max", "Web sign-in with username and password · changed 12 Oct", button "Change password". Note "Sign out lives in the sidebar only." (H37).
+- Updates: "Hub 0.14.0 is up to date · Stable channel · checked today 17:52"; Update channel segment "Off | Stable | Beta" with help "Stable: tested releases. Beta: earlier, less tested." (the Player uses the same segment, H38); "Install automatically" "Only when no Session is running and paired Players stay compatible."
+- General: Hub name "Home Hub" ("Shown to Players when they connect"); Theme segment "System | Light | Dark", help "System follows the browser until you pick Light or Dark." (default System, H9); "Allow users to upload games" "Off: only admins upload ROMs."
+- Saves (new page, "moved from Network", H33): intro "How many older versions of each slot the Hub keeps. Snapshots and versions in an open conflict are never removed."; rows "Keep newest versions · Per slot · 20", "Keep daily versions · Days of which the newest version is kept · 30", "Keep weekly versions · Weeks of which the newest version is kept · 26" (flags `-save-keep-recent|daily|weekly`).
+- Diagnostics: "Diagnostics bundle", "One zip with logs, version, network settings, installed cores and paired Players. Contains IP addresses and host names; passwords, tokens and TURN secrets are removed.", button "Download bundle" on one line (H36).
