@@ -51,7 +51,10 @@ jobs:
         run: |
           set -euo pipefail
           if [ -n "$INPUT_REPO" ] || [ -n "$INPUT_TAG" ]; then
-            [ -n "$INPUT_REPO" ] && [ -n "$INPUT_TAG" ] || { echo "::error::repo and tag must be given together"; exit 1; }
+            if [ -z "$INPUT_REPO" ] || [ -z "$INPUT_TAG" ]; then
+              echo "::error::repo and tag must be given together"
+              exit 1
+            fi
             [[ "$INPUT_REPO" =~ ^phabioo/framebeam-plugin-[a-z0-9-]+$ ]] || { echo "::error::repo must match phabioo/framebeam-plugin-<name>"; exit 1; }
             [[ "$INPUT_TAG" =~ ^v?[0-9A-Za-z._-]+$ ]] || { echo "::error::invalid tag"; exit 1; }
           fi
