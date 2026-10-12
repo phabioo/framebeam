@@ -112,7 +112,7 @@ Rectangle {
             color: Theme.gameMeta
             HoverHandler { id: diaHover }
             ToolTip.visible: diaHover.hovered
-            ToolTip.text: qsTr("Save snapshot · %1").arg(root.player.controllers.hotkeyLabels.snapshot)
+            ToolTip.text: qsTr("Save snapshot · %1").arg(root.player.controllers.hotkeyHints.snapshot)
         }
     }
 
@@ -669,7 +669,7 @@ Rectangle {
                         look: "outlined"
                         iconKind: "diamond"
                         text: root.saves.busy ? qsTr("Saving snapshot…") : qsTr("Save snapshot")
-                        hint: root.player.controllers.hotkeyLabels.snapshot
+                        hint: root.player.controllers.hotkeyHints.snapshot
                         enabled: root.saves.available && !root.saves.busy
                         onClicked: root.saves.createSnapshotInGame("")
                     }

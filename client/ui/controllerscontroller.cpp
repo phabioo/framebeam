@@ -30,7 +30,44 @@ ControllersController::ControllersController(const QString& dataDir, QObject* pa
   });
   connect(&pads_, &input::GamepadService::stateChanged, this, &ControllersController::testChanged);
   connect(&pads_, &input::GamepadService::libretroMaskChanged, this, &ControllersController::libretroMaskChanged);
-  connect(&pads_, &input::GamepadService::captured, this, [this](const QString& token, int) { applyCapture(token); });
+  connect(&pads_, &input::GamepadService::captured, this, [this](const QString& token, int deviceId) {
+    if (!padHotkeyListening_.isEmpty()) {
+      capturePadHotkey(token, deviceId);
+    } else {
+      applyCapture(token);
+    }
+  });
+  connect(&pads_, &input::GamepadService::hotkeyTriggered, this, [this](const QString& action) {
+    if (!padActive_) {
+      padActive_ = true;
+      emit hotkeyHintsChanged();
+    }
+    emit padHotkeyTriggered(action);
+  });
+  connect(&pads_, &input::GamepadService::stateChanged, this, [this]() {
+    const auto devs = pads_.devices();
+    if (!padActive_ && !devs.isEmpty() && !pads_.pressedTokens(devs.first().id).isEmpty()) {
+      padActive_ = true;
+      emit hotkeyHintsChanged();
+    }
+  });
+  syncPadHotkeys();
+}
+
+void ControllersController::syncPadHotkeys() {
+  QList<input::PadHotkeyBinding> bindings;
+  for (const HotkeyDef& d : hotkeyDefs()) {
+    const QString b = profiles_.padHotkey(d.id);
+    if (!b.isEmpty()) bindings.append({d.id, padHotkeyToken(b), padHotkeySolo(b)});
+  }
+  pads_.setPadHotkeys(profiles_.padHotkeyModifier(), bindings);
+}
+
+void ControllersController::noteKeyboardInput() {
+  if (padActive_) {
+    padActive_ = false;
+    emit hotkeyHintsChanged();
+  }
 }
 
 void ControllersController::start(bool enableGamepads, int pollIntervalMs) {
@@ -313,8 +350,13 @@ QVariantList ControllersController::hotkeyRows() const {
         }
       }
     }
+    const QString pad = profiles_.padHotkey(d.id);
     l.append(QVariantMap{{QStringLiteral("action"), d.id},
                          {QStringLiteral("label"), d.label},
+                         {QStringLiteral("pad"), pad.isEmpty() ? tr("not set") : padHotkeyLabel(pad, profiles_.padHotkeyModifier())},
+                         {QStringLiteral("padSet"), !pad.isEmpty()},
+                         {QStringLiteral("padChanged"), pad != d.defaultPad},
+                         {QStringLiteral("padListening"), padHotkeyListening_ == d.id},
                          {QStringLiteral("key"), key > 0 ? keyLabelOf(key) : tr("not set")},
                          {QStringLiteral("set"), key > 0},
                          {QStringLiteral("changed"), key != d.defaultKey},
@@ -324,6 +366,10 @@ QVariantList ControllersController::hotkeyRows() const {
   }
   l.append(QVariantMap{{QStringLiteral("action"), QStringLiteral("escape")},
                        {QStringLiteral("label"), tr("Leave fullscreen / pause")},
+                       {QStringLiteral("pad"), QString()},
+                       {QStringLiteral("padSet"), false},
+                       {QStringLiteral("padChanged"), false},
+                       {QStringLiteral("padListening"), false},
                        {QStringLiteral("key"), QStringLiteral("Esc")},
                        {QStringLiteral("set"), true},
                        {QStringLiteral("changed"), false},
@@ -339,6 +385,19 @@ QVariantMap ControllersController::hotkeyLabels() const {
   return m;
 }
 
+QString ControllersController::padHotkeyModifier() const {
+  return padHotkeyLabel(padHotkeyBinding(profiles_.padHotkeyModifier(), true), QString());
+}
+
+QVariantMap ControllersController::hotkeyHints() const {
+  QVariantMap m;
+  for (const HotkeyDef& d : hotkeyDefs()) {
+    const QString pad = profiles_.padHotkey(d.id);
+    m.insert(d.id, padActive_ && !pad.isEmpty() ? padHotkeyLabel(pad, profiles_.padHotkeyModifier()) : keyLabelOf(profiles_.hotkey(d.id)));
+  }
+  return m;
+}
+
 QSet<int> ControllersController::hotkeyKeys() const {
   QSet<int> s;
   for (const HotkeyDef& d : hotkeyDefs()) {
@@ -348,19 +407,23 @@ QSet<int> ControllersController::hotkeyKeys() const {
 }
 
 void ControllersController::hotkeysUpdated() {
+  syncPadHotkeys();
   emit hotkeysChanged();
+  emit hotkeyHintsChanged();
   emit keyboardMapChanged();
 }
 
 void ControllersController::beginHotkeyCapture(const QString& action) {
   if (hotkeyIndex(action) < 0) return;
   cancelCapture();
+  cancelPadHotkeyCapture();
   hotkeyListening_ = action;
   hotkeyNote_.clear();
   emit hotkeysChanged();
 }
 
 void ControllersController::cancelHotkeyCapture() {
+  cancelPadHotkeyCapture();
   if (!hotkeyListening_.isEmpty() || !hotkeyNote_.isEmpty()) {
     hotkeyListening_.clear();
     hotkeyNote_.clear();
@@ -373,9 +436,69 @@ void ControllersController::clearHotkey(const QString& action) {
   if (profiles_.clearHotkey(action)) hotkeysUpdated();
 }
 
-void ControllersController::resetHotkey(const QString& action) {
+void ControllersController::resetHotkey(const QString& action) {  // keyboard key and gamepad button
   cancelHotkeyCapture();
-  if (profiles_.resetHotkey(action)) hotkeysUpdated();
+  const bool key = profiles_.resetHotkey(action);
+  const bool pad = profiles_.resetPadHotkey(action);
+  if (key || pad) hotkeysUpdated();
+}
+
+void ControllersController::clearPadHotkey(const QString& action) {
+  cancelHotkeyCapture();
+  if (profiles_.clearPadHotkey(action)) hotkeysUpdated();
+}
+
+void ControllersController::resetPadHotkeyModifier() {
+  cancelHotkeyCapture();
+  if (profiles_.resetPadHotkeyModifier()) hotkeysUpdated();
+}
+
+void ControllersController::beginPadHotkeyCapture(const QString& action) {
+  if (action != QLatin1String("modifier") && hotkeyIndex(action) < 0) return;
+  cancelCapture();
+  cancelHotkeyCapture();
+  padHotkeyListening_ = action;
+  hotkeyNote_.clear();
+  pads_.startCapture();
+  emit hotkeysChanged();
+}
+
+void ControllersController::cancelPadHotkeyCapture() {
+  if (padHotkeyListening_.isEmpty()) return;
+  padHotkeyListening_.clear();
+  pads_.cancelCapture();
+  hotkeyNote_.clear();
+  emit hotkeysChanged();
+}
+
+void ControllersController::capturePadHotkey(const QString& token, int deviceId) {
+  const QString action = padHotkeyListening_;
+  const QString modifier = profiles_.padHotkeyModifier();
+  bool ok = false;
+  if (action == QLatin1String("modifier")) {
+    ok = profiles_.setPadHotkeyModifier(token);
+  } else {
+    if (token == modifier) {  // the hotkey button itself: wait for the button to combine with it
+      pads_.startCapture();
+      return;
+    }
+    const bool combo = pads_.pressedTokens(deviceId).contains(modifier);
+    ok = profiles_.setPadHotkey(action, padHotkeyBinding(token, !combo));
+  }
+  if (!ok) {
+    const QString owner = profiles_.padHotkeyAction(token);
+    hotkeyNote_.clear();
+    for (const HotkeyDef& d : hotkeyDefs()) {
+      if (d.id == owner) hotkeyNote_ = tr("Already used by %1").arg(d.label);
+    }
+    if (hotkeyNote_.isEmpty()) hotkeyNote_ = tr("Not available as a hotkey button");
+    pads_.startCapture();  // the field keeps listening
+    emit hotkeysChanged();
+    return;
+  }
+  padHotkeyListening_.clear();
+  hotkeyNote_.clear();
+  hotkeysUpdated();
 }
 
 void ControllersController::resetHotkeys() {
@@ -530,6 +653,10 @@ void ControllersController::applyCapture(const QString& token) {
 }
 
 bool ControllersController::captureKey(int qtKey) {
+  if (!padHotkeyListening_.isEmpty()) {  // a gamepad button is awaited: Esc cancels, other keys are swallowed
+    if (qtKey == Qt::Key_Escape) cancelPadHotkeyCapture();
+    return true;
+  }
   if (!hotkeyListening_.isEmpty()) return captureHotkey(qtKey);
   const Selected s = selection();
   if (listening_.isEmpty() || s.kind != kKeyboard) return false;

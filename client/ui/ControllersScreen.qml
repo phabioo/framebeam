@@ -23,7 +23,11 @@ Rectangle {
     // Buttons table (grid 14 | flex | 240 | 72): the mapping field and the action cell give way on a narrow column.
     readonly property bool tight: content.width < 480
     readonly property int padActionWidth: tight ? 56 : 72
-    readonly property int hotkeyGapWidth: compact ? 0 : root.targetWidth  // empty third column of the Hotkeys table
+    // Hotkeys table: ACTION | KEY | GAMEPAD | Reset
+    readonly property int hotkeyKeyWidth: compact ? 84 : 120
+    readonly property int hotkeyKeyMinWidth: compact ? 60 : 80
+    readonly property int hotkeyPadWidth: compact ? 108 : 150
+    readonly property int hotkeyPadMinWidth: compact ? 72 : 100
     color: Theme.bg
 
     onVisibleChanged: if (visible) keyScope.forceActiveFocus()
@@ -302,7 +306,7 @@ Rectangle {
                         }
                     }
 
-                    // Hotkeys table (global): ACTION | KEY | (empty) | Reset / Default
+                    // Hotkeys table (global): ACTION | KEY | GAMEPAD | Reset / Default
                     ColumnLayout {
                         visible: root.hotkeysTab
                         Layout.fillWidth: true
@@ -317,10 +321,61 @@ Rectangle {
                             Layout.preferredWidth: 1
                             Layout.minimumWidth: 0
                             Layout.bottomMargin: Theme.space12
-                            text: qsTr("Player hotkeys work on the keyboard and are never sent to the game.")
+                            text: qsTr("Player hotkeys work on the keyboard and on a gamepad (hold the hotkey button, then press another one) and are never sent to the game.")
                             color: Theme.textMuted
                             font.pixelSize: Theme.fontMeta
                             wrapMode: Text.WordWrap
+                        }
+                        // Hotkey button of the gamepad combos (default Select).
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            Layout.bottomMargin: Theme.space12
+                            spacing: Theme.space16
+                            FbLabel { Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; text: qsTr("Gamepad hotkey button"); elide: Text.ElideRight }
+                            Rectangle {
+                                objectName: "padModifierField"
+                                Layout.fillWidth: true
+                                Layout.preferredWidth: root.hotkeyPadWidth
+                                Layout.minimumWidth: root.hotkeyPadMinWidth
+                                Layout.maximumWidth: root.hotkeyPadWidth
+                                implicitHeight: 30
+                                radius: Theme.radius6
+                                color: Theme.surface
+                                readonly property bool listening: root.ctl.padHotkeyListening === "modifier"
+                                border.width: listening ? 1.5 : 1
+                                border.color: listening ? Theme.accent : Theme.borderInput
+                                FbLabel {
+                                    objectName: "padModifierText"
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 10
+                                    anchors.rightMargin: 4
+                                    verticalAlignment: Text.AlignVCenter
+                                    text: parent.listening ? qsTr("Press a button…") : root.ctl.padHotkeyModifier
+                                    color: parent.listening ? Theme.accent : Theme.text
+                                    font.pixelSize: Theme.fontSmall
+                                    elide: Text.ElideRight
+                                }
+                                TapHandler {
+                                    onTapped: parent.listening ? root.ctl.cancelPadHotkeyCapture() : root.ctl.beginPadHotkeyCapture("modifier")
+                                }
+                            }
+                            RowLayout {
+                                Layout.preferredWidth: root.actionWidth
+                                Layout.minimumWidth: root.actionWidth
+                                Layout.maximumWidth: root.actionWidth
+                                FbButton {
+                                    objectName: "padModifierReset"
+                                    Layout.maximumWidth: root.actionWidth
+                                    visible: root.ctl.padHotkeyModifierChanged
+                                    kind: "link"
+                                    font.underline: true
+                                    font.pixelSize: Theme.fontMeta
+                                    text: qsTr("Reset")
+                                    onClicked: root.ctl.resetPadHotkeyModifier()
+                                }
+                                Item { Layout.fillWidth: true }
+                            }
                         }
                         RowLayout {
                             Layout.fillWidth: true
@@ -328,8 +383,8 @@ Rectangle {
                             Layout.bottomMargin: 6
                             spacing: Theme.space16
                             Eyebrow { Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; text: qsTr("Action") }
-                            Eyebrow { Layout.fillWidth: true; Layout.preferredWidth: root.mapWidth; Layout.minimumWidth: root.mapMinWidth; Layout.maximumWidth: root.mapWidth; text: qsTr("Key") }
-                            Item { Layout.preferredWidth: root.hotkeyGapWidth; Layout.minimumWidth: root.hotkeyGapWidth; Layout.maximumWidth: root.hotkeyGapWidth }
+                            Eyebrow { Layout.fillWidth: true; Layout.preferredWidth: root.hotkeyKeyWidth; Layout.minimumWidth: root.hotkeyKeyMinWidth; Layout.maximumWidth: root.hotkeyKeyWidth; text: qsTr("Key") }
+                            Eyebrow { Layout.fillWidth: true; Layout.preferredWidth: root.hotkeyPadWidth; Layout.minimumWidth: root.hotkeyPadMinWidth; Layout.maximumWidth: root.hotkeyPadWidth; text: qsTr("Gamepad") }
                             Item { Layout.preferredWidth: root.actionWidth; Layout.minimumWidth: root.actionWidth; Layout.maximumWidth: root.actionWidth }
                         }
                         Rectangle { Layout.fillWidth: true; height: 1; color: Theme.borderRow }
@@ -354,7 +409,7 @@ Rectangle {
                                         spacing: Theme.space8
                                         Rectangle {
                                             objectName: "hotkeyChangedDot_" + hrow.modelData.action
-                                            visible: hrow.modelData.changed
+                                            visible: hrow.modelData.changed || hrow.modelData.padChanged
                                             Layout.preferredWidth: 7
                                             Layout.preferredHeight: 7
                                             radius: 3.5
@@ -366,9 +421,9 @@ Rectangle {
                                     Rectangle {
                                         objectName: "hotkeyField_" + hrow.modelData.action
                                         Layout.fillWidth: true
-                                        Layout.preferredWidth: root.mapWidth
-                                        Layout.minimumWidth: root.mapMinWidth
-                                        Layout.maximumWidth: root.mapWidth
+                                        Layout.preferredWidth: root.hotkeyKeyWidth
+                                        Layout.minimumWidth: root.hotkeyKeyMinWidth
+                                        Layout.maximumWidth: root.hotkeyKeyWidth
                                         implicitHeight: 30
                                         radius: Theme.radius6
                                         color: Theme.surface
@@ -403,7 +458,52 @@ Rectangle {
                                             onTapped: hrow.modelData.listening ? root.ctl.cancelHotkeyCapture() : root.ctl.beginHotkeyCapture(hrow.modelData.action)
                                         }
                                     }
-                                    Item { Layout.preferredWidth: root.hotkeyGapWidth; Layout.minimumWidth: root.hotkeyGapWidth; Layout.maximumWidth: root.hotkeyGapWidth }
+                                    Rectangle {
+                                        objectName: "hotkeyPadField_" + hrow.modelData.action
+                                        visible: !hrow.modelData.fixed
+                                        Layout.fillWidth: true
+                                        Layout.preferredWidth: root.hotkeyPadWidth
+                                        Layout.minimumWidth: root.hotkeyPadMinWidth
+                                        Layout.maximumWidth: root.hotkeyPadWidth
+                                        implicitHeight: 30
+                                        radius: Theme.radius6
+                                        color: Theme.surface
+                                        border.width: hrow.modelData.padListening ? 1.5 : 1
+                                        border.color: hrow.modelData.padListening ? Theme.accent : Theme.borderInput
+                                        RowLayout {
+                                            anchors.fill: parent
+                                            anchors.leftMargin: 10
+                                            anchors.rightMargin: 4
+                                            FbLabel {
+                                                objectName: "hotkeyPadText_" + hrow.modelData.action
+                                                Layout.fillWidth: true
+                                                Layout.preferredWidth: 1
+                                                Layout.minimumWidth: 0
+                                                text: hrow.modelData.padListening ? qsTr("Press a button…") : hrow.modelData.pad
+                                                color: hrow.modelData.padListening ? Theme.accent
+                                                       : (hrow.modelData.padSet ? Theme.text : Theme.textFaint)
+                                                font.pixelSize: Theme.fontSmall
+                                                elide: Text.ElideRight
+                                            }
+                                            FbButton {
+                                                visible: hrow.modelData.padSet && !hrow.modelData.padListening
+                                                objectName: "hotkeyPadClear_" + hrow.modelData.action
+                                                kind: "link"
+                                                text: "×"
+                                                onClicked: root.ctl.clearPadHotkey(hrow.modelData.action)
+                                            }
+                                        }
+                                        TapHandler {
+                                            onTapped: hrow.modelData.padListening ? root.ctl.cancelPadHotkeyCapture() : root.ctl.beginPadHotkeyCapture(hrow.modelData.action)
+                                        }
+                                    }
+                                    Item {
+                                        visible: hrow.modelData.fixed
+                                        Layout.fillWidth: true
+                                        Layout.preferredWidth: root.hotkeyPadWidth
+                                        Layout.minimumWidth: root.hotkeyPadMinWidth
+                                        Layout.maximumWidth: root.hotkeyPadWidth
+                                    }
                                     RowLayout {
                                         Layout.preferredWidth: root.actionWidth
                                         Layout.minimumWidth: root.actionWidth
@@ -411,7 +511,7 @@ Rectangle {
                                         FbButton {
                                             objectName: "hotkeyReset_" + hrow.modelData.action
                                             Layout.maximumWidth: root.actionWidth
-                                            visible: hrow.modelData.changed
+                                            visible: hrow.modelData.changed || hrow.modelData.padChanged
                                             kind: "link"
                                             font.underline: true
                                             font.pixelSize: Theme.fontMeta
@@ -419,7 +519,7 @@ Rectangle {
                                             onClicked: root.ctl.resetHotkey(hrow.modelData.action)
                                         }
                                         FbLabel {
-                                            visible: !hrow.modelData.changed && !hrow.modelData.fixed
+                                            visible: !(hrow.modelData.changed || hrow.modelData.padChanged) && !hrow.modelData.fixed
                                             text: qsTr("Default")
                                             font.pixelSize: Theme.fontMeta
                                             color: Theme.textDisabled

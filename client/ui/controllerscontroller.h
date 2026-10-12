@@ -48,6 +48,14 @@ class ControllersController : public QObject {
   Q_PROPERTY(QString hotkeyNote READ hotkeyNote NOTIFY hotkeysChanged)            // "Already used by <label>" after a rejected key
   // {actionId: key label} for the key hints; "" = unassigned (no hint).
   Q_PROPERTY(QVariantMap hotkeyLabels READ hotkeyLabels NOTIFY hotkeysChanged)
+  // Gamepad hotkeys (P1): rows above also carry {pad, padSet, padChanged, padListening}; padHotkeyListening = action id
+  // (or "modifier") waiting for "Press a button…"; padHotkeyModifier = label of the hotkey button ("Select");
+  // padHotkeyModifierChanged = differs from the default. hotkeyHints = {actionId: label} for the hints in the game
+  // screen: the gamepad combo while a gamepad was the last input used, else the key label; "" = unassigned.
+  Q_PROPERTY(QString padHotkeyListening READ padHotkeyListening NOTIFY hotkeysChanged)
+  Q_PROPERTY(QString padHotkeyModifier READ padHotkeyModifier NOTIFY hotkeysChanged)
+  Q_PROPERTY(bool padHotkeyModifierChanged READ padHotkeyModifierChanged NOTIFY hotkeysChanged)
+  Q_PROPERTY(QVariantMap hotkeyHints READ hotkeyHints NOTIFY hotkeyHintsChanged)
   // System-specific labels from the system manifest (column header, touch input name).
   Q_PROPERTY(QString systemLabel READ systemLabel NOTIFY labelsChanged)
   Q_PROPERTY(QString touchLabel READ touchLabel NOTIFY labelsChanged)
@@ -100,6 +108,10 @@ class ControllersController : public QObject {
   QString hotkeyNote() const { return hotkeyNote_; }
   QVariantMap hotkeyLabels() const;
   QSet<int> hotkeyKeys() const;  // assigned hotkey keys (Esc not included)
+  QString padHotkeyListening() const { return padHotkeyListening_; }
+  QString padHotkeyModifier() const;
+  bool padHotkeyModifierChanged() const { return profiles_.padHotkeyModifierChanged(); }
+  QVariantMap hotkeyHints() const;
 
   // Qt::Key -> joypad mask of the keyboard profile (nds system profile applied); keys that are hotkeys are left out.
   QHash<int, quint32> keyboardMap() const;
@@ -127,7 +139,13 @@ class ControllersController : public QObject {
   Q_INVOKABLE void cancelHotkeyCapture();
   Q_INVOKABLE void clearHotkey(const QString& action);
   Q_INVOKABLE void resetHotkey(const QString& action);
-  Q_INVOKABLE void resetHotkeys();
+  Q_INVOKABLE void resetHotkeys();  // keyboard keys, gamepad buttons and the hotkey button
+  // Gamepad hotkeys: capture the next button (hold the hotkey button first for a combo; a lone button is bound without it).
+  Q_INVOKABLE void beginPadHotkeyCapture(const QString& action);  // action id or "modifier"
+  Q_INVOKABLE void cancelPadHotkeyCapture();
+  Q_INVOKABLE void clearPadHotkey(const QString& action);
+  Q_INVOKABLE void resetPadHotkeyModifier();
+  Q_INVOKABLE void noteKeyboardInput();  // the keyboard was used last: hints show keys again
   // "Duplicate to edit": duplicates the built-in profile, selects the copy and begins capture for the input on it.
   Q_INVOKABLE void duplicateAndCapture(const QString& inputId);
 
@@ -141,6 +159,8 @@ class ControllersController : public QObject {
   void labelsChanged();
   void labelSetChanged();
   void hotkeysChanged();
+  void hotkeyHintsChanged();
+  void padHotkeyTriggered(const QString& action);  // P1 gamepad hotkey pressed (combo or lone button)
   void libretroMaskChanged(quint32 mask);  // P1 gamepad, nds system profile
 
  private:
@@ -158,6 +178,8 @@ class ControllersController : public QObject {
   void profileChanged();   // after a change of profiles/assignments: tell the consumers
   void applyCapture(const QString& token);
   bool captureHotkey(int qtKey);
+  void capturePadHotkey(const QString& token, int deviceId);
+  void syncPadHotkeys();  // profiles_ -> GamepadService
   void hotkeysUpdated();  // after a change of the hotkeys: consumers refresh (also the keyboard map)
   void ensureSelection();
 
@@ -169,6 +191,8 @@ class ControllersController : public QObject {
   QString note_;
   QString hotkeyListening_;
   QString hotkeyNote_;
+  QString padHotkeyListening_;
+  bool padActive_ = false;  // the gamepad was the last input used
   QSet<int> heldKeys_;
 };
 

@@ -110,21 +110,28 @@ Rectangle {
     }
 
     // Player hotkeys are configurable (Controllers > Hotkeys): the controller maps the Qt key to an action name.
-    readonly property var hotkeyLabels: root.player.controllers.hotkeyLabels
+    // Hints show the gamepad combo while a gamepad was the last input used, else the key (name kept: hotkeyLabels).
+    readonly property var hotkeyLabels: root.player.controllers.hotkeyHints
+    // Runs a hotkey action (keyboard or gamepad); false = unknown action.
+    function runHotkey(action) {
+        if (action === "fullscreen") root.toggleFullscreen()
+        else if (action === "diagnostics") root.diag.toggle()
+        else if (action === "snapshot") root.saveSnapshot()
+        else if (action === "speedup") { if (root.session.fastForwardAvailable) root.session.toggleFastForward() }
+        else return false
+        return true
+    }
+    Connections {
+        target: root.player.controllers
+        // Gamepad hotkeys (P1): the buttons are already kept away from the core by the GamepadService.
+        function onPadHotkeyTriggered(action) { if (root.visible) root.runHotkey(action) }
+    }
     Keys.onPressed: (e) => {
         if (!root.visible) return   // game in the background: hotkeys do not act on it from other screens
+        root.player.controllers.noteKeyboardInput()
         var action = root.player.controllers.hotkeyAction(e.key)
-        if (action === "fullscreen") {
-            root.toggleFullscreen()
-            e.accepted = true
-        } else if (action === "diagnostics") {
-            root.diag.toggle()
-            e.accepted = true
-        } else if (action === "snapshot") {
-            root.saveSnapshot()
-            e.accepted = true
-        } else if (action === "speedup") {
-            if (!e.isAutoRepeat && root.session.fastForwardAvailable) root.session.toggleFastForward()
+        if (action !== "") {
+            if (!(action === "speedup" && e.isAutoRepeat)) root.runHotkey(action)
             e.accepted = true   // the key never reaches the core (GameSession::isReservedKey)
         } else if (e.key === Qt.Key_Escape) {
             if (root.closePopover()) { e.accepted = true }
