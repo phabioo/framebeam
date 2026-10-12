@@ -1,6 +1,10 @@
 package hub
 
-import "context"
+import (
+	"context"
+
+	"github.com/phabioo/framebeam/server/internal/turnsrv"
+)
 
 // Test seams for the grace-timer generation check.
 
@@ -76,4 +80,9 @@ func (s *Service) CloudflareTURNURLs() []string {
 func (s *Service) ICEServersFor(reqHost, deviceID string) []string {
 	ice, _ := s.iceFor(reqHost, deviceID)
 	return ice
+}
+
+// ExternalCredentialsForTest returns the external TURN credentials issued for a device.
+func (s *Service) ExternalCredentialsForTest(deviceID string) []turnsrv.Credentials {
+	return s.externalFor(deviceID)
 }

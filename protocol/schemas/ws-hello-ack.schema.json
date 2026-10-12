@@ -52,8 +52,7 @@
             "required": [
               "urls",
               "username",
-              "credential",
-              "expires_at"
+              "credential"
             ],
             "properties": {
               "urls": {

@@ -28,7 +28,7 @@ What the Hub, the protocol and the Player do today, by area. Status by version: 
 
 **Protocol** (`protocol/`)
 
-- OpenAPI 3.0.3 for `/api/v1` and WSS message schemas; OpenAPI spec version 1.12.0, `protocol_version` is 1; handshake features `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1`, `firmware_v1`, `cores_v1`, `cores_v2`, `saves_v2`, `saves_v3`, `saves_v4`, `saves_v5`, `local_setup_v1` and, with TURN on, `turn_v1`. See [reference/protocol.md](reference/protocol.md).
+- OpenAPI 3.0.3 for `/api/v1` and WSS message schemas; OpenAPI spec version 1.13.0, `protocol_version` is 1; handshake features `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1`, `firmware_v1`, `cores_v1`, `cores_v2`, `saves_v2`, `saves_v3`, `saves_v4`, `saves_v5`, `local_setup_v1` and, with TURN on, `turn_v1`. See [reference/protocol.md](reference/protocol.md).
 
 **FrameBeam Player** (`client/`, [ADR 0003](adr/0003-player-phase2.md))
 

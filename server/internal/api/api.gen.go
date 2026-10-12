@@ -1049,10 +1049,15 @@ type TokenResponse struct {
 // TokenResponseTokenType defines model for TokenResponse.TokenType.
 type TokenResponseTokenType string
 
-// TurnServer Short-lived relay credentials from a relay provider of the Hub (`turn_v1`), either the embedded TURN server (TURN REST API scheme) or Cloudflare TURN.
+// TurnServer Relay credentials from a relay provider of the Hub (`turn_v1`): the embedded TURN server (TURN REST API scheme),
+// Cloudflare TURN or an external TURN server configured by the admin. Credentials are short-lived (`expires_at`)
+// except the static username and password of an external TURN server, which have no `expires_at`. The Hub may
+// send several entries; a Player offers all of them to ICE.
 type TurnServer struct {
-	Credential string    `json:"credential"`
-	ExpiresAt  time.Time `json:"expires_at"`
+	Credential string `json:"credential"`
+
+	// ExpiresAt End of validity; absent for static credentials that do not expire.
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
 
 	// Urls `turn:` URLs (UDP and TCP transport)
 	Urls     []string `json:"urls"`

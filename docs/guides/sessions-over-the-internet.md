@@ -30,7 +30,7 @@ FRAMEBEAM_PUBLIC_HOST=hub.example.org
 Values saved in Settings → Network override `hub.env` and the flags (reset per field to return to the `hub.env` value); `hub.env` only gives the initial values. This also applies to the port and the save retention values. The web form refuses ports below 1024; set those with `install-hub.sh --port` (note that a port saved in the web form then still wins until reset). The Network page shows the state (on/off, resolved IPv4, ports, active allocations) and the forwards needed. Players pair with the DNS name; credentials are issued automatically and expire after 12 hours. Relay is IPv4 only; direct IPv6 paths still work when both Players allow them. The Hub does not configure the router.
 ## Supported setups
 
-LAN, internet with a router port forward (recommended, this page), or a VPN such as WireGuard or Tailscale. There is no external TURN server in 0.4 (ADR 0012 D1).
+LAN, internet with a router port forward (recommended, this page), or a VPN such as WireGuard or Tailscale. The relay behind it can be the Hub's embedded TURN (this page), Cloudflare TURN or an external TURN server such as your own coturn on a VPS ([coturn-on-a-vps.md](coturn-on-a-vps.md), [hub-configuration.md](hub-configuration.md)); several can be active at once. An external relay needs no router port forward on the Hub side (ADR 0012, amendment 2026-10-12).
 
 ## Testing the relay
 

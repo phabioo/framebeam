@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/phabioo/framebeam/server/internal/config"
+	"github.com/phabioo/framebeam/server/internal/hub"
 	"github.com/phabioo/framebeam/server/internal/turnsrv"
 )
 
@@ -407,4 +408,20 @@ func TestNetworkResetValidatesResult(t *testing.T) {
 	if ov, _ := e2.svc.NetOverrides(bg); ov[config.NetListenPort] == "" {
 		t.Fatalf("override removed: %v", ov)
 	}
+}
+
+func TestNetworkPageListsExternalTURNWithoutSecrets(t *testing.T) {
+	e, _ := netEnv(t, nil)
+	c := e.client()
+	c.login()
+	contains(t, c.get("/settings/network", nil), "External TURN servers: none", "Cloudflare TURN: off")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	e.svc.StartExternalTURN(ctx, []hub.ExternalTURN{
+		{Name: "vps", Mode: hub.ExternalTURNSecret, Secret: "web-secret-0123456789", URLs: []string{"turn:turn.example.org:3478?transport=udp", "turns:turn.example.org:5349?transport=tcp"}},
+		{Name: "provider", Mode: hub.ExternalTURNStatic, Username: "web-user-0123", Password: "web-pw-0123456789", URLs: []string{"turn:turn2.example.org:3478"}},
+	}, hub.ExternalTURNOptions{})
+	rec := c.get("/settings/network", nil)
+	contains(t, rec, "turn:turn.example.org:3478?transport=udp", "turns:turn.example.org:5349?transport=tcp", "turn2.example.org", "shared secret", "static username and password", "secret configured")
+	notContains(t, rec, "web-secret-0123456789", "web-pw-0123456789", "web-user-0123")
 }

@@ -115,6 +115,13 @@ type updatesBody struct {
 	Err       bool   // the status could not be read
 }
 
+// extTURNRow is an external TURN server as shown in Settings: URLs and credential mode, never a password or secret.
+type extTURNRow struct {
+	Name, Mode string
+	URLs       string
+	SecretSet  bool
+}
+
 type turnBody struct {
 	On                    bool
 	PublicHost            string
@@ -152,6 +159,8 @@ type netBody struct {
 	ReachOK                                      bool
 	ReachTitle, ReachText                        string
 	TURN                                         turnBody
+	External                                     []extTURNRow
+	Cloudflare                                   bool
 	Restarting                                   *restartBody
 	CanRestart                                   bool
 }
@@ -456,6 +465,14 @@ func (s *Server) netBody(r *http.Request, sess *session, res settingsRes) (netBo
 			nb.TURN.ResolvedAt = st.ResolvedAt.Local().Format("2006-01-02 15:04")
 		}
 	}
+	for _, e := range s.svc.ExternalTURNStatus() {
+		mode := "static username and password"
+		if e.Mode == hub.ExternalTURNSecret {
+			mode = "shared secret (time-limited credentials)"
+		}
+		nb.External = append(nb.External, extTURNRow{Name: e.Name, Mode: mode, URLs: strings.Join(e.URLs, ", "), SecretSet: e.SecretSet})
+	}
+	nb.Cloudflare = s.svc.CloudflareStatus().Configured
 	nb.Restarting = res.Restarting
 	return nb, nil
 }

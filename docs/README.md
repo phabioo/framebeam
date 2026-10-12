@@ -8,6 +8,7 @@ Start with the [root README](../README.md) for what FrameBeam is and a quick sta
 - [Hub installation](guides/hub-install.md): Debian package and systemd script on Linux / Raspberry Pi
 - [Hub configuration](guides/hub-configuration.md): commands, all flags and environment variables, certificates
 - [Sessions: LAN and internet](guides/sessions-over-the-internet.md): testing on a LAN, port forwards, TURN relay
+- [coturn on a VPS](guides/coturn-on-a-vps.md): own external TURN relay for the Hub
 - [Saves](guides/saves.md): sync, conflicts, history, restore, retention
 - [Updates and releases](guides/updates.md): channels, automatic updates, promoting a beta to a release, rollback
 - [Packaging](guides/packaging.md): Windows installer, Hub package
