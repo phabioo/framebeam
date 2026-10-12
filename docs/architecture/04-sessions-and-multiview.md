@@ -52,6 +52,8 @@ No friends list, public share links, guest access, guest codes, cross-Hub invite
 
 ## 5. Multiview
 
-The client combines the local Session with received remote Sessions in multiple video surfaces: up to 4 (local game plus up to 3 remote Sessions, or 4 remote Sessions without a local game; each remote surface is its own viewer join). Layouts: **side-by-side** (2), **grid 2 x 2** (3 or 4), **picture-in-picture (PiP)** (one main surface, others as small tiles). Details: ADR 0012 D8.
+The client combines the local Session with received remote Sessions in multiple video surfaces: up to 4 (local game plus up to 3 remote Sessions, or 4 remote Sessions without a local game; each remote surface is its own viewer join). Layouts: **Row** (2-3, named "side-by-side" before 0.14), **grid 2 x 2** (from 4, never with an empty slot), **picture-in-picture (PiP)** (one main surface, others as small tiles inside the main tile). Details: ADR 0012 D8, [ADR 0026](../adr/0026-ui-gaps-and-multiview.md) D2.
+
+Paused state (0.14): the owner tells its viewers when the game is paused or resumed through the optional `state` message on `fb-diag` (state only, no picture or input); viewers show "Paused by <name>" on the frozen tile. Format: [protocol/datachannel.md](../../protocol/datachannel.md).
 
 Layout, scaling, decoding and rendering take place entirely on the client. The server produces no composited image. Audio focus: exactly one surface is audible ("Audio here" moves it); default is the local game, and when the focused surface is removed the focus goes to the local game, else the first remaining surface. No mixing. The exact DS screen arrangement is still to be defined.

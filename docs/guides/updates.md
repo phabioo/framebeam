@@ -27,7 +27,7 @@ How the Hub and the Windows Player update themselves, and how a beta is promoted
 
 ## Channels
 
-- `stable` or `beta` (hint in the UI: "Pre-release builds from every change on main. May contain bugs."), switchable in the same Settings sections. `beta` also takes stable releases when newer. Never a downgrade.
+- Since 0.14 the Player segment reads `Off | Stable | Beta`; Off is stored as an explicit choice like Stable or Beta, so it wins over `update_channel_default`, and the Player then performs no update checks. Otherwise `stable` or `beta` (hint in the UI: "Pre-release builds from every change on main. May contain bugs."), switchable in the same Settings sections. `beta` also takes stable releases when newer. Never a downgrade.
 - Release builds are compiled with channel `beta`. With no channel selected, the first successful index load stores `update_channel_default` (Hub: `settings` table; Player: `player.json`): `stable` if the index lists the running version as stable, else `beta`. It is never re-resolved, so a beta install stays on beta after its version is promoted, and a fresh install of a stable release follows stable. An explicit selection always wins; `dev` builds do not check until a channel is chosen. Automatic install defaults to on for beta, off for stable.
 - Beta naming ([ADR 0016](../adr/0016-release-numbering-and-promotion.md)): every push to `main` is a beta with a plain version `X.Y.Z`, published as prerelease `vX.Y.Z`; the number can have gaps. Older `vX.Y.Z-beta.N` builds still update normally but cannot be promoted. Stored `test` settings are read as `beta`. Installs of the former `test.N` builds do not update to beta builds (different channel, and `beta` < `test` in SemVer); reinstall once from a beta or release.
 

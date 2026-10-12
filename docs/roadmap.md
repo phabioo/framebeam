@@ -46,7 +46,7 @@ Phase plan: [workflow.md](workflow.md#phase-plan).
 | 0.11 | in progress | Plugin runtime | Packages 1 to 3: Player runtime (done in code), UI building blocks and slots (done in code), Hub plugins and runs with `.fbplugin`, signing and plugin index (done in code, including Player runs) ([ADR 0023](adr/0023-plugins.md), proposed; [design](architecture/12-plugins.md)). The plugins themselves live in their own repositories. |
 | 0.12 | done in code | Local ROMs | Play ROMs from Player library folders with the usual save sync; games merge by identity (system, game code, version); local-only games are visible to their owners; optional resumable upload to the Hub (Player and web); no P2P ([ADR 0025](adr/0025-local-roms.md)). OpenAPI 1.17.0, `local_roms_v1`. |
 | 0.13 | done in code (real cores mGBA and Gambatte and real games verified only locally) | System template, GB/GBC/GBA | Systems are data: one JSON on the Hub, one manifest on the Player, optional core profile; [guide](guides/adding-a-system.md), [ADR 0024](adr/0024-system-template-and-game-boy.md). GB, GBC and GBA (mGBA, Gambatte) as the proof. |
-| 0.14 | in progress | UI gaps and Multiview | Remaining Hub web and Player design gaps; Multiview shows three Sessions side by side, a 2x2 grid only from the fourth. |
+| 0.14 | done in code (real GPUs, cores and networks verified only locally) | UI gaps and Multiview | Round 3 design gaps closed in the Hub web and the Player; Multiview shows 2-3 Sessions in a Row, Grid 2x2 only from 4; Esc always pauses, F11 toggles fullscreen; viewers see "Paused by <name>" ([ADR 0026](adr/0026-ui-gaps-and-multiview.md), [fb-diag `state`](../protocol/datachannel.md)). |
 | 0.15 | planned | GPU paths | OpenGL to D3D11 bridge, zero-copy display, GPU-direct QSV and AMF. |
 | 1.0 | planned | Test phase | Test evening(s) with friends (date open), then the SoulLink run in Pokémon Omega Ruby/Alpha Sapphire. |
 | after 1.0 | planned | Metadata and artwork, Linux Player | Central game metadata and boxart; FrameBeam Player on Linux. No macOS. |
@@ -361,8 +361,8 @@ Design: Claude Design handoff "Round 3" (2026-10-12), imported in [design/](desi
 
 - [x] Design import: Round 3 sources, specifications, tokens and decisions in `docs/design/` (this PR).
 - [x] Hub pass: Systems and Cores (3l-2 to 3l-4), Library (3j-2), Saves (3s-4), Clients (3m-2), Users (3n-2), Settings (3q-2), Plugins and Runs (4i-3, 4jh-3); cross-cutting rules (dates, row actions, pills, add-to-list, cards below 720 px).
-- [ ] Player library, settings, plugins and runs pass: Connect (3a-3), Library (3c-6, 3c-7), Settings (3p-3), Emulation (3e-3), Controllers and hotkeys (3f-4), Plugins (4a-3, 4a-4), SoulLink screen and Runs (4f-3, 4j-3); 880 px and 1680 px content widths.
-- [ ] Player in-game and Multiview pass: Row for 2-3 Sessions and Grid 2x2 from 4 (3r-3), docked diagnostics (3h-3), PiP (3i-3), pause overlay and fullscreen (3y-2: Esc always pauses, F11 toggles fullscreen), paused state signalled to viewers ("Paused by <name>"), one selection style, Add popover below the toolbar. Needs a follow-up ADR for the changed Esc role (ADR 0014 D4) and the Multiview layout names (D13).
+- [x] Player library, settings, plugins and runs pass: Connect (3a-3), Library (3c-6, 3c-7), Settings (3p-3), Emulation (3e-3), Controllers and hotkeys (3f-4), Plugins (4a-3, 4a-4), SoulLink screen and Runs (4f-3, 4j-3); 880 px and 1680 px content widths.
+- [x] Player in-game and Multiview pass: Row for 2-3 Sessions and Grid 2x2 from 4 (3r-3), docked diagnostics (3h-3), PiP (3i-3), pause overlay and fullscreen (3y-2: Esc always pauses, F11 toggles fullscreen), paused state signalled to viewers ("Paused by <name>"), one selection style, Add popover below the toolbar. The changed Esc role (ADR 0014 D4) and the Multiview layout names (D13) are in [ADR 0026](adr/0026-ui-gaps-and-multiview.md).
 
 ## 0.15 GPU paths
 
