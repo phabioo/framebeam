@@ -409,6 +409,10 @@ ManifestResult parseManifest(const QByteArray& json, const QString& pluginDir) {
     m.settings = sv.toObject();
   }
 
+  const QJsonValue rsV = o.value(QLatin1String("run_settings"));
+  if (!rsV.isUndefined() && !rsV.isNull())
+    if (const QString e = parseRunSettings(rsV, m.runSettings); !e.isEmpty()) return fail(e);
+
   const QJsonValue uiV = o.value(QLatin1String("ui"));
   if (!uiV.isUndefined() && !uiV.isNull()) {
     if (const QString e = parseUi(uiV, m.ui); !e.isEmpty()) return fail(e);

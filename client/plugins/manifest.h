@@ -7,6 +7,7 @@
 #include <optional>
 #include <utility>
 
+#include "pluginhub.h"
 #include "semver.h"
 
 // Plugin manifest (manifest.json, docs/architecture/12-plugins.md 16.6). Pure parsing/validation, no Lua.
@@ -81,6 +82,7 @@ struct Manifest {
   QStringList assets;
   QJsonObject settings;            // raw, schema not interpreted yet
   UiDecl ui;                       // optional field "ui"
+  QList<RunSetting> runSettings;   // optional field "run_settings": the run rules the creator sets in "Start a run"
 
   bool matchesGame(const QString& system, const QString& code) const;
   bool hasPermission(const QString& p) const { return permissions.contains(p); }

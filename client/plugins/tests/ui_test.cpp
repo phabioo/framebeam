@@ -420,18 +420,18 @@ class UiTest : public QObject {
       fb.events.on('fb', 'detail.game', function(v, from, name)
         fb.log.info('EV ' .. name .. ' ' .. from .. ' ' .. (v and (v.system .. '/' .. v.code .. '/' .. v.sha256 .. '/' .. v.title) or 'nil'))
       end)
-      fb.events.on('fb', 'tiles', function(v) fb.log.info('EV tiles ' .. #v .. ' ' .. v[1].id .. ' ' .. v[1].player .. ' ' .. v[2].game) end)
+      fb.events.on('fb', 'tiles', function(v) fb.log.info('EV tiles ' .. #v .. ' ' .. v[1].id .. ' ' .. v[1].player .. ' ' .. v[2].game .. ' ' .. v[1].user_id .. '|' .. v[2].user_id) end)
       fb.events.on('fb', 'hud.visible', function(v) fb.log.info('EV hud ' .. tostring(v)) end)
     )LUA"));
     m_host->postHostEvent("detail.game", QVariantMap{{"system", "nds"}, {"code", "ABCD"}, {"sha256", "ff"}, {"title", "Game"}});
     m_host->postHostEvent("detail.game", QVariant());
-    m_host->postHostEvent("tiles", QVariantList{QVariantMap{{"id", "t1"}, {"player", "Ann"}, {"game", "G1"}}, QVariantMap{{"id", "t2"}, {"player", "Bob"}, {"game", "G2"}}});
+    m_host->postHostEvent("tiles", QVariantList{QVariantMap{{"id", "t1"}, {"player", "Ann"}, {"game", "G1"}, {"user_id", "u_ann"}}, QVariantMap{{"id", "t2"}, {"player", "Bob"}, {"game", "G2"}, {"user_id", ""}}});
     m_host->postHostEvent("hud.visible", false);
     m_host->postHostEvent("hud.visible", true, "net.other.plugin");  // addressed to another plugin: not delivered
     QTRY_VERIFY(hasLog(con(), "EV hud false"));
     QVERIFY2(hasLog(con(), "EV detail.game fb nds/ABCD/ff/Game"), qPrintable(logJoined(con())));
     QVERIFY(hasLog(con(), "EV detail.game fb nil"));
-    QVERIFY(hasLog(con(), "EV tiles 2 t1 Ann G2"));
+    QVERIFY(hasLog(con(), "EV tiles 2 t1 Ann G2 u_ann|"));
     QVERIFY(!hasLog(con(), "EV hud true"));
   }
 

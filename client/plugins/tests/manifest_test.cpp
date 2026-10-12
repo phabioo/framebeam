@@ -2,6 +2,7 @@
 #include <QtTest>
 
 #include "plugin_test_util.h"
+#include "pluginhub.h"
 
 using namespace framebeam::plugins;
 using framebeam::update::SemVer;
@@ -111,6 +112,81 @@ class ManifestTest : public QObject {
     QVERIFY(globMatch("AB?D", "ABCD")); QVERIFY(!globMatch("AB?D", "ABD")); QVERIFY(globMatch("*", "")); QVERIFY(globMatch("A*D*", "ABCDE"));
     QVERIFY(!globMatch("A*D", "ABCDE")); QVERIFY(globMatch("a*", "ABC"));
     QVERIFY(errOf(R"({"games":[{"codes":["A"]}]})").contains("'system'"));
+  }
+  static QString rs(const QString& arr) { return QStringLiteral(R"({"run_settings":%1})").arg(arr); }
+  void runSettingsValid() {
+    const ManifestResult r = parseManifest(base(rs(R"([
+      {"key":"mode","type":"enum","label":"rules.mode","hint":"rules.mode.hint","default":"soullink",
+       "options":[{"value":"soullink","label":"rules.mode.soullink"},{"value":"nuzlocke","label":"rules.mode.nuzlocke"}],"extra":1},
+      {"key":"rules.dupes_clause","type":"boolean","label":"rules.dupes","default":true}])")));
+    QVERIFY2(r.ok, qPrintable(r.error));
+    QCOMPARE(r.manifest.runSettings.size(), 2);
+    QCOMPARE(r.manifest.runSettings.at(0).options.size(), 2);
+    QCOMPARE(r.manifest.runSettings.at(0).def.toString(), QString("soullink"));
+    QCOMPARE(r.manifest.runSettings.at(1).def.toBool(), true);
+    QVERIFY(parseManifest(base()).manifest.runSettings.isEmpty());
+  }
+  void runSettingsInvalid() {
+    const QString b = R"({"key":"a","type":"boolean","label":"l","default":false})";
+    const QString en = R"({"key":"m","type":"enum","label":"l","default":"x","options":[{"value":"x","label":"l1"},{"value":"y","label":"l2"}]})";
+    QVERIFY(errOf(rs("[" + b + "]")).isEmpty());
+    QVERIFY(errOf(rs("[" + en + "]")).isEmpty());
+    QVERIFY(errOf(rs("[]")).contains("1 to 32"));
+    QVERIFY(errOf(rs("{}")).contains("array"));
+    QStringList many;
+    for (int i = 0; i < 33; ++i) many << QStringLiteral(R"({"key":"k%1","type":"boolean","label":"l","default":true})").arg(i);
+    QVERIFY(errOf(rs("[" + many.join(",") + "]")).contains("1 to 32"));
+    QVERIFY(errOf(rs("[1]")).contains("must be an object"));
+    QVERIFY(errOf(rs(R"([{"type":"boolean","label":"l","default":true}])")).contains("'key' is required"));
+    for (const QString& k : {QString("A"), QString("a.b.c"), QString("1a"), QString("a-b"), QString("a..b"), QString(), QString("a."), QString(33, QLatin1Char('a'))})
+      QVERIFY2(errOf(rs(QStringLiteral(R"([{"key":"%1","type":"boolean","label":"l","default":true}])").arg(k))).contains("key"), qPrintable(k));
+    QVERIFY(errOf(rs("[" + b + "," + b + "]")).contains("duplicate key"));
+    QVERIFY(errOf(rs(R"([{"key":"rules","type":"boolean","label":"l","default":true},{"key":"rules.x","type":"boolean","label":"l","default":true}])")).contains("prefix"));
+    QVERIFY(errOf(rs(R"([{"key":"a","type":"number","label":"l","default":1}])")).contains("type must be"));
+    QVERIFY(errOf(rs(R"([{"key":"a","type":"boolean","default":true}])")).contains("'label'"));
+    QVERIFY(errOf(rs(R"([{"key":"a","type":"boolean","label":"bad key!","default":true}])")).contains("'label'"));
+    QVERIFY(errOf(rs(R"([{"key":"a","type":"boolean","label":"l","hint":"bad hint","default":true}])")).contains("'hint'"));
+    QVERIFY(errOf(rs(R"([{"key":"a","type":"boolean","label":"l"}])")).contains("'default'"));
+    QVERIFY(errOf(rs(R"([{"key":"a","type":"boolean","label":"l","default":"yes"}])")).contains("'default'"));
+    QVERIFY(errOf(rs(R"([{"key":"a","type":"boolean","label":"l","default":true,"options":[]}])")).contains("only allowed for enum"));
+    QVERIFY(errOf(rs(R"([{"key":"m","type":"enum","label":"l","default":"x"}])")).contains("2 to 8 options"));
+    QVERIFY(errOf(rs(R"([{"key":"m","type":"enum","label":"l","default":"x","options":[{"value":"x","label":"l"}]}])")).contains("2 to 8 options"));
+    QStringList nine;
+    for (int i = 0; i < 9; ++i) nine << QStringLiteral(R"({"value":"v%1","label":"l"})").arg(i);
+    QVERIFY(errOf(rs(R"([{"key":"m","type":"enum","label":"l","default":"v0","options":[)" + nine.join(",") + "]}]")).contains("2 to 8 options"));
+    QVERIFY(errOf(rs(R"([{"key":"m","type":"enum","label":"l","default":"x","options":[{"value":"X","label":"l"},{"value":"y","label":"l"}]}])")).contains("option 'value'"));
+    QVERIFY(errOf(rs(R"([{"key":"m","type":"enum","label":"l","default":"x","options":[{"value":"x","label":"l"},{"value":"x","label":"l"}]}])")).contains("duplicate option"));
+    QVERIFY(errOf(rs(R"([{"key":"m","type":"enum","label":"l","default":"x","options":[{"value":"x"},{"value":"y","label":"l"}]}])")).contains("option 'label'"));
+    QVERIFY(errOf(rs(R"([{"key":"m","type":"enum","label":"l","default":"z","options":[{"value":"x","label":"l"},{"value":"y","label":"l"}]}])")).contains("one of the option values"));
+  }
+  void runSettingsBuildAndHubInfo() {
+    QList<framebeam::RunSetting> list;
+    QVERIFY(framebeam::parseRunSettings(QJsonDocument::fromJson(R"([
+      {"key":"mode","type":"enum","label":"m","default":"soullink","options":[{"value":"soullink","label":"a"},{"value":"nuzlocke","label":"b"}]},
+      {"key":"rules.dupes_clause","type":"boolean","label":"d","default":true},
+      {"key":"rules.shiny","type":"boolean","label":"s","default":false}])").array(), list).isEmpty());
+    QCOMPARE(QJsonDocument(framebeam::buildRunSettings(list, {})).toJson(QJsonDocument::Compact),
+             QByteArray(R"({"mode":"soullink","rules":{"dupes_clause":true,"shiny":false}})"));
+    QCOMPARE(QJsonDocument(framebeam::buildRunSettings(list, {{"mode", "nuzlocke"}, {"rules.shiny", true}, {"rules.dupes_clause", false}})).toJson(QJsonDocument::Compact),
+             QByteArray(R"({"mode":"nuzlocke","rules":{"dupes_clause":false,"shiny":true}})"));
+    const QJsonObject strings = QJsonDocument::fromJson(R"({"en":{"a":"A en","b":"B en"},"de":{"a":"A de"}})").object();
+    QCOMPARE(framebeam::runSettingText(strings, "de", "a"), QString("A de"));
+    QCOMPARE(framebeam::runSettingText(strings, "de", "b"), QString("B en"));
+    QCOMPARE(framebeam::runSettingText(strings, "de", "zz"), QString("zz"));
+
+    QJsonObject hub{{"plugin_id", "net.test.x"}, {"version", "1.0.0"}, {"sha256", QString(64, 'a')}, {"origin", "official"},
+                    {"run_settings", QJsonDocument::fromJson(R"([{"key":"a","type":"boolean","label":"l","default":true}])").array()},
+                    {"run_settings_strings", QJsonDocument::fromJson(R"({"en":{"l":"Label"}})").object()}};
+    auto info = framebeam::parseHubPluginInfo(hub);
+    QVERIFY(info);
+    QCOMPARE(info->runSettings.size(), 1);
+    QCOMPARE(info->runSettingsStrings.value("en").toObject().value("l").toString(), QString("Label"));
+    hub.insert("run_settings", QJsonDocument::fromJson(R"([{"key":"A","type":"boolean","label":"l","default":true}])").array());
+    info = framebeam::parseHubPluginInfo(hub);  // invalid run_settings: the plugin stays, without rules
+    QVERIFY(info);
+    QVERIFY(info->runSettings.isEmpty());
+    hub.remove("run_settings");
+    QVERIFY(framebeam::parseHubPluginInfo(hub)->runSettings.isEmpty());
   }
   void providesAndAssets() {
     QVERIFY(errOf(R"({"provides":"x"})").contains("array"));

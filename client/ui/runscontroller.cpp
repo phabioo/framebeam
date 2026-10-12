@@ -353,17 +353,12 @@ QList<QJsonArray> RunsController::gamePatternsFor(const RunInfo* run) const {
 }
 
 QList<QJsonArray> RunsController::startGamePatterns() const {
+  const StartResolution res = currentStartResolution();
   QList<QJsonArray> out;
-  const PluginHubClient* hub = plugins_->hubClient();
-  if (hub == nullptr) return out;
-  QMap<QString, const HubPluginInfo*> best;
-  for (const HubPluginInfo& p : hub->plugins()) {
-    if (!startPluginIds_.contains(p.id)) continue;
-    const auto it = best.constFind(p.id);
-    if (it == best.constEnd() || update::compareVersions(p.version, (*it)->version).value_or(0) > 0) best.insert(p.id, &p);
-  }
-  for (const HubPluginInfo* p : std::as_const(best))
-    if (!p->games.isEmpty()) out.append(p->games);
+  for (const HubPluginInfo& p : res.picked)
+    if (!p.games.isEmpty()) out.append(p.games);
+  for (const StartIncluded& i : res.included)
+    if (!i.info.games.isEmpty()) out.append(i.info.games);
   return out;
 }
 
@@ -572,12 +567,123 @@ RunLaunch RunsController::launchFor(const QString& runId) {
 
 // ------------------------------------------------------------------ Start a run
 
+namespace {
+// The language of the plugin host's fb.i18n (PluginsController::gameStarted default; the Player has no other UI language yet).
+QString playerLanguage() { return QStringLiteral("en"); }
+}  // namespace
+
+StartResolution resolveStartPlugins(const QList<HubPluginInfo>& offered, const QStringList& pickedIds) {
+  using plugins::VersionRange;
+  StartResolution res;
+  QMap<QString, QList<const HubPluginInfo*>> byId;  // newest first
+  for (const HubPluginInfo& p : offered) byId[p.id].append(&p);
+  for (auto it = byId.begin(); it != byId.end(); ++it)
+    std::stable_sort(it->begin(), it->end(), [](const HubPluginInfo* a, const HubPluginInfo* b) { return update::compareVersions(a->version, b->version).value_or(0) > 0; });
+
+  QMap<QString, const HubPluginInfo*> chosen, autoP;
+  QStringList pickedOrder;
+  for (const QString& id : pickedIds)
+    if (byId.contains(id) && !chosen.contains(id)) {
+      chosen.insert(id, byId.value(id).first());
+      pickedOrder << id;
+    }
+  const auto nameOf = [&](const QString& id) {
+    if (chosen.contains(id)) return chosen.value(id)->name;
+    if (autoP.contains(id)) return autoP.value(id)->name;
+    return byId.contains(id) ? byId.value(id).first()->name : id;
+  };
+  const auto fail = [&](const QString& e) {
+    res.error = e;
+    return res;
+  };
+
+  struct Need {
+    QString rangeText;
+    VersionRange range;
+    QString byId;
+  };
+  QMap<QString, QList<Need>> needs;
+  for (int iter = 0; iter < 32; ++iter) {
+    needs.clear();
+    const auto collect = [&](const HubPluginInfo* p) -> QString {
+      for (auto it = p->requires_.begin(); it != p->requires_.end(); ++it) {
+        const auto r = VersionRange::parse(it.value().toString());
+        if (!r) return QObject::tr("%1 needs %2 with the version range \"%3\", which is not valid.").arg(p->name, nameOf(it.key()), it.value().toString());
+        needs[it.key()].append({it.value().toString(), *r, p->id});
+      }
+      return {};
+    };
+    for (const HubPluginInfo* p : std::as_const(chosen))
+      if (const QString e = collect(p); !e.isEmpty()) return fail(e);
+    for (const HubPluginInfo* p : std::as_const(autoP))
+      if (const QString e = collect(p); !e.isEmpty()) return fail(e);
+
+    QMap<QString, const HubPluginInfo*> next;
+    for (auto it = needs.constBegin(); it != needs.constEnd(); ++it) {
+      const QString& dep = it.key();
+      const QList<Need>& list = it.value();
+      const auto fits = [&](const HubPluginInfo* c) {
+        const auto v = update::SemVer::parse(c->version);
+        return v && std::all_of(list.begin(), list.end(), [&](const Need& n) { return n.range.matches(*v); });
+      };
+      const HubPluginInfo* found = nullptr;
+      for (const HubPluginInfo* c : byId.value(dep)) {
+        if (chosen.contains(dep) && c != chosen.value(dep)) continue;  // a picked plugin runs in the picked version
+        if (fits(c)) {
+          found = c;
+          break;
+        }
+      }
+      if (found == nullptr) {
+        const Need* conflict = nullptr;
+        for (const Need& n : list)
+          if (n.rangeText != list.first().rangeText) {
+            conflict = &n;
+            break;
+          }
+        if (conflict != nullptr)
+          return fail(QObject::tr("%1 needs %2 %3, but %4 needs %2 %5. No version satisfies both.")
+                          .arg(nameOf(list.first().byId), nameOf(dep), list.first().rangeText, nameOf(conflict->byId), conflict->rangeText));
+        return fail(QObject::tr("%1 needs %2 %3, which this Hub does not offer.").arg(nameOf(list.first().byId), nameOf(dep), list.first().rangeText));
+      }
+      if (!chosen.contains(dep)) next.insert(dep, found);
+    }
+    if (next == autoP) break;
+    autoP = next;
+  }
+
+  for (const QString& id : pickedOrder) res.picked.append(*chosen.value(id));
+  for (auto it = autoP.constBegin(); it != autoP.constEnd(); ++it) {
+    StartIncluded inc;
+    inc.info = *it.value();
+    for (const Need& n : needs.value(it.key())) {
+      const QString by = nameOf(n.byId);
+      if (!inc.neededBy.contains(by)) inc.neededBy << by;
+    }
+    inc.neededBy.sort();
+    res.included.append(inc);
+  }
+  return res;
+}
+
+StartResolution RunsController::currentStartResolution() const {
+  const PluginHubClient* hub = plugins_->hubClient();
+  if (hub == nullptr) return {};
+  QStringList ids = QStringList(startPluginIds_.begin(), startPluginIds_.end());
+  ids.sort();
+  return resolveStartPlugins(hub->plugins(), ids);
+}
+
 void RunsController::rebuildStartPlugins() {
   QList<QVariantMap> rows;
+  const StartResolution res = currentStartResolution();
+  QSet<QString> includedIds;
+  for (const StartIncluded& i : res.included) includedIds.insert(i.info.id);
   if (const PluginHubClient* hub = plugins_->hubClient()) {
     QMap<QString, const HubPluginInfo*> best;
     for (const HubPluginInfo& p : hub->plugins()) {
       if (!p.permissions.contains(QStringLiteral("run.state"))) continue;
+      if (includedIds.contains(p.id)) continue;  // shown as "Included", not as a row
       const auto it = best.constFind(p.id);
       if (it == best.constEnd() || update::compareVersions(p.version, (*it)->version).value_or(0) > 0) best.insert(p.id, &p);
     }
@@ -592,7 +698,72 @@ void RunsController::rebuildStartPlugins() {
                    {QStringLiteral("checked"), startPluginIds_.contains(it.key())}});
   }
   startPlugins_.setRows(rows);
+
+  QList<QVariantMap> inc;
+  for (const StartIncluded& i : res.included)
+    inc.append({{QStringLiteral("id"), i.info.id},
+                {QStringLiteral("name"), i.info.name},
+                {QStringLiteral("version"), i.info.version},
+                {QStringLiteral("text"), tr("Included: %1 %2 · needed by %3").arg(i.info.name, i.info.version, i.neededBy.join(QStringLiteral(", ")))}});
+  startIncluded_.setRows(inc);
+
+  // Rules: one group per plugin of the run that declares run settings.
+  QList<QVariantMap> rules;
+  QList<const HubPluginInfo*> all;
+  for (const HubPluginInfo& p : res.picked) all.append(&p);
+  for (const StartIncluded& i : res.included) all.append(&i.info);
+  const QString lang = playerLanguage();
+  for (const HubPluginInfo* p : std::as_const(all)) {
+    if (p->runSettings.isEmpty()) continue;
+    rules.append({{QStringLiteral("rowId"), QStringLiteral("h:") + p->id}, {QStringLiteral("kind"), QStringLiteral("header")}, {QStringLiteral("pluginId"), p->id},
+                  {QStringLiteral("title"), p->name}, {QStringLiteral("key"), QString()}, {QStringLiteral("widget"), QString()}, {QStringLiteral("label"), QString()},
+                  {QStringLiteral("hint"), QString()}, {QStringLiteral("value"), QVariant()}, {QStringLiteral("options"), QVariantList()}});
+    const QVariantMap changed = startRuleValues_.value(p->id);
+    for (const RunSetting& rs : p->runSettings) {
+      QVariantList opts;
+      for (const RunSettingOption& o : rs.options)
+        opts.append(QVariantMap{{QStringLiteral("value"), o.value}, {QStringLiteral("label"), runSettingText(p->runSettingsStrings, lang, o.label)}});
+      const QString widget = rs.type == QLatin1String("boolean") ? QStringLiteral("toggle") : (rs.options.size() <= 3 ? QStringLiteral("segments") : QStringLiteral("select"));
+      rules.append({{QStringLiteral("rowId"), QStringLiteral("s:") + p->id + QLatin1Char(':') + rs.key}, {QStringLiteral("kind"), QStringLiteral("setting")},
+                    {QStringLiteral("pluginId"), p->id}, {QStringLiteral("title"), QString()}, {QStringLiteral("key"), rs.key}, {QStringLiteral("widget"), widget},
+                    {QStringLiteral("label"), runSettingText(p->runSettingsStrings, lang, rs.label)},
+                    {QStringLiteral("hint"), rs.hint.isEmpty() ? QString() : runSettingText(p->runSettingsStrings, lang, rs.hint)},
+                    {QStringLiteral("value"), changed.contains(rs.key) ? changed.value(rs.key) : rs.def}, {QStringLiteral("options"), opts}});
+    }
+  }
+  startRules_.setRows(rules);
+
+  if (!res.error.isEmpty()) {
+    startError_ = res.error;
+    startResolveError_ = true;
+  } else if (startResolveError_) {
+    startError_.clear();
+    startResolveError_ = false;
+  }
   emit startStateChanged();
+}
+
+void RunsController::setStartRule(const QString& pluginId, const QString& key, const QVariant& value) {
+  const StartResolution res = currentStartResolution();
+  const HubPluginInfo* plugin = nullptr;
+  for (const HubPluginInfo& p : res.picked)
+    if (p.id == pluginId) plugin = &p;
+  for (const StartIncluded& i : res.included)
+    if (i.info.id == pluginId) plugin = &i.info;
+  if (plugin == nullptr) return;
+  for (const RunSetting& rs : plugin->runSettings) {
+    if (rs.key != key) continue;
+    if (rs.type == QLatin1String("boolean")) {
+      startRuleValues_[pluginId].insert(key, value.toBool());
+    } else {
+      const QString v = value.toString();
+      const bool known = std::any_of(rs.options.begin(), rs.options.end(), [&](const RunSettingOption& o) { return o.value == v; });
+      if (!known) return;
+      startRuleValues_[pluginId].insert(key, v);
+    }
+    rebuildStartPlugins();
+    return;
+  }
 }
 
 void RunsController::rebuildStartUsers() {
@@ -614,6 +785,8 @@ void RunsController::beginStart() {
   startError_.clear();
   startBusy_ = false;
   startPluginIds_.clear();
+  startRuleValues_.clear();
+  startResolveError_ = false;
   startUserIds_.clear();
   users_.clear();
   startUsersLoading_ = true;
@@ -653,10 +826,12 @@ void RunsController::cancelStart() {
 
 void RunsController::startRun(const QString& name, const QString& gameId) {
   const QString trimmed = name.trimmed();
+  const StartResolution resolved = currentStartResolution();
   QString problem;
   if (trimmed.isEmpty() || trimmed.size() > 64) problem = tr("Give the run a name (1 to 64 characters).");
   else if (startPluginIds_.isEmpty()) problem = tr("Pick at least one plugin for the run.");
-  else if (startPluginIds_.size() > 8) problem = tr("A run can use up to 8 plugins.");
+  else if (!resolved.error.isEmpty()) problem = resolved.error;
+  else if (resolved.total() > 8) problem = tr("A run can use up to 8 plugins, including the ones they need.");
   else if (gameId.isEmpty()) problem = tr("Pick the game you play in this run.");
   else if (std::none_of(games_.rows().begin(), games_.rows().end(), [&](const QVariantMap& r) { return r.value(QStringLiteral("id")).toString() == gameId; })) problem = tr("The picked game does not fit the plugins of this run. Pick another game.");
   else if (startUserIds_.size() + 1 > kRunMaxParticipants) problem = tr("A run has room for %1 players.").arg(kRunMaxParticipants);
@@ -666,13 +841,17 @@ void RunsController::startRun(const QString& name, const QString& gameId) {
     return;
   }
   QList<RunPluginRef> pins;
-  for (const QVariantMap& row : startPlugins_.rows())
-    if (startPluginIds_.contains(row.value(QStringLiteral("id")).toString()))
-      pins.append({row.value(QStringLiteral("id")).toString(), row.value(QStringLiteral("version")).toString(), {}});
+  QJsonObject settings;
+  const auto add = [&](const HubPluginInfo& p) {
+    pins.append({p.id, p.version, {}});
+    if (!p.runSettings.isEmpty()) settings.insert(p.id, buildRunSettings(p.runSettings, startRuleValues_.value(p.id)));
+  };
+  for (const HubPluginInfo& p : resolved.picked) add(p);
+  for (const StartIncluded& i : resolved.included) add(i.info);
   startBusy_ = true;
   startError_.clear();
   emit startStateChanged();
-  client_->createRun(trimmed, pins, gameId, QStringList(startUserIds_.begin(), startUserIds_.end()), QJsonObject(), [this](const RunResult& r) {
+  client_->createRun(trimmed, pins, gameId, QStringList(startUserIds_.begin(), startUserIds_.end()), settings, [this](const RunResult& r) {
     startBusy_ = false;
     if (!r.ok || !r.run) {
       startError_ = errorText(r, tr("Starting the run"));

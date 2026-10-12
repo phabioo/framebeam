@@ -8,6 +8,7 @@
 #include <QPointer>
 #include <QString>
 #include <QStringList>
+#include <QVariant>
 #include <optional>
 
 #include "hubconnection.h"
@@ -15,6 +16,27 @@
 namespace framebeam {
 
 inline constexpr qint64 kMaxPluginDownloadBytes = 32ll * 1024 * 1024;  // same limit as a .fbplugin file
+
+// One entry of a plugin's `run_settings` (manifest field and Hub plugin list; the Hub enforces the same rules).
+struct RunSettingOption {
+  QString value;  // ^[a-z][a-z0-9_]{0,31}$
+  QString label;  // i18n key
+};
+struct RunSetting {
+  QString key;    // 1 or 2 dot-separated segments, each ^[a-z][a-z0-9_]{0,31}$
+  QString type;   // "boolean" | "enum"
+  QString label;  // i18n key ^[A-Za-z0-9_.-]{1,64}$
+  QString hint;   // optional i18n key
+  QVariant def;   // bool (boolean) or QString, one of the option values (enum)
+  QList<RunSettingOption> options;  // enum only, 2..8
+};
+// Validates a `run_settings` array (1..32 entries). Returns an empty string on success, else the specific problem.
+QString parseRunSettings(const QJsonValue& v, QList<RunSetting>& out);
+// The settings object of one plugin: key segments nested ("rules.dupes_clause" -> {"rules": {"dupes_clause": ...}}).
+// `values` maps key -> bool / QString; a missing key falls back to the entry's default.
+QJsonObject buildRunSettings(const QList<RunSetting>& settings, const QVariantMap& values);
+// Text for an i18n key: `lang` -> "en" -> the key itself. `strings` is {<lang>: {<key>: text}}.
+QString runSettingText(const QJsonObject& strings, const QString& lang, const QString& key);
 
 // One offered plugin version (GET /plugins, handshake feature plugins_v1; 0.11 package 3 contract section 4).
 struct HubPluginInfo {
@@ -30,6 +52,8 @@ struct HubPluginInfo {
   QJsonObject requires_;
   QStringList provides;
   QJsonArray games;
+  QList<RunSetting> runSettings;  // optional; invalid ones from the Hub are dropped (the plugin stays)
+  QJsonObject runSettingsStrings;  // {<lang>: {<i18n key>: text}}
   QString createdAt;
 };
 // nullopt for an entry with an invalid id, version, hash or origin.

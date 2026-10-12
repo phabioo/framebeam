@@ -114,11 +114,96 @@ Popup {
                         onToggled: root.runs.toggleStartPlugin(plugRow.model.id)
                     }
                 }
+                Repeater {
+                    model: root.inviting ? null : root.runs.startIncluded
+                    delegate: FbLabel {
+                        id: incRow
+                        required property var model
+                        objectName: "runIncluded_" + incRow.model.id
+                        Layout.fillWidth: true
+                        text: incRow.model.text
+                        color: Theme.textMuted
+                        font.pixelSize: Theme.fontSmall
+                        wrapMode: Text.WordWrap
+                    }
+                }
                 UnverifiedNote {
                     objectName: "runStartUnverified"
                     visible: !root.inviting && root.runs.startUnverified
                     text: root.runs.unverifiedWarning
                     Layout.fillWidth: true
+                }
+
+                // Rules: the run settings of the plugins in the run (groups by plugin; one flat model, no nested repeaters).
+                Eyebrow {
+                    objectName: "runRulesTitle"
+                    visible: !root.inviting && root.runs.startRules.count > 0
+                    text: qsTr("Rules")
+                }
+                Repeater {
+                    model: root.inviting ? null : root.runs.startRules
+                    delegate: ColumnLayout {
+                        id: ruleRow
+                        required property var model
+                        readonly property bool isHeader: ruleRow.model.kind === "header"
+                        Layout.fillWidth: true
+                        spacing: 2
+                        FbLabel {
+                            visible: ruleRow.isHeader
+                            objectName: "runRulesHeader_" + ruleRow.model.pluginId
+                            Layout.fillWidth: true
+                            Layout.topMargin: 4
+                            text: ruleRow.model.title
+                            font.weight: Font.DemiBold
+                            elide: Text.ElideRight
+                        }
+                        RowLayout {
+                            visible: !ruleRow.isHeader
+                            Layout.fillWidth: true
+                            spacing: Theme.space12
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 1
+                                FbLabel {
+                                    Layout.fillWidth: true
+                                    text: ruleRow.model.label
+                                    wrapMode: Text.WordWrap
+                                }
+                                FbLabel {
+                                    visible: ruleRow.model.hint !== ""
+                                    Layout.fillWidth: true
+                                    text: ruleRow.model.hint
+                                    color: Theme.textMuted
+                                    font.pixelSize: Theme.fontSmall
+                                    wrapMode: Text.WordWrap
+                                }
+                            }
+                            FbToggle {
+                                visible: ruleRow.model.widget === "toggle"
+                                objectName: "runRule_" + ruleRow.model.pluginId + "_" + ruleRow.model.key
+                                checked: ruleRow.model.value === true
+                                onToggled: {
+                                    root.runs.setStartRule(ruleRow.model.pluginId, ruleRow.model.key, checked)
+                                    checked = Qt.binding(function() { return ruleRow.model.value === true })
+                                }
+                            }
+                            FbSegment {
+                                visible: ruleRow.model.widget === "segments"
+                                objectName: "runRule_" + ruleRow.model.pluginId + "_" + ruleRow.model.key
+                                options: ruleRow.model.options
+                                current: String(ruleRow.model.value)
+                                onPicked: value => root.runs.setStartRule(ruleRow.model.pluginId, ruleRow.model.key, value)
+                            }
+                            FbSelect {
+                                visible: ruleRow.model.widget === "select"
+                                objectName: "runRule_" + ruleRow.model.pluginId + "_" + ruleRow.model.key
+                                Layout.preferredWidth: 180
+                                model: ruleRow.model.options
+                                current: String(ruleRow.model.value)
+                                onPicked: value => root.runs.setStartRule(ruleRow.model.pluginId, ruleRow.model.key, value)
+                            }
+                        }
+                    }
                 }
 
                 Eyebrow { text: qsTr("Players") }
