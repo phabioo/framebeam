@@ -174,6 +174,39 @@ class SaveHistoryUiTest : public QObject {
     QTRY_VERIFY_WITH_TIMEOUT(hist->history().size() >= 3, 8000);
   }
 
+  // Regression: a created slot without any version must stay listed after switching to another slot.
+  void createdEmptySlotSurvivesSlotSwitch() {
+    const QByteArray rom = "homebrew-dummy-rom-newslot";
+    FakeHub hub(QStringLiteral("a"));
+    hub.features = {QStringLiteral("saves_v1"), QStringLiteral("saves_v2"), QStringLiteral("sessions_v1")};
+    setGames(hub, rom);
+    hub.setHubSave(QStringLiteral("g1"), "cp-1");
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    SaveHistoryController* hist = h.controller->saveHistory();
+    QTRY_VERIFY_WITH_TIMEOUT(hist->available() && !hist->loading(), 8000);
+    const auto listed = [hist](const QString& name) {
+      for (const QVariant& o : hist->slotOptions()) {
+        if (o.toMap().value(QStringLiteral("value")).toString() == name) {
+          return true;
+        }
+      }
+      return false;
+    };
+    QVERIFY(hist->createSlot(QStringLiteral("boss")).isEmpty());
+    QTRY_VERIFY_WITH_TIMEOUT(!hist->loading(), 8000);
+    QVERIFY(listed(QStringLiteral("boss")));
+    hist->selectSlot(QStringLiteral("default"));
+    QTRY_VERIFY_WITH_TIMEOUT(!hist->loading(), 8000);
+    QCOMPARE(hist->slot(), QStringLiteral("default"));
+    QVERIFY(listed(QStringLiteral("boss")));
+    hist->refresh();
+    QTRY_VERIFY_WITH_TIMEOUT(!hist->loading(), 8000);
+    QVERIFY(listed(QStringLiteral("boss")));
+  }
+
   void saveUpdatedPushRefreshesHistory() {
     const QByteArray rom = "homebrew-dummy-rom-push";
     FakeHub hub(QStringLiteral("a"));
