@@ -3,6 +3,7 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QList>
+#include <QMap>
 #include <QString>
 #include <optional>
 
@@ -16,15 +17,21 @@ struct RunPluginRef {
   QString sha256;  // lowercase hex of the .fbplugin the Hub offered when the run was created
 };
 
+// One plugin's state object of one participant, with its own revision (addendum: per-plugin run state).
+struct RunPluginState {
+  QJsonObject state;
+  qint64 rev = 0;
+  QString updatedAt;
+};
+
 struct RunParticipant {
   QString userId;
   QString userName;
   QString status;  // invited | joined | declined | left
   QString gameId;  // Hub library game, empty until joined
   int color = -1;  // 0..7 in join order, -1 until the first join
-  QJsonObject state;
-  qint64 stateRev = 0;
-  QString stateUpdatedAt;
+  QMap<QString, RunPluginState> states;  // by plugin id; a missing plugin means state {} at revision 0
+  RunPluginState stateOf(const QString& pluginId) const { return states.value(pluginId); }
 };
 
 struct RunInfo {

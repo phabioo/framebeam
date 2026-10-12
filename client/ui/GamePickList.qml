@@ -44,7 +44,7 @@ Rectangle {
                     objectName: "runGame_" + gameRow.model.id
                     radio: true
                     title: gameRow.model.title
-                    sub: gameRow.model.system.toUpperCase()
+                    sub: gameRow.model.hint !== "" ? gameRow.model.system.toUpperCase() + " · " + gameRow.model.hint : gameRow.model.system.toUpperCase()
                     checked: root.selectedId === gameRow.model.id
                     onToggled: root.selectedId = gameRow.model.id
                 }

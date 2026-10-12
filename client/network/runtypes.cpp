@@ -64,23 +64,32 @@ std::optional<RunInfo> parseRun(const QJsonObject& o) {
     part.status = str(p, "status");
     part.gameId = str(p, "game_id");
     part.color = p.value(QLatin1String("color")).isDouble() ? p.value(QLatin1String("color")).toInt(-1) : -1;
-    part.state = p.value(QLatin1String("state")).toObject();
-    part.stateRev = static_cast<qint64>(p.value(QLatin1String("state_rev")).toDouble(0));
-    part.stateUpdatedAt = str(p, "state_updated_at");
+    const QJsonObject sts = p.value(QLatin1String("states")).toObject();
+    for (auto it = sts.begin(); it != sts.end(); ++it) {
+      const QJsonObject so = it.value().toObject();
+      RunPluginState ps;
+      ps.state = so.value(QLatin1String("state")).toObject();
+      ps.rev = static_cast<qint64>(so.value(QLatin1String("state_rev")).toDouble(0));
+      ps.updatedAt = str(so, "updated_at");
+      part.states.insert(it.key(), ps);
+    }
     r.participants.append(part);
   }
   return r;
 }
 
 QJsonObject participantToJson(const RunParticipant& p) {
+  QJsonObject sts;
+  for (auto it = p.states.begin(); it != p.states.end(); ++it)
+    sts.insert(it.key(), QJsonObject{{QStringLiteral("state"), it->state},
+                                     {QStringLiteral("state_rev"), static_cast<double>(it->rev)},
+                                     {QStringLiteral("updated_at"), it->updatedAt.isEmpty() ? QJsonValue(QJsonValue::Null) : QJsonValue(it->updatedAt)}});
   return {{QStringLiteral("user_id"), p.userId},
           {QStringLiteral("user_name"), p.userName},
           {QStringLiteral("status"), p.status},
           {QStringLiteral("game_id"), p.gameId.isEmpty() ? QJsonValue(QJsonValue::Null) : QJsonValue(p.gameId)},
           {QStringLiteral("color"), p.color < 0 ? QJsonValue(QJsonValue::Null) : QJsonValue(p.color)},
-          {QStringLiteral("state"), p.state},
-          {QStringLiteral("state_rev"), static_cast<double>(p.stateRev)},
-          {QStringLiteral("state_updated_at"), p.stateUpdatedAt.isEmpty() ? QJsonValue(QJsonValue::Null) : QJsonValue(p.stateUpdatedAt)}};
+          {QStringLiteral("states"), sts}};
 }
 
 QJsonObject runToJson(const RunInfo& r) {

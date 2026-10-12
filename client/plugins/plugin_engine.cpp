@@ -385,7 +385,7 @@ void PluginEngine::pollRun() {
         if (s.kind == kind) refs.push_back(s.ref);
       for (int ref : refs) {
         callRef(p, ref, [&](lua_State* L) {
-          // event: (event); state: (user_id, state); status: (status, previous); participants: (list)
+          // event: (event); state: (user_id, state, plugin_id); status: (status, previous); participants: (list)
           const auto field = [&](const char* name) {
             for (size_t i = 0; i < data.keys.size(); ++i)
               if (data.keys[i].type == Value::Type::String && data.keys[i].s == name) return data.vals[i];
@@ -394,7 +394,8 @@ void PluginEngine::pollRun() {
           if (kind == "state") {
             pushValue(L, field("user_id"));
             pushValue(L, field("state"));
-            return 2;
+            pushValue(L, field("plugin_id"));
+            return 3;
           }
           if (kind == "status") {
             pushValue(L, field("status"));

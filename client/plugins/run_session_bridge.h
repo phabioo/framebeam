@@ -24,10 +24,10 @@ class RunSessionBridge : public QObject, public RunBridge {
   QString runId() const { return runId_; }
 
   QJsonObject current() const override;
-  QJsonObject stateOf(const QString& userId, bool* found) const override;
-  QJsonObject states() const override;
+  QJsonObject stateOf(const QString& userId, const QString& pluginId, bool* found) const override;
+  QJsonObject states(const QString& pluginId) const override;
   QJsonArray events(qint64 afterSeq, int limit) const override;
-  QString setState(const QJsonObject& state) override;
+  QString setState(const QString& pluginId, const QJsonObject& state) override;
   QString postEvent(const QString& pluginId, const QString& source, const QString& type, const QString& text, const QJsonObject& payload,
                     QString* clientId) override;
   QString setBoard(const QString& pluginId, const QJsonObject& tree) override;
@@ -38,7 +38,7 @@ class RunSessionBridge : public QObject, public RunBridge {
   void rebuild();
   void note(const QString& kind, const QJsonObject& data);
   QString refusal(const QString& what) const;  // caller holds the lock
-  void flushState();
+  void flushStates();
   void flushBoards();
   static QJsonObject eventJson(const RunEvent& e);
 
@@ -46,7 +46,7 @@ class RunSessionBridge : public QObject, public RunBridge {
   QString runId_;
   mutable std::mutex m_;
   QJsonObject current_;
-  QJsonObject states_;
+  QJsonObject states_;  // {user_id: {plugin_id: state}}
   QList<QJsonObject> events_;  // ascending, at most 500
   QList<RunNotification> notes_;
   QString me_;
@@ -55,8 +55,8 @@ class RunSessionBridge : public QObject, public RunBridge {
   bool joined_ = false;
   bool writable_ = false;
   QSet<QString> pluginIds_;
-  QJsonObject pendingState_;
-  bool stateQueued_ = false;
+  std::map<QString, QJsonObject> pendingStates_;  // by plugin id: the latest own value not handed to the RunClient yet
+  bool statesQueued_ = false;
   std::map<QString, QJsonObject> pendingBoards_;
   bool boardsQueued_ = false;
   std::atomic<int> eventsQueued_{0};

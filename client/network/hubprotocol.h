@@ -146,6 +146,8 @@ struct GameEntry {
   QString romFilename;
   QString uploadedBy;
   QString addedAt;
+  QString gameCode;      // "" = the Hub does not know the code (older Hub, encrypted dump, unreadable header)
+  QString gameCodeKind;  // "" | "nds-gamecode" | "3ds-titleid"
 };
 std::optional<GameEntry> parseGame(const QJsonObject& obj);
 

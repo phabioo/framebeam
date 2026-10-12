@@ -91,12 +91,25 @@ void RunClient::onConnectionState(HubConnection::State s) {
   reset();
 }
 
+// {user id: {plugin id: {state, state_rev}}} of every participant (the persisted form).
+static QJsonObject statesJson(const RunInfo& info) {
+  QJsonObject out;
+  for (const RunParticipant& p : info.participants) {
+    QJsonObject byPlugin;
+    for (auto it = p.states.begin(); it != p.states.end(); ++it)
+      byPlugin.insert(it.key(), QJsonObject{{QStringLiteral("state"), it->state}, {QStringLiteral("state_rev"), static_cast<double>(it->rev)}});
+    if (!byPlugin.isEmpty()) out.insert(p.userId, byPlugin);
+  }
+  return out;
+}
+
 void RunClient::reset() {
   ++gen_;
   saveCache();
   for (auto it = runs_.begin(); it != runs_.end(); ++it) {
     cachedSeq_[it.key()] = it.value()->lastSeq;
     cachedEvents_[it.key()] = it.value()->events;
+    cachedStates_[it.key()] = statesJson(it.value()->info);
   }
   const bool had = !runs_.isEmpty() || loaded_;
   runs_.clear();
@@ -162,12 +175,22 @@ QList<RunEvent> RunClient::events(const QString& runId, qint64 afterSeq, int lim
   return out;
 }
 
-QJsonObject RunClient::ownState(const QString& runId) const {
+QJsonObject RunClient::ownState(const QString& runId, const QString& pluginId) const {
   const RunData* d = data(runId);
   if (d == nullptr) return {};
-  if (d->stateDirty || d->stateInFlight) return d->desired;
+  const auto o = d->own.find(pluginId);
+  if (o != d->own.end() && (o->second.dirty || o->second.inFlight)) return o->second.desired;
   const RunParticipant* p = d->info.participant(myUserId());
-  return p != nullptr ? p->state : QJsonObject();
+  return p != nullptr ? p->stateOf(pluginId).state : QJsonObject();
+}
+
+std::optional<QJsonObject> RunClient::participantState(const QString& runId, const QString& userId, const QString& pluginId) const {
+  const RunData* d = data(runId);
+  if (d == nullptr) return std::nullopt;
+  const RunParticipant* p = d->info.participant(userId);
+  if (p == nullptr) return std::nullopt;
+  if (userId == myUserId()) return ownState(runId, pluginId);
+  return p->stateOf(pluginId).state;
 }
 
 // ------------------------------------------------------------------ disk cache
@@ -183,6 +206,7 @@ void RunClient::ensureCacheLoaded() {
   cacheOwner_ = owner;
   cachedSeq_.clear();
   cachedEvents_.clear();
+  cachedStates_.clear();
   loadCache();
 }
 
@@ -208,6 +232,7 @@ void RunClient::loadCache() {
     const qint64 declared = static_cast<qint64>(o.value(QStringLiteral("last_seq")).toDouble(0));
     cachedSeq_.insert(id, (std::max)(declared, last));
     cachedEvents_.insert(id, evs);
+    cachedStates_.insert(id, o.value(QStringLiteral("states")).toObject());
   }
 }
 
@@ -229,7 +254,7 @@ void RunClient::saveCache() {
     for (const RunEvent& e : d.events) evs.append(runEventToJson(e));
     QSaveFile f(dir + QLatin1Char('/') + it.key() + QStringLiteral(".json"));
     if (!f.open(QIODevice::WriteOnly)) continue;
-    f.write(compact({{QStringLiteral("last_seq"), static_cast<double>(d.lastSeq)}, {QStringLiteral("events"), evs}}));
+    f.write(compact({{QStringLiteral("last_seq"), static_cast<double>(d.lastSeq)}, {QStringLiteral("events"), evs}, {QStringLiteral("states"), statesJson(d.info)}}));
     f.commit();
   }
 }
@@ -311,6 +336,7 @@ void RunClient::refresh() {
       if (!seen.contains(it.key())) {
         if (!dir.isEmpty()) QFile::remove(dir + QLatin1Char('/') + it.key() + QStringLiteral(".json"));
         cachedEvents_.remove(it.key());
+        cachedStates_.remove(it.key());
         it = cachedSeq_.erase(it);
       } else {
         ++it;
@@ -383,24 +409,49 @@ void RunClient::applyRun(const RunInfo& incoming) {
   }
   RunData& d = **it;
   RunInfo next = incoming;
+  if (isNew) {
+    // States from the disk cache fill in what the Hub's answer does not carry newer (revisions only ever grow).
+    const QJsonObject cached = cachedStates_.value(incoming.runId);
+    for (RunParticipant& p : next.participants) {
+      const QJsonObject byPlugin = cached.value(p.userId).toObject();
+      for (auto c = byPlugin.begin(); c != byPlugin.end(); ++c) {
+        const QJsonObject so = c.value().toObject();
+        const qint64 rev = static_cast<qint64>(so.value(QStringLiteral("state_rev")).toDouble(0));
+        if (rev > p.stateOf(c.key()).rev) p.states[c.key()] = {so.value(QStringLiteral("state")).toObject(), rev, QString()};
+      }
+    }
+  }
   const RunInfo old = d.info;
-  QList<QString> stateChangedFor;
+  QList<QPair<QString, QString>> stateChangedFor;  // (user id, plugin id)
   if (!isNew) {
     // A newer state (run_state arrived before this run_updated was built) wins; my own unsent value always wins.
     for (RunParticipant& p : next.participants) {
       const RunParticipant* o = old.participant(p.userId);
-      if (o == nullptr) continue;
-      const bool mineOpen = p.userId == me && (d.stateDirty || d.stateInFlight);
-      if (mineOpen || o->stateRev > p.stateRev) {
-        p.state = o->state;
-        p.stateRev = (std::max)(o->stateRev, p.stateRev);
-      } else if (o->state != p.state || o->stateRev != p.stateRev) {
-        stateChangedFor << p.userId;
+      QSet<QString> plugins;
+      for (auto it2 = p.states.begin(); it2 != p.states.end(); ++it2) plugins.insert(it2.key());
+      if (o != nullptr)
+        for (auto it2 = o->states.begin(); it2 != o->states.end(); ++it2) plugins.insert(it2.key());
+      for (const QString& pid : std::as_const(plugins)) {
+        const RunPluginState have = o != nullptr ? o->stateOf(pid) : RunPluginState();
+        RunPluginState& cur = p.states[pid];
+        const auto own = d.own.find(pid);
+        const bool mineOpen = p.userId == me && own != d.own.end() && (own->second.dirty || own->second.inFlight);
+        if (o == nullptr) {
+          if (!cur.state.isEmpty()) stateChangedFor << qMakePair(p.userId, pid);
+        } else if (mineOpen || have.rev > cur.rev) {
+          const qint64 rev = (std::max)(have.rev, cur.rev);
+          cur = have;
+          cur.rev = rev;
+        } else if (have.state != cur.state || have.rev != cur.rev) {
+          stateChangedFor << qMakePair(p.userId, pid);
+        }
+        if (cur.state.isEmpty() && cur.rev == 0 && cur.updatedAt.isEmpty()) p.states.remove(pid);
       }
     }
   } else {
     for (const RunParticipant& p : next.participants)
-      if (!p.state.isEmpty()) stateChangedFor << p.userId;
+      for (auto it2 = p.states.begin(); it2 != p.states.end(); ++it2)
+        if (!it2->state.isEmpty()) stateChangedFor << qMakePair(p.userId, it2.key());
   }
   d.info = next;
   d.knownSeq = (std::max)(d.knownSeq, next.lastSeq);
@@ -414,7 +465,8 @@ void RunClient::applyRun(const RunInfo& incoming) {
   emit runChanged(next.runId);
   if (!isNew && old.status != next.status) emit statusChanged(next.runId, next.status);
   if (isNew || partsChanged) emit participantsChanged(next.runId);
-  for (const QString& u : std::as_const(stateChangedFor)) emit stateChanged(next.runId, u);
+  for (const auto& u : std::as_const(stateChangedFor)) emit stateChanged(next.runId, u.first, u.second);
+  if (!stateChangedFor.isEmpty()) markCacheDirty(d);
   emit runsChanged();
 
   const RunParticipant* mine = next.participant(me);
@@ -422,7 +474,10 @@ void RunClient::applyRun(const RunInfo& incoming) {
     scheduleCatchUp(next.runId);
   // Writes that waited for a run that could not take them are not retried; a run that accepts writes again resumes them.
   if (next.acceptsWrites()) {
-    if (d.stateDirty) flushState(next.runId);
+    std::vector<QString> dirty;
+    for (const auto& [pid, os] : d.own)
+      if (os.dirty) dirty.push_back(pid);
+    for (const QString& pid : dirty) flushState(next.runId, pid);
     if (!d.queue.isEmpty()) flushEvents(next.runId);
     flushBoards(next.runId);
   }
@@ -434,15 +489,20 @@ void RunClient::onRunState(const QJsonObject& payload) {
   const QString userId = payload.value(QStringLiteral("user_id")).toString();
   RunParticipant* p = d->info.participant(userId);
   if (p == nullptr) return;
+  const QString pluginId = payload.value(QStringLiteral("plugin_id")).toString();
+  if (pluginId.isEmpty() || !d->info.hasPlugin(pluginId)) return;
   const qint64 rev = static_cast<qint64>(payload.value(QStringLiteral("state_rev")).toDouble(0));
-  if (rev <= p->stateRev) return;  // older or already known
-  if (userId == myUserId() && (d->stateDirty || d->stateInFlight)) {
-    p->stateRev = rev;  // another device of mine wrote; my unsent value wins and goes out on this revision
+  RunPluginState& ps = p->states[pluginId];
+  if (rev <= ps.rev) return;  // older or already known
+  const auto own = d->own.find(pluginId);
+  if (userId == myUserId() && own != d->own.end() && (own->second.dirty || own->second.inFlight)) {
+    ps.rev = rev;  // another device of mine wrote; my unsent value wins and goes out on this revision
     return;
   }
-  p->stateRev = rev;
-  p->state = payload.value(QStringLiteral("state")).toObject();
-  emit stateChanged(d->info.runId, userId);
+  ps.rev = rev;
+  ps.state = payload.value(QStringLiteral("state")).toObject();
+  markCacheDirty(*d);
+  emit stateChanged(d->info.runId, userId, pluginId);
 }
 
 void RunClient::onRunEvent(const QJsonObject& payload) {
@@ -540,76 +600,85 @@ int RunClient::retryDelayMs(int failures) const {
   return (std::min)(retryBaseMs_ << shift, kMaxRetryMs);
 }
 
-QString RunClient::setOwnState(const QString& runId, const QJsonObject& state) {
+QString RunClient::setOwnState(const QString& runId, const QString& pluginId, const QJsonObject& state) {
   RunData* d = data(runId);
   if (d == nullptr) return QStringLiteral("this run is not available");
   RunParticipant* me = d->info.participant(myUserId());
   if (me == nullptr || me->status != QLatin1String("joined")) return QStringLiteral("you have not joined this run");
+  if (!d->info.hasPlugin(pluginId)) return QStringLiteral("plugin %1 is not part of this run").arg(pluginId);
   if (!d->info.acceptsWrites()) return QStringLiteral("the run is %1; state can only be written while it is starting or active").arg(d->info.status);
   if (compact(state).size() > kRunMaxStateBytes) return QStringLiteral("state is larger than 64 KiB");
-  d->desired = state;
-  d->stateDirty = true;
-  me->state = state;
-  emit stateChanged(d->info.runId, me->userId);
-  flushState(d->info.runId);
+  OwnState& os = d->own[pluginId];
+  os.desired = state;
+  os.dirty = true;
+  me->states[pluginId].state = state;
+  emit stateChanged(d->info.runId, me->userId, pluginId);
+  flushState(d->info.runId, pluginId);
   return {};
 }
 
-void RunClient::flushState(const QString& runId) {
+void RunClient::flushState(const QString& runId, const QString& pluginId) {
   RunData* d = data(runId);
-  if (d == nullptr || d->stateInFlight || !d->stateDirty || !d->info.acceptsWrites() || !supported()) return;
-  const qint64 wait = d->stateLastSendMs + stateIntervalMs_ - nowMs();
+  if (d == nullptr) return;
+  const auto found = d->own.find(pluginId);
+  if (found == d->own.end()) return;
+  OwnState& os = found->second;
+  if (os.inFlight || !os.dirty || !d->info.acceptsWrites() || !supported()) return;
+  const qint64 wait = os.lastSendMs + stateIntervalMs_ - nowMs();
   if (wait > 0) {
-    if (!d->stateTimerScheduled) {
-      d->stateTimerScheduled = true;
-      QTimer::singleShot(static_cast<int>(wait), this, [this, runId, gen = gen_]() {
+    if (!os.timerScheduled) {
+      os.timerScheduled = true;
+      QTimer::singleShot(static_cast<int>(wait), this, [this, runId, pluginId, gen = gen_]() {
         if (gen != gen_) return;
-        if (RunData* r = data(runId)) r->stateTimerScheduled = false;
-        flushState(runId);
+        if (RunData* r = data(runId)) r->own[pluginId].timerScheduled = false;
+        flushState(runId, pluginId);
       });
     }
     return;
   }
   const RunParticipant* me = d->info.participant(myUserId());
-  const qint64 baseRev = me != nullptr ? me->stateRev : 0;
-  d->stateDirty = false;
-  d->stateInFlight = true;
-  d->stateLastSendMs = nowMs();
-  send("PUT", QStringLiteral("/runs/%1/state").arg(enc(runId)), QJsonObject{{QStringLiteral("base_rev"), static_cast<double>(baseRev)}, {QStringLiteral("state"), d->desired}},
-       [this, runId](const HttpResult& r) {
+  const qint64 baseRev = me != nullptr ? me->stateOf(pluginId).rev : 0;
+  os.dirty = false;
+  os.inFlight = true;
+  os.lastSendMs = nowMs();
+  send("PUT", QStringLiteral("/runs/%1/state/%2").arg(enc(runId), enc(pluginId)),
+       QJsonObject{{QStringLiteral("base_rev"), static_cast<double>(baseRev)}, {QStringLiteral("state"), os.desired}},
+       [this, runId, pluginId](const HttpResult& r) {
          RunData* x = data(runId);
          if (x == nullptr) return;
-         x->stateInFlight = false;
+         OwnState& o = x->own[pluginId];
+         o.inFlight = false;
          RunParticipant* me = x->info.participant(myUserId());
          const auto retryLater = [&]() {
-           x->stateDirty = true;
-           ++x->stateFailures;
-           if (!x->stateTimerScheduled) {
-             x->stateTimerScheduled = true;
-             QTimer::singleShot(retryDelayMs(x->stateFailures), this, [this, runId, gen = gen_]() {
+           o.dirty = true;
+           ++o.failures;
+           if (!o.timerScheduled) {
+             o.timerScheduled = true;
+             QTimer::singleShot(retryDelayMs(o.failures), this, [this, runId, pluginId, gen = gen_]() {
                if (gen != gen_) return;
-               if (RunData* q = data(runId)) q->stateTimerScheduled = false;
-               flushState(runId);
+               if (RunData* q = data(runId)) q->own[pluginId].timerScheduled = false;
+               flushState(runId, pluginId);
              });
            }
          };
          if (r.ok()) {
-           x->stateFailures = 0;
+           o.failures = 0;
            const qint64 rev = static_cast<qint64>(r.json().value(QStringLiteral("state_rev")).toDouble(0));
-           if (me != nullptr && rev > me->stateRev) me->stateRev = rev;
-           if (x->stateDirty) flushState(runId);
+           if (me != nullptr && rev > me->stateOf(pluginId).rev) me->states[pluginId].rev = rev;
+           markCacheDirty(*x);
+           if (o.dirty) flushState(runId, pluginId);
          } else if (r.status == 409 && r.apiErrorCode == QLatin1String("state_conflict")) {
            // Someone (another device of mine) wrote in between: adopt the Hub's revision and send the latest local value.
            const qint64 rev = static_cast<qint64>(r.json().value(QStringLiteral("state_rev")).toDouble(-1));
-           if (me != nullptr && rev >= 0) me->stateRev = rev;
-           x->stateDirty = true;
-           x->stateFailures = 0;
-           flushState(runId);
+           if (me != nullptr && rev >= 0) me->states[pluginId].rev = rev;
+           o.dirty = true;
+           o.failures = 0;
+           flushState(runId, pluginId);
          } else if (transient(r)) {
            retryLater();
          } else {
-           x->stateFailures = 0;
-           x->stateDirty = false;
+           o.failures = 0;
+           o.dirty = false;
            qCWarning(lcRuns) << "state write refused:" << r.status << r.apiErrorCode;
            emit writeFailed(runId, QStringLiteral("state"), r.apiErrorCode, messageOf(r));
          }

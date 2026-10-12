@@ -1,6 +1,7 @@
 // RunClient against the fake Hub: feature gate runs_v1, REST calls, run_updated / run_state / run_event, catch-up with
 // hello `runs` and paging, dedup by client_id, idempotent event retry, state coalescing and 409 state_conflict, board
 // rate limit, local refusal of writes in paused runs. Dummy data only.
+#include <QDirIterator>
 #include <QJsonArray>
 #include <QSignalSpy>
 #include <QTemporaryDir>
@@ -19,6 +20,7 @@ using State = HubConnection::State;
 
 namespace {
 const QString kPlugin = QStringLiteral("net.test.plugin");
+const QString kPlugin2 = QStringLiteral("net.test.second");
 const QString kOther = QStringLiteral("u_other_1");
 }  // namespace
 
@@ -64,7 +66,8 @@ class RunClientTest : public QObject {
   }
 
   QJsonArray pluginRefs() const {
-    return QJsonArray{QJsonObject{{"plugin_id", kPlugin}, {"version", "1.0.0"}, {"sha256", QString(64, QLatin1Char('a'))}}};
+    return QJsonArray{QJsonObject{{"plugin_id", kPlugin}, {"version", "1.0.0"}, {"sha256", QString(64, QLatin1Char('a'))}},
+                      QJsonObject{{"plugin_id", kPlugin2}, {"version", "1.0.0"}, {"sha256", QString(64, QLatin1Char('b'))}}};
   }
 
   // A run on the Hub with me joined, `kOther` invited, and `events` extra events from me.
@@ -319,42 +322,131 @@ class RunClientTest : public QObject {
     QCOMPARE(order, (QStringList{"0", "1", "2"}));
   }
 
-  void stateIsCoalescedAndConflictAdoptsRev() {
+  void stateIsCoalescedPerPluginAndConflictAdoptsRev() {
     connectHub();
     const QString id = seedRun(0);
     startClient();
     waitForRun(id);
-    for (int i = 1; i <= 12; ++i) QCOMPARE(client_->setOwnState(id, QJsonObject{{"n", i}}), QString());
-    QCOMPARE(client_->ownState(id).value("n").toInt(), 12);
-    QTRY_VERIFY_WITH_TIMEOUT(!hub_->runStatePuts.isEmpty() && hub_->runStatePuts.last().value("state").toObject().value("n").toInt() == 12, 8000);
-    QVERIFY(hub_->runStatePuts.size() <= 4);  // coalesced, not 12 writes
-    QCOMPARE(client_->run(id)->participant(hub_->runsMe)->stateRev, hub_->runStatePuts.size());
+    // Two plugins write in parallel: each is coalesced on its own and has its own revision.
+    for (int i = 1; i <= 12; ++i) {
+      QCOMPARE(client_->setOwnState(id, kPlugin, QJsonObject{{"n", i}}), QString());
+      QCOMPARE(client_->setOwnState(id, kPlugin2, QJsonObject{{"m", i * 2}}), QString());
+    }
+    QCOMPARE(client_->ownState(id, kPlugin).value("n").toInt(), 12);
+    QCOMPARE(client_->ownState(id, kPlugin2).value("m").toInt(), 24);
+    const auto lastFor = [&](const QString& plugin) {
+      int n = 0, count = 0;
+      for (const QJsonObject& put : std::as_const(hub_->runStatePuts))
+        if (put.value("plugin_id").toString() == plugin) {
+          n = put.value("state").toObject().value(plugin == kPlugin ? "n" : "m").toInt();
+          ++count;
+        }
+      return QPair<int, int>(n, count);
+    };
+    QTRY_VERIFY_WITH_TIMEOUT(lastFor(kPlugin).first == 12 && lastFor(kPlugin2).first == 24, 8000);
+    QVERIFY(lastFor(kPlugin).second <= 4);  // coalesced, not 12 writes
+    QVERIFY(lastFor(kPlugin2).second <= 4);
+    QTRY_COMPARE_WITH_TIMEOUT(client_->run(id)->participant(hub_->runsMe)->stateOf(kPlugin).rev, lastFor(kPlugin).second, 8000);
+    QTRY_COMPARE_WITH_TIMEOUT(client_->run(id)->participant(hub_->runsMe)->stateOf(kPlugin2).rev, lastFor(kPlugin2).second, 8000);
 
-    // 409: the Hub reports its revision; the latest local value is sent again on that revision.
+    // A plugin that is not part of the run is refused locally.
+    QVERIFY(!client_->setOwnState(id, QStringLiteral("net.other.plugin"), QJsonObject{{"x", 1}}).isEmpty());
+
+    // 409: the Hub reports the revision of that plugin; the latest local value is sent again on it.
     hub_->runStatePuts.clear();
     hub_->runStateConflicts = 1;
     hub_->runConflictRev = 40;
-    QCOMPARE(client_->setOwnState(id, QJsonObject{{"n", 100}}), QString());
+    QCOMPARE(client_->setOwnState(id, kPlugin, QJsonObject{{"n", 100}}), QString());
     QTRY_COMPARE_WITH_TIMEOUT(hub_->runStatePuts.size(), 2, 8000);
+    QCOMPARE(hub_->runStatePuts.at(1).value("plugin_id").toString(), kPlugin);
     QCOMPARE(hub_->runStatePuts.at(1).value("base_rev").toInt(), 40);
     QCOMPARE(hub_->runStatePuts.at(1).value("state").toObject().value("n").toInt(), 100);
-    QTRY_COMPARE_WITH_TIMEOUT(client_->run(id)->participant(hub_->runsMe)->stateRev, 41, 8000);
-    QCOMPARE(hub_->runs.value(id).value("participants").toArray().at(0).toObject().value("state").toObject().value("n").toInt(), 100);
+    QTRY_COMPARE_WITH_TIMEOUT(client_->run(id)->participant(hub_->runsMe)->stateOf(kPlugin).rev, 41, 8000);
+    // the other plugin's revision is untouched by that conflict
+    QVERIFY(client_->run(id)->participant(hub_->runsMe)->stateOf(kPlugin2).rev < 40);
+    const QJsonObject hubStates = hub_->runs.value(id).value("participants").toArray().at(0).toObject().value("states").toObject();
+    QCOMPARE(hubStates.value(kPlugin).toObject().value("state").toObject().value("n").toInt(), 100);
+    QCOMPARE(hubStates.value(kPlugin2).toObject().value("state").toObject().value("m").toInt(), 24);
   }
 
-  void stateOfOthersArrivesOverWss() {
+  void stateOfOthersArrivesOverWssPerPlugin() {
     connectHub();
     const QString id = seedRun(0);
     startClient();
     waitForRun(id);
     QSignalSpy st(client_.get(), &RunClient::stateChanged);
-    hub_->sendWs(QStringLiteral("run_state"), {{"run_id", id}, {"user_id", kOther}, {"state_rev", 3}, {"state", QJsonObject{{"hp", 12}}}});
+    hub_->sendWs(QStringLiteral("run_state"),
+                 {{"run_id", id}, {"user_id", kOther}, {"plugin_id", kPlugin2}, {"state_rev", 3}, {"state", QJsonObject{{"hp", 12}}}});
     QTRY_COMPARE_WITH_TIMEOUT(st.size(), 1, 8000);
-    QCOMPARE(client_->run(id)->participant(kOther)->state.value("hp").toInt(), 12);
-    // an older revision is ignored
-    hub_->sendWs(QStringLiteral("run_state"), {{"run_id", id}, {"user_id", kOther}, {"state_rev", 2}, {"state", QJsonObject{{"hp", 1}}}});
+    QCOMPARE(st.at(0).at(1).toString(), kOther);
+    QCOMPARE(st.at(0).at(2).toString(), kPlugin2);
+    QCOMPARE(client_->run(id)->participant(kOther)->stateOf(kPlugin2).state.value("hp").toInt(), 12);
+    QVERIFY(client_->run(id)->participant(kOther)->stateOf(kPlugin).state.isEmpty());
+    QCOMPARE(client_->participantState(id, kOther, kPlugin2).value().value("hp").toInt(), 12);
+    // an older revision of the same plugin is ignored, a first revision of the other plugin is not
+    hub_->sendWs(QStringLiteral("run_state"),
+                 {{"run_id", id}, {"user_id", kOther}, {"plugin_id", kPlugin2}, {"state_rev", 2}, {"state", QJsonObject{{"hp", 1}}}});
+    hub_->sendWs(QStringLiteral("run_state"),
+                 {{"run_id", id}, {"user_id", kOther}, {"plugin_id", kPlugin}, {"state_rev", 1}, {"state", QJsonObject{{"hp", 5}}}});
+    QTRY_COMPARE_WITH_TIMEOUT(client_->run(id)->participant(kOther)->stateOf(kPlugin).state.value("hp").toInt(), 5, 8000);
+    QCOMPARE(client_->run(id)->participant(kOther)->stateOf(kPlugin2).state.value("hp").toInt(), 12);
+    // a plugin that is not in the run is dropped
+    hub_->sendWs(QStringLiteral("run_state"),
+                 {{"run_id", id}, {"user_id", kOther}, {"plugin_id", QStringLiteral("net.other.plugin")}, {"state_rev", 1}, {"state", QJsonObject{{"hp", 9}}}});
     QTest::qWait(150);
-    QCOMPARE(client_->run(id)->participant(kOther)->state.value("hp").toInt(), 12);
+    QVERIFY(!client_->run(id)->participant(kOther)->states.contains(QStringLiteral("net.other.plugin")));
+  }
+
+  void statesAreCachedPerUserAndPlugin() {
+    connectHub();
+    const QString id = seedRun(0);
+    {
+      QJsonObject run = hub_->runs.value(id);
+      QJsonArray parts = run.value("participants").toArray();
+      QJsonObject other = parts.at(1).toObject();
+      other.insert("states", QJsonObject{{kPlugin, QJsonObject{{"state", QJsonObject{{"a", 1}}}, {"state_rev", 4}, {"updated_at", "2026-10-12T10:00:00Z"}}},
+                                         {kPlugin2, QJsonObject{{"state", QJsonObject{{"b", 2}}}, {"state_rev", 6}, {"updated_at", "2026-10-12T10:00:00Z"}}}});
+      parts.replace(1, other);
+      run.insert("participants", parts);
+      hub_->runs.insert(id, run);
+    }
+    startClient();
+    waitForRun(id);
+    QCOMPARE(client_->participantState(id, kOther, kPlugin).value().value("a").toInt(), 1);
+    QCOMPARE(client_->participantState(id, kOther, kPlugin2).value().value("b").toInt(), 2);
+    client_.reset();  // writes the cache
+    socket_.reset();
+    // The Hub answers with older revisions (e.g. a restored backup): the cached newer ones fill in, per plugin.
+    {
+      QJsonObject run = hub_->runs.value(id);
+      QJsonArray parts = run.value("participants").toArray();
+      QJsonObject other = parts.at(1).toObject();
+      other.insert("states", QJsonObject{{kPlugin, QJsonObject{{"state", QJsonObject{{"a", 99}}}, {"state_rev", 9}, {"updated_at", "2026-10-12T11:00:00Z"}}}});
+      parts.replace(1, other);
+      run.insert("participants", parts);
+      hub_->runs.insert(id, run);
+    }
+    startClient();
+    waitForRun(id);
+    const RunParticipant* o = client_->run(id)->participant(kOther);
+    QCOMPARE(o->stateOf(kPlugin).state.value("a").toInt(), 99);  // the Hub's newer revision wins
+    QCOMPARE(o->stateOf(kPlugin).rev, 9);
+    QCOMPARE(o->stateOf(kPlugin2).state.value("b").toInt(), 2);  // only the cache knows this plugin
+    QCOMPARE(o->stateOf(kPlugin2).rev, 6);
+    // the cache file stores them keyed by user and plugin
+    client_.reset();
+    QDir cacheRoot(dir_->filePath(QStringLiteral("runs-data/runs")));
+    QVERIFY(cacheRoot.exists());
+    int found = 0;
+    QDirIterator it(cacheRoot.path(), {id + ".json"}, QDir::Files, QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+      QFile f(it.next());
+      QVERIFY(f.open(QIODevice::ReadOnly));
+      const QJsonObject states = QJsonDocument::fromJson(f.readAll()).object().value("states").toObject();
+      QCOMPARE(states.value(kOther).toObject().value(kPlugin2).toObject().value("state_rev").toInt(), 6);
+      ++found;
+    }
+    QCOMPARE(found, 1);
   }
 
   void writesRefusedLocallyWhenNotWritable() {
@@ -362,7 +454,7 @@ class RunClientTest : public QObject {
     const QString id = seedRun(0, QStringLiteral("paused"));
     startClient();
     waitForRun(id);
-    QVERIFY(client_->setOwnState(id, QJsonObject{{"a", 1}}).contains(QStringLiteral("paused")));
+    QVERIFY(client_->setOwnState(id, kPlugin, QJsonObject{{"a", 1}}).contains(QStringLiteral("paused")));
     QVERIFY(client_->postEvent(id, kPlugin, QStringLiteral("manual"), QStringLiteral("test.n"), {}, {}).contains(QStringLiteral("paused")));
     QVERIFY(client_->setBoard(id, kPlugin, QJsonObject{{"type", "text"}}).contains(QStringLiteral("paused")));
     QTest::qWait(100);
