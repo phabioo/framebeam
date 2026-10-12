@@ -76,6 +76,8 @@ type Manifest struct {
 	Requires    map[string]string `json:"requires"`
 	Provides    []string          `json:"provides"`
 	Games       []Game            `json:"games"`
+	// RunSettings is the optional manifest field run_settings (validated; entries normalized to the known fields).
+	RunSettings []RunSetting `json:"run_settings,omitempty"`
 }
 
 // Package is a validated .fbplugin file held in memory (at most 32 MiB).
@@ -420,6 +422,11 @@ func ParseManifest(raw []byte) (Manifest, error) {
 			if SafeName(a) != nil {
 				return m, invalid("invalid asset path %q", a)
 			}
+		}
+	}
+	if v, ok := o["run_settings"]; ok && string(v) != "null" {
+		if m.RunSettings, err = parseRunSettings(v); err != nil {
+			return m, err
 		}
 	}
 	return m, nil

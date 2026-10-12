@@ -45,6 +45,9 @@ type pluginState struct {
 	// inUse reports whether a run that is not finished or abandoned uses a plugin version; see SetPluginInUseCheck.
 	inUse func(ctx context.Context, pluginID, version string) (bool, error)
 	idx   pluginIndexState
+	// strMu guards strings: run_settings texts per file SHA-256, read lazily from the stored file (no database column).
+	strMu   sync.Mutex
+	strings map[string]map[string]map[string]string
 }
 
 func (s *Service) initPlugins(o Options) {
@@ -75,10 +78,12 @@ type Plugin struct {
 	// Manifest is parsed from ManifestRaw (empty when the stored text no longer passes the current rules).
 	Manifest    pluginpkg.Manifest
 	ManifestRaw string
-	SHA256      string
-	Size        int64
-	Origin      string // official or unverified
-	Source      string // index, upload or import
+	// RunSettingsStrings is language -> i18n key -> text for the keys the manifest's run_settings reference (nil without run_settings).
+	RunSettingsStrings map[string]map[string]string
+	SHA256             string
+	Size               int64
+	Origin             string // official or unverified
+	Source             string // index, upload or import
 	// UploadedBy is the user id (empty after the user was deleted or for index/import), UploadedByName the display name.
 	UploadedBy, UploadedByName string
 	CreatedAt                  time.Time
@@ -127,6 +132,9 @@ func (s *Service) ListPlugins(ctx context.Context) ([]Plugin, error) {
 	if err := rows.Err(); err != nil {
 		return nil, internal(err)
 	}
+	for i := range out {
+		out[i].RunSettingsStrings = s.runSettingsStrings(out[i])
+	}
 	sort.SliceStable(out, func(i, j int) bool {
 		if out[i].PluginID != out[j].PluginID {
 			return out[i].PluginID < out[j].PluginID
@@ -134,6 +142,43 @@ func (s *Service) ListPlugins(ctx context.Context) ([]Plugin, error) {
 		return semverLess(out[i].Version, out[j].Version)
 	})
 	return out, nil
+}
+
+// runSettingsStrings returns the translated run_settings texts of a plugin version, read from the stored file and
+// cached in memory by SHA-256. A missing or unreadable file yields empty texts (not cached).
+func (s *Service) runSettingsStrings(p Plugin) map[string]map[string]string {
+	if len(p.Manifest.RunSettings) == 0 {
+		return nil
+	}
+	s.plug.strMu.Lock()
+	c, ok := s.plug.strings[p.SHA256]
+	s.plug.strMu.Unlock()
+	if ok {
+		return c
+	}
+	path, err := s.pluginPath(p.PluginID, p.Version)
+	if err != nil {
+		return map[string]map[string]string{}
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return map[string]map[string]string{}
+	}
+	pkg, err := pluginpkg.Open(data)
+	if err != nil || pluginpkg.SHA256Hex(data) != p.SHA256 {
+		return map[string]map[string]string{}
+	}
+	c = pkg.RunSettingsStrings()
+	if c == nil {
+		c = map[string]map[string]string{}
+	}
+	s.plug.strMu.Lock()
+	if s.plug.strings == nil {
+		s.plug.strings = map[string]map[string]map[string]string{}
+	}
+	s.plug.strings[p.SHA256] = c
+	s.plug.strMu.Unlock()
+	return c
 }
 
 func semverLess(a, b string) bool {

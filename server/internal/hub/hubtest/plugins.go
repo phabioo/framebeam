@@ -35,9 +35,18 @@ func PluginKeys() []ed25519.PublicKey {
 // PluginZip builds an unsigned .fbplugin with a manifest, main.lua and the extra files (path -> content).
 func PluginZip(t testing.TB, id, version string, perms []string, extra map[string]string) []byte {
 	t.Helper()
+	return PluginZipWith(t, id, version, perms, nil, extra)
+}
+
+// PluginZipWith is PluginZip plus extra top-level manifest fields (for example "run_settings").
+func PluginZipWith(t testing.TB, id, version string, perms []string, fields map[string]any, extra map[string]string) []byte {
+	t.Helper()
 	m := map[string]any{"api": 1, "id": id, "name": "Plugin " + id, "version": version, "entry": "main.lua", "description": "Test plugin " + id,
 		"permissions": perms, "provides": []string{"test.iface"}, "requires": map[string]string{"net.example.base": "^1.0"},
 		"games": []map[string]any{{"system": "nds", "codes": []string{"ABC*"}}}}
+	for k, v := range fields {
+		m[k] = v
+	}
 	mb, _ := json.Marshal(m)
 	var b bytes.Buffer
 	zw := zip.NewWriter(&b)
