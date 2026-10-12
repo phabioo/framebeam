@@ -398,18 +398,19 @@ Permission `run.state`. `fb.run` exists only when the game was started with "Pla
 | Function | Meaning |
 |---|---|
 | `fb.run.current()` | `{id, name, status, me, settings, plugins = {...}, participants = {{user_id, name, color, status, game_id}, ...}}` from the Player's cache. |
-| `fb.run.state([user_id])` / `fb.run.states()` | One participant's state object (default: the own one; `nil` if none yet) / table `user_id -> state`. Updated live; no network call. |
-| `fb.run.setState(tbl)` | Replaces the state object of the own participant (JSON-able table, at most 64 KiB). Coalesced to at most 4 sends per second: the latest value wins. On `409 state_conflict` the Player adopts the Hub revision and sends the latest value again. |
+| `fb.run.state([user_id [, plugin_id]])` / `fb.run.states([plugin_id])` | One participant's state object for a plugin of the run (defaults: the own user and the calling plugin; `nil` if none yet) / table `user_id -> state` for that plugin (default: the calling plugin). Another plugin's state of the same run may be read (read-only), for example state published by another run plugin. Updated live; no network call. |
+| `fb.run.setState(tbl)` | Replaces the calling plugin's state object of the own participant (JSON-able table, at most 64 KiB per plugin). Coalesced per plugin to at most 4 sends per second: the latest value wins. On `409 state_conflict` the Player adopts the Hub revision of that plugin and sends the latest value again. |
 | `fb.run.event{type=, text=, payload=, source=}` | Posts a run event (`type` required, `text` at most 280 characters, `payload` an object of at most 4 KiB, `source` `"automatic"` (default) or `"manual"`). Returns the `client_id` (a UUID); the Player queues the event and retries it idempotently until the Hub confirms it (at most 2 per second). |
 | `fb.run.events(after_seq, limit)` | Events from the local cache, ascending by `seq` (limit 1 to 500, default 100). Missed events are paged from the Hub after a reconnect. |
-| `fb.run.on(kind, fn)` | Callbacks on the plugin thread like ticks (at most 16): `"event"` `fn(event)` (own and other participants' events), `"state"` `fn(user_id, state)`, `"status"` `fn(status, previous)`, `"participants"` `fn(list)`. |
+| `fb.run.on(kind, fn)` | Callbacks on the plugin thread like ticks (at most 16): `"event"` `fn(event)` (own and other participants' events), `"state"` `fn(user_id, state, plugin_id)` (every plugin's state change, own writes included), `"status"` `fn(status, previous)`, `"participants"` `fn(list)`. |
 | `fb.run.setBoard(tree)` | Sets the plugin's board for the Hub run board. `tree` is checked with the same validator as `fb.ui` blocks (64 KiB at most); at most 1 per second (the latest tree is sent after the pause). |
 
 Rules:
 
 - Writes (`setState`, `event`, `setBoard`) are accepted while the run is `starting` or `active`. In `paused`, `finished` or `abandoned` they are refused locally and return `nil, "message"` instead of raising, so a paused run never pauses the plugin. Reads keep working.
 - Bad arguments (not a table, too large, unknown field) raise a Lua error as everywhere else in the API.
-- The state of a participant is one object shared by all plugins of the run, and `setState` replaces it as a whole: use a key per plugin id (`state[fb.plugin.id] = {...}`) and write back the keys of other plugins unchanged.
+- Every plugin of the run has its own state object per participant, each with its own revision on the Hub (`PUT /runs/{run_id}/state/{plugin_id}`). `setState` replaces only the calling plugin's object; plugins never overwrite each other's state. The Player keeps the states per (user, plugin) in its run cache.
+- Join and Start dialogs list the library games that every plugin of the run accepts: the system must match a `games` entry of the plugin and, when the entry has `codes`, the Hub's game code (`game_code`, same identity as `fb.game.code`) must match one of the globs (`*`, `?`, case-insensitive). A game whose code the Hub does not know stays selectable after the matching ones with the hint "Game not recognized"; a known code that matches nothing is not listed.
 - The Hub may refuse a write (`403`, `409 run_not_active`, `413`, `429`); the Player drops the value and logs it. Nothing is retried except events (idempotent by `client_id`) and the latest state after a conflict.
 - Saves of a run go to the slot `run-<first 8 hex of the run id>`; the normal save slot of the game is untouched.
 

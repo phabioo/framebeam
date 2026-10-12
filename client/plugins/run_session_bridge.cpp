@@ -33,17 +33,18 @@ RunSessionBridge::RunSessionBridge(RunClient* client, const QString& runId) : cl
     rebuild();
     note(QStringLiteral("participants"), {{QStringLiteral("participants"), current().value(QStringLiteral("participants"))}});
   });
-  connect(client, &RunClient::stateChanged, this, [this](const QString& id, const QString& userId) {
+  connect(client, &RunClient::stateChanged, this, [this](const QString& id, const QString& userId, const QString& pluginId) {
     if (id != runId_) return;
     QJsonObject before;
     {
       std::lock_guard<std::mutex> l(m_);
-      before = states_.value(userId).toObject();
+      before = states_.value(userId).toObject().value(pluginId).toObject();
     }
     rebuild();
     bool found = false;
-    const QJsonObject after = stateOf(userId, &found);
-    if (found && after != before) note(QStringLiteral("state"), {{QStringLiteral("user_id"), userId}, {QStringLiteral("state"), after}});
+    const QJsonObject after = stateOf(userId, pluginId, &found);
+    if (found && after != before)
+      note(QStringLiteral("state"), {{QStringLiteral("user_id"), userId}, {QStringLiteral("plugin_id"), pluginId}, {QStringLiteral("state"), after}});
   });
   connect(client, &RunClient::eventAdded, this, [this](const QString& id, const RunEvent& e) {
     if (id != runId_) return;
@@ -101,7 +102,16 @@ void RunSessionBridge::rebuild() {
                              {QStringLiteral("color"), p.color < 0 ? QJsonValue(QJsonValue::Null) : QJsonValue(p.color)},
                              {QStringLiteral("status"), p.status},
                              {QStringLiteral("game_id"), nullable(p.gameId)}});
-    states.insert(p.userId, p.userId == me_ ? (stateQueued_ ? pendingState_ : client_->ownState(runId_)) : p.state);
+    QJsonObject byPlugin;
+    for (const RunPluginRef& ref : run->plugins) {
+      QJsonObject st = p.stateOf(ref.pluginId).state;
+      if (p.userId == me_) {
+        const auto pend = pendingStates_.find(ref.pluginId);
+        st = pend != pendingStates_.end() ? pend->second : client_->ownState(runId_, ref.pluginId);
+      }
+      byPlugin.insert(ref.pluginId, st);
+    }
+    states.insert(p.userId, byPlugin);
   }
   const RunParticipant* mine = run->participant(me_);
   joined_ = mine != nullptr && mine->status == QLatin1String("joined");
@@ -129,16 +139,22 @@ QJsonObject RunSessionBridge::current() const {
   return current_;
 }
 
-QJsonObject RunSessionBridge::stateOf(const QString& userId, bool* found) const {
+QJsonObject RunSessionBridge::stateOf(const QString& userId, const QString& pluginId, bool* found) const {
   std::lock_guard<std::mutex> l(m_);
-  const bool has = states_.contains(userId);
+  const QJsonObject byPlugin = states_.value(userId).toObject();
+  const bool has = byPlugin.contains(pluginId);
   if (found != nullptr) *found = has;
-  return states_.value(userId).toObject();
+  return byPlugin.value(pluginId).toObject();
 }
 
-QJsonObject RunSessionBridge::states() const {
+QJsonObject RunSessionBridge::states(const QString& pluginId) const {
   std::lock_guard<std::mutex> l(m_);
-  return states_;
+  QJsonObject out;
+  for (auto it = states_.begin(); it != states_.end(); ++it) {
+    const QJsonObject byPlugin = it.value().toObject();
+    if (byPlugin.contains(pluginId)) out.insert(it.key(), byPlugin.value(pluginId));
+  }
+  return out;
 }
 
 QJsonArray RunSessionBridge::events(qint64 afterSeq, int limit) const {
@@ -160,30 +176,34 @@ QString RunSessionBridge::refusal(const QString& what) const {
   return {};
 }
 
-QString RunSessionBridge::setState(const QJsonObject& state) {
+QString RunSessionBridge::setState(const QString& pluginId, const QJsonObject& state) {
   if (QJsonDocument(state).toJson(QJsonDocument::Compact).size() > kRunMaxStateBytes) return QStringLiteral("state is larger than 64 KiB");
   bool queue = false;
   {
     std::lock_guard<std::mutex> l(m_);
     const QString why = refusal(QStringLiteral("state"));
     if (!why.isEmpty()) return why;
-    states_.insert(me_, state);  // the plugin reads its own write back at once
-    pendingState_ = state;
-    queue = !stateQueued_;
-    stateQueued_ = true;
+    if (!pluginIds_.contains(pluginId)) return QStringLiteral("plugin %1 is not part of this run").arg(pluginId);
+    QJsonObject mine = states_.value(me_).toObject();
+    mine.insert(pluginId, state);
+    states_.insert(me_, mine);  // the plugin reads its own write back at once
+    pendingStates_[pluginId] = state;
+    queue = !statesQueued_;
+    statesQueued_ = true;
   }
-  if (queue) QMetaObject::invokeMethod(this, [this] { flushState(); }, Qt::QueuedConnection);
+  if (queue) QMetaObject::invokeMethod(this, [this] { flushStates(); }, Qt::QueuedConnection);
   return {};
 }
 
-void RunSessionBridge::flushState() {
-  QJsonObject st;
+void RunSessionBridge::flushStates() {
+  std::map<QString, QJsonObject> pending;
   {
     std::lock_guard<std::mutex> l(m_);
-    st = pendingState_;
-    stateQueued_ = false;
+    pending = std::exchange(pendingStates_, {});
+    statesQueued_ = false;
   }
-  if (client_) client_->setOwnState(runId_, st);
+  if (!client_) return;
+  for (const auto& [pluginId, st] : pending) client_->setOwnState(runId_, pluginId, st);
 }
 
 QString RunSessionBridge::postEvent(const QString& pluginId, const QString& source, const QString& type, const QString& text,

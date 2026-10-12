@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <memory>
 
+#include "manifest.h"
 #include "run_session_bridge.h"
 #include "semver.h"
 
@@ -45,6 +46,9 @@ RunsController::RunsController(RunClient* client, PluginsController* plugins, Hu
   connect(plugins, &PluginsController::pluginsChanged, this, &RunsController::scheduleRebuild);
   connect(plugins, &PluginsController::hubPluginsChanged, this, &RunsController::scheduleRebuild);
   connect(library, &HubLibrary::loaded, this, &RunsController::scheduleRebuild);
+  // The game picker follows late arrivals: the library or the Hub's plugin list may load after the dialog opened.
+  connect(library, &HubLibrary::loaded, this, &RunsController::refreshGames);
+  connect(plugins, &PluginsController::hubPluginsChanged, this, &RunsController::refreshGames);
   rebuild();
 }
 
@@ -336,24 +340,97 @@ void RunsController::closeRun() {
 
 // ------------------------------------------------------------------ games
 
-QStringList RunsController::gameSystemsFor(const RunInfo* run) const {
-  QStringList systems;
-  if (run == nullptr || plugins_->hubClient() == nullptr) return systems;
+QList<QJsonArray> RunsController::gamePatternsFor(const RunInfo* run) const {
+  QList<QJsonArray> out;
+  if (run == nullptr || plugins_->hubClient() == nullptr) return out;
   for (const RunPluginRef& ref : run->plugins) {
     for (const HubPluginInfo& p : plugins_->hubClient()->plugins()) {
       if (p.id != ref.pluginId || p.version != ref.version) continue;
-      for (const QJsonValue& g : p.games) {
-        const QString sys = g.toObject().value(QStringLiteral("system")).toString();
-        if (!sys.isEmpty() && !systems.contains(sys)) systems << sys;
-      }
+      if (!p.games.isEmpty()) out.append(p.games);
     }
   }
-  return systems;
+  return out;
+}
+
+QList<QJsonArray> RunsController::startGamePatterns() const {
+  QList<QJsonArray> out;
+  const PluginHubClient* hub = plugins_->hubClient();
+  if (hub == nullptr) return out;
+  QMap<QString, const HubPluginInfo*> best;
+  for (const HubPluginInfo& p : hub->plugins()) {
+    if (!startPluginIds_.contains(p.id)) continue;
+    const auto it = best.constFind(p.id);
+    if (it == best.constEnd() || update::compareVersions(p.version, (*it)->version).value_or(0) > 0) best.insert(p.id, &p);
+  }
+  for (const HubPluginInfo* p : std::as_const(best))
+    if (!p->games.isEmpty()) out.append(p->games);
+  return out;
+}
+
+namespace {
+enum class Fit { No, Unknown, Yes };
+
+// One plugin's `games` patterns against one library game: a known code must match one of the globs of a pattern of the
+// game's system; an unknown code (empty) stays possible when only the system matches.
+Fit fitOf(const QJsonArray& patterns, const GameEntry& g) {
+  Fit best = Fit::No;
+  for (const QJsonValue& v : patterns) {
+    const QJsonObject o = v.toObject();
+    if (o.value(QStringLiteral("system")).toString().compare(g.system, Qt::CaseInsensitive) != 0) continue;
+    const QJsonArray codes = o.value(QStringLiteral("codes")).toArray();
+    if (codes.isEmpty()) return Fit::Yes;
+    if (g.gameCode.isEmpty()) {
+      best = Fit::Unknown;
+      continue;
+    }
+    for (const QJsonValue& c : codes)
+      if (plugins::globMatch(c.toString(), g.gameCode)) return Fit::Yes;
+  }
+  return best;
+}
+}  // namespace
+
+int RunsController::fillGames(const QList<QJsonArray>& patterns) {
+  struct Row {
+    QVariantMap map;
+    bool unknown;
+  };
+  QList<Row> rows;
+  for (const GameEntry& g : library_->games()) {
+    bool unknown = false, fits = true;
+    for (const QJsonArray& p : patterns) {
+      const Fit f = fitOf(p, g);
+      if (f == Fit::No) {
+        fits = false;
+        break;
+      }
+      if (f == Fit::Unknown) unknown = true;
+    }
+    if (!fits) continue;
+    rows.append({{{QStringLiteral("id"), g.id},
+                  {QStringLiteral("title"), g.title},
+                  {QStringLiteral("system"), g.system},
+                  {QStringLiteral("hint"), unknown ? tr("Game not recognized") : QString()}},
+                 unknown});
+  }
+  std::sort(rows.begin(), rows.end(), [](const Row& a, const Row& b) {
+    if (a.unknown != b.unknown) return !a.unknown;
+    return a.map.value(QStringLiteral("title")).toString().localeAwareCompare(b.map.value(QStringLiteral("title")).toString()) < 0;
+  });
+  QList<QVariantMap> maps;
+  for (const Row& r : std::as_const(rows)) maps.append(r.map);
+  games_.setRows(maps);
+  return static_cast<int>(maps.size());
+}
+
+void RunsController::refreshGames() {
+  if (gamesPrepared_) prepareGames(gamesFor_);
 }
 
 int RunsController::prepareGames(const QString& runId) {
+  gamesPrepared_ = true;
+  gamesFor_ = runId;
   const auto run = runId.isEmpty() ? std::nullopt : client_->run(runId.toLower());
-  const QStringList systems = gameSystemsFor(run ? &*run : nullptr);
   QList<QVariantMap> pluginRows;
   bool unverified = false;
   if (run) {
@@ -374,16 +451,7 @@ int RunsController::prepareGames(const QString& runId) {
   joinPlugins_.setRows(pluginRows);
   if (joinUnverified_ != unverified) joinUnverified_ = unverified;
   emit joinPluginsChanged();
-  QList<QVariantMap> rows;
-  for (const GameEntry& g : library_->games()) {
-    if (!systems.isEmpty() && !systems.contains(g.system)) continue;
-    rows.append({{QStringLiteral("id"), g.id}, {QStringLiteral("title"), g.title}, {QStringLiteral("system"), g.system}});
-  }
-  std::sort(rows.begin(), rows.end(), [](const QVariantMap& a, const QVariantMap& b) {
-    return a.value(QStringLiteral("title")).toString().localeAwareCompare(b.value(QStringLiteral("title")).toString()) < 0;
-  });
-  games_.setRows(rows);
-  return static_cast<int>(rows.size());
+  return fillGames(run ? gamePatternsFor(&*run) : startGamePatterns());
 }
 
 // ------------------------------------------------------------------ actions
@@ -569,6 +637,7 @@ void RunsController::beginStart() {
 void RunsController::toggleStartPlugin(const QString& pluginId) {
   if (!startPluginIds_.remove(pluginId)) startPluginIds_.insert(pluginId);
   rebuildStartPlugins();
+  prepareGames(QString());
 }
 
 void RunsController::toggleStartUser(const QString& userId) {
@@ -589,6 +658,7 @@ void RunsController::startRun(const QString& name, const QString& gameId) {
   else if (startPluginIds_.isEmpty()) problem = tr("Pick at least one plugin for the run.");
   else if (startPluginIds_.size() > 8) problem = tr("A run can use up to 8 plugins.");
   else if (gameId.isEmpty()) problem = tr("Pick the game you play in this run.");
+  else if (std::none_of(games_.rows().begin(), games_.rows().end(), [&](const QVariantMap& r) { return r.value(QStringLiteral("id")).toString() == gameId; })) problem = tr("The picked game does not fit the plugins of this run. Pick another game.");
   else if (startUserIds_.size() + 1 > kRunMaxParticipants) problem = tr("A run has room for %1 players.").arg(kRunMaxParticipants);
   if (!problem.isEmpty()) {
     startError_ = problem;

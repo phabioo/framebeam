@@ -24,6 +24,7 @@ using State = HubConnection::State;
 
 namespace {
 const QString kId = QStringLiteral("net.test.plugin");
+const QString kSecond = QStringLiteral("net.test.second");  // another plugin of the run (not started in these tests)
 const QString kOther = QStringLiteral("u_other_1");
 bool hasLog(const ConsoleSnapshot& c, const QString& needle) {
   for (const LogLine& l : c.log)
@@ -63,7 +64,8 @@ class RunApiTest : public QObject {
     QTRY_VERIFY_WITH_TIMEOUT(conn_->state() == State::Connected, 8000);
 
     QJsonObject r = hub_->makeRun(QStringLiteral("Test run"), {hub_->runsMe, kOther}, hub_->runsMe,
-                                  QJsonArray{QJsonObject{{"plugin_id", kId}, {"version", "1.0.0"}, {"sha256", QString(64, QLatin1Char('a'))}}});
+                                  QJsonArray{QJsonObject{{"plugin_id", kId}, {"version", "1.0.0"}, {"sha256", QString(64, QLatin1Char('a'))}},
+                                             QJsonObject{{"plugin_id", kSecond}, {"version", "1.0.0"}, {"sha256", QString(64, QLatin1Char('b'))}}});
     runId_ = r.value("run_id").toString();
     r.insert("status", status);
     r.insert("settings", QJsonObject{{"hardcore", true}});
@@ -137,11 +139,13 @@ class RunApiTest : public QObject {
       assert(c.name == "Test run" and c.status == "active", c.status)
       assert(c.me == "u_test_1")
       assert(c.settings.hardcore == true)
-      assert(#c.plugins == 1 and c.plugins[1].id == "net.test.plugin" and c.plugins[1].version == "1.0.0")
+      assert(#c.plugins == 2 and c.plugins[1].id == "net.test.plugin" and c.plugins[1].version == "1.0.0")
       assert(#c.participants == 2 and c.participants[1].user_id == "u_test_1" and c.participants[1].status == "joined")
       assert(c.participants[1].color == 0 and c.participants[2].color == nil)
       assert(next(fb.run.state()) == nil)
       assert(fb.run.state("nobody") == nil)
+      assert(next(fb.run.state("u_test_1", "net.test.second")) == nil)
+      assert(fb.run.state("u_test_1", "net.not.in.run") == nil)
       local evs = fb.run.events(0, 10)
       assert(#evs == 2 and evs[1].type == "run.created" and evs[2].type == "test.old" and evs[2].user_id == "u_other_1", #evs)
       assert(#fb.run.events(1, 10) == 1 and #fb.run.events(0, 1) == 1)
@@ -165,6 +169,7 @@ class RunApiTest : public QObject {
     QVERIFY2(hasLog(con(), "wrote"), con().error.toUtf8().constData());
     QTRY_VERIFY_WITH_TIMEOUT(!hub_->runStatePuts.isEmpty(), 8000);
     const QJsonObject st = hub_->runStatePuts.last().value("state").toObject();
+    QCOMPARE(hub_->runStatePuts.last().value("plugin_id").toString(), kId);
     QCOMPARE(st.value("hp").toInt(), 5);
     QCOMPARE(st.value("party").toArray().size(), 2);
     QTRY_VERIFY_WITH_TIMEOUT(!hub_->runEventPosts.isEmpty(), 8000);
@@ -182,19 +187,19 @@ class RunApiTest : public QObject {
     startPlugin(R"LUA(
       local got = {events = 0, states = 0, status = 0, parts = 0}
       fb.run.on("event", function(e) got.events = got.events + 1 got.lastEvent = e.type got.lastText = e.text end)
-      fb.run.on("state", function(user, st) got.states = got.states + 1 got.user = user got.hp = st.hp end)
+      fb.run.on("state", function(user, st, plugin) got.states = got.states + 1 got.user = user got.hp = st.hp got.plugin = plugin end)
       fb.run.on("status", function(s, prev) got.status = got.status + 1 got.s = s got.prev = prev end)
       fb.run.on("participants", function(list) got.parts = got.parts + 1 got.n = #list end)
       fb.on_tick(function()
         if got.events > 0 and got.states > 0 and got.status > 0 and got.parts > 0 and not got.done then
           got.done = true
-          fb.log.info(string.format("callbacks e=%s:%s st=%s:%d s=%s<-%s n=%d", got.lastEvent, got.lastText, got.user, got.hp, got.s, got.prev, got.n))
+          fb.log.info(string.format("callbacks e=%s:%s st=%s:%d@%s s=%s<-%s n=%d", got.lastEvent, got.lastText, got.user, got.hp, got.plugin, got.s, got.prev, got.n))
         end
       end)
     )LUA");
     QCOMPARE(con().status, PluginStatus::Running);
     hub_->addRunEvent(runId_, QStringLiteral("test.hit"), QStringLiteral("Ouch"), kOther, kId);
-    hub_->sendWs(QStringLiteral("run_state"), {{"run_id", runId_}, {"user_id", kOther}, {"state_rev", 1}, {"state", QJsonObject{{"hp", 9}}}});
+    hub_->sendWs(QStringLiteral("run_state"), {{"run_id", runId_}, {"user_id", kOther}, {"plugin_id", kSecond}, {"state_rev", 1}, {"state", QJsonObject{{"hp", 9}}}});
     QJsonObject r = hub_->runs.value(runId_);
     r.insert("status", "paused");
     QJsonArray ps = r.value("participants").toArray();
@@ -211,7 +216,35 @@ class RunApiTest : public QObject {
     }
     QString all;
     for (const LogLine& l : con().log) all += l.text + "\n";
-    QVERIFY2(hasLog(con(), "callbacks e=test.hit:Ouch st=u_other_1:9 s=paused<-active n=2"), qPrintable(con().error + "\n" + all));
+    QVERIFY2(hasLog(con(), "callbacks e=test.hit:Ouch st=u_other_1:9@net.test.second s=paused<-active n=2"), qPrintable(con().error + "\n" + all));
+  }
+
+  void readsOtherPluginsStateAndWritesOnlyItsOwn() {
+    connectHub();
+    startPlugin(R"LUA(
+      assert(fb.run.setState({mine = 1}) == true)
+      fb.on_tick(function()
+        local other = fb.run.state("u_other_1", "net.test.second")
+        if other and other.hp == 9 and not fb.done then
+          fb.done = true
+          local all = fb.run.states("net.test.second")
+          local own = fb.run.states()
+          assert(all["u_other_1"].hp == 9 and own["u_test_1"].mine == 1 and next(own["u_other_1"]) == nil)
+          assert(fb.run.state().mine == 1 and fb.run.state(nil, "net.test.second").hp == nil)
+          fb.run.setState({mine = 2})
+          fb.log.info("read other " .. other.hp)
+        end
+      end)
+    )LUA");
+    QCOMPARE(con().status, PluginStatus::Running);
+    hub_->sendWs(QStringLiteral("run_state"), {{"run_id", runId_}, {"user_id", kOther}, {"plugin_id", kSecond}, {"state_rev", 4}, {"state", QJsonObject{{"hp", 9}}}});
+    for (int i = 0; i < 40 && !hasLog(con(), "read other"); ++i) {
+      mem_->snapshot();
+      QTest::qWait(50);
+    }
+    QVERIFY2(hasLog(con(), "read other 9"), qPrintable(con().error));
+    QTRY_VERIFY_WITH_TIMEOUT(!hub_->runStatePuts.isEmpty() && hub_->runStatePuts.last().value("state").toObject().value("mine").toInt() == 2, 8000);
+    for (const QJsonObject& put : std::as_const(hub_->runStatePuts)) QCOMPARE(put.value("plugin_id").toString(), kId);  // never the other plugin's
   }
 
   void refusedWhenPausedAndAfterwardsFine() {

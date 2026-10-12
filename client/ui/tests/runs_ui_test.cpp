@@ -267,6 +267,102 @@ class RunsUiTest : public QObject {
     QCOMPARE(h.controller->screen(), QStringLiteral("library"));
     QVERIFY(h.item("navRuns") == nullptr || !h.item("navRuns")->isVisible());
   }
+  // The game picker keeps what every plugin of the run accepts: system and, when the Hub knows it, the game code (globs,
+  // case-insensitive). Unknown codes stay after the matching games with a hint; a known code that matches nothing is dropped.
+  void gamePickerFiltersByGameCode() {
+    FakeHub hub(QStringLiteral("a"));
+    hub.hubId = QStringLiteral("hub-codes");
+    hub.decision = FakeHub::Decision::Approve;
+    hub.features = {QStringLiteral("saves_v1"), QStringLiteral("plugins_v1"), QStringLiteral("runs_v1"), QStringLiteral("sessions_v1")};
+    const auto game = [](const char* id, const char* title, const char* system, const char* code) {
+      return QJsonObject{{"id", id},
+                         {"title", title},
+                         {"system", system},
+                         {"game_code", code},
+                         {"game_code_kind", QString::fromLatin1(code).isEmpty() ? "" : "nds-gamecode"},
+                         {"rom", QJsonObject{{"sha256", QString(64, QLatin1Char('b'))}, {"size", 4096}, {"filename", "x.nds"}}},
+                         {"added_at", "2026-01-01T12:00:00Z"}};
+    };
+    hub.games = QJsonObject{{"games", QJsonArray{game("g-alpha", "Alpha", "nds", "ABCE"), game("g-zeta", "Zeta", "nds", "BXYZ"),
+                                                 game("g-unknown", "Unknown", "nds", ""), game("g-aaa", "Aaa unreadable", "nds", ""),
+                                                 game("g-other", "Other", "nds", "CCCC"), game("g-beta", "Beta", "nds", "aqqe"),
+                                                 game("g-gba", "Advance", "gba", "")}}};
+    hub.fakeUsers = QJsonArray{QJsonObject{{"id", "u_test_1"}, {"display_name", "Tester"}, {"online", true}},
+                               QJsonObject{{"id", "u_lena"}, {"display_name", "Lena"}, {"online", true}}};
+    const auto offer = [&](const QString& id, const QJsonArray& games) {
+      hub.pluginList.append(QJsonObject{{"plugin_id", id}, {"version", "1.0.0"}, {"name", id}, {"description", ""}, {"api", 1},
+                                        {"origin", "unverified"}, {"sha256", QString(64, QLatin1Char('c'))}, {"size", 10},
+                                        {"permissions", QJsonArray{"run.state"}}, {"games", games}, {"created_at", "2026-10-12T10:00:00Z"}});
+    };
+    offer(QStringLiteral("net.test.one"), QJsonArray{QJsonObject{{"system", "nds"}, {"codes", QJsonArray{"A??E", "BXYZ"}}}});
+    offer(QStringLiteral("net.test.two"), QJsonArray{QJsonObject{{"system", "NDS"}, {"codes", QJsonArray{"A*"}}}});
+    offer(QStringLiteral("net.test.any"), QJsonArray{QJsonObject{{"system", "nds"}}});
+    const auto ref = [](const char* id) {
+      return QJsonObject{{"plugin_id", id}, {"version", "1.0.0"}, {"sha256", QString(64, QLatin1Char('c'))}};
+    };
+    const auto addRun = [&](const QJsonArray& refs) {
+      QJsonObject run = hub.makeRun(QStringLiteral("Run"), {QStringLiteral("u_lena"), hub.runsMe}, QStringLiteral("u_lena"), refs);
+      hub.runs.insert(run.value("run_id").toString(), run);
+      return run.value("run_id").toString();
+    };
+    const QString one = addRun({ref("net.test.one")});
+    const QString both = addRun({ref("net.test.one"), ref("net.test.two")});
+    const QString any = addRun({ref("net.test.any")});
+    QVERIFY(hub.start());
+
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    RunsController* runs = h.controller->runs();
+    QTRY_VERIFY_WITH_TIMEOUT(runs->loaded(), 8000);
+    QTRY_COMPARE_WITH_TIMEOUT(h.controller->plugins()->hubPlugins().size(), 3, 8000);
+
+    const auto rowsOf = [&]() {
+      QList<QVariantMap> out;
+      QAbstractItemModel* m = runs->games();
+      const QHash<int, QByteArray> names = m->roleNames();
+      for (int r = 0; r < m->rowCount(); ++r) {
+        QVariantMap row;
+        for (auto it = names.begin(); it != names.end(); ++it) row.insert(QString::fromUtf8(it.value()), m->data(m->index(r, 0), it.key()));
+        out.append(row);
+      }
+      return out;
+    };
+    const auto titles = [&](QStringList* hints = nullptr) {
+      QStringList out;
+      for (const QVariantMap& r : rowsOf()) {
+        out << r.value("title").toString();
+        if (hints != nullptr) *hints << r.value("hint").toString();
+      }
+      return out;
+    };
+    // One plugin: glob A??E matches ABCE and AQQE (any case), BXYZ is listed literally; CCCC and the GBA game are dropped.
+    // Games whose code the Hub does not know stay, after the matching ones, with a hint.
+    QStringList hints;
+    QTRY_COMPARE_WITH_TIMEOUT((runs->prepareGames(one), titles(&(hints = QStringList()))),
+                              (QStringList{"Alpha", "Beta", "Zeta", "Aaa unreadable", "Unknown"}), 8000);
+    QCOMPARE(hints, (QStringList{"", "", "", "Game not recognized", "Game not recognized"}));
+    // Two plugins: the intersection (A* drops Zeta).
+    runs->prepareGames(both);
+    QCOMPARE(titles(), (QStringList{"Alpha", "Beta", "Aaa unreadable", "Unknown"}));
+    // A plugin whose pattern has no codes accepts every game of the system, known or not.
+    runs->prepareGames(any);
+    QCOMPARE(titles(&(hints = QStringList())), (QStringList{"Aaa unreadable", "Alpha", "Beta", "Other", "Unknown", "Zeta"}));
+    QCOMPARE(hints, QStringList(6));
+
+    // The Start dialog shows the same filtered list for the ticked plugins.
+    runs->beginStart();
+    QTRY_COMPARE_WITH_TIMEOUT(runs->startPlugins()->rowCount(), 3, 8000);
+    runs->toggleStartPlugin(QStringLiteral("net.test.one"));
+    QCOMPARE(titles(), (QStringList{"Alpha", "Beta", "Zeta", "Aaa unreadable", "Unknown"}));
+    runs->toggleStartPlugin(QStringLiteral("net.test.two"));
+    QCOMPARE(titles(), (QStringList{"Alpha", "Beta", "Aaa unreadable", "Unknown"}));
+    // A game that no longer fits cannot be started with.
+    runs->startRun(QStringLiteral("Mismatch"), QStringLiteral("g-zeta"));
+    QVERIFY(!runs->startError().isEmpty());
+    QCOMPARE(hub.runs.size(), 3);
+  }
+
 };
 
 QTEST_MAIN(RunsUiTest)

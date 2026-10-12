@@ -744,11 +744,13 @@ int runCurrent(lua_State* L) {
   return 1;
 }
 
+// fb.run.state([user_id [, plugin_id]]): defaults are the own user and the calling plugin.
 int runState(lua_State* L) {
   RunBridge* b = runBridge(L);
-  QString user = lua_isnoneornil(L, 1) ? b->current().value(QStringLiteral("me")).toString() : QString::fromStdString(checkStr(L, 1));
+  const QString user = lua_isnoneornil(L, 1) ? b->current().value(QStringLiteral("me")).toString() : QString::fromStdString(checkStr(L, 1));
+  const QString plugin = lua_isnoneornil(L, 2) ? self(L)->id() : QString::fromStdString(checkStr(L, 2));
   bool found = false;
-  const QJsonObject st = b->stateOf(user, &found);
+  const QJsonObject st = b->stateOf(user, plugin, &found);
   if (!found) {
     lua_pushnil(L);
     return 1;
@@ -757,11 +759,16 @@ int runState(lua_State* L) {
   return 1;
 }
 
+// fb.run.states([plugin_id]): {user_id = state} of that plugin (default: the calling plugin).
 int runStates(lua_State* L) {
-  pushValue(L, valueFromJson(runBridge(L)->states()));
+  RunBridge* b = runBridge(L);
+  const QString plugin = lua_isnoneornil(L, 1) ? self(L)->id() : QString::fromStdString(checkStr(L, 1));
+  pushValue(L, valueFromJson(b->states(plugin)));
   return 1;
 }
 
+// fb.run.setState(tbl): replaces the calling plugin's state of the own participant. Coalesced per plugin: the bridge keeps
+// the latest value and the RunClient sends at most 4 writes per second for each plugin.
 int runSetState(lua_State* L) {
   RunBridge* b = runBridge(L);
   luaL_checktype(L, 1, LUA_TTABLE);
@@ -771,7 +778,7 @@ int runSetState(lua_State* L) {
   QJsonObject o;
   QString e;
   if (!jsonObjectFromValue(v, o, e)) luaL_error(L, "fb.run.setState: %s", e.toUtf8().constData());
-  e = b->setState(o);
+  e = b->setState(self(L)->id(), o);
   if (!e.isEmpty()) return pushRefusal(L, e);
   lua_pushboolean(L, 1);
   return 1;
