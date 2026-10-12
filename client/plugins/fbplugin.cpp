@@ -1,3 +1,22 @@
+// .fbplugin reader. The inflate part (struct Bits ... inflateRaw) is derived from puff.c of zlib and altered: output cap,
+// complete-code checks reduced to over-subscription, C++ with Qt types. Original notice of puff.c:
+//
+//   puff.c  Copyright (C) 2002-2013 Mark Adler, all rights reserved  version 2.3, 21 Jan 2013
+//
+//   This software is provided 'as-is', without any express or implied warranty.  In no event will the author be held
+//   liable for any damages arising from the use of this software.
+//
+//   Permission is granted to anyone to use this software for any purpose, including commercial applications, and to
+//   alter it and redistribute it freely, subject to the following restrictions:
+//
+//   1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software.
+//      If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is
+//      not required.
+//   2. Altered source versions must be plainly marked as such, and must not be misrepresented as being the original
+//      software.
+//   3. This notice may not be removed or altered from any source distribution.
+//
+//   Mark Adler    madler@alumni.caltech.edu
 #include "fbplugin.h"
 
 #include <QCryptographicHash>
@@ -222,7 +241,6 @@ QString nameProblem(const QByteArray& raw, QString* nameOut) {
   for (const QString& p : parts) {
     if (p.isEmpty()) return QStringLiteral("entry name '%1' has an empty path segment").arg(name);
     if (p == QLatin1String(".") || p == QLatin1String("..")) return QStringLiteral("entry name '%1' has a '.' or '..' segment").arg(name);
-    if (p.endsWith(QLatin1Char('.')) || p.endsWith(QLatin1Char(' '))) return QStringLiteral("entry name '%1' has a segment ending in '.' or space").arg(name);
   }
   return {};
 }
@@ -347,7 +365,11 @@ FbPluginResult readFbPlugin(const QByteArray& b, const QList<QByteArray>& truste
     const QByteArray rawName = b.mid(p + 46, nlen);
     p += 46 + nlen + xlen + clen;
 
-    if (rawName.endsWith('/')) continue;  // directory entries are ignored
+    if (rawName.endsWith('/')) {  // directory entries: the name is checked like any other (as the Hub does), then ignored
+      QString dirName;
+      if (const QString why = nameProblem(rawName.left(rawName.size() - 1), &dirName); !why.isEmpty()) return fail(why);
+      continue;
+    }
 
     QString name;
     if (const QString why = nameProblem(rawName, &name); !why.isEmpty()) return fail(why);

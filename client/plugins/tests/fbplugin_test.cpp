@@ -80,8 +80,6 @@ class FbPluginTest : public QObject {
     QTest::newRow("stream") << "main.lua:stream";
     QTest::newRow("empty segment") << "a//b.lua";
     QTest::newRow("control char") << QString("a\x01").append("b.lua");
-    QTest::newRow("trailing dot") << "evil.lua.";
-    QTest::newRow("trailing space segment") << "dir /x.lua";
     QTest::newRow("too long") << QString(300, 'a') + ".lua";
   }
   void badNames() {
@@ -98,8 +96,9 @@ class FbPluginTest : public QObject {
   }
 
   void directoryEntriesAreIgnored() {
-    // Names of directory entries are never used, so even a hostile one does no harm.
-    const FbPluginResult r = read(base() + QList<ZipEntrySpec>{{"../", ""}, {"a/b/", ""}, {"a/b/c.txt", "1"}});
+    // Directory entries are ignored, but their names are checked like file names (as the Hub does).
+    QVERIFY(!read(base() + QList<ZipEntrySpec>{{"../", ""}}).ok);
+    const FbPluginResult r = read(base() + QList<ZipEntrySpec>{{"a/b/", ""}, {"a/b/c.txt", "1"}});
     QVERIFY2(r.ok, qPrintable(r.error));
     QCOMPARE(r.package.files.size(), 3);
   }

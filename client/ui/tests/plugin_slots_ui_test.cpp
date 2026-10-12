@@ -380,7 +380,7 @@ class PluginSlotsUiTest : public QObject {
     QCOMPARE(sent.at(0).at(3).toInt(), 7);
 
     // Four tabs (Game + 3): only Game and the open tab keep their label; the others are icon-only.
-    pc()->setPreviewUi({{"panelTabs", QVariantList{tabEntry("net.test.a", "SoulLink", "news"), tabEntry("net.test.b", "Item Helper", {}, false, "hub"),
+    pc()->setPreviewUi({{"panelTabs", QVariantList{tabEntry("net.test.a", "SoulLink", "news"), tabEntry("net.test.b", "Item Helper", {}, false, "unverified"),
                                                     tabEntry("net.test.c", "Party Editor")}},
                         {"trees", trees}});
     QTRY_COMPARE(visibleCount("panelTabLabel"), 2);  // Game + the open SoulLink tab
@@ -708,13 +708,13 @@ class PluginSlotsUiTest : public QObject {
   // ---------------------------------------------------------------- plugin hotkeys (Controllers > Hotkeys, keys in game)
 
   QVariantMap hotkeyUi() {
-    return {{"panelTabs", QVariantList{tabEntry("net.test.a", "SoulLink", "", false, "official"), tabEntry("net.test.b", "Item Helper", "", false, "hub")}},
+    return {{"panelTabs", QVariantList{tabEntry("net.test.a", "SoulLink", "", false, "official"), tabEntry("net.test.b", "Item Helper", "", false, "unverified")}},
             {"hudWidgets", QVariantList{hudEntry("net.test.a", "SoulLink", "bottom-left", "Team")}},
             {"hotkeyPlugins",
              QVariantList{hotkeyPlugin("net.test.a", "SoulLink & Nuzlocke", "official",
                                        {hotkeyDecl("toggle-hud", "Show or hide HUD widget", "Ctrl+H"), hotkeyDecl("team", "Open team", "Ctrl+D"),
                                         hotkeyDecl("reload", "Reload run", "Ctrl+R")}),
-                          hotkeyPlugin("net.test.b", "Item Helper", "hub",
+                          hotkeyPlugin("net.test.b", "Item Helper", "unverified",
                                        {hotkeyDecl("peek", "Peek bag", "Ctrl+H"), hotkeyDecl("fs", "Quick save", "F11"), hotkeyDecl("bag", "Open bag", "F8")})}}};
   }
 

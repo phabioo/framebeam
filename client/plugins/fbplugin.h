@@ -5,9 +5,9 @@
 //
 // Limits: file <= 32 MiB, sum of uncompressed sizes <= 64 MiB, <= 2000 entries, names are relative paths with '/'
 // (no leading '/', no '\', no drive letter, no '.' or '..' segment, no empty segment, <= 255 bytes, no duplicates
-// ignoring case, no symlinks). Directory entries (trailing '/') are ignored. Stricter than the shared contract and to be
-// mirrored by the Hub (Windows safety): names with ':' (alternate data streams), control characters, segments that end
-// in '.' or ' ', invalid UTF-8, and a file that is also used as a folder.
+// ignoring case, no symlinks). Directory entries (trailing '/') are name-checked like files, then ignored. Same rules as
+// server/internal/pluginpkg (also ':' anywhere, control characters, invalid UTF-8, a file that is also the folder of
+// another file).
 #include <QByteArray>
 #include <QList>
 #include <QMap>
