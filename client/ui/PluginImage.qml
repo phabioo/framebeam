@@ -1,0 +1,91 @@
+import QtQuick
+
+// image block: sprite / icon in the size set l = 68x56, m = 40x30, s = 24x18, nearest-neighbour. States: alive,
+// dead (grey + cross at 55 % opacity, never red), missed (dashed outline), empty (placeholder). `owner` = player color dot.
+Item {
+    id: root
+    property var node: ({})
+    property bool dark: true
+    property string pluginId: ""
+    // Direct use (list rows, map markers): overrides of the node.
+    property string src: node.src || ""
+    property string size: node.size || "m"
+    property string imgState: node.state || "alive"
+    property int owner: node.owner || 0
+
+    readonly property int w: size === "l" ? 68 : (size === "s" ? 24 : 40)
+    readonly property int h: size === "l" ? 56 : (size === "s" ? 18 : 30)
+    readonly property url source: Theme.pluginImageUrl(pluginId, src)
+    implicitWidth: w
+    implicitHeight: h
+    width: implicitWidth
+    height: implicitHeight
+
+    Rectangle {
+        anchors.fill: parent
+        radius: 4
+        color: root.imgState === "empty" ? "transparent" : Theme.blockColor("hover", root.dark)
+        visible: root.imgState !== "alive" || img.status !== Image.Ready
+        opacity: root.imgState === "dead" ? 0.55 : 1
+    }
+    Image {
+        id: img
+        objectName: "pluginImageSprite"
+        anchors.fill: parent
+        source: root.imgState === "empty" ? "" : root.source
+        smooth: false
+        asynchronous: true
+        fillMode: Image.PreserveAspectFit
+        opacity: root.imgState === "dead" ? 0.55 : 1
+    }
+    Rectangle {  // dead: grey wash over the sprite
+        visible: root.imgState === "dead"
+        anchors.fill: parent
+        radius: 4
+        color: Theme.blockColor("textFaint", root.dark)
+        opacity: 0.35
+    }
+    Text {
+        visible: root.imgState === "dead"
+        anchors.centerIn: parent
+        text: "✕"
+        opacity: 0.55
+        font.pixelSize: Math.round(root.h * 0.6)
+        font.weight: Font.DemiBold
+        color: Theme.blockColor("textMuted", root.dark)
+    }
+    Canvas {
+        id: dash
+        visible: root.imgState === "missed" || root.imgState === "empty"
+        anchors.fill: parent
+        property color line: Theme.blockColor("missedLine", root.dark)
+        onLineChanged: requestPaint()
+        onWidthChanged: requestPaint()
+        onHeightChanged: requestPaint()
+        onVisibleChanged: if (visible) requestPaint()
+        onPaint: {
+            const ctx = getContext("2d")
+            ctx.reset()
+            ctx.strokeStyle = line
+            ctx.lineWidth = 1.5
+            ctx.setLineDash([3, 3])
+            ctx.strokeRect(1, 1, width - 2, height - 2)
+        }
+    }
+    Rectangle {  // owner dot (8) with a ring in the surface color
+        visible: root.owner > 0
+        width: 10
+        height: 10
+        radius: 5
+        x: parent.width - 7
+        y: parent.height - 7
+        color: Theme.blockColor("ownerRing", root.dark)
+        Rectangle {
+            anchors.centerIn: parent
+            width: 8
+            height: 8
+            radius: 4
+            color: Theme.playerColor(root.owner, root.dark)
+        }
+    }
+}

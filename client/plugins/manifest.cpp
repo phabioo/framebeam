@@ -61,6 +61,80 @@ QString permissionError(const QString& p) {
   return QStringLiteral("unknown permission '%1'").arg(p);
 }
 
+// Titles: 1..40 chars.
+QString parseTitleObject(const QJsonValue& v, const char* field, QString& title) {
+  const QString f = QLatin1String(field);
+  if (!v.isObject()) return QStringLiteral("ui.%1 must be an object like {\"title\": \"...\"}").arg(f);
+  const QJsonObject o = v.toObject();
+  for (auto it = o.begin(); it != o.end(); ++it)
+    if (it.key() != QLatin1String("title")) return QStringLiteral("ui.%1: unknown key '%2'").arg(f, it.key());
+  if (!o.value(QLatin1String("title")).isString()) return QStringLiteral("ui.%1.title is required and must be a string").arg(f);
+  title = o.value(QLatin1String("title")).toString();
+  if (title.isEmpty() || title.size() > 40) return QStringLiteral("ui.%1.title must be 1 to 40 characters").arg(f);
+  return {};
+}
+
+QString parseUi(const QJsonValue& v, UiDecl& ui) {
+  if (!v.isObject()) return QStringLiteral("manifest field 'ui' must be an object");
+  const QJsonObject o = v.toObject();
+  static const QStringList known = {QStringLiteral("panel"), QStringLiteral("hud"), QStringLiteral("tile"), QStringLiteral("screen"),
+                                    QStringLiteral("detail"), QStringLiteral("hotkeys")};
+  for (auto it = o.begin(); it != o.end(); ++it)
+    if (!known.contains(it.key())) return QStringLiteral("ui: unknown key '%1'").arg(it.key());
+  auto flag = [&](const char* key, bool& out) -> QString {
+    const QJsonValue b = o.value(QLatin1String(key));
+    if (b.isUndefined() || b.isNull()) return {};
+    if (!b.isBool()) return QStringLiteral("ui.%1 must be true or false").arg(QLatin1String(key));
+    out = b.toBool();
+    return {};
+  };
+  if (o.contains(QLatin1String("panel")) && !o.value(QLatin1String("panel")).isNull()) {
+    if (const QString e = parseTitleObject(o.value(QLatin1String("panel")), "panel", ui.panelTitle); !e.isEmpty()) return e;
+    ui.panel = true;
+  }
+  if (o.contains(QLatin1String("screen")) && !o.value(QLatin1String("screen")).isNull()) {
+    if (const QString e = parseTitleObject(o.value(QLatin1String("screen")), "screen", ui.screenTitle); !e.isEmpty()) return e;
+    ui.screen = true;
+  }
+  if (QString e = flag("hud", ui.hud); !e.isEmpty()) return e;
+  if (QString e = flag("tile", ui.tile); !e.isEmpty()) return e;
+  if (QString e = flag("detail", ui.detail); !e.isEmpty()) return e;
+
+  const QJsonValue hv = o.value(QLatin1String("hotkeys"));
+  if (!hv.isUndefined() && !hv.isNull()) {
+    if (!hv.isArray()) return QStringLiteral("ui.hotkeys must be an array");
+    const QJsonArray arr = hv.toArray();
+    if (arr.size() > 16) return QStringLiteral("ui.hotkeys: at most 16 hotkeys");
+    static const QRegularExpression idRe(QStringLiteral("^[a-z0-9-]{1,32}$"));
+    for (int i = 0; i < arr.size(); ++i) {
+      const QString at = QStringLiteral("ui.hotkeys[%1]").arg(i);
+      if (!arr[i].isObject()) return at + QStringLiteral(" must be an object with id, label and optional key");
+      const QJsonObject ho = arr[i].toObject();
+      for (auto it = ho.begin(); it != ho.end(); ++it)
+        if (it.key() != QLatin1String("id") && it.key() != QLatin1String("label") && it.key() != QLatin1String("key"))
+          return at + QStringLiteral(": unknown key '%1'").arg(it.key());
+      UiHotkey hk;
+      if (!ho.value(QLatin1String("id")).isString() || !idRe.match(ho.value(QLatin1String("id")).toString()).hasMatch())
+        return at + QStringLiteral(".id must match [a-z0-9-] and be 1 to 32 characters");
+      hk.id = ho.value(QLatin1String("id")).toString();
+      for (const UiHotkey& other : std::as_const(ui.hotkeys))
+        if (other.id == hk.id) return at + QStringLiteral(".id '%1' is not unique").arg(hk.id);
+      if (!ho.value(QLatin1String("label")).isString() || ho.value(QLatin1String("label")).toString().isEmpty() ||
+          ho.value(QLatin1String("label")).toString().size() > 60)
+        return at + QStringLiteral(".label must be 1 to 60 characters");
+      hk.label = ho.value(QLatin1String("label")).toString();
+      const QJsonValue kv = ho.value(QLatin1String("key"));
+      if (!kv.isUndefined() && !kv.isNull()) {
+        if (!kv.isString() || kv.toString().trimmed().isEmpty() || kv.toString().size() > 40 || kv.toString().contains(QLatin1Char(',')))
+          return at + QStringLiteral(".key must be one key combination such as Ctrl+H");
+        hk.key = kv.toString().trimmed();
+      }
+      ui.hotkeys.append(hk);
+    }
+  }
+  return {};
+}
+
 ManifestResult fail(const QString& msg) {
   ManifestResult r;
   r.error = msg;
@@ -160,6 +234,31 @@ bool GamePattern::matches(const QString& sys, const QString& code) const {
   for (const QString& c : codes)
     if (globMatch(c, code)) return true;
   return false;
+}
+
+bool validUiId(const QString& s) {
+  static const QRegularExpression re(QStringLiteral("^[A-Za-z0-9_.-]{1,64}$"));
+  return re.match(s).hasMatch();
+}
+
+bool UiDecl::declaresSlot(const QString& slot) const {
+  if (slot == QLatin1String("panel")) return panel;
+  if (slot == QLatin1String("hud")) return hud;
+  if (slot == QLatin1String("screen")) return screen;
+  if (slot == QLatin1String("detail")) return detail;
+  if (slot.startsWith(QLatin1String("tile:"))) return tile && validUiId(slot.mid(5));
+  return false;
+}
+
+QString UiDecl::addsText() const {
+  QStringList parts;
+  if (panel) parts << QStringLiteral("panel tab");
+  if (hud) parts << QStringLiteral("HUD");
+  if (tile) parts << QStringLiteral("tile strip");
+  if (screen) parts << QStringLiteral("%1 screen").arg(screenTitle);
+  if (detail) parts << QStringLiteral("game detail");
+  if (!hotkeys.isEmpty()) parts << QStringLiteral("%1 hotkey%2").arg(hotkeys.size()).arg(hotkeys.size() == 1 ? QString() : QStringLiteral("s"));
+  return parts.isEmpty() ? QString() : QStringLiteral("Adds: ") + parts.join(QStringLiteral(" · "));
 }
 
 bool Manifest::matchesGame(const QString& system, const QString& code) const {
@@ -308,6 +407,12 @@ ManifestResult parseManifest(const QByteArray& json, const QString& pluginDir) {
   if (!sv.isUndefined() && !sv.isNull()) {
     if (!sv.isObject()) return fail(QStringLiteral("manifest field 'settings' must be an object"));
     m.settings = sv.toObject();
+  }
+
+  const QJsonValue uiV = o.value(QLatin1String("ui"));
+  if (!uiV.isUndefined() && !uiV.isNull()) {
+    if (const QString e = parseUi(uiV, m.ui); !e.isEmpty()) return fail(e);
+    if (!m.hasPermission(QStringLiteral("ui"))) return fail(QStringLiteral("field `ui` needs permission `ui`"));
   }
 
   ManifestResult r;

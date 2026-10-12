@@ -39,6 +39,31 @@ Item {
     readonly property real pipViewHeight: Math.max(60, Math.min(384, (height - 2 * pipMargin - pipTiles * pipChrome - (pipTiles - 1) * pipSpacing) / pipTiles))
     readonly property real pipTileHeight: pipChrome + pipViewHeight
 
+    // Plugin tile strips: the visible remote tiles go to the plugins (fb "tiles" event); the strips come back per tile.
+    readonly property var remoteTiles: {
+        if (!root.visible) return []
+        var o = root.ctl.surfaceOrder, info = root.ctl.surfaceInfo, r = []
+        for (var i = 0; i < o.length; ++i) {
+            if (o[i] === "local") continue
+            var si = info[o[i]] || ({})
+            r.push({ id: o[i], player: si.who || "", game: si.game || "" })
+        }
+        return r
+    }
+    onRemoteTilesChanged: root.player.plugins.setTiles(root.remoteTiles)
+    property var stripChoice: ({})                 // tile id -> chosen plugin id (several plugins offer a strip)
+    PluginMenu {
+        id: stripMenu
+        property string tileId: ""
+        onCloseRequested: open = false
+        onPicked: (id) => {
+            open = false
+            var c = Object.assign({}, root.stripChoice)
+            c[stripMenu.tileId] = id
+            root.stripChoice = c
+        }
+    }
+
     // One entry per surface, synced incrementally: adding or removing a Session must not recreate the other
     // surfaces (above all not the local game view).
     ListModel { id: surfaceModel }
@@ -236,6 +261,61 @@ Item {
                 color: sel ? Theme.gameSelection : Theme.gameBadge
                 FbMono { anchors.centerIn: parent; text: String(tile.slot + 1); font.pixelSize: 11; color: parent.sel ? "#121315" : Theme.gameBadgeText }
             }
+            // Plugin tile strip (remote tiles only): 20 high, 8 px right of the key badge, inside the audio ring
+            property var stripList: []
+            function refreshStrips() { tile.stripList = tile.isLocal ? [] : root.player.plugins.tileStrips(tile.modelData) }
+            Component.onCompleted: refreshStrips()
+            Connections {
+                target: root.player.plugins
+                function onTileStripsChanged() { tile.refreshStrips() }
+            }
+            readonly property var strip: {
+                var l = tile.stripList, want = root.stripChoice[tile.modelData]
+                for (var i = 0; i < l.length; ++i) if (l[i].pluginId === want) return l[i]
+                return l.length > 0 ? l[0] : null
+            }
+            Loader {
+                id: stripLoader
+                active: !tile.isLocal && tile.strip !== null
+                readonly property real stripX: tile.multiple ? (tile.pipTile ? 8 : 10) + 20 + 8 : (tile.pipTile ? 8 : 10)
+                x: stripX
+                y: tile.pipTile ? 8 : 10
+                z: 6
+                sourceComponent: PluginTileStrip {
+                    player: root.player
+                    tileId: tile.modelData
+                    strip: tile.strip
+                    maxWidth: Math.max(60, tile.width - stripLoader.stripX - (tile.pipTile ? 64 : 34) - (tile.stripList.length > 1 ? 24 : 0))
+                }
+            }
+            Rectangle {
+                id: stripMore
+                objectName: "tileStripMore_" + tile.modelData
+                visible: stripLoader.active && tile.stripList.length > 1 && (tapHover.hovered || moreHover.hovered)
+                x: stripLoader.x + (stripLoader.item ? stripLoader.item.width : 0) + 4
+                y: stripLoader.y
+                z: 6
+                width: 20; height: 20; radius: 5
+                color: moreHover.hovered ? Theme.gameSegmentOn : Theme.gameChip
+                Accessible.role: Accessible.Button
+                Accessible.name: qsTr("Choose the strip")
+                Text { anchors.centerIn: parent; text: "⋯"; font.pixelSize: 14; color: Theme.gameText }
+                HoverHandler { id: moreHover; cursorShape: Qt.PointingHandCursor }
+                TapHandler {
+                    onTapped: {
+                        var items = []
+                        for (var i = 0; i < tile.stripList.length; ++i)
+                            items.push({ id: tile.stripList[i].pluginId, text: tile.stripList[i].name || tile.stripList[i].pluginId,
+                                         checked: tile.strip && tile.strip.pluginId === tile.stripList[i].pluginId })
+                        stripMenu.tileId = tile.modelData
+                        stripMenu.items = items
+                        stripMenu.menuWidth = 220
+                        stripMenu.anchorItem = stripMore
+                        stripMenu.open = true
+                    }
+                }
+            }
+
             // PiP window: swap and remove
             Row {
                 visible: tile.pipTile

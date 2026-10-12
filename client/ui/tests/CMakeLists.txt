@@ -161,8 +161,34 @@ framebeam_add_test(ui_plugins plugins_ui_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp 
 target_include_directories(test_ui_plugins PRIVATE ${FB_NETTEST_DIR})
 target_compile_definitions(test_ui_plugins PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
 
+# Plugin UI slots (sidebar entry + screen, Settings "Adds", panel tabs, HUD, notices, tile strips) in the preview game.
+# With FRAMEBEAM_SCREENSHOT_DIR it also saves PNGs for the review.
+framebeam_add_test(ui_plugin_slots plugin_slots_ui_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
+  LIBS ${FB_UI_TEST_LIBS})
+target_include_directories(test_ui_plugin_slots PRIVATE ${FB_NETTEST_DIR})
+target_compile_definitions(test_ui_plugin_slots PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
+
+# Plugin hotkeys in Controllers > Hotkeys (groups, conflicts, capture, persistence).
+framebeam_add_test(ui_plugin_hotkeys plugin_hotkeys_ui_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
+  LIBS ${FB_UI_TEST_LIBS})
+target_include_directories(test_ui_plugin_hotkeys PRIVATE ${FB_NETTEST_DIR})
+target_compile_definitions(test_ui_plugin_hotkeys PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
+
+# Plugin game detail section + "Plugins" status row in the Library detail column (real Lua plugin in the shell context).
+framebeam_add_test(ui_plugin_detail plugin_detail_ui_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
+  LIBS ${FB_UI_TEST_LIBS})
+target_include_directories(test_ui_plugin_detail PRIVATE ${FB_NETTEST_DIR})
+target_compile_definitions(test_ui_plugin_detail PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
+
+# Plugin UI building blocks (PluginBlock / PluginMapView) in isolation: every block dark and light, actions, confirmation,
+# map selection / filter / clusters / keyboard. With FRAMEBEAM_SCREENSHOT_DIR it also saves PNGs for the review.
+framebeam_add_test(ui_plugin_blocks plugin_blocks_ui_test.cpp LIBS ${FB_UI_TEST_LIBS})
+
 # Plugins end to end against the FrameBeam test core: EmulationRunner + memory adapter + PluginHost + fb.codec.pk6_decrypt.
 framebeam_add_test(plugins_e2e_testcore plugins_e2e_test.cpp LIBS framebeam_ui framebeam_core framebeam_emulation framebeam_plugins TEST_CORE)
 target_compile_definitions(test_plugins_e2e_testcore PRIVATE FB_TEST_ROM_PATH="${FB_ROM_DIR}/framebeam_test.nds")
 add_dependencies(test_plugins_e2e_testcore framebeam_test_rom)
 target_include_directories(test_plugins_e2e_testcore PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../emulation/tests)
+
+# Plugin UI runtime in the PluginsController (shell context, models, actions, toasts) and the image://fbplugin rules.
+framebeam_add_test(ui_plugins_runtime plugins_runtime_ui_test.cpp LIBS framebeam_ui framebeam_core framebeam_emulation framebeam_plugins Qt6::Quick)

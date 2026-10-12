@@ -124,7 +124,7 @@ void PluginEngine::emitEvent(Plugin& p, const std::string& name, Value value) {
   line.name = qs(name);
   line.text = qs(shortText(value));
   store.addEvent(p.id(), line);
-  events.push_back({p.id(), name, std::move(value)});
+  events.push_back({p.id(), name, std::move(value), QString()});
 }
 
 void PluginEngine::syncWatches(Plugin& p) {
@@ -145,6 +145,8 @@ void PluginEngine::releaseState(Plugin& p) {
   p.watches.clear();
   p.devWatches.clear();
   p.lastRows.clear();
+  p.actionRef = LUA_NOREF;
+  p.uiTrees.clear();
   syncWatches(p);
 }
 
@@ -153,6 +155,7 @@ void PluginEngine::pause(Plugin& p, const std::string& error) {
   const std::string first = LuaSandbox::firstLine(error);
   log(p, LogLevel::Error, "Paused: " + first);
   releaseState(p);
+  store.ui.markPaused(p.id());
   setStatus(p, PluginStatus::Paused, qs(error));
 }
 
@@ -216,6 +219,7 @@ void PluginEngine::start(const GameContext& c, std::shared_ptr<MemoryProvider> p
   QStringList ids;
   for (const PluginInfo& info : list) ids << info.manifest.id;
   store.reset(ids, PluginStatus::Loading);
+  store.ui.reset(ids);
   for (const PluginInfo& info : list) {
     auto p = std::make_unique<Plugin>();
     p->info = info;
@@ -228,6 +232,7 @@ void PluginEngine::start(const GameContext& c, std::shared_ptr<MemoryProvider> p
 void PluginEngine::stop() {
   for (auto& p : m_plugins) {
     releaseState(*p);
+    store.ui.clearPlugin(p->id());
     if (p->status != PluginStatus::Stopped) setStatus(*p, PluginStatus::Stopped, p->status == PluginStatus::Paused ? store.snapshot(p->id()).error : QString());
   }
   m_plugins.clear();
@@ -239,6 +244,7 @@ void PluginEngine::reload(const QString& id) {
   Plugin* p = find(id);
   if (!p) return;
   releaseState(*p);
+  store.ui.clearPlugin(p->id());
   p->status = PluginStatus::Loading;
   p->i18n.clear();
   const ManifestResult m = loadManifest(p->info.path);
@@ -261,7 +267,7 @@ void PluginEngine::deliverEvents() {
       if (p.status != PluginStatus::Running) continue;
       std::vector<int> refs;
       for (const EventSub& s : p.subs)
-        if (qs(ev.name) == s.name && (s.plugin == QLatin1String("*") || s.plugin == ev.from)) refs.push_back(s.ref);
+        if ((ev.target.isEmpty() || ev.target == p.id()) && qs(ev.name) == s.name && (s.plugin == QLatin1String("*") || s.plugin == ev.from)) refs.push_back(s.ref);
       for (int ref : refs) {
         callRef(p, ref, [&](lua_State* L) {
           pushValue(L, ev.value);
@@ -272,6 +278,31 @@ void PluginEngine::deliverEvents() {
         if (p.status != PluginStatus::Running) break;
       }
     }
+  }
+}
+
+void PluginEngine::deliverAction(const QString& pluginId, const QString& slot, const QString& action, const Value& value) {
+  Plugin* p = find(pluginId);
+  if (!p || p->status != PluginStatus::Running || p->actionRef == LUA_NOREF) return;
+  const QByteArray a = action.toUtf8();
+  const QByteArray sl = slot.toUtf8();
+  callRef(*p, p->actionRef, [&](lua_State* L) {
+    lua_pushlstring(L, a.constData(), static_cast<size_t>(a.size()));
+    pushValue(L, value);
+    lua_pushlstring(L, sl.constData(), static_cast<size_t>(sl.size()));
+    return 3;
+  });
+}
+
+void PluginEngine::postHostEvent(const QString& name, Value value, const QString& target) {
+  if (events.size() >= kMaxQueuedEvents) return;
+  events.push_back({QStringLiteral("fb"), name.toStdString(), std::move(value), target});
+}
+
+void PluginEngine::clearSlotEverywhere(const QString& slot) {
+  for (auto& p : m_plugins) {
+    p->uiTrees.erase(slot);
+    store.ui.clearSlot(p->id(), slot);
   }
 }
 

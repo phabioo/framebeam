@@ -7,6 +7,7 @@ Rectangle {
     id: root
     required property PlayerController player
     readonly property var ctl: root.player.controllers
+    readonly property var plugins: root.player.plugins
     readonly property bool isMouse: root.ctl.device.kind === "mouse"
     property bool renaming: false
     property bool confirmDelete: false
@@ -33,6 +34,7 @@ Rectangle {
     onVisibleChanged: if (visible) keyScope.forceActiveFocus()
     Connections {
         target: root.ctl
+        function onHotkeysChanged() { if (root.ctl.hotkeyListening !== "" || root.ctl.padHotkeyListening !== "") root.plugins.cancelHotkeyCapture() }
         function onSelectionChanged() { root.renaming = false; root.confirmDelete = false }
         function onProfilesChanged() { root.confirmDelete = false }
     }
@@ -44,7 +46,9 @@ Rectangle {
         focus: root.visible
         Keys.onPressed: event => {
             if (root.renaming) { return }
-            if (root.ctl.captureKey(event.key)) {
+            if (root.hotkeysTab && root.plugins.captureHotkey(event.key, event.modifiers)) {
+                event.accepted = true
+            } else if (root.ctl.captureKey(event.key)) {
                 event.accepted = true
             } else if (!event.isAutoRepeat) {
                 root.ctl.testKey(event.key, true)
@@ -259,8 +263,8 @@ Rectangle {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0  // chips + "Reset N changed" must not widen the whole column on narrow windows
                         spacing: Theme.space8
-                        FbChip { objectName: "tabButtons"; text: qsTr("Buttons"); active: !root.hotkeysTab; onClicked: { root.ctl.cancelHotkeyCapture(); root.tab = "buttons" } }
-                        FbChip { objectName: "tabHotkeys"; text: qsTr("Hotkeys"); active: root.hotkeysTab; onClicked: { root.ctl.cancelCapture(); root.tab = "hotkeys" } }
+                        FbChip { objectName: "tabButtons"; text: qsTr("Buttons"); active: !root.hotkeysTab; onClicked: { root.ctl.cancelHotkeyCapture(); root.plugins.cancelHotkeyCapture(); root.tab = "buttons" } }
+                        FbChip { objectName: "tabHotkeys"; text: qsTr("Hotkeys"); active: root.hotkeysTab; onClicked: { root.ctl.cancelCapture(); root.ctl.cancelHotkeyCapture(); root.tab = "hotkeys" } }
                         Item { Layout.fillWidth: true }
                         FbButton {
                             objectName: "resetChanged"
@@ -386,6 +390,18 @@ Rectangle {
                             Eyebrow { Layout.fillWidth: true; Layout.preferredWidth: root.hotkeyKeyWidth; Layout.minimumWidth: root.hotkeyKeyMinWidth; Layout.maximumWidth: root.hotkeyKeyWidth; text: qsTr("Key") }
                             Eyebrow { Layout.fillWidth: true; Layout.preferredWidth: root.hotkeyPadWidth; Layout.minimumWidth: root.hotkeyPadMinWidth; Layout.maximumWidth: root.hotkeyPadWidth; text: qsTr("Gamepad") }
                             Item { Layout.preferredWidth: root.actionWidth; Layout.minimumWidth: root.actionWidth; Layout.maximumWidth: root.actionWidth }
+                        }
+                        Rectangle { Layout.fillWidth: true; height: 1; color: Theme.borderRow }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            Layout.topMargin: Theme.space8
+                            Layout.bottomMargin: 6
+                            spacing: Theme.space8
+                            Eyebrow { objectName: "frameBeamHotkeyGroup"; text: qsTr("FrameBeam"); Layout.fillWidth: false }
+                            Item { Layout.fillWidth: true }
+                            FbMono { text: qsTr("always win"); color: Theme.textMuted }
                         }
                         Rectangle { Layout.fillWidth: true; height: 1; color: Theme.borderRow }
 
@@ -547,6 +563,244 @@ Rectangle {
                                 }
                                 Rectangle { Layout.fillWidth: true; height: 1; color: Theme.borderRow }
                             }
+                        }
+                        // Fixed FrameBeam keys that are not Player actions of the table above: F4 and the panel tabs.
+                        Repeater {
+                            model: [
+                                { id: "hudAll", label: qsTr("Hide all HUD widgets"), key: "F4" },
+                                { id: "panelTabs", label: qsTr("Panel tabs"), key: "Alt+1 … Alt+9" }
+                            ]
+                            delegate: ColumnLayout {
+                                id: frow
+                                required property var modelData
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 0
+                                spacing: 0
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Layout.topMargin: 6
+                                    Layout.bottomMargin: 6
+                                    spacing: Theme.space16
+                                    FbLabel { Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; text: frow.modelData.label; elide: Text.ElideRight }
+                                    Rectangle {
+                                        objectName: "hotkeyField_" + frow.modelData.id
+                                        Layout.fillWidth: true
+                                        Layout.preferredWidth: root.hotkeyKeyWidth
+                                        Layout.minimumWidth: root.hotkeyKeyMinWidth
+                                        Layout.maximumWidth: root.hotkeyKeyWidth
+                                        implicitHeight: 30
+                                        radius: Theme.radius6
+                                        color: Theme.surface
+                                        border.width: 1
+                                        border.color: Theme.borderInput
+                                        opacity: 0.85
+                                        FbLabel {
+                                            objectName: "hotkeyText_" + frow.modelData.id
+                                            anchors.fill: parent
+                                            anchors.leftMargin: 10
+                                            anchors.rightMargin: 4
+                                            verticalAlignment: Text.AlignVCenter
+                                            text: frow.modelData.key
+                                            color: Theme.text
+                                            font.pixelSize: Theme.fontSmall
+                                            elide: Text.ElideRight
+                                        }
+                                    }
+                                    Item { Layout.fillWidth: true; Layout.preferredWidth: root.hotkeyPadWidth; Layout.minimumWidth: root.hotkeyPadMinWidth; Layout.maximumWidth: root.hotkeyPadWidth }
+                                    FbLabel {
+                                        Layout.preferredWidth: root.actionWidth
+                                        Layout.minimumWidth: root.actionWidth
+                                        Layout.maximumWidth: root.actionWidth
+                                        text: qsTr("Fixed")
+                                        font.pixelSize: Theme.fontMeta
+                                        color: Theme.textDisabled
+                                    }
+                                }
+                                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.borderRow }
+                            }
+                        }
+
+                        // One group per plugin that declares hotkeys (keyboard only). FrameBeam keys always win; a plugin key in
+                        // conflict is not active until the user chooses another one.
+                        Repeater {
+                            model: root.plugins.hotkeyGroups
+                            delegate: ColumnLayout {
+                                id: pgroup
+                                required property var modelData
+                                objectName: "pluginHotkeyGroup_" + pgroup.modelData.pluginId
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 0
+                                Layout.topMargin: Theme.space16
+                                spacing: 0
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Layout.minimumWidth: 0
+                                    Layout.bottomMargin: 6
+                                    spacing: Theme.space8
+                                    Eyebrow { objectName: "pluginHotkeyName_" + pgroup.modelData.pluginId; text: pgroup.modelData.name; Layout.fillWidth: false; Layout.maximumWidth: 260 }
+                                    FbPill {
+                                        objectName: "pluginHotkeyOrigin_" + pgroup.modelData.pluginId
+                                        visible: pgroup.modelData.marker !== ""
+                                        small: true
+                                        tone: "neutral"
+                                        text: pgroup.modelData.marker
+                                    }
+                                    Item { Layout.fillWidth: true }
+                                    FbMono {
+                                        objectName: "pluginHotkeyCount_" + pgroup.modelData.pluginId
+                                        text: pgroup.modelData.conflicts > 0
+                                              ? qsTr("%n key(s) · %1 conflict(s)", "", pgroup.modelData.count).arg(pgroup.modelData.conflicts)
+                                              : qsTr("%n key(s)", "", pgroup.modelData.count)
+                                        color: pgroup.modelData.conflicts > 0 ? Theme.pluginWarn : Theme.textMuted
+                                    }
+                                }
+                                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.borderRow }
+                                Repeater {
+                                    model: pgroup.modelData.rows
+                                    delegate: ColumnLayout {
+                                        id: prow
+                                        required property var modelData
+                                        readonly property string rid: prow.modelData.pluginId + "_" + prow.modelData.id
+                                        readonly property bool conflict: prow.modelData.conflict
+                                        Layout.fillWidth: true
+                                        Layout.minimumWidth: 0
+                                        spacing: 0
+                                        Rectangle {
+                                            Layout.fillWidth: true
+                                            Layout.minimumWidth: 0
+                                            implicitHeight: pcol.implicitHeight + 12
+                                            color: prow.conflict ? Theme.pluginWarnBg : "transparent"
+                                            border.width: prow.conflict ? 1 : 0
+                                            border.color: Theme.pluginWarnLine
+                                            radius: prow.conflict ? Theme.radius6 : 0
+                                            ColumnLayout {
+                                                id: pcol
+                                                anchors.fill: parent
+                                                anchors.leftMargin: prow.conflict ? 8 : 0
+                                                anchors.rightMargin: prow.conflict ? 8 : 0
+                                                anchors.topMargin: 6
+                                                spacing: 0
+                                                RowLayout {
+                                                    id: prowLine
+                                                    Layout.fillWidth: true
+                                                    spacing: Theme.space16
+                                                    RowLayout {
+                                                        Layout.fillWidth: true
+                                                        Layout.preferredWidth: 1
+                                                        Layout.minimumWidth: 0
+                                                        spacing: Theme.space8
+                                                        Rectangle {
+                                                            objectName: "pluginHotkeyChangedDot_" + prow.rid
+                                                            visible: prow.modelData.changed
+                                                            Layout.preferredWidth: 7
+                                                            Layout.preferredHeight: 7
+                                                            radius: 3.5
+                                                            color: Theme.accent
+                                                        }
+                                                        FbLabel { Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; text: prow.modelData.label; elide: Text.ElideRight }
+                                                    }
+                                                    Rectangle {
+                                                        objectName: "pluginHotkeyField_" + prow.rid
+                                                        Layout.fillWidth: true
+                                                        Layout.preferredWidth: root.hotkeyKeyWidth
+                                                        Layout.minimumWidth: root.hotkeyKeyMinWidth
+                                                        Layout.maximumWidth: root.hotkeyKeyWidth
+                                                        implicitHeight: 30
+                                                        radius: Theme.radius6
+                                                        color: Theme.surface
+                                                        border.width: prow.modelData.listening ? 1.5 : 1
+                                                        border.color: prow.modelData.listening ? Theme.accent : (prow.conflict ? Theme.pluginWarnLine : Theme.borderInput)
+                                                        RowLayout {
+                                                            anchors.fill: parent
+                                                            anchors.leftMargin: 10
+                                                            anchors.rightMargin: 4
+                                                            FbMono {
+                                                                objectName: "pluginHotkeyText_" + prow.rid
+                                                                Layout.fillWidth: true
+                                                                Layout.preferredWidth: 1
+                                                                Layout.minimumWidth: 0
+                                                                text: prow.modelData.listening ? qsTr("Press a key…") : prow.modelData.keyText
+                                                                color: prow.modelData.listening ? Theme.accent
+                                                                       : (prow.conflict ? Theme.pluginWarn : (prow.modelData.set ? Theme.text : Theme.textFaint))
+                                                                font.pixelSize: Theme.fontSmall
+                                                                elide: Text.ElideRight
+                                                            }
+                                                            FbButton {
+                                                                visible: prow.modelData.set && !prow.modelData.listening
+                                                                objectName: "pluginHotkeyClear_" + prow.rid
+                                                                kind: "link"
+                                                                text: "×"
+                                                                onClicked: root.plugins.clearHotkey(prow.modelData.pluginId, prow.modelData.id)
+                                                            }
+                                                        }
+                                                        TapHandler {
+                                                            onTapped: prow.modelData.listening ? root.plugins.cancelHotkeyCapture()
+                                                                                              : root.plugins.beginHotkeyCapture(prow.modelData.pluginId, prow.modelData.id)
+                                                        }
+                                                    }
+                                                    FbLabel {
+                                                        objectName: "pluginHotkeyPad_" + prow.rid
+                                                        Layout.fillWidth: true
+                                                        Layout.preferredWidth: root.hotkeyPadWidth
+                                                        Layout.minimumWidth: root.hotkeyPadMinWidth
+                                                        Layout.maximumWidth: root.hotkeyPadWidth
+                                                        text: "—"
+                                                        color: Theme.textDisabled
+                                                        font.pixelSize: Theme.fontSmall
+                                                    }
+                                                    RowLayout {
+                                                        Layout.preferredWidth: root.actionWidth
+                                                        Layout.minimumWidth: root.actionWidth
+                                                        Layout.maximumWidth: root.actionWidth
+                                                        FbButton {
+                                                            objectName: "pluginHotkeyReset_" + prow.rid
+                                                            Layout.maximumWidth: root.actionWidth
+                                                            visible: prow.modelData.changed
+                                                            kind: "link"
+                                                            font.underline: true
+                                                            font.pixelSize: Theme.fontMeta
+                                                            text: qsTr("Reset")
+                                                            onClicked: root.plugins.resetHotkey(prow.modelData.pluginId, prow.modelData.id)
+                                                        }
+                                                        FbLabel {
+                                                            visible: !prow.modelData.changed
+                                                            text: qsTr("Default")
+                                                            font.pixelSize: Theme.fontMeta
+                                                            color: Theme.textDisabled
+                                                        }
+                                                        Item { Layout.fillWidth: true }
+                                                    }
+                                                }
+                                                FbLabel {
+                                                    id: prowNote
+                                                    objectName: "pluginHotkeyNote_" + prow.rid
+                                                    visible: prow.conflict
+                                                    Layout.fillWidth: true
+                                                    Layout.preferredWidth: 1
+                                                    Layout.minimumWidth: 0
+                                                    text: prow.modelData.note
+                                                    color: Theme.pluginWarnText
+                                                    font.pixelSize: Theme.fontMeta
+                                                    wrapMode: Text.WordWrap
+                                                }
+                                            }
+                                        }
+                                        Rectangle { Layout.fillWidth: true; height: 1; color: Theme.borderRow }
+                                    }
+                                }
+                            }
+                        }
+                        FbLabel {
+                            objectName: "pluginHotkeyCaptureNote"
+                            visible: root.plugins.hotkeyNote !== ""
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 1
+                            Layout.minimumWidth: 0
+                            Layout.topMargin: Theme.space8
+                            text: root.plugins.hotkeyNote
+                            color: Theme.warn
+                            font.pixelSize: Theme.fontMeta
+                            wrapMode: Text.WordWrap
                         }
                         FbLabel {
                             objectName: "hotkeyNote"

@@ -42,6 +42,31 @@ struct Dependency {
   VersionRange range;
 };
 
+// Manifest field `ui` (plugin UI v1): which surfaces the plugin adds. Needs the permission `ui`.
+struct UiHotkey {
+  QString id;     // [a-z0-9-]{1,32}, unique
+  QString label;  // 1..60 chars
+  QString key;    // optional portable QKeySequence text (single combo)
+};
+struct UiDecl {
+  bool panel = false;
+  QString panelTitle;
+  bool hud = false;
+  bool tile = false;
+  bool screen = false;
+  QString screenTitle;
+  bool detail = false;
+  QList<UiHotkey> hotkeys;
+
+  bool any() const { return panel || hud || tile || screen || detail || !hotkeys.isEmpty(); }
+  // "panel", "hud", "screen", "detail" or "tile:<tileId>" (needs `tile`).
+  bool declaresSlot(const QString& slot) const;
+  // "Adds: panel tab · HUD · tile strip · <screen title> screen · game detail · n hotkeys"; empty when nothing.
+  QString addsText() const;
+};
+
+bool validUiId(const QString& s);  // [A-Za-z0-9_.-]{1,64}
+
 struct Manifest {
   QString id;
   QString name;
@@ -55,6 +80,7 @@ struct Manifest {
   QString entry;                   // relative path of the .lua entry file
   QStringList assets;
   QJsonObject settings;            // raw, schema not interpreted yet
+  UiDecl ui;                       // optional field "ui"
 
   bool matchesGame(const QString& system, const QString& code) const;
   bool hasPermission(const QString& p) const { return permissions.contains(p); }

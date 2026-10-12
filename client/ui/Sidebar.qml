@@ -16,6 +16,54 @@ Rectangle {
         color: Theme.borderSidebar
     }
 
+    Component {
+        id: navComp
+        Rectangle {
+            id: navItem
+            required property var modelData
+            objectName: modelData.name
+            // The model is constant (no binding on the screen), so delegates are never recreated.
+            readonly property bool active: modelData.target === root.player.screen
+            Layout.fillWidth: true
+            implicitHeight: 38
+            radius: Theme.radius6
+            color: navItem.active ? Theme.surfaceRaised : (navHover.hovered ? Theme.surface : "transparent")
+            Behavior on color { ColorAnimation { duration: Theme.durFast } }
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 10
+                anchors.rightMargin: 10
+                FbLabel {
+                    Layout.fillWidth: true
+                    text: navItem.modelData.label
+                    font.weight: navItem.active ? Font.Medium : Font.Normal
+                    color: navItem.active ? Theme.text : (navHover.hovered ? Theme.textSecondary : Theme.textMuted)
+                    Behavior on color { ColorAnimation { duration: Theme.durFast } }
+                }
+                // A newer Player is available (3p): small accent dot on Settings.
+                Rectangle {
+                    objectName: "settingsUpdateDot"
+                    visible: navItem.modelData.target === "settings" && root.player.updates.updateAvailable
+                    Layout.preferredWidth: 7
+                    Layout.preferredHeight: 7
+                    radius: 3.5
+                    color: Theme.accent
+                }
+            }
+            HoverHandler { id: navHover; cursorShape: Qt.PointingHandCursor }
+            TapHandler {
+                onTapped: {
+                    switch (navItem.modelData.target) {
+                    case "settings": root.player.showSettings(); break
+                    case "emulation": root.player.showEmulation(); break
+                    case "controllers": root.player.showControllers(); break
+                    default: root.player.showLibrary()
+                    }
+                }
+            }
+        }
+    }
+
     ColumnLayout {
         anchors.fill: parent
         anchors.leftMargin: Theme.space16
@@ -45,56 +93,65 @@ Rectangle {
             Layout.fillWidth: true
             spacing: 2
             Repeater {
+                model: [{ label: qsTr("Library"), name: "navLibrary", target: "library" }]
+                delegate: navComp
+            }
+            // Plugin screens (4f): one entry per plugin, indented under Library
+            Repeater {
+                model: root.player.plugins.sidebarEntries
+                delegate: Rectangle {
+                    id: plugItem
+                    required property var modelData
+                    objectName: "navPlugin_" + modelData.pluginId
+                    readonly property bool active: root.player.screen === "plugin" && root.player.pluginPageId === modelData.pluginId
+                    Layout.fillWidth: true
+                    implicitHeight: 34
+                    radius: Theme.radius6
+                    color: plugItem.active ? Theme.surfaceRaised : (plugHover.hovered ? Theme.surface : "transparent")
+                    Behavior on color { ColorAnimation { duration: Theme.durFast } }
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 22
+                        anchors.rightMargin: 10
+                        spacing: 8
+                        PluginTabIcon {
+                            Layout.alignment: Qt.AlignVCenter
+                            dark: Theme.dark
+                            size: 16
+                            chipRadius: 4
+                            name: plugItem.modelData.name || plugItem.modelData.title
+                            icon: plugItem.modelData.icon || ""
+                        }
+                        FbLabel {
+                            Layout.fillWidth: true
+                            text: plugItem.modelData.title
+                            elide: Text.ElideRight
+                            font.weight: plugItem.active ? Font.Medium : Font.Normal
+                            color: plugItem.active ? Theme.text : (plugHover.hovered ? Theme.textSecondary : Theme.textMuted)
+                        }
+                        Rectangle {
+                            objectName: "navPluginBadge"
+                            visible: plugItem.modelData.badge > 0
+                            Layout.preferredWidth: Math.max(18, badgeText.implicitWidth + 10)
+                            Layout.preferredHeight: 18
+                            radius: 9
+                            color: Theme.accentChipBg
+                            FbLabel { id: badgeText; anchors.centerIn: parent; text: plugItem.modelData.badge; font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.accent }
+                        }
+                    }
+                    Accessible.role: Accessible.Button
+                    Accessible.name: plugItem.modelData.title
+                    HoverHandler { id: plugHover; cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: root.player.showPluginScreen(plugItem.modelData.pluginId) }
+                }
+            }
+            Repeater {
                 model: [
-                    { label: qsTr("Library"), name: "navLibrary", target: "library" },
                     { label: qsTr("Emulation"), name: "navEmulation", target: "emulation" },
                     { label: qsTr("Controllers"), name: "navControllers", target: "controllers" },
                     { label: qsTr("Settings"), name: "navSettings", target: "settings" }
                 ]
-                delegate: Rectangle {
-                    id: navItem
-                    required property var modelData
-                    objectName: modelData.name
-                    // The model is constant (no binding on the screen), so delegates are never recreated.
-                    readonly property bool active: modelData.target === root.player.screen
-                    Layout.fillWidth: true
-                    implicitHeight: 38
-                    radius: Theme.radius6
-                    color: navItem.active ? Theme.surfaceRaised : (navHover.hovered ? Theme.surface : "transparent")
-                    Behavior on color { ColorAnimation { duration: Theme.durFast } }
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 10
-                        anchors.rightMargin: 10
-                        FbLabel {
-                            Layout.fillWidth: true
-                            text: navItem.modelData.label
-                            font.weight: navItem.active ? Font.Medium : Font.Normal
-                            color: navItem.active ? Theme.text : (navHover.hovered ? Theme.textSecondary : Theme.textMuted)
-                            Behavior on color { ColorAnimation { duration: Theme.durFast } }
-                        }
-                        // A newer Player is available (3p): small accent dot on Settings.
-                        Rectangle {
-                            objectName: "settingsUpdateDot"
-                            visible: navItem.modelData.target === "settings" && root.player.updates.updateAvailable
-                            Layout.preferredWidth: 7
-                            Layout.preferredHeight: 7
-                            radius: 3.5
-                            color: Theme.accent
-                        }
-                    }
-                    HoverHandler { id: navHover; cursorShape: Qt.PointingHandCursor }
-                    TapHandler {
-                        onTapped: {
-                            switch (navItem.modelData.target) {
-                            case "settings": root.player.showSettings(); break
-                            case "emulation": root.player.showEmulation(); break
-                            case "controllers": root.player.showControllers(); break
-                            default: root.player.showLibrary()
-                            }
-                        }
-                    }
-                }
+                delegate: navComp
             }
         }
 

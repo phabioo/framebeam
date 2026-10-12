@@ -125,6 +125,10 @@ class GameSession : public QObject {
   // button, never forwarded. The hotkey keys are set by the PlayerController from the Controllers settings.
   bool isReservedKey(int qtKey) const;
   void setHotkeyKeys(const QSet<int>& keys) { hotkeyKeys_ = keys; }
+  // Key combinations (Qt::Key | modifiers, QKeyCombination::toCombined) that also belong to the Player: active plugin
+  // hotkeys and Alt+1 ... Alt+9. They are never mapped to a joypad button.
+  void setReservedCombos(const QSet<int>& combos) { reservedCombos_ = combos; }
+  static int comboOf(int qtKey, Qt::KeyboardModifiers mods);
 
   // Diagnostics overlay: thread-safe reads of the emulation thread's measurements, UI thread only.
   EmulationDiagnostics diagnostics() const;
@@ -171,7 +175,7 @@ class GameSession : public QObject {
   bool restartWith(const std::function<bool()>& writer);
 
   // Input (UI thread). Returns true if the key is mapped.
-  bool keyEvent(int qtKey, bool pressed);
+  bool keyEvent(int qtKey, bool pressed, Qt::KeyboardModifiers mods = Qt::NoModifier);
   void releaseAllKeys();
   // Keyboard map of the keyboard profile (Qt::Key -> joypad mask); gamepad = joypad mask of P1. Both are merged.
   void setKeyboardMap(const QHash<int, quint32>& map);
@@ -214,6 +218,7 @@ class GameSession : public QObject {
   AudioOutput audio_;
   KeyboardJoypad keys_;
   QSet<int> hotkeyKeys_{Qt::Key_F11, Qt::Key_F3, Qt::Key_F5, Qt::Key_Space};
+  QSet<int> reservedCombos_;
   quint32 pad_ = 0;
   bool inputBlocked_ = false;
   emu::DisplayProfile display_;

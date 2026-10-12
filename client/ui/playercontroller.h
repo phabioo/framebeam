@@ -53,8 +53,10 @@ class PlayerController : public QObject {
   QML_ELEMENT
   QML_UNCREATABLE("Created in main.cpp")
 
-  // Navigation: "connection" | "pairing" | "library" | "game" | "settings"
+  // Navigation: "connection" | "pairing" | "library" | "game" | "settings" | "emulation" | "controllers" | "plugin"
   Q_PROPERTY(QString screen READ screen NOTIFY screenChanged)
+  // Plugin whose own screen (ui.screen, sidebar entry under Library) is shown while screen == "plugin".
+  Q_PROPERTY(QString pluginPageId READ pluginPageId NOTIFY pluginPageChanged)
 
   // 3a
   Q_PROPERTY(QVariantList hubs READ hubs NOTIFY hubsChanged)
@@ -137,6 +139,7 @@ class PlayerController : public QObject {
   void startup();
 
   QString screen() const;
+  QString pluginPageId() const { return pluginPageId_; }
   QVariantList hubs() const;
   QString connectionNotice() const { return notice_; }
   bool autoConnect() const;
@@ -267,6 +270,10 @@ class PlayerController : public QObject {
   Q_PROPERTY(bool collectingDiagnostics READ collectingDiagnostics NOTIFY collectingDiagnosticsChanged)
   Q_INVOKABLE void showEmulation();
   Q_INVOKABLE void showControllers();
+  // Sidebar entry of a plugin (4f); falls back to the Library when the plugin no longer offers a screen.
+  Q_INVOKABLE void showPluginScreen(const QString& pluginId);
+  // "Plugin settings" / "Notice settings…": Settings -> Plugins (pluginId highlights its row; empty = the section only).
+  Q_INVOKABLE void showPluginSettings(const QString& pluginId = QString());
   // "Upload ROM": source = local path or file:// URL (from the file dialog). Streamed; progress in upload.
   Q_INVOKABLE void uploadRom(const QString& source);
   Q_INVOKABLE void dismissUploadMessage();
@@ -283,6 +290,9 @@ class PlayerController : public QObject {
 
  signals:
   void screenChanged();
+  void pluginPageChanged();
+  // Settings screen: scroll to a section ("plugins") and highlight a plugin row.
+  void pluginSettingsRequested(const QString& pluginId);
   void hubsChanged();
   void autoConnectChanged();
   void pairingChanged();
@@ -367,7 +377,8 @@ class PlayerController : public QObject {
   void endGameContext();
 
   QString screen_ = QStringLiteral("connection");
-  QString page_ = QStringLiteral("library");  // page shown while connected: library | settings | emulation | controllers
+  QString page_ = QStringLiteral("library");  // page shown while connected: library | settings | emulation | controllers | plugin
+  QString pluginPageId_;
   bool inviteBusy_ = false;
   QVariantMap upload_;
   QString uploadSourcePath_;            // local file of the running upload; adopted into the ROM cache afterwards
