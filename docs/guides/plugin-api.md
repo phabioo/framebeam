@@ -437,7 +437,7 @@ Manifest field `run_settings` (optional, 1 to 32 entries) declares the rules a p
 | `default` | Required: a boolean, or an option `value` for `enum`. |
 | `options` | `enum` only, 2 to 8 of `{ value, label }`; `value`s are unique and follow the `key` segment pattern; `label` is an i18n key. |
 
-- The Hub plugin list carries `run_settings` and `run_settings_strings` (`{ lang: { key: text } }`, only the referenced keys; OpenAPI 1.17.0).
+- The Hub plugin list carries `run_settings` and `run_settings_strings` (`{ lang: { key: text } }`, only the referenced keys; OpenAPI 1.19.0).
 - The Player's "Start a run" dialog shows a Rules section per plugin: boolean as toggle, enum with up to 3 options as segments, more as select. Label language: Player language (always `en` today), then `en`, then the key.
 - Every entry is sent as run settings `settings[<plugin_id>]`, nested by key segments. The keys `mode` and `rules.dupes_clause` give `{ "<plugin_id>": { "mode": "soullink", "rules": { "dupes_clause": true } } }`. Plugins without `run_settings` get no member.
 - Plugins read them with `fb.run.current().settings[<own plugin id>]`. The raw manifest `settings` field is unchanged (schema still undefined).
