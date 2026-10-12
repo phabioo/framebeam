@@ -157,6 +157,9 @@ func Open(ctx context.Context, db *sql.DB, o Options) (*Service, error) {
 			return nil, internal(err)
 		}
 	}
+	if err := reconcileSystems(ctx, db); err != nil {
+		return nil, internal(err)
+	}
 	err := db.QueryRowContext(ctx, `SELECT id, name FROM hub LIMIT 1`).Scan(&s.hubID, &s.name)
 	if errors.Is(err, sql.ErrNoRows) {
 		name := strings.TrimSpace(o.Name)

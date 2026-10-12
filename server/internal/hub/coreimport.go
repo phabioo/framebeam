@@ -2,6 +2,7 @@ package hub
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -20,8 +21,8 @@ type CoreImportSummary struct {
 // ImportCores installs buildbot zips from a directory (offline Hub, ADR 0020 D8):
 // <dir>/<platform>/<core>_libretro.<suffix>.zip, optionally <dir>/info.zip (core metadata, else the cached
 // catalog is used) and <dir>/<platform>/.index-extended (CRC32 and build date, else the CRC32 is only recorded and
-// the file date is the build date). The same checks as for a download apply. A core goes to the system whose
-// libretro system id matches the core's systemid.
+// the file date is the build date). The same checks as for a download apply. A core goes to every system that
+// matches it (matchesCore); the package is cached once and shared.
 func (s *Service) ImportCores(ctx context.Context, dir string) (_ CoreImportSummary, err error) {
 	defer s.publishOK(&err, TopicSystems)
 	s.cores.mu.Lock()
@@ -99,19 +100,21 @@ func (s *Service) ImportCores(ctx context.Context, dir string) (_ CoreImportSumm
 			sum.Problems = append(sum.Problems, id+": no core info (add info.zip to the directory)")
 			continue
 		}
-		var sys *SystemEntry
-		for i := range reg {
-			if reg[i].matchesSystemID(info.SystemID) {
-				sys = &reg[i]
-				break
+		var targets []SystemEntry
+		for _, e := range reg {
+			if e.matchesCore(info) {
+				targets = append(targets, e)
 			}
 		}
-		if sys == nil {
+		if len(targets) == 0 {
 			sum.Problems = append(sum.Problems, fmt.Sprintf("%s: no supported system for %q", id, info.SystemID))
 			continue
 		}
-		_, installed := sys.installed(id)
-		_, ierr := s.installCore(ctx, *sys, info, byCore[id], installed)
+		// The first system gets the real install (package and files are cached once); every other matching
+		// system is attached to the same installed version.
+		primary := targets[0]
+		_, installed := primary.installed(id)
+		_, ierr := s.installCore(ctx, primary, info, byCore[id], installed)
 		switch {
 		case errors.Is(ierr, errUnchangedBuild):
 			sum.Unchanged++
@@ -122,6 +125,19 @@ func (s *Service) ImportCores(ctx context.Context, dir string) (_ CoreImportSumm
 			sum.Updated++
 		default:
 			sum.Installed++
+		}
+		for _, e := range targets[1:] {
+			had, err := s.attachCore(ctx, e, primary.ID, id)
+			switch {
+			case err != nil:
+				sum.Problems = append(sum.Problems, fmt.Sprintf("%s: %s: %v", id, e.ID, err))
+			case had == attachNew:
+				sum.Installed++
+			case had == attachMoved:
+				sum.Updated++
+			default:
+				sum.Unchanged++
+			}
 		}
 		// The registry copy is stale after an install; refresh it for the next core.
 		if reg, err = s.ListRegistry(ctx); err != nil {
@@ -142,4 +158,61 @@ func readLimitedFile(p string, limit int64) ([]byte, error) {
 		err = fmt.Errorf("%s is too large", filepath.Base(p))
 	}
 	return b, err
+}
+
+type attachResult int
+
+const (
+	attachSame  attachResult = iota // the system already has this version
+	attachNew                       // the system did not have the core
+	attachMoved                     // the system had another version and now uses the shared one
+)
+
+// attachCore makes the system use the installed version of a core that srcSystem already has (no new package or
+// files). The default core is set when the system has none.
+func (s *Service) attachCore(ctx context.Context, e SystemEntry, srcSystem, coreID string) (attachResult, error) {
+	var cur string
+	err := s.db.QueryRowContext(ctx, `SELECT version FROM system_cores WHERE system_id = ? AND core_id = ?`, e.ID, coreID).Scan(&cur)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return 0, internal(err)
+	}
+	var src string
+	if err := s.db.QueryRowContext(ctx, `SELECT version FROM system_cores WHERE system_id = ? AND core_id = ?`, srcSystem, coreID).Scan(&src); err != nil {
+		return 0, internal(err)
+	}
+	if cur == src {
+		return attachSame, nil
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, internal(err)
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, `INSERT INTO system_cores(system_id, core_id, version, installed_at, origin, display_name, license,
+		required_hw_api, build_date, crc32, info)
+		SELECT ?, core_id, version, installed_at, origin, display_name, license, required_hw_api, build_date, crc32, info
+		FROM system_cores WHERE system_id = ? AND core_id = ?
+		ON CONFLICT(system_id, core_id) DO UPDATE SET version = excluded.version, installed_at = excluded.installed_at,
+		origin = excluded.origin, display_name = excluded.display_name, license = excluded.license,
+		required_hw_api = excluded.required_hw_api, build_date = excluded.build_date, crc32 = excluded.crc32, info = excluded.info`,
+		e.ID, srcSystem, coreID); err != nil {
+		return 0, internal(err)
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE systems SET default_core_id = ? WHERE id = ? AND (default_core_id IS NULL OR default_core_id = '')`, coreID, e.ID); err != nil {
+		return 0, internal(err)
+	}
+	stale, err := dropUnreferencedVersions(ctx, tx, coreID)
+	if err != nil {
+		return 0, internal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, internal(err)
+	}
+	for _, v := range stale {
+		os.RemoveAll(filepath.Join(s.dataDir, "cores", coreID, v))
+	}
+	if cur == "" {
+		return attachNew, nil
+	}
+	return attachMoved, nil
 }
