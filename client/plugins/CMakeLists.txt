@@ -20,7 +20,7 @@ else()
 endif()
 set_target_properties(framebeam_lua PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-add_library(framebeam_plugins STATIC manifest.cpp plugin_value.cpp lua_sandbox.cpp plugin_engine.cpp plugin_api.cpp
+add_library(framebeam_plugins STATIC manifest.cpp plugin_value.cpp lua_sandbox.cpp plugin_engine.cpp plugin_ui.cpp plugin_api.cpp
   plugin_host.cpp plugin_manager.cpp fbplugin.cpp plugin_delivery.cpp)
 target_include_directories(framebeam_plugins PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_features(framebeam_plugins PUBLIC cxx_std_20)
@@ -31,6 +31,7 @@ framebeam_add_test(plugins_manifest tests/manifest_test.cpp LIBS framebeam_plugi
 framebeam_add_test(plugins_sandbox tests/sandbox_test.cpp LIBS framebeam_plugins)
 framebeam_add_test(plugins_manager tests/manager_test.cpp LIBS framebeam_plugins)
 framebeam_add_test(plugins_host tests/host_test.cpp LIBS framebeam_plugins)
+framebeam_add_test(plugins_ui tests/ui_test.cpp LIBS framebeam_plugins)
 
 # .fbplugin reading and signature, Hub delivery (against the fake Hub of network/tests).
 framebeam_add_test(plugins_fbplugin tests/fbplugin_test.cpp LIBS framebeam_plugins)

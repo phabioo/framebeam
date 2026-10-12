@@ -17,6 +17,9 @@ ColumnLayout {
     property string confirmUninstallId: ""
     property string confirmEnableId: ""
     property bool browseOpen: false
+    property string highlightId: ""            // row shown with an accent border for a moment ("Plugin settings" from a plugin screen)
+    Timer { id: highlightTimer; interval: 3000; onTriggered: root.highlightId = "" }
+    onHighlightIdChanged: if (highlightId !== "") highlightTimer.restart()
     spacing: Theme.space12
 
     Loader {
@@ -110,6 +113,16 @@ ColumnLayout {
                     Layout.fillWidth: true
                     implicitHeight: rowCol.implicitHeight + 28
                     Rectangle {
+                        objectName: "pluginRowHighlight"
+                        visible: root.highlightId === row.modelData.id
+                        anchors.fill: parent
+                        anchors.margins: 1
+                        radius: Theme.radius8
+                        color: "transparent"
+                        border.width: 2
+                        border.color: Theme.accent
+                    }
+                    Rectangle {
                         visible: row.index > 0
                         anchors.top: parent.top
                         width: parent.width
@@ -188,6 +201,15 @@ ColumnLayout {
                                 text: qsTr("Uninstall")
                                 onClicked: root.confirmUninstallId = row.modelData.id
                             }
+                        }
+                        FbLabel {
+                            objectName: "pluginAdds"
+                            visible: row.modelData.adds !== ""
+                            Layout.fillWidth: true
+                            text: row.modelData.adds
+                            color: Theme.textMuted
+                            font.pixelSize: Theme.fontMeta
+                            wrapMode: Text.WordWrap
                         }
                         FbLabel {
                             objectName: "pluginProblems"

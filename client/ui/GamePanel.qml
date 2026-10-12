@@ -26,9 +26,73 @@ Rectangle {
     readonly property string shareText: ctl.shared ? qsTr("Shared · %1 watching").arg(ctl.viewerCount) : qsTr("Not shared")
     // "Manage saves" opens the saves view (SavesView, the one of the Library) inside the panel; the game keeps running.
     property bool savesOpen: false
-    // Tabs of the panel: "game" | "console" (Plugin console, Developer mode only, last tab; docs/design/plugins.md 4d-4-2).
+    // Tabs of the panel (docs/design/plugins.md 4e): "game" | "plugin:<pluginId>" (panel tab of a plugin, in install order)
+    // | "console" (Plugin console, Developer mode only, last tab; 4d-4-2).
     property string panelTab: "game"
+    readonly property PluginsController plugins: player.plugins
+    readonly property var pluginTabs: plugins.panelTabs
     readonly property bool consoleTab: panelTab === "console" && root.localTile && root.player.plugins.consoleAvailable
+    readonly property var pluginTab: {
+        if (panelTab.indexOf("plugin:") !== 0) return null
+        var id = panelTab.substring(7), t = pluginTabs
+        for (var i = 0; i < t.length; ++i) if (t[i].pluginId === id) return t[i]
+        return null
+    }
+    readonly property bool pluginTabOpen: pluginTab !== null && root.localTile
+    readonly property bool hasTabs: root.plugins.consoleAvailable || pluginTabs.length > 0
+    // Tab model: Game, the plugin tabs, the Plugin console.
+    readonly property var tabEntries: {
+        var out = [{ id: "game", kind: "game", name: qsTr("Game"), icon: "", dot: "", origin: "official", mark: "" }]
+        var t = pluginTabs
+        for (var i = 0; i < t.length; ++i)
+            out.push({ id: "plugin:" + t[i].pluginId, kind: "plugin", name: t[i].title || t[i].name, pluginName: t[i].name || t[i].title,
+                       icon: t[i].icon || "", dot: t[i].dot || "", origin: t[i].origin || "local", mark: "" })
+        if (root.plugins.consoleAvailable)
+            out.push({ id: "console", kind: "console", name: qsTr("Plugin console"), icon: "", dot: "", origin: "official", mark: ">_" })
+        return out
+    }
+    // Fitting (4e): 1-2 tabs show labels while they fit; with 3 or more only Game and the open tab keep their label; if it
+    // is still too wide the last tabs move into the "+n ▾" popover.
+    readonly property var tabPlan: {
+        var all = tabEntries, n = all.length, avail = tabBar.width - 24, gapW = 2
+        function labelW(e) { return (e.kind === "game" ? 0 : 24) + Math.ceil(tabFm.advanceWidth(e.name)) + 18 }
+        var labelAll = n <= 2
+        if (labelAll) {
+            var sum = (n - 1) * gapW
+            for (var k = 0; k < n; ++k) sum += labelW(all[k])
+            labelAll = sum <= avail
+        }
+        var shown = []
+        for (var i = 0; i < n; ++i)
+            shown.push({ e: all[i], label: labelAll || all[i].kind === "game" || all[i].id === root.panelTab })
+        function total() {
+            var w = (shown.length - 1) * gapW
+            for (var j = 0; j < shown.length; ++j) w += shown[j].label ? labelW(shown[j].e) : 36
+            return w
+        }
+        var overflow = []
+        while (total() + (overflow.length > 0 ? 46 : 0) > avail && shown.length > 1) {
+            var idx = -1
+            for (var m = shown.length - 1; m > 0; --m) if (shown[m].e.id !== root.panelTab) { idx = m; break }
+            if (idx < 0) break
+            overflow.unshift(shown.splice(idx, 1)[0].e)
+        }
+        return { shown: shown, overflow: overflow }
+    }
+    FontMetrics { id: tabFm; font.pixelSize: 13 }
+    function openTab(id) {
+        root.closeSaves()
+        root.panelTab = id
+        if (root.collapsed) root.collapseToggled()
+    }
+    // Alt+1 ... Alt+9: tab n of the tab bar (Game, the plugin tabs, the Plugin console); false = no such tab.
+    function openTabNumber(n) {
+        var t = root.tabEntries
+        if (n < 1 || n > t.length || !root.localTile) return false
+        root.openTab(t[n - 1].id)
+        return true
+    }
+    function originMarker(origin) { return root.plugins.originMarker(origin) }
     signal collapseToggled()
     signal savesClosed()
     signal selectLocalRequested()
@@ -40,7 +104,8 @@ Rectangle {
     }
     Connections {
         target: root.player.plugins
-        function onConsoleAvailableChanged() { if (!root.player.plugins.consoleAvailable) root.panelTab = "game" }
+        function onConsoleAvailableChanged() { if (!root.player.plugins.consoleAvailable && root.panelTab === "console") root.panelTab = "game" }
+        function onPanelTabsChanged() { if (root.panelTab.indexOf("plugin:") === 0 && root.pluginTab === null) root.panelTab = "game" }
     }
     // Gone with the game, or when another tile is selected.
     onLocalTileChanged: if (!localTile) root.savesOpen = false
@@ -114,6 +179,26 @@ Rectangle {
             ToolTip.visible: diaHover.hovered
             ToolTip.text: qsTr("Save snapshot · %1").arg(root.player.controllers.hotkeyHints.snapshot)
         }
+        // One icon per plugin tab; a click opens the panel on that tab (3i-2, 4e)
+        Repeater {
+            model: root.localTile ? root.pluginTabs : []
+            delegate: PluginTabIcon {
+                id: railTab
+                required property var modelData
+                objectName: "panelRailTab_" + modelData.pluginId
+                anchors.horizontalCenter: parent.horizontalCenter
+                size: 22
+                chipRadius: 6
+                name: modelData.name || modelData.title
+                icon: modelData.icon || ""
+                dot: modelData.dot || ""
+                HoverHandler { id: railHover; cursorShape: Qt.PointingHandCursor }
+                TapHandler { onTapped: root.openTab("plugin:" + railTab.modelData.pluginId) }
+                ToolTip.visible: railHover.hovered
+                ToolTip.delay: 400
+                ToolTip.text: (modelData.title || modelData.name) + (root.originMarker(modelData.origin || "local") !== "" ? " · " + root.originMarker(modelData.origin || "local") : "")
+            }
+        }
     }
 
     ColumnLayout {
@@ -163,11 +248,12 @@ Rectangle {
             }
         }
 
-        // Tab bar: only while the Plugin console exists (Developer mode and plugins running for this game)
+        // Tab bar: while plugins offer a panel tab or the Plugin console exists (Developer mode and plugins running for this game)
         Rectangle {
+            id: tabBar
             objectName: "panelTabBar"
             Layout.fillWidth: true
-            visible: root.localTile && !root.savesOpen && root.player.plugins.consoleAvailable
+            visible: root.localTile && !root.savesOpen && root.hasTabs
             implicitHeight: 44
             color: "transparent"
             Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.gameBorder }
@@ -177,30 +263,41 @@ Rectangle {
                 anchors.rightMargin: 12
                 spacing: 2
                 Repeater {
-                    model: [
-                        { id: "game", name: qsTr("Game"), mark: "" },
-                        { id: "console", name: qsTr("Plugin console"), mark: ">_" }
-                    ]
+                    model: root.tabPlan.shown
                     delegate: Item {
                         id: tabItem
                         required property var modelData
-                        objectName: "panelTab_" + modelData.id
-                        readonly property bool open: root.panelTab === modelData.id
+                        readonly property var entry: modelData.e
+                        readonly property bool showLabel: modelData.label
+                        readonly property bool open: root.panelTab === entry.id
+                        readonly property string marker: root.originMarker(entry.origin)
+                        objectName: "panelTab_" + entry.id
                         height: 44
                         width: tabRow.implicitWidth + 18
+                        Accessible.role: Accessible.PageTab
+                        Accessible.name: entry.name
                         Row {
                             id: tabRow
                             anchors.centerIn: parent
                             spacing: 6
+                            PluginTabIcon {
+                                visible: tabItem.entry.kind === "plugin"
+                                anchors.verticalCenter: parent.verticalCenter
+                                name: tabItem.entry.pluginName || tabItem.entry.name
+                                icon: tabItem.entry.icon
+                                dot: tabItem.entry.dot
+                            }
                             FbMono {
-                                visible: tabItem.modelData.mark !== ""
-                                text: tabItem.modelData.mark
+                                visible: tabItem.entry.mark !== ""
+                                text: tabItem.entry.mark
                                 font.pixelSize: 12
                                 color: tabItem.open ? Theme.gameText : Theme.gameTextMuted
                                 anchors.verticalCenter: parent.verticalCenter
                             }
                             FbLabel {
-                                text: tabItem.modelData.name
+                                objectName: "panelTabLabel"
+                                visible: tabItem.showLabel
+                                text: tabItem.entry.name
                                 font.pixelSize: 13
                                 font.weight: tabItem.open ? Font.Medium : Font.Normal
                                 color: tabItem.open ? Theme.gameText : Theme.gameTextMuted
@@ -208,10 +305,51 @@ Rectangle {
                             }
                         }
                         Rectangle { visible: tabItem.open; anchors.bottom: parent.bottom; width: parent.width; height: 2; color: Theme.gameAccent }
-                        TapHandler { onTapped: root.panelTab = tabItem.modelData.id }
-                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                        TapHandler { onTapped: root.panelTab = tabItem.entry.id }
+                        HoverHandler { id: tabHover; cursorShape: Qt.PointingHandCursor }
+                        ToolTip.visible: tabHover.hovered && !tabItem.showLabel
+                        ToolTip.delay: 400
+                        ToolTip.text: tabItem.entry.name + (tabItem.marker !== "" ? " · " + tabItem.marker : "")
                     }
                 }
+                Item {
+                    id: overflowTab
+                    objectName: "panelTabOverflow"
+                    visible: root.tabPlan.overflow.length > 0
+                    height: 44
+                    width: overflowLabel.implicitWidth + 18
+                    readonly property bool hasNews: {
+                        var o = root.tabPlan.overflow
+                        for (var i = 0; i < o.length; ++i) if (o[i].dot !== "") return true
+                        return false
+                    }
+                    FbLabel {
+                        id: overflowLabel
+                        anchors.centerIn: parent
+                        text: "+" + root.tabPlan.overflow.length + " ▾"
+                        font.pixelSize: 13
+                        color: overflowPop.open ? Theme.gameText : Theme.gameTextMuted
+                    }
+                    Rectangle { visible: overflowTab.hasNews; x: parent.width - 12; y: 11; width: 6; height: 6; radius: 3; color: Theme.gameAccent }
+                    TapHandler { onTapped: overflowPop.open = !overflowPop.open }
+                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                }
+            }
+        }
+
+        // ---- plugin tab ----
+        Item {
+            id: pluginBox
+            objectName: "gamePanelPlugin"
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.minimumWidth: 0
+            visible: root.pluginTabOpen && !root.savesOpen
+            clip: true
+            Loader {
+                anchors.fill: parent
+                active: pluginBox.visible
+                sourceComponent: PluginPanelContent { player: root.player; tab: root.pluginTab }
             }
         }
 
@@ -236,7 +374,7 @@ Rectangle {
             id: flick
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: root.localTile && !root.savesOpen && !root.consoleTab
+            visible: root.localTile && !root.savesOpen && !root.consoleTab && !root.pluginTabOpen
             contentWidth: width
             contentHeight: col.implicitHeight + 40
             clip: true
@@ -891,6 +1029,32 @@ Rectangle {
                         }
                         onClicked: root.selectLocalRequested()
                     }
+                }
+            }
+        }
+    }
+
+    // "+n ▾": the tabs that do not fit (name, "Local" / "Unverified" marker)
+    AnchoredPopover {
+        id: overflowPop
+        objectName: "panelTabOverflowPopover"
+        anchorItem: overflowTab
+        popWidth: 250
+        padding: 4
+        scrimTop: tabBar.y + tabBar.height
+        visible: open && root.tabPlan.overflow.length > 0
+        onCloseRequested: open = false
+        Column {
+            width: parent.width
+            Repeater {
+                model: root.tabPlan.overflow
+                delegate: PopoverItem {
+                    required property var modelData
+                    objectName: "panelTabOverflowItem_" + modelData.id
+                    width: parent.width
+                    text: modelData.name
+                    trailing: root.originMarker(modelData.origin)
+                    onActivated: { overflowPop.open = false; root.panelTab = modelData.id }
                 }
             }
         }

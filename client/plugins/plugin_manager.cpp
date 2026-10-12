@@ -534,6 +534,14 @@ void PluginManager::setDeveloperMode(bool on) {
 }
 
 GameResolution PluginManager::resolveForGame(const QString& system, const QString& code) const {
+  return resolveWhere([&](const Manifest& m) { return m.matchesGame(system, code); });
+}
+
+GameResolution PluginManager::resolveForShell() const {
+  return resolveWhere([](const Manifest& m) { return m.ui.screen || m.ui.detail; });
+}
+
+GameResolution PluginManager::resolveWhere(const std::function<bool(const Manifest&)>& wanted) const {
   GameResolution res;
   QMap<QString, QStringList> problems;
   computeDependencyProblems(problems);
@@ -545,7 +553,7 @@ GameResolution PluginManager::resolveForGame(const QString& system, const QStrin
   QStringList queue;
   QStringList candidates;
   for (auto it = m_entries.begin(); it != m_entries.end(); ++it)
-    if (it->valid && it->info.enabled && it->info.manifest.matchesGame(system, code)) queue << it.key();
+    if (it->valid && it->info.enabled && wanted(it->info.manifest)) queue << it.key();
   candidates = queue;
   while (!queue.isEmpty()) {
     const QString id = queue.takeFirst();

@@ -5,6 +5,7 @@
 #include <QObject>
 #include <QSet>
 #include <QTimer>
+#include <functional>
 
 #include "fbplugin.h"
 #include "manifest.h"
@@ -74,6 +75,8 @@ class PluginManager : public QObject {
   // Enabled plugins whose games match, plus (transitively) the plugins they require, in start order. Plugins with
   // problems are listed in `problems` and not started, nor are plugins that depend on them.
   GameResolution resolveForGame(const QString& system, const QString& code) const;
+  // Shell context (no game runs): enabled plugins that declare ui.screen or ui.detail, plus what they require.
+  GameResolution resolveForShell() const;
 
  signals:
   void pluginsChanged();                       // installed/linked/enabled set changed
@@ -93,6 +96,7 @@ class PluginManager : public QObject {
   InstallResult installPackage(const FbPluginPackage& pkg, const QString& dest, const QString& tmp, const QString& origin,
                                const QString& sourceSha, const QString& signatureNote);
   void scanHub();
+  GameResolution resolveWhere(const std::function<bool(const Manifest&)>& wanted) const;
   void computeDependencyProblems(QMap<QString, QStringList>& out) const;
 
   QString m_root;

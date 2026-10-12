@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
   title: FrameBeam Hub API
-  version: 1.13.0
+  version: 1.14.0
   description: |
-    HTTPS/JSON API of the FrameBeam Hub (phase 1; phase 3 adds save sync under `saves`, advertised by the handshake feature `saves_v1`; phase 4 adds Session sharing under `sessions` and the WSS endpoint, advertised by the handshake feature `sessions_v1`; phase 5 adds invite redemption under `users` (`users_v1`), user ROM uploads (`uploads_v1`, only advertised when the caller may upload) and the systems registry with firmware download under `systems` (`firmware_v1`); 0.2 adds core packages served by the Hub under `cores` (`cores_v1`); 0.4 adds relay credentials for Sessions over the internet (`turn_v1`, `turn_servers` in `hello_ack` and the join response), save comfort (`saves_v2`: restore, manual snapshots, history labels, the `save_updated` WSS message) and the signed core index for Player-side verification (`cores_index_v1`, `/api/v1/cores/index`, removed again in 0.8); 0.7 adds deleting manual snapshots (`saves_v3`) and the optional `user` in the handshake response; 0.8 adds uploading a save file from outside the sync flow (`saves_v4`, `POST /games/{game_id}/saves/{slot}/upload`); 0.8 also adds several cores per system from the libretro buildbot (`cores_v2`: `default_core_id` and `cores` in `SystemInfo`, core ids `^[a-z0-9][a-z0-9_-]{0,63}$`) and removes `cores_index_v1` and its endpoints `/api/v1/cores/index{,.sig}`); 0.9 adds the local setup endpoints under `local` for a Player on the same PC as the Hub (`local_setup_v1`, loopback callers only); 0.10 adds the WSS message `ice_update` (`ice_update_v1`) so connected Players receive changed `ice_servers`/`turn_servers`, a default STUN list, and optional Cloudflare TURN next to the embedded TURN server; 0.10.x also adds renaming and deleting save slots and the upload lock during a Session (`saves_v5`). `protocol_version` is an integer (starting at 1),
+    HTTPS/JSON API of the FrameBeam Hub (phase 1; phase 3 adds save sync under `saves`, advertised by the handshake feature `saves_v1`; phase 4 adds Session sharing under `sessions` and the WSS endpoint, advertised by the handshake feature `sessions_v1`; phase 5 adds invite redemption under `users` (`users_v1`), user ROM uploads (`uploads_v1`, only advertised when the caller may upload) and the systems registry with firmware download under `systems` (`firmware_v1`); 0.2 adds core packages served by the Hub under `cores` (`cores_v1`); 0.4 adds relay credentials for Sessions over the internet (`turn_v1`, `turn_servers` in `hello_ack` and the join response), save comfort (`saves_v2`: restore, manual snapshots, history labels, the `save_updated` WSS message) and the signed core index for Player-side verification (`cores_index_v1`, `/api/v1/cores/index`, removed again in 0.8); 0.7 adds deleting manual snapshots (`saves_v3`) and the optional `user` in the handshake response; 0.8 adds uploading a save file from outside the sync flow (`saves_v4`, `POST /games/{game_id}/saves/{slot}/upload`); 0.8 also adds several cores per system from the libretro buildbot (`cores_v2`: `default_core_id` and `cores` in `SystemInfo`, core ids `^[a-z0-9][a-z0-9_-]{0,63}$`) and removes `cores_index_v1` and its endpoints `/api/v1/cores/index{,.sig}`); 0.9 adds the local setup endpoints under `local` for a Player on the same PC as the Hub (`local_setup_v1`, loopback callers only); 0.10 adds the WSS message `ice_update` (`ice_update_v1`) so connected Players receive changed `ice_servers`/`turn_servers`, a default STUN list, and optional Cloudflare TURN next to the embedded TURN server; 0.10.x also adds renaming and deleting save slots and the upload lock during a Session (`saves_v5`); 0.11 adds the plugin list and download under `plugins` (`plugins_v1`). `protocol_version` is an integer (starting at 1),
     separate from the hub/player product version. All paths carry the `/api/v1` prefix explicitly;
     only the info endpoint lives under `/.well-known/framebeam`.
     Compatibility: Player.protocol_version < Hub.min_protocol_version -> player_too_old;
@@ -22,6 +22,7 @@ tags:
   - name: library
   - name: systems
   - name: cores
+  - name: plugins
   - name: saves
   - name: sessions
   - name: ws
@@ -412,7 +413,7 @@ paths:
                     min_protocol_version: 1
                     compatible: true
                     problems: []
-                    features: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1, cores_v1, turn_v1, saves_v2, saves_v3, saves_v4, saves_v5, cores_v2, local_setup_v1, ice_update_v1]
+                    features: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1, cores_v1, turn_v1, saves_v2, saves_v3, saves_v4, saves_v5, cores_v2, local_setup_v1, ice_update_v1, plugins_v1]
                 core_missing:
                   description: Warning only, `compatible` stays true (launch allowed; the Player shows the problem)
                   value:
@@ -721,6 +722,73 @@ paths:
             ETag: { schema: { type: string } }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/CoreFileNotAvailable' }
+  /api/v1/plugins:
+    get:
+      operationId: listPlugins
+      tags: [plugins]
+      summary: Plugin versions this Hub offers to Players (`plugins_v1`, any trusted device)
+      description: |
+        Every offered version of every plugin, ordered by `plugin_id` and SemVer (oldest first). `origin` is `official`
+        (valid FrameBeam signature) or `unverified` (unsigned, offered by the admin). `requires`, `provides` and
+        `games` are copied from the manifest and empty when absent. `sha256` is the digest of the file served by
+        `getPluginFile`; the Player pins it.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Offered plugin versions
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PluginList' }
+              examples:
+                default:
+                  value:
+                    plugins:
+                      - plugin_id: net.example.tracker
+                        version: 1.2.0
+                        name: Tracker
+                        description: Tracks things
+                        api: 1
+                        origin: official
+                        sha256: '3333333333333333333333333333333333333333333333333333333333333333'
+                        size: 12345
+                        permissions: [memory.read, ui]
+                        requires: { net.example.base: ^1.0 }
+                        provides: [tracker.state]
+                        games: [{ system: nds, codes: ['IPK*'] }]
+                        created_at: '2026-10-12T08:00:00Z'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/plugins/{plugin_id}/{version}/file:
+    parameters:
+      - $ref: '#/components/parameters/PluginId'
+      - $ref: '#/components/parameters/PluginVersion'
+    get:
+      operationId: getPluginFile
+      tags: [plugins]
+      summary: Download the `.fbplugin` file of an offered plugin version (`plugins_v1`, any trusted device)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: If-None-Match
+          in: header
+          required: false
+          schema: { type: string }
+          example: '"3333333333333333333333333333333333333333333333333333333333333333"'
+      responses:
+        '200':
+          description: The zip file (`ETag` = `"<sha256>"` as listed)
+          headers:
+            ETag: { schema: { type: string }, description: 'Strong ETag = content SHA-256', example: '"3333333333333333333333333333333333333333333333333333333333333333"' }
+            Content-Length: { schema: { type: integer, format: int64 } }
+          content:
+            application/zip:
+              schema: { type: string, format: binary }
+        '304':
+          description: Not modified (`If-None-Match` matches the ETag)
+          headers:
+            ETag: { schema: { type: string } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/v1/saves:
     get:
       operationId: listSaves
@@ -1556,6 +1624,18 @@ components:
       required: true
       schema: { type: string, pattern: '^[0-9A-Za-z][0-9A-Za-z.+_-]{0,63}$' }
       example: 1.4.0
+    PluginId:
+      name: plugin_id
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[a-z0-9-]+(\.[a-z0-9-]+)+$', maxLength: 128 }
+      example: net.example.tracker
+    PluginVersion:
+      name: version
+      in: path
+      required: true
+      schema: { type: string, maxLength: 128 }
+      example: 1.2.0
     CorePlatform:
       name: platform
       in: path
@@ -1963,6 +2043,43 @@ components:
         files:
           type: array
           items: { $ref: '#/components/schemas/CorePackageFile' }
+    PluginOrigin:
+      type: string
+      enum: [official, unverified]
+      description: '`official` = valid signature of a trusted FrameBeam key; `unverified` = unsigned (or not verifiable), offered by the Hub admin.'
+    PluginGame:
+      type: object
+      required: [system, codes]
+      properties:
+        system: { type: string }
+        codes: { type: array, items: { type: string } }
+    PluginInfo:
+      type: object
+      required: [plugin_id, version, name, description, api, origin, sha256, size, permissions, requires, provides, games, created_at]
+      properties:
+        plugin_id: { type: string }
+        version: { type: string }
+        name: { type: string }
+        description: { type: string }
+        api: { type: integer, example: 1 }
+        origin: { $ref: '#/components/schemas/PluginOrigin' }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        size: { type: integer, format: int64 }
+        permissions: { type: array, items: { type: string } }
+        requires:
+          type: object
+          description: Plugin id to version range, from the manifest
+          additionalProperties: { type: string }
+        provides: { type: array, items: { type: string } }
+        games: { type: array, items: { $ref: '#/components/schemas/PluginGame' } }
+        created_at: { type: string, format: date-time }
+    PluginList:
+      type: object
+      required: [plugins]
+      properties:
+        plugins:
+          type: array
+          items: { $ref: '#/components/schemas/PluginInfo' }
     CorePlatform:
       type: string
       enum: [windows-x64, linux-x64, linux-arm64, macos-x64, macos-arm64]
@@ -2028,9 +2145,9 @@ components:
           items: { $ref: '#/components/schemas/HandshakeProblem' }
         features:
           type: array
-          description: Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = at least one relay provider is on (the embedded TURN server and/or Cloudflare TURN; `turn_servers` in `hello_ack`, `ice_update` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`), `saves_v4` = uploading a save file into a slot (`POST /games/{game_id}/saves/{slot}/upload`), `saves_v5` = renaming a slot (`POST /games/{game_id}/saves/{slot}/rename`), deleting a slot (`DELETE /games/{game_id}/saves/{slot}`), `save_updated` reasons `renamed` and `deleted`, and 409 `session_running` on `saves_v4` uploads while a Session of the game runs, `cores_v2` = several cores per system (`default_core_id` and `cores` in `SystemInfo`; core ids follow `^[a-z0-9][a-z0-9_-]{0,63}$`), `ice_update_v1` = the Hub pushes the WSS message `ice_update` whenever its effective ICE configuration changes. `cores_index_v1` (signed core index) existed in 0.4 to 0.7 and was removed in 0.8.
+          description: Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = at least one relay provider is on (the embedded TURN server and/or Cloudflare TURN; `turn_servers` in `hello_ack`, `ice_update` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`), `saves_v4` = uploading a save file into a slot (`POST /games/{game_id}/saves/{slot}/upload`), `saves_v5` = renaming a slot (`POST /games/{game_id}/saves/{slot}/rename`), deleting a slot (`DELETE /games/{game_id}/saves/{slot}`), `save_updated` reasons `renamed` and `deleted`, and 409 `session_running` on `saves_v4` uploads while a Session of the game runs, `cores_v2` = several cores per system (`default_core_id` and `cores` in `SystemInfo`; core ids follow `^[a-z0-9][a-z0-9_-]{0,63}$`), `ice_update_v1` = the Hub pushes the WSS message `ice_update` whenever its effective ICE configuration changes, `plugins_v1` = plugin list and download (`GET /plugins`, `GET /plugins/{plugin_id}/{version}/file`). `cores_index_v1` (signed core index) existed in 0.4 to 0.7 and was removed in 0.8.
           items: { type: string }
-          example: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1, cores_v1, turn_v1, saves_v2, saves_v3, saves_v4, saves_v5, cores_v2, local_setup_v1, ice_update_v1]
+          example: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1, cores_v1, turn_v1, saves_v2, saves_v3, saves_v4, saves_v5, cores_v2, local_setup_v1, ice_update_v1, plugins_v1]
         user:
           $ref: '#/components/schemas/HandshakeUser'
     HandshakeUser:

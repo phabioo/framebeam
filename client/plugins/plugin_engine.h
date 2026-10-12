@@ -18,6 +18,7 @@
 #include "manifest.h"
 #include "plugin_memory.h"
 #include "plugin_types.h"
+#include "plugin_ui.h"
 #include "plugin_value.h"
 
 namespace framebeam::plugins {
@@ -33,6 +34,8 @@ class ConsoleStore {
   ConsoleSnapshot snapshot(const QString& id) const;
   QStringList ids() const;
   QStringList takeDirty();
+
+  UiStore ui;  // trees, titles, badges and toasts of fb.ui (own mutex)
 
  private:
   mutable std::mutex m_mutex;
@@ -70,6 +73,10 @@ struct Plugin {
   QHash<QString, std::optional<QHash<QString, QString>>> i18n;  // language -> strings (nullopt = no such file)
   qint64 cacheBytes = -1;
   QList<WatchedRow> lastRows;
+  int actionRef = -2;                         // fb.ui.on_action handler (LUA_NOREF)
+  std::map<QString, QVariantMap> uiTrees;     // slot -> current tree (for fb.ui.patch)
+  double toastTokens = 3;                     // notify rate limit: burst 3, one per second sustained
+  std::chrono::steady_clock::time_point toastLast = std::chrono::steady_clock::now();
 
   QString id() const { return info.manifest.id; }
 };
@@ -78,6 +85,7 @@ struct QueuedEvent {
   QString from;
   std::string name;
   Value value;
+  QString target;  // empty = every subscribed plugin
 };
 
 class PluginEngine {
@@ -89,6 +97,10 @@ class PluginEngine {
   void stop();
   void reload(const QString& id);
   void iterate();  // one host iteration: events, tick, watched rows
+  // Host-side input from the UI thread (queued onto the plugin thread by the host).
+  void deliverAction(const QString& pluginId, const QString& slot, const QString& action, const Value& value);
+  void postHostEvent(const QString& name, Value value, const QString& target);  // event source "fb"
+  void clearSlotEverywhere(const QString& slot);                                 // e.g. "detail" when the game changes
 
   // --- used by plugin_api.cpp ---
   Plugin* find(const QString& id);

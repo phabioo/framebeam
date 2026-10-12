@@ -406,6 +406,17 @@ QSet<int> ControllersController::hotkeyKeys() const {
   return s;
 }
 
+QMap<int, QString> ControllersController::reservedKeyOwners() const {
+  QMap<int, QString> m;
+  for (const HotkeyDef& d : hotkeyDefs()) {
+    if (const int k = profiles_.hotkey(d.id); k > 0) m.insert(k, d.label);
+  }
+  m.insert(Qt::Key_Escape, tr("Leave fullscreen / pause"));
+  m.insert(Qt::Key_F4, tr("Hide all HUD widgets"));
+  for (int n = 1; n <= 9; ++n) m.insert(int(Qt::Key_0) + n + int(Qt::AltModifier), tr("Panel tabs"));
+  return m;
+}
+
 void ControllersController::hotkeysUpdated() {
   syncPadHotkeys();
   emit hotkeysChanged();
@@ -516,6 +527,11 @@ bool ControllersController::captureHotkey(int qtKey) {
     return true;
   }
   const QString action = hotkeyListening_;
+  if (qtKey == Qt::Key_F4) {  // fixed: hide all HUD widgets
+    hotkeyNote_ = tr("Already used by %1").arg(tr("Hide all HUD widgets"));
+    emit hotkeysChanged();
+    return true;
+  }
   if (!profiles_.setHotkey(action, qtKey)) {
     const QString owner = profiles_.hotkeyAction(qtKey);
     for (const HotkeyDef& d : hotkeyDefs()) {

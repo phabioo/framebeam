@@ -21,6 +21,7 @@
 
 #include "diagbundle.h"
 #include "filelog.h"
+#include "pluginimageprovider.h"
 #include "profilestore.h"
 #include "playercontroller.h"
 #include "version.h"
@@ -199,6 +200,7 @@ int main(int argc, char* argv[]) {
 
   QQmlApplicationEngine engine;
   engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+  engine.addImageProvider(QStringLiteral("fbplugin"), new framebeam::ui::PluginImageProvider(controller.plugins()->imageSources()));
   engine.setInitialProperties({{QStringLiteral("player"), QVariant::fromValue(&controller)}});
   engine.load(QUrl(QStringLiteral("qrc:/qt/qml/FrameBeam/Player/Main.qml")));
   if (engine.rootObjects().isEmpty()) {

@@ -4,7 +4,9 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QJsonArray>
 #include <QJsonDocument>
+#include <QJsonObject>
 #include <QSaveFile>
 #include <QStringList>
 
@@ -21,6 +23,11 @@ constexpr const char* kDiagOpenKey = "diagnostics_open";
 constexpr const char* kDeveloperModeKey = "developer_mode";
 constexpr const char* kDiagEmulationKey = "diagnostics_emulation_open";
 constexpr const char* kDiagStreamingKey = "diagnostics_streaming_open";
+constexpr const char* kPluginHudCornersKey = "plugin_hud_corners";  // { plugin_id: corner }
+constexpr const char* kPluginHudHiddenKey = "plugin_hud_hidden";    // [plugin_id]
+constexpr const char* kPluginHudAllHiddenKey = "plugin_hud_all_hidden";
+constexpr const char* kPluginHotkeysKey = "plugin_hotkeys";          // { "<plugin_id>/<hotkey_id>": key | "none" }
+constexpr const char* kPluginToastMuteKey = "plugin_toast_mute";    // { plugin_id: mode }
 constexpr const char* kSessionVisibilityKey = "session_visibility";
 constexpr const char* kLibrarySortKey = "library_sort";
 constexpr const char* kLibraryReadyFirstKey = "library_ready_first";
@@ -47,6 +54,7 @@ PlayerSettings::PlayerSettings(const QString& baseDir)
   }
   diagOpen_ = raw_.value(QLatin1String(kDiagOpenKey)).toBool(false);
   developerMode_ = raw_.value(QLatin1String(kDeveloperModeKey)).toBool(false);
+  pluginHudAllHidden_ = raw_.value(QLatin1String(kPluginHudAllHiddenKey)).toBool(false);
   diagEmulationOpen_ = raw_.value(QLatin1String(kDiagEmulationKey)).toBool(true);
   diagStreamingOpen_ = raw_.value(QLatin1String(kDiagStreamingKey)).toBool(true);
   const QString sort = raw_.value(QLatin1String(kLibrarySortKey)).toString();
@@ -183,6 +191,86 @@ bool PlayerSettings::setLastPlayed(const QString& hubId, const QString& gameId, 
   hub.insert(gameId, static_cast<double>(msecs));
   all.insert(hubId, hub);
   raw_.insert(QLatin1String(kLastPlayedKey), all);
+  return save();
+}
+
+QHash<QString, QString> PlayerSettings::pluginHudCorners() const {
+  QHash<QString, QString> out;
+  const QJsonObject o = raw_.value(QLatin1String(kPluginHudCornersKey)).toObject();
+  for (auto it = o.begin(); it != o.end(); ++it) {
+    const QString c = it.value().toString();
+    if (c == QLatin1String("top-left") || c == QLatin1String("bottom-left") || c == QLatin1String("bottom-right")) out.insert(it.key(), c);
+  }
+  return out;
+}
+
+bool PlayerSettings::setPluginHudCorner(const QString& pluginId, const QString& corner) {
+  if (pluginId.isEmpty() || (corner != QLatin1String("top-left") && corner != QLatin1String("bottom-left") && corner != QLatin1String("bottom-right")))
+    return false;
+  QJsonObject o = raw_.value(QLatin1String(kPluginHudCornersKey)).toObject();
+  o.insert(pluginId, corner);
+  raw_.insert(QLatin1String(kPluginHudCornersKey), o);
+  return save();
+}
+
+QStringList PlayerSettings::pluginHudHidden() const {
+  QStringList out;
+  const QJsonArray a = raw_.value(QLatin1String(kPluginHudHiddenKey)).toArray();
+  for (const QJsonValue& v : a)
+    if (v.isString() && !v.toString().isEmpty()) out << v.toString();
+  return out;
+}
+
+bool PlayerSettings::setPluginHudHidden(const QString& pluginId, bool hidden) {
+  if (pluginId.isEmpty()) return false;
+  QStringList ids = pluginHudHidden();
+  ids.removeAll(pluginId);
+  if (hidden) ids << pluginId;
+  raw_.insert(QLatin1String(kPluginHudHiddenKey), QJsonArray::fromStringList(ids));
+  return save();
+}
+
+bool PlayerSettings::setPluginHudAllHidden(bool hidden) {
+  pluginHudAllHidden_ = hidden;
+  raw_.insert(QLatin1String(kPluginHudAllHiddenKey), hidden);
+  return save();
+}
+
+QHash<QString, QString> PlayerSettings::pluginToastMutes() const {
+  QHash<QString, QString> out;
+  const QJsonObject o = raw_.value(QLatin1String(kPluginToastMuteKey)).toObject();
+  for (auto it = o.begin(); it != o.end(); ++it) {
+    const QString m = it.value().toString();
+    if (m == QLatin1String("always") || m == QLatin1String("important")) out.insert(it.key(), m);
+  }
+  return out;
+}
+
+bool PlayerSettings::setPluginToastMute(const QString& pluginId, const QString& mode) {
+  if (pluginId.isEmpty() || (!mode.isEmpty() && mode != QLatin1String("always") && mode != QLatin1String("important"))) return false;
+  QJsonObject o = raw_.value(QLatin1String(kPluginToastMuteKey)).toObject();
+  if (mode.isEmpty()) o.remove(pluginId);
+  else o.insert(pluginId, mode);
+  raw_.insert(QLatin1String(kPluginToastMuteKey), o);
+  return save();
+}
+
+QHash<QString, QString> PlayerSettings::pluginHotkeyOverrides() const {
+  QHash<QString, QString> out;
+  const QJsonObject o = raw_.value(QLatin1String(kPluginHotkeysKey)).toObject();
+  for (auto it = o.begin(); it != o.end(); ++it)
+    if (it.value().isString() && !it.value().toString().isEmpty()) out.insert(it.key(), it.value().toString());
+  return out;
+}
+
+bool PlayerSettings::setPluginHotkeyOverride(const QString& pluginId, const QString& hotkeyId, const QString& key) {
+  if (pluginId.isEmpty() || hotkeyId.isEmpty()) return false;
+  QJsonObject o = raw_.value(QLatin1String(kPluginHotkeysKey)).toObject();
+  const QString k = pluginId + QLatin1Char('/') + hotkeyId;
+  if (key.isEmpty()) o.remove(k);
+  else o.insert(k, key);
+  if (o.isEmpty()) raw_.remove(QLatin1String(kPluginHotkeysKey));
+  else raw_.insert(QLatin1String(kPluginHotkeysKey), o);
   return save();
 }
 

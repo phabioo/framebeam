@@ -65,7 +65,7 @@ ApplicationWindow {
     StackLayout {
         id: stack
         anchors.fill: parent
-        currentIndex: ["connection", "pairing", "library", "game", "settings", "emulation", "controllers"].indexOf(window.player.screen)
+        currentIndex: ["connection", "pairing", "library", "game", "settings", "emulation", "controllers", "plugin"].indexOf(window.player.screen)
 
         ConnectionScreen { player: window.player }
         PairingScreen { player: window.player }
@@ -74,6 +74,7 @@ ApplicationWindow {
         SettingsScreen { player: window.player }
         EmulationScreen { player: window.player }
         ControllersScreen { player: window.player }
+        PluginScreen { player: window.player }
     }
 
     // Page transition: short fade-in of the page that becomes current. Never in the game view.

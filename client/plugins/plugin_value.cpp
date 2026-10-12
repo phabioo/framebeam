@@ -10,14 +10,17 @@ namespace framebeam::plugins {
 namespace {
 
 struct Reader {
-  explicit Reader(lua_State* state) : L(state) {}
+  Reader(lua_State* state, int depthLimit, size_t bytes) : L(state), maxDepth(depthLimit), maxBytes(bytes), budget(bytes) {}
   lua_State* L;
-  size_t budget = kMaxValueBytes;
+  int maxDepth;
+  size_t maxBytes;
+  size_t budget;
   std::string err;
 
   bool spend(size_t n) {
     if (n > budget) {
-      err = "value is larger than 1 MiB";
+      err = maxBytes % (1024 * 1024) == 0 ? "value is larger than " + std::to_string(maxBytes / (1024 * 1024)) + " MiB"
+                                          : "value is larger than " + std::to_string(maxBytes / 1024) + " KiB";
       return false;
     }
     budget -= n;
@@ -51,8 +54,8 @@ struct Reader {
         return true;
       }
       case LUA_TTABLE: {
-        if (depth >= kMaxValueDepth) {
-          err = "value is nested deeper than 32 levels";
+        if (depth >= maxDepth) {
+          err = "value is nested deeper than " + std::to_string(maxDepth) + " levels";
           return false;
         }
         out.type = Value::Type::Table;
@@ -132,8 +135,8 @@ void render(const Value& v, std::string& out, size_t maxLen) {
 
 }  // namespace
 
-bool readValue(lua_State* L, int idx, Value& out, std::string& err) {
-  Reader r(L);
+bool readValue(lua_State* L, int idx, Value& out, std::string& err, int maxDepth, size_t maxBytes) {
+  Reader r(L, maxDepth, maxBytes);
   out = Value();
   if (!r.read(idx, out, 0)) {
     err = r.err;

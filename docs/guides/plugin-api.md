@@ -1,7 +1,7 @@
 # Plugin API reference (API 1)
 
 For authors of FrameBeam Player plugins. Design background: `docs/architecture/12-plugins.md`, `docs/adr/0023-plugins.md`.
-This page describes what the Player runtime implements today. Parts marked **coming in a later package** are not available yet.
+This page describes what the Player runtime implements today. Parts marked as coming later are not available yet.
 
 A plugin is a folder with a `manifest.json`, a Lua entry file and optional `i18n/` and `assets/`. It runs in a sandboxed Lua 5.4 state on the plugin thread of the Player, never on the emulation or UI thread. A plugin can read the game's memory, but it can never slow the game down.
 
@@ -44,7 +44,7 @@ A plugin is a folder with a `manifest.json`, a Lua entry file and optional `i18n
 |---|---|---|
 | `memory.read` | `fb.memory.*`, `fb.dev.watch` | available |
 | `rom.read` | `fb.rom.*` | available |
-| `ui` | declarative UI building blocks | **coming in a later package** |
+| `ui` | `fb.ui.*` and the manifest field `ui` (declarative UI blocks, toasts) | available |
 | `run.state` | per-player run state and run events | **coming in a later package** |
 
 Calling a function without its permission raises the Lua error `permission <p> not granted`. Everything else (`fb.log`, `fb.events`, `fb.provide`/`fb.call`, `fb.cache`, `fb.i18n`, `fb.clock`, `fb.on_tick`) needs no permission.
@@ -193,9 +193,207 @@ A per-plugin folder for data you derive from the game, such as extracted assets.
 fb.log.info(fb.i18n.t("team.title", { player = "Ash" }))
 ```
 
-### UI and run state
+### UI
 
-**Coming in a later package:** declarative UI building blocks (`ui` permission) and run state (`run.state`).
+Needs the permission `ui` and the matching manifest field `ui`. A plugin ships no QML: it describes each surface as a tree of declarative blocks, and the Player draws it with its own components and design tokens. Plugins choose tone names, size names and player numbers only, never colours or pixels. In-game surfaces are always dark.
+
+#### Manifest field `ui`
+
+```json
+"ui": {
+  "panel":  { "title": "Tracker" },
+  "hud":    true,
+  "tile":   true,
+  "screen": { "title": "Runs" },
+  "detail": true,
+  "hotkeys": [ { "id": "toggle-hud", "label": "Show or hide HUD widget", "key": "Ctrl+H" } ]
+}
+```
+
+| Key | Slot | Where |
+|---|---|---|
+| `panel` | `panel` | Own tab in the in-game side panel |
+| `hud` | `hud` | HUD widget over the game picture (one per plugin) |
+| `tile` | `tile:<tileId>` | Strip on a friend's Multiview tile |
+| `screen` | `screen` | Own sidebar screen under Library |
+| `detail` | `detail` | Section in the game detail (Library), below SAVE |
+| `hotkeys` | - | Entries in Controllers → Hotkeys, see [Hotkeys](#hotkeys) |
+
+- `title`: 1 to 40 characters. `hotkeys`: at most 16; `id` is `[a-z0-9-]{1,32}` and unique, `label` 1 to 60 characters, `key` is an optional portable key sequence (`QKeySequence` text, one combo). The key is a suggestion; the user can change it.
+- Unknown keys are errors. Declaring `ui` without the permission `ui` is a manifest error: "field `ui` needs permission `ui`".
+- Settings → Plugins shows what a plugin adds, for example "Adds: panel tab · HUD · tile strip · Runs screen · game detail · 1 hotkey".
+
+#### When plugins run
+
+- In a game: as before, the plugins for the game start with it.
+- **Shell context:** while no game runs, every enabled plugin that declares `ui.screen` or `ui.detail` runs with an empty game: `fb.game` has no `language` and its other fields are empty, memory reads return `nil`, `fb.rom.*` returns `nil`. Plugins it requires run too. Starting a game stops the shell set and starts the game set; ending the game restarts the shell set. Turning a plugin or Developer mode on or off re-evaluates the shell set.
+- A paused plugin keeps its last trees, shown dimmed.
+
+#### `fb.ui`
+
+All functions raise `permission ui not granted` without the permission. A slot must be declared in the manifest, otherwise `slot <s> not declared in manifest`.
+
+- `fb.ui.set(slot, tree)` replaces the tree of a slot. `slot` is `"panel"`, `"hud"`, `"screen"`, `"detail"` or `"tile:<tileId>"` (`<tileId>` as `[A-Za-z0-9_.-]{1,64}`, needs `ui.tile`). `tree` is one block. An invalid tree raises a Lua error with a path, for example `ui tree: children[2].type: unknown block "foo"`.
+- `fb.ui.patch(slot, id, props)` merges `props` into the block with that `id` in the current tree, so you send only changed values. Errors: no tree in the slot yet, unknown `id`, `type`/`id`/`children` in `props`, invalid props. A prop cannot be removed with patch (a `nil` value does not exist in a Lua table); set it to an empty or neutral value or use `set`.
+- `fb.ui.clear(slot)` removes the tree.
+- `fb.ui.title(slot, text)` overrides the declared title (slots `panel` and `screen` only; 1 to 40 characters; `nil` restores the declared title).
+- `fb.ui.badge(n)` shows a count on the plugin's sidebar entry. `0` or `nil` hides it; values are clamped to 0..999.
+- `fb.ui.dot(kind)` sets the dot on the panel tab: `"news"` or `nil` to clear. The amber "paused" dot is set by the Player.
+- `fb.ui.notify{ tone, title, text, actions }` shows a toast and returns its id. `tone` is `"info"` (default), `"important"` or `"warning"`; `title` up to 80 characters; `text` 1 to 300 characters; `actions` up to 2 of `{ label (1 to 40), action, value? }`. Rate limit per plugin: a burst of 3, then 1 per second. A dropped toast writes a log warning and returns `nil`. The user can mute a plugin's toasts (all, or all but `important`). At most the newest 3 toasts are visible.
+- `fb.ui.on_action(fn)` sets the handler `fn(action, value, slot)`, called on the plugin thread for:
+  - buttons, toggles (`value` = new boolean), selects and segmented controls (`value` = chosen option value), tab switches (`value` = 1-based index), text fields on Enter (`value` = text), clickable cards, stats, chips, list and table rows (the row's `value`), empty-state buttons;
+  - map selection and filter changes (`value` = `{ kind = "route"|"player", id = ... }` or `{ kind = "filter", value = "all"|"me"|"open" }`);
+  - toast buttons (`slot` = `"toast"`);
+  - plugin hotkeys (`slot` = `"hotkey"`, `action` = hotkey id, `value` = `nil`).
+
+  `fb.ui.on_action(nil)` removes the handler. Blocks without their own `value` send `nil` unless stated above.
+
+Tree size limits, per slot: depth 24, 2000 blocks, strings 2000 characters, 512 KiB in total. Action `value`s are plain data up to 8 KiB. The Player coalesces updates to about 30 per second and slot.
+
+#### Host events from `fb`
+
+Subscribe with `fb.events.on("fb", name, fn)`; `fn(value, "fb", name)`.
+
+| Event | Value |
+|---|---|
+| `detail.game` | `{ system, code, sha256, title }` when the game detail shows a game, `nil` for none. The host clears the `detail` slot on every change; the plugin sets a new tree. Posted when the selected game in the Library changes. The game code is known only once the game file is cached, so plugins whose `games` entry has code globs match a game from then on. |
+| `tiles` | Array of `{ id, player, game }` for the visible remote Multiview tiles; `id` is stable for a session and is the `<tileId>` of `tile:<tileId>`. |
+| `hud.visible` | `true` or `false` when the user shows or hides this plugin's HUD widget. |
+
+#### Blocks
+
+A block is a table `{ type = "...", id = "...", children = { ... }, <props> }`. `id` is optional (`[A-Za-z0-9_.-]{1,64}`, unique within the slot; needed for `fb.ui.patch`). Only containers take `children`. Unknown props and blocks are errors; "required" props must be present.
+
+| `type` | Props | Children |
+|---|---|---|
+| `column`, `row` | `gap`, `align` (`start`, `center`, `end`, `stretch`) | yes |
+| `grid` | `gap`, `columns` (1..6) | yes |
+| `tabs` | `tabs` (1..12 labels, required), `selected` (1-based), `action` | yes, child `i` is page `i` |
+| `scroll` | `max_height` (`s`, `m`, `l`; omitted = fill) | yes |
+| `card` | `title`, `eyebrow`, `link_label`, `action`, `value` | yes; clickable when `action` is set |
+| `section` | `title` (required), `link_label`, `action` | yes; header plus content |
+| `text` | `text` (required), `style` (`title`, `heading`, `body`, `meta`, `eyebrow`, `value`), `tone`, `wrap` (default true) | no |
+| `chip` | `text` (required), `tone`, `action`, `selected` | no; focusable filter chip when `action` is set |
+| `badge` | `text` (required), `tone` | no |
+| `avatar` | `initial` (1..4 chars, required), `color` (1..8), `size` (`s`, `m`, `l`) | no |
+| `image` | `src` (required), `size` (`l`, `m`, `s`), `state` (`alive`, `dead`, `missed`, `empty`), `owner` (1..8), `label` | no |
+| `bar` | `value` (0..1, required), `tone`, `label` | no; default tone by value: above 0.5 ok, 0.2 to 0.5 warning, below 0.2 danger |
+| `stat` | `label`, `value` (required), `action` | no; shows "›" when `action` is set |
+| `list` | `rows` (up to 500, required), `selected` (row id) | no |
+| `table` | `columns` (1..12 labels), `rows` (up to 500) (both required) | no |
+| `button` | `label`, `action` (required), `variant` (`primary`, `secondary`, `quiet`, `danger`), `value`, `confirm` | no |
+| `toggle` | `action` (required), `label`, `checked` | no |
+| `select` | `options` (1..100, required), `selected`, `action` (required) | no |
+| `segmented` | `options` (2..3, required), `selected`, `action` (required) | no |
+| `textfield` | `action` (required), `text`, `placeholder`, `error` | no; the action fires on Enter |
+| `empty` | `title` (required), `text`, `action_label`, `action`, `tone` | no; `tone = "danger"` is an error state |
+| `location` | `title` (required), `sub`, `status` (`open`, `encounter`, `caught`, `missed`, `none`) | yes, optional |
+| `map` | see [Map block](#map-block) | no |
+
+Prop details:
+
+- `list` row: `{ id?, title (required), sub?, meta?, image?, tone?, action?, value? }`; rows with an `action` are focusable. `table` row: `{ cells = {...} (up to 12), action?, value? }`.
+- `options` entries: `{ value, label }`. `confirm` on a button: `{ title, text, confirm_label?, danger? }` shows a confirmation dialog first; for `danger` the initial focus is Cancel.
+- `action` is a name of 1 to 64 characters handed to `fb.ui.on_action`. `value` is any plain data up to 8 KiB. Most short strings (titles, labels, subtitles) are limited to 200 characters, `text` and `textfield` text to 2000.
+- `tone`: `neutral`, `info`, `ok`, `warning`, `danger`.
+- `gap`: 4, 8, 12, 16 or 20; other numbers are rounded down to the nearest allowed value (below 4 becomes 4).
+- Sizes: `image` `l` = 68x56, `m` = 40x30, `s` = 24x18 (pixel art is scaled nearest-neighbour); `avatar` `s` = 20, `m` = 26, `l` = 32; `scroll` `s` = 160, `m` = 280, `l` = 420.
+- Player colours: `color` and `owner` are numbers 1 to 8. Colours 1 to 4 are designed in the design tokens; 5 to 8 are derived from them in the same style.
+
+#### Map block
+
+`type = "map"` shows a background image with markers in image coordinates, with zoom and pan (wheel, drag, shoulder buttons, right stick), fit, clusters below 60 % zoom per `area`, a popover above the selected marker, a filter and a legend. Keyboard and controller move the selection to the nearest marker in a direction.
+
+| Prop | Meaning |
+|---|---|
+| `image` | `src` of the map image; omitted = loading state "map not read yet" |
+| `image_w`, `image_h` | Image size in pixels (1..16384) |
+| `players` | Up to 16 of `{ id, initial, color, x, y, label? }` |
+| `routes` | Up to 1000 of `{ id, x, y, area?, number?, done?, icons? }`; `icons` is up to 8 of `{ src, owner? }` |
+| `filter` | `all`, `me` or `open` |
+| `me` | Player `id` used by the "Only me" filter |
+| `selected` | `id` of the selected route or player |
+| `legend` | Show the legend (default true) |
+| `popover` | Up to 16 rows `{ owner, name, src?, status }` for the selected marker |
+| `action` | Receives `{ kind = "route"\|"player", id }` on selection and `{ kind = "filter", value }` on filter changes |
+
+Marker ids are strings (`[A-Za-z0-9_.-]{1,64}`) or non-negative integers; coordinates are numbers.
+
+#### Images
+
+`src` (and `image` of list rows, `src` of map icons) is `cache:<path>` for a file in the plugin's cache (`fb.cache.write`) or `asset:<path>` for a file declared in the manifest `assets`. Paths use `A-Z a-z 0-9 . _ - /`, no `..`, no leading `/`, up to 200 characters. Only PNG files are served. The Player rejects files above 8 MiB, images above 4096x4096, paths that leave the folder (including through symlinks) and undeclared assets. Convert game textures to PNG with `fb.codec.png` and cache them.
+
+#### Hotkeys
+
+- Controllers → Hotkeys shows a FRAMEBEAM group first (these keys always win), then one group per enabled plugin that declares hotkeys, ordered by plugin id, each with an origin marker and its key count. The user can choose a key, clear it or reset it to the declared default.
+- Overrides are stored locally in the Player settings (`plugin_hotkeys`): `"<pluginId>/<hotkeyId>"` → key text, `"none"` = unassigned.
+- Conflicts: FrameBeam keys win (configured FrameBeam hotkeys, Esc, F4, Alt+1 to Alt+9), then the earlier plugin. A losing key is not active; it is shown as "<key> · not active" in amber with "Already used by <owner>. Unassigned until you choose."
+- In a game, an active plugin key calls the plugin's `fb.ui.on_action` handler as `fn(id, nil, "hotkey")`. Keys do not fire while a text field has focus or on auto-repeat. Plugin keys and Alt+n are not passed to the core.
+- Alt+1 to Alt+9 open panel tab n.
+
+#### HUD, toasts and tile strips
+
+- HUD widgets stack in the bottom left (default), bottom right or top left; the top right belongs to the diagnostics overlay. At most 4 widgets per corner are shown. The user can move or hide a widget, and hide all HUD widgets with F4. While widgets are hidden, a pill at the bottom of the game view offers "Show <plugin> widget" per hidden widget and Show/Hide all.
+- Toasts appear at the bottom right.
+- A remote Multiview tile shows one plugin strip (20 px high). The strip uses the first text row of the tree. Tile content usually comes with runs (package 3).
+
+#### Example
+
+`manifest.json`:
+
+```json
+{
+  "id": "net.example.counter",
+  "name": "Counter",
+  "version": "0.1.0",
+  "api": 1,
+  "permissions": ["memory.read", "ui"],
+  "entry": "main.lua",
+  "ui": { "panel": { "title": "Counter" }, "hud": true }
+}
+```
+
+`main.lua`:
+
+```lua
+local hits = 0
+
+local function widget()
+  return { type = "row", gap = 8, align = "center", children = {
+    { type = "text", id = "n", text = tostring(hits), style = "value" },
+    { type = "bar", id = "bar", value = (hits % 10) / 10, label = "to 10" },
+  } }
+end
+
+fb.ui.set("hud", widget())
+fb.ui.set("panel", { type = "column", gap = 12, children = {
+  { type = "section", title = "Counter", children = {
+    { type = "stat", id = "total", label = "Hits", value = hits },
+    { type = "button", label = "Reset", variant = "danger", action = "reset",
+      confirm = { title = "Reset counter?", text = "The value goes back to 0." } },
+  } },
+} })
+
+fb.ui.on_action(function(action)
+  if action == "reset" then
+    hits = 0
+    fb.ui.patch("panel", "total", { value = hits })
+    fb.ui.patch("hud", "n", { text = "0" })
+  end
+end)
+
+fb.events.on("*", "counter.hit", function()
+  hits = hits + 1
+  fb.ui.patch("panel", "total", { value = hits })
+  fb.ui.patch("hud", "n", { text = tostring(hits) })
+  fb.ui.patch("hud", "bar", { value = (hits % 10) / 10 })
+  fb.ui.dot("news")
+end)
+```
+
+### Run state
+
+**Coming in a later package:** run state (`run.state`).
 
 ## Installing plugins and origins
 
