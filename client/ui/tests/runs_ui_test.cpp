@@ -363,6 +363,53 @@ class RunsUiTest : public QObject {
     QCOMPARE(hub.runs.size(), 3);
   }
 
+  // A single fitting game that arrives after the Join dialog opened is selected like on open, never over the user's choice.
+  void joinDialogSelectsLateSingleGame() {
+    FakeHub hub(QStringLiteral("a"));
+    hub.hubId = QStringLiteral("hub-late");
+    hub.decision = FakeHub::Decision::Approve;
+    hub.features = {QStringLiteral("saves_v1"), QStringLiteral("plugins_v1"), QStringLiteral("runs_v1"), QStringLiteral("sessions_v1")};
+    hub.fakeUsers = QJsonArray{QJsonObject{{"id", "u_test_1"}, {"display_name", "Tester"}, {"online", true}},
+                               QJsonObject{{"id", "u_lena"}, {"display_name", "Lena"}, {"online", true}}};
+    hub.pluginList.append(QJsonObject{{"plugin_id", "net.test.late"}, {"version", "1.0.0"}, {"name", "Late"}, {"description", ""}, {"api", 1},
+                                      {"origin", "unverified"}, {"sha256", QString(64, QLatin1Char('c'))}, {"size", 10},
+                                      {"permissions", QJsonArray{"run.state"}}, {"games", QJsonArray{QJsonObject{{"system", "nds"}}}},
+                                      {"created_at", "2026-10-12T10:00:00Z"}});
+    QJsonObject run = hub.makeRun(QStringLiteral("Late"), {QStringLiteral("u_lena"), hub.runsMe}, QStringLiteral("u_lena"),
+                                  QJsonArray{QJsonObject{{"plugin_id", "net.test.late"}, {"version", "1.0.0"}, {"sha256", QString(64, QLatin1Char('c'))}}});
+    const QString runId = run.value("run_id").toString();
+    hub.runs.insert(runId, run);
+    QVERIFY(hub.start());
+
+    Harness h;
+    QVERIFY(h.start());
+    h.window->resize(1440, 900);
+    pair(h, hub);
+    RunsController* runs = h.controller->runs();
+    QTRY_VERIFY_WITH_TIMEOUT(runs->loaded(), 8000);
+    QTRY_COMPARE_WITH_TIMEOUT(h.controller->plugins()->hubPlugins().size(), 1, 8000);
+    QVERIFY(h.click("navRuns"));
+    QTRY_VERIFY(h.item(("runInvite_" + runId).toUtf8().constData()) != nullptr);
+    QVERIFY(h.click("runInviteJoin"));
+    QTRY_VERIFY(popupOpen(h, "runJoinDialog"));
+    QCOMPARE(runs->games()->rowCount(), 0);
+    QCOMPARE(h.item("runJoinGames")->property("selectedId").toString(), QString());
+
+    hub.games = QJsonObject{{"games", QJsonArray{QJsonObject{{"id", kGameId},
+                                                             {"title", "Late Game"},
+                                                             {"system", "nds"},
+                                                             {"rom", QJsonObject{{"sha256", QString(64, QLatin1Char('b'))}, {"size", 4096}, {"filename", "l.nds"}}},
+                                                             {"added_at", "2026-01-01T12:00:00Z"}}}}};
+    h.controller->hubLibrary()->reload();
+    QTRY_COMPARE_WITH_TIMEOUT(runs->games()->rowCount(), 1, 8000);
+    QTRY_COMPARE_WITH_TIMEOUT(h.item("runJoinGames")->property("selectedId").toString(), kGameId, 8000);
+    // a choice of the user stays
+    h.item("runJoinGames")->setProperty("selectedId", QStringLiteral("user-choice"));
+    h.controller->hubLibrary()->reload();
+    QTest::qWait(400);
+    QCOMPARE(h.item("runJoinGames")->property("selectedId").toString(), QStringLiteral("user-choice"));
+  }
+
 };
 
 QTEST_MAIN(RunsUiTest)
