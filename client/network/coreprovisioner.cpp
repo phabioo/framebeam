@@ -20,6 +20,15 @@ CoreProvisioner::CoreProvisioner(HubConnection* connection, CoreCache* cache, QO
   });
 }
 
+void CoreProvisioner::cancel() {
+  if (!busy_) {
+    return;
+  }
+  ++generation_;  // pending replies are ignored
+  busy_ = false;
+  queue_.clear();
+}
+
 void CoreProvisioner::prepare(const QString& coreId, const QString& version) {
   if (busy_) {
     return;
@@ -135,7 +144,7 @@ void CoreProvisioner::next() {
     }
     result_.ok = true;
     // Keep the newest two versions per core plus the one in use; a failed delete never fails the launch.
-    if (const int n = cache_->prune(pkg_.coreId, pkg_.platform, 2, pkg_.version); n > 0) {
+    if (const int n = cache_->prune(pkg_.coreId, pkg_.platform, 2, pkg_.version, protectedVersion_ ? protectedVersion_(pkg_.coreId) : QString()); n > 0) {
       qCInfo(lcCores) << "pruned" << n << "old version(s) of" << pkg_.coreId;
     }
     done();

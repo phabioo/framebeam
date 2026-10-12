@@ -67,6 +67,38 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   coreCache_ = std::make_unique<CoreCache>(profiles_->coreCacheDir());
   coreProv_ = std::make_unique<CoreProvisioner>(conn_.get(), coreCache_.get());
   locator_.setCache(coreCache_->root(), CoreCache::currentPlatform());
+  probeCoreVersions_ = options.probeCoreVersions;
+  coreUpdater_ = std::make_unique<CoreUpdater>(conn_.get(), coreCache_.get());
+  // A running game keeps its loaded core: pruning never removes the version it uses while a newer one is staged.
+  const auto inUseVersion = [this](const QString& coreId) -> QString {
+    if (!session_.isActive()) {
+      return {};
+    }
+    const emu::SystemManifest* man = catalog_ ? catalog_->manifestFor(launchGame_) : nullptr;
+    if (man == nullptr || man->coreId != coreId) {
+      return {};
+    }
+    return catalog_->locateCore(*man).version;
+  };
+  coreUpdater_->setInUseProvider(inUseVersion);
+  connect(coreUpdater_.get(), &CoreUpdater::statusChanged, this, &PlayerController::coreUpdateChanged);
+  connect(coreUpdater_.get(), &CoreUpdater::updated, this, [this](const CoreUpdater::Candidate& c, const CoreResult&) {
+    coreProblems_.remove(c.coreId);
+    coreReprobe_.insert(c.coreId);
+    reprobeUpdatedCores();
+    refreshCoreState();
+    emit coreUpdateChanged();
+  });
+  // The Hub's systems / cores info changes when it updates its cores (after each catalog refresh): re-read it at most
+  // every 30 min (no push event for it) and compare the cached cores with the Hub's versions.
+  systemsTimer_ = new QTimer(this);
+  systemsTimer_->setInterval(30 * 60 * 1000);
+  connect(systemsTimer_, &QTimer::timeout, this, [this]() {
+    if (conn_->state() == HubConnection::State::Connected && systems_->state() != HubSystems::State::Loading) {
+      systems_->reload();
+    }
+  });
+  systemsTimer_->start();
   uploader_ = std::make_unique<GameUploader>(conn_.get());
   upload_ = {{QStringLiteral("active"), false}, {QStringLiteral("fileName"), QString()}, {QStringLiteral("progress"), 0.0},
              {QStringLiteral("message"), QString()}, {QStringLiteral("isError"), false}};
@@ -74,6 +106,7 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     if (systems_->state() == HubSystems::State::Ready) {
       fwProblems_.clear();  // fresh registry from the Hub: validation problems are re-evaluated
       coreProblems_.clear();
+      coreUpdater_->check(systems_->systems());
     }
     refreshAttention();
     emit selectedGameChanged();
@@ -419,7 +452,10 @@ void PlayerController::endGameContext() {
   if (cache_ && !launchGame_.romSha256.isEmpty()) {
     cache_->touch(launchGame_.romSha256, RomCache::extensionFromFilename(launchGame_.romFilename));  // LRU: last use = end of play
   }
-  QTimer::singleShot(0, this, [this]() { trimRomCache(); });  // after the session state settled
+  QTimer::singleShot(0, this, [this]() {
+    trimRomCache();
+    reprobeUpdatedCores();
+  });  // after the session state settled
   if (sessions_) {
     sessions_->gameEnded();  // ends a shared Session
   }
@@ -453,7 +489,40 @@ void PlayerController::refreshAttention() {
   model_.setAttention(byGame);
 }
 
+QVariantMap PlayerController::coreUpdate() const {
+  QVariantMap m;
+  const bool active = coreUpdater_ && coreUpdater_->busy();
+  m.insert(QStringLiteral("active"), active);
+  m.insert(QStringLiteral("text"), active ? tr("Updating %1 to %2").arg(coreUpdater_->current().name, coreUpdater_->current().version) : QString());
+  const bool has = coreUpdater_ && !coreUpdater_->lastUpdate().coreId.isEmpty();
+  m.insert(QStringLiteral("lastText"), has ? tr("Updated %1 to %2").arg(coreUpdater_->lastUpdate().name, coreUpdater_->lastUpdate().version) : QString());
+  return m;
+}
+
+// Reports the version of updated cores to the Hub (handshake) once no game is running: probing loads the core briefly.
+void PlayerController::reprobeUpdatedCores() {
+  if (coreReprobe_.isEmpty() || session_.isActive() || phase_ != PlayPhase::None) {
+    return;
+  }
+  const QSet<QString> ids = std::exchange(coreReprobe_, {});
+  if (!probeCoreVersions_) {
+    return;
+  }
+  coreList_.removeIf([&](const CoreInfo& c) { return ids.contains(c.id); });
+  catalog_->probeCores();  // async (CoreProber); coresProbed resends the handshake with the new versions
+}
+
+// The on-demand download at game start takes over for the core of the selected game.
+void PlayerController::cancelBackgroundUpdateForSelected() {
+  const auto game = model_.game(selectedId_);
+  const emu::SystemManifest* man = game ? catalog_->manifestFor(*game) : nullptr;
+  if (man != nullptr) {
+    coreUpdater_->cancelFor(man->coreId);
+  }
+}
+
 void PlayerController::refreshCoreState() {
+  reprobeUpdatedCores();
   refreshAttention();
   if (!session_.isActive()) {
     refreshEmulationPage();
@@ -1329,6 +1398,7 @@ void PlayerController::playSelected() {
     }
     return;
   }
+  cancelBackgroundUpdateForSelected();
   starter_->startSelected(false);
 }
 
@@ -1418,6 +1488,7 @@ void PlayerController::confirmQuitAndStart() {
   }
   const bool share = confirmShare_;
   quitGame();  // saved and synced first (core unloaded, final upload), also clears the confirmation
+  cancelBackgroundUpdateForSelected();
   starter_->startSelected(share);
 }
 
@@ -1433,6 +1504,7 @@ void PlayerController::playAndShareSelected() {
   if (phase_ != PlayPhase::None || session_.isActive()) {
     return;
   }
+  cancelBackgroundUpdateForSelected();
   starter_->startSelected(true);
 }
 
