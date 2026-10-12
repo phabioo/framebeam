@@ -81,7 +81,7 @@
     {{if .Body.Catalog.Configured}}<form class="push-right" method="post" action="/plugins/index/refresh"><input type="hidden" name="_csrf" value="{{.CSRF}}"><button class="btn small" type="submit">Check now</button></form>{{end}}
   </div>
   {{if not .Body.Catalog.Configured}}
-  <p class="help">No plugin index is configured on this Hub. Set <span class="mono">-plugin-index-url</span> (<span class="mono">FRAMEBEAM_PLUGIN_INDEX_URL</span>) to list the official plugins here, or upload files or use <span class="mono">framebeam-hub import-plugins</span> on a Hub without internet.</p>
+  <p class="help">No plugin index is configured on this Hub (it is turned off with <span class="mono">-plugin-index-url none</span>). Set <span class="mono">-plugin-index-url</span> (<span class="mono">FRAMEBEAM_PLUGIN_INDEX_URL</span>) to a URL to list plugins here, or upload files or use <span class="mono">framebeam-hub import-plugins</span> on a Hub without internet.</p>
   {{else}}
   {{if .Body.Catalog.LastErr}}<p class="help error-line" role="alert">The last check failed: {{.Body.Catalog.LastErr}}</p>{{end}}
   {{if .Body.Catalog.Cards}}

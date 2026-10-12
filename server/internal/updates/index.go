@@ -19,6 +19,10 @@ const Schema = 1
 // DefaultIndexURL is the fixed source of the signed updates index; the signature is at the same URL + ".sig".
 const DefaultIndexURL = "https://github.com/phabioo/framebeam/releases/download/updates-index/updates-index.json"
 
+// DefaultPluginIndexURL is the fixed source of the official signed plugin index (release "plugin-index"); the
+// signature is at the same URL + ".sig". The Hub value "none" disables the plugin index.
+const DefaultPluginIndexURL = "https://github.com/phabioo/framebeam/releases/download/plugin-index/plugin-index.json"
+
 // Limits.
 const (
 	MaxIndexBytes   = 4 << 20

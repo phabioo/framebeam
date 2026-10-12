@@ -117,8 +117,18 @@ func TestUpdateConfig(t *testing.T) {
 }
 
 func TestPluginIndexConfig(t *testing.T) {
-	if c := parse(t, nil); c.PluginIndexURL != "" || c.Validate() != nil {
+	if c := parse(t, nil); c.PluginIndexURL != "https://github.com/phabioo/framebeam/releases/download/plugin-index/plugin-index.json" ||
+		c.PluginIndex() != c.PluginIndexURL || c.Validate() != nil {
 		t.Fatalf("default: %+v", c)
+	}
+	for _, c := range []*Config{
+		parse(t, map[string]string{"FRAMEBEAM_PLUGIN_INDEX_URL": "none"}),
+		parse(t, nil, "-plugin-index-url", "none"),
+		parse(t, nil, "-plugin-index-url", "NONE"),
+	} {
+		if c.PluginIndex() != "" || c.Validate() != nil {
+			t.Fatalf("none: %+v", c)
+		}
 	}
 	c := parse(t, map[string]string{"FRAMEBEAM_PLUGIN_INDEX_URL": "https://env.example/plugin-index.json"})
 	if c.PluginIndexURL != "https://env.example/plugin-index.json" || c.Validate() != nil {
