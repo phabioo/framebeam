@@ -28,8 +28,8 @@ const QList<InputDef>& frameBeamInputs() {
       {QStringLiteral("down"), QStringLiteral("D-pad down"), QStringLiteral("D-PAD ▼")},
       {QStringLiteral("left"), QStringLiteral("D-pad left"), QStringLiteral("D-PAD ◀")},
       {QStringLiteral("right"), QStringLiteral("D-pad right"), QStringLiteral("D-PAD ▶")},
-      // Appended so that the bit indices of the inputs above stay the same. Used by the "3ds" system profile (ZL/ZR,
-      // C-stick); the DS profile ignores them.
+      // Appended so that the bit indices of the inputs above stay the same. Used by the "3ds" input profile (ZL/ZR,
+      // C-stick); the nds profile maps ZL/ZR to L/R and the circle pad to the D-pad.
       {QStringLiteral("zl"), QStringLiteral("ZL"), QStringLiteral("ZL")},
       {QStringLiteral("zr"), QStringLiteral("ZR"), QStringLiteral("ZR")},
       {QStringLiteral("cup"), QStringLiteral("C-stick up"), QStringLiteral("C-STICK ▲")},

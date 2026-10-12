@@ -1053,9 +1053,14 @@ class EmulationControllersTest : public QObject {
     QCOMPARE(c->devices().size(), 2);  // Keyboard, Mouse
     QCOMPARE(c->selectedDevice(), QStringLiteral("keyboard"));
     QCOMPARE(text(h, "profilesLocalFooter"), QStringLiteral("Saved on this device only"));
-    QCOMPARE(c->rows().size(), 22);  // 12 DS inputs + ZL/ZR + C-stick + circle pad (3DS)
-    QVERIFY(!inputRow(h, QStringLiteral("zl")).isEmpty() && !inputRow(h, QStringLiteral("lup")).isEmpty() && !inputRow(h, QStringLiteral("cup")).isEmpty());
+    QCOMPARE(c->rows().size(), 18);  // the rows of the default (first) system, nds: 12 DS inputs + ZL/ZR + circle pad (as D-pad); no C-stick
+    QVERIFY(!inputRow(h, QStringLiteral("zl")).isEmpty() && !inputRow(h, QStringLiteral("lup")).isEmpty() && inputRow(h, QStringLiteral("cup")).isEmpty());
     QVERIFY(!c->supportsLid());  // no LID row: the nds profiles have no lid input
+    c->setSystemLabels(QStringLiteral("GB"), QString());  // a system without touch screen: no Mouse device
+    QVERIFY(!c->hasTouch());
+    QCOMPARE(c->devices().size(), 1);
+    c->setSystemLabels(QStringLiteral("NDS"), QStringLiteral("DS touch"));
+    QCOMPARE(c->devices().size(), 2);
     QCOMPARE(inputRow(h, QStringLiteral("a")).value(QStringLiteral("binding")).toString(), QStringLiteral("X"));
     QCOMPARE(deviceRow(h, QStringLiteral("keyboard")).value(QStringLiteral("slot")).toString(), QStringLiteral("P1"));  // no pad yet
 

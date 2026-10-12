@@ -22,6 +22,28 @@
     ]
   },
   "input_profile": "nds",
+  "input": {
+    "map": {
+      "a": "a",
+      "b": "b",
+      "x": "x",
+      "y": "y",
+      "l": "l",
+      "r": "r",
+      "start": "start",
+      "select": "select",
+      "up": "up",
+      "down": "down",
+      "left": "left",
+      "right": "right",
+      "zl": "l",
+      "zr": "r",
+      "lup": "up",
+      "ldown": "down",
+      "lleft": "left",
+      "lright": "right"
+    }
+  },
   "display_profile": "dual_screen",
   "labels": {
     "input": "NDS",
@@ -43,5 +65,6 @@
         "touch": true
       }
     ]
-  }
+  },
+  "identity": "nds_header"
 }

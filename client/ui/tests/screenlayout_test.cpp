@@ -3,6 +3,7 @@
 
 #include "inputmapping.h"
 #include "screenlayout.h"
+#include "system_manifest.h"
 
 using namespace framebeam;
 using namespace framebeam::ui;
@@ -106,6 +107,28 @@ class ScreenLayoutTest : public QObject {
     QVERIFY(whole.has_value());
     QVERIFY(qAbs(whole->x() - 0.9) < 1e-9 && qAbs(whole->y() - 1.0) < 1e-9);
     QVERIFY(!touchToFrame(p, QRectF(0, 0, 400, 480), QPointF(39, 360), false).has_value());
+  }
+
+  void singleScreenSystemsFromManifests() {  // gb/gbc 160x144, gba 240x160 (data-only systems)
+    emu::ManifestRegistry reg;
+    QVERIFY(reg.loadBuiltin());
+    for (const auto& [id, size] : {std::pair{"gb", QSize(160, 144)}, std::pair{"gbc", QSize(160, 144)}, std::pair{"gba", QSize(240, 160)}}) {
+      const emu::SystemManifest* m = reg.find(QString::fromLatin1(id));
+      QVERIFY(m);
+      QCOMPARE(m->display.screens.size(), 1);
+      QCOMPARE(m->display.frameSize(), size);
+      QCOMPARE(m->display.touchScreenIndex(), -1);
+      QVERIFY(screenLayoutsFor(m->display.screens.size()).isEmpty());  // no layout switch
+      for (const QString& layout : {QStringLiteral("stacked"), QStringLiteral("side"), QStringLiteral("top")}) {
+        const auto pl = placeScreens(m->display, layout, QSizeF(800, 600), true);
+        QCOMPARE(pl.targets.size(), 1);
+        QVERIFY(QRectF(0, 0, 800, 600).contains(pl.content));
+        QVERIFY(qAbs(pl.content.width() / pl.content.height() - double(size.width()) / size.height()) < 0.02);
+      }
+      const auto pl = placeScreens(m->display, QStringLiteral("stacked"), QSizeF(800, 600), false);
+      QVERIFY(!touchToFrameFor(m->display, pl, pl.content.center(), false).has_value());  // no touch screen
+      QCOMPARE(screenSourceRect(m->display, QSizeF(size), 0), QRectF(QPointF(0, 0), QSizeF(size)));
+    }
   }
 
   void remoteFrameProfile() {

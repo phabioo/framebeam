@@ -1,0 +1,60 @@
+{
+  "system_id": "gba",
+  "display_name": "Game Boy Advance",
+  "order": 320,
+  "extensions": [
+    ".gba"
+  ],
+  "firmware": {
+    "required": false,
+    "files": [
+      {
+        "id": "gba_bios",
+        "name": "gba_bios.bin"
+      }
+    ]
+  },
+  "input_profile": "gba",
+  "input": {
+    "map": {
+      "a": "a",
+      "b": "b",
+      "start": "start",
+      "select": "select",
+      "up": "up",
+      "down": "down",
+      "left": "left",
+      "right": "right",
+      "l": "l",
+      "r": "r",
+      "zl": "l",
+      "zr": "r",
+      "lup": "up",
+      "ldown": "down",
+      "lleft": "left",
+      "lright": "right"
+    },
+    "labels": {
+      "lup": "D-PAD ▲ (2nd)",
+      "ldown": "D-PAD ▼ (2nd)",
+      "lleft": "D-PAD ◀ (2nd)",
+      "lright": "D-PAD ▶ (2nd)"
+    }
+  },
+  "display_profile": "single_screen",
+  "identity": "gba_header",
+  "labels": {
+    "input": "GBA"
+  },
+  "display": {
+    "layout": "single",
+    "gap": 0,
+    "screens": [
+      {
+        "id": "main",
+        "width": 240,
+        "height": 160
+      }
+    ]
+  }
+}

@@ -168,16 +168,12 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   emulation_ = std::make_unique<EmulationController>(profiles_->baseDir(), &manifests_);
   controllers_ = std::make_unique<ControllersController>(profiles_->baseDir());
   controllers_->start(options.enableGamepads, options.gamepadPollMs);
-  {
-    // System-specific labels of the Controllers page come from the first manifest with a touch screen.
-    const QList<emu::SystemManifest> all = manifests_.all();
-    for (const emu::SystemManifest& m : all) {
-      const bool touch = std::any_of(m.display.screens.cbegin(), m.display.screens.cend(), [](const emu::ScreenSpec& s) { return s.touch; });
-      if ((touch && m.inputProfile == QLatin1String("nds")) || &m == &all.last()) {  // default until a game starts
-        controllers_->setSystemLabels(m.inputLabel, m.touchLabel);
-        break;
-      }
-    }
+  plugins_->setManifests(&manifests_);
+  if (const QList<emu::SystemManifest> all = manifests_.all(); !all.isEmpty()) {
+    // Default until a game starts: the first system in listing order.
+    const emu::SystemManifest& first = all.first();
+    controllers_->setSystemLabels(first.inputLabel, first.display.touchScreenIndex() >= 0 ? first.touchLabel : QString());
+    controllers_->setInputProfile(all.first().inputProfile);
   }
   {
     CoreCatalog::Deps cd{conn_.get(), profiles_.get(), systems_.get(), coreCache_.get(), emulation_.get(), manifests_, locator_,

@@ -8,6 +8,7 @@
 
 #include "inputmap.h"
 #include "libretro_backend.h"
+#include "system_manifest.h"
 #include "test_core_layout.h"
 
 using namespace framebeam::emu;
@@ -48,6 +49,10 @@ class TestCoreInputTest : public QObject {
   }
 
  private slots:
+  void initTestCase() {  // loading the manifests registers the input tables
+    ManifestRegistry reg;
+    QVERIFY(reg.loadBuiltin());
+  }
   void init() {
     qputenv("FB_TEST_CORE_FLAVOR", "generic");
     qunsetenv("FB_TEST_CORE_NO_BITMASK");
@@ -57,6 +62,10 @@ class TestCoreInputTest : public QObject {
     QVERIFY(!img.isNull());
     QCOMPARE(pressedIds(img), QList<int>{13});
     QCOMPARE(pressedIds(frameWithInputs(QStringLiteral("3ds"), {QStringLiteral("zl")})), QList<int>{12});
+  }
+  void gameBoyAdvanceShouldersAndGameBoyHaveNone() {
+    QCOMPARE(pressedIds(frameWithInputs(QStringLiteral("gba"), {QStringLiteral("zl"), QStringLiteral("r")})), (QList<int>{10, 11}));
+    QCOMPARE(pressedIds(frameWithInputs(QStringLiteral("gb"), {QStringLiteral("l"), QStringLiteral("a"), QStringLiteral("lup")})), (QList<int>{4, 8}));
   }
   void ndsZrIsR() {
     QCOMPARE(pressedIds(frameWithInputs(QStringLiteral("nds"), {QStringLiteral("zr")})), QList<int>{11});

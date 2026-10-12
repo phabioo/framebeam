@@ -1,0 +1,44 @@
+{
+  "_source": "Option keys and values from libretro/gambatte-libretro libgambatte/libretro/libretro_core_options.h. The link cable network mode is not supported by FrameBeam (no network access for cores), so the link mode is fixed and all network keys are locked.",
+  "core_id": "gambatte",
+  "display_name": "Gambatte",
+  "library_basename": "gambatte_libretro",
+  "system_ids": [
+    "gb",
+    "gbc"
+  ],
+  "order": 10,
+  "save": {
+    "source": "save_ram",
+    "extension": ".sav"
+  },
+  "firmware": {
+    "sysfile_option": "gambatte_gb_bootloader",
+    "sysfile_native": "enabled",
+    "sysfile_builtin": "disabled"
+  },
+  "core_options": {
+    "gambatte_gb_link_mode": "Not Connected",
+    "gambatte_show_gb_link_settings": "disabled"
+  },
+  "locked_core_options": [
+    "gambatte_gb_link_mode",
+    "gambatte_show_gb_link_settings",
+    "gambatte_gb_link_network_port",
+    "gambatte_gb_link_network_server_ip_1",
+    "gambatte_gb_link_network_server_ip_2",
+    "gambatte_gb_link_network_server_ip_3",
+    "gambatte_gb_link_network_server_ip_4",
+    "gambatte_gb_link_network_server_ip_5",
+    "gambatte_gb_link_network_server_ip_6",
+    "gambatte_gb_link_network_server_ip_7",
+    "gambatte_gb_link_network_server_ip_8",
+    "gambatte_gb_link_network_server_ip_9",
+    "gambatte_gb_link_network_server_ip_10",
+    "gambatte_gb_link_network_server_ip_11",
+    "gambatte_gb_link_network_server_ip_12"
+  ],
+  "always_shown_core_options": [
+    "gambatte_gb_colorization"
+  ]
+}

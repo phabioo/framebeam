@@ -12,13 +12,15 @@ add_library(framebeam_emulation STATIC
   memory_map.cpp
   memory_snapshot.cpp
   game_identity.cpp)
+# Systems and core profiles are data only (ADR 0020 D6): a new manifests/{systems,cores}/*.json needs no CMake edit.
+file(GLOB FB_MANIFEST_FILES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS manifests/systems/*.json manifests/cores/*.json)
 qt_add_resources(framebeam_emulation framebeam_manifests
   PREFIX "/framebeam/emulation"
-  FILES manifests/systems/nds.json manifests/systems/3ds.json manifests/cores/melondsds.json manifests/cores/desmume.json manifests/cores/azahar.json)
+  FILES ${FB_MANIFEST_FILES})
 target_include_directories(framebeam_emulation PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(framebeam_emulation SYSTEM PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 target_compile_features(framebeam_emulation PUBLIC cxx_std_20)
-target_link_libraries(framebeam_emulation PUBLIC Qt6::Core Qt6::Gui ${CMAKE_DL_LIBS})
+target_link_libraries(framebeam_emulation PUBLIC framebeam_inputmap Qt6::Core Qt6::Gui ${CMAKE_DL_LIBS})
 if(WIN32)
   target_link_libraries(framebeam_emulation PRIVATE winmm)
 endif()
