@@ -110,6 +110,21 @@ func (s *Server) DeclineRun(ctx context.Context, req api.DeclineRunRequestObject
 	return api.DeclineRun200JSONResponse(ar), nil
 }
 
+func (s *Server) InviteRun(ctx context.Context, req api.InviteRunRequestObject) (api.InviteRunResponseObject, error) {
+	if req.Body == nil {
+		return nil, hub.ErrBadRequest
+	}
+	run, err := s.svc.InviteRun(ctx, principal(ctx).User.ID, req.RunId.String(), req.Body.UserIds)
+	if err != nil {
+		return nil, err
+	}
+	ar, err := toAPIRun(run)
+	if err != nil {
+		return nil, err
+	}
+	return api.InviteRun200JSONResponse(ar), nil
+}
+
 func (s *Server) LeaveRun(ctx context.Context, req api.LeaveRunRequestObject) (api.LeaveRunResponseObject, error) {
 	run, err := s.svc.LeaveRun(ctx, principal(ctx).User.ID, req.RunId.String())
 	if err != nil {

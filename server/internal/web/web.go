@@ -92,7 +92,7 @@ func New(svc *hub.Service, cfg Config, log *slog.Logger) (*Server, error) {
 	}
 	s := &Server{svc: svc, cfg: cfg, log: log, tmpl: map[string]*template.Template{}, done: make(chan struct{}),
 		login: newLimiter(svc.Now), verifySem: make(chan struct{}, maxConcurrentVerify)}
-	for _, p := range []string{"login", "setup", "invite", "library", "saves", "clients", "settings", "users", "systems", "confirm", "runs"} {
+	for _, p := range []string{"login", "setup", "invite", "library", "saves", "clients", "settings", "users", "systems", "confirm", "plugins", "runs"} {
 		t, err := template.New(p).ParseFS(templatesFS, "templates/layout.html", "templates/"+p+".html")
 		if err != nil {
 			return nil, err
@@ -161,6 +161,16 @@ func (s *Server) Register(mux *http.ServeMux) {
 	h("POST /users/{id}/enable", s.guard(s.userEnable))
 	h("GET /users/{id}/delete", s.guard(s.userDeleteConfirm))
 	h("POST /users/{id}/delete", s.guard(s.userDelete))
+	h("GET /plugins", s.guard(s.pluginsGet))
+	h("GET /plugins/{id}/{version}", s.guard(s.pluginsGet))
+	h("GET /plugins/{id}/{version}/download", s.guard(s.pluginDownload))
+	h("GET /plugins/{id}/{version}/remove", s.guard(s.pluginRemoveConfirm))
+	h("POST /plugins/{id}/{version}/remove", s.guard(s.pluginRemove))
+	h("POST /plugins/upload", s.guardUpload(s.pluginUpload))
+	h("POST /plugins/offer", s.guard(s.pluginOffer))
+	h("POST /plugins/discard", s.guard(s.pluginDiscard))
+	h("POST /plugins/index/refresh", s.guard(s.pluginIndexRefresh))
+	h("POST /plugins/index/install", s.guard(s.pluginIndexInstall))
 	h("GET /systems", s.guard(s.systemsGet))
 	h("POST /systems/{id}/cores/{core}/install", s.guard(s.coreInstall))
 	h("POST /systems/{id}/cores/{core}/update", s.guard(s.coreUpdate))
@@ -249,44 +259,48 @@ type pageData struct {
 }
 
 var flashTexts = map[string]string{
-	"uploaded":       "ROM added to the library.",
-	"certrenewed":    "Certificate renewed. Every Player must confirm the new fingerprint on its next connection.",
-	"deleted":        "ROM deleted.",
-	"renamed":        "Title changed.",
-	"name":           "Hub name saved.",
-	"password":       "Password changed.",
-	"resolved":       "Conflict resolved.",
-	"restored":       "Version restored as the new current checkpoint. The previous checkpoint is in the history.",
-	"snapshot":       "Snapshot created.",
-	"snapdeleted":    "Snapshot deleted.",
-	"slotcreated":    "Slot created from the current version.",
-	"slotrenamed":    "Slot renamed. History and conflicts moved with it.",
-	"slotdeleted":    "Slot deleted.",
-	"disabled":       "User disabled. Their devices are signed out and their Sessions ended.",
-	"enabled":        "User enabled.",
-	"userdeleted":    "User deleted, together with their devices, invites, saves and save history.",
-	"devdeleted":     "Device deleted.",
-	"revoked":        "Invite revoked.",
-	"appearance":     "Appearance saved.",
-	"uploads":        "Upload setting saved.",
-	"coreinstalled":  "Core installed.",
-	"coreupdated":    "Core updated. The old build was removed.",
-	"coreremoved":    "Core removed.",
-	"coredefault":    "Default core changed.",
-	"fwmode":         "Firmware mode saved.",
-	"fwfile":         "Firmware file saved.",
-	"fwremoved":      "Firmware file removed.",
-	"fwpin":          "Expected SHA-256 saved.",
-	"coreautoupdate": "Automatic core updates saved.",
-	"coresync":       "Checking the libretro buildbot in the background. Reload the page in a moment.",
-	"updates":        "Update settings saved. Checking for updates in the background.",
-	"updatecheck":    "Checking for updates in the background. Reload the page in a moment.",
-	"runpaused":      "Run paused. No new events are recorded until it is resumed.",
-	"runresumed":     "Run resumed.",
-	"runarchived":    "Run archived. Players no longer list it.",
-	"rununarchived":  "Run unarchived.",
-	"rundeleted":     "Run deleted.",
-	"updateinstall":  "Update downloaded and verified. The Hub installs it and restarts in a moment; reload this page afterwards.",
+	"uploaded":        "ROM added to the library.",
+	"certrenewed":     "Certificate renewed. Every Player must confirm the new fingerprint on its next connection.",
+	"deleted":         "ROM deleted.",
+	"renamed":         "Title changed.",
+	"name":            "Hub name saved.",
+	"password":        "Password changed.",
+	"resolved":        "Conflict resolved.",
+	"restored":        "Version restored as the new current checkpoint. The previous checkpoint is in the history.",
+	"snapshot":        "Snapshot created.",
+	"snapdeleted":     "Snapshot deleted.",
+	"slotcreated":     "Slot created from the current version.",
+	"slotrenamed":     "Slot renamed. History and conflicts moved with it.",
+	"slotdeleted":     "Slot deleted.",
+	"disabled":        "User disabled. Their devices are signed out and their Sessions ended.",
+	"enabled":         "User enabled.",
+	"userdeleted":     "User deleted, together with their devices, invites, saves and save history.",
+	"devdeleted":      "Device deleted.",
+	"revoked":         "Invite revoked.",
+	"appearance":      "Appearance saved.",
+	"uploads":         "Upload setting saved.",
+	"coreinstalled":   "Core installed.",
+	"coreupdated":     "Core updated. The old build was removed.",
+	"coreremoved":     "Core removed.",
+	"coredefault":     "Default core changed.",
+	"fwmode":          "Firmware mode saved.",
+	"fwfile":          "Firmware file saved.",
+	"fwremoved":       "Firmware file removed.",
+	"fwpin":           "Expected SHA-256 saved.",
+	"coreautoupdate":  "Automatic core updates saved.",
+	"coresync":        "Checking the libretro buildbot in the background. Reload the page in a moment.",
+	"updates":         "Update settings saved. Checking for updates in the background.",
+	"updatecheck":     "Checking for updates in the background. Reload the page in a moment.",
+	"pluginoffered":   "Plugin offered to Players.",
+	"pluginremoved":   "Plugin removed from the Hub. Players keep their copy until they uninstall it.",
+	"pluginindex":     "Plugin catalog checked.",
+	"plugininstalled": "Plugin installed. Players on this Hub can now install it.",
+	"runpaused":       "Run paused. No new events are recorded until it is resumed.",
+	"runresumed":      "Run resumed.",
+	"runarchived":     "Run archived. Players no longer list it.",
+	"rununarchived":   "Run unarchived.",
+	"rundeleted":      "Run deleted.",
+	"updateinstall":   "Update downloaded and verified. The Hub installs it and restarts in a moment; reload this page afterwards.",
 }
 
 var errTexts = map[string]string{
@@ -314,6 +328,9 @@ var errTexts = map[string]string{
 	"updatebreaking":   "This update breaks Players seen in the last 30 days. Use \"Install anyway\" to confirm.",
 	"norun":            "Run not found.",
 	"runstate":         "The run changed in the meantime. Please review its status and try again.",
+	"noplugin":         "Plugin not found.",
+	"noindex":          "No plugin index is configured on this Hub.",
+	"indexfailed":      "The plugin index could not be checked. The reason is shown in the catalog section.",
 	"updatefailed":     "The update could not be downloaded or verified. See the update status below.",
 }
 
@@ -354,7 +371,7 @@ func (s *Server) base(r *http.Request, sess *session, nav, title string) pageDat
 func (s *Server) navFragment(w http.ResponseWriter, r *http.Request, sess *session) {
 	nav := ""
 	if u, err := url.Parse(r.Header.Get("HX-Current-URL")); err == nil {
-		for _, n := range []string{"library", "saves", "systems", "clients", "users", "runs", "settings"} {
+		for _, n := range []string{"library", "saves", "systems", "clients", "users", "plugins", "runs", "settings"} {
 			if u.Path == "/"+n || strings.HasPrefix(u.Path, "/"+n+"/") {
 				nav = n
 			}

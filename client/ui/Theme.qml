@@ -190,4 +190,89 @@ QtObject {
         default: return neutralPillBg
         }
     }
+
+    // ---- Plugin building blocks (docs/design/plugins.md "Building blocks", tokens.md "Additions of the plugin handoff").
+    // Plugins choose tones, size names and player numbers only; the mapping to colors and pixels lives here. `dark` is
+    // passed explicitly because in-game surfaces stay dark while the rest of the Player follows `Theme.dark`.
+    function toneFg(tone: string, dark: bool): color {
+        switch (tone) {
+        case "info": return dark ? "#3cbfd8" : "#1a7f96"
+        case "ok": return dark ? "#6fd39a" : "#2f7d4f"
+        case "warning": return dark ? "#e5b45a" : "#8a5a00"
+        case "danger": return dark ? "#ef8a78" : "#b5402f"
+        default: return dark ? "#a3a3a8" : "#6b6a66"
+        }
+    }
+    function toneBgFor(tone: string, dark: bool): color {
+        switch (tone) {
+        case "info": return dark ? "#15262b" : "#ddf1f6"
+        case "ok": return dark ? "#17291f" : "#e2f3e8"
+        case "warning": return dark ? "#2a2414" : "#f7ecd6"
+        case "danger": return dark ? "#2a1a17" : "#f8e4e0"
+        default: return dark ? "#232428" : "#ebeae5"
+        }
+    }
+    function toneLine(tone: string, dark: bool): color {
+        switch (tone) {
+        case "info": return dark ? "#1a3238" : "#a6d9e6"
+        case "ok": return dark ? "#1f4a31" : "#bfdfc9"
+        case "warning": return dark ? "#4a3d1c" : "#ead6a8"
+        case "danger": return dark ? "#4a2a24" : "#efc9c2"
+        default: return dark ? "#34353a" : "#d9d7d1"
+        }
+    }
+    // Player colors 1..8: 1-4 are designed (Max, Lena, Jonas, Sam); 5-8 are derived to keep the same rules (not cyan, not
+    // near the danger red, light values at least 4.5:1 on #f6f5f2).
+    readonly property var playerColorsDark: ["#6f9cff", "#f07ab8", "#a6d65a", "#b39cf5", "#4fd1b0", "#9aa7b8", "#d98f5f", "#c4b5a0"]
+    readonly property var playerColorsLight: ["#2f5fd0", "#b8327a", "#4d7a14", "#6a4fc4", "#157a64", "#4f5d70", "#9a4f1c", "#6e5d44"]
+    function playerColor(i: int, dark: bool): color {
+        const list = dark ? playerColorsDark : playerColorsLight
+        const n = Math.max(1, Math.min(8, Math.round(i) || 1))
+        return list[n - 1]
+    }
+    // Gap names of the layout blocks: 4, 8, 12, 16, 20; anything else is rounded down to the nearest allowed value.
+    function gapPx(g: var): int {
+        const allowed = [4, 8, 12, 16, 20]
+        let r = 8
+        if (g === undefined || g === null) return r
+        r = allowed[0]
+        for (let i = 0; i < allowed.length; ++i) {
+            if (allowed[i] <= g) r = allowed[i]
+        }
+        return r
+    }
+    function pluginImageUrl(pluginId: string, src: string): string {
+        if (!src) return ""
+        const m = /^(cache|asset):(.+)$/.exec(src)
+        return m ? "image://fbplugin/" + pluginId + "/" + m[1] + "/" + m[2] : ""
+    }
+    // Neutral colors of the blocks by role, for the given theme.
+    function blockColor(role: string, dark: bool): color {
+        switch (role) {
+        case "text": return dark ? "#ecebe7" : "#1b1b1d"
+        case "textSecondary": return dark ? "#c9c8c4" : "#55544f"
+        case "textMuted": return dark ? "#a3a3a8" : "#6b6a66"
+        case "textMeta": return dark ? "#8e8e94" : "#6b6a66"
+        case "textFaint": return dark ? "#7d7d83" : "#8a8984"
+        case "textDisabled": return dark ? "#5e5e63" : "#a9a8a2"
+        case "textOnAccent": return dark ? "#161512" : "#ffffff"
+        case "accent": return dark ? "#3cbfd8" : "#1a7f96"
+        case "surface": return dark ? "#121315" : "#ffffff"
+        case "card": return dark ? "#16171a" : "#faf9f7"
+        case "cardBorder": return dark ? "#26272b" : "#e3e1dc"
+        case "border": return dark ? "#2c2d32" : "#d9d7d1"
+        case "borderButton": return dark ? "#3a3b40" : "#d9d7d1"
+        case "hover": return dark ? "#1f2024" : "#ebeae5"
+        case "selection": return dark ? "#15262b" : "#f2f9fb"
+        case "track": return dark ? "#26272b" : "#e3e1dc"
+        case "popup": return dark ? "#1d1e22" : "#ffffff"
+        case "popupBorder": return dark ? "#34353a" : "#d9d7d1"
+        case "ownerRing": return dark ? "#121315" : "#ffffff"
+        case "missedLine": return dark ? "#3a3b40" : "#cfcdc7"
+        case "mapWater": return dark ? "#0e1719" : "#d6e6ea"
+        case "mapLand": return dark ? "#1a211d" : "#eceee2"
+        case "scrim": return dark ? "#b3050506" : "#99000000"
+        default: return dark ? "#ecebe7" : "#1b1b1d"
+        }
+    }
 }

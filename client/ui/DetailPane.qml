@@ -21,6 +21,22 @@ Rectangle {
         root.leaveSaves()
         if (gameId !== "") fadeIn.restart()
     }
+    // Plugins (0.11 design 4h-2): the game code comes from the cached ROM; the plugins matching the selected game feed the
+    // status row and are told about the game (empty = none selected) so they can fill their detail section.
+    readonly property var pluginsApi: player.plugins
+    readonly property string pluginCode: game.id === undefined ? "" : pluginsApi.gameCode(game.system || "", game.cachePath || "")
+    readonly property var gamePlugins: {
+        const _dep = pluginsApi.plugins
+        return hasGame ? pluginsApi.pluginsForGame(game.system || "", pluginCode) : []
+    }
+    function syncPluginGame() {
+        // game.id, not hasGame: this runs from onGameChanged, before the dependent bindings are re-evaluated.
+        if (game.id !== undefined) pluginsApi.setDetailGame(game.system || "", pluginCode, game.sha || "", game.title || "")
+        else pluginsApi.setDetailGame("", "", "", "")
+    }
+    onGameChanged: syncPluginGame()
+    onPluginCodeChanged: syncPluginGame()
+    Component.onCompleted: syncPluginGame()
     readonly property var bg: player.backgroundGame
     readonly property string sinceText: !running || !bg.startedMs ? "" :
         qsTr("%1 · paused %2").arg(Qt.formatTime(new Date(bg.startedMs), "HH:mm")).arg(Qt.formatTime(new Date(bg.pausedMs), "HH:mm"))
@@ -159,10 +175,13 @@ Rectangle {
                             { label: qsTr("ROM"), text: root.game.romText, tone: root.game.romTone, hint: "" },
                             { label: qsTr("Core"), text: root.game.coreText, tone: root.game.coreTone, hint: root.game.coreHint },
                             { label: qsTr("Firmware"), text: root.game.firmwareText, tone: root.game.firmwareTone, hint: root.game.firmwareHint }
-                        ]
+                        ].concat(root.gamePlugins.length > 0 ? [
+                            { label: qsTr("Plugins"), text: qsTr("%1 on · %2").arg(root.gamePlugins.length).arg(root.gamePlugins.map(p => p.name).join(", ")), tone: "neutral", hint: "", objName: "detailPluginsRow" }
+                        ] : [])
                         delegate: Item {
                             id: row
                             required property var modelData
+                            objectName: modelData.objName || ""
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
                             implicitHeight: rowCol.implicitHeight + 22
@@ -213,6 +232,13 @@ Rectangle {
                     Layout.maximumWidth: content.width
                     onManage: root.openSaves(false)
                     onUploadRequested: root.openSaves(true)
+                }
+
+                PluginDetailSection {
+                    objectName: "pluginDetailSections"
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    player: root.player
                 }
 
                 FbLabel {

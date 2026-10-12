@@ -3,6 +3,7 @@
 #include <QHash>
 #include <QJsonObject>
 #include <QString>
+#include <QStringList>
 #include <optional>
 
 namespace framebeam {
@@ -70,6 +71,21 @@ class PlayerSettings {
   bool developerMode() const { return developerMode_; }
   bool setDeveloperMode(bool on);
 
+  // Plugin UI (0.11): HUD widgets and notices, per plugin id. Corners: "top-left" | "bottom-left" | "bottom-right".
+  // Notice mute modes: "always" | "important" (only important notices pass); an empty mode removes the entry.
+  QHash<QString, QString> pluginHudCorners() const;
+  bool setPluginHudCorner(const QString& pluginId, const QString& corner);
+  QStringList pluginHudHidden() const;
+  bool setPluginHudHidden(const QString& pluginId, bool hidden);
+  bool pluginHudAllHidden() const { return pluginHudAllHidden_; }
+  bool setPluginHudAllHidden(bool hidden);
+  // Plugin hotkey choices of the user (Controllers > Hotkeys), keyed by plugin id + hotkey id: a portable key text
+  // ("Ctrl+H"), or "none" = unassigned. An empty key removes the entry (back to the key the manifest declares).
+  QHash<QString, QString> pluginHotkeyOverrides() const;  // "<pluginId>/<hotkeyId>" -> key | "none"
+  bool setPluginHotkeyOverride(const QString& pluginId, const QString& hotkeyId, const QString& key);
+  QHash<QString, QString> pluginToastMutes() const;
+  bool setPluginToastMute(const QString& pluginId, const QString& mode);
+
   // Visibility of the own shared Session: "private" | "hub_users" | "invite_only"; "" = not chosen yet (the caller's default).
   QString sessionVisibility() const { return sessionVisibility_; }
   bool setSessionVisibility(const QString& visibility);  // anything else is rejected (false)
@@ -90,6 +106,7 @@ class PlayerSettings {
   bool libraryReadyFirst_ = false;
   QString sessionVisibility_;
   bool developerMode_ = false;
+  bool pluginHudAllHidden_ = false;
   qint64 romCacheLimit_ = kDefaultRomCacheLimitBytes;
 };
 

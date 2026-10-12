@@ -5,6 +5,7 @@
 //	framebeam-hub grant-folder <path>          Windows: let the Hub service account read a folder (needs administrator)
 //	framebeam-hub renew-cert                   renew the self-generated TLS certificate now and exit
 //	framebeam-hub import-cores <dir>           import libretro buildbot core zips from a directory (offline) and exit
+//	framebeam-hub import-plugins <dir>         offer every *.fbplugin file of a directory to Players (offline) and exit
 //	framebeam-hub diagnostics <out.zip>        write the diagnostics bundle (logs, configuration; no database access) and exit
 //	framebeam-hub version [--json]            print the version (JSON: product, version, channel, commit, protocol versions)
 //	framebeam-hub update check [-channel c]    print the update selection as JSON
@@ -57,6 +58,8 @@ func main() {
 		err = runRenewCert(args[1:], os.Stdout)
 	} else if len(args) > 0 && args[0] == "import-cores" {
 		err = runImportCores(args[1:], os.Stdout)
+	} else if len(args) > 0 && args[0] == "import-plugins" {
+		err = runImportPlugins(args[1:], os.Stdout)
 	} else if len(args) > 0 && args[0] == "diagnostics" {
 		err = runDiagnostics(args[1:], os.Stdout)
 	} else if len(args) > 0 && args[0] == "version" {
@@ -93,7 +96,7 @@ func openService(ctx context.Context, cfg *config.Config) (*hub.Service, func(),
 	svc, err := hub.Open(ctx, db, hub.Options{DataDir: cfg.DataDir, Name: cfg.Name, HubVersion: version.String(), ICEServers: cfg.ICEServers,
 		CoreBuildbotURL: cfg.CoreBuildbotURL, CoreInfoURL: cfg.CoreInfoURL, CoreTrustKeys: keys,
 		SaveKeepRecent: cfg.SaveKeepRecent, SaveKeepDaily: cfg.SaveKeepDaily, SaveKeepWeekly: cfg.SaveKeepWeekly,
-		UpdateIndexURL: cfg.UpdateIndexURL, UpdateRequestDir: cfg.UpdateRequestDir, UpdateChannel: version.Channel})
+		UpdateIndexURL: cfg.UpdateIndexURL, PluginIndexURL: cfg.PluginIndexURL, UpdateRequestDir: cfg.UpdateRequestDir, UpdateChannel: version.Channel})
 	if err != nil {
 		db.Close()
 		return nil, nil, err
@@ -243,6 +246,52 @@ func runImportCores(args []string, out io.Writer) error {
 	}
 	if len(sum.Problems) > 0 {
 		return fmt.Errorf("%d core(s) could not be imported", len(sum.Problems))
+	}
+	return nil
+}
+
+// runImportPlugins offers every *.fbplugin file of a directory to Players (offline fallback, like import-cores).
+// Running the command is the admin's confirmation of the requested permissions. Restart is not needed.
+func runImportPlugins(args []string, out io.Writer) error {
+	dir := ""
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		dir, args = args[0], args[1:]
+	}
+	fs := flag.NewFlagSet("import-plugins", flag.ContinueOnError)
+	cfg := config.Register(fs, os.Getenv)
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if dir == "" && fs.NArg() == 1 {
+		dir = fs.Arg(0)
+	} else if fs.NArg() > 0 {
+		return errors.New("usage: framebeam-hub import-plugins <dir> [flags]")
+	}
+	if dir == "" {
+		return errors.New("usage: framebeam-hub import-plugins <dir> [flags]")
+	}
+	if err := cfg.Validate(); err != nil {
+		return err
+	}
+	ctx := context.Background()
+	svc, closeFn, err := openService(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	defer closeFn()
+	sum, err := svc.ImportPlugins(ctx, dir)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(out, "Imported plugins from %s: %d added, %d unchanged, %d problem(s)\n", dir, sum.Added, sum.Unchanged, len(sum.Problems))
+	for _, w := range sum.Warnings {
+		fmt.Fprintln(out, "Warning:", w)
+	}
+	for _, p := range sum.Problems {
+		fmt.Fprintln(out, "Rejected:", p)
+	}
+	if len(sum.Problems) > 0 {
+		return fmt.Errorf("%d plugin file(s) could not be imported", len(sum.Problems))
 	}
 	return nil
 }
@@ -497,6 +546,17 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		})
 	}()
 
+	// Plugin index: in the background like the core sync, never blocks or fails startup; no URL = no index.
+	plugDone := make(chan struct{})
+	go func() {
+		defer close(plugDone)
+		svc.RunPluginIndexRefresh(ctx, hub.PluginIndexInterval, func(err error) {
+			if err != nil {
+				log.Warn("plugin index refresh failed", "err", err)
+			}
+		})
+	}()
+
 	errc := make(chan error, 1)
 	go func() {
 		if cfg.UseTLS() {
@@ -528,6 +588,10 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	}
 	select {
 	case <-updDone:
+	case <-time.After(5 * time.Second):
+	}
+	select {
+	case <-plugDone:
 	case <-time.After(5 * time.Second):
 	}
 	if restarting {

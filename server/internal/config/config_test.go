@@ -116,6 +116,23 @@ func TestUpdateConfig(t *testing.T) {
 	}
 }
 
+func TestPluginIndexConfig(t *testing.T) {
+	if c := parse(t, nil); c.PluginIndexURL != "" || c.Validate() != nil {
+		t.Fatalf("default: %+v", c)
+	}
+	c := parse(t, map[string]string{"FRAMEBEAM_PLUGIN_INDEX_URL": "https://env.example/plugin-index.json"})
+	if c.PluginIndexURL != "https://env.example/plugin-index.json" || c.Validate() != nil {
+		t.Fatalf("env: %+v", c)
+	}
+	c = parse(t, map[string]string{"FRAMEBEAM_PLUGIN_INDEX_URL": "https://env.example/i"}, "-plugin-index-url", "file:///tmp/plugin-index.json")
+	if c.PluginIndexURL != "file:///tmp/plugin-index.json" || c.Validate() != nil {
+		t.Fatalf("flag: %+v", c)
+	}
+	if parse(t, nil, "-plugin-index-url", "http://x.example/i").Validate() == nil {
+		t.Fatal("http plugin index accepted")
+	}
+}
+
 func TestTURNConfig(t *testing.T) {
 	c := parse(t, nil)
 	if c.TURN || c.TURNPort != 3478 || c.TURNRelayPorts != "49160-49199" || c.Validate() != nil {

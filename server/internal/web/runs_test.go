@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
 )
 
 type oneOffered struct{}
@@ -324,4 +325,48 @@ func TestPluginBlocksScriptRules(t *testing.T) {
 	if strings.Contains(rec.Body.String(), "http://") || strings.Contains(rec.Body.String(), "https://") {
 		t.Error("external URL in plugin-blocks.js")
 	}
+}
+
+// The page names plugins by their display name from the plugin store (the id when the store does not hold the version).
+func TestRunsShowPluginDisplayNames(t *testing.T) {
+	e := newEnvOpts(t, true, nil, func(o *hub.Options) { o.CoreTrustKeys = hubtest.PluginKeys() })
+	c := e.client()
+	c.login()
+	admin, err := e.svc.VerifyPassword(bg, "admin", "secret-12345")
+	if err != nil {
+		t.Fatal(err)
+	}
+	g, err := e.svc.AddROM(bg, bytes.NewReader([]byte("homebrew-dummy-rom")), "lumen.nds", "Lumen Drift", "", admin.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	st, err := e.svc.StagePluginUpload(bg, bytes.NewReader(hubtest.PluginZip(t, "net.example.named", "1.0.0", nil, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := e.svc.OfferStagedPlugin(bg, st.StageID, nil, admin.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	run, err := e.svc.CreateRun(bg, hub.CreateRunInput{UserID: admin.ID, Name: "Named", GameID: g.ID,
+		Plugins: []hub.RunPluginRef{{PluginID: "net.example.named", Version: "1.0.0"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := c.get("/runs/"+run.ID, nil)
+	status(t, rec, 200)
+	contains(t, rec, html.EscapeString(p.Name+" 1.0.0"))
+	// Removing the offer (the run is not finished, so first end it) falls back to the id.
+	if _, err := e.svc.SetRunStatus(bg, admin.ID, run.ID, hub.RunActive); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.SetRunStatus(bg, admin.ID, run.ID, hub.RunFinished); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.RemovePlugin(bg, "net.example.named", "1.0.0"); err != nil {
+		t.Fatal(err)
+	}
+	rec = c.get("/runs/"+run.ID, nil)
+	contains(t, rec, "net.example.named 1.0.0")
+	notContains(t, rec, html.EscapeString(p.Name+" 1.0.0"))
 }

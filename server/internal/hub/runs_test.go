@@ -12,6 +12,7 @@ import (
 
 	"github.com/phabioo/framebeam/server/internal/hub"
 	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
+	"github.com/phabioo/framebeam/server/internal/pluginpkg"
 )
 
 type onePlugin struct{ id, version string }
@@ -167,5 +168,59 @@ func TestRunDeletedUserDisappearsFromRuns(t *testing.T) {
 	got, err := svc.GetRun(ctx, admin.ID, run.ID)
 	if err != nil || len(got.Participants) != 1 {
 		t.Fatalf("%v %+v", err, got.Participants)
+	}
+}
+
+// The plugin store is the run plugin catalog, and a version used by a run that is still going cannot be removed.
+func TestPluginStoreWiredToRuns(t *testing.T) {
+	svc := pluginHub(t, nil)
+	admin, err := svc.CreateAdmin(ctx, "admin", "secret-12345")
+	if err != nil {
+		t.Fatal(err)
+	}
+	g, err := svc.AddROM(ctx, strings.NewReader("homebrew-rom-dummy"), "demo.nds", "Demo", "", admin.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data := hubtest.PluginZip(t, "net.example.wired", "1.0.0", nil, nil)
+	if _, err := svc.OfferStagedPlugin(ctx, stage(t, svc, data).StageID, nil, admin.ID); err != nil {
+		t.Fatal(err)
+	}
+	in := func(id, v string) hub.CreateRunInput {
+		return hub.CreateRunInput{UserID: admin.ID, Name: "Wired", GameID: g.ID, Plugins: []hub.RunPluginRef{{PluginID: id, Version: v}}}
+	}
+	// Only offered versions can be used; the run records the SHA-256 of the offered file.
+	if _, err := svc.CreateRun(ctx, in("net.example.wired", "9.9.9")); !errors.Is(err, hub.ErrBadRequest) {
+		t.Fatalf("not offered: %v", err)
+	}
+	run, err := svc.CreateRun(ctx, in("net.example.wired", "1.0.0"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(run.Plugins) != 1 || run.Plugins[0].SHA256 != pluginpkg.SHA256Hex(data) {
+		t.Fatalf("%+v", run.Plugins)
+	}
+	// Removal is refused while the run is not finished (also while paused), allowed afterwards.
+	if err := svc.RemovePlugin(ctx, "net.example.wired", "1.0.0"); !errors.Is(err, hub.ErrConflict) {
+		t.Fatalf("starting: %v", err)
+	}
+	for _, st := range []string{hub.RunActive, hub.RunPaused} {
+		if _, err := svc.SetRunStatus(ctx, admin.ID, run.ID, st); err != nil {
+			t.Fatal(err)
+		}
+		if err := svc.RemovePlugin(ctx, "net.example.wired", "1.0.0"); !errors.Is(err, hub.ErrConflict) {
+			t.Fatalf("%s: %v", st, err)
+		}
+	}
+	for _, st := range []string{hub.RunActive, hub.RunFinished} {
+		if _, err := svc.SetRunStatus(ctx, admin.ID, run.ID, st); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := svc.RemovePlugin(ctx, "net.example.wired", "1.0.0"); err != nil {
+		t.Fatalf("finished: %v", err)
+	}
+	if _, err := svc.CreateRun(ctx, in("net.example.wired", "1.0.0")); !errors.Is(err, hub.ErrBadRequest) {
+		t.Fatalf("removed: %v", err)
 	}
 }

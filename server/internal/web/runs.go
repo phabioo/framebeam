@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -231,7 +232,7 @@ func (s *Server) runDetail(r *http.Request, run hub.Run, titles map[string]strin
 		CanPause: run.Status == hub.RunActive, CanResume: run.Status == hub.RunPaused, CanArchive: run.Finished()}
 	var plugins []string
 	for _, p := range run.Plugins {
-		plugins = append(plugins, p.PluginID+" "+p.Version)
+		plugins = append(plugins, s.pluginLabel(ctx, p.PluginID, p.Version))
 	}
 	parts := []string{}
 	switch run.Status {
@@ -271,7 +272,7 @@ func (s *Server) runDetail(r *http.Request, run hub.Run, titles map[string]strin
 		byPlugin[b.PluginID] = b
 	}
 	for _, p := range run.Plugins {
-		bv := boardView{Plugin: p.PluginID + " " + p.Version, Empty: true}
+		bv := boardView{Plugin: s.pluginLabel(ctx, p.PluginID, p.Version), Empty: true}
 		if b, ok := byPlugin[p.PluginID]; ok {
 			bv.Empty = false
 			bv.JSON = string(b.Tree) // html/template escapes it for the data-tree attribute
@@ -335,6 +336,8 @@ func hubEventText(e hub.RunEvent) string {
 		return who + " joined"
 	case "run.declined":
 		return who + " declined the invite"
+	case "run.invited":
+		return who + " invited " + invitedNames(e.Payload)
 	case "run.left":
 		return who + " left"
 	case "run.status":
@@ -458,4 +461,34 @@ func (s *Server) runExport(w http.ResponseWriter, r *http.Request, sess *session
 		}
 	}
 	fmt.Fprint(w, "]}\n")
+}
+
+// pluginLabel is "Display name version" from the plugin store; the plugin id replaces the name when the store
+// does not hold the version (removed or never offered by this Hub).
+func (s *Server) pluginLabel(ctx context.Context, id, version string) string {
+	name := id
+	if p, err := s.svc.GetPlugin(ctx, id, version); err == nil && p.Name != "" {
+		name = p.Name
+	}
+	return name + " " + version
+}
+
+// invitedNames lists the users a run.invited event names.
+func invitedNames(payload json.RawMessage) string {
+	var p struct {
+		Invited []struct {
+			UserName string `json:"user_name"`
+		} `json:"invited"`
+	}
+	_ = json.Unmarshal(payload, &p)
+	var names []string
+	for _, u := range p.Invited {
+		if u.UserName != "" {
+			names = append(names, u.UserName)
+		}
+	}
+	if len(names) == 0 {
+		return "more players"
+	}
+	return strings.Join(names, ", ")
 }

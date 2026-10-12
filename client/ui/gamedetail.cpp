@@ -55,6 +55,7 @@ QVariantMap GameDetail::selectedGame() const {
   m.insert(QStringLiteral("id"), game->id);
   m.insert(QStringLiteral("saveSlot"), saves_->slotFor(game->id));
   m.insert(QStringLiteral("title"), game->title);
+  m.insert(QStringLiteral("system"), game->system);
   m.insert(QStringLiteral("monogram"), LibraryModel::monogram(game->title));
   m.insert(QStringLiteral("systemName"), man ? man->displayName : game->system.toUpper());
   m.insert(QStringLiteral("stateKind"), kind);

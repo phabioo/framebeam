@@ -81,6 +81,9 @@ type Options struct {
 	// SaveKeepRecent, SaveKeepDaily and SaveKeepWeekly are the history retention rules (ADR 0012 D7): newest versions,
 	// days and weeks to keep one version of. 0 = unlimited for that rule (SaveKeepRecent 0 = no thinning at all).
 	SaveKeepRecent, SaveKeepDaily, SaveKeepWeekly int
+	// PluginIndexURL is the signed plugin index (https or file://; empty = no index), fetched with CoreHTTPClient and
+	// verified with CoreTrustKeys.
+	PluginIndexURL string
 }
 
 // Service is the service layer. Times are stored in SQLite as Unix seconds (UTC).
@@ -105,6 +108,7 @@ type Service struct {
 
 	cores  coreState
 	upd    updateState
+	plug   pluginState
 	updCfg updateConfig
 	turn   turnState
 	cf     cloudflareState
@@ -140,6 +144,10 @@ func Open(ctx context.Context, db *sql.DB, o Options) (*Service, error) {
 	s.sess.init(o)
 	s.cores.init(o)
 	s.initUpdates(o)
+	s.initPlugins(o)
+	// The plugin store is the run plugin catalog, and a version used by a running run cannot be removed.
+	s.SetPluginCatalog(s)
+	s.SetPluginInUseCheck(s.RunsUsingPluginVersion)
 	// No upload can be in flight while the Hub opens: drop staging leftovers of a crashed run.
 	tmpDir := filepath.Join(s.dataDir, "tmp")
 	if entries, err := os.ReadDir(tmpDir); err == nil {

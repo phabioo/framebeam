@@ -25,6 +25,17 @@ Rectangle {
         return ""
     }
 
+    // "Plugin settings" / "Notice settings…" of a plugin surface: scroll to Plugins, highlight the plugin's row.
+    Connections {
+        target: root.player
+        function onPluginSettingsRequested(pluginId: string) {
+            Qt.callLater(function () {
+                root.jumpTo("plugins")
+                secPlugins.highlightId = pluginId
+            })
+        }
+    }
+
     function sectionItem(name: string): Item {
         switch (name) {
         case "hubs": return secHubs

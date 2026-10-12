@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"regexp"
 	"strings"
 	"sync"
@@ -238,6 +239,22 @@ func (s *Service) dropRunBuckets(runID string) {
 			delete(s.runs.buckets, k)
 		}
 	}
+}
+
+// OfferedPlugin implements PluginCatalog on top of the plugin store.
+func (s *Service) OfferedPlugin(ctx context.Context, id, version string) (string, bool, error) {
+	if !safePluginRef(id, version) {
+		return "", false, nil
+	}
+	p, err := s.GetPlugin(ctx, id, version)
+	if err != nil {
+		var e *Error
+		if errors.As(err, &e) && e.Code == CodeNotFound {
+			return "", false, nil
+		}
+		return "", false, err
+	}
+	return p.SHA256, true, nil
 }
 
 // RunsUsingPluginVersion reports whether a run that is not finished or abandoned uses the plugin version
@@ -808,6 +825,67 @@ func (s *Service) LeaveRun(ctx context.Context, userID, runID string) (_ Run, er
 			return nil, false, internal(err)
 		}
 		e := hubEvent("run.left", map[string]any{"user_id": userID, "user_name": name})
+		return &e, true, nil
+	})
+}
+
+// InviteRun invites further users to a run that is starting, active or paused. Any joined participant may invite.
+// Users who are already invited or joined are skipped; users who declined or left are invited again. If nobody is
+// newly invited nothing is written. More than MaxRunParticipants participants in total are refused (409).
+func (s *Service) InviteRun(ctx context.Context, userID, runID string, userIDs []string) (_ Run, err error) {
+	defer s.publishOK(&err, TopicRuns)
+	if len(userIDs) < 1 || len(userIDs) > MaxRunParticipants {
+		return Run{}, badRequest("Invite 1 to %d users", MaxRunParticipants)
+	}
+	names := map[string]string{}
+	var ids []string
+	for _, id := range userIDs {
+		if _, dup := names[id]; dup {
+			continue
+		}
+		u, err := s.GetUser(ctx, id)
+		if errors.Is(err, ErrNotFound) || (err == nil && u.Disabled()) {
+			return Run{}, badRequest("Unknown user %q", id)
+		}
+		if err != nil {
+			return Run{}, err
+		}
+		names[id] = u.DisplayName
+		ids = append(ids, id)
+	}
+	inviter := userDisplayName(ctx, s.db, userID)
+	return s.changeMembership(ctx, userID, runID, func(ctx context.Context, tx dbq, run Run, st string) (*RunEvent, bool, error) {
+		if st != ParticipantJoined {
+			return nil, false, &Error{Code: CodeForbidden, Message: "Join the run first"}
+		}
+		now := s.now().UTC()
+		total := len(run.Participants)
+		var added []map[string]any
+		for _, id := range ids {
+			if p, ok := run.Participant(id); ok {
+				if p.Status != ParticipantDeclined && p.Status != ParticipantLeft {
+					continue
+				}
+				if _, err := tx.ExecContext(ctx, `UPDATE run_participants SET status = 'invited', invited_at = ? WHERE run_id = ? AND user_id = ?`,
+					now.Unix(), runID, id); err != nil {
+					return nil, false, internal(err)
+				}
+			} else {
+				total++
+				if total > MaxRunParticipants {
+					return nil, false, conflict(fmt.Sprintf("A run has at most %d participants", MaxRunParticipants))
+				}
+				if _, err := tx.ExecContext(ctx, `INSERT INTO run_participants(run_id, user_id, status, invited_at) VALUES (?, ?, 'invited', ?)`,
+					runID, id, now.Unix()); err != nil {
+					return nil, false, internal(err)
+				}
+			}
+			added = append(added, map[string]any{"user_id": id, "user_name": names[id]})
+		}
+		if len(added) == 0 {
+			return nil, false, nil
+		}
+		e := hubEvent("run.invited", map[string]any{"user_id": userID, "user_name": inviter, "invited": added})
 		return &e, true, nil
 	})
 }

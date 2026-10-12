@@ -17,6 +17,7 @@ struct GameContext {
   QString title;
   QString romPath;   // game file for fb.rom (rom.read)
   QString language;  // game language for fb.i18n, e.g. "de", "en", "de-DE"
+  bool shell = false;  // shell context: no game runs; fb.game is an empty table, memory/rom reads return nil
 };
 
 struct HostLimits {

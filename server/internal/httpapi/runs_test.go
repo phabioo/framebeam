@@ -1011,3 +1011,70 @@ func TestRunWSLiveMessagesFollowCatchUp(t *testing.T) {
 		}
 	}
 }
+
+func TestRunInvite(t *testing.T) {
+	r := newRunEnv(t)
+	d1, a1, b1, c1 := r.device(r.admin.ID, "Desktop"), r.device(r.anna.ID, "Anna PC"), r.device(r.bob.ID, "Bob PC"), r.device(r.carol.ID, "Carol PC")
+	wd, wa, wb, wc := r.dial(d1), r.dial(a1), r.dial(b1), r.dial(c1)
+	for _, w := range []*wsClient{wd, wa, wb, wc} {
+		w.settle()
+	}
+	run := r.create(d1, "Invite", r.anna.ID)
+	id := run.RunID
+	wa.awaitWhere("run_updated", isRunUpdated(id, "starting"))
+
+	// Invited, not joined: not allowed to invite (403). Strangers see 404, bodies are validated.
+	wantStatus(t, r.post(a1, id, "invite", map[string]any{"user_ids": []string{r.bob.ID}}), 403, "forbidden")
+	wantStatus(t, r.post(c1, id, "invite", map[string]any{"user_ids": []string{r.bob.ID}}), 404, "not_found")
+	wantStatus(t, r.post(d1, id, "invite", map[string]any{"user_ids": []string{"u_nobody"}}), 400, "bad_request")
+	wantStatus(t, r.do("POST", "/api/v1/runs/"+id+"/invite", map[string]any{"user_ids": []string{}}, opt{token: d1.tok, raw: true}), 400, "bad_request")
+
+	// A joined participant invites; the Hub event names the invited users, run_updated reaches everybody involved.
+	got := decode[runResp](t, r.post(d1, id, "invite", map[string]any{"user_ids": []string{r.bob.ID, r.carol.ID, r.bob.ID, r.admin.ID, r.anna.ID}}))
+	if len(got.Participants) != 4 || got.part(r.bob.ID).Status != "invited" || got.part(r.carol.ID).Status != "invited" {
+		t.Fatalf("%+v", got)
+	}
+	for _, w := range []*wsClient{wd, wa, wb, wc} {
+		w.awaitWhere("run_updated", func(m wsMsg) bool { return len(runUpdated(m).Participants) == 4 })
+	}
+	_, e := runEventOf(wd.awaitWhere("run_event", isRunEvent(id, "run.invited")))
+	var pl struct {
+		UserID  string `json:"user_id"`
+		Invited []struct {
+			UserID string `json:"user_id"`
+		} `json:"invited"`
+	}
+	if err := json.Unmarshal(e.Payload, &pl); err != nil || pl.UserID != r.admin.ID || len(pl.Invited) != 2 {
+		t.Fatalf("payload %s %v", e.Payload, err)
+	}
+	wa.quiet("run_event") // Anna has not joined
+
+	// Nobody new: no-op without an event. A user who declined is invited again.
+	seq := r.get(d1, id).LastSeq
+	if again := decode[runResp](t, r.post(d1, id, "invite", map[string]any{"user_ids": []string{r.bob.ID}})); again.LastSeq != seq {
+		t.Fatalf("seq %d, want %d", again.LastSeq, seq)
+	}
+	wantStatus(t, r.post(b1, id, "decline", nil), 200, "")
+	if re := decode[runResp](t, r.post(d1, id, "invite", map[string]any{"user_ids": []string{r.bob.ID}})); re.part(r.bob.ID).Status != "invited" || re.LastSeq != seq+2 {
+		t.Fatalf("%+v", re)
+	}
+
+	// Allowed while paused, refused when the run is over.
+	wantStatus(t, r.status(d1, id, "active"), 200, "")
+	wantStatus(t, r.status(d1, id, "paused"), 200, "")
+	wantStatus(t, r.post(d1, id, "invite", map[string]any{"user_ids": []string{r.dave.ID}}), 200, "")
+	wantStatus(t, r.status(d1, id, "active"), 200, "")
+	wantStatus(t, r.status(d1, id, "finished"), 200, "")
+	wantStatus(t, r.post(d1, id, "invite", map[string]any{"user_ids": []string{r.erin.ID}}), 409, "conflict")
+}
+
+func TestRunInviteParticipantCap(t *testing.T) {
+	r := newRunEnv(t)
+	d1 := r.device(r.admin.ID, "Desktop")
+	run := r.create(d1, "Cap", r.anna.ID, r.bob.ID, r.carol.ID, r.dave.ID, r.erin.ID, r.frank.ID)            // 7
+	wantStatus(t, r.post(d1, run.RunID, "invite", map[string]any{"user_ids": []string{r.gina.ID}}), 200, "") // 8
+	wantStatus(t, r.post(d1, run.RunID, "invite", map[string]any{"user_ids": []string{r.hank.ID}}), 409, "conflict")
+	if got := r.get(d1, run.RunID); len(got.Participants) != 8 {
+		t.Fatalf("%+v", got)
+	}
+}
