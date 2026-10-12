@@ -224,6 +224,7 @@ Rectangle {
                                         // A file path is cut in the middle instead (the full path is the tooltip).
                                         Layout.fillWidth: true
                                         Layout.minimumWidth: 0
+                                        Layout.preferredWidth: 1   // width from the row, not from the unwrapped text (polish loop)
                                         horizontalAlignment: Text.AlignRight
                                         wrapMode: row.modelData.mono === true ? Text.NoWrap : Text.Wrap
                                         elide: row.modelData.mono === true ? Text.ElideMiddle : Text.ElideNone

@@ -211,3 +211,10 @@ framebeam_add_test(ui_runs runs_ui_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_N
   LIBS ${FB_UI_TEST_LIBS})
 target_include_directories(test_ui_runs PRIVATE ${FB_NETTEST_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../../plugins/tests)
 target_compile_definitions(test_ui_runs PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
+
+# Same layout tests with a noticeably wider application font (FRAMEBEAM_TEST_WIDE_FONT, testsupport.h): catches items
+# that only fit with Linux font metrics (Windows CI renders wider).
+foreach(t ui_shell_layout ui_library_saves)
+  add_test(NAME ${t}_widefont COMMAND test_${t})
+  set_tests_properties(${t}_widefont PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;FRAMEBEAM_TEST_WIDE_FONT=1")
+endforeach()

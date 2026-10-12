@@ -143,11 +143,24 @@ inline void prepareProcess() {
     for (const std::string& a : logExtra) args.push_back(const_cast<char*>(a.c_str())); \
     int n = static_cast<int>(args.size());                      \
     QGuiApplication app(n, args.data());                        \
+    uitest::applyWideFontIfRequested();                         \
     TestClass tc;                                               \
     const int rc = QTest::qExec(&tc, n, args.data());           \
     std::fprintf(stderr, "[uitest] exit code %d\n", rc);       \
     return rc;                                                  \
   }
+
+// FRAMEBEAM_TEST_WIDE_FONT=1: noticeably wider text, the way Windows renders the same pixel sizes. Layout tests then
+// catch items that only fit with Linux font metrics. QML text sets its own pixel size but inherits the application
+// font's letter spacing, so a large absolute spacing (about +30%) widens nearly all text at creation time, before any
+// layout runs. Must run before QML loads.
+inline void applyWideFontIfRequested() {
+  const int v = qEnvironmentVariableIntValue("FRAMEBEAM_TEST_WIDE_FONT");   // 1 = 3 px spacing, larger = that many px
+  if (v == 0) return;
+  QFont f = QGuiApplication::font();
+  f.setLetterSpacing(QFont::AbsoluteSpacing, qMax(3, v));
+  QGuiApplication::setFont(f);
+}
 
 // All warnings/errors from here on count (QML load errors, binding errors, Qt warnings).
 inline void installWarningCounter() { previousHandler() = qInstallMessageHandler(countingHandler); }

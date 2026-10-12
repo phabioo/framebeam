@@ -1004,6 +1004,20 @@ class LibrarySavesUiTest : public QObject {
     }
   }
 
+  // Extreme glyph width: the SAVE card's "Manage saves" link takes its implicit width unless it is constrained to the card.
+  void saveCardLinkStaysInsideTheColumnWithVeryWideText() {
+    FakeHub hub(QStringLiteral("a"));
+    oneGame(hub, kAllFeatures, QStringLiteral("Game"));
+    hub.setHubSave(QStringLiteral("g1"), "cp-1", QStringLiteral("dev-1"), QStringLiteral("Desktop"));
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    QTRY_VERIFY_WITH_TIMEOUT(shown(h, "manageSavesLink"), 8000);
+    widenFonts(h, 40.0);
+    checkInColumn(h, {"saveSummary", "manageSavesLink"}, 2);
+  }
+
   void detailColumnLayoutAtNarrowAndWideWindows() {
     FakeHub hub(QStringLiteral("a"));
     oneGame(hub, kAllFeatures, QStringLiteral("Supercalifragilisticexpialidocious Adventures of the Remastered Deluxe Edition"));
