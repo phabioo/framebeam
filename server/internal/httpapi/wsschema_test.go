@@ -47,7 +47,29 @@ func checkSchema(t testing.TB, schema map[string]any, v any, path string) error 
 			return fmt.Errorf("%s: %v not in enum %v", path, v, en)
 		}
 	}
+	if types, ok := schema["type"].([]any); ok { // e.g. ["string", "null"]
+		var first error
+		for _, ty := range types {
+			one := map[string]any{}
+			for k, val := range schema {
+				one[k] = val
+			}
+			one["type"] = ty
+			err := checkSchema(t, one, v, path)
+			if err == nil {
+				return nil
+			}
+			if first == nil {
+				first = err
+			}
+		}
+		return first
+	}
 	switch schema["type"] {
+	case "null":
+		if v != nil {
+			return fmt.Errorf("%s: want null", path)
+		}
 	case "object":
 		m, ok := v.(map[string]any)
 		if !ok {
@@ -156,7 +178,7 @@ func TestWSExamplesMatchSchemas(t *testing.T) {
 		seen[v.Type] = true
 	}
 	for _, typ := range []string{"hello", "hello_ack", "presence_update", "session_update", "session_ended", "session_invite",
-		"viewer_joined", "viewer_left", "signal", "error", "save_updated"} {
+		"viewer_joined", "viewer_left", "signal", "error", "save_updated", "run_updated", "run_state", "run_event"} {
 		if !seen[typ] {
 			t.Errorf("no example for message type %s", typ)
 		}

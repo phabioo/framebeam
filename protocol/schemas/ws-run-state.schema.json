@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://framebeam.invalid/schemas/ws-run-state.schema.json",
+  "title": "ws-run-state (Hub to the other joined participants and the writer's other devices after a state write; feature runs_v1)",
+  "type": "object",
+  "required": [
+    "type",
+    "payload"
+  ],
+  "properties": {
+    "type": {
+      "const": "run_state"
+    },
+    "id": {
+      "type": "string"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "run_id",
+        "user_id",
+        "state_rev",
+        "state"
+      ],
+      "properties": {
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "user_id": {
+          "type": "string"
+        },
+        "state_rev": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "state": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}

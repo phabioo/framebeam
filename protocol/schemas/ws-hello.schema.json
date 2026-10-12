@@ -28,6 +28,27 @@
         "device_id": {
           "type": "string",
           "format": "uuid"
+        },
+        "runs": {
+          "type": "array",
+          "description": "Optional (feature runs_v1): the last event seq the Player has seen per run. After hello_ack the Hub sends run_updated for every non-archived run the user participates in and, for the listed runs the user joined, the run_events with seq > last_seq (at most 500 per run; none when more are missing, then the Player pages with GET /api/v1/runs/{run_id}/events).",
+          "items": {
+            "type": "object",
+            "required": [
+              "run_id",
+              "last_seq"
+            ],
+            "properties": {
+              "run_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "last_seq": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
         }
       }
     }

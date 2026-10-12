@@ -8,7 +8,7 @@ import (
 // BaseFeatures are the Hub feature flags every Hub advertises; the API adds turn_v1 and uploads_v1 per request.
 func BaseFeatures() []string {
 	return []string{FeatureSavesV1, FeatureSessionsV1, FeatureUsersV1, FeatureFirmwareV1, FeatureCoresV1,
-		FeatureSavesV2, FeatureCoresV2, FeatureSavesV3, FeatureSavesV4, FeatureSavesV5, FeatureLocalSetupV1, FeatureICEUpdateV1}
+		FeatureSavesV2, FeatureCoresV2, FeatureSavesV3, FeatureSavesV4, FeatureSavesV5, FeatureLocalSetupV1, FeatureICEUpdateV1, FeatureRunsV1}
 }
 
 // ConnectedDeviceIDs returns the devices with an open WSS connection, sorted.

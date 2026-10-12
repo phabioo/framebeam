@@ -1,0 +1,171 @@
+package hub_test
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/google/uuid"
+
+	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
+)
+
+type onePlugin struct{ id, version string }
+
+func (p onePlugin) OfferedPlugin(_ context.Context, id, version string) (string, bool, error) {
+	return strings.Repeat("c", 64), id == p.id && version == p.version, nil
+}
+
+func runFixture(t *testing.T) (*hub.Service, *hubtest.Clock, hub.User, hub.Game) {
+	t.Helper()
+	svc, clk := hubtest.New(t, nil)
+	admin, err := svc.CreateAdmin(ctx, "admin", "secret-12345")
+	if err != nil {
+		t.Fatal(err)
+	}
+	g, err := svc.AddROM(ctx, strings.NewReader("homebrew-rom-dummy"), "demo.nds", "Demo", "", admin.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc.SetPluginCatalog(onePlugin{"net.example.board", "1.0.0"})
+	return svc, clk, admin, g
+}
+
+func newRun(t *testing.T, svc *hub.Service, admin hub.User, g hub.Game) hub.Run {
+	t.Helper()
+	run, err := svc.CreateRun(ctx, hub.CreateRunInput{UserID: admin.ID, Name: "Run", GameID: g.ID,
+		Plugins: []hub.RunPluginRef{{PluginID: "net.example.board", Version: "1.0.0"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return run
+}
+
+func TestRunWithoutCatalogOffersNothing(t *testing.T) {
+	svc, _ := hubtest.New(t, nil)
+	admin, _ := svc.CreateAdmin(ctx, "admin", "secret-12345")
+	g, _ := svc.AddROM(ctx, strings.NewReader("homebrew-rom-dummy"), "demo.nds", "Demo", "", admin.ID)
+	_, err := svc.CreateRun(ctx, hub.CreateRunInput{UserID: admin.ID, Name: "Run", GameID: g.ID,
+		Plugins: []hub.RunPluginRef{{PluginID: "net.example.board", Version: "1.0.0"}}})
+	if !errors.Is(err, hub.ErrBadRequest) {
+		t.Fatalf("%v", err)
+	}
+}
+
+func TestRunEventLimit(t *testing.T) {
+	svc, _, admin, g := runFixture(t)
+	run := newRun(t, svc, admin, g)
+	in := hub.AppendRunEventInput{UserID: admin.ID, DeviceID: uuid.NewString(), RunID: run.ID, PluginID: "net.example.board", Source: "manual", Type: "x"}
+	if err := hub.SetRunLastSeqForTest(svc, run.ID, hub.MaxRunEvents-1); err != nil {
+		t.Fatal(err)
+	}
+	in.ClientID = uuid.NewString()
+	seq, created, err := svc.AppendRunEvent(ctx, in)
+	if err != nil || !created || seq != hub.MaxRunEvents {
+		t.Fatalf("%d %v %v", seq, created, err)
+	}
+	in.ClientID = uuid.NewString()
+	if _, _, err := svc.AppendRunEvent(ctx, in); !errors.Is(err, hub.ErrConflict) {
+		t.Fatalf("over the limit: %v", err)
+	}
+	// Hub events still get recorded at the limit (a run can always be ended).
+	if _, err := svc.SetRunStatus(ctx, admin.ID, run.ID, "active"); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := svc.GetRun(ctx, admin.ID, run.ID); got.LastSeq != hub.MaxRunEvents+1 {
+		t.Fatalf("last_seq %d", got.LastSeq)
+	}
+}
+
+func TestRunEventTokenBucketRefills(t *testing.T) {
+	svc, clk, admin, g := runFixture(t)
+	run := newRun(t, svc, admin, g)
+	add := func() error {
+		_, _, err := svc.AppendRunEvent(ctx, hub.AppendRunEventInput{UserID: admin.ID, DeviceID: uuid.NewString(), RunID: run.ID,
+			ClientID: uuid.NewString(), PluginID: "net.example.board", Source: "automatic", Type: "tick", Payload: json.RawMessage(`{}`)})
+		return err
+	}
+	for i := 0; i < 30; i++ {
+		if err := add(); err != nil {
+			t.Fatalf("event %d: %v", i, err)
+		}
+	}
+	if err := add(); !errors.Is(err, hub.ErrRateLimited) {
+		t.Fatalf("31st event: %v", err)
+	}
+	clk.Advance(500 * time.Millisecond) // 1 token
+	if err := add(); err != nil {
+		t.Fatal(err)
+	}
+	if err := add(); !errors.Is(err, hub.ErrRateLimited) {
+		t.Fatalf("%v", err)
+	}
+	clk.Advance(time.Hour) // refill caps at the burst
+	for i := 0; i < 30; i++ {
+		if err := add(); err != nil {
+			t.Fatalf("event %d after refill: %v", i, err)
+		}
+	}
+	if err := add(); !errors.Is(err, hub.ErrRateLimited) {
+		t.Fatalf("%v", err)
+	}
+}
+
+func TestRunDeleteAndArchive(t *testing.T) {
+	svc, _, admin, g := runFixture(t)
+	run := newRun(t, svc, admin, g)
+	if err := svc.ArchiveRun(ctx, run.ID, true); !errors.Is(err, hub.ErrConflict) {
+		t.Fatalf("archiving a running run: %v", err)
+	}
+	if _, err := svc.SetRunStatus(ctx, admin.ID, run.ID, "abandoned"); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.ArchiveRun(ctx, run.ID, true); err != nil {
+		t.Fatal(err)
+	}
+	if l, _ := svc.ListRuns(ctx, admin.ID); len(l) != 0 {
+		t.Fatalf("archived run listed: %+v", l)
+	}
+	if l, _ := svc.ListRunsAdmin(ctx, false); len(l) != 0 {
+		t.Fatalf("%+v", l)
+	}
+	if l, _ := svc.ListRunsAdmin(ctx, true); len(l) != 1 {
+		t.Fatalf("%+v", l)
+	}
+	if err := svc.ArchiveRun(ctx, run.ID, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.DeleteRun(ctx, run.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.GetRun(ctx, admin.ID, run.ID); !errors.Is(err, hub.ErrNotFound) {
+		t.Fatalf("%v", err)
+	}
+	if err := svc.DeleteRun(ctx, run.ID); !errors.Is(err, hub.ErrNotFound) {
+		t.Fatalf("%v", err)
+	}
+	if _, _, err := svc.ListRunEventsAdmin(ctx, run.ID, 0, 10); !errors.Is(err, hub.ErrNotFound) {
+		t.Fatalf("%v", err)
+	}
+}
+
+func TestRunDeletedUserDisappearsFromRuns(t *testing.T) {
+	svc, _, admin, g := runFixture(t)
+	anna, _ := svc.CreateUser(ctx, "anna", "Anna")
+	run, err := svc.CreateRun(ctx, hub.CreateRunInput{UserID: admin.ID, Name: "Run", GameID: g.ID, InviteUserIDs: []string{anna.ID},
+		Plugins: []hub.RunPluginRef{{PluginID: "net.example.board", Version: "1.0.0"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.DeleteUser(ctx, anna.ID, admin.ID); err != nil {
+		t.Fatal(err)
+	}
+	got, err := svc.GetRun(ctx, admin.ID, run.ID)
+	if err != nil || len(got.Participants) != 1 {
+		t.Fatalf("%v %+v", err, got.Participants)
+	}
+}

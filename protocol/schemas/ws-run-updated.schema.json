@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://framebeam.invalid/schemas/ws-run-updated.schema.json",
+  "title": "ws-run-updated (Hub to every participant of a run: created, invited, joined, declined, left, status changed, and during catch-up after hello; feature runs_v1)",
+  "type": "object",
+  "required": [
+    "type",
+    "payload"
+  ],
+  "properties": {
+    "type": {
+      "const": "run_updated"
+    },
+    "id": {
+      "type": "string"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "run"
+      ],
+      "properties": {
+        "run": {
+          "$ref": "ws-run.schema.json"
+        }
+      }
+    }
+  }
+}

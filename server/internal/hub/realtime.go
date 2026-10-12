@@ -243,6 +243,9 @@ type Client struct {
 
 	bucket   float64   // rate limit tokens; guarded by mu
 	bucketAt time.Time // last refill
+
+	runGate bool     // run catch-up is being delivered: live run messages wait in runBuf; guarded by mu
+	runBuf  [][]byte // guarded by mu
 }
 
 // AcquirePreHello reserves one of the few not-yet-hello connection slots of a device. It returns false when
@@ -414,8 +417,9 @@ func (c *Client) Handle(data []byte) error {
 
 func (c *Client) hello(env envelope) error {
 	var h struct {
-		ProtocolVersion int    `json:"protocol_version"`
-		DeviceID        string `json:"device_id"`
+		ProtocolVersion int             `json:"protocol_version"`
+		DeviceID        string          `json:"device_id"`
+		Runs            json.RawMessage `json:"runs"`
 	}
 	if err := json.Unmarshal(env.Payload, &h); err != nil || h.ProtocolVersion < 1 {
 		c.sendError(env.ID, CodeBadRequest, "hello needs protocol_version and device_id")
@@ -436,12 +440,19 @@ func (c *Client) hello(env envelope) error {
 	}
 	ice, turn := c.svc.iceFor(c.reqHost, c.deviceID)
 	ack := map[string]any{"protocol_version": info.ProtocolVersion, "hub_version": info.HubVersion,
-		"features": []string{FeatureSavesV1, FeatureSavesV2, FeatureSessionsV1, FeatureICEUpdateV1}, "ice_servers": ice}
+		"features": []string{FeatureSavesV1, FeatureSavesV2, FeatureSessionsV1, FeatureICEUpdateV1, FeatureRunsV1}, "ice_servers": ice}
 	if len(turn) > 0 {
 		ack["turn_servers"] = turnPayload(turn)
 	}
 	c.sendMsg("hello_ack", env.ID, ack)
-	c.svc.attach(c)
+	// The optional runs list (last seen event per run) is advisory: a malformed list is ignored, never fatal.
+	var listed []RunHello
+	if len(h.Runs) > 0 {
+		if json.Unmarshal(h.Runs, &listed) != nil {
+			listed = nil
+		}
+	}
+	c.svc.startRunCatchUp(c, listed) // registers the client (attach) and queues the run catch-up behind hello_ack
 	return nil
 }
 

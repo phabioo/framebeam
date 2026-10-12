@@ -110,6 +110,7 @@ type Service struct {
 	cf     cloudflareState
 	ext    externalState
 	bus    eventBus
+	runs   runState
 
 	localMu     sync.Mutex // local setup defaults
 	localDef    LocalDefaults
