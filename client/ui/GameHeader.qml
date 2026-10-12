@@ -4,8 +4,8 @@ import QtQuick.Layouts
 import FrameBeam.Player
 
 // GameHeader (docs/design/player.md "GameHeader", 3g-2, 3r-2): five fixed zones, the same in Session and Multiview:
-// Back | Context | Game controls (your game only) | View | Display. 1280 and below: compact (icons with tooltips, Reset and
-// Hotkeys move into "⋯"). Watching only: no game controls, "Leave" instead. The popovers themselves (Reset, speed, layout,
+// Back | Context | Game controls (your game only) | View | Display. 1280 and below: compact (icons with tooltips; Reset stays in
+// the header, only Hotkeys and Pause move into "⋯"). Watching only: no game controls, "Leave" instead. The popovers themselves (Reset, speed, layout,
 // Running sessions, "⋯") live in the game screen; this header only reports clicks and shows the open one as pressed.
 Rectangle {
     id: root
@@ -162,10 +162,11 @@ Rectangle {
                 visible: root.multi && root.ctl.availableLayouts.length > 0
                 padX: root.tight ? 8 : 11
                 current: root.ctl.multiviewMode
+                // PiP | Row | Grid 2×2; Grid is disabled below four Sessions ("Grid 2×2 · from 4", ADR 0026 D2)
                 options: root.ctl.availableLayouts.map(function (m) {
                     return m === "pip" ? { value: "pip", label: qsTr("PiP"), name: "modePip" }
-                         : m === "side" ? { value: "side", label: qsTr("Side by side"), name: "modeSide" }
-                         : { value: "grid", label: qsTr("Grid 2×2"), name: "modeGrid" }
+                         : m === "row" ? { value: "row", label: qsTr("Row"), name: "modeRow" }
+                         : { value: "grid", label: root.ctl.gridAvailable ? qsTr("Grid 2×2") : qsTr("Grid 2×2 · from 4"), name: "modeGrid", disabled: !root.ctl.gridAvailable }
                 })
                 onPicked: (v) => root.ctl.multiviewMode = v
             }
@@ -253,9 +254,10 @@ Rectangle {
                 GameButton {
                     id: resetButton
                     objectName: "resetButton"
-                    visible: !root.tight
                     glyph: "↺"
                     text: qsTr("Reset")
+                    iconOnly: root.tight    // 1280: the icon stays in the header (P44, 3r-3), never behind "⋯"
+                    hPad: root.tight ? 9 : 10
                     danger: root.popover === "reset"
                     tip: qsTr("Reset game")
                     enabled: root.session.active

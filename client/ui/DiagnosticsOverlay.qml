@@ -12,6 +12,7 @@ Rectangle {
     required property DiagnosticsModel model
     property string hotkey: ""
     property bool fullscreen: false
+    property bool docked: false       // a tab of the side panel (3h-3): no own background, fills the panel width
     property bool multi: false
     property var tileBadges: ({})
     readonly property var emu: model.emulation
@@ -23,16 +24,16 @@ Rectangle {
     objectName: "diagnosticsOverlay"
 
     width: 340
-    implicitHeight: col.implicitHeight + 28
+    implicitHeight: col.implicitHeight + (docked ? 0 : 28)
     radius: 10
-    color: Theme.gameOverlayBg
-    border.width: 1
+    color: docked ? "transparent" : Theme.gameOverlayBg
+    border.width: docked ? 0 : 1
     border.color: Theme.gameDivider
 
     ColumnLayout {
         id: col
         anchors.fill: parent
-        anchors.margins: 14
+        anchors.margins: root.docked ? 0 : 14
         spacing: 12
 
         DiagSection {
@@ -98,6 +99,8 @@ Rectangle {
                 Sparkline {
                     objectName: "diagSparkline"
                     Layout.leftMargin: 86
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 60
                     Layout.preferredWidth: 236
                     Layout.preferredHeight: 48
                     total: root.emu.spark ? root.emu.spark.total : []
@@ -165,6 +168,15 @@ Rectangle {
             DiagParticipants { Layout.fillWidth: true; groups: root.model.streaming; grouped: root.multi; badges: root.tileBadges }
         }
 
+        FbLabel {
+            objectName: "diagDockedNote"
+            Layout.fillWidth: true
+            visible: root.docked
+            wrapMode: Text.WordWrap
+            text: qsTr("Docked as a panel tab so it never covers the game or remote tiles.")
+            font.pixelSize: 11
+            color: Theme.gameFaint
+        }
         DiagFooter { Layout.fillWidth: true; hotkey: root.hotkey; onHideRequested: root.model.open = false }
     }
 }

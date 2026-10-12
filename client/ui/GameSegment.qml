@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import FrameBeam.Player
 
-// Segment of the in-game view (always dark): track #1a1b1e, padding 3, active #2c2d32. options: [{ value, label, name }].
+// Segment of the in-game view (always dark): track #1a1b1e, padding 3, active #2c2d32. options: [{ value, label, name, disabled? }]; a disabled option is greyed and does not react.
 // bordered/stretch = the panel variant (visibility).
 Rectangle {
     id: root
@@ -33,7 +33,8 @@ Rectangle {
                 id: seg
                 required property var modelData
                 objectName: modelData.name || ""
-                readonly property bool active: root.current === modelData.value
+                readonly property bool off: modelData.disabled === true
+                readonly property bool active: root.current === modelData.value && !off
                 Layout.fillWidth: root.stretch
                 Layout.fillHeight: true
                 Layout.minimumWidth: 0
@@ -41,7 +42,7 @@ Rectangle {
                 clip: true
                 implicitWidth: segLabel.implicitWidth + 2 * root.padX
                 radius: 5
-                color: active ? Theme.gameSegmentOn : (segHover.hovered ? Theme.gameHover : "transparent")
+                color: active ? Theme.gameSegmentOn : (segHover.hovered && !off ? Theme.gameHover : "transparent")
                 Accessible.role: Accessible.Button
                 Accessible.name: modelData.label
                 Text {
@@ -53,10 +54,10 @@ Rectangle {
                     text: seg.modelData.label
                     font.pixelSize: 13
                     font.weight: seg.active ? Font.Medium : Font.Normal
-                    color: seg.active ? Theme.gameText : Theme.gameTextMuted
+                    color: seg.active ? Theme.gameText : (seg.off ? Theme.gameFaint : Theme.gameTextMuted)
                 }
-                HoverHandler { id: segHover; cursorShape: Qt.PointingHandCursor }
-                TapHandler { onTapped: root.picked(seg.modelData.value) }
+                HoverHandler { id: segHover; cursorShape: seg.off ? Qt.ArrowCursor : Qt.PointingHandCursor }
+                TapHandler { enabled: !seg.off; onTapped: root.picked(seg.modelData.value) }
             }
         }
     }

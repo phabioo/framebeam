@@ -208,14 +208,19 @@ class ControllersGlyphsTest : public QObject {
     const QVariantList cells = inputTestCells(QStringLiteral("playstation"));
     QCOMPARE(cells.size(), 14);  // no stick cells (decisions.md aj)
     QSet<QString> ids;
-    QSet<QPair<int, int>> used;
+    QList<QRectF> used;  // Select / Start have fractional columns so that the word fits the chip (P36)
     for (const QVariant& v : cells) {
       const QVariantMap c = v.toMap();
       ids.insert(c.value(QStringLiteral("id")).toString());
-      const int col = c.value(QStringLiteral("col")).toInt(), row = c.value(QStringLiteral("row")).toInt(), span = c.value(QStringLiteral("span")).toInt();
-      QVERIFY(col >= 0 && col + span <= 7 && row >= 0 && row < 5);
-      for (int i = 0; i < span; ++i) QVERIFY2(!used.contains({col + i, row}), "overlapping cells");
-      for (int i = 0; i < span; ++i) used.insert({col + i, row});
+      const double col = c.value(QStringLiteral("col")).toDouble(), span = c.value(QStringLiteral("span")).toDouble();
+      const int row = c.value(QStringLiteral("row")).toInt();
+      QVERIFY(col >= 0 && col + span <= 7.001 && row >= 0 && row < 5);
+      const QRectF r(col + 0.01, row, span - 0.02, 0.9);
+      for (const QRectF& u : used) QVERIFY2(!u.intersects(r), "overlapping cells");
+      used.append(r);
+      if (c.value(QStringLiteral("id")).toString() == QLatin1String("select") || c.value(QStringLiteral("id")).toString() == QLatin1String("start")) {
+        QVERIFY2(span >= 1.4, "Select / Start chips are wide enough for the word");
+      }
     }
     QCOMPARE(ids.size(), 14);
     QVERIFY(ids.contains(QStringLiteral("a")) && ids.contains(QStringLiteral("up")) && ids.contains(QStringLiteral("zl")));

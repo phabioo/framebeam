@@ -670,11 +670,13 @@ class PluginSlotsUiTest : public QObject {
     QVERIFY(h_.items("tileStrip_s3").isEmpty() || !h_.item("tileStrip_s3")->isVisible());
     QVERIFY(h_.items("tileStrip_local").isEmpty());  // never on the own tile
     QCOMPARE(h_.item("tileStrip_s1")->height(), 20.0);
-    // 8 px right of the key badge.
+    // Top left inside the tile (12 px from its edge), above the info row with the key badge: the two never overlap.
     QQuickItem* badge = h_.item("keyBadge_s1");
     QQuickItem* st = h_.item("tileStrip_s1");
-    QCOMPARE(qRound(st->mapToScene(QPointF(0, 0)).x() - (badge->mapToScene(QPointF(0, 0)).x() + badge->width())), 8);
-    QVERIFY(st->mapToScene(QPointF(0, 0)).y() >= badge->mapToScene(QPointF(0, 0)).y() - 1);
+    QQuickItem* tl = h_.item("surfaceTile_s1");
+    QVERIFY(tl != nullptr);
+    QCOMPARE(qRound(st->mapToScene(QPointF(0, 0)).x() - tl->mapToScene(QPointF(0, 0)).x()), 12);
+    QVERIFY(st->mapToScene(QPointF(0, 0)).y() + st->height() <= badge->mapToScene(QPointF(0, 0)).y());
     // Collapsed: the first text row of the tree.
     QCOMPARE(visibleItem("tileStripText") != nullptr, true);
     QStringList texts;
@@ -806,7 +808,7 @@ class PluginSlotsUiTest : public QObject {
     // One widget hidden: the pill offers "Show <plugin> widget".
     pc()->hideHud(QStringLiteral("net.test.a"));
     QTRY_VERIFY(h_.item("hudRestoreButton")->isVisible());
-    QCOMPARE(textOf(h_.item("hudRestoreButton")), QStringLiteral("1 widget(s) hidden ▾"));
+    QCOMPARE(textOf(h_.item("hudRestoreButton")), QStringLiteral("1 widget hidden · Show"));
     QVERIFY(h_.click("hudRestoreButton"));
     QTRY_VERIFY(h_.item("pluginMenu")->isVisible());
     QCOMPARE(textOf(h_.item("pluginMenuItem_show:net.test.a")), QStringLiteral("Show SoulLink widget"));
@@ -821,7 +823,7 @@ class PluginSlotsUiTest : public QObject {
     // Everything hidden (F4 or "Hide all"): the pill stays and offers "Show all HUD widgets".
     pc()->setHudAllHidden(true);
     QTRY_VERIFY(h_.item("hudRestoreButton")->isVisible());
-    QCOMPARE(textOf(h_.item("hudRestoreButton")), QStringLiteral("HUD hidden ▾"));
+    QCOMPARE(textOf(h_.item("hudRestoreButton")), QStringLiteral("HUD hidden · Show"));
     QVERIFY(h_.click("hudRestoreButton"));
     QTRY_VERIFY(h_.item("pluginMenu")->isVisible());
     QVERIFY(h_.click("pluginMenuItem_showAll"));

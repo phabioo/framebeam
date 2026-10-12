@@ -244,6 +244,12 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   if (const QList<emu::SystemManifest> all = manifests_.all(); !all.isEmpty()) {
     // Default until a game starts: the first system in listing order.
     const emu::SystemManifest& first = all.first();
+    QVariantList sys;
+    for (const emu::SystemManifest& m : all) {
+      sys.append(QVariantMap{{QStringLiteral("id"), m.systemId}, {QStringLiteral("label"), m.inputLabel.isEmpty() ? m.displayName : m.inputLabel},
+                             {QStringLiteral("inputLabel"), m.inputLabel}, {QStringLiteral("profile"), m.inputProfile}});
+    }
+    controllers_->setSystems(sys);
     controllers_->setSystemLabels(first.inputLabel, first.display.touchScreenIndex() >= 0 ? first.touchLabel : QString());
     controllers_->setInputProfile(all.first().inputProfile);
   }
@@ -491,6 +497,8 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     gameActive_ = true;
     gameStartedMs_ = QDateTime::currentMSecsSinceEpoch();
     sessions_->gameStarted(launchGame_.id, launchGame_.title);
+    // Screen layout default of the system (Emulation > Defaults / system), the in-game switch overrides it for this game only.
+    sessions_->setScreenLayout(emulation_->frameBeamValue(QString::fromLatin1(EmulationController::kScreenLayoutKey), launchGame_.system, launchGame_.id));
     // Plugins start asynchronously after the game: they never delay it, failures only show in the console and the log.
     plugins_->gameStarted(launchGame_.system, launchRom_, launchGame_.romSha256, launchGame_.title, QStringLiteral("en"),
                           runStart_.pending() && runStart_.gameId == launchGame_.id ? runs_->launchFor(runStart_.runId) : RunLaunch());

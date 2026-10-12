@@ -46,6 +46,9 @@ QtObject {
     readonly property color gameDanger: "#ef8a78"
     readonly property color gameTile: "#0f1011"
     readonly property color gameTileHover: "#141517"
+    readonly property color gameTileBody: "#121315"      // round 3 tile surface (3r-3)
+    readonly property color gameTileEdge: "#24252a"      // unselected tile border; the selected tile uses gameAccent (one selection style)
+    readonly property color gameCard: Qt.rgba(18 / 255, 19 / 255, 21 / 255, 0.88)   // state card on a tile (paused, loading)
     readonly property color gameSelection: "#ecebe7"
     readonly property color gameChip: Qt.rgba(17 / 255, 18 / 255, 20 / 255, 0.88)
     readonly property color gameOk: "#6fd39a"

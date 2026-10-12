@@ -217,6 +217,9 @@ class ScreenshotsGameTest : public QObject {
       if (s.value(QStringLiteral("is_owner")).toBool()) own = s.value(QStringLiteral("session_id")).toString();
     }
     QVERIFY(!own.isEmpty());
+    ctl->setVisibility(QStringLiteral("invite_only"));  // the local choice wins over the Hub update below
+    QTRY_COMPARE_WITH_TIMEOUT(ctl->visibility(), QStringLiteral("invite_only"), 8000);
+    QTest::qWait(500);  // the Hub's answer to the change must be in before the update below
     QJsonObject o = hub_.sessions.value(own);
     o.insert(QStringLiteral("viewer_count"), 2);
     o.insert(QStringLiteral("viewers"), QJsonArray{
@@ -280,21 +283,42 @@ class ScreenshotsGameTest : public QObject {
     remote.packetLossPercent = 0.4;
     remote.decoderName = QStringLiteral("h264");
     ctl->setStatsOverride(&local, {{QStringLiteral("s1"), remote}});
-    ctl->setMultiviewMode(QStringLiteral("side"));
+    ctl->setMultiviewMode(QStringLiteral("row"));
     ctl->diagnostics()->setOpen(true);
     ctl->refreshDiagnostics();
-    shot(QStringLiteral("3h-side-diagnostics"));
+    shot(QStringLiteral("3h-row-diagnostics"));
 
     ctl->diagnostics()->setOpen(false);
     ctl->watch(QStringLiteral("s2"));
     QTRY_COMPARE_WITH_TIMEOUT(ctl->surfaceCount(), 3, 8000);
     feedRemote(QStringLiteral("s2"), QColor(120, 90, 190));
-    ctl->setMultiviewMode(QStringLiteral("grid"));
+    ctl->setMultiviewMode(QStringLiteral("grid"));  // preference; three Sessions are shown as a Row
     QQuickTest::qWaitForPolish(h_.window);
+    shot(QStringLiteral("3r-row-3"));
+    // 3r-3 / ADR 0026 D3: the host paused Lena's game, her tile says so
+    if (SessionViewer* v1 = ctl->viewer(QStringLiteral("s1"))) {
+      emit v1->hostStateChanged(true, QStringLiteral("Lena"));
+      QQuickTest::qWaitForPolish(h_.window);
+      shot(QStringLiteral("3r-paused-by-viewer-tile"));
+      emit v1->hostStateChanged(false, QString());
+      QQuickTest::qWaitForPolish(h_.window);
+    }
     QVERIFY(h_.click("addSessionToggle"));
     QTRY_VERIFY_WITH_TIMEOUT(h_.item("multiviewSessionList") != nullptr && h_.item("multiviewSessionList")->isVisible(), 4000);
     shot(QStringLiteral("3r-grid-picker"));
     if (h_.item("addSessionToggle")->isVisible()) QVERIFY(h_.click("addSessionToggle"));
+
+    // 3y-2: Esc pauses and opens the pause card in a window
+    ctl->setTab(QStringLiteral("session"));
+    ctl->diagnostics()->setOpen(true);
+    QQuickTest::qWaitForPolish(h_.window);
+    shot(QStringLiteral("3h-docked-diagnostics"));
+    ctl->diagnostics()->setOpen(false);
+    QTest::keyClick(h_.window, Qt::Key_Escape);
+    QQuickTest::qWaitForPolish(h_.window);
+    shot(QStringLiteral("3y-2-esc-pause-window"));
+    QTest::keyClick(h_.window, Qt::Key_Escape);
+    QQuickTest::qWaitForPolish(h_.window);
 
     // 3y: fullscreen with the overlay (Emulation only) in the Session tab
     ctl->setTab(QStringLiteral("session"));
@@ -303,6 +327,11 @@ class ScreenshotsGameTest : public QObject {
     screen->setProperty("toolbarPinned", true);
     preview(openglDiag(), 3, QColor(60, 140, 200));
     shot(QStringLiteral("3y-fullscreen"));
+    ctl->diagnostics()->setOpen(false);
+    QTest::keyClick(h_.window, Qt::Key_Escape);  // 3y-2: Esc pauses in fullscreen, the toolbar offers Resume and Leave fullscreen
+    QQuickTest::qWaitForPolish(h_.window);
+    shot(QStringLiteral("3y-2-esc-pause-fullscreen"));
+    QTest::keyClick(h_.window, Qt::Key_Escape);
     screen->setProperty("toolbarPinned", false);
     QMetaObject::invokeMethod(screen, "setFullscreen", Q_ARG(QVariant, false));
 

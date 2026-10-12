@@ -89,6 +89,12 @@ bool inputProfileMaps(const QString& profile, const QString& inputId) {
   return t && t->bits.contains(inputId);
 }
 
+quint32 inputProfileBits(const QString& profile, const QString& inputId) {
+  std::shared_lock lock(tablesMutex());
+  const ProfileTable* t = tableFor(profile);
+  return t ? t->bits.value(inputId, 0u) : 0u;
+}
+
 QString inputProfileLabel(const QString& profile, const QString& inputId) {
   std::shared_lock lock(tablesMutex());
   const ProfileTable* t = tableFor(profile);

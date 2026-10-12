@@ -344,6 +344,46 @@ class LoopbackTest : public QObject {
     QVERIFY(QTest::qWaitFor([&]() { return f2 >= 20; }, 15000));
   }
 
+  // ADR 0026 D3: pause and resume of the host reach every viewer over fb-diag; a viewer that joins while paused is told
+  // as soon as its channel opens; closing the connection clears the state.
+  void hostPausedSignalReachesViewers() {
+    Rig rig;
+    SessionViewer* v1 = rig.addViewer();
+    QSignalSpy s1(v1, &SessionViewer::hostStateChanged);
+    QVERIFY(!v1->hostPaused());
+    rig.source.start();
+    QVERIFY(QTest::qWaitFor([&]() { return v1->isConnected(); }, 15000));
+    // The channel opens a moment after the media path: the state is sent once it is open.
+    rig.host.setHostState(true, QStringLiteral("Max"));
+    QVERIFY(QTest::qWaitFor([&]() { return v1->hostPaused(); }, 15000));
+    QCOMPARE(v1->hostPausedBy(), QStringLiteral("Max"));
+    QCOMPARE(s1.count(), 1);
+    QCOMPARE(s1.last().at(0).toBool(), true);
+    QCOMPARE(s1.last().at(1).toString(), QStringLiteral("Max"));
+
+    // A second viewer joining while the host is paused
+    SessionViewer* v2 = rig.addViewer();
+    QVERIFY(QTest::qWaitFor([&]() { return v2->hostPaused(); }, 15000));
+    QCOMPARE(v2->hostPausedBy(), QStringLiteral("Max"));
+
+    rig.host.setHostState(false, QString());
+    QVERIFY(QTest::qWaitFor([&]() { return !v1->hostPaused() && !v2->hostPaused(); }, 15000));
+    QCOMPARE(s1.count(), 2);
+    QVERIFY(v1->hostPausedBy().isEmpty());
+
+    // The same state again sends nothing new
+    rig.host.setHostState(false, QString());
+    QTest::qWait(300);
+    QCOMPARE(s1.count(), 2);
+
+    // Closing the connection clears a paused state on the viewer
+    rig.host.setHostState(true, QStringLiteral("Max"));
+    QVERIFY(QTest::qWaitFor([&]() { return v1->hostPaused(); }, 15000));
+    v1->close();
+    QVERIFY(!v1->hostPaused());
+    QCOMPARE(s1.last().at(0).toBool(), false);
+  }
+
   // ADR 0019: a CUDA frame that h264_nvenc cannot take (here: a frames context that is no CUDA context) sends the Session
   // back to readback frames without an error, without stopping the encoder and without a second keyframe storm.
   void gpuFrameThatCannotOpenFallsBackToReadback() {

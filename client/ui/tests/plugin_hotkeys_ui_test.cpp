@@ -93,7 +93,7 @@ class PluginHotkeysUiTest : public QObject {
     QCOMPARE(peek.value("keyText").toString(), QStringLiteral("Ctrl+H · not active"));
     QCOMPARE(peek.value("note").toString(), QStringLiteral("Already used by SoulLink & Nuzlocke. Unassigned until you choose."));
     QCOMPARE(groups.at(1).toMap().value("rows").toList().at(1).toMap().value("note").toString(),
-             QStringLiteral("Already used by Toggle fullscreen. Unassigned until you choose."));
+             QStringLiteral("Already used by Toggle fullscreen. FrameBeam keys always win."));
     QVERIFY(groups.at(1).toMap().value("rows").toList().at(2).toMap().value("active").toBool());  // F8
     QVERIFY(pc()->activeHotkeyCombos().contains(int(Qt::Key_H) | int(Qt::ControlModifier)));
     QVERIFY(!pc()->activeHotkeyCombos().contains(int(Qt::Key_F11)));

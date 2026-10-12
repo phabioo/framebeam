@@ -396,8 +396,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: qsTr("Reset")
                 font.pixelSize: Theme.fontMeta
-                font.underline: true
-                color: resetLink.activeFocus ? Theme.accent : Theme.textMuted
+                color: Theme.accent
             }
             TapHandler { onTapped: root.resetRequested() }
             HoverHandler { cursorShape: Qt.PointingHandCursor }

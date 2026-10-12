@@ -12,6 +12,8 @@ Item {
     signal menuRequested(Item anchor)
 
     readonly property real maxInner: 240 - 20
+    readonly property bool rightSide: entry && entry.corner === "bottom-right"
+    readonly property bool topSide: entry && entry.corner === "top-left"
     width: bg.width
     height: bg.height
     objectName: "hudWidget_" + (entry ? entry.pluginId : "")
@@ -62,9 +64,9 @@ Item {
             objectName: "hudMenuButton"
             readonly property bool hovered: btnHover.hovered
             visible: root.lit
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.margins: 3
+            // Beside the widget (P45), never over its text: left of it in the right-hand corner, else right of it
+            x: root.rightSide ? -width - 4 : parent.width + 4
+            anchors.verticalCenter: parent.verticalCenter
             width: 22; height: 22; radius: 6
             color: btnHover.hovered ? Theme.gameSegmentOn : Qt.rgba(17 / 255, 18 / 255, 20 / 255, 0.9)
             Accessible.role: Accessible.Button
@@ -77,9 +79,9 @@ Item {
     Rectangle {
         objectName: "hudMarker"
         visible: root.lit && root.marker !== ""
-        anchors.left: bg.left
-        anchors.bottom: bg.top
-        anchors.bottomMargin: 3
+        // "Unverified" / "Local": above the widget, below it in the top corner so it is never cut off by the play area edge
+        x: bg.x
+        y: root.topSide ? bg.height + 3 : -height - 3
         width: markerText.implicitWidth + 12
         height: 16
         radius: 4

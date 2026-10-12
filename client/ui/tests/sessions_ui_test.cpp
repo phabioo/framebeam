@@ -144,10 +144,10 @@ QRectF areaRect(Harness& h) {
   return a ? a->mapRectToScene(QRectF(0, 0, a->width(), a->height())) : QRectF();
 }
 bool approxEqual(qreal a, qreal b) { return std::abs(a - b) < 1.5; }
-QString audibleTile(Harness& h, const QStringList& ids) {  // the surfaces with the audio ring (inset 2 px accent) and the chip
+QString audibleTile(Harness& h, const QStringList& ids) {  // the surfaces with the audio chip
   QStringList on;
   for (const QString& id : ids) {
-    if (visibleItem(h, qPrintable(QStringLiteral("audioRing_") + id)) != nullptr) on << id;
+    if (visibleItem(h, qPrintable(QStringLiteral("audioChip_") + id)) != nullptr || visibleItem(h, qPrintable(QStringLiteral("pipAudioChip_") + id)) != nullptr) on << id;
   }
   return on.join(QLatin1Char(','));
 }
@@ -726,36 +726,38 @@ class SessionsUiTest : public QObject {
     QVERIFY(visibleItem(h, "multiviewAdded_s1") != nullptr);
     QVERIFY(h.item("multiviewAddButton_s2")->isEnabled());
 
-    // Two surfaces: PiP, Side-by-Side or Grid 2 x 2
+    // Two surfaces: PiP, Row or Grid 2 x 2
     QVERIFY(h.click("multiviewAddButton_s2"));
     QTRY_COMPARE(ctl->surfaceCount(), 2);
-    QCOMPARE(ctl->availableLayouts(), (QStringList{QStringLiteral("pip"), QStringLiteral("side"), QStringLiteral("grid")}));
+    QCOMPARE(ctl->availableLayouts(), (QStringList{QStringLiteral("pip"), QStringLiteral("row"), QStringLiteral("grid")}));
+    QVERIFY(!ctl->gridAvailable());  // Grid 2 x 2 only from four Sessions
     QCOMPARE(ctl->multiviewMode(), QStringLiteral("pip"));
     QQuickTest::qWaitForPolish(h.window);
-    QVERIFY(h.item("modeSegment")->isVisible() && h.item("modePip") != nullptr && h.item("modeSide") != nullptr && h.item("modeGrid") != nullptr);
+    QVERIFY(h.item("modeSegment")->isVisible() && h.item("modePip") != nullptr && h.item("modeRow") != nullptr && h.item("modeGrid") != nullptr);
     QVERIFY(h.item("multiviewSessionList")->isVisible());  // stays open until the anchor or the outside is clicked
     QVERIFY(h.click("addSessionToggle"));
     QVERIFY(!h.item("multiviewSessionList")->isVisible());
     QCOMPARE(hub.count(QStringLiteral("/api/v1/sessions/s2/join")), 1);
-    QVERIFY(h.click("modeSide"));
+    QVERIFY(h.click("modeRow"));
     QQuickTest::qWaitForPolish(h.window);
     {
       const QRectF a = areaRect(h), t1 = tileRect(h, QStringLiteral("s1")), t2 = tileRect(h, QStringLiteral("s2"));
       QVERIFY(approxEqual(t1.left(), a.left() + 16) && approxEqual(t1.top(), a.top() + 16) && approxEqual(t1.height(), a.height() - 32));
-      QVERIFY(approxEqual(t1.width() * 2 + 16, a.width() - 32) && approxEqual(t2.width(), t1.width()) && approxEqual(t2.top(), t1.top()) && approxEqual(t2.left(), t1.right() + 16));
+      QVERIFY(approxEqual(t1.width() * 2 + 12, a.width() - 32) && approxEqual(t2.width(), t1.width()) && approxEqual(t2.top(), t1.top()) && approxEqual(t2.left(), t1.right() + 12));
     }
 
-    // Three surfaces: a chosen tile layout becomes the 2 x 2 grid, the list is reopened with "+ Add"
+    // Three surfaces: Row stays (Grid is disabled below four, no empty slot), the list is reopened with "+ Add"
     QVERIFY(h.click("addSessionToggle"));
     QVERIFY(h.item("multiviewSessionList")->isVisible());
     QVERIFY(h.click("multiviewAddButton_s3"));
     QTRY_COMPARE(ctl->surfaceCount(), 3);
-    QCOMPARE(ctl->availableLayouts(), (QStringList{QStringLiteral("pip"), QStringLiteral("grid")}));
-    QCOMPARE(ctl->multiviewMode(), QStringLiteral("grid"));
-    ctl->setMultiviewMode(QStringLiteral("side"));  // not offered for three surfaces
-    QCOMPARE(ctl->multiviewMode(), QStringLiteral("grid"));
+    QCOMPARE(ctl->availableLayouts(), (QStringList{QStringLiteral("pip"), QStringLiteral("row"), QStringLiteral("grid")}));
+    QCOMPARE(ctl->multiviewMode(), QStringLiteral("row"));
+    ctl->setMultiviewMode(QStringLiteral("grid"));  // preference only: below four Sessions the Row is shown
+    QCOMPARE(ctl->multiviewMode(), QStringLiteral("row"));
     QQuickTest::qWaitForPolish(h.window);
-    QVERIFY(h.item("modeGrid") != nullptr && h.item("modeSide") == nullptr);
+    QVERIFY(h.item("modeGrid") != nullptr && h.item("modeRow") != nullptr);
+    QVERIFY(h.item("modeGrid")->property("off").toBool());  // greyed, does not react
 
     // Four surfaces: the limit; "Add" is disabled for every other Session, further adds are refused
     QVERIFY(h.click("multiviewAddButton_s4"));
@@ -777,8 +779,8 @@ class SessionsUiTest : public QObject {
       const QRectF a = areaRect(h);
       const QRectF t1 = tileRect(h, QStringLiteral("s1")), t2 = tileRect(h, QStringLiteral("s2")), t3 = tileRect(h, QStringLiteral("s3")), t4 = tileRect(h, QStringLiteral("s4"));
       QVERIFY(approxEqual(t1.left(), a.left() + 16) && approxEqual(t1.top(), a.top() + 16));
-      QVERIFY(approxEqual(t2.top(), t1.top()) && approxEqual(t2.left(), t1.right() + 16));
-      QVERIFY(approxEqual(t3.left(), t1.left()) && approxEqual(t3.top(), t1.bottom() + 16));
+      QVERIFY(approxEqual(t2.top(), t1.top()) && approxEqual(t2.left(), t1.right() + 12));
+      QVERIFY(approxEqual(t3.left(), t1.left()) && approxEqual(t3.top(), t1.bottom() + 12));
       QVERIFY(approxEqual(t4.left(), t2.left()) && approxEqual(t4.top(), t3.top()));
       QVERIFY(approxEqual(t4.right(), a.right() - 16) && approxEqual(t4.bottom(), a.bottom() - 16) && approxEqual(t1.width(), t4.width()) && approxEqual(t1.height(), t4.height()));
     }
@@ -794,12 +796,14 @@ class SessionsUiTest : public QObject {
       QRectF above;
       for (const QString& id : {QStringLiteral("s2"), QStringLiteral("s3"), QStringLiteral("s4")}) {
         const QRectF t = tileRect(h, id);
-        QVERIFY2(approxEqual(t.right(), a.right() - 24) && t.width() > 100 && t.left() >= a.left() && t.top() >= a.top(), qPrintable(id));
+        QVERIFY2(approxEqual(t.right(), a.right() - 30) && t.width() > 100 && t.left() >= a.left() && t.top() >= a.top(), qPrintable(id));
         if (id == QLatin1String("s2")) {
-          QVERIFY(approxEqual(t.bottom(), a.bottom() - 24));
+          QVERIFY(approxEqual(t.bottom(), a.bottom() - 30));
         } else {
           QVERIFY2(t.bottom() <= above.top() + 0.5, qPrintable(id));  // stacked upwards without overlap
         }
+        // The window sits inside the main tile, clear of its 2 px border (P38, 3i-3)
+        QVERIFY2(tileRect(h, QStringLiteral("s1")).adjusted(2, 2, -2, -2).contains(t), qPrintable(id));
         above = t;
       }
     }
@@ -811,7 +815,7 @@ class SessionsUiTest : public QObject {
     QCOMPARE(ctl->surfaceOrder(), (QStringList{QStringLiteral("s3"), QStringLiteral("s2"), QStringLiteral("s1"), QStringLiteral("s4")}));
     QQuickTest::qWaitForPolish(h.window);
     QVERIFY(approxEqual(tileRect(h, QStringLiteral("s3")).width(), areaRect(h).width() - 32));
-    QVERIFY(approxEqual(tileRect(h, QStringLiteral("s1")).right(), areaRect(h).right() - 24));
+    QVERIFY(approxEqual(tileRect(h, QStringLiteral("s1")).right(), areaRect(h).right() - 30));
     QVERIFY(h.click("swapButton_s1"));
     QCOMPARE(ctl->surfaceOrder(), (QStringList{QStringLiteral("s1"), QStringLiteral("s2"), QStringLiteral("s3"), QStringLiteral("s4")}));
 
@@ -881,6 +885,44 @@ class SessionsUiTest : public QObject {
   }
 
   // Local game plus up to three remote Sessions (needs the core).
+  // ADR 0026 D3: the host's pause signal reaches the viewer tile ("Paused by <name>"). The wire round trip itself is covered by
+  // media_loopback and media_host_state; here the viewer's signal drives the controller and the tile.
+  void pausedByHostShowsOnTheViewerTile() {
+    FakeHub hub(QStringLiteral("a"));
+    prepareHub(hub);
+    hub.sessions.insert(QStringLiteral("s1"), sessionObj(QStringLiteral("s1"), QStringLiteral("Lena"), QStringLiteral("Game Lena"), QStringLiteral("hub_users")));
+    hub.sessions.insert(QStringLiteral("s2"), sessionObj(QStringLiteral("s2"), QStringLiteral("Mo"), QStringLiteral("Game Mo"), QStringLiteral("hub_users")));
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    SessionController* ctl = h.controller->sessions();
+    QTRY_COMPARE(ctl->sessions().size(), 2);
+    QVERIFY(h.click("watch_s1"));
+    QTRY_VERIFY(ctl->watching());
+    QVERIFY(h.click("addSessionToggle"));
+    QVERIFY(h.click("multiviewAddButton_s2"));
+    QTRY_COMPARE(ctl->surfaceCount(), 2);
+    QQuickTest::qWaitForPolish(h.window);
+    SessionViewer* v1 = ctl->viewer(QStringLiteral("s1"));
+    QVERIFY(v1 != nullptr);
+    QVERIFY(!ctl->surfaceInfo().value(QStringLiteral("s1")).toMap().value(QStringLiteral("paused")).toBool());
+    QVERIFY(visibleItem(h, "tilePausedBanner") == nullptr);
+
+    emit v1->hostStateChanged(true, QStringLiteral("Lena"));
+    QQuickTest::qWaitForPolish(h.window);
+    const QVariantMap info = ctl->surfaceInfo().value(QStringLiteral("s1")).toMap();
+    QVERIFY(info.value(QStringLiteral("paused")).toBool());
+    QCOMPARE(info.value(QStringLiteral("pausedBy")).toString(), QStringLiteral("Lena"));
+    QVERIFY(!ctl->surfaceInfo().value(QStringLiteral("s2")).toMap().value(QStringLiteral("paused")).toBool());  // only that tile
+    QTRY_VERIFY(visibleItem(h, "tilePausedBanner") != nullptr);
+    QVERIFY(visibleItem(h, "tilePausedBanner")->property("title").toString().contains(QStringLiteral("Paused by Lena")));
+
+    emit v1->hostStateChanged(false, QString());
+    QTRY_VERIFY(visibleItem(h, "tilePausedBanner") == nullptr);
+    QVERIFY(!ctl->surfaceInfo().value(QStringLiteral("s1")).toMap().value(QStringLiteral("paused")).toBool());
+  }
+
   void multiviewWithLocalGameAndAudioFocus() {
     GameRig r;
     if (!startGame(r, false)) UITEST_SKIP_NO_CORE("core or test ROM not available");
@@ -959,9 +1001,9 @@ class SessionsUiTest : public QObject {
     QVERIFY(visibleItem(h, "swapButton_s1") != nullptr && visibleItem(h, "removeButton_s1") != nullptr);
     QVERIFY(visibleItem(h, "removeButton_local") == nullptr);  // the local game is not a Session to leave
     QQuickItem* localView = visibleItem(h, "gameViewMulti");
-    {  // PiP tile bottom right (offset 28)
+    {  // PiP tile bottom right (inset 30, clear of the main tile border)
       const QRectF a = areaRect(h), t = tileRect(h, QStringLiteral("s1"));
-      QVERIFY(approxEqual(t.right(), a.right() - 24) && approxEqual(t.bottom(), a.bottom() - 24));
+      QVERIFY(approxEqual(t.right(), a.right() - 30) && approxEqual(t.bottom(), a.bottom() - 30));
     }
     uitest::saveShot(h.window, QStringLiteral("p4-3i-pip"));
 
@@ -988,11 +1030,11 @@ class SessionsUiTest : public QObject {
     QCOMPARE(ctl->mainSurface(), QStringLiteral("local"));
     QVERIFY(visibleItem(h, "gameViewMulti") == localView);
 
-    // Side-by-side (3h)
-    QVERIFY(h.click("modeSide"));
-    QCOMPARE(ctl->multiviewMode(), QStringLiteral("side"));
+    // Row (3r-3)
+    QVERIFY(h.click("modeRow"));
+    QCOMPARE(ctl->multiviewMode(), QStringLiteral("row"));
     QQuickTest::qWaitForPolish(h.window);
-    QVERIFY(approxEqual(tileRect(h, QStringLiteral("local")).width() * 2 + 16, areaRect(h).width() - 32));
+    QVERIFY(approxEqual(tileRect(h, QStringLiteral("local")).width() * 2 + 12, areaRect(h).width() - 32));
     QCOMPARE(audibleTile(h, {QStringLiteral("local"), QStringLiteral("s1")}), QStringLiteral("local"));
     ctl->selectSurface(QStringLiteral("local"));
     QQuickTest::qWaitForPolish(h.window);
@@ -1001,7 +1043,7 @@ class SessionsUiTest : public QObject {
     QQuickTest::qWaitForPolish(h.window);
     QVERIFY(visibleItem(h, "audioButton_s1")->isEnabled() && textOf(visibleItem(h, "audioButton_s1")) == QStringLiteral("♪ Audio here"));
     QVERIFY(visibleItem(h, "gameViewMulti") == localView);
-    uitest::saveShot(h.window, QStringLiteral("p4-3h-side"));
+    uitest::saveShot(h.window, QStringLiteral("p4-3h-row"));
     QVERIFY(h.click("audioButton_s1"));
     QCOMPARE(ctl->audioFocus(), QStringLiteral("s1"));
     QVERIFY(gs->audioMuted());
@@ -1049,7 +1091,7 @@ class SessionsUiTest : public QObject {
     QVERIFY(h.click("addSessionToggle"));
     QVERIFY(h.click("multiviewAddButton_s2"));
     QTRY_COMPARE(ctl->surfaceCount(), 3);
-    QCOMPARE(ctl->multiviewMode(), QStringLiteral("grid"));  // tile layout adapts to the count
+    QCOMPARE(ctl->multiviewMode(), QStringLiteral("row"));  // three surfaces stay a Row; Grid 2 x 2 starts at four
     QVERIFY(h.click("multiviewAddButton_s3"));
     QTRY_COMPARE(ctl->surfaceCount(), 4);
     QVERIFY(!ctl->canAddSurface());

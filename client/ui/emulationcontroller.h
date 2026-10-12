@@ -60,6 +60,7 @@ class EmulationController : public QObject {
   static constexpr const char* kCoreKey = EmulationSettings::kCoreKey;  // "framebeam.core": core of a system (ADR 0020 D6)
   static constexpr const char* kFullscreenKey = "framebeam.fullscreen_on_start";
   static constexpr const char* kMultiviewKey = "framebeam.default_multiview";
+  static constexpr const char* kScreenLayoutKey = "framebeam.screen_layout";  // default DS/3DS screen layout (3e-3)
   static constexpr const char* kSpeedUpRatioKey = "framebeam.speedup_ratio";
   static constexpr const char* kSpeedUpOnStartKey = "framebeam.speedup_on_start";
   static constexpr const char* kSpeedUpAudioKey = "framebeam.speedup_audio";

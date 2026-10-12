@@ -7,6 +7,7 @@
 #include <QHash>
 #include <QImage>
 #include <QList>
+#include <QSet>
 #include <QObject>
 #include <QStringList>
 #include <QTimer>
@@ -96,6 +97,12 @@ class SessionHost : public QObject {
   static qint64 streamTimestamp(qint64 nowNs, qint64 lateNs, qint64 lastStampNs) {
     return std::max<qint64>(nowNs - std::max<qint64>(lateNs, 0), lastStampNs + 1);
   }
+  // Host state signal (ADR 0026 D3): the owner's game is paused (by `by`, the owner's display name) or running again. Sent
+  // over fb-diag to every viewer now and to every viewer whose channel opens later. State only, no picture.
+  void setHostState(bool paused, const QString& by);
+  bool hostPaused() const { return hostPaused_; }
+  QString hostPausedBy() const { return hostPausedBy_; }
+
   // Audio: interleaved int16 stereo at the core rate (any rate), e.g. straight from the emulation callback.
   void pushAudio(const QByteArray& pcm, int sampleRate);
 
@@ -148,6 +155,7 @@ class SessionHost : public QObject {
   };
 
   void dropViewer(const QString& viewerId, const QString& reason);
+  void sendHostState(const QString& viewerId);
   void onPcState(const QString& viewerId, int state);
   void onLocalCandidateType(const QString& viewerId, int type);
   void onGatheringComplete(const QString& viewerId);
@@ -169,6 +177,9 @@ class SessionHost : public QObject {
   QElapsedTimer adaptClock_;  // monotonic clock of the controller, never restarted
   std::atomic<int> targetKbps_{0};
   bool open_ = false;
+  bool hostPaused_ = false;
+  QString hostPausedBy_;
+  QSet<QString> hostStateSent_;  // viewers that were told "paused" (a later "running" must reach them)
   QHash<QString, Viewer> viewers_;
   std::shared_ptr<ThreadBridge> bridge_;
 

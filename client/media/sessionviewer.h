@@ -68,6 +68,10 @@ class SessionViewer : public QObject {
 
   SessionStats stats() const;
   ViewerLinkStats link() const;
+  // Host state signal (ADR 0026 D3): the owner paused or resumed its game. False / empty until the host says otherwise
+  // (older hosts never do). Reset when the connection is closed.
+  bool hostPaused() const { return hostPaused_; }
+  QString hostPausedBy() const { return hostPausedBy_; }
   void requestKeyframe();  // sends a PLI now (rate-limited to one per 500 ms)
 
  public slots:
@@ -79,9 +83,11 @@ class SessionViewer : public QObject {
   void connectedChanged(bool connected);
   void closed(const QString& reason);  // the PeerConnection failed or closed on its own
   void errorOccurred(const QString& message);
+  void hostStateChanged(bool paused, const QString& by);  // UI thread
 
  private:
   void onPcState(int state);
+  void onHostState(bool paused, const QString& by);
   void onGatheringComplete();
   void onVideoFrame(QByteArray data);
   void onAudioFrame(QByteArray data);
@@ -113,6 +119,8 @@ class SessionViewer : public QObject {
   OpusDepacker opus_;
   QElapsedTimer pliClock_;
   bool pliSent_ = false;
+  bool hostPaused_ = false;
+  QString hostPausedBy_;
 
   mutable QMutex audioMutex_;
   QByteArray audioBuf_;

@@ -21,6 +21,10 @@ Rectangle {
     readonly property int tileNo: ctl.surfaceOrder.indexOf(tile) + 1
     readonly property var tileInfo: ctl.surfaceInfo[tile] || ({})
     readonly property var tileLink: ctl.surfaceLinks[tile] || null
+    readonly property DiagnosticsModel diag: ctl.diagnostics
+    // Diagnostics are docked as a panel tab while they are open (3h-3); fullscreen uses the floating overlay (the panel is hidden then).
+    readonly property bool diagTab: diag.open
+    readonly property bool diagTabOpen: diagTab && panelTab === "diag"
     readonly property string hubWord: qsTr("this Hub")
     readonly property bool quitting: player.quitting
     readonly property string shareText: ctl.shared ? qsTr("Shared · %1 watching").arg(ctl.viewerCount) : qsTr("Not shared")
@@ -39,14 +43,19 @@ Rectangle {
         return null
     }
     readonly property bool pluginTabOpen: pluginTab !== null && root.localTile
-    readonly property bool hasTabs: root.plugins.consoleAvailable || pluginTabs.length > 0
+    readonly property bool hasTabs: root.plugins.consoleAvailable || pluginTabs.length > 0 || diagTab
     // Tab model: Game, the plugin tabs, the Plugin console.
     readonly property var tabEntries: {
-        var out = [{ id: "game", kind: "game", name: qsTr("Game"), icon: "", dot: "", origin: "official", mark: "" }]
+        var out = [{ id: "game", kind: "game", name: root.localTile ? qsTr("Game") : qsTr("Tile"), icon: "", dot: "", origin: "official", mark: "" }]
+        if (!root.localTile) {   // a remote tile has no plugin tabs; Diagnostics are about every tile
+            if (diagTab) out.push({ id: "diag", kind: "diag", name: qsTr("Diagnostics"), icon: "", dot: "", origin: "official", mark: "◉" })
+            return out
+        }
         var t = pluginTabs
         for (var i = 0; i < t.length; ++i)
             out.push({ id: "plugin:" + t[i].pluginId, kind: "plugin", name: t[i].title || t[i].name, pluginName: t[i].name || t[i].title,
                        icon: t[i].icon || "", dot: t[i].dot || "", origin: t[i].origin || "local", mark: "" })
+        if (diagTab) out.push({ id: "diag", kind: "diag", name: qsTr("Diagnostics"), icon: "", dot: "", origin: "official", mark: "◉" })
         if (root.plugins.consoleAvailable)
             out.push({ id: "console", kind: "console", name: qsTr("Plugin console"), icon: "", dot: "", origin: "official", mark: ">_" })
         return out
@@ -96,11 +105,28 @@ Rectangle {
     signal collapseToggled()
     signal savesClosed()
     signal selectLocalRequested()
+    // The "+n ▾" popover lives in the game screen (it has to open over the play area, not over the sharing section, P41).
+    readonly property Item overflowAnchor: overflowTab
+    property bool overflowOpen: false
+    signal overflowRequested()
 
     function closeSaves() {
         if (!root.savesOpen) return
         root.savesOpen = false
         root.savesClosed()
+    }
+    // F3 / the header button open the Diagnostics tab and select it; closing them (or "Hide diagnostics") removes it.
+    Connections {
+        target: root.diag
+        function onOpenChanged() {
+            if (root.diag.open) {
+                root.closeSaves()
+                root.panelTab = "diag"
+                if (root.collapsed) root.collapseToggled()
+            } else if (root.panelTab === "diag") {
+                root.panelTab = "game"
+            }
+        }
     }
     Connections {
         target: root.player.plugins
@@ -127,6 +153,15 @@ Rectangle {
             if (opts[i].value === saves.slot) return opts[i].label
         }
         return saves.slot === "default" ? qsTr("default") : saves.slot
+    }
+    // " · 1 min" behind "Paused by <name>"; refreshed by the minute timer below
+    property int nowTick: 0
+    Timer { interval: 30000; repeat: true; running: root.tileInfo.paused === true; onTriggered: root.nowTick++ }
+    function pausedFor(atMs) {
+        root.nowTick   // binding dependency
+        if (!atMs) return ""
+        var mins = Math.floor((Date.now() - atMs) / 60000)
+        return mins < 1 ? "" : " · " + qsTr("%1 min").arg(mins)
     }
     function sinceText(iso) {
         var t = Date.parse(iso)
@@ -253,7 +288,7 @@ Rectangle {
             id: tabBar
             objectName: "panelTabBar"
             Layout.fillWidth: true
-            visible: root.localTile && !root.savesOpen && root.hasTabs
+            visible: !root.savesOpen && (root.localTile ? root.hasTabs : root.diagTab)
             implicitHeight: 44
             color: "transparent"
             Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.gameBorder }
@@ -328,10 +363,10 @@ Rectangle {
                         anchors.centerIn: parent
                         text: "+" + root.tabPlan.overflow.length + " ▾"
                         font.pixelSize: 13
-                        color: overflowPop.open ? Theme.gameText : Theme.gameTextMuted
+                        color: root.overflowOpen ? Theme.gameText : Theme.gameTextMuted
                     }
                     Rectangle { visible: overflowTab.hasNews; x: parent.width - 12; y: 11; width: 6; height: 6; radius: 3; color: Theme.gameAccent }
-                    TapHandler { onTapped: overflowPop.open = !overflowPop.open }
+                    TapHandler { onTapped: root.overflowRequested() }
                     HoverHandler { cursorShape: Qt.PointingHandCursor }
                 }
             }
@@ -369,12 +404,38 @@ Rectangle {
             }
         }
 
+        // ---- docked diagnostics (3h-3) ----
+        Flickable {
+            id: diagBox
+            objectName: "gamePanelDiagnostics"
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.minimumWidth: 0
+            visible: root.diagTabOpen && !root.savesOpen
+            contentWidth: width
+            contentHeight: dockedDiag.implicitHeight + 40
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
+            DiagnosticsOverlay {
+                id: dockedDiag
+                objectName: "diagnosticsOverlay"
+                docked: true
+                x: 20
+                y: 16
+                width: diagBox.width - 40
+                model: root.diag
+                hotkey: root.player.controllers.hotkeyHints.diagnostics
+                multi: root.multi
+                tileBadges: { var m = {}, o = root.ctl.surfaceOrder; for (var i = 0; i < o.length; ++i) m[o[i]] = i + 1; return m }
+            }
+        }
+
         // ---- your game ----
         Flickable {
             id: flick
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: root.localTile && !root.savesOpen && !root.consoleTab && !root.pluginTabOpen
+            visible: root.localTile && !root.savesOpen && !root.consoleTab && !root.pluginTabOpen && !root.diagTabOpen
             contentWidth: width
             contentHeight: col.implicitHeight + 40
             clip: true
@@ -915,7 +976,7 @@ Rectangle {
             objectName: "remotePanel"
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: !root.localTile
+            visible: !root.localTile && !root.diagTabOpen
             Column {
                 x: 24
                 y: 20
@@ -957,6 +1018,13 @@ Rectangle {
                         color: Theme.gameMeta
                     }
                 }
+                FbPill {
+                    objectName: "remotePausedPill"
+                    visible: root.tileInfo.paused === true
+                    small: true
+                    tone: "neutral"
+                    text: qsTr("❚❚ Paused by %1").arg(root.tileInfo.pausedBy || root.tileInfo.who || "") + root.pausedFor(root.tileInfo.pausedAt || 0)
+                }
                 GameButton {
                     objectName: "audioButton_" + root.tile
                     width: parent.width
@@ -982,7 +1050,9 @@ Rectangle {
                     lineHeight: 1.25
                     font.pixelSize: 12
                     color: Theme.gameMeta
-                    text: qsTr("You only watch and listen. %1 sees you as a viewer.").arg(root.tileInfo.who || qsTr("The host"))
+                    text: root.tileInfo.paused === true
+                          ? qsTr("You only watch and listen. %1’s picture stays frozen until they resume.").arg(root.tileInfo.who || qsTr("The host"))
+                          : qsTr("You only watch and listen. %1 sees you as a viewer.").arg(root.tileInfo.who || qsTr("The host"))
                 }
             }
             Rectangle {
@@ -1029,32 +1099,6 @@ Rectangle {
                         }
                         onClicked: root.selectLocalRequested()
                     }
-                }
-            }
-        }
-    }
-
-    // "+n ▾": the tabs that do not fit (name, "Local" / "Unverified" marker)
-    AnchoredPopover {
-        id: overflowPop
-        objectName: "panelTabOverflowPopover"
-        anchorItem: overflowTab
-        popWidth: 250
-        padding: 4
-        scrimTop: tabBar.y + tabBar.height
-        visible: open && root.tabPlan.overflow.length > 0
-        onCloseRequested: open = false
-        Column {
-            width: parent.width
-            Repeater {
-                model: root.tabPlan.overflow
-                delegate: PopoverItem {
-                    required property var modelData
-                    objectName: "panelTabOverflowItem_" + modelData.id
-                    width: parent.width
-                    text: modelData.name
-                    trailing: root.originMarker(modelData.origin)
-                    onActivated: { overflowPop.open = false; root.panelTab = modelData.id }
                 }
             }
         }

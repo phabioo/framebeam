@@ -106,6 +106,7 @@ Rectangle {
                     }
                     FbLabel {
                         objectName: "systemFirmware_" + card.modelData.id
+                        visible: card.modelData.firmwareText !== ""
                         Layout.fillWidth: true
                         text: card.modelData.firmwareText
                         color: root.toneColor(card.modelData.firmwareTone)
@@ -371,7 +372,6 @@ Rectangle {
                         Layout.alignment: Qt.AlignTop
                         visible: root.emu.changedCount > 0
                         kind: "link"
-                        font.underline: true
                         text: qsTr("Reset %1 changed").arg(root.emu.changedCount)
                         onClicked: root.emu.resetAllChanged()
                     }
@@ -437,7 +437,7 @@ Rectangle {
                             Layout.fillWidth: true
                             Layout.bottomMargin: Theme.space10
                             text: group.modelData.note
-                            color: Theme.textMuted
+                            color: Theme.accent     // one hint style: accent link colour, like the per-row "Reset" (P32)
                             font.pixelSize: Theme.fontMeta
                             wrapMode: Text.WordWrap
                         }
