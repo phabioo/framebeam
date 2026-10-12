@@ -1,0 +1,4 @@
+# Signature test vectors are compared byte for byte; keep LF on Windows checkouts.
+server/internal/pluginpkg/testdata/** -text
+client/plugins/tests/testdata/** -text
+*.fbplugin binary
