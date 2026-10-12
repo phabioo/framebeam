@@ -1,6 +1,6 @@
 # ADR 0023: Plugins (0.11)
 
-- Status: proposed (D1 and D2 are implemented in 0.11 package 1, D6 in package 2, D8 to D10 on the Hub side and in the Player's plugin delivery in package 3; the Player side of runs is in progress; the rest is design only)
+- Status: proposed (D1 and D2 are implemented in 0.11 package 1, D6 in package 2, D8 to D10 on the Hub side and in the Player's plugin delivery in package 3; the Player side of runs is implemented; the rest is design only)
 - Date: 2026-10-11
 - Deciders: Fabio (plugins as 0.11, 2026-10-11); proposal by the orchestrator
 - Builds on: [ADR 0013](0013-opengl-hardware-rendering.md), [ADR 0020](0020-cores-from-the-libretro-buildbot.md) (SHA-256 pin, buildbot cores), [ADR 0022](0022-nintendo-3ds-with-azahar.md) (3DS with Azahar). Interface description: [12-plugins.md](../architecture/12-plugins.md).
@@ -59,7 +59,7 @@ Open: whether the buildbot build of Azahar contains this code, and whether the m
 ### D9 Hub runs
 
 - Run object with participants, per-player state (JSON) and an append-only event log, with size and rate limits. WSS fan-out over the existing envelope, catch-up on `hello`. The Hub validates shape and size and executes no plugin code. Data never leaves the Hub.
-- Implementation (package 3, Hub side): runs with status, participants (at most 8), per-player state (64 KiB, revision-checked), event log (280-character text, 4 KiB payload, 50 000 events, idempotent by `client_id`), per-plugin boards (64 KiB), token-bucket rate limits, REST under `/api/v1/runs` (feature `runs_v1`), WSS `run_updated`, `run_state`, `run_event` and catch-up through the optional `runs` field of `hello`. The Hub web run page is read-only and admin-only; the JS renderer is `static/plugin-blocks.js`. The Player side (`fb.run`, Runs screen) is in progress. Details: [12-plugins.md](../architecture/12-plugins.md#1611-hub-runs).
+- Implementation (package 3, Hub side): runs with status, participants (at most 8), per-player state (64 KiB, revision-checked), event log (280-character text, 4 KiB payload, 50 000 events, idempotent by `client_id`), per-plugin boards (64 KiB), token-bucket rate limits, REST under `/api/v1/runs` (feature `runs_v1`), WSS `run_updated`, `run_state`, `run_event` and catch-up through the optional `runs` field of `hello`. The Hub web run page is read-only and admin-only; the JS renderer is `static/plugin-blocks.js`. Implementation (package 3, Player side): `RunClient` (REST, WSS, persisted `hello` catch-up cache, event dedup by `client_id`, state coalesced to 4/s, board 1/s), Lua `fb.run` (permission `run.state`, only in a run) and the Runs screen; "Play run" uses the exact Hub copies of the run's plugin versions and the save slot `run-<first 8 hex of run_id>`. Open: participant state is shared by all run plugins; the game picker filters by system only. Details: [12-plugins.md](../architecture/12-plugins.md#1611-hub-runs).
 
 ### D10 Versioning
 

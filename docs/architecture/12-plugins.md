@@ -1,8 +1,8 @@
-# Architecture: plugins (runtime, Player UI, Hub plugins and runs implemented; Player runs in progress)
+# Architecture: plugins (runtime, Player UI, Hub plugins, Hub runs and Player runs implemented)
 
-## 16. Plugin interface [0.11: runtime, Player UI, Hub plugins and runs implemented; Player runs in progress]
+## 16. Plugin interface [0.11: runtime, Player UI, Hub plugins, Hub runs and Player runs implemented]
 
-Status: package 1 (plugin runtime in the Player), package 2 (plugin UI in the Player: building blocks, map view, in-game tab, HUD, Multiview tile strip, sidebar screen, toasts, game detail section, shell context, hotkeys) and package 3 on the Hub side (plugin store and delivery, `.fbplugin` files with `SIGNATURE.json`, signed plugin index, runs with REST and WSS, Hub web pages Plugins and Runs with the JS renderer) plus the Player side of plugin delivery (install from the Hub and from files) are implemented. In progress: the Player side of runs (`fb.run` Lua API, Runs screen). Still design only: `memory.write`, `tool.exec`, settings schema, UI language. What the runtime implements today is described in [guides/plugin-api.md](../guides/plugin-api.md). Decisions: [ADR 0023](../adr/0023-plugins.md) (proposed). Screens and building-block sheet: [design/plugins.md](../design/plugins.md). Where this file names code, it names what is built or today's extension points. Open items are marked **open**.
+Status: package 1 (plugin runtime in the Player), package 2 (plugin UI in the Player: building blocks, map view, in-game tab, HUD, Multiview tile strip, sidebar screen, toasts, game detail section, shell context, hotkeys) and package 3 on the Hub side (plugin store and delivery, `.fbplugin` files with `SIGNATURE.json`, signed plugin index, runs with REST and WSS, Hub web pages Plugins and Runs with the JS renderer) plus the Player side of plugin delivery (install from the Hub and from files) are implemented. The Player side of runs (`fb.run` Lua API, Runs screen) is implemented. Still design only: `memory.write`, `tool.exec`, settings schema, UI language. What the runtime implements today is described in [guides/plugin-api.md](../guides/plugin-api.md). Decisions: [ADR 0023](../adr/0023-plugins.md) (proposed). Screens and building-block sheet: [design/plugins.md](../design/plugins.md). Where this file names code, it names what is built or today's extension points. Open items are marked **open**.
 
 Decided defaults of the runtime (package 1): plugins run only with developer mode on (Settings → Plugins); the only install paths are local folders (copy or linked dev folder with live reload), all unsigned; Lua 5.4.7 is vendored in `client/plugins/third_party/`; plugins resolve (`requires`/`provides`) once at game start; the plugin tick is limited to 30 Hz by default (`tickHz`); budgets per entry call are 20M instructions / 500 ms and 64 MiB per state.
 
@@ -185,7 +185,7 @@ Official plugin repositories (created 2026-10-11, no code yet, each with its own
 
 ### 16.11 Hub: runs
 
-Hub side built in package 3 (`server/internal/hub/runs.go`, `server/internal/httpapi/runs.go`, migration `0013_runs`; feature `runs_v1`, OpenAPI 1.15.0). Player side (`fb.run` Lua API, Runs screen): **in progress**.
+Hub side built in package 3 (`server/internal/hub/runs.go`, `server/internal/httpapi/runs.go`, migration `0013_runs`; feature `runs_v1`, OpenAPI 1.15.0). Player side built too: `RunClient` (`client/network/runclient.*`), Lua `fb.run` (permission `run.state`, only when the game is started in a run; [plugin-api.md](../guides/plugin-api.md)) and the Runs screen in the Player. Open: the participant state is one object per participant shared by all plugins of the run (plugins namespace keys by plugin id); the game picker filters by system only.
 
 **Data model.**
 
