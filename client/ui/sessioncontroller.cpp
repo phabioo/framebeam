@@ -60,10 +60,10 @@ SessionController::SessionController(HubConnection* conn, ProfileStore* profiles
       if (st != GpuEncodeBridge::State::Running) {
         host_.disableGpuInput(gpu_->reason(), st == GpuEncodeBridge::State::Failed);  // idempotent
       } else if (std::shared_ptr<AVFrame> f = gpu_->takeFrame()) {
-        host_.pushGpuFrame(std::move(f));
+        host_.pushGpuFrame(std::move(f), game_->frameLateNs());
       }
     }
-    host_.pushFrame(game_->frame());  // unchanged call; SessionHost skips it while GPU input is active
+    host_.pushFrame(game_->frame(), game_->frameLateNs());  // unchanged call; SessionHost skips it while GPU input is active
   });
   connect(game_, &GameSession::audioChunk, this, [this](const QByteArray& pcm, int rate) {
     if (shared_) {

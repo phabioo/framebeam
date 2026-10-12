@@ -104,6 +104,8 @@ class GameSession : public QObject {
   bool hasFrame() const { return !frame_.isNull(); }
   QImage frame() const { return frame_; }
   quint64 frameNumber() const { return frameNr_; }
+  // Speed-up: how long after its base-rate slot the current frame arrived (0 at normal speed); see SessionHost::pushFrame().
+  qint64 frameLateNs() const { return frameLateNs_; }
   const emu::DisplayProfile& displayProfile() const { return display_; }
   const AudioOutput& audio() const { return audio_; }
   int screenCount() const { return static_cast<int>(display_.screens.size()); }
@@ -218,6 +220,7 @@ class GameSession : public QObject {
   std::shared_ptr<emu::GpuEncodeTarget> gpuTarget_;
   QImage frame_;
   quint64 frameNr_ = 0;
+  qint64 frameLateNs_ = 0;
   QString title_;
   QString error_;
   State state_ = Idle;
