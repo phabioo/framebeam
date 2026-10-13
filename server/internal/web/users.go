@@ -143,6 +143,7 @@ func (s *Server) renderUsersOpts(w http.ResponseWriter, r *http.Request, sess *s
 		case hub.InviteActive:
 			v.Label, v.Meta = "Active", "expires "+until(i.ExpiresAt, now)
 			v.Title = "Invite"
+			v.At = when(i.CreatedAt, now)
 			if i.ForUser != "" {
 				v.Title = "Pairing code for " + i.ForUser
 			}
@@ -170,6 +171,7 @@ func (s *Server) renderUsersOpts(w http.ResponseWriter, r *http.Request, sess *s
 		}
 	}
 	d := s.base(r, sess, "users", "Users")
+	d.InlineFlash = true
 	d.Body = b
 	if o.Err != "" {
 		d.Error = o.Err

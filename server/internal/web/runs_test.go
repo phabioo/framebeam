@@ -85,10 +85,10 @@ func TestRunsPageListDetailAndActions(t *testing.T) {
 		t.Fatalf("inline script/style: %s", inlineRe.FindString(rec.Body.String()))
 	}
 	contains(t, c.get("/runs/"+f.run.ID, nil), "Summer Duo", "Delete run…")
-	status(t, c.get("/runs/00000000-0000-4000-8000-000000000000", nil), 303)
-	if l := location(c.get("/runs/nope", nil)); l != "/runs?err=norun" {
-		t.Fatalf("%s", l)
-	}
+	status(t, c.get("/runs/00000000-0000-4000-8000-000000000000", nil), 404)
+	rec404 := c.get("/runs/nope", nil)
+	status(t, rec404, 404)
+	contains(t, rec404, "Page not found", "Back to Library")
 	contains(t, c.get("/runs?err=norun", nil), "Run not found.")
 
 	// The live region as fragment for htmx.
@@ -152,7 +152,7 @@ func TestRunsPageListDetailAndActions(t *testing.T) {
 	if l := f.post("/runs/" + f.run.ID + "/delete"); l != "/runs?ok=rundeleted" {
 		t.Fatalf("%s", l)
 	}
-	contains(t, c.get("/runs?ok=rundeleted", nil), "Run deleted.", "No run selected")
+	contains(t, c.get("/runs?ok=rundeleted", nil), "Run deleted.", "No runs yet")
 	if _, err := f.svc.GetRunAdmin(bg, f.run.ID); err == nil {
 		t.Fatal("run still there")
 	}
@@ -282,7 +282,7 @@ func TestRunsEmptyAndNav(t *testing.T) {
 	c.login()
 	rec := c.get("/runs", nil)
 	status(t, rec, 200)
-	contains(t, rec, "Runs · 0", "No run selected", `class="active" aria-current="page" hx-get="/runs"`)
+	contains(t, rec, "Runs · 0", "No runs yet", `class="active" aria-current="page" hx-get="/runs"`)
 	notContains(t, rec, "active</span>")
 	contains(t, c.get("/nav-fragment", map[string]string{"HX-Current-URL": "http://hub/runs/abc"}), `href="/runs" class="active"`)
 }

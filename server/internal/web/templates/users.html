@@ -32,7 +32,7 @@
           <input type="hidden" name="_csrf" value="{{$.CSRF}}">
           <input type="text" name="name" value="{{.Name}}" maxlength="64" required autofocus autocomplete="off" aria-label="Display name"{{if $.Body.RenameErr}} aria-invalid="true"{{end}}>
           <button class="btn small primary" type="submit">Save</button>
-          <a class="snap-cancel" href="/users">Cancel</a>
+          <a class="btn small" href="/users">Cancel</a>
         </form>{{if $.Body.RenameErr}}<p class="help error-line" role="alert">{{$.Body.RenameErr}}</p>{{end}}
       {{else}}<div class="cell-title"><span class="avatar" aria-hidden="true">{{.Initial}}</span><span>{{.Name}}</span>{{if .Self}}<span class="help">(you)</span>{{end}}</div>{{end}}</td>
       <td class="hide-sm">{{if .Self}}<span class="pill info">{{.Role}}</span>{{else}}
@@ -44,10 +44,10 @@
           </div>
         </details>{{end}}</td>
       <td class="mono hide-sm">{{.Devices}}</td>
-      <td class="hide-sm">{{template "when" .Created}}</td>
+      <td class="hide-sm nowrap">{{template "when" .Created}}</td>
       <td class="c-pill"><span class="pill{{if .StatusClass}} {{.StatusClass}}{{end}}">{{.Status}}</span></td>
       <td class="c-act">
-        {{if .Self}}<span class="help">—</span>{{else}}
+        {{if not .Self}}
         <div class="ract">
           <a class="btn small desk-only" href="/users?rename={{.ID}}" hx-get="/users?rename={{.ID}}" hx-target="#users-table" hx-swap="outerHTML">Rename</a>
           <details class="menu">
@@ -79,7 +79,7 @@
   {{range .Body.Active}}
   <div class="invite-row">
     <div class="invite-row-head"><span class="strong">{{.Title}}</span><span class="help">{{.Meta}}</span></div>
-    <div class="help">Single use · {{if .Authorize}}approves first device{{else}}first device needs approval{{end}}</div>
+    <div class="help">Created {{template "when" .At}} · Single use · {{if .Authorize}}approves first device{{else}}first device needs approval{{end}}</div>
     <div class="ract left">
       <details class="menu">
         <summary class="more" aria-label="More actions for this invite">⋯</summary>
@@ -91,13 +91,14 @@
   {{if .Body.History}}
   <div class="eyebrow">History</div>
   <ul class="history">
-    {{range .Body.History}}<li><span class="help">{{.Meta}} · {{template "when" .At}}</span></li>{{end}}
+    {{range .Body.History}}<li><span>{{.Meta}} · {{template "when" .At}}</span></li>{{end}}
   </ul>
   {{end}}
 </div>{{end}}
 {{define "content"}}
 <div class="users">
 <div class="users-main stack">
+  {{template "flash" .}}
   <div class="page-head"><div><h1>Users</h1><p class="sub">Accounts on this Hub. Users sign in with a paired device, not a password.</p></div>
     <div class="head-actions">
       <a class="btn" href="/users?create=1" hx-get="/users?create=1" hx-target="#users-table" hx-swap="outerHTML">Create user</a>

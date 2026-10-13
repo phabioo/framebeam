@@ -25,11 +25,11 @@
 {{with .Body.Sel}}
   <header class="sys-head">
     <div><h2>{{.Name}} <span class="mono">{{.ID}}</span></h2>
-      <p class="sys-line">{{.CoreLine}}</p></div>
+      {{if .CoreLine}}<p class="sys-line">{{.CoreLine}}</p>{{end}}</div>
     {{if ne .ChipText "Ready"}}<span class="pill lg {{.SummaryClass}}">{{.SummaryText}}</span>{{end}}
   </header>
   <div class="tabs flush" role="tablist" aria-label="{{.Name}}">
-    <a role="tab" class="tab{{if eq $.Body.Tab "core"}} selected{{end}}" aria-selected="{{if eq $.Body.Tab "core"}}true{{else}}false{{end}}" href="{{index $.Body.TabHrefs "core"}}" hx-get="{{index $.Body.TabHrefs "core"}}" hx-target="#systems-detail" hx-swap="outerHTML" hx-push-url="true">Cores{{if .NoCore}} <span class="count">1</span>{{end}}</a>
+    <a role="tab" class="tab{{if eq $.Body.Tab "core"}} selected{{end}}" aria-selected="{{if eq $.Body.Tab "core"}}true{{else}}false{{end}}" href="{{index $.Body.TabHrefs "core"}}" hx-get="{{index $.Body.TabHrefs "core"}}" hx-target="#systems-detail" hx-swap="outerHTML" hx-push-url="true">Cores</a>
     <a role="tab" class="tab{{if eq $.Body.Tab "firmware"}} selected{{end}}" aria-selected="{{if eq $.Body.Tab "firmware"}}true{{else}}false{{end}}" href="{{index $.Body.TabHrefs "firmware"}}" hx-get="{{index $.Body.TabHrefs "firmware"}}" hx-target="#systems-detail" hx-swap="outerHTML" hx-push-url="true">Firmware{{if .FwBad}} <span class="count">{{.FwBad}}</span>{{end}}</a>
     <a role="tab" class="tab{{if eq $.Body.Tab "clients"}} selected{{end}}" aria-selected="{{if eq $.Body.Tab "clients"}}true{{else}}false{{end}}" href="{{index $.Body.TabHrefs "clients"}}" hx-get="{{index $.Body.TabHrefs "clients"}}" hx-target="#systems-detail" hx-swap="outerHTML" hx-push-url="true">Clients{{if .ClientsBad}} <span class="count">{{.ClientsBad}}</span>{{end}}</a>
   </div>
@@ -125,7 +125,6 @@
     </table>
     {{else}}<p class="empty">No client has reported yet. Players report their cores when they connect.</p>{{end}}
   {{else}}
-    {{if .NoCore}}<div class="banner" role="alert">No core installed. Install one from the libretro buildbot below; Players cannot start {{.Name}} games until then.</div>{{end}}
     <div class="sys-auto-row">
       <div class="sys-auto-label"><div class="strong">Automatic core updates</div><div class="help">Installs newer buildbot builds after each check. A core can override this below.</div></div>
       <form class="segment" method="post" action="/systems/{{.ID}}/auto-update" role="group" aria-label="Automatic core updates for {{.Name}}">
@@ -173,9 +172,9 @@
       {{end}}
       </tbody>
     </table>
-    {{else}}<p class="empty">No core installed. Install one from the libretro buildbot below. On an offline Hub, use <span class="mono">framebeam-hub import-cores</span>.</p>{{end}}
+    {{else}}<p class="empty">No core installed. {{if .Available}}Install one from the libretro buildbot below; Players cannot start {{.Name}} games until then.{{else}}Players cannot start {{.Name}} games until one is installed.{{end}} On an offline Hub, use <span class="mono">framebeam-hub import-cores</span>.</p>{{end}}
     <div class="src-line">
-      <div class="src-text">Source <span class="mono">{{$.Body.Cores.URL}}</span> · checked {{$.Body.Cores.LastCheck}} · {{.NCores}} for this system{{if $.Body.Cores.LastError}}<div class="status-warn" title="{{$.Body.Cores.LastError}}">{{$.Body.Cores.LastErrorShort}} The previous catalog stays.</div>{{end}}{{if $.Body.Cores.AutoUpdateError}}<div class="status-warn">Last automatic update failed: {{$.Body.Cores.AutoUpdateError}}</div>{{end}}</div>
+      <div class="src-text">Source <span class="mono">{{$.Body.Cores.URL}}</span> · {{if $.Body.Cores.LastError}}last check failed · last successful check {{$.Body.Cores.LastSuccess}}{{else}}checked {{$.Body.Cores.LastCheck}} · {{.NCores}} known for this system{{end}}{{if $.Body.Cores.LastError}}<div class="status-warn" title="{{$.Body.Cores.LastError}}">{{$.Body.Cores.LastErrorShort}} The previous catalog stays.</div>{{end}}{{if $.Body.Cores.AutoUpdateError}}<div class="status-warn">Last automatic update failed: {{$.Body.Cores.AutoUpdateError}}</div>{{end}}</div>
       <form method="post" action="/cores/sync">
         <input type="hidden" name="_csrf" value="{{$.CSRF}}">
         <input type="hidden" name="sys" value="{{.ID}}">
@@ -192,7 +191,7 @@
       </div>
       {{end}}
     </section>
-    {{else}}<p class="help">No further cores known for this system. Check the source to refresh the catalog.</p>{{end}}
+    {{else if not $.Body.Cores.LastError}}<p class="help">No further cores known for this system. Check the source to refresh the catalog.</p>{{end}}
     <details class="sys-details">
       <summary>System details</summary>
       <dl class="kv">

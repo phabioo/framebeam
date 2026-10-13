@@ -39,8 +39,8 @@
     <label class="field">Title <input type="text" name="title" value="{{$r.PanelTitle}}" maxlength="200" required autocomplete="off" autofocus aria-label="Title"{{if $r.PanelErr}} aria-invalid="true"{{end}}></label>
     {{if $r.PanelErr}}<p class="help error-line" role="alert">{{$r.PanelErr}}</p>{{end}}
     <div class="actions">
-      <a class="btn small" href="{{$r.CancelHref}}" hx-get="{{$r.CancelHref}}" hx-target="#library-results" hx-swap="outerHTML">Cancel</a>
       <button class="btn small primary" type="submit">Save title</button>
+      <a class="btn small" href="{{$r.CancelHref}}" hx-get="{{$r.CancelHref}}" hx-target="#library-results" hx-swap="outerHTML">Cancel</a>
     </div>
   </form>
 </div>{{else if eq $r.Panel "details"}}<div class="confirm" role="group" aria-label="Details">
@@ -57,7 +57,8 @@
   <div class="actions"><a class="btn small" href="{{$r.CancelHref}}" hx-get="{{$r.CancelHref}}" hx-target="#library-results" hx-swap="outerHTML">Close</a></div>
 </div>{{else}}<div class="confirm" role="group" aria-label="Delete">
   <div class="confirm-title">Delete “{{$r.Title}}” from the library?</div>
-  <p class="help">The ROM file is removed from this Hub.{{if $r.Saves}} The {{$r.Saves}} {{if eq $r.Saves 1}}save slot is{{else}}save slots are{{end}} kept and stay on the Saves page.{{else}} There are no saves for this game.{{end}}</p>
+  {{if $r.LocalOnly}}<p class="help">The game is removed from the Hub library. The files on the Players stay where they are.{{if $r.Saves}} The {{$r.Saves}} {{if eq $r.Saves 1}}save slot is{{else}}save slots are{{end}} kept and stay on the Saves page.{{end}}</p>
+  {{else}}<p class="help">The ROM file is removed from this Hub.{{if $r.Saves}} The {{$r.Saves}} {{if eq $r.Saves 1}}save slot is{{else}}save slots are{{end}} kept and stay on the Saves page.{{else}} There are no saves for this game.{{end}}</p>{{end}}
   <form class="inline" method="post" action="/library/{{$r.ID}}/delete" hx-post="/library/{{$r.ID}}/delete" hx-target="#library-results" hx-swap="outerHTML">
     <input type="hidden" name="_csrf" value="{{$r.CSRF}}"><input type="hidden" name="system" value="{{$r.FSystem}}"><input type="hidden" name="q" value="{{$r.FQuery}}"><input type="hidden" name="sort" value="{{$r.FSort}}"><input type="hidden" name="n" value="{{$r.FLimit}}">
     <div class="actions">

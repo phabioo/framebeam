@@ -21,7 +21,7 @@
 {{define "when"}}<span title="{{.Title}}">{{.Text}}</span>{{end}}
 {{define "flash"}}{{if .Flash}}<div class="alert ok" role="status">{{.Flash}}</div>{{end}}{{if .Error}}<div class="alert error" role="alert">{{.Error}}</div>{{end}}{{end}}
 {{define "main"}}
-    {{template "flash" .}}
+    {{if not .InlineFlash}}{{template "flash" .}}{{end}}
     {{template "content" .}}
   {{end}}
 {{/* Sidebar nav. Links swap only #main; the nav re-fetches itself on fb:badges (see app.js). */}}

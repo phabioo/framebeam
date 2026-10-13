@@ -11,7 +11,10 @@ import (
 type setupBody struct {
 	Local       bool
 	MinPassword int
+	Username    string // kept after a validation error (never the passwords)
 }
+
+type loginBody struct{ Username string }
 
 func (s *Server) setupGet(w http.ResponseWriter, r *http.Request) {
 	if has, err := s.svc.HasAdmin(r.Context()); err != nil {
@@ -46,7 +49,7 @@ func (s *Server) setupPost(w http.ResponseWriter, r *http.Request) {
 	}
 	d := s.base(r, nil, "", "Setup")
 	d.CSRF = s.preCSRF(w, r)
-	d.Body = setupBody{Local: true, MinPassword: hub.MinPasswordLen}
+	d.Body = setupBody{Local: true, MinPassword: hub.MinPasswordLen, Username: strings.TrimSpace(r.PostFormValue("username"))}
 	pw := r.PostFormValue("password")
 	if pw != r.PostFormValue("password2") {
 		d.Error = "The passwords do not match."
@@ -87,6 +90,7 @@ func (s *Server) loginGet(w http.ResponseWriter, r *http.Request) {
 	}
 	d := s.base(r, nil, "", "Sign in")
 	d.CSRF = s.preCSRF(w, r)
+	d.Body = loginBody{}
 	s.render(w, http.StatusOK, "login", "bare", d)
 }
 
@@ -107,6 +111,7 @@ func (s *Server) loginPost(w http.ResponseWriter, r *http.Request) {
 	user := r.PostFormValue("username")
 	d := s.base(r, nil, "", "Sign in")
 	d.CSRF = s.preCSRF(w, r)
+	d.Body = loginBody{Username: user}
 	// Reserve the attempt before the (expensive) verification; a success refunds it.
 	if !s.login.take(ip, user) {
 		w.Header().Set("Retry-After", "60")

@@ -53,7 +53,7 @@ func TestSettingsSectionsAndFragments(t *testing.T) {
 	for _, sec := range []string{"updates", "general", "network", "security"} {
 		rec := c.get("/settings/"+sec, nil)
 		status(t, rec, 200)
-		contains(t, rec, `id="settings-area"`, `id="settings-nav"`, `/static/settings.js`, `hx-push-url="true"`, "✓ All changes saved",
+		contains(t, rec, `id="settings-area"`, `id="settings-nav"`, `/static/settings.js`, `hx-push-url="true"`,
 			"Changes save automatically. Admins only.", "<html")
 		notContains(t, rec, "<no value>")
 		if inlineRe.MatchString(rec.Body.String()) {
@@ -62,7 +62,9 @@ func TestSettingsSectionsAndFragments(t *testing.T) {
 		// htmx section switch: only the content area plus the out-of-band section column.
 		frag := c.get("/settings/"+sec, hxPane)
 		status(t, frag, 200)
-		contains(t, frag, `hx-swap-oob="true"`, "✓ All changes saved")
+		contains(t, frag, `hx-swap-oob="true"`)
+		notContains(t, rec, "All changes saved") // nothing was saved yet (R-H18)
+		notContains(t, frag, "All changes saved")
 		notContains(t, frag, "<html", `class="sidebar"`)
 	}
 	status(t, c.get("/settings/nope", nil), 404)

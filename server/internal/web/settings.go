@@ -83,6 +83,7 @@ type settingsBody struct {
 	Notice, Err                       string // action result inside the section (HTMX responses)
 	FieldKey, FieldErr                string // validation error next to one field
 	PollUpdates                       bool
+	Saved                             bool // a save just succeeded: show the "All changes saved" indicator
 
 	// General
 	HubName, Host, Listen, PlayerAddr string
@@ -238,7 +239,7 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, sess *se
 	d := s.base(r, sess, "settings", title)
 	ctx := r.Context()
 	b := settingsBody{Section: sec.ID, SectionTitle: sec.Title, SectionSub: sec.Subtitle,
-		FieldKey: res.FieldKey, FieldErr: res.Msg, PollUpdates: res.PollUpdates}
+		FieldKey: res.FieldKey, FieldErr: res.Msg, PollUpdates: res.PollUpdates, Saved: res.OK != "" && res.Msg == ""}
 
 	// General / Security basics.
 	b.HubName = s.svc.Info().Name
@@ -538,7 +539,7 @@ func (s *Server) settingsGet(w http.ResponseWriter, r *http.Request, sess *sessi
 		section = "updates"
 	}
 	if sectionIndex(section) < 0 {
-		http.NotFound(w, r)
+		s.notFound(w, r)
 		return
 	}
 	s.renderSettings(w, r, sess, http.StatusOK, section, settingsRes{OK: r.URL.Query().Get("ok"), Err: errTexts[r.URL.Query().Get("err")], Edit: r.URL.Query().Get("edit")})
@@ -805,7 +806,7 @@ func validNetKey(key string) bool {
 func (s *Server) settingsNetSave(w http.ResponseWriter, r *http.Request, sess *session) {
 	key := r.PathValue("key")
 	if !validNetKey(key) {
-		http.NotFound(w, r)
+		s.notFound(w, r)
 		return
 	}
 	fail := func(msg string) {
@@ -910,7 +911,7 @@ func (s *Server) settingsExternalTURNReset(w http.ResponseWriter, r *http.Reques
 func (s *Server) settingsNetReset(w http.ResponseWriter, r *http.Request, sess *session) {
 	key := r.PathValue("key")
 	if !validNetKey(key) {
-		http.NotFound(w, r)
+		s.notFound(w, r)
 		return
 	}
 	_, stored, err := s.netDesired(r.Context())

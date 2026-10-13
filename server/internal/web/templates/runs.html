@@ -1,9 +1,9 @@
 {{define "runs-view"}}<div id="runs-view" class="runs" hx-get="{{.Body.Self}}" hx-trigger="fb:runs from:body" hx-swap="outerHTML">
   <aside class="runs-list" aria-label="Runs">
     <div class="eyebrow">Runs · {{len .Body.Items}}</div>
-    <nav class="runs-filter" aria-label="Filter">
+    {{if .Body.HasRuns}}<nav class="runs-filter" aria-label="Filter">
       {{range .Body.Filters}}<a href="{{.URL}}"{{if .On}} class="on" aria-current="true"{{end}}>{{.Label}}</a>{{end}}
-    </nav>
+    </nav>{{end}}
     {{range .Body.Items}}
     <a class="runs-item{{if .Selected}} sel{{end}}" href="{{.URL}}"{{if .Selected}} aria-current="page"{{end}}>
       <span class="runs-item-head"><span class="runs-item-name">{{.Name}}</span><span class="pill sm {{.StatusClass}}">{{.StatusLabel}}</span></span>
@@ -11,7 +11,7 @@
       <span class="row-actions">{{range .Avatars}}<span class="avatar {{.Class}}" title="{{.Title}}" aria-label="{{.Title}}">{{.Initial}}</span>{{end}}</span>
     </a>
     {{else}}
-    <p class="help">No runs in this view.</p>
+    {{if .Body.HasRuns}}<p class="help">No runs in this view.</p>{{end}}
     {{end}}
     {{if or .Body.ArchivedCount .Body.ArchivedOn}}<a class="runs-archived" href="{{.Body.ArchivedURL}}">{{if .Body.ArchivedOn}}Hide archived{{else}}Show archived · {{.Body.ArchivedCount}}{{end}}</a>{{end}}
   </aside>
@@ -104,7 +104,7 @@
     </div>
     {{else}}
     <div class="empty">
-      <h1>No run selected</h1>
+      <h1>{{if .Body.HasRuns}}No run selected{{else}}No runs yet{{end}}</h1>
       <p class="sub">Runs are started in the Player. They appear here with their participants, the plugin content and the event log.</p>
     </div>
     {{end}}
