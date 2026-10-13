@@ -39,7 +39,13 @@ ColumnLayout {
         id: versionRow
         Layout.fillWidth: true
         Layout.minimumWidth: 0
-        implicitHeight: Math.max(textCol.implicitHeight + 7 + 9, 40)
+        implicitHeight: stacked ? textCol.implicitHeight + 7 + 6 + 28 + 9 : Math.max(textCol.implicitHeight + 7 + 9, 40)
+
+        // Natural (unclamped) width of the buttons. When the text column would get less than 90 px beside them (wide
+        // fonts, narrow window) the actions move under the text instead of sticking out of the row.
+        readonly property real actionsNaturalWidth: (restoreBtn.visible ? restoreText.implicitWidth + 20 : 0)
+            + (deleteBtn.visible ? deleteText.implicitWidth + 12 : 0) + (restoreBtn.visible && deleteBtn.visible ? actions.spacing : 0)
+        readonly property bool stacked: actionsNaturalWidth > 0 && width - 20 - 12 - 8 - actionsNaturalWidth < 90
 
         // Rail with node
         Item {
@@ -77,8 +83,8 @@ ColumnLayout {
             id: textCol
             anchors.left: rail.right
             anchors.leftMargin: 12
-            anchors.right: actions.left
-            anchors.rightMargin: 8
+            anchors.right: versionRow.stacked ? parent.right : actions.left
+            anchors.rightMargin: versionRow.stacked ? 0 : 8
             y: 7
             spacing: 3
             Flow {
@@ -128,14 +134,19 @@ ColumnLayout {
         // Actions
         Row {
             id: actions
-            anchors.right: parent.right
-            y: 6
+            x: versionRow.stacked ? 32 : parent.width - width
+            y: versionRow.stacked ? 7 + textCol.implicitHeight + 6 : 6
             spacing: 6
+            // Stacked: every button gets at most its share of the row, the text elides.
+            readonly property real maxButtonWidth: versionRow.stacked
+                ? (versionRow.width - 32 - (restoreBtn.visible && deleteBtn.visible ? spacing : 0)) / ((restoreBtn.visible ? 1 : 0) + (deleteBtn.visible ? 1 : 0))
+                : 100000
             Rectangle {
+                id: restoreBtn
                 objectName: "restoreButton"
                 visible: root.showRestore && !root.isCurrent
                 enabled: root.restoreEnabled
-                height: 28; width: restoreText.implicitWidth + 20; radius: Theme.radius6
+                height: 28; width: Math.min(restoreText.implicitWidth + 20, actions.maxButtonWidth); radius: Theme.radius6
                 color: restoreHover.hovered && enabled ? Theme.surfaceRaised : "transparent"
                 border.width: 1
                 border.color: root.confirm === "restore" ? Theme.accent : Theme.borderButton
@@ -143,22 +154,23 @@ ColumnLayout {
                 activeFocusOnTab: true
                 Accessible.role: Accessible.Button
                 Accessible.name: qsTr("Restore %1").arg(root.versionText)
-                Text { id: restoreText; anchors.centerIn: parent; text: qsTr("Restore"); font.pixelSize: Theme.fontMeta; font.weight: Font.Medium; color: Theme.text }
+                Text { id: restoreText; anchors.centerIn: parent; width: Math.min(implicitWidth, parent.width - 12); elide: Text.ElideRight; text: qsTr("Restore"); font.pixelSize: Theme.fontMeta; font.weight: Font.Medium; color: Theme.text }
                 HoverHandler { id: restoreHover; cursorShape: Qt.PointingHandCursor }
                 TapHandler { enabled: parent.enabled; onTapped: root.restoreClicked() }
                 Keys.onPressed: (event) => { if (enabled && (event.key === Qt.Key_Space || event.key === Qt.Key_Return)) { root.restoreClicked(); event.accepted = true } }
             }
             Rectangle {
+                id: deleteBtn
                 objectName: "deleteButton"
                 visible: root.showDelete
                 enabled: root.deleteEnabled
-                height: 28; width: deleteText.implicitWidth + 12; radius: Theme.radius6
+                height: 28; width: Math.min(deleteText.implicitWidth + 12, actions.maxButtonWidth); radius: Theme.radius6
                 color: deleteHover.hovered && enabled ? Theme.surfaceRaised : "transparent"
                 opacity: enabled && !root.muted ? 1 : 0.5
                 activeFocusOnTab: true
                 Accessible.role: Accessible.Button
                 Accessible.name: qsTr("Delete snapshot %1").arg(root.versionText)
-                Text { id: deleteText; anchors.centerIn: parent; text: qsTr("Delete"); font.pixelSize: Theme.fontMeta; font.weight: Font.Medium; color: Theme.error }
+                Text { id: deleteText; anchors.centerIn: parent; width: Math.min(implicitWidth, parent.width - 4); elide: Text.ElideRight; text: qsTr("Delete"); font.pixelSize: Theme.fontMeta; font.weight: Font.Medium; color: Theme.error }
                 HoverHandler { id: deleteHover; cursorShape: Qt.PointingHandCursor }
                 TapHandler { enabled: parent.enabled; onTapped: root.deleteClicked() }
                 Keys.onPressed: (event) => { if (enabled && (event.key === Qt.Key_Space || event.key === Qt.Key_Return)) { root.deleteClicked(); event.accepted = true } }
@@ -218,14 +230,14 @@ ColumnLayout {
                     id: okBtn
                     objectName: root.confirm === "delete" ? "deleteConfirm" : "restoreConfirm"
                     height: 30
-                    width: okText.implicitWidth + 24
+                    width: Math.min(okText.implicitWidth + 24, parent.width)   // never wider than the row, the text elides
                     radius: Theme.radius6
                     color: root.confirm === "delete" ? Theme.error : Theme.accent
                     opacity: okTap.pressed ? 0.8 : 1
                     activeFocusOnTab: true
                     Accessible.role: Accessible.Button
                     Accessible.name: root.confirmOk
-                    Text { id: okText; anchors.centerIn: parent; text: root.confirmOk; font.pixelSize: Theme.fontSmall; font.weight: Font.DemiBold; color: Theme.textOnAccent }
+                    Text { id: okText; anchors.centerIn: parent; width: Math.min(implicitWidth, parent.width - 24); elide: Text.ElideRight; text: root.confirmOk; font.pixelSize: Theme.fontSmall; font.weight: Font.DemiBold; color: Theme.textOnAccent }
                     HoverHandler { cursorShape: Qt.PointingHandCursor }
                     TapHandler { id: okTap; onTapped: root.confirmed() }
                     Keys.onPressed: (event) => { if (event.key === Qt.Key_Space || event.key === Qt.Key_Return) { root.confirmed(); event.accepted = true } }

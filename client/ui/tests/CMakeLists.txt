@@ -91,6 +91,18 @@ framebeam_add_test(ui_screenshots_shell screenshots_shell_test.cpp ${FB_NETTEST_
 target_include_directories(test_ui_screenshots_shell PRIVATE ${FB_NETTEST_DIR})
 target_compile_definitions(test_ui_screenshots_shell PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
 
+# Round 3 Player A artboards (3a-3, 3c-6, 3c-7, 3p-3); skipped without FRAMEBEAM_SCREENSHOT_DIR.
+framebeam_add_test(ui_screenshots_player_a screenshots_player_a_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
+  LIBS ${FB_UI_TEST_LIBS})
+target_include_directories(test_ui_screenshots_player_a PRIVATE ${FB_NETTEST_DIR})
+target_compile_definitions(test_ui_screenshots_player_a PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
+
+# First-load layout of the shell (round 3 P8, P9): no overlap of the Library header and the sidebar user block.
+framebeam_add_test(ui_shell_layout shell_layout_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
+  LIBS ${FB_UI_TEST_LIBS})
+target_include_directories(test_ui_shell_layout PRIVATE ${FB_NETTEST_DIR})
+target_compile_definitions(test_ui_shell_layout PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
+
 # Screen layouts (0.6 D12) and the diagnostics model (0.6 D5-D11): pure logic, no Qt Quick.
 framebeam_add_test(ui_screenlayout screenlayout_test.cpp LIBS framebeam_ui framebeam_core framebeam_emulation)
 framebeam_add_test(ui_diagnostics diagnostics_test.cpp LIBS framebeam_ui framebeam_core framebeam_emulation)
@@ -199,3 +211,13 @@ framebeam_add_test(ui_runs runs_ui_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_N
   LIBS ${FB_UI_TEST_LIBS})
 target_include_directories(test_ui_runs PRIVATE ${FB_NETTEST_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../../plugins/tests)
 target_compile_definitions(test_ui_runs PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
+
+# Same layout tests with a noticeably wider application font (FRAMEBEAM_TEST_WIDE_FONT, testsupport.h): catches items
+# that only fit with Linux font metrics (Windows CI renders wider).
+# Not on Windows: its fonts are already the wide case, extra spacing there tests something no user sees.
+if(NOT WIN32)
+  foreach(t ui_shell_layout ui_library_saves)
+    add_test(NAME ${t}_widefont COMMAND test_${t})
+    set_tests_properties(${t}_widefont PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;FRAMEBEAM_TEST_WIDE_FONT=1")
+  endforeach()
+endif()

@@ -997,11 +997,26 @@ class LibrarySavesUiTest : public QObject {
         QVERIFY(lbl != nullptr);
         const qreal natural = lbl->implicitWidth();
         const qreal pad = btn->property("hPadding").toReal();
+        if (natural + pad > room + 0.5) continue;   // absurdly wide test fonts: the label may then elide, it only has to fit when the column can hold it
         const QString tag = QStringLiteral("%1 at %2 px").arg(QLatin1String(name)).arg(size.width());
         QVERIFY2(btn->width() + 0.5 >= natural + pad, qPrintable(tag + QStringLiteral(": width %1 < label %2 + padding %3").arg(btn->width()).arg(natural).arg(pad)));
         QVERIFY2(lbl->width() + 0.5 >= natural, qPrintable(tag + QStringLiteral(": label elided (%1 < %2)").arg(lbl->width()).arg(natural)));
       }
     }
+  }
+
+  // Extreme glyph width: the SAVE card's "Manage saves" link takes its implicit width unless it is constrained to the card.
+  void saveCardLinkStaysInsideTheColumnWithVeryWideText() {
+    FakeHub hub(QStringLiteral("a"));
+    oneGame(hub, kAllFeatures, QStringLiteral("Game"));
+    hub.setHubSave(QStringLiteral("g1"), "cp-1", QStringLiteral("dev-1"), QStringLiteral("Desktop"));
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    QTRY_VERIFY_WITH_TIMEOUT(shown(h, "manageSavesLink"), 8000);
+    widenFonts(h, 40.0);
+    checkInColumn(h, {"saveSummary", "manageSavesLink"}, 2);
   }
 
   void detailColumnLayoutAtNarrowAndWideWindows() {
@@ -1048,7 +1063,7 @@ class LibrarySavesUiTest : public QObject {
       hist->requestRestore(1);
       QTRY_VERIFY(shown(h, "restoreConfirmBox"));
       widen(wide);
-      checkInColumn(h, {"savesView", "savesBack", "savesUpdated", "historyRefresh", "savesTitle", "slotTabs", "slotSwitcher", "currentBar", "currentMeta",
+      checkInColumn(h, {"savesView", "savesBack", "savesUpdated", "historyRefresh", "savesTitle", "slotTabs", "slotSwitcher", "currentBar", "currentMeta", "currentVersion", "currentPill",
                         "saveActions", "snapshotButton", "uploadSaveButton", "historyHeader", "historyFilter", "timeline", "saveRow", "historyTitle",
                         "historyLabel", "historyMeta", "restoreButton", "deleteButton", "restoreConfirmBox", "confirmTitle", "restoreCancel",
                         "restoreConfirm", "playButton", "playShareButton"}, 20);
@@ -1101,7 +1116,7 @@ Item {
     function fill(n) {
         for (let i = 0; i < n; ++i) {
             games.append({gameId: "g" + i, title: "Homebrew " + i, system: "nds", monogram: "H", stateKind: "ready",
-                          tileText: "Ready", tileTone: "ok", progress: 0, addedText: "", onHub: true})
+                          tileText: "Ready", tileTone: "ok", progress: 0, addedText: "", onHub: true, localFile: false})
         }
     }
     function clear() { games.clear() }

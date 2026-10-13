@@ -206,9 +206,8 @@ void CoreCatalog::coreStatus(const emu::SystemManifest& man, QString* text, QStr
   }
   *text = tr("Core missing");
   *tone = QStringLiteral("error");
-  *hint = tr("Not found. Connect to a Hub that provides cores, set %1 or place the library in %2.")
-              .arg(emu::CoreLocator::environmentVariableFor(man.coreId),
-                   loc.tried.isEmpty() ? QString() : QDir::toNativeSeparators(loc.tried.last()));
+  // The search paths are not shown here (a developer path wrapped mid-word in mono, P13).
+  *hint = tr("This core is not installed on this device. Connect to a Hub that provides cores.");
 }
 
 // "Needs attention" (D14) for the Library: core missing/incompatible or firmware missing, per system once.

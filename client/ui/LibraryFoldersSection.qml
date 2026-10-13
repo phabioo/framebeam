@@ -1,14 +1,19 @@
 import QtQuick
+import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import FrameBeam.Player
 
-// Settings > Library folders (0.12): folders scanned for game files on this device. Files are hashed once, read for
-// their game code and registered with the Hub; they start from the folder without a copy in the ROM cache.
+// Settings > Library folders (0.12, round 3 3p-3): folders scanned for game files on this device, one row each with its game
+// count and last scan, "Rescan" (or "Stop scan" while it runs) and "Remove". Files are hashed once, read for their game code
+// and registered with the Hub; they start from the folder without a copy in the ROM cache.
 ColumnLayout {
     id: root
     required property PlayerController player
     readonly property var scan: player.libraryScan
+    readonly property var folders: player.libraryFolderInfo
     property bool pathPromptOpen: false
+    // Rows end where the controls of the SettingsRows end (the reset column of 72 stays empty on this page).
+    readonly property real endMargin: width >= Theme.settingsNarrowBelow ? Theme.settingsResetWidth : 0
     spacing: Theme.space12
 
     Loader {
@@ -26,66 +31,139 @@ ColumnLayout {
         }
     }
 
-    Eyebrow { text: qsTr("Library folders") }
+    RowLayout {
+        Layout.fillWidth: true
+        Layout.minimumWidth: 0
+        Layout.rightMargin: root.endMargin > 0 ? root.endMargin - 8 : 0
+        Eyebrow {
+            objectName: "libraryFoldersEyebrow"
+            Layout.fillWidth: true
+            text: qsTr("Library folders · %1").arg(root.folders.length)
+        }
+        FbButton {
+            objectName: "libraryFolderAdd"
+            kind: "link"
+            text: qsTr("+ Add folder…")
+            onClicked: root.openFolderDialog()
+        }
+    }
     FbLabel {
         objectName: "libraryFoldersHint"
         Layout.fillWidth: true
         Layout.minimumWidth: 0
+        Layout.leftMargin: Theme.settingsDotSlot
+        Layout.rightMargin: root.endMargin
         wrapMode: Text.WordWrap
-        font.pixelSize: Theme.fontMeta
+        lineHeight: 1.35
+        font.pixelSize: Theme.fontSmall
         color: Theme.textMuted
-        text: qsTr("Folders on this device with your game files. The Player finds games in them, tells the Hub which games you have (the files stay here) and starts them directly from the folder.")
+        text: qsTr("The Player finds games in these folders and starts them from there. It tells the Hub which games you have; the files stay on this device.")
     }
 
     Repeater {
-        model: root.player.libraryFolders
-        delegate: RowLayout {
+        model: root.folders
+        delegate: Item {
             id: folderRow
-            required property string modelData
+            required property var modelData
             objectName: "libraryFolderRow"
             Layout.fillWidth: true
             Layout.minimumWidth: 0
-            spacing: Theme.space10
-            FbMono {
-                Layout.fillWidth: true
-                Layout.minimumWidth: 0
-                text: folderRow.modelData
-                elide: Text.ElideMiddle
+            Layout.leftMargin: Theme.settingsDotSlot
+            Layout.rightMargin: root.endMargin
+            implicitHeight: rowLayout.implicitHeight + 24
+            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.borderRow }
+            RowLayout {
+                id: rowLayout
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 24
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    spacing: 2
+                    FbMono {
+                        objectName: "libraryFolderPath"
+                        Layout.fillWidth: true
+                        text: folderRow.modelData.path
+                        font.pixelSize: Theme.fontSmall
+                        color: Theme.text
+                        elide: Text.ElideMiddle
+                        HoverHandler { id: pathHover }
+                        ToolTip.visible: pathHover.hovered && truncated
+                        ToolTip.text: folderRow.modelData.path
+                        ToolTip.delay: 400
+                    }
+                    FbLabel {
+                        objectName: "libraryFolderStatus"
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                        font.pixelSize: Theme.fontMeta
+                        color: !folderRow.modelData.exists ? Theme.pluginWarn
+                               : folderRow.modelData.scanning ? Theme.accent : Theme.textMuted
+                        text: !folderRow.modelData.exists
+                              ? (folderRow.modelData.scannedText !== "" ? qsTr("Drive not found · last scanned %1").arg(folderRow.modelData.scannedText)
+                                                                        : qsTr("Folder not found"))
+                              : folderRow.modelData.scanning
+                                ? (root.scan.total > 0 ? qsTr("Scanning · %1 of %2 files").arg(root.scan.done).arg(root.scan.total) : qsTr("Scanning…"))
+                                : (folderRow.modelData.scannedText !== ""
+                                   ? qsTr("%1 · scanned %2").arg(Theme.plural(folderRow.modelData.count, qsTr("game"), qsTr("games"))).arg(folderRow.modelData.scannedText)
+                                   : qsTr("%1 · not scanned yet").arg(Theme.plural(folderRow.modelData.count, qsTr("game"), qsTr("games"))))
+                    }
+                }
+                RowLayout {
+                    Layout.alignment: Qt.AlignVCenter
+                    spacing: 6
+                    FbButton {
+                        objectName: folderRow.modelData.scanning ? "libraryFolderStop" : "libraryFolderRescan"
+                        implicitHeight: 32
+                        hPadding: 24
+                        text: folderRow.modelData.scanning ? qsTr("Stop scan") : qsTr("Rescan")
+                        enabled: folderRow.modelData.scanning || root.scan.active !== true
+                        onClicked: folderRow.modelData.scanning ? root.player.stopLibraryScan() : root.player.rescanLibrary()
+                    }
+                    FbButton {
+                        objectName: "libraryFolderRemove"
+                        implicitHeight: 32
+                        hPadding: 24
+                        text: qsTr("Remove")
+                        onClicked: root.player.removeLibraryFolder(folderRow.modelData.path)
+                    }
+                }
             }
-            FbButton {
-                objectName: "libraryFolderRemove"
-                implicitHeight: 32
-                text: qsTr("Remove")
-                onClicked: root.player.removeLibraryFolder(folderRow.modelData)
-            }
+        }
+    }
+    // Empty: a dashed row instead of nothing (sheet 0-2 "Add an item to a list").
+    Rectangle {
+        objectName: "libraryFoldersEmpty"
+        visible: root.folders.length === 0
+        Layout.fillWidth: true
+        Layout.leftMargin: Theme.settingsDotSlot
+        Layout.rightMargin: root.endMargin
+        implicitHeight: 52
+        radius: Theme.radius10
+        color: "transparent"
+        border.width: 1
+        border.color: Theme.borderButton
+        Rectangle { anchors.fill: parent; anchors.margins: 0; radius: parent.radius; color: "transparent"; border.width: 0 }
+        FbLabel {
+            anchors.centerIn: parent
+            text: qsTr("No folders yet. Add a folder that contains your game files.")
+            font.pixelSize: Theme.fontSmall
+            color: Theme.textFaint
         }
     }
     FbLabel {
-        objectName: "libraryFoldersEmpty"
-        visible: root.player.libraryFolders.length === 0
+        visible: root.folders.length > 0
         Layout.fillWidth: true
+        Layout.leftMargin: Theme.settingsDotSlot
+        Layout.rightMargin: root.endMargin
+        wrapMode: Text.WordWrap
         font.pixelSize: Theme.fontMeta
-        color: Theme.textFaint
-        text: qsTr("No folders yet.")
+        color: Theme.textMuted
+        text: qsTr("Remove only takes the folder off the list. Your files are not deleted.")
     }
 
-    RowLayout {
-        Layout.fillWidth: true
-        spacing: Theme.space10
-        FbButton {
-            objectName: "libraryFolderAdd"
-            implicitHeight: 32
-            text: qsTr("Add folder…")
-            onClicked: root.openFolderDialog()
-        }
-        FbButton {
-            objectName: "libraryFolderRescan"
-            implicitHeight: 32
-            text: qsTr("Rescan")
-            enabled: root.player.libraryFolders.length > 0 && root.scan.active !== true
-            onClicked: root.player.rescanLibrary()
-        }
-    }
     RowLayout {
         objectName: "libraryFolderPathPrompt"
         visible: root.pathPromptOpen
@@ -110,28 +188,13 @@ ColumnLayout {
 
     FbLabel {
         objectName: "libraryScanStatus"
-        visible: (root.scan.text || "") !== ""
+        visible: root.scan.isError === true && (root.scan.text || "") !== ""
         Layout.fillWidth: true
         Layout.minimumWidth: 0
+        Layout.leftMargin: Theme.settingsDotSlot
         wrapMode: Text.WordWrap
         font.pixelSize: Theme.fontMeta
-        color: root.scan.isError === true ? Theme.errorText : Theme.textMuted
-        text: root.scan.active === true && root.scan.total > 0
-              ? qsTr("Scanning… %1 of %2 files").arg(root.scan.done).arg(root.scan.total)
-              : (root.scan.text || "")
-    }
-    Rectangle {
-        objectName: "libraryScanProgress"
-        visible: root.scan.active === true && root.scan.total > 0
-        Layout.fillWidth: true
-        Layout.preferredHeight: 4
-        radius: 2
-        color: Theme.surfaceRaised
-        Rectangle {
-            height: parent.height
-            radius: 2
-            width: parent.width * (root.scan.total > 0 ? root.scan.done / root.scan.total : 0)
-            color: Theme.accent
-        }
+        color: Theme.errorText
+        text: root.scan.text || ""
     }
 }

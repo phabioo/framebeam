@@ -148,7 +148,7 @@ class ShellScreenshotsTest : public QObject {
     shot(h, QStringLiteral("3p-settings"));
     const QString id = hub.hubId;
     QVERIFY(h.click((QByteArray("hubEdit_") + id.toUtf8()).constData()));
-    QQuickItem* host = h.item((QByteArray("hubEditHost_") + id.toUtf8()).constData());
+    QQuickItem* host = h.item((QByteArray("hubEditAddress_") + id.toUtf8()).constData());
     QVERIFY(host != nullptr);
     host->setProperty("text", QStringLiteral("https://hub"));
     shot(h, QStringLiteral("3p-settings-hub-edit"));

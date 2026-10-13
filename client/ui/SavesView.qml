@@ -21,7 +21,7 @@ FocusScope {
     readonly property string syncKind: game.syncKind || "none"
     readonly property bool conflict: syncKind === "conflict"
     // Decision ad: the switcher above three slots; also whenever the tabs would not fit the column (wide fonts), so no slot is clipped.
-    readonly property bool tabsCollapsed: hist.slotCount > 3 || (tabsFitProbe.sum > 0 && tabs.width > 0 && tabsFitProbe.sum + 8 + 28 > tabs.width)
+    readonly property bool tabsCollapsed: hist.slotCount > 3 || (tabsFitProbe.minSum > 0 && tabs.width > 0 && tabsFitProbe.minSum + 8 + 28 > tabs.width)
     readonly property bool hasCurrent: hist.current.revision !== undefined
     readonly property bool uploadConfirming: hist.uploadRequest.path !== undefined
     readonly property bool uploadFailed: hist.uploadFailure.path !== undefined && !hist.uploading && !uploadConfirming
@@ -209,6 +209,9 @@ FocusScope {
                 id: updated
                 objectName: "savesUpdated"
                 visible: root.hist.lastUpdated !== ""
+                // Leaves the back link at least 90 px: wide fonts elide this text instead of squeezing the link away
+                width: Math.min(implicitWidth, Math.max(0, parent.width - refresh.width - 16 - 90))
+                elide: Text.ElideRight
                 anchors.right: refresh.left
                 anchors.rightMargin: 8
                 anchors.verticalCenter: parent.verticalCenter
@@ -285,6 +288,9 @@ FocusScope {
                         id: tabsFitProbe
                         visible: false
                         property real sum: 0
+                        // Tabs shrink (elide) down to 48 px each before the row falls back to the switcher.
+                        property real minSum: 0
+                        property int count: 0
                         // "+ New slot" shrinks to a plain "+" when the full label does not fit beside the tabs.
                         readonly property bool linkCompact: sum + 8 + linkProbe.implicitWidth + 8 > tabs.width
                         Text {
@@ -309,12 +315,14 @@ FocusScope {
                             }
                         }
                         function recalc() {
-                            let w = 0, n = 0
+                            let w = 0, m = 0, n = 0
                             for (let i = 0; i < children.length; ++i) {
                                 const c = children[i]
-                                if (c !== linkProbe && c.implicitWidth !== undefined && c.text !== undefined) { w += Math.min(c.implicitWidth, 90); ++n }
+                                if (c !== linkProbe && c.implicitWidth !== undefined && c.text !== undefined) { w += Math.min(c.implicitWidth, 90); m += Math.min(c.implicitWidth, 48); ++n }
                             }
                             sum = w + Math.max(0, n - 1) * 12
+                            minSum = m + Math.max(0, n - 1) * 12
+                            count = n
                         }
                     }
                     Row {
@@ -335,7 +343,7 @@ FocusScope {
                                 objectName: "slotTab_" + modelData.value
                                 readonly property string text: tabText.text
                                 height: tabRow.height
-                                width: Math.min(tabText.implicitWidth, 90)
+                                width: Math.min(tabText.implicitWidth, 90, Math.max(48, (tabRow.width - Math.max(0, tabsFitProbe.count - 1) * tabRow.spacing) / Math.max(1, tabsFitProbe.count)))
                                 opacity: tabs.changeable || active ? 1 : 0.5
                                 activeFocusOnTab: true
                                 Accessible.role: Accessible.PageTab
@@ -519,13 +527,13 @@ FocusScope {
                         color: Theme.textMeta
                         font.pixelSize: Theme.fontMeta
                     }
-                    RowLayout {
+                    Flow {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         spacing: 8
-                        Item { Layout.fillWidth: true }
-                        FbButton { objectName: "newSlotCancel"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: root.newSlotOpen = false }
+                        layoutDirection: Qt.RightToLeft   // right-aligned, wraps under the first button when the column is narrow
                         FbButton { objectName: "newSlotCreate"; kind: "primary"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Create slot"); onClicked: root.createSlot() }
+                        FbButton { objectName: "newSlotCancel"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: root.newSlotOpen = false }
                     }
                 }
 
@@ -602,13 +610,13 @@ FocusScope {
                         color: Theme.textMeta
                         font.pixelSize: Theme.fontMeta
                     }
-                    RowLayout {
+                    Flow {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         spacing: 8
-                        Item { Layout.fillWidth: true }
-                        FbButton { objectName: "renameSlotCancel"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: root.renameOpen = false }
+                        layoutDirection: Qt.RightToLeft   // right-aligned, wraps under the first button when the column is narrow
                         FbButton { objectName: "renameSlotConfirm"; kind: "primary"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Rename slot"); onClicked: root.renameSlot() }
+                        FbButton { objectName: "renameSlotCancel"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: root.renameOpen = false }
                     }
                 }
 
@@ -664,14 +672,14 @@ FocusScope {
                             Rectangle {
                                 objectName: "slotDeleteConfirm"
                                 height: 32
-                                width: slotDeleteOkText.implicitWidth + 24
+                                width: Math.min(slotDeleteOkText.implicitWidth + 24, parent.width)   // never wider than the row, the text elides
                                 radius: Theme.radius6
                                 color: Theme.error
                                 opacity: slotDeleteOkTap.pressed ? 0.8 : 1
                                 activeFocusOnTab: true
                                 Accessible.role: Accessible.Button
                                 Accessible.name: slotDeleteOkText.text
-                                Text { id: slotDeleteOkText; anchors.centerIn: parent; text: qsTr("Delete slot"); font.pixelSize: Theme.fontSmall; font.weight: Font.DemiBold; color: Theme.textOnAccent }
+                                Text { id: slotDeleteOkText; anchors.centerIn: parent; width: Math.min(implicitWidth, parent.width - 24); elide: Text.ElideRight; text: qsTr("Delete slot"); font.pixelSize: Theme.fontSmall; font.weight: Font.DemiBold; color: Theme.textOnAccent }
                                 HoverHandler { cursorShape: Qt.PointingHandCursor }
                                 TapHandler { id: slotDeleteOkTap; onTapped: root.hist.confirmDeleteSlot() }
                                 Keys.onPressed: (event) => { if (event.key === Qt.Key_Space || event.key === Qt.Key_Return) { root.hist.confirmDeleteSlot(); event.accepted = true } }
@@ -897,20 +905,27 @@ FocusScope {
                         anchors.rightMargin: 12
                         spacing: 6
                         RowLayout {
+                            id: currentHeader
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
+                            Layout.maximumWidth: currentCol.width
                             spacing: 8
                             Eyebrow { text: qsTr("Current") }
                             FbMono {
                                 objectName: "currentVersion"
+                                // Takes the free space and elides, so a wide font or a long pill never pushes the row past the column
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 0
+                                elide: Text.ElideRight
                                 text: root.hist.current.revisionText || ""
                                 color: Theme.text
                                 font.pixelSize: Theme.fontSmall
                                 font.weight: Font.Medium
                             }
-                            Item { Layout.fillWidth: true }
                             FbPill {
                                 objectName: "currentPill"
+                                // The pill elides its text when squeezed; it keeps at most 60% of the row
+                                Layout.maximumWidth: Math.max(48, currentHeader.width * 0.6)
                                 visible: text !== ""
                                 small: true
                                 tone: !root.hist.online ? "neutral" : (root.syncKind === "pending" ? "warn" : "ok")
@@ -922,6 +937,7 @@ FocusScope {
                         FbLabel {
                             objectName: "currentMeta"
                             Layout.fillWidth: true
+                            Layout.maximumWidth: currentCol.width
                             wrapMode: Text.WordWrap
                             text: root.join([root.hist.current.when, root.hist.current.device, root.hist.current.reasonText])
                             color: Theme.textMeta
@@ -951,23 +967,25 @@ FocusScope {
                             visible: root.detailsOpen
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
-                            columns: 2
+                            Layout.preferredWidth: 1
+                            Layout.maximumWidth: parent.width
+                            // Label above value when the widest label would leave the value too little room (wide fonts)
+                            columns: detailLabelProbe.implicitWidth > parent.width * 0.4 ? 1 : 2
                             columnSpacing: 12
                             rowSpacing: 6
-                            FbLabel { text: qsTr("SHA-256"); color: Theme.textMeta; font.pixelSize: Theme.fontMeta; Layout.alignment: Qt.AlignTop }
-                            FbMono { objectName: "detailSha"; Layout.fillWidth: true; text: root.hist.current.shaShort || ""; color: Theme.text; font.pixelSize: Theme.fontMeta; wrapMode: Text.WrapAnywhere }
-                            FbLabel { text: qsTr("Size"); color: Theme.textMeta; font.pixelSize: Theme.fontMeta; Layout.alignment: Qt.AlignTop }
-                            FbMono { objectName: "detailSize"; Layout.fillWidth: true; text: root.hist.current.sizeText || ""; color: Theme.text; font.pixelSize: Theme.fontMeta }
-                            FbLabel { text: qsTr("Local path"); color: Theme.textMeta; font.pixelSize: Theme.fontMeta; Layout.alignment: Qt.AlignTop }
-                            FbMono { objectName: "detailPath"; Layout.fillWidth: true; text: root.hist.current.localPath || ""; color: Theme.text; font.pixelSize: Theme.fontMeta; wrapMode: Text.WrapAnywhere }
-                            Item { Layout.preferredWidth: 1; Layout.preferredHeight: 1 }
-                            RowLayout {
+                            FbLabel { Layout.minimumWidth: 0; text: qsTr("SHA-256"); color: Theme.textMeta; font.pixelSize: Theme.fontMeta; Layout.alignment: Qt.AlignTop }
+                            FbMono { objectName: "detailSha"; Layout.fillWidth: true; Layout.minimumWidth: 0; text: root.hist.current.shaShort || ""; color: Theme.text; font.pixelSize: Theme.fontMeta; wrapMode: Text.WrapAnywhere }
+                            FbLabel { Layout.minimumWidth: 0; text: qsTr("Size"); color: Theme.textMeta; font.pixelSize: Theme.fontMeta; Layout.alignment: Qt.AlignTop }
+                            FbMono { objectName: "detailSize"; Layout.fillWidth: true; Layout.minimumWidth: 0; text: root.hist.current.sizeText || ""; color: Theme.text; font.pixelSize: Theme.fontMeta }
+                            FbLabel { Layout.minimumWidth: 0; id: detailLabelProbe; text: qsTr("Local path"); color: Theme.textMeta; font.pixelSize: Theme.fontMeta; Layout.alignment: Qt.AlignTop }
+                            FbMono { objectName: "detailPath"; Layout.fillWidth: true; Layout.minimumWidth: 0; text: root.hist.current.localPath || ""; color: Theme.text; font.pixelSize: Theme.fontMeta; wrapMode: Text.WrapAnywhere }
+                            Item { visible: parent.columns === 2; Layout.preferredWidth: 1; Layout.preferredHeight: 1 }
+                            Flow {
                                 Layout.fillWidth: true
                                 Layout.minimumWidth: 0
                                 spacing: 8
                                 FbButton { objectName: "copyHashButton"; implicitHeight: 28; font.pixelSize: Theme.fontMeta; text: qsTr("Copy hash"); onClicked: root.hist.copyText(root.hist.current.sha256 || "") }
                                 FbButton { objectName: "openFolderButton"; implicitHeight: 28; font.pixelSize: Theme.fontMeta; text: qsTr("Open folder"); onClicked: root.hist.openSaveFolder() }
-                                Item { Layout.fillWidth: true }
                             }
                         }
                     }
@@ -1005,12 +1023,15 @@ FocusScope {
                     visible: root.historyAvailable && !root.snapshotOpen && !root.uploadConfirming && !root.hist.uploading && !root.uploadFailed
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
+                    id: saveActionsFlow
                     spacing: 8
+                    // Wide fonts: the "◆ " mark is dropped when the full label does not fit the column (never elide the label).
+                    TextMetrics { id: snapshotFull; font.pixelSize: Theme.fontSmall; font.weight: Font.Medium; text: qsTr("◆ Create snapshot") }
                     FbButton {
                         objectName: "snapshotButton"
                         implicitHeight: 32
                         font.pixelSize: Theme.fontSmall
-                        text: qsTr("◆ Create snapshot")
+                        text: snapshotFull.advanceWidth + 32 + 4 <= saveActionsFlow.width ? snapshotFull.text : qsTr("Create snapshot")
                         enabled: root.hist.canSnapshot && root.hist.online
                         onClicked: { root.snapshotOpen = true; Qt.callLater(() => snapshotLabel.forceActiveFocus()) }
                     }
@@ -1077,6 +1098,7 @@ FocusScope {
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
                             Layout.preferredWidth: 1
+                            Layout.maximumWidth: parent.width
                             implicitHeight: 34
                             placeholderText: qsTr("Label (optional)")
                             maximumLength: 64
@@ -1089,12 +1111,11 @@ FocusScope {
                             color: Theme.textSecondary
                             font.pixelSize: Theme.fontMeta
                         }
-                        RowLayout {
+                        Flow {
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
                             spacing: 8
-                            Item { Layout.fillWidth: true }
-                            FbButton { objectName: "snapshotCancel"; implicitHeight: 30; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: { snapshotLabel.text = ""; root.snapshotOpen = false } }
+                            layoutDirection: Qt.RightToLeft   // right-aligned, wraps under the first button when narrow
                             FbButton {
                                 id: snapshotCreate
                                 objectName: "snapshotCreate"
@@ -1109,6 +1130,7 @@ FocusScope {
                                     root.snapshotOpen = false
                                 }
                             }
+                            FbButton { objectName: "snapshotCancel"; implicitHeight: 30; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: { snapshotLabel.text = ""; root.snapshotOpen = false } }
                         }
                     }
                 }
@@ -1255,13 +1277,13 @@ FocusScope {
                             color: Theme.textSecondary
                             font.pixelSize: Theme.fontMeta
                         }
-                        RowLayout {
+                        Flow {
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
                             spacing: 8
-                            Item { Layout.fillWidth: true }
-                            FbButton { objectName: "uploadFailedCancel"; implicitHeight: 30; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: { root.hist.dismissUploadFailure(); root.hist.dismissMessage() } }
+                            layoutDirection: Qt.RightToLeft   // right-aligned, wraps under the first button when the column is narrow
                             FbButton { objectName: "uploadRetry"; kind: "primary"; implicitHeight: 30; font.pixelSize: Theme.fontSmall; text: qsTr("Try again"); enabled: root.hist.online; onClicked: root.hist.retryUpload() }
+                            FbButton { objectName: "uploadFailedCancel"; implicitHeight: 30; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: { root.hist.dismissUploadFailure(); root.hist.dismissMessage() } }
                         }
                     }
                 }

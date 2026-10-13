@@ -87,7 +87,7 @@ QtObject {
     readonly property color infoBg: dark ? "#14222a" : "#eef8fa"
     readonly property color infoBorder: dark ? "#1a3238" : "#a6d9e6"
     readonly property color infoText: dark ? "#a9cdd6" : "#0f5a6b"
-    readonly property color neutralPillBg: dark ? "#232428" : "#ebeae5"
+    readonly property color neutralPillBg: dark ? "#26272b" : "#ebeae5"   // round 3 token neutral-pill-dark (Local / Paused pills)
     readonly property color inputError: dark ? "#c4544a" : "#b5402f"
     readonly property color popupBg: dark ? "#1d1e22" : "#ffffff"
     readonly property color borderPopup: dark ? "#2f3035" : "#d9d7d1"
@@ -108,6 +108,7 @@ QtObject {
     // Plugin warning tone (amber; tokens.md "Additions of the plugin handoff"): unverified, paused, problems, warn log lines.
     readonly property color pluginWarn: dark ? "#e5b45a" : "#8a5a00"
     readonly property color pluginWarnBg: dark ? "#2a2414" : "#f7ecd6"
+    readonly property color amberRow: dark ? "#1d1a12" : "#fbf4e2"   // round 3 token amber-row-dark (conflict rows)
     readonly property color pluginWarnLine: dark ? "#4a3d1c" : "#ead6a8"
     readonly property color pluginWarnText: dark ? "#e9d8b0" : "#6b4600"
     // Same tone inside the game view, which stays dark in both themes.
@@ -144,7 +145,9 @@ QtObject {
     // Layout
     readonly property int sidebarWidth: 232
     readonly property int columnWidth: 300       // second column of 3e / 3f / 3p
-    readonly property int detailWidth: 392       // Library detail column
+    readonly property int detailWidth: 340       // Library detail column (round 3: 340)
+    readonly property int contentMaxWidth: 880   // Settings, Runs and plugin screens: left-aligned, never wider
+    readonly property int gridMaxWidth: 1680     // Library grid
     readonly property int inputTestWidth: 340    // Controllers input test
     // SettingsRow grid 14 | flex | 280 | 72 (player.md "SettingsRow"); Emulation and Settings share the content width, so
     // the controls end on the same x on both pages.
@@ -157,7 +160,7 @@ QtObject {
     // Font size roles
     readonly property int fontHero: 30      // start / pairing title
     readonly property int fontDialog: 24    // dialog title
-    readonly property int fontPage: 26      // page title
+    readonly property int fontPage: 28      // page title
     readonly property int fontDetail: 22    // detail title
     readonly property int fontCard: 16      // card title
     readonly property int fontSection: 15   // section / group title
@@ -174,17 +177,26 @@ QtObject {
     // System fonts (Inter/Plex are not bundled).
     readonly property string mono: Qt.platform.os === "windows" ? "Consolas" : (Qt.platform.os === "osx" ? "Menlo" : "monospace")
 
+    // Count with a plural noun, never "(s)": plural(1, "folder", "folders") -> "1 folder", plural(3, ...) -> "3 folders".
+    function plural(n: int, one: string, many: string): string {
+        return n + " " + (Number(n) === 1 ? one : many)
+    }
+
     function toneColor(tone: string): color {
         switch (tone) {
         case "ok": return ok
         case "warn": return warn
         case "error": return error
+        case "info": return accent
+        case "amber": return pluginWarn
         default: return textMuted
         }
     }
     function toneBg(tone: string): color {
         switch (tone) {
         case "ok": return okBg
+        case "info": return accentChipBg
+        case "amber": return pluginWarnBg
         case "warn": return warnBg
         case "error": return errorBg
         default: return neutralPillBg

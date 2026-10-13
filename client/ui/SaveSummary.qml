@@ -66,6 +66,8 @@ Rectangle {
                 objectName: "manageSavesLink"
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
+                // Never wider than the card (the label elides): the eyebrow keeps at least 60 px.
+                width: Math.max(0, Math.min(implicitWidth, parent.width - 68))
                 visible: !root.unsupported
                 kind: "link"
                 implicitHeight: 24

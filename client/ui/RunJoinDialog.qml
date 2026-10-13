@@ -10,19 +10,22 @@ Popup {
     required property RunsController runs
     property string runId: ""
     property string runName: ""
+    property string inviteLine: ""
+    readonly property bool noGame: root.runs.games.count === 0
 
     parent: Window.window ? Window.window.contentItem : null
     anchors.centerIn: parent
     modal: true
     dim: true
     focus: true
-    width: Math.min(440, parent ? parent.width - 32 : 440)
+    width: Math.min(460, parent ? parent.width - 32 : 460)
     padding: 20
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
-    function openFor(id: string, name: string) {
+    function openFor(id: string, name: string, line: string) {
         root.runId = id
         root.runName = name
+        root.inviteLine = line || ""
         root.runs.prepareGames(id)
         picker.selectedId = root.runs.games.count === 1 ? root.runs.games.get(0).id : ""
         root.open()
@@ -49,14 +52,15 @@ Popup {
         spacing: Theme.space12
         FbLabel {
             Layout.fillWidth: true
-            text: qsTr("Join \"%1\"").arg(root.runName)
+            text: qsTr("Join \u201C%1\u201D?").arg(root.runName)
             wrapMode: Text.WordWrap
             font.pixelSize: Theme.fontCard
             font.weight: Font.DemiBold
         }
         FbLabel {
             Layout.fillWidth: true
-            text: qsTr("Which game do you play in this run?")
+            objectName: "runJoinLine"
+            text: root.inviteLine !== "" ? root.inviteLine : qsTr("Which game do you play in this run?")
             color: Theme.textMuted
             font.pixelSize: Theme.fontSmall
             wrapMode: Text.WordWrap
@@ -105,6 +109,15 @@ Popup {
             objectName: "runJoinGames"
             Layout.fillWidth: true
             rows: root.runs.games
+        }
+        FbLabel {
+            objectName: "runJoinWhy"
+            visible: root.noGame
+            Layout.fillWidth: true
+            text: qsTr("Join is off until you have the game. Ask a Hub admin to upload it, or add a library folder that contains it.")
+            color: Theme.pluginWarn
+            wrapMode: Text.WordWrap
+            font.pixelSize: Theme.fontSmall
         }
         RowLayout {
             Layout.fillWidth: true

@@ -387,8 +387,9 @@ class HubFeaturesUiTest : public QObject {
       pair(h, hub);
       QVERIFY(h.controller->userName().isEmpty());
       QTRY_VERIFY(h.item("userDevice") != nullptr);
-      QCOMPARE(h.item("userDevice")->property("text").toString(), h.controller->deviceName());
-      QVERIFY(!h.item("userName")->isVisible());
+      // Both lines stay present (P9): the device name takes the top line, "This device" the second.
+      QCOMPARE(h.item("userName")->property("text").toString(), h.controller->deviceName());
+      QCOMPARE(h.item("userDevice")->property("text").toString(), QStringLiteral("This device"));
     }
   }
 
@@ -462,8 +463,8 @@ class HubFeaturesUiTest : public QObject {
     const QString idB = hubB.hubId;
     // Both Hubs listed, B is current and connected; Switch only on A.
     QVERIFY(h.item(nm("hubName_", idA).constData()) != nullptr && h.item(nm("hubName_", idB).constData()) != nullptr);
-    QVERIFY(h.item(nm("hubCurrent_", idB).constData())->isVisible());
-    QVERIFY(!h.item(nm("hubCurrent_", idA).constData())->isVisible());
+    QVERIFY(h.item(nm("hubState_", idB).constData())->property("text").toString().contains(QStringLiteral("Connected")));
+    QVERIFY(!h.item(nm("hubState_", idA).constData())->property("text").toString().contains(QStringLiteral("Connected")));
     QVERIFY(!h.item(nm("hubSwitch_", idB).constData())->isVisible());
     QVERIFY(h.item(nm("hubSwitch_", idA).constData())->isVisible());
 
@@ -483,17 +484,23 @@ class HubFeaturesUiTest : public QObject {
     QTRY_COMPARE_WITH_TIMEOUT(h.controller->screen(), QStringLiteral("library"), 8000);
     h.controller->showSettings();
     QTest::qWait(100);
-    QVERIFY(h.click(nm("hubRemove_", idB).constData()));
+    QVERIFY(h.click(nm("hubMenu_", idB).constData()));
+    QTest::qWait(150);
+    QVERIFY(h.click(nm("hubMenu_", idB).append("_remove").constData()));
     QVERIFY(h.item(nm("hubRemoveConfirm_", idB).constData())->isVisible());
     QVERIFY(h.click(nm("hubRemoveCancel_", idB).constData()));
     QCOMPARE(h.controller->hubs().size(), 2);
     // Confirmed removal of a non-current Hub.
-    QVERIFY(h.click(nm("hubRemove_", idB).constData()));
+    QVERIFY(h.click(nm("hubMenu_", idB).constData()));
+    QTest::qWait(150);
+    QVERIFY(h.click(nm("hubMenu_", idB).append("_remove").constData()));
     QVERIFY(h.click(nm("hubRemoveConfirmButton_", idB).constData()));
     QCOMPARE(h.controller->hubs().size(), 1);
     QCOMPARE(h.controller->screen(), QStringLiteral("settings"));
     // Removing the current Hub returns to the connection screen.
-    QVERIFY(h.click(nm("hubRemove_", idA).constData()));
+    QVERIFY(h.click(nm("hubMenu_", idA).constData()));
+    QTest::qWait(150);
+    QVERIFY(h.click(nm("hubMenu_", idA).append("_remove").constData()));
     QVERIFY(h.click(nm("hubRemoveConfirmButton_", idA).constData()));
     QTRY_COMPARE(h.controller->screen(), QStringLiteral("connection"));
     QCOMPARE(h.controller->hubs().size(), 0);
@@ -537,7 +544,7 @@ class HubFeaturesUiTest : public QObject {
 
     // Open the edit row of the non-active Hub A, enter an invalid host: error shown, Save disabled.
     QVERIFY(h.click(nm("hubEdit_", idA).constData()));
-    QQuickItem* host = h.item(nm("hubEditHost_", idA).constData());
+    QQuickItem* host = h.item(nm("hubEditAddress_", idA).constData());
     QVERIFY(host != nullptr && host->isVisible());
     host->setProperty("text", QStringLiteral("bad host"));
     QTRY_VERIFY(h.item(nm("hubEditError_", idA).constData())->isVisible());

@@ -1,4 +1,5 @@
 #include "updatescontroller.h"
+#include "timeformat.h"
 
 #include <QCoreApplication>
 #include <QDesktopServices>
@@ -75,7 +76,7 @@ QString UpdatesController::statusText() const {
 
 QString UpdatesController::lastCheckText() const {
   const QDateTime t = manager_.lastCheck();
-  return t.isValid() ? QLocale().toString(t, QLocale::ShortFormat) : tr("never");
+  return t.isValid() ? TimeFormat::when(t) : tr("never");
 }
 
 bool UpdatesController::updateAvailable() const {

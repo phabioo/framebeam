@@ -7,6 +7,8 @@
 #include <QDir>
 #include <QGuiApplication>
 #include <QLocale>
+
+#include "timeformat.h"
 #include <QPointer>
 #include <QTimer>
 #include <QUrl>
@@ -1031,18 +1033,7 @@ QString SaveHistoryController::formatWhen(const QString& iso) {
   return when.isValid() ? formatWhen(when) : tr("unknown time");
 }
 
-// "today 18:42", "yesterday 22:30", "03.10. 21:12" (this year), "03.10.2025 21:12" (older): as drawn in 3c-3.
-QString SaveHistoryController::formatWhen(const QDateTime& when) {
-  const QDateTime local = when.toLocalTime();
-  const QString time = local.toString(QStringLiteral("HH:mm"));
-  const QDate today = QDate::currentDate();
-  if (local.date() == today) {
-    return tr("today %1").arg(time);
-  }
-  if (local.date() == today.addDays(-1)) {
-    return tr("yesterday %1").arg(time);
-  }
-  return local.date().year() == today.year() ? local.toString(QStringLiteral("dd.MM. HH:mm")) : local.toString(QStringLiteral("dd.MM.yyyy HH:mm"));
-}
+// Shared helper (timeformat.h): "just now", "5 min ago", "today 18:42", "yesterday 22:30", "16 Oct", "3 Mar 2025".
+QString SaveHistoryController::formatWhen(const QDateTime& when) { return TimeFormat::when(when); }
 
 }  // namespace framebeam::ui

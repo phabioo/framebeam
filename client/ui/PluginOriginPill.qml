@@ -2,7 +2,7 @@ import QtQuick
 import FrameBeam.Player
 
 // Origin pill of a plugin (docs/design/plugins.md, common rules): "✓ Official" (info tone, signed by FrameBeam),
-// "! Hub upload · unverified" (warning tone, unsigned and offered by the Hub), "Local file" (neutral).
+// "Hub upload · unverified" (warning tone, unsigned and offered by the Hub), "Local file" (neutral).
 // origin: official | unverified | local; text comes from the controller (translated).
 Rectangle {
     id: root
@@ -10,6 +10,8 @@ Rectangle {
     property string text: ""
     readonly property bool official: origin === "official"
     readonly property bool unverified: origin === "unverified"
+    // Official plugins carry no pill (round 3, sheet 0-2); the type stays for places that need the text (tests, tooltips).
+    visible: !official
 
     implicitHeight: 20
     implicitWidth: label.implicitWidth + 16

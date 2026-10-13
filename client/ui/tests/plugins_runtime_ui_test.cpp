@@ -121,7 +121,7 @@ class PluginsRuntimeUiTest : public QObject {
 
     QTRY_COMPARE_WITH_TIMEOUT(m_pc->sidebarEntries().size(), 1, 10000);
     QTRY_COMPARE(m_pc->sidebarEntries().at(0).toMap().value("badge").toInt(), 3);
-    QCOMPARE(m_pc->sidebarEntries().at(0).toMap().value("title").toString(), QStringLiteral("Runs"));
+    QCOMPARE(m_pc->sidebarEntries().at(0).toMap().value("title").toString(), QStringLiteral("shell"));  // title collides with Runs: the plugin name is used
     QCOMPARE(m_pc->sidebarEntries().at(0).toMap().value("pluginId").toString(), QStringLiteral("net.test.shell"));
     QTRY_COMPARE(m_pc->slotTree("net.test.shell", "screen").value("text").toString(), QStringLiteral("ready"));
     QTRY_COMPARE(m_pc->hudWidgets().size(), 1);

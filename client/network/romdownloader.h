@@ -29,6 +29,7 @@ struct RomStatus {
   qint64 totalBytes = 0;
   qint64 receivedBytes = 0;
   QString localPath;
+  bool fromLibraryFolder = false;  // the file is a local file of a library folder (not a copy in the ROM cache)
   QString errorCode;
   QString errorMessage;
 };

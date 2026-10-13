@@ -41,14 +41,21 @@ ColumnLayout {
                 spacing: 8
                 Eyebrow {
                     objectName: "pluginRunTitle"
-                    Layout.fillWidth: true
-                    text: sec.modelData.title || sec.modelData.name
+                    text: sec.modelData.title || qsTr("Board")
                 }
-                FbPill {
+                FbLabel {
+                    objectName: "pluginRunFrom"
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    text: qsTr("from %1").arg(sec.modelData.name)
+                    color: Theme.textMuted
+                    font.pixelSize: Theme.fontMeta
+                    elide: Text.ElideRight
+                }
+                PluginOriginPill {
                     objectName: "pluginRunOrigin"
-                    visible: sec.marker !== ""
-                    tone: "warn"
-                    text: sec.marker
+                    origin: sec.modelData.origin || "local"
+                    text: sec.modelData.originText || sec.marker
                 }
             }
             FbLabel {

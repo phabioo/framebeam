@@ -5,6 +5,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QtTest>
+#include <functional>
 
 #include "fakehub.h"
 #include "fbplugin_testutil.h"
@@ -91,6 +92,8 @@ class PluginsUiTest : public QObject {
     QTest::qWait(150);
     QVERIFY(h.click("section_plugins"));
     QTest::qWait(300);
+    QVERIFY(h.click("pluginDeveloperSettings"));  // Developer mode and the folder installs sit behind this link
+    QTest::qWait(100);
   }
   static void startPreviewGame(Harness& h) {
     GameSession* gs = h.controller->gameSession();
@@ -178,7 +181,7 @@ class PluginsUiTest : public QObject {
     QVERIFY(!pc->plugins().value(1).toMap().value("enabled").toBool());
     QVERIFY(pc->messageIsError());
     pc->dismissMessage();
-    QCOMPARE(h.item("sectionStatus_plugins")->property("text").toString(), QStringLiteral("1 on"));
+    QCOMPARE(h.item("sectionStatus_plugins")->property("text").toString(), QStringLiteral("2 installed · 1 on"));
     QTest::qWait(200);
     shot(h, QStringLiteral("4a-plugins-list"));
     h.controller->setAppearance(QStringLiteral("light"));
@@ -186,7 +189,11 @@ class PluginsUiTest : public QObject {
     h.controller->setAppearance(QStringLiteral("dark"));
 
     // Uninstall asks first.
-    QVERIFY(h.click("pluginUninstall"));
+    QVERIFY(h.click("pluginOpen"));
+    QTRY_VERIFY(h.item("pluginDetailSheet") != nullptr && h.item("pluginDetailSheet")->isVisible());
+    QVERIFY(h.click("pluginDetailMenu"));
+    QTest::qWait(150);
+    QVERIFY(h.click("pluginDetailMenu_uninstall"));
     QTRY_VERIFY(h.item("pluginUninstallConfirm") != nullptr && h.item("pluginUninstallConfirm")->isVisible());
     QVERIFY(h.click("pluginUninstallConfirm"));
     QTRY_COMPARE(pc->plugins().size(), 1);
@@ -257,6 +264,130 @@ class PluginsUiTest : public QObject {
     QVERIFY(h.item("sharingBlock") != nullptr && h.item("sharingBlock")->isVisible());
   }
 
+  // 4a-3 / 4a-4 and P20: a plugin that needs another one. Install offers both, turning on offers both, the detail sheet
+  // shows the relations, and the dependency's toggle agrees with the plugin that uses it.
+  void dependencyDialogsAndDetail() {
+    FakeHub hub(QStringLiteral("a"));
+    hub.hubId = QStringLiteral("hub-dep");
+    hub.name = QStringLiteral("Home Hub");
+    hub.decision = FakeHub::Decision::Approve;
+    hub.features = {QStringLiteral("saves_v1"), QStringLiteral("plugins_v1")};
+    const auto offer = [&hub](const FbSpec& spec) {
+      const QByteArray file = makeFbPlugin(spec);
+      hub.pluginList.append(QJsonObject{{"plugin_id", spec.id}, {"version", spec.version}, {"name", spec.name}, {"description", ""}, {"api", 1},
+                                        {"origin", "unverified"}, {"sha256", sha256Hex(file)}, {"size", file.size()},
+                                        {"permissions", QJsonArray::fromStringList(spec.permissions)}, {"requires", spec.requires_},
+                                        {"created_at", "2026-10-12T10:00:00Z"}});
+      hub.pluginFiles.insert(spec.id + "/" + spec.version, file);
+    };
+    FbSpec core;
+    core.id = "net.example.pokemon-core";
+    core.name = "Pokemon Core";
+    core.version = "0.3.1";
+    core.permissions = {"memory.read"};
+    FbSpec link;
+    link.id = "net.example.soullink";
+    link.name = "SoulLink & Nuzlocke";
+    link.version = "0.3.2";
+    link.permissions = {"ui", "run.state"};
+    link.requires_ = QJsonObject{{core.id, "^0.3"}};
+    link.ui = QJsonObject{{"panel", QJsonObject{{"title", "SoulLink"}}}};
+    offer(core);
+    offer(link);
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    h.window->resize(1440, 900);
+    PluginsController* pc = h.controller->plugins();
+    QTRY_COMPARE_WITH_TIMEOUT(pc->hubPlugins().size(), 2, 8000);
+    gotoPlugins(h);
+    QTRY_VERIFY(h.item("hubPluginRow_net.example.soullink") != nullptr);
+    QCOMPARE(h.item("pluginsEmptyText")->property("text").toString(),
+             QStringLiteral("Home Hub offers 2 plugins. They are listed below under Available on Home Hub."));
+    shot(h, QStringLiteral("4a-3-plugins-available"));
+
+    // SoulLink needs Pokemon Core: the Hub row says so and Install offers both.
+    QVariantMap linkOffer;
+    for (const QVariant& v : pc->hubPlugins())
+      if (v.toMap().value("id").toString() == link.id) linkOffer = v.toMap();
+    QCOMPARE(linkOffer.value("needsInstall").toList().size(), 1);
+    // The rows' buttons share one name; pick the one of the SoulLink row.
+    {
+      QQuickItem* row = h.item("hubPluginRow_net.example.soullink");
+      QVERIFY(row != nullptr);
+      QQuickItem* btn = nullptr;
+      std::function<void(QQuickItem*)> find = [&](QQuickItem* i) {
+        if (i->objectName() == QLatin1String("hubPluginInstall")) btn = i;
+        for (QQuickItem* c : i->childItems()) find(c);
+      };
+      find(row);
+      QVERIFY(btn != nullptr);
+      QVERIFY(QMetaObject::invokeMethod(btn, "clicked"));
+    }
+    QTRY_VERIFY(h.item("pluginInstallDialog") != nullptr && h.item("pluginInstallDialog")->isVisible());
+    QVERIFY(h.item("pluginInstallDependency")->property("text").toString().contains(QStringLiteral("Also install Pokemon Core 0.3.1")));
+    shot(h, QStringLiteral("4a-3-dialog-install-both"));
+    QVERIFY(h.click("pluginInstallBoth"));
+    QTRY_COMPARE_WITH_TIMEOUT(pc->plugins().size(), 2, 12000);
+    QVERIFY2(!pc->messageIsError(), qPrintable(pc->message()));
+
+    // Installed first: two rows, both off. The warning about the dependency never shows a raw id.
+    QTest::qWait(300);
+    for (const QVariant& v : pc->plugins()) {
+      QVERIFY(!v.toMap().value("problemsText").toString().contains(QStringLiteral("net.example")));
+      QVERIFY(!v.toMap().value("enabled").toBool());
+      QVERIFY(!v.toMap().value("subtitle").toString().isEmpty());  // every row has a description line (P21)
+    }
+    QCOMPARE(h.item("sectionStatus_plugins")->property("text").toString(), QStringLiteral("2 installed · none on"));
+
+    // Turning on SoulLink while Pokemon Core is off asks, then turns both on (P20): the toggles agree.
+    {
+      QQuickItem* row = h.item("pluginRow_net.example.soullink");
+      QVERIFY(row != nullptr);
+      QQuickItem* toggle = nullptr;
+      std::function<void(QQuickItem*)> find = [&](QQuickItem* i) {
+        if (i->objectName() == QLatin1String("pluginToggle")) toggle = i;
+        for (QQuickItem* c : i->childItems()) find(c);
+      };
+      find(row);
+      QVERIFY(toggle != nullptr);
+      const QPointF p = toggle->mapToScene(QPointF(toggle->width() / 2, toggle->height() / 2));
+      QTest::mouseClick(h.window, Qt::LeftButton, Qt::NoModifier, p.toPoint());
+    }
+    QTRY_VERIFY(h.item("pluginEnableConfirm") != nullptr && h.item("pluginEnableConfirm")->isVisible());
+    QVERIFY(h.item("pluginEnableDependency")->isVisible());
+    QVERIFY(h.item("pluginEnableDependency")->property("text").toString().contains(QStringLiteral("Pokemon Core")));
+    QCOMPARE(h.item("pluginEnableConfirmButton")->property("text").toString(), QStringLiteral("Turn on both"));
+    shot(h, QStringLiteral("4a-3-dialog-turn-on-both"));
+    QVERIFY(h.click("pluginEnableConfirmButton"));
+    QTRY_COMPARE(h.item("sectionStatus_plugins")->property("text").toString(), QStringLiteral("2 installed · 2 on"));
+    shot(h, QStringLiteral("4a-3-plugins-installed"));
+
+    // 4a-4: the detail sheet.
+    {
+      QQuickItem* row = h.item("pluginRow_net.example.soullink");
+      QQuickItem* open = nullptr;
+      std::function<void(QQuickItem*)> find = [&](QQuickItem* i) {
+        if (i->objectName() == QLatin1String("pluginOpen")) open = i;
+        for (QQuickItem* c : i->childItems()) find(c);
+      };
+      find(row);
+      QVERIFY(open != nullptr);
+      QVERIFY(QMetaObject::invokeMethod(open, "clicked"));
+    }
+    QTRY_VERIFY(h.item("pluginDetailSheet") != nullptr && h.item("pluginDetailSheet")->isVisible());
+    QCOMPARE(h.item("pluginDetailName")->property("text").toString(), QStringLiteral("SoulLink & Nuzlocke"));
+    QVERIFY(h.item("pluginDetailVersion")->property("text").toString().startsWith(QStringLiteral("0.3.2 · up to date")));
+    QCOMPARE(h.item("pluginDetailOrigin")->property("text").toString(), QStringLiteral("Hub upload · unverified"));
+    QVERIFY(qAbs(h.item("pluginDetailSheet")->width() - 460) < 1.0);
+    shot(h, QStringLiteral("4a-4-plugin-detail"));
+    h.controller->setAppearance(QStringLiteral("light"));
+    shot(h, QStringLiteral("4a-4-plugin-detail-light"));
+    h.controller->setAppearance(QStringLiteral("dark"));
+    QVERIFY(h.click("pluginDetailClose"));
+  }
+
   // Hub delivery in Settings > Plugins: browse, install (official and unverified), origin pills, the warning before an
   // unverified plugin is turned on, local files, a failed download. Synthetic plugin files only.
   void hubPluginsAndOrigins() {
@@ -301,16 +432,14 @@ class PluginsUiTest : public QObject {
     QTRY_COMPARE_WITH_TIMEOUT(pc->hubPlugins().size(), 3, 8000);
 
     gotoPlugins(h);
-    QVERIFY(h.item("pluginBrowseButton")->isVisible());
-    QVERIFY(!h.item("hubPluginsPanel")->isVisible());
-    QVERIFY(h.click("pluginBrowseButton"));
+    // The Hub list is there without a "Browse" step (P19).
     QTRY_VERIFY(h.item("hubPluginsPanel")->isVisible());
     QTRY_VERIFY(h.item("hubPluginRow_net.example.official") != nullptr);
-    QCOMPARE(h.item("hubPluginsTitle")->property("text").toString(), QStringLiteral("On your Hub · 3"));
+    QCOMPARE(h.item("hubPluginsTitle")->property("text").toString(), QStringLiteral("Available on Home · 3"));
     QStringList pills;
     for (QQuickItem* i : h.items("hubPluginOrigin")) pills << i->property("text").toString();
     QVERIFY(pills.contains(QStringLiteral("✓ Official")));
-    QVERIFY(pills.contains(QStringLiteral("! Hub upload · unverified")));
+    QVERIFY(pills.contains(QStringLiteral("Hub upload · unverified")));
     shot(h, QStringLiteral("4a-plugins-hub-browse"));
     h.controller->setAppearance(QStringLiteral("light"));
     shot(h, QStringLiteral("4a-plugins-hub-browse-light"));
@@ -334,7 +463,7 @@ class PluginsUiTest : public QObject {
     QTRY_COMPARE(h.item("pluginOrigin")->property("text").toString(), QStringLiteral("✓ Official"));
     pc->setPluginEnabled(QStringLiteral("net.example.official"), true);
     QVERIFY(pc->plugins().value(0).toMap().value("enabled").toBool());
-    QCOMPARE(h.item("sectionStatus_plugins")->property("text").toString(), QStringLiteral("1 on"));
+    QCOMPARE(h.item("sectionStatus_plugins")->property("text").toString(), QStringLiteral("1 installed · 1 on"));
     // Remove it again so that the next row is the only toggle on the screen.
     pc->uninstall(QStringLiteral("net.example.official"));
     QTRY_COMPARE(pc->plugins().size(), 0);
@@ -345,7 +474,7 @@ class PluginsUiTest : public QObject {
     QVERIFY(pc->message().contains(QStringLiteral("FrameBeam has not checked this plugin")));
     row = pc->plugins().value(0).toMap();
     QCOMPARE(row.value("origin").toString(), QStringLiteral("unverified"));
-    QCOMPARE(row.value("originText").toString(), QStringLiteral("! Hub upload · unverified"));
+    QCOMPARE(row.value("originText").toString(), QStringLiteral("Hub upload · unverified"));
     QVERIFY(row.value("needsConfirm").toBool());
     QVERIFY(row.value("problemsText").toString().isEmpty());
     QCOMPARE(row.value("permissionsText").toString(), QStringLiteral("Read game memory · Share run progress with your Hub"));

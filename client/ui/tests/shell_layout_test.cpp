@@ -1,0 +1,142 @@
+// Layout of the shell right after the first load (round 3 P8, P9): items that become visible after the first layout
+// ("Upload ROM" once the handshake reports uploads, the Hub user name once the user is known) must not overlap their
+// neighbours. Fake Hub, no ROMs.
+#include <QtTest>
+
+#include "fakehub.h"
+#include "testsupport.h"
+
+using namespace framebeam;
+using namespace framebeam::ui;
+using uitest::Harness;
+using S = HubConnection::State;
+
+class ShellLayoutTest : public QObject {
+  Q_OBJECT
+
+  static QRectF rectOf(QQuickItem* it) { return it->mapRectToScene(QRectF(0, 0, it->width(), it->height())); }
+
+  static void pairWithUploadsAndUser(Harness& h, FakeHub& hub) {
+    hub.decision = FakeHub::Decision::Approve;
+    h.controller->addHub(hub.address());
+    QTRY_COMPARE_WITH_TIMEOUT(h.controller->connection()->state(), S::NeedsTrustConfirmation, 8000);
+    h.controller->confirmTrust();
+    QTRY_COMPARE_WITH_TIMEOUT(h.controller->connection()->state(), S::NeedsPairing, 8000);
+    h.controller->requestPairing();
+    QTRY_COMPARE_WITH_TIMEOUT(h.controller->screen(), QStringLiteral("library"), 8000);
+  }
+
+  static void checkLibraryHeader(Harness& h, const char* when) {
+    QQuickTest::qWaitForPolish(h.window);
+    QQuickItem* title = h.item("libraryTitle");
+    QQuickItem* upload = h.item("uploadButton");
+    QQuickItem* search = h.item("searchField");
+    QVERIFY2(title != nullptr && upload != nullptr && search != nullptr, when);
+    QVERIFY2(upload->isVisible(), when);
+    const QRectF t = rectOf(title), u = rectOf(upload), s = rectOf(search);
+    QVERIFY2(!t.intersects(u), qPrintable(QStringLiteral("%1: title %2,%3 %4x%5 intersects Upload ROM %6,%7 %8x%9")
+                                              .arg(QLatin1String(when)).arg(t.x()).arg(t.y()).arg(t.width()).arg(t.height()).arg(u.x()).arg(u.y()).arg(u.width()).arg(u.height())));
+    QVERIFY2(!t.intersects(s), when);
+    QVERIFY2(!s.intersects(u), when);
+    // Title and button always share the first row; search sits between them, or wrapped on its own line below.
+    QVERIFY2(qAbs(t.center().y() - u.center().y()) < 4, when);
+    QVERIFY2(t.right() <= u.left() + 0.5, when);
+    if (s.top() >= t.bottom() - 0.5) {
+      QVERIFY2(s.top() >= u.bottom() - 0.5, when);
+    } else {
+      QVERIFY2(qAbs(t.center().y() - s.center().y()) < 4, when);
+      QVERIFY2(t.right() <= s.left() + 0.5 && s.right() <= u.left() + 0.5, when);
+    }
+    QVERIFY2(s.width() >= 100, when);
+    QVERIFY2(u.right() <= rectOf(h.item("libraryHeader")).right() + 0.5, when);
+  }
+
+  static void checkUserBlock(Harness& h, const char* when) {
+    QQuickTest::qWaitForPolish(h.window);
+    QQuickItem* name = h.item("userName");
+    QQuickItem* device = h.item("userDevice");
+    QVERIFY2(name != nullptr && device != nullptr, when);
+    const QRectF n = rectOf(name), d = rectOf(device);
+    QVERIFY2(!n.intersects(d), qPrintable(QStringLiteral("%1: user name %2,%3 intersects device line %4,%5").arg(QLatin1String(when)).arg(n.x()).arg(n.y()).arg(d.x()).arg(d.y())));
+    QVERIFY2(n.bottom() <= d.top() + 0.5, when);
+  }
+
+ private slots:
+  void initTestCase() {
+    qunsetenv("FRAMEBEAM_MELONDS_DS_CORE");
+    uitest::installWarningCounter();
+  }
+  void init() { uitest::warningCount() = 0; }
+  void cleanup() { QCOMPARE(uitest::warningCount().load(), 0); }
+
+  // The first library layout after pairing: "Upload ROM" and the user name arrive with the handshake.
+  void firstLoadHasNoOverlap() {
+    FakeHub hub(QStringLiteral("a"));
+    hub.features = QStringList{QStringLiteral("saves_v1"), QStringLiteral("uploads_v1")};
+    hub.handshakeExtra = QJsonObject{{QStringLiteral("user"),
+                                      QJsonObject{{QStringLiteral("id"), QStringLiteral("u_1")},
+                                                  {QStringLiteral("display_name"), QStringLiteral("admin")},
+                                                  {QStringLiteral("role"), QStringLiteral("admin")}}}};
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    h.window->resize(1280, 800);
+    QTest::qWait(50);
+    pairWithUploadsAndUser(h, hub);
+    // Right after the screen switched: before anything else relays out.
+    checkLibraryHeader(h, "first layout");
+    checkUserBlock(h, "first layout");
+    QTest::qWait(400);
+    checkLibraryHeader(h, "settled");
+    checkUserBlock(h, "settled");
+    // Every width the Player supports: the header stays on one row without overlap.
+    for (const int w : {960, 1280, 1920, 3840}) {
+      h.window->resize(w, 800);
+      QTest::qWait(100);
+      checkLibraryHeader(h, qPrintable(QStringLiteral("width %1").arg(w)));
+    }
+  }
+
+  // Windows renders the same pixel sizes wider (Qt 6.8 / MSVC): widen the header texts and require no overlap at
+  // 960 px and at the window minimum.
+  void wideFontHasNoOverlap() {
+    FakeHub hub(QStringLiteral("a"));
+    hub.features = QStringList{QStringLiteral("saves_v1"), QStringLiteral("uploads_v1")};
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    h.window->resize(1280, 800);
+    pairWithUploadsAndUser(h, hub);
+    QTest::qWait(200);
+    for (const char* name : {"libraryTitle", "uploadButton"}) {
+      QQuickItem* it = h.item(name);
+      QVERIFY(it != nullptr);
+      QFont f = it->property("font").value<QFont>();
+      f.setPixelSize(f.pixelSize() * 3 / 2);
+      f.setLetterSpacing(QFont::AbsoluteSpacing, 3);
+      it->setProperty("font", f);
+    }
+    const int minW = int(h.window->minimumWidth());
+    for (const int w : {1280, 960, minW}) {
+      h.window->resize(w, 800);
+      QTest::qWait(100);
+      checkLibraryHeader(h, qPrintable(QStringLiteral("wide font, width %1").arg(w)));
+    }
+  }
+
+  // The user name can arrive after the sidebar was laid out without it (older Hub first, then a Hub with user).
+  void userNameArrivesLate() {
+    FakeHub hub(QStringLiteral("a"));
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    h.window->resize(1280, 800);
+    pairWithUploadsAndUser(h, hub);
+    QTest::qWait(200);
+    checkUserBlock(h, "no Hub user");
+    QCOMPARE(h.item("userDevice")->property("text").toString(), QStringLiteral("This device"));
+  }
+};
+
+UITEST_MAIN(ShellLayoutTest)
+#include "shell_layout_test.moc"

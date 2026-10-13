@@ -42,7 +42,7 @@ PlayerSettings::PlayerSettings(const QString& baseDir)
   raw_ = fsutil::readJsonObject(path_);  // a corrupt file is moved aside before anything can overwrite it
   appearance_ = parseAppearance(raw_.value(QLatin1String(kAppearanceKey)).toString());
   const QString ch = raw_.value(QLatin1String(kUpdateChannelKey)).toString();
-  if (ch == QLatin1String("stable") || ch == QLatin1String("beta")) {
+  if (ch == QLatin1String("stable") || ch == QLatin1String("beta") || ch == QLatin1String("off")) {
     updateChannel_ = ch;
   } else if (ch == QLatin1String("test")) {
     updateChannel_ = QStringLiteral("beta");  // old name; rewritten as "beta" on the next save
@@ -99,7 +99,7 @@ bool PlayerSettings::setAppearance(Appearance a) {
 
 bool PlayerSettings::setUpdateChannel(const QString& channelIn) {
   const QString channel = channelIn == QLatin1String("test") ? QStringLiteral("beta") : channelIn;
-  if (!channel.isEmpty() && channel != QLatin1String("stable") && channel != QLatin1String("beta")) {
+  if (!channel.isEmpty() && channel != QLatin1String("stable") && channel != QLatin1String("beta") && channel != QLatin1String("off")) {
     return false;
   }
   updateChannel_ = channel;

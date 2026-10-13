@@ -173,6 +173,9 @@ Item {
     // Text column
     ColumnLayout {
         id: textCol
+        // Not laid out while the page has no real width yet (first frame, width 0): wrapped text would break into
+        // one character per line, and its stale height makes the layout polish loop with wide fonts.
+        visible: root.textWidth > 24
         x: Theme.settingsDotSlot
         y: Theme.settingsDotSlot
         width: root.textWidth

@@ -106,7 +106,7 @@ Rectangle {
                 id: page
                 x: Theme.space28
                 y: Theme.space28
-                width: Math.min(flick.width - 2 * Theme.space28, 860)
+                width: Math.min(flick.width - 2 * Theme.space28, Theme.contentMaxWidth)
                 spacing: Theme.space16
 
                 // ---------------------------------------------------------------- shared: message banner
@@ -209,7 +209,7 @@ Rectangle {
                                         kind: "primary"
                                         text: qsTr("Join")
                                         enabled: !root.runs.busy
-                                        onClicked: joinDialog.openFor(card.model.runId, card.model.headline)
+                                        onClicked: joinDialog.openFor(card.model.runId, card.model.name, card.model.inviteLine)
                                     }
                                 }
                             }
@@ -253,6 +253,26 @@ Rectangle {
                     Layout.fillWidth: true
                     spacing: Theme.space16
                     readonly property var d: root.runs.detail
+                    // The run actions of the "⋯" menu. Rebuilt only when their content changes, so the menu is not reset on
+                    // every update of the run.
+                    property var menuItems: []
+                    property string menuJson: ""
+                    function rebuildMenu() {
+                        const d = detailCol.d
+                        const out = []
+                        if (d.canStart === true) out.push({ name: "start", label: qsTr("Start run now") })
+                        if (d.canPause === true) out.push({ name: "pause", label: qsTr("Pause run") })
+                        if (d.canResume === true) out.push({ name: "resume", label: qsTr("Resume run") })
+                        if (d.canLeave === true) out.push({ name: "leave", label: qsTr("Leave run…"), danger: true, divider: out.length > 0 })
+                        if (d.canFinish === true) out.push({ name: "finish", label: qsTr("Finish run…") })
+                        if (d.canAbandon === true) out.push({ name: "abandon", label: qsTr("Abandon run…"), danger: true, divider: true })
+                        const j = JSON.stringify(out)
+                        if (j === detailCol.menuJson) return
+                        detailCol.menuJson = j
+                        detailCol.menuItems = out
+                    }
+                    onDChanged: rebuildMenu()
+                    Component.onCompleted: rebuildMenu()
 
                     FbButton {
                         objectName: "runsBack"
@@ -297,7 +317,8 @@ Rectangle {
                         font.pixelSize: Theme.fontSmall
                     }
 
-                    Flow {
+                    // One primary (Play), Invite as the secondary, the state actions in the "⋯" menu (P24, 4j-3).
+                    RowLayout {
                         Layout.fillWidth: true
                         spacing: Theme.space8
                         FbButton {
@@ -309,50 +330,32 @@ Rectangle {
                             onClicked: root.runs.playRun(detailCol.d.runId)
                         }
                         FbButton {
-                            objectName: "runStart"
-                            visible: detailCol.d.canStart === true
-                            text: qsTr("Start run")
-                            enabled: !root.runs.busy
-                            onClicked: root.runs.setRunStatus(detailCol.d.runId, "active")
-                        }
-                        FbButton {
-                            objectName: "runPause"
-                            visible: detailCol.d.canPause === true
-                            text: qsTr("Pause run")
-                            enabled: !root.runs.busy
-                            onClicked: root.runs.setRunStatus(detailCol.d.runId, "paused")
-                        }
-                        FbButton {
-                            objectName: "runResume"
-                            visible: detailCol.d.canResume === true
-                            text: qsTr("Resume run")
-                            enabled: !root.runs.busy
-                            onClicked: root.runs.setRunStatus(detailCol.d.runId, "active")
-                        }
-                        FbButton {
                             objectName: "runInvitePlayers"
                             visible: detailCol.d.canInvite === true
                             text: qsTr("Invite players")
                             onClicked: startDialog.openInvite(detailCol.d.runId)
                         }
-                        FbButton {
-                            objectName: "runFinish"
-                            visible: detailCol.d.canFinish === true
-                            text: qsTr("Finish run")
-                            onClicked: root.ask("finished")
+                        Item {
+                            Layout.preferredWidth: 30
+                            Layout.preferredHeight: 30
+                            visible: detailCol.menuItems.length > 0
+                            MoreMenu {
+                                objectName: "runMenu"
+                                anchors.fill: parent
+                                enabled: !root.runs.busy
+                                tooltip: qsTr("More actions for this run")
+                                items: detailCol.menuItems
+                                onActivated: name => {
+                                    const id = detailCol.d.runId
+                                    if (name === "start" || name === "resume") root.runs.setRunStatus(id, "active")
+                                    else if (name === "pause") root.runs.setRunStatus(id, "paused")
+                                    else if (name === "finish") root.ask("finished")
+                                    else if (name === "abandon") root.ask("abandoned")
+                                    else if (name === "leave") root.ask("leave")
+                                }
+                            }
                         }
-                        FbButton {
-                            objectName: "runAbandon"
-                            visible: detailCol.d.canAbandon === true
-                            text: qsTr("Abandon run")
-                            onClicked: root.ask("abandoned")
-                        }
-                        FbButton {
-                            objectName: "runLeave"
-                            visible: detailCol.d.canLeave === true
-                            text: qsTr("Leave run")
-                            onClicked: root.ask("leave")
-                        }
+                        Item { Layout.fillWidth: true }
                     }
 
                     Eyebrow { text: qsTr("Players · %1").arg(root.runs.participants.count) }
@@ -409,7 +412,7 @@ Rectangle {
                                         }
                                         FbLabel {
                                             text: prow.model.statusText
-                                            color: Theme.textMuted
+                                            color: prow.model.statusText === qsTr("Joined") ? Theme.ok : Theme.textMuted
                                             font.pixelSize: Theme.fontSmall
                                         }
                                     }
@@ -465,11 +468,15 @@ Rectangle {
                                         anchors.rightMargin: 16
                                         spacing: Theme.space12
                                         FbMono {
-                                            Layout.preferredWidth: 120
+                                            objectName: "runEventTime"
+                                            Layout.preferredWidth: 130
                                             text: erow.model.timeText
                                             color: Theme.textMeta
                                             font.pixelSize: Theme.fontMono
                                             elide: Text.ElideRight
+                                            HoverHandler { id: evHover }
+                                            ToolTip.visible: evHover.hovered && erow.model.fullTimeText !== ""
+                                            ToolTip.text: erow.model.fullTimeText
                                         }
                                         FbLabel {
                                             Layout.fillWidth: true

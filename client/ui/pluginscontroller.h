@@ -48,7 +48,7 @@ class PluginsController : public QObject {
 
   // Developer mode (persisted in PlayerSettings, applied to the manager).
   Q_PROPERTY(bool developerMode READ developerMode WRITE setDeveloperMode NOTIFY developerModeChanged)
-  // Installed plugins: [{id, name, version, origin ("official"|"unverified"|"local"), originText ("✓ Official" | "! Hub upload ·
+  // Installed plugins: [{id, name, version, origin ("official"|"unverified"|"local"), originText ("✓ Official" | "Hub upload ·
   //  unverified" | "Local file"), problemsText, hasProblems, enabled, devLinked, hubCopy, canToggle, needsConfirm (unverified: the
   //  warning comes before turning it on), permissionsText, updateVersion ("" when none)}]
   Q_PROPERTY(QVariantList plugins READ plugins NOTIFY pluginsChanged)
@@ -180,6 +180,8 @@ class PluginsController : public QObject {
   Q_INVOKABLE void refreshHubPlugins();
   // Downloads, checks (SHA-256 pin, zip rules, signature) and installs an offered version; it stays off until turned on.
   Q_INVOKABLE void installHubPlugin(const QString& id, const QString& version);
+  // Installs the missing required plugins the Hub offers first, then the plugin itself ("Install both").
+  Q_INVOKABLE void installHubPluginWithDependencies(const QString& id, const QString& version);
   Q_INVOKABLE void linkDevFolder(const QString& pathOrUrl);
   Q_INVOKABLE void uninstall(const QString& id);
   Q_INVOKABLE void setPluginEnabled(const QString& id, bool enabled);
@@ -305,6 +307,7 @@ class PluginsController : public QObject {
   std::unique_ptr<plugins::PluginDelivery> delivery_;
   QVariantList hubPlugins_;
   QString hubBusyId_;
+  QList<QPair<QString, QString>> installQueue_;  // (id, version) still to install after the current one
   std::shared_ptr<MemoryWatchAdapter> adapter_;
   QTimer consoleTimer_;
   bool running_ = false;                      // plugins of the running game are started

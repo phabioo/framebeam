@@ -11,39 +11,69 @@ ColumnLayout {
     visible: sections.length > 0
     spacing: 18
 
+    // Collapsed sections (plugin ids), kept while the pane lives (3c-7).
+    property var collapsed: ({})
+    function toggle(id: string) {
+        const c = Object.assign({}, root.collapsed)
+        c[id] = !c[id]
+        root.collapsed = c
+    }
+
     Repeater {
         model: root.sections
-        delegate: ColumnLayout {
+        delegate: Rectangle {
             id: sec
             required property var modelData
             readonly property string marker: root.player.plugins.originMarker(modelData.origin || "")
+            readonly property bool isCollapsed: root.collapsed[modelData.pluginId] === true
             objectName: "pluginDetail_" + modelData.pluginId
             Layout.fillWidth: true
             Layout.minimumWidth: 0
-            spacing: 10
-            RowLayout {
-                Layout.fillWidth: true
-                Layout.minimumWidth: 0
+            implicitHeight: secCol.implicitHeight + 24
+            radius: Theme.radius8
+            color: "transparent"
+            border.width: 1
+            border.color: Theme.borderCard
+            ColumnLayout {
+                id: secCol
+                anchors.fill: parent
+                anchors.margins: 12
                 spacing: 8
-                Eyebrow {
-                    objectName: "pluginDetailName"
+                RowLayout {
                     Layout.fillWidth: true
-                    text: sec.modelData.name
+                    Layout.minimumWidth: 0
+                    spacing: 8
+                    Eyebrow {
+                        objectName: "pluginDetailName"
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        elide: Text.ElideRight
+                        text: sec.modelData.name
+                    }
+                    PluginOriginPill {
+                        objectName: "pluginDetailOrigin"
+                        visible: sec.marker !== ""
+                        origin: sec.modelData.origin || "local"
+                        text: sec.marker
+                    }
+                    FbButton {
+                        objectName: "pluginDetailCollapse"
+                        kind: "link"
+                        font.pixelSize: Theme.fontMono
+                        text: sec.isCollapsed ? qsTr("Expand ▾") : qsTr("Collapse ▴")
+                        onClicked: root.toggle(sec.modelData.pluginId)
+                    }
                 }
-                FbPill {
-                    objectName: "pluginDetailOrigin"
-                    visible: sec.marker !== ""
-                    tone: "warn"
-                    text: sec.marker
+                PluginBlock {
+                    visible: !sec.isCollapsed
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    Layout.preferredHeight: sec.isCollapsed ? 0 : implicitHeight
+                    node: sec.modelData.tree
+                    dark: Theme.dark
+                    pluginId: sec.modelData.pluginId
+                    onAction: (action, value) => root.player.plugins.sendAction(sec.modelData.pluginId, "detail", action, value)
                 }
-            }
-            PluginBlock {
-                Layout.fillWidth: true
-                Layout.minimumWidth: 0
-                node: sec.modelData.tree
-                dark: Theme.dark
-                pluginId: sec.modelData.pluginId
-                onAction: (action, value) => root.player.plugins.sendAction(sec.modelData.pluginId, "detail", action, value)
             }
         }
     }

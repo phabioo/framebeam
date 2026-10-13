@@ -606,21 +606,6 @@ class EmulationControllersTest : public QObject {
       QQuickTest::qWaitForPolish(h.window);
       QCOMPARE(h.controller->screen(), QStringLiteral("settings"));
       verifyRowsInside(h, "settingsScroll", w);
-      // The inline meta ("Channel: beta") keeps its natural width (never clipped to "Channel: o").
-      for (QQuickItem* it : h.items("updateChannelRow")) {
-        if (!it->isVisible()) continue;
-        QList<QQuickItem*> st{it};
-        int found = 0;
-        while (!st.isEmpty()) {
-          QQuickItem* c = st.takeLast();
-          st.append(c->childItems());
-          if (c->isVisible() && c->property("text").toString().startsWith(QStringLiteral("Channel:"))) {
-            QVERIFY(c->parentItem()->width() + 0.5 >= c->implicitWidth());
-            ++found;
-          }
-        }
-        QCOMPARE(found, 1);
-      }
       QQuickItem* flick = h.item("settingsScroll");
       const QRectF col = sceneRect(flick);
       // Hub card and update card are indented 14 to the label edge and stay inside the column.
@@ -628,22 +613,18 @@ class EmulationControllersTest : public QObject {
       QVERIFY(card != nullptr);
       QVERIFY(sceneRect(card).left() >= col.left() + 36 + 14 - 0.5);
       QVERIFY(sceneRect(card).right() <= col.right() + 0.5);
-      QQuickItem* autoRow = h.item("autoConnectRow");
       QQuickItem* themeRow = h.item("themeRow");
       QQuickItem* channelRow = h.item("updateChannelRow");
       QQuickItem* versionRow = h.item("versionRow");
       QQuickItem* logRow = h.item("logFileRow");
       QQuickItem* autoInstall = h.item("updateAutoInstallRow");
-      QVERIFY(autoRow && themeRow && channelRow && versionRow && logRow && autoInstall);
-      QCOMPARE(autoRow->property("kind").toString(), QStringLiteral("toggle"));
+      QVERIFY(themeRow && channelRow && versionRow && logRow && autoInstall);
       QCOMPARE(themeRow->property("kind").toString(), QStringLiteral("segment"));
       QCOMPARE(versionRow->property("kind").toString(), QStringLiteral("value"));
-      QVERIFY(sceneRect(rowItem(autoRow, "controlColumn")).left() >= col.left());
       // The reset column stays empty on Settings.
       QVERIFY(!rowItem(themeRow, "resetColumn")->isVisible());
       if (w >= 1280) {
-        for (QQuickItem* r : {autoRow, themeRow, channelRow, versionRow, logRow, autoInstall}) QCOMPARE(controlRight(r), emuRight);
-        QCOMPARE(sceneRect(h.item("settingsAutoConnectToggle")).right(), emuRight);
+        for (QQuickItem* r : {themeRow, channelRow, versionRow, logRow, autoInstall}) QCOMPARE(controlRight(r), emuRight);
         QCOMPARE(sceneRect(h.item("appearanceSegment")).right(), emuRight);
         QCOMPARE(sceneRect(h.item("appearanceSegment")).width(), 280.0);
         QCOMPARE(sceneRect(h.item("updatesVersion")).right(), emuRight);

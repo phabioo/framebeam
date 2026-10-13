@@ -1,4 +1,5 @@
 #include "runscontroller.h"
+#include "timeformat.h"
 
 #include <QDateTime>
 #include <QLocale>
@@ -26,7 +27,7 @@ QString statusText(const QString& s) {
   return s;
 }
 QString statusTone(const QString& s) {
-  if (s == QLatin1String("active") || s == QLatin1String("starting")) return QStringLiteral("warn");  // accent in the Player
+  if (s == QLatin1String("active") || s == QLatin1String("starting")) return QStringLiteral("info");  // cyan, no warning glyph (P25)
   if (s == QLatin1String("finished")) return QStringLiteral("ok");
   return QStringLiteral("neutral");
 }
@@ -112,9 +113,7 @@ QString RunsController::userName(const RunInfo& run, const QString& userId) cons
 }
 
 QString RunsController::timeText(const QString& iso) const {
-  const QDateTime dt = QDateTime::fromString(iso, Qt::ISODate);
-  if (!dt.isValid()) return {};
-  return QLocale().toString(dt.toLocalTime(), QLocale::ShortFormat);
+  return TimeFormat::whenIso(iso);
 }
 
 QString RunsController::errorText(const RunResult& r, const QString& what) const {
@@ -128,7 +127,10 @@ QString RunsController::errorText(const RunResult& r, const QString& what) const
 
 QString RunsController::hubEventText(const RunEvent& e) const {
   const QString who = e.payload.value(QStringLiteral("user_name")).toString();
-  if (e.type == QLatin1String("run.created")) return tr("%1 created the run \"%2\"").arg(who, e.payload.value(QStringLiteral("name")).toString());
+  if (e.type == QLatin1String("run.created")) {
+    const QString name = e.payload.value(QStringLiteral("name")).toString().trimmed();
+    return name.isEmpty() ? tr("%1 created the run").arg(who) : tr("%1 created the run %2").arg(who, QString(QChar(0x201C)) + name + QChar(0x201D));
+  }
   if (e.type == QLatin1String("run.joined")) return tr("%1 joined").arg(who);
   if (e.type == QLatin1String("run.declined")) return tr("%1 declined the invite").arg(who);
   if (e.type == QLatin1String("run.left")) return tr("%1 left the run").arg(who);
@@ -191,8 +193,11 @@ void RunsController::rebuild() {
       for (const RunParticipant& p : run.participants)
         if (p.status == QLatin1String("joined")) ++joined;
       invites.append({{QStringLiteral("runId"), run.runId},
-                      {QStringLiteral("headline"), tr("%1 invites you to \"%2\"").arg(userName(run, run.createdBy), run.name)},
+                      {QStringLiteral("headline"), tr("%1 invites you to \u201C%2\u201D").arg(userName(run, run.createdBy), run.name)},
                       {QStringLiteral("subText"), pluginsText(run)},
+                      {QStringLiteral("name"), run.name.isEmpty() ? tr("Untitled run") : run.name},
+                      {QStringLiteral("inviteLine"), tr("%1 invited you · %2 · %3 of %4 joined")
+                                                         .arg(userName(run, run.createdBy), timeText(run.createdAt)).arg(joined).arg(run.participants.size())},
                       {QStringLiteral("joinedText"), tr("%1 of %2 joined").arg(joined).arg(run.participants.size())}});
       continue;
     }
@@ -266,7 +271,7 @@ void RunsController::rebuildDetail() {
       parts.append({{QStringLiteral("userId"), p.userId},
                     {QStringLiteral("name"), p.userName},
                     {QStringLiteral("color"), p.color},
-                    {QStringLiteral("gameTitle"), p.gameId.isEmpty() ? QString() : gameTitle(p.gameId)},
+                    {QStringLiteral("gameTitle"), p.gameId.isEmpty() ? QStringLiteral("—") : gameTitle(p.gameId)},
                     {QStringLiteral("statusText"), st},
                     {QStringLiteral("me"), p.userId == me}});
     }
@@ -356,6 +361,7 @@ void RunsController::rebuildEvents() {
       }
       rows.append({{QStringLiteral("seq"), e.seq},
                    {QStringLiteral("timeText"), timeText(e.createdAt)},
+                   {QStringLiteral("fullTimeText"), TimeFormat::fullIso(e.createdAt)},
                    {QStringLiteral("author"), author},
                    {QStringLiteral("text"), text},
                    {QStringLiteral("sourceText"), source}});
@@ -388,6 +394,31 @@ void RunsController::openRun(const QString& runId) {
   openRunId_ = runId.toLower();
   client_->catchUp(openRunId_);
   rebuildDetail();
+}
+
+QVariantList RunsController::runsOfPlugin(const QString& pluginId) const {
+  QVariantList out;
+  const QString me = client_->myUserId();
+  for (const RunInfo& run : client_->runs()) {
+    const RunParticipant* mine = run.participant(me);
+    if (mine == nullptr || mine->status != QLatin1String("joined") || run.isOver()) continue;
+    bool uses = false;
+    for (const RunPluginRef& p : run.plugins) uses = uses || p.pluginId == pluginId;
+    if (!uses) continue;
+    QStringList sub;
+    if (!mine->gameId.isEmpty()) sub << gameTitle(mine->gameId);
+    QStringList waiting;
+    for (const RunParticipant& p : run.participants)
+      if (p.status == QLatin1String("invited")) waiting << p.userName;
+    if (!waiting.isEmpty()) sub << tr("waiting for %1").arg(waiting.join(QStringLiteral(", ")));
+    sub << tr("created %1").arg(timeText(run.createdAt));
+    out.append(QVariantMap{{QStringLiteral("runId"), run.runId},
+                           {QStringLiteral("name"), run.name.isEmpty() ? tr("Untitled run") : run.name},
+                           {QStringLiteral("statusText"), statusText(run.status)},
+                           {QStringLiteral("tone"), statusTone(run.status)},
+                           {QStringLiteral("subText"), sub.join(QStringLiteral(" · "))}});
+  }
+  return out;
 }
 
 void RunsController::closeRun() {
@@ -493,7 +524,7 @@ int RunsController::prepareGames(const QString& runId) {
                {QStringLiteral("name"), pluginName(ref.pluginId)},
                {QStringLiteral("version"), ref.version},
                {QStringLiteral("origin"), QStringLiteral("unverified")},
-               {QStringLiteral("originText"), tr("! Hub upload · unverified")},
+               {QStringLiteral("originText"), tr("Hub upload · unverified")},
                {QStringLiteral("permissionsText"), tr("Share run progress with your Hub")}};
       }
       if (row.value(QStringLiteral("origin")).toString() == QLatin1String("unverified")) unverified = true;

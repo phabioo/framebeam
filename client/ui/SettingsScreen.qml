@@ -70,6 +70,12 @@ Rectangle {
         }
         root.currentSection = best
     }
+    function libraryNavText() {
+        const n = root.player.libraryFolders.length
+        if (n === 0) return qsTr("No folders")
+        const g = root.player.libraryGameCount
+        return Theme.plural(n, qsTr("folder"), qsTr("folders")) + " · " + Theme.plural(g, qsTr("game"), qsTr("games"))
+    }
     function updatesLine(): string {
         const u = root.updates
         if (u.updateAvailable) {
@@ -128,7 +134,7 @@ Rectangle {
                                                                : qsTr("%1 saved").arg(root.savedHubs.length))
                               : sec.modelData.id === "appearance" ? (root.player.appearance === "light" ? qsTr("Light")
                                                                      : root.player.appearance === "system" ? qsTr("System") : qsTr("Dark"))
-                              : sec.modelData.id === "library" ? qsTr("%n folder(s)", "", root.player.libraryFolders.length)
+                              : sec.modelData.id === "library" ? root.libraryNavText()
                               : sec.modelData.id === "storage" ? qsTr("%1 of %2").arg(root.player.romCache.usedText).arg(root.player.romCache.limitText)
                               : sec.modelData.id === "plugins" ? root.player.plugins.summary
                               : qsTr("Logs and support")
@@ -137,23 +143,6 @@ Rectangle {
             }
 
             Item { Layout.fillHeight: true }
-            FbMono {
-                objectName: "versionFooter"
-                Layout.fillWidth: true
-                Layout.leftMargin: 4
-                text: qsTr("Player %1").arg(root.player.playerVersion)
-                font.pixelSize: Theme.fontMono
-                color: Theme.textMeta
-                elide: Text.ElideRight
-            }
-            FbMono {
-                Layout.fillWidth: true
-                Layout.leftMargin: 4
-                text: root.player.platformText
-                font.pixelSize: Theme.fontMono
-                color: Theme.textMeta
-                elide: Text.ElideRight
-            }
         }
 
         Flickable {
@@ -173,7 +162,7 @@ Rectangle {
                 id: content
                 x: 36
                 y: 28
-                width: flick.width - 72   // grows with the window; descriptions are capped per row (SettingsRow)
+                width: Math.min(Theme.contentMaxWidth, flick.width - 72)   // left-aligned, never wider than 880 (P7); descriptions are capped per row
                 // Hub card and update card sit on the label edge (14 in) and end where the controls end (72 in) on wide pages.
                 readonly property bool wide: width >= Theme.settingsNarrowBelow
                 spacing: 32
@@ -212,6 +201,7 @@ Rectangle {
                         objectName: "updateCard"
                         Layout.fillWidth: true
                         Layout.leftMargin: Theme.settingsDotSlot
+                        Layout.rightMargin: content.wide ? Theme.settingsResetWidth : 0   // ends where the controls end (P5)
                         implicitHeight: cardCol.implicitHeight + 36
                         radius: Theme.radius10
                         color: Theme.surface
@@ -229,7 +219,9 @@ Rectangle {
                                 FbLabel {
                                     objectName: "updateCardTitle"
                                     text: root.updates.updateAvailable ? qsTr("▲ Update available")
-                                          : (root.updates.state === "checking" ? qsTr("Checking for updates…") : qsTr("Player is up to date"))
+                                          : (root.updates.state === "checking" ? qsTr("Checking for updates…")
+                                             : root.updates.effectiveChannel === "off" ? qsTr("Updates are off")
+                                             : qsTr("Player %1 is up to date").arg(root.updates.currentVersion))
                                     font.pixelSize: Theme.fontSection
                                     font.weight: Font.DemiBold
                                     color: root.updates.updateAvailable ? Theme.warn : Theme.text
@@ -249,6 +241,10 @@ Rectangle {
                                 Layout.fillWidth: true
                                 text: root.updates.updateAvailable
                                       ? qsTr("You have %1. Installs on the next start, never during a game.").arg(root.updates.currentVersion)
+                                      : (root.updates.state === "up_to_date" || root.updates.state === "idle") && root.updates.effectiveChannel !== "off"
+                                        ? qsTr("%1 channel · checked %2").arg(root.updates.effectiveChannel === "beta" ? qsTr("Beta") : qsTr("Stable")).arg(root.updates.lastCheckText)
+                                      : root.updates.state === "idle" && root.updates.effectiveChannel === "off"
+                                        ? qsTr("Choose Stable or Beta to check for updates.")
                                       : root.updates.statusText
                                 wrapMode: Text.WordWrap
                                 font.pixelSize: Theme.fontSmall
@@ -304,18 +300,17 @@ Rectangle {
                             Layout.minimumWidth: 0
                             resetMode: "none"
                             label: qsTr("Update channel")
-                            meta: qsTr("Channel: %1").arg(root.updates.effectiveChannel)
                             descriptionName: "updateChannelHint"
-                            description: root.updates.effectiveChannel === "beta"
-                                         ? qsTr("Pre-release builds from every change on main. May contain bugs.")
-                                         : qsTr("Tested releases. Recommended for everyday use.")
+                            description: root.updates.compiledChannel === "beta" ? qsTr("Stable: tested releases. Beta: earlier, less tested. This build is a beta.")
+                                                                 : qsTr("Stable: tested releases. Beta: earlier, less tested.")
                             ctrl: "segment"
                             controlName: "updateChannelSegment"
                             values: [
+                                { value: "off", label: qsTr("Off"), name: "updateChannelOff" },
                                 { value: "stable", label: qsTr("Stable"), name: "updateChannelStable" },
-                                { value: "beta", label: root.updates.compiledChannel === "beta" ? qsTr("Beta · this build") : qsTr("Beta"), name: "updateChannelBeta" }
+                                { value: "beta", label: qsTr("Beta"), name: "updateChannelBeta" }
                             ]
-                            current: root.updates.channelSetting === "default" ? (root.updates.effectiveChannel !== "off" ? root.updates.effectiveChannel : root.updates.compiledChannel) : root.updates.channelSetting
+                            current: root.updates.channelSetting === "default" ? root.updates.effectiveChannel : root.updates.channelSetting
                             onValuePicked: value => root.updates.setChannel(value)
                         }
 
@@ -374,7 +369,9 @@ Rectangle {
 
                     RowLayout {
                         Layout.fillWidth: true
-                        Eyebrow { text: qsTr("Hubs"); Layout.fillWidth: true }
+                        Layout.minimumWidth: 0
+                        Layout.rightMargin: content.wide ? Theme.settingsResetWidth - 8 : 0   // "+ Add hub" ends where the controls end (P1)
+                        Eyebrow { objectName: "hubsEyebrow"; text: qsTr("Hubs · %1").arg(root.savedHubs.length); Layout.fillWidth: true }
                         FbButton {
                             objectName: "settingsAddHubButton"
                             kind: "link"
@@ -438,6 +435,7 @@ Rectangle {
                             required property int index
                             property bool confirmRemove: false
                             readonly property bool editing: root.editingHubId === modelData.hubId && modelData.hubId !== ""
+                            readonly property bool lost: modelData.pairingLost === true && !modelData.connected
                             visible: modelData.saved
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
@@ -453,47 +451,57 @@ Rectangle {
                                 id: rowCol
                                 anchors.fill: parent
                                 anchors.margins: 14
-                                spacing: Theme.space10
+                                anchors.leftMargin: 16
+                                anchors.rightMargin: 16
+                                spacing: Theme.space12
                                 RowLayout {
                                     Layout.fillWidth: true
-                                    spacing: Theme.space12
+                                    spacing: 24
                                     ColumnLayout {
                                         Layout.fillWidth: true
                                         Layout.minimumWidth: 0
-                                        spacing: 4
+                                        spacing: 2
                                         RowLayout {
-                                            spacing: Theme.space10
+                                            spacing: Theme.space8
                                             FbLabel {
                                                 objectName: "hubName_" + hubRow.modelData.hubId
                                                 text: hubRow.modelData.name
                                                 font.pixelSize: Theme.fontSection
-                                                font.weight: Font.DemiBold
+                                                font.weight: Font.Medium
                                                 elide: Text.ElideRight
                                                 Layout.maximumWidth: 280
                                             }
                                             FbPill {
                                                 objectName: "hubState_" + hubRow.modelData.hubId
-                                                tone: hubRow.modelData.connected ? "ok" : (hubRow.modelData.tone === "neutral" ? "neutral" : hubRow.modelData.tone)
-                                                text: hubRow.modelData.connected ? qsTr("Connected") : (hubRow.modelData.status === "idle" ? qsTr("Not connected") : hubRow.modelData.statusText)
+                                                small: true
+                                                tone: hubRow.modelData.connected ? "ok" : (hubRow.lost ? "amber" : (hubRow.modelData.tone === "neutral" ? "neutral" : hubRow.modelData.tone))
+                                                text: hubRow.modelData.connected ? qsTr("● Connected · active")
+                                                      : hubRow.lost ? qsTr("Pairing lost")
+                                                      : (hubRow.modelData.status === "idle" ? qsTr("Not connected") : hubRow.modelData.statusText)
                                             }
                                         }
-                                        FbMono { Layout.fillWidth: true; text: hubRow.modelData.detail; elide: Text.ElideRight }
-                                    }
-                                    RowLayout {
-                                        spacing: Theme.space8
-                                        visible: !hubRow.confirmRemove
-                                        FbLabel {
-                                            objectName: "hubCurrent_" + hubRow.modelData.hubId
-                                            visible: hubRow.modelData.connected
-                                            text: qsTr("Active hub")
-                                            font.pixelSize: Theme.fontSmall
-                                            font.weight: Font.Medium
-                                            color: Theme.accent
+                                        FbMono {
+                                            Layout.fillWidth: true
+                                            text: hubRow.modelData.detail
+                                            elide: Text.ElideRight
+                                            HoverHandler { id: detailHover }
+                                            ToolTip.visible: detailHover.hovered && (hubRow.modelData.lastConnectedFull || "") !== ""
+                                            ToolTip.text: hubRow.modelData.lastConnectedFull || ""
+                                            ToolTip.delay: 400
                                         }
+                                    }
+                                    // Control column (280, right edge = the controls of the rows): [Switch | Pair again] [Edit] [⋯].
+                                    RowLayout {
+                                        Layout.preferredWidth: content.wide ? Theme.settingsControlWidth - 16 : -1
+                                        Layout.alignment: Qt.AlignVCenter
+                                        spacing: 6
+                                        visible: !hubRow.confirmRemove
+                                        Item { Layout.fillWidth: true }
                                         FbButton {
                                             objectName: "hubSwitch_" + hubRow.modelData.hubId
-                                            visible: !hubRow.modelData.connected
+                                            visible: !hubRow.modelData.connected && !hubRow.lost
                                             implicitHeight: 32
+                                            hPadding: 24
                                             busy: hubRow.modelData.status === "connecting"
                                             busyOnClick: true
                                             text: qsTr("Switch")
@@ -501,91 +509,119 @@ Rectangle {
                                             onClicked: root.player.switchToHub(hubRow.modelData.hubId)
                                         }
                                         FbButton {
+                                            objectName: "hubPairAgain_" + hubRow.modelData.hubId
+                                            visible: hubRow.lost
+                                            implicitHeight: 32
+                                            hPadding: 24
+                                            busyOnClick: true
+                                            text: qsTr("Pair again")
+                                            onClicked: root.player.switchToHub(hubRow.modelData.hubId)
+                                        }
+                                        FbButton {
                                             objectName: "hubEdit_" + hubRow.modelData.hubId
-                                            kind: "link"
+                                            implicitHeight: 32
+                                            hPadding: 24
                                             text: qsTr("Edit")
                                             onClicked: {
-                                                hubEditHost.text = hubRow.modelData.host
-                                                hubEditPort.text = hubRow.modelData.port
+                                                hubEditAddress.text = hubRow.modelData.host + ":" + hubRow.modelData.port
                                                 hubEditError.extra = ""
                                                 root.editingHubId = hubRow.editing ? "" : hubRow.modelData.hubId
                                             }
                                         }
-                                        FbButton {
-                                            objectName: "hubRemove_" + hubRow.modelData.hubId
-                                            kind: "link"
-                                            text: qsTr("Remove")
-                                            onClicked: hubRow.confirmRemove = true
+                                        MoreMenu {
+                                            objectName: "hubMenu_" + hubRow.modelData.hubId
+                                            tooltip: qsTr("More actions for %1").arg(hubRow.modelData.name)
+                                            items: [{ name: "remove", label: qsTr("Remove Hub…"), danger: true, divider: false }]
+                                            onActivated: name => { if (name === "remove") hubRow.confirmRemove = true }
                                         }
                                     }
                                 }
 
-                                // Inline edit: address and port only (hub id, fingerprint, sign-in and user stay).
+                                // Connect automatically: part of the active Hub's card (3p-3).
+                                RowLayout {
+                                    visible: hubRow.modelData.connected && !hubRow.confirmRemove
+                                    Layout.fillWidth: true
+                                    spacing: 24
+                                    Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 0; visible: false }
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        Layout.minimumWidth: 0
+                                        spacing: 2
+                                        FbLabel { text: qsTr("Connect automatically on startup"); font.pixelSize: Theme.fontBody }
+                                        FbLabel { text: qsTr("Uses this Hub when the Player starts."); color: Theme.textMuted; font.pixelSize: Theme.fontMeta }
+                                    }
+                                    Item {
+                                        Layout.preferredWidth: content.wide ? Theme.settingsControlWidth - 16 : 40
+                                        Layout.preferredHeight: 28
+                                        FbToggle {
+                                            id: autoToggle
+                                            objectName: "settingsAutoConnectToggle"
+                                            anchors.right: parent.right
+                                            checked: root.player.autoConnect
+                                            onToggled: root.player.autoConnect = checked
+                                            Accessible.name: qsTr("Connect automatically on startup")
+                                        }
+                                    }
+                                }
+
+                                // Inline edit: one field "host:port" (hub id, fingerprint, sign-in and user stay).
                                 ColumnLayout {
                                     id: editBox
                                     objectName: "hubEditRow_" + hubRow.modelData.hubId
                                     visible: hubRow.editing && !hubRow.confirmRemove
                                     Layout.fillWidth: true
                                     spacing: Theme.space8
-                                    readonly property var messages: root.player.validateHubAddress(hubEditHost.text, hubEditPort.text)
-                                    readonly property bool hostValid: root.player.validateHubAddress(hubEditHost.text, "8443").length === 0
-                                    readonly property bool portValid: root.player.validateHubAddress("example.com", hubEditPort.text).length === 0
-                                    readonly property bool valid: hostValid && portValid
-                                    readonly property bool changed: hubEditHost.text.trim() !== hubRow.modelData.host || hubEditPort.text.trim() !== hubRow.modelData.port
+                                    // "host" or "host:port"; the port defaults to 8443 when left out.
+                                    readonly property var parts: {
+                                        const t = hubEditAddress.text.trim()
+                                        const k = t.lastIndexOf(":")
+                                        if (k < 0 || t.indexOf("://") >= 0 && k === t.indexOf("://")) return { host: t, port: "8443" }
+                                        return { host: t.slice(0, k), port: t.slice(k + 1) }
+                                    }
+                                    readonly property var messages: root.player.validateHubAddress(parts.host, parts.port)
+                                    readonly property bool valid: messages.length === 0 && hubEditAddress.text.trim() !== ""
+                                    readonly property bool changed: hubEditAddress.text.trim() !== hubRow.modelData.host + ":" + hubRow.modelData.port
 
                                     Rectangle { Layout.fillWidth: true; height: 1; color: Theme.borderRow }
-                                    GridLayout {
+                                    Eyebrow { text: qsTr("Edit · %1").arg(hubRow.modelData.name) }
+                                    RowLayout {
                                         Layout.fillWidth: true
-                                        columns: 5
-                                        columnSpacing: Theme.space10
-                                        rowSpacing: Theme.space8
-                                        FbLabel { text: qsTr("Address"); color: Theme.textMuted; font.pixelSize: Theme.fontSmall }
+                                        spacing: Theme.space10
+                                        FbLabel { text: qsTr("Address"); color: Theme.textMuted; font.pixelSize: Theme.fontSmall; Layout.preferredWidth: 70 }
                                         FbField {
-                                            id: hubEditHost
-                                            objectName: "hubEditHost_" + hubRow.modelData.hubId
+                                            id: hubEditAddress
+                                            objectName: "hubEditAddress_" + hubRow.modelData.hubId
                                             Layout.fillWidth: true
+                                            Layout.minimumWidth: 0
                                             implicitHeight: 36
-                                            invalid: !editBox.hostValid
-                                            placeholderText: qsTr("hub.example.com")
+                                            invalid: !editBox.valid && hubEditAddress.text.trim() !== ""
+                                            placeholderText: qsTr("hub.example.com:8443")
                                             inputMethodHints: Qt.ImhUrlCharactersOnly | Qt.ImhNoPredictiveText
                                             onAccepted: hubEditSave.clicked()
                                         }
-                                        FbLabel { text: qsTr("Port"); color: Theme.textMuted; font.pixelSize: Theme.fontSmall }
-                                        FbField {
-                                            id: hubEditPort
-                                            objectName: "hubEditPort_" + hubRow.modelData.hubId
-                                            Layout.preferredWidth: 96
+                                        FbButton {
+                                            objectName: "hubEditCancel_" + hubRow.modelData.hubId
                                             implicitHeight: 36
-                                            invalid: !editBox.portValid
-                                            inputMethodHints: Qt.ImhDigitsOnly
-                                            onAccepted: hubEditSave.clicked()
+                                            text: qsTr("Cancel")
+                                            onClicked: root.editingHubId = ""
                                         }
-                                        RowLayout {
-                                            spacing: Theme.space8
-                                            FbButton {
-                                                objectName: "hubEditCancel_" + hubRow.modelData.hubId
-                                                implicitHeight: 36
-                                                text: qsTr("Cancel")
-                                                onClicked: root.editingHubId = ""
-                                            }
-                                            FbButton {
-                                                id: hubEditSave
-                                                objectName: "hubEditSave_" + hubRow.modelData.hubId
-                                                implicitHeight: 36
-                                                kind: "primary"
-                                                busyOnClick: true
-                                                text: qsTr("Save")
-                                                enabled: editBox.valid && editBox.changed
-                                                onClicked: {
-                                                    if (!editBox.valid) {
-                                                        return
-                                                    }
-                                                    if (root.player.editHub(hubRow.modelData.hubId, hubEditHost.text, hubEditPort.text)) {
-                                                        hubEditError.extra = ""
-                                                        root.editingHubId = ""
-                                                    } else {
-                                                        hubEditError.extra = qsTr("Another saved hub already uses this address")
-                                                    }
+                                        FbButton {
+                                            id: hubEditSave
+                                            objectName: "hubEditSave_" + hubRow.modelData.hubId
+                                            implicitHeight: 36
+                                            kind: "primary"
+                                            busyOnClick: true
+                                            text: qsTr("Save")
+                                            enabled: editBox.valid && editBox.changed
+                                            onClicked: {
+                                                if (!editBox.valid) {
+                                                    return
+                                                }
+                                                if (root.player.editHub(hubRow.modelData.hubId, editBox.parts.host, editBox.parts.port)) {
+                                                    hubEditError.extra = ""
+                                                    root.editingHubId = ""
+                                                } else {
+                                                    hubEditError.extra = qsTr("Another saved hub already uses this address")
                                                 }
                                             }
                                         }
@@ -595,7 +631,7 @@ Rectangle {
                                         objectName: "hubEditError_" + hubRow.modelData.hubId
                                         property string extra: ""
                                         Layout.fillWidth: true
-                                        visible: text !== ""
+                                        visible: text !== "" && hubEditAddress.text.trim() !== ""
                                         text: editBox.messages.length > 0 ? editBox.messages.join(" · ") : extra
                                         wrapMode: Text.WordWrap
                                         font.pixelSize: Theme.fontMeta
@@ -607,7 +643,7 @@ Rectangle {
                                         wrapMode: Text.WordWrap
                                         font.pixelSize: Theme.fontMeta
                                         color: Theme.textMuted
-                                        text: qsTr("Certificate fingerprint stays the same. If the hub at the new address shows a different certificate, the Player stops and asks you to compare it.")
+                                        text: qsTr("host:port, without https://. If the Hub shows a different certificate, the Player asks you to compare it.")
                                     }
                                 }
 
@@ -623,8 +659,8 @@ Rectangle {
                                         font.pixelSize: Theme.fontMeta
                                         color: Theme.text
                                         text: hubRow.modelData.connected
-                                              ? qsTr("Remove this Hub from the Player? Running Sessions end and you return to the connection screen. Saves on the Hub are not deleted.")
-                                              : qsTr("Remove this Hub from the Player? Saves on the Hub are not deleted.")
+                                              ? qsTr("Remove %1 from the Player? Running Sessions end and you return to the connection screen. Saves on the Hub are not deleted.").arg(hubRow.modelData.name)
+                                              : qsTr("Remove %1 from the Player? Saves on the Hub are not deleted.").arg(hubRow.modelData.name)
                                     }
                                     FbButton {
                                         objectName: "hubRemoveCancel_" + hubRow.modelData.hubId
@@ -652,20 +688,6 @@ Rectangle {
                         text: qsTr("No Hub saved yet.")
                         color: Theme.textMuted
                         font.pixelSize: Theme.fontSmall
-                    }
-
-                    SettingsRow {
-                        objectName: "autoConnectRow"
-                        Layout.fillWidth: true
-                        Layout.minimumWidth: 0
-                        Layout.topMargin: 4
-                        resetMode: "none"
-                        label: qsTr("Connect automatically on startup")
-                        description: qsTr("Uses the last active hub.")
-                        ctrl: "toggle"
-                        toggleName: "settingsAutoConnectToggle"
-                        checked: root.player.autoConnect
-                        onToggled: on => root.player.autoConnect = on
                     }
                 }
 
@@ -780,6 +802,7 @@ Rectangle {
                     objectName: "pluginsSection"
                     Layout.fillWidth: true
                     player: root.player
+                    hubName: root.activeHubName
                 }
 
                 // ------------------------------------------------------------------ DIAGNOSTICS

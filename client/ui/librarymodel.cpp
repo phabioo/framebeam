@@ -50,7 +50,8 @@ QHash<int, QByteArray> LibraryModel::roleNames() const {
           {StateKindRole, "stateKind"}, {StatusTextRole, "statusText"}, {StatusToneRole, "statusTone"},
           {ProgressRole, "progress"}, {SyncKindRole, "syncKind"}, {SyncTextRole, "syncText"},
           {TileTextRole, "tileText"}, {TileToneRole, "tileTone"}, {NeedsAttentionRole, "needsAttention"},
-          {ReadyGroupRole, "readyGroup"}, {AddedTextRole, "addedText"}, {OnHubRole, "onHub"}};
+          {ReadyGroupRole, "readyGroup"}, {AddedTextRole, "addedText"}, {OnHubRole, "onHub"},
+          {LocalFileRole, "localFile"}};
 }
 
 QString LibraryModel::formatSize(qint64 bytes) {
@@ -111,6 +112,7 @@ QVariant LibraryModel::data(const QModelIndex& index, int role) const {
     case NeedsAttentionRole: return categoryOf(it) == Category::Attention;
     case ReadyGroupRole: return inReadyGroup(it);
     case OnHubRole: return it.game.onHub;
+    case LocalFileRole: return it.status.fromLibraryFolder;
     case AddedTextRole:
       return it.addedMs > 0 ? QVariant(QDateTime::fromMSecsSinceEpoch(it.addedMs).toLocalTime().toString(QStringLiteral("dd.MM.yyyy"))) : QVariant(QString());
     case TileToneRole:

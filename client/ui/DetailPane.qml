@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import FrameBeam.Player
 
@@ -53,7 +54,7 @@ Rectangle {
     NumberAnimation { id: fadeIn; target: flick; property: "opacity"; from: 0.35; to: 1; duration: Theme.durPage }
 
     color: Theme.bgPanel
-    implicitWidth: 392
+    implicitWidth: Theme.detailWidth
 
     Rectangle {
         anchors.left: parent.left
@@ -117,8 +118,18 @@ Rectangle {
                         Layout.preferredWidth: 1
                         Layout.alignment: Qt.AlignTop
                         spacing: Theme.space6
+                        FbMono {
+                            objectName: "detailCaption"
+                            visible: root.game.localFile === true && !root.running
+                            Layout.fillWidth: true
+                            text: root.game.onHub ? qsTr("LOCAL COPY OF A HUB GAME") : qsTr("LOCAL FILE · NOT ON HUB")
+                            color: Theme.accent
+                            font.pixelSize: Theme.fontMono
+                            elide: Text.ElideRight
+                        }
                         FbPill {
                             objectName: "detailPill"
+                            visible: (root.game.pillText || "") !== ""
                             Layout.minimumWidth: 0
                             Layout.maximumWidth: parent.width
                             tone: root.game.pillTone || "neutral"
@@ -171,6 +182,12 @@ Rectangle {
                             { label: qsTr("Running since"), text: root.sinceText, tone: "neutral", hint: "" },
                             { label: qsTr("Sharing"), text: root.player.sessions.shared ? qsTr("Shared") : qsTr("Not shared"), tone: "neutral", hint: "" },
                             { label: qsTr("Core"), text: root.game.coreText, tone: root.game.coreTone, hint: "" }
+                        ] : root.game.localFile === true ? [
+                            // A game that starts from a library folder (3c-7): the file, the core and how it relates to the Hub.
+                            { label: qsTr("File"), text: root.game.localPath || "", tone: "neutral", hint: "", objName: "detailLocalPath", mono: true },
+                            { label: root.game.onHub ? qsTr("Matches") : qsTr("On the Hub"),
+                              text: root.game.onHub ? qsTr("Hub ROM %1").arg(root.game.hubMatchText || "") : qsTr("Not uploaded"), tone: "neutral", hint: "" },
+                            { label: qsTr("Core"), text: root.game.coreText, tone: root.game.coreTone, hint: root.game.coreHint }
                         ] : [
                             { label: qsTr("ROM"), text: root.game.romText, tone: root.game.romTone, hint: "" },
                             { label: qsTr("Core"), text: root.game.coreText, tone: root.game.coreTone, hint: root.game.coreHint },
@@ -204,10 +221,17 @@ Rectangle {
                                     FbLabel { text: row.modelData.label; color: Theme.textMuted; font.pixelSize: 13 }
                                     FbLabel {
                                         // The value takes the rest of the row and wraps: a long status text must never widen the pane.
+                                        // A file path is cut in the middle instead (the full path is the tooltip).
                                         Layout.fillWidth: true
                                         Layout.minimumWidth: 0
+                                        Layout.preferredWidth: 1   // width from the row, not from the unwrapped text (polish loop)
                                         horizontalAlignment: Text.AlignRight
-                                        wrapMode: Text.Wrap
+                                        wrapMode: row.modelData.mono === true ? Text.NoWrap : Text.Wrap
+                                        elide: row.modelData.mono === true ? Text.ElideMiddle : Text.ElideNone
+                                        HoverHandler { id: valHover }
+                                        ToolTip.visible: row.modelData.mono === true && valHover.hovered
+                                        ToolTip.text: row.modelData.text || ""
+                                        ToolTip.delay: 400
                                         objectName: "detailRowValue"
                                         text: (row.modelData.tone === "ok" ? "✓ " : (row.modelData.tone === "warn" ? "▲ " : (row.modelData.tone === "error" ? "✕ " : "")))
                                               + (row.modelData.text || "")
@@ -267,7 +291,6 @@ Rectangle {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     spacing: 8
-                    Eyebrow { text: qsTr("Local game") }
                     FbLabel {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
@@ -307,21 +330,6 @@ Rectangle {
                             color: Theme.accent
                         }
                     }
-                    FbButton {
-                        objectName: "uploadToHubButton"
-                        Layout.fillWidth: true
-                        Layout.minimumWidth: 0
-                        text: qsTr("Upload to Hub")
-                        enabled: root.player.canUpload && root.game.localFile === true && !root.player.upload.active
-                        onClicked: root.player.uploadGameToHub(root.game.id)
-                    }
-                    FbButton {
-                        objectName: "removeFromLibraryButton"
-                        kind: "link"
-                        text: qsTr("Remove from library")
-                        enabled: !root.player.upload.active
-                        onClicked: root.player.removeFromLibrary(root.game.id)
-                    }
                 }
                 // Start checklist
                 ColumnLayout {
@@ -348,7 +356,7 @@ Rectangle {
                                     width: 10
                                     height: 10
                                     radius: 5
-                                    color: step.modelData.state === "done" ? Theme.accent : (step.modelData.state === "error" ? Theme.error : "transparent")
+                                    color: step.modelData.state === "done" ? Theme.accent : (step.modelData.state === "error" ? Theme.pluginWarn : "transparent")
                                     border.width: (step.modelData.state === "done" || step.modelData.state === "error") ? 0 : 1.5
                                     border.color: step.modelData.state === "active" ? Theme.accent : Theme.textDisabled
                                 }
@@ -422,9 +430,66 @@ Rectangle {
             enabled: root.game.canPlay === true && !root.confirming && !(root.running && root.player.quitting)
             onClicked: root.game.running === true ? root.player.resumeGame() : root.player.playSelected()
         }
+        // Why Play is off, directly under the button (3c-7).
+        FbLabel {
+            objectName: "playDisabledReason"
+            visible: !root.running && (root.game.playDisabledReason || "") !== "" && root.game.canPlay !== true
+            Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            Layout.preferredWidth: 1
+            Layout.topMargin: -10
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.Wrap
+            color: Theme.pluginWarn
+            font.pixelSize: Theme.fontMeta
+            text: root.game.playDisabledReason || ""
+        }
+        // Secondary actions: two equal buttons for a local file (3c-7: Upload to Hub / Play and share, Remove from library) and for a
+        // Hub that cannot be reached (Retry connection, Hub settings); otherwise the one wide "Play and share Session" below.
+        RowLayout {
+            id: secondaryRow
+            objectName: "detailSecondaryRow"
+            readonly property bool offlineError: !root.running && root.game.hubOffline === true && (root.game.playDisabledReason || "") !== ""
+            readonly property bool localRow: !root.running && root.game.localOnly === true || (!root.running && root.game.localFile === true)
+            visible: !root.running && (offlineError || localRow)
+            Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            spacing: 8
+            FbButton {
+                objectName: secondaryRow.offlineError ? "retryConnectionButton"
+                            : (root.game.onHub ? "playShareButton" : "uploadToHubButton")
+                Layout.fillWidth: true
+                Layout.preferredWidth: 1
+                Layout.minimumWidth: 0
+                implicitHeight: 40
+                implicitWidth: 0
+                hPadding: 16
+                font.pixelSize: Theme.fontSmall
+                text: secondaryRow.offlineError ? qsTr("Retry connection")
+                      : (root.game.onHub ? qsTr("Play and share") : qsTr("Upload to Hub"))
+                enabled: secondaryRow.offlineError ? true
+                         : (root.game.onHub ? (root.game.canPlay === true && !root.confirming && root.player.sessions.available)
+                                            : (root.player.canUpload && root.game.localFile === true && !root.player.upload.active))
+                onClicked: secondaryRow.offlineError ? root.player.retryConnection()
+                           : (root.game.onHub ? root.player.playAndShareSelected() : root.player.uploadGameToHub(root.game.id))
+            }
+            FbButton {
+                objectName: secondaryRow.offlineError ? "hubSettingsButton" : "removeFromLibraryButton"
+                Layout.fillWidth: true
+                Layout.preferredWidth: 1
+                Layout.minimumWidth: 0
+                implicitHeight: 40
+                implicitWidth: 0
+                hPadding: 16
+                font.pixelSize: Theme.fontSmall
+                text: secondaryRow.offlineError ? qsTr("Hub settings") : qsTr("Remove from library")
+                enabled: secondaryRow.offlineError ? true : !root.player.upload.active
+                onClicked: secondaryRow.offlineError ? root.player.showSettings() : root.player.removeFromLibrary(root.game.id)
+            }
+        }
         FbButton {
             objectName: "playShareButton"
-            visible: root.player.sessions.available || root.running
+            visible: !secondaryRow.visible && (root.player.sessions.available || root.running)
             Layout.fillWidth: true
             Layout.minimumWidth: 0
             implicitHeight: 44

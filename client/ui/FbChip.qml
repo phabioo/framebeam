@@ -20,29 +20,13 @@ Rectangle {
     Row {
         id: row
         anchors.centerIn: parent
-        spacing: 8
         Text {
             anchors.verticalCenter: parent.verticalCenter
-            text: root.text
+            // "All · 10": the count is part of the label, once (round 3).
+            text: root.count >= 0 ? root.text + " · " + root.count : root.text
             font.pixelSize: Theme.fontSmall
             font.weight: root.active ? Font.Medium : Font.Normal
-            color: root.active ? Theme.bg : Theme.textSecondary
-        }
-        Rectangle {
-            visible: root.count >= 0
-            anchors.verticalCenter: parent.verticalCenter
-            width: Math.max(18, badge.implicitWidth + 10)
-            height: 18
-            radius: 9
-            color: root.badgeAccent && root.count > 0 ? Theme.accentChipBg : (root.active ? Theme.bg : Theme.neutralPillBg)
-            Text {
-                id: badge
-                anchors.centerIn: parent
-                text: root.count
-                font.pixelSize: Theme.fontMono
-                font.weight: Font.DemiBold
-                color: root.badgeAccent && root.count > 0 ? Theme.accent : (root.active ? Theme.text : Theme.textMuted)
-            }
+            color: root.active ? Theme.bg : (root.badgeAccent && root.count > 0 ? Theme.accent : Theme.textSecondary)
         }
     }
     HoverHandler { id: hover; cursorShape: Qt.PointingHandCursor }
