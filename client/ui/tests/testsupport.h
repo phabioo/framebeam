@@ -84,7 +84,10 @@ inline std::vector<std::string> logArgs(const char* argv0) {
   if (dir.isEmpty()) {
     return {};
   }
-  const QString name = QFileInfo(QString::fromLocal8Bit(argv0)).completeBaseName();
+  QString name = QFileInfo(QString::fromLocal8Bit(argv0)).completeBaseName();
+  if (qEnvironmentVariableIntValue("FRAMEBEAM_TEST_WIDE_FONT") != 0) {
+    name += QStringLiteral("_widefont");   // the *_widefont ctest variants run the same exe: keep both logs
+  }
   QDir().mkpath(QString::fromLocal8Bit(dir));
   const QString file = QDir(QString::fromLocal8Bit(dir)).filePath(name + QStringLiteral(".txt"));
   return {"-o", (file + QStringLiteral(",txt")).toLocal8Bit().toStdString(), "-o", "-,txt"};

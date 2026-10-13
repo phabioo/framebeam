@@ -21,7 +21,7 @@ FocusScope {
     readonly property string syncKind: game.syncKind || "none"
     readonly property bool conflict: syncKind === "conflict"
     // Decision ad: the switcher above three slots; also whenever the tabs would not fit the column (wide fonts), so no slot is clipped.
-    readonly property bool tabsCollapsed: hist.slotCount > 3 || (tabsFitProbe.sum > 0 && tabs.width > 0 && tabsFitProbe.sum + 8 + 28 > tabs.width)
+    readonly property bool tabsCollapsed: hist.slotCount > 3 || (tabsFitProbe.minSum > 0 && tabs.width > 0 && tabsFitProbe.minSum + 8 + 28 > tabs.width)
     readonly property bool hasCurrent: hist.current.revision !== undefined
     readonly property bool uploadConfirming: hist.uploadRequest.path !== undefined
     readonly property bool uploadFailed: hist.uploadFailure.path !== undefined && !hist.uploading && !uploadConfirming
@@ -285,6 +285,9 @@ FocusScope {
                         id: tabsFitProbe
                         visible: false
                         property real sum: 0
+                        // Tabs shrink (elide) down to 48 px each before the row falls back to the switcher.
+                        property real minSum: 0
+                        property int count: 0
                         // "+ New slot" shrinks to a plain "+" when the full label does not fit beside the tabs.
                         readonly property bool linkCompact: sum + 8 + linkProbe.implicitWidth + 8 > tabs.width
                         Text {
@@ -309,12 +312,14 @@ FocusScope {
                             }
                         }
                         function recalc() {
-                            let w = 0, n = 0
+                            let w = 0, m = 0, n = 0
                             for (let i = 0; i < children.length; ++i) {
                                 const c = children[i]
-                                if (c !== linkProbe && c.implicitWidth !== undefined && c.text !== undefined) { w += Math.min(c.implicitWidth, 90); ++n }
+                                if (c !== linkProbe && c.implicitWidth !== undefined && c.text !== undefined) { w += Math.min(c.implicitWidth, 90); m += Math.min(c.implicitWidth, 48); ++n }
                             }
                             sum = w + Math.max(0, n - 1) * 12
+                            minSum = m + Math.max(0, n - 1) * 12
+                            count = n
                         }
                     }
                     Row {
@@ -335,7 +340,7 @@ FocusScope {
                                 objectName: "slotTab_" + modelData.value
                                 readonly property string text: tabText.text
                                 height: tabRow.height
-                                width: Math.min(tabText.implicitWidth, 90)
+                                width: Math.min(tabText.implicitWidth, 90, Math.max(48, (tabRow.width - Math.max(0, tabsFitProbe.count - 1) * tabRow.spacing) / Math.max(1, tabsFitProbe.count)))
                                 opacity: tabs.changeable || active ? 1 : 0.5
                                 activeFocusOnTab: true
                                 Accessible.role: Accessible.PageTab
