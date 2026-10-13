@@ -82,6 +82,7 @@ type runDetail struct {
 
 type runsBody struct {
 	Self          string
+	HasRuns       bool // the Hub has any run at all (else the page shows one empty state)
 	ArchivedCount int
 	ArchivedOn    bool
 	ArchivedURL   string
@@ -179,7 +180,7 @@ func (s *Server) renderRuns(w http.ResponseWriter, r *http.Request, sess *sessio
 	if selectedID == "" && len(shown) > 0 {
 		selectedID = shown[0].ID
 	}
-	body := runsBody{Self: runURL(selectedID, filter)}
+	body := runsBody{Self: runURL(selectedID, filter), HasRuns: len(all) > 0}
 	if selectedID == "" {
 		body.Self = "/runs"
 		if filter != "all" {
@@ -220,7 +221,7 @@ func (s *Server) renderRuns(w http.ResponseWriter, r *http.Request, sess *sessio
 	if selectedID != "" {
 		run, err := s.svc.GetRunAdmin(ctx, selectedID)
 		if errors.Is(err, hub.ErrNotFound) {
-			http.Redirect(w, r, "/runs?err=norun", http.StatusSeeOther)
+			s.notFound(w, r)
 			return
 		}
 		if err != nil {

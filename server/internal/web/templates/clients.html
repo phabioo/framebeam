@@ -33,7 +33,7 @@
           <input type="hidden" name="_csrf" value="{{$.CSRF}}">
           <input type="text" name="name" value="{{.Name}}" maxlength="100" required autofocus autocomplete="off" aria-label="Device name"{{if $.Body.RenameErr}} aria-invalid="true"{{end}}>
           <button class="btn small primary" type="submit">Save</button>
-          <a class="snap-cancel" href="/clients" hx-get="/clients" hx-target="#clients-body" hx-swap="outerHTML">Cancel</a>
+          <a class="btn small" href="/clients" hx-get="/clients" hx-target="#clients-body" hx-swap="outerHTML">Cancel</a>
         </form>{{if $.Body.RenameErr}}<p class="help error-line" role="alert">{{$.Body.RenameErr}}</p>{{end}}
       {{else}}<span class="strong">{{.Name}}</span>{{end}}</td>
       <td class="hide-sm">{{.User}}</td>

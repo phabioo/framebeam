@@ -344,8 +344,6 @@ func (v *systemView) chips() {
 	}
 	if v.CoreName != "" {
 		v.CoreLine = "Default core: " + v.CoreName
-	} else {
-		v.CoreLine = "No core installed"
 	}
 }
 
@@ -597,7 +595,7 @@ func (s *Server) firmwareRemove(w http.ResponseWriter, r *http.Request, sess *se
 func (s *Server) firmwareDownload(w http.ResponseWriter, r *http.Request, _ *session) {
 	f, def, err := s.svc.OpenFirmware(r.Context(), r.PathValue("id"), r.PathValue("file"))
 	if errors.Is(err, hub.ErrNotFound) {
-		http.NotFound(w, r)
+		s.notFound(w, r)
 		return
 	}
 	if err != nil {

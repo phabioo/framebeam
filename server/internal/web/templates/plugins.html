@@ -69,6 +69,7 @@
     </details>
   </div>
   {{if .Body.Review}}{{template "plugin-review" .}}{{end}}
+  {{if .Body.Rows}}
   <div class="card flush"><table class="list plugin-list cards">
     <thead><tr><th>Plugin</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
     <tbody>
@@ -77,11 +78,12 @@
       <td class="c-title"><div class="cell-title"><span class="tile" aria-hidden="true">{{.Mono}}</span><div class="stack-s"><div class="plugin-line"><a class="row-link" href="{{.Href}}">{{.Name}}</a><span class="mono">{{.Version}}</span><span class="pill sm {{.OriginClass}}">{{.OriginLabel}}</span></div><span class="help">{{.Rel}}</span></div></div></td>
       <td class="c-act"><a class="btn small" href="{{.Href}}">Details</a></td>
     </tr>
-    {{else}}
-    <tr><td colspan="2" class="help">No plugins are offered yet. Upload a .fbplugin file{{if .Body.Catalog.Configured}} or install one from the catalog below{{end}}.</td></tr>
     {{end}}
     </tbody>
   </table></div>
+  {{else}}
+  <div class="card"><p class="empty">No plugins are offered yet. Upload a .fbplugin file{{if .Body.Catalog.Configured}} or install one from the catalog below{{end}}.</p></div>
+  {{end}}
   {{if .Body.Catalog.Configured}}
   {{if .Body.Catalog.Failed}}
   <div class="catalog-head catalog-fail" role="alert"><span class="pill amber sm">▲</span><span>{{.Body.Catalog.ErrLine}}</span>

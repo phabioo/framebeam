@@ -315,7 +315,7 @@ func (s *Server) pluginsGet(w http.ResponseWriter, r *http.Request, sess *sessio
 	if id, v := r.PathValue("id"), r.PathValue("version"); id != "" {
 		p, err := s.svc.GetPlugin(r.Context(), id, v)
 		if errors.Is(err, hub.ErrNotFound) {
-			http.Redirect(w, r, "/plugins?err=noplugin", http.StatusSeeOther)
+			s.notFound(w, r)
 			return
 		}
 		if err != nil {
@@ -463,7 +463,7 @@ func (s *Server) pluginDiscard(w http.ResponseWriter, r *http.Request, _ *sessio
 func (s *Server) pluginDownload(w http.ResponseWriter, r *http.Request, _ *session) {
 	f, p, err := s.svc.OpenPluginFile(r.Context(), r.PathValue("id"), r.PathValue("version"))
 	if errors.Is(err, hub.ErrNotFound) {
-		http.NotFound(w, r)
+		s.notFound(w, r)
 		return
 	}
 	if err != nil {

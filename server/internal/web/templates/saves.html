@@ -202,10 +202,10 @@
   <li class="{{.Kind}}">
     <span class="node" aria-hidden="true"></span>
     <div class="tl-text"><div class="tl-title"><span class="mono ver">v{{.Version}}</span> <strong>{{.Device}}</strong>{{if .Snapshot}} <span class="pill info sm">◆ Snapshot</span>{{end}}{{if .Current}} <span class="pill ok sm">✓ Current</span>{{end}}{{if .Label}} <span class="snap-label">“{{.Label}}”</span>{{end}}</div><div class="help">{{.Meta}} · {{template "when" .At}}</div></div>
-    <div class="tl-actions"><a class="btn-link plain" href="{{.DownloadHref}}">Download</a>
-    {{if not .Current}}{{if .Blocked}}<span class="btn small disabled" aria-disabled="true" title="{{.Blocked}}">Restore</span>{{else}}<a class="btn small" href="{{.ConfirmHref}}" hx-get="{{.ConfirmHref}}" hx-target="#confirm-v{{.Version}}" hx-swap="innerHTML">Restore</a>{{end}}{{end}}
-    {{if .Menu}}<details class="menu"><summary class="more" aria-label="More actions for v{{.Version}}">⋯</summary><div class="menu-pop">
-      <a class="mi danger" href="{{.DeleteAsk}}" hx-get="{{.DeleteAsk}}" hx-target="#confirm-v{{.Version}}" hx-swap="innerHTML">Delete snapshot…</a></div></details>{{end}}</div>
+    <div class="tl-actions"><span class="tl-slot tl-dl"><a class="btn-link plain" href="{{.DownloadHref}}">Download</a></span>
+    <span class="tl-slot tl-rs">{{if not .Current}}{{if .Blocked}}<span class="btn small disabled" aria-disabled="true" title="{{.Blocked}}">Restore</span>{{else}}<a class="btn small" href="{{.ConfirmHref}}" hx-get="{{.ConfirmHref}}" hx-target="#confirm-v{{.Version}}" hx-swap="innerHTML">Restore</a>{{end}}{{end}}</span>
+    <span class="tl-slot tl-mn">{{if .Menu}}<details class="menu"><summary class="more" aria-label="More actions for v{{.Version}}">⋯</summary><div class="menu-pop">
+      <a class="mi danger" href="{{.DeleteAsk}}" hx-get="{{.DeleteAsk}}" hx-target="#confirm-v{{.Version}}" hx-swap="innerHTML">Delete snapshot…</a></div></details>{{end}}</span></div>
     <div id="confirm-v{{.Version}}" class="tl-confirm">{{if .Open}}{{template "restore-card" .}}{{else if .DeleteOpen}}{{template "delete-card" .}}{{end}}</div>
   </li>
   {{end}}

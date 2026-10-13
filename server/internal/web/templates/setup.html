@@ -4,8 +4,8 @@
 <p class="help">Create the first admin. This form is available from this machine only.</p>
 <form method="post" action="/setup">
   <input type="hidden" name="_csrf" value="{{.CSRF}}">
-  <label class="field">Username<input type="text" name="username" autocomplete="username" required autofocus></label>
-  <label class="field">Password (at least {{.Body.MinPassword}} characters)<input type="password" name="password" autocomplete="new-password" required></label>
+  <label class="field">Username<input type="text" name="username" value="{{.Body.Username}}" autocomplete="username" required{{if not .Body.Username}} autofocus{{end}}></label>
+  <label class="field">Password (at least {{.Body.MinPassword}} characters)<input type="password" name="password" autocomplete="new-password" required{{if .Body.Username}} autofocus{{end}}></label>
   <label class="field">Repeat password<input type="password" name="password2" autocomplete="new-password" required></label>
   <button class="btn primary" type="submit">Create admin</button>
 </form>

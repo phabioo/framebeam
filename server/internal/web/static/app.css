@@ -929,7 +929,7 @@ progress.scan-bar::-moz-progress-bar { background: var(--info-text); border-radi
   .lib-toolbar .chips { flex-wrap: nowrap; overflow-x: auto; flex: none; padding-bottom: 4px; }
   .lib-search .search { width: 100%; }
   .lib-toolbar #library-sort { align-self: flex-start; }
-  .upload-form { position: fixed; left: 16px; right: 16px; top: 120px; width: auto; }
+  .upload-form { left: 0; right: 0; width: auto; }
   .more-line { padding: 12px; }
   .hide-xs { display: none; }
 }
@@ -1118,3 +1118,40 @@ table.events td { vertical-align: top; }
   .runs-wait { align-items: flex-start; flex-direction: column; }
 }
 table.events td { height: auto; padding: 8px 20px; vertical-align: middle; }
+
+/* ---- Hub UI rescan fixes (R-H*) ---- */
+.nowrap { white-space: nowrap; }
+dl.kv dd { overflow-wrap: anywhere; }
+.confirm .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.confirm form.inline > label.field { flex: 1 1 280px; max-width: 480px; }
+.newslot form.inline { flex-direction: column; align-items: stretch; }
+.newslot form.inline > label.field { flex: none; }
+.set-row .help + .help { margin-top: 6px; }
+.lib-toolbar .chips { flex: 1 1 auto; }
+.lib-search { margin-left: auto; }
+table.users-list th, table.users-list td { padding-left: 14px; padding-right: 14px; }
+.cur-line span[title] { white-space: nowrap; }
+.timeline .tl-actions { display: grid; grid-template-columns: 72px 76px 36px; gap: 8px; align-items: center; justify-items: end; }
+.timeline .tl-slot { display: flex; align-items: center; justify-content: flex-end; min-width: 0; }
+@media (max-width: 1439px) {
+  .cur-bar { grid-template-columns: auto minmax(0, 1fr); }
+  .cur-actions { grid-column: 1 / -1; justify-content: flex-start; }
+}
+@media (max-width: 1023px) {
+  .shell { align-content: start; }
+  .page-head { position: relative; }
+  .upload { position: static; }
+  .upload-form { top: calc(100% + 8px); }
+}
+@media (max-width: 719px) {
+  .rename-form input[type="text"] { flex: 1 1 100%; width: 100%; }
+  .confirm form.inline > label.field { max-width: none; }
+  .set-nav { flex-wrap: nowrap; overflow-x: auto; gap: 6px; padding: 10px 16px; }
+  .set-nav-title, .set-nav-foot, .set-item-status { display: none; }
+  .set-item { flex: 0 0 auto; padding: 8px 12px; }
+  .set-row > form.segment { align-self: flex-start; flex: 0 0 auto; }
+  details.conflict-card > summary { flex-direction: column; align-items: flex-start; gap: 10px; }
+  table.cores.cards td, table.cores.cards td:first-child, table.cores.cards td:last-child { padding: 0; width: auto; white-space: normal; }
+}
+.history li { font-size: 13px; color: var(--text-2); }
+/* ---- end Hub UI rescan fixes ---- */

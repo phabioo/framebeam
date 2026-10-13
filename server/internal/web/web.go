@@ -92,7 +92,7 @@ func New(svc *hub.Service, cfg Config, log *slog.Logger) (*Server, error) {
 	}
 	s := &Server{svc: svc, cfg: cfg, log: log, tmpl: map[string]*template.Template{}, done: make(chan struct{}),
 		login: newLimiter(svc.Now), verifySem: make(chan struct{}, maxConcurrentVerify)}
-	for _, p := range []string{"login", "setup", "invite", "library", "saves", "clients", "settings", "users", "systems", "confirm", "plugins", "runs"} {
+	for _, p := range []string{"login", "setup", "invite", "library", "saves", "clients", "settings", "users", "systems", "confirm", "plugins", "runs", "notfound"} {
 		t, err := template.New(p).Funcs(template.FuncMap{"asset": assetURL}).ParseFS(templatesFS, "templates/layout.html", "templates/"+p+".html")
 		if err != nil {
 			return nil, err
@@ -263,7 +263,30 @@ func (s *Server) catchAll(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/setup", http.StatusSeeOther)
 		return
 	}
-	http.NotFound(w, r)
+	s.notFound(w, r)
+}
+
+// notFound answers 404. Signed-in admins get a styled page inside the app shell with a way back; everyone else
+// (and API callers) gets the plain Go 404 so nothing about the Hub is revealed.
+func (s *Server) notFound(w http.ResponseWriter, r *http.Request) {
+	p := r.URL.Path
+	if strings.HasPrefix(p, "/api/") || strings.HasPrefix(p, "/.well-known/") {
+		http.NotFound(w, r)
+		return
+	}
+	c, err := r.Cookie(s.cookieName(sessionCookie))
+	if err != nil || c.Value == "" {
+		http.NotFound(w, r)
+		return
+	}
+	ws, err := s.svc.LookupWebSession(r.Context(), c.Value)
+	if err != nil || ws.User.Role != hub.RoleAdmin {
+		http.NotFound(w, r)
+		return
+	}
+	d := s.base(r, &session{ws}, "", "Not found")
+	d.Flash, d.Error = "", ""
+	s.render(w, http.StatusNotFound, "notfound", "layout", d)
 }
 
 // ---- Page model ----
@@ -281,6 +304,7 @@ type pageData struct {
 	Theme               string // light, dark or system (Hub setting)
 	Flash, Error        string
 	Fragment            bool
+	InlineFlash         bool // the page renders the flash itself inside its own column (Users)
 	MainSwap            bool // HX main swap: render only the main content plus out-of-band nav and title
 	Body                any
 }

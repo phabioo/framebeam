@@ -120,9 +120,9 @@ func TestPluginUploadFlowWeb(t *testing.T) {
 		t.Fatalf("download %v", rec.Header())
 	}
 	status(t, c.get("/plugins/net.example.notes/9.9.9/download", nil), 404)
-	if rec = c.get("/plugins/net.example.notes/9.9.9", nil); rec.Code != http.StatusSeeOther || location(rec) != "/plugins?err=noplugin" {
-		t.Fatalf("unknown detail: %d %q", rec.Code, location(rec))
-	}
+	rec = c.get("/plugins/net.example.notes/9.9.9", nil)
+	status(t, rec, 404)
+	contains(t, rec, "Page not found", "Back to Library")
 	contains(t, c.get("/plugins/net.example.notes/0.2.0/remove", nil), "Remove “Plugin net.example.notes 0.2.0” from the Hub?")
 
 }

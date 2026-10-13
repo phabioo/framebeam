@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"html/template"
 	"io"
 	"mime"
 	"net/http"
@@ -163,7 +164,7 @@ type libBody struct {
 	// RefreshURL is the URL the live region reloads itself from (keeps the current filter).
 	RefreshURL string
 	// FilterQS is the current filter as "&system=..&q=.." for the row action links.
-	FilterQS string
+	FilterQS template.URL // trusted: built by libFilter.URL, so '&' is not re-encoded inside href
 }
 
 // middleEllipsis shortens a long path to its first two and its last segment: /srv/framebeam/…/library-import.
@@ -226,7 +227,7 @@ func (s *Server) libraryBody(ctx context.Context, viewer string, f libFilter, pa
 		System: f.System, Query: f.Query, Filtered: f.System != "" || f.Query != "", Sort: f.Sort, Limit: f.Limit,
 		RefreshURL: f.URL(nil), ImportDir: s.cfg.ImportDir, ImportShort: middleEllipsis(s.cfg.ImportDir)}
 	if q := strings.TrimPrefix(b.RefreshURL, "/library"); q != "" {
-		b.FilterQS = "&" + strings.TrimPrefix(q, "?")
+		b.FilterQS = template.URL("&" + strings.TrimPrefix(q, "?"))
 	}
 	if st.FreeBytes == 0 {
 		b.Free = "– "
@@ -433,7 +434,7 @@ func (s *Server) libraryDownload(w http.ResponseWriter, r *http.Request, _ *sess
 		err = hub.ErrNotFound
 	}
 	if errors.Is(err, hub.ErrNotFound) {
-		http.NotFound(w, r)
+		s.notFound(w, r)
 		return
 	}
 	if err != nil {
@@ -442,7 +443,7 @@ func (s *Server) libraryDownload(w http.ResponseWriter, r *http.Request, _ *sess
 	}
 	f, stored, err := s.svc.OpenROM(r.Context(), g.ROMSHA256)
 	if errors.Is(err, hub.ErrNotFound) {
-		http.NotFound(w, r)
+		s.notFound(w, r)
 		return
 	}
 	if err != nil {

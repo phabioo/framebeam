@@ -77,7 +77,7 @@ func TestAdminPagesAreAdminOnlyAndRender(t *testing.T) {
 	// Systems & Cores: list | detail with tabs; the cores tab is the default.
 	rec := c.get("/systems?sys=nds", nil)
 	contains(t, rec, `href="/systems" class="active"`, "Nintendo DS", "No core installed", "Automatic core updates",
-		"Players cannot start Nintendo DS games until then", "Needs attention", `aria-selected="true"`, `id="systems-list"`, `id="systems-detail"`,
+		"Players cannot start Nintendo DS games until one is installed", "Needs attention", `aria-selected="true"`, `id="systems-list"`, `id="systems-detail"`,
 		"System details", "windows-x86_64", "Libretro system", "File extensions", "Check now", "No further cores known for this system")
 	notContains(t, rec, "LATER", "Reported by Players", "Search systems", "core(s)")
 	rec = c.get("/systems?sys=nds&tab=firmware", nil)
@@ -434,7 +434,7 @@ func TestSystemsPageCores(t *testing.T) {
 	rec := c.get("/systems?sys=nds&tab=core", nil)
 	contains(t, rec, strings.TrimPrefix(bb.Server.URL, "https://")+"/nightly", "Available, not installed", "No core installed",
 		"Nintendo - DS (DeSmuME)", "GPLv2", "OpenGL Core &gt;= 3.2", "nightly 2026-10-08", "/systems/nds/cores/desmume/install", "/systems/nds/cores/noods/install",
-		"Check now", "2 cores for this system")
+		"Check now", "2 cores known for this system")
 	notContains(t, rec, "Azahar", "/cores/azahar/", "Update available", "No FrameBeam profile")
 
 	// Install: redirect, the core is listed as installed default with its origin.

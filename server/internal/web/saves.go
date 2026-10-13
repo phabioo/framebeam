@@ -646,14 +646,14 @@ func (s *Server) savesGet(w http.ResponseWriter, r *http.Request, sess *session)
 	body, err := s.savesBody(r, nf, sess.User.ID)
 	if err != nil {
 		if errors.Is(err, hub.ErrNotFound) {
-			http.NotFound(w, r)
+			s.notFound(w, r)
 			return
 		}
 		s.fail(w, r, err)
 		return
 	}
 	if r.PathValue("user") != "" && body.Detail == nil {
-		http.NotFound(w, r)
+		s.notFound(w, r)
 		return
 	}
 	d := s.base(r, sess, "saves", "Saves")
@@ -677,7 +677,7 @@ func (s *Server) savesGet(w http.ResponseWriter, r *http.Request, sess *session)
 		d.Fragment = true
 		s.render(w, http.StatusOK, "saves", "newslot-fragment", d)
 	case inConfirm, inNew:
-		http.NotFound(w, r)
+		s.notFound(w, r)
 	default:
 		s.render(w, http.StatusOK, "saves", "layout", d)
 	}
@@ -751,7 +751,7 @@ func (s *Server) saveHistoryDownload(w http.ResponseWriter, r *http.Request, _ *
 	u, g, sl := r.PathValue("user"), r.PathValue("game"), r.PathValue("slot")
 	ver, err := strconv.Atoi(r.PathValue("version"))
 	if err != nil {
-		http.NotFound(w, r)
+		s.notFound(w, r)
 		return
 	}
 	f, v, err := s.svc.OpenSaveVersion(r.Context(), u, g, sl, ver)
@@ -774,7 +774,7 @@ func (s *Server) serveSave(w http.ResponseWriter, r *http.Request, f http.File, 
 
 func (s *Server) downloadErr(w http.ResponseWriter, r *http.Request, err error) {
 	if errors.Is(err, hub.ErrNotFound) {
-		http.NotFound(w, r)
+		s.notFound(w, r)
 		return
 	}
 	s.fail(w, r, err)
@@ -795,7 +795,7 @@ func (s *Server) saveResolve(w http.ResponseWriter, r *http.Request, sess *sessi
 	case errors.Is(err, hub.ErrSaveConflictStale):
 		s.redirect(w, r, saveHref(u, g, sl)+"?err=stale")
 	case errors.Is(err, hub.ErrNotFound):
-		http.NotFound(w, r)
+		s.notFound(w, r)
 	case errors.Is(err, hub.ErrBadRequest):
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 	default:
@@ -808,7 +808,7 @@ func (s *Server) saveRestore(w http.ResponseWriter, r *http.Request, sess *sessi
 	ver, err1 := strconv.Atoi(r.PathValue("version"))
 	exp, err2 := strconv.Atoi(r.PostFormValue("expected_revision"))
 	if err1 != nil {
-		http.NotFound(w, r)
+		s.notFound(w, r)
 		return
 	}
 	if err2 != nil {
@@ -824,7 +824,7 @@ func (s *Server) saveRestore(w http.ResponseWriter, r *http.Request, sess *sessi
 	case errors.Is(err, hub.ErrSaveConflictStale):
 		s.redirect(w, r, saveHref(u, g, sl)+"?err=stale")
 	case errors.Is(err, hub.ErrNotFound):
-		http.NotFound(w, r)
+		s.notFound(w, r)
 	case errors.Is(err, hub.ErrBadRequest):
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 	default:
@@ -840,7 +840,7 @@ func (s *Server) saveSnapshot(w http.ResponseWriter, r *http.Request, _ *session
 	case err == nil:
 		s.redirect(w, r, saveHref(u, g, sl)+"?ok=snapshot")
 	case errors.Is(err, hub.ErrNotFound):
-		http.NotFound(w, r)
+		s.notFound(w, r)
 	case errors.Is(err, hub.ErrBadRequest):
 		s.redirect(w, r, saveHref(u, g, sl)+"?err=label")
 	default:
@@ -852,7 +852,7 @@ func (s *Server) saveDeleteSnapshot(w http.ResponseWriter, r *http.Request, _ *s
 	u, g, sl := r.PathValue("user"), r.PathValue("game"), r.PathValue("slot")
 	ver, err := strconv.Atoi(r.PathValue("version"))
 	if err != nil {
-		http.NotFound(w, r)
+		s.notFound(w, r)
 		return
 	}
 	err = s.svc.DeleteSaveSnapshot(r.Context(), u, g, sl, ver)
@@ -860,7 +860,7 @@ func (s *Server) saveDeleteSnapshot(w http.ResponseWriter, r *http.Request, _ *s
 	case err == nil:
 		s.redirect(w, r, saveHref(u, g, sl)+"?ok=snapdeleted")
 	case errors.Is(err, hub.ErrNotFound):
-		http.NotFound(w, r)
+		s.notFound(w, r)
 	case errors.Is(err, hub.ErrSaveNotSnapshot):
 		http.Error(w, "Only manual snapshots can be deleted", http.StatusConflict)
 	default:
@@ -879,7 +879,7 @@ func (s *Server) saveNewSlot(w http.ResponseWriter, r *http.Request, sess *sessi
 		s.redirect(w, r, saveHref(u, g, name)+"?ok=slotcreated")
 		return
 	case errors.Is(err, hub.ErrNotFound):
-		http.NotFound(w, r)
+		s.notFound(w, r)
 		return
 	case errors.Is(err, hub.ErrSaveSlotExists):
 		msg = "A slot with this name already exists."
@@ -895,7 +895,7 @@ func (s *Server) saveNewSlot(w http.ResponseWriter, r *http.Request, sess *sessi
 		return
 	}
 	if body.Detail == nil {
-		http.NotFound(w, r)
+		s.notFound(w, r)
 		return
 	}
 	d := s.base(r, sess, "saves", "Saves")
@@ -985,7 +985,7 @@ func uploadErrKey(err error) string {
 func (s *Server) saveUpload(w http.ResponseWriter, r *http.Request, sess *session) {
 	u, g, slot := r.PathValue("user"), r.PathValue("game"), r.PathValue("slot")
 	if !hub.ValidSlotName(slot) {
-		http.NotFound(w, r)
+		s.notFound(w, r)
 		return
 	}
 	if u != sess.User.ID { // admins cannot upload into another user's slot
@@ -1027,7 +1027,7 @@ func (s *Server) saveUpload(w http.ResponseWriter, r *http.Request, sess *sessio
 		case err == nil:
 			q.Set("up", "ok")
 		case errors.Is(err, hub.ErrNotFound):
-			http.NotFound(w, r)
+			s.notFound(w, r)
 			return
 		case key != "":
 			q.Set("up", key)
@@ -1050,7 +1050,7 @@ func (s *Server) saveUpload(w http.ResponseWriter, r *http.Request, sess *sessio
 		return
 	}
 	if body.Detail == nil {
-		http.NotFound(w, r)
+		s.notFound(w, r)
 		return
 	}
 	body.Detail.CSRF, body.OOB = sess.CSRFToken, true
@@ -1072,7 +1072,7 @@ func (s *Server) saveRenameSlot(w http.ResponseWriter, r *http.Request, sess *se
 	case err == nil:
 		s.redirect(w, r, saveHref(u, g, name)+"?ok=slotrenamed")
 	case errors.Is(err, hub.ErrNotFound):
-		http.NotFound(w, r)
+		s.notFound(w, r)
 	case errors.Is(err, hub.ErrSaveSlotProtected):
 		s.redirect(w, r, saveHref(u, g, from)+"?err=slotprotected")
 	case errors.Is(err, hub.ErrSessionRunning):
@@ -1100,7 +1100,7 @@ func (s *Server) saveDeleteSlot(w http.ResponseWriter, r *http.Request, sess *se
 	case err == nil:
 		s.redirect(w, r, "/saves?ok=slotdeleted")
 	case errors.Is(err, hub.ErrNotFound):
-		http.NotFound(w, r)
+		s.notFound(w, r)
 	case errors.Is(err, hub.ErrSaveSlotProtected):
 		s.redirect(w, r, here+"?err=slotprotected")
 	case errors.Is(err, hub.ErrSessionRunning):
