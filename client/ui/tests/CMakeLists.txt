@@ -114,6 +114,15 @@ framebeam_add_test(ui_gpu_encode gpu_encode_test.cpp LIBS framebeam_ui framebeam
 target_compile_definitions(test_ui_gpu_encode PRIVATE FB_FAKE_HW_CORE_PATH="$<TARGET_FILE:framebeam_fake_hw_core>")
 add_dependencies(test_ui_gpu_encode framebeam_fake_hw_core)
 set_tests_properties(ui_gpu_encode PROPERTIES SKIP_RETURN_CODE 77)
+# Backend choice of GpuEncodeBridge (ADR 0027 D6) with fake captures: pure, no GL.
+framebeam_add_test(ui_gpu_encode_select gpu_encode_select_test.cpp LIBS framebeam_ui framebeam_core framebeam_emulation framebeam_media)
+
+# Zero-copy display (ADR 0027): GameSession + GameView with a fake platform display on the fake hardware core and the
+# software scene graph; needs a GL 3.3 context (SKIP/77 without one, except on Linux CI where it must run).
+framebeam_add_test(ui_gpu_display gpu_display_test.cpp LIBS framebeam_ui framebeam_core framebeam_emulation framebeam_media Qt6::Gui Qt6::Quick)
+target_compile_definitions(test_ui_gpu_display PRIVATE FB_FAKE_HW_CORE_PATH="$<TARGET_FILE:framebeam_fake_hw_core>")
+add_dependencies(test_ui_gpu_display framebeam_fake_hw_core)
+set_tests_properties(ui_gpu_display PROPERTIES SKIP_RETURN_CODE 77)
 
 # Screenshots of the game view with fake data (0.6): QSKIP unless FRAMEBEAM_SCREENSHOT_DIR is set; no core needed.
 framebeam_add_test(ui_screenshots_game screenshots_game_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h

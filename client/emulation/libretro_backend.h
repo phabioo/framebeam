@@ -68,6 +68,12 @@ class LibretroBackend final : public EmulatorBackend {
   // ADR 0019: the target is parked here and applied by the emulation thread at the start of the next runFrame.
   void setGpuEncodeTarget(std::shared_ptr<GpuEncodeTarget> target) override;
   double lastGpuCopyMs() const override;
+  // Zero-copy display (ADR 0027): parked here and applied by the emulation thread at the start of the next runFrame.
+  void setGpuDisplayTarget(std::shared_ptr<GpuDisplayTarget> target) override;
+  void setDisplayLimit(const QSize& maxSize) override { m_displayLimit.store(pack(maxSize)); }
+  void setReadbackEnabled(bool on) override { m_readbackEnabled.store(on); }
+  double lastDisplayMs() const override;
+  bool lastDisplayed() const override { return m_lastDisplayed.load(); }
   bool lastGpuCaptured() const override { return m_lastGpuCaptured.load(); }
   // Diagnostics/tests: number of hardware frames read back from the GPU so far.
   quint64 hwReadbackCount() const { return m_hwReadbacks.load(); }
@@ -168,6 +174,12 @@ class LibretroBackend final : public EmulatorBackend {
   QMutex m_targetMutex;
   std::shared_ptr<GpuEncodeTarget> m_nextTarget;
   std::atomic<bool> m_targetChanged{false};
+  std::shared_ptr<GpuDisplayTarget> m_nextDisplay;
+  std::atomic<bool> m_displayChanged{false};
+  std::atomic<qint64> m_lastDisplayNs{0};   // display blit of the last runFrame
+  std::atomic<bool> m_lastDisplayed{false};
+  std::atomic<bool> m_readbackEnabled{true};
+  bool m_readbackWasEnabled = true;  // emulation thread: edge detection for discarding the pending readback
   std::atomic<qint64> m_lastGpuCopyNs{0};   // encode blit + capture of the last runFrame
   std::atomic<bool> m_lastGpuCaptured{false};
   std::atomic<bool> m_videoWanted{true};
@@ -176,6 +188,7 @@ class LibretroBackend final : public EmulatorBackend {
   }
   static QSize unpack(quint64 v) { return QSize(static_cast<int>(v >> 32), static_cast<int>(v & 0xFFFFFFFFu)); }
   std::atomic<quint64> m_readbackLimit{0};  // packed QSize (0 = none)
+  std::atomic<quint64> m_displayLimit{0};   // packed QSize (0 = none)
   std::atomic<quint64> m_sourceSize{0};     // packed QSize of the last frame as the core rendered it
   std::atomic<quint64> m_hwReadbacks{0};
   std::atomic<bool> m_fastForwarding{false};

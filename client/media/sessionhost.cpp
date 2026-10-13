@@ -14,6 +14,7 @@
 extern "C" {
 #include <libavutil/buffer.h>
 #include <libavutil/frame.h>
+#include <libavutil/hwcontext.h>
 }
 
 #include "cudadriver.h"
@@ -336,7 +337,20 @@ class EncodeWorker {
     sendPackets(packets);
   }
 
-  // ADR 0019: one CUDA frame. Every error leaves GPU mode (failGpu); none of them touches failed_, onOpenFailed_ or
+  static VideoEncoder::GpuEncoderSpec gpuSpecOf(AVBufferRef* fc) {
+    const auto* frames = fc && fc->data ? reinterpret_cast<const AVHWFramesContext*>(fc->data) : nullptr;
+    return frames ? VideoEncoder::gpuEncoderSpec(frames->format, frames->sw_format) : VideoEncoder::GpuEncoderSpec();
+  }
+  static QString gpuEncoderName(AVBufferRef* fc) {
+    const QString n = gpuSpecOf(fc).encoder;
+    return n.isEmpty() ? QStringLiteral("h264_nvenc") : n;
+  }
+  static QString gpuFramesLabel(AVBufferRef* fc) {
+    const QString l = gpuSpecOf(fc).framesLabel;
+    return l.isEmpty() ? QStringLiteral("CUDA") : l;
+  }
+
+  // ADR 0019, ADR 0027 D6: one GPU frame (CUDA, D3D11 or QSV). Every error leaves GPU mode (failGpu); none of them touches failed_, onOpenFailed_ or
   // encodeErrorReported_, which belong to the CPU encoder.
   void encodeGpuJob(const Job& j) {
     AVBufferRef* fc = j.gpu->hw_frames_ctx;
@@ -344,10 +358,13 @@ class EncodeWorker {
       leaveGpu(QStringLiteral("GPU frame without frames context"), true);
       return;
     }
+    // Also whenever the frame's frames context is not the open encoder's: h264_amf asserts (aborts the process) on a frame of
+    // another frames context, so a frame never reaches an encoder opened on a different one.
+    const QSize visible(j.gpu->width, j.gpu->height);  // QSV frames are 16-aligned; the picture is smaller
     if (!gpuEncoder_.isOpen() || gpuEncoder_.gpuFramesKey() != fc->data) {  // first frame or new encode size
       QString why;
-      if (!gpuEncoder_.openGpu(fc, options_.fps, targetKbps_.load() * 1000, &why)) {
-        failGpu(why.isEmpty() ? QStringLiteral("h264_nvenc does not open with CUDA frames") : why, fc);
+      if (!gpuEncoder_.openGpu(fc, options_.fps, targetKbps_.load() * 1000, &why, visible)) {
+        failGpu(why.isEmpty() ? QStringLiteral("%1 does not open with %2 frames").arg(gpuEncoderName(fc), gpuFramesLabel(fc)) : why, fc);
         return;
       }
       lastReopen_ = std::chrono::steady_clock::now();
@@ -357,7 +374,7 @@ class EncodeWorker {
         stats_->height = gpuEncoder_.height();
       }
     }
-    applyGpuBitrate(fc);
+    applyGpuBitrate(fc, visible);
     if (gpu_ == GpuState::Off) return;
     if (keyframe_.exchange(false)) {
       gpuEncoder_.requestKeyframe();
@@ -366,7 +383,7 @@ class EncodeWorker {
     std::vector<EncodedVideoPacket> packets;
     const auto t0 = std::chrono::steady_clock::now();
     if (!gpuEncoder_.encodeGpu(j.gpu.get(), pts, packets)) {
-      failGpu(QStringLiteral("encoding a CUDA frame failed"), fc);
+      failGpu(QStringLiteral("encoding a %1 frame failed").arg(gpuFramesLabel(fc)), fc);
       return;
     }
     recordTiming(true, t0);
@@ -380,8 +397,9 @@ class EncodeWorker {
         stats_->width = w;
         stats_->height = h;
       }
-      qCInfo(lcHost).noquote() << QStringLiteral("GPU-direct encoding active: h264_nvenc takes CUDA frames %1 x %2 "
+      qCInfo(lcHost).noquote() << QStringLiteral("GPU-direct encoding active: %1 takes %2 frames %3 x %4 "
                                                  "(no readback, no CPU conversion)")
+                                      .arg(gpuEncoder_.name(), gpuFramesLabel(fc))
                                       .arg(w)
                                       .arg(h);
       onGpuActive_();
@@ -464,14 +482,14 @@ class EncodeWorker {
 
   // The same 5 s rule for the CUDA encoder (a runtime reconfigure forces an IDR in FFmpeg anyway). A failed reopen
   // leaves GPU mode.
-  void applyGpuBitrate(AVBufferRef* fc) {
+  void applyGpuBitrate(AVBufferRef* fc, const QSize& visible) {
     const int want = targetKbps_.load() * 1000;
     if (!gpuEncoder_.isOpen() || want == gpuEncoder_.bitrate()) return;
     const auto now = std::chrono::steady_clock::now();
     if (now - lastReopen_ < std::chrono::seconds(5)) return;  // the target stays pending
     QString why;
-    if (!gpuEncoder_.openGpu(fc, options_.fps, want, &why)) {
-      failGpu(why.isEmpty() ? QStringLiteral("h264_nvenc does not reopen with CUDA frames") : why, fc);
+    if (!gpuEncoder_.openGpu(fc, options_.fps, want, &why, visible)) {
+      failGpu(why.isEmpty() ? QStringLiteral("%1 does not reopen with %2 frames").arg(gpuEncoderName(fc), gpuFramesLabel(fc)) : why, fc);
       return;
     }
     lastReopen_ = now;
@@ -1047,18 +1065,39 @@ void SessionHost::pushGpuFrame(std::shared_ptr<AVFrame> frame, qint64 lateNs) {
   worker_->pushGpuVideo(std::move(frame), lastStampNs_);
 }
 
-bool SessionHost::gpuInputAllowed() const {
-  if (!open_ || gpuInputOff_ || !gpuConfigured_ || !options_.encoderOrder.isEmpty()) {
-    return false;  // tests pin encoders
+SessionHost::GpuBackends SessionHost::gpuBackendRules(const GpuInputFacts& f) {
+  GpuBackends b;
+  if (!f.open || f.off || !f.configured || f.orderPinned) {
+    return b;  // tests pin encoders; kill switch and forced encoder are "not configured"
+  }
+  b.cuda = f.cudaDriverUsable && f.cudaInput && f.nvencProbed;
+  b.amf = f.d3d11Capture && f.amfInput && f.amfProbed;
+  b.qsv = f.d3d11Capture && f.qsvInput && f.qsvProbed;
+  return b;
+}
+
+SessionHost::GpuBackends SessionHost::gpuBackendsAllowed() const {
+  GpuInputFacts f;
+  f.open = open_;
+  f.off = gpuInputOff_;
+  f.configured = gpuConfigured_;
+  f.orderPinned = !options_.encoderOrder.isEmpty();
+  if (!f.open || f.off || !f.configured || f.orderPinned) {
+    return {};
   }
   const cuda::Driver::State state = cuda::Driver::instance().state();  // does not load the driver
-  if (state == cuda::Driver::State::Unavailable || state == cuda::Driver::State::Dead) {
-    return false;
-  }
-  if (!VideoEncoder::cudaInputSupported()) {
-    return false;
-  }
-  return detectMediaCapabilities().encoders.contains(QStringLiteral("h264_nvenc"));  // cached; the Hub handshake computed it
+  f.cudaDriverUsable = state != cuda::Driver::State::Unavailable && state != cuda::Driver::State::Dead;
+  f.cudaInput = VideoEncoder::cudaInputSupported();
+  const QStringList encoders = detectMediaCapabilities().encoders;  // cached; the Hub handshake computed it
+  f.nvencProbed = encoders.contains(QStringLiteral("h264_nvenc"));
+#ifdef _WIN32
+  f.d3d11Capture = true;  // D3d11EncodeCapture exists on Windows only
+#endif
+  f.amfInput = VideoEncoder::amfInputSupported();
+  f.amfProbed = encoders.contains(QStringLiteral("h264_amf"));
+  f.qsvInput = VideoEncoder::qsvInputSupported();
+  f.qsvProbed = encoders.contains(QStringLiteral("h264_qsv"));
+  return gpuBackendRules(f);
 }
 
 void SessionHost::disableGpuInput(const QString& reason, bool failure) {

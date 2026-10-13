@@ -105,6 +105,17 @@ struct HwRenderContext::Impl {
   bool hasFrame = false;  // encTex holds a complete frame (for encodeRepeat)
   bool pending = false;   // encTex holds a frame that has not been captured yet
 
+  // Zero-copy display (ADR 0027). The target owns the textures it hands out; we only keep an FBO per GL name (the
+  // texture is re-attached on every blit, since the target may delete a texture and a new one may reuse the name).
+  std::shared_ptr<GpuDisplayTarget> display;
+  struct DisplayFbo {
+    GLuint tex = 0, fbo = 0;
+    int w = 0, h = 0;
+  };
+  std::vector<DisplayFbo> displayFbos;
+  std::vector<Level> displayLevels;  // dedicated halving chain (its target differs from readback and encode)
+  quint64 displayBlits = 0;
+
   void releasePbos() {
     for (Slot& s : pboSlots) {
       if (s.pbo && f) f->glDeleteBuffers(1, &s.pbo);
@@ -194,7 +205,7 @@ struct HwRenderContext::Impl {
   // row/column of a halving step. The first blit flips vertically when `flip`. GL_SCISSOR_TEST is switched off for the
   // blits and restored (a core may leave it on; a blit honours it).
   //  - dstFbo == 0: the last stage writes into the chain's last level, which stays bound as GL_FRAMEBUFFER on success.
-  //  - dstFbo != 0 (size tw x th): the last stage writes into dstFbo, which stays bound. That stage always exists, also
+  //  - dstFbo != 0 (at least tw x th): the last stage writes into dstFbo, which stays bound. That stage always exists, also
   //    when the frame already has tw x th (then it only copies and flips); a 1:1 copy uses GL_NEAREST.
   // false: nothing usable was produced; the caller releases the chain if it wants to stop using it.
   bool blitChain(std::vector<Level>& chain, int w, int h, int steps, int tw, int th, bool flip, GLuint dstFbo) {
@@ -325,6 +336,65 @@ struct HwRenderContext::Impl {
     encH = es.height();
     qCInfo(lcHw).noquote() << QStringLiteral("Session encode texture %1x%2 for a %3x%4 frame").arg(encW).arg(encH).arg(srcW).arg(srcH);
     return true;
+  }
+
+  // ---- Zero-copy display (ADR 0027)
+
+  void releaseDisplayGl() {
+    if (f) {
+      for (DisplayFbo& e : displayFbos)
+        if (e.fbo) f->glDeleteFramebuffers(1, &e.fbo);
+    }
+    displayFbos.clear();
+    releaseChain(displayLevels);
+  }
+
+  // FBO around the target's texture `tex` (attached on every call); 0 when it cannot be rendered to.
+  GLuint displayFboFor(GLuint tex, const QSize& texSize) {
+    DisplayFbo* e = nullptr;
+    for (DisplayFbo& c : displayFbos)
+      if (c.tex == tex) e = &c;
+    if (!e) {
+      if (displayFbos.size() >= 16) {  // a target that keeps handing out new names: start over
+        releaseDisplayGl();
+      }
+      displayFbos.push_back(DisplayFbo{});
+      e = &displayFbos.back();
+      e->tex = tex;
+    }
+    if (!e->fbo) f->glGenFramebuffers(1, &e->fbo);
+    drainGlErrors(f);
+    f->glBindFramebuffer(GL_FRAMEBUFFER, e->fbo);
+    f->glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);
+    if (e->w != texSize.width() || e->h != texSize.height() || f->glGetError() != GL_NO_ERROR) {
+      // New name or new size: check completeness once (an incomplete FBO never gets cached as good).
+      if (f->glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        e->w = e->h = 0;
+        return 0;
+      }
+      e->w = texSize.width();
+      e->h = texSize.height();
+    }
+    return e->fbo;
+  }
+
+  // The producer gave up: tell it (consumers fall back to readback frames), release it, free the display objects.
+  void dropDisplay(const QString& why) {
+    if (display) {
+      display->fail(why);
+      display->release(true);
+    }
+    releaseDisplayGl();
+    display.reset();
+    qCWarning(lcHw).noquote() << QStringLiteral("Display target dropped (%1); the game view uses readback frames").arg(why);
+  }
+
+  // The target says zero-copy display is not applicable here (it reports that itself): release, forget, no warning.
+  void releaseDisplayQuietly() {
+    if (display) display->release(true);
+    releaseDisplayGl();
+    display.reset();
+    qCInfo(lcHw) << "Display target not applicable; the game view uses readback frames";
   }
 
   bool allocate(int nw, int nh) {
@@ -466,6 +536,11 @@ void HwRenderContext::destroyContext() {
     d->detachTarget(current);
     if (current) d->releaseEncode();
     d->target.reset();
+    // Then the display target (ADR 0027): its registrations are released while GL is alive (or leaked without it), and
+    // only then do the GL objects of this class go.
+    if (d->display) d->display->release(current);
+    if (current) d->releaseDisplayGl();
+    d->display.reset();
     if (current) {
       d->releasePbos();
       d->releaseScaled();
@@ -484,6 +559,10 @@ void HwRenderContext::destroyContext() {
   d->encFbo = d->encTex = 0;
   d->encW = d->encH = 0;
   d->encLevels.clear();
+  d->displayFbos.clear();
+  d->displayLevels.clear();
+  d->display.reset();
+  d->displayBlits = 0;
   d->attached = d->hasFrame = d->pending = false;
   d->scaleFailed = false;
   d->w = d->h = 0;
@@ -557,6 +636,10 @@ QString HwRenderContext::describeGpu(const QString& glRenderer, const QString& g
 }
 
 bool HwRenderContext::asyncReadback() const { return d->async; }
+
+void HwRenderContext::discardReadback() {
+  for (Impl::Slot& s : d->pboSlots) s.w = s.h = 0;
+}
 
 QSize HwRenderContext::scaledReadbackSize(int w, int h, const QSize& maxSize) {
   if (w <= 0 || h <= 0 || maxSize.width() <= 0 || maxSize.height() <= 0) return QSize(w, h);
@@ -696,6 +779,63 @@ bool HwRenderContext::captureEncode() {
     d->dropTarget(QStringLiteral("capture failed"));
     return false;
   }
+  return true;
+}
+
+// ---------------------------------------------------------------- Zero-copy display (ADR 0027)
+
+void HwRenderContext::setDisplayTarget(std::shared_ptr<GpuDisplayTarget> target) {
+  if (target == d->display) return;
+  if (d->display) d->display->release(true);  // before the objects it registered are gone
+  d->releaseDisplayGl();
+  d->display = std::move(target);  // the old target may end here (last reference)
+}
+
+bool HwRenderContext::hasDisplayTarget() const { return d->display != nullptr; }
+
+void HwRenderContext::dropDisplayTarget(const QString& why) {
+  if (d->display) d->dropDisplay(why);
+}
+
+quint64 HwRenderContext::displayBlitCount() const { return d->displayBlits; }
+
+bool HwRenderContext::displayBlit(int w, int h, bool bottomLeftOrigin, const QSize& maxSize) {
+  if (!d->ctx || !d->display || !d->display->wanted() || w <= 0 || h <= 0 || w > d->w || h > d->h) return false;
+  const QSize ds = scaledReadbackSize(w, h, maxSize);  // no rounding to even: nothing encodes this
+  unsigned name = 0;
+  QSize texSize;
+  switch (d->display->acquire(ds.width(), ds.height(), &name, &texSize)) {
+    case GpuDisplayTarget::Acquire::Skip:      // no free slot this frame
+    case GpuDisplayTarget::Acquire::NotReady:  // still being set up; the readback keeps the game view alive
+      return false;
+    case GpuDisplayTarget::Acquire::Unavailable:
+      d->releaseDisplayQuietly();
+      return false;
+    case GpuDisplayTarget::Acquire::Failed:
+      d->dropDisplay(QStringLiteral("acquire failed"));
+      return false;
+    case GpuDisplayTarget::Acquire::Ok:
+      break;
+  }
+  bool ok = false;
+  {
+    BindingGuard guard(d->f);
+    drainGlErrors(d->f);
+    const GLuint dst = texSize.width() >= ds.width() && texSize.height() >= ds.height() ? d->displayFboFor(name, texSize) : 0;
+    ok = dst != 0 && d->blitChain(d->displayLevels, w, h, halvingSteps(w, h, ds), ds.width(), ds.height(), bottomLeftOrigin, dst);
+    if (dst != 0) {  // do not keep the target's (possibly soon retired) texture attached to the cached FBO
+      d->f->glBindFramebuffer(GL_FRAMEBUFFER, dst);
+      d->f->glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
+    }
+  }
+  if (!ok) {
+    d->display->abort();
+    d->dropDisplay(QStringLiteral("blit failed"));
+    return false;
+  }
+  d->f->glFlush();  // the consumer reads the texture on another thread/API: the commands must be on their way
+  d->display->present(ds.width(), ds.height());
+  ++d->displayBlits;
   return true;
 }
 

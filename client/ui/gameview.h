@@ -8,6 +8,8 @@
 #include <QtQml/qqmlregistration.h>
 #include <QtQuick/QQuickItem>
 
+class QSGTexture;
+
 #include "gamesession.h"
 #include "screenlayout.h"
 
@@ -62,12 +64,16 @@ class GameView : public QQuickItem {
   void updateFrameRect();
   void reportSize();  // physical pixels the frame needs here -> GameSession readback limit
   bool splitDrawing() const;  // screens are redrawn individually (side by side, top only, or a non-stacked source)
+  // Render thread: the node tree drawing `tex` (zero-copy display, the image of size `content` in its top-left corner).
+  QSGNode* paintGpu(QSGNode* old, QSGTexture* tex, const QSize& content, qreal dpr);
   void touch(const QPointF& pos, bool press, bool clamp);
 
   QPointer<GameSession> session_;
   QImage frame_;
+  QSize lastFrameSize_;  // size of the last non-null frame (the frame size while the session has dropped its image)
   bool frameDirty_ = false;
   bool integerScale_ = true;
+  bool lastGpu_ = false;   // the node tree was last built from the GPU texture (render thread)
   bool lastDown_ = false;  // the single-node texture was last created for a downscaled draw (filtered + mipmapped)
   bool touching_ = false;
   QRectF frameRect_;

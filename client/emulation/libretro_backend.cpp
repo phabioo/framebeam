@@ -172,6 +172,9 @@ bool LibretroBackend::loadCore(const QString& libraryPath, QString* error) {
   m_lastReadbackNs = 0;
   m_lastGpuCopyNs = 0;
   m_lastGpuCaptured = false;
+  m_lastDisplayNs = 0;
+  m_lastDisplayed = false;
+  m_readbackWasEnabled = true;
   {
     QMutexLocker l(&m_renderMutex);
     m_render = RenderInfo{};
@@ -425,6 +428,8 @@ bool LibretroBackend::runFrame() {
   m_lastReadbackNs = 0;  // only frames that really read back count; a skipped frame must not repeat the last value
   m_lastGpuCopyNs = 0;
   m_lastGpuCaptured = false;
+  m_lastDisplayNs = 0;
+  m_lastDisplayed = false;
   if (m_hwActive && !m_hw->makeCurrent()) return false;
   if (m_hwActive) {
     applyTargetChange();
@@ -454,6 +459,16 @@ quint64 LibretroBackend::frameCount() const { return m_frameCount; }
 
 double LibretroBackend::lastReadbackMs() const { return static_cast<double>(m_lastReadbackNs.load()) / 1e6; }
 double LibretroBackend::lastGpuCopyMs() const { return static_cast<double>(m_lastGpuCopyNs.load()) / 1e6; }
+double LibretroBackend::lastDisplayMs() const { return static_cast<double>(m_lastDisplayNs.load()) / 1e6; }
+
+void LibretroBackend::setGpuDisplayTarget(std::shared_ptr<GpuDisplayTarget> target) {
+  {
+    QMutexLocker l(&m_targetMutex);
+    m_nextDisplay.swap(target);
+    m_displayChanged.store(true);
+  }
+  // `target` now holds the replaced one (if the emulation thread has not taken it yet), released outside the lock.
+}
 
 void LibretroBackend::setGpuEncodeTarget(std::shared_ptr<GpuEncodeTarget> target) {
   {
@@ -466,15 +481,26 @@ void LibretroBackend::setGpuEncodeTarget(std::shared_ptr<GpuEncodeTarget> target
 }
 
 void LibretroBackend::applyTargetChange() {
-  if (!m_targetChanged.load()) return;
-  std::shared_ptr<GpuEncodeTarget> next;
-  {
-    QMutexLocker l(&m_targetMutex);
-    next = std::move(m_nextTarget);
-    m_nextTarget.reset();
-    m_targetChanged.store(false);  // under the lock: a setter running meanwhile is never lost
+  if (m_targetChanged.load()) {
+    std::shared_ptr<GpuEncodeTarget> next;
+    {
+      QMutexLocker l(&m_targetMutex);
+      next = std::move(m_nextTarget);
+      m_nextTarget.reset();
+      m_targetChanged.store(false);  // under the lock: a setter running meanwhile is never lost
+    }
+    m_hw->setEncodeTarget(std::move(next));
   }
-  m_hw->setEncodeTarget(std::move(next));
+  if (m_displayChanged.load()) {
+    std::shared_ptr<GpuDisplayTarget> next;
+    {
+      QMutexLocker l(&m_targetMutex);
+      next = std::move(m_nextDisplay);
+      m_nextDisplay.reset();
+      m_displayChanged.store(false);
+    }
+    m_hw->setDisplayTarget(std::move(next));
+  }
 }
 
 RenderInfo LibretroBackend::renderInfo() const {
@@ -738,13 +764,24 @@ void LibretroBackend::handleVideo(const void* data, unsigned width, unsigned hei
     return;
   }
   if (data == RETRO_HW_FRAME_BUFFER_VALID && m_hwActive && width != 0 && height != 0) {
-    const auto t0 = std::chrono::steady_clock::now();
-    m_sourceSize.store(pack(QSize(static_cast<int>(width), static_cast<int>(height))));
-    const QImage img = m_hw->readback(static_cast<int>(width), static_cast<int>(height), m_hwBottomLeft,
-                                      unpack(m_readbackLimit.load()));
-    m_lastReadbackNs = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - t0).count();
-    ++m_hwReadbacks;
-    if (!img.isNull()) m_frame = img;
+    m_sourceSize.store(pack(QSize(static_cast<int>(width), static_cast<int>(height))));  // also without readback
+    if (m_hw->hasDisplayTarget()) {  // zero-copy display (ADR 0027): right after the core frame, independent of readback
+      const auto t2 = std::chrono::steady_clock::now();
+      m_lastDisplayed = m_hw->displayBlit(static_cast<int>(width), static_cast<int>(height), m_hwBottomLeft,
+                                          unpack(m_displayLimit.load()));
+      m_lastDisplayNs = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - t2).count();
+    }
+    const bool readbackOn = m_readbackEnabled.load();
+    if (readbackOn) {
+      if (!m_readbackWasEnabled) m_hw->discardReadback();  // switched on again: no frame from before the pause
+      const auto t0 = std::chrono::steady_clock::now();
+      const QImage img = m_hw->readback(static_cast<int>(width), static_cast<int>(height), m_hwBottomLeft,
+                                        unpack(m_readbackLimit.load()));
+      m_lastReadbackNs = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - t0).count();
+      ++m_hwReadbacks;
+      if (!img.isNull()) m_frame = img;
+    }
+    m_readbackWasEnabled = readbackOn;
     ++m_frameCount;
     if (m_hw->hasEncodeTarget()) {  // Session encode texture (ADR 0019); captured at the start of the next runFrame
       const auto t1 = std::chrono::steady_clock::now();
@@ -758,6 +795,7 @@ void LibretroBackend::handleVideo(const void* data, unsigned width, unsigned hei
     if (m_hwActive) m_hw->encodeRepeat();  // the Session still gets one frame per displayed frame
     return;
   }
+  if (m_hwActive && m_hw->hasDisplayTarget()) m_hw->dropDisplayTarget(QStringLiteral("software frame"));  // the stale GPU slot must not win
   m_sourceSize.store(pack(QSize(static_cast<int>(width), static_cast<int>(height))));
   QImage img(static_cast<int>(width), static_cast<int>(height), QImage::Format_RGB32);
   const auto* src = static_cast<const uchar*>(data);

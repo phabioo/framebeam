@@ -19,6 +19,8 @@
 #include <memory>
 
 #include "audiooutput.h"
+#include "d3d11glbridge.h"
+#include "gpudisplaybridge.h"
 #include "emulation_runner.h"
 #include "inputmapping.h"
 #include "system_manifest.h"
@@ -36,7 +38,7 @@ struct EmulationDiagnostics {
   QString gpu;                   // "Example GPU · Driver 1.2.3" while hwActive
   QString fallbackReason;        // hardware requested but software runs: why (emu::kFallback*)
   QSize frameSize;               // size of the frame the core renders (all screens), before any readback downscale
-  QSize readbackSize;            // size actually read back from the GPU when smaller than frameSize (else empty)
+  QSize readbackSize;            // size actually read back from the GPU when smaller than frameSize (else empty); empty while no readback runs
   QSize baseSize;                // size of the frame at 1x (system manifest)
   int screens = 0;
   int requestedScale = 0;        // internal resolution the core option asks for (0 = no such option)
@@ -49,6 +51,10 @@ struct EmulationDiagnostics {
   double readbacksPerSec = 0;    // frames per second that were actually read back (skipped/unseen frames are not)
   double gpuCopyMs = 0;          // ... of which the Session encode texture (GPU-direct encoding, ADR 0019), mean over all frames
   double gpuCopiesPerSec = 0;    // frames per second that handed a frame to the Session encoder (0 without GPU-direct)
+  double displayMs = 0;          // ... of which the zero-copy display blit (ADR 0027), mean over all frames (0 without)
+  double displaysPerSec = 0;     // frames per second presented to the zero-copy display
+  QSize displaySize;             // size of those frames when the zero-copy display is active and differs from frameSize
+  bool zeroCopy = false;         // the game view shows GPU textures (display state Active)
   QVector<float> totalHistory;   // last 5 s, ms per frame
   QVector<float> emuHistory;
   bool audioActive = false;      // an audio output device is open
@@ -146,6 +152,19 @@ class GameSession : public QObject {
   // none. Stored like the readback limit and handed to every runner this session creates (start() and the live-save
   // restart), so a restart re-attaches it. teardown() leaves it detached: unloading the game detaches it with GL current.
   void setGpuEncodeTarget(std::shared_ptr<emu::GpuEncodeTarget> target);
+  // Zero-copy display (ADR 0027): the platform display of the running game (makePlatformDisplay at every game launch; a
+  // live-save restart keeps a failed/unavailable one, else makes a new one for the new GL context). The state decides the
+  // readback (planReadback); a Pending/Active one hands the GameViews their texture source.
+  DisplayTextureSource* displaySource() const;  // render thread (GUI thread blocked in updatePaintNode); null unless Pending/Active
+  void confirmDisplayShown();                   // render thread: a GameView drew the GPU texture
+  GpuDisplayBridge::State displayState() const;  // Unavailable without a platform display
+  QString displayReason() const;
+  // The GL-D3D11 bridge of the display (real platform factory only; null otherwise, after the display went away, and on
+  // non-Windows). Shared with the D3D11 encode capture (ADR 0027 D6). Set by setupDisplay() before the runner starts.
+  std::shared_ptr<GlD3d11Bridge> displayBridge() const;
+  bool displayReadbackEnabled() const { return readbackOn_; }
+  // Tests: replaces makePlatformDisplay() for the next game launches (empty function = the real one).
+  static void setPlatformDisplayFactoryForTests(std::function<PlatformDisplay(QString*)> factory);
   // The game runs on an OpenGL context (a software core, a preview or no game: false).
   bool hardwareRendered() const;
 
@@ -191,6 +210,7 @@ class GameSession : public QObject {
 
  signals:
   void stateChanged();
+  void displayStateChanged();            // zero-copy display state changed (readback plan re-applied)
   void fastForwardChanged();
   void titleChanged();
   void errorChanged();
@@ -213,6 +233,8 @@ class GameSession : public QObject {
   void teardown();
   void applyJoypad();
   void updateReadbackLimit();
+  void setupDisplay(bool restart);
+  void onDisplayStateChanged();
 
   std::unique_ptr<emu::EmulationRunner> runner_;
   AudioOutput audio_;
@@ -226,6 +248,10 @@ class GameSession : public QObject {
   QSize shareSize_;
   QSize limit_;
   std::shared_ptr<emu::GpuEncodeTarget> gpuTarget_;
+  std::shared_ptr<GpuDisplayBridge> gpuDisplay_;  // per game launch; null without a platform display
+  std::weak_ptr<GlD3d11Bridge> displayBridge_;     // the display's bridge, owned by gpuDisplay_
+  QSize displayLimit_;
+  bool readbackOn_ = true;
   QImage frame_;
   quint64 frameNr_ = 0;
   qint64 frameLateNs_ = 0;

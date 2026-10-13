@@ -5,7 +5,8 @@
 //  - prepareSurface() runs on the GUI thread (QOffscreenSurface must be created there);
 //  - createContext()/makeCurrent()/readback()/destroyContext() run on the emulation thread.
 // The context is NOT shared with Qt Quick; each hardware frame is read back into an XRGB8888 QImage. An optional
-// GpuEncodeTarget additionally receives the Session frame as a GL texture (setEncodeTarget, ADR 0019).
+// GpuEncodeTarget additionally receives the Session frame as a GL texture (setEncodeTarget, ADR 0019), and an optional
+// GpuDisplayTarget the game view's frame as a texture it owns (setDisplayTarget, zero-copy display, ADR 0027).
 
 #include <QImage>
 #include <QSize>
@@ -13,6 +14,7 @@
 
 #include <memory>
 
+#include "gpu_display_target.h"
 #include "gpu_encode_target.h"
 
 namespace framebeam::emu {
@@ -70,6 +72,9 @@ class HwRenderContext {
   // Size readback() uses for a w x h frame under maxSize (pure; no upscaling, aspect kept, never above maxSize).
   static QSize scaledReadbackSize(int w, int h, const QSize& maxSize);
   bool asyncReadback() const;  // PBO path currently in use
+  // Forgets the frame the asynchronous readback still holds (e.g. while the readback is switched off), so the next
+  // readback() returns its own current frame instead of an old one. Emulation thread, context current.
+  void discardReadback();
 
   // Session encoding from the GPU (ADR 0019). Emulation thread, context current. With a target set, each hardware frame
   // is also scaled into a separate GL_RGBA8 encode texture, which the target copies out at the start of the next frame;
@@ -89,6 +94,23 @@ class HwRenderContext {
   QSize encodeSize() const;  // current encode texture size (tests, logs); empty without one
   // Encode texture size for a w x h frame: scaledReadbackSize(), then rounded down to even, at least 2 x 2.
   static QSize encodeSizeFor(int w, int h, const QSize& maxSize);
+
+  // Zero-copy display (ADR 0027). Emulation thread, context current. With a target set, each hardware frame is also
+  // scaled (aspect kept, never upscaled, within the display limit) into a texture the target hands out, independent of
+  // readback(). Without a target none of this costs a GL call.
+  //
+  // Replaces the target: the old one is released (release(true)) and the display GL objects are freed (nullptr = none).
+  void setDisplayTarget(std::shared_ptr<GpuDisplayTarget> target);
+  bool hasDisplayTarget() const;
+  // Right after the core frame: target->acquire(), blits the w x h frame (flipped when bottomLeftOrigin) into the
+  // top-left region of the returned texture, glFlush(), present(). true = a frame was presented. Skip/NotReady: nothing
+  // happens. Unavailable: the target is released quietly. Failed or a failed blit: abort() where needed, the target is
+  // told fail() and forgotten. Never waits for the GPU.
+  bool displayBlit(int w, int h, bool bottomLeftOrigin, const QSize& maxSize);
+  // The target cannot show the frames any more (e.g. the core delivers CPU frames): fail() + release() it and forget it,
+  // the game view falls back to readback frames. No-op without a target.
+  void dropDisplayTarget(const QString& why);
+  quint64 displayBlitCount() const;  // frames presented so far (tests, diagnostics)
 
  private:
   struct Impl;

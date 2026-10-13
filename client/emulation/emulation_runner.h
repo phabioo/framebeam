@@ -83,6 +83,11 @@ class EmulationRunner : public QObject {
   // Session encoding from the GPU (ADR 0019; thread-safe): hands the backend a target for the Session encode texture,
   // applied by the emulation thread at the start of its next frame. nullptr removes it. See EmulatorBackend.
   void setGpuEncodeTarget(std::shared_ptr<GpuEncodeTarget> target) { m_backend->setGpuEncodeTarget(std::move(target)); }
+  // Zero-copy display (ADR 0027; thread-safe). See EmulatorBackend. The display limit is the largest size of the display
+  // blit; readback off keeps the last image while the display target shows every frame.
+  void setGpuDisplayTarget(std::shared_ptr<GpuDisplayTarget> target) { m_backend->setGpuDisplayTarget(std::move(target)); }
+  void setDisplayLimit(const QSize& maxSize) { m_backend->setDisplayLimit(maxSize); }
+  void setReadbackEnabled(bool on) { m_backend->setReadbackEnabled(on); }
   bool setCoreOption(const QString& key, const QString& value);
   QList<CoreOption> coreOptions() const;
   QList<CoreOptionCategory> coreOptionCategories() const;
