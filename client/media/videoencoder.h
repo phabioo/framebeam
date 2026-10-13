@@ -1,5 +1,8 @@
 #pragma once
 
+#include <QList>
+#include <QPair>
+#include <QSize>
 #include <QString>
 #include <QStringList>
 #include <atomic>
@@ -44,14 +47,32 @@ class VideoEncoder {
   // FFmpeg can feed h264_nvenc with CUDA frames: avcodec_get_hw_config lists AV_PIX_FMT_CUDA with
   // AV_CODEC_HW_CONFIG_METHOD_HW_FRAMES_CTX, and av_hwdevice_iterate_types includes AV_HWDEVICE_TYPE_CUDA.
   static bool cudaInputSupported();
+  // Likewise h264_amf with AV_PIX_FMT_D3D11 frames (FFmpeg built with D3D11VA) and h264_qsv with AV_PIX_FMT_QSV frames
+  // (FFmpeg built with libvpl). Cached.
+  static bool amfInputSupported();
+  static bool qsvInputSupported();
   // `order` (empty = preferredEncoders()) without h264_nvenc when cudaDead; unchanged if that would leave it empty.
   static QStringList effectiveOrder(const QStringList& order, bool cudaDead);
 
   // Opens the first encoder of `order` (empty: preferredEncoders()) that works. False if none opens.
   bool open(int width, int height, int fps = 60, int bitrate = 2'000'000, const QStringList& order = {});
-  // Opens h264_nvenc for AV_PIX_FMT_CUDA frames of `framesCtx` (sw_format RGB0, even size 16..8192). No other encoder
-  // is tried. *why: the reason when false.
-  bool openGpu(AVBufferRef* framesCtx, int fps, int bitrate, QString* why = nullptr);
+  // GPU-direct encoders by frames context (ADR 0019, ADR 0027 D6). Pure; `hwFormat`/`swFormat` are AVPixelFormat values.
+  //   AV_PIX_FMT_CUDA / RGB0   -> h264_nvenc ("CUDA frames")
+  //   AV_PIX_FMT_D3D11 / BGRA  -> h264_amf   ("D3D11 frames"), colorspace SMPTE170M, color_range MPEG
+  //   AV_PIX_FMT_QSV   / NV12  -> h264_qsv   ("QSV frames")
+  // encoder is empty for any other combination.
+  struct GpuEncoderSpec {
+    QString encoder;
+    QString framesLabel;                      // CUDA, D3D11 or QSV (log text)
+    QList<QPair<QString, QString>> options;  // private AVOptions, applied in order
+    int colorSpace = -1;                      // AVColorSpace of the codec context, -1 = leave unspecified
+    int colorRange = -1;                      // AVColorRange, -1 = leave unspecified
+  };
+  static GpuEncoderSpec gpuEncoderSpec(int hwFormat, int swFormat);
+  // Opens the encoder gpuEncoderSpec() names for the frames of `framesCtx` (even size 16..8192). No other encoder is
+  // tried. `visible`: the picture size when it is smaller than the frames (QSV frames are 16-aligned; the encoder crops to
+  // it), else the frames size. *why: the reason when false.
+  bool openGpu(AVBufferRef* framesCtx, int fps, int bitrate, QString* why = nullptr, const QSize& visible = QSize());
   void close();
   bool isOpen() const { return ctx_ != nullptr; }
   QString name() const { return name_; }

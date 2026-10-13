@@ -14,9 +14,11 @@
 #include <QtTest>
 
 #include <atomic>
+#include <functional>
 #include <memory>
 
 #include "emulation_runner.h"
+#include "fake_gl_display.h"
 #include "hw_render.h"
 #include "libretro_backend.h"
 
@@ -191,6 +193,33 @@ class FakeTarget : public GpuEncodeTarget {
   int captures_ = 0;
 };
 }  // namespace
+
+// GpuDisplayTarget double (ADR 0027) around the shared GL fake of testutil/fake_gl_display.h.
+class FakeDisplay : public GpuDisplayTarget {
+ public:
+  fbtest::FakeGlDisplay gl;
+  std::function<void()> onRelease;  // called inside release(), before the fake frees its texture
+
+  static Acquire map(fbtest::FakeGlDisplay::Status s) {
+    switch (s) {
+      case fbtest::FakeGlDisplay::Status::Ok: return Acquire::Ok;
+      case fbtest::FakeGlDisplay::Status::Skip: return Acquire::Skip;
+      case fbtest::FakeGlDisplay::Status::NotReady: return Acquire::NotReady;
+      case fbtest::FakeGlDisplay::Status::Unavailable: return Acquire::Unavailable;
+      case fbtest::FakeGlDisplay::Status::Failed: return Acquire::Failed;
+    }
+    return Acquire::Failed;
+  }
+  bool wanted() const override { return gl.isWanted.load(); }
+  Acquire acquire(int w, int h, unsigned* tex, QSize* texSize) override { return map(gl.acquire(w, h, tex, texSize)); }
+  void present(int w, int h) override { gl.present(w, h); }
+  void abort() override { gl.abort(); }
+  void release(bool glCurrent) override {
+    if (onRelease) onRelease();
+    gl.release(glCurrent);
+  }
+  void fail(const QString& reason) override { gl.fail(reason); }
+};
 
 class HwRenderTest : public QObject {
   Q_OBJECT
@@ -1286,6 +1315,396 @@ class HwRenderTest : public QObject {
     QVERIFY(!hw.hasEncodeTarget());
     QCOMPARE(t.use_count(), 1);
     QVERIFY(t->violations().isEmpty());
+  }
+
+  // ---------------------------------------------------------------- zero-copy display (ADR 0027)
+
+  // The display texture holds the same image as a 1:1 readback: orientation, colours and the top-left placement inside the
+  // larger texture. FRAMEBEAM_SYNC_READBACK makes the readback the current frame, so the whole image can be compared.
+  void displayTextureIsTopDownAndMatchesReadback_data() {
+    QTest::addColumn<bool>("bottomLeft");
+    QTest::newRow("bottom-left core") << true;
+    QTest::newRow("top-left core") << false;
+  }
+
+  void displayTextureIsTopDownAndMatchesReadback() {
+    QFETCH(bool, bottomLeft);
+    qputenv("FB_FAKE_HW_BOTTOM_LEFT", bottomLeft ? "1" : "0");
+    qputenv("FRAMEBEAM_SYNC_READBACK", "1");
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    qunsetenv("FB_FAKE_HW_BOTTOM_LEFT");
+    qunsetenv("FRAMEBEAM_SYNC_READBACK");
+    QCOMPARE(be.lastDisplayMs(), 0.0);
+    QVERIFY(!be.lastDisplayed());
+    auto t = std::make_shared<FakeDisplay>();
+    be.setGpuDisplayTarget(t);
+    QVERIFY(be.runFrame());
+    QVERIFY(be.lastDisplayed());
+    QVERIFY(be.lastDisplayMs() > 0.0 && be.lastDisplayMs() < 1000.0);
+    QVERIFY(be.runFrame());
+    QCOMPARE(t->gl.calls(), (QStringList{QStringLiteral("acquire"), QStringLiteral("present"), QStringLiteral("acquire"),
+                                         QStringLiteral("present")}));
+    QVERIFY2(t->gl.violations().isEmpty(), qPrintable(t->gl.violations().join(QLatin1Char(';'))));
+    const auto presents = t->gl.presents();
+    QCOMPARE(presents.size(), 2);
+    QCOMPARE(presents.at(1).size, QSize(64, 48));
+    QCOMPARE(t->gl.requests().last(), QSize(64, 48));
+    QVERIFY(presents.at(1).texSize.width() > 64 && presents.at(1).texSize.height() > 48);  // top-left of a larger texture
+    if (bottomLeft) {
+      checkPattern(presents.at(1).image, 64, 48);
+    } else {
+      QCOMPARE(px(presents.at(1).image, 2, 2), qRgb(255, 0, 0));
+      QCOMPARE(px(presents.at(1).image, 61, 45), qRgb(0, 255, 0));
+    }
+    QCOMPARE(presents.at(1).image, be.videoFrame());  // pixel for pixel what the readback shows
+    QCOMPARE(be.sourceFrameSize(), QSize(64, 48));
+    QCOMPARE(be.hwReadbackCount(), quint64(2));       // the readback is independent and unchanged
+  }
+
+  void displayScalesIntoTheLimitAndGrowsTheTexture() {
+    qputenv("FB_FAKE_HW_SCALE", "4");  // 256x192, the core leaves GL_SCISSOR_TEST enabled
+    qputenv("FRAMEBEAM_SYNC_READBACK", "1");
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    qunsetenv("FB_FAKE_HW_SCALE");
+    qunsetenv("FRAMEBEAM_SYNC_READBACK");
+    auto t = std::make_shared<FakeDisplay>();
+    be.setGpuDisplayTarget(t);
+    be.setDisplayLimit(QSize(64, 48));
+    be.setReadbackLimit(QSize(64, 48));
+    QVERIFY(!runFrames(be, 2).isNull());
+    QCOMPARE(t->gl.presents().last().size, QSize(64, 48));
+    checkPattern(t->gl.presents().last().image, 64, 48);
+    QCOMPARE(t->gl.presents().last().image, be.videoFrame());
+    be.setDisplayLimit(QSize(128, 96));  // changes mid-run: a bigger texture object, the cached FBO must follow
+    be.setReadbackLimit(QSize(128, 96));
+    QVERIFY(!runFrames(be, 2).isNull());
+    QCOMPARE(t->gl.presents().last().size, QSize(128, 96));
+    checkPattern(t->gl.presents().last().image, 128, 96);
+    QCOMPARE(t->gl.presents().last().image, be.videoFrame());
+    be.setDisplayLimit(QSize(100, 100));  // aspect kept, never above the limit: 100x75
+    QVERIFY(!runFrames(be, 2).isNull());
+    QCOMPARE(t->gl.presents().last().size, QSize(100, 75));
+    checkPattern(t->gl.presents().last().image, 100, 75);
+    be.setDisplayLimit(QSize());          // no limit: the full frame, no rounding to even either
+    QVERIFY(!runFrames(be, 2).isNull());
+    QCOMPARE(t->gl.presents().last().size, QSize(256, 192));
+    checkPattern(t->gl.presents().last().image, 256, 192);
+    QVERIFY(t->gl.textures() >= 2);
+    QVERIFY2(t->gl.violations().isEmpty(), qPrintable(t->gl.violations().join(QLatin1Char(';'))));
+    QCOMPARE(t->gl.count(QStringLiteral("abort")), 0);
+    QCOMPARE(t->gl.count(QStringLiteral("fail")), 0);
+    QCOMPARE(t->gl.count(QStringLiteral("acquire")), t->gl.count(QStringLiteral("present")));
+    QCOMPARE(HwRenderContext::scaledReadbackSize(256, 192, QSize(100, 100)), QSize(100, 75));
+  }
+
+  void displaySkipAndNotReadyDrawNothing_data() {
+    QTest::addColumn<int>("status");
+    QTest::newRow("skip") << static_cast<int>(fbtest::FakeGlDisplay::Status::Skip);
+    QTest::newRow("not ready") << static_cast<int>(fbtest::FakeGlDisplay::Status::NotReady);
+  }
+
+  void displaySkipAndNotReadyDrawNothing() {
+    QFETCH(int, status);
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    auto t = std::make_shared<FakeDisplay>();
+    t->gl.nextStatus = status;
+    be.setGpuDisplayTarget(t);
+    QTest::failOnWarning(QRegularExpression(QStringLiteral("Display target")));
+    QVERIFY(!runFrames(be, 3).isNull());
+    QCOMPARE(t->gl.count(QStringLiteral("acquire")), 3);  // asked again every frame
+    QCOMPARE(t->gl.count(QStringLiteral("present")), 0);
+    QCOMPARE(t->gl.count(QStringLiteral("fail")), 0);
+    QCOMPARE(t->gl.count(QStringLiteral("release")), 0);  // not dropped
+    QVERIFY(!be.lastDisplayed());
+    t->gl.nextStatus = static_cast<int>(fbtest::FakeGlDisplay::Status::Ok);
+    QVERIFY(be.runFrame());
+    QVERIFY(be.lastDisplayed());
+    QCOMPARE(t->gl.count(QStringLiteral("present")), 1);
+    QVERIFY(t->gl.violations().isEmpty());
+  }
+
+  void displayUnavailableIsReleasedQuietly() {
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    auto t = std::make_shared<FakeDisplay>();
+    t->gl.nextStatus = static_cast<int>(fbtest::FakeGlDisplay::Status::Unavailable);
+    be.setGpuDisplayTarget(t);
+    QTest::failOnWarning(QRegularExpression(QStringLiteral("Display target")));  // at most an info line
+    QVERIFY(!runFrames(be, 4).isNull());
+    QCOMPARE(t->gl.calls(), (QStringList{QStringLiteral("acquire (unavailable)"), QStringLiteral("release (GL current)")}));
+    QCOMPARE(t->gl.count(QStringLiteral("fail")), 0);  // it reports Unavailable itself
+    QCOMPARE(t.use_count(), 1);                         // forgotten
+    checkPattern(be.videoFrame(), 64, 48);               // the game view keeps its readback frames
+  }
+
+  void displayFailureDropsTheTarget_data() {
+    QTest::addColumn<bool>("acquireFails");
+    QTest::addColumn<QString>("reason");
+    QTest::addColumn<QStringList>("expectedCalls");
+    QTest::newRow("acquire failed") << true << QStringLiteral("acquire failed")
+                                    << QStringList{QStringLiteral("acquire (failed)"), QStringLiteral("fail"),
+                                                   QStringLiteral("release (GL current)")};
+    // The texture it hands out is unusable for the blit: the lock is given back with abort(), nothing is published.
+    QTest::newRow("blit failed") << false << QStringLiteral("blit failed")
+                                 << QStringList{QStringLiteral("acquire"), QStringLiteral("abort"), QStringLiteral("fail"),
+                                                QStringLiteral("release (GL current)")};
+  }
+
+  void displayFailureDropsTheTarget() {
+    QFETCH(bool, acquireFails);
+    QFETCH(QString, reason);
+    QFETCH(QStringList, expectedCalls);
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    auto t = std::make_shared<FakeDisplay>();
+    if (acquireFails) t->gl.nextStatus = static_cast<int>(fbtest::FakeGlDisplay::Status::Failed);
+    else t->gl.lieAboutSize = true;
+    be.setGpuDisplayTarget(t);
+    QTest::ignoreMessage(QtWarningMsg, qPrintable(QStringLiteral("Display target dropped (%1); the game view uses readback frames").arg(reason)));
+    QVERIFY(!runFrames(be, 3).isNull());
+    QCOMPARE(t->gl.calls(), expectedCalls);
+    QCOMPARE(t->gl.failReason(), reason);
+    QVERIFY(t->gl.violations().isEmpty());
+    QVERIFY(!be.lastDisplayed());
+    QCOMPARE(t.use_count(), 1);
+    QCOMPARE(runFrames(be, 3).size(), QSize(64, 48));  // the game goes on, with readback frames
+    QCOMPARE(t->gl.calls(), expectedCalls);             // and the target is not called any more
+    checkPattern(be.videoFrame(), 64, 48);
+  }
+
+  void displayNotWantedDoesNothing() {
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    auto t = std::make_shared<FakeDisplay>();
+    t->gl.isWanted = false;
+    be.setGpuDisplayTarget(t);
+    QVERIFY(!runFrames(be, 3).isNull());
+    QVERIFY(t->gl.calls().isEmpty());
+    QVERIFY(!be.lastDisplayed());
+    t->gl.isWanted = true;
+    QVERIFY(be.runFrame());
+    QCOMPARE(t->gl.count(QStringLiteral("present")), 1);
+  }
+
+  void displayNotRunWhileVideoIsNotWanted() {
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    auto t = std::make_shared<FakeDisplay>();
+    be.setGpuDisplayTarget(t);
+    QVERIFY(be.runFrame());
+    be.setVideoWanted(false);
+    QVERIFY(be.runFrame());
+    QVERIFY(be.runFrame());
+    QCOMPARE(t->gl.count(QStringLiteral("present")), 1);  // frames nobody sees are not blitted either
+    QCOMPARE(be.lastDisplayMs(), 0.0);
+  }
+
+  void readbackCanBeSwitchedOffAndOn() {
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    auto t = std::make_shared<FakeDisplay>();
+    be.setGpuDisplayTarget(t);
+    be.setReadbackEnabled(false);  // from the very first frame
+    QVERIFY(be.sourceFrameSize().isEmpty());
+    QVERIFY(be.runFrame());
+    QCOMPARE(be.sourceFrameSize(), QSize(64, 48));  // known without any readback
+    QVERIFY(be.videoFrame().isNull());              // nothing was ever read back
+    QCOMPARE(be.hwReadbackCount(), quint64(0));
+    QCOMPARE(be.lastReadbackMs(), 0.0);
+    QVERIFY(be.lastDisplayed());
+    QVERIFY(!runFrames(be, 5).isNull() || be.videoFrame().isNull());
+    QCOMPARE(be.frameCount(), quint64(6));          // frames still count as delivered
+    QCOMPARE(be.hwReadbackCount(), quint64(0));
+    QCOMPARE(t->gl.count(QStringLiteral("present")), 6);
+    be.setReadbackEnabled(true);
+    QVERIFY(be.runFrame());
+    QCOMPARE(be.hwReadbackCount(), quint64(1));
+    QVERIFY(be.lastReadbackMs() > 0.0);
+    // The first readback after the pause is the CURRENT frame, not one from before (the PBO pipeline was reset).
+    const int presented = counterOf(t->gl.lastImage());
+    QCOMPARE(counterOf(be.videoFrame()), presented);
+    QVERIFY(be.runFrame());
+    QCOMPARE(be.hwReadbackCount(), quint64(2));
+    checkPattern(be.videoFrame(), 64, 48);
+    be.setReadbackEnabled(false);
+    const QImage kept = be.videoFrame();
+    QVERIFY(be.runFrame());
+    QCOMPARE(be.videoFrame(), kept);                // off again: the last image stays
+    QCOMPARE(be.hwReadbackCount(), quint64(2));
+    QVERIFY(t->gl.violations().isEmpty());
+  }
+
+  void readbackOffWithoutDisplayTargetStillWorks() {  // the switch is independent of the target
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    be.setReadbackEnabled(false);
+    QVERIFY(!runFrames(be, 3).isNull() || be.videoFrame().isNull());
+    QCOMPARE(be.hwReadbackCount(), quint64(0));
+    QCOMPARE(be.sourceFrameSize(), QSize(64, 48));
+    be.setReadbackEnabled(true);
+    QVERIFY(be.runFrame());
+    QCOMPARE(be.hwReadbackCount(), quint64(1));
+    checkPattern(be.videoFrame(), 64, 48);
+  }
+
+  void runnerEmitsFramesWithoutReadbackAndReportsDisplayTiming() {
+    QTemporaryFile rom;
+    QVERIFY(rom.open());
+    rom.write("x");
+    rom.flush();
+    auto owned = std::make_unique<LibretroBackend>();
+    LibretroBackend* be = owned.get();
+    EmulationRunner runner(std::move(owned));
+    QSignalSpy frames(&runner, &EmulationRunner::frameReady);
+    QSignalSpy failed(&runner, &EmulationRunner::startFailed);
+    auto t = std::make_shared<FakeDisplay>();
+    runner.setGpuDisplayTarget(t);
+    runner.setReadbackEnabled(false);
+    runner.setDisplayLimit(QSize(32, 24));
+    EmulationRunner::StartRequest req;
+    req.corePath = QStringLiteral(FB_FAKE_HW_CORE_PATH);
+    req.gamePath = rom.fileName();
+    runner.start(req);
+    QTRY_VERIFY2(frames.count() >= 10 || failed.count() > 0, "no frames");
+    QCOMPARE(failed.count(), 0);
+    QCOMPARE(be->hwReadbackCount(), quint64(0));
+    QVERIFY(frames.last().at(0).value<QImage>().isNull());  // the stale (here: never read) image, but the signal is there
+    QCOMPARE(runner.sourceFrameSize(), QSize(64, 48));
+    QTRY_VERIFY(t->gl.presents().size() >= 5);
+    QCOMPARE(t->gl.presents().last().size, QSize(32, 24));
+    QTRY_VERIFY2(runner.timing().valid && runner.timing().displaysPerSec > 10.0, "no display timing");
+    const auto snap = runner.timing();
+    QCOMPARE(snap.readbacksPerSec, 0.0);
+    QCOMPARE(snap.readbackMs, 0.0);
+    QVERIFY(snap.displayMs > 0.0);
+    QVERIFY(snap.emuMs >= 0.0 && snap.emuMs <= snap.frameMs);
+    runner.setReadbackEnabled(true);  // thread-safe while running
+    const int before = frames.count();
+    QTRY_VERIFY(frames.count() >= before + 4);
+    QTRY_VERIFY(!frames.last().at(0).value<QImage>().isNull());
+    QVERIFY(be->hwReadbackCount() > 0);
+    runner.stop();
+    QVERIFY(t->gl.violations().isEmpty());
+    QCOMPARE(t->gl.count(QStringLiteral("release")), 1);  // the game quit released it, GL current
+    QVERIFY(t->gl.lastReleaseGlCurrent());
+  }
+
+  void displayKeepsTheCoresBindings_data() {
+    QTest::addColumn<QSize>("limit");
+    QTest::newRow("1:1 copy") << QSize();
+    QTest::newRow("scaled (halving)") << QSize(32, 24);
+    QTest::newRow("scaled (final blit only)") << QSize(50, 37);
+  }
+
+  void displayKeepsTheCoresBindings() {
+    QFETCH(QSize, limit);
+    qputenv("FB_FAKE_HW_READFBO", "1");
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    auto t = std::make_shared<FakeDisplay>();
+    be.setGpuDisplayTarget(t);
+    be.setDisplayLimit(limit);
+    QVERIFY(!runFrames(be, 6).isNull());
+    qunsetenv("FB_FAKE_HW_READFBO");
+    QCOMPARE(t->gl.presents().size(), 6);
+    const QList<int> readFbo = logValues(QStringLiteral("readfbo")), drawFbo = logValues(QStringLiteral("drawfbo"));
+    const QList<int> scissor = logValues(QStringLiteral("scissor")), fbo = logValues(QStringLiteral("fbo"));
+    QCOMPARE(readFbo.size(), 6);
+    for (int k = 1; k < 6; ++k) {
+      QCOMPARE(readFbo.at(k), 0);
+      QCOMPARE(drawFbo.at(k), fbo.at(k - 1));
+      QCOMPARE(scissor.at(k), 1);
+    }
+    QVERIFY(t->gl.violations().isEmpty());
+  }
+
+  void displayAndEncodeShareTheFrame() {
+    QTemporaryFile rom;
+    LibretroBackend be;
+    loadFake(be, rom);
+    auto enc = std::make_shared<FakeTarget>();
+    auto disp = std::make_shared<FakeDisplay>();
+    be.setGpuEncodeTarget(enc);
+    be.setGpuDisplayTarget(disp);
+    be.setReadbackEnabled(false);
+    QVERIFY(!runFrames(be, 4).isNull() || be.videoFrame().isNull());
+    QCOMPARE(disp->gl.presents().size(), 4);
+    QCOMPARE(enc->count(QStringLiteral("capture")), 3);
+    checkPattern(asRgb32(enc->images().last()), 64, 48);
+    checkPattern(disp->gl.lastImage(), 64, 48);
+    QVERIFY(enc->violations().isEmpty() && disp->gl.violations().isEmpty());
+  }
+
+  void displayApiAndReleaseOrderOnTheContext() {
+    HwRenderContext hw;
+    hw.prepareSurface();
+    QString err;
+    QVERIFY2(hw.createContext(true, 3, 3, false, false, &err), qPrintable(err));
+    QVERIFY(hw.ensureSize(64, 48));
+    QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
+    auto drawColor = [&](float r, float g, float b) {
+      f->glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(hw.framebuffer()));
+      f->glClearColor(r, g, b, 1.f);
+      f->glClear(GL_COLOR_BUFFER_BIT);
+    };
+    QVERIFY(!hw.hasDisplayTarget());
+    drawColor(1.f, 0.f, 0.f);
+    QVERIFY(!hw.displayBlit(64, 48, true, QSize()));  // no target: nothing happens
+    QCOMPARE(hw.displayBlitCount(), quint64(0));
+
+    auto d = std::make_shared<FakeDisplay>();
+    hw.setDisplayTarget(d);
+    QVERIFY(hw.hasDisplayTarget());
+    QVERIFY(!hw.displayBlit(0, 48, true, QSize()));    // nonsense sizes
+    QVERIFY(!hw.displayBlit(641, 48, true, QSize()));  // larger than the FBO (it is at least 640 wide)
+    QVERIFY(d->gl.calls().isEmpty());
+    QVERIFY(hw.displayBlit(64, 48, true, QSize(32, 24)));
+    QCOMPARE(hw.displayBlitCount(), quint64(1));
+    QCOMPARE(d->gl.presents().last().size, QSize(32, 24));
+    QCOMPARE(px(d->gl.presents().last().image, 16, 12), qRgb(255, 0, 0));
+    drawColor(0.f, 1.f, 0.f);
+    QVERIFY(hw.displayBlit(64, 48, true, QSize(32, 24)));
+    QCOMPARE(px(d->gl.presents().last().image, 16, 12), qRgb(0, 255, 0));
+    hw.setDisplayTarget(nullptr);  // released with GL current, before its objects go
+    QVERIFY(!hw.hasDisplayTarget());
+    QCOMPARE(d->gl.releases(), 1);
+    QVERIFY(d->gl.lastReleaseGlCurrent() && d->gl.textureAliveAtRelease());
+    QVERIFY(!hw.displayBlit(64, 48, true, QSize()));
+    hw.setDisplayTarget(d);  // set again: acquires again
+    QVERIFY(hw.displayBlit(64, 48, true, QSize()));
+    QCOMPARE(d->gl.presents().last().size, QSize(64, 48));
+
+    // destroyContext: encode target first (detach), then the display target (release, GL alive), then the GL objects.
+    auto enc = std::make_shared<FakeTarget>();
+    hw.setEncodeTarget(enc);
+    hw.encodeBlit(64, 48, true);
+    int detachesAtDisplayRelease = -1;
+    bool glCurrentAtRelease = false;
+    d->onRelease = [&]() {
+      detachesAtDisplayRelease = enc->count(QStringLiteral("detach"));
+      glCurrentAtRelease = QOpenGLContext::currentContext() != nullptr;
+    };
+    hw.destroyContext();
+    QCOMPARE(detachesAtDisplayRelease, 1);  // the encode target was already detached
+    QVERIFY(glCurrentAtRelease);
+    QCOMPARE(d->gl.releases(), 2);
+    QVERIFY(d->gl.lastReleaseGlCurrent() && d->gl.textureAliveAtRelease());
+    QVERIFY(!hw.hasDisplayTarget());
+    QCOMPARE(d.use_count(), 1);
+    QVERIFY(d->gl.violations().isEmpty());
   }
 };
 

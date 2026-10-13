@@ -142,6 +142,8 @@ QVariantMap DiagnosticsModel::emulationMap(const EmulationDiagnostics& d) {
     resolution = tr("%1× · %2×%3").arg(scale).arg(d.frameSize.width()).arg(d.frameSize.height());
     if (!d.readbackSize.isEmpty() && d.readbackSize != d.frameSize) {
       resolution += tr(" → read back %1×%2").arg(d.readbackSize.width()).arg(d.readbackSize.height());
+    } else if (d.zeroCopy && !d.displaySize.isEmpty() && d.displaySize != d.frameSize) {  // zero-copy display, no readback running
+      resolution += tr(" → shown %1×%2").arg(d.displaySize.width()).arg(d.displaySize.height());
     }
     if (fallback && d.requestedScale > 1) {
       resolutionSub = tr("%1× requested · needs OpenGL").arg(d.requestedScale);
@@ -160,9 +162,18 @@ QVariantMap DiagnosticsModel::emulationMap(const EmulationDiagnostics& d) {
   // Frame time split
   QString frame = dash();
   if (running) {
-    frame = hw ? tr("%1 ms · emu %2 · readback %3 (%4/s)")
-                     .arg(fixed(d.frameMs, 1), fixed(d.emuMs, 1), fixed(d.readbackMs, 1), QString::number(qRound(d.readbacksPerSec)))
-               : tr("%1 ms · emu %2 · no readback").arg(fixed(d.frameMs, 1), fixed(d.emuMs, 1));
+    // Zero-copy display (ADR 0027): the readback part drops out while none runs, a zero-copy part takes its place.
+    const bool zeroCopy = hw && d.displaysPerSec > 0.0;
+    if (zeroCopy && d.readbacksPerSec <= 0.0) {
+      frame = tr("%1 ms · emu %2").arg(fixed(d.frameMs, 1), fixed(d.emuMs, 1));
+    } else {
+      frame = hw ? tr("%1 ms · emu %2 · readback %3 (%4/s)")
+                       .arg(fixed(d.frameMs, 1), fixed(d.emuMs, 1), fixed(d.readbackMs, 1), QString::number(qRound(d.readbacksPerSec)))
+                 : tr("%1 ms · emu %2 · no readback").arg(fixed(d.frameMs, 1), fixed(d.emuMs, 1));
+    }
+    if (zeroCopy) {
+      frame += tr(" · zero-copy %1 (%2/s)").arg(fixed(d.displayMs, 1), QString::number(qRound(d.displaysPerSec)));
+    }
     if (hw && d.gpuCopiesPerSec > 0.0) {  // GPU-direct Session encoding (ADR 0019): the copy into the encoder's texture
       frame += tr(" · GPU copy %1 (%2/s)").arg(fixed(d.gpuCopyMs, 1), QString::number(qRound(d.gpuCopiesPerSec)));
     }

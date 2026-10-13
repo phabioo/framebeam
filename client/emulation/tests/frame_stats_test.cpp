@@ -132,6 +132,33 @@ class FrameStatsTest : public QObject {
     QCOMPARE(s.snapshot(20).history.last().gpuCopyMs, 0.0f);
   }
 
+  // Zero-copy display (ADR 0027): the blit into the display texture is a fourth part of the frame.
+  void displayIsItsOwnPartAndCountsOnlyPresentedFrames() {
+    FrameTimingStats s;
+    // 100 frames at 100/s, 10 ms each, no readback; every 2nd frame presents (0.6 ms), the others find no free slot (0.1 ms).
+    for (int i = 0; i < 100; ++i) s.recordFrame(i * 10, 10.0, 0.0, 0.0, false, i % 2 == 0 ? 0.6 : 0.1, i % 2 == 0);
+    const auto snap = s.snapshot(995);
+    QVERIFY(snap.valid);
+    QVERIFY(qAbs(snap.displayMs - 0.35) < 0.01);
+    QVERIFY2(qAbs(snap.displaysPerSec - 50.0) < 0.5, qPrintable(QString::number(snap.displaysPerSec)));
+    QVERIFY(qAbs(snap.emuMs - 9.65) < 0.01);
+    QVERIFY(qAbs(snap.emuMs + snap.readbackMs + snap.gpuCopyMs + snap.displayMs - snap.frameMs) < 0.001);
+    QCOMPARE(snap.readbacksPerSec, 0.0);
+    QVERIFY(snap.history.at(snap.history.size() - 2).displayed && !snap.history.last().displayed);
+  }
+
+  void displayNeverExceedsTheRestOfTheFrameAndDefaultsToNone() {
+    FrameTimingStats s;
+    s.recordFrame(10, 4.0, 1.0, 1.0, true, 9.0, true);  // clamped to what is left
+    const auto snap = s.snapshot(10);
+    QCOMPARE(snap.displayMs, 2.0);
+    QCOMPARE(snap.emuMs, 0.0);
+    FrameTimingStats old;
+    old.recordFrame(20, 4.0, 1.0);  // the old form: no display part
+    QCOMPARE(old.snapshot(20).history.last().displayMs, 0.0f);
+    QCOMPARE(old.snapshot(20).displaysPerSec, 0.0);
+  }
+
   void historyKeepsFiveSeconds() {
     FrameTimingStats s;
     feed(s, 0, 9000, 20.0, 5.0, 0.0);

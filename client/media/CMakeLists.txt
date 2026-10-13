@@ -49,6 +49,9 @@ add_library(framebeam_media STATIC
   videodecoder.cpp
   cudadriver.cpp
   cudaglcapture.cpp
+  d3d11glbridge.cpp
+  d3d11encodecapture.cpp
+  d3d11displayring.cpp
   opuscodec.cpp
   opusdepacketizer.cpp
   mediacaps.cpp
@@ -58,6 +61,10 @@ add_library(framebeam_media STATIC
 target_include_directories(framebeam_media PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(framebeam_media PUBLIC framebeam_core framebeam_audioutil framebeam_media_deps Qt6::Gui)
 target_link_libraries(framebeam_media PRIVATE ${CMAKE_DL_LIBS})  # cudadriver.cpp: dlopen("libcuda.so.1") (ADR 0019)
+if(WIN32)
+  # GL-D3D11 bridge and display ring (ADR 0027): D3D11/DXGI import libs (System32 DLLs) and the WGL entry points.
+  target_link_libraries(framebeam_media PRIVATE d3d11 dxgi opengl32)
+endif()
 framebeam_warnings(framebeam_media)
 
 framebeam_add_test(media_viewer_reports tests/viewerreports_test.cpp LIBS framebeam_media)
@@ -72,6 +79,15 @@ framebeam_add_test(media_host_state tests/hoststate_test.cpp LIBS framebeam_medi
 framebeam_add_test(media_rtcutil tests/rtcutil_test.cpp LIBS framebeam_media)
 framebeam_add_test(media_stream_timestamp tests/stream_timestamp_test.cpp LIBS framebeam_media)
 
+# Zero-copy display (ADR 0027). media_display_slots: the pure slot state machine, every platform. media_d3d11_ring
+# (Windows only): producer and consumer on two WARP devices; SKIP/77 when WARP lacks shared keyed-mutex resources, so it
+# is in the Windows skip allow-list of ci.yml. The WGL interop itself is verified only on real GPUs.
+framebeam_add_test(media_display_slots tests/display_slots_test.cpp LIBS framebeam_media)
+if(BUILD_TESTING AND WIN32)
+  framebeam_add_test(media_d3d11_ring tests/d3d11_ring_test.cpp LIBS framebeam_media d3d11 dxgi)
+  set_tests_properties(media_d3d11_ring PROPERTIES SKIP_RETURN_CODE 77)
+endif()
+
 # GPU-direct encoding (ADR 0019): CUDA driver loader, CudaGlCapture and the CUDA input of VideoEncoder.
 # media_cuda: pure (loader, error codes, encoder helpers). media_cuda_gl_capture: the real CudaGlCapture on a fake CUDA
 # API (testutil/fake_cuda.h) and a GL 3.3 context; SKIP/77 without one, except on Linux CI where it must run.
@@ -79,6 +95,7 @@ framebeam_add_test(media_stream_timestamp tests/stream_timestamp_test.cpp LIBS f
 # also on CI. Run test_media_cuda_gl_hw by hand on a machine with an NVIDIA GPU.
 if(BUILD_TESTING)
   framebeam_add_test(media_cuda tests/cuda_test.cpp LIBS framebeam_media)
+  framebeam_add_test(media_gpu_backends tests/gpu_backends_test.cpp LIBS framebeam_media)  # ADR 0027 D6: encoder mapping, backend rules
   framebeam_add_test(media_cuda_gl_capture tests/cuda_gl_capture_test.cpp LIBS framebeam_media Qt6::Gui)
   set_tests_properties(media_cuda_gl_capture PROPERTIES SKIP_RETURN_CODE 77)
   framebeam_add_test(media_cuda_gl_hw tests/cuda_gl_hw_test.cpp LIBS framebeam_media Qt6::Gui)

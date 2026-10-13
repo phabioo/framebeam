@@ -111,8 +111,28 @@ class SessionHost : public QObject {
   // look at the driver or the caps (tests push fake frames).
   void pushGpuFrame(std::shared_ptr<AVFrame> frame, qint64 lateNs = 0);
   // GPU input may be tried in this Session: open, not off, configured (no kill switch, no forced encoder), no pinned
-  // encoder order, CUDA usable in this process, FFmpeg feeds h264_nvenc with CUDA frames and the encoder opens here.
-  bool gpuInputAllowed() const;
+  // encoder order, and at least one backend (ADR 0019, ADR 0027 D6):
+  //   CUDA: usable in this process, FFmpeg feeds h264_nvenc with CUDA frames and the encoder opens here.
+  //   AMF:  Windows, FFmpeg feeds h264_amf with D3D11 frames and the encoder opens here.
+  //   QSV:  Windows, FFmpeg feeds h264_qsv with QSV frames and the encoder opens here.
+  // Which one is used is decided by the UI's GpuEncodeBridge (it knows the GPU vendor).
+  struct GpuBackends {
+    bool cuda = false;
+    bool amf = false;
+    bool qsv = false;
+    bool any() const { return cuda || amf || qsv; }
+  };
+  GpuBackends gpuBackendsAllowed() const;
+  bool gpuInputAllowed() const { return gpuBackendsAllowed().any(); }
+  // The rules above as a pure function of their inputs (unit-tested).
+  struct GpuInputFacts {
+    bool open = false, off = false, configured = false, orderPinned = false;
+    bool cudaDriverUsable = false, cudaInput = false, nvencProbed = false;
+    bool d3d11Capture = false;  // the D3D11 capture exists on this platform
+    bool amfInput = false, amfProbed = false;
+    bool qsvInput = false, qsvProbed = false;
+  };
+  static GpuBackends gpuBackendRules(const GpuInputFacts& facts);
   // The encoder runs on GPU frames (confirmed by its first CUDA encode); readback frames are not copied then.
   bool gpuInputActive() const { return encoderRunning_ && gpuActive_ && !gpuInputOff_; }
   // GPU input was tried in this Session and failed (diagnostics: "readback (GPU-direct off)").

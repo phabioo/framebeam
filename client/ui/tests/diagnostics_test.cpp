@@ -2,6 +2,7 @@
 #include <QtTest>
 
 #include "diagnosticsmodel.h"
+#include "gpudisplaybridge.h"
 #include "gpuencodebridge.h"
 
 using namespace framebeam;
@@ -147,6 +148,90 @@ class DiagnosticsTest : public QObject {
     QVERIFY(DiagnosticsModel::emulationMap(d).value("frame").toString().endsWith(QStringLiteral(" · GPU copy 0.3 (30/s)")));
     d.fps = 0;  // paused: the dash stays
     QCOMPARE(DiagnosticsModel::emulationMap(d).value("frame").toString(), QStringLiteral("—"));
+  }
+
+  // Zero-copy display (ADR 0027, D7): the zero-copy part replaces the readback part while none runs.
+  void frameRowShowsZeroCopy() {
+    EmulationDiagnostics d = sw();
+    d.hwRequested = d.hwActive = true;
+    d.api = QStringLiteral("OpenGL 4.6 Core");
+    d.gpu = QStringLiteral("Example GPU · Driver 1.2.3");
+    d.frameMs = 9.4;
+    d.emuMs = 7.1;
+    d.displayMs = 0.2;
+    d.displaysPerSec = 60;
+    QCOMPARE(DiagnosticsModel::emulationMap(d).value("frame").toString(), QStringLiteral("9.4 ms · emu 7.1 · zero-copy 0.2 (60/s)"));
+    d.readbackMs = 1.1;  // both (not yet confirmed, or a shared Session without GPU-direct encoding)
+    d.readbacksPerSec = 60;
+    QCOMPARE(DiagnosticsModel::emulationMap(d).value("frame").toString(),
+             QStringLiteral("9.4 ms · emu 7.1 · readback 1.1 (60/s) · zero-copy 0.2 (60/s)"));
+    d.gpuCopyMs = 0.3;  // the GPU copy part stays where it was
+    d.gpuCopiesPerSec = 60;
+    QCOMPARE(DiagnosticsModel::emulationMap(d).value("frame").toString(),
+             QStringLiteral("9.4 ms · emu 7.1 · readback 1.1 (60/s) · zero-copy 0.2 (60/s) · GPU copy 0.3 (60/s)"));
+    d.readbacksPerSec = 0;
+    QCOMPARE(DiagnosticsModel::emulationMap(d).value("frame").toString(),
+             QStringLiteral("9.4 ms · emu 7.1 · zero-copy 0.2 (60/s) · GPU copy 0.3 (60/s)"));
+    d.displaysPerSec = 0;  // no zero-copy frames: the old row, bit for bit
+    d.readbacksPerSec = 60;
+    QCOMPARE(DiagnosticsModel::emulationMap(d).value("frame").toString(),
+             QStringLiteral("9.4 ms · emu 7.1 · readback 1.1 (60/s) · GPU copy 0.3 (60/s)"));
+  }
+
+  void resolutionRowShowsTheZeroCopySize() {
+    EmulationDiagnostics d = sw();
+    d.hwRequested = d.hwActive = true;
+    d.frameSize = QSize(768, 1152);
+    const QString base = QStringLiteral("3× · 768×1152");
+    QCOMPARE(DiagnosticsModel::emulationMap(d).value("resolution").toString(), base);
+    d.readbackSize = QSize(512, 768);  // a readback ran
+    QCOMPARE(DiagnosticsModel::emulationMap(d).value("resolution").toString(), base + QStringLiteral(" → read back 512×768"));
+    d.zeroCopy = true;
+    d.displaySize = QSize(640, 960);  // both: the readback size is the one shown
+    QCOMPARE(DiagnosticsModel::emulationMap(d).value("resolution").toString(), base + QStringLiteral(" → read back 512×768"));
+    d.readbackSize = QSize();         // zero-copy without readback
+    QCOMPARE(DiagnosticsModel::emulationMap(d).value("resolution").toString(), base + QStringLiteral(" → shown 640×960"));
+    d.displaySize = QSize();          // shown at full size: nothing to add
+    QCOMPARE(DiagnosticsModel::emulationMap(d).value("resolution").toString(), base);
+  }
+
+  // planReadback: written out by cases (view limit, share size) x display active.
+  void planReadbackTruthTable() {
+    const QSize none;
+    const QSize view(640, 480), shareBig(1280, 1920), shareSmall(320, 240);
+    struct Row {
+      bool active;
+      QSize view, share;
+      bool readback;
+      QSize readbackLimit;
+    };
+    const Row rows[] = {
+        // display not (yet) confirmed: today's rule - the max of the views, expanded to the share size when a view exists
+        {false, none, none, true, none},
+        {false, none, shareBig, true, none},  // no view reported: unlimited
+        {false, view, none, true, view},
+        {false, view, shareBig, true, QSize(1280, 1920)},
+        {false, view, shareSmall, true, view},
+        {false, QSize(2000, 100), shareBig, true, QSize(2000, 1920)},  // component-wise
+        // display active, nobody needs pixels: no readback
+        {true, none, none, false, none},
+        {true, view, none, false, none},
+        // display active, shared without GPU-direct encoding: readback for the Session at the share size
+        {true, view, shareBig, true, shareBig},
+        {true, view, shareSmall, true, shareSmall},  // the view needs none of it: share size only
+        {true, none, shareBig, true, shareBig},
+    };
+    int n = 0;
+    for (const Row& r : rows) {
+      const ReadbackPlan p = planReadback(r.active, r.view, r.share);
+      const QString row = QStringLiteral("row %1: active=%2 view=%3x%4 share=%5x%6").arg(n).arg(r.active).arg(r.view.width()).arg(r.view.height())
+                              .arg(r.share.width()).arg(r.share.height());
+      QVERIFY2(p.readback == r.readback, qPrintable(row));
+      QVERIFY2(p.readbackLimit == r.readbackLimit, qPrintable(row));
+      QVERIFY2(p.displayLimit == r.view, qPrintable(row));  // the display blit follows the views, always
+      ++n;
+    }
+    QCOMPARE(n, 11);
   }
 
   // planGpuEncode over all 32 combinations: written out by cases, not by the formula of the implementation.

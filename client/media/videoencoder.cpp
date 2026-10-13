@@ -31,13 +31,12 @@ void quietFfmpegLog() {
 }
 
 // Options of h264_nvenc for the CPU and the CUDA input path alike.
+const char* const kNvencOptions[][2] = {{"preset", "p1"}, {"tune", "ull"}, {"rc", "cbr"}, {"zerolatency", "1"}, {"profile", "baseline"}, {"forced-idr", "1"}};
+
 void nvencOptions(AVDictionary** opts) {
-  av_dict_set(opts, "preset", "p1", 0);
-  av_dict_set(opts, "tune", "ull", 0);
-  av_dict_set(opts, "rc", "cbr", 0);
-  av_dict_set(opts, "zerolatency", "1", 0);
-  av_dict_set(opts, "profile", "baseline", 0);
-  av_dict_set(opts, "forced-idr", "1", 0);
+  for (const auto& o : kNvencOptions) {
+    av_dict_set(opts, o[0], o[1], 0);
+  }
 }
 }  // namespace
 
@@ -81,29 +80,43 @@ bool VideoEncoder::gpuInputConfigured(QString* why) {
   return true;
 }
 
+namespace {
+// `encoder` lists `pixFmt` as a hardware frames-context input and this FFmpeg has a `deviceType` device.
+bool hwFramesInputSupported(const char* encoder, AVPixelFormat pixFmt, AVHWDeviceType deviceType) {
+  const AVCodec* codec = avcodec_find_encoder_by_name(encoder);
+  if (!codec) {
+    return false;
+  }
+  bool framesContext = false;
+  for (int i = 0;; ++i) {
+    const AVCodecHWConfig* config = avcodec_get_hw_config(codec, i);
+    if (!config) {
+      break;
+    }
+    if (config->pix_fmt == pixFmt && (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_FRAMES_CTX) != 0) {
+      framesContext = true;
+    }
+  }
+  bool device = false;
+  for (AVHWDeviceType t = av_hwdevice_iterate_types(AV_HWDEVICE_TYPE_NONE); t != AV_HWDEVICE_TYPE_NONE; t = av_hwdevice_iterate_types(t)) {
+    device = device || t == deviceType;
+  }
+  return framesContext && device;
+}
+}  // namespace
+
 bool VideoEncoder::cudaInputSupported() {
-  static const bool supported = [] {
-    const AVCodec* codec = avcodec_find_encoder_by_name("h264_nvenc");
-    if (!codec) {
-      return false;
-    }
-    bool framesContext = false;
-    for (int i = 0;; ++i) {
-      const AVCodecHWConfig* config = avcodec_get_hw_config(codec, i);
-      if (!config) {
-        break;
-      }
-      if (config->pix_fmt == AV_PIX_FMT_CUDA && (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_FRAMES_CTX) != 0) {
-        framesContext = true;
-      }
-    }
-    bool cudaDevice = false;
-    for (AVHWDeviceType t = av_hwdevice_iterate_types(AV_HWDEVICE_TYPE_NONE); t != AV_HWDEVICE_TYPE_NONE;
-         t = av_hwdevice_iterate_types(t)) {
-      cudaDevice = cudaDevice || t == AV_HWDEVICE_TYPE_CUDA;
-    }
-    return framesContext && cudaDevice;
-  }();
+  static const bool supported = hwFramesInputSupported("h264_nvenc", AV_PIX_FMT_CUDA, AV_HWDEVICE_TYPE_CUDA);
+  return supported;
+}
+
+bool VideoEncoder::amfInputSupported() {
+  static const bool supported = hwFramesInputSupported("h264_amf", AV_PIX_FMT_D3D11, AV_HWDEVICE_TYPE_D3D11VA);
+  return supported;
+}
+
+bool VideoEncoder::qsvInputSupported() {
+  static const bool supported = hwFramesInputSupported("h264_qsv", AV_PIX_FMT_QSV, AV_HWDEVICE_TYPE_QSV);
   return supported;
 }
 
@@ -229,21 +242,66 @@ bool VideoEncoder::openWith(const QString& name, int width, int height, int fps,
   return true;
 }
 
-bool VideoEncoder::openGpu(AVBufferRef* framesCtx, int fps, int bitrate, QString* why) {
+VideoEncoder::GpuEncoderSpec VideoEncoder::gpuEncoderSpec(int hwFormat, int swFormat) {
+  GpuEncoderSpec spec;
+  using Opt = QPair<QString, QString>;
+  if (hwFormat == AV_PIX_FMT_CUDA && swFormat == AV_PIX_FMT_RGB0) {
+    spec.encoder = QStringLiteral("h264_nvenc");
+    spec.framesLabel = QStringLiteral("CUDA");
+    for (const auto& o : kNvencOptions) {
+      spec.options.append(Opt(QString::fromLatin1(o[0]), QString::fromLatin1(o[1])));
+    }
+    spec.options.append(Opt(QStringLiteral("delay"), QStringLiteral("0")));  // each frame leaves in the same send/receive cycle (the default holds back 2)
+  } else if (hwFormat == AV_PIX_FMT_D3D11 && swFormat == AV_PIX_FMT_BGRA) {
+    spec.encoder = QStringLiteral("h264_amf");
+    spec.framesLabel = QStringLiteral("D3D11");
+    // The CPU path's AMF options plus async_depth=1: every frame's packet comes out of the same receive call (the default of 16
+    // would return EAGAIN). BGRA input: AMF converts with the profile the colour fields below select (BT.601 limited).
+    spec.options = {Opt(QStringLiteral("async_depth"), QStringLiteral("1")), Opt(QStringLiteral("usage"), QStringLiteral("ultralowlatency")),
+                    Opt(QStringLiteral("profile"), QStringLiteral("constrained_baseline")), Opt(QStringLiteral("rc"), QStringLiteral("cbr")),
+                    Opt(QStringLiteral("forced_idr"), QStringLiteral("1"))};
+    spec.colorSpace = AVCOL_SPC_SMPTE170M;
+    spec.colorRange = AVCOL_RANGE_MPEG;
+  } else if (hwFormat == AV_PIX_FMT_QSV && swFormat == AV_PIX_FMT_NV12) {
+    spec.encoder = QStringLiteral("h264_qsv");
+    spec.framesLabel = QStringLiteral("QSV");
+    // The CPU path's QSV options plus the low-latency set. The NV12 frames are already BT.601 limited (video processor).
+    spec.options = {Opt(QStringLiteral("preset"), QStringLiteral("veryfast")), Opt(QStringLiteral("profile"), QStringLiteral("baseline")),
+                    Opt(QStringLiteral("async_depth"), QStringLiteral("1")), Opt(QStringLiteral("forced_idr"), QStringLiteral("1")),
+                    Opt(QStringLiteral("bf"), QStringLiteral("0")), Opt(QStringLiteral("low_delay_brc"), QStringLiteral("1")),
+                    Opt(QStringLiteral("look_ahead"), QStringLiteral("0"))};
+  }
+  return spec;
+}
+
+bool VideoEncoder::openGpu(AVBufferRef* framesCtx, int fps, int bitrate, QString* why, const QSize& visible) {
   close();
   quietFfmpegLog();
   QString reason;
   QString& out = why ? *why : reason;
   const auto* frames = framesCtx && framesCtx->data ? reinterpret_cast<const AVHWFramesContext*>(framesCtx->data) : nullptr;
-  if (!frames || frames->format != AV_PIX_FMT_CUDA || frames->sw_format != AV_PIX_FMT_RGB0 || frames->width < 16 ||
-      frames->height < 16 || frames->width > 8192 || frames->height > 8192 || (frames->width & 1) != 0 ||
-      (frames->height & 1) != 0) {
+  if (!frames) {
     out = QStringLiteral("not a CUDA RGB0 frames context");
     return false;
   }
-  const AVCodec* codec = avcodec_find_encoder_by_name("h264_nvenc");
+  const GpuEncoderSpec spec = gpuEncoderSpec(frames->format, frames->sw_format);
+  const int width = visible.isEmpty() ? frames->width : visible.width();
+  const int height = visible.isEmpty() ? frames->height : visible.height();
+  if (spec.encoder.isEmpty()) {
+    out = frames->format == AV_PIX_FMT_CUDA ? QStringLiteral("not a CUDA RGB0 frames context")
+                                            : QStringLiteral("not a CUDA RGB0, D3D11 BGRA or QSV NV12 frames context");
+    return false;
+  }
+  if (width < 16 || height < 16 || width > 8192 || height > 8192 || (width & 1) != 0 || (height & 1) != 0 || width > frames->width ||
+      height > frames->height) {
+    out = frames->format == AV_PIX_FMT_CUDA ? QStringLiteral("not a CUDA RGB0 frames context")
+                                            : QStringLiteral("unsupported frame size %1 x %2").arg(width).arg(height);
+    return false;
+  }
+  const QByteArray encoderName = spec.encoder.toLatin1();
+  const AVCodec* codec = avcodec_find_encoder_by_name(encoderName.constData());
   if (!codec) {
-    out = QStringLiteral("h264_nvenc not compiled in");
+    out = QStringLiteral("%1 not compiled in").arg(spec.encoder);
     return false;
   }
   AVCodecContext* ctx = avcodec_alloc_context3(codec);
@@ -251,11 +309,11 @@ bool VideoEncoder::openGpu(AVBufferRef* framesCtx, int fps, int bitrate, QString
     out = QStringLiteral("out of memory");
     return false;
   }
-  ctx->width = frames->width;
-  ctx->height = frames->height;
+  ctx->width = width;
+  ctx->height = height;
   ctx->time_base = AVRational{1, fps};
   ctx->framerate = AVRational{fps, 1};
-  ctx->pix_fmt = AV_PIX_FMT_CUDA;
+  ctx->pix_fmt = frames->format;
   ctx->hw_frames_ctx = av_buffer_ref(framesCtx);
   ctx->bit_rate = bitrate;
   ctx->rc_max_rate = bitrate;
@@ -265,6 +323,12 @@ bool VideoEncoder::openGpu(AVBufferRef* framesCtx, int fps, int bitrate, QString
   ctx->max_b_frames = 0;
   ctx->flags |= AV_CODEC_FLAG_LOW_DELAY;
   ctx->flags &= ~AV_CODEC_FLAG_GLOBAL_HEADER;  // SPS/PPS in-band
+  if (spec.colorSpace >= 0) {
+    ctx->colorspace = static_cast<AVColorSpace>(spec.colorSpace);
+  }
+  if (spec.colorRange >= 0) {
+    ctx->color_range = static_cast<AVColorRange>(spec.colorRange);
+  }
   if (!ctx->hw_frames_ctx) {
     avcodec_free_context(&ctx);
     out = QStringLiteral("out of memory");
@@ -272,15 +336,16 @@ bool VideoEncoder::openGpu(AVBufferRef* framesCtx, int fps, int bitrate, QString
   }
 
   AVDictionary* opts = nullptr;
-  nvencOptions(&opts);
-  av_dict_set(&opts, "delay", "0", 0);  // each frame leaves in the same send/receive cycle (the default holds back 2)
+  for (const auto& o : spec.options) {
+    av_dict_set(&opts, o.first.toLatin1().constData(), o.second.toLatin1().constData(), 0);
+  }
   const int rc = avcodec_open2(ctx, codec, &opts);
   av_dict_free(&opts);
   if (rc < 0) {
     char buf[AV_ERROR_MAX_STRING_SIZE] = {};
     av_strerror(rc, buf, sizeof buf);  // never av_err2str: a C compound literal, does not compile as C++ on MSVC
     out = QString::fromUtf8(buf);
-    qCInfo(lcEnc).noquote() << QStringLiteral("Encoder h264_nvenc does not open with CUDA frames: %1").arg(out);
+    qCInfo(lcEnc).noquote() << QStringLiteral("Encoder %1 does not open with %2 frames: %3").arg(spec.encoder, spec.framesLabel, out);
     avcodec_free_context(&ctx);
     return false;
   }
@@ -291,17 +356,19 @@ bool VideoEncoder::openGpu(AVBufferRef* framesCtx, int fps, int bitrate, QString
     out = QStringLiteral("out of memory");
     return false;
   }
-  name_ = QStringLiteral("h264_nvenc");
-  width_ = frames->width;
-  height_ = frames->height;
+  name_ = spec.encoder;
+  width_ = width;
+  height_ = height;
   bitrate_ = bitrate;
   gpuInput_ = true;
   forceKeyframe_ = true;
-  qCInfo(lcEnc).noquote() << QStringLiteral("H.264 encoder h264_nvenc %1 x %2 @ %3 %4 kbit/s (CUDA frames)")
+  qCInfo(lcEnc).noquote() << QStringLiteral("H.264 encoder %1 %2 x %3 @ %4 %5 kbit/s (%6 frames)")
+                                 .arg(spec.encoder)
                                  .arg(width_)
                                  .arg(height_)
                                  .arg(fps)
-                                 .arg(bitrate / 1000);
+                                 .arg(bitrate / 1000)
+                                 .arg(spec.framesLabel);
   return true;
 }
 

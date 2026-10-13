@@ -1,16 +1,32 @@
 #include "gamesession.h"
 
 #include <QDir>
+#include <QLoggingCategory>
+#include <QMetaObject>
+#include <QPointer>
 #include <QSaveFile>
 #include <QThread>
 
 #include "screenlayout.h"
 
+#include "hw_render.h"
 #include "libretro_backend.h"
 
 namespace framebeam::ui {
 
 using emu::EmulationRunner;
+
+namespace {
+Q_LOGGING_CATEGORY(lcDisplayHost, "framebeam.gpudisplay")
+std::function<PlatformDisplay(QString*)>& platformDisplayFactory() {
+  static std::function<PlatformDisplay(QString*)> f;
+  return f;
+}
+}  // namespace
+
+void GameSession::setPlatformDisplayFactoryForTests(std::function<PlatformDisplay(QString*)> factory) {
+  platformDisplayFactory() = std::move(factory);
+}
 
 GameSession::GameSession(QObject* parent) : QObject(parent) {
   qRegisterMetaType<emu::AvInfo>();
@@ -18,7 +34,10 @@ GameSession::GameSession(QObject* parent) : QObject(parent) {
   qRegisterMetaType<EmulationRunner::State>();
 }
 
-GameSession::~GameSession() { teardown(); }
+GameSession::~GameSession() {
+  if (gpuDisplay_) gpuDisplay_->setStateCallback({});
+  teardown();
+}
 
 void GameSession::setState(State s) {
   if (state_ == s) {
@@ -72,10 +91,14 @@ void GameSession::launch(const LaunchConfig& config, bool restart) {
   emit fastForwardChanged();
 
   runner_ = std::make_unique<EmulationRunner>(std::make_unique<emu::LibretroBackend>());
-  runner_->setReadbackLimit(limit_);
+  setupDisplay(restart);
+  updateReadbackLimit();  // readback limit/enable and display limit for the new runner
   if (restart) emit memoryWatchReplaced();
   if (gpuTarget_) {
     runner_->setGpuEncodeTarget(gpuTarget_);  // applied by the emulation thread at its first frame
+  }
+  if (gpuDisplay_) {
+    runner_->setGpuDisplayTarget(gpuDisplay_);
   }
   EmulationRunner* r = runner_.get();
   connect(r, &EmulationRunner::started, this, [this](const emu::AvInfo& av, const emu::CoreInfo& core) {
@@ -330,6 +353,57 @@ void GameSession::setShareSize(const QSize& pixels) {
   updateReadbackLimit();
 }
 
+// The platform display of this game launch. A live-save restart is the same game: a display that already gave up
+// (Failed/Unavailable) stays as it is, an Active/Pending one is made anew, because the new core has a new GL context and
+// the old ring was released with the old one. Without a platform display (gpuDisplay_ null) nothing changes at all.
+void GameSession::setupDisplay(bool restart) {
+  if (restart && gpuDisplay_ && (gpuDisplay_->state() == GpuDisplayBridge::State::Failed || gpuDisplay_->state() == GpuDisplayBridge::State::Unavailable)) {
+    return;
+  }
+  const bool hadDisplay = gpuDisplay_ != nullptr;
+  if (gpuDisplay_) gpuDisplay_->setStateCallback({});
+  gpuDisplay_.reset();
+  // Destroying the old source schedules the cleanup of its textures on the render thread; a GameView whose node still
+  // holds one must rebuild it in the sync that follows, also when no frameChanged comes (live-save restart).
+  if (hadDisplay) emit displayStateChanged();
+  QString why;
+  PlatformDisplay pd = platformDisplayFactory() ? platformDisplayFactory()(&why) : makePlatformDisplay(&why);
+  if (!pd.producer) {
+    // Not applicable. "not Windows" (no implementation here) stays at debug level so Linux logs are as they were; any
+    // other reason (e.g. the kill switch) is worth an info line.
+    const QString line = QStringLiteral("Zero-copy display not available (%1); the game view uses readback frames").arg(why);
+    if (why == QLatin1String("not Windows")) qCDebug(lcDisplayHost).noquote() << line;
+    else qCInfo(lcDisplayHost).noquote() << line;
+    return;
+  }
+  if (!platformDisplayFactory()) displayBridge_ = std::static_pointer_cast<GlD3d11Bridge>(pd.shared);  // the real factory's shared object is the bridge
+  gpuDisplay_ = std::make_shared<GpuDisplayBridge>(std::move(pd));
+  // Called from the emulation or the render thread; the plan is re-applied on the GUI thread (QPointer: the session may
+  // be gone by then).
+  gpuDisplay_->setStateCallback([self = QPointer<GameSession>(this)]() {
+    if (self) QMetaObject::invokeMethod(self.data(), [self]() { if (self) self->onDisplayStateChanged(); }, Qt::QueuedConnection);
+  });
+}
+
+void GameSession::onDisplayStateChanged() {
+  updateReadbackLimit();
+  emit displayStateChanged();
+}
+
+std::shared_ptr<GlD3d11Bridge> GameSession::displayBridge() const { return displayBridge_.lock(); }
+
+DisplayTextureSource* GameSession::displaySource() const { return gpuDisplay_ && runner_ ? gpuDisplay_->source() : nullptr; }
+
+void GameSession::confirmDisplayShown() {
+  if (gpuDisplay_) gpuDisplay_->confirmShown();
+}
+
+GpuDisplayBridge::State GameSession::displayState() const {
+  return gpuDisplay_ ? gpuDisplay_->state() : GpuDisplayBridge::State::Unavailable;
+}
+
+QString GameSession::displayReason() const { return gpuDisplay_ ? gpuDisplay_->reason() : QString(); }
+
 void GameSession::setGpuEncodeTarget(std::shared_ptr<emu::GpuEncodeTarget> target) {
   gpuTarget_ = std::move(target);
   if (runner_) {
@@ -340,11 +414,18 @@ void GameSession::setGpuEncodeTarget(std::shared_ptr<emu::GpuEncodeTarget> targe
 bool GameSession::hardwareRendered() const { return runner_ && isActive() && runner_->renderInfo().hwActive; }
 
 void GameSession::updateReadbackLimit() {
-  QSize limit;  // empty = nobody reported a size: unlimited
-  for (const QSize& s : std::as_const(viewSizes_)) limit = limit.expandedTo(s);
-  if (!limit.isEmpty()) limit = limit.expandedTo(shareSize_);
-  limit_ = limit;
-  if (runner_) runner_->setReadbackLimit(limit_);
+  QSize views;  // empty = nobody reported a size: unlimited
+  for (const QSize& s : std::as_const(viewSizes_)) views = views.expandedTo(s);
+  const bool active = gpuDisplay_ && gpuDisplay_->state() == GpuDisplayBridge::State::Active;
+  const ReadbackPlan plan = planReadback(active, views, shareSize_);
+  limit_ = plan.readbackLimit;
+  displayLimit_ = plan.displayLimit;
+  readbackOn_ = plan.readback;
+  if (runner_) {
+    runner_->setReadbackLimit(limit_);
+    runner_->setDisplayLimit(displayLimit_);
+    runner_->setReadbackEnabled(readbackOn_);
+  }
 }
 
 EmulationDiagnostics GameSession::diagnostics() const {
@@ -365,7 +446,7 @@ EmulationDiagnostics GameSession::diagnostics() const {
   d.fallbackReason = ri.fallbackReason;
   d.frameSize = runner_->sourceFrameSize();
   if (d.frameSize.isEmpty()) d.frameSize = frame_.size();
-  if (!frame_.isNull() && frame_.size() != d.frameSize) d.readbackSize = frame_.size();
+  if (readbackOn_ && !frame_.isNull() && frame_.size() != d.frameSize) d.readbackSize = frame_.size();  // only while a readback runs
   d.baseSize = display_.frameSize();
   d.screens = screenCount();
   d.requestedScale = requestedScaleOf(coreOptions_);
@@ -380,6 +461,13 @@ EmulationDiagnostics GameSession::diagnostics() const {
     d.readbacksPerSec = t.readbacksPerSec;
     d.gpuCopyMs = t.gpuCopyMs;
     d.gpuCopiesPerSec = t.gpuCopiesPerSec;
+    d.displayMs = t.displayMs;
+    d.displaysPerSec = t.displaysPerSec;
+  }
+  d.zeroCopy = gpuDisplay_ && gpuDisplay_->state() == GpuDisplayBridge::State::Active;
+  if (d.zeroCopy && !d.frameSize.isEmpty()) {
+    const QSize shown = emu::HwRenderContext::scaledReadbackSize(d.frameSize.width(), d.frameSize.height(), displayLimit_);
+    if (shown != d.frameSize) d.displaySize = shown;
   }
   d.totalHistory.reserve(t.history.size());
   d.emuHistory.reserve(t.history.size());

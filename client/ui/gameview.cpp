@@ -65,6 +65,7 @@ void GameView::setSession(GameSession* s) {
   frame_ = QImage();
   if (session_) {
     connect(session_, &GameSession::frameChanged, this, &GameView::onFrame);
+    connect(session_, &GameSession::displayStateChanged, this, [this]() { update(); });  // texture <-> readback image
     frame_ = session_->frame();
   }
   frameDirty_ = true;
@@ -171,12 +172,99 @@ void applyFiltering(QSGImageNode* n, bool down) {
 }
 }  // namespace
 
-QSGNode* GameView::updatePaintNode(QSGNode* old, UpdatePaintNodeData*) {
-  if (frame_.isNull() || window() == nullptr || frameRect_.isEmpty()) {
+namespace {
+// Node tree of the zero-copy split layout: one image node per placement target (null = nothing drawn there), all on the
+// same GPU texture. Kept between frames; only rects and textures are updated.
+struct GpuGroupNode : QSGNode {
+  QList<QSGImageNode*> screens;
+};
+
+// The ownership flag belongs to the texture the node holds at the moment of the call (setTexture() deletes an owned
+// old one), so it is set for the new texture afterwards.
+void setNodeTexture(QSGImageNode* n, QSGTexture* tex, bool owned) {
+  n->setTexture(tex);
+  n->setOwnsTexture(owned);
+}
+
+}  // namespace
+
+QSGNode* GameView::paintGpu(QSGNode* old, QSGTexture* tex, const QSize& content, qreal dpr) {
+  if (splitDrawing()) {
+    auto* group = dynamic_cast<GpuGroupNode*>(old);
+    if (group == nullptr) {
+      delete old;
+      group = new GpuGroupNode;
+    }
+    const emu::DisplayProfile& prof = session_->displayProfile();
+    group->screens.resize(placement_.targets.size(), nullptr);
+    for (int i = 0; i < placement_.targets.size(); ++i) {
+      const QRectF target = placement_.targets.at(i);
+      const QRectF src = screenSourceRect(prof, content, i);
+      QSGImageNode*& n = group->screens[i];
+      if (target.isEmpty() || src.isEmpty()) {
+        if (n) {
+          group->removeChildNode(n);
+          delete n;
+          n = nullptr;
+        }
+        continue;
+      }
+      if (n == nullptr) {
+        n = window()->createImageNode();
+        group->appendChildNode(n);
+      }
+      const bool down = isDownscaled(src.size().toSize(), target, dpr);
+      setNodeTexture(n, tex, false);  // first: the old texture may already be gone, no other call may touch it
+      n->setFiltering(down ? QSGTexture::Linear : QSGTexture::Nearest);
+      n->setMipmapFiltering(QSGTexture::None);
+      n->setSourceRect(src);  // texture pixels; the image sits in the top-left corner of a possibly larger texture
+      n->setRect(target);
+    }
+    return group;
+  }
+  auto* node = dynamic_cast<QSGImageNode*>(old);
+  if (node == nullptr) {
     delete old;
+    node = window()->createImageNode();
+  }
+  const bool down = isDownscaled(content, frameRect_, dpr);
+  setNodeTexture(node, tex, false);  // first: the old texture may already be gone, no other call may touch it
+  node->setFiltering(down ? QSGTexture::Linear : QSGTexture::Nearest);
+  node->setMipmapFiltering(QSGTexture::None);
+  node->setSourceRect(QRectF(QPointF(0, 0), QSizeF(content)));
+  node->setRect(frameRect_);
+  return node;
+}
+
+QSGNode* GameView::updatePaintNode(QSGNode* old, UpdatePaintNodeData*) {
+  if (window() == nullptr || frameRect_.isEmpty()) {
+    delete old;
+    lastGpu_ = false;
     return nullptr;
   }
   const qreal dpr = window()->effectiveDevicePixelRatio();
+  // Zero-copy display (ADR 0027): the game's GPU texture, when its source has one for this window now.
+  QSGTexture* gpu = nullptr;
+  QSize content;
+  if (session_) {
+    if (DisplayTextureSource* src = session_->displaySource()) {
+      gpu = src->texture(window(), &content);
+      if (gpu && (content.isEmpty() || gpu->textureSize().isEmpty())) gpu = nullptr;
+    }
+  }
+  if (gpu) {
+    QSGNode* n = paintGpu(old, gpu, content, dpr);
+    lastGpu_ = true;
+    session_->confirmDisplayShown();  // the texture is in the tree: the readback may stop
+    return n;
+  }
+  if (frame_.isNull()) {
+    delete old;
+    lastGpu_ = false;
+    return nullptr;
+  }
+  const bool wasGpu = lastGpu_;
+  lastGpu_ = false;
   if (splitDrawing()) {
     // One image node per visible screen, each with its own texture cut out of the frame (a few 100 KB per frame).
     delete old;
@@ -213,9 +301,10 @@ QSGNode* GameView::updatePaintNode(QSGNode* old, UpdatePaintNodeData*) {
     frameDirty_ = true;
   }
   const bool down = isDownscaled(frame_.size(), frameRect_, dpr);
-  if (frameDirty_ || down != lastDown_) {
+  if (frameDirty_ || down != lastDown_ || wasGpu) {
+    setNodeTexture(node, window()->createTextureFromImage(frame_, down ? QQuickWindow::TextureHasMipmaps : QQuickWindow::CreateTextureOptions()), true);
     applyFiltering(node, down);
-    node->setTexture(window()->createTextureFromImage(frame_, down ? QQuickWindow::TextureHasMipmaps : QQuickWindow::CreateTextureOptions()));
+    node->setSourceRect(QRectF());  // the whole texture again
     lastDown_ = down;
     frameDirty_ = false;
   }

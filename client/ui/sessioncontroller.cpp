@@ -4,6 +4,7 @@
 #include <QDir>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QPointer>
 #include <algorithm>
 #include <limits>
 
@@ -405,13 +406,20 @@ void SessionController::shareSession() {
 // counts as hardware rendered then, or a queued update in that window would drop it for good.
 void SessionController::updateGpuEncode() {
   const bool hw = game_->hardwareRendered() || (gpu_ && game_->state() == GameSession::Starting);
-  const GpuEncodePlan p = planGpuEncode(shared_, hw, host_.encoderRunning(), host_.gpuInputAllowed(), host_.gpuInputActive());
+  const SessionHost::GpuBackends backends = host_.gpuBackendsAllowed();
+  const GpuEncodePlan p = planGpuEncode(shared_, hw, host_.encoderRunning(), backends.any(), host_.gpuInputActive());
   if (!p.keep && gpu_) {
     game_->setGpuEncodeTarget(nullptr);
     gpu_.reset();
   }
   if (p.create && !gpu_) {
-    gpu_ = std::make_shared<GpuEncodeBridge>(kShareEncodeMax);
+    // The allowed backends are fixed for this bridge (ADR 0027 D6); the bridge picks one at its first attach, on the
+    // emulation thread, from the GPU vendor. The display bridge is looked up there too (a live-save restart makes a new
+    // one); the QPointer is only read while the emulation thread runs, which GameSession joins before it is destroyed.
+    GpuEncodeOptions options;
+    options.allowed = GpuEncodeAllowed{backends.cuda, backends.amf, backends.qsv};
+    options.displayBridge = [game = QPointer<GameSession>(game_)]() { return game ? game->displayBridge() : nullptr; };
+    gpu_ = std::make_shared<GpuEncodeBridge>(kShareEncodeMax, std::move(options));
     game_->setGpuEncodeTarget(gpu_);
   }
   if (gpu_) {

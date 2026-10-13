@@ -19,6 +19,7 @@ qt_add_qml_module(framebeam_ui
     audiooutput.h audiooutput.cpp
     gamesession.h gamesession.cpp
     gpuencodebridge.h gpuencodebridge.cpp
+    gpudisplaybridge.h gpudisplaybridge.cpp
     gameview.h gameview.cpp
     librarymodel.h librarymodel.cpp
     playercontroller.h playercontroller.cpp
@@ -144,10 +145,20 @@ qt_add_qml_module(framebeam_ui
     PluginTileStrip.qml
     PluginScreen.qml
 )
+# Zero-copy display (ADR 0027): the platform implementation of makePlatformDisplay(); Windows has its own (WIN32 block below).
+if(NOT WIN32)
+  target_sources(framebeam_ui PRIVATE gpudisplay_platform_stub.cpp)
+endif()
 target_include_directories(framebeam_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(framebeam_ui PUBLIC framebeam_core framebeam_input framebeam_audioutil framebeam_media framebeam_emulation framebeam_plugins framebeam_formats Qt6::Quick Qt6::QuickControls2 Qt6::Multimedia)
 framebeam_warnings(framebeam_ui)
 
 if(BUILD_TESTING)
   add_subdirectory(tests)
+endif()
+
+# Zero-copy display (ADR 0027), Windows platform factory and D3D11 texture source.
+if(WIN32)
+  target_sources(framebeam_ui PRIVATE gpudisplay_platform_win.cpp)
+  target_link_libraries(framebeam_ui PRIVATE d3d11 dxgi)
 endif()

@@ -16,6 +16,7 @@
 
 #include <memory>
 
+#include "gpu_display_target.h"
 #include "gpu_encode_target.h"
 #include "memory_map.h"
 
@@ -142,6 +143,20 @@ class EmulatorBackend {
   virtual double lastGpuCopyMs() const { return 0.0; }
   // Whether the last runFrame() captured a frame for the target.
   virtual bool lastGpuCaptured() const { return false; }
+
+  // Zero-copy display (ADR 0027; thread-safe): the target is taken over by the emulation thread at the start of the next
+  // runFrame (nullptr removes it). A backend that renders on the GPU then blits each shown frame into the textures the
+  // target hands out, independent of the readback. Software backends ignore it. Default: ignored.
+  virtual void setGpuDisplayTarget(std::shared_ptr<GpuDisplayTarget>) {}
+  // Largest size of the display blit (thread-safe, applied on the next frame); empty = no limit. Like setReadbackLimit.
+  virtual void setDisplayLimit(const QSize& maxSize) { Q_UNUSED(maxSize); }
+  // Whether hardware frames are still read back into videoFrame() (thread-safe, default true). Off: videoFrame() keeps
+  // its last image and frames are only shown through the display target; the frame is still "delivered" (frameCount,
+  // sourceFrameSize). The caller turns it off only while a display target shows every frame.
+  virtual void setReadbackEnabled(bool on) { Q_UNUSED(on); }
+  // Diagnostics (thread-safe). Time the last runFrame() spent on the display blit, and whether it presented a frame.
+  virtual double lastDisplayMs() const { return 0.0; }
+  virtual bool lastDisplayed() const { return false; }
 
   // Readback size limit (thread-safe, applied on the next frame): the largest width/height the consumers (display,
   // Session encoder) need. A backend that reads frames back from the GPU downscales larger ones on the GPU first
