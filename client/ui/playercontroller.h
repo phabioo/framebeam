@@ -72,6 +72,8 @@ class PlayerController : public QObject {
   // 3c
   Q_PROPERTY(QString hubName READ hubName NOTIFY hubChanged)
   Q_PROPERTY(QString hubAddress READ hubAddress NOTIFY hubChanged)
+  // Link to the Hub: online | connecting | offline (handshake state plus the Sessions socket when the Hub offers Sessions).
+  Q_PROPERTY(QString hubLink READ hubLink NOTIFY hubLinkChanged)
   Q_PROPERTY(framebeam::ui::LibraryModel* library READ library CONSTANT)
   Q_PROPERTY(QString libraryState READ libraryState NOTIFY libraryStateChanged)  // loading | ready | error
   Q_PROPERTY(QString libraryError READ libraryError NOTIFY libraryStateChanged)
@@ -160,6 +162,7 @@ class PlayerController : public QObject {
   QString deviceFooter() const;
   QVariantMap pairing() const;
   QString hubName() const;
+  QString hubLink() const;
   QString hubAddress() const;
   LibraryModel* library() { return &model_; }
   QString libraryState() const { return libraryState_; }
@@ -334,6 +337,7 @@ class PlayerController : public QObject {
   void autoConnectChanged();
   void pairingChanged();
   void hubChanged();
+  void hubLinkChanged();
   void libraryStateChanged();
   void selectedGameChanged();
   void backgroundGameChanged();
@@ -354,6 +358,7 @@ class PlayerController : public QObject {
 
  private:
   void onConnectionState(HubConnection::State s);
+  void refreshHubLink();
   void onLibraryLoaded();
   void onRomStatus(const QString& sha, const RomStatus& st);
   void updateScreen();
@@ -476,6 +481,8 @@ class PlayerController : public QObject {
   qint64 gamePausedMs_ = 0;      // epoch ms when the game went to the background (3c-5 detail column: "paused 22:31")
   qint64 gameStartedMs_ = 0;     // epoch ms of the start of the running game ("12 min" in the Now running strip)
   bool quitting_ = false;
+  bool linkSeenUp_ = false;   // the Sessions socket was open since the last handshake
+  bool hubLinkDown_ = false;  // see hubLink(); read by GameDetail
   bool confirmActive_ = false;   // "Quit X and start Y?" is open
   bool confirmShare_ = false;
   void setBackground(bool on);

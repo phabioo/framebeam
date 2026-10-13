@@ -114,7 +114,7 @@ class PluginHotkeysUiTest : public QObject {
     QVERIFY(!h_.item("pluginHotkeyOrigin_net.test.a")->isVisible());
     QVERIFY(h_.item("pluginHotkeyOrigin_net.test.b")->isVisible());
     QCOMPARE(textOf(h_.item("pluginHotkeyOrigin_net.test.b")), QStringLiteral("Unverified"));
-    QCOMPARE(textOf(h_.item("pluginHotkeyCount_net.test.a")), QStringLiteral("3 key(s)"));
+    QCOMPARE(textOf(h_.item("pluginHotkeyCount_net.test.a")), QStringLiteral("3 keys"));
     QCOMPARE(textOf(h_.item("pluginHotkeyText_net.test.a_toggle-hud")), QStringLiteral("Ctrl+H"));
     QCOMPARE(textOf(h_.item("pluginHotkeyText_net.test.b_peek")), QStringLiteral("Ctrl+H · not active"));
     QVERIFY(h_.item("pluginHotkeyNote_net.test.b_peek")->isVisible());
@@ -145,7 +145,7 @@ class PluginHotkeysUiTest : public QObject {
     QTRY_COMPARE(textOf(h_.item("pluginHotkeyText_net.test.b_peek")), QStringLiteral("Ctrl+K"));
     QTRY_VERIFY(!h_.item("pluginHotkeyNote_net.test.b_peek")->isVisible());
     QTRY_VERIFY(h_.item("pluginHotkeyReset_net.test.b_peek")->isVisible());
-    QCOMPARE(textOf(h_.item("pluginHotkeyCount_net.test.b")), QStringLiteral("3 key(s) · 1 conflict(s)"));
+    QCOMPARE(textOf(h_.item("pluginHotkeyCount_net.test.b")), QStringLiteral("3 keys · 1 conflict"));
     QVERIFY(pc()->activeHotkeyCombos().contains(int(Qt::Key_K) | int(Qt::ControlModifier)));
 
     // The choice persists locally, keyed by plugin id + hotkey id, and a new controller reads it back.

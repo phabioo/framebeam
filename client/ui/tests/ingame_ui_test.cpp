@@ -40,6 +40,28 @@ QQuickItem* visibleItem(Harness& h, const char* name) {
 // The header collapsed to icons because the font is wider than the layout was designed for (window width alone does not decide).
 bool headerTight(Harness& h);
 bool shown(Harness& h, const char* name) { return visibleItem(h, name) != nullptr; }
+
+// Picks a Multiview mode through the header: the segment, or (collapsed when the header is tight) its cycle button.
+bool clickMode(Harness& h, const char* modeName) {
+  QQuickItem* seg = h.item(modeName);
+  if (seg != nullptr && seg->isVisible()) return h.click(modeName);
+  const QString want = QString::fromLatin1(modeName).mid(4).toLower();
+  QQuickItem* cycle = h.item("modeCycle");
+  if (cycle == nullptr || !cycle->isVisible()) {   // absurdly wide fonts: the header has no room for the mode control at all
+    h.controller->sessions()->setMultiviewMode(want);
+    return h.controller->sessions()->multiviewMode() == want;
+  }
+  for (int i = 0; i < 4 && h.controller->sessions()->multiviewMode() != want; ++i)
+    if (!h.click("modeCycle")) return false;
+  return h.controller->sessions()->multiviewMode() == want;
+}
+void collectLabels(QQuickItem* it, QList<QQuickItem*>& out) {
+  for (QQuickItem* c : it->childItems()) {
+    if (c->objectName() == QLatin1String("segmentLabel")) out.append(c);
+    collectLabels(c, out);
+  }
+}
+
 bool headerTight(Harness& h) {
   QQuickItem* hd = visibleItem(h, "gameHeader");
   return hd != nullptr && hd->property("tight").toBool();
@@ -589,7 +611,7 @@ class InGameUiTest : public QObject {
       h.click((QByteArray("multiviewAddButton_") + id).constData());
       QTest::qWait(150);
     }
-    h.click("modeGrid");
+    clickMode(h, "modeGrid");
     QTest::qWait(200);
     feed(QStringLiteral("s1"), QColor(150, 80, 60));
     feed(QStringLiteral("s2"), QColor(70, 140, 90));
@@ -867,7 +889,7 @@ class InGameUiTest : public QObject {
     QTRY_COMPARE(ctl->surfaceCount(), 2);
     QVERIFY(h.click("addSessionToggle"));
     QCOMPARE(visibleItem(h, "addSessionToggle")->property("meta").toString(), QStringLiteral("· 2/4"));
-    QVERIFY(h.click("modeRow"));
+    QVERIFY(clickMode(h, "modeRow"));
     QQuickTest::qWaitForPolish(h.window);
     QCOMPARE(ctl->multiviewMode(), QStringLiteral("row"));
     QVERIFY(!shown(h, "emptyTile_3") && !shown(h, "emptyTile_4"));  // no empty slots (3r-3)
@@ -920,7 +942,36 @@ class InGameUiTest : public QObject {
       const QString problem = zonesProblem(h, zoneNames());
       QVERIFY2(problem.isEmpty(), qPrintable(tag + problem));
       QVERIFY2(rectOf(h, "gamePanel").right() <= h.window->width() + 0.5, qPrintable(tag + QStringLiteral("panel outside the window")));
-      QVERIFY(shown(h, "modeSegment") && shown(h, "pauseButton") && shown(h, "addSessionToggle") && shown(h, "diagnosticsButton"));
+      QVERIFY2(shown(h, "modeSegment") || shown(h, "modeCycle") || visibleItem(h, "gameHeader")->property("cycleHidden").toBool(), qPrintable(tag + QStringLiteral("no multiview mode control")));
+      {  // Every visible header segment label is recognisable: never empty, never a bare "…" (priority order in GameHeader)
+        for (const char* segName : {"modeSegment", "viewSegment"}) {
+          QQuickItem* seg = visibleItem(h, segName);
+          if (seg == nullptr) continue;
+          QList<QQuickItem*> labels;
+          collectLabels(seg, labels);
+          QVERIFY2(!labels.isEmpty(), qPrintable(tag + QLatin1String(segName) + QStringLiteral(" has no labels")));
+          for (QQuickItem* l : labels) {
+            if (!l->isVisible()) continue;
+            const QString txt = l->property("text").toString();
+            const qreal shownW = l->property("contentWidth").toReal();
+            QVERIFY2(!txt.isEmpty() && txt != QStringLiteral("…") && shownW > 8.0, qPrintable(tag + QLatin1String(segName) + QStringLiteral(" label \"%1\" shows %2 px").arg(txt).arg(shownW)));
+            if (l->property("truncated").toBool())
+              QVERIFY2(shownW > 28.0, qPrintable(tag + QLatin1String(segName) + QStringLiteral(" label \"%1\" is elided to a stub").arg(txt)));
+          }
+        }
+      }
+      QVERIFY(shown(h, "pauseButton") && shown(h, "addSessionToggle") && shown(h, "diagnosticsButton"));
+      // The header always names the game or the view and shows the sharing state, also when the optional texts give way (R-P5).
+      {
+        QQuickItem* title = shown(h, "multiviewTitle") ? visibleItem(h, "multiviewTitle") : visibleItem(h, "multiGameTitle");
+        QVERIFY2(title != nullptr && title->width() > 8, qPrintable(tag + QStringLiteral("no title in the Multiview header")));
+        QVERIFY2(shown(h, "yourGameLabel") || shown(h, "multiSharePill"), qPrintable(tag + QStringLiteral("no sharing state in the Multiview header")));
+        if (shown(h, "multiGameTitle")) {
+          QVERIFY2(textOf(visibleItem(h, "multiGameTitle")) == gs->title(), qPrintable(tag + QStringLiteral("game title")));
+          QVERIFY2(rectOf(h, "multiGameTitle").right() <= rectOf(h, "modeSegment").left() + 0.5 || rectOf(h, "multiGameTitle").left() >= rectOf(h, "modeSegment").right() - 0.5,
+                   qPrintable(tag + QStringLiteral("title overlaps the mode switch")));
+        }
+      }
       ctl->diagnostics()->setOpen(true);
       QQuickTest::qWaitForPolish(h.window);
       QVERIFY2(overlayProblem(h).isEmpty(), qPrintable(tag + overlayProblem(h)));
@@ -946,6 +997,37 @@ class InGameUiTest : public QObject {
   }
 
   // ---- watching only ----
+
+  // R-P4: the header segments are reachable with Tab, show a focus ring, Left / Right move and pick, Enter / Space pick the focused option.
+  void headerSegmentsWorkWithTheKeyboard() {
+    FakeHub hub(QStringLiteral("a"));
+    Harness h;
+    pair(hub, h, false);
+    startPreview(h, false);
+    SessionController* ctl = h.controller->sessions();
+    resize(h, 1440, 900);
+    QVERIFY(h.click("tabMultiview"));
+    QQuickTest::qWaitForPolish(h.window);
+    QQuickItem* seg = visibleItem(h, "viewSegment");
+    QVERIFY(seg != nullptr);
+    QVERIFY(seg->activeFocusOnTab());
+    seg->forceActiveFocus();
+    QVERIFY(seg->hasActiveFocus());
+    QQuickTest::qWaitForPolish(h.window);
+    QCOMPARE(ctl->tab(), QStringLiteral("multiview"));
+    bool ring = false;
+    for (QQuickItem* i : h.items("segmentFocusRing")) ring = ring || i->isVisible();
+    QVERIFY2(ring, "the focused segment shows a focus ring");
+    QTest::keyClick(h.window, Qt::Key_Left);
+    QCOMPARE(ctl->tab(), QStringLiteral("session"));
+    QTest::keyClick(h.window, Qt::Key_Left);   // already the first option: stays
+    QCOMPARE(ctl->tab(), QStringLiteral("session"));
+    QTest::keyClick(h.window, Qt::Key_Right);
+    QCOMPARE(ctl->tab(), QStringLiteral("multiview"));
+    ctl->setTab(QStringLiteral("session"));
+    QTest::keyClick(h.window, Qt::Key_Return);   // re-picks the focused option
+    QCOMPARE(ctl->tab(), QStringLiteral("multiview"));
+  }
 
   void watchingOnlyHeader() {
     FakeHub hub(QStringLiteral("a"));

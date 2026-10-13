@@ -10,7 +10,10 @@ Rectangle {
     property string title: ""
     property string sub: ""
     property bool compact: false
-    implicitWidth: col.implicitWidth + (compact ? 20 : 32)
+    // The card never grows past its tile: long names wrap onto a second line instead of eliding ("Paused by Le…", R-P7).
+    readonly property real maxCardWidth: Math.max(120, root.parent ? root.parent.width - 16 : 400)
+    readonly property real pad: compact ? 20 : 32
+    implicitWidth: Math.min(maxCardWidth, col.implicitWidth + pad)
     implicitHeight: col.implicitHeight + (compact ? 12 : 20)
     radius: 10
     color: Theme.gameCard
@@ -19,12 +22,15 @@ Rectangle {
     ColumnLayout {
         id: col
         anchors.centerIn: parent
-        width: Math.min(implicitWidth, root.width - 16)
+        width: root.width - root.pad
         spacing: 4
         FbLabel {
             objectName: "tileCardTitle"
-            Layout.alignment: Qt.AlignHCenter
-            Layout.maximumWidth: Math.max(60, root.parent ? root.parent.width - 40 : 300)
+            Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.Wrap
+            maximumLineCount: root.compact ? 1 : 2
             elide: Text.ElideRight
             text: root.title
             font.pixelSize: root.compact ? 12 : 14
@@ -34,8 +40,11 @@ Rectangle {
         FbLabel {
             objectName: "tileCardSub"
             visible: root.sub !== "" && !root.compact
-            Layout.alignment: Qt.AlignHCenter
-            Layout.maximumWidth: Math.max(60, root.parent ? root.parent.width - 40 : 300)
+            Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.Wrap
+            maximumLineCount: 2
             elide: Text.ElideRight
             text: root.sub
             font.pixelSize: 12

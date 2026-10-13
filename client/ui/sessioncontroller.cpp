@@ -1079,9 +1079,9 @@ void SessionController::updateLinks() {
   }
   QString hint;
   if (relayed.size() == 1) {
-    hint = tr("%1 is relayed via the hub (TURN) · may lag slightly.").arg(relayed.first());
+    hint = tr("%1 is relayed via the Hub (TURN) · may lag slightly.").arg(relayed.first());
   } else if (relayed.size() > 1) {
-    hint = tr("%1 are relayed via the hub (TURN) · may lag slightly.").arg(relayed.join(QStringLiteral(", ")));
+    hint = tr("%1 are relayed via the Hub (TURN) · may lag slightly.").arg(relayed.join(QStringLiteral(", ")));
   }
   if (byViewer != linkByViewer_ || hint != relayHint_) {
     linkByViewer_ = byViewer;

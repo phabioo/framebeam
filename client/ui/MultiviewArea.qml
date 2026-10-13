@@ -341,7 +341,7 @@ Item {
                     Layout.preferredHeight: 20
                     radius: 10
                     color: Theme.gameOnBg
-                    FbLabel { id: audioText; anchors.centerIn: parent; text: qsTr("♪ Audio"); font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.gameAccent }
+                    FbLabel { id: audioText; anchors.centerIn: parent; text: tile.width < 300 ? qsTr("♪") : qsTr("♪ Audio"); font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.gameAccent }
                 }
                 Rectangle {
                     objectName: "pausedPill_" + tile.modelData

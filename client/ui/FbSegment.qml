@@ -21,6 +21,39 @@ Rectangle {
     border.width: 1
     border.color: Theme.borderCard
 
+    // Keyboard (R-P4): one tab stop for the whole control; Left/Right (Up/Down, Home/End) move the selection like a radio group.
+    activeFocusOnTab: true
+    Accessible.role: Accessible.RadioButton
+    Accessible.name: {
+        for (const o of options) if (o.value === current) return o.label
+        return ""
+    }
+    function step(delta) {
+        const enabled = options.filter(o => o.disabled !== true)
+        if (enabled.length === 0) return
+        let i = enabled.findIndex(o => o.value === current)
+        i = i < 0 ? (delta > 0 ? 0 : enabled.length - 1) : Math.max(0, Math.min(enabled.length - 1, i + delta))
+        if (enabled[i].value !== current) picked(enabled[i].value)
+    }
+    Keys.onPressed: (event) => {
+        switch (event.key) {
+        case Qt.Key_Left: case Qt.Key_Up: step(-1); event.accepted = true; break
+        case Qt.Key_Right: case Qt.Key_Down: step(1); event.accepted = true; break
+        case Qt.Key_Home: step(-1000); event.accepted = true; break
+        case Qt.Key_End: step(1000); event.accepted = true; break
+        }
+    }
+    Rectangle {
+        objectName: "focusRing"
+        visible: root.activeFocus
+        anchors.fill: parent
+        anchors.margins: -2
+        radius: root.radius + 2
+        color: "transparent"
+        border.width: 2
+        border.color: Theme.accent
+    }
+
     RowLayout {
         id: row
         anchors.fill: parent

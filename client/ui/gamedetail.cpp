@@ -39,7 +39,8 @@ GameDetail::GameDetail(const Deps& d, QObject* parent)
       phase_(d.phase),
       saveReady_(d.saveReady),
       saveNoteStart_(d.saveNoteStart),
-      startError_(d.startError) {}
+      startError_(d.startError),
+      hubLinkDown_(d.hubLinkDown) {}
 
 QVariantMap GameDetail::selectedGame() const {
   QVariantMap m;
@@ -98,7 +99,7 @@ QVariantMap GameDetail::selectedGame() const {
   m.insert(QStringLiteral("romText"), romText);
   m.insert(QStringLiteral("romTone"), romTone);
 
-  const bool hubUp = conn_->state() == HubConnection::State::Connected;
+  const bool hubUp = conn_->state() == HubConnection::State::Connected && !hubLinkDown_;
   const QString hubLabel = conn_->hubInfo().name.isEmpty() ? tr("the Hub") : conn_->hubInfo().name;
   // Core / firmware
   bool coreOk = false;
@@ -109,6 +110,7 @@ QVariantMap GameDetail::selectedGame() const {
   bool fwBlocked = false;
   QString fwTone = QStringLiteral("neutral");
   QString coreText;
+  QString coreStatusText;  // "Core missing", "Core download failed", ...: the START step reuses it as its title
   QString coreHint;
   QString fwText = tr("Not required");
   QString fwHint;
@@ -123,6 +125,7 @@ QVariantMap GameDetail::selectedGame() const {
     } else {
       QString st;
       catalog_->coreStatus(*man, &st, &coreTone, &coreHint);
+      coreStatusText = st;
       coreText = tr("%1 · %2").arg(label, st);
       coreProvisionable = hubUp && catalog_->hubOffersCore(*man) && phase_ == PlayPhase::None;
     }
@@ -223,8 +226,13 @@ QVariantMap GameDetail::selectedGame() const {
   if (!coreOk && man != nullptr) {
     if (coreProvisionable) coreMeta = tr("%1 downloads from %2 at start").arg(coreLabelForList, hubLabel);
     else if (!hubUp && catalog_->hubOffersCore(*man)) coreMeta = tr("%1 must download from %2").arg(coreLabelForList, hubLabel);
-    else coreMeta = coreText;
+    else coreMeta = coreHint.isEmpty() ? coreLabelForList : coreHint;  // the status text is the step title
   }
+  // Step title follows the state (R-P13): "Core ready" is only shown while the core is usable or can still be provisioned.
+  const bool coreWaitsForHub = !coreOk && !coreProvisionable && man != nullptr && !hubUp && catalog_->hubOffersCore(*man);
+  const QString coreStepLabel = coreOk || coreProvisionable || phase_ == PlayPhase::Core ? tr("Core ready")
+                                : coreWaitsForHub ? tr("Core needs the Hub")
+                                                  : (coreStatusText.isEmpty() ? tr("Core missing") : coreStatusText);
   const bool saveLocal = man != nullptr && man->saveSource == QLatin1String("none");
   const QString saveState = phase_ == PlayPhase::Launching ? (saveReady_ ? QStringLiteral("done") : QStringLiteral("active")) : QStringLiteral("pending");
   const QString saveLabel = saveLocal ? tr("Local save folder prepared") : tr("Save checked with Hub");
@@ -232,7 +240,7 @@ QVariantMap GameDetail::selectedGame() const {
     // A game that starts from a library folder (3c-7): the file itself is the first step, no ROM download.
     list.append(checkItem(tr("Local file found"), QStringLiteral("done"),
                           game->onHub ? tr("same hash as the Hub") : tr("%1 · hash checked").arg(LibraryModel::formatSize(game->romSize))));
-    list.append(checkItem(tr("Core ready"), coreState, coreMeta));
+    list.append(checkItem(coreStepLabel, coreState, coreMeta));
     list.append(checkItem(saveLabel, saveState, saveNoteStart_));
   } else {
     list.append(checkItem(tr("Game data from Hub"), QStringLiteral("done")));
@@ -247,7 +255,7 @@ QVariantMap GameDetail::selectedGame() const {
                           romReady ? QStringLiteral("done") : (phase_ == PlayPhase::Rom ? QStringLiteral("active") : QStringLiteral("pending")),
                           romReady ? QString() : romText));
     list.append(checkItem(saveLabel, saveState, saveNoteStart_));
-    list.append(checkItem(tr("Core ready"), coreState, coreMeta));
+    list.append(checkItem(coreStepLabel, coreState, coreMeta));
   }
   list.append(checkItem(tr("Emulator starting"), (phase_ == PlayPhase::Launching && saveReady_) ? QStringLiteral("active") : QStringLiteral("pending")));
   m.insert(QStringLiteral("checklist"), list);
@@ -255,7 +263,9 @@ QVariantMap GameDetail::selectedGame() const {
   QString error = startError_;
   m.insert(QStringLiteral("error"), error);
   m.insert(QStringLiteral("busy"), busy);
-  m.insert(QStringLiteral("canPlay"), !busy && man != nullptr && (coreOk || coreProvisionable) && fwOk && kind != QLatin1String("validating") &&
+  // The ROM still has to come from the Hub but the Hub cannot be reached (R-P3): no Play, with a reason.
+  const bool romNeedsHub = !hubUp && !fromLibraryFolder && (kind == QLatin1String("download") || kind == QLatin1String("failed") || kind == QLatin1String("mismatch"));
+  m.insert(QStringLiteral("canPlay"), !busy && man != nullptr && !romNeedsHub && (coreOk || coreProvisionable) && fwOk && kind != QLatin1String("validating") &&
                                           kind != QLatin1String("downloading") && kind != QLatin1String("unknown") && kind != QLatin1String("missing") && !fwChecking);
   // Why Play is disabled (3c-7): shown under the button, never a silent grey button.
   QString whyNot;
@@ -267,6 +277,8 @@ QVariantMap GameDetail::selectedGame() const {
         whyNot = tr("%1 is offline, so %2 cannot download. Try again when the Hub is back.").arg(hubLabel, coreLabelForList);
       else
         whyNot = tr("%1 is not on this device and %2 does not offer it.").arg(coreLabelForList, hubLabel);
+    } else if (romNeedsHub) {
+      whyNot = tr("%1 is offline, so the game cannot download. Try again when the Hub is back.").arg(hubLabel);
     } else if (fwBlocked) {
       whyNot = tr("Firmware is missing. Ask the Hub admin to provide it, then check again.");
     } else if (kind == QLatin1String("missing")) {

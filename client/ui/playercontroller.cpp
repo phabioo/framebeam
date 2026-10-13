@@ -72,7 +72,7 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
                     {QStringLiteral("isError"), false},
                     {QStringLiteral("text"), cancelled ? tr("Scan cancelled.")
                                              : count == 0 ? tr("No game files found in the library folders.")
-                                                          : tr("%n game file(s) found.", nullptr, count)}};
+                                                          : (count == 1 ? tr("1 game file found.") : tr("%1 game files found.").arg(count))}};
     if (!cancelled) {
       const QDateTime now = QDateTime::currentDateTime();
       for (const QString& f : settings_->libraryFolders())
@@ -96,7 +96,7 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   });
   connect(registrar_.get(), &RomRegistrar::batchFinished, this, [this](int ok, int failed) {
     if (failed > 0) {
-      libraryScan_.insert(QStringLiteral("text"), tr("%n file(s) could not be registered with the Hub.", nullptr, failed));
+      libraryScan_.insert(QStringLiteral("text"), (failed == 1 ? tr("1 file could not be registered with the Hub.") : tr("%1 files could not be registered with the Hub.").arg(failed)));
       libraryScan_.insert(QStringLiteral("isError"), true);
       emit libraryScanChanged();
     }
@@ -258,7 +258,7 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
                          coreList_, coreVersions_, coreNames_, coreProblems_, fwProblems_, phase_, launchGame_};
     catalog_ = std::make_unique<CoreCatalog>(cd);
     GameDetail::Deps dd{model_, selectedId_, saves_.get(), cache_.get(), conn_.get(), systems_.get(), fwCache_.get(), catalog_.get(),
-                        coreVersions_, fwProblems_, phase_, saveReady_, saveNoteStart_, startError_};
+                        coreVersions_, fwProblems_, phase_, saveReady_, saveNoteStart_, startError_, hubLinkDown_};
     detail_ = std::make_unique<GameDetail>(dd);
     hubPresenter_ = std::make_unique<HubPresenter>(HubPresenter::Deps{conn_.get(), profiles_.get(), lastError_, inviteBusy_});
     GameStarter::Deps sd{conn_.get(), profiles_.get(), saves_.get(), coreProv_.get(), provisioner_.get(), downloader_.get(),
@@ -399,6 +399,8 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     updateScreen();
   });
   connect(conn_.get(), &HubConnection::stateChanged, this, &PlayerController::onConnectionState);
+  connect(conn_.get(), &HubConnection::stateChanged, this, [this]() { refreshHubLink(); });
+  connect(sessions_.get(), &SessionController::linkChanged, this, [this]() { refreshHubLink(); });
   connect(conn_.get(), &HubConnection::errorOccurred, this, [this](const QString& code, const QString& message) {
     lastError_ = friendlyError(code, message);
     inviteBusy_ = false;
@@ -875,7 +877,7 @@ void PlayerController::addHub(const QString& address) {
   notice_.clear();
   resumePage_.clear();
   if (address.trimmed().isEmpty()) {
-    notice_ = tr("Please enter a hub address, e.g. hub.local:8443.");
+    notice_ = tr("Please enter a Hub address, e.g. hub.local:8443.");
     emit hubsChanged();
     return;
   }
@@ -1835,6 +1837,37 @@ void PlayerController::playSelected() {
 }
 
 void PlayerController::resolveSaveConflict(const QString& action) { starter_->resolveSaveConflict(action); }
+
+QString PlayerController::hubLink() const {
+  using S = HubConnection::State;
+  const S s = conn_->state();
+  if (s == S::Connected) {
+    // The handshake state stays Connected when the Hub process stops; the Sessions socket is the live signal.
+    if (sessions_ && sessions_->available()) {
+      const QString link = sessions_->hubLink();
+      if (link == QLatin1String("online")) return link;
+      // Never opened since the handshake: still starting. Opened before: the link dropped, a reconnect attempt is still "lost".
+      return linkSeenUp_ ? QStringLiteral("offline") : QStringLiteral("connecting");
+    }
+    return QStringLiteral("online");
+  }
+  if (s == S::Identifying || s == S::Disconnected) return QStringLiteral("connecting");
+  return QStringLiteral("offline");
+}
+
+void PlayerController::refreshHubLink() {
+  if (conn_->state() != HubConnection::State::Connected) {
+    linkSeenUp_ = false;
+  } else if (sessions_ && sessions_->available() && sessions_->hubLink() == QLatin1String("online")) {
+    linkSeenUp_ = true;
+  }
+  const bool down = hubLink() == QLatin1String("offline");
+  emit hubLinkChanged();
+  if (down != hubLinkDown_) {
+    hubLinkDown_ = down;
+    emit selectedGameChanged();
+  }
+}
 
 QVariantMap PlayerController::selectedGame() const {
   QVariantMap m = detail_->selectedGame();

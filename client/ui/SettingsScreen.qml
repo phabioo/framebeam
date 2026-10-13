@@ -66,7 +66,11 @@ Rectangle {
             }
         }
         if (flick.contentY + flick.height >= flick.contentHeight - 2) {
-            best = "diagnostics"
+            // At the end of the page the last sections cannot reach the probe line. A section the user jumped to
+            // stays selected as long as its top is on screen (R-P18); otherwise the last section takes over.
+            const cur = sectionItem(root.currentSection)
+            const curTop = cur.y + content.y
+            best = (curTop >= flick.contentY - 2 && curTop < flick.contentY + flick.height) ? root.currentSection : "diagnostics"
         }
         root.currentSection = best
     }
@@ -379,7 +383,7 @@ Rectangle {
                         FbButton {
                             objectName: "settingsAddHubButton"
                             kind: "link"
-                            text: qsTr("+ Add hub")
+                            text: qsTr("+ Add Hub")
                             onClicked: root.player.switchHub()
                         }
                     }
@@ -602,6 +606,7 @@ Rectangle {
                                             placeholderText: qsTr("hub.example.com:8443")
                                             inputMethodHints: Qt.ImhUrlCharactersOnly | Qt.ImhNoPredictiveText
                                             onAccepted: hubEditSave.clicked()
+                                            Keys.onEscapePressed: root.editingHubId = ""   // Esc cancels the inline edit (R-P4)
                                         }
                                         FbButton {
                                             objectName: "hubEditCancel_" + hubRow.modelData.hubId
@@ -625,7 +630,7 @@ Rectangle {
                                                     hubEditError.extra = ""
                                                     root.editingHubId = ""
                                                 } else {
-                                                    hubEditError.extra = qsTr("Another saved hub already uses this address")
+                                                    hubEditError.extra = qsTr("Another saved Hub already uses this address")
                                                 }
                                             }
                                         }
@@ -794,7 +799,7 @@ Rectangle {
                             onClicked: {
                                 const r = root.player.clearRomCache()
                                 secStorage.confirmClear = false
-                                secStorage.clearResult = qsTr("Freed %1 (%n file(s) removed).", "", r.removedFiles).arg(r.freedText)
+                                secStorage.clearResult = qsTr("Freed %1 (%2 removed).").arg(r.freedText).arg(Theme.plural(r.removedFiles, qsTr("file"), qsTr("files")))
                             }
                         }
                     }

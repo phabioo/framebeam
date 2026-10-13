@@ -221,6 +221,23 @@ class SettingsRowTest : public QObject {
     QCOMPARE(visibleControl("rSeg")->height(), 32.0);
   }
 
+  // R-P4: the segment is one Tab stop; Left/Right move the selection, the focus ring shows.
+  void segmentKeyboard() {
+    setPageWidth(676);
+    QQuickItem* seg = page_->findChild<QQuickItem*>(QStringLiteral("cL"));
+    QVERIFY(seg != nullptr);
+    QVERIFY(seg->activeFocusOnTab());
+    seg->forceActiveFocus();
+    QSignalSpy spy(seg, SIGNAL(picked(QString)));
+    QTest::keyClick(win_, Qt::Key_Right);
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(spy.at(0).at(0).toString(), QStringLiteral("b"));
+    QTest::keyClick(win_, Qt::Key_Left);  // already at the first option: no change
+    QCOMPARE(spy.count(), 1);
+    QQuickItem* ring = uitest::Harness::findVisual(seg, QStringLiteral("focusRing"));
+    QVERIFY(ring != nullptr && ring->isVisible());
+  }
+
   // Disabled rows show the reason under the description and dim the control to 40 % without taking input.
   void disabledReason() {
     setPageWidth(676);

@@ -32,6 +32,29 @@ Rectangle {
             color: root.active ? Theme.bg : (root.badgeAccent && root.count > 0 ? Theme.accent : Theme.textSecondary)
         }
     }
+    // Keyboard (R-P4): Tab reaches the chip, Enter/Space activates it, the focus ring is the accent border.
+    activeFocusOnTab: true
+    Accessible.role: Accessible.Button
+    Accessible.name: root.count >= 0 ? root.text + " · " + root.count : root.text
+    Accessible.checkable: true
+    Accessible.checked: root.active
+    Accessible.onPressAction: root.clicked()
+    Keys.onPressed: (event) => {
+        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+            root.clicked()
+            event.accepted = true
+        }
+    }
+    Rectangle {
+        objectName: "focusRing"
+        visible: root.activeFocus
+        anchors.fill: parent
+        anchors.margins: -2
+        radius: root.radius + 2
+        color: "transparent"
+        border.width: 2
+        border.color: Theme.accent
+    }
     HoverHandler { id: hover; cursorShape: Qt.PointingHandCursor }
     TapHandler { onTapped: root.clicked() }
 }

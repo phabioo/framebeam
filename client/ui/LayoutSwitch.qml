@@ -11,6 +11,23 @@ Rectangle {
     property bool compact: false   // icons only (narrow headers)
     signal picked(string value)
 
+    // Keyboard (R-P4): Tab reaches the switch, Left / Right pick the previous / next layout, Enter / Space pick the focused one.
+    property int focusIndex: -1
+    activeFocusOnTab: true
+    onActiveFocusChanged: if (activeFocus) focusIndex = Math.max(0, layouts.indexOf(current))
+    Keys.onPressed: (event) => {
+        if (event.key === Qt.Key_Left || event.key === Qt.Key_Right) {
+            const i = Math.max(0, Math.min(layouts.length - 1, (focusIndex < 0 ? layouts.indexOf(current) : focusIndex) + (event.key === Qt.Key_Left ? -1 : 1)))
+            focusIndex = i
+            root.picked(layouts[i])
+            event.accepted = true
+        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+            if (focusIndex >= 0 && focusIndex < layouts.length) root.picked(layouts[focusIndex])
+            event.accepted = true
+        }
+    }
+    Accessible.role: Accessible.RadioButton
+
     readonly property var labels: ({ "stacked": qsTr("Stacked"), "side": qsTr("Side by side"), "top": qsTr("Top only") })
     readonly property var names: ({ "stacked": "layoutStacked", "side": "layoutSide", "top": "layoutTop" })
 
@@ -32,6 +49,7 @@ Rectangle {
             delegate: Rectangle {
                 id: opt
                 required property string modelData
+                required property int index
                 objectName: root.names[modelData] || ""
                 readonly property bool active: root.current === modelData
                 Layout.fillHeight: true
@@ -71,6 +89,16 @@ Rectangle {
                         color: opt.active ? Theme.text : Theme.textMuted
                     }
                 }
+                Rectangle {
+                    objectName: "layoutFocusRing"
+                    visible: root.activeFocus && root.focusIndex === opt.index
+                    anchors.fill: parent
+                    radius: opt.radius
+                    color: "transparent"
+                    border.width: 1.5
+                    border.color: Theme.accent
+                }
+                // a mouse click leaves the focus with the game
                 TapHandler { onTapped: root.picked(opt.modelData) }
             }
         }

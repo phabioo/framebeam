@@ -259,7 +259,7 @@ void GameStarter::launch(const GameEntry& game, const QString& romPath) {
   const emu::SystemManifest* man = catalog_->manifestFor(game);
   if (man == nullptr || profiles_->hubDir(conn_->hubInfo().hubId).isEmpty()) {
     phase_ = PlayPhase::None;
-    startError_ = tr("Cannot start the game (system or hub directory unknown).");
+    startError_ = tr("Cannot start the game (system or Hub directory unknown).");
     emit selectedGameChanged();
     return;
   }

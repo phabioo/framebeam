@@ -66,6 +66,13 @@ Popup {
                     onClicked: root.close()
                 }
                 Item { Layout.fillWidth: true }
+                // The menu sits in the header next to the close button, not alone in the empty lower part of the sheet (R-P17).
+                MoreMenu {
+                    objectName: "pluginDetailMenu"
+                    tooltip: qsTr("More actions")
+                    items: [{ name: "uninstall", label: root.info && root.info.devLinked ? qsTr("Unlink folder…") : qsTr("Uninstall…"), danger: true, divider: false }]
+                    onActivated: name => { if (name === "uninstall") root.confirmUninstall = true }
+                }
                 FbButton {
                     objectName: "pluginDetailClose"
                     kind: "link"
@@ -303,6 +310,7 @@ Popup {
             }
 
             RowLayout {
+                visible: root.info !== null && root.info.updateVersion !== ""
                 Layout.fillWidth: true
                 Layout.topMargin: 6
                 spacing: 8
@@ -318,12 +326,6 @@ Popup {
                     implicitHeight: 32
                     text: root.info ? qsTr("Update to %1").arg(root.info.updateVersion) : ""
                     onClicked: root.ctl.installHubPlugin(root.pluginId, root.info.updateVersion)
-                }
-                MoreMenu {
-                    objectName: "pluginDetailMenu"
-                    tooltip: qsTr("More actions")
-                    items: [{ name: "uninstall", label: root.info && root.info.devLinked ? qsTr("Unlink folder…") : qsTr("Uninstall…"), danger: true, divider: false }]
-                    onActivated: name => { if (name === "uninstall") root.confirmUninstall = true }
                 }
             }
         }

@@ -23,6 +23,27 @@ QString trimmedScheme(const QString& address) {
   return a;
 }
 
+namespace {
+
+// A sentence for the common TLS failures instead of the raw OpenSSL text (R-P20). `detail` keeps the raw text for "Details".
+QString friendlyConnectError(const QString& raw, QString* detail) {
+  detail->clear();
+  const QString lower = raw.toLower();
+  QString friendly;
+  if (lower.contains(QLatin1String("wrong version number")) || lower.contains(QLatin1String("http request"))) {
+    friendly = QCoreApplication::translate("framebeam::ui::HubPresenter",
+                                           "The Hub does not answer with HTTPS on this port. Check the address and the port.");
+  } else if (lower.contains(QLatin1String("ssl handshake failed")) || lower.contains(QLatin1String("ssl routines"))) {
+    friendly = QCoreApplication::translate("framebeam::ui::HubPresenter",
+                                           "A secure connection to the Hub could not be set up. Check the address and the port.");
+  }
+  if (friendly.isEmpty()) return raw;
+  *detail = raw;
+  return friendly;
+}
+
+}  // namespace
+
 HubPresenter::HubPresenter(const Deps& d, QObject* parent)
     : QObject(parent), conn_(d.conn), profiles_(d.profiles), lastError_(d.lastError), inviteBusy_(d.inviteBusy) {}
 
@@ -56,6 +77,7 @@ QVariantMap HubPresenter::hubCard(const HubProfile& p) const {
   QString text = tr("Ready");
   QString tone = QStringLiteral("neutral");
   QString message;
+  QString messageDetail;  // raw technical text behind a "Details" link
   if (current) {
     switch (conn_->state()) {
       case S::Identifying:
@@ -94,7 +116,7 @@ QVariantMap HubPresenter::hubCard(const HubProfile& p) const {
         status = QStringLiteral("unreachable");
         text = tr("Not reachable");
         tone = QStringLiteral("error");
-        message = conn_->errorMessage();
+        message = friendlyConnectError(conn_->errorMessage(), &messageDetail);
         break;
       default:
         break;
@@ -104,6 +126,7 @@ QVariantMap HubPresenter::hubCard(const HubProfile& p) const {
   m.insert(QStringLiteral("statusText"), text);
   m.insert(QStringLiteral("tone"), tone);
   m.insert(QStringLiteral("message"), message);
+  m.insert(QStringLiteral("messageDetail"), messageDetail);
   m.insert(QStringLiteral("current"), current);
   m.insert(QStringLiteral("connected"), current && conn_->state() == S::Connected);
   return m;

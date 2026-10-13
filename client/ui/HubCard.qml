@@ -5,6 +5,7 @@ import QtQuick.Layouts
 Rectangle {
     id: card
     required property var hub
+    objectName: "hubCard_" + hub.hubId
 
     signal connectRequested(string hubId)
     signal retryRequested()
@@ -13,6 +14,7 @@ Rectangle {
     signal cancelCertificateRequested()
 
     property bool confirmingTrust: false
+    property bool showDetails: false
     onStatusChanged: if (status !== "certChanged") confirmingTrust = false
     readonly property string status: hub.status
     readonly property string tone: hub.tone
@@ -36,6 +38,7 @@ Rectangle {
             Layout.fillWidth: true
             spacing: 10
             FbLabel {
+                objectName: "hubCardName"
                 Layout.fillWidth: true
                 text: card.hub.name
                 font.pixelSize: Theme.fontCard
@@ -73,6 +76,27 @@ Rectangle {
                 font.pixelSize: Theme.fontSmall
                 wrapMode: Text.WordWrap
                 color: card.tone === "error" ? Theme.errorText : (card.tone === "warn" ? Theme.infoText : Theme.text)
+            }
+        }
+
+        // The raw technical error behind a "Details" link (R-P20).
+        ColumnLayout {
+            Layout.fillWidth: true
+            visible: (card.hub.messageDetail || "") !== ""
+            spacing: 4
+            FbButton {
+                objectName: "hubErrorDetailsToggle"
+                kind: "link"
+                text: card.showDetails ? qsTr("Hide details") : qsTr("Details")
+                onClicked: card.showDetails = !card.showDetails
+            }
+            FbMono {
+                objectName: "hubErrorDetails"
+                visible: card.showDetails
+                Layout.fillWidth: true
+                text: card.hub.messageDetail || ""
+                wrapMode: Text.WrapAnywhere
+                textFormat: Text.PlainText
             }
         }
 
@@ -155,14 +179,18 @@ Rectangle {
         }
 
         // The action buttons wrap onto further lines when a wide font leaves them too little room; Remove stays on the right.
-        RowLayout {
+        // Anchors (not a Flow inside a RowLayout): a Flow reports an implicit width that depends on its own width, and as a
+        // layout item it collapsed to a few pixels, which squeezed the whole saved-Hub card (R-P2).
+        Item {
+            id: actions
             Layout.fillWidth: true
             Layout.minimumWidth: 0
-            spacing: 10
+            implicitHeight: Math.max(actionFlow.implicitHeight, removeButton.implicitHeight)
             Flow {
-                Layout.fillWidth: true
-                Layout.minimumWidth: 0
-                Layout.alignment: Qt.AlignTop
+                id: actionFlow
+                anchors.left: parent.left
+                anchors.right: removeButton.left
+                anchors.rightMargin: 10
                 spacing: 10
                 FbButton {
                     objectName: "hubConnectButton"
@@ -194,8 +222,10 @@ Rectangle {
                 }
             }
             FbButton {
-                Layout.alignment: Qt.AlignTop
-                Layout.fillWidth: false
+                id: removeButton
+                objectName: "hubRemoveButton"
+                anchors.right: parent.right
+                anchors.top: parent.top
                 visible: card.status !== "connecting"
                 kind: "link"
                 text: card.hub.saved ? qsTr("Remove") : qsTr("Discard")

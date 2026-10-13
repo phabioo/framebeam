@@ -62,7 +62,6 @@ class ControllersController : public QObject {
   // changes what the page shows; the mapping in use follows the running game's system.
   Q_PROPERTY(QVariantList systems READ systems NOTIFY systemsChanged)
   Q_PROPERTY(QString viewSystem READ viewSystem NOTIFY labelsChanged)
-  Q_PROPERTY(QString systemNote READ systemNote NOTIFY labelsChanged)  // which buttons the viewed system has
   Q_PROPERTY(QString systemLabel READ systemLabel NOTIFY labelsChanged)
   Q_PROPERTY(QString touchLabel READ touchLabel NOTIFY labelsChanged)
   Q_PROPERTY(bool hasTouch READ hasTouch NOTIFY labelsChanged)  // the current system has a touch screen
@@ -109,7 +108,6 @@ class ControllersController : public QObject {
   QString systemLabel() const { return viewLabel_.isEmpty() ? systemLabel_ : viewLabel_; }
   QVariantList systems() const { return systems_; }
   QString viewSystem() const { return viewSystem_; }
-  QString systemNote() const;
   void setSystems(const QVariantList& systems);  // [{id, label, profile, inputLabel}] from the manifests
   Q_INVOKABLE void selectSystem(const QString& id);
   QString touchLabel() const { return touchLabel_; }

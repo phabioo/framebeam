@@ -49,6 +49,7 @@ class GameDetail : public QObject {
     const bool& saveReady;
     const QString& saveNoteStart;
     const QString& startError;
+    const bool& hubLinkDown;  // the Hub link dropped while the handshake state is still Connected
   };
 
   explicit GameDetail(const Deps& d, QObject* parent = nullptr);
@@ -70,6 +71,7 @@ class GameDetail : public QObject {
   const bool& saveReady_;
   const QString& saveNoteStart_;
   const QString& startError_;
+  const bool& hubLinkDown_;
 };
 
 }  // namespace framebeam::ui

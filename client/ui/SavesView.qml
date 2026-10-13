@@ -234,7 +234,7 @@ FocusScope {
                 opacity: enabled ? 1 : 0.6
                 activeFocusOnTab: true
                 Accessible.role: Accessible.Button
-                Accessible.name: qsTr("Refresh from hub")
+                Accessible.name: qsTr("Refresh from Hub")
                 Text {
                     id: refreshGlyph
                     anchors.centerIn: parent
@@ -248,7 +248,7 @@ FocusScope {
                 Keys.onPressed: (event) => { if (refresh.enabled && (event.key === Qt.Key_Space || event.key === Qt.Key_Return)) { root.hist.refresh(); event.accepted = true } }
                 ToolTip.visible: refreshHover.hovered
                 ToolTip.delay: 500
-                ToolTip.text: qsTr("Refresh from hub")
+                ToolTip.text: qsTr("Refresh from Hub")
             }
         }
 
@@ -366,7 +366,11 @@ FocusScope {
                                     height: 2
                                     color: Theme.accent
                                 }
-                                HoverHandler { cursorShape: Qt.PointingHandCursor }
+                                HoverHandler { id: tabHover; cursorShape: Qt.PointingHandCursor }
+                                // The tab elides long slot names: the full name is the tooltip (R-P12).
+                                ToolTip.visible: tabHover.hovered && tabText.truncated
+                                ToolTip.text: tab.modelData.label
+                                ToolTip.delay: 400
                                 TapHandler { enabled: tabs.changeable && !tab.active; onTapped: root.hist.selectSlot(tab.modelData.value) }
                                 Keys.onPressed: (event) => {
                                     if (tabs.changeable && !tab.active && (event.key === Qt.Key_Space || event.key === Qt.Key_Return)) {
@@ -465,6 +469,14 @@ FocusScope {
                                     font.pixelSize: Theme.fontSmall
                                     font.weight: Font.Medium
                                     onClicked: { switchMenu.close(); root.newSlotError = ""; root.newSlotOpen = true; Qt.callLater(() => newSlotField.forceActiveFocus()) }
+                                    // The Basic ItemDelegate text follows the palette (dark text on the dark popup looked disabled, R-P16).
+                                    contentItem: Text {
+                                        text: newItem.text
+                                        font: newItem.font
+                                        color: Theme.text
+                                        verticalAlignment: Text.AlignVCenter
+                                        elide: Text.ElideRight
+                                    }
                                     background: Rectangle { radius: Theme.radius6; color: newItem.highlighted || newItem.hovered ? Theme.surfaceRaised : "transparent" }
                                 }
                             }
@@ -708,8 +720,8 @@ FocusScope {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
                             text: root.hist.lastSynced !== ""
-                                  ? qsTr("Hub offline · read-only. Showing the history from the last sync, %1. Restore, snapshots and uploads need the hub.").arg(root.hist.lastSynced)
-                                  : qsTr("Hub offline · read-only. Restore, snapshots and uploads need the hub.")
+                                  ? qsTr("Hub offline · read-only. Showing the history from the last sync, %1. Restore, snapshots and uploads need the Hub.").arg(root.hist.lastSynced)
+                                  : qsTr("Hub offline · read-only. Restore, snapshots and uploads need the Hub.")
                             color: Theme.warn
                             font.pixelSize: Theme.fontMeta
                         }

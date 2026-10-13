@@ -51,17 +51,36 @@ Rectangle {
                     color: Theme.accent
                 }
             }
-            HoverHandler { id: navHover; cursorShape: Qt.PointingHandCursor }
-            TapHandler {
-                onTapped: {
-                    switch (navItem.modelData.target) {
-                    case "settings": root.player.showSettings(); break
-                    case "emulation": root.player.showEmulation(); break
-                    case "controllers": root.player.showControllers(); break
-                    default: root.player.showLibrary()
-                    }
+            function activate() {
+                switch (navItem.modelData.target) {
+                case "settings": root.player.showSettings(); break
+                case "emulation": root.player.showEmulation(); break
+                case "controllers": root.player.showControllers(); break
+                default: root.player.showLibrary()
                 }
             }
+            // Keyboard (R-P4): Tab reaches every entry, Enter/Space opens it.
+            activeFocusOnTab: true
+            Keys.onPressed: (event) => {
+                if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                    navItem.activate()
+                    event.accepted = true
+                }
+            }
+            Accessible.role: Accessible.Button
+            Accessible.name: navItem.modelData.label
+            Accessible.onPressAction: navItem.activate()
+            Rectangle {
+                objectName: "focusRing"
+                visible: navItem.activeFocus
+                anchors.fill: parent
+                radius: parent.radius
+                color: "transparent"
+                border.width: 2
+                border.color: Theme.accent
+            }
+            HoverHandler { id: navHover; cursorShape: Qt.PointingHandCursor }
+            TapHandler { onTapped: navItem.activate() }
         }
     }
 
@@ -87,6 +106,10 @@ Rectangle {
                 elide: Text.ElideRight
                 font.pixelSize: Theme.fontCard
                 font.weight: Font.DemiBold
+                HoverHandler { id: brandHover }
+                ToolTip.visible: brandHover.hovered && truncated
+                ToolTip.text: text
+                ToolTip.delay: 400
             }
         }
 
@@ -130,6 +153,23 @@ Rectangle {
                 }
                 Accessible.role: Accessible.Button
                 Accessible.name: qsTr("Runs")
+                Accessible.onPressAction: root.player.showRuns()
+                activeFocusOnTab: true
+            Keys.onPressed: (event) => {
+                if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                    root.player.showRuns()
+                    event.accepted = true
+                }
+            }
+                Rectangle {
+                    objectName: "focusRing"
+                    visible: runsItem.activeFocus
+                    anchors.fill: parent
+                    radius: parent.radius
+                    color: "transparent"
+                    border.width: 2
+                    border.color: Theme.accent
+                }
                 HoverHandler { id: runsHover; cursorShape: Qt.PointingHandCursor }
                 TapHandler { onTapped: root.player.showRuns() }
             }
@@ -178,6 +218,23 @@ Rectangle {
                     }
                     Accessible.role: Accessible.Button
                     Accessible.name: plugItem.modelData.title
+                    Accessible.onPressAction: root.player.showPluginScreen(plugItem.modelData.pluginId)
+                    activeFocusOnTab: true
+                    Keys.onPressed: (event) => {
+                        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                            root.player.showPluginScreen(plugItem.modelData.pluginId)
+                            event.accepted = true
+                        }
+                    }
+                    Rectangle {
+                        objectName: "focusRing"
+                        visible: plugItem.activeFocus
+                        anchors.fill: parent
+                        radius: parent.radius
+                        color: "transparent"
+                        border.width: 2
+                        border.color: Theme.accent
+                    }
                     HoverHandler { id: plugHover; cursorShape: Qt.PointingHandCursor }
                     TapHandler { onTapped: root.player.showPluginScreen(plugItem.modelData.pluginId) }
                 }
@@ -308,12 +365,23 @@ Rectangle {
                 spacing: 6
                 RowLayout {
                     spacing: Theme.space8
-                    StatusDot { tone: "ok" }
+                    StatusDot {
+                        objectName: "hubStatusDot"
+                        // Follows the link (R-P3): green only while the Hub answers, cyan while connecting, amber once it is lost.
+                        tone: root.player.hubLink === "online" ? "ok" : (root.player.hubLink === "connecting" ? "info" : "amber")
+                        Accessible.role: Accessible.StaticText
+                        Accessible.name: root.player.hubLink === "online" ? qsTr("Connected")
+                                         : (root.player.hubLink === "connecting" ? qsTr("Connecting") : qsTr("Not reachable"))
+                    }
                     FbLabel {
                         Layout.fillWidth: true
                         text: root.player.hubName
                         font.weight: Font.Medium
                         elide: Text.ElideRight
+                        HoverHandler { id: hubNameHover }
+                        ToolTip.visible: hubNameHover.hovered && truncated
+                        ToolTip.text: text
+                        ToolTip.delay: 400
                     }
                     FbButton {
                         objectName: "switchHubButton"
@@ -333,6 +401,15 @@ Rectangle {
                     ToolTip.visible: addrHover.hovered && truncated
                     ToolTip.text: root.player.hubAddress
                     ToolTip.delay: 400
+                }
+                FbLabel {
+                    objectName: "hubCardLinkNote"
+                    visible: root.player.hubLink !== "online"
+                    Layout.fillWidth: true
+                    text: root.player.hubLink === "connecting" ? qsTr("Connecting…") : qsTr("Not reachable · reconnecting…")
+                    color: root.player.hubLink === "connecting" ? Theme.accent : Theme.pluginWarn
+                    font.pixelSize: Theme.fontMeta
+                    elide: Text.ElideRight
                 }
             }
         }
