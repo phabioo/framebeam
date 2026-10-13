@@ -80,13 +80,20 @@ Rectangle {
             return w
         }
         var overflow = []
-        while (total() + (overflow.length > 0 ? 46 : 0) > avail && shown.length > 1) {
+        // The "+n ▾" tab measured with the real font (46 stays the minimum), so a wide font cannot push it out of the bar.
+        function overflowW(count) { return count > 0 ? Math.max(46, Math.ceil(tabFm.advanceWidth("+" + count + " ▾")) + 18 + gapW) : 0 }
+        while (total() + overflowW(overflow.length) > avail && shown.length > 1) {
             var idx = -1
             for (var m = shown.length - 1; m > 0; --m) if (shown[m].e.id !== root.panelTab) { idx = m; break }
             if (idx < 0) break
             overflow.unshift(shown.splice(idx, 1)[0].e)
         }
-        return { shown: shown, overflow: overflow }
+        // Game and the open tab alone can still be wider than the bar (very wide font): their labels then elide to a share of it.
+        var textSum = 0, labeled = 0
+        for (var q = 0; q < shown.length; ++q) if (shown[q].label) { ++labeled; textSum += Math.ceil(tabFm.advanceWidth(shown[q].e.name)) }
+        var fixedW = total() - textSum + overflowW(overflow.length)
+        var textMax = labeled > 0 && fixedW + textSum > avail ? Math.max(16, Math.floor((avail - fixedW) / labeled)) : 100000
+        return { shown: shown, overflow: overflow, textMax: textMax }
     }
     FontMetrics { id: tabFm; font.pixelSize: 13 }
     function openTab(id) {
@@ -333,6 +340,8 @@ Rectangle {
                                 objectName: "panelTabLabel"
                                 visible: tabItem.showLabel
                                 text: tabItem.entry.name
+                                width: Math.min(implicitWidth, root.tabPlan.textMax)
+                                elide: Text.ElideRight
                                 font.pixelSize: 13
                                 font.weight: tabItem.open ? Font.Medium : Font.Normal
                                 color: tabItem.open ? Theme.gameText : Theme.gameTextMuted

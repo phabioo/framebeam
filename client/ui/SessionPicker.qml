@@ -37,7 +37,17 @@ ColumnLayout {
             font.weight: Font.DemiBold
             color: Theme.gameText
         }
-        FbMono { objectName: "multiviewListCount"; text: qsTr("%1 of %2 tiles").arg(root.count).arg(root.ctl.maxSurfaces); font.pixelSize: 11; color: Theme.gameMeta }
+        FbMono {
+            objectName: "multiviewListCount"
+            // fillWidth + maximumWidth = preferred: never grows, may shrink (elides) so a wide font cannot push the picker wider than its popover
+            Layout.fillWidth: true
+            Layout.preferredWidth: implicitWidth
+            Layout.maximumWidth: implicitWidth
+            elide: Text.ElideRight
+            text: qsTr("%1 of %2 tiles").arg(root.count).arg(root.ctl.maxSurfaces)
+            font.pixelSize: 11
+            color: Theme.gameMeta
+        }
     }
 
     Rectangle {

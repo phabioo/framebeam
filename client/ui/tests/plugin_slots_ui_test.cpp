@@ -163,6 +163,16 @@ class PluginSlotsUiTest : public QObject {
     QVERIFY2(!img.isNull() && !uitest::isAllBlack(img), qPrintable(name));
     QVERIFY(img.save(QDir(shotDir_).filePath(name + QStringLiteral(".png"))));
   }
+  // Whether the panel tab bar can hold tabs with a label (names, same widths as GamePanel.qml) plus `icons` icon-only tabs.
+  // A very wide font (Windows fallback) cannot: the bar then moves tabs into "+n" and shows fewer labels, by design.
+  bool tabsFit(const QStringList& labeled, int icons) {
+    QFont f = QGuiApplication::font();
+    f.setPixelSize(13);
+    const QFontMetricsF fm(f);
+    qreal w = 2.0 * (labeled.size() + icons - 1) + 36.0 * icons;
+    for (const QString& n : labeled) w += (n == QStringLiteral("Game") ? 0 : 24) + std::ceil(fm.horizontalAdvance(n)) + 18;
+    return w + 4 <= h_.item("panelTabBar")->width() - 24;   // 4 px slack for rounding
+  }
   int visibleCount(const char* name) {
     int n = 0;
     for (QQuickItem* i : h_.items(name))
@@ -372,7 +382,7 @@ class PluginSlotsUiTest : public QObject {
     QTRY_VERIFY(h_.item("panelTab_plugin:net.test.a") != nullptr);
     QVERIFY(h_.item("panelTab_game")->isVisible());
     QVERIFY(h_.item("panelTab_plugin:net.test.a")->isVisible());
-    QCOMPARE(visibleCount("panelTabLabel"), 2);
+    if (tabsFit({"Game", "SoulLink"}, 0)) QCOMPARE(visibleCount("panelTabLabel"), 2);
     QCOMPARE(visibleCount("tabDot"), 1);  // news dot
     QVERIFY(h_.click("panelTab_plugin:net.test.a"));
     QTRY_VERIFY(h_.item("gamePanelPlugin")->isVisible());
@@ -393,8 +403,15 @@ class PluginSlotsUiTest : public QObject {
                                                     tabEntry("net.test.c", "Party Editor")}},
                         {"trees", trees}});
     QTRY_COMPARE(visibleCount("panelTabLabel"), 2);  // Game + the open SoulLink tab
-    QVERIFY(!h_.item("panelTabOverflow")->isVisible());
-    QVERIFY(h_.click("panelTab_plugin:net.test.c"));
+    if (tabsFit({"Game", "SoulLink"}, 2)) QVERIFY(!h_.item("panelTabOverflow")->isVisible());
+    QTRY_VERIFY(h_.item("panelTabOverflow")->isVisible() || (h_.item("panelTab_plugin:net.test.c") != nullptr && h_.item("panelTab_plugin:net.test.c")->isVisible()));
+    if (h_.item("panelTab_plugin:net.test.c") != nullptr && h_.item("panelTab_plugin:net.test.c")->isVisible()) {
+      QVERIFY(h_.click("panelTab_plugin:net.test.c"));
+    } else {   // a very wide font moved it into the "+n" popover
+      QVERIFY(h_.click("panelTabOverflow"));
+      QTRY_VERIFY(h_.item("panelTabOverflowItem_plugin:net.test.c") != nullptr && h_.item("panelTabOverflowItem_plugin:net.test.c")->isVisible());
+      QVERIFY(h_.click("panelTabOverflowItem_plugin:net.test.c"));
+    }
     QTRY_COMPARE(visibleCount("panelTabLabel"), 2);  // Game + Party Editor now
     shot(QStringLiteral("slots-panel-4-tabs"));
 

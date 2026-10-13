@@ -229,7 +229,12 @@ class InGameUiTest : public QObject {
   static QString overlayProblem(Harness& h) {
     const QRectF play = rectOf(h, "playArea"), ov = rectOf(h, "diagnosticsOverlay"), panel = rectOf(h, "gamePanel"), header = rectOf(h, "gameHeader");
     if (ov.isEmpty()) return QStringLiteral("diagnostics not visible");
-    if (!panel.contains(ov)) return QStringLiteral("diagnostics outside the panel");
+    if (ov.left() < panel.left() - 0.5 || ov.right() > panel.right() + 0.5 || ov.top() < panel.top() - 0.5) return QStringLiteral("diagnostics outside the panel");
+    // Below the panel is fine when the docked view scrolls (wide fonts make the sections taller than a 600 px window).
+    if (ov.bottom() > panel.bottom() + 0.5) {
+      QQuickItem* box = visibleItem(h, "gamePanelDiagnostics");
+      if (box == nullptr || box->property("contentHeight").toReal() <= box->height() + 0.5) return QStringLiteral("diagnostics outside the panel (not scrollable)");
+    }
     if (ov.top() < header.bottom() - 0.5) return QStringLiteral("diagnostics over the header");
     if (ov.intersects(play) && ov.intersected(play).width() > 1.0) return QStringLiteral("diagnostics cover the play area");
     return {};

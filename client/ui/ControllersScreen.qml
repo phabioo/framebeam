@@ -260,15 +260,25 @@ Rectangle {
                         wrapMode: Text.WordWrap
                     }
 
-                    // Tab chips + Reset N changed
-                    RowLayout {
+                    // Tab chips + Reset N changed. The chips stay on one line with "Reset" at the right edge while they fit; wide fonts
+                    // wrap "Reset" under the chips instead of pushing it out of the column.
+                    Flow {
+                        id: chipFlow
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0  // chips + "Reset N changed" must not widen the whole column on narrow windows
                         spacing: Theme.space8
-                        FbChip { objectName: "tabButtons"; text: qsTr("Buttons"); active: !root.hotkeysTab; onClicked: { root.ctl.cancelHotkeyCapture(); root.plugins.cancelHotkeyCapture(); root.tab = "buttons" } }
-                        FbChip { objectName: "tabHotkeys"; text: qsTr("Hotkeys"); active: root.hotkeysTab; onClicked: { root.ctl.cancelCapture(); root.ctl.cancelHotkeyCapture(); root.tab = "hotkeys" } }
-                        Item { Layout.fillWidth: true }
+                        readonly property real chipsWidth: tabButtonsChip.implicitWidth + tabHotkeysChip.implicitWidth + spacing
+                        readonly property real linkWidth: resetChangedButton.visible ? resetChangedButton.implicitWidth : 0
+                        readonly property bool oneRow: chipsWidth + (linkWidth > 0 ? spacing + linkWidth : 0) <= width
+                        FbChip { id: tabButtonsChip; objectName: "tabButtons"; text: qsTr("Buttons"); active: !root.hotkeysTab; onClicked: { root.ctl.cancelHotkeyCapture(); root.plugins.cancelHotkeyCapture(); root.tab = "buttons" } }
+                        FbChip { id: tabHotkeysChip; objectName: "tabHotkeys"; text: qsTr("Hotkeys"); active: root.hotkeysTab; onClicked: { root.ctl.cancelCapture(); root.ctl.cancelHotkeyCapture(); root.tab = "hotkeys" } }
+                        Item {   // pushes Reset to the right edge when everything fits on one line
+                            visible: chipFlow.oneRow && resetChangedButton.visible
+                            width: Math.max(0, chipFlow.width - chipFlow.chipsWidth - chipFlow.linkWidth - chipFlow.spacing)
+                            height: 1
+                        }
                         FbButton {
+                            id: resetChangedButton
                             objectName: "resetChanged"
                             readonly property int n: root.hotkeysTab ? root.ctl.hotkeysChangedCount : root.ctl.changedCount
                             visible: n > 0 && (root.hotkeysTab || (!root.isMouse && !root.ctl.profileBuiltin))

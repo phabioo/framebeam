@@ -213,11 +213,17 @@ target_include_directories(test_ui_runs PRIVATE ${FB_NETTEST_DIR} ${CMAKE_CURREN
 target_compile_definitions(test_ui_runs PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
 
 # Same layout tests with a noticeably wider application font (FRAMEBEAM_TEST_WIDE_FONT, testsupport.h): catches items
-# that only fit with Linux font metrics (Windows CI renders wider).
+# that only fit with Linux font metrics (Windows CI renders wider; 16 px letter spacing is about the Windows fallback font).
 # Not on Windows: its fonts are already the wide case, extra spacing there tests something no user sees.
 if(NOT WIN32)
-  foreach(t ui_shell_layout ui_library_saves)
+  foreach(t ui_shell_layout ui_library_saves ui_ingame ui_plugin_slots ui_settings_row ui_screens ui_plugins)
     add_test(NAME ${t}_widefont COMMAND test_${t})
-    set_tests_properties(${t}_widefont PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;FRAMEBEAM_TEST_WIDE_FONT=1")
+    set_tests_properties(${t}_widefont PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;FRAMEBEAM_TEST_WIDE_FONT=16")
+  endforeach()
+  # The test-core variants keep their core environment (merge CI has no real core).
+  foreach(t ui_sessions_testcore ui_emulation_controllers_testcore)
+    get_test_property(${t} ENVIRONMENT core_env)
+    add_test(NAME ${t}_widefont COMMAND test_${t})
+    set_tests_properties(${t}_widefont PROPERTIES ENVIRONMENT "${core_env};FRAMEBEAM_TEST_WIDE_FONT=16")
   endforeach()
 endif()

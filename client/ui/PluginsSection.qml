@@ -151,7 +151,19 @@ ColumnLayout {
                         height: 1
                         color: Theme.borderRow
                     }
-                    TapHandler { onTapped: root.sheetPluginId = row.modelData.id }
+                    TapHandler {
+                        onTapped: point => {
+                            // The open sheet covers part of the list (a wide font can put a row under its buttons): taps on the
+                            // sheet must not also switch the row below it.
+                            if (sheet.opened) {
+                                const p = sheet.contentItem.mapFromItem(null, point.scenePosition)
+                                if (p.x >= 0 && p.y >= 0 && p.x < sheet.contentItem.width && p.y < sheet.contentItem.height) {
+                                    return
+                                }
+                            }
+                            root.sheetPluginId = row.modelData.id
+                        }
+                    }
                     RowLayout {
                         id: rowLine
                         anchors.left: parent.left
@@ -181,6 +193,7 @@ ColumnLayout {
                             spacing: 2
                             RowLayout {
                                 Layout.fillWidth: true
+                                Layout.minimumWidth: 0
                                 spacing: 8
                                 FbLabel {
                                     objectName: "pluginName"

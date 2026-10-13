@@ -293,7 +293,9 @@ Rectangle {
                         Row {
                             spacing: Theme.space8
                             FbChip {
+                                id: allChip
                                 objectName: "categoryAll"
+                                maxWidth: chipBar.width
                                 text: qsTr("All")
                                 active: root.emu.categoryFilter === ""
                                 onClicked: root.emu.categoryFilter = ""
@@ -313,6 +315,7 @@ Rectangle {
                             FbChip {
                                 id: moreChip
                                 objectName: "categoryMore"
+                                maxWidth: Math.max(60, chipBar.width - allChip.width - Theme.space8)
                                 visible: chipBar.collapsed
                                 text: chipBar.moreText(chipBar.cats.length - chipBar.shown)
                                 active: chipBar.hiddenActive

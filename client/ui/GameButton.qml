@@ -25,6 +25,10 @@ Button {
     property bool muted: false       // quiet text (Back)
     property int hPad: 10
     property int fixedWidth: 0
+    property bool showMeta: true     // false: the mono suffix gives way (header with very wide fonts)
+    readonly property real metaFullWidth: meta !== "" ? metaText.implicitWidth + row.spacing : 0
+    property bool showHint: true     // false: the key badge gives way (header with very wide fonts)
+    readonly property real hintFullWidth: hint !== "" ? keyText.implicitWidth + 8 + row.spacing : 0   // badge incl. gap, whether shown or not
 
     readonly property color fg: !enabled ? Theme.gameFaint : on ? Theme.gameAccent : danger ? Theme.gameDanger : muted ? Theme.gameTextMuted : Theme.gameText
 
@@ -82,7 +86,8 @@ Button {
                 Text { id: probe; visible: false; text: control.widthText; font: label.font }
             }
             Text {
-                visible: control.meta !== ""
+                id: metaText
+                visible: control.meta !== "" && control.showMeta
                 anchors.verticalCenter: parent.verticalCenter
                 text: control.meta
                 font.family: Theme.mono
@@ -90,7 +95,7 @@ Button {
                 color: control.on ? Theme.gameAccent : Theme.gameFaint
             }
             Rectangle {
-                visible: control.hint !== ""
+                visible: control.hint !== "" && control.showHint
                 anchors.verticalCenter: parent.verticalCenter
                 implicitWidth: keyText.implicitWidth + 8
                 implicitHeight: keyText.implicitHeight + 2

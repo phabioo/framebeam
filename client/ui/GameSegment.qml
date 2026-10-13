@@ -35,7 +35,9 @@ Rectangle {
                 objectName: modelData.name || ""
                 readonly property bool off: modelData.disabled === true
                 readonly property bool active: root.current === modelData.value && !off
-                Layout.fillWidth: root.stretch
+                // fillWidth + maximumWidth = preferred: never grows, but may shrink (a non-fill item is never shrunk by the layout)
+                Layout.fillWidth: true
+                Layout.maximumWidth: root.stretch ? 100000 : implicitWidth
                 Layout.fillHeight: true
                 Layout.minimumWidth: 0
                 Layout.preferredWidth: root.stretch ? 1 : implicitWidth

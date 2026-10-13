@@ -132,7 +132,9 @@ Rectangle {
                     wrapMode: Text.WordWrap
                     color: Theme.errorText
                 }
-                RowLayout {
+                Flow {
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
                     spacing: 10
                     FbButton {
                         objectName: "certConfirmTrust"
@@ -152,39 +154,48 @@ Rectangle {
             }
         }
 
+        // The action buttons wrap onto further lines when a wide font leaves them too little room; Remove stays on the right.
         RowLayout {
             Layout.fillWidth: true
+            Layout.minimumWidth: 0
             spacing: 10
-            FbButton {
-                objectName: "hubConnectButton"
-                visible: card.status === "idle" || card.status === "connecting"
-                kind: "primary"
-                busy: card.status === "connecting"
-                busyOnClick: true
-                enabled: card.status === "idle"
-                text: card.status === "connecting" ? qsTr("Connecting…") : qsTr("Connect")
-                onClicked: card.connectRequested(card.hub.hubId)
+            Flow {
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                Layout.alignment: Qt.AlignTop
+                spacing: 10
+                FbButton {
+                    objectName: "hubConnectButton"
+                    visible: card.status === "idle" || card.status === "connecting"
+                    kind: "primary"
+                    busy: card.status === "connecting"
+                    busyOnClick: true
+                    enabled: card.status === "idle"
+                    text: card.status === "connecting" ? qsTr("Connecting…") : qsTr("Connect")
+                    onClicked: card.connectRequested(card.hub.hubId)
+                }
+                FbButton {
+                    visible: card.status === "unreachable" || card.status === "userDisabled"
+                    busyOnClick: true
+                    text: qsTr("Retry")
+                    onClicked: card.retryRequested()
+                }
+                FbButton {
+                    objectName: "certTrustNew"
+                    visible: card.status === "certChanged" && !card.confirmingTrust
+                    text: qsTr("Trust new certificate")
+                    onClicked: card.confirmingTrust = true
+                }
+                FbButton {
+                    objectName: "certCancel"
+                    visible: card.status === "certChanged"
+                    text: qsTr("Cancel")
+                    onClicked: card.cancelCertificateRequested()
+                }
             }
             FbButton {
-                visible: card.status === "unreachable" || card.status === "userDisabled"
-                busyOnClick: true
-                text: qsTr("Retry")
-                onClicked: card.retryRequested()
-            }
-            FbButton {
-                objectName: "certTrustNew"
-                visible: card.status === "certChanged" && !card.confirmingTrust
-                text: qsTr("Trust new certificate")
-                onClicked: card.confirmingTrust = true
-            }
-            FbButton {
-                objectName: "certCancel"
-                visible: card.status === "certChanged"
-                text: qsTr("Cancel")
-                onClicked: card.cancelCertificateRequested()
-            }
-            Item { Layout.fillWidth: true }
-            FbButton {
+                Layout.alignment: Qt.AlignTop
+                Layout.fillWidth: false
                 visible: card.status !== "connecting"
                 kind: "link"
                 text: card.hub.saved ? qsTr("Remove") : qsTr("Discard")

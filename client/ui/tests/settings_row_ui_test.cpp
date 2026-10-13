@@ -125,7 +125,9 @@ class SettingsRowTest : public QObject {
       QCOMPARE(tg->height(), 22.0);
       // One center line: the control column is 32 high and starts where the label line starts.
       QCOMPARE(control("rSeg")->height(), 32.0);
-      QCOMPARE(scene(control("rSeg")).top(), scene(itemProp(row("rSeg"), "labelItem")).top() - 6);
+      // Only for a one-line label: a label wrapped by a very wide font is taller than the 32 px line and starts at the row top.
+      if (itemProp(row("rSeg"), "labelItem")->height() <= 20.5)
+        QCOMPARE(scene(control("rSeg")).top(), scene(itemProp(row("rSeg"), "labelItem")).top() - 6);
     }
   }
 
@@ -311,7 +313,7 @@ class SettingsRowTest : public QObject {
           QVERIFY2(it != nullptr, r);
           const QRectF rect = scene(it);
           QVERIFY2(rect.left() >= colRect.left() - 0.5 && rect.right() <= colRect.right() + 0.5,
-                   qPrintable(QStringLiteral("%1 at %2: %3..%4 outside %5..%6").arg(QString::fromLatin1(r)).arg(w).arg(rect.left()).arg(rect.right()).arg(colRect.left()).arg(colRect.right())));
+                   qPrintable(QStringLiteral("%1 at %2: %3..%4 outside %5..%6 [%7]").arg(QString::fromLatin1(r)).arg(w).arg(rect.left()).arg(rect.right()).arg(colRect.left()).arg(colRect.right()).arg(it->metaObject()->className())));
         }
         // The control sits below the text, not beside it.
         QVERIFY2(scene(itemProp(rr, "controlColumn")).top() >= scene(itemProp(rr, "textColumn")).bottom(), r);

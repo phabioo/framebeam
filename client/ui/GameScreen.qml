@@ -389,19 +389,28 @@ Rectangle {
                                 lineHeight: 1.2
                                 color: Theme.gameMeta
                             }
-                            RowLayout {
+                            // The buttons stack when they do not fit side by side (wide fonts); a single one never exceeds the card.
+                            GridLayout {
                                 Layout.alignment: Qt.AlignHCenter
                                 Layout.topMargin: 8
-                                spacing: 10
+                                columnSpacing: 10
+                                rowSpacing: 8
+                                columns: !pauseLeave.visible || pauseResume.implicitWidth + pauseLeave.implicitWidth + columnSpacing <= pauseCol.width ? 2 : 1
                                 KeyHintButton {
+                                    id: pauseResume
                                     objectName: "pauseResume"
+                                    Layout.alignment: Qt.AlignHCenter
+                                    maxWidth: pauseCol.width
                                     kind: "primary"
                                     focusPolicy: Qt.NoFocus
                                     text: qsTr("Resume")
                                     onClicked: root.session.togglePause()
                                 }
                                 KeyHintButton {
+                                    id: pauseLeave
                                     objectName: "pauseLeaveFullscreen"
+                                    Layout.alignment: Qt.AlignHCenter
+                                    maxWidth: pauseCol.width
                                     visible: root.fullscreen
                                     focusPolicy: Qt.NoFocus
                                     text: qsTr("Leave fullscreen")
@@ -410,7 +419,9 @@ Rectangle {
                             }
                             FbLabel {
                                 objectName: "pauseHint"
-                                Layout.alignment: Qt.AlignHCenter
+                                Layout.fillWidth: true
+                                horizontalAlignment: Text.AlignHCenter
+                                wrapMode: Text.WordWrap
                                 Layout.topMargin: 4
                                 text: root.fullscreen ? qsTr("Esc or Resume continues · %1 leaves fullscreen").arg(root.hotkeyLabels.fullscreen || "F11")
                                                       : qsTr("Esc or Resume continues")
