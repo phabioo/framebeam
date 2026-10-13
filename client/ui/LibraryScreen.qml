@@ -118,11 +118,21 @@ Rectangle {
                 objectName: "libraryToolbar"
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
-                readonly property bool narrow: width < chipRow.implicitWidth + controls.implicitWidth + 24
-                implicitHeight: narrow ? 32 + 8 + 32 : 32
-                Row {
+                // Natural width of the chips in one row (the chips wrap in a Flow, so its own implicit width is not it).
+                readonly property real chipsNatural: {
+                    let w = 0, n = 0
+                    for (let i = 0; i < chipRow.children.length; ++i) {
+                        const c = chipRow.children[i]
+                        if (c.visible && c.implicitWidth > 0) { w += c.implicitWidth; ++n }
+                    }
+                    return w + Math.max(0, n - 1) * Theme.space8
+                }
+                readonly property bool narrow: width < chipsNatural + controls.implicitWidth + 24
+                implicitHeight: narrow ? chipRow.height + 8 + 32 : Math.max(32, chipRow.height)
+                Flow {
                     id: chipRow
                     objectName: "filterChips"
+                    width: toolbar.width
                     spacing: Theme.space8
                     Repeater {
                         model: [
@@ -144,7 +154,7 @@ Rectangle {
                 Row {
                     id: controls
                     spacing: 16
-                    y: toolbar.narrow ? 40 : 0
+                    y: toolbar.narrow ? chipRow.height + 8 : 0
                     x: toolbar.narrow ? 0 : toolbar.width - width
                     SortControl {
                         current: root.player.library.sortKey

@@ -519,13 +519,13 @@ FocusScope {
                         color: Theme.textMeta
                         font.pixelSize: Theme.fontMeta
                     }
-                    RowLayout {
+                    Flow {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         spacing: 8
-                        Item { Layout.fillWidth: true }
-                        FbButton { objectName: "newSlotCancel"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: root.newSlotOpen = false }
+                        layoutDirection: Qt.RightToLeft   // right-aligned, wraps under the first button when the column is narrow
                         FbButton { objectName: "newSlotCreate"; kind: "primary"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Create slot"); onClicked: root.createSlot() }
+                        FbButton { objectName: "newSlotCancel"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: root.newSlotOpen = false }
                     }
                 }
 
@@ -602,13 +602,13 @@ FocusScope {
                         color: Theme.textMeta
                         font.pixelSize: Theme.fontMeta
                     }
-                    RowLayout {
+                    Flow {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         spacing: 8
-                        Item { Layout.fillWidth: true }
-                        FbButton { objectName: "renameSlotCancel"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: root.renameOpen = false }
+                        layoutDirection: Qt.RightToLeft   // right-aligned, wraps under the first button when the column is narrow
                         FbButton { objectName: "renameSlotConfirm"; kind: "primary"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Rename slot"); onClicked: root.renameSlot() }
+                        FbButton { objectName: "renameSlotCancel"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: root.renameOpen = false }
                     }
                 }
 
@@ -961,13 +961,12 @@ FocusScope {
                             FbLabel { text: qsTr("Local path"); color: Theme.textMeta; font.pixelSize: Theme.fontMeta; Layout.alignment: Qt.AlignTop }
                             FbMono { objectName: "detailPath"; Layout.fillWidth: true; text: root.hist.current.localPath || ""; color: Theme.text; font.pixelSize: Theme.fontMeta; wrapMode: Text.WrapAnywhere }
                             Item { Layout.preferredWidth: 1; Layout.preferredHeight: 1 }
-                            RowLayout {
+                            Flow {
                                 Layout.fillWidth: true
                                 Layout.minimumWidth: 0
                                 spacing: 8
                                 FbButton { objectName: "copyHashButton"; implicitHeight: 28; font.pixelSize: Theme.fontMeta; text: qsTr("Copy hash"); onClicked: root.hist.copyText(root.hist.current.sha256 || "") }
                                 FbButton { objectName: "openFolderButton"; implicitHeight: 28; font.pixelSize: Theme.fontMeta; text: qsTr("Open folder"); onClicked: root.hist.openSaveFolder() }
-                                Item { Layout.fillWidth: true }
                             }
                         }
                     }
@@ -1005,12 +1004,15 @@ FocusScope {
                     visible: root.historyAvailable && !root.snapshotOpen && !root.uploadConfirming && !root.hist.uploading && !root.uploadFailed
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
+                    id: saveActionsFlow
                     spacing: 8
+                    // Wide fonts: the "◆ " mark is dropped when the full label does not fit the column (never elide the label).
+                    TextMetrics { id: snapshotFull; font.pixelSize: Theme.fontSmall; font.weight: Font.Medium; text: qsTr("◆ Create snapshot") }
                     FbButton {
                         objectName: "snapshotButton"
                         implicitHeight: 32
                         font.pixelSize: Theme.fontSmall
-                        text: qsTr("◆ Create snapshot")
+                        text: snapshotFull.advanceWidth + 32 + 4 <= saveActionsFlow.width ? snapshotFull.text : qsTr("Create snapshot")
                         enabled: root.hist.canSnapshot && root.hist.online
                         onClicked: { root.snapshotOpen = true; Qt.callLater(() => snapshotLabel.forceActiveFocus()) }
                     }
@@ -1089,12 +1091,11 @@ FocusScope {
                             color: Theme.textSecondary
                             font.pixelSize: Theme.fontMeta
                         }
-                        RowLayout {
+                        Flow {
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
                             spacing: 8
-                            Item { Layout.fillWidth: true }
-                            FbButton { objectName: "snapshotCancel"; implicitHeight: 30; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: { snapshotLabel.text = ""; root.snapshotOpen = false } }
+                            layoutDirection: Qt.RightToLeft   // right-aligned, wraps under the first button when narrow
                             FbButton {
                                 id: snapshotCreate
                                 objectName: "snapshotCreate"
@@ -1109,6 +1110,7 @@ FocusScope {
                                     root.snapshotOpen = false
                                 }
                             }
+                            FbButton { objectName: "snapshotCancel"; implicitHeight: 30; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: { snapshotLabel.text = ""; root.snapshotOpen = false } }
                         }
                     }
                 }
@@ -1255,13 +1257,13 @@ FocusScope {
                             color: Theme.textSecondary
                             font.pixelSize: Theme.fontMeta
                         }
-                        RowLayout {
+                        Flow {
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
                             spacing: 8
-                            Item { Layout.fillWidth: true }
-                            FbButton { objectName: "uploadFailedCancel"; implicitHeight: 30; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: { root.hist.dismissUploadFailure(); root.hist.dismissMessage() } }
+                            layoutDirection: Qt.RightToLeft   // right-aligned, wraps under the first button when the column is narrow
                             FbButton { objectName: "uploadRetry"; kind: "primary"; implicitHeight: 30; font.pixelSize: Theme.fontSmall; text: qsTr("Try again"); enabled: root.hist.online; onClicked: root.hist.retryUpload() }
+                            FbButton { objectName: "uploadFailedCancel"; implicitHeight: 30; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: { root.hist.dismissUploadFailure(); root.hist.dismissMessage() } }
                         }
                     }
                 }
