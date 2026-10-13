@@ -672,14 +672,14 @@ FocusScope {
                             Rectangle {
                                 objectName: "slotDeleteConfirm"
                                 height: 32
-                                width: slotDeleteOkText.implicitWidth + 24
+                                width: Math.min(slotDeleteOkText.implicitWidth + 24, parent.width)   // never wider than the row, the text elides
                                 radius: Theme.radius6
                                 color: Theme.error
                                 opacity: slotDeleteOkTap.pressed ? 0.8 : 1
                                 activeFocusOnTab: true
                                 Accessible.role: Accessible.Button
                                 Accessible.name: slotDeleteOkText.text
-                                Text { id: slotDeleteOkText; anchors.centerIn: parent; text: qsTr("Delete slot"); font.pixelSize: Theme.fontSmall; font.weight: Font.DemiBold; color: Theme.textOnAccent }
+                                Text { id: slotDeleteOkText; anchors.centerIn: parent; width: Math.min(implicitWidth, parent.width - 24); elide: Text.ElideRight; text: qsTr("Delete slot"); font.pixelSize: Theme.fontSmall; font.weight: Font.DemiBold; color: Theme.textOnAccent }
                                 HoverHandler { cursorShape: Qt.PointingHandCursor }
                                 TapHandler { id: slotDeleteOkTap; onTapped: root.hist.confirmDeleteSlot() }
                                 Keys.onPressed: (event) => { if (event.key === Qt.Key_Space || event.key === Qt.Key_Return) { root.hist.confirmDeleteSlot(); event.accepted = true } }
@@ -967,16 +967,19 @@ FocusScope {
                             visible: root.detailsOpen
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
-                            columns: 2
+                            Layout.preferredWidth: 1
+                            Layout.maximumWidth: parent.width
+                            // Label above value when the widest label would leave the value too little room (wide fonts)
+                            columns: detailLabelProbe.implicitWidth > parent.width * 0.4 ? 1 : 2
                             columnSpacing: 12
                             rowSpacing: 6
-                            FbLabel { text: qsTr("SHA-256"); color: Theme.textMeta; font.pixelSize: Theme.fontMeta; Layout.alignment: Qt.AlignTop }
-                            FbMono { objectName: "detailSha"; Layout.fillWidth: true; text: root.hist.current.shaShort || ""; color: Theme.text; font.pixelSize: Theme.fontMeta; wrapMode: Text.WrapAnywhere }
-                            FbLabel { text: qsTr("Size"); color: Theme.textMeta; font.pixelSize: Theme.fontMeta; Layout.alignment: Qt.AlignTop }
-                            FbMono { objectName: "detailSize"; Layout.fillWidth: true; text: root.hist.current.sizeText || ""; color: Theme.text; font.pixelSize: Theme.fontMeta }
-                            FbLabel { text: qsTr("Local path"); color: Theme.textMeta; font.pixelSize: Theme.fontMeta; Layout.alignment: Qt.AlignTop }
-                            FbMono { objectName: "detailPath"; Layout.fillWidth: true; text: root.hist.current.localPath || ""; color: Theme.text; font.pixelSize: Theme.fontMeta; wrapMode: Text.WrapAnywhere }
-                            Item { Layout.preferredWidth: 1; Layout.preferredHeight: 1 }
+                            FbLabel { Layout.minimumWidth: 0; text: qsTr("SHA-256"); color: Theme.textMeta; font.pixelSize: Theme.fontMeta; Layout.alignment: Qt.AlignTop }
+                            FbMono { objectName: "detailSha"; Layout.fillWidth: true; Layout.minimumWidth: 0; text: root.hist.current.shaShort || ""; color: Theme.text; font.pixelSize: Theme.fontMeta; wrapMode: Text.WrapAnywhere }
+                            FbLabel { Layout.minimumWidth: 0; text: qsTr("Size"); color: Theme.textMeta; font.pixelSize: Theme.fontMeta; Layout.alignment: Qt.AlignTop }
+                            FbMono { objectName: "detailSize"; Layout.fillWidth: true; Layout.minimumWidth: 0; text: root.hist.current.sizeText || ""; color: Theme.text; font.pixelSize: Theme.fontMeta }
+                            FbLabel { Layout.minimumWidth: 0; id: detailLabelProbe; text: qsTr("Local path"); color: Theme.textMeta; font.pixelSize: Theme.fontMeta; Layout.alignment: Qt.AlignTop }
+                            FbMono { objectName: "detailPath"; Layout.fillWidth: true; Layout.minimumWidth: 0; text: root.hist.current.localPath || ""; color: Theme.text; font.pixelSize: Theme.fontMeta; wrapMode: Text.WrapAnywhere }
+                            Item { visible: parent.columns === 2; Layout.preferredWidth: 1; Layout.preferredHeight: 1 }
                             Flow {
                                 Layout.fillWidth: true
                                 Layout.minimumWidth: 0
@@ -1095,6 +1098,7 @@ FocusScope {
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
                             Layout.preferredWidth: 1
+                            Layout.maximumWidth: parent.width
                             implicitHeight: 34
                             placeholderText: qsTr("Label (optional)")
                             maximumLength: 64

@@ -127,8 +127,10 @@ Rectangle {
                     }
                     return w + Math.max(0, n - 1) * Theme.space8
                 }
-                readonly property bool narrow: width < chipsNatural + controls.implicitWidth + 24
-                implicitHeight: narrow ? chipRow.height + 8 + 32 : Math.max(32, chipRow.height)
+                // Sort + "Ready first" side by side; in a narrow toolbar they wrap into two lines when they do not fit
+                readonly property real controlsNatural: sortControl.implicitWidth + controls.spacing + readyFirst.width
+                readonly property bool narrow: width < chipsNatural + controlsNatural + 24
+                implicitHeight: narrow ? chipRow.height + 8 + controls.height : Math.max(32, chipRow.height)
                 Flow {
                     id: chipRow
                     objectName: "filterChips"
@@ -151,12 +153,14 @@ Rectangle {
                         }
                     }
                 }
-                Row {
+                Flow {
                     id: controls
+                    width: toolbar.narrow ? toolbar.width : toolbar.controlsNatural
                     spacing: 16
                     y: toolbar.narrow ? chipRow.height + 8 : 0
                     x: toolbar.narrow ? 0 : toolbar.width - width
                     SortControl {
+                        id: sortControl
                         current: root.player.library.sortKey
                         onPicked: (key) => root.player.library.sortKey = key
                     }
