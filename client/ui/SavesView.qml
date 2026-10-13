@@ -209,6 +209,9 @@ FocusScope {
                 id: updated
                 objectName: "savesUpdated"
                 visible: root.hist.lastUpdated !== ""
+                // Leaves the back link at least 90 px: wide fonts elide this text instead of squeezing the link away
+                width: Math.min(implicitWidth, Math.max(0, parent.width - refresh.width - 16 - 90))
+                elide: Text.ElideRight
                 anchors.right: refresh.left
                 anchors.rightMargin: 8
                 anchors.verticalCenter: parent.verticalCenter
@@ -902,20 +905,27 @@ FocusScope {
                         anchors.rightMargin: 12
                         spacing: 6
                         RowLayout {
+                            id: currentHeader
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
+                            Layout.maximumWidth: currentCol.width
                             spacing: 8
                             Eyebrow { text: qsTr("Current") }
                             FbMono {
                                 objectName: "currentVersion"
+                                // Takes the free space and elides, so a wide font or a long pill never pushes the row past the column
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 0
+                                elide: Text.ElideRight
                                 text: root.hist.current.revisionText || ""
                                 color: Theme.text
                                 font.pixelSize: Theme.fontSmall
                                 font.weight: Font.Medium
                             }
-                            Item { Layout.fillWidth: true }
                             FbPill {
                                 objectName: "currentPill"
+                                // The pill elides its text when squeezed; it keeps at most 60% of the row
+                                Layout.maximumWidth: Math.max(48, currentHeader.width * 0.6)
                                 visible: text !== ""
                                 small: true
                                 tone: !root.hist.online ? "neutral" : (root.syncKind === "pending" ? "warn" : "ok")
@@ -927,6 +937,7 @@ FocusScope {
                         FbLabel {
                             objectName: "currentMeta"
                             Layout.fillWidth: true
+                            Layout.maximumWidth: currentCol.width
                             wrapMode: Text.WordWrap
                             text: root.join([root.hist.current.when, root.hist.current.device, root.hist.current.reasonText])
                             color: Theme.textMeta

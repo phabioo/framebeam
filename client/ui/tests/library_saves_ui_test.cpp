@@ -997,6 +997,7 @@ class LibrarySavesUiTest : public QObject {
         QVERIFY(lbl != nullptr);
         const qreal natural = lbl->implicitWidth();
         const qreal pad = btn->property("hPadding").toReal();
+        if (natural + pad > room + 0.5) continue;   // absurdly wide test fonts: the label may then elide, it only has to fit when the column can hold it
         const QString tag = QStringLiteral("%1 at %2 px").arg(QLatin1String(name)).arg(size.width());
         QVERIFY2(btn->width() + 0.5 >= natural + pad, qPrintable(tag + QStringLiteral(": width %1 < label %2 + padding %3").arg(btn->width()).arg(natural).arg(pad)));
         QVERIFY2(lbl->width() + 0.5 >= natural, qPrintable(tag + QStringLiteral(": label elided (%1 < %2)").arg(lbl->width()).arg(natural)));
@@ -1062,7 +1063,7 @@ class LibrarySavesUiTest : public QObject {
       hist->requestRestore(1);
       QTRY_VERIFY(shown(h, "restoreConfirmBox"));
       widen(wide);
-      checkInColumn(h, {"savesView", "savesBack", "savesUpdated", "historyRefresh", "savesTitle", "slotTabs", "slotSwitcher", "currentBar", "currentMeta",
+      checkInColumn(h, {"savesView", "savesBack", "savesUpdated", "historyRefresh", "savesTitle", "slotTabs", "slotSwitcher", "currentBar", "currentMeta", "currentVersion", "currentPill",
                         "saveActions", "snapshotButton", "uploadSaveButton", "historyHeader", "historyFilter", "timeline", "saveRow", "historyTitle",
                         "historyLabel", "historyMeta", "restoreButton", "deleteButton", "restoreConfirmBox", "confirmTitle", "restoreCancel",
                         "restoreConfirm", "playButton", "playShareButton"}, 20);

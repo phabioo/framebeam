@@ -218,14 +218,14 @@ ColumnLayout {
                     id: okBtn
                     objectName: root.confirm === "delete" ? "deleteConfirm" : "restoreConfirm"
                     height: 30
-                    width: okText.implicitWidth + 24
+                    width: Math.min(okText.implicitWidth + 24, parent.width)   // never wider than the row, the text elides
                     radius: Theme.radius6
                     color: root.confirm === "delete" ? Theme.error : Theme.accent
                     opacity: okTap.pressed ? 0.8 : 1
                     activeFocusOnTab: true
                     Accessible.role: Accessible.Button
                     Accessible.name: root.confirmOk
-                    Text { id: okText; anchors.centerIn: parent; text: root.confirmOk; font.pixelSize: Theme.fontSmall; font.weight: Font.DemiBold; color: Theme.textOnAccent }
+                    Text { id: okText; anchors.centerIn: parent; width: Math.min(implicitWidth, parent.width - 24); elide: Text.ElideRight; text: root.confirmOk; font.pixelSize: Theme.fontSmall; font.weight: Font.DemiBold; color: Theme.textOnAccent }
                     HoverHandler { cursorShape: Qt.PointingHandCursor }
                     TapHandler { id: okTap; onTapped: root.confirmed() }
                     Keys.onPressed: (event) => { if (event.key === Qt.Key_Space || event.key === Qt.Key_Return) { root.confirmed(); event.accepted = true } }
