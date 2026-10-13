@@ -23,9 +23,15 @@ const QList<EmulationController::FbOption>& EmulationController::frameBeamOption
        QObject::tr("Default Multiview"),
        QObject::tr("Layout the multiview opens with."),
        {{QStringLiteral("pip"), QObject::tr("Picture-in-Picture")},
-        {QStringLiteral("side"), QObject::tr("Side-by-Side")},
+        {QStringLiteral("row"), QObject::tr("Row")},
         {QStringLiteral("grid"), QObject::tr("Grid 2×2")}},
        QStringLiteral("pip")},
+      {QString::fromLatin1(kScreenLayoutKey),
+       QObject::tr("DS and 3DS screen layout"),
+       QObject::tr("Stacked, Side by side or Top only. Systems can override."),
+       {{QStringLiteral("stacked"), QObject::tr("Stacked")}, {QStringLiteral("side"), QObject::tr("Side by side")}, {QStringLiteral("top"), QObject::tr("Top only")}},
+       QStringLiteral("stacked"),
+       true},
       {QString::fromLatin1(kSpeedUpRatioKey),
        QObject::tr("Speed-up speed"),
        QObject::tr("How fast the game runs while speed-up is on."),
@@ -253,7 +259,10 @@ QString EmulationController::frameBeamValue(const QString& key, const QString& s
   for (const FbOption& o : frameBeamOptions()) {
     if (o.key == key) def = o.defaultValue;
   }
-  return settings_.resolve(key, systemId, gameId, QString(), def).value;
+  const QString value = settings_.resolve(key, systemId, gameId, QString(), def).value;
+  // 0.14: the Multiview layout "Side by side" is called "Row" (the DS screen layout keeps the old name); old stored value.
+  if (key == QLatin1String(kMultiviewKey) && value == QLatin1String("side")) return QStringLiteral("row");
+  return value;
 }
 
 QMap<QString, QString> EmulationController::launchOverrides(const QString& systemId, const QString& gameId) const {
@@ -536,6 +545,14 @@ void EmulationController::rebuild() {
             for (const emu::CoreOptionValue& v : std::as_const(coreValues)) vals.append(QVariantMap{{QStringLiteral("value"), v.value}, {QStringLiteral("label"), v.label}});
             return vals;
           }());
+        } else if (!r.value(QStringLiteral("isSet")).toBool() && card.value(QStringLiteral("noCoreChosen")).toBool() && !gameLvl) {
+          // The Hub preselects no core (since 0.13) and none was chosen: nothing is shown as selected.
+          r.insert(QStringLiteral("value"), QString());
+          r.insert(QStringLiteral("valueLabel"), tr("Choose a core"));
+          r.insert(QStringLiteral("origin"), tr("No core chosen yet"));
+          r.insert(QStringLiteral("description"),
+                   tr("No core chosen yet. The Hub offers the cores listed here; until you choose, the Player uses %1.")
+                       .arg(card.value(QStringLiteral("fallbackCoreName")).toString()));
         } else if (!r.value(QStringLiteral("isSet")).toBool()) {
           r.insert(QStringLiteral("origin"), tr("Hub default"));
         }
@@ -555,7 +572,10 @@ void EmulationController::rebuild() {
         fb.append(r);
       }
       for (const FbOption& o : frameBeamOptions()) {
-        if (o.perSystem) fb.append(row(o.key, o.label, o.description, QString(), o.values, QString(), o.defaultValue, true));
+        if (!o.perSystem) continue;
+        // The screen layout only exists for systems with two screens (DS, 3DS); "Overrides Defaults for DS games."
+        if (o.key == QLatin1String(kScreenLayoutKey) && (man == nullptr || man->display.screens.size() < 2)) continue;
+        fb.append(row(o.key, o.label, o.description, QString(), o.values, QString(), o.defaultValue, true));
       }
       groups.prepend(QVariantMap{{QStringLiteral("id"), QStringLiteral("framebeam")},
                                 {QStringLiteral("title"), tr("FrameBeam")},

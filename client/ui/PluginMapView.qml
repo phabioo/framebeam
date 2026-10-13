@@ -30,7 +30,7 @@ Item {
     onNodeSelChanged: { localSel = ""; dismissedId = "" }
     readonly property string selId: localSel !== "" ? localSel : nodeSel
     readonly property bool popoverOpen: selId !== "" && dismissedId !== selId && popoverRows.length > 0
-    property bool legendOpen: node.legend !== false
+    property bool legendOpen: node.legend === true   // collapsed by default so it does not cover markers (P47)
 
     // View transform: zoomPct 1 = fit to width; `s` is screen pixels per image pixel.
     readonly property real minPct: 0.25
@@ -454,7 +454,7 @@ Item {
             readonly property bool flipped: a ? a.y - 40 - height < 8 : false
             visible: root.popoverOpen && a !== null
             z: 20
-            width: 300
+            width: Math.min(340, Math.max(160, view.width - 16))
             height: popCol.implicitHeight + 24
             x: a ? Math.max(8, Math.min(view.width - width - 8, a.x - width / 2)) : 0
             y: a ? (flipped ? a.y + 40 : a.y - 40 - height) : 0
@@ -492,7 +492,7 @@ Item {
                             color: Theme.playerColor(modelData.owner || 1, root.dark)
                         }
                         Text {
-                            Layout.preferredWidth: 46
+                            Layout.preferredWidth: 56
                             text: modelData.name || ""
                             elide: Text.ElideRight
                             font.pixelSize: Theme.fontMeta
@@ -509,7 +509,8 @@ Item {
                         Text {
                             Layout.fillWidth: true
                             text: modelData.status || ""
-                            elide: Text.ElideRight
+                            wrapMode: Text.WordWrap     // shown in full, not cut off (P47)
+                            maximumLineCount: 3
                             font.pixelSize: Theme.fontMeta
                             color: Theme.blockColor("textMuted", root.dark)
                         }

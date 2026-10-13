@@ -168,9 +168,13 @@ Rectangle {
                 spacing: 32
 
                 ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
                     spacing: 2
-                    FbLabel { text: qsTr("Settings"); font.pixelSize: Theme.fontPage; font.weight: Font.DemiBold; font.letterSpacing: -0.4 }
+                    FbLabel { Layout.fillWidth: true; text: qsTr("Settings"); elide: Text.ElideRight; font.pixelSize: Theme.fontPage; font.weight: Font.DemiBold; font.letterSpacing: -0.4 }
                     FbLabel {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
                         text: qsTr("Saved on this device only")
                         color: Theme.textMuted
                         font.pixelSize: Theme.fontSmall

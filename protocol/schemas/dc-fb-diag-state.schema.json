@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://framebeam.invalid/schemas/dc-fb-diag-state.schema.json",
+  "title": "fb-diag host state",
+  "description": "Optional message of the Session owner to its viewers on the negotiated fb-diag DataChannel (id 0), ADR 0026 D3. State only: the owner's game is paused or running. Not a Hub message and not part of the WSS protocol; readers ignore unknown message types and unknown fields, so no protocol_version bump is needed.",
+  "type": "object",
+  "required": ["t", "paused"],
+  "properties": {
+    "t": { "const": "state" },
+    "paused": { "type": "boolean", "description": "true while the owner's game is paused." },
+    "by": { "type": "string", "maxLength": 64, "description": "Display name of the user who paused (only with paused = true). Optional: a viewer without it names the Session owner." }
+  },
+  "additionalProperties": true
+}

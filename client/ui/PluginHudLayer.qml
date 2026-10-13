@@ -71,16 +71,18 @@ Item {
         objectName: "hudRestoreButton"
         visible: !root.hudShown || root.hiddenWidgets.length > 0
         anchors.horizontalCenter: parent.horizontalCenter
-        y: root.height - 16 - height
+        y: root.height - 62 - height     // above the bottom edge of the game, not on it (3h-3, P45)
         width: restoreLabel.implicitWidth + 24
         height: 28
         radius: 14
-        color: Qt.rgba(17 / 255, 18 / 255, 20 / 255, 0.85)
+        color: Theme.gameHover
+        border.width: 1
+        border.color: Theme.gamePopoverBorder
         opacity: restoreHover.hovered || (menu.open && menu.anchorItem === restorePill) ? 1 : 0.6
         FbLabel {
             id: restoreLabel
             anchors.centerIn: parent
-            text: (!root.hudShown ? qsTr("HUD hidden") : qsTr("%n widget(s) hidden", "", root.hiddenWidgets.length)) + " ▾"
+            text: (!root.hudShown ? qsTr("HUD hidden") : (root.hiddenWidgets.length === 1 ? qsTr("1 widget hidden") : qsTr("%1 widgets hidden").arg(root.hiddenWidgets.length))) + " · " + qsTr("Show")
             font.pixelSize: 12
             color: Theme.gameBadgeText
         }

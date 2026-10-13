@@ -5,7 +5,9 @@
 #include <algorithm>
 #include <cstring>
 #include <rtc/rtc.hpp>
+#include <variant>
 
+#include "hoststate.h"
 #include "opusdepacketizer.h"
 #include "rtcutil.h"
 
@@ -106,8 +108,20 @@ void SessionViewer::open(const QString& sessionId, const QString& viewerId, cons
   statsTimer_.start();
 }
 
+void SessionViewer::onHostState(bool paused, const QString& by) {
+  if (paused == hostPaused_ && by == hostPausedBy_) return;
+  hostPaused_ = paused;
+  hostPausedBy_ = by;
+  emit hostStateChanged(paused, by);
+}
+
 void SessionViewer::teardown() {
-  ++pcGen_;  // invalidates queued frames of this connection before the codecs are closed
+  ++pcGen_;
+  if (hostPaused_) {
+    hostPaused_ = false;
+    hostPausedBy_.clear();
+    emit hostStateChanged(false, QString());
+  }  // invalidates queued frames of this connection before the codecs are closed
   statsTimer_.stop();
   if (pc_) {
     try {
@@ -234,6 +248,14 @@ void SessionViewer::handleSignal(const SessionSignal& s) {
       diagInit.negotiated = true;
       diagInit.id = 0;
       diag_ = pc_->createDataChannel("fb-diag", diagInit);
+      // Host state signal {"t":"state","paused":..,"by":..} (ADR 0026 D3); every other message is ignored.
+      diag_->onMessage(guarded("diag onMessage", [this, bridge](rtc::message_variant m) {
+        const auto* text = std::get_if<rtc::string>(&m);
+        if (text == nullptr) return;
+        const auto state = parseHostState(QByteArray(text->data(), static_cast<qsizetype>(text->size())));
+        if (!state) return;
+        bridge->post([this, st = *state]() { onHostState(st.paused, st.by); });
+      }));
       const QList<SessionSignal> pending = std::exchange(pendingCandidates_, {});
       for (const SessionSignal& c : pending) {
         handleSignal(c);

@@ -46,6 +46,7 @@ class SessionController : public QObject {
   Q_PROPERTY(bool shared READ shared NOTIFY shareChanged)
   Q_PROPERTY(bool shareBusy READ shareBusy NOTIFY shareChanged)
   Q_PROPERTY(QString visibility READ visibility NOTIFY shareChanged)
+  Q_PROPERTY(QString ownName READ ownName NOTIFY shareChanged)  // your display name in the own Session ("Paused by <name>"); empty if not shared
   Q_PROPERTY(int viewerCount READ viewerCount NOTIFY shareChanged)
   Q_PROPERTY(QVariantList participants READ participants NOTIFY shareChanged)
   Q_PROPERTY(QString participantsTitle READ participantsTitle NOTIFY shareChanged)
@@ -69,11 +70,14 @@ class SessionController : public QObject {
   Q_PROPERTY(QStringList shownSessionIds READ shownSessionIds NOTIFY surfacesChanged)  // remote Sessions on a surface
   // Connection pill per remote surface {sessionId: {text, tone}} (D9): "Direct" | "Relayed (TURN)" | "Connecting" ...
   Q_PROPERTY(QVariantMap surfaceLinks READ surfaceLinks NOTIFY surfaceLinksChanged)
-  Q_PROPERTY(QStringList availableLayouts READ availableLayouts NOTIFY surfacesChanged)  // "pip" | "side" (2) | "grid" (3, 4)
+  // "pip" | "row" | "grid" for two or more surfaces (none below); "grid" is offered from four (gridAvailable), a smaller
+  // count shows it disabled ("Grid 2×2 · from 4"), ADR 0026 D2.
+  Q_PROPERTY(QStringList availableLayouts READ availableLayouts NOTIFY surfacesChanged)
+  Q_PROPERTY(bool gridAvailable READ gridAvailable NOTIFY surfacesChanged)
   Q_PROPERTY(QString mainSurface READ mainSurface NOTIFY surfacesChanged)
   Q_PROPERTY(bool hasLocalGame READ hasLocalGame NOTIFY gameChanged)
   Q_PROPERTY(QString localTitle READ localTitle NOTIFY gameChanged)
-  // Views: tab "session" | "multiview" (diagnostics is an overlay toggle, not a view); layout "pip" | "side" | "grid" (a tile layout follows the surface count; availableLayouts is empty below two surfaces)
+  // Views: tab "session" | "multiview" (diagnostics is an overlay toggle, not a view); layout "pip" | "row" | "grid" (Row for two or three surfaces, Grid 2 x 2 from four; availableLayouts is empty below two surfaces)
   Q_PROPERTY(QString tab READ tab WRITE setTab NOTIFY viewChanged)
   Q_PROPERTY(QString multiviewMode READ multiviewMode WRITE setMultiviewMode NOTIFY viewChanged)
   Q_PROPERTY(QString audioFocus READ audioFocus NOTIFY viewChanged)  // effective surface id: "local" | Session id
@@ -98,6 +102,7 @@ class SessionController : public QObject {
   bool shared() const { return shared_; }
   bool shareBusy() const { return shareBusy_; }
   QString visibility() const { return visibility_; }
+  QString ownName() const { return shared_ ? own_.owner.displayName : QString(); }
   int viewerCount() const;
   QVariantList participants() const;
   QString participantsTitle() const;
@@ -119,6 +124,7 @@ class SessionController : public QObject {
   bool canAddSurface() const { return !joining_ && surfaceCount() < kMaxSurfaces; }
   QStringList shownSessionIds() const;
   QStringList availableLayouts() const;
+  bool gridAvailable() const { return surfaceCount() >= kMaxSurfaces; }
   QString mainSurface() const { return order_.isEmpty() ? QString() : order_.first(); }
   bool hasLocalGame() const { return !gameId_.isEmpty(); }
   QString localTitle() const { return gameTitle_; }
@@ -211,6 +217,7 @@ class SessionController : public QObject {
   PlayerSettings* settings_ = nullptr;  // owned by the PlayerController
   void saveSettings() const;
   void updateGpuEncode();
+  void updateHostState();  // tells the viewers of the own Session whether the game is paused
   static QString visibilityLabel(const QString& v);
   QString effectiveTab() const;
   QString errorText(const SessionApiResult& r, const QString& what) const;
@@ -259,6 +266,9 @@ class SessionController : public QObject {
     SessionViewer* viewer = nullptr;  // owned (parent: the controller), deleted with deleteLater
     QImage frame;
     quint64 frameNr = 0;
+    bool paused = false;  // the host paused its game (fb-diag state signal, ADR 0026 D3)
+    QString pausedBy;     // name from the signal; empty = the Session owner
+    qint64 pausedAtMs = 0;
   };
   std::vector<std::unique_ptr<Remote>> remotes_;  // creation order
   QStringList order_;                             // display order of the surfaces; first = main
@@ -268,7 +278,8 @@ class SessionController : public QObject {
   QHash<QString, qint64> fedFrames_;
 
   QString tab_ = QStringLiteral("session");
-  QString mode_ = QStringLiteral("pip");  // chosen layout: "pip" | "side" | "grid"
+  QString mode_ = QStringLiteral("pip");  // chosen layout: "pip" | "row" | "grid"
+  bool rowForced_ = false;                // "Row" picked on purpose with four surfaces (else four surfaces show the grid)
   QString focusPref_ = QStringLiteral("local");
   QString selected_ = QStringLiteral("local");
 

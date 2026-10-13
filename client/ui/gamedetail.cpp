@@ -81,7 +81,7 @@ QVariantMap GameDetail::selectedGame() const {
     romTone = QStringLiteral("ok");
   } else if (kind == QLatin1String("missing")) {
     romText = tr("File missing on this device");
-    romTone = QStringLiteral("warn");
+    romTone = QStringLiteral("amber");
   } else if (kind == QLatin1String("download")) {
     romText = tr("Download needed · %1").arg(LibraryModel::formatSize(game->romSize));
   } else if (kind == QLatin1String("downloading")) {
@@ -299,7 +299,7 @@ QVariantMap GameDetail::selectedGame() const {
       tone = QStringLiteral("error");
     } else if (!attention.isEmpty()) {
       pill = attention;
-      tone = QStringLiteral("warn");
+      tone = QStringLiteral("amber");
     } else if (kind == QLatin1String("failed")) {
       pill = tr("Download failed");
       tone = QStringLiteral("error");
@@ -314,7 +314,7 @@ QVariantMap GameDetail::selectedGame() const {
       tone = QStringLiteral("neutral");
     } else if (!coreOk && !coreProvisionable) {
       pill = hubUp ? tr("Core missing") : tr("Needs attention");
-      tone = QStringLiteral("warn");
+      tone = QStringLiteral("amber");
     } else if (fromLibraryFolder) {
       pill = game->onHub ? tr("Local · on Hub") : tr("Local");
       tone = game->onHub ? QStringLiteral("info") : QStringLiteral("neutral");

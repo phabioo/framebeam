@@ -60,6 +60,13 @@ void ControllersController::syncPadHotkeys() {
     const QString b = profiles_.padHotkey(d.id);
     if (!b.isEmpty()) bindings.append({d.id, padHotkeyToken(b), padHotkeySolo(b)});
   }
+  // Fixed FrameBeam combos (3f-4): modifier + Start pauses (the Esc of the gamepad), modifier + L3 hides all HUD widgets. A
+  // button the user gave to another hotkey stays theirs.
+  QSet<QString> used;
+  for (const input::PadHotkeyBinding& b : std::as_const(bindings)) used.insert(b.token);
+  for (const auto& f : {std::pair{QStringLiteral("pause"), QStringLiteral("pad:start")}, std::pair{QStringLiteral("hud"), QStringLiteral("pad:leftstick")}}) {
+    if (!used.contains(f.second)) bindings.append({f.first, f.second, false});
+  }
   pads_.setPadHotkeys(profiles_.padHotkeyModifier(), bindings);
 }
 
@@ -120,6 +127,8 @@ void ControllersController::setSystemLabels(const QString& systemLabel, const QS
   if (systemLabel_ == systemLabel && touchLabel_ == touchLabel) return;
   systemLabel_ = systemLabel;
   touchLabel_ = touchLabel;
+  viewPinned_ = false;
+  syncView();
   if (touchLabel_.isEmpty() && selected_ == kMouse) selected_.clear();  // the Mouse row is hidden: pick another device
   ensureSelection();
   emit labelsChanged();
@@ -195,9 +204,16 @@ QVariantList ControllersController::rows() const {
   if (!p) return l;
   const ControllerProfile def = ControllerProfiles::builtinProfile(p->kind);
   const QString set = labelSet();
+  const QString prof = viewProfile_.isEmpty() ? inputProfile_ : viewProfile_;
+  QList<quint32> seenBits;
   for (const InputDef& in : frameBeamInputs()) {
-    if (!input::inputProfileMaps(inputProfile_, in.id)) continue;  // the Controllers page lists what the system maps
-    const QString profileLabel = input::inputProfileLabel(inputProfile_, in.id);
+    if (!input::inputProfileMaps(prof, in.id)) continue;  // the Controllers page lists what the system maps
+    const QString profileLabel = input::inputProfileLabel(prof, in.id);
+    // An input that only repeats another one's libretro button without a text of its own is an alias (DS: ZL = L, the left
+    // stick = D-pad) and is not listed: the DS has no ZL, ZR or sticks (P33). The binding keeps working.
+    const quint32 bits = input::inputProfileBits(prof, in.id);
+    if (profileLabel.isEmpty() && seenBits.contains(bits)) continue;
+    seenBits.append(bits);
     const QString target = profileLabel.isEmpty() ? in.targetLabel : profileLabel;
     const QStringList tokens = p->bindings.value(in.id);
     const bool changed = !p->builtin && tokens != def.bindings.value(in.id);
@@ -320,9 +336,62 @@ QVariantList ControllersController::testCells() const {
   return cells;
 }
 
+void ControllersController::setSystems(const QVariantList& systems) {
+  systems_ = systems;
+  syncView();
+  emit systemsChanged();
+  emit labelsChanged();
+  emit rowsChanged();
+}
+
+// Without a pick the page lists the buttons of the system in use (the running game's, else the first system).
+void ControllersController::syncView() {
+  if (viewPinned_) return;
+  viewSystem_.clear();
+  viewProfile_.clear();
+  viewLabel_.clear();
+  for (const QVariant& v : std::as_const(systems_)) {
+    const QVariantMap m = v.toMap();
+    if (m.value(QStringLiteral("profile")).toString() == inputProfile_ && m.value(QStringLiteral("inputLabel")).toString() == systemLabel_) {
+      viewSystem_ = m.value(QStringLiteral("id")).toString();
+      break;
+    }
+  }
+  if (viewSystem_.isEmpty() && !systems_.isEmpty()) viewSystem_ = systems_.first().toMap().value(QStringLiteral("id")).toString();
+  for (const QVariant& v : std::as_const(systems_)) {
+    const QVariantMap m = v.toMap();
+    if (m.value(QStringLiteral("id")).toString() == viewSystem_) {
+      viewProfile_ = m.value(QStringLiteral("profile")).toString();
+      viewLabel_ = m.value(QStringLiteral("inputLabel")).toString();
+    }
+  }
+}
+
+void ControllersController::selectSystem(const QString& id) {
+  if (id == viewSystem_) return;
+  for (const QVariant& v : std::as_const(systems_)) {
+    const QVariantMap m = v.toMap();
+    if (m.value(QStringLiteral("id")).toString() != id) continue;
+    cancelCapture();
+    viewPinned_ = true;
+    viewSystem_ = id;
+    viewProfile_ = m.value(QStringLiteral("profile")).toString();
+    viewLabel_ = m.value(QStringLiteral("inputLabel")).toString();
+    emit labelsChanged();
+    emit rowsChanged();
+    return;
+  }
+}
+
+QString ControllersController::systemNote() const {
+  return tr("DS shows no ZL, ZR or sticks. GB and GBC show A, B, Start, Select and D-pad only. GBA adds L and R.");
+}
+
 void ControllersController::setInputProfile(const QString& profile) {
   if (profile == inputProfile_) return;
   inputProfile_ = profile;
+  viewPinned_ = false;   // a game start moves the page to its system again
+  syncView();
   pads_.setInputProfile(profile);
   emit rowsChanged();
   emit keyboardMapChanged();
@@ -371,9 +440,9 @@ QVariantList ControllersController::hotkeyRows() const {
                          {QStringLiteral("conflictInput"), conflict}});
   }
   l.append(QVariantMap{{QStringLiteral("action"), QStringLiteral("escape")},
-                       {QStringLiteral("label"), tr("Leave fullscreen / pause")},
-                       {QStringLiteral("pad"), QString()},
-                       {QStringLiteral("padSet"), false},
+                       {QStringLiteral("label"), tr("Pause / pause overlay")},
+                       {QStringLiteral("pad"), padHotkeyLabel(QStringLiteral("pad:start"), profiles_.padHotkeyModifier())},
+                       {QStringLiteral("padSet"), true},
                        {QStringLiteral("padChanged"), false},
                        {QStringLiteral("padListening"), false},
                        {QStringLiteral("key"), QStringLiteral("Esc")},
@@ -383,6 +452,11 @@ QVariantList ControllersController::hotkeyRows() const {
                        {QStringLiteral("fixed"), true},
                        {QStringLiteral("conflictInput"), QString()}});
   return l;
+}
+
+QVariantMap ControllersController::fixedPad() const {
+  const QString mod = profiles_.padHotkeyModifier();
+  return {{QStringLiteral("hudAll"), padHotkeyLabel(QStringLiteral("pad:leftstick"), mod)}, {QStringLiteral("panelTabs"), QString()}};
 }
 
 QVariantMap ControllersController::hotkeyLabels() const {

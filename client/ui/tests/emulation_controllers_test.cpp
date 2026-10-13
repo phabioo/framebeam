@@ -680,9 +680,9 @@ class EmulationControllersTest : public QObject {
         }
       }
     }
-    QCOMPARE(values, (QStringList{QStringLiteral("pip"), QStringLiteral("side"), QStringLiteral("grid")}));
-    pick(h, "optionSelect_framebeam.default_multiview", QStringLiteral("side"));
-    QCOMPARE(h.controller->sessions()->multiviewMode(), QStringLiteral("side"));
+    QCOMPARE(values, (QStringList{QStringLiteral("pip"), QStringLiteral("row"), QStringLiteral("grid")}));
+    pick(h, "optionSelect_framebeam.default_multiview", QStringLiteral("row"));
+    QCOMPARE(h.controller->sessions()->multiviewMode(), QStringLiteral("row"));
     pick(h, "optionSelect_framebeam.default_multiview", QStringLiteral("grid"));
     QCOMPARE(emu->frameBeamValue(QStringLiteral("framebeam.default_multiview"), QStringLiteral("nds")), QStringLiteral("grid"));
 
@@ -1034,8 +1034,8 @@ class EmulationControllersTest : public QObject {
     QCOMPARE(c->devices().size(), 2);  // Keyboard, Mouse
     QCOMPARE(c->selectedDevice(), QStringLiteral("keyboard"));
     QCOMPARE(text(h, "profilesLocalFooter"), QStringLiteral("Saved on this device only"));
-    QCOMPARE(c->rows().size(), 18);  // the rows of the default (first) system, nds: 12 DS inputs + ZL/ZR + circle pad (as D-pad); no C-stick
-    QVERIFY(!inputRow(h, QStringLiteral("zl")).isEmpty() && !inputRow(h, QStringLiteral("lup")).isEmpty() && inputRow(h, QStringLiteral("cup")).isEmpty());
+    QCOMPARE(c->rows().size(), 12);  // the rows of the default (first) system, nds: the 12 DS inputs; no ZL/ZR, no circle pad / C-stick aliases (P33)
+    QVERIFY(inputRow(h, QStringLiteral("zl")).isEmpty() && inputRow(h, QStringLiteral("lup")).isEmpty() && inputRow(h, QStringLiteral("cup")).isEmpty());
     QVERIFY(!c->supportsLid());  // no LID row: the nds profiles have no lid input
     c->setSystemLabels(QStringLiteral("GB"), QString());  // a system without touch screen: no Mouse device
     QVERIFY(!c->hasTouch());
@@ -1171,12 +1171,12 @@ class EmulationControllersTest : public QObject {
     QCOMPARE(text(h, "hotkeyText_diagnostics"), QStringLiteral("F3"));
     QCOMPARE(text(h, "hotkeyText_snapshot"), QStringLiteral("F5"));
     QCOMPARE(text(h, "hotkeyText_escape"), QStringLiteral("Esc"));
-    QCOMPARE(text(h, "hotkeyPadText_fullscreen"), QStringLiteral("not set"));
+    QCOMPARE(text(h, "hotkeyPadText_fullscreen"), QStringLiteral("Select+Y"));  // FrameBeam hotkeys get gamepad defaults (P36)
     QCOMPARE(text(h, "hotkeyPadText_diagnostics"), QStringLiteral("Select+R3"));
     QCOMPARE(text(h, "hotkeyPadText_snapshot"), QStringLiteral("Select+LB"));
     QCOMPARE(text(h, "hotkeyPadText_speedup"), QStringLiteral("Select+RB"));
     QCOMPARE(text(h, "padModifierText"), QStringLiteral("Select"));
-    QVERIFY(!visible(h, "hotkeyPadField_escape"));
+    QVERIFY(visible(h, "hotkeyPadField_escape"));  // fixed, read-only field (no capture)
     QVERIFY(!visible(h, "resetChanged"));
     // The fixed Esc row cannot be captured.
     QVERIFY(h.click("hotkeyField_escape"));
@@ -1309,14 +1309,14 @@ class EmulationControllersTest : public QObject {
     QCOMPARE(c->padHotkeyListening(), QStringLiteral("fullscreen"));
     pad.button(LB, false);
     poll();
-    pad.button(North, true);
+    pad.button(South, true);
     poll();
     QVERIFY(c->padHotkeyListening().isEmpty());
-    QCOMPARE(storedPad(QStringLiteral("fullscreen")), QStringLiteral("pad:y"));
-    QCOMPARE(text(h, "hotkeyPadText_fullscreen"), QStringLiteral("Select+Y"));
+    QCOMPARE(storedPad(QStringLiteral("fullscreen")), QStringLiteral("pad:a"));
+    QCOMPARE(text(h, "hotkeyPadText_fullscreen"), QStringLiteral("Select+A"));
     QVERIFY(visible(h, "hotkeyChangedDot_fullscreen"));
     QCOMPARE(c->hotkeysChangedCount(), 1);
-    pad.button(North, false);
+    pad.button(South, false);
     pad.button(Back, false);
     poll();
 
@@ -1338,7 +1338,7 @@ class EmulationControllersTest : public QObject {
     QCOMPARE(text(h, "hotkeyPadText_diagnostics"), QStringLiteral("Select+R3"));
     {
       ControllerProfiles reread(h.controller->profileStore()->baseDir());
-      QCOMPARE(reread.padHotkey(QStringLiteral("fullscreen")), QStringLiteral("pad:y"));
+      QCOMPARE(reread.padHotkey(QStringLiteral("fullscreen")), QStringLiteral("pad:a"));
     }
 
     // Change the hotkey button: Start; the combos follow.
@@ -1377,7 +1377,7 @@ class EmulationControllersTest : public QObject {
     // Reset all brings back keyboard keys and gamepad buttons.
     QVERIFY(h.click("resetChanged"));
     QCOMPARE(c->hotkeysChangedCount(), 0);
-    QCOMPARE(text(h, "hotkeyPadText_fullscreen"), QStringLiteral("not set"));
+    QCOMPARE(text(h, "hotkeyPadText_fullscreen"), QStringLiteral("Select+Y"));
   }
 
   void controllersDuplicateToEdit() {

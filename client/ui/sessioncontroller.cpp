@@ -51,6 +51,7 @@ SessionController::SessionController(HubConnection* conn, ProfileStore* profiles
   connect(&host_, &SessionHost::gpuInputChanged, this, [this]() { updateGpuEncode(); }, Qt::QueuedConnection);
   // The game's state too: after a live-save restart the plan runs again once the core is back (Running).
   connect(game_, &GameSession::stateChanged, this, [this]() { updateGpuEncode(); }, Qt::QueuedConnection);
+  connect(game_, &GameSession::stateChanged, this, [this]() { updateHostState(); });
 
   // Local game: frames and audio feed the host only while shared (SessionHost drops them otherwise).
   connect(game_, &GameSession::frameChanged, this, [this]() {
@@ -384,6 +385,7 @@ void SessionController::shareSession() {
     updateGpuEncode();  // share size = kShareEncodeMax; a bridge follows once the encoder runs
     saveSettings();
     host_.open(own_.sessionId, socket_.helloAck().iceServers, socket_.helloAck().turnServers);
+    updateHostState();
     for (const ViewerJoined& v : std::exchange(pendingViewers_, {})) {
       host_.addViewer(v.viewerId, v.turnServers);
     }
@@ -641,6 +643,12 @@ SessionController::Remote* SessionController::remote(const QString& sessionId) c
   return nullptr;
 }
 
+// ADR 0026 D3: viewers of the own Session learn whether the game is paused and by whom (the owner's display name).
+void SessionController::updateHostState() {
+  if (!shared_) return;
+  host_.setHostState(game_->isPaused(), own_.owner.displayName);
+}
+
 SessionViewer* SessionController::viewer(const QString& sessionId) {
   Remote* r = remote(sessionId);
   return r ? r->viewer : nullptr;
@@ -698,6 +706,16 @@ void SessionController::watch(const QString& sessionId) {
         cur->frame = img;
         ++cur->frameNr;
         emit remoteFrameChanged(sessionId);
+        if (cur->frameNr == 1) emit surfacesChanged();  // the tile stops saying "loading"
+      }
+    });
+    connect(v, &SessionViewer::hostStateChanged, this, [this, sessionId](bool paused, const QString& by) {
+      if (Remote* cur = remote(sessionId)) {
+        if (cur->paused == paused && cur->pausedBy == by) return;
+        cur->paused = paused;
+        cur->pausedBy = paused ? by : QString();
+        cur->pausedAtMs = paused ? QDateTime::currentMSecsSinceEpoch() : 0;
+        emit surfacesChanged();
       }
     });
     connect(v, &SessionViewer::closed, this, [this, sessionId]() {
@@ -807,34 +825,40 @@ void SessionController::setTab(const QString& t) {
   emit viewChanged();
 }
 
-// Layouts by surface count (3h, 3r, 3i): two surfaces -> PiP | Side-by-Side | Grid 2 x 2, three or four -> PiP | Grid 2 x 2
-// (columns would get too narrow), one -> a single surface (none to choose).
+// Layouts (ADR 0026 D2, 3r-3): two or more surfaces -> PiP | Row | Grid 2 x 2. Row (columns) is for two or three surfaces,
+// Grid 2 x 2 from four; below four Grid is disabled in the UI ("Grid 2×2 · from 4", gridAvailable) and never shows an empty
+// slot. One surface is a single picture (nothing to choose).
 QStringList SessionController::availableLayouts() const {
-  const int n = surfaceCount();
-  if (n < 2) {
+  if (surfaceCount() < 2) {
     return {};
   }
-  if (n == 2) {
-    return {QStringLiteral("pip"), QStringLiteral("side"), QStringLiteral("grid")};
-  }
-  return {QStringLiteral("pip"), QStringLiteral("grid")};
+  return {QStringLiteral("pip"), QStringLiteral("row"), QStringLiteral("grid")};
 }
 
 QString SessionController::multiviewMode() const {
   const int n = surfaceCount();
-  if (n < 2 || mode_ == QLatin1String("pip") || mode_ == QLatin1String("grid")) {
+  if (n < 2 || mode_ == QLatin1String("pip")) {
     return mode_;  // a single surface has no layout to choose; the choice is kept for the next surface
   }
-  return n == 2 ? QStringLiteral("side") : QStringLiteral("grid");  // side-by-side with more than two surfaces becomes the grid
+  if (n < kMaxSurfaces) {
+    return QStringLiteral("row");  // Grid is not available below four surfaces
+  }
+  return mode_ == QLatin1String("row") && rowForced_ ? QStringLiteral("row") : QStringLiteral("grid");
 }
 
-void SessionController::setMultiviewMode(const QString& m) {
+void SessionController::setMultiviewMode(const QString& in) {
   // The choice is kept as a preference (also from the default-multiview setting before any Session is shown);
-  // multiviewMode() maps it to what the current surface count offers.
-  if ((m != QLatin1String("pip") && m != QLatin1String("side") && m != QLatin1String("grid")) || m == mode_) {
+  // multiviewMode() maps it to what the current surface count offers. "side" is the pre-0.14 name of "row".
+  const QString m = in == QLatin1String("side") ? QStringLiteral("row") : in;
+  if (m != QLatin1String("pip") && m != QLatin1String("row") && m != QLatin1String("grid")) {
+    return;
+  }
+  const bool force = m == QLatin1String("row") && surfaceCount() >= kMaxSurfaces;
+  if (m == mode_ && force == rowForced_) {
     return;
   }
   mode_ = m;
+  rowForced_ = force;
   emit viewChanged();
 }
 
@@ -872,7 +896,11 @@ QVariantMap SessionController::surfaceInfo() const {
                                               {QStringLiteral("visibility"), visibilityLabel(r->info.visibility)},
                                               {QStringLiteral("since"), r->info.createdAt},
                                               {QStringLiteral("name"), tr("%1 · %2").arg(r->info.owner.displayName, r->info.gameTitle)},
-                                              {QStringLiteral("meta"), tr("Session from %1").arg(r->info.owner.displayName)}});
+                                              {QStringLiteral("meta"), tr("Session from %1").arg(r->info.owner.displayName)},
+                                              {QStringLiteral("paused"), r->paused},
+                                              {QStringLiteral("pausedBy"), r->pausedBy.isEmpty() ? r->info.owner.displayName : r->pausedBy},
+                                              {QStringLiteral("pausedAt"), r->pausedAtMs},
+                                              {QStringLiteral("loading"), r->frameNr == 0}});
   }
   return out;
 }

@@ -14,6 +14,10 @@ Item {
     property real scrimTop: 0
     property string align: "center"       // "center" | "right" (right edge 60 beyond the anchor)
     property real padding: 14
+    // Docked placement (3r-3, P41): `dockRight` >= 0 puts the panel `dockRight` px from the right edge, right under `scrimTop`, without a
+    // pointer, so it opens in the play area and never covers the side panel (header, tabs, sharing).
+    property real dockRight: -1
+    readonly property bool docked: dockRight >= 0
     default property alias content: body.data
     readonly property real contentHeight: body.childrenRect.height
     signal closeRequested()
@@ -51,12 +55,13 @@ Item {
         objectName: "popoverPanel"
         readonly property real wantedX: root.align === "right" ? root.ax + root.aw + 60 - root.popWidth
                                                                : root.ax + root.aw / 2 - root.popWidth / 2
-        x: Math.max(8, Math.min(root.width - root.popWidth - 8, wantedX))
-        y: root.ay + root.ah + 10
+        x: root.docked ? Math.max(8, root.width - root.dockRight - root.popWidth) : Math.max(8, Math.min(root.width - root.popWidth - 8, wantedX))
+        y: root.docked ? root.scrimTop + 4 : root.ay + root.ah + 10
         width: root.popWidth
         height: bodyBox.height
 
         Rectangle {  // pointer: only its upper two edges show, the lower half is covered by the panel
+            visible: !root.docked
             width: 12
             height: 12
             rotation: 45

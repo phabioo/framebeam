@@ -1139,7 +1139,9 @@ void PluginsController::rebuildHotkeys() {
           {QStringLiteral("conflict"), !owner.isEmpty()},
           {QStringLiteral("changed"), !ov.isEmpty()},
           {QStringLiteral("listening"), hotkeyListening_ == pid + QLatin1Char('/') + id},
-          {QStringLiteral("note"), owner.isEmpty() ? QString() : tr("Already used by %1. Unassigned until you choose.").arg(owner)}});
+          {QStringLiteral("note"), owner.isEmpty() ? QString()
+                                   : reservedKeys_.contains(combo) ? tr("Already used by %1. FrameBeam keys always win.").arg(owner)
+                                                                    : tr("Already used by %1. Unassigned until you choose.").arg(owner)}});
     }
     const QString origin = plugin.value(QStringLiteral("origin")).toString();
     groups.append(QVariantMap{{QStringLiteral("pluginId"), pid},

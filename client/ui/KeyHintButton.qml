@@ -12,7 +12,8 @@ Button {
     property bool compact: false
 
     implicitHeight: 34
-    implicitWidth: compact ? 40 : row.implicitWidth + 24
+    property real maxWidth: 100000   // the text elides so the button is never wider than this (a card narrower than the label)
+    implicitWidth: compact ? 40 : Math.min(maxWidth, row.implicitWidth + 24)
     padding: 0
     hoverEnabled: true
     font.pixelSize: 13
@@ -31,11 +32,15 @@ Button {
             anchors.centerIn: parent
             spacing: 8
             Text {
+                // Elides when maxWidth is smaller than the text (wide fonts).
+                Layout.preferredWidth: Math.min(implicitWidth, Math.max(0, control.maxWidth - 24 - (hintText.visible ? hintText.implicitWidth + row.spacing : 0)))
+                elide: Text.ElideRight
                 text: control.text
                 font: control.font
                 color: !control.enabled ? Theme.textDisabled : (control.kind === "primary" ? Theme.textOnAccent : Theme.text)
             }
             Text {
+                id: hintText
                 visible: control.hint !== "" && !control.compact
                 text: control.hint
                 font.family: Theme.mono

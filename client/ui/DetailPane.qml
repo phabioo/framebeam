@@ -233,7 +233,7 @@ Rectangle {
                                         ToolTip.text: row.modelData.text || ""
                                         ToolTip.delay: 400
                                         objectName: "detailRowValue"
-                                        text: (row.modelData.tone === "ok" ? "✓ " : (row.modelData.tone === "warn" ? "▲ " : (row.modelData.tone === "error" ? "✕ " : "")))
+                                        text: (row.modelData.tone === "ok" ? "✓ " : ((row.modelData.tone === "warn" || row.modelData.tone === "amber") ? "▲ " : (row.modelData.tone === "error" ? "✕ " : "")))
                                               + (row.modelData.text || "")
                                         font.pixelSize: Theme.fontSmall
                                         color: row.modelData.tone === "neutral" ? Theme.text : Theme.toneColor(row.modelData.tone)

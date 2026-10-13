@@ -18,6 +18,7 @@ extern "C" {
 
 #include "cudadriver.h"
 #include "cudaglcapture.h"
+#include "hoststate.h"
 #include "mediacaps.h"
 #include "opuscodec.h"
 #include "rtcutil.h"
@@ -589,6 +590,7 @@ void SessionHost::close() {
     dropViewer(id, QStringLiteral("session_closed"));
   }
   stopEncoder();
+  hostStateSent_.clear();
   open_ = false;
 }
 
@@ -668,6 +670,9 @@ void SessionHost::addViewer(const QString& viewerId, const QList<TurnServer>& tu
       bridge->post([this, id, r = *report]() { onRxReport(id, r); });
     }));
 
+    // The state signal (paused / running) goes out as soon as the channel is open, for a viewer that joins while paused.
+    v.diag->onOpen(guarded("diag onOpen", [this, bridge, id]() { bridge->post([this, id]() { sendHostState(id); }); }));
+
     v.pc->onLocalDescription(guarded("onLocalDescription", [this, bridge, id](rtc::Description d) {
       SessionSignal s;
       s.viewerId = id;
@@ -718,6 +723,32 @@ void SessionHost::addViewer(const QString& viewerId, const QList<TurnServer>& tu
 
 void SessionHost::removeViewer(const QString& viewerId) { dropViewer(viewerId, QStringLiteral("removed")); }
 
+void SessionHost::setHostState(bool paused, const QString& by) {
+  const QString name = paused ? by : QString();
+  if (paused == hostPaused_ && name == hostPausedBy_) return;
+  hostPaused_ = paused;
+  hostPausedBy_ = name;
+  const QStringList ids = viewers_.keys();
+  for (const QString& id : ids) sendHostState(id);
+}
+
+void SessionHost::sendHostState(const QString& viewerId) {
+  const auto it = viewers_.constFind(viewerId);
+  if (it == viewers_.constEnd() || !it->diag) return;
+  // A viewer that joins a running game needs no message: "running" is the state it starts in.
+  if (!hostPaused_ && !hostStateSent_.contains(viewerId)) return;
+  try {
+    if (it->diag->isOpen()) {
+      const QByteArray msg = makeHostState(hostPaused_, hostPausedBy_);
+      it->diag->send(std::string(msg.constData(), static_cast<size_t>(msg.size())));
+      if (hostPaused_) hostStateSent_.insert(viewerId);
+      else hostStateSent_.remove(viewerId);
+    }
+  } catch (const std::exception& e) {
+    qCWarning(lcHost) << "host state:" << e.what();
+  }
+}
+
 void SessionHost::dropViewer(const QString& viewerId, const QString& reason) {
   auto it = viewers_.find(viewerId);
   if (it == viewers_.end()) {
@@ -728,6 +759,7 @@ void SessionHost::dropViewer(const QString& viewerId, const QString& reason) {
   viewerCountAtomic_ = static_cast<int>(viewers_.size());
   bitrate_.removeViewer(viewerId);
   reports_.remove(viewerId);
+  hostStateSent_.remove(viewerId);
   publishSinks();  // the worker stops sending to this viewer before its PeerConnection closes
   QString finalState = QStringLiteral("closed");
   try {

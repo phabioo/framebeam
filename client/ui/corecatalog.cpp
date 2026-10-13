@@ -187,7 +187,8 @@ void CoreCatalog::coreStatus(const emu::SystemManifest& man, QString* text, QStr
   const QString problem = coreProblems_.value(man.coreId);
   if (!problem.isEmpty()) {
     *text = coreProblemText(problem);
-    *tone = QStringLiteral("error");
+    // "Core missing" needs your judgment (amber); a failed download or an incompatible core stays an error.
+    *tone = problem == QLatin1String("not_on_hub") || problem == QLatin1String("not_cached_on_hub") ? QStringLiteral("amber") : QStringLiteral("error");
     if (problem == QLatin1String("not_on_hub")) {
       *hint = tr("The Hub has no package of this core. Ask the Hub admin to select a core version on the Systems & Cores page.");
     } else if (problem == QLatin1String("not_cached_on_hub")) {
@@ -205,7 +206,7 @@ void CoreCatalog::coreStatus(const emu::SystemManifest& man, QString* text, QStr
     return;
   }
   *text = tr("Core missing");
-  *tone = QStringLiteral("error");
+  *tone = QStringLiteral("amber");
   // The search paths are not shown here (a developer path wrapped mid-word in mono, P13).
   *hint = tr("This core is not installed on this device. Connect to a Hub that provides cores.");
 }
@@ -219,7 +220,7 @@ QString CoreCatalog::attentionFor(const GameEntry& game) const {
   if (!coreUsable(*man)) {
     QString text, tone, hint;
     coreStatus(*man, &text, &tone, &hint);
-    if (tone == QLatin1String("error")) {
+    if (tone == QLatin1String("error") || tone == QLatin1String("amber")) {
       return text;
     }
   }
@@ -261,7 +262,8 @@ QVariantList CoreCatalog::systemCards() {
       coreStatus(m, &readyText, &readyTone, &hint);
     }
     // Firmware (firmware path from the Hub registry, architecture 05): built-in BIOS, from the Hub, or required/missing.
-    QString fwText = tr("Built-in BIOS");
+    // Only systems whose core can use firmware files get a firmware line (3e-3, P30): GB, GBA and 3DS have none.
+    QString fwText = m.firmware.sysfileOption.isEmpty() ? QString() : tr("Built-in BIOS");
     QString fwTone = QStringLiteral("neutral");
     SystemInfo sys;
     if (nativeFirmware(m, &sys)) {
@@ -278,10 +280,20 @@ QVariantList CoreCatalog::systemCards() {
         fwTone = QStringLiteral("ok");
       }
     }
+    // The Hub preselects no core and the user has not chosen one (P31): say so instead of showing the fallback core as chosen.
+    bool noCore = false;
+    if (systems_->supported()) {
+      if (const auto sysInfo = systems_->system(m.systemId)) {
+        noCore = !sysInfo->defaultCore().valid() &&
+                 !emulation_->settings()->hasValue(EmulationSettings::Level::System, m.systemId, QString::fromLatin1(EmulationSettings::kCoreKey));
+      }
+    }
     cards.append(QVariantMap{{QStringLiteral("id"), m.systemId},
                              {QStringLiteral("name"), m.displayName},
-                             {QStringLiteral("coreName"), coreLabel(m, loc)},
-                             {QStringLiteral("coreVersion"), version},
+                             {QStringLiteral("coreName"), noCore ? tr("No core chosen yet") : coreLabel(m, loc)},
+                             {QStringLiteral("fallbackCoreName"), coreLabel(m, loc)},
+                             {QStringLiteral("noCoreChosen"), noCore},
+                             {QStringLiteral("coreVersion"), noCore ? QString() : version},
                              {QStringLiteral("coreId"), m.coreId},
                              {QStringLiteral("coreExperimental"), m.experimental},
                              {QStringLiteral("cores"), coresOf(m.systemId)},

@@ -37,6 +37,8 @@ void clearInputProfiles();
 // Whether the profile maps the FrameBeam input (unknown profiles are looked up as "nds"); label is empty when the manifest sets none.
 bool inputProfileMaps(const QString& profile, const QString& inputId);
 QString inputProfileLabel(const QString& profile, const QString& inputId);
+// Libretro bit(s) the profile gives the FrameBeam input (0 = not mapped). Inputs with the same bits are aliases (DS: ZL = L).
+quint32 inputProfileBits(const QString& profile, const QString& inputId);
 // Libretro mask for a manifest input_profile; an unknown or empty profile uses the table registered as "nds" (no table = 0).
 quint32 libretroMaskFor(const QString& inputProfile, quint32 inputMask);
 

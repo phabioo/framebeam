@@ -48,6 +48,7 @@ class ControllersController : public QObject {
   Q_PROPERTY(QString hotkeyNote READ hotkeyNote NOTIFY hotkeysChanged)            // "Already used by <label>" after a rejected key
   // {actionId: key label} for the key hints; "" = unassigned (no hint).
   Q_PROPERTY(QVariantMap hotkeyLabels READ hotkeyLabels NOTIFY hotkeysChanged)
+  Q_PROPERTY(QVariantMap fixedPad READ fixedPad NOTIFY hotkeysChanged)  // gamepad combos of the fixed rows (F4: modifier + L3)
   // Gamepad hotkeys (P1): rows above also carry {pad, padSet, padChanged, padListening}; padHotkeyListening = action id
   // (or "modifier") waiting for "Press a button…"; padHotkeyModifier = label of the hotkey button ("Select");
   // padHotkeyModifierChanged = differs from the default. hotkeyHints = {actionId: label} for the hints in the game
@@ -57,6 +58,11 @@ class ControllersController : public QObject {
   Q_PROPERTY(bool padHotkeyModifierChanged READ padHotkeyModifierChanged NOTIFY hotkeysChanged)
   Q_PROPERTY(QVariantMap hotkeyHints READ hotkeyHints NOTIFY hotkeyHintsChanged)
   // System-specific labels from the system manifest (column header, touch input name).
+  // System selector of the Buttons tab (3f-4, P33): [{id, label, profile}] and the system whose buttons are listed. It only
+  // changes what the page shows; the mapping in use follows the running game's system.
+  Q_PROPERTY(QVariantList systems READ systems NOTIFY systemsChanged)
+  Q_PROPERTY(QString viewSystem READ viewSystem NOTIFY labelsChanged)
+  Q_PROPERTY(QString systemNote READ systemNote NOTIFY labelsChanged)  // which buttons the viewed system has
   Q_PROPERTY(QString systemLabel READ systemLabel NOTIFY labelsChanged)
   Q_PROPERTY(QString touchLabel READ touchLabel NOTIFY labelsChanged)
   Q_PROPERTY(bool hasTouch READ hasTouch NOTIFY labelsChanged)  // the current system has a touch screen
@@ -99,7 +105,13 @@ class ControllersController : public QObject {
   QString labelSetName() const;
   QVariantList labelChoices() const;
   QVariantList testCells() const;
-  QString systemLabel() const { return systemLabel_; }
+  QVariantMap fixedPad() const;
+  QString systemLabel() const { return viewLabel_.isEmpty() ? systemLabel_ : viewLabel_; }
+  QVariantList systems() const { return systems_; }
+  QString viewSystem() const { return viewSystem_; }
+  QString systemNote() const;
+  void setSystems(const QVariantList& systems);  // [{id, label, profile, inputLabel}] from the manifests
+  Q_INVOKABLE void selectSystem(const QString& id);
   QString touchLabel() const { return touchLabel_; }
   bool hasTouch() const { return !touchLabel_.isEmpty(); }
   void setSystemLabels(const QString& systemLabel, const QString& touchLabel);  // empty touchLabel = no touch screen: no Mouse device
@@ -155,6 +167,7 @@ class ControllersController : public QObject {
   Q_INVOKABLE void duplicateAndCapture(const QString& inputId);
 
  signals:
+  void systemsChanged();
   void devicesChanged();
   void selectionChanged();
   void profilesChanged();
@@ -190,6 +203,12 @@ class ControllersController : public QObject {
 
   ControllerProfiles profiles_;
   input::GamepadService pads_;
+  QVariantList systems_;
+  QString viewSystem_;    // system listed on the Buttons tab; follows the running game's system until the user picks one
+  QString viewProfile_;   // its input profile (empty = inputProfile_)
+  QString viewLabel_;
+  bool viewPinned_ = false;  // picked by the user: a game start does not move it
+  void syncView();
   QString inputProfile_;  // manifest input profile; empty until the first manifest or game sets it
   QString selected_ = QStringLiteral("keyboard");
   QString listening_;

@@ -126,7 +126,10 @@ QString RunsController::errorText(const RunResult& r, const QString& what) const
 }
 
 QString RunsController::hubEventText(const RunEvent& e) const {
-  const QString who = e.payload.value(QStringLiteral("user_name")).toString();
+  // The actor is always named, like the Hub's run board ("Lena joined"), also for events without a user_name in the payload.
+  QString who = e.payload.value(QStringLiteral("user_name")).toString();
+  if (who.isEmpty()) who = e.userName;
+  if (who.isEmpty()) who = tr("Someone");
   if (e.type == QLatin1String("run.created")) {
     const QString name = e.payload.value(QStringLiteral("name")).toString().trimmed();
     return name.isEmpty() ? tr("%1 created the run").arg(who) : tr("%1 created the run %2").arg(who, QString(QChar(0x201C)) + name + QChar(0x201D));
@@ -137,7 +140,8 @@ QString RunsController::hubEventText(const RunEvent& e) const {
   if (e.type == QLatin1String("run.invited")) return tr("%1 invited %n player(s)", nullptr, static_cast<int>(e.payload.value(QStringLiteral("invited")).toArray().size())).arg(who);
   if (e.type == QLatin1String("run.status")) {
     const QString to = e.payload.value(QStringLiteral("status")).toString();
-    const QString by = e.payload.value(QStringLiteral("by_user_name")).toString();
+    QString by = e.payload.value(QStringLiteral("by_user_name")).toString();
+    if (by.isEmpty()) by = who;
     if (to == QLatin1String("paused")) return tr("Run paused by %1").arg(by);
     if (to == QLatin1String("active")) return e.payload.value(QStringLiteral("previous")).toString() == QLatin1String("paused") ? tr("Run resumed by %1").arg(by) : tr("Run started by %1").arg(by);
     if (to == QLatin1String("finished")) return tr("Run finished by %1").arg(by);

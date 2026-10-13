@@ -311,7 +311,8 @@ Item {
             id: moreLink
             objectName: root.idKey !== "" ? "descMore_" + root.idKey : ""
             visible: root.intro !== "" && (root.canExpand || root.expanded)
-            Layout.preferredWidth: moreText.implicitWidth
+            Layout.preferredWidth: Math.min(moreText.implicitWidth, root.textWidth)
+            Layout.minimumWidth: 0
             Layout.preferredHeight: 18
             Layout.topMargin: 2
             activeFocusOnTab: true
@@ -320,6 +321,8 @@ Item {
             Keys.onSpacePressed: root.expanded = !root.expanded
             Text {
                 id: moreText
+                width: parent.width
+                elide: Text.ElideRight
                 text: root.moreLabel
                 font.pixelSize: Theme.fontMeta
                 font.underline: true
@@ -396,8 +399,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: qsTr("Reset")
                 font.pixelSize: Theme.fontMeta
-                font.underline: true
-                color: resetLink.activeFocus ? Theme.accent : Theme.textMuted
+                color: Theme.accent
             }
             TapHandler { onTapped: root.resetRequested() }
             HoverHandler { cursorShape: Qt.PointingHandCursor }

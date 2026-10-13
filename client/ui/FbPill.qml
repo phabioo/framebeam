@@ -1,7 +1,7 @@
 import QtQuick
 import FrameBeam.Player
 
-// Status pill (tokens.md): surface + text with a leading symbol. tone: ok | warn | error | neutral; in the Player
+// Status pill (tokens.md): surface + text with a leading symbol. tone: ok | warn | amber | error | neutral; in the Player
 // "warn" is the accent (Signal Cyan on its chip surface), by design. small = the diagnostics variant (11/600, no symbol).
 // The symbol is left out when the text already starts with one.
 Rectangle {
@@ -11,7 +11,7 @@ Rectangle {
     property bool small: false
     readonly property bool textHasSymbol: /^[●▲✕⟳↓❚]/.test(text)
     property string symbol: (small || textHasSymbol) ? ""
-                          : (tone === "ok" ? "●" : (tone === "warn" ? "▲" : (tone === "error" ? "✕" : "")))
+                          : (tone === "ok" ? "●" : ((tone === "warn" || tone === "amber") ? "▲" : (tone === "error" ? "✕" : "")))
 
     implicitHeight: small ? 20 : 24
     // Natural width from an unconstrained probe (the visible text may be narrower and elide when the pill is squeezed).

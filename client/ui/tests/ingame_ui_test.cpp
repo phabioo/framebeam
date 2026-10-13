@@ -225,15 +225,18 @@ class InGameUiTest : public QObject {
     return z;
   }
 
-  // Overlay: top right of the play area, 16 under the header and 16 left of the panel.
+  // Diagnostics are docked as a tab in the right panel (3h-3): inside the panel, under the header, never over the play area.
   static QString overlayProblem(Harness& h) {
     const QRectF play = rectOf(h, "playArea"), ov = rectOf(h, "diagnosticsOverlay"), panel = rectOf(h, "gamePanel"), header = rectOf(h, "gameHeader");
-    if (ov.isEmpty()) return QStringLiteral("overlay not visible");
-    if (!play.contains(ov)) return QStringLiteral("overlay outside the play area");
-    if (std::abs(ov.right() - (play.right() - 16)) > 1.5) return QStringLiteral("overlay right %1, play area right %2").arg(ov.right()).arg(play.right());
-    if (std::abs(ov.top() - (header.bottom() + 16)) > 1.5) return QStringLiteral("overlay top %1, header bottom %2").arg(ov.top()).arg(header.bottom());
-    if (std::abs(ov.right() + 16 - panel.left()) > 1.5) return QStringLiteral("overlay right %1, panel left %2").arg(ov.right()).arg(panel.left());
-    if (std::abs(ov.width() - 340) > 1.5) return QStringLiteral("overlay width %1").arg(ov.width());
+    if (ov.isEmpty()) return QStringLiteral("diagnostics not visible");
+    if (ov.left() < panel.left() - 0.5 || ov.right() > panel.right() + 0.5 || ov.top() < panel.top() - 0.5) return QStringLiteral("diagnostics outside the panel");
+    // Below the panel is fine when the docked view scrolls (wide fonts make the sections taller than a 600 px window).
+    if (ov.bottom() > panel.bottom() + 0.5) {
+      QQuickItem* box = visibleItem(h, "gamePanelDiagnostics");
+      if (box == nullptr || box->property("contentHeight").toReal() <= box->height() + 0.5) return QStringLiteral("diagnostics outside the panel (not scrollable)");
+    }
+    if (ov.top() < header.bottom() - 0.5) return QStringLiteral("diagnostics over the header");
+    if (ov.intersects(play) && ov.intersected(play).width() > 1.0) return QStringLiteral("diagnostics cover the play area");
     return {};
   }
 
@@ -667,7 +670,7 @@ class InGameUiTest : public QObject {
       QVERIFY2(rectOf(h, "playArea").width() > 300, qPrintable(tag + QStringLiteral("play area too narrow")));
       const bool compact = sz.width() < 1400;
       const bool tight = compact || headerTight(h);
-      QCOMPARE(visibleItem(h, "resetButton") != nullptr, !tight);   // compact: Reset moves into "⋯"
+      QVERIFY2(visibleItem(h, "resetButton") != nullptr, qPrintable(tag + QStringLiteral("Reset stays reachable in the header (P44)")));
       QCOMPARE(visibleItem(h, "moreButton") != nullptr, tight);
       QCOMPARE(rectOf(h, "gamePanel").width(), compact ? 320.0 : 340.0);
       // Zones of the Session: no "YOUR GAME" label, no "+ Add", no Quit in the header
@@ -740,15 +743,16 @@ class InGameUiTest : public QObject {
     QVERIFY(h.click("resetConfirm"));
     QTRY_VERIFY(!shown(h, "resetConfirm"));
 
-    // Compact: Reset and Hotkeys live in "⋯"; Reset there asks the same question
+    // Compact: Reset stays in the header (P44); Pause and Hotkeys live in "⋯"
     resize(h, 1280, 800);
+    QVERIFY(shown(h, "resetButton"));
     QVERIFY(h.click("moreButton"));
     QTRY_VERIFY(shown(h, "morePopover"));
-    QVERIFY(shown(h, "moreReset") && shown(h, "morePause") && shown(h, "moreHotkeys"));
-    QCOMPARE(textOf(visibleItem(h, "moreReset")), QStringLiteral("Reset Lumen Drift…"));
-    QVERIFY(h.click("moreReset"));
+    QVERIFY(shown(h, "morePause") && shown(h, "moreHotkeys") && !shown(h, "moreReset"));
+    QVERIFY(h.click("moreButton"));
+    QTRY_VERIFY(!shown(h, "morePopover"));
+    QVERIFY(h.click("resetButton"));
     QTRY_VERIFY(shown(h, "resetConfirm"));
-    QVERIFY(!shown(h, "morePopover"));
     QVERIFY(h.click("resetCancel"));
     QTRY_VERIFY(!shown(h, "resetConfirm"));
 
@@ -844,11 +848,12 @@ class InGameUiTest : public QObject {
     {
       const QRectF anchor = rectOf(h, "addSessionToggle");
       QQuickItem* pop = nullptr;
-      for (QQuickItem* i : h.items("popoverPanel")) if (i->isVisible() && i->width() == 340) pop = i;
+      for (QQuickItem* i : h.items("popoverPanel")) if (i->isVisible() && i->width() > 300 && i->width() < 360) pop = i;
       QVERIFY(pop != nullptr);
       const QRectF pr = sceneRect(pop);
-      QVERIFY2(pr.top() >= anchor.bottom() + 8 && pr.top() <= anchor.bottom() + 12, qPrintable(QStringLiteral("picker top %1, anchor bottom %2").arg(pr.top()).arg(anchor.bottom())));
-      QVERIFY2(pr.left() <= anchor.center().x() && pr.right() >= anchor.center().x(), "picker spans its anchor");
+      // Docked (P41): right under the header, left of the side panel, never over the panel or its sharing section
+      QVERIFY2(pr.top() >= rectOf(h, "gameHeader").bottom() - 0.5 && pr.top() <= anchor.bottom() + 16, qPrintable(QStringLiteral("picker top %1, anchor bottom %2").arg(pr.top()).arg(anchor.bottom())));
+      QVERIFY2(pr.right() <= rectOf(h, "gamePanel").left() + 0.5, "picker stays left of the side panel");
       QVERIFY(pr.right() <= h.window->width() + 0.5);
       QVERIFY(visibleItem(h, "addSessionToggle")->property("on").toBool());  // the anchor stays pressed
     }
@@ -862,24 +867,12 @@ class InGameUiTest : public QObject {
     QTRY_COMPARE(ctl->surfaceCount(), 2);
     QVERIFY(h.click("addSessionToggle"));
     QCOMPARE(visibleItem(h, "addSessionToggle")->property("meta").toString(), QStringLiteral("· 2/4"));
-    QVERIFY(h.click("modeGrid"));
+    QVERIFY(h.click("modeRow"));
     QQuickTest::qWaitForPolish(h.window);
-    if (ctl->multiviewMode() != QStringLiteral("grid")) {
-      QQuickItem* hit = h.window->contentItem();
-      const QPointF at = rectOf(h, "modeGrid").center();
-      for (;;) {
-        QQuickItem* ch = hit->childAt(hit->mapFromScene(at).x(), hit->mapFromScene(at).y());
-        if (ch == nullptr) break;
-        hit = ch;
-      }
-      qWarning().noquote() << "mode" << ctl->multiviewMode() << "window" << h.window->width() << "modeSegment" << rectOf(h, "modeSegment")
-                           << "modeGrid" << rectOf(h, "modeGrid") << "gameControls" << rectOf(h, "gameControls") << "viewSegment" << rectOf(h, "viewSegment")
-                           << "item at modeGrid centre:" << chain(hit);
-    }
-    QVERIFY(shown(h, "emptyTile_3") && shown(h, "emptyTile_4"));
+    QCOMPARE(ctl->multiviewMode(), QStringLiteral("row"));
+    QVERIFY(!shown(h, "emptyTile_3") && !shown(h, "emptyTile_4"));  // no empty slots (3r-3)
     QVERIFY(!shown(h, "multiviewSessionList"));
-    // An empty tile opens the picker as well
-    QVERIFY(h.click("emptyTile_3"));
+    QVERIFY(h.click("addSessionToggle"));
     QTRY_VERIFY(shown(h, "multiviewSessionList"));
     QVERIFY(h.click("addSessionToggle"));
     QTRY_VERIFY(!shown(h, "multiviewSessionList"));
@@ -903,10 +896,10 @@ class InGameUiTest : public QObject {
     QCOMPARE(ctl->audioFocus(), QStringLiteral("local"));
     QVERIFY(shown(h, "pauseButton"));
     // A selected key badge is white, the audio tile shows the inset ring and the chip
-    QVERIFY(shown(h, "audioRing_local") && shown(h, "audioChip_local") && !shown(h, "audioRing_s1"));
+    QVERIFY(shown(h, "audioChip_local") && !shown(h, "audioChip_s1"));
     QVERIFY(h.click("audioButton_s1"));
     QCOMPARE(ctl->audioFocus(), QStringLiteral("s1"));
-    QTRY_VERIFY(shown(h, "audioRing_s1") && !shown(h, "audioRing_local"));
+    QTRY_VERIFY(shown(h, "audioChip_s1") && !shown(h, "audioChip_local"));
     QCOMPARE(textOf(visibleItem(h, "audioButton_s1")), QStringLiteral("♪ Audio plays from this tile"));
     // "Select" in the remote panel goes back to your tile
     QVERIFY(h.click("selectLocalTile"));
@@ -977,6 +970,43 @@ class InGameUiTest : public QObject {
   }
 
   // ---- sidebar: Now running ----
+
+  // Esc always pauses and opens the pause card (ADR 0026 D1), in a window and in fullscreen; F11 leaves fullscreen.
+  void escPausesAndOpensThePauseCard() {
+    FakeHub hub(QStringLiteral("a"));
+    Harness h;
+    pair(hub, h, false);
+    startPreview(h, false);
+    GameSession* gs = h.controller->gameSession();
+    resize(h, 1440, 900);
+    QVERIFY(!gs->isPaused());
+    QVERIFY(!shown(h, "pauseOverlay"));
+
+    // Window: Esc pauses and shows the card with Resume; Esc again resumes
+    QTest::keyClick(h.window, Qt::Key_Escape);
+    QTRY_VERIFY(gs->isPaused());
+    QTRY_VERIFY(shown(h, "pauseOverlay") && shown(h, "pauseResume"));
+    QVERIFY(!shown(h, "pauseLeaveFullscreen"));  // not in fullscreen
+    QTest::keyClick(h.window, Qt::Key_Escape);
+    QTRY_VERIFY(!gs->isPaused());
+    QTRY_VERIFY(!shown(h, "pauseOverlay"));
+
+    // Fullscreen: Esc pauses (it does not leave), the card offers Resume and Leave fullscreen, F11 leaves
+    QTest::keyClick(h.window, Qt::Key_F11);
+    QTest::keyClick(h.window, Qt::Key_Escape);
+    QTRY_VERIFY(gs->isPaused());
+    QTRY_VERIFY(shown(h, "pauseOverlay") && shown(h, "pauseResume") && shown(h, "pauseLeaveFullscreen"));
+    QVERIFY(h.click("pauseResume"));
+    QTRY_VERIFY(!gs->isPaused());
+    QTRY_VERIFY(!shown(h, "pauseOverlay"));
+    QTest::keyClick(h.window, Qt::Key_Escape);
+    QTRY_VERIFY(gs->isPaused());
+    QVERIFY(h.click("pauseLeaveFullscreen"));
+    QTRY_VERIFY(!shown(h, "pauseLeaveFullscreen"));
+    QVERIFY(gs->isPaused());  // leaving fullscreen does not resume
+    QTest::keyClick(h.window, Qt::Key_Escape);
+    QTRY_VERIFY(!gs->isPaused());
+  }
 
   void sidebarNowRunningStrip() {
     FakeHub hub(QStringLiteral("a"));

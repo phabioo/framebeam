@@ -129,7 +129,7 @@ class ControllerProfilesTest : public QObject {
       QCOMPARE(p.padHotkey(QStringLiteral("speedup")), QStringLiteral("pad:rightshoulder"));
       QCOMPARE(p.padHotkey(QStringLiteral("snapshot")), QStringLiteral("pad:leftshoulder"));
       QCOMPARE(p.padHotkey(QStringLiteral("diagnostics")), QStringLiteral("pad:rightstick"));
-      QCOMPARE(p.padHotkey(QStringLiteral("fullscreen")), QString());
+      QCOMPARE(p.padHotkey(QStringLiteral("fullscreen")), QStringLiteral("pad:y"));   // FrameBeam hotkeys have gamepad defaults (3f-4)
       QCOMPARE(p.hotkeysChangedCount(), 0);
       QCOMPARE(padHotkeyLabel(p.padHotkey(QStringLiteral("speedup")), p.padHotkeyModifier()), QStringLiteral("Select+RB"));
       QCOMPARE(padHotkeyLabel(p.padHotkey(QStringLiteral("diagnostics")), p.padHotkeyModifier()), QStringLiteral("Select+R3"));
@@ -170,7 +170,7 @@ class ControllerProfilesTest : public QObject {
     QVERIFY(p.resetPadHotkeyModifier());
     QVERIFY(p.resetHotkeys());
     QCOMPARE(p.hotkeysChangedCount(), 0);
-    QCOMPARE(p.padHotkey(QStringLiteral("fullscreen")), QString());
+    QCOMPARE(p.padHotkey(QStringLiteral("fullscreen")), QStringLiteral("pad:y"));
   }
 
   void padHotkeysOldFilesAndBrokenEntries() {

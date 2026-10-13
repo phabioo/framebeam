@@ -28,6 +28,10 @@ Button {
         value: Math.min(control.implicitWidth, control.parent ? control.parent.width : 0)
     }
     Layout.minimumWidth: kind === "link" ? 0 : implicitWidth
+    // A link button may shrink (its label elides) but never grows: fillWidth + maximumWidth = preferred. A non-fill layout item
+    // keeps its preferred width and would push the row past a narrow column (very wide fonts).
+    Layout.fillWidth: kind === "link"
+    Layout.maximumWidth: kind === "link" ? implicitWidth : Number.POSITIVE_INFINITY
     hoverEnabled: true
     font.pixelSize: Theme.fontBody
     font.weight: kind === "primary" ? Font.DemiBold : Font.Medium
@@ -72,7 +76,7 @@ Button {
                 Binding {
                     target: labelItem
                     property: "width"
-                    when: control.parent && control.parent.flow !== undefined && control.parent.width > 0
+                    when: (control.parent && control.parent.flow !== undefined && control.parent.width > 0) || (control.width > 0 && control.width < control.implicitWidth - 0.5)
                     value: Math.min(labelItem.implicitWidth, Math.max(0, control.width - control.hPadding - (control.working ? 20 : 0)))
                 }
             }

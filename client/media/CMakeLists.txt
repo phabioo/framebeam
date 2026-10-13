@@ -44,6 +44,7 @@ framebeam_warnings(framebeam_audioutil)
 # SessionViewer. Signaling is decoupled (Qt signals/slots), the Hub clients live in framebeam_core (network/).
 add_library(framebeam_media STATIC
   bitratecontroller.cpp
+  hoststate.cpp
   videoencoder.cpp
   videodecoder.cpp
   cudadriver.cpp
@@ -67,6 +68,7 @@ if(BUILD_TESTING)
   set_tests_properties(media_loopback PROPERTIES RUN_SERIAL TRUE)
 endif()
 framebeam_add_test(media_bitrate tests/bitratecontroller_test.cpp LIBS framebeam_media)
+framebeam_add_test(media_host_state tests/hoststate_test.cpp LIBS framebeam_media)
 framebeam_add_test(media_rtcutil tests/rtcutil_test.cpp LIBS framebeam_media)
 framebeam_add_test(media_stream_timestamp tests/stream_timestamp_test.cpp LIBS framebeam_media)
 

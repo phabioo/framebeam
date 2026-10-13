@@ -125,13 +125,13 @@ QVariant LibraryModel::data(const QModelIndex& index, int role) const {
         tone = QStringLiteral("error");
       } else if (kind == QLatin1String("missing")) {
         text = tr("▲ File missing on this device");
-        tone = QStringLiteral("warn");
+        tone = QStringLiteral("amber");
       } else if (it.sync == QLatin1String("conflict")) {
         text = tr("▲ Save conflict");
-        tone = QStringLiteral("warn");
+        tone = QStringLiteral("amber");
       } else if (!it.attention.isEmpty()) {
         text = QStringLiteral("▲ ") + it.attention;
-        tone = QStringLiteral("warn");
+        tone = QStringLiteral("amber");   // Core missing / Needs attention: amber = needs your judgment (ADR 0026 D4)
       } else if (kind == QLatin1String("failed")) {
         text = tr("✕ Download failed · retry");
         tone = QStringLiteral("error");
@@ -157,7 +157,7 @@ QVariant LibraryModel::data(const QModelIndex& index, int role) const {
     case StatusToneRole:
       if (kind == QLatin1String("ready")) return QStringLiteral("ok");
       if (kind == QLatin1String("mismatch") || kind == QLatin1String("failed")) return QStringLiteral("error");
-      if (kind == QLatin1String("missing")) return QStringLiteral("warn");
+      if (kind == QLatin1String("missing")) return QStringLiteral("amber");
       return QStringLiteral("neutral");
     case StatusTextRole: {
       if (kind == QLatin1String("ready")) return tr("Ready");

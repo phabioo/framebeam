@@ -62,6 +62,7 @@ Item {
                 }
             }
             ColumnLayout {
+                id: toastCol
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
                 spacing: 4
@@ -103,36 +104,47 @@ Item {
                     font.pixelSize: 13
                     color: Theme.gameText
                 }
-                Flow {
-                    Layout.fillWidth: true
+                // The Flow sits in a plain Item whose width is the column's: a Flow directly in the layout kept the width of an
+                // earlier layout pass and ran past the notice with wide fonts.
+                Item {
+                    Layout.preferredWidth: toastCol.width
+                    Layout.maximumWidth: toastCol.width
+                    Layout.minimumWidth: 0
                     Layout.topMargin: 2
                     visible: (root.toast.actions || []).length > 0
-                    spacing: 8
-                    Repeater {
-                        model: root.toast.actions || []
-                        delegate: Rectangle {
-                            id: act
-                            required property var modelData
-                            required property int index
-                            objectName: "toastAction_" + modelData.action
-                            width: actLabel.implicitWidth + 24
-                            height: 28
-                            radius: 6
-                            color: act.index === 0 ? (root.warn ? Theme.gamePluginWarn : Theme.gameAccent) : (actHover.hovered ? Theme.gameSegmentOn : "transparent")
-                            border.width: act.index === 0 ? 0 : 1
-                            border.color: Theme.gameKeyLine
-                            Accessible.role: Accessible.Button
-                            Accessible.name: modelData.label
-                            FbLabel {
-                                id: actLabel
-                                anchors.centerIn: parent
-                                text: act.modelData.label
-                                font.pixelSize: 12
-                                font.weight: Font.DemiBold
-                                color: act.index === 0 ? "#161512" : Theme.gameText
+                    implicitHeight: actionFlow.implicitHeight
+                    Flow {
+                        id: actionFlow
+                        width: parent.width
+                        spacing: 8
+                        Repeater {
+                            model: root.toast.actions || []
+                            delegate: Rectangle {
+                                id: act
+                                required property var modelData
+                                required property int index
+                                objectName: "toastAction_" + modelData.action
+                                width: Math.min(actLabel.implicitWidth + 24, act.parent ? act.parent.width : 100000)   // never wider than the notice (wide fonts)
+                                height: 28
+                                radius: 6
+                                color: act.index === 0 ? (root.warn ? Theme.gamePluginWarn : Theme.gameAccent) : (actHover.hovered ? Theme.gameSegmentOn : "transparent")
+                                border.width: act.index === 0 ? 0 : 1
+                                border.color: Theme.gameKeyLine
+                                Accessible.role: Accessible.Button
+                                Accessible.name: modelData.label
+                                FbLabel {
+                                    id: actLabel
+                                    anchors.centerIn: parent
+                                    width: Math.min(implicitWidth, act.width - 24)
+                                    elide: Text.ElideRight
+                                    text: act.modelData.label
+                                    font.pixelSize: 12
+                                    font.weight: Font.DemiBold
+                                    color: act.index === 0 ? "#161512" : Theme.gameText
+                                }
+                                HoverHandler { id: actHover; cursorShape: Qt.PointingHandCursor }
+                                TapHandler { onTapped: root.actionPicked(act.modelData) }
                             }
-                            HoverHandler { id: actHover; cursorShape: Qt.PointingHandCursor }
-                            TapHandler { onTapped: root.actionPicked(act.modelData) }
                         }
                     }
                 }

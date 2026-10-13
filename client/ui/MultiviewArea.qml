@@ -3,23 +3,25 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import FrameBeam.Player
 
-// 3r-2 / 3h-2 / 3i-2: Multiview with up to four surfaces (ADR 0012 D8): the local game and/or remote Sessions. Layouts: a
-// single surface fills the area; side by side (two columns); grid 2 x 2 (free cells are "+ Add session" tiles); PiP: one
-// main surface and the others as windows stacked bottom right. Tiles sit on #0f1011 with radius 8 in a 16 px padding and gap.
-// A tile is selected by click on its badge, name or margin (the picture of your own game keeps the mouse for touch) or by
-// the keys 1-4; the side panel follows the selection (a remote selection does not route input: input always goes to your
-// game). Exactly one surface is audible: inset ring 2 px accent and the chip "♪ Audio" (moved with "Audio here" in the
-// panel). The screen layout of the game applies to every tile. Every surface is one delegate that is only moved when the
-// layout changes, so the local game view is not recreated. The "Running sessions" picker lives in the game screen.
+// 3r-3 / 3i-3: Multiview with up to four surfaces (ADR 0012 D8, ADR 0026 D2): the local game and/or remote Sessions. Layouts:
+// a single surface fills the area; Row (two or three Sessions side by side, equal columns); Grid 2 x 2 (from four Sessions,
+// never an empty slot); PiP: one main tile and the others as windows inside the main tile (a corner of the picture, S | M | L,
+// dragged to snap to a corner). Area padding 16, tile gap 12. A tile is surface #121315, radius 10, padding 10, border 2 px:
+// the selected tile has the accent border, all others #24252a (the one selection style). Under the picture an info row: index
+// chip, name and the pills "♪ Audio" (the one audible surface) and "Paused". A tile is selected by click or the keys 1-4; the
+// side panel follows (a remote selection does not route input: input always goes to your game). A paused remote game is dimmed
+// and says "Paused by <name>" (ADR 0026 D3). The screen layout of the game applies to every tile. Every surface is one delegate
+// that is only moved when the layout changes, so the local game view is not recreated. The "Running sessions" picker lives in
+// the game screen.
 Item {
     id: root
     objectName: "multiviewArea"
     required property PlayerController player
     readonly property SessionController ctl: player.sessions
-    readonly property string layoutMode: ctl.surfaceCount < 2 ? "single" : ctl.multiviewMode   // single | pip | side | grid
+    readonly property string layoutMode: ctl.surfaceCount < 2 ? "single" : ctl.multiviewMode   // single | pip | row | grid
     readonly property var order: ctl.surfaceOrder             // display order, first = main surface
     readonly property int count: ctl.surfaceCount
-    readonly property bool tiled: layoutMode === "side" || layoutMode === "grid"
+    readonly property bool tiled: layoutMode === "row" || layoutMode === "grid"
     readonly property string selected: ctl.selectedSurface
     signal localReady(Item view)
     signal escapePressed()
@@ -28,16 +30,22 @@ Item {
 
     // Layout metrics
     readonly property real pad: 16
-    readonly property real gap: 16
-    readonly property real cellW: Math.max(0, (width - 2 * pad - gap) / 2)
-    readonly property real cellH: Math.max(0, (height - 2 * pad - gap) / 2)
-    readonly property real pipMargin: 24
-    readonly property real pipWidth: 288
-    readonly property real pipChrome: 64       // badge row + name row around the picture
+    readonly property real gap: 12
+    readonly property int cols: layoutMode === "row" ? Math.max(1, count) : 2
+    readonly property real cellW: Math.max(0, (width - 2 * pad - (cols - 1) * gap) / cols)
+    readonly property real cellH: layoutMode === "grid" ? Math.max(0, (height - 2 * pad - gap) / 2) : Math.max(0, height - 2 * pad)
+    // PiP (3i-3): the window sits inside the main tile, 12 px clear of its 2 px border; corner and size are the user's
+    property string pipCorner: "br"            // "br" | "bl" | "tr" | "tl"
+    property string pipSize: "M"               // "S" | "M" | "L"
+    property bool pipDragging: false
+    readonly property real pipInset: pad + 2 + 12
+    readonly property real pipWidth: pipSize === "S" ? 176 : pipSize === "L" ? 320 : 240
+    readonly property real pipChrome: 70       // controls row + caption row around the picture
     readonly property real pipSpacing: 8
     readonly property int pipTiles: Math.max(1, count - 1)
-    readonly property real pipViewHeight: Math.max(60, Math.min(384, (height - 2 * pipMargin - pipTiles * pipChrome - (pipTiles - 1) * pipSpacing) / pipTiles))
+    readonly property real pipViewHeight: Math.max(60, Math.min(pipWidth * 1.35, (height - 2 * pipInset - pipTiles * pipChrome - (pipTiles - 1) * pipSpacing) / pipTiles))
     readonly property real pipTileHeight: pipChrome + pipViewHeight
+    function snapCorner(cx, cy) { return (cy < height / 2 ? "t" : "b") + (cx < width / 2 ? "l" : "r") }
 
     // Plugin tile strips: the visible remote tiles go to the plugins (fb "tiles" event); the strips come back per tile.
     readonly property var remoteTiles: {
@@ -86,50 +94,33 @@ Item {
         function onSurfacesChanged() { root.syncSurfaces() }
     }
 
-    // Free cells of the grid: "+ Add session" (click opens the picker)
+
+    // Corner targets while a PiP window is dragged (3i-3): dashed 60 x 40 areas in the corners it is not in
     Repeater {
-        model: root.layoutMode === "grid" ? Math.max(0, 4 - root.count) : 0
-        delegate: Item {
-            id: freeCell
-            required property int index
-            readonly property int slot: root.count + index
-            objectName: "emptyTile_" + (slot + 1)
-            x: root.pad + (slot % 2) * (root.cellW + root.gap)
-            y: root.pad + Math.floor(slot / 2) * (root.cellH + root.gap)
-            width: root.cellW
-            height: root.cellH
-            Canvas {  // dashed 1.5 px border (a Rectangle border cannot be dashed)
-                anchors.fill: parent
-                onWidthChanged: requestPaint()
-                onHeightChanged: requestPaint()
-                onPaint: {
-                    var c = getContext("2d")
-                    c.clearRect(0, 0, width, height)
-                    c.strokeStyle = "#2c2d32"
-                    c.lineWidth = 1.5
-                    c.setLineDash([6, 4])
-                    var r = 8, x = 0.75, y = 0.75, w = width - 1.5, h = height - 1.5
-                    c.beginPath()
-                    c.moveTo(x + r, y)
-                    c.arcTo(x + w, y, x + w, y + h, r)
-                    c.arcTo(x + w, y + h, x, y + h, r)
-                    c.arcTo(x, y + h, x, y, r)
-                    c.arcTo(x, y, x + w, y, r)
-                    c.closePath()
-                    c.stroke()
-                }
-            }
-            Rectangle { anchors.fill: parent; radius: 8; color: addHover.hovered ? Theme.gameTileHover : "transparent" }
-            ColumnLayout {
-                anchors.centerIn: parent
-                width: parent.width - 24
-                spacing: 6
-                FbLabel { Layout.alignment: Qt.AlignHCenter; text: qsTr("+ Add session"); font.pixelSize: 14; font.weight: Font.Medium; color: Theme.gameBadgeText }
-                FbLabel { Layout.alignment: Qt.AlignHCenter; text: qsTr("Opens Running sessions"); font.pixelSize: 12; color: Theme.gameFaint }
-            }
-            HoverHandler { id: addHover; cursorShape: Qt.PointingHandCursor }
-            TapHandler { onTapped: root.pickerRequested() }
+        model: root.layoutMode === "pip" && root.pipDragging ? ["tl", "tr", "bl", "br"] : []
+        delegate: Rectangle {
+            required property string modelData
+            objectName: "pipSnap_" + modelData
+            visible: modelData !== root.pipCorner
+            x: modelData.charAt(1) === "l" ? root.pipInset : root.width - root.pipInset - width
+            y: modelData.charAt(0) === "t" ? root.pipInset : root.height - root.pipInset - height
+            width: 60; height: 40; radius: 6
+            color: "transparent"
+            border.width: 1
+            border.color: "#3a3b40"
+            z: 1
         }
+    }
+    FbLabel {
+        objectName: "pipDragHint"
+        visible: root.layoutMode === "pip" && root.pipDragging
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: root.pad + 6
+        z: 3
+        text: qsTr("Drag to snap to a corner · S / M / L size")
+        font.pixelSize: 12
+        color: Theme.gameMeta
     }
 
     Repeater {
@@ -144,49 +135,89 @@ Item {
             readonly property bool audible: root.ctl.audioFocus === modelData
             readonly property bool picked: root.selected === modelData
             readonly property bool pipTile: root.layoutMode === "pip" && slot > 0
-            readonly property bool pipMain: root.layoutMode === "pip" && slot === 0
             readonly property bool multiple: root.count > 1
             readonly property bool localPaused: isLocal && root.player.gameSession.paused
+            readonly property bool remotePaused: !isLocal && info.paused === true
+            readonly property bool paused: localPaused || remotePaused
+            readonly property bool loading: !isLocal && info.loading === true && !remotePaused
+            readonly property real lane: stripLoader.active ? 24 : 0     // row above the picture for the plugin strip
+            property real dragDx: 0
+            property real dragDy: 0
+            readonly property bool atTop: root.pipCorner.charAt(0) === "t"
+            readonly property bool atLeft: root.pipCorner.charAt(1) === "l"
 
             objectName: "surfaceTile_" + modelData
             visible: slot >= 0
             z: pipTile ? 2 : 0
-            width: root.layoutMode === "side" || root.layoutMode === "grid" ? root.cellW
-                 : pipTile ? root.pipWidth : root.width - 2 * root.pad
-            height: root.layoutMode === "side" ? root.height - 2 * root.pad
-                  : root.layoutMode === "grid" ? root.cellH
-                  : pipTile ? root.pipTileHeight : root.height - 2 * root.pad
-            x: root.layoutMode === "side" ? root.pad + Math.max(0, slot) * (root.cellW + root.gap)
-             : root.layoutMode === "grid" ? root.pad + (Math.max(0, slot) % 2) * (root.cellW + root.gap)
-             : pipTile ? root.width - root.pipMargin - root.pipWidth : root.pad
-            y: root.layoutMode === "grid" ? root.pad + Math.floor(Math.max(0, slot) / 2) * (root.cellH + root.gap)
-             : pipTile ? root.height - root.pipMargin - slot * root.pipTileHeight - (slot - 1) * root.pipSpacing
-             : root.pad
+            width: root.tiled ? root.cellW : pipTile ? root.pipWidth : root.width - 2 * root.pad
+            height: root.tiled ? root.cellH : pipTile ? root.pipTileHeight : root.height - 2 * root.pad
+            x: (root.layoutMode === "row" ? root.pad + Math.max(0, slot) * (root.cellW + root.gap)
+              : root.layoutMode === "grid" ? root.pad + (Math.max(0, slot) % 2) * (root.cellW + root.gap)
+              : pipTile ? (atLeft ? root.pipInset : root.width - root.pipInset - root.pipWidth)
+              : root.pad) + dragDx
+            y: (root.layoutMode === "grid" ? root.pad + Math.floor(Math.max(0, slot) / 2) * (root.cellH + root.gap)
+              : pipTile ? (atTop ? root.pipInset + (slot - 1) * (root.pipTileHeight + root.pipSpacing)
+                               : root.height - root.pipInset - slot * root.pipTileHeight - (slot - 1) * root.pipSpacing)
+              : root.pad) + dragDy
 
             Rectangle {
                 id: surfaceBg
                 anchors.fill: parent
-                radius: 8
-                color: tapHover.hovered && !tile.pipTile ? Theme.gameTileHover : Theme.gameTile
-                border.width: tile.pipTile ? 1 : 0
-                border.color: Theme.gameDivider
+                radius: 10
+                color: tapHover.hovered && !tile.pipTile ? "#16171a" : (tile.pipTile ? "#17181b" : Theme.gameTileBody)
+                border.width: tile.multiple ? 2 : 0
+                border.color: tile.pipTile ? Theme.gamePopoverBorder : Theme.gameTileEdge
             }
             HoverHandler { id: tapHover; cursorShape: Qt.PointingHandCursor }
             TapHandler {
                 objectName: "tileTap_" + tile.modelData
                 onTapped: { root.ctl.selectSurface(tile.modelData); root.tileSelected() }
             }
+            DragHandler {
+                id: pipDrag
+                enabled: tile.pipTile
+                target: null
+                onTranslationChanged: { tile.dragDx = translation.x; tile.dragDy = translation.y }
+                onActiveChanged: {
+                    root.pipDragging = active
+                    if (!active) {
+                        root.pipCorner = root.snapCorner(tile.x + tile.width / 2, tile.y + tile.height / 2)
+                        tile.dragDx = 0
+                        tile.dragDy = 0
+                    }
+                }
+            }
 
             // The picture: local game or the decoded frames of this remote Session.
             Item {
+                id: pictureBox
+                objectName: "tilePicture_" + tile.modelData
                 anchors.fill: parent
-                anchors.topMargin: tile.pipTile ? 32 : 36
-                anchors.bottomMargin: tile.pipTile ? 32 : 36
-                anchors.leftMargin: tile.pipTile ? 8 : 12
-                anchors.rightMargin: tile.pipTile ? 8 : 12
+                anchors.leftMargin: tile.pipTile ? 10 : 12
+                anchors.rightMargin: tile.pipTile ? 10 : 12
+                anchors.topMargin: (tile.pipTile ? 38 : 12) + tile.lane
+                anchors.bottomMargin: tile.pipTile ? 32 : 12 + 26 + 8
                 Loader {
                     anchors.fill: parent
+                    opacity: tile.remotePaused || tile.loading ? 0.45 : 1
                     sourceComponent: tile.isLocal ? localComp : remoteComp
+                }
+                // Paused / loading states (3r-3): remote paused by the host, your own paused game, a Session still connecting
+                TileStateCard {
+                    objectName: "tilePausedBanner"
+                    visible: tile.paused
+                    anchors.centerIn: parent
+                    compact: tile.pipTile
+                    title: tile.remotePaused ? qsTr("❚❚ Paused by %1").arg(tile.info.pausedBy || tile.info.who || "") : qsTr("❚❚ Paused")
+                    sub: tile.remotePaused ? qsTr("Frozen picture · resumes here") : qsTr("Esc or Resume continues")
+                }
+                TileStateCard {
+                    objectName: "tileLoadingCard"
+                    visible: tile.loading
+                    anchors.centerIn: parent
+                    compact: tile.pipTile
+                    title: qsTr("%1’s game is loading").arg(tile.info.who || "")
+                    sub: qsTr("Connecting…")
                 }
             }
             Component {
@@ -209,59 +240,18 @@ Item {
                 }
             }
 
-            // Paused banner on your own tile (3h-2)
-            Rectangle {
-                objectName: "tilePausedBanner"
-                visible: tile.localPaused
-                anchors.centerIn: parent
-                width: Math.min(parent.width - 24, pausedRow.implicitWidth + 28)
-                height: 34
-                radius: 8
-                color: Qt.rgba(17 / 255, 18 / 255, 20 / 255, 0.9)
-                RowLayout {
-                    id: pausedRow
-                    anchors.centerIn: parent
-                    width: parent.width - 28
-                    spacing: 8
-                    GameIcon { kind: "pause"; color: Theme.gameText }
-                    FbLabel { Layout.fillWidth: true; Layout.minimumWidth: 0; elide: Text.ElideRight; text: qsTr("Paused · Resume in the header or Esc"); font.pixelSize: 13; font.weight: Font.Medium; color: Theme.gameText }
-                }
-            }
-
-            // Audio focus: inset ring 2 px accent
-            Rectangle {
-                objectName: "audioRing_" + tile.modelData
-                visible: tile.audible && tile.multiple
-                anchors.fill: parent
-                radius: 8
-                color: "transparent"
-                border.width: 2
-                border.color: Theme.gameAccent
-            }
-            // Selection: outline 2 px #ecebe7, offset 3
+            // Selection: the tile's own border turns accent (the one selection style)
             Rectangle {
                 objectName: "tileSelection_" + tile.modelData
                 visible: tile.picked && tile.multiple
                 anchors.fill: parent
-                anchors.margins: -5
-                radius: 11
+                radius: 10
                 color: "transparent"
                 border.width: 2
-                border.color: Theme.gameSelection
+                border.color: Theme.gameAccent
             }
 
-            // Key badge (top left); selected = white
-            Rectangle {
-                objectName: "keyBadge_" + tile.modelData
-                visible: tile.multiple
-                x: tile.pipTile ? 8 : 10
-                y: tile.pipTile ? 8 : 10
-                width: 20; height: 20; radius: 4
-                readonly property bool sel: tile.picked
-                color: sel ? Theme.gameSelection : Theme.gameBadge
-                FbMono { anchors.centerIn: parent; text: String(tile.slot + 1); font.pixelSize: 11; color: parent.sel ? "#121315" : Theme.gameBadgeText }
-            }
-            // Plugin tile strip (remote tiles only): 20 high, 8 px right of the key badge, inside the audio ring
+            // Plugin tile strip (remote tiles only): 20 high in its own row above the picture, so it never covers the game image
             property var stripList: []
             function refreshStrips() { tile.stripList = tile.isLocal ? [] : root.player.plugins.tileStrips(tile.modelData) }
             Component.onCompleted: refreshStrips()
@@ -277,15 +267,14 @@ Item {
             Loader {
                 id: stripLoader
                 active: !tile.isLocal && tile.strip !== null
-                readonly property real stripX: tile.multiple ? (tile.pipTile ? 8 : 10) + 20 + 8 : (tile.pipTile ? 8 : 10)
-                x: stripX
-                y: tile.pipTile ? 8 : 10
+                x: tile.pipTile ? 10 : 12
+                y: tile.pipTile ? 38 : 12
                 z: 6
                 sourceComponent: PluginTileStrip {
                     player: root.player
                     tileId: tile.modelData
                     strip: tile.strip
-                    maxWidth: Math.max(60, tile.width - stripLoader.stripX - (tile.pipTile ? 64 : 34) - (tile.stripList.length > 1 ? 24 : 0))
+                    maxWidth: Math.max(60, tile.width - stripLoader.x - 12 - (tile.stripList.length > 1 ? 24 : 0))
                 }
             }
             Rectangle {
@@ -316,13 +305,94 @@ Item {
                 }
             }
 
-            // PiP window: swap and remove
-            Row {
+            // Info row under the picture: index chip, name, pills (not in a PiP window, which has its own rows)
+            RowLayout {
+                objectName: "tileInfoRow_" + tile.modelData
+                visible: !tile.pipTile
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.margins: 12
+                height: 26
+                spacing: 8
+                Rectangle {
+                    objectName: "keyBadge_" + tile.modelData
+                    visible: tile.multiple
+                    Layout.preferredWidth: 22; Layout.preferredHeight: 20; radius: 4
+                    color: Theme.gameBadge
+                    FbMono { anchors.centerIn: parent; text: String(tile.slot + 1); font.pixelSize: 11; color: Theme.gameBadgeText }
+                }
+                FbLabel {
+                    id: chipText
+                    objectName: "nameChip_" + tile.modelData
+                    visible: tile.multiple || !tile.isLocal
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    elide: Text.ElideRight
+                    text: tile.info.name || ""
+                    font.pixelSize: 13
+                    color: Theme.gameText
+                }
+                Item { visible: !chipText.visible; Layout.fillWidth: true }
+                Rectangle {
+                    objectName: "audioChip_" + tile.modelData
+                    visible: tile.audible && tile.multiple
+                    Layout.preferredWidth: audioText.implicitWidth + 16
+                    Layout.preferredHeight: 20
+                    radius: 10
+                    color: Theme.gameOnBg
+                    FbLabel { id: audioText; anchors.centerIn: parent; text: qsTr("♪ Audio"); font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.gameAccent }
+                }
+                Rectangle {
+                    objectName: "pausedPill_" + tile.modelData
+                    visible: tile.paused
+                    Layout.preferredWidth: pausedText.implicitWidth + 16
+                    Layout.preferredHeight: 20
+                    radius: 10
+                    color: Theme.gameBadge
+                    FbLabel { id: pausedText; anchors.centerIn: parent; text: qsTr("Paused"); font.pixelSize: 11; color: "#d0d0d4" }
+                }
+            }
+
+            // PiP window (3i-3): controls row (index chip, size steps, audio, swap, remove) and the caption
+            RowLayout {
                 visible: tile.pipTile
                 anchors.top: parent.top
+                anchors.left: parent.left
                 anchors.right: parent.right
-                anchors.margins: 6
+                anchors.margins: 8
+                anchors.topMargin: 10
+                height: 24
                 spacing: 4
+                Rectangle {
+                    objectName: "pipKeyBadge_" + tile.modelData
+                    visible: tile.pipTile
+                    Layout.preferredWidth: 22; Layout.preferredHeight: 20; radius: 4
+                    color: Theme.gameBadge
+                    FbMono { anchors.centerIn: parent; text: String(tile.slot + 1); font.pixelSize: 11; color: Theme.gameBadgeText }
+                }
+                Row {
+                    spacing: 2
+                    Repeater {
+                        model: ["S", "M", "L"]
+                        delegate: Rectangle {
+                            required property string modelData
+                            objectName: "pipSize_" + modelData + "_" + tile.modelData
+                            width: 20; height: 20; radius: 4
+                            color: root.pipSize === modelData ? Theme.gameOnBg : "transparent"
+                            FbMono { anchors.centerIn: parent; text: parent.modelData; font.pixelSize: 10; color: root.pipSize === parent.modelData ? Theme.gameAccent : Theme.gameTextMuted }
+                            TapHandler { onTapped: root.pipSize = parent.modelData }
+                        }
+                    }
+                }
+                Rectangle {
+                    objectName: "pipAudioChip_" + tile.modelData
+                    visible: tile.audible && tile.multiple
+                    Layout.preferredWidth: 20; Layout.preferredHeight: 20; radius: 10
+                    color: Theme.gameOnBg
+                    FbLabel { anchors.centerIn: parent; text: "♪"; font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.gameAccent }
+                }
+                Item { Layout.fillWidth: true }
                 GameButton {
                     objectName: "swapButton_" + tile.modelData
                     look: "surface"
@@ -343,49 +413,18 @@ Item {
                     onClicked: root.ctl.removeSurface(tile.modelData)
                 }
             }
-            // Name chip (bottom left)
-            Rectangle {
-                objectName: "nameChip_" + tile.modelData
-                visible: tile.multiple || !tile.isLocal
+            FbLabel {
+                visible: tile.pipTile
+                objectName: "pipCaption_" + tile.modelData
                 anchors.left: parent.left
-                anchors.bottom: parent.bottom
-                anchors.leftMargin: tile.pipTile ? 8 : 10
-                anchors.bottomMargin: tile.pipTile ? 8 : 10
-                width: Math.min(parent.width - (tile.audible && tile.multiple ? 90 : 24), chipText.implicitWidth + 16)
-                height: chipText.implicitHeight + 8
-                radius: tile.pipTile ? 5 : 6
-                color: Theme.gameChip
-                FbLabel {
-                    id: chipText
-                    anchors.centerIn: parent
-                    width: parent.width - 16
-                    elide: Text.ElideRight
-                    textFormat: Text.StyledText
-                    text: (tile.info.name || "") + (tile.localPaused ? " · <font color=\"#3cbfd8\">" + qsTr("paused") + "</font>" : "")
-                    font.pixelSize: tile.pipTile ? 11 : 12
-                    color: Theme.gameText
-                }
-            }
-            // Audio chip (bottom right)
-            Rectangle {
-                objectName: "audioChip_" + tile.modelData
-                visible: tile.audible && tile.multiple
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
-                anchors.rightMargin: tile.pipTile ? 8 : 10
-                anchors.bottomMargin: tile.pipTile ? 8 : 10
-                width: audioText.implicitWidth + 16
-                height: audioText.implicitHeight + 6
-                radius: 999
-                color: Theme.gameOnBg
-                FbLabel {
-                    id: audioText
-                    anchors.centerIn: parent
-                    text: tile.pipTile ? "♪" : qsTr("♪ Audio")
-                    font.pixelSize: 11
-                    font.weight: Font.DemiBold
-                    color: Theme.gameAccent
-                }
+                anchors.margins: 10
+                anchors.bottomMargin: 8
+                elide: Text.ElideRight
+                text: tile.info.name || ""
+                font.pixelSize: 11
+                color: Theme.gameText
             }
         }
     }

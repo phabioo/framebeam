@@ -80,6 +80,7 @@ qt_add_qml_module(framebeam_ui
     PopoverItem.qml
     SessionPicker.qml
     MultiviewArea.qml
+    TileStateCard.qml
     Sparkline.qml
     DiagSection.qml
     DiagRow.qml

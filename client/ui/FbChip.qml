@@ -10,7 +10,8 @@ Rectangle {
     signal clicked()
 
     implicitHeight: 32
-    implicitWidth: row.implicitWidth + 28
+    property real maxWidth: 100000   // the text elides rather than the chip getting wider than this (very wide fonts)
+    implicitWidth: Math.min(maxWidth, row.implicitWidth + 28)
     radius: Theme.radius16
     color: active ? Theme.text : (hover.hovered ? Theme.surfaceRaised : "transparent")
     border.width: active ? 0 : 1
@@ -21,6 +22,8 @@ Rectangle {
         id: row
         anchors.centerIn: parent
         Text {
+            width: Math.min(implicitWidth, Math.max(0, root.maxWidth - 28))
+            elide: Text.ElideRight
             anchors.verticalCenter: parent.verticalCenter
             // "All · 10": the count is part of the label, once (round 3).
             text: root.count >= 0 ? root.text + " · " + root.count : root.text

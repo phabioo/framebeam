@@ -137,13 +137,15 @@ QVariantList inputTestCells(const QString& setIn) {
   struct Pos {
     const char* sdl;
     const char* fallbackId;
-    int col, row, span;
+    double col;
+    int row;
+    double span;  // in cells; fractional so that Select / Start get a chip wide enough for the word (P36)
     bool square;
   };
   static const Pos kPositions[] = {
       {"lefttrigger", "lt", 0, 0, 2, false}, {"righttrigger", "rt", 5, 0, 2, false},
       {"leftshoulder", "", 0, 1, 2, false},  {"rightshoulder", "", 5, 1, 2, false},
-      {"back", "", 2, 1, 1, false},          {"start", "", 4, 1, 1, false},
+      {"back", "", 2, 1, 1.476, false},      {"start", "", 3.524, 1, 1.476, false},
       {"y", "", 5, 2, 1, false},             {"x", "", 4, 3, 1, false},
       {"b", "", 6, 3, 1, false},             {"a", "", 5, 4, 1, false},
       {"dpup", "", 1, 2, 1, true},           {"dpleft", "", 0, 3, 1, true},

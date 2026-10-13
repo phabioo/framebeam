@@ -4,8 +4,8 @@ import QtQuick.Layouts
 import FrameBeam.Player
 
 // GameHeader (docs/design/player.md "GameHeader", 3g-2, 3r-2): five fixed zones, the same in Session and Multiview:
-// Back | Context | Game controls (your game only) | View | Display. 1280 and below: compact (icons with tooltips, Reset and
-// Hotkeys move into "⋯"). Watching only: no game controls, "Leave" instead. The popovers themselves (Reset, speed, layout,
+// Back | Context | Game controls (your game only) | View | Display. 1280 and below: compact (icons with tooltips; Reset stays in
+// the header, only Hotkeys and Pause move into "⋯"). Watching only: no game controls, "Leave" instead. The popovers themselves (Reset, speed, layout,
 // Running sessions, "⋯") live in the game screen; this header only reports clicks and shows the open one as pressed.
 Rectangle {
     id: root
@@ -48,15 +48,30 @@ Rectangle {
     // shown, derived from the current implicit width, so the result does not depend on what is hidden right now.
     property bool hideMultiTitle: false
     property bool hideYourGame: false
+    // Last resort in a tight header that still does not fit (very wide fonts): the key badges next to the display icons go.
+    property bool hideHints: false
+    readonly property real hintsFullWidth: diagnosticsButton.hintFullWidth + fullscreenButton.hintFullWidth
+    property bool hideAddMeta: false   // and, if that is still not enough, the "· 3/4" next to "+ Add"
     property real wideNeed: 0   // preferred width without the optional texts, regular (not tight) widths
-    function updateFit() {
+    // Applied after the layout pass that reported the new size: changing the visibility of the optional texts inside that pass
+    // makes the header layout polish twice ("polish loop").
+    function updateFit() { Qt.callLater(root.applyFit) }
+    function applyFit() {
         const titleW = multiTitle.implicitWidth + 10
         const labelW = yourGame.implicitWidth + 20
         const need = headerRow.implicitWidth + (multiTitle.visible ? 0 : titleW) + (yourGame.visible ? 0 : labelW)
         if (!root.forceCompact) {
             root.wideNeed = need - titleW - labelW - headerContext.implicitWidth + (modeSegment.visible ? modeSegment.implicitWidth : 0)   // the context zone can shrink to its mode switch; measured only at regular widths, so the decision cannot flap
         }
-        if (root.compact) return   // compact from the window width: the layout was designed for it
+        // Tight: the layout minimum (every zone at its smallest) plus the badges that are hidden right now.
+        const minFull = headerRow.Layout.minimumWidth + (root.hideHints ? root.hintsFullWidth : 0) + (root.hideAddMeta ? addButton.metaFullWidth : 0)
+        root.hideHints = root.tight && minFull > headerRow.width
+        root.hideAddMeta = root.tight && minFull - root.hintsFullWidth > headerRow.width
+        if (root.compact) {   // compact from the window width: the layout was designed for it, only the optional texts can still give way
+            hideMultiTitle = need > headerRow.width
+            hideYourGame = need - titleW > headerRow.width
+            return
+        }
         root.forceCompact = root.wideNeed > headerRow.width
         if (root.forceCompact) {
             hideMultiTitle = true
@@ -72,6 +87,7 @@ Rectangle {
         anchors.fill: parent
         onWidthChanged: root.updateFit()
         onImplicitWidthChanged: root.updateFit()
+        Layout.onMinimumWidthChanged: root.updateFit()
         anchors.leftMargin: 16
         anchors.rightMargin: 16
         spacing: 12
@@ -100,7 +116,7 @@ Rectangle {
             Layout.fillWidth: true
             // Never narrower than the Multiview mode switch (regular, non-compact windows): when even the collapsed header does not fit (very wide
             // fallback fonts), the right-hand zones run past the window edge instead of covering this switch.
-            Layout.minimumWidth: modeSegment.visible && !root.compact ? modeSegment.implicitWidth : 0
+            Layout.minimumWidth: modeSegment.visible ? Math.min(modeSegment.implicitWidth, root.compact ? 90 : 360) : 0
             spacing: 10
             // Session: title + share pill
             FbLabel {
@@ -159,13 +175,18 @@ Rectangle {
             GameSegment {
                 id: modeSegment
                 objectName: "modeSegment"
+                // fillWidth + maximumWidth = preferred: never grows, but shrinks with the context zone instead of running past it
+                Layout.fillWidth: true
+                Layout.preferredWidth: implicitWidth
+                Layout.maximumWidth: implicitWidth
                 visible: root.multi && root.ctl.availableLayouts.length > 0
                 padX: root.tight ? 8 : 11
                 current: root.ctl.multiviewMode
+                // PiP | Row | Grid 2×2; Grid is disabled below four Sessions ("Grid 2×2 · from 4", ADR 0026 D2)
                 options: root.ctl.availableLayouts.map(function (m) {
                     return m === "pip" ? { value: "pip", label: qsTr("PiP"), name: "modePip" }
-                         : m === "side" ? { value: "side", label: qsTr("Side by side"), name: "modeSide" }
-                         : { value: "grid", label: qsTr("Grid 2×2"), name: "modeGrid" }
+                         : m === "row" ? { value: "row", label: qsTr("Row"), name: "modeRow" }
+                         : { value: "grid", label: root.ctl.gridAvailable ? qsTr("Grid 2×2") : qsTr("Grid 2×2 · from 4"), name: "modeGrid", disabled: !root.ctl.gridAvailable }
                 })
                 onPicked: (v) => root.ctl.multiviewMode = v
             }
@@ -253,9 +274,10 @@ Rectangle {
                 GameButton {
                     id: resetButton
                     objectName: "resetButton"
-                    visible: !root.tight
                     glyph: "↺"
                     text: qsTr("Reset")
+                    iconOnly: root.tight    // 1280: the icon stays in the header (P44, 3r-3), never behind "⋯"
+                    hPad: root.tight ? 9 : 10
                     danger: root.popover === "reset"
                     tip: qsTr("Reset game")
                     enabled: root.session.active
@@ -278,6 +300,11 @@ Rectangle {
         GameSegment {
             objectName: "viewSegment"
             visible: root.own
+            // fillWidth + maximumWidth = preferred: never grows, but may shrink (a non-fill item is never shrunk by the layout)
+            Layout.fillWidth: true
+            Layout.preferredWidth: implicitWidth
+            Layout.maximumWidth: implicitWidth
+            Layout.minimumWidth: Math.min(implicitWidth, 120)
             padX: 12
             current: root.multi ? "multiview" : "session"
             options: [
@@ -294,6 +321,7 @@ Rectangle {
             hPad: 11
             text: qsTr("+ Add")
             meta: "· " + root.ctl.surfaceCount + "/" + root.ctl.maxSurfaces
+            showMeta: !root.hideAddMeta
             on: root.popover === "picker"
             tip: qsTr("Running sessions")
             onClicked: root.popoverToggled("picker")
@@ -330,6 +358,8 @@ Rectangle {
                     onClicked: root.popoverToggled("layout")
                 }
                 GameButton {
+                    id: diagnosticsButton
+                    showHint: !root.hideHints
                     objectName: "diagnosticsButton"
                     iconKind: "diag"
                     text: qsTr("Diagnostics")
@@ -341,6 +371,8 @@ Rectangle {
                     onClicked: root.diag.toggle()
                 }
                 GameButton {
+                    id: fullscreenButton
+                    showHint: !root.hideHints
                     objectName: "fullscreenButton"
                     iconKind: "fullscreen"
                     text: qsTr("Fullscreen")
