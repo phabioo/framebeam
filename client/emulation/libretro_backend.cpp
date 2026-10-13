@@ -795,6 +795,7 @@ void LibretroBackend::handleVideo(const void* data, unsigned width, unsigned hei
     if (m_hwActive) m_hw->encodeRepeat();  // the Session still gets one frame per displayed frame
     return;
   }
+  if (m_hwActive && m_hw->hasDisplayTarget()) m_hw->dropDisplayTarget(QStringLiteral("software frame"));  // the stale GPU slot must not win
   m_sourceSize.store(pack(QSize(static_cast<int>(width), static_cast<int>(height))));
   QImage img(static_cast<int>(width), static_cast<int>(height), QImage::Format_RGB32);
   const auto* src = static_cast<const uchar*>(data);

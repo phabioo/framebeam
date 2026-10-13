@@ -11,7 +11,9 @@
 //    thread, the emulation thread, with the game's GL context current.
 //  - d3dDevice() is an ID3D11Device made multithread protected, so the encode worker may use it too; it is NEVER
 //    Qt Quick's device (the interop driver issues work on the device it was opened with, from the GL thread).
-//  - close() is called by HwRenderContext after the display and encode targets released their registrations.
+//  - close() is called by the LAST user to let go: the display producer and every encode capture that adopted the
+//    bridge count as users (addUser() / releaseUser()), so it runs on the emulation thread with GL current, after the
+//    registrations are released, and a closed bridge (status Unavailable, reason "closed") is never reused.
 #include <QString>
 #include <QtGlobal>
 #include <atomic>
@@ -78,6 +80,12 @@ class GlD3d11Bridge {
   // Emulation thread. Unregisters nothing itself (owners do that first, with GL current): wglDXCloseDeviceNV and
   // releases the device. glCurrent == false: GL is gone, the interop device handle is leaked. Idempotent.
   void close(bool glCurrent);
+  // Users of the bridge. addUser(): any thread (the display producer at construction, an encode capture when it adopts
+  // the bridge). releaseUser(): emulation thread; the last one calls close(glCurrent).
+  void addUser() { users_.fetch_add(1); }
+  void releaseUser(bool glCurrent) {
+    if (users_.fetch_sub(1) == 1) close(glCurrent);
+  }
 
   // Windows accessors for the media code; null/false elsewhere or before open() succeeded.
   void* d3dDevice() const;      // ID3D11Device*
@@ -94,6 +102,7 @@ class GlD3d11Bridge {
   struct Impl;
   std::unique_ptr<Impl> d_;
   std::atomic<quint32> lastError_{0};
+  std::atomic<int> users_{0};
 };
 
 }  // namespace framebeam

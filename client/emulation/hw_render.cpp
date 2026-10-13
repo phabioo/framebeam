@@ -793,6 +793,10 @@ void HwRenderContext::setDisplayTarget(std::shared_ptr<GpuDisplayTarget> target)
 
 bool HwRenderContext::hasDisplayTarget() const { return d->display != nullptr; }
 
+void HwRenderContext::dropDisplayTarget(const QString& why) {
+  if (d->display) d->dropDisplay(why);
+}
+
 quint64 HwRenderContext::displayBlitCount() const { return d->displayBlits; }
 
 bool HwRenderContext::displayBlit(int w, int h, bool bottomLeftOrigin, const QSize& maxSize) {
@@ -819,6 +823,10 @@ bool HwRenderContext::displayBlit(int w, int h, bool bottomLeftOrigin, const QSi
     drainGlErrors(d->f);
     const GLuint dst = texSize.width() >= ds.width() && texSize.height() >= ds.height() ? d->displayFboFor(name, texSize) : 0;
     ok = dst != 0 && d->blitChain(d->displayLevels, w, h, halvingSteps(w, h, ds), ds.width(), ds.height(), bottomLeftOrigin, dst);
+    if (dst != 0) {  // do not keep the target's (possibly soon retired) texture attached to the cached FBO
+      d->f->glBindFramebuffer(GL_FRAMEBUFFER, dst);
+      d->f->glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
+    }
   }
   if (!ok) {
     d->display->abort();

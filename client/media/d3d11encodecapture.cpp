@@ -191,6 +191,7 @@ D3d11EncodeCapture::Status D3d11EncodeCapture::Impl::resolveBridge() {
   if (shared) {
     switch (shared->open()) {  // idempotent; the display normally opened it already
       case GlD3d11Bridge::Status::Ok:
+        shared->addUser();  // released in releaseCycle(); the last user closes the bridge
         bridge = std::move(shared);
         ownBridge = false;
         return Status::Ok;
@@ -700,6 +701,8 @@ void D3d11EncodeCapture::Impl::releaseCycle(bool glCurrent) {
   device.Reset();
   if (bridge && ownBridge) {
     bridge->close(glCurrent);
+  } else if (bridge) {
+    bridge->releaseUser(glCurrent);  // the display bridge: the last user (display or capture) closes it
   }
   bridge.reset();
   ownBridge = false;

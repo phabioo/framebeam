@@ -390,7 +390,13 @@ void GameSession::onDisplayStateChanged() {
   emit displayStateChanged();
 }
 
-std::shared_ptr<GlD3d11Bridge> GameSession::displayBridge() const { return displayBridge_.lock(); }
+std::shared_ptr<GlD3d11Bridge> GameSession::displayBridge() const {
+  std::shared_ptr<GlD3d11Bridge> b = displayBridge_.lock();
+  // A closed, failed or unavailable bridge (the last run's, or Qt Quick is not on D3D11) is never handed on: the capture
+  // opens an own one.
+  if (b && (b->status() == GlD3d11Bridge::Status::Unavailable || b->status() == GlD3d11Bridge::Status::Failed)) return nullptr;
+  return b;
+}
 
 DisplayTextureSource* GameSession::displaySource() const { return gpuDisplay_ && runner_ ? gpuDisplay_->source() : nullptr; }
 
@@ -425,6 +431,12 @@ void GameSession::updateReadbackLimit() {
     runner_->setReadbackLimit(limit_);
     runner_->setDisplayLimit(displayLimit_);
     runner_->setReadbackEnabled(readbackOn_);
+  }
+  // Zero-copy active and no readback: the readback image stops being updated and would turn stale (shown again on stop
+  // or a live-save restart, or sent to a viewer that connects). Drop it; a resumed readback (Failed, shared) refills it.
+  if (active && !readbackOn_ && !frame_.isNull()) {
+    frame_ = QImage();
+    emit frameChanged();
   }
 }
 

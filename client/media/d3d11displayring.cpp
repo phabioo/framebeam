@@ -239,6 +239,7 @@ struct D3d11DisplayProducer::Impl {
 D3d11DisplayProducer::D3d11DisplayProducer(std::shared_ptr<D3d11RingShared> shared, void* testDevice) : d_(std::make_unique<Impl>()) {
   d_->sh = std::move(shared);
   d_->testDevice = testDevice;
+  if (d_->sh->bridge) d_->sh->bridge->addUser();  // released in release(): the last user closes the bridge
 }
 
 D3d11DisplayProducer::~D3d11DisplayProducer() { release(false); }
@@ -385,6 +386,7 @@ void D3d11DisplayProducer::release(bool glCurrent) {
   if (skipped > 0) {
     qCInfo(lcRing).noquote() << QStringLiteral("zero-copy display: %1 display frames skipped").arg(skipped);
   }
+  if (d.sh->bridge) d.sh->bridge->releaseUser(glCurrent);  // after the registrations are gone; the last user closes
 }
 
 QString D3d11DisplayProducer::reason() const {

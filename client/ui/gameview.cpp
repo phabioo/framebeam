@@ -63,6 +63,7 @@ void GameView::setSession(GameSession* s) {
   }
   session_ = s;
   frame_ = QImage();
+  lastFrameSize_ = QSize();
   if (session_) {
     connect(session_, &GameSession::frameChanged, this, &GameView::onFrame);
     connect(session_, &GameSession::displayStateChanged, this, [this]() { update(); });  // texture <-> readback image
@@ -122,7 +123,9 @@ void GameView::updateFrameRect() {
   // which follows this rect (integer scaling would feed back: frame size -> rect -> limit -> frame size).
   QSizeF fs = session_ ? QSizeF(session_->displayProfile().frameSize()) : QSizeF();
   if (fs.isEmpty()) {
-    fs = frame_.size();
+    // No base size from the system: the delivered frame; after the session dropped it (zero-copy active) the last one.
+    if (!frame_.isNull()) lastFrameSize_ = frame_.size();
+    fs = lastFrameSize_;
   }
   QRectF r;
   if (splitDrawing()) {

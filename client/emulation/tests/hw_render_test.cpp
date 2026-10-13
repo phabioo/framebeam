@@ -1678,9 +1678,15 @@ class HwRenderTest : public QObject {
     drawColor(0.f, 1.f, 0.f);
     QVERIFY(hw.displayBlit(64, 48, true, QSize(32, 24)));
     QCOMPARE(px(d->gl.presents().last().image, 16, 12), qRgb(0, 255, 0));
+    hw.dropDisplayTarget(QStringLiteral("software frame"));  // e.g. the core delivers CPU frames: fail + release + forget
+    QVERIFY(!hw.hasDisplayTarget());
+    QCOMPARE(d->gl.failReason(), QStringLiteral("software frame"));
+    QCOMPARE(d->gl.releases(), 1);
+    hw.setDisplayTarget(d);
+    QVERIFY(hw.displayBlit(64, 48, true, QSize(32, 24)));
     hw.setDisplayTarget(nullptr);  // released with GL current, before its objects go
     QVERIFY(!hw.hasDisplayTarget());
-    QCOMPARE(d->gl.releases(), 1);
+    QCOMPARE(d->gl.releases(), 2);
     QVERIFY(d->gl.lastReleaseGlCurrent() && d->gl.textureAliveAtRelease());
     QVERIFY(!hw.displayBlit(64, 48, true, QSize()));
     hw.setDisplayTarget(d);  // set again: acquires again
@@ -1700,7 +1706,7 @@ class HwRenderTest : public QObject {
     hw.destroyContext();
     QCOMPARE(detachesAtDisplayRelease, 1);  // the encode target was already detached
     QVERIFY(glCurrentAtRelease);
-    QCOMPARE(d->gl.releases(), 2);
+    QCOMPARE(d->gl.releases(), 3);
     QVERIFY(d->gl.lastReleaseGlCurrent() && d->gl.textureAliveAtRelease());
     QVERIFY(!hw.hasDisplayTarget());
     QCOMPARE(d.use_count(), 1);

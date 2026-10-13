@@ -107,6 +107,9 @@ class HwRenderContext {
   // happens. Unavailable: the target is released quietly. Failed or a failed blit: abort() where needed, the target is
   // told fail() and forgotten. Never waits for the GPU.
   bool displayBlit(int w, int h, bool bottomLeftOrigin, const QSize& maxSize);
+  // The target cannot show the frames any more (e.g. the core delivers CPU frames): fail() + release() it and forget it,
+  // the game view falls back to readback frames. No-op without a target.
+  void dropDisplayTarget(const QString& why);
   quint64 displayBlitCount() const;  // frames presented so far (tests, diagnostics)
 
  private:

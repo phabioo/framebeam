@@ -70,6 +70,7 @@ class GameView : public QQuickItem {
 
   QPointer<GameSession> session_;
   QImage frame_;
+  QSize lastFrameSize_;  // size of the last non-null frame (the frame size while the session has dropped its image)
   bool frameDirty_ = false;
   bool integerScale_ = true;
   bool lastGpu_ = false;   // the node tree was last built from the GPU texture (render thread)

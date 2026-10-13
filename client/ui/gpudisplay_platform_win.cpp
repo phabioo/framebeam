@@ -88,26 +88,54 @@ struct RenderState {
     }
     retired.clear();
   }
-  // Render thread: window's scene graph is going away, or the source was destroyed.
-  void cleanup() {
+  // Render thread: window's scene graph is going away, or the source was destroyed. `invalidated`: the scene graph was
+  // invalidated (device loss, window recreation) while the source lives on: texture() returns nullptr from now on, so
+  // the source reports itself failed and the GpuDisplayBridge turns Failed (readback resumes).
+  void cleanup(bool invalidated = false) {
     std::lock_guard lock(m);
     if (cleaned) {
       return;
     }
     cleaned = true;
+    if (invalidated) {
+      failed = true;
+    }
     retireWrappers();
     deleteRetired();
     consumer->close();
   }
+  // No render thread to clean up on: leak the Qt-side wrappers and the consumer (its destructor would call close() on
+  // Qt's device from this thread) instead of touching Qt's device from the wrong thread.
+  void abandon() {
+    std::lock_guard lock(m);
+    if (cleaned) {
+      return;
+    }
+    cleaned = true;
+    for (int i = 0; i < framebeam::DisplaySlots::kCount; ++i) wrapped[i] = nullptr;
+    retired.clear();
+    new std::shared_ptr<D3d11DisplayConsumer>(consumer);  // one reference never dropped
+    failed = true;
+  }
 };
 
+// Render-thread cleanup. scheduleRenderJob() deletes a job that never ran (window not exposed, scene graph gone) on the
+// thread that scheduled it, possibly the GUI thread: then no D3D11/Qt call may be made, the wrappers and the consumer's
+// Qt-side objects are leaked on purpose (abandon()).
 class CleanupJob final : public QRunnable {
  public:
-  explicit CleanupJob(std::shared_ptr<RenderState> s) : s_(std::move(s)) {}
-  void run() override { s_->cleanup(); }
+  explicit CleanupJob(std::shared_ptr<RenderState> s) : s_(std::move(s)) { setAutoDelete(true); }
+  ~CleanupJob() override {
+    if (!ran_) s_->abandon();
+  }
+  void run() override {
+    ran_ = true;
+    s_->cleanup();
+  }
 
  private:
   std::shared_ptr<RenderState> s_;
+  bool ran_ = false;
 };
 
 class D3d11TextureSource final : public DisplayTextureSource {
@@ -236,7 +264,7 @@ class D3d11TextureSource final : public DisplayTextureSource {
                                    keep->deleteRetired();
                                  },
                                  Qt::DirectConnection);
-    s.invalidatedConn = QObject::connect(window, &QQuickWindow::sceneGraphInvalidated, window, [keep]() { keep->cleanup(); },
+    s.invalidatedConn = QObject::connect(window, &QQuickWindow::sceneGraphInvalidated, window, [keep]() { keep->cleanup(true); },
                                          Qt::DirectConnection);
     return true;
   }

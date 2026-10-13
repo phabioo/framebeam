@@ -254,6 +254,7 @@ class GpuDisplayTest : public QObject {
     QTRY_VERIFY_WITH_TIMEOUT(gs.diagnostics().zeroCopy && gs.diagnostics().displaysPerSec > 5.0, 5000);
     QTRY_VERIFY_WITH_TIMEOUT(gs.diagnostics().readbacksPerSec == 0.0, 5000);
     {  // the readback image is stale now, the frames keep coming, the picture is right
+      QVERIFY(gs.frame().isNull());  // the stale readback image was dropped when the display went Active
       const qint64 key = gs.frame().cacheKey();
       const quint64 nr = gs.frameNumber();
       QTRY_VERIFY_WITH_TIMEOUT(gs.frameNumber() >= nr + 5, 5000);
