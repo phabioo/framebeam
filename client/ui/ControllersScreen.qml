@@ -317,7 +317,7 @@ Rectangle {
                         Layout.fillWidth: true
                         Layout.preferredWidth: 1
                         Layout.minimumWidth: 0
-                        text: qsTr("Shows the mapping of this system. The game uses the mapping of its own system.") + " " + root.ctl.systemNote
+                        text: qsTr("Shows the mapping of this system. The game uses the mapping of its own system.")
                         color: Theme.textFaint
                         font.pixelSize: Theme.fontMeta
                         wrapMode: Text.WordWrap

@@ -24,7 +24,7 @@ Rectangle {
     // Multiview: tab "multiview" with a game of your own or several surfaces; one remote Session alone is "watching".
     readonly property bool multi: ctl.tab !== "session" && (own || ctl.surfaceCount > 1)
     readonly property bool narrow: width < 1100
-    readonly property bool segmentFocused: viewSegment.activeFocus || modeSegment.activeFocus
+    readonly property bool segmentFocused: viewSegment.activeFocus || modeSegment.activeFocus || modeCycle.activeFocus
     readonly property var layouts: session.active ? session.screenLayouts : (ctl.watching ? ["stacked", "side", "top"] : [])
     readonly property Item resetAnchor: resetButton
     readonly property Item speedAnchor: speedSplit
@@ -53,6 +53,46 @@ Rectangle {
     property bool hideHints: false
     readonly property real hintsFullWidth: diagnosticsButton.hintFullWidth + fullscreenButton.hintFullWidth
     property bool hideAddMeta: false   // and, if that is still not enough, the "· 3/4" next to "+ Add"
+
+    // Narrow Multiview header, priority when space runs out (stage 0..4; every width used is measured independent of the
+    // current stage, so the result does not flap): 1 the PiP/Row/Grid segment becomes one cycle button (never an empty pill with
+    // "…"), 2 the key badges and the "· 3/4" give way, 3 "Multiview" becomes "Multi", 4 the sharing pill shrinks to dot + short word.
+    // The game title keeps at least ten characters through all of this (its layout minimum) until the last stage.
+    property int fitStage: 0
+    readonly property bool modeCollapsed: fitStage >= 1
+    readonly property bool stageHints: fitStage >= 2
+    readonly property bool shortView: fitStage >= 3
+    readonly property bool shortPill: fitStage >= 4
+    readonly property bool cycleHidden: fitStage >= 5   // absurdly wide fonts: not even the cycle button fits next to a title and the sharing state
+    readonly property string shareShort: ctl.shared ? (ctl.visibility === "invite_only" ? qsTr("Invite only") : qsTr("Shared")) : qsTr("Not shared")
+    TextMetrics { id: tmTitle10; text: "abcdefghij"; font.pixelSize: 15; font.weight: Font.DemiBold }
+    TextMetrics { id: tmPillFull; text: root.shareText; font.pixelSize: 12; font.weight: Font.Medium }
+    TextMetrics { id: tmPillShort; text: root.shareShort; font.pixelSize: 12; font.weight: Font.Medium }
+    TextMetrics { id: tmViewLong; text: qsTr("Multiview"); font.pixelSize: 13; font.weight: Font.Medium }
+    TextMetrics { id: tmViewShort; text: qsTr("Multi"); font.pixelSize: 13; font.weight: Font.Medium }
+    readonly property bool modeAvailable: multi && ctl.availableLayouts.length > 0
+    // Width the stage savings give back: what is hidden right now is added to the layout's implicit width before judging.
+    readonly property real stageSaving: (modeCollapsed ? modeSegment.implicitWidth - (cycleHidden ? 0 : modeCycle.implicitWidth) : 0)
+        + (stageHints ? hintsFullWidth + addButton.metaFullWidth : 0) + (shortView ? tmViewLong.advanceWidth - tmViewShort.advanceWidth : 0)
+    function computeStage() {
+        if (!(multi && own && multiGameTitle.visible)) return 0
+        const fixedFull = headerRow.implicitWidth - headerContext.implicitWidth   // everything outside the context zone, as laid out now
+            + (hideHints || stageHints ? hintsFullWidth : 0) + (hideAddMeta || stageHints ? addButton.metaFullWidth : 0)
+            + (shortView ? tmViewLong.advanceWidth - tmViewShort.advanceWidth : 0)   // ... with every optional text back
+        const hintsGain = hintsFullWidth + addButton.metaFullWidth
+        const viewGain = tmViewLong.advanceWidth - tmViewShort.advanceWidth
+        const pillFull = tmPillFull.advanceWidth + 32, pillShort = tmPillShort.advanceWidth + 32
+        const title = tmTitle10.advanceWidth
+        const modeFull = modeSegment.implicitWidth + 10, cycle = modeCycle.implicitWidth + 10
+        const avail = headerRow.width
+        const need = (fixed, pill, mode) => fixed + title + 10 + pill + mode
+        if (need(fixedFull, pillFull, modeFull) <= avail) return 0
+        if (need(fixedFull, pillFull, cycle) <= avail) return 1
+        if (need(fixedFull - hintsGain, pillFull, cycle) <= avail) return 2
+        if (need(fixedFull - hintsGain - viewGain, pillFull, cycle) <= avail) return 3
+        if (need(fixedFull - hintsGain - viewGain, pillShort, cycle) - title + 40 <= avail) return 4   // title down to about three characters
+        return 5
+    }
     property real wideNeed: 0   // preferred width without the optional texts, regular (not tight) widths
     // Applied after the layout pass that reported the new size: changing the visibility of the optional texts inside that pass
     // makes the header layout polish twice ("polish loop").
@@ -61,15 +101,18 @@ Rectangle {
         const titleW = multiTitle.implicitWidth + 10
         const labelW = yourGame.implicitWidth + 20
         // The game title and the share pill that stand in for them (narrow Multiview headers) are not part of the preferred width: they elide / sit in the space the context zone has.
-        const extras = (multiGameTitle.visible ? multiGameTitle.Layout.preferredWidth + headerContext.spacing : 0) + (multiSharePill.visible ? multiSharePill.implicitWidth + headerContext.spacing : 0)
-        const need = headerRow.implicitWidth - extras + (multiTitle.visible ? 0 : titleW) + (yourGame.visible ? 0 : labelW)
+        const extras = (multiGameTitle.visible ? multiGameTitle.Layout.preferredWidth + headerContext.spacing : 0) + (multiSharePill.visible ? multiSharePill.Layout.minimumWidth + headerContext.spacing : 0)
+        const need = headerRow.implicitWidth - extras + (multiTitle.visible ? 0 : titleW) + (yourGame.visible ? 0 : labelW) + root.stageSaving
         if (!root.forceCompact) {
-            root.wideNeed = need - titleW - labelW - headerContext.implicitWidth + (modeSegment.visible ? modeSegment.implicitWidth : 0)   // the context zone can shrink to its mode switch; measured only at regular widths, so the decision cannot flap
+            root.wideNeed = need - titleW - labelW - headerContext.implicitWidth + (root.modeAvailable ? modeSegment.implicitWidth : 0) + root.stageSaving   // the context zone can shrink to its mode switch; measured only at regular widths, so the decision cannot flap
         }
         // Tight: the layout minimum (every zone at its smallest) plus the badges that are hidden right now.
-        const minFull = headerRow.Layout.minimumWidth + (root.hideHints ? root.hintsFullWidth : 0) + (root.hideAddMeta ? addButton.metaFullWidth : 0)
-        root.hideHints = root.tight && minFull > headerRow.width
-        root.hideAddMeta = root.tight && minFull - root.hintsFullWidth > headerRow.width
+        const minFull = headerRow.Layout.minimumWidth + (root.hideHints || root.stageHints ? root.hintsFullWidth : 0) + (root.hideAddMeta || root.stageHints ? addButton.metaFullWidth : 0)
+        const stageOwned = root.multi && root.own && multiGameTitle.visible && root.fitStage < 4   // the stage logic decides first
+        root.hideHints = root.tight && !stageOwned && minFull > headerRow.width
+        root.hideAddMeta = root.tight && !stageOwned && minFull - root.hintsFullWidth > headerRow.width
+        const st = root.computeStage()
+        if (st !== root.fitStage) root.fitStage = st
         if (root.compact) {   // compact from the window width: the layout was designed for it, only the optional texts can still give way
             hideMultiTitle = need > headerRow.width
             hideYourGame = need - titleW > headerRow.width
@@ -121,7 +164,10 @@ Rectangle {
             // fallback fonts), the right-hand zones run past the window edge instead of covering this switch.
             // The share pill of a narrow Multiview header stays whole next to the (elided) game title.
             Layout.minimumWidth: Math.max(modeSegment.visible ? Math.min(modeSegment.implicitWidth, root.compact ? 90 : 360) : 0,
-                                          multiSharePill.visible ? 100 : 0)
+                                          multiSharePill.visible ? 100 : 0,
+                                          // multiview narrow form: the title may elide down to ten characters, the pill and the mode control stay whole
+                                          multiGameTitle.visible && root.fitStage < 4 ? multiGameTitle.Layout.minimumWidth + (multiSharePill.visible ? multiSharePill.Layout.minimumWidth + headerContext.spacing : 0)
+                                                                   + (modeCycle.visible ? modeCycle.implicitWidth + headerContext.spacing : 0) + headerContext.spacing : 0)
             spacing: 10
             // Session: title + share pill
             FbLabel {
@@ -172,7 +218,7 @@ Rectangle {
                 objectName: "multiGameTitle"
                 visible: root.multi && !multiTitle.visible
                 Layout.fillWidth: true
-                Layout.minimumWidth: 0
+                Layout.minimumWidth: root.fitStage < 4 ? Math.min(implicitWidth, tmTitle10.advanceWidth) : 0   // at least ten characters
                 Layout.preferredWidth: Math.min(implicitWidth, 120)
                 Layout.maximumWidth: Math.min(implicitWidth, root.tight ? 160 : 240)
                 elide: Text.ElideRight
@@ -189,8 +235,9 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredWidth: implicitWidth
                 Layout.maximumWidth: implicitWidth
+                Layout.minimumWidth: root.fitStage < 4 ? implicitWidth : 0   // only the title gives way (to ten characters), the pill shortens by text first
                 on: root.ctl.shared
-                text: root.shareText
+                text: root.shortPill ? root.shareShort : root.shareText
             }
             FbLabel {
                 id: multiTitle
@@ -210,7 +257,7 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredWidth: implicitWidth
                 Layout.maximumWidth: implicitWidth
-                visible: root.multi && root.ctl.availableLayouts.length > 0
+                visible: root.modeAvailable && !root.modeCollapsed
                 padX: root.tight ? 8 : 11
                 current: root.ctl.multiviewMode
                 // PiP | Row | Grid 2×2; Grid is disabled below four Sessions ("Grid 2×2 · from 4", ADR 0026 D2)
@@ -221,6 +268,34 @@ Rectangle {
                                   : (root.ctl.gridAvailable ? qsTr("Grid 2×2") : qsTr("Grid 2×2 · from 4")), name: "modeGrid", disabled: !root.ctl.gridAvailable }
                 })
                 onPicked: (v) => root.ctl.multiviewMode = v
+            }
+            // The mode switch when it would not fit: one button with the current mode, a click picks the next one.
+            GameButton {
+                id: modeCycle
+                objectName: "modeCycle"
+                visible: root.modeAvailable && root.modeCollapsed && !root.cycleHidden
+                look: "surface"
+                hPad: root.shortPill ? 6 : 10   // last stage (very wide fonts): no room for padding and caret either
+                readonly property var modes: root.ctl.availableLayouts.filter(m => m !== "grid" || root.ctl.gridAvailable)
+                text: root.ctl.multiviewMode === "pip" ? qsTr("PiP") : root.ctl.multiviewMode === "row" ? qsTr("Row") : qsTr("Grid")
+                widthText: qsTr("Grid")
+                caret: root.shortPill ? "" : "▾"
+                tip: qsTr("Multiview layout: %1 · click for the next").arg(text)
+                focusPolicy: Qt.TabFocus
+                onClicked: {
+                    const i = modes.indexOf(root.ctl.multiviewMode)
+                    if (modes.length > 0) root.ctl.multiviewMode = modes[(i + 1) % modes.length]
+                }
+                Rectangle {
+                    objectName: "modeCycleFocusRing"
+                    visible: modeCycle.activeFocus
+                    anchors.fill: parent
+                    anchors.margins: -2
+                    radius: 9
+                    color: "transparent"
+                    border.width: 2
+                    border.color: Theme.gameAccent
+                }
             }
             Item { Layout.fillWidth: true }
         }
@@ -342,7 +417,7 @@ Rectangle {
             current: root.multi ? "multiview" : "session"
             options: [
                 { value: "session", label: qsTr("Session"), name: "tabSession" },
-                { value: "multiview", label: qsTr("Multiview"), name: "tabMultiview" }
+                { value: "multiview", label: root.shortView ? qsTr("Multi") : qsTr("Multiview"), name: "tabMultiview" }
             ]
             onPicked: (v) => root.ctl.tab = v
         }
@@ -354,7 +429,7 @@ Rectangle {
             hPad: 11
             text: qsTr("+ Add")
             meta: "· " + root.ctl.surfaceCount + "/" + root.ctl.maxSurfaces
-            showMeta: !root.hideAddMeta
+            showMeta: !root.hideAddMeta && !root.stageHints
             on: root.popover === "picker"
             tip: qsTr("Running sessions")
             onClicked: root.popoverToggled("picker")
@@ -392,7 +467,7 @@ Rectangle {
                 }
                 GameButton {
                     id: diagnosticsButton
-                    showHint: !root.hideHints
+                    showHint: !root.hideHints && !root.stageHints
                     objectName: "diagnosticsButton"
                     iconKind: "diag"
                     text: qsTr("Diagnostics")
@@ -405,7 +480,7 @@ Rectangle {
                 }
                 GameButton {
                     id: fullscreenButton
-                    showHint: !root.hideHints
+                    showHint: !root.hideHints && !root.stageHints
                     objectName: "fullscreenButton"
                     iconKind: "fullscreen"
                     text: qsTr("Fullscreen")

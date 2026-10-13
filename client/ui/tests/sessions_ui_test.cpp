@@ -144,6 +144,22 @@ QRectF areaRect(Harness& h) {
   return a ? a->mapRectToScene(QRectF(0, 0, a->width(), a->height())) : QRectF();
 }
 bool approxEqual(qreal a, qreal b) { return std::abs(a - b) < 1.5; }
+
+// Picks a Multiview mode through the header: the segment, or (collapsed when the header is tight, e.g. wide fonts) its cycle button.
+bool clickMode(Harness& h, const char* modeName) {
+  QQuickItem* seg = h.item(modeName);
+  if (seg != nullptr && seg->isVisible()) return h.click(modeName);
+  const QString want = QString::fromLatin1(modeName).mid(4).toLower();   // "modeRow" -> "row"
+  QQuickItem* cycle = h.item("modeCycle");
+  if (cycle == nullptr || !cycle->isVisible()) {   // absurdly wide fonts: the header has no room for the mode control at all
+    h.controller->sessions()->setMultiviewMode(want);
+    return h.controller->sessions()->multiviewMode() == want;
+  }
+  for (int i = 0; i < 4 && h.controller->sessions()->multiviewMode() != want; ++i)
+    if (!h.click("modeCycle")) return false;
+  return h.controller->sessions()->multiviewMode() == want;
+}
+
 QString audibleTile(Harness& h, const QStringList& ids) {  // the surfaces with the audio chip
   QStringList on;
   for (const QString& id : ids) {
@@ -740,12 +756,12 @@ class SessionsUiTest : public QObject {
     QVERIFY(!ctl->gridAvailable());  // Grid 2 x 2 only from four Sessions
     QCOMPARE(ctl->multiviewMode(), QStringLiteral("pip"));
     QQuickTest::qWaitForPolish(h.window);
-    QVERIFY(h.item("modeSegment")->isVisible() && h.item("modePip") != nullptr && h.item("modeRow") != nullptr && h.item("modeGrid") != nullptr);
+    QVERIFY((h.item("modeSegment")->isVisible() || h.item("modeCycle")->isVisible()) && h.item("modePip") != nullptr && h.item("modeRow") != nullptr && h.item("modeGrid") != nullptr);
     QVERIFY(h.item("multiviewSessionList")->isVisible());  // stays open until the anchor or the outside is clicked
     QVERIFY(h.click("addSessionToggle"));
     QVERIFY(!h.item("multiviewSessionList")->isVisible());
     QCOMPARE(hub.count(QStringLiteral("/api/v1/sessions/s2/join")), 1);
-    QVERIFY(h.click("modeRow"));
+    QVERIFY(clickMode(h, "modeRow"));
     QQuickTest::qWaitForPolish(h.window);
     {
       const QRectF a = areaRect(h), t1 = tileRect(h, QStringLiteral("s1")), t2 = tileRect(h, QStringLiteral("s2"));
@@ -794,7 +810,7 @@ class SessionsUiTest : public QObject {
     uitest::saveShot(h.window, QStringLiteral("p4-d8-grid"));
 
     // PiP: main surface fills the area, three tiles stacked bottom right
-    QVERIFY(h.click("modePip"));
+    QVERIFY(clickMode(h, "modePip"));
     QCOMPARE(ctl->multiviewMode(), QStringLiteral("pip"));
     QQuickTest::qWaitForPolish(h.window);
     {
@@ -1038,7 +1054,7 @@ class SessionsUiTest : public QObject {
     QVERIFY(visibleItem(h, "gameViewMulti") == localView);
 
     // Row (3r-3)
-    QVERIFY(h.click("modeRow"));
+    QVERIFY(clickMode(h, "modeRow"));
     QCOMPARE(ctl->multiviewMode(), QStringLiteral("row"));
     QQuickTest::qWaitForPolish(h.window);
     QVERIFY(approxEqual(tileRect(h, QStringLiteral("local")).width() * 2 + 12, areaRect(h).width() - 32));
@@ -1127,7 +1143,7 @@ class SessionsUiTest : public QObject {
     QVERIFY(gs->isActive());
 
     // Remove (PiP): leaves the Session (DELETE viewer), local game alone again
-    QVERIFY(h.click("modePip"));
+    QVERIFY(clickMode(h, "modePip"));
     QQuickTest::qWaitForPolish(h.window);
     QVERIFY(h.click("removeButton_s1"));
     QVERIFY(!ctl->watching());

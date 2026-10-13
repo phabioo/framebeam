@@ -79,6 +79,7 @@ Rectangle {
                 Accessible.name: modelData.label
                 Text {
                     id: segLabel
+                    objectName: "segmentLabel"
                     anchors.centerIn: parent
                     width: Math.min(implicitWidth, parent.width - 6)
                     elide: Text.ElideRight

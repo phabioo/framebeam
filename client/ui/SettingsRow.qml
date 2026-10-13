@@ -121,7 +121,7 @@ Item {
     readonly property bool canExpand: root.hasList || root.overflows
     readonly property bool showFull: root.expanded && root.canExpand
     readonly property string moreLabel: root.showFull ? qsTr("Less")
-                                        : (root.hasList ? qsTr("More · %1").arg(root.optionList.length === 1 ? qsTr("1 option") : qsTr("%1 options").arg(root.optionList.length))
+                                        : (root.hasList ? qsTr("More · %1").arg(Theme.plural(root.optionList.length, qsTr("option"), qsTr("options")))
                                                         : qsTr("More"))
 
     // Buttons wrap onto further lines when the control column is too narrow for them (wide fonts), so the control may be taller.

@@ -383,10 +383,6 @@ void ControllersController::selectSystem(const QString& id) {
   }
 }
 
-QString ControllersController::systemNote() const {
-  return tr("DS shows no ZL, ZR or sticks. GB and GBC show A, B, Start, Select and D-pad only. GBA adds L and R.");
-}
-
 void ControllersController::setInputProfile(const QString& profile) {
   if (profile == inputProfile_) return;
   inputProfile_ = profile;

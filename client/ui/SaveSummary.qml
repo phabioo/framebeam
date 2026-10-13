@@ -235,7 +235,7 @@ Rectangle {
             Layout.fillWidth: true
             Layout.leftMargin: 26
             elide: Text.ElideRight
-            text: (root.hist.slotCount === 1 ? qsTr("1 slot") : qsTr("%1 slots").arg(root.hist.slotCount)) + " · "
+            text: Theme.plural(root.hist.slotCount, qsTr("slot"), qsTr("slots")) + " · "
                   + (root.hist.versionCount === 1 ? qsTr("1 version in %1") : qsTr("%1 versions in %2").arg(root.hist.versionCount)).arg(root.hist.slotLabel)
             color: Theme.textFaint
             font.pixelSize: Theme.fontMeta
