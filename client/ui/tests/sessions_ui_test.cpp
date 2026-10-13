@@ -331,9 +331,16 @@ class SessionsUiTest : public QObject {
     hub.closeWsClients();
     QTRY_VERIFY(ctl->hubLink() != QLatin1String("online"));
     QTRY_VERIFY(h.item("hubLinkBanner")->isVisible());
+    // R-P3: the sidebar dot and the banner follow the link (amber while lost), the link note explains it.
+    QTRY_COMPARE(h.controller->hubLink(), QStringLiteral("offline"));
+    QTRY_COMPARE(h.item("hubStatusDot")->property("tone").toString(), QStringLiteral("amber"));
+    QVERIFY(h.item("hubCardLinkNote")->isVisible());
+    QVERIFY(h.item("hubLinkBanner")->property("lost").toBool());
     hub.refuseWs = false;
     QTRY_COMPARE_WITH_TIMEOUT(ctl->hubLink(), QStringLiteral("online"), 10000);
     QTRY_VERIFY(!h.item("hubLinkBanner")->isVisible());
+    QTRY_COMPARE(h.item("hubStatusDot")->property("tone").toString(), QStringLiteral("ok"));
+    QVERIFY(!h.item("hubCardLinkNote")->isVisible());
   }
 
   void watchWithoutLocalGameShowsRemoteAlone() {

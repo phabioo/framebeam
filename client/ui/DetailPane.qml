@@ -64,7 +64,9 @@ Rectangle {
     }
 
     FbLabel {
-        visible: !root.hasGame
+        objectName: "detailEmptyHint"
+        // An empty Library already says what to do in its own column: no second hint with nothing to select (R-P14).
+        visible: !root.hasGame && root.player.library.totalCount > 0
         anchors.centerIn: parent
         text: qsTr("Select a game from the Library.")
         color: Theme.textFaint
@@ -125,7 +127,8 @@ Rectangle {
                             text: root.game.onHub ? qsTr("LOCAL COPY OF A HUB GAME") : qsTr("LOCAL FILE · NOT ON HUB")
                             color: Theme.accent
                             font.pixelSize: Theme.fontMono
-                            elide: Text.ElideRight
+                            Layout.preferredWidth: 1
+                            wrapMode: Text.WordWrap   // wraps instead of "LOCAL COPY OF A HUB GA…" at 960 (R-P22)
                         }
                         FbPill {
                             objectName: "detailPill"
@@ -157,6 +160,10 @@ Rectangle {
                             color: Theme.textMuted
                             font.pixelSize: Theme.fontSmall
                             elide: Text.ElideRight
+                            HoverHandler { id: systemHover }
+                            ToolTip.visible: systemHover.hovered && truncated
+                            ToolTip.text: text
+                            ToolTip.delay: 400
                         }
                         FbLabel {
                             objectName: "detailCoreNotice"
@@ -201,30 +208,33 @@ Rectangle {
                             objectName: modelData.objName || ""
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
-                            implicitHeight: rowCol.implicitHeight + 22
+                            implicitHeight: rowCol.height + 22
                             Rectangle {
                                 anchors.bottom: parent.bottom
                                 width: parent.width
                                 height: 1
                                 color: Theme.borderRow
                             }
-                            ColumnLayout {
+                            // Plain anchors and a Column, not nested layouts: the wrapped value used to get a stale height (hundreds of
+                            // pixels, from a 1 px wide first layout pass) that the layouts never recomputed (R-P1).
+                            Column {
                                 id: rowCol
-                                anchors.fill: parent
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.top: parent.top
                                 anchors.topMargin: 11
-                                anchors.bottomMargin: 11
                                 spacing: 4
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    Layout.minimumWidth: 0
-                                    spacing: 12
-                                    FbLabel { text: row.modelData.label; color: Theme.textMuted; font.pixelSize: 13 }
+                                Item {
+                                    width: parent.width
+                                    height: Math.max(rowLabel.implicitHeight, rowValue.implicitHeight)
+                                    FbLabel { id: rowLabel; anchors.left: parent.left; text: row.modelData.label; color: Theme.textMuted; font.pixelSize: 13 }
                                     FbLabel {
+                                        id: rowValue
                                         // The value takes the rest of the row and wraps: a long status text must never widen the pane.
                                         // A file path is cut in the middle instead (the full path is the tooltip).
-                                        Layout.fillWidth: true
-                                        Layout.minimumWidth: 0
-                                        Layout.preferredWidth: 1   // width from the row, not from the unwrapped text (polish loop)
+                                        anchors.left: rowLabel.right
+                                        anchors.leftMargin: 12
+                                        anchors.right: parent.right
                                         horizontalAlignment: Text.AlignRight
                                         wrapMode: row.modelData.mono === true ? Text.NoWrap : Text.Wrap
                                         elide: row.modelData.mono === true ? Text.ElideMiddle : Text.ElideNone
@@ -241,7 +251,7 @@ Rectangle {
                                 }
                                 FbMono {
                                     visible: (row.modelData.hint || "") !== ""
-                                    Layout.fillWidth: true
+                                    width: parent.width
                                     text: row.modelData.hint || ""
                                     wrapMode: Text.WrapAnywhere
                                     font.pixelSize: Theme.fontMono
@@ -506,7 +516,7 @@ Rectangle {
             wrapMode: Text.Wrap
             color: Theme.textFaint
             font.pixelSize: Theme.fontMeta
-            text: root.player.quitting ? qsTr("Saving and syncing…") : qsTr("Quit saves and syncs to the hub first")
+            text: root.player.quitting ? qsTr("Saving and syncing…") : qsTr("Quit saves and syncs to the Hub first")
         }
         FbLabel {
             objectName: "shareVisibilityHint"

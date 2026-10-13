@@ -25,13 +25,22 @@ Item {
     Layout.preferredHeight: 30
     Accessible.role: Accessible.Button
     Accessible.name: root.tooltip
+    Accessible.onPressAction: root.open()
+    // Keyboard (R-P4): Tab reaches the button, Enter/Space/Down opens the menu.
+    activeFocusOnTab: true
+    Keys.onPressed: (event) => {
+        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space || event.key === Qt.Key_Down) {
+            root.open()
+            event.accepted = true
+        }
+    }
 
     Rectangle {
         anchors.fill: parent
         radius: Theme.radius7
         color: hover.hovered || root.opened ? Theme.surfaceRaised : "transparent"
-        border.width: 1
-        border.color: root.opened ? Theme.accent : Theme.borderButton
+        border.width: root.activeFocus ? 1.5 : 1
+        border.color: root.opened || root.activeFocus ? Theme.accent : Theme.borderButton
         Text {
             anchors.centerIn: parent
             anchors.verticalCenterOffset: -2

@@ -56,18 +56,26 @@ Rectangle {
                 }
             }
 
-            ColumnLayout {
+            // A positioner with explicit widths, not a layout: a ColumnLayout filled by a Repeater while this screen was not shown
+            // was never re-run and left the saved-Hub card at 0 px (R-P2, the card lost its name and background).
+            Column {
+                id: hubList
+                objectName: "hubList"
                 Layout.fillWidth: true
                 spacing: 10
                 Repeater {
                     model: root.player.hubs
                     delegate: HubCard {
                         required property var modelData
-                        Layout.fillWidth: true
+                        width: hubList.width
                         hub: modelData
                         onConnectRequested: hubId => root.player.connectProfile(hubId)
                         onRetryRequested: root.player.retryConnection()
-                        onRemoveRequested: hubId => root.player.removeHub(hubId)
+                        onRemoveRequested: hubId => {
+                            // Discarding an attempt also empties the address field it came from (R-P20).
+                            if (!modelData.saved) addressField.text = ""
+                            root.player.removeHub(hubId)
+                        }
                         onTrustCertificateRequested: fingerprint => root.player.trustChangedCertificate(fingerprint)
                         onCancelCertificateRequested: root.player.cancelCertificateChange()
                     }
@@ -78,7 +86,7 @@ Rectangle {
                     color: Theme.textMuted
                     font.pixelSize: Theme.fontSmall
                     wrapMode: Text.WordWrap
-                    Layout.fillWidth: true
+                    width: hubList.width
                 }
             }
 

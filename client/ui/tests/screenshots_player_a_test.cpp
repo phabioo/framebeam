@@ -171,6 +171,18 @@ class ShotsPlayerATest : public QObject {
     h.controller->retryConnection();  // identify again: the Hub is gone
     QTest::qWait(4000);
     if (h.controller->selectedGame().value("hubUp").toBool()) QSKIP("the connection did not drop in this environment");
+    // R-P2: back on the Connect screen the saved Hub is a full-width card with its name and a labelled Connect button
+    // (it was created while the screen was hidden and once stayed at 0 px).
+    QTRY_COMPARE(h.controller->screen(), QStringLiteral("connection"));
+    QTRY_VERIFY(h.item("hubCard_hub-test-1") != nullptr);
+    {
+      QQuickItem* card = h.item("hubCard_hub-test-1");
+      QTRY_VERIFY2(card->width() >= 400, qPrintable(QStringLiteral("card width %1").arg(card->width())));
+      QQuickItem* name = Harness::findVisual(card, QStringLiteral("hubCardName"));
+      QVERIFY(name != nullptr && name->width() > 40);
+      QQuickItem* connect = Harness::findVisual(card, QStringLiteral("hubConnectButton"));
+      QVERIFY(connect != nullptr && connect->width() >= 70);
+    }
     shot(h, QStringLiteral("3c-7-hub-offline"));
     uitest::warningCount() = 0;  // the unreachable Hub is logged as a warning
   }

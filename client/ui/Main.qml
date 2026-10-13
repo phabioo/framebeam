@@ -112,4 +112,40 @@ ApplicationWindow {
     }
 
     ConflictDialog { player: window.player }
+
+    // Tooltips (R-P12): the shared tooltip of the attached ToolTip type is restyled once with the theme tokens
+    // (popup surface, popup border, text) instead of the default white box.
+    Component {
+        id: tipBackground
+        Rectangle {
+            radius: Theme.radius6
+            color: Theme.popupBg
+            border.width: 1
+            border.color: Theme.borderPopup
+        }
+    }
+    Component {
+        id: tipContent
+        Text {
+            property var tip: null
+            text: tip ? tip.text : ""
+            font.pixelSize: Theme.fontMeta
+            color: Theme.text
+            wrapMode: Text.Wrap
+        }
+    }
+    Item {
+        id: tipHost
+        visible: false
+        Component.onCompleted: {
+            const tip = ToolTip.toolTip
+            if (tip === null || tip === undefined) return
+            tip.background = tipBackground.createObject(tipHost)
+            tip.contentItem = tipContent.createObject(tipHost, { tip: tip })
+            tip.padding = 8
+            tip.topPadding = 5
+            tip.bottomPadding = 5
+            tip.z = 1000
+        }
+    }
 }

@@ -368,18 +368,21 @@ Rectangle {
             Rectangle {
                 objectName: "hubLinkBanner"
                 Layout.fillWidth: true
-                visible: root.player.sessions.available && root.player.sessions.hubLink !== "online"
+                visible: root.player.sessions.available && root.player.hubLink !== "online"
                 implicitHeight: 34
                 radius: 8
-                color: Theme.warnBg
+                // Lost link: amber (needs your attention, tokens.md "Status"); connecting: the accent info tone.
+                readonly property bool lost: root.player.hubLink === "offline"
+                color: lost ? Theme.pluginWarnBg : Theme.warnBg
                 FbLabel {
                     anchors.fill: parent
                     anchors.leftMargin: 12
                     verticalAlignment: Text.AlignVCenter
-                    text: root.player.sessions.hubLink === "connecting" ? qsTr("Connecting to the Hub for Sessions…")
-                          : qsTr("Hub connection for Sessions lost · reconnecting…")
-                    color: Theme.warn
+                    text: root.player.hubLink === "connecting" ? qsTr("Connecting to the Hub for Sessions…")
+                          : qsTr("▲ Hub connection for Sessions lost · reconnecting…")
+                    color: parent.lost ? Theme.pluginWarn : Theme.warn
                     font.pixelSize: Theme.fontSmall
+                    elide: Text.ElideRight
                 }
             }
 
@@ -508,7 +511,7 @@ Rectangle {
                         readonly property string chip: root.player.library.filter
                         text: root.player.libraryState === "loading" ? qsTr("Loading Library…")
                               : root.player.libraryState === "error" ? qsTr("Could not load Library: %1").arg(root.player.libraryError)
-                              : root.player.library.totalCount === 0 ? qsTr("This hub has no games yet.")
+                              : root.player.library.totalCount === 0 ? qsTr("This Hub has no games yet.")
                               : needle !== "" ? (chip === "ready" ? qsTr("No ready games match “%1”").arg(needle)
                                                  : chip === "attention" ? qsTr("No games needing attention match “%1”").arg(needle)
                                                  : chip === "download" ? qsTr("No games not downloaded match “%1”").arg(needle)

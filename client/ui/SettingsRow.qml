@@ -582,23 +582,9 @@ Item {
                 segmentHeight: Theme.settingsControlHeight - 6
                 options: root.values.map(function (v) { return { value: v.value, label: v.label, name: v.name || "" } })
                 current: root.current
-                activeFocusOnTab: true
+                // Tab stop, arrow keys and focus ring come from FbSegment itself (R-P4).
                 onPicked: value => root.valuePicked(value)
-                function step(delta: int) {
-                    for (let i = 0; i < root.values.length; ++i) {
-                        if (root.values[i].value === root.current) {
-                            const n = Math.max(0, Math.min(root.values.length - 1, i + delta))
-                            if (n !== i) {
-                                root.valuePicked(root.values[n].value)
-                            }
-                            return
-                        }
-                    }
-                }
-                Keys.onLeftPressed: seg.step(-1)
-                Keys.onRightPressed: seg.step(1)
             }
-            FocusRing { anchors.fill: seg; cornerRadius: Theme.radius7; on: seg.activeFocus }
         }
     }
 

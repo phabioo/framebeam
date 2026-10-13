@@ -1,9 +1,11 @@
 import QtQuick
+import QtQuick.Controls.Basic
 import QtQuick.Layouts
 
 // Tile in the game grid (3c): square cover with system label and monogram, title, status line with symbol.
 Item {
     id: tile
+    objectName: "gameTile_" + gameId
     required property string gameId
     required property string title
     required property string system
@@ -97,9 +99,11 @@ Item {
         Rectangle {
             objectName: "tileLocalPill"
             visible: !tile.onHub || tile.localFile
+            // Top right (below the running pill when both show), never over the monogram at the bottom left (R-P22).
             anchors.right: parent.right
-            anchors.bottom: parent.bottom
-            anchors.margins: 10
+            anchors.top: parent.top
+            anchors.rightMargin: 10
+            anchors.topMargin: tile.running ? 38 : 10
             height: 22
             width: Math.min(parent.width - 20, localText.implicitWidth + 16)
             radius: Theme.radiusPill
@@ -146,6 +150,10 @@ Item {
             text: tile.title
             font.weight: Font.Medium
             elide: Text.ElideRight
+            HoverHandler { id: titleHover }
+            ToolTip.visible: titleHover.hovered && truncated
+            ToolTip.text: text
+            ToolTip.delay: 400
         }
         FbLabel {
             objectName: "tileStatus"
@@ -155,6 +163,10 @@ Item {
             font.weight: Font.Medium
             color: tile.running ? Theme.accent : tile.tileTone === "neutral" ? Theme.textMuted : Theme.toneColor(tile.tileTone)
             elide: Text.ElideRight
+            HoverHandler { id: statusHover }
+            ToolTip.visible: statusHover.hovered && truncated
+            ToolTip.text: text
+            ToolTip.delay: 400
         }
         FbLabel {
             objectName: "tileAdded"
@@ -167,6 +179,27 @@ Item {
         }
     }
 
+    // Keyboard (R-P4): Tab reaches the tile, Enter/Space selects it; the focus ring is drawn around the cover.
+    activeFocusOnTab: true
+    Accessible.role: Accessible.Button
+    Accessible.name: tile.title + ", " + tile.tileText
+    Accessible.onPressAction: tile.clicked()
+    Keys.onPressed: (event) => {
+        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+            tile.clicked()
+            event.accepted = true
+        }
+    }
+    Rectangle {
+        objectName: "tileFocusRing"
+        visible: tile.activeFocus
+        anchors.fill: cover
+        anchors.margins: -5
+        radius: Theme.radius10 + 2
+        color: "transparent"
+        border.width: 2
+        border.color: Theme.text
+    }
     HoverHandler { id: hover; cursorShape: Qt.PointingHandCursor }
     TapHandler {
         onTapped: tile.clicked()

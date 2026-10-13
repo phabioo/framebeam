@@ -181,7 +181,7 @@ void LocalHubController::loadStatus(bool forPairingForm) {
       active_ = false;
       setPhase(QStringLiteral("error"),
                why == QLatin1String("not_local") ? friendly(why, {})
-                                                 : tr("This Hub cannot be set up from the Player. Update FrameBeam Hub or add it as a normal hub."));
+                                                 : tr("This Hub cannot be set up from the Player. Update FrameBeam Hub or add it as a normal Hub."));
       return;
     }
     applyStatus(st);

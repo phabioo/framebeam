@@ -140,14 +140,17 @@ ColumnLayout {
         Layout.fillWidth: true
         Layout.leftMargin: Theme.settingsDotSlot
         Layout.rightMargin: root.endMargin
-        implicitHeight: 52
+        implicitHeight: Math.max(52, emptyText.implicitHeight + 28)
         radius: Theme.radius10
         color: "transparent"
         border.width: 1
         border.color: Theme.borderButton
-        Rectangle { anchors.fill: parent; anchors.margins: 0; radius: parent.radius; color: "transparent"; border.width: 0 }
         FbLabel {
+            id: emptyText
             anchors.centerIn: parent
+            width: parent.width - 32
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.WordWrap
             text: qsTr("No folders yet. Add a folder that contains your game files.")
             font.pixelSize: Theme.fontSmall
             color: Theme.textFaint

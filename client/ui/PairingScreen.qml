@@ -19,6 +19,17 @@ Rectangle {
     readonly property bool canChoose: !root.localForm && (root.phase === "needsPairing" || root.phase === "denied" || root.phase === "expired")
     color: Theme.bg
 
+    // Esc leaves the step like the Cancel / Back button of the phase (R-P4).
+    Shortcut {
+        sequence: "Esc"
+        enabled: root.visible
+        onActivated: {
+            if (root.phase === "awaiting") root.player.cancelPairing()
+            else if (root.phase === "trust") root.player.rejectTrust()
+            else root.player.leavePairing()
+        }
+    }
+
     Flickable {
         id: flick
         anchors.fill: parent
@@ -46,7 +57,7 @@ Rectangle {
                 FbLabel {
                     objectName: "pairingTitle"
                     // A known Hub that lost its pairing says "Pair again" (P2); a new address is "Add hub".
-                    text: root.localForm ? qsTr("Hub on this PC") : (root.pairAgain ? qsTr("Pair again") : qsTr("Add hub"))
+                    text: root.localForm ? qsTr("Hub on this PC") : (root.pairAgain ? qsTr("Pair again") : qsTr("Add Hub"))
                     font.pixelSize: Theme.fontHero
                     font.weight: Font.DemiBold
                     font.letterSpacing: -0.6
@@ -69,7 +80,7 @@ Rectangle {
             StepCard {
                 Layout.fillWidth: true
                 objectName: "stepHub"
-                title: root.info.hubKnown ? qsTr("Hub detected") : qsTr("Searching for hub…")
+                title: root.info.hubKnown ? qsTr("Hub detected") : qsTr("Searching for Hub…")
                 stage: root.info.hubKnown ? "done" : "active"
                 FbMono {
                     visible: root.info.hubKnown
@@ -102,7 +113,7 @@ Rectangle {
                 FbLabel {
                     visible: root.phase === "trust"
                     Layout.fillWidth: true
-                    text: qsTr("SHA-256 fingerprint of the hub certificate. Compare it with the one shown in the hub and trust it only if both match. If the certificate changes later, the connection is blocked.")
+                    text: qsTr("SHA-256 fingerprint of the Hub certificate. Compare it with the one shown in the Hub and trust it only if both match. If the certificate changes later, the connection is blocked.")
                     color: Theme.textMuted
                     font.pixelSize: Theme.fontMeta
                     wrapMode: Text.WordWrap
@@ -128,7 +139,7 @@ Rectangle {
                     visible: root.phase !== "trust" && root.info.hubKnown
                     Layout.fillWidth: true
                     text: root.info.tls ? qsTr("Saved. If the certificate changes later, the connection is blocked.")
-                                        : qsTr("Development only: this hub is contacted without TLS, so there is no fingerprint.")
+                                        : qsTr("Development only: this Hub is contacted without TLS, so there is no fingerprint.")
                     color: Theme.textMuted
                     font.pixelSize: Theme.fontMeta
                     wrapMode: Text.WordWrap
@@ -215,7 +226,7 @@ Rectangle {
                         }
                         FbLabel {
                             visible: root.phase === "awaiting"
-                            text: qsTr("The request appears in the hub under Clients.")
+                            text: qsTr("The request appears in the Hub under Clients.")
                             color: Theme.textMuted
                             font.pixelSize: Theme.fontMeta
                         }
@@ -225,7 +236,7 @@ Rectangle {
                 FbLabel {
                     visible: root.phase === "needsPairing" && !root.inviteMode && !root.localForm
                     Layout.fillWidth: true
-                    text: qsTr("This device is not yet approved on the hub. The hub admin must confirm the request.")
+                    text: qsTr("This device is not yet approved on the Hub. The Hub admin must confirm the request.")
                     color: Theme.textMuted
                     font.pixelSize: Theme.fontMeta
                     wrapMode: Text.WordWrap

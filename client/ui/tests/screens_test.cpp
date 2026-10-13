@@ -133,6 +133,22 @@ class ScreensTest : public QObject {
     const QVariantMap idle = h.controller->hubs().at(0).toMap();
     QCOMPARE(idle.value(QStringLiteral("status")).toString(), QStringLiteral("idle"));
     QVERIFY(idle.value(QStringLiteral("isLast")).toBool());
+    // R-P2: a saved Hub in the idle state is a full-width card with its name and a Connect button with a label.
+    {
+      QTRY_COMPARE(screenOf(h), QStringLiteral("connection"));
+      emit h.controller->hubsChanged();  // the profiles were written to the store directly: refresh the cards
+      QTRY_VERIFY2(h.item("hubCard_hub-home") != nullptr, qPrintable(QStringLiteral("hubConnectButton items: %1, hubCardName: %2").arg(h.items("hubConnectButton").size()).arg(h.items("hubCardName").size())));
+      QQuickItem* card = h.item("hubCard_hub-home");
+      QQuickTest::qWaitForPolish(h.window);
+      QVERIFY2(card->width() >= 400, qPrintable(QStringLiteral("card width %1").arg(card->width())));
+      QVERIFY(card->height() >= 90);
+      QQuickItem* name = Harness::findVisual(card, QStringLiteral("hubCardName"));
+      QVERIFY(name != nullptr && name->isVisible() && name->width() > 40);
+      QQuickItem* connect = Harness::findVisual(card, QStringLiteral("hubConnectButton"));
+      QVERIFY(connect != nullptr && connect->isVisible());
+      QVERIFY2(connect->width() >= 70, qPrintable(QStringLiteral("Connect button width %1").arg(connect->width())));
+      uitest::saveShot(h.window, QStringLiteral("3a-connection-idle-card"));
+    }
 
     // Certificate changed: blocked, no Connect action, both fingerprints present.
     h.controller->connectProfile(QStringLiteral("hub-lena"));
@@ -348,6 +364,28 @@ class ScreensTest : public QObject {
     g = h.controller->selectedGame();
     QCOMPARE(g.value(QStringLiteral("title")).toString(), QStringLiteral("Paper Wizards"));
     QCOMPARE(g.value(QStringLiteral("romText")).toString(), QStringLiteral("Download needed · 128 MB"));
+    // R-P1: the status rows of a game that is not downloaded stay compact (a 1 px wide wrapped value once made them 300 px high).
+    QTRY_VERIFY(h.items("detailRowValue").size() >= 3);
+    QTRY_VERIFY(([&h]() {
+      const QList<QQuickItem*> values = h.items("detailRowValue");
+      for (QQuickItem* v : values) {
+        if (!v->isVisible()) continue;
+        QQuickItem* row = v->parentItem()->parentItem()->parentItem();  // label -> RowLayout -> rowCol -> row
+        if (row->height() > 110 || v->height() > 70) return false;
+      }
+      return true;
+    })());
+    // R-P13: the START step names the state ("Core missing"), not "Core ready"; the same wording as the Core row.
+    {
+      const QVariantList chk = g.value(QStringLiteral("checklist")).toList();
+      bool found = false;
+      for (const QVariant& c : chk) {
+        const QString label = c.toMap().value(QStringLiteral("label")).toString();
+        QVERIFY2(label != QLatin1String("Core ready"), "core step claims ready while the core is missing");
+        found = found || label == QLatin1String("Core missing");
+      }
+      QVERIFY(found);
+    }
     h.controller->selectGame(QStringLiteral("g1"));
     lib->setFilterText(QStringLiteral("ts"));  // Stylus Knights
     QCOMPARE(lib->rowCount(), 1);
@@ -382,12 +420,55 @@ class ScreensTest : public QObject {
     QVERIFY(h.item("searchField") != nullptr);
     uitest::saveShot(h.window, QStringLiteral("3c-library"));
 
+    // R-P4: chips, tiles and sidebar entries are Tab stops and work with Enter / Space.
+    {
+      QQuickItem* chip = h.item("filterDownload");
+      QVERIFY(chip != nullptr && chip->activeFocusOnTab());
+      chip->forceActiveFocus();
+      QTest::keyClick(h.window, Qt::Key_Space);
+      QCOMPARE(lib->filter(), QStringLiteral("download"));
+      QVERIFY(Harness::findVisual(chip, QStringLiteral("focusRing"))->isVisible());
+      QQuickItem* all = h.item("filterAll");
+      all->forceActiveFocus();
+      QTest::keyClick(h.window, Qt::Key_Return);
+      QCOMPARE(lib->filter(), QStringLiteral("all"));
+
+      QTRY_VERIFY(h.item("gameTile_g3") != nullptr);
+      QQuickItem* tile = h.item("gameTile_g3");
+      QVERIFY(tile->activeFocusOnTab());
+      tile->forceActiveFocus();
+      QTest::keyClick(h.window, Qt::Key_Return);
+      QCOMPARE(h.controller->selectedGameId(), QStringLiteral("g3"));
+      QVERIFY(h.item("tileFocusRing")->isVisible());
+
+      QQuickItem* nav = h.item("navSettings");
+      QVERIFY(nav != nullptr && nav->activeFocusOnTab());
+      nav->forceActiveFocus();
+      QTest::keyClick(h.window, Qt::Key_Return);
+      QTRY_COMPARE(screenOf(h), QStringLiteral("settings"));
+      QQuickItem* back = h.item("navLibrary");
+      QVERIFY(back != nullptr && back->activeFocusOnTab());
+      back->forceActiveFocus();
+      QTest::keyClick(h.window, Qt::Key_Space);
+      QTRY_COMPARE(screenOf(h), QStringLiteral("library"));
+    }
+
     // Switch hub = disconnect and back to 3a.
     QVERIFY(h.click("switchHubButton"));
     QTRY_COMPARE(screenOf(h), QStringLiteral("connection"));
     QCOMPARE(lib->totalCount(), 0);
     QCOMPARE(h.controller->hubs().size(), 1);
     QVERIFY(h.controller->hubs().at(0).toMap().value(QStringLiteral("saved")).toBool());
+    // R-P2: the saved Hub card, created while the Library was shown, is a full-width card with name and a labelled Connect button.
+    QTRY_VERIFY(h.item("hubCard_hub-home") != nullptr);
+    {
+      QQuickItem* card = h.item("hubCard_hub-home");
+      QTRY_VERIFY2(card->width() >= 400, qPrintable(QStringLiteral("card width %1").arg(card->width())));
+      QQuickItem* name = Harness::findVisual(card, QStringLiteral("hubCardName"));
+      QVERIFY(name != nullptr && name->width() > 40);
+      QQuickItem* connect = Harness::findVisual(card, QStringLiteral("hubConnectButton"));
+      QVERIFY(connect != nullptr && connect->width() >= 70);
+    }
   }
 
   void autoConnectIsProfileSetting() {
