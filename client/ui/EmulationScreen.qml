@@ -128,7 +128,7 @@ Rectangle {
                     FbLabel {
                         objectName: "gameOverridesChanged"
                         visible: root.emu.gameOverrideCount > 0
-                        text: qsTr("%n game(s)", "", root.emu.gameOverrideCount)
+                        text: Theme.plural(root.emu.gameOverrideCount, qsTr("game"), qsTr("games"))
                         font.pixelSize: Theme.fontMono
                         color: Theme.accent
                     }
@@ -164,9 +164,15 @@ Rectangle {
                 width: Math.min(Theme.contentMaxWidth, flick.width - 72)   // grows with the window; descriptions are capped per row (SettingsRow)
                 spacing: 20
 
-                RowLayout {
+                // Title first: below 700 the search field moves under the title instead of squeezing it ("Nin…", R-P9).
+                GridLayout {
+                    id: headRow
+                    objectName: "emulationHeadRow"
+                    readonly property bool stacked: content.width < 700
                     Layout.fillWidth: true
-                    spacing: Theme.space16
+                    columns: stacked ? 1 : 2
+                    columnSpacing: Theme.space16
+                    rowSpacing: Theme.space12
                     ColumnLayout {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
@@ -200,7 +206,8 @@ Rectangle {
                     }
                     FbField {
                         objectName: "emulationSearch"
-                        Layout.preferredWidth: 260
+                        Layout.fillWidth: headRow.stacked
+                        Layout.preferredWidth: headRow.stacked ? -1 : 260
                         Layout.minimumWidth: 120
                         implicitHeight: 36
                         Layout.alignment: Qt.AlignTop
@@ -498,7 +505,8 @@ Rectangle {
                     visible: !root.emu.defaultsSelected && root.emu.lockedCount > 0
                     objectName: "lockedHint"
                     Layout.fillWidth: true
-                    text: qsTr("%n option(s) of the core are controlled by FrameBeam (render mode, screen layout, on-screen display, firmware) and are not shown.", "", root.emu.lockedCount)
+                    text: (root.emu.lockedCount === 1 ? qsTr("1 option of the core is controlled by FrameBeam (render mode, screen layout, on-screen display, firmware) and is not shown.")
+                                                : qsTr("%1 options of the core are controlled by FrameBeam (render mode, screen layout, on-screen display, firmware) and are not shown.").arg(root.emu.lockedCount))
                     color: Theme.textFaint
                     font.pixelSize: Theme.fontMeta
                     wrapMode: Text.WordWrap

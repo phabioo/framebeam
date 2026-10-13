@@ -1072,6 +1072,11 @@ class EmulationControllersTest : public QObject {
 
     // Input test: live tiles and the merged joypad mask of the running game path.
     QVERIFY(h.item("testTile_a") != nullptr);
+    QVERIFY(h.item("testTile_a")->isVisible());
+    // The input test draws only the buttons the viewed system has: the DS has L / R but no ZL / ZR (R-P15).
+    QVERIFY(h.item("testTile_l") != nullptr && h.item("testTile_l")->isVisible());
+    QVERIFY(h.item("testTile_zl") != nullptr && !h.item("testTile_zl")->isVisible());
+    QVERIFY(h.item("testTile_zr") != nullptr && !h.item("testTile_zr")->isVisible());
     QVERIFY(!h.item("testTile_a")->property("active").toBool());
     pad.button(East, true);
     c->gamepads()->poll();

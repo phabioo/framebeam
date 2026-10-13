@@ -565,7 +565,7 @@ Rectangle {
                                 return v === "invite_only" ? qsTr("Only invited users can watch. They send no input and cannot invite others.")
                                                            : qsTr("Everyone on %1 can watch. Viewers send no input.").arg(root.hubWord)
                             if (v === "private") return qsTr("Only you can see this game. Choose Hub users or Invite only, then share.")
-                            return v === "hub_users" ? qsTr("Not shared yet. Share to let hub users watch.") : qsTr("Not shared yet. Share to let invited users watch.")
+                            return v === "hub_users" ? qsTr("Not shared yet. Share to let Hub users watch.") : qsTr("Not shared yet. Share to let invited users watch.")
                         }
                     }
                     FbButton {
@@ -746,7 +746,7 @@ Rectangle {
                             implicitHeight: 34
                             font.family: Qt.application.font.family
                             color: Theme.gameText
-                            placeholderText: qsTr("+ Invite a hub user…")
+                            placeholderText: qsTr("+ Invite a Hub user…")
                             background: Rectangle {
                                 radius: 7
                                 color: "transparent"
@@ -865,7 +865,7 @@ Rectangle {
                         FbLabel {
                             Layout.minimumWidth: 0
                             elide: Text.ElideRight
-                            text: qsTr("✓ synced to hub")
+                            text: qsTr("✓ synced to Hub")
                             font.pixelSize: 12
                             color: Theme.gameOk
                         }

@@ -24,6 +24,7 @@ Rectangle {
     // Multiview: tab "multiview" with a game of your own or several surfaces; one remote Session alone is "watching".
     readonly property bool multi: ctl.tab !== "session" && (own || ctl.surfaceCount > 1)
     readonly property bool narrow: width < 1100
+    readonly property bool segmentFocused: viewSegment.activeFocus || modeSegment.activeFocus
     readonly property var layouts: session.active ? session.screenLayouts : (ctl.watching ? ["stacked", "side", "top"] : [])
     readonly property Item resetAnchor: resetButton
     readonly property Item speedAnchor: speedSplit
@@ -59,7 +60,9 @@ Rectangle {
     function applyFit() {
         const titleW = multiTitle.implicitWidth + 10
         const labelW = yourGame.implicitWidth + 20
-        const need = headerRow.implicitWidth + (multiTitle.visible ? 0 : titleW) + (yourGame.visible ? 0 : labelW)
+        // The game title and the share pill that stand in for them (narrow Multiview headers) are not part of the preferred width: they elide / sit in the space the context zone has.
+        const extras = (multiGameTitle.visible ? multiGameTitle.Layout.preferredWidth + headerContext.spacing : 0) + (multiSharePill.visible ? multiSharePill.implicitWidth + headerContext.spacing : 0)
+        const need = headerRow.implicitWidth - extras + (multiTitle.visible ? 0 : titleW) + (yourGame.visible ? 0 : labelW)
         if (!root.forceCompact) {
             root.wideNeed = need - titleW - labelW - headerContext.implicitWidth + (modeSegment.visible ? modeSegment.implicitWidth : 0)   // the context zone can shrink to its mode switch; measured only at regular widths, so the decision cannot flap
         }
@@ -116,7 +119,9 @@ Rectangle {
             Layout.fillWidth: true
             // Never narrower than the Multiview mode switch (regular, non-compact windows): when even the collapsed header does not fit (very wide
             // fallback fonts), the right-hand zones run past the window edge instead of covering this switch.
-            Layout.minimumWidth: modeSegment.visible ? Math.min(modeSegment.implicitWidth, root.compact ? 90 : 360) : 0
+            // The share pill of a narrow Multiview header stays whole next to the (elided) game title.
+            Layout.minimumWidth: Math.max(modeSegment.visible ? Math.min(modeSegment.implicitWidth, root.compact ? 90 : 360) : 0,
+                                          multiSharePill.visible ? 100 : 0)
             spacing: 10
             // Session: title + share pill
             FbLabel {
@@ -160,7 +165,33 @@ Rectangle {
                 on: root.watchLink ? root.watchLink.tone === "ok" : false
                 text: root.watchLink ? root.watchLink.text : ""
             }
-            // Multiview: title + mode
+            // Multiview: title + mode. When the "Multiview" title and the "YOUR GAME" label give way (narrow windows, wide fonts) the
+            // header keeps the game name (elided) and the sharing pill (R-P5); watching only: the "Multiview" title.
+            FbLabel {
+                id: multiGameTitle
+                objectName: "multiGameTitle"
+                visible: root.multi && !multiTitle.visible
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                Layout.preferredWidth: Math.min(implicitWidth, 120)
+                Layout.maximumWidth: Math.min(implicitWidth, root.tight ? 160 : 240)
+                elide: Text.ElideRight
+                text: root.own ? root.session.title : qsTr("Multiview")
+                color: Theme.gameText
+                font.pixelSize: 15
+                font.weight: Font.DemiBold
+            }
+            SharePill {
+                id: multiSharePill
+                objectName: "multiSharePill"
+                visible: root.multi && root.own && !yourGame.visible
+                // fillWidth + maximumWidth = preferred: never grows, shrinks (its text elides) before the header overflows
+                Layout.fillWidth: true
+                Layout.preferredWidth: implicitWidth
+                Layout.maximumWidth: implicitWidth
+                on: root.ctl.shared
+                text: root.shareText
+            }
             FbLabel {
                 id: multiTitle
                 objectName: "multiviewTitle"
@@ -186,7 +217,8 @@ Rectangle {
                 options: root.ctl.availableLayouts.map(function (m) {
                     return m === "pip" ? { value: "pip", label: qsTr("PiP"), name: "modePip" }
                          : m === "row" ? { value: "row", label: qsTr("Row"), name: "modeRow" }
-                         : { value: "grid", label: root.ctl.gridAvailable ? qsTr("Grid 2×2") : qsTr("Grid 2×2 · from 4"), name: "modeGrid", disabled: !root.ctl.gridAvailable }
+                         : { value: "grid", label: root.tight ? (root.ctl.gridAvailable ? qsTr("Grid") : qsTr("Grid · from 4"))   // compact: shorter labels before the segment shrinks to "P…"
+                                  : (root.ctl.gridAvailable ? qsTr("Grid 2×2") : qsTr("Grid 2×2 · from 4")), name: "modeGrid", disabled: !root.ctl.gridAvailable }
                 })
                 onPicked: (v) => root.ctl.multiviewMode = v
             }
@@ -298,6 +330,7 @@ Rectangle {
         // 4 View
         Rectangle { visible: root.own || addButton.visible; Layout.preferredWidth: 1; Layout.preferredHeight: 20; color: Theme.gameDivider }
         GameSegment {
+            id: viewSegment
             objectName: "viewSegment"
             visible: root.own
             // fillWidth + maximumWidth = preferred: never grows, but may shrink (a non-fill item is never shrunk by the layout)

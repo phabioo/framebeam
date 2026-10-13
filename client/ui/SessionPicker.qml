@@ -39,11 +39,8 @@ ColumnLayout {
         }
         FbMono {
             objectName: "multiviewListCount"
-            // fillWidth + maximumWidth = preferred: never grows, may shrink (elides) so a wide font cannot push the picker wider than its popover
-            Layout.fillWidth: true
-            Layout.preferredWidth: implicitWidth
-            Layout.maximumWidth: implicitWidth
-            elide: Text.ElideRight
+            // The counter keeps its full width; the "Running sessions" title (fillWidth, elides) gives way first (R-P8)
+            Layout.minimumWidth: implicitWidth
             text: qsTr("%1 of %2 tiles").arg(root.count).arg(root.ctl.maxSurfaces)
             font.pixelSize: 11
             color: Theme.gameMeta

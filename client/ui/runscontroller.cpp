@@ -1,6 +1,7 @@
 #include "runscontroller.h"
 #include "timeformat.h"
 
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QLocale>
 #include <QLoggingCategory>
@@ -125,6 +126,30 @@ QString RunsController::errorText(const RunResult& r, const QString& what) const
   return r.message.isEmpty() ? tr("%1 failed.").arg(what) : tr("%1: %2").arg(what, r.message);
 }
 
+namespace {
+QString capitalizedFirst(QString s) {
+  s = s.trimmed();
+  if (!s.isEmpty()) s[0] = s.at(0).toUpper();
+  return s;
+}
+
+QString invitedText(const QString& who, int n) {
+  // No translator is installed in the Player, so a "%n player(s)" plural would render literally: branch instead.
+  return n == 1 ? QCoreApplication::translate("RunsController", "%1 invited 1 player").arg(who)
+                : QCoreApplication::translate("RunsController", "%1 invited %2 players").arg(who).arg(n);
+}
+
+// Events the Player does not know (or whose payload is incomplete): readable text, never the raw lowercase type.
+QString fallbackEventText(const RunEvent& e) {
+  if (!e.text.trimmed().isEmpty()) return capitalizedFirst(e.text);
+  QString t = e.type;
+  const qsizetype dot = t.lastIndexOf(QLatin1Char('.'));
+  if (dot >= 0) t = t.mid(dot + 1);
+  t.replace(QLatin1Char('_'), QLatin1Char(' '));
+  return t.trimmed().isEmpty() ? QCoreApplication::translate("RunsController", "Run event") : capitalizedFirst(t);
+}
+}  // namespace
+
 QString RunsController::hubEventText(const RunEvent& e) const {
   // The actor is always named, like the Hub's run board ("Lena joined"), also for events without a user_name in the payload.
   QString who = e.payload.value(QStringLiteral("user_name")).toString();
@@ -137,7 +162,7 @@ QString RunsController::hubEventText(const RunEvent& e) const {
   if (e.type == QLatin1String("run.joined")) return tr("%1 joined").arg(who);
   if (e.type == QLatin1String("run.declined")) return tr("%1 declined the invite").arg(who);
   if (e.type == QLatin1String("run.left")) return tr("%1 left the run").arg(who);
-  if (e.type == QLatin1String("run.invited")) return tr("%1 invited %n player(s)", nullptr, static_cast<int>(e.payload.value(QStringLiteral("invited")).toArray().size())).arg(who);
+  if (e.type == QLatin1String("run.invited")) return invitedText(who, static_cast<int>(e.payload.value(QStringLiteral("invited")).toArray().size()));
   if (e.type == QLatin1String("run.status")) {
     const QString to = e.payload.value(QStringLiteral("status")).toString();
     QString by = e.payload.value(QStringLiteral("by_user_name")).toString();
@@ -147,7 +172,7 @@ QString RunsController::hubEventText(const RunEvent& e) const {
     if (to == QLatin1String("finished")) return tr("Run finished by %1").arg(by);
     if (to == QLatin1String("abandoned")) return tr("Run abandoned by %1").arg(by);
   }
-  return e.text.isEmpty() ? e.type : e.text;
+  return fallbackEventText(e);
 }
 
 // ------------------------------------------------------------------ rows
@@ -359,9 +384,9 @@ void RunsController::rebuildEvents() {
         source = tr("Hub");
         text = hubEventText(e);
       } else {
-        author = e.userName;
-        source = (e.source == QLatin1String("automatic") ? tr("automatic · %1's Player") : tr("manual · %1")).arg(e.userName);
-        if (text.isEmpty()) text = e.type;
+        author = e.userName.isEmpty() ? tr("Someone") : e.userName;
+        source = (e.source == QLatin1String("automatic") ? tr("automatic · %1's Player") : tr("manual · %1")).arg(author);
+        if (text.isEmpty()) text = fallbackEventText(e);
       }
       rows.append({{QStringLiteral("seq"), e.seq},
                    {QStringLiteral("timeText"), timeText(e.createdAt)},

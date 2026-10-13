@@ -76,7 +76,8 @@ Rectangle {
             if (root.fullscreen && root.enteredHere) root.setFullscreen(false)   // leaving the game view: the window goes back to where it was
         }
     }
-    onTabChanged: { root.popover = ""; Qt.callLater(focusLocal) }
+    // A tab picked with the keyboard (focus on a header segment) keeps the focus there; a mouse click hands it back to the game.
+    onTabChanged: { root.popover = ""; if (!header.segmentFocused) Qt.callLater(focusLocal) }
     onFullscreenChanged: root.popover = ""
 
     function setFullscreen(on) {

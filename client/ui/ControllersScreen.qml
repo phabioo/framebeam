@@ -9,6 +9,8 @@ Rectangle {
     readonly property var ctl: root.player.controllers
     readonly property var plugins: root.player.plugins
     readonly property bool isMouse: root.ctl.device.kind === "mouse"
+    // Inputs the viewed system has (the mapping rows): the input test draws only these cells (NDS: no ZL / ZR). Empty = no rows yet, draw all.
+    readonly property var testInputIds: root.ctl.rows.map(function (r) { return r.input })
     property bool renaming: false
     property bool confirmDelete: false
     property string tab: "buttons"  // "buttons" | "hotkeys" (hotkeys are global, independent of the selected device)
@@ -315,7 +317,7 @@ Rectangle {
                         Layout.fillWidth: true
                         Layout.preferredWidth: 1
                         Layout.minimumWidth: 0
-                        text: root.ctl.systemNote
+                        text: qsTr("Shows the mapping of this system. The game uses the mapping of its own system.") + " " + root.ctl.systemNote
                         color: Theme.textFaint
                         font.pixelSize: Theme.fontMeta
                         wrapMode: Text.WordWrap
@@ -718,8 +720,8 @@ Rectangle {
                                     FbMono {
                                         objectName: "pluginHotkeyCount_" + pgroup.modelData.pluginId
                                         text: pgroup.modelData.conflicts > 0
-                                              ? qsTr("%n key(s) · %1 conflict(s)", "", pgroup.modelData.count).arg(pgroup.modelData.conflicts)
-                                              : qsTr("%n key(s)", "", pgroup.modelData.count)
+                                              ? qsTr("%1 · %2").arg(Theme.plural(pgroup.modelData.count, qsTr("key"), qsTr("keys"))).arg(Theme.plural(pgroup.modelData.conflicts, qsTr("conflict"), qsTr("conflicts")))
+                                              : Theme.plural(pgroup.modelData.count, qsTr("key"), qsTr("keys"))
                                         color: pgroup.modelData.conflicts > 0 ? Theme.pluginWarn : Theme.textMuted
                                     }
                                 }
@@ -1191,6 +1193,7 @@ Rectangle {
                                 g: modelData.glyph
                                 square: modelData.square
                                 active: modelData.active
+                                visible: root.testInputIds.length === 0 || modelData.id === "" || root.testInputIds.indexOf(modelData.id) >= 0
                             }
                         }
                     }
