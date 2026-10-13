@@ -12,7 +12,7 @@
 #endif
 #include <windows.h>
 // After windows.h
-#include <d3d10.h>
+#include <d3d10_1.h>  // ID3D10Multithread; d3d10_1.h must come before any d3d10.h (SAL check in the Windows SDK)
 #include <d3d11.h>
 #include <d3d11_1.h>
 #include <dxgi.h>
