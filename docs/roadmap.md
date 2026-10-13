@@ -47,7 +47,7 @@ Phase plan: [workflow.md](workflow.md#phase-plan).
 | 0.12 | done in code | Local ROMs | Play ROMs from Player library folders with the usual save sync; games merge by identity (system, game code, version); local-only games are visible to their owners; optional resumable upload to the Hub (Player and web); no P2P ([ADR 0025](adr/0025-local-roms.md)). OpenAPI 1.17.0, `local_roms_v1`. |
 | 0.13 | done in code (real cores mGBA and Gambatte and real games verified only locally) | System template, GB/GBC/GBA | Systems are data: one JSON on the Hub, one manifest on the Player, optional core profile; [guide](guides/adding-a-system.md), [ADR 0024](adr/0024-system-template-and-game-boy.md). GB, GBC and GBA (mGBA, Gambatte) as the proof. |
 | 0.14 | done in code (real GPUs, cores and networks verified only locally) | UI gaps and Multiview | Round 3 design gaps closed in the Hub web and the Player; Multiview shows 2-3 Sessions in a Row, Grid 2x2 only from 4; Esc always pauses, F11 toggles fullscreen; viewers see "Paused by <name>" ([ADR 0026](adr/0026-ui-gaps-and-multiview.md), [fb-diag `state`](../protocol/datachannel.md)). |
-| 0.15 | planned | GPU paths | OpenGL to D3D11 bridge, zero-copy display, GPU-direct QSV and AMF. |
+| 0.15 | done in code (GPUs and drivers verified only locally) | GPU paths | OpenGL to D3D11 bridge, zero-copy game view on Windows without CPU readback, GPU-direct QSV and AMF; readback stays the fallback ([ADR 0027](adr/0027-gpu-paths.md)). |
 | 1.0 | planned | Test phase | Test evening(s) with friends (date open), then the SoulLink run in Pokémon Omega Ruby/Alpha Sapphire. |
 | after 1.0 | planned | Metadata and artwork, Linux Player | Central game metadata and boxart; FrameBeam Player on Linux. No macOS. |
 
@@ -166,8 +166,8 @@ See [ADR 0018](adr/0018-player-speed-up.md) (accepted).
 
 Follow-up to ADR 0013 D3 (requested 2026-10-08 after speed-up stutter at 8× internal resolution).
 
-- Open (0.15): show hardware-rendered frames in the game view straight from the GPU (shared texture or interop with the Qt Quick scene graph, D3D11 on Windows), without the CPU readback and QImage upload; readback only while the Session is shared.
-- Open (0.15): an OpenGL to D3D11 bridge (WGL_NV_DX_interop2) for the core's texture, shared with the QSV and AMF paths of "GPU-direct hardware encoding"; today's readback stays the fallback.
+- [x] Done (0.15, [ADR 0027](adr/0027-gpu-paths.md)): on Windows with Qt Quick on D3D11, hardware-rendered frames reach the game view through a ring of shared D3D11 textures, without CPU readback and QImage upload; readback runs only while a shared Session needs pixels (no GPU-direct encoding) or until the first GPU frame is shown. `FRAMEBEAM_DISABLE_ZERO_COPY=1` turns it off. Verified only locally on real GPUs.
+- [x] Done (0.15, ADR 0027): an OpenGL to D3D11 bridge (WGL_NV_DX_interop2) on our own D3D11 device, shared by the display and the QSV and AMF paths of "GPU-direct hardware encoding"; readback stays the fallback.
 - Picture quality is unchanged (the frame is still downscaled to the window); the gain is CPU time and about one frame of latency.
 
 ## 0.7.x GPU-direct hardware encoding (NVENC first)
@@ -175,7 +175,7 @@ Follow-up to ADR 0013 D3 (requested 2026-10-08 after speed-up stutter at 8× int
 Requested 2026-10-09. Today a shared Session reads the frame back, converts it to YUV on the CPU and uploads it again to NVENC/QSV/AMF.
 
 - [x] Done: NVIDIA first ([ADR 0019](adr/0019-gpu-direct-nvenc.md)): the core's OpenGL texture goes to NVENC through CUDA-GL interop and FFmpeg CUDA hardware frames (NVENC takes RGB and converts on the GPU); no readback or CPU conversion while sharing. Verified by Fabio on 2026-10-11 on an RTX 4080 SUPER (driver 617.42): expected log order, correct picture, all lifecycle cases including two viewers; encode about 1.8 ms per frame at 1280x1920 against 3.6 ms per frame for readback at 1024x1536. Every failure still falls back to readback frames.
-- Open (0.15): QSV and AMF via the OpenGL to D3D11 bridge from "Direct GPU display". Testers have unknown GPUs; Intel QSV via readback measured about 5-6 ms per frame on a tester's notebook (2026-10-11).
+- [x] Done (0.15, [ADR 0027](adr/0027-gpu-paths.md)): AMD `h264_amf` (BGRA D3D11 frames) and Intel `h264_qsv` (NV12 via the D3D11 video processor) via the OpenGL to D3D11 bridge from "Direct GPU display"; verified only locally. Testers have unknown GPUs; Intel QSV via readback measured about 5-6 ms per frame on a tester's notebook (2026-10-11).
 - Software encoders, cores without hardware rendering and failed interop keep today's readback path. Verifiable only on real GPUs (CI has none).
 
 ## 0.7.x Hotkeys and controller profiles
@@ -368,10 +368,10 @@ Design: Claude Design handoff "Round 3" (2026-10-12), imported in [design/](desi
 
 Decided by Fabio on 2026-10-11; moved from 0.13 to 0.15 on 2026-10-12. Testers have unknown GPUs; Intel QSV via readback measured about 5-6 ms per frame on a tester's notebook.
 
-- Open: OpenGL to D3D11 bridge (WGL_NV_DX_interop2).
-- Open: zero-copy display, see "0.7.x Direct GPU display (zero-copy)".
-- Open: GPU-direct QSV and AMF, see "0.7.x GPU-direct hardware encoding (NVENC first)". The readback path stays the fallback.
-- Verifiable only on real GPUs (CI has none).
+- [x] Done (0.15): OpenGL to D3D11 bridge (WGL_NV_DX_interop2).
+- [x] Done (0.15): zero-copy display, see "0.7.x Direct GPU display (zero-copy)".
+- [x] Done (0.15): GPU-direct QSV and AMF, see "0.7.x GPU-direct hardware encoding (NVENC first)". The readback path stays the fallback.
+- Decided in [ADR 0027](adr/0027-gpu-paths.md) (Proposed). Verifiable only on real GPUs (CI has none); the hardware checklist is in the ADR.
 
 ## 1.0 Test phase
 

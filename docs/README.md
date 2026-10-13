@@ -58,7 +58,8 @@ Start with the [root README](../README.md) for what FrameBeam is and a quick sta
   [0023 plugins](adr/0023-plugins.md),
   [0024 system template and Game Boy](adr/0024-system-template-and-game-boy.md),
   [0025 local ROMs](adr/0025-local-roms.md),
-  [0026 UI gaps and Multiview](adr/0026-ui-gaps-and-multiview.md)
+  [0026 UI gaps and Multiview](adr/0026-ui-gaps-and-multiview.md),
+  [0027 GPU paths](adr/0027-gpu-paths.md)
 
 ## Conventions
 

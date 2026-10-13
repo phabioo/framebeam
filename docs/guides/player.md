@@ -87,11 +87,14 @@ framebeam_player_cli <command> ...            # run without arguments for the us
 | `FRAMEBEAM_FORCE_RELAY=1` | Force the TURN relay for Sessions (testing; the CLI also has `--force-relay`) |
 | `FRAMEBEAM_DISABLE_HW_RENDER=1` | Force the software rendering path of cores |
 | `FRAMEBEAM_DISABLE_GPU_ENCODE=1` | Kill switch for GPU-direct encoding of shared Sessions ([ADR 0019](../adr/0019-gpu-direct-nvenc.md)); the Session encoder gets read-back frames |
+| `FRAMEBEAM_DISABLE_ZERO_COPY=1` | Kill switch for the zero-copy game view on Windows ([ADR 0027](../adr/0027-gpu-paths.md)); the game view uses read-back frames. It does not disable GPU-direct QSV and AMF |
 | `FRAMEBEAM_H264_ENCODER=<name>` | Force one H.264 encoder (for example `h264_nvenc` or `libx264`); keeps the readback path, also for `h264_nvenc`, so it serves as the baseline when comparing against GPU-direct |
 | `FRAMEBEAM_SYNC_READBACK=1` | Force synchronous readback of hardware-rendered frames instead of double-buffered PBOs ([ADR 0013](../adr/0013-opengl-hardware-rendering.md) D3) |
 | `FRAMEBEAM_PLAYER_UPDATE_INDEX_URL`, `FRAMEBEAM_PLAYER_TRUST_KEYS` | Update index URL and extra trusted keys for the update index only (tests); cores are not signed |
 | `FRAMEBEAM_MELONDS_DS_CORE`, `FRAMEBEAM_DESMUME_CORE` | Core path for tests (build time / tests only) |
 | `FRAMEBEAM_SCREENSHOT_DIR` | Output directory of the screenshot tests |
+
+Diagnostics (F3), 0.15: the Emulation Frame row shows a `zero-copy` part (`9.4 ms · emu 7.1 · zero-copy 0.2 (60/s)`) while the game view is drawn from the GPU, and a `readback` part only while readback runs. The Resolution row shows ` → shown W×H` for the zero-copy size instead of ` → read back W×H`. The host row ends with `· GPU-direct` for NVENC, AMF and QSV.
 
 ## Multiview (0.14)
 

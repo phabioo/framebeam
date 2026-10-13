@@ -26,13 +26,13 @@ Emulator (GL texture) ──→ readback (CPU) ──→ h264 encoder (any)     
         └──→ encode texture ──CUDA-GL──→ CUDA frame ──→ h264_nvenc         GPU-direct
 ```
 
-- Scope: NVIDIA only (CUDA-GL interop into FFmpeg CUDA frames). The player-side modules are the interface in `framebeam_emulation`, the CUDA producer in `framebeam_media` and the adapter in `framebeam_ui`; the Hub, the protocol and the viewer are unaffected.
+- Scope (ADR 0019): NVIDIA (CUDA-GL interop into FFmpeg CUDA frames). The player-side modules are the interface in `framebeam_emulation`, the CUDA producer in `framebeam_media` and the adapter in `framebeam_ui`; the Hub, the protocol and the viewer are unaffected.
 - Start: the CPU encoder starts as before. GPU-direct takes over only after `h264_nvenc` has encoded one CUDA frame; only then is the CPU encoder closed. Each encoder run therefore opens NVENC twice and sends two keyframes.
 - Allowed only for a hardware-rendered game with a running encoder, `h264_nvenc` in the probed encoders and FFmpeg CUDA input support. The kill switch `FRAMEBEAM_DISABLE_GPU_ENCODE=1` and a forced `FRAMEBEAM_H264_ENCODER` keep readback ([player guide](../guides/player.md)).
 - Size and timing: the encode texture is the frame fitted into 1280x1920 (the same cap as the readback share size), independent of the window. The copy runs on the emulation thread at the start of the next frame, so the latency equals the display path. The display readback remains, sized to the view.
 - Fallback: any GPU-path failure (interop, copy, GPU encoder open or encode, no GPU frame for 60 frames and 1 s) switches the rest of this Session to readback frames. It does not stop the Session, does not set the sticky encoder failure and shows no error. A fatal CUDA error also removes `h264_nvenc` from the CPU encoder order until the Player restarts. A software-rendered game, a missing driver or a non-NVIDIA GPU never creates the GPU path.
 - Diagnostics: the host line ends with ` · GPU-direct` or, after a failure, ` · readback (GPU-direct off)`; log lines and the Frame row `GPU copy` are listed in [ADR 0019](../adr/0019-gpu-direct-nvenc.md) D11.
-- Open: QSV and AMF (need an OpenGL to D3D11 bridge) and direct GPU display ([roadmap](../roadmap.md)). Verified only locally on real hardware.
+- Since 0.15 ([ADR 0027](../adr/0027-gpu-paths.md)): on Windows, AMD (`h264_amf`) and Intel (`h264_qsv`) take D3D11/QSV frames through an OpenGL to D3D11 bridge, and the local game view is drawn from shared D3D11 textures without readback (readback only while a shared Session needs pixels). NVIDIA stays on CUDA. Verified only locally on real hardware.
 
 Session sharing initially means the transmission of video and audio. Remote control, synchronized multiplayer emulation or NDS link/WLAN emulation are thus not promised.
 
