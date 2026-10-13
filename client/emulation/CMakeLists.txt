@@ -54,8 +54,17 @@ if(BUILD_TESTING)
   framebeam_add_test(emulation_memory_map tests/memory_map_test.cpp LIBS framebeam_emulation)
   framebeam_add_test(emulation_game_identity tests/game_identity_test.cpp LIBS framebeam_emulation)
 
+  # Test-only libretro MODULEs. They link no vcpkg DLLs, so skip vcpkg's z-applocal post-link step (it is attached in
+  # the toolchain's add_library override and read at call time, hence the function-local override). With it, Ninja
+  # runs one z-applocal per module in parallel on Windows and they race on the shared vcpkg bin directory ("The
+  # process cannot access the file because it is being used by another process"). No-op off Windows/vcpkg.
+  function(framebeam_add_test_module target)
+    set(VCPKG_APPLOCAL_DEPS OFF)
+    add_library(${target} MODULE ${ARGN})
+  endfunction()
+
   # Fake libretro core (SAVE_RAM only) for the save persistence tests.
-  add_library(framebeam_fake_core MODULE tests/fake_core.cpp)
+  framebeam_add_test_module(framebeam_fake_core tests/fake_core.cpp)
   target_include_directories(framebeam_fake_core PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
   set_target_properties(framebeam_fake_core PROPERTIES PREFIX "" OUTPUT_NAME framebeam_fake_core)
   framebeam_add_test(emulation_save_ram tests/save_ram_test.cpp LIBS framebeam_emulation)
@@ -69,7 +78,7 @@ if(BUILD_TESTING)
   # Fake cores for the probe tests: with and without SET_SUPPORT_NO_GAME (the latter crashes on retro_load_game(NULL)).
   foreach(variant IN ITEMS 0 1)
     set(tgt framebeam_fake_nogame_core_${variant})
-    add_library(${tgt} MODULE tests/fake_nogame_core.cpp)
+    framebeam_add_test_module(${tgt} tests/fake_nogame_core.cpp)
     target_include_directories(${tgt} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_compile_definitions(${tgt} PRIVATE FB_DECLARE_NO_GAME=${variant})
     set_target_properties(${tgt} PROPERTIES PREFIX "" OUTPUT_NAME ${tgt})
@@ -82,7 +91,7 @@ if(BUILD_TESTING)
 
   # Fake libretro core with OpenGL hardware rendering + test (needs QGuiApplication and a GL 3.3 context; SKIP/77
   # without one, except on Linux CI where it must run). Runs on the offscreen QPA with GLX (under xvfb) or EGL.
-  add_library(framebeam_fake_hw_core MODULE tests/fake_hw_core.cpp)
+  framebeam_add_test_module(framebeam_fake_hw_core tests/fake_hw_core.cpp)
   target_include_directories(framebeam_fake_hw_core PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
   set_target_properties(framebeam_fake_hw_core PROPERTIES PREFIX "" OUTPUT_NAME framebeam_fake_hw_core)
   framebeam_add_test(emulation_hw_render tests/hw_render_test.cpp LIBS framebeam_emulation Qt6::Gui)
@@ -92,7 +101,7 @@ if(BUILD_TESTING)
 
   # FrameBeam test core (libretro MODULE, test only: not installed, not packaged, not part of the Player). Merge-gating
   # replacement for the real emulator cores in the tests below; see tests/test_core.cpp.
-  add_library(framebeam_test_core MODULE tests/test_core.cpp)
+  framebeam_add_test_module(framebeam_test_core tests/test_core.cpp)
   target_include_directories(framebeam_test_core PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/tests ${FRAMEBEAM_TESTUTIL_DIR})
   set_target_properties(framebeam_test_core PROPERTIES PREFIX "" OUTPUT_NAME framebeam_test_core)
   framebeam_warnings(framebeam_test_core)
