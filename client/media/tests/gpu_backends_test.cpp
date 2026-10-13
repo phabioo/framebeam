@@ -210,8 +210,11 @@ class GpuBackendsTest : public QObject {
     QCOMPARE(D3d11EncodeCapture::alignedSize(1278, Kind::Amf), 1278);
   }
 
-#ifndef _WIN32
+  // Slots stay declared on every platform: moc does not see _WIN32, so an #ifdef around slots breaks the Windows build.
   void captureIsUnavailableOffWindows() {
+#ifdef _WIN32
+    QSKIP("Windows has the real capture");
+#else
     D3d11EncodeCapture capture;
     QCOMPARE(capture.attach(1, 256, 192), D3d11EncodeCapture::Status::Unavailable);
     QCOMPARE(capture.status(), D3d11EncodeCapture::Status::Unavailable);
@@ -220,17 +223,21 @@ class GpuBackendsTest : public QObject {
     QCOMPARE(capture.kind(), D3d11EncodeCapture::Kind::None);
     QVERIFY(!capture.capture());
     capture.detach(true);
+#endif
   }
 
   void bridgeWithoutTargetStaysUnavailableOffWindows() {
+#ifdef _WIN32
+    QSKIP("Windows has the real bridge");
+#else
     GlD3d11Bridge bridge;
     bridge.setAnyAdapter(true);
     QCOMPARE(bridge.open(), GlD3d11Bridge::Status::Unavailable);
     QCOMPARE(bridge.reason(), QStringLiteral("not Windows"));
     QVERIFY(!bridge.d3dDevice());
     QVERIFY(!bridge.gl());
-  }
 #endif
+  }
 };
 
 FB_TEST_MAIN(GpuBackendsTest)
