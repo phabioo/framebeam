@@ -275,9 +275,16 @@ Rectangle {
                         Rectangle {
                             objectName: "fastForwardIndicator"
                             visible: root.session.fastForward && !root.session.paused
+                            // With the fullscreen diagnostics overlay open (top left), sit directly below it, left edges aligned.
+                            readonly property bool belowDiag: diagnosticsOverlay.visible
+                            readonly property point diagBottomLeft: {
+                                void parent.width; void parent.height; void diagnosticsOverlay.height;
+                                return parent.mapFromItem(diagnosticsOverlay, 0, diagnosticsOverlay.height)
+                            }
                             anchors.top: parent.top
                             anchors.left: parent.left
-                            anchors.margins: 12
+                            anchors.topMargin: belowDiag ? diagBottomLeft.y + 8 : 12
+                            anchors.leftMargin: belowDiag ? diagBottomLeft.x : 12
                             width: ffLabel.implicitWidth + 20
                             height: ffLabel.implicitHeight + 10
                             radius: 6
@@ -436,6 +443,7 @@ Rectangle {
                 // Diagnostics overlay (3y): only in fullscreen, Emulation, top left. Windowed, the diagnostics are docked as a tab
                 // of the side panel (3h-3) so they never cover the game or the remote tiles.
                 DiagnosticsOverlay {
+                    id: diagnosticsOverlay
                     hotkey: root.hotkeyLabels.diagnostics
                     objectName: "diagnosticsOverlay"
                     x: 16

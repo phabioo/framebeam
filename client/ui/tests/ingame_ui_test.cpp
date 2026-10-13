@@ -830,6 +830,44 @@ class InGameUiTest : public QObject {
     diag->setOpen(false);
   }
 
+  // Fullscreen: the speed-up indicator never overlaps the diagnostics overlay (both top left); it sits below it.
+  void speedUpIndicatorDoesNotOverlapDiagnosticsOverlay() {
+    FakeHub hub(QStringLiteral("a"));
+    Harness h;
+    pair(hub, h, false);
+    startPreview(h, false);
+    GameSession* gs = h.controller->gameSession();
+    DiagnosticsModel* diag = h.controller->sessions()->diagnostics();
+    resize(h, 1440, 900);
+    QTest::keyClick(h.window, Qt::Key_F11);
+    QQuickTest::qWaitForPolish(h.window);
+    gs->setFastForward(true);
+    QTRY_VERIFY(shown(h, "fastForwardIndicator"));
+    const QRectF alone = rectOf(h, "fastForwardIndicator");
+    QVERIFY(!shown(h, "diagnosticsOverlay"));
+
+    diag->setOpen(true);
+    QTRY_VERIFY(shown(h, "diagnosticsOverlay") && shown(h, "fastForwardIndicator"));
+    QQuickTest::qWaitForPolish(h.window);
+    QRectF ov = rectOf(h, "diagnosticsOverlay"), ff = rectOf(h, "fastForwardIndicator");
+    QVERIFY2(!ov.intersects(ff), "speed-up indicator overlaps the diagnostics overlay");
+    QTRY_COMPARE(rectOf(h, "fastForwardIndicator").top(), rectOf(h, "diagnosticsOverlay").bottom() + 8.0);
+    QCOMPARE(rectOf(h, "fastForwardIndicator").left(), rectOf(h, "diagnosticsOverlay").left());
+
+    // The overlay's height changes when a section collapses: the indicator follows
+    diag->setEmulationOpen(false);
+    QQuickTest::qWaitForPolish(h.window);
+    QTRY_COMPARE(rectOf(h, "fastForwardIndicator").top(), rectOf(h, "diagnosticsOverlay").bottom() + 8.0);
+    QVERIFY(!rectOf(h, "diagnosticsOverlay").intersects(rectOf(h, "fastForwardIndicator")));
+    diag->setEmulationOpen(true);
+
+    diag->setOpen(false);
+    QTRY_VERIFY(!shown(h, "diagnosticsOverlay"));
+    QTRY_COMPARE(rectOf(h, "fastForwardIndicator").topLeft(), alone.topLeft());
+    gs->setFastForward(false);
+    QTest::keyClick(h.window, Qt::Key_F11);
+  }
+
   // ---- Multiview ----
 
   void multiviewHeaderTilesPanelAndPicker() {
