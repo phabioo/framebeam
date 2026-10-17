@@ -39,3 +39,19 @@ func TestFmtWhen(t *testing.T) {
 		t.Errorf("zero time: %q", w.Text)
 	}
 }
+
+func TestCoreNotes(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		notes []string
+		want  string
+	}{
+		{"firmware with md5 note", []string{"gba_bios.bin (Game Boy Advance BIOS)", "(!) gba_bios.bin (md5): a860e8c0b6d573d191e4ec7db1b1e4f6"}, "Firmware: gba_bios.bin (Game Boy Advance BIOS)"},
+		{"other (!) note kept", []string{"a.bin (A)", "b.bin (B)", "(!) a.bin (md5): a860e8c0b6d573d191e4ec7db1b1e4f6", "(!) Needs a GPU"}, "Firmware: a.bin (A), b.bin (B) · (!) Needs a GPU"},
+		{"none", nil, ""},
+	} {
+		if got := coreNotes(tc.notes); got != tc.want {
+			t.Errorf("%s: %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}

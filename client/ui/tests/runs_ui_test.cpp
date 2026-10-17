@@ -358,7 +358,7 @@ class RunsUiTest : public QObject {
     QVERIFY(h.start());
     pair(h, hub);
     QTRY_VERIFY_WITH_TIMEOUT(h.controller->runs()->loaded(), 8000);
-    QVERIFY(!h.controller->runs()->available());  // runs_v1, but no run, no invite and no run plugin
+    QVERIFY(!h.controller->runs()->available());  // runs_v1, but no invite and no installed run plugin from this Hub
     QVERIFY(h.item("navRuns") == nullptr || !h.item("navRuns")->isVisible());
   }
 
@@ -635,7 +635,13 @@ class RunsUiTest : public QObject {
     RunsController* runs = h.controller->runs();
     QTRY_VERIFY_WITH_TIMEOUT(runs->loaded(), 8000);
     QTRY_COMPARE_WITH_TIMEOUT(h.controller->plugins()->hubPlugins().size(), 3, 8000);
+    // A run the user is in does not show the entry on its own: it needs a run.state plugin from this Hub, installed here.
+    QVERIFY(!runs->available());
+    QSignalSpy availableSpy(runs, &RunsController::availableChanged);
+    h.controller->plugins()->installHubPlugin(QStringLiteral("net.test.plain"), QStringLiteral("1.0.0"));
     QTRY_VERIFY_WITH_TIMEOUT(runs->available(), 8000);
+    QTRY_VERIFY_WITH_TIMEOUT(availableSpy.count() >= 1, 8000);  // availableChanged follows the installed plugin
+    QVERIFY(h.controller->plugins()->hasRunPlugin());
     QVERIFY(h.click("navRuns"));
     QTRY_VERIFY(h.item("runsStartButton") != nullptr);
     QVERIFY(h.click("runsStartButton"));

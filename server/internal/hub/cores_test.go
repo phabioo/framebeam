@@ -624,3 +624,42 @@ func TestCoreAutoUpdateOneFailureDoesNotBlockOthers(t *testing.T) {
 		t.Fatalf("%+v", src)
 	}
 }
+
+// The buildbot replaced a nightly build in place after the last catalog check: the install refreshes the catalog once
+// and succeeds with the fresh CRC32.
+func TestInstallCoreStaleCatalogRefreshesAndRetries(t *testing.T) {
+	svc, bb := bbEnv(t, nil)
+	refresh(t, svc)
+	newLib := bytes.Repeat([]byte("replaced"), 40)
+	bb.ReplaceZipUnlisted("windows-x64", "desmume", hubtest.MakeZip(t, map[string][]byte{"desmume_libretro.dll": newLib}))
+	if _, err := svc.InstallCore(ctx, "nds", "desmume"); err != nil {
+		t.Fatalf("install after automatic refresh: %v", err)
+	}
+	if _, ids := installedIDs(t, svc); len(ids) != 1 {
+		t.Fatalf("%v", ids)
+	}
+	// Update path: a second replacement is picked up the same way.
+	for _, p := range []string{"linux-x64", "windows-x64"} {
+		suffix := map[string]string{"linux-x64": ".so", "windows-x64": ".dll"}[p]
+		bb.SetZip(p, "desmume", "2026-10-12", hubtest.MakeZip(t, map[string][]byte{"desmume_libretro" + suffix: append(newLib, 2)}))
+	}
+	refresh(t, svc)
+	bb.ReplaceZipUnlisted("windows-x64", "desmume", hubtest.MakeZip(t, map[string][]byte{"desmume_libretro.dll": append(newLib, 3)}))
+	if _, err := svc.UpdateCore(ctx, "nds", "desmume"); err != nil {
+		t.Fatalf("update after automatic refresh: %v", err)
+	}
+}
+
+// A mismatch that stays after the refresh gives a clear error and installs nothing.
+func TestInstallCorePersistentCRCMismatchExplains(t *testing.T) {
+	svc, bb := bbEnv(t, nil)
+	bb.SetCRC("windows-x64", "desmume", "deadbeef")
+	refresh(t, svc)
+	_, err := svc.InstallCore(ctx, "nds", "desmume")
+	if !errors.Is(err, hub.ErrBadRequest) || !strings.Contains(err.Error(), "CRC32 mismatch") || !strings.Contains(err.Error(), "does not match the buildbot index") {
+		t.Fatalf("err %v", err)
+	}
+	if _, ids := installedIDs(t, svc); len(ids) != 0 || len(cacheFiles(t, svc)) != 0 {
+		t.Fatalf("%v %v", ids, cacheFiles(t, svc))
+	}
+}

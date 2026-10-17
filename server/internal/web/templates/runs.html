@@ -16,6 +16,7 @@
     {{if or .Body.ArchivedCount .Body.ArchivedOn}}<a class="runs-archived" href="{{.Body.ArchivedURL}}">{{if .Body.ArchivedOn}}Hide archived{{else}}Show archived · {{.Body.ArchivedCount}}{{end}}</a>{{end}}
   </aside>
   <section class="runs-detail">
+    {{template "flash" .}}
     {{with .Body.Detail}}
     <div class="page-head">
       <div><h1>{{.Name}} <span class="pill lg {{.StatusClass}}">{{.StatusLabel}}</span></h1><p class="sub">{{.Subline}}</p></div>

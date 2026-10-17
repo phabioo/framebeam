@@ -178,6 +178,8 @@ func TestPluginSignedUploadWeb(t *testing.T) {
 
 func TestPluginRemoveWeb(t *testing.T) {
 	e, c, tok := pluginEnv(t, "")
+	// 1.0.0 is pinned by a run, so it is kept when 1.1.0 supersedes it.
+	e.svc.SetPluginInUseCheck(func(_ context.Context, _, v string) (bool, error) { return v == "1.0.0", nil })
 	for _, v := range []string{"1.0.0", "1.1.0"} {
 		st, err := e.svc.StagePluginUpload(bg, bytes.NewReader(hubtest.PluginZip(t, "net.example.rm", v, nil, nil)))
 		if err != nil {
@@ -192,7 +194,9 @@ func TestPluginRemoveWeb(t *testing.T) {
 	if !strings.Contains(body, "1.1.0") || strings.Index(body, "1.1.0") > strings.Index(body, "1.0.0") {
 		t.Fatal("version order")
 	}
-	e.svc.SetPluginInUseCheck(func(_ context.Context, _, v string) (bool, error) { return v == "1.0.0", nil })
+	if strings.Count(body, "Older version · kept while a run uses it") != 1 {
+		t.Fatal("older version help line")
+	}
 	rec := c.postForm("/plugins/net.example.rm/1.0.0/remove", url.Values{"_csrf": {tok}}, nil)
 	status(t, rec, http.StatusConflict)
 	contains(t, rec, "still going uses this plugin version")

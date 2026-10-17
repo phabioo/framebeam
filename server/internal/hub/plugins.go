@@ -297,7 +297,82 @@ func (s *Service) storePlugin(ctx context.Context, p *pluginpkg.Package, source,
 		return Plugin{}, false, internal(err)
 	}
 	pl, err := s.GetPlugin(ctx, m.ID, m.Version)
+	if err == nil {
+		// A newer version supersedes the older ones (those a run still uses stay until it ends). A deliberately
+		// uploaded older version is not the newest and removes nothing.
+		s.prunePluginLocked(ctx, m.ID, true, m.Version)
+	}
 	return pl, true, err
+}
+
+// prunePluginLocked removes the offered versions of a plugin id that are older than the newest offered version and
+// that no unfinished run uses. With onlyIfNewest set it does nothing unless version is the newest. Callers hold
+// plug.mu. Errors are ignored: pruning is housekeeping and retried at the next trigger.
+func (s *Service) prunePluginLocked(ctx context.Context, id string, onlyIfNewest bool, version string) {
+	rows, err := s.db.QueryContext(ctx, `SELECT version FROM plugins WHERE plugin_id = ?`, id)
+	if err != nil {
+		return
+	}
+	var vers []string
+	for rows.Next() {
+		var v string
+		if rows.Scan(&v) == nil {
+			vers = append(vers, v)
+		}
+	}
+	rows.Close()
+	newest := ""
+	for _, v := range vers {
+		if newest == "" || semverLess(newest, v) {
+			newest = v
+		}
+	}
+	if newest == "" || (onlyIfNewest && newest != version) {
+		return
+	}
+	for _, v := range vers {
+		if v == newest || !semverLess(v, newest) {
+			continue
+		}
+		if used, err := s.plug.inUse(ctx, id, v); err != nil || used {
+			continue
+		}
+		s.removePluginLocked(ctx, id, v)
+	}
+}
+
+// removePluginLocked deletes row and file of an offered version. Callers hold plug.mu.
+func (s *Service) removePluginLocked(ctx context.Context, id, version string) error {
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM plugins WHERE plugin_id = ? AND version = ?`, id, version); err != nil {
+		return internal(err)
+	}
+	if path, err := s.pluginPath(id, version); err == nil {
+		os.Remove(path)
+		os.Remove(filepath.Dir(path)) // only when empty
+	}
+	return nil
+}
+
+// PruneOldPlugins removes every offered plugin version that is older than the newest offered version of its id and
+// not used by an unfinished run. It runs at Hub start and after a run ends or is deleted.
+func (s *Service) PruneOldPlugins(ctx context.Context) {
+	s.plug.mu.Lock()
+	defer s.plug.mu.Unlock()
+	rows, err := s.db.QueryContext(ctx, `SELECT DISTINCT plugin_id FROM plugins`)
+	if err != nil {
+		return
+	}
+	var ids []string
+	for rows.Next() {
+		var id string
+		if rows.Scan(&id) == nil {
+			ids = append(ids, id)
+		}
+	}
+	rows.Close()
+	for _, id := range ids {
+		s.prunePluginLocked(ctx, id, false, "")
+	}
 }
 
 // RemovePlugin deletes an offered version (row and file). Players keep their copy. Refused with a conflict while a
@@ -316,14 +391,7 @@ func (s *Service) RemovePlugin(ctx context.Context, id, version string) error {
 	}
 	s.plug.mu.Lock()
 	defer s.plug.mu.Unlock()
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM plugins WHERE plugin_id = ? AND version = ?`, id, version); err != nil {
-		return internal(err)
-	}
-	if path, err := s.pluginPath(id, version); err == nil {
-		os.Remove(path)
-		os.Remove(filepath.Dir(path)) // only when empty
-	}
-	return nil
+	return s.removePluginLocked(ctx, id, version)
 }
 
 // ---- Admin upload: stage, review, offer ----

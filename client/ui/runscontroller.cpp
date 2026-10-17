@@ -56,7 +56,16 @@ RunsController::RunsController(RunClient* client, PluginsController* plugins, Hu
 }
 
 bool RunsController::available() const {
-  return client_ && client_->supported() && (plugins_->hasRunPlugin() || !client_->runs().isEmpty());
+  if (!client_ || !client_->supported()) return false;
+  if (plugins_->hasRunPlugin()) return true;
+  if (busy_) return true;  // joining / starting: the plugin copy is being fetched, the screen must not vanish under the user
+  // A pending invite keeps the entry so it can still be answered; runs the user is in do not.
+  const QString me = client_->myUserId();
+  for (const RunInfo& run : client_->runs()) {
+    const RunParticipant* mine = run.participant(me);
+    if (mine != nullptr && mine->status == QLatin1String("invited") && !run.isOver()) return true;
+  }
+  return false;
 }
 
 QString RunsController::unverifiedWarning() const {
@@ -415,6 +424,7 @@ void RunsController::setBusy(bool busy, const QString& text) {
   busy_ = busy;
   busyText_ = text;
   emit busyChanged();
+  scheduleRebuild();  // the entry follows busy_ (available())
 }
 
 // ------------------------------------------------------------------ opening a run

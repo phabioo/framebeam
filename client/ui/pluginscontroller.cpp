@@ -529,10 +529,16 @@ QVariantMap PluginsController::hubOffer(const QString& pluginId, const QString& 
 }
 
 bool PluginsController::hasRunPlugin() const {
+  const PluginHubClient* hub = hubClient();
+  if (hub == nullptr) return false;
+  QSet<QString> offered;  // ids the current Hub offers with run.state
+  for (const HubPluginInfo& p : hub->plugins())
+    if (p.permissions.contains(QStringLiteral("run.state"))) offered.insert(p.id);
+  if (offered.isEmpty()) return false;
   for (const plugins::PluginInfo& p : manager_->list())
-    if (p.manifest.hasPermission(QStringLiteral("run.state"))) return true;
+    if (offered.contains(p.manifest.id)) return true;
   for (const plugins::PluginInfo& p : manager_->hubCopies())
-    if (p.manifest.hasPermission(QStringLiteral("run.state"))) return true;
+    if (offered.contains(p.manifest.id)) return true;
   return false;
 }
 

@@ -256,7 +256,8 @@ func TestPluginIndexRefreshAndInstall(t *testing.T) {
 	if _, err := svc.InstallIndexPlugin(ctx, "net.example.idx", "1.1.0"); err != nil {
 		t.Fatal(err)
 	}
-	if ps, _ := svc.ListPlugins(ctx); len(ps) != 2 {
+	// The newer version supersedes the old one (nothing uses it).
+	if ps, _ := svc.ListPlugins(ctx); len(ps) != 1 || ps[0].Version != "1.1.0" {
 		t.Fatalf("%+v", ps)
 	}
 	if _, err := svc.InstallIndexPlugin(ctx, "net.example.idx", "9.9.9"); !errors.Is(err, hub.ErrNotFound) {

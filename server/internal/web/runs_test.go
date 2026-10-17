@@ -282,9 +282,31 @@ func TestRunsEmptyAndNav(t *testing.T) {
 	c.login()
 	rec := c.get("/runs", nil)
 	status(t, rec, 200)
-	contains(t, rec, "Runs · 0", "No runs yet", `class="active" aria-current="page" hx-get="/runs"`)
-	notContains(t, rec, "active</span>")
-	contains(t, c.get("/nav-fragment", map[string]string{"HX-Current-URL": "http://hub/runs/abc"}), `href="/runs" class="active"`)
+	contains(t, rec, "Runs · 0", "No runs yet")
+	// No plugin asks for run.state and there are no runs: no nav item (the route stays).
+	notContains(t, rec, `hx-push-url="true">Runs`, "active</span>")
+}
+
+func TestRunsNavShownWithRunStatePluginOrRuns(t *testing.T) {
+	t.Run("run.state plugin", func(t *testing.T) {
+		e := newEnvOpts(t, true, nil, func(o *hub.Options) { o.CoreTrustKeys = hubtest.PluginKeys() })
+		c := e.client()
+		c.login()
+		notContains(t, c.get("/library", nil), `hx-push-url="true">Runs`)
+		st, err := e.svc.StagePluginUpload(bg, bytes.NewReader(hubtest.PluginZip(t, "net.example.rs", "1.0.0", []string{"run.state"}, nil)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := e.svc.OfferStagedPlugin(bg, st.StageID, []string{"run.state"}, ""); err != nil {
+			t.Fatal(err)
+		}
+		contains(t, c.get("/library", nil), `hx-push-url="true">Runs`)
+		contains(t, c.get("/nav-fragment", map[string]string{"HX-Current-URL": "http://hub/runs/abc"}), `href="/runs" class="active"`)
+	})
+	t.Run("existing run", func(t *testing.T) {
+		f := newRunsFixture(t)
+		contains(t, f.c.get("/library", nil), `hx-push-url="true">Runs`)
+	})
 }
 
 // The renderer is plain JavaScript without a build step or a JS test setup; these checks pin its safety properties.
@@ -369,4 +391,57 @@ func TestRunsShowPluginDisplayNames(t *testing.T) {
 	rec = c.get("/runs/"+run.ID, nil)
 	contains(t, rec, "net.example.named 1.0.0")
 	notContains(t, rec, html.EscapeString(p.Name+" 1.0.0"))
+}
+
+// The flash is drawn inside the detail column (the runs grid is full-bleed), with and without a selected run.
+func TestRunsFlashInsideDetailColumn(t *testing.T) {
+	f := newRunsFixture(t)
+	for _, path := range []string{"/runs?ok=rundeleted", "/runs/" + f.run.ID + "?ok=runpaused"} {
+		body := f.c.get(path, nil).Body.String()
+		col := strings.Index(body, `<section class="runs-detail">`)
+		fl := strings.Index(body, `<div class="alert ok"`)
+		if col < 0 || fl < col || strings.Count(body, `<div class="alert ok"`) != 1 {
+			t.Fatalf("%s: column at %d, flash at %d", path, col, fl)
+		}
+	}
+}
+
+// Only plugins with run.state get a board section; required plugins without it stay in the subtitle.
+func TestRunsBoardSectionsOnlyForRunStatePlugins(t *testing.T) {
+	e := newEnvOpts(t, true, nil, func(o *hub.Options) { o.CoreTrustKeys = hubtest.PluginKeys() })
+	c := e.client()
+	c.login()
+	admin, err := e.svc.VerifyPassword(bg, "admin", "secret-12345")
+	if err != nil {
+		t.Fatal(err)
+	}
+	g, err := e.svc.AddROM(bg, bytes.NewReader([]byte("homebrew-dummy-rom")), "lumen.nds", "Lumen Drift", "", admin.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	offer := func(id string, perms []string) {
+		st, err := e.svc.StagePluginUpload(bg, bytes.NewReader(hubtest.PluginZip(t, id, "1.0.0", perms, nil)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := e.svc.OfferStagedPlugin(bg, st.StageID, perms, admin.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	offer("net.example.withstate", []string{"run.state"})
+	offer("net.example.corelib", nil)
+	run, err := e.svc.CreateRun(bg, hub.CreateRunInput{UserID: admin.ID, Name: "Boards", GameID: g.ID,
+		Plugins: []hub.RunPluginRef{{PluginID: "net.example.withstate", Version: "1.0.0"}, {PluginID: "net.example.corelib", Version: "1.0.0"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := c.get("/runs/"+run.ID, nil)
+	body := rec.Body.String()
+	if n := strings.Count(body, "No board yet"); n != 1 {
+		t.Fatalf("empty board placeholders: %d", n)
+	}
+	contains(t, rec, "Plugin net.example.withstate 1.0.0 &amp; Plugin net.example.corelib 1.0.0")
+	if strings.Count(body, "Plugin net.example.corelib") != 1 {
+		t.Fatal("library plugin appears outside the subtitle")
+	}
 }

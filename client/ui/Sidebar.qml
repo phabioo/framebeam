@@ -120,7 +120,7 @@ Rectangle {
                 model: [{ label: qsTr("Library"), name: "navLibrary", target: "library" }]
                 delegate: navComp
             }
-            // Runs (4j-2): shown when the Hub offers runs and an installed plugin asks for run.state; badge = open invites.
+            // Runs (4j-2): shown when the Hub offers runs and the Player has installed a run.state plugin from this Hub (or an invite is pending); badge = open invites.
             Rectangle {
                 id: runsItem
                 objectName: "navRuns"

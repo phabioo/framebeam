@@ -39,7 +39,7 @@ class RunsController : public QObject {
   QML_ELEMENT
   QML_UNCREATABLE("Provided by the PlayerController")
 
-  // The sidebar entry is shown: the Hub offers runs (runs_v1) and an installed plugin asks for run.state, or the user has a run or an invite.
+  // The sidebar entry is shown: the Hub offers runs (runs_v1) and the Player has installed a plugin with run.state that this Hub offers, or an invite is pending.
   Q_PROPERTY(bool available READ available NOTIFY availableChanged)
   Q_PROPERTY(int pendingInvites READ pendingInvites NOTIFY runsChanged)  // sidebar badge
   Q_PROPERTY(bool loaded READ loaded NOTIFY runsChanged)                 // the list from the Hub arrived

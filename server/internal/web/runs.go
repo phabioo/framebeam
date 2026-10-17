@@ -236,6 +236,7 @@ func (s *Server) renderRuns(w http.ResponseWriter, r *http.Request, sess *sessio
 		body.Detail = det
 	}
 	d := s.base(r, sess, "runs", "Runs")
+	d.InlineFlash = true // the flash is drawn inside the detail column, not above the full-bleed grid
 	d.Body = body
 	if isHX(r, "runs-view") {
 		d.Fragment = true
@@ -336,6 +337,11 @@ func (s *Server) runDetail(r *http.Request, run hub.Run, titles map[string]strin
 		byPlugin[b.PluginID] = b
 	}
 	for _, p := range run.Plugins {
+		// Only plugins that can publish a board (run.state) get a section; others stay in the subtitle. A version
+		// that is no longer offered keeps its section.
+		if op, err := s.svc.GetPlugin(ctx, p.PluginID, p.Version); err == nil && !slices.Contains(op.Permissions(), "run.state") {
+			continue
+		}
 		bv := boardView{Plugin: s.pluginLabel(ctx, p.PluginID, p.Version), Empty: true}
 		bv.Title = s.pluginName(ctx, p.PluginID, p.Version)
 		if b, ok := byPlugin[p.PluginID]; ok {
