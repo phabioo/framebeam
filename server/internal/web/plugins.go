@@ -16,12 +16,13 @@ import (
 
 // permissionLabels are the plain-language names of the plugin permissions (docs/design/plugins.md).
 var permissionLabels = map[string]string{
-	"memory.read":  "Read game memory",
-	"memory.write": "Change game memory",
-	"rom.read":     "Read the game file",
-	"ui":           "Show panels in game",
-	"run.state":    "Share run progress with your Hub",
-	"tool.exec":    "Run an external tool",
+	"memory.read":   "Read game memory",
+	"memory.write":  "Change game memory",
+	"rom.read":      "Read the game file",
+	"ui":            "Show panels in game",
+	"run.state":     "Share run progress with your Hub",
+	"tool.exec":     "Run an external tool",
+	"video.capture": "Capture the game picture",
 }
 
 type permView struct{ ID, Label string }
