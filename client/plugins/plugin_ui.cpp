@@ -645,6 +645,18 @@ int UiStore::addToast(const QString& id, QVariantMap toast) {
   return tid;
 }
 
+void UiStore::addOpenRequest(const QString& id, const QString& slot) {
+  std::lock_guard<std::mutex> l(m_mutex);
+  if (m_openRequests.size() >= 20) m_openRequests.removeFirst();
+  m_openRequests.append({id, slot});
+  dirty(id, QStringLiteral("@open"));
+}
+
+QList<QPair<QString, QString>> UiStore::takeOpenRequests() {
+  std::lock_guard<std::mutex> l(m_mutex);
+  return std::exchange(m_openRequests, {});
+}
+
 UiPluginState UiStore::state(const QString& id) const {
   std::lock_guard<std::mutex> l(m_mutex);
   return m_state.value(id);

@@ -45,6 +45,10 @@ Item {
 
     implicitWidth: 720
     implicitHeight: 440
+    clip: true   // nothing of the map or its controls is drawn outside the block
+    // Narrow side panel (280 to 340 px): short filter labels; the zoom buttons wrap below the filter when both do not fit.
+    readonly property bool compactBar: width < 340
+    readonly property bool wrapBar: width < filterBar.width + zoomBar.width + 30
 
     function clampPan() {
         const cw = iw * s, ch = ih * s
@@ -521,6 +525,7 @@ Item {
 
         // ---- controls
         PluginSegmented {
+            id: filterBar
             objectName: "pluginMapFilter"
             visible: root.imageSrc !== ""
             x: 10
@@ -528,15 +533,17 @@ Item {
             z: 30
             dark: root.dark
             implicitHeight: 32
-            node: ({options: [{value: "all", label: qsTr("All")}, {value: "me", label: qsTr("Only me")}, {value: "open", label: qsTr("Open routes")}],
+            node: ({options: [{value: "all", label: qsTr("All")}, {value: "me", label: root.compactBar ? qsTr("Me") : qsTr("Only me")}, {value: "open", label: root.compactBar ? qsTr("Open") : qsTr("Open routes")}],
                     selected: root.flt, action: "filter"})
             onAction: (a, v) => { root.localFilter = v; root.action(root.node.action || "", {kind: "filter", value: v}) }
         }
         Row {
+            id: zoomBar
+            objectName: "pluginMapZoomBar"
             visible: root.imageSrc !== ""
             anchors.right: parent.right
             anchors.rightMargin: 10
-            y: 10
+            y: root.wrapBar ? 10 + filterBar.height + 6 : 10
             z: 30
             spacing: 4
             Repeater {

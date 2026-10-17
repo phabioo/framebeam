@@ -392,6 +392,39 @@ class UiTest : public QObject {
     QVERIFY(m_host->takeToasts().isEmpty());
   }
 
+  void openRequests() {
+    PluginSpec s = spec(R"LUA(
+      fb.ui.open('panel')
+      local ok, err = pcall(fb.ui.open, 'hud')
+      fb.log.info('O1 ' .. tostring(err))
+      ok, err = pcall(fb.ui.open, 'detail')
+      fb.log.info('O2 ' .. tostring(err))
+      ok, err = pcall(fb.ui.open, 'screen')
+      fb.log.info('O3 ' .. tostring(ok))
+      fb.ui.open('screen')
+    )LUA");
+    s.ui = QJsonObject{{"panel", QJsonObject{{"title", "P"}}}, {"screen", QJsonObject{{"title", "S"}}}, {"hud", true}, {"detail", true}};
+    startSpec(s);
+    QTRY_VERIFY(hasLog(con(), "O3 "));
+    QVERIFY2(hasLog(con(), "O1 ") && hasLog(con(), "fb.ui.open only supports the slots screen and panel"), qPrintable(logJoined(con())));
+    QVERIFY(hasLog(con(), "O3 true"));
+    const auto reqs = m_host->takeOpenRequests();
+    QVERIFY2(reqs.size() >= 2, qPrintable(QString::number(reqs.size())));
+    QCOMPARE(reqs.at(0), qMakePair(QString(kId), QStringLiteral("panel")));
+    QCOMPARE(reqs.last().second, QStringLiteral("screen"));
+    QVERIFY(m_host->takeOpenRequests().isEmpty());
+
+    PluginSpec u = spec(R"LUA(
+      local ok, err = pcall(fb.ui.open, 'screen')
+      fb.log.info('U1 ' .. tostring(err))
+    )LUA");
+    u.ui = QJsonObject{{"panel", QJsonObject{{"title", "P"}}}};
+    startSpec(u);
+    QTRY_VERIFY(hasLog(con(), "U1 "));
+    QVERIFY(hasLog(con(), "slot screen not declared in manifest"));
+    QVERIFY(m_host->takeOpenRequests().isEmpty());
+  }
+
   void actionRoundTrip() {
     startSpec(spec(R"LUA(
       fb.ui.on_action(function(action, value, slot)

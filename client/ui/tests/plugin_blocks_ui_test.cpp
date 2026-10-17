@@ -147,6 +147,27 @@ const char* kMap = R"({
  "popover":[{"owner":1,"name":"Max","src":"cache:i/1.png","status":"Caught"},{"owner":2,"name":"Lena","status":"Not yet visited, very long status text that ellipsizes"}]
 })";
 
+// Narrow side panel (300 px page, 268 px block): nothing may extend past the block.
+const char* kNarrow = R"({
+ "type":"column","gap":8,"children":[
+  {"type":"row","gap":8,"children":[
+    {"type":"avatar","initial":"M","color":1},
+    {"type":"text","id":"longText","text":"A very long line of text that must wrap inside the row instead of running out of the narrow side panel of the game"}]},
+  {"type":"row","gap":8,"children":[
+    {"type":"text","id":"noWrap","wrap":false,"text":"Another very long line that is elided because wrapping is switched off for it"},
+    {"type":"badge","text":"3"}]},
+  {"type":"row","gap":8,"children":[
+    {"type":"stat","id":"longStat","label":"A rather long stat label that needs eliding","value":"12 / 40"},
+    {"type":"chip","text":"Chip"}]},
+  {"type":"tabs","id":"tabs","tabs":["Overview","Party","Boxes","Routes","Deaths","Graveyard","Rules","Log"],"selected":8,"action":"tab","children":[
+    {"type":"text","text":"1"},{"type":"text","text":"2"},{"type":"text","text":"3"},{"type":"text","text":"4"},
+    {"type":"text","text":"5"},{"type":"text","text":"6"},{"type":"text","text":"7"},{"type":"text","id":"lastTab","text":"Log page"}]},
+  {"type":"row","gap":8,"children":[
+    {"type":"image","id":"labelImg","src":"cache:icons/25.png","size":"m","label":"An image label that is much too long for this narrow width"}]},
+  {"type":"list","id":"theList","rows":[{"id":"r1","title":"A very long route title that has to be elided in the list","sub":"And a long subtitle just as well to be sure","meta":"a long meta text"}]},
+  {"type":"table","id":"theTable","columns":["Player name here","Deaths and more"],"rows":[{"cells":["Maximilian the long","12345678901234"]}]}
+ ]})";
+
 }  // namespace
 
 class PluginBlocksUiTest : public QObject {
@@ -318,6 +339,53 @@ class PluginBlocksUiTest : public QObject {
     QTest::keyClick(win_, Qt::Key_Return);
     QCOMPARE(spy.at(4).at(0).toString(), QStringLiteral("tf"));
     QCOMPARE(spy.at(4).at(1).toString(), QStringLiteral("abc"));
+  }
+
+  // Right edge of `it` in the coordinates of the block under test.
+  qreal rightIn(QQuickItem* it) const { return it->mapToItem(sheet_, QPointF(it->width(), 0)).x(); }
+
+  void narrowWidthStaysInside() {
+    show(json(kNarrow), true, 300);
+    const qreal w = sheet_->width();
+    QVERIFY2(qAbs(w - 268) < 1, qPrintable(QString::number(w)));
+    for (const char* n : {"plugin_longText", "plugin_noWrap", "plugin_longStat", "plugin_tabs", "pluginTabStrip", "plugin_labelImg", "plugin_theList", "plugin_theTable",
+                          "pluginListRow_0", "pluginTableRow_0"}) {
+      QQuickItem* it = mustFind(n);
+      QVERIFY2(it != nullptr, n);
+      QVERIFY2(rightIn(it) <= w + 0.5, qPrintable(QStringLiteral("%1 right=%2 of %3").arg(QLatin1String(n)).arg(rightIn(it)).arg(w)));
+    }
+    // The long text wraps (taller than one line) instead of running out of the row.
+    QVERIFY(mustFind("plugin_longText")->height() > 30);
+    // Tabs: the strip is narrower than its content, the selected last tab was scrolled into view.
+    QQuickItem* strip = mustFind("pluginTabStrip");
+    QVERIFY(strip->property("contentWidth").toReal() > strip->width());
+    QTRY_VERIFY(strip->property("contentX").toReal() > 0);
+    QQuickItem* last = mustFind("pluginTab_8");
+    const qreal lx = last->mapToItem(strip, QPointF(last->width(), 0)).x();
+    QVERIFY2(lx <= strip->width() + 1, qPrintable(QString::number(lx)));
+    // The label of the image block is elided.
+    QVERIFY(find("plugin_lastTab") != nullptr);
+    shot(QStringLiteral("plugin-blocks-narrow"));
+  }
+
+  void mapToolbarFitsNarrow() {
+    for (int width : {300, 280}) {
+      show(json(kMap), true, width);
+      sheet_->setHeight(440);
+      settle();
+      QQuickItem* filter = mustFind("pluginMapFilter");
+      QQuickItem* zoom = mustFind("pluginMapZoomBar");
+      QQuickItem* map = mustFind("pluginMapView")->parentItem();
+      QVERIFY(rightIn(filter) <= map->width() + 0.5);
+      QVERIFY(zoom->mapToItem(map, QPointF(zoom->width(), 0)).x() <= map->width() + 0.5);
+      QVERIFY(zoom->mapToItem(map, QPointF(0, 0)).x() >= -0.5);
+      // Filter and zoom controls never overlap: side by side or the zoom row below the filter.
+      const QRectF fr(filter->mapToItem(map, QPointF(0, 0)), QSizeF(filter->width(), filter->height()));
+      const QRectF zr(zoom->mapToItem(map, QPointF(0, 0)), QSizeF(zoom->width(), zoom->height()));
+      QVERIFY2(!fr.intersects(zr), qPrintable(QStringLiteral("overlap at width %1").arg(width)));
+      QVERIFY(mustFind("pluginMapView")->parentItem()->property("clip").toBool());
+      shot(QStringLiteral("plugin-map-narrow-%1").arg(width));
+    }
   }
 
   void mapSelectionFilterAndClusters() {

@@ -150,6 +150,8 @@ UiPluginState PluginHost::uiState(const QString& pluginId) const { return m_stor
 QVariantMap PluginHost::uiTree(const QString& pluginId, const QString& slot) const { return m_store->ui.tree(pluginId, slot); }
 QList<QVariantMap> PluginHost::takeToasts() { return m_store->ui.takeToasts(); }
 
+QList<QPair<QString, QString>> PluginHost::takeOpenRequests() { return m_store->ui.takeOpenRequests(); }
+
 QStringList PluginHost::pluginIds() const { return m_store->ids(); }
 
 ConsoleSnapshot PluginHost::consoleSnapshot(const QString& id) const { return m_store->snapshot(id); }

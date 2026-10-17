@@ -78,6 +78,14 @@ ApplicationWindow {
         RunsScreen { player: window.player }
     }
 
+    // fb.ui.open("screen") outside the game view: the plugin's sidebar screen (in the game view GameScreen shows the sheet).
+    Connections {
+        target: window.player.plugins
+        function onOpenRequested(pluginId, slot) {
+            if (slot === "screen" && window.player.screen !== "game") window.player.showPluginScreen(pluginId)
+        }
+    }
+
     // Page transition: short fade-in of the page that becomes current. Never in the game view.
     NumberAnimation { id: pageFade; property: "opacity"; from: 0; to: 1; duration: Theme.durPage; easing.type: Easing.OutCubic }
     Connections {

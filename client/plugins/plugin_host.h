@@ -51,6 +51,7 @@ class PluginHost : public QObject {
   UiPluginState uiState(const QString& pluginId) const;
   QVariantMap uiTree(const QString& pluginId, const QString& slot) const;
   QList<QVariantMap> takeToasts();
+  QList<QPair<QString, QString>> takeOpenRequests();  // fb.ui.open requests (plugin id, slot)
 
   QStringList pluginIds() const;
   ConsoleSnapshot consoleSnapshot(const QString& id) const;
@@ -59,7 +60,7 @@ class PluginHost : public QObject {
   void statusChanged(const QString& id);
   // Console data changed (log, events, watched rows); rate-limited to about 10 per second per plugin.
   void consoleChanged(const QString& id);
-  // UI data changed: `what` is a slot name, "@meta" (title, badge, dot, paused) or "@toast". Coalesced: at most one
+  // UI data changed: `what` is a slot name, "@meta" (title, badge, dot, paused), "@toast" or "@open". Coalesced: at most one
   // emission per slot about every 33 ms (30 updates per second).
   void uiChanged(const QString& id, const QString& what);
 

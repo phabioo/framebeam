@@ -105,6 +105,8 @@ Source `plugins-round-2.dc.html`: `#4e-1-2` 91-102, `#4e-2-2` 103-121, `#4e-3-2`
 - Remote tiles only, never on your own tile (your HUD covers that). Strip 20 high (key-badge height), 8px right of the key badge, inside the 2px inset audio ring, so neither ring is covered; the white selection ring stays outside the tile. Content: plugin icon 14, player-colour dot 7, location, "· status", "▾".
 - Click or A expands it (max 300 x 120, over the top screen, header strip with "▴"); the tile stays selectable around it. One strip per tile: when several plugins offer one, the user picks it in the tile's "⋯" menu (decisions item 11).
 
+**In-game screen sheet** (opened by `fb.ui.open("screen")`, since the sidebar screen does not exist in a game): covers the body below the GameHeader (play area and panel; in fullscreen the play area), always dark. Top bar 52: "← Back to game" (quiet), plugin icon, screen title · plugin name, key hint "Esc"; the paused banner as in the panel. Content is the `screen` tree, max 1100 wide, centered, scrolling vertically. The game keeps running underneath; Esc and Back return to the game (Esc does not pause while the sheet is open).
+
 ## 4f Plugin sidebar screen
 Superseded in part by [4f-3](#4f-3-plugin-sidebar-screen-round-3) (nested under Runs, offers the active run).
 Source `plugins-4e-4h.dc.html` `#4f` 202-215 (valid). A plugin entry sits indented under Library with its icon (16, radius 4) and a count badge (min 18 x 18, radius 9, 11/600, `#15262b`/`#3cbfd8`) the plugin reports (e.g. run invites). One entry per plugin (open point ba). The screen frame: title row ("Runs", icon, plugin name with ✓ Official, "Plugin settings"), content area full width, scrolls vertically, built only from FrameBeam blocks.

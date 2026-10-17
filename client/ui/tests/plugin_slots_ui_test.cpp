@@ -326,6 +326,29 @@ class PluginSlotsUiTest : public QObject {
     QTRY_COMPARE(h_.controller->screen(), QStringLiteral("library"));
   }
 
+  void openRequestOutOfGame() {
+    // fb.ui.open("screen") from a shell plugin: signal + navigation to its sidebar screen; "panel" is ignored.
+    QVERIFY(!writePlugin(src_.path(), "net.test.opener", "Opener Plugin", QJsonObject{{"screen", QJsonObject{{"title", "Opener"}}}},
+                         "fb.ui.set('screen', {type='text', text='hello'})\n"
+                         "fb.ui.on_action(function(a) if a == 'screen' then fb.ui.open('screen') else pcall(fb.ui.open, 'panel') end end)").isEmpty());
+    const auto r = pc()->manager()->installFromFolder(src_.filePath(QStringLiteral("net.test.opener")));
+    QVERIFY2(r.ok, qPrintable(r.error));
+    pc()->setPluginEnabled(QStringLiteral("net.test.opener"), true);
+    QTRY_COMPARE_WITH_TIMEOUT(pc()->sidebarEntries().size(), 1, 10000);
+    h_.controller->showLibrary();
+    QTRY_COMPARE(h_.controller->screen(), QStringLiteral("library"));
+    QSignalSpy spy(pc(), &PluginsController::openRequested);
+    pc()->sendAction(QStringLiteral("net.test.opener"), QStringLiteral("hotkey"), QStringLiteral("other"));
+    pc()->sendAction(QStringLiteral("net.test.opener"), QStringLiteral("hotkey"), QStringLiteral("screen"));
+    QTRY_VERIFY_WITH_TIMEOUT(spy.size() >= 1, 5000);
+    QCOMPARE(spy.last().at(0).toString(), QStringLiteral("net.test.opener"));
+    QCOMPARE(spy.last().at(1).toString(), QStringLiteral("screen"));
+    QTRY_COMPARE(h_.controller->screen(), QStringLiteral("plugin"));
+    QCOMPARE(h_.controller->pluginPageId(), QStringLiteral("net.test.opener"));
+    pc()->setPluginEnabled(QStringLiteral("net.test.opener"), false);
+    QTRY_VERIFY_WITH_TIMEOUT(pc()->sidebarEntries().isEmpty() && !pc()->shellRunning(), 10000);
+  }
+
   void hostNoticeWhenPluginPauses() {
     // Isolation: nothing of the previous test may still run (the shell set restarts asynchronously).
     for (const QVariant& p : pc()->plugins()) pc()->setPluginEnabled(p.toMap().value("id").toString(), false);
@@ -731,6 +754,60 @@ class PluginSlotsUiTest : public QObject {
     QCOMPARE(sent.at(0).at(2).toString(), QStringLiteral("open"));
     pc()->setPreviewUi({});
     QTRY_VERIFY(h_.items("tileStrip_s1").isEmpty() || !h_.item("tileStrip_s1")->isVisible());
+  }
+
+  // ---------------------------------------------------------------- fb.ui.open: in-game screen sheet and panel tab
+
+  void screenSheetOpensAndCloses() {
+    h_.controller->sessions()->leaveWatch();
+    h_.controller->sessions()->setTab(QStringLiteral("session"));
+    QQuickItem* screen = gameScreen();
+    QVERIFY(screen != nullptr);
+    QTRY_VERIFY(screen->isVisible());
+    QVariantMap trees{{"net.test.a|screen", json(R"({"type":"column","gap":8,"children":[
+        {"type":"text","style":"title","text":"Run screen"},
+        {"type":"button","id":"btnRun","label":"Go","variant":"primary","action":"go","value":3}]})")},
+                      {"net.test.a|panel", json(R"({"type":"text","text":"panel"})")}};
+    const QVariantMap entry{{"pluginId", "net.test.a"}, {"name", "SoulLink"}, {"title", "Run"}, {"icon", QString()}, {"badge", 0}, {"origin", "local"}};
+    pc()->setPreviewUi({{"panelTabs", QVariantList{tabEntry("net.test.a", "SoulLink")}}, {"sidebarEntries", QVariantList{entry}}, {"trees", trees}});
+    QTRY_VERIFY(h_.item("panelTab_plugin:net.test.a") != nullptr);
+    QVERIFY(h_.item("pluginScreenSheet") != nullptr);
+    QVERIFY(!h_.item("pluginScreenSheet")->isVisible());
+
+    // fb.ui.open("panel") selects the plugin's tab.
+    emit pc()->openRequested(QStringLiteral("net.test.a"), QStringLiteral("panel"));
+    QTRY_VERIFY(h_.item("panelTab_plugin:net.test.a")->property("open").toBool());
+    QVERIFY(!h_.item("pluginScreenSheet")->isVisible());
+
+    // fb.ui.open("screen") shows the sheet with the screen tree, covering the play area and the panel.
+    GameSession* gs = h_.controller->gameSession();
+    const bool pausedBefore = gs->isPaused();
+    emit pc()->openRequested(QStringLiteral("net.test.a"), QStringLiteral("screen"));
+    QTRY_VERIFY(h_.item("pluginScreenSheet")->isVisible());
+    QTRY_VERIFY(h_.item("pluginScreenSheetBlock") != nullptr && h_.item("plugin_btnRun") != nullptr && h_.item("plugin_btnRun")->isVisible());
+    QVERIFY(h_.item("pluginScreenSheet")->width() >= screen->width() - 1);
+    QCOMPARE(h_.item("pluginScreenSheetTitle")->property("text").toString(), QStringLiteral("Run  ·  SoulLink"));
+    shot(QStringLiteral("slots-in-game-screen-sheet"));
+
+    // Actions in the sheet reach the plugin with slot "screen".
+    QSignalSpy sent(pc(), &PluginsController::actionSent);
+    QVERIFY(h_.click("plugin_btnRun"));
+    QTRY_COMPARE(sent.size(), 1);
+    QCOMPARE(sent.at(0).at(1).toString(), QStringLiteral("screen"));
+    QCOMPARE(sent.at(0).at(2).toString(), QStringLiteral("go"));
+
+    // Esc closes the sheet and does not pause the game.
+    QTest::keyClick(h_.window, Qt::Key_Escape);
+    QTRY_VERIFY(!h_.item("pluginScreenSheet")->isVisible());
+    QCOMPARE(gs->isPaused(), pausedBefore);
+
+    // "← Back to game" closes it too.
+    emit pc()->openRequested(QStringLiteral("net.test.a"), QStringLiteral("screen"));
+    QTRY_VERIFY(h_.item("pluginScreenSheet")->isVisible());
+    QVERIFY(h_.click("pluginScreenBack"));
+    QTRY_VERIFY(!h_.item("pluginScreenSheet")->isVisible());
+    pc()->setPreviewUi({});
+    QTRY_VERIFY(!h_.item("pluginScreenSheet")->isVisible());
   }
 
   // ---------------------------------------------------------------- plugin hotkeys (Controllers > Hotkeys, keys in game)

@@ -932,6 +932,11 @@ void PluginsController::onUiChanged(const QString& id, const QString& what) {
     collectToasts();
     return;
   }
+  if (what == QLatin1String("@open")) {
+    for (const auto& r : host_->takeOpenRequests())
+      if (activeIds().contains(r.first) || runViewIds_.contains(r.first)) emit openRequested(r.first, r.second);
+    return;
+  }
   if (!activeIds().contains(id) && !runViewIds_.contains(id)) return;
   if (what == QLatin1String("@meta")) {
     rebuildPanelTabs();

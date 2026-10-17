@@ -262,6 +262,8 @@ class PluginsController : public QObject {
   void actionSent(const QString& pluginId, const QString& slot, const QString& action, const QVariant& value);
   // The tree of a slot was set, patched or cleared (fetch it with slotTree()).
   void slotChanged(const QString& pluginId, const QString& slot);
+  // fb.ui.open(slot) of a running plugin ("screen" or "panel"); the game view and Main.qml decide what to show.
+  void openRequested(const QString& pluginId, const QString& slot);
 
  private:
   void updateShell();

@@ -23,6 +23,7 @@ ColumnLayout {
                 required property var modelData
                 Layout.fillWidth: true
                 Layout.preferredWidth: 1
+                Layout.minimumWidth: 0
                 text: String(modelData).toUpperCase()
                 elide: Text.ElideRight
                 font.family: Theme.mono
@@ -43,6 +44,8 @@ ColumnLayout {
             actionable: !!modelData.action
             ringRadius: Theme.radius6
             Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            clip: true
             implicitHeight: 34
             onActivated: root.action(modelData.action, modelData.value)
             Rectangle {
@@ -69,6 +72,7 @@ ColumnLayout {
                         required property int index
                         Layout.fillWidth: true
                         Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
                         text: String(modelData)
                         elide: Text.ElideRight
                         font.pixelSize: Theme.fontSmall

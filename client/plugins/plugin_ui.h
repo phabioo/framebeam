@@ -57,12 +57,15 @@ class UiStore {
   void markPaused(const QString& id);
   void clearPlugin(const QString& id);  // reload / stop: trees, titles, badge, dot and paused flag are removed
   int addToast(const QString& id, QVariantMap toast);
+  // fb.ui.open: a request to show the plugin's slot ("screen" or "panel"); queued like toasts, dirty "@open".
+  void addOpenRequest(const QString& id, const QString& slot);
 
   UiPluginState state(const QString& id) const;
   QVariantMap tree(const QString& id, const QString& slot) const;
-  // (plugin id, what) with what = slot name, "@meta" (title/badge/dot/paused) or "@toast".
+  // (plugin id, what) with what = slot name, "@meta" (title/badge/dot/paused), "@toast" or "@open".
   QList<QPair<QString, QString>> takeDirty();
   QList<QVariantMap> takeToasts();  // each has toastId and pluginId
+  QList<QPair<QString, QString>> takeOpenRequests();  // (plugin id, slot), oldest first
 
  private:
   void dirty(const QString& id, const QString& what) { m_dirty.insert({id, what}); }
@@ -71,6 +74,7 @@ class UiStore {
   QHash<QString, UiPluginState> m_state;
   QSet<QPair<QString, QString>> m_dirty;
   QList<QVariantMap> m_toasts;
+  QList<QPair<QString, QString>> m_openRequests;
   int m_nextToast = 1;
 };
 
