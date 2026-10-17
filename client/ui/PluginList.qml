@@ -10,6 +10,7 @@ ColumnLayout {
     property string pluginId: ""
     signal action(string action, var value)
 
+    Layout.minimumWidth: 0
     spacing: 2
     Repeater {
         model: root.node.rows || []
@@ -24,6 +25,8 @@ ColumnLayout {
             actionable: clickable
             ringRadius: Theme.radius6
             Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            clip: true
             implicitHeight: Math.max(36, content.implicitHeight + 12)
             onActivated: root.action(modelData.action, modelData.value)
 
@@ -49,6 +52,7 @@ ColumnLayout {
                 }
                 ColumnLayout {
                     Layout.fillWidth: true
+                    Layout.minimumWidth: 0
                     spacing: 1
                     Text {
                         Layout.fillWidth: true
@@ -69,6 +73,8 @@ ColumnLayout {
                 }
                 Text {
                     visible: !!row.modelData.meta
+                    Layout.maximumWidth: Math.max(40, content.width * 0.4)
+                    elide: Text.ElideRight
                     text: row.modelData.meta || ""
                     font.family: Theme.mono
                     font.pixelSize: Theme.fontMeta

@@ -54,7 +54,32 @@ Rectangle {
                                        : ctl.multiviewMode === "grid" ? qsTr("Multiview · Grid 2×2")
                                        : qsTr("Multiview · Picture-in-Picture")
 
+    // In-game plugin screen (fb.ui.open("screen")): plugin id, "" = closed. The game keeps running underneath.
+    property string screenSheetPlugin: ""
+    function openPluginScreen(pluginId) {
+        root.popover = ""
+        root.screenSheetPlugin = pluginId
+        Qt.callLater(focusLocal)
+    }
+    function closePluginScreen() {
+        if (root.screenSheetPlugin === "") return false
+        root.screenSheetPlugin = ""
+        Qt.callLater(focusLocal)
+        return true
+    }
+    Connections {
+        target: root.player.plugins
+        function onOpenRequested(pluginId, slot) {
+            if (!root.visible) return
+            if (slot === "screen") root.openPluginScreen(pluginId)
+            else if (slot === "panel" && !root.fullscreen && !root.multiMode) {
+                root.closePluginScreen()
+                panel.openTab("plugin:" + pluginId)
+            }
+        }
+    }
     function focusLocal() {
+        if (root.screenSheetPlugin !== "") { sheet.forceActiveFocus(); return }
         var v = root.tab === "session" ? view : root.multiLocal
         if (v) v.forceActiveFocus()
     }
@@ -73,6 +98,7 @@ Rectangle {
             Qt.callLater(focusLocal)
         } else {
             root.popover = ""
+            root.screenSheetPlugin = ""
             if (root.fullscreen && root.enteredHere) root.setFullscreen(false)   // leaving the game view: the window goes back to where it was
         }
     }
@@ -100,6 +126,7 @@ Rectangle {
     // (the pause card opens). F11 is the only key that leaves fullscreen. Watching only: nothing to pause.
     function handleEscape() {
         if (!root.visible) return   // game in the background (Library shown): Esc never acts on it
+        if (root.closePluginScreen()) return
         if (root.closePopover()) return
         if (root.session.active) root.session.togglePause()
     }
@@ -480,6 +507,19 @@ Rectangle {
                 onOverflowRequested: root.popover = root.popover === "tabs" ? "" : "tabs"
             }
         }
+    }
+
+    // In-game plugin screen: covers the play area and the panel below the header
+    PluginScreenSheet {
+        id: sheet
+        player: root.player
+        pluginId: root.screenSheetPlugin
+        anchors.top: noticeBar.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        z: 4
+        onCloseRequested: root.closePluginScreen()
     }
 
     // ---- anchored popovers (opened from the header) ----

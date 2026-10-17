@@ -25,6 +25,10 @@ Item {
     function stretches(t) {
         return ["chip", "badge", "avatar", "image", "button", "segmented"].indexOf(t) < 0
     }
+    // Children of a row that give way when the row is narrow (text wraps or elides, containers shrink); the others keep their size.
+    function shrinks(t) {
+        return ["text", "stat", "bar", "select", "textfield", "location", "card", "column", "row", "grid", "list", "table"].indexOf(t) >= 0
+    }
     function alignFlag(horizontal) {
         switch (node.align || (horizontal ? "stretch" : "center")) {
         case "start": return horizontal ? Qt.AlignLeft : Qt.AlignTop
@@ -83,9 +87,9 @@ Item {
                     dark: root.dark
                     pluginId: root.pluginId
                     onAction: (a, v) => root.action(a, v)
-                    Layout.fillWidth: (root.node.align || "stretch") === "stretch" && root.stretches(kid.type)
+                    Layout.fillWidth: (root.node.align || "stretch") === "stretch" && (root.stretches(kid.type) || (kid.type === "image" && !!kid.label))
                     Layout.fillHeight: kid.type === "scroll" && !kid.max_height
-                    Layout.alignment: (root.node.align || "stretch") === "stretch" ? (root.stretches(kid.type) ? 0 : Qt.AlignLeft) : root.alignFlag(true)
+                    Layout.alignment: (root.node.align || "stretch") === "stretch" ? ((root.stretches(kid.type) || (kid.type === "image" && !!kid.label)) ? 0 : Qt.AlignLeft) : root.alignFlag(true)
                 }
             }
         }
@@ -93,21 +97,37 @@ Item {
     Component {
         id: rowC
         RowLayout {
+            id: rowLayout
             spacing: Theme.gapPx(root.node.gap)
+            property int fillers: 0
+            function countFillers() {
+                var n = 0
+                for (var i = 0; i < root.kids.length; ++i) {
+                    const k = root.kids[i] || ({})
+                    if (root.shrinks(k.type) || (k.type === "image" && !!k.label)) ++n
+                }
+                fillers = n
+            }
+            Component.onCompleted: countFillers()
+            Connections { target: root; function onKidsChanged() { rowLayout.countFillers() } }
             Repeater {
                 model: root.kids.length
                 delegate: PluginChild {
                     required property int index
                     readonly property var kid: root.kids[index] || ({})
+                    // an image with a label gives way as well: its label elides
+                    readonly property bool giveWay: root.shrinks(kid.type) || (kid.type === "image" && !!kid.label)
                     node: kid
                     dark: root.dark
                     pluginId: root.pluginId
                     onAction: (a, v) => root.action(a, v)
+                    Layout.fillWidth: giveWay
+                    Layout.minimumWidth: giveWay ? 0 : implicitWidth
                     Layout.fillHeight: root.node.align === "stretch"
                     Layout.alignment: root.alignFlag(false)
                 }
             }
-            Item { Layout.fillWidth: true }
+            Item { visible: rowLayout.fillers === 0; Layout.fillWidth: true }
         }
     }
     Component {
@@ -149,9 +169,40 @@ Item {
             }
             function next() { select(sel + 1) }
             function previous() { select(sel - 1) }
+            onSelChanged: Qt.callLater(tabStrip.ensureVisible)
+            // The tab header never exceeds the width: a clipped, horizontally flickable strip keeps the selected tab in view.
+            Flickable {
+                id: tabStrip
+                objectName: "pluginTabStrip"
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                implicitWidth: tabRow.implicitWidth
+                implicitHeight: 32
+                clip: true
+                contentWidth: tabRow.implicitWidth
+                contentHeight: height
+                flickableDirection: Flickable.HorizontalFlick
+                boundsBehavior: Flickable.StopAtBounds
+                function ensureVisible(index) {
+                    const it = tabRepeater.itemAt((index === undefined ? tabs.sel : index) - 1)
+                    if (!it) return
+                    if (it.x < contentX) contentX = Math.max(0, it.x - 8)
+                    else if (it.x + it.width > contentX + width) contentX = Math.min(Math.max(0, contentWidth - width), it.x + it.width - width + 8)
+                }
+                onWidthChanged: Qt.callLater(ensureVisible)
+                Component.onCompleted: Qt.callLater(ensureVisible)
+                WheelHandler {
+                    acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                    onWheel: (e) => {
+                        const d = Math.abs(e.angleDelta.x) > Math.abs(e.angleDelta.y) ? e.angleDelta.x : e.angleDelta.y
+                        tabStrip.contentX = Math.max(0, Math.min(Math.max(0, tabStrip.contentWidth - tabStrip.width), tabStrip.contentX - d / 2))
+                    }
+                }
             Row {
+                id: tabRow
                 spacing: 4
                 Repeater {
+                    id: tabRepeater
                     model: root.node.tabs || []
                     delegate: PluginFocusable {
                         id: tab
@@ -166,6 +217,7 @@ Item {
                         width: implicitWidth
                         height: implicitHeight
                         onActivated: tabs.select(index + 1)
+                        onActiveFocusChanged: if (activeFocus) tabStrip.ensureVisible(index + 1)
                         Rectangle {
                             anchors.fill: parent
                             radius: Theme.radius6
@@ -190,9 +242,11 @@ Item {
                     }
                 }
             }
+            }
             PluginChild {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                Layout.minimumWidth: 0
                 node: root.kids[tabs.sel - 1] || ({})
                 dark: root.dark
                 pluginId: root.pluginId
@@ -567,7 +621,10 @@ Item {
             }
             Text {
                 visible: !!root.node.label
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
                 text: root.node.label || ""
+                elide: Text.ElideRight
                 font.pixelSize: Theme.fontMeta
                 color: Theme.blockColor("textMuted", root.dark)
             }

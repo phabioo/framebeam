@@ -701,6 +701,14 @@ int uiNotify(lua_State* L) {
   return 1;
 }
 
+int uiOpen(lua_State* L) {
+  const QString slot = checkSlot(L, 1);
+  if (slot != QLatin1String("panel") && slot != QLatin1String("screen")) luaL_error(L, "fb.ui.open only supports the slots screen and panel");
+  Plugin* p = self(L);
+  p->engine->store.ui.addOpenRequest(p->id(), slot);
+  return 0;
+}
+
 int uiOnAction(lua_State* L) {
   need(L, "ui");
   Plugin* p = self(L);
@@ -1052,6 +1060,7 @@ void registerFbApi(PluginEngine& engine, Plugin& p) {
   setFn(L, "badge", uiBadge);
   setFn(L, "dot", uiDot);
   setFn(L, "notify", uiNotify);
+  setFn(L, "open", uiOpen);
   setFn(L, "on_action", uiOnAction);
   lua_setfield(L, -2, "ui");
 
