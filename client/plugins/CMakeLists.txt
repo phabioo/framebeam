@@ -32,6 +32,7 @@ framebeam_add_test(plugins_sandbox tests/sandbox_test.cpp LIBS framebeam_plugins
 framebeam_add_test(plugins_manager tests/manager_test.cpp LIBS framebeam_plugins)
 framebeam_add_test(plugins_host tests/host_test.cpp LIBS framebeam_plugins)
 framebeam_add_test(plugins_ui tests/ui_test.cpp LIBS framebeam_plugins)
+framebeam_add_test(plugins_video tests/video_test.cpp LIBS framebeam_plugins)
 
 # .fbplugin reading and signature, Hub delivery (against the fake Hub of network/tests).
 framebeam_add_test(plugins_fbplugin tests/fbplugin_test.cpp LIBS framebeam_plugins)

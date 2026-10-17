@@ -93,6 +93,7 @@ QString permissionLabel(const QString& p) {
   if (p == QLatin1String("rom.read")) return PluginsController::tr("Read your game file");
   if (p == QLatin1String("ui")) return PluginsController::tr("Show panels in game");
   if (p == QLatin1String("run.state")) return PluginsController::tr("Share run progress with your Hub");
+  if (p == QLatin1String("video.capture")) return PluginsController::tr("Capture the game picture");
   if (p == QLatin1String("memory.write")) return PluginsController::tr("Change game memory");
   return p;
 }
@@ -586,6 +587,10 @@ void PluginsController::gameStarted(const QString& system, const QString& romPat
   selected_ = runningIds_.value(0);
   running_ = true;
   adapter_->bind(session_ != nullptr ? session_->memoryWatch() : nullptr);
+  if (session_ != nullptr) {
+    video_ = std::make_shared<VideoCaptureAdapter>(session_);
+    ctx.video = video_;
+  }
   host_->start(ctx, adapter_, res.start);  // asynchronous: the game does not wait for the plugins
   postInitialEvents();
   rebuildUiModels();
@@ -599,6 +604,7 @@ void PluginsController::stopGame(bool restartShell) {
   if (!inGame_ && !running_) return;
   if (running_) {
     host_->stop();
+    video_.reset();
     adapter_->clear();
     adapter_->bind(nullptr);
     for (const QString& id : std::as_const(runningIds_)) qCInfo(lcPlugins) << "plugin" << id << "stopped";

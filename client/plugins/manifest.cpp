@@ -54,7 +54,7 @@ bool relativeSafePath(const QString& p) {
 
 QString permissionError(const QString& p) {
   static const std::set<QString> supported = {QStringLiteral("memory.read"), QStringLiteral("rom.read"), QStringLiteral("ui"),
-                                              QStringLiteral("run.state")};
+                                              QStringLiteral("run.state"), QStringLiteral("video.capture")};
   if (supported.count(p)) return {};
   if (p == QLatin1String("memory.write") || p == QLatin1String("tool.exec"))
     return QStringLiteral("permission %1 is not available yet").arg(p);

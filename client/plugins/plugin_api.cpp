@@ -317,6 +317,67 @@ int devUnwatch(lua_State* L) {
   return 0;
 }
 
+// ------------------------------------------------------------------ fb.video
+
+// fb.video.screens() -> { { name, x, y, w, h }, ... } or nil when no game runs.
+int videoScreens(lua_State* L) {
+  need(L, "video.capture");
+  Plugin* p = self(L);
+  const auto& video = p->engine->ctx.video;
+  const std::vector<ScreenInfo> screens = video ? video->screens() : std::vector<ScreenInfo>();
+  if (screens.empty()) {
+    lua_pushnil(L);
+    return 1;
+  }
+  lua_createtable(L, static_cast<int>(screens.size()), 0);
+  int i = 1;
+  for (const ScreenInfo& s : screens) {
+    lua_createtable(L, 0, 5);
+    lua_pushlstring(L, s.name.data(), s.name.size());
+    lua_setfield(L, -2, "name");
+    lua_pushinteger(L, s.x);
+    lua_setfield(L, -2, "x");
+    lua_pushinteger(L, s.y);
+    lua_setfield(L, -2, "y");
+    lua_pushinteger(L, s.w);
+    lua_setfield(L, -2, "w");
+    lua_pushinteger(L, s.h);
+    lua_setfield(L, -2, "h");
+    lua_rawseti(L, -2, i++);
+  }
+  return 1;
+}
+
+lua_Integer rectField(lua_State* L, int idx, const char* key) {
+  lua_getfield(L, idx, key);
+  if (!lua_isinteger(L, -1)) luaL_error(L, "capture rectangle needs integer x, y, w and h");
+  const lua_Integer v = lua_tointeger(L, -1);
+  lua_pop(L, 1);
+  return v;
+}
+
+// fb.video.capture(name | {x, y, w, h}) -> request id. Everything that can fail depending on the game or timing
+// (busy, rate limit, no frame, ...) is reported in the "video.captured" event, never as a Lua error.
+int videoCapture(lua_State* L) {
+  need(L, "video.capture");
+  Plugin* p = self(L);
+  uint64_t id = 0;
+  if (lua_type(L, 1) == LUA_TSTRING) {
+    const std::string name = checkStr(L, 1);
+    id = p->engine->requestCapture(*p, name.empty() ? std::string("?") : name, 0, 0, 0, 0);
+  } else if (lua_type(L, 1) == LUA_TTABLE) {
+    const lua_Integer x = rectField(L, 1, "x"), y = rectField(L, 1, "y"), w = rectField(L, 1, "w"), h = rectField(L, 1, "h");
+    const lua_Integer lim = 1 << 20;  // keeps the int conversion safe; the real range check is in the engine
+    id = p->engine->requestCapture(*p, std::string(), static_cast<int>(std::clamp<lua_Integer>(x, -1, lim)),
+                                   static_cast<int>(std::clamp<lua_Integer>(y, -1, lim)), static_cast<int>(std::clamp<lua_Integer>(w, 0, lim)),
+                                   static_cast<int>(std::clamp<lua_Integer>(h, 0, lim)));
+  } else {
+    luaL_error(L, "capture expects a screen name or a rectangle {x, y, w, h}");
+  }
+  lua_pushinteger(L, static_cast<lua_Integer>(id));
+  return 1;
+}
+
 // ------------------------------------------------------------------ fb.rom
 
 QFile* openRom(lua_State* L, Plugin& p) {
@@ -1033,6 +1094,11 @@ void registerFbApi(PluginEngine& engine, Plugin& p) {
   setFn(L, "romfs", romRomfs);
   setFn(L, "romfs_list", romRomfsList);
   lua_setfield(L, -2, "rom");
+
+  lua_newtable(L);  // fb.video
+  setFn(L, "screens", videoScreens);
+  setFn(L, "capture", videoCapture);
+  lua_setfield(L, -2, "video");
 
   lua_newtable(L);  // fb.codec (pure functions, no permission)
   setFn(L, "lz_decompress", codecLz);

@@ -70,6 +70,7 @@ Core-side facts (3DS): see [ADR 0023](../adr/0023-plugins.md) context (Azahar ex
 | `rom.read` | Read the user's own game files at runtime (assets) | first release |
 | `ui` | Provide building-block trees for slots, including notices (toasts) outside the game; no separate notice permission | first release |
 | `run.state` | Read/write per-player run state, append run events | first release |
+| `video.capture` | Capture a screen or region of the game picture as PNG at native resolution (`fb.video`); on demand through the existing readback, no write to disk, 1 per second, local game only | API 1 addition |
 | `memory.write` | Write memory through a write queue | later (cheats, editor) |
 | `tool.exec` | Start an external program | later, signed official only |
 

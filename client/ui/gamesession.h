@@ -170,6 +170,13 @@ class GameSession : public QObject {
 
   void start(const LaunchConfig& config);
 
+  // Plugins (video.capture): size of the frame the core renders, before any readback downscale (empty without a runner).
+  QSize sourceFrameSize() const;
+  // Hands the next frame at that native size to `done` (GUI thread, exactly once): the readback limit is lifted and the
+  // readback switched on only while a request is waiting, so there is no per-frame cost otherwise. `error` is empty on
+  // success, else "no_frame" (no game, stopped, or no frame within 2 s).
+  void requestNativeFrame(std::function<void(const QImage& frame, const QString& error)> done);
+
   // Plugins: the memory watch set of the running core (null without a runner) and the memory regions the core exposes
   // (empty without a game or memory map). A live-save restart creates a new runner: memoryWatchReplaced() then fires so the
   // plugin memory adapter can attach to the new set.
@@ -247,6 +254,8 @@ class GameSession : public QObject {
   QHash<const QObject*, QSize> viewSizes_;
   QSize shareSize_;
   QSize limit_;
+  QVector<std::function<void(const QImage&, const QString&)>> captureWaiters_;
+  void serveCaptures(bool timedOut);
   std::shared_ptr<emu::GpuEncodeTarget> gpuTarget_;
   std::shared_ptr<GpuDisplayBridge> gpuDisplay_;  // per game launch; null without a platform display
   std::weak_ptr<GlD3d11Bridge> displayBridge_;     // the display's bridge, owned by gpuDisplay_

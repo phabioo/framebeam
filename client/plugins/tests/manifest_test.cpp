@@ -32,13 +32,14 @@ class ManifestTest : public QObject {
       "id": "net.framebeam.example", "name": "Example", "version": "1.0.0", "api": 1, "type": "script",
       "requires": { "net.framebeam.example-core": "^1.0" }, "provides": ["example.team"],
       "games": [{ "system": "nds", "codes": ["ABC*"] }],
-      "permissions": ["memory.read", "rom.read", "ui", "run.state"], "entry": "main.lua",
+      "permissions": ["memory.read", "rom.read", "ui", "run.state", "video.capture"], "entry": "main.lua",
       "assets": ["icons/", "i18n/"], "settings": { "a": 1 } })");
     QVERIFY2(r.ok, qPrintable(r.error));
     QCOMPARE(r.manifest.id, QString("net.framebeam.example"));
     QCOMPARE(r.manifest.dependencies.size(), 1);
     QCOMPARE(r.manifest.provides, QStringList{"example.team"});
-    QCOMPARE(r.manifest.permissions.size(), 4);
+    QCOMPARE(r.manifest.permissions.size(), 5);
+    QVERIFY(r.manifest.hasPermission("video.capture"));
     QVERIFY(r.manifest.matchesGame("nds", "ABCD"));
     QVERIFY(r.manifest.matchesGame("NDS", "abce"));
     QVERIFY(!r.manifest.matchesGame("nds", "XBCD"));

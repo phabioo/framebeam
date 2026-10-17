@@ -20,6 +20,7 @@
 #include "plugin_types.h"
 #include "plugin_ui.h"
 #include "plugin_value.h"
+#include "plugin_video.h"
 
 namespace framebeam::plugins {
 
@@ -64,6 +65,24 @@ struct RunSub {
   int ref = 0;
 };
 
+// Results of fb.video.capture arrive on any thread (the Player's GUI thread) and are drained on the plugin thread.
+// Shared with the callbacks, so a late result after stop() lands in a mailbox nobody reads and is freed with it.
+struct CaptureInbox {
+  struct Item {
+    QString plugin;
+    uint64_t id = 0;
+    RawFrame frame;
+  };
+  std::mutex mutex;
+  std::vector<Item> items;
+};
+
+struct PendingCapture {
+  uint64_t id = 0;
+  int x = 0, y = 0, w = 0, h = 0;
+  std::chrono::steady_clock::time_point at;
+};
+
 struct Plugin {
   PluginInfo info;
   PluginEngine* engine = nullptr;
@@ -84,6 +103,9 @@ struct Plugin {
   bool hasBoardPending = false;
   std::chrono::steady_clock::time_point boardLast;
   std::map<QString, QVariantMap> uiTrees;     // slot -> current tree (for fb.ui.patch)
+  uint64_t captureNextId = 1;                 // fb.video.capture request ids
+  std::optional<PendingCapture> capture;      // at most one pending capture
+  std::optional<std::chrono::steady_clock::time_point> captureLast;  // last accepted request (1 per second)
   double toastTokens = 3;                     // notify rate limit: burst 3, one per second sustained
   std::chrono::steady_clock::time_point toastLast = std::chrono::steady_clock::now();
 
@@ -120,6 +142,9 @@ class PluginEngine {
   // Runs a callback (registry ref) of `p` with arguments pushed by `pushArgs`; pauses `p` on failure.
   void callRef(Plugin& p, int ref, const std::function<int(lua_State*)>& pushArgs);
   void releaseState(Plugin& p);
+  // fb.video.capture: returns the request id; the result (or the error) arrives as host event "video.captured" to `p`.
+  // `screen` non-empty = a named screen, otherwise the rectangle x/y/w/h (source-frame pixels).
+  uint64_t requestCapture(Plugin& p, const std::string& screen, int x, int y, int w, int h);
 
   ConsoleStore& store;
   GameContext ctx;
@@ -135,7 +160,10 @@ class PluginEngine {
   void tick();
   void pollRun();
   void updateWatched();
+  void pollCaptures();
+  void finishCapture(Plugin& p, uint64_t id, const RawFrame* frame, const PendingCapture* cap, const std::string& error);
 
+  std::shared_ptr<CaptureInbox> m_captureInbox = std::make_shared<CaptureInbox>();
   const std::atomic<int>& m_tickHz;
   std::function<void(const QString&)> m_statusChanged;
   std::vector<std::unique_ptr<Plugin>> m_plugins;

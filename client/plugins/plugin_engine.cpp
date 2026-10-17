@@ -5,6 +5,9 @@
 #include <QFile>
 #include <QFileInfo>
 
+#include <cstring>
+
+#include "format_helpers.h"
 #include "lauxlib.h"
 #include "lua.h"
 
@@ -148,6 +151,7 @@ void PluginEngine::releaseState(Plugin& p) {
   p.actionRef = LUA_NOREF;
   p.runSubs.clear();
   p.hasBoardPending = false;
+  p.capture.reset();
   p.uiTrees.clear();
   syncWatches(p);
 }
@@ -240,6 +244,7 @@ void PluginEngine::stop() {
   m_plugins.clear();
   events.clear();
   provider.reset();
+  ctx.video.reset();  // the Player releases its side on the UI thread after stop() returns
 }
 
 void PluginEngine::reload(const QString& id) {
@@ -415,7 +420,149 @@ void PluginEngine::pollRun() {
   }
 }
 
+namespace {
+constexpr size_t kMaxCapturePng = 2u * 1024 * 1024;
+constexpr int kMaxCaptureSide = 4096;
+constexpr auto kCaptureMinInterval = std::chrono::seconds(1);
+constexpr auto kCaptureTimeout = std::chrono::seconds(5);
+
+void putField(Value& t, const char* key, Value v) {
+  Value k;
+  k.type = Value::Type::String;
+  k.s = key;
+  t.keys.push_back(std::move(k));
+  t.vals.push_back(std::move(v));
+}
+Value intValue(int64_t i) {
+  Value v;
+  v.type = Value::Type::Int;
+  v.i = i;
+  return v;
+}
+Value strValue(std::string s) {
+  Value v;
+  v.type = Value::Type::String;
+  v.s = std::move(s);
+  return v;
+}
+Value boolValue(bool b) {
+  Value v;
+  v.type = Value::Type::Bool;
+  v.b = b;
+  return v;
+}
+}  // namespace
+
+uint64_t PluginEngine::requestCapture(Plugin& p, const std::string& screen, int x, int y, int w, int h) {
+  const uint64_t id = p.captureNextId++;
+  auto fail = [&](const char* err) {
+    finishCapture(p, id, nullptr, nullptr, err);
+    return id;
+  };
+  if (p.capture) return fail("busy");
+  const auto now = Clock::now();
+  if (p.captureLast && now - *p.captureLast < kCaptureMinInterval) return fail("rate_limited");
+  if (!ctx.video) return fail("unsupported");
+  PendingCapture cap;
+  cap.id = id;
+  cap.at = now;
+  if (!screen.empty()) {
+    const std::vector<ScreenInfo> screens = ctx.video->screens();
+    if (screens.empty()) return fail("no_frame");
+    const ScreenInfo* found = nullptr;
+    for (const ScreenInfo& s : screens)
+      if (s.name == screen) found = &s;
+    if (!found) return fail("unknown_screen");
+    cap.x = found->x;
+    cap.y = found->y;
+    cap.w = found->w;
+    cap.h = found->h;
+  } else {
+    if (x < 0 || y < 0 || w < 1 || h < 1 || w > kMaxCaptureSide || h > kMaxCaptureSide) return fail("invalid_rect");
+    cap.x = x;
+    cap.y = y;
+    cap.w = w;
+    cap.h = h;
+  }
+  p.captureLast = now;
+  p.capture = cap;
+  ctx.video->captureFrame([inbox = m_captureInbox, plugin = p.id(), id](RawFrame f) {
+    std::lock_guard<std::mutex> l(inbox->mutex);
+    inbox->items.push_back({plugin, id, std::move(f)});
+  });
+  return id;
+}
+
+// Queues the host event "video.captured" for `p`. Without `frame` (or with an error) the event carries ok=false.
+void PluginEngine::finishCapture(Plugin& p, uint64_t id, const RawFrame* frame, const PendingCapture* cap, const std::string& error) {
+  Value t;
+  t.type = Value::Type::Table;
+  putField(t, "id", intValue(static_cast<int64_t>(id)));
+  std::string err = error;
+  std::string png;
+  int w = 0, h = 0;
+  if (err.empty() && frame && cap) {
+    if (frame->w < 1 || frame->h < 1 || frame->rgba.size() != static_cast<size_t>(frame->w) * frame->h * 4) {
+      err = "no_frame";
+    } else if (cap->x + static_cast<int64_t>(cap->w) > frame->w || cap->y + static_cast<int64_t>(cap->h) > frame->h) {
+      err = "invalid_rect";
+    } else {
+      formats::Image img;
+      img.ok = true;
+      img.width = cap->w;
+      img.height = cap->h;
+      img.rgba.resize(static_cast<size_t>(cap->w) * cap->h * 4);
+      for (int row = 0; row < cap->h; ++row)
+        std::memcpy(&img.rgba[static_cast<size_t>(row) * cap->w * 4], &frame->rgba[(static_cast<size_t>(cap->y + row) * frame->w + cap->x) * 4],
+                    static_cast<size_t>(cap->w) * 4);
+      formats::Result r = formats::pngEncode(img);
+      if (!r.ok) err = "encode_failed";
+      else if (r.data.size() > kMaxCapturePng) err = "too_large";
+      else {
+        png = std::move(r.data);
+        w = cap->w;
+        h = cap->h;
+      }
+    }
+  } else if (err.empty()) {
+    err = "no_frame";
+  }
+  putField(t, "ok", boolValue(err.empty()));
+  if (err.empty()) {
+    putField(t, "png", strValue(std::move(png)));
+    putField(t, "w", intValue(w));
+    putField(t, "h", intValue(h));
+  } else {
+    putField(t, "error", strValue(err));
+  }
+  postHostEvent(QStringLiteral("video.captured"), std::move(t), p.id());
+}
+
+void PluginEngine::pollCaptures() {
+  std::vector<CaptureInbox::Item> items;
+  {
+    std::lock_guard<std::mutex> l(m_captureInbox->mutex);
+    items.swap(m_captureInbox->items);
+  }
+  for (CaptureInbox::Item& it : items) {
+    Plugin* p = find(it.plugin);
+    if (!p || !p->capture || p->capture->id != it.id) continue;  // reloaded, stopped or timed out meanwhile
+    const PendingCapture cap = *p->capture;
+    p->capture.reset();
+    finishCapture(*p, it.id, &it.frame, &cap, it.frame.error);
+  }
+  const auto now = Clock::now();
+  for (auto& pp : m_plugins) {
+    if (pp->capture && now - pp->capture->at > kCaptureTimeout) {
+      const uint64_t id = pp->capture->id;
+      pp->capture.reset();
+      finishCapture(*pp, id, nullptr, nullptr, "no_frame");
+    }
+  }
+}
+
 void PluginEngine::iterate() {
+  pollCaptures();
   pollRun();
   deliverEvents();
   tick();
