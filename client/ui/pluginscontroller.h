@@ -155,8 +155,9 @@ class PluginsController : public QObject {
   // Hub delivery: ensureHubCopy(id, version, sha256, cb) gives the runs the exact Hub copy of a plugin version.
   plugins::PluginDelivery* delivery() { return delivery_.get(); }
   PluginHubClient* hubClient() { return hubClient_.get(); }
+  const PluginHubClient* hubClient() const { return hubClient_.get(); }
   bool hubSupported() const { return hubClient_ != nullptr && hubClient_->supported(); }
-  // Some installed plugin (any copy, also Hub copies) asks for the permission run.state: the Runs entry is worth showing.
+  // A plugin with run.state that the current Hub offers is installed here (any version, also as Hub copy): the Runs entry is worth showing.
   bool hasRunPlugin() const;
   // The Hub offer of one plugin version as a row {id, name, version, origin, originText, permissionsText}; empty when the Hub does not list it.
   QVariantMap hubOffer(const QString& pluginId, const QString& version) const;

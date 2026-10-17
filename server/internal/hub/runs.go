@@ -1061,6 +1061,9 @@ func (s *Service) setRunStatus(ctx context.Context, actorID, runID, to string, a
 	if err := tx.Commit(); err != nil {
 		return Run{}, internal(err)
 	}
+	if to == RunFinished || to == RunAbandoned {
+		s.PruneOldPlugins(ctx) // the run no longer pins its plugin versions
+	}
 	run, err = loadRun(ctx, s.db, runID, true)
 	if err != nil {
 		return Run{}, err
@@ -1282,6 +1285,30 @@ func (s *Service) ActiveRunCount(ctx context.Context) (int, error) {
 	return n, nil
 }
 
+// RunsFeatureVisible reports whether the sidebar shows "Runs": an offered plugin asks for the run.state permission,
+// or the Hub already holds a run (old runs stay reachable).
+func (s *Service) RunsFeatureVisible(ctx context.Context) (bool, error) {
+	var n int
+	if err := s.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM runs)`).Scan(&n); err != nil {
+		return false, internal(err)
+	}
+	if n == 1 {
+		return true, nil
+	}
+	ps, err := s.ListPlugins(ctx)
+	if err != nil {
+		return false, err
+	}
+	for _, p := range ps {
+		for _, perm := range p.Permissions() {
+			if perm == "run.state" {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
+}
+
 // ListRunsAdmin returns every run (states left out), most recently changed first.
 func (s *Service) ListRunsAdmin(ctx context.Context, includeArchived bool) ([]Run, error) {
 	q := `SELECT id FROM runs`
@@ -1395,6 +1422,7 @@ func (s *Service) DeleteRun(ctx context.Context, runID string) (err error) {
 		return ErrNotFound
 	}
 	s.dropRunBuckets(runID)
+	s.PruneOldPlugins(ctx)
 	return nil
 }
 

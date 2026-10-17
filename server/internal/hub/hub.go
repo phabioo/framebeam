@@ -152,6 +152,7 @@ func Open(ctx context.Context, db *sql.DB, o Options) (*Service, error) {
 	// The plugin store is the run plugin catalog, and a version used by a running run cannot be removed.
 	s.SetPluginCatalog(s)
 	s.SetPluginInUseCheck(s.RunsUsingPluginVersion)
+	s.PruneOldPlugins(ctx) // clean up Hubs that already hold superseded versions
 	// No upload can be in flight while the Hub opens: drop staging leftovers of a crashed run.
 	tmpDir := filepath.Join(s.dataDir, "tmp")
 	if entries, err := os.ReadDir(tmpDir); err == nil {

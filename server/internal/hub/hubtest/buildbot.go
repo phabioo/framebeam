@@ -36,6 +36,8 @@ type fakeBuild struct {
 	date string
 	crc  string
 	zip  []byte
+	// pendingCRC replaces crc the next time the index is served (see ReplaceZipUnlisted).
+	pendingCRC string
 }
 
 // Buildbot is a fake libretro buildbot: an HTTPS test server with info.zip, .index-extended files and zips that
@@ -206,6 +208,20 @@ func (b *Buildbot) SetZip(platform, coreID, date string, zipBytes []byte) {
 	b.builds[platform][coreID+"_libretro"+suffix+".zip"] = &fakeBuild{date: date, crc: libraryCRC(zipBytes), zip: zipBytes}
 }
 
+// ReplaceZipUnlisted replaces the zip of a core in place under the same file name while the index keeps listing the
+// old CRC32 until the index is requested again, like a nightly build the buildbot replaced after the last catalog check.
+func (b *Buildbot) ReplaceZipUnlisted(platform, coreID string, zipBytes []byte) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for _, p := range buildbotPlatforms {
+		if p.ID == platform {
+			bd := b.builds[platform][coreID+"_libretro"+p.Suffix+".zip"]
+			bd.zip = zipBytes
+			bd.pendingCRC = libraryCRC(zipBytes)
+		}
+	}
+}
+
 // SetCRC overrides the CRC32 listed in the index (to simulate a corrupt download).
 func (b *Buildbot) SetCRC(platform, coreID, crc string) {
 	b.mu.Lock()
@@ -241,6 +257,9 @@ func (b *Buildbot) IndexExtended(platform string) []byte {
 	var sb strings.Builder
 	for _, n := range names {
 		bd := b.builds[platform][n]
+		if bd.pendingCRC != "" {
+			bd.crc, bd.pendingCRC = bd.pendingCRC, ""
+		}
 		fmt.Fprintf(&sb, "%s %s %s\n", bd.date, bd.crc, n)
 	}
 	return []byte(sb.String())

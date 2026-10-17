@@ -233,6 +233,17 @@ func (s *Service) httpSource(p corePlatform, b catalogBuild) buildSource {
 		}}
 }
 
+// errCRCMismatch marks a download whose library CRC32 differs from the one in the catalog.
+var errCRCMismatch = errors.New("core CRC32 mismatch")
+
+// crcMismatchError carries a CRC32 mismatch through the error wrapping of installCore: Unwrap yields the wrapped
+// error (an *Error with CodeBadRequest, so callers keep their mapping), Is matches errCRCMismatch.
+type crcMismatchError struct{ err error }
+
+func (e *crcMismatchError) Error() string        { return e.err.Error() }
+func (e *crcMismatchError) Unwrap() error        { return e.err }
+func (e *crcMismatchError) Is(target error) bool { return target == errCRCMismatch }
+
 // stagedBuild is a verified, extracted library waiting in the staging directory.
 type stagedBuild struct {
 	buildSource
@@ -280,7 +291,8 @@ func (s *Service) stage(ctx context.Context, dir string, coreID string, src buil
 	// The index CRC32 is the one of the uncompressed library (like RetroArch's core updater), not of the zip.
 	if src.crc != "" && !strings.EqualFold(src.crc, sb.crc) {
 		os.Remove(sb.libPath)
-		return fail("CRC32 mismatch (expected %s, got %s)", strings.ToLower(src.crc), sb.crc)
+		_, ferr := fail("CRC32 mismatch (expected %s, got %s)", strings.ToLower(src.crc), sb.crc)
+		return sb, &crcMismatchError{ferr}
 	}
 	return sb, nil
 }
@@ -407,7 +419,11 @@ func (s *Service) installCore(ctx context.Context, e SystemEntry, info coreInfo,
 			if errors.As(err, &he) || strings.HasPrefix(err.Error(), "hub:") {
 				return zero, err
 			}
-			return zero, badRequest("%s could not be installed: %v", info.DisplayName, err)
+			be := badRequest("%s could not be installed: %v", info.DisplayName, err)
+			if errors.Is(err, errCRCMismatch) {
+				return zero, &crcMismatchError{be}
+			}
+			return zero, be
 		}
 		staged = append(staged, sb)
 		if src.date > newest {
@@ -591,7 +607,51 @@ func (s *Service) InstallCore(ctx context.Context, systemID, coreID string) (_ I
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return InstalledCore{}, internal(err)
 	}
-	return s.installCore(ctx, e, c.coreInfo, s.catalogSources(c), false)
+	return s.installCoreRefreshing(ctx, e, c, false)
+}
+
+// installCoreRefreshing runs installCore. On a CRC32 mismatch the catalog may be stale (the buildbot replaces nightly
+// builds in place under the same file name): it refreshes the catalog once and retries once when a build changed.
+// s.cores.mu must be held; RefreshCatalog takes only refreshMu.
+func (s *Service) installCoreRefreshing(ctx context.Context, e SystemEntry, c catalogCore, replace bool) (InstalledCore, error) {
+	ic, err := s.installCore(ctx, e, c.coreInfo, s.catalogSources(c), replace)
+	if !errors.Is(err, errCRCMismatch) {
+		return ic, err
+	}
+	hint := func(err error) error {
+		msg := err.Error()
+		var he *Error
+		if errors.As(err, &he) {
+			msg = he.Message
+		}
+		return badRequest("%s The download does not match the buildbot index; the buildbot may be replacing the build. Try again later.", strings.TrimSuffix(msg, "."))
+	}
+	if _, rerr := s.RefreshCatalog(ctx); rerr != nil {
+		return InstalledCore{}, hint(err)
+	}
+	fresh, ok := s.catalogCore(c.ID)
+	if !ok || !buildsChanged(c, fresh) {
+		return InstalledCore{}, hint(err)
+	}
+	ic, err = s.installCore(ctx, e, fresh.coreInfo, s.catalogSources(fresh), replace)
+	if errors.Is(err, errCRCMismatch) {
+		return InstalledCore{}, hint(err)
+	}
+	return ic, err
+}
+
+// buildsChanged reports whether any platform build differs (date or CRC32) between two catalog entries.
+func buildsChanged(a, b catalogCore) bool {
+	if len(a.Builds) != len(b.Builds) {
+		return true
+	}
+	for id, x := range a.Builds {
+		y, ok := b.Builds[id]
+		if !ok || x.Date != y.Date || !strings.EqualFold(x.CRC32, y.CRC32) {
+			return true
+		}
+	}
+	return false
 }
 
 // UpdateCore installs the newest buildbot build of an installed core and removes the old build after the new one
@@ -611,7 +671,7 @@ func (s *Service) UpdateCore(ctx context.Context, systemID, coreID string) (_ In
 	if cur.BuildDate != "" && c.newestDate() <= cur.BuildDate {
 		return InstalledCore{}, badRequest("%s is up to date (build %s)", c.DisplayName, cur.BuildDate)
 	}
-	return s.installCore(ctx, e, c.coreInfo, s.catalogSources(c), true)
+	return s.installCoreRefreshing(ctx, e, c, true)
 }
 
 // RemoveCore removes an installed core with its packages and cache files. Removing the default core reassigns

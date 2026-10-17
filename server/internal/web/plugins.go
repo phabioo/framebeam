@@ -234,6 +234,9 @@ func (s *Server) renderPlugins(w http.ResponseWriter, r *http.Request, sess *ses
 		for k := j - 1; k >= i; k-- { // ListPlugins is oldest first
 			row := toRow(ps[k])
 			row.Rel = relOf(ps[k])
+			if k < j-1 {
+				row.Rel = "Older version · kept while a run uses it"
+			}
 			row.Selected = o.sel != nil && o.sel.PluginID == ps[k].PluginID && o.sel.Version == ps[k].Version
 			b.Rows = append(b.Rows, row)
 		}

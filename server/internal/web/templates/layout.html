@@ -32,7 +32,7 @@
       <a href="/clients"{{if eq .Nav "clients"}} class="active" aria-current="page"{{end}} hx-get="/clients" hx-target="#main" hx-push-url="true">Clients{{if .Pending}}<span class="badge">{{.Pending}} {{if eq .Pending 1}}request{{else}}requests{{end}}</span>{{end}}</a>
       <a href="/users"{{if eq .Nav "users"}} class="active" aria-current="page"{{end}} hx-get="/users" hx-target="#main" hx-push-url="true">Users</a>
       <a href="/plugins"{{if eq .Nav "plugins"}} class="active" aria-current="page"{{end}} hx-get="/plugins" hx-target="#main" hx-push-url="true">Plugins</a>
-      <a href="/runs"{{if eq .Nav "runs"}} class="active" aria-current="page"{{end}} hx-get="/runs" hx-target="#main" hx-push-url="true">Runs{{if .ActiveRuns}}<span class="badge">{{.ActiveRuns}} active</span>{{end}}</a>
+      {{if .ShowRuns}}<a href="/runs"{{if eq .Nav "runs"}} class="active" aria-current="page"{{end}} hx-get="/runs" hx-target="#main" hx-push-url="true">Runs{{if .ActiveRuns}}<span class="badge">{{.ActiveRuns}} active</span>{{end}}</a>{{end}}
       <a href="/settings"{{if eq .Nav "settings"}} class="active" aria-current="page"{{end}} hx-get="/settings" hx-target="#main" hx-push-url="true">Settings{{if .UpdateAvailable}}<span class="badge">update</span>{{end}}</a>
 {{end}}
 {{define "nav"}}    <nav class="nav" id="nav" aria-label="Main navigation" hx-get="/nav-fragment" hx-trigger="fb:badges from:body" hx-target="this" hx-swap="outerHTML" hx-disinherit="hx-swap hx-target">{{template "nav-inner" .}}    </nav>{{end}}

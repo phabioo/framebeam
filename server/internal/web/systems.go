@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -209,7 +210,7 @@ func (s *Server) systemsBodyData(r *http.Request) (systemsBody, error) {
 		}
 		for _, c := range sc.Available {
 			av := coreAvailView{CoreID: c.CoreID, Name: c.DisplayName, License: c.License, HWAPI: c.RequiredHWAPI, BuildDate: c.BuildDate,
-				Platforms: strings.Join(c.Platforms, ", "), Extensions: strings.Join(c.Extensions, ", "), Notes: strings.Join(c.Notes, " · "),
+				Platforms: strings.Join(c.Platforms, ", "), Extensions: strings.Join(c.Extensions, ", "), Notes: coreNotes(c.Notes),
 				Experimental: c.Experimental, NonCommercial: c.NonCommercial}
 			if av.License == "" {
 				av.License = "unknown"
@@ -651,4 +652,29 @@ func (s *Server) coresAutoUpdate(w http.ResponseWriter, r *http.Request, _ *sess
 		to = "/systems?sys=" + url.QueryEscape(sys) + "&tab=core&ok=coreautoupdate"
 	}
 	http.Redirect(w, r, to, http.StatusSeeOther)
+}
+
+// md5NoteRe matches the .info note "(!) <file> (md5): <hash>", which only repeats the firmware list with a hash.
+var md5NoteRe = regexp.MustCompile(`(?i)^\(!\).*\(md5\):\s*[0-9a-f]{32}\s*$`)
+
+// coreNotes turns the raw notes of a core's .info file into a short line: entries without "(!)" describe firmware
+// files ("Firmware: gba_bios.bin (Game Boy Advance BIOS)"), "(!) <file> (md5): <hash>" entries are dropped, other
+// "(!)" notes are kept.
+func coreNotes(notes []string) string {
+	var fw, other []string
+	for _, n := range notes {
+		n = strings.TrimSpace(n)
+		switch {
+		case n == "", md5NoteRe.MatchString(n):
+		case strings.HasPrefix(n, "(!)"):
+			other = append(other, n)
+		default:
+			fw = append(fw, n)
+		}
+	}
+	var parts []string
+	if len(fw) > 0 {
+		parts = append(parts, "Firmware: "+strings.Join(fw, ", "))
+	}
+	return strings.Join(append(parts, other...), " · ")
 }

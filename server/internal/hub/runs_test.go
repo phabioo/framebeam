@@ -224,3 +224,88 @@ func TestPluginStoreWiredToRuns(t *testing.T) {
 		t.Fatalf("removed: %v", err)
 	}
 }
+
+func offerPluginVersions(t *testing.T, svc *hub.Service, adminID, id string, versions ...string) {
+	t.Helper()
+	for _, v := range versions {
+		if _, err := svc.OfferStagedPlugin(ctx, stage(t, svc, hubtest.PluginZip(t, id, v, nil, nil)).StageID, nil, adminID); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func pluginVersions(t *testing.T, svc *hub.Service, id string) []string {
+	t.Helper()
+	ps, err := svc.ListPlugins(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []string
+	for _, p := range ps {
+		if p.PluginID == id {
+			out = append(out, p.Version)
+		}
+	}
+	return out
+}
+
+// A newer plugin version replaces older ones; a version an unfinished run pins stays until the run ends or is deleted.
+func TestNewerPluginVersionSupersedesOlder(t *testing.T) {
+	svc := pluginHub(t, nil)
+	admin, err := svc.CreateAdmin(ctx, "admin", "secret-12345")
+	if err != nil {
+		t.Fatal(err)
+	}
+	g, err := svc.AddROM(ctx, strings.NewReader("homebrew-rom-dummy"), "demo.nds", "Demo", "", admin.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const id = "net.example.sup"
+	eq := func(want ...string) {
+		t.Helper()
+		if got := pluginVersions(t, svc, id); strings.Join(got, ",") != strings.Join(want, ",") {
+			t.Fatalf("versions %v, want %v", got, want)
+		}
+	}
+	offerPluginVersions(t, svc, admin.ID, id, "1.0.0")
+	offerPluginVersions(t, svc, admin.ID, id, "1.1.0")
+	eq("1.1.0")
+	// A deliberately uploaded older version removes nothing and is not removed itself.
+	offerPluginVersions(t, svc, admin.ID, id, "0.9.0")
+	eq("0.9.0", "1.1.0")
+	svc.PruneOldPlugins(ctx)
+	eq("1.1.0")
+
+	mk := func() hub.Run {
+		run, err := svc.CreateRun(ctx, hub.CreateRunInput{UserID: admin.ID, Name: "R", GameID: g.ID, Plugins: []hub.RunPluginRef{{PluginID: id, Version: "1.1.0"}}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return run
+	}
+	// Starting run pins 1.1.0: 1.2.0 arrives, 1.1.0 stays; finishing the run removes it.
+	run := mk()
+	offerPluginVersions(t, svc, admin.ID, id, "1.2.0")
+	eq("1.1.0", "1.2.0")
+	if _, err := svc.SetRunStatus(ctx, admin.ID, run.ID, hub.RunActive); err != nil {
+		t.Fatal(err)
+	}
+	eq("1.1.0", "1.2.0")
+	if _, err := svc.SetRunStatus(ctx, admin.ID, run.ID, hub.RunFinished); err != nil {
+		t.Fatal(err)
+	}
+	eq("1.2.0")
+	// Deleting an unfinished run releases the pin too.
+	offerPluginVersions(t, svc, admin.ID, id, "1.3.0")
+	eq("1.3.0")
+	run2, err := svc.CreateRun(ctx, hub.CreateRunInput{UserID: admin.ID, Name: "R2", GameID: g.ID, Plugins: []hub.RunPluginRef{{PluginID: id, Version: "1.3.0"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	offerPluginVersions(t, svc, admin.ID, id, "1.4.0")
+	eq("1.3.0", "1.4.0")
+	if err := svc.DeleteRun(ctx, run2.ID); err != nil {
+		t.Fatal(err)
+	}
+	eq("1.4.0")
+}

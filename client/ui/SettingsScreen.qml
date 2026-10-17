@@ -200,7 +200,7 @@ Rectangle {
                             objectName: "updatesPill"
                             visible: root.updates.state === "up_to_date" && !root.updates.updateAvailable
                             tone: "ok"
-                            text: qsTr("✓ Up to date · %1").arg(root.updates.currentVersion)
+                            text: qsTr("Up to date · %1").arg(root.updates.currentVersion)
                         }
                     }
 
@@ -393,8 +393,8 @@ Rectangle {
                         objectName: "settingsLocalHubButton"
                         visible: root.player.localHub.available && !root.player.localHub.onThisPc
                         Layout.alignment: Qt.AlignLeft
+                        Layout.leftMargin: Theme.settingsDotSlot
                         Layout.minimumWidth: 0
-                        Layout.maximumWidth: content.width - Theme.settingsDotSlot
                         kind: "link"
                         text: qsTr("Set up a Hub on this PC")
                         onClicked: { root.player.switchHub(); root.player.localHub.start() }
@@ -546,29 +546,32 @@ Rectangle {
                                 }
 
                                 // Connect automatically: part of the active Hub's card (3p-3).
-                                RowLayout {
+                                // Anchored (not a RowLayout): the toggle's right edge is the card's inner right edge, the same
+                                // edge as the [Edit][⋯] group above, at every width.
+                                Item {
                                     visible: hubRow.modelData.connected && !hubRow.confirmRemove
                                     Layout.fillWidth: true
-                                    spacing: 24
-                                    Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 0; visible: false }
+                                    Layout.minimumWidth: 0
+                                    implicitHeight: Math.max(autoText.implicitHeight, autoToggle.implicitHeight)
                                     ColumnLayout {
-                                        Layout.fillWidth: true
-                                        Layout.minimumWidth: 0
+                                        id: autoText
+                                        anchors.left: parent.left
+                                        anchors.right: autoToggle.left
+                                        anchors.rightMargin: 24
+                                        anchors.verticalCenter: parent.verticalCenter
                                         spacing: 2
-                                        FbLabel { text: qsTr("Connect automatically on startup"); font.pixelSize: Theme.fontBody }
-                                        FbLabel { text: qsTr("Uses this Hub when the Player starts."); color: Theme.textMuted; font.pixelSize: Theme.fontMeta }
+                                        FbLabel { text: qsTr("Connect automatically on startup"); font.pixelSize: Theme.fontBody; Layout.fillWidth: true }
+                                        FbLabel { text: qsTr("Uses this Hub when the Player starts."); color: Theme.textMuted; font.pixelSize: Theme.fontMeta; Layout.fillWidth: true }
                                     }
-                                    Item {
-                                        Layout.preferredWidth: content.wide ? Theme.settingsControlWidth - 16 : 40
-                                        Layout.preferredHeight: 28
-                                        FbToggle {
-                                            id: autoToggle
-                                            objectName: "settingsAutoConnectToggle"
-                                            anchors.right: parent.right
-                                            checked: root.player.autoConnect
-                                            onToggled: root.player.autoConnect = checked
-                                            Accessible.name: qsTr("Connect automatically on startup")
-                                        }
+                                    FbToggle {
+                                        id: autoToggle
+                                        objectName: "settingsAutoConnectToggle"
+                                        implicitWidth: 40   // the track only: a Switch without text still reserves indicator + spacing
+                                        anchors.right: parent.right
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        checked: root.player.autoConnect
+                                        onToggled: root.player.autoConnect = checked
+                                        Accessible.name: qsTr("Connect automatically on startup")
                                     }
                                 }
 
