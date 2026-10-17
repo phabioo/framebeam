@@ -8,7 +8,11 @@
 #include <string>
 
 #include "memory_snapshot.h"
+#include <QObject>
+#include <QPointer>
+
 #include "plugin_memory.h"
+#include "plugin_video.h"
 
 namespace framebeam::ui {
 
@@ -33,6 +37,31 @@ class MemoryWatchAdapter : public plugins::MemoryProvider {
   mutable std::mutex m_mutex;
   std::shared_ptr<emu::MemoryWatchSet> m_set;
   std::map<std::string, std::vector<plugins::WatchRange>> m_owners;
+};
+
+class GameSession;
+
+// plugins::VideoProvider on top of the running GameSession (fb.video, permission video.capture). Lives on the GUI thread; the
+// plugin thread reads the cached screen list and asks for a native-size frame, which the GUI thread converts to RGBA.
+// Nothing is written to disk or logged here.
+class VideoCaptureAdapter : public QObject, public plugins::VideoProvider {
+  Q_OBJECT
+ public:
+  explicit VideoCaptureAdapter(GameSession* session, QObject* parent = nullptr);
+  ~VideoCaptureAdapter() override;
+
+  std::vector<plugins::ScreenInfo> screens() const override;                     // any thread
+  void captureFrame(std::function<void(plugins::RawFrame)> done) override;      // any thread
+
+  // GUI thread: screens of the session's display profile scaled to the native frame size (pure, for tests).
+  static std::vector<plugins::ScreenInfo> screensFor(const GameSession& session);
+
+ private:
+  void refresh();
+
+  QPointer<GameSession> m_session;
+  mutable std::mutex m_mutex;
+  std::vector<plugins::ScreenInfo> m_screens;
 };
 
 }  // namespace framebeam::ui

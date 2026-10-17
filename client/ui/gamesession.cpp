@@ -6,6 +6,7 @@
 #include <QPointer>
 #include <QSaveFile>
 #include <QThread>
+#include <QTimer>
 
 #include "screenlayout.h"
 
@@ -127,6 +128,7 @@ void GameSession::launch(const LaunchConfig& config, bool restart) {
     frameNr_ = nr;
     frameLateNs_ = lateNs;
     emit frameChanged();
+    if (!captureWaiters_.isEmpty()) serveCaptures(false);
   });
   connect(r, &EmulationRunner::audioReady, this, [this](const QByteArray& pcm, int rate) {
     if (!audioMuted_) {
@@ -162,6 +164,11 @@ void GameSession::launch(const LaunchConfig& config, bool restart) {
 }
 
 void GameSession::teardown() {
+  if (!captureWaiters_.isEmpty()) {  // plugin captures waiting for a frame fail with the game
+    auto waiters = std::move(captureWaiters_);
+    captureWaiters_.clear();
+    for (auto& w : waiters) w(QImage(), QStringLiteral("no_frame"));
+  }
   if (runner_) {
     runner_->disconnect(this);
     runner_->stop();  // unloading the game detaches the GPU encode target (GL current); gpuTarget_ stays for a restart
@@ -423,7 +430,11 @@ void GameSession::updateReadbackLimit() {
   QSize views;  // empty = nobody reported a size: unlimited
   for (const QSize& s : std::as_const(viewSizes_)) views = views.expandedTo(s);
   const bool active = gpuDisplay_ && gpuDisplay_->state() == GpuDisplayBridge::State::Active;
-  const ReadbackPlan plan = planReadback(active, views, shareSize_);
+  ReadbackPlan plan = planReadback(active, views, shareSize_);
+  if (!captureWaiters_.isEmpty()) {  // a plugin waits for a native-size frame (video.capture): full size, readback on
+    plan.readback = true;
+    plan.readbackLimit = QSize();
+  }
   limit_ = plan.readbackLimit;
   displayLimit_ = plan.displayLimit;
   readbackOn_ = plan.readback;
@@ -438,6 +449,41 @@ void GameSession::updateReadbackLimit() {
     frame_ = QImage();
     emit frameChanged();
   }
+}
+
+QSize GameSession::sourceFrameSize() const {
+  if (!runner_) return preview_ ? frame_.size() : QSize();
+  return runner_->sourceFrameSize();
+}
+
+void GameSession::requestNativeFrame(std::function<void(const QImage&, const QString&)> done) {
+  if (!isActive() && !preview_) {
+    done(QImage(), QStringLiteral("no_frame"));
+    return;
+  }
+  captureWaiters_.append(std::move(done));
+  const bool readbackWasOn = readbackOn_;  // with readback off, frame_ is not kept up to date: wait for a fresh frame
+  updateReadbackLimit();
+  if (readbackWasOn) serveCaptures(false);  // the current frame may already have the native size
+  if (!captureWaiters_.isEmpty()) {
+    QPointer<GameSession> self(this);
+    QTimer::singleShot(2000, this, [self]() {
+      if (self && !self->captureWaiters_.isEmpty()) self->serveCaptures(true);
+    });
+  }
+}
+
+// Serves the waiting capture requests with the current frame when it has the native size (or always when timed out/stopped).
+void GameSession::serveCaptures(bool timedOut) {
+  if (captureWaiters_.isEmpty()) return;
+  const QSize native = sourceFrameSize();
+  const bool haveFrame = !frame_.isNull() && readbackOn_ && (native.isEmpty() || frame_.size() == native);
+  if (!haveFrame && !timedOut) return;
+  auto waiters = std::move(captureWaiters_);
+  captureWaiters_.clear();
+  const QImage img = haveFrame ? frame_ : QImage();
+  updateReadbackLimit();  // back to the normal plan
+  for (auto& w : waiters) w(img, haveFrame ? QString() : QStringLiteral("no_frame"));
 }
 
 EmulationDiagnostics GameSession::diagnostics() const {

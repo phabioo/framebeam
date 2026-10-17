@@ -312,6 +312,7 @@ class PluginsController : public QObject {
   QString hubBusyId_;
   QList<QPair<QString, QString>> installQueue_;  // (id, version) still to install after the current one
   std::shared_ptr<MemoryWatchAdapter> adapter_;
+  std::shared_ptr<VideoCaptureAdapter> video_;  // fb.video of the running game; released on the GUI thread after host_->stop()
   QTimer consoleTimer_;
   bool running_ = false;                      // plugins of the running game are started
   bool inGame_ = false;                       // a game runs (with or without plugins)

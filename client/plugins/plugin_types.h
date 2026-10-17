@@ -5,6 +5,7 @@
 #include <memory>
 
 #include "lua_sandbox.h"
+#include "plugin_video.h"
 #include "run_bridge.h"
 
 namespace framebeam::plugins {
@@ -21,6 +22,7 @@ struct GameContext {
   QString language;  // game language for fb.i18n, e.g. "de", "en", "de-DE"
   bool shell = false;  // shell context: no game runs; fb.game is an empty table, memory/rom reads return nil
   std::shared_ptr<RunBridge> run;  // the game was started in a run: fb.run exists (permission run.state); null = no fb.run
+  std::shared_ptr<VideoProvider> video;  // frame source of the running game (fb.video, video.capture); null = fb.video.screens() is nil, captures fail with "unsupported"
 };
 
 struct HostLimits {

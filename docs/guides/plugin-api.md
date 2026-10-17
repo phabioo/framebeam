@@ -38,7 +38,7 @@ A plugin is a folder with a `manifest.json`, a Lua entry file and optional `i18n
 | `requires` | Map of plugin id to version range: `^1.2` (compatible, below the next major; `^0.2` stays below `0.3`), `~1.2` (below the next minor), `>=1.0`, `1.2.3` (exact), `*`. Required plugins start first. A required plugin must be installed and match the range. |
 | `provides` | Interface names this plugin offers to others with `fb.provide`. |
 | `games` | List of `{ "system", "codes" }`. `codes` are globs (`*` any run, `?` one character, case-insensitive); no `codes` = every game of that system. An empty or missing list = all games. |
-| `permissions` | `memory.read`, `rom.read`, `ui`, `run.state`. `memory.write` and `tool.exec` are rejected ("permission `<p>` is not available yet"), unknown names are errors. |
+| `permissions` | `memory.read`, `rom.read`, `ui`, `run.state`, `video.capture`. `memory.write` and `tool.exec` are rejected ("permission `<p>` is not available yet"), unknown names are errors. |
 | `entry` | Relative path of the `.lua` entry file inside the plugin folder (no `..`, must exist). |
 | `assets` | Relative paths of bundled files or folders. |
 | `run_settings` | Optional run rules form, see [Run settings](#run-settings). |
@@ -52,6 +52,7 @@ A plugin is a folder with a `manifest.json`, a Lua entry file and optional `i18n
 | `rom.read` | `fb.rom.*` | available |
 | `ui` | `fb.ui.*` and the manifest field `ui` (declarative UI blocks, toasts) | available |
 | `run.state` | `fb.run.*` (per-player run state, run events, run board) | available |
+| `video.capture` | `fb.video.*` (screen layout and PNG captures of the game picture) | available |
 
 Calling a function without its permission raises the Lua error `permission <p> not granted`. Everything else (`fb.log`, `fb.events`, `fb.provide`/`fb.call`, `fb.cache`, `fb.i18n`, `fb.clock`, `fb.on_tick`) needs no permission.
 
@@ -70,6 +71,7 @@ Calling a function without its permission raises the Lua error `permission <p> n
 | One watched memory range | 4 MiB |
 | All watched ranges of one plugin | 16 MiB (at most 256 ranges) |
 | `fb.rom.read` length | 16 MiB per call |
+| `fb.video.capture` | one pending capture per plugin, at most 1 request per second, PNG up to 2 MiB, rectangle up to 4096x4096 |
 | Plugin cache | 256 MiB per plugin; `fb.cache.read` returns files up to 32 MiB |
 | Values passed between plugins | depth 32, 1 MiB |
 
@@ -181,6 +183,35 @@ local raw = fb.memory.bytes(slot_addr, 260)
 local plain, ok = raw and fb.codec.pk6_decrypt(raw)
 if plain and ok then species = string.unpack("<I2", plain, 9) end
 ```
+
+### Game picture (`video.capture`)
+
+Lets a plugin take a picture of what the core renders, for example the game's own map graphic from the 3DS bottom screen while the in-game map is open. The Player never writes a capture to disk or to the log; keep what you need with `fb.cache`. The user sees the permission "Capture the game picture" when installing the plugin.
+
+- `fb.video.screens()` returns a list of `{ name, x, y, w, h }`, one per emulated screen, in pixels of the core's output frame at native resolution (not the window): `"top"` and `"bottom"` for Nintendo DS and 3DS (taken from the screen arrangement of the system, scaled with a higher internal resolution), `"main"` for single-screen systems. `nil` when no game runs (shell context).
+- `fb.video.capture(target)` asks for the latest frame at native core resolution, before scaling and shaders (for hardware-rendered cores such as Azahar: the existing readback of the frame; nothing is read back while nobody asks, so there is no cost per frame). `target` is a screen name (`"bottom"`) or a rectangle `{ x = 0, y = 0, w = 320, h = 240 }` of integers in the same coordinates. It does not block: it returns a request id (integer, counting from 1 per plugin state) and the result arrives later as the host event `video.captured`. A wrong argument type or a rectangle without integers raises a Lua error; everything else is reported in the event.
+
+```lua
+fb.events.on("fb", "video.captured", function(e)
+  if e.ok then fb.cache.write("map/hoenn.png", e.png) else fb.log.warn("capture failed: " .. e.error) end
+end)
+local id = fb.video.capture("bottom")
+```
+
+Event `video.captured` (source `"fb"`, delivered on the plugin thread like the other [host events](#host-events-from-fb), only to the requesting plugin): `{ id, ok = true, png = <PNG bytes>, w, h }` or `{ id, ok = false, error }`. The PNG is RGBA and has exactly the size of the rectangle.
+
+| `error` | Meaning |
+|---|---|
+| `busy` | A capture of this plugin is still pending. |
+| `rate_limited` | The last accepted request was less than a second ago. |
+| `no_frame` | No game runs, the game stopped, or no frame arrived within a few seconds. |
+| `unknown_screen` | The screen name is not in `fb.video.screens()`. |
+| `invalid_rect` | The rectangle is empty, negative, larger than 4096 in a side or not inside the frame. |
+| `too_large` | The PNG is larger than 2 MiB. |
+| `unsupported` | This context has no frame source. Captures work for the game running on this Player; in a Session viewed from another Player the decoded stream frame is not offered to plugins. |
+| `denied` | The frame source refused the capture. |
+
+A capture waits for a frame at native size, so with a hardware-rendered core the result arrives one to a few frames after the request. While the game is paused no new frame is produced and the capture fails with `no_frame` after about 2 seconds, unless the last frame already has native size.
 
 ### Cache
 
