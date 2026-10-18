@@ -68,7 +68,7 @@ type saveHistoryView struct {
 	Slot         string
 	SlotLabel    string
 	Blocked      string // why Restore is disabled ("" = possible)
-	Menu         bool   // the row has a menu (snapshots: delete)
+	Menu         bool   // the row has a menu (delete version)
 }
 
 // saveTabView is a slot tab.
@@ -112,6 +112,7 @@ type saveDetailView struct {
 // slotOpsView is the Rename and Delete row actions of the selected slot (not offered for the default slot).
 type slotOpsView struct {
 	Show               bool
+	Main               bool // the main slot: it can be deleted but not renamed
 	Running            bool // a Session of the game runs: the actions are disabled
 	RenameOpen         bool
 	DeleteOpen         bool
@@ -544,8 +545,8 @@ func (s *Server) saveDetail(r *http.Request, grp *saveGroup, slotName string, fi
 		}
 		return fmt.Sprintf("Rev %d", rev)
 	}
-	if slotName != hub.DefaultSlot {
-		o := slotOpsView{Show: true, Running: running, Max: hub.MaxSlotName, Rev: cur.Revision, When: ago(cur.CreatedAt, now),
+	{
+		o := slotOpsView{Show: true, Main: slotName == hub.DefaultSlot, Running: running, Max: hub.MaxSlotName, Rev: cur.Revision, When: ago(cur.CreatedAt, now),
 			Device: webDeviceLabel(cur.DeviceName, cur.DeviceID, names), Size: humanBytes(cur.Size), Versions: len(selHist),
 			CancelHref: savesURL(href, filter, hist, 0), RenameHref: href + "/rename", DeleteHref: href + "/delete",
 			RenameAsk: withParam(savesURL(href, filter, hist, 0), "rename", "1"), DeleteAsk: withParam(savesURL(href, filter, hist, 0), "delslot", "1")}
@@ -571,6 +572,10 @@ func (s *Server) saveDetail(r *http.Request, grp *saveGroup, slotName string, fi
 			ResolveHref: href + "/conflicts/" + url.PathEscape(c.ID) + "/resolve", ExpectedRev: c.Hub.Revision, KeepHref: savesURL(href, filter, hist, 0),
 		})
 	}
+	securedByConflict := map[int]bool{}
+	for _, c := range slot.OpenConflicts {
+		securedByConflict[c.Secured.Version] = true
+	}
 	for _, v := range selHist {
 		meta := historyReasonLabels[v.Reason]
 		switch {
@@ -589,7 +594,7 @@ func (s *Server) saveDetail(r *http.Request, grp *saveGroup, slotName string, fi
 			DeleteHref:   href + "/history/" + vs + "/delete",
 			DeleteAsk:    withParam(savesURL(href, filter, hist, 0), "delete", vs),
 			CancelHref:   savesURL(href, filter, hist, 0), CancelXHR: savesURL(href, filter, hist, 0) + cancelParam(filter, hist), ExpectedRev: cur.Revision, Slot: slotName, SlotLabel: slotLabel(slotName), Blocked: blocked}
-		hv.Menu = hv.Snapshot
+		hv.Menu = !securedByConflict[v.Version] // the secured version of an open conflict cannot be deleted
 		switch {
 		case hv.Current:
 			hv.Kind = "current"
@@ -605,7 +610,7 @@ func (s *Server) saveDetail(r *http.Request, grp *saveGroup, slotName string, fi
 		if confirm == v.Version && !hv.Current {
 			d.Confirm, hv.Open = v.Version, true
 		}
-		if del == v.Version && hv.Snapshot {
+		if del == v.Version && hv.Menu {
 			d.Confirm, hv.DeleteOpen = v.Version, true
 		}
 		d.History = append(d.History, hv)
@@ -855,14 +860,14 @@ func (s *Server) saveDeleteSnapshot(w http.ResponseWriter, r *http.Request, _ *s
 		s.notFound(w, r)
 		return
 	}
-	err = s.svc.DeleteSaveSnapshot(r.Context(), u, g, sl, ver)
+	err = s.svc.DeleteSaveVersion(r.Context(), u, g, sl, ver)
 	switch {
 	case err == nil:
 		s.redirect(w, r, saveHref(u, g, sl)+"?ok=snapdeleted")
 	case errors.Is(err, hub.ErrNotFound):
 		s.notFound(w, r)
-	case errors.Is(err, hub.ErrSaveNotSnapshot):
-		http.Error(w, "Only manual snapshots can be deleted", http.StatusConflict)
+	case errors.Is(err, hub.ErrConflict):
+		s.redirect(w, r, saveHref(u, g, sl)+"?err=openconflict")
 	default:
 		s.fail(w, r, err)
 	}
@@ -1097,6 +1102,8 @@ func (s *Server) saveDeleteSlot(w http.ResponseWriter, r *http.Request, sess *se
 	err = s.svc.DeleteSaveSlot(r.Context(), hub.DeleteInput{UserID: u, DeviceID: hub.WebDeviceID(sess.User.ID), GameID: g, Slot: sl, ConfirmRevision: exp})
 	here := saveHref(u, g, sl)
 	switch {
+	case err == nil && sl == hub.DefaultSlot:
+		s.redirect(w, r, "/saves?ok=maindeleted")
 	case err == nil:
 		s.redirect(w, r, "/saves?ok=slotdeleted")
 	case errors.Is(err, hub.ErrNotFound):

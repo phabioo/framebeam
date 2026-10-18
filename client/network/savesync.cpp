@@ -77,6 +77,10 @@ bool SaveSync::hubSupportsSavesV5() const {
   return hubSupportsSavesV2() && conn_->hubHasFeature(QString::fromLatin1(kSavesV5Feature));
 }
 
+bool SaveSync::hubSupportsSavesV6() const {
+  return hubSupportsSavesV2() && conn_->hubHasFeature(QString::fromLatin1(kSavesV6Feature));
+}
+
 bool SaveSync::hubSupportsSavesV4() const {
   return hubSupportsSavesV2() && conn_->hubHasFeature(QString::fromLatin1(kSavesV4Feature));
 }
@@ -2085,7 +2089,27 @@ QString SaveSync::moveLocalSlot(const QString& gameId, const QString& from, cons
 
 void SaveSync::removeLocalSlot(const QString& gameId, const QString& slot) {
   if (slot == QLatin1String("default")) {
-    return;  // the main slot is never removed
+    // The main slot directory is the game directory and also holds "slots/": remove only its own files (save file, sync.json), keep
+    // the other slots and *.bak backups. Without sync.json the next start begins fresh from the (empty) Hub slot.
+    const QString gameDir = slotDirFor(gameId, slot);
+    if (!gameDir.isEmpty() && QFileInfo(gameDir).isDir() && !QFileInfo(gameDir).isSymLink()) {
+      for (const QFileInfo& fi : QDir(gameDir).entryInfoList(QDir::AllEntries | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System)) {
+        if (fi.fileName() == QLatin1String("slots") || fi.fileName().endsWith(QLatin1String(".bak"))) {
+          continue;
+        }
+        if (fi.isDir() && !fi.isSymLink()) {
+          QDir(fi.absoluteFilePath()).removeRecursively();
+        } else {
+          QFile::remove(fi.absoluteFilePath());
+        }
+      }
+    }
+    const QString shortDir = SaveStore::shortCoreDir(*profiles_, conn_->hubId(), conn_->hubUserId(), gameId, slot);
+    if (!shortDir.isEmpty() && QFileInfo(shortDir).isDir() && !QFileInfo(shortDir).isSymLink()) {
+      QDir(shortDir).removeRecursively();
+    }
+    refreshKinds({gameId});
+    return;
   }
   for (const QString& dir : {slotDirFor(gameId, slot), SaveStore::shortCoreDir(*profiles_, conn_->hubId(), conn_->hubUserId(), gameId, slot)}) {
     if (!dir.isEmpty() && QFileInfo(dir).isDir() && !QFileInfo(dir).isSymLink()) {
@@ -2271,11 +2295,12 @@ void SaveSync::handleSlotRenamedElsewhere(const SaveUpdate& u) {
 
 void SaveSync::handleSlotDeletedElsewhere(const SaveUpdate& u) {
   const QString slot = u.slot;
-  if (slot == QLatin1String("default") || !SaveStore::isValidSlotName(slot)) {
+  if (!SaveStore::isValidSlotName(slot)) {
     emit slotChangedElsewhere(u, QString(), false);
     return;
   }
-  QString msg = tr("Slot \"%1\" was deleted on %2.").arg(slot, whoText(u));
+  const bool isMain = slot == QLatin1String("default");
+  QString msg = isMain ? tr("The main slot was deleted on %1.").arg(whoText(u)) : tr("Slot \"%1\" was deleted on %2.").arg(slot, whoText(u));
   bool warn = false;
   if (isRunning(u.gameId, slot)) {
     msg += QLatin1Char(' ') + tr("This game is running with it. This device keeps its local copy; the next upload creates the slot again.");
@@ -2287,7 +2312,7 @@ void SaveSync::handleSlotDeletedElsewhere(const SaveUpdate& u) {
     } else {
       removeLocalSlot(u.gameId, slot);
     }
-  } else if (slotFor(u.gameId) == slot) {
+  } else if (!isMain && slotFor(u.gameId) == slot) {
     setSlot(u.gameId, QStringLiteral("default"));
   }
   emit slotChangedElsewhere(u, msg, warn);

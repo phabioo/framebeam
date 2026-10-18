@@ -724,7 +724,7 @@ void FakeHub::handleSaves(QSslSocket* sock, const FakeRequest& req) {
         confirm = kv.mid(17).toInt();
       }
     }
-    if (slotName == QLatin1String("default")) {
+    if (slotName == QLatin1String("default") && !features.contains(QStringLiteral("saves_v6"))) {
       respondError(sock, 409, QStringLiteral("save_slot_protected"));
     } else if (confirm < 0) {
       respondError(sock, 400, QStringLiteral("bad_request"));
@@ -882,7 +882,7 @@ void FakeHub::handleSaves(QSslSocket* sock, const FakeRequest& req) {
       respondError(sock, 404, QStringLiteral("not_found"));
       return;
     }
-    if (s.history.at(found).reason != QLatin1String("manual_snapshot")) {
+    if (s.history.at(found).reason != QLatin1String("manual_snapshot") && !features.contains(QStringLiteral("saves_v6"))) {
       respondError(sock, 409, QStringLiteral("save_not_snapshot"));
       return;
     }

@@ -19,6 +19,7 @@ inline constexpr const char* kSavesV2Feature = "saves_v2";  // restore, snapshot
 inline constexpr const char* kSavesV3Feature = "saves_v3";  // deleting manual snapshots
 inline constexpr const char* kSavesV4Feature = "saves_v4";  // upload of a local save file as the current checkpoint
 inline constexpr const char* kSavesV5Feature = "saves_v5";  // rename and delete slots, upload lock during a Session
+inline constexpr const char* kSavesV6Feature = "saves_v6";  // delete the main slot and any history version
 inline constexpr qint64 kMaxSaveBytes = 64LL * 1024 * 1024;
 
 struct SaveCheckpoint {

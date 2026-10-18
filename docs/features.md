@@ -26,13 +26,13 @@ What the Hub, the protocol and the Player do today, by area. Status by version: 
 - The signed core index endpoints of 0.4 (`cores_index_v1`) were retired in 0.8; handshake feature `cores_v2` lists the installed cores per system (`default_core_id`, `cores`).
 - Hub UI pass (0.7): sidebar navigation swaps only the content area; badges and tables update live (Server-Sent Events). Settings → Network edits port, embedded TURN, public host, relay range and save retention in the browser; these web settings win over `hub.env`, and changes that need it are applied by a restart the Hub triggers itself (ports below 1024 only via `install-hub.sh --port`).
 - Hardening for internet exposure: TURN relay refuses internal-range peers (except connected Players) and limits allocations; the web port requires CSRF tokens on multipart forms, limits sign-in attempts, uses `__Host-` cookies with TLS and needs passwords of at least 12 characters; the Player API rate limits WebSocket messages, pairing and invite redemption ([hub-configuration.md](guides/hub-configuration.md#turn-security)).
-- Library: Rename and Delete per row (admin, web only; saves are kept). Saves: slot Rename/Delete (`saves_v5`) and save upload blocked while a Session of that game runs (0.10.x).
+- Library: Rename and Delete per row (admin, web only; saves are kept). Saves: slot Rename/Delete (`saves_v5`; since `saves_v6` also deleting the main slot and any history version, not only manual snapshots) and save upload blocked while a Session of that game runs (0.10.x).
 - Diagnostics bundle (0.10.x): Settings › Diagnostics or `framebeam-hub diagnostics <out.zip>` ([hub-configuration.md](guides/hub-configuration.md)).
 - Ships as a Debian package and with a systemd installer script for Linux / Raspberry Pi (`packaging/linux/`).
 
 **Protocol** (`protocol/`)
 
-- OpenAPI 3.0.3 for `/api/v1` and WSS message schemas; OpenAPI spec version 1.18.0, `protocol_version` is 1; handshake features `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1`, `firmware_v1`, `cores_v1`, `cores_v2`, `saves_v2`, `saves_v3`, `saves_v4`, `saves_v5`, `local_setup_v1` and, with TURN on, `turn_v1`. See [reference/protocol.md](reference/protocol.md).
+- OpenAPI 3.0.3 for `/api/v1` and WSS message schemas; OpenAPI spec version 1.20.0, `protocol_version` is 1; handshake features `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1`, `firmware_v1`, `cores_v1`, `cores_v2`, `saves_v2`, `saves_v3`, `saves_v4`, `saves_v5`, `saves_v6`, `local_setup_v1` and, with TURN on, `turn_v1`. See [reference/protocol.md](reference/protocol.md).
 
 **FrameBeam Player** (`client/`, [ADR 0003](adr/0003-player-phase2.md))
 

@@ -41,6 +41,8 @@ class SaveHistoryController : public QObject {
   Q_PROPERTY(QString lastSynced READ lastSynced NOTIFY changed)    // "today 18:42" of the same moment
   // Snapshots can be deleted (saves_v3 and the Hub is reachable).
   Q_PROPERTY(bool canDeleteSnapshot READ canDeleteSnapshot NOTIFY changed)
+  // saves_v6: every history version can be deleted, not only manual snapshots.
+  Q_PROPERTY(bool canDeleteAnyVersion READ canDeleteAnyVersion NOTIFY changed)
   // Pending delete confirmation: {} = none, else {version, versionText, label, slot}.
   Q_PROPERTY(QVariantMap deleteRequest READ deleteRequest NOTIFY changed)
   // A restore, delete or upload confirmation is open or an upload runs: "Play" is disabled (decision af).
@@ -133,6 +135,7 @@ class SaveHistoryController : public QObject {
   QString lastUpdated() const;
   QString lastSynced() const;
   bool canDeleteSnapshot() const;
+  bool canDeleteAnyVersion() const;
   QVariantMap deleteRequest() const { return deleteRequest_; }
   bool confirmationOpen() const {
     return !restoreRequest_.isEmpty() || !deleteRequest_.isEmpty() || !uploadRequest_.isEmpty() || uploading_ || conflictOpen_ ||

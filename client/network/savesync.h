@@ -94,6 +94,8 @@ class SaveSync : public QObject {
   bool hubSupportsSavesV4() const;
   // Hub advertises saves_v5 (rename and delete slots, upload lock during a Session).
   bool hubSupportsSavesV5() const;
+  // Hub advertises saves_v6 (delete the main slot and any history version).
+  bool hubSupportsSavesV6() const;
 
   // The game runs (or its Session just ended) with this slot on this Player.
   bool isRunning(const QString& gameId, const QString& slot = QString()) const {

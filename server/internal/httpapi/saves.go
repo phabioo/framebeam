@@ -160,11 +160,11 @@ func (s *Server) CreateSaveSnapshot(ctx context.Context, req api.CreateSaveSnaps
 	return api.CreateSaveSnapshot201JSONResponse(toAPIVersion(v)), nil
 }
 
-func (s *Server) DeleteSaveSnapshot(ctx context.Context, req api.DeleteSaveSnapshotRequestObject) (api.DeleteSaveSnapshotResponseObject, error) {
-	if err := s.svc.DeleteSaveSnapshot(ctx, principal(ctx).User.ID, req.GameId.String(), req.Slot, req.Version); err != nil {
+func (s *Server) DeleteSaveVersion(ctx context.Context, req api.DeleteSaveVersionRequestObject) (api.DeleteSaveVersionResponseObject, error) {
+	if err := s.svc.DeleteSaveVersion(ctx, principal(ctx).User.ID, req.GameId.String(), req.Slot, req.Version); err != nil {
 		return nil, err
 	}
-	return api.DeleteSaveSnapshot204Response{}, nil
+	return api.DeleteSaveVersion204Response{}, nil
 }
 
 func (s *Server) UploadSaveFile(ctx context.Context, req api.UploadSaveFileRequestObject) (api.UploadSaveFileResponseObject, error) {

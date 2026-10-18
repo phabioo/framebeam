@@ -125,7 +125,6 @@ func TestDeleteSaveSlotAPI(t *testing.T) {
 	wantStatus(t, s.do("DELETE", s.savePath("run", "?confirm_revision=2"), nil, opt{}), 401, "")
 	wantStatus(t, s.deleteSlot(d1, "nothere", "1"), 404, "not_found")
 	wantStatus(t, s.deleteSlot(s.device(s.anna.ID, "Anna PC 2"), "run", "2"), 404, "not_found")
-	wantStatus(t, s.deleteSlot(d1, "default", "1"), 409, "save_slot_protected")
 	// Confirmation is mandatory and must match the current checkpoint.
 	wantStatus(t, s.deleteSlot(d1, "run", ""), 400, "")
 	wantStatus(t, s.deleteSlot(d1, "run", "abc"), 400, "")
@@ -168,6 +167,14 @@ func TestDeleteSaveSlotAPI(t *testing.T) {
 	wantStatus(t, rec, 200, "")
 	if r := decode[slotResp](t, rec).Current.Revision; r != 1 {
 		t.Fatalf("revision %d", r)
+	}
+
+	// The main slot can be deleted too (saves_v6); the others are told.
+	wantStatus(t, s.deleteSlot(d1, "default", "9"), 409, "save_conflict_stale")
+	wantStatus(t, s.deleteSlot(d1, "default", "1"), 204, "")
+	wantStatus(t, s.api(d1, "GET", s.savePath("default", ""), nil), 404, "not_found")
+	if raw := awaitReason(w2, "deleted"); raw["slot"] != "default" {
+		t.Fatalf("%v", raw)
 	}
 }
 

@@ -300,7 +300,7 @@ func (e *savesEnv) fileExistsIn(slot string, data []byte) bool {
 	return err == nil
 }
 
-func TestDeleteSaveSnapshot(t *testing.T) {
+func TestDeleteSaveVersion(t *testing.T) {
 	e, _ := newComfortEnv(t, nil)
 	e.put(e.devA, 0, []byte("one"), hub.SyncFinalSessionEnd) // Rev 1, v1 session_end
 	e.put(e.devB, 1, []byte("two"), hub.SyncFinalSessionEnd) // Rev 2, v2 device_change/session_end of Rev 1 is already v1
@@ -310,29 +310,22 @@ func TestDeleteSaveSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Not a snapshot -> save_not_snapshot; missing slot / version -> not found.
-	for _, v := range e.history() {
-		if v.Reason != hub.HistoryManualSnapshot {
-			if err := e.svc.DeleteSaveSnapshot(ctx, u, g, "default", v.Version); !errors.Is(err, hub.ErrSaveNotSnapshot) {
-				t.Fatalf("v%d: %v", v.Version, err)
-			}
-		}
-	}
-	if err := e.svc.DeleteSaveSnapshot(ctx, u, g, "default", 99); !errors.Is(err, hub.ErrNotFound) {
+	// Missing slot / version -> not found.
+	if err := e.svc.DeleteSaveVersion(ctx, u, g, "default", 99); !errors.Is(err, hub.ErrNotFound) {
 		t.Fatal(err)
 	}
-	if err := e.svc.DeleteSaveSnapshot(ctx, u, g, "nothere", 1); !errors.Is(err, hub.ErrNotFound) {
+	if err := e.svc.DeleteSaveVersion(ctx, u, g, "nothere", 1); !errors.Is(err, hub.ErrNotFound) {
 		t.Fatal(err)
 	}
-	if err := e.svc.DeleteSaveSnapshot(ctx, u, g, "Bad Slot", 1); !errors.Is(err, hub.ErrNotFound) {
+	if err := e.svc.DeleteSaveVersion(ctx, u, g, "Bad Slot", 1); !errors.Is(err, hub.ErrNotFound) {
 		t.Fatal(err)
 	}
-	if err := e.svc.DeleteSaveSnapshot(ctx, "other-user", g, "default", snap.Version); !errors.Is(err, hub.ErrNotFound) {
+	if err := e.svc.DeleteSaveVersion(ctx, "other-user", g, "default", snap.Version); !errors.Is(err, hub.ErrNotFound) {
 		t.Fatal(err)
 	}
 	n := len(e.history())
 	// The snapshot shares its content with the checkpoint: the file stays.
-	if err := e.svc.DeleteSaveSnapshot(ctx, u, g, "default", snap.Version); err != nil {
+	if err := e.svc.DeleteSaveVersion(ctx, u, g, "default", snap.Version); err != nil {
 		t.Fatal(err)
 	}
 	if len(e.history()) != n-1 || !e.fileExists([]byte("two")) {
@@ -341,12 +334,12 @@ func TestDeleteSaveSnapshot(t *testing.T) {
 	if sl, _ := e.svc.GetSaveSlot(ctx, u, g, "default"); sl.Current.Revision != 2 || string(e.content()) != "two" {
 		t.Fatalf("%+v", sl.Current)
 	}
-	if err := e.svc.DeleteSaveSnapshot(ctx, u, g, "default", snap.Version); !errors.Is(err, hub.ErrNotFound) {
+	if err := e.svc.DeleteSaveVersion(ctx, u, g, "default", snap.Version); !errors.Is(err, hub.ErrNotFound) {
 		t.Fatal(err)
 	}
 }
 
-func TestDeleteSaveSnapshotDropsUnreferencedFile(t *testing.T) {
+func TestDeleteSaveVersionDropsUnreferencedFile(t *testing.T) {
 	e, _ := newComfortEnv(t, nil)
 	e.put(e.devA, 0, []byte("one"), hub.SyncCheckpoint) // Rev 1
 	u, g := e.user.ID, e.game.ID
@@ -358,7 +351,7 @@ func TestDeleteSaveSnapshotDropsUnreferencedFile(t *testing.T) {
 	if !e.fileExists([]byte("one")) {
 		t.Fatal("snapshot content missing")
 	}
-	if err := e.svc.DeleteSaveSnapshot(ctx, u, g, "default", snap.Version); err != nil {
+	if err := e.svc.DeleteSaveVersion(ctx, u, g, "default", snap.Version); err != nil {
 		t.Fatal(err)
 	}
 	if e.fileExists([]byte("one")) || !e.fileExists([]byte("two")) {
@@ -397,7 +390,7 @@ func TestCreateSaveSlot(t *testing.T) {
 	if src, _ := e.svc.GetSaveSlot(ctx, u, g, "default"); src.Current.Revision != 1 {
 		t.Fatalf("%+v", src.Current)
 	}
-	if err := e.svc.DeleteSaveSnapshot(ctx, u, g, "speedrun", 1); err != nil || !e.fileExistsIn("speedrun", []byte("one")) {
+	if err := e.svc.DeleteSaveVersion(ctx, u, g, "speedrun", 1); err != nil || !e.fileExistsIn("speedrun", []byte("one")) {
 		t.Fatalf("%v", err)
 	}
 
@@ -428,11 +421,74 @@ func TestSnapshotVersionNumbersStayMonotonicAfterDelete(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := e.svc.DeleteSaveSnapshot(ctx, u, g, "default", s1.Version); err != nil {
+	if err := e.svc.DeleteSaveVersion(ctx, u, g, "default", s1.Version); err != nil {
 		t.Fatal(err)
 	}
 	s2, err := e.svc.CreateSaveSnapshot(ctx, u, g, "default", nil)
 	if err != nil || s2.Version != s1.Version+1 {
 		t.Fatalf("v%d after deleting v%d: %v", s2.Version, s1.Version, err)
+	}
+}
+
+func TestDeleteSaveVersionAnyReason(t *testing.T) {
+	e, _ := newComfortEnv(t, nil)
+	e.put(e.devA, 0, []byte("one"), hub.SyncFinalSessionEnd)
+	e.put(e.devB, 1, []byte("two"), hub.SyncFinalSessionEnd)
+	e.put(e.devA, 2, []byte("three"), hub.SyncCheckpoint)
+	u, g := e.user.ID, e.game.ID
+	h := e.history()
+	if len(h) < 2 {
+		t.Fatalf("history %+v", h)
+	}
+	high := 0
+	for _, v := range h {
+		if v.Reason == hub.HistoryManualSnapshot {
+			t.Fatalf("unexpected snapshot %+v", v)
+		}
+		if v.Version > high {
+			high = v.Version
+		}
+		if err := e.svc.DeleteSaveVersion(ctx, u, g, "default", v.Version); err != nil {
+			t.Fatalf("v%d (%s): %v", v.Version, v.Reason, err)
+		}
+	}
+	if len(e.history()) != 0 {
+		t.Fatalf("history remains: %+v", e.history())
+	}
+	if sl, err := e.svc.GetSaveSlot(ctx, u, g, "default"); err != nil || sl.Current.Revision != 3 || string(e.content()) != "three" {
+		t.Fatalf("%+v %v", sl.Current, err)
+	}
+	// Version numbers stay monotonic after deleting the newest ones.
+	snap, err := e.svc.CreateSaveSnapshot(ctx, u, g, "default", nil)
+	if err != nil || snap.Version <= high {
+		t.Fatalf("v%d after high %d: %v", snap.Version, high, err)
+	}
+}
+
+func TestDeleteSaveVersionRefusedForOpenConflict(t *testing.T) {
+	e, _ := newComfortEnv(t, nil)
+	id := e.makeConflict()
+	u, g := e.user.ID, e.game.ID
+	sl, err := e.svc.GetSaveSlot(ctx, u, g, "default")
+	if err != nil || len(sl.OpenConflicts) != 1 {
+		t.Fatalf("%+v %v", sl, err)
+	}
+	sec := sl.OpenConflicts[0].Secured.Version
+	if err := e.svc.DeleteSaveVersion(ctx, u, g, "default", sec); !errors.Is(err, hub.ErrConflict) {
+		t.Fatalf("secured version: %v", err)
+	}
+	// Other versions are deletable meanwhile; after resolving, the secured one is too.
+	for _, v := range e.history() {
+		if v.Version != sec {
+			if err := e.svc.DeleteSaveVersion(ctx, u, g, "default", v.Version); err != nil {
+				t.Fatalf("v%d: %v", v.Version, err)
+			}
+		}
+	}
+	if _, err := e.resolve(id, "use_hub", sl.Current.Revision, e.user.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.DeleteSaveVersion(ctx, u, g, "default", sec); err != nil {
+		t.Fatal(err)
 	}
 }

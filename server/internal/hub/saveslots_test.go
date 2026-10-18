@@ -114,9 +114,6 @@ func TestDeleteSaveSlot(t *testing.T) {
 	del := func(slot string, rev int) error {
 		return e.svc.DeleteSaveSlot(ctx, hub.DeleteInput{UserID: u, DeviceID: web, GameID: g, Slot: slot, ConfirmRevision: rev})
 	}
-	if err := del("default", 1); !errors.Is(err, hub.ErrSaveSlotProtected) {
-		t.Fatalf("%v", err)
-	}
 	if err := del("nothere", 1); !errors.Is(err, hub.ErrNotFound) {
 		t.Fatalf("%v", err)
 	}
@@ -144,6 +141,19 @@ func TestDeleteSaveSlot(t *testing.T) {
 	// The default slot and its content are untouched.
 	if sl, err := e.svc.GetSaveSlot(ctx, u, g, "default"); err != nil || sl.Current.Revision != 1 || !e.fileExists([]byte("one")) {
 		t.Fatalf("%+v %v", sl, err)
+	}
+	// The default slot can be deleted too (stale confirmation refused first); the name starts from scratch afterwards.
+	if err := del("default", 9); !errors.Is(err, hub.ErrSaveConflictStale) {
+		t.Fatalf("%v", err)
+	}
+	if err := del("default", 1); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.GetSaveSlot(ctx, u, g, "default"); !errors.Is(err, hub.ErrNotFound) {
+		t.Fatalf("%v", err)
+	}
+	if r := e.put(e.devA, 0, []byte("fresh"), hub.SyncCheckpoint); r.Slot.Current.Revision != 1 {
+		t.Fatalf("%+v", r)
 	}
 	// Re-creating the name starts from scratch.
 	sl, err := e.svc.CreateSaveSlot(ctx, u, g, "default", "run", web)
