@@ -720,6 +720,7 @@ type CreateUploadRequest struct {
 // DuplicateGameError defines model for DuplicateGameError.
 type DuplicateGameError struct {
 	Error struct {
+		// Code `save_not_snapshot` is no longer returned since `saves_v6` (any history version can be deleted).
 		Code    ErrorCode `json:"code"`
 		Message string    `json:"message"`
 	} `json:"error"`
@@ -729,12 +730,13 @@ type DuplicateGameError struct {
 // Error defines model for Error.
 type Error struct {
 	Error struct {
+		// Code `save_not_snapshot` is no longer returned since `saves_v6` (any history version can be deleted).
 		Code    ErrorCode `json:"code"`
 		Message string    `json:"message"`
 	} `json:"error"`
 }
 
-// ErrorCode defines model for ErrorCode.
+// ErrorCode `save_not_snapshot` is no longer returned since `saves_v6` (any history version can be deleted).
 type ErrorCode string
 
 // FirmwareFile defines model for FirmwareFile.
@@ -837,7 +839,7 @@ type HandshakeRequest_Video struct {
 type HandshakeResponse struct {
 	Compatible bool `json:"compatible"`
 
-	// Features Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = at least one relay provider is on (the embedded TURN server and/or Cloudflare TURN; `turn_servers` in `hello_ack`, `ice_update` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`), `saves_v4` = uploading a save file into a slot (`POST /games/{game_id}/saves/{slot}/upload`), `saves_v5` = renaming a slot (`POST /games/{game_id}/saves/{slot}/rename`), deleting a slot (`DELETE /games/{game_id}/saves/{slot}`), `save_updated` reasons `renamed` and `deleted`, and 409 `session_running` on `saves_v4` uploads while a Session of the game runs, `cores_v2` = several cores per system (`default_core_id` and `cores` in `SystemInfo`; core ids follow `^[a-z0-9][a-z0-9_-]{0,63}$`), `ice_update_v1` = the Hub pushes the WSS message `ice_update` whenever its effective ICE configuration changes, `plugins_v1` = plugin list and download (`GET /plugins`, `GET /plugins/{plugin_id}/{version}/file`), `runs_v1` = runs, `local_roms_v1` = local-only games and resumable uploads (`POST /games/register`, `DELETE /games/{game_id}/registration`, `/uploads`; `stored`, `on_hub`, `roms`, `game_version`; `GET /roms/{sha256}` serves stored files only). `cores_index_v1` (signed core index) existed in 0.4 to 0.7 and was removed in 0.8.
+	// Features Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = at least one relay provider is on (the embedded TURN server and/or Cloudflare TURN; `turn_servers` in `hello_ack`, `ice_update` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`), `saves_v4` = uploading a save file into a slot (`POST /games/{game_id}/saves/{slot}/upload`), `saves_v5` = renaming a slot (`POST /games/{game_id}/saves/{slot}/rename`), deleting a slot (`DELETE /games/{game_id}/saves/{slot}`), `save_updated` reasons `renamed` and `deleted`, and 409 `session_running` on `saves_v4` uploads while a Session of the game runs, `saves_v6` = deleting any history version (before it only manual snapshots) and the main slot `default` (before it only other slots; renaming `default` stays refused), `cores_v2` = several cores per system (`default_core_id` and `cores` in `SystemInfo`; core ids follow `^[a-z0-9][a-z0-9_-]{0,63}$`), `ice_update_v1` = the Hub pushes the WSS message `ice_update` whenever its effective ICE configuration changes, `plugins_v1` = plugin list and download (`GET /plugins`, `GET /plugins/{plugin_id}/{version}/file`), `runs_v1` = runs, `local_roms_v1` = local-only games and resumable uploads (`POST /games/register`, `DELETE /games/{game_id}/registration`, `/uploads`; `stored`, `on_hub`, `roms`, `game_version`; `GET /roms/{sha256}` serves stored files only). `cores_index_v1` (signed core index) existed in 0.4 to 0.7 and was removed in 0.8.
 	Features           *[]string          `json:"features,omitempty"`
 	HubVersion         string             `json:"hub_version"`
 	MinProtocolVersion int                `json:"min_protocol_version"`
@@ -1242,6 +1244,7 @@ type RunPluginState struct {
 // RunStateConflictError Error body of the state 409. `state_rev` and `state` are present with `state_conflict` and carry the current values.
 type RunStateConflictError struct {
 	Error struct {
+		// Code `save_not_snapshot` is no longer returned since `saves_v6` (any history version can be deleted).
 		Code    ErrorCode `json:"code"`
 		Message string    `json:"message"`
 	} `json:"error"`
@@ -1310,6 +1313,7 @@ type SaveConflictStatus string
 type SaveConflictError struct {
 	Conflict SaveConflict `json:"conflict"`
 	Error    struct {
+		// Code `save_not_snapshot` is no longer returned since `saves_v6` (any history version can be deleted).
 		Code    ErrorCode `json:"code"`
 		Message string    `json:"message"`
 	} `json:"error"`
@@ -2323,7 +2327,7 @@ type ServerInterface interface {
 	// Remove the caller's local registrations for a game (`local_roms_v1`)
 	// (DELETE /api/v1/games/{game_id}/registration)
 	DeleteGameRegistration(w http.ResponseWriter, r *http.Request, gameId openapi_types.UUID)
-	// Delete a slot with its whole history (`saves_v5`)
+	// Delete a slot with its whole history (`saves_v5`, main slot since `saves_v6`)
 	// (DELETE /api/v1/games/{game_id}/saves/{slot})
 	DeleteSaveSlot(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName, params DeleteSaveSlotParams)
 	// Current checkpoint metadata and open conflicts of a slot
@@ -2341,9 +2345,9 @@ type ServerInterface interface {
 	// Permanent history versions of a slot (newest first)
 	// (GET /api/v1/games/{game_id}/saves/{slot}/history)
 	ListSaveHistory(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName)
-	// Delete a manual snapshot from the history (`saves_v3`)
+	// Delete a version from the history (`saves_v3`, any version since `saves_v6`)
 	// (DELETE /api/v1/games/{game_id}/saves/{slot}/history/{version})
-	DeleteSaveSnapshot(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName, version int)
+	DeleteSaveVersion(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName, version int)
 	// Bytes of a history version
 	// (GET /api/v1/games/{game_id}/saves/{slot}/history/{version}/content)
 	DownloadSaveHistoryContent(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName, version int)
@@ -3178,8 +3182,8 @@ func (siw *ServerInterfaceWrapper) ListSaveHistory(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
-// DeleteSaveSnapshot operation middleware
-func (siw *ServerInterfaceWrapper) DeleteSaveSnapshot(w http.ResponseWriter, r *http.Request) {
+// DeleteSaveVersion operation middleware
+func (siw *ServerInterfaceWrapper) DeleteSaveVersion(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
@@ -3218,7 +3222,7 @@ func (siw *ServerInterfaceWrapper) DeleteSaveSnapshot(w http.ResponseWriter, r *
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.DeleteSaveSnapshot(w, r, gameId, slot, version)
+		siw.Handler.DeleteSaveVersion(w, r, gameId, slot, version)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4916,7 +4920,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/conflicts/{conflict_id}/resolve", wrapper.ResolveSaveConflict)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/content", wrapper.DownloadSaveContent)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/history", wrapper.ListSaveHistory)
-	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/history/{version}", wrapper.DeleteSaveSnapshot)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/history/{version}", wrapper.DeleteSaveVersion)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/history/{version}/content", wrapper.DownloadSaveHistoryContent)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/history/{version}/restore", wrapper.RestoreSaveHistoryVersion)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/rename", wrapper.RenameSaveSlot)
@@ -6039,27 +6043,27 @@ func (response ListSaveHistory404JSONResponse) VisitListSaveHistoryResponse(w ht
 	return err
 }
 
-type DeleteSaveSnapshotRequestObject struct {
+type DeleteSaveVersionRequestObject struct {
 	GameId  GameId       `json:"game_id"`
 	Slot    SaveSlotName `json:"slot"`
 	Version int          `json:"version"`
 }
 
-type DeleteSaveSnapshotResponseObject interface {
-	VisitDeleteSaveSnapshotResponse(w http.ResponseWriter) error
+type DeleteSaveVersionResponseObject interface {
+	VisitDeleteSaveVersionResponse(w http.ResponseWriter) error
 }
 
-type DeleteSaveSnapshot204Response struct {
+type DeleteSaveVersion204Response struct {
 }
 
-func (response DeleteSaveSnapshot204Response) VisitDeleteSaveSnapshotResponse(w http.ResponseWriter) error {
+func (response DeleteSaveVersion204Response) VisitDeleteSaveVersionResponse(w http.ResponseWriter) error {
 	w.WriteHeader(204)
 	return nil
 }
 
-type DeleteSaveSnapshot401JSONResponse struct{ UnauthorizedJSONResponse }
+type DeleteSaveVersion401JSONResponse struct{ UnauthorizedJSONResponse }
 
-func (response DeleteSaveSnapshot401JSONResponse) VisitDeleteSaveSnapshotResponse(w http.ResponseWriter) error {
+func (response DeleteSaveVersion401JSONResponse) VisitDeleteSaveVersionResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -6071,9 +6075,9 @@ func (response DeleteSaveSnapshot401JSONResponse) VisitDeleteSaveSnapshotRespons
 	return err
 }
 
-type DeleteSaveSnapshot403JSONResponse struct{ ForbiddenJSONResponse }
+type DeleteSaveVersion403JSONResponse struct{ ForbiddenJSONResponse }
 
-func (response DeleteSaveSnapshot403JSONResponse) VisitDeleteSaveSnapshotResponse(w http.ResponseWriter) error {
+func (response DeleteSaveVersion403JSONResponse) VisitDeleteSaveVersionResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -6085,9 +6089,9 @@ func (response DeleteSaveSnapshot403JSONResponse) VisitDeleteSaveSnapshotRespons
 	return err
 }
 
-type DeleteSaveSnapshot404JSONResponse struct{ NotFoundJSONResponse }
+type DeleteSaveVersion404JSONResponse struct{ NotFoundJSONResponse }
 
-func (response DeleteSaveSnapshot404JSONResponse) VisitDeleteSaveSnapshotResponse(w http.ResponseWriter) error {
+func (response DeleteSaveVersion404JSONResponse) VisitDeleteSaveVersionResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -6099,9 +6103,9 @@ func (response DeleteSaveSnapshot404JSONResponse) VisitDeleteSaveSnapshotRespons
 	return err
 }
 
-type DeleteSaveSnapshot409JSONResponse Error
+type DeleteSaveVersion409JSONResponse Error
 
-func (response DeleteSaveSnapshot409JSONResponse) VisitDeleteSaveSnapshotResponse(w http.ResponseWriter) error {
+func (response DeleteSaveVersion409JSONResponse) VisitDeleteSaveVersionResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -9630,7 +9634,7 @@ type StrictServerInterface interface {
 	// Remove the caller's local registrations for a game (`local_roms_v1`)
 	// (DELETE /api/v1/games/{game_id}/registration)
 	DeleteGameRegistration(ctx context.Context, request DeleteGameRegistrationRequestObject) (DeleteGameRegistrationResponseObject, error)
-	// Delete a slot with its whole history (`saves_v5`)
+	// Delete a slot with its whole history (`saves_v5`, main slot since `saves_v6`)
 	// (DELETE /api/v1/games/{game_id}/saves/{slot})
 	DeleteSaveSlot(ctx context.Context, request DeleteSaveSlotRequestObject) (DeleteSaveSlotResponseObject, error)
 	// Current checkpoint metadata and open conflicts of a slot
@@ -9648,9 +9652,9 @@ type StrictServerInterface interface {
 	// Permanent history versions of a slot (newest first)
 	// (GET /api/v1/games/{game_id}/saves/{slot}/history)
 	ListSaveHistory(ctx context.Context, request ListSaveHistoryRequestObject) (ListSaveHistoryResponseObject, error)
-	// Delete a manual snapshot from the history (`saves_v3`)
+	// Delete a version from the history (`saves_v3`, any version since `saves_v6`)
 	// (DELETE /api/v1/games/{game_id}/saves/{slot}/history/{version})
-	DeleteSaveSnapshot(ctx context.Context, request DeleteSaveSnapshotRequestObject) (DeleteSaveSnapshotResponseObject, error)
+	DeleteSaveVersion(ctx context.Context, request DeleteSaveVersionRequestObject) (DeleteSaveVersionResponseObject, error)
 	// Bytes of a history version
 	// (GET /api/v1/games/{game_id}/saves/{slot}/history/{version}/content)
 	DownloadSaveHistoryContent(ctx context.Context, request DownloadSaveHistoryContentRequestObject) (DownloadSaveHistoryContentResponseObject, error)
@@ -10269,27 +10273,27 @@ func (sh *strictHandler) ListSaveHistory(w http.ResponseWriter, r *http.Request,
 	}
 }
 
-// DeleteSaveSnapshot operation middleware
-func (sh *strictHandler) DeleteSaveSnapshot(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName, version int) {
-	var request DeleteSaveSnapshotRequestObject
+// DeleteSaveVersion operation middleware
+func (sh *strictHandler) DeleteSaveVersion(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName, version int) {
+	var request DeleteSaveVersionRequestObject
 
 	request.GameId = gameId
 	request.Slot = slot
 	request.Version = version
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.DeleteSaveSnapshot(ctx, request.(DeleteSaveSnapshotRequestObject))
+		return sh.ssi.DeleteSaveVersion(ctx, request.(DeleteSaveVersionRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "DeleteSaveSnapshot")
+		handler = middleware(handler, "DeleteSaveVersion")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(DeleteSaveSnapshotResponseObject); ok {
-		if err := validResponse.VisitDeleteSaveSnapshotResponse(w); err != nil {
+	} else if validResponse, ok := response.(DeleteSaveVersionResponseObject); ok {
+		if err := validResponse.VisitDeleteSaveVersionResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

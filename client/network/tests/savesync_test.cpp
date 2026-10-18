@@ -48,6 +48,7 @@ class SaveSyncTest : public QObject {
   bool noFeature_ = false;
   bool noV4_ = false;
   bool noV5_ = false;
+  bool v6_ = false;
 
   QString gdir() const { return SaveStore::gameDir(*profiles_, kHubId, kUser, kGame); }
   QString saveFile() const { return gdir() + QStringLiteral("/rom1.sav"); }
@@ -78,6 +79,9 @@ class SaveSyncTest : public QObject {
     }
     if (!noV5_) {
       hub_->features.append(QStringLiteral("saves_v5"));
+    }
+    if (v6_) {
+      hub_->features.append(QStringLiteral("saves_v6"));
     }
     if (noFeature_) {
       hub_->features.clear();
@@ -253,6 +257,7 @@ class SaveSyncTest : public QObject {
     noFeature_ = false;
     noV4_ = false;
     noV5_ = false;
+    v6_ = false;
     qRegisterMetaType<framebeam::SaveSync::Kind>();
     connectAll();
   }
@@ -1293,10 +1298,36 @@ class SaveSyncTest : public QObject {
     QVERIFY(changed.at(0).at(2).toBool());
     QVERIFY(changed.at(0).at(1).toString().contains(QStringLiteral("kept")));
     QCOMPARE(readFile(slotDir(QStringLiteral("boss")) + QStringLiteral("/rom1.sav")), QByteArray("local-progress"));
-    // The main slot is never touched by a (malformed) deleted push
+  }
+
+  void deletedPushForMainSlotKeepsUnsyncedLocalProgress() {
+    makeSlot(QStringLiteral("default"), "hub-main", 1, true, false, "local-progress");
+    QSignalSpy changed(sync_.get(), &SaveSync::slotChangedElsewhere);
     sync_->handleSaveUpdate(slotUpdate(QStringLiteral("deleted"), QStringLiteral("default")));
-    QCOMPARE(changed.count(), 2);
-    QVERIFY(changed.at(1).at(1).toString().isEmpty());
+    QCOMPARE(changed.count(), 1);
+    QVERIFY(changed.at(0).at(2).toBool());
+    QVERIFY(changed.at(0).at(1).toString().contains(QStringLiteral("main slot")));
+    QCOMPARE(readFile(saveFile()), QByteArray("local-progress"));
+    QCOMPARE(sync_->slotFor(kGame), QStringLiteral("default"));
+  }
+
+  void deletedPushForMainSlotRemovesCleanLocalCopyOnly() {
+    makeSlot(QStringLiteral("default"), "hub-main", 1, true, true);
+    makeSlot(QStringLiteral("boss"), "hub-boss", 1, true, true, "boss-local");
+    QSignalSpy changed(sync_.get(), &SaveSync::slotChangedElsewhere);
+    sync_->handleSaveUpdate(slotUpdate(QStringLiteral("deleted"), QStringLiteral("default")));
+    QCOMPARE(changed.count(), 1);
+    QVERIFY(!changed.at(0).at(2).toBool());
+    QVERIFY(!QFileInfo::exists(saveFile()));
+    QVERIFY(!QFileInfo::exists(SaveStore::stateFilePath(gdir())));  // no stale Hub base
+    QCOMPARE(readFile(slotDir(QStringLiteral("boss")) + QStringLiteral("/rom1.sav")), QByteArray("boss-local"));
+    QCOMPARE(sync_->slotFor(kGame), QStringLiteral("default"));
+    // The next start begins fresh from the empty Hub slot, without a conflict
+    hub_->saves.remove(kGame);
+    writeFile(saveFile(), "fresh");
+    QCOMPARE(start(), QStringLiteral("ready"));
+    QCOMPARE(hub_->saves.value(kGame).content, QByteArray("fresh"));
+    QVERIFY(sync_->finalSyncBlocking(true));
   }
 
   void uploadFileIsBlockedWhileTheGameRunsHere() {

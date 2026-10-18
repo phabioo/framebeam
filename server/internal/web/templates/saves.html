@@ -50,8 +50,8 @@
   </form>
 </div>{{end}}
 {{define "delete-card"}}<div class="confirm" role="group" aria-label="Confirm deletion of v{{.Version}}">
-  <div class="confirm-title">Delete snapshot v{{.Version}}{{if .Label}} “{{.Label}}”{{end}}?</div>
-  <p class="help">The snapshot is removed for good. The current version and other versions are not affected.</p>
+  <div class="confirm-title">Delete {{if .Snapshot}}snapshot {{else}}version {{end}}v{{.Version}}{{if .Label}} “{{.Label}}”{{end}}?</div>
+  <p class="help">The {{if .Snapshot}}snapshot{{else}}version{{end}} is removed for good; this cannot be undone. The current version and other versions are not affected.</p>
   <form class="inline" method="post" action="{{.DeleteHref}}" hx-post="{{.DeleteHref}}">
     <a class="btn small" href="{{.CancelHref}}" hx-get="{{.CancelXHR}}" hx-target="#confirm-v{{.Version}}" hx-swap="innerHTML">Cancel</a>
     <button class="btn small danger" type="submit">Delete v{{.Version}}</button>
@@ -72,10 +72,10 @@
 </div>{{end}}
 {{define "slot-ops"}}
 <div class="slot-ops" role="group" aria-label="Slot actions">
-  {{if .Running}}<span class="help">A Session of this game is running. Renaming and deleting slots is possible after it ends.</span>
-  <button class="btn small" type="button" disabled>Rename slot</button> <button class="btn small" type="button" disabled>Delete slot</button>
+  {{if .Running}}<span class="help">A Session of this game is running. {{if .Main}}Deleting the main slot{{else}}Renaming and deleting slots{{end}} is possible after it ends.</span>
+  {{if not .Main}}<button class="btn small" type="button" disabled>Rename slot</button> {{end}} <button class="btn small" type="button" disabled>Delete slot</button>
   {{else}}
-  <a class="btn small" href="{{.RenameAsk}}" hx-get="{{.RenameAsk}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true">Rename slot</a>
+  {{if not .Main}}<a class="btn small" href="{{.RenameAsk}}" hx-get="{{.RenameAsk}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true">Rename slot</a>{{end}}
   <a class="btn small" href="{{.DeleteAsk}}" hx-get="{{.DeleteAsk}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true">Delete slot</a>
   {{end}}
 </div>
@@ -92,8 +92,8 @@
   </form>
 </div>{{end}}
 {{if .DeleteOpen}}<div class="confirm" role="group" aria-label="Confirm deletion of the slot">
-  <div class="confirm-title">Delete this slot?</div>
-  <p class="help">The latest checkpoint is Rev {{.Rev}} from {{.When}} ({{.Device}}, {{.Size}}), with {{.Versions}} history {{if eq .Versions 1}}version{{else}}versions{{end}}. The slot, its checkpoint and its whole history are removed for good; this cannot be undone. If the slot changed in the meantime, nothing is deleted.</p>
+  <div class="confirm-title">{{if .Main}}Delete the main slot?{{else}}Delete this slot?{{end}}</div>
+  <p class="help">{{if .Main}}The main slot with all its history is deleted for good; this cannot be undone. The Player starts it fresh on the next play unless it still has unsynced local progress. {{end}}The latest checkpoint is Rev {{.Rev}} from {{.When}} ({{.Device}}, {{.Size}}), with {{.Versions}} history {{if eq .Versions 1}}version{{else}}versions{{end}}. {{if not .Main}}The slot, its checkpoint and its whole history are removed for good; this cannot be undone. {{end}}If the slot changed in the meantime, nothing is deleted.</p>
   <form class="inline" method="post" action="{{.DeleteHref}}" hx-post="{{.DeleteHref}}">
     <input type="hidden" name="expected_revision" value="{{.Rev}}">
     <a class="btn small" href="{{.CancelHref}}" hx-get="{{.CancelHref}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true">Cancel</a>
@@ -205,7 +205,7 @@
     <div class="tl-actions"><span class="tl-slot tl-dl"><a class="btn-link plain" href="{{.DownloadHref}}">Download</a></span>
     <span class="tl-slot tl-rs">{{if not .Current}}{{if .Blocked}}<span class="btn small disabled" aria-disabled="true" title="{{.Blocked}}">Restore</span>{{else}}<a class="btn small" href="{{.ConfirmHref}}" hx-get="{{.ConfirmHref}}" hx-target="#confirm-v{{.Version}}" hx-swap="innerHTML">Restore</a>{{end}}{{end}}</span>
     <span class="tl-slot tl-mn">{{if .Menu}}<details class="menu"><summary class="more" aria-label="More actions for v{{.Version}}">⋯</summary><div class="menu-pop">
-      <a class="mi danger" href="{{.DeleteAsk}}" hx-get="{{.DeleteAsk}}" hx-target="#confirm-v{{.Version}}" hx-swap="innerHTML">Delete snapshot…</a></div></details>{{end}}</span></div>
+      <a class="mi danger" href="{{.DeleteAsk}}" hx-get="{{.DeleteAsk}}" hx-target="#confirm-v{{.Version}}" hx-swap="innerHTML">{{if .Snapshot}}Delete snapshot…{{else}}Delete version…{{end}}</a></div></details>{{end}}</span></div>
     <div id="confirm-v{{.Version}}" class="tl-confirm">{{if .Open}}{{template "restore-card" .}}{{else if .DeleteOpen}}{{template "delete-card" .}}{{end}}</div>
   </li>
   {{end}}

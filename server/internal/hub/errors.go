@@ -29,7 +29,6 @@ const (
 	CodeDisplayNameTaken   Code = "display_name_taken"
 	CodeUserDisabled       Code = "user_disabled"
 	CodeUploadsDisabled    Code = "uploads_disabled"
-	CodeSaveNotSnapshot    Code = "save_not_snapshot"
 	CodeSaveSlotExists     Code = "save_slot_exists"
 	CodeSessionRunning     Code = "session_running"
 	CodeSaveSlotProtected  Code = "save_slot_protected"
@@ -77,14 +76,12 @@ var (
 	ErrDisplayNameTaken = &Error{Code: CodeDisplayNameTaken, Message: "Display name is already taken"}
 	ErrUserDisabled     = &Error{Code: CodeUserDisabled, Message: "User has been disabled"}
 	ErrUploadsDisabled  = &Error{Code: CodeUploadsDisabled, Message: "Uploads by users are disabled on this Hub"}
-	// ErrSaveNotSnapshot: only manual snapshots can be deleted from the history (409).
-	ErrSaveNotSnapshot = &Error{Code: CodeSaveNotSnapshot, Message: "Only manual snapshots can be deleted"}
 	// ErrSaveSlotExists: a slot with that name already exists (409, web interface).
 	ErrSaveSlotExists = &Error{Code: CodeSaveSlotExists, Message: "A slot with this name already exists"}
 	// ErrSessionRunning: a Session of the same user runs the game, so its slots cannot be uploaded to, renamed or deleted (409).
 	ErrSessionRunning = &Error{Code: CodeSessionRunning, Message: "A Session of this game is running; end it first"}
-	// ErrSaveSlotProtected: the default slot cannot be renamed or deleted (409).
-	ErrSaveSlotProtected = &Error{Code: CodeSaveSlotProtected, Message: "The default slot cannot be renamed or deleted"}
+	// ErrSaveSlotProtected: the default slot cannot be renamed (409).
+	ErrSaveSlotProtected = &Error{Code: CodeSaveSlotProtected, Message: "The default slot cannot be renamed"}
 )
 
 func badRequest(format string, a ...any) *Error {

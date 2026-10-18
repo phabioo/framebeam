@@ -131,7 +131,7 @@ func (s *Server) authMiddleware(next api.StrictHandlerFunc, op string) api.Stric
 		switch op {
 		case "UploadGame", "ListSystems", "RevokeSelf", "PostHandshake", "ListGames", "GetGame", "ConnectWebSocket",
 			"ListSaves", "GetSaveSlot", "PutSave", "DownloadSaveContent", "ListSaveHistory", "DownloadSaveHistoryContent", "ResolveSaveConflict",
-			"UpdateLocalSettings", "RestoreSaveHistoryVersion", "CreateSaveSnapshot", "DeleteSaveSnapshot", "UploadSaveFile", "RenameSaveSlot", "DeleteSaveSlot",
+			"UpdateLocalSettings", "RestoreSaveHistoryVersion", "CreateSaveSnapshot", "DeleteSaveVersion", "UploadSaveFile", "RenameSaveSlot", "DeleteSaveSlot",
 			"ListUsers", "GetCorePackage", "GetCorePackageFile", "ListSessions", "PublishSession", "GetSession", "UpdateSession", "EndSession", "InviteSessionUser",
 			"WithdrawSessionInvite", "DeclineSession", "JoinSession", "RemoveSessionViewer", "ListPlugins", "GetPluginFile",
 			"RegisterGame", "DeleteGameRegistration", "CreateUpload", "GetUpload", "PutUploadChunk", "DeleteUpload",
@@ -173,7 +173,7 @@ func httpStatus(c hub.Code) int {
 		return http.StatusRequestEntityTooLarge
 	case hub.CodeConflict, hub.CodePairingExpired, hub.CodeSaveConflict, hub.CodeSaveConflictStale,
 		hub.CodeSessionFull, hub.CodeCapabilityMissing, hub.CodeDisplayNameTaken,
-		hub.CodeSaveNotSnapshot, hub.CodeSaveSlotExists, hub.CodeSessionRunning, hub.CodeSaveSlotProtected:
+		hub.CodeSaveSlotExists, hub.CodeSessionRunning, hub.CodeSaveSlotProtected:
 		return http.StatusConflict
 	case hub.CodePayloadTooLarge:
 		return http.StatusRequestEntityTooLarge

@@ -184,7 +184,7 @@ func TestHandshakeAndHelloAckAdvertiseSavesV2(t *testing.T) {
 	rec := s.do("POST", "/api/v1/handshake", handshakeBody(1, 1), opt{token: d.tok})
 	wantStatus(t, rec, 200, "")
 	f := strings.Join(decode[struct{ Features []string }](t, rec).Features, ",")
-	if !strings.Contains(f, "saves_v2") || !strings.Contains(f, "saves_v3") || !strings.Contains(f, "saves_v4") || !strings.Contains(f, "saves_v5") || !strings.Contains(f, "cores_v2") || strings.Contains(f, "cores_index_v1") {
+	if !strings.Contains(f, "saves_v2") || !strings.Contains(f, "saves_v3") || !strings.Contains(f, "saves_v4") || !strings.Contains(f, "saves_v5") || !strings.Contains(f, "saves_v6") || !strings.Contains(f, "cores_v2") || strings.Contains(f, "cores_index_v1") {
 		t.Fatal(f)
 	}
 }
@@ -202,8 +202,6 @@ func TestDeleteSaveSnapshotAPI(t *testing.T) {
 	wantStatus(t, s.do("DELETE", vpath(snap), nil, opt{}), 401, "")
 	// Another user's device sees no slot.
 	wantStatus(t, s.api(s.device(s.anna.ID, "Anna PC"), "DELETE", vpath(snap), nil), 404, "not_found")
-	// The auto-captured version is not a snapshot.
-	wantStatus(t, s.api(d, "DELETE", vpath(1), nil), 409, "save_not_snapshot")
 	wantStatus(t, s.api(d, "DELETE", vpath(99), nil), 404, "not_found")
 	wantStatus(t, s.api(d, "DELETE", s.savePath("nothere", "/history/1"), nil), 404, "not_found")
 

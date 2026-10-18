@@ -200,7 +200,7 @@ func TestSavesDeleteSnapshotAndNewSlotWeb(t *testing.T) {
 	// Inline confirmation: fragment under the row, with and without label; Cancel answers an empty body.
 	rec = c.get(base+"?delete="+strconv.Itoa(snap.Version), hxHdr("confirm-v"+strconv.Itoa(snap.Version)))
 	status(t, rec, 200)
-	contains(t, rec, "Delete snapshot v"+strconv.Itoa(snap.Version)+" “before the lighthouse”?", "The snapshot is removed for good. The current version and other versions are not affected.",
+	contains(t, rec, "Delete snapshot v"+strconv.Itoa(snap.Version)+" “before the lighthouse”?", "The snapshot is removed for good; this cannot be undone. The current version and other versions are not affected.",
 		`hx-post="`+del(snap.Version)+`"`, "Cancel", "Delete v"+strconv.Itoa(snap.Version), "btn small danger")
 	notContains(t, rec, "<html")
 	rec = c.get(base+"?delete="+strconv.Itoa(bare.Version), hxHdr("confirm-v"+strconv.Itoa(bare.Version)))
@@ -211,12 +211,11 @@ func TestSavesDeleteSnapshotAndNewSlotWeb(t *testing.T) {
 	if strings.TrimSpace(rec.Body.String()) != "" {
 		t.Fatalf("cancel body %q", rec.Body.String())
 	}
-	status(t, c.get(base+"?delete=1", hxHdr("confirm-v1")), 404) // v1 is not a snapshot
+	status(t, c.get(base+"?delete=99", hxHdr("confirm-v99")), 404) // unknown version
 	contains(t, c.get(base+"?delete="+strconv.Itoa(snap.Version), nil), "Delete snapshot v"+strconv.Itoa(snap.Version), `id="confirm-v`+strconv.Itoa(snap.Version)+`"`)
 
 	// POST: CSRF, not a snapshot, unknown version, then ok.
 	status(t, c.postForm(del(snap.Version), url.Values{}, nil), http.StatusForbidden)
-	status(t, c.postForm(del(1), url.Values{"_csrf": {tok}}, nil), http.StatusConflict)
 	status(t, c.postForm(del(99), url.Values{"_csrf": {tok}}, nil), http.StatusNotFound)
 	status(t, c.postForm(base+"/history/x/delete", url.Values{"_csrf": {tok}}, nil), http.StatusNotFound)
 	rec = c.postForm(del(snap.Version), url.Values{"_csrf": {tok}}, map[string]string{"HX-Request": "true"})
@@ -225,7 +224,7 @@ func TestSavesDeleteSnapshotAndNewSlotWeb(t *testing.T) {
 		t.Fatalf("HX-Redirect %q", rec.Header().Get("HX-Redirect"))
 	}
 	rec = c.get(base+"?ok=snapdeleted", nil)
-	contains(t, rec, "Snapshot deleted.")
+	contains(t, rec, "Version deleted.")
 	notContains(t, rec, "before the lighthouse")
 
 	// New slot: the form as a fragment (and inline on the full page), Cancel answers an empty body.

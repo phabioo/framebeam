@@ -119,6 +119,8 @@ QString SaveHistoryController::lastUpdated() const { return lastRefresh_.isValid
 
 QString SaveHistoryController::lastSynced() const { return lastRefresh_.isValid() ? formatWhen(lastRefresh_) : QString(); }
 
+bool SaveHistoryController::canDeleteAnyVersion() const { return canDeleteSnapshot() && env_.saves->hubSupportsSavesV6(); }
+
 bool SaveHistoryController::canDeleteSnapshot() const { return available() && online() && env_.saves->hubSupportsSavesV3() && !busy_; }
 
 QVariantMap SaveHistoryController::currentMap(const SaveCheckpoint& c) const {
@@ -613,7 +615,8 @@ void SaveHistoryController::requestDelete(int version) {
   }
   for (const QVariant& v : std::as_const(history_)) {
     const QVariantMap m = v.toMap();
-    if (m.value(QStringLiteral("version")).toInt() == version && m.value(QStringLiteral("isSnapshot")).toBool()) {
+    if (m.value(QStringLiteral("version")).toInt() == version &&
+        (m.value(QStringLiteral("isSnapshot")).toBool() || env_.saves->hubSupportsSavesV6())) {
       deleteRequest_ = m;
       deleteRequest_.insert(QStringLiteral("slot"), slot());
       restoreRequest_.clear();
@@ -656,7 +659,7 @@ void SaveHistoryController::confirmDelete() {
     }
     using K = SaveApiResult::Kind;
     if (r.ok()) {
-      self->setMessage(tr("Snapshot v%1 deleted.").arg(version), false);
+      self->setMessage((self->env_.saves->hubSupportsSavesV6() ? tr("Version v%1 deleted.") : tr("Snapshot v%1 deleted.")).arg(version), false);
     } else if (r.kind == K::NotFound) {
       self->setMessage(tr("Snapshot v%1 was already gone. The list was refreshed.").arg(version), true);
     } else if (r.errorCode == QLatin1String("save_not_snapshot")) {

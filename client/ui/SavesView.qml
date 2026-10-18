@@ -1391,21 +1391,21 @@ FocusScope {
                             meta: modelData.meta
                             last: index === root.rows.length - 1
                             showRestore: modelData.kind !== "current"
-                            showDelete: modelData.isSnapshot === true
+                            showDelete: modelData.kind !== "current" && (modelData.isSnapshot === true || root.hist.canDeleteAnyVersion)
                             restoreEnabled: root.hist.restoreBlockReason === "" && !root.hist.busy && root.hist.online
                             deleteEnabled: root.hist.canDeleteSnapshot
                             muted: !root.hist.online
                             confirm: modelData.version === root.hist.restoreRequest.version ? "restore"
                                      : modelData.version === root.hist.deleteRequest.version ? "delete" : ""
                             confirmTitle: confirm === "delete"
-                                          ? (modelData.label !== "" ? qsTr("Delete snapshot %1 “%2”?").arg(modelData.versionText).arg(modelData.label)
-                                                                    : qsTr("Delete snapshot %1?").arg(modelData.versionText))
+                                          ? (modelData.label !== "" ? (modelData.isSnapshot ? qsTr("Delete snapshot %1 “%2”?") : qsTr("Delete version %1 “%2”?")).arg(modelData.versionText).arg(modelData.label)
+                                                                    : (modelData.isSnapshot ? qsTr("Delete snapshot %1?") : qsTr("Delete version %1?")).arg(modelData.versionText))
                                           : qsTr("Restore %1 as the current version of “%2”?").arg(modelData.versionText).arg(root.hist.slotLabel)
                             confirmBody: confirm === "delete"
-                                         ? qsTr("Only this snapshot is removed. The current version and all other versions stay.")
+                                         ? (modelData.isSnapshot ? qsTr("Only this snapshot is removed.") : qsTr("Only this version is removed.")) + qsTr(" The current version and all other versions stay.")
                                          : qsTr("The current version %1 stays in the history as “Before restore”.").arg(root.hist.current.revisionText || "")
                            + (root.live ? "\n" + qsTr("The game restarts from this save. A local backup is made first.") : "")
-                            confirmOk: confirm === "delete" ? qsTr("Delete snapshot") : qsTr("Restore %1").arg(modelData.versionText)
+                            confirmOk: confirm === "delete" ? (modelData.isSnapshot ? qsTr("Delete snapshot") : qsTr("Delete version")) : qsTr("Restore %1").arg(modelData.versionText)
                             onRestoreClicked: root.hist.requestRestore(modelData.version)
                             onDeleteClicked: root.hist.requestDelete(modelData.version)
                             onConfirmed: confirm === "delete" ? root.hist.confirmDelete() : root.hist.confirmRestore()

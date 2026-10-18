@@ -249,10 +249,11 @@ func (s *Service) CreateSaveSnapshot(ctx context.Context, userID, gameID, slot s
 	return v, nil
 }
 
-// DeleteSaveSnapshot deletes a manual snapshot from the history (feature saves_v3). Other history versions are
-// not deletable (ErrSaveNotSnapshot); a missing slot or version returns ErrNotFound. The checkpoint is never
-// touched and nothing is pushed. The content file goes only if no checkpoint, version or conflict still uses it.
-func (s *Service) DeleteSaveSnapshot(ctx context.Context, userID, gameID, slot string, version int) (err error) {
+// DeleteSaveVersion deletes one version from the history of a slot (feature saves_v3 for manual snapshots, saves_v6
+// for any version). A missing slot or version returns ErrNotFound; the secured version of an open conflict of the
+// slot returns a conflict error. The checkpoint is never touched and nothing is pushed. The content file goes only
+// if no checkpoint, version or conflict still uses it.
+func (s *Service) DeleteSaveVersion(ctx context.Context, userID, gameID, slot string, version int) (err error) {
 	defer s.publishOK(&err, TopicSaves)
 	if !ValidSlotName(slot) || version < 1 {
 		return ErrNotFound
@@ -273,8 +274,13 @@ func (s *Service) DeleteSaveSnapshot(ctx context.Context, userID, gameID, slot s
 	if err != nil {
 		return internal(err)
 	}
-	if reason != HistoryManualSnapshot {
-		return ErrSaveNotSnapshot
+	var secured int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM save_conflicts WHERE user_id = ? AND game_id = ? AND slot = ? AND status = 'open' AND secured_version = ?`,
+		userID, gameID, slot, version).Scan(&secured); err != nil {
+		return internal(err)
+	}
+	if secured > 0 {
+		return conflict("Resolve the open conflict first")
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM save_history WHERE user_id = ? AND game_id = ? AND slot = ? AND version = ?`,
 		userID, gameID, slot, version); err != nil {
@@ -289,6 +295,7 @@ func (s *Service) DeleteSaveSnapshot(ctx context.Context, userID, gameID, slot s
 		return internal(err)
 	}
 	s.dropIfUnreferenced(ctx, userID, gameID, slot, sha)
+	slog.Info("save version deleted", "user_id", userID, "game_id", gameID, "slot", slot, "version", version, "reason", reason)
 	return nil
 }
 
@@ -688,8 +695,7 @@ type DeleteInput struct {
 
 // DeleteSaveSlot deletes a slot with its checkpoint, history, conflicts and content files for good (hard delete). The
 // caller must confirm the checkpoint revision it saw: a different revision returns ErrSaveConflictStale and nothing
-// is deleted, so newer progress is never lost unseen. ErrNotFound for an unknown slot, ErrSaveSlotProtected for the
-// default slot, ErrConflict while a conflict of the slot is open, ErrSessionRunning while a Session of the game
+// is deleted, so newer progress is never lost unseen. ErrNotFound for an unknown slot, ErrConflict while a conflict of the slot is open, ErrSessionRunning while a Session of the game
 // runs. Other devices get save_updated (reason deleted). The deletion is logged.
 func (s *Service) DeleteSaveSlot(ctx context.Context, in DeleteInput) (err error) {
 	defer s.publishOK(&err, TopicSaves, TopicLibrary)
@@ -707,9 +713,6 @@ func (s *Service) DeleteSaveSlot(ctx context.Context, in DeleteInput) (err error
 	cur, err := loadCheckpoint(ctx, tx, u, g, sl)
 	if err != nil {
 		return err
-	}
-	if sl == DefaultSlot {
-		return ErrSaveSlotProtected
 	}
 	if err := s.checkNoSession(ctx, tx, u, g); err != nil {
 		return err

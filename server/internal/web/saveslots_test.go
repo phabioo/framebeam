@@ -3,6 +3,7 @@ package web
 import (
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -21,9 +22,12 @@ func newSlotFixture(t *testing.T) (uploadFixture, string) {
 func TestSaveSlotRenameWeb(t *testing.T) {
 	f, run := newSlotFixture(t)
 
-	// The default slot offers neither action; another slot offers both.
+	// The main slot offers only delete (with its own confirmation text); another slot offers both.
 	rec := f.c.get(f.base, nil)
-	notContains(t, rec, "Rename slot", "Delete slot")
+	contains(t, rec, `class="slot-ops"`, "Delete slot")
+	notContains(t, rec, "Rename slot")
+	rec = f.c.get(f.base+"?delslot=1", nil)
+	contains(t, rec, "Delete the main slot?", "main slot with all its history is deleted for good", "starts it fresh on the next play")
 	rec = f.c.get(run, nil)
 	contains(t, rec, `class="slot-ops"`, `href="`+run+`?rename=1"`, "Rename slot", `href="`+run+`?delslot=1"`, "Delete slot")
 	notContains(t, rec, `action="`+run+`/rename"`)
@@ -52,7 +56,7 @@ func TestSaveSlotRenameWeb(t *testing.T) {
 	status(t, f.c.postForm("/saves/"+f.adminID+"/"+f.game+"/nope/rename", url.Values{"name": {"x"}, "_csrf": {f.tok}}, nil), http.StatusNotFound)
 	rec = f.c.postForm(f.base+"/rename", url.Values{"name": {"main"}, "_csrf": {f.tok}}, nil)
 	status(t, rec, http.StatusSeeOther)
-	contains(t, f.c.get(location(rec), nil), "The default slot cannot be renamed or deleted.")
+	contains(t, f.c.get(location(rec), nil), "The default slot cannot be renamed.")
 
 	// OK: redirect to the renamed slot with the flash; history moved along.
 	rec = f.c.postForm(run+"/rename", url.Values{"name": {" speedrun "}, "_csrf": {f.tok}}, nil)
@@ -75,14 +79,10 @@ func TestSaveSlotDeleteWeb(t *testing.T) {
 		`name="expected_revision" value="1"`, "Delete slot and history", "cannot be undone")
 	notContains(t, rec, `class="save-detail" hx-get=`)
 
-	// CSRF, bad body, default slot, unknown slot.
+	// CSRF, bad body, unknown slot.
 	status(t, f.c.postForm(run+"/delete", url.Values{"expected_revision": {"1"}}, nil), http.StatusForbidden)
 	status(t, f.c.postForm(run+"/delete", url.Values{"expected_revision": {"x"}, "_csrf": {f.tok}}, nil), http.StatusBadRequest)
 	status(t, f.c.postForm("/saves/"+f.adminID+"/"+f.game+"/nope/delete", url.Values{"expected_revision": {"1"}, "_csrf": {f.tok}}, nil), http.StatusNotFound)
-	rec = f.c.postForm(f.base+"/delete", url.Values{"expected_revision": {"1"}, "_csrf": {f.tok}}, nil)
-	status(t, rec, http.StatusSeeOther)
-	contains(t, f.c.get(location(rec), nil), "The default slot cannot be renamed or deleted.")
-
 	// Stale confirmation: the slot changed after the page was shown; nothing is deleted.
 	if _, err := f.e.svc.UploadSaveFile(bg, hub.UploadSaveInput{UserID: f.adminID, DeviceID: hub.WebDeviceID(f.adminID), GameID: f.game, Slot: "run",
 		Body: strings.NewReader("newer")}); err != nil {
@@ -104,6 +104,15 @@ func TestSaveSlotDeleteWeb(t *testing.T) {
 	contains(t, f.c.get("/saves?ok=slotdeleted", nil), "Slot deleted.")
 	status(t, f.c.get(run, nil), http.StatusNotFound)
 	contains(t, f.c.get(f.base, nil), "CURRENT") // the default slot is untouched
+
+	// The main slot can be deleted too: flash names "Main".
+	rec = f.c.postForm(f.base+"/delete", url.Values{"expected_revision": {"1"}, "_csrf": {f.tok}}, nil)
+	status(t, rec, http.StatusSeeOther)
+	if location(rec) != "/saves?ok=maindeleted" {
+		t.Fatalf("location %q", location(rec))
+	}
+	contains(t, f.c.get(location(rec), nil), `Slot &#34;Main&#34; deleted.`)
+	status(t, f.c.get(f.base, nil), http.StatusNotFound)
 }
 
 func TestSaveSlotAndUploadBlockedBySessionWeb(t *testing.T) {
@@ -149,4 +158,34 @@ func TestSaveSlotAndUploadBlockedBySessionWeb(t *testing.T) {
 	}
 	contains(t, f.c.get(f.base, nil), `href="`+f.base+`?upload=1"`)
 	contains(t, f.c.get(run, nil), `href="`+run+`?rename=1"`)
+}
+
+func TestSaveHistoryDeleteAnyVersionWeb(t *testing.T) {
+	f, _ := newSlotFixture(t)
+	if _, err := f.e.svc.UploadSaveFile(bg, hub.UploadSaveInput{UserID: f.adminID, DeviceID: hub.WebDeviceID(f.adminID), GameID: f.game, Slot: "default",
+		Body: strings.NewReader("newer")}); err != nil {
+		t.Fatal(err)
+	}
+	hist, err := f.e.svc.ListSaveHistory(bg, f.adminID, f.game, "default")
+	if err != nil || len(hist) == 0 {
+		t.Fatalf("%v %v", hist, err)
+	}
+	var auto *hub.SaveVersion
+	for i := range hist {
+		if hist[i].Reason != hub.HistoryManualSnapshot {
+			auto = &hist[i]
+		}
+	}
+	if auto == nil {
+		t.Fatalf("no non-snapshot version: %+v", hist)
+	}
+	v := strconv.Itoa(auto.Version)
+	contains(t, f.c.get(f.base, nil), "Delete version…")
+	rec := f.c.get(f.base+"?delete="+v, hxHdr("confirm-v"+v))
+	contains(t, rec, "Delete version v"+v+"?", "removed for good")
+	rec = f.c.postForm(f.base+"/history/"+v+"/delete", url.Values{"_csrf": {f.tok}}, nil)
+	status(t, rec, http.StatusSeeOther)
+	if location(rec) != f.base+"?ok=snapdeleted" {
+		t.Fatalf("location %q", location(rec))
+	}
 }
