@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 
-// map block (docs/design/plugins.md "Map view"): background image of any aspect fit to width, markers in image
+// map block (docs/design/plugins.md "Map view"): background image of any aspect fit inside the view (contain), markers in image
 // coordinates, zoom and pan, clusters per `area` below 60 % zoom, popover above the selected marker, filter segment,
 // collapsible legend. Emits action(action, {kind: "route"|"player", id}) on selection and
 // action(action, {kind: "filter", value}) on a filter change. Gamepad hooks: zoomIn, zoomOut, fit, panBy, moveFocus.
@@ -32,14 +32,14 @@ Item {
     readonly property bool popoverOpen: selId !== "" && dismissedId !== selId && popoverRows.length > 0
     property bool legendOpen: node.legend === true   // collapsed by default so it does not cover markers (P47)
 
-    // View transform: zoomPct 1 = fit to width; `s` is screen pixels per image pixel.
+    // View transform: zoomPct 1 = fit (whole image visible, centered; limited by width or height, whichever is tighter); `s` is screen pixels per image pixel.
     readonly property real minPct: 0.25
     readonly property real maxPct: 4
     property real zoomPct: 1
     property real ox: 0
     property real oy: 0
     property bool userMoved: false
-    readonly property real fitScale: view.width > 0 ? view.width / iw : 1
+    readonly property real fitScale: (view.width > 0 && view.height > 0) ? Math.min(view.width / iw, view.height / ih) : 1
     readonly property real s: fitScale * zoomPct
     readonly property bool clustered: zoomPct < 0.6
 

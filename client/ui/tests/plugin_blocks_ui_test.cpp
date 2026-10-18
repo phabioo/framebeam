@@ -388,6 +388,24 @@ class PluginBlocksUiTest : public QObject {
     }
   }
 
+  void mapFitShowsWholeImage() {
+    // 4:3 image (3DS bottom screen) in a wide, short view: height-limited, centered, whole image visible.
+    QString tree = QString::fromUtf8(kMap);
+    tree.replace(QStringLiteral("\"image_w\":400,\"image_h\":250"), QStringLiteral("\"image_w\":320,\"image_h\":240"));
+    show(json(tree.toUtf8().constData()), true, 720);
+    sheet_->setHeight(300);
+    settle();
+    QQuickItem* view = mustFind("pluginMapView");
+    QQuickItem* map = view->parentItem();
+    const qreal expect = (std::min)(view->width() / 320.0, view->height() / 240.0);
+    QVERIFY(qAbs(map->property("fitScale").toReal() - expect) < 1e-6);
+    QVERIFY(expect < view->width() / 320.0);   // height-limited
+    map->metaObject()->invokeMethod(map, "fit");
+    const qreal cw = 320 * expect, ch = 240 * expect;
+    QVERIFY(ch <= view->height() + 0.5 && cw <= view->width() + 0.5);
+    QVERIFY(qAbs(map->property("ox").toReal() - (view->width() - cw) / 2) < 0.6);
+    QVERIFY(qAbs(map->property("oy").toReal() - (view->height() - ch) / 2) < 0.6);
+  }
   void mapSelectionFilterAndClusters() {
     show(json(kMap), true, 720);
     sheet_->setHeight(440);

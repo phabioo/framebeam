@@ -248,7 +248,7 @@ Size set "stream" (OBS and browser-source layouts only, no focus, no interaction
 Light shell of the sheet: bg `#f6f5f2`, cells `#fff`, lines `#e3e1dc`. Dark: bg `#0b0b0c`, cells `#121315`, cards `#16171a`, lines `#26272b`.
 
 ## Map view
-Source `plugins-4i-4j-sheet.dc.html` `#4-sheet` 122-145 (map states 127-135, notes 138-141), component `region-map.dc.html` (props `w`, `h`, `state`, `filter`, `selected`, `theme`, `radius`). Still valid after round 2 (SoulLink's `5e-map-2` shows it in context). Positions are at location or route level (map ID), not exact overworld position (§16.8). Background image of any aspect (fit to width, supplied by the plugin from the user's own game file), markers in image coordinates.
+Source `plugins-4i-4j-sheet.dc.html` `#4-sheet` 122-145 (map states 127-135, notes 138-141), component `region-map.dc.html` (props `w`, `h`, `state`, `filter`, `selected`, `theme`, `radius`). Still valid after round 2 (SoulLink's `5e-map-2` shows it in context). Positions are at location or route level (map ID), not exact overworld position (§16.8). Background image of any aspect (fit inside the view so the whole image is visible and centered, width- or height-limited; supplied by the plugin from the user's own game file), markers in image coordinates.
 
 States (720 x 440 boards): default with all players and the popover above the selected marker; zoomed out with clusters; controller focus on a marker with the hint bar; filter "Open routes" (done routes fade to 35 %); light with filter "Only me"; loading ("map not read yet").
 

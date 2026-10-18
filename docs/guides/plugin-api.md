@@ -344,7 +344,7 @@ Prop details:
 
 #### Map block
 
-`type = "map"` shows a background image with markers in image coordinates, with zoom and pan (wheel, drag, shoulder buttons, right stick), fit, clusters below 60 % zoom per `area`, a popover above the selected marker, a filter and a legend. Keyboard and controller move the selection to the nearest marker in a direction.
+`type = "map"` shows a background image with markers in image coordinates, with zoom and pan (wheel, drag, shoulder buttons, right stick), fit (the whole image inside the block, centered), clusters below 60 % zoom per `area`, a popover above the selected marker, a filter and a legend. Keyboard and controller move the selection to the nearest marker in a direction.
 
 | Prop | Meaning |
 |---|---|
