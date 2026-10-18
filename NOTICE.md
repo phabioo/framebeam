@@ -18,7 +18,7 @@ Contributions are accepted under the [CLA](CLA.md); see [CONTRIBUTING.md](CONTRI
 
 The name "FrameBeam" and the FrameBeam logo are reserved by the project owner. The GPL covers the code only; it does not grant any right to use the name or the logo. Forks and modified versions must use a different name and must not use the logo.
 
-Nintendo DS and Nintendo 3DS are trademarks of Nintendo. FrameBeam is not affiliated with, endorsed or sponsored by Nintendo or any other console maker; system names are used only to describe compatibility.
+Nintendo, Game Boy, Game Boy Color, Game Boy Advance, Nintendo DS and Nintendo 3DS are trademarks of Nintendo. Pokémon and Pokémon character names are trademarks of Nintendo. Other game and system names are trademarks of their respective owners. FrameBeam is not affiliated with, endorsed or sponsored by Nintendo, The Pokémon Company or any other console maker or rights holder; these names are used only to describe compatibility.
 
 ## Disclaimer
 

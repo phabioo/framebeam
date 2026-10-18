@@ -41,6 +41,7 @@ Windows build: dynamically linked DLLs from vcpkg and Qt. Full license texts are
 | plog (via libdatachannel) | MIT | <https://github.com/SergiusTheBest/plog> |
 | Opus | BSD-3-Clause | <https://opus-codec.org> |
 | SDL3 | zlib | <https://github.com/libsdl-org/SDL> |
+| Lua 5.4.7 (plugin runtime, vendored in `client/plugins/third_party/`) | MIT | <https://www.lua.org> |
 | OpenSSL | Apache-2.0 | <https://www.openssl.org> |
 
 Linux development builds use the same libdatachannel and SDL3, built from source (pins in `scripts/*.pin`).
