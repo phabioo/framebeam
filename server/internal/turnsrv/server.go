@@ -133,15 +133,29 @@ func Start(ctx context.Context, cfg Config) (*Server, error) {
 	}
 
 	host := cfg.ListenHost
-	pc, err := net.ListenPacket("udp", net.JoinHostPort(host, strconv.Itoa(cfg.Port)))
-	if err != nil {
-		return nil, fmt.Errorf("turn udp listener: %w", err)
+	// With a fixed port a failure is final. With port 0 the UDP port is picked first and TCP must bind the same
+	// number; that can fail (on Windows the number may lie in an excluded TCP port range), so pick again.
+	attempts := 1
+	if cfg.Port == 0 {
+		attempts = 20
 	}
-	s.port = pc.LocalAddr().(*net.UDPAddr).Port
-	ln, err := net.Listen("tcp", net.JoinHostPort(host, strconv.Itoa(s.port)))
-	if err != nil {
+	var pc net.PacketConn
+	var ln net.Listener
+	for i := 0; ; i++ {
+		var err error
+		pc, err = net.ListenPacket("udp", net.JoinHostPort(host, strconv.Itoa(cfg.Port)))
+		if err != nil {
+			return nil, fmt.Errorf("turn udp listener: %w", err)
+		}
+		s.port = pc.LocalAddr().(*net.UDPAddr).Port
+		ln, err = net.Listen("tcp", net.JoinHostPort(host, strconv.Itoa(s.port)))
+		if err == nil {
+			break
+		}
 		pc.Close()
-		return nil, fmt.Errorf("turn tcp listener: %w", err)
+		if i+1 >= attempts {
+			return nil, fmt.Errorf("turn tcp listener: %w", err)
+		}
 	}
 	ln = &limitListener{Listener: ln, sem: make(chan struct{}, MaxTCPConns)}
 	gen := &relayGen{s: s}
