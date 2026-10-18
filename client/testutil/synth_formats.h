@@ -116,7 +116,7 @@ inline std::string makeGarc(const std::vector<std::vector<std::string>>& files, 
     put32(fimb, 0xC);
     put32(fimb, static_cast<uint32_t>(data.size()));
     const uint32_t dataOffset = headerSize + static_cast<uint32_t>(fatoChunk.size() + fatbChunk.size()) + 0xC;
-    std::string out = "GARC";
+    std::string out = "CRAG";
     put32(out, headerSize);
     put16(out, 0xFEFF);
     put16(out, version);
