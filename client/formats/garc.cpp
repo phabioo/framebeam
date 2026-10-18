@@ -14,7 +14,7 @@ Garc garcParse(std::string_view in) {
         return g;
     };
     uint32_t headerSize = 0, version = 0, dataOffset = 0;
-    if (in.size() < 0x1C || in.substr(0, 4) != "GARC") return fail("GARC: bad magic");
+    if (in.size() < 0x1C || in.substr(0, 4) != "CRAG") return fail("GARC: bad magic");
     if (!rd32(in, 4, headerSize) || !rd16(in, 0x0A, version) || !rd32(in, 0x10, dataOffset)) return fail("GARC: truncated header");
     if (version != 0x0400 && version != 0x0600) return fail("GARC: unsupported version");
     if (headerSize < 0x1C || !inRange(in.size(), headerSize, 0xC)) return fail("GARC: bad header size");

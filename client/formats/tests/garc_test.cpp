@@ -41,10 +41,22 @@ private slots:
         QVERIFY(!garcFile(g, 0, 1).ok);
         QVERIFY(!garcFile(g, size_t(-1)).ok);
     }
+    void magic() {
+        // Real GARC files start with "CRAG" (u32 0x47415243 little-endian), not "GARC".
+        const std::string g = framebeam::synth::makeGarc(files());
+        QCOMPARE(g.substr(0, 4), std::string("CRAG"));
+        QVERIFY(garcParse(g).ok);
+        std::string wrong = g;
+        wrong.replace(0, 4, "GARC");
+        const Garc p = garcParse(wrong);
+        QVERIFY(!p.ok);
+        QCOMPARE(p.error, std::string("GARC: bad magic"));
+        QVERIFY(!garcFile(wrong, 0).ok);
+    }
     void malformed() {
         const std::string g = framebeam::synth::makeGarc(files());
         QVERIFY(!garcParse("").ok);
-        QVERIFY(!garcParse("GARC").ok);
+        QVERIFY(!garcParse("CRAG").ok);
         std::string bad = g;
         bad[0] = 'X';
         QVERIFY(!garcParse(bad).ok);
