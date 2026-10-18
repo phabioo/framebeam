@@ -220,7 +220,43 @@ Image bclimDecode(std::string_view in) {
     if (swizzle != 0) return fail("BCLIM: swizzled images are not supported");
     if (w < 1 || h < 1 || w > kMaxDim || h > kMaxDim) return fail("BCLIM: size out of range (1..4096)");
     const int sw = pow2AtLeast8(static_cast<int>(w)), sh = pow2AtLeast8(static_cast<int>(h));
-    return decodeTiled(in.substr(0, in.size() - kFooter), sw, sh, static_cast<int>(w), static_cast<int>(h), kMap[fmt]);
+    const std::string_view data = in.substr(0, in.size() - kFooter);
+    if (fmt == 7) {
+        // Gen 6 palette variant (pk3DS BCLIM.GetPixels / GetPixelsViaPalette): RGB5A1 data that starts
+        // with u16 2 is u16 2, u16 colour count, count x u16 RGBA5551 colours, then indices in 8x8 Morton
+        // tiles: one byte per pixel, or two 4-bit indices per byte (low nibble first) when count < 16.
+        // Colours: pk3DS's reader decodes them as RGB565, but its writer (BCLIM.cs:229) and the footer format
+        // (RGB5A1) say RGBA5551, so the alpha bit decides transparency and index 0 is not forced.
+        // Extra safety over pk3DS: the palette and all indices must fit, else it is a normal image.
+        const auto* d = reinterpret_cast<const uint8_t*>(data.data());
+        if (data.size() >= 4 && (d[0] | (d[1] << 8)) == 2) {
+            const size_t count = static_cast<size_t>(d[2] | (d[3] << 8));
+            const bool half = count < 16;
+            const size_t pixels = static_cast<size_t>(sw) * static_cast<size_t>(sh);
+            const size_t idxBytes = half ? pixels / 2 : pixels;
+            if (count >= 1 && 4 + 2 * count + idxBytes <= data.size()) {
+                const uint8_t* pal = d + 4;
+                const uint8_t* idx = pal + 2 * count;
+                Image img;
+                img.width = static_cast<int>(w);
+                img.height = static_cast<int>(h);
+                img.rgba.assign(static_cast<size_t>(w) * static_cast<size_t>(h) * 4, '\0');
+                for (size_t i = 0; i < pixels; ++i) {
+                    const int tile = static_cast<int>(i / 64), j = static_cast<int>(i % 64);
+                    const int x = (tile % (sw / 8)) * 8 + ((j & 1) | ((j >> 1) & 2) | ((j >> 2) & 4));
+                    const int y = (tile / (sw / 8)) * 8 + (((j >> 1) & 1) | ((j >> 2) & 2) | ((j >> 3) & 4));
+                    if (x >= static_cast<int>(w) || y >= static_cast<int>(h)) continue;
+                    const uint8_t b = idx[half ? i / 2 : i];
+                    const size_t c = half ? ((i & 1) ? (b >> 4) : (b & 15)) : b;
+                    if (c >= count) return fail("BCLIM: palette index out of range");
+                    put(img.rgba, static_cast<int>(w), x, y, texel(pal, c, 2));
+                }
+                img.ok = true;
+                return img;
+            }
+        }
+    }
+    return decodeTiled(data, sw, sh, static_cast<int>(w), static_cast<int>(h), kMap[fmt]);
 }
 
 Image etc1Decode(std::string_view in, int width, int height, bool withAlpha) {

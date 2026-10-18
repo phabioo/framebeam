@@ -172,7 +172,7 @@ Pure functions on binary strings, no permission needed. Input is treated as untr
 - `fb.codec.garc(s)` parses a GARC container (versions 0x0400 and 0x0600) and returns `{ count, data_offset, files }`; `files[i][sub]` is `{ offset, length }` relative to `data_offset`.
 - `fb.codec.garc_file(s, i, sub)` returns the bytes of entry `i` (1-based), sub-file `sub` (1-based, default 1).
 - `fb.codec.ctr_texture(s, width, height, format)` decodes a 3DS GPU texture (formats 0 RGBA8, 1 RGB8, 2 RGBA5551, 3 RGB565, 4 RGBA4, 5 LA8, 6 HILO8, 7 L8, 8 A8, 9 LA4, 10 L4, 11 A4, 12 ETC1, 13 ETC1A4).
-- `fb.codec.bclim(s)` decodes a BCLIM image (footer at the end of the file).
+- `fb.codec.bclim(s)` decodes a BCLIM image (footer at the end of the file); besides the normal formats it decodes the Gen 6 palette variant (RGB5A1 data starting with u16 2, an RGBA5551 palette and 4-bit or 8-bit indices).
 - `fb.codec.etc1(s, width, height, alpha)` decodes plain ETC1 (`alpha` false) or ETC1A4 (`alpha` true) block data.
   The three image decoders return `{ width, height, rgba }` (RGBA8888, straight alpha, top-down) or `nil, message`.
 - `fb.codec.png(img)` encodes such an image table as a PNG string.

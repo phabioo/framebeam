@@ -197,6 +197,71 @@ private slots:
         // power-of-two exact size too
         QVERIFY(bclimDecode(syn::makeBclim(8, 8, 9, std::string(8 * 8 * 4, 'q'))).ok);
     }
+    // Gen 6 palette variant (pk3DS): u16 2, u16 count, RGBA5551 palette (entry 2 transparent), indices in 8x8 Morton tiles.
+    static std::string paletteBclim(int w, int h, int count, size_t dataSize, std::vector<int>& idxOut) {
+        auto pow2 = [](int v) { int p = 8; while (p < v) p <<= 1; return p; };
+        const int sw = pow2(w), sh = pow2(h);
+        std::string data;
+        data += char(2); data += char(0); data += char(count & 255); data += char(count >> 8);
+        for (int c = 0; c < count; ++c) {
+            const uint32_t v = (uint32_t((c * 5) & 31) << 11) | (uint32_t((c * 7 + 3) & 31) << 6) | (uint32_t((c * 3 + 1) & 31) << 1) | (c == 2 ? 0u : 1u);
+            data += char(v & 255); data += char(v >> 8);
+        }
+        const bool half = count < 16;
+        std::string idx(size_t(sw) * size_t(sh) / (half ? 2 : 1), '\0');
+        idxOut.assign(size_t(w) * size_t(h), 0);
+        for (int y = 0; y < sh; ++y)
+            for (int x = 0; x < sw; ++x) {
+                const int px = x & 7, py = y & 7;
+                int m = 0;
+                for (int b = 0; b < 3; ++b) m |= ((px >> b) & 1) << (2 * b) | ((py >> b) & 1) << (2 * b + 1);
+                const size_t i = size_t(y / 8 * (sw / 8) + x / 8) * 64 + size_t(m);
+                const int v = (x * 3 + y * 7) % count;
+                if (x < w && y < h) idxOut[size_t(y) * size_t(w) + size_t(x)] = v;
+                if (half) idx[i / 2] = char(uint8_t(idx[i / 2]) | (i & 1 ? v << 4 : v));
+                else idx[i] = char(v);
+            }
+        data += idx;
+        data.resize(dataSize, '\0');
+        std::string footer = syn::makeBclim(w, h, 9, std::string(size_t(w) * size_t(h) * 4, 'a')).substr(size_t(sw) * size_t(sh) * 4);
+        footer[0x20] = 7;
+        for (int k = 0; k < 4; ++k) footer[0x24 + size_t(k)] = char((data.size() >> (8 * k)) & 255);
+        return data + footer;
+    }
+    void bclimPalette() {
+        // Real Omega Ruby icon shape: 40x30, 4136 bytes = 4096 data (padded) + 40 footer, format 7, first u16 = 2.
+        for (int count : {5, 20}) {
+            std::vector<int> idx;
+            const std::string file = paletteBclim(40, 30, count, 4096, idx);
+            QCOMPARE(file.size(), size_t(4136));
+            const Image im = bclimDecode(file);
+            QVERIFY2(im.ok, im.error.c_str());
+            QCOMPARE(im.width, 40);
+            QCOMPARE(im.height, 30);
+            for (int y = 0; y < 30; ++y)
+                for (int x = 0; x < 40; ++x) {
+                    const int c = idx[size_t(y) * 40 + size_t(x)];
+                    QVERIFY(eq(at(im, x, y), {e5(uint32_t((c * 5) & 31)), e5(uint32_t((c * 7 + 3) & 31)), e5(uint32_t((c * 3 + 1) & 31)), uint8_t(c == 2 ? 0 : 255)}));
+                }
+        }
+        // An index outside the palette fails instead of producing noise.
+        std::vector<int> idx;
+        std::string bad = paletteBclim(16, 16, 3, 4096, idx);
+        bad[4 + 6] = char(0x0F);  // first index byte references colour 15 of 3
+        QVERIFY(!bclimDecode(bad).ok);
+    }
+    void bclimNormalFormat7() {
+        // RGB5A1 whose first texel merely resembles the marker still decodes as a normal image when
+        // the palette would not fit.
+        std::string d(8 * 8 * 2, '\0');
+        d[0] = 2; d[1] = 0; d[2] = char(0xFF); d[3] = char(0xFF);  // texel 0 = 0x0002, texel 1 = 0xFFFF
+        std::string f = syn::makeBclim(8, 8, 9, std::string(8 * 8 * 4, 'a')).substr(8 * 8 * 4);
+        f[0x20] = 7;
+        const Image im = bclimDecode(d + f);
+        QVERIFY2(im.ok, im.error.c_str());
+        QVERIFY(eq(at(im, 1, 0), {255, 255, 255, 255}));
+        QVERIFY(eq(at(im, 0, 0), {0, 0, e5(1), 0}));
+    }
     void bclimMalformed() {
         const std::string good = syn::makeBclim(16, 16, 9, std::string(16 * 16 * 4, 'a'));
         QVERIFY(bclimDecode(good).ok);
