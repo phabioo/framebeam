@@ -285,9 +285,8 @@ class GpuDisplayTest : public QObject {
     QTRY_VERIFY_WITH_TIMEOUT(gs.diagnostics().readbacksPerSec > 5.0, 5000);
     QVERIFY(!gs.diagnostics().zeroCopy);
     {
-      const QImage shot = window.grabWindow();
-      QVERIFY2(probePattern(shot, QRectF(0, 0, kViewW, kViewH), QRectF(0, 0, 1, 1)).isEmpty(),
-               qPrintable(probePattern(shot, QRectF(0, 0, kViewW, kViewH), QRectF(0, 0, 1, 1))));
+      QString probe;  // the view paints a readback frame asynchronously: retry the grab until it shows the pattern
+      QTRY_VERIFY2_WITH_TIMEOUT((probe = probePattern(window.grabWindow(), QRectF(0, 0, kViewW, kViewH), QRectF(0, 0, 1, 1))).isEmpty(), qPrintable(probe), 5000);
     }
     QVERIFY2(sh->gl.violations().isEmpty(), qPrintable(sh->gl.violations().join(QLatin1Char(';'))));
     QCOMPARE(gs.state(), GameSession::Running);  // nothing stops a game
@@ -347,8 +346,8 @@ class GpuDisplayTest : public QObject {
     QVERIFY(!gs.displaySource());
     QTRY_VERIFY_WITH_TIMEOUT(gs.diagnostics().readbacksPerSec > 5.0, 5000);
     QCOMPARE(gs.diagnostics().displaysPerSec, 0.0);
-    const QImage shot = window.grabWindow();
-    QVERIFY2(probePattern(shot, QRectF(0, 0, kViewW, kViewH), QRectF(0, 0, 1, 1)).isEmpty(), "readback picture");
+    QString probe;  // the view paints a readback frame asynchronously: retry the grab until it shows the pattern
+    QTRY_VERIFY2_WITH_TIMEOUT((probe = probePattern(window.grabWindow(), QRectF(0, 0, kViewW, kViewH), QRectF(0, 0, 1, 1))).isEmpty(), qPrintable(QStringLiteral("readback picture: ") + probe), 5000);
     gs.stop();
   }
 
@@ -402,8 +401,8 @@ class GpuDisplayTest : public QObject {
     QVERIFY(factory_.last != old.lock());
     QTRY_COMPARE_WITH_TIMEOUT(gs.displayState(), GpuDisplayBridge::State::Active, 10000);
     QTRY_VERIFY_WITH_TIMEOUT(!gs.displayReadbackEnabled(), 5000);
-    const QImage shot = window.grabWindow();
-    QVERIFY2(probePattern(shot, QRectF(0, 0, kViewW, kViewH), QRectF(0, 0, 1, 1)).isEmpty(), "picture after the restart");
+    QString probe;  // the view paints a readback frame asynchronously: retry the grab until it shows the pattern
+    QTRY_VERIFY2_WITH_TIMEOUT((probe = probePattern(window.grabWindow(), QRectF(0, 0, kViewW, kViewH), QRectF(0, 0, 1, 1))).isEmpty(), qPrintable(QStringLiteral("picture after the restart: ") + probe), 5000);
     gs.stop();
   }
 
