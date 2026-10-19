@@ -1037,11 +1037,10 @@ class InGameUiTest : public QObject {
       if (!shown(h, "modeSegment") && !shown(h, "modeCycle")) {
         QVERIFY2(hd->property("cycleHidden").toBool() && shown(h, "moreButton"), "no way to pick the Multiview layout");
         QVERIFY(h.click("moreButton"));
-        QVERIFY(shown(h, "moreMode_row"));
-        QVERIFY(h.click("moreMode_row"));
+        QVERIFY(h.clickWhenReady("moreMode_row"));  // the menu opens asynchronously
         QCOMPARE(ctl->multiviewMode(), QStringLiteral("row"));
         QVERIFY(h.click("moreButton"));
-        QVERIFY(h.click("moreMode_pip"));
+        QVERIFY(h.clickWhenReady("moreMode_pip"));
         QCOMPARE(ctl->multiviewMode(), QStringLiteral("pip"));
       }
     }
