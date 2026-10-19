@@ -393,11 +393,11 @@ class HostTest : public QObject {
       fb.log.info("files " .. n .. " " .. tostring(err))
     )LUA";
     HostLimits lim;
-    lim.wallMs = 20000;
+    lim.wallMs = 60000;  // 2000 file creations take about 13 s on the Windows CI runner
     lim.instructions = 200'000'000;
     m_host->setLimits(lim);
     startOne(s);
-    waitRunning("net.test.plugin");
+    QTRY_COMPARE_WITH_TIMEOUT(m_host->consoleSnapshot("net.test.plugin").status, PluginStatus::Running, 60000);
     QVERIFY2(hasLog(con(), "files 2000 "), qPrintable(con().error));
     QVERIFY2(hasLog(con(), "file limit exceeded"), qPrintable(con().error));
   }

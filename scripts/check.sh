@@ -16,6 +16,8 @@ step() {
     echo "ok  $label"
   else
     echo "FAIL $label"
+    # Go test failures and race reports can sit far above the tail (log noise of later tests): show them first.
+    grep -E -A12 -- '^(--- FAIL|WARNING: DATA RACE|panic:)' "$log" | head -n 120
     tail -n "${STEP_TAIL:-40}" "$log"
     status=1
   fi
