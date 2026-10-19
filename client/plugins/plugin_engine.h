@@ -96,6 +96,7 @@ struct Plugin {
   std::unique_ptr<QFile> rom;
   QHash<QString, std::optional<QHash<QString, QString>>> i18n;  // language -> strings (nullopt = no such file)
   qint64 cacheBytes = -1;
+  int cacheFiles = 0;  // files in the cache, valid with cacheBytes
   QList<WatchedRow> lastRows;
   int actionRef = -2;                         // fb.ui.on_action handler (LUA_NOREF)
   std::vector<RunSub> runSubs;                // fb.run.on callbacks

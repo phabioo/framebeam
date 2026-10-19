@@ -71,6 +71,7 @@ Rectangle {
     TextMetrics { id: tmViewLong; text: qsTr("Multiview"); font.pixelSize: 13; font.weight: Font.Medium }
     TextMetrics { id: tmViewShort; text: qsTr("Multi"); font.pixelSize: 13; font.weight: Font.Medium }
     readonly property bool modeAvailable: multi && ctl.availableLayouts.length > 0
+    readonly property var modeChoices: ctl.availableLayouts.filter(m => m !== "grid" || ctl.gridAvailable)   // the layouts that can be picked
     // Width the stage savings give back: what is hidden right now is added to the layout's implicit width before judging.
     readonly property real stageSaving: (modeCollapsed ? modeSegment.implicitWidth - (cycleHidden ? 0 : modeCycle.implicitWidth) : 0)
         + (stageHints ? hintsFullWidth + addButton.metaFullWidth : 0) + (shortView ? tmViewLong.advanceWidth - tmViewShort.advanceWidth : 0)
@@ -495,7 +496,7 @@ Rectangle {
         GameButton {
             id: moreButton
             objectName: "moreButton"
-            visible: root.tight && root.own
+            visible: (root.tight && root.own) || (root.modeAvailable && root.cycleHidden)
             look: "surface"
             fixedWidth: 32
             glyph: "⋯"

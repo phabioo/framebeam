@@ -42,6 +42,8 @@ Item {
         SettingsRow { objectName: "rDis"; Layout.fillWidth: true; Layout.minimumWidth: 0; idKey: "d"; controlName: "cD"; toggleName: "tD"
                       label: "Threaded Software Renderer"; disabledReason: "Software renderer only. Render Mode is OpenGL (Compute)."
                       values: [{value: "disabled", label: "disabled"}, {value: "enabled", label: "enabled"}]; current: "enabled" }
+        FbLabel { objectName: "plainLabel"; Layout.preferredWidth: 120; Layout.maximumWidth: 120; elide: Text.ElideRight; text: "<b>Peer</b> name" }
+        FbChip { objectName: "plainChip"; maxWidth: 120; Layout.maximumWidth: 120; text: "<i>Run</i>"; count: 2 }
     }
 }
 )";
@@ -98,6 +100,24 @@ class SettingsRowTest : public QObject {
   void cleanupTestCase() {
     delete win_;
     QCOMPARE(uitest::warningCount().load(), 0);
+  }
+
+  // PlainText audit: text that comes from peers, plugins or the Hub is never read as markup (FbLabel, FbChip).
+  void peerTextIsPlain() {
+    QQuickItem* l = row("plainLabel");
+    QVERIFY(l != nullptr);
+    QCOMPARE(l->property("textFormat").toInt(), int(Qt::PlainText));
+    QQuickItem* chip = row("plainChip");
+    QVERIFY(chip != nullptr);
+    bool found = false;
+    const QList<QQuickItem*> items = chip->findChildren<QQuickItem*>();
+    for (QQuickItem* t : items) {
+      if (t->property("text").toString().contains(QLatin1String("<i>Run</i>"))) {
+        found = true;
+        QCOMPARE(t->property("textFormat").toInt(), int(Qt::PlainText));
+      }
+    }
+    QVERIFY(found);
   }
 
   // Grid 14 | flex | 280 | 72: every control type ends on the same x; select and segment are 280 x 32 on the same left edge.

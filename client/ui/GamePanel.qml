@@ -836,6 +836,7 @@ Rectangle {
                                 horizontalAlignment: Text.AlignRight
                                 verticalAlignment: Text.AlignVCenter
                                 text: manageBtn.text
+                                textFormat: Text.PlainText
                                 font: manageBtn.font
                                 color: manageBtn.hovered ? Theme.gameText : Theme.gameBadgeText
                             }
@@ -1102,6 +1103,7 @@ Rectangle {
                             horizontalAlignment: Text.AlignRight
                             verticalAlignment: Text.AlignVCenter
                             text: selBtn.text
+                            textFormat: Text.PlainText
                             font: selBtn.font
                             color: Theme.gameText
                             Rectangle { anchors.bottom: parent.bottom; anchors.right: parent.right; width: parent.contentWidth; height: 1; color: parent.color }

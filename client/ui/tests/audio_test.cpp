@@ -154,6 +154,13 @@ class AudioTest : public QObject {
     out.setUnderrunCounting(true);
     QCOMPARE(out.underruns(), 0);
   }
+  void rateChangeWithoutDeviceIsIgnored() {  // PE-10: with a device the resampler follows (needs hardware, not testable here)
+    AudioOutput out;
+    out.setCoreRate(44100);
+    QCOMPARE(out.coreRate(), 0);
+    QVERIFY(!out.isActive());
+  }
+
   void bufferFillInMilliseconds() {
     // 48 kHz, 8-byte float frames: 14400-byte buffer (37.5 ms), 7200 free -> 7200 bytes queued = 900 frames = 18.75 ms
     QVERIFY(qAbs(AudioOutput::bufferedMsFor(14400, 7200, 0, 8, 48000) - 18.75) < 1e-9);

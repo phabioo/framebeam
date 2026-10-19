@@ -9,7 +9,7 @@ Rectangle {
     property string tone: "neutral"
     property string text: ""
     property bool small: false
-    property int textFormat: Text.AutoText  // plugin screens set Text.PlainText
+    property int textFormat: Text.PlainText  // names and titles from peers, plugins and the Hub are never markup
     readonly property bool textHasSymbol: /^[●▲✕⟳↓❚]/.test(text)
     property string symbol: (small || textHasSymbol) ? ""
                           : (tone === "ok" ? "●" : ((tone === "warn" || tone === "amber") ? "▲" : (tone === "error" ? "✕" : "")))

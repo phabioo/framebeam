@@ -29,15 +29,42 @@ Q_LOGGING_CATEGORY(lcCore, "framebeam.emulation.core")
 
 // The core repeats the same lines for every frame (OSD texts via SET_MESSAGE, debug lines): only the first
 // occurrence of each distinct message is reported, then every 1000th (with the count). false = suppress.
+// A core whose text keeps changing (counters, timestamps) produces endless "new" lines: at most kMaxNewPerSecond distinct new
+// lines are reported per second, the rest is counted and announced with the next reported line. The table of known
+// messages forgets the oldest entry when full instead of starting over, so repeats stay suppressed (PE-14).
 bool dedupeLog(QString& msg) {
+  constexpr int kMaxKnown = 256;
+  constexpr int kMaxNewPerSecond = 20;
   static std::mutex m;
   static QHash<QString, int> seen;
+  static QList<QString> order;  // insertion order, oldest first
+  static qint64 windowStartMs = 0;
+  static int windowNew = 0;
+  static int suppressed = 0;
   std::lock_guard<std::mutex> lock(m);
-  if (seen.size() > 256) seen.clear();
-  const int n = seen[msg]++;
-  if (n == 0) return true;
-  if (n % 1000 != 0) return false;
-  msg += QStringLiteral(" (repeated %1 times)").arg(n);
+  if (auto it = seen.find(msg); it != seen.end()) {
+    const int n = it.value()++;
+    if (n == 0 || n % 1000 != 0) return false;
+    msg += QStringLiteral(" (repeated %1 times)").arg(n);
+    return true;
+  }
+  const qint64 now = QDateTime::currentMSecsSinceEpoch();
+  if (now - windowStartMs >= 1000) {
+    windowStartMs = now;
+    windowNew = 0;
+  }
+  if (windowNew >= kMaxNewPerSecond) {
+    ++suppressed;
+    return false;
+  }
+  ++windowNew;
+  if (seen.size() >= kMaxKnown && !order.isEmpty()) seen.remove(order.takeFirst());
+  seen.insert(msg, 1);
+  order.append(msg);
+  if (suppressed > 0) {
+    msg += QStringLiteral(" (%1 other core messages suppressed)").arg(suppressed);
+    suppressed = 0;
+  }
   return true;
 }
 
@@ -113,7 +140,7 @@ struct LibretroBackend::Api {
   size_t(RETRO_CALLCONV* get_memory_size)(unsigned) = nullptr;  // optional
 };
 
-LibretroBackend* LibretroBackend::s_active = nullptr;
+std::atomic<LibretroBackend*> LibretroBackend::s_active{nullptr};
 
 LibretroBackend::LibretroBackend() : m_api(std::make_unique<Api>()) {}
 
@@ -125,7 +152,7 @@ bool LibretroBackend::loadCore(const QString& libraryPath, QString* error) {
     return false;
   };
   if (m_coreLoaded) return fail(QStringLiteral("Core already loaded"));
-  if (s_active) return fail(QStringLiteral("A libretro core is already loaded in this process"));
+  if (s_active.load()) return fail(QStringLiteral("A libretro core is already loaded in this process"));
 
   m_lib.setFileName(libraryPath);
   if (!m_lib.load()) return fail(m_lib.errorString());
@@ -163,7 +190,14 @@ bool LibretroBackend::loadCore(const QString& libraryPath, QString* error) {
     return fail(QStringLiteral("libretro API version %1 not supported").arg(apiVersion));
   }
 
-  s_active = this;
+  {
+    // The claim is atomic: a probe on a worker thread and a game start cannot both pass (PE-16).
+    LibretroBackend* expected = nullptr;
+    if (!s_active.compare_exchange_strong(expected, this)) {
+      m_lib.unload();
+      return fail(QStringLiteral("A libretro core is already loaded in this process"));
+    }
+  }
   m_corePath = libraryPath;
   m_corePathUtf8 = QDir::toNativeSeparators(libraryPath).toUtf8();
   m_shutdownRequested = false;
@@ -217,7 +251,7 @@ void LibretroBackend::unloadCore() {
   teardownHw();
   m_lib.unload();
   m_coreLoaded = false;
-  s_active = nullptr;
+  s_active.store(nullptr);
   m_hw.reset();
 }
 
@@ -750,33 +784,38 @@ void LibretroBackend::registerOptionsV0(const void* variables) {
 // ---------------------------------------------------------------- Callbacks
 
 bool LibretroBackend::environmentCb(unsigned cmd, void* data) {
-  return s_active && s_active->handleEnvironment(cmd, data);
+  LibretroBackend* self = s_active.load();
+  return self && self->handleEnvironment(cmd, data);
 }
 
 void LibretroBackend::videoRefreshCb(const void* data, unsigned w, unsigned h, size_t pitch) {
-  if (s_active) s_active->handleVideo(data, w, h, pitch);
+  if (LibretroBackend* self = s_active.load()) self->handleVideo(data, w, h, pitch);
 }
 
 void LibretroBackend::audioSampleCb(int16_t l, int16_t r) {
-  if (!s_active) return;
+  LibretroBackend* self = s_active.load();
+  if (!self) return;
   const int16_t s[2] = {l, r};
-  s_active->m_audio.append(reinterpret_cast<const char*>(s), sizeof s);
+  self->m_audio.append(reinterpret_cast<const char*>(s), sizeof s);
 }
 
 size_t LibretroBackend::audioBatchCb(const int16_t* data, size_t frames) {
-  if (s_active && data) s_active->m_audio.append(reinterpret_cast<const char*>(data), static_cast<qsizetype>(frames * 4));
+  LibretroBackend* self = s_active.load();
+  if (self && data) self->m_audio.append(reinterpret_cast<const char*>(data), static_cast<qsizetype>(frames * 4));
   return frames;
 }
 
 void LibretroBackend::inputPollCb() {
-  if (!s_active) return;
-  QMutexLocker l(&s_active->m_inputMutex);
-  s_active->m_polled = s_active->m_input;
+  LibretroBackend* self = s_active.load();
+  if (!self) return;
+  QMutexLocker l(&self->m_inputMutex);
+  self->m_polled = self->m_input;
 }
 
 int16_t LibretroBackend::inputStateCb(unsigned port, unsigned device, unsigned index, unsigned id) {
-  if (!s_active) return 0;
-  const InputState& in = s_active->m_polled;
+  LibretroBackend* self = s_active.load();
+  if (!self) return 0;
+  const InputState& in = self->m_polled;
   switch (device & RETRO_DEVICE_MASK) {
     case RETRO_DEVICE_JOYPAD: {
       if (port > 1) return 0;

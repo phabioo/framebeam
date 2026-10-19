@@ -354,6 +354,7 @@ Rectangle {
                                             anchors.leftMargin: 8
                                             anchors.rightMargin: 8
                                             text: ovItem.modelData
+                                            textFormat: Text.PlainText
                                             elide: Text.ElideRight
                                             verticalAlignment: Text.AlignVCenter
                                             font.pixelSize: Theme.fontSmall

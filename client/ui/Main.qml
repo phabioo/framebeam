@@ -137,6 +137,7 @@ ApplicationWindow {
         Text {
             property var tip: null
             text: tip ? tip.text : ""
+            textFormat: Text.PlainText
             font.pixelSize: Theme.fontMeta
             color: Theme.text
             wrapMode: Text.Wrap

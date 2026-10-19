@@ -138,6 +138,7 @@ Item {
         visible: false
         width: Math.min(560, root.textWidth)
         text: root.intro
+        textFormat: Text.PlainText
         wrapMode: Text.Wrap
         font.pixelSize: Theme.fontMeta
         lineHeight: 18
@@ -210,6 +211,7 @@ Item {
                     id: metaProbe
                     visible: false
                     text: root.meta
+                    textFormat: Text.PlainText
                     font.family: Theme.mono
                     font.pixelSize: Theme.fontMono
                 }
@@ -217,6 +219,7 @@ Item {
                     id: metaVis
                     anchors.verticalCenter: parent.verticalCenter
                     text: root.meta
+                    textFormat: Text.PlainText
                     font.family: Theme.mono
                     font.pixelSize: Theme.fontMono
                     color: Theme.textFaint
@@ -235,6 +238,7 @@ Item {
                     id: badgeProbe
                     visible: false
                     text: root.badge
+                    textFormat: Text.PlainText
                     font.pixelSize: Theme.fontMono
                 }
                 clip: true
@@ -243,6 +247,7 @@ Item {
                     x: 6
                     anchors.verticalCenter: parent.verticalCenter
                     text: root.badge
+                    textFormat: Text.PlainText
                     font.pixelSize: Theme.fontMono
                     color: Theme.textMuted
                 }
@@ -258,6 +263,7 @@ Item {
             Layout.minimumWidth: 0
             Layout.maximumWidth: 560
             text: root.intro
+            textFormat: Text.PlainText
             wrapMode: Text.Wrap
             maximumLineCount: root.showFull ? 100000 : 2
             elide: root.showFull ? Text.ElideNone : Text.ElideRight
@@ -296,6 +302,7 @@ Item {
                         Layout.maximumWidth: isKey ? 160 : Number.POSITIVE_INFINITY
                         Layout.alignment: Qt.AlignTop
                         text: isKey ? entry.k : entry.v
+                        textFormat: Text.PlainText
                         wrapMode: isKey ? Text.NoWrap : Text.Wrap
                         elide: isKey ? Text.ElideRight : Text.ElideNone
                         font.pixelSize: Theme.fontMeta
@@ -324,6 +331,7 @@ Item {
                 width: parent.width
                 elide: Text.ElideRight
                 text: root.moreLabel
+                textFormat: Text.PlainText
                 font.pixelSize: Theme.fontMeta
                 font.underline: true
                 color: moreLink.activeFocus ? Theme.accent : Theme.textMuted
@@ -338,6 +346,7 @@ Item {
             Layout.minimumWidth: 0
             Layout.topMargin: 2
             text: "⊘ " + root.disabledReason
+            textFormat: Text.PlainText
             wrapMode: Text.Wrap
             font.pixelSize: Theme.fontMeta
             lineHeight: 18
@@ -457,6 +466,7 @@ Item {
 
         contentItem: Text {
             text: cb.displayText
+            textFormat: Text.PlainText
             font: cb.font
             color: Theme.text
             elide: Text.ElideRight
@@ -499,6 +509,7 @@ Item {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     text: item.modelData.label
+                    textFormat: Text.PlainText
                     font.pixelSize: Theme.fontSmall
                     elide: Text.ElideRight
                     verticalAlignment: Text.AlignVCenter
@@ -640,6 +651,7 @@ Item {
             width: root.controlWidth
             height: Theme.settingsControlHeight
             text: root.valueText
+            textFormat: Text.PlainText
             elide: Text.ElideRight
             horizontalAlignment: Text.AlignRight
             verticalAlignment: Text.AlignVCenter

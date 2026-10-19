@@ -166,6 +166,7 @@ ColumnLayout {
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                             text: parent.text
+                            textFormat: Text.PlainText
                             font: parent.font
                             color: parent.enabled ? Theme.textOnAccent : Theme.gameFaint
                         }

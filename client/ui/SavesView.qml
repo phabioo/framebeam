@@ -197,6 +197,7 @@ FocusScope {
                     anchors.verticalCenter: parent.verticalCenter
                     width: parent.width
                     text: "← " + (root.backTitle !== "" ? root.backTitle : (root.game.title || qsTr("Library")))
+                    textFormat: Text.PlainText
                     font.pixelSize: Theme.fontSmall
                     elide: Text.ElideRight
                     color: backHover.hovered || backButton.activeFocus ? Theme.text : Theme.textMuted
@@ -450,6 +451,7 @@ FocusScope {
                                                 width: slotItem.width - 16 - 4 - 16
                                                 elide: Text.ElideRight
                                                 text: slotItem.modelData.label + (slotItem.modelData.count > 0 ? " · " + slotItem.modelData.count : "")
+                                                textFormat: Text.PlainText
                                                 font.pixelSize: Theme.fontSmall
                                                 color: Theme.text
                                             }
@@ -472,6 +474,7 @@ FocusScope {
                                     // The Basic ItemDelegate text follows the palette (dark text on the dark popup looked disabled, R-P16).
                                     contentItem: Text {
                                         text: newItem.text
+                                        textFormat: Text.PlainText
                                         font: newItem.font
                                         color: Theme.text
                                         verticalAlignment: Text.AlignVCenter

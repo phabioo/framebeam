@@ -81,6 +81,13 @@ class FbPluginTest : public QObject {
     QTest::newRow("empty segment") << "a//b.lua";
     QTest::newRow("control char") << QString("a\x01").append("b.lua");
     QTest::newRow("too long") << QString(300, 'a') + ".lua";
+    QTest::newRow("device name") << "nul";
+    QTest::newRow("device name with extension") << "assets/CON.png";
+    QTest::newRow("device name lua") << "aux.lua";
+    QTest::newRow("numbered device") << "com1";
+    QTest::newRow("numbered device lpt") << "Lpt9.txt";
+    QTest::newRow("trailing dot") << "dir./x.lua";
+    QTest::newRow("trailing dot file") << "trailing.";
   }
   void badNames() {
     QFETCH(QString, name);

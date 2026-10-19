@@ -136,6 +136,7 @@ Rectangle {
                                     anchors.verticalCenter: parent.verticalCenter
                                     width: item.width - 16 - 4 - 16
                                     text: item.modelData.label
+                                    textFormat: Text.PlainText
                                     elide: Text.ElideRight
                                     font.pixelSize: Theme.fontSmall
                                     color: Theme.text

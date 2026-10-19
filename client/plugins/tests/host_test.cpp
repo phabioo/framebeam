@@ -360,7 +360,7 @@ class HostTest : public QObject {
       assert(fb.cache.write("icons/x/y.png", "png"))
       assert(fb.cache.read("icons/x/y.png") == "png")
       assert(fb.cache.write("a.bin", "short") and fb.cache.read("a.bin") == "short")
-      for _, bad in ipairs{"../evil", "a/../../evil", "/abs/path", "..", "a/" .. "/b", "", "sp ace", "back\\slash", "dir/", "x/..", "C:/x"} do
+      for _, bad in ipairs{"../evil", "a/../../evil", "/abs/path", "..", "a/" .. "/b", "", "sp ace", "back\\slash", "dir/", "x/..", "C:/x", "nul", "CON.png", "icons/aux", "com1.txt", "Lpt9", "trail.", "a./b"} do
         for _, fn in ipairs{fb.cache.read, fb.cache.exists} do
           local ok, e = pcall(fn, bad)
           assert(not ok and e:find("invalid cache name"), bad .. ": " .. tostring(e))
@@ -368,6 +368,7 @@ class HostTest : public QObject {
         local ok, e = pcall(fb.cache.write, bad, "x")
         assert(not ok and e:find("invalid cache name"), bad .. ": " .. tostring(e))
       end
+      assert(fb.cache.write("console.txt", "ok") and fb.cache.write("com10", "ok") and fb.cache.write(".hidden", "ok"))  -- not device names
       fb.log.info("cache ok")
     )LUA";
     startOne(s);
@@ -377,6 +378,28 @@ class HostTest : public QObject {
     QVERIFY(QFileInfo(cache() + "/net.test.plugin/icons/x/y.png").isFile());
     QVERIFY(!QFileInfo(m_dir.path() + "/evil").exists());
     QVERIFY(!QFileInfo(cache() + "/evil").exists());
+  }
+
+  // PI-14: bytes alone do not bound the cache: the number of files is capped too (2000 per plugin).
+  void cacheFileLimit() {
+    PluginSpec s;
+    s.lua = R"LUA(
+      local n, err = 0, nil
+      for i = 1, 2100 do
+        local ok, e = pcall(fb.cache.write, "many/f" .. i, "x")
+        if not ok then err = tostring(e) break end
+        n = n + 1
+      end
+      fb.log.info("files " .. n .. " " .. tostring(err))
+    )LUA";
+    HostLimits lim;
+    lim.wallMs = 20000;
+    lim.instructions = 200'000'000;
+    m_host->setLimits(lim);
+    startOne(s);
+    waitRunning("net.test.plugin");
+    QVERIFY2(hasLog(con(), "files 2000 "), qPrintable(con().error));
+    QVERIFY2(hasLog(con(), "file limit exceeded"), qPrintable(con().error));
   }
 
   void cacheQuota() {

@@ -41,6 +41,15 @@
 
 namespace framebeam::ui {
 
+namespace {
+// How long the Emulation page keeps the "Updated X to V" line (the test override keeps tests short).
+int coreUpdateNoticeMs() {
+  bool ok = false;
+  const int v = qEnvironmentVariableIntValue("FRAMEBEAM_CORE_NOTICE_MS", &ok);
+  return ok && v > 0 ? v : 120000;
+}
+}  // namespace
+
 PlayerController::PlayerController(const Options& options, QObject* parent)
     : QObject(parent), options_(options), locator_() {
   qRegisterMetaType<framebeam::RomStatus>("framebeam::RomStatus");
@@ -158,6 +167,16 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     coreReprobe_.insert(c.coreId);
     reprobeUpdatedCores();
     refreshCoreState();
+    coreUpdateShown_ = true;
+    coreUpdateHideTimer_->start();
+    emit coreUpdateChanged();
+  });
+  // The result line is a quiet notice, not a state: it goes away after a while instead of staying until the next start.
+  coreUpdateHideTimer_ = new QTimer(this);
+  coreUpdateHideTimer_->setSingleShot(true);
+  coreUpdateHideTimer_->setInterval(coreUpdateNoticeMs());
+  connect(coreUpdateHideTimer_, &QTimer::timeout, this, [this]() {
+    coreUpdateShown_ = false;
     emit coreUpdateChanged();
   });
   // The Hub's systems / cores info changes when it updates its cores (after each catalog refresh): re-read it at most
@@ -594,6 +613,7 @@ void PlayerController::shutdown() {
     sessions_->gameEnded();
   }
   session_.stop();  // unloads the core first so it flushes its save
+  if (liveTimer_) liveTimer_->stop();  // the blocking sync spins a nested event loop: no library reload meanwhile (PE-19)
   if (saves_) {
     saves_->finalSyncBlocking(true);
   }
@@ -621,7 +641,7 @@ QVariantMap PlayerController::coreUpdate() const {
   const bool active = coreUpdater_ && coreUpdater_->busy();
   m.insert(QStringLiteral("active"), active);
   m.insert(QStringLiteral("text"), active ? tr("Updating %1 to %2").arg(coreUpdater_->current().name, coreUpdater_->current().version) : QString());
-  const bool has = coreUpdater_ && !coreUpdater_->lastUpdate().coreId.isEmpty();
+  const bool has = coreUpdateShown_ && coreUpdater_ && !coreUpdater_->lastUpdate().coreId.isEmpty();
   m.insert(QStringLiteral("lastText"), has ? tr("Updated %1 to %2").arg(coreUpdater_->lastUpdate().name, coreUpdater_->lastUpdate().version) : QString());
   return m;
 }
@@ -1700,7 +1720,10 @@ void PlayerController::endRunningWork() {
     setBackground(false);
     sessions_->gameEnded();  // same order as quitGame(): Sessions end before the core goes
     session_.stop();
+    const bool liveWasOn = liveTimer_ && liveTimer_->isActive();
+    if (liveTimer_) liveTimer_->stop();  // nested event loop in the final sync: no library reload while the game is half torn down (PE-19)
     saves_->finalSyncBlocking(true);
+    if (liveWasOn) liveTimer_->start();
     gameActive_ = false;
     phase_ = PlayPhase::None;
     finishRunStart();

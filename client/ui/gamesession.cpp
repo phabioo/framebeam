@@ -148,6 +148,7 @@ void GameSession::launch(const LaunchConfig& config, bool restart) {
   connect(r, &EmulationRunner::audioReady, this, [this, gen](const QByteArray& pcm, int rate) {
     if (gen != runnerGen_) return;
     if (!audioMuted_) {
+      audio_.setCoreRate(rate);  // PE-10: follows a runtime rate change
       audio_.push(pcm);
     }
     emit audioChunk(pcm, rate);

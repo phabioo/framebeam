@@ -78,6 +78,7 @@ Button {
                     anchors.centerIn: parent
                     verticalAlignment: Text.AlignVCenter
                     text: control.text
+                    textFormat: Text.PlainText
                     font.pixelSize: control.monoLabel ? 12 : control.font.pixelSize
                     font.weight: control.font.weight
                     font.family: control.monoLabel ? Theme.mono : Qt.application.font.family
@@ -90,6 +91,7 @@ Button {
                 visible: control.meta !== "" && control.showMeta
                 anchors.verticalCenter: parent.verticalCenter
                 text: control.meta
+                textFormat: Text.PlainText
                 font.family: Theme.mono
                 font.pixelSize: 11
                 color: control.on ? Theme.gameAccent : Theme.gameFaint
@@ -107,6 +109,7 @@ Button {
                     id: keyText
                     anchors.centerIn: parent
                     text: control.hint
+                    textFormat: Text.PlainText
                     font.family: Theme.mono
                     font.pixelSize: 10
                     font.weight: Font.Medium

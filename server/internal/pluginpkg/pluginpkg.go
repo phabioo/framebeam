@@ -129,8 +129,30 @@ func SafeName(name string) error {
 		case ".", "..":
 			return fmt.Errorf("path segment %q", seg)
 		}
+		// Windows: trailing dots/spaces are dropped and device names (CON, NUL, AUX.lua ...) open the device.
+		if strings.HasSuffix(seg, ".") || strings.HasSuffix(seg, " ") {
+			return fmt.Errorf("path segment %q ends in a dot or space", seg)
+		}
+		if reservedWindowsName(seg) {
+			return fmt.Errorf("path segment %q is a reserved Windows device name", seg)
+		}
 	}
 	return nil
+}
+
+// reservedWindowsName reports whether the segment's stem (up to the first dot) is CON, PRN, AUX, NUL, COM1-9 or LPT1-9,
+// in any case.
+func reservedWindowsName(seg string) bool {
+	stem := seg
+	if i := strings.IndexByte(stem, '.'); i >= 0 {
+		stem = stem[:i]
+	}
+	stem = strings.ToUpper(strings.TrimSpace(stem))
+	switch stem {
+	case "CON", "PRN", "AUX", "NUL":
+		return true
+	}
+	return len(stem) == 4 && (strings.HasPrefix(stem, "COM") || strings.HasPrefix(stem, "LPT")) && stem[3] >= '1' && stem[3] <= '9'
 }
 
 // Open validates a .fbplugin file completely: zip limits and names, manifest and entry file. All files are read once

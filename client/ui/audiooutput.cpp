@@ -183,6 +183,16 @@ void AudioOutput::stop() {
   }
 }
 
+void AudioOutput::setCoreRate(int coreSampleRate) {
+  if (!sink_ || coreSampleRate <= 0 || coreSampleRate == coreRate_) {
+    return;
+  }
+  qCInfo(lcAudio) << "core sample rate changed:" << coreRate_ << "->" << coreSampleRate << "Hz, output stays at" << outRate_;
+  resampler_.reset();
+  resampler_.setRates(coreSampleRate, outRate_);
+  coreRate_ = coreSampleRate;
+}
+
 void AudioOutput::push(const QByteArray& pcm) {
   if (!sink_ || !device_ || pcm.isEmpty()) {
     return;
