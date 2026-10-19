@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -521,7 +522,10 @@ func (s *Server) runDelete(w http.ResponseWriter, r *http.Request, sess *session
 	}
 }
 
-// runExport streams the whole event log as one JSON document.
+// runExport streams the whole event log as one JSON document. A database error before the first byte answers
+// HTTP 500. Once the document has started the status is already 200, so a later error ends the document with an
+// "error" member after the events (`],"error":"..."}`) and is logged; a complete export has no "error" member.
+// Callers must check for it: the file is valid JSON either way.
 func (s *Server) runExport(w http.ResponseWriter, r *http.Request, sess *session) {
 	ctx := r.Context()
 	run, err := s.svc.GetRunAdmin(ctx, r.PathValue("id"))
@@ -533,6 +537,13 @@ func (s *Server) runExport(w http.ResponseWriter, r *http.Request, sess *session
 		s.fail(w, r, err)
 		return
 	}
+	var evs []hub.RunEvent
+	if run.LastSeq > 0 { // the first page is read before the response starts, so its failure is a plain 500
+		if evs, _, err = s.svc.ListRunEventsAdmin(ctx, run.ID, 0, exportPage); err != nil {
+			s.fail(w, r, err)
+			return
+		}
+	}
 	head, _ := json.Marshal(map[string]any{"run_id": run.ID, "name": run.Name, "status": run.Status, "exported_at": s.svc.Now().Format(time.RFC3339), "last_seq": run.LastSeq})
 	h := w.Header()
 	h.Set("Content-Type", "application/json")
@@ -541,13 +552,28 @@ func (s *Server) runExport(w http.ResponseWriter, r *http.Request, sess *session
 	fmt.Fprintf(w, "%s,\"events\":[", head[:len(head)-1])
 	first := true
 	var after int64
+	fail := func(err error) {
+		s.log.Error("run export incomplete", "run_id", run.ID, "after_seq", after, "last_seq", run.LastSeq, "err", err)
+		msg, _ := json.Marshal("export incomplete after event " + strconv.FormatInt(after, 10) + " of " + strconv.FormatInt(run.LastSeq, 10))
+		fmt.Fprintf(w, "],\"error\":%s}\n", msg)
+	}
 	for after < run.LastSeq {
-		evs, _, err := s.svc.ListRunEventsAdmin(ctx, run.ID, after, exportPage)
-		if err != nil || len(evs) == 0 {
-			break
+		if evs == nil {
+			if evs, _, err = s.svc.ListRunEventsAdmin(ctx, run.ID, after, exportPage); err != nil {
+				fail(err)
+				return
+			}
+		}
+		if len(evs) == 0 {
+			fail(errors.New("event log ends before last_seq"))
+			return
 		}
 		for _, e := range evs {
-			b, _ := json.Marshal(e)
+			b, err := json.Marshal(e)
+			if err != nil {
+				fail(err)
+				return
+			}
 			if !first {
 				fmt.Fprint(w, ",")
 			}
@@ -555,6 +581,7 @@ func (s *Server) runExport(w http.ResponseWriter, r *http.Request, sess *session
 			w.Write(b)
 			after = e.Seq
 		}
+		evs = nil
 	}
 	fmt.Fprint(w, "]}\n")
 }

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/framebeam/server/internal/rollwrite"
 )
 
 // maxFirmwareForm bounds the firmware upload form (the largest firmware image is 512 KiB).
@@ -606,7 +607,9 @@ func (s *Server) firmwareDownload(w http.ResponseWriter, r *http.Request, _ *ses
 	defer f.Close()
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Disposition", `attachment; filename="`+r.PathValue("id")+"-"+def.ID+`.bin"`)
-	http.ServeContent(w, r, "", def.ProvidedAt, f)
+	rw, done := rollwrite.Wrap(w)
+	defer done()
+	http.ServeContent(rw, r, "", def.ProvidedAt, f)
 }
 
 // firmwareUpload takes a multipart form (_csrf, file). The body is bounded; the bytes are never logged.

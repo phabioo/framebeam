@@ -59,6 +59,8 @@ A flag wins over the environment variable. Under systemd the variables live in `
 
 ### TURN security
 
+The embedded TURN server caches the "device known and not revoked" result for 30 seconds (revoking a device drops its entry) and answers at most about 20 lookups per second for device IDs it has not seen, so unauthenticated packets cannot saturate the database. TURN/TCP connections must send their first message within 60 seconds and are closed after 10 minutes without data; one remote IP may hold at most 16 of the 64 TCP slots.
+
 **STUN and ICE updates.** Without a configured STUN list the Hub hands Players `stun:stun.cloudflare.com:3478`, so they learn their public address even when the Hub itself sits in a LAN. Set `-ice-servers none` (or "Use no external server" in Settings → Network) for a purely local setup; adding a server in Settings replaces the default. Whenever the effective ICE configuration changes (STUN list, embedded TURN on/off, Cloudflare credentials refreshed) the Hub sends every connected Player an `ice_update` message (feature `ice_update_v1`), so no reconnect is needed.
 
 **Cloudflare TURN (optional).** As a relay without port forwarding: create a TURN key in the Cloudflare dashboard (Realtime → TURN), set `FRAMEBEAM_CLOUDFLARE_TURN_KEY_ID` and put the key's API token in `FRAMEBEAM_CLOUDFLARE_TURN_API_TOKEN` or in a file readable only by the Hub (`-cloudflare-turn-token-file /etc/framebeam/cloudflare-turn.token`, mode 0600). The token is never accepted as a flag value, never logged, never written to the database or shown in Settings. The Hub requests 24 h credentials, refreshes them at half the TTL and offers them to Players in addition to the embedded TURN; URLs on port 53 are dropped. On errors it logs one warning per failure streak (without token or response body), retries with backoff and keeps the embedded TURN working. It stays off while Network sharing is off.
@@ -153,6 +155,14 @@ The certificate's SHA-256 fingerprint is printed to the log at startup (`journal
 
 Players and the web Library upload ROMs in chunks (Player up to 64 MiB, web 8 MiB). Unfinished uploads are kept in `<data>/tmp/uploads/<id>` and removed after 7 days without activity; at most 16 open uploads per user, 4 GiB per file. Reading one chunk has its own deadline (15 minutes); the old one-shot upload routes may take up to 2 hours. No flag configures these values. See [local ROMs](local-roms.md).
 
+- **Same file only.** A session is resumed by SHA-256, not by file name and size alone: the web uploader hashes the chosen file in the browser first (streaming, 4 MiB at a time; a short "Checking the file" step before the upload) and the Hub verifies the received file against that hash. The web route answers 400 without a hash. API clients that send no hash still resume by name and size (ADR 0025).
+- **Free space.** A ROM upload is refused with 413 `payload_too_large` ("Not enough free space on the Hub's disk") when its size plus what other open uploads still have to write would leave less than 1 GiB free on the data volume (reserve for the database and saves). An unknown free size (platforms where the Hub cannot read it) never refuses.
+- **Damaged sessions.** If the data file of a session is shorter than its stored offset (cleaned up by hand, antivirus), the next chunk is answered 409 and the session restarts at offset 0, so a ROM never ends up with a hash that does not match its content.
+
+## Limits for unauthenticated requests
+
+Pairing requests and invite redemptions need no login, so they are limited per source (IPv4 address or IPv6 /64) in addition to the global caps: 5 requests per minute and 5 open pairing requests per source, 20 open pairing requests in total (invited users have their own budget). Failed invite or local-pairing attempts count per source; the global cap of 1000 failures per minute only holds back sources that failed themselves, so failures from elsewhere never lock out a source without failures. The Local setup (`/api/v1/local/setup`) creates the admin and pairs the Player as one step: if pairing fails the admin is removed again, so setup can simply be repeated.
+
 ## Core packages
 
 The Hub downloads cores RetroArch-style from the libretro buildbot (nightly channel) and serves them to Players; Players never contact the buildbot. The catalog comes from the libretro core info archive (`info.zip`) and the buildbot's `.index-extended`; it is refreshed at start, every 24 h and on "Check source now" on Systems & Cores. Installing a core is always an admin action. With "Automatic core updates" (On by default, toggle in the source panel of Systems & Cores = Hub default, setting `core_auto_update`) the Hub updates every installed core that has a newer build after each catalog refresh; turning it on triggers a check. Since 0.14 each system can use the Hub default, On or Off, and each core can override its system (migration 0017). A failing core does not stop the others, and the last auto-update error is shown on Systems & Cores. When off, updates are manual (see below).
@@ -164,7 +174,13 @@ The Hub downloads cores RetroArch-style from the libretro buildbot (nightly chan
 - Nintendo 3DS (0.10, [ADR 0022](../adr/0022-nintendo-3ds-with-azahar.md)): the Hub knows system `3ds` but has no default core. Install `azahar` from "Available from the libretro buildbot" on Systems & Cores, then Make default if needed. It is a profiled core. No firmware or system files are required or shipped; use decrypted dumps only. Players need OpenGL Core >= 3.3.
 - Hubs upgraded from 0.7: packages from the retired signed source (origin `framebeam`, e.g. `melonds_ds`) are removed on start (database rows and stored files; one info log line per core; saves are untouched). A removed default core is replaced by another installed core of the system, else the system has no core and the Systems page asks the admin to install one from the libretro buildbot (`import-cores` on an offline Hub). Players cannot start games of a system without a core.
 
+A catalog refresh in which the build index of one platform (for example `windows-x64`) fails still succeeds for the other platforms: that platform keeps its previous builds, the failure is shown as a warning on Systems & Cores and in the log, and automatic updates continue. Only when every platform fails is the refresh a failure.
+
 Details: [ADR 0020](../adr/0020-cores-from-the-libretro-buildbot.md).
+
+## Run export
+
+`GET /runs/<id>/export` (web, admin) streams the event log as one JSON document. A database error before the first byte answers HTTP 500. If the export cannot be completed after it started (the status is already 200), the document ends with an `"error"` member after the `events` array (for example `"export incomplete after event 3 of 7"`) and the error is logged; a complete export never has an `"error"` member, so check for it after downloading.
 
 ## Plugins
 
@@ -191,3 +207,6 @@ Install with the FrameBeam MSI (feature Hub; see [packaging.md](packaging.md)), 
 ## Data directory
 
 Default `/var/lib/framebeam`: `framebeam.db` (SQLite, metadata only), `saves/`, `firmware/<system>/`, `tls/`, `cores/`, `updates/`, and `backups/` (database backups before schema migrations, newest 5). ROMs, saves and firmware are files; they are never stored in SQLite.
+
+- **Staging area.** `tmp/` holds uploads and staged files of the running Hub. Only the serving process cleans it at start (leftovers of a crash); CLI commands such as `import-cores`, `import-plugins` and `setup-admin` open the data directory next to the running service and leave `tmp/` alone. A firmware `.bak` left by a crash is restored when the firmware file is missing, otherwise removed.
+- **Newer database.** The Hub refuses to start when `framebeam.db` has a schema newer than the binary knows (after a downgrade or a rolled-back update): "database schema N is newer than this Hub". Install the matching version or restore a copy from `backups/hub-*.db`.

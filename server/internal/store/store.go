@@ -90,16 +90,21 @@ func migrate(db *sql.DB, backupDir string, maxVersion int) error {
 		v    int
 	}
 	var pending []mig
+	maxKnown := 0
 	for _, name := range names {
 		num, _, ok := strings.Cut(name, "_")
 		v, err := strconv.Atoi(num)
 		if !ok || err != nil {
 			return fmt.Errorf("migration %q: invalid name", name)
 		}
+		maxKnown = max(maxKnown, v)
 		if v <= cur || (maxVersion > 0 && v > maxVersion) {
 			continue
 		}
 		pending = append(pending, mig{name, v})
+	}
+	if cur > maxKnown {
+		return fmt.Errorf("database schema %d is newer than this Hub knows (newest %d): install the matching Hub version or restore a backup from backups/hub-*.db", cur, maxKnown)
 	}
 	if len(pending) > 0 && cur > 0 && backupDir != "" {
 		if err := backup(db, backupDir, cur, pending[len(pending)-1].v); err != nil {

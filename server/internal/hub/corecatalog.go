@@ -229,6 +229,7 @@ type CoreSyncReport struct {
 	Updated       []CoreUpdated // cores auto-updated after the refresh
 	UpdateErrors  []string      // per-core auto-update failures ("system/core: reason")
 	AutoUpdateRan bool          // auto-update was enabled and the refresh succeeded
+	Warnings      []string      // platforms whose build index failed (their previous builds are kept)
 }
 
 // CoreUpdated is one core installed to a newer build by the automatic update.
@@ -397,10 +398,31 @@ func (s *Service) RefreshCatalog(ctx context.Context) (_ CoreSyncReport, err err
 		return fail(err)
 	}
 	cat := catalog{FetchedAt: s.now().Unix(), Cores: map[string]catalogCore{}}
+	s.cores.catMu.RLock()
+	prev := s.cores.cat
+	s.cores.catMu.RUnlock()
+	failed := 0
 	for _, p := range corePlatforms {
 		idx, err := s.fetchCore(ctx, s.platformIndexURL(p), maxIndexExtBytes)
 		if err != nil {
-			return fail(fmt.Errorf("fetch build index for %s: %w", p.ID, err))
+			// One platform's index being down must not stop the others (the Hub serves linux-x64 even when the
+			// Windows index is unavailable): keep that platform's previous builds and report a warning.
+			failed++
+			rep.Warnings = append(rep.Warnings, fmt.Sprintf("build index for %s: %v", p.ID, err))
+			for id, pc := range prev.Cores {
+				b, had := pc.Builds[p.ID]
+				info, ok := infos[id]
+				if !had || !ok {
+					continue
+				}
+				c, ok := cat.Cores[id]
+				if !ok {
+					c = catalogCore{coreInfo: info, Builds: map[string]catalogBuild{}}
+				}
+				c.Builds[p.ID] = b
+				cat.Cores[id] = c
+			}
+			continue
 		}
 		for id, b := range parseIndexExtended(idx, p.Suffix) {
 			info, ok := infos[id]
@@ -415,6 +437,9 @@ func (s *Service) RefreshCatalog(ctx context.Context) (_ CoreSyncReport, err err
 			cat.Cores[id] = c
 		}
 	}
+	if failed == len(corePlatforms) {
+		return fail(errors.New(strings.Join(rep.Warnings, "; ")))
+	}
 	if b, err := json.Marshal(cat); err != nil {
 		return fail(internal(err))
 	} else if err := writeFileAtomic(s.cores.catPath, b); err != nil {
@@ -425,7 +450,11 @@ func (s *Service) RefreshCatalog(ctx context.Context) (_ CoreSyncReport, err err
 	s.cores.catMu.Unlock()
 	rep.Cores = len(cat.Cores)
 	s.setCoreState(ctx, settingCoreLastSuccess, strconv.FormatInt(s.now().Unix(), 10))
-	s.setCoreState(ctx, settingCoreLastError, "")
+	warn := ""
+	if len(rep.Warnings) > 0 {
+		warn = cleanText("Partial refresh, "+strings.Join(rep.Warnings, "; "), 500)
+	}
+	s.setCoreState(ctx, settingCoreLastError, warn)
 	return rep, nil
 }
 

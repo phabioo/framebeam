@@ -86,3 +86,10 @@ func (s *Service) ICEServersFor(reqHost, deviceID string) []string {
 func (s *Service) ExternalCredentialsForTest(deviceID string) []turnsrv.Credentials {
 	return s.externalFor(deviceID)
 }
+
+// SetFreeBytesForTest replaces the free-space probe of ROM uploads and returns the function that restores it.
+func SetFreeBytesForTest(fn func(dir string) uint64) (restore func()) {
+	old := freeBytesFn
+	freeBytesFn = fn
+	return func() { freeBytesFn = old }
+}

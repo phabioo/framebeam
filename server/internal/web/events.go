@@ -12,6 +12,10 @@ const (
 	sseHeartbeat = 25 * time.Second
 	// sseCoalesce is the minimum gap between two events of the same topic.
 	sseCoalesce = 500 * time.Millisecond
+	// sseWriteTimeout is how long one write or flush of the stream may block: a browser that stopped reading
+	// (suspended tab, dead connection) is dropped instead of holding the connection until TCP gives up. The
+	// heartbeat renews the deadline while the stream is quiet.
+	sseWriteTimeout = 30 * time.Second
 )
 
 // badgeTopics are the topics that change the sidebar badges.
@@ -28,8 +32,11 @@ func (s *Server) events(w http.ResponseWriter, r *http.Request, _ *session) {
 
 func (s *Server) serveEvents(w http.ResponseWriter, r *http.Request, heartbeat, coalesce time.Duration) {
 	rc := http.NewResponseController(w) // follows Unwrap() of wrapping writers (request logging)
-	// A server-wide WriteTimeout would kill the stream; lift the deadline if the server supports it.
-	_ = rc.SetWriteDeadline(time.Time{})
+	// A server-wide WriteTimeout would kill the stream; every write sets its own short deadline instead (the
+	// deadline is cleared again when the stream ends, it would leak into the next request of a kept-alive connection).
+	armWrite := func() { _ = rc.SetWriteDeadline(time.Now().Add(sseWriteTimeout)) }
+	armWrite()
+	defer func() { _ = rc.SetWriteDeadline(time.Time{}) }()
 	h := w.Header()
 	h.Set("Content-Type", "text/event-stream")
 	h.Set("Cache-Control", "no-store")
@@ -51,6 +58,7 @@ func (s *Server) serveEvents(w http.ResponseWriter, r *http.Request, heartbeat, 
 	defer timer.Stop()
 
 	send := func(topic string) {
+		armWrite()
 		fmt.Fprintf(w, "event: %s\ndata: 1\n\n", topic)
 		last[topic] = time.Now()
 	}
@@ -75,8 +83,11 @@ func (s *Server) serveEvents(w http.ResponseWriter, r *http.Request, heartbeat, 
 		case <-s.done:
 			return
 		case <-hb.C:
+			armWrite()
 			fmt.Fprint(w, ": keepalive\n\n")
-			rc.Flush()
+			if rc.Flush() != nil {
+				return
+			}
 		case ev, ok := <-ch:
 			if !ok {
 				return
@@ -86,7 +97,10 @@ func (s *Server) serveEvents(w http.ResponseWriter, r *http.Request, heartbeat, 
 				sent = emit("badges") || sent
 			}
 			if sent {
-				rc.Flush()
+				armWrite()
+				if rc.Flush() != nil {
+					return
+				}
 			}
 		case <-timer.C:
 			var next time.Duration
@@ -100,7 +114,10 @@ func (s *Server) serveEvents(w http.ResponseWriter, r *http.Request, heartbeat, 
 				delete(held, t)
 				send(t)
 			}
-			rc.Flush()
+			armWrite()
+			if rc.Flush() != nil {
+				return
+			}
 			if next > 0 {
 				timer.Reset(next)
 			}

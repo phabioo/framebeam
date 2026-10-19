@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
@@ -135,6 +136,15 @@ func (s *Service) DeleteUser(ctx context.Context, userID, actorID string) (err e
 	if err := s.DisableUser(ctx, userID); err != nil {
 		return err
 	}
+	// If the delete transaction fails the user must not stay disabled by a half-done deletion: re-enable it
+	// (unless it was disabled before), so the outcome is "deleted" or "unchanged".
+	defer func() {
+		if err != nil && !u.Disabled() {
+			if _, rerr := s.db.ExecContext(context.Background(), `UPDATE users SET disabled_at = NULL WHERE id = ?`, userID); rerr != nil {
+				slog.Error("re-enable user after failed deletion", "user_id", userID, "err", rerr)
+			}
+		}
+	}()
 	s.saveMu.Lock()
 	defer s.saveMu.Unlock()
 	tx, err := s.db.BeginTx(ctx, nil)

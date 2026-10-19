@@ -418,7 +418,9 @@ func TestPairingRateLimit(t *testing.T) {
 	e.remote = "192.0.2.11:1" // a different IP is not affected
 	e.request(uuid.NewString())
 	e.remote = "192.0.2.10:1"
-	e.clk.Advance(61 * time.Second)
+	// The five open requests also fill the per-source budget of open requests: room again once they expire.
+	wantStatus(t, e.do("POST", "/api/v1/pairing/requests", pairBody(uuid.NewString()), opt{}), 429, "rate_limited")
+	e.clk.Advance(hub.PairingTTL + time.Second)
 	e.request(uuid.NewString())
 }
 

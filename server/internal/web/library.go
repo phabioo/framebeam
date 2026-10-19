@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/framebeam/server/internal/rollwrite"
 )
 
 type libRow struct {
@@ -461,7 +462,9 @@ func (s *Server) libraryDownload(w http.ResponseWriter, r *http.Request, _ *sess
 		cd = "attachment"
 	}
 	w.Header().Set("Content-Disposition", cd)
-	http.ServeContent(w, r, "", stored.AddedAt, f)
+	rw, done := rollwrite.Wrap(w) // a client that stops reading must not hold the connection for hours
+	defer done()
+	http.ServeContent(rw, r, "", stored.AddedAt, f)
 }
 
 func readField(p io.Reader) string {

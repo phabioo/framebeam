@@ -131,7 +131,7 @@ func runUpdateCheck(args []string, out io.Writer, stage bool) error {
 	}
 	if _, serr := os.Stat(filepath.Join(cfg.DataDir, "framebeam.db")); *channel == "" && serr == nil {
 		ctx := context.Background()
-		svc, closeFn, err := openService(ctx, cfg)
+		svc, closeFn, err := openService(ctx, cfg, false)
 		if err != nil {
 			return err
 		}

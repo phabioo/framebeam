@@ -15,6 +15,7 @@ import (
 	"unicode"
 
 	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/framebeam/server/internal/rollwrite"
 )
 
 // saveRow is one game (of one user) in the list; its slots are the tabs of the detail.
@@ -774,7 +775,9 @@ func (s *Server) serveSave(w http.ResponseWriter, r *http.Request, f http.File, 
 	h.Set("Content-Type", "application/octet-stream")
 	h.Set("Content-Disposition", contentDisposition(ascii, full))
 	h.Set("ETag", `"`+sha+`"`)
-	http.ServeContent(w, r, ascii, mod, f)
+	rw, done := rollwrite.Wrap(w)
+	defer done()
+	http.ServeContent(rw, r, ascii, mod, f)
 }
 
 func (s *Server) downloadErr(w http.ResponseWriter, r *http.Request, err error) {

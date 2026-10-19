@@ -76,6 +76,12 @@ func (s *Server) uploadCreate(w http.ResponseWriter, r *http.Request, sess *sess
 		writeUploadJSON(w, http.StatusBadRequest, uploadJSON{Error: "Invalid request"})
 		return
 	}
+	// The web uploader always sends the SHA-256 of the file (computed in the browser): a session is resumed by hash
+	// only, never by file name and size, so a different file with the same name and size cannot continue it.
+	if !hub.ValidSHA256(in.SHA256) {
+		writeUploadJSON(w, http.StatusBadRequest, uploadJSON{Error: "The file's SHA-256 is missing or invalid."})
+		return
+	}
 	if s.cfg.MaxUploadBytes > 0 && in.Size > s.cfg.MaxUploadBytes {
 		writeUploadJSON(w, http.StatusRequestEntityTooLarge, uploadJSON{Error: "The file is too large (maximum " + humanBytes(s.cfg.MaxUploadBytes) + ")."})
 		return

@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"io"
@@ -31,6 +32,7 @@ type env struct {
 	t   *testing.T
 	svc *hub.Service
 	clk *hubtest.Clock
+	db  *sql.DB
 	mux *http.ServeMux
 	cfg Config
 }
@@ -42,7 +44,7 @@ func newEnv(t *testing.T, withAdmin bool, mod func(*Config)) *env {
 
 func newEnvOpts(t *testing.T, withAdmin bool, mod func(*Config), hubMod func(*hub.Options)) *env {
 	t.Helper()
-	svc, clk := hubtest.New(t, hubMod)
+	svc, clk, db := hubtest.OpenIn(t, t.TempDir(), hubMod)
 	cfg := Config{Listen: ":8443", UseTLS: false, MaxUploadBytes: 1 << 20}
 	if mod != nil {
 		mod(&cfg)
@@ -59,7 +61,7 @@ func newEnvOpts(t *testing.T, withAdmin bool, mod func(*Config), hubMod func(*hu
 			t.Fatal(err)
 		}
 	}
-	return &env{t: t, svc: svc, clk: clk, mux: mux, cfg: cfg}
+	return &env{t: t, svc: svc, clk: clk, db: db, mux: mux, cfg: cfg}
 }
 
 type client struct {
