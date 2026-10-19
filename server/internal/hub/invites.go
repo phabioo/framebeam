@@ -22,7 +22,8 @@ const (
 	// MaxRedeemPerIPPerMinute limits redeem attempts per remote IP (like pairing requests).
 	MaxRedeemPerIPPerMinute = 5
 	// MaxRedeemFailuresPerMinute limits failed attempts over all IPs: only a safety net, far above what
-	// per-IP limits let through from a few sources, so a single client cannot lock everyone out.
+	// per-IP limits let through from a few sources. It only applies to sources that failed themselves in the
+	// last minute, so many sources failing on purpose cannot lock out a source without failures.
 	MaxRedeemFailuresPerMinute = 1000
 	MaxDisplayNameLen          = 32
 	inviteHistoryKeep          = 90 * 24 * time.Hour
@@ -226,9 +227,20 @@ func (s *Service) rateLimitRedeem(ip string) error {
 		return h[i:]
 	}
 	ip = limitKey(ip)
-	s.redeemFails = prune(s.redeemFails)
+	i := 0
+	for i < len(s.redeemFails) && !s.redeemFails[i].t.After(cut) {
+		i++
+	}
+	s.redeemFails = s.redeemFails[i:]
+	failedHere := false
+	for _, f := range s.redeemFails {
+		if f.key == ip {
+			failedHere = true
+			break
+		}
+	}
 	h := prune(s.redeemHits[ip])
-	if len(h) >= MaxRedeemPerIPPerMinute || len(s.redeemFails) >= MaxRedeemFailuresPerMinute {
+	if len(h) >= MaxRedeemPerIPPerMinute || (failedHere && len(s.redeemFails) >= MaxRedeemFailuresPerMinute) {
 		s.redeemHits[ip] = h
 		return &Error{Code: CodeRateLimited, Message: "Too many attempts"}
 	}
@@ -243,9 +255,10 @@ func (s *Service) rateLimitRedeem(ip string) error {
 	return nil
 }
 
-func (s *Service) noteRedeemFailure() {
+// noteRedeemFailure records a failed attempt of the source (limit key of its address).
+func (s *Service) noteRedeemFailure(addr string) {
 	s.redeemMu.Lock()
-	s.redeemFails = append(s.redeemFails, s.now())
+	s.redeemFails = append(s.redeemFails, redeemFail{t: s.now(), key: limitKey(addr)})
 	s.redeemMu.Unlock()
 }
 
@@ -341,7 +354,7 @@ func (s *Service) RedeemInvite(ctx context.Context, in RedeemInput) (_ RedeemRes
 		return RedeemResult{}, internal(err)
 	}
 	if inviteID == "" {
-		s.noteRedeemFailure()
+		s.noteRedeemFailure(in.RemoteAddr)
 		return RedeemResult{}, ErrInviteInvalid
 	}
 	// Consume (guards against a concurrent redemption of the same invite).
@@ -351,7 +364,7 @@ func (s *Service) RedeemInvite(ctx context.Context, in RedeemInput) (_ RedeemRes
 		return RedeemResult{}, internal(err)
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
-		s.noteRedeemFailure()
+		s.noteRedeemFailure(in.RemoteAddr)
 		return RedeemResult{}, ErrInviteInvalid
 	}
 
@@ -364,7 +377,7 @@ func (s *Service) RedeemInvite(ctx context.Context, in RedeemInput) (_ RedeemRes
 			if err != nil && !errors.Is(err, sql.ErrNoRows) {
 				return RedeemResult{}, internal(err)
 			}
-			s.noteRedeemFailure()
+			s.noteRedeemFailure(in.RemoteAddr)
 			return RedeemResult{}, ErrInviteInvalid
 		}
 		userID = forUser

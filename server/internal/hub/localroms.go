@@ -98,6 +98,12 @@ func (s *Service) attachFile(ctx context.Context, tx *sql.Tx, m romMeta, stored 
 		}
 		if errors.Is(err, sql.ErrNoRows) {
 			gameID, created = uuid.NewString(), true
+			// The same ROM again after the game was deleted: re-use the old id, so its saves are linked again.
+			if old, err := revivedGameID(ctx, tx, m); err != nil {
+				return "", false, err
+			} else if old != "" {
+				gameID = old
+			}
 			storedKind := m.kind
 			if storedKind == "" {
 				storedKind = gameCodeNone // identity looked for, nothing found: the start-up backfill does not retry
@@ -130,6 +136,28 @@ func (s *Service) attachFile(ctx context.Context, tx *sql.Tx, m romMeta, stored 
 		}
 	}
 	return gameID, created, nil
+}
+
+// revivedGameID returns the id of a removed game that still has saves and that this file belongs to: the same
+// SHA-256, else the same identity (system, game code, kind and ROM version; code not empty). The tombstone is
+// consumed. "" when there is none.
+func revivedGameID(ctx context.Context, tx *sql.Tx, m romMeta) (string, error) {
+	var id string
+	err := tx.QueryRowContext(ctx, `SELECT game_id FROM removed_game_roms WHERE sha256 = ?`, m.sha).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) && m.code != "" {
+		err = tx.QueryRowContext(ctx, `SELECT game_id FROM removed_games WHERE system = ? AND game_code = ? AND game_code_kind = ? AND game_version IS ?
+			ORDER BY removed_at, game_id LIMIT 1`, m.system, m.code, m.kind, nullInt(m.version)).Scan(&id)
+	}
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", internal(err)
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM removed_games WHERE game_id = ?`, id); err != nil { // cascades the hashes
+		return "", internal(err)
+	}
+	return id, nil
 }
 
 func conflictWith(msg, existing string) *Error {

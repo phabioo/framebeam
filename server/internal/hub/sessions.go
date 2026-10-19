@@ -675,6 +675,11 @@ func (s *Service) broadcastSession(before, after *sessionData, inviteUser string
 
 // onDeviceRevoked ends the device's Session, removes its viewers and closes its WSS connection.
 func (s *Service) onDeviceRevoked(deviceID string) {
+	if t := s.turn.p.Load(); t != nil {
+		if inv, ok := (*t).(interface{ InvalidateDevice(string) }); ok {
+			inv.InvalidateDevice(deviceID) // drop the cached TURN authentication
+		}
+	}
 	ctx := context.Background()
 	s.sess.mu.Lock()
 	defer s.sess.mu.Unlock()

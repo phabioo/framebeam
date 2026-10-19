@@ -3,6 +3,7 @@ package hub
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strconv"
 	"strings"
 
@@ -142,7 +143,40 @@ func (s *Service) LocalSetup(ctx context.Context, in LocalInput) (PairingResult,
 		return PairingResult{}, User{}, err
 	}
 	res, err := s.pairLocally(ctx, u.ID, in.Device)
-	return res, u, err
+	if err != nil {
+		// Admin and pairing succeed or fail together: the next /local/setup must work again instead of
+		// answering 409 for an admin the Player never received credentials for.
+		s.discardLocalAdmin(u.ID, in.Device.DeviceID)
+		return PairingResult{}, User{}, err
+	}
+	return res, u, nil
+}
+
+// discardLocalAdmin removes the admin created by a LocalSetup whose pairing failed, with everything the pairing
+// attempt left behind (devices, tokens and requests cascade or are removed here).
+func (s *Service) discardLocalAdmin(userID, deviceID string) {
+	ctx := context.Background()
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		slog.Error("local setup: roll back admin", "err", err)
+		return
+	}
+	defer tx.Rollback()
+	for _, st := range []struct {
+		q    string
+		args []any
+	}{
+		{`DELETE FROM pairing_requests WHERE user_id = ? OR device_id = ?`, []any{userID, deviceID}},
+		{`DELETE FROM users WHERE id = ? AND role = 'admin'`, []any{userID}}, // cascades devices and tokens
+	} {
+		if _, err := tx.ExecContext(ctx, st.q, st.args...); err != nil {
+			slog.Error("local setup: roll back admin", "err", err)
+			return
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		slog.Error("local setup: roll back admin", "err", err)
+	}
 }
 
 // LocalPair pairs the calling Player as an enabled admin whose credentials are given (ErrInvalidCredentials
@@ -160,7 +194,7 @@ func (s *Service) LocalPair(ctx context.Context, in LocalInput) (PairingResult, 
 	}
 	if err != nil {
 		if errors.Is(err, ErrInvalidCredentials) {
-			s.noteRedeemFailure()
+			s.noteRedeemFailure(in.Device.RemoteAddr)
 		}
 		return PairingResult{}, User{}, err
 	}

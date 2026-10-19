@@ -31,7 +31,7 @@ func TestResumableWebUpload(t *testing.T) {
 	copy(data[0x0C:], "WEBU")
 	sum := sha256.Sum256(data)
 	sha := hex.EncodeToString(sum[:])
-	create := fmt.Sprintf(`{"filename":"web.nds","size":%d,"title":"Web Upload"}`, len(data))
+	create := fmt.Sprintf(`{"filename":"web.nds","size":%d,"sha256":%q,"title":"Web Upload"}`, len(data), sha)
 	jsonH := map[string]string{"Content-Type": "application/json", "X-CSRF-Token": tok}
 
 	// CSRF: every state-changing route needs the token in X-CSRF-Token.
@@ -67,7 +67,16 @@ func TestResumableWebUpload(t *testing.T) {
 	if r := upJSON(t, rec.Body.String()); r["offset"].(float64) != 500 || r["done"] != nil {
 		t.Fatalf("%v", r)
 	}
-	// "Reload": the same file name and size resumes the session at the stored offset.
+	// A different file with the same name and size never continues that session (HA-4), and a request without a
+	// hash is refused.
+	other := strings.Repeat("ab", 32)
+	rec = c.do("POST", "/library/uploads", strings.NewReader(fmt.Sprintf(`{"filename":"web.nds","size":%d,"sha256":%q}`, len(data), other)), jsonH)
+	status(t, rec, http.StatusOK)
+	if r := upJSON(t, rec.Body.String()); r["upload_id"] == id || r["offset"].(float64) != 0 {
+		t.Fatalf("a different hash resumed the session: %v", r)
+	}
+	status(t, c.do("POST", "/library/uploads", strings.NewReader(fmt.Sprintf(`{"filename":"web.nds","size":%d}`, len(data))), jsonH), http.StatusBadRequest)
+	// "Reload": the same file (same hash) resumes the session at the stored offset.
 	rec = c.do("POST", "/library/uploads", strings.NewReader(create), jsonH)
 	status(t, rec, http.StatusOK)
 	if r := upJSON(t, rec.Body.String()); r["upload_id"] != id || r["offset"].(float64) != 500 {
@@ -94,7 +103,7 @@ func TestResumableWebUpload(t *testing.T) {
 	status(t, rec, http.StatusConflict)
 	contains(t, rec, "already in the library")
 	// Abort.
-	rec = c.do("POST", "/library/uploads", strings.NewReader(`{"filename":"other.nds","size":10}`), jsonH)
+	rec = c.do("POST", "/library/uploads", strings.NewReader(`{"filename":"other.nds","size":10,"sha256":"`+other+`"}`), jsonH)
 	status(t, rec, http.StatusOK)
 	id2 := upJSON(t, rec.Body.String())["upload_id"].(string)
 	status(t, c.do("POST", "/library/uploads/"+id2+"/abort", nil, map[string]string{"X-CSRF-Token": tok}), http.StatusOK)
@@ -103,7 +112,7 @@ func TestResumableWebUpload(t *testing.T) {
 	e2 := newEnv(t, true, func(cf *Config) { cf.MaxUploadBytes = 1000 })
 	c2 := e2.client()
 	tok2 := c2.login()
-	status(t, c2.do("POST", "/library/uploads", strings.NewReader(`{"filename":"a.nds","size":1001}`),
+	status(t, c2.do("POST", "/library/uploads", strings.NewReader(`{"filename":"a.nds","size":1001,"sha256":"`+other+`"}`),
 		map[string]string{"Content-Type": "application/json", "X-CSRF-Token": tok2}), http.StatusRequestEntityTooLarge)
 }
 

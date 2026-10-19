@@ -25,6 +25,16 @@ const MaxAllocationsPerDevice = 10
 // MaxTCPConns is the number of TURN TCP connections open at once; further ones are closed right after Accept.
 const MaxTCPConns = 64
 
+// MaxTCPConnsPerIP is how many TURN TCP connections one remote IP may hold open.
+const MaxTCPConnsPerIP = 16
+
+// Inactivity limits of TURN/TCP connections: the first message must arrive soon, later gaps may be longer
+// (TURN clients refresh allocations and permissions every few minutes).
+const (
+	DefaultTCPFirstReadTimeout = 60 * time.Second
+	DefaultTCPIdleTimeout      = 10 * time.Minute
+)
+
 // Config configures the embedded TURN server.
 type Config struct {
 	PublicHost string
@@ -40,6 +50,12 @@ type Config struct {
 	// Resolver returns the IPs of host (default: system resolver). Only IPv4 results are used.
 	Resolver func(ctx context.Context, host string) ([]net.IP, error)
 	Now      func() time.Time
+	// AuthCacheTTL is how long a DeviceOK result is reused (default DefaultAuthCacheTTL).
+	AuthCacheTTL time.Duration
+	// TCPFirstReadTimeout and TCPIdleTimeout close a TURN/TCP connection that sends nothing (defaults
+	// DefaultTCPFirstReadTimeout / DefaultTCPIdleTimeout).
+	TCPFirstReadTimeout time.Duration
+	TCPIdleTimeout      time.Duration
 	// ResolveInterval defaults to DefaultResolveInterval.
 	ResolveInterval time.Duration
 	// ListenHost restricts the listeners (default: all addresses; tests: 127.0.0.1).
@@ -73,6 +89,8 @@ type Server struct {
 
 	allocMu sync.Mutex
 	allocs  map[string]int // device ID -> live allocations
+
+	authc *authCache
 
 	logMu      sync.Mutex
 	refusedLog map[netip.Addr]time.Time
@@ -118,6 +136,7 @@ func Start(ctx context.Context, cfg Config) (*Server, error) {
 	if s.now == nil {
 		s.now = time.Now
 	}
+	s.authc = newAuthCache(cfg.AuthCacheTTL, s.now)
 	if cfg.Resolver == nil {
 		s.cfg.Resolver = func(ctx context.Context, host string) ([]net.IP, error) {
 			return net.DefaultResolver.LookupIP(ctx, "ip4", host)
@@ -157,7 +176,14 @@ func Start(ctx context.Context, cfg Config) (*Server, error) {
 			return nil, fmt.Errorf("turn tcp listener: %w", err)
 		}
 	}
-	ln = &limitListener{Listener: ln, sem: make(chan struct{}, MaxTCPConns)}
+	first, idle := cfg.TCPFirstReadTimeout, cfg.TCPIdleTimeout
+	if first <= 0 {
+		first = DefaultTCPFirstReadTimeout
+	}
+	if idle <= 0 {
+		idle = DefaultTCPIdleTimeout
+	}
+	ln = &limitListener{Listener: ln, sem: make(chan struct{}, MaxTCPConns), perIP: map[string]int{}, first: first, idle: idle}
 	gen := &relayGen{s: s}
 	lf := logging.NewDefaultLoggerFactory()
 	lf.DefaultLogLevel = logging.LogLevelError
@@ -306,7 +332,7 @@ func (s *Server) auth(username, _ string, _ net.Addr) ([]byte, bool) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	if !s.cfg.DeviceOK(ctx, id) {
+	if !s.authc.check(ctx, id, s.cfg.DeviceOK) {
 		return nil, false
 	}
 	return turn.GenerateAuthKey(username, Realm, password(s.cfg.Secret, username)), true
@@ -367,10 +393,23 @@ func (s *Server) trackAlloc(username string, delta int) {
 	}
 }
 
-// limitListener closes connections beyond the cap right after Accept (never blocks Accept).
+// limitListener closes connections beyond the caps (total and per remote IP) right after Accept (never blocks
+// Accept) and gives every accepted connection an inactivity deadline.
 type limitListener struct {
 	net.Listener
-	sem chan struct{}
+	sem         chan struct{}
+	first, idle time.Duration
+
+	mu    sync.Mutex
+	perIP map[string]int
+}
+
+func remoteHost(c net.Conn) string {
+	h, _, err := net.SplitHostPort(c.RemoteAddr().String())
+	if err != nil {
+		return c.RemoteAddr().String()
+	}
+	return h
 }
 
 func (l *limitListener) Accept() (net.Conn, error) {
@@ -379,10 +418,30 @@ func (l *limitListener) Accept() (net.Conn, error) {
 		if err != nil {
 			return nil, err
 		}
+		host := remoteHost(c)
+		l.mu.Lock()
+		if l.perIP == nil {
+			l.perIP = map[string]int{}
+		}
+		if l.perIP[host] >= MaxTCPConnsPerIP {
+			l.mu.Unlock()
+			c.Close()
+			continue
+		}
 		select {
 		case l.sem <- struct{}{}:
-			return &limitConn{Conn: c, release: func() { <-l.sem }}, nil
+			l.perIP[host]++
+			l.mu.Unlock()
+			return &limitConn{Conn: c, wait: l.first, idle: l.idle, release: func() {
+				<-l.sem
+				l.mu.Lock()
+				if l.perIP[host]--; l.perIP[host] <= 0 {
+					delete(l.perIP, host)
+				}
+				l.mu.Unlock()
+			}}, nil
 		default:
+			l.mu.Unlock()
 			c.Close()
 		}
 	}
@@ -390,8 +449,26 @@ func (l *limitListener) Accept() (net.Conn, error) {
 
 type limitConn struct {
 	net.Conn
-	once    sync.Once
-	release func()
+	once       sync.Once
+	release    func()
+	wait, idle time.Duration
+	started    bool
+}
+
+// Read applies the inactivity deadline: wait until the first data arrives, idle between later reads.
+func (c *limitConn) Read(b []byte) (int, error) {
+	d := c.idle
+	if !c.started {
+		d = c.wait
+	}
+	if d > 0 {
+		c.Conn.SetReadDeadline(time.Now().Add(d))
+	}
+	n, err := c.Conn.Read(b)
+	if n > 0 {
+		c.started = true
+	}
+	return n, err
 }
 
 func (c *limitConn) Close() error {

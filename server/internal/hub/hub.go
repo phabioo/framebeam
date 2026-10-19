@@ -28,10 +28,13 @@ const (
 
 // Lifetimes and limits (ADR 0002 / orchestrator requirements).
 const (
-	AccessTokenTTL           = 15 * time.Minute
-	PairingTTL               = 10 * time.Minute
-	MaxOpenPairingRequests   = 20 // anonymous pairing requests only
-	MaxPairingPerIPPerMinute = 5  // per IPv4 address or IPv6 /64
+	AccessTokenTTL         = 15 * time.Minute
+	PairingTTL             = 10 * time.Minute
+	MaxOpenPairingRequests = 20 // anonymous pairing requests only
+	// MaxOpenPairingPerSource caps the open anonymous requests of one IPv4 address or IPv6 /64, so a few sources
+	// cannot fill the global budget.
+	MaxOpenPairingPerSource  = 5
+	MaxPairingPerIPPerMinute = 5 // per IPv4 address or IPv6 /64
 	// MaxOpenInviteRequests caps pending requests created by invite redemptions (own budget, so anonymous
 	// pairing requests cannot starve invited users and vice versa).
 	MaxOpenInviteRequests = 50
@@ -47,6 +50,9 @@ type Options struct {
 	HubVersion string
 	// Now is the clock (injectable for tests); default time.Now.
 	Now func() time.Time
+	// CleanStaging removes the staging leftovers in <data>/tmp and restores a firmware backup at Open. Only the
+	// serving process sets it: CLI sub-commands open the data directory while the service may be running.
+	CleanStaging bool
 	// PasswordParams: Argon2id parameters; default auth.DefaultParams.
 	PasswordParams *auth.Params
 	// ProtocolVersion/MinProtocolVersion override the constants (tests only); 0 = default.
@@ -121,10 +127,15 @@ type Service struct {
 	localDef    LocalDefaults
 	redeemMu    sync.Mutex // invite redemption rate limits
 	redeemHits  map[string][]time.Time
-	redeemFails []time.Time
+	redeemFails []redeemFail // failed attempts of the last minute, oldest first
 
 	upMu   sync.Mutex // resumable uploads: sessions with a chunk in flight
 	upBusy map[string]bool
+}
+
+type redeemFail struct {
+	t   time.Time
+	key string // rate limit key of the source
 }
 
 // Open initializes the service on a migrated database and creates the hub identity and
@@ -153,21 +164,8 @@ func Open(ctx context.Context, db *sql.DB, o Options) (*Service, error) {
 	s.SetPluginCatalog(s)
 	s.SetPluginInUseCheck(s.RunsUsingPluginVersion)
 	s.PruneOldPlugins(ctx) // clean up Hubs that already hold superseded versions
-	// No upload can be in flight while the Hub opens: drop staging leftovers of a crashed run.
-	tmpDir := filepath.Join(s.dataDir, "tmp")
-	if entries, err := os.ReadDir(tmpDir); err == nil {
-		for _, e := range entries {
-			if e.Name() == "uploads" {
-				continue // resumable upload sessions survive restarts (CleanupUploads removes the idle ones)
-			}
-			os.RemoveAll(filepath.Join(tmpDir, e.Name()))
-		}
-	}
-	// A firmware backup left behind by a crash between the renames of ProvideFirmware is never read.
-	if baks, err := filepath.Glob(filepath.Join(s.dataDir, "firmware", "*", "*.bak")); err == nil {
-		for _, b := range baks {
-			os.Remove(b)
-		}
+	if o.CleanStaging {
+		s.cleanStaging()
 	}
 	for _, d := range []string{"roms", "tmp"} {
 		if err := os.MkdirAll(filepath.Join(s.dataDir, d), 0o750); err != nil {
@@ -199,6 +197,33 @@ func Open(ctx context.Context, db *sql.DB, o Options) (*Service, error) {
 	s.BackfillGameVersions(ctx)
 	s.recoverSessions(ctx)
 	return s, nil
+}
+
+// cleanStaging removes the staging leftovers of a crashed run. Only the serving process may call it: CLI
+// sub-commands open the data directory next to the running service, whose uploads live in tmp.
+func (s *Service) cleanStaging() {
+	tmpDir := filepath.Join(s.dataDir, "tmp")
+	if entries, err := os.ReadDir(tmpDir); err == nil {
+		for _, e := range entries {
+			if e.Name() == "uploads" {
+				continue // resumable upload sessions survive restarts (CleanupUploads removes the idle ones)
+			}
+			os.RemoveAll(filepath.Join(tmpDir, e.Name()))
+		}
+	}
+	// A firmware backup left behind by a crash between the renames of ProvideFirmware: when the target file is
+	// missing the backup is the only copy and is restored, otherwise the leftover is removed.
+	if baks, err := filepath.Glob(filepath.Join(s.dataDir, "firmware", "*", "*.bak")); err == nil {
+		for _, b := range baks {
+			target := strings.TrimSuffix(b, ".bak")
+			if _, err := os.Stat(target); errors.Is(err, os.ErrNotExist) {
+				if os.Rename(b, target) == nil {
+					continue
+				}
+			}
+			os.Remove(b)
+		}
+	}
 }
 
 // DataDir returns the data directory.
@@ -251,6 +276,9 @@ func (s *Service) Cleanup(ctx context.Context) error {
 		// Expired requests stay visible for 1 h so the player can still poll "expired".
 		{`DELETE FROM pairing_requests WHERE expires_at <= ?`, now - 3600},
 		// Invite history is kept for 90 days (users created by a redemption stay).
+		// Identities of removed games are kept only while saves of them exist (HC-2).
+		{`DELETE FROM removed_games WHERE game_id NOT IN (SELECT game_id FROM save_slots) AND game_id NOT IN (SELECT game_id FROM save_history)
+			AND game_id NOT IN (SELECT game_id FROM save_conflicts) AND removed_at <= ?`, now},
 		{`DELETE FROM invites WHERE created_at <= ?`, now - int64(inviteHistoryKeep.Seconds())},
 	} {
 		if _, err := s.db.ExecContext(ctx, q.sql, q.arg); err != nil {

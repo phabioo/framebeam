@@ -68,8 +68,8 @@ type PairingResult struct {
 
 func validPairingField(v string, max int) bool { return v != "" && len(v) <= max }
 
-// CreatePairingRequest accepts a request (no auth). Limits: 20 open requests in total and
-// 5 requests per remote IP per minute, otherwise ErrRateLimited.
+// CreatePairingRequest accepts a request (no auth). Limits: 20 open requests in total, 5 open requests per source
+// (IPv4 address or IPv6 /64) and 5 requests per remote IP per minute, otherwise ErrRateLimited.
 // An already trusted device stays untouched until an admin allows the new request.
 func (s *Service) CreatePairingRequest(ctx context.Context, in PairingInput) (_ PairingCreated, err error) {
 	defer s.publishOK(&err, TopicClients)
@@ -100,7 +100,11 @@ func (s *Service) CreatePairingRequest(ctx context.Context, in PairingInput) (_ 
 	if err != nil {
 		return PairingCreated{}, err
 	}
-	if open >= MaxOpenPairingRequests || perIP >= MaxPairingPerIPPerMinute {
+	openHere, err := countOpenFromNet(ctx, tx, in.RemoteAddr, now)
+	if err != nil {
+		return PairingCreated{}, err
+	}
+	if open >= MaxOpenPairingRequests || openHere >= MaxOpenPairingPerSource || perIP >= MaxPairingPerIPPerMinute {
 		return PairingCreated{}, &Error{Code: CodeRateLimited, Message: "Too many open requests"}
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO pairing_requests(id, poll_token_hash, device_id, device_name, platform, arch,
@@ -134,6 +138,26 @@ func limitKey(addr string) string {
 // countRecentFromNet counts pairing requests created since cut by the same limit key as addr.
 func countRecentFromNet(ctx context.Context, tx *sql.Tx, addr string, cut time.Time) (int, error) {
 	rows, err := tx.QueryContext(ctx, `SELECT remote_addr FROM pairing_requests WHERE created_at > ?`, cut.Unix())
+	if err != nil {
+		return 0, internal(err)
+	}
+	defer rows.Close()
+	want, n := limitKey(addr), 0
+	for rows.Next() {
+		var a string
+		if err := rows.Scan(&a); err != nil {
+			return 0, internal(err)
+		}
+		if limitKey(a) == want {
+			n++
+		}
+	}
+	return n, internal2(rows.Err())
+}
+
+// countOpenFromNet counts the open anonymous requests of the same source (limit key) as addr.
+func countOpenFromNet(ctx context.Context, tx *sql.Tx, addr string, now time.Time) (int, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT remote_addr FROM pairing_requests WHERE status = 'pending' AND expires_at > ? AND user_id IS NULL`, now.Unix())
 	if err != nil {
 		return 0, internal(err)
 	}

@@ -51,3 +51,7 @@ ROMs are never sent between Players. Another user plays a local-only game only a
 - A Hub with `local_roms_v1` shows local-only games to their owners; older Players keep working with stored games and `POST /api/v1/games`.
 - A Player trusts nothing it cannot hash: launch from a folder checks size and mtime against the cache entry and re-hashes a changed file.
 - Unregistering the last owner of a local-only game leaves the game row with its saves; it is then visible only to admins ("Local only"), who can delete it. No automatic cleanup is built (open). Deleting a game removes all its files, registrations and the game row. `protocol_version` stays 1.
+
+## Amendment 2026-10-19: deleting and re-adding a game
+
+Deleting a game that has saves records its identity and file hashes (`removed_games`, migration 0018). A game created later for the same SHA-256, else for the same identity (system + game code + kind + ROM version, rule 2 of D3), re-uses the removed game's id, so the saves belong to it again without any copy; saves of a game that never comes back stay listed as "(removed game)". Details: [saves](../architecture/03-saves.md#deleted-games-and-saves).

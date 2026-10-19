@@ -175,6 +175,9 @@ func (s *Service) AddROM(ctx context.Context, r io.Reader, filename, title, syst
 		return Game{}, err
 	}
 
+	if err := s.checkDiskSpace(0); err != nil { // the size of a streamed body is not known yet: keep the reserve
+		return Game{}, err
+	}
 	tmp, err := os.CreateTemp(filepath.Join(s.dataDir, "tmp"), "rom-*")
 	if err != nil {
 		return Game{}, internal(err)
@@ -420,8 +423,8 @@ func (s *Service) DeleteGame(ctx context.Context, id string) (err error) {
 	if err != nil {
 		return err
 	}
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM games WHERE id = ?`, g.ID); err != nil {
-		return internal(err)
+	if err := s.deleteGameRows(ctx, g); err != nil {
+		return err
 	}
 	// The rows are gone; a blob that cannot be removed now (e.g. still streaming on Windows) is only logged.
 	for _, f := range g.ROMs {
@@ -431,6 +434,39 @@ func (s *Service) DeleteGame(ctx context.Context, id string) (err error) {
 		if err := os.Remove(s.romPath(f.SHA256)); err != nil && !errors.Is(err, os.ErrNotExist) {
 			slog.Warn("delete game: remove ROM file failed", "game_id", g.ID, "err", err)
 		}
+	}
+	return nil
+}
+
+// deleteGameRows deletes the game and, when saves of it exist, records its identity and file hashes in
+// removed_games so that adding the same ROM again re-uses the game id and the saves are linked to it again.
+func (s *Service) deleteGameRows(ctx context.Context, g Game) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return internal(err)
+	}
+	defer tx.Rollback()
+	var hasSaves int
+	if err := tx.QueryRowContext(ctx, `SELECT
+		EXISTS(SELECT 1 FROM save_slots WHERE game_id = ?1) OR EXISTS(SELECT 1 FROM save_history WHERE game_id = ?1) OR
+		EXISTS(SELECT 1 FROM save_conflicts WHERE game_id = ?1)`, g.ID).Scan(&hasSaves); err != nil {
+		return internal(err)
+	}
+	if hasSaves == 1 {
+		if _, err := tx.ExecContext(ctx, `INSERT OR REPLACE INTO removed_games(game_id, system, game_code, game_code_kind, game_version, removed_at)
+			SELECT id, system, game_code, game_code_kind, game_version, ? FROM games WHERE id = ?`, s.Now().Unix(), g.ID); err != nil {
+			return internal(err)
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT OR REPLACE INTO removed_game_roms(sha256, game_id)
+			SELECT sha256, game_id FROM game_roms WHERE game_id = ?`, g.ID); err != nil {
+			return internal(err)
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM games WHERE id = ?`, g.ID); err != nil {
+		return internal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		return internal(err)
 	}
 	return nil
 }

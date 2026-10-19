@@ -1155,3 +1155,21 @@ table.users-list th, table.users-list td { padding-left: 14px; padding-right: 14
 }
 .history li { font-size: 13px; color: var(--text-2); }
 /* ---- end Hub UI rescan fixes ---- */
+
+/* ---- Saves below 600 px (R-H23): slots, versions and games as cards, not rows of a timeline ---- */
+@media (max-width: 599px) {
+  .save-list { gap: 8px; }
+  .save-item { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+  .save-item.selected { border-color: var(--accent-bright); box-shadow: none; }
+  .tabs { border-bottom: 0; gap: 8px; }
+  .tab { flex: 1 1 140px; flex-direction: column; align-items: flex-start; gap: 2px; margin-bottom: 0; padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+  .tab.selected, .tab[aria-selected="true"] { border-color: var(--accent-bright); }
+  .tab-new { margin-left: 0; align-items: center; justify-content: center; flex-direction: row; }
+  .timeline li { grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 12px; margin-bottom: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+  .timeline li::before, .timeline .node { display: none; }
+  .timeline li.current { border-color: var(--accent-bright); }
+  .timeline .tl-text, .timeline .tl-actions, .timeline .tl-confirm { grid-column: 1; }
+  .timeline .tl-actions { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 8px; }
+  .timeline .tl-slot { justify-content: flex-start; }
+  .timeline .tl-slot:empty { display: none; }
+}

@@ -124,6 +124,15 @@ func (s *Service) CreateUpload(ctx context.Context, userID string, in UploadInpu
 	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM uploads WHERE user_id = ?`, userID).Scan(&open); err != nil {
 		return UploadSession{}, internal(err)
 	}
+	// The data directory also holds the database and the saves: keep a reserve and count what open sessions
+	// still have to write.
+	var pending int64
+	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(size - "offset"), 0) FROM uploads`).Scan(&pending); err != nil {
+		return UploadSession{}, internal(err)
+	}
+	if err := s.checkDiskSpace(in.Size + pending); err != nil {
+		return UploadSession{}, err
+	}
 	if open >= MaxOpenUploads {
 		return UploadSession{}, &Error{Code: CodeRateLimited, Message: "Too many open uploads; finish or abort one first"}
 	}
@@ -151,6 +160,25 @@ func (s *Service) CreateUpload(ctx context.Context, userID string, in UploadInpu
 	}
 	f.Close()
 	return s.GetUpload(ctx, userID, id)
+}
+
+// DiskReserveBytes is the free space on the data volume that ROM uploads must leave for the database and saves.
+const DiskReserveBytes int64 = 1 << 30
+
+// freeBytesFn reads the free space of the data volume (0 = unknown; tests replace it).
+var freeBytesFn = freeBytes
+
+// checkDiskSpace refuses a ROM that would not fit next to the reserve (413 payload_too_large). An unknown free
+// size (non-Linux/Windows platforms) never refuses.
+func (s *Service) checkDiskSpace(need int64) error {
+	free := freeBytesFn(s.dataDir)
+	if free == 0 {
+		return nil
+	}
+	if need < 0 || uint64(need)+uint64(DiskReserveBytes) > free {
+		return &Error{Code: CodePayloadTooLarge, Message: "Not enough free space on the Hub's disk for this ROM"}
+	}
+	return nil
 }
 
 // GetUpload returns a session of the user (another user's session does not exist for the caller).
@@ -261,6 +289,21 @@ func (s *Service) AppendUpload(ctx context.Context, userID, id string, c UploadC
 		return UploadSession{}, nil, internal(err)
 	}
 	defer f.Close()
+	// The data file must hold at least the bytes the hash state covers. A shorter file (cleaned up by hand,
+	// antivirus, disk-full recovery) would be zero-extended below while the hash state still describes the old
+	// bytes, storing a ROM that does not match its hash: start the session over instead.
+	if st, err := f.Stat(); err != nil {
+		return UploadSession{}, nil, internal(err)
+	} else if st.Size() < u.Offset {
+		if err := f.Truncate(0); err != nil {
+			return UploadSession{}, nil, internal(err)
+		}
+		if _, err := s.db.ExecContext(ctx, `UPDATE uploads SET "offset" = 0, hash_state = NULL, updated_at = ? WHERE id = ?`, s.Now().Unix(), u.ID); err != nil {
+			return UploadSession{}, nil, internal(err)
+		}
+		slog.Warn("upload data shorter than its offset; session restarted", "upload_id", u.ID, "offset", u.Offset, "size", st.Size())
+		return UploadSession{}, nil, conflict("The stored part of this upload is incomplete; it restarts at offset 0")
+	}
 	// Bytes beyond the offset are the leftover of an interrupted chunk.
 	if err := f.Truncate(u.Offset); err != nil {
 		return UploadSession{}, nil, internal(err)

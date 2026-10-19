@@ -58,6 +58,7 @@ type rtState struct {
 	ownerTimers  map[string]timerEntry // session ID -> owner grace timer
 	viewerTimers map[string]timerEntry // viewer ID -> "never connected" timer
 	timerGen     uint64                // last timerEntry generation handed out
+	closed       bool                  // Service.Close ran: no new timers
 	preHello     map[string]int        // device ID -> open connections that have not completed hello
 }
 
@@ -139,10 +140,32 @@ func (s *Service) armOwnerGrace(sessionID, deviceID string) {
 	if old, ok := rt.ownerTimers[sessionID]; ok {
 		old.t.Stop()
 	}
+	if rt.closed {
+		return
+	}
 	rt.timerGen++
 	gen := rt.timerGen
 	rt.ownerTimers[sessionID] = timerEntry{deviceID: deviceID, gen: gen,
 		t: time.AfterFunc(s.sess.grace, func() { s.ownerGraceExpired(sessionID, deviceID, gen) })}
+}
+
+// Close stops the Session grace timers and waits for a callback that is already running. Call it before the
+// database closes (Hub shutdown, in-process restart). The service is not usable for Sessions afterwards.
+func (s *Service) Close() {
+	s.sess.mu.Lock() // waits for a running grace callback (they hold it while they work)
+	defer s.sess.mu.Unlock()
+	rt := &s.sess.rt
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+	rt.closed = true
+	for id, e := range rt.ownerTimers {
+		e.t.Stop()
+		delete(rt.ownerTimers, id)
+	}
+	for id, e := range rt.viewerTimers {
+		e.t.Stop()
+		delete(rt.viewerTimers, id)
+	}
 }
 
 func (s *Service) cancelSessionGrace(sessionID string) {
@@ -185,6 +208,9 @@ func (s *Service) armViewerGrace(viewerID, deviceID string) {
 	defer rt.mu.Unlock()
 	if old, ok := rt.viewerTimers[viewerID]; ok {
 		old.t.Stop()
+	}
+	if rt.closed {
+		return
 	}
 	rt.timerGen++
 	gen := rt.timerGen

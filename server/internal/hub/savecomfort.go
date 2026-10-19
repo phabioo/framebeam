@@ -149,6 +149,10 @@ func (s *Service) UploadSaveFile(ctx context.Context, in UploadSaveInput) (_ Sav
 	}
 	defer tx.Rollback()
 	u, g, sl := in.UserID, in.GameID, in.Slot
+	// A Session may have started while the body was staged (the upload lock applies during a Session).
+	if err := s.checkNoSession(ctx, tx, u, g); err != nil {
+		return SaveSlot{}, err
+	}
 	cur, err := loadCheckpoint(ctx, tx, u, g, sl)
 	exists := err == nil
 	if err != nil && !errors.Is(err, ErrNotFound) {

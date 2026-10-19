@@ -46,7 +46,9 @@ type Buildbot struct {
 	Server *httptest.Server
 	// Down makes every request fail with 503.
 	Down bool
-	Hits map[string]int
+	// FailDirs makes requests whose path contains one of these fragments (for example "windows/x86_64") fail with 503.
+	FailDirs []string
+	Hits     map[string]int
 
 	mu     sync.Mutex
 	infos  map[string]string                // core id -> info file content
@@ -301,6 +303,11 @@ func (b *Buildbot) serve(w http.ResponseWriter, r *http.Request) {
 	b.mu.Lock()
 	b.Hits[r.URL.Path]++
 	down := b.Down
+	for _, d := range b.FailDirs {
+		if strings.Contains(r.URL.Path, d) {
+			down = true
+		}
+	}
 	b.mu.Unlock()
 	if down {
 		http.Error(w, "down", http.StatusServiceUnavailable)

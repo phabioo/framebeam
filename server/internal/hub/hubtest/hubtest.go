@@ -45,7 +45,7 @@ func OpenIn(t *testing.T, dir string, mod func(*hub.Options)) (*hub.Service, *Cl
 	t.Cleanup(func() { db.Close() })
 	clk := &Clock{t: time.Date(2026, 10, 5, 12, 0, 0, 0, time.UTC)}
 	fast := auth.Params{Time: 1, MemoryKiB: 64, Threads: 1, KeyLen: 32, SaltLen: 16}
-	o := hub.Options{DataDir: dir, Name: "Test-Hub", HubVersion: "0.0.0-test", Now: clk.Now, PasswordParams: &fast}
+	o := hub.Options{DataDir: dir, Name: "Test-Hub", HubVersion: "0.0.0-test", Now: clk.Now, PasswordParams: &fast, CleanStaging: true}
 	if mod != nil {
 		mod(&o)
 	}
@@ -53,5 +53,6 @@ func OpenIn(t *testing.T, dir string, mod func(*hub.Options)) (*hub.Service, *Cl
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(svc.Close) // runs before the database closes
 	return svc, clk, db
 }

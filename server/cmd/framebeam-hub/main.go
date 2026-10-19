@@ -30,6 +30,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -81,7 +82,9 @@ func main() {
 }
 
 // openService opens the database and service in the data directory.
-func openService(ctx context.Context, cfg *config.Config) (*hub.Service, func(), error) {
+// serving is true only for the server process: it alone cleans the staging area in <data>/tmp, because the CLI
+// sub-commands run next to the running service.
+func openService(ctx context.Context, cfg *config.Config, serving bool) (*hub.Service, func(), error) {
 	if err := os.MkdirAll(cfg.DataDir, 0o750); err != nil {
 		return nil, nil, err
 	}
@@ -94,7 +97,7 @@ func openService(ctx context.Context, cfg *config.Config) (*hub.Service, func(),
 		db.Close()
 		return nil, nil, err
 	}
-	svc, err := hub.Open(ctx, db, hub.Options{DataDir: cfg.DataDir, Name: cfg.Name, HubVersion: version.String(), ICEServers: cfg.ICEServers,
+	svc, err := hub.Open(ctx, db, hub.Options{CleanStaging: serving, DataDir: cfg.DataDir, Name: cfg.Name, HubVersion: version.String(), ICEServers: cfg.ICEServers,
 		CoreBuildbotURL: cfg.CoreBuildbotURL, CoreInfoURL: cfg.CoreInfoURL, CoreTrustKeys: keys,
 		SaveKeepRecent: cfg.SaveKeepRecent, SaveKeepDaily: cfg.SaveKeepDaily, SaveKeepWeekly: cfg.SaveKeepWeekly,
 		UpdateIndexURL: cfg.UpdateIndexURL, PluginIndexURL: cfg.PluginIndex(), UpdateRequestDir: cfg.UpdateRequestDir, UpdateChannel: version.Channel})
@@ -166,7 +169,7 @@ func runSetupAdmin(args []string, in io.Reader, out io.Writer) error {
 	}
 	password := strings.TrimRight(line, "\r\n")
 	ctx := context.Background()
-	svc, closeFn, err := openService(ctx, cfg)
+	svc, closeFn, err := openService(ctx, cfg, false)
 	if err != nil {
 		return err
 	}
@@ -231,7 +234,7 @@ func runImportCores(args []string, out io.Writer) error {
 		return err
 	}
 	ctx := context.Background()
-	svc, closeFn, err := openService(ctx, cfg)
+	svc, closeFn, err := openService(ctx, cfg, false)
 	if err != nil {
 		return err
 	}
@@ -275,7 +278,7 @@ func runImportPlugins(args []string, out io.Writer) error {
 		return err
 	}
 	ctx := context.Background()
-	svc, closeFn, err := openService(ctx, cfg)
+	svc, closeFn, err := openService(ctx, cfg, false)
 	if err != nil {
 		return err
 	}
@@ -361,11 +364,18 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	base := *cfg
 	base.ICEServers = config.CloneICE(cfg.ICEServers)
 
-	svc, closeFn, err := openService(ctx, cfg)
+	svc, closeDB, err := openService(ctx, cfg, true)
 	if err != nil {
 		return err
 	}
-	defer closeFn()
+	// Background loops are joined (bounded) and the Service closed before the database, on every exit path.
+	var bg sync.WaitGroup
+	defer func() {
+		cancelAll()
+		waitGroup(&bg, 10*time.Second)
+		svc.Close()
+		closeDB()
+	}()
 	// Network sharing: the flag only seeds the stored setting once; afterwards the stored value wins.
 	if err := svc.SeedNetworkSharing(ctx, base.NetworkSharing); err != nil {
 		return fmt.Errorf("store network sharing: %w", err)
@@ -520,18 +530,28 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	log.Info("FrameBeam Hub started", "version", version.String(), "hub_id", info.HubID, "name", info.Name,
 		"listen", ln.Addr().String(), "network_sharing", eff.NetworkSharing, "tls", cfg.UseTLS(), "protocol_version", info.ProtocolVersion)
 
-	go svc.RunCleanup(ctx, time.Minute, func(err error) { log.Error("cleanup", "err", err) })
-	go svc.RunSaveSweep(ctx, 24*time.Hour, func(err error) { log.Error("save history sweep", "err", err) })
-	// Core source sync: in the background, never blocks or fails startup; ends with ctx on shutdown.
-	syncDone := make(chan struct{})
+	bg.Add(2)
 	go func() {
-		defer close(syncDone)
+		defer bg.Done()
+		svc.RunCleanup(ctx, time.Minute, func(err error) { log.Error("cleanup", "err", err) })
+	}()
+	go func() {
+		defer bg.Done()
+		svc.RunSaveSweep(ctx, 24*time.Hour, func(err error) { log.Error("save history sweep", "err", err) })
+	}()
+	// Core source sync: in the background, never blocks or fails startup; ends with ctx on shutdown.
+	bg.Add(3)
+	go func() {
+		defer bg.Done()
 		svc.RunCoreSync(ctx, 24*time.Hour, func(r hub.CoreSyncReport, err error) {
 			if err != nil {
 				log.Warn("core catalog refresh failed", "err", err)
 				return
 			}
 			log.Info("core catalog refreshed", "cores", r.Cores)
+			for _, w := range r.Warnings {
+				log.Warn("core catalog refresh incomplete", "warning", w)
+			}
 			for _, u := range r.Updated {
 				log.Info("core auto-updated", "system", u.SystemID, "core", u.CoreID, "version", u.Version)
 			}
@@ -542,9 +562,8 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	}()
 
 	// Update check: in the background like the core sync, never blocks or fails startup.
-	updDone := make(chan struct{})
 	go func() {
-		defer close(updDone)
+		defer bg.Done()
 		svc.RunUpdateChecks(ctx, func(r hub.UpdateCheckReport, err error) {
 			switch {
 			case err != nil:
@@ -558,9 +577,8 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	}()
 
 	// Plugin index: in the background like the core sync, never blocks or fails startup; "none" = no index.
-	plugDone := make(chan struct{})
 	go func() {
-		defer close(plugDone)
+		defer bg.Done()
 		svc.RunPluginIndexRefresh(ctx, hub.PluginIndexInterval, func(err error) {
 			if err != nil {
 				log.Warn("plugin index refresh failed", "err", err)
@@ -593,20 +611,19 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	if err := srv.Shutdown(shutCtx); err != nil {
 		srv.Close()
 	}
-	select { // the sync loop stops with ctx; downloads abort with it
-	case <-syncDone:
-	case <-time.After(5 * time.Second):
-	}
-	select {
-	case <-updDone:
-	case <-time.After(5 * time.Second):
-	}
-	select {
-	case <-plugDone:
-	case <-time.After(5 * time.Second):
-	}
+	cancelAll() // the loops stop with ctx and are joined before the database closes (deferred above)
 	if restarting {
 		return errRestart
 	}
 	return nil
+}
+
+// waitGroup waits for wg for at most d (a loop stuck in a download must not block the shutdown).
+func waitGroup(wg *sync.WaitGroup, d time.Duration) {
+	done := make(chan struct{})
+	go func() { wg.Wait(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(d):
+	}
 }
