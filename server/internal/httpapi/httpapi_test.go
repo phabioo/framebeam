@@ -548,3 +548,32 @@ func TestWebSocketNeedsAuthAndUpgrade(t *testing.T) {
 	wantStatus(t, e.do("GET", "/api/v1/ws", nil, opt{token: at, raw: true}), 426, "")
 	wantStatus(t, e.do("GET", "/api/v1/ws", nil, opt{raw: true}), 401, "unauthorized")
 }
+
+func TestHandshakeRequiredFields(t *testing.T) {
+	e := newEnv(t, nil)
+	at := e.login(uuid.NewString())
+	for _, drop := range []string{"platform", "arch", "player_version", "protocol_version", "min_protocol_version"} {
+		b := handshakeBody(1, 1)
+		delete(b, drop)
+		wantStatus(t, e.do("POST", "/api/v1/handshake", b, opt{token: at, raw: true}), 400, "bad_request")
+	}
+	// Older Players: the optional parts may be missing and are treated as not reported.
+	for _, drop := range []string{"video", "audio", "input", "cores"} {
+		b := handshakeBody(1, 1)
+		delete(b, drop)
+		wantStatus(t, e.do("POST", "/api/v1/handshake", b, opt{token: at, raw: true}), 200, "")
+	}
+	old := handshakeBody(1, 1)
+	old["video"] = map[string]any{"h264_encode": true, "h264_decode": true}
+	delete(old, "audio")
+	delete(old, "input")
+	wantStatus(t, e.do("POST", "/api/v1/handshake", old, opt{token: at, raw: true}), 200, "")
+	wantStatus(t, e.do("POST", "/api/v1/handshake", handshakeBody(1, 1), opt{token: at}), 200, "")
+}
+
+func TestOversizedJSONBodyAnswers413(t *testing.T) {
+	e := newEnv(t, nil)
+	at := e.login(uuid.NewString())
+	big := []byte(`{"platform":"` + strings.Repeat("a", maxBodyBytes+1) + `"}`)
+	wantStatus(t, e.do("POST", "/api/v1/handshake", nil, opt{token: at, raw: true, data: big, ctype: "application/json"}), 413, "payload_too_large")
+}

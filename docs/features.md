@@ -32,7 +32,7 @@ What the Hub, the protocol and the Player do today, by area. Status by version: 
 
 **Protocol** (`protocol/`)
 
-- OpenAPI 3.0.3 for `/api/v1` and WSS message schemas; OpenAPI spec version 1.21.0, `protocol_version` is 1; handshake features `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1`, `firmware_v1`, `cores_v1`, `cores_v2`, `saves_v2`, `saves_v3`, `saves_v4`, `saves_v5`, `saves_v6`, `local_setup_v1` and, with TURN on, `turn_v1`. See [reference/protocol.md](reference/protocol.md).
+- OpenAPI 3.0.3 for `/api/v1` and WSS message schemas; OpenAPI spec version 1.22.0, `protocol_version` is 1; handshake features `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1`, `firmware_v1`, `cores_v1`, `cores_v2`, `saves_v2`, `saves_v3`, `saves_v4`, `saves_v5`, `saves_v6`, `local_setup_v1` and, with TURN on, `turn_v1`. See [reference/protocol.md](reference/protocol.md).
 
 **FrameBeam Player** (`client/`, [ADR 0003](adr/0003-player-phase2.md))
 
@@ -62,7 +62,7 @@ What the Hub, the protocol and the Player do today, by area. Status by version: 
 - Diagnostics show the connection type (direct / relay), for a relayed path the reason per viewer, and the target bitrate; ICE is logged per connection (0.10.x). During speed-up viewers get evenly spaced base-rate frames. "Collect logs…" (Settings → Diagnostics, CLI `--collect-logs <out.zip>`) writes a redacted zip; the host adapts the encoder bitrate to the worst viewer (AIMD). `FRAMEBEAM_FORCE_RELAY=1` (CLI `--force-relay`) forces the relay for testing.
 - Save comfort: save history with Restore and manual snapshots, slot picker per game, live "save changed on another device" notice; "Upload save file…" in the game's save section (needs `saves_v4`; blocked while the game runs or the slot has pending changes; the local save is backed up first); "Rename slot" and "Delete slot…" for every slot except Main (needs `saves_v5`; delete asks with the latest save and is a hard delete; rename and delete are blocked while the game runs on this Player; upload while the game is shared as a Session).
 - CLI: `session-share --synthetic`, `session-watch`.
-- Credentials in the Credential Manager on Windows, in memory only on Linux (new pairing after restart).
+- Credentials in the Credential Manager on Windows; in memory only on Linux and macOS (no OS credential store yet: new pairing and admin approval after every restart, see [guides/player.md](guides/player.md)).
 - Redeem an invite code to join a Hub as a new user (no password).
 - Upload ROMs to the Hub from the Player when the Hub allows user uploads.
 - Firmware path for NDS: in native mode the Player fetches your firmware files from the Hub and shows "Firmware required" / "Firmware missing" instead of launching without them.

@@ -20,7 +20,7 @@ On the connection screen, "Set up a Hub on this PC" runs a Hub on the same compu
 1. Start the Player and enter the Hub address (or pick a saved Hub profile; auto-connect is available).
 2. On first contact the Player shows the Hub's certificate fingerprint. Compare it with the Hub's log or Settings page and confirm (trust on first use). On a mismatch the connection is blocked and no credential is sent.
 3. Request pairing; an admin allows it on the Hub's Clients page. Alternatively choose "I have an invite code" and enter the code and your display name: the Hub creates a user for you without a password.
-4. Credentials are stored in the Windows Credential Manager (Linux: memory only).
+4. Credentials are stored in the Windows Credential Manager. Known limitation: Linux and macOS builds have no OS credential store yet (planned after 1.0); the device credential is kept in memory only, so after every restart the Player pairs again and the admin approves the device anew (no secret is written to disk).
 
 After a Hub certificate change (renewal) the Hub card shows the stored and the presented fingerprint. "Trust new certificate", then "Yes, trust this certificate" re-pins it and keeps the credential (CLI: `--accept-fingerprint <sha256>`). Settings → Hubs switches, edits (address, port), removes and sets auto-connect for Hubs.
 

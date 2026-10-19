@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: FrameBeam Hub API
-  version: 1.21.0
+  version: 1.22.0
   description: |
     HTTPS/JSON API of the FrameBeam Hub (phase 1; phase 3 adds save sync under `saves`, advertised by the handshake feature `saves_v1`; phase 4 adds Session sharing under `sessions` and the WSS endpoint, advertised by the handshake feature `sessions_v1`; phase 5 adds invite redemption under `users` (`users_v1`), user ROM uploads (`uploads_v1`, only advertised when the caller may upload) and the systems registry with firmware download under `systems` (`firmware_v1`); 0.2 adds core packages served by the Hub under `cores` (`cores_v1`); 0.4 adds relay credentials for Sessions over the internet (`turn_v1`, `turn_servers` in `hello_ack` and the join response), save comfort (`saves_v2`: restore, manual snapshots, history labels, the `save_updated` WSS message) and the signed core index for Player-side verification (`cores_index_v1`, `/api/v1/cores/index`, removed again in 0.8); 0.7 adds deleting manual snapshots (`saves_v3`) and the optional `user` in the handshake response; 0.8 adds uploading a save file from outside the sync flow (`saves_v4`, `POST /games/{game_id}/saves/{slot}/upload`); 0.8 also adds several cores per system from the libretro buildbot (`cores_v2`: `default_core_id` and `cores` in `SystemInfo`, core ids `^[a-z0-9][a-z0-9_-]{0,63}$`) and removes `cores_index_v1` and its endpoints `/api/v1/cores/index{,.sig}`); 0.9 adds the local setup endpoints under `local` for a Player on the same PC as the Hub (`local_setup_v1`, loopback callers only); 0.10 adds the WSS message `ice_update` (`ice_update_v1`) so connected Players receive changed `ice_servers`/`turn_servers`, a default STUN list, and optional Cloudflare TURN next to the embedded TURN server; 0.10.x also adds renaming and deleting save slots and the upload lock during a Session (`saves_v5`); 0.15.x also adds deleting any history version and the main slot (`saves_v6`); 0.11 adds the plugin list and download under `plugins` (`plugins_v1`); 0.11 also adds runs under `runs` (`runs_v1`: run objects with per-participant, per-plugin state, an append-only event log and boards, the WSS messages `run_updated`, `run_state` and `run_event`, and the optional `runs` list in `hello` for catch-up); 0.12 adds local ROMs (`local_roms_v1`: games that exist only on Player devices, `POST /games/register`, `DELETE /games/{game_id}/registration`, resumable uploads under `uploads`, `stored`/`on_hub`/`roms` and `game_version` in the game objects, visibility of local-only games). `protocol_version` is an integer (starting at 1),
     separate from the hub/player product version. All paths carry the `/api/v1` prefix explicitly;
@@ -83,6 +83,7 @@ paths:
                     status: pending
                     expires_in: 600
         '400': { $ref: '#/components/responses/BadRequest' }
+        '413': { $ref: '#/components/responses/TooLarge' }
         '429': { $ref: '#/components/responses/RateLimited' }
   /api/v1/pairing/requests/{request_id}:
     get:
@@ -186,6 +187,7 @@ paths:
               schema: { $ref: '#/components/schemas/Error' }
               examples:
                 default: { value: { error: { code: conflict, message: An admin already exists } } }
+        '413': { $ref: '#/components/responses/TooLarge' }
         '429': { $ref: '#/components/responses/RateLimited' }
   /api/v1/local/pair:
     post:
@@ -210,6 +212,7 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '413': { $ref: '#/components/responses/TooLarge' }
         '429': { $ref: '#/components/responses/RateLimited' }
   /api/v1/local/settings:
     put:
@@ -246,6 +249,7 @@ paths:
                 default: { value: { error: { code: import_dir_unreadable, message: 'import_dir_unreadable: The import folder does not exist or is not a directory' } } }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '413': { $ref: '#/components/responses/TooLarge' }
         '429': { $ref: '#/components/responses/RateLimited' }
   /api/v1/invites/redeem:
     post:
@@ -316,6 +320,7 @@ paths:
               schema: { $ref: '#/components/schemas/Error' }
               examples:
                 default: { value: { error: { code: display_name_taken, message: Display name is already taken } } }
+        '413': { $ref: '#/components/responses/TooLarge' }
         '429': { $ref: '#/components/responses/RateLimited' }
   /api/v1/auth/token:
     post:
@@ -358,6 +363,7 @@ paths:
                   value: { error: { code: device_revoked, message: Device has been revoked } }
                 user_disabled:
                   value: { error: { code: user_disabled, message: User has been disabled } }
+        '413': { $ref: '#/components/responses/TooLarge' }
   /api/v1/auth/revoke:
     post:
       operationId: revokeSelf
@@ -426,6 +432,7 @@ paths:
                       - { code: core_missing, detail: Core melonds missing, core_id: melonds }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '413': { $ref: '#/components/responses/TooLarge' }
   /api/v1/games:
     get:
       operationId: listGames
@@ -583,6 +590,7 @@ paths:
               schema: { $ref: '#/components/schemas/Game' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '413': { $ref: '#/components/responses/TooLarge' }
   /api/v1/games/{game_id}/registration:
     delete:
       operationId: deleteGameRegistration
@@ -662,6 +670,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/UploadStatus' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/UploadsDisabled' }
         '404': { $ref: '#/components/responses/NotFound' }
     put:
       operationId: putUploadChunk
@@ -695,6 +704,7 @@ paths:
               schema: { $ref: '#/components/schemas/UploadProgress' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/UploadsDisabled' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409':
           description: The chunk does not start at the current offset, another chunk is in flight, or the ROM was stored meanwhile (`existing_game_id`)
@@ -715,6 +725,7 @@ paths:
       responses:
         '204': { description: Session and data removed }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/UploadsDisabled' }
         '404': { $ref: '#/components/responses/NotFound' }
   /api/v1/roms/{sha256}:
     get:
@@ -1188,6 +1199,7 @@ paths:
                 exists: { value: { error: { code: save_slot_exists, message: A slot with this name already exists } } }
                 protected: { value: { error: { code: save_slot_protected, message: The default slot cannot be renamed } } }
                 session_running: { value: { error: { code: session_running, message: A Session of this game is running; end it first } } }
+        '413': { $ref: '#/components/responses/TooLarge' }
   /api/v1/games/{game_id}/saves/{slot}/content:
     parameters:
       - $ref: '#/components/parameters/GameId'
@@ -1365,6 +1377,7 @@ paths:
               schema: { $ref: '#/components/schemas/Error' }
               examples:
                 default: { value: { error: { code: save_conflict_stale, message: Slot changed since expected_revision; re-read the slot } } }
+        '413': { $ref: '#/components/responses/TooLarge' }
   /api/v1/games/{game_id}/saves/{slot}/upload:
     parameters:
       - $ref: '#/components/parameters/GameId'
@@ -1473,6 +1486,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '413': { $ref: '#/components/responses/TooLarge' }
   /api/v1/games/{game_id}/saves/{slot}/conflicts/{conflict_id}/resolve:
     parameters:
       - $ref: '#/components/parameters/GameId'
@@ -1522,6 +1536,7 @@ paths:
               schema: { $ref: '#/components/schemas/Error' }
               examples:
                 default: { value: { error: { code: save_conflict_stale, message: Slot changed since expected_revision; re-read the slot } } }
+        '413': { $ref: '#/components/responses/TooLarge' }
   /api/v1/users:
     get:
       operationId: listUsers
@@ -1597,6 +1612,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/CapabilityMissing' }
+        '413': { $ref: '#/components/responses/TooLarge' }
   /api/v1/sessions/{session_id}:
     parameters:
       - $ref: '#/components/parameters/SessionId'
@@ -1644,6 +1660,7 @@ paths:
         '403': { $ref: '#/components/responses/SessionForbidden' }
         '404': { $ref: '#/components/responses/SessionNotFound' }
         '410': { $ref: '#/components/responses/SessionEnded' }
+        '413': { $ref: '#/components/responses/TooLarge' }
     delete:
       operationId: endSession
       tags: [sessions]
@@ -1842,6 +1859,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/RunConflict' }
+        '413': { $ref: '#/components/responses/TooLarge' }
   /api/v1/runs/{run_id}/invite:
     parameters:
       - $ref: '#/components/parameters/RunId'
@@ -1871,6 +1889,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/RunConflict' }
+        '413': { $ref: '#/components/responses/TooLarge' }
   /api/v1/runs/{run_id}/decline:
     parameters:
       - $ref: '#/components/parameters/RunId'
@@ -1936,6 +1955,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/RunConflict' }
+        '413': { $ref: '#/components/responses/TooLarge' }
   /api/v1/runs/{run_id}/state/{plugin_id}:
     parameters:
       - $ref: '#/components/parameters/RunId'
@@ -2082,7 +2102,7 @@ paths:
       description: |
         Upgrade to WebSocket with the access token as Bearer header. Messages are JSON text frames in the envelope
         `{type, id?, payload}`; every message type has a schema (`ws-<type>.schema.json`) and an example in
-        `protocol/schemas/`. The first client message must be `hello`; the Hub answers `hello_ack` (features,
+        `protocol/schemas/`. The first client message must be `hello`; the Hub answers `hello_ack` (a short `features` list for the WSS connection; the authoritative list is the one of the handshake response,
         `ice_servers`, `turn_servers`). With `ice_update_v1` the Hub pushes `ice_update` (`ice_servers`, `turn_servers?`, the ICE part of
         `hello_ack`) to every connected Player whenever its effective ICE configuration changes; the Player uses the new lists for
         PeerConnections created afterwards. Message types: `hello`, `hello_ack`, `presence_update`, `session_update`, `save_updated`,
@@ -2286,6 +2306,13 @@ components:
           schema: { $ref: '#/components/schemas/Error' }
           examples:
             default: { value: { error: { code: forbidden, message: Not allowed } } }
+    UploadsDisabled:
+      description: Uploads are disabled (admin setting) or the user no longer has the upload right (code `uploads_disabled`)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            default: { value: { error: { code: uploads_disabled, message: Uploads are disabled for users } } }
     NotFound:
       description: Not found
       content:
@@ -2350,12 +2377,15 @@ components:
           examples:
             run_not_active: { value: { error: { code: run_not_active, message: The run is not active (paused, finished or abandoned) } } }
     TooLarge:
-      description: A JSON object is larger than its limit (settings 16 KiB, state 64 KiB, event payload 4 KiB, board 64 KiB)
+      description: |
+        A JSON object is larger than its limit (settings 16 KiB, state 64 KiB, event payload 4 KiB, board 64 KiB), or
+        any JSON request body exceeds the 1 MiB cap of the Hub (code `payload_too_large`)
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
           examples:
             default: { value: { error: { code: too_large, message: state is larger than 64 KiB } } }
+            body_cap: { value: { error: { code: payload_too_large, message: Request too large } } }
     SessionFullOrCapability:
       description: Session full, or the device lacks H.264 decode
       content:

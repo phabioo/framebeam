@@ -564,13 +564,13 @@ class RunsUiTest : public QObject {
   void resolveStartPluginsErrors() {
     using framebeam::ui::resolveStartPlugins;
     const QList<framebeam::HubPluginInfo> offered{
-        hubInfo("net.t.soul", "1.0.0", "SoulLink & Nuzlocke", {{"net.t.core", "^0.1"}}), hubInfo("net.t.core", "0.2.0", "Pokémon Core"),
+        hubInfo("net.t.soul", "1.0.0", "SoulLink & Nuzlocke", {{"net.t.core", "^0.1"}}), hubInfo("net.t.core", "0.2.0", "SoulLink Core"),
         hubInfo("net.t.strict", "1.0.0", "Strict", {{"net.t.core", "^0.2"}}), hubInfo("net.t.lost", "1.0.0", "Lost", {{"net.t.gone", "^1"}}),
         hubInfo("net.t.bad", "1.0.0", "Bad", {{"net.t.core", "huh"}})};
-    QCOMPARE(resolveStartPlugins(offered, {"net.t.soul"}).error, QString("SoulLink & Nuzlocke needs Pokémon Core ^0.1, which this Hub does not offer."));
+    QCOMPARE(resolveStartPlugins(offered, {"net.t.soul"}).error, QString("SoulLink & Nuzlocke needs SoulLink Core ^0.1, which this Hub does not offer."));
     QCOMPARE(resolveStartPlugins(offered, {"net.t.lost"}).error, QString("Lost needs net.t.gone ^1, which this Hub does not offer."));
     const QString conflict = resolveStartPlugins(offered, {"net.t.soul", "net.t.strict"}).error;
-    QVERIFY2(conflict.contains("SoulLink & Nuzlocke needs Pokémon Core ^0.1") && conflict.contains("Strict needs Pokémon Core ^0.2"), qPrintable(conflict));
+    QVERIFY2(conflict.contains("SoulLink & Nuzlocke needs SoulLink Core ^0.1") && conflict.contains("Strict needs SoulLink Core ^0.2"), qPrintable(conflict));
     QVERIFY(resolveStartPlugins(offered, {"net.t.bad"}).error.contains("not valid"));
     QVERIFY(resolveStartPlugins(offered, {"net.t.strict"}).error.isEmpty());
   }

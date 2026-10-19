@@ -3,13 +3,16 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -48,7 +51,12 @@ func Register(mux *http.ServeMux, svc *hub.Service, log *slog.Logger, opts ...Op
 		o(s)
 	}
 	strict := api.NewStrictHandlerWithOptions(s, []api.StrictMiddlewareFunc{s.authMiddleware}, api.StrictHTTPServerOptions{
-		RequestErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, _ error) {
+		RequestErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, err error) {
+			var mbe *http.MaxBytesError
+			if errors.As(err, &mbe) {
+				writeError(w, http.StatusRequestEntityTooLarge, hub.CodePayloadTooLarge, "Request too large")
+				return
+			}
 			writeError(w, http.StatusBadRequest, hub.CodeBadRequest, "Invalid request")
 		},
 		ResponseErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) { s.writeErr(w, r, err) },
@@ -70,6 +78,14 @@ func Register(mux *http.ServeMux, svc *hub.Service, log *slog.Logger, opts ...Op
 					limit = hub.UploadChunkBytes + 1 // one chunk; the service answers 413 for a larger Content-Range
 				}
 				r.Body = http.MaxBytesReader(w, r.Body, limit)
+				if r.Method == http.MethodPost && r.URL.Path == "/api/v1/handshake" {
+					r2, err := s.checkHandshakeBody(r)
+					if err != nil {
+						s.writeErr(w, r, err)
+						return
+					}
+					r = r2
+				}
 				if isStreamRoute(r) {
 					rw, done := rollingWrite(w)
 					defer done()
@@ -146,6 +162,49 @@ func (s *Server) authMiddleware(next api.StrictHandlerFunc, op string) api.Stric
 	}
 }
 
+// handshakeIdentity are the fields every Player version has always sent; a handshake without them is a 400.
+// The newer members (cores, video, audio, input) are optional on the wire so that older installed Players can
+// still reach the Hub (and its update); when they are missing the Hub treats them as "not reported".
+var handshakeIdentity = []string{"platform", "arch", "player_version", "protocol_version", "min_protocol_version"}
+
+// handshakeSeen records which optional handshake parts the body carried (oapi-codegen decodes a missing object
+// to zero values that would look like "no H.264").
+type handshakeSeen struct{ cores, video bool }
+
+const keyHandshakeSeen ctxKey = 100
+
+var handshakeLenientOnce sync.Once
+
+// checkHandshakeBody reads the (already size-capped) body, verifies the identity fields, notes which optional
+// parts are present and restores the body for the strict handler. Malformed JSON is left to the handler (400).
+func (s *Server) checkHandshakeBody(r *http.Request) (*http.Request, error) {
+	raw, err := io.ReadAll(r.Body)
+	if err != nil {
+		return r, err
+	}
+	r.Body = io.NopCloser(bytes.NewReader(raw))
+	var top map[string]json.RawMessage
+	if json.Unmarshal(raw, &top) != nil {
+		return r, nil
+	}
+	for _, f := range handshakeIdentity {
+		if v, ok := top[f]; !ok || string(v) == "null" {
+			return r, &hub.Error{Code: hub.CodeBadRequest, Message: "Handshake field " + f + " is required"}
+		}
+	}
+	var video map[string]json.RawMessage
+	_ = json.Unmarshal(top["video"], &video)
+	_, enc := video["h264_encode"]
+	_, dec := video["h264_decode"]
+	seen := handshakeSeen{cores: string(top["cores"]) != "" && string(top["cores"]) != "null", video: enc && dec}
+	if !seen.cores || !seen.video {
+		handshakeLenientOnce.Do(func() {
+			s.log.Debug("handshake without cores or video capabilities (older Player); treated as not reported")
+		})
+	}
+	return r.WithContext(context.WithValue(r.Context(), keyHandshakeSeen, seen)), nil
+}
+
 func principal(ctx context.Context) hub.Principal {
 	p, _ := ctx.Value(keyPrincipal).(hub.Principal)
 	return p
@@ -215,7 +274,7 @@ func (s *Server) writeErr(w http.ResponseWriter, r *http.Request, err error) {
 	default:
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {
-			writeError(w, http.StatusBadRequest, hub.CodeBadRequest, "Request too large")
+			writeError(w, http.StatusRequestEntityTooLarge, hub.CodePayloadTooLarge, "Request too large")
 			return
 		}
 		s.log.Error("internal error", "method", r.Method, "path", r.URL.Path, "err", err)
@@ -294,13 +353,20 @@ func (s *Server) PostHandshake(ctx context.Context, req api.PostHandshakeRequest
 		return nil, hub.ErrBadRequest
 	}
 	b := req.Body
+	seen, _ := ctx.Value(keyHandshakeSeen).(handshakeSeen)
 	cores := make([]hub.CoreReport, 0, len(b.Cores))
 	for _, c := range b.Cores {
 		cores = append(cores, hub.CoreReport{ID: c.Id, Version: c.Version})
 	}
-	res, err := s.svc.Handshake(ctx, principal(ctx).Device.ID, hub.HandshakeInput{Platform: b.Platform, Arch: b.Arch,
-		PlayerVersion: b.PlayerVersion, ProtocolVersion: b.ProtocolVersion, MinProtocolVersion: b.MinProtocolVersion,
-		H264Encode: &b.Video.H264Encode, H264Decode: &b.Video.H264Decode, Cores: &cores})
+	in := hub.HandshakeInput{Platform: b.Platform, Arch: b.Arch,
+		PlayerVersion: b.PlayerVersion, ProtocolVersion: b.ProtocolVersion, MinProtocolVersion: b.MinProtocolVersion}
+	if seen.video {
+		in.H264Encode, in.H264Decode = &b.Video.H264Encode, &b.Video.H264Decode
+	}
+	if seen.cores {
+		in.Cores = &cores
+	}
+	res, err := s.svc.Handshake(ctx, principal(ctx).Device.ID, in)
 	if err != nil {
 		return nil, err
 	}

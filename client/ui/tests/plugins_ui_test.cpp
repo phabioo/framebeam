@@ -282,7 +282,7 @@ class PluginsUiTest : public QObject {
     };
     FbSpec core;
     core.id = "net.example.pokemon-core";
-    core.name = "Pokemon Core";
+    core.name = "SoulLink Core";
     core.version = "0.3.1";
     core.permissions = {"memory.read"};
     FbSpec link;
@@ -307,7 +307,7 @@ class PluginsUiTest : public QObject {
              QStringLiteral("Home Hub offers 2 plugins. They are listed below under Available on Home Hub."));
     shot(h, QStringLiteral("4a-3-plugins-available"));
 
-    // SoulLink needs Pokemon Core: the Hub row says so and Install offers both.
+    // SoulLink needs SoulLink Core: the Hub row says so and Install offers both.
     QVariantMap linkOffer;
     for (const QVariant& v : pc->hubPlugins())
       if (v.toMap().value("id").toString() == link.id) linkOffer = v.toMap();
@@ -326,7 +326,7 @@ class PluginsUiTest : public QObject {
       QVERIFY(QMetaObject::invokeMethod(btn, "clicked"));
     }
     QTRY_VERIFY(h.item("pluginInstallDialog") != nullptr && h.item("pluginInstallDialog")->isVisible());
-    QVERIFY(h.item("pluginInstallDependency")->property("text").toString().contains(QStringLiteral("Also install Pokemon Core 0.3.1")));
+    QVERIFY(h.item("pluginInstallDependency")->property("text").toString().contains(QStringLiteral("Also install SoulLink Core 0.3.1")));
     shot(h, QStringLiteral("4a-3-dialog-install-both"));
     QVERIFY(h.click("pluginInstallBoth"));
     QTRY_COMPARE_WITH_TIMEOUT(pc->plugins().size(), 2, 12000);
@@ -341,7 +341,7 @@ class PluginsUiTest : public QObject {
     }
     QCOMPARE(h.item("sectionStatus_plugins")->property("text").toString(), QStringLiteral("2 installed · none on"));
 
-    // Turning on SoulLink while Pokemon Core is off asks, then turns both on (P20): the toggles agree.
+    // Turning on SoulLink while SoulLink Core is off asks, then turns both on (P20): the toggles agree.
     {
       QQuickItem* row = h.item("pluginRow_net.example.soullink");
       QVERIFY(row != nullptr);
@@ -357,7 +357,7 @@ class PluginsUiTest : public QObject {
     }
     QTRY_VERIFY(h.item("pluginEnableConfirm") != nullptr && h.item("pluginEnableConfirm")->isVisible());
     QVERIFY(h.item("pluginEnableDependency")->isVisible());
-    QVERIFY(h.item("pluginEnableDependency")->property("text").toString().contains(QStringLiteral("Pokemon Core")));
+    QVERIFY(h.item("pluginEnableDependency")->property("text").toString().contains(QStringLiteral("SoulLink Core")));
     QCOMPARE(h.item("pluginEnableConfirmButton")->property("text").toString(), QStringLiteral("Turn on both"));
     shot(h, QStringLiteral("4a-3-dialog-turn-on-both"));
     QVERIFY(h.click("pluginEnableConfirmButton"));

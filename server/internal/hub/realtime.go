@@ -466,7 +466,7 @@ func (c *Client) hello(env envelope) error {
 	}
 	ice, turn := c.svc.iceFor(c.reqHost, c.deviceID)
 	ack := map[string]any{"protocol_version": info.ProtocolVersion, "hub_version": info.HubVersion,
-		"features": []string{FeatureSavesV1, FeatureSavesV2, FeatureSessionsV1, FeatureICEUpdateV1, FeatureRunsV1, FeatureLocalROMsV1}, "ice_servers": ice}
+		"features": helloAckFeatures(len(turn) > 0), "ice_servers": ice}
 	if len(turn) > 0 {
 		ack["turn_servers"] = turnPayload(turn)
 	}
@@ -649,4 +649,15 @@ func (c *Client) Disconnect() {
 			s.armOwnerGrace(id, c.deviceID)
 		}
 	}
+}
+
+// helloAckFeatures is the short feature list of hello_ack: the WSS-relevant flags only. The authoritative list
+// is the one of the handshake response (BaseFeatures plus the per-request flags); turn_v1 is added here
+// exactly when turn_servers is sent.
+func helloAckFeatures(turn bool) []string {
+	f := []string{FeatureSavesV1, FeatureSavesV2, FeatureSessionsV1, FeatureICEUpdateV1, FeatureRunsV1, FeatureLocalROMsV1}
+	if turn {
+		f = append(f, FeatureTURNV1)
+	}
+	return f
 }
