@@ -5,7 +5,7 @@
 //	framebeam-sign add -index <cores-index.json> -package <package.json>
 //	framebeam-sign release-add -index <updates-index.json> -release <release.json> [-keep 5]
 //	framebeam-sign plugin-sign -in <x.fbplugin> -out <y.fbplugin>      (adds/replaces SIGNATURE.json; seed from env FRAMEBEAM_SIGNING_KEY)
-//	framebeam-sign plugin-add -index <plugin-index.json> -plugin <signed.fbplugin> -url <https url>
+//	framebeam-sign plugin-add -index <plugin-index.json> -plugin <signed.fbplugin> -url <https url> [-replace]   (refuses a different file for an existing id+version unless -replace)
 //	framebeam-sign sign -index <cores-index.json|updates-index.json|plugin-index.json> [-out <file>.sig]   (seed from env FRAMEBEAM_SIGNING_KEY)
 //	framebeam-sign verify -index <file> -sig <file> -pub <base64 public key>
 //	framebeam-sign pubkey                                             (seed from env FRAMEBEAM_SIGNING_KEY)
@@ -82,10 +82,11 @@ func run(args []string, getenv func(string) string, out io.Writer, now func() ti
 		pl := fs.String("plugin", "", "signed .fbplugin")
 		u := fs.String("url", "", "https URL where the file will be published")
 		allowFile := fs.Bool("allow-file-urls", false, "accept a file:// -url (tests only; default https only)")
+		replace := fs.Bool("replace", false, "replace an existing id+version whose sha256 differs (dangerous, see docs/guides/plugin-api.md)")
 		if err := fs.Parse(args[1:]); err != nil {
 			return err
 		}
-		return pluginAdd(*idx, *pl, *u, *allowFile, getenv, now)
+		return pluginAdd(*idx, *pl, *u, *allowFile, *replace, getenv, now)
 	case "sign":
 		idx := fs.String("index", "", "cores-index.json, updates-index.json or plugin-index.json (detected by content)")
 		o := fs.String("out", "", "signature file (default <index>.sig)")

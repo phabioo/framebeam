@@ -1,0 +1,22 @@
+{
+  "api": 1,
+  "id": "net.example.demo",
+  "name": "Demo",
+  "version": "1.0.0",
+  "entry": "main.lua",
+  "provides": [
+    "pokemon.core"
+  ],
+  "games": [
+    {
+      "system": "3ds",
+      "codes": [
+        "000400000011C400",
+        "ABC*"
+      ]
+    },
+    {
+      "system": "gba"
+    }
+  ]
+}

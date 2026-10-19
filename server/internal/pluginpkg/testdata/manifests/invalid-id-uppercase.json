@@ -1,0 +1,7 @@
+{
+  "api": 1,
+  "id": "Net.Example.Demo",
+  "name": "Demo",
+  "version": "1.0.0",
+  "entry": "main.lua"
+}

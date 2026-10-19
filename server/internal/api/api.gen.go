@@ -2411,7 +2411,7 @@ type ServerInterface interface {
 	// Decline the invite (only from invited; declining again is a no-op)
 	// (POST /api/v1/runs/{run_id}/decline)
 	DeclineRun(w http.ResponseWriter, r *http.Request, runId RunId)
-	// Events with seq greater than `after`, in order (participants of any status)
+	// Events with seq greater than `after`, in order (joined participants)
 	// (GET /api/v1/runs/{run_id}/events)
 	ListRunEvents(w http.ResponseWriter, r *http.Request, runId RunId, params ListRunEventsParams)
 	// Append an event to the log (joined participants)
@@ -7738,6 +7738,20 @@ func (response ListRunEvents401JSONResponse) VisitListRunEventsResponse(w http.R
 	return err
 }
 
+type ListRunEvents403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ListRunEvents403JSONResponse) VisitListRunEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListRunEvents404JSONResponse struct{ NotFoundJSONResponse }
 
 func (response ListRunEvents404JSONResponse) VisitListRunEventsResponse(w http.ResponseWriter) error {
@@ -9718,7 +9732,7 @@ type StrictServerInterface interface {
 	// Decline the invite (only from invited; declining again is a no-op)
 	// (POST /api/v1/runs/{run_id}/decline)
 	DeclineRun(ctx context.Context, request DeclineRunRequestObject) (DeclineRunResponseObject, error)
-	// Events with seq greater than `after`, in order (participants of any status)
+	// Events with seq greater than `after`, in order (joined participants)
 	// (GET /api/v1/runs/{run_id}/events)
 	ListRunEvents(ctx context.Context, request ListRunEventsRequestObject) (ListRunEventsResponseObject, error)
 	// Append an event to the log (joined participants)

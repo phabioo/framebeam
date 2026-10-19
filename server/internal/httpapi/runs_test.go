@@ -447,7 +447,7 @@ func TestRunStateRevisionsAndLimits(t *testing.T) {
 	}
 	wantStatus(t, r.putState(d1, id, 2, map[string]any{}), 409, "state_conflict") // base ahead of the Hub
 	wantStatus(t, r.putState(d1, id, 1, map[string]any{"team": []any{"two"}}), 200, "")
-	got := r.get(a1, id)
+	got := r.get(d1, id) // Anna is only invited: she would not see states (TestRunAuthz*)
 	if p := got.part(r.admin.ID).States[pluginA]; p.StateRev != 2 || string(p.State) != `{"team":["two"]}` || p.UpdatedAt == "" {
 		t.Fatalf("%+v", p)
 	}

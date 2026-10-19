@@ -349,49 +349,108 @@ func runUsers(ctx context.Context, q dbq, runID string, joinedOnly bool) ([]stri
 // loadRun reads a run with plugins and participants. withState false leaves out the participants' states
 // (states is empty): only for the admin list.
 func loadRun(ctx context.Context, q dbq, id string, withState bool) (Run, error) {
-	var r Run
-	var created, updated int64
-	var archived int
-	var settings string
-	err := q.QueryRowContext(ctx, `SELECT id, name, status, archived, created_by, created_at, updated_at, status_by, settings, last_seq
-		FROM runs WHERE id = ?`, id).Scan(&r.ID, &r.Name, &r.Status, &archived, &r.CreatedBy, &created, &updated, &r.StatusBy, &settings, &r.LastSeq)
-	if errors.Is(err, sql.ErrNoRows) {
+	runs, err := loadRuns(ctx, q, []string{id}, withState)
+	if err != nil {
+		return Run{}, err
+	}
+	if len(runs) == 0 {
 		return Run{}, ErrNotFound
 	}
-	if err != nil {
-		return Run{}, internal(err)
+	return runs[0], nil
+}
+
+// loadRunsChunk bounds the ids of one IN (...) list (SQLite variable limit).
+const loadRunsChunk = 400
+
+// loadRuns reads several runs with plugins, participants and (withState) states in a constant number of queries per
+// chunk of ids, not per run. The result keeps the order of ids; ids without a run are skipped.
+func loadRuns(ctx context.Context, q dbq, ids []string, withState bool) ([]Run, error) {
+	byID := make(map[string]*Run, len(ids))
+	for start := 0; start < len(ids); start += loadRunsChunk {
+		chunk := ids[start:min(start+loadRunsChunk, len(ids))]
+		if err := loadRunsChunked(ctx, q, chunk, withState, byID); err != nil {
+			return nil, err
+		}
 	}
-	r.Archived, r.CreatedAt, r.UpdatedAt, r.Settings = archived != 0, unixTime(created), unixTime(updated), json.RawMessage(settings)
-	r.Plugins = []RunPlugin{}
-	rows, err := q.QueryContext(ctx, `SELECT plugin_id, version, sha256 FROM run_plugins WHERE run_id = ? ORDER BY position`, id)
+	out := make([]Run, 0, len(ids))
+	for _, id := range ids {
+		if r, ok := byID[id]; ok {
+			out = append(out, *r)
+			delete(byID, id) // a duplicate id yields one run
+		}
+	}
+	return out, nil
+}
+
+func inList(ids []string) (string, []any) {
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		args[i] = id
+	}
+	return "(" + strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",") + ")", args
+}
+
+func loadRunsChunked(ctx context.Context, q dbq, ids []string, withState bool, byID map[string]*Run) error {
+	in, args := inList(ids)
+	rows, err := q.QueryContext(ctx, `SELECT id, name, status, archived, created_by, created_at, updated_at, status_by, settings, last_seq
+		FROM runs WHERE id IN `+in, args...)
 	if err != nil {
-		return Run{}, internal(err)
+		return internal(err)
 	}
 	for rows.Next() {
-		var p RunPlugin
-		if err := rows.Scan(&p.PluginID, &p.Version, &p.SHA256); err != nil {
+		r := &Run{}
+		var created, updated int64
+		var archived int
+		var settings string
+		if err := rows.Scan(&r.ID, &r.Name, &r.Status, &archived, &r.CreatedBy, &created, &updated, &r.StatusBy, &settings, &r.LastSeq); err != nil {
 			rows.Close()
-			return Run{}, internal(err)
+			return internal(err)
 		}
-		r.Plugins = append(r.Plugins, p)
+		r.Archived, r.CreatedAt, r.UpdatedAt, r.Settings = archived != 0, unixTime(created), unixTime(updated), json.RawMessage(settings)
+		r.Plugins, r.Participants = []RunPlugin{}, []RunParticipant{}
+		byID[r.ID] = r
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
-		return Run{}, internal(err)
+		return internal(err)
 	}
-	rows, err = q.QueryContext(ctx, `SELECT p.user_id, u.display_name, p.status, p.game_id, p.color
-		FROM run_participants p JOIN users u ON u.id = p.user_id WHERE p.run_id = ? ORDER BY p.invited_at, p.rowid`, id)
+	if len(byID) == 0 {
+		return nil
+	}
+
+	rows, err = q.QueryContext(ctx, `SELECT run_id, plugin_id, version, sha256 FROM run_plugins WHERE run_id IN `+in+` ORDER BY run_id, position`, args...)
 	if err != nil {
-		return Run{}, internal(err)
+		return internal(err)
 	}
-	defer rows.Close()
-	r.Participants = []RunParticipant{}
 	for rows.Next() {
+		var rid string
+		var p RunPlugin
+		if err := rows.Scan(&rid, &p.PluginID, &p.Version, &p.SHA256); err != nil {
+			rows.Close()
+			return internal(err)
+		}
+		if r := byID[rid]; r != nil {
+			r.Plugins = append(r.Plugins, p)
+		}
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return internal(err)
+	}
+
+	rows, err = q.QueryContext(ctx, `SELECT p.run_id, p.user_id, u.display_name, p.status, p.game_id, p.color
+		FROM run_participants p JOIN users u ON u.id = p.user_id WHERE p.run_id IN `+in+` ORDER BY p.run_id, p.invited_at, p.rowid`, args...)
+	if err != nil {
+		return internal(err)
+	}
+	for rows.Next() {
+		var rid string
 		var p RunParticipant
 		var game sql.NullString
 		var color sql.NullInt64
-		if err := rows.Scan(&p.UserID, &p.UserName, &p.Status, &game, &color); err != nil {
-			return Run{}, internal(err)
+		if err := rows.Scan(&rid, &p.UserID, &p.UserName, &p.Status, &game, &color); err != nil {
+			rows.Close()
+			return internal(err)
 		}
 		if game.Valid {
 			p.GameID = &game.String
@@ -401,25 +460,32 @@ func loadRun(ctx context.Context, q dbq, id string, withState bool) (Run, error)
 			p.Color = &c
 		}
 		p.States = map[string]RunPluginState{}
-		r.Participants = append(r.Participants, p)
-	}
-	if err := rows.Err(); err != nil {
-		return Run{}, internal(err)
+		if r := byID[rid]; r != nil {
+			r.Participants = append(r.Participants, p)
+		}
 	}
 	rows.Close()
-	if !withState {
-		return r, nil
+	if err := rows.Err(); err != nil {
+		return internal(err)
 	}
-	rows, err = q.QueryContext(ctx, `SELECT user_id, plugin_id, state, rev, updated_at FROM run_states WHERE run_id = ?`, id)
+	if !withState {
+		return nil
+	}
+
+	rows, err = q.QueryContext(ctx, `SELECT run_id, user_id, plugin_id, state, rev, updated_at FROM run_states WHERE run_id IN `+in, args...)
 	if err != nil {
-		return Run{}, internal(err)
+		return internal(err)
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var uid, pid, state string
+		var rid, uid, pid, state string
 		var rev, upd int64
-		if err := rows.Scan(&uid, &pid, &state, &rev, &upd); err != nil {
-			return Run{}, internal(err)
+		if err := rows.Scan(&rid, &uid, &pid, &state, &rev, &upd); err != nil {
+			return internal(err)
+		}
+		r := byID[rid]
+		if r == nil {
+			continue
 		}
 		for i := range r.Participants {
 			if r.Participants[i].UserID == uid {
@@ -427,7 +493,23 @@ func loadRun(ctx context.Context, q dbq, id string, withState bool) (Run, error)
 			}
 		}
 	}
-	return r, rows.Err()
+	return rows.Err()
+}
+
+// viewFor returns the run as userID may see it. Participants who have not joined (invited, declined, left) and
+// everybody else see the title, game and participant list only: the plugin states of all participants are removed.
+// Events are protected separately (ListRunEvents, WSS pushes). The input run is not modified.
+func viewFor(run Run, userID string) Run {
+	if p, ok := run.Participant(userID); ok && p.Status == ParticipantJoined {
+		return run
+	}
+	ps := make([]RunParticipant, len(run.Participants))
+	for i, p := range run.Participants {
+		p.States = map[string]RunPluginState{}
+		ps[i] = p
+	}
+	run.Participants = ps
+	return run
 }
 
 // insertEvent appends an event to the run (seq is the next number of the run; gapless because the counter and the
@@ -501,17 +583,31 @@ func loadEvents(ctx context.Context, q dbq, runID string, after, upTo int64, lim
 
 // ---- fan-out ----
 
-// pushRunUpdated sends run_updated to every connection of every participant (all statuses).
+// pushRunUpdated sends run_updated to every connection of every participant (all statuses). Joined participants get
+// the plugin states, the others the run without states (viewFor).
 func (s *Service) pushRunUpdated(run Run) {
+	joined := map[string]bool{}
 	users := map[string]bool{}
 	for _, p := range run.Participants {
 		users[p.UserID] = true
+		joined[p.UserID] = p.Status == ParticipantJoined
 	}
-	msg := encode("run_updated", "", map[string]any{"run": run})
+	var full, plain []byte
 	for _, c := range s.clients() {
-		if users[c.userID] {
-			c.sendRun(msg)
+		if !users[c.userID] {
+			continue
 		}
+		if joined[c.userID] {
+			if full == nil {
+				full = encode("run_updated", "", map[string]any{"run": run})
+			}
+			c.sendRun(full)
+			continue
+		}
+		if plain == nil {
+			plain = encode("run_updated", "", map[string]any{"run": viewFor(run, "")})
+		}
+		c.sendRun(plain)
 	}
 }
 
@@ -639,6 +735,20 @@ func (s *Service) CreateRun(ctx context.Context, in CreateRunInput) (_ Run, err 
 
 	s.runs.mu.Lock()
 	defer s.runs.mu.Unlock()
+	// Lock order is runs.mu, then plug.mu (as in setRunStatus and DeleteRun, which prune plugins). Holding plug.mu
+	// from the catalog re-check to the commit means no prune or remove can delete a pinned version in between:
+	// they check "in use" under the same lock and see the committed run.
+	s.plug.mu.Lock()
+	defer s.plug.mu.Unlock()
+	for _, p := range plugins {
+		sha, ok, err := cat.OfferedPlugin(ctx, p.PluginID, p.Version)
+		if err != nil {
+			return Run{}, err
+		}
+		if !ok || sha != p.SHA256 {
+			return Run{}, badRequest("Plugin %s %s is not offered by this Hub", p.PluginID, p.Version)
+		}
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return Run{}, internal(err)
@@ -698,7 +808,7 @@ func (s *Service) GetRun(ctx context.Context, userID, runID string) (Run, error)
 	if _, ok := run.Participant(userID); !ok {
 		return Run{}, ErrNotFound
 	}
-	return run, nil
+	return viewFor(run, userID), nil
 }
 
 // ListRuns returns the non-archived runs the user participates in, most recently changed first.
@@ -707,16 +817,12 @@ func (s *Service) ListRuns(ctx context.Context, userID string) ([]Run, error) {
 	if err != nil {
 		return nil, err
 	}
-	out := make([]Run, 0, len(ids))
-	for _, id := range ids {
-		r, err := loadRun(ctx, s.db, id, true)
-		if errors.Is(err, ErrNotFound) { // deleted in between
-			continue
-		}
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, r)
+	out, err := loadRuns(ctx, s.db, ids, true) // runs deleted in between are skipped
+	if err != nil {
+		return nil, err
+	}
+	for i := range out {
+		out[i] = viewFor(out[i], userID)
 	}
 	return out, nil
 }
@@ -744,7 +850,7 @@ func (s *Service) ListRunEvents(ctx context.Context, userID, runID string, after
 	if after < 0 || limit < 1 || limit > MaxRunEventsPage {
 		return nil, 0, badRequest("after must be >= 0 and limit between 1 and %d", MaxRunEventsPage)
 	}
-	if _, err := participantStatus(ctx, s.db, runID, userID); err != nil {
+	if err := joinedParticipant(ctx, s.db, runID, userID); err != nil { // invited, declined and left users: 403
 		return nil, 0, err
 	}
 	var last int64
@@ -940,7 +1046,7 @@ func (s *Service) changeMembership(ctx context.Context, userID, runID string,
 		return Run{}, err
 	}
 	if !changed {
-		return run, nil
+		return viewFor(run, userID), nil
 	}
 	now := s.now().UTC()
 	if _, err := tx.ExecContext(ctx, `UPDATE runs SET updated_at = ? WHERE id = ?`, now.Unix(), runID); err != nil {
@@ -959,7 +1065,7 @@ func (s *Service) changeMembership(ctx context.Context, userID, runID string,
 	}
 	s.pushRunUpdated(run)
 	s.pushRunEvents(ctx, runID, []RunEvent{ev}, userID)
-	return run, nil
+	return viewFor(run, userID), nil
 }
 
 // ---- status ----
@@ -1070,7 +1176,7 @@ func (s *Service) setRunStatus(ctx context.Context, actorID, runID, to string, a
 	}
 	s.pushRunUpdated(run)
 	s.pushRunEvents(ctx, runID, evs)
-	return run, nil
+	return viewFor(run, actorID), nil
 }
 
 // ---- state, events, boards ----
@@ -1445,6 +1551,10 @@ func (s *Service) runCatchUp(ctx context.Context, userID string, listed []RunHel
 	if err != nil || len(ids) == 0 {
 		return nil
 	}
+	runs, err := loadRuns(ctx, s.db, ids, true) // one batch, not several queries per run
+	if err != nil {
+		return nil
+	}
 	last := map[string]int64{}
 	for i, h := range listed {
 		if i >= maxRunHello {
@@ -1455,14 +1565,11 @@ func (s *Service) runCatchUp(ctx context.Context, userID string, listed []RunHel
 		}
 	}
 	var msgs, evMsgs [][]byte
-	for _, id := range ids {
-		run, err := loadRun(ctx, s.db, id, true)
-		if err != nil {
-			continue
-		}
-		msgs = append(msgs, encode("run_updated", "", map[string]any{"run": run}))
-		seen, ok := last[id]
+	for _, run := range runs {
+		id := run.ID
 		p, _ := run.Participant(userID)
+		msgs = append(msgs, encode("run_updated", "", map[string]any{"run": viewFor(run, userID)}))
+		seen, ok := last[id]
 		if !ok || p.Status != ParticipantJoined || seen >= run.LastSeq || run.LastSeq-seen > RunCatchUpMax {
 			continue
 		}

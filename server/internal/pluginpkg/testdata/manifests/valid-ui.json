@@ -1,0 +1,35 @@
+{
+  "api": 1,
+  "id": "net.example.demo",
+  "name": "Demo",
+  "version": "1.0.0",
+  "entry": "main.lua",
+  "permissions": [
+    "ui"
+  ],
+  "ui": {
+    "panel": {
+      "title": "Team"
+    },
+    "hud": true,
+    "tile": false,
+    "screen": {
+      "title": "Run"
+    },
+    "detail": true,
+    "run": {
+      "title": "Board"
+    },
+    "hotkeys": [
+      {
+        "id": "open-team",
+        "label": "Open team",
+        "key": "Ctrl+H"
+      },
+      {
+        "id": "x",
+        "label": "No key"
+      }
+    ]
+  }
+}

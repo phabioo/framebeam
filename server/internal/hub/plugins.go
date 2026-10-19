@@ -381,16 +381,18 @@ func (s *Service) RemovePlugin(ctx context.Context, id, version string) error {
 	if !safePluginRef(id, version) {
 		return pluginErrNotFound()
 	}
+	// Check and removal under one lock: CreateRun pins a version while holding plug.mu, so a run cannot start on
+	// the version between the "in use" check and the delete.
+	s.plug.mu.Lock()
+	defer s.plug.mu.Unlock()
 	if _, err := s.GetPlugin(ctx, id, version); err != nil {
 		return err
 	}
-	if used, err := s.PluginVersionInUse(ctx, id, version); err != nil {
+	if used, err := s.plug.inUse(ctx, id, version); err != nil {
 		return err
 	} else if used {
 		return conflict("A run that is still going uses this plugin version. Finish or abandon the run first.")
 	}
-	s.plug.mu.Lock()
-	defer s.plug.mu.Unlock()
 	return s.removePluginLocked(ctx, id, version)
 }
 
