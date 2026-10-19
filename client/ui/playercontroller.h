@@ -29,6 +29,7 @@
 #include "gamesession.h"
 #include "gamestarter.h"
 #include "gameuploader.h"
+#include "uploadcontroller.h"
 #include "localromindex.h"
 #include "romregistrar.h"
 #include "romsource.h"
@@ -209,7 +210,7 @@ class PlayerController : public QObject {
   // Hashes that must stay in the cache: the game that is starting/running/in the background and active downloads.
   QSet<QString> protectedRomHashes() const;
   bool canUpload() const;
-  QVariantMap upload() const { return upload_; }
+  QVariantMap upload() const { return uploads_->upload(); }
   QStringList libraryFolders() const;
   QVariantMap libraryScan() const { return libraryScan_; }
   QVariantList libraryFolderInfo() const;
@@ -236,7 +237,7 @@ class PlayerController : public QObject {
   const QList<CoreInfo>& handshakeCores() const { return coreList_; }
   PlayerSettings* playerSettings() { return settings_.get(); }
   HubSystems* hubSystems() { return systems_.get(); }
-  GameUploader* gameUploader() { return uploader_.get(); }
+  GameUploader* gameUploader() { return uploads_->uploader(); }
   FirmwareCache* firmwareCache() { return fwCache_.get(); }
 
   static QString formatFingerprint(const QString& fp);
@@ -368,7 +369,7 @@ class PlayerController : public QObject {
   void adoptUploadedRom(const QString& srcPath, const QString& sha256, const QString& romFilename);  // off-thread copy into the cache
   void trimRomCache();  // applies the size limit (LRU); called at start, after a ROM became ready, when a game ends
   void applyFrameBeamOptions();
-  void onUploadFinished(const UploadResult& result);
+  void onUploadFinished(const UploadResult& result, const QString& srcPath);
   void startLibraryScan();
   void registerLocalFiles();      // files of the folders the Hub does not know yet
   void refreshRomStatuses();      // after the local index changed
@@ -404,7 +405,6 @@ class PlayerController : public QObject {
   void cancelBackgroundUpdateForSelected();
   QMap<QString, QString> coreProblems_;  // core_id -> last provisioning problem reason (cleared with a fresh registry)
   HandshakeInfo handshake_;
-  std::unique_ptr<GameUploader> uploader_;
   emu::ManifestRegistry manifests_;
   emu::CoreLocator locator_;
   QList<CoreInfo> coreList_;
@@ -447,8 +447,8 @@ class PlayerController : public QObject {
   QString page_ = QStringLiteral("library");  // page shown while connected: library | settings | emulation | controllers | plugin
   QString pluginPageId_;
   bool inviteBusy_ = false;
-  QVariantMap upload_;
   std::unique_ptr<LocalRomIndex> localRoms_;
+  std::unique_ptr<UploadController> uploads_;  // ROM upload state (declared after localRoms_, model_, manifests_)
   std::unique_ptr<RomRegistrar> registrar_;
   QVariantMap libraryScan_{{QStringLiteral("active"), false}, {QStringLiteral("done"), 0}, {QStringLiteral("total"), 0},
                            {QStringLiteral("text"), QString()}, {QStringLiteral("isError"), false}};
@@ -459,7 +459,6 @@ class PlayerController : public QObject {
   QSet<QString> ignoredRoms_;        // sha256 of files the user removed from the library (until the file is gone)
   QSet<QString> failedRegistrations_;  // not retried within this connection
   bool scanRequested_ = false;       // a scan was started for the current connection
-  QString uploadSourcePath_;            // local file of the running upload; adopted into the ROM cache afterwards
   QString pendingSelectId_;             // select this game once the library reloaded (after an upload)
   QList<FirmwareProblem> fwProblems_;   // last validation problems (cleared by recheckFirmware/new registry)
   QMap<QString, QString> fwOptions_;    // firmware core options of the launch in progress
