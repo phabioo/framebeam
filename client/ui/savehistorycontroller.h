@@ -84,6 +84,8 @@ class SaveHistoryController : public QObject {
   // them, signed in, not the main slot); `slotManageBlockReason`: why they are disabled right now (empty = allowed).
   Q_PROPERTY(QString uploadBlockReason READ uploadBlockReason NOTIFY changed)  // upload off although supported (shared Session)
   Q_PROPERTY(bool slotManageAvailable READ slotManageAvailable NOTIFY changed)
+  // Delete exists for the selected slot: any slot with saves_v5, the main slot only with saves_v6 (rename never).
+  Q_PROPERTY(bool slotDeleteAvailable READ slotDeleteAvailable NOTIFY changed)
   Q_PROPERTY(QString slotManageBlockReason READ slotManageBlockReason NOTIFY changed)
   Q_PROPERTY(QVariantMap slotDeleteRequest READ slotDeleteRequest NOTIFY changed)  // {slot, slotLabel, revisionText, when, device, onHub}
   Q_PROPERTY(QString message READ message NOTIFY changed)
@@ -117,6 +119,7 @@ class SaveHistoryController : public QObject {
   bool canUploadFile() const;
   QString uploadBlockReason() const { return gameId_.isEmpty() ? QString() : env_.saves->uploadBlockReason(gameId_); }
   bool slotManageAvailable() const;
+  bool slotDeleteAvailable() const;
   QString slotManageBlockReason() const;
   QVariantMap slotDeleteRequest() const { return slotDeleteRequest_; }
   static QStringList saveFileFilters();

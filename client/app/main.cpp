@@ -1,10 +1,12 @@
 #include <QCommandLineParser>
 #include <QCoreApplication>
+#include <QDebug>
 #include <QDir>
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QIcon>
 #include <QQmlApplicationEngine>
+#include <QSocketNotifier>
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QUrl>
@@ -17,6 +19,11 @@
 #ifdef Q_OS_WIN
 #include <windows.h>
 #include <shobjidl.h>
+#endif
+#ifdef Q_OS_UNIX
+#include <csignal>
+#include <sys/socket.h>
+#include <unistd.h>
 #endif
 
 #include "diagbundle.h"
@@ -65,6 +72,41 @@ void printToStdout(const std::string& text) {
   std::fwrite(text.data(), 1, text.size(), stdout);
   std::fflush(stdout);
 }
+
+#ifdef Q_OS_UNIX
+// SIGTERM / SIGHUP / SIGINT (kill, systemd stop, logout, Ctrl+C) take the normal quit path, so a running game's save is
+// flushed and synced like after "Quit". The handler only writes a byte into a socket pair (async-signal-safe); a
+// QSocketNotifier turns it into QCoreApplication::quit() on the GUI thread. Windows handles logoff through Qt.
+int g_signalFd[2] = {-1, -1};
+
+void onTerminationSignal(int) {
+  const char byte = 1;
+  const ssize_t ignored = ::write(g_signalFd[0], &byte, 1);
+  (void)ignored;
+}
+
+void installTerminationSignals(QObject* parent) {
+  if (::socketpair(AF_UNIX, SOCK_STREAM, 0, g_signalFd) != 0) {
+    return;
+  }
+  struct sigaction sa;
+  sa.sa_handler = onTerminationSignal;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_flags = SA_RESTART;
+  for (const int sig : {SIGTERM, SIGHUP, SIGINT}) {
+    sigaction(sig, &sa, nullptr);
+  }
+  auto* notifier = new QSocketNotifier(g_signalFd[1], QSocketNotifier::Read, parent);
+  QObject::connect(notifier, &QSocketNotifier::activated, parent, [notifier]() {
+    char byte = 0;
+    const ssize_t ignored = ::read(g_signalFd[1], &byte, 1);
+    (void)ignored;
+    notifier->setEnabled(false);  // one request is enough; further signals during shutdown are ignored
+    qInfo() << "Termination signal received, quitting";
+    QCoreApplication::quit();
+  });
+}
+#endif
 
 #ifdef Q_OS_WIN
 // Named mutex: every Player instance holds a handle; the installer (/UPDATE) waits until no process holds it.
@@ -136,6 +178,9 @@ int main(int argc, char* argv[]) {
 #endif
   QGuiApplication app(argc, argv);
   QGuiApplication::setApplicationName(QStringLiteral("FrameBeam Player"));
+#ifdef Q_OS_UNIX
+  installTerminationSignals(&app);
+#endif
   {
     QIcon icon;
     for (const int s : {16, 24, 32, 48, 64, 128, 256, 512}) {

@@ -179,8 +179,12 @@ bool SaveHistoryController::slotManageAvailable() const {
   return available() && env_.saves->hubSupportsSavesV5() && slot() != QLatin1String("default");
 }
 
+bool SaveHistoryController::slotDeleteAvailable() const {
+  return available() && env_.saves->hubSupportsSavesV5() && (slot() != QLatin1String("default") || env_.saves->hubSupportsSavesV6());
+}
+
 QString SaveHistoryController::slotManageBlockReason() const {
-  if (!slotManageAvailable()) {
+  if (!slotDeleteAvailable()) {
     return {};
   }
   if (gameRunning()) {
@@ -464,7 +468,7 @@ QString SaveHistoryController::renameSlot(const QString& name) {
 }
 
 void SaveHistoryController::requestDeleteSlot() {
-  if (!slotManageAvailable() || !slotManageBlockReason().isEmpty()) {
+  if (!slotDeleteAvailable() || !slotManageBlockReason().isEmpty()) {
     return;
   }
   cancelRestore();
@@ -475,6 +479,7 @@ void SaveHistoryController::requestDeleteSlot() {
   slotDeleteRequest_ = QVariantMap{{QStringLiteral("slot"), slot()},
                                    {QStringLiteral("slotLabel"), slotLabel()},
                                    {QStringLiteral("onHub"), onHub},
+                                   {QStringLiteral("isMain"), slot() == QLatin1String("default")},
                                    {QStringLiteral("revisionText"), current_.value(QStringLiteral("revisionText")).toString()},
                                    {QStringLiteral("when"), current_.value(QStringLiteral("when")).toString()},
                                    {QStringLiteral("device"), current_.value(QStringLiteral("device")).toString()},
@@ -497,7 +502,7 @@ void SaveHistoryController::confirmDeleteSlot() {
   const int revision = slotDeleteRevision_;
   const QString name = slotDeleteRequest_.value(QStringLiteral("slot")).toString();
   slotDeleteRequest_.clear();
-  if (!slotManageAvailable() || !slotManageBlockReason().isEmpty() || name != slot()) {
+  if (!slotDeleteAvailable() || !slotManageBlockReason().isEmpty() || name != slot()) {
     emit changed();
     return;
   }
@@ -520,7 +525,10 @@ void SaveHistoryController::confirmDeleteSlot() {
       self->current_.clear();
       self->currentRevision_ = 0;
       self->slotVersionCounts_.clear();
-      self->setMessage(r.message.isEmpty() ? tr("Slot \"%1\" deleted. The game uses the main slot now.").arg(name) : r.message, !r.message.isEmpty());
+      self->setMessage(r.message.isEmpty() ? (name == QLatin1String("default") ? tr("The main slot was deleted.")
+                                                                                : tr("Slot \"%1\" deleted. The game uses the main slot now.").arg(name))
+                                           : r.message,
+                       !r.message.isEmpty());
     } else {
       self->setMessage(r.message, true);
     }

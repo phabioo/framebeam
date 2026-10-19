@@ -121,6 +121,10 @@ void GameSession::launch(const LaunchConfig& config, bool restart) {
     }
   });
   connect(r, &EmulationRunner::memoryRegionsChanged, this, &GameSession::memoryRegionsChanged);
+  connect(r, &EmulationRunner::saveProblem, this, [this](const QString& message) {
+    qWarning().noquote() << "Save problem at start:" << message;
+    emit saveProblem(message);
+  });
   connect(r, &EmulationRunner::startFailed, this, [this](const QString& e) { fail(e); });
   connect(r, &EmulationRunner::errorOccurred, this, [this](const QString& e) { fail(e); });
   connect(r, &EmulationRunner::frameReady, this, [this](const QImage& img, quint64 nr, qint64 lateNs) {

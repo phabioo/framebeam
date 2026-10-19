@@ -23,6 +23,10 @@ SaveSync::SaveSync(HubConnection* connection, ProfileStore* profiles, QObject* p
   connect(&pollTimer_, &QTimer::timeout, this, &SaveSync::poll);
   retryTimer_.setSingleShot(true);
   connect(&retryTimer_, &QTimer::timeout, this, &SaveSync::retryPending);
+  // The start flow ends with one of these (beginSession() follows startReady); until then it owns its slot's sync.json.
+  connect(this, &SaveSync::startReady, this, [this]() { starting_ = false; });
+  connect(this, &SaveSync::startFailed, this, [this]() { starting_ = false; });
+  connect(this, &SaveSync::startConflict, this, [this]() { starting_ = false; });
   connect(conn_, &HubConnection::stateChanged, this, [this](HubConnection::State s) {
     if (s == HubConnection::State::Connected) {
       retryBackoffMs_ = 0;
@@ -179,6 +183,7 @@ void SaveSync::prepareStart(const QString& gameId, const QString& romPath, const
   ++gen_;
   pollTimer_.stop();
   session_ = false;
+  starting_ = true;  // until beginSession() or the failed start's finalSync()
   dialogOpen_ = false;
   a_ = Active{};
   a_.gameId = gameId;
@@ -1016,6 +1021,7 @@ void SaveSync::beginSession() {
     return;
   }
   session_ = true;
+  starting_ = false;
   a_.pausedByConflict = !a_.st.conflictId.isEmpty();
   const QString found = findLocalSave();
   if (!found.isEmpty()) {
@@ -1162,6 +1168,7 @@ void SaveSync::uploadCurrent(const QString& reason, std::function<void(UploadOut
 
 void SaveSync::finalSync(bool sessionEnd) {
   if (!session_ || a_.gameId.isEmpty()) {
+    starting_ = false;  // a start that failed before beginSession() ends here
     QTimer::singleShot(0, this, [this]() { emit finalSyncFinished(QString(), true); });
     return;
   }
@@ -1240,8 +1247,8 @@ void SaveSync::retryPending() {
   const QString base = SaveStore::userSavesDir(*profiles_, conn_->hubId(), conn_->hubUserId());
   QList<RetryItem> items;
   const auto consider = [&](const QString& gameId, const QString& slot, const QString& dir) {
-    if (session_ && gameId == a_.gameId && slot == a_.slot) {
-      return;  // the running game is handled by its own watcher
+    if ((session_ || starting_) && gameId == a_.gameId && slot == a_.slot) {
+      return;  // the running game is handled by its own watcher; a game in its start flow owns sync.json of its slot
     }
     const SyncState st = SaveStore::loadState(dir);
     if (st.pending && st.conflictId.isEmpty()) {
@@ -1885,8 +1892,14 @@ void SaveSync::resolveSlotConflict(const QString& gameId, const QString& slot, R
       live_.flush();  // the local side is the game's current save
     }
   } else {
-    if (session_ && a_.gameId != gameId) {
-      fail(RK::Blocked, tr("Another game is running. Quit it first."));
+    // The running session (any slot of the same game too) and a game in its start flow own `a_`: never replace it.
+    if (session_) {
+      fail(RK::Blocked, a_.gameId != gameId ? tr("Another game is running. Quit it first.")
+                                            : tr("This game is running with another slot. Quit it first."));
+      return;
+    }
+    if (starting_) {
+      fail(RK::Blocked, tr("A game is starting. Try again in a moment."));
       return;
     }
     const QString dir = SaveStore::slotDir(*profiles_, conn_->hubId(), conn_->hubUserId(), gameId, slot);
@@ -1913,7 +1926,15 @@ void SaveSync::resolveSlotConflict(const QString& gameId, const QString& slot, R
     a_.st.slot = slot;
   }
   const QString hubId = conn_->hubId();
+  const quint64 resolveGen = gen_;
   api_.getSlot(gameId, slot, [=, this](const SaveApiResult& r) {
+    if (!live && resolveGen != gen_) {  // another game started or the session changed meanwhile: `a_` is not ours any more
+      RestoreResult out;
+      out.kind = RK::Blocked;
+      out.message = tr("The game changed in the meantime. Nothing was changed.");
+      cb(out);
+      return;
+    }
     const auto abort = [&](RK kind, const QString& message) {
       if (!live) {
         a_ = Active{};
@@ -2087,6 +2108,24 @@ QString SaveSync::moveLocalSlot(const QString& gameId, const QString& from, cons
   return error;
 }
 
+QString SaveSync::backupLocalSlot(const QString& gameId, const QString& slot) {
+  const QString dir = slotDirFor(gameId, slot);
+  if (dir.isEmpty() || !QFileInfo(dir).isDir()) {
+    return {};
+  }
+  const QString file = SaveStore::findSaveFile(dir, QString());
+  if (file.isEmpty()) {
+    return {};
+  }
+  const QString stamp = QDateTime::currentDateTimeUtc().toString(QStringLiteral("yyyyMMdd-HHmmss-zzz"));
+  if (slot == QLatin1String("default")) {
+    return SaveStore::backupFile(file, QStringLiteral("deleted")).isEmpty() ? tr("The backup of the local save could not be written.") : QString();
+  }
+  const QString target = QDir(SaveStore::gameDir(*profiles_, conn_->hubId(), conn_->hubUserId(), gameId))
+                             .filePath(QStringLiteral("%1.%2-deleted-%3.bak").arg(QFileInfo(file).fileName(), slot, stamp));
+  return QFile::copy(file, target) ? QString() : tr("The backup of the local save could not be written.");
+}
+
 void SaveSync::removeLocalSlot(const QString& gameId, const QString& slot) {
   if (slot == QLatin1String("default")) {
     // The main slot directory is the game directory and also holds "slots/": remove only its own files (save file, sync.json), keep
@@ -2130,9 +2169,9 @@ QString SaveSync::uploadBlockReason(const QString& gameId) const {
   return {};
 }
 
-QString SaveSync::slotChangeBlockReason(const QString& gameId, const QString& slot) const {
-  if (slot == QLatin1String("default")) {
-    return tr("The main slot cannot be renamed or deleted.");
+QString SaveSync::slotChangeBlockReason(const QString& gameId, const QString& slot, bool deleting) const {
+  if (slot == QLatin1String("default") && !(deleting && hubSupportsSavesV6())) {  // saves_v6: the main slot can be deleted (never renamed)
+    return deleting ? tr("This Hub cannot delete the main slot.") : tr("The main slot cannot be renamed.");
   }
   if (isRunning(gameId)) {
     return tr("This game is running on this Player. Quit it first.");
@@ -2210,7 +2249,7 @@ void SaveSync::deleteSlot(const QString& gameId, const QString& slot, int confir
     finish(SO::Failed, tr("The Hub does not support deleting slots."));
     return;
   }
-  if (const QString why = slotChangeBlockReason(gameId, slot); !why.isEmpty()) {
+  if (const QString why = slotChangeBlockReason(gameId, slot, true); !why.isEmpty()) {
     finish(slot == QLatin1String("default") ? SO::Protected : SO::Blocked, why);
     return;
   }
@@ -2245,7 +2284,7 @@ void SaveSync::deleteSlot(const QString& gameId, const QString& slot, int confir
     } else if (r.errorCode == QLatin1String("conflict")) {
       cb({SO::Conflict, tr("This slot has an open save conflict. Resolve it first. Nothing was deleted.")});
     } else if (r.errorCode == QLatin1String("save_slot_protected")) {
-      cb({SO::Protected, tr("The main slot cannot be renamed or deleted.")});
+      cb({SO::Protected, tr("This Hub cannot delete the main slot.")});
     } else {
       cb({SO::Failed, tr("The Hub refused to delete the slot (%1). Nothing was deleted.").arg(r.errorCode.isEmpty() ? QString::number(r.status) : r.errorCode)});
     }
@@ -2309,8 +2348,12 @@ void SaveSync::handleSlotDeletedElsewhere(const SaveUpdate& u) {
     if (!pendingReason(u.gameId, slot).isEmpty()) {
       msg += QLatin1Char(' ') + tr("This device has unsynced changes in it, so the local copy was kept. Selecting the slot uploads it again.");
       warn = true;
+    } else if (const QString err = backupLocalSlot(u.gameId, slot); !err.isEmpty()) {
+      msg += QLatin1Char(' ') + err + QLatin1Char(' ') + tr("The local copy was kept.");
+      warn = true;
     } else {
       removeLocalSlot(u.gameId, slot);
+      msg += QLatin1Char(' ') + tr("A backup of the local copy was kept (*.bak).");
     }
   } else if (!isMain && slotFor(u.gameId) == slot) {
     setSlot(u.gameId, QStringLiteral("default"));

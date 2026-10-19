@@ -1,5 +1,6 @@
 #include "coreprober.h"
 
+#include <QDebug>
 #include <QMetaObject>
 #include <QMetaType>
 #include <atomic>
@@ -13,11 +14,17 @@ std::atomic<CoreProber::ProbeFn> g_probeFn{&emu::probeCoreGuarded};
 void CoreProber::setProbeFunctionForTest(ProbeFn fn) { g_probeFn.store(fn != nullptr ? fn : &emu::probeCoreGuarded); }
 
 CoreProber::CoreProber(QObject* parent) : QObject(parent) {
-  pool_.setMaxThreadCount(1);
+  pool_ = std::make_unique<QThreadPool>();
+  pool_->setMaxThreadCount(1);
   qRegisterMetaType<framebeam::emu::CoreProbe>("framebeam::emu::CoreProbe");
 }
 
-CoreProber::~CoreProber() { pool_.waitForDone(); }
+CoreProber::~CoreProber() {
+  if (!pool_->waitForDone(10000)) {
+    qWarning() << "A core probe did not finish within 10 s; not waiting any longer";
+    (void)pool_.release();
+  }
+}
 
 bool CoreProber::request(const QString& coreId, const QString& corePath, const QString& systemDir, const QString& probeDir) {
   const auto it = pending_.find(corePath);
@@ -27,7 +34,7 @@ bool CoreProber::request(const QString& coreId, const QString& corePath, const Q
   }
   pending_.insert(corePath, {coreId});
   QPointer<CoreProber> self(this);
-  pool_.start([self, corePath, systemDir, probeDir]() {
+  pool_->start([self, corePath, systemDir, probeDir]() {
     const emu::CoreProbe probe = g_probeFn.load()(corePath, systemDir, probeDir);
     if (self == nullptr) return;
     QMetaObject::invokeMethod(

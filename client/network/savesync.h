@@ -117,7 +117,7 @@ class SaveSync : public QObject {
   void renameSlot(const QString& gameId, const QString& slot, const QString& newName, SlotChangeCallback cb);
   void deleteSlot(const QString& gameId, const QString& slot, int confirmRevision, SlotChangeCallback cb);
   // Why rename / delete are off for this slot on this Player (default slot, game running); empty = allowed.
-  QString slotChangeBlockReason(const QString& gameId, const QString& slot) const;
+  QString slotChangeBlockReason(const QString& gameId, const QString& slot, bool deleting = false) const;
   // saves_v4: make a local file the Hub's current save of the slot (and the local save). Same block rules as restore;
   // for a running game the core loads the file live; refused while the game is shared as a Session (setSharedCheck);
   // the file must be non-empty and at most kMaxSaveBytes. `expectedRevision` 0 = no save on the Hub yet.
@@ -323,6 +323,9 @@ class SaveSync : public QObject {
   void uploadSaveFileLive(const QString& gameId, const QString& slot, const QString& filePath, int expectedRevision, RestoreCallback cb);
   QString moveLocalSlot(const QString& gameId, const QString& from, const QString& to);  // empty = ok, else a warning
   void removeLocalSlot(const QString& gameId, const QString& slot);
+  // Copies the slot's save file to `<file>.deleted-<stamp>.bak` (beside it for the main slot, in the game directory for
+  // another slot, so it survives removeLocalSlot). Empty = ok (also when there is no save file), else why it failed.
+  QString backupLocalSlot(const QString& gameId, const QString& slot);
   void handleSlotRenamedElsewhere(const SaveUpdate& u);
   void handleSlotDeletedElsewhere(const SaveUpdate& u);
   // Flush, upload a changed save (final-sync path), then `next(ok, revisionToExpect, message)`; liveOp_ stays set on ok.
@@ -351,6 +354,7 @@ class SaveSync : public QObject {
   quint64 gen_ = 0;
   bool dialogOpen_ = false;
   bool session_ = false;
+  bool starting_ = false;  // prepareStart() ran, beginSession() has not (or the start failed before it)
   LiveHooks live_;
   std::function<bool(const QString&)> shared_;
   bool liveOp_ = false;                     // a live restore / upload runs: no checkpoint uploads meanwhile

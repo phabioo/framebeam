@@ -3,9 +3,12 @@
 //   FB_FAKE_FF_INHIBIT=1 (SET_FASTFORWARDING_OVERRIDE with inhibit_toggle), FB_FAKE_FF_RATIO (override ratio).
 // Every frame the core queries GET_FASTFORWARDING and renders it into pixel 0 (nonzero = on) and sends audio.
 //   FB_FAKE_SRAM_WRITE (byte written into SRAM[0] once memory is available, as a change by the "game").
+//   FB_FAKE_UNLOAD_HANG_MS (retro_unload_game sleeps that long: a core that hangs while unloading).
 #include <cstdint>
 #include <cstdlib>
+#include <chrono>
 #include <cstring>
+#include <thread>
 #include <vector>
 
 #include "third_party/libretro/libretro.h"
@@ -72,7 +75,9 @@ FB_EXPORT bool retro_load_game(const retro_game_info*) {
   }
   return true;
 }
-FB_EXPORT void retro_unload_game() {}
+FB_EXPORT void retro_unload_game() {
+  if (const int ms = envInt("FB_FAKE_UNLOAD_HANG_MS", 0); ms > 0) std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+}
 FB_EXPORT void retro_run() {
   ++g_frames;
   if (g_write >= 0 && g_frames > g_delay && !g_sram.empty()) g_sram[0] = static_cast<uint8_t>(g_write);

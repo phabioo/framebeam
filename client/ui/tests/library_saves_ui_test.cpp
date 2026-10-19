@@ -716,6 +716,40 @@ class LibrarySavesUiTest : public QObject {
     QTRY_VERIFY(!shown(h, "slotManageRow"));
   }
 
+  // saves_v6: the main slot can be deleted (with the same confirmation), never renamed.
+  void mainSlotCanBeDeletedWithSavesV6() {
+    FakeHub hub(QStringLiteral("a"));
+    oneGame(hub, kAllFeatures + QStringList{QStringLiteral("saves_v6")});
+    hub.setHubSave(QStringLiteral("g1"), "cp-1");
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    SaveHistoryController* hist = h.controller->saveHistory();
+    QTRY_VERIFY_WITH_TIMEOUT(hist->available() && !hist->loading(), 8000);
+    openSavesView(h);
+    QCOMPARE(hist->slot(), QStringLiteral("default"));
+    QVERIFY(!hist->slotManageAvailable());  // no rename
+    QTRY_VERIFY_WITH_TIMEOUT(hist->slotDeleteAvailable() && hist->current().value(QStringLiteral("revision")).toInt() == 1, 8000);
+    QTRY_VERIFY(shown(h, "slotManageRow"));
+    QVERIFY(!shown(h, "slotRenameButton"));
+    QVERIFY(h.item("slotDeleteButton")->isEnabled());
+    QVERIFY(h.click("slotDeleteButton"));
+    QTRY_VERIFY(shown(h, "slotDeleteBox"));
+    QVERIFY(confirming(h));
+    QVERIFY(textOf(h, "slotDeleteNote").contains(QStringLiteral("cannot be undone")));
+    QVERIFY(h.click("slotDeleteCancel"));
+    QTRY_VERIFY(!shown(h, "slotDeleteBox"));
+    QCOMPARE(hub.slotDeleteCount, 0);
+    QVERIFY(h.click("slotDeleteButton"));
+    QTRY_VERIFY(shown(h, "slotDeleteConfirm"));
+    QVERIFY(h.click("slotDeleteConfirm"));
+    QTRY_COMPARE_WITH_TIMEOUT(hub.slotDeleteCount, 1, 8000);
+    QVERIFY(!hub.saves.contains(FakeHub::slotKey(QStringLiteral("g1"), QStringLiteral("default"))));
+    QTRY_VERIFY_WITH_TIMEOUT(hist->message().contains(QStringLiteral("main slot was deleted")), 8000);
+    QVERIFY(!hist->messageIsError());
+  }
+
   void slotActionsAreDisabledWhileTheGameRuns() {
     FakeHub hub(QStringLiteral("a"));
     oneGame(hub);

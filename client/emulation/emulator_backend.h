@@ -7,6 +7,7 @@
 // (in the player, the emulation thread; see EmulationRunner).
 
 #include <QByteArray>
+#include <functional>
 #include <QImage>
 #include <QList>
 #include <QSize>
@@ -115,6 +116,10 @@ class EmulatorBackend {
   // Why the last flushSave failed (file name and reason); empty when the last flush succeeded (still readable after
   // unloadGame, so the owner can report a failed final write). Any thread once the emulation thread has finished.
   virtual QString lastSaveError() const { return {}; }
+  // A save problem that will cost progress and is known while the game runs (for example a save file that cannot be
+  // read at start, so nothing is written over it): `fn(message)` is called at once, on the emulation thread. Set before
+  // loadGame; default: never called.
+  virtual void setSaveProblemNotifier(std::function<void(const QString&)> fn) { Q_UNUSED(fn); }
   // Size of the core's battery save memory, -1 when unknown/none (emulation thread).
   virtual qint64 saveMemorySize() const { return -1; }
   // The game's memory as device virtual addresses (SET_MEMORY_MAPS, or SYSTEM_RAM at 0 as fallback). Emulation thread

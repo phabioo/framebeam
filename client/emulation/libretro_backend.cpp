@@ -23,6 +23,8 @@
 namespace framebeam::emu {
 
 namespace {
+constexpr int kSaveOpenAttempts = 5;      // an existing save file is opened up to 5 times ...
+constexpr unsigned kSaveOpenRetryMs = 300;  // ... 300 ms apart (about 1.2 s) before saving is blocked
 Q_LOGGING_CATEGORY(lcCore, "framebeam.emulation.core")
 
 // The core repeats the same lines for every frame (OSD texts via SET_MESSAGE, debug lines): only the first
@@ -345,17 +347,38 @@ bool LibretroBackend::tryLoadSave() {
   m_savePendingLoad = false;
   const QFileInfo fi(m_saveFilePath);
   if (fi.exists()) {
+    // A scanner, a sync client or the previous start may hold the file for a moment: retry before giving up.
     QFile sf(m_saveFilePath);
-    if (!sf.open(QIODevice::ReadOnly)) {
+    bool opened = sf.open(QIODevice::ReadOnly);
+    for (int attempt = 1; !opened && attempt < kSaveOpenAttempts; ++attempt) {
+      QThread::msleep(kSaveOpenRetryMs);
+      opened = sf.open(QIODevice::ReadOnly);
+    }
+    if (!opened) {
       qCWarning(lcCore) << "Save file exists but cannot be read; it will not be overwritten:" << m_saveFilePath;
       QFile::copy(m_saveFilePath, m_saveFilePath + QStringLiteral(".unreadable-") + backupStamp() + QStringLiteral(".bak"));
       m_saveBlocked = true;
+      m_lastSaveError = QStringLiteral("%1: the save file cannot be read (%2). This game will not be saved over it.")
+                            .arg(fi.fileName(), sf.errorString());
+      if (m_saveProblemNotifier) m_saveProblemNotifier(m_lastSaveError);
     } else {
       const QByteArray data = sf.readAll();
       if (static_cast<size_t>(data.size()) != size) {
         qCWarning(lcCore) << "Save file size" << data.size() << "differs from the core's save memory" << size
                           << "; keeping a backup before the first write";
-        QFile::copy(m_saveFilePath, m_saveFilePath + QStringLiteral(".size-mismatch-") + backupStamp() + QStringLiteral(".bak"));
+        // One backup per distinct content: a start that finds the same mismatching file again adds nothing.
+        bool have = false;
+        const QFileInfo sfi(m_saveFilePath);
+        for (const QString& name : sfi.dir().entryList({sfi.fileName() + QStringLiteral(".size-mismatch-*.bak")}, QDir::Files)) {
+          QFile bf(sfi.dir().filePath(name));
+          if (bf.size() == data.size() && bf.open(QIODevice::ReadOnly) && bf.readAll() == data) {
+            have = true;
+            break;
+          }
+        }
+        if (!have) {
+          QFile::copy(m_saveFilePath, m_saveFilePath + QStringLiteral(".size-mismatch-") + backupStamp() + QStringLiteral(".bak"));
+        }
       }
       std::memcpy(mem, data.constData(), (std::min)(static_cast<size_t>(data.size()), size));
     }
@@ -400,13 +423,40 @@ qint64 LibretroBackend::saveMemorySize() const {
   return static_cast<qint64>(m_api->get_memory_size(RETRO_MEMORY_SAVE_RAM));
 }
 
+void LibretroBackend::writeEmergencySave(const QByteArray& data, const QString& why) {
+  const QString name = QFileInfo(m_saveFilePath).fileName();
+  const QString target = m_saveFilePath + QStringLiteral(".unsaved-") + backupStamp();
+  QSaveFile ef(target);
+  if (ef.open(QIODevice::WriteOnly) && ef.write(data) == data.size() && ef.commit()) {
+    qCWarning(lcCore) << "Battery save could not be written to" << m_saveFilePath << "-" << why << "; progress kept in" << target;
+    m_lastSaveError = QStringLiteral("%1: %2. The latest progress was saved to %3 instead.").arg(name, why, QFileInfo(target).fileName());
+  } else {
+    qCWarning(lcCore) << "Battery save could not be written to" << m_saveFilePath << "or" << target << "-" << why << "/" << ef.errorString();
+    m_lastSaveError = QStringLiteral("%1: %2. The progress could not be saved elsewhere either (%3).").arg(name, why, ef.errorString());
+  }
+}
+
 void LibretroBackend::unloadGame() {
   if (!m_gameLoaded) return;
-  // The last write of the session: one retry after a short pause (a virus scanner or sync client may hold the file
-  // briefly); a persistent failure stays in lastSaveError() for the owner to report.
-  if (!flushSave()) {
-    QThread::msleep(250);
-    flushSave();
+  // The last write of the session: retries after short pauses (a virus scanner or sync client may hold the file
+  // briefly). If it still fails, the SRAM goes to a sibling "<save>.unsaved-<stamp>" file so the progress is not lost
+  // with the core memory; lastSaveError() then says so. The same for progress that could not go to an unreadable file.
+  bool saved = flushSave();
+  for (const unsigned delayMs : {250u, 500u}) {
+    if (saved) break;
+    QThread::msleep(delayMs);
+    saved = flushSave();
+  }
+  if (m_gameLoaded && !m_saveFilePath.isEmpty() && m_api->get_memory_data && m_api->get_memory_size && (!saved || m_saveBlocked)) {
+    const void* mem = m_api->get_memory_data(RETRO_MEMORY_SAVE_RAM);
+    const size_t size = m_api->get_memory_size(RETRO_MEMORY_SAVE_RAM);
+    if (mem != nullptr && size > 0) {
+      const QByteArray now(static_cast<const char*>(mem), static_cast<qsizetype>(size));
+      if (now != m_sramSnapshot) {
+        const QString why = saved ? QStringLiteral("the save file could not be read at start") : m_lastSaveError.section(QStringLiteral(": "), 1);
+        writeEmergencySave(now, why);
+      }
+    }
   }
   if (m_hwActive) {
     m_hw->makeCurrent();

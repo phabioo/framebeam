@@ -1,3 +1,4 @@
+#include <QDebug>
 #include "emulation_runner.h"
 
 #include "frame_pacer.h"
@@ -252,9 +253,16 @@ EmulationRunner::EmulationRunner(std::unique_ptr<EmulatorBackend> backend, QObje
   qRegisterMetaType<framebeam::emu::AvInfo>();
   qRegisterMetaType<framebeam::emu::CoreInfo>();
   qRegisterMetaType<framebeam::emu::EmulationRunner::State>();
+  // Called on the emulation thread; the signal reaches the GUI thread queued.
+  m_backend->setSaveProblemNotifier([this](const QString& message) { emit saveProblem(message); });
 }
 
-EmulationRunner::~EmulationRunner() { stop(); }
+EmulationRunner::~EmulationRunner() {
+  stop();
+  if (m_abandoned) (void)m_backend.release();  // the hung emulation thread may still use it: leak rather than crash
+}
+
+std::atomic<int> EmulationRunner::stopTimeoutMsForTest{0};
 
 void EmulationRunner::setState(State s) {
   if (m_state.exchange(s) != s) emit stateChanged(s);
@@ -336,7 +344,18 @@ QByteArray EmulationRunner::resampleForSpeedUp(const QByteArray& pcm, double rat
 void EmulationRunner::stop() {
   if (!m_worker) return;
   m_worker->requestStop();
-  m_worker->wait();
+  const int timeoutMs = stopTimeoutMsForTest.load() > 0 ? stopTimeoutMsForTest.load() : kStopTimeoutMs;
+  if (!m_worker->wait(timeoutMs)) {
+    // Flushing the save is the first thing the thread does after the loop; what hangs is the core's unload/deinit. A
+    // QThread cannot be destroyed while it runs, so it is leaked together with the backend.
+    qWarning() << "The emulation thread did not stop within" << timeoutMs << "ms; abandoning it";
+    (void)m_worker.release();
+    m_abandoned = true;
+    m_finalSaveError.clear();
+    setState(State::Idle);
+    emit stopped();
+    return;
+  }
   m_worker.reset();
   m_finalSaveError = m_backend->lastSaveError();
   setState(State::Idle);

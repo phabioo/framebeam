@@ -552,12 +552,13 @@ FocusScope {
                 // Rename / delete the selected slot (saves_v5; never the main slot)
                 Flow {
                     objectName: "slotManageRow"
-                    visible: root.hist.slotManageAvailable && !root.newSlotOpen && !root.renameOpen && !root.slotDeleteConfirming
+                    visible: root.hist.slotDeleteAvailable && !root.newSlotOpen && !root.renameOpen && !root.slotDeleteConfirming
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     spacing: 8
                     FbButton {
                         objectName: "slotRenameButton"
+                        visible: root.hist.slotManageAvailable
                         kind: "link"
                         implicitHeight: 28
                         font.pixelSize: Theme.fontSmall
@@ -579,7 +580,7 @@ FocusScope {
                 }
                 FbLabel {
                     objectName: "slotManageHint"
-                    visible: root.hist.slotManageAvailable && root.hist.slotManageBlockReason !== "" && !root.newSlotOpen && !root.renameOpen && !root.slotDeleteConfirming
+                    visible: root.hist.slotDeleteAvailable && root.hist.slotManageBlockReason !== "" && !root.newSlotOpen && !root.renameOpen && !root.slotDeleteConfirming
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     text: root.hist.slotManageBlockReason
@@ -672,7 +673,9 @@ FocusScope {
                             wrapMode: Text.WordWrap
                             text: root.hist.slotDeleteRequest.onHub === true
                                   ? qsTr("The slot is deleted for good on the Hub with its whole history (%1 versions), and the copy on this device is removed. This cannot be undone. If the save changed since this page was shown, nothing is deleted.").arg(root.hist.slotDeleteRequest.versionCount || 0)
-                                  : qsTr("This slot exists only on this device. Its local save is removed. This cannot be undone.")
+                                  : (root.hist.slotDeleteRequest.isMain === true
+                                     ? qsTr("The main slot has no save on the Hub. Its local save is removed. This cannot be undone.")
+                                     : qsTr("This slot exists only on this device. Its local save is removed. This cannot be undone."))
                             color: Theme.textSecondary
                             font.pixelSize: Theme.fontMeta
                         }
