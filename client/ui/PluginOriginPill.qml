@@ -21,6 +21,7 @@ Rectangle {
     border.color: official ? Theme.infoBorder : Theme.pluginWarnLine
 
     Text {
+        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
         id: label
         anchors.centerIn: parent
         text: root.text

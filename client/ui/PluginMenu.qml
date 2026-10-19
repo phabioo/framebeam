@@ -73,6 +73,7 @@ Item {
                         radius: 6
                         color: !row.hasChoices && itemHover.hovered ? Theme.gameSegmentOn : "transparent"
                         FbLabel {
+                            textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                             anchors.left: parent.left
                             anchors.leftMargin: 10
                             anchors.verticalCenter: parent.verticalCenter
@@ -84,6 +85,7 @@ Item {
                             font.weight: row.modelData.checked ? Font.Medium : Font.Normal
                         }
                         FbMono {
+                            textFormat: Text.PlainText
                             id: trailingText
                             visible: !row.hasChoices
                             anchors.right: parent.right
@@ -110,7 +112,7 @@ Item {
                                     color: choiceHover.hovered ? Theme.gameSegmentOn : "transparent"
                                     Accessible.role: Accessible.Button
                                     Accessible.name: modelData.tip || modelData.glyph
-                                    Text { anchors.centerIn: parent; text: choice.modelData.glyph; font.pixelSize: 14; color: choice.modelData.checked ? Theme.gameAccent : Theme.gameText }
+                                    Text { textFormat: Text.PlainText; anchors.centerIn: parent; text: choice.modelData.glyph; font.pixelSize: 14; color: choice.modelData.checked ? Theme.gameAccent : Theme.gameText }
                                     HoverHandler { id: choiceHover; cursorShape: Qt.PointingHandCursor }
                                     TapHandler { onTapped: root.picked(choice.modelData.id) }
                                 }

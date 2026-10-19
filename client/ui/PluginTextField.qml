@@ -36,6 +36,7 @@ ColumnLayout {
         }
     }
     Text {
+        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
         objectName: "pluginTextFieldError"
         visible: !!root.node.error
         Layout.fillWidth: true

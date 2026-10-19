@@ -54,6 +54,7 @@ Item {
                 radius: 7
                 color: root.warn ? "#3a3118" : "#1b3a42"
                 Text {
+                    textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     anchors.centerIn: parent
                     text: root.host ? "◆" : (root.toast.tone === "info" ? "i" : "!")
                     font.pixelSize: root.host ? 12 : 15
@@ -70,6 +71,7 @@ Item {
                     Layout.fillWidth: true
                     spacing: 6
                     FbLabel {
+                        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         objectName: "toastSource"
                         Layout.minimumWidth: 0
                         elide: Text.ElideRight
@@ -89,7 +91,7 @@ Item {
                         color: "transparent"
                         border.width: 1
                         border.color: root.warn ? Theme.gamePluginWarnLine : Theme.gameKeyLine
-                        FbLabel { id: markerLabel; anchors.centerIn: parent; text: root.marker; font.pixelSize: 10; color: root.warn ? Theme.gamePluginWarn : Theme.gameTextMuted }
+                        FbLabel { textFormat: Text.PlainText; id: markerLabel; anchors.centerIn: parent; text: root.marker; font.pixelSize: 10; color: root.warn ? Theme.gamePluginWarn : Theme.gameTextMuted }
                     }
                     Item { Layout.fillWidth: true }
                 }
@@ -133,6 +135,7 @@ Item {
                                 Accessible.role: Accessible.Button
                                 Accessible.name: modelData.label
                                 FbLabel {
+                                    textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                                     id: actLabel
                                     anchors.centerIn: parent
                                     width: Math.min(implicitWidth, act.width - 24)
@@ -160,7 +163,7 @@ Item {
                     color: moreHover.hovered ? Theme.gameSegmentOn : "transparent"
                     Accessible.role: Accessible.Button
                     Accessible.name: qsTr("Notice menu")
-                    Text { anchors.centerIn: parent; text: "⋯"; font.pixelSize: 15; color: Theme.gameTextMuted }
+                    Text { textFormat: Text.PlainText; anchors.centerIn: parent; text: "⋯"; font.pixelSize: 15; color: Theme.gameTextMuted }
                     HoverHandler { id: moreHover; cursorShape: Qt.PointingHandCursor }
                     TapHandler { onTapped: root.menuRequested(moreBtn) }
                 }
@@ -170,7 +173,7 @@ Item {
                     color: closeHover.hovered ? Theme.gameSegmentOn : "transparent"
                     Accessible.role: Accessible.Button
                     Accessible.name: qsTr("Dismiss")
-                    Text { anchors.centerIn: parent; text: "×"; font.pixelSize: 16; color: Theme.gameTextMuted }
+                    Text { textFormat: Text.PlainText; anchors.centerIn: parent; text: "×"; font.pixelSize: 16; color: Theme.gameTextMuted }
                     HoverHandler { id: closeHover; cursorShape: Qt.PointingHandCursor }
                     TapHandler { onTapped: root.dismissRequested() }
                 }

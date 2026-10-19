@@ -28,9 +28,11 @@ target_link_libraries(framebeam_plugins PUBLIC framebeam_lua framebeam_core fram
 framebeam_warnings(framebeam_plugins)
 
 framebeam_add_test(plugins_manifest tests/manifest_test.cpp LIBS framebeam_plugins)
+target_compile_definitions(test_plugins_manifest PRIVATE FB_MANIFEST_CORPUS="${CMAKE_CURRENT_SOURCE_DIR}/../../server/internal/pluginpkg/testdata/manifests")  # shared with the Hub
 framebeam_add_test(plugins_sandbox tests/sandbox_test.cpp LIBS framebeam_plugins)
 framebeam_add_test(plugins_manager tests/manager_test.cpp LIBS framebeam_plugins)
 framebeam_add_test(plugins_host tests/host_test.cpp LIBS framebeam_plugins)
+framebeam_add_test(plugins_engine_budget tests/engine_budget_test.cpp LIBS framebeam_plugins)
 framebeam_add_test(plugins_ui tests/ui_test.cpp LIBS framebeam_plugins)
 framebeam_add_test(plugins_video tests/video_test.cpp LIBS framebeam_plugins)
 

@@ -115,6 +115,7 @@ Item {
                     width: parent.width - 24
                     spacing: 8
                     FbLabel {
+                        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         width: parent.width
                         wrapMode: Text.WordWrap
                         text: qsTr("Paused after an error · your game keeps running")
@@ -123,6 +124,7 @@ Item {
                         color: Theme.gameDanger
                     }
                     FbMono {
+                        textFormat: Text.PlainText
                         objectName: "consoleErrorText"
                         width: parent.width
                         wrapMode: Text.WrapAnywhere
@@ -133,6 +135,7 @@ Item {
                         elide: Text.ElideRight
                     }
                     FbLabel {
+                        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         width: parent.width
                         wrapMode: Text.WordWrap
                         font.pixelSize: 12
@@ -156,9 +159,10 @@ Item {
                 RowLayout {
                     width: parent.width
                     Eyebrow { Layout.fillWidth: true; color: Theme.gameFaint; text: qsTr("Watched · %1").arg(root.watched.length) }
-                    FbMono { text: qsTr("live"); font.pixelSize: 11; color: Theme.gameOk }
+                    FbMono { textFormat: Text.PlainText; text: qsTr("live"); font.pixelSize: 11; color: Theme.gameOk }
                 }
                 FbLabel {
+                    textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     objectName: "consoleWatchedEmpty"
                     visible: root.watched.length === 0
                     width: parent.width
@@ -173,9 +177,9 @@ Item {
                         required property var modelData
                         objectName: "consoleWatched"
                         spacing: 8
-                        FbMono { width: 92; text: modelData.address; font.pixelSize: 11; color: Theme.gameTextMuted }
-                        FbMono { width: 70; text: modelData.value; font.pixelSize: 11; color: Theme.gameAccent; elide: Text.ElideRight }
-                        FbLabel { width: col.width - 92 - 70 - 16; text: modelData.label; font.pixelSize: 12; color: Theme.gameText; elide: Text.ElideRight }
+                        FbMono { textFormat: Text.PlainText; width: 92; text: modelData.address; font.pixelSize: 11; color: Theme.gameTextMuted }
+                        FbMono { textFormat: Text.PlainText; width: 70; text: modelData.value; font.pixelSize: 11; color: Theme.gameAccent; elide: Text.ElideRight }
+                        FbLabel { textFormat: Text.PlainText; width: col.width - 92 - 70 - 16; text: modelData.label; font.pixelSize: 12; color: Theme.gameText; elide: Text.ElideRight }
                     }
                 }
             }
@@ -186,6 +190,7 @@ Item {
                 spacing: 6
                 Eyebrow { color: Theme.gameFaint; text: qsTr("Events") }
                 FbLabel {
+                    textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     visible: root.events.length === 0
                     width: parent.width
                     font.pixelSize: 12
@@ -198,13 +203,13 @@ Item {
                         required property var modelData
                         objectName: "consoleEvent"
                         spacing: 8
-                        FbMono { width: 76; text: modelData.time; font.pixelSize: 11; color: Theme.gameFaint }
+                        FbMono { textFormat: Text.PlainText; width: 76; text: modelData.time; font.pixelSize: 11; color: Theme.gameFaint }
                         Rectangle {
                             width: Math.min(110, kindText.implicitWidth + 12); height: 18; radius: 9
                             color: Theme.gameOnBg
-                            FbMono { id: kindText; anchors.centerIn: parent; width: Math.min(implicitWidth, 98); elide: Text.ElideRight; text: modelData.kind; font.pixelSize: 11; color: Theme.gameAccent }
+                            FbMono { textFormat: Text.PlainText; id: kindText; anchors.centerIn: parent; width: Math.min(implicitWidth, 98); elide: Text.ElideRight; text: modelData.kind; font.pixelSize: 11; color: Theme.gameAccent }
                         }
-                        FbMono { width: col.width - 76 - 110 - 16; text: modelData.text; font.pixelSize: 11; color: Theme.gameText; elide: Text.ElideRight }
+                        FbMono { textFormat: Text.PlainText; width: col.width - 76 - 110 - 16; text: modelData.text; font.pixelSize: 11; color: Theme.gameText; elide: Text.ElideRight }
                     }
                 }
             }
@@ -217,6 +222,7 @@ Item {
                     width: parent.width
                     Eyebrow { Layout.fillWidth: true; color: Theme.gameFaint; text: qsTr("Log") }
                     FbButton {
+                        textFormat: Text.PlainText
                         objectName: "consoleCopy"
                         kind: "link"
                         implicitHeight: 24
@@ -225,6 +231,7 @@ Item {
                         onClicked: root.ctl.copyLog(root.selected)
                     }
                     FbButton {
+                        textFormat: Text.PlainText
                         objectName: "consoleClear"
                         kind: "link"
                         implicitHeight: 24
@@ -234,6 +241,7 @@ Item {
                     }
                 }
                 FbLabel {
+                    textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     visible: root.logLines.length === 0
                     width: parent.width
                     font.pixelSize: 12
@@ -246,8 +254,8 @@ Item {
                         required property var modelData
                         objectName: "consoleLog_" + modelData.level
                         spacing: 8
-                        FbMono { width: 76; text: modelData.time; font.pixelSize: 11; color: Theme.gameFaint }
-                        FbMono { width: col.width - 76 - 8; text: modelData.text; font.pixelSize: 11; color: root.levelColor(modelData.level); wrapMode: Text.WrapAnywhere; maximumLineCount: 4; elide: Text.ElideRight }
+                        FbMono { textFormat: Text.PlainText; width: 76; text: modelData.time; font.pixelSize: 11; color: Theme.gameFaint }
+                        FbMono { textFormat: Text.PlainText; width: col.width - 76 - 8; text: modelData.text; font.pixelSize: 11; color: root.levelColor(modelData.level); wrapMode: Text.WrapAnywhere; maximumLineCount: 4; elide: Text.ElideRight }
                     }
                 }
             }
@@ -258,6 +266,7 @@ Item {
                 spacing: 6
                 Eyebrow { color: Theme.gameFaint; text: qsTr("Memory map") }
                 FbLabel {
+                    textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     objectName: "consoleNoRegions"
                     visible: root.regions.length === 0
                     width: parent.width
@@ -272,9 +281,9 @@ Item {
                         required property var modelData
                         objectName: "consoleRegion"
                         spacing: 8
-                        FbMono { width: 92; text: modelData.start; font.pixelSize: 11; color: Theme.gameTextMuted }
-                        FbMono { width: 92; text: "+" + modelData.length; font.pixelSize: 11; color: Theme.gameText }
-                        FbMono { width: col.width - 92 - 92 - 16; text: modelData.addrspace !== "" ? modelData.addrspace : "-"; font.pixelSize: 11; color: Theme.gameFaint; elide: Text.ElideRight }
+                        FbMono { textFormat: Text.PlainText; width: 92; text: modelData.start; font.pixelSize: 11; color: Theme.gameTextMuted }
+                        FbMono { textFormat: Text.PlainText; width: 92; text: "+" + modelData.length; font.pixelSize: 11; color: Theme.gameText }
+                        FbMono { textFormat: Text.PlainText; width: col.width - 92 - 92 - 16; text: modelData.addrspace !== "" ? modelData.addrspace : "-"; font.pixelSize: 11; color: Theme.gameFaint; elide: Text.ElideRight }
                     }
                 }
             }

@@ -80,6 +80,7 @@ Item {
         border.color: Theme.gamePopoverBorder
         opacity: restoreHover.hovered || (menu.open && menu.anchorItem === restorePill) ? 1 : 0.6
         FbLabel {
+            textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
             id: restoreLabel
             anchors.centerIn: parent
             text: (!root.hudShown ? qsTr("HUD hidden") : (root.hiddenWidgets.length === 1 ? qsTr("1 widget hidden") : qsTr("%1 widgets hidden").arg(root.hiddenWidgets.length))) + " · " + qsTr("Show")
@@ -105,7 +106,7 @@ Item {
         height: 28
         radius: 7
         color: Qt.rgba(17 / 255, 18 / 255, 20 / 255, 0.85)
-        FbLabel { id: hintLabel; anchors.centerIn: parent; text: qsTr("HUD hidden · F4 to show"); font.pixelSize: 12; color: Theme.gameBadgeText }
+        FbLabel { textFormat: Text.PlainText; id: hintLabel; anchors.centerIn: parent; text: qsTr("HUD hidden · F4 to show"); font.pixelSize: 12; color: Theme.gameBadgeText }
     }
 
     // ---- notices
@@ -145,6 +146,7 @@ Item {
             radius: 12
             color: Qt.rgba(17 / 255, 18 / 255, 20 / 255, 0.85)
             FbLabel {
+                textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 id: pillLabel
                 anchors.centerIn: parent
                 text: root.hiddenToasts === 1 ? qsTr("+1 earlier notice") : qsTr("+%1 earlier notices").arg(root.hiddenToasts)

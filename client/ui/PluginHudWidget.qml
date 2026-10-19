@@ -71,7 +71,7 @@ Item {
             color: btnHover.hovered ? Theme.gameSegmentOn : Qt.rgba(17 / 255, 18 / 255, 20 / 255, 0.9)
             Accessible.role: Accessible.Button
             Accessible.name: qsTr("Widget menu")
-            Text { anchors.centerIn: parent; text: "⋯"; font.pixelSize: 15; color: Theme.gameText }
+            Text { textFormat: Text.PlainText; anchors.centerIn: parent; text: "⋯"; font.pixelSize: 15; color: Theme.gameText }
             HoverHandler { id: btnHover; cursorShape: Qt.PointingHandCursor }
             TapHandler { onTapped: root.menuRequested(menuButton) }
         }
@@ -88,6 +88,6 @@ Item {
         color: Theme.gamePluginWarnBg
         border.width: 1
         border.color: Theme.gamePluginWarnLine
-        FbLabel { id: markerText; anchors.centerIn: parent; text: root.marker; font.pixelSize: 10; font.weight: Font.Medium; color: Theme.gamePluginWarn }
+        FbLabel { textFormat: Text.PlainText; id: markerText; anchors.centerIn: parent; text: root.marker; font.pixelSize: 10; font.weight: Font.Medium; color: Theme.gamePluginWarn }
     }
 }

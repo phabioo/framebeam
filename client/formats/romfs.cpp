@@ -3,10 +3,14 @@
 #include "bytes.h"
 
 #include <QByteArray>
+#include <QDateTime>
 #include <QFile>
+#include <QFileInfo>
 #include <QString>
 
 #include <algorithm>
+#include <memory>
+#include <mutex>
 
 namespace framebeam::formats {
 namespace {
@@ -271,12 +275,50 @@ std::vector<std::string> splitPath(std::string_view p) {
     return out;
 }
 
+// The parsed index (headers and both metadata tables) of the open game, kept between calls: a plugin that extracts
+// hundreds of files would otherwise re-read tables of up to 64 MiB for each of them. One entry; a different game
+// path, size or modification time replaces it. All access under one lock (QFile is not thread-safe).
+struct RomfsCache {
+    std::mutex mutex;
+    QString path;
+    qint64 size = -1;
+    QDateTime mtime;
+    std::unique_ptr<Romfs> fs;
+};
+RomfsCache& romfsCache() {
+    static RomfsCache c;
+    return c;
+}
+// Locks the cache and returns the Romfs of `romPath` (opened now or reused); nullptr + `err` on failure.
+Romfs* cachedRomfs(RomfsCache& c, const QString& romPath, std::string& err) {
+    const QFileInfo fi(romPath);
+    if (c.fs && c.path == romPath && c.size == fi.size() && c.mtime == fi.lastModified()) return c.fs.get();
+    c.fs.reset();
+    auto fs = std::make_unique<Romfs>();
+    if (!fs->open(romPath, err)) return nullptr;
+    c.path = romPath;
+    c.size = fi.size();
+    c.mtime = fi.lastModified();
+    c.fs = std::move(fs);
+    return c.fs.get();
+}
+
 }  // namespace
+
+void romfsCacheClear() {
+    RomfsCache& c = romfsCache();
+    std::lock_guard<std::mutex> lock(c.mutex);
+    c.fs.reset();
+    c.path.clear();
+}
 
 Result romfsRead(const QString& romPath, std::string_view path, size_t maxOut) {
     Result r;
-    Romfs fs;
-    if (!fs.open(romPath, r.error)) return r;
+    RomfsCache& cache = romfsCache();
+    std::lock_guard<std::mutex> lock(cache.mutex);
+    Romfs* fsp = cachedRomfs(cache, romPath, r.error);
+    if (!fsp) return r;
+    Romfs& fs = *fsp;
     const auto comps = splitPath(path);
     if (comps.empty()) {
         r.error = "path is a directory";
@@ -316,11 +358,12 @@ Result romfsRead(const QString& romPath, std::string_view path, size_t maxOut) {
 std::vector<RomfsEntry> romfsList(const QString& romPath, std::string_view dir, std::string* error) {
     std::vector<RomfsEntry> out;
     std::string err;
-    Romfs fs;
-    if (fs.open(romPath, err)) {
+    RomfsCache& cache = romfsCache();
+    std::lock_guard<std::mutex> lock(cache.mutex);
+    if (Romfs* fs = cachedRomfs(cache, romPath, err)) {
         const auto comps = splitPath(dir);
         uint32_t dirOff = 0;
-        if (fs.walkDirs(comps, comps.size(), dirOff, err)) fs.children(dirOff, out, err);
+        if (fs->walkDirs(comps, comps.size(), dirOff, err)) fs->children(dirOff, out, err);
     }
     if (!err.empty()) out.clear();
     if (error) *error = err;

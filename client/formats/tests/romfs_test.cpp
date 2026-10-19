@@ -87,6 +87,24 @@ private slots:
         QVERIFY(!romfsRead(write("tiny", "tiny.bin"), "/x").ok);
         QVERIFY(!romfsRead(write(std::string(0x400, 'x'), "junk.bin"), "/x").ok);
     }
+    // PI-10: the parsed index is kept between calls; another game at the same path (size or mtime changed) and an explicit
+    // clear never serve stale data.
+    void indexIsCachedButNeverStale() {
+        const QString p = write(syn::makeNcchWithRomfs(files()), "cached.cxi");
+        for (int i = 0; i < 3; ++i) QCOMPARE(romfsRead(p, "/a/b.bin").data, std::string("\x01\x02\x03\x04", 4));
+        QVERIFY(!romfsList(p, "/a").empty());
+        auto other = files();
+        other["/root.bin"] = "a different and longer root file";
+        other.erase("/a/b.bin");
+        QTest::qWait(30);  // the cache key is size + mtime, and file timestamps tick coarsely
+        write(syn::makeNcchWithRomfs(other), "cached.cxi");  // same path, another game
+        QCOMPARE(romfsRead(p, "/root.bin").data, std::string("a different and longer root file"));
+        QVERIFY(!romfsRead(p, "/a/b.bin").ok);
+        romfsCacheClear();
+        QCOMPARE(romfsRead(p, "/root.bin").data, std::string("a different and longer root file"));
+        QVERIFY(QFile::remove(p));
+        QVERIFY(!romfsRead(p, "/root.bin").ok);  // a vanished file is not served from the cache
+    }
     void encrypted() {
         const QString p = write(syn::makeNcchWithRomfs(files(), 1, false), "enc.cxi");
         const Result r = romfsRead(p, "/root.bin");

@@ -109,6 +109,8 @@ struct Plugin {
   double toastTokens = 3;                     // notify rate limit: burst 3, one per second sustained
   std::chrono::steady_clock::time_point toastLast = std::chrono::steady_clock::now();
 
+  int slowCalls = 0;                          // consecutive callbacks above half the wall budget
+
   QString id() const { return info.manifest.id; }
 };
 
@@ -117,7 +119,15 @@ struct QueuedEvent {
   std::string name;
   Value value;
   QString target;  // empty = every subscribed plugin
+  size_t bytes = 0;  // valueBytes(value) + name: what the queue accounts for
 };
+
+// Event queue limits: by count and by (real) bytes, in total and per emitting plugin (plugin "fb" = host events).
+inline constexpr size_t kMaxQueuedEventCount = 10000;
+inline constexpr size_t kMaxQueuedEventBytes = 16u * 1024 * 1024;
+inline constexpr size_t kMaxQueuedEventBytesPerPlugin = 4u * 1024 * 1024;
+// One iterate() delivers events for at most this long; the rest stays queued.
+inline constexpr int kIterateBudgetMs = 50;
 
 class PluginEngine {
  public:
@@ -131,6 +141,9 @@ class PluginEngine {
   // Host-side input from the UI thread (queued onto the plugin thread by the host).
   void deliverAction(const QString& pluginId, const QString& slot, const QString& action, const Value& value);
   void postHostEvent(const QString& name, Value value, const QString& target);  // event source "fb"
+  // Whether an event of `bytes` from `from` still fits the queue (count, total bytes, per-source bytes).
+  bool eventFits(const QString& from, size_t bytes) const;
+  size_t queuedEventBytes() const { return queuedBytes; }
   void clearSlotEverywhere(const QString& slot);                                 // e.g. "detail" when the game changes
 
   // --- used by plugin_api.cpp ---
@@ -151,9 +164,14 @@ class PluginEngine {
   std::shared_ptr<MemoryProvider> provider;
   HostLimits limits;
   std::deque<QueuedEvent> events;
+  size_t queuedBytes = 0;
+  std::map<QString, size_t> queuedBy;
+  void pushEvent(QueuedEvent ev);
+  QueuedEvent popEvent();
   std::chrono::steady_clock::time_point started;
 
  private:
+  std::chrono::steady_clock::time_point m_iterDeadline;
   void load(Plugin& p);
   void setStatus(Plugin& p, PluginStatus s, const QString& error = QString());
   void deliverEvents();

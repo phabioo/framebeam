@@ -1,3 +1,4 @@
+#include <QDir>
 #include <QTemporaryDir>
 #include <QtTest>
 
@@ -188,6 +189,29 @@ class ManifestTest : public QObject {
     QVERIFY(info->runSettings.isEmpty());
     hub.remove("run_settings");
     QVERIFY(framebeam::parseHubPluginInfo(hub)->runSettings.isEmpty());
+  }
+  // The shared corpus of the Hub (server/internal/pluginpkg/testdata/manifests): valid-* must parse here, invalid-* must not.
+  void sharedCorpusAgreesWithTheHub() {
+    const QDir dir(QStringLiteral(FB_MANIFEST_CORPUS));
+    QVERIFY2(dir.exists(), "manifest corpus directory missing");
+    const QStringList files = dir.entryList({QStringLiteral("*.json")}, QDir::Files, QDir::Name);
+    QVERIFY(files.size() >= 20);
+    int valid = 0, invalid = 0;
+    for (const QString& name : files) {
+      QFile f(dir.filePath(name));
+      QVERIFY(f.open(QIODevice::ReadOnly));
+      const ManifestResult r = parseManifest(f.readAll());
+      if (name.startsWith(QLatin1String("valid-"))) {
+        QVERIFY2(r.ok, qPrintable(name + ": " + r.error));
+        ++valid;
+      } else if (name.startsWith(QLatin1String("invalid-"))) {
+        QVERIFY2(!r.ok, qPrintable(name + " must be rejected"));
+        ++invalid;
+      } else {
+        QFAIL(qPrintable("unexpected corpus file " + name));
+      }
+    }
+    QVERIFY(valid >= 5 && invalid >= 20);
   }
   void providesAndAssets() {
     QVERIFY(errOf(R"({"provides":"x"})").contains("array"));

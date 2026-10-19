@@ -34,6 +34,7 @@ PluginFocusable {
         border.width: root.variant === "quiet" || root.variant === "primary" ? 0 : 1
         border.color: root.variant === "danger" ? Theme.toneLine("danger", root.dark) : Theme.blockColor("borderButton", root.dark)
         Text {
+            textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
             id: label
             objectName: "pluginButtonLabel"
             anchors.centerIn: parent

@@ -46,6 +46,8 @@ struct RomfsEntry {
     uint64_t size = 0;
 };
 std::vector<RomfsEntry> romfsList(const QString& romPath, std::string_view dir, std::string* error = nullptr);
+// Drops the cached RomFS index (the game changed or stopped); a changed file is also detected by size and mtime.
+void romfsCacheClear();
 
 // ---- 3DS textures ----
 // Image: RGBA8888, straight alpha, row-major, top-down.

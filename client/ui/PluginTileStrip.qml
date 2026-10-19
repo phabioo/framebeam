@@ -78,6 +78,7 @@ Item {
                     color: Theme.playerColor(root.dotColor, true)
                 }
                 FbLabel {
+                    textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     objectName: "tileStripText"
                     anchors.verticalCenter: parent.verticalCenter
                     width: Math.min(implicitWidth, Math.max(0, Math.min(300, root.maxWidth) - 56 - (root.dotColor > 0 ? 13 : 0)))
@@ -88,6 +89,7 @@ Item {
                 }
             }
             FbLabel {
+                textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 anchors.right: parent.right
                 anchors.rightMargin: 6
                 anchors.verticalCenter: parent.verticalCenter
@@ -105,7 +107,7 @@ Item {
             height: 14
             radius: 3
             color: Theme.gamePluginWarnBg
-            FbLabel { id: markerLabel; anchors.centerIn: parent; text: root.marker; font.pixelSize: 9; color: Theme.gamePluginWarn }
+            FbLabel { textFormat: Text.PlainText; id: markerLabel; anchors.centerIn: parent; text: root.marker; font.pixelSize: 9; color: Theme.gamePluginWarn }
         }
 
         Flickable {

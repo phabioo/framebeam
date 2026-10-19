@@ -25,6 +25,9 @@
 #include "lauxlib.h"
 #include "lualib.h"
 
+/* FrameBeam patch: defined in client/plugins/lua_sandbox.cpp, raises a Lua error when the matcher budget is used up. */
+void fbMatchBudget(lua_State *L);
+
 
 /*
 ** maximum number of captures that a pattern can do during
@@ -361,6 +364,7 @@ typedef struct MatchState {
   const char *p_end;  /* end ('\0') of pattern */
   lua_State *L;
   int matchdepth;  /* control for recursive depth (to avoid C stack overflow) */
+  unsigned fb_steps;  /* FrameBeam patch: matcher steps of this call (budget check every 1024) */
   unsigned char level;  /* total number of captures (finished or unfinished) */
   struct {
     const char *init;
@@ -571,6 +575,8 @@ static const char *match (MatchState *ms, const char *s, const char *p) {
   if (l_unlikely(ms->matchdepth-- == 0))
     luaL_error(ms->L, "pattern too complex");
   init: /* using goto to optimize tail recursion */
+  /* FrameBeam patch: step budget so a pattern cannot run for seconds inside one C call (see lua_sandbox.cpp). */
+  if (l_unlikely((++ms->fb_steps & 1023u) == 0)) fbMatchBudget(ms->L);
   if (p != ms->p_end) {  /* end of pattern? */
     switch (*p) {
       case '(': {  /* start capture */
@@ -758,6 +764,7 @@ static void prepstate (MatchState *ms, lua_State *L,
                        const char *s, size_t ls, const char *p, size_t lp) {
   ms->L = L;
   ms->matchdepth = MAXCCALLS;
+  ms->fb_steps = 0;  /* FrameBeam patch */
   ms->src_init = s;
   ms->src_end = s + ls;
   ms->p_end = p + lp;

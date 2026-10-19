@@ -15,6 +15,7 @@ PluginFocusable {
     onActivated: root.action(node.action || "", !checked)
 
     Text {
+        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
         id: label
         visible: text !== ""
         anchors.left: parent.left

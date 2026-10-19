@@ -48,7 +48,7 @@ Core-side facts (3DS): see [ADR 0023](../adr/0023-plugins.md) context (Azahar ex
 ### 16.3 Runtime
 
 - **Lua 5.4**, one Lua state per plugin, on a dedicated plugin thread (never the emulation or UI thread).
-- Sandbox: no `io`, `os`, `package`, `load` or `debug`; an instruction budget per call; a memory limit per state through a custom allocator. File and network access only through the API.
+- Sandbox: no `io`, `os`, `package`, `load` or `debug`; an instruction budget per call; a step budget inside the pattern matcher (commented patch of the vendored `lstrlib.c`), `setmetatable` without `__gc`, no host addresses in `tostring`/`%p`; a memory limit per state through a custom allocator; an event queue bounded in bytes; 50 ms per host iteration for event handlers across all plugins. File and network access only through the API. The Player shows all plugin- and peer-supplied text as plain text and decodes plugin images scaled and budgeted.
 - **Memory snapshots:** a plugin registers address ranges. The emulation thread copies all registered ranges after `runFrame()` every N frames into a buffer; the plugin reads the copy. The emulation can never be slowed by a plugin. If two plugins register the same range, it is copied once per tick.
 - **Virtual addresses:** plugins address the device's address space, resolved through the core's memory maps (RetroAchievements-style), so cores of the same system look the same.
 - **Pointer following:** data may live on a heap. A plugin reads a pointer from a snapshot, then registers the target range; it is included from the next tick.

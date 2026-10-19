@@ -16,6 +16,7 @@ struct SandboxLimits {
   size_t memoryBytes = 64u * 1024 * 1024;   // per state (custom allocator)
   int64_t instructions = 20'000'000;        // per entry call
   int wallMs = 500;                         // per entry call
+  int64_t matchSteps = 20'000'000;          // pattern matcher steps per entry call (find/match/gmatch/gsub), ~0.2 s
 };
 
 // One sandboxed Lua 5.4 state (one per plugin): libs base/string/table/math/utf8/coroutine only, no load/require/
@@ -38,6 +39,8 @@ class LuaSandbox {
   void* owner() const { return m_owner; }
   // The sandbox that owns `L` (also for coroutines of it).
   static LuaSandbox* from(lua_State* L);
+  // Called by the patched pattern matcher (every 1024 steps): raises a Lua error when the budget or time is used up.
+  static void matchStep(lua_State* L);
 
   enum class Trip { None, Instructions, Time, Memory };
   Trip trip() const { return m_trip; }
@@ -66,6 +69,7 @@ class LuaSandbox {
   SandboxLimits m_limits;
   size_t m_used = 0;
   int64_t m_instrLeft = 0;
+  int64_t m_matchLeft = 0;
   std::chrono::steady_clock::time_point m_deadline;
   Trip m_trip = Trip::None;
   void* m_owner = nullptr;

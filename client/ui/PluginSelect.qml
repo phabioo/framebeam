@@ -26,6 +26,7 @@ ComboBox {
     onActivated: (index) => control.action(control.node.action || "", control.model[index].value)
 
     contentItem: Text {
+        textFormat: Text.PlainText
         text: control.displayText
         font: control.font
         color: Theme.blockColor("text", control.dark)
@@ -33,6 +34,7 @@ ComboBox {
         verticalAlignment: Text.AlignVCenter
     }
     indicator: Text {
+        textFormat: Text.PlainText
         x: control.width - width - 12
         y: (control.height - height) / 2
         text: "▾"
@@ -55,6 +57,7 @@ ComboBox {
         leftPadding: 12
         highlighted: control.highlightedIndex === item.index
         contentItem: Text {
+            textFormat: Text.PlainText
             text: item.modelData.label
             font: control.font
             color: item.index === control.currentIndex ? Theme.blockColor("accent", control.dark) : Theme.blockColor("text", control.dark)

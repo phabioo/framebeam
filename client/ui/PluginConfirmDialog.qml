@@ -47,6 +47,7 @@ Popup {
             border.width: b.primary ? 0 : 1
             border.color: b.danger ? Theme.toneLine("danger", b.dark) : Theme.blockColor("borderButton", b.dark)
             Text {
+                textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 id: text
                 anchors.centerIn: parent
                 text: b.label
@@ -60,6 +61,7 @@ Popup {
     contentItem: ColumnLayout {
         spacing: 12
         Text {
+            textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
             objectName: "pluginConfirmTitle"
             Layout.fillWidth: true
             text: root.confirm.title || ""
@@ -69,6 +71,7 @@ Popup {
             color: Theme.blockColor("text", root.dark)
         }
         Text {
+            textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
             Layout.fillWidth: true
             visible: text !== ""
             text: root.confirm.text || ""
