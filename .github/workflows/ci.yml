@@ -416,7 +416,7 @@ jobs:
           }
       - name: Install Qt 6.8
         timeout-minutes: 30
-        uses: jurplel/install-qt-action@v4
+        uses: jurplel/install-qt-action@a9c63c7c123f3069cff414e7e482d95dfa9d8125 # v4.4.1
         with:
           version: 6.8.*
           host: windows
@@ -424,7 +424,7 @@ jobs:
           arch: win64_msvc2022_64
           modules: qtmultimedia qtwebsockets
           cache: true
-      - uses: ilammy/msvc-dev-cmd@v1
+      - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
         with:
           arch: x64
       - name: Identify vcpkg cache toolchain
@@ -443,7 +443,20 @@ jobs:
           CCACHE_SHA256: 12e8958ef3fc1fecceb650d46e4db5d0855c778312c70eedd3a2da344fd0a698   # ccache-4.13.4-windows-x86_64.zip
         run: |
           $zip = "$env:RUNNER_TEMP\ccache.zip"
-          Invoke-WebRequest -Uri "https://github.com/ccache/ccache/releases/download/v$env:CCACHE_VERSION/ccache-$env:CCACHE_VERSION-windows-x86_64.zip" -OutFile $zip
+          $uri = "https://github.com/ccache/ccache/releases/download/v$env:CCACHE_VERSION/ccache-$env:CCACHE_VERSION-windows-x86_64.zip"
+          # A network blip must not fail the run (release.yml needs a green main run): 4 attempts, backoff 5/10/20 s.
+          # The checksum is verified after the download, a mismatch is never retried.
+          for ($attempt = 1; $attempt -le 4; $attempt++) {
+            try {
+              Invoke-WebRequest -Uri $uri -OutFile $zip -TimeoutSec 120
+              break
+            } catch {
+              if ($attempt -eq 4) { throw }
+              $wait = 5 * [math]::Pow(2, $attempt - 1)
+              Write-Host "ccache download failed (attempt $attempt): $($_.Exception.Message); retrying in $wait s"
+              Start-Sleep -Seconds $wait
+            }
+          }
           $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash
           if ($hash -ne $env:CCACHE_SHA256) { throw "ccache checksum mismatch: $hash" }
           Expand-Archive $zip -DestinationPath $env:RUNNER_TEMP -Force
