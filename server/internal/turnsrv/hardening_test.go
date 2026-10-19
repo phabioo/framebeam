@@ -112,3 +112,42 @@ func TestLimitListenerIdleDeadlineAndPerIPCap(t *testing.T) {
 		t.Fatalf("%d connections from one IP accepted, cap %d", n, MaxTCPConnsPerIP)
 	}
 }
+
+func TestAuthCacheNegativeResultIsShortLived(t *testing.T) {
+	now := time.Date(2026, 10, 19, 12, 0, 0, 0, time.UTC)
+	c := newAuthCache(30*time.Second, func() time.Time { return now })
+	healthy := false // simulates a transient database hiccup that ends
+	var calls atomic.Int32
+	lookup := func(context.Context, string) bool { calls.Add(1); return healthy }
+	if c.check(context.Background(), "dev", lookup) {
+		t.Fatal("accepted during the hiccup")
+	}
+	healthy = true
+	now = now.Add(authNegativeTTL - time.Second)
+	if c.check(context.Background(), "dev", lookup) || calls.Load() != 1 {
+		t.Fatal("refusal not cached within the short window")
+	}
+	now = now.Add(2 * time.Second) // beyond the negative TTL, far below the positive TTL
+	if !c.check(context.Background(), "dev", lookup) {
+		t.Fatal("real device still locked out after the negative TTL")
+	}
+	if !c.check(context.Background(), "dev", lookup) || calls.Load() != 2 {
+		t.Fatalf("positive result not cached, lookups %d", calls.Load())
+	}
+}
+
+func TestAuthCacheDoesNotCacheTimedOutLookup(t *testing.T) {
+	now := time.Date(2026, 10, 19, 12, 0, 0, 0, time.UTC)
+	c := newAuthCache(30*time.Second, func() time.Time { return now })
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if c.check(ctx, "dev", func(context.Context, string) bool { return false }) {
+		t.Fatal("accepted")
+	}
+	if len(c.m) != 0 {
+		t.Fatal("timed-out lookup was cached")
+	}
+	if !c.check(context.Background(), "dev", func(context.Context, string) bool { return true }) {
+		t.Fatal("device refused on retry")
+	}
+}

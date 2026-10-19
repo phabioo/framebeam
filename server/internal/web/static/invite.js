@@ -7,7 +7,19 @@
     if (navigator.clipboard && window.isSecureContext) {
       return navigator.clipboard.writeText(text);
     }
-    return Promise.reject(new Error("clipboard unavailable"));
+    // Plain HTTP (for example a LAN address in dev mode): fall back to a hidden textarea and execCommand.
+    return new Promise(function (resolve, reject) {
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand("copy") ? resolve() : reject(new Error("copy failed")); }
+      catch (e) { reject(e); }
+      finally { document.body.removeChild(ta); }
+    });
   }
 
   document.addEventListener("click", function (ev) {
@@ -28,7 +40,10 @@
 
   var out = document.querySelector("[data-invite-code]");
   if (out) {
-    var code = decodeURIComponent((window.location.hash || "").replace(/^#/, "")).trim().toUpperCase();
+    var code = "";
+    try {
+      code = decodeURIComponent((window.location.hash || "").replace(/^#/, "")).trim().toUpperCase();
+    } catch (e) { /* truncated link such as #FB-AB%2: treat as missing */ }
     if (/^[A-Z0-9 -]{4,40}$/.test(code)) {
       out.textContent = code;
     } else {
