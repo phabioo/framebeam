@@ -132,7 +132,7 @@ class LibretroBackend final : public EmulatorBackend {
   void setOptionVisible(const QString& key, bool visible);
   QString effectiveValue(const CoreOption& o) const;  // m_optMutex held
 
-  static LibretroBackend* s_active;
+  static std::atomic<LibretroBackend*> s_active;  // the one backend of this process; claimed with compare_exchange in loadCore (PE-16)
 
   std::unique_ptr<Api> m_api;
   QLibrary m_lib;

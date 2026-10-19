@@ -28,6 +28,7 @@ ComboBox {
 
     contentItem: Text {
         text: control.displayText
+        textFormat: Text.PlainText
         font: control.font
         color: control.enabled ? Theme.text : Theme.textDisabled
         elide: Text.ElideRight
@@ -57,6 +58,7 @@ ComboBox {
         leftPadding: 12
         contentItem: Text {
             text: item.modelData.label
+            textFormat: Text.PlainText
             font: control.font
             color: item.modelData.value === control.current ? Theme.accent : Theme.text
             elide: Text.ElideRight

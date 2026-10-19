@@ -555,7 +555,13 @@ void HubConnection::onPairingApproved(const QJsonObject& obj) {
   p.hubUserId = userId;
   p.deviceId = profiles_->deviceId();
   p.credentialRef = target;
-  profiles_->upsertProfile(p);
+  if (!profiles_->upsertProfile(p)) {
+    // Without the profile the credential would be orphaned (no credentialRef) and the next start would need a new pairing.
+    credentials_->remove(target);
+    fail(State::NeedsPairing, QStringLiteral("profile_store_failed"),
+         QStringLiteral("The pairing could not be saved to the profile file"));
+    return;
+  }
   profile_ = p;
   authenticate();
 }

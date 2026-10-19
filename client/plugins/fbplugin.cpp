@@ -241,6 +241,12 @@ QString nameProblem(const QByteArray& raw, QString* nameOut) {
   for (const QString& p : parts) {
     if (p.isEmpty()) return QStringLiteral("entry name '%1' has an empty path segment").arg(name);
     if (p == QLatin1String(".") || p == QLatin1String("..")) return QStringLiteral("entry name '%1' has a '.' or '..' segment").arg(name);
+    // Windows: trailing dots/spaces are dropped and device names (CON, NUL, AUX.lua ...) open the device (PI-14).
+    if (p.endsWith(QLatin1Char('.')) || p.endsWith(QLatin1Char(' '))) return QStringLiteral("entry name '%1' has a segment ending in '.' or a space").arg(name);
+    const QString stem = p.left(p.indexOf(QLatin1Char('.')) < 0 ? p.size() : p.indexOf(QLatin1Char('.'))).trimmed().toUpper();
+    static const QStringList reserved = {QStringLiteral("CON"), QStringLiteral("PRN"), QStringLiteral("AUX"), QStringLiteral("NUL")};
+    const bool numbered = stem.size() == 4 && (stem.startsWith(QLatin1String("COM")) || stem.startsWith(QLatin1String("LPT"))) && stem[3] >= QLatin1Char('1') && stem[3] <= QLatin1Char('9');
+    if (reserved.contains(stem) || numbered) return QStringLiteral("entry name '%1' uses a reserved Windows device name").arg(name);
   }
   return {};
 }

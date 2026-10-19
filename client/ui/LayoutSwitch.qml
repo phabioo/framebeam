@@ -84,6 +84,7 @@ Rectangle {
                     Text {
                         visible: !root.compact
                         text: root.labels[opt.modelData] || opt.modelData
+                        textFormat: Text.PlainText
                         font.pixelSize: 13
                         font.weight: opt.active ? Font.DemiBold : Font.Medium
                         color: opt.active ? Theme.text : Theme.textMuted

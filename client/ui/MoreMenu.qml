@@ -110,6 +110,7 @@ Item {
                                 anchors.rightMargin: 10
                                 elide: Text.ElideRight
                                 text: entry.modelData.label
+                                textFormat: Text.PlainText
                                 font.pixelSize: Theme.fontSmall
                                 color: !entry.usable ? Theme.textDisabled : (entry.danger ? Theme.error : Theme.text)
                             }

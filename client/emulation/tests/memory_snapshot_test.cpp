@@ -250,9 +250,20 @@ class MemorySnapshotTest : public QObject {
     watch->clear("test");
     watch->clear("other");
     QVERIFY(watch->empty());
-    const uint64_t g2 = watch->generation();
+    // A capture that was already past the "anything watched?" check on the emulation thread when clear() ran may still
+    // publish once (under load that is a whole extra generation). Let it settle: the generation must hold still for 150 ms,
+    // then it must stay put for another 200 ms (nothing watched: no further capture).
+    uint64_t g2 = watch->generation();
+    int stableMs = 0;
+    for (int waited = 0; stableMs < 150 && waited < 10000; waited += 25) {
+      QTest::qWait(25);
+      const uint64_t now = watch->generation();
+      stableMs = now == g2 ? stableMs + 25 : 0;
+      g2 = now;
+    }
+    QVERIFY2(stableMs >= 150, "the generation never settled after clear()");
     QTest::qWait(200);
-    QCOMPARE(watch->generation(), g2);  // nothing watched: no capture
+    QCOMPARE(watch->generation(), g2);
 
     runner.stop();
     QVERIFY(runner.memoryRegions().empty());

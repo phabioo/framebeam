@@ -82,19 +82,22 @@ bool verifyAndLockMsi(const framebeam::launcher::MsiUpdateRequest& req, HANDLE* 
 int applyMsiUpdate(const framebeam::launcher::MsiUpdateRequest& req) {
   using namespace framebeam::launcher;
   // Every Player instance holds the named mutex (app/main.cpp); max. 60 s.
+  bool stillRunning = false;
   for (int i = 0; i < 120; ++i) {
     HANDLE m = OpenMutexW(SYNCHRONIZE, FALSE, L"FrameBeamPlayer");
     if (m == nullptr) break;
     CloseHandle(m);
+    stillRunning = i == 119;
     Sleep(500);
   }
+  // A Player that is still running after the wait holds files msiexec needs (error 1603 / reboot): do not start it (PE-17).
   DWORD code = 1;
   bool refused = false;
   HANDLE lock = INVALID_HANDLE_VALUE;
-  if (verificationRequired(req) && !verifyAndLockMsi(req, &lock)) {
+  if (!stillRunning && verificationRequired(req) && !verifyAndLockMsi(req, &lock)) {
     refused = true;  // size/SHA-256 differ from what the Player verified, or were not passed: install nothing
   }
-  const std::wstring params = refused ? std::wstring() : msiexecParameters(req.msi, req.scope);
+  const std::wstring params = (refused || stillRunning) ? std::wstring() : msiexecParameters(req.msi, req.scope);
   wchar_t sys[MAX_PATH] = {};
   if (!params.empty() && GetSystemDirectoryW(sys, MAX_PATH) > 0) {
     const std::wstring msiexec = std::wstring(sys) + L"\\msiexec.exe";
@@ -125,7 +128,10 @@ int applyMsiUpdate(const framebeam::launcher::MsiUpdateRequest& req) {
     }
   }
   if (lock != INVALID_HANDLE_VALUE) CloseHandle(lock);
-  if (refused) {
+  if (stillRunning) {
+    MessageBoxW(nullptr, L"FrameBeam Player is still running, so the update was not installed. Close the Player and start the update again.",
+                L"FrameBeam Player", MB_OK | MB_ICONWARNING);
+  } else if (refused) {
     MessageBoxW(nullptr, L"The installer file does not match the verified update (it was changed or could not be checked). Nothing was installed.",
                 L"FrameBeam Player", MB_OK | MB_ICONERROR);
   } else if (code != 0 && code != 3010) {  // 3010 = success, restart required

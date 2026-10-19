@@ -2,6 +2,10 @@
 
 #include "bytes.h"
 
+#include <cstring>
+#include <mutex>
+#include <string>
+
 namespace framebeam::formats {
 
 Garc garcParse(std::string_view in) {
@@ -67,19 +71,52 @@ Garc garcParse(std::string_view in) {
     return g;
 }
 
+namespace {
+// The last parsed GARC: a plugin loop over N entries called garcFile() N times, each one re-parsing the whole FATO/FATB
+// (O(N^2), PE-12). The parsed result is reused while the table region (everything before the data offset, the only bytes the
+// parser reads) is identical to the copy kept with it, so a changed archive of the same size is never mistaken for the old one.
+struct GarcCache {
+    std::mutex mutex;
+    bool valid = false;
+    size_t size = 0;
+    std::string tables;
+    Garc garc;
+};
+GarcCache& garcCache() {
+    static GarcCache c;
+    return c;
+}
+}  // namespace
+
 Result garcFile(std::string_view in, size_t index, size_t sub) {
     Result r;
-    const Garc g = garcParse(in);
-    if (!g.ok) {
-        r.error = g.error;
-        return r;
+    GarcEntry e;
+    uint32_t dataOffset = 0;
+    {
+        GarcCache& c = garcCache();
+        std::lock_guard<std::mutex> lock(c.mutex);
+        const bool hit = c.valid && c.size == in.size() && in.size() >= c.tables.size() &&
+                         std::memcmp(in.data(), c.tables.data(), c.tables.size()) == 0;
+        if (!hit) {
+            Garc g = garcParse(in);
+            if (!g.ok) {
+                c.valid = false;
+                r.error = g.error;
+                return r;
+            }
+            c.tables.assign(in.substr(0, g.dataOffset));
+            c.size = in.size();
+            c.garc = std::move(g);
+            c.valid = true;
+        }
+        if (index >= c.garc.files.size() || sub >= c.garc.files[index].size()) {
+            r.error = "GARC: file index out of range";
+            return r;
+        }
+        e = c.garc.files[index][sub];
+        dataOffset = c.garc.dataOffset;
     }
-    if (index >= g.files.size() || sub >= g.files[index].size()) {
-        r.error = "GARC: file index out of range";
-        return r;
-    }
-    const GarcEntry& e = g.files[index][sub];
-    const uint64_t off = static_cast<uint64_t>(g.dataOffset) + e.offset;
+    const uint64_t off = static_cast<uint64_t>(dataOffset) + e.offset;
     if (!detail::inRange(in.size(), off, e.length)) {
         r.error = "GARC: file data out of range";
         return r;

@@ -16,7 +16,7 @@ Rectangle {
     radius: 999
     color: bare ? "transparent" : (on ? Theme.gameOkBg : Theme.gameTrack)
 
-    Text { id: probe; visible: false; text: root.text; font: label.font }
+    Text { id: probe; visible: false; text: root.text; textFormat: Text.PlainText; font: label.font }
     RowLayout {
         anchors.fill: parent
         anchors.leftMargin: root.bare ? 0 : 10
@@ -28,6 +28,7 @@ Rectangle {
             Layout.fillWidth: true
             Layout.minimumWidth: 0
             text: root.text
+            textFormat: Text.PlainText
             elide: Text.ElideRight
             font.pixelSize: root.bare ? 11 : 12
             font.weight: root.bare ? Font.Normal : Font.Medium

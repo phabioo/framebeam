@@ -84,6 +84,7 @@ Rectangle {
                     elide: Text.ElideRight
                     horizontalAlignment: Text.AlignHCenter
                     text: seg.modelData.label
+                    textFormat: Text.PlainText
                     font.pixelSize: Theme.fontSmall
                     font.weight: seg.active ? Font.DemiBold : Font.Medium
                     color: seg.modelData.disabled === true ? Theme.textDisabled : (seg.active ? Theme.text : Theme.textMuted)

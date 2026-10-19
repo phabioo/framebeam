@@ -67,6 +67,19 @@ class GameIdentityTest : public QObject {
     QCOMPARE(id.code, QStringLiteral("000400000ABCDEF0"));  // uppercase hex, zero padded
   }
 
+  // PE-13: the media unit size follows header byte 0x18E, as in formats/romfs.cpp.
+  void ncsdMediaUnitShift() {
+    QByteArray b(0x8000, '\0');
+    put(b, 0x100, "NCSD");
+    b[0x18E] = 1;                // unit = 0x400
+    put(b, 0x120, le(0x10, 4));  // partition 0 at 0x10 * 0x400 = 0x4000
+    put(b, 0x4000 + 0x100, "NCCH");
+    put(b, 0x4000 + 0x118, le(0x000400000ABCDEF0ull, 8));
+    QCOMPARE(readGameIdentity(write("shift.3ds", b), "3ds_ncsd").code, QStringLiteral("000400000ABCDEF0"));
+    b[0x18E] = 9;  // not a valid shift
+    QVERIFY(readGameIdentity(write("badshift.3ds", b), "3ds_ncsd").code.isEmpty());
+  }
+
   void invalid3ds() {
     QVERIFY(readGameIdentity(write("zero.3ds", QByteArray(0x400, '\0')), "3ds_ncsd").code.isEmpty());
     QByteArray b(0x400, '\0');

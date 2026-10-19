@@ -27,6 +27,7 @@ constexpr size_t kMaxWatchKeys = 256;
 constexpr size_t kMaxSubs = 64;
 constexpr lua_Integer kMaxRomRead = 16ll * 1024 * 1024;
 constexpr qint64 kCacheQuota = 256ll * 1024 * 1024;
+constexpr int kMaxCacheFiles = 2000;  // bytes alone let a plugin create millions of tiny files (inode/MFT exhaustion, slow walks)
 constexpr qint64 kMaxCacheRead = 32ll * 1024 * 1024;
 
 Plugin* self(lua_State* L) { return static_cast<Plugin*>(LuaSandbox::from(L)->owner()); }
@@ -580,6 +581,19 @@ bool validCacheName(const std::string& n) {
     return false;
   for (char c : n)
     if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '.' || c == '_' || c == '/' || c == '-')) return false;
+  // Windows: a segment named like a device (CON, NUL, COM1, "aux.png" ...) opens the device, and a trailing dot is dropped (PI-14).
+  size_t start = 0;
+  while (start <= n.size()) {
+    size_t end = n.find('/', start);
+    if (end == std::string::npos) end = n.size();
+    const std::string seg = n.substr(start, end - start);
+    if (!seg.empty() && seg.back() == '.') return false;
+    std::string stem = seg.substr(0, seg.find('.'));
+    for (char& c : stem) c = static_cast<char>(c >= 'a' && c <= 'z' ? c - 'a' + 'A' : c);
+    if (stem == "CON" || stem == "PRN" || stem == "AUX" || stem == "NUL") return false;
+    if (stem.size() == 4 && (stem.rfind("COM", 0) == 0 || stem.rfind("LPT", 0) == 0) && stem[3] >= '1' && stem[3] <= '9') return false;
+    start = end + 1;
+  }
   return true;
 }
 
@@ -594,11 +608,14 @@ QString cacheFile(lua_State* L, Plugin& p, const std::string& name) {
 qint64 cacheUsage(Plugin& p) {
   if (p.cacheBytes >= 0) return p.cacheBytes;
   qint64 total = 0;
+  int files = 0;
   QDirIterator it(p.info.cacheDir, QDir::Files, QDirIterator::Subdirectories);
   while (it.hasNext()) {
     it.next();
     total += it.fileInfo().size();
+    ++files;
   }
+  p.cacheFiles = files;
   return p.cacheBytes = total;
 }
 
@@ -638,14 +655,17 @@ int cacheWrite(lua_State* L) {
     const char* data = luaL_checklstring(L, 2, &n);
     const QFileInfo fi(path);
     if (fi.isSymLink() || fi.isDir()) return luaL_error(L, "cannot write cache file here");
-    const qint64 old = fi.isFile() ? fi.size() : 0;
+    const bool existed = fi.isFile();
+    const qint64 old = existed ? fi.size() : 0;
     const qint64 used = cacheUsage(*p);
     if (used - old + static_cast<qint64>(n) > kCacheQuota) return luaL_error(L, "cache quota exceeded (256 MiB per plugin)");
+    if (!existed && p->cacheFiles >= kMaxCacheFiles) return luaL_error(L, "cache file limit exceeded (%d files per plugin)", kMaxCacheFiles);
     if (!QDir().mkpath(fi.absolutePath())) return luaL_error(L, "cannot create the cache folder");
     QSaveFile f(path);
     if (!f.open(QIODevice::WriteOnly) || f.write(data, static_cast<qint64>(n)) != static_cast<qint64>(n) || !f.commit())
       return luaL_error(L, "cannot write the cache file");
     p->cacheBytes = used - old + static_cast<qint64>(n);
+    if (!existed) ++p->cacheFiles;
     lua_pushboolean(L, 1);
     return 1;
   });

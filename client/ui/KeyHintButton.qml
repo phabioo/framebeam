@@ -36,6 +36,7 @@ Button {
                 Layout.preferredWidth: Math.min(implicitWidth, Math.max(0, control.maxWidth - 24 - (hintText.visible ? hintText.implicitWidth + row.spacing : 0)))
                 elide: Text.ElideRight
                 text: control.text
+                textFormat: Text.PlainText
                 font: control.font
                 color: !control.enabled ? Theme.textDisabled : (control.kind === "primary" ? Theme.textOnAccent : Theme.text)
             }
@@ -43,6 +44,7 @@ Button {
                 id: hintText
                 visible: control.hint !== "" && !control.compact
                 text: control.hint
+                textFormat: Text.PlainText
                 font.family: Theme.mono
                 font.pixelSize: 11
                 color: !control.enabled ? Theme.textDisabled : (control.kind === "primary" ? Theme.textOnAccent : Theme.textMuted)

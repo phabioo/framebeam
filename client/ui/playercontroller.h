@@ -396,6 +396,8 @@ class PlayerController : public QObject {
   std::unique_ptr<CoreProvisioner> coreProv_;
   std::unique_ptr<CoreUpdater> coreUpdater_;  // background updates of cores that are already cached
   QTimer* systemsTimer_ = nullptr;           // re-reads the Hub's systems / cores info (at most every 30 min)
+  QTimer* coreUpdateHideTimer_ = nullptr;    // hides the "Updated X to V" result line a while after the update
+  bool coreUpdateShown_ = false;
   QSet<QString> coreReprobe_;                 // updated cores whose version is reported to the Hub once no game is running
   bool probeCoreVersions_ = true;
   void reprobeUpdatedCores();

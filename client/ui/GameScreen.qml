@@ -661,6 +661,18 @@ Rectangle {
         onCloseRequested: root.closePopover()
         Column {
             width: parent.width
+            // Very wide fonts: the header has no room even for the mode cycle button, so the layout choice lives here.
+            Repeater {
+                model: header.cycleHidden && header.modeAvailable ? header.modeChoices : []
+                delegate: PopoverItem {
+                    required property var modelData
+                    objectName: "moreMode_" + modelData
+                    width: parent.width
+                    text: modelData === "pip" ? qsTr("PiP") : modelData === "row" ? qsTr("Row") : qsTr("Grid 2×2")
+                    current: header.ctl.multiviewMode === modelData
+                    onActivated: { header.ctl.multiviewMode = modelData; root.closePopover() }
+                }
+            }
             PopoverItem {
                 objectName: "morePause"
                 width: parent.width

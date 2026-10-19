@@ -56,6 +56,7 @@ ColumnLayout {
                         Text {
                             anchors.centerIn: parent
                             text: (card.modelData.title || "?").charAt(0).toUpperCase()
+                            textFormat: Text.PlainText
                             font.pixelSize: Theme.fontMeta
                             font.weight: Font.DemiBold
                             color: Theme.textSecondary
