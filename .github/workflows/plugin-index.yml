@@ -42,8 +42,8 @@ jobs:
       INPUT_REPO: ${{ inputs.repo }}
       INPUT_TAG: ${{ inputs.tag }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: server/go.mod
           cache-dependency-path: server/go.sum
@@ -56,7 +56,7 @@ jobs:
               exit 1
             fi
             [[ "$INPUT_REPO" =~ ^phabioo/framebeam-plugin-[a-z0-9-]+$ ]] || { echo "::error::repo must match phabioo/framebeam-plugin-<name>"; exit 1; }
-            [[ "$INPUT_TAG" =~ ^v?[0-9A-Za-z._-]+$ ]] || { echo "::error::invalid tag"; exit 1; }
+            [[ "$INPUT_TAG" =~ ^v?[0-9][0-9A-Za-z._-]*$ ]] || { echo "::error::invalid tag"; exit 1; }
           fi
       - name: Build framebeam-sign
         run: |
@@ -97,16 +97,16 @@ jobs:
           gh release create plugin-index --title "FrameBeam plugin index" \
             --notes 'Signed index of official FrameBeam plugins (plugin-index.json + .sig) and the signed .fbplugin files. Read by FrameBeam Hubs; updated by the workflow "Publish plugin".' \
             --prerelease --latest=false
-      - name: Download, sign and add the plugin
+      # No signing key in this step: it handles the untrusted downloaded zip (unzip, jq) and only writes the validated
+      # list of plugin files for the signing step.
+      - name: Download and validate the plugin
         if: inputs.repo != '' && inputs.tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
           SRC_TOKEN: ${{ secrets.PLUGIN_REPOS_TOKEN }}
-          FRAMEBEAM_SIGNING_KEY: ${{ secrets.FRAMEBEAM_SIGNING_KEY }}
         run: |
           set -euo pipefail
           work="$RUNNER_TEMP/plugin-index"
-          sign="$RUNNER_TEMP/bin/framebeam-sign"
           src="$RUNNER_TEMP/plugin-src"
           rm -rf "$src"; mkdir -p "$src"
           # The token for the plugin repo: the PAT when set, else the workflow token.
@@ -114,17 +114,30 @@ jobs:
           shopt -s nullglob
           files=("$src"/*.fbplugin)
           [ "${#files[@]}" -gt 0 ] || { echo "::error::release $INPUT_TAG of $INPUT_REPO has no .fbplugin asset"; exit 1; }
+          : > "$work/pending.tsv"
           for f in "${files[@]}"; do
             id="$(unzip -p "$f" manifest.json | jq -r '.id')"
             version="$(unzip -p "$f" manifest.json | jq -r '.version')"
             [[ "$id" =~ ^[a-z0-9-]+(\.[a-z0-9-]+)+$ ]] || { echo "::error::unexpected plugin id in $(basename "$f")"; exit 1; }
             [[ "$version" =~ ^[0-9A-Za-z.+-]+$ ]] || { echo "::error::unexpected plugin version in $(basename "$f")"; exit 1; }
+            printf '%s\t%s\t%s\n' "$id" "$version" "$f" >> "$work/pending.tsv"
+          done
+      - name: Sign and add the plugin
+        if: inputs.repo != '' && inputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FRAMEBEAM_SIGNING_KEY: ${{ secrets.FRAMEBEAM_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/plugin-index"
+          sign="$RUNNER_TEMP/bin/framebeam-sign"
+          while IFS=$'\t' read -r id version f; do
             out="$work/$id-$version.fbplugin"
             "$sign" plugin-sign -in "$f" -out "$out"
             "$sign" plugin-add -index "$work/plugin-index.json" -plugin "$out" \
               -url "https://github.com/$GH_REPO/releases/download/plugin-index/$id-$version.fbplugin"
             gh release upload plugin-index "$out" --clobber
-          done
+          done < "$work/pending.tsv"
       - name: Sign and publish the index
         env:
           GH_TOKEN: ${{ github.token }}

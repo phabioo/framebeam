@@ -130,7 +130,7 @@ jobs:
           key: cores-windows-${{ steps.week.outputs.week }}
       - name: Install Qt 6.8
         timeout-minutes: 30
-        uses: jurplel/install-qt-action@v4
+        uses: jurplel/install-qt-action@a9c63c7c123f3069cff414e7e482d95dfa9d8125 # v4.4.1
         with:
           version: 6.8.*
           host: windows
@@ -148,7 +148,7 @@ jobs:
             if (-not $dll -or -not (Test-Path $dll)) { throw "$c core was not provisioned" }
             "$c=$dll" >> $env:GITHUB_OUTPUT
           }
-      - uses: ilammy/msvc-dev-cmd@v1
+      - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
         with:
           arch: x64
       - name: Identify vcpkg cache toolchain

@@ -1,0 +1,78 @@
+name: Dependabot notices
+
+# Dependabot Go bumps change the compiled-in modules, so server/THIRD-PARTY-NOTICES.txt goes stale and `make check-hub`
+# fails. This workflow regenerates the file (make notices), pushes the commit to the Dependabot branch and dispatches
+# ci.yml on it, because a push made with GITHUB_TOKEN does not start any workflow, but workflow_dispatch does.
+#
+# Why pull_request_target: a pull_request run for Dependabot has a read-only token whatever `permissions` says. The
+# workflow file comes from the base branch (main). It runs `make notices` on the PR head, so the guards are strict: the
+# PR author and the triggering actor must be dependabot[bot], the head branch must live in this repository (never a
+# fork) and be a dependabot/go_modules branch, and the run only starts when server/go.mod or go.sum changed. No secrets
+# are used; the push token is passed to git only for the push step. The checks of the dispatched ci.yml run attach to
+# the new head commit under the same job names ("Hub (Go, Linux)" ...), which satisfies the required checks.
+
+on:
+  pull_request_target:
+    branches: [main]
+    paths:
+      - server/go.mod
+      - server/go.sum
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependabot-notices-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  notices:
+    name: Regenerate Hub notices
+    if: >-
+      github.actor == 'dependabot[bot]' &&
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'dependabot/go_modules/')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write   # push the notices commit to the Dependabot branch
+      actions: write    # dispatch ci.yml on that branch
+    env:
+      GH_REPO: ${{ github.repository }}
+      BRANCH: ${{ github.event.pull_request.head.ref }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false   # the token is passed explicitly (env) to the push step only
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      - name: Regenerate server/THIRD-PARTY-NOTICES.txt
+        run: make notices
+      - name: Commit, push and dispatch CI when the file changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- server/THIRD-PARTY-NOTICES.txt; then
+            echo "Notices are up to date; nothing to do."
+            exit 0
+          fi
+          # Only the notices file may differ; anything else would be committed unseen.
+          [ -z "$(git status --porcelain | grep -v ' server/THIRD-PARTY-NOTICES.txt$' || true)" ] || { echo "::error::unexpected changes in the work tree"; exit 1; }
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add server/THIRD-PARTY-NOTICES.txt
+          git commit -m "chore(hub): regenerate THIRD-PARTY-NOTICES.txt"
+          basic="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          echo "::add-mask::$basic"
+          # The branch may have moved (Dependabot rebase): a plain push is rejected then, and Dependabot's own rebase
+          # triggers this workflow again.
+          GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0="http.https://github.com/.extraheader" GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $basic" \
+            git push origin "HEAD:refs/heads/$BRANCH"
+          gh workflow run ci.yml --ref "$BRANCH"
+          echo "Pushed the notices commit and dispatched ci.yml on $BRANCH (was $HEAD_SHA)."
