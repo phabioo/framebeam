@@ -74,6 +74,18 @@ class HubFlowTest : public QObject {
     QVERIFY(!HubHttp::fingerprintsEqual(QStringLiteral(" : "), QStringLiteral(" : ")));
   }
 
+  // PN-9: the pin decision applied on every TLS connection (also when the platform trusts the certificate itself).
+  void peerAcceptedDecision() {
+    const QString pin = QStringLiteral("AA:BB:CC");
+    QVERIFY(HubHttp::peerAccepted(QStringLiteral("aabbcc"), pin, false));
+    QVERIFY(HubHttp::peerAccepted(QStringLiteral("AA:BB:CC"), pin, true));
+    QVERIFY(!HubHttp::peerAccepted(QStringLiteral("AA:BB:DD"), pin, true));  // a different, even CA-valid, certificate
+    QVERIFY(!HubHttp::peerAccepted(QString(), pin, true));                   // nothing observed: not accepted
+    QVERIFY(HubHttp::peerAccepted(QStringLiteral("AA:BB:CC"), QString(), true));    // first contact
+    QVERIFY(!HubHttp::peerAccepted(QStringLiteral("AA:BB:CC"), QString(), false));  // no pin and no first contact
+    QVERIFY(!HubHttp::peerAccepted(QString(), QString(), true));
+  }
+
   void firstContactReportsFingerprintThenPins() {
     FakeHub hub(QStringLiteral("a"));
     QVERIFY(hub.start());

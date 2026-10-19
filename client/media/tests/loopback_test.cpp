@@ -284,7 +284,12 @@ class LoopbackTest : public QObject {
     qInfo().noquote() << "[loopback] 300 pushes in" << t.elapsed() << "ms, worst push" << worst / 1000 << "us, dropped"
                       << rig.host.stats().droppedFrames;
     QVERIFY(rig.host.encoderRunning());
+    // The viewer's UI thread did not run during the burst: its backlog was dropped (PN-6) and it asks for a keyframe once
+    // the event loop runs again. A live source (as in a real Session) lets it resync and play on.
+    rig.source.start();
     QVERIFY2(QTest::qWaitFor([&]() { return frames >= 10; }, 15000), qPrintable(QString::number(frames)));
+    rig.source.stop();
+    qInfo().noquote() << "[loopback] viewer dropped" << viewer->droppedVideoFrames() << "video frames during the stall";
     QVERIFY(!rig.host.stats().encoderName.isEmpty());
     QCOMPARE(rig.host.encoderName(), rig.host.stats().encoderName);
     // Stopping while frames are queued joins the worker cleanly; a second start works again.

@@ -608,7 +608,7 @@ class InGameUiTest : public QObject {
     QQuickTest::qWaitForPolish(h.window);
     for (const char* id : {"s1", "s2"}) {
       h.click("addSessionToggle");
-      h.click((QByteArray("multiviewAddButton_") + id).constData());
+      h.clickWhenReady((QByteArray("multiviewAddButton_") + id).constData());
       QTest::qWait(150);
     }
     clickMode(h, "modeGrid");
@@ -923,15 +923,15 @@ class InGameUiTest : public QObject {
 
     // Add Lena (picker), then Mo: grid with a free tile
     QVERIFY(h.click("addSessionToggle"));
-    QVERIFY(h.click("multiviewAddButton_s1"));
+    QVERIFY(h.clickWhenReady("multiviewAddButton_s1"));  // the picker content appears after the click, not with it
     QTRY_COMPARE(ctl->surfaceCount(), 2);
-    QVERIFY(h.click("addSessionToggle"));
-    QCOMPARE(visibleItem(h, "addSessionToggle")->property("meta").toString(), QStringLiteral("· 2/4"));
+    QVERIFY(h.clickWhenReady("addSessionToggle"));
+    QTRY_COMPARE(visibleItem(h, "addSessionToggle")->property("meta").toString(), QStringLiteral("· 2/4"));
     QVERIFY(clickMode(h, "modeRow"));
     QQuickTest::qWaitForPolish(h.window);
     QCOMPARE(ctl->multiviewMode(), QStringLiteral("row"));
     QVERIFY(!shown(h, "emptyTile_3") && !shown(h, "emptyTile_4"));  // no empty slots (3r-3)
-    QVERIFY(!shown(h, "multiviewSessionList"));
+    QTRY_VERIFY(!shown(h, "multiviewSessionList"));
     QVERIFY(h.click("addSessionToggle"));
     QTRY_VERIFY(shown(h, "multiviewSessionList"));
     QVERIFY(h.click("addSessionToggle"));

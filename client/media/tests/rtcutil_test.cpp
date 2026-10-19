@@ -8,6 +8,7 @@
 #include "sessionhost.h"
 #include "sessionviewer.h"
 #include "videoencoder.h"
+#include "viewerbacklog.h"
 
 using namespace framebeam;
 
@@ -174,6 +175,60 @@ class RtcUtilTest : public QObject {
     const rtc::Candidate relay("candidate:1 1 UDP 100 198.51.100.7 49160 typ relay raddr 0.0.0.0 rport 0", "0");
     QCOMPARE(describeCandidate(relay).left(5), QStringLiteral("relay"));
     QVERIFY(describeCandidate(relay).endsWith(QStringLiteral("udp")));
+  }
+
+  // PN-11: an offer that cannot be applied resets the PeerConnection and reports `closed`; the next offer is not ignored.
+  void viewerRecoversFromAFailingOffer() {
+    SessionViewer v;
+    v.open(QStringLiteral("00000000-0000-4000-8000-000000000001"), QStringLiteral("viewer-1"), {});
+    QSignalSpy closed(&v, &SessionViewer::closed);
+    QSignalSpy errors(&v, &SessionViewer::errorOccurred);
+    SessionSignal bad;
+    bad.sessionId = QStringLiteral("00000000-0000-4000-8000-000000000001");
+    bad.viewerId = QStringLiteral("viewer-1");
+    bad.kind = QStringLiteral("offer");
+    bad.sdp = QStringLiteral("this is not an sdp");
+    v.handleSignal(bad);
+    QCOMPARE(closed.count(), 1);
+    QCOMPARE(errors.count(), 1);
+    QVERIFY(v.isOpen());
+    v.handleSignal(bad);  // before the fix: ignored because pc_ stayed set
+    QCOMPARE(closed.count(), 2);
+    v.close();
+  }
+
+  // PN-6: the backlog between the network threads and the decoder is bounded; a backlog is dropped as a whole and the stream
+  // resumes at the next keyframe.
+  void videoBacklogIsBoundedAndResyncsOnKeyframe() {
+    const QByteArray idr = QByteArray::fromHex("00000001650102030405");
+    const QByteArray sps = QByteArray::fromHex("0000000167010203");
+    const QByteArray pframe = QByteArray::fromHex("00000001410102030405");
+    QVERIFY(startsKeyframe(idr));
+    QVERIFY(startsKeyframe(sps));
+    QVERIFY(!startsKeyframe(pframe));
+    QVERIFY(!startsKeyframe(QByteArray()));
+    QVERIFY(startsKeyframe(QByteArray::fromHex("000001" "65" "00")));  // short start code
+    VideoBacklog q(3);
+    QVERIFY(!q.push(idr, true).wantKeyframe);
+    QVERIFY(!q.push(pframe, false).wantKeyframe);
+    QVERIFY(!q.push(pframe, false).wantKeyframe);
+    QCOMPARE(q.size(), size_t(3));
+    const auto over = q.push(pframe, false);  // full: everything queued goes, the stream waits for a keyframe
+    QCOMPARE(over.dropped, size_t(4));
+    QVERIFY(over.wantKeyframe);
+    QVERIFY(q.empty());
+    QVERIFY(q.waitingForKeyframe());
+    const auto more = q.push(pframe, false);  // still discarded
+    QCOMPARE(more.dropped, size_t(1));
+    QVERIFY(more.wantKeyframe);
+    QVERIFY(q.empty());
+    const auto key = q.push(idr, true);
+    QCOMPARE(key.dropped, size_t(0));
+    QVERIFY(!q.waitingForKeyframe());
+    QCOMPARE(q.size(), size_t(1));
+    QVERIFY(q.push(pframe, false).dropped == 0);
+    QCOMPARE(q.pop(), idr);  // order is kept
+    QCOMPARE(q.pop(), pframe);
   }
 
   void encoderBitrateAtRuntime() {

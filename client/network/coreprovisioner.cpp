@@ -27,6 +27,9 @@ void CoreProvisioner::cancel() {
   ++generation_;  // pending replies are ignored
   busy_ = false;
   queue_.clear();
+  if (reply_) {
+    reply_->abort();  // stop the transfer (the finished handler sees the new generation and only cleans up)
+  }
 }
 
 void CoreProvisioner::prepare(const QString& coreId, const QString& version) {
@@ -56,6 +59,7 @@ void CoreProvisioner::prepare(const QString& coreId, const QString& version) {
       fail(QStringLiteral("download_failed"), QStringLiteral("Not connected to the Hub"));
       return;
     }
+    reply_ = reply;
     connect(reply, &QNetworkReply::finished, this, [this, reply, gen]() {
       const HttpResult r = HubHttp::resultOf(reply);
       reply->deleteLater();
@@ -115,6 +119,7 @@ void CoreProvisioner::probeOtherPlatforms(quint64 gen, QStringList remaining) {
     fail(QStringLiteral("not_on_hub"), QStringLiteral("the Hub has no package %1 %2 for %3").arg(result_.coreId, result_.version, platform_));
     return;
   }
+  reply_ = reply;
   connect(reply, &QNetworkReply::finished, this, [this, reply, gen, remaining, p]() {
     const HttpResult r = HubHttp::resultOf(reply);
     reply->deleteLater();
@@ -169,6 +174,7 @@ void CoreProvisioner::next() {
     return;
   }
   const quint64 gen = generation_;
+  reply_ = reply;
   connect(reply, &QNetworkReply::downloadProgress, reply, [reply, f](qint64 got, qint64) {
     if (got > f.size) {
       reply->abort();  // more than the metadata announced: not the file we validate against

@@ -397,22 +397,46 @@ struct HwRenderContext::Impl {
     qCInfo(lcHw) << "Display target not applicable; the game view uses readback frames";
   }
 
+  // Builds a new framebuffer of nw x nh next to the current one and swaps only when it is complete (PE-15): a failed resize
+  // keeps the working framebuffer, the core keeps rendering into it.
   bool allocate(int nw, int nh) {
     BindingGuard guard(f);
-    f->glBindTexture(GL_TEXTURE_2D, tex);
+    GLuint ntex = 0, nfbo = 0, nrbo = 0;
+    f->glGenTextures(1, &ntex);
+    f->glGenFramebuffers(1, &nfbo);
+    if (depth) f->glGenRenderbuffers(1, &nrbo);
+    f->glBindTexture(GL_TEXTURE_2D, ntex);
     f->glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, nw, nh, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    f->glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-    f->glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);
-    if (rbo) {
-      f->glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+    f->glBindFramebuffer(GL_FRAMEBUFFER, nfbo);
+    f->glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ntex, 0);
+    if (nrbo) {
+      f->glBindRenderbuffer(GL_RENDERBUFFER, nrbo);
       const GLenum fmt = stencil ? GL_DEPTH24_STENCIL8 : GL_DEPTH_COMPONENT24;
       f->glRenderbufferStorage(GL_RENDERBUFFER, fmt, nw, nh);
       f->glFramebufferRenderbuffer(GL_FRAMEBUFFER, stencil ? GL_DEPTH_STENCIL_ATTACHMENT : GL_DEPTH_ATTACHMENT,
-                                   GL_RENDERBUFFER, rbo);
+                                   GL_RENDERBUFFER, nrbo);
     }
-    if (f->glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) return false;
+    if (f->glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+      f->glBindFramebuffer(GL_FRAMEBUFFER, 0);
+      f->glDeleteFramebuffers(1, &nfbo);
+      f->glDeleteTextures(1, &ntex);
+      if (nrbo) f->glDeleteRenderbuffers(1, &nrbo);
+      return false;
+    }
+    f->glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    // The guard restores the caller's bindings: they must not point at the objects deleted below.
+    if (guard.readFbo == fbo) guard.readFbo = nfbo;
+    if (guard.drawFbo == fbo) guard.drawFbo = nfbo;
+    if (guard.tex == tex) guard.tex = ntex;
+    if (guard.rbo == rbo) guard.rbo = nrbo;
+    if (fbo) f->glDeleteFramebuffers(1, &fbo);
+    if (tex) f->glDeleteTextures(1, &tex);
+    if (rbo) f->glDeleteRenderbuffers(1, &rbo);
+    fbo = nfbo;
+    tex = ntex;
+    rbo = nrbo;
     w = nw;
     h = nh;
     return true;
@@ -517,9 +541,6 @@ bool HwRenderContext::createContext(bool coreProfile, unsigned major, unsigned m
 
   d->depth = depth || stencil;
   d->stencil = stencil;
-  d->f->glGenFramebuffers(1, &d->fbo);
-  d->f->glGenTextures(1, &d->tex);
-  if (d->depth) d->f->glGenRenderbuffers(1, &d->rbo);
   if (!d->allocate(kInitialSize, kInitialSize)) return fail(QStringLiteral("Framebuffer is incomplete"));
   qCInfo(lcHw).noquote() << "OpenGL context" << (coreProfile ? "core" : "compat") << got.majorVersion() << "." << got.minorVersion()
                          << ":" << d->info;

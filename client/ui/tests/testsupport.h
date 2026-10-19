@@ -295,6 +295,22 @@ struct Harness {
     }
     return out;
   }
+  // Click for a control that appears as the result of an earlier click or state change (a popover opened by the previous
+  // click instantiates its content one event-loop turn later): waits until an item of that name is visible and enabled, then
+  // clicks. click() alone fails at once when the item is not there yet, which under load made tests flaky.
+  bool clickWhenReady(const char* objectName, int timeoutMs = 8000) const {
+    const bool ready = QTest::qWaitFor(
+        [&]() {
+          QQuickTest::qWaitForPolish(window);
+          for (QQuickItem* c : items(objectName)) {
+            if (c->isVisible() && c->isEnabled()) return true;
+          }
+          return false;
+        },
+        timeoutMs);
+    return ready && click(objectName);
+  }
+
   bool click(const char* objectName) const {
     // Let pending layout polish finish first: right after a state change a freshly shown item can still carry
     // stale geometry, and the click would land on its neighbor (e.g. Back instead of Request approval).

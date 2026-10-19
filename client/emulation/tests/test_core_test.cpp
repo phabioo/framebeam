@@ -323,6 +323,7 @@ class TestCoreTest : public QObject {
     QVERIFY(run(be, 2));
     QCOMPARE(dataPx(be.videoFrame(), tc::DataOptionTag), uint((4 << 8) | 'b'));
     QVERIFY(dataPx(be.videoFrame(), tc::DataVarUpdates) >= 1u);  // GET_VARIABLE_UPDATE reported the change
+    QCOMPARE(dataPx(be.videoFrame(), tc::DataUnknownVar), 1u);  // PE-8: an unknown key resets var.value to NULL
     QVERIFY(!be.setCoreOption(QStringLiteral("test_text_mode"), QStringLiteral("nope")));
     QVERIFY(!be.setCoreOption(QStringLiteral("invented"), QStringLiteral("x")));
     be.unloadCore();

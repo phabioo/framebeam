@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QList>
+#include <QNetworkReply>
 #include <QObject>
 #include <QPointer>
 #include <QStringList>
@@ -64,6 +65,7 @@ class CoreProvisioner : public QObject {
   bool busy_ = false;
   std::function<QString(const QString&)> protectedVersion_;
   quint64 generation_ = 0;
+  QPointer<QNetworkReply> reply_;  // the request in flight (aborted by cancel(), PN-18)
   CoreResult result_;
   CorePackageInfo pkg_;
   QList<CorePackageFile> queue_;

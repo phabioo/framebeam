@@ -398,6 +398,12 @@ void writeDataRow() {
   row[tc::DataDirs] = tc::pixel(g_dirsFlags);
   row[tc::DataBitmask] = tc::pixel(g_useBitmask ? 1 : 0);
   row[tc::DataVarUpdates] = tc::pixel(static_cast<uint32_t>(g_varUpdates));
+  {
+    static const char stale[] = "stale";
+    retro_variable v{"fb_test_no_such_option", stale};
+    const bool hit = g_env && g_env(RETRO_ENVIRONMENT_GET_VARIABLE, &v);
+    row[tc::DataUnknownVar] = tc::pixel(!hit && v.value == nullptr ? 1 : 2);
+  }
 }
 
 void pollInput() {

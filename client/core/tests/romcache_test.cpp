@@ -126,7 +126,7 @@ class RomCacheTest : public QObject {
     const QString stale = c.finalPath(sha, QStringLiteral("nds")) + QStringLiteral(".adopt");
     writeFile(stale, QByteArray("half written"));
     QCOMPARE(c.entries().size(), 0);
-    QCOMPARE(c.totalSize(), qint64(0));
+    QCOMPARE(c.totalSize(), qint64(12));  // not a ROM entry, but the leftover counts towards the cache size (PN-4)
     const QString src = srcDir.filePath(QStringLiteral("homebrew.nds"));
     writeFile(src, rom);
     QVERIFY(c.adoptFile(src, sha, QStringLiteral("nds")) == RomCache::CommitResult::Ok);
@@ -244,6 +244,42 @@ class RomCacheTest : public QObject {
     QCOMPARE(r.removedFiles, 2);
     QCOMPARE(r.remainingBytes, qint64(2000));  // still above the limit: nothing protected is touched
     QVERIFY(QFile::exists(c.partPath(downloading, QStringLiteral("3ds"))));
+  }
+
+  // PN-4: abandoned .part/.adopt files count towards the total, old ones are removed by trimToLimit, clear() removes all.
+  void abandonedTempFilesAreCountedAndCleaned() {
+    QTemporaryDir dir;
+    RomCache c(dir.path());
+    const QString running = QString(64, QLatin1Char('1'));
+    const QString oldPart = QString(64, QLatin1Char('2'));
+    const QString oldAdopt = QString(64, QLatin1Char('3'));
+    const QString freshPart = QString(64, QLatin1Char('4'));
+    const QString oldPath = c.partPath(oldPart, QStringLiteral("3ds"));
+    const QString adoptPath = c.finalPath(oldAdopt, QStringLiteral("nds")) + QStringLiteral(".adopt");
+    const QString runningPath = c.partPath(running, QStringLiteral("3ds"));
+    writeFile(oldPath, QByteArray(300, 'p'));
+    writeFile(adoptPath, QByteArray(200, 'a'));
+    writeFile(runningPath, QByteArray(100, 'r'));
+    writeFile(c.partPath(freshPart, QStringLiteral("3ds")), QByteArray(50, 'f'));
+    const QDateTime old = QDateTime::currentDateTime().addDays(-(RomCache::kStaleTempAgeDays + 1));
+    for (const QString& p : {oldPath, adoptPath, runningPath}) {
+      QFile f(p);
+      QVERIFY(f.open(QIODevice::ReadWrite));
+      QVERIFY(f.setFileTime(old, QFileDevice::FileModificationTime));
+    }
+    QCOMPARE(c.tempFiles().size(), 4);
+    QCOMPARE(c.totalSize(), qint64(650));
+    QCOMPARE(c.clearableSize({running}), qint64(550));
+    const auto r = c.trimToLimit(0, {running});  // limit 0: nothing evicted, but stale leftovers are removed
+    QCOMPARE(r.removedFiles, 2);
+    QCOMPARE(r.freedBytes, qint64(500));
+    QVERIFY(!QFile::exists(oldPath));
+    QVERIFY(!QFile::exists(adoptPath));
+    QVERIFY(QFile::exists(runningPath));  // protected although old
+    QVERIFY(QFile::exists(c.partPath(freshPart, QStringLiteral("3ds"))));  // young: may still resume
+    QCOMPARE(c.totalSize(), qint64(150));
+    QCOMPARE(c.clear({running}).freedBytes, qint64(50));
+    QVERIFY(QFile::exists(runningPath));
   }
 
   void clearRemovesEverythingExceptProtected() {

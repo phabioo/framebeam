@@ -44,6 +44,13 @@ bool HubHttp::fingerprintsEqual(const QString& a, const QString& b) {
   return !na.isEmpty() && na == normalize(b);
 }
 
+bool HubHttp::peerAccepted(const QString& observed, const QString& pin, bool allowUnpinned) {
+  if (observed.isEmpty()) {
+    return false;
+  }
+  return pin.isEmpty() ? allowUnpinned : fingerprintsEqual(observed, pin);
+}
+
 bool HubHttp::isLoopbackHost(const QString& host) {
   if (host.compare(QStringLiteral("localhost"), Qt::CaseInsensitive) == 0) {
     return true;
@@ -110,6 +117,30 @@ void HubHttp::attach(QNetworkReply* reply, bool allowUnpinned) {
       reply->setProperty(kMismatchProp, true);
     }
   });
+  if (reply->url().scheme().toLower() != QLatin1String("https")) {
+    return;
+  }
+  // The same decision once the handshake is through, whether or not sslErrors fired (PN-9): abort on a mismatch ...
+  connect(reply, &QNetworkReply::encrypted, this, [this, reply, allowUnpinned]() {
+    const QString fp = fingerprint(reply->sslConfiguration().peerCertificate());
+    if (!fp.isEmpty()) reply->setProperty(kObservedProp, fp);
+    if (!peerAccepted(fp, pin_, allowUnpinned)) {
+      reply->setProperty(kMismatchProp, true);
+      reply->abort();
+    }
+  });
+  // ... and never let an answer through that came over a connection the pin did not accept (the abort above runs after the
+  // request may already have been sent, so the reply itself is checked again here, before any caller reads it).
+  connect(reply, &QNetworkReply::finished, this, [this, reply, allowUnpinned]() {
+    const QString fp = fingerprint(reply->sslConfiguration().peerCertificate());
+    if (fp.isEmpty()) {
+      return;  // no handshake took place: the request failed before a certificate existed
+    }
+    if (reply->property(kObservedProp).toString().isEmpty()) reply->setProperty(kObservedProp, fp);
+    if (!peerAccepted(fp, pin_, allowUnpinned)) {
+      reply->setProperty(kMismatchProp, true);
+    }
+  });
 }
 
 QNetworkReply* HubHttp::get(const QString& path, const QByteArray& bearer, const HttpHeaders& headers,
@@ -156,6 +187,11 @@ HttpResult HubHttp::resultOf(QNetworkReply* reply) {
   r.networkError = r.status == 0;
   r.errorString = reply->errorString();
   r.certMismatch = reply->property(kMismatchProp).toBool();
+  if (r.certMismatch) {  // nothing that came over a connection the pin rejected is an answer
+    r.status = 0;
+    r.networkError = true;
+    r.body.clear();
+  }
   r.observedFingerprint = reply->property(kObservedProp).toString();
   if (r.observedFingerprint.isEmpty()) {
     r.observedFingerprint = fingerprint(reply->sslConfiguration().peerCertificate());

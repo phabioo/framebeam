@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QDateTime>
+#include <atomic>
 #include <QList>
 #include <QSet>
 #include <QString>
@@ -19,7 +20,8 @@ class RomCache {
 
   static bool isValidSha256(const QString& sha256);  // 64 hex, lowercase
   static QString extensionFromFilename(const QString& filename);  // [a-z0-9]{1,8}, otherwise "bin"
-  static bool sha256OfFile(const QString& path, QString* hexOut);
+  // `cancel` (optional) is checked per 1 MiB chunk; a cancelled hash returns false.
+  static bool sha256OfFile(const QString& path, QString* hexOut, const std::atomic_bool* cancel = nullptr);
 
   const QString& dir() const { return dir_; }
   QString finalPath(const QString& sha256, const QString& ext) const;
@@ -54,6 +56,17 @@ class RomCache {
 
   // Records "used now" (a hit or a start) so that the file is evicted last. A missing file is ignored.
   void touch(const QString& sha256, const QString& ext, qint64 nowMs = 0) const;
+  // Unfinished files (<sha256>.<ext>.part of a download, <sha256>.<ext>.adopt of an adoption). They count towards totalSize()
+  // and the limit; trimToLimit() removes the ones older than kStaleTempAgeDays (not protected, not being downloaded), clear()
+  // removes every unprotected one.
+  struct TempFile {
+    QString sha256;
+    QString path;
+    qint64 size = 0;
+    qint64 modifiedMs = 0;
+  };
+  static constexpr int kStaleTempAgeDays = 7;
+  QList<TempFile> tempFiles() const;
   // Finished ROM files (<sha256>.<ext>), least recently used first. .part files and sidecars are not listed.
   QList<Entry> entries() const;
   qint64 totalSize() const;
