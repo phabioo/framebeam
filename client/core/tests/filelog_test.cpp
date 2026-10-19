@@ -1,5 +1,6 @@
 #include <QDir>
 #include <QFile>
+#include <QScopeGuard>
 #include <QTemporaryDir>
 #include <QtTest>
 
@@ -64,11 +65,27 @@ class FileLogTest : public QObject {
   void failedReopenAfterRotationDoesNotDeadlock() {
     const QString logs = filelog::path().section(QLatin1Char('/'), 0, -2);
     QVERIFY(!logs.isEmpty() && QDir(logs).exists());
+#ifdef Q_OS_WIN
+    // Windows cannot rename a directory with an open file: block every rotation step instead (player.3.log is a non-empty
+    // directory, so no rename succeeds) and make player.log read-only, so the reopen after the rotation fails.
+    const QString log = filelog::path();
+    QFile::remove(QDir(logs).filePath(QStringLiteral("player.3.log")));  // the previous test's rotations may have left it
+    QVERIFY(QDir(logs).mkpath(QStringLiteral("player.3.log/keep")));
+    for (const char* name : {"player.1.log", "player.2.log"}) {
+      QFile f(QDir(logs).filePath(QLatin1String(name)));
+      QVERIFY(f.open(QIODevice::Append));
+    }
+    QVERIFY(QFile::setPermissions(log, QFileDevice::ReadOwner | QFileDevice::ReadUser));
+    auto restore = qScopeGuard([log]() {
+      QFile::setPermissions(log, QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ReadUser | QFileDevice::WriteUser);
+    });
+#else
     // Replace the logs directory by a plain file: the open handle keeps working until the next rotation, which fails.
     QVERIFY(QDir().rename(logs, logs + QStringLiteral("_moved")));
     QFile blocker(logs);
     QVERIFY(blocker.open(QIODevice::WriteOnly));
     blocker.close();
+#endif
     auto done = std::make_shared<std::promise<void>>();
     std::future<void> fut = done->get_future();
     std::thread worker([done]() {
