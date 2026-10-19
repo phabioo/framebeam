@@ -267,7 +267,7 @@ func TestPluginCatalogWeb(t *testing.T) {
 
 func TestMonogram(t *testing.T) {
 	for in, want := range map[string]string{
-		"SoulLink & Nuzlocke": "SN", "Pokémon Core": "PC", "Cheats": "CH", "& Solo": "SO", "Plugin net.example.a": "PN", "7 Days": "7D", "": "?",
+		"SoulLink & Nuzlocke": "SN", "SoulLink Core": "SC", "Cheats": "CH", "& Solo": "SO", "Plugin net.example.a": "PN", "7 Days": "7D", "": "?",
 	} {
 		if got := monogram(in); got != want {
 			t.Errorf("monogram(%q) = %q, want %q", in, got, want)

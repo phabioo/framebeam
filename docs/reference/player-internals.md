@@ -4,7 +4,7 @@ How the FrameBeam Player (`client/`, C++20/Qt 6/QML) is built and what it does i
 
 ## Structure
 
-- `core/`: profiles, ROM cache, credential store, version, local settings stores (`player.json`, `emulation.json`, `controllers.json`) (`framebeam_core`)
+- `core/`: profiles, ROM cache, credential store (`credentialstore.cpp`: Windows Credential Manager; Linux/macOS use `MemoryCredentialStore`, nothing persisted, so `trusted()` finds no credential after a restart and the Player goes to `NeedsPairing`), version, local settings stores (`player.json`, `emulation.json`, `controllers.json`) (`framebeam_core`)
 - `network/`: Hub connection (HTTP/TLS with fingerprint pinning), library, ROM download, WSS client (`hubsocket`), save API and sync (`saveapi`, `savesync`), Session API, firmware provisioning, game upload, systems registry; CLI `framebeam_player_cli` in `network/cli/`
 - `emulation/`: `EmulatorBackend`/`LibretroBackend`, system manifest and core profiles (`manifests/systems/<system>.json` (display, extensions, firmware files, `input` map and labels, `identity`, `display.layout`; input tables are registered from them, 0.13, [guide](../guides/adding-a-system.md)), `manifests/cores/<core_id>.json`), core locator, `core_options`, `firmware_materializer`, `emulation_runner`, test-ROM generator in `emulation/tools/`
 - `input/`: `framebeam_input`: SDL3 gamepad service (hotplug, state, capture) and the mapping chain; `framebeam_sdl3` (SDL3 target)

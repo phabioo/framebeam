@@ -32,6 +32,7 @@
         },
         "features": {
           "type": "array",
+          "description": "Short list of the flags relevant to the WSS connection (saves_v1, saves_v2, sessions_v1, ice_update_v1, runs_v1, local_roms_v1, plus turn_v1 exactly when turn_servers is present). Not the full feature set: the authoritative list is `features` of the POST /handshake response, a Player must not treat a flag missing here as unsupported",
           "items": {
             "type": "string"
           }

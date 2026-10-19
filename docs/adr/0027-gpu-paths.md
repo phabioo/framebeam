@@ -1,6 +1,6 @@
 # ADR 0027: GPU paths (zero-copy display, GPU-direct QSV and AMF)
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-13
 - Deciders: Fabio
 

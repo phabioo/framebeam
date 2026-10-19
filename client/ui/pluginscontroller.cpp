@@ -353,7 +353,7 @@ void PluginsController::rebuildHubPlugins() {
       if (!manager_->hubCopyDir(best->id, best->version, best->sha256).isEmpty()) state = QStringLiteral("installed");
       else if (!installedVersion.isEmpty()) state = QStringLiteral("update");
       if (hubBusyId_ == best->id) state = QStringLiteral("busy");
-      // Required plugins that are not installed yet and that the Hub offers: "Also install Pokémon Core 0.3.1".
+      // Required plugins that are not installed yet and that the Hub offers: "Also install SoulLink Core 0.3.1".
       QVariantList needsInstall;
       for (auto rit = best->requires_.begin(); rit != best->requires_.end(); ++rit) {
         if (manager_->info(rit.key()).has_value()) continue;
@@ -434,7 +434,7 @@ void PluginsController::refreshPlugins() {
     if (!hasProblems && p.enabled) ++on;
     const bool isLocal = p.origin == QLatin1String("local");
     if (!hasProblems && isLocal && !manager_->developerMode()) problems << tr("Runs only while Developer mode is on");
-    // "needs net.framebeam.pokemon-core, not installed" -> "needs Pokémon Core, not installed" (the Hub's name when it offers it).
+    // "needs net.framebeam.pokemon-core, not installed" -> "needs SoulLink Core, not installed" (the Hub's name when it offers it).
     for (QString& pr : problems) {
       static const QRegularExpression notInstalled(QStringLiteral("^needs (\\S+), not installed$"));
       const auto m = notInstalled.match(pr);
