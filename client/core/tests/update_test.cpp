@@ -42,7 +42,8 @@ KeyPair makeKey() {
   return k;
 }
 
-QByteArray signLine(const KeyPair& k, const QByteArray& msg) {
+QByteArray signLine(const KeyPair& k, const QByteArray& index, const QByteArray& context = {}) {
+  const QByteArray msg = context.isEmpty() ? index : context + '\n' + index;
   EVP_PKEY* pkey = EVP_PKEY_new_raw_private_key(EVP_PKEY_ED25519, nullptr,
                                                 reinterpret_cast<const unsigned char*>(k.seed.constData()), 32);
   EVP_MD_CTX* ctx = EVP_MD_CTX_new();
@@ -53,6 +54,10 @@ QByteArray signLine(const KeyPair& k, const QByteArray& msg) {
                  reinterpret_cast<const unsigned char*>(msg.constData()), static_cast<size_t>(msg.size()));
   EVP_MD_CTX_free(ctx);
   EVP_PKEY_free(pkey);
+  if (!context.isEmpty()) {
+    return (QStringLiteral("ed25519ctx ") + keyId(k.pub) + QLatin1Char(' ') + QString::fromLatin1(context) + QLatin1Char(' ') +
+            QString::fromLatin1(sig.toBase64()) + QLatin1Char('\n')).toLatin1();
+  }
   return (QStringLiteral("ed25519 ") + keyId(k.pub) + QLatin1Char(' ') + QString::fromLatin1(sig.toBase64()) + QLatin1Char('\n')).toLatin1();
 }
 
@@ -301,6 +306,39 @@ class UpdateTest : public QObject {
     QVERIFY(!verifyIndexSignature(idx, sig + sig, {k.pub}).ok);
     QVERIFY(!verifyIndexSignature(idx, sig, {}).ok);
     QVERIFY(!verifyIndexSignature(idx, QByteArray("rsa ") + sig.mid(8), {k.pub}).ok);
+  }
+  void signatureDomainSeparation() {
+    const KeyPair k = makeKey();
+    const QByteArray idx = indexJson({release("player", "stable", "0.3.0", oneArt())});
+    const QByteArray ctx = signLine(k, idx, kUpdatesIndexContext);
+    QVERIFY(verifyIndexSignature(idx, ctx, {k.pub}).ok);
+    // A signature of another document type (plugin index) must not verify as an updates index.
+    SigCheck c = verifyIndexSignature(idx, signLine(k, idx, "framebeam-plugin-index-v2"), {k.pub});
+    QVERIFY(!c.ok);
+    // Relabelling the context breaks the signature, tampering the bytes too.
+    QByteArray relabelled = ctx;
+    relabelled.replace("framebeam-updates-index-v2", "framebeam-plugin-index-v2");
+    QVERIFY(!verifyIndexSignature(idx, relabelled, {k.pub}).ok);
+    QByteArray bad = idx;
+    bad[bad.size() / 2] = static_cast<char>(bad[bad.size() / 2] ^ 1);
+    QVERIFY(!verifyIndexSignature(bad, ctx, {k.pub}).ok);
+    // A legacy line still verifies (transition).
+    QVERIFY(verifyIndexSignature(idx, signLine(k, idx), {k.pub}).ok);
+  }
+  void indexExpiry() {
+    QJsonObject root = QJsonDocument::fromJson(indexJson({release("player", "stable", "0.3.0", oneArt())})).object();
+    const QDateTime now = QDateTime::fromString(QStringLiteral("2026-10-19T12:00:00Z"), Qt::ISODate);
+    ParseResult pr = parseIndex(QJsonDocument(root).toJson());
+    QVERIFY(pr.ok);
+    QVERIFY(checkIndexFresh(pr.index, now).isEmpty());  // no expires_at: accepted (transition)
+    root.insert(QStringLiteral("expires_at"), QStringLiteral("2026-10-20T00:00:00Z"));
+    pr = parseIndex(QJsonDocument(root).toJson());
+    QVERIFY(pr.ok);
+    QVERIFY(checkIndexFresh(pr.index, now).isEmpty());
+    QVERIFY(checkIndexFresh(pr.index, now.addDays(2)).contains("expired"));
+    root.insert(QStringLiteral("expires_at"), QStringLiteral("garbage"));
+    pr = parseIndex(QJsonDocument(root).toJson());
+    QVERIFY(!checkIndexFresh(pr.index, now).isEmpty());
   }
   void trustedKeys() {
     const QList<QByteArray> d = defaultTrustedKeys();

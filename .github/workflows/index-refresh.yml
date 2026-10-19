@@ -1,0 +1,55 @@
+name: Index refresh
+
+# Re-signs the updates index once a week with a new generated_at and expires_at, content unchanged. The signed index carries an
+# expiry (ADR 0016 amendment 2026-10-19): Hubs and Players refuse an expired index, so a replayed old index cannot hide
+# new releases for ever. Releases re-sign the index anyway; this keeps it valid through quiet weeks (validity: 60 days).
+# Same queue as release.yml and promote.yml (scripts/wait-index-turn.sh): the index is read-modify-write.
+# The signing seed is the secret FRAMEBEAM_SIGNING_KEY of the environment `release` (main only); it is only in the
+# environment of the signing step. The plugin index is refreshed by "Publish plugin" (plugin-index.yml, also weekly).
+
+on:
+  schedule:
+    - cron: "41 4 * * 1"   # Mondays, 04:41 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: index-refresh-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    name: Re-sign the updates index
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60   # includes waiting for older index updates
+    environment: release
+    permissions:
+      contents: write   # upload the index
+      actions: read     # list the other index updates (scripts/wait-index-turn.sh)
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Wait for older index updates (queue)
+        timeout-minutes: 45
+        run: scripts/wait-index-turn.sh 40
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      - name: Build framebeam-sign
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          (cd server && CGO_ENABLED=0 go build -o "$RUNNER_TEMP/bin/framebeam-sign" ./cmd/framebeam-sign)
+      - name: Signing key is trusted by the Hub (before anything is published)
+        env:
+          FRAMEBEAM_SIGNING_KEY: ${{ secrets.FRAMEBEAM_SIGNING_KEY }}
+        run: scripts/check-signing-key.sh "$RUNNER_TEMP/bin/framebeam-sign"
+      - name: Refresh and sign the index
+        env:
+          # The seed exists only in the environment of this step; it is never echoed or written to disk.
+          FRAMEBEAM_SIGNING_KEY: ${{ secrets.FRAMEBEAM_SIGNING_KEY }}
+        run: scripts/update-index.sh "$RUNNER_TEMP/bin/framebeam-sign"

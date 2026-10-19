@@ -75,20 +75,19 @@ func (s *Service) RefreshPluginIndex(ctx context.Context) error {
 
 func (s *Service) fetchPluginIndex(ctx context.Context) error {
 	src := s.pluginSource()
-	data, err := src.Fetch(ctx, src.IndexURL, pluginpkg.MaxIndexBytes)
+	data, sig, err := src.FetchSigned(ctx, src.IndexURL, pluginpkg.MaxIndexBytes)
 	if err != nil {
-		return fmt.Errorf("fetch plugin index: %w", err)
+		return fmt.Errorf("plugin index: %w", err)
 	}
-	sig, err := src.Fetch(ctx, src.IndexURL+".sig", updates.MaxSigBytes)
-	if err != nil {
-		return fmt.Errorf("fetch plugin index signature: %w", err)
-	}
-	if err := corepkg.Verify(data, sig, s.cores.keys); err != nil {
+	if err := corepkg.VerifyContext(corepkg.ContextPluginIndex, data, sig, s.cores.keys, true); err != nil {
 		return fmt.Errorf("plugin index signature rejected: %w", err)
 	}
 	idx, errs := pluginpkg.ParseIndex(data, src.IsFile())
 	if pluginpkg.Fatal(errs) {
 		return fmt.Errorf("plugin index rejected: %w", errs[0])
+	}
+	if err := idx.CheckFresh(s.now()); err != nil {
+		return err
 	}
 	b, err := json.Marshal(storedPluginIndex{GeneratedAt: idx.GeneratedAt, Plugins: idx.Plugins})
 	if err != nil {

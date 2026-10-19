@@ -1,0 +1,62 @@
+name: Dependencies
+
+# Supply-chain checks that must not gate the merge or the beta release (an advisory published today must not block
+# an unrelated PR): Go vulnerability scan and the vcpkg baseline. Own workflow, own job names, never a required check.
+#  - govulncheck: daily, manually, and on PRs/pushes that change the Go modules. It cannot run in the cloud
+#    development container (vuln.go.dev is blocked there), so CI is the only place it runs (CI-5).
+#  - vcpkg: weekly check that the baseline is a vcpkg release tag and whether a newer release exists (warning).
+# Dependabot (.github/dependabot.yml) proposes the vcpkg baseline bump; docs/development.md describes the procedure.
+
+on:
+  schedule:
+    - cron: "20 5 * * *"   # daily, 05:20 UTC
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "server/go.mod"
+      - "server/go.sum"
+      - "client/vcpkg.json"
+      - "scripts/check-vcpkg-pin.sh"
+      - ".github/workflows/dependencies.yml"
+  push:
+    branches: [main]
+    paths:
+      - "server/go.mod"
+      - "server/go.sum"
+
+concurrency:
+  group: dependencies-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  GOVULNCHECK_VERSION: v1.1.4
+
+jobs:
+  govulncheck:
+    name: govulncheck (Hub)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      - name: Install govulncheck (pinned)
+        run: go install "golang.org/x/vuln/cmd/govulncheck@$GOVULNCHECK_VERSION"
+      - name: Scan the Hub (modules and standard library of the pinned toolchain)
+        working-directory: server
+        run: govulncheck ./...
+
+  vcpkg-pin:
+    name: vcpkg baseline
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Check the baseline against upstream release tags
+        run: scripts/check-vcpkg-pin.sh --online

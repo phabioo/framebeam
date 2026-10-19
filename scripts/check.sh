@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Quiet check steps: output buffered, on failure only the last 40 lines.
-# Usage: scripts/check.sh hub-fmt|hub-vet|hub-staticcheck|hub-test|hub-codegen|hub-notices|hub-build|hub-deb|generate|client|packaging|hub|all
+# Usage: scripts/check.sh hub-fmt|hub-vet|hub-staticcheck|hub-test|hub-race|hub-codegen|hub-notices|hub-build|hub-deb|generate|client|packaging|hub|all
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -42,6 +42,9 @@ hub_staticcheck() {
   if [ "$rc" -ge 2 ] || [ -n "$(printf '%s' "$out" | tr -d '[:space:]')" ]; then printf '%s\n' "$out"; return 1; fi
 }
 hub_test() { (cd "$ROOT/server" && go test ./...); }
+# hub-race: the whole Hub test suite under the race detector (needs cgo and a C compiler; the Linux CI job runs it, CI-4).
+# Not part of `make check-hub` (slower, needs gcc); run it with `make check-hub-race`.
+hub_race() { (cd "$ROOT/server" && CGO_ENABLED=1 go test -race ./...); }
 generate() { (cd "$ROOT/server" && go generate ./...); }
 hub_codegen() {
   local before after
@@ -205,7 +208,7 @@ packaging() {
   local dir="$ROOT/packaging/linux" tmp rc=0
   tmp="$(mktemp -d)"
   local f
-  for f in "$dir/install-hub.sh" "$dir/build-deb.sh" "$dir"/deb/* "$ROOT/scripts/gen-hub-notices.sh" "$ROOT/scripts/check-trusted-keys.sh" "$ROOT/scripts/e2e-hub-update.sh" "$ROOT/scripts/next-beta-version.sh" "$ROOT/scripts/update-index.sh" "$ROOT/scripts/fetch-buildbot-core.sh"; do
+  for f in "$dir/install-hub.sh" "$dir/build-deb.sh" "$dir"/deb/* "$ROOT/scripts/gen-hub-notices.sh" "$ROOT/scripts/check-trusted-keys.sh" "$ROOT/scripts/e2e-hub-update.sh" "$ROOT/scripts/next-beta-version.sh" "$ROOT/scripts/update-index.sh" "$ROOT/scripts/fetch-buildbot-core.sh" "$ROOT/scripts/check-vcpkg-pin.sh" "$ROOT/scripts/bootstrap-vcpkg.sh"; do
     bash -n "$f" || rc=1
   done
   # Beta version numbering of the CI version job (ADR 0011).
@@ -235,6 +238,7 @@ packaging() {
   chmod +x "$tmp/dummy-hub"
   packaging_deb "$tmp" || rc=1
   "$ROOT/scripts/check-trusted-keys.sh" || rc=1
+  "$ROOT/scripts/check-vcpkg-pin.sh" >/dev/null || rc=1
   local root="$tmp/root"
   FRAMEBEAM_INSTALL_ROOT="$root" "$dir/install-hub.sh" install --binary "$tmp/dummy-hub" \
     --port 8444 --no-start || rc=1
@@ -277,6 +281,7 @@ case "${1:-all}" in
   hub-vet)     step "hub: vet" hub_vet ;;
   hub-staticcheck) step "hub: staticcheck" hub_staticcheck ;;
   hub-test)    step "hub: test" hub_test ;;
+  hub-race)    step "hub: test -race" hub_race ;;
   hub-codegen) step "hub: codegen" hub_codegen ;;
   hub-notices) step "hub: notices" hub_notices ;;
   notices)     "$ROOT/scripts/gen-hub-notices.sh" ;;

@@ -157,39 +157,66 @@ void UpdateManager::fetchIndex(QNetworkAccessManager* nam, const QUrl& indexUrl,
     done(fi);
     return;
   }
-  QUrl sigUrl = indexUrl;
-  sigUrl.setPath(indexUrl.path() + QStringLiteral(".sig"));
-  getBytes(nam, indexUrl, kMaxIndexBytes, context, [=](bool ok, const QByteArray& idx, const QString& err) {
-    if (!ok) {
-      FetchedIndex fi;
-      fi.error = QStringLiteral("index download failed: %1").arg(err);
+  // Prefer the single-file bundle (<index>.signed: signature line, then the index bytes), which cannot be read as a
+  // mismatched pair. While it is not published (transition, ADR 0016 amendment 2026-10-19) fall back to the legacy
+  // pair <index> + <index>.sig. A bundle that was fetched is never replaced by the legacy pair.
+  QUrl bundleUrl = indexUrl;
+  bundleUrl.setPath(indexUrl.path() + QStringLiteral(".signed"));
+  auto finish = [=](const QByteArray& idx, const QByteArray& sig) {
+    FetchedIndex fi;
+    const SigCheck sc = verifyIndexSignature(idx, sig, trustedKeys);
+    if (!sc.ok) {
+      fi.error = sc.error;  // never use unsigned content
       done(fi);
       return;
     }
-    getBytes(nam, sigUrl, kMaxSigBytes, context, [=](bool sok, const QByteArray& sig, const QString& serr) {
-      FetchedIndex fi;
-      if (!sok) {
-        fi.error = QStringLiteral("signature download failed: %1").arg(serr);
-        done(fi);
-        return;
-      }
-      const SigCheck sc = verifyIndexSignature(idx, sig, trustedKeys);
-      if (!sc.ok) {
-        fi.error = sc.error;  // never use unsigned content
-        done(fi);
-        return;
-      }
-      const ParseResult pr = parseIndex(idx, fileIndex);
-      if (!pr.ok) {
-        fi.error = pr.error;
-        done(fi);
-        return;
-      }
-      fi.ok = true;
-      fi.indexBytes = idx;
-      fi.sigBytes = sig;
-      fi.index = pr.index;
+    const ParseResult pr = parseIndex(idx, fileIndex);
+    if (!pr.ok) {
+      fi.error = pr.error;
       done(fi);
+      return;
+    }
+    fi.error = checkIndexFresh(pr.index, QDateTime::currentDateTimeUtc());
+    if (!fi.error.isEmpty()) {
+      done(fi);
+      return;
+    }
+    fi.ok = true;
+    fi.indexBytes = idx;
+    fi.sigBytes = sig;
+    fi.index = pr.index;
+    done(fi);
+  };
+  QUrl sigUrl = indexUrl;
+  sigUrl.setPath(indexUrl.path() + QStringLiteral(".sig"));
+  getBytes(nam, bundleUrl, kMaxIndexBytes + kMaxSigBytes, context, [=](bool bok, const QByteArray& bundle, const QString&) {
+    if (bok) {
+      const int nl = bundle.indexOf('\n');
+      if (nl < 0 || nl + 1 > kMaxSigBytes) {
+        FetchedIndex fi;
+        fi.error = QStringLiteral("signed bundle has no signature line");
+        done(fi);
+        return;
+      }
+      finish(bundle.mid(nl + 1), bundle.left(nl + 1));
+      return;
+    }
+    getBytes(nam, indexUrl, kMaxIndexBytes, context, [=](bool ok, const QByteArray& idx, const QString& err) {
+      if (!ok) {
+        FetchedIndex fi;
+        fi.error = QStringLiteral("index download failed: %1").arg(err);
+        done(fi);
+        return;
+      }
+      getBytes(nam, sigUrl, kMaxSigBytes, context, [=](bool sok, const QByteArray& sig, const QString& serr) {
+        if (!sok) {
+          FetchedIndex fi;
+          fi.error = QStringLiteral("signature download failed: %1").arg(serr);
+          done(fi);
+          return;
+        }
+        finish(idx, sig);
+      });
     });
   });
 }

@@ -114,6 +114,17 @@ QJsonObject Release::toJson() const {
                      {"min_protocol_version", minProtocolVersion}, {"artifacts", arts}};
 }
 
+QString checkIndexFresh(const Index& index, const QDateTime& now) {
+  if (index.expiresAt.isEmpty()) return {};
+  const QDateTime exp = QDateTime::fromString(index.expiresAt, Qt::ISODate);
+  if (!exp.isValid()) return QStringLiteral("update index has an invalid expires_at");
+  if (now > exp) {
+    return QStringLiteral("update index has expired (%1); check the date of this computer, or the index source is stale")
+        .arg(exp.toUTC().toString(Qt::ISODate));
+  }
+  return {};
+}
+
 ParseResult parseIndex(const QByteArray& json, bool allowFileUrls) {
   ParseResult res;
   QJsonParseError perr;
@@ -134,6 +145,7 @@ ParseResult parseIndex(const QByteArray& json, bool allowFileUrls) {
     return res;
   }
   res.index.generatedAt = root.value(QLatin1String("generated_at")).toString();
+  res.index.expiresAt = root.value(QLatin1String("expires_at")).toString();
   QSet<QString> keys;
   int pos = 0;
   for (const QJsonValue& rv : rels.toArray()) {

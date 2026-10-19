@@ -15,9 +15,12 @@ on:
 permissions:
   contents: read
 
-# One index update at a time (read-modify-write on the index release); a running publish is never cancelled.
+# Nothing is cancelled and no run is dropped (CI-6): a concurrency group keeps only ONE pending run, so with three main
+# builds finishing during a publish the middle one would be cancelled and never get its prerelease and index entry.
+# Every run has its own group; the index update (read-modify-write) is serialised by the queue in
+# scripts/wait-index-turn.sh instead, oldest run first, shared with promote.yml.
 concurrency:
-  group: updates-release
+  group: updates-release-${{ github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -27,7 +30,7 @@ jobs:
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 90   # includes waiting for older index updates (wait-index-turn.sh, at most 40 minutes)
     environment: release
     permissions:
       contents: write   # create/delete releases, upload assets
@@ -40,6 +43,9 @@ jobs:
     steps:
       # The workflow file and scripts come from the default branch; the release files from the CI run (artifacts).
       - uses: actions/checkout@v7
+      - name: Wait for older index updates (queue, nothing is dropped)
+        timeout-minutes: 45
+        run: scripts/wait-index-turn.sh 40
       - uses: actions/setup-go@v7
         with:
           go-version-file: server/go.mod
@@ -120,6 +126,26 @@ jobs:
                 [ -n "$old" ] || continue
                 echo "deleting $old"
                 gh release delete "$old" --cleanup-tag --yes
+              done
+      - name: Prune orphan version tags (reserved by CI, never released)
+        run: |
+          set -euo pipefail
+          # The CI version job reserves vX.Y.Z before building (ADR 0016 D2). A build that fails afterwards leaves a tag
+          # without a release. Such a tag can never be released once the CI artifacts are gone (retention 7 days), so
+          # plain tags without a release whose commit is older than 8 days are deleted. Only the newest 60 plain tags
+          # are looked at; tags with a release, other tag shapes and this run's tag are never touched.
+          cutoff="$(date -u -d '8 days ago' +%Y-%m-%dT%H:%M:%SZ)"
+          gh api --paginate "repos/$GH_REPO/git/matching-refs/tags/v" \
+            --jq '.[] | select(.ref | test("^refs/tags/v[0-9]+\\.[0-9]+\\.[0-9]+$")) | .ref | sub("^refs/tags/"; "")' \
+            | sort -V | tail -n 60 | while read -r t; do
+                [ "$t" != "$TAG" ] || continue
+                if gh release view "$t" >/dev/null 2>&1; then continue; fi
+                sha="$(gh api "repos/$GH_REPO/git/ref/tags/$t" --jq '.object | select(.type == "commit") | .sha' 2>/dev/null || true)"
+                [ -n "$sha" ] || continue
+                date="$(gh api "repos/$GH_REPO/commits/$sha" --jq .commit.committer.date 2>/dev/null || true)"
+                if [ -z "$date" ] || [[ ! "$date" < "$cutoff" ]]; then continue; fi
+                echo "deleting orphan tag $t (no release, commit from $date)"
+                gh api -X DELETE "repos/$GH_REPO/git/refs/tags/$t" >/dev/null || echo "::warning::could not delete tag $t"
               done
       - name: Build release descriptions for the index
         run: |

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -473,10 +474,15 @@ func (s *Service) RunUpdateChecks(ctx context.Context, report func(UpdateCheckRe
 	}
 }
 
+// shellQuote single-quotes s for a POSIX shell (HC-13: the command is shown for copy and paste).
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
 // manualCommand is what an admin does by hand when the Hub cannot install the update itself.
 func manualCommand(platform string, a *UpdateAvailable) string {
 	if updates.KindFor(platform) == updates.KindMSI {
 		return "Download " + a.URL + " and run " + a.Artifact + " as Administrator."
 	}
-	return "curl -fLO " + a.URL + " && sudo apt install ./" + a.Artifact
+	return "curl -fLO " + shellQuote(a.URL) + " && sudo apt install ./" + a.Artifact // the name is validated (nameRe)
 }

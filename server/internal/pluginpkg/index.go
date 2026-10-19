@@ -42,9 +42,25 @@ type IndexEntry struct {
 
 // Index is the content of plugin-index.json (signed by a detached plugin-index.json.sig, like the updates index).
 type Index struct {
-	Format      int          `json:"format"`
-	GeneratedAt time.Time    `json:"generated_at"`
-	Plugins     []IndexEntry `json:"plugins"`
+	Format      int       `json:"format"`
+	GeneratedAt time.Time `json:"generated_at"`
+	// ExpiresAt: see updates.Index.ExpiresAt; absent in indexes signed before the ADR 0016 amendment 2026-10-19.
+	ExpiresAt time.Time    `json:"expires_at,omitzero"`
+	Plugins   []IndexEntry `json:"plugins"`
+}
+
+// IndexValidity is how long a freshly signed plugin index stays valid (it is re-signed at every plugin release and weekly).
+const IndexValidity = 60 * 24 * time.Hour
+
+// ErrIndexExpired is returned by CheckFresh for an index past its expires_at.
+var ErrIndexExpired = errors.New("plugin index has expired")
+
+// CheckFresh rejects an index whose signed expires_at lies before now; an index without expires_at passes (transition).
+func (idx Index) CheckFresh(now time.Time) error {
+	if !idx.ExpiresAt.IsZero() && now.After(idx.ExpiresAt) {
+		return fmt.Errorf("%w (expired %s)", ErrIndexExpired, idx.ExpiresAt.UTC().Format(time.RFC3339))
+	}
+	return nil
 }
 
 // EntryError reports one entry that failed validation and was skipped by ParseIndex.

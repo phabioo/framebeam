@@ -157,7 +157,7 @@ type Fetched struct {
 
 // VerifyIndex verifies the signature over data and parses it.
 func VerifyIndex(data, sig []byte, keys []ed25519.PublicKey, allowFile bool) (Index, []error, error) {
-	if err := corepkg.Verify(data, sig, keys); err != nil {
+	if err := corepkg.VerifyContext(corepkg.ContextUpdatesIndex, data, sig, keys, true); err != nil {
 		if errors.Is(err, corepkg.ErrNoTrustedKey) {
 			return Index{}, nil, err
 		}
@@ -175,19 +175,47 @@ func (s Source) LoadIndex(ctx context.Context, keys []ed25519.PublicKey) (*Fetch
 	if len(keys) == 0 {
 		return nil, corepkg.ErrNoTrustedKey
 	}
-	data, err := s.fetch(ctx, s.IndexURL, MaxIndexBytes)
+	data, sig, err := s.FetchSigned(ctx, s.IndexURL, MaxIndexBytes)
 	if err != nil {
-		return nil, fmt.Errorf("fetch index: %w", err)
-	}
-	sig, err := s.fetch(ctx, s.IndexURL+".sig", MaxSigBytes)
-	if err != nil {
-		return nil, fmt.Errorf("fetch index signature: %w", err)
+		return nil, err
 	}
 	idx, skipped, err := VerifyIndex(data, sig, keys, s.IsFile())
 	if err != nil {
 		return nil, err
 	}
+	if err := idx.CheckFresh(time.Now()); err != nil {
+		return nil, err
+	}
 	return &Fetched{Source: s, Data: data, Sig: sig, Index: idx, Skipped: skipped}, nil
+}
+
+// BundleSuffix is appended to an index URL for the single-file signed form (signature line + index bytes).
+const BundleSuffix = ".signed"
+
+// FetchSigned fetches an index and its signature. It prefers the single-file bundle (indexURL + ".signed"), which
+// cannot be read as a mismatched pair. While the bundle is not published (the transition of the ADR 0016 amendment
+// 2026-10-19) it falls back to the legacy pair indexURL and indexURL + ".sig". A bundle that was fetched is never
+// replaced by the legacy pair, whatever its verification result.
+func (s Source) FetchSigned(ctx context.Context, indexURL string, limit int64) (data, sig []byte, err error) {
+	if b, berr := s.fetch(ctx, indexURL+BundleSuffix, limit+MaxSigBytes); berr == nil {
+		sig, data, err = corepkg.SplitBundle(b)
+		if err != nil {
+			return nil, nil, fmt.Errorf("signed bundle: %w", err)
+		}
+		if len(sig) > MaxSigBytes || int64(len(data)) > limit {
+			return nil, nil, errors.New("signed bundle: too large")
+		}
+		return data, sig, nil
+	}
+	data, err = s.fetch(ctx, indexURL, limit)
+	if err != nil {
+		return nil, nil, fmt.Errorf("fetch index: %w", err)
+	}
+	sig, err = s.fetch(ctx, indexURL+".sig", MaxSigBytes)
+	if err != nil {
+		return nil, nil, fmt.Errorf("fetch index signature: %w", err)
+	}
+	return data, sig, nil
 }
 
 // download streams the artifact to w, enforcing the signed size, and returns the SHA-256 (hex).

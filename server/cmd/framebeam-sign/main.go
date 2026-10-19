@@ -6,14 +6,16 @@
 //	framebeam-sign release-add -index <updates-index.json> -release <release.json> [-keep 5]
 //	framebeam-sign plugin-sign -in <x.fbplugin> -out <y.fbplugin>      (adds/replaces SIGNATURE.json; seed from env FRAMEBEAM_SIGNING_KEY)
 //	framebeam-sign plugin-add -index <plugin-index.json> -plugin <signed.fbplugin> -url <https url> [-replace]   (refuses a different file for an existing id+version unless -replace)
-//	framebeam-sign sign -index <cores-index.json|updates-index.json|plugin-index.json> [-out <file>.sig]   (seed from env FRAMEBEAM_SIGNING_KEY)
-//	framebeam-sign verify -index <file> -sig <file> -pub <base64 public key>
+//	framebeam-sign sign -index <cores-index.json|updates-index.json|plugin-index.json> [-out <file>.sig] [-bundle <file>.signed]   (seed from env FRAMEBEAM_SIGNING_KEY)
+//	framebeam-sign index-refresh -index <updates-index.json|plugin-index.json>   (new generated_at/expires_at, content unchanged)
+//	framebeam-sign verify -index <file> (-sig <file> | -bundle <file>) -pub <base64 public key>
 //	framebeam-sign pubkey                                             (seed from env FRAMEBEAM_SIGNING_KEY)
 //
 // The private key (seed) is never read from a flag and never printed.
 package main
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
@@ -44,7 +46,7 @@ func main() {
 
 func run(args []string, getenv func(string) string, out io.Writer, now func() time.Time) error {
 	if len(args) == 0 {
-		return errors.New("usage: framebeam-sign keygen|add|release-add|plugin-sign|plugin-add|sign|verify|pubkey [flags]")
+		return errors.New("usage: framebeam-sign keygen|add|release-add|plugin-sign|plugin-add|sign|index-refresh|verify|pubkey [flags]")
 	}
 	fs := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	switch args[0] {
@@ -89,20 +91,28 @@ func run(args []string, getenv func(string) string, out io.Writer, now func() ti
 		return pluginAdd(*idx, *pl, *u, *allowFile, *replace, getenv, now)
 	case "sign":
 		idx := fs.String("index", "", "cores-index.json, updates-index.json or plugin-index.json (detected by content)")
-		o := fs.String("out", "", "signature file (default <index>.sig)")
+		o := fs.String("out", "", "legacy signature file over the raw bytes (default <index>.sig; read by Hubs and Players before the ADR 0016 amendment 2026-10-19)")
+		bundle := fs.String("bundle", "", "also write the single-file bundle (domain-separated signature line + index bytes), e.g. <index>.signed")
 		allowFile := fs.Bool("allow-file-urls", false, "accept file:// artifact URLs in an updates index (tests only)")
 		if err := fs.Parse(args[1:]); err != nil {
 			return err
 		}
-		return sign(*idx, *o, *allowFile, getenv)
+		return sign(*idx, *o, *bundle, *allowFile, getenv)
+	case "index-refresh":
+		idx := fs.String("index", "", "updates-index.json or plugin-index.json: set generated_at and expires_at to now, nothing else")
+		if err := fs.Parse(args[1:]); err != nil {
+			return err
+		}
+		return indexRefresh(*idx, now)
 	case "verify":
 		idx := fs.String("index", "", "cores-index.json")
-		sig := fs.String("sig", "", "signature file")
+		sig := fs.String("sig", "", "legacy signature file")
+		bundle := fs.String("bundle", "", "signed bundle (domain-separated; must carry exactly the bytes of -index)")
 		pub := fs.String("pub", "", "base64 public key")
 		if err := fs.Parse(args[1:]); err != nil {
 			return err
 		}
-		return verify(*idx, *sig, *pub, out)
+		return verify(*idx, *sig, *bundle, *pub, out)
 	case "pubkey":
 		if err := fs.Parse(args[1:]); err != nil {
 			return err
@@ -269,6 +279,7 @@ func releaseAdd(indexPath, relPath string, keep int, allowFile bool, now func() 
 	idx.Releases = updates.Prune(append(rels, r), keep)
 	idx.Releases = addLegacyCompanions(idx.Releases)
 	idx.GeneratedAt = now().UTC().Truncate(time.Second)
+	idx.ExpiresAt = idx.GeneratedAt.Add(updates.IndexValidity)
 	b, err := updates.Marshal(idx)
 	if err != nil {
 		return err
@@ -276,7 +287,7 @@ func releaseAdd(indexPath, relPath string, keep int, allowFile bool, now func() 
 	return os.WriteFile(indexPath, b, 0o644)
 }
 
-func sign(indexPath, outPath string, allowFile bool, getenv func(string) string) error {
+func sign(indexPath, outPath, bundlePath string, allowFile bool, getenv func(string) string) error {
 	if indexPath == "" {
 		return errors.New("-index is required")
 	}
@@ -291,27 +302,85 @@ func sign(indexPath, outPath string, allowFile bool, getenv func(string) string)
 	if err != nil {
 		return err
 	}
-	if pluginpkg.LooksLikeIndex(data) {
-		if _, errs := pluginpkg.ParseIndex(data, allowFile); len(errs) > 0 {
-			return fmt.Errorf("plugin index is invalid: %w", errs[0])
-		}
-	} else if updates.LooksLikeUpdatesIndex(data) {
-		if _, errs := updates.ParseIndexOpts(data, allowFile); len(errs) > 0 {
-			return fmt.Errorf("updates index is invalid: %w", errs[0])
-		}
-	} else if _, errs := corepkg.ParseIndex(data); len(errs) > 0 {
-		return fmt.Errorf("index is invalid: %w", errs[0])
+	context, err := indexContext(data, allowFile)
+	if err != nil {
+		return err
 	}
 	line, err := corepkg.Sign(data, seed)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(outPath, line, 0o644)
+	if err := os.WriteFile(outPath, line, 0o644); err != nil {
+		return err
+	}
+	if bundlePath == "" {
+		return nil
+	}
+	ctxLine, err := corepkg.SignContext(context, data, seed)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(bundlePath, corepkg.Bundle(ctxLine, data), 0o644)
 }
 
-func verify(indexPath, sigPath, pub string, out io.Writer) error {
-	if indexPath == "" || sigPath == "" || pub == "" {
-		return errors.New("-index, -sig and -pub are required")
+// indexContext validates the index (type detected by content) and returns its signing context.
+func indexContext(data []byte, allowFile bool) (string, error) {
+	switch {
+	case pluginpkg.LooksLikeIndex(data):
+		if _, errs := pluginpkg.ParseIndex(data, allowFile); len(errs) > 0 {
+			return "", fmt.Errorf("plugin index is invalid: %w", errs[0])
+		}
+		return corepkg.ContextPluginIndex, nil
+	case updates.LooksLikeUpdatesIndex(data):
+		if _, errs := updates.ParseIndexOpts(data, allowFile); len(errs) > 0 {
+			return "", fmt.Errorf("updates index is invalid: %w", errs[0])
+		}
+		return corepkg.ContextUpdatesIndex, nil
+	}
+	if _, errs := corepkg.ParseIndex(data); len(errs) > 0 {
+		return "", fmt.Errorf("index is invalid: %w", errs[0])
+	}
+	return corepkg.ContextCoresIndex, nil
+}
+
+// indexRefresh re-stamps generated_at and expires_at of an updates or plugin index (weekly workflow; the content is unchanged).
+func indexRefresh(indexPath string, now func() time.Time) error {
+	if indexPath == "" {
+		return errors.New("-index is required")
+	}
+	data, err := os.ReadFile(indexPath)
+	if err != nil {
+		return err
+	}
+	stamp := now().UTC().Truncate(time.Second)
+	var b []byte
+	switch {
+	case pluginpkg.LooksLikeIndex(data):
+		idx, errs := pluginpkg.ParseIndex(data, false)
+		if pluginpkg.Fatal(errs) {
+			return fmt.Errorf("plugin index is invalid: %w", errs[0])
+		}
+		idx.GeneratedAt, idx.ExpiresAt = stamp, stamp.Add(pluginpkg.IndexValidity)
+		b, err = pluginpkg.MarshalIndex(idx)
+	case updates.LooksLikeUpdatesIndex(data):
+		idx, errs := updates.ParseIndexOpts(data, false)
+		if updates.Fatal(errs) {
+			return fmt.Errorf("updates index is invalid: %w", errs[0])
+		}
+		idx.GeneratedAt, idx.ExpiresAt = stamp, stamp.Add(updates.IndexValidity)
+		b, err = updates.Marshal(idx)
+	default:
+		return errors.New("index-refresh supports the updates index and the plugin index")
+	}
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(indexPath, b, 0o644)
+}
+
+func verify(indexPath, sigPath, bundlePath, pub string, out io.Writer) error {
+	if indexPath == "" || (sigPath == "") == (bundlePath == "") || pub == "" {
+		return errors.New("-index, -pub and exactly one of -sig and -bundle are required")
 	}
 	key, err := corepkg.ParsePublicKey(pub)
 	if err != nil {
@@ -321,11 +390,34 @@ func verify(indexPath, sigPath, pub string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
+	keys := []ed25519.PublicKey{key}
+	if bundlePath != "" {
+		b, err := os.ReadFile(bundlePath)
+		if err != nil {
+			return err
+		}
+		line, inner, err := corepkg.SplitBundle(b)
+		if err != nil {
+			return err
+		}
+		if !bytes.Equal(inner, data) {
+			return errors.New("bundle does not contain the bytes of the index")
+		}
+		context, err := indexContext(data, true)
+		if err != nil {
+			return err
+		}
+		if err := corepkg.VerifyContext(context, inner, line, keys, false); err != nil {
+			return err
+		}
+		fmt.Fprintf(out, "OK key_id=%s context=%s\n", corepkg.KeyID(key), context)
+		return nil
+	}
 	sig, err := os.ReadFile(sigPath)
 	if err != nil {
 		return err
 	}
-	if err := corepkg.Verify(data, sig, []ed25519.PublicKey{key}); err != nil {
+	if err := corepkg.Verify(data, sig, keys); err != nil {
 		return err
 	}
 	fmt.Fprintf(out, "OK key_id=%s\n", corepkg.KeyID(key))
