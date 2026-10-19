@@ -3,8 +3,11 @@
 # Target: ${VCPKG_ROOT:-$HOME/.cache/framebeam/vcpkg}
 set -euo pipefail
 
-# Must match "builtin-baseline" in client/vcpkg.json (vcpkg tag 2026.07.29).
-VCPKG_COMMIT="9e593bb18ea69cc5095e012465dcd675a822ed0d"
+# The pin is "builtin-baseline" in client/vcpkg.json (single source of truth, shared with the Windows manifest build;
+# scripts/check-vcpkg-pin.sh checks that no second copy exists).
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VCPKG_COMMIT="$(sed -n 's/.*"builtin-baseline"[[:space:]]*:[[:space:]]*"\([0-9a-f]\{40\}\)".*/\1/p' "$here/../client/vcpkg.json" | head -n 1)"
+[ -n "$VCPKG_COMMIT" ] || { echo "ERROR bootstrap-vcpkg: no 40-hex builtin-baseline in client/vcpkg.json" >&2; exit 1; }
 VCPKG_REPO="https://github.com/microsoft/vcpkg"
 root="${VCPKG_ROOT:-$HOME/.cache/framebeam/vcpkg}"
 

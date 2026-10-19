@@ -19,3 +19,7 @@ Windows dependency builds in CI are expensive. The binary cache was keyed only b
 - A cache miss still builds the dependencies. The first main run using the new release triplet is expected to be cold; later runtimes depend on cache hits and runner performance.
 - Release package assembly looks for vcpkg DLLs in the release overlay triplet's `bin` directory.
 - This ADR supersedes the Windows trigger decision in [ADR 0001](0001-stack-additions.md); other decisions there remain in force.
+
+## Amendment 2026-10-19
+
+The vcpkg baseline has a single pin, `builtin-baseline` in `client/vcpkg.json`; `scripts/bootstrap-vcpkg.sh` (Linux) reads it from there instead of repeating the commit, and `scripts/check-vcpkg-pin.sh` (in `make check-hub`) fails on a second copy. Dependabot (ecosystem `vcpkg`, monthly) proposes baseline bumps, which the Windows CI run tests because the MSI ships the vcpkg DLLs. At this date the baseline (tag 2026.07.29) is the newest vcpkg release tag, so no bump was needed. The baseline is part of the cache key through the hash of `client/vcpkg.json`, so a bump starts one cold Windows dependency build.

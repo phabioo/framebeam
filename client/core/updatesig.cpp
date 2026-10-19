@@ -70,6 +70,36 @@ SigCheck verifyIndexSignature(const QByteArray& index, const QByteArray& sigFile
     return r;
   }
   const QStringList f = line.split(QRegularExpression(QStringLiteral("\\s+")), Qt::SkipEmptyParts);
+  // Domain-separated form (ADR 0016 amendment 2026-10-19): "ed25519ctx <key_id> <context> <base64 sig>" over
+  // context + "\n" + index. The context must be the one of the updates index.
+  if (!f.isEmpty() && f.at(0) == QLatin1String("ed25519ctx")) {
+    if (f.size() != 4) {
+      r.error = QStringLiteral("signature line must be: ed25519ctx <key_id> <context> <base64 signature>");
+      return r;
+    }
+    if (f.at(2) != QLatin1String(kUpdatesIndexContext)) {
+      r.error = QStringLiteral("signature is for %1, not for the update index").arg(f.at(2));
+      return r;
+    }
+    const QByteArray csig = QByteArray::fromBase64(f.at(3).toLatin1(), QByteArray::AbortOnBase64DecodingErrors);
+    if (csig.size() != 64) {
+      r.error = QStringLiteral("signature is not valid base64 of 64 bytes");
+      return r;
+    }
+    QByteArray msg = QByteArray(kUpdatesIndexContext) + '\n' + index;
+    for (const QByteArray& k : trustedKeys) {
+      if (keyId(k) == f.at(1)) {
+        if (!ed25519Verify(k, msg, csig)) {
+          r.error = QStringLiteral("signature does not match the index");
+          return r;
+        }
+        r.ok = true;
+        return r;
+      }
+    }
+    r.error = QStringLiteral("signing key %1 is not trusted").arg(f.at(1));
+    return r;
+  }
   if (f.size() != 3 || f.at(0) != QLatin1String("ed25519")) {
     r.error = QStringLiteral("signature line must be: ed25519 <key_id> <base64 signature>");
     return r;

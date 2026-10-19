@@ -129,6 +129,7 @@ func pluginAdd(indexPath, pluginPath, rawURL string, allowFile, replace bool, ge
 	idx.Plugins = append(entries, e)
 	pluginpkg.SortEntries(idx.Plugins)
 	idx.GeneratedAt = now().UTC().Truncate(time.Second)
+	idx.ExpiresAt = idx.GeneratedAt.Add(pluginpkg.IndexValidity)
 	b, err := pluginpkg.MarshalIndex(idx)
 	if err != nil {
 		return err

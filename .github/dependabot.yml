@@ -14,3 +14,9 @@ updates:
     groups:
       go-minor-patch:
         update-types: [minor, patch]
+  # The vcpkg builtin-baseline in client/vcpkg.json is the only vcpkg pin (scripts/bootstrap-vcpkg.sh reads it, scripts/check-vcpkg-pin.sh checks it).
+  # A bump changes the Windows DLLs shipped in the MSI: review the PR, the Windows CI run is the test.
+  - package-ecosystem: vcpkg
+    directory: /client
+    schedule:
+      interval: monthly

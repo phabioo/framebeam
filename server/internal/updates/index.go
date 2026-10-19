@@ -94,7 +94,27 @@ type Release struct {
 type Index struct {
 	Schema      int       `json:"schema"`
 	GeneratedAt time.Time `json:"generated_at"`
-	Releases    []Release `json:"releases"`
+	// ExpiresAt is the end of the validity of this signed index (generated_at + IndexValidity when it is created).
+	// Hub and Player refuse an index after that date, so a replayed old index cannot hide new releases forever.
+	// Absent in indexes of earlier releases; such an index is accepted during the transition (ADR 0016 amendment).
+	ExpiresAt time.Time `json:"expires_at,omitzero"`
+	Releases  []Release `json:"releases"`
+}
+
+// IndexValidity is how long a freshly signed index stays valid. The index is re-signed at every release and at
+// least weekly by the index-refresh workflow, so it only expires when publishing stops for weeks.
+const IndexValidity = 60 * 24 * time.Hour
+
+// ErrIndexExpired is returned by CheckFresh for an index past its expires_at.
+var ErrIndexExpired = errors.New("update index has expired")
+
+// CheckFresh rejects an index whose signed expires_at lies before now. An index without expires_at passes
+// (transition).
+func (idx Index) CheckFresh(now time.Time) error {
+	if !idx.ExpiresAt.IsZero() && now.After(idx.ExpiresAt) {
+		return fmt.Errorf("%w (expired %s; check the date of this machine, or the index source is stale)", ErrIndexExpired, idx.ExpiresAt.UTC().Format(time.RFC3339))
+	}
+	return nil
 }
 
 // ReleaseError reports one release that failed validation and was skipped. Every other error returned by
@@ -297,8 +317,17 @@ func validateRelease(r Release, allowFile bool) error {
 		if _, err := parseSourceURL(a.URL, allowFile); err != nil {
 			return fmt.Errorf("artifact %s: url must be https", a.Name)
 		}
+		if !strings.HasPrefix(a.URL, "file:") && strings.IndexFunc(a.URL, unsafeURLRune) >= 0 {
+			return fmt.Errorf("artifact %s: url contains characters that are not allowed (space, quote, shell metacharacter or control character)", a.Name)
+		}
 	}
 	return nil
+}
+
+// unsafeURLRune reports characters that must not be in an artifact URL: the Hub shows "curl -fLO <url>" for
+// copy and paste (HC-13), so spaces, quotes and shell metacharacters are rejected at the source.
+func unsafeURLRune(r rune) bool {
+	return r <= ' ' || r == 0x7f || strings.ContainsRune("\"'`$;&|<>\\(){}[]*?!#^", r)
 }
 
 // SortReleases orders releases by product, channel, then SemVer ascending.

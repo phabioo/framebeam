@@ -3,6 +3,7 @@
 // Pure functions without I/O; the signature is checked separately (updatesig.h).
 
 #include <QByteArray>
+#include <QDateTime>
 #include <QJsonObject>
 #include <QList>
 #include <QString>
@@ -46,6 +47,7 @@ struct Release {
 
 struct Index {
   QString generatedAt;
+  QString expiresAt;  // signed end of validity (RFC 3339); empty in indexes of earlier releases (accepted, transition)
   QList<Release> releases;
   QStringList skipped;  // reasons of skipped (invalid) release entries
 };
@@ -55,6 +57,10 @@ struct ParseResult {
   QString error;  // set when !ok (unknown schema, duplicate, malformed JSON)
   Index index;
 };
+
+// Empty when the index may still be used at `now`; otherwise the reason (expires_at passed, PE-18). An index without
+// expires_at passes during the transition of the ADR 0016 amendment 2026-10-19.
+QString checkIndexFresh(const Index& index, const QDateTime& now);
 
 // allowFileUrls: artifact URLs may be file:// (only when the index itself came from file://, tests).
 ParseResult parseIndex(const QByteArray& json, bool allowFileUrls = false);

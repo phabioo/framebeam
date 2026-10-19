@@ -154,7 +154,7 @@ jobs:
     if: needs.changes.outputs.docs_only != 'true'
     needs: [version, changes]
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       HUB_VERSION: ${{ needs.version.outputs.version }}
       HUB_CHANNEL: ${{ needs.version.outputs.channel }}
@@ -191,6 +191,10 @@ jobs:
       - name: Check Hub
         timeout-minutes: 20
         run: make check-hub
+      - name: Hub tests with the race detector
+        # check-hub runs with CGO_ENABLED=0; -race needs cgo (gcc is on the runner, sqlite is pure Go). CI-4.
+        timeout-minutes: 15
+        run: make check-hub-race
       - name: Build Hub (linux amd64 + arm64, windows amd64) and .deb packages
         run: |
           make build-hub

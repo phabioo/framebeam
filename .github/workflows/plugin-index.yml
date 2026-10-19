@@ -8,6 +8,8 @@ name: Publish plugin
 # the environment of the signing steps. Private plugin repos: set the secret PLUGIN_REPOS_TOKEN (PAT, read access).
 
 on:
+  schedule:
+    - cron: "17 4 * * 1"   # weekly re-sign without inputs: new generated_at/expires_at (ADR 0016 amendment 2026-10-19)
   workflow_dispatch:
     inputs:
       repo:
@@ -151,9 +153,14 @@ jobs:
           set -euo pipefail
           work="$RUNNER_TEMP/plugin-index"
           sign="$RUNNER_TEMP/bin/framebeam-sign"
-          "$sign" sign -index "$work/plugin-index.json" -out "$work/plugin-index.json.sig"
+          # Every publish (and the weekly run) re-stamps generated_at/expires_at; the plugin list is unchanged by this.
+          "$sign" index-refresh -index "$work/plugin-index.json"
+          "$sign" sign -index "$work/plugin-index.json" -out "$work/plugin-index.json.sig" -bundle "$work/plugin-index.json.signed"
           pub="$("$sign" pubkey | sed -n 's/^public_key=//p' | head -n 1)"
           [ -n "$pub" ] || { echo "::error::could not derive the public key"; exit 1; }
           "$sign" verify -index "$work/plugin-index.json" -sig "$work/plugin-index.json.sig" -pub "$pub"
+          "$sign" verify -index "$work/plugin-index.json" -bundle "$work/plugin-index.json.signed" -pub "$pub"
           jq -r '.plugins[] | "\(.id) \(.version)"' "$work/plugin-index.json"
+          # The bundle (one file, domain-separated signature) first, then the legacy pair for Hubs before ADR 0016's 2026-10-19 amendment.
+          gh release upload plugin-index "$work/plugin-index.json.signed" --clobber
           gh release upload plugin-index "$work/plugin-index.json" "$work/plugin-index.json.sig" --clobber

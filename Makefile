@@ -1,13 +1,17 @@
 # Quiet check targets (details: scripts/check.sh). Prerequisite for check-client:
 # scripts/bootstrap-vcpkg.sh has been run once.
 # HUB_VERSION / HUB_CHANNEL / HUB_COMMIT: ldflags of build-hub; HUB_VERSION is also the .deb version of package-hub-deb.
-.PHONY: check check-hub check-client build-hub package-hub-deb generate notices fetch-core fetch-desmume fetch-deps fetch-sdl3
+.PHONY: check check-hub check-hub-race check-client build-hub package-hub-deb generate notices fetch-core fetch-desmume fetch-deps fetch-sdl3
 
 check:
 	@scripts/check.sh all
 
 check-hub:
 	@scripts/check.sh hub
+
+# Hub tests under the race detector (CGO_ENABLED=1, needs gcc); the Linux CI job runs it too.
+check-hub-race:
+	@scripts/check.sh hub-race
 
 check-client:
 	@scripts/check.sh client

@@ -24,7 +24,12 @@ struct SigCheck {
   bool ok = false;
   QString error;
 };
-// Verifies the exact index bytes against the signature line; the key is selected by its id.
+// Signing context of the updates index (domain separation, ADR 0016 amendment 2026-10-19). Same string as
+// corepkg.ContextUpdatesIndex in the Hub.
+inline constexpr char kUpdatesIndexContext[] = "framebeam-updates-index-v2";
+
+// Verifies the exact index bytes against the signature line; the key is selected by its id. Accepts the legacy line
+// ("ed25519 <key_id> <sig>", raw bytes; transition) and the domain-separated line ("ed25519ctx <key_id> <context> <sig>").
 SigCheck verifyIndexSignature(const QByteArray& index, const QByteArray& sigFile, const QList<QByteArray>& trustedKeys);
 
 }  // namespace framebeam::update

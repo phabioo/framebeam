@@ -60,3 +60,15 @@
 - D3: the tag-triggered stable release and the `v*-beta.*` pruning rule.
 - The "milestone PR raises `VERSION`" wording and promote's `VERSION` bump PR.
 - The compiled default channel logic of D5 (now D5 here).
+
+## Amendment 2026-10-19 (release pipeline hardening)
+
+Semantics of D1 to D5 are unchanged: one plain number per beta, the tag is reserved by the CI version job before the build, a release is only published after a green CI run on `main`, promotion adds the same files to the `stable` channel. What changes is how the pipeline protects them:
+
+- **Queue instead of a shared concurrency group.** `release.yml`, `promote.yml` and the new `index-refresh.yml` use one concurrency group per run and serialise the index read-modify-write in `scripts/wait-index-turn.sh` (oldest run id first). A shared group keeps only one pending run and would cancel the middle one.
+- **Orphan tags.** A tag reserved by a build that never became green is deleted by `release.yml` once its commit is older than 8 days and it has no release (the CI artifacts are gone after 7 days, so it can never be released). Until then the tag stays so that re-running failed jobs keeps the number. Gaps in the numbers remain possible.
+- **Signed index, one file.** Each index (updates, plugin) is additionally published as `<index>.json.signed`: the signature line, a newline, the exact index bytes. Current Hubs and Players prefer it (no mismatched pair possible) and fall back to `<index>.json` + `.sig` only while the bundle is absent.
+- **Domain separation.** The bundle signature is `ed25519ctx <key_id> <context> <sig>` over `context + "\n" + index`, with a context per document type (`framebeam-updates-index-v2`, `framebeam-plugin-index-v2`, `framebeam-cores-index-v2`). A signature for one type never verifies for another. The legacy `.sig` (raw bytes, same key) keeps being published unchanged for installed Hubs and Players.
+- **Expiry.** Updates and plugin indexes carry a signed `expires_at` (`generated_at` + 60 days). Hub and Player reject an expired index; the weekly `index-refresh.yml` and `plugin-index.yml` runs re-sign with new dates. Indexes without `expires_at` are accepted during the transition.
+- **Transition.** Both forms are published for at least two minor lines (installed clients keep working on the legacy pair and ignore the new `expires_at` field). A later amendment makes the bundle, the context and `expires_at` mandatory and drops the legacy pair. Until then a client whose bundle download is blocked can be served the legacy pair; this is accepted for the transition.
+- **Rejected:** embedding the signature in the index JSON (needs a canonical form to sign), versioned file names (needs a mutable pointer), a signing key per index type (key distribution is the hard part, the context gives the separation).

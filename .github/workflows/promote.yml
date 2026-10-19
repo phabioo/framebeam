@@ -20,25 +20,30 @@ on:
 permissions:
   contents: read
 
-# Shares the group with release.yml: the index is read-modify-write and must never be updated by two runs at once.
+# The index is read-modify-write and must never be updated by two runs at once. Like release.yml, every run has its own
+# group (nothing is cancelled or dropped) and waits in scripts/wait-index-turn.sh, oldest run first, across both workflows.
 concurrency:
-  group: updates-release
+  group: updates-promote-${{ github.run_id }}
   cancel-in-progress: false
 
 jobs:
   promote:
     name: Promote beta to release
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 60   # includes waiting for older index updates (wait-index-turn.sh, at most 40 minutes)
     environment: release
     permissions:
       contents: write   # edit the release, upload the index
+      actions: read     # list the other index updates (scripts/wait-index-turn.sh)
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       IN_VERSION: ${{ inputs.version }}
     steps:
       - uses: actions/checkout@v7
+      - name: Wait for older index updates (queue)
+        timeout-minutes: 45
+        run: scripts/wait-index-turn.sh 40
       - name: Resolve and validate the beta
         run: |
           set -euo pipefail

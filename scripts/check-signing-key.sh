@@ -28,6 +28,7 @@ cat >"$tmp/release.json" <<'JSON'
    "sha256":"0000000000000000000000000000000000000000000000000000000000000000","url":"https://example.invalid/framebeam-hub_0.0.0_amd64.deb"}]}
 JSON
 "$SIGN" release-add -index "$tmp/updates-index.json" -release "$tmp/release.json" -keep 5 >/dev/null
-"$SIGN" sign -index "$tmp/updates-index.json" -out "$tmp/updates-index.json.sig"
+"$SIGN" sign -index "$tmp/updates-index.json" -out "$tmp/updates-index.json.sig" -bundle "$tmp/updates-index.json.signed"
 "$SIGN" verify -index "$tmp/updates-index.json" -sig "$tmp/updates-index.json.sig" -pub "$pub"
+"$SIGN" verify -index "$tmp/updates-index.json" -bundle "$tmp/updates-index.json.signed" -pub "$pub"
 echo "signing key ok: public key is trusted by the Hub and a throwaway updates index verifies"

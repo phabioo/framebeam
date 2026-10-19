@@ -91,3 +91,98 @@ func Verify(index, sig []byte, keys []ed25519.PublicKey) error {
 	}
 	return fmt.Errorf("signing key %s is not trusted", id)
 }
+
+// Signing contexts (domain separation, ADR 0016 amendment 2026-10-19). A signature made with one context never
+// verifies for another document type, even when the JSON shapes overlap.
+const (
+	ContextUpdatesIndex = "framebeam-updates-index-v2"
+	ContextPluginIndex  = "framebeam-plugin-index-v2"
+	ContextCoresIndex   = "framebeam-cores-index-v2"
+)
+
+const ctxSigTag = "ed25519ctx"
+
+func ctxMessage(context string, index []byte) []byte {
+	msg := make([]byte, 0, len(context)+1+len(index))
+	msg = append(msg, context...)
+	msg = append(msg, '\n')
+	return append(msg, index...)
+}
+
+// SignContext signs context + "\n" + index and returns the line "ed25519ctx <key_id> <context> <base64 sig>\n".
+func SignContext(context string, index, seed []byte) ([]byte, error) {
+	if context == "" || strings.ContainsAny(context, " \r\n\t") {
+		return nil, errors.New("invalid signing context")
+	}
+	pub, err := PublicFromSeed(seed)
+	if err != nil {
+		return nil, err
+	}
+	sig := ed25519.Sign(ed25519.NewKeyFromSeed(seed), ctxMessage(context, index))
+	return []byte(ctxSigTag + " " + KeyID(pub) + " " + context + " " + base64.StdEncoding.EncodeToString(sig) + "\n"), nil
+}
+
+// IsContextSig reports whether the signature line is a domain-separated one.
+func IsContextSig(sig []byte) bool {
+	f := strings.Fields(strings.TrimRight(string(sig), "\r\n"))
+	return len(f) > 0 && f[0] == ctxSigTag
+}
+
+// VerifyContext checks a signature line for the document type context. A domain-separated line must carry exactly
+// that context. A legacy line ("ed25519 <key_id> <sig>", raw bytes) is still accepted while legacy is true (the
+// transition of the ADR 0016 amendment 2026-10-19); with legacy false only domain-separated lines pass.
+func VerifyContext(context string, index, sig []byte, keys []ed25519.PublicKey, legacy bool) error {
+	if !IsContextSig(sig) {
+		if !legacy {
+			return errors.New("signature has no signing context")
+		}
+		return Verify(index, sig, keys)
+	}
+	if len(keys) == 0 {
+		return ErrNoTrustedKey
+	}
+	line := strings.TrimRight(string(sig), "\r\n")
+	if strings.ContainsAny(line, "\r\n") {
+		return errors.New("signature file must be a single line")
+	}
+	f := strings.Fields(line)
+	if len(f) != 4 {
+		return errors.New("signature line must be: ed25519ctx <key_id> <context> <base64 signature>")
+	}
+	if f[2] != context {
+		return fmt.Errorf("signature is for %q, not %q", f[2], context)
+	}
+	signature, err := base64.StdEncoding.DecodeString(f[3])
+	if err != nil || len(signature) != ed25519.SignatureSize {
+		return errors.New("signature is not valid base64 of 64 bytes")
+	}
+	for _, k := range keys {
+		if KeyID(k) == f[1] {
+			if !ed25519.Verify(k, ctxMessage(context, index), signature) {
+				return errors.New("signature does not match the index")
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("signing key %s is not trusted", f[1])
+}
+
+// Bundle is the single-file form of a signed index: the signature line, then the exact index bytes. One file
+// cannot be read as a mismatched pair (ADR 0016 amendment 2026-10-19).
+func Bundle(sigLine, index []byte) []byte {
+	line := strings.TrimRight(string(sigLine), "\r\n")
+	return append([]byte(line+"\n"), index...)
+}
+
+// SplitBundle splits a bundle into the signature line and the index bytes.
+func SplitBundle(b []byte) (sig, index []byte, err error) {
+	head := b
+	if len(head) > 4096 {
+		head = head[:4096]
+	}
+	i := strings.IndexByte(string(head), '\n')
+	if i < 0 {
+		return nil, nil, errors.New("bundle has no signature line")
+	}
+	return b[:i+1], b[i+1:], nil
+}
