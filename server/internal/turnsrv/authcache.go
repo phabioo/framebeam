@@ -13,6 +13,9 @@ import (
 const (
 	// DefaultAuthCacheTTL is how long a DeviceOK result is reused.
 	DefaultAuthCacheTTL = 30 * time.Second
+	// authNegativeTTL is how long a refusal is reused at most. DeviceOK cannot tell "unknown device" from a database
+	// error or timeout, so refusals are kept short: a transient hiccup must not lock a real device out for DefaultAuthCacheTTL.
+	authNegativeTTL = 5 * time.Second
 	// authCacheMax bounds the cache (positive and negative entries together).
 	authCacheMax = 4096
 	// Uncached lookups per second (steady) and burst; beyond it an unknown device ID is refused without a lookup.
@@ -66,6 +69,13 @@ func (c *authCache) check(ctx context.Context, id string, lookup func(context.Co
 	c.mu.Unlock()
 
 	ok := lookup(ctx, id)
+	ttl := c.ttl
+	if !ok {
+		ttl = min(ttl, authNegativeTTL)
+		if ctx.Err() != nil {
+			ttl = 0 // the lookup timed out or was cancelled: that is no statement about the device, do not cache
+		}
+	}
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -82,7 +92,9 @@ func (c *authCache) check(ctx context.Context, id string, lookup func(context.Co
 			delete(c.m, k)
 		}
 	}
-	c.m[id] = authEntry{ok: ok, until: now.Add(c.ttl)}
+	if ttl > 0 {
+		c.m[id] = authEntry{ok: ok, until: now.Add(ttl)}
+	}
 	return ok
 }
 
