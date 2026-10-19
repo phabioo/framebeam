@@ -34,17 +34,32 @@ void writeLine(const QString& line) {  // g_mutex held
   if (g_file->size() > g_max) {
     g_file->close();
     rotate(g_path);
-    g_file->open(QIODevice::WriteOnly | QIODevice::Append);
+    if (!g_file->open(QIODevice::WriteOnly | QIODevice::Append)) {
+      // Writing to a closed QFile makes Qt log a warning, which would re-enter this handler: stop logging to the file
+      // (lines are collected in g_pending like before the directory was known).
+      delete g_file;
+      g_file = nullptr;
+      if (g_pending.size() < kPendingMax) g_pending.append(line);
+      return;
+    }
   }
+  if (!g_file->isOpen()) return;
   g_file->write(line.toUtf8());
   g_file->write("\n");
   g_file->flush();
 }
 
 void handler(QtMsgType type, const QMessageLogContext& ctx, const QString& msg) {
-  {
-    QMutexLocker lock(&g_mutex);
-    writeLine(formatLine(type, QString::fromLatin1(ctx.category != nullptr ? ctx.category : "default"), msg));
+  // A message produced while this thread already writes a line (a Qt warning from the file itself) is not logged again:
+  // g_mutex is not recursive.
+  thread_local bool inHandler = false;
+  if (!inHandler) {
+    inHandler = true;
+    {
+      QMutexLocker lock(&g_mutex);
+      writeLine(formatLine(type, QString::fromLatin1(ctx.category != nullptr ? ctx.category : "default"), msg));
+    }
+    inHandler = false;
   }
   if (g_previous != nullptr) g_previous(type, ctx, msg);
 }

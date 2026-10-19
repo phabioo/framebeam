@@ -26,14 +26,22 @@ QString RomCache::extensionFromFilename(const QString& filename) {
   return re.match(ext).hasMatch() ? ext : QStringLiteral("bin");
 }
 
-bool RomCache::sha256OfFile(const QString& path, QString* hexOut) {
+bool RomCache::sha256OfFile(const QString& path, QString* hexOut, const std::atomic_bool* cancel) {
   QFile f(path);
   if (!f.open(QIODevice::ReadOnly)) {
     return false;
   }
   QCryptographicHash h(QCryptographicHash::Sha256);
-  if (!h.addData(&f)) {
-    return false;
+  while (!f.atEnd()) {
+    if (cancel != nullptr && cancel->load()) {
+      return false;
+    }
+    const QByteArray chunk = f.read(1 << 20);
+    if (chunk.isEmpty()) {
+      if (f.error() != QFileDevice::NoError) return false;
+      break;
+    }
+    h.addData(chunk);
   }
   *hexOut = QString::fromLatin1(h.result().toHex());
   return true;
@@ -134,9 +142,35 @@ QList<RomCache::Entry> RomCache::entries() const {
   return out;
 }
 
+QList<RomCache::TempFile> RomCache::tempFiles() const {
+  QList<TempFile> out;
+  const QFileInfoList files = QDir(dir_).entryInfoList(QDir::Files | QDir::NoDotAndDotDot);
+  for (const QFileInfo& fi : files) {
+    QString name = fi.fileName();
+    if (name.endsWith(QStringLiteral(".part"))) {
+      name.chop(5);
+    } else if (name.endsWith(QStringLiteral(".adopt"))) {
+      name.chop(6);
+    } else {
+      continue;
+    }
+    TempFile t;
+    QString ext;
+    if (!isRomFileName(name, &t.sha256, &ext)) {
+      continue;
+    }
+    t.path = fi.absoluteFilePath();
+    t.size = fi.size();
+    t.modifiedMs = fi.lastModified().toMSecsSinceEpoch();
+    out.append(t);
+  }
+  return out;
+}
+
 qint64 RomCache::totalSize() const {
   qint64 n = 0;
   for (const Entry& e : entries()) n += e.size;
+  for (const TempFile& t : tempFiles()) n += t.size;
   return n;
 }
 
@@ -145,6 +179,16 @@ RomCache::TrimResult RomCache::trimToLimit(qint64 limitBytes, const QSet<QString
   const QList<Entry> list = entries();
   qint64 total = 0;
   for (const Entry& e : list) total += e.size;
+  // Abandoned downloads and adoptions (PN-4): old ones are removed first, the rest counts towards the limit.
+  const qint64 staleBefore = QDateTime::currentMSecsSinceEpoch() - qint64(kStaleTempAgeDays) * 24 * 3600 * 1000;
+  for (const TempFile& t : tempFiles()) {
+    if (!protectedHashes.contains(t.sha256) && t.modifiedMs < staleBefore && QFile::remove(t.path)) {
+      r.freedBytes += t.size;
+      ++r.removedFiles;
+    } else {
+      total += t.size;
+    }
+  }
   for (const Entry& e : list) {
     if (limitBytes <= 0 || total <= limitBytes) {
       break;
@@ -159,7 +203,8 @@ RomCache::TrimResult RomCache::trimToLimit(qint64 limitBytes, const QSet<QString
       ++r.removedFiles;
     }
   }
-  r.remainingBytes = total;
+  r.remainingBytes = 0;
+  for (const Entry& e : entries()) r.remainingBytes += e.size;
   return r;
 }
 
@@ -167,6 +212,9 @@ qint64 RomCache::clearableSize(const QSet<QString>& protectedHashes) const {
   qint64 n = 0;
   for (const Entry& e : entries()) {
     if (!protectedHashes.contains(e.sha256) && !QFileInfo::exists(partPath(e.sha256, e.ext))) n += e.size;
+  }
+  for (const TempFile& t : tempFiles()) {
+    if (!protectedHashes.contains(t.sha256)) n += t.size;
   }
   return n;
 }
@@ -184,6 +232,13 @@ RomCache::TrimResult RomCache::clear(const QSet<QString>& protectedHashes) const
       ++r.removedFiles;
     } else {
       r.remainingBytes += e.size;
+    }
+  }
+  // After the finished files: a .part next to a finished file still protects that file above.
+  for (const TempFile& t : tempFiles()) {
+    if (!protectedHashes.contains(t.sha256) && QFile::remove(t.path)) {
+      r.freedBytes += t.size;
+      ++r.removedFiles;
     }
   }
   return r;

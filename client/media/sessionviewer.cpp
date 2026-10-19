@@ -3,13 +3,17 @@
 #include <QLoggingCategory>
 #include <QMutexLocker>
 #include <algorithm>
+#include <condition_variable>
 #include <cstring>
+#include <deque>
+#include <mutex>
 #include <rtc/rtc.hpp>
 #include <variant>
 
 #include "hoststate.h"
 #include "opusdepacketizer.h"
 #include "rtcutil.h"
+#include "viewerbacklog.h"
 
 namespace framebeam {
 
@@ -30,7 +34,21 @@ QString stateName(rtc::PeerConnection::State s) {
 }
 
 constexpr int kBytesPerMs = 48 * 4;  // 48 kHz stereo int16
+constexpr size_t kMaxQueuedVideo = 6;    // access units waiting for the decoder
+constexpr size_t kMaxQueuedAudio = 100;  // Opus packets (about 2 s)
+constexpr size_t kMaxQueuedFrames = 3;   // decoded pictures waiting for the UI thread
 }  // namespace
+
+struct SessionViewer::MediaPipe {
+  std::mutex mutex;
+  std::condition_variable cv;
+  VideoBacklog video{kMaxQueuedVideo};
+  std::deque<QByteArray> audio;
+  std::deque<QImage> frames;  // decoded, waiting for the UI thread
+  bool stop = false;
+  bool framePosted = false;   // a delivery to the UI thread is queued
+  bool pliPosted = false;     // a keyframe request is queued
+};
 
 // RTCP receiving session that also exposes the loss derived from RTP sequence numbers (RFC 3550 A.3).
 class LossReceivingSession : public rtc::RtcpReceivingSession {
@@ -89,7 +107,9 @@ void SessionViewer::open(const QString& sessionId, const QString& viewerId, cons
   pendingCandidates_.clear();
   totalFrames_ = totalAudioFrames_ = totalVideoBytes_ = totalAudioBytes_ = 0;
   lastFrames_ = lastVideoBytes_ = lastAudioBytes_ = 0;
-  decodeErrors_ = pliCount_ = 0;
+  decodeErrors_ = 0;
+  droppedVideo_ = 0;
+  pliCount_ = 0;
   lastExpected_ = lastReceived_ = 0;
   audioPeak_ = 0;
   pliSent_ = false;
@@ -104,6 +124,7 @@ void SessionViewer::open(const QString& sessionId, const QString& viewerId, cons
     emit errorOccurred(QStringLiteral("No H.264 decoder available"));
   }
   opus_.open();
+  codecsOpen_ = true;
   statsClock_.restart();
   statsTimer_.start();
 }
@@ -139,8 +160,34 @@ void SessionViewer::teardown() {
   diag_.reset();
   videoSession_.reset();
   pc_.reset();
+  if (pipe_) {  // the producers are gone; the worker finishes its current picture and ends before the codecs are closed
+    {
+      std::lock_guard<std::mutex> lock(pipe_->mutex);
+      pipe_->stop = true;
+    }
+    pipe_->cv.notify_all();
+  }
+  if (worker_.joinable()) worker_.join();
+  pipe_.reset();
   decoder_.close();
   opus_.close();
+  codecsOpen_ = false;
+}
+
+void SessionViewer::startMedia() {
+  if (!codecsOpen_) {  // a previous connection of this open viewer was torn down
+    if (!decoder_.open()) {
+      emit errorOccurred(QStringLiteral("No H.264 decoder available"));
+    }
+    opus_.open();
+    codecsOpen_ = true;
+  }
+  if (!statsTimer_.isActive()) {
+    statsClock_.restart();
+    statsTimer_.start();
+  }
+  pipe_ = std::make_shared<MediaPipe>();
+  worker_ = std::thread([this, pipe = pipe_, gen = pcGen_]() { mediaLoop(pipe, gen); });
 }
 
 void SessionViewer::close() {
@@ -170,18 +217,39 @@ void SessionViewer::handleSignal(const SessionSignal& s) {
       pc_ = std::make_shared<rtc::PeerConnection>(makeRtcConfig(iceServers_, turnServers_, forceRelay_));
       const auto bridge = bridge_;
       const unsigned gen = pcGen_;  // frames of an older connection that are still queued must not reach the codecs
-      pc_->onTrack(guarded("onTrack", [this, bridge, gen](std::shared_ptr<rtc::Track> track) {
+      startMedia();
+      const std::shared_ptr<MediaPipe> pipe = pipe_;
+      pc_->onTrack(guarded("onTrack", [this, bridge, gen, pipe](std::shared_ptr<rtc::Track> track) {
         const std::string type = track->description().type();
         if (type == "video") {
           auto depack = std::make_shared<rtc::H264RtpDepacketizer>(rtc::NalUnit::Separator::LongStartSequence);
           auto session = std::make_shared<LossReceivingSession>();
           depack->addToChain(session);
           track->setMediaHandler(depack);
-          track->onFrame(guarded("onFrame", [this, bridge, gen](rtc::binary data, rtc::FrameInfo) {
+          track->onFrame(guarded("onFrame", [this, bridge, gen, pipe](rtc::binary data, rtc::FrameInfo) {
             QByteArray ba(reinterpret_cast<const char*>(data.data()), static_cast<qsizetype>(data.size()));
-            bridge->post([this, gen, ba = std::move(ba)]() mutable {
-              if (gen == pcGen_) onVideoFrame(std::move(ba));
-            });
+            totalVideoBytes_ += ba.size();
+            const bool key = startsKeyframe(ba);
+            bool wantPli = false;
+            {
+              std::lock_guard<std::mutex> lock(pipe->mutex);
+              const VideoBacklog::PushResult r = pipe->video.push(std::move(ba), key);  // behind: resync on the next keyframe
+              droppedVideo_ += static_cast<qint64>(r.dropped);
+              if (r.wantKeyframe && !pipe->pliPosted) {
+                pipe->pliPosted = true;
+                wantPli = true;
+              }
+            }
+            pipe->cv.notify_one();
+            if (wantPli) {
+              bridge->post([this, gen, pipe]() {
+                {
+                  std::lock_guard<std::mutex> lock(pipe->mutex);
+                  pipe->pliPosted = false;
+                }
+                if (gen == pcGen_) requestKeyframe();
+              });
+            }
           }));
           bridge->post([this, track, session]() {
             if (open_ && pc_) {
@@ -193,11 +261,14 @@ void SessionViewer::handleSignal(const SessionSignal& s) {
           auto depack = std::make_shared<OpusRtpDepacketizer>();
           depack->addToChain(std::make_shared<rtc::RtcpReceivingSession>());
           track->setMediaHandler(depack);
-          track->onFrame(guarded("onFrame", [this, bridge, gen](rtc::binary data, rtc::FrameInfo) {
+          track->onFrame(guarded("onFrame", [pipe](rtc::binary data, rtc::FrameInfo) {
             QByteArray ba(reinterpret_cast<const char*>(data.data()), static_cast<qsizetype>(data.size()));
-            bridge->post([this, gen, ba = std::move(ba)]() mutable {
-              if (gen == pcGen_) onAudioFrame(std::move(ba));
-            });
+            {
+              std::lock_guard<std::mutex> lock(pipe->mutex);
+              if (pipe->audio.size() >= kMaxQueuedAudio) pipe->audio.pop_front();  // oldest audio goes first
+              pipe->audio.push_back(std::move(ba));
+            }
+            pipe->cv.notify_one();
           }));
           bridge->post([this, track]() {
             if (open_ && pc_) {
@@ -236,8 +307,10 @@ void SessionViewer::handleSignal(const SessionSignal& s) {
           });
         }
       }));
-      pc_->onStateChange(guarded("onStateChange", [this, bridge](rtc::PeerConnection::State st) {
-        bridge->post([this, st]() { onPcState(static_cast<int>(st)); });
+      pc_->onStateChange(guarded("onStateChange", [this, bridge, gen](rtc::PeerConnection::State st) {
+        bridge->post([this, st, gen]() {
+          if (gen == pcGen_) onPcState(static_cast<int>(st));  // a state of a torn-down connection must not end a new one
+        });
       }));
       // The answer is produced automatically (onLocalDescription) once the offer is applied.
       pc_->setRemoteDescription(rtc::Description(s.sdp.toStdString(), rtc::Description::Type::Offer));
@@ -270,6 +343,17 @@ void SessionViewer::handleSignal(const SessionSignal& s) {
       pc_->addRemoteCandidate(cand);
     }
   } catch (const std::exception& e) {
+    if (s.kind == QLatin1String("offer") && pc_) {
+      // A half-built connection would swallow every later offer (`if (pc_) return`): start over and tell the owner (PN-11).
+      teardown();
+      remoteSet_ = false;
+      pendingCandidates_.clear();
+      pcState_ = QStringLiteral("failed");
+      link_.state = pcState_;
+      emit errorOccurred(QStringLiteral("Signal: ") + QString::fromUtf8(e.what()));
+      emit closed(pcState_);
+      return;
+    }
     emit errorOccurred(QStringLiteral("Signal: ") + QString::fromUtf8(e.what()));
   }
 }
@@ -334,28 +418,81 @@ void SessionViewer::requestKeyframe() {
   }
 }
 
-void SessionViewer::onVideoFrame(QByteArray data) {
-  if (!open_) {
-    return;
-  }
-  totalVideoBytes_ += data.size();
-  std::vector<QImage> frames;
-  if (!decoder_.decode(reinterpret_cast<const uint8_t*>(data.constData()), static_cast<size_t>(data.size()), frames)) {
-    ++decodeErrors_;
-    requestKeyframe();
-  }
-  for (QImage& f : frames) {
-    ++totalFrames_;
-    width_ = f.width();
-    height_ = f.height();
-    emit frameReady(f);
+void SessionViewer::mediaLoop(std::shared_ptr<MediaPipe> pipe, unsigned gen) {
+  while (true) {
+    std::deque<QByteArray> audio;
+    QByteArray video;
+    bool haveVideo = false;
+    {
+      std::unique_lock<std::mutex> lock(pipe->mutex);
+      pipe->cv.wait(lock, [&]() { return pipe->stop || !pipe->video.empty() || !pipe->audio.empty(); });
+      if (pipe->stop) return;
+      audio.swap(pipe->audio);
+      if (!pipe->video.empty()) {
+        video = pipe->video.pop();
+        haveVideo = true;
+      }
+    }
+    for (const QByteArray& a : audio) decodeAudio(a);
+    if (haveVideo) decodeVideo(video, pipe, gen);
   }
 }
 
-void SessionViewer::onAudioFrame(QByteArray data) {
-  if (!open_) {
-    return;
+void SessionViewer::decodeVideo(const QByteArray& data, const std::shared_ptr<MediaPipe>& pipe, unsigned gen) {
+  std::vector<QImage> frames;
+  if (!decoder_.decode(reinterpret_cast<const uint8_t*>(data.constData()), static_cast<size_t>(data.size()), frames)) {
+    ++decodeErrors_;
+    bool wantPli = false;
+    {
+      std::lock_guard<std::mutex> lock(pipe->mutex);
+      if (!pipe->pliPosted) {
+        pipe->pliPosted = true;
+        wantPli = true;
+      }
+    }
+    if (wantPli) {
+      bridge_->post([this, gen, pipe]() {
+        {
+          std::lock_guard<std::mutex> lock(pipe->mutex);
+          pipe->pliPosted = false;
+        }
+        if (gen == pcGen_) requestKeyframe();
+      });
+    }
   }
+  for (QImage& f : frames) {
+    ++totalFrames_;
+    bool post = false;
+    {
+      std::lock_guard<std::mutex> lock(pipe->mutex);
+      pipe->frames.push_back(std::move(f));
+      while (pipe->frames.size() > kMaxQueuedFrames) {  // the UI is behind: show the newest
+        pipe->frames.pop_front();
+        ++droppedVideo_;
+      }
+      post = !pipe->framePosted;
+      pipe->framePosted = true;
+    }
+    if (post) {
+      bridge_->post([this, gen, pipe]() {
+        std::deque<QImage> ready;
+        {
+          std::lock_guard<std::mutex> lock(pipe->mutex);
+          ready.swap(pipe->frames);
+          pipe->framePosted = false;
+        }
+        if (gen != pcGen_ || !open_) return;
+        for (const QImage& img : ready) {
+          width_ = img.width();
+          height_ = img.height();
+          emit frameReady(img);
+        }
+      });
+    }
+  }
+}
+
+void SessionViewer::decodeAudio(const QByteArray& data) {
   totalAudioBytes_ += data.size();
   const QByteArray pcm = opus_.decode(reinterpret_cast<const uint8_t*>(data.constData()), static_cast<size_t>(data.size()));
   if (pcm.isEmpty()) {

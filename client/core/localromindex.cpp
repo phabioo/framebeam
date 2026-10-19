@@ -176,16 +176,16 @@ void LocalRomIndex::reindex() {
   }
 }
 
-LocalRomIndex::~LocalRomIndex() { cancel_ = true; }
+LocalRomIndex::~LocalRomIndex() { *cancel_ = true; }
 
 bool LocalRomIndex::rescan(const LocalScanOptions& options) {
   if (scanning_) return false;
   scanning_ = true;
-  cancel_ = false;
+  cancel_ = std::make_shared<std::atomic_bool>(false);  // a new flag per scan: an older cancelled task never sees the reset
   const quint64 gen = ++generation_;
   emit scanStarted();
   LocalScanOptions opt = options;
-  opt.cancel = &cancel_;
+  opt.cancel = cancel_.get();
   QPointer<LocalRomIndex> self(this);
   opt.progress = [self](int done, int total) {
     if (self) QMetaObject::invokeMethod(self.data(), [self, done, total]() { if (self) emit self->scanProgress(done, total); }, Qt::QueuedConnection);
@@ -203,7 +203,8 @@ bool LocalRomIndex::rescan(const LocalScanOptions& options) {
     }
     emit scanFinished(static_cast<int>(files_.size()), r.hashed, r.cancelled);
   });
-  watcher->setFuture(QtConcurrent::run([opt, cacheFile]() {
+  const std::shared_ptr<std::atomic_bool> keepFlag = cancel_;  // keeps opt.cancel valid for the whole task
+  watcher->setFuture(QtConcurrent::run([opt, cacheFile, keepFlag]() {
     RomHashCache cache(cacheFile);
     LocalScanResult r = scanLibraryFolders(opt, cache);
     if (!r.cancelled) cache.save();
@@ -212,7 +213,7 @@ bool LocalRomIndex::rescan(const LocalScanOptions& options) {
   return true;
 }
 
-void LocalRomIndex::cancelScan() { cancel_ = true; }
+void LocalRomIndex::cancelScan() { *cancel_ = true; }
 
 QString LocalRomIndex::pathForSha(const QString& sha256) {
   const auto it = bySha_.constFind(sha256);

@@ -64,14 +64,17 @@ class RomDownloader : public QObject {
     bool opened = false;
     bool aborted = false;
     bool retriedFull = false;
+    bool oversize = false;  // the server sent more than the announced size (aborted)
     bool priming = false;
     std::shared_ptr<QCryptographicHash> hash;  // incrementally over the entire content
+    std::shared_ptr<std::atomic_bool> cancel = std::make_shared<std::atomic_bool>(false);  // read by the prime task
     std::unique_ptr<QFutureWatcher<bool>> primeWatcher;
   };
   struct Validation {
     GameEntry game;
     QString ext;
     bool thenDownload = false;
+    std::shared_ptr<std::atomic_bool> cancel = std::make_shared<std::atomic_bool>(false);  // read by the hash task
     std::unique_ptr<QFutureWatcher<QPair<bool, QString>>> watcher;
   };
 

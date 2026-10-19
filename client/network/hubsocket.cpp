@@ -86,6 +86,8 @@ void HubSocket::start() {
 
 void HubSocket::stop() {
   wanted_ = false;
+  queued_.clear();
+  queuedPresence_.reset();
   reconnectTimer_.stop();
   teardown();
   setState(State::Stopped);
@@ -130,7 +132,8 @@ void HubSocket::connectNow() {
   certMismatch_ = false;
   reachedServer_ = false;
   ws_ = std::make_unique<QWebSocket>(QString(), QWebSocketProtocol::VersionLatest, this);
-  if (req.url().scheme() == QLatin1String("wss")) {
+  wssConnection_ = req.url().scheme() == QLatin1String("wss");
+  if (wssConnection_) {
     ws_->setSslConfiguration(req.sslConfiguration());
   }
   QWebSocket* ws = ws_.get();
@@ -205,6 +208,16 @@ void HubSocket::onSocketError() {
 
 void HubSocket::onConnected() {
   lastTrafficMs_ = nowMs();
+  // Pin check on every WebSocket connection (PN-9), not only from sslErrors: a platform that trusts the certificate itself never
+  // raises it. QWebSocket exposes the peer certificate only on some Qt versions; without one the sslErrors path stays the guard.
+  if (ws_ && wssConnection_ && conn_) {
+    const QSslCertificate peer = ws_->sslConfiguration().peerCertificate();
+    if (!peer.isNull() && !HubHttp::peerAccepted(HubHttp::fingerprint(peer), conn_->pinnedFingerprint(), false)) {
+      certMismatch_ = true;
+      onSocketError();  // reports certificate_changed, tears down, reconnects with backoff
+      return;
+    }
+  }
   const QString deviceId = conn_ ? conn_->deviceId() : QString();
   QJsonObject hello{{QStringLiteral("protocol_version"), kProtocolVersion}, {QStringLiteral("device_id"), deviceId}};
   if (helloRuns_) {
@@ -236,21 +249,43 @@ void HubSocket::send(const QString& type, const QJsonObject& payload) {
   ws_->sendTextMessage(QString::fromUtf8(QJsonDocument(env).toJson(QJsonDocument::Compact)));
 }
 
-void HubSocket::sendSignal(const SessionSignal& s) {
+void HubSocket::queueOrSend(const QString& type, const QJsonObject& payload) {
   if (state_ == State::Open) {
-    send(QStringLiteral("signal"), s.toPayload());
+    send(type, payload);
+    return;
+  }
+  if (!wanted_) {
+    return;
+  }
+  if (type == QLatin1String("presence_update")) {  // a state, not an event: only the latest one is worth sending
+    queuedPresence_ = Queued{type, payload, nowMs()};
+    return;
+  }
+  queued_.append({type, payload, nowMs()});
+  while (queued_.size() > kMaxQueued) {
+    queued_.removeFirst();
   }
 }
 
-void HubSocket::sendPresence(const QString& state, const QString& gameId) {
-  if (state_ != State::Open) {
-    return;
+void HubSocket::flushQueued() {
+  QList<Queued> pending = std::exchange(queued_, {});
+  if (queuedPresence_) pending.append(*std::exchange(queuedPresence_, std::nullopt));
+  const qint64 now = nowMs();
+  for (const Queued& q : pending) {
+    if (now - q.atMs <= kQueuedMaxAgeMs) {
+      send(q.type, q.payload);
+    }
   }
+}
+
+void HubSocket::sendSignal(const SessionSignal& s) { queueOrSend(QStringLiteral("signal"), s.toPayload()); }
+
+void HubSocket::sendPresence(const QString& state, const QString& gameId) {
   QJsonObject p{{QStringLiteral("state"), state}};
   if (!gameId.isEmpty()) {
     p.insert(QStringLiteral("game_id"), gameId);
   }
-  send(QStringLiteral("presence_update"), p);
+  queueOrSend(QStringLiteral("presence_update"), p);
 }
 
 void HubSocket::onTextMessage(const QString& text) {
@@ -270,6 +305,7 @@ void HubSocket::onTextMessage(const QString& text) {
     upgradeRejects_ = 0;
     setState(State::Open);
     pingTimer_.start(pingIntervalMs_);
+    flushQueued();
     emit helloAcked(hello_);
   } else if (type == QLatin1String("ice_update")) {
     // ice_update_v1: replaces the stored ICE/TURN config; connections created from now on use it, running ones stay as they are.

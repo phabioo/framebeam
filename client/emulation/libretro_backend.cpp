@@ -1003,7 +1003,9 @@ bool LibretroBackend::handleEnvironment(unsigned rawCmd, void* data) {
     case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_UPDATE_DISPLAY_CALLBACK: return true;
     case RETRO_ENVIRONMENT_GET_VARIABLE: {
       auto* var = static_cast<retro_variable*>(data);
-      if (!var || !var->key) return false;
+      if (!var) return false;
+      var->value = nullptr;  // libretro: a miss leaves NULL, a core that only checks `value` must not see a stale pointer (PE-8)
+      if (!var->key) return false;
       QMutexLocker l(&m_optMutex);
       const QString key = fromC(var->key);
       for (const CoreOption& o : std::as_const(m_options)) {

@@ -10,6 +10,10 @@ extern "C" {
 
 namespace framebeam {
 
+namespace {
+constexpr int kMaxDimension = 8192;  // as on the encoder side
+}
+
 VideoDecoder::VideoDecoder() = default;
 VideoDecoder::~VideoDecoder() { close(); }
 
@@ -81,6 +85,11 @@ bool VideoDecoder::decode(const uint8_t* data, size_t size, std::vector<QImage>&
     if (rc < 0) {
       return false;
     }
+    // The size comes from the peer's SPS: a huge picture must not allocate gigabytes or leave a null QImage (PN-12).
+    if (frame_->width <= 0 || frame_->height <= 0 || frame_->width > kMaxDimension || frame_->height > kMaxDimension) {
+      av_frame_unref(frame_);
+      return false;
+    }
     if (!sws_ || swsW_ != frame_->width || swsH_ != frame_->height || swsFmt_ != frame_->format) {
       if (sws_) {
         sws_freeContext(sws_);
@@ -95,6 +104,10 @@ bool VideoDecoder::decode(const uint8_t* data, size_t size, std::vector<QImage>&
       }
     }
     QImage img(frame_->width, frame_->height, QImage::Format_RGB32);
+    if (img.isNull()) {
+      av_frame_unref(frame_);
+      return false;
+    }
     uint8_t* dst[4] = {img.bits(), nullptr, nullptr, nullptr};
     const int dstStride[4] = {static_cast<int>(img.bytesPerLine()), 0, 0, 0};
     sws_scale(sws_, frame_->data, frame_->linesize, 0, frame_->height, dst, dstStride);

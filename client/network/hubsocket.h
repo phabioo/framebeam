@@ -8,6 +8,8 @@
 #include <QTimer>
 #include <functional>
 #include <memory>
+#include <optional>
+#include <utility>
 
 #include "hubconnection.h"
 #include "saveapi.h"
@@ -76,6 +78,8 @@ class HubSocket : public QObject {
   void scheduleReconnect();
   void setState(State s);
   void send(const QString& type, const QJsonObject& payload);
+  void queueOrSend(const QString& type, const QJsonObject& payload);
+  void flushQueued();
   void onTextMessage(const QString& text);
   void onSslErrors(const QList<QSslError>& errors);
   void onSocketError();
@@ -87,6 +91,7 @@ class HubSocket : public QObject {
   State state_ = State::Stopped;
   bool wanted_ = false;
   bool certMismatch_ = false;
+  bool wssConnection_ = false;  // the current connection is wss
   HelloAck hello_;
   std::function<QJsonArray()> helloRuns_;
   QTimer reconnectTimer_;
@@ -100,6 +105,16 @@ class HubSocket : public QObject {
   int upgradeRejects_ = 0;      // consecutive upgrade failures after reaching the Hub
   qint64 lastTrafficMs_ = 0;
   quint64 generation_ = 0;
+  // Signalling and presence produced while the socket is not open (reconnect, PN-15): bounded, flushed after the next hello_ack.
+  struct Queued {
+    QString type;
+    QJsonObject payload;
+    qint64 atMs = 0;
+  };
+  static constexpr int kMaxQueued = 64;
+  static constexpr qint64 kQueuedMaxAgeMs = 30000;  // an older candidate or offer belongs to a connection attempt that gave up
+  QList<Queued> queued_;            // signals, oldest first
+  std::optional<Queued> queuedPresence_;  // presence is a state: only the latest one is kept
 };
 
 }  // namespace framebeam

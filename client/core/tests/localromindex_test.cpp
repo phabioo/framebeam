@@ -126,6 +126,29 @@ class LocalRomIndexTest : public QObject {
     QCOMPARE(again.files().size(), 1);
   }
 
+  // PN-3: deleting the index while a scan still hashes a big file: the worker keeps the cancel flag alive, stops at the next
+  // chunk and the destructor does not wait for the whole file.
+  void deletingTheIndexMidScanIsSafeAndPrompt() {
+    QTemporaryDir dir;
+    const QString big = dir.filePath("roms/big.nds");
+    QDir().mkpath(QFileInfo(big).absolutePath());
+    QFile f(big);
+    QVERIFY(f.open(QIODevice::WriteOnly));
+    QVERIFY(f.resize(qint64(1) << 30));  // sparse dummy file, hashing it takes seconds
+    f.close();
+    auto* index = new LocalRomIndex(dir.filePath("data/hashes.json"));
+    LocalScanOptions opt;
+    opt.folders = {dir.filePath("roms")};
+    opt.extensionToSystem = {{".nds", "nds"}};
+    QVERIFY(index->rescan(opt));
+    QTest::qSleep(50);
+    QElapsedTimer t;
+    t.start();
+    delete index;
+    QVERIFY2(t.elapsed() < 1000, qPrintable(QStringLiteral("delete took %1 ms").arg(t.elapsed())));
+    QTest::qWait(300);  // the worker finishes against its own copy of the flag
+  }
+
   void settingsKeepLibraryFolders() {
     QTemporaryDir dir;
     {

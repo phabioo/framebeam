@@ -37,6 +37,7 @@ enum DataIndex : int {
   DataDirs,          // bit 0: GET_SYSTEM_DIRECTORY answered, bit 1: GET_SAVE_DIRECTORY answered
   DataBitmask,       // 1 when the joypad was read as one RETRO_DEVICE_ID_JOYPAD_MASK word, 0 per button
   DataVarUpdates,    // GET_VARIABLE_UPDATE answered true this many times
+  DataUnknownVar,    // GET_VARIABLE of an unknown key with a stale value pointer: 1 = miss reported and value reset to NULL, 2 = not
   DataCount
 };
 
