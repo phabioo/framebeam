@@ -21,4 +21,6 @@ directory `lua-5.4.7/`), which bundles the official 5.4.7 sources.
 
 Only the library sources and headers. Left out: `lua.c`, `luac.c`, `onelua.c`, `ltests.*`, `testes/`, `manual/`, and the
 libraries the sandbox never opens (`linit.c`, `liolib.c`, `loslib.c`, `loadlib.c`, `ldblib.c`).
-The files are not modified.
+The files are unmodified except for one commented patch in `lstrlib.c` (search "FrameBeam patch"): `match()` calls
+`fbMatchBudget(L)` every 1024 steps, so the sandbox can abort pattern matching that runs for seconds inside one C call
+(`client/plugins/lua_sandbox.cpp`). Keep the patch when updating Lua.

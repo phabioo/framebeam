@@ -224,6 +224,7 @@ Item {
                             color: tab.hovered && !tab.active ? Theme.blockColor("hover", root.dark) : "transparent"
                         }
                         Text {
+                            textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                             id: tabLabel
                             anchors.centerIn: parent
                             text: String(tab.modelData)
@@ -328,6 +329,7 @@ Item {
                         Layout.fillWidth: true
                         spacing: 2
                         Text {
+                            textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                             visible: !!root.node.eyebrow
                             text: root.node.eyebrow || ""
                             font.family: Theme.mono
@@ -337,6 +339,7 @@ Item {
                             color: Theme.blockColor("textMeta", root.dark)
                         }
                         Text {
+                            textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                             visible: !!root.node.title
                             Layout.fillWidth: true
                             text: root.node.title || ""
@@ -347,6 +350,7 @@ Item {
                         }
                     }
                     Text {
+                        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         visible: !!root.node.link_label
                         text: (root.node.link_label || "") + " ›"
                         font.pixelSize: Theme.fontMeta
@@ -375,6 +379,7 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 Text {
+                    textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     Layout.fillWidth: true
                     text: root.node.title || ""
                     elide: Text.ElideRight
@@ -393,6 +398,7 @@ Item {
                     implicitHeight: 22
                     onActivated: root.action(root.node.action, root.node.value)
                     Text {
+                        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         id: linkText
                         anchors.centerIn: parent
                         text: (root.node.link_label || "") + " ›"
@@ -444,6 +450,7 @@ Item {
                         Layout.fillWidth: true
                         spacing: 2
                         Text {
+                            textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                             Layout.fillWidth: true
                             text: root.node.title || ""
                             elide: Text.ElideRight
@@ -452,6 +459,7 @@ Item {
                             color: Theme.blockColor("text", root.dark)
                         }
                         Text {
+                            textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                             visible: !!root.node.sub
                             Layout.fillWidth: true
                             text: root.node.sub || ""
@@ -467,6 +475,7 @@ Item {
                         radius: 11
                         color: Theme.toneBgFor(loc.tone, root.dark)
                         Text {
+                            textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                             id: statusLabel
                             anchors.centerIn: parent
                             text: loc.statusText
@@ -498,6 +507,7 @@ Item {
             readonly property bool isError: root.node.tone === "danger"
             Item { Layout.preferredHeight: 6 }
             Text {
+                textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.Wrap
@@ -507,6 +517,7 @@ Item {
                 color: isError ? Theme.toneFg("danger", root.dark) : Theme.blockColor("text", root.dark)
             }
             Text {
+                textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 visible: !!root.node.text
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
@@ -531,6 +542,7 @@ Item {
     Component {
         id: textC
         Text {
+            textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
             readonly property string st: root.node.style || "body"
             readonly property bool wraps: root.node.wrap !== false
             text: root.node.text || ""
@@ -566,6 +578,7 @@ Item {
                 border.color: chip.tone === "neutral" ? Theme.blockColor("border", root.dark) : Theme.toneLine(chip.tone, root.dark)
             }
             Text {
+                textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 id: chipLabel
                 anchors.centerIn: parent
                 text: root.node.text || ""
@@ -584,6 +597,7 @@ Item {
             radius: 10
             color: Theme.toneBgFor(root.node.tone || "neutral", root.dark)
             Text {
+                textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 id: badgeLabel
                 anchors.centerIn: parent
                 text: root.node.text || ""
@@ -602,6 +616,7 @@ Item {
             radius: px / 2
             color: Theme.playerColor(root.node.color || 1, root.dark)
             Text {
+                textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 anchors.centerIn: parent
                 text: (root.node.initial || "").substring(0, 1).toUpperCase()
                 font.pixelSize: Math.round(parent.px * 0.46)
@@ -620,6 +635,7 @@ Item {
                 pluginId: root.pluginId
             }
             Text {
+                textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 visible: !!root.node.label
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
@@ -637,6 +653,7 @@ Item {
             readonly property string tone: root.node.tone || (v > 0.5 ? "ok" : (v >= 0.2 ? "warning" : "danger"))
             spacing: 4
             Text {
+                textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 visible: !!root.node.label
                 text: root.node.label || ""
                 font.pixelSize: Theme.fontMeta
@@ -680,6 +697,7 @@ Item {
                 anchors.rightMargin: 8
                 spacing: 10
                 Text {
+                    textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     id: statLabel
                     Layout.fillWidth: true
                     text: root.node.label || ""
@@ -688,6 +706,7 @@ Item {
                     color: Theme.blockColor("textMuted", root.dark)
                 }
                 Text {
+                    textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     id: statValue
                     text: root.node.value === undefined ? "" : String(root.node.value)
                     font.family: Theme.mono
@@ -696,6 +715,7 @@ Item {
                     color: Theme.blockColor("text", root.dark)
                 }
                 Text {
+                    textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     visible: !!root.node.action
                     text: "›"
                     font.pixelSize: Theme.fontCard

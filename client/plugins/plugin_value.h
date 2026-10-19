@@ -28,6 +28,8 @@ struct Value {
 bool readValue(lua_State* L, int idx, Value& out, std::string& err, int maxDepth = kMaxValueDepth, size_t maxBytes = kMaxValueBytes);
 // Pushes a deep copy of `v` (may raise a Lua memory error).
 void pushValue(lua_State* L, const Value& v);
+// Approximate host memory of `v` (nodes x sizeof(Value) plus string bytes): what a queued event really costs.
+size_t valueBytes(const Value& v);
 // Short single-line rendering for the console ("{a=1, b=\"x\"}"), at most `maxLen` characters.
 std::string shortText(const Value& v, size_t maxLen = 120);
 

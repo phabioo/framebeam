@@ -60,6 +60,7 @@ Popup {
             RowLayout {
                 Layout.fillWidth: true
                 FbButton {
+                    textFormat: Text.PlainText
                     objectName: "pluginDetailBack"
                     kind: "link"
                     text: "‹ " + qsTr("Plugins")
@@ -74,6 +75,7 @@ Popup {
                     onActivated: name => { if (name === "uninstall") root.confirmUninstall = true }
                 }
                 FbButton {
+                    textFormat: Text.PlainText
                     objectName: "pluginDetailClose"
                     kind: "link"
                     text: "✕"
@@ -90,6 +92,7 @@ Popup {
                     radius: Theme.radius10
                     color: Theme.neutralPillBg
                     Text {
+                        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         anchors.centerIn: parent
                         text: root.info ? root.monogram(root.info.name) : ""
                         color: Theme.text
@@ -101,6 +104,7 @@ Popup {
                     Layout.fillWidth: true
                     spacing: 2
                     FbLabel {
+                        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         objectName: "pluginDetailName"
                         Layout.fillWidth: true
                         text: root.info ? root.info.name : ""
@@ -109,6 +113,7 @@ Popup {
                         elide: Text.ElideRight
                     }
                     FbLabel {
+                        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         objectName: "pluginDetailVersion"
                         Layout.fillWidth: true
                         text: {
@@ -142,12 +147,14 @@ Popup {
                         Layout.fillWidth: true
                         spacing: 2
                         FbLabel {
+                            textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                             objectName: "pluginDetailState"
                             text: root.info && root.info.enabled ? qsTr("On") : qsTr("Off")
                             font.pixelSize: Theme.fontBody
                             font.weight: Font.DemiBold
                         }
                         FbLabel {
+                            textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                             objectName: "pluginDetailStateNote"
                             Layout.fillWidth: true
                             text: {
@@ -203,6 +210,7 @@ Popup {
                         text: root.info ? root.info.originText : ""
                     }
                     FbLabel {
+                        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         Layout.fillWidth: true
                         text: root.info && root.info.origin === "unverified"
                               ? qsTr("Not checked by FrameBeam. Turn it on only if you trust the admin of your Hub.")
@@ -221,6 +229,7 @@ Popup {
                 Repeater {
                     model: root.info ? root.info.permissionList : []
                     delegate: FbLabel {
+                        textFormat: Text.PlainText
                         required property string modelData
                         objectName: "pluginDetailPermission"
                         Layout.fillWidth: true
@@ -230,6 +239,7 @@ Popup {
                     }
                 }
                 FbLabel {
+                    textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     visible: !root.info || root.info.permissionList.length === 0
                     text: qsTr("No special permissions")
                     color: Theme.textMuted
@@ -245,6 +255,7 @@ Popup {
             Repeater {
                 model: root.info ? root.info.needsLines : []
                 delegate: FbLabel {
+                    textFormat: Text.PlainText
                     required property string modelData
                     Layout.fillWidth: true
                     text: modelData
@@ -253,6 +264,7 @@ Popup {
                 }
             }
             FbLabel {
+                textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 objectName: "pluginAdds"
                 visible: root.info && root.info.adds !== ""
                 Layout.fillWidth: true
@@ -278,6 +290,7 @@ Popup {
                     anchors.margins: 12
                     spacing: 10
                     FbLabel {
+                        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         Layout.fillWidth: true
                         text: root.info && root.info.devLinked ? qsTr("Remove the link? The folder itself is kept.")
                                                                : qsTr("Remove this plugin from this device? Run data stays on the Hub.")
@@ -288,12 +301,14 @@ Popup {
                         Layout.fillWidth: true
                         Item { Layout.fillWidth: true }
                         FbButton {
+                            textFormat: Text.PlainText
                             objectName: "pluginUninstallCancel"
                             implicitHeight: 32
                             text: qsTr("Cancel")
                             onClicked: root.confirmUninstall = false
                         }
                         FbButton {
+                            textFormat: Text.PlainText
                             objectName: "pluginUninstallConfirm"
                             implicitHeight: 32
                             kind: "primary"
@@ -315,12 +330,14 @@ Popup {
                 Layout.topMargin: 6
                 spacing: 8
                 FbLabel {
+                    textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     Layout.fillWidth: true
                     text: root.info && root.info.updateVersion !== "" ? qsTr("Update to %1 is available").arg(root.info.updateVersion) : ""
                     color: Theme.textMuted
                     font.pixelSize: Theme.fontMeta
                 }
                 FbButton {
+                    textFormat: Text.PlainText
                     objectName: "pluginDetailUpdate"
                     visible: root.info && root.info.updateVersion !== ""
                     implicitHeight: 32

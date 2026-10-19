@@ -74,7 +74,19 @@ QString PluginImageProvider::resolve(const PluginImageSource& src, const QString
   return canonicalFile;
 }
 
-QImage PluginImageProvider::loadPng(const QString& path, QString* error) {
+bool PluginPixelBudget::take(const QString& pluginId, qint64 pixels, Clock::time_point now) {
+  std::lock_guard<std::mutex> lock(m_mutex);
+  auto& q = m_spent[pluginId];
+  while (!q.empty() && now - q.front().first > std::chrono::milliseconds(kPluginDecodeWindowMs)) q.pop_front();
+  qint64 total = pixels;
+  for (const auto& e : q) total += e.second;
+  if (total > kPluginDecodePixelsPerWindow) return false;
+  q.emplace_back(now, pixels);
+  return true;
+}
+
+QImage PluginImageProvider::loadPng(const QString& path, QString* error, const QSize& requestedSize, PluginPixelBudget* budget,
+                                    const QString& pluginId) {
   QFile f(path);
   if (!f.open(QIODevice::ReadOnly)) {
     if (error) *error = QStringLiteral("cannot open the file");
@@ -90,20 +102,26 @@ QImage PluginImageProvider::loadPng(const QString& path, QString* error) {
     if (error) *error = QStringLiteral("image is not a PNG or larger than 4096x4096");
     return {};
   }
+  if (budget != nullptr && !budget->take(pluginId, static_cast<qint64>(sz.width()) * sz.height())) {
+    if (error) *error = QStringLiteral("too many image pixels decoded for this plugin, try again shortly");
+    return {};
+  }
+  QSize target(kMaxDeliveredImageDim, kMaxDeliveredImageDim);
+  if (requestedSize.isValid() && requestedSize.width() > 0 && requestedSize.height() > 0) target = target.boundedTo(requestedSize);
+  if (sz.width() > target.width() || sz.height() > target.height()) r.setScaledSize(sz.scaled(target, Qt::KeepAspectRatio));
   const QImage img = r.read();
   if (img.isNull() && error) *error = QStringLiteral("cannot decode the PNG");
   return img;
 }
 
 QImage PluginImageProvider::requestImage(const QString& id, QSize* size, const QSize& requestedSize) {
-  Q_UNUSED(requestedSize)
   const int slash = id.indexOf(QLatin1Char('/'));
   PluginImageSource src;
   QString err;
   QImage img;
   if (slash > 0 && m_sources->get(id.left(slash), src)) {
     const QString path = resolve(src, id, &err);
-    if (!path.isEmpty()) img = loadPng(path, &err);
+    if (!path.isEmpty()) img = loadPng(path, &err, requestedSize, &m_budget, id.left(slash));
   } else {
     err = QStringLiteral("unknown plugin");
   }

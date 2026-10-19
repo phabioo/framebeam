@@ -35,6 +35,7 @@ Item {
             sourceSize.height: root.size * 2
         }
         FbMono {
+            textFormat: Text.PlainText
             visible: !img.visible
             anchors.centerIn: parent
             text: root.name.length > 0 ? root.name.charAt(0).toUpperCase() : "?"

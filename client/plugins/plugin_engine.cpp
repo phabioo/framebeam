@@ -17,7 +17,7 @@ using Clock = std::chrono::steady_clock;
 
 namespace {
 constexpr qint64 kMaxEntryBytes = 4 * 1024 * 1024;
-constexpr size_t kMaxQueuedEvents = 10000;
+constexpr int kMaxSlowCalls = 5;
 
 QString qs(const std::string& s) { return QString::fromUtf8(s.data(), static_cast<qsizetype>(s.size())); }
 }  // namespace
@@ -127,7 +127,33 @@ void PluginEngine::emitEvent(Plugin& p, const std::string& name, Value value) {
   line.name = qs(name);
   line.text = qs(shortText(value));
   store.addEvent(p.id(), line);
-  events.push_back({p.id(), name, std::move(value), QString()});
+  QueuedEvent ev{p.id(), name, std::move(value), QString(), 0};
+  pushEvent(std::move(ev));
+}
+
+bool PluginEngine::eventFits(const QString& from, size_t bytes) const {
+  if (events.size() >= kMaxQueuedEventCount || queuedBytes + bytes > kMaxQueuedEventBytes) return false;
+  const auto it = queuedBy.find(from);
+  return (it == queuedBy.end() ? 0 : it->second) + bytes <= kMaxQueuedEventBytesPerPlugin;
+}
+
+void PluginEngine::pushEvent(QueuedEvent ev) {
+  ev.bytes = valueBytes(ev.value) + ev.name.size() + sizeof(QueuedEvent);
+  queuedBytes += ev.bytes;
+  queuedBy[ev.from] += ev.bytes;
+  events.push_back(std::move(ev));
+}
+
+QueuedEvent PluginEngine::popEvent() {
+  QueuedEvent ev = std::move(events.front());
+  events.pop_front();
+  queuedBytes -= ev.bytes;
+  auto it = queuedBy.find(ev.from);
+  if (it != queuedBy.end()) {
+    it->second -= ev.bytes;
+    if (it->second == 0) queuedBy.erase(it);
+  }
+  return ev;
 }
 
 void PluginEngine::syncWatches(Plugin& p) {
@@ -168,6 +194,7 @@ void PluginEngine::pause(Plugin& p, const std::string& error) {
 void PluginEngine::callRef(Plugin& p, int ref, const std::function<int(lua_State*)>& pushArgs) {
   if (p.status != PluginStatus::Running || !p.lua) return;
   std::string err;
+  const auto t0 = Clock::now();
   const bool ok = p.lua->run(
       [&](lua_State* L) {
         lua_rawgeti(L, LUA_REGISTRYINDEX, ref);
@@ -175,7 +202,16 @@ void PluginEngine::callRef(Plugin& p, int ref, const std::function<int(lua_State
         lua_call(L, n, 0);
       },
       err);
-  if (!ok) pause(p, err);
+  if (!ok) {
+    pause(p, err);
+    return;
+  }
+  // A handler that stays just below the wall limit every time would still starve everything: repeated slow calls pause it.
+  if (Clock::now() - t0 > std::chrono::milliseconds(limits.wallMs / 2)) {
+    if (++p.slowCalls >= kMaxSlowCalls) pause(p, "Handlers repeatedly used more than half of the time budget (" + std::to_string(limits.wallMs) + " ms)");
+  } else {
+    p.slowCalls = 0;
+  }
 }
 
 void PluginEngine::load(Plugin& p) {
@@ -215,6 +251,7 @@ void PluginEngine::load(Plugin& p) {
 
 void PluginEngine::start(const GameContext& c, std::shared_ptr<MemoryProvider> prov, const QList<PluginInfo>& list, const HostLimits& lim) {
   stop();
+  formats::romfsCacheClear();  // a new game: never serve the previous game's RomFS index
   ctx = c;
   provider = std::move(prov);
   limits = lim;
@@ -242,7 +279,10 @@ void PluginEngine::stop() {
     if (p->status != PluginStatus::Stopped) setStatus(*p, PluginStatus::Stopped, p->status == PluginStatus::Paused ? store.snapshot(p->id()).error : QString());
   }
   m_plugins.clear();
+  formats::romfsCacheClear();
   events.clear();
+  queuedBytes = 0;
+  queuedBy.clear();
   provider.reset();
   ctx.video.reset();  // the Player releases its side on the UI thread after stop() returns
 }
@@ -267,8 +307,9 @@ void PluginEngine::reload(const QString& id) {
 void PluginEngine::deliverEvents() {
   size_t n = (std::min<size_t>)(events.size(), 1000);
   while (n-- > 0 && !events.empty()) {
-    QueuedEvent ev = std::move(events.front());
-    events.pop_front();
+    // Aggregate budget: the handlers of all plugins together may use kIterateBudgetMs per iteration; the rest stays queued.
+    if (Clock::now() > m_iterDeadline) break;
+    QueuedEvent ev = popEvent();
     for (auto& pp : m_plugins) {
       Plugin& p = *pp;
       if (p.status != PluginStatus::Running) continue;
@@ -302,8 +343,9 @@ void PluginEngine::deliverAction(const QString& pluginId, const QString& slot, c
 }
 
 void PluginEngine::postHostEvent(const QString& name, Value value, const QString& target) {
-  if (events.size() >= kMaxQueuedEvents) return;
-  events.push_back({QStringLiteral("fb"), name.toStdString(), std::move(value), target});
+  const std::string n = name.toStdString();
+  if (!eventFits(QStringLiteral("fb"), valueBytes(value) + n.size() + sizeof(QueuedEvent))) return;
+  pushEvent({QStringLiteral("fb"), n, std::move(value), target, 0});
 }
 
 void PluginEngine::clearSlotEverywhere(const QString& slot) {
@@ -562,6 +604,7 @@ void PluginEngine::pollCaptures() {
 }
 
 void PluginEngine::iterate() {
+  m_iterDeadline = Clock::now() + std::chrono::milliseconds(kIterateBudgetMs);
   pollCaptures();
   pollRun();
   deliverEvents();

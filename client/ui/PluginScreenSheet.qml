@@ -77,6 +77,7 @@ Rectangle {
                     icon: root.entry.icon || ""
                 }
                 FbLabel {
+                    textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     objectName: "pluginScreenSheetTitle"
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
@@ -87,6 +88,7 @@ Rectangle {
                     color: Theme.gameText
                 }
                 FbMono {
+                    textFormat: Text.PlainText
                     text: "Esc"
                     font.pixelSize: 11
                     color: Theme.gameMeta
@@ -108,6 +110,7 @@ Rectangle {
                 anchors.rightMargin: 16
                 spacing: 10
                 FbLabel {
+                    textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     Layout.fillWidth: true
                     text: qsTr("Paused · showing its last state")
                     wrapMode: Text.WordWrap
@@ -150,6 +153,7 @@ Rectangle {
                 onAction: (a, v) => root.player.plugins.sendAction(root.pluginId, "screen", a, v)
             }
             FbLabel {
+                textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 x: 24
                 y: 24
                 width: flick.width - 48

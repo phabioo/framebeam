@@ -173,7 +173,7 @@ int eventsEmit(lua_State* L) {
   Value v;
   std::string err;
   if (lua_gettop(L) >= 2 && !readValue(L, 2, v, err)) luaL_error(L, "fb.events.emit: %s", err.c_str());
-  if (p->engine->events.size() >= 10000) luaL_error(L, "event queue is full");
+  if (!p->engine->eventFits(p->id(), valueBytes(v) + name.size() + sizeof(QueuedEvent))) luaL_error(L, "event queue is full");
   p->engine->emitEvent(*p, name, std::move(v));
   return 0;
 }

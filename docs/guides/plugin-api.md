@@ -74,10 +74,22 @@ Calling a function without its permission raises the Lua error `permission <p> n
 | `fb.video.capture` | one pending capture per plugin, at most 1 request per second, PNG up to 2 MiB, rectangle up to 4096x4096 |
 | Plugin cache | 256 MiB per plugin; `fb.cache.read` returns files up to 32 MiB |
 | Values passed between plugins | depth 32, 1 MiB |
+| Pattern matching | `string.find`, `match`, `gmatch` and `gsub` share a matcher budget of 20 million steps (about 0.2 s) per entry call |
+| `string.rep` | result up to 16 MiB |
+| Event queue | 10000 events, 16 MiB of host memory in total and 4 MiB per emitting plugin (measured by the real size of the copied values, not the 1 MiB reader limit); `fb.events.emit` raises "event queue is full" when a plugin's share is used up |
+| Time per host iteration | event handlers of all plugins together get 50 ms per iteration; the remaining events stay queued and are delivered by the next iterations. A plugin whose callbacks use more than half of the 500 ms budget five times in a row is paused |
 
 An *entry call* is anything the host starts: loading the entry file, a tick, an event handler, or a call made with `fb.call`. When a plugin exceeds its budget or memory limit, or raises an error that it does not catch, **only that plugin is paused**: the error and its traceback appear in the developer console, its watched ranges are released, and the game and all other plugins keep running. Fix the file and reload the plugin to start it again. A plugin cannot hide a budget overrun with `pcall`.
 
-Note: long-running native library calls (for example a pathological `string.find` pattern on a huge string) are not interrupted by the instruction budget; they are bounded by the memory limit only.
+Native string functions cannot be interrupted by the instruction hook, so the pattern matcher of the vendored Lua counts its own steps: a pathological pattern such as `("a"):rep(40000):find(".-b")` (about 7 s in stock Lua) ends with the error `time budget exceeded (pattern matching budget used up)` after at most about 0.2 s, and like any budget overrun it pauses only that plugin and cannot be swallowed with `pcall`. Plain `find(s, x, 1, true)`, `rep` and `format` are linear and bounded by the memory limit (and the 16 MiB `rep` cap).
+
+Hardening of the sandbox that plugins can observe:
+
+- `setmetatable` refuses a metatable with `__gc` (a finalizer would run when the state is closed, outside any budget).
+- `tostring`, `print` and `string.format("%s")` show `table: #1`, `function: #2` and so on for tables, functions and userdata without `__tostring`, never memory addresses; `string.format("%p")` is not available.
+- Text from plugins and from other participants (manifest names, block text, event and state fields, run events) is always shown as plain text in the Player: markup such as `<b>` or `<img>` appears literally.
+- Plugin images (`cache:` and `asset:`) are PNGs up to 4096x4096 and 8 MiB. The Player decodes them scaled to the size they are shown at (never above 2048x2048), and one plugin may have at most 128 megapixels decoded per 10 seconds.
+- `fb.rom.romfs` and `fb.rom.romfs_list` keep the parsed RomFS index of the running game between calls.
 
 ## API
 

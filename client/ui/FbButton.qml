@@ -10,6 +10,7 @@ Button {
     id: control
     property string kind: "outline"
     property bool busy: false
+    property int textFormat: Text.AutoText  // plugin screens set Text.PlainText
     property bool busyOnClick: false
     readonly property bool working: busy || clickBusy
     property bool clickBusy: false
@@ -62,6 +63,7 @@ Button {
             Text {
                 id: labelItem
                 objectName: "fbButtonLabel"
+                textFormat: control.textFormat
                 text: control.text
                 font: control.font
                 elide: Text.ElideRight

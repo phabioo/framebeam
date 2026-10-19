@@ -40,6 +40,7 @@ Item {
                 anchors.rightMargin: 12
                 spacing: 10
                 FbLabel {
+                    textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     Layout.fillWidth: true
                     text: qsTr("Paused · showing its last state")
                     wrapMode: Text.WordWrap
@@ -82,6 +83,7 @@ Item {
                 onAction: (a, v) => root.player.plugins.sendAction(root.pluginId, "panel", a, v)
             }
             FbLabel {
+                textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 x: 20
                 y: 20
                 width: flick.width - 40

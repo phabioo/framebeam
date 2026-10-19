@@ -386,6 +386,43 @@ class PluginsRuntimeUiTest : public QObject {
     QVERIFY(provider.requestImage("q/cache/icons/25.png", &size, QSize()).isNull());  // unknown plugin
     QVERIFY(provider.requestImage("p/cache/../outside.png", &size, QSize()).isNull());
   }
+
+  // PI-6: requestedSize is honored, large images are scaled down while decoding, and decoding is budgeted per plugin.
+  void imagesAreScaledAndBudgeted() {
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    QImage big(3000, 2000, QImage::Format_ARGB32);
+    big.fill(QColor(10, 120, 200));
+    const QString path = dir.filePath("big.png");
+    QVERIFY(big.save(path, "PNG"));
+    QString err;
+    QImage full = PluginImageProvider::loadPng(path, &err);  // no requestedSize: bounded by kMaxDeliveredImageDim
+    QVERIFY2(!full.isNull(), qPrintable(err));
+    QVERIFY(full.width() <= kMaxDeliveredImageDim && full.height() <= kMaxDeliveredImageDim);
+    QVERIFY(qAbs(double(full.width()) / full.height() - 1.5) < 0.01);
+    const QImage small = PluginImageProvider::loadPng(path, &err, QSize(48, 36));
+    QVERIFY2(!small.isNull(), qPrintable(err));
+    QVERIFY(small.width() <= 48 && small.height() <= 36);
+    QVERIFY(qAbs(double(small.width()) / small.height() - 1.5) < 0.1);
+    QImage tiny(8, 6, QImage::Format_ARGB32);
+    tiny.fill(Qt::red);
+    QVERIFY(tiny.save(dir.filePath("tiny.png"), "PNG"));
+    QCOMPARE(PluginImageProvider::loadPng(dir.filePath("tiny.png"), &err, QSize(200, 200)).size(), QSize(8, 6));  // never upscaled
+
+    PluginPixelBudget budget;
+    const auto t0 = PluginPixelBudget::Clock::now();
+    const qint64 each = 4096ll * 4096;
+    int allowed = 0;
+    while (budget.take("p", each, t0)) ++allowed;
+    QCOMPARE(allowed, int(kPluginDecodePixelsPerWindow / each));
+    QVERIFY(budget.take("q", each, t0));  // other plugins are not affected
+    QVERIFY(budget.take("p", each, t0 + std::chrono::milliseconds(kPluginDecodeWindowMs + 1)));  // the window moved on
+    QVERIFY(PluginImageProvider::loadPng(path, &err, QSize(), &budget, "z").width() > 0);
+    PluginPixelBudget tight;
+    for (int i = 0; i < 200; ++i) (void)tight.take("z", 1'000'000);
+    QVERIFY(PluginImageProvider::loadPng(path, &err, QSize(), &tight, "z").isNull());
+    QVERIFY2(err.contains("too many image pixels"), qPrintable(err));
+  }
 };
 
 QTEST_MAIN(PluginsRuntimeUiTest)

@@ -89,6 +89,7 @@ ColumnLayout {
 
     Eyebrow { text: qsTr("Plugins") }
     FbLabel {
+        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
         Layout.fillWidth: true
         text: qsTr("If a plugin fails it is paused; your game keeps running.")
         color: Theme.textMuted
@@ -101,6 +102,7 @@ ColumnLayout {
         Layout.topMargin: 4
         Eyebrow { objectName: "pluginsInstalledTitle"; Layout.fillWidth: true; text: qsTr("Installed · %1").arg(root.list.length) }
         FbButton {
+            textFormat: Text.PlainText
             objectName: "pluginInstallButton"
             kind: "link"
             text: qsTr("Install from file…")
@@ -180,6 +182,7 @@ ColumnLayout {
                             radius: Theme.radius8
                             color: Theme.neutralPillBg
                             Text {
+                                textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                                 anchors.centerIn: parent
                                 text: root.monogram(row.modelData.name)
                                 color: Theme.text
@@ -196,6 +199,7 @@ ColumnLayout {
                                 Layout.minimumWidth: 0
                                 spacing: 8
                                 FbLabel {
+                                    textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                                     objectName: "pluginName"
                                     text: row.modelData.name
                                     font.pixelSize: Theme.fontBody
@@ -204,6 +208,7 @@ ColumnLayout {
                                     Layout.maximumWidth: 260
                                 }
                                 FbMono {
+                                    textFormat: Text.PlainText
                                     objectName: "pluginVersion"
                                     text: row.modelData.version
                                     color: Theme.textMuted
@@ -214,6 +219,7 @@ ColumnLayout {
                                     text: row.modelData.originText
                                 }
                                 FbPill {
+                                    textFormat: Text.PlainText
                                     visible: row.modelData.devLinked
                                     small: true
                                     tone: "neutral"
@@ -222,6 +228,7 @@ ColumnLayout {
                                 Item { Layout.fillWidth: true }
                             }
                             FbLabel {
+                                textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                                 objectName: "pluginSubtitle"
                                 Layout.fillWidth: true
                                 text: row.modelData.subtitle
@@ -231,6 +238,7 @@ ColumnLayout {
                             }
                         }
                         FbButton {
+                            textFormat: Text.PlainText
                             objectName: "pluginUpdate"
                             visible: row.modelData.updateVersion !== ""
                             Layout.alignment: Qt.AlignVCenter
@@ -256,6 +264,7 @@ ColumnLayout {
                             }
                         }
                         FbButton {
+                            textFormat: Text.PlainText
                             objectName: "pluginOpen"
                             Layout.alignment: Qt.AlignVCenter
                             kind: "link"
@@ -264,6 +273,7 @@ ColumnLayout {
                         }
                     }
                     FbLabel {
+                        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         id: problemLabel
                         objectName: "pluginProblems"
                         visible: row.modelData.problemsText !== ""
@@ -297,8 +307,9 @@ ColumnLayout {
             anchors.centerIn: parent
             width: parent.width - 48
             spacing: 6
-            FbLabel { Layout.alignment: Qt.AlignHCenter; text: qsTr("No plugins installed"); font.pixelSize: Theme.fontSection; font.weight: Font.DemiBold }
+            FbLabel { textFormat: Text.PlainText; Layout.alignment: Qt.AlignHCenter; text: qsTr("No plugins installed"); font.pixelSize: Theme.fontSection; font.weight: Font.DemiBold }
             FbLabel {
+                textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 objectName: "pluginsEmptyText"
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
@@ -325,6 +336,7 @@ ColumnLayout {
         spacing: 10
         Eyebrow { objectName: "hubPluginsTitle"; Layout.fillWidth: true; text: qsTr("Available on %1 · %2").arg(root.hubLabel).arg(root.available.length) }
         FbLabel {
+            textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
             objectName: "hubPluginsStatus"
             text: root.ctl.hubStatus === "loading" ? qsTr("Loading…")
                   : (root.checkedAt !== "" ? qsTr("Checked %1").arg(root.player.whenText(root.checkedAt)) : "")
@@ -333,6 +345,7 @@ ColumnLayout {
             font.pixelSize: Theme.fontMeta
         }
         FbButton {
+            textFormat: Text.PlainText
             objectName: "hubPluginsRefresh"
             kind: "link"
             text: qsTr("Refresh")
@@ -362,8 +375,9 @@ ColumnLayout {
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 2
-                    FbLabel { text: qsTr("Could not reach %1").arg(root.hubLabel); font.pixelSize: Theme.fontBody; font.weight: Font.DemiBold }
+                    FbLabel { textFormat: Text.PlainText; text: qsTr("Could not reach %1").arg(root.hubLabel); font.pixelSize: Theme.fontBody; font.weight: Font.DemiBold }
                     FbLabel {
+                        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         Layout.fillWidth: true
                         text: qsTr("Available plugins could not be loaded. Installed plugins keep working.")
                         color: Theme.textMuted
@@ -371,9 +385,10 @@ ColumnLayout {
                         wrapMode: Text.WordWrap
                     }
                 }
-                FbButton { objectName: "hubPluginsRetry"; implicitHeight: 32; text: qsTr("Retry"); onClicked: root.ctl.refreshHubPlugins() }
+                FbButton { textFormat: Text.PlainText; objectName: "hubPluginsRetry"; implicitHeight: 32; text: qsTr("Retry"); onClicked: root.ctl.refreshHubPlugins() }
             }
             FbLabel {
+                textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 objectName: "hubPluginsEmpty"
                 visible: root.available.length === 0 && root.ctl.hubStatus === "ready"
                 Layout.fillWidth: true
@@ -416,6 +431,7 @@ ColumnLayout {
                             radius: Theme.radius8
                             color: Theme.neutralPillBg
                             Text {
+                                textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                                 anchors.centerIn: parent
                                 text: root.monogram(hrow.modelData.name)
                                 color: Theme.text
@@ -431,6 +447,7 @@ ColumnLayout {
                                 Layout.fillWidth: true
                                 spacing: 8
                                 FbLabel {
+                                    textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                                     objectName: "hubPluginName"
                                     text: hrow.modelData.name
                                     font.pixelSize: Theme.fontBody
@@ -438,7 +455,7 @@ ColumnLayout {
                                     elide: Text.ElideRight
                                     Layout.maximumWidth: 260
                                 }
-                                FbMono { objectName: "hubPluginVersion"; text: hrow.modelData.version; color: Theme.textMuted }
+                                FbMono { textFormat: Text.PlainText; objectName: "hubPluginVersion"; text: hrow.modelData.version; color: Theme.textMuted }
                                 PluginOriginPill {
                                     objectName: "hubPluginOrigin"
                                     origin: hrow.modelData.origin
@@ -447,6 +464,7 @@ ColumnLayout {
                                 Item { Layout.fillWidth: true }
                             }
                             FbLabel {
+                                textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                                 objectName: "hubPluginPermissions"
                                 Layout.fillWidth: true
                                 text: qsTr("Can: %1").arg(hrow.modelData.permissionsText) + (hrow.modelData.sizeText !== "" ? " · " + hrow.modelData.sizeText : "")
@@ -456,6 +474,7 @@ ColumnLayout {
                             }
                         }
                         FbButton {
+                            textFormat: Text.PlainText
                             objectName: "hubPluginInstall"
                             implicitHeight: 32
                             enabled: hrow.modelData.state === "install"
@@ -476,12 +495,14 @@ ColumnLayout {
         Layout.fillWidth: true
         Layout.topMargin: 10
         FbLabel {
+            textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
             Layout.fillWidth: true
             text: qsTr("Developer mode and local folders:")
             color: Theme.textMuted
             font.pixelSize: Theme.fontSmall
         }
         FbButton {
+            textFormat: Text.PlainText
             objectName: "pluginDeveloperSettings"
             kind: "link"
             text: root.devOpen ? qsTr("Hide developer settings") : qsTr("Developer settings")
@@ -509,12 +530,14 @@ ColumnLayout {
             Layout.fillWidth: true
             spacing: Theme.space10
             FbButton {
+                textFormat: Text.PlainText
                 objectName: "pluginInstallFolderButton"
                 implicitHeight: 36
                 text: qsTr("Install from folder…")
                 onClicked: root.openFolderDialog("install")
             }
             FbButton {
+                textFormat: Text.PlainText
                 objectName: "pluginLinkButton"
                 visible: root.ctl.developerMode
                 implicitHeight: 36
@@ -535,6 +558,7 @@ ColumnLayout {
             onAccepted: applyPath.clicked()
         }
         FbButton {
+            textFormat: Text.PlainText
             id: applyPath
             objectName: "pluginFolderApplyButton"
             implicitHeight: 44
@@ -548,6 +572,7 @@ ColumnLayout {
         }
     }
     FbLabel {
+        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
         objectName: "pluginsMessage"
         visible: root.ctl.message !== ""
         Layout.fillWidth: true
@@ -601,6 +626,7 @@ ColumnLayout {
         onClosed: root.confirmInstallId = ""
         bodyItem: [
             FbLabel {
+                textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 Layout.fillWidth: true
                 text: root.confirmInstallPlugin ? qsTr("Install %1?").arg(root.confirmInstallPlugin.name) : ""
                 font.pixelSize: Theme.fontSection
@@ -608,6 +634,7 @@ ColumnLayout {
                 wrapMode: Text.WordWrap
             },
             FbLabel {
+                textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 Layout.fillWidth: true
                 text: root.confirmInstallPlugin
                       ? (root.confirmInstallPlugin.origin === "unverified" ? root.confirmInstallPlugin.originText + ". " : "")
@@ -626,8 +653,9 @@ ColumnLayout {
                     anchors.fill: parent
                     anchors.margins: 10
                     spacing: 10
-                    Text { text: "✓"; color: Theme.accent; font.pixelSize: Theme.fontBody }
+                    Text { textFormat: Text.PlainText; text: "✓"; color: Theme.accent; font.pixelSize: Theme.fontBody }
                     FbLabel {
+                        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         objectName: "pluginInstallDependency"
                         Layout.fillWidth: true
                         text: {
@@ -645,8 +673,9 @@ ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 10
                 Item { Layout.fillWidth: true }
-                FbButton { objectName: "pluginInstallCancel"; implicitHeight: 34; text: qsTr("Cancel"); onClicked: installDialog.close() }
+                FbButton { textFormat: Text.PlainText; objectName: "pluginInstallCancel"; implicitHeight: 34; text: qsTr("Cancel"); onClicked: installDialog.close() }
                 FbButton {
+                    textFormat: Text.PlainText
                     objectName: "pluginInstallBoth"
                     implicitHeight: 34
                     kind: "primary"
@@ -668,6 +697,7 @@ ColumnLayout {
         onClosed: root.confirmEnableId = ""
         bodyItem: [
             FbLabel {
+                textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 Layout.fillWidth: true
                 text: root.confirmEnablePlugin ? qsTr("Turn on %1?").arg(root.confirmEnablePlugin.name) : ""
                 font.pixelSize: Theme.fontSection
@@ -675,6 +705,7 @@ ColumnLayout {
                 wrapMode: Text.WordWrap
             },
             FbLabel {
+                textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 objectName: "pluginUnverifiedWarning"
                 visible: root.confirmEnablePlugin !== null && root.confirmEnablePlugin.needsConfirm
                 Layout.fillWidth: true
@@ -684,6 +715,7 @@ ColumnLayout {
                 wrapMode: Text.WordWrap
             },
             FbLabel {
+                textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 objectName: "pluginEnablePermissions"
                 Layout.fillWidth: true
                 text: root.confirmEnablePlugin ? qsTr("It will be able to: %1").arg(root.confirmEnablePlugin.permissionsText) : ""
@@ -692,6 +724,7 @@ ColumnLayout {
                 wrapMode: Text.WordWrap
             },
             FbLabel {
+                textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 objectName: "pluginEnableDependency"
                 visible: root.confirmEnablePlugin !== null && root.confirmEnablePlugin.depsOff.length > 0
                 Layout.fillWidth: true
@@ -704,8 +737,9 @@ ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 10
                 Item { Layout.fillWidth: true }
-                FbButton { objectName: "pluginEnableCancel"; implicitHeight: 34; text: qsTr("Cancel"); onClicked: enableDialog.close() }
+                FbButton { textFormat: Text.PlainText; objectName: "pluginEnableCancel"; implicitHeight: 34; text: qsTr("Cancel"); onClicked: enableDialog.close() }
                 FbButton {
+                    textFormat: Text.PlainText
                     objectName: "pluginEnableConfirmButton"
                     implicitHeight: 34
                     kind: "primary"

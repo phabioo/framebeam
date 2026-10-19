@@ -253,6 +253,7 @@ Item {
             width: root.iw * root.s
             height: root.ih * root.s
             source: Theme.pluginImageUrl(root.pluginId, root.imageSrc)
+            sourceSize: Qt.size(2048, 2048)  // bounds the decoded map (aspect kept by the provider)
             smooth: false
             asynchronous: true
             fillMode: Image.Stretch
@@ -318,6 +319,7 @@ Item {
                         owner: cm.modelData.owner || 0
                     }
                     Text {
+                        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         anchors.verticalCenter: parent.verticalCenter
                         text: cm.modelData.n
                         font.pixelSize: Theme.fontMeta
@@ -325,6 +327,7 @@ Item {
                         color: Theme.blockColor("text", root.dark)
                     }
                     Text {
+                        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         anchors.verticalCenter: parent.verticalCenter
                         text: cm.modelData.area
                         font.pixelSize: 10
@@ -378,6 +381,7 @@ Item {
                         }
                     }
                     Text {
+                        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         visible: rm.modelData.number !== undefined
                         anchors.verticalCenter: parent.verticalCenter
                         text: rm.modelData.number === undefined ? "" : String(rm.modelData.number)
@@ -387,6 +391,7 @@ Item {
                         color: Theme.blockColor("textSecondary", root.dark)
                     }
                     Text {
+                        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         objectName: "pluginMapOpenLabel"
                         visible: rm.icons.length === 0
                         anchors.verticalCenter: parent.verticalCenter
@@ -439,6 +444,7 @@ Item {
                         radius: 13
                         color: Theme.playerColor(pm.modelData.p.color || 1, root.dark)
                         Text {
+                            textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                             anchors.centerIn: parent
                             text: (pm.modelData.p.initial || "").substring(0, 1).toUpperCase()
                             font.pixelSize: 12
@@ -496,6 +502,7 @@ Item {
                             color: Theme.playerColor(modelData.owner || 1, root.dark)
                         }
                         Text {
+                            textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                             Layout.preferredWidth: 56
                             text: modelData.name || ""
                             elide: Text.ElideRight
@@ -511,6 +518,7 @@ Item {
                             imgState: modelData.src ? "alive" : "empty"
                         }
                         Text {
+                            textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                             Layout.fillWidth: true
                             text: modelData.status || ""
                             wrapMode: Text.WordWrap     // shown in full, not cut off (P47)
@@ -566,6 +574,7 @@ Item {
                         border.width: 1
                         border.color: Theme.blockColor("popupBorder", root.dark)
                         Text {
+                            textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                             anchors.centerIn: parent
                             text: zb.modelData.label
                             font.pixelSize: 16
@@ -601,6 +610,7 @@ Item {
                     implicitHeight: 18
                     onActivated: root.legendOpen = !root.legendOpen
                     Text {
+                        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         id: legendHead
                         text: (root.legendOpen ? "▾ " : "▸ ") + qsTr("Legend")
                         font.pixelSize: Theme.fontMeta
@@ -612,19 +622,19 @@ Item {
                     visible: root.legendOpen
                     spacing: 8
                     Rectangle { width: 8; height: 8; radius: 4; color: Theme.playerColor(1, root.dark) }
-                    Text { text: qsTr("Caught · dot = owner"); font.pixelSize: Theme.fontMeta; color: Theme.blockColor("textSecondary", root.dark) }
+                    Text { textFormat: Text.PlainText; text: qsTr("Caught · dot = owner"); font.pixelSize: Theme.fontMeta; color: Theme.blockColor("textSecondary", root.dark) }
                 }
                 RowLayout {
                     visible: root.legendOpen
                     spacing: 8
                     PluginImage { dark: root.dark; size: "s"; imgState: "dead" }
-                    Text { text: qsTr("Dead"); font.pixelSize: Theme.fontMeta; color: Theme.blockColor("textSecondary", root.dark) }
+                    Text { textFormat: Text.PlainText; text: qsTr("Dead"); font.pixelSize: Theme.fontMeta; color: Theme.blockColor("textSecondary", root.dark) }
                 }
                 RowLayout {
                     visible: root.legendOpen
                     spacing: 8
                     PluginImage { dark: root.dark; size: "s"; imgState: "missed" }
-                    Text { text: qsTr("Missed"); font.pixelSize: Theme.fontMeta; color: Theme.blockColor("textSecondary", root.dark) }
+                    Text { textFormat: Text.PlainText; text: qsTr("Missed"); font.pixelSize: Theme.fontMeta; color: Theme.blockColor("textSecondary", root.dark) }
                 }
             }
         }
@@ -635,6 +645,7 @@ Item {
             anchors.centerIn: parent
             spacing: 6
             Text {
+                textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: qsTr("Map not read yet")
                 font.pixelSize: Theme.fontSmall
@@ -642,6 +653,7 @@ Item {
                 color: Theme.blockColor("textMuted", root.dark)
             }
             Text {
+                textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: qsTr("It appears once the game has loaded it.")
                 font.pixelSize: Theme.fontMeta

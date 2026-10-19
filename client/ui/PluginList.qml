@@ -55,6 +55,7 @@ ColumnLayout {
                     Layout.minimumWidth: 0
                     spacing: 1
                     Text {
+                        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         Layout.fillWidth: true
                         text: row.modelData.title || ""
                         elide: Text.ElideRight
@@ -63,6 +64,7 @@ ColumnLayout {
                         color: Theme.blockColor("text", root.dark)
                     }
                     Text {
+                        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         visible: !!row.modelData.sub
                         Layout.fillWidth: true
                         text: row.modelData.sub || ""
@@ -72,6 +74,7 @@ ColumnLayout {
                     }
                 }
                 Text {
+                    textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     visible: !!row.modelData.meta
                     Layout.maximumWidth: Math.max(40, content.width * 0.4)
                     elide: Text.ElideRight
@@ -81,6 +84,7 @@ ColumnLayout {
                     color: row.modelData.tone ? Theme.toneFg(row.modelData.tone, root.dark) : Theme.blockColor("textMuted", root.dark)
                 }
                 Text {
+                    textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     visible: row.clickable
                     text: "›"
                     font.pixelSize: Theme.fontCard

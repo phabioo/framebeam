@@ -57,6 +57,7 @@ ColumnLayout {
                         text: sec.marker
                     }
                     FbButton {
+                        textFormat: Text.PlainText
                         objectName: "pluginDetailCollapse"
                         kind: "link"
                         font.pixelSize: Theme.fontMono

@@ -280,6 +280,58 @@ class PluginBlocksUiTest : public QObject {
     shot(dark ? QStringLiteral("plugin-blocks-dark") : QStringLiteral("plugin-blocks-light"));
   }
 
+  // PI-5: strings from plugins and peers are text, never HTML: no <img> fetch, no <b>/<font> restyling.
+  void hostileStringsRenderLiterally() {
+    const QString evil = QStringLiteral("<img src=\"https://hostile.example/p.png?ip\"><b>Official</b><font size=40>x</font>");
+    QJsonObject tree = QJsonDocument::fromJson(R"({"type":"column","gap":8,"children":[]})").object();
+    QJsonArray kids;
+    const auto add = [&](const char* json) {
+      QJsonObject o = QJsonDocument::fromJson(QByteArray(json).replace("EVIL", evil.toUtf8().replace("\"", "\\\""))).object();
+      QVERIFY2(!o.isEmpty(), json);
+      kids.append(o);
+    };
+    add(R"({"type":"text","id":"evText","text":"EVIL"})");
+    add(R"({"type":"text","style":"title","text":"EVIL"})");
+    add(R"({"type":"chip","text":"EVIL","action":"c"})");
+    add(R"({"type":"badge","text":"EVIL"})");
+    add(R"({"type":"button","label":"EVIL","action":"b"})");
+    add(R"({"type":"stat","label":"EVIL","value":"EVIL"})");
+    add(R"({"type":"section","title":"EVIL","children":[{"type":"list","rows":[{"id":"r1","title":"EVIL","sub":"EVIL","meta":"EVIL"}]},
+        {"type":"table","columns":["EVIL"],"rows":[{"cells":["EVIL"]}]}]})");
+    add(R"({"type":"card","eyebrow":"EVIL","title":"EVIL","children":[]})");
+    add(R"({"type":"empty","title":"EVIL","text":"EVIL"})");
+    add(R"({"type":"location","title":"EVIL","sub":"EVIL"})");
+    add(R"({"type":"tabs","tabs":["EVIL","B"],"selected":1,"children":[{"type":"text","text":"EVIL"},{"type":"text","text":"EVIL"}]})");
+    add(R"({"type":"select","options":[{"value":"a","label":"EVIL"}],"selected":"a"})");
+    add(R"({"type":"segmented","options":[{"value":"x","label":"EVIL"}],"selected":"x"})");
+    tree.insert("children", kids);
+    show(tree.toVariantMap(), true);
+    int checked = 0;
+    std::function<void(QQuickItem*)> walk = [&](QQuickItem* it) {
+      const QVariant text = it->property("text");
+      const QVariant fmt = it->property("textFormat");
+      if (text.isValid() && text.metaType().id() == QMetaType::QString && text.toString().contains(QLatin1Char('<')) && fmt.isValid()) {
+        ++checked;
+        QVERIFY2(fmt.toInt() == Qt::PlainText,
+                 qPrintable(QString::fromLatin1(it->metaObject()->className()) + " renders plugin text as format " + QString::number(fmt.toInt())));
+      }
+      for (QQuickItem* c : it->childItems()) walk(c);
+    };
+    walk(sheet_);
+    QVERIFY2(checked >= 15, qPrintable(QString::number(checked)));
+    QQuickItem* ev = mustFind("plugin_evText");
+    QVERIFY(ev != nullptr);
+    std::function<QQuickItem*(QQuickItem*)> firstText = [&](QQuickItem* it) -> QQuickItem* {
+      if (it->property("text").toString() == evil) return it;
+      for (QQuickItem* c : it->childItems())
+        if (QQuickItem* r = firstText(c)) return r;
+      return nullptr;
+    };
+    QQuickItem* t = firstText(ev);
+    QVERIFY(t != nullptr);
+    QCOMPARE(t->property("textFormat").toInt(), int(Qt::PlainText));
+  }
+
   void buttonActions() {
     show(json(kSheet), true);
     QSignalSpy spy(sheet_, SIGNAL(action(QString, QVariant)));

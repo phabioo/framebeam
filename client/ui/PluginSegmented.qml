@@ -40,6 +40,7 @@ Rectangle {
                     color: seg.active ? Theme.blockColor("border", root.dark) : (seg.hovered ? Theme.blockColor("hover", root.dark) : "transparent")
                 }
                 Text {
+                    textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     id: segLabel
                     anchors.centerIn: parent
                     text: seg.modelData.label

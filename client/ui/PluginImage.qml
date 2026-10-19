@@ -33,6 +33,7 @@ Item {
         objectName: "pluginImageSprite"
         anchors.fill: parent
         source: root.imgState === "empty" ? "" : root.source
+        sourceSize: Qt.size(root.w * 2, root.h * 2)  // the provider scales to this while decoding (never the full 4096x4096)
         smooth: false
         asynchronous: true
         fillMode: Image.PreserveAspectFit
@@ -46,6 +47,7 @@ Item {
         opacity: 0.35
     }
     Text {
+        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
         visible: root.imgState === "dead"
         anchors.centerIn: parent
         text: "✕"

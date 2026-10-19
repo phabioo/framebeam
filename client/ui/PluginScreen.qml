@@ -76,6 +76,7 @@ Rectangle {
                     Layout.minimumWidth: 0
                     spacing: 4
                     FbLabel {
+                        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         objectName: "pluginScreenTitle"
                         text: root.entry.title || ""
                         font.pixelSize: Theme.fontPage
@@ -86,6 +87,7 @@ Rectangle {
                     RowLayout {
                         spacing: 8
                         FbLabel {
+                            textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                             objectName: "pluginScreenName"
                             Layout.minimumWidth: 0
                             text: root.entry.name || ""
@@ -94,6 +96,7 @@ Rectangle {
                             color: Theme.textMuted
                         }
                         FbMono {
+                            textFormat: Text.PlainText
                             objectName: "pluginScreenVersion"
                             visible: (root.info.version || "") !== ""
                             text: root.info.version || ""
@@ -108,6 +111,7 @@ Rectangle {
                 }
                 Item { Layout.fillWidth: true }
                 FbButton {
+                    textFormat: Text.PlainText
                     objectName: "pluginScreenSettings"
                     implicitHeight: 36
                     text: qsTr("Plugin settings")
@@ -163,12 +167,13 @@ Rectangle {
                                     spacing: 2
                                     RowLayout {
                                         spacing: 8
-                                        FbLabel { text: runRow.modelData.name; font.pixelSize: Theme.fontBody; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.maximumWidth: 360 }
-                                        FbPill { small: true; tone: runRow.modelData.tone; text: runRow.modelData.statusText }
+                                        FbLabel { textFormat: Text.PlainText; text: runRow.modelData.name; font.pixelSize: Theme.fontBody; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.maximumWidth: 360 }
+                                        FbPill { textFormat: Text.PlainText; small: true; tone: runRow.modelData.tone; text: runRow.modelData.statusText }
                                     }
-                                    FbLabel { Layout.fillWidth: true; text: runRow.modelData.subText; color: Theme.textMuted; font.pixelSize: Theme.fontMeta; elide: Text.ElideRight }
+                                    FbLabel { textFormat: Text.PlainText; Layout.fillWidth: true; text: runRow.modelData.subText; color: Theme.textMuted; font.pixelSize: Theme.fontMeta; elide: Text.ElideRight }
                                 }
                                 FbButton {
+                                    textFormat: Text.PlainText
                                     objectName: "pluginScreenOpenRun"
                                     implicitHeight: 32
                                     text: qsTr("Open run")
@@ -178,6 +183,7 @@ Rectangle {
                         }
                     }
                     FbLabel {
+                        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         objectName: "pluginScreenRunsHint"
                         visible: root.runRows.length > 0
                         Layout.fillWidth: true
@@ -191,13 +197,14 @@ Rectangle {
                         visible: root.runRows.length === 0
                         Layout.fillWidth: true
                         FbLabel {
+                            textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                             Layout.fillWidth: true
                             text: qsTr("No %1 runs yet. Start a run with %2 in Runs.").arg(root.entry.title || "").arg(root.entry.name || "")
                             color: Theme.textMuted
                             font.pixelSize: Theme.fontSmall
                             wrapMode: Text.WordWrap
                         }
-                        FbButton { objectName: "pluginScreenGoToRuns"; kind: "link"; text: qsTr("Go to Runs"); onClicked: root.player.showRuns() }
+                        FbButton { textFormat: Text.PlainText; objectName: "pluginScreenGoToRuns"; kind: "link"; text: qsTr("Go to Runs"); onClicked: root.player.showRuns() }
                     }
                 }
                 PluginBlock {

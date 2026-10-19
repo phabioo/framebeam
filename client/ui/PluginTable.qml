@@ -20,6 +20,7 @@ ColumnLayout {
         Repeater {
             model: root.columns
             delegate: Text {
+                textFormat: Text.PlainText
                 required property var modelData
                 Layout.fillWidth: true
                 Layout.preferredWidth: 1
@@ -68,6 +69,7 @@ ColumnLayout {
                 Repeater {
                     model: row.modelData.cells || []
                     delegate: Text {
+                        textFormat: Text.PlainText
                         required property var modelData
                         required property int index
                         Layout.fillWidth: true

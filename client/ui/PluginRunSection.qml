@@ -16,6 +16,7 @@ ColumnLayout {
     spacing: 18
 
     FbLabel {
+        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
         objectName: "pluginRunStatus"
         Layout.fillWidth: true
         visible: root.viewState !== "" || root.problems !== ""
@@ -44,6 +45,7 @@ ColumnLayout {
                     text: sec.modelData.title || qsTr("Board")
                 }
                 FbLabel {
+                    textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     objectName: "pluginRunFrom"
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
@@ -59,6 +61,7 @@ ColumnLayout {
                 }
             }
             FbLabel {
+                textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 objectName: "pluginRunNote"
                 Layout.fillWidth: true
                 visible: sec.modelData.paused === true || sec.modelData.loading === true

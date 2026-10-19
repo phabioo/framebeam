@@ -50,6 +50,112 @@ class SandboxTest : public QObject {
     QCOMPARE(QString::fromStdString(lines[0]), QString("a\t1\tnil\ttrue"));
   }
 
+  // PI-1: native pattern matching must hit a budget instead of running for seconds inside one C call (stock Lua 5.4: 6.9 s).
+  void quadraticPatternsAbortQuickly() {
+    const char* cases[] = {
+        R"LUA(return string.rep("a", 40000):find(".-b"))LUA",
+        R"LUA(return string.rep("a", 40000):match(".-b"))LUA",
+        R"LUA(for _ in string.gmatch(string.rep("a", 40000), ".-b") do end)LUA",
+        R"LUA(return string.gsub(string.rep("a", 40000), ".-b", "x"))LUA",
+        R"LUA(return string.rep("a", 3000):find(".-.-.-.-b"))LUA",  // cubic and worse with several lazy quantifiers
+    };
+    for (const char* code : cases) {
+      LuaSandbox sb;
+      std::string err;
+      QElapsedTimer t;
+      t.start();
+      const bool ok = sb.runChunk(code, "@t.lua", err);
+      QVERIFY2(!ok, code);
+      QVERIFY2(err.find("budget exceeded") != std::string::npos, (std::string(code) + ": " + err).c_str());
+      QVERIFY2(t.elapsed() < 600, qPrintable(QString("%1 took %2 ms").arg(code).arg(t.elapsed())));
+      QVERIFY(sb.trip() == LuaSandbox::Trip::Time);
+    }
+  }
+
+  void patternBudgetCannotBeSwallowedByPcall() {
+    LuaSandbox sb;
+    std::string err;
+    const bool ok = sb.runChunk(R"LUA(
+      local s = string.rep("a", 40000)
+      pcall(string.find, s, ".-b")
+      local n = 0
+      while true do n = n + 1 end  -- the tripped budget raises again at the next instruction
+    )LUA", "@t.lua", err);
+    QVERIFY(!ok);
+    QVERIFY(err.find("budget exceeded") != std::string::npos);
+  }
+
+  void normalPatternsStillWork() {
+    LuaSandbox sb;
+    std::string err;
+    QVERIFY2(sb.runChunk(R"LUA(
+      assert(("hello world"):find("o w") == 5)
+      assert(("key=value"):match("(%w+)=(%w+)") == "key")
+      assert(select(2, ("a,b,c"):gsub(",", ";")) == 2)
+      local n = 0 for w in ("one two three"):gmatch("%a+") do n = n + 1 end assert(n == 3)
+      local big = string.rep("ab", 50000)
+      assert(#big:gsub("a", "") == 50000)           -- linear work on a long subject is fine
+      assert(big:find("ba", 1, true) == 2)
+    )LUA", "@t.lua", err), err.c_str());
+  }
+
+  void stringRepIsCapped() {
+    LuaSandbox sb;
+    std::string err;
+    QVERIFY2(sb.runChunk(R"LUA(
+      assert(#string.rep("x", 1000, ",") == 1999)
+      local ok, e = pcall(string.rep, "x", 32 * 1024 * 1024)
+      assert(not ok and e:find("larger than"))
+      assert(string.rep("", 1e9) == "")
+    )LUA", "@t.lua", err), err.c_str());
+  }
+
+  // PI-2: a finalizer would run in lua_close with no hook; setmetatable refuses __gc, so closing is quick.
+  void gcMetamethodIsRejectedAndCloseIsQuick() {
+    QElapsedTimer t;
+    t.start();
+    {
+      LuaSandbox sb;
+      std::string err;
+      QVERIFY2(sb.runChunk(R"LUA(
+        local ok, e = pcall(setmetatable, {}, {__gc = function() while true do end end})
+        assert(not ok and e:find("__gc"), tostring(e))
+        local mt = {}
+        local obj = setmetatable({}, mt)
+        mt.__gc = function() while true do end end   -- too late for Lua: not marked for finalization
+        local t2 = setmetatable({}, {__index = function() return 1 end})
+        assert(t2.x == 1 and getmetatable(t2) ~= nil)
+        assert(getmetatable(setmetatable({}, nil)) == nil)
+      )LUA", "@t.lua", err), err.c_str());
+    }  // ~LuaSandbox -> lua_close
+    QVERIFY2(t.elapsed() < 500, qPrintable(QString("close took %1 ms").arg(t.elapsed())));
+  }
+
+  // PI-9: no host addresses in tostring / print / string.format.
+  void noAddressesInTostring() {
+    LuaSandbox sb;
+    std::vector<std::string> lines;
+    sb.setPrintSink([&](LogLevel, const std::string& t) { lines.push_back(t); });
+    std::string err;
+    QVERIFY2(sb.runChunk(R"LUA(
+      local function noaddr(s) assert(not s:find("0x"), s) assert(not s:find("%x%x%x%x%x%x%x%x%x%x")) end
+      local t = {}
+      local a, b = tostring(t), tostring(print)
+      noaddr(a) noaddr(b)
+      assert(a == tostring(t) and a ~= tostring({}))       -- stable per object, distinct between objects
+      assert(a:find("^table: #%d+$") and b:find("^function: #%d+$"))
+      noaddr(string.format("%s %s", t, print))
+      assert(not pcall(string.format, "%p", t))
+      assert(string.format("100%% %s %d", "x", 5) == "100% x 5")
+      assert(tostring(setmetatable({}, {__tostring = function() return "mine" end})) == "mine")
+      assert(string.format("%s", setmetatable({}, {__tostring = function() return "mine" end})) == "mine")
+      assert(tostring(1) == "1" and tostring(nil) == "nil" and tostring("s") == "s" and tostring(true) == "true")
+      print(t, print, coroutine.create(print))
+    )LUA", "@t.lua", err), err.c_str());
+    QCOMPARE(lines.size(), size_t(1));
+    QVERIFY(!QString::fromStdString(lines[0]).contains("0x"));
+  }
+
   void bytecodeRejected() {
     LuaSandbox sb;
     std::string err;

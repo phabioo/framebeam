@@ -165,6 +165,13 @@ void pushValue(lua_State* L, const Value& v) {
   }
 }
 
+size_t valueBytes(const Value& v) {
+  size_t n = sizeof(Value) + v.s.capacity();
+  for (const Value& k : v.keys) n += valueBytes(k);
+  for (const Value& x : v.vals) n += valueBytes(x);
+  return n;
+}
+
 std::string shortText(const Value& v, size_t maxLen) {
   std::string out;
   render(v, out, maxLen);

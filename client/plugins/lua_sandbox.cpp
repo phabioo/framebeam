@@ -1,6 +1,7 @@
 #include "lua_sandbox.h"
 
 #include <cstdlib>
+#include <cstring>
 #include <exception>
 #include <stdexcept>
 
@@ -8,11 +9,137 @@
 #include "lua.h"
 #include "lualib.h"
 
+// Called by the patched pattern matcher of the vendored lstrlib.c every 1024 matcher steps (global C++ symbol, see
+// third_party/lua-5.4.7/README.md). A pattern such as ("a"):rep(40000):find(".-b") needs seconds inside one C call, which
+// the instruction hook cannot interrupt: the matcher budget aborts it.
+void fbMatchBudget(lua_State* L) { framebeam::plugins::LuaSandbox::matchStep(L); }
+
 namespace framebeam::plugins {
 
 namespace {
 
 constexpr int kHookInterval = 1000;
+constexpr lua_Integer kMaxRepBytes = 16 * 1024 * 1024;  // string.rep result (the memory limit alone allows 64 MiB spikes)
+
+// tostring without host addresses (ASLR): objects without __tostring show "<type or __name>: #<id>", the id counts per state.
+const char* safeToString(lua_State* L, int idx, size_t* len) {
+  idx = lua_absindex(L, idx);
+  const int t = lua_type(L, idx);
+  if (t != LUA_TTABLE && t != LUA_TFUNCTION && t != LUA_TUSERDATA && t != LUA_TTHREAD && t != LUA_TLIGHTUSERDATA) return luaL_tolstring(L, idx, len);
+  if (luaL_getmetafield(L, idx, "__tostring") != LUA_TNIL) {
+    lua_pop(L, 1);
+    return luaL_tolstring(L, idx, len);
+  }
+  const int top = lua_gettop(L);
+  const char* name = luaL_typename(L, idx);
+  if (luaL_getmetafield(L, idx, "__name") == LUA_TSTRING) name = lua_tostring(L, -1);
+  if (lua_getfield(L, LUA_REGISTRYINDEX, "fb.ids") != LUA_TTABLE) {
+    lua_pop(L, 1);
+    lua_createtable(L, 0, 8);
+    lua_createtable(L, 0, 1);
+    lua_pushstring(L, "k");
+    lua_setfield(L, -2, "__mode");
+    lua_setmetatable(L, -2);
+    lua_pushvalue(L, -1);
+    lua_setfield(L, LUA_REGISTRYINDEX, "fb.ids");
+  }
+  lua_pushvalue(L, idx);
+  lua_rawget(L, -2);
+  lua_Integer id = lua_tointeger(L, -1);
+  lua_pop(L, 1);
+  if (id == 0) {
+    lua_getfield(L, LUA_REGISTRYINDEX, "fb.idn");
+    id = lua_tointeger(L, -1) + 1;
+    lua_pop(L, 1);
+    lua_pushinteger(L, id);
+    lua_setfield(L, LUA_REGISTRYINDEX, "fb.idn");
+    lua_pushvalue(L, idx);
+    lua_pushinteger(L, id);
+    lua_rawset(L, -3);
+  }
+  const std::string text = std::string(name) + ": #" + std::to_string(id);
+  lua_settop(L, top);
+  lua_pushlstring(L, text.data(), text.size());
+  if (len) *len = text.size();
+  return lua_tostring(L, -1);
+}
+
+int fbTostring(lua_State* L) {
+  luaL_checkany(L, 1);
+  safeToString(L, 1, nullptr);
+  return 1;
+}
+
+// string.format: no "%p" (host pointers), "%s" of tables/functions/userdata goes through safeToString.
+int fbFormat(lua_State* L) {
+  const int top = lua_gettop(L);
+  size_t flen = 0;
+  const char* f = luaL_checklstring(L, 1, &flen);
+  int arg = 1;
+  for (size_t i = 0; i < flen; ++i) {
+    if (f[i] != '%') continue;
+    if (i + 1 < flen && f[i + 1] == '%') {
+      ++i;
+      continue;
+    }
+    size_t j = i + 1;
+    while (j < flen && std::strchr("-+ #0123456789.", f[j]) != nullptr) ++j;
+    const char conv = j < flen ? f[j] : '\0';
+    ++arg;
+    if (conv == 'p') return luaL_error(L, "string.format: '%%p' is not available in plugins");
+    if (conv == 's' && arg <= top) {
+      const int t = lua_type(L, arg);
+      if (t == LUA_TTABLE || t == LUA_TFUNCTION || t == LUA_TUSERDATA || t == LUA_TTHREAD || t == LUA_TLIGHTUSERDATA) {
+        safeToString(L, arg, nullptr);
+        lua_replace(L, arg);
+      }
+    }
+    i = j;
+  }
+  lua_pushvalue(L, lua_upvalueindex(1));
+  lua_insert(L, 1);
+  lua_call(L, top, LUA_MULTRET);
+  return lua_gettop(L);
+}
+
+int fbRep(lua_State* L) {
+  size_t l = 0, lsep = 0;
+  luaL_checklstring(L, 1, &l);
+  const lua_Integer n = luaL_checkinteger(L, 2);
+  luaL_optlstring(L, 3, "", &lsep);
+  if (n > 1 && static_cast<double>(l + lsep) * static_cast<double>(n) > static_cast<double>(kMaxRepBytes))
+    return luaL_error(L, "string.rep: result larger than %d MiB", static_cast<int>(kMaxRepBytes / (1024 * 1024)));
+  const int top = lua_gettop(L);
+  lua_pushvalue(L, lua_upvalueindex(1));
+  lua_insert(L, 1);
+  lua_call(L, top, LUA_MULTRET);
+  return lua_gettop(L);
+}
+
+// setmetatable without __gc: a finalizer would run inside lua_close with no budget (hang on pause/reload/stop).
+int fbSetmetatable(lua_State* L) {
+  if (lua_type(L, 2) == LUA_TTABLE) {
+    lua_pushstring(L, "__gc");
+    lua_rawget(L, 2);
+    const bool has = !lua_isnil(L, -1);
+    lua_pop(L, 1);
+    if (has) return luaL_error(L, "setmetatable: __gc metamethods are not allowed in plugins");
+  }
+  const int top = lua_gettop(L);
+  lua_pushvalue(L, lua_upvalueindex(1));
+  lua_insert(L, 1);
+  lua_call(L, top, LUA_MULTRET);
+  return lua_gettop(L);
+}
+
+// Replaces table[name] / global name by `fn` with the original as its first upvalue.
+void wrapField(lua_State* L, const char* table, const char* name, lua_CFunction fn) {
+  if (table) lua_getglobal(L, table); else lua_pushglobaltable(L);
+  lua_getfield(L, -1, name);
+  lua_pushcclosure(L, fn, 1);
+  lua_setfield(L, -2, name);
+  lua_pop(L, 1);
+}
 
 int panicHandler(lua_State* L) {
   const char* m = lua_tostring(L, -1);
@@ -24,7 +151,7 @@ int luaPrint(lua_State* L) {
   std::string line;
   for (int i = 1; i <= n; ++i) {
     size_t len = 0;
-    const char* s = luaL_tolstring(L, i, &len);
+    const char* s = safeToString(L, i, &len);
     if (i > 1) line += '\t';
     line.append(s, len);
     lua_pop(L, 1);
@@ -64,6 +191,17 @@ void* LuaSandbox::alloc(void* ud, void* ptr, size_t osize, size_t nsize) {
   if (!p) return nullptr;
   self->m_used = self->m_used - osize + nsize;
   return p;
+}
+
+void LuaSandbox::matchStep(lua_State* L) {
+  LuaSandbox* self = from(L);
+  if (self->m_trip == Trip::None) {
+    self->m_matchLeft -= 1024;
+    if (self->m_matchLeft > 0 && std::chrono::steady_clock::now() <= self->m_deadline) return;
+    self->m_trip = Trip::Time;
+  }
+  lua_sethook(L, &LuaSandbox::hook, LUA_MASKCOUNT, 1);  // the plugin cannot go on after catching this error
+  luaL_error(L, "time budget exceeded (pattern matching budget used up)");
 }
 
 void LuaSandbox::hook(lua_State* L, lua_Debug*) {
@@ -144,6 +282,11 @@ int LuaSandbox::openLibsFn(lua_State* L) {
   lua_setglobal(L, "collectgarbage");
   lua_pushcfunction(L, luaPrint);
   lua_setglobal(L, "print");
+  lua_pushcfunction(L, fbTostring);
+  lua_setglobal(L, "tostring");
+  wrapField(L, nullptr, "setmetatable", fbSetmetatable);
+  wrapField(L, "string", "format", fbFormat);
+  wrapField(L, "string", "rep", fbRep);
   return 0;
 }
 
@@ -163,6 +306,7 @@ bool LuaSandbox::run(const std::function<void(lua_State*)>& body, std::string& e
   }
   m_trip = Trip::None;
   m_instrLeft = m_limits.instructions;
+  m_matchLeft = m_limits.matchSteps;
   m_deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(m_limits.wallMs);
   lua_sethook(m_L, &LuaSandbox::hook, LUA_MASKCOUNT, kHookInterval);
 

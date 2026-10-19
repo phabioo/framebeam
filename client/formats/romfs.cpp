@@ -3,10 +3,14 @@
 #include "bytes.h"
 
 #include <QByteArray>
+#include <QDateTime>
 #include <QFile>
+#include <QFileInfo>
 #include <QString>
 
 #include <algorithm>
+#include <memory>
+#include <mutex>
 
 namespace framebeam::formats {
 namespace {
@@ -47,13 +51,14 @@ struct FileEntry {
 class Romfs {
 public:
     bool open(const QString& path, std::string& err) {
-        f_.setFileName(path);
-        if (!f_.open(QIODevice::ReadOnly)) {
+        // The handle only lives for this call: a cached index must not keep the game file locked (Windows).
+        QFile f(path);
+        if (!f.open(QIODevice::ReadOnly)) {
             err = "cannot open game file";
             return false;
         }
         QByteArray hdr;
-        if (!readAt(f_, 0, 0x200, hdr)) {
+        if (!readAt(f, 0, 0x200, hdr)) {
             err = "game file too small";
             return false;
         }
@@ -73,7 +78,7 @@ public:
                 return false;
             }
             nccBase = off * unit;
-            if (!readAt(f_, nccBase, 0x200, hdr)) {
+            if (!readAt(f, nccBase, 0x200, hdr)) {
                 err = "NCSD: partition 0 out of range";
                 return false;
             }
@@ -95,12 +100,12 @@ public:
         }
         const quint64 base = nccBase + quint64(romOff) * 0x200;
         const quint64 size = quint64(romSize) * 0x200;
-        if (!inRange(static_cast<size_t>(f_.size()), base, size)) {
+        if (!inRange(static_cast<size_t>(f.size()), base, size)) {
             err = "RomFS out of range (truncated game file)";
             return false;
         }
         QByteArray ivfc;
-        if (!readAt(f_, base, 0x60, ivfc) || ivfc.mid(0, 4) != "IVFC") {
+        if (!readAt(f, base, 0x60, ivfc) || ivfc.mid(0, 4) != "IVFC") {
             err = "RomFS: bad IVFC header";
             return false;
         }
@@ -122,7 +127,7 @@ public:
         l3_ = base + l3Rel;
         l3Size_ = l3Size;
         QByteArray h;
-        if (!readAt(f_, l3_, 0x28, h)) {
+        if (!readAt(f, l3_, 0x28, h)) {
             err = "RomFS: truncated level 3 header";
             return false;
         }
@@ -137,7 +142,7 @@ public:
             err = "RomFS: bad metadata table ranges";
             return false;
         }
-        if (!readAt(f_, l3_ + dirOff, dirSize, dir_) || !readAt(f_, l3_ + fileOff, fileSize, file_)) {
+        if (!readAt(f, l3_ + dirOff, dirSize, dir_) || !readAt(f, l3_ + fileOff, fileSize, file_)) {
             err = "RomFS: truncated metadata tables";
             return false;
         }
@@ -217,7 +222,6 @@ public:
         return true;
     }
 
-    QFile& file() { return f_; }
     quint64 l3() const { return l3_; }
     quint64 l3Size() const { return l3Size_; }
     quint64 dataOff() const { return dataOff_; }
@@ -254,7 +258,6 @@ public:
     }
 
 private:
-    QFile f_;
     quint64 l3_ = 0, l3Size_ = 0, dataOff_ = 0;
     QByteArray dir_, file_;
 };
@@ -271,12 +274,50 @@ std::vector<std::string> splitPath(std::string_view p) {
     return out;
 }
 
+// The parsed index (headers and both metadata tables) of the open game, kept between calls: a plugin that extracts
+// hundreds of files would otherwise re-read tables of up to 64 MiB for each of them. One entry; a different game
+// path, size or modification time replaces it. No file handle is kept open; all access under one lock.
+struct RomfsCache {
+    std::mutex mutex;
+    QString path;
+    qint64 size = -1;
+    QDateTime mtime;
+    std::unique_ptr<Romfs> fs;
+};
+RomfsCache& romfsCache() {
+    static RomfsCache c;
+    return c;
+}
+// Locks the cache and returns the Romfs of `romPath` (opened now or reused); nullptr + `err` on failure.
+Romfs* cachedRomfs(RomfsCache& c, const QString& romPath, std::string& err) {
+    const QFileInfo fi(romPath);
+    if (c.fs && c.path == romPath && c.size == fi.size() && c.mtime == fi.lastModified()) return c.fs.get();
+    c.fs.reset();
+    auto fs = std::make_unique<Romfs>();
+    if (!fs->open(romPath, err)) return nullptr;
+    c.path = romPath;
+    c.size = fi.size();
+    c.mtime = fi.lastModified();
+    c.fs = std::move(fs);
+    return c.fs.get();
+}
+
 }  // namespace
+
+void romfsCacheClear() {
+    RomfsCache& c = romfsCache();
+    std::lock_guard<std::mutex> lock(c.mutex);
+    c.fs.reset();
+    c.path.clear();
+}
 
 Result romfsRead(const QString& romPath, std::string_view path, size_t maxOut) {
     Result r;
-    Romfs fs;
-    if (!fs.open(romPath, r.error)) return r;
+    RomfsCache& cache = romfsCache();
+    std::lock_guard<std::mutex> lock(cache.mutex);
+    Romfs* fsp = cachedRomfs(cache, romPath, r.error);
+    if (!fsp) return r;
+    Romfs& fs = *fsp;
     const auto comps = splitPath(path);
     if (comps.empty()) {
         r.error = "path is a directory";
@@ -303,8 +344,14 @@ Result romfsRead(const QString& romPath, std::string_view path, size_t maxOut) {
         r.error = "RomFS: file data out of range";
         return r;
     }
+    // Opened per read and closed on return, so neither the cache nor a running game locks the ROM on Windows.
+    QFile file(romPath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        r.error = "cannot open game file";
+        return r;
+    }
     QByteArray data;
-    if (!readAt(fs.file(), fs.l3() + rel, fe.size, data)) {
+    if (!readAt(file, fs.l3() + rel, fe.size, data)) {
         r.error = "RomFS: truncated file data";
         return r;
     }
@@ -316,11 +363,12 @@ Result romfsRead(const QString& romPath, std::string_view path, size_t maxOut) {
 std::vector<RomfsEntry> romfsList(const QString& romPath, std::string_view dir, std::string* error) {
     std::vector<RomfsEntry> out;
     std::string err;
-    Romfs fs;
-    if (fs.open(romPath, err)) {
+    RomfsCache& cache = romfsCache();
+    std::lock_guard<std::mutex> lock(cache.mutex);
+    if (Romfs* fs = cachedRomfs(cache, romPath, err)) {
         const auto comps = splitPath(dir);
         uint32_t dirOff = 0;
-        if (fs.walkDirs(comps, comps.size(), dirOff, err)) fs.children(dirOff, out, err);
+        if (fs->walkDirs(comps, comps.size(), dirOff, err)) fs->children(dirOff, out, err);
     }
     if (!err.empty()) out.clear();
     if (error) *error = err;
