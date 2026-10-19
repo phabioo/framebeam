@@ -360,6 +360,7 @@ class PlayerController : public QObject {
   void onConnectionState(HubConnection::State s);
   void refreshHubLink();
   void onLibraryLoaded();
+  void applyCachedSyncKinds();
   void onRomStatus(const QString& sha, const RomStatus& st);
   void updateScreen();
   void refreshEmulationPage();

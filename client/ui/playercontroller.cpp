@@ -226,6 +226,12 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     startError_ = msg;  // shown with the game (detail pane); the save itself stays untouched
     emit selectedGameChanged();
   });
+  connect(saves_.get(), &SaveSync::kindsRefreshed, this, [this](const QStringList& changed) {
+    applyCachedSyncKinds();
+    if (changed.contains(selectedId_)) {
+      emit selectedGameChanged();
+    }
+  });
   connect(saves_.get(), &SaveSync::kindChanged, this, [this](const QString& gameId, SaveSync::Kind k) {
     model_.setSyncKind(gameId, SaveSync::kindName(k));
     if (gameId == selectedId_) {
@@ -283,9 +289,23 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   HandshakeInfo info = HandshakeInfo::detect();
   info.cores = coreList_;
   info.gamepad = controllers_->gamepadAvailable();  // input.gamepad: SDL gamepads usable on this Player
-  applyMediaCapabilities(&info);  // h264_encode/h264_decode/encoders as libavcodec can really open them
   handshake_ = info;
   conn_->setHandshakeInfo(info);
+  {
+    // h264_encode/h264_decode/encoders as libavcodec can really open them: opening the encoders (GPU drivers) can take
+    // long, so it runs on a worker and the handshake is completed and resent when it is done (the result is cached).
+    auto* w = new QFutureWatcher<bool>(this);
+    connect(w, &QFutureWatcher<bool>::finished, this, [this, w]() {
+      w->deleteLater();
+      applyMediaCapabilities(&handshake_);  // cached by now
+      conn_->setHandshakeInfo(handshake_);
+      conn_->resendHandshake();
+    });
+    w->setFuture(QtConcurrent::run([]() {
+      detectMediaCapabilities();
+      return true;
+    }));
+  }
   // The core probes run on a worker: the handshake carries the core list once they are done (a changed list is resent).
   connect(catalog_.get(), &CoreCatalog::coresProbed, this, [this]() {
     const auto same = [](const QList<CoreInfo>& a, const QList<CoreInfo>& b) {
@@ -1721,6 +1741,14 @@ void PlayerController::reloadLibrary() {
   library_->reload();
 }
 
+void PlayerController::applyCachedSyncKinds() {
+  QHash<QString, QString> kinds;
+  for (const GameEntry& g : library_->games()) {
+    kinds.insert(g.id, SaveSync::kindName(saves_->kind(g.id)));
+  }
+  model_.setSyncKinds(kinds);
+}
+
 void PlayerController::onLibraryLoaded() {
   quietRefresh_ = false;
   if (!scanRequested_) {
@@ -1765,12 +1793,10 @@ void PlayerController::onLibraryLoaded() {
   for (const GameEntry& g : library_->games()) {
     ids.append(g.id);
   }
-  saves_->refreshKinds(ids);
-  QHash<QString, QString> kinds;
-  for (const QString& id : ids) {
-    kinds.insert(id, SaveSync::kindName(saves_->kind(id)));
-  }
-  model_.setSyncKinds(kinds);
+  // Known kinds first (cheap, no file access); the sync state on disk is read on a worker and reaches the model as one
+  // batch (kindsRefreshed).
+  applyCachedSyncKinds();
+  saves_->refreshKindsAsync(ids);
   libraryState_ = QStringLiteral("ready");
   libraryError_.clear();
   emit libraryStateChanged();

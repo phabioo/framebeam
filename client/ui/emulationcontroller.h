@@ -5,6 +5,7 @@
 // from a small fixed list ("framebeam.*"). Options that FrameBeam controls (manifest-locked, firmware) are not offered.
 // Changes are applied at the next launch.
 
+#include <QAbstractListModel>
 #include <QHash>
 #include <QObject>
 #include <QString>
@@ -20,6 +21,37 @@
 #include "system_manifest.h"
 
 namespace framebeam::ui {
+
+// Rows of the per-game picker ({pickValue: game id, pickLabel: "Title · System"}). A model instead of a QVariantList so QML
+// never converts thousands of maps into JS objects (that is what made big libraries crawl); delegates are created lazily.
+class GamePickerModel : public QAbstractListModel {
+  Q_OBJECT
+ public:
+  enum Role { ValueRole = Qt::UserRole + 1, LabelRole };
+  struct Row {
+    QString value, label;
+    bool operator==(const Row& o) const { return value == o.value && label == o.label; }
+  };
+  using QAbstractListModel::QAbstractListModel;
+  int rowCount(const QModelIndex& parent = {}) const override { return parent.isValid() ? 0 : static_cast<int>(rows_.size()); }
+  QVariant data(const QModelIndex& index, int role) const override {
+    if (!index.isValid() || index.row() < 0 || index.row() >= rows_.size()) return {};
+    const Row& r = rows_.at(index.row());
+    if (role == ValueRole) return r.value;
+    if (role == LabelRole || role == Qt::DisplayRole) return r.label;
+    return {};
+  }
+  QHash<int, QByteArray> roleNames() const override { return {{ValueRole, "pickValue"}, {LabelRole, "pickLabel"}}; }
+  void setRows(const QList<Row>& rows) {
+    if (rows == rows_) return;  // only ids/labels count: a changed-count update leaves the picker alone
+    beginResetModel();
+    rows_ = rows;
+    endResetModel();
+  }
+
+ private:
+  QList<Row> rows_;
+};
 
 class EmulationController : public QObject {
   Q_OBJECT
@@ -39,6 +71,8 @@ class EmulationController : public QObject {
   Q_PROPERTY(QVariantMap game READ game NOTIFY gameSelectionChanged)
   Q_PROPERTY(bool gameSelected READ gameSelected NOTIFY levelChanged)
   Q_PROPERTY(int gameOverrideCount READ gameOverrideCount NOTIFY gamesChanged)
+  Q_PROPERTY(QAbstractItemModel* gamePicker READ gamePicker CONSTANT)  // rows for the game picker (FbModelSelect)
+  Q_PROPERTY(int gameCount READ gameCount NOTIFY gamesChanged)  // cheap stand-in for games.length in bindings
   // [{id, title, subtitle, note, options:[{key, label, description, category, values:[{value,label}], value,
   //   valueLabel, isSet, origin, restart}]}]
   Q_PROPERTY(QVariantList groups READ groups NOTIFY groupsChanged)
@@ -80,6 +114,8 @@ class EmulationController : public QObject {
   QString selectedGame() const { return selectedGame_; }
   QVariantMap game() const;
   int gameOverrideCount() const;
+  int gameCount() const;
+  QAbstractItemModel* gamePicker() { return &gamePicker_; }
   // Filled by the PlayerController from the library: [{id, title, systemId}].
   void setGames(const QVariantList& games);
   Q_INVOKABLE void selectGame(const QString& gameId);
@@ -153,6 +189,8 @@ class EmulationController : public QObject {
   QString scope() const;
   // Core of the edited game: its own choice when the system offers it, else the system's effective core.
   QString effectiveCoreId() const;
+  void ensureGames() const;
+  void emitGamesChanged();
 
   QString dataDir_;
   const emu::ManifestRegistry* manifests_;
@@ -161,6 +199,11 @@ class EmulationController : public QObject {
   QString selected_;
   QString selectedGame_;
   QVariantList games_;
+  mutable QVariantList gamesCache_;  // decorated games_, see ensureGames()
+  mutable QHash<QString, int> gameIndex_;
+  mutable int gameOverrides_ = 0;
+  mutable bool gamesDirty_ = true;
+  GamePickerModel gamePicker_;
   QString level_ = QStringLiteral("system");
   QVariantList groups_;
   QHash<QString, emu::CoreProbe> probes_;  // core id -> options

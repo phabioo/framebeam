@@ -91,6 +91,7 @@ qt_add_qml_module(framebeam_ui
     LayoutSwitch.qml
     KeyHintButton.qml
     FbSelect.qml
+    FbModelSelect.qml
     SettingsRow.qml
     EmulationScreen.qml
     ControllersScreen.qml

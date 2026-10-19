@@ -62,7 +62,7 @@ RomStatus RomDownloader::status(const GameEntry& game) {
       return s;
     }
     case RomCache::Probe::Unverified:
-      startValidation(game, false);
+      startValidation(game, false, false);  // status() is a query: it returns Validating itself, no signal from inside a model reset
       return makeStatus(RomState::Validating, game.romSize, game.romSize);
     case RomCache::Probe::Missing:
       break;
@@ -70,7 +70,7 @@ RomStatus RomDownloader::status(const GameEntry& game) {
   return makeStatus(RomState::DownloadNeeded, game.romSize, cache_->partSize(sha, ext));
 }
 
-void RomDownloader::startValidation(const GameEntry& game, bool thenDownload) {
+void RomDownloader::startValidation(const GameEntry& game, bool thenDownload, bool notify) {
   const QString sha = game.romSha256;
   if (const auto it = validations_.constFind(sha); it != validations_.constEnd()) {
     it.value()->thenDownload = it.value()->thenDownload || thenDownload;
@@ -112,7 +112,7 @@ void RomDownloader::startValidation(const GameEntry& game, bool thenDownload) {
     const bool ok = RomCache::sha256OfFile(path, &hex);
     return qMakePair(ok, hex);
   }));
-  emit statusChanged(sha, makeStatus(RomState::Validating, game.romSize, game.romSize));
+  if (notify) emit statusChanged(sha, makeStatus(RomState::Validating, game.romSize, game.romSize));
 }
 
 QSet<QString> RomDownloader::activeHashes() const {

@@ -85,6 +85,12 @@ framebeam_add_test(ui_library_saves library_saves_ui_test.cpp ${FB_NETTEST_DIR}/
 target_include_directories(test_ui_library_saves PRIVATE ${FB_NETTEST_DIR})
 target_compile_definitions(test_ui_library_saves PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
 
+# Library at scale: 500/1000/2000 games, load and reload with sync states stay fast (generous bound, no core needed).
+framebeam_add_test(ui_library_scale library_scale_ui_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
+  LIBS ${FB_UI_TEST_LIBS})
+target_include_directories(test_ui_library_scale PRIVATE ${FB_NETTEST_DIR})
+target_compile_definitions(test_ui_library_scale PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
+
 # Screenshots of the out-of-game screens (design v4); skipped without FRAMEBEAM_SCREENSHOT_DIR.
 framebeam_add_test(ui_screenshots_shell screenshots_shell_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
   LIBS ${FB_UI_TEST_LIBS})

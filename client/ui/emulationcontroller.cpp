@@ -68,41 +68,70 @@ QVariantList EmulationController::systems() const {
   return out;
 }
 
-QVariantList EmulationController::games() const {
-  QVariantList out;
+// The decorated game list is built once and reused until games, systems or settings change (every mutation goes through
+// emitGamesChanged): QML reads games / game / gameOverrideCount several times per binding evaluation.
+void EmulationController::ensureGames() const {
+  if (!gamesDirty_) return;
+  QHash<QString, QString> sysNames;
+  for (const QVariant& c : systems_) {
+    const QVariantMap cm = c.toMap();
+    sysNames.insert(cm.value(QStringLiteral("id")).toString(), cm.value(QStringLiteral("name")).toString());
+  }
+  gamesCache_.clear();
+  gamesCache_.reserve(games_.size());
+  gameIndex_.clear();
+  gameOverrides_ = 0;
   for (const QVariant& v : games_) {
     QVariantMap m = v.toMap();
-    QString sysName = m.value(QStringLiteral("systemId")).toString();
-    for (const QVariant& c : systems_) {
-      if (c.toMap().value(QStringLiteral("id")).toString() == m.value(QStringLiteral("systemId")).toString()) {
-        sysName = c.toMap().value(QStringLiteral("name")).toString();
-      }
-    }
+    const QString id = m.value(QStringLiteral("id")).toString();
+    const QString systemId = m.value(QStringLiteral("systemId")).toString();
+    const QString sysName = sysNames.value(systemId, systemId);
+    const int changed = static_cast<int>(settings_.values(Level::Game, id).size());
     m.insert(QStringLiteral("systemName"), sysName);
     m.insert(QStringLiteral("label"), QStringLiteral("%1 · %2").arg(m.value(QStringLiteral("title")).toString(), sysName));
-    m.insert(QStringLiteral("changedCount"), static_cast<int>(settings_.values(Level::Game, m.value(QStringLiteral("id")).toString()).size()));
-    out.append(m);
+    m.insert(QStringLiteral("changedCount"), changed);
+    gameOverrides_ += changed > 0 ? 1 : 0;
+    if (!gameIndex_.contains(id)) gameIndex_.insert(id, static_cast<int>(gamesCache_.size()));
+    gamesCache_.append(m);
   }
-  return out;
+  gamesDirty_ = false;
 }
 
-QVariantMap EmulationController::game() const {
-  for (const QVariant& v : games()) {
-    if (v.toMap().value(QStringLiteral("id")).toString() == selectedGame_) return v.toMap();
+void EmulationController::emitGamesChanged() {
+  gamesDirty_ = true;
+  ensureGames();
+  QList<GamePickerModel::Row> rows;
+  rows.reserve(gamesCache_.size());
+  for (const QVariant& v : std::as_const(gamesCache_)) {
+    const QVariantMap m = v.toMap();
+    rows.append({m.value(QStringLiteral("id")).toString(), m.value(QStringLiteral("label")).toString()});
   }
-  return {};
+  gamePicker_.setRows(rows);
+  emit gamesChanged();
+}
+
+QVariantList EmulationController::games() const {
+  ensureGames();
+  return gamesCache_;
+}
+
+int EmulationController::gameCount() const { return static_cast<int>(games_.size()); }
+
+QVariantMap EmulationController::game() const {
+  ensureGames();
+  const auto it = gameIndex_.constFind(selectedGame_);
+  return it == gameIndex_.cend() ? QVariantMap() : gamesCache_.at(it.value()).toMap();
 }
 
 int EmulationController::gameOverrideCount() const {
-  int n = 0;
-  for (const QVariant& v : games_) n += settings_.values(Level::Game, v.toMap().value(QStringLiteral("id")).toString()).isEmpty() ? 0 : 1;
-  return n;
+  ensureGames();
+  return gameOverrides_;
 }
 
 void EmulationController::setGames(const QVariantList& games) {
   if (games == games_) return;
   games_ = games;
-  emit gamesChanged();
+  emitGamesChanged();
   if (!selectedGame_.isEmpty() && game().isEmpty()) {  // the game left the library
     selectedGame_.clear();
     emit gameSelectionChanged();
@@ -176,7 +205,7 @@ void EmulationController::setSystems(const QVariantList& cards) {
     emit selectionChanged();
   }
   emit systemsChanged();
-  emit gamesChanged();
+  emitGamesChanged();
   rebuild();
 }
 
@@ -333,7 +362,7 @@ void EmulationController::setOption(const QString& key, const QString& value) {
   }
   rebuild();
   emit systemsChanged();
-  emit gamesChanged();
+  emitGamesChanged();
   if (key.startsWith(QLatin1String("framebeam."))) emit frameBeamOptionsChanged();
   if (key == QLatin1String(kCoreKey)) emit coreChoiceChanged();
 }
@@ -343,7 +372,7 @@ void EmulationController::resetOption(const QString& key) {
   settings_.removeValue(levelEnum(), scope(), key);
   rebuild();
   emit systemsChanged();
-  emit gamesChanged();
+  emitGamesChanged();
   if (key.startsWith(QLatin1String("framebeam."))) emit frameBeamOptionsChanged();
   if (key == QLatin1String(kCoreKey)) emit coreChoiceChanged();
 }
@@ -361,7 +390,7 @@ void EmulationController::resetAllChanged() {
   restartTouched_ = false;
   rebuild();
   emit systemsChanged();
-  emit gamesChanged();
+  emitGamesChanged();
   if (fb) emit frameBeamOptionsChanged();
   if (coreChanged) emit coreChoiceChanged();
 }

@@ -75,7 +75,7 @@ class RomDownloader : public QObject {
     std::unique_ptr<QFutureWatcher<QPair<bool, QString>>> watcher;
   };
 
-  void startValidation(const GameEntry& game, bool thenDownload);
+  void startValidation(const GameEntry& game, bool thenDownload, bool notify = true);
   void beginDownload(const GameEntry& game);
   void sendRequest(Job* job);
 
