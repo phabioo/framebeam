@@ -119,10 +119,10 @@ func (s *Server) renderUsersOpts(w http.ResponseWriter, r *http.Request, sess *s
 	b := usersBody{TTLs: ttlOptions, NewCode: o.NewCode, NewMeta: o.NewMeta, UserCode: o.UserCode, Create: o.Create || r.URL.Query().Get("create") != "",
 		CreateName: o.CreateName, CreateErr: o.CreateErr, RenameErr: o.RenameErr}
 	if o.NewCode != "" {
-		b.NewLink = s.scheme() + "://" + s.hubAddress(r) + "/invite#" + o.NewCode
+		b.NewLink = s.scheme(r) + "://" + s.hubAddress(r) + "/invite#" + o.NewCode
 	}
 	if b.UserCode != nil && b.UserCode.Code != "" {
-		b.UserCode.Link = s.scheme() + "://" + s.hubAddress(r) + "/invite#" + b.UserCode.Code
+		b.UserCode.Link = s.scheme(r) + "://" + s.hubAddress(r) + "/invite#" + b.UserCode.Code
 	}
 	renaming := r.URL.Query().Get("rename")
 	for _, u := range rows {
@@ -397,8 +397,8 @@ func (s *Server) inviteRevoke(w http.ResponseWriter, r *http.Request, sess *sess
 	}
 }
 
-func (s *Server) scheme() string {
-	if s.cfg.UseTLS {
+func (s *Server) scheme(r *http.Request) string {
+	if s.secureReq(r) {
 		return "https"
 	}
 	return "http"

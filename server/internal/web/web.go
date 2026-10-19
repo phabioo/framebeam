@@ -10,7 +10,6 @@ import (
 	"html/template"
 	"io/fs"
 	"log/slog"
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -46,6 +45,8 @@ type Config struct {
 	Listen string
 	// UseTLS: HTTPS is active (cookie "Secure", transport display).
 	UseTLS bool
+	// TrustedProxy lists the configured -trusted-proxy networks (read-only, shown in Settings > Security).
+	TrustedProxy []string
 	// CertFingerprint (SHA-256), CertSource ("Self-generated"/"Own cert/key"), CertNotAfter for Settings.
 	CertFingerprint string
 	CertSource      string
@@ -241,6 +242,11 @@ func (s *Server) Register(mux *http.ServeMux) {
 func secure(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
+		if hub.RequestHTTPS(r) {
+			// Only when a trusted proxy terminates TLS (normally with a real certificate). Not sent for the Hub's own
+			// self-signed certificate: HSTS would make the browser's certificate warning impossible to click through.
+			h.Set("Strict-Transport-Security", "max-age=31536000")
+		}
 		h.Set("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; "+
 			"connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")
 		h.Set("X-Frame-Options", "DENY")
@@ -274,7 +280,7 @@ func (s *Server) notFound(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	c, err := r.Cookie(s.cookieName(sessionCookie))
+	c, err := r.Cookie(s.cookieName(r, sessionCookie))
 	if err != nil || c.Value == "" {
 		http.NotFound(w, r)
 		return
@@ -517,7 +523,7 @@ func (s *Server) guardCore(streamingUpload, rawBody bool, f handlerFunc) http.Ha
 			s.redirect(w, r, "/setup")
 			return
 		}
-		c, err := r.Cookie(s.cookieName(sessionCookie))
+		c, err := r.Cookie(s.cookieName(r, sessionCookie))
 		if err != nil || c.Value == "" {
 			s.redirect(w, r, "/login")
 			return
@@ -528,7 +534,7 @@ func (s *Server) guardCore(streamingUpload, rawBody bool, f handlerFunc) http.Ha
 			return
 		}
 		if err != nil || ws.User.Role != hub.RoleAdmin { // the web interface is admin-only
-			s.clearSession(w)
+			s.clearSession(w, r)
 			s.redirect(w, r, "/login")
 			return
 		}
@@ -594,63 +600,59 @@ func (s *Server) fail(w http.ResponseWriter, r *http.Request, err error) {
 
 // ---- Cookies, CSRF before sign-in, login rate limiting ----
 
-// cookieName returns the cookie name for base: with the __Host- prefix when TLS is on.
-func (s *Server) cookieName(base string) string {
-	if s.cfg.UseTLS {
+// secureReq reports whether the client side of r is https: the Hub itself serves TLS, or a trusted proxy says so.
+func (s *Server) secureReq(r *http.Request) bool { return s.cfg.UseTLS || hub.RequestHTTPS(r) }
+
+// cookieName returns the cookie name for base: with the __Host- prefix when the client side is https.
+func (s *Server) cookieName(r *http.Request, base string) string {
+	if s.secureReq(r) {
 		return hostPrefix + base
 	}
 	return base
 }
 
-func (s *Server) setCookie(w http.ResponseWriter, base, value string, maxAge int) {
-	http.SetCookie(w, &http.Cookie{Name: s.cookieName(base), Value: value, Path: "/", MaxAge: maxAge, HttpOnly: true,
-		SameSite: http.SameSiteStrictMode, Secure: s.cfg.UseTLS})
+func (s *Server) setCookie(w http.ResponseWriter, r *http.Request, base, value string, maxAge int) {
+	http.SetCookie(w, &http.Cookie{Name: s.cookieName(r, base), Value: value, Path: "/", MaxAge: maxAge, HttpOnly: true,
+		SameSite: http.SameSiteStrictMode, Secure: s.secureReq(r)})
 }
 
-func (s *Server) clearSession(w http.ResponseWriter) { s.setCookie(w, sessionCookie, "", -1) }
+func (s *Server) clearSession(w http.ResponseWriter, r *http.Request) {
+	s.setCookie(w, r, sessionCookie, "", -1)
+}
 
 func (s *Server) startSession(w http.ResponseWriter, r *http.Request, userID string) error {
 	tok, _, err := s.svc.CreateWebSession(r.Context(), userID)
 	if err != nil {
 		return err
 	}
-	s.setCookie(w, sessionCookie, tok, int(hub.WebSessionTTL.Seconds()))
+	s.setCookie(w, r, sessionCookie, tok, int(hub.WebSessionTTL.Seconds()))
 	return nil
 }
 
 // preCSRF returns the double-submit token for forms without a session and sets the cookie if needed.
 func (s *Server) preCSRF(w http.ResponseWriter, r *http.Request) string {
-	if c, err := r.Cookie(s.cookieName(csrfCookie)); err == nil && len(c.Value) >= 20 {
+	if c, err := r.Cookie(s.cookieName(r, csrfCookie)); err == nil && len(c.Value) >= 20 {
 		return c.Value
 	}
 	tok, err := hub.RandomToken()
 	if err != nil {
 		return ""
 	}
-	s.setCookie(w, csrfCookie, tok, int((2 * time.Hour).Seconds()))
+	s.setCookie(w, r, csrfCookie, tok, int((2 * time.Hour).Seconds()))
 	return tok
 }
 
 func (s *Server) checkPreCSRF(r *http.Request) bool {
-	c, err := r.Cookie(s.cookieName(csrfCookie))
+	c, err := r.Cookie(s.cookieName(r, csrfCookie))
 	if err != nil || c.Value == "" {
 		return false
 	}
 	return hub.TokenEqual(r.PostFormValue("_csrf"), c.Value)
 }
 
-// remoteIP is the client address for the login limiter. A loopback peer that forwards requests of other clients
-// (reverse proxy) gets a non-IP key: all proxied clients share one bucket and never count as local.
-func remoteIP(r *http.Request) string {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		host = r.RemoteAddr
-	}
-	if ip := net.ParseIP(host); ip != nil && ip.IsLoopback() && !hub.IsLocalRequest(r) {
-		return "proxied"
-	}
-	return host
-}
+// remoteIP is the key for the login limiter and pairing records: the real client IP (behind a trusted proxy the
+// address from its forwarding headers), or a non-IP key for the proxy itself when it gave none.
+func remoteIP(r *http.Request) string { return hub.ClientKey(r) }
 
 // isLoopback reports whether r comes from the machine the Hub runs on (see hub.IsLocalRequest).
 func isLoopback(r *http.Request) bool { return hub.IsLocalRequest(r) }

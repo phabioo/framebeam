@@ -18,7 +18,7 @@ framebeam-hub update check|stage [-channel stable|beta]   # see updates.md
 
 On a systemd install use the script instead of calling the binary for `renew-cert` and `import-cores`: `sudo packaging/linux/install-hub.sh renew-cert` / `import-cores <dir>` (it uses the service's data dir and user and restarts the service where needed), see [hub-install.md](hub-install.md).
 
-Without an admin the Hub still starts; the web interface then redirects to `/setup` (the form is accepted from loopback clients only). A request counts as local only if it comes from loopback and carries none of `Forwarded`, `X-Forwarded-For`, `X-Real-IP`, `X-Forwarded-Host`; behind a reverse proxy that sets these headers, do the setup directly on the host (`setup-admin` or a direct loopback connection).
+Without an admin the Hub still starts; the web interface then redirects to `/setup` (the form is accepted from local clients only). A request counts as local only if the TCP peer is loopback, it carries none of `Forwarded`, `X-Forwarded-For`, `X-Real-IP`, `X-Forwarded-Host`, `X-Forwarded-Proto`, and its `Host` header is `localhost` or a loopback IP. Requests that arrive through a trusted proxy (`-trusted-proxy`) are never local: do the setup on the host (`setup-admin`) or through a direct loopback connection. See [Reverse proxy](#reverse-proxy).
 
 ## Flags and environment
 
@@ -42,6 +42,7 @@ A flag wins over the environment variable. Under systemd the variables live in `
 | `-turn-port` | `FRAMEBEAM_TURN_PORT` | `3478` | TURN UDP and TCP port |
 | `-turn-relay-ports` | `FRAMEBEAM_TURN_RELAY_PORTS` | `49160-49199` | TURN UDP relay range `min-max` |
 | `-turn-relay-ip` | `FRAMEBEAM_TURN_RELAY_IP` | empty | Fixed public IPv4 for relayed addresses instead of resolving `-public-host` |
+| `-trusted-proxy` | `FRAMEBEAM_TRUSTED_PROXY` | empty | Comma or space separated CIDRs/IPs of reverse proxies in front of the Hub, for example `127.0.0.1,10.0.0.0/8`; see [Reverse proxy](#reverse-proxy) |
 | `-library-import-dir` | `FRAMEBEAM_LIBRARY_IMPORT_DIR` | `<data-dir>/library-import` | Folder that the Library's "Rescan folder" imports ROMs from (created at start; files are only read, never moved or deleted) |
 | `-save-keep-recent` | `FRAMEBEAM_SAVE_KEEP_RECENT` | `20` | Save history: newest versions per slot to keep |
 | `-save-keep-daily` | `FRAMEBEAM_SAVE_KEEP_DAILY` | `30` | Save history: days of which the newest version is kept |
@@ -119,6 +120,25 @@ When something does not work, hand over one file instead of describing it: Setti
 Everything in it passes a redaction pass: TURN secret and credentials (`username`/`credential`), tokens, passwords, invite codes, `Authorization` headers and session cookies are replaced by `[redacted]`. IP addresses and host names stay because connection problems cannot be debugged without them; the page says so ("contains IP addresses and host names, no passwords or tokens"). Redaction is pattern based: look through the files before you post them publicly.
 
 If the web interface does not come up, `framebeam-hub diagnostics out.zip [-data-dir <dir>]` writes the same layout from the command line (as the service user, for example `sudo -u framebeam framebeam-hub diagnostics /tmp/out.zip -data-dir /var/lib/framebeam`). It never opens the database, so a running Hub is not disturbed; `hub-info.json` then has `"mode": "offline"` and lacks cores, counts and Players, and the network values come from `hub.env`/flags, not the saved web settings. It refuses to overwrite an existing file.
+
+## Reverse proxy
+
+The Hub can run behind a TLS-terminating reverse proxy (nginx, Caddy, Traefik, HAProxy; run the Hub with `-dev` or on loopback, the proxy provides HTTPS). Tell the Hub which peers are proxies:
+
+```
+FRAMEBEAM_TRUSTED_PROXY=127.0.0.1,::1        # proxy on the same host
+FRAMEBEAM_TRUSTED_PROXY=172.17.0.0/16        # proxy in a Docker network
+```
+
+For a request whose TCP peer is inside the list:
+
+- The client IP is the right-most `X-Forwarded-For` entry that is not itself a trusted proxy (else `Forwarded: for=`). Entries added by the client further left are ignored. Rate limits, the per-username login backoff, pairing records and the Player's WSS address (used by the TURN LAN check) all use this address. When the proxy sends no usable address, all its clients share one bucket and are never exempt.
+- The scheme is the right-most `X-Forwarded-Proto` (else `Forwarded: proto=`). With `https` the session and CSRF cookies are `Secure` with the `__Host-` prefix and `Strict-Transport-Security: max-age=31536000` is sent on web pages. Make the proxy overwrite (not append to) these headers and forward `Host`.
+- The request is never local: `/setup` and `/api/v1/local/*` stay closed, and the proxy's own address never gets the LAN exemption from the username backoff. A real LAN client address from the header does. A Player on the Hub's own machine that talks to `127.0.0.1` directly is also "from the proxy" when loopback is listed; use `setup-admin` and pair it through the proxy URL then.
+
+Peers outside the list are never believed: their forwarding headers are ignored (and only make a loopback request non-local). Without `-trusted-proxy` a loopback request is local only when no proxy header is present and `Host` is a loopback name or IP.
+
+Residual risk without `-trusted-proxy`: a proxy on the same host that sends no forwarding header and forwards `Host: localhost` or `127.0.0.1` (nginx `proxy_pass http://127.0.0.1:8443;` sets `Host` to the upstream address by default) is indistinguishable from a local client, so every internet client could open `/setup` before an admin exists and use `/api/v1/local/*`. Always set `-trusted-proxy` for such a setup, or `proxy_set_header Host $host;`. The Hub's own self-signed certificate never gets HSTS (browsers could not click through a renewed certificate); HSTS is sent only when a trusted proxy reports https. The Settings > Security page lists the configured proxy networks (read-only; set by flag or `hub.env`).
 
 ## Certificate
 

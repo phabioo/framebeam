@@ -91,6 +91,7 @@ type settingsBody struct {
 	AllowUploads                      bool
 	// Security
 	TLS                     bool
+	TrustedProxy            string // configured -trusted-proxy networks, comma separated
 	Fingerprint, CertSource string
 	CertNotAfter            string
 	CertNotAfterTitle       string
@@ -250,6 +251,7 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, sess *se
 		b.CertNotAfter, b.CertNotAfterTitle = notAfter.Local().Format("2 Jan 2006"), notAfter.Local().Format("2 Jan 2006, 15:04:05")
 		b.CertExpiresSoon = tlsutil.ExpiresSoon(notAfter, time.Now())
 	}
+	b.TrustedProxy = strings.Join(s.cfg.TrustedProxy, ", ")
 	b.CertSelfGenerated = s.cfg.CertSource == "Self-generated"
 	b.CanRenewCert = b.CertSelfGenerated && s.cfg.RenewCert != nil
 	b.Appearance, _ = s.svc.Appearance(ctx)
@@ -370,6 +372,8 @@ func (s *Server) settingsNav(current string, st hub.UpdateStatus, updErr error, 
 			it.Status = "Download bundle"
 		case "security":
 			switch {
+			case len(s.cfg.TrustedProxy) > 0:
+				it.Status, it.Level = "Reverse proxy", "ok"
 			case !s.cfg.UseTLS:
 				it.Status, it.Level = "HTTP (dev mode)", "warn"
 			case s.cfg.CertSource == "Self-generated":

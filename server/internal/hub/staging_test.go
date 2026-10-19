@@ -85,6 +85,7 @@ func TestIsLocalRequest(t *testing.T) {
 	} {
 		r := httptest.NewRequest("GET", "/", nil)
 		r.RemoteAddr = c.remote
+		r.Host = "localhost"
 		if c.hdr != "" {
 			r.Header.Set(c.hdr, "203.0.113.9")
 		}

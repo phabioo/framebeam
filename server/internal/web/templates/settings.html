@@ -444,6 +444,13 @@
     <div><div class="label">Transport</div><div class="help">HTTPS / WSS. Plain HTTP is only available in dev mode.</div></div>
     <span class="pill nowrap{{if .Body.TLS}} ok{{else}} amber{{end}}">{{if .Body.TLS}}✓ HTTPS{{else}}HTTP (dev mode){{end}}</span>
   </div>
+  {{if .Body.TrustedProxy}}
+  <div class="set-row">
+    <div><div class="label">Reverse proxy</div>
+      <div class="help">Trusted proxy networks: <span class="mono">{{.Body.TrustedProxy}}</span>. Client address and scheme come from the proxy's X-Forwarded-For / X-Forwarded-Proto; these requests are never local. Set with the <span class="mono">-trusted-proxy</span> flag.</div></div>
+    <span class="pill nowrap ok">✓ Trusted</span>
+  </div>
+  {{end}}
   {{if .Body.TLS}}
   <div class="set-row">
     <div><div class="label">Certificate</div>
