@@ -14,7 +14,7 @@ An official plugin is a `.fbplugin` file (zip with `manifest.json` at the root) 
    ```
    framebeam-sign plugin-add -index plugin-index.json -plugin x-signed.fbplugin -url https://example.com/releases/x-signed.fbplugin
    ```
-   `-url` is where the signed file will be published (https). The command refuses unsigned or invalid files, creates the index when missing, and adds or replaces the entry for the manifest's id and version; other entries stay. It records name, version, `api`, description, permissions, SHA-256 and size from the file.
+   `-url` is where the signed file will be published (https). The command refuses unsigned or invalid files, creates the index when missing, and adds the entry for the manifest's id and version; other entries stay. A published version is immutable (run pins and Hub copies are keyed by it): when the index already has this id and version with a different SHA-256 the command fails; the same file again only refreshes the entry. `-replace` overrides this with a warning and is only for fixing a broken release before any Hub has offered it. It records name, version, `api`, description, permissions, SHA-256 and size from the file.
 4. **Sign the index.**
    ```
    framebeam-sign sign -index plugin-index.json
@@ -32,6 +32,7 @@ Hubs read the official index by default: `https://github.com/phabioo/framebeam/r
 
 1. Release the plugin in its own repository (`phabioo/framebeam-plugin-<name>`) with the `.fbplugin` file as a release asset.
 2. Run "Publish plugin" with `repo` (for example `phabioo/framebeam-plugin-pokemon-core`) and `tag` (the release tag). The workflow downloads the `*.fbplugin` assets (secret `PLUGIN_REPOS_TOKEN`, a read-only PAT, when set, otherwise the workflow token; needed for private plugin repos), signs each with the release key, uploads it as `<plugin-id>-<version>.fbplugin` to the `plugin-index` release (versions never overwrite each other), adds it with `plugin-add`, then signs and uploads `plugin-index.json` and `plugin-index.json.sig`.
+   The workflow must not overwrite an asset that is already published for this id and version (no `gh release upload --clobber` for an existing asset) and runs `plugin-add` without `-replace`; a re-run for an already published tag with a different file must fail. Release a new version instead.
 3. Without inputs the workflow only re-signs and publishes the existing index (an empty one when none exists yet).
 
 Hubs pick up the change at their next check (every 24 h) or with "Check now".

@@ -133,10 +133,15 @@ jobs:
           sign="$RUNNER_TEMP/bin/framebeam-sign"
           while IFS=$'\t' read -r id version f; do
             out="$work/$id-$version.fbplugin"
+            # A published version is immutable: never replace its file (Hubs keep the old one and run pins name its sha256).
+            if gh release view plugin-index --json assets -q '.assets[].name' | grep -qxF "$id-$version.fbplugin"; then
+              echo "::notice::$id $version is already published; skipped (publish a new version instead)"
+              continue
+            fi
             "$sign" plugin-sign -in "$f" -out "$out"
             "$sign" plugin-add -index "$work/plugin-index.json" -plugin "$out" \
               -url "https://github.com/$GH_REPO/releases/download/plugin-index/$id-$version.fbplugin"
-            gh release upload plugin-index "$out" --clobber
+            gh release upload plugin-index "$out"
           done < "$work/pending.tsv"
       - name: Sign and publish the index
         env:

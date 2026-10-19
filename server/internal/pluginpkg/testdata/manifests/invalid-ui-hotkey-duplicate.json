@@ -1,0 +1,22 @@
+{
+  "api": 1,
+  "id": "net.example.demo",
+  "name": "Demo",
+  "version": "1.0.0",
+  "entry": "main.lua",
+  "permissions": [
+    "ui"
+  ],
+  "ui": {
+    "hotkeys": [
+      {
+        "id": "a",
+        "label": "A"
+      },
+      {
+        "id": "a",
+        "label": "B"
+      }
+    ]
+  }
+}

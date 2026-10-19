@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/phabioo/framebeam/server/internal/corepkg"
@@ -57,7 +58,7 @@ func writeFileAtomic(path string, data []byte) error {
 // pluginAdd adds or replaces the entry of (id, version) in the plugin index (created when missing). The plugin
 // must carry a valid signature of a trusted key (the compiled-in keys and, when FRAMEBEAM_SIGNING_KEY is set, the
 // key of that seed). Other entries are kept.
-func pluginAdd(indexPath, pluginPath, rawURL string, allowFile bool, getenv func(string) string, now func() time.Time) error {
+func pluginAdd(indexPath, pluginPath, rawURL string, allowFile, replace bool, getenv func(string) string, now func() time.Time) error {
 	if indexPath == "" || pluginPath == "" || rawURL == "" {
 		return errors.New("-index, -plugin and -url are required")
 	}
@@ -113,6 +114,14 @@ func pluginAdd(indexPath, pluginPath, rawURL string, allowFile bool, getenv func
 	entries := idx.Plugins[:0:0]
 	for _, q := range idx.Plugins {
 		if q.ID == e.ID && q.Version == e.Version {
+			// A published id+version is immutable: run pins and Hub copies are keyed by it. The same file
+			// (same sha256) only refreshes the entry; a different file needs an explicit -replace.
+			if !strings.EqualFold(q.SHA256, e.SHA256) {
+				if !replace {
+					return fmt.Errorf("%s %s is already in the index with sha256 %s; this file has sha256 %s. A published version is immutable: bump the version, or pass -replace if you really mean to swap the file", e.ID, e.Version, q.SHA256, e.SHA256)
+				}
+				fmt.Fprintf(warnOut, "Warning: replacing %s %s (sha256 %s -> %s); Hubs and Players that already hold the old file keep it\n", e.ID, e.Version, q.SHA256, e.SHA256)
+			}
 			continue // replaced
 		}
 		entries = append(entries, q)

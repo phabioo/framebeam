@@ -16,6 +16,7 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -340,6 +341,9 @@ func ParseManifest(raw []byte) (Manifest, error) {
 			if json.Unmarshal(rv, &rs) != nil {
 				return m, invalid("requires: the range for %s must be a string", k)
 			}
+			if !validRange(rs) {
+				return m, invalid("requires: invalid version range %q for %s (use ^1.2, ~1.2, >=1.0, 1.2.3 or *)", rs, k)
+			}
 			m.Requires[k] = rs
 		}
 	}
@@ -372,8 +376,8 @@ func ParseManifest(raw []byte) (Manifest, error) {
 		return m, err
 	}
 	for _, p := range perms {
-		if len(p) > 64 {
-			return m, invalid("invalid permission %q", p)
+		if err := permissionError(p); err != nil {
+			return m, err
 		}
 		dup := false
 		for _, q := range m.Permissions {
@@ -427,6 +431,14 @@ func ParseManifest(raw []byte) (Manifest, error) {
 	if v, ok := o["run_settings"]; ok && string(v) != "null" {
 		if m.RunSettings, err = parseRunSettings(v); err != nil {
 			return m, err
+		}
+	}
+	if v, ok := o["ui"]; ok && string(v) != "null" {
+		if err := validateUI(v); err != nil {
+			return m, err
+		}
+		if !slices.Contains(m.Permissions, "ui") {
+			return m, invalid("field `ui` needs permission `ui`")
 		}
 	}
 	return m, nil
