@@ -146,9 +146,9 @@ func (s *Server) loginPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) logout(w http.ResponseWriter, r *http.Request, _ *session) {
-	if c, err := r.Cookie(s.cookieName(sessionCookie)); err == nil {
+	if c, err := r.Cookie(s.cookieName(r, sessionCookie)); err == nil {
 		s.svc.DeleteWebSession(r.Context(), c.Value)
 	}
-	s.clearSession(w)
+	s.clearSession(w, r)
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }

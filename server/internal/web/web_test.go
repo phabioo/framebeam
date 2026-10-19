@@ -75,6 +75,9 @@ func (e *env) client() *client {
 func (c *client) do(method, path string, body io.Reader, hdr map[string]string) *httptest.ResponseRecorder {
 	r := httptest.NewRequest(method, path, body)
 	r.RemoteAddr = c.remote
+	if strings.HasPrefix(c.remote, "127.") && strings.HasPrefix(path, "/setup") {
+		r.Host = "127.0.0.1:8443" // a local request names a loopback Host
+	}
 	for k, v := range c.cookies { // c.cookies is keyed by the base names; the server expects __Host- with TLS
 		if c.e.cfg.UseTLS {
 			k = hostPrefix + k

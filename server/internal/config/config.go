@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/phabioo/framebeam/server/internal/clientip"
 	"github.com/phabioo/framebeam/server/internal/corepkg"
 	"github.com/phabioo/framebeam/server/internal/updates"
 )
@@ -79,6 +80,9 @@ type Config struct {
 	TURNRelayPorts string
 	// TURNRelayIP is an optional fixed public IPv4 for relayed addresses.
 	TURNRelayIP string
+	// TrustedProxy is a comma or space separated list of CIDRs or IPs of reverse proxies in front of the Hub. Only
+	// requests whose TCP peer is inside it are believed about client IP and scheme (X-Forwarded-For/-Proto, Forwarded).
+	TrustedProxy string
 }
 
 // Defaults of the core source (ADR 0020 D1).
@@ -330,6 +334,7 @@ func register(fs *flag.FlagSet, getenv func(string) string, goos string) *Config
 	fs.IntVar(&c.TURNPort, "turn-port", turnPort, "TURN UDP and TCP port (FRAMEBEAM_TURN_PORT)")
 	fs.StringVar(&c.TURNRelayPorts, "turn-relay-ports", env("TURN_RELAY_PORTS", DefaultTURNRelayPorts), "TURN UDP relay port range min-max (FRAMEBEAM_TURN_RELAY_PORTS)")
 	fs.StringVar(&c.TURNRelayIP, "turn-relay-ip", env("TURN_RELAY_IP", ""), "fixed public IPv4 for relayed addresses instead of resolving -public-host (FRAMEBEAM_TURN_RELAY_IP)")
+	fs.StringVar(&c.TrustedProxy, "trusted-proxy", env("TRUSTED_PROXY", ""), "CIDRs/IPs of reverse proxies in front of the Hub whose X-Forwarded-For/-Proto or Forwarded headers are believed; such requests are never local (FRAMEBEAM_TRUSTED_PROXY)")
 	return c
 }
 
@@ -381,6 +386,9 @@ func (c *Config) Validate() error {
 		return errors.New("-cloudflare-turn-token-file needs -cloudflare-turn-key-id")
 	}
 	if _, err := c.ExternalTURNSpecs(); err != nil {
+		return err
+	}
+	if _, err := clientip.ParseList(c.TrustedProxy); err != nil {
 		return err
 	}
 	if _, _, err := SplitPublicHost(c.PublicHost); err != nil {

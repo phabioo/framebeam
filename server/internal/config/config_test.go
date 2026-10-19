@@ -360,3 +360,22 @@ func TestExternalTURNSecretSources(t *testing.T) {
 		t.Fatal("empty file accepted")
 	}
 }
+
+func TestTrustedProxy(t *testing.T) {
+	c := parse(t, map[string]string{"FRAMEBEAM_TRUSTED_PROXY": "10.0.0.0/8"})
+	if c.TrustedProxy != "10.0.0.0/8" {
+		t.Fatalf("env: %q", c.TrustedProxy)
+	}
+	c = parse(t, map[string]string{"FRAMEBEAM_TRUSTED_PROXY": "10.0.0.0/8"}, "-trusted-proxy", "127.0.0.1,172.16.0.0/12")
+	if c.TrustedProxy != "127.0.0.1,172.16.0.0/12" {
+		t.Fatalf("flag wins: %q", c.TrustedProxy)
+	}
+	c.DataDir = t.TempDir()
+	if err := c.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	c.TrustedProxy = "10.0.0.0/8,not-an-ip"
+	if err := c.Validate(); err == nil || !strings.Contains(err.Error(), "trusted-proxy") {
+		t.Fatalf("invalid list must fail: %v", err)
+	}
+}

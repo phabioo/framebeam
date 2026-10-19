@@ -33,6 +33,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/phabioo/framebeam/server/internal/clientip"
 	"github.com/phabioo/framebeam/server/internal/config"
 	"github.com/phabioo/framebeam/server/internal/httpapi"
 	"github.com/phabioo/framebeam/server/internal/hub"
@@ -392,7 +393,17 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		log.Warn("no admin present: run 'framebeam-hub setup-admin -username <name>' or open /setup in a browser on this machine")
 	}
 
+	trusted, err := clientip.ParseList(cfg.TrustedProxy)
+	if err != nil {
+		return err
+	}
 	webCfg := web.Config{UseTLS: eff.UseTLS()}
+	for _, p := range trusted {
+		webCfg.TrustedProxy = append(webCfg.TrustedProxy, p.String())
+	}
+	if len(trusted) > 0 {
+		log.Info("trusted reverse proxy configured", "networks", webCfg.TrustedProxy)
+	}
 	if eff.TURN && !eff.NetworkSharing {
 		log.Info("built-in TURN relay stays off while Network sharing is off")
 	} else if eff.TURN {
@@ -498,7 +509,7 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	webSrv.Register(mux)
 
 	srv := &http.Server{
-		Handler:           withReadDeadline(httpapi.LogRequests(log, mux)),
+		Handler:           withReadDeadline(clientip.Middleware(trusted)(httpapi.LogRequests(log, mux))),
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       120 * time.Second,
 		ErrorLog:          slog.NewLogLogger(log.Handler(), slog.LevelWarn),

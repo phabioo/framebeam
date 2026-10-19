@@ -91,6 +91,9 @@ func (e *env) do(method, path string, body any, o opt) *httptest.ResponseRecorde
 		}
 		r := httptest.NewRequest(method, path, rd)
 		r.RemoteAddr = e.remote
+		if strings.HasPrefix(e.remote, "127.") || strings.HasPrefix(e.remote, "[::1]") {
+			r.Host = "127.0.0.1:8443"
+		}
 		if data != nil {
 			r.Header.Set("Content-Type", "application/json")
 			if o.ctype != "" {

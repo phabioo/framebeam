@@ -7,7 +7,6 @@ import (
 	"crypto/ed25519"
 	"database/sql"
 	"errors"
-	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -18,6 +17,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/phabioo/framebeam/server/internal/auth"
+	"github.com/phabioo/framebeam/server/internal/clientip"
 )
 
 // Protocol constants in one place (ADR 0002); the info endpoint and handshake read them here.
@@ -288,24 +288,12 @@ func isUnique(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed")
 }
 
-// proxyHeaders are the headers a reverse proxy sets on requests it forwards.
-var proxyHeaders = []string{"Forwarded", "X-Forwarded-For", "X-Real-IP", "X-Forwarded-Host"}
+// IsLocalRequest reports whether r comes from the machine the Hub runs on (see clientip.Local): never through a
+// trusted proxy; otherwise a loopback peer without reverse-proxy headers and with a loopback Host header.
+func IsLocalRequest(r *http.Request) bool { return clientip.Local(r) }
 
-// IsLocalRequest reports whether r comes from the machine the Hub runs on: the TCP peer is a loopback address and
-// the request carries no reverse-proxy header. Behind a proxy on the same host every client arrives from loopback,
-// so those requests are not local. The header values are never trusted, only their presence counts.
-func IsLocalRequest(r *http.Request) bool {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		host = r.RemoteAddr
-	}
-	if ip := net.ParseIP(host); ip == nil || !ip.IsLoopback() {
-		return false
-	}
-	for _, h := range proxyHeaders {
-		if len(r.Header.Values(h)) > 0 {
-			return false
-		}
-	}
-	return true
-}
+// RequestHTTPS reports whether a trusted proxy says the client connection of r is https (see clientip.HTTPS).
+func RequestHTTPS(r *http.Request) bool { return clientip.HTTPS(r) }
+
+// ClientKey is the address rate limits and pairing records are keyed on (see clientip.Key).
+func ClientKey(r *http.Request) string { return clientip.Key(r) }
