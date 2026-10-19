@@ -155,6 +155,114 @@ class SaveRamTest : public QObject {
     }
   }
 
+  // PE-11: the same mismatching file found at every start is backed up once, a different content gets its own backup.
+  void sizeMismatchBackupIsWrittenOncePerContent() {
+    writeFile(save(), QByteArray("ABCDEFGHIJ"));
+    play(3, "8", "0", "1");
+    writeFile(save(), QByteArray("ABCDEFGHIJ"));  // the same 10 bytes again
+    play(3, "8", "0", "1");
+    QCOMPARE(baks(QStringLiteral("game.sav.size-mismatch-*.bak")).size(), 1);
+    writeFile(save(), QByteArray("KLMNOPQRSTU"));  // other content
+    play(3, "8", "0", "1");
+    QCOMPARE(baks(QStringLiteral("game.sav.size-mismatch-*.bak")).size(), 2);
+  }
+
+  EmulationRunner::StartRequest request() const {
+    EmulationRunner::StartRequest req;
+    req.corePath = QStringLiteral(FB_FAKE_CORE_PATH);
+    req.gamePath = game();
+    req.systemDir = dir_.filePath(QStringLiteral("sys"));
+    req.saveDir = saveDir();
+    return req;
+  }
+
+  // PE-1: a save file that cannot be opened (here: a directory of that name) blocks saving, but the problem is reported
+  // at once while the game runs, not only at stop; nothing is written over it.
+  void unreadableFileIsReportedAtStart() {
+    qputenv("FB_FAKE_SRAM_SIZE", "8");
+    qputenv("FB_FAKE_SRAM_DELAY_FRAMES", "0");
+    qputenv("FB_FAKE_SRAM_WRITE", "9");
+    QVERIFY(QDir().mkpath(save()));  // game.sav is a directory
+    EmulationRunner runner(std::make_unique<LibretroBackend>());
+    QStringList problems;
+    connect(&runner, &EmulationRunner::saveProblem, &runner, [&problems](const QString& m) { problems << m; });
+    runner.start(request());
+    QTRY_VERIFY_WITH_TIMEOUT(!problems.isEmpty(), 8000);  // after the retries (about 1.2 s), while still running
+    QVERIFY(runner.state() == EmulationRunner::State::Running || runner.state() == EmulationRunner::State::Starting);
+    QVERIFY(problems.first().contains(QStringLiteral("game.sav")));
+    runner.stop();
+    QVERIFY(QFileInfo(save()).isDir());  // never replaced
+    QVERIFY(runner.finalSaveError().contains(QStringLiteral("game.sav")));
+  }
+
+  // PE-1: a file that is locked only for a moment is retried and then loaded normally.
+  void briefLockIsRetried() {
+    qputenv("FB_FAKE_SRAM_SIZE", "8");
+    qputenv("FB_FAKE_SRAM_DELAY_FRAMES", "0");
+    qputenv("FB_FAKE_SRAM_WRITE", "9");
+    QVERIFY(QDir().mkpath(save()));
+    EmulationRunner runner(std::make_unique<LibretroBackend>());
+    QStringList problems;
+    connect(&runner, &EmulationRunner::saveProblem, &runner, [&problems](const QString& m) { problems << m; });
+    runner.start(request());
+    QTest::qWait(450);  // the first open attempts failed by now
+    QVERIFY(QDir().rmdir(save()));
+    writeFile(save(), QByteArray("ABCDEFGH"));
+    QTRY_VERIFY_WITH_TIMEOUT(runner.state() == EmulationRunner::State::Running, 8000);
+    QTest::qWait(200);
+    runner.stop();
+    QVERIFY(problems.isEmpty());
+    QVERIFY(runner.finalSaveError().isEmpty());
+    QCOMPARE(readFile(save()), QByteArray("\tBCDEFGH"));  // loaded, then the game's own write on top
+  }
+
+  // PE-3: when the final write fails even after the retries, the SRAM goes to a sibling file and the error says so.
+  void failedFinalWriteKeepsProgressInEmergencyFile() {
+    qputenv("FB_FAKE_SRAM_SIZE", "8");
+    qputenv("FB_FAKE_SRAM_DELAY_FRAMES", "0");
+    qputenv("FB_FAKE_SRAM_WRITE", "9");
+    EmulationRunner runner(std::make_unique<LibretroBackend>());
+    QImage last;
+    connect(&runner, &EmulationRunner::frameReady, &runner, [&last](const QImage& img, quint64) { last = img; });
+    runner.start(request());
+    QTRY_VERIFY_WITH_TIMEOUT(runner.state() == EmulationRunner::State::Running && !last.isNull(), 5000);
+    QFile::remove(save());
+    QVERIFY(QDir().mkpath(save()));  // the target cannot be replaced by a file any more, a sibling name still works
+    runner.stop();
+    const QStringList e = baks(QStringLiteral("game.sav.unsaved-*"));
+    QCOMPARE(e.size(), 1);
+    QCOMPARE(readFile(saveDir() + QLatin1Char('/') + e.first()), QByteArray("\x09\0\0\0\0\0\0\0", 8));
+    QVERIFY(runner.finalSaveError().contains(e.first()));
+    QVERIFY(QFileInfo(save()).isDir());
+  }
+
+  // PE-7: stop() does not wait for a core that hangs while unloading; the save was flushed before that.
+  void stopIsBoundedWhenTheCoreHangsOnUnload() {
+    qputenv("FB_FAKE_SRAM_SIZE", "8");
+    qputenv("FB_FAKE_SRAM_DELAY_FRAMES", "0");
+    qputenv("FB_FAKE_SRAM_WRITE", "9");
+    qputenv("FB_FAKE_UNLOAD_HANG_MS", "2500");
+    EmulationRunner::stopTimeoutMsForTest = 400;
+    {
+      EmulationRunner runner(std::make_unique<LibretroBackend>());
+      QImage last;
+      connect(&runner, &EmulationRunner::frameReady, &runner, [&last](const QImage& img, quint64) { last = img; });
+      QSignalSpy stopped(&runner, &EmulationRunner::stopped);
+      runner.start(request());
+      QTRY_VERIFY_WITH_TIMEOUT(runner.state() == EmulationRunner::State::Running && !last.isNull(), 5000);
+      QElapsedTimer t;
+      t.start();
+      runner.stop();
+      QVERIFY2(t.elapsed() < 2000, "stop() waited for the hanging core");
+      QCOMPARE(stopped.count(), 1);
+      QVERIFY(runner.state() == EmulationRunner::State::Idle);
+      QCOMPARE(readFile(save()), QByteArray("\x09\0\0\0\0\0\0\0", 8));  // flushed before the unload hung
+    }
+    EmulationRunner::stopTimeoutMsForTest = 0;
+    qunsetenv("FB_FAKE_UNLOAD_HANG_MS");
+    QTest::qWait(2600);  // let the abandoned thread finish
+  }
+
   void unreadableFileIsNeverOverwritten() {
 #ifdef Q_OS_WIN
     QSKIP("permissions test is POSIX only");

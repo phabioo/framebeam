@@ -68,8 +68,11 @@ class EmulationRunner : public QObject {
   bool flushSaveNow();
   // Whether the running core's battery save memory has exactly `size` bytes (blocking).
   bool saveMemoryAccepts(qint64 size);
-  // Blocks until the emulation thread has finished and the core is unloaded; then stopped().
+  // Blocks until the emulation thread has finished and the core is unloaded; then stopped(). The wait is bounded
+  // (kStopTimeoutMs): a core that hangs while unloading is logged and abandoned (the save was flushed before that).
   void stop();
+  static constexpr int kStopTimeoutMs = 10000;
+  static std::atomic<int> stopTimeoutMsForTest;  // tests only: overrides kStopTimeoutMs when > 0
   // After stop(): why the final battery save write failed (progress may be lost); empty = saved or nothing to save.
   QString finalSaveError() const { return m_finalSaveError; }
 
@@ -131,6 +134,8 @@ class EmulationRunner : public QObject {
   void stateChanged(framebeam::emu::EmulationRunner::State state);
   // The core shut itself down or runFrame failed; the thread winds down (then stop()).
   void errorOccurred(const QString& message);
+  // A save problem known while the game runs (e.g. the save file cannot be read, so this game will not be saved).
+  void saveProblem(const QString& message);
   void stopped();
   // The core re-sent its memory map while running; memoryRegions() now returns the new list.
   void memoryRegionsChanged();
@@ -141,6 +146,7 @@ class EmulationRunner : public QObject {
 
   std::unique_ptr<EmulatorBackend> m_backend;
   QString m_finalSaveError;
+  bool m_abandoned = false;  // the emulation thread did not stop in time and was left running (the backend must outlive it)
   std::unique_ptr<Worker> m_worker;
   std::atomic<State> m_state{State::Idle};
   FrameTimingStats m_timing;

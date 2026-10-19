@@ -55,6 +55,7 @@ class LibretroBackend final : public EmulatorBackend {
   // written when changed (about every 3 s while running, on pause and before unloading), atomically.
   bool flushSave() override;
   QString lastSaveError() const override { return m_lastSaveError; }
+  void setSaveProblemNotifier(std::function<void(const QString&)> fn) override { m_saveProblemNotifier = std::move(fn); }
   qint64 saveMemorySize() const override;
   // GUI thread, before the emulation thread starts: creates the offscreen surface for hardware rendering.
   void prepareForStart() override;
@@ -152,6 +153,9 @@ class LibretroBackend final : public EmulatorBackend {
   QString m_lastSaveError;          // empty = the last flush succeeded
   int m_saveFailCount = 0;         // consecutive failed flushes (log rate limit)
   bool m_saveBlocked = false;      // existing file unreadable: never written
+  std::function<void(const QString&)> m_saveProblemNotifier;
+  // Last resort when the save file cannot be written: the SRAM goes to `<save>.unsaved-<stamp>`. Updates m_lastSaveError.
+  void writeEmergencySave(const QByteArray& data, const QString& why);
   QByteArray m_corePathUtf8;
   QByteArray m_gameData;  // lives until unloadGame (the core may hold pointers)
   QByteArray m_gamePathUtf8;

@@ -1330,6 +1330,87 @@ class SaveSyncTest : public QObject {
     QVERIFY(sync_->finalSyncBlocking(true));
   }
 
+  // PN-7: a "deleted elsewhere" push keeps a backup of the clean local copy before removing it.
+  void deletedPushKeepsABackupOfTheRemovedLocalSlot() {
+    makeSlot(QStringLiteral("boss"), "hub-boss", 1, true, true);
+    QSignalSpy changed(sync_.get(), &SaveSync::slotChangedElsewhere);
+    sync_->handleSaveUpdate(slotUpdate(QStringLiteral("deleted"), QStringLiteral("boss")));
+    QCOMPARE(changed.count(), 1);
+    QVERIFY(!QFileInfo::exists(slotDir(QStringLiteral("boss"))));
+    const QStringList baks = QDir(gdir()).entryList({QStringLiteral("rom1.sav.boss-deleted-*.bak")}, QDir::Files);
+    QCOMPARE(baks.size(), 1);
+    QCOMPARE(readFile(gdir() + QLatin1Char('/') + baks.first()), QByteArray("hub-boss"));
+
+    makeSlot(QStringLiteral("default"), "hub-main", 1, true, true);
+    sync_->handleSaveUpdate(slotUpdate(QStringLiteral("deleted"), QStringLiteral("default")));
+    QVERIFY(!QFileInfo::exists(saveFile()));
+    const QStringList mainBaks = QDir(gdir()).entryList({QStringLiteral("rom1.sav.deleted-*.bak")}, QDir::Files);
+    QCOMPARE(mainBaks.size(), 1);
+    QCOMPARE(readFile(gdir() + QLatin1Char('/') + mainBaks.first()), QByteArray("hub-main"));
+  }
+
+  // The main slot can be deleted from the Player when the Hub offers saves_v6 (never without it).
+  void mainSlotDeleteNeedsSavesV6() {
+    using SO = SaveSync::SlotChangeResult::Outcome;
+    makeSlot(QStringLiteral("default"), "hub-main", 2, true, true);
+    QCOMPARE(deleteSlot(QStringLiteral("default"), 2).kind, SO::Protected);  // saves_v5 only
+    QCOMPARE(hub_->slotDeleteCount, 0);
+    QVERIFY(QFileInfo::exists(saveFile()));
+    cleanup();
+    v6_ = true;
+    connectAll();
+    QVERIFY(sync_->hubSupportsSavesV6());
+    makeSlot(QStringLiteral("default"), "hub-main", 2, true, true);
+    makeSlot(QStringLiteral("boss"), "hub-boss", 1, true, true);
+    const SaveSync::SlotChangeResult res = deleteSlot(QStringLiteral("default"), 2);
+    QVERIFY2(res.ok(), qPrintable(res.message));
+    QCOMPARE(hub_->slotDeleteCount, 1);
+    QVERIFY(!hub_->saves.contains(FakeHub::slotKey(kGame, QStringLiteral("default"))));
+    QVERIFY(!QFileInfo::exists(saveFile()));
+    QCOMPARE(readFile(slotDir(QStringLiteral("boss")) + QStringLiteral("/rom1.sav")), QByteArray("hub-boss"));  // other slots stay
+    // Renaming the main slot stays refused
+    QCOMPARE(renameSlot(QStringLiteral("default"), QStringLiteral("x")).kind, SO::Protected);
+  }
+
+  // PN-1: resolving a conflict of another slot of the running game must not take over the running session.
+  void resolvingAnotherSlotOfTheRunningGameLeavesTheSessionAlone() {
+    hub_->setHubSave(kGame, "hub-1");
+    QCOMPARE(start(), QStringLiteral("ready"));
+    sync_->beginSession();
+    QVERIFY(sync_->isRunning(kGame, QStringLiteral("default")));
+    makeSlot(QStringLiteral("foo"), "hub-foo", 2, true, false, "foo-local");
+    SyncState st = SaveStore::loadState(slotDir(QStringLiteral("foo")));
+    st.conflictId = QStringLiteral("c1");
+    QVERIFY(SaveStore::saveState(slotDir(QStringLiteral("foo")), st));
+    SaveSync::RestoreResult out;
+    bool done = false;
+    sync_->resolveSlotConflict(kGame, QStringLiteral("foo"), SaveSync::Resolution::UseHub, QStringLiteral("rom1.sav"),
+                               [&](const SaveSync::RestoreResult& x) { out = x; done = true; });
+    QTRY_VERIFY_WITH_TIMEOUT(done, 5000);
+    QCOMPARE(out.kind, SaveSync::RestoreResult::Outcome::Blocked);
+    QVERIFY(sync_->isRunning(kGame, QStringLiteral("default")));  // still the running session of the main slot
+    QCOMPARE(readFile(slotDir(QStringLiteral("foo")) + QStringLiteral("/rom1.sav")), QByteArray("foo-local"));
+    QVERIFY(sync_->finalSyncBlocking(true));
+  }
+
+  // PN-8: retryPending must not upload the slot whose game is in its start flow; the start flow does it once.
+  void retryPendingSkipsAGameInItsStartFlow() {
+    hub_->setHubSave(kGame, "hub-1");
+    QCOMPARE(start(), QStringLiteral("ready"));
+    writeFile(saveFile(), "local-progress");
+    SyncState st = SaveStore::loadState(gdir());
+    st.pending = true;
+    QVERIFY(SaveStore::saveState(gdir(), st));
+    const int before = puts();
+    QSignalSpy ready(sync_.get(), &SaveSync::startReady);
+    sync_->prepareStart(kGame, kRom, {QStringLiteral("rom1")});
+    sync_->retryPending();  // reconnect-time retry right while the game starts
+    QTRY_VERIFY_WITH_TIMEOUT(ready.count() == 1, 8000);
+    QTest::qWait(300);
+    QCOMPARE(puts() - before, 1);  // only the start flow uploaded it
+    QCOMPARE(hub_->saves.value(kGame).content, QByteArray("local-progress"));
+  }
+
   void uploadFileIsBlockedWhileTheGameRunsHere() {
     hub_->setHubSave(kGame, "cp-1");
     QCOMPARE(start(), QStringLiteral("ready"));

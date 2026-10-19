@@ -224,6 +224,7 @@ class GameSession : public QObject {
   void frameChanged();
   void started();                       // core and game are running
   void startFailed(const QString& msg);  // failed before the first frame
+  void saveProblem(const QString& message);  // known while running: this game's progress cannot be saved (e.g. an unreadable save file)
   void saveWriteFailed();                // an explicit save flush failed: the save file may be stale
   void stopSaveFailed(const QString& reason);  // the final battery save write at stop failed: the latest progress may be lost
   void finished();                       // after stop()

@@ -516,6 +516,9 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
       saves_->finalSync(false);  // pause = immediate sync of a changed save
     }
   });
+  connect(&session_, &GameSession::saveProblem, this, [this](const QString& reason) {
+    if (history_) history_->showError(tr("This game's save file cannot be read, so your progress will not be saved over it (%1). Check the file, then restart the game.").arg(reason));
+  });
   connect(&session_, &GameSession::saveWriteFailed, this, [this]() {
     if (history_) history_->showError(tr("The save file could not be written. Your latest progress may not be saved."));
   });

@@ -8,6 +8,8 @@
 #include <QStringList>
 #include <QThreadPool>
 
+#include <memory>
+
 #include "core_options.h"
 
 namespace framebeam::ui {
@@ -39,7 +41,7 @@ class CoreProber : public QObject {
  private:
   void deliver(const QString& corePath, const emu::CoreProbe& probe);
 
-  QThreadPool pool_;
+  std::unique_ptr<QThreadPool> pool_;  // leaked on quit when a probe hangs (the pool destructor waits without limit)
   QHash<QString, QStringList> pending_;  // core path -> core ids waiting for its result
 };
 
