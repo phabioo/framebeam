@@ -100,7 +100,8 @@ func TestSavesCardsBelow600px(t *testing.T) {
 	e := newEnv(t, true, nil)
 	c := e.client()
 	c.login()
-	css := c.get("/static/app.css", nil).Body.String()
+	// Windows checkouts may convert the embedded file to CRLF.
+	css := strings.ReplaceAll(c.get("/static/app.css", nil).Body.String(), "\r\n", "\n")
 	i := strings.Index(css, "@media (max-width: 599px) {\n  .save-list")
 	if i < 0 {
 		t.Fatal("no card block for the Saves page below 600 px")
