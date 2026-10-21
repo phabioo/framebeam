@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>body{margin:0;background:#d9d7d0;font-family:'IBM Plex Sans',sans-serif}a{color:#1a7f96}a:hover{color:#125f70}</style>
+</helmet>
+<section style="padding:64px;display:flex;flex-direction:column;gap:64px;color:#1d1d1b">
+<div style="display:flex;flex-direction:column;gap:10px;width:1440px">
+  <div style="font:500 13px 'IBM Plex Mono';color:#5b5a56;letter-spacing:.04em">ROUND 4 · D · WAVE 4 PLAYING TOGETHER</div>
+  <div style="font-size:32px;font-weight:600">Online, notifications, ready check, chat, people, mixer, voice, controller handover</div>
+  <div style="font-size:15px;color:#3a3936;line-height:1.55">Header is the shared component <a href="r4-header.dc.html">R4Header</a> built from <a href="round-4-sheet.dc.html#0-3-header">0-3 A</a>; panel tabs per <a href="round-4-sheet.dc.html#0-3-panel">0-3 B</a>.</div>
+</div>
+
+<div style="font:600 13px 'IBM Plex Mono';letter-spacing:.08em;color:#55544f;border-top:1px solid #b9b7b0;padding-top:16px;width:1440px">3g-4 HEADER AND PANEL WITH ALL NEW CONTROLS</div>
+<sc-for list="{{ games }}" as="G" hint-placeholder-count="2">
+<div id="{{ G.id }}" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">{{ G.id }}</span><span style="font-size:15px">{{ G.cap }}</span></div>
+  <div style="width:{{ G.w }};height:{{ G.h }};background:#0b0b0c;color:#ecebe7;display:grid;grid-template-rows:56px minmax(0,1fr);grid-template-columns:minmax(0,1fr) {{ G.pw }};overflow:hidden;border-radius:4px;position:relative">
+    <div style="grid-column:1/3"><dc-import name="r4-header" compact="{{ G.compact }}" title="{{ G.title }}" voice="{{ G.voice }}" unread="{{ G.unread }}" people="Lena,Jonas" speaking="Lena" open="{{ G.open }}" hint-size="100%,56px"></dc-import></div>
+    <div style="position:relative;display:flex;align-items:center;justify-content:center"><div style="width:{{ G.gw }};height:{{ G.gh }};background:repeating-linear-gradient(135deg,#17181a 0 10px,#1b1c1f 10px 20px)"></div>
+      <sc-if value="{{ G.hasOsd }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;left:50%;top:16px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;height:36px;padding:0 14px;border-radius:18px;background:rgba(17,18,20,.88);border:1px solid #34353a;font-size:13px;font-weight:500;white-space:nowrap"><span style="color:#a3a3a8">{{ G.osdI }}</span>{{ G.osd }}</div></sc-if>
+    </div>
+    <div style="background:#111214;border-left:1px solid #1e1f22;display:flex;flex-direction:column;min-height:0">
+      <div style="display:flex;align-items:stretch;height:40px;border-bottom:1px solid #1e1f22;padding:0 8px;color:#a3a3a8;font-size:13px;flex:none"><sc-for list="{{ G.tabs }}" as="t" hint-placeholder-count="5"><div style="display:flex;align-items:center;gap:6px;padding:0 {{ t.pad }};border-bottom:2px solid {{ t.u }};color:{{ t.fg }};font-weight:{{ t.w }};margin-left:{{ t.ml }}">{{ t.l }}<sc-if value="{{ t.hasB }}" hint-placeholder-val="{{ false }}"><span style="min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:8px;background:{{ t.bBg }};color:{{ t.bFg }};font:600 10px/16px 'IBM Plex Mono';text-align:center">{{ t.b }}</span></sc-if></div></sc-for></div>
+      <sc-if value="{{ G.session }}" hint-placeholder-val="{{ true }}">
+        <div style="padding:20px 24px;display:flex;flex-direction:column;gap:16px;flex:1">
+          <div style="display:flex;flex-direction:column;gap:10px"><div style="display:flex;align-items:center"><span style="font:500 11px 'IBM Plex Mono';color:#7d7d83;letter-spacing:.08em">SHARING</span><span style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px;color:#6fd39a"><span style="width:6px;height:6px;border-radius:50%;background:#6fd39a"></span>Shared · 2 watching</span></div>
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px;padding:3px;border-radius:7px;background:#1a1b1e;border:1px solid #2c2d32;text-align:center"><span style="padding:6px 0;color:#a3a3a8">Private</span><span style="padding:6px 0;border-radius:5px;background:#2c2d32;font-weight:500">Hub users</span><span style="padding:6px 0;color:#a3a3a8">Invite only</span></div>
+            <div style="height:34px;box-sizing:border-box;border-radius:7px;background:#1a1b1e;border:1px solid #2c2d32;display:flex;align-items:center;gap:8px;padding:0 10px;color:#7d7d83">+ Invite a hub user…</div>
+            <div style="height:36px;border-radius:8px;border:1px solid #3a3b40;display:grid;place-items:center;font-weight:500">Stop sharing</div></div>
+          <div style="height:1px;background:#1e1f22"></div>
+          <div style="display:flex;flex-direction:column;gap:10px"><div style="display:flex;align-items:center"><span style="font:500 11px 'IBM Plex Mono';color:#7d7d83;letter-spacing:.08em">SAVE</span><span style="margin-left:auto;font-size:12px;color:#c9c8c4">Saves and states →</span></div><div style="display:flex;align-items:baseline;gap:8px"><span style="font-size:14px;font-weight:600">Main</span><span style="font:500 12px 'IBM Plex Mono';color:#a3a3a8">v14</span><span style="margin-left:auto;font-size:12px;color:#6fd39a">✓ synced</span></div><div style="height:36px;border-radius:8px;border:1px solid #3a3b40;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:500">◆ Save snapshot <span style="font:500 10px 'IBM Plex Mono';padding:1px 4px;border-radius:3px;border:1px solid #3a3b40;color:#a3a3a8">F5</span></div></div>
+          <div style="margin-top:auto;padding-top:16px;border-top:1px solid #1e1f22;display:flex;flex-direction:column;gap:6px"><div style="height:40px;border-radius:8px;background:#1f2024;display:grid;place-items:center;font-size:14px;font-weight:500">Quit game</div><span style="font-size:12px;color:#7d7d83;text-align:center">Saves and syncs first</span></div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ G.people }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:16px 20px;display:flex;flex-direction:column;gap:10px;flex:1">
+          <div style="display:flex;align-items:center"><span style="font:500 11px 'IBM Plex Mono';color:#7d7d83;letter-spacing:.08em">IN THIS SESSION · 3</span><span style="margin-left:auto;font-size:12px;color:#c9c8c4">Ready check</span></div>
+          <sc-for list="{{ peopleHost }}" as="p" hint-placeholder-count="3"><div style="display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px;border-radius:8px;background:#1a1b1e;border:1px solid #26272b">
+            <span style="width:28px;height:28px;border-radius:50%;background:{{ p.c }};color:#0d1214;display:grid;place-items:center;font-size:12px;font-weight:600;box-shadow:{{ p.ring }}">{{ p.i }}</span>
+            <div style="display:flex;flex-direction:column;min-width:0"><span style="font-size:13px;display:flex;gap:6px;align-items:center">{{ p.n }}<span style="font-size:10px;font-weight:600;padding:0 6px;border-radius:8px;background:#26272b;color:#a3a3a8">{{ p.role }}</span></span><span style="font-size:11px;color:#8e8e94;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ p.m }}</span></div>
+            <span style="font-size:12px;padding:3px 8px;border-radius:6px;border:1px solid #3a3b40">⋯</span>
+          </div></sc-for>
+          <div style="font-size:11px;color:#7d7d83;line-height:16px">Quality = what the viewer receives. You send one stream; each viewer gets the best their connection allows unless they pick lower.</div>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+</div>
+</sc-for>
+
+<div style="font:600 13px 'IBM Plex Mono';letter-spacing:.08em;color:#55544f;border-top:1px solid #b9b7b0;padding-top:16px;width:1440px">6q ONLINE · 6r NOTIFICATIONS</div>
+<div style="display:flex;gap:48px;align-items:flex-start;flex-wrap:wrap">
+<div id="6q" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6q</span><span style="font-size:15px">Player · Online block → “All” popover · everyone on Home Hub · one action per row, Message in ⋯</span></div>
+  <div style="width:1440px;height:900px;display:flex;background:#121315;overflow:hidden;color:#ececea;position:relative;border-radius:4px">
+    <dc-import name="player-nav" active="Library" r4="{{ true }}" bell="3" hint-size="232px,100%"></dc-import>
+    <div style="flex:1;padding:28px;display:flex;flex-direction:column;gap:14px"><div style="font-size:28px;font-weight:600">Library</div></div>
+    <div style="position:absolute;left:240px;bottom:180px;width:340px;z-index:3">
+      <div style="position:absolute;left:-6px;bottom:40px;width:12px;height:12px;transform:rotate(45deg);background:#1d1e22;border-left:1px solid #34353a;border-bottom:1px solid #34353a"></div>
+      <div style="padding:8px;border-radius:12px;background:#1d1e22;border:1px solid #34353a;box-shadow:0 18px 40px rgba(0,0,0,.55);display:flex;flex-direction:column;gap:2px">
+        <div style="display:flex;align-items:center;padding:6px 8px 8px"><span style="font-size:14px;font-weight:600">On Home Hub</span><span style="margin-left:auto;font:500 11px 'IBM Plex Mono';color:#7d7d83">3 online · 1 offline</span></div>
+        <sc-for list="{{ onlineAll }}" as="o" hint-placeholder-count="5"><div style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;background:{{ o.bg }};opacity:{{ o.op }}">
+          <span style="position:relative;width:28px;height:28px;border-radius:50%;background:{{ o.c }};color:#0d1214;display:grid;place-items:center;font-size:12px;font-weight:600;flex:none">{{ o.i }}<span style="position:absolute;right:-2px;bottom:-2px;width:9px;height:9px;border-radius:50%;background:{{ o.dot }};border:2px solid #1d1e22"></span></span>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:13px">{{ o.n }}</span><span style="font-size:11px;color:#9a9a9f">{{ o.s }}</span></div>
+          <sc-if value="{{ o.hasA }}" hint-placeholder-val="{{ true }}"><span style="font-size:12px;padding:4px 10px;border-radius:6px;border:1px solid {{ o.aLine }};color:{{ o.aFg }}">{{ o.a }}</span></sc-if>
+          <span style="font-size:12px;padding:4px 7px;border-radius:6px;border:1px solid #3a3b40">⋯</span>
+        </div></sc-for>
+        <div style="border-top:1px solid #2c2d32;margin-top:4px;padding:8px;font-size:12px;color:#8e8e94;display:flex;gap:8px;align-items:center">Show what I play: On<span style="margin-left:auto;text-decoration:underline">Settings → General</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="6q-hub" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6q-hub</span><span style="font-size:15px">Hub · Users with the same status · Watch in the browser (7b) · privacy respected</span></div>
+  <div style="width:1440px;height:620px;display:flex;background:#f5f4f0;overflow:hidden;border-radius:4px">
+    <dc-import name="hub-nav" active="Users" r4="{{ true }}" reports-badge="2 new" hint-size="232px,100%"></dc-import>
+    <div style="flex:1;min-width:0;padding:28px 40px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:flex-end"><div style="flex:1;font-size:28px;font-weight:600">Users</div><span style="font-size:13px;padding:8px 14px;border:1px solid #d9d7d0;border-radius:7px;background:#fff">Invite</span><span style="font-size:13px;padding:8px 14px;border-radius:7px;background:#1a7f96;color:#fff;margin-left:8px">Create user</span></div>
+      <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;overflow:hidden">
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) 260px 120px 110px 30px;gap:14px;padding:8px 18px;font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65"><span>USER</span><span>STATUS</span><span>ROLE</span><span></span><span></span></div>
+        <sc-for list="{{ hubUsers }}" as="u" hint-placeholder-count="4"><div style="display:grid;grid-template-columns:minmax(0,1fr) 260px 120px 110px 30px;gap:14px;align-items:center;padding:0 18px;height:56px;border-top:1px solid #efede8;font-size:14px">
+          <div style="display:flex;align-items:center;gap:10px"><span style="width:28px;height:28px;border-radius:50%;background:{{ u.c }};color:#fff;display:grid;place-items:center;font-size:12px;font-weight:600">{{ u.i }}</span><div style="display:flex;flex-direction:column"><span>{{ u.n }}</span><span style="font-size:12px;color:#6b6a65">{{ u.d }}</span></div></div>
+          <span style="display:flex;align-items:center;gap:8px;font-size:13px"><span style="width:8px;height:8px;border-radius:50%;background:{{ u.dot }}"></span>{{ u.s }}</span>
+          <span style="font-size:13px;color:#6b6a65">{{ u.r }}</span>
+          <sc-if value="{{ u.hasA }}" hint-placeholder-val="{{ false }}"><span style="justify-self:end;font-size:13px;padding:5px 10px;border:1px solid #d9d7d0;border-radius:7px">{{ u.a }}</span></sc-if><sc-if value="{{ u.noA }}" hint-placeholder-val="{{ true }}"><span></span></sc-if>
+          <span style="font-size:14px;padding:3px 8px;border:1px solid #d9d7d0;border-radius:7px">⋯</span>
+        </div></sc-for>
+      </div>
+      <div style="font-size:12px;color:#6b6a65">Sam turned off “Show what I play”, so only Online / Idle / Offline is shown. Admins see the same; the game is never shown.</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div style="display:flex;gap:48px;align-items:flex-start;flex-wrap:wrap">
+<div id="6r" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6r</span><span style="font-size:15px">Player · bell popover · each notification with one action · 1280 × 800 · Online folded</span></div>
+  <div style="width:1280px;height:800px;display:flex;background:#121315;overflow:hidden;color:#ececea;position:relative;border-radius:4px">
+    <dc-import name="player-nav" active="Library" r4="{{ true }}" online="compact" bell="3" bell-open="{{ true }}" hint-size="232px,100%"></dc-import>
+    <div style="flex:1;padding:28px;display:flex;flex-direction:column;gap:14px"><div style="font-size:28px;font-weight:600">Library</div></div>
+    <div style="position:absolute;left:240px;bottom:12px;width:400px;z-index:3">
+      <div style="padding:6px;border-radius:12px;background:#1d1e22;border:1px solid #34353a;box-shadow:0 18px 40px rgba(0,0,0,.55);display:flex;flex-direction:column">
+        <div style="display:flex;align-items:center;padding:8px 10px"><span style="font-size:14px;font-weight:600">Notifications</span><span style="margin-left:auto;font-size:12px;color:#a3a3a8;text-decoration:underline">Mark all read</span><span style="margin-left:12px;font-size:12px;color:#a3a3a8">⚙</span></div>
+        <sc-for list="{{ notes }}" as="n" hint-placeholder-count="6">
+          <sc-if value="{{ n.head }}" hint-placeholder-val="{{ false }}"><div style="font:500 10px 'IBM Plex Mono';letter-spacing:.08em;color:#7d7d83;padding:10px 10px 4px">{{ n.t }}</div></sc-if>
+          <sc-if value="{{ n.item }}" hint-placeholder-val="{{ true }}"><div style="display:grid;grid-template-columns:8px 28px minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 10px;border-radius:8px;background:{{ n.bg }}">
+            <span style="width:6px;height:6px;border-radius:50%;background:{{ n.dot }}"></span>
+            <span style="width:28px;height:28px;border-radius:{{ n.r }};background:{{ n.c }};color:{{ n.icF }};display:grid;place-items:center;font-size:11px;font-weight:600">{{ n.i }}</span>
+            <div style="display:flex;flex-direction:column;min-width:0"><span style="font-size:13px;line-height:18px;text-wrap:pretty">{{ n.t }}</span><span style="font-size:11px;color:#8e8e94">{{ n.s }}</span></div>
+            <span style="font-size:12px;padding:4px 10px;border-radius:6px;border:1px solid {{ n.aLine }};color:{{ n.aFg }};white-space:nowrap">{{ n.a }}</span>
+          </div></sc-if>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="6r-2" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6r-2</span><span style="font-size:15px">Settings → Notifications · per kind: Toast / List only / Off · fullscreen quiet</span></div>
+  <div style="width:1100px;background:#121315;border-radius:4px;padding:28px 36px;box-sizing:border-box;color:#ececea;display:flex;flex-direction:column">
+    <div style="font-size:28px;font-weight:600;padding-bottom:8px">Notifications</div>
+    <sc-for list="{{ noteRows }}" as="r" hint-placeholder-count="7"><dc-import name="settings-row" row="{{ r }}" hint-size="100%,64px"></dc-import></sc-for>
+    <div style="display:flex;gap:16px;margin-top:20px">
+      <div style="flex:1;padding:14px;border-radius:10px;border:1.5px dashed #2a2b30;display:flex;flex-direction:column;gap:4px;align-items:center;text-align:center"><span style="font-size:14px;font-weight:500">Nothing new</span><span style="font-size:12px;color:#9a9a9f">Bell popover when empty. Earlier notifications are kept 14 days.</span></div>
+      <div style="flex:1;padding:14px;border-radius:10px;background:#1a1b1e;border:1px solid #2c2d32;display:flex;flex-direction:column;gap:4px"><span style="font-size:14px;font-weight:500">Home Hub offline</span><span style="font-size:12px;color:#9a9a9f">The bell shows only notifications from this Player (update, local errors). Hub notifications arrive when it is back.</span></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div style="font:600 13px 'IBM Plex Mono';letter-spacing:.08em;color:#55544f;border-top:1px solid #b9b7b0;padding-top:16px;width:1440px">6s READY CHECK AND PAUSE FOR EVERYONE</div>
+<div id="6s" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6s</span><span style="font-size:15px">Ready check · participant view (Lena asked) · 1440 · host view and pause states below</span></div>
+  <div style="width:1440px;height:900px;background:#0b0b0c;color:#ecebe7;display:grid;grid-template-rows:56px minmax(0,1fr);overflow:hidden;border-radius:4px;position:relative">
+    <dc-import name="r4-header" title="Coral Saga: Ember" voice="ptt" people="Lena,Jonas,Sam" speaking="" hint-size="100%,56px"></dc-import>
+    <div style="position:relative;display:flex;align-items:center;justify-content:center"><div style="width:1100px;height:660px;background:repeating-linear-gradient(135deg,#17181a 0 10px,#1b1c1f 10px 20px)"></div>
+      <div style="position:absolute;inset:0;background:rgba(6,7,8,.55);display:flex;align-items:center;justify-content:center">
+        <div style="width:460px;background:#1d1e22;border:1px solid #34353a;border-radius:14px;box-shadow:0 30px 80px rgba(0,0,0,.6);padding:24px;display:flex;flex-direction:column;gap:16px">
+          <div style="display:flex;align-items:center;gap:12px"><div style="flex:1"><div style="font-size:20px;font-weight:600">Ready?</div><div style="font-size:13px;color:#a3a3a8">Lena asked · Harbor Nuzlocke · before Gym 3</div></div><span style="width:52px;height:52px;border-radius:50%;background:conic-gradient(#3cbfd8 0 60%,#2c2d32 60% 100%);display:grid;place-items:center"><span style="width:44px;height:44px;border-radius:50%;background:#1d1e22;display:grid;place-items:center;font:600 18px 'IBM Plex Mono'">18</span></span></div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <sc-for list="{{ ready }}" as="r" hint-placeholder-count="4"><div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;background:#16171a"><span style="width:26px;height:26px;border-radius:50%;background:{{ r.c }};color:#0d1214;display:grid;place-items:center;font-size:12px;font-weight:600">{{ r.i }}</span><span style="flex:1;font-size:14px">{{ r.n }}</span><span style="font-size:12px;font-weight:500;padding:2px 10px;border-radius:10px;background:{{ r.bg }};color:{{ r.fg }}">{{ r.s }}</span></div></sc-for>
+          </div>
+          <div style="display:flex;gap:8px"><span style="flex:1;height:40px;border-radius:8px;border:1px solid #3a3b40;display:grid;place-items:center;font-weight:500">Not yet <span style="font:500 10px 'IBM Plex Mono';color:#a3a3a8;margin-left:6px">B</span></span><span style="flex:1.4;height:40px;border-radius:8px;background:#3cbfd8;color:#0d1214;display:grid;place-items:center;font-weight:600;box-shadow:0 0 0 2px #1d1e22,0 0 0 4px #3cbfd8">I’m ready <span style="font:500 10px 'IBM Plex Mono';margin-left:6px">A</span></span></div>
+          <div style="font-size:12px;color:#8e8e94;line-height:17px">Your game is paused while the check runs. When everyone is ready, Lena presses Start and all games resume together after 3 · 2 · 1. No answer after 30 s counts as not ready.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="6s-2" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6s-2</span><span style="font-size:15px">Host view · result · pause for everyone on every tile · resume rules · setting</span></div>
+  <div style="width:1440px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px">
+    <sc-for list="{{ pauseCards }}" as="c" hint-placeholder-count="6"><div style="display:flex;flex-direction:column;gap:8px">
+      <div style="font:500 12px 'IBM Plex Mono';color:#55544f">{{ c.k }}</div>
+      <div style="height:260px;border-radius:8px;background:#0b0b0c;position:relative;overflow:hidden;color:#ecebe7">
+        <div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,#17181a 0 10px,#1b1c1f 10px 20px);opacity:{{ c.dim }}"></div>
+        <sc-if value="{{ c.hasOsd }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;left:50%;top:{{ c.osdTop }};transform:translateX(-50%);display:flex;align-items:center;gap:8px;height:32px;padding:0 12px;border-radius:16px;background:rgba(17,18,20,.88);border:1px solid #34353a;font-size:12px;font-weight:500;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:{{ c.dotC }}"></span>{{ c.osd }}</div></sc-if>
+        <sc-if value="{{ c.hasCard }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:300px;padding:14px;border-radius:12px;background:#1d1e22;border:1px solid #34353a;display:flex;flex-direction:column;gap:8px"><span style="font-size:14px;font-weight:600">{{ c.ct }}</span><span style="font-size:12px;line-height:17px;color:#c9c8c4">{{ c.cd }}</span><div style="display:flex;gap:6px;justify-content:flex-end"><sc-for list="{{ c.acts }}" as="a" hint-placeholder-count="2"><span style="height:30px;padding:0 12px;border-radius:6px;border:1px solid {{ a.line }};background:{{ a.bg }};color:{{ a.fg }};display:flex;align-items:center;font-size:12px;font-weight:{{ a.w }}">{{ a.l }}</span></sc-for></div></div></sc-if>
+        <sc-if value="{{ c.hasTile }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;left:10px;top:10px;display:flex;gap:6px;align-items:center;padding:4px 8px;border-radius:6px;background:rgba(17,18,20,.82);font-size:12px"><span style="font:500 11px 'IBM Plex Mono';width:18px;height:18px;border-radius:4px;background:#ecebe7;color:#121315;display:grid;place-items:center">3</span>Jonas · Coral Saga: Ember</div></sc-if>
+      </div>
+    </div></sc-for>
+  </div>
+</div>
+
+<div style="font:600 13px 'IBM Plex Mono';letter-spacing:.08em;color:#55544f;border-top:1px solid #b9b7b0;padding-top:16px;width:1440px">6t CHAT · 6w VOICE IN GAME · 6u PEOPLE AND QUALITY</div>
+<div id="6t" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6t</span><span style="font-size:15px">Chat tab · run chat · emote quick bar and pings · input focused (Enter) · voice live while talking · 1440</span></div>
+  <div style="width:1440px;height:900px;background:#0b0b0c;color:#ecebe7;display:grid;grid-template-rows:56px minmax(0,1fr);grid-template-columns:minmax(0,1fr) 340px;overflow:hidden;border-radius:4px">
+    <div style="grid-column:1/3"><dc-import name="r4-header" title="Coral Saga: Ember" voice="live" people="Lena,Jonas,Sam" speaking="Jonas" hint-size="100%,56px"></dc-import></div>
+    <div style="display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px"><div style="width:640px;height:384px;background:repeating-linear-gradient(135deg,#17181a 0 10px,#1b1c1f 10px 20px)"></div><div style="width:512px;height:384px;background:repeating-linear-gradient(135deg,#17181a 0 10px,#1b1c1f 10px 20px)"></div></div>
+    <div style="background:#111214;border-left:1px solid #1e1f22;display:flex;flex-direction:column;min-height:0">
+      <div style="display:flex;height:40px;border-bottom:1px solid #1e1f22;padding:0 8px;font-size:13px;color:#a3a3a8;flex:none"><span style="display:flex;align-items:center;padding:0 8px">Session</span><span style="display:flex;align-items:center;gap:6px;padding:0 8px">People<span style="min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:8px;background:#2c2d32;color:#c9c8c4;font:600 10px/16px 'IBM Plex Mono';text-align:center">4</span></span><span style="display:flex;align-items:center;padding:0 8px;border-bottom:2px solid #3cbfd8;color:#ecebe7;font-weight:600">Chat</span><span style="display:flex;align-items:center;padding:0 8px;color:#5e5e63">States</span><span style="margin-left:auto;display:flex;align-items:center;padding:0 7px"><span style="width:18px;height:18px;border-radius:5px;background:#232428;color:#c9c8c4;font:600 8px/18px 'IBM Plex Mono';text-align:center">SN</span></span></div>
+      <div style="padding:8px 16px;font-size:12px;color:#8e8e94;border-bottom:1px solid #1e1f22;display:flex;gap:6px;align-items:center">Run chat · Harbor Nuzlocke · 4 people<span style="margin-left:auto;text-decoration:underline">Bubbles: on</span></div>
+      <div style="flex:1;min-height:0;padding:12px 16px;display:flex;flex-direction:column;gap:10px;overflow:hidden;justify-content:flex-end">
+        <sc-for list="{{ chat }}" as="m" hint-placeholder-count="7">
+          <sc-if value="{{ m.sys }}" hint-placeholder-val="{{ false }}"><div style="font-size:11px;color:#7d7d83;text-align:center;padding:2px 0">{{ m.t }}</div></sc-if>
+          <sc-if value="{{ m.msg }}" hint-placeholder-val="{{ true }}"><div style="display:grid;grid-template-columns:24px minmax(0,1fr);gap:8px;align-items:start"><span style="width:24px;height:24px;border-radius:50%;background:{{ m.c }};color:#0d1214;display:grid;place-items:center;font-size:11px;font-weight:600;box-shadow:{{ m.ring }}">{{ m.i }}</span><div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:11px;color:#8e8e94"><span style="color:{{ m.c }};font-weight:600">{{ m.n }}</span> · {{ m.time }}</span><span style="font-size:13px;line-height:19px;padding:{{ m.pad }};border-radius:8px;background:{{ m.bg }};border:{{ m.bd }};align-self:flex-start;font-weight:{{ m.w }}">{{ m.t }}</span></div></div></sc-if>
+        </sc-for>
+      </div>
+      <div style="padding:10px 16px 14px;border-top:1px solid #1e1f22;display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;gap:6px;flex-wrap:wrap"><sc-for list="{{ pings }}" as="p" hint-placeholder-count="5"><span style="height:28px;padding:0 10px;border-radius:14px;background:#1a1b1e;border:1px solid #2c2d32;display:flex;align-items:center;gap:6px;font-size:12px">{{ p.l }}<span style="font:500 10px 'IBM Plex Mono';color:#7d7d83">{{ p.k }}</span></span></sc-for></div>
+        <div style="height:38px;box-sizing:border-box;border:1px solid #3cbfd8;border-radius:8px;background:#16171a;display:flex;align-items:center;padding:0 10px;gap:8px;font-size:13px;box-shadow:0 0 0 3px rgba(60,191,216,.18)"><span>heal first, then gym</span><span style="width:1px;height:16px;background:#ecebe7"></span><span style="margin-left:auto;font:500 10px 'IBM Plex Mono';color:#7d7d83">Enter sends · Esc back to game</span></div>
+        <div style="font-size:11px;color:#7d7d83">Keys go to the chat while it has focus; the game keeps running. Gamepad: A on the field opens the on-screen keyboard (7c).</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="display:flex;gap:48px;align-items:flex-start;flex-wrap:wrap">
+<div id="6t-2" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">4jh-4 · chat</span><span style="font-size:15px">Hub · run detail → Chat history · read-only, searchable, export</span></div>
+  <div style="width:880px;background:#f5f4f0;border-radius:4px;padding:24px 28px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px">
+    <div style="display:flex;gap:2px;border-bottom:1px solid #e2e0da;font-size:14px"><span style="padding:8px 12px;color:#6b6a65">Board</span><span style="padding:8px 12px;color:#6b6a65">Recap</span><span style="padding:8px 12px;color:#6b6a65">Log</span><span style="padding:8px 12px;border-bottom:2px solid #1a7f96;font-weight:600">Chat · 214</span></div>
+    <div style="display:flex;gap:8px"><div style="flex:1;height:34px;border:1px solid #d9d7d0;border-radius:7px;background:#fff;font-size:13px;color:#8d8b85;display:flex;align-items:center;padding:0 10px">Search chat</div><span style="height:34px;padding:0 12px;border:1px solid #d9d7d0;border-radius:7px;background:#fff;display:flex;align-items:center;font-size:13px">Everyone ▾</span><span style="height:34px;padding:0 12px;border:1px solid #d9d7d0;border-radius:7px;background:#fff;display:flex;align-items:center;font-size:13px">Export .txt</span></div>
+    <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:8px 16px">
+      <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65;padding:8px 0">TODAY</div>
+      <sc-for list="{{ chatHub }}" as="m" hint-placeholder-count="5"><div style="display:grid;grid-template-columns:52px 70px minmax(0,1fr);gap:12px;padding:6px 0;border-top:1px solid #efede8;font-size:13px;line-height:19px"><span style="font:12px 'IBM Plex Mono';color:#6b6a65">{{ m.time }}</span><span style="color:{{ m.lc }};font-weight:600">{{ m.n }}</span><span style="color:{{ m.tc }}">{{ m.t }}</span></div></sc-for>
+    </div>
+    <div style="font-size:12px;color:#6b6a65">Kept as long as the run. Session chat outside a run is not stored.</div>
+  </div>
+</div>
+
+<div id="6u" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6u</span><span style="font-size:15px">People tab · viewer side (quality pick) · invite dialog with role</span></div>
+  <div style="display:flex;gap:24px;align-items:flex-start">
+    <div style="width:340px;background:#111214;border-radius:8px;padding:16px 20px;box-sizing:border-box;color:#ecebe7;display:flex;flex-direction:column;gap:10px">
+      <div style="font:500 12px 'IBM Plex Mono';color:#7d7d83">VIEWER · WATCHING LENA</div>
+      <div style="display:flex;align-items:center;gap:10px"><span style="width:32px;height:32px;border-radius:50%;background:#f07ab8;color:#0d1214;display:grid;place-items:center;font-weight:600;box-shadow:0 0 0 2px #111214,0 0 0 4px #6fd39a">L</span><div style="flex:1"><div style="font-size:14px;font-weight:600">Lena · host</div><div style="font-size:12px;color:#8e8e94">Harbor Rally · speaking</div></div></div>
+      <div style="font:500 11px 'IBM Plex Mono';color:#7d7d83;letter-spacing:.08em;padding-top:6px">YOUR STREAM</div>
+      <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px;padding:3px;border-radius:7px;background:#1a1b1e;border:1px solid #2c2d32;text-align:center;font-size:12px"><span style="padding:6px 0;border-radius:5px;background:#2c2d32;font-weight:500">Auto</span><span style="padding:6px 0;color:#a3a3a8">High</span><span style="padding:6px 0;color:#a3a3a8">Medium</span><span style="padding:6px 0;color:#a3a3a8">Low</span></div>
+      <div style="font-size:12px;color:#8e8e94;line-height:17px">Now: 1280 × 960 · 60 fps · 4.1 Mbit/s · Relayed · 48 ms. Low saves data on a phone hotspot.</div>
+      <div style="font-size:12px;color:#8e8e94">Same control on the tile: hover → ⋯ → Quality.</div>
+      <div style="height:36px;border-radius:8px;border:1px solid #3a3b40;display:grid;place-items:center;font-weight:500">Ask to play…</div>
+    </div>
+    <div style="width:460px;background:#08090a;border-radius:8px;padding:24px;box-sizing:border-box">
+      <div style="background:#1d1e22;border:1px solid #34353a;border-radius:12px;color:#ecebe7;padding:20px;display:flex;flex-direction:column;gap:12px">
+        <div style="font-size:18px;font-weight:600">Invite to Lumen Drift</div>
+        <div style="height:36px;border:1px solid #3a3b40;border-radius:8px;display:flex;align-items:center;gap:8px;padding:0 10px"><span style="width:22px;height:22px;border-radius:50%;background:#b39cf5;color:#0d1214;display:grid;place-items:center;font-size:11px;font-weight:600">S</span>Sam<span style="margin-left:auto;font-size:12px;color:#8e8e94">online · idle</span></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:13px;font-weight:500">Sam can</span>
+          <sc-for list="{{ roles }}" as="r" hint-placeholder-count="2"><div style="display:flex;gap:10px;padding:10px;border-radius:8px;border:1px solid {{ r.line }};background:{{ r.bg }};opacity:{{ r.op }}"><span style="width:16px;height:16px;border-radius:50%;border:{{ r.ring }};box-sizing:border-box;flex:none;margin-top:1px"></span><div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:13px;font-weight:500">{{ r.t }}</span><span style="font-size:12px;color:#8e8e94;line-height:17px">{{ r.d }}</span></div></div></sc-for>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end"><span style="height:34px;padding:0 14px;border-radius:8px;border:1px solid #3a3b40;display:flex;align-items:center">Cancel</span><span style="height:34px;padding:0 14px;border-radius:8px;background:#3cbfd8;color:#0d1214;font-weight:600;display:flex;align-items:center">Send invite</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div style="font:600 13px 'IBM Plex Mono';letter-spacing:.08em;color:#55544f;border-top:1px solid #b9b7b0;padding-top:16px;width:1440px">6v MIXER · 6w VOICE SETTINGS AND STATES</div>
+<div style="display:flex;gap:48px;align-items:flex-start;flex-wrap:wrap">
+<div id="6v" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6v</span><span style="font-size:15px">Mixer · from the volume popover (Mixer ›) · Multiview with 3 tiles · values remembered per person</span></div>
+  <div style="width:1440px;height:560px;background:#0b0b0c;color:#ecebe7;display:grid;grid-template-rows:56px minmax(0,1fr);overflow:hidden;border-radius:4px;position:relative">
+    <dc-import name="r4-header" mode="multiview" voice="ptt" open="vol" hint-size="100%,56px"></dc-import>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:12px"><sc-for list="{{ mvTiles3 }}" as="t" hint-placeholder-count="3"><div style="background:repeating-linear-gradient(135deg,#17181a 0 10px,#1b1c1f 10px 20px);border-radius:6px;position:relative;box-shadow:{{ t.sel }}"><div style="position:absolute;left:10px;top:10px;display:flex;gap:6px;align-items:center;padding:4px 8px;border-radius:6px;background:rgba(17,18,20,.82);font-size:12px"><span style="font:500 11px 'IBM Plex Mono';width:18px;height:18px;border-radius:4px;background:#ecebe7;color:#121315;display:grid;place-items:center">{{ t.n }}</span>{{ t.l }}</div><sc-if value="{{ t.hasA }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;right:10px;top:10px;padding:4px 8px;border-radius:6px;background:rgba(17,18,20,.82);font-size:12px;color:{{ t.aFg }}">{{ t.a }}</div></sc-if></div></sc-for></div>
+    <div style="position:absolute;top:52px;right:150px;width:360px;z-index:4">
+      <div style="position:absolute;top:-6px;right:118px;width:12px;height:12px;transform:rotate(45deg);background:#1d1e22;border-left:1px solid #34353a;border-top:1px solid #34353a"></div>
+      <div style="padding:14px;border-radius:10px;background:#1d1e22;border:1px solid #34353a;box-shadow:0 18px 40px rgba(0,0,0,.55);display:flex;flex-direction:column;gap:10px;font-size:13px">
+        <div style="display:flex;align-items:center;gap:8px"><span style="color:#a3a3a8">‹</span><span style="font-size:14px;font-weight:600">Mixer</span><span style="margin-left:auto;font:500 12px 'IBM Plex Mono';color:#a3a3a8">Master 72 %</span></div>
+        <sc-for list="{{ mixer }}" as="c" hint-placeholder-count="6"><div style="display:grid;grid-template-columns:24px minmax(0,1fr) 110px 28px;gap:10px;align-items:center;opacity:{{ c.op }}">
+          <span style="width:22px;height:22px;border-radius:{{ c.r }};background:{{ c.c }};color:#0d1214;display:grid;place-items:center;font:600 10px 'IBM Plex Mono'">{{ c.i }}</span>
+          <div style="display:flex;flex-direction:column;min-width:0"><span style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.l }}</span><span style="font-size:11px;color:#8e8e94">{{ c.s }}</span></div>
+          <div style="height:4px;border-radius:2px;background:#2c2d32;display:flex;position:relative"><span style="width:{{ c.v }};background:{{ c.bar }};border-radius:2px"></span></div>
+          <span title="Mute" style="width:28px;height:28px;box-sizing:border-box;border-radius:6px;border:1px solid {{ c.mLine }};display:grid;place-items:center;font-size:12px;color:{{ c.mFg }};background:{{ c.mBg }}">♪</span>
+        </div></sc-for>
+        <div style="height:1px;background:#2c2d32"></div>
+        <div style="display:flex;align-items:center;gap:10px"><div style="flex:1;display:flex;flex-direction:column"><span>Mix all tiles</span><span style="font-size:11px;color:#8e8e94">Off: only the tile with “♪ Audio here” plays</span></div><span style="width:36px;height:20px;border-radius:10px;background:#3cbfd8;position:relative"><span style="position:absolute;right:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#0d1214"></span></span></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div style="display:flex;gap:48px;align-items:flex-start;flex-wrap:wrap">
+<div id="6w" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6w</span><span style="font-size:15px">Settings → Voice · 1440</span></div>
+  <div style="width:1440px;height:900px;display:flex;background:#121315;overflow:hidden;color:#ececea;border-radius:4px">
+    <dc-import name="player-nav" active="Settings" r4="{{ true }}" bell="3" hint-size="232px,100%"></dc-import>
+    <div style="width:300px;flex:none;background:#17181b;border-right:1px solid #24252a;padding:28px 16px;box-sizing:border-box;display:flex;flex-direction:column;gap:4px">
+      <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#9a9a9f;padding:0 8px 8px">SETTINGS</div>
+      <sc-for list="{{ psetV }}" as="n" hint-placeholder-count="8"><div style="padding:10px 12px;border-radius:8px;background:{{ n.bg }}"><div style="font-size:14px;font-weight:500">{{ n.t }}</div><div style="font-size:12px;color:#9a9a9f">{{ n.s }}</div></div></sc-for>
+    </div>
+    <div style="flex:1;min-width:0;padding:28px 36px"><div style="max-width:880px;display:flex;flex-direction:column">
+      <div style="font-size:28px;font-weight:600">Voice</div><div style="font-size:13px;color:#9a9a9f;padding-bottom:8px">Talk with people in your Session or run. Voice goes through Home Hub like the video.</div>
+      <div style="display:flex;gap:24px;align-items:center;padding:14px 0;border-bottom:1px solid #1f2024"><div style="flex:1;padding-left:14px"><div style="font-size:14px">Microphone</div><div style="font-size:12px;color:#8e8e94">Level while you talk. The line is the voice activation threshold.</div></div><div style="width:280px;display:flex;flex-direction:column;gap:8px"><div style="height:32px;border-radius:6px;background:#1a1b1e;border:1px solid #2c2d32;display:flex;align-items:center;padding:0 10px 0 12px;font-size:13px">Headset Microphone (USB)<span style="margin-left:auto;color:#7d7d83;font-size:11px">▾</span></div><div style="height:8px;border-radius:4px;background:#2c2d32;position:relative;display:flex"><span style="width:58%;border-radius:4px;background:#6fd39a"></span><span style="position:absolute;left:35%;top:-3px;width:2px;height:14px;background:#ecebe7"></span></div></div><div style="width:72px"></div></div>
+      <sc-for list="{{ voiceRows }}" as="r" hint-placeholder-count="5"><dc-import name="settings-row" row="{{ r }}" hint-size="100%,64px"></dc-import></sc-for>
+    </div></div>
+  </div>
+</div>
+<div id="6w-2" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6w-2</span><span style="font-size:15px">Voice states · header mic button · speaking rings · problems</span></div>
+  <div style="width:1440px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px">
+    <sc-for list="{{ micStates }}" as="m" hint-placeholder-count="6"><div style="background:#111214;border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:10px;color:#ecebe7">
+      <div style="font:500 11px 'IBM Plex Mono';color:#7d7d83;letter-spacing:.06em">{{ m.k }}</div>
+      <div style="display:flex;align-items:center;gap:10px"><span style="height:30px;display:flex;align-items:center;gap:7px;padding:0 9px;border-radius:7px;border:1px solid #26272b;background:{{ m.bg }};color:{{ m.fg }}"><span style="width:7px;height:11px;border:1.5px solid currentColor;border-radius:4px;box-sizing:border-box;background:{{ m.fill }}"></span><span style="font-size:12px">{{ m.l }}</span></span><span style="font-size:12px;color:#8e8e94">{{ m.tip }}</span></div>
+      <div style="font-size:12px;line-height:17px;color:#c9c8c4">{{ m.d }}</div>
+    </div></sc-for>
+  </div>
+</div>
+</div>
+
+<div style="font:600 13px 'IBM Plex Mono';letter-spacing:.08em;color:#55544f;border-top:1px solid #b9b7b0;padding-top:16px;width:1440px">6x HAND OVER THE CONTROLLER</div>
+<div id="6x" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6x</span><span style="font-size:15px">Request → host decides → indicator on both sides → take back · off in runs unless the rule allows it</span></div>
+  <div style="width:1440px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px">
+    <sc-for list="{{ hand }}" as="h" hint-placeholder-count="6"><div style="display:flex;flex-direction:column;gap:8px">
+      <div style="font:500 12px 'IBM Plex Mono';color:#55544f">{{ h.k }}</div>
+      <div style="height:280px;border-radius:8px;background:#0b0b0c;position:relative;overflow:hidden;color:#ecebe7">
+        <div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,#17181a 0 10px,#1b1c1f 10px 20px)"></div>
+        <sc-if value="{{ h.hasChip }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;left:12px;top:12px;display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:#15262b;color:#3cbfd8;font-size:12px;font-weight:500;box-shadow:0 0 0 1px #1f4650"><span style="width:8px;height:8px;border-radius:50%;background:#f07ab8"></span>{{ h.chip }}</div></sc-if>
+        <sc-if value="{{ h.hasCard }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;right:12px;bottom:12px;width:330px;padding:14px;border-radius:12px;background:#1d1e22;border:1px solid {{ h.line }};display:flex;flex-direction:column;gap:8px;box-shadow:0 18px 40px rgba(0,0,0,.5)"><span style="font-size:14px;font-weight:600">{{ h.ct }}</span><span style="font-size:12px;line-height:17px;color:#c9c8c4">{{ h.cd }}</span><div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap"><sc-for list="{{ h.acts }}" as="a" hint-placeholder-count="3"><span style="height:30px;padding:0 12px;border-radius:6px;border:1px solid {{ a.line }};background:{{ a.bg }};color:{{ a.fg }};display:flex;align-items:center;font-size:12px;font-weight:{{ a.w }}">{{ a.l }}</span></sc-for></div></div></sc-if>
+      </div>
+    </div></sc-for>
+  </div>
+</div>
+
+<div style="font:600 13px 'IBM Plex Mono';letter-spacing:.08em;color:#55544f;border-top:1px solid #b9b7b0;padding-top:16px;width:1440px">3r-4 MULTIVIEW · 3y-3 FULLSCREEN</div>
+<div id="3r-4" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">3r-4</span><span style="font-size:15px">Multiview Grid 2×2 · chat bubbles per tile · speaking rings · muted tile · paused by Lena · 1440</span></div>
+  <div style="width:1440px;height:900px;background:#0b0b0c;color:#ecebe7;display:grid;grid-template-rows:56px minmax(0,1fr);overflow:hidden;border-radius:4px">
+    <dc-import name="r4-header" mode="multiview" voice="ptt" unread="3" hint-size="100%,56px"></dc-import>
+    <div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:12px;padding:12px">
+      <sc-for list="{{ mv4 }}" as="t" hint-placeholder-count="4"><div style="background:repeating-linear-gradient(135deg,#17181a 0 10px,#1b1c1f 10px 20px);border-radius:6px;position:relative;box-shadow:{{ t.sel }};overflow:hidden">
+        <sc-if value="{{ t.paused }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;background:rgba(6,7,8,.5)"></div></sc-if>
+        <div style="position:absolute;left:10px;top:10px;display:flex;gap:8px;align-items:center;padding:4px 8px 4px 4px;border-radius:6px;background:rgba(17,18,20,.82);font-size:12px"><span style="font:500 11px 'IBM Plex Mono';width:18px;height:18px;border-radius:4px;background:#ecebe7;color:#121315;display:grid;place-items:center">{{ t.n }}</span><span style="width:20px;height:20px;border-radius:50%;background:{{ t.c }};color:#0d1214;display:grid;place-items:center;font-size:10px;font-weight:600;box-shadow:{{ t.ring }}">{{ t.i }}</span>{{ t.l }}</div>
+        <sc-if value="{{ t.hasR }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;right:10px;top:10px;padding:4px 8px;border-radius:6px;background:rgba(17,18,20,.82);font-size:12px;color:{{ t.rFg }}">{{ t.r }}</div></sc-if>
+        <sc-if value="{{ t.hasOsd }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;left:50%;top:44px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;height:30px;padding:0 12px;border-radius:15px;background:rgba(17,18,20,.88);border:1px solid #34353a;font-size:12px;font-weight:500;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:#f07ab8"></span>{{ t.osd }}</div></sc-if>
+        <div style="position:absolute;left:10px;bottom:10px;display:flex;flex-direction:column;gap:4px;max-width:60%"><sc-for list="{{ t.bub }}" as="b" hint-placeholder-count="1"><div style="align-self:flex-start;padding:5px 9px;border-radius:9px;background:rgba(17,18,20,.82);border:1px solid #2c2d32;font-size:12px;opacity:{{ b.op }}"><span style="color:{{ b.c }};font-weight:600">{{ b.n }}</span> {{ b.t }}</div></sc-for></div>
+      </div></sc-for>
+    </div>
+  </div>
+</div>
+
+<div id="3y-3" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">3y-3</span><span style="font-size:15px">Fullscreen · OSD top centre · chat bubbles bottom left · mention breaks the fullscreen quiet · toolbar on mouse move</span></div>
+  <div style="width:1440px;height:900px;background:#000;color:#ecebe7;position:relative;overflow:hidden;border-radius:4px">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1200px;transform:translateX(-50%);background:repeating-linear-gradient(135deg,#17181a 0 10px,#1b1c1f 10px 20px)"></div>
+    <div style="position:absolute;left:50%;top:20px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:6px;border-radius:12px;background:rgba(17,18,20,.92);border:1px solid #34353a;font-size:13px">
+      <span style="height:32px;padding:0 12px;border-radius:7px;display:flex;align-items:center;gap:6px">❚❚ Pause</span><span style="height:32px;padding:0 10px;border-radius:7px;display:flex;align-items:center;gap:6px">♪ <span style="font:500 12px 'IBM Plex Mono'">72</span></span><span style="height:32px;padding:0 10px;border-radius:7px;display:flex;align-items:center;gap:6px;background:#15262b;color:#3cbfd8">● Live</span><span style="height:32px;padding:0 10px;border-radius:7px;display:flex;align-items:center;gap:6px">Chat <span style="min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:8px;background:#3cbfd8;color:#0d1214;font:600 10px/16px 'IBM Plex Mono';text-align:center">2</span></span><span style="height:32px;padding:0 12px;border-radius:7px;border:1px solid #3a3b40;display:flex;align-items:center">Leave fullscreen <span style="font:500 10px 'IBM Plex Mono';color:#a3a3a8;margin-left:6px">F11</span></span>
+    </div>
+    <div style="position:absolute;left:50%;top:84px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;height:36px;padding:0 14px;border-radius:18px;background:rgba(17,18,20,.88);border:1px solid #34353a;font-size:13px;font-weight:500"><span style="color:#a3a3a8">◰</span>Screenshot saved</div>
+    <div style="position:absolute;left:136px;bottom:24px;display:flex;flex-direction:column;gap:6px;width:360px">
+      <div style="align-self:flex-start;padding:6px 10px;border-radius:10px;background:rgba(17,18,20,.82);border:1px solid #2c2d32;font-size:13px;opacity:.6"><span style="color:#a6d65a;font-weight:600">Jonas</span> ☠ Down!</div>
+      <div style="align-self:flex-start;padding:6px 10px;border-radius:10px;background:rgba(17,18,20,.9);border:1px solid #3cbfd8;font-size:13px"><span style="color:#f07ab8;font-weight:600">Lena</span> <span style="color:#3cbfd8">@Max</span> heal first, then gym</div>
+      <div style="font:500 11px 'IBM Plex Mono';color:#8e8e94">Enter replies · bubbles fade after 6 s · Settings: Chat bubbles in fullscreen</div>
+    </div>
+    <div style="position:absolute;right:136px;bottom:24px;display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;background:rgba(17,18,20,.82);font-size:12px"><span style="width:20px;height:20px;border-radius:50%;background:#f07ab8;color:#0d1214;display:grid;place-items:center;font-size:10px;font-weight:600;box-shadow:0 0 0 2px #111214,0 0 0 4px #6fd39a">L</span><span style="width:20px;height:20px;border-radius:50%;background:#a6d65a;color:#0d1214;display:grid;place-items:center;font-size:10px;font-weight:600">J</span>voice</div>
+  </div>
+</div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const C = { Max: '#6f9cff', Lena: '#f07ab8', Jonas: '#a6d65a', Sam: '#b39cf5' };
+    const tab = (l, on, o = {}) => ({ l, u: on ? '#3cbfd8' : 'transparent', fg: on ? '#ecebe7' : '#a3a3a8', w: on ? 600 : 400, pad: o.tight ? '6px' : '8px', ml: o.ml || '0', hasB: !!o.b, b: o.b || '', bBg: o.cyan ? '#3cbfd8' : '#2c2d32', bFg: o.cyan ? '#0d1214' : '#c9c8c4' });
+    const games = [
+      { id: '3g-4', cap: 'Session, own game shared · voice push-to-talk · 2 unread · Session tab · 1440 × 900', w: '1440px', h: '900px', pw: '340px', compact: false, title: 'Lumen Drift', voice: 'ptt', unread: '2', open: '', gw: '960px', gh: '640px', hasOsd: false, osd: '', osdI: '', session: true, people: false,
+        tabs: [tab('Session', true), tab('People', false, { b: '3' }), tab('Chat', false, { b: '2', cyan: 1 }), tab('States'), tab('▥', false, { ml: 'auto' }), tab('SN')] },
+      { id: '3g-4-2', cap: 'Same at 1280 × 800 · icons only · People tab (host view with quality per viewer) · panel 300 with ⋯', w: '1280px', h: '800px', pw: '300px', compact: true, title: 'Lumen Drift', voice: 'live', unread: '2', open: '', gw: '840px', gh: '560px', hasOsd: true, osd: 'Volume 72 %', osdI: '♪', session: false, people: true,
+        tabs: [tab('Session', false, { tight: 1 }), tab('People', true, { b: '3', tight: 1 }), tab('Chat', false, { b: '2', cyan: 1, tight: 1 }), tab('States', false, { tight: 1 }), tab('⋯', false, { ml: 'auto', tight: 1 })] }];
+    const peopleHost = [
+      { n: 'You', i: 'M', c: C.Max, role: 'Host', m: 'Encoding 6.0 Mbit/s · 60 fps', ring: '0 0 0 2px #1a1b1e' },
+      { n: 'Lena', i: 'L', c: C.Lena, role: 'Viewer', m: 'Relayed · 48 ms · gets High 1280 × 960', ring: '0 0 0 2px #1a1b1e,0 0 0 4px #6fd39a' },
+      { n: 'Jonas', i: 'J', c: C.Jonas, role: 'Viewer', m: 'Direct · 18 ms · picked Medium', ring: '0 0 0 2px #1a1b1e' }];
+    const onlineAll = [
+      ['Lena', 'Playing Harbor Rally · shared', '#6fd39a', 'Watch', 1], ['Jonas', 'In Multiview · watching Lena', '#6fd39a', 'Invite'], ['Sam', 'Idle · 12 min', '#e5b45a', 'Invite'], ['Max (you)', 'Playing Lumen Drift', '#6fd39a', ''], ['Guest', 'Offline · 2 h ago', '#5e5e63', '']
+    ].map(([n, s, dot, a, sel]) => ({ n, i: n[0], s, dot, c: C[n.split(' ')[0]] || '#5e5e63', a, hasA: !!a, aLine: sel ? '#3cbfd8' : '#3a3b40', aFg: sel ? '#3cbfd8' : '#ecebe7', bg: sel ? '#2c2d32' : 'transparent', op: dot === '#5e5e63' ? 0.6 : 1 }));
+    const L = { Max: '#2f5fd0', Lena: '#b8327a', Jonas: '#4d7a14', Sam: '#6a4fc4' };
+    const hubUsers = [['Max', 'Admin · you', 'Playing Lumen Drift', '#1e6b3a', 'Admin', ''], ['Lena', 'Member', 'Playing Harbor Rally · shared', '#1e6b3a', 'Member', 'Watch'], ['Jonas', 'Member', 'In Multiview', '#1e6b3a', 'Member', ''], ['Sam', 'Member', 'Online', '#c08a1e', 'Member', '']].map(([n, d, s, dot, r, a]) => ({ n, i: n[0], c: L[n], d, s, dot, r, a, hasA: !!a, noA: !a }));
+    const N = (i, c, r, t, s, a, unread, icF) => ({ head: false, item: true, i, c, r, t, s, a, dot: unread ? '#3cbfd8' : 'transparent', bg: unread ? '#212226' : 'transparent', aLine: unread ? '#3cbfd8' : '#3a3b40', aFg: unread ? '#3cbfd8' : '#ecebe7', icF: icF || '#0d1214' });
+    const notes = [{ head: true, item: false, t: 'NEW' },
+      N('L', C.Lena, '50%', 'Lena invited you to watch Harbor Rally', 'just now · Invite', 'Watch', 1),
+      N('SN', '#232428', '6px', 'Lena’s Tidepup fainted · your Mossling is linked', '5 min ago · Harbor Nuzlocke', 'Open run', 1, '#c9c8c4'),
+      N('↑', '#15262b', '6px', 'Player 0.16.5 is available', '1 h ago · one fix', 'What’s new', 1, '#3cbfd8'),
+      { head: true, item: false, t: 'EARLIER' },
+      N('J', C.Jonas, '50%', 'Jonas started a Session · Clocktower Kids', 'yesterday 21:40', 'Watch', 0),
+      N('!', '#2a2414', '6px', 'Backup failed on Home Hub · not enough space', 'today 03:00 · admins only', 'Open Status', 0, '#e5b45a')];
+    const noteRows = [
+      { label: 'Invites', desc: 'Someone invites you to watch or play.', ctrl: 'seg', opts: ['Toast', 'List only', 'Off'], value: 'Toast' },
+      { label: 'Sessions started', desc: 'People you play with start sharing.', ctrl: 'seg', opts: ['Toast', 'List only', 'Off'], value: 'List only', changed: true },
+      { label: 'Run events', desc: 'Plugin events like deaths and badges in your runs.', ctrl: 'seg', opts: ['Toast', 'List only', 'Off'], value: 'Toast' },
+      { label: 'Updates', desc: 'New Player version.', ctrl: 'seg', opts: ['Toast', 'List only', 'Off'], value: 'List only' },
+      { label: 'Hub problems', desc: 'Backup failed, disk almost full. Admins only.', ctrl: 'seg', opts: ['Toast', 'List only', 'Off'], value: 'Toast' },
+      { label: 'Quiet in fullscreen', desc: 'In fullscreen only mentions (@Max) show, as a chat bubble. Everything else waits in the bell.', ctrl: 'toggle', on: true },
+      { label: 'Sound for toasts', desc: 'A short sound with each toast.', ctrl: 'toggle', on: false }];
+    const ready = [['Lena', 'Ready', '#17291f', '#6fd39a'], ['Max (you)', 'No answer yet', '#26272b', '#a3a3a8'], ['Jonas', 'Ready', '#17291f', '#6fd39a'], ['Sam', 'Not ready', '#2a2414', '#e5b45a']].map(([n, s, bg, fg]) => ({ n, i: n[0], c: C[n.split(' ')[0]], s, bg, fg }));
+    const A = (l, k) => ({ l, line: k === 'p' ? '#3cbfd8' : '#3a3b40', bg: k === 'p' ? '#3cbfd8' : 'transparent', fg: k === 'p' ? '#0d1214' : '#ecebe7', w: k === 'p' ? 600 : 400 });
+    const pauseCards = [
+      { k: 'HOST VIEW · 3 OF 4 READY', dim: 0.5, hasOsd: false, hasCard: true, ct: 'Sam is not ready', cd: 'Lena, Jonas and you are ready. Start anyway or wait; the check closes after 30 s.', acts: [A('Cancel check'), A('Start without Sam'), A('Wait')], hasTile: false },
+      { k: 'EVERYONE READY · COUNTDOWN', dim: 0.5, hasOsd: true, osd: 'Starting in 3', dotC: '#3cbfd8', hasCard: false, acts: [], hasTile: false },
+      { k: 'LENA PAUSED FOR EVERYONE · YOUR GAME', dim: 0.5, hasOsd: true, osd: 'Lena paused for everyone', dotC: C.Lena, hasCard: true, ct: 'Paused by Lena', cd: 'All games in Harbor Nuzlocke are paused. Lena or the run creator (Max) can resume.', acts: [A('Resume for everyone', 'p')], hasTile: false },
+      { k: 'SAME ON A MULTIVIEW TILE', dim: 0.5, hasOsd: true, osd: 'Lena paused for everyone', dotC: C.Lena, hasCard: false, acts: [], hasTile: true },
+      { k: 'NOT ALLOWED TO RESUME', dim: 0.5, hasOsd: true, osd: 'Lena paused for everyone', dotC: C.Lena, hasCard: true, ct: 'Paused by Lena', cd: '⊘ Only Lena or Max can resume. Ask in Chat.', acts: [A('Open chat')], hasTile: false },
+      { k: 'SETTING · RUN OR SESSION', dim: 0.15, hasOsd: false, hasCard: true, ct: 'Who can ask “Ready?” and pause for everyone', cd: 'Host only · Everyone (default for runs). Resume: the person who paused or the host.', acts: [A('Host only'), A('Everyone', 'p')], hasTile: false }];
+    const chat = [
+      { sys: true, msg: false, t: 'Today 18:02 · Jonas joined' },
+      { sys: false, msg: true, n: 'Jonas', i: 'J', c: C.Jonas, time: '18:20', t: '☠ Down!', pad: '4px 10px', bg: '#2a2414', bd: '1px solid #4a3d1c', w: 600, ring: '0 0 0 2px #111214,0 0 0 4px #6fd39a' },
+      { sys: false, msg: true, n: 'Lena', i: 'L', c: C.Lena, time: '18:21', t: 'rip voltwing', pad: '6px 10px', bg: '#1a1b1e', bd: '1px solid #26272b', w: 400, ring: 'none' },
+      { sys: true, msg: false, t: 'SoulLink · Lena’s Tidepup fainted · Mossling linked' },
+      { sys: false, msg: true, n: 'Sam', i: 'S', c: C.Sam, time: '18:24', t: 'Gym next', pad: '4px 10px', bg: '#15262b', bd: '1px solid #1f4650', w: 600, ring: 'none' },
+      { sys: false, msg: true, n: 'Lena', i: 'L', c: C.Lena, time: '18:25', t: '@Max heal first, then gym', pad: '6px 10px', bg: '#1a1b1e', bd: '1px solid #3cbfd8', w: 400, ring: 'none' },
+      { sys: false, msg: true, n: 'You', i: 'M', c: C.Max, time: '18:25', t: 'ok 2 min', pad: '6px 10px', bg: '#232428', bd: '1px solid #2c2d32', w: 400, ring: 'none' }];
+    const pings = [{ l: '☠ Down!', k: '1' }, { l: 'Gym next', k: '2' }, { l: 'Wait for me', k: '3' }, { l: 'GG', k: '4' }, { l: '+ Custom', k: '' }];
+    const chatHub = [['18:20', 'Jonas', '☠ Down!'], ['18:21', 'Lena', 'rip voltwing'], ['18:21', 'SoulLink', 'Lena’s Tidepup fainted · Mossling linked'], ['18:24', 'Sam', 'Gym next'], ['18:25', 'Lena', '@Max heal first, then gym']].map(([time, n, t]) => ({ time, n, t, lc: L[n] || '#6b6a65', tc: L[n] ? '#1d1d1b' : '#6b6a65' }));
+    const roles = [
+      { t: 'Can watch', d: 'Sees and hears the game, can chat and talk. Sends no input.', line: '#3cbfd8', bg: '#15262b', ring: '5px solid #3cbfd8', op: 1 },
+      { t: 'Can ask to play', d: 'Like watch, plus “Ask to play”. You still decide each time (6x).', line: '#2c2d32', bg: 'transparent', ring: '1.5px solid #5e5e63', op: 1 }];
+    const mvTiles3 = [{ n: 1, l: 'You · Lumen Drift', sel: 'none', hasA: true, a: '♪ 80 %', aFg: '#c9c8c4' }, { n: 2, l: 'Lena · Harbor Rally', sel: '0 0 0 2px #3cbfd8', hasA: true, a: '♪ 100 %', aFg: '#3cbfd8' }, { n: 3, l: 'Jonas · Clocktower Kids', sel: 'none', hasA: true, a: 'Muted', aFg: '#a3a3a8' }];
+    const ch = (i, c, r, l, s, v, o = {}) => ({ i, c, r, l, s, v, bar: o.m ? '#5e5e63' : '#3cbfd8', op: o.m ? 0.6 : 1, mLine: o.m ? '#3cbfd8' : '#3a3b40', mFg: o.m ? '#3cbfd8' : '#c9c8c4', mBg: o.m ? '#15262b' : 'transparent' });
+    const mixer = [ch('1', '#ecebe7', '4px', 'My game · Lumen Drift', '80 %', '80%'), ch('L', C.Lena, '50%', 'Lena · tile 2', '100 % · remembered for Lena', '100%'), ch('J', C.Jonas, '50%', 'Jonas · tile 3', 'muted', '60%', { m: 1 }), ch('V', '#2c2d32', '6px', 'Voice', '70 % · lowers game while someone speaks', '70%'), ch('P', '#2c2d32', '6px', 'Plugin sounds', 'SoulLink & Nuzlocke', '40%')].map(x => ({ ...x }));
+    mixer[3].c = '#232428'; mixer[4].c = '#232428';
+    const psetV = [['General', 'Theme, language, privacy'], ['Hubs & library', 'Home Hub, library folders'], ['Updates', 'Channel, earlier versions'], ['Network', 'Ports, connection check'], ['Voice', 'Microphone, push-to-talk'], ['Notifications', 'What shows a toast'], ['Diagnostics', 'Logs, report a problem'], ['Plugins', '2 installed']].map(([t, s]) => ({ t, s, bg: t === 'Voice' ? '#24252a' : 'transparent' }));
+    const voiceRows = [
+      { label: 'Talk', desc: 'Push-to-talk sends only while you hold the key. Voice activation sends when you are louder than the threshold.', ctrl: 'seg', opts: ['Push-to-talk', 'Voice activation'], value: 'Push-to-talk' },
+      { label: 'Push-to-talk key', desc: 'Keyboard and gamepad. Click, then press the key or button.', ctrl: 'buttons', buttons: ['V', 'R3 (hold)'] },
+      { label: 'Noise suppression', desc: 'Removes fan and keyboard noise.', ctrl: 'toggle', on: true },
+      { label: 'Lower game volume while someone speaks', desc: 'Game and tiles go down by half while a voice is active.', ctrl: 'toggle', on: true, changed: true },
+      { label: 'Join voice automatically', desc: 'In runs and invite-only Sessions. Off: press the mic button to join.', ctrl: 'toggle', on: false }];
+    const M = (k, l, bg, fg, fill, tip, d) => ({ k, l, bg, fg, fill, tip, d });
+    const micStates = [
+      M('PUSH-TO-TALK · IDLE', 'Hold V', 'transparent', '#ecebe7', 'transparent', 'Shift+M turns the mic off', 'Header shows the key. Avatar of a speaker gets the 2 px green ring in header, People tab, tiles and fullscreen.'),
+      M('TALKING', 'Live', '#15262b', '#3cbfd8', '#3cbfd8', 'while held', 'Your own avatar ring is green for others. Your game volume drops if “Lower game volume” is on.'),
+      M('MIC OFF BY YOU', 'Mic off', 'transparent', '#a3a3a8', 'transparent', 'Shift+M / Select + R3', 'Others see a slashed mic next to your name. You still hear everyone.'),
+      M('MUTED BY HOST', 'Muted by host', '#2a2414', '#e5b45a', 'transparent', 'Max muted you', 'Shown in the header and People tab with the name. Only the host can undo it; ask in Chat.'),
+      M('NO MICROPHONE', 'No mic', 'transparent', '#7d7d83', 'transparent', 'Settings → Voice', 'You can listen. Connecting a microphone makes the mic button appear without a restart.'),
+      M('PERMISSION DENIED', 'Blocked', 'transparent', '#7d7d83', 'transparent', 'Windows privacy settings', '“Windows blocks the microphone for FrameBeam. Open Settings → Privacy → Microphone.” Linux: PipeWire portal prompt again.')];
+    const H = (k, o) => ({ k, hasChip: !!o.chip, chip: o.chip || '', hasCard: !!o.ct, ct: o.ct || '', cd: o.cd || '', line: o.line || '#34353a', acts: o.acts || [] });
+    const hand = [
+      H('HOST · REQUEST ARRIVES', { ct: 'Lena wants to play as Player 2', cd: 'Harbor Rally supports 2 players. Lena is relayed (48 ms): her inputs arrive about 3 frames late.', acts: [A('Decline'), A('Hand over Player 1'), A('Allow Player 2', 'p')], line: '#1f4650' }),
+      H('HOST · LENA PLAYS P2', { chip: 'Lena controls Player 2', ct: 'Lena controls Player 2', cd: 'Your controller stays Player 1. Take back any time; Lena gets a notice.', acts: [A('Take back')] }),
+      H('HOST · HANDED OVER P1', { chip: 'Lena controls Player 1 · you watch', ct: 'Your controller is paused', cd: 'Press Start on your controller or “Take back” to play again. The save stays yours.', acts: [A('Take back', 'p')] }),
+      H('VIEWER · LENA’S TILE', { chip: 'You control Player 2 · 48 ms', ct: 'Your controller sends to Max’s game', cd: 'Latency 48 ms. Esc menu → Give back control. Max can take back at any time.', acts: [A('Give back')] }),
+      H('VIEWER · ASK TO PLAY', { ct: 'Ask Max to play?', cd: 'Pick what to ask for. Max decides.', acts: [A('Cancel'), A('As Player 2', 'p')] }),
+      H('IN A RUN · RULE OFF', { ct: 'Handing over is off in this run · rule set by Max', cd: 'Harbor Nuzlocke: every player plays their own game. “Ask to play” is hidden for viewers.', acts: [], line: '#4a3d1c' })];
+    const mv4 = [
+      { n: 1, i: 'M', c: C.Max, l: 'You · Lumen Drift', sel: 'none', ring: 'none', hasR: true, r: '♪ Audio here', rFg: '#3cbfd8', paused: false, hasOsd: false, osd: '', bub: [{ n: 'Sam', c: C.Sam, t: 'Gym next', op: 1 }] },
+      { n: 2, i: 'L', c: C.Lena, l: 'Lena · Harbor Rally', sel: '0 0 0 2px #3cbfd8', ring: '0 0 0 2px #111214,0 0 0 3px #6fd39a', hasR: false, r: '', rFg: '', paused: true, hasOsd: true, osd: 'Lena paused for everyone', bub: [{ n: 'Lena', c: C.Lena, t: 'brb 1 min', op: 1 }] },
+      { n: 3, i: 'J', c: C.Jonas, l: 'Jonas · Clocktower Kids', sel: 'none', ring: 'none', hasR: true, r: 'Muted', rFg: '#a3a3a8', paused: false, hasOsd: false, osd: '', bub: [{ n: 'Jonas', c: C.Jonas, t: '☠ Down!', op: 0.55 }] },
+      { n: 4, i: 'S', c: C.Sam, l: 'Sam · Orbit Gardens', sel: 'none', ring: '0 0 0 2px #111214,0 0 0 3px #6fd39a', hasR: true, r: 'Low · relayed', rFg: '#a3a3a8', paused: false, hasOsd: false, osd: '', bub: [] }];
+    pauseCards.forEach(c => { c.osdTop = c.hasTile ? '44px' : '14px'; });
+    return { games, peopleHost, onlineAll, hubUsers, notes, noteRows, ready, pauseCards, chat, pings, chatHub, roles, mvTiles3, mixer, psetV, voiceRows, micStates, hand, mv4 };
+  }
+}
+</script>
+</body>
+</html>

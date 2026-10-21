@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>body{margin:0;background:#d9d7d0;font-family:'IBM Plex Sans',sans-serif}a{color:#1a7f96}a:hover{color:#125f70}</style>
+</helmet>
+<section style="padding:64px;display:flex;flex-direction:column;gap:64px;color:#1d1d1b">
+<div style="display:flex;flex-direction:column;gap:10px;width:1440px">
+  <div style="font:500 13px 'IBM Plex Mono';color:#5b5a56;letter-spacing:.04em">ROUND 4 · B · WAVE 2 PLAYER COMFORT AND LIBRARY</div>
+  <div style="font-size:32px;font-weight:600">Volume, display, per-game settings, DS layouts, library, screenshots, play time, storage</div>
+  <div style="font-size:15px;color:#3a3936;line-height:1.55">Frame: <a href="round-4-sheet.dc.html#0-3-header">0-3 A header</a> · <a href="round-4-sheet.dc.html#0-3-osd">0-3 C OSD</a> · previous batch <a href="round-4-a.dc.html">Round 4 A</a> · handoff in <a href="round-4-sheet.dc.html#handoff">Round 4 Sheet</a></div>
+</div>
+
+<!-- ===== 6g VOLUME ===== -->
+<div style="font:600 13px 'IBM Plex Mono';letter-spacing:.08em;color:#55544f;border-top:1px solid #b9b7b0;padding-top:16px;width:1440px">6g VOLUME</div>
+<div id="6g" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6g</span><span style="font-size:15px">In game · volume popover open (click, or focus + A) · OSD while changing · 1440 × 900</span></div>
+  <div style="width:1440px;height:900px;background:#0b0b0c;color:#ecebe7;display:grid;grid-template-rows:56px minmax(0,1fr);grid-template-columns:minmax(0,1fr) 340px;position:relative;overflow:hidden;border-radius:4px">
+    <header style="grid-column:1/3;display:flex;align-items:center;gap:12px;padding:0 16px;background:#111214;border-bottom:1px solid #1e1f22;font-size:13px;white-space:nowrap">
+      <span style="color:#a3a3a8;padding:0 8px">← Library</span><span style="width:1px;height:20px;background:#2c2d32"></span><span style="font-size:15px;font-weight:600">Lumen Drift</span>
+      <span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:500;background:#1a1b1e;color:#8e8e94"><span style="width:6px;height:6px;border-radius:50%;background:#8e8e94"></span>Not shared</span>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:12px">
+        <div style="display:flex;gap:2px;padding:2px;border-radius:9px;background:#16171a;border:1px solid #26272b"><span style="height:30px;display:flex;align-items:center;gap:7px;padding:0 10px;font-weight:500">❚❚ Pause</span><span style="height:30px;display:flex;align-items:center;gap:7px;padding:0 10px;font-weight:500">▶▶ Speed-up <span style="font:500 12px 'IBM Plex Mono'">4×</span></span><span style="height:30px;display:flex;align-items:center;gap:7px;padding:0 10px;font-weight:500">↺ Reset</span></div>
+        <div style="display:flex;gap:2px;padding:3px;border-radius:7px;background:#1a1b1e"><span style="padding:5px 12px;border-radius:5px;background:#2c2d32;font-weight:500">Session</span><span style="padding:5px 12px;color:#a3a3a8">Multiview</span></div>
+        <div style="display:flex;gap:2px;padding:2px;border-radius:9px;background:#16171a;border:1px solid #26272b;position:relative">
+          <span style="height:30px;display:flex;align-items:center;gap:7px;padding:0 9px;border-radius:7px;background:#15262b;color:#3cbfd8;box-shadow:0 0 0 1px #3cbfd8"><span style="display:flex;align-items:center"><span style="width:3px;height:6px;background:currentColor"></span><span style="width:0;height:0;border-right:6px solid currentColor;border-top:6px solid transparent;border-bottom:6px solid transparent;margin-left:-1px"></span><span style="width:4px;height:8px;border:1.5px solid currentColor;border-left:0;border-radius:0 8px 8px 0;margin-left:2px;box-sizing:border-box"></span></span><span style="font:500 12px 'IBM Plex Mono'">72</span></span>
+        </div>
+        <div style="display:flex;gap:2px;padding:2px;border-radius:9px;background:#16171a;border:1px solid #26272b"><span style="height:30px;display:flex;align-items:center;gap:6px;padding:0 9px"><span style="width:11px;height:11px;box-sizing:border-box;border:1.5px dashed currentColor;border-radius:2px"></span><span style="font:500 10px 'IBM Plex Mono';padding:1px 4px;border-radius:3px;border:1px solid #3a3b40;color:#a3a3a8">F11</span></span><span style="height:30px;display:flex;align-items:center;padding:0 9px"><span style="width:13px;height:11px;border:1.5px solid currentColor;border-radius:2px;box-sizing:border-box;display:flex;justify-content:flex-end"><span style="width:4px;background:currentColor"></span></span></span></div>
+        <span style="width:32px;height:32px;box-sizing:border-box;display:grid;place-items:center;border-radius:7px;border:1px solid #2c2d32;background:#1a1b1e">⋯</span>
+      </div>
+    </header>
+    <div style="position:relative;display:flex;align-items:center;justify-content:center"><div style="width:960px;height:640px;background:repeating-linear-gradient(135deg,#17181a 0 10px,#1b1c1f 10px 20px)"></div>
+      <div style="position:absolute;left:50%;top:16px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;height:36px;padding:0 14px;border-radius:18px;background:rgba(17,18,20,.88);border:1px solid #34353a;font-size:13px;font-weight:500"><span style="color:#a3a3a8">♪</span>Volume 72 %<span style="width:96px;height:4px;border-radius:2px;background:#2c2d32;display:flex"><span style="width:72%;background:#3cbfd8;border-radius:2px"></span></span></div>
+    </div>
+    <div style="background:#111214;border-left:1px solid #1e1f22;display:flex;flex-direction:column"><div style="display:flex;height:40px;border-bottom:1px solid #1e1f22;padding:0 8px;font-size:13px;color:#a3a3a8"><span style="display:flex;align-items:center;padding:0 8px;border-bottom:2px solid #3cbfd8;color:#ecebe7;font-weight:600">Session</span><span style="display:flex;align-items:center;padding:0 8px">People</span><span style="display:flex;align-items:center;padding:0 8px">Chat</span><span style="display:flex;align-items:center;padding:0 8px">States</span></div><div style="padding:20px 24px;font-size:12px;color:#7d7d83">Session tab as in GamePanel</div></div>
+    <div style="position:absolute;top:52px;right:16px;width:300px;z-index:4">
+      <div style="position:absolute;top:-6px;right:118px;width:12px;height:12px;transform:rotate(45deg);background:#1d1e22;border-left:1px solid #34353a;border-top:1px solid #34353a"></div>
+      <div style="padding:14px;border-radius:10px;background:#1d1e22;border:1px solid #34353a;box-shadow:0 18px 40px rgba(0,0,0,.55);display:flex;flex-direction:column;gap:12px;font-size:13px">
+        <div style="display:flex;align-items:center"><span style="font-size:14px;font-weight:600">Volume</span><span style="margin-left:auto;font:500 13px 'IBM Plex Mono'">72 %</span></div>
+        <div style="display:flex;align-items:center;gap:10px"><span title="Mute · M" style="width:32px;height:32px;box-sizing:border-box;border-radius:7px;border:1px solid #3a3b40;display:grid;place-items:center;color:#c9c8c4">♪</span><div style="flex:1;height:20px;position:relative;display:flex;align-items:center"><div style="height:4px;flex:1;border-radius:2px;background:#2c2d32;display:flex"><span style="width:72%;background:#3cbfd8;border-radius:2px"></span></div><span style="position:absolute;left:calc(72% - 8px);width:16px;height:16px;border-radius:50%;background:#ecebe7;box-shadow:0 0 0 2px #1d1e22,0 0 0 4px #3cbfd8"></span></div></div>
+        <div style="display:flex;gap:12px;font-size:11px;color:#7d7d83;font-family:'IBM Plex Mono'"><span>M mute</span><span>+ / − 5 %</span><span>Select + ↑ ↓</span></div>
+        <div style="height:1px;background:#2c2d32"></div>
+        <div style="display:flex;align-items:center;gap:8px;height:32px;padding:0 4px;border-radius:6px"><span>Mixer</span><span style="font-size:12px;color:#7d7d83">My game · Voice · Plugin sounds</span><span style="margin-left:auto;color:#7d7d83">›</span></div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#8e8e94">Muted in the background: on<span style="margin-left:auto;text-decoration:underline">Sound settings</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="6g-2" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6g-2</span><span style="font-size:15px">Volume states · header button · OSD · Multiview tile · Settings row</span></div>
+  <div style="width:1440px;display:grid;grid-template-columns:420px minmax(0,1fr);gap:24px">
+    <div style="background:#111214;border-radius:8px;padding:20px;display:flex;flex-direction:column;gap:14px;color:#ecebe7">
+      <sc-for list="{{ volStates }}" as="v" hint-placeholder-count="5"><div style="display:flex;align-items:center;gap:14px">
+        <span style="width:110px;font:500 11px 'IBM Plex Mono';color:#7d7d83">{{ v.k }}</span>
+        <span style="height:30px;display:flex;align-items:center;gap:7px;padding:0 9px;border-radius:7px;background:{{ v.bg }};color:{{ v.fg }};box-shadow:{{ v.ring }};position:relative;border:1px solid #26272b"><span style="display:flex;align-items:center"><span style="width:3px;height:6px;background:currentColor"></span><span style="width:0;height:0;border-right:6px solid currentColor;border-top:6px solid transparent;border-bottom:6px solid transparent;margin-left:-1px"></span></span><span style="font:500 12px 'IBM Plex Mono'">{{ v.l }}</span></span>
+        <span style="font-size:12px;color:#8e8e94">{{ v.d }}</span>
+      </div></sc-for>
+      <div style="height:1px;background:#26272b"></div>
+      <div style="display:flex;align-items:center;gap:10px;height:36px;padding:0 14px;border-radius:18px;background:rgba(17,18,20,.88);border:1px solid #34353a;font-size:13px;font-weight:500;align-self:flex-start"><span style="color:#7d7d83">♪</span>Muted<span style="font:500 10px 'IBM Plex Mono';padding:1px 4px;border-radius:3px;border:1px solid #3a3b40;color:#a3a3a8">M</span></div>
+      <div style="display:flex;align-items:center;gap:10px;height:36px;padding:0 14px;border-radius:18px;background:rgba(17,18,20,.88);border:1px solid #34353a;font-size:13px;font-weight:500;align-self:flex-start"><span style="color:#a3a3a8">♪</span>Volume 100 %<span style="width:96px;height:4px;border-radius:2px;background:#3cbfd8"></span><span style="font:400 11px 'IBM Plex Mono';color:#7d7d83">max</span></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;gap:16px">
+        <div style="width:520px;height:320px;border-radius:8px;background:#0b0b0c;position:relative;overflow:hidden;color:#ecebe7">
+          <div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,#17181a 0 10px,#1b1c1f 10px 20px)"></div>
+          <div style="position:absolute;left:10px;top:10px;display:flex;gap:6px;align-items:center;padding:4px 8px;border-radius:6px;background:rgba(17,18,20,.82);font-size:12px"><span style="font:500 11px 'IBM Plex Mono';width:18px;height:18px;border-radius:4px;background:#ecebe7;color:#121315;display:grid;place-items:center">2</span>Lena · Harbor Rally</div>
+          <div style="position:absolute;right:10px;top:10px;display:flex;gap:6px;align-items:center;padding:4px 8px;border-radius:6px;background:rgba(17,18,20,.82);font-size:12px;color:#c9c8c4"><span style="display:flex;align-items:center"><span style="width:3px;height:6px;background:currentColor"></span><span style="width:0;height:0;border-right:6px solid currentColor;border-top:6px solid transparent;border-bottom:6px solid transparent;margin-left:-1px"></span></span>Muted</div>
+          <div style="position:absolute;left:10px;bottom:10px;font-size:11px;color:#8e8e94;background:rgba(17,18,20,.82);padding:3px 8px;border-radius:6px">Tile muted in the mixer · audio focus is on tile 1</div>
+        </div>
+        <div style="flex:1;font-size:13px;line-height:19px;color:#3a3936;display:flex;flex-direction:column;gap:8px"><b>Muted on a tile</b>A tile shows “Muted” top right only when it is muted on purpose (mixer, M on that tile). Tiles that are silent because audio plays elsewhere show nothing; the one with audio shows “♪ Audio here” (3r-3). Master mute shows “Muted” on every tile and in the header.</div>
+      </div>
+      <div style="background:#121315;border-radius:8px;padding:8px 24px;color:#ecebe7">
+        <sc-for list="{{ soundRows }}" as="r" hint-placeholder-count="3"><dc-import name="settings-row" row="{{ r }}" hint-size="100%,64px"></dc-import></sc-for>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 3e-4 DISPLAY ===== -->
+<div style="font:600 13px 'IBM Plex Mono';letter-spacing:.08em;color:#55544f;border-top:1px solid #b9b7b0;padding-top:16px;width:1440px">3e-4 EMULATION → DISPLAY</div>
+<div id="3e-4" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">3e-4</span><span style="font-size:15px">Emulation → Nintendo DS · Display, Run-ahead, Rewind, Renderer · Vulkan disabled with reason · 1440</span></div>
+  <div style="width:1440px;height:1080px;display:flex;background:#121315;overflow:hidden;color:#ececea;border-radius:4px">
+    <dc-import name="player-nav" active="Emulation" r4="{{ true }}" bell="2" hint-size="232px,100%"></dc-import>
+    <div style="width:300px;flex:none;background:#17181b;border-right:1px solid #24252a;padding:28px 16px;box-sizing:border-box;display:flex;flex-direction:column;gap:4px">
+      <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#9a9a9f;padding:0 8px 8px">EMULATION</div>
+      <div style="padding:10px 12px;border-radius:8px"><div style="font-size:14px;font-weight:500">Defaults</div><div style="font-size:12px;color:#9a9a9f">Apply to every system · 1 changed</div></div>
+      <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#9a9a9f;padding:14px 8px 6px">SYSTEMS</div>
+      <sc-for list="{{ esys }}" as="s" hint-placeholder-count="5"><div style="padding:10px 12px;border-radius:8px;background:{{ s.bg }}"><div style="font-size:14px;font-weight:500">{{ s.n }}</div><div style="font-size:12px;color:#9a9a9f">{{ s.c }}</div></div></sc-for>
+    </div>
+    <div style="flex:1;min-width:0;padding:28px 36px"><div style="max-width:880px;display:flex;flex-direction:column">
+      <div style="display:flex;align-items:center"><div style="flex:1"><div style="font-size:28px;font-weight:600">Nintendo DS</div><div style="font-size:13px;color:#9a9a9f">melonDS DS 1.4 · saved on this device only</div></div><span style="font-size:13px;color:#9a9a9f;text-decoration:underline">Reset all to default</span></div>
+      <div style="display:flex;gap:2px;margin:16px 0 4px;border-bottom:1px solid #24252a;font-size:13px"><sc-for list="{{ eTabs }}" as="t" hint-placeholder-count="4"><span style="padding:8px 12px;border-bottom:2px solid {{ t.u }};color:{{ t.fg }};font-weight:{{ t.w }}">{{ t.l }}</span></sc-for></div>
+      <sc-for list="{{ dispSec }}" as="sec" hint-placeholder-count="4">
+        <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#9a9a9f;padding:20px 0 2px 14px">{{ sec.t }}</div>
+        <sc-for list="{{ sec.rows }}" as="r" hint-placeholder-count="2"><dc-import name="settings-row" row="{{ r }}" hint-size="100%,64px"></dc-import></sc-for>
+      </sc-for>
+    </div></div>
+  </div>
+</div>
+<div id="3e-4-2" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">3e-4-2</span><span style="font-size:15px">Rows that differ per system · same component, only rows the core uses</span></div>
+  <div style="width:1440px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px">
+    <sc-for list="{{ sysDiff }}" as="s" hint-placeholder-count="2"><div style="background:#121315;border-radius:8px;padding:16px 24px;color:#ecebe7;display:flex;flex-direction:column">
+      <div style="font-size:16px;font-weight:600">{{ s.t }}</div><div style="font-size:12px;color:#9a9a9f;padding-bottom:6px">{{ s.d }}</div>
+      <sc-for list="{{ s.rows }}" as="r" hint-placeholder-count="3"><dc-import name="settings-row" row="{{ r }}" hint-size="100%,64px"></dc-import></sc-for>
+    </div></sc-for>
+  </div>
+</div>
+
+<!-- ===== 6h PER-GAME ===== -->
+<div style="font:600 13px 'IBM Plex Mono';letter-spacing:.08em;color:#55544f;border-top:1px solid #b9b7b0;padding-top:16px;width:1440px">6h PER-GAME SETTINGS · 3c-8 LIBRARY</div>
+<div id="6h" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6h</span><span style="font-size:15px">Settings for Lumen Drift · opened from the detail badge “3 changes” or in game ⋯ → Settings for this game… · sheet 560 from the right</span></div>
+  <div style="width:1440px;height:900px;display:flex;background:#121315;overflow:hidden;color:#ececea;position:relative;border-radius:4px">
+    <dc-import name="player-nav" active="Library" r4="{{ true }}" bell="2" hint-size="232px,100%"></dc-import>
+    <div style="flex:1;padding:28px;display:flex;flex-direction:column;gap:14px"><div style="font-size:28px;font-weight:600">Library</div></div>
+    <div style="position:absolute;inset:0 0 0 232px;background:rgba(6,7,8,.6)"></div>
+    <div style="position:absolute;top:0;right:0;bottom:0;width:560px;background:#17181b;border-left:1px solid #2a2b30;box-shadow:-30px 0 60px rgba(0,0,0,.4);display:flex;flex-direction:column">
+      <div style="padding:24px 28px 0;display:flex;flex-direction:column;gap:4px"><div style="display:flex;align-items:center"><span style="font-size:20px;font-weight:600">Settings for Lumen Drift</span><span style="margin-left:auto;width:30px;height:30px;display:grid;place-items:center;border-radius:7px;color:#a3a3a8">×</span></div><div style="font-size:13px;color:#9a9a9f">Game Boy Advance · mGBA · 3 changes from your defaults · <span style="text-decoration:underline">Reset all 3</span></div></div>
+      <div style="display:flex;gap:2px;margin:16px 28px 0;border-bottom:1px solid #24252a;font-size:13px"><sc-for list="{{ pgTabs }}" as="t" hint-placeholder-count="3"><span style="display:flex;align-items:center;gap:6px;padding:8px 12px;border-bottom:2px solid {{ t.u }};color:{{ t.fg }};font-weight:{{ t.w }}">{{ t.l }}<sc-if value="{{ t.hasB }}" hint-placeholder-val="{{ false }}"><span style="min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:8px;background:#2c2d32;color:#c9c8c4;font:600 10px/16px 'IBM Plex Mono';text-align:center">{{ t.b }}</span></sc-if></span></sc-for></div>
+      <div style="padding:0 14px 0 28px;flex:1;overflow:hidden">
+        <sc-for list="{{ pgRows }}" as="r" hint-placeholder-count="6"><div style="display:flex;flex-direction:column"><dc-import name="settings-row" row="{{ r.row }}" hint-size="100%,64px"></dc-import></div></sc-for>
+      </div>
+      <div style="padding:14px 28px;border-top:1px solid #24252a;font-size:12px;color:#9a9a9f;display:flex;gap:8px;align-items:center"><span style="width:6px;height:6px;border-radius:50%;background:#3cbfd8"></span>Changed for this game · Reset goes back to your default for Game Boy Advance<span style="margin-left:auto;font-family:'IBM Plex Mono'">Esc closes</span></div>
+    </div>
+  </div>
+</div>
+
+<sc-for list="{{ libs }}" as="L" hint-placeholder-count="2">
+<div id="{{ L.id }}" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">{{ L.id }}</span><span style="font-size:15px">{{ L.cap }}</span></div>
+  <div style="width:{{ L.w }};height:{{ L.h }};display:flex;background:#121315;overflow:hidden;color:#ececea;position:relative;border-radius:4px">
+    <dc-import name="player-nav" active="Library" r4="{{ true }}" online="{{ L.on }}" bell="2" hint-size="232px,100%"></dc-import>
+    <div style="flex:1;min-width:0;padding:28px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:center;gap:12px"><span style="font-size:28px;font-weight:600;flex:1">Library</span><div style="width:220px;height:36px;border:1px solid #2a2b30;border-radius:8px;background:#17181b;font-size:13px;color:#7a7a80;display:flex;align-items:center;padding:0 12px">Search</div><span style="font-size:14px;padding:8px 14px;border:1px solid #34353a;border-radius:8px;white-space:nowrap">Upload ROM</span></div>
+      <sc-if value="{{ L.cont }}" hint-placeholder-val="{{ true }}">
+        <div style="display:grid;grid-template-columns:minmax(0,1.6fr) repeat({{ L.recentN }},minmax(0,1fr));gap:12px">
+          <div style="display:flex;gap:14px;align-items:center;padding:12px;border-radius:12px;background:#1b1c1f;border:1px solid #2a2b30;box-shadow:{{ L.contRing }}">
+            <div style="width:88px;height:66px;border-radius:8px;background:repeating-linear-gradient(135deg,#232428 0 8px,#26272b 8px 16px);flex:none"></div>
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#3cbfd8">CONTINUE</span><span style="font-size:16px;font-weight:600">Lumen Drift</span><span style="font-size:12px;color:#9a9a9f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Main · v14 · 2 h ago</span></div>
+            <span style="height:36px;padding:0 16px;border-radius:8px;background:#3cbfd8;color:#0d1214;font-weight:600;font-size:14px;display:flex;align-items:center">Continue</span>
+          </div>
+          <sc-for list="{{ L.recent }}" as="r" hint-placeholder-count="2"><div style="display:flex;gap:10px;align-items:center;padding:12px;border-radius:12px;background:#17181b;border:1px solid #24252a;min-width:0"><div style="width:44px;height:44px;border-radius:7px;background:#232428;flex:none;display:grid;place-items:center;font-weight:600;color:#5e5e63">{{ r.m }}</div><div style="display:flex;flex-direction:column;min-width:0"><span style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.t }}</span><span style="font-size:12px;color:#9a9a9f">{{ r.s }}</span></div></div></sc-for>
+        </div>
+      </sc-if>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:nowrap;position:relative">
+        <sc-for list="{{ L.chips }}" as="f" hint-placeholder-count="5"><span style="font-size:13px;padding:6px 12px;border-radius:16px;white-space:nowrap;background:{{ f.bg }};color:{{ f.fg }};border:1px solid {{ f.bd }}">{{ f.l }}</span></sc-for>
+        <span style="flex:1"></span>
+        <span style="font-size:13px;padding:6px 10px;border:1px solid #2a2b30;border-radius:8px;white-space:nowrap">Sort: {{ L.sort }} ▾</span>
+      </div>
+      <sc-if value="{{ L.grid }}" hint-placeholder-val="{{ true }}">
+        <div style="display:grid;grid-template-columns:repeat({{ L.cols }},minmax(0,1fr));gap:16px">
+          <sc-for list="{{ L.tiles }}" as="t" hint-placeholder-count="6"><div style="display:flex;flex-direction:column;gap:6px">
+            <div style="aspect-ratio:1.35;border-radius:10px;background:#1b1c1f;border:{{ t.bd }};position:relative;box-sizing:border-box"><span style="position:absolute;left:10px;top:8px;font:11px 'IBM Plex Mono';color:#9a9a9f">{{ t.sys }}</span><span title="{{ t.starTip }}" style="position:absolute;right:8px;top:6px;width:26px;height:26px;display:grid;place-items:center;border-radius:6px;font-size:15px;color:{{ t.starC }};background:{{ t.starBg }}">{{ t.star }}</span><span style="position:absolute;left:12px;bottom:6px;font-size:30px;font-weight:600;color:#3a3b40">{{ t.m }}</span></div>
+            <div style="font-size:14px">{{ t.t }}</div><div style="font-size:12px;color:#9a9a9f">{{ t.pt }}</div>
+          </div></sc-for>
+        </div>
+      </sc-if>
+      <sc-if value="{{ L.empty }}" hint-placeholder-val="{{ false }}">
+        <div style="flex:1;max-height:360px;border:1.5px dashed #2a2b30;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center"><span style="font-size:28px;color:#5e5e63">☆</span><span style="font-size:16px;font-weight:500">No favourites yet</span><span style="font-size:13px;color:#9a9a9f;max-width:380px;line-height:19px">Star a game on its tile or in the detail. Favourites are yours only and follow you to every Player on Home Hub.</span><span style="font-size:13px;color:#3cbfd8">Show all games</span></div>
+      </sc-if>
+    </div>
+    <div style="width:340px;flex:none;background:#17181b;border-left:1px solid #24252a;padding:24px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;gap:14px"><div style="width:80px;height:80px;border-radius:8px;background:#1b1c1f;font-size:24px;font-weight:600;color:#3a3b40;display:flex;align-items:flex-end;padding:8px;box-sizing:border-box">LD</div><div style="flex:1;min-width:0"><div style="font-size:20px;font-weight:600">Lumen Drift</div><div style="font-size:13px;color:#9a9a9f">Game Boy Advance · mGBA</div></div><span title="Favourite · F" style="width:32px;height:32px;box-sizing:border-box;border-radius:7px;border:1px solid #34353a;display:grid;place-items:center;color:#e5b45a;font-size:15px">★</span></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;position:relative">
+        <span style="font-size:12px;padding:3px 10px;border-radius:12px;background:#232428;color:#c9c8c4">Couch co-op</span>
+        <span style="font-size:12px;padding:3px 10px;border-radius:12px;border:1px dashed #3a3b40;color:{{ L.addFg }};box-shadow:{{ L.addRing }}">+ Collection</span>
+        <span style="margin-left:auto;font-size:12px;padding:3px 10px;border-radius:12px;background:#15262b;color:#3cbfd8">3 changes</span>
+        <sc-if value="{{ L.pop }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;top:32px;left:60px;width:250px;z-index:4;padding:6px;border-radius:10px;background:#1d1e22;border:1px solid #34353a;box-shadow:0 18px 40px rgba(0,0,0,.55);font-size:13px;display:flex;flex-direction:column;gap:2px">
+            <div style="font:500 10px 'IBM Plex Mono';letter-spacing:.08em;color:#7d7d83;padding:6px 8px 4px">ADD TO COLLECTION</div>
+            <sc-for list="{{ colls }}" as="c" hint-placeholder-count="3"><div style="height:32px;display:flex;align-items:center;gap:8px;padding:0 8px;border-radius:6px;background:{{ c.bg }}"><span style="width:16px;height:16px;border-radius:4px;box-sizing:border-box;border:1px solid {{ c.line }};background:{{ c.fill }};color:#0d1214;display:grid;place-items:center;font-size:11px">{{ c.ck }}</span>{{ c.l }}<span style="margin-left:auto;font:11px 'IBM Plex Mono';color:#7d7d83">{{ c.n }}</span></div></sc-for>
+            <div style="height:1px;background:#2c2d32;margin:4px 0"></div>
+            <div style="display:flex;gap:6px;padding:2px"><div style="flex:1;height:30px;border:1px solid #3cbfd8;border-radius:6px;display:flex;align-items:center;padding:0 8px;color:#ecebe7">Speedruns</div><span style="height:30px;padding:0 10px;border-radius:6px;background:#3cbfd8;color:#0d1214;font-weight:600;display:flex;align-items:center">Create</span></div>
+          </div>
+        </sc-if>
+      </div>
+      <sc-for list="{{ ldFacts }}" as="f" hint-placeholder-count="4"><div style="display:flex;justify-content:space-between;gap:12px;font-size:13px;border-bottom:1px solid #24252a;padding-bottom:8px"><span style="color:#9a9a9f">{{ f.k }}</span><span style="text-align:right">{{ f.v }}</span></div></sc-for>
+      <div style="display:flex;align-items:center"><span style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#9a9a9f">SCREENSHOTS · 8</span><span style="margin-left:auto;font-size:12px;color:#9a9a9f">All on Home Hub ↗</span></div>
+      <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px"><sc-for list="{{ shots4 }}" as="s" hint-placeholder-count="4"><div title="{{ s }}" style="aspect-ratio:3/2;border-radius:5px;background:repeating-linear-gradient(135deg,#232428 0 6px,#26272b 6px 12px)"></div></sc-for></div>
+      <div style="flex:1"></div>
+      <div style="text-align:center;padding:12px;border-radius:8px;background:#3cbfd8;color:#0d1214;font-weight:600">Play · Main v14</div>
+      <div style="text-align:center;padding:11px;border-radius:8px;border:1px solid #34353a">Play and share Session</div>
+    </div>
+  </div>
+</div>
+</sc-for>
+
+<div id="3c-8-states" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">3c-8-3</span><span style="font-size:15px">Library states · empty collection · first start (no Continue) · Continue when the save is not on this device · collection ⋯</span></div>
+  <div style="width:1440px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px">
+    <sc-for list="{{ libStates }}" as="s" hint-placeholder-count="4"><div style="display:flex;flex-direction:column;gap:8px">
+      <div style="font:500 12px 'IBM Plex Mono';color:#55544f">{{ s.k }}</div>
+      <div style="background:#121315;border-radius:8px;padding:20px;color:#ecebe7;display:flex;flex-direction:column;gap:12px;min-height:200px;box-sizing:border-box">
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><sc-for list="{{ s.chips }}" as="f" hint-placeholder-count="4"><span style="font-size:13px;padding:6px 12px;border-radius:16px;background:{{ f.bg }};color:{{ f.fg }};border:1px solid {{ f.bd }}">{{ f.l }}</span></sc-for></div>
+        <div style="flex:1;border:{{ s.line }};border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:6px;align-items:{{ s.al }};justify-content:center;text-align:{{ s.ta }};background:{{ s.bg }}">
+          <span style="font-size:15px;font-weight:500">{{ s.t }}</span><span style="font-size:13px;color:#9a9a9f;line-height:19px;max-width:460px">{{ s.d }}</span>
+          <div style="display:flex;gap:8px;margin-top:6px"><sc-for list="{{ s.acts }}" as="a" hint-placeholder-count="1"><span style="font-size:13px;padding:6px 12px;border-radius:7px;border:1px solid {{ a.line }};background:{{ a.bg }};color:{{ a.fg }};font-weight:{{ a.w }}">{{ a.l }}</span></sc-for></div>
+        </div>
+      </div>
+    </div></sc-for>
+  </div>
+</div>
+
+<!-- ===== 6i DS LAYOUTS ===== -->
+<div style="font:600 13px 'IBM Plex Mono';letter-spacing:.08em;color:#55544f;border-top:1px solid #b9b7b0;padding-top:16px;width:1440px">6i DS / 3DS SCREEN LAYOUTS</div>
+<div style="display:flex;gap:48px;align-items:flex-start;flex-wrap:wrap">
+<div id="6i" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6i</span><span style="font-size:15px">In game · layout menu from the header · F7 / Select + → cycles · 1280 × 800</span></div>
+  <div style="width:1280px;height:800px;background:#0b0b0c;color:#ecebe7;display:grid;grid-template-rows:56px minmax(0,1fr);position:relative;overflow:hidden;border-radius:4px">
+    <header style="display:flex;align-items:center;gap:12px;padding:0 16px;background:#111214;border-bottom:1px solid #1e1f22;font-size:13px;white-space:nowrap">
+      <span style="width:32px;height:32px;display:grid;place-items:center;color:#a3a3a8">←</span><span style="width:1px;height:20px;background:#2c2d32"></span><span style="font-size:15px;font-weight:600">Clocktower Kids</span>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:12px">
+        <div style="display:flex;gap:2px;padding:2px;border-radius:9px;background:#16171a;border:1px solid #26272b"><span style="height:30px;display:flex;align-items:center;padding:0 9px">❚❚</span><span style="height:30px;display:flex;align-items:center;padding:0 9px">▶▶ <span style="font:500 12px 'IBM Plex Mono';margin-left:6px">4×</span></span></div>
+        <div style="display:flex;gap:2px;padding:3px;border-radius:7px;background:#1a1b1e"><span style="padding:5px 12px;border-radius:5px;background:#2c2d32;font-weight:500">Session</span><span style="padding:5px 12px;color:#a3a3a8">Multiview</span></div>
+        <div style="display:flex;gap:2px;padding:2px;border-radius:9px;background:#16171a;border:1px solid #26272b"><span style="height:30px;display:flex;align-items:center;gap:6px;padding:0 9px;border-radius:7px;background:#15262b;color:#3cbfd8;box-shadow:0 0 0 1px #3cbfd8"><span style="display:flex;gap:2px"><span style="width:7px;height:10px;border-radius:1px;border:1.5px solid currentColor"></span><span style="width:7px;height:10px;border-radius:1px;border:1.5px solid currentColor"></span></span><span style="font-size:9px">▾</span></span><span style="height:30px;display:flex;align-items:center;padding:0 9px">♪</span></div>
+        <div style="display:flex;gap:2px;padding:2px;border-radius:9px;background:#16171a;border:1px solid #26272b"><span style="height:30px;display:flex;align-items:center;padding:0 9px">⛶</span><span style="height:30px;display:flex;align-items:center;padding:0 9px">▥</span></div>
+        <span style="width:32px;height:32px;box-sizing:border-box;display:grid;place-items:center;border-radius:7px;border:1px solid #2c2d32">⋯</span>
+      </div>
+    </header>
+    <div style="display:flex;align-items:center;justify-content:center;gap:12px;position:relative">
+      <div style="width:480px;height:360px;background:repeating-linear-gradient(135deg,#17181a 0 10px,#1b1c1f 10px 20px);display:grid;place-items:center;font:500 12px 'IBM Plex Mono';color:#5e5e63">TOP</div>
+      <div style="width:480px;height:360px;background:repeating-linear-gradient(135deg,#17181a 0 10px,#1b1c1f 10px 20px);display:grid;place-items:center;font:500 12px 'IBM Plex Mono';color:#5e5e63">BOTTOM · touch</div>
+      <div style="position:absolute;left:50%;top:16px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;height:36px;padding:0 14px;border-radius:18px;background:rgba(17,18,20,.88);border:1px solid #34353a;font-size:13px;font-weight:500">Layout: Side by side<span style="font:500 10px 'IBM Plex Mono';padding:1px 4px;border-radius:3px;border:1px solid #3a3b40;color:#a3a3a8">F7</span></div>
+    </div>
+    <div style="position:absolute;top:52px;right:150px;width:300px;z-index:4">
+      <div style="position:absolute;top:-6px;right:38px;width:12px;height:12px;transform:rotate(45deg);background:#1d1e22;border-left:1px solid #34353a;border-top:1px solid #34353a"></div>
+      <div style="padding:6px;border-radius:10px;background:#1d1e22;border:1px solid #34353a;box-shadow:0 18px 40px rgba(0,0,0,.55);font-size:13px;display:flex;flex-direction:column;gap:2px">
+        <div style="font:500 10px 'IBM Plex Mono';letter-spacing:.08em;color:#7d7d83;padding:6px 8px 4px">SCREEN LAYOUT · THIS GAME</div>
+        <sc-for list="{{ layouts }}" as="l" hint-placeholder-count="5"><div style="height:36px;display:flex;align-items:center;gap:10px;padding:0 8px;border-radius:6px;background:{{ l.bg }};box-shadow:{{ l.ring }}"><span style="width:14px;color:#3cbfd8">{{ l.ck }}</span><span style="display:flex;gap:2px;flex-direction:{{ l.dir }};align-items:center;width:22px;justify-content:center"><span style="width:{{ l.aw }};height:{{ l.ah }};border:1.5px solid #a3a3a8;border-radius:1px"></span><span style="width:{{ l.bw }};height:{{ l.bh }};border:1.5px solid #a3a3a8;border-radius:1px;display:{{ l.bd }}"></span></span>{{ l.l }}</div></sc-for>
+        <div style="height:1px;background:#2c2d32;margin:4px 0"></div>
+        <div style="height:36px;display:flex;align-items:center;gap:10px;padding:0 8px"><span style="width:14px"></span>Swap screens<span style="margin-left:auto;font:11px 'IBM Plex Mono';color:#7d7d83">Shift+F7</span><span style="width:30px;height:18px;border-radius:9px;background:#3a3b40;position:relative"><span style="position:absolute;left:2px;top:2px;width:14px;height:14px;border-radius:50%;background:#ecebe7"></span></span></div>
+        <div style="height:36px;display:flex;align-items:center;gap:10px;padding:0 8px"><span style="width:14px"></span>Bottom screen in its own window</div>
+        <div style="font-size:11px;color:#7d7d83;padding:4px 8px 6px;line-height:16px">Saved for Clocktower Kids. Default for all DS games: Emulation → Nintendo DS.</div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="6i-2" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6i-2</span><span style="font-size:15px">Bottom screen in its own window · on a second monitor · and how to get it back</span></div>
+  <div style="width:1280px;height:800px;background:#26262a;border-radius:4px;padding:40px;box-sizing:border-box;display:flex;gap:40px;align-items:center;position:relative">
+    <div style="display:flex;flex-direction:column;gap:10px;align-items:center">
+      <div style="width:680px;height:420px;border-radius:8px;background:#0b0b0c;border:6px solid #3a3a3f;display:flex;flex-direction:column;overflow:hidden;color:#ecebe7">
+        <div style="height:38px;display:flex;align-items:center;gap:10px;padding:0 12px;background:#111214;border-bottom:1px solid #1e1f22;font-size:12px;white-space:nowrap"><span style="font-weight:600">Clocktower Kids</span><span style="display:flex;align-items:center;gap:6px;padding:3px 8px;border-radius:999px;background:#15262b;color:#3cbfd8;font-size:11px;font-weight:500">Bottom screen in its own window<span style="text-decoration:underline">Bring back</span></span><span style="margin-left:auto;color:#a3a3a8">♪ 72 · ⛶ · ⋯</span></div>
+        <div style="flex:1;display:grid;place-items:center"><div style="width:420px;height:315px;background:repeating-linear-gradient(135deg,#17181a 0 10px,#1b1c1f 10px 20px);display:grid;place-items:center;font:500 12px 'IBM Plex Mono';color:#5e5e63">TOP</div></div>
+      </div>
+      <span style="font:500 12px 'IBM Plex Mono';color:#a3a3a8">Monitor 1 · main window · top screen fills it</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;align-items:center">
+      <div style="width:400px;height:300px;border-radius:8px;background:#1b1b1e;border:6px solid #3a3a3f;position:relative">
+        <div style="position:absolute;left:40px;top:40px;width:300px;display:flex;flex-direction:column;border-radius:8px;overflow:hidden;border:1px solid #34353a;box-shadow:0 18px 40px rgba(0,0,0,.5);color:#ecebe7">
+          <div style="height:30px;display:flex;align-items:center;gap:8px;padding:0 10px;background:#111214;font-size:12px"><span>Clocktower Kids · bottom screen</span><span style="margin-left:auto;color:#a3a3a8">✕</span></div>
+          <div style="height:180px;background:repeating-linear-gradient(135deg,#17181a 0 10px,#1b1c1f 10px 20px);display:grid;place-items:center;font:500 12px 'IBM Plex Mono';color:#5e5e63">BOTTOM · touch</div>
+        </div>
+      </div>
+      <span style="font:500 12px 'IBM Plex Mono';color:#a3a3a8">Monitor 2 · second window · 4:3, resizable</span>
+    </div>
+    <div style="position:absolute;left:40px;right:40px;bottom:32px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px">
+      <sc-for list="{{ winRules }}" as="w" hint-placeholder-count="3"><div style="background:#1d1e22;border:1px solid #34353a;border-radius:10px;padding:12px 14px;color:#ecebe7;display:flex;flex-direction:column;gap:4px"><span style="font-size:13px;font-weight:600">{{ w.t }}</span><span style="font-size:12px;line-height:18px;color:#c9c8c4">{{ w.d }}</span></div></sc-for>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ===== 3j-3 HUB LIBRARY ===== -->
+<div style="font:600 13px 'IBM Plex Mono';letter-spacing:.08em;color:#55544f;border-top:1px solid #b9b7b0;padding-top:16px;width:1440px">3j-3 HUB LIBRARY · 6j SCREENSHOTS · 6k PLAY TIME</div>
+<div id="3j-3" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">3j-3</span><span style="font-size:15px">Hub · Library · favourites, collections and play time of the signed-in user · same data as the Player</span></div>
+  <div style="width:1440px;height:900px;display:flex;background:#f5f4f0;overflow:hidden;border-radius:4px">
+    <dc-import name="hub-nav" active="Library" r4="{{ true }}" reports-badge="2 new" hint-size="232px,100%"></dc-import>
+    <div style="flex:1;min-width:0;padding:28px 40px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:flex-end;gap:16px"><div style="flex:1"><div style="font-size:28px;font-weight:600">Library</div></div><div style="width:240px;height:34px;border:1px solid #d9d7d0;border-radius:7px;background:#fff;font-size:13px;color:#8d8b85;display:flex;align-items:center;padding:0 10px;box-sizing:border-box">Search games</div><span style="font-size:13px;padding:8px 14px;border-radius:7px;background:#1a7f96;color:#fff;font-weight:500">Upload ROM</span></div>
+      <div style="display:flex;gap:2px;border-bottom:1px solid #e2e0da;font-size:14px"><span style="padding:8px 12px;border-bottom:2px solid #1a7f96;font-weight:600">Games</span><span style="padding:8px 12px;color:#6b6a65">Screenshots · 31</span></div>
+      <div style="display:flex;gap:8px;align-items:center;font-size:13px"><sc-for list="{{ hubChips }}" as="c" hint-placeholder-count="5"><span style="padding:5px 12px;border-radius:14px;background:{{ c.bg }};color:{{ c.fg }};border:1px solid {{ c.bd }}">{{ c.l }}</span></sc-for><span style="flex:1"></span><span style="padding:6px 10px;border:1px solid #d9d7d0;border-radius:7px;background:#fff">Sort: Recently played ▾</span></div>
+      <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;overflow:hidden">
+        <div style="display:grid;grid-template-columns:30px minmax(0,1fr) 140px 170px 110px 150px 120px 30px;gap:14px;padding:8px 16px;font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65"><span></span><span>GAME</span><span>SYSTEM</span><span>COLLECTIONS</span><span>PLAY TIME</span><span>LAST PLAYED</span><span></span><span></span></div>
+        <sc-for list="{{ hubGames }}" as="g" hint-placeholder-count="7"><div style="display:grid;grid-template-columns:30px minmax(0,1fr) 140px 170px 110px 150px 120px 30px;gap:14px;align-items:center;padding:0 16px;height:52px;border-top:1px solid #efede8;font-size:14px">
+          <span title="{{ g.starTip }}" style="font-size:15px;color:{{ g.sc }}">{{ g.star }}</span><span>{{ g.t }}</span><span style="font-size:13px;color:#6b6a65">{{ g.s }}</span>
+          <span style="display:flex;gap:4px;min-width:0"><sc-for list="{{ g.cols }}" as="c" hint-placeholder-count="1"><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#ebe9e3;color:#55544f;white-space:nowrap">{{ c }}</span></sc-for></span>
+          <span style="font:13px 'IBM Plex Mono';color:#55544f">{{ g.pt }}</span><span style="font-size:13px;color:#6b6a65">{{ g.lp }}</span>
+          <span style="justify-self:end;font-size:13px;padding:5px 10px;border:1px solid #d9d7d0;border-radius:7px">Upload save</span><span style="font-size:14px;padding:3px 8px;border:1px solid #d9d7d0;border-radius:7px">⋯</span>
+        </div></sc-for>
+      </div>
+      <div style="font-size:12px;color:#6b6a65">Favourites, collections and play time are per user. Admins see their own here; other users’ numbers are on their user page (6k).</div>
+    </div>
+  </div>
+</div>
+
+<div style="display:flex;gap:48px;align-items:flex-start;flex-wrap:wrap">
+<div id="6j" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6j</span><span style="font-size:15px">Hub · Library → Screenshots · filter by game, run, user · in Player: F12 / Select + Y with OSD “Screenshot saved”, strip in the game detail (3c-8)</span></div>
+  <div style="width:1440px;height:900px;display:flex;background:#f5f4f0;overflow:hidden;border-radius:4px;position:relative">
+    <dc-import name="hub-nav" active="Library" r4="{{ true }}" reports-badge="2 new" hint-size="232px,100%"></dc-import>
+    <div style="flex:1;min-width:0;padding:28px 40px;display:flex;flex-direction:column;gap:14px">
+      <div style="font-size:28px;font-weight:600">Library</div>
+      <div style="display:flex;gap:2px;border-bottom:1px solid #e2e0da;font-size:14px"><span style="padding:8px 12px;color:#6b6a65">Games</span><span style="padding:8px 12px;border-bottom:2px solid #1a7f96;font-weight:600">Screenshots · 31</span></div>
+      <div style="display:flex;gap:8px;align-items:center;font-size:13px"><sc-for list="{{ shotFilters }}" as="f" hint-placeholder-count="3"><span style="height:32px;padding:0 10px;border:1px solid {{ f.bd }};border-radius:7px;background:#fff;display:flex;align-items:center;gap:8px"><span style="color:#6b6a65">{{ f.k }}</span>{{ f.v }}<span style="font-size:10px;color:#6b6a65">▾</span></span></sc-for><span style="flex:1"></span><span style="color:#6b6a65">12 of 31 · newest first</span></div>
+      <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px">
+        <sc-for list="{{ shots }}" as="s" hint-placeholder-count="8"><div style="display:flex;flex-direction:column;gap:6px">
+          <div style="aspect-ratio:3/2;border-radius:8px;background:repeating-linear-gradient(135deg,#e4e2dc 0 10px,#ebe9e3 10px 20px);position:relative;box-shadow:{{ s.ring }}"><sc-if value="{{ s.run }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;left:8px;top:8px;font-size:11px;font-weight:500;padding:2px 8px;border-radius:10px;background:#fff;color:#55544f">Harbor Nuzlocke</span></sc-if></div>
+          <div style="display:flex;align-items:center;gap:6px;font-size:13px"><span style="width:8px;height:8px;border-radius:50%;background:{{ s.c }}"></span><span>{{ s.u }}</span><span style="color:#6b6a65">· {{ s.d }}</span></div>
+        </div></sc-for>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="6j-2" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6j-2</span><span style="font-size:15px">Hub · screenshot open · download, run tag, delete in ⋯ · ← → to browse · and the empty gallery</span></div>
+  <div style="display:flex;gap:24px;align-items:flex-start">
+    <div style="width:1100px;height:720px;background:#1d1d1b;border-radius:4px;display:grid;grid-template-columns:minmax(0,1fr) 300px;overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:center;position:relative"><div style="width:720px;height:480px;background:repeating-linear-gradient(135deg,#2a2a2c 0 12px,#303033 12px 24px)"></div><span style="position:absolute;left:16px;top:50%;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.1);color:#fff;display:grid;place-items:center">‹</span><span style="position:absolute;right:16px;top:50%;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.1);color:#fff;display:grid;place-items:center">›</span><span style="position:absolute;left:16px;top:16px;color:#fff;font-size:13px">5 of 31 · Esc closes</span></div>
+      <div style="background:#fff;padding:24px;display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;align-items:center"><span style="font-size:16px;font-weight:600">Harbor Rally</span><span style="margin-left:auto;font-size:14px;padding:3px 8px;border:1px solid #d9d7d0;border-radius:7px">⋯</span></div>
+        <div style="display:grid;grid-template-columns:70px minmax(0,1fr);gap:6px 10px;font-size:13px"><span style="color:#6b6a65">By</span><span>Lena · Lena-PC</span><span style="color:#6b6a65">Taken</span><span title="21 Oct 2026, 14:03:51">today 14:03</span><span style="color:#6b6a65">Game time</span><span>12 h 40 min</span><span style="color:#6b6a65">Size</span><span style="font-family:'IBM Plex Mono'">1280 × 960 · 412 KB</span></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;color:#6b6a65">Run</span><div style="height:34px;border:1px solid #d9d7d0;border-radius:7px;display:flex;align-items:center;padding:0 10px;font-size:13px">Harbor Nuzlocke<span style="margin-left:auto;font-size:10px;color:#6b6a65">▾</span></div><span style="font-size:12px;color:#6b6a65">Tagged automatically while the run was active.</span></div>
+        <div style="margin-top:auto;display:flex;gap:8px"><span style="font-size:13px;padding:7px 14px;border-radius:7px;background:#1a7f96;color:#fff;font-weight:500">Download</span><span style="font-size:13px;padding:7px 14px;border:1px solid #d9d7d0;border-radius:7px">Copy link</span></div>
+        <div style="font-size:12px;color:#6b6a65">⋯ → Delete screenshot… (owner and admins).</div>
+      </div>
+    </div>
+    <div style="width:300px;height:720px;background:#f5f4f0;border-radius:4px;padding:24px;box-sizing:border-box;display:flex;align-items:center"><div style="border:1.5px dashed #d9d7d0;border-radius:10px;padding:24px;text-align:center;display:flex;flex-direction:column;gap:6px"><span style="font-size:15px;font-weight:500">No screenshots yet</span><span style="font-size:13px;color:#6b6a65;line-height:19px">Press F12 in a game (gamepad: hold Select + Y). Screenshots upload to Home Hub with the next save sync.</span></div></div>
+  </div>
+</div>
+</div>
+
+<div style="display:flex;gap:48px;align-items:flex-start;flex-wrap:wrap">
+<div id="6k" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6k</span><span style="font-size:15px">Hub · Users → Lena · play time and stats · no leaderboards, no comparison between users</span></div>
+  <div style="width:1440px;height:900px;display:flex;background:#f5f4f0;overflow:hidden;border-radius:4px">
+    <dc-import name="hub-nav" active="Users" r4="{{ true }}" reports-badge="2 new" hint-size="232px,100%"></dc-import>
+    <div style="flex:1;min-width:0;padding:28px 40px;display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:13px;color:#6b6a65">Users ›</div>
+      <div style="display:flex;align-items:center;gap:14px"><span style="width:48px;height:48px;border-radius:50%;background:#b8327a;color:#fff;display:grid;place-items:center;font-size:20px;font-weight:600">L</span><div style="flex:1"><div style="font-size:28px;font-weight:600">Lena</div><div style="font-size:14px;color:#6b6a65">Member · 2 devices · online, playing Harbor Rally</div></div><span style="font-size:13px;padding:6px 12px;border:1px solid #d9d7d0;border-radius:7px;background:#fff">⋯</span></div>
+      <div style="display:flex;gap:2px;border-bottom:1px solid #e2e0da;font-size:14px"><span style="padding:8px 12px;color:#6b6a65">Account</span><span style="padding:8px 12px;color:#6b6a65">Devices · 2</span><span style="padding:8px 12px;border-bottom:2px solid #1a7f96;font-weight:600">Play time</span><span style="padding:8px 12px;color:#6b6a65">Screenshots · 14</span></div>
+      <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px">
+        <sc-for list="{{ statCards }}" as="s" hint-placeholder-count="4"><div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:4px"><span style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65">{{ s.k }}</span><span style="font-size:22px;font-weight:600">{{ s.v }}</span><span style="font-size:12px;color:#6b6a65">{{ s.d }}</span></div></sc-for>
+      </div>
+      <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;overflow:hidden">
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) 150px 120px 100px 150px;gap:14px;padding:8px 18px;font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65"><span>GAME</span><span>SYSTEM</span><span>PLAY TIME</span><span>SESSIONS</span><span>LAST PLAYED</span></div>
+        <sc-for list="{{ statGames }}" as="g" hint-placeholder-count="5"><div style="display:grid;grid-template-columns:minmax(0,1fr) 150px 120px 100px 150px;gap:14px;align-items:center;padding:0 18px;height:48px;border-top:1px solid #efede8;font-size:14px"><span>{{ g.t }}</span><span style="font-size:13px;color:#6b6a65">{{ g.s }}</span><span style="font:13px 'IBM Plex Mono'">{{ g.p }}</span><span style="font:13px 'IBM Plex Mono';color:#55544f">{{ g.n }}</span><span style="font-size:13px;color:#6b6a65">{{ g.l }}</span></div></sc-for>
+      </div>
+      <div style="font-size:12px;color:#6b6a65">Play time counts while a game runs and is not paused; watching a Session does not count. Lena can hide this from other members (“Show my play time”); admins always see it.</div>
+    </div>
+  </div>
+</div>
+<div id="6k-2" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6k-2</span><span style="font-size:15px">Player · game detail facts · never played · per run</span></div>
+  <div style="display:flex;gap:20px">
+    <sc-for list="{{ ptCards }}" as="c" hint-placeholder-count="3"><div style="width:340px;background:#17181b;border-radius:8px;padding:20px 24px;box-sizing:border-box;color:#ececea;display:flex;flex-direction:column;gap:10px">
+      <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#9a9a9f">{{ c.k }}</div>
+      <sc-for list="{{ c.rows }}" as="f" hint-placeholder-count="3"><div style="display:flex;justify-content:space-between;gap:12px;font-size:13px;border-bottom:1px solid #24252a;padding-bottom:8px"><span style="color:#9a9a9f">{{ f.k }}</span><span style="text-align:right">{{ f.v }}</span></div></sc-for>
+    </div></sc-for>
+  </div>
+</div>
+</div>
+
+<!-- ===== 6l STORAGE ===== -->
+<div style="font:600 13px 'IBM Plex Mono';letter-spacing:.08em;color:#55544f;border-top:1px solid #b9b7b0;padding-top:16px;width:1440px">6l HUB STORAGE</div>
+<div style="display:flex;gap:48px;align-items:flex-start;flex-wrap:wrap">
+<div id="6l" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6l</span><span style="font-size:15px">Hub · Settings → Storage · usage by type, largest games, clean-up suggestions</span></div>
+  <div style="width:1440px;height:1000px;display:flex;background:#f5f4f0;overflow:hidden;border-radius:4px;position:relative">
+    <dc-import name="hub-nav" active="Settings" r4="{{ true }}" reports-badge="2 new" hint-size="232px,100%"></dc-import>
+    <div style="width:300px;flex:none;background:#faf9f6;border-right:1px solid #e2e0da;padding:28px 16px;box-sizing:border-box;display:flex;flex-direction:column;gap:4px">
+      <div style="font-size:20px;font-weight:600;padding:0 10px 12px">Settings</div>
+      <sc-for list="{{ setNavS }}" as="n" hint-placeholder-count="11"><sc-if value="{{ n.head }}" hint-placeholder-val="{{ false }}"><div style="font:500 10px 'IBM Plex Mono';letter-spacing:.08em;color:#6b6a65;padding:14px 10px 4px">{{ n.l }}</div></sc-if><sc-if value="{{ n.item }}" hint-placeholder-val="{{ true }}"><div style="padding:8px 10px;border-radius:8px;font-size:14px;background:{{ n.bg }};border:1px solid {{ n.bd }}">{{ n.l }}</div></sc-if></sc-for>
+    </div>
+    <div style="flex:1;min-width:0;padding:28px 40px"><div style="max-width:880px;display:flex;flex-direction:column;gap:16px">
+      <div><div style="font-size:28px;font-weight:600">Storage</div><div style="font-size:14px;color:#6b6a65">Data folder /srv/framebeam/hubdata · FrameBeam data 349 GB · disk 412 GB of 1 TB used (grey = free and other files) · measured today 18:30 <span style="color:#1a7f96">Measure again</span></div></div>
+      <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:16px 20px;display:flex;flex-direction:column;gap:12px">
+        <div style="height:14px;border-radius:7px;overflow:hidden;display:flex;background:#ebe9e3"><sc-for list="{{ usage }}" as="u" hint-placeholder-count="8"><span style="width:{{ u.w }};background:{{ u.c }};border-right:2px solid #fff"></span></sc-for></div>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 32px">
+          <sc-for list="{{ usage }}" as="u" hint-placeholder-count="8"><div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid #efede8;font-size:13px"><span style="width:10px;height:10px;border-radius:3px;background:{{ u.c }}"></span><span style="flex:1">{{ u.l }}</span><span style="font-family:'IBM Plex Mono';color:#55544f">{{ u.v }}</span></div></sc-for>
+        </div>
+      </div>
+      <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;overflow:hidden">
+        <div style="padding:14px 20px 8px;font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65">CLEAN-UP SUGGESTIONS · 3 · FREES ABOUT 9.6 GB</div>
+        <sc-for list="{{ cleanup }}" as="c" hint-placeholder-count="3"><div style="display:flex;align-items:center;gap:16px;padding:12px 20px;border-top:1px solid #efede8"><div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:14px;font-weight:500">{{ c.t }}</span><span style="font-size:12px;color:#6b6a65">{{ c.d }}</span></div><span style="font:13px 'IBM Plex Mono';color:#55544f">{{ c.z }}</span><span style="font-size:13px;padding:6px 12px;border:1px solid #d9d7d0;border-radius:7px">{{ c.b }}</span></div></sc-for>
+        <div style="padding:10px 20px 14px;font-size:12px;color:#6b6a65;border-top:1px solid #efede8">Never suggested: the current save of a slot, snapshots marked by a run plugin, anything in an active run.</div>
+      </div>
+      <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;overflow:hidden">
+        <div style="padding:14px 20px 8px;font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65">LARGEST GAMES</div>
+        <sc-for list="{{ largest }}" as="g" hint-placeholder-count="4"><div style="display:grid;grid-template-columns:minmax(0,1fr) 120px 110px 110px 90px;gap:14px;align-items:center;padding:0 20px;height:46px;border-top:1px solid #efede8;font-size:14px"><span>{{ g.t }}</span><span style="font-size:13px;color:#6b6a65">{{ g.s }}</span><span style="font:12px 'IBM Plex Mono';color:#6b6a65">ROM {{ g.r }}</span><span style="font:12px 'IBM Plex Mono';color:#6b6a65">saves {{ g.v }}</span><span style="font:13px 'IBM Plex Mono';text-align:right">{{ g.z }}</span></div></sc-for>
+      </div>
+    </div></div>
+    <div style="position:absolute;inset:0;background:rgba(29,29,27,.45);display:flex;align-items:center;justify-content:center">
+      <div style="width:500px;background:#fff;border-radius:12px;box-shadow:0 30px 80px rgba(0,0,0,.25)">
+        <div style="padding:24px 28px 8px;font-size:20px;font-weight:600">Delete 14 snapshots older than 90 days?</div>
+        <div style="padding:0 28px;font-size:14px;line-height:21px;color:#55544f">From 6 games and 3 users, all made before 23 Jul. Frees 2.1 GB. The current save of every slot stays, and so do snapshots that SoulLink or another run plugin made.</div>
+        <div style="margin:12px 28px 0;padding:10px 12px;border-radius:8px;background:#f5f4f0;font-size:13px;line-height:19px">Deleted snapshots cannot be restored, except from a backup made before today (last: yesterday 03:00).</div>
+        <div style="padding:8px 28px 0;font-size:13px;color:#1a7f96">Show the 14 snapshots</div>
+        <div style="padding:20px 28px;display:flex;justify-content:flex-end;gap:8px"><span style="font-size:14px;padding:8px 16px;border:1px solid #d9d7d0;border-radius:7px">Cancel</span><span style="font-size:14px;padding:8px 16px;border-radius:7px;background:#b3261e;color:#fff;font-weight:500">Delete 14 snapshots</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const R = (label, desc, ctrl, o = {}) => ({ label, desc, ctrl, ...o });
+    const volStates = [
+      { k: 'NORMAL', l: '72', d: 'value always shown at 1440', bg: 'transparent', fg: '#ecebe7', ring: 'none' },
+      { k: 'MUTED', l: 'Muted', d: 'grey, slash on the icon', bg: 'transparent', fg: '#8e8e94', ring: 'none' },
+      { k: 'FOCUS', l: '72', d: 'Tab / D-pad; A opens popover', bg: 'transparent', fg: '#ecebe7', ring: '0 0 0 2px #111214,0 0 0 4px #3cbfd8' },
+      { k: 'OPEN', l: '72', d: 'cyan while the popover is open', bg: '#15262b', fg: '#3cbfd8', ring: 'none' },
+      { k: '1280', l: '', d: 'icon only, value in tooltip', bg: 'transparent', fg: '#ecebe7', ring: 'none' }];
+    const soundRows = [
+      R('Mute when the window is in the background', 'Your game goes quiet when another window has focus. Sessions you watch stay audible unless you mute them.', 'toggle', { on: true, changed: true }),
+      R('Volume steps', '+ and − and the gamepad combo change the volume by this much.', 'seg', { opts: ['2 %', '5 %', '10 %'], value: '5 %' }),
+      R('Show volume on screen', 'The small volume display at the top of the game.', 'toggle', { on: true })];
+    const esys = [['Game Boy', 'mGBA'], ['Game Boy Color', 'mGBA'], ['Game Boy Advance', 'mGBA'], ['Nintendo DS', 'melonDS DS'], ['Nintendo 3DS', 'Azahar']].map(([n, c]) => ({ n, c, bg: n === 'Nintendo DS' ? '#24252a' : 'transparent' }));
+    const eTabs = ['Display', 'Core options', 'Firmware', 'Audio'].map((l, i) => ({ l, u: i === 0 ? '#3cbfd8' : 'transparent', fg: i === 0 ? '#ececea' : '#9a9a9f', w: i === 0 ? 600 : 400 }));
+    const dispSec = [
+      { t: 'PICTURE', rows: [R('Integer scaling', 'Scales by whole numbers only. Sharp pixels, may leave black borders.', 'toggle', { on: true, changed: true }), R('Aspect ratio', 'Core uses the shape of the system (DS: two 4:3 screens). Stretch fills the window.', 'seg', { opts: ['Core', '4:3', 'Stretch'], value: 'Core' }), R('Screen layout', 'Default for DS games. Change in game with F7; a game can keep its own (6h).', 'select', { value: 'Stacked' })] },
+      { t: 'RUN-AHEAD', rows: [R('Run-ahead', 'Hides input delay by running a few frames ahead. Uses more CPU. Allowed in runs.', 'seg', { opts: ['Off', '1 frame', '2 frames'], value: '1 frame', changed: true, meta: 'CPU +35 %' })] },
+      { t: 'REWIND', rows: [R('Rewind', 'Hold Backspace (gamepad: hold Select + L2) to go back in time. Can be turned off by a run rule.', 'toggle', { on: true }), R('Rewind length', 'How far back you can go.', 'seg', { opts: ['10 s', '30 s', '60 s'], value: '30 s', meta: 'about 180 MB memory' })] },
+      { t: 'RENDERER', rows: [R('Renderer', 'How the picture is drawn on your graphics card.', 'seg', { opts: ['OpenGL', 'Vulkan'], value: 'OpenGL', disabled: 'Vulkan: melonDS DS offers OpenGL only', reset: 'none' })] }];
+    const sysDiff = [
+      { t: 'Nintendo 3DS · Azahar', d: 'Run-ahead not possible, Vulkan offered, rewind costs more memory.', rows: [R('Run-ahead', 'Hides input delay by running a few frames ahead.', 'seg', { opts: ['Off', '1 frame', '2 frames'], value: 'Off', disabled: 'Azahar cannot run ahead: 3DS games are too heavy to run twice', reset: 'none' }), R('Rewind length', 'How far back you can go.', 'seg', { opts: ['10 s', '30 s', '60 s'], value: '10 s', meta: 'about 1.1 GB memory', badge: 'high memory' }), R('Renderer', 'Vulkan is faster on most graphics cards. Applies on next start.', 'seg', { opts: ['OpenGL', 'Vulkan'], value: 'Vulkan', changed: true, badge: 'applies on next start' })] },
+      { t: 'Game Boy / Game Boy Color / Game Boy Advance · mGBA', d: 'One screen: no layout row. Renderer row is hidden (mGBA draws in software).', rows: [R('Integer scaling', 'Scales by whole numbers only.', 'toggle', { on: true }), R('Aspect ratio', 'Core: 10:9 for Game Boy, 3:2 for Game Boy Advance.', 'seg', { opts: ['Core', '4:3', 'Stretch'], value: 'Core' }), R('Run-ahead', 'Hides input delay.', 'seg', { opts: ['Off', '1 frame', '2 frames'], value: '2 frames', meta: 'CPU +20 %' })] }];
+    const pgTabs = [['Display', '2'], ['Controls', '1'], ['Screen layout', '']].map(([l, b], i) => ({ l, b, hasB: !!b, u: i === 0 ? '#3cbfd8' : 'transparent', fg: i === 0 ? '#ececea' : '#9a9a9f', w: i === 0 ? 600 : 400 }));
+    const pgRows = [
+      R('Integer scaling', 'Uses default (On).', 'toggle', { on: true }),
+      R('Aspect ratio', 'Changed for this game · default Core.', 'seg', { opts: ['Core', '4:3', 'Stretch'], value: 'Stretch', changed: true }),
+      R('Run-ahead', 'Changed for this game · default 2 frames.', 'seg', { opts: ['Off', '1 frame', '2 frames'], value: 'Off', changed: true }),
+      R('Rewind', 'Uses default (On, 30 s).', 'toggle', { on: true }),
+      R('Controller profile', 'Uses default (Xbox pad · Standard). Set on the Controls tab.', 'value', { value: 'Default' }),
+      R('Speed-up speed', 'Uses default (4×).', 'seg', { opts: ['2×', '4×', '8×'], value: '4×' })].map(row => ({ row }));
+    const chip = (l, on) => ({ l, bg: on ? '#ececea' : 'transparent', fg: on ? '#121315' : '#c9c8c4', bd: on ? '#ececea' : '#34353a' });
+    const T = (t, sys, m, pt, fav, o = {}) => ({ t, sys, m, pt, star: fav ? '★' : '☆', starC: fav ? '#e5b45a' : '#7d7d83', starBg: o.focus ? '#2c2d32' : 'transparent', starTip: fav ? 'Remove from favourites · F' : 'Add to favourites · F', bd: o.sel ? '2px solid #3cbfd8' : '1px solid #24252a' });
+    const tiles = [T('Lumen Drift', 'GBA', 'LD', '12 h 40 min · 2 h ago', true, { sel: true }), T('Harbor Rally', 'DS', 'HR', '31 h · yesterday', true), T('Clocktower Kids', 'DS', 'CK', '4 h 05 min · 16 Oct', false, { focus: true }), T('Coral Saga: Ember', '3DS', 'CS', '58 h · 12 Oct', true), T('Paper Wizards', 'GBC', 'PW', '45 min · 3 Oct', false), T('Stylus Knights', 'DS', 'SK', 'Never played', false)];
+    const recent = [{ t: 'Harbor Rally', m: 'HR', s: 'yesterday' }, { t: 'Clocktower Kids', m: 'CK', s: '16 Oct' }];
+    const libs = [
+      { id: '3c-8', cap: 'Library · Continue strip, favourites, collections, recently played, play time · 1440 × 900', w: '1440px', h: '900px', on: 'full', cont: true, recentN: 2, recent, contRing: 'none', chips: [chip('All · 10', false), chip('★ Favourites · 3', false), chip('Couch co-op · 4', false), chip('Nuzlocke · 2', false), chip('+ Collection', false)], sort: 'Recently played', grid: true, empty: false, cols: 3, tiles, pop: false, addFg: '#9a9a9f', addRing: 'none' },
+      { id: '3c-8-2', cap: 'Library at 1280 × 800 · gamepad focus on Continue · “+ Collection” popover open in the detail', w: '1280px', h: '800px', on: 'compact', cont: true, recentN: 1, recent: recent.slice(0, 1), contRing: '0 0 0 2px #121315,0 0 0 4px #3cbfd8', chips: [chip('All · 10', true), chip('★ 3', false), chip('Couch co-op', false), chip('+', false)], sort: 'Recent', grid: true, empty: false, cols: 2, tiles: tiles.slice(0, 4), pop: true, addFg: '#3cbfd8', addRing: '0 0 0 1px #3cbfd8' },
+      { id: '3c-8-4', cap: 'Library · Favourites chip with no favourites', w: '1440px', h: '700px', on: 'full', cont: false, recentN: 0, recent: [], contRing: 'none', chips: [chip('All · 10', false), chip('★ Favourites · 0', true), chip('Couch co-op · 4', false), chip('+ Collection', false)], sort: 'Recently played', grid: false, empty: true, cols: 3, tiles: [], pop: false, addFg: '#9a9a9f', addRing: 'none' }];
+    const colls = [{ l: 'Couch co-op', n: '4', ck: '✓', fill: '#3cbfd8', line: '#3cbfd8', bg: '#2c2d32' }, { l: 'Nuzlocke', n: '2', ck: '', fill: 'transparent', line: '#5e5e63', bg: 'transparent' }, { l: 'Short sessions', n: '0', ck: '', fill: 'transparent', line: '#5e5e63', bg: 'transparent' }];
+    const ldFacts = [['Play time', '12 h 40 min · last played 2 h ago'], ['Sessions', '23 · since 3 Sep'], ['Save', 'Main · v14 · synced'], ['States', '3 of 4 slots']].map(([k, v]) => ({ k, v }));
+    const shots4 = ['today 18:12', 'today 17:50', 'yesterday', '16 Oct'];
+    const A = (l, p) => ({ l, line: p ? '#3cbfd8' : '#34353a', bg: p ? '#3cbfd8' : 'transparent', fg: p ? '#0d1214' : '#ecebe7', w: p ? 600 : 400 });
+    const libStates = [
+      { k: 'Empty collection', chips: [chip('All · 10', false), chip('Short sessions · 0', true)], t: 'Short sessions is empty', d: 'Add games from the detail with “+ Collection”, or drag tiles onto the chip.', acts: [A('Rename'), A('Delete collection…')], line: '1.5px dashed #2a2b30', bg: 'transparent', al: 'center', ta: 'center' },
+      { k: 'First start · nothing played yet', chips: [chip('All · 10', true), chip('+ Collection', false)], t: 'No Continue strip until you have played once', d: 'Sort falls back to Name; “Recently played” is offered but shows “Never played” games last.', acts: [], line: '1px solid #24252a', bg: '#17181b', al: 'flex-start', ta: 'left' },
+      { k: 'Continue · save not on this device yet', chips: [chip('All · 10', true)], t: 'Continue · Lumen Drift · Main v14 · from Laptop-Office 2 h ago', d: 'Downloads the save from Home Hub first (“Getting save…”), then starts. Never starts an older local save without asking.', acts: [A('Continue', true)], line: '1px solid #2a2b30', bg: '#1b1c1f', al: 'flex-start', ta: 'left' },
+      { k: 'Collection chip ⋯ (right-click or menu key)', chips: [chip('Couch co-op · 4', true)], t: 'Rename · Delete collection…', d: 'Deleting a collection never deletes games. Collections are per user and sync through Home Hub.', acts: [A('Rename'), A('Delete collection…')], line: '1px solid #24252a', bg: '#17181b', al: 'flex-start', ta: 'left' }];
+    const L = (l, sel, a, b) => ({ l, ck: sel ? '✓' : '', bg: sel ? '#2c2d32' : 'transparent', ring: 'none', dir: a, aw: b[0], ah: b[1], bw: b[2], bh: b[3], bd: b[4] ? 'block' : 'none' });
+    const layouts = [L('Stacked', false, 'column', ['10px', '6px', '10px', '6px', 1]), L('Side by side', true, 'row', ['7px', '9px', '7px', '9px', 1]), L('Large top, small bottom', false, 'row', ['12px', '9px', '5px', '4px', 1]), L('Top screen only', false, 'row', ['14px', '10px', '0', '0', 0]), L('Bottom screen only', false, 'row', ['14px', '10px', '0', '0', 0])];
+    const winRules = [
+      { t: 'Bring it back', d: '“Bring back” in the header pill, closing the second window, F7, or choosing any layout puts the bottom screen back into the main window.' },
+      { t: 'Monitor unplugged', d: 'The window returns to the main window by itself with the OSD “Bottom screen is back in the main window”.' },
+      { t: 'Remembered', d: 'Position and size of the second window are kept per game. Touch input works in the second window with mouse or touch screen.' }];
+    const hubChips = [['All · 10', 1], ['★ Favourites · 3'], ['Couch co-op · 4'], ['Nuzlocke · 2'], ['+ Collection']].map(([l, on]) => ({ l, bg: on ? '#1d1d1b' : '#fff', fg: on ? '#fff' : '#1d1d1b', bd: on ? '#1d1d1b' : '#d9d7d0' }));
+    const G = (t, s, cols, pt, lp, fav) => ({ t, s, cols, pt, lp, star: fav ? '★' : '☆', sc: fav ? '#c08a1e' : '#b9b7b0', starTip: fav ? 'Remove from favourites' : 'Add to favourites' });
+    const hubGames = [G('Lumen Drift', 'Game Boy Advance', ['Couch co-op'], '12 h 40 min', '2 h ago', 1), G('Harbor Rally', 'Nintendo DS', ['Couch co-op', 'Nuzlocke'], '31 h', 'yesterday 21:40', 1), G('Clocktower Kids', 'Nintendo DS', [], '4 h 05 min', '16 Oct', 0), G('Coral Saga: Ember', 'Nintendo 3DS', ['Nuzlocke'], '58 h', '12 Oct', 1), G('Paper Wizards', 'Game Boy Color', [], '45 min', '3 Oct', 0), G('Orbit Gardens', 'Game Boy', ['Couch co-op'], '2 h 10 min', '28 Sep', 0), G('Stylus Knights', 'Nintendo DS', [], '—', 'never', 0)];
+    const shotFilters = [{ k: 'Game', v: 'All games', bd: '#d9d7d0' }, { k: 'Run', v: 'Harbor Nuzlocke', bd: '#1a7f96' }, { k: 'User', v: 'Everyone', bd: '#d9d7d0' }];
+    const col = { Max: '#2f5fd0', Lena: '#b8327a', Jonas: '#4d7a14', Sam: '#6a4fc4' };
+    const shots = [['Lena', 'today 14:03', 1, 1], ['Max', 'today 13:58', 1], ['Lena', 'today 13:40', 1], ['Jonas', 'yesterday', 1], ['Max', 'yesterday', 1], ['Sam', '18 Oct', 1], ['Lena', '18 Oct', 1], ['Max', '16 Oct', 1]].map(([u, d, run, sel]) => ({ u, d, run: !!run, c: col[u], ring: sel ? '0 0 0 3px #1a7f96' : 'none' }));
+    const statCards = [{ k: 'TOTAL', v: '96 h 30 min', d: 'since 3 Sep' }, { k: 'LAST PLAYED', v: 'now', d: 'Harbor Rally on Lena-PC' }, { k: 'SESSIONS', v: '64', d: '41 shared with others' }, { k: 'RUNS', v: '2', d: '1 active · Harbor Nuzlocke' }];
+    const statGames = [['Coral Saga: Ember', 'Nintendo 3DS', '58 h', '30', '12 Oct'], ['Harbor Rally', 'Nintendo DS', '31 h', '24', 'now'], ['Stylus Knights', 'Nintendo DS', '5 h 20 min', '7', '9 Oct'], ['Paper Wizards', 'Game Boy Color', '2 h 10 min', '3', '1 Oct']].map(([t, s, p, n, l]) => ({ t, s, p, n, l }));
+    const ptCards = [
+      { k: 'PLAYED', rows: [['Play time', '12 h 40 min'], ['Last played', '2 h ago'], ['Sessions', '23 · since 3 Sep']].map(([k, v]) => ({ k, v })) },
+      { k: 'NEVER PLAYED', rows: [['Play time', '—'], ['Last played', 'never'], ['Added', '14 Oct']].map(([k, v]) => ({ k, v })) },
+      { k: 'IN A RUN · HARBOR NUZLOCKE', rows: [['In this run', '9 h 15 min'], ['Total', '31 h'], ['Run started', '2 Oct']].map(([k, v]) => ({ k, v })) }];
+    const HH = l => ({ head: true, item: false, l });
+    const HI = (l, act) => ({ head: false, item: true, l, bg: act ? '#fff' : 'transparent', bd: act ? '#e2e0da' : 'transparent' });
+    const setNavS = [HH('HUB'), HI('General'), HI('Network & TURN'), HI('Security'), HI('Updates'), HH('DATA'), HI('Backups'), HI('Storage', true), HI('Saves retention'), HH('INTEGRATIONS'), HI('Metrics'), HI('Setup assistant')];
+    const usage = [['ROMs', '312 GB', '#1a7f96', 312], ['Saves and snapshots', '18.4 GB', '#2f5fd0', 18.4], ['Save states', '9.2 GB', '#6a4fc4', 9.2], ['Backups (in data folder)', '0 GB', '#8a5a00', 0], ['Cores', '1.1 GB', '#4d7a14', 1.1], ['Screenshots', '0.6 GB', '#b8327a', 0.6], ['Plugins', '0.1 GB', '#55544f', 0.1], ['Upload temp', '7.5 GB', '#8d8b85', 7.5]].map(([l, v, c, g]) => ({ l, v, c, w: (g ? Math.max(g / 10, 0.4) : 0) + '%' }));
+    const cleanup = [
+      { t: 'Delete 14 snapshots older than 90 days', d: '6 games, 3 users · current saves and run snapshots are kept', z: '2.1 GB', b: 'Delete…' },
+      { t: 'Clear upload temp', d: '3 unfinished uploads from 2 Oct and earlier', z: '7.5 GB', b: 'Clear…' },
+      { t: 'Remove 2 cores no system uses', d: 'Old mGBA 0.10.2 and melonDS DS 1.2 builds', z: '0.04 GB', b: 'Remove…' }];
+    const largest = [['Coral Saga: Ember', 'Nintendo 3DS', '1.8 GB', '0.9 GB', '2.7 GB'], ['Clocktower Kids', 'Nintendo DS', '128 MB', '0.4 GB', '0.5 GB'], ['Harbor Rally', 'Nintendo DS', '64 MB', '0.3 GB', '0.4 GB'], ['Lumen Drift', 'Game Boy Advance', '16 MB', '0.1 GB', '0.1 GB']].map(([t, s, r, v, z]) => ({ t, s, r, v, z }));
+    return { volStates, soundRows, esys, eTabs, dispSec, sysDiff, pgTabs, pgRows, libs, colls, ldFacts, shots4, libStates, layouts, winRules, hubChips, hubGames, shotFilters, shots, statCards, statGames, ptCards, setNavS, usage, cleanup, largest };
+  }
+}
+</script>
+</body>
+</html>
