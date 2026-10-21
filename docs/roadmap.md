@@ -1,13 +1,14 @@
 # Roadmap after the PoC
 
-The PoC (phases 0-5) is complete. From here on, work is planned as versions 0.1.1 to 0.15 and then 1.0, each cut into one work package per thread/PR (see `docs/workflow.md`). The order was decided by Fabio on 2026-10-06; on 2026-10-07 he moved Sessions over the internet ahead of the UI passes (renumbered 0.4 to 0.6). On 2026-10-07 Fabio also moved OpenGL hardware rendering for the Player (all emulators/cores, not only 3DS) ahead of the UI passes as the new 0.5; the UI passes, 3DS and everything after shifted by one. ADRs written before 2026-10-07 use the old numbering: old 0.5/0.6/0.7/0.8/0.9/0.10 = new 0.6/0.7/0.8/0.9/0.10/0.11. On 2026-10-09 Fabio reordered the planned milestones again: cores come from the libretro buildbot first ([ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md), new 0.8) and one installer for Player, Hub or both follows (new 0.9, which absorbs the Hub-for-Windows milestone). Old (2026-10-07) 0.8 3DS / 0.9 Metadata and artwork / 0.10 Hub for Windows / 0.11 Linux and macOS Player = new 0.10 / 0.11 / 0.9 / 0.12. On 2026-10-11 Fabio added plugins as 0.11; Metadata and Linux/macOS moved to 0.12/0.13. ADRs and docs written before 2026-10-09 may still use the older numbers for these milestones (the "new" numbers above are those of 2026-10-09). On 2026-10-11 Fabio renumbered again and fixed a goal for 1.0 (see "Goal 1.0"): 0.10.x (connections, small items) comes before new testers; 0.11 is the plugin runtime only, 0.12 Local ROMs, 0.13 GPU paths, 0.14 system template with GB/GBC/GBA, 0.15 UI gaps and Multiview, then the 1.0 test phase. Metadata and artwork and the Linux Player come after 1.0; macOS is dropped (Windows and Linux only). The sentence before about Metadata and Linux/macOS as 0.12/0.13 is therefore obsolete. On 2026-10-12 Fabio reordered 0.13 to 0.15: 0.13 system template with GB/GBC/GBA, 0.14 UI gaps and Multiview, 0.15 GPU paths (2026-10-11 numbers 0.13/0.14/0.15 = now 0.15/0.13/0.14); 0.12 Local ROMs stays. Items marked open are not decided yet; decisions are recorded as ADRs in `docs/adr/`.
+The PoC (phases 0-5) is complete. From here on, work is planned as versions 0.1.1 to 0.22 and then 1.0, each cut into one work package per thread/PR (see `docs/workflow.md`). The order was decided by Fabio on 2026-10-06; on 2026-10-07 he moved Sessions over the internet ahead of the UI passes (renumbered 0.4 to 0.6). On 2026-10-07 Fabio also moved OpenGL hardware rendering for the Player (all emulators/cores, not only 3DS) ahead of the UI passes as the new 0.5; the UI passes, 3DS and everything after shifted by one. ADRs written before 2026-10-07 use the old numbering: old 0.5/0.6/0.7/0.8/0.9/0.10 = new 0.6/0.7/0.8/0.9/0.10/0.11. On 2026-10-09 Fabio reordered the planned milestones again: cores come from the libretro buildbot first ([ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md), new 0.8) and one installer for Player, Hub or both follows (new 0.9, which absorbs the Hub-for-Windows milestone). Old (2026-10-07) 0.8 3DS / 0.9 Metadata and artwork / 0.10 Hub for Windows / 0.11 Linux and macOS Player = new 0.10 / 0.11 / 0.9 / 0.12. On 2026-10-11 Fabio added plugins as 0.11; Metadata and Linux/macOS moved to 0.12/0.13. ADRs and docs written before 2026-10-09 may still use the older numbers for these milestones (the "new" numbers above are those of 2026-10-09). On 2026-10-11 Fabio renumbered again and fixed a goal for 1.0 (see "Goal 1.0"): 0.10.x (connections, small items) comes before new testers; 0.11 is the plugin runtime only, 0.12 Local ROMs, 0.13 GPU paths, 0.14 system template with GB/GBC/GBA, 0.15 UI gaps and Multiview, then the 1.0 test phase. Metadata and artwork and the Linux Player come after 1.0; macOS is dropped (Windows and Linux only). The sentence before about Metadata and Linux/macOS as 0.12/0.13 is therefore obsolete. On 2026-10-12 Fabio reordered 0.13 to 0.15: 0.13 system template with GB/GBC/GBA, 0.14 UI gaps and Multiview, 0.15 GPU paths (2026-10-11 numbers 0.13/0.14/0.15 = now 0.15/0.13/0.14); 0.12 Local ROMs stays. On 2026-10-21 Fabio added milestones 0.16 to 0.22 from the feature brainstorming, all before 1.0. Items marked open are not decided yet; decisions are recorded as ADRs in `docs/adr/`.
 
 ## Goal 1.0
 
 Decided by Fabio on 2026-10-11: 1.0 is reached when a group of friends completes a SoulLink run in Pokémon Omega Ruby/Alpha Sapphire (3DS) over FrameBeam. For that, NDS and 3DS run cleanly, and the foundations and templates for further systems are clean, so a new system costs minimal effort.
 
-- Platforms: Windows and Linux only. macOS is dropped for Player and Hub. The Linux Player, metadata and artwork come after 1.0.
+- Platforms: Windows and Linux only. macOS is dropped for Player and Hub (decided by Fabio on 2026-10-11): no Keychain or notarization work. The Linux Player now comes before 1.0 (0.22); metadata and artwork come after 1.0.
 - The plugins (`pokemon-core`, `soullink`) live in their own repositories and are independent of FrameBeam milestones; Fabio aims to have them ready for testing before 1.0. FrameBeam delivers the plugin runtime (0.11).
+- Decided by Fabio on 2026-10-21: milestones 0.16 to 0.22 (below) ship before 1.0. A test evening before 1.0 stays possible at any time; it is just no longer the 1.0 criterion for these features.
 - Test evening with friends: date open.
 
 ## PoC phases (history)
@@ -48,8 +49,15 @@ Phase plan: [workflow.md](workflow.md#phase-plan).
 | 0.13 | done in code (real cores mGBA and Gambatte and real games verified only locally) | System template, GB/GBC/GBA | Systems are data: one JSON on the Hub, one manifest on the Player, optional core profile; [guide](guides/adding-a-system.md), [ADR 0024](adr/0024-system-template-and-game-boy.md). GB, GBC and GBA (mGBA, Gambatte) as the proof. |
 | 0.14 | done in code (real GPUs, cores and networks verified only locally) | UI gaps and Multiview | Round 3 design gaps closed in the Hub web and the Player; Multiview shows 2-3 Sessions in a Row, Grid 2x2 only from 4; Esc always pauses, F11 toggles fullscreen; viewers see "Paused by <name>" ([ADR 0026](adr/0026-ui-gaps-and-multiview.md), [fb-diag `state`](../protocol/datachannel.md)). |
 | 0.15 | done in code (GPUs and drivers verified only locally) | GPU paths | OpenGL to D3D11 bridge, zero-copy game view on Windows without CPU readback, GPU-direct QSV and AMF; readback stays the fallback ([ADR 0027](adr/0027-gpu-paths.md)). |
+| 0.16 | in progress | Release workflow and changelogs | Every beta gets real release notes from PR changelog sections, the stable release summarizes all betas, and the Player can show "What's new". |
+| 0.17 | planned | Operations and safety | Hub backup and restore, update rollback, problem reports, connection assistant, Hub health, Docker image, plugin UI language. |
+| 0.18 | planned | Player comfort and library | Audio controls, scaling, screenshots, play time, favorites and collections, storage overview, per-game overrides, DS/3DS screen layouts. |
+| 0.19 | planned | Emulation | Save states, rewind, run-ahead, `memory.write` in the plugin API and automatic snapshots. |
+| 0.20 | planned | Together | Online status, notifications, ready check, chat, viewer role, audio mixer, voice chat, controller hand-over. |
+| 0.21 | planned | Plugins | Developer console, run recap, Discord Rich Presence, tracker plugins. |
+| 0.22 | planned | Platforms | Linux Player package, watching a Session in the browser, Vulkan, Hub setup assistant (may be split into 0.22 to 0.24). |
 | 1.0 | planned | Test phase | Test evening(s) with friends (date open), then the SoulLink run in Pokémon Omega Ruby/Alpha Sapphire. |
-| after 1.0 | planned | Metadata and artwork, Linux Player | Central game metadata and boxart; FrameBeam Player on Linux. No macOS. |
+| after 1.0 | planned | Metadata and artwork | Central game metadata and boxart. |
 
 ## 0.1.1 Finish the PoC
 
@@ -373,6 +381,83 @@ Decided by Fabio on 2026-10-11; moved from 0.13 to 0.15 on 2026-10-12. Testers h
 - [x] Done (0.15): GPU-direct QSV and AMF, see "0.7.x GPU-direct hardware encoding (NVENC first)". The readback path stays the fallback.
 - Decided in [ADR 0027](adr/0027-gpu-paths.md) (Proposed). Verifiable only on real GPUs (CI has none); the hardware checklist is in the ADR.
 
+## 0.16 Release workflow and changelogs
+
+Decided by Fabio on 2026-10-21. First in the series, because every later package profits from real release notes. Today `release.yml` gives every beta the same fixed text and `promote.yml` keeps it for the stable release; there is no `CHANGELOG.md`, and the Player only knows `notes_url` from the index. The plugin repositories use `--generate-notes` (PR titles). Changelog language is English (repository rule).
+
+- [ ] Changelog section per PR: PR template with `## Changelog` (categories Added / Changed / Fixed / Hub / Player, one user-language line per change, `none` for pure CI or docs PRs) and a CI check that requires it. No files in the repo, so no merge conflicts with auto-merge (S)
+- [ ] Beta notes: `release.yml` collects the changelog sections of all PRs since the previous tag (GitHub API, commit range), grouped by category with PR links and commit; falls back to the PR title when a section is missing (S-M)
+- [ ] Stable notes: `promote.yml` summarizes all betas since the last stable release ("Changes since X.Y.Z"), deduplicated, replacing the beta text; optional "Highlights" input when triggering (S)
+- [ ] `CHANGELOG.md` as archive: `promote.yml` opens a small docs PR with the stable section (auto-merge; `main` has a ruleset, so PR instead of push) (S)
+- [ ] "What's new" data: the update index gets an optional `notes` field (short text, signed with the index), the Player and Hub web can show it once after an update, else a link to `notes_url`. The Player screen waits for the Claude Design handoff; 0.16 builds the data for it (S-M)
+- [ ] Plugin repositories (`pokemon-core`, `soullink`, `template`): same PR template and notes from the sections instead of `--generate-notes` (S)
+
+## 0.17 Operations and safety
+
+Decided by Fabio on 2026-10-21. Useful before a test evening. UI parts (backup settings, problem reports, connection assistant, health page) get one Claude Design handoff.
+
+- [ ] Hub backup and restore: one archive (database snapshot, saves, plugins, settings; ROMs optional), schedule, target folder, retention, `framebeam-hub backup` / `restore`, Hub web Settings → Backup (M)
+- [ ] Update rollback: "Restore previous version" for Player and Hub from the index (last 5 releases), Hub with a database backup before the update (finishes ADR 0011 D8) (M)
+- [ ] "Report a problem": builds on "Collect logs", sends the bundle with a short description to the user's own Hub; admins see the list in the Hub web (S)
+- [ ] Connection assistant in the Player: Hub reachable, STUN, TURN, NAT type, test connection to the Hub, plain-language result and "Add to bundle" (S-M)
+- [ ] Hub health page: CPU, RAM, disk, active Sessions, TURN load, recent errors; optional `/metrics` (Prometheus) (S)
+- [ ] Docker image for the Hub (arm64 and amd64, volumes for data, docs, CI build) (S)
+- [ ] Plugin UI language (pulled forward from the plugins wave): `GameContext.language` from the Player language or the game language (S)
+
+## 0.18 Player comfort and library
+
+Decided by Fabio on 2026-10-21. One Claude Design handoff for the whole wave first.
+
+- [ ] Audio stage 1: master volume, mute, hotkeys, "mute in background" (S)
+- [ ] Integer scaling and aspect ratio options; "Continue playing" tile in the Library (S)
+- [ ] Screenshot hotkey with storage on the Hub (per game, optionally per run) and a gallery in the Hub web (S-M)
+- [ ] Play time per game, run and user (the Hub counts from Session and game start events); favorites, collections and recently played (per user on the Hub, filters in Player and Hub web) (M)
+- [ ] Storage overview in the Hub (ROMs, saves, snapshots, cores, backups, screenshots; clean-up suggestions) (S)
+- [ ] Per-game overrides for core options, layout and controller profile (builds on the Game override page of 0.10) (M)
+- [ ] NDS and 3DS screen layouts: hotkey switch, bottom screen in its own window or on a second monitor (M)
+
+## 0.19 Emulation
+
+Decided by Fabio on 2026-10-21. Spike first for save states. Dependency chain: save states -> rewind -> run-ahead (all use `retro_serialize`). One Claude Design handoff for the UI parts.
+
+- [ ] Spike: serialization in melonDS DS, DeSmuME, Azahar, mGBA and Gambatte (size, time, determinism), with a note, then cut the packages (S)
+- [ ] Save states: slots per game, stored on the Hub next to saves (own limit), hotkeys, preview image; run rule "states allowed" through `run_settings`, run log event on use (M-L)
+- [ ] Rewind: ring buffer, hold a hotkey, memory limit, can be blocked in runs by rule (M)
+- [ ] `memory.write` in the plugin API: consent per game, one write queue, snapshot before the first write, run log, run rule, as described in [12-plugins.md](architecture/12-plugins.md) (M)
+- [ ] Automatic snapshot: plugin API `fb.save.snapshot(reason)` (usable without `memory.write`); SoulLink triggers it before gym battles. Later the editor and cheats plugins build on `memory.write` (S)
+- [ ] Run-ahead: 1-2 frames, only for cores with fast serialization, off for 3DS (M)
+
+## 0.20 Together
+
+Decided by Fabio on 2026-10-21. One Claude Design handoff for the wave. Dependency chains: online status -> notifications -> ready check (same presence over WSS); chat -> audio mixer stage 2 -> voice chat; viewer role -> controller hand-over (and browser watching in 0.22). Spike first for voice chat (echo and noise without libwebrtc).
+
+- [ ] Online status: who is online and what they play, "Watch" and "Invite" from the list (S)
+- [ ] Notifications (Player toasts, Hub web): Session started, invite, run event; switchable per kind (S-M)
+- [ ] Ready check and shared pause for runs and Sessions (S-M)
+- [ ] Session and run chat with emotes and pings; history on the Hub for runs (M)
+- [ ] Viewer role cleanly separated; quality per viewer (selection and latency display) (M)
+- [ ] Audio mixer stage 2: channels game, tiles and plugin sounds; mixing in Multiview optional (M)
+- [ ] Voice chat: spike first, then microphone, push-to-talk, volume per person, ducking (L)
+- [ ] Controller hand-over: a viewer controls P2 or takes over P1, the host confirms (M-L)
+
+## 0.21 Plugins
+
+Decided by Fabio on 2026-10-21. One Claude Design handoff for the UI parts (console, recap page). The plugin UI language moved forward to 0.17.
+
+- [ ] Developer console: live log with filter, reload, memory viewer and search, inspect state (M)
+- [ ] Run recap: timeline from the run event log, Hub page per run, export as image or HTML (M, Hub and SoulLink)
+- [ ] Discord Rich Presence as a local Player option (S)
+- [ ] Tracker plugins (speedrun splits and autosplitter, randomizer tracker) in their own plugin repositories (M per plugin)
+
+## 0.22 Platforms
+
+Decided by Fabio on 2026-10-21. May be split into 0.22 to 0.24, one milestone per topic. Spikes first for Vulkan (which cores offer the libretro Vulkan path: melonDS DS, Azahar?) and browser watching (H.264 and Opus over WebRTC in the browser, signaling through the Hub web). Browser watching needs the viewer role from 0.20.
+
+- [ ] Hub setup assistant: systems, cores, folders, test the internet reachability (M)
+- [ ] Linux Player package (Flatpak or AppImage): Secret Service instead of in-memory credentials, updater and core distribution for Linux (buildbot platform mapping, [ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md)), check gamepads and audio, check the Steam Deck (L)
+- [ ] Watching a Session in the browser: the Hub web receives WebRTC from the host Session, Hub users only, viewer only, no emulator (L)
+- [ ] Vulkan next to OpenGL: libretro Vulkan hardware interface, display and encode path; spike first, switchable per core option in the Emulation settings (L)
+
 ## 1.0 Test phase
 
 - Open: test evening(s) with friends; date not set.
@@ -386,19 +471,12 @@ Decided by Fabio on 2026-10-11; moved from 0.13 to 0.15 on 2026-10-12. Testers h
 - Hub Metadata Service with provider abstraction, hash matching, overrides, artwork cache (`docs/architecture/11-metadata-future.md`).
 - Hub: Settings → Metadata, actions in the library entry. Player: boxart and basic data in Library and game view.
 
-### Linux Player
-
-- Secret Service instead of in-memory credentials, package (AppImage or .deb/Flatpak), check gamepads and audio.
-- Updater and core distribution for Linux (buildbot platform mapping, ADR 0020).
-- macOS is dropped (decided by Fabio on 2026-10-11): no Player, no Hub, no Keychain or notarization work.
-
 ## Later, only on demand
 
-- Save States, remote control/input for viewers, netplay, emulation settings sync, StandaloneBackend.
+- Netplay, emulation settings sync, StandaloneBackend. (Save states moved to 0.19, controller hand-over to 0.20.)
 - Further library features: paging (row actions delete and rename are done in 0.10.x).
 - Remaining Nintendo systems from NES to GameCube/Wii (Fabio, 2026-10-07), as plain buildbot cores after 0.10, rendered with OpenGL first: NES, SNES, N64, Virtual Boy (GB, GBC and GBA are scheduled in 0.13) and GameCube/Wii (Dolphin; the libretro port lags upstream). N64 and GameCube/Wii build on the hardware rendering from 0.5.
-- Plugin follow-ups (Fabio, 2026-10-11; plugin-specific plans live in the plugin repositories): more Pokémon generations for the official plugins, in the order Gen 7 (Sun/Moon, Ultra Sun/Ultra Moon), Gen 4/5 (NDS), Gen 3 and Gen 1/2 (the last two need the GB, GBC and GBA systems with mGBA from 0.13); a Pokémon editor plugin and a cheats plugin (both need `memory.write`, which the API describes but the first release does not build); a randomizer plugin (tool plugin, signed official only, deferred, not dropped; until then randomized ROMs are made externally). Gen 8 (Switch) is out of scope: no libretro core.
-- Afterwards Vulkan hardware rendering next to OpenGL (Fabio, 2026-10-07), so cores that offer both can be switched per core option in the Emulation settings.
+- Plugin follow-ups (Fabio, 2026-10-11; plugin-specific plans live in the plugin repositories): more Pokémon generations for the official plugins, in the order Gen 7 (Sun/Moon, Ultra Sun/Ultra Moon), Gen 4/5 (NDS), Gen 3 and Gen 1/2 (the last two need the GB, GBC and GBA systems with mGBA from 0.13); a Pokémon editor plugin and a cheats plugin (both need `memory.write`, which the API describes but the first release does not build; it is now planned in 0.19); a randomizer plugin (tool plugin, signed official only, deferred, not dropped; until then randomized ROMs are made externally). Gen 8 (Switch) is out of scope: no libretro core.
 - Wii U deferred (Fabio, 2026-10-07): Cemu has no libretro core and would need the StandaloneBackend.
 - To evaluate (Fabio, 2026-10-07): Cloudflare Tunnel in front of a self-hosted Hub, so no router port forwards are needed. The Hub itself stays self-hosted; running it on Workers/Pages would be a rewrite and is not planned.
   - Cloudflare TURN (Realtime) moved to 0.10.x (Connections) on 2026-10-11.
@@ -407,7 +485,7 @@ Decided by Fabio on 2026-10-11; moved from 0.13 to 0.15 on 2026-10-12. Testers h
 
 ## Out of scope
 
-Hosted emulation, friends list, public Session links, guest access, email/password recovery, own ACME client, simultaneous multi-Hub use, federation, cross-Hub Sessions, OAuth/central accounts, web client. They stay out until actively wanted.
+Hosted emulation, friends list, public Session links, guest access, email/password recovery, own ACME client, simultaneous multi-Hub use, federation, cross-Hub Sessions, OAuth/central accounts, web client. They stay out until actively wanted. Watching a Session in the browser (0.22, viewer only, no emulation) is not a web client.
 
 ## Open decisions
 
@@ -418,3 +496,4 @@ Hosted emulation, friends list, public Session links, guest access, email/passwo
 - **Core sourcing:** decided on 2026-10-09: libretro buildbot cores downloaded by the Hub, no FrameBeam mirror ([ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md), see 0.8). The 2026-10-07 mirror plan is dropped.
 - **1.0 goal, platforms and order:** decided by Fabio on 2026-10-11 (see "Goal 1.0"): SoulLink run in Pokémon Omega Ruby/Alpha Sapphire; Windows and Linux only, macOS dropped; Linux Player and metadata after 1.0; milestone order 0.10.x, 0.11 to 0.15, 1.0; on 2026-10-12 Fabio reordered 0.13 to 0.15 (system template, UI gaps and Multiview, GPU paths).
 - **Test evening:** date open.
+- **Release notes language:** decided on 2026-10-21: English.
