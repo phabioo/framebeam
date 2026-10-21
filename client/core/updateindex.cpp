@@ -23,6 +23,16 @@ bool validName(const QString& n) {
          n != QLatin1String(".") && n != QLatin1String("..") && !n.contains(QChar(0));
 }
 
+// Release notes limit: kMaxNotesBytes of UTF-8, no control characters except \n and \t (same rule as the Hub/signer).
+bool validNotes(const QString& n) {
+  if (n.toUtf8().size() > kMaxNotesBytes) return false;
+  for (const QChar c : n) {
+    const ushort u = c.unicode();
+    if (u != '\n' && u != '\t' && (u < 0x20 || (u >= 0x7f && u <= 0x9f))) return false;
+  }
+  return true;
+}
+
 // Reads an integer field strictly (a JSON number without fraction).
 bool readInt(const QJsonObject& o, const char* key, int* out) {
   const QJsonValue v = o.value(QLatin1String(key));
@@ -75,6 +85,9 @@ QString parseRelease(const QJsonObject& o, bool allowFile, Release* r) {
   }
   r->notesUrl = o.value(QLatin1String("notes_url")).toString();
   if (!r->notesUrl.isEmpty() && !validUrl(r->notesUrl, false)) return QStringLiteral("notes_url must be https");
+  // Notes are optional: an oversize or malformed value drops the field, never the release.
+  const QJsonValue notes = o.value(QLatin1String("notes"));
+  if (notes.isString() && validNotes(notes.toString())) r->notes = notes.toString();
   if (!readInt(o, "protocol_version", &r->protocolVersion) || !readInt(o, "min_protocol_version", &r->minProtocolVersion) ||
       r->protocolVersion < 1 || r->minProtocolVersion < 1 || r->minProtocolVersion > r->protocolVersion) {
     return QStringLiteral("protocol versions invalid");
@@ -109,9 +122,11 @@ QJsonObject Release::toJson() const {
     arts.append(QJsonObject{{"platform", a.platform}, {"kind", a.kind}, {"name", a.name},
                             {"size", static_cast<double>(a.size)}, {"sha256", a.sha256}, {"url", a.url}});
   }
-  return QJsonObject{{"product", product}, {"channel", channel}, {"version", version}, {"commit", commit},
-                     {"published_at", publishedAt}, {"notes_url", notesUrl}, {"protocol_version", protocolVersion},
-                     {"min_protocol_version", minProtocolVersion}, {"artifacts", arts}};
+  QJsonObject o{{"product", product}, {"channel", channel}, {"version", version}, {"commit", commit},
+                {"published_at", publishedAt}, {"notes_url", notesUrl}, {"protocol_version", protocolVersion},
+                {"min_protocol_version", minProtocolVersion}, {"artifacts", arts}};
+  if (!notes.isEmpty()) o.insert(QStringLiteral("notes"), notes);
+  return o;
 }
 
 QString checkIndexFresh(const Index& index, const QDateTime& now) {
@@ -204,6 +219,13 @@ QString Selection::statusName(Status s) {
     case Status::Incompatible: return QStringLiteral("incompatible");
   }
   return QStringLiteral("disabled");
+}
+
+QString releaseNotes(const Index& index, const QString& product, const QString& version) {
+  for (const Release& r : index.releases) {
+    if (r.product == product && r.version == version && !r.notes.isEmpty()) return r.notes;
+  }
+  return {};
 }
 
 Selection selectRelease(const Index& index, const SelectionInput& in) {

@@ -16,6 +16,11 @@ on:
         required: false
         default: ''
         type: string
+      highlights:
+        description: 'Optional free text placed at the top of the release notes (Markdown)'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
@@ -33,14 +38,18 @@ jobs:
     timeout-minutes: 60   # includes waiting for older index updates (wait-index-turn.sh, at most 40 minutes)
     environment: release
     permissions:
-      contents: write   # edit the release, upload the index
-      actions: read     # list the other index updates (scripts/wait-index-turn.sh)
+      contents: write        # edit the release, upload the index, push the changelog branch
+      pull-requests: write   # open the changelog PR and enable auto-merge
+      actions: write         # dispatch the required checks on the changelog branch (list: scripts/wait-index-turn.sh)
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       IN_VERSION: ${{ inputs.version }}
+      IN_HIGHLIGHTS: ${{ inputs.highlights }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # full history and tags for the release notes (scripts/changelog.py)
       - name: Wait for older index updates (queue)
         timeout-minutes: 45
         run: scripts/wait-index-turn.sh 40
@@ -67,17 +76,63 @@ jobs:
           sha="$(gh api "repos/$GH_REPO/commits/$tag" --jq .sha)"
           [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::cannot resolve the commit of $tag"; exit 1; }
           { echo "VERSION=$version"; echo "TAG=$tag"; echo "SHA=$sha"; } >> "$GITHUB_ENV"
-      - name: Prepare the stable index descriptions
+      - name: Collect the release notes (everything since the previous stable release)
         run: |
           set -euo pipefail
           dl="$RUNNER_TEMP/promote"
           mkdir -p "$dl"
+          # Previous stable = highest non-prerelease plain vX.Y.Z below this version (sort -V); the betas in between
+          # are summarised and deduplicated. None found: the notes are built from the whole history.
+          prev="$(gh release list --limit 200 --json tagName,isPrerelease \
+            --jq '.[] | select((.isPrerelease | not) and (.tagName | test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"))) | .tagName' \
+            | { grep -vx "$TAG" || true; } | { cat; echo "$TAG"; } | sort -V | { grep -x -B1 "$TAG" || true; } | head -n 1)"
+          [ "$prev" != "$TAG" ] || prev=""
+          date="$(date -u +%Y-%m-%d)"
+          collect() { # extra args... (format markdown|index)
+            if [ -n "$prev" ]; then
+              git rev-parse --verify -q "refs/tags/$prev" >/dev/null || git fetch --no-tags origin "refs/tags/$prev:refs/tags/$prev"
+              python3 -I scripts/changelog.py collect --repo "$GH_REPO" --base "$prev" --head "$TAG" "$@"
+            else
+              python3 -I scripts/changelog.py collect --repo "$GH_REPO" --base "$(git rev-list --max-parents=0 "$TAG" | tail -n 1)" --head "$TAG" "$@"
+            fi
+          }
+          since="the beginning"; [ -z "$prev" ] || since="${prev#v}"
+          compare=()
+          [ -z "$prev" ] || compare=(--compare-url)
+          highlights=""
+          if [ -n "${IN_HIGHLIGHTS//[[:space:]]/}" ]; then highlights="$IN_HIGHLIGHTS"; fi
+          {
+            echo "## FrameBeam $VERSION"
+            echo
+            [ -z "$highlights" ] || { printf '%s\n' "$highlights"; echo; }
+            echo "### Changes since $since"
+            echo
+            collect --format markdown --level 4 "${compare[@]}"
+          } > "$dl/notes.md"
+          # Section for CHANGELOG.md: same content, one heading level up.
+          {
+            echo "## $VERSION - $date"
+            echo
+            [ -z "$highlights" ] || { printf '%s\n' "$highlights"; echo; }
+            collect --format markdown --level 3 "${compare[@]}"
+          } > "$dl/changelog-section.md"
+          collect --format index --product hub > "$dl/notes-hub.txt"
+          collect --format index --product player > "$dl/notes-player.txt"
+          echo "PREV=$prev" >> "$GITHUB_ENV"
+          echo "RELEASE_DATE=$date" >> "$GITHUB_ENV"
+      - name: Prepare the stable index descriptions
+        run: |
+          set -euo pipefail
+          dl="$RUNNER_TEMP/promote"
           gh release download "$TAG" --pattern 'index-*.json' --dir "$dl"
           now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           for product in hub player; do
-            jq --arg now "$now" --arg v "$VERSION" --arg c "$SHA" --arg p "$product" '
+            # notes = the product-filtered text over the whole range since the previous stable release (the field of the
+            # beta description is replaced, or removed when there is nothing to say).
+            jq --arg now "$now" --arg v "$VERSION" --arg c "$SHA" --arg p "$product" --rawfile text "$dl/notes-$product.txt" '
               if .product != $p or .version != $v or .commit != $c then error("index-\($p).json does not describe \($p) \($v) at \($c)") else . end
-              | .channel = "stable" | .published_at = $now' "$dl/index-$product.json" > "$dl/$product.json"
+              | .channel = "stable" | .published_at = $now
+              | del(.notes) | if ($text | length) > 0 then . + {notes: $text} else . end' "$dl/index-$product.json" > "$dl/$product.json"
           done
           jq -c '{product, channel, version, artifacts: (.artifacts | length)}' "$dl/hub.json" "$dl/player.json"
       - uses: actions/setup-go@v7
@@ -98,8 +153,65 @@ jobs:
           FRAMEBEAM_SIGNING_KEY: ${{ secrets.FRAMEBEAM_SIGNING_KEY }}
         run: scripts/update-index.sh "$RUNNER_TEMP/bin/framebeam-sign" "$RUNNER_TEMP/promote/hub.json" "$RUNNER_TEMP/promote/player.json"
       - name: Publish the stable release
-        run: gh release edit "$TAG" --prerelease=false --latest --title "FrameBeam $VERSION"
+        run: gh release edit "$TAG" --prerelease=false --latest --title "FrameBeam $VERSION" --notes-file "$RUNNER_TEMP/promote/notes.md"
+      - name: Archive the notes in CHANGELOG.md (pull request, not fatal)
+        id: changelog
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          # main only accepts changes through PRs with the required checks. Failing here never undoes the promotion.
+          fail() { echo "::warning::changelog PR for $VERSION not created: $1"; echo "pr=" >> "$GITHUB_OUTPUT"; exit 0; }
+          branch="changelog/$TAG"
+          dl="$RUNNER_TEMP/promote"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --no-tags origin main || fail "cannot fetch main"
+          git checkout -q -B "$branch" origin/main || fail "cannot create the branch"
+          if grep -q "^## $VERSION - " CHANGELOG.md 2>/dev/null; then fail "CHANGELOG.md already has $VERSION"; fi
+          python3 -I - "$dl/changelog-section.md" <<'PY' || fail "cannot update CHANGELOG.md"
+          import os, sys
+          section = open(sys.argv[1], encoding="utf-8").read().rstrip("\n") + "\n"
+          header = ("# Changelog\n\nStable releases only, newest first. The workflow \"Promote to release\" writes each entry "
+                    "through a pull request; the notes of the betas in between are on the GitHub prereleases.\n")
+          old = open("CHANGELOG.md", encoding="utf-8").read() if os.path.exists("CHANGELOG.md") else header
+          i = old.find("\n## ")
+          head, rest = (old, "") if i < 0 else (old[:i + 1], old[i + 1:])
+          open("CHANGELOG.md", "w", encoding="utf-8").write(head.rstrip("\n") + "\n\n" + section + ("\n" + rest if rest else ""))
+          PY
+          git add CHANGELOG.md
+          git commit -q -m "docs: changelog for $VERSION" || fail "nothing to commit"
+          git push --force origin "$branch" || fail "cannot push $branch"
+          {
+            echo "## Summary"
+            echo
+            echo "Archives the release notes of $VERSION in CHANGELOG.md (written by the workflow \"Promote to release\")."
+            echo
+            echo "## Changelog"
+            echo
+            echo "none"
+            echo
+            echo "## How tested"
+            echo
+            echo "Generated by the workflow; CI and the Changelog check run on this branch."
+            echo
+            echo "## Checklist"
+            echo
+            echo "- [x] I have read [CLA.md](https://github.com/$GH_REPO/blob/main/CLA.md) and agree to its terms"
+            echo "- [x] No ROMs, BIOS, firmware or keys are added"
+          } > "$dl/pr-body.md"
+          url="$(gh pr create --base main --head "$branch" --title "docs: changelog for $VERSION" --body-file "$dl/pr-body.md")" \
+            || fail "cannot create the pull request"
+          num="${url##*/}"
+          echo "pr=$num" >> "$GITHUB_OUTPUT"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          gh pr merge "$num" --auto --merge || echo "::warning::auto-merge not enabled for #$num (enable it by hand)"
+          # Pushes and PRs made with GITHUB_TOKEN start no workflows: dispatch the required checks on the PR head.
+          gh workflow run ci.yml --ref "$branch" || echo "::warning::could not dispatch CI on $branch"
+          gh workflow run pr-changelog.yml --ref "$branch" -f "pr=$num" || echo "::warning::could not dispatch the Changelog check on $branch"
       - name: Summary
+        env:
+          CHANGELOG_PR: ${{ steps.changelog.outputs.pr }}
+          CHANGELOG_URL: ${{ steps.changelog.outputs.url }}
         run: |
           {
             echo "## Promoted $TAG to stable"
@@ -107,5 +219,11 @@ jobs:
             echo "- Commit: [\`${SHA:0:12}\`]($GITHUB_SERVER_URL/$GH_REPO/commit/$SHA) (same build as the beta, no rebuild)"
             echo "- Release: [$TAG]($GITHUB_SERVER_URL/$GH_REPO/releases/tag/$TAG)"
             echo "- Index: hub and player $VERSION added on channel stable (the beta entries stay until they age out)"
+            echo "- Release notes: everything since ${PREV:-the beginning} (all betas in between, deduplicated)"
+            if [ -n "${CHANGELOG_PR:-}" ]; then
+              echo "- Changelog PR: ${CHANGELOG_URL} (auto-merge on; CI and the Changelog check were dispatched on branch changelog/$TAG)"
+            else
+              echo "- Changelog PR: not created, see the warning of the step \"Archive the notes in CHANGELOG.md\" (add the section to CHANGELOG.md by hand)"
+            fi
             echo "- VERSION is the floor for the next beta and is not changed; the next push to main builds the next number."
           } >> "$GITHUB_STEP_SUMMARY"

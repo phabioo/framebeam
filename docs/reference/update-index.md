@@ -27,7 +27,7 @@ Schema 1:
 }
 ```
 
-- `product`: `hub` or `player`. `channel`: `stable` or `beta`. `notes_url` is optional.
+- `product`: `hub` or `player`. `channel`: `stable` or `beta`. `notes_url` is optional. `notes` is optional too: a short plain-text "What's new" (groups like `### Added`, bullets `- line`), at most 4000 bytes UTF-8, valid UTF-8, no control characters except newline and tab; signed with the index. `release-add` and the Hub reject an invalid value, the Player drops the field and keeps the release.
 - Platforms and kinds: hub `linux-amd64`, `linux-arm64` with `deb` and `binary`; hub `windows-amd64` with `msi` and `binary`; player `windows-x64` with `msi` and `zip`. Hub `msi` is applied by `msiexec` through the Windows updater service with `ALLUSERS=1`. Player `msi` is what the Player installs (launcher `--apply-msi-update`); the former `installer` kind (Inno shell) is no longer produced, and a Player ignores artifacts of unknown kinds ([ADR 0021](../adr/0021-one-windows-installer.md), [updates.md](../guides/updates.md)).
 - Artifact URLs must be https (`file://` only when the index itself was loaded from `file://`, for tests). Integrity comes from size and SHA-256 in the signed index.
 - Unknown fields are ignored, an unknown schema is an error, invalid releases are skipped and reported, a duplicate (product, channel, version) rejects the whole index.
